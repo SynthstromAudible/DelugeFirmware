@@ -60,13 +60,14 @@ if (UNIX AND NOT APPLE)
     set(RUST_WS ${CMAKE_CURRENT_LIST_DIR}/../crates)
     set(RUST_TARGET i686-unknown-linux-gnu)
     set(RUST_LIB ${RUST_WS}/target/${RUST_TARGET}/release/libdeluge_rust.a)
-    file(GLOB_RECURSE RUST_SOURCES
+    file(GLOB_RECURSE RUST_SOURCES CONFIGURE_DEPENDS
         ${RUST_WS}/deluge_alloc/src/*.rs ${RUST_WS}/deluge_resource/src/*.rs ${RUST_WS}/deluge_rust/src/*.rs)
     add_custom_command(
         OUTPUT ${RUST_LIB}
         COMMAND cargo build -p deluge_rust --release --target ${RUST_TARGET}
         WORKING_DIRECTORY ${RUST_WS}
         DEPENDS ${RUST_SOURCES}
+            ${RUST_WS}/Cargo.lock
             ${RUST_WS}/Cargo.toml ${RUST_WS}/deluge_alloc/Cargo.toml
             ${RUST_WS}/deluge_resource/Cargo.toml ${RUST_WS}/deluge_rust/Cargo.toml
         COMMENT "Building Rust deluge_rust staticlib (${RUST_TARGET})"

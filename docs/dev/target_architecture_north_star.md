@@ -70,25 +70,25 @@ third-party plugin except that it ships in-tree and defines the reference sound.
 
 ```
   ┌───────────────────────────────────────────────────────────────────────┐
-  │  APPLICATION COMPONENTS  (DelugeFirmware; C++ today, mixed future)      │
-  │                                                                         │
-  │   ┌──────────┐   ┌──────────┐   ┌─────────────────────────────────┐    │
-  │   │   UI      │   │ Sequencer │   │  Synth  (L3 CLAP, PINNED C++)   │    │
-  │   │ (cand.)   │   │ /engine   │   │   ├ L1 source engines           │    │
-  │   │           │   │ (cand.)   │   │   └ voice / patcher / DSP       │    │
-  │   └────┬─────┘   └────┬─────┘   └────────────────┬────────────────┘    │
-  │        │   stable interfaces (C ABI at lang seams)│                     │
-  │   ┌────┴──────────────┴───────────┐   ┌───────────┴───────────────┐    │
-  │   │  Project Model (POD, SDRAM)    │   │  Resource / asset manager  │    │
-  │   │  serialization swappable       │   │  (cache + leases + arena)  │    │
-  │   └────────────────┬───────────────┘   └────────────┬──────────────┘    │
-  └────────────────────┼─────────────────────────────────┼─────────────────┘
-                        │   libdeluge C ABI (the platform boundary)
-  ┌─────────────────────┴─────────────────────────────────┴─────────────────┐
-  │  PLATFORM  (deluge-sdk; Rust)                                            │
-  │   supervisor / app-loader · Embassy runtime · deluge_alloc arenas        │
-  │   deluge-bsp drivers · rza1l-hal (MMU, GIC, cache, SSI, SDHI, …)          │
-  └─────────────────────────────────────────────────────────────────────────┘
+  │  APPLICATION COMPONENTS  (DelugeFirmware; C++ today, mixed future)    │
+  │                                                                       │
+  │   ┌──────────┐   ┌──────────┐   ┌──────────────────────────────────┐  │
+  │   │   UI     │   │ Sequencer│   │  Synth  (L3 CLAP, PINNED C++)    │  │
+  │   │ (cand.)  │   │ /engine  │   │   ├ L1 source engines            │  │
+  │   │          │   │ (cand.)  │   │   └ voice / patcher / DSP        │  │
+  │   └────┬─────┘   └────┬─────┘   └─────────────────┬────────────────┘  │
+  │        │   stable interfaces (C ABI at lang seams)│                   │
+  │   ┌────┴──────────────┴───────────┐   ┌───────────┴───────────────┐   │
+  │   │  Project Model (POD, SDRAM)   │   │  Resource / asset manager │   │
+  │   │  serialization swappable      │   │  (cache + leases + arena) │   │
+  │   └────────────────┬──────────────┘   └────────────┬──────────────┘   │
+  └────────────────────┼───────────────────────────────┼──────────────────┘
+                       │   libdeluge C ABI (the platform boundary)
+  ┌────────────────────┴───────────────────────────────┴──────────────────┐
+  │  PLATFORM  (deluge-sdk; Rust)                                         │
+  │   supervisor / app-loader · Embassy runtime · deluge_alloc arenas     │
+  │   deluge-bsp drivers · rza1l-hal (MMU, GIC, cache, SSI, SDHI, …)      │
+  └───────────────────────────────────────────────────────────────────────┘
 ```
 
 Each box is a candidate fault domain / restart unit / language unit, *once* its interface
@@ -135,12 +135,12 @@ The integrating artifact — what blocks what. Read top-to-bottom as "must large
   Embassy        ├─► libdeluge C ABI boundary (allowlist → 0)
   allocator      ┘            │
                               ├─► project-model extraction ──┐
-                              │      (state off Song)         │
-                              ├─► resource-mgr + app arena ───┤
-                              │                               │
-                              ▼                               ▼
+                              │      (state off Song)        │
+                              ├─► resource-mgr + app arena ──┤
+                              │                              │
+                              ▼                              ▼
                     component interfaces stable        app = f(model, handles)
-                              │                               │
+                              │                              │
         ┌─────────────────────┼───────────────┐              │
         ▼                     ▼               ▼              ▼
    synth → L3 CLAP      engine extract    UI extract   supervisor + warm restart

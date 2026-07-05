@@ -2,7 +2,7 @@ name: Test Results
 
 on:
   workflow_run:
-    workflows: [Run tests]
+    workflows: [Run tests, Rust]
     types:
       - completed
 permissions: {}
@@ -32,6 +32,9 @@ jobs:
       - name: Publish Test Results
         uses: EnricoMi/publish-unit-test-result-action@v2
         with:
+          # Distinct check per source workflow so the Rust and C++ results don't
+          # collide on a single "Test Results" check.
+          check_name: ${{ github.event.workflow_run.name == 'Rust' && 'Rust Test Results' || 'Test Results' }}
           commit: ${{ github.event.workflow_run.head_sha }}
           event_file: artifacts/Event File/event.json
           event_name: ${{ github.event.workflow_run.event }}

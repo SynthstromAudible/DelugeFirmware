@@ -156,7 +156,7 @@ pub extern "C" fn disk_ioctl(pdrv: u8, cmd: u8, buff: *mut core::ffi::c_void) ->
     }
 }
 
-// NOTE (Phase 7 revert): SD I/O must use `block_on` (which parks the executor for
+// NOTE: SD I/O must use `block_on` (which parks the executor for
 // the transfer), NOT a fiber-yielding drive. FatFS is not re-entrant and the app's
 // SD-reentrancy guard (`currentlyAccessingCard`) is only set by the legacy C diskio
 // (src/RZA1/diskio.c), which this BSP does not link — so on this BSP it is always 0.

@@ -112,7 +112,9 @@ static int link_listen_tcp(uint16_t port) {
 	struct sockaddr_in addr;
 	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
-	addr.sin_addr.s_addr = htonl(INADDR_LOOPBACK); // loopback only — never exposed
+	// Loopback only — never exposed. inet_pton is POSIX, so unlike the INADDR_LOOPBACK macro
+	// (a BSD extension macOS hides under strict _POSIX_C_SOURCE) it needs no per-OS opt-in.
+	inet_pton(AF_INET, "127.0.0.1", &addr.sin_addr);
 	addr.sin_port = htons(port);
 	if (bind(fd, (struct sockaddr*)&addr, sizeof(addr)) < 0) {
 		perror("host_link: bind");

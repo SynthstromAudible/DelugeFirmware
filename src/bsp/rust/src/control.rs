@@ -95,7 +95,11 @@ pub async fn pic_pump() {
                 // High bit (0x80) = OLED present; low 7 bits = version (mirrors the
                 // rza1 BSP's control_surface.cpp decode). Mark "received" with 0x100.
                 BOOT_FW.store((v as u16) | BOOT_FW_RECEIVED, Ordering::Relaxed);
-                log::info!("deluge-rust: PIC firmware v{} (oled={})", v & 0x7f, (v & 0x80) != 0);
+                log::info!(
+                    "deluge-rust: PIC firmware v{} (oled={})",
+                    v & 0x7f,
+                    (v & 0x80) != 0
+                );
                 None
             }
             // pic::Event is #[non_exhaustive]; ignore any future variants.
@@ -299,7 +303,10 @@ pub extern "C" fn deluge_control_set_indicator(which: u8, levels: *const u8, cou
     let src = unsafe { core::slice::from_raw_parts(levels, n) };
     ring[..n].copy_from_slice(&src[..n]);
     // rza1 BSP maps `which != 0` to the knob select.
-    enqueue(PicOut::Indicator { knob: (which != 0) as u8, levels: ring });
+    enqueue(PicOut::Indicator {
+        knob: (which != 0) as u8,
+        levels: ring,
+    });
 }
 
 /// Surface refresh interval (board units).
@@ -362,7 +369,10 @@ pub async fn encoder_wake_pump() {
         // checking the deltas so an ISR landing in the gap can't be missed.
         core::future::poll_fn(|cx| {
             encoder::ENCODER_WAKER.register(cx.waker());
-            if encoder::ENCODER_DELTAS.iter().any(|d| d.load(Ordering::Relaxed) != 0) {
+            if encoder::ENCODER_DELTAS
+                .iter()
+                .any(|d| d.load(Ordering::Relaxed) != 0)
+            {
                 core::task::Poll::Ready(())
             } else {
                 core::task::Poll::Pending

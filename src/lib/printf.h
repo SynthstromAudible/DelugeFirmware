@@ -44,6 +44,16 @@
 #ifdef __cplusplus
 #include <cstdarg>
 #include <cstddef>
+#ifdef DELUGE_HOST
+// Host-sim only: libc++'s <locale> support calls std::vsnprintf. The SOFT aliasing further down
+// (#define vsnprintf vsnprintf_, etc.) would rewrite that qualified call to std::vsnprintf_ — which
+// does not exist — if <locale> is first parsed after this header. Pull it in now, before the alias
+// macros exist, so its include guard is set and any later STL include is a no-op. Must stay OUTSIDE
+// the extern "C" below (an STL header under C linkage is ill-formed). libstdc++ never routes through
+// that header, so this only matters for the libc++ (macOS) host; the DELUGE_HOST guard keeps the
+// firmware (newlib, no <locale>) and the C build of printf.c untouched.
+#include <locale>
+#endif
 extern "C" {
 #else
 #include <stdarg.h>

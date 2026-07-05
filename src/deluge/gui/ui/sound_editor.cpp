@@ -245,6 +245,9 @@ bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 			*cols = 0xFFFFFFFE;
 		}
 		break;
+	case UIType::PERFORMANCE:
+		doGreyout = false;
+		break;
 	default:
 		*cols = 0xFFFFFFFF;
 		break;
@@ -318,14 +321,14 @@ void SoundEditor::setLedStates() {
 	}
 }
 
-void SoundEditor::enterSubmenu(MenuItem* newItem) {
+void SoundEditor::enterSubmenu(MenuItem* newItem, MenuItem* navigatedBackwardFrom) {
 	// end current menu item session before beginning new menu item session
 	endScreen();
 
 	navigationDepth++;
 	menuItemNavigationRecord[navigationDepth] = newItem;
 	display->setNextTransitionDirection(1);
-	beginScreen();
+	beginScreen(navigatedBackwardFrom);
 }
 
 ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
@@ -344,8 +347,8 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	// Encoder button
 	if (b == SELECT_ENC) {
 		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING
-		    || currentUIMode == UI_MODE_NOTES_PRESSED
-		    || currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR) {
+		    || currentUIMode == UI_MODE_NOTES_PRESSED || currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    || currentUIMode == UI_MODE_STUTTERING) {
 			if (!on && !Buttons::selectButtonPressUsedUp) {
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -356,6 +359,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				if (newItem) {
 					if (newItem != NO_NAVIGATION) {
 						if (newItem->shouldEnterSubmenu()) {
+							MenuItem* navigatedBackwardFrom = nullptr;
 							MenuPermission result = newItem->checkPermissionToBeginSession(
 							    currentModControllable, currentSourceIndex, &currentMultiRange);
 
@@ -365,8 +369,15 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 									menu_item::multiRangeMenu.menuItemHeadingTo = newItem;
 									newItem = &menu_item::multiRangeMenu;
 								}
+								else {
+									HorizontalMenu* parent = maybeGetParentMenu(newItem);
+									if (parent != nullptr && parent->focusChild(newItem)) {
+										navigatedBackwardFrom = newItem;
+										newItem = parent;
+									}
+								}
 
-								enterSubmenu(newItem);
+								enterSubmenu(newItem, navigatedBackwardFrom);
 							}
 						}
 						else {
@@ -407,8 +418,8 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	// Back button
 	else if (b == BACK) {
 		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING
-		    || currentUIMode == UI_MODE_NOTES_PRESSED
-		    || currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR) {
+		    || currentUIMode == UI_MODE_NOTES_PRESSED || currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    || currentUIMode == UI_MODE_STUTTERING) {
 			if (on) {
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -702,6 +713,8 @@ ActionResult SoundEditor::exitCompletely() {
 	}
 	else if (inNoteEditor()) {
 		instrumentClipView.exitNoteEditor();
+		// refresh grid to potentially unhighlight edited notes
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	}
 	else if (inNoteRowEditor()) {
 		instrumentClipView.exitNoteRowEditor();
@@ -1013,7 +1026,7 @@ void SoundEditor::scrollFinished() {
 }
 
 const uint32_t selectEncoderUIModes[] = {UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR, UI_MODE_NOTES_PRESSED,
-                                         UI_MODE_AUDITIONING, 0};
+                                         UI_MODE_AUDITIONING, UI_MODE_STUTTERING, 0};
 
 void SoundEditor::selectEncoderAction(int8_t offset) {
 	int8_t scaledOffset = offset;
@@ -1439,6 +1452,11 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 		}
 	}
 
+	// Allow using performance view pads while in the sound editor menu
+	else if (rootUI == &performanceView) {
+		return performanceView.padAction(x, y, on);
+	}
+
 	// Otherwise...
 	if (currentUIMode == UI_MODE_NONE && on) {
 		if (getCurrentMenuItem() == &firmwareVersionMenu && y == 7) {
@@ -1463,12 +1481,6 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 				display->displayPopup(buffer);
 				return ActionResult::DEALT_WITH;
 			}
-		}
-
-		// used in performanceView to ignore pad presses when you just exited soundEditor
-		// with a padAction
-		if (rootUI == &performanceView) {
-			performanceView.justExitedSoundEditor = true;
 		}
 
 		exitCompletely();
@@ -1762,12 +1774,8 @@ doMIDIOrCV:
 	// And we also have to set currentModControllable before focusing on the child item in a horizontal menu
 	currentModControllable = newModControllable;
 
-	// If we're on OLED, a parent menu & horizontal menus are in play,
-	// then we swap the parent in place of the child.
-	HorizontalMenu* parent = maybeGetParentMenu(newItem);
-	if (parent != nullptr && parent->focusChild(newItem)) {
-		newItem = parent;
-	}
+	MenuItem* horizontal_menu_child = newItem;
+	HorizontalMenu* parent = maybeGetParentMenu(horizontal_menu_child);
 
 	::MultiRange* newRange = currentMultiRange;
 
@@ -1775,7 +1783,8 @@ doMIDIOrCV:
 		newRange = nullptr;
 	}
 
-	MenuPermission result = newItem->checkPermissionToBeginSession(newModControllable, sourceIndex, &newRange);
+	MenuPermission result =
+	    horizontal_menu_child->checkPermissionToBeginSession(newModControllable, sourceIndex, &newRange);
 
 	if (result == MenuPermission::NO) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
@@ -1786,8 +1795,11 @@ doMIDIOrCV:
 		D_PRINTLN("must select range");
 
 		newRange = nullptr;
-		multiRangeMenu.menuItemHeadingTo = newItem;
+		multiRangeMenu.menuItemHeadingTo = horizontal_menu_child;
 		newItem = &multiRangeMenu;
+	}
+	else if (parent != nullptr && parent->focusChild(horizontal_menu_child)) {
+		newItem = parent;
 	}
 
 	if (display->haveOLED()) {

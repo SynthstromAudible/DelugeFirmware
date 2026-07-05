@@ -161,7 +161,7 @@ uint32_t deluge_audio_output_latency_frames(void) {
 // When the GUI link is up we render in real time instead of capturing to WAV: one
 // block per call, paced against the monotonic clock so the cooperative scheduler
 // runs at 1× (on hardware the audio DMA paces the whole loop the same way). Audio
-// output itself is muted this milestone — we only render so the engine's audio
+// output itself is muted for now — we only render so the engine's audio
 // clock, sequencer, and UI advance at a faithful rate.
 
 static uint64_t now_ns(void) {

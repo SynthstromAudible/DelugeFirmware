@@ -1,0 +1,102 @@
+name: Rust
+
+# CI for the Deluge Rust core (crates/) and the Rust BSP (src/bsp/rust/).
+# fmt + clippy + nextest host tests on the `crates/` workspace, which builds on
+# stable host targets (i686/x86_64) without -Z build-std. Test results publish
+# through the shared test-results.yml pipeline (JUnit via nextest). The bare-metal
+# BSP clippy/build (armv7a-none-eabihf, needs build-std + the deluge-sdk setup) is
+# left as a TODO below; wire it in once the device build is reproducible in CI.
+
+on:
+  push:
+    branches:
+      - "main"
+  pull_request:
+    branches:
+      - "main"
+      - "release/**"
+  merge_group:
+  workflow_dispatch:
+
+jobs:
+  fmt:
+    name: rustfmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      # Toolchain (nightly + components) is pinned by each rust-toolchain.toml;
+      # rustup installs it on first cargo invocation. Ensure rustfmt is present.
+      - name: Install rustfmt
+        run: rustup component add rustfmt
+
+      - name: rustfmt (crates)
+        run: cargo fmt --manifest-path crates/Cargo.toml --all --check
+
+      - name: rustfmt (bsp)
+        run: cargo fmt --manifest-path src/bsp/rust/Cargo.toml --check
+
+  clippy:
+    name: clippy (crates)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install clippy
+        run: rustup component add clippy
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "crates"
+
+      - name: clippy (crates)
+        run: cargo clippy --manifest-path crates/Cargo.toml --all-targets -- -D warnings
+
+  test:
+    name: test (crates)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "crates"
+
+      # nextest emits JUnit (crates/.config/nextest.toml, profile `ci`) so the
+      # results feed the same publish pipeline as the C++ suites (test-results.yml).
+      - uses: taiki-e/install-action@nextest
+
+      - name: nextest (crates)
+        run: cargo nextest run --manifest-path crates/Cargo.toml --profile ci
+
+      - name: Upload Test Results
+        uses: actions/upload-artifact@v7
+        if: always()
+        with:
+          name: Test Results Rust
+          path: crates/target/nextest/ci/junit.xml
+
+  # The publish-unit-test-result pipeline (test-results.yml) associates results
+  # with the PR via the triggering event; upload it the same way tests.yml does.
+  event_file:
+    name: "Event File"
+    runs-on: ubuntu-latest
+    steps:
+      - name: Upload
+        uses: actions/upload-artifact@v7
+        with:
+          name: Event File
+          path: ${{ github.event_path }}
+
+  # TODO: BSP clippy/build for armv7a-none-eabihf. Needs nightly -Z build-std
+  # (rust-src is already pinned in src/bsp/rust/rust-toolchain.toml) and the
+  # deluge-sdk toolchain setup. Add once the device build runs cleanly in CI:
+  #
+  # bsp:
+  #   name: clippy (bsp)
+  #   runs-on: ubuntu-latest
+  #   steps:
+  #     - uses: actions/checkout@v7
+  #     - run: rustup component add clippy rust-src
+  #     - run: cargo clippy --manifest-path src/bsp/rust/Cargo.toml
+  #             --target armv7a-none-eabihf -Z build-std=core,alloc -- -D warnings

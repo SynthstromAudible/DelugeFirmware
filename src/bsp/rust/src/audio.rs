@@ -22,7 +22,11 @@ use crate::sys::{DelugeStatus, DelugeStatus_DELUGE_OK as DELUGE_OK, DelugeStereo
 unsafe extern "C" {
     /// The app renders `frames` stereo samples into `out`, reading `frames`
     /// aligned input samples from `in` (app.h). i32-native; no scaling here.
-    fn deluge_app_render(input: *const DelugeStereoSample, out: *mut DelugeStereoSample, frames: u32);
+    fn deluge_app_render(
+        input: *const DelugeStereoSample,
+        out: *mut DelugeStereoSample,
+        frames: u32,
+    );
 }
 
 /// TX ring length in stereo frames (must be a power of two for the masks).
@@ -239,14 +243,16 @@ pub extern "C" fn deluge_audio_frames_until_block_offset(
         if !elapsed_frames_out.is_null() {
             *elapsed_frames_out = (play_now.wrapping_sub(BLOCK_START_PLAY) & TX_MASK) as u32;
         }
-        (BLOCK_START_WRITE.wrapping_add(offset_frames as usize).wrapping_sub(play_now) & TX_MASK)
-            as u32
+        (BLOCK_START_WRITE
+            .wrapping_add(offset_frames as usize)
+            .wrapping_sub(play_now)
+            & TX_MASK) as u32
     }
 }
 
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_stamp_to_render_offset(stamp: u32) -> u32 {
     // `stamp` is a board capture tick → frame offset on the render timeline.
-    // M5 (MIDI/gate) refines this; the masked delta is the M3 placeholder.
+    // MIDI/gate timing will refine this; the masked delta is a placeholder.
     unsafe { ((stamp as usize).wrapping_sub(TX_WRITE) & TX_MASK) as u32 }
 }

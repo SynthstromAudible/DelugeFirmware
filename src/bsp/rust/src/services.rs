@@ -1,5 +1,5 @@
 //! Real implementations of the simplest libdeluge services (system.h, clock.h)
-//! over the deluge-sdk HAL/Embassy. These replace the M0 stubs in [`crate::ffi`]
+//! over the deluge-sdk HAL/Embassy. These replace the stubs in [`crate::ffi`]
 //! for the same symbols (the stubs were removed there to avoid duplicates).
 #![allow(non_snake_case)]
 
@@ -79,7 +79,7 @@ pub extern "C" fn deluge_log(text: *const core::ffi::c_char) {
 
 /// Busy-wait `us` microseconds via the OSTM-backed embassy-time driver. [task]
 ///
-/// NOTE (Phase 7 revert): kept as `block_for`, NOT a fiber-yield. A delay can be
+/// NOTE: kept as `block_for`, NOT a fiber-yield. A delay can be
 /// called mid-operation (incl. inside SD/FatFS sequences); yielding the fiber there
 /// would let other tasks re-enter non-reentrant state. See sd.rs.
 #[unsafe(no_mangle)]

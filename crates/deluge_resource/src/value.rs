@@ -81,7 +81,10 @@ mod tests {
         // it's evicted before a tiny dear one — even though its flat `cost` is higher.
         let big = evict_rank(0, COST_CPU_PERC, CLUSTER, 0); // dear recompute, but 32 KB
         let small = evict_rank(0, COST_OBJECT, 256, 0); // cheap-ish rescan, but a few hundred bytes
-        assert!(big < small, "big chunk frees more per rebuild-cost ⇒ evict it first");
+        assert!(
+            big < small,
+            "big chunk frees more per rebuild-cost ⇒ evict it first"
+        );
     }
 
     #[test]

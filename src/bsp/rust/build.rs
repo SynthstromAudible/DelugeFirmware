@@ -65,7 +65,11 @@ fn main() {
     let linker_src = manifest_dir.join("linker");
     fs::copy(linker_src.join(memory_src), out_dir.join("memory.x")).unwrap();
     // Supplementary fragment that places the app's SDRAM sections + symbols.
-    fs::copy(linker_src.join("sdram_sections.x"), out_dir.join("sdram_sections.x")).unwrap();
+    fs::copy(
+        linker_src.join("sdram_sections.x"),
+        out_dir.join("sdram_sections.x"),
+    )
+    .unwrap();
     println!("cargo:rustc-link-search={}", out_dir.display());
     println!("cargo:rustc-link-arg=-Wl,-T,{linker_script}");
     println!("cargo:rustc-link-arg=-Wl,-T,sdram_sections.x");
@@ -83,14 +87,14 @@ fn main() {
     // (`cmake --build build --target deluge_app fatfs NE10 …`). Parametrize the
     // build dir / config later; this is the two-step flow from the plan.
     // ---------------------------------------------------------------------
-    let build_dir =
-        env::var("DELUGE_BUILD_DIR").map(PathBuf::from).unwrap_or_else(|_| repo_root.join("build"));
+    let build_dir = env::var("DELUGE_BUILD_DIR")
+        .map(PathBuf::from)
+        .unwrap_or_else(|_| repo_root.join("build"));
     // Bring-up uses Debug: Release compiles the app with -flto=auto (GCC slim-LTO
     // objects whose symbols rust's lld can't read). Debug objects are plain ELF
     // (and carry debug_info). Switch to Release later via bfd ld if LTO is wanted.
     let cfg = env::var("DELUGE_BUILD_CONFIG").unwrap_or_else(|_| "Debug".into());
-    let ar = repo_root
-        .join("toolchain/v22/linux-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-ar");
+    let ar = repo_root.join("toolchain/v22/linux-x86_64/arm-none-eabi-gcc/bin/arm-none-eabi-ar");
 
     let app_objs_dir = build_dir.join(format!("src/deluge/CMakeFiles/deluge_app.dir/{cfg}"));
     if !app_objs_dir.is_dir() {

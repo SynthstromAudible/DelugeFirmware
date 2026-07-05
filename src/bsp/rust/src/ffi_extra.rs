@@ -1,7 +1,7 @@
-//! M0 stubs for app/BSP symbols that live OUTSIDE the libdeluge C-ABI headers:
+//! Stubs for app/BSP symbols that live OUTSIDE the libdeluge C-ABI headers:
 //! BSP globals/functions the app references directly (USB-host, card, trigger
 //! clock), the FatFS `disk_*` diskio glue, NE10 DSP entry points (see note), and
-//! a couple of C-runtime/linker shims. Replaced with real impls per milestone.
+//! a couple of C-runtime/linker shims. Replaced with real impls as they land.
 #![allow(non_upper_case_globals, unused_variables)]
 
 use core::sync::atomic::{AtomicUsize, Ordering};
@@ -69,7 +69,7 @@ pub extern "C" fn fault_handler_print_freeze_pointers(
 pub extern "C" fn _fini() {}
 
 // --- NE10 DSP entry points. TODO: the Debug libNE10.a doesn't compile the FFT/
-// FIR/IIR sources; investigate the NE10 CMake. Stubbed so M0 links; these must
+// FIR/IIR sources; investigate the NE10 CMake. Stubbed so the link succeeds; these must
 // become real before the FFT analysis path is exercised. ---
 macro_rules! ne10_stub {
     ($($name:ident),+ $(,)?) => { $(

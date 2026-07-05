@@ -42,6 +42,7 @@
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_instrument.h"
 #include <cstring>
+#include <optional>
 
 #include "gui/ui/keyboard/layout.h"
 #include "gui/ui/keyboard/layout/chord_keyboard.h"
@@ -204,50 +205,33 @@ void KeyboardScreen::updateActiveNotes() {
 	bool clipIsActiveOnInstrument = makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
 
 	// Map from the current index of a note to its index in the previous note state.
-	//
-	// -1 if the note was not present in the previous
-	std::array<size_t, kMaxNumActiveNotes> currentToLastIdx;
-	{
-		size_t currentIdx;
-		for (currentIdx = 0; currentIdx < currentNotesState.count; ++currentIdx) {
-			auto& currentNote = currentNotesState.notes[currentIdx];
-			size_t lastIdx;
+	// Empty if the note was not present in the previous state.
+	std::array<std::optional<size_t>, kMaxNumActiveNotes> currentToLastIdx;
+	for (size_t currentIdx = 0; currentIdx < currentNotesState.count; ++currentIdx) {
+		auto& currentNote = currentNotesState.notes[currentIdx];
 
-			// Minor optimization: if we know the note can't be enabled, immediately write -1 and go next
-			if (!lastNotesState.noteEnabled(currentNote.note)) {
-				currentToLastIdx[currentIdx] = -1;
-				continue;
-			}
-
-			static_assert(kMaxNumActiveNotes < 12, "N2 loop below, performance will suffer");
-			for (lastIdx = 0; lastIdx < lastNotesState.count; ++lastIdx) {
-				auto& lastNote = lastNotesState.notes[lastIdx];
-
-				if (lastNote.note == currentNote.note) {
-					currentToLastIdx[currentIdx] = lastIdx;
-					break;
-				}
-			}
-
-			if (lastIdx == lastNotesState.count) {
-				// Failed to find in previous notes
-				currentToLastIdx[currentIdx] = -1;
-			}
+		// Minor optimization: if we know the note can't be enabled, skip the search below.
+		if (!lastNotesState.noteEnabled(currentNote.note)) {
+			continue;
 		}
 
-		for (; currentIdx < currentToLastIdx.size(); ++currentIdx) {
-			currentToLastIdx[currentIdx] = -1;
+		static_assert(kMaxNumActiveNotes < 12, "N2 loop below, performance will suffer");
+		for (size_t lastIdx = 0; lastIdx < lastNotesState.count; ++lastIdx) {
+			if (lastNotesState.notes[lastIdx].note == currentNote.note) {
+				currentToLastIdx[currentIdx] = lastIdx;
+				break;
+			}
 		}
 	}
 
 	// Send note-offs for things we're going to retrigger
 	for (auto idx = 0; idx < currentNotesState.count; ++idx) {
-		if (currentToLastIdx[idx] < 0) {
+		if (!currentToLastIdx[idx]) {
 			// Note was not on in the last pass, can not require retriggering.
 			continue;
 		}
 		auto& currentNote = currentNotesState.notes[idx];
-		auto& oldNote = lastNotesState.notes[currentToLastIdx[idx]];
+		auto& oldNote = lastNotesState.notes[*currentToLastIdx[idx]];
 		if (oldNote.activationCount < currentNote.activationCount) {
 			// Retrigger required.
 			noteOff(*modelStack, *activeInstrument, clipIsActiveOnInstrument, currentNote.note);
@@ -259,7 +243,7 @@ void KeyboardScreen::updateActiveNotes() {
 		auto& newNoteState = currentNotesState.notes[idx];
 		auto newNote = newNoteState.note;
 
-		if (currentToLastIdx[idx] == -1) {
+		if (!currentToLastIdx[idx]) {
 			// This is a completely new note, handle stuff that we don't want to do for retriggers
 			//
 			// Flash Song button if another clip with the same instrument is currently playing
@@ -277,7 +261,7 @@ void KeyboardScreen::updateActiveNotes() {
 			}
 		}
 		else {
-			NoteState& oldNote = lastNotesState.notes[currentToLastIdx[idx]];
+			NoteState& oldNote = lastNotesState.notes[*currentToLastIdx[idx]];
 			if (oldNote.activationCount >= newNoteState.activationCount) {
 				continue;
 			}
@@ -302,7 +286,7 @@ void KeyboardScreen::updateActiveNotes() {
 		}
 
 		// Post sound logic for non-retrigger events
-		if (currentToLastIdx[idx] == -1) {
+		if (!currentToLastIdx[idx]) {
 			if (!currentNotesState.notes[idx].generatedNote) {
 				drawNoteCode(newNote);
 			}

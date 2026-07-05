@@ -62,7 +62,11 @@ pub async fn oled_render() {
 /// panel's page-major layout. Stores the frame and signals the render task;
 /// returns immediately (the transfer is async).
 #[unsafe(no_mangle)]
-pub extern "C" fn deluge_display_blit_oled(pixels: *const u8, width: u16, height: u16) -> DelugeStatus {
+pub extern "C" fn deluge_display_blit_oled(
+    pixels: *const u8,
+    width: u16,
+    height: u16,
+) -> DelugeStatus {
     let n = (width as usize * height as usize / 8).min(oled::FRAME_BYTES);
     // SAFETY: the app passes `n` valid framebuffer bytes; FRAME is only touched
     // here and in oled_render, which cannot run concurrently with this copy.

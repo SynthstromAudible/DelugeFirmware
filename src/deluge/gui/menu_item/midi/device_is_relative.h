@@ -21,7 +21,7 @@
 #include "io/midi/midi_device_manager.h"
 
 namespace deluge::gui::menu_item::midi {
-class IsRelative final : public Toggle {
+class DeviceIsRelative final : public Toggle {
 public:
 	using Toggle::Toggle;
 	void readCurrentValue() override { this->setValue(soundEditor.currentMIDICable->is_relative); }

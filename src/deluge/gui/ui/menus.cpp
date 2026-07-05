@@ -107,6 +107,8 @@
 #include "gui/menu_item/midi/mpe_to_mono.h"
 #include "gui/menu_item/midi/pgm.h"
 #include "gui/menu_item/midi/program.h"
+#include "gui/menu_item/midi/receive_clock.h"
+#include "gui/menu_item/midi/send_clock.h"
 #include "gui/menu_item/midi/sound/channel.h"
 #include "gui/menu_item/midi/sound/note_for_drum.h"
 #include "gui/menu_item/midi/sub.h"
@@ -1124,17 +1126,17 @@ Submenu midiCommandsMenu{
 // MIDI device submenu - for after we've selected which device we want it for
 
 midi::DefaultVelocityToLevel defaultVelocityToLevelMenu{STRING_FOR_VELOCITY};
-midi::SendClock sendClockMenu{STRING_FOR_CLOCK_OUT};
-midi::ReceiveClock receiveClockMenu{STRING_FOR_CLOCK_IN};
-midi::IsRelative is_relative_menu{STRING_FOR_IS_RELATIVE};
+midi::DeviceSendClock device_send_clock_menu{STRING_FOR_CLOCK_OUT};
+midi::DeviceReceiveClock device_receive_clock_menu{STRING_FOR_CLOCK_IN};
+midi::DeviceIsRelative device_is_relative_menu{STRING_FOR_IS_RELATIVE};
 midi::Device midiDeviceMenu{
     EMPTY_STRING,
     {
         &mpe::directionSelectorMenu,
         &defaultVelocityToLevelMenu,
-        &sendClockMenu,
-        &receiveClockMenu,
-        &is_relative_menu,
+        &device_send_clock_menu,
+        &device_receive_clock_menu,
+        &device_is_relative_menu,
     },
 };
 
@@ -1143,8 +1145,8 @@ ToggleBool midiInputDifferentiationMenu{STRING_FOR_DIFFERENTIATE_INPUTS, STRING_
                                         MIDIDeviceManager::differentiatingInputsByDevice};
 
 // MIDI clock menu
-ToggleBool midiClockOutStatusMenu{STRING_FOR_OUTPUT, STRING_FOR_MIDI_CLOCK_OUT, playbackHandler.midiOutClockEnabled};
-ToggleBool midiClockInStatusMenu{STRING_FOR_INPUT, STRING_FOR_MIDI_CLOCK_IN, playbackHandler.midiInClockEnabled};
+midi::SendClock send_clock_menu{STRING_FOR_OUTPUT, STRING_FOR_MIDI_CLOCK_OUT, playbackHandler.midiOutClockEnabled};
+midi::ReceiveClock receive_clock_menu{STRING_FOR_INPUT, STRING_FOR_MIDI_CLOCK_IN, playbackHandler.midiInClockEnabled};
 ToggleBool tempoMagnitudeMatchingMenu{STRING_FOR_TEMPO_MAGNITUDE_MATCHING, STRING_FOR_TEMPO_MAGNITUDE_MATCHING,
                                       playbackHandler.tempoMagnitudeMatchingEnabled};
 
@@ -1157,8 +1159,8 @@ Submenu midiClockMenu{
     STRING_FOR_CLOCK,
     STRING_FOR_MIDI_CLOCK,
     {
-        &midiClockInStatusMenu,
-        &midiClockOutStatusMenu,
+        &send_clock_menu,
+        &receive_clock_menu,
         &tempoMagnitudeMatchingMenu,
     },
 };

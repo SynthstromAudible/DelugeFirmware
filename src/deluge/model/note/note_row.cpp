@@ -275,8 +275,8 @@ void NoteRow::getRowSquareInfo(int32_t effectiveLength, SquareInfo rowSquareInfo
 		// Start by finding the last note to begin *before the right-edge* of the note row displayed
 		int32_t i = notes.firstAtOrAfter(lastNoteSquareEndPos) - 1;
 
-		// Get that last note
-		Note* note = &notes[i];
+		// Get that last note (nullptr if i == -1, i.e. all notes lie at/after the right edge)
+		Note* note = notes.tryGet(i);
 
 		// now we're going to iterate backwards from right edge
 		// in order to update all squares in the note row with the note info
@@ -307,8 +307,8 @@ void NoteRow::getSquareInfo(int32_t x, int32_t effectiveLength, SquareInfo& squa
 			// Start by finding the last note to begin *before the right-edge* of the square
 			int32_t i = notes.firstAtOrAfter(squareInfo.squareEndPos) - 1;
 
-			// Get that last note
-			Note* note = &notes[i];
+			// Get that last note (nullptr if i == -1, i.e. all notes lie at/after the square's right edge)
+			Note* note = notes.tryGet(i);
 
 			// Update square info with note info found
 			addNotesToSquareInfo(effectiveLength, squareInfo, i, &note);
@@ -357,9 +357,10 @@ void NoteRow::addNotesToSquareInfo(int32_t effectiveLength, SquareInfo& squareIn
 				gotFirstNoteParams = true;
 			}
 
-			// ok we've used this note, so let's move to next one
+			// ok we've used this note, so let's move to next one (nullptr once we pass the first note,
+			// noteIndex == -1, which drops us out of the loop and into the wrap-around branch below)
 			noteIndex--;
-			*note = &notes[noteIndex];
+			*note = notes.tryGet(noteIndex);
 		}
 	}
 	// Or if the note starts left of this square, or there's no note there which means we'll look at the final
@@ -2001,12 +2002,24 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 					}
 				}
 			}
-			if (drewNote && currentSong->isFillModeActive()) {
-				if (note->fill == FillMode::FILL) {
-					pixel = deluge::gui::colours::blue;
+			// if we're not dealing with a blurred note or a note tail
+			if (pixel != rowBlurColour && pixel != rowTailColour) {
+				// if fill mode is active, identify the notes that are fill or not-fill
+				if (drewNote && currentSong->isFillModeActive()) {
+					if (note->fill == FillMode::FILL) {
+						pixel = deluge::gui::colours::blue;
+					}
+					else if (note->fill == FillMode::NOT_FILL) {
+						pixel = deluge::gui::colours::red;
+					}
 				}
-				else if (note->fill == FillMode::NOT_FILL) {
-					pixel = deluge::gui::colours::red;
+				// if you're in the note editor, identify the notes that have non-default parameters
+				else if (drewNote && getCurrentUI() == &soundEditor && soundEditor.inNoteEditor()) {
+					// if note has non-default settings for probability, iterance or fill
+					if (note->getProbability() != kNumProbabilityValues || note->getIterance() != kDefaultIteranceValue
+					    || note->getFill() != FillMode::OFF) {
+						pixel = deluge::gui::colours::yellow;
+					}
 				}
 			}
 		}
@@ -3252,7 +3265,8 @@ Error NoteRow::readFromFile(Deserializer& reader, int32_t* minY, InstrumentClip*
 			// already had some loading done by the Drum
 			if (song_firmware_version < FirmwareVersion::official({1, 2, 0}) && parentClip->output) {
 
-				SoundDrum* actualDrum = (SoundDrum*)((Kit*)parentClip->output)->getDrumFromIndex((int32_t)drum);
+				SoundDrum* actualDrum =
+				    (SoundDrum*)((Kit*)parentClip->output)->getDrumFromIndex((int32_t)(uintptr_t)drum);
 
 				if (actualDrum) {
 					ParamManager* existingParamManager =

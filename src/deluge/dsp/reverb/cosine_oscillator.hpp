@@ -6,6 +6,7 @@
 #include "argon.hpp"
 #include <cmath>
 #include <initializer_list>
+#include <numbers> // std::numbers::pi_v (libc++ doesn't pull it in via <cmath> like libstdc++ does)
 
 class DualCosineOscillator {
 public:

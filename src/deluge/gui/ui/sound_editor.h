@@ -130,7 +130,7 @@ public:
 	ActionResult exitUI() override { return exitCompletely(); };
 	ActionResult exitCompletely();
 	void goUpOneLevel();
-	void enterSubmenu(MenuItem* newItem);
+	void enterSubmenu(MenuItem* newItem, MenuItem* navigatedBackwardFrom = nullptr);
 	bool pcReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t program) override;
 	bool noteOnReceivedForMidiLearn(MIDICable& cable, int32_t channel, int32_t note, int32_t velocity) override;
 	void markInstrumentAsEdited();

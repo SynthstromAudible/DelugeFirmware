@@ -20,8 +20,9 @@
 
 // The hand-written NEON FM kernel (neon_fm_kernel.s) is ARM-only; off-target fall back to the scalar
 // path below (it computes the same operator output). kHaveNeon gates the runtime `neon` flag so the
-// host never reaches the (absent) kernel.
-#ifdef __ARM_NEON
+// host never reaches the (absent) kernel. __ARM_NEON is also defined when the *host* CPU is ARM
+// (e.g. an Apple-Silicon sim build), so exclude DELUGE_HOST — the kernel only exists in firmware.
+#if defined(__ARM_NEON) && !defined(DELUGE_HOST)
 #define HAVE_NEON
 #endif
 

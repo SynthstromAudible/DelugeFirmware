@@ -503,7 +503,7 @@ Error AudioFileManager::setupAlternateAudioFilePath(std::string& newPath, int32_
 		if (!slashAddress) {
 			break;
 		}
-		int32_t slashPos = (uint32_t)slashAddress - (uint32_t)newPathChars;
+		int32_t slashPos = slashAddress - newPathChars;
 		newPath[slashPos] = '_';
 		pos = slashPos + 1;
 	}
@@ -916,7 +916,7 @@ bool AudioFileManager::loadCluster(Cluster& cluster, int32_t minNumReasonsAfter)
 	return ok;
 }
 
-// The cluster data reader extracted from loadCluster (Step 1 of the resource-manager
+// The cluster data reader extracted from loadCluster (for the resource-manager
 // integration): the pure data work — sector count, read from the card, conversion, and the
 // inter-cluster boundary fixups. No orchestration (the card-state guards, clusterBeingLoaded,
 // the loading "reason", and the loadingQueue stay in loadCluster). This is the seam the resource
@@ -949,8 +949,8 @@ getOutEarly:
 	}
 
 #if ALPHA_OR_BETA_VERSION
-	if ((uint32_t)cluster.data & 0b11) {
-		D_PRINTLN("SD read address misaligned by  %d", (int32_t)((uint32_t)cluster.data & 0b11));
+	if ((uintptr_t)cluster.data & 0b11) {
+		D_PRINTLN("SD read address misaligned by  %d", (int32_t)((uintptr_t)cluster.data & 0b11));
 	}
 #endif
 

@@ -15,18 +15,21 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
-/// host_pcm — live audio output for the emulator.
+/// host_pcm — live audio output for the emulator. Two backends behind one push interface:
 ///
-/// Plays the firmware's rendered audio by forking a host audio player (PipeWire's
-/// pw-cat by default) and writing interleaved S16 PCM to its stdin. The pipe + the
-/// player's device buffer provide *backpressure*: once the player is full, write()
-/// blocks, which paces the firmware's cooperative loop to real time — exactly how the
-/// SSI/DMA play head paces deluge_audio_drive() on hardware. No audio library is linked
-/// (the player is a separate process), so this works in the default -m32 build.
+///   - macOS: a native CoreAudio AudioQueue (the default — no external player, no extra
+///     install). Pushed frames land in a lock-free ring the audio device thread drains.
+///   - elsewhere, or when DELUGE_HOST_AUDIO names a command: fork that player and write
+///     interleaved S16 PCM to its stdin (PipeWire's pw-cat by default on Linux;
+///     pacat/aplay/ffplay also work).
 ///
-/// The player command is overridable via DELUGE_HOST_AUDIO (a shell command reading raw
-/// S16 stereo from stdin); set it to "0"/"off"/"none" to disable audio (the caller then
-/// falls back to clock pacing). Default targets pw-cat; pacat/aplay/ffplay also work.
+/// Writing never blocks the audio task — a full buffer/ring drops the block's tail rather
+/// than stall (a blocking wait would be counted as render time and spike cpuDireness). The
+/// caller paces the cooperative loop itself; the backend's buffer absorbs the jitter.
+///
+/// DELUGE_HOST_AUDIO overrides the backend: a shell command (reading raw S16 stereo from
+/// stdin) forces the subprocess path on any OS; "0"/"off"/"none" disables audio (the caller
+/// then falls back to clock pacing).
 
 #ifndef BSP_HOST_PCM_H
 #define BSP_HOST_PCM_H
@@ -38,19 +41,19 @@
 extern "C" {
 #endif
 
-/// Start the audio player for `sample_rate` Hz, 2ch S16. Returns true if a player was
-/// launched (audio active); false if disabled (DELUGE_HOST_AUDIO=off) or launch failed —
-/// the caller should pace some other way then. Idempotent.
+/// Start audio output for `sample_rate` Hz, 2ch S16. Returns true if a backend started
+/// (audio active); false if disabled (DELUGE_HOST_AUDIO=off) or startup failed — the caller
+/// should pace some other way then. Idempotent.
 bool host_pcm_open(uint32_t sample_rate);
 
-/// True once a player is running and the pipe is healthy.
+/// True once a backend is running.
 bool host_pcm_active(void);
 
-/// Write `frames` interleaved L/R S16 samples, blocking on the player's backpressure
-/// (this is the pacing point). A broken pipe (player exited) deactivates audio.
+/// Push `frames` interleaved L/R S16 samples to the active backend. Non-blocking: drops the
+/// tail if the backend is full (the caller paces the loop). A dead subprocess deactivates audio.
 void host_pcm_write_s16(const int16_t* interleaved_lr, uint32_t frames);
 
-/// Close the pipe; the player drains its buffer and exits.
+/// Stop the backend and release it (the subprocess drains and exits; the AudioQueue is disposed).
 void host_pcm_close(void);
 
 #ifdef __cplusplus

@@ -19,11 +19,17 @@
 
 // this is the external API for the task scheduler. The internal implementation is in C++ but as the scheduler is
 // involved in the C portions of the codebase it needs a C api
+
+// Includes must stay OUTSIDE the extern "C" block below: clock_type.h manages its own linkage (its C bits are
+// wrapped in extern "C", the Time class is not) and pulls in <compare>. Standard-library headers cannot be
+// compiled under C language linkage — libstdc++ tolerates it, but libc++ (mainline Clang) rejects it with
+// "templates must have C++ linkage".
+#include "stdint.h"
+#include "task_scheduler/clock_type.h"
+
 #ifdef __cplusplus
 extern "C" {
 #endif
-#include "stdint.h"
-#include "task_scheduler/clock_type.h"
 
 /// void function with no arguments
 typedef void (*TaskHandle)();

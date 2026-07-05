@@ -30,40 +30,40 @@ mod sys {
     include!(concat!(env!("OUT_DIR"), "/libdeluge_sys.rs"));
 }
 
-/// The libdeluge C-ABI service implementations the C++ app calls (M0: stubs).
+/// audio_io.h — duplex block audio over the SSI0 DMA rings.
+mod audio;
+/// board.h — capability descriptor + GPIO/audio/CV bring-up.
+mod board;
+/// C++ memory-model bring-up (SDRAM bss/data, global ctors).
+mod boot_mem;
+/// control_surface.h — pads/buttons/encoders + LEDs (M2b WIP).
+mod control;
+/// cv_gate.h — CV/gate outputs + external trigger clock.
+mod cv_gate;
+/// display.h — main OLED output over deluge_bsp::oled.
+mod display;
+/// The libdeluge C-ABI service implementations the C++ app calls (stubs).
 mod ffi;
 /// Non-header app/BSP symbols (USB-host globals, FatFS glue, NE10, runtime shims).
 mod ffi_extra;
-/// Real impls of the simplest services (system.h, clock.h, memory.h).
-mod services;
-/// board.h — capability descriptor + GPIO/audio/CV bring-up.
-mod board;
-/// control_surface.h — pads/buttons/encoders + LEDs (M2b WIP).
-mod control;
-/// display.h — main OLED output over deluge_bsp::oled.
-mod display;
-/// audio_io.h — duplex block audio over the SSI0 DMA rings.
-mod audio;
-/// block_device.h + FatFS diskio — SD card over deluge_bsp::sd.
-mod sd;
+/// The worker fiber: a stackful coroutine for the long synchronous C++ operations
+/// that pause via `yield()`. This module is the context-switch primitive.
+mod fiber;
 /// flash.h — persistent settings flash over deluge_bsp::flash / spibsc.
 mod flash;
-/// cv_gate.h — CV/gate outputs + external trigger clock.
-mod cv_gate;
 /// midi_io.h — DIN MIDI over deluge_bsp::uart (+ USB-MIDI peripheral, see usb).
 mod midi;
-/// USB device bring-up — USB-MIDI 1.0 peripheral (Deluge → computer).
-mod usb;
-/// signals.h — board GPIO signals, battery, MIDI/gate timer.
-mod signals;
-/// C++ memory-model bring-up (SDRAM bss/data, global ctors).
-mod boot_mem;
 /// scheduler.h / OSLikeStuff scheduler_api.h — the cooperative task scheduler,
 /// implemented on the Embassy executor (one task per registered Deluge task).
 mod scheduler;
-/// The worker fiber: a stackful coroutine for the long synchronous C++ operations
-/// that pause via `yield()` (Phase 6). This module is the context-switch primitive.
-mod fiber;
+/// block_device.h + FatFS diskio — SD card over deluge_bsp::sd.
+mod sd;
+/// Real impls of the simplest services (system.h, clock.h, memory.h).
+mod services;
+/// signals.h — board GPIO signals, battery, MIDI/gate timer.
+mod signals;
+/// USB device bring-up — USB-MIDI 1.0 peripheral (Deluge → computer).
+mod usb;
 
 unsafe extern "C" {
     /// One-time C++ application bring-up (deluge.cpp / app.h). On this BSP it also
@@ -91,7 +91,7 @@ fn panic(_info: &PanicInfo) -> ! {
 
 static mut EXECUTOR: MaybeUninit<Executor> = MaybeUninit::uninit();
 
-/// Preemptive Embassy executor for audio (Phase 3 audio lift). Runs the audio
+/// Preemptive Embassy executor for audio. Runs the audio
 /// render task in a GIC SGI handler at a priority above thread mode but below the
 /// µs hard-RT ISRs, so it preempts the cooperative thread executor (a storage
 /// `yield()` spin can no longer starve audio) yet is itself preempted by
@@ -149,7 +149,10 @@ pub extern "C" fn main() -> ! {
     // Rust SDRAM allocator gets the reserved top slice; the app owns the rest
     // (its heap runs __heap_start .. deluge_memory_external_end()).
     unsafe {
-        allocator::SDRAM.init(boot_mem::RUST_SDRAM_BASE as *mut u8, boot_mem::RUST_SDRAM_RESERVE)
+        allocator::SDRAM.init(
+            boot_mem::RUST_SDRAM_BASE as *mut u8,
+            boot_mem::RUST_SDRAM_RESERVE,
+        )
     };
     log::info!("deluge-rust: SDRAM memory image ready");
 
@@ -193,7 +196,7 @@ pub extern "C" fn main() -> ! {
     }
 
     // Verify the worker-fiber context switch in isolation before it drives real
-    // operations (Phase 6 bring-up). Pure + synchronous; logs PASS/FAIL over RTT.
+    // operations. Pure + synchronous; logs PASS/FAIL over RTT.
     fiber::selftest();
 
     // Unmask IRQs so the time driver and peripheral ISRs fire.
@@ -304,9 +307,12 @@ async fn app_task() {
     loop {
         let busy = fiber::worker_poll();
         if busy {
-            let _ = select(fiber::WORKER_WAKE.wait(), embassy_time::Timer::after_millis(8)).await;
-        }
-        else {
+            let _ = select(
+                fiber::WORKER_WAKE.wait(),
+                embassy_time::Timer::after_millis(8),
+            )
+            .await;
+        } else {
             fiber::WORKER_WAKE.wait().await;
         }
     }
