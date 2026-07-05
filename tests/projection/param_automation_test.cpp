@@ -1525,9 +1525,9 @@ int main() {
 		check(copy.params[2].nodes().size() == unp->params[2].nodes().size(), "bindDomStore: copy has same node count");
 	}
 
-	// Phase C (kit/expression): ParamManager::bindMainParamSetDomStores binds unpatched + patched + expression
-	// (when present) in one call — the common Model A binding used by the synth/kit/drum owners. The corpus has
-	// no MPE data, so this is where the expression-set binding is exercised.
+	// Phase C: ParamManager::bindMainParamSetDomStores binds ALL of a sound manager's automatable collections in
+	// one call — unpatched + patched + expression (ParamSets) + patch cables (a non-ParamSet with its own store).
+	// The corpus has no MPE data, so this is where expression binding is exercised.
 	{
 		auto liveBound = [](ParamSet* s) {
 			return s->domStore() != nullptr && &s->params[0].nodes() == &s->domStore()->params[0].nodes;
@@ -1536,10 +1536,19 @@ int main() {
 		check(pm.setupWithPatching() == Error::NONE, "helper: setup");
 		ExpressionParamSet* expr = pm.getOrCreateExpressionParamSet();
 		check(expr != nullptr, "helper: expression set created");
+		// A patch cable so the cable-binding path is exercised.
+		PatchCableSet* pcs = pm.getPatchCableSet();
+		pcs->numPatchCables = 1;
+		pcs->patchCables[0].from = PatchSource::ENVELOPE_0;
+		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(7);
+		setNode(pcs->patchCables[0].param, 0, 424242, true);
+
 		pm.bindMainParamSetDomStores();
 		check(liveBound(pm.getUnpatchedParamSet()), "helper: unpatched bound");
 		check(liveBound(pm.getPatchedParamSet()), "helper: patched bound");
 		check(liveBound(pm.getExpressionParamSet()), "helper: expression bound");
+		check(pcs->domStore() != nullptr && &pcs->patchCables[0].param.nodes() == &pcs->domStore()->params[0].nodes,
+		      "helper: patch cable bound with live borrow");
 	}
 
 	// Phase C (MIDI-CC): a MIDIParamCollection's per-CC AutoParams bind to a store anchored on the (heap-stable)

@@ -17,6 +17,7 @@
 
 #include "modulation/patch/patch_cable_set.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/param_automation.h"
 #include "gui/views/view.h"
 #include "io/midi/midi_device.h"
 #include "memory/general_memory_allocator.h"
@@ -78,6 +79,25 @@ PatchCableSet::PatchCableSet(ParamCollectionSummary* summary) : ParamCollection(
 
 PatchCableSet::~PatchCableSet() {
 	freeDestinationMemory(true);
+}
+
+void PatchCableSet::bindDomStore() {
+	if (domStore_) {
+		return; // already bound
+	}
+	// Size the store to the cables present now; each cable's amount AutoParam borrows its slot. Cables added
+	// later stay unbound (self-owned) — the store is never grown. NB: cable removal memcpy-moves a cable within
+	// the fixed array; a bound cable carries an EXTERNAL nodes_ pointer, which the byte-copy preserves, so the
+	// borrow survives the shift (an unbound cable's self-pointer would not — but those aren't in the store).
+	domStore_ = std::make_unique<deluge::project::DocParamSet>();
+	domStore_->params.resize(numPatchCables);
+	for (int32_t c = 0; c < numPatchCables; c++) {
+		patchCables[c].param.borrowNodeStorage(&domStore_->params[c].nodes);
+	}
+}
+
+deluge::project::DocParamSet* PatchCableSet::domStore() {
+	return domStore_.get();
 }
 
 bool PatchCableSet::isSourcePatchedToSomething(PatchSource s) {

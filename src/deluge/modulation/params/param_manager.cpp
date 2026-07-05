@@ -176,6 +176,11 @@ void ParamManager::bindMainParamSetDomStores() {
 	if (ExpressionParamSet* expression = getExpressionParamSet()) {
 		expression->bindDomStore();
 	}
+	// Patch cables (summaries[2]) — NOT a ParamSet (its AutoParams live in patchCables[].param), so it has its
+	// own store/bind. Present only for full-synth managers (setupWithPatching), null for GlobalEffectable ones.
+	if (summaries[2].paramCollection != nullptr) {
+		static_cast<PatchCableSet*>(summaries[2].paramCollection)->bindDomStore();
+	}
 }
 
 Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool copyAutomation,

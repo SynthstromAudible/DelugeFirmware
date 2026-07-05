@@ -19,6 +19,11 @@
 #include "definitions_cxx.hpp"
 #include "modulation/params/param_collection.h"
 #include "modulation/patch/patch_cable.h"
+#include <memory>
+
+namespace deluge::project {
+struct DocParamSet;
+}
 
 class Song;
 class ModelStackWithParamCollection;
@@ -44,6 +49,13 @@ public:
 	// Deep copy: real-copies each usable cable's automation and the destination arrays (see clone()).
 	PatchCableSet(PatchCableSet const& other);
 	~PatchCableSet() override;
+
+	/// Phase C (DOM single-store, Model A): borrow-point each present patch cable's amount-automation nodes at a
+	/// DOM store anchored on this (heap-stable) collection. Sized once to numPatchCables; cables added LATER stay
+	/// unbound (self-owned). Idempotent. Like MIDI-CC, this is a non-ParamSet owner with its own store.
+	void bindDomStore();
+	/// The bound DOM store, or nullptr if unbound. (Test / inspection accessor.)
+	deluge::project::DocParamSet* domStore();
 
 	void setupPatching(ModelStackWithParamCollection const* modelStack);
 	bool doesDestinationDescriptorHaveAnyCables(ParamDescriptor destinationParamDescriptor);
@@ -114,6 +126,10 @@ public:
 	PatchCable patchCables[kMaxNumPatchCables]; // TODO: store these in dynamic memory.
 	uint8_t numUsablePatchCables;
 	uint8_t numPatchCables;
+
+	/// DOM-owned node store the cable amount-AutoParams borrow (nullptr = unbound). RAII-freed with this
+	/// (heap-allocated, stable-address) collection. See bindDomStore().
+	std::unique_ptr<deluge::project::DocParamSet> domStore_;
 
 	Destination* destinations[2]{};
 

@@ -31,6 +31,7 @@
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable_set.h"
 #include "storage/storage_manager.h"
 
 #include <array>
@@ -115,8 +116,14 @@ int main(int argc, char** argv) {
 		auto bothBound = [&](ParamManagerForTimeline& pm) {
 			return isLiveBound(pm.getUnpatchedParamSet()) && isLiveBound(pm.getPatchedParamSet());
 		};
+		// A patch cable set (non-ParamSet) is bound when its first cable's amount AutoParam aliases store lane 0.
+		auto cablesBound = [](ParamManagerForTimeline& pm) {
+			PatchCableSet* pcs = pm.getPatchCableSet();
+			return pcs->domStore() != nullptr
+			       && &pcs->patchCables[0].param.nodes() == &pcs->domStore()->params[0].nodes;
+		};
 		int32_t audioSeen = 0, audioBound = 0, synthSeen = 0, synthBound = 0;
-		int32_t kitSeen = 0, kitBound = 0, drumSeen = 0, drumBound = 0;
+		int32_t kitSeen = 0, kitBound = 0, drumSeen = 0, drumBound = 0, cableSeen = 0, cableBound = 0;
 		std::array<ClipArray*, 2> clipArrays{&song->project.clips.session_clips,
 		                                     &song->project.clips.arrangement_only_clips};
 		for (ClipArray* arr : clipArrays) {
@@ -133,6 +140,10 @@ int main(int argc, char** argv) {
 				         && clip->output->type == OutputType::SYNTH) {
 					synthSeen++; // a synth clip binds BOTH its unpatched and patched sets
 					synthBound += bothBound(clip->paramManager) ? 1 : 0;
+					if (clip->paramManager.getPatchCableSet()->numPatchCables > 0) {
+						cableSeen++; // ...and its patch cables
+						cableBound += cablesBound(clip->paramManager) ? 1 : 0;
+					}
 				}
 				else if (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
 				         && clip->output->type == OutputType::KIT) {
@@ -145,16 +156,20 @@ int main(int argc, char** argv) {
 						    && nr.paramManager.containsAnyMainParamCollections()) {
 							drumSeen++; // a SoundDrum row binds unpatched + patched
 							drumBound += bothBound(nr.paramManager) ? 1 : 0;
+							if (nr.paramManager.getPatchCableSet()->numPatchCables > 0) {
+								cableSeen++; // ...and its patch cables
+								cableBound += cablesBound(nr.paramManager) ? 1 : 0;
+							}
 						}
 					}
 				}
 			}
 		}
-		std::fprintf(stderr,
-		             "audio: seen=%d bound=%d | synth: seen=%d bound=%d | kit: seen=%d bound=%d | drums: seen=%d "
-		             "bound=%d\n",
-		             audioSeen, audioBound, synthSeen, synthBound, kitSeen, kitBound, drumSeen, drumBound);
-		if (audioSeen != audioBound || synthSeen != synthBound || kitSeen != kitBound || drumSeen != drumBound) {
+		std::fprintf(stderr, "audio: %d/%d | synth: %d/%d | kit: %d/%d | drums: %d/%d | patchCables: %d/%d\n",
+		             audioBound, audioSeen, synthBound, synthSeen, kitBound, kitSeen, drumBound, drumSeen, cableBound,
+		             cableSeen);
+		if (audioSeen != audioBound || synthSeen != synthBound || kitSeen != kitBound || drumSeen != drumBound
+		    || cableSeen != cableBound) {
 			std::fprintf(stderr, "PHASE C: a clip/drum loaded UNBOUND (borrow not live)\n");
 			_exit(3);
 		}
