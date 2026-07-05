@@ -697,6 +697,10 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 		return; // Is this in case it's created a new Clip or something?
 	}
 
+	// Macros: the param automation above just advanced each macro's lane; now drive each automated
+	// macro's targets live from its lane value (the lane is the source of truth on playback).
+	Macros::applyMacroLaneAutomation(this, modelStack);
+
 	// We already incremented / decremented noteRowsNumTicksBehindClip and ticksTilNextNoteRowEvent, in the call to
 	// incrementPos().
 

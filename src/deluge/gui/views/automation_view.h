@@ -185,6 +185,9 @@ public:
 	// persistent "Macro N / Inactive" status while an inactive macro lane is in view; safe to call
 	// anytime - shows, re-shows or clears based on current state
 	void refreshMacroInactivePopup();
+	// Enters automation view showing macro `macroIndex`'s lane in the editor (the 8 mod buttons then
+	// become that macro's target quick-editors). Called from note-view MACRO mode (SHIFT + macro button).
+	void openMacroLaneEditor(Clip* clip, int32_t macroIndex);
 
 	// public so menu and editor layouts can access it
 	bool onMenuView;
@@ -245,8 +248,13 @@ private:
 	// grid shows the parameter overview and a pad press picks that param as the target's pending
 	// destination (committed on button release, like the select-encoder dial)
 	bool macroPickerActive(Clip* clip);
-	int32_t macroDestinationForPad(Macros::Domain domain, int32_t x, int32_t y);
+	int32_t macroDestinationForPad(Macros::Domain domain, int32_t x, int32_t y, bool secondLayer = false);
 	void handleMacroPickerPad(Clip* clip, int32_t x, int32_t y);
+	// Grid-picker shared-shortcut cycling: pressing the same pad again reaches the second-layer param
+	// (e.g. LFO1 rate -> LFO2 rate). Reset when a target-button hold begins.
+	int8_t macroPickerLastX = -1;
+	int8_t macroPickerLastY = -1;
+	bool macroPickerSecondLayer = false;
 	// mute pad action
 	ActionResult handleMutePadAction(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                 InstrumentClip* instrumentClip, Output* output, OutputType outputType, int32_t y,

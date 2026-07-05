@@ -104,6 +104,12 @@ public:
 
 	uint8_t modKnobMode;
 
+	// Note-view MACRO mode (synth/MIDI only): when set, the gold-knob mode buttons drive macros
+	// instead of params. Overlay - never touches modKnobMode - so leaving it restores the param mode.
+	// Serialized per-instrument (like modKnobMode/activeModFunction). See Macros / View::inMacroKnobMode.
+	bool macroKnobMode = false;
+	uint8_t macroKnobSelected = 0; // which macro (0..kNumMacros-1) the gold knobs drive in MACRO mode
+
 	// Temp stuff for doLaunch()
 	bool alreadyGotItsNewClip;
 	bool isGettingSoloingClip;

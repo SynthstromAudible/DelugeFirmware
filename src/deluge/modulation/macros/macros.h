@@ -206,11 +206,36 @@ bool tryMacro(MIDICable& cable, int32_t channelOrZone, int32_t ccNumber, int32_t
 // it matched (so the caller suppresses the knob's normal action - a knob source is dedicated).
 bool tryKnobMacro(int32_t whichKnob, int32_t offset);
 
-// The dedicated macro row: in the regular MIDI clip view with the LAST param-select button active,
-// gold knob 1 drives Macro 1 and gold knob 2 drives Macro 2 directly (no learning needed). Only fires
-// for an Active macro, so the row keeps its normal knob behavior when macros aren't in use. Returns
-// whether it drove the macro (the caller then suppresses the knob's normal action).
-bool tryModeKnobMacro(int32_t whichKnob, int32_t offset);
+// Note-view MACRO mode maps the four macros onto these mod-knob-mode buttons (the ones normally
+// attack/release, delay time/amount, sidechain/reverb, mod rate/depth). The other four go dark.
+constexpr uint8_t kMacroModButtons[kNumMacros] = {2, 3, 4, 5};
+
+// Macro index (0..kNumMacros-1) for a mod-knob-mode button, or -1 if that button isn't a macro button.
+inline int32_t macroFromModButton(int32_t button) {
+	for (int32_t m = 0; m < kNumMacros; m++) {
+		if (kMacroModButtons[m] == button) {
+			return m;
+		}
+	}
+	return -1;
+}
+
+// Drives macro `macroIndex` from a gold-knob turn while note-view MACRO mode is active: accumulates
+// its live position by `offset` and (when the macro is active) fans out to its targets, on both synth
+// and MIDI clips. Shows the param-style "<name-or-Macro N>: <value>" readout (or ": (Inactive)" when
+// the macro won't fire). Always returns true - MACRO mode owns the knob regardless.
+bool driveMacro(int32_t macroIndex, int32_t offset);
+
+// Called each playback tick for a clip: for every macro whose automation lane is playing (has nodes
+// and is active), reads the lane's current automated value and fans it out to the targets live. This
+// makes a recorded/drawn macro lane drive its targets on playback - the lane is the source of truth,
+// like a normal automated param. No-op while recording and for macros with no lane automation.
+void applyMacroLaneAutomation(Clip* clip, ModelStackWithTimelineCounter* modelStack);
+
+// Appends a macro's peek label for the note-view MACRO-mode popup: "Macro N", then the user's name
+// if set, then "(Inactive)" when the macro isn't active - the parentheses distinguish the STATUS from
+// a macro the user literally named "Inactive". Parts are separated by newline (OLED) or space (7SEG).
+void appendMacroLabel(StringBuf& buf, Macro& macro, int32_t macroIndex, bool multiLine);
 
 // Bakes macro macroIndex's automation-lane curve (pseudo-CC paramIDForMacro(idx)) into its target CC
 // automation lanes on the given clip, scaled per target. Call after a user edits/clears the macro

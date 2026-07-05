@@ -39,6 +39,7 @@
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
+#include "playback/playback_handler.h"
 #include "storage/storage_manager.h"
 #include "util/d_stringbuf.h"
 #include "util/misc.h"
@@ -170,6 +171,21 @@ void appendDestinationName(StringBuf& buf, MelodicInstrument* instrument, uint8_
 		buf.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_TARGET_CC)); // "CC"
 		buf.append(' ');
 		buf.appendInt(destination);
+	}
+}
+
+void appendMacroLabel(StringBuf& buf, Macro& macro, int32_t macroIndex, bool multiLine) {
+	buf.append(deluge::l10n::get(
+	    static_cast<deluge::l10n::String>(util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1) + macroIndex)));
+	char sep = multiLine ? '\n' : ' ';
+	if (!macro.name.isEmpty()) {
+		buf.append(sep);
+		buf.append(macro.name.get()); // the user's label, verbatim (no parens)
+	}
+	if (!macro.active) {
+		buf.append(sep);
+		// parenthesized so the STATUS is distinguishable from a macro literally named "Inactive"
+		buf.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_STATUS_INACTIVE));
 	}
 }
 
@@ -547,6 +563,14 @@ static void bakeTarget(const FanContext& ctx, ModelStackWithThreeMainThings* thr
 	// Overwrite: clear first (deleteAutomation snapshots into `action` for undo when given).
 	modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam, false);
 
+	// An AUTOMATED lane is driven live from the lane each playback tick by applyMacroLaneAutomation, so
+	// baking its curve into the target too would be redundant (and leave stale target automation) - we
+	// just leave the target cleared and let the playback fan-out own it. Only a STATIC lane (no nodes)
+	// is baked below, so its value still reaches the target when stopped (the fan-out skips static lanes).
+	if (source->isAutomated()) {
+		return;
+	}
+
 	if (target.send) {
 		int32_t outMax = maxTargetValue(ctx.domain);
 		for (int32_t n = 0; n < source->nodes.getNumElements(); n++) {
@@ -583,16 +607,19 @@ static void refreshAutomationGridIfShowingDestination(Clip* clip, Domain domain,
 }
 
 static void sendToTargets(MelodicInstrument* instrument, Clip* clip, ModelStackWithTimelineCounter* modelStack,
-                          Macro& macro, int32_t value) {
+                          Macro& macro, int32_t value, bool mirrorToLane = true) {
 	Domain domain = domainForOutput(clip->output);
 	int32_t macroIndex = (int32_t)(&macro - instrument->macros);
 	// Mirror the raw source value into the macro's own automation lane so the lane tracks the
 	// source live - and records its moves like any param. On MIDI clips the lane is a pseudo-CC
 	// param that never emits MIDI (sendMIDI suppresses paramIDs >= kMacroParamIDBase); on synths
 	// it is the UNPATCHED_MACRO_n param, which nothing in the render code reads. The targets get
-	// the scaled values below.
-	writeDestinationLive(instrument, clip, modelStack, domain, laneDestination(domain, macroIndex), value);
-	refreshAutomationGridIfShowingDestination(clip, domain, laneDestination(domain, macroIndex));
+	// the scaled values below. Skipped on the playback path (mirrorToLane=false): there the value
+	// already CAME from the lane, and writing it back would override-latch the lane's own automation.
+	if (mirrorToLane) {
+		writeDestinationLive(instrument, clip, modelStack, domain, laneDestination(domain, macroIndex), value);
+		refreshAutomationGridIfShowingDestination(clip, domain, laneDestination(domain, macroIndex));
+	}
 	for (int32_t slot = 0; slot < kNumTargetSlots; slot++) {
 		MacroTargetSlot& target = macro.targets[slot];
 		if (target.destination == kNoDestination || !target.send) {
@@ -609,7 +636,8 @@ static void sendToTargets(MelodicInstrument* instrument, Clip* clip, ModelStackW
 		if (isMacroParamID(target.destination)) {
 			Macro& downstream = instrument->macros[macroIndexFromParamID(target.destination)];
 			if (downstream.active) {
-				sendToTargets(instrument, clip, modelStack, downstream, scaleTarget(target, value, kMaxValue));
+				sendToTargets(instrument, clip, modelStack, downstream, scaleTarget(target, value, kMaxValue),
+				              mirrorToLane);
 			}
 			continue;
 		}
@@ -627,6 +655,37 @@ static bool macroInputDriven(const Macro* macros, int32_t m) {
 	int32_t ownerSlot = 0;
 	int32_t owner = findDestinationOwner(macros, (uint8_t)paramIDForMacro(m), &ownerSlot);
 	return owner >= 0 && macros[owner].active;
+}
+
+void applyMacroLaneAutomation(Clip* clip, ModelStackWithTimelineCounter* modelStack) {
+	if (!isEnabled()) {
+		return;
+	}
+	// Only drive from the lane on plain playback, never while recording: the recording pass lays the
+	// automation down in the LANE (via the source mirror / lane pad edits), and the live target writes
+	// below must not also record target automation. When recording, the active knob input drives.
+	if (playbackHandler.recording != RecordingMode::OFF) {
+		return;
+	}
+	FanContext ctx;
+	if (!getFanContext(clip, &ctx)) {
+		return;
+	}
+	// For each macro whose lane is playing automation, read the lane's current automated value and fan
+	// it out to the targets live - the lane is the source of truth on playback, exactly like a normal
+	// automated param. A lane with no automation is left alone (its last set value already stands).
+	for (int32_t m = 0; m < kNumMacros; m++) {
+		Macro& macro = ctx.instrument->macros[m];
+		if (!macro.active || macroInputDriven(ctx.instrument->macros, m)) {
+			continue; // inactive, or cascade-fed by an upstream macro (not driven by its own lane)
+		}
+		AutoParam* lane = laneParam(ctx, m);
+		if (!lane || !lane->isAutomated()) {
+			continue;
+		}
+		sendToTargets(ctx.instrument, clip, modelStack, macro, bigValueToUnit(lane->getCurrentValue()),
+		              /*mirrorToLane=*/false);
+	}
 }
 
 bool tryMacro(MIDICable& cable, int32_t channelOrZone, int32_t ccNumber, int32_t value) {
@@ -705,49 +764,55 @@ bool tryKnobMacro(int32_t whichKnob, int32_t offset) {
 	return true;
 }
 
-bool tryModeKnobMacro(int32_t whichKnob, int32_t offset) {
-	if (whichKnob < 0 || whichKnob >= kNumMacros) {
-		return false;
-	}
+bool driveMacro(int32_t macroIndex, int32_t offset) {
 	if (!isEnabled() || getCurrentUI() == &loadSongUI) {
 		return false;
 	}
+	if (macroIndex < 0 || macroIndex >= kNumMacros) {
+		return false;
+	}
 	Clip* clip = midiFollow.getSelectedOrActiveClip();
-	// The dedicated macro row is a MIDI-clip-only feature: on synth clips every mod-knob row
-	// already has a real function, so none is repurposed for macros.
-	Clip* midiClip = (clip && clip->output && clip->output->type == OutputType::MIDI_OUT) ? clip : nullptr;
-	MelodicInstrument* instrument = macroClipInstrument(midiClip);
+	MelodicInstrument* instrument = macroClipInstrument(clip); // synth or MIDI
 	if (!instrument) {
 		return false;
 	}
-	Macro& macro = instrument->macros[whichKnob]; // knob 1 -> Macro 1, knob 2 -> Macro 2
-	if (!macro.active) {
-		return false; // inactive macro: let the knob keep its normal behavior
-	}
-	if (macroInputDriven(instrument->macros, whichKnob)) {
-		return false; // fed by an upstream cascade target: its own source is shadowed
-	}
-	// An active macro with no targets must not consume the knob either: macros are active by
-	// default, so without this a track that never opted in would lose both gold knobs on this row.
-	bool anyTarget = false;
-	for (const MacroTargetSlot& target : macro.targets) {
-		if (target.destination != kNoDestination) {
-			anyTarget = true;
-			break;
-		}
-	}
-	if (!anyTarget) {
-		return false;
-	}
-
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
-
+	Macro& macro = instrument->macros[macroIndex];
+	// A gold-knob turn is a relative encoder: accumulate the live position.
 	int32_t pos = std::clamp<int32_t>((int32_t)macro.sourceKnobPos + offset, 0, kMaxValue);
 	macro.sourceKnobPos = pos;
-	sendToTargets(instrument, clip, modelStackWithTimelineCounter, macro, pos);
-	return true;
+	// Fan out only when active and not fed by an upstream cascade target - Active semantics are kept.
+	bool fires = macro.active && !macroInputDriven(instrument->macros, macroIndex);
+	if (fires) {
+		char modelStackMemory[MODEL_STACK_MAX_SIZE];
+		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
+		sendToTargets(instrument, clip, modelStackWithTimelineCounter, macro, pos);
+	}
+	// Top-of-screen readout, exactly like a normal knob turn on a param: name as the title + value on
+	// OLED (displayNotification), value alone on 7SEG (displayPopup). A named macro shows just its name
+	// (the "Macro" context is implied); an unnamed one shows "Macro N".
+	DEF_STACK_STRING_BUF(name, 30);
+	if (!macro.name.isEmpty()) {
+		name.append(macro.name.get());
+	}
+	else {
+		name.append(deluge::l10n::get(static_cast<deluge::l10n::String>(
+		    util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1) + macroIndex)));
+	}
+	DEF_STACK_STRING_BUF(value, 16);
+	if (macro.active) {
+		value.appendInt(pos);
+	}
+	else {
+		value.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_STATUS_INACTIVE));
+	}
+	if (display->haveOLED()) {
+		display->displayNotification(name.c_str(), value.c_str());
+	}
+	else {
+		display->displayPopup(value.c_str());
+	}
+	return true; // MACRO mode owns the knob regardless
 }
 
 // target slot tag names are "target1" .. "target8"; returns the slot index, or -1 if not one.

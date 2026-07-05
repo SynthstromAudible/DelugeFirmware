@@ -68,6 +68,11 @@ public:
 	void midiLearnFlash();
 	void setModLedStates();
 	int32_t getModKnobMode();
+	// Note-view MACRO mode (synth/MIDI): the gate used by every mod-button/knob/LED site - true only
+	// in the instrument clip view, on a macro-capable clip, with the feature on and the flag set.
+	bool inMacroKnobMode();
+	// Toggles the current output's MACRO mode and announces it ("Macros"/"Parameters" popup).
+	void toggleMacroKnobMode();
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
 	void modButtonAction(uint8_t whichButton, bool on);

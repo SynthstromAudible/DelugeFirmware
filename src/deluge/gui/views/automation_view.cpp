@@ -896,7 +896,12 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 				pixel = colours::black;
 			}
 			else {
-				pixel = (heldTargetPendingDestination == destination) ? colours::white_full : colours::grey;
+				// white if the pending pick is this pad's param on EITHER layer (primary or the
+				// shared-shortcut second layer), so the highlight follows a second-layer pick too
+				int32_t second = macroDestinationForPad(pickerDomain, xDisplay, yDisplay, true);
+				bool picked = heldTargetPendingDestination == destination
+				              || (second >= 0 && heldTargetPendingDestination == second);
+				pixel = picked ? colours::white_full : colours::grey;
 				occupancyMask[yDisplay][xDisplay] = 64;
 			}
 			continue;
@@ -2673,6 +2678,9 @@ void AutomationView::modButtonAction(uint8_t whichButton, bool on) {
 	if (instrument != nullptr && whichButton < Macros::kNumTargetSlots) {
 		heldTarget = whichButton;
 		heldTargetMacro = macroIndex;
+		macroPickerLastX = -1; // start a fresh picker hold: no "same pad again" carried over
+		macroPickerLastY = -1;
+		macroPickerSecondLayer = false;
 		uint8_t destination = instrument->macros[macroIndex].targets[whichButton].destination;
 		heldTargetPendingDestination = (destination == Macros::kNoDestination) ? -1 : destination;
 		// initial press: an in-use target reads out who owns its destination
@@ -2718,8 +2726,14 @@ bool AutomationView::macroPickerActive(Clip* clip) {
 // that can't be a macro target (patch cables, expression and velocity aren't encodable as a
 // destination byte; the macro lane params are cascade-only, reachable by dial/menu). This is the
 // validity filter the picker overlay renders.
-int32_t AutomationView::macroDestinationForPad(Macros::Domain domain, int32_t x, int32_t y) {
+int32_t AutomationView::macroDestinationForPad(Macros::Domain domain, int32_t x, int32_t y, bool secondLayer) {
 	if (domain == Macros::Domain::SYNTH) {
+		// Some patched params share a pad (e.g. LFO1 rate / LFO2 rate); the second layer is reached by
+		// pressing the pad again, mirroring the sound editor. Only patched params have a second layer.
+		if (secondLayer) {
+			uint32_t second = params::patchedParamShortcutsSecondLayer[x][y];
+			return (second != kNoParamID) ? Macros::synthDestinationForParam(params::Kind::PATCHED, second) : -1;
+		}
 		if (patchedParamShortcuts[x][y] != kNoParamID) {
 			return Macros::synthDestinationForParam(params::Kind::PATCHED, patchedParamShortcuts[x][y]);
 		}
@@ -2728,6 +2742,9 @@ int32_t AutomationView::macroDestinationForPad(Macros::Domain domain, int32_t x,
 			                                        unpatchedNonGlobalParamShortcuts[x][y]);
 		}
 		return -1;
+	}
+	if (secondLayer) {
+		return -1; // MIDI CC shortcuts have no second layer
 	}
 	uint32_t destination = midiCCShortcutsForAutomation[x][y];
 	return (destination != kNoParamID && destination <= Macros::kMaxMidiDestination) ? (int32_t)destination : -1;
@@ -2742,7 +2759,18 @@ void AutomationView::handleMacroPickerPad(Clip* clip, int32_t x, int32_t y) {
 	if (instrument == nullptr || macroIndex != heldTargetMacro) {
 		return;
 	}
-	int32_t destination = macroDestinationForPad(Macros::domainForOutput(clip->output), x, y);
+	Macros::Domain domain = Macros::domainForOutput(clip->output);
+	// Pressing the SAME pad again reaches the param that shares that shortcut (e.g. LFO1->LFO2 rate),
+	// like the sound editor's second-layer cycling. A different pad resets to the primary.
+	if (x == macroPickerLastX && y == macroPickerLastY && macroDestinationForPad(domain, x, y, true) >= 0) {
+		macroPickerSecondLayer = !macroPickerSecondLayer;
+	}
+	else {
+		macroPickerSecondLayer = false;
+	}
+	macroPickerLastX = x;
+	macroPickerLastY = y;
+	int32_t destination = macroDestinationForPad(domain, x, y, macroPickerSecondLayer);
 	if (destination < 0) {
 		return; // a dark pad - not a pickable destination
 	}
@@ -2794,6 +2822,27 @@ bool AutomationView::toggleMacroLaneActive() {
 	blinkShortcuts();       // start/stop the macro-pad blinking to match the new active state
 	view.setModLedStates(); // conflicted targets' LEDs start/stop blinking with the active state
 	return true;
+}
+
+void AutomationView::openMacroLaneEditor(Clip* clip, int32_t macroIndex) {
+	if (!Macros::isEnabled() || Macros::macroClipInstrument(clip) == nullptr) {
+		return;
+	}
+	// Point the clip's selected param at macro `macroIndex`'s lane, so automation view opens straight
+	// into the editor for it (a non-empty lastSelectedParamID makes inAutomationEditor() true).
+	if (clip->output->type == OutputType::SYNTH) {
+		clip->lastSelectedParamKind = params::Kind::UNPATCHED_SOUND;
+		clip->lastSelectedParamID = params::UNPATCHED_MACRO_1 + macroIndex;
+		clip->lastSelectedParamArrayPosition = macroIndex;
+	}
+	else { // MIDI_OUT: the lane is tracked by paramID alone (kind unused)
+		clip->lastSelectedParamKind = params::Kind::NONE;
+		clip->lastSelectedParamID = Macros::paramIDForMacro(macroIndex);
+	}
+	clip->lastSelectedParamShortcutX = kNoSelection; // a macro lane has no grid shortcut pad
+	clip->lastSelectedParamShortcutY = kNoSelection;
+	clip->lastSelectedOutputType = clip->output->type; // else initializeView() resets the selection
+	changeRootUI(&automationView);
 }
 
 // Keeps a persistent "Inactive" status popup up while an inactive macro lane is in view (the lane

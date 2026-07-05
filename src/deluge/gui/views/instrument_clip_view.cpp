@@ -73,6 +73,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/macros/macros.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
@@ -765,6 +766,14 @@ doCancelPopup:
 
 	// Vertical encoder button
 	else if (b == Y_ENC) {
+
+		// SHIFT + Y_ENC toggles the gold-knob MACRO mode (synth/MIDI clips only). Only when idle - so
+		// it never shadows the note-repeat / euclidean gestures that use Y_ENC while notes are held.
+		if (on && Buttons::isShiftButtonPressed() && currentUIMode == UI_MODE_NONE && Macros::isEnabled()
+		    && Macros::macroClipInstrument(getCurrentClip()) != nullptr) {
+			view.toggleMacroKnobMode();
+			return ActionResult::DEALT_WITH;
+		}
 
 		// If holding notes down...
 		if (isUIModeActiveExclusively(UI_MODE_NOTES_PRESSED)) {
