@@ -192,15 +192,24 @@ __attribute__((used)) static uint8_t host_internal[HOST_INTERNAL_BYTES];
 __attribute__((used)) static uint8_t host_frunk[HOST_FRUNK_BYTES];
 static uint8_t host_scratch[HOST_SCRATCH_BYTES];
 
+// Mach-O (Apple) prefixes C symbols with an underscore at the object level; ELF does not. Spell
+// both the aliased boundary symbol and its backing array with the platform's prefix (U) so the
+// app's extern references resolve on either linker.
+#ifdef __APPLE__
+#define U "_"
+#else
+#define U ""
+#endif
 // clang-format off
 __asm__(
-    ".global __sdram_bss_end\n\t.set __sdram_bss_end, host_sdram\n"
-    ".global __heap_start\n\t.set __heap_start, host_internal\n"
-    ".global program_stack_start\n\t.set program_stack_start, host_internal + " STR(HOST_INTERNAL_BYTES) "\n"
-    ".global program_stack_end\n\t.set program_stack_end, host_internal + " STR(HOST_INTERNAL_BYTES) "\n"
-    ".global __frunk_bss_end\n\t.set __frunk_bss_end, host_frunk\n"
-    ".global __frunk_slack_end\n\t.set __frunk_slack_end, host_frunk + " STR(HOST_FRUNK_BYTES) "\n");
+    ".global " U "__sdram_bss_end\n\t.set " U "__sdram_bss_end, " U "host_sdram\n"
+    ".global " U "__heap_start\n\t.set " U "__heap_start, " U "host_internal\n"
+    ".global " U "program_stack_start\n\t.set " U "program_stack_start, " U "host_internal + " STR(HOST_INTERNAL_BYTES) "\n"
+    ".global " U "program_stack_end\n\t.set " U "program_stack_end, " U "host_internal + " STR(HOST_INTERNAL_BYTES) "\n"
+    ".global " U "__frunk_bss_end\n\t.set " U "__frunk_bss_end, " U "host_frunk\n"
+    ".global " U "__frunk_slack_end\n\t.set " U "__frunk_slack_end, " U "host_frunk + " STR(HOST_FRUNK_BYTES) "\n");
 // clang-format on
+#undef U
 
 uint8_t deluge_memory_region_count(void) {
 	return 2;
