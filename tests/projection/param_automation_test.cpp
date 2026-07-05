@@ -1538,6 +1538,15 @@ int main() {
 		setNode(liveUnp->params[3], 48, -666, false);
 		void* setAddrBefore = liveUnp; // the ParamSet object's address — must not change across steal
 
+		// A synth clip binds BOTH its main sets — bind the patched set too, so we prove they survive the steal
+		// together (their two separate DOM stores each travel with their own ParamSet).
+		live.getPatchedParamSet()->bindDomStore();
+		PatchedParamSet* livePat = live.getPatchedParamSet();
+		deluge::project::DocParamSet* patStoreAddr = livePat->domStore();
+		check(patStoreAddr != nullptr && patStoreAddr != storeAddr, "steal: patched set separately bound");
+		setNode(livePat->params[5], 0, 777, true);
+		void* patSetAddrBefore = livePat;
+
 		deluge::project::ParamBackup backup;
 		auto* mc = reinterpret_cast<ModControllableAudio*>(0x1000); // pure map keys; never dereferenced
 		auto* clipKey = reinterpret_cast<Clip*>(0x2000);
@@ -1554,6 +1563,13 @@ int main() {
 		// An edit while parked lands in the same DOM store.
 		setNode(parkedUnp->params[3], 24, 999, false);
 		check(storeAddr->params[3].nodes.size() == 3, "steal: edit while parked lands in the DOM store");
+		// The patched set travelled too, with its own store.
+		PatchedParamSet* parkedPat = parked->getPatchedParamSet();
+		check(static_cast<void*>(parkedPat) == patSetAddrBefore, "steal: patched ParamSet did not relocate");
+		check(parkedPat->domStore() == patStoreAddr, "steal: patched store unchanged while parked");
+		check(&parkedPat->params[5].nodes() == &patStoreAddr->params[5].nodes,
+		      "steal: patched borrow live while parked");
+		check(parkedPat->params[5].nodes().size() == 1, "steal: patched automation intact while parked");
 
 		// Restore back into the (now-emptied) live manager, as solicitParamManager does on re-add.
 		ParamManager* restored = backup.getForExactClip(mc, clipKey, &live); // steals collections back, erases entry
@@ -1563,6 +1579,11 @@ int main() {
 		check(restUnp->domStore() == storeAddr, "steal: same DOM store after restore");
 		check(restUnp->params[3].nodes().size() == 3 && restUnp->params[3].nodes()[0].value == 555,
 		      "steal: automation survived the round trip");
+		PatchedParamSet* restPat = live.getPatchedParamSet();
+		check(static_cast<void*>(restPat) == patSetAddrBefore && restPat->domStore() == patStoreAddr,
+		      "steal: patched set + its store survived restore");
+		check(restPat->params[5].nodes().size() == 1 && restPat->params[5].nodes()[0].value == 777,
+		      "steal: patched automation survived restore");
 		check(backup.getForExactClip(mc, clipKey) == nullptr, "steal: backup entry consumed by restore");
 		// `live` (holding the ParamSet + its RAII DOM store) is destructed at scope exit: params_ die before
 		// domStore_, so no borrower outlives the store — a clean teardown (no dangle / double free).
