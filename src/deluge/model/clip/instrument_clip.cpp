@@ -180,11 +180,11 @@ deleteClipAndGetOut:
 	newClip->soloingInSessionMode = false;
 	newClip->output = output;
 
-	// Phase C (InstrumentClip, synth): bind the freshly-cloned (unbound) unpatched + patched sets to fresh DOM
-	// stores (Model A), like AudioClip::clone. Synth only; kit/drum params + patch cables are later steps.
-	if (output->type == OutputType::SYNTH && newClip->paramManager.containsAnyMainParamCollections()) {
-		newClip->paramManager.getUnpatchedParamSet()->bindDomStore();
-		newClip->paramManager.getPatchedParamSet()->bindDomStore();
+	// Phase C: bind the freshly-cloned (unbound) clip-level param sets to fresh DOM stores (Model A), like
+	// AudioClip::clone. Synth = unpatched + patched; kit clip-level = unpatched FX. Only SOUND managers (the
+	// helper's precondition — MIDI/CV skipped). Per-drum kit rows are bound after the noteRows copy below.
+	if (output->type == OutputType::SYNTH || output->type == OutputType::KIT) {
+		newClip->paramManager.bindMainParamSetDomStores();
 	}
 
 	try {
@@ -192,6 +192,16 @@ deleteClipAndGetOut:
 	} catch (deluge::exception&) {
 		error = Error::INSUFFICIENT_RAM;
 		goto deleteClipAndGetOut;
+	}
+
+	// Phase C (kit): each cloned SoundDrum row's param manager is a fresh, unbound deep copy — bind them too.
+	if (output->type == OutputType::KIT) {
+		for (int32_t i = 0; i < std::ssize(newClip->noteRows); i++) {
+			NoteRow& noteRow = newClip->noteRows[i];
+			if (noteRow.drum != nullptr && noteRow.drum->type == DrumType::SOUND) {
+				noteRow.paramManager.bindMainParamSetDomStores();
+			}
+		}
 	}
 
 	modelStack->setTimelineCounter(newClip);
@@ -2310,12 +2320,11 @@ Error InstrumentClip::setAudioInstrument(Instrument* newInstrument, Song* song, 
 		((Instrument*)output)->setupPatching(modelStack);
 	}
 
-	// Phase C (InstrumentClip, synth): bind the (freshly set up / cloned-from-favour) unpatched + patched sets
-	// to DOM stores. bindDomStore is idempotent, so a ParamBackup-restored manager (whose store travelled with
-	// the ParamSet) is left untouched. Synth only; patch cables + kit drums are later steps.
-	if (newInstrument->type == OutputType::SYNTH && paramManager.containsAnyMainParamCollections()) {
-		paramManager.getUnpatchedParamSet()->bindDomStore();
-		paramManager.getPatchedParamSet()->bindDomStore();
+	// Phase C: bind the (freshly set up / cloned-from-favour) clip-level param sets to DOM stores (Model A).
+	// Synth = unpatched + patched; kit clip-level = unpatched FX. Idempotent, so a ParamBackup-restored manager
+	// (whose store travelled with the ParamSet) is left untouched. Per-drum kit rows are bound in NoteRow::setDrum.
+	if (newInstrument->type == OutputType::SYNTH || newInstrument->type == OutputType::KIT) {
+		paramManager.bindMainParamSetDomStores();
 	}
 
 	return Error::NONE;

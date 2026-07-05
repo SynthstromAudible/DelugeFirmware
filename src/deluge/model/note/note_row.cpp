@@ -3835,6 +3835,11 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 			patchCableSet->setupPatching(modelStackWithParamCollection);
 		}
 
+		// Phase C (kit): the SoundDrum's param manager is now fully sourced (steal / clone / restore / fresh) —
+		// borrow-point its unpatched + patched sets at DOM stores (Model A). Idempotent, so a manager restored
+		// from ParamBackup (already bound; its store travelled with the ParamSet) is left untouched.
+		paramManager.bindMainParamSetDomStores();
+
 		Clip* clip = (Clip*)modelStack->getTimelineCounter();
 
 		if (playbackHandler.isEitherClockActive() && paramManager.mightContainAutomation()

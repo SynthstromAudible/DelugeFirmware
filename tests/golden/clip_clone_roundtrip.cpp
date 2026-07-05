@@ -21,6 +21,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/drum/drum.h"
 #include "model/model_stack.h"
 #include "model/note/note.h"
 #include "model/note/note_row.h"
@@ -150,6 +151,55 @@ int main(int argc, char** argv) {
 			}
 			if (failures != 0) {
 				std::fprintf(stderr, "clip_clone (audio): %d failure(s)\n", failures);
+				std::fflush(stderr);
+				_exit(4);
+			}
+		}
+	}
+
+	// Phase C (kit): if the song has a kit clip, clone it and assert the clone's clip-level FX set and each
+	// cloned SoundDrum row's manager are DOM-bound with a live borrow (InstrumentClip::clone binds them).
+	{
+		InstrumentClip* srcKit = nullptr;
+		for (ClipArray* arr : {&song->project.clips.session_clips, &song->project.clips.arrangement_only_clips}) {
+			for (int32_t i = 0; i < std::ssize(*arr) && srcKit == nullptr; i++) {
+				Clip* c = (*arr)[i];
+				if (c->type == ClipType::INSTRUMENT && c->output != nullptr && c->output->type == OutputType::KIT) {
+					srcKit = static_cast<InstrumentClip*>(c);
+				}
+			}
+		}
+		if (srcKit != nullptr) {
+			char kMem[256];
+			ModelStackWithTimelineCounter* kStack = setupModelStackWithTimelineCounter(kMem, song, srcKit);
+			Error ke = srcKit->clone(kStack, /*shouldFlattenReversing=*/false);
+			check(ke == Error::NONE, "kit clone: returned NONE");
+			auto* kClone = static_cast<InstrumentClip*>(kStack->getTimelineCounter());
+			check(kClone != nullptr && kClone != srcKit, "kit clone: distinct clip object");
+			if (kClone != nullptr && kClone != srcKit) {
+				auto liveBound = [](ParamSet* s) {
+					return s->domStore() != nullptr && &s->params[0].nodes() == &s->domStore()->params[0].nodes;
+				};
+				check(liveBound(kClone->paramManager.getUnpatchedParamSet()),
+				      "kit clone: clip-level FX DOM-bound with live borrow");
+				int32_t drumRows = 0;
+				for (int32_t r = 0; r < std::ssize(kClone->noteRows); r++) {
+					NoteRow& nr = kClone->noteRows[r];
+					if (nr.drum != nullptr && nr.drum->type == DrumType::SOUND
+					    && nr.paramManager.containsAnyMainParamCollections()) {
+						drumRows++;
+						check(liveBound(nr.paramManager.getUnpatchedParamSet())
+						          && liveBound(nr.paramManager.getPatchedParamSet()),
+						      "kit clone: SoundDrum row DOM-bound (unpatched + patched)");
+					}
+				}
+				// drumRows may legitimately be 0 (a kit whose drum managers are all parked in ParamBackup / empty
+				// rows — those bind on restore via NoteRow::setDrum, not at clone). Non-vacuous coverage comes
+				// from kits that DO have live drum rows (e.g. Kitchen Clave: 17).
+				std::fprintf(stderr, "kit clone: sound-drum rows=%d\n", drumRows);
+			}
+			if (failures != 0) {
+				std::fprintf(stderr, "clip_clone (kit): %d failure(s)\n", failures);
 				std::fflush(stderr);
 				_exit(4);
 			}
