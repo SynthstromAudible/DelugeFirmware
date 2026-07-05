@@ -3,7 +3,10 @@
 # The host targets back the unit/proptest/fuzz tests and the i686 conformance
 # staticlib; the device target backs the firmware link (a CMake add_custom_command
 # shells out to `cargo build ... --target armv7a-none-eabihf`, see CMakeLists.txt).
+# armv7-unknown-linux-gnueabihf is the Linux/gnu armhf host used by the arm-linux
+# NEON cross of the host-sim (sim/arm-linux-toolchain.cmake, DELUGE_SIM_ARM); it has
+# prebuilt std, so it links like i686 rather than needing build-std.
 [toolchain]
 channel = "nightly"
 components = ["rust-src", "clippy", "rustfmt"]
-targets = ["armv7a-none-eabihf", "i686-unknown-linux-gnu"]
+targets = ["armv7a-none-eabihf", "armv7-unknown-linux-gnueabihf", "i686-unknown-linux-gnu"]
