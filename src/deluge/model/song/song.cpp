@@ -1939,23 +1939,37 @@ skipInstance:
 		}
 	}
 
-	// Phase C (InstrumentClip, synth): borrow-point each synth InstrumentClip's unpatched + patched automation
-	// node storage at DOM-owned DocParamSets anchored on their ParamSets (Model A), like the AudioClip and
-	// song-global borrows above. setupPatchingForAllParamManagers has finalized every instrument clip's param
-	// manager by now. Gate on SYNTH: kit drums (per-NoteRow / ParamBackup) and patch cables are later steps.
+	// Phase C (InstrumentClip): borrow-point each instrument clip's automation node storage at DOM-owned
+	// DocParamSets (Model A), like the AudioClip / song-global borrows above. setupPatchingForAllParamManagers
+	// has finalized every instrument clip's param manager by now. bindMainParamSetDomStores binds unpatched
+	// (always) + patched (synth/drum only) and no-ops for MIDI/CV. For KIT clips the drum params live
+	// per-NoteRow, so bind each row's manager too (the kit clip-level manager is its unpatched-only global FX).
+	// ParamSets are heap-allocated, so their stores survive NoteRow relocation / ParamBackup steal (Model A).
 	{
 		std::array<ClipArray*, 2> const instClipArrays{&project.clips.session_clips,
 		                                               &project.clips.arrangement_only_clips};
 		for (ClipArray* clipArray : instClipArrays) {
 			for (int32_t c = 0; c < std::ssize(*clipArray); c++) {
 				Clip* thisClip = (*clipArray)[c];
-				if (thisClip->type != ClipType::INSTRUMENT || thisClip->output == nullptr
-				    || thisClip->output->type != OutputType::SYNTH
-				    || !thisClip->paramManager.containsAnyMainParamCollections()) {
+				if (thisClip->type != ClipType::INSTRUMENT || thisClip->output == nullptr) {
 					continue;
 				}
-				thisClip->paramManager.getUnpatchedParamSet()->bindDomStore();
-				thisClip->paramManager.getPatchedParamSet()->bindDomStore();
+				OutputType ot = thisClip->output->type;
+				// Only bind SOUND managers (unpatched ParamSet at summaries[0]). MIDI/CV clip managers hold a
+				// MIDIParamCollection there — NOT a ParamSet — so bindMainParamSetDomStores would corrupt them.
+				if (ot == OutputType::SYNTH) {
+					thisClip->paramManager.bindMainParamSetDomStores(); // synth: unpatched + patched
+				}
+				else if (ot == OutputType::KIT) {
+					thisClip->paramManager.bindMainParamSetDomStores(); // kit clip-level global-FX (unpatched)
+					InstrumentClip* instrumentClip = static_cast<InstrumentClip*>(thisClip);
+					for (int32_t n = 0; n < std::ssize(instrumentClip->noteRows); n++) {
+						NoteRow& noteRow = instrumentClip->noteRows[n];
+						if (noteRow.drum != nullptr && noteRow.drum->type == DrumType::SOUND) {
+							noteRow.paramManager.bindMainParamSetDomStores(); // per-SoundDrum: unpatched + patched
+						}
+					}
+				}
 			}
 		}
 	}

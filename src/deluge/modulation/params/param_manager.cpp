@@ -161,6 +161,19 @@ void ParamManager::stealParamCollectionsFrom(ParamManager* other, bool stealExpr
 	other->expressionParamSetOffset = 0;
 }
 
+void ParamManager::bindMainParamSetDomStores() {
+	if (!containsAnyMainParamCollections()) {
+		return; // MIDI / expression-only: no main ParamSet to bind
+	}
+	// summaries[0] is the unpatched set for every main-collection manager (GlobalEffectable + Sound).
+	static_cast<ParamSet*>(summaries[0].paramCollection)->bindDomStore();
+	// summaries[1] (patched) exists only for full-synth managers (setupWithPatching), not the unpatched-only
+	// GlobalEffectable managers (audio clip / kit clip-level FX).
+	if (summaries[1].paramCollection != nullptr) {
+		static_cast<ParamSet*>(summaries[1].paramCollection)->bindDomStore();
+	}
+}
+
 Error ParamManager::cloneParamCollectionsFrom(ParamManager const* other, bool copyAutomation,
                                               bool cloneExpressionParams, int32_t reverseDirectionWithLength) {
 

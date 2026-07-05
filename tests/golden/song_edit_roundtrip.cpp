@@ -24,7 +24,10 @@
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip.h"
 #include "model/clip/clip_array.h"
+#include "model/clip/instrument_clip.h"
+#include "model/drum/drum.h"
 #include "model/global_effectable/global_effectable.h"
+#include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_set.h"
@@ -109,7 +112,11 @@ int main(int argc, char** argv) {
 		auto isLiveBound = [](ParamSet* s) {
 			return s->domStore() != nullptr && &s->params[0].nodes() == &s->domStore()->params[0].nodes;
 		};
+		auto bothBound = [&](ParamManagerForTimeline& pm) {
+			return isLiveBound(pm.getUnpatchedParamSet()) && isLiveBound(pm.getPatchedParamSet());
+		};
 		int32_t audioSeen = 0, audioBound = 0, synthSeen = 0, synthBound = 0;
+		int32_t kitSeen = 0, kitBound = 0, drumSeen = 0, drumBound = 0;
 		std::array<ClipArray*, 2> clipArrays{&song->project.clips.session_clips,
 		                                     &song->project.clips.arrangement_only_clips};
 		for (ClipArray* arr : clipArrays) {
@@ -124,19 +131,31 @@ int main(int argc, char** argv) {
 				}
 				else if (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
 				         && clip->output->type == OutputType::SYNTH) {
-					// A synth clip binds BOTH its unpatched and patched sets.
-					synthSeen++;
-					synthBound += (isLiveBound(clip->paramManager.getUnpatchedParamSet())
-					               && isLiveBound(clip->paramManager.getPatchedParamSet()))
-					                  ? 1
-					                  : 0;
+					synthSeen++; // a synth clip binds BOTH its unpatched and patched sets
+					synthBound += bothBound(clip->paramManager) ? 1 : 0;
+				}
+				else if (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
+				         && clip->output->type == OutputType::KIT) {
+					kitSeen++; // kit clip-level global FX = unpatched only
+					kitBound += isLiveBound(clip->paramManager.getUnpatchedParamSet()) ? 1 : 0;
+					InstrumentClip* ic = static_cast<InstrumentClip*>(clip);
+					for (int32_t n = 0; n < std::ssize(ic->noteRows); n++) {
+						NoteRow& nr = ic->noteRows[n];
+						if (nr.drum != nullptr && nr.drum->type == DrumType::SOUND
+						    && nr.paramManager.containsAnyMainParamCollections()) {
+							drumSeen++; // a SoundDrum row binds unpatched + patched
+							drumBound += bothBound(nr.paramManager) ? 1 : 0;
+						}
+					}
 				}
 			}
 		}
-		std::fprintf(stderr, "audio clips: seen=%d bound=%d | synth clips: seen=%d bound=%d\n", audioSeen, audioBound,
-		             synthSeen, synthBound);
-		if (audioSeen != audioBound || synthSeen != synthBound) {
-			std::fprintf(stderr, "PHASE C: a clip loaded UNBOUND (borrow not live)\n");
+		std::fprintf(stderr,
+		             "audio: seen=%d bound=%d | synth: seen=%d bound=%d | kit: seen=%d bound=%d | drums: seen=%d "
+		             "bound=%d\n",
+		             audioSeen, audioBound, synthSeen, synthBound, kitSeen, kitBound, drumSeen, drumBound);
+		if (audioSeen != audioBound || synthSeen != synthBound || kitSeen != kitBound || drumSeen != drumBound) {
+			std::fprintf(stderr, "PHASE C: a clip/drum loaded UNBOUND (borrow not live)\n");
 			_exit(3);
 		}
 	}
