@@ -144,36 +144,12 @@ if(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
 
     # A mainline clang on macOS (COMPILER_ID "Clang", i.e. NOT AppleClang) compiles against its
     # own newer libc++ headers but would otherwise link/run against the older libc++ in the macOS
-    # SDK — a header/runtime mismatch for the C++26 library bits. Use the keg's libc++
-    # (<llvm>/bin/clang++ → <llvm>/lib/c++).
-    #
-    # We link it *statically* when the archives are present, for two reasons:
-    #   1. Runtime version: no rpath juggling to reach the keg's newer C++26 runtime.
-    #   2. Allocator unification (the important one). The app replaces global operator new/delete
-    #      to route every allocation through GeneralMemoryAllocator (the SDRAM pools). With libc++
-    #      as a *dylib*, macOS two-level namespace binds the dylib's own internal allocations to
-    #      libc++abi's operator new (system malloc), NOT to our override — so a std:: buffer
-    #      allocated by app code (a GMA pointer, inside host_sdram) but grown/freed by an
-    #      out-of-line libc++ function reaches system free() on a GMA pointer and aborts with
-    #      "pointer being freed was not allocated". Static linking dissolves the dylib boundary so
-    #      the override preempts process-wide, exactly as ELF symbol interposition does on Linux.
+    # SDK — a header/runtime mismatch for the C++26 library bits. Point the linker + rpath at the
+    # keg's libc++ (<llvm>/bin/clang++ → <llvm>/lib/c++). Harmless if the dir is absent.
     if(APPLE AND CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
         cmake_path(GET CMAKE_CXX_COMPILER PARENT_PATH _sim_llvm_bin)
         cmake_path(GET _sim_llvm_bin PARENT_PATH _sim_llvm_prefix)
-        set(_sim_libcxx_a "${_sim_llvm_prefix}/lib/c++/libc++.a")
-        # libc++abi.a lives beside libc++.a on newer kegs, else one level up in lib/.
-        find_library(_sim_libcxxabi_a NAMES c++abi
-            PATHS "${_sim_llvm_prefix}/lib/c++" "${_sim_llvm_prefix}/lib" NO_DEFAULT_PATH)
-        if(EXISTS "${_sim_libcxx_a}" AND _sim_libcxxabi_a)
-            # -nostdlib++ drops the driver's default -lc++; we supply the static archives instead.
-            # ld64 resolves archive members regardless of order, so no ordering dance is needed.
-            add_link_options(-nostdlib++ "${_sim_libcxx_a}" "${_sim_libcxxabi_a}")
-        elseif(EXISTS "${_sim_llvm_prefix}/lib/c++")
-            # Fallback: dynamic keg libc++ (archives absent). NOTE: the operator new/delete override
-            # will NOT interpose libc++-internal allocations here — cross-boundary frees can abort.
-            message(WARNING "sim: static libc++ archives not found under ${_sim_llvm_prefix}/lib; "
-                            "falling back to dynamic libc++ (operator new/delete override will not "
-                            "interpose libc++-internal allocations — may abort in malloc).")
+        if(EXISTS "${_sim_llvm_prefix}/lib/c++")
             add_link_options("-L${_sim_llvm_prefix}/lib/c++" "LINKER:-rpath,${_sim_llvm_prefix}/lib/c++")
         endif()
     endif()
