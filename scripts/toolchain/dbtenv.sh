@@ -47,6 +47,7 @@ dbtenv_restore_env()
     PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/cmake\/bin://g")";
     PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/ninja-build\/bin://g")";
     # PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/openssl\/bin://g")";
+    dbtenv_restore_rust;
     if [ -n "${PS1:-""}" ]; then
         PS1="$(echo "$PS1" | sed 's/\[dbt\] //g')";
     elif [ -n "${PROMPT:-""}" ]; then
@@ -252,6 +253,63 @@ dbtenv_setup_python()
     fi
 }
 
+dbtenv_setup_rust()
+{
+    RUSTUP_INIT="$TOOLCHAIN_ARCH_DIR/rustup-init/rustup-init";
+
+    # Toolchains before v25 don't ship rustup-init; leave the environment
+    # untouched so older toolchains keep working.
+    if [ ! -x "$RUSTUP_INIT" ]; then
+        return 0;
+    fi
+
+    # Keep rustup/cargo state inside the portable toolchain tree, not the
+    # developer's ~/.rustup / ~/.cargo. Save the caller's prior values once, so a
+    # re-source doesn't clobber the originals (restore relies on this).
+    if [ -z "${SAVED_RUSTUP_HOME+x}" ]; then
+        export SAVED_RUSTUP_HOME="${RUSTUP_HOME:-""}";
+        export SAVED_CARGO_HOME="${CARGO_HOME:-""}";
+    fi
+    export RUSTUP_HOME="$TOOLCHAIN_ARCH_DIR/rust/rustup";
+    export CARGO_HOME="$TOOLCHAIN_ARCH_DIR/rust/cargo";
+
+    # One-time bootstrap: lay down the rustup/cargo shims. --default-toolchain
+    # none makes each rust-toolchain.toml the single source of truth; the first
+    # cargo call installs the pinned nightly + components + targets. Best-effort:
+    # a network failure here must not brick the rest of the DBT environment.
+    if [ ! -x "$CARGO_HOME/bin/rustup" ]; then
+        echo "DBT: bootstrapping rustup (one-time)..";
+        if ! "$RUSTUP_INIT" -y --no-modify-path --profile minimal --default-toolchain none; then
+            echo "DBT: warning: rustup bootstrap failed; Rust builds will not work until it succeeds.";
+        fi
+    fi
+
+    PATH="$CARGO_HOME/bin:$PATH";
+    export PATH;
+    return 0;
+}
+
+dbtenv_restore_rust()
+{
+    # Only unwind if this session set rust up (SAVED_RUSTUP_HOME will be set).
+    if [ -z "${SAVED_RUSTUP_HOME+x}" ]; then
+        return 0;
+    fi
+
+    TOOLCHAIN_ARCH_DIR_SED="$(echo "$TOOLCHAIN_ARCH_DIR" | sed 's/\//\\\//g')";
+    PATH="$(echo "$PATH" | /usr/bin/sed "s/$TOOLCHAIN_ARCH_DIR_SED\/rust\/cargo\/bin://g")";
+
+    if [ -n "$SAVED_RUSTUP_HOME" ]; then
+        export RUSTUP_HOME="$SAVED_RUSTUP_HOME";
+        export CARGO_HOME="$SAVED_CARGO_HOME";
+    else
+        unset RUSTUP_HOME;
+        unset CARGO_HOME;
+    fi
+    unset SAVED_RUSTUP_HOME;
+    unset SAVED_CARGO_HOME;
+}
+
 dbtenv_cleanup()
 {
     
@@ -393,10 +451,16 @@ dbtenv_main()
     export SSL_CERT_FILE=$(python3 -c 'import site; print(site.getsitepackages()[-1])')/certifi/cacert.pem
     export REQUESTS_CA_BUNDLE="$SSL_CERT_FILE";
 
+    dbtenv_setup_rust;
+
     if [ -n "${DBT_DID_UNPACKING}" ]; then
       dbtenv_setup_python
       pre-commit install --install-hooks
     fi
 }
 
-dbtenv_main "${1:-""}";
+# Allow tests to source this file for its functions without running the full
+# environment setup (download, PATH mutation, etc).
+if [ -z "${DBTENV_LIB_ONLY:-}" ]; then
+    dbtenv_main "${1:-""}";
+fi
