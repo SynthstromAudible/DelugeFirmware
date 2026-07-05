@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "dsp/saturation.hpp"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
 #include "model/voiced.h"
@@ -283,14 +284,26 @@ public:
 	virtual ArpeggiatorBase* getArp() = 0;
 	void possiblySetupDefaultExpressionPatching(ParamManager* paramManager);
 
-	int32_t getShiftAmountForSaturation() const { return (clippingAmount >= 2) ? (clippingAmount - 2) : 0; }
+	int32_t getShiftAmountForSaturation() const {
+		uint8_t legacyDrive = deluge::dsp::tanhLegacyDriveSteps(clippingAmount);
+		return (legacyDrive >= 2) ? (legacyDrive - 2) : 0;
+	}
 
 	///	clipping amount must be greater than 0! Check before calling
 	/// Shift amount is givben by getShiftAmountForSaturation
-	[[gnu::always_inline]] void saturate(int32_t* data, uint32_t* workingValue, int32_t shiftAmount) {
+	[[gnu::always_inline]] void saturate(int32_t* data, uint32_t* workingValue, int32_t shiftAmount,
+	                                     int32_t* toneState) {
 		// Clipping
-		//*data = getTanHUnknown(*data, 5 + clippingAmount) << (shiftAmount);
-		*data = getTanHAntialiased(*data, workingValue, 5 + clippingAmount) << (shiftAmount);
+		int32_t dry = *data;
+		// Tone splits the DRY signal into a clean low end (bypasses saturation entirely) and a high
+		// end (the only part that actually gets distorted), then sums them back together - "clean
+		// lows, dirty highs" rather than filtering the low end out of the already-distorted signal.
+		int32_t low = deluge::dsp::saturationCleanLowEnd(dry, toneState, clippingTone);
+		int32_t high = subtract_saturate(dry, low);
+		int32_t distortedHigh = deluge::dsp::saturateTanh(high, workingValue, clippingAmount, clippingTweak)
+		                        << (shiftAmount);
+		int32_t wet = add_saturate(low, distortedHigh);
+		*data = deluge::dsp::blendSaturationMix(dry, wet, clippingMix);
 	}
 	uint32_t getSyncedLFOPhaseIncrement(const LFOConfig& config);
 

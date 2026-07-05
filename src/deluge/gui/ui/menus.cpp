@@ -76,6 +76,7 @@
 #include "gui/menu_item/firmware/version.h"
 #include "gui/menu_item/flash/status.h"
 #include "gui/menu_item/fx/clipping.h"
+#include "gui/menu_item/fx/saturation_type.h"
 #include "gui/menu_item/gate/mode.h"
 #include "gui/menu_item/gate/off_time.h"
 #include "gui/menu_item/gate/selection.h"
@@ -609,6 +610,30 @@ UnpatchedParam srrMenu{STRING_FOR_DECIMATION, params::UNPATCHED_SAMPLE_RATE_REDU
 UnpatchedParam bitcrushMenu{STRING_FOR_BITCRUSH, params::UNPATCHED_BITCRUSHING, RenderingStyle::BAR};
 patched_param::Integer foldMenu{STRING_FOR_WAVEFOLD, STRING_FOR_WAVEFOLD, params::LOCAL_FOLD, RenderingStyle::BAR};
 
+// Saturation editor: SYNTH=Drive, KIT=Asymmetry, MIDI=Mix, CV=Tone. Uses the same HorizontalMenu
+// SYNTH/KIT/MIDI/CV -> children wiring as the envelope graph editor.
+// Uses its own Drive instance (rather than reusing clippingMenu) because a MenuItem's `parent` is
+// set dynamically to whichever HorizontalMenu it's currently a child of (HorizontalMenu::beginSession
+// sets `item->parent = this` for every child) - reusing clippingMenu here would silently steal it
+// away from soundDistortionMenu's original Saturation/Bitcrush/SRR/Fold grouping. Both instances
+// read/write the same underlying clippingAmount field, so they stay in sync automatically.
+fx::Clipping saturationDriveMenu{STRING_FOR_SATURATION};
+fx::SaturationTweak saturationTweakMenu{STRING_FOR_ASYMMETRY};
+fx::SaturationMix saturationMixMenu{STRING_FOR_MIX};
+fx::SaturationTone saturationToneMenu{STRING_FOR_TONE};
+HorizontalMenu saturationMenu{
+    STRING_FOR_SATURATION,
+    {
+        &saturationDriveMenu,
+        &saturationTweakMenu,
+        &saturationMixMenu,
+        &saturationToneMenu,
+    },
+};
+
+// Original pad/menu grouping, unchanged from stock: SYNTH=Saturation, KIT=Bitcrush, MIDI=Decimation,
+// CV=Wavefold. The new saturation type/tweak/mix editor lives on its own pad (see saturationMenu
+// above and its wiring at paramShortcutsForSounds[7][6]) instead of replacing this one.
 HorizontalMenu soundDistortionMenu{
     STRING_FOR_DISTORTION,
     {
@@ -1757,7 +1782,7 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForSounds[][kDisplayHeight] = {
     {&modulator0Volume,		&modulator0TransposeMenu,	comingSoonMenu,                 comingSoonMenu,                 &modulator0PhaseMenu,	&modulator0FeedbackMenu,	comingSoonMenu,					&sequenceDirectionMenu             },
     {&modulator1Volume,		&modulator1TransposeMenu,	comingSoonMenu,                 comingSoonMenu,                 &modulator1PhaseMenu,	&modulator1FeedbackMenu,	&modulatorDestMenu,				&stutterRateMenu                   },
     {&volumeMenu,			&masterTransposeMenu,		&vibratoMenu,                   &panMenu,                       &synthModeMenu,			&srrMenu,					&bitcrushMenu,					&clippingMenu                      },
-    {&portaMenu,				&polyphonyMenu,				&priorityMenu,                  &unisonDetuneMenu,              &numUnisonMenu,			&threshold,					nullptr,						&foldMenu                          },
+    {&portaMenu,				&polyphonyMenu,				&priorityMenu,                  &unisonDetuneMenu,              &numUnisonMenu,			&threshold,					&saturationMenu,				&foldMenu                          },
     {&env1ReleaseMenu,		&env1SustainMenu,			&env1DecayMenu,                 &env1AttackMenu,                &lpfMorphMenu,			&lpfModeMenu,				&lpfResMenu,					&lpfFreqMenu                       },
     {&env2ReleaseMenu,		&env2SustainMenu,			&env2DecayMenu,                 &env2AttackMenu,                &hpfMorphMenu,			&hpfModeMenu,				&hpfResMenu,					&hpfFreqMenu                       },
     {&sidechainReleaseMenu,	&sidechainSyncMenu,			&sidechainVolumeShortcutMenu,   &sidechainAttackMenu,           &sidechainShapeMenu,	&sidechainSendMenu,			&bassMenu,						&bassFreqMenu                      },

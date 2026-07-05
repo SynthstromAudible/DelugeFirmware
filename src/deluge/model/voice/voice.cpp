@@ -177,6 +177,8 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 
 		lastSaturationTanHWorkingValue[0] = 2147483648;
 		lastSaturationTanHWorkingValue[1] = 2147483648;
+		lastSaturationToneState[0] = 0;
+		lastSaturationToneState[1] = 0;
 	}
 
 	// Porta
@@ -1567,8 +1569,10 @@ skipUnisonPart: {}
 					outputSampleR = multiply_32x32_rshift32_rounded(outputSampleR, overallOscAmplitudeNow) << 1;
 				}
 
-				sound.saturate(&outputSampleL, &lastSaturationTanHWorkingValue[0], shiftAmount);
-				sound.saturate(&outputSampleR, &lastSaturationTanHWorkingValue[1], shiftAmount);
+				sound.saturate(&outputSampleL, &lastSaturationTanHWorkingValue[0], shiftAmount,
+				               &lastSaturationToneState[0]);
+				sound.saturate(&outputSampleR, &lastSaturationTanHWorkingValue[1], shiftAmount,
+				               &lastSaturationToneState[1]);
 
 				// Write to the output buffer, panning or not
 				if (doPanning) {
@@ -1649,7 +1653,8 @@ skipUnisonPart: {}
 					output = multiply_32x32_rshift32_rounded(output, overallOscAmplitudeNow) << 1;
 				}
 
-				sound.saturate(&output, &lastSaturationTanHWorkingValue[0], clippingAmount);
+				sound.saturate(&output, &lastSaturationTanHWorkingValue[0], clippingAmount,
+				               &lastSaturationToneState[0]);
 
 				if (soundRenderingInStereo) {
 					if (doPanning) {

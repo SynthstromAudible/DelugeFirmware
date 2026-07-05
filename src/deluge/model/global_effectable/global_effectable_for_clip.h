@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "dsp/saturation.hpp"
 #include "dsp/stereo_sample.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/sample/sample_recorder.h"
@@ -43,16 +44,26 @@ public:
 	                            GlobalEffectableForClip** globalEffectableWithMostReverb,
 	                            int32_t* highestReverbAmountFound);
 
-	int32_t getShiftAmountForSaturation() { return (clippingAmount >= 3) ? (clippingAmount - 3) : 0; }
+	int32_t getShiftAmountForSaturation() {
+		uint8_t legacyDrive = deluge::dsp::tanhLegacyDriveSteps(clippingAmount);
+		return (legacyDrive >= 3) ? (legacyDrive - 3) : 0;
+	}
 
 	/// clipping amount must be greater than 0! Check before calling
 	/// Shift amount is givben by getShiftAmountForSaturation
-	[[gnu::always_inline]] q31_t saturate(q31_t data, uint32_t* workingValue, int32_t shiftAmount) {
-		// Clipping
-		return getTanHAntialiased(data, workingValue, 3 + clippingAmount) << (shiftAmount);
+	[[gnu::always_inline]] q31_t saturate(q31_t data, uint32_t* workingValue, int32_t shiftAmount, q31_t* toneState) {
+		// Clipping. Tone splits the DRY signal into a clean low end (bypasses saturation entirely)
+		// and a high end (the only part that actually gets distorted), then sums them back together.
+		q31_t low = deluge::dsp::saturationCleanLowEnd(data, toneState, clippingTone);
+		q31_t high = subtract_saturate(data, low);
+		q31_t distortedHigh = deluge::dsp::saturateTanh(high, workingValue, clippingAmount, clippingTweak)
+		                      << (shiftAmount);
+		q31_t wet = add_saturate(low, distortedHigh);
+		return deluge::dsp::blendSaturationMix(data, wet, clippingMix);
 	}
 
 	std::array<uint32_t, 2> lastSaturationTanHWorkingValue = {2147483648u, 2147483648u};
+	std::array<q31_t, 2> lastSaturationToneState = {0, 0};
 
 protected:
 	int32_t getParameterFromKnob(int32_t whichModEncoder) final;
