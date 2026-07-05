@@ -1468,6 +1468,40 @@ int main() {
 		check(copy.nodes().size() == p.nodes().size(), "borrow: copy has the same node count");
 	}
 
+	// Phase C (Model A): ParamSet::bindDomStore allocates the DOM store, points every param's nodes at it, and a
+	// copy of a bound set starts UNBOUND with independent storage (clones must not share the DOM store).
+	{
+		ParamManagerForTimeline pm;
+		check(pm.setupWithPatching() == Error::NONE, "bindDomStore setup");
+		UnpatchedParamSet* unp = pm.getUnpatchedParamSet();
+		setNode(unp->params[2], 0, 111, false);
+		setNode(unp->params[2], 48, -222, true);
+		unp->params[5].currentValue = 4242; // unautomated
+
+		check(unp->domStore() == nullptr, "bindDomStore: unbound before bind");
+		unp->bindDomStore();
+		deluge::project::DocParamSet* store = unp->domStore();
+		check(store != nullptr, "bindDomStore: store allocated");
+		check(static_cast<int32_t>(store->params.size()) == unp->getNumParams(), "bindDomStore: store sized to count");
+		// Every param's nodes() now aliases its store lane.
+		check(&unp->params[2].nodes() == &store->params[2].nodes, "bindDomStore: param nodes alias the store lane");
+		// The authored nodes moved into the store.
+		check(store->params[2].nodes.size() == 2 && store->params[2].nodes[0].value == 111,
+		      "bindDomStore: authored nodes live in the store");
+		// A subsequent edit lands in the store.
+		setNode(unp->params[2], 24, 999, false);
+		check(store->params[2].nodes.size() == 3, "bindDomStore: edit lands in the store");
+		// Idempotent: a second bind must not reallocate / re-seed.
+		unp->bindDomStore();
+		check(unp->domStore() == store, "bindDomStore: idempotent (no realloc)");
+
+		// A copy of a bound set starts UNBOUND and owns independent storage.
+		UnpatchedParamSet copy(*unp);
+		check(copy.domStore() == nullptr, "bindDomStore: a copy starts unbound");
+		check(&copy.params[2].nodes() != &store->params[2].nodes, "bindDomStore: a copy owns independent storage");
+		check(copy.params[2].nodes().size() == unp->params[2].nodes().size(), "bindDomStore: copy has same node count");
+	}
+
 	if (failures == 0) {
 		std::fprintf(stdout, "param_automation projection: OK\n");
 		std::fflush(stdout);

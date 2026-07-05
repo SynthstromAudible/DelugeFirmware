@@ -23,6 +23,11 @@
 #include "modulation/params/param_collection.h"
 #include "storage/storage_manager.h"
 #include <array>
+#include <memory>
+
+namespace deluge::project {
+struct DocParamSet;
+}
 
 class Sound;
 class ParamManagerForTimeline;
@@ -38,9 +43,25 @@ protected:
 	/// Number of parameters in the params array
 	int32_t numParams_;
 
+	/// DOM-owned node store this set's AutoParams borrow (Phase C / Model A). nullptr = unbound (params use
+	/// their own inline storage, exactly as before). RAII-freed with the set; because the set is heap-allocated
+	/// and never relocates — a ParamBackup steal moves only the owning pointer — the store outlives the clip and
+	/// follows the params through backup/restore. See docs/superpowers/specs §5.1 (accessor/projection design).
+	std::unique_ptr<deluge::project::DocParamSet> domStore_;
+
 public:
 	AutoParam* params;
 	ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary);
+	/// Copy leaves the clone UNBOUND (domStore_ null): a cloned set owns its own nodes until separately bound, so
+	/// two sets never alias one DOM store. Out-of-line so DocParamSet can stay incomplete in this header.
+	ParamSet(ParamSet const& other);
+	~ParamSet() override;
+
+	/// Bind this set's node storage to a DOM-owned DocParamSet (allocated here, RAII-freed with the set): each
+	/// AutoParam borrows its nodes from domStore_->params[p].nodes. Idempotent — a no-op if already bound.
+	void bindDomStore();
+	/// The bound DOM store, or nullptr if unbound. (Test / inspection accessor.)
+	deluge::project::DocParamSet* domStore();
 
 	inline int32_t getValue(int32_t p) { return params[p].getCurrentValue(); }
 	int32_t getValueAtPos(int32_t p, uint32_t pos, TimelineCounter* playPositionCounter);
