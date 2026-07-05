@@ -12,6 +12,7 @@
 #include "deluge-project/param_automation.h"
 #include "deluge-project/param_edit.h"
 #include "model/global_effectable/global_effectable.h"
+#include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -119,6 +120,25 @@ void roundTrip(const char* name, int32_t currentValue, const std::vector<Node>& 
 } // namespace
 
 int main() {
+	// Filter-mode serialization must round-trip for EVERY FilterMode, including the OFF sentinel. Regression
+	// guard for a layout-dependent OOB read: filterMap was sized kNumFilterModes (which excludes OFF), so
+	// lpfTypeToString(FilterMode::OFF) read one past the array and emitted adjacent garbage ("H2L"), which
+	// reloaded as HPLADDER — a non-idempotent save that silently turned an off filter on (Glitchy_2 golden).
+	{
+		const FilterMode allModes[] = {FilterMode::TRANSISTOR_12DB,
+		                               FilterMode::TRANSISTOR_24DB,
+		                               FilterMode::TRANSISTOR_24DB_DRIVE,
+		                               FilterMode::SVF_BAND,
+		                               FilterMode::SVF_NOTCH,
+		                               FilterMode::HPLADDER,
+		                               FilterMode::OFF};
+		for (FilterMode m : allModes) {
+			const char* s = lpfTypeToString(m);
+			check(s != nullptr && s[0] != '\0', "filter mode: writes a non-empty string");
+			check(stringToLPFType(s) == m, "filter mode: string round-trips to the same mode");
+		}
+	}
+
 	// Phase 1 (DOM-live split): setNodeAtPos operates directly on DocAutoParam (pure data, no engine).
 	{
 		using deluge::project::DocAutoParam;

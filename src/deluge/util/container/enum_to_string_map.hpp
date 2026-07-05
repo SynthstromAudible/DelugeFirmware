@@ -24,7 +24,16 @@ public:
 		              "EnumStringMap requires an enum type with the same number of values as the initializer list");
 	}
 
-	constexpr const char* operator()(Enum a) { return stringList_[static_cast<std::underlying_type_t<Enum>>(a)]; }
+	constexpr const char* operator()(Enum a) {
+		// Bounds guard: an enum value with no mapped slot (e.g. a sentinel past the mapped range) would
+		// otherwise read out of bounds and return adjacent garbage. Return "" so a stray value serializes
+		// as empty rather than aliasing another map's data (which reloaded as a wrong-but-valid enum).
+		const auto index = static_cast<std::underlying_type_t<Enum>>(a);
+		if (static_cast<std::size_t>(index) >= N) {
+			return "";
+		}
+		return stringList_[index];
+	}
 
 	/// Convert string to enum, returning enum variant N on failure
 	constexpr Enum operator()(const char* str) {
