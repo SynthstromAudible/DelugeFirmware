@@ -18,6 +18,11 @@
 /// host_link — AF_UNIX / TCP-loopback transport for the host emulator. See host_link.h.
 
 #define _POSIX_C_SOURCE 200809L
+#ifdef __APPLE__
+// macOS gates INADDR_LOOPBACK (and other BSD socket extensions) in <netinet/in.h> behind
+// _DARWIN_C_SOURCE; defining _POSIX_C_SOURCE above turns them off unless we opt back in.
+#define _DARWIN_C_SOURCE
+#endif
 
 #include "host_link.h"
 
