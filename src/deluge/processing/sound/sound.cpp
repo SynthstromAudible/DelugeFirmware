@@ -63,7 +63,6 @@
 #include "util/misc.h"
 #include <algorithm>
 #include <array>
-#include <bits/ranges_algo.h>
 #include <iterator>
 #include <limits>
 #include <ranges>

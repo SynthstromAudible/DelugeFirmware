@@ -20,6 +20,7 @@
 #include "libdeluge/control_surface.h"
 #include <array>
 #include <cstdint>
+#include <cstdlib> // std::abs (int); libc++ doesn't provide it transitively via <cstdint>
 
 namespace indicator_leds {
 
