@@ -1939,6 +1939,27 @@ skipInstance:
 		}
 	}
 
+	// Phase C (InstrumentClip, synth): borrow-point each synth InstrumentClip's unpatched + patched automation
+	// node storage at DOM-owned DocParamSets anchored on their ParamSets (Model A), like the AudioClip and
+	// song-global borrows above. setupPatchingForAllParamManagers has finalized every instrument clip's param
+	// manager by now. Gate on SYNTH: kit drums (per-NoteRow / ParamBackup) and patch cables are later steps.
+	{
+		std::array<ClipArray*, 2> const instClipArrays{&project.clips.session_clips,
+		                                               &project.clips.arrangement_only_clips};
+		for (ClipArray* clipArray : instClipArrays) {
+			for (int32_t c = 0; c < std::ssize(*clipArray); c++) {
+				Clip* thisClip = (*clipArray)[c];
+				if (thisClip->type != ClipType::INSTRUMENT || thisClip->output == nullptr
+				    || thisClip->output->type != OutputType::SYNTH
+				    || !thisClip->paramManager.containsAnyMainParamCollections()) {
+					continue;
+				}
+				thisClip->paramManager.getUnpatchedParamSet()->bindDomStore();
+				thisClip->paramManager.getPatchedParamSet()->bindDomStore();
+			}
+		}
+	}
+
 	AudioEngine::routineWithClusterLoading();
 
 	int32_t playbackWillStartInArrangerAtPos =

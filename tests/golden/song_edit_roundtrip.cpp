@@ -106,25 +106,37 @@ int main(int argc, char** argv) {
 	// the post-load loop), and the borrow must be live — engine nodes() aliases the store lane. Run against a
 	// song with audio clips (Sampling.XML) to exercise this; songs without audio clips just report seen=0.
 	{
-		int32_t audioClipsSeen = 0, audioClipsBound = 0;
+		auto isLiveBound = [](ParamSet* s) {
+			return s->domStore() != nullptr && &s->params[0].nodes() == &s->domStore()->params[0].nodes;
+		};
+		int32_t audioSeen = 0, audioBound = 0, synthSeen = 0, synthBound = 0;
 		std::array<ClipArray*, 2> clipArrays{&song->project.clips.session_clips,
 		                                     &song->project.clips.arrangement_only_clips};
 		for (ClipArray* arr : clipArrays) {
 			for (int32_t c = 0; c < std::ssize(*arr); c++) {
 				Clip* clip = (*arr)[c];
-				if (clip->type != ClipType::AUDIO || !clip->paramManager.containsAnyMainParamCollections()) {
+				if (!clip->paramManager.containsAnyMainParamCollections()) {
 					continue;
 				}
-				audioClipsSeen++;
-				UnpatchedParamSet* unp = clip->paramManager.getUnpatchedParamSet();
-				if (unp->domStore() != nullptr && &unp->params[0].nodes() == &unp->domStore()->params[0].nodes) {
-					audioClipsBound++;
+				if (clip->type == ClipType::AUDIO) {
+					audioSeen++;
+					audioBound += isLiveBound(clip->paramManager.getUnpatchedParamSet()) ? 1 : 0;
+				}
+				else if (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
+				         && clip->output->type == OutputType::SYNTH) {
+					// A synth clip binds BOTH its unpatched and patched sets.
+					synthSeen++;
+					synthBound += (isLiveBound(clip->paramManager.getUnpatchedParamSet())
+					               && isLiveBound(clip->paramManager.getPatchedParamSet()))
+					                  ? 1
+					                  : 0;
 				}
 			}
 		}
-		std::fprintf(stderr, "audio clips: seen=%d bound=%d\n", audioClipsSeen, audioClipsBound);
-		if (audioClipsSeen != audioClipsBound) {
-			std::fprintf(stderr, "PHASE C: an AudioClip loaded UNBOUND (borrow not live)\n");
+		std::fprintf(stderr, "audio clips: seen=%d bound=%d | synth clips: seen=%d bound=%d\n", audioSeen, audioBound,
+		             synthSeen, synthBound);
+		if (audioSeen != audioBound || synthSeen != synthBound) {
+			std::fprintf(stderr, "PHASE C: a clip loaded UNBOUND (borrow not live)\n");
 			_exit(3);
 		}
 	}
