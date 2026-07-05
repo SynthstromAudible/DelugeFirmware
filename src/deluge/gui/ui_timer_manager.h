@@ -45,7 +45,8 @@ enum class TimerName {
 	SEND_MIDI_FEEDBACK_FOR_AUTOMATION,
 	INTERPOLATION_SHORTCUT_BLINK,
 	PAD_SELECTION_SHORTCUT_BLINK,
-	MACRO_SHORTCUT_BLINK, // the macro lane's capture A/B + load/save pads, blinking as one group
+	MACRO_SHORTCUT_BLINK,      // the macro lane's capture A/B + load/save pads, blinking as one group
+	MACRO_TARGET_PICKER_PULSE, // slow white/yellow alternation of both-layers-assigned pads in the picker
 	NOTE_ROW_BLINK,
 	LOADING_ANIMATION,
 	SELECTED_CLIP_PULSE,

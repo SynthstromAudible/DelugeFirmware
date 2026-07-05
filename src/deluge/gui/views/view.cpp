@@ -1552,10 +1552,14 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 					}
 					setKnobIndicatorLevels();
 					setModLedStates();
+					// HOLD-TO-ASSIGN: while the button is held, the main grid becomes this macro's target
+					// picker - tap a param pad to assign it to the next free slot (released below).
+					instrumentClipView.openMacroTargetPicker(macro);
 				}
 			}
 			else {
-				display->cancelPopup(); // release: drop the persistent peek readout
+				instrumentClipView.closeMacroTargetPicker(); // release: main grid back to notes
+				display->cancelPopup();                      // drop the persistent peek readout
 			}
 		}
 		return; // the four non-macro buttons do nothing; never writes modKnobMode / toggles VU

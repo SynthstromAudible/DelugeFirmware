@@ -250,6 +250,13 @@ ActionResult InstrumentClipView::commandExitScaleMode() {
 ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
+	// SHIFT + SAVE/DELETE while holding a macro button (target picker up): delete the currently-selected
+	// pad's assignment from this macro; the pad reverts to grey.
+	if (macroTargetPickerActive() && b == SAVE && on && Buttons::isShiftButtonPressed()) {
+		deleteSelectedMacroTarget();
+		return ActionResult::DEALT_WITH;
+	}
+
 	// Scale mode button
 	if (b == SCALE_MODE && currentUIMode != UI_MODE_HOLDING_LOAD_BUTTON) {
 		return handleScaleButtonAction(on, inCardRoutine);
@@ -1841,6 +1848,18 @@ const uint32_t auditionPadActionUIModes[] = {UI_MODE_AUDITIONING,
                                              0};
 
 ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocity) {
+
+	// Macro-target picker (a macro button is held in MACRO mode): main-grid taps assign params to the
+	// held macro's next free target slot. Every main-grid press is consumed so nothing edits notes.
+	if (macroTargetPickerActive() && x < kDisplayWidth) {
+		if (sdRoutineLock) {
+			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+		}
+		if (velocity) {
+			handleMacroTargetPickerPad(x, y);
+		}
+		return ActionResult::DEALT_WITH;
+	}
 
 	// Drum Randomizer
 	if (x == 15 && y == 2 && velocity > 0
@@ -7266,6 +7285,14 @@ bool InstrumentClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplay
 		return true;
 	}
 
+	// While a macro button is held in MACRO mode, the main grid is the macro-target picker instead of notes.
+	if (macroTargetPickerActive()) {
+		PadLEDs::renderingLock = true;
+		renderMacroTargetPickerOverlay(image, occupancyMask);
+		PadLEDs::renderingLock = false;
+		return true;
+	}
+
 	PadLEDs::renderingLock = true;
 	performActualRender(whichRows, image[0], occupancyMask, currentSong->xScroll[NAVIGATION_CLIP],
 	                    currentSong->xZoom[NAVIGATION_CLIP], kDisplayWidth, kDisplayWidth + kSideBarWidth,
@@ -7273,6 +7300,222 @@ bool InstrumentClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplay
 	PadLEDs::renderingLock = false;
 
 	return true;
+}
+
+void InstrumentClipView::openMacroTargetPicker(int32_t macroIndex) {
+	macroTargetPickerMacro = macroIndex;
+	macroTargetPickerLastX = -1;
+	macroTargetPickerLastY = -1;
+	macroTargetPickerLastSlot = -1;
+	macroTargetPickerSecondLayer = false;
+	macroTargetPickerAltPhase = false;
+	// slow alternation for any pad with both shortcut layers assigned (~0.7 Hz)
+	uiTimerManager.setTimer(TimerName::MACRO_TARGET_PICKER_PULSE, 700);
+	uiNeedsRendering(this, 0xFFFFFFFF, 0); // main pads only - swap notes for the picker overlay
+}
+
+void InstrumentClipView::closeMacroTargetPicker() {
+	if (macroTargetPickerMacro < 0) {
+		return;
+	}
+	macroTargetPickerMacro = -1;
+	uiTimerManager.unsetTimer(TimerName::MACRO_TARGET_PICKER_PULSE);
+	uiNeedsRendering(this, 0xFFFFFFFF, 0); // back to notes
+}
+
+void InstrumentClipView::pulseMacroTargetPicker() {
+	if (!macroTargetPickerActive()) {
+		return; // picker closed - let the timer lapse
+	}
+	macroTargetPickerAltPhase = !macroTargetPickerAltPhase;
+	uiNeedsRendering(this, 0xFFFFFFFF, 0);
+	uiTimerManager.setTimer(TimerName::MACRO_TARGET_PICKER_PULSE, 700); // re-arm
+}
+
+// The picker overlay: assignable params light grey; params already targeted by the held macro (either
+// shortcut layer) light bright; pads that aren't a valid destination go dark. Same resolution as the
+// automation-view grid picker, reused via AutomationView::macroDestinationForPad.
+void InstrumentClipView::renderMacroTargetPickerOverlay(RGB image[][kDisplayWidth + kSideBarWidth],
+                                                        uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) {
+	Clip* clip = getCurrentClip();
+	MelodicInstrument* instrument = Macros::macroClipInstrument(clip);
+	if (instrument == nullptr || macroTargetPickerMacro < 0) {
+		return;
+	}
+	Macros::Domain domain = Macros::domainForOutput(clip->output);
+	Macros::Macro& macro = instrument->macros[macroTargetPickerMacro];
+	for (int32_t y = 0; y < kDisplayHeight; y++) {
+		for (int32_t x = 0; x < kDisplayWidth; x++) {
+			int32_t primary = automationView.macroDestinationForPad(domain, x, y, false);
+			int32_t second = automationView.macroDestinationForPad(domain, x, y, true);
+			if (primary < 0 && second < 0) {
+				image[y][x] = colours::black; // not a valid destination
+				continue;
+			}
+			// Which of this pad's two shortcut layers are already assigned to this macro?
+			bool primaryAssigned = false;
+			bool secondAssigned = false;
+			for (int32_t s = 0; s < Macros::kNumTargetSlots; s++) {
+				uint8_t d = macro.targets[s].destination;
+				if (d == Macros::kNoDestination) {
+					continue;
+				}
+				if (primary >= 0 && d == (uint8_t)primary) {
+					primaryAssigned = true;
+				}
+				if (second >= 0 && d == (uint8_t)second) {
+					secondAssigned = true;
+				}
+			}
+			if (primaryAssigned && secondAssigned) {
+				// both layers assigned: slow alternation between white (primary) and yellow (second)
+				image[y][x] = macroTargetPickerAltPhase ? colours::yellow : colours::white_full;
+			}
+			else if (primaryAssigned) {
+				image[y][x] = colours::white_full; // primary shortcut assigned
+			}
+			else if (secondAssigned) {
+				image[y][x] = colours::yellow; // second-layer shortcut assigned (matches its yellow elsewhere)
+			}
+			else {
+				image[y][x] = colours::grey; // assignable, not yet assigned
+			}
+			if (occupancyMask) {
+				occupancyMask[y][x] = 64;
+			}
+		}
+	}
+}
+
+// A pad tap in the picker: assign that param to the macro's next free target slot. Re-tapping the SAME
+// pad cycles the just-assigned slot to the shared second-layer param (e.g. LFO1 rate -> LFO2 rate).
+void InstrumentClipView::handleMacroTargetPickerPad(int32_t x, int32_t y) {
+	Clip* clip = getCurrentClip();
+	MelodicInstrument* instrument = Macros::macroClipInstrument(clip);
+	if (instrument == nullptr || macroTargetPickerMacro < 0) {
+		return;
+	}
+	Macros::Domain domain = Macros::domainForOutput(clip->output);
+	int32_t primary = automationView.macroDestinationForPad(domain, x, y, false);
+	int32_t second = automationView.macroDestinationForPad(domain, x, y, true);
+	if (primary < 0 && second < 0) {
+		return; // a dark pad - not a pickable destination
+	}
+	Macros::Macro& macro = instrument->macros[macroTargetPickerMacro];
+
+	// Is this pad's param already a target of the macro? If so we EDIT that existing slot rather than
+	// adding a duplicate slot pointing at the same destination.
+	int32_t primarySlot = -1;
+	int32_t secondSlot = -1;
+	for (int32_t s = 0; s < Macros::kNumTargetSlots; s++) {
+		uint8_t d = macro.targets[s].destination;
+		if (d == Macros::kNoDestination) {
+			continue;
+		}
+		if (primary >= 0 && d == (uint8_t)primary && primarySlot < 0) {
+			primarySlot = s;
+		}
+		if (second >= 0 && d == (uint8_t)second && secondSlot < 0) {
+			secondSlot = s;
+		}
+	}
+
+	if (primarySlot < 0 && secondSlot < 0) {
+		// Not a target yet: assign the primary layer to the next free slot.
+		int32_t freeSlot = -1;
+		for (int32_t s = 0; s < Macros::kNumTargetSlots; s++) {
+			if (macro.targets[s].destination == Macros::kNoDestination) {
+				freeSlot = s;
+				break;
+			}
+		}
+		if (freeSlot < 0) {
+			display->displayPopup("MACRO SLOTS FULL");
+			return;
+		}
+		Macros::changeTargetDestination(clip, macroTargetPickerMacro, freeSlot,
+		                                (uint8_t)(primary >= 0 ? primary : second));
+		macroTargetPickerLastSlot = freeSlot;
+		macroTargetPickerSecondLayer = (primary < 0);
+	}
+	else if (primarySlot >= 0 && secondSlot >= 0) {
+		// Both layers already targets (assigned elsewhere): just move the selection between them - never dup.
+		macroTargetPickerSecondLayer = !macroTargetPickerSecondLayer;
+		macroTargetPickerLastSlot = macroTargetPickerSecondLayer ? secondSlot : primarySlot;
+	}
+	else if (primarySlot >= 0) {
+		// Primary already assigned: re-tapping cycles THAT slot to the second layer (if the pad has one).
+		if (second >= 0) {
+			Macros::changeTargetDestination(clip, macroTargetPickerMacro, primarySlot, (uint8_t)second);
+			macroTargetPickerSecondLayer = true;
+		}
+		macroTargetPickerLastSlot = primarySlot;
+	}
+	else {
+		// Second layer already assigned: re-tapping cycles THAT slot back to the primary.
+		Macros::changeTargetDestination(clip, macroTargetPickerMacro, secondSlot, (uint8_t)primary);
+		macroTargetPickerSecondLayer = false;
+		macroTargetPickerLastSlot = secondSlot;
+	}
+	macroTargetPickerLastX = x;
+	macroTargetPickerLastY = y;
+	uiNeedsRendering(this, 0xFFFFFFFF, 0); // refresh the assigned-highlight
+}
+
+void InstrumentClipView::deleteSelectedMacroTarget() {
+	if (!macroTargetPickerActive() || macroTargetPickerLastX < 0) {
+		return; // nothing selected yet
+	}
+	Clip* clip = getCurrentClip();
+	MelodicInstrument* instrument = Macros::macroClipInstrument(clip);
+	if (instrument == nullptr) {
+		return;
+	}
+	Macros::Domain domain = Macros::domainForOutput(clip->output);
+	int32_t primary =
+	    automationView.macroDestinationForPad(domain, macroTargetPickerLastX, macroTargetPickerLastY, false);
+	int32_t second =
+	    automationView.macroDestinationForPad(domain, macroTargetPickerLastX, macroTargetPickerLastY, true);
+	Macros::Macro& macro = instrument->macros[macroTargetPickerMacro];
+	bool primaryAssigned = false;
+	bool secondAssigned = false;
+	for (int32_t s = 0; s < Macros::kNumTargetSlots; s++) {
+		uint8_t d = macro.targets[s].destination;
+		if (d == Macros::kNoDestination) {
+			continue;
+		}
+		if (primary >= 0 && d == (uint8_t)primary) {
+			primaryAssigned = true;
+		}
+		if (second >= 0 && d == (uint8_t)second) {
+			secondAssigned = true;
+		}
+	}
+	// Remove one layer's assignment. If both are assigned, remove the current-layer one (leaving the
+	// other, so the pad drops to that layer's colour); if only one is assigned, remove it (pad -> grey).
+	int32_t toDelete = -1;
+	if (primaryAssigned && secondAssigned) {
+		toDelete = macroTargetPickerSecondLayer ? second : primary;
+		macroTargetPickerSecondLayer = !macroTargetPickerSecondLayer; // the other layer remains selected
+	}
+	else if (primaryAssigned) {
+		toDelete = primary;
+		macroTargetPickerSecondLayer = false;
+	}
+	else if (secondAssigned) {
+		toDelete = second;
+		macroTargetPickerSecondLayer = false;
+	}
+	if (toDelete < 0) {
+		return; // this pad isn't assigned to the macro - nothing to delete
+	}
+	for (int32_t s = 0; s < Macros::kNumTargetSlots; s++) {
+		if (macro.targets[s].destination == (uint8_t)toDelete) {
+			Macros::changeTargetDestination(clip, macroTargetPickerMacro, s, Macros::kNoDestination);
+		}
+	}
+	macroTargetPickerLastSlot = -1;        // no live slot to cycle now
+	uiNeedsRendering(this, 0xFFFFFFFF, 0); // pad shows the remaining layer's colour, or grey if none left
 }
 
 // occupancyMask now optional

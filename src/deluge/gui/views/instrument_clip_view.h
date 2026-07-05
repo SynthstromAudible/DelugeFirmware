@@ -194,6 +194,28 @@ public:
 	void openedInBackground();
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;
+
+	// Note-view macro-target picker: while a macro button is held in MACRO mode, the main grid becomes
+	// a parameter picker (reusing AutomationView::macroDestinationForPad); tapping a pad assigns that
+	// param to the macro's next free target slot (re-tapping cycles the last slot's shared second layer).
+	// macroTargetPickerMacro is the held macro (0..kNumMacros-1), or -1 when the picker is inactive.
+	int8_t macroTargetPickerMacro = -1;
+	bool macroTargetPickerActive() { return macroTargetPickerMacro >= 0; }
+	void openMacroTargetPicker(int32_t macroIndex);
+	void closeMacroTargetPicker();
+	void renderMacroTargetPickerOverlay(RGB image[][kDisplayWidth + kSideBarWidth],
+	                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
+	void handleMacroTargetPickerPad(int32_t x, int32_t y);
+	// SHIFT+SAVE while the picker is up: remove the currently-selected pad's param from this macro's
+	// targets (the pad reverts to grey). "Selected" = the pad last tapped, at its current layer.
+	void deleteSelectedMacroTarget();
+	int8_t macroTargetPickerLastX = -1;
+	int8_t macroTargetPickerLastY = -1;
+	int8_t macroTargetPickerLastSlot = -1;
+	bool macroTargetPickerSecondLayer = false;
+	// Slow white/yellow alternation for pads whose primary AND second-layer params are both assigned.
+	bool macroTargetPickerAltPhase = false;
+	void pulseMacroTargetPicker(); // called by uiTimerManager to advance the alternation
 	void performActualRender(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
 	                         int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
 	                         bool drawUndefinedArea = true);
