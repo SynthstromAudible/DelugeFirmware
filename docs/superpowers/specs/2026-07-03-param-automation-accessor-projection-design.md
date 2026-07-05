@@ -182,11 +182,29 @@ Each op flip is independently golden-/`param_projection_test`-verifiable (a forw
 ### 5.1 Phase C, honestly scoped
 
 Phase C is the **first Movement-1 binding step**, at the AudioClip owner — *not* a full accessor conversion (that
-is Movement 2, gated on universal binding). It binds the clip's `AutoParam`s to per-clip `DocAutoParam`s via the
-destination-shaped borrow handle. It also carries the golden-blind coverage the borrow model never had: a harness
-test that drives the **steal/backup/restore** path (`ParamBackup::backUp → getForExactClip(stealInto) → restore`)
-in sim, since the audio-thread edit interleaving is the part the load/save golden cannot see. Reaching
-cursor-only for AudioClip is a Movement-2 outcome, not a Phase-C deliverable.
+is Movement 2, gated on universal binding). It binds the clip's `AutoParam`s to their DOM store. It also carries
+the golden-blind coverage the borrow model never had: a harness test that drives the **steal/backup/restore** path
+(`ParamBackup::backUp → getForExactClip(stealInto) → restore`) in sim, since the audio-thread edit interleaving is
+the part the load/save golden cannot see. Reaching cursor-only for AudioClip is a Movement-2 outcome, not a
+Phase-C deliverable.
+
+**Store ownership (decided — Model A, `ParamSet`-anchored).** The store must outlive the clip: `Clip::prepareFor
+Destruction` backs the clip's *live* param collections into `ParamBackup` in the same teardown that destroys the
+clip (`clip.cpp:805` → `audio_clip.cpp:931`), so the backed-up `AutoParam`s (carrying borrow pointers) survive the
+clip, and can even migrate to a *different* clip via the null-clip restore path (`song.cpp:3426`,
+`param_backup.cpp:43-54`). A clip-lifetime store would therefore dangle. The correct lifetime anchor is the
+**`ParamSet`**: it is heap-allocated and never relocates — `stealParamCollectionsFrom` moves only the owning
+*pointer* between managers (`param_manager.cpp:113-162`) — so it follows the params through backup/restore. Model
+A binds the store's lifetime to the `ParamSet` via `std::unique_ptr<DocParamSet> domStore_` on the `ParamSet`
+(allocated at fresh population; `AutoParam`s borrow into `domStore_->params[p].nodes`; RAII-freed with the set).
+Dangle-safe with no destroy-hook and no reliance on `currentSong` at teardown. (Rejected alternative — Model B,
+clip-tied store with un-borrow-on-park — keeps parked automation in the engine, breaking DOM-always-authoritative.)
+
+*Known transitional inconsistency:* song-global (Phase B) keeps its store in `project.global_fx.params.unpatched`
+(a Song-singleton, never backed up, so it has no lifetime problem); per-clip owners use the `ParamSet`-anchored
+`domStore_`. Both give each param exactly one store; only the store's *home* differs. Unifying song-global onto
+the `ParamSet` mechanism is deferred (it is entangled with the 5a/5b/5c serialization-authority wiring) — a
+Movement-2 / Phase-D follow-up, not Phase C.
 
 ---
 
@@ -214,8 +232,11 @@ cursor-only for AudioClip is a Movement-2 outcome, not a Phase-C deliverable.
   `DocAutoParam` and every `ParamManager` to a `DocParamManager` is a large surface (fixed param arrays; patch
   cables; MIDI CC; expression). Empty curves are cheap, but the binding wiring at construction/clone/steal is real
   work. The risk is *effort/sequencing*, not *whether* — it is done owner-by-owner until `ownNodes_` is gone.
-- **Store lifetime during transition.** While both borrowed and un-borrowed params coexist, the DOM store must
-  still outlive borrowers (the existing invariant) until an owner is fully converted to handles.
+- **Store lifetime during transition — resolved by Model A (§5.1).** The DOM store must outlive every `AutoParam`
+  that borrows it, including those parked in `ParamBackup` after the clip is destroyed. Anchoring the store to the
+  `ParamSet` (`std::unique_ptr<DocParamSet> domStore_`, RAII-freed with the set) satisfies this by construction:
+  the set is the stable object the params actually live in and migrate with. Song-global remains on its
+  `project.global_fx` store (no backup path, so no lifetime exposure).
 - **MPE / `shiftParamVolumeByDB` / `transposeCC…`** are lower-traffic ops; port last, but they still read `nodes()`
   and must be forwarded before `ownNodes_` can be removed for a given owner.
 - **`getValuePossiblyAtPos` / patch-cable / MIDI collections** have their own `processCurrentPos`/`tickSamples`
