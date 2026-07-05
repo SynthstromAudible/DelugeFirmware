@@ -347,10 +347,12 @@ elseif(APPLE)
     set(SIM_RUST_TARGET x86_64-apple-darwin) # Intel Mac
 elseif(DELUGE_SIM_ARM64_HOST)
     set(SIM_RUST_TARGET aarch64-unknown-linux-gnu) # arm64 Linux
+elseif(DELUGE_SIM_ARM)
+    set(SIM_RUST_TARGET armv7-unknown-linux-gnueabihf) # 32-bit armv7 hardfloat cross, run under qemu
 elseif(DELUGE_SIM_X64)
     set(SIM_RUST_TARGET x86_64-unknown-linux-gnu)
 else()
-    set(SIM_RUST_TARGET i686-unknown-linux-gnu) # the default -m32 sim (and the arm-linux cross)
+    set(SIM_RUST_TARGET i686-unknown-linux-gnu) # the default -m32 sim
 endif()
 set(SIM_RUST_WS ${REPO_ROOT}/crates)
 set(SIM_RUST_LIB ${SIM_RUST_WS}/target/${SIM_RUST_TARGET}/release/libdeluge_rust.a)
