@@ -196,6 +196,16 @@ node write and the per-tick cursor genuinely interleave (spec §7).
   latching, MPE/MIDI-CC/patch-cable knob-recording) remains a nice-to-have confidence pass, not a blocker —
   bit-identical node+cursor state makes the feel identical by construction.
 
+**M2-E started** (endgame plan `~/.claude/plans/merry-churning-trinket.md`, approved). **E1 COMPLETE**
+(`599582272` + `0af32f336`): `ModelStackWithAutoParam::doc()` (in auto_param.cpp) returns
+`autoParam->docForThreading()` (== `doc_`, since a param's own ops have `modelStack->autoParam == this`); every
+MSWAP edit op now reads its DOM node store via `modelStack->doc()` (kernel-forwards inline; the 12 nodes()-heavy
+ops via a scoped `auto& nodesRef = modelStack->doc()->nodes`). Behaviour-identical (`doc()==doc_` through E1/E2);
+this is the access path E3 re-roots at the owner. Gotcha handled: the projection-test oracle cut corners (null /
+no `autoParam`) so its ModelStack builds now set `autoParam`, incl. internal-getValueAtPos callers
+(trimToLength/copy) + nudge (null ModelStack). x86≡ARM projection OK, golden OK=15, `param_record_diff` OK=3, fw
+builds. NEXT = E2 (thread the non-MSWAP ops + private helpers + serialization + `isAutomated(doc)`).
+
 **M2-D COMPLETE** (D.1 getValueAtPos forwarded `df545adbc`; D.2 resolved by analysis — no forward needed;
 D.3 recording write forwarded `62d583ce8`). Every node read and the recording write now run through DOM kernels;
 only the RT interpolation cursor + override latch remain as engine state (correctly — they are not node data).
