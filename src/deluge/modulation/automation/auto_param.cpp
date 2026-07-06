@@ -114,6 +114,13 @@ void AutoParam::borrowNodeStorage(deluge::project::DocAutoParam* domDoc) {
 	doc_ = domDoc;                            // subsequent nodes() see the DOM store's node vector
 }
 
+// M2-E (E1): the ModelStack threads the DOM handle to this param's ops. For a param's own ops, `autoParam` is
+// `this`, so this returns `this->doc_` — behaviour-identical to the direct `doc_`/`nodes()` reads it replaces.
+// (E3 will re-root this at the owner via paramCollection->docParamForId(paramId), letting `doc_` be dropped.)
+deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
+	return autoParam->docForThreading();
+}
+
 void AutoParam::init() {
 	nodes().init();
 }
@@ -250,9 +257,9 @@ investigatePrevNode:
 			    tc && tc != static_cast<TimelineCounter*>(modelStack->song)) {
 				recordingLinearly = static_cast<Clip*>(tc)->getCurrentlyRecordingLinearly();
 			}
-			int32_t leftI = deluge::project::recordLiveValue(*doc_, livePos, value, ticksToClear, doMPEMode,
-			                                                 shouldInterpolateLeft, effectiveLength, reversed,
-			                                                 recordingLinearly, posAtWhichPlaybackWillCut);
+			int32_t leftI = deluge::project::recordLiveValue(*modelStack->doc(), livePos, value, ticksToClear,
+			                                                 doMPEMode, shouldInterpolateLeft, effectiveLength,
+			                                                 reversed, recordingLinearly, posAtWhichPlaybackWillCut);
 
 			// Now that we've definitely left any previous nodes alone, see if they form a linear run and we can delete
 			// some of them? We'll just not bother with this if reversed, for now... or ever...
@@ -1024,9 +1031,10 @@ void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStac
 		if (action) {
 			action->recordParamChangeIfNotAlreadySnapshotted(modelStack, false);
 		}
-		doc_->current_value = currentValue;
-		deluge::project::deleteNodesWithinRegion(*doc_, pos, length, effectiveLength);
-		currentValue = doc_->current_value;
+		deluge::project::DocAutoParam* doc = modelStack->doc();
+		doc->current_value = currentValue;
+		deluge::project::deleteNodesWithinRegion(*doc, pos, length, effectiveLength);
+		currentValue = doc->current_value;
 	}
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, true, true, isAutomated());
 }
@@ -1144,7 +1152,7 @@ int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, i
 	if (tc && tc != static_cast<TimelineCounter*>(modelStack->song)) {
 		recordingLinearly = static_cast<Clip*>(tc)->getCurrentlyRecordingLinearly();
 	}
-	return deluge::project::homogenizeRegion(*doc_, startPos, length, startValue, interpolateLeftNode,
+	return deluge::project::homogenizeRegion(*modelStack->doc(), startPos, length, startValue, interpolateLeftNode,
 	                                         interpolateRightNode, effectiveLength, reversed, recordingLinearly,
 	                                         posAtWhichClipWillCut);
 }
@@ -1198,7 +1206,7 @@ int32_t AutoParam::getValueAtPos(uint32_t pos, ModelStackWithAutoParam const* mo
 	// M2-D.1: forward to the DOM read kernel. getLoopLength() is safe to fetch eagerly (a length, not a
 	// null-deref; processCurrentPos already reads it unconditionally). The kernel special-cases the infinite
 	// length (2147483647) exactly as the engine did — the oracle covers both finite + infinite.
-	return deluge::project::getValueAtPos(*doc_, pos, modelStack->getLoopLength(), reversed);
+	return deluge::project::getValueAtPos(*modelStack->doc(), pos, modelStack->getLoopLength(), reversed);
 }
 
 // Returns whether a change was made to currentValue
@@ -1776,7 +1784,7 @@ void AutoParam::transposeCCValuesToChannelPressureValues() {
 /// this is used in arranger view to delete time between automation nodes (shift + <>)
 void AutoParam::deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackWithAutoParam* modelStack) {
 	// M2-C: forward to the DOM kernel (revertability Action is handled by the caller, per the original note).
-	deluge::project::deleteTime(*doc_, startPos, lengthToDelete, modelStack->getLoopLength());
+	deluge::project::deleteTime(*modelStack->doc(), startPos, lengthToDelete, modelStack->getLoopLength());
 }
 
 /// this is used in arranger view to insert time between automation nodes (shift + <>)
@@ -1795,7 +1803,7 @@ void AutoParam::moveRegionHorizontally(ModelStackWithAutoParam const* modelStack
 	if (action) {
 		action->recordParamChangeDefinitely(modelStack, false);
 	}
-	deluge::project::moveRegionHorizontally(*doc_, pos, length, offset, lengthBeforeLoop);
+	deluge::project::moveRegionHorizontally(*modelStack->doc(), pos, length, offset, lengthBeforeLoop);
 }
 
 void AutoParam::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
@@ -1805,7 +1813,7 @@ void AutoParam::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int
 	if (action && nodes().find_key(pos) != nodes().end()) {
 		action->recordParamChangeDefinitely(modelStack, false);
 	}
-	deluge::project::nudgeNonInterpolatingNodesAtPos(*doc_, pos, offset, lengthBeforeLoop);
+	deluge::project::nudgeNonInterpolatingNodesAtPos(*modelStack->doc(), pos, offset, lengthBeforeLoop);
 	if (nodes().empty()) {
 		resetInterpolationIncrement(); // In case we were interpolating.
 	}
@@ -1935,7 +1943,7 @@ void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int
 // Maybe I ought to make this take cut-points into consideration... but I can't see a need yet...
 int32_t AutoParam::getDistanceToNextNode(ModelStackWithAutoParam const* modelStack, int32_t pos, bool reversed) {
 	// M2-C: forward to the DOM read kernel, supplying the timeline context (loop length) it takes explicitly.
-	return deluge::project::getDistanceToNextNode(*doc_, pos, modelStack->getLoopLength(), reversed);
+	return deluge::project::getDistanceToNextNode(*modelStack->doc(), pos, modelStack->getLoopLength(), reversed);
 }
 
 /*

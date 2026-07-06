@@ -27,6 +27,9 @@ class TimelineCounter;
 class ParamManagerForTimeline;
 class ParamCollection;
 class AutoParam;
+namespace deluge::project {
+struct DocAutoParam;
+}
 class ModelStackWithAutoParam;
 class ModelStackWithParamId;
 class ModelStackWithParamCollection;
@@ -271,6 +274,11 @@ public:
 	/// AutoParam attached to the ParamID. If this is null, none of the other param related members can be trusted
 	/// (e.g. the paramcollection, summary, or paramId)
 	AutoParam* autoParam;
+
+	/// M2-E: the DOM node-store handle for this param's edit/read ops. In E1 it resolves to `autoParam`'s stored
+	/// `doc_` (behaviour-identical); in E3 it will resolve from the owner (`paramCollection`) by `paramId`,
+	/// letting the engine `AutoParam` drop its stored pointer. Defined out-of-line in auto_param.cpp.
+	deluge::project::DocAutoParam* doc() const;
 };
 
 #define SOUND_FLAG_SOURCE_0_ACTIVE_DISREGARDING_MISSING_SAMPLE 0

@@ -143,6 +143,11 @@ public:
 	ParamNodeVector& nodes() { return doc_->nodes; }
 	const ParamNodeVector& nodes() const { return doc_->nodes; }
 
+	/// M2-E (E1, transitional): the handle the ModelStack threads to this param's ops. Currently returns the
+	/// stored `doc_` (so `modelStack->doc() == this->doc_` for a param's own ops — behaviour-identical); in M2-E3
+	/// the ModelStack resolves the handle from the owner instead and this accessor + `doc_` are removed.
+	deluge::project::DocAutoParam* docForThreading() { return doc_; }
+
 	/// Point this param at a DOM-owned `DocAutoParam` and move its current nodes into it. The store must outlive
 	/// this param and never relocate (the DOM holds it at a stable address). Afterwards, nodes() is the DOM
 	/// store's node vector and all engine edits/undo operate on it directly. (M2-B: the handle is now the whole

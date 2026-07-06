@@ -199,6 +199,7 @@ int main() {
 			NoteRow nr;
 			nr.loopLengthIfIndependent = loopLength;
 			ms->setNoteRow(&nr);
+			ms->autoParam = &ap; // M2-E: ops resolve their DOM handle via modelStack->doc() == autoParam->doc_
 			return ap.getValueAtPos(pos, ms, reversed);
 		};
 
@@ -257,6 +258,7 @@ int main() {
 			NoteRow nr;
 			nr.loopLengthIfIndependent = loopLength;
 			ms->setNoteRow(&nr);
+			ms->autoParam = &ap; // M2-E: modelStack->doc() resolution
 			return ap.getDistanceToNextNode(ms, pos, reversed);
 		};
 
@@ -454,6 +456,7 @@ int main() {
 			NoteRow nr;
 			nr.loopLengthIfIndependent = effLen;
 			ms->setNoteRow(&nr);
+			ms->autoParam = &ap; // M2-E: modelStack->doc() resolution
 			return ap.homogenizeRegion(ms, startPos, length, startValue, interpL, interpR, effLen, reversed, cut);
 		};
 
@@ -596,7 +599,9 @@ int main() {
 				(void)ap.nodes().reserveExtra(4);
 				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
 				NoteRow nr;
-				ap.deleteTime(dc.startPos, dc.len, buildStack(buf, loopLen, nr));
+				ModelStackWithAutoParam* ms = buildStack(buf, loopLen, nr);
+				ms->autoParam = &ap; // M2-E: modelStack->doc() resolution
+				ap.deleteTime(dc.startPos, dc.len, ms);
 				deluge::project::deleteTime(doc, dc.startPos, dc.len, loopLen);
 				expectDocMatchesEngine(ap, doc, "deleteTime: matches engine oracle");
 			}
@@ -618,7 +623,9 @@ int main() {
 				(void)ap.nodes().reserveExtra(4);
 				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
 				NoteRow nr;
-				ap.moveRegionHorizontally(buildStack(buf, loopLen, nr), mc.pos, mc.length, mc.offset, loopLen, nullptr);
+				ModelStackWithAutoParam* ms = buildStack(buf, loopLen, nr);
+				ms->autoParam = &ap; // M2-E: modelStack->doc() resolution
+				ap.moveRegionHorizontally(ms, mc.pos, mc.length, mc.offset, loopLen, nullptr);
 				deluge::project::moveRegionHorizontally(doc, mc.pos, mc.length, mc.offset, loopLen);
 				expectDocMatchesEngine(ap, doc, "moveRegionHorizontally: matches engine oracle");
 			}
@@ -1779,7 +1786,9 @@ int main() {
 				(void)ap.nodes().reserveExtra(4);
 				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
 				NoteRow nr;
-				ap.trimToLength(static_cast<uint32_t>(newLen), /*action=*/nullptr, buildStack(buf, loopLen, nr));
+				ModelStackWithAutoParam* ms = buildStack(buf, loopLen, nr);
+				ms->autoParam = &ap; // M2-E: trimToLength calls getValueAtPos internally (resolves via doc())
+				ap.trimToLength(static_cast<uint32_t>(newLen), /*action=*/nullptr, ms);
 				deluge::project::trimToLength(doc, newLen, loopLen);
 				expectDocMatchesEngine(ap, doc, "trimToLength: matches engine oracle");
 			}
@@ -1902,7 +1911,12 @@ int main() {
 				}
 				(void)ap.nodes().reserveExtra(4);
 
-				ap.nudgeNonInterpolatingNodesAtPos(nc.pos, nc.offset, lengthBeforeLoop, nullptr, nullptr);
+				// M2-E: nudge now resolves nodes via modelStack->doc(); with action=nullptr it uses no other
+				// modelStack field, so a minimal stack carrying only autoParam suffices.
+				alignas(ModelStackWithAutoParam) char nbuf[MODEL_STACK_MAX_SIZE];
+				auto* nms = reinterpret_cast<ModelStackWithAutoParam*>(nbuf);
+				nms->autoParam = &ap;
+				ap.nudgeNonInterpolatingNodesAtPos(nc.pos, nc.offset, lengthBeforeLoop, nullptr, nms);
 				deluge::project::nudgeNonInterpolatingNodesAtPos(doc, nc.pos, nc.offset, lengthBeforeLoop);
 				expectDocMatchesEngine(ap, doc, "nudgeNonInterpolatingNodesAtPos: matches engine oracle");
 			}
@@ -1928,6 +1942,7 @@ int main() {
 		auto engineSetValueForRegion = [](AutoParam& ap, ModelStackWithAutoParam* ms, uint32_t pos, uint32_t length,
 		                                  int32_t value, int32_t effLen, bool interpL, bool interpR, bool clockActive,
 		                                  int32_t livePos, bool reversed) {
+			ms->autoParam = &ap; // M2-E: ap.homogenizeRegion below resolves via modelStack->doc()
 			if (pos >= static_cast<uint32_t>(effLen)) {
 				return;
 			}
@@ -2131,7 +2146,9 @@ int main() {
 
 					alignas(ModelStackWithAutoParam) char cbuf[MODEL_STACK_MAX_SIZE];
 					NoteRow cnr;
-					ap.copy(cc.startPos, cc.endPos, &ca, isPatchCable, lightStack(cbuf, loopLen, cnr));
+					ModelStackWithAutoParam* cms = lightStack(cbuf, loopLen, cnr);
+					cms->autoParam = &ap; // M2-E: copy calls getValueAtPos internally (resolves via doc())
+					ap.copy(cc.startPos, cc.endPos, &ca, isPatchCable, cms);
 					deluge::project::copyRegion(doc, cc.startPos, cc.endPos, loopLen, isPatchCable, domCopied);
 
 					check(ca.width == domCopied.width, "copyRegion: width matches engine oracle");
@@ -2387,6 +2404,7 @@ int main() {
 		auto engineRecordLiveValue = [](AutoParam& ap, ModelStackWithAutoParam* ms, int32_t livePos, int32_t value,
 		                                int32_t ticksToClear, bool doMPE, bool interpL, int32_t effLen, bool reversed,
 		                                int32_t cut) -> int32_t {
+			ms->autoParam = &ap; // M2-E: ap.homogenizeRegion below resolves via modelStack->doc()
 			int32_t leftI;
 			if (doMPE || ticksToClear == 0) {
 				leftI = ap.setNodeAtPos(livePos, value, interpL);
