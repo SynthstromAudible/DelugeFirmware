@@ -1679,6 +1679,373 @@ int main() {
 		// domStore_, so no borrower outlives the store — a clean teardown (no dangle / double free).
 	}
 
+	{
+		// Movement 2: flattenReverse oracle diff — reverses node positions within the loop; current_value is
+		// left untouched (only the node array is rebuilt).
+		struct N {
+			int32_t pos;
+			int32_t value;
+			bool interpolated;
+		};
+		const std::vector<std::vector<N>> flattenConfigs = {
+		    {{0, 100, true}, {24, -50, true}, {40, 200, false}},       // node at 0 + interior + stepped
+		    {{8, 10, true}, {32, -10, true}},                          // nothing at 0
+		    {{0, 7, false}},                                           // single stepped node at 0
+		    {{16, 5, true}},                                           // single node, nothing at 0
+		    {{0, 1, true}, {1, 2, true}, {2, 3, false}, {3, 4, true}}, // dense run, exercises tight wrap
+		};
+		const int32_t reverseLengths[] = {48, 4, 1};
+		for (const auto& cfg : flattenConfigs) {
+			for (int32_t length : reverseLengths) {
+				AutoParam ap;
+				ap.currentValue = 42;
+				DocAutoParam doc{};
+				doc.current_value = 42;
+				for (const N& n : cfg) {
+					setNode(ap, n.pos, n.value, n.interpolated);
+					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
+				}
+				ap.flattenReverse(length);
+				deluge::project::flattenReverse(doc, length);
+				check(ap.currentValue == doc.current_value,
+				      "flattenReverse: current_value untouched, matches engine oracle");
+				expectDocMatchesEngine(ap, doc, "flattenReverse: matches engine oracle");
+			}
+		}
+
+		// reverseDirectionWithLength == 0 is a documented no-op.
+		{
+			AutoParam ap;
+			ap.currentValue = 7;
+			DocAutoParam doc{};
+			doc.current_value = 7;
+			setNode(ap, 8, 5, true);
+			deluge::project::setNodeAtPos(doc, 8, 5, true);
+			ap.flattenReverse(0);
+			deluge::project::flattenReverse(doc, 0);
+			check(ap.currentValue == doc.current_value, "flattenReverse: length==0 leaves current_value alone");
+			expectDocMatchesEngine(ap, doc, "flattenReverse: reverseDirectionWithLength==0 is a no-op");
+		}
+
+		// Empty nodes: also a no-op, and mustn't crash indexing oldNodes[0]/oldNodes[numNodes-1].
+		{
+			AutoParam ap;
+			DocAutoParam doc{};
+			ap.flattenReverse(48);
+			deluge::project::flattenReverse(doc, 48);
+			expectDocMatchesEngine(ap, doc, "flattenReverse: empty nodes is a no-op");
+		}
+	}
+
+	{
+		// Phase 1: trimToLength (pure node-trim kernel) — engine-oracle diff via the NoteRow model-stack harness.
+		// trimToLength only touches the ModelStack through getValueAtPos(0) (→getLoopLength), so it's reachable
+		// with the same light harness as deleteTime; action=nullptr keeps the undo-snapshot wiring out of the
+		// way (same trick as moveRegionHorizontally's oracle) and drives the engine down its "basic trim" path —
+		// the only path this kernel ports (undo-snapshot bookkeeping is engine wiring, not node mutation).
+		using deluge::project::DocAutoParam;
+		struct N {
+			int32_t pos;
+			int32_t value;
+			bool interpolated;
+		};
+		const std::vector<std::vector<N>> configs = {
+		    {},
+		    {{48, 7, false}},
+		    {{0, 10, true}, {32, 20, true}, {64, 30, false}, {96, -40, true}}, // node already at pos 0
+		    {{16, 5, true}, {48, 15, false}, {80, -25, true}},                 // no node at pos 0 -> needNewNodeAt0
+		};
+		const int32_t loopLen = 128;
+		const int32_t trimLens[] = {200, 128, 100, 80, 64, 32, 16, 8, 0};
+
+		auto buildStack = [](char* buf, int32_t effLen, NoteRow& nr) -> ModelStackWithAutoParam* {
+			auto* ms = reinterpret_cast<ModelStackWithAutoParam*>(buf);
+			ms->song = nullptr;
+			ms->setTimelineCounter(nullptr);
+			nr.loopLengthIfIndependent = effLen;
+			ms->setNoteRow(&nr);
+			return ms;
+		};
+
+		for (const auto& cfg : configs) {
+			for (int32_t newLen : trimLens) {
+				AutoParam ap;
+				DocAutoParam doc{};
+				for (const N& n : cfg) {
+					setNode(ap, n.pos, n.value, n.interpolated);
+					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
+				}
+				(void)ap.nodes().reserveExtra(4);
+				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+				NoteRow nr;
+				ap.trimToLength(static_cast<uint32_t>(newLen), /*action=*/nullptr, buildStack(buf, loopLen, nr));
+				deluge::project::trimToLength(doc, newLen, loopLen);
+				expectDocMatchesEngine(ap, doc, "trimToLength: matches engine oracle");
+			}
+		}
+	}
+
+	{
+		// Movement 2 (M2-B): appendParam — concatenate/tile src onto dest (straight, reversed, and pingponged),
+		// incl. dest-side overflow trim and the pingpong seam-node synthesis. Engine-oracle diff; no ModelStack
+		// (AutoParam::appendParam doesn't take or consult one).
+		using deluge::project::DocAutoParam;
+		struct N {
+			int32_t pos;
+			int32_t value;
+			bool interpolated;
+		};
+
+		// Source configs: empty (no-op early return); node at pos 0 (nothingAtZero=false — seam skipped); nothing
+		// at 0 but interpolated (pingpong seam-node synthesis fires); nothing at 0 but stepped (seam guard blocks
+		// synthesis because nodeAfterWrap isn't interpolated); a single node (wrap-index edge cases when indexing
+		// left/right neighbours mod numToInsert==1).
+		const std::vector<std::vector<N>> srcConfigs = {
+		    {},
+		    {{0, 50, true}, {20, -30, true}, {40, 10, false}},
+		    {{8, 5, true}, {32, -15, true}},
+		    {{8, 5, false}, {32, -15, true}},
+		    {{16, 99, true}},
+		};
+		// Dest configs: empty; one existing node; and a node beyond oldLength (exercises deleteNodesBeyondPos
+		// trimming dest's own overflow before the append, as happens after arranger recording).
+		const std::vector<std::vector<N>> destConfigs = {
+		    {},
+		    {{0, 1, true}},
+		    {{0, 1, true}, {60, 2, true}}, // 60 > oldLength(48): must get trimmed away before the append
+		};
+		const int32_t oldLength = 48;
+		for (const auto& sc : srcConfigs) {
+			for (const auto& dc : destConfigs) {
+				for (int32_t reverseLen : {0, 48}) {
+					for (bool pingpong : {false, true}) {
+						AutoParam ap;
+						AutoParam otherAp;
+						DocAutoParam doc{};
+						DocAutoParam otherDoc{};
+						for (const N& n : dc) {
+							setNode(ap, n.pos, n.value, n.interpolated);
+							deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
+						}
+						for (const N& n : sc) {
+							setNode(otherAp, n.pos, n.value, n.interpolated);
+							deluge::project::setNodeAtPos(otherDoc, n.pos, n.value, n.interpolated);
+						}
+
+						ap.appendParam(&otherAp, oldLength, reverseLen, pingpong);
+						deluge::project::appendParam(doc, otherDoc, oldLength, reverseLen, pingpong);
+
+						check(ap.currentValue == doc.current_value,
+						      "appendParam: current_value untouched, matches engine oracle");
+						expectDocMatchesEngine(ap, doc, "appendParam: matches engine oracle");
+					}
+				}
+			}
+		}
+	}
+
+	{
+		// Phase 1: nudgeNonInterpolatingNodesAtPos (single-node nudge, pure kernel) — engine-oracle diff. `action`
+		// is nullptr at every call, and the engine only touches `modelStack` inside `if (action)`, so `modelStack`
+		// is never dereferenced either — no ModelStack/NoteRow harness needed here, unlike deleteTime /
+		// moveRegionHorizontally.
+		using deluge::project::DocAutoParam;
+		struct N {
+			int32_t pos;
+			int32_t value;
+			bool interpolated;
+		};
+		const int32_t lengthBeforeLoop = 128;
+
+		const std::vector<std::vector<N>> configs = {
+		    {{48, 100, false}}, // lone node, interior — no-wrap moves only
+		    {{0, 77, false}},   // lone node at the loop edge — wrap cases below must hit the guard, not run
+		    {{0, 10, false}, {127, 99, false}}, // 2 nodes at the edges — wrap collapses the array to empty
+		    {{0, 10, false}, {1, 20, false}, {64, 30, true}, {126, 40, false}, {127, 50, false}}, // wrap->new-node,
+		                                                                                          // wrap->merge,
+		                                                                                          // no-wrap collide,
+		                                                                                          // interpolated no-op
+		    {{0, 10, false}, {32, 20, false}, {64, 30, false}, {96, -40, true}}, // spread + no-wrap moves +
+		                                                                         // interpolated no-op
+		};
+
+		const struct {
+			int32_t pos, offset;
+		} nudgeCases[] = {
+		    {48, 1}, {48, -1}, // plain no-wrap nudge, both directions
+		    {0, -1}, {127, 1}, // wrap at the loop edges
+		    {1, -1},           // no-wrap collision with the adjacent node at pos 0
+		    {32, 1}, {96, -1}, // no-wrap, no colliding neighbour
+		    {64, 1}, {64, -1}, // node at pos is interpolated -> must be a no-op
+		    {50, 1}, {50, -1}, // no node at pos -> no-op
+		};
+
+		for (const auto& cfg : configs) {
+			for (const auto& nc : nudgeCases) {
+				// Skip any case that would hit the engine's single-node FREEZE_WITH_ERROR("E335") (a wrap when the
+				// whole node array is down to just the node being nudged). ALPHA_OR_BETA_VERSION is on in this
+				// build, so the engine side would abort the test process rather than return a diffable result;
+				// the kernel instead safely no-ops (see risks), so there's nothing meaningful to diff anyway.
+				if (cfg.size() == 1 && cfg[0].pos == nc.pos && !cfg[0].interpolated) {
+					int32_t newPos = nc.pos + nc.offset;
+					if (newPos < 0 || newPos >= lengthBeforeLoop) {
+						continue;
+					}
+				}
+
+				AutoParam ap;
+				DocAutoParam doc{};
+				for (const N& n : cfg) {
+					setNode(ap, n.pos, n.value, n.interpolated);
+					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
+				}
+				(void)ap.nodes().reserveExtra(4);
+
+				ap.nudgeNonInterpolatingNodesAtPos(nc.pos, nc.offset, lengthBeforeLoop, nullptr, nullptr);
+				deluge::project::nudgeNonInterpolatingNodesAtPos(doc, nc.pos, nc.offset, lengthBeforeLoop);
+				expectDocMatchesEngine(ap, doc, "nudgeNonInterpolatingNodesAtPos: matches engine oracle");
+			}
+		}
+	}
+
+	{
+		// Phase 1: setValueForRegion (region-write op) — engine-oracle diff. The real AutoParam::setValueForRegion
+		// unconditionally ends in modelStack->paramCollection->notifyParamModifiedInSomeWay(...), which needs a real
+		// ParamCollection the light NoteRow harness doesn't have (same reason the deleteNodesWithinRegion block above
+		// uses a hand replica instead of calling the engine method directly). So this block transcribes the method's
+		// control flow (auto_param.cpp's AutoParam::setValueForRegion, minus Action/notify/interpolation-cursor
+		// wiring) into a local lambda, but that lambda still calls the REAL ap.homogenizeRegion for the region-collapse
+		// step, so that half stays genuinely engine-exercised (on top of its own dedicated oracle block above).
+		using deluge::project::DocAutoParam;
+
+		struct N {
+			int32_t pos;
+			int32_t value;
+			bool interpolated;
+		};
+
+		auto engineSetValueForRegion = [](AutoParam& ap, ModelStackWithAutoParam* ms, uint32_t pos, uint32_t length,
+		                                  int32_t value, int32_t effLen, bool interpL, bool interpR, bool clockActive,
+		                                  int32_t livePos, bool reversed) {
+			if (pos >= static_cast<uint32_t>(effLen)) {
+				return;
+			}
+			if (length == static_cast<uint32_t>(effLen)) {
+				ap.nodes().erase(ap.nodes().begin(), ap.nodes().end());
+				ap.currentValue = value;
+				return;
+			}
+			int32_t firstI = ap.homogenizeRegion(ms, static_cast<int32_t>(pos), static_cast<int32_t>(length), value,
+			                                     interpL, interpR, effLen, /*reversed=*/false);
+			if (firstI == -1) {
+				return;
+			}
+			if (!clockActive) {
+				ap.currentValue = value;
+				return;
+			}
+			int32_t mostRecentI = ap.nodes().firstAtOrAfter(livePos + static_cast<int32_t>(!reversed)) - 1;
+			if (mostRecentI == -1) {
+				mostRecentI = static_cast<int32_t>(ap.nodes().size()) - 1;
+			}
+			if (mostRecentI == firstI) {
+				ap.currentValue = value;
+			}
+		};
+
+		const std::vector<std::vector<N>> configs = {
+		    {},
+		    {{48, 7, false}},
+		    {{0, 10, true}, {32, 20, true}, {64, 30, false}, {96, -40, true}},
+		};
+
+		struct Case {
+			uint32_t pos, length;
+			int32_t value;
+			bool interpL, interpR;
+		};
+		// Every non-full-region case keeps pos+length strictly below effLen, so the real ap.homogenizeRegion call
+		// inside engineSetValueForRegion never takes the loop-wrap branch (which needs a live Clip for
+		// getCurrentlyRecordingLinearly and would dereference a null timeline counter under this light harness — the
+		// same restriction the dedicated homogenizeRegion oracle block above documents). recordingLinearly is passed
+		// as false to the DOM kernel below for the same reason; it is inert for every case actually exercised here.
+		const Case cases[] = {
+		    {0, 128, 999, true, true},  // full-region collapse
+		    {16, 32, 500, true, true},  // normal, mid-clip
+		    {0, 64, -300, false, true}, // normal, from 0
+		    {96, 16, 42, true, false},  // normal, near the end (96+16=112 < 128, no wrap)
+		    {150, 32, 7, true, true},   // pos beyond effectiveLength -> no-op
+		};
+		const int32_t effLen = 128;
+		const bool clockActives[] = {false, true};
+		const int32_t livePositions[] = {20, 100}; // 20 sits inside [16,48); 100 sits outside every non-full case
+		const bool reversedFlags[] = {false, true};
+
+		for (const auto& cfg : configs) {
+			for (const auto& c : cases) {
+				for (bool clockActive : clockActives) {
+					for (int32_t livePos : livePositions) {
+						for (bool reversed : reversedFlags) {
+							AutoParam ap;
+							DocAutoParam doc{};
+							for (const N& n : cfg) {
+								setNode(ap, n.pos, n.value, n.interpolated);
+								deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
+							}
+							// Same reallocation-safety reserve the homogenizeRegion oracle block above needs, for
+							// the same reason (the engine's homogenizeRegion has a latent dangling-pointer bug on
+							// mid-op reallocation; the DOM port is index-based and immune).
+							(void)ap.nodes().reserveExtra(4);
+
+							alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+							auto* ms = reinterpret_cast<ModelStackWithAutoParam*>(buf);
+							ms->song = nullptr;
+							ms->setTimelineCounter(nullptr);
+							NoteRow nr;
+							nr.loopLengthIfIndependent = effLen;
+							ms->setNoteRow(&nr);
+
+							engineSetValueForRegion(ap, ms, c.pos, c.length, c.value, effLen, c.interpL, c.interpR,
+							                        clockActive, livePos, reversed);
+							auto domRet = deluge::project::setValueForRegion(
+							    doc, c.pos, c.length, c.value, effLen, c.interpL, c.interpR,
+							    /*recordingLinearly=*/false, clockActive, livePos, reversed);
+
+							check(domRet.has_value() == (c.pos < static_cast<uint32_t>(effLen)),
+							      "setValueForRegion: nullopt iff pos is at/past effectiveLength");
+							check(ap.currentValue == doc.current_value,
+							      "setValueForRegion: current_value matches engine oracle");
+							expectDocMatchesEngine(ap, doc, "setValueForRegion: nodes match engine oracle");
+						}
+					}
+				}
+			}
+		}
+
+		// Spot checks on the automationChanged signal itself (the wiring seam's notify(..., automationChanged, ...)
+		// argument), which the matrix above only checks indirectly via has_value().
+		{
+			DocAutoParam doc{};
+			auto r = deluge::project::setValueForRegion(doc, 0, 128, 999, 128, true, true, false, true, 0, false);
+			check(r.has_value() && *r == false,
+			      "setValueForRegion: full-region collapse reports automationChanged=false");
+			check(doc.current_value == 999 && doc.nodes.empty(),
+			      "setValueForRegion: full-region collapse clears nodes and sets current_value");
+		}
+		{
+			DocAutoParam doc{};
+			auto r = deluge::project::setValueForRegion(doc, 200, 32, 5, 128, true, true, false, true, 0, false);
+			check(!r.has_value(), "setValueForRegion: pos at/past effectiveLength is a no-op (nullopt)");
+			check(doc.current_value == 0 && doc.nodes.empty(), "setValueForRegion: no-op leaves the param untouched");
+		}
+		{
+			DocAutoParam doc{};
+			auto r = deluge::project::setValueForRegion(doc, 16, 32, 500, 128, true, true, false, false, 0, false);
+			check(r.has_value() && *r == true,
+			      "setValueForRegion: normal homogenize-region path reports automationChanged=true");
+		}
+	}
+
 	if (failures == 0) {
 		std::fprintf(stdout, "param_automation projection: OK\n");
 		std::fflush(stdout);

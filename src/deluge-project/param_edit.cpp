@@ -737,4 +737,308 @@ void transposeCCValuesToChannelPressure(DocAutoParam& p) {
 	p.current_value = (p.current_value >> 1) + (1 << 30);
 }
 
+void flattenReverse(DocAutoParam& p, int32_t reverseDirectionWithLength) {
+	auto& nodes = p.nodes;
+	int32_t numNodes = static_cast<int32_t>(nodes.size());
+	if (!reverseDirectionWithLength || !numNodes) {
+		return;
+	}
+
+	// Move the owned nodes out, then rebuild them reversed into a fresh buffer.
+	ParamNodeVector oldNodes = std::move(nodes);
+	nodes.clear();
+	(void)nodes.insertAt(0, numNodes);
+
+	const ParamNode& rightmostNode = oldNodes[numNodes - 1];
+	int32_t oldNodeToLeftValue = rightmostNode.value;
+
+	const ParamNode& leftmostNode = oldNodes[0];
+	bool anythingAtZero = !leftmostNode.pos;
+
+	for (int32_t iOld = 0; iOld < numNodes; iOld++) {
+		int32_t iNew = -iOld - static_cast<int32_t>(!anythingAtZero);
+		if (iNew < 0) {
+			iNew += numNodes;
+		}
+
+		const ParamNode& oldNode = oldNodes[iOld];
+		ParamNode& newNode = nodes[iNew];
+
+		int32_t iOldToRight = (iOld + 1 == numNodes) ? 0 : iOld + 1;
+		const ParamNode& oldNodeToRight = oldNodes[iOldToRight];
+
+		int32_t newPos = -oldNode.pos;
+		if (newPos < 0) {
+			newPos += reverseDirectionWithLength;
+		}
+
+		newNode.pos = newPos;
+		newNode.value = oldNode.interpolated ? oldNode.value : oldNodeToLeftValue;
+		newNode.interpolated = oldNodeToRight.interpolated;
+
+		oldNodeToLeftValue = oldNode.value;
+	}
+	// oldNodes frees its deep copy on destruction.
+}
+
+void trimToLength(DocAutoParam& p, int32_t newLength, int32_t loopLength) {
+	auto& nodes = p.nodes;
+
+	// If no nodes, nothing to do.
+	if (nodes.empty()) {
+		return;
+	}
+
+	// If the final node is already within the new length, nothing to do.
+	if (nodes[nodes.size() - 1].pos < newLength) {
+		return;
+	}
+
+	// To ensure that the effective value at pos 0 remains the same even after later nodes are dropped (e.g.
+	// under looping wraparound, where the now-deleted tail was contributing to that interpolation), we might
+	// need to add a new, non-interpolating node there — but only if there isn't already one right at pos 0.
+	bool needNewNodeAt0 = (nodes[0].pos != 0);
+	int32_t oldValueAt0 = 0;
+	if (needNewNodeAt0) {
+		oldValueAt0 = getValueAtPos(p, 0, loopLength);
+	}
+
+	int32_t newNumNodes = firstAtOrAfter(nodes, newLength);
+
+	// If at least 2 nodes would remain, do the basic trim (drop everything at/after newLength) and patch
+	// pos 0 back in if that value would otherwise have shifted.
+	if (newNumNodes >= 2) {
+		deleteNodesBeyond(nodes, newLength);
+
+		if (needNewNodeAt0) {
+			(void)nodes.insertAt(0);
+			nodes[0].pos = 0;
+			nodes[0].value = oldValueAt0;
+			nodes[0].interpolated = false;
+		}
+	}
+	// Otherwise fewer than 2 nodes would remain — not meaningful automation, so drop it all.
+	else {
+		nodes.clear();
+	}
+}
+
+void appendParam(DocAutoParam& dest, const DocAutoParam& src, int32_t oldLength, int32_t reverseThisRepeatWithLength,
+                 bool pingpongingGenerally) {
+	auto& destNodes = dest.nodes;
+	const auto& srcNodes = src.nodes;
+
+	int32_t numToInsert = static_cast<int32_t>(srcNodes.size());
+	if (!numToInsert) {
+		return;
+	}
+
+	// When recording session to arranger, dest may occasionally end up with nodes beyond the Clip's length.
+	// These need to be removed now.
+	const ParamNode& firstSrcNode = srcNodes[0];
+	deleteNodesBeyond(destNodes, oldLength + firstSrcNode.pos);
+
+	const ParamNode& nodeAfterWrap = srcNodes[0];
+	bool nothingAtZero = nodeAfterWrap.pos != 0;
+
+	// We may have to create a new node at pos 0 (of the new repeat) to represent the fact that a pingpong would
+	// suddenly occur in the middle of an interpolating bit between nodes. Hopefully the note at actual pos 0 got
+	// created back when generateRepeats got called initially for this, at the start of recording etc.
+	if (pingpongingGenerally && nothingAtZero && nodeAfterWrap.interpolated) {
+
+		// This block is a quick simple alternative to calling getValueAtPos(), which would also require timeline
+		// context and check for a bunch of unnecessary stuff.
+		const ParamNode& nodeBeforeWrap = srcNodes[numToInsert - 1];
+		int64_t valueDistance = static_cast<int64_t>(nodeAfterWrap.value) - static_cast<int64_t>(nodeBeforeWrap.value);
+		int32_t ticksSinceLeftNode = oldLength - nodeBeforeWrap.pos;
+		int32_t ticksBetweenNodes = ticksSinceLeftNode + nodeAfterWrap.pos;
+		int32_t valueAtZero =
+		    static_cast<int32_t>(nodeBeforeWrap.value + (valueDistance * ticksSinceLeftNode / ticksBetweenNodes));
+
+		int32_t newZeroNodeI = static_cast<int32_t>(destNodes.size());
+		(void)destNodes.insertAt(newZeroNodeI);
+
+		ParamNode& zeroNode = destNodes[newZeroNodeI];
+		zeroNode.pos = oldLength;
+		zeroNode.value = valueAtZero;
+		zeroNode.interpolated = true;
+
+		// nothingAtZero is left as-is: unlike generateRepeats, the node just added lives in dest's array, not
+		// src's — it doesn't change how we read src below.
+	}
+
+	int32_t oldNumNodes = static_cast<int32_t>(destNodes.size());
+	(void)destNodes.insertAt(oldNumNodes, numToInsert);
+
+	if (reverseThisRepeatWithLength) {
+
+		for (int32_t iNewWithinRepeat = 0; iNewWithinRepeat < numToInsert; iNewWithinRepeat++) {
+			int32_t iOld = -iNewWithinRepeat - static_cast<int32_t>(nothingAtZero);
+			if (iOld < 0) {
+				iOld += numToInsert;
+			}
+
+			const ParamNode& oldNode = srcNodes[iOld];
+			int32_t newPos = oldNode.pos;
+
+			newPos = -newPos;
+			if (newPos < 0) {
+				newPos += reverseThisRepeatWithLength;
+			}
+
+			newPos += oldLength;
+
+			int32_t newValue = oldNode.value;
+			bool newInterpolated = oldNode.interpolated;
+
+			if (!oldNode.interpolated) {
+				int32_t iOldToLeft = iOld - 1;
+				if (iOldToLeft < 0) {
+					iOldToLeft += numToInsert;
+				}
+				const ParamNode& oldNodeToLeft = srcNodes[iOldToLeft];
+				newValue = oldNodeToLeft.value;
+			}
+
+			int32_t iOldToRight = iOld + 1;
+			if (iOldToRight >= numToInsert) {
+				iOldToRight = 0;
+			}
+			const ParamNode& oldNodeToRight = srcNodes[iOldToRight];
+			newInterpolated = oldNodeToRight.interpolated;
+
+			int32_t iNew = iNewWithinRepeat + oldNumNodes;
+			ParamNode& newNode = destNodes[iNew];
+
+			newNode.pos = newPos;
+			newNode.value = newValue;
+			newNode.interpolated = newInterpolated;
+		}
+	}
+
+	else {
+
+		for (int32_t i = 0; i < numToInsert; i++) {
+			const ParamNode& oldNode = srcNodes[i];
+			ParamNode& newNode = destNodes[oldNumNodes + i];
+			newNode.pos = oldNode.pos + oldLength;
+			newNode.interpolated = oldNode.interpolated;
+			newNode.value = oldNode.value;
+		}
+	}
+}
+
+void nudgeNonInterpolatingNodesAtPos(DocAutoParam& p, int32_t pos, int32_t offset, int32_t lengthBeforeLoop) {
+	auto& nodes = p.nodes;
+
+	int32_t nodeI = firstAtOrAfter(nodes, pos);
+	if (nodeI >= static_cast<int32_t>(nodes.size()) || nodes[nodeI].pos != pos) {
+		return; // no node exactly at pos
+	}
+	if (nodes[nodeI].interpolated) {
+		return;
+	}
+
+	int32_t newNodePos = pos + offset;
+
+	// Shared handling for both wrap directions (the engine's "doWrap:" goto target): the node at `eraseIndex`
+	// has wrapped past a loop edge to `destPos` and may collide with whatever already sits at `neighborIndex`.
+	auto wrapNode = [&nodes](int32_t eraseIndex, int32_t neighborIndex, int32_t destPos) {
+		// There should never be just one node here — matches the engine's FREEZE_WITH_ERROR("E335") guard.
+		// The kernel just leaves the array untouched instead of freezing (see risks).
+		if (nodes.size() == 1) {
+			return;
+		}
+
+		int32_t ourValue = nodes[eraseIndex].value; // grab this before deleting stuff
+
+		nodes.erase(nodes.begin() + eraseIndex);
+
+		// If the node we're nudging toward would get collided with, just take it over...
+		if (nodes[neighborIndex].pos == destPos) {
+			// ...unless that would leave only one node total — then there's nothing left to automate.
+			if (nodes.size() == 1) {
+				nodes.clear();
+			}
+			else {
+				nodes[neighborIndex].value = ourValue;
+				nodes[neighborIndex].interpolated = false;
+			}
+		}
+		// Otherwise, create a new node at the destination.
+		else {
+			int32_t insertI = static_cast<int32_t>(nodes.size());
+			(void)nodes.insertAt(insertI); // can't fail: we just erased one
+			nodes[insertI].pos = destPos;
+			nodes[insertI].value = ourValue;
+			nodes[insertI].interpolated = false;
+		}
+	};
+
+	if (newNodePos < 0) { // Wrapped left
+		newNodePos += lengthBeforeLoop;
+		// Subtract 2 instead of the normal 1: we're about to delete one element before using this index.
+		wrapNode(nodeI, static_cast<int32_t>(nodes.size()) - 2, newNodePos);
+	}
+	else if (newNodePos >= lengthBeforeLoop) { // Wrapped right
+		newNodePos -= lengthBeforeLoop;
+		wrapNode(nodeI, 0, newNodePos);
+	}
+	else { // No wrap
+		nodes[nodeI].pos = newNodePos;
+
+		int32_t nextNodeI = nodeI + offset;
+		if (nextNodeI >= 0 && nextNodeI < static_cast<int32_t>(nodes.size())) {
+			if (nodes[nextNodeI].pos == newNodePos) {
+				nodes.erase(nodes.begin() + nextNodeI);
+			}
+		}
+	}
+}
+
+std::optional<bool> setValueForRegion(DocAutoParam& p, uint32_t pos, uint32_t length, int32_t value,
+                                      int32_t effectiveLength, bool interpolateLeftNode, bool interpolateRightNode,
+                                      bool recordingLinearly, bool clockActive, int32_t livePos,
+                                      bool currentlyPlayingReversed) {
+	auto& nodes = p.nodes;
+
+	// The user can't edit beyond the length of the loop/Clip/TimelineCounter they're editing within.
+	if (pos >= static_cast<uint32_t>(effectiveLength)) {
+		return std::nullopt;
+	}
+
+	// Special case: the region covers the whole loop/Clip/TimelineCounter — collapse to a flat value.
+	// (Faithful port of deleteAutomation's node mutation; Action snapshotting is engine wiring, not ported.)
+	if (length == static_cast<uint32_t>(effectiveLength)) {
+		nodes.clear();
+		p.current_value = value;
+		return false; // automationChanged stays false on this path, matching the engine
+	}
+
+	// Normal case: homogenize the region to a single flat/ramped segment.
+	int32_t firstI = homogenizeRegion(p, static_cast<int32_t>(pos), static_cast<int32_t>(length), value,
+	                                  interpolateLeftNode, interpolateRightNode, effectiveLength,
+	                                  /*reversed=*/false, recordingLinearly);
+	if (firstI == -1) { // OOM in the engine; unreachable with this container's homogenizeRegion, kept for parity
+		return std::nullopt;
+	}
+
+	// If the transport isn't running right now, the edit takes effect on current_value immediately.
+	if (!clockActive) {
+		p.current_value = value;
+		return true;
+	}
+
+	// Otherwise, it only takes effect immediately if the playhead is inside the edited region right now.
+	// (resetInterpolationIncrement on that path is engine wiring — interpolation-cursor state, not ported.)
+	int32_t mostRecentI = firstAtOrAfter(nodes, livePos + static_cast<int32_t>(!currentlyPlayingReversed)) - 1;
+	if (mostRecentI == -1) {
+		mostRecentI = static_cast<int32_t>(nodes.size()) - 1;
+	}
+	if (mostRecentI == firstI) {
+		p.current_value = value;
+	}
+	return true;
+}
+
 } // namespace deluge::project
