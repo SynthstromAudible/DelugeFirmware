@@ -59,11 +59,11 @@ public:
 	inline bool isOn() { return HPFOn || LPFOn; }
 
 private:
-	FilterMode lpfMode_;
-	FilterMode lastLPFMode_;
-	FilterMode hpfMode_;
-	FilterMode lastHPFMode_;
-	FilterRoute routing_;
+	FilterMode lpfMode_{FilterMode::OFF};
+	FilterMode lastLPFMode_{FilterMode::OFF};
+	FilterMode hpfMode_{FilterMode::OFF};
+	FilterMode lastHPFMode_{FilterMode::OFF};
+	FilterRoute routing_{FilterRoute::HIGH_TO_LOW};
 
 	void renderLPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement = 1);
 	void renderLPFLongStereo(q31_t* startSample, q31_t* endSample);
@@ -77,7 +77,7 @@ private:
 	LowPass lpfilter;
 	HighPass hpfilter;
 
-	bool LPFOn;
-	bool HPFOn;
+	bool LPFOn{false};
+	bool HPFOn{false};
 };
 } // namespace deluge::dsp::filter

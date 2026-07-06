@@ -194,5 +194,12 @@ int32_t FilterSet::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
 void FilterSet::reset() {
 	memset(&lpfilter, 0, sizeof(LowPass));
 	memset(&hpfilter, 0, sizeof(HighPass));
+	lpfMode_ = FilterMode::OFF;
+	lastLPFMode_ = FilterMode::OFF;
+	hpfMode_ = FilterMode::OFF;
+	lastHPFMode_ = FilterMode::OFF;
+	routing_ = FilterRoute::HIGH_TO_LOW;
+	LPFOn = false;
+	HPFOn = false;
 }
 } // namespace deluge::dsp::filter
