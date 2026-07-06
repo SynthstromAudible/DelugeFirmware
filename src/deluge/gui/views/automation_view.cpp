@@ -2316,7 +2316,7 @@ ActionResult AutomationView::horizontalEncoderAction(int32_t offset) {
 void AutomationView::shiftAutomationHorizontally(ModelStackWithAutoParam* modelStackWithParam, int32_t offset,
                                                  int32_t effectiveLength) {
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
-		modelStackWithParam->autoParam->shiftHorizontally(offset, effectiveLength);
+		modelStackWithParam->autoParam->shiftHorizontally(*modelStackWithParam->doc(), offset, effectiveLength);
 	}
 
 	uiNeedsRendering(&automationView);

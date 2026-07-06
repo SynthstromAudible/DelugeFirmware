@@ -3104,14 +3104,14 @@ expressionParam:
 							// If channel pressure, gotta move and scale the values from how they were in the pre-V3.2
 							// firmware
 							if (paramId) {
-								param->transposeCCValuesToChannelPressureValues();
+								param->transposeCCValuesToChannelPressureValues(*param->docForThreading());
 							}
 
 							// Or if pitch bend, it'll no longer interpolate, so go place some new nodes. Actually even
 							// without this step, you can only just tell there's any problem.
 							else {
 								param->makeInterpolationGoodAgain(
-								    loopLength,
+								    *param->docForThreading(), loopLength,
 								    22); // 22 is picked somewhat arbitrarily - see comment for function itself.
 							}
 						}
@@ -4635,7 +4635,7 @@ doHomogenize:
 
 			// Special case for if linear recording, quantized later, right to end of effectiveLength.
 			if (quantizedPos >= effectiveLength) {
-				param->setNodeAtPos(quantizedPos, value, false);
+				param->setNodeAtPos(*param->docForThreading(), quantizedPos, value, false);
 			}
 
 			// Or, normal case

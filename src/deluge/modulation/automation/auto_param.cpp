@@ -57,7 +57,7 @@
 	6630 // 150ms. Only seems to have an effect for MIDI, which is confusing me...
 
 AutoParam::AutoParam() {
-	init();
+	init(ownDoc_);
 	currentValue = 0;
 	resetInterpolationIncrement();
 	renewedOverridingAtTime = 0;
@@ -121,8 +121,8 @@ deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 	return autoParam->docForThreading();
 }
 
-void AutoParam::init() {
-	nodes().init();
+void AutoParam::init(deluge::project::DocAutoParam& doc) {
+	doc.nodes.init();
 }
 
 void AutoParam::copyOverridingFrom(AutoParam* otherParam) {
@@ -417,8 +417,8 @@ void AutoParam::deleteAutomation(Action* action, ModelStackWithAutoParam const* 
 
 // Beware. As this will do no notifying, the caller must ensure that any required notification is done.
 // I.e. a ParamSet must be notified if automation is deleted.
-void AutoParam::deleteAutomationBasicForSetup() {
-	nodes().clear();
+void AutoParam::deleteAutomationBasicForSetup(deluge::project::DocAutoParam& doc) {
+	doc.nodes.clear();
 	resetInterpolationIncrement();
 	renewedOverridingAtTime = 0;
 }
@@ -1046,10 +1046,11 @@ void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStac
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, true, true, isAutomated());
 }
 
-int32_t AutoParam::setNodeAtPos(int32_t pos, int32_t value, bool shouldInterpolate) {
+int32_t AutoParam::setNodeAtPos(deluge::project::DocAutoParam& doc, int32_t pos, int32_t value,
+                                bool shouldInterpolate) {
 	// M2-C: forward the node mutation to the DOM kernel (oracle-proven identical). The kernel is infallible on
 	// this container (index-based insert), so unlike the old engine op it never returns -1.
-	return deluge::project::setNodeAtPos(*doc_, pos, value, shouldInterpolate);
+	return deluge::project::setNodeAtPos(doc, pos, value, shouldInterpolate);
 }
 
 void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
@@ -1235,20 +1236,20 @@ void AutoParam::setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelSta
 	}
 }
 
-void AutoParam::flattenReverse(int32_t reverseDirectionWithLength) {
-	deluge::project::flattenReverse(*doc_, reverseDirectionWithLength); // M2-C: forward to the DOM kernel
+void AutoParam::flattenReverse(deluge::project::DocAutoParam& doc, int32_t reverseDirectionWithLength) {
+	deluge::project::flattenReverse(doc, reverseDirectionWithLength); // M2-C: forward to the DOM kernel
 }
 
 // Wait, surely this should be undoable?
-void AutoParam::generateRepeats(uint32_t oldLength, uint32_t newLength, bool shouldPingpong) {
-	deluge::project::generateRepeats(*doc_, oldLength, newLength, shouldPingpong); // M2-C: forward to DOM kernel
+void AutoParam::generateRepeats(deluge::project::DocAutoParam& doc, uint32_t oldLength, uint32_t newLength,
+                                bool shouldPingpong) {
+	deluge::project::generateRepeats(doc, oldLength, newLength, shouldPingpong); // M2-C: forward to DOM kernel
 }
 
-void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t reverseThisRepeatWithLength,
-                            bool pingpongingGenerally) {
+void AutoParam::appendParam(deluge::project::DocAutoParam& doc, deluge::project::DocAutoParam const& srcDoc,
+                            int32_t oldLength, int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
 	// M2-C: forward to the DOM kernel; the source param's nodes come from its DocAutoParam handle.
-	deluge::project::appendParam(*doc_, *otherParam->doc_, oldLength, reverseThisRepeatWithLength,
-	                             pingpongingGenerally);
+	deluge::project::appendParam(doc, srcDoc, oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
 }
 
 void AutoParam::trimToLength(uint32_t newLength, Action* action, ModelStackWithAutoParam const* modelStack) {
@@ -1384,7 +1385,7 @@ Error AutoParam::readFromFile(Deserializer& reader, int32_t readAutomationUpToPo
 
 	// Must first delete any automation because sometimes, due to that annoying support I have to do for late-2016
 	// files, we'll be overwriting a cloned ParamManager, which might have had automation.
-	deleteAutomationBasicForSetup();
+	deleteAutomationBasicForSetup(*docForThreading());
 
 	if (!reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
 		return Error::NONE;
@@ -1512,20 +1513,20 @@ bool AutoParam::containedSomethingBefore(bool wasAutomatedBefore, uint32_t value
 // cursor is the separate `currentValue` member (kept distinct until M2-E). So for value-touching ops we sync
 // currentValue → doc_->current_value, run the kernel, then read it back. (doc_->current_value is otherwise
 // engine-dead in M2-B, so this is a safe scratch use; the node vector is shared directly.)
-void AutoParam::shiftValues(int32_t offset) {
-	doc_->current_value = currentValue;
-	deluge::project::shiftValues(*doc_, offset);
-	currentValue = doc_->current_value;
+void AutoParam::shiftValues(deluge::project::DocAutoParam& doc, int32_t offset) {
+	doc.current_value = currentValue;
+	deluge::project::shiftValues(doc, offset);
+	currentValue = doc.current_value;
 }
 
-void AutoParam::shiftParamVolumeByDB(float offset) {
-	doc_->current_value = currentValue; // M2-C sync-bridge (see shiftValues)
-	deluge::project::shiftParamVolumeByDB(*doc_, offset);
-	currentValue = doc_->current_value;
+void AutoParam::shiftParamVolumeByDB(deluge::project::DocAutoParam& doc, float offset) {
+	doc.current_value = currentValue; // M2-C sync-bridge (see shiftValues)
+	deluge::project::shiftParamVolumeByDB(doc, offset);
+	currentValue = doc.current_value;
 }
 
-void AutoParam::shiftHorizontally(int32_t amount, int32_t effectiveLength) {
-	deluge::project::shiftHorizontally(*doc_, amount, effectiveLength); // M2-C: forward to the DOM kernel
+void AutoParam::shiftHorizontally(deluge::project::DocAutoParam& doc, int32_t amount, int32_t effectiveLength) {
+	deluge::project::shiftHorizontally(doc, amount, effectiveLength); // M2-C: forward to the DOM kernel
 }
 
 void AutoParam::swapState(AutoParamState* state, ModelStackWithAutoParam const* modelStack) {
@@ -1749,16 +1750,17 @@ void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* co
 // Returns error code.
 // quantizationRShift would be 25 for 7-bit CC values (cos 32 - 25 == 7).
 // Or it'd ideally be 18 for 14-bit pitch bend data, but that'd be a bit overkill.
-Error AutoParam::makeInterpolationGoodAgain(int32_t clipLength, int32_t quantizationRShift) {
+Error AutoParam::makeInterpolationGoodAgain(deluge::project::DocAutoParam& doc, int32_t clipLength,
+                                            int32_t quantizationRShift) {
 	// M2-C: forward to the DOM kernel; it returns false only on the engine's INSUFFICIENT_RAM path.
-	return deluge::project::makeInterpolationGoodAgain(*doc_, clipLength, quantizationRShift) ? Error::NONE
-	                                                                                          : Error::INSUFFICIENT_RAM;
+	return deluge::project::makeInterpolationGoodAgain(doc, clipLength, quantizationRShift) ? Error::NONE
+	                                                                                        : Error::INSUFFICIENT_RAM;
 }
 
-void AutoParam::transposeCCValuesToChannelPressureValues() {
-	doc_->current_value = currentValue; // M2-C sync-bridge (see shiftValues)
-	deluge::project::transposeCCValuesToChannelPressure(*doc_);
-	currentValue = doc_->current_value;
+void AutoParam::transposeCCValuesToChannelPressureValues(deluge::project::DocAutoParam& doc) {
+	doc.current_value = currentValue; // M2-C sync-bridge (see shiftValues)
+	deluge::project::transposeCCValuesToChannelPressure(doc);
+	currentValue = doc.current_value;
 }
 
 /// this is used in arranger view to delete time between automation nodes (shift + <>)
@@ -1768,8 +1770,8 @@ void AutoParam::deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackW
 }
 
 /// this is used in arranger view to insert time between automation nodes (shift + <>)
-void AutoParam::insertTime(int32_t pos, int32_t lengthToInsert) {
-	deluge::project::insertTime(*doc_, pos, lengthToInsert); // M2-C: forward to the DOM kernel
+void AutoParam::insertTime(deluge::project::DocAutoParam& doc, int32_t pos, int32_t lengthToInsert) {
+	deluge::project::insertTime(doc, pos, lengthToInsert); // M2-C: forward to the DOM kernel
 }
 
 // Offset must be either 1 or -1.

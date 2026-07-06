@@ -1745,8 +1745,9 @@ loadOutput:
 				if (((InstrumentClip*)thisClip)->arpSettings.mode != ArpMode::OFF
 				    && !((InstrumentClip*)thisClip)->arpSettings.syncLevel) {
 					ParamManagerForTimeline* thisParamManager = &thisClip->paramManager;
-					thisParamManager->getPatchedParamSet()->params[params::GLOBAL_ARP_RATE].shiftValues((1 << 30)
-					                                                                                    + (1 << 28));
+					thisParamManager->getPatchedParamSet()->params[params::GLOBAL_ARP_RATE].shiftValues(
+					    *thisParamManager->getPatchedParamSet()->params[params::GLOBAL_ARP_RATE].docForThreading(),
+					    (1 << 30) + (1 << 28));
 				}
 			}
 		}

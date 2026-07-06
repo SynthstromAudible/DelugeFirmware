@@ -480,8 +480,9 @@ void PatchCableSet::deletePatchCable(ModelStackWithParamCollection const* modelS
 	if (c >= numPatchCables) {
 		return; // Could probably happen. (Still?)
 	}
-	patchCables[c].param.deleteAutomationBasicForSetup(); // No need to record what's happening - we kind of know that
-	                                                      // there's no automation left anyway...
+	patchCables[c].param.deleteAutomationBasicForSetup(
+	    *patchCables[c].param.docForThreading()); // No need to record what's happening - we kind of know that
+	                                              // there's no automation left anyway...
 	patchCables[c].makeUnusable();
 	setupPatching(modelStack);
 
@@ -651,7 +652,7 @@ void PatchCableSet::generateRepeats(ModelStackWithParamCollection* modelStack, u
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated)
 
-	patchCables[c].param.generateRepeats(oldLength, newLength, shouldPingpong);
+	patchCables[c].param.generateRepeats(*patchCables[c].param.docForThreading(), oldLength, newLength, shouldPingpong);
 
 	FOR_EACH_PARAM_END
 }
@@ -668,7 +669,8 @@ void PatchCableSet::appendParamCollection(ModelStackWithParamCollection* modelSt
 	int32_t i = getPatchCableIndex(s, otherPatchCableSet->patchCables[c].destinationParamDescriptor);
 
 	if (i != 255) {
-		patchCables[i].param.appendParam(&otherPatchCableSet->patchCables[c].param, oldLength,
+		patchCables[i].param.appendParam(*patchCables[i].param.docForThreading(),
+		                                 *otherPatchCableSet->patchCables[c].param.docForThreading(), oldLength,
 		                                 reverseThisRepeatWithLength, pingpongingGenerally);
 	}
 
@@ -714,7 +716,7 @@ void PatchCableSet::trimToLength(uint32_t newLength, ModelStackWithParamCollecti
 void PatchCableSet::shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount,
                                       int32_t effectiveLength) {
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated)
-	patchCables[c].param.shiftHorizontally(amount, effectiveLength);
+	patchCables[c].param.shiftHorizontally(*patchCables[c].param.docForThreading(), amount, effectiveLength);
 	FOR_EACH_PARAM_END
 }
 
@@ -795,7 +797,7 @@ PatchCableSet::PatchCableSet(PatchCableSet const& other)
 		patchCables[c] = other.patchCables[c];
 	}
 	for (int32_t c = numUsablePatchCables; c < kMaxNumPatchCables; c++) {
-		patchCables[c].param.init();
+		patchCables[c].param.init(*patchCables[c].param.docForThreading());
 	}
 
 	// Deep-copy the destination arrays last, so a throw above leaves no raw allocation to clean up.
@@ -846,7 +848,7 @@ void PatchCableSet::stripAutomation() {
 
 void PatchCableSet::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
 	for (int32_t c = 0; c < numUsablePatchCables; c++) {
-		patchCables[c].param.flattenReverse(reverseDirectionWithLength);
+		patchCables[c].param.flattenReverse(*patchCables[c].param.docForThreading(), reverseDirectionWithLength);
 	}
 }
 
@@ -981,7 +983,7 @@ doneWithThisRangeCable:
 abandonThisCable:
 				// Discard any range-adjusting ones we'd just done above
 				for (int32_t c = numCablesAtStartOfThing; c < numPatchCables; c++) {
-					patchCables[c].param.deleteAutomationBasicForSetup();
+					patchCables[c].param.deleteAutomationBasicForSetup(*patchCables[c].param.docForThreading());
 				}
 				numPatchCables = numCablesAtStartOfThing;
 			}

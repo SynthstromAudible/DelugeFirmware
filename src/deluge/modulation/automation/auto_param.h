@@ -55,7 +55,7 @@ public:
 	AutoParam& operator=(AutoParam const& other);
 	AutoParam(AutoParam&& other) noexcept;
 	AutoParam& operator=(AutoParam&& other) noexcept;
-	void init();
+	void init(deluge::project::DocAutoParam& doc);
 
 	void setCurrentValueInResponseToUserInput(int32_t value, ModelStackWithAutoParam const* modelStack,
 	                                          bool shouldLogAction = true, int32_t livePos = -1,
@@ -73,33 +73,35 @@ public:
 	bool tickTicks(int32_t numTicks);
 	void setPlayPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed);
 	bool grabValueFromPos(uint32_t pos, ModelStackWithAutoParam const* modelStack);
-	void generateRepeats(uint32_t oldLength, uint32_t newLength, bool shouldPingpong);
+	void generateRepeats(deluge::project::DocAutoParam& doc, uint32_t oldLength, uint32_t newLength,
+	                     bool shouldPingpong);
 	/// Reverse this param's automation in place (used when flattening a reversed clip on clone). Operates on
 	/// already-owned nodes — moves them out, rebuilds reversed. reverseDirectionWithLength is the loop length.
 	/// Throws deluge::exception::BAD_ALLOC if it can't re-grow the node buffer.
-	void flattenReverse(int32_t reverseDirectionWithLength);
+	void flattenReverse(deluge::project::DocAutoParam& doc, int32_t reverseDirectionWithLength);
 	void copyOverridingFrom(AutoParam* otherParam);
 	void trimToLength(uint32_t newLength, Action* action, ModelStackWithAutoParam const* modelStack);
 	void deleteAutomation(Action* action, ModelStackWithAutoParam const* modelStack, bool shouldNotify = true);
-	void deleteAutomationBasicForSetup();
+	void deleteAutomationBasicForSetup(deluge::project::DocAutoParam& doc);
 	void writeToFile(Serializer& writer, bool writeAutomation, int32_t* valueForOverride = nullptr);
 	Error readFromFile(Deserializer& reader, int32_t readAutomationUpToPos);
 	bool containsSomething(uint32_t neutralValue = 0);
 	static bool containedSomethingBefore(bool wasAutomatedBefore, uint32_t valueBefore, uint32_t neutralValue = 0);
-	void shiftValues(int32_t offset);
-	void shiftParamVolumeByDB(float offset);
-	void shiftHorizontally(int32_t amount, int32_t effectiveLength);
+	void shiftValues(deluge::project::DocAutoParam& doc, int32_t offset);
+	void shiftParamVolumeByDB(deluge::project::DocAutoParam& doc, float offset);
+	void shiftHorizontally(deluge::project::DocAutoParam& doc, int32_t amount, int32_t effectiveLength);
 	void swapState(AutoParamState* state, ModelStackWithAutoParam const* modelStack);
 	void copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* copiedParamAutomation, bool isPatchCable,
 	          ModelStackWithAutoParam const* modelStack);
 	void paste(int32_t startPos, int32_t endPos, float scaleFactor, ModelStackWithAutoParam const* modelStack,
 	           CopiedParamAutomation* copiedParamAutomation, bool isPatchCable);
-	Error makeInterpolationGoodAgain(int32_t clipLength, int32_t quantizationRShift);
-	void transposeCCValuesToChannelPressureValues();
+	Error makeInterpolationGoodAgain(deluge::project::DocAutoParam& doc, int32_t clipLength,
+	                                 int32_t quantizationRShift);
+	void transposeCCValuesToChannelPressureValues(deluge::project::DocAutoParam& doc);
 	void deleteTime(int32_t startPos, int32_t lengthToDelete, ModelStackWithAutoParam* modelStack);
-	void insertTime(int32_t pos, int32_t lengthToInsert);
-	void appendParam(AutoParam* otherParam, int32_t oldLength, int32_t reverseThisRepeatWithLength,
-	                 bool pingpongingGenerally);
+	void insertTime(deluge::project::DocAutoParam& doc, int32_t pos, int32_t lengthToInsert);
+	void appendParam(deluge::project::DocAutoParam& doc, deluge::project::DocAutoParam const& srcDoc, int32_t oldLength,
+	                 int32_t reverseThisRepeatWithLength, bool pingpongingGenerally);
 	void nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
 	                                     ModelStackWithAutoParam const* modelStack);
 	void stealNodes(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t regionLength, int32_t loopLength,
@@ -118,7 +120,7 @@ public:
 	/// @param[in] shouldInterpolate Sets \ref "ParamNode::interpolated" on the created or modified node.
 	///
 	/// @return the index in to \ref nodes of the modified node.
-	int32_t setNodeAtPos(int32_t pos, int32_t value, bool shouldInterpolate);
+	int32_t setNodeAtPos(deluge::project::DocAutoParam& doc, int32_t pos, int32_t value, bool shouldInterpolate);
 	int32_t homogenizeRegion(ModelStackWithAutoParam const* modelStack, int32_t startPos, int32_t length,
 	                         int32_t startValue, bool interpolateLeftNode, bool interpolateRightNode,
 	                         int32_t effectiveLength, bool reversed, int32_t posAtWhichClipWillCut = 2147483647);

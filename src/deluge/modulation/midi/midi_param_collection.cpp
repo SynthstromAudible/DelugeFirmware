@@ -72,7 +72,7 @@ deluge::project::DocParamSet* MIDIParamCollection::domStore() {
 void MIDIParamCollection::deleteAllParams(Action* action, bool deleteStorageToo) {
 	if (action) {
 		for (MIDIParam& midiParam : params) {
-			midiParam.param.deleteAutomationBasicForSetup();
+			midiParam.param.deleteAutomationBasicForSetup(*midiParam.param.docForThreading());
 		}
 	}
 	params.clear(); // Destructs the params (the deleteStorageToo distinction is moot now this does both)
@@ -132,7 +132,7 @@ void MIDIParamCollection::stripAutomation() {
 
 void MIDIParamCollection::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
 	for (MIDIParam& midiParam : params) {
-		midiParam.param.flattenReverse(reverseDirectionWithLength);
+		midiParam.param.flattenReverse(*midiParam.param.docForThreading(), reverseDirectionWithLength);
 	}
 }
 
@@ -154,7 +154,7 @@ void MIDIParamCollection::setPlayPos(uint32_t pos, ModelStackWithParamCollection
 void MIDIParamCollection::generateRepeats(ModelStackWithParamCollection* modelStack, uint32_t oldLength,
                                           uint32_t newLength, bool shouldPingpong) {
 	for (MIDIParam& midiParam : params) {
-		midiParam.param.generateRepeats(oldLength, newLength, shouldPingpong);
+		midiParam.param.generateRepeats(*midiParam.param.docForThreading(), oldLength, newLength, shouldPingpong);
 	}
 }
 
@@ -167,8 +167,8 @@ void MIDIParamCollection::appendParamCollection(ModelStackWithParamCollection* m
 		// Find param in *this* collection for the same CC. There should be one
 		MIDIParam* midiParam = params.getParamFromCC(otherMidiParam.cc);
 		if (midiParam != nullptr) {
-			midiParam->param.appendParam(&otherMidiParam.param, oldLength, reverseThisRepeatWithLength,
-			                             pingpongingGenerally);
+			midiParam->param.appendParam(*midiParam->param.docForThreading(), *otherMidiParam.param.docForThreading(),
+			                             oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
 		}
 	}
 
@@ -189,7 +189,7 @@ void MIDIParamCollection::trimToLength(uint32_t newLength, ModelStackWithParamCo
 void MIDIParamCollection::shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount,
                                             int32_t effectiveLength) {
 	for (MIDIParam& midiParam : params) {
-		midiParam.param.shiftHorizontally(amount, effectiveLength);
+		midiParam.param.shiftHorizontally(*midiParam.param.docForThreading(), amount, effectiveLength);
 	}
 }
 
@@ -280,7 +280,7 @@ Error MIDIParamCollection::makeInterpolatedCCsGoodAgain(int32_t clipLength) {
 		if (midiParam.cc >= 120) {
 			return Error::NONE;
 		}
-		Error error = midiParam.param.makeInterpolationGoodAgain(clipLength, 25);
+		Error error = midiParam.param.makeInterpolationGoodAgain(*midiParam.param.docForThreading(), clipLength, 25);
 		if (error != Error::NONE) {
 			return error;
 		}
