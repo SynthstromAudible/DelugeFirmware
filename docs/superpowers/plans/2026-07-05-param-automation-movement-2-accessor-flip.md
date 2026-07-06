@@ -158,31 +158,35 @@ call eagerly (it's a length, not a null-deref; `processCurrentPos` already calls
   (infinite length); the getValueAtPos oracle already diffs engine vs kernel across `loopLengths[] = {128,
   2147483647}` × positions × reversed (param_automation_test.cpp:215), so the infinite-length path is covered.
 
-### M2-D.2 — Route `setValueForRegion` through its kernel (HARDWARE-GATED)
+### M2-D.2 — `setValueForRegion`: RESOLVED BY ANALYSIS (no forward needed)
 
-Deferred from M2-C because the engine method re-derives RT signals the kernel's `optional<bool>` return can't
-give back. Do it here, with the RT context in hand:
-- [ ] Keep the wiring seam (getNewAction, whole-region `deleteAutomation`, trailing `notifyParamModifiedInSomeWay`,
-  `view.notifyParamAutomationOccurred`, `resetInterpolationIncrement`). Supply the kernel's inputs from the engine:
-  `interpL`/`interpR` from `getRootUI()==&automationView ? automationView.interpolationBefore/After : false`;
-  `clockActive` from `playbackHandler.isEitherClockActive()`; `livePos`/`reversed` from the modelStack.
-- [ ] Forward the partial-region branch to `param_edit::setValueForRegion(*doc_, …)` via the value sync-bridge.
-  The kernel's `optional<bool>` tells you `automationChanged`; re-derive the RT sub-branch (`mostRecentI==firstI`
-  → `resetInterpolationIncrement()`+`currentValue=value`, else `view.notifyParamAutomationOccurred`) engine-side
-  from `nodes()` + `livePos` after the kernel runs — the node state it needs is all still readable via `nodes()`.
-- [ ] **Verify:** `param_projection_test` OK; golden `OK=15`; **on-device**: draw a region value in automation
-  view (both interpolate-on and -off), while stopped and while playing over the region.
+**Reversed the earlier plan after auditing the op.** `AutoParam::setValueForRegion`'s only node *mutations* are
+(a) its `homogenizeRegion(modelStack, …)` call — **already routed through the DOM kernel by M2-C's homogenizeRegion
+forward** — and (b) the whole-region `deleteAutomation` branch, a trivial `nodes().clear()` on the borrowed
+(DOM-owned) store. Everything else it does — `currentValue = value`, `resetInterpolationIncrement()`,
+`view.notifyParamAutomationOccurred()`, and the `mostRecentI` *read* — is engine RT-cursor / UI state that
+*correctly stays engine-side* in the accessor model (it is not node data).
+
+Forwarding the whole op to `param_edit::setValueForRegion` would be **strictly worse**: it duplicates the
+`currentValue`/`mostRecentI` decision inside the kernel and forces the wrapper to *re-derive* the reset-vs-notify
+RT sub-branch (which neither the golden, the projection oracle, nor the record-playback harness can see — those
+are cursor/UI effects, not nodes). So the `param_edit::setValueForRegion` kernel stays as an oracle-tested
+building block (and the `recordLiveValue` composition piece), but the engine op is left as-is: its node mutation
+already crosses the DOM boundary. No M2-D.2 code change. This also needs no new hardware/harness gate — the node
+mutation is covered by the existing homogenizeRegion oracle + golden.
 
 ### M2-D.3 — Route the recording write through `recordLiveValue`; keep the latch coherent (HARDWARE-GATED, delicate)
 
 `setCurrentValueInResponseToUserInput`'s recording branch (auto_param.cpp:141+, the `livePos`/`ticksToClear`
 block) and `processCurrentPos`'s `recordOverNodeJustReached` path (auto_param.cpp:600+) are the one place a live
 node write and the per-tick cursor genuinely interleave (spec §7).
-- [ ] In `setCurrentValueInResponseToUserInput`, route the node mutation through `param_edit::recordLiveValue`
-  (the M2-A kernel), computing its args (`ticksToClear`, `doMPEMode`, `interpolateLeft` = `reversed ||
-  shouldInterpolateRegionStart`, `posAtWhichPlaybackWillCut`) exactly as the engine does now. Keep the
-  `renewedOverridingAtTime` latch, `resetInterpolationIncrement`, Action snapshot, and `notifyParamModified…`
-  engine-side. The "clip too short" early-out becomes a direct `nodes().clear()` (kernel is not invoked there).
+- [x] **DONE `62d583ce8`.** In `setCurrentValueInResponseToUserInput`, routed the node mutation through
+  `param_edit::recordLiveValue` (`interpolateLeft` = `reversed || shouldInterpolateRegionStart`,
+  `recordingLinearly` with the Song-timeline guard). Kept the `renewedOverridingAtTime` latch,
+  `resetInterpolationIncrement`, `deleteRedundantNodeInLinearRun`, Action snapshot, and `notifyParamModified…`
+  engine-side; the "clip too short" early-out stays a direct `deleteAutomation`. The `leftI==-1` early-outs are
+  dropped (the DOM container's inserts are infallible). Verified against the `param_record_diff` baseline
+  (`OK=3`, x86 AND ARM) + projection + golden + firmware.
 - [ ] Leave `processCurrentPos`/`setupInterpolation` node *reads* as-is (they already read `doc_->nodes` via
   `nodes()`); do NOT try to kernel-ise the cursor state machine. The only change here, if any, is that the
   `recordOverNodeJustReached` node write can reuse the same kernel helper as above for consistency — optional.
@@ -192,8 +196,10 @@ node write and the per-tick cursor genuinely interleave (spec §7).
   latching, MPE/MIDI-CC/patch-cable knob-recording) remains a nice-to-have confidence pass, not a blocker —
   bit-identical node+cursor state makes the feel identical by construction.
 
-**M2-D deliverable:** every node read and the recording write run through DOM kernels; only the RT interpolation
-cursor + override latch remain as engine state (correctly — they are not node data).
+**M2-D COMPLETE** (D.1 getValueAtPos forwarded `df545adbc`; D.2 resolved by analysis — no forward needed;
+D.3 recording write forwarded `62d583ce8`). Every node read and the recording write now run through DOM kernels;
+only the RT interpolation cursor + override latch remain as engine state (correctly — they are not node data).
+The record-playback harness retired the on-device correctness gate for the seam.
 
 ### Retiring the hardware gate with a differential harness (feasibility audit, 2026-07-06)
 
