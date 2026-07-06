@@ -2685,9 +2685,9 @@ bool AutomationView::clearMacroTargetAssignment(int32_t macroIndex, int32_t targ
 	MelodicInstrument* instrument = macroLaneInstrument(clip, &laneMacroIndex);
 	bool ok = instrument != nullptr && macroIndex >= 0 && target >= 0 && laneMacroIndex == macroIndex;
 	if (ok) {
-		// must run while the slot still holds its CC (changeTargetDestination reads it as the old destination)
+		// must run while the slot still holds its CC (changeTargetDestination reads it as the old
+		// destination); clearing to kNoDestination also resets the slot's range/send to pristine defaults.
 		Macros::changeTargetDestination(clip, macroIndex, target, Macros::kNoDestination);
-		instrument->macros[macroIndex].targets[target] = Macros::MacroTargetSlot{};
 		instrument->editedByUser = true;
 		view.setModLedStates(); // that target's assignment LED goes dark
 		display->displayPopup("Target cleared");

@@ -1404,6 +1404,17 @@ void changeTargetDestination(Clip* clip, int32_t macroIndex, int32_t slot, uint8
 	target.destination = newDestination;
 	ctx.instrument->editedByUser = true;
 
+	if (newDestination == kNoDestination) {
+		// A cleared slot returns to pristine defaults (range + Send), so a later reassignment into it
+		// starts fresh instead of inheriting the departed target's from/to. Done here in the primitive so
+		// every clear path is consistent - note-view SHIFT+DELETE, automation SHIFT+DELETE, and dialling a
+		// target to OFF - and so the pure-config early-return just below is covered too. (Re-pointing to a
+		// real destination keeps from/to: you're moving the same mapping, not clearing it.)
+		target.from = kDefaultFrom;
+		target.to = kDefaultTo;
+		target.send = MacroTargetSlot{}.send;
+	}
+
 	if (!laneEverTouched(ctx, macroIndex)) {
 		return; // no bake ever happened on this clip: pure config change
 	}
