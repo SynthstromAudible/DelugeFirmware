@@ -20,7 +20,6 @@
 #include "extern.h"
 #include "gui/colour/colour.h"
 #include "gui/colour/palette.h"
-#include "gui/context_menu/clear_macro_target.h"
 #include "gui/menu_item/colour.h"
 #include "gui/menu_item/file_selector.h"
 #include "gui/menu_item/multi_range.h"
@@ -887,21 +886,25 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 
 		RGB& pixel = image[yDisplay][xDisplay];
 
-		// The destination-picker overlay: pads pickable as the held target's destination light
-		// grey, the pending pick lights full white; pads that can't be a destination (patch
-		// cables, expression, velocity - not encodable as a destination byte) go dark.
+		// The destination-picker overlay: assignable pads light grey; the pending pick lights white if
+		// it's this pad's PRIMARY param, yellow if it's the shared second-layer param (matching the
+		// second layer's colour elsewhere); pads that can't be a destination go dark.
 		if (macroPicker) {
 			int32_t destination = macroDestinationForPad(pickerDomain, xDisplay, yDisplay);
 			if (destination < 0) {
 				pixel = colours::black;
 			}
 			else {
-				// white if the pending pick is this pad's param on EITHER layer (primary or the
-				// shared-shortcut second layer), so the highlight follows a second-layer pick too
 				int32_t second = macroDestinationForPad(pickerDomain, xDisplay, yDisplay, true);
-				bool picked = heldTargetPendingDestination == destination
-				              || (second >= 0 && heldTargetPendingDestination == second);
-				pixel = picked ? colours::white_full : colours::grey;
+				if (heldTargetPendingDestination == destination) {
+					pixel = colours::white_full; // primary layer picked
+				}
+				else if (second >= 0 && heldTargetPendingDestination == second) {
+					pixel = colours::yellow; // second-layer param picked
+				}
+				else {
+					pixel = colours::grey; // assignable, not the current pick
+				}
 				occupancyMask[yDisplay][xDisplay] = 64;
 			}
 			continue;
@@ -1339,15 +1342,26 @@ ActionResult AutomationView::buttonAction(hid::Button b, bool on, bool inCardRou
 	}
 
 	// SHIFT + SAVE/DELETE while holding a target's param button: clear that target's assignment
-	// (after confirmation). The baked target lanes are left untouched.
+	// immediately. No confirmation - holding one specific target button and hitting SHIFT+SAVE is a
+	// deliberate gesture (and matches the note-view picker's delete). The baked automation on that
+	// param is deleted and any shadowed co-target takes over, same as dialing the target to OFF.
 	else if (b == SAVE && on && Buttons::isShiftButtonPressed() && heldTarget >= 0 && inAutomationEditor()
 	         && !onArrangerView) {
 		int32_t macroIndex = 0;
 		if (macroLaneInstrument(clip, &macroIndex) != nullptr && macroIndex == heldTargetMacro) {
-			pendingClearMacro = macroIndex;
-			pendingClearTarget = heldTarget;
-			display->cancelPopup(); // drop the persistent hold readout before the confirmation menu
-			openUI(&context_menu::clearMacroTarget);
+			clearMacroTargetAssignment(macroIndex, heldTarget);
+			// End the hold now and tear it down exactly as the button's release would - its release will
+			// fall through to the normal path since heldTarget is cleared, so it won't do this itself.
+			heldTarget = -1;
+			heldTargetMacro = -1;
+			heldTargetPendingDestination = -1;
+			macroPickerLastX = -1;
+			macroPickerLastY = -1;
+			macroPickerSecondLayer = false;
+			view.setModLedStates();                           // re-sync the target LEDs now the hold is over
+			view.setKnobIndicatorLevels();                    // restore the knob rings the hold displaced
+			blinkShortcuts();                                 // re-arm the macro-pad blinking the overlay stopped
+			uiNeedsRendering(&automationView, 0xFFFFFFFF, 0); // drop the picker overlay, back to the editor
 			return ActionResult::DEALT_WITH;
 		}
 	}
@@ -2781,27 +2795,24 @@ void AutomationView::handleMacroPickerPad(Clip* clip, int32_t x, int32_t y) {
 	uiNeedsRendering(&automationView, 0xFFFFFFFF, 0); // move the white pick highlight
 }
 
-// Clears the target assignment picked before the confirmation menu opened. Routes the CC removal
-// through changeTargetDestination (same as dialing the target to OFF) so the baked automation on the target
-// param is deleted (lane back to its unautomated default) and, if another target was shadowed on
-// that same destination, ownership hands over and that target's macro curve is baked in instead.
-// Then resets the slot's remaining config (from/to/send) to defaults.
-bool AutomationView::acceptPendingTargetClear() {
-	int32_t macroIndex = 0;
+// Clears a target's assignment. Routes the CC removal through changeTargetDestination (same as dialing
+// the target to OFF) so the baked automation on the target param is deleted (lane back to its unautomated
+// default) and, if another target was shadowed on that same destination, ownership hands over and that
+// target's macro curve is baked in instead. Then resets the slot's remaining config (from/to/send) to
+// defaults. Caller must invoke this while the slot still holds its destination.
+bool AutomationView::clearMacroTargetAssignment(int32_t macroIndex, int32_t target) {
+	int32_t laneMacroIndex = 0;
 	Clip* clip = getCurrentClip();
-	MelodicInstrument* instrument = macroLaneInstrument(clip, &macroIndex);
-	bool ok =
-	    instrument != nullptr && pendingClearMacro >= 0 && pendingClearTarget >= 0 && macroIndex == pendingClearMacro;
+	MelodicInstrument* instrument = macroLaneInstrument(clip, &laneMacroIndex);
+	bool ok = instrument != nullptr && macroIndex >= 0 && target >= 0 && laneMacroIndex == macroIndex;
 	if (ok) {
 		// must run while the slot still holds its CC (changeTargetDestination reads it as the old destination)
-		Macros::changeTargetDestination(clip, pendingClearMacro, pendingClearTarget, Macros::kNoDestination);
-		instrument->macros[pendingClearMacro].targets[pendingClearTarget] = Macros::MacroTargetSlot{};
+		Macros::changeTargetDestination(clip, macroIndex, target, Macros::kNoDestination);
+		instrument->macros[macroIndex].targets[target] = Macros::MacroTargetSlot{};
 		instrument->editedByUser = true;
 		view.setModLedStates(); // that target's assignment LED goes dark
 		display->displayPopup("Target cleared");
 	}
-	pendingClearMacro = -1;
-	pendingClearTarget = -1;
 	return ok;
 }
 

@@ -143,12 +143,9 @@ public:
 	// CC value being dialed during the hold (-1 = OFF, 0..127 = CC); committed only on button
 	// release, so scrolling never touches the automation of the CCs passed through.
 	int16_t heldTargetPendingDestination = -1;
-	// Target awaiting the clear-confirmation context menu (SHIFT+SAVE while holding its button).
-	int8_t pendingClearMacro = -1;
-	int8_t pendingClearTarget = -1;
-	// Clears the pending target's assignment (called by the confirmation menu): deletes the baked
+	// Clears a target's assignment (SHIFT+SAVE while holding its button): deletes the baked
 	// automation on that param and hands ownership to any shadowed co-target. Returns success.
-	bool acceptPendingTargetClear();
+	bool clearMacroTargetAssignment(int32_t macroIndex, int32_t target);
 	// SHIFT + horizontal encoder press on a macro lane: toggle that macro Active/Inactive.
 	bool toggleMacroLaneActive();
 

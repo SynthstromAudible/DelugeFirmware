@@ -7368,8 +7368,15 @@ void InstrumentClipView::renderMacroTargetPickerOverlay(RGB image[][kDisplayWidt
 				}
 			}
 			if (primaryAssigned && secondAssigned) {
-				// both layers assigned: slow alternation between white (primary) and yellow (second)
-				image[y][x] = macroTargetPickerAltPhase ? colours::yellow : colours::white_full;
+				// Both layers assigned. The pad blinks (white<->yellow) until it's the one you're on: the
+				// currently-held/last-tapped pad stops blinking and shows its selected layer solid, so you can
+				// see which one a tap or SHIFT+SAVE will act on.
+				if (x == macroTargetPickerLastX && y == macroTargetPickerLastY) {
+					image[y][x] = macroTargetPickerSecondLayer ? colours::yellow : colours::white_full;
+				}
+				else {
+					image[y][x] = macroTargetPickerAltPhase ? colours::yellow : colours::white_full;
+				}
 			}
 			else if (primaryAssigned) {
 				image[y][x] = colours::white_full; // primary shortcut assigned
@@ -7420,8 +7427,39 @@ void InstrumentClipView::handleMacroTargetPickerPad(int32_t x, int32_t y) {
 		}
 	}
 
-	if (primarySlot < 0 && secondSlot < 0) {
-		// Not a target yet: assign the primary layer to the next free slot.
+	if (primarySlot >= 0 && secondSlot >= 0) {
+		// Both layers already targets: this pad blinks. A tap just moves the selection (which layer the
+		// solid highlight + SHIFT+SAVE act on) between them - never dup, never remove.
+		macroTargetPickerSecondLayer = !macroTargetPickerSecondLayer;
+		macroTargetPickerLastSlot = macroTargetPickerSecondLayer ? secondSlot : primarySlot;
+	}
+	else {
+		// One or neither layer assigned: ADD the layer that isn't yet a target (keeping any that is), so a
+		// pad builds up toward holding BOTH its primary and second-layer params. Removal is SHIFT+SAVE only.
+		int32_t toAdd = -1;
+		bool addingSecond = false;
+		if (secondSlot >= 0) {
+			// second-layer already a target (e.g. assigned from the automation lane): add the primary -> both.
+			toAdd = primary;
+			addingSecond = false;
+		}
+		else if (primarySlot >= 0) {
+			// primary already a target: add the second layer if the pad has one -> both.
+			if (second < 0) {
+				macroTargetPickerLastSlot = primarySlot; // single-layer pad, nothing more to add
+				macroTargetPickerSecondLayer = false;
+				macroTargetPickerLastX = x;
+				macroTargetPickerLastY = y;
+				return;
+			}
+			toAdd = second;
+			addingSecond = true;
+		}
+		else {
+			// nothing assigned yet: add the primary layer first (or the second if the pad has no primary).
+			toAdd = (primary >= 0) ? primary : second;
+			addingSecond = (primary < 0);
+		}
 		int32_t freeSlot = -1;
 		for (int32_t s = 0; s < Macros::kNumTargetSlots; s++) {
 			if (macro.targets[s].destination == Macros::kNoDestination) {
@@ -7433,29 +7471,9 @@ void InstrumentClipView::handleMacroTargetPickerPad(int32_t x, int32_t y) {
 			display->displayPopup("MACRO SLOTS FULL");
 			return;
 		}
-		Macros::changeTargetDestination(clip, macroTargetPickerMacro, freeSlot,
-		                                (uint8_t)(primary >= 0 ? primary : second));
+		Macros::changeTargetDestination(clip, macroTargetPickerMacro, freeSlot, (uint8_t)toAdd);
 		macroTargetPickerLastSlot = freeSlot;
-		macroTargetPickerSecondLayer = (primary < 0);
-	}
-	else if (primarySlot >= 0 && secondSlot >= 0) {
-		// Both layers already targets (assigned elsewhere): just move the selection between them - never dup.
-		macroTargetPickerSecondLayer = !macroTargetPickerSecondLayer;
-		macroTargetPickerLastSlot = macroTargetPickerSecondLayer ? secondSlot : primarySlot;
-	}
-	else if (primarySlot >= 0) {
-		// Primary already assigned: re-tapping cycles THAT slot to the second layer (if the pad has one).
-		if (second >= 0) {
-			Macros::changeTargetDestination(clip, macroTargetPickerMacro, primarySlot, (uint8_t)second);
-			macroTargetPickerSecondLayer = true;
-		}
-		macroTargetPickerLastSlot = primarySlot;
-	}
-	else {
-		// Second layer already assigned: re-tapping cycles THAT slot back to the primary.
-		Macros::changeTargetDestination(clip, macroTargetPickerMacro, secondSlot, (uint8_t)primary);
-		macroTargetPickerSecondLayer = false;
-		macroTargetPickerLastSlot = secondSlot;
+		macroTargetPickerSecondLayer = addingSecond;
 	}
 	macroTargetPickerLastX = x;
 	macroTargetPickerLastY = y;
