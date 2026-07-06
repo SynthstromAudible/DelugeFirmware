@@ -111,16 +111,16 @@ int main(int argc, char** argv) {
 	// song with audio clips (Sampling.XML) to exercise this; songs without audio clips just report seen=0.
 	{
 		auto isLiveBound = [](ParamSet* s) {
-			return s->domStore() != nullptr && &s->params[0].nodes() == &s->domStore()->params[0].nodes;
+			return s->domStore() != nullptr && s->docForParam(0) == &s->domStore()->params[0];
 		};
 		auto bothBound = [&](ParamManagerForTimeline& pm) {
 			return isLiveBound(pm.getUnpatchedParamSet()) && isLiveBound(pm.getPatchedParamSet());
 		};
-		// A patch cable set (non-ParamSet) is bound when its first cable's amount AutoParam aliases store lane 0.
+		// M2-E: patch cables are NOT bound to a shared positional store (they reorder by index at runtime); their
+		// nodes stay inline and owner-resolution returns the cable's own store slot.
 		auto cablesBound = [](ParamManagerForTimeline& pm) {
 			PatchCableSet* pcs = pm.getPatchCableSet();
-			return pcs->domStore() != nullptr
-			       && &pcs->patchCables[0].param.nodes() == &pcs->domStore()->params[0].nodes;
+			return pcs->docForParam(0) == pcs->patchCables[0].param.ownDocForFallback();
 		};
 		int32_t audioSeen = 0, audioBound = 0, synthSeen = 0, synthBound = 0;
 		int32_t kitSeen = 0, kitBound = 0, drumSeen = 0, drumBound = 0, cableSeen = 0, cableBound = 0;
@@ -195,9 +195,10 @@ int main(int argc, char** argv) {
 	// The edits must be visible in the engine immediately.
 	AutoParam& engVal = song->paramManager.getUnpatchedParamSet()->params[pVal];
 	AutoParam& engAuto = song->paramManager.getUnpatchedParamSet()->params[pAuto];
-	if (engVal.currentValue != kSentinel || engAuto.nodes().size() != 2) {
+	if (engVal.currentValue != kSentinel
+	    || song->paramManager.getUnpatchedParamSet()->docForParam(pAuto)->nodes.size() != 2) {
 		std::fprintf(stderr, "EDIT DID NOT LAND engVal=%d autoNodes=%zu\n", engVal.currentValue,
-		             engAuto.nodes().size());
+		             song->paramManager.getUnpatchedParamSet()->docForParam(pAuto)->nodes.size());
 		_exit(3);
 	}
 
@@ -225,7 +226,7 @@ int main(int argc, char** argv) {
 	int32_t engineVal = reloaded->paramManager.getUnpatchedParamSet()->params[pVal].currentValue;
 
 	const auto& storeNodes = rstore.params[pAuto].nodes;
-	const auto& engNodes = reloaded->paramManager.getUnpatchedParamSet()->params[pAuto].nodes();
+	const auto& engNodes = reloaded->paramManager.getUnpatchedParamSet()->docForParam(pAuto)->nodes;
 
 	bool valOk = (storeVal == kSentinel) && (engineVal == kSentinel);
 	bool autoStoreOk = storeNodes.size() == 2 && storeNodes[0].pos == 0 && storeNodes[0].value == 111

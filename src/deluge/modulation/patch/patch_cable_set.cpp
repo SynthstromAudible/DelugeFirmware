@@ -81,28 +81,19 @@ PatchCableSet::~PatchCableSet() {
 	freeDestinationMemory(true);
 }
 
+// M2-E (E3): cables are reordered by index at runtime — setupPatching() memcpy-swaps them into usable/unusable
+// order and removal memcpy-moves the last cable over a deleted one. An owner store resolved by INDEX cannot stay
+// in sync with those shifts, so each cable's nodes live inline in its AutoParam's ownDoc_, which the byte-copy
+// carries with the cable. Binding to a shared positional store is a no-op; owner-resolution returns the inline store.
 void PatchCableSet::bindDomStore() {
-	if (domStore_) {
-		return; // already bound
-	}
-	// Size the store to the cables present now; each cable's amount AutoParam borrows its slot. Cables added
-	// later stay unbound (self-owned) — the store is never grown. NB: cable removal memcpy-moves a cable within
-	// the fixed array; a bound cable carries an EXTERNAL nodes_ pointer, which the byte-copy preserves, so the
-	// borrow survives the shift (an unbound cable's self-pointer would not — but those aren't in the store).
-	domStore_ = std::make_unique<deluge::project::DocParamSet>();
-	domStore_->params.resize(numPatchCables);
-	for (int32_t c = 0; c < numPatchCables; c++) {
-		patchCables[c].param.borrowNodeStorage(&domStore_->params[c]);
-	}
 }
 
 deluge::project::DocParamSet* PatchCableSet::domStore() {
-	return domStore_.get();
+	return nullptr; // never bound to a shared store (see bindDomStore)
 }
 
 deluge::project::DocAutoParam* PatchCableSet::docForParam(int32_t c) {
-	return (domStore_ && c < std::ssize(domStore_->params)) ? &domStore_->params[c]
-	                                                        : patchCables[c].param.ownDocForFallback();
+	return patchCables[c].param.ownDocForFallback();
 }
 
 deluge::project::DocAutoParam* PatchCableSet::docParamForId(int32_t paramId) {

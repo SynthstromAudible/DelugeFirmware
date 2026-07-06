@@ -63,11 +63,11 @@ AutoParam::AutoParam() {
 	renewedOverridingAtTime = 0;
 }
 
-// Copy: read the source's active store (borrow-aware) into our own DocAutoParam; a copy always owns its
-// storage (doc_ stays &ownDoc_ via the member initializer). currentValue (the RT cursor) is a distinct member
-// — NOT ownDoc_.current_value (the DOM base value), which the engine leaves alone in M2-B.
-AutoParam::AutoParam(AutoParam const& other) : currentValue(other.currentValue) {
-	ownDoc_.nodes = other.nodes(); // copy the source's active nodes into our own DocAutoParam
+// M2-E (E3): the AutoParam holds no DOM pointer, so copy/move are ordinary value semantics over `ownDoc_`. Copy
+// carries this param's inline nodes (an OWNER-BOUND param has them relocated into the owner store, so its ownDoc_
+// is empty — the owner's copy-ctor deep-copies the store, not the param). currentValue (the RT cursor) is a
+// distinct member — NOT ownDoc_.current_value (the DOM base value), which the engine leaves alone.
+AutoParam::AutoParam(AutoParam const& other) : currentValue(other.currentValue), ownDoc_(other.ownDoc_) {
 	resetInterpolationIncrement();
 	renewedOverridingAtTime = 0;
 }
@@ -77,22 +77,20 @@ AutoParam& AutoParam::operator=(AutoParam const& other) {
 		return *this;
 	}
 	currentValue = other.currentValue;
-	ownDoc_.nodes = other.nodes(); // copy the source's active nodes into our own storage
-	doc_ = &ownDoc_;               // a copy owns its storage — detach any prior borrow
+	ownDoc_ = other.ownDoc_;
 	resetInterpolationIncrement();
 	renewedOverridingAtTime = 0;
 	return *this;
 }
 
-// Move: copy the transient fields (matching the previously-defaulted move), move ownDoc_, and re-point
-// doc_ — inherit an external DOM borrow (that store didn't move), but re-anchor a self-borrow to *our*
-// ownDoc_ (a defaulted move would leave doc_ dangling at the source's ownDoc_).
+// Move: carry the transient fields (matching the previously-defaulted move) and move ownDoc_. No handle to
+// re-point — an owner-bound param's nodes live in the owner store (resolved by index), which this move doesn't
+// touch; the ordered collections rely on ownDoc_ riding with the param.
 AutoParam::AutoParam(AutoParam&& other) noexcept
     : currentValue(other.currentValue), valueIncrementPerHalfTick(other.valueIncrementPerHalfTick),
       value_increment_per_half_tick_float(other.value_increment_per_half_tick_float),
       interpolation_increment_remainder_float(other.interpolation_increment_remainder_float),
       renewedOverridingAtTime(other.renewedOverridingAtTime), ownDoc_(std::move(other.ownDoc_)) {
-	doc_ = (other.doc_ == &other.ownDoc_) ? &ownDoc_ : other.doc_;
 }
 
 AutoParam& AutoParam::operator=(AutoParam&& other) noexcept {
@@ -105,13 +103,11 @@ AutoParam& AutoParam::operator=(AutoParam&& other) noexcept {
 	interpolation_increment_remainder_float = other.interpolation_increment_remainder_float;
 	renewedOverridingAtTime = other.renewedOverridingAtTime;
 	ownDoc_ = std::move(other.ownDoc_);
-	doc_ = (other.doc_ == &other.ownDoc_) ? &ownDoc_ : other.doc_;
 	return *this;
 }
 
-void AutoParam::borrowNodeStorage(deluge::project::DocAutoParam* domDoc) {
-	domDoc->nodes = std::move(ownDoc_.nodes); // move current nodes into the DOM store (ownDoc_.nodes left empty)
-	doc_ = domDoc;                            // subsequent nodes() see the DOM store's node vector
+void AutoParam::moveNodesInto(deluge::project::DocAutoParam* domDoc) {
+	domDoc->nodes = std::move(ownDoc_.nodes); // relocate nodes into the owner store; ownDoc_.nodes left empty
 }
 
 // M2-E (E3): the ModelStack resolves the DOM handle from the OWNER, by paramId — not from a pointer stored on the
@@ -1787,7 +1783,7 @@ void AutoParam::moveRegionHorizontally(ModelStackWithAutoParam const* modelStack
                                        int32_t offset, int32_t lengthBeforeLoop, Action* action) {
 	// M2-C: keep the Action-snapshot wiring seam; forward the node mutation to the DOM kernel. The empty-gate
 	// stays here so we don't snapshot an Action when there's nothing to move (matching the engine order).
-	if (nodes().empty()) {
+	if (modelStack->doc()->nodes.empty()) {
 		return;
 	}
 	if (action) {

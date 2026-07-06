@@ -58,13 +58,20 @@ void check(bool ok, const char* what) {
 	}
 }
 
-void setNode(AutoParam& ap, int32_t pos, int32_t value, bool interpolated) {
-	int32_t i = ap.nodes().insertSorted(pos, /*isDefinitelyLast=*/true).value_or(-1);
+// Author a node directly into a DOM node store (the owner-resolved slot for a bound param, or a standalone
+// DocAutoParam). M2-E: node access is owner-resolved, so bound-param tests author through docForParam().
+void setNodeIn(deluge::project::DocAutoParam& doc, int32_t pos, int32_t value, bool interpolated) {
+	int32_t i = doc.nodes.insertSorted(pos, /*isDefinitelyLast=*/true).value_or(-1);
 	if (i >= 0) {
-		ap.nodes()[i].pos = pos;
-		ap.nodes()[i].value = value;
-		ap.nodes()[i].interpolated = interpolated;
+		doc.nodes[i].pos = pos;
+		doc.nodes[i].value = value;
+		doc.nodes[i].interpolated = interpolated;
 	}
+}
+
+// Author into a (typically unbound/standalone) AutoParam's inline node storage.
+void setNode(AutoParam& ap, int32_t pos, int32_t value, bool interpolated) {
+	setNodeIn(*ap.ownDocForFallback(), pos, value, interpolated);
 }
 
 bool cableMatches(const deluge::project::DocPatchCable& a, const deluge::project::DocPatchCable& b) {
@@ -75,21 +82,21 @@ bool cableMatches(const deluge::project::DocPatchCable& a, const deluge::project
 // Compare a live AutoParam's node array against a DocAutoParam's, element-wise (used to oracle-diff a DOM
 // edit op against the engine op after applying the same mutation to each).
 void expectDocMatchesEngine(const AutoParam& eng, const deluge::project::DocAutoParam& doc, const char* name) {
-	check(eng.nodes().size() == doc.nodes.size(), name);
-	for (size_t i = 0; i < eng.nodes().size() && i < doc.nodes.size(); i++) {
-		check(eng.nodes()[i].pos == doc.nodes[i].pos, name);
-		check(eng.nodes()[i].value == doc.nodes[i].value, name);
-		check(eng.nodes()[i].interpolated == doc.nodes[i].interpolated, name);
+	check(eng.ownDocForFallback()->nodes.size() == doc.nodes.size(), name);
+	for (size_t i = 0; i < eng.ownDocForFallback()->nodes.size() && i < doc.nodes.size(); i++) {
+		check(eng.ownDocForFallback()->nodes[i].pos == doc.nodes[i].pos, name);
+		check(eng.ownDocForFallback()->nodes[i].value == doc.nodes[i].value, name);
+		check(eng.ownDocForFallback()->nodes[i].interpolated == doc.nodes[i].interpolated, name);
 	}
 }
 
 void expectSameNodes(const AutoParam& a, const AutoParam& b, const char* name) {
 	check(a.currentValue == b.currentValue, name);
-	check(a.nodes().size() == b.nodes().size(), name);
-	for (size_t i = 0; i < a.nodes().size() && i < b.nodes().size(); i++) {
-		check(a.nodes()[i].pos == b.nodes()[i].pos, name);
-		check(a.nodes()[i].value == b.nodes()[i].value, name);
-		check(a.nodes()[i].interpolated == b.nodes()[i].interpolated, name);
+	check(a.ownDocForFallback()->nodes.size() == b.ownDocForFallback()->nodes.size(), name);
+	for (size_t i = 0; i < a.ownDocForFallback()->nodes.size() && i < b.ownDocForFallback()->nodes.size(); i++) {
+		check(a.ownDocForFallback()->nodes[i].pos == b.ownDocForFallback()->nodes[i].pos, name);
+		check(a.ownDocForFallback()->nodes[i].value == b.ownDocForFallback()->nodes[i].value, name);
+		check(a.ownDocForFallback()->nodes[i].interpolated == b.ownDocForFallback()->nodes[i].interpolated, name);
 	}
 }
 
@@ -99,11 +106,11 @@ void roundTrip(const char* name, int32_t currentValue, const std::vector<Node>& 
 	AutoParam ap;
 	ap.currentValue = currentValue;
 	for (const Node& n : nodes) {
-		int32_t i = ap.nodes().insertSorted(n.pos, /*isDefinitelyLast=*/true).value_or(-1);
+		int32_t i = ap.ownDocForFallback()->nodes.insertSorted(n.pos, /*isDefinitelyLast=*/true).value_or(-1);
 		check(i >= 0, "insertSorted (test setup)");
-		ap.nodes()[i].pos = n.pos;
-		ap.nodes()[i].value = n.value;
-		ap.nodes()[i].interpolated = n.interpolated;
+		ap.ownDocForFallback()->nodes[i].pos = n.pos;
+		ap.ownDocForFallback()->nodes[i].value = n.value;
+		ap.ownDocForFallback()->nodes[i].interpolated = n.interpolated;
 	}
 
 	DocAutoParam doc = toDocAutoParam(ap);
@@ -113,11 +120,11 @@ void roundTrip(const char* name, int32_t currentValue, const std::vector<Node>& 
 	AutoParam rebuilt;
 	fromDocAutoParam(doc, rebuilt);
 	check(rebuilt.currentValue == currentValue, name);
-	check(rebuilt.nodes().size() == nodes.size(), name);
-	for (size_t i = 0; i < nodes.size() && i < rebuilt.nodes().size(); i++) {
-		check(rebuilt.nodes()[i].pos == nodes[i].pos, name);
-		check(rebuilt.nodes()[i].value == nodes[i].value, name);
-		check(rebuilt.nodes()[i].interpolated == nodes[i].interpolated, name);
+	check(rebuilt.ownDocForFallback()->nodes.size() == nodes.size(), name);
+	for (size_t i = 0; i < nodes.size() && i < rebuilt.ownDocForFallback()->nodes.size(); i++) {
+		check(rebuilt.ownDocForFallback()->nodes[i].pos == nodes[i].pos, name);
+		check(rebuilt.ownDocForFallback()->nodes[i].value == nodes[i].value, name);
+		check(rebuilt.ownDocForFallback()->nodes[i].interpolated == nodes[i].interpolated, name);
 	}
 }
 
@@ -502,7 +509,7 @@ int main() {
 				// pre-existing left-edge node, then a right-edge insert reallocates, so the left node's updated
 				// value is written to freed memory and the edit is silently lost) — which would make it a
 				// non-deterministic oracle. The DOM port is index-based and immune, so it is the correct result.
-				(void)ap.nodes().reserveExtra(4);
+				(void)ap.ownDocForFallback()->nodes.reserveExtra(4);
 				int32_t engRet = engineHomogenize(ap, c.startPos, c.length, c.startValue, c.interpL, c.interpR, effLen,
 				                                  c.reversed, c.cut);
 				int32_t domRet = deluge::project::homogenizeRegion(doc, c.startPos, c.length, c.startValue, c.interpL,
@@ -596,7 +603,7 @@ int main() {
 					setNode(ap, n.pos, n.value, n.interpolated);
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
-				(void)ap.nodes().reserveExtra(4);
+				(void)ap.ownDocForFallback()->nodes.reserveExtra(4);
 				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
 				NoteRow nr;
 				ModelStackWithAutoParam* ms = buildStack(buf, loopLen, nr);
@@ -620,7 +627,7 @@ int main() {
 					setNode(ap, n.pos, n.value, n.interpolated);
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
-				(void)ap.nodes().reserveExtra(4);
+				(void)ap.ownDocForFallback()->nodes.reserveExtra(4);
 				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
 				NoteRow nr;
 				ModelStackWithAutoParam* ms = buildStack(buf, loopLen, nr);
@@ -648,7 +655,8 @@ int main() {
 				return;
 			}
 			if (length >= effLen) {
-				ap.nodes().erase(ap.nodes().begin(), ap.nodes().end());
+				ap.ownDocForFallback()->nodes.erase(ap.ownDocForFallback()->nodes.begin(),
+				                                    ap.ownDocForFallback()->nodes.end());
 				return;
 			}
 			int32_t st0 = pos, st1 = pos + length;
@@ -657,19 +665,22 @@ int main() {
 				st0 = st1 - effLen;
 				st1 = pos;
 			}
-			int32_t ri0 = ap.nodes().firstAtOrAfter(st0);
-			int32_t ri1 = ap.nodes().firstAtOrAfter(st1);
+			int32_t ri0 = ap.ownDocForFallback()->nodes.firstAtOrAfter(st0);
+			int32_t ri1 = ap.ownDocForFallback()->nodes.firstAtOrAfter(st1);
 			if (wrapping) {
-				int32_t numAtEnd = static_cast<int32_t>(ap.nodes().size()) - ri1;
+				int32_t numAtEnd = static_cast<int32_t>(ap.ownDocForFallback()->nodes.size()) - ri1;
 				if (numAtEnd) {
-					ap.nodes().erase(ap.nodes().begin() + ri1, ap.nodes().begin() + ri1 + numAtEnd);
+					ap.ownDocForFallback()->nodes.erase(ap.ownDocForFallback()->nodes.begin() + ri1,
+					                                    ap.ownDocForFallback()->nodes.begin() + ri1 + numAtEnd);
 				}
 				if (ri0) {
-					ap.nodes().erase(ap.nodes().begin(), ap.nodes().begin() + ri0);
+					ap.ownDocForFallback()->nodes.erase(ap.ownDocForFallback()->nodes.begin(),
+					                                    ap.ownDocForFallback()->nodes.begin() + ri0);
 				}
 			}
 			else {
-				ap.nodes().erase(ap.nodes().begin() + ri0, ap.nodes().begin() + ri1);
+				ap.ownDocForFallback()->nodes.erase(ap.ownDocForFallback()->nodes.begin() + ri0,
+				                                    ap.ownDocForFallback()->nodes.begin() + ri1);
 			}
 		};
 
@@ -814,7 +825,7 @@ int main() {
 		                "5c1 param5 restored");
 		check((psum->whichParamsAreAutomated[5 >> 5] & (1u << (5 & 31))) != 0, "5c1 param5 flag set");
 		// param 9's stale automation cleared (nodes + flag)
-		check(dst.getPatchedParamSet()->params[9].nodes().empty(), "5c1 param9 nodes cleared");
+		check(dst.getPatchedParamSet()->params[9].ownDocForFallback()->nodes.empty(), "5c1 param9 nodes cleared");
 		check((psum->whichParamsAreAutomated[9 >> 5] & (1u << (9 & 31))) == 0, "5c1 param9 flag cleared");
 		// unpatched value restored
 		check(dst.getUnpatchedParamSet()->params[3].currentValue == 4242, "5c1 unpatched restored");
@@ -1490,44 +1501,28 @@ int main() {
 		      "setUnpatchedValueDomFirst: unpopulated store is a no-op");
 	}
 
-	// Borrow-pointer (Phase B): borrowNodeStorage points the param at an external (DOM-owned) store; node
-	// access, edits, and the undo swap then operate on that store, while the param's own storage is emptied.
+	// M2-E: moveNodesInto relocates a param's inline nodes into a DOM store slot and empties the param's own
+	// storage. No pointer is stored back — the param no longer routes through the slot (the OWNER resolves it),
+	// which is what makes the store growable and kills the relocation-dangle hazard.
 	{
 		AutoParam p;
 		setNode(p, 0, 111, false);
 		setNode(p, 48, -222, true);
 
-		deluge::project::DocAutoParam ext; // stands in for the DOM-owned store (M2-B: the whole DocAutoParam)
-		p.borrowNodeStorage(&ext);
-		check(&p.nodes() == &ext.nodes, "borrow: nodes() aliases the external store");
+		deluge::project::DocAutoParam ext; // stands in for the DOM-owned store slot
+		p.moveNodesInto(&ext);
 		check(ext.nodes.size() == 2 && ext.nodes[0].value == 111 && ext.nodes[1].value == -222,
-		      "borrow: current nodes moved into the store");
+		      "moveNodesInto: current nodes relocated into the store slot");
+		check(p.ownDocForFallback()->nodes.empty(), "moveNodesInto: the param's inline storage is emptied");
 
-		// A subsequent edit through the param lands in the external store.
-		setNode(p, 24, 999, false);
-		check(ext.nodes.size() == 3, "borrow: edit lands in the external store");
-
-		// The undo swap (nodes().swap, as swapState does) operates on the external store.
-		AutoParamState snap;
-		int32_t si = snap.nodes.insertSorted(12, /*isDefinitelyLast=*/true).value_or(-1);
-		if (si >= 0) {
-			snap.nodes[si].pos = 12;
-			snap.nodes[si].value = 7;
-			snap.nodes[si].interpolated = false;
-		}
-		p.nodes().swap(snap.nodes);
-		check(ext.nodes.size() == 1 && ext.nodes[0].value == 7, "borrow: swap operated on the external store");
-		check(snap.nodes.size() == 3, "borrow: swap moved the store contents into the snapshot");
-
-		// A copy of a borrowed param owns INDEPENDENT storage (must not alias ext) — else clones would share
-		// the original's DOM store. (This is the invariant param_clone_test also guards.)
+		// A copy of the param carries only its own (now-empty) inline storage — never a pointer into ext.
 		AutoParam copy(p);
-		check(&copy.nodes() != &ext.nodes, "borrow: a copy owns its own storage");
-		check(copy.nodes().size() == p.nodes().size(), "borrow: copy has the same node count");
+		check(copy.ownDocForFallback()->nodes.empty(), "moveNodesInto: a copy owns independent (empty) storage");
 	}
 
-	// Phase C (Model A): ParamSet::bindDomStore allocates the DOM store, points every param's nodes at it, and a
-	// copy of a bound set starts UNBOUND with independent storage (clones must not share the DOM store).
+	// M2-E (owner-resolution): ParamSet::bindDomStore allocates the DOM store and RELOCATES every param's nodes
+	// into it; owner-resolution (docForParam) returns the store slot and each param's inline storage is emptied.
+	// A copy of a bound set gets its OWN deep copy of the store (independent nodes; no aliasing).
 	{
 		ParamManagerForTimeline pm;
 		check(pm.setupWithPatching() == Error::NONE, "bindDomStore setup");
@@ -1541,37 +1536,41 @@ int main() {
 		deluge::project::DocParamSet* store = unp->domStore();
 		check(store != nullptr, "bindDomStore: store allocated");
 		check(static_cast<int32_t>(store->params.size()) == unp->getNumParams(), "bindDomStore: store sized to count");
-		// Every param's nodes() now aliases its store lane.
-		check(&unp->params[2].nodes() == &store->params[2].nodes, "bindDomStore: param nodes alias the store lane");
+		// Owner-resolution returns the store slot; the param's inline storage was emptied by the relocation.
+		check(unp->docForParam(2) == &store->params[2], "bindDomStore: owner resolves the param to its store slot");
+		check(unp->params[2].ownDocForFallback()->nodes.empty(), "bindDomStore: param inline storage emptied");
 		// The authored nodes moved into the store.
 		check(store->params[2].nodes.size() == 2 && store->params[2].nodes[0].value == 111,
 		      "bindDomStore: authored nodes live in the store");
-		// A subsequent edit lands in the store.
-		setNode(unp->params[2], 24, 999, false);
+		// A subsequent edit (owner-resolved) lands in the store.
+		setNodeIn(*unp->docForParam(2), 24, 999, false);
 		check(store->params[2].nodes.size() == 3, "bindDomStore: edit lands in the store");
 		// Idempotent: a second bind must not reallocate / re-seed.
 		unp->bindDomStore();
 		check(unp->domStore() == store, "bindDomStore: idempotent (no realloc)");
 
-		// A copy of a bound set starts UNBOUND and owns independent storage.
+		// A copy of a bound set gets an INDEPENDENT deep copy of the store.
 		UnpatchedParamSet copy(*unp);
-		check(copy.domStore() == nullptr, "bindDomStore: a copy starts unbound");
-		check(&copy.params[2].nodes() != &store->params[2].nodes, "bindDomStore: a copy owns independent storage");
-		check(copy.params[2].nodes().size() == unp->params[2].nodes().size(), "bindDomStore: copy has same node count");
+		check(copy.domStore() != nullptr && copy.domStore() != store, "bindDomStore: a copy owns an independent store");
+		check(copy.docForParam(2) != &store->params[2], "bindDomStore: copy's store slot is not aliased");
+		check(copy.docForParam(2)->nodes.size() == store->params[2].nodes.size(),
+		      "bindDomStore: copy has same node count");
 	}
 
 	// Phase C: ParamManager::bindMainParamSetDomStores binds ALL of a sound manager's automatable collections in
 	// one call — unpatched + patched + expression (ParamSets) + patch cables (a non-ParamSet with its own store).
 	// The corpus has no MPE data, so this is where expression binding is exercised.
 	{
+		// A bound ParamSet resolves each param to its owned store slot (owner-resolution), and the store holds the
+		// authored nodes.
 		auto liveBound = [](ParamSet* s) {
-			return s->domStore() != nullptr && &s->params[0].nodes() == &s->domStore()->params[0].nodes;
+			return s->domStore() != nullptr && s->docForParam(0) == &s->domStore()->params[0];
 		};
 		ParamManagerForTimeline pm;
 		check(pm.setupWithPatching() == Error::NONE, "helper: setup");
 		ExpressionParamSet* expr = pm.getOrCreateExpressionParamSet();
 		check(expr != nullptr, "helper: expression set created");
-		// A patch cable so the cable-binding path is exercised.
+		// A patch cable so the cable path is exercised.
 		PatchCableSet* pcs = pm.getPatchCableSet();
 		pcs->numPatchCables = 1;
 		pcs->patchCables[0].from = PatchSource::ENVELOPE_0;
@@ -1582,14 +1581,19 @@ int main() {
 		check(liveBound(pm.getUnpatchedParamSet()), "helper: unpatched bound");
 		check(liveBound(pm.getPatchedParamSet()), "helper: patched bound");
 		check(liveBound(pm.getExpressionParamSet()), "helper: expression bound");
-		check(pcs->domStore() != nullptr && &pcs->patchCables[0].param.nodes() == &pcs->domStore()->params[0].nodes,
-		      "helper: patch cable bound with live borrow");
+		// M2-E: patch cables are reordered by index at runtime, so they are NOT bound to a positional store —
+		// their nodes stay inline and owner-resolution returns the cable's own storage (with the authored node).
+		check(pcs->domStore() == nullptr, "helper: patch cable set is not bound to a shared store");
+		check(pcs->docForParam(0) == pcs->patchCables[0].param.ownDocForFallback(),
+		      "helper: patch cable resolves to inline storage");
+		check(pcs->docForParam(0)->nodes.size() == 1 && pcs->docForParam(0)->nodes[0].value == 424242,
+		      "helper: patch cable automation intact");
 	}
 
-	// Phase C (MIDI-CC): a MIDIParamCollection's per-CC AutoParams bind to a store anchored on the (heap-stable)
-	// collection, and — the make-or-break — those borrows SURVIVE the MIDIParamVector growing when a new CC is
-	// learned (the vector relocates its MIDIParams; the borrow travels with each AutoParam's move). The corpus
-	// has no MIDI-CC automation, so this is the only coverage.
+	// M2-E (MIDI-CC): the MIDIParamVector reorders/relocates by CC on every learn, so it is NOT bound to a
+	// positional store — each CC's nodes live inline in its AutoParam and ride with the element through the
+	// vector's growth. Owner-resolution (docParamForId(cc)) finds the CC's inline store, and the automation
+	// survives learning a new CC. The corpus has no MIDI-CC automation, so this is the only coverage.
 	{
 		ParamManagerForTimeline pm;
 		check(pm.setupMIDI() == Error::NONE, "midi: setup");
@@ -1598,32 +1602,25 @@ int main() {
 		setNode(mpc->params.getOrCreateParamFromCC(20, 0)->param, 0, 222, false);
 		check(mpc->params.size() == 2, "midi: two CCs authored");
 
-		mpc->bindDomStore();
-		deluge::project::DocParamSet* store = mpc->domStore();
-		check(store != nullptr && store->params.size() == 2, "midi: store sized to CC count");
-		for (int32_t i = 0; i < std::ssize(mpc->params); i++) {
-			check(&mpc->params[i].param.nodes() == &store->params[i].nodes, "midi: CC borrows its store lane");
-		}
-		// Capture cc10's borrowed store-lane before growing (the store lane address is stable; the MIDIParam is not).
-		ParamNodeVector* cc10Lane = &mpc->params.getOrCreateParamFromCC(10, 0, false)->param.nodes();
+		mpc->bindDomStore(); // no-op: ordered collections keep nodes inline
+		check(mpc->domStore() == nullptr, "midi: not bound to a shared store");
+		// Owner-resolution by CC returns each CC's inline store.
+		check(mpc->docParamForId(10) == mpc->params.getParamFromCC(10)->param.ownDocForFallback(),
+		      "midi: docParamForId resolves the CC's inline store");
 
 		// Learn a third CC (15) — the MIDIParamVector grows/relocates its elements.
 		mpc->params.getOrCreateParamFromCC(15, 0);
 		check(mpc->params.size() == 3, "midi: third CC learned (vector grew)");
-		// Re-find cc10 (relocated) — its borrow must still point at the SAME store lane, automation intact.
-		MIDIParam* p10 = mpc->params.getOrCreateParamFromCC(10, 0, false);
-		check(p10 != nullptr && &p10->param.nodes() == cc10Lane, "midi: borrow survived vector relocation");
-		check(p10->param.nodes().size() == 1 && p10->param.nodes()[0].value == 111,
-		      "midi: automation intact after grow");
-		// The newly-learned CC15 is UNBOUND (self-owned) — the store was never grown. That is fine.
-		MIDIParam* p15 = mpc->params.getOrCreateParamFromCC(15, 0, false);
-		check(&p15->param.nodes() != &store->params[0].nodes && &p15->param.nodes() != &store->params[1].nodes,
-		      "midi: newly-learned CC stays unbound");
+		// Re-resolve cc10 (relocated) — its automation is intact (nodes rode with the AutoParam's move) and
+		// owner-resolution by CC still finds it, even though its array INDEX shifted.
+		deluge::project::DocAutoParam* cc10 = mpc->docParamForId(10);
+		check(cc10 != nullptr && cc10->nodes.size() == 1 && cc10->nodes[0].value == 111,
+		      "midi: automation intact + owner-resolved after vector grow");
 	}
 
-	// Phase C (Model A / C4): the DOM store survives a ParamBackup steal -> restore. The store is anchored to
-	// the ParamSet, and stealParamCollectionsFrom moves only the summary POINTER (the ParamSet object never
-	// relocates), so every borrowing AutoParam keeps its address and its borrow stays valid while parked and
+	// M2-E (owner-resolution / C4): the DOM store survives a ParamBackup steal -> restore. The store is anchored
+	// to the ParamSet (its RAII domStore_), and stealParamCollectionsFrom moves only the summary POINTER (the
+	// ParamSet object never relocates), so owner-resolution keeps resolving the same store slots while parked and
 	// after restore. This is the golden-blind lifetime the load/save harness cannot see.
 	{
 		ParamManagerForTimeline live;
@@ -1632,8 +1629,8 @@ int main() {
 		UnpatchedParamSet* liveUnp = live.getUnpatchedParamSet();
 		deluge::project::DocParamSet* storeAddr = liveUnp->domStore();
 		check(storeAddr != nullptr, "steal: live set is bound");
-		setNode(liveUnp->params[3], 0, 555, true);
-		setNode(liveUnp->params[3], 48, -666, false);
+		setNodeIn(*liveUnp->docForParam(3), 0, 555, true);
+		setNodeIn(*liveUnp->docForParam(3), 48, -666, false);
 		void* setAddrBefore = liveUnp; // the ParamSet object's address — must not change across steal
 
 		// A synth clip binds BOTH its main sets — bind the patched set too, so we prove they survive the steal
@@ -1642,7 +1639,7 @@ int main() {
 		PatchedParamSet* livePat = live.getPatchedParamSet();
 		deluge::project::DocParamSet* patStoreAddr = livePat->domStore();
 		check(patStoreAddr != nullptr && patStoreAddr != storeAddr, "steal: patched set separately bound");
-		setNode(livePat->params[5], 0, 777, true);
+		setNodeIn(*livePat->docForParam(5), 0, 777, true);
 		void* patSetAddrBefore = livePat;
 
 		deluge::project::ParamBackup backup;
@@ -1656,18 +1653,19 @@ int main() {
 		UnpatchedParamSet* parkedUnp = parked->getUnpatchedParamSet();
 		check(static_cast<void*>(parkedUnp) == setAddrBefore, "steal: ParamSet object did not relocate");
 		check(parkedUnp->domStore() == storeAddr, "steal: DOM store address unchanged while parked");
-		check(&parkedUnp->params[3].nodes() == &storeAddr->params[3].nodes, "steal: borrow still live while parked");
-		check(parkedUnp->params[3].nodes().size() == 2, "steal: automation intact while parked");
-		// An edit while parked lands in the same DOM store.
-		setNode(parkedUnp->params[3], 24, 999, false);
+		check(parkedUnp->docForParam(3) == &storeAddr->params[3],
+		      "steal: owner still resolves the store slot while parked");
+		check(storeAddr->params[3].nodes.size() == 2, "steal: automation intact while parked");
+		// An edit while parked lands in the same DOM store (owner-resolved).
+		setNodeIn(*parkedUnp->docForParam(3), 24, 999, false);
 		check(storeAddr->params[3].nodes.size() == 3, "steal: edit while parked lands in the DOM store");
 		// The patched set travelled too, with its own store.
 		PatchedParamSet* parkedPat = parked->getPatchedParamSet();
 		check(static_cast<void*>(parkedPat) == patSetAddrBefore, "steal: patched ParamSet did not relocate");
 		check(parkedPat->domStore() == patStoreAddr, "steal: patched store unchanged while parked");
-		check(&parkedPat->params[5].nodes() == &patStoreAddr->params[5].nodes,
-		      "steal: patched borrow live while parked");
-		check(parkedPat->params[5].nodes().size() == 1, "steal: patched automation intact while parked");
+		check(parkedPat->docForParam(5) == &patStoreAddr->params[5],
+		      "steal: patched owner still resolves its store slot while parked");
+		check(patStoreAddr->params[5].nodes.size() == 1, "steal: patched automation intact while parked");
 
 		// Restore back into the (now-emptied) live manager, as solicitParamManager does on re-add.
 		ParamManager* restored = backup.getForExactClip(mc, clipKey, &live); // steals collections back, erases entry
@@ -1675,16 +1673,16 @@ int main() {
 		UnpatchedParamSet* restUnp = live.getUnpatchedParamSet();
 		check(static_cast<void*>(restUnp) == setAddrBefore, "steal: restored the same ParamSet object");
 		check(restUnp->domStore() == storeAddr, "steal: same DOM store after restore");
-		check(restUnp->params[3].nodes().size() == 3 && restUnp->params[3].nodes()[0].value == 555,
+		check(restUnp->docForParam(3)->nodes.size() == 3 && restUnp->docForParam(3)->nodes[0].value == 555,
 		      "steal: automation survived the round trip");
 		PatchedParamSet* restPat = live.getPatchedParamSet();
 		check(static_cast<void*>(restPat) == patSetAddrBefore && restPat->domStore() == patStoreAddr,
 		      "steal: patched set + its store survived restore");
-		check(restPat->params[5].nodes().size() == 1 && restPat->params[5].nodes()[0].value == 777,
+		check(restPat->docForParam(5)->nodes.size() == 1 && restPat->docForParam(5)->nodes[0].value == 777,
 		      "steal: patched automation survived restore");
 		check(backup.getForExactClip(mc, clipKey) == nullptr, "steal: backup entry consumed by restore");
 		// `live` (holding the ParamSet + its RAII DOM store) is destructed at scope exit: params_ die before
-		// domStore_, so no borrower outlives the store — a clean teardown (no dangle / double free).
+		// domStore_, so nothing outlives the store — a clean teardown (no dangle / double free).
 	}
 
 	{
@@ -1783,7 +1781,7 @@ int main() {
 					setNode(ap, n.pos, n.value, n.interpolated);
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
-				(void)ap.nodes().reserveExtra(4);
+				(void)ap.ownDocForFallback()->nodes.reserveExtra(4);
 				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
 				NoteRow nr;
 				ModelStackWithAutoParam* ms = buildStack(buf, loopLen, nr);
@@ -1910,7 +1908,7 @@ int main() {
 					setNode(ap, n.pos, n.value, n.interpolated);
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
-				(void)ap.nodes().reserveExtra(4);
+				(void)ap.ownDocForFallback()->nodes.reserveExtra(4);
 
 				// M2-E: nudge now resolves nodes via modelStack->doc(); with action=nullptr it uses no other
 				// modelStack field, so a minimal stack carrying only autoParam suffices.
@@ -1948,7 +1946,8 @@ int main() {
 				return;
 			}
 			if (length == static_cast<uint32_t>(effLen)) {
-				ap.nodes().erase(ap.nodes().begin(), ap.nodes().end());
+				ap.ownDocForFallback()->nodes.erase(ap.ownDocForFallback()->nodes.begin(),
+				                                    ap.ownDocForFallback()->nodes.end());
 				ap.currentValue = value;
 				return;
 			}
@@ -1961,9 +1960,10 @@ int main() {
 				ap.currentValue = value;
 				return;
 			}
-			int32_t mostRecentI = ap.nodes().firstAtOrAfter(livePos + static_cast<int32_t>(!reversed)) - 1;
+			int32_t mostRecentI =
+			    ap.ownDocForFallback()->nodes.firstAtOrAfter(livePos + static_cast<int32_t>(!reversed)) - 1;
 			if (mostRecentI == -1) {
-				mostRecentI = static_cast<int32_t>(ap.nodes().size()) - 1;
+				mostRecentI = static_cast<int32_t>(ap.ownDocForFallback()->nodes.size()) - 1;
 			}
 			if (mostRecentI == firstI) {
 				ap.currentValue = value;
@@ -2012,7 +2012,7 @@ int main() {
 							// Same reallocation-safety reserve the homogenizeRegion oracle block above needs, for
 							// the same reason (the engine's homogenizeRegion has a latent dangling-pointer bug on
 							// mid-op reallocation; the DOM port is index-based and immune).
-							(void)ap.nodes().reserveExtra(4);
+							(void)ap.ownDocForFallback()->nodes.reserveExtra(4);
 
 							alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
 							auto* ms = reinterpret_cast<ModelStackWithAutoParam*>(buf);
@@ -2140,7 +2140,7 @@ int main() {
 						setNode(ap, n.pos, n.value, n.interpolated);
 						deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 					}
-					(void)ap.nodes().reserveExtra(4);
+					(void)ap.ownDocForFallback()->nodes.reserveExtra(4);
 
 					::CopiedParamAutomation ca; // engine automation clipboard carrier
 					CopiedAutomation domCopied;
@@ -2181,7 +2181,7 @@ int main() {
 								setNode(ap2, n.pos, n.value, n.interpolated);
 								deluge::project::setNodeAtPos(doc2, n.pos, n.value, n.interpolated);
 							}
-							(void)ap2.nodes().reserveExtra(4);
+							(void)ap2.ownDocForFallback()->nodes.reserveExtra(4);
 
 							alignas(ModelStackWithAutoParam) char pbuf[MODEL_STACK_MAX_SIZE];
 							NoteRow pnr;
@@ -2246,11 +2246,11 @@ int main() {
 				if (destPos >= loopLength) {
 					destPos -= loopLength;
 				}
-				int32_t destI = ap.nodes().insertSorted(destPos).value_or(-1);
+				int32_t destI = ap.ownDocForFallback()->nodes.insertSorted(destPos).value_or(-1);
 				if (destI == -1) {
 					break;
 				}
-				ParamNode* destNode = &ap.nodes()[destI];
+				ParamNode* destNode = &ap.ownDocForFallback()->nodes[destI];
 				*destNode = *stolenNode;
 				destNode->pos = destPos;
 			}
@@ -2275,7 +2275,7 @@ int main() {
 					setNode(ap, n.pos, n.value, n.interpolated);
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
-				(void)ap.nodes().reserveExtra(4);
+				(void)ap.ownDocForFallback()->nodes.reserveExtra(4);
 				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
 				NoteRow nr;
 				ModelStackWithAutoParam* ms = buildStack(buf, loopLen, nr);
@@ -2416,13 +2416,13 @@ int main() {
 				                            reversed, cut);
 				if (reversed && leftI != -1) {
 					int32_t iFurtherRight = leftI + 2;
-					if (iFurtherRight >= static_cast<int32_t>(ap.nodes().size())) {
-						iFurtherRight -= static_cast<int32_t>(ap.nodes().size());
+					if (iFurtherRight >= static_cast<int32_t>(ap.ownDocForFallback()->nodes.size())) {
+						iFurtherRight -= static_cast<int32_t>(ap.ownDocForFallback()->nodes.size());
 					}
-					if (iFurtherRight >= static_cast<int32_t>(ap.nodes().size())) {
-						iFurtherRight -= static_cast<int32_t>(ap.nodes().size());
+					if (iFurtherRight >= static_cast<int32_t>(ap.ownDocForFallback()->nodes.size())) {
+						iFurtherRight -= static_cast<int32_t>(ap.ownDocForFallback()->nodes.size());
 					}
-					ap.nodes()[iFurtherRight].interpolated = true;
+					ap.ownDocForFallback()->nodes[iFurtherRight].interpolated = true;
 				}
 			}
 			ap.currentValue = value;
@@ -2462,7 +2462,7 @@ int main() {
 				}
 				// Reserve headroom: the engine's homogenizeRegion has a latent dangling-pointer bug on mid-op
 				// reallocation (the DOM port is index-based and immune) — same guard the blocks above use.
-				(void)ap.nodes().reserveExtra(4);
+				(void)ap.ownDocForFallback()->nodes.reserveExtra(4);
 
 				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
 				auto* ms = reinterpret_cast<ModelStackWithAutoParam*>(buf);

@@ -51,27 +51,19 @@ MIDIParamCollection::~MIDIParamCollection() {
 	deleteAllParams(NULL, false);
 }
 
+// M2-E (E3): the MIDIParamVector is ordered by CC and reorders/relocates on insert, so an owner store resolved by
+// INDEX cannot stay in sync (a bound param would resolve to the wrong slot after a CC is learned). Each CC's nodes
+// therefore live inline in its AutoParam's ownDoc_, which rides with the param through the vector's moves. Binding
+// to a shared positional store is a no-op for this collection; owner-resolution returns the inline store.
 void MIDIParamCollection::bindDomStore() {
-	if (domStore_) {
-		return; // already bound
-	}
-	// Size the store to the CC count present now; each CC's AutoParam borrows its slot. CCs learned later stay
-	// unbound (their AutoParams self-own) — the store is never grown, so these borrow pointers never dangle even
-	// as the MIDIParamVector relocates on a subsequent insert (the borrow travels with the AutoParam's move).
-	domStore_ = std::make_unique<deluge::project::DocParamSet>();
-	domStore_->params.resize(params.size());
-	for (int32_t i = 0; i < std::ssize(params); i++) {
-		params[i].param.borrowNodeStorage(&domStore_->params[i]);
-	}
 }
 
 deluge::project::DocParamSet* MIDIParamCollection::domStore() {
-	return domStore_.get();
+	return nullptr; // never bound to a shared store (see bindDomStore)
 }
 
 deluge::project::DocAutoParam* MIDIParamCollection::docForParam(int32_t i) {
-	return (domStore_ && i < std::ssize(domStore_->params)) ? &domStore_->params[i]
-	                                                        : params[i].param.ownDocForFallback();
+	return params[i].param.ownDocForFallback();
 }
 
 deluge::project::DocAutoParam* MIDIParamCollection::docParamForId(int32_t paramId) {

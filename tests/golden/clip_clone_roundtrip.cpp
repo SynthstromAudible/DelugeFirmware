@@ -145,8 +145,7 @@ int main(int argc, char** argv) {
 				check(cloneUnp != srcAudio->paramManager.getUnpatchedParamSet(),
 				      "audio clone: unpatched set is a distinct object");
 				check(cloneUnp->domStore() != nullptr, "audio clone: unpatched params DOM-bound");
-				check(cloneUnp->domStore() != nullptr
-				          && &cloneUnp->params[0].nodes() == &cloneUnp->domStore()->params[0].nodes,
+				check(cloneUnp->domStore() != nullptr && cloneUnp->docForParam(0) == &cloneUnp->domStore()->params[0],
 				      "audio clone: borrow is live (nodes alias the store lane)");
 			}
 			if (failures != 0) {
@@ -178,7 +177,7 @@ int main(int argc, char** argv) {
 			check(kClone != nullptr && kClone != srcKit, "kit clone: distinct clip object");
 			if (kClone != nullptr && kClone != srcKit) {
 				auto liveBound = [](ParamSet* s) {
-					return s->domStore() != nullptr && &s->params[0].nodes() == &s->domStore()->params[0].nodes;
+					return s->domStore() != nullptr && s->docForParam(0) == &s->domStore()->params[0];
 				};
 				check(liveBound(kClone->paramManager.getUnpatchedParamSet()),
 				      "kit clone: clip-level FX DOM-bound with live borrow");
@@ -248,9 +247,9 @@ int main(int argc, char** argv) {
 			if (src->output != nullptr && src->output->type == OutputType::SYNTH) {
 				UnpatchedParamSet* cu = clone->paramManager.getUnpatchedParamSet();
 				PatchedParamSet* cp = clone->paramManager.getPatchedParamSet();
-				check(cu->domStore() != nullptr && &cu->params[0].nodes() == &cu->domStore()->params[0].nodes,
+				check(cu->domStore() != nullptr && cu->docForParam(0) == &cu->domStore()->params[0],
 				      "plain clone (synth): unpatched set DOM-bound with live borrow");
-				check(cp->domStore() != nullptr && &cp->params[0].nodes() == &cp->domStore()->params[0].nodes,
+				check(cp->domStore() != nullptr && cp->docForParam(0) == &cp->domStore()->params[0],
 				      "plain clone (synth): patched set DOM-bound with live borrow");
 			}
 		}

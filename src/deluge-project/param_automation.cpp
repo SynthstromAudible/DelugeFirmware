@@ -30,12 +30,16 @@
 
 namespace deluge::project {
 
+// Bare-AutoParam projection: operates on the param's OWN inline node storage (ownDoc_). Correct for the callers
+// that hold a param with no owner-resolvable slot — patch cables (which keep their nodes inline), deserialize
+// temp params, and the song-global load projection which runs before bind. Owner-bound ParamSets go through the
+// ParamSet& overload below, which owner-resolves each param's store slot.
 DocAutoParam toDocAutoParam(const AutoParam& param) {
-	return toDocAutoParam(param.currentValue, param.nodes());
+	return toDocAutoParam(param.currentValue, param.ownDocForFallback()->nodes);
 }
 
 void fromDocAutoParam(const DocAutoParam& doc, AutoParam& param) {
-	fromDocAutoParam(doc, param.currentValue, param.nodes());
+	fromDocAutoParam(doc, param.currentValue, param.ownDocForFallback()->nodes);
 }
 
 DocParamSet toDocParamSet(deluge::modulation::params::Kind kind, const AutoParam* params, int32_t numParams) {
@@ -56,7 +60,16 @@ void fromDocParamSet(const DocParamSet& doc, AutoParam* params, int32_t numParam
 }
 
 DocParamSet toDocParamSet(ParamSet& paramSet) {
-	return toDocParamSet(paramSet.getParamKind(), paramSet.params, paramSet.getNumParams());
+	// Owner-resolve each param's node store (bound -> the set's DocParamSet slot; unbound -> the param's ownDoc_)
+	// so a bound set serialises the DOM store, not the params' now-empty inline storage.
+	DocParamSet doc;
+	doc.kind = paramSet.getParamKind();
+	int32_t numParams = paramSet.getNumParams();
+	doc.params.reserve(numParams);
+	for (int32_t p = 0; p < numParams; p++) {
+		doc.params.push_back(toDocAutoParam(paramSet.params[p].currentValue, paramSet.docForParam(p)->nodes));
+	}
+	return doc;
 }
 
 void fromDocParamSet(const DocParamSet& doc, ParamSet& paramSet) {

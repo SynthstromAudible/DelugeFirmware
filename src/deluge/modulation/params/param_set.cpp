@@ -46,12 +46,18 @@ ParamSet::ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary)
     : ParamCollection(newObjectSize, summary), numParams_(0), params(nullptr), topUintToRepParams(1) {
 }
 
-// domStore_ intentionally left null: a copied/cloned set starts UNBOUND and owns its own nodes until it is
-// separately bound (borrowNodeStorage), so two sets never alias one DOM store. The subclass copy-ctors then
-// re-point `params` at their own array.
+// M2-E (E3): a cloned set that was bound gets its OWN deep copy of the DOM store, so it carries the source's
+// automation without any AutoParam holding a cross-set pointer (the params' element-wise copy carries only their
+// now-empty inline ownDoc_; the nodes live in the store). No aliasing: the clone owns an independent DocParamSet.
+// An unbound source clones unbound (domStoreRef_ null via the default member init) and the params' ownDoc_ carry
+// the nodes. The subclass copy-ctors re-point `params` at their own array.
 ParamSet::ParamSet(ParamSet const& other)
     : ParamCollection(other), numParams_(other.numParams_), params(other.params),
       topUintToRepParams(other.topUintToRepParams) {
+	if (other.domStoreRef_ != nullptr) {
+		domStore_ = std::make_unique<deluge::project::DocParamSet>(*other.domStoreRef_);
+		domStoreRef_ = domStore_.get();
+	}
 }
 
 // Out-of-line so the unique_ptr<DocParamSet> member is destroyed where DocParamSet is complete.
@@ -64,7 +70,7 @@ void ParamSet::bindDomStore() {
 	domStore_ = std::make_unique<deluge::project::DocParamSet>(deluge::project::toDocParamSet(*this));
 	domStoreRef_ = domStore_.get();
 	for (int32_t p = 0; p < numParams_; p++) {
-		params[p].borrowNodeStorage(&domStore_->params[p]);
+		params[p].moveNodesInto(&domStore_->params[p]);
 	}
 }
 

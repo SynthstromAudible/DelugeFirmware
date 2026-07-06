@@ -140,27 +140,19 @@ public:
 		renewedOverridingAtTime = 0;
 	}
 
-	/// The nodes that make up this parameter (if empty, \ref currentValue applies). The accessor is a clean seam
-	/// (the projection layer + the ~130 op call sites go through it); the nodes live in a `DocAutoParam` reached
-	/// via a redirectable handle (`&ownDoc_` normally, or a DOM-owned `DocAutoParam` when borrowed).
-	ParamNodeVector& nodes() { return doc_->nodes; }
-	const ParamNodeVector& nodes() const { return doc_->nodes; }
-
-	/// M2-E (E1, transitional): the handle the ModelStack threads to this param's ops. Currently returns the
-	/// stored `doc_` (so `modelStack->doc() == this->doc_` for a param's own ops — behaviour-identical); in M2-E3
-	/// the ModelStack resolves the handle from the owner instead and this accessor + `doc_` are removed.
-	deluge::project::DocAutoParam* docForThreading() { return doc_; }
-
-	/// M2-E (E3): fallback DOM handle for an UNBOUND param (no owner store slot yet — runtime MIDI-CC / patch
-	/// cable, or a clone before bind); nodes live in ownDoc_. A bound param resolves to its owner store slot.
+	/// M2-E (E3): the AutoParam holds NO pointer into DOM node data. Its node ops receive a `DocAutoParam&`
+	/// resolved by the OWNER (ModelStackWithAutoParam::doc() -> paramCollection->docParamForId()); this accessor is
+	/// only the fallback for a param that has no owner-store slot — an UNBOUND runtime MIDI-CC / patch-cable / temp
+	/// param, or a clone before bind. Its nodes live inline in `ownDoc_`, which rides with the param through
+	/// copy/move/memcpy (so ordered collections that reorder by index stay correct without a stored handle).
 	deluge::project::DocAutoParam* ownDocForFallback() { return &ownDoc_; }
+	const deluge::project::DocAutoParam* ownDocForFallback() const { return &ownDoc_; }
 
-	/// Point this param at a DOM-owned `DocAutoParam` and move its current nodes into it. The store must outlive
-	/// this param and never relocate (the DOM holds it at a stable address). Afterwards, nodes() is the DOM
-	/// store's node vector and all engine edits/undo operate on it directly. (M2-B: the handle is now the whole
-	/// `DocAutoParam`, not just its `.nodes` — scaffolding for forwarding ops to param_edit kernels; `doc_` is
-	/// removed entirely in M2-E, when callers thread the `DocAutoParam` per-call instead of it being stored.)
-	void borrowNodeStorage(deluge::project::DocAutoParam* domDoc);
+	/// Move this param's current (inline) nodes into a DOM-owned `DocAutoParam` store slot. Used at bind time for
+	/// owner-resolved sets (ParamSet): the set seeds a `DocParamSet` from its params, then relocates each param's
+	/// nodes into it; thereafter the OWNER resolves the store by index and `ownDoc_` is left empty. No pointer is
+	/// stored back on the param — the relocation-dangle hazard is gone.
+	void moveNodesInto(deluge::project::DocAutoParam* domDoc);
 
 	/// Current value of the AutoParam. Updated by several functions.
 	int32_t currentValue;
@@ -178,14 +170,11 @@ public:
 	// it only works in empty stretches of time.
 
 private:
-	/// This param's default `DocAutoParam` storage (used when `doc_` points here, i.e. un-borrowed). Owned by
-	/// value. Only its `.nodes` is engine-relevant in M2-B; `.current_value` (the DOM base) is left untouched —
-	/// the RT cursor lives in the separate `currentValue` member.
+	/// This param's inline `DocAutoParam` node storage. For an owner-bound param the nodes have been relocated
+	/// into the owner's `DocParamSet` slot (this is left empty and the owner resolves the store); for an unbound
+	/// param (fallback) the nodes live here. `.current_value` (the DOM base) is left untouched — the RT cursor
+	/// lives in the separate `currentValue` member. Held by value, so it rides with the param through copy/move.
 	deluge::project::DocAutoParam ownDoc_{};
-	/// Redirectable borrow-handle to the active `DocAutoParam`: `&ownDoc_` normally, or a DOM-owned store after
-	/// borrowNodeStorage(). Trivially relocatable, but a self-pointer — copy/move re-point it (see the special
-	/// members). All node access goes through nodes() (== doc_->nodes). Scaffolding: removed in M2-E.
-	deluge::project::DocAutoParam* doc_ = &ownDoc_;
 
 	bool deleteRedundantNodeInLinearRun(deluge::project::DocAutoParam& doc, int32_t lastNodeInRunI,
 	                                    int32_t effectiveLength, bool mayLoopAroundBackToEnd = true);
