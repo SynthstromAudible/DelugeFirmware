@@ -2142,40 +2142,20 @@ bool AutoParam::containedSomethingBefore(bool wasAutomatedBefore, uint32_t value
 	return (wasAutomatedBefore || valueBefore != neutralValue);
 }
 
+// M2-C sync-bridge: the kernel mutates DocAutoParam::current_value (the DOM base), but the engine's live RT
+// cursor is the separate `currentValue` member (kept distinct until M2-E). So for value-touching ops we sync
+// currentValue → doc_->current_value, run the kernel, then read it back. (doc_->current_value is otherwise
+// engine-dead in M2-B, so this is a safe scratch use; the node vector is shared directly.)
 void AutoParam::shiftValues(int32_t offset) {
-	int64_t newValue = (int64_t)currentValue + offset;
-	if (newValue >= (int64_t)2147483648u) {
-		currentValue = 2147483647;
-	}
-	else if (newValue < (int64_t)2147483648u * -1) {
-		currentValue = -2147483648;
-	}
-	else {
-		currentValue = newValue;
-	}
-
-	for (int32_t i = 0; i < std::ssize(nodes()); i++) {
-		ParamNode* thisNode = &nodes()[i];
-		int64_t newValue = (int64_t)thisNode->value + offset;
-		if (newValue >= (int64_t)2147483648u) {
-			thisNode->value = 2147483647;
-		}
-		else if (newValue < (int64_t)2147483648u * -1) {
-			thisNode->value = -2147483648;
-		}
-		else {
-			thisNode->value = newValue;
-		}
-	}
+	doc_->current_value = currentValue;
+	deluge::project::shiftValues(*doc_, offset);
+	currentValue = doc_->current_value;
 }
 
 void AutoParam::shiftParamVolumeByDB(float offset) {
-	currentValue = shiftVolumeByDB(currentValue, offset);
-
-	for (int32_t i = 0; i < std::ssize(nodes()); i++) {
-		ParamNode* thisNode = &nodes()[i];
-		thisNode->value = shiftVolumeByDB(thisNode->value, offset);
-	}
+	doc_->current_value = currentValue; // M2-C sync-bridge (see shiftValues)
+	deluge::project::shiftParamVolumeByDB(*doc_, offset);
+	currentValue = doc_->current_value;
 }
 
 void AutoParam::shiftHorizontally(int32_t amount, int32_t effectiveLength) {
@@ -2493,12 +2473,9 @@ Error AutoParam::makeInterpolationGoodAgain(int32_t clipLength, int32_t quantiza
 }
 
 void AutoParam::transposeCCValuesToChannelPressureValues() {
-	for (int32_t i = 0; i < std::ssize(nodes()); i++) {
-		ParamNode* thisNode = &nodes()[i];
-		thisNode->value = (thisNode->value >> 1) + (1 << 30);
-	}
-
-	currentValue = (currentValue >> 1) + (1 << 30);
+	doc_->current_value = currentValue; // M2-C sync-bridge (see shiftValues)
+	deluge::project::transposeCCValuesToChannelPressure(*doc_);
+	currentValue = doc_->current_value;
 }
 
 /// this is used in arranger view to delete time between automation nodes (shift + <>)
