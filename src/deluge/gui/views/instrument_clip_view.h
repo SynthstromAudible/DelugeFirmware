@@ -206,6 +206,9 @@ public:
 	void renderMacroTargetPickerOverlay(RGB image[][kDisplayWidth + kSideBarWidth],
 	                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
 	void handleMacroTargetPickerPad(int32_t x, int32_t y, int32_t velocity);
+	// Assigns `destination` to the macro's next free target slot and selects it (or shows MACRO SLOTS
+	// FULL). Used by handleMacroTargetPickerPad for both the grey-pad assign and the build-up add.
+	void addMacroPickerLayer(Clip* clip, int32_t x, int32_t y, int32_t destination, bool addingSecond);
 	// SHIFT+SAVE while the picker is up: remove the currently-selected pad's param from this macro's
 	// targets (the pad reverts to grey). "Selected" = the pad last tapped, at its current layer.
 	void deleteSelectedMacroTarget();
