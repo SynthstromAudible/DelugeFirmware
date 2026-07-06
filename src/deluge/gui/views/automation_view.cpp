@@ -190,6 +190,18 @@ static void showTargetFull(MelodicInstrument* instrument, int32_t macroIndex, in
 	display->popupText(popup.c_str());
 }
 
+// Thin public forwarders so the note-view macro-target picker reuses this view's identical target
+// range readout and knob-ring seeding (the underlying helpers are file-static).
+void AutomationView::showMacroTargetRangeReadout(MelodicInstrument* instrument, int32_t macroIndex, int32_t target,
+                                                 uint8_t destination, bool showConflict) {
+	showTargetFull(instrument, macroIndex, target, destination, showConflict);
+}
+
+void AutomationView::showMacroTargetRangeKnobIndicators(MelodicInstrument* instrument, int32_t macroIndex,
+                                                        int32_t target) {
+	showHeldTargetKnobIndicators(instrument, macroIndex, target);
+}
+
 const uint32_t auditionPadActionUIModes[] = {UI_MODE_NOTES_PRESSED,
                                              UI_MODE_AUDITIONING,
                                              UI_MODE_HORIZONTAL_SCROLL,

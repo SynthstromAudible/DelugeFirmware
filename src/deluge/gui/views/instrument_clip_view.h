@@ -209,6 +209,12 @@ public:
 	// SHIFT+SAVE while the picker is up: remove the currently-selected pad's param from this macro's
 	// targets (the pad reverts to grey). "Selected" = the pad last tapped, at its current layer.
 	void deleteSelectedMacroTarget();
+	// True when the picker is up AND a target slot has been selected by a tap - the gold knobs then
+	// shape that target's From/To instead of driving the whole macro.
+	bool macroPickerEditingTarget() { return macroTargetPickerActive() && macroTargetPickerLastSlot >= 0; }
+	// Gold-knob turn while macroPickerEditingTarget(): knob 0 edits the selected target's From, knob 1
+	// its To, with the same range readout + knob-ring feedback as the macro-lane view.
+	void handleMacroPickerModEncoder(int32_t whichModEncoder, int32_t offset);
 	int8_t macroTargetPickerLastX = -1;
 	int8_t macroTargetPickerLastY = -1;
 	int8_t macroTargetPickerLastSlot = -1;

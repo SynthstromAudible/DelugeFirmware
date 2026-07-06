@@ -824,7 +824,14 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	// Note-view MACRO mode owns both gold knobs: either knob drives the currently-selected macro.
 	// Checked before tryKnobMacro so the mode takes precedence over any learned gold-knob source.
 	if (inMacroKnobMode()) {
-		Macros::driveMacro(getCurrentClip()->output->macroKnobSelected, offset);
+		// While the target picker is up with a slot selected, the knobs shape THAT target's From/To (with
+		// the macro-lane view's readout) instead of driving the whole macro.
+		if (instrumentClipView.macroPickerEditingTarget()) {
+			instrumentClipView.handleMacroPickerModEncoder(whichModEncoder, offset);
+		}
+		else {
+			Macros::driveMacro(getCurrentClip()->output->macroKnobSelected, offset);
+		}
 		return;
 	}
 
@@ -1560,6 +1567,7 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 			else {
 				instrumentClipView.closeMacroTargetPicker(); // release: main grid back to notes
 				display->cancelPopup();                      // drop the persistent peek readout
+				setKnobIndicatorLevels(); // restore the macro's sourceKnobPos rings (From/To editing displaced them)
 			}
 		}
 		return; // the four non-macro buttons do nothing; never writes modKnobMode / toggles VU

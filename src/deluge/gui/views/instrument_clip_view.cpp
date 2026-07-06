@@ -7536,6 +7536,29 @@ void InstrumentClipView::deleteSelectedMacroTarget() {
 	uiNeedsRendering(this, 0xFFFFFFFF, 0); // pad shows the remaining layer's colour, or grey if none left
 }
 
+// A gold-knob turn while the picker is up and a target slot is selected: shape THAT target's From/To
+// (knob 0 = From, knob 1 = To), mirroring the macro-lane view's held-target editing - same clamp,
+// same re-bake, same "destination name / From - To" readout and knob-ring feedback.
+void InstrumentClipView::handleMacroPickerModEncoder(int32_t whichModEncoder, int32_t offset) {
+	Clip* clip = getCurrentClip();
+	MelodicInstrument* instrument = Macros::macroClipInstrument(clip);
+	if (instrument == nullptr || macroTargetPickerMacro < 0 || macroTargetPickerLastSlot < 0) {
+		return;
+	}
+	Macros::MacroTargetSlot& f = instrument->macros[macroTargetPickerMacro].targets[macroTargetPickerLastSlot];
+	uint8_t& endpoint = (whichModEncoder == 1) ? f.to : f.from; // knob 0 = From, knob 1 = To
+	int32_t v = std::clamp<int32_t>((int32_t)endpoint + offset, 0,
+	                                Macros::maxTargetValue(Macros::domainForOutput(clip->output)));
+	if (v != endpoint) {
+		endpoint = (uint8_t)v;
+		instrument->editedByUser = true;
+		Macros::reFanTarget(clip, macroTargetPickerMacro, macroTargetPickerLastSlot, nullptr); // re-bake just this lane
+	}
+	automationView.showMacroTargetRangeReadout(instrument, macroTargetPickerMacro, macroTargetPickerLastSlot,
+	                                           f.destination, false);
+	automationView.showMacroTargetRangeKnobIndicators(instrument, macroTargetPickerMacro, macroTargetPickerLastSlot);
+}
+
 // occupancyMask now optional
 void InstrumentClipView::performActualRender(uint32_t whichRows, RGB* image,
                                              uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xScroll,
