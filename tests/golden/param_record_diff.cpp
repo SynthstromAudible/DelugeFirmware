@@ -89,6 +89,38 @@ static void dumpParam(const char* label, AutoParam& ap) {
 	printf("\n");
 }
 
+// Save `song` to an in-memory XML buffer, reload it into a fresh Song, re-fetch the song-global param, and dump
+// it under "after-reload". Proves the recorded automation survives the DOM serialization round-trip.
+static void dumpAfterSaveReload(Song* song) {
+	const uint32_t cap = 16u * 1024 * 1024;
+	char* buf = (char*)malloc(cap);
+	smSerializer.setMemoryBuffer(buf, cap);
+	deluge::project::saveSong(*song, smSerializer);
+	long n = smSerializer.bytesWritten();
+
+	char* copy = (char*)malloc(n + 1);
+	memcpy(copy, buf, n);
+	copy[n] = 0;
+
+	Error e = Error::NONE;
+	Song* reloaded = load_song(copy, n, &e);
+	if (!reloaded) {
+		printf("after-reload LOAD-FAILED err=%d\n", (int)e);
+		free(buf);
+		return;
+	}
+	char msMem[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* ms3 = reloaded->setupModelStackWithSongAsTimelineCounter(msMem);
+	ModelStackWithAutoParam* msap = ms3->getUnpatchedAutoParamFromId(params::UNPATCHED_VOLUME);
+	if (!msap || !msap->autoParam) {
+		printf("after-reload NO-PARAM\n");
+		free(buf);
+		return;
+	}
+	dumpParam("after-reload", *msap->autoParam);
+	free(buf);
+}
+
 int main(int argc, char** argv) {
 	if (argc < 2) {
 		fprintf(stderr, "usage: %s <song.XML>\n", argv[0]);
@@ -155,12 +187,28 @@ int main(int argc, char** argv) {
 	printf("# param_record_diff: %s\n", argv[1]);
 	dumpParam("initial", ap);
 
+	// Capture the pre-record state (empty nodes + initial value) for the undo test below. AutoParamState is the
+	// snapshot an Action holds for undo; swapState(&state) swaps it with the live param.
+	AutoParamState undoState;
+	undoState.value = ap.getCurrentValue();
+
 	for (const Event& e : script) {
 		AudioEngine::audioSampleTimer += e.timerAdvance;
 		ap.setCurrentValueInResponseToUserInput(e.value, msap, /*shouldLogAction=*/true, /*livePos=*/e.livePos,
 		                                        /*mayDeleteNodesInLinearRun=*/true, /*isMPE=*/false);
 	}
 	dumpParam("after-record", ap);
+
+	// Undo (swapState with the pre-record snapshot) must revert to empty/initial; redo (swap again) must restore
+	// the recorded automation exactly — exercising the AutoParam::swapState node/value swap on the DOM store.
+	ap.swapState(&undoState, msap);
+	dumpParam("after-undo", ap);
+	ap.swapState(&undoState, msap);
+	dumpParam("after-redo", ap);
+
+	// Persistence: save the song and reload it; the recorded automation must survive the DOM serialization
+	// round-trip. Re-fetch the param from the fresh Song and dump it.
+	dumpAfterSaveReload(song);
 
 	free(xml);
 	return 0;
