@@ -147,12 +147,12 @@ lazily fetches `modelStack->getLoopLength()`. The kernel `param_edit::getValueAt
 pos, int32_t loopLength, bool reversed)` already exists and is oracle-tested. `getLoopLength()` is always safe to
 call eagerly (it's a length, not a null-deref; `processCurrentPos` already calls it unconditionally at line 453).
 
-- [ ] **Step 1:** Replace the `getValueAtPos` body with `return deluge::project::getValueAtPos(*doc_, pos,
-  modelStack->getLoopLength(), reversed);`. Its callers — `setPlayPos` (1287), `grabValueFromPos` (1277),
-  `getValuePossiblyAtPos` (1213), and the still-engine-native `trimToLength`/`copy`/recording paths — then read
+- [x] **Step 1:** Replace the `getValueAtPos` body with `return deluge::project::getValueAtPos(*doc_, pos,
+  modelStack->getLoopLength(), reversed);`. Its callers — `setPlayPos`, `grabValueFromPos`,
+  `getValuePossiblyAtPos`, and the still-engine-native `trimToLength`/`copy`/recording paths — then read
   through the DOM kernel automatically; no caller edits needed.
-- [ ] **Step 2 (verify):** `param_projection_test` OK x86≡ARM (the getValueAtPos oracle already covers empty /
-  stepped / interpolated / loop-wrap / infinite-length cases); golden `OK=15` x86≡ARM; firmware builds. Commit.
+- [x] **Step 2 (verify):** `param_projection_test` OK x86≡ARM; golden `OK=15` x86≡ARM; firmware builds. **DONE
+  `df545adbc`.**
 
   *Caveat (already satisfied):* the kernel takes `loopLength` where the engine special-cases `2147483647`
   (infinite length); the getValueAtPos oracle already diffs engine vs kernel across `loopLengths[] = {128,
