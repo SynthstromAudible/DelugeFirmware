@@ -1351,7 +1351,8 @@ addNewNodeAt0IfNecessary:
 	}
 }
 
-void AutoParam::writeToFile(Serializer& writer, bool writeAutomation, int32_t* valueForOverride) {
+void AutoParam::writeToFile(deluge::project::DocAutoParam const& doc, Serializer& writer, bool writeAutomation,
+                            int32_t* valueForOverride) {
 	char buffer[9];
 
 	writer.write("0x");
@@ -1363,8 +1364,8 @@ void AutoParam::writeToFile(Serializer& writer, bool writeAutomation, int32_t* v
 
 	if (writeAutomation) {
 
-		for (int32_t i = 0; i < std::ssize(nodes()); i++) {
-			ParamNode* thisNode = &nodes()[i];
+		for (int32_t i = 0; i < std::ssize(doc.nodes); i++) {
+			const ParamNode* thisNode = &doc.nodes[i];
 			intToHex(thisNode->value, buffer);
 			writer.write(buffer);
 
@@ -1381,7 +1382,7 @@ void AutoParam::writeToFile(Serializer& writer, bool writeAutomation, int32_t* v
 // Returns error code.
 // If you're gonna call this, you probably need to tell the ParamSet that this Param has automation now, if it does.
 // Or, to make things easier, you should just call the ParamSet instead, if possible.
-Error AutoParam::readFromFile(Deserializer& reader, int32_t readAutomationUpToPos) {
+Error AutoParam::readFromFile(deluge::project::DocAutoParam& doc, Deserializer& reader, int32_t readAutomationUpToPos) {
 
 	// Must first delete any automation because sometimes, due to that annoying support I have to do for late-2016
 	// files, we'll be overwriting a cloned ParamManager, which might have had automation.
@@ -1437,7 +1438,8 @@ Error AutoParam::readFromFile(Deserializer& reader, int32_t readAutomationUpToPo
 					// Allocate space for the right number of notes, and remember how long it'll be before we need to do
 					// this check again
 					numElementsToAllocateFor = (uint32_t)(charsRemaining - 1) / 16 + 1;
-					(void)nodes().reserveExtra(numElementsToAllocateFor); // If this fails... oh well. We'll fail later
+					(void)doc.nodes.reserveExtra(
+					    numElementsToAllocateFor); // If this fails... oh well. We'll fail later
 				}
 			}
 
@@ -1465,13 +1467,13 @@ Error AutoParam::readFromFile(Deserializer& reader, int32_t readAutomationUpToPo
 				// If there's a node actually right on the end-point - well, firmware <= 3.1.5 sometimes put one there
 				// when it should have been at pos 0. So, reinterpret that data to make it right.
 				if (pos == readAutomationUpToPos) {
-					ParamNode* firstNode = nodes().tryGet(0);
+					ParamNode* firstNode = doc.nodes.tryGet(0);
 					if (!firstNode || firstNode->pos) {
-						Error error = nodes().insertAt(0).error_or(Error::NONE);
+						Error error = doc.nodes.insertAt(0).error_or(Error::NONE);
 						if (error != Error::NONE) {
 							return error;
 						}
-						firstNode = &nodes()[0];
+						firstNode = &doc.nodes[0];
 						firstNode->pos = 0;
 						firstNode->value = value;
 						firstNode->interpolated = interpolated;
@@ -1482,11 +1484,11 @@ Error AutoParam::readFromFile(Deserializer& reader, int32_t readAutomationUpToPo
 
 			prevPos = pos;
 
-			int32_t nodeI = nodes().insertSorted(pos, true).value_or(-1);
+			int32_t nodeI = doc.nodes.insertSorted(pos, true).value_or(-1);
 			if (nodeI == -1) {
 				return Error::INSUFFICIENT_RAM;
 			}
-			ParamNode* node = &nodes()[nodeI];
+			ParamNode* node = &doc.nodes[nodeI];
 			node->value = value;
 			node->interpolated = interpolated;
 

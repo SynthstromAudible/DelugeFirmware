@@ -374,7 +374,7 @@ void MIDIParamCollection::writeToFile(Serializer& writer) {
 			}
 
 			writer.writeOpeningTag("value", false);
-			midiParam.param.writeToFile(writer, true);
+			midiParam.param.writeToFile(*midiParam.param.docForThreading(), writer, true);
 			writer.writeClosingTag("value", false);
 
 			writer.writeClosingTag("param");

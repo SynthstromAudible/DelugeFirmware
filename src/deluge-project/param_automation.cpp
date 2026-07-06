@@ -542,7 +542,7 @@ DocAutoParam readDocAutoParam(Deserializer& in, int32_t readAutomationUpToPos) {
 	// Reuse the engine's leaf parser (hex blob, node reading, back-compat) on a throwaway AutoParam,
 	// then project the result — no reimplementation of the hex format.
 	AutoParam tmp;
-	tmp.readFromFile(in, readAutomationUpToPos);
+	tmp.readFromFile(*tmp.docForThreading(), in, readAutomationUpToPos);
 	return toDocAutoParam(tmp);
 }
 

@@ -229,13 +229,13 @@ void ParamSet::writeParamAsAttribute(Serializer& writer, char const* name, int32
 	writer.printIndents();
 	writer.writeTagNameAndSeperator(name);
 	writer.write("\"");
-	params[p].writeToFile(writer, writeAutomation, valueForOverride);
+	params[p].writeToFile(*params[p].docForThreading(), writer, writeAutomation, valueForOverride);
 	writer.write("\"");
 }
 
 void ParamSet::readParam(Deserializer& reader, ParamCollectionSummary* summary, int32_t p,
                          int32_t readAutomationUpToPos) {
-	params[p].readFromFile(reader, readAutomationUpToPos);
+	params[p].readFromFile(*params[p].docForThreading(), reader, readAutomationUpToPos);
 	if (params[p].isAutomated()) {
 		paramHasAutomationNow(summary, p);
 	}

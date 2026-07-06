@@ -3088,7 +3088,7 @@ expressionParam:
 				else if (!strcmp(tagName, "value")) {
 					if (param) {
 
-						Error error = param->readFromFile(reader, readAutomationUpToPos);
+						Error error = param->readFromFile(*param->docForThreading(), reader, readAutomationUpToPos);
 						if (error != Error::NONE) {
 							return error;
 						}

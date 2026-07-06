@@ -885,7 +885,7 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 					    params::Kind::UNPATCHED_SOUND, reader.readTagOrAttributeValue(), true));
 				}
 				else if (!strcmp(tagName, "amount")) {
-					tempParam.readFromFile(reader, readAutomationUpToPos);
+					tempParam.readFromFile(*tempParam.docForThreading(), reader, readAutomationUpToPos);
 				}
 				else if (!strcmp(tagName, "rangeAdjustable")) { // Files before V3.2 had this
 					rangeAdjustable = reader.readTagOrAttributeValueInt();
@@ -907,7 +907,8 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 									rangeSource = stringToSource(reader.readTagOrAttributeValue());
 								}
 								else if (!strcmp(tagName, "amount")) {
-									tempRangeParam.readFromFile(reader, readAutomationUpToPos);
+									tempRangeParam.readFromFile(*tempRangeParam.docForThreading(), reader,
+									                            readAutomationUpToPos);
 								}
 								else if (!strcmp(tagName, "polarity")) {
 									rangePolarity = stringToPolarity(reader.readTagOrAttributeValue());
@@ -1029,7 +1030,7 @@ void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomat
 		writer.printIndents();
 		writer.writeTagNameAndSeperator("amount");
 		writer.write("\"");
-		patchCables[c].param.writeToFile(writer, writeAutomation);
+		patchCables[c].param.writeToFile(*patchCables[c].param.docForThreading(), writer, writeAutomation);
 		writer.write("\"");
 
 		// See if another cable(s) controls the range/depth of this cable
@@ -1052,7 +1053,7 @@ void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomat
 				writer.printIndents();
 				writer.writeTagNameAndSeperator("amount");
 				writer.write("\"");
-				patchCables[d].param.writeToFile(writer, writeAutomation);
+				patchCables[d].param.writeToFile(*patchCables[d].param.docForThreading(), writer, writeAutomation);
 				writer.write("\"");
 				writer.closeTag(true);
 			}
