@@ -207,6 +207,7 @@ int main() {
 			nr.loopLengthIfIndependent = loopLength;
 			ms->setNoteRow(&nr);
 			ms->autoParam = &ap; // M2-E: ops resolve their DOM handle via modelStack->doc() == autoParam->doc_
+			ms->paramCollection = nullptr; // M2-E: standalone oracle -> doc() falls back to ownDoc_
 			return ap.getValueAtPos(pos, ms, reversed);
 		};
 
@@ -265,7 +266,8 @@ int main() {
 			NoteRow nr;
 			nr.loopLengthIfIndependent = loopLength;
 			ms->setNoteRow(&nr);
-			ms->autoParam = &ap; // M2-E: modelStack->doc() resolution
+			ms->autoParam = &ap;           // M2-E: modelStack->doc() resolution
+			ms->paramCollection = nullptr; // M2-E: standalone oracle -> doc() falls back to ownDoc_
 			return ap.getDistanceToNextNode(ms, pos, reversed);
 		};
 
@@ -463,7 +465,8 @@ int main() {
 			NoteRow nr;
 			nr.loopLengthIfIndependent = effLen;
 			ms->setNoteRow(&nr);
-			ms->autoParam = &ap; // M2-E: modelStack->doc() resolution
+			ms->autoParam = &ap;           // M2-E: modelStack->doc() resolution
+			ms->paramCollection = nullptr; // M2-E: standalone oracle -> doc() falls back to ownDoc_
 			return ap.homogenizeRegion(ms, startPos, length, startValue, interpL, interpR, effLen, reversed, cut);
 		};
 
@@ -607,7 +610,8 @@ int main() {
 				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
 				NoteRow nr;
 				ModelStackWithAutoParam* ms = buildStack(buf, loopLen, nr);
-				ms->autoParam = &ap; // M2-E: modelStack->doc() resolution
+				ms->autoParam = &ap;           // M2-E: modelStack->doc() resolution
+				ms->paramCollection = nullptr; // M2-E: standalone oracle -> doc() falls back to ownDoc_
 				ap.deleteTime(dc.startPos, dc.len, ms);
 				deluge::project::deleteTime(doc, dc.startPos, dc.len, loopLen);
 				expectDocMatchesEngine(ap, doc, "deleteTime: matches engine oracle");
@@ -631,7 +635,8 @@ int main() {
 				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
 				NoteRow nr;
 				ModelStackWithAutoParam* ms = buildStack(buf, loopLen, nr);
-				ms->autoParam = &ap; // M2-E: modelStack->doc() resolution
+				ms->autoParam = &ap;           // M2-E: modelStack->doc() resolution
+				ms->paramCollection = nullptr; // M2-E: standalone oracle -> doc() falls back to ownDoc_
 				ap.moveRegionHorizontally(ms, mc.pos, mc.length, mc.offset, loopLen, nullptr);
 				deluge::project::moveRegionHorizontally(doc, mc.pos, mc.length, mc.offset, loopLen);
 				expectDocMatchesEngine(ap, doc, "moveRegionHorizontally: matches engine oracle");
@@ -1785,7 +1790,8 @@ int main() {
 				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
 				NoteRow nr;
 				ModelStackWithAutoParam* ms = buildStack(buf, loopLen, nr);
-				ms->autoParam = &ap; // M2-E: trimToLength calls getValueAtPos internally (resolves via doc())
+				ms->autoParam = &ap;           // M2-E: trimToLength calls getValueAtPos internally (resolves via doc())
+				ms->paramCollection = nullptr; // M2-E: standalone oracle -> doc() falls back to ownDoc_
 				ap.trimToLength(static_cast<uint32_t>(newLen), /*action=*/nullptr, ms);
 				deluge::project::trimToLength(doc, newLen, loopLen);
 				expectDocMatchesEngine(ap, doc, "trimToLength: matches engine oracle");
@@ -1915,6 +1921,7 @@ int main() {
 				alignas(ModelStackWithAutoParam) char nbuf[MODEL_STACK_MAX_SIZE];
 				auto* nms = reinterpret_cast<ModelStackWithAutoParam*>(nbuf);
 				nms->autoParam = &ap;
+				nms->paramCollection = nullptr; // M2-E: standalone oracle -> doc() falls back to ownDoc_
 				ap.nudgeNonInterpolatingNodesAtPos(nc.pos, nc.offset, lengthBeforeLoop, nullptr, nms);
 				deluge::project::nudgeNonInterpolatingNodesAtPos(doc, nc.pos, nc.offset, lengthBeforeLoop);
 				expectDocMatchesEngine(ap, doc, "nudgeNonInterpolatingNodesAtPos: matches engine oracle");
@@ -1941,7 +1948,8 @@ int main() {
 		auto engineSetValueForRegion = [](AutoParam& ap, ModelStackWithAutoParam* ms, uint32_t pos, uint32_t length,
 		                                  int32_t value, int32_t effLen, bool interpL, bool interpR, bool clockActive,
 		                                  int32_t livePos, bool reversed) {
-			ms->autoParam = &ap; // M2-E: ap.homogenizeRegion below resolves via modelStack->doc()
+			ms->autoParam = &ap;           // M2-E: ap.homogenizeRegion below resolves via modelStack->doc()
+			ms->paramCollection = nullptr; // M2-E: standalone oracle -> doc() falls back to ownDoc_
 			if (pos >= static_cast<uint32_t>(effLen)) {
 				return;
 			}
@@ -2148,7 +2156,8 @@ int main() {
 					alignas(ModelStackWithAutoParam) char cbuf[MODEL_STACK_MAX_SIZE];
 					NoteRow cnr;
 					ModelStackWithAutoParam* cms = lightStack(cbuf, loopLen, cnr);
-					cms->autoParam = &ap; // M2-E: copy calls getValueAtPos internally (resolves via doc())
+					cms->autoParam = &ap;           // M2-E: copy calls getValueAtPos internally (resolves via doc())
+					cms->paramCollection = nullptr; // M2-E: standalone oracle -> doc() falls back to ownDoc_
 					ap.copy(cc.startPos, cc.endPos, &ca, isPatchCable, cms);
 					deluge::project::copyRegion(doc, cc.startPos, cc.endPos, loopLen, isPatchCable, domCopied);
 
@@ -2279,7 +2288,8 @@ int main() {
 				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
 				NoteRow nr;
 				ModelStackWithAutoParam* ms = buildStack(buf, loopLen, nr);
-				ms->autoParam = &ap; // M2-E: stealNodes/insertStolenNodes resolve nodes via modelStack->doc()
+				ms->autoParam = &ap;           // M2-E: stealNodes/insertStolenNodes resolve nodes via modelStack->doc()
+				ms->paramCollection = nullptr; // M2-E: standalone oracle -> doc() falls back to ownDoc_
 
 				// --- stealNodes: engine call direct vs. the DOM kernel; diff both the stolen record and the
 				// residual timeline.
@@ -2406,7 +2416,8 @@ int main() {
 		auto engineRecordLiveValue = [](AutoParam& ap, ModelStackWithAutoParam* ms, int32_t livePos, int32_t value,
 		                                int32_t ticksToClear, bool doMPE, bool interpL, int32_t effLen, bool reversed,
 		                                int32_t cut) -> int32_t {
-			ms->autoParam = &ap; // M2-E: ap.homogenizeRegion below resolves via modelStack->doc()
+			ms->autoParam = &ap;           // M2-E: ap.homogenizeRegion below resolves via modelStack->doc()
+			ms->paramCollection = nullptr; // M2-E: standalone oracle -> doc() falls back to ownDoc_
 			int32_t leftI;
 			if (doMPE || ticksToClear == 0) {
 				leftI = ap.setNodeAtPos(*ap.ownDocForFallback(), livePos, value, interpL);
