@@ -83,7 +83,7 @@ void PatchCable::setup(PatchSource newFrom, uint8_t newTo, int32_t newAmount) {
 }
 
 bool PatchCable::isActive() {
-	return param.containsSomething(0);
+	return param.containsSomething(*param.docForThreading(), 0);
 }
 
 void PatchCable::initAmount(int32_t value) {

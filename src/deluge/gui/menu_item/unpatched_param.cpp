@@ -75,7 +75,8 @@ void UnpatchedParam::writeCurrentValue() {
 		// it re-sets the same value, harmless). The recording/automated cases still go straight to the engine
 		// (they create nodes in the runtime — the deferred executor split is what will let those be DOM-first).
 		bool isSongGlobal = (modelStackWithParam->paramManager == &currentSong->paramManager);
-		if (isSongGlobal && !modelStackWithParam->autoParam->isAutomated() && !playbackHandler.isEitherClockActive()) {
+		if (isSongGlobal && !modelStackWithParam->autoParam->isAutomated(*modelStackWithParam->doc())
+		    && !playbackHandler.isEitherClockActive()) {
 			deluge::project::setUnpatchedValueDomFirst(currentSong->project.global_fx.params,
 			                                           modelStackWithParam->paramId, value,
 			                                           *modelStackWithParam->autoParam);

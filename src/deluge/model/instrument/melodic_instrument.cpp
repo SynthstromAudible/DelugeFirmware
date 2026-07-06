@@ -476,7 +476,7 @@ void MelodicInstrument::offerBendRangeUpdate(ModelStack* modelStack, MIDICable& 
 				// If existing automation, don't do it.
 				if (activeClip) {
 					if (whichBendRange == BEND_RANGE_MAIN) {
-						if (expressionParams->params[0].isAutomated()) {
+						if (expressionParams->params[0].isAutomated(*expressionParams->params[0].docForThreading())) {
 							return;
 						}
 					}

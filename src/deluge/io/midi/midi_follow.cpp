@@ -1203,7 +1203,8 @@ void MidiFollow::sendCCWithoutModelStackForMidiFollowFeedback(int32_t channel, b
 			    getModelStackWithParam(modelStackWithTimelineCounter, clip, soundParamId, globalParamId, false);
 			// check that model stack is valid
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
-				if (!isAutomation || (isAutomation && modelStackWithParam->autoParam->isAutomated())) {
+				if (!isAutomation
+				    || (isAutomation && modelStackWithParam->autoParam->isAutomated(*modelStackWithParam->doc()))) {
 					int32_t currentValue;
 					// obtain current value of the learned parameter
 					if (isStepEditing) {

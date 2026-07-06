@@ -3873,7 +3873,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 			if (newBendRange) {
 				ExpressionParamSet* expressionParams = paramManager.getOrCreateExpressionParamSet(true);
 				if (expressionParams) {
-					if (!expressionParams->params[0].isAutomated()) {
+					if (!expressionParams->params[0].isAutomated(*expressionParams->params[0].docForThreading())) {
 						expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] = newBendRange;
 					}
 				}
@@ -4423,7 +4423,7 @@ void NoteRow::clearMPEUpUntilNextNote(ModelStackWithNoteRow* modelStack, int32_t
 
 	/*
 	for (int32_t i = 0; i < kNumExpressionDimensions; i++) {
-	    if (mpeParams->params[i].isAutomated()) goto needToDoIt;
+	    if (mpeParams->params[i].isAutomated(*mpeParams->params[i].docForThreading())) goto needToDoIt;
 	}
 	return;
 	*/

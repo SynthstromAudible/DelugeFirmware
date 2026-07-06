@@ -675,7 +675,8 @@ bool Voice::sampleZoneChanged(ModelStackWithSoundFlags* modelStack, int32_t s, M
 
 	// If none of this source still active, and no noise, see if the other source still has any...
 	if (!anyStillActive
-	    && !paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(-2147483648)) {
+	    && !paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
+	        *paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].docForThreading(), -2147483648)) {
 
 		s = 1 - s;
 
@@ -860,7 +861,8 @@ uint32_t Voice::getLocalLFOPhaseIncrement(LFO_ID lfoId, deluge::modulation::para
 	// If not already releasing and some release is set, and no noise-source...
 	//@todo - cache this, it never changes
 	if (sound.getSynthMode() != SynthMode::FM && envelopes[0].state < EnvelopeStage::RELEASE && hasReleaseStage()
-	    && !paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(-2147483648)) {
+	    && !paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
+	        *paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].docForThreading(), -2147483648)) {
 
 		uint32_t whichSourcesNeedAttention = 0;
 
@@ -1681,6 +1683,7 @@ renderingDone:
 bool Voice::areAllUnisonPartsInactive(ModelStackWithSoundFlags& modelStack) const {
 	// If no noise-source, then it might be time to unassign the voice...
 	if (!modelStack.paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
+	        *modelStack.paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].docForThreading(),
 	        -2147483648)) {
 
 		// See if all unison parts are now inactive

@@ -1374,7 +1374,8 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 			return PatchCableAcceptance::DISALLOWED;
 		}
 		return (isSourceActiveEver(0, paramManager)
-		        && patchedParams->params[params::LOCAL_CARRIER_0_FEEDBACK].containsSomething(-2147483648))
+		        && patchedParams->params[params::LOCAL_CARRIER_0_FEEDBACK].containsSomething(
+		            *patchedParams->params[params::LOCAL_CARRIER_0_FEEDBACK].docForThreading(), -2147483648))
 		           ? PatchCableAcceptance::ALLOWED
 		           : PatchCableAcceptance::EDITABLE;
 
@@ -1398,7 +1399,8 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 			return PatchCableAcceptance::DISALLOWED;
 		}
 		return (isSourceActiveEver(1, paramManager)
-		        && patchedParams->params[params::LOCAL_CARRIER_1_FEEDBACK].containsSomething(-2147483648))
+		        && patchedParams->params[params::LOCAL_CARRIER_1_FEEDBACK].containsSomething(
+		            *patchedParams->params[params::LOCAL_CARRIER_1_FEEDBACK].docForThreading(), -2147483648))
 		           ? PatchCableAcceptance::ALLOWED
 		           : PatchCableAcceptance::EDITABLE;
 
@@ -1406,7 +1408,8 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		if (synthMode == SynthMode::FM) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
-		return (patchedParams->params[params::LOCAL_NOISE_VOLUME].containsSomething(-2147483648))
+		return (patchedParams->params[params::LOCAL_NOISE_VOLUME].containsSomething(
+		           *patchedParams->params[params::LOCAL_NOISE_VOLUME].docForThreading(), -2147483648))
 		           ? PatchCableAcceptance::ALLOWED
 		           : PatchCableAcceptance::EDITABLE;
 
@@ -1435,7 +1438,8 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		if (synthMode != SynthMode::FM) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
-		return (patchedParams->params[params::LOCAL_MODULATOR_0_VOLUME].containsSomething(-2147483648))
+		return (patchedParams->params[params::LOCAL_MODULATOR_0_VOLUME].containsSomething(
+		           *patchedParams->params[params::LOCAL_MODULATOR_0_VOLUME].docForThreading(), -2147483648))
 		           ? PatchCableAcceptance::ALLOWED
 		           : PatchCableAcceptance::EDITABLE;
 
@@ -1443,8 +1447,10 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		if (synthMode != SynthMode::FM) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
-		return (patchedParams->params[params::LOCAL_MODULATOR_0_VOLUME].containsSomething(-2147483648)
-		        && patchedParams->params[params::LOCAL_MODULATOR_0_FEEDBACK].containsSomething(-2147483648))
+		return (patchedParams->params[params::LOCAL_MODULATOR_0_VOLUME].containsSomething(
+		            *patchedParams->params[params::LOCAL_MODULATOR_0_VOLUME].docForThreading(), -2147483648)
+		        && patchedParams->params[params::LOCAL_MODULATOR_0_FEEDBACK].containsSomething(
+		            *patchedParams->params[params::LOCAL_MODULATOR_0_FEEDBACK].docForThreading(), -2147483648))
 		           ? PatchCableAcceptance::ALLOWED
 		           : PatchCableAcceptance::EDITABLE;
 
@@ -1453,7 +1459,8 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		if (synthMode != SynthMode::FM) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
-		return (patchedParams->params[params::LOCAL_MODULATOR_1_VOLUME].containsSomething(-2147483648))
+		return (patchedParams->params[params::LOCAL_MODULATOR_1_VOLUME].containsSomething(
+		           *patchedParams->params[params::LOCAL_MODULATOR_1_VOLUME].docForThreading(), -2147483648))
 		           ? PatchCableAcceptance::ALLOWED
 		           : PatchCableAcceptance::EDITABLE;
 
@@ -1461,8 +1468,10 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 		if (synthMode != SynthMode::FM) {
 			return PatchCableAcceptance::DISALLOWED;
 		}
-		return (patchedParams->params[params::LOCAL_MODULATOR_1_VOLUME].containsSomething(-2147483648)
-		        && patchedParams->params[params::LOCAL_MODULATOR_1_FEEDBACK].containsSomething(-2147483648))
+		return (patchedParams->params[params::LOCAL_MODULATOR_1_VOLUME].containsSomething(
+		            *patchedParams->params[params::LOCAL_MODULATOR_1_VOLUME].docForThreading(), -2147483648)
+		        && patchedParams->params[params::LOCAL_MODULATOR_1_FEEDBACK].containsSomething(
+		            *patchedParams->params[params::LOCAL_MODULATOR_1_FEEDBACK].docForThreading(), -2147483648))
 		           ? PatchCableAcceptance::ALLOWED
 		           : PatchCableAcceptance::EDITABLE;
 
@@ -1508,7 +1517,8 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 
 	if (!((synthMode == SynthMode::RINGMOD) || (modelStackWithSoundFlags->checkSourceEverActive(0))
 	      || (modelStackWithSoundFlags->checkSourceEverActive(1))
-	      || (paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(-2147483648))))
+	      || (paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
+	          *paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].docForThreading(), -2147483648))))
 	    [[unlikely]] {
 		return;
 	}
@@ -1925,6 +1935,7 @@ bool Sound::allowNoteTails(ModelStackWithSoundFlags* modelStack, bool disregardS
 	// After that if not subtractive (so no samples) or there's some noise, we definitely can have tails
 	if (synthMode != SynthMode::SUBTRACTIVE
 	    || modelStack->paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
+	        *modelStack->paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].docForThreading(),
 	        -2147483648)) {
 		return true;
 	}
@@ -2089,9 +2100,11 @@ bool Sound::isSourceActiveCurrently(int32_t s, ParamManagerForTimeline* paramMan
 }
 
 bool Sound::isSourceActiveEverDisregardingMissingSample(int32_t s, ParamManager* paramManager) {
-	return (synthMode == SynthMode::RINGMOD
-	        || paramManager->getPatchedParamSet()->params[params::LOCAL_OSC_A_VOLUME + s].containsSomething(-2147483648)
-	        || renderingOscillatorSyncEver(paramManager));
+	return (
+	    synthMode == SynthMode::RINGMOD
+	    || paramManager->getPatchedParamSet()->params[params::LOCAL_OSC_A_VOLUME + s].containsSomething(
+	        *paramManager->getPatchedParamSet()->params[params::LOCAL_OSC_A_VOLUME + s].docForThreading(), -2147483648)
+	    || renderingOscillatorSyncEver(paramManager));
 }
 
 bool Sound::isSourceActiveEver(int32_t s, ParamManager* paramManager) {
@@ -2101,8 +2114,10 @@ bool Sound::isSourceActiveEver(int32_t s, ParamManager* paramManager) {
 }
 
 bool Sound::isNoiseActiveEver(ParamManagerForTimeline* paramManager) {
-	return (synthMode != SynthMode::FM
-	        && paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(-2147483648));
+	return (
+	    synthMode != SynthMode::FM
+	    && paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].containsSomething(
+	        *paramManager->getPatchedParamSet()->params[params::LOCAL_NOISE_VOLUME].docForThreading(), -2147483648));
 }
 
 bool Sound::renderingOscillatorSyncCurrently(ParamManagerForTimeline* paramManager) {
@@ -2123,7 +2138,8 @@ bool Sound::renderingOscillatorSyncEver(ParamManager* paramManager) {
 	if (synthMode == SynthMode::FM) {
 		return false;
 	}
-	return (paramManager->getPatchedParamSet()->params[params::LOCAL_OSC_B_VOLUME].containsSomething(-2147483648)
+	return (paramManager->getPatchedParamSet()->params[params::LOCAL_OSC_B_VOLUME].containsSomething(
+	            *paramManager->getPatchedParamSet()->params[params::LOCAL_OSC_B_VOLUME].docForThreading(), -2147483648)
 	        || synthMode == SynthMode::RINGMOD);
 }
 
@@ -2230,8 +2246,10 @@ void Sound::getThingWithMostReverb(Sound** soundWithMostReverb, ParamManager** p
                                    int32_t* highestReverbAmountFound, ParamManagerForTimeline* paramManager) {
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
-	if (!patchedParams->params[params::GLOBAL_REVERB_AMOUNT].isAutomated()
-	    && patchedParams->params[params::GLOBAL_REVERB_AMOUNT].containsSomething(-2147483648)) {
+	if (!patchedParams->params[params::GLOBAL_REVERB_AMOUNT].isAutomated(
+	        *patchedParams->params[params::GLOBAL_REVERB_AMOUNT].docForThreading())
+	    && patchedParams->params[params::GLOBAL_REVERB_AMOUNT].containsSomething(
+	        *patchedParams->params[params::GLOBAL_REVERB_AMOUNT].docForThreading(), -2147483648)) {
 
 		// We deliberately don't use the LPF'ed param here
 		int32_t reverbHere = patchedParams->getValue(params::GLOBAL_REVERB_AMOUNT);
@@ -2887,7 +2905,7 @@ void Sound::ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(ModelStackWit
 void Sound::ensureParamPresetValueWithoutKnobIsZero(ModelStackWithAutoParam* modelStack) {
 
 	// If the param is automated, we'd better not try setting it to 0 - the user probably wants the automation
-	if (modelStack->autoParam->isAutomated()) {
+	if (modelStack->autoParam->isAutomated(*modelStack->doc())) {
 		return;
 	}
 
@@ -2914,7 +2932,7 @@ void Sound::ensureParamPresetValueWithoutKnobIsZeroWithMinimalDetails(ParamManag
 	AutoParam* param = &paramManager->getPatchedParamSet()->params[p];
 
 	// If the param is automated, we'd better not try setting it to 0 - the user probably wants the automation
-	if (param->isAutomated()) {
+	if (param->isAutomated(*param->docForThreading())) {
 		return;
 	}
 
@@ -3286,9 +3304,11 @@ void Sound::compensateVolumeForResonance(ModelStackWithThreeMainThings* modelSta
 
 		// If no LPF on, and resonance is at 50%, set it to 0%
 		if (!patchCableSet->doesParamHaveSomethingPatchedToIt(params::LOCAL_LPF_FREQ)
-		    && !patchedParams->params[params::LOCAL_LPF_FREQ].isAutomated()
+		    && !patchedParams->params[params::LOCAL_LPF_FREQ].isAutomated(
+		        *patchedParams->params[params::LOCAL_LPF_FREQ].docForThreading())
 		    && patchedParams->params[params::LOCAL_LPF_FREQ].getCurrentValue() >= 2147483602
-		    && !patchedParams->params[params::LOCAL_LPF_RESONANCE].isAutomated()
+		    && !patchedParams->params[params::LOCAL_LPF_RESONANCE].isAutomated(
+		        *patchedParams->params[params::LOCAL_LPF_RESONANCE].docForThreading())
 		    && patchedParams->params[params::LOCAL_LPF_RESONANCE].getCurrentValue() <= 0
 		    && patchedParams->params[params::LOCAL_LPF_RESONANCE].getCurrentValue() >= -23) {
 			patchedParams->params[params::LOCAL_LPF_RESONANCE].currentValue = -2147483648;
@@ -3940,9 +3960,12 @@ bool Sound::envelopeHasSustainEver(int32_t e, ParamManagerForTimeline* paramMana
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
 
-	return (patchedParams->params[params::LOCAL_ENV_0_SUSTAIN + e].containsSomething(-2147483648)
-	        || patchedParams->params[params::LOCAL_ENV_0_DECAY + e].isAutomated()
-	        || patchedParams->params[params::LOCAL_ENV_0_RELEASE + e].isAutomated()
+	return (patchedParams->params[params::LOCAL_ENV_0_SUSTAIN + e].containsSomething(
+	            *patchedParams->params[params::LOCAL_ENV_0_SUSTAIN + e].docForThreading(), -2147483648)
+	        || patchedParams->params[params::LOCAL_ENV_0_DECAY + e].isAutomated(
+	            *patchedParams->params[params::LOCAL_ENV_0_DECAY + e].docForThreading())
+	        || patchedParams->params[params::LOCAL_ENV_0_RELEASE + e].isAutomated(
+	            *patchedParams->params[params::LOCAL_ENV_0_RELEASE + e].docForThreading())
 	        || patchedParams->getValue(params::LOCAL_ENV_0_DECAY + e)
 	               > patchedParams->getValue(params::LOCAL_ENV_0_RELEASE + e));
 }

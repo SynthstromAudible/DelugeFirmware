@@ -86,7 +86,7 @@ public:
 	void writeToFile(deluge::project::DocAutoParam const& doc, Serializer& writer, bool writeAutomation,
 	                 int32_t* valueForOverride = nullptr);
 	Error readFromFile(deluge::project::DocAutoParam& doc, Deserializer& reader, int32_t readAutomationUpToPos);
-	bool containsSomething(uint32_t neutralValue = 0);
+	bool containsSomething(const deluge::project::DocAutoParam& doc, uint32_t neutralValue = 0);
 	static bool containedSomethingBefore(bool wasAutomatedBefore, uint32_t valueBefore, uint32_t neutralValue = 0);
 	void shiftValues(deluge::project::DocAutoParam& doc, int32_t offset);
 	void shiftParamVolumeByDB(deluge::project::DocAutoParam& doc, float offset);
@@ -134,7 +134,7 @@ public:
 
 	inline void setCurrentValueBasicForSetup(int32_t value) { currentValue = value; }
 
-	inline bool isAutomated() { return (std::ssize(nodes())); }
+	inline bool isAutomated(const deluge::project::DocAutoParam& doc) { return std::ssize(doc.nodes) != 0; }
 
 	inline void cancelOverriding() { // Will also cancel "latching".
 		renewedOverridingAtTime = 0;

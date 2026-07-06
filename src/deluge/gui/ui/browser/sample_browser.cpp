@@ -1096,7 +1096,7 @@ void SampleBrowser::audioFileIsNowSet() {
 
 	// Reset osc volume, if it's not automated and was at 0. Wait but that will only do it for the current
 	// ParamManager... there could be other ones...
-	if (!modelStackWithParam->autoParam->containsSomething(-2147483648)) {
+	if (!modelStackWithParam->autoParam->containsSomething(*modelStackWithParam->doc(), -2147483648)) {
 		modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam, 2147483647);
 
 		// Hmm crap, we probably still do need to notify...
@@ -1906,7 +1906,7 @@ getOut:
 				    modelStack->addParam(paramSet, summary, paramId, &paramSet->params[paramId]);
 
 				// Reset osc volume, if it's not automated
-				if (!modelStackWithParam->autoParam->isAutomated()) {
+				if (!modelStackWithParam->autoParam->isAutomated(*modelStackWithParam->doc())) {
 					modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam,
 					                                                                          2147483647);
 					//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(params::LOCAL_OSC_A_VOLUME

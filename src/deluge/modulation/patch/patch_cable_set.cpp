@@ -352,7 +352,7 @@ goAgainWithoutIncrement:
 
 	for (int32_t c = 0; c < numUsablePatchCables; c++) {
 
-		if (patchCables[c].param.isAutomated()) {
+		if (patchCables[c].param.isAutomated(*patchCables[c].param.docForThreading())) {
 			flagCable(modelStack->summary->whichParamsAreAutomated, c);
 
 			if (patchCables[c].param.hasInterpolationIncrement()) {
@@ -695,7 +695,7 @@ void PatchCableSet::trimToLength(uint32_t newLength, ModelStackWithParamCollecti
 	if (!param->hasInterpolationIncrement()) {
 		unflagCable(modelStack->summary->whichParamsAreInterpolating, c);
 
-		bool stillAutomated = param->isAutomated();
+		bool stillAutomated = param->isAutomated(*param->docForThreading());
 		if (!stillAutomated) {
 			anyStoppedBeingAutomated = true;
 			unflagCable(modelStack->summary->whichParamsAreAutomated, c);
@@ -917,7 +917,8 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 							}
 							reader.match('}'); // leave value
 							reader.match('}'); // leave box.
-							if (rangeSource != PatchSource::NONE && tempRangeParam.containsSomething(0)) {
+							if (rangeSource != PatchSource::NONE
+							    && tempRangeParam.containsSomething(*tempRangeParam.docForThreading(), 0)) {
 								// Ensure no previous patch cable matches this combination
 								for (int32_t c = numCablesAtStartOfThing; c < numPatchCables; c++) {
 									if (patchCables[c].from == rangeSource) {
@@ -940,7 +941,8 @@ doneWithThisRangeCable:
 				reader.match(']');
 				reader.exitTag();
 			}
-			if (source != PatchSource::NONE && !destinationParamDescriptor.isNull() && tempParam.containsSomething(0)) {
+			if (source != PatchSource::NONE && !destinationParamDescriptor.isNull()
+			    && tempParam.containsSomething(*tempParam.docForThreading(), 0)) {
 				// Just make sure this cable is allowed in some capacity
 				// Deactivated because maySourcePatchToParam() is a Sound function, and this probably isn't really
 				// necessary anyway
@@ -1102,7 +1104,7 @@ void PatchCableSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* 
 
 		// Delete the patch cable if its value is now 0 and no automation. This is a bit "dangerous" - it will probably
 		// delete the AutoParam that called us!
-		if (!modelStack->autoParam->containsSomething(0)) {
+		if (!modelStack->autoParam->containsSomething(*modelStack->doc(), 0)) {
 			int32_t c = getPatchCableIndex(s, destinationParamDescriptor);
 			if (c != 255) {
 
@@ -1191,7 +1193,7 @@ void PatchCableSet::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset,
 	if (!param->hasInterpolationIncrement()) {
 		unflagCable(modelStack->summary->whichParamsAreInterpolating, c);
 
-		bool stillAutomated = param->isAutomated();
+		bool stillAutomated = param->isAutomated(*param->docForThreading());
 		if (!stillAutomated) {
 			anyStoppedBeingAutomated = true;
 			unflagCable(modelStack->summary->whichParamsAreAutomated, c);

@@ -644,7 +644,7 @@ int main() {
 		};
 		// Replica of the engine's (fixed) node-erase logic — tail-before-front in the wrap branch.
 		auto engineErase = [](AutoParam& ap, int32_t pos, int32_t length, int32_t effLen) {
-			if (!ap.isAutomated()) {
+			if (!ap.isAutomated(*ap.docForThreading())) {
 				return;
 			}
 			if (length >= effLen) {

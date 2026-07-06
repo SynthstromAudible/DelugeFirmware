@@ -98,7 +98,8 @@ void AutomationEditorLayoutModControllable::renderAutomationEditor(
     int32_t effectiveLength, int32_t xDisplay, bool drawUndefinedArea, params::Kind kind, bool isBipolar) {
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 		renderAutomationColumn(modelStackWithParam, image, occupancyMask, effectiveLength, xDisplay,
-		                       modelStackWithParam->autoParam->isAutomated(), xScroll, xZoom, kind, isBipolar);
+		                       modelStackWithParam->autoParam->isAutomated(*modelStackWithParam->doc()), xScroll, xZoom,
+		                       kind, isBipolar);
 	}
 	if (drawUndefinedArea) {
 		renderUndefinedArea(xScroll, xZoom, effectiveLength, image, occupancyMask, renderWidth,
@@ -287,7 +288,7 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplayOLED(
 	// check if Parameter is currently automated so that the automation status can be drawn on
 	// the screen with the Parameter Name
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
-		if (modelStackWithParam->autoParam->isAutomated()) {
+		if (modelStackWithParam->autoParam->isAutomated(*modelStackWithParam->doc())) {
 			isAutomated = l10n::get(l10n::String::STRING_FOR_AUTOMATION_ON);
 		}
 		else {
@@ -367,8 +368,8 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplay7SEG(Cl
 		}
 	}
 
-	bool isAutomated =
-	    modelStackWithParam && modelStackWithParam->autoParam && modelStackWithParam->autoParam->isAutomated();
+	bool isAutomated = modelStackWithParam && modelStackWithParam->autoParam
+	                   && modelStackWithParam->autoParam->isAutomated(*modelStackWithParam->doc());
 	bool playbackStarted = playbackHandler.isEitherClockActive();
 
 	// display parameter value if knobPos is provided
@@ -806,7 +807,8 @@ void AutomationEditorLayoutModControllable::automationModEncoderActionForUnselec
 				modelStackWithParam->getTimelineCounter()->instrumentBeenEdited();
 			}
 
-			if (!playbackHandler.isEitherClockActive() || !modelStackWithParam->autoParam->isAutomated()) {
+			if (!playbackHandler.isEitherClockActive()
+			    || !modelStackWithParam->autoParam->isAutomated(*modelStackWithParam->doc())) {
 				int32_t knobPos = newKnobPos + kKnobPosOffset;
 				renderDisplay(knobPos, kNoSelection, true);
 				setAutomationKnobIndicatorLevels(modelStackWithParam, knobPos, knobPos);

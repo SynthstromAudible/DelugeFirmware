@@ -235,7 +235,7 @@ void MIDIParamCollection::deleteAllAutomation(Action* action, ModelStackWithPara
 
 	for (MIDIParam& midiParam : params) {
 
-		if (midiParam.param.isAutomated()) {
+		if (midiParam.param.isAutomated(*midiParam.param.docForThreading())) {
 			ModelStackWithAutoParam* modelStackWithParam = modelStack->addAutoParam(midiParam.cc, &midiParam.param);
 			midiParam.param.deleteAutomation(action, modelStackWithParam, false);
 		}
@@ -296,7 +296,7 @@ void MIDIParamCollection::grabValuesFromPos(uint32_t pos, ModelStackWithParamCol
 
 		// With MIDI, we only want to send these out if the param is actually automated and the value is
 		// actually different
-		if (param->isAutomated()) {
+		if (param->isAutomated(*param->docForThreading())) {
 
 			int32_t oldValue = param->getCurrentValue();
 			ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam.cc, param);

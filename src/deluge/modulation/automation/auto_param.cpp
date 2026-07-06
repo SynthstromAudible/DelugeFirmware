@@ -138,7 +138,7 @@ void AutoParam::copyOverridingFrom(AutoParam* otherParam) {
 void AutoParam::setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoParam const* modelStack, int32_t value) {
 	int32_t oldValue = currentValue;
 	currentValue = value;
-	bool automatedNow = isAutomated();
+	bool automatedNow = isAutomated(*modelStack->doc());
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, automatedNow, automatedNow);
 }
 
@@ -154,7 +154,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 	// M2-E: resolve the DOM node store via the ModelStack (== nodes() in E1; owner-rooted in E3).
 	auto& nodesRef = modelStack->doc()->nodes;
 	int32_t oldValue = currentValue;
-	bool automatedBefore = isAutomated();
+	bool automatedBefore = isAutomated(*modelStack->doc());
 	bool automationChanged = false;
 	resetInterpolationIncrement();
 
@@ -171,7 +171,7 @@ void AutoParam::setCurrentValueInResponseToUserInput(int32_t value, ModelStackWi
 			// If in record mode and shift button held down, delete automation
 			if (Buttons::isShiftButtonPressed()) {
 
-				if (isAutomated()) {
+				if (isAutomated(*modelStack->doc())) {
 					Action* action =
 					    actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
 					deleteAutomation(action, modelStack);
@@ -322,7 +322,7 @@ skipThat: {}
 
 getOut:
 	currentValue = value;
-	bool automatedNow = isAutomated();
+	bool automatedNow = isAutomated(*modelStack->doc());
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                                          automatedNow);
 }
@@ -397,7 +397,7 @@ void AutoParam::deleteAutomation(Action* action, ModelStackWithAutoParam const* 
 	// M2-E: resolve the DOM node store via the ModelStack (== nodes() in E1; owner-rooted in E3).
 	auto& nodesRef = modelStack->doc()->nodes;
 
-	bool wasAutomated = isAutomated();
+	bool wasAutomated = isAutomated(*modelStack->doc());
 
 	if (action) {
 		action->recordParamChangeIfNotAlreadySnapshotted(modelStack, true);
@@ -766,7 +766,7 @@ adjustNodeJustReached:
 		// The call to notifyParamModifiedInSomeWay() below normally has the ability to delete this AutoParam, which we
 		// want it not to. It won't if we still contain automation, which I think we have to... Let's just verify that.
 #if ALPHA_OR_BETA_VERSION
-		if (!isAutomated()) {
+		if (!isAutomated(*modelStack->doc())) {
 			FREEZE_WITH_ERROR("E372");
 		}
 #endif
@@ -1025,7 +1025,7 @@ void AutoParam::setValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam
 void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length) {
 	// M2-C: keep the whole wiring seam (Action, whole-loop deleteAutomation, notify); forward only the partial
 	// region erase to the DOM kernel (value sync-bridge, since it may zero current_value when nothing remains).
-	if (!isAutomated()) {
+	if (!isAutomated(*modelStack->doc())) {
 		return;
 	}
 	int32_t oldValue = currentValue;
@@ -1043,7 +1043,8 @@ void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStac
 		deluge::project::deleteNodesWithinRegion(*doc, pos, length, effectiveLength);
 		currentValue = doc->current_value;
 	}
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, true, true, isAutomated());
+	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, true, true,
+	                                                          isAutomated(*modelStack->doc()));
 }
 
 int32_t AutoParam::setNodeAtPos(deluge::project::DocAutoParam& doc, int32_t pos, int32_t value,
@@ -1059,7 +1060,7 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 	auto& nodesRef = modelStack->doc()->nodes;
 
 	int32_t oldValue = currentValue;
-	bool automatedBefore = isAutomated();
+	bool automatedBefore = isAutomated(*modelStack->doc());
 	bool automationChanged = false;
 
 	int32_t firstI, mostRecentI;
@@ -1081,7 +1082,7 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 
 	// First, special case if our region covers the whole NoteRow / Clip / TimelineCounter
 	if (length == effectiveLength) {
-		if (isAutomated()) {
+		if (isAutomated(*modelStack->doc())) {
 			deleteAutomation(action, modelStack);
 		}
 		else {
@@ -1139,7 +1140,7 @@ yesChangeCurrentValue:
 	}
 
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
-	                                                          isAutomated());
+	                                                          isAutomated(*modelStack->doc()));
 }
 
 #define REGION_EDGE_LEFT 0
@@ -1357,7 +1358,7 @@ void AutoParam::writeToFile(deluge::project::DocAutoParam const& doc, Serializer
 
 	writer.write("0x");
 
-	int32_t valueNow = (valueForOverride && isAutomated()) ? *valueForOverride : currentValue;
+	int32_t valueNow = (valueForOverride && isAutomated(doc)) ? *valueForOverride : currentValue;
 
 	intToHex(valueNow, buffer);
 	writer.write(buffer);
@@ -1499,8 +1500,8 @@ Error AutoParam::readFromFile(deluge::project::DocAutoParam& doc, Deserializer& 
 	return Error::NONE;
 }
 
-bool AutoParam::containsSomething(uint32_t neutralValue) {
-	if (isAutomated()) {
+bool AutoParam::containsSomething(const deluge::project::DocAutoParam& doc, uint32_t neutralValue) {
+	if (isAutomated(doc)) {
 		return true;
 	}
 	uint32_t* a = (uint32_t*)&currentValue;
@@ -1534,14 +1535,14 @@ void AutoParam::shiftHorizontally(deluge::project::DocAutoParam& doc, int32_t am
 void AutoParam::swapState(AutoParamState* state, ModelStackWithAutoParam const* modelStack) {
 	// M2-E: resolve the DOM node store via the ModelStack (== nodes() in E1; owner-rooted in E3).
 	auto& nodesRef = modelStack->doc()->nodes;
-	bool automatedBefore = isAutomated();
+	bool automatedBefore = isAutomated(*modelStack->doc());
 
 	int32_t oldValueHere = currentValue;
 	currentValue = state->value;
 	state->value = oldValueHere;
 	nodesRef.swap(state->nodes);
 
-	bool automatedNow = isAutomated();
+	bool automatedNow = isAutomated(*modelStack->doc());
 
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValueHere, true, automatedBefore,
 	                                                          automatedNow);
@@ -1552,7 +1553,7 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 	// M2-E: resolve the DOM node store via the ModelStack (== nodes() in E1; owner-rooted in E3).
 	auto& nodesRef = modelStack->doc()->nodes;
 
-	bool automatedBefore = isAutomated();
+	bool automatedBefore = isAutomated(*modelStack->doc());
 	int32_t effectiveLength = modelStack->getLoopLength();
 	int32_t wrappedEndPos = endPos % effectiveLength;
 	bool overwrittingEntireRegion = startPos == 0 && endPos >= effectiveLength;
@@ -1672,7 +1673,7 @@ void AutoParam::paste(int32_t startPos, int32_t endPos, float scaleFactor, Model
 	nodesRef.testSequentiality("E440");
 
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, currentValue, true, automatedBefore,
-	                                                          isAutomated());
+	                                                          isAutomated(*modelStack->doc()));
 }
 
 void AutoParam::copy(int32_t startPos, int32_t endPos, CopiedParamAutomation* copiedParamAutomation, bool isPatchCable,
@@ -1890,7 +1891,7 @@ void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int
 	// M2-E: resolve the DOM node store via the ModelStack (== nodes() in E1; owner-rooted in E3).
 	auto& nodesRef = modelStack->doc()->nodes;
 
-	bool wasAutomatedBefore = isAutomated();
+	bool wasAutomatedBefore = isAutomated(*modelStack->doc());
 
 	if (action) {
 		action->recordParamChangeIfNotAlreadySnapshotted(modelStack);
@@ -1922,7 +1923,7 @@ void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int
 	}
 
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, currentValue, true, wasAutomatedBefore,
-	                                                          isAutomated());
+	                                                          isAutomated(*modelStack->doc()));
 
 	nodesRef.testSequentiality("E423");
 }

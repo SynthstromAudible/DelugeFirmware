@@ -219,7 +219,7 @@ void ParamSet::setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStac
 
 void ParamSet::writeParamAsAttribute(Serializer& writer, char const* name, int32_t p, bool writeAutomation,
                                      bool onlyIfContainsSomething, int32_t* valuesForOverride) {
-	if (onlyIfContainsSomething && !params[p].containsSomething()) {
+	if (onlyIfContainsSomething && !params[p].containsSomething(*params[p].docForThreading())) {
 		return;
 	}
 
@@ -236,7 +236,7 @@ void ParamSet::writeParamAsAttribute(Serializer& writer, char const* name, int32
 void ParamSet::readParam(Deserializer& reader, ParamCollectionSummary* summary, int32_t p,
                          int32_t readAutomationUpToPos) {
 	params[p].readFromFile(*params[p].docForThreading(), reader, readAutomationUpToPos);
-	if (params[p].isAutomated()) {
+	if (params[p].isAutomated(*params[p].docForThreading())) {
 		paramHasAutomationNow(summary, p);
 	}
 }
@@ -296,7 +296,7 @@ void ParamSet::trimToLength(uint32_t newLength, ModelStackWithParamCollection* m
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
 
 	params[p].trimToLength(newLength, action, modelStackWithAutoParam);
-	if (!params[p].isAutomated()) {
+	if (!params[p].isAutomated(*params[p].docForThreading())) {
 		paramHasNoAutomationNow(modelStack, p);
 	}
 
@@ -362,7 +362,7 @@ void ParamSet::deleteTime(ModelStackWithParamCollection* modelStack, int32_t sta
 
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, &params[p]);
 	params[p].deleteTime(startPos, lengthToDelete, modelStackWithAutoParam);
-	if (!params[p].isAutomated()) {
+	if (!params[p].isAutomated(*params[p].docForThreading())) {
 		paramHasNoAutomationNow(modelStack, p);
 	}
 
@@ -379,7 +379,7 @@ void ParamSet::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int3
 
 	param->nudgeNonInterpolatingNodesAtPos(pos, offset, lengthBeforeLoop, action, modelStackWithAutoParam);
 
-	if (!params[p].isAutomated()) {
+	if (!params[p].isAutomated(*params[p].docForThreading())) {
 		paramHasNoAutomationNow(modelStack, p);
 	}
 
@@ -635,7 +635,7 @@ void PatchedParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const
 	case params::LOCAL_CARRIER_1_FEEDBACK:
 	case params::LOCAL_MODULATOR_0_FEEDBACK:
 	case params::LOCAL_MODULATOR_1_FEEDBACK:
-		bool containsSomethingNow = modelStack->autoParam->containsSomething(-2147483648);
+		bool containsSomethingNow = modelStack->autoParam->containsSomething(*modelStack->doc(), -2147483648);
 		bool containedSomethingBefore = AutoParam::containedSomethingBefore(automatedBefore, oldValue, -2147483648);
 		if (containedSomethingBefore != containsSomethingNow) {
 
@@ -850,7 +850,7 @@ void ExpressionParamSet::deleteAllAutomation(Action* action, ModelStackWithParam
             if (whichParamHasAutomation >= 128) {
                 int32_t endAutomatedParams = (whichParamHasAutomation & 127);
                 for (int32_t p = 0; p <= endAutomatedParams; p++) {
-                    if (params[p].isAutomated()) {
+                    if (params[p].isAutomated(*params[p].docForThreading())) {
 
                         params[p].
 

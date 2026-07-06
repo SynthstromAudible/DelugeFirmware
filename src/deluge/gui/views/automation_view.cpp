@@ -857,7 +857,7 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 
 			if (modelStackWithParam && modelStackWithParam->autoParam) {
 				// highlight pad white if the parameter it represents is currently automated
-				if (modelStackWithParam->autoParam->isAutomated()) {
+				if (modelStackWithParam->autoParam->isAutomated(*modelStackWithParam->doc())) {
 					pixel = {
 					    .r = 130,
 					    .g = 120,

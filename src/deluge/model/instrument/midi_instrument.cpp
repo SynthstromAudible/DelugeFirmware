@@ -92,7 +92,7 @@ bool MIDIInstrument::doesAutomationExistOnMIDIParam(ModelStackWithThreeMainThing
 
 	ModelStackWithAutoParam* modelStackWithAutoParam = getParamToControlFromInputMIDIChannel(cc, modelStack);
 	if (modelStackWithAutoParam->autoParam) {
-		automationExists = modelStackWithAutoParam->autoParam->isAutomated();
+		automationExists = modelStackWithAutoParam->autoParam->isAutomated(*modelStackWithAutoParam->doc());
 	}
 
 	return automationExists;
@@ -639,7 +639,8 @@ int32_t MIDIInstrument::getFirstUnusedCC(ModelStackWithThreeMainThings* modelSta
 	while (true) {
 		ModelStackWithAutoParam* modelStackWithAutoParam =
 		    getParamToControlFromInputMIDIChannel(proposedCC, modelStack);
-		if (!modelStackWithAutoParam->autoParam || !modelStackWithAutoParam->autoParam->isAutomated()) {
+		if (!modelStackWithAutoParam->autoParam
+		    || !modelStackWithAutoParam->autoParam->isAutomated(*modelStackWithAutoParam->doc())) {
 			return proposedCC;
 		}
 

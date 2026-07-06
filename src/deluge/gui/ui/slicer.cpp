@@ -599,7 +599,7 @@ getOut:
 		    modelStack->addParam(paramSet, summary, paramId, &paramSet->params[paramId]);
 
 		// Reset osc volume, if it's not automated
-		if (!modelStackWithParam->autoParam->isAutomated()) {
+		if (!modelStackWithParam->autoParam->isAutomated(*modelStackWithParam->doc())) {
 			modelStackWithParam->autoParam->setCurrentValueWithNoReversionOrRecording(modelStackWithParam, 2147483647);
 			//((ParamManagerBase*)soundEditor.currentParamManager)->setPatchedParamValue(params::LOCAL_OSC_A_VOLUME +
 			// soundEditor.currentSourceIndex, 2147483647, 0xFFFFFFFF, 0, soundEditor.currentSound, currentSong,

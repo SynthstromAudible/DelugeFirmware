@@ -260,8 +260,10 @@ void GlobalEffectableForClip::getThingWithMostReverb(Clip* activeClip, Sound** s
 
 		UnpatchedParamSet* unpatchedParams = activeParamManager->getUnpatchedParamSet();
 
-		if (!unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].isAutomated()
-		    && unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].containsSomething(-2147483648)) {
+		if (!unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].isAutomated(
+		        *unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].docForThreading())
+		    && unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].containsSomething(
+		        *unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].docForThreading(), -2147483648)) {
 
 			int32_t reverbHere = unpatchedParams->getValue(params::UNPATCHED_REVERB_SEND_AMOUNT);
 			if (*highestReverbAmountFound < reverbHere) {

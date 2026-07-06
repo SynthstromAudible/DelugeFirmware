@@ -1867,7 +1867,8 @@ probablyApplyBendRangeMain:
 					ExpressionParamSet* expressionParams = paramManager.getOrCreateExpressionParamSet();
 
 					// And only if mono pitch doesn't already contain data/automation...
-					if (expressionParams && !expressionParams->params[0].isAutomated()) {
+					if (expressionParams
+					    && !expressionParams->params[0].isAutomated(*expressionParams->params[0].docForThreading())) {
 						expressionParams->bendRanges[BEND_RANGE_MAIN] = newBendRanges[BEND_RANGE_MAIN];
 					}
 				}
@@ -3097,7 +3098,7 @@ expressionParam:
 							// Most other times you don't have to think about calling this. It's just because we didn't
 							// know which ParamCollection we were gonna load into, and MIDIParamCollection doesn't keep
 							// track of automation.
-							if (param->isAutomated()) {
+							if (param->isAutomated(*param->docForThreading())) {
 								expressionParams->paramHasAutomationNow(summary, paramId);
 							}
 
@@ -4031,7 +4032,8 @@ haveNoDrum:
 								Source* source = &sound->sources[s];
 								if (source->oscType == OscType::SAMPLE) {
 									if (sound->transpose || source->transpose || source->cents
-									    || patchedParams->params[params::LOCAL_PITCH_ADJUST].containsSomething(0)
+									    || patchedParams->params[params::LOCAL_PITCH_ADJUST].containsSomething(
+									        *patchedParams->params[params::LOCAL_PITCH_ADJUST].docForThreading(), 0)
 									    //||
 									    // thisNoteRow->paramManager->patchCableSet.doesParamHaveSomethingPatchedToIt(params::LOCAL_PITCH_ADJUST)
 									    //// No, can't call these cos patching isn't set up yet. Oh well
@@ -4039,7 +4041,10 @@ haveNoDrum:
 									    // thisNoteRow->paramManager->patchCableSet.doesParamHaveSomethingPatchedToIt(params::LOCAL_OSC_A_PITCH_ADJUST
 									    //+ s)
 									    || patchedParams->params[params::LOCAL_OSC_A_PITCH_ADJUST + s]
-									           .containsSomething(0)) {
+									           .containsSomething(
+									               *patchedParams->params[params::LOCAL_OSC_A_PITCH_ADJUST + s]
+									                    .docForThreading(),
+									               0)) {
 
 										source->sampleControls.interpolationMode = InterpolationMode::LINEAR;
 									}
@@ -4705,7 +4710,8 @@ bool InstrumentClip::hasAnyPitchExpressionAutomationOnNoteRows() {
 	for (int32_t i = 0; i < std::ssize(noteRows); i++) {
 		NoteRow* thisNoteRow = &noteRows[i];
 		ExpressionParamSet* expressionParams = thisNoteRow->paramManager.getExpressionParamSet();
-		if (expressionParams && expressionParams->params[0].isAutomated()) {
+		if (expressionParams
+		    && expressionParams->params[0].isAutomated(*expressionParams->params[0].docForThreading())) {
 			return true;
 		}
 	}

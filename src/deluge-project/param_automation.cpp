@@ -83,7 +83,7 @@ void refreshAutomationFlags(ParamSet& set, ParamCollectionSummary& summary) {
 	}
 	int32_t numParams = set.getNumParams();
 	for (int32_t p = 0; p < numParams; p++) {
-		if (set.params[p].isAutomated()) {
+		if (set.params[p].isAutomated(*set.params[p].docForThreading())) {
 			set.paramHasAutomationNow(&summary, p);
 		}
 	}
@@ -650,7 +650,7 @@ void readLiveParam(Deserializer& in, ParamSet& set, ParamCollectionSummary& summ
                    int32_t readAutomationUpToPos) {
 	DocAutoParam doc = readDocAutoParam(in, readAutomationUpToPos);
 	fromDocAutoParam(doc, set.params[p]);
-	if (set.params[p].isAutomated()) {
+	if (set.params[p].isAutomated(*set.params[p].docForThreading())) {
 		set.paramHasAutomationNow(&summary, p);
 	}
 }
