@@ -237,50 +237,22 @@ investigatePrevNode:
 				}
 			}
 
-			int32_t leftI;
-
-			// Special case (though I feel like this could maybe be used more...)
-			// - recording MPE (not mono expression) *linearly*. Just insert one node, and that can change the value
-			// everywhere from here to the next node - we don't need to preserve the "original" value in any part of
-			// that region because it's going to get overridden any time another note is inserted into it, anyway. And
-			// we want our value to last as long as possible, for the note's release-tail.
-			// might as well do this for when the ticks are longer than 0.2s too
-			if (doMPEMode || ticksToClear == 0) {
-				leftI = setNodeAtPos(livePos, value, reversed || shouldInterpolateRegionStart);
-				if (leftI == -1) {
-					goto getOut;
-				}
+			// M2-D.3: forward the recording node write to the recordLiveValue DOM kernel — it captures exactly
+			// this branch's node mutation (setNodeAtPos for the MPE / zero-clear shortcut, else homogenizeRegion
+			// + the reversed further-right-node fixup, then current_value=value). interpolateLeft is the engine's
+			// already-decided `reversed || shouldInterpolateRegionStart`. recordingLinearly is only consulted deep
+			// in homogenizeRegion's forward-wrap branch (Clip-recording context), so guard the Clip cast against a
+			// Song timeline (same reasoning + fix as AutoParam::homogenizeRegion). The engine's leftI==-1
+			// early-outs are dead here: the DOM container's inserts are infallible, so the kernel never returns -1.
+			bool shouldInterpolateLeft = reversed || shouldInterpolateRegionStart;
+			bool recordingLinearly = false;
+			if (TimelineCounter* tc = modelStack->getTimelineCounterAllowNull();
+			    tc && tc != static_cast<TimelineCounter*>(modelStack->song)) {
+				recordingLinearly = static_cast<Clip*>(tc)->getCurrentlyRecordingLinearly();
 			}
-
-			// Or, normal case.
-			else {
-
-				bool shouldInterpolateLeft = reversed || shouldInterpolateRegionStart;
-
-#if ENABLE_SEQUENTIALITY_TESTS
-				// drbourbon got, when check was inside homogenizeRegion(). Now trying to work out where that came from.
-				// March 2022.
-				nodes().testSequentiality("E435");
-#endif
-
-				leftI = homogenizeRegion(modelStack, livePos, ticksToClear, value, shouldInterpolateLeft, true,
-				                         effectiveLength, reversed, posAtWhichPlaybackWillCut);
-				if (leftI == -1) {
-					goto getOut;
-				}
-
-				if (reversed) {
-					int32_t iFurtherRight = leftI + 2;
-					if (iFurtherRight >= std::ssize(nodes())) {
-						iFurtherRight -= std::ssize(nodes());
-					}
-					if (iFurtherRight >= std::ssize(nodes())) {
-						iFurtherRight -= std::ssize(nodes());
-					}
-					ParamNode* nodeFurtherRight = &nodes()[iFurtherRight];
-					nodeFurtherRight->interpolated = true; // Imperfect, but sorta have to.
-				}
-			}
+			int32_t leftI = deluge::project::recordLiveValue(*doc_, livePos, value, ticksToClear, doMPEMode,
+			                                                 shouldInterpolateLeft, effectiveLength, reversed,
+			                                                 recordingLinearly, posAtWhichPlaybackWillCut);
 
 			// Now that we've definitely left any previous nodes alone, see if they form a linear run and we can delete
 			// some of them? We'll just not bother with this if reversed, for now... or ever...
