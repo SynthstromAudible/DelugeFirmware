@@ -1037,68 +1037,25 @@ void AutoParam::setValuePossiblyForRegion(int32_t value, ModelStackWithAutoParam
 // For MPE when a note gets deleted, and we want to just simply delete nodes and let previous ones' value spill into
 // this area.
 void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length) {
+	// M2-C: keep the whole wiring seam (Action, whole-loop deleteAutomation, notify); forward only the partial
+	// region erase to the DOM kernel (value sync-bridge, since it may zero current_value when nothing remains).
 	if (!isAutomated()) {
 		return;
 	}
-
 	int32_t oldValue = currentValue;
-
 	int32_t effectiveLength = modelStack->getLoopLength();
-
 	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
-
 	if (length >= effectiveLength) {
-		deleteAutomation(action, modelStack);
+		deleteAutomation(action, modelStack); // whole loop — keep the engine's own snapshot/notify path
 	}
 	else {
-
 		if (action) {
 			action->recordParamChangeIfNotAlreadySnapshotted(modelStack, false);
 		}
-
-		bool wrapping;
-		int32_t resultingIndexes[2];
-
-		{
-			int32_t searchTerms[2];
-			searchTerms[0] = pos;
-			searchTerms[1] = pos + length;
-			wrapping = (searchTerms[1] >= effectiveLength);
-			if (wrapping) {
-				searchTerms[0] = searchTerms[1] - effectiveLength;
-				searchTerms[1] = pos;
-			}
-
-			nodes().searchDual(searchTerms, resultingIndexes);
-		}
-
-		if (wrapping) {
-			// Erase the before-wrap tail [resultingIndexes[1], end) FIRST. Erasing the after-wrap front shifts
-			// every later element left, which would invalidate resultingIndexes[1] (previously this left
-			// before-wrap nodes undeleted whenever there were also after-wrap nodes). The two ranges are
-			// disjoint, so tail-first keeps both valid.
-			int32_t numAtEnd = std::ssize(nodes()) - resultingIndexes[1];
-			if (numAtEnd) {
-				nodes().erase(nodes().begin() + resultingIndexes[1], nodes().begin() + resultingIndexes[1] + numAtEnd);
-			}
-			if (resultingIndexes[0]) {
-				nodes().erase(nodes().begin() + 0, nodes().begin() + 0 + resultingIndexes[0]);
-			}
-		}
-
-		else {
-			int32_t numToDelete = resultingIndexes[1] - resultingIndexes[0];
-			if (numToDelete) {
-				nodes().erase(nodes().begin() + resultingIndexes[0],
-				              nodes().begin() + resultingIndexes[0] + numToDelete);
-			}
-		}
-
-		if (!isAutomated()) {
-			currentValue = 0; // For safety, with MPE. Actually very necessary.
-		}
+		doc_->current_value = currentValue;
+		deluge::project::deleteNodesWithinRegion(*doc_, pos, length, effectiveLength);
+		currentValue = doc_->current_value;
 	}
-
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, true, true, isAutomated());
 }
 
@@ -2120,307 +2077,28 @@ void AutoParam::insertTime(int32_t pos, int32_t lengthToInsert) {
 // Offset must be either 1 or -1.
 void AutoParam::moveRegionHorizontally(ModelStackWithAutoParam const* modelStack, int32_t pos, int32_t length,
                                        int32_t offset, int32_t lengthBeforeLoop, Action* action) {
-
+	// M2-C: keep the Action-snapshot wiring seam; forward the node mutation to the DOM kernel. The empty-gate
+	// stays here so we don't snapshot an Action when there's nothing to move (matching the engine order).
 	if (nodes().empty()) {
 		return;
 	}
-
 	if (action) {
 		action->recordParamChangeDefinitely(modelStack, false);
 	}
-
-	if (length == lengthBeforeLoop) {
-justShiftEverything:
-		shiftHorizontally(offset, lengthBeforeLoop);
-		return;
-	}
-
-	int32_t endPos = pos + length;
-	if (endPos > lengthBeforeLoop) { // Wrap
-
-		endPos -= lengthBeforeLoop;
-		int32_t resultingIndexes[2];
-		{
-			int32_t searchTerms[2];
-			searchTerms[0] = endPos;
-			searchTerms[1] = pos;
-			nodes().searchDual(searchTerms, resultingIndexes);
-		}
-
-		if (resultingIndexes[0] == resultingIndexes[1]) {
-			goto justShiftEverything;
-		}
-
-		// Moving right...
-		if (offset == 1) {
-
-			// If anything after wrap...
-			if (resultingIndexes[0]) {
-				// If rightmost node collides with endPos, delete it
-				int32_t rightMostIndex = resultingIndexes[0] - 1;
-				ParamNode* rightMost = &nodes()[rightMostIndex];
-				if (rightMost->pos >= endPos - 1) {
-					nodes().erase(nodes().begin() + rightMostIndex);
-					resultingIndexes[0]--;
-					resultingIndexes[1]--;
-				}
-			}
-
-			// And if anything before wrap...
-			if (resultingIndexes[1] < std::ssize(nodes())) {
-				int32_t indexBeforeWrap = std::ssize(nodes()) - 1;
-				ParamNode* nodeBeforeWrap = &nodes()[indexBeforeWrap];
-
-				// If that needs to move right and wrap around...
-				if (nodeBeforeWrap->pos >= lengthBeforeLoop - 1) {
-					ParamNode tempNode = *nodeBeforeWrap;
-					nodes().erase(nodes().begin() + indexBeforeWrap, nodes().begin() + indexBeforeWrap + 1);
-					(void)nodes().insertAt(0); // Shouldn't be able to fail....
-					ParamNode* nodeAfterWrap = &nodes()[0];
-					*nodeAfterWrap = tempNode;
-					nodeAfterWrap->pos = -1; // It'll get incremented below
-					resultingIndexes[0]++;
-					resultingIndexes[1]++;
-				}
-			}
-
-			for (int32_t i = 0; i < resultingIndexes[0]; i++) { // After wrap
-				nodes()[i].pos++;
-			}
-			for (int32_t i = resultingIndexes[1]; i < std::ssize(nodes()); i++) { // Before wrap
-				nodes()[i].pos++;
-			}
-		}
-
-		// Moving left
-		else {
-			// If there's anything after the wrap...
-			if (resultingIndexes[0]) {
-				ParamNode* nodeAfterWrap = &nodes()[0];
-				// If we need to wrap it around to the end...
-				if (nodeAfterWrap->pos == 0) {
-					ParamNode tempNode = *nodeAfterWrap;
-					int32_t rightMostIndex = std::ssize(nodes()) - 1;
-					nodes().erase(nodes().begin() + 0, nodes().begin() + 0 + 1);
-					(void)nodes().insertAt(rightMostIndex); // Surely can't fail
-					ParamNode* rightMostNode = &nodes()[rightMostIndex];
-					*rightMostNode = tempNode;
-					rightMostNode->pos = lengthBeforeLoop; // It'll get decremented below.
-					resultingIndexes[0]--;
-					resultingIndexes[1]--;
-				}
-			}
-
-			// And now if our left edge is going to eat into anything...
-			if (resultingIndexes[1] && resultingIndexes[1] < std::ssize(nodes())) {
-				int32_t prevNodeIndex = resultingIndexes[1] - 1;
-				ParamNode* prevNode = &nodes()[prevNodeIndex];
-				if (prevNode->pos >= pos - 1) {
-					nodes().erase(nodes().begin() + prevNodeIndex);
-					resultingIndexes[1]--;
-				}
-			}
-
-			// These decrement loops belong INSIDE the move-left branch. Previously they sat after the offset
-			// if/else, so they also ran after the move-right branch and cancelled its increments above — making
-			// a loop-wrapping move-right a silent no-op.
-			for (int32_t i = 0; i < resultingIndexes[0]; i++) { // After wrap
-				nodes()[i].pos--;
-			}
-			for (int32_t i = resultingIndexes[1]; i < std::ssize(nodes()); i++) { // Before wrap
-				nodes()[i].pos--;
-			}
-		}
-	}
-
-	else { // No wrap
-		int32_t resultingIndexes[2];
-		{
-			int32_t searchTerms[2];
-			searchTerms[0] = pos;
-			searchTerms[1] = endPos;
-			nodes().searchDual(searchTerms, resultingIndexes);
-		}
-
-		if (!resultingIndexes[0] && resultingIndexes[1] == std::ssize(nodes())) {
-			goto justShiftEverything;
-		}
-
-		if (resultingIndexes[1] != resultingIndexes[0]) { // Hmm I don't think we quite want to do this check...
-
-			// If moving them right, that's pretty easy. Nothing can even wrap because our moving bit slams into a brick
-			// wall to the right.
-			if (offset == 1) {
-
-				// If rightmost node collides with endPos, delete it
-				int32_t rightMostIndex = resultingIndexes[1] - 1;
-				ParamNode* rightMost = &nodes()[rightMostIndex];
-				if (rightMost->pos >= endPos - 1) {
-					nodes().erase(nodes().begin() + rightMostIndex);
-					resultingIndexes[1]--;
-				}
-
-				for (int32_t i = resultingIndexes[0]; i < resultingIndexes[1]; i++) {
-					nodes()[i].pos++;
-				}
-			}
-
-			// Moving left
-			else {
-
-				// If there's anything to the left that we'll eat into...
-				if (resultingIndexes[0] > 0) {
-
-					int32_t prevNodeIndex = resultingIndexes[0] - 1;
-					ParamNode* prevNode = &nodes()[prevNodeIndex];
-					if (prevNode->pos >= pos - 1) {
-						nodes().erase(nodes().begin() + prevNodeIndex);
-						resultingIndexes[0]--;
-						resultingIndexes[1]--;
-					}
-				}
-
-				// Or if we don't have space to the left...
-				else {
-					ParamNode* leftMostNode = &nodes()[resultingIndexes[0]];
-					if (leftMostNode->pos) {} // All good - it can go left
-					else {
-						// Ok, we have to wrap it.
-						// Delete any node at the far right of the loop
-						int32_t lastNodeIndex = std::ssize(nodes()) - 1;
-						ParamNode* lastNode = &nodes()[lastNodeIndex];
-
-						// Well actually, if it's right there, we'll just reuse it and delete our old one
-						if (lastNode->pos == lengthBeforeLoop - 1) {
-							*lastNode = *leftMostNode;
-						}
-
-						// Otherwise, have to delete our old one and put a new one at the end.
-						else {
-							ParamNode tempNode = *leftMostNode;
-							nodes().erase(nodes().begin() + 0, nodes().begin() + 0 + 1);
-							(void)nodes().insertAt(lastNodeIndex); // Yes, lastNodeIndex is still correct. And, this
-							                                       // really shouldn't be able to give an error...
-							lastNode = &nodes()[lastNodeIndex];
-							*lastNode = tempNode;
-						}
-
-						lastNode->pos = lengthBeforeLoop - 1;
-						resultingIndexes[1]--; // There's one less node we'll have to move below
-					}
-				}
-
-				for (int32_t i = resultingIndexes[0]; i < resultingIndexes[1]; i++) {
-					nodes()[i].pos--;
-				}
-			}
-		}
-	}
+	deluge::project::moveRegionHorizontally(*doc_, pos, length, offset, lengthBeforeLoop);
 }
 
 void AutoParam::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int32_t lengthBeforeLoop, Action* action,
                                                 ModelStackWithAutoParam const* modelStack) {
-	auto nodeIt = nodes().find_key(pos);
-	if (nodeIt != nodes().end()) {
-		int32_t nodeI = static_cast<int32_t>(nodeIt - nodes().begin());
-
-		if (action) {
-			action->recordParamChangeDefinitely(modelStack, false);
-		}
-
-		ParamNode* node = (ParamNode*)&nodes()[nodeI];
-		if (!node->interpolated) {
-
-			int32_t newNodePos = pos + offset;
-			int32_t nextNodeI;
-
-			// If that's caused wrapping left...
-			if (newNodePos < 0) {
-				newNodePos += lengthBeforeLoop;
-				nextNodeI = std::ssize(nodes()) - 2; // Subtract 2 instead of the normal 1 cos we're about to delete
-				                                     // one element before doing anything with this index number
-
-doWrap:
-				// There should never be just one node
-				if (ALPHA_OR_BETA_VERSION && std::ssize(nodes()) == 1) {
-					FREEZE_WITH_ERROR("E335");
-				}
-				int32_t ourValue = node->value; // Grab this before deleting stuff
-
-				// Delete the old node
-				nodes().erase(nodes().begin() + nodeI);
-
-				ParamNode* nextNode = (ParamNode*)&nodes()[nextNodeI];
-
-				// If that next node is at the pos we're wanting to nudge to, and would hence get deleted, we can just
-				// copy to it
-				if (nextNode->pos == newNodePos) {
-
-					// But if that would all mean that we'd actually end up with only 1 node, well that's not allowed.
-					// (Actually it is now, but let's be safe.)
-					if (std::ssize(nodes()) == 1) {
-						nodes().clear();
-					}
-
-					// But yeah normally that'll be fine - just go copy to that node we've collided with
-					else {
-						goto setNodeValue;
-					}
-				}
-
-				// Otherwise, create a new node
-				else {
-					nextNodeI = std::ssize(nodes());
-					{
-						Error error = nodes().insertAt(nextNodeI).error_or(
-						    Error::NONE); // This shouldn't be able to fail, cos we just deleted a node
-						if (ALPHA_OR_BETA_VERSION && error != Error::NONE) {
-							FREEZE_WITH_ERROR("E333");
-						}
-					}
-
-					nextNode = (ParamNode*)&nodes()[nextNodeI];
-					nextNode->pos = newNodePos;
-
-setNodeValue:
-					nextNode->value = ourValue;
-					nextNode->interpolated = false;
-				}
-			}
-
-			// Or if wrapping right...
-			else if (newNodePos >= lengthBeforeLoop) {
-				newNodePos -= lengthBeforeLoop;
-				nextNodeI = 0;
-				goto doWrap;
-			}
-
-			// Or if no wrapping
-			else {
-
-				// Nudge our node
-				nextNodeI = nodeI + offset;
-				node->pos = newNodePos;
-
-				// If no previously existing nodes further in that direction at all, that's easy
-				if (nextNodeI < 0 || nextNodeI >= std::ssize(nodes())) {}
-
-				// Or if some node, have a look at it, and delete it if it's been collided with
-				else {
-					ParamNode* nextNode = (ParamNode*)&nodes()[nextNodeI];
-					if (nextNode->pos == newNodePos) {
-						nodes().erase(nodes().begin() + nextNodeI);
-					}
-				}
-			}
-		}
+	// M2-C: the Action snapshot fires whenever a node exists at pos (engine gate), regardless of whether the
+	// node is interpolated; forward the node mutation to the DOM kernel, then keep the RT interpolation reset.
+	if (action && nodes().find_key(pos) != nodes().end()) {
+		action->recordParamChangeDefinitely(modelStack, false);
 	}
-
+	deluge::project::nudgeNonInterpolatingNodesAtPos(*doc_, pos, offset, lengthBeforeLoop);
 	if (nodes().empty()) {
 		resetInterpolationIncrement(); // In case we were interpolating.
 	}
-
-	nodes().testSequentiality("E334");
 }
 
 void AutoParam::notifyPingpongOccurred() {
