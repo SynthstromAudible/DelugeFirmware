@@ -244,4 +244,28 @@ void shiftParamVolumeByDB(DocAutoParam& p, float offset);
 /// Faithful port of AutoParam::makeInterpolationGoodAgain.
 bool makeInterpolationGoodAgain(DocAutoParam& p, int32_t clipLength, int32_t quantizationRShift);
 
+/// Record a live value at the current playback position: the pure node-mutation core of
+/// AutoParam::setCurrentValueInResponseToUserInput's "recording" branch (the setNodeAtPos/homogenizeRegion
+/// "clear ~0.2s ahead" call, plus the reversed further-right-node interpolated fixup). Sets `current_value` to
+/// `value`, matching the engine's unconditional `currentValue = value` at its `getOut` label. Returns the
+/// leftmost affected node index.
+///
+/// Timeline context is explicit (as with the other kernels): `effectiveLength` is the loop length,
+/// `posAtWhichPlaybackWillCut` bounds a non-looping clip (2147483647 = no cut), `reversed` is the playback
+/// direction, `recordingLinearly` is the clip's getCurrentlyRecordingLinearly() (consulted only by
+/// homogenizeRegion on a forward wrap with no cut). `ticksToClear` is the region length ahead of `livePos` to
+/// homogenize (the engine's "0.2 seconds ahead", already converted from real time by the caller); `doMPEMode`
+/// (or `ticksToClear == 0`) selects the single-node MPE shortcut over homogenizing a region. `interpolateLeft`
+/// is the engine's already-decided `reversed || shouldInterpolateRegionStart` flag (that real-time-threshold
+/// heuristic itself stays engine-side, exactly as homogenizeRegion already takes its own interpolate flags as
+/// plain bools). Faithful port of the recording branch's node mutation.
+///
+/// NOT ported (stay engine-side): whether to record at all, the "clip too short" early-out
+/// (ticksToClear >= effectiveLength — a trivial nodes.clear() the caller does directly), the interpolation
+/// cursor, Action snapshotting, notifyParamModifiedInSomeWay, and deleteRedundantNodeInLinearRun's post-write
+/// pruning (a private AutoParam method, a separate concern layered on top of this mutation).
+int32_t recordLiveValue(DocAutoParam& p, int32_t livePos, int32_t value, int32_t ticksToClear, bool doMPEMode,
+                        bool interpolateLeft, int32_t effectiveLength, bool reversed, bool recordingLinearly,
+                        int32_t posAtWhichPlaybackWillCut = 2147483647);
+
 } // namespace deluge::project

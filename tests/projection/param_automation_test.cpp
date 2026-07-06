@@ -2371,6 +2371,99 @@ int main() {
 		}
 	}
 
+	// Movement 2 (M2-A): recordLiveValue — the recording branch's node mutation (setNodeAtPos OR homogenizeRegion
+	// + reversed fixup, then current_value=value). No standalone engine method exists (it's inline in
+	// setCurrentValueInResponseToUserInput), so — as with setValueForRegion above — a local lambda transcribes the
+	// engine control flow (auto_param.cpp lines ~245-280 + the getOut currentValue=value) while calling the REAL
+	// ap.setNodeAtPos / ap.homogenizeRegion, keeping that half genuinely engine-exercised.
+	{
+		using deluge::project::DocAutoParam;
+		struct N {
+			int32_t pos;
+			int32_t value;
+			bool interpolated;
+		};
+
+		auto engineRecordLiveValue = [](AutoParam& ap, ModelStackWithAutoParam* ms, int32_t livePos, int32_t value,
+		                                int32_t ticksToClear, bool doMPE, bool interpL, int32_t effLen, bool reversed,
+		                                int32_t cut) -> int32_t {
+			int32_t leftI;
+			if (doMPE || ticksToClear == 0) {
+				leftI = ap.setNodeAtPos(livePos, value, interpL);
+			}
+			else {
+				leftI = ap.homogenizeRegion(ms, livePos, ticksToClear, value, interpL, /*interpR=*/true, effLen,
+				                            reversed, cut);
+				if (reversed && leftI != -1) {
+					int32_t iFurtherRight = leftI + 2;
+					if (iFurtherRight >= static_cast<int32_t>(ap.nodes().size())) {
+						iFurtherRight -= static_cast<int32_t>(ap.nodes().size());
+					}
+					if (iFurtherRight >= static_cast<int32_t>(ap.nodes().size())) {
+						iFurtherRight -= static_cast<int32_t>(ap.nodes().size());
+					}
+					ap.nodes()[iFurtherRight].interpolated = true;
+				}
+			}
+			ap.currentValue = value;
+			return leftI;
+		};
+
+		const std::vector<std::vector<N>> configs = {
+		    {},
+		    {{48, 7, false}},
+		    {{0, 10, true}, {32, 20, true}, {64, 30, false}, {96, -40, true}},
+		};
+		struct Case {
+			int32_t livePos, ticksToClear, value;
+			bool doMPE, interpL, reversed;
+			int32_t cut;
+		};
+		constexpr int32_t MAXCUT = 2147483647;
+		const Case cases[] = {
+		    {40, 0, 500, false, true, false, MAXCUT},   // ticksToClear==0 -> setNodeAtPos, forward
+		    {40, 32, 500, true, true, false, MAXCUT},   // doMPE -> setNodeAtPos even with a region
+		    {40, 0, -300, false, false, false, MAXCUT}, // setNodeAtPos, stepped
+		    {16, 32, 500, false, true, false, MAXCUT},  // homogenize forward non-wrap
+		    {0, 64, -300, false, false, false, MAXCUT}, // homogenize forward from 0
+		    {60, 40, -7, false, false, false, MAXCUT},  // homogenize forward, 60+40=100<128
+		    {96, 32, 42, false, true, true, 0},         // homogenize reversed + fixup
+		    {100, 50, -5, false, false, true, 0},       // homogenize reversed + fixup
+		    {96, 48, 33, false, true, true, 64},        // homogenize reversed clip-cut + fixup
+		};
+		const int32_t effLen = 128;
+		for (const auto& cfg : configs) {
+			for (const auto& c : cases) {
+				AutoParam ap;
+				DocAutoParam doc{};
+				for (const N& n : cfg) {
+					setNode(ap, n.pos, n.value, n.interpolated);
+					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
+				}
+				// Reserve headroom: the engine's homogenizeRegion has a latent dangling-pointer bug on mid-op
+				// reallocation (the DOM port is index-based and immune) — same guard the blocks above use.
+				(void)ap.nodes().reserveExtra(4);
+
+				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+				auto* ms = reinterpret_cast<ModelStackWithAutoParam*>(buf);
+				ms->song = nullptr;
+				ms->setTimelineCounter(nullptr);
+				NoteRow nr;
+				nr.loopLengthIfIndependent = effLen;
+				ms->setNoteRow(&nr);
+
+				int32_t engRet = engineRecordLiveValue(ap, ms, c.livePos, c.value, c.ticksToClear, c.doMPE, c.interpL,
+				                                       effLen, c.reversed, c.cut);
+				int32_t domRet = deluge::project::recordLiveValue(doc, c.livePos, c.value, c.ticksToClear, c.doMPE,
+				                                                  c.interpL, effLen, c.reversed,
+				                                                  /*recordingLinearly=*/false, c.cut);
+				check(engRet == domRet, "recordLiveValue: return index matches engine oracle");
+				check(ap.currentValue == doc.current_value, "recordLiveValue: current_value matches engine");
+				expectDocMatchesEngine(ap, doc, "recordLiveValue: nodes match engine oracle");
+			}
+		}
+	}
+
 	if (failures == 0) {
 		std::fprintf(stdout, "param_automation projection: OK\n");
 		std::fflush(stdout);

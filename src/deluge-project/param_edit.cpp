@@ -1464,4 +1464,36 @@ bool makeInterpolationGoodAgain(DocAutoParam& p, int32_t clipLength, int32_t qua
 	return true;
 }
 
+int32_t recordLiveValue(DocAutoParam& p, int32_t livePos, int32_t value, int32_t ticksToClear, bool doMPEMode,
+                        bool interpolateLeft, int32_t effectiveLength, bool reversed, bool recordingLinearly,
+                        int32_t posAtWhichPlaybackWillCut) {
+	int32_t leftI;
+
+	// Special case (as in the engine): recording MPE linearly, or a zero-length region — insert one node.
+	if (doMPEMode || ticksToClear == 0) {
+		leftI = setNodeAtPos(p, livePos, value, interpolateLeft);
+	}
+	// Normal case: homogenize (collapse) the region ahead of livePos to `value`.
+	else {
+		leftI = homogenizeRegion(p, livePos, ticksToClear, value, interpolateLeft, /*interpolateRightNode=*/true,
+		                         effectiveLength, reversed, recordingLinearly, posAtWhichPlaybackWillCut);
+
+		if (reversed) {
+			auto& nodes = p.nodes;
+			const auto size = static_cast<int32_t>(nodes.size());
+			int32_t iFurtherRight = leftI + 2;
+			if (iFurtherRight >= size) {
+				iFurtherRight -= size;
+			}
+			if (iFurtherRight >= size) {
+				iFurtherRight -= size;
+			}
+			nodes[iFurtherRight].interpolated = true; // Imperfect, but sorta have to (per the engine comment).
+		}
+	}
+
+	p.current_value = value;
+	return leftI;
+}
+
 } // namespace deluge::project
