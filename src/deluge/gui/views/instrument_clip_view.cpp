@@ -7450,6 +7450,7 @@ void InstrumentClipView::handleMacroTargetPickerPad(int32_t x, int32_t y) {
 				macroTargetPickerSecondLayer = false;
 				macroTargetPickerLastX = x;
 				macroTargetPickerLastY = y;
+				showSelectedMacroPickerTargetReadout();
 				return;
 			}
 			toAdd = second;
@@ -7478,6 +7479,24 @@ void InstrumentClipView::handleMacroTargetPickerPad(int32_t x, int32_t y) {
 	macroTargetPickerLastX = x;
 	macroTargetPickerLastY = y;
 	uiNeedsRendering(this, 0xFFFFFFFF, 0); // refresh the assigned-highlight
+	showSelectedMacroPickerTargetReadout();
+}
+
+// On a pad tap / selection change, show the selected target's "<destination> / From - To" readout and
+// seed the knob rings, so the same feedback the macro-lane view gives on target-button PRESS appears
+// immediately - not only once the gold knob is first turned.
+void InstrumentClipView::showSelectedMacroPickerTargetReadout() {
+	if (macroTargetPickerLastSlot < 0 || macroTargetPickerMacro < 0) {
+		return;
+	}
+	MelodicInstrument* instrument = Macros::macroClipInstrument(getCurrentClip());
+	if (instrument == nullptr) {
+		return;
+	}
+	uint8_t destination = instrument->macros[macroTargetPickerMacro].targets[macroTargetPickerLastSlot].destination;
+	automationView.showMacroTargetRangeReadout(instrument, macroTargetPickerMacro, macroTargetPickerLastSlot,
+	                                           destination, false);
+	automationView.showMacroTargetRangeKnobIndicators(instrument, macroTargetPickerMacro, macroTargetPickerLastSlot);
 }
 
 void InstrumentClipView::deleteSelectedMacroTarget() {

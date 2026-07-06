@@ -215,6 +215,8 @@ public:
 	// Gold-knob turn while macroPickerEditingTarget(): knob 0 edits the selected target's From, knob 1
 	// its To, with the same range readout + knob-ring feedback as the macro-lane view.
 	void handleMacroPickerModEncoder(int32_t whichModEncoder, int32_t offset);
+	// Shows the selected target's range readout + knob rings on tap / selection change (press feedback).
+	void showSelectedMacroPickerTargetReadout();
 	int8_t macroTargetPickerLastX = -1;
 	int8_t macroTargetPickerLastY = -1;
 	int8_t macroTargetPickerLastSlot = -1;
