@@ -168,6 +168,11 @@ void shiftHorizontally(DocAutoParam& p, int32_t amount, int32_t effectiveLength)
 }
 
 namespace {
+
+// = util/const_functions.h's rshift_round_signed; param_edit is self-contained so it's replicated here.
+int32_t rshiftRoundSigned(int32_t value, uint32_t rshift) {
+	return (value + (1 << (rshift - 1))) >> rshift; // (Rohan) I never was quite 100% sure of this...
+}
 // = engine lshiftAndSaturate<1>: clamp to the signed 31-bit range, then <<1 (a saturating doubling). Used by
 // copyRegion/pasteRegion for the patch-cable node-range <-> parameter-range conversion.
 int32_t lshiftAndSaturateBy1(int32_t val) {
@@ -1358,6 +1363,105 @@ void shiftParamVolumeByDB(DocAutoParam& p, float offset) {
 	for (ParamNode& node : p.nodes) {
 		node.value = shiftVolumeByDB(node.value, offset);
 	}
+}
+
+bool makeInterpolationGoodAgain(DocAutoParam& p, int32_t clipLength, int32_t quantizationRShift) {
+	auto& nodes = p.nodes;
+
+	if (nodes.size() <= 1) {
+		return true;
+	}
+
+	int32_t stopAtElement = static_cast<int32_t>(nodes.size());
+
+	for (int32_t i = 0; i < stopAtElement; i++) {
+		// Read into locals before any insertion below (which can reallocate/shift the backing store).
+		if (!nodes[i].interpolated) {
+			continue;
+		}
+		int32_t thisPos = nodes[i].pos;
+		int32_t thisValue = nodes[i].value;
+
+		int32_t prevI = i - 1;
+		if (prevI == -1) {
+			prevI = static_cast<int32_t>(nodes.size()) - 1;
+		}
+		int32_t prevValue = nodes[prevI].value;
+		int32_t prevPos = nodes[prevI].pos;
+
+		// This function deals with "small" values, which for CCs will be between -64 and 64. Yup, they're
+		// bidirectional.
+		int32_t thisSmallValue = rshiftRoundSigned(thisValue >> 1, quantizationRShift - 1);
+		int32_t lastSmallValue = rshiftRoundSigned(prevValue >> 1, quantizationRShift - 1);
+
+		int32_t smallValueChange = thisSmallValue - lastSmallValue;
+
+		int32_t absoluteSmallValueChange = smallValueChange;
+		int32_t gradientDirection = 1;
+		if (absoluteSmallValueChange < 0) {
+			absoluteSmallValueChange = -absoluteSmallValueChange;
+			gradientDirection = -1;
+		}
+		if (absoluteSmallValueChange < 2) {
+			continue;
+		}
+
+		int32_t prevNodePos = prevPos;
+		int32_t distance = thisPos - prevNodePos;
+		if (distance < 0) {
+			distance += clipLength;
+		}
+
+		if (distance < 2) {
+			continue;
+		}
+
+		bool isSteep = (distance < absoluteSmallValueChange);
+		int32_t maxJ = isSteep ? distance : absoluteSmallValueChange;
+		for (int32_t j = 1; j < maxJ; j++) {
+			int32_t thisNewPos;
+			int32_t newSmallValue;
+
+			if (isSteep) {
+				thisNewPos = prevNodePos + j;
+				newSmallValue = lastSmallValue + smallValueChange * j / distance;
+			}
+			else {
+				thisNewPos =
+				    prevNodePos + static_cast<int32_t>(static_cast<uint64_t>(distance) * j / absoluteSmallValueChange);
+				newSmallValue = lastSmallValue + j * gradientDirection;
+			}
+
+			if (thisNewPos >= clipLength) {
+				thisNewPos -= clipLength;
+			}
+
+			auto inserted = nodes.insertSorted(thisNewPos);
+			if (!inserted.has_value()) {
+				return false; // out of RAM — matches AutoParam::Error::INSUFFICIENT_RAM
+			}
+			int32_t newNodeI = *inserted;
+			if (newNodeI <= i) {
+				i++;
+				stopAtElement++;
+			}
+			ParamNode& newNode = nodes[newNodeI];
+			newNode.interpolated = true;
+
+			int32_t newBigValue;
+			if (newSmallValue == (1 << (31 - quantizationRShift))) {
+				newBigValue = 2147483647; // clamp: a CC value as high as 64 must fit a 32-bit signed int when <<'d.
+			}
+			else {
+				newBigValue = newSmallValue << quantizationRShift;
+			}
+			newNode.value = newBigValue;
+		}
+	}
+
+	nodes.testSequentiality("E414");
+
+	return true;
 }
 
 } // namespace deluge::project

@@ -235,4 +235,13 @@ void insertStolenNodes(DocAutoParam& p, int32_t pos, int32_t regionLength, int32
 /// AutoParam::shiftParamVolumeByDB (the dB curve is duplicated verbatim above to stay bit-identical).
 void shiftParamVolumeByDB(DocAutoParam& p, float offset);
 
+/// Insert extra interpolated nodes along a run so a coarsely-quantized interpolation approximates a smooth
+/// ramp: for each interpolated node whose "small" (quantized-down) value differs from its predecessor's by 2+
+/// steps, synthesises intermediate nodes tracing a straight-line gradient. `clipLength` resolves the
+/// wrap-around distance to the previous node (the engine reads it from the Clip); `quantizationRShift` sets
+/// how coarse a "small" value is (22 for pitch bend, 25 for other MIDI params) and how synthesised values scale
+/// back up. Returns false only on allocation failure (engine's Error::INSUFFICIENT_RAM — a partial completion).
+/// Faithful port of AutoParam::makeInterpolationGoodAgain.
+bool makeInterpolationGoodAgain(DocAutoParam& p, int32_t clipLength, int32_t quantizationRShift);
+
 } // namespace deluge::project

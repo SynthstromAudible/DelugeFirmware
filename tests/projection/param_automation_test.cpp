@@ -2329,6 +2329,48 @@ int main() {
 		}
 	}
 
+	// Movement 2 (M2-A): makeInterpolationGoodAgain — inserts gradient nodes; oracle diff over CC-style configs.
+	// Non-pathological inputs (ascending positions < clipLength, no wrap collision) so both op + kernel do real
+	// insertion work and agree bit-for-bit. quantizationRShift 22 (pitch bend) + 25 (other MIDI), as the callers use.
+	{
+		struct N {
+			int32_t pos;
+			int32_t value;
+			bool interpolated;
+		};
+		struct Cfg {
+			int32_t clipLength;
+			std::vector<N> nodes;
+		};
+		const int32_t kNeg = -2147483647; // small ~ -64
+		const int32_t kPos = 2147483647;  // small ~ +64
+		const std::vector<Cfg> cfgs = {
+		    {192, {}},                                                   // empty
+		    {192, {{0, 100000000, true}}},                               // single node — early return
+		    {192, {{0, kNeg, true}, {96, kPos, true}}},                  // steep full-range sweep (inserts many)
+		    {192, {{0, 0, true}, {48, 500000000, true}}},                // gentle non-steep ramp
+		    {192, {{0, 0, false}, {48, 500000000, true}}},               // leading stepped node then interp
+		    {384, {{0, kNeg, true}, {120, 0, true}, {300, kPos, true}}}, // three-node up-ramp
+		    {192,
+		     {{0, 0, true}, {96, 400000000, true}, {190, 0, true}}}, // node[0] interp: exercises the loop wrap-read
+		};
+		const int32_t rshifts[] = {22, 25};
+		for (const auto& cfg : cfgs) {
+			for (int32_t rs : rshifts) {
+				AutoParam ap;
+				deluge::project::DocAutoParam doc{};
+				for (const N& n : cfg.nodes) {
+					setNode(ap, n.pos, n.value, n.interpolated);
+					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
+				}
+				ap.makeInterpolationGoodAgain(cfg.clipLength, rs);
+				bool ok = deluge::project::makeInterpolationGoodAgain(doc, cfg.clipLength, rs);
+				check(ok, "makeInterpolationGoodAgain: kernel completes (no RAM failure)");
+				expectDocMatchesEngine(ap, doc, "makeInterpolationGoodAgain: nodes match engine");
+			}
+		}
+	}
+
 	if (failures == 0) {
 		std::fprintf(stdout, "param_automation projection: OK\n");
 		std::fflush(stdout);
