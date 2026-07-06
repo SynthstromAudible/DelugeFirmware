@@ -231,4 +231,8 @@ void stealNodes(DocAutoParam& p, int32_t pos, int32_t regionLength, int32_t loop
 void insertStolenNodes(DocAutoParam& p, int32_t pos, int32_t regionLength, int32_t loopLength,
                        const StolenNodes& stolenNodes);
 
+/// Shift current_value and every node value by `offset` dB (a perceptual volume shift). Faithful port of
+/// AutoParam::shiftParamVolumeByDB (the dB curve is duplicated verbatim above to stay bit-identical).
+void shiftParamVolumeByDB(DocAutoParam& p, float offset);
+
 } // namespace deluge::project

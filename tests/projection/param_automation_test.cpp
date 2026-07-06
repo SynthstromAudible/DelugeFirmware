@@ -2294,6 +2294,41 @@ int main() {
 		}
 	}
 
+	// Movement 2 (M2-A): shiftParamVolumeByDB — dB-domain shift of current_value + node values; oracle diff.
+	// (float math, but the engine op and kernel run identical code, so they agree on each arch.)
+	{
+		struct N {
+			int32_t pos;
+			int32_t value;
+			bool interpolated;
+		};
+		const std::vector<std::vector<N>> cfgs = {
+		    {},
+		    {{0, 1000000000, true}, {48, 100000000, false}},
+		    {{0, -500000000, true}, {48, 2000000000, false}},
+		};
+		const int32_t cvs[] = {0, 500000000, -1000000000, 2000000000};
+		const float offs[] = {0.0f, 1.0f, 3.5f, 6.0f, 100.0f};
+		for (const auto& cfg : cfgs) {
+			for (int32_t cv : cvs) {
+				for (float off : offs) {
+					AutoParam ap;
+					ap.currentValue = cv;
+					deluge::project::DocAutoParam doc{};
+					doc.current_value = cv;
+					for (const N& n : cfg) {
+						setNode(ap, n.pos, n.value, n.interpolated);
+						deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
+					}
+					ap.shiftParamVolumeByDB(off);
+					deluge::project::shiftParamVolumeByDB(doc, off);
+					check(ap.currentValue == doc.current_value, "shiftParamVolumeByDB: current_value matches engine");
+					expectDocMatchesEngine(ap, doc, "shiftParamVolumeByDB: nodes match engine");
+				}
+			}
+		}
+	}
+
 	if (failures == 0) {
 		std::fprintf(stdout, "param_automation projection: OK\n");
 		std::fflush(stdout);

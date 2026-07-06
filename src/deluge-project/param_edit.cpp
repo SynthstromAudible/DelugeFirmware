@@ -180,6 +180,45 @@ int32_t lshiftAndSaturateBy1(int32_t val) {
 	return val << 1;
 }
 
+// Verbatim duplicate of the engine's dbIntervals table + shiftVolumeByDB (util/functions.cpp) so param_edit
+// stays self-contained. Copied EXACTLY — including the integer-division quirk (howFarUpIntervalFloat is always
+// 0) — so the dB-domain volume shift is bit-identical to the engine's.
+const float dbIntervals[] = {
+    24, // Not really real
+    12.1, 7, 5, 3.9, 3.2, 2.6, 2.4, 2, 1.8, 1.7, 1.5, 1.4, 1.3, 1.2, 1.1,
+};
+int32_t shiftVolumeByDB(int32_t oldValue, float offset) {
+	uint32_t oldValuePositive = (uint32_t)oldValue + 2147483648;
+	uint32_t currentInterval = oldValuePositive >> 28;
+	if (currentInterval >= 1) {
+		uint32_t newValuePositive;
+		int32_t howFarUpInterval = oldValuePositive & 268435455;
+		float howFarUpIntervalFloat = howFarUpInterval / 268435456; // (engine int-division quirk: always 0)
+doInterval:
+		float dbThisInterval = dbIntervals[currentInterval];
+		float dbLeftThisInterval = ((float)1 - howFarUpIntervalFloat) * dbThisInterval;
+		if (dbLeftThisInterval > offset) {
+			float amountOfRemainingDBWeWant = offset / dbLeftThisInterval;
+			float newHowFarUpIntervalFloat = howFarUpIntervalFloat + amountOfRemainingDBWeWant;
+			uint32_t newHowFarUpInterval = newHowFarUpIntervalFloat * 268435456;
+			newValuePositive = (currentInterval << 28) + newHowFarUpInterval;
+		}
+		else {
+			currentInterval++;
+			if (currentInterval == 16) {
+				newValuePositive = 4294967295u;
+			}
+			else {
+				offset -= dbLeftThisInterval;
+				howFarUpIntervalFloat = 0;
+				goto doInterval;
+			}
+		}
+		return newValuePositive - 2147483648u;
+	}
+	return oldValue;
+}
+
 // Saturating add matching AutoParam::shiftValues: clamp to the signed 32-bit range.
 int32_t addSaturating(int32_t value, int32_t offset) {
 	int64_t newValue = static_cast<int64_t>(value) + offset;
@@ -1311,6 +1350,13 @@ void insertStolenNodes(DocAutoParam& p, int32_t pos, int32_t regionLength, int32
 		}
 		nodes[destI] = stolenNode;
 		nodes[destI].pos = destPos;
+	}
+}
+
+void shiftParamVolumeByDB(DocAutoParam& p, float offset) {
+	p.current_value = shiftVolumeByDB(p.current_value, offset);
+	for (ParamNode& node : p.nodes) {
+		node.value = shiftVolumeByDB(node.value, offset);
 	}
 }
 
