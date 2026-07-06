@@ -149,6 +149,22 @@ static void appendTargetName(StringBuf& buf, MelodicInstrument* instrument, int3
 	Macros::appendDestinationName(buf, instrument, destination);
 }
 
+// Appends one From/To endpoint in the destination's OWN display terms: raw 0..127 for a MIDI CC
+// target (a CC is inherently 0..127), or the menu knob range (0..50, or -25..+25 for pan/pitch) for a
+// synth param - the same number the automation view shows for that param. `endpoint` is the stored
+// 0..maxTargetValue unit; for synth that 0..128 space equals the automation view's knobPos+offset, so
+// calculateKnobPosForDisplay yields the identical readout.
+static void appendTargetEndpoint(StringBuf& buf, MelodicInstrument* instrument, uint8_t destination, uint8_t endpoint) {
+	if (Macros::domainForOutput(instrument) == Macros::Domain::MIDI) {
+		buf.appendInt(endpoint); // raw CC value
+		return;
+	}
+	deluge::modulation::params::Kind kind;
+	int32_t paramID;
+	Macros::decodeSynthDestination(destination, &kind, &paramID);
+	buf.appendInt(view.calculateKnobPosForDisplay(kind, paramID, endpoint));
+}
+
 // While a target quick-edit button is held, the gold-knob LED bars show the target's range live:
 // left bar = From, right bar = To (matching which knob edits which endpoint). Default 0-127 reads
 // as From empty, To full. view.setKnobIndicatorLevels() restores them on release.
@@ -183,9 +199,9 @@ static void showTargetFull(MelodicInstrument* instrument, int32_t macroIndex, in
 	else {
 		appendTargetName(popup, instrument, target, destination);
 		popup.append(display->haveOLED() ? '\n' : ' ');
-		popup.appendInt(f.from);
+		appendTargetEndpoint(popup, instrument, destination, f.from);
 		popup.append(" - ");
-		popup.appendInt(f.to);
+		appendTargetEndpoint(popup, instrument, destination, f.to);
 	}
 	display->popupText(popup.c_str());
 }
