@@ -1906,6 +1906,11 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
 	// regular automation / note editing action
 	if (isUIModeWithinRange(editPadActionUIModes) && isSquareDefined(x, xScroll, xZoom)) {
 		if (inAutomationEditor()) {
+			// A macro-driven param's value is owned by the macro (it overwrites each tick), so refuse the
+			// pad edit and nudge to the macro instead of writing a value that would just snap back.
+			if (velocity && refuseEditIfMacroDriven(clip)) {
+				return ActionResult::DEALT_WITH;
+			}
 			automationEditorLayoutModControllable.automationEditPadAction(modelStackWithParam, clip, x, y, velocity,
 			                                                              effectiveLength, xScroll, xZoom);
 		}
@@ -2695,6 +2700,17 @@ bool AutomationView::clearMacroTargetAssignment(int32_t macroIndex, int32_t targ
 	return ok;
 }
 
+bool AutomationView::refuseEditIfMacroDriven(Clip* clip) {
+	if (onArrangerView || clip == nullptr) {
+		return false;
+	}
+	if (Macros::isParamMacroDriven(clip, clip->lastSelectedParamKind, clip->lastSelectedParamID)) {
+		display->displayPopup(l10n::get(l10n::String::STRING_FOR_MACRO_DRIVEN));
+		return true;
+	}
+	return false;
+}
+
 bool AutomationView::toggleMacroLaneActive() {
 	int32_t macroIndex = 0;
 	MelodicInstrument* instrument = macroLaneInstrument(getCurrentClip(), &macroIndex);
@@ -2779,6 +2795,12 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 			Macros::showTargetKnobIndicators(instrument, macroIndex, heldTarget);
 			return;
 		}
+	}
+
+	// A macro-driven param can't be edited from its own lane - the macro overwrites its value each tick,
+	// so the knob would just snap back. Nudge to the macro instead of writing.
+	if (refuseEditIfMacroDriven(getCurrentClip())) {
+		return;
 	}
 
 	// ok we're on the automation editor, so both mod encoders will edit the currently selected parameter

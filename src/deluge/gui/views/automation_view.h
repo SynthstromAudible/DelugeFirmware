@@ -146,6 +146,10 @@ public:
 	// Clears a target's assignment (SHIFT+SAVE while holding its button): deletes the baked
 	// automation on that param and hands ownership to any shadowed co-target. Returns success.
 	bool clearMacroTargetAssignment(int32_t macroIndex, int32_t target);
+	// If the selected automation param is driven by an active macro, flash the "(Macro Driven)" popup and
+	// return true so the caller refuses the value edit (the macro would overwrite it). Edit the macro
+	// instead. Clip-only. Returns false (edit allowed) on arranger / non-macro / not-macro-driven params.
+	bool refuseEditIfMacroDriven(Clip* clip);
 	// SHIFT + horizontal encoder press on a macro lane: toggle that macro Active/Inactive.
 	bool toggleMacroLaneActive();
 
