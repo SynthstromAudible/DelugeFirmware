@@ -842,7 +842,7 @@ Error PatchCableSet::clone(ParamCollection*& result, bool copyAutomation, int32_
 
 void PatchCableSet::stripAutomation() {
 	for (int32_t c = 0; c < numUsablePatchCables; c++) {
-		patchCables[c].param.nodes().clear();
+		patchCables[c].param.docForThreading()->nodes.clear();
 	}
 }
 

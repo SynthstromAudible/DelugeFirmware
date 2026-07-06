@@ -1795,11 +1795,11 @@ void AutoParam::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int
                                                 ModelStackWithAutoParam const* modelStack) {
 	// M2-C: the Action snapshot fires whenever a node exists at pos (engine gate), regardless of whether the
 	// node is interpolated; forward the node mutation to the DOM kernel, then keep the RT interpolation reset.
-	if (action && nodes().find_key(pos) != nodes().end()) {
+	if (action && modelStack->doc()->nodes.find_key(pos) != modelStack->doc()->nodes.end()) {
 		action->recordParamChangeDefinitely(modelStack, false);
 	}
 	deluge::project::nudgeNonInterpolatingNodesAtPos(*modelStack->doc(), pos, offset, lengthBeforeLoop);
-	if (nodes().empty()) {
+	if (modelStack->doc()->nodes.empty()) {
 		resetInterpolationIncrement(); // In case we were interpolating.
 	}
 }

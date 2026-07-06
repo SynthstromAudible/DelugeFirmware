@@ -32,13 +32,13 @@ ConsequenceParamChange::ConsequenceParamChange(ModelStackWithAutoParam const* mo
 
 	// Either steal the data...
 	if (stealData) {
-		state.nodes.swap(modelStack->autoParam->nodes());
+		state.nodes.swap(modelStack->doc()->nodes);
 	}
 
 	// Or copy it...
 	else {
 		try {
-			state.nodes = modelStack->autoParam->nodes();
+			state.nodes = modelStack->doc()->nodes;
 		} catch (deluge::exception&) {
 			// OOM while recording undo: leave the snapshot's nodes empty (best-effort undo, no crash).
 		}

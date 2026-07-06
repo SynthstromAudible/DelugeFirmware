@@ -198,7 +198,7 @@ void Action::recordParamChangeIfNotAlreadySnapshotted(ModelStackWithAutoParam co
 		// Except, if we were planning to steal the data, well we'd better pretend we've just done that by deleting it
 		// instead.
 		if (stealData) {
-			modelStack->autoParam->nodes().clear();
+			modelStack->doc()->nodes.clear();
 		}
 		return;
 	}

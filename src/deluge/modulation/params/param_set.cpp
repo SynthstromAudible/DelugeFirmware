@@ -74,7 +74,7 @@ deluge::project::DocParamSet* ParamSet::domStore() {
 void ParamSet::stripAutomation() {
 	int32_t numParams = getNumParams();
 	for (int32_t p = 0; p < numParams; p++) {
-		params[p].nodes().clear();
+		params[p].docForThreading()->nodes.clear();
 	}
 }
 

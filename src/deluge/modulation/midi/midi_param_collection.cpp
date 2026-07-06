@@ -126,7 +126,7 @@ Error MIDIParamCollection::clone(ParamCollection*& result, bool copyAutomation,
 
 void MIDIParamCollection::stripAutomation() {
 	for (MIDIParam& midiParam : params) {
-		midiParam.param.nodes().clear();
+		midiParam.param.docForThreading()->nodes.clear();
 	}
 }
 

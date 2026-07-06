@@ -4616,9 +4616,9 @@ doNormal: // Wrap it back to the start.
 		if (effectiveLength == distanceToNextNote) {
 			param->deleteAutomation(nullptr, modelStackWithAutoParam, false);
 
-			Error error = param->nodes().insertAt(0).error_or(Error::NONE);
+			Error error = param->docForThreading()->nodes.insertAt(0).error_or(Error::NONE);
 			if (error == Error::NONE) {
-				ParamNode* firstNode = &param->nodes()[0];
+				ParamNode* firstNode = &param->docForThreading()->nodes[0];
 				firstNode->pos = quantizedPos;
 				firstNode->value = value;
 				firstNode->interpolated = reversed;
@@ -4628,8 +4628,9 @@ doNormal: // Wrap it back to the start.
 		else if (reversed) {
 doHomogenize:
 #if ENABLE_SEQUENTIALITY_TESTS
-			param->nodes().testSequentiality("E442"); // drbourbon got, when check was inside homogenizeRegion(). Now
-			                                          // trying to work out where that came from. March 2022.
+			param->docForThreading()->nodes.testSequentiality(
+			    "E442"); // drbourbon got, when check was inside homogenizeRegion(). Now
+			             // trying to work out where that came from. March 2022.
 #endif
 
 			param->homogenizeRegion(modelStackWithAutoParam, quantizedPos, distanceToNextNote, value, reversed,
