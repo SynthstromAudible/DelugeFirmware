@@ -17,6 +17,7 @@
 
 #include "deluge-project/param_edit.h"
 #include <algorithm>
+#include <cmath>
 
 namespace deluge::project {
 
@@ -167,6 +168,18 @@ void shiftHorizontally(DocAutoParam& p, int32_t amount, int32_t effectiveLength)
 }
 
 namespace {
+// = engine lshiftAndSaturate<1>: clamp to the signed 31-bit range, then <<1 (a saturating doubling). Used by
+// copyRegion/pasteRegion for the patch-cable node-range <-> parameter-range conversion.
+int32_t lshiftAndSaturateBy1(int32_t val) {
+	if (val > 1073741823) { // 2^30 - 1
+		val = 1073741823;
+	}
+	else if (val < -1073741824) { // -2^30
+		val = -1073741824;
+	}
+	return val << 1;
+}
+
 // Saturating add matching AutoParam::shiftValues: clamp to the signed 32-bit range.
 int32_t addSaturating(int32_t value, int32_t offset) {
 	int64_t newValue = static_cast<int64_t>(value) + offset;
@@ -1039,6 +1052,266 @@ std::optional<bool> setValueForRegion(DocAutoParam& p, uint32_t pos, uint32_t le
 		p.current_value = value;
 	}
 	return true;
+}
+
+void copyRegion(const DocAutoParam& p, int32_t startPos, int32_t endPos, int32_t loopLength, bool isPatchCable,
+                CopiedAutomation& out) {
+	const auto& nodes = p.nodes;
+
+	int32_t startI = firstAtOrAfter(nodes, startPos);
+	int32_t endI = firstAtOrAfter(nodes, endPos);
+
+	out.width = endPos - startPos;
+	out.nodes.clear();
+
+	int32_t numNodes = endI - startI;
+
+	bool insertingExtraNodeAtStart = false;
+	if (numNodes > 0 && nodes[startI].pos != startPos) {
+		insertingExtraNodeAtStart = true;
+		numNodes++;
+	}
+
+	if (numNodes <= 0) {
+		return;
+	}
+
+	out.nodes.reserve(numNodes);
+
+	if (insertingExtraNodeAtStart) {
+		ParamNode newNode;
+		newNode.pos = 0;
+		newNode.value = getValueAtPos(p, static_cast<uint32_t>(startPos), loopLength);
+		newNode.interpolated = false;
+
+		if (isPatchCable) {
+			newNode.value = lshiftAndSaturateBy1(newNode.value);
+		}
+
+		out.nodes.push_back(newNode);
+	}
+
+	// Fill in all the Nodes' details.
+	for (int32_t readingNodeI = startI; static_cast<int32_t>(out.nodes.size()) < numNodes; readingNodeI++) {
+		ParamNode newNode = nodes[readingNodeI];
+		newNode.pos -= startPos;
+
+		if (isPatchCable) {
+			newNode.value = lshiftAndSaturateBy1(newNode.value);
+		}
+
+		out.nodes.push_back(newNode);
+	}
+}
+
+void pasteRegion(DocAutoParam& p, int32_t startPos, int32_t endPos, float scaleFactor, int32_t loopLength,
+                 bool isPatchCable, const CopiedAutomation& copied) {
+	if (copied.nodes.empty()) {
+		return; // engine FREEZE_WITH_ERRORs on this precondition in debug builds; the kernel just no-ops.
+	}
+
+	auto& nodes = p.nodes;
+
+	int32_t effectiveLength = loopLength;
+	int32_t wrappedEndPos = endPos % effectiveLength;
+	bool overwrittingEntireRegion = startPos == 0 && endPos >= effectiveLength;
+
+	// Save the current value at the start and end of the region we're pasting in to, before we start messing
+	// with it.
+	int32_t startValue = getValueAtPos(p, static_cast<uint32_t>(startPos), effectiveLength);
+	int32_t endValue = getValueAtPos(p, static_cast<uint32_t>(wrappedEndPos), effectiveLength);
+
+	// Clear out any nodes that already exist in the region we're pasting in to.
+	int32_t iDeleteBegin = firstAtOrAfter(nodes, startPos);
+	int32_t iDeleteEnd = firstAtOrAfter(nodes, endPos);
+	int32_t numToDelete = iDeleteEnd - iDeleteBegin;
+	if (numToDelete > 0) {
+		nodes.erase(nodes.begin() + iDeleteBegin, nodes.begin() + iDeleteBegin + numToDelete);
+	}
+
+	// Make sure that automation data before the paste region starts and after it ends aligns with what we're
+	// about to put there.
+	if (!overwrittingEntireRegion) {
+		// The copied parameter automation always has a node at t=0; if that doesn't match the existing content
+		// we need to insert a node right before it to preserve the automation before the paste.
+		if (startValue != copied.nodes[0].value) {
+			int32_t ticksBeforeStart = 1;
+			int32_t resetPos = (ticksBeforeStart > startPos) ? (effectiveLength + startPos) - ticksBeforeStart
+			                                                 : (startPos - ticksBeforeStart);
+			int32_t resetI = firstAtOrAfter(nodes, resetPos);
+			ParamNode* resetNode = nodes.tryGet(resetI);
+
+			if (resetNode == nullptr || resetNode->pos != resetPos) {
+				bool previousNodeInterpolated = resetNode != nullptr ? resetNode->interpolated : true;
+				(void)nodes.insertAt(resetI);
+
+				resetNode = &nodes[resetI];
+				resetNode->pos = resetPos;
+				resetNode->interpolated = previousNodeInterpolated;
+			}
+
+			resetNode->value = startValue;
+		}
+
+		// If the final node does not match the value at the end position, we need to insert a node.
+		const ParamNode& finalNode = copied.nodes.back();
+		if (endValue != finalNode.value) {
+			int32_t resetPos = 0;
+			// The copied automation has a node that will overlap, need to insert 1-past-the-end.
+			if (finalNode.pos == endPos - startPos) {
+				// wrappedEndPos+1 is always within the sequence length since a sequence length of 0 or 1 is
+				// probably super broken in other places.
+				resetPos = wrappedEndPos + 1;
+			}
+			else {
+				resetPos = wrappedEndPos;
+			}
+
+			int32_t resetI = firstAtOrAfter(nodes, resetPos);
+			ParamNode* resetNode = nodes.tryGet(resetI);
+
+			if (!resetNode || resetNode->pos != resetPos) {
+				(void)nodes.insertAt(resetI);
+
+				resetNode = &nodes[resetI];
+				resetNode->pos = resetPos;
+				resetNode->interpolated = finalNode.interpolated;
+			}
+
+			resetNode->value = endValue;
+		}
+	}
+
+	// Ok now paste the stuff.
+	int32_t minPos = 0;
+	int32_t maxPos = std::min(endPos, effectiveLength);
+
+	for (const ParamNode& nodeSource : copied.nodes) {
+		int32_t newPos = startPos + static_cast<int32_t>(roundf(static_cast<float>(nodeSource.pos) * scaleFactor));
+
+		// Make sure that with dividing and rounding, we're not overlapping the previous node - or past the end
+		// of the screen / Clip.
+		if (newPos < minPos || newPos >= maxPos) {
+			continue;
+		}
+
+		int32_t nodeDestI = nodes.insertSorted(newPos).value_or(-1);
+		ParamNode* nodeDest = nodes.tryGet(nodeDestI);
+		if (!nodeDest) {
+			return;
+		}
+
+		nodeDest->value = nodeSource.value;
+		nodeDest->interpolated = nodeSource.interpolated;
+
+		if (isPatchCable) {
+			nodeDest->value >>= 1;
+		}
+
+		minPos = newPos + 1;
+	}
+
+	nodes.testSequentiality("E440");
+}
+
+/* -------------------------------------------------------------------------------------------------------------
+ * Supporting additions (NOT to be appended standalone — merge into the existing anonymous-namespace helper
+ * block and includes; see "risks" for exact placement):
+ *
+ * 1. Add `#include <cmath>` to the top of param_edit.cpp (for roundf), alongside the existing <algorithm>.
+ *
+ * 2. Add this helper into the existing anonymous namespace (next to addSaturating/firstAtOrAfter):
+ *
+ * // Port of lshiftAndSaturate<1>(val): clamp val to the signed 31-bit range ([-2^30, 2^30-1]) then shift left 1
+ * // — the patch-cable convention for converting a patch-cable-range node value into the general parameter range.
+ * // param_edit.cpp is self-contained and can't include util/functions.h (which has no ARM-vs-host split anyway
+ * // for this op — signed_saturate<31> is the same plain clamp on both), so this is a local re-derivation.
+ * int32_t lshiftAndSaturateBy1(int32_t val) {
+ * 	constexpr int32_t hi = 1073741823;  // 2^30 - 1
+ * 	constexpr int32_t lo = -1073741824; // -2^30
+ * 	int32_t clamped = val > hi ? hi : (val < lo ? lo : val);
+ * 	return clamped << 1;
+ * }
+ * ------------------------------------------------------------------------------------------------------------- */
+
+void stealNodes(DocAutoParam& p, int32_t pos, int32_t regionLength, int32_t loopLength, StolenNodes* outStolen) {
+	auto& nodes = p.nodes;
+
+	int32_t stopAt = pos + regionLength;
+	int32_t durationAfterWrap = stopAt - loopLength;
+
+	int32_t resultingIndex0 = firstAtOrAfter(nodes, pos);
+	int32_t resultingIndex1 = firstAtOrAfter(nodes, stopAt); // == searchDual's second search from index0
+
+	int32_t numNodesToStealBeforeWrap = resultingIndex1 - resultingIndex0;
+
+	int32_t numNodesToStealAfterWrap = 0;
+	if (durationAfterWrap > 0) {
+		numNodesToStealAfterWrap = firstAtOrAfter(nodes, durationAfterWrap);
+	}
+
+	if (outStolen) {
+		int32_t numNodesToStealTotal = numNodesToStealBeforeWrap + numNodesToStealAfterWrap;
+		if (numNodesToStealTotal > 0) {
+			outStolen->resize(numNodesToStealTotal);
+
+			int32_t sourceI = resultingIndex0;
+			int32_t stopAtI = resultingIndex1;
+			int32_t destI = 0;
+			for (;;) {
+				while (sourceI < stopAtI) {
+					ParamNode& dest = (*outStolen)[destI];
+					dest = nodes[sourceI];
+					dest.pos -= pos;
+					if (dest.pos < 0) {
+						dest.pos += loopLength;
+					}
+					sourceI++;
+					destI++;
+				}
+				if (stopAtI == numNodesToStealAfterWrap) {
+					break;
+				}
+				sourceI = 0;
+				stopAtI = numNodesToStealAfterWrap;
+			}
+		}
+	}
+
+	// Now actually delete the source nodes. Before-wrap first: that erase only ever touches indices at/after
+	// resultingIndex0, so it can't disturb the after-wrap front's indices (0..numNodesToStealAfterWrap), which
+	// is why the engine's order here (unlike deleteNodesWithinRegion's) was already safe.
+	if (numNodesToStealBeforeWrap > 0) {
+		nodes.erase(nodes.begin() + resultingIndex0, nodes.begin() + resultingIndex0 + numNodesToStealBeforeWrap);
+	}
+	if (numNodesToStealAfterWrap > 0) {
+		nodes.erase(nodes.begin(), nodes.begin() + numNodesToStealAfterWrap);
+	}
+}
+
+void insertStolenNodes(DocAutoParam& p, int32_t pos, int32_t regionLength, int32_t loopLength,
+                       const StolenNodes& stolenNodes) {
+	// First, clear the destination area (an un-recorded steal, matching the engine's own call into itself).
+	stealNodes(p, pos, regionLength, loopLength);
+
+	auto& nodes = p.nodes;
+	// This is really inefficient. (Carried over from the engine's own comment.)
+	for (const ParamNode& stolenNode : stolenNodes) {
+		if (stolenNode.pos >= regionLength) {
+			break; // Our destination region is shorter than that of the stolen nodes.
+		}
+		int32_t destPos = stolenNode.pos + pos;
+		if (destPos >= loopLength) {
+			destPos -= loopLength;
+		}
+
+		int32_t destI = nodes.insertSorted(destPos).value_or(-1);
+		if (destI == -1) {
+			break;
+		}
+		nodes[destI] = stolenNode;
+		nodes[destI].pos = destPos;
+	}
 }
 
 } // namespace deluge::project

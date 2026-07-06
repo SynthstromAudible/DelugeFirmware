@@ -18,6 +18,7 @@
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/automation/copied_param_automation.h" // engine clipboard type for the copy/paste oracle
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_manager.h"
@@ -2043,6 +2044,253 @@ int main() {
 			auto r = deluge::project::setValueForRegion(doc, 16, 32, 500, 128, true, true, false, false, 0, false);
 			check(r.has_value() && *r == true,
 			      "setValueForRegion: normal homogenize-region path reports automationChanged=true");
+		}
+	}
+
+	// Phase 4: copyRegion + pasteRegion (automation copy/paste) — engine-oracle diff. AutoParam::copy only
+	// touches the ModelStack via getValueAtPos (→getLoopLength), so it's callable with the light NoteRow
+	// harness (like deleteTime/moveRegionHorizontally above); AutoParam::paste additionally ends in
+	// notifyParamModifiedInSomeWay, which walks up through paramCollection/paramManager, so its destination
+	// AutoParam has to be a real slot inside a real ParamManagerForTimeline (paste's automationChanged is
+	// always true, but playbackHandler is idle in this harness, so the notify is a safe no-op).
+	//
+	// NOTE for the integrator: this block requires an added top-of-file include in
+	// tests/projection/param_automation_test.cpp:
+	//   #include "modulation/automation/copied_param_automation.h"
+	// (needed to construct a real ::CopiedParamAutomation on the stack; not transitively included today).
+	{
+		using deluge::project::CopiedAutomation;
+		using deluge::project::DocAutoParam;
+		struct N {
+			int32_t pos, value;
+			bool interpolated;
+		};
+		const std::vector<std::vector<N>> srcConfigs = {
+		    {},
+		    {{48, 7, false}},
+		    {{0, 10, true}, {32, 20, true}, {64, 30, false}, {96, -40, true}},
+		    {{0, -1073741824, true}, {40, 1073741823, false}, {90, 12345, true}},
+		};
+		const std::vector<std::vector<N>> dstConfigs = {
+		    {},
+		    {{20, -5, true}, {70, 15, false}},
+		};
+		const int32_t loopLen = 128;
+		constexpr int32_t kDstParamId = 2;
+
+		auto lightStack = [](char* buf, int32_t effLen, NoteRow& nr) -> ModelStackWithAutoParam* {
+			auto* ms = reinterpret_cast<ModelStackWithAutoParam*>(buf);
+			ms->song = nullptr;
+			ms->setTimelineCounter(nullptr);
+			nr.loopLengthIfIndependent = effLen;
+			ms->setNoteRow(&nr);
+			return ms;
+		};
+
+		// Unlike lightStack, this walks the real chain (addTimelineCounter/addNoteRow/addOtherTwoThings/
+		// getUnpatchedAutoParamFromId) so paramCollection/paramManager/autoParam all end up consistently set,
+		// which paste's trailing notifyParamModifiedInSomeWay needs.
+		auto fullStack = [](char* buf, int32_t effLen, NoteRow& nr,
+		                    ParamManagerForTimeline& pm) -> ModelStackWithAutoParam* {
+			auto* ms = reinterpret_cast<ModelStack*>(buf);
+			ms->song = nullptr;
+			auto* withTC = ms->addTimelineCounter(nullptr);
+			auto* withNR = withTC->addNoteRow(0, &nr);
+			nr.loopLengthIfIndependent = effLen;
+			auto* with3 = withNR->addOtherTwoThings(nullptr, &pm);
+			return with3->getUnpatchedAutoParamFromId(kDstParamId);
+		};
+
+		const struct {
+			int32_t startPos, endPos;
+		} copyCases[] = {{0, 32}, {16, 48}, {32, 96}, {64, 128}, {0, 128}};
+
+		const struct {
+			int32_t startPos, endPos;
+			float scaleFactor;
+		} pasteCases[] = {
+		    {0, 32, 1.0f},  {16, 48, 1.0f},   {32, 96, 1.0f},
+		    {0, 128, 1.0f}, {100, 170, 1.0f}, // wraps past loopLen (wrappedEndPos = 42)
+		    {20, 60, 2.0f}, {10, 90, 0.5f},
+		};
+
+		for (const auto& srcCfg : srcConfigs) {
+			for (bool isPatchCable : {false, true}) {
+				for (const auto& cc : copyCases) {
+					// Build matching engine + DOM source params.
+					AutoParam ap;
+					DocAutoParam doc{};
+					for (const N& n : srcCfg) {
+						setNode(ap, n.pos, n.value, n.interpolated);
+						deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
+					}
+					(void)ap.nodes().reserveExtra(4);
+
+					::CopiedParamAutomation ca; // engine automation clipboard carrier
+					CopiedAutomation domCopied;
+
+					alignas(ModelStackWithAutoParam) char cbuf[MODEL_STACK_MAX_SIZE];
+					NoteRow cnr;
+					ap.copy(cc.startPos, cc.endPos, &ca, isPatchCable, lightStack(cbuf, loopLen, cnr));
+					deluge::project::copyRegion(doc, cc.startPos, cc.endPos, loopLen, isPatchCable, domCopied);
+
+					check(ca.width == domCopied.width, "copyRegion: width matches engine oracle");
+					check(ca.numNodes == static_cast<int32_t>(domCopied.nodes.size()),
+					      "copyRegion: node count matches engine oracle");
+					for (int32_t i = 0; i < ca.numNodes && i < static_cast<int32_t>(domCopied.nodes.size()); i++) {
+						check(ca.nodes[i].pos == domCopied.nodes[i].pos, "copyRegion: node pos matches engine oracle");
+						check(ca.nodes[i].value == domCopied.nodes[i].value,
+						      "copyRegion: node value matches engine oracle");
+						check(ca.nodes[i].interpolated == domCopied.nodes[i].interpolated,
+						      "copyRegion: node interpolated matches engine oracle");
+					}
+
+					if (ca.numNodes == 0) {
+						if (ca.nodes) {
+							delugeDealloc(ca.nodes);
+						}
+						continue; // nothing copied — paste requires a non-empty clipboard (an ALPHA_OR_BETA_VERSION
+						          // FREEZE_WITH_ERROR precondition in the engine).
+					}
+
+					for (const auto& dstCfg : dstConfigs) {
+						for (const auto& pc : pasteCases) {
+							ParamManagerForTimeline pm;
+							check(pm.setupWithPatching() == Error::NONE, "copy_paste: pm setup");
+							AutoParam& ap2 = pm.getUnpatchedParamSet()->params[kDstParamId];
+							DocAutoParam doc2{};
+							for (const N& n : dstCfg) {
+								setNode(ap2, n.pos, n.value, n.interpolated);
+								deluge::project::setNodeAtPos(doc2, n.pos, n.value, n.interpolated);
+							}
+							(void)ap2.nodes().reserveExtra(4);
+
+							alignas(ModelStackWithAutoParam) char pbuf[MODEL_STACK_MAX_SIZE];
+							NoteRow pnr;
+							ModelStackWithAutoParam* msap = fullStack(pbuf, loopLen, pnr, pm);
+							ap2.paste(pc.startPos, pc.endPos, pc.scaleFactor, msap, &ca, isPatchCable);
+							deluge::project::pasteRegion(doc2, pc.startPos, pc.endPos, pc.scaleFactor, loopLen,
+							                             isPatchCable, domCopied);
+							expectDocMatchesEngine(ap2, doc2, "pasteRegion: matches engine oracle");
+						}
+					}
+
+					if (ca.nodes) {
+						delugeDealloc(ca.nodes);
+					}
+				}
+			}
+		}
+	}
+
+	// Phase 2: stealNodes + insertStolenNodes (region steal-out/splice-back with loop wrap) — engine-oracle
+	// diff. stealNodes is invoked directly on the real AutoParam (action=nullptr keeps its undo-snapshot away,
+	// same as the deleteTime/moveRegionHorizontally block above). insertStolenNodes's real engine method ends in
+	// an UNCONDITIONAL notifyParamModifiedInSomeWay touching modelStack->paramCollection/paramManager, which the
+	// light NoteRow-based ModelStackWithAutoParam harness doesn't set up (would crash) — so, exactly like the
+	// deleteNodesWithinRegion block further below, we diff against a same-file replica that calls the SAME node
+	// primitives (ap.stealNodes / nodes().insertSorted) the real method does, minus that notify tail.
+	{
+		using deluge::project::DocAutoParam;
+		using deluge::project::StolenNodes;
+		struct N {
+			int32_t pos;
+			int32_t value;
+			bool interpolated;
+		};
+		const std::vector<std::vector<N>> configs = {
+		    {},
+		    {{48, 7, false}},
+		    {{0, 10, true}, {32, 20, true}, {64, 30, false}, {96, -40, true}},
+		    {{5, 1, false}, {40, 2, false}, {90, 3, false}, {110, 4, false}}, // spans a loop-wrap region
+		};
+		const int32_t loopLen = 128;
+
+		auto buildStack = [](char* buf, int32_t effLen, NoteRow& nr) -> ModelStackWithAutoParam* {
+			auto* ms = reinterpret_cast<ModelStackWithAutoParam*>(buf);
+			ms->song = nullptr;
+			ms->setTimelineCounter(nullptr);
+			nr.loopLengthIfIndependent = effLen;
+			ms->setNoteRow(&nr);
+			return ms;
+		};
+
+		// Replica of AutoParam::insertStolenNodes, minus its unconditional notifyParamModifiedInSomeWay tail.
+		auto engineInsertStolen = [](AutoParam& ap, ModelStackWithAutoParam* ms, int32_t pos, int32_t regionLength,
+		                             int32_t loopLength, StolenParamNodes* stolenNodeRecord) {
+			ap.stealNodes(ms, pos, regionLength, loopLength, nullptr); // clear the destination area, unrecorded
+			for (int32_t sourceI = 0; sourceI < stolenNodeRecord->num; sourceI++) {
+				ParamNode* stolenNode = &stolenNodeRecord->nodes[sourceI];
+				if (stolenNode->pos >= regionLength) {
+					break;
+				}
+				int32_t destPos = stolenNode->pos + pos;
+				if (destPos >= loopLength) {
+					destPos -= loopLength;
+				}
+				int32_t destI = ap.nodes().insertSorted(destPos).value_or(-1);
+				if (destI == -1) {
+					break;
+				}
+				ParamNode* destNode = &ap.nodes()[destI];
+				*destNode = *stolenNode;
+				destNode->pos = destPos;
+			}
+		};
+
+		const struct {
+			int32_t srcPos, srcLen, dstPos, dstLen;
+		} cases[] = {
+		    {32, 16, 64, 16},  // same length, no wrap either side
+		    {32, 16, 64, 8},   // destination shorter — trailing stolen nodes dropped
+		    {100, 40, 20, 40}, // source region wraps the loop
+		    {20, 20, 100, 40}, // destination region wraps the loop
+		    {0, 128, 0, 128},  // whole-loop steal + reinsert
+		    {90, 50, 90, 50},  // steal and reinsert at the same spot
+		};
+
+		for (const auto& cfg : configs) {
+			for (const auto& c : cases) {
+				AutoParam ap;
+				DocAutoParam doc{};
+				for (const N& n : cfg) {
+					setNode(ap, n.pos, n.value, n.interpolated);
+					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
+				}
+				(void)ap.nodes().reserveExtra(4);
+				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+				NoteRow nr;
+				ModelStackWithAutoParam* ms = buildStack(buf, loopLen, nr);
+
+				// --- stealNodes: engine call direct vs. the DOM kernel; diff both the stolen record and the
+				// residual timeline.
+				StolenParamNodes engineRecord{};
+				ap.stealNodes(ms, c.srcPos, c.srcLen, loopLen, nullptr, &engineRecord);
+				StolenNodes domRecord;
+				deluge::project::stealNodes(doc, c.srcPos, c.srcLen, loopLen, &domRecord);
+
+				check(engineRecord.num == static_cast<int32_t>(domRecord.size()),
+				      "stealNodes: stolen count matches engine oracle");
+				int32_t numToCompare = engineRecord.num < static_cast<int32_t>(domRecord.size())
+				                           ? engineRecord.num
+				                           : static_cast<int32_t>(domRecord.size());
+				for (int32_t i = 0; i < numToCompare; i++) {
+					check(engineRecord.nodes[i].pos == domRecord[i].pos,
+					      "stealNodes: stolen node pos matches engine oracle");
+					check(engineRecord.nodes[i].value == domRecord[i].value,
+					      "stealNodes: stolen node value matches engine oracle");
+					check(engineRecord.nodes[i].interpolated == domRecord[i].interpolated,
+					      "stealNodes: stolen node interpolated matches engine oracle");
+				}
+				expectDocMatchesEngine(ap, doc, "stealNodes: residual timeline matches engine oracle");
+
+				// --- insertStolenNodes: splice the stolen record back in at a (possibly different) destination.
+				engineInsertStolen(ap, ms, c.dstPos, c.dstLen, loopLen, &engineRecord);
+				deluge::project::insertStolenNodes(doc, c.dstPos, c.dstLen, loopLen, domRecord);
+				check(ap.currentValue == doc.current_value,
+				      "insertStolenNodes: current_value untouched, matches engine oracle");
+				expectDocMatchesEngine(ap, doc, "insertStolenNodes: matches engine oracle");
+			}
 		}
 	}
 

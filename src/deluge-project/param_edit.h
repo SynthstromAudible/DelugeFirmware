@@ -174,4 +174,61 @@ std::optional<bool> setValueForRegion(DocAutoParam& p, uint32_t pos, uint32_t le
                                       bool recordingLinearly, bool clockActive, int32_t livePos,
                                       bool currentlyPlayingReversed);
 
+/// Value carrier for copyRegion/pasteRegion: automation nodes lifted onto their own little timeline, always
+/// starting with a node at pos 0 (`width` is the number of ticks it spans). Mirrors the engine's
+/// CopiedParamAutomation (a plain heap node buffer used as the automation clipboard) but as an owned vector,
+/// so the kernel needs no engine SDRAM allocation. An empty `nodes` means nothing is copied.
+struct CopiedAutomation {
+	int32_t width{0};
+	std::vector<ParamNode> nodes;
+};
+
+/// Extract the automation within [startPos, endPos) into `out`, relative to `startPos` (so `out.nodes[0].pos`
+/// is always 0 when non-empty, and `out.width` is endPos-startPos). If there is no node exactly at `startPos`,
+/// a leading node is synthesised carrying the value the parameter had there (via getValueAtPos), so the copy
+/// is self-contained. When `isPatchCable`, copied values are left-shifted-and-saturated by 1, converting from
+/// the patch-cable node range into the general parameter range (the convention used when a patch cable's
+/// automation is lifted onto the clipboard). `loopLength` is the timeline loop length (the engine reads it
+/// from the ModelStack via getValueAtPos) — pass 2147483647 (INT32_MAX) for infinite/non-looping. Faithful
+/// port of AutoParam::copy.
+void copyRegion(const DocAutoParam& p, int32_t startPos, int32_t endPos, int32_t loopLength, bool isPatchCable,
+                CopiedAutomation& out);
+
+/// Paste `copied` (as produced by copyRegion) into [startPos, endPos), time-scaling each node's position
+/// relative to `startPos` by `scaleFactor`; a pasted node landing outside [startPos, min(endPos, loopLength))
+/// or colliding with an already-placed node is dropped. Nodes already inside the destination region are
+/// cleared first; unless the region covers the whole loop, an edge node is synthesised/repurposed at each end
+/// (holding the value the destination had just outside the region) so automation outside the pasted region is
+/// preserved. When `isPatchCable`, pasted values are halved, converting from the general parameter range back
+/// down to the patch-cable node range. `loopLength` is the timeline loop length (the engine reads it from the
+/// ModelStack). Does nothing if `copied` is empty (the engine FREEZE_WITH_ERRORs on that precondition in debug
+/// builds; the kernel just no-ops). Faithful port of AutoParam::paste.
+void pasteRegion(DocAutoParam& p, int32_t startPos, int32_t endPos, float scaleFactor, int32_t loopLength,
+                 bool isPatchCable, const CopiedAutomation& copied);
+
+/// The nodes captured by stealNodes(): a plain value-typed carrier (std::vector<ParamNode>) standing in for
+/// the engine's `StolenParamNodes`, which points into memory obtained from `deluge::memory::alloc_fast` — an
+/// engine allocator param_edit.cpp (self-contained) cannot call. Each node's `pos` is rebased to be relative
+/// to the stolen region's start (0..regionLength, wrapped at the loop point), exactly as the engine's stolen
+/// node positions are.
+using StolenNodes = std::vector<ParamNode>;
+
+/// Cut the nodes inside the region [pos, pos+regionLength) out of `p` (wrapping at `loopLength`); automation
+/// outside the region is untouched. If `outStolen` is non-null and the region actually contained nodes, the
+/// cut nodes are copied into it (each rebased so its `pos` is relative to the region's start) — `outStolen` is
+/// left untouched when nothing was cut, mirroring the engine's `if (numNodesToSteal)` guard around populating
+/// `stolenNodeRecord`. `current_value` is never touched (nor is the engine's). Faithful port of
+/// AutoParam::stealNodes's node kernel (the engine's `Action*` undo-snapshot is wiring, dropped here).
+void stealNodes(DocAutoParam& p, int32_t pos, int32_t regionLength, int32_t loopLength,
+                StolenNodes* outStolen = nullptr);
+
+/// Clear the region [pos, pos+regionLength) (as stealNodes does, discarding whatever automation was there) and
+/// splice `stolenNodes` (as produced by stealNodes — positions relative to the *source* region's start) back
+/// in starting at `pos`, wrapping at `loopLength`; a stolen node whose relative pos is >= regionLength is
+/// dropped (the destination region is shorter than the source one's `regionLength`). Faithful port of
+/// AutoParam::insertStolenNodes's node kernel (the engine's Action snapshot and notifyParamModifiedInSomeWay
+/// are wiring, dropped here).
+void insertStolenNodes(DocAutoParam& p, int32_t pos, int32_t regionLength, int32_t loopLength,
+                       const StolenNodes& stolenNodes);
+
 } // namespace deluge::project
