@@ -496,6 +496,24 @@ if(RT_LIB)
     target_link_libraries(song_edit_roundtrip PRIVATE ${RT_LIB})
 endif()
 
+# Lean differential record-playback harness (M2-D/E gate retirement): drives the engine's live automation
+# recording path natively + deterministically; param_record_run.py diffs stdout vs a committed baseline.
+add_executable(param_record_diff
+    ${REPO_ROOT}/src/bsp/host/host_bsp.c
+    ${REPO_ROOT}/src/bsp/host/host_platform.c
+    ${REPO_ROOT}/src/bsp/host/host_audio.c
+    ${REPO_ROOT}/src/bsp/host/host_link.c
+    ${REPO_ROOT}/src/bsp/host/host_pcm.c
+    ${REPO_ROOT}/src/bsp/host/host_midi.c
+    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
+    ${REPO_ROOT}/tests/golden/param_record_diff.cpp
+)
+target_include_directories(param_record_diff PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
+target_link_libraries(param_record_diff PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
+if(RT_LIB)
+    target_link_libraries(param_record_diff PRIVATE ${RT_LIB})
+endif()
+
 # Param/automation DOM projection round-trip (docs/dev/param_automation_dom.md, Phase 1).
 # Exercises DocAutoParam <-> live AutoParam against the real engine container + host allocator; runs on
 # x86 (build-sim) and ARM (build-sim-arm via qemu) for the dual-arch coverage the design doc calls for.
@@ -593,3 +611,13 @@ add_test(
             --binary $<TARGET_FILE:song_roundtrip>
 )
 set_tests_properties(song_roundtrip PROPERTIES SKIP_RETURN_CODE 77)
+
+# CTest gate: the live automation-recording path must reproduce its committed baseline. Like song_roundtrip the
+# corpus is bring-your-own (DELUGE_SONG_CORPUS); without it the runner exits 77 -> SKIPPED. This is the
+# behaviour-preservation net for the recording seam (M2-D.3) that the load->save golden structurally cannot see.
+add_test(
+    NAME param_record_diff
+    COMMAND ${Python_EXECUTABLE} ${REPO_ROOT}/tests/golden/param_record_run.py
+            --binary $<TARGET_FILE:param_record_diff>
+)
+set_tests_properties(param_record_diff PROPERTIES SKIP_RETURN_CODE 77)
