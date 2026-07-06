@@ -777,8 +777,8 @@ int main() {
 		pcs->patchCables[0].from = PatchSource::ENVELOPE_0;
 		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(7);
 		pcs->patchCables[0].polarity = Polarity::BIPOLAR;
-		pcs->patchCables[0].param.currentValue = 536870912; // amount, patch-cable range
-		setNode(pcs->patchCables[0].param, 0, -536870912, true);
+		pcs->patchCables[0].param.currentValue = 536870912;   // amount, patch-cable range
+		setNodeIn(*pcs->docForParam(0), 0, -536870912, true); // M2-F: cable nodes live in the cable's own store
 
 		deluge::project::DocParamManager doc = deluge::project::toDocParamManager(pm);
 		check(doc.patched.has_value(), "pm patched present");
@@ -799,7 +799,17 @@ int main() {
 		          == pcs->patchCables[0].destinationParamDescriptor.data,
 		      "pm2 cable destination");
 		check(pcs2->patchCables[0].polarity == Polarity::BIPOLAR, "pm2 cable polarity");
-		expectSameNodes(pcs2->patchCables[0].param, pcs->patchCables[0].param, "pm2 cable amount");
+		check(pcs2->patchCables[0].param.currentValue == pcs->patchCables[0].param.currentValue,
+		      "pm2 cable amount value");
+		{
+			const auto& n2 = pcs2->docForParam(0)->nodes;
+			const auto& n1 = pcs->docForParam(0)->nodes;
+			check(n2.size() == n1.size(), "pm2 cable amount node count");
+			for (size_t i = 0; i < n1.size() && i < n2.size(); i++) {
+				check(n2[i].pos == n1[i].pos && n2[i].value == n1[i].value && n2[i].interpolated == n1[i].interpolated,
+				      "pm2 cable amount node");
+			}
+		}
 	}
 
 	// Phase 5c-1: the DOM can *drive* the live manager — projecting a captured DocParamManager into a
@@ -848,7 +858,7 @@ int main() {
 		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(7);
 		pcs->patchCables[0].polarity = Polarity::BIPOLAR;
 		pcs->patchCables[0].param.currentValue = 536870912;
-		setNode(pcs->patchCables[0].param, 0, -536870912, true);
+		setNodeIn(*pcs->docForParam(0), 0, -536870912, true); // M2-F: cable nodes live in the cable's own store
 		// flat cable 1: LFO_LOCAL_1 -> param 3
 		pcs->patchCables[1].from = PatchSource::LFO_LOCAL_1;
 		pcs->patchCables[1].destinationParamDescriptor.setToHaveParamOnly(3);
@@ -1580,17 +1590,16 @@ int main() {
 		pcs->numPatchCables = 1;
 		pcs->patchCables[0].from = PatchSource::ENVELOPE_0;
 		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(7);
-		setNode(pcs->patchCables[0].param, 0, 424242, true);
+		setNodeIn(*pcs->docForParam(0), 0, 424242, true);
 
 		pm.bindMainParamSetDomStores();
 		check(liveBound(pm.getUnpatchedParamSet()), "helper: unpatched bound");
 		check(liveBound(pm.getPatchedParamSet()), "helper: patched bound");
 		check(liveBound(pm.getExpressionParamSet()), "helper: expression bound");
-		// M2-E: patch cables are reordered by index at runtime, so they are NOT bound to a positional store —
-		// their nodes stay inline and owner-resolution returns the cable's own storage (with the authored node).
+		// M2-F: patch cables are reordered by index at runtime, so they are NOT bound to a positional store —
+		// the cable owns its node store inline (amount_) and owner-resolution returns it (with the authored node).
 		check(pcs->domStore() == nullptr, "helper: patch cable set is not bound to a shared store");
-		check(pcs->docForParam(0) == pcs->patchCables[0].param.ownDocForFallback(),
-		      "helper: patch cable resolves to inline storage");
+		check(pcs->docForParam(0) == &pcs->patchCables[0].amount_, "helper: patch cable resolves to its inline store");
 		check(pcs->docForParam(0)->nodes.size() == 1 && pcs->docForParam(0)->nodes[0].value == 424242,
 		      "helper: patch cable automation intact");
 	}

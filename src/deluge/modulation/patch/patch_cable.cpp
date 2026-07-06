@@ -83,9 +83,8 @@ void PatchCable::setup(PatchSource newFrom, uint8_t newTo, int32_t newAmount) {
 }
 
 void PatchCable::initAmount(int32_t value) {
-	// Only ever called on a fresh/unbound cable (Sound default-cable setup at init; new-cable creation in
-	// getPatchCableIndex) — before any DOM bind — so the cable's own storage is the right (and only) target.
-	param.ownDocForFallback()->nodes.clear();
+	// M2-F: the cable's automation lives in its own inline store (amount_); the RT cursor is param.currentValue.
+	amount_.nodes.clear();
 	param.currentValue = value;
 }
 

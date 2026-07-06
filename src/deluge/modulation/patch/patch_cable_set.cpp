@@ -93,7 +93,9 @@ deluge::project::DocParamSet* PatchCableSet::domStore() {
 }
 
 deluge::project::DocAutoParam* PatchCableSet::docForParam(int32_t c) {
-	return patchCables[c].param.ownDocForFallback();
+	// M2-F: the cable owns its automation store inline (rides with it through reorder/removal memcpy). O(1), no
+	// separate store, no identity mirroring — the lifecycle coupling is automatic (cable dies → amount_ dies).
+	return &patchCables[c].amount_;
 }
 
 deluge::project::DocAutoParam* PatchCableSet::docParamForId(int32_t paramId) {
@@ -932,6 +934,10 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 								// And write this range-adjusting cable's details
 								patchCables[numPatchCables].from = rangeSource;
 								patchCables[numPatchCables].param = tempRangeParam;
+								// M2-F: the deserialize temp read its nodes into its own store; relocate them into the
+								// cable's inline store (where owner-resolution reads them).
+								patchCables[numPatchCables].amount_.nodes =
+								    std::move(tempRangeParam.ownDocForFallback()->nodes);
 								patchCables[numPatchCables].polarity = rangePolarity;
 								numPatchCables++;
 							}
@@ -982,6 +988,8 @@ doneWithThisRangeCable:
 				patchCables[numPatchCables].from = source;
 				patchCables[numPatchCables].destinationParamDescriptor = destinationParamDescriptor;
 				patchCables[numPatchCables].param = tempParam;
+				// M2-F: relocate the deserialize temp's nodes into the cable's inline store.
+				patchCables[numPatchCables].amount_.nodes = std::move(tempParam.ownDocForFallback()->nodes);
 				patchCables[numPatchCables].polarity = polarity;
 				numPatchCables++;
 			}

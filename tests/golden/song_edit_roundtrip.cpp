@@ -116,11 +116,11 @@ int main(int argc, char** argv) {
 		auto bothBound = [&](ParamManagerForTimeline& pm) {
 			return isLiveBound(pm.getUnpatchedParamSet()) && isLiveBound(pm.getPatchedParamSet());
 		};
-		// M2-E: patch cables are NOT bound to a shared positional store (they reorder by index at runtime); their
-		// nodes stay inline and owner-resolution returns the cable's own store slot.
+		// M2-F: patch cables are NOT bound to a shared positional store (they reorder by index at runtime); the
+		// cable owns its node store inline (amount_) and owner-resolution returns it.
 		auto cablesBound = [](ParamManagerForTimeline& pm) {
 			PatchCableSet* pcs = pm.getPatchCableSet();
-			return pcs->docForParam(0) == pcs->patchCables[0].param.ownDocForFallback();
+			return pcs->docForParam(0) == &pcs->patchCables[0].amount_;
 		};
 		int32_t audioSeen = 0, audioBound = 0, synthSeen = 0, synthBound = 0;
 		int32_t kitSeen = 0, kitBound = 0, drumSeen = 0, drumBound = 0, cableSeen = 0, cableBound = 0;

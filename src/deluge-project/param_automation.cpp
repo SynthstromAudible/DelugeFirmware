@@ -131,7 +131,8 @@ DocParamManager toDocParamManager(ParamManager& paramManager) {
 			    .from = cable.from,
 			    .destination = cable.destinationParamDescriptor,
 			    .polarity = cable.polarity,
-			    .amount = toDocAutoParam(cable.param),
+			    // M2-F: nodes live in the cable's own store (amount_); the saved value is the RT cursor.
+			    .amount = toDocAutoParam(cable.param.currentValue, cable.amount_.nodes),
 			});
 		}
 	}
@@ -174,7 +175,8 @@ void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager)
 			pcs->patchCables[i].from = dc.from;
 			pcs->patchCables[i].destinationParamDescriptor = dc.destination;
 			pcs->patchCables[i].polarity = dc.polarity;
-			fromDocAutoParam(dc.amount, pcs->patchCables[i].param);
+			// M2-F: project the value into the RT cursor and the nodes into the cable's own store.
+			fromDocAutoParam(dc.amount, pcs->patchCables[i].param.currentValue, pcs->patchCables[i].amount_.nodes);
 		}
 	}
 }
