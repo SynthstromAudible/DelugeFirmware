@@ -107,13 +107,23 @@ With `doc_` in hand and all kernels ported, replace each `AutoParam` edit-op bod
 supplies timeline context + Action/notify (the "wiring seam"). One op per commit; each is verified by the existing
 `param_projection_test` oracle (the forward must equal the pre-forward engine op) + golden.
 
-- [ ] Forward the already-ported ops first (setNodeAtPos, homogenizeRegion, insertTime, deleteTime,
-  shiftHorizontally, shiftValues, generateRepeats, moveRegionHorizontally, deleteNodesWithinRegion,
-  getDistanceToNextNode) — mechanical, each golden+oracle-verified.
-- [ ] Forward the M2-A-ported ops (deleteAutomation, trimToLength, stealNodes/insertStolenNodes, appendParam,
-  flattenReverse, nudge…, transpose…, makeInterpolationGoodAgain, copy/paste, setValueForRegion) — each verified.
-- [ ] **Verify per op:** golden `OK=15`; `param_projection_test` OK; `clip_clone_roundtrip` 38/0 (clone drives
-  flattenReverse/append); firmware builds. **Deliverable:** every non-RT node op runs through the DOM API.
+- [x] Forward the already-ported ops (setNodeAtPos, homogenizeRegion, insertTime, deleteTime, shiftHorizontally,
+  shiftValues, generateRepeats, moveRegionHorizontally, deleteNodesWithinRegion, getDistanceToNextNode) — DONE
+  across 5 commits (`05607c46c`..`2eaa31d95`).
+- [x] Forward the M2-A-ported ops that are clean node cores (appendParam, flattenReverse, nudge, transpose,
+  makeInterpolationGoodAgain) — DONE.
+- [x] **Verify per batch:** golden `OK=15` x86≡ARM; `param_projection_test` OK x86≡ARM; `song_edit` PERSISTED;
+  `clip_clone` OK; firmware builds. **16 ops now run through the DOM API.**
+
+**Deferred out of M2-C (principled, not skipped):**
+- `setValueForRegion` / `setCurrentValueInResponseToUserInput` (recording) → **M2-D**: entangled with the RT
+  interpolation cursor (`resetInterpolationIncrement`), `view.notifyParamAutomationOccurred`, and playback state;
+  the kernel's `optional<bool>` return can't reconstruct the reset-vs-notify sub-branch. Belongs with the RT seam.
+- `trimToLength`, `stealNodes`/`insertStolenNodes`, `copy`/`paste` → **M2-E**: their node storage is the engine's
+  undo/clipboard memory (`trimToLength`'s action-branch keeps old nodes for the snapshot-steal; `StolenParamNodes`
+  and `CopiedParamAutomation` point into `alloc_fast`/`alloc_sdram`). The kernels use `std::vector` carriers, so a
+  clean swap needs the undo/clipboard record restructured — which is exactly what M2-E's signature-threading does.
+- `deleteAutomation` = trivial `nodes().clear()` + wiring; no dedicated kernel warranted.
 
 ---
 
