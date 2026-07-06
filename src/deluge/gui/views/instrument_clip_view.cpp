@@ -1850,14 +1850,13 @@ const uint32_t auditionPadActionUIModes[] = {UI_MODE_AUDITIONING,
 ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocity) {
 
 	// Macro-target picker (a macro button is held in MACRO mode): main-grid taps assign params to the
-	// held macro's next free target slot. Every main-grid press is consumed so nothing edits notes.
+	// held macro's next free target slot. Both press and release are handled (the both-layer cycle
+	// happens on release). Every main-grid press/release is consumed so nothing edits notes.
 	if (macroTargetPickerActive() && x < kDisplayWidth) {
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
-		if (velocity) {
-			handleMacroTargetPickerPad(x, y);
-		}
+		handleMacroTargetPickerPad(x, y, velocity);
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -7308,6 +7307,7 @@ void InstrumentClipView::openMacroTargetPicker(int32_t macroIndex) {
 	macroTargetPickerLastY = -1;
 	macroTargetPickerLastSlot = -1;
 	macroTargetPickerSecondLayer = false;
+	macroTargetPickerCycleOnRelease = false;
 	macroTargetPickerAltPhase = false;
 	// slow alternation for any pad with both shortcut layers assigned (~0.7 Hz)
 	uiTimerManager.setTimer(TimerName::MACRO_TARGET_PICKER_PULSE, 700);
@@ -7394,9 +7394,11 @@ void InstrumentClipView::renderMacroTargetPickerOverlay(RGB image[][kDisplayWidt
 	}
 }
 
-// A pad tap in the picker: assign that param to the macro's next free target slot. Re-tapping the SAME
-// pad cycles the just-assigned slot to the shared second-layer param (e.g. LFO1 rate -> LFO2 rate).
-void InstrumentClipView::handleMacroTargetPickerPad(int32_t x, int32_t y) {
+// A pad tap in the picker: assign that param to the macro's next free target slot. When a pad's
+// primary and second-layer params are both targets, the selection cycles between them - but that
+// cycle happens on pad RELEASE, not press, so press-and-holding the pad keeps the shown layer stable
+// (SHIFT+DELETE then removes exactly the layer you see; a plain tap still cycles on release).
+void InstrumentClipView::handleMacroTargetPickerPad(int32_t x, int32_t y, int32_t velocity) {
 	Clip* clip = getCurrentClip();
 	MelodicInstrument* instrument = Macros::macroClipInstrument(clip);
 	if (instrument == nullptr || macroTargetPickerMacro < 0) {
@@ -7426,12 +7428,36 @@ void InstrumentClipView::handleMacroTargetPickerPad(int32_t x, int32_t y) {
 			secondSlot = s;
 		}
 	}
+	bool bothAssigned = (primarySlot >= 0 && secondSlot >= 0);
 
-	if (primarySlot >= 0 && secondSlot >= 0) {
-		// Both layers already targets: this pad blinks. A tap just moves the selection (which layer the
-		// solid highlight + SHIFT+SAVE act on) between them - never dup, never remove.
-		macroTargetPickerSecondLayer = !macroTargetPickerSecondLayer;
-		macroTargetPickerLastSlot = macroTargetPickerSecondLayer ? secondSlot : primarySlot;
+	if (!velocity) {
+		// RELEASE: complete a deferred primary<->secondary cycle on the pad we were holding. bothAssigned
+		// is rechecked, so a delete during the hold (one layer now gone) correctly suppresses the cycle.
+		if (macroTargetPickerCycleOnRelease && bothAssigned && x == macroTargetPickerLastX
+		    && y == macroTargetPickerLastY) {
+			macroTargetPickerSecondLayer = !macroTargetPickerSecondLayer;
+			macroTargetPickerLastSlot = macroTargetPickerSecondLayer ? secondSlot : primarySlot;
+			uiNeedsRendering(this, 0xFFFFFFFF, 0);
+			showSelectedMacroPickerTargetReadout();
+		}
+		macroTargetPickerCycleOnRelease = false;
+		return;
+	}
+
+	// PRESS.
+	macroTargetPickerCycleOnRelease = false;
+
+	if (bothAssigned) {
+		// Re-tapping the pad we're already on must NOT switch layer now: defer the cycle to release so a
+		// press-and-hold keeps the shown layer for SHIFT+DELETE. Pressing a DIFFERENT both-layer pad just
+		// selects it at its primary layer (a further tap then cycles it on release).
+		if (x == macroTargetPickerLastX && y == macroTargetPickerLastY && macroTargetPickerLastSlot >= 0) {
+			macroTargetPickerCycleOnRelease = true;
+			showSelectedMacroPickerTargetReadout(); // refresh the readout for the hold; layer unchanged
+			return;
+		}
+		macroTargetPickerSecondLayer = false;
+		macroTargetPickerLastSlot = primarySlot;
 	}
 	else {
 		// One or neither layer assigned: ADD the layer that isn't yet a target (keeping any that is), so a
@@ -7551,8 +7577,9 @@ void InstrumentClipView::deleteSelectedMacroTarget() {
 			Macros::changeTargetDestination(clip, macroTargetPickerMacro, s, Macros::kNoDestination);
 		}
 	}
-	macroTargetPickerLastSlot = -1;        // no live slot to cycle now
-	uiNeedsRendering(this, 0xFFFFFFFF, 0); // pad shows the remaining layer's colour, or grey if none left
+	macroTargetPickerLastSlot = -1;          // no live slot to cycle now
+	macroTargetPickerCycleOnRelease = false; // a delete cancels any pending release cycle
+	uiNeedsRendering(this, 0xFFFFFFFF, 0);   // pad shows the remaining layer's colour, or grey if none left
 }
 
 // A gold-knob turn while the picker is up and a target slot is selected: shape THAT target's From/To

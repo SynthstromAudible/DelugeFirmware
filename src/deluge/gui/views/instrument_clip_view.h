@@ -205,7 +205,7 @@ public:
 	void closeMacroTargetPicker();
 	void renderMacroTargetPickerOverlay(RGB image[][kDisplayWidth + kSideBarWidth],
 	                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
-	void handleMacroTargetPickerPad(int32_t x, int32_t y);
+	void handleMacroTargetPickerPad(int32_t x, int32_t y, int32_t velocity);
 	// SHIFT+SAVE while the picker is up: remove the currently-selected pad's param from this macro's
 	// targets (the pad reverts to grey). "Selected" = the pad last tapped, at its current layer.
 	void deleteSelectedMacroTarget();
@@ -221,6 +221,9 @@ public:
 	int8_t macroTargetPickerLastY = -1;
 	int8_t macroTargetPickerLastSlot = -1;
 	bool macroTargetPickerSecondLayer = false;
+	// Re-tapping the already-selected both-layer pad defers the primary<->secondary cycle to pad
+	// RELEASE, so press-and-hold keeps the shown layer (SHIFT+DELETE then hits what you see).
+	bool macroTargetPickerCycleOnRelease = false;
 	// Slow white/yellow alternation for pads whose primary AND second-layer params are both assigned.
 	bool macroTargetPickerAltPhase = false;
 	void pulseMacroTargetPicker(); // called by uiTimerManager to advance the alternation
