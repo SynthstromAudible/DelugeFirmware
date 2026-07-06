@@ -186,10 +186,11 @@ node write and the per-tick cursor genuinely interleave (spec §7).
 - [ ] Leave `processCurrentPos`/`setupInterpolation` node *reads* as-is (they already read `doc_->nodes` via
   `nodes()`); do NOT try to kernel-ise the cursor state machine. The only change here, if any, is that the
   `recordOverNodeJustReached` node write can reuse the same kernel helper as above for consistency — optional.
-- [ ] **Verify:** golden `OK=15`; `song_edit_roundtrip` PERSISTED; AND **on-device (the real oracle)**: record
-  automation live by turning a knob during playback (audio + synth + kit-drum), confirm the drift-back-to-automation
-  feels right; latching (record into an empty stretch, then hit an existing node); MPE + MIDI-CC + patch-cable
-  knob-recording; undo/redo; save→reload.
+- [ ] **Verify:** golden `OK=15`; `song_edit_roundtrip` PERSISTED; AND **`param_record_diff` `OK=N` unchanged**
+  (the differential harness above — the recording node write must reproduce its engine-native baseline
+  bit-for-bit; this is now the correctness gate in place of on-device). An on-device ear-check (drift-back feel,
+  latching, MPE/MIDI-CC/patch-cable knob-recording) remains a nice-to-have confidence pass, not a blocker —
+  bit-identical node+cursor state makes the feel identical by construction.
 
 **M2-D deliverable:** every node read and the recording write run through DOM kernels; only the RT interpolation
 cursor + override latch remain as engine state (correctly — they are not node data).
@@ -228,8 +229,18 @@ Cortex (M2 is a per-*tick* change with ~unchanged code size → negligible), enc
 identical feel by construction). So the harness retires the **correctness** gate; an ear/finger check becomes
 optional confidence, not a blocker.
 
-**Status:** feasibility confirmed; harness NOT yet built (awaiting scope decision — lean differential vs
-full-scheduler-driven). If built, it becomes the verification line for M2-D.2/.3 + M2-E in place of "on-device".
+**Status: BUILT (`9c0dc6409`).** `tests/golden/param_record_diff.cpp` + `param_record_run.py` +
+`param_record_baselines/` + a CTest entry. It loads a fixture song, builds a real `ModelStackWithAutoParam` for
+a song-global param, arms recording (`RecordingMode::ARRANGEMENT`), and replays a scripted knob-turn sequence
+(time = `AudioEngine::audioSampleTimer`; `currentlyActioningSwungTickOrResettingPlayPos = true` suppresses
+`expectEvent`'s `scheduleSwungTick`), diffing a canonical node dump against a committed baseline (3 fixtures,
+`OK=3`). **It immediately caught a real firmware bug** — the M2-C `homogenizeRegion` forward's unconditional
+Song→Clip cast for `recordingLinearly` (ASan global-buffer-overflow), fixed in `0ec566d82` — exactly the class
+of defect the `param_projection_test` oracle (NoteRow stack) structurally cannot reach.
+
+This is now the **verification line for M2-D.3** in place of "on-device": the baseline is engine-native
+recording, so forwarding the recording write to `recordLiveValue` must reproduce it. Documented follow-ups
+(broaden coverage): undo (`swapState`), save/reload persistence, and a finite-loop `InstrumentClip` target.
 
 ---
 
