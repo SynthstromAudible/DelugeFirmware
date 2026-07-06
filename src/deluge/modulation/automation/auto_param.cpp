@@ -1160,11 +1160,16 @@ int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, i
                                     int32_t startValue, bool interpolateLeftNode, bool interpolateRightNode,
                                     int32_t effectiveLength, bool reversed, int32_t posAtWhichClipWillCut) {
 	// M2-C: forward to the DOM kernel. The engine read recordingLinearly by deref-ing the timeline counter as
-	// a Clip, but only inside the forward-wrap-no-cut branch (where it's guaranteed set); the kernel takes it
-	// as a plain flag. Compute it null-safely here — when the counter is unset, that branch isn't reached in
-	// practice, and the kernel only consults the flag there.
+	// a Clip, but only inside the forward-wrap-no-cut branch, where the counter is a real *Clip* (recording
+	// context). getCurrentlyRecordingLinearly() is pure-virtual on Clip only — the Song (arrangement) as
+	// timeline counter is NOT a Clip, so the cast must be guarded: the song-as-timeline case never reaches that
+	// branch (its effectiveLength is 2147483647, so anyWrap is false and the flag goes unused), so false is
+	// correct there. Guard on `tc != song` (the codebase's own song-as-timeline test) to avoid an invalid
+	// Song->Clip cast + out-of-bounds read. (Bug caught by the param_record_diff harness — the oracle used a
+	// NoteRow stack and never hit a Song timeline.)
 	bool recordingLinearly = false;
-	if (TimelineCounter* tc = modelStack->getTimelineCounterAllowNull()) {
+	TimelineCounter* tc = modelStack->getTimelineCounterAllowNull();
+	if (tc && tc != static_cast<TimelineCounter*>(modelStack->song)) {
 		recordingLinearly = static_cast<Clip*>(tc)->getCurrentlyRecordingLinearly();
 	}
 	return deluge::project::homogenizeRegion(*doc_, startPos, length, startValue, interpolateLeftNode,
