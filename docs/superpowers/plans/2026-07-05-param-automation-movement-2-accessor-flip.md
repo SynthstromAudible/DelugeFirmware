@@ -92,11 +92,11 @@ self-pointer copy/move machinery carries over verbatim, retyped. **This is scaff
 M2-E.** `currentValue` stays a distinct `AutoParam` member (the RT cursor); it is NOT merged into
 `doc_->current_value`.
 
-- [ ] Retype members + `nodes()`; adapt copy/move/`borrowNodeStorage`/`swapState`.
-- [ ] Point `borrowNodeStorage`/`bindDomStore`/`bindMainParamSetDomStores` at the DOM `DocAutoParam`
+- [x] Retype members + `nodes()`; adapt copy/move/`borrowNodeStorage`/`swapState`.
+- [x] Point `borrowNodeStorage`/`bindDomStore`/`bindMainParamSetDomStores` at the DOM `DocAutoParam`
   (`&store.params[i]` instead of `&store.params[i].nodes`).
-- [ ] **Verify:** golden `OK=15` x86≡ARM (behaviour-preserving retype), `param_projection_test` OK,
-  `song_edit_roundtrip` PERSISTED, firmware builds.
+- [x] **Verify:** golden `OK=15` x86≡ARM (behaviour-preserving retype), `param_projection_test` OK,
+  `song_edit_roundtrip` PERSISTED, firmware builds. **DONE `1e0130557`.**
 
 ---
 

@@ -18,6 +18,7 @@
 #include "modulation/automation/auto_param.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h"
+#include "deluge-project/param_edit.h" // M2-C: engine edit ops forward to these DOM kernels
 #include "gui/l10n/l10n.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/view.h"
@@ -1102,30 +1103,9 @@ void AutoParam::deleteNodesWithinRegion(ModelStackWithAutoParam const* modelStac
 }
 
 int32_t AutoParam::setNodeAtPos(int32_t pos, int32_t value, bool shouldInterpolate) {
-	int32_t i = nodes().firstAtOrAfter(pos);
-	ParamNode* ourNode;
-
-	// Check there's not already a node there
-	if (i < std::ssize(nodes())) {
-		ourNode = &nodes()[i];
-		if (ourNode->pos == pos) {
-			goto setupNode;
-		}
-	}
-
-	{
-		Error error = nodes().insertAt(i).error_or(Error::NONE);
-		if (error != Error::NONE) {
-			return -1;
-		}
-	}
-	ourNode = &nodes()[i];
-	ourNode->pos = pos;
-setupNode:
-	ourNode->value = value;
-	ourNode->interpolated = shouldInterpolate;
-
-	return i;
+	// M2-C: forward the node mutation to the DOM kernel (oracle-proven identical). The kernel is infallible on
+	// this container (index-based insert), so unlike the old engine op it never returns -1.
+	return deluge::project::setNodeAtPos(*doc_, pos, value, shouldInterpolate);
 }
 
 void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
@@ -2199,7 +2179,7 @@ void AutoParam::shiftParamVolumeByDB(float offset) {
 }
 
 void AutoParam::shiftHorizontally(int32_t amount, int32_t effectiveLength) {
-	nodes().shiftHorizontal(amount, effectiveLength);
+	deluge::project::shiftHorizontally(*doc_, amount, effectiveLength); // M2-C: forward to the DOM kernel
 }
 
 void AutoParam::swapState(AutoParamState* state, ModelStackWithAutoParam const* modelStack) {
@@ -2595,12 +2575,7 @@ allDeleted:
 
 /// this is used in arranger view to insert time between automation nodes (shift + <>)
 void AutoParam::insertTime(int32_t pos, int32_t lengthToInsert) {
-	int32_t start = nodes().firstAtOrAfter(pos);
-
-	for (int32_t i = start; i < std::ssize(nodes()); i++) {
-		ParamNode* node = &nodes()[i];
-		node->pos += lengthToInsert;
-	}
+	deluge::project::insertTime(*doc_, pos, lengthToInsert); // M2-C: forward to the DOM kernel
 }
 
 // Offset must be either 1 or -1.
@@ -3032,32 +3007,8 @@ void AutoParam::insertStolenNodes(ModelStackWithAutoParam const* modelStack, int
 // Disregards a node that's right at pos.
 // Maybe I ought to make this take cut-points into consideration... but I can't see a need yet...
 int32_t AutoParam::getDistanceToNextNode(ModelStackWithAutoParam const* modelStack, int32_t pos, bool reversed) {
-
-	int32_t effectiveLength = modelStack->getLoopLength();
-
-	if (nodes().empty()) {
-		return effectiveLength;
-	}
-
-	int32_t i = nodes().firstAtOrAfter(pos + !reversed) - reversed;
-	if (i == -1) {
-		i = std::ssize(nodes()) - 1;
-	}
-	else if (i == std::ssize(nodes())) {
-		i = 0;
-	}
-
-	ParamNode* node = (ParamNode*)&nodes()[i];
-
-	int32_t distance = node->pos - pos;
-	if (reversed) {
-		distance = -distance;
-	}
-	if (distance <= 0) {
-		distance += effectiveLength;
-	}
-
-	return distance;
+	// M2-C: forward to the DOM read kernel, supplying the timeline context (loop length) it takes explicitly.
+	return deluge::project::getDistanceToNextNode(*doc_, pos, modelStack->getLoopLength(), reversed);
 }
 
 /*
