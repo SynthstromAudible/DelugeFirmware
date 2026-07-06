@@ -1218,53 +1218,10 @@ int32_t AutoParam::getValuePossiblyAtPos(int32_t pos, ModelStackWithAutoParam* m
 // value abruptly changes, well whether we want the value to the left or the right depends on which direction we're
 // going.
 int32_t AutoParam::getValueAtPos(uint32_t pos, ModelStackWithAutoParam const* modelStack, bool reversed) {
-
-	if (nodes().empty()) {
-		return currentValue;
-	}
-
-	int32_t rightI = nodes().firstAtOrAfter(pos + (int32_t)!reversed);
-	if (rightI >= std::ssize(nodes())) {
-		rightI = 0;
-	}
-	ParamNode* rightNode = &nodes()[rightI];
-
-	int32_t leftI = rightI - 1;
-	if (leftI < 0) {
-		leftI += std::ssize(nodes());
-	}
-	ParamNode* leftNode = &nodes()[leftI];
-	if (!rightNode->interpolated) {
-returnLeftNodeValue:
-		return leftNode->value;
-	}
-
-	int32_t ticksSinceLeftNode = pos - leftNode->pos;
-	if (!ticksSinceLeftNode) {
-		goto returnLeftNodeValue;
-	}
-
-	if (ticksSinceLeftNode < 0) { // If pos we're looking at is left of leftmost...
-		int32_t lengthBeforeLoop = modelStack->getLoopLength();
-		if (lengthBeforeLoop == 2147483647) { // If infinite length - and we know we're interpolating - well we'd have
-			                                  // arrived at the next node value
-			return rightNode->value;
-		}
-		ticksSinceLeftNode += lengthBeforeLoop;
-	}
-
-	int32_t ticksBetweenNodes = rightNode->pos - leftNode->pos;
-	if (ticksBetweenNodes <= 0) { // If pos we're looking at is right of rightmost...
-		int32_t lengthBeforeLoop = modelStack->getLoopLength();
-		if (lengthBeforeLoop
-		    == 2147483647) { // If infinite length, we'll still be on prev node's value, despite us interpolating
-			goto returnLeftNodeValue;
-		}
-		ticksBetweenNodes += lengthBeforeLoop;
-	}
-
-	int64_t valueDistance = (int64_t)rightNode->value - (int64_t)leftNode->value;
-	return leftNode->value + (valueDistance * ticksSinceLeftNode / ticksBetweenNodes);
+	// M2-D.1: forward to the DOM read kernel. getLoopLength() is safe to fetch eagerly (a length, not a
+	// null-deref; processCurrentPos already reads it unconditionally). The kernel special-cases the infinite
+	// length (2147483647) exactly as the engine did — the oracle covers both finite + infinite.
+	return deluge::project::getValueAtPos(*doc_, pos, modelStack->getLoopLength(), reversed);
 }
 
 // Returns whether a change was made to currentValue
