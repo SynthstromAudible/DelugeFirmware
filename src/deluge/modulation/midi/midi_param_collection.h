@@ -90,6 +90,9 @@ public:
 	/// The bound DOM store, or nullptr if unbound. (Test / inspection accessor.)
 	deluge::project::DocParamSet* domStore();
 
+	deluge::project::DocAutoParam* docForParam(int32_t i);
+	deluge::project::DocAutoParam* docParamForId(int32_t paramId) override;
+
 private:
 	/// DOM-owned node store this collection's CC AutoParams borrow (nullptr = unbound). RAII-freed with the
 	/// collection (which is heap-allocated at a stable address, so the store address never moves).

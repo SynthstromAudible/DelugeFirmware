@@ -69,6 +69,19 @@ deluge::project::DocParamSet* MIDIParamCollection::domStore() {
 	return domStore_.get();
 }
 
+deluge::project::DocAutoParam* MIDIParamCollection::docForParam(int32_t i) {
+	return (domStore_ && i < std::ssize(domStore_->params)) ? &domStore_->params[i]
+	                                                        : params[i].param.ownDocForFallback();
+}
+
+deluge::project::DocAutoParam* MIDIParamCollection::docParamForId(int32_t paramId) {
+	int32_t i = params.firstAtOrAfter(paramId); // paramId == CC; the vector is ordered by CC
+	if (i < std::ssize(params) && params[i].cc == paramId) {
+		return docForParam(i);
+	}
+	return nullptr;
+}
+
 void MIDIParamCollection::deleteAllParams(Action* action, bool deleteStorageToo) {
 	if (action) {
 		for (MIDIParam& midiParam : params) {

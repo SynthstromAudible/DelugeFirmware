@@ -151,6 +151,10 @@ public:
 	/// the ModelStack resolves the handle from the owner instead and this accessor + `doc_` are removed.
 	deluge::project::DocAutoParam* docForThreading() { return doc_; }
 
+	/// M2-E (E3): fallback DOM handle for an UNBOUND param (no owner store slot yet — runtime MIDI-CC / patch
+	/// cable, or a clone before bind); nodes live in ownDoc_. A bound param resolves to its owner store slot.
+	deluge::project::DocAutoParam* ownDocForFallback() { return &ownDoc_; }
+
 	/// Point this param at a DOM-owned `DocAutoParam` and move its current nodes into it. The store must outlive
 	/// this param and never relocate (the DOM holds it at a stable address). Afterwards, nodes() is the DOM
 	/// store's node vector and all engine edits/undo operate on it directly. (M2-B: the handle is now the whole

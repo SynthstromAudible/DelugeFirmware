@@ -49,6 +49,12 @@ protected:
 	/// follows the params through backup/restore. See docs/superpowers/specs §5.1 (accessor/projection design).
 	std::unique_ptr<deluge::project::DocParamSet> domStore_;
 
+	/// M2-E: non-owning pointer to the ACTIVE DOM store this set resolves params against — either `domStore_.get()`
+	/// (clip/drum: this set owns it) or an externally-owned store (song-global: `project.global_fx.params.unpatched`,
+	/// owned by the DOM project at a stable address). The owner-resolution path (`docForParam`) reads this, so both
+	/// binding regimes resolve identically without the AutoParam holding a pointer. nullptr = unbound.
+	deluge::project::DocParamSet* domStoreRef_ = nullptr;
+
 public:
 	AutoParam* params;
 	ParamSet(int32_t newObjectSize, ParamCollectionSummary* summary);
@@ -60,8 +66,17 @@ public:
 	/// Bind this set's node storage to a DOM-owned DocParamSet (allocated here, RAII-freed with the set): each
 	/// AutoParam borrows its nodes from domStore_->params[p].nodes. Idempotent — a no-op if already bound.
 	void bindDomStore();
-	/// The bound DOM store, or nullptr if unbound. (Test / inspection accessor.)
+	/// Bind this set's owner-resolution to an EXTERNALLY-owned DOM store (song-global: the store lives in the DOM
+	/// project, not here). Sets only the non-owning `domStoreRef_`; `domStore_` stays null so this set never frees
+	/// a store it does not own. The caller is responsible for having moved the params' nodes into `ext` already.
+	void bindDomStoreExternal(deluge::project::DocParamSet* ext);
+	/// The bound DOM store (owned or external), or nullptr if unbound. (Test / inspection accessor.)
 	deluge::project::DocParamSet* domStore();
+
+	// M2-E: resolve a param's DOM node-store handle from this set (owner-rooted). docForParam takes the array
+	// index; docParamForId takes the ModelStack paramId (== index for a ParamSet).
+	deluge::project::DocAutoParam* docForParam(int32_t p);
+	deluge::project::DocAutoParam* docParamForId(int32_t paramId) override { return docForParam(paramId); }
 
 	inline int32_t getValue(int32_t p) { return params[p].getCurrentValue(); }
 	int32_t getValueAtPos(int32_t p, uint32_t pos, TimelineCounter* playPositionCounter);

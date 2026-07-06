@@ -35,11 +35,19 @@ class ModelStackWithAutoParam;
 class ModelStackWithParamId;
 class ModelStackWithParamCollection;
 class ParamCollectionSummary;
+namespace deluge::project {
+struct DocAutoParam;
+}
 
 class ParamCollection {
 public:
 	ParamCollection(int32_t newObjectSize, ParamCollectionSummary* summary);
 	virtual ~ParamCollection();
+
+	/// M2-E: resolve the DOM node-store handle for the param identified by `paramId` (as carried on a
+	/// ModelStackWithAutoParam). Returns the owner's `DocParamSet` slot for a bound param, or the param's
+	/// `ownDocForFallback()` for an unbound one. Each concrete collection maps its own paramId -> store index.
+	virtual deluge::project::DocAutoParam* docParamForId(int32_t paramId) { return nullptr; }
 
 	/// Deep-clone this collection into freshly-allocated memory (fallible; sets `result` on success). Each
 	/// concrete collection real-copy-constructs itself; copyAutomation=false drops automation (stripAutomation)

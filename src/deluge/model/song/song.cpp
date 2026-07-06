@@ -1939,6 +1939,10 @@ skipInstance:
 		for (int32_t p = 0; p < unpatchedEngine->getNumParams(); p++) {
 			unpatchedEngine->params[p].borrowNodeStorage(&store.params[p]);
 		}
+		// M2-E: also give the engine set owner-resolution to this (externally-owned) store, so modelStack->doc()
+		// resolves the same slots the AutoParams borrow — the song-global store lives in the DOM project, not in
+		// the set's own domStore_.
+		unpatchedEngine->bindDomStoreExternal(&store);
 	}
 
 	// Phase C (InstrumentClip): borrow-point each instrument clip's automation node storage at DOM-owned

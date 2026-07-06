@@ -57,6 +57,9 @@ public:
 	/// The bound DOM store, or nullptr if unbound. (Test / inspection accessor.)
 	deluge::project::DocParamSet* domStore();
 
+	deluge::project::DocAutoParam* docForParam(int32_t i);
+	deluge::project::DocAutoParam* docParamForId(int32_t paramId) override;
+
 	void setupPatching(ModelStackWithParamCollection const* modelStack);
 	bool doesDestinationDescriptorHaveAnyCables(ParamDescriptor destinationParamDescriptor);
 	uint8_t getPatchCableIndex(PatchSource from, ParamDescriptor destinationParamDescriptor,

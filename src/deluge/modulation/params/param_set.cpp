@@ -62,13 +62,22 @@ void ParamSet::bindDomStore() {
 		return; // already bound
 	}
 	domStore_ = std::make_unique<deluge::project::DocParamSet>(deluge::project::toDocParamSet(*this));
+	domStoreRef_ = domStore_.get();
 	for (int32_t p = 0; p < numParams_; p++) {
 		params[p].borrowNodeStorage(&domStore_->params[p]);
 	}
 }
 
+void ParamSet::bindDomStoreExternal(deluge::project::DocParamSet* ext) {
+	domStoreRef_ = ext; // owner-resolution points at the externally-owned store; domStore_ stays null (not ours)
+}
+
 deluge::project::DocParamSet* ParamSet::domStore() {
-	return domStore_.get();
+	return domStoreRef_;
+}
+
+deluge::project::DocAutoParam* ParamSet::docForParam(int32_t p) {
+	return domStoreRef_ ? &domStoreRef_->params[p] : params[p].ownDocForFallback();
 }
 
 void ParamSet::stripAutomation() {

@@ -114,11 +114,16 @@ void AutoParam::borrowNodeStorage(deluge::project::DocAutoParam* domDoc) {
 	doc_ = domDoc;                            // subsequent nodes() see the DOM store's node vector
 }
 
-// M2-E (E1): the ModelStack threads the DOM handle to this param's ops. For a param's own ops, `autoParam` is
-// `this`, so this returns `this->doc_` — behaviour-identical to the direct `doc_`/`nodes()` reads it replaces.
-// (E3 will re-root this at the owner via paramCollection->docParamForId(paramId), letting `doc_` be dropped.)
+// M2-E (E3): the ModelStack resolves the DOM handle from the OWNER, by paramId — not from a pointer stored on the
+// engine AutoParam. This is the projection→owned-handle pivot: the collection maps paramId -> its DocParamSet slot
+// (or the param's own fallback store when unbound), so no engine object holds a pointer into DOM node data.
 deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
-	return autoParam->docForThreading();
+	if (paramCollection != nullptr) {
+		if (deluge::project::DocAutoParam* d = paramCollection->docParamForId(paramId)) {
+			return d;
+		}
+	}
+	return autoParam->ownDocForFallback();
 }
 
 void AutoParam::init(deluge::project::DocAutoParam& doc) {

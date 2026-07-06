@@ -100,6 +100,19 @@ deluge::project::DocParamSet* PatchCableSet::domStore() {
 	return domStore_.get();
 }
 
+deluge::project::DocAutoParam* PatchCableSet::docForParam(int32_t c) {
+	return (domStore_ && c < std::ssize(domStore_->params)) ? &domStore_->params[c]
+	                                                        : patchCables[c].param.ownDocForFallback();
+}
+
+deluge::project::DocAutoParam* PatchCableSet::docParamForId(int32_t paramId) {
+	PatchSource s;
+	ParamDescriptor desc;
+	dissectParamId(paramId, &desc, &s);
+	uint8_t c = getPatchCableIndex(s, desc, nullptr, false);
+	return (c == 255) ? nullptr : docForParam(c);
+}
+
 bool PatchCableSet::isSourcePatchedToSomething(PatchSource s) {
 	uint32_t sourcesPatchedToSomething =
 	    sourcesPatchedToAnything[GLOBALITY_LOCAL] | sourcesPatchedToAnything[GLOBALITY_GLOBAL];
