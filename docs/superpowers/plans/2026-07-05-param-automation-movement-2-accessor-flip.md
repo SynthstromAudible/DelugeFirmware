@@ -194,6 +194,43 @@ node write and the per-tick cursor genuinely interleave (spec §7).
 **M2-D deliverable:** every node read and the recording write run through DOM kernels; only the RT interpolation
 cursor + override latch remain as engine state (correctly — they are not node data).
 
+### Retiring the hardware gate with a differential harness (feasibility audit, 2026-07-06)
+
+**Question:** can the on-device "record/draw automation live" gate for M2-D.2/.3 (+ M2-E) be replaced by a
+host-sim harness? **Verdict: yes for correctness — no hard blocker found.** The refactor's contract is
+behaviour-preservation, so the oracle is free: capture a baseline from HEAD *before* the forward, then assert
+the forwarded code reproduces it bit-for-bit — the same methodology as `param_projection_test`, lifted to
+integration scope (real `Song`/`Clip`/`ParamManager` + scripted recording ticks).
+
+**Design — lean differential "record-playback" harness** (extends `song_edit_roundtrip`'s native song load):
+build a `ModelStackWithAutoParam` for a loaded clip's param; drive a scripted interleaving of
+`setCurrentValueInResponseToUserInput` (knob turns) + `processCurrentPos` (ticks) + `swapState` (undo) +
+save/reload; capture the node vector + `currentValue` + latch; diff vs a committed baseline. **"Time" is
+controlled by writing `AudioEngine::audioSampleTimer` — no real audio scheduler is driven, so it's fully
+deterministic.**
+
+**Per-dependency drivability audit** (external reads of the recording seam + `processCurrentPos` +
+`setValueForRegion`):
+- *Settable globals:* `playbackHandler.recording` / `.ticksLeftInCountIn` / clock state (`playbackState |=
+  PLAYBACK_CLOCK_EITHER_ACTIVE`) / `.getTimePerInternalTick`, `AudioEngine::audioSampleTimer`,
+  `Buttons::isShiftButtonPressed` (default false), `getRootUI` (force the non-`automationView` branch) — ✅.
+- *Real loaded objects:* `getTimelineCounter` (Clip), `paramCollection`/`paramId`/`paramManager`,
+  `getLoopLength`, `song` — ✅ already provided by the `song_edit_roundtrip` load path.
+- *Undo/display/view:* `actionLogger.getNewAction`/`recordUnautomatedParamChange`, `display->displayPopup`,
+  `view.notifyParamAutomationOccurred` — ✅ real or safe-stub in sim.
+- *Play-position reads (the only real work):* `getLivePos`, `getLastProcessedPos`,
+  `getPosAtWhichPlaybackWillCut` — script "time" by setting the clip/playbackHandler position fields per step.
+  Bounded investigation (find the backing fields), NOT a blocker.
+
+**What a harness still can't cover (the honest residual, all low-risk for M2):** real-time CPU budget on the
+Cortex (M2 is a per-*tick* change with ~unchanged code size → negligible), encoder/display I/O plumbing
+(untouched — the op takes an already-decoded value), and subjective "feel" (bit-identical node+cursor state ⇒
+identical feel by construction). So the harness retires the **correctness** gate; an ear/finger check becomes
+optional confidence, not a blocker.
+
+**Status:** feasibility confirmed; harness NOT yet built (awaiting scope decision — lean differential vs
+full-scheduler-driven). If built, it becomes the verification line for M2-D.2/.3 + M2-E in place of "on-device".
+
 ---
 
 ## Phase M2-E — Remove every engine→DOM pointer (`doc_` gone)
