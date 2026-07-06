@@ -23,6 +23,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
+#include "hid/led/indicator_leds.h"
 #include "io/midi/midi_follow.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
@@ -195,6 +196,95 @@ void showDestinationConflictPopup(uint8_t destination, int32_t ownerMacro, bool 
 	else {
 		display->displayPopup(popup.c_str());
 	}
+}
+
+// A target's name for its readout: "Macro N" for a cascade destination (always the plain macro number,
+// never its user name), the synth param name / MIDI CC name for a real destination, else "T<n>" when OFF.
+static void appendTargetName(StringBuf& buf, MelodicInstrument* instrument, int32_t target, uint8_t destination) {
+	if (destination == kNoDestination) {
+		buf.append('T');
+		buf.appendInt(target + 1);
+		return;
+	}
+	appendDestinationName(buf, instrument, destination);
+}
+
+// One From/To endpoint in the destination's OWN display terms: raw 0..127 for a MIDI CC (inherently
+// 0..127), or the menu knob range (0..50, or -25..+25 for pan/pitch) for a synth param - the same
+// number the automation view shows for that param. `endpoint` is the stored 0..maxTargetValue unit; for
+// synth that 0..128 space equals the automation view's knobPos+offset, so calculateKnobPosForDisplay
+// yields the identical readout.
+static void appendTargetEndpoint(StringBuf& buf, MelodicInstrument* instrument, uint8_t destination, uint8_t endpoint) {
+	if (domainForOutput(instrument) == Domain::MIDI) {
+		buf.appendInt(endpoint); // raw CC value
+		return;
+	}
+	params::Kind kind;
+	int32_t paramID;
+	decodeSynthDestination(destination, &kind, &paramID);
+	buf.appendInt(view.calculateKnobPosForDisplay(kind, paramID, endpoint));
+}
+
+void showTargetKnobIndicators(MelodicInstrument* instrument, int32_t macroIndex, int32_t target) {
+	MacroTargetSlot& f = instrument->macros[macroIndex].targets[target];
+	indicator_leds::setKnobIndicatorLevel(0, f.from, false);
+	indicator_leds::setKnobIndicatorLevel(1, f.to, false);
+}
+
+void showTargetRangeReadout(MelodicInstrument* instrument, int32_t macroIndex, int32_t target, uint8_t destination,
+                            bool showConflict) {
+	// A shadowed target doesn't drive anything - show WHO owns the destination, not a range.
+	if (showConflict && destination != kNoDestination) {
+		int32_t owner = findShadowingOwner(instrument->macros, destination, macroIndex, target);
+		if (owner >= 0) {
+			showDestinationConflictPopup(destination, owner, true); // persistent while held
+			return;
+		}
+	}
+	MacroTargetSlot& f = instrument->macros[macroIndex].targets[target];
+	DEF_STACK_STRING_BUF(popup, 48);
+	if (destination == kNoDestination) {
+		popup.append("Target Assign");
+	}
+	else {
+		appendTargetName(popup, instrument, target, destination);
+		popup.append(display->haveOLED() ? '\n' : ' ');
+		appendTargetEndpoint(popup, instrument, destination, f.from);
+		popup.append(" - ");
+		appendTargetEndpoint(popup, instrument, destination, f.to);
+	}
+	display->popupText(popup.c_str());
+}
+
+bool editTargetEndpoint(Clip* clip, MelodicInstrument* instrument, int32_t macroIndex, int32_t slot, int32_t whichKnob,
+                        int32_t offset) {
+	MacroTargetSlot& f = instrument->macros[macroIndex].targets[slot];
+	uint8_t& endpoint = (whichKnob == 1) ? f.to : f.from; // knob 0 = From, knob 1 = To
+	int32_t v = std::clamp<int32_t>((int32_t)endpoint + offset, 0, maxTargetValue(domainForOutput(clip->output)));
+	if (v == endpoint) {
+		return false;
+	}
+	endpoint = (uint8_t)v;
+	instrument->editedByUser = true;
+	reFanTarget(clip, macroIndex, slot, nullptr); // only this target's scaling changed - re-bake just its lane
+	return true;
+}
+
+LayerAssignment layerAssignment(const Macro& macro, int32_t primary, int32_t second) {
+	LayerAssignment la;
+	for (int32_t s = 0; s < kNumTargetSlots; s++) {
+		uint8_t d = macro.targets[s].destination;
+		if (d == kNoDestination) {
+			continue;
+		}
+		if (primary >= 0 && d == (uint8_t)primary && la.primarySlot < 0) {
+			la.primarySlot = s;
+		}
+		if (second >= 0 && d == (uint8_t)second && la.secondSlot < 0) {
+			la.secondSlot = s;
+		}
+	}
+	return la;
 }
 
 bool targetHasConflict(const Macro* macros, int32_t macroIndex, int32_t slot) {

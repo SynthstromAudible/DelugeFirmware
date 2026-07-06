@@ -185,6 +185,28 @@ bool targetHasConflict(const Macro* macros, int32_t macroIndex, int32_t slot);
 // cancelPopup() (used while a quick-edit button is held).
 void showDestinationConflictPopup(uint8_t destination, int32_t ownerMacro, bool persistent = false);
 
+// Persistent held-target readout: the destination name then the "From - To" range (synth params in
+// their menu range 0-50/-25..+25, MIDI CCs raw 0-127), or "Target Assign" when the slot is OFF. On
+// showConflict, an in-use (shadowed) target shows its owner instead of a range. Shared by the
+// automation-lane quick-edit editor and the note-view target picker.
+void showTargetRangeReadout(MelodicInstrument* instrument, int32_t macroIndex, int32_t target, uint8_t destination,
+                            bool showConflict);
+// Seeds the gold-knob LED bars to the target's From (knob 0) / To (knob 1) while its button is held.
+void showTargetKnobIndicators(MelodicInstrument* instrument, int32_t macroIndex, int32_t target);
+// Nudges a target's From (whichKnob 0) or To (whichKnob 1) by offset, clamped to the domain max,
+// marks the instrument edited and re-bakes just that lane. Returns true if the endpoint changed.
+bool editTargetEndpoint(Clip* clip, MelodicInstrument* instrument, int32_t macroIndex, int32_t slot, int32_t whichKnob,
+                        int32_t offset);
+
+// Which slot (first match, -1 if none) holds a pad's primary / second shortcut-layer destination as a
+// target of `macro`. `primary`/`second` are the pad's two candidate destinations (-1 if the pad has none
+// on that layer). Used by the note-view picker's overlay colouring and tap handling.
+struct LayerAssignment {
+	int32_t primarySlot = -1;
+	int32_t secondSlot = -1;
+};
+LayerAssignment layerAssignment(const Macro& macro, int32_t primary, int32_t second);
+
 // True if any of the four macros deviates from its defaults (a learned source, a target CC set,
 // or deactivated). Gates serialization so an all-default instrument writes nothing.
 bool anyMacroConfigured(Macro* macros);

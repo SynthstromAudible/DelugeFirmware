@@ -49,7 +49,6 @@ class Editor;
 class AudioClip;
 class Instrument;
 class InstrumentClip;
-class MelodicInstrument;
 class MidiInstrument;
 class ModControllable;
 class ModelStackWithAutoParam;
@@ -189,11 +188,6 @@ public:
 	// Resolves a main-grid pad to the destination byte it picks (or -1 if not a valid target), incl. the
 	// shared second-layer param. Public so the note-view macro-target picker reuses the same resolution.
 	int32_t macroDestinationForPad(Macros::Domain domain, int32_t x, int32_t y, bool secondLayer = false);
-	// The held-target range readout ("LFO1 Freq" / "0 - 127") and its knob-ring seeding. Public so the
-	// note-view macro-target picker's gold-knob From/To editing shows the same feedback as this view.
-	void showMacroTargetRangeReadout(MelodicInstrument* instrument, int32_t macroIndex, int32_t target,
-	                                 uint8_t destination, bool showConflict);
-	void showMacroTargetRangeKnobIndicators(MelodicInstrument* instrument, int32_t macroIndex, int32_t target);
 
 	// public so menu and editor layouts can access it
 	bool onMenuView;

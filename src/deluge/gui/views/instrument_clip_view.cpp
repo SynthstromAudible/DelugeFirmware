@@ -7353,20 +7353,9 @@ void InstrumentClipView::renderMacroTargetPickerOverlay(RGB image[][kDisplayWidt
 				continue;
 			}
 			// Which of this pad's two shortcut layers are already assigned to this macro?
-			bool primaryAssigned = false;
-			bool secondAssigned = false;
-			for (int32_t s = 0; s < Macros::kNumTargetSlots; s++) {
-				uint8_t d = macro.targets[s].destination;
-				if (d == Macros::kNoDestination) {
-					continue;
-				}
-				if (primary >= 0 && d == (uint8_t)primary) {
-					primaryAssigned = true;
-				}
-				if (second >= 0 && d == (uint8_t)second) {
-					secondAssigned = true;
-				}
-			}
+			Macros::LayerAssignment la = Macros::layerAssignment(macro, primary, second);
+			bool primaryAssigned = la.primarySlot >= 0;
+			bool secondAssigned = la.secondSlot >= 0;
 			if (primaryAssigned && secondAssigned) {
 				// Both layers assigned. The pad blinks (white<->yellow) until it's the one you're on: the
 				// currently-held/last-tapped pad stops blinking and shows its selected layer solid, so you can
@@ -7414,20 +7403,9 @@ void InstrumentClipView::handleMacroTargetPickerPad(int32_t x, int32_t y, int32_
 
 	// Is this pad's param already a target of the macro? If so we EDIT that existing slot rather than
 	// adding a duplicate slot pointing at the same destination.
-	int32_t primarySlot = -1;
-	int32_t secondSlot = -1;
-	for (int32_t s = 0; s < Macros::kNumTargetSlots; s++) {
-		uint8_t d = macro.targets[s].destination;
-		if (d == Macros::kNoDestination) {
-			continue;
-		}
-		if (primary >= 0 && d == (uint8_t)primary && primarySlot < 0) {
-			primarySlot = s;
-		}
-		if (second >= 0 && d == (uint8_t)second && secondSlot < 0) {
-			secondSlot = s;
-		}
-	}
+	Macros::LayerAssignment la = Macros::layerAssignment(macro, primary, second);
+	int32_t primarySlot = la.primarySlot;
+	int32_t secondSlot = la.secondSlot;
 	bool bothAssigned = (primarySlot >= 0 && secondSlot >= 0);
 
 	if (!velocity) {
@@ -7520,9 +7498,8 @@ void InstrumentClipView::showSelectedMacroPickerTargetReadout() {
 		return;
 	}
 	uint8_t destination = instrument->macros[macroTargetPickerMacro].targets[macroTargetPickerLastSlot].destination;
-	automationView.showMacroTargetRangeReadout(instrument, macroTargetPickerMacro, macroTargetPickerLastSlot,
-	                                           destination, false);
-	automationView.showMacroTargetRangeKnobIndicators(instrument, macroTargetPickerMacro, macroTargetPickerLastSlot);
+	Macros::showTargetRangeReadout(instrument, macroTargetPickerMacro, macroTargetPickerLastSlot, destination, false);
+	Macros::showTargetKnobIndicators(instrument, macroTargetPickerMacro, macroTargetPickerLastSlot);
 }
 
 void InstrumentClipView::deleteSelectedMacroTarget() {
@@ -7540,20 +7517,9 @@ void InstrumentClipView::deleteSelectedMacroTarget() {
 	int32_t second =
 	    automationView.macroDestinationForPad(domain, macroTargetPickerLastX, macroTargetPickerLastY, true);
 	Macros::Macro& macro = instrument->macros[macroTargetPickerMacro];
-	bool primaryAssigned = false;
-	bool secondAssigned = false;
-	for (int32_t s = 0; s < Macros::kNumTargetSlots; s++) {
-		uint8_t d = macro.targets[s].destination;
-		if (d == Macros::kNoDestination) {
-			continue;
-		}
-		if (primary >= 0 && d == (uint8_t)primary) {
-			primaryAssigned = true;
-		}
-		if (second >= 0 && d == (uint8_t)second) {
-			secondAssigned = true;
-		}
-	}
+	Macros::LayerAssignment la = Macros::layerAssignment(macro, primary, second);
+	bool primaryAssigned = la.primarySlot >= 0;
+	bool secondAssigned = la.secondSlot >= 0;
 	// Remove one layer's assignment. If both are assigned, remove the current-layer one (leaving the
 	// other, so the pad drops to that layer's colour); if only one is assigned, remove it (pad -> grey).
 	int32_t toDelete = -1;
@@ -7591,18 +7557,11 @@ void InstrumentClipView::handleMacroPickerModEncoder(int32_t whichModEncoder, in
 	if (instrument == nullptr || macroTargetPickerMacro < 0 || macroTargetPickerLastSlot < 0) {
 		return;
 	}
-	Macros::MacroTargetSlot& f = instrument->macros[macroTargetPickerMacro].targets[macroTargetPickerLastSlot];
-	uint8_t& endpoint = (whichModEncoder == 1) ? f.to : f.from; // knob 0 = From, knob 1 = To
-	int32_t v = std::clamp<int32_t>((int32_t)endpoint + offset, 0,
-	                                Macros::maxTargetValue(Macros::domainForOutput(clip->output)));
-	if (v != endpoint) {
-		endpoint = (uint8_t)v;
-		instrument->editedByUser = true;
-		Macros::reFanTarget(clip, macroTargetPickerMacro, macroTargetPickerLastSlot, nullptr); // re-bake just this lane
-	}
-	automationView.showMacroTargetRangeReadout(instrument, macroTargetPickerMacro, macroTargetPickerLastSlot,
-	                                           f.destination, false);
-	automationView.showMacroTargetRangeKnobIndicators(instrument, macroTargetPickerMacro, macroTargetPickerLastSlot);
+	Macros::editTargetEndpoint(clip, instrument, macroTargetPickerMacro, macroTargetPickerLastSlot, whichModEncoder,
+	                           offset);
+	uint8_t destination = instrument->macros[macroTargetPickerMacro].targets[macroTargetPickerLastSlot].destination;
+	Macros::showTargetRangeReadout(instrument, macroTargetPickerMacro, macroTargetPickerLastSlot, destination, false);
+	Macros::showTargetKnobIndicators(instrument, macroTargetPickerMacro, macroTargetPickerLastSlot);
 }
 
 // occupancyMask now optional

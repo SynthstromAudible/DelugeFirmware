@@ -137,87 +137,6 @@ static MelodicInstrument* macroLaneInstrument(Clip* clip, int32_t* macroIndex) {
 	return instrument;
 }
 
-// Appends a destination label for a target: "Macro N" for a cascade destination (always the plain
-// macro number, never its user name), the param name on a synth track, else the MIDI device's CC
-// name (from a loaded definition file), else "CC <n>", else "T<n>" when destination is OFF (kNoDestination).
-static void appendTargetName(StringBuf& buf, MelodicInstrument* instrument, int32_t target, uint8_t destination) {
-	if (destination == Macros::kNoDestination) {
-		buf.append('T');
-		buf.appendInt(target + 1);
-		return;
-	}
-	Macros::appendDestinationName(buf, instrument, destination);
-}
-
-// Appends one From/To endpoint in the destination's OWN display terms: raw 0..127 for a MIDI CC
-// target (a CC is inherently 0..127), or the menu knob range (0..50, or -25..+25 for pan/pitch) for a
-// synth param - the same number the automation view shows for that param. `endpoint` is the stored
-// 0..maxTargetValue unit; for synth that 0..128 space equals the automation view's knobPos+offset, so
-// calculateKnobPosForDisplay yields the identical readout.
-static void appendTargetEndpoint(StringBuf& buf, MelodicInstrument* instrument, uint8_t destination, uint8_t endpoint) {
-	if (Macros::domainForOutput(instrument) == Macros::Domain::MIDI) {
-		buf.appendInt(endpoint); // raw CC value
-		return;
-	}
-	deluge::modulation::params::Kind kind;
-	int32_t paramID;
-	Macros::decodeSynthDestination(destination, &kind, &paramID);
-	buf.appendInt(view.calculateKnobPosForDisplay(kind, paramID, endpoint));
-}
-
-// While a target quick-edit button is held, the gold-knob LED bars show the target's range live:
-// left bar = From, right bar = To (matching which knob edits which endpoint). Default 0-127 reads
-// as From empty, To full. view.setKnobIndicatorLevels() restores them on release.
-static void showHeldTargetKnobIndicators(MelodicInstrument* instrument, int32_t macroIndex, int32_t target) {
-	Macros::MacroTargetSlot& f = instrument->macros[macroIndex].targets[target];
-	indicator_leds::setKnobIndicatorLevel(0, f.from, false);
-	indicator_leds::setKnobIndicatorLevel(1, f.to, false);
-}
-
-// Full target readout while the param button is held: the destination name on the first line and
-// the range on the second, e.g. "LFO1 Freq" / "0 - 127", or "Not assigned" when the slot is OFF (the
-// held button itself identifies the slot). Persistent - stays up until the button is released
-// (cancelPopup in modButtonAction). `destination` may be a pending (not yet committed) value.
-// `showConflict`: on the initial press of an already-committed in-use target, show WHO owns the
-// destination instead of a range; while dialing a CC or shaping From/To, the readout stays normal
-// so the slot is fully editable (the conflict shows as the button's blinking LED after release).
-static void showTargetFull(MelodicInstrument* instrument, int32_t macroIndex, int32_t target, uint8_t destination,
-                           bool showConflict) {
-	// A shadowed target doesn't drive anything - show WHO owns the destination, not a range.
-	if (showConflict && destination != Macros::kNoDestination) {
-		int32_t owner = Macros::findShadowingOwner(instrument->macros, destination, macroIndex, target);
-		if (owner >= 0) {
-			Macros::showDestinationConflictPopup(destination, owner, true); // persistent while held
-			return;
-		}
-	}
-	Macros::MacroTargetSlot& f = instrument->macros[macroIndex].targets[target];
-	DEF_STACK_STRING_BUF(popup, 48);
-	if (destination == Macros::kNoDestination) {
-		popup.append("Target Assign");
-	}
-	else {
-		appendTargetName(popup, instrument, target, destination);
-		popup.append(display->haveOLED() ? '\n' : ' ');
-		appendTargetEndpoint(popup, instrument, destination, f.from);
-		popup.append(" - ");
-		appendTargetEndpoint(popup, instrument, destination, f.to);
-	}
-	display->popupText(popup.c_str());
-}
-
-// Thin public forwarders so the note-view macro-target picker reuses this view's identical target
-// range readout and knob-ring seeding (the underlying helpers are file-static).
-void AutomationView::showMacroTargetRangeReadout(MelodicInstrument* instrument, int32_t macroIndex, int32_t target,
-                                                 uint8_t destination, bool showConflict) {
-	showTargetFull(instrument, macroIndex, target, destination, showConflict);
-}
-
-void AutomationView::showMacroTargetRangeKnobIndicators(MelodicInstrument* instrument, int32_t macroIndex,
-                                                        int32_t target) {
-	showHeldTargetKnobIndicators(instrument, macroIndex, target);
-}
-
 const uint32_t auditionPadActionUIModes[] = {UI_MODE_NOTES_PRESSED,
                                              UI_MODE_AUDITIONING,
                                              UI_MODE_HORIZONTAL_SCROLL,
@@ -2726,8 +2645,8 @@ void AutomationView::modButtonAction(uint8_t whichButton, bool on) {
 		uint8_t destination = instrument->macros[macroIndex].targets[whichButton].destination;
 		heldTargetPendingDestination = (destination == Macros::kNoDestination) ? -1 : destination;
 		// initial press: an in-use target reads out who owns its destination
-		showTargetFull(instrument, macroIndex, whichButton, destination, true);
-		showHeldTargetKnobIndicators(instrument, macroIndex, whichButton);
+		Macros::showTargetRangeReadout(instrument, macroIndex, whichButton, destination, true);
+		Macros::showTargetKnobIndicators(instrument, macroIndex, whichButton);
 		// the main grid flips to the destination-picker overlay for the duration of the hold; its
 		// pads mean params now, so stop the shortcut blinking (re-armed on release)
 		resetShortcutBlinking();
@@ -2817,7 +2736,7 @@ void AutomationView::handleMacroPickerPad(Clip* clip, int32_t x, int32_t y) {
 		return; // a dark pad - not a pickable destination
 	}
 	heldTargetPendingDestination = (int16_t)destination;
-	showTargetFull(instrument, macroIndex, heldTarget, (uint8_t)destination, false);
+	Macros::showTargetRangeReadout(instrument, macroIndex, heldTarget, (uint8_t)destination, false);
 	bool wouldDrive = Macros::findShadowingOwner(instrument->macros, (uint8_t)destination, macroIndex, heldTarget) < 0;
 	indicator_leds::setLedState(indicator_leds::modLed[heldTarget], wouldDrive);
 	uiNeedsRendering(&automationView, 0xFFFFFFFF, 0); // move the white pick highlight
@@ -2920,20 +2839,12 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 			// Shaping the range implicitly confirms a destination still pending from the select
 			// encoder - commit it now so From/To edit (and read out) the just-dialed CC.
 			commitHeldTargetDestination();
+			Macros::editTargetEndpoint(heldClip, instrument, macroIndex, heldTarget, whichModEncoder, offset);
 			Macros::MacroTargetSlot& f = instrument->macros[macroIndex].targets[heldTarget];
-			uint8_t& endpoint = (whichModEncoder == 1) ? f.to : f.from; // knob 1 = From, knob 2 = To
-			int32_t v = std::clamp<int32_t>((int32_t)endpoint + offset, 0,
-			                                Macros::maxTargetValue(Macros::domainForOutput(heldClip->output)));
-			if (v != endpoint) {
-				endpoint = (uint8_t)v;
-				instrument->editedByUser = true;
-				// only this target's scaling changed - re-bake just its lane
-				Macros::reFanTarget(heldClip, macroIndex, heldTarget, nullptr);
-			}
 			// always show the full "From X To Y" readout - even for an in-use target, so its range
 			// stays editable like any other; the conflict shows as the blinking LED after release
-			showTargetFull(instrument, macroIndex, heldTarget, f.destination, false);
-			showHeldTargetKnobIndicators(instrument, macroIndex, heldTarget);
+			Macros::showTargetRangeReadout(instrument, macroIndex, heldTarget, f.destination, false);
+			Macros::showTargetKnobIndicators(instrument, macroIndex, heldTarget);
 			return;
 		}
 	}
@@ -3120,7 +3031,7 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 			    (heldTargetPendingDestination < 0) ? Macros::kNoDestination : (uint8_t)heldTargetPendingDestination;
 			// Dialing stays normal even onto an in-use destination (pick it, then shape From/To with
 			// the gold knobs); only the LED hints it won't drive, and it blinks after release.
-			showTargetFull(instrument, macroIndex, heldTarget, pendingDestination, false);
+			Macros::showTargetRangeReadout(instrument, macroIndex, heldTarget, pendingDestination, false);
 			bool wouldDrive =
 			    pendingDestination != Macros::kNoDestination
 			    && Macros::findShadowingOwner(instrument->macros, pendingDestination, macroIndex, heldTarget) < 0;
