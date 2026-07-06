@@ -101,9 +101,6 @@ extern "C" {}
 
 using namespace deluge::gui;
 
-constexpr uint8_t kVelocityShortcutX = 15;
-constexpr uint8_t kVelocityShortcutY = 1;
-
 PLACE_SDRAM_DATA InstrumentClipView instrumentClipView{};
 
 InstrumentClipView::InstrumentClipView() : numEditPadPresses(0) {
@@ -1864,7 +1861,7 @@ ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocit
 		if (velocity && (!isUIModeActive(UI_MODE_AUDITIONING) || !editedAnyPerNoteRowStuffSinceAuditioningBegan)) {
 			// are we trying to enter the automation view velocity note editor
 			// by pressing audition pad + velocity shortcut?
-			if (isUIModeActive(UI_MODE_AUDITIONING) && (x == kVelocityShortcutX && y == kVelocityShortcutY)) {
+			if (isUIModeActive(UI_MODE_AUDITIONING) && automationView.isNoteVelocityEditorShortcut(x, y)) {
 				return commandEnterNoteVelocityEditor(x, y);
 			}
 			// otherwise let's check for another shortcut pad action

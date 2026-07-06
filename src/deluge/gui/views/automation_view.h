@@ -172,6 +172,8 @@ public:
 	int32_t rightPadSelectedY;
 	int32_t lastPadSelectedKnobPos;
 
+	bool isNoteVelocityEditorShortcut(int32_t x, int32_t y);
+
 private:
 	// button action functions
 	void handleSessionButtonAction(Clip* clip, bool on);
