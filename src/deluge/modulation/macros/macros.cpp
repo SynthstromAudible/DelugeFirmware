@@ -174,21 +174,6 @@ void appendDestinationName(StringBuf& buf, MelodicInstrument* instrument, uint8_
 	}
 }
 
-void appendMacroLabel(StringBuf& buf, Macro& macro, int32_t macroIndex, bool multiLine) {
-	buf.append(deluge::l10n::get(
-	    static_cast<deluge::l10n::String>(util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1) + macroIndex)));
-	char sep = multiLine ? '\n' : ' ';
-	if (!macro.name.isEmpty()) {
-		buf.append(sep);
-		buf.append(macro.name.get()); // the user's label, verbatim (no parens)
-	}
-	if (!macro.active) {
-		buf.append(sep);
-		// parenthesized so the STATUS is distinguishable from a macro literally named "Inactive"
-		buf.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_STATUS_INACTIVE));
-	}
-}
-
 // Appends "<destination>\nused by\nMacro N" (OLED) / "<destination> used by Macro N" (7SEG). The destination is
 // resolved against the selected/active clip's instrument, same as the conflict machinery.
 static void appendDestinationUsedBy(StringBuf& buf, uint8_t destination, int32_t ownerMacro) {

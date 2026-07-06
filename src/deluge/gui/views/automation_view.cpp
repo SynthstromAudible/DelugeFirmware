@@ -194,7 +194,7 @@ static void showTargetFull(MelodicInstrument* instrument, int32_t macroIndex, in
 	Macros::MacroTargetSlot& f = instrument->macros[macroIndex].targets[target];
 	DEF_STACK_STRING_BUF(popup, 48);
 	if (destination == Macros::kNoDestination) {
-		popup.append("Not assigned");
+		popup.append("Target Assign");
 	}
 	else {
 		appendTargetName(popup, instrument, target, destination);

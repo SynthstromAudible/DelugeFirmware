@@ -1549,14 +1549,10 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 				}
 				else {
 					clip->output->macroKnobSelected = macro;
-					// PEEK: "Macro N" (+ name, + "(Inactive)") readout, shown PERSISTENTLY for the whole
-					// duration the button is held (cancelled on release below).
-					MelodicInstrument* instrument = Macros::macroClipInstrument(clip);
-					if (instrument != nullptr) {
-						DEF_STACK_STRING_BUF(popup, 48);
-						Macros::appendMacroLabel(popup, instrument->macros[macro], macro, display->haveOLED());
-						display->popupText(popup.c_str());
-					}
+					// The grid becomes this macro's target picker: announce the assign mode. The blinking
+					// macro-button LED shows which macro; the first pad tap replaces this with the per-target
+					// readout. Persistent for the whole hold (cancelled on release below).
+					display->popupText("Macro Assign");
 					setKnobIndicatorLevels();
 					setModLedStates();
 					// HOLD-TO-ASSIGN: while the button is held, the main grid becomes this macro's target

@@ -232,11 +232,6 @@ bool driveMacro(int32_t macroIndex, int32_t offset);
 // like a normal automated param. No-op while recording and for macros with no lane automation.
 void applyMacroLaneAutomation(Clip* clip, ModelStackWithTimelineCounter* modelStack);
 
-// Appends a macro's peek label for the note-view MACRO-mode popup: "Macro N", then the user's name
-// if set, then "(Inactive)" when the macro isn't active - the parentheses distinguish the STATUS from
-// a macro the user literally named "Inactive". Parts are separated by newline (OLED) or space (7SEG).
-void appendMacroLabel(StringBuf& buf, Macro& macro, int32_t macroIndex, bool multiLine);
-
 // Bakes macro macroIndex's automation-lane curve (pseudo-CC paramIDForMacro(idx)) into its target CC
 // automation lanes on the given clip, scaled per target. Call after a user edits/clears the macro
 // lane or changes a target's config. No-op if the macro lane's param was never created on this clip
