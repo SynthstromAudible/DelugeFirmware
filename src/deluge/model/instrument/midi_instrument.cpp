@@ -588,8 +588,7 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 					return Error::INSUFFICIENT_RAM;
 				}
 
-				Error error =
-				    midiParam->param.readFromFile(*midiParam->param.ownDocForFallback(), reader, readAutomationUpToPos);
+				Error error = midiParam->param.readFromFile(midiParam->nodes_, reader, readAutomationUpToPos);
 				if (error != Error::NONE) {
 					return error;
 				}

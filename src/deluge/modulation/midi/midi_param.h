@@ -25,4 +25,10 @@ public:
 
 	uint8_t cc{};
 	AutoParam param;
+
+	/// M2-F: this CC's automation node storage, owned inline by the MIDIParam (its lifecycle is the CC's). The
+	/// MIDIParamVector reorders/relocates by CC on every learn, and this store rides with the element through
+	/// those moves — so owner-resolution (MIDIParamCollection::docForParam → `&nodes_`) stays correct without a
+	/// pointer stored on the AutoParam. `param` is now just the RT interpolation cursor.
+	deluge::project::DocAutoParam nodes_{};
 };

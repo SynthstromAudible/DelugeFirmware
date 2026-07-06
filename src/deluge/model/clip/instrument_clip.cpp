@@ -3039,6 +3039,9 @@ Error InstrumentClip::readMIDIParamsFromFile(Deserializer& reader, int32_t readA
 			char const* tagName;
 			int32_t paramId = CC_NUMBER_NONE;
 			AutoParam* param = nullptr;
+			// M2-F: the DOM node store to read into — the expression param's own storage, or (for MIDI) the
+			// MIDIParam's inline nodes_ store, which owner-resolution reads at runtime.
+			deluge::project::DocAutoParam* readTarget = nullptr;
 			ParamCollectionSummary* summary;
 			ExpressionParamSet* expressionParams = nullptr;
 
@@ -3056,6 +3059,7 @@ expressionParam:
 						summary = paramManager.getExpressionParamSetSummary();
 						expressionParams = (ExpressionParamSet*)summary->paramCollection;
 						param = &expressionParams->params[paramId];
+						readTarget = param->ownDocForFallback();
 					}
 					else if (!strcasecmp(contents, "aftertouch")) {
 						paramId = Z_PRESSURE;
@@ -3082,6 +3086,7 @@ expressionParam:
 								return Error::INSUFFICIENT_RAM;
 							}
 							param = &midiParam->param;
+							readTarget = &midiParam->nodes_; // M2-F: MIDI nodes live in the MIDIParam's inline store
 						}
 					}
 					reader.exitTag("cc");
@@ -3089,7 +3094,7 @@ expressionParam:
 				else if (!strcmp(tagName, "value")) {
 					if (param) {
 
-						Error error = param->readFromFile(*param->ownDocForFallback(), reader, readAutomationUpToPos);
+						Error error = param->readFromFile(*readTarget, reader, readAutomationUpToPos);
 						if (error != Error::NONE) {
 							return error;
 						}
@@ -3098,21 +3103,21 @@ expressionParam:
 							// Most other times you don't have to think about calling this. It's just because we didn't
 							// know which ParamCollection we were gonna load into, and MIDIParamCollection doesn't keep
 							// track of automation.
-							if (param->isAutomated(*param->ownDocForFallback())) {
+							if (param->isAutomated(*readTarget)) {
 								expressionParams->paramHasAutomationNow(summary, paramId);
 							}
 
 							// If channel pressure, gotta move and scale the values from how they were in the pre-V3.2
 							// firmware
 							if (paramId) {
-								param->transposeCCValuesToChannelPressureValues(*param->ownDocForFallback());
+								param->transposeCCValuesToChannelPressureValues(*readTarget);
 							}
 
 							// Or if pitch bend, it'll no longer interpolate, so go place some new nodes. Actually even
 							// without this step, you can only just tell there's any problem.
 							else {
 								param->makeInterpolationGoodAgain(
-								    *param->ownDocForFallback(), loopLength,
+								    *readTarget, loopLength,
 								    22); // 22 is picked somewhat arbitrarily - see comment for function itself.
 							}
 						}

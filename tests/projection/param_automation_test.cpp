@@ -1604,22 +1604,22 @@ int main() {
 		      "helper: patch cable automation intact");
 	}
 
-	// M2-E (MIDI-CC): the MIDIParamVector reorders/relocates by CC on every learn, so it is NOT bound to a
-	// positional store — each CC's nodes live inline in its AutoParam and ride with the element through the
-	// vector's growth. Owner-resolution (docParamForId(cc)) finds the CC's inline store, and the automation
+	// M2-F (MIDI-CC): the MIDIParamVector reorders/relocates by CC on every learn, so it is NOT bound to a
+	// positional store — each CC owns its nodes inline (MIDIParam::nodes_) and they ride with the element through
+	// the vector's growth. Owner-resolution (docParamForId(cc)) finds the CC's inline store, and the automation
 	// survives learning a new CC. The corpus has no MIDI-CC automation, so this is the only coverage.
 	{
 		ParamManagerForTimeline pm;
 		check(pm.setupMIDI() == Error::NONE, "midi: setup");
 		MIDIParamCollection* mpc = pm.getMIDIParamCollection();
-		setNode(mpc->params.getOrCreateParamFromCC(10, 0)->param, 0, 111, true);
-		setNode(mpc->params.getOrCreateParamFromCC(20, 0)->param, 0, 222, false);
+		setNodeIn(mpc->params.getOrCreateParamFromCC(10, 0)->nodes_, 0, 111, true);
+		setNodeIn(mpc->params.getOrCreateParamFromCC(20, 0)->nodes_, 0, 222, false);
 		check(mpc->params.size() == 2, "midi: two CCs authored");
 
 		mpc->bindDomStore(); // no-op: ordered collections keep nodes inline
 		check(mpc->domStore() == nullptr, "midi: not bound to a shared store");
 		// Owner-resolution by CC returns each CC's inline store.
-		check(mpc->docParamForId(10) == mpc->params.getParamFromCC(10)->param.ownDocForFallback(),
+		check(mpc->docParamForId(10) == &mpc->params.getParamFromCC(10)->nodes_,
 		      "midi: docParamForId resolves the CC's inline store");
 
 		// Learn a third CC (15) — the MIDIParamVector grows/relocates its elements.
