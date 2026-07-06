@@ -127,22 +127,72 @@ supplies timeline context + Action/notify (the "wiring seam"). One op per commit
 
 ---
 
-## Phase M2-D — Convert the RT read path + recording (HARDWARE-GATED)
+## Phase M2-D — Route the RT read path + recording through DOM kernels
 
-The per-tick projection and the recording write are engine-side (per-voice cursor) but currently read/mutate
-`nodes()` directly. Convert them to DOM reads/kernels. **This is the risky phase — do NOT start before the
-Movement-1 hardware gate is green.**
+**Framing correction (post-M2-B/C).** After M2-B, `nodes()` already resolves to `doc_->nodes`, so the RT path
+already *reads DOM-owned nodes*. M2-D is therefore NOT about changing where reads point — it's about routing the
+last read op (`getValueAtPos`) and the recording write (`recordLiveValue`, `setValueForRegion`) through the DOM
+**kernels**, so no engine method carries its own copy of the projection/record math. The per-voice interpolation
+**cursor** (`currentValue`, `valueIncrementPerHalfTick`, `renewedOverridingAtTime` latch) stays engine-side — it
+is RT state, not node data, and is explicitly out of scope for the DOM (spec §7).
 
-- [ ] `processCurrentPos` — read the node just reached and the next node via DOM read accessors
-  (`findNodeAtOrAfter`/index reads on `*doc_`) instead of `nodes().firstAtOrAfter(...)`; keep the cursor
-  (`currentValue`/increment) update engine-side. `setupInterpolation` likewise.
-- [ ] `setPlayPos` / `grabValueFromPos` / `getValuePossiblyAtPos` — read via `param_edit::getValueAtPos` (already
-  ported).
-- [ ] `setCurrentValueInResponseToUserInput` (recording) — route the node write through the M2-A kernel; keep the
-  latch/override state coherent with `processCurrentPos` across a tick (spec §7). **The delicate seam.**
-- [ ] **Verify:** golden `OK=15`; `song_edit_roundtrip` PERSISTED; AND **on-device**: record + draw automation
-  live, playback, undo/redo, MPE + MIDI-CC + patch-cable edits — confirm it lands and feels right. Sim can't see
-  this; the device is the oracle.
+This splits by risk. **M2-D.1 is sim-verifiable** (oracle covers `getValueAtPos`); **M2-D.2/.3 are the recording
+seam and MUST NOT start before the Movement-1 on-device gate is green** (record/draw automation on audio + synth
++ kit-drum → play → undo/redo → save/reload). Keep M2-D.1 as its own commit so it can land pre-hardware.
+
+### M2-D.1 — Forward `getValueAtPos` to the DOM read kernel (sim-verifiable, LOW risk)
+
+`AutoParam::getValueAtPos(pos, modelStack, reversed)` (auto_param.cpp:1220) is a pure read that internally
+lazily fetches `modelStack->getLoopLength()`. The kernel `param_edit::getValueAtPos(const DocAutoParam&, uint32_t
+pos, int32_t loopLength, bool reversed)` already exists and is oracle-tested. `getLoopLength()` is always safe to
+call eagerly (it's a length, not a null-deref; `processCurrentPos` already calls it unconditionally at line 453).
+
+- [ ] **Step 1:** Replace the `getValueAtPos` body with `return deluge::project::getValueAtPos(*doc_, pos,
+  modelStack->getLoopLength(), reversed);`. Its callers — `setPlayPos` (1287), `grabValueFromPos` (1277),
+  `getValuePossiblyAtPos` (1213), and the still-engine-native `trimToLength`/`copy`/recording paths — then read
+  through the DOM kernel automatically; no caller edits needed.
+- [ ] **Step 2 (verify):** `param_projection_test` OK x86≡ARM (the getValueAtPos oracle already covers empty /
+  stepped / interpolated / loop-wrap / infinite-length cases); golden `OK=15` x86≡ARM; firmware builds. Commit.
+
+  *Caveat (already satisfied):* the kernel takes `loopLength` where the engine special-cases `2147483647`
+  (infinite length); the getValueAtPos oracle already diffs engine vs kernel across `loopLengths[] = {128,
+  2147483647}` × positions × reversed (param_automation_test.cpp:215), so the infinite-length path is covered.
+
+### M2-D.2 — Route `setValueForRegion` through its kernel (HARDWARE-GATED)
+
+Deferred from M2-C because the engine method re-derives RT signals the kernel's `optional<bool>` return can't
+give back. Do it here, with the RT context in hand:
+- [ ] Keep the wiring seam (getNewAction, whole-region `deleteAutomation`, trailing `notifyParamModifiedInSomeWay`,
+  `view.notifyParamAutomationOccurred`, `resetInterpolationIncrement`). Supply the kernel's inputs from the engine:
+  `interpL`/`interpR` from `getRootUI()==&automationView ? automationView.interpolationBefore/After : false`;
+  `clockActive` from `playbackHandler.isEitherClockActive()`; `livePos`/`reversed` from the modelStack.
+- [ ] Forward the partial-region branch to `param_edit::setValueForRegion(*doc_, …)` via the value sync-bridge.
+  The kernel's `optional<bool>` tells you `automationChanged`; re-derive the RT sub-branch (`mostRecentI==firstI`
+  → `resetInterpolationIncrement()`+`currentValue=value`, else `view.notifyParamAutomationOccurred`) engine-side
+  from `nodes()` + `livePos` after the kernel runs — the node state it needs is all still readable via `nodes()`.
+- [ ] **Verify:** `param_projection_test` OK; golden `OK=15`; **on-device**: draw a region value in automation
+  view (both interpolate-on and -off), while stopped and while playing over the region.
+
+### M2-D.3 — Route the recording write through `recordLiveValue`; keep the latch coherent (HARDWARE-GATED, delicate)
+
+`setCurrentValueInResponseToUserInput`'s recording branch (auto_param.cpp:141+, the `livePos`/`ticksToClear`
+block) and `processCurrentPos`'s `recordOverNodeJustReached` path (auto_param.cpp:600+) are the one place a live
+node write and the per-tick cursor genuinely interleave (spec §7).
+- [ ] In `setCurrentValueInResponseToUserInput`, route the node mutation through `param_edit::recordLiveValue`
+  (the M2-A kernel), computing its args (`ticksToClear`, `doMPEMode`, `interpolateLeft` = `reversed ||
+  shouldInterpolateRegionStart`, `posAtWhichPlaybackWillCut`) exactly as the engine does now. Keep the
+  `renewedOverridingAtTime` latch, `resetInterpolationIncrement`, Action snapshot, and `notifyParamModified…`
+  engine-side. The "clip too short" early-out becomes a direct `nodes().clear()` (kernel is not invoked there).
+- [ ] Leave `processCurrentPos`/`setupInterpolation` node *reads* as-is (they already read `doc_->nodes` via
+  `nodes()`); do NOT try to kernel-ise the cursor state machine. The only change here, if any, is that the
+  `recordOverNodeJustReached` node write can reuse the same kernel helper as above for consistency — optional.
+- [ ] **Verify:** golden `OK=15`; `song_edit_roundtrip` PERSISTED; AND **on-device (the real oracle)**: record
+  automation live by turning a knob during playback (audio + synth + kit-drum), confirm the drift-back-to-automation
+  feels right; latching (record into an empty stretch, then hit an existing node); MPE + MIDI-CC + patch-cable
+  knob-recording; undo/redo; save→reload.
+
+**M2-D deliverable:** every node read and the recording write run through DOM kernels; only the RT interpolation
+cursor + override latch remain as engine state (correctly — they are not node data).
 
 ---
 
