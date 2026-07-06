@@ -277,7 +277,8 @@ investigatePrevNode:
 					}
 					prevI = std::ssize(nodesRef) - 1;
 				}
-				deleteRedundantNodeInLinearRun(prevI, effectiveLength, backtrackingCouldLoopBackToEnd);
+				deleteRedundantNodeInLinearRun(*modelStack->doc(), prevI, effectiveLength,
+				                               backtrackingCouldLoopBackToEnd);
 
 skipThat: {}
 			}
@@ -326,14 +327,14 @@ getOut:
 	                                                          automatedNow);
 }
 
-bool AutoParam::deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,
-                                               bool mayLoopAroundBackToEnd) {
+bool AutoParam::deleteRedundantNodeInLinearRun(deluge::project::DocAutoParam& doc, int32_t lastNodeInRunI,
+                                               int32_t effectiveLength, bool mayLoopAroundBackToEnd) {
 
-	if (std::ssize(nodes()) < 3) {
+	if (std::ssize(doc.nodes) < 3) {
 		return false;
 	}
 
-	ParamNode* lastNodeInRun = &nodes()[lastNodeInRunI];
+	ParamNode* lastNodeInRun = &doc.nodes[lastNodeInRunI];
 
 	// But first, now that we've moved on from prevNode, see if prevNode concluded a linear run of nodes for which we
 	// can now delete the middle node
@@ -342,9 +343,9 @@ bool AutoParam::deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t e
 		if (!mayLoopAroundBackToEnd) {
 			return false;
 		}
-		middleNodeInRunI = std::ssize(nodes()) - 1;
+		middleNodeInRunI = std::ssize(doc.nodes) - 1;
 	}
-	ParamNode* middleNodeInRun = &nodes()[middleNodeInRunI];
+	ParamNode* middleNodeInRun = &doc.nodes[middleNodeInRunI];
 
 	if (lastNodeInRun->interpolated || !middleNodeInRun->interpolated) {
 
@@ -353,14 +354,14 @@ bool AutoParam::deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t e
 			if (!mayLoopAroundBackToEnd) {
 				return false;
 			}
-			firstNodeInRunI = std::ssize(nodes()) - 1;
+			firstNodeInRunI = std::ssize(doc.nodes) - 1;
 		}
-		ParamNode* firstNodeInRun = &nodes()[firstNodeInRunI];
+		ParamNode* firstNodeInRun = &doc.nodes[firstNodeInRunI];
 
 		if (middleNodeInRun->value == firstNodeInRun->value
 		    && (middleNodeInRun->value == lastNodeInRun->value || !middleNodeInRun->interpolated)) {
 removeMiddleNodeInRun:
-			nodes().erase(nodes().begin() + middleNodeInRunI);
+			doc.nodes.erase(doc.nodes.begin() + middleNodeInRunI);
 			return true;
 		}
 
@@ -712,7 +713,8 @@ adjustNodeJustReached:
 				// Having changed that node's value, there's a chance it may have made the node before it redundant
 				if (!reversed) {
 					needToReGetNextNode = deleteRedundantNodeInLinearRun(
-					    iJustReached, effectiveLength); // Shouldn't I make it so this doesn't get called for MPE?
+					    *modelStack->doc(), iJustReached,
+					    effectiveLength); // Shouldn't I make it so this doesn't get called for MPE?
 				}
 
 				if (insertingNodeAtEndOfClearing) {
@@ -729,7 +731,7 @@ adjustNodeJustReached:
 						*/
 						if (!reversed) {
 							needToReGetNextNode = deleteRedundantNodeInLinearRun(
-							    iRight,
+							    *modelStack->doc(), iRight,
 							    effectiveLength); // If returns false, storage wasn't changed, and we've got the next
 							                      // node right here! Shouldn't I make it so this doesn't get called for
 							                      // MPE?
@@ -1164,39 +1166,6 @@ int32_t AutoParam::homogenizeRegion(ModelStackWithAutoParam const* modelStack, i
 	                                         posAtWhichClipWillCut);
 }
 
-void AutoParam::homogenizeRegionTestSuccess(int32_t pos, int32_t regionEnd, int32_t startValue, bool interpolateStart,
-                                            bool interpolateEnd) {
-
-	nodes().testSequentiality("E317");
-
-	int32_t startI = nodes().firstAtOrAfter(pos);
-	int32_t endI = nodes().firstAtOrAfter(regionEnd);
-
-	if (endI == startI + 1 || (endI == 0 && startI == std::ssize(nodes()) - 1)) {
-		// Fine
-	}
-	else {
-		FREEZE_WITH_ERROR("E119");
-	}
-
-	ParamNode* startNode = nodes().tryGet(startI);
-	ParamNode* endNode = nodes().tryGet(endI);
-
-	if (!startNode || !endNode) {
-		FREEZE_WITH_ERROR("E118");
-	}
-
-	if (startNode->value != startValue) {
-		FREEZE_WITH_ERROR("E120");
-	}
-	if (startNode->interpolated != interpolateStart) {
-		FREEZE_WITH_ERROR("E121");
-	}
-	if (endNode->interpolated != interpolateEnd) {
-		FREEZE_WITH_ERROR("E122");
-	}
-}
-
 int32_t AutoParam::getValuePossiblyAtPos(int32_t pos, ModelStackWithAutoParam* modelStack) {
 	if (pos < 0) {
 		return getCurrentValue();
@@ -1280,14 +1249,6 @@ void AutoParam::appendParam(AutoParam* otherParam, int32_t oldLength, int32_t re
 	// M2-C: forward to the DOM kernel; the source param's nodes come from its DocAutoParam handle.
 	deluge::project::appendParam(*doc_, *otherParam->doc_, oldLength, reverseThisRepeatWithLength,
 	                             pingpongingGenerally);
-}
-
-void AutoParam::deleteNodesBeyondPos(int32_t pos) {
-	int32_t i = nodes().firstAtOrAfter(pos);
-	int32_t numToDelete = std::ssize(nodes()) - i;
-	if (numToDelete) {
-		nodes().erase(nodes().begin() + i, nodes().begin() + i + numToDelete);
-	}
 }
 
 void AutoParam::trimToLength(uint32_t newLength, Action* action, ModelStackWithAutoParam const* modelStack) {

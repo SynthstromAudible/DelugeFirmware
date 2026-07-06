@@ -180,13 +180,10 @@ private:
 	/// members). All node access goes through nodes() (== doc_->nodes). Scaffolding: removed in M2-E.
 	deluge::project::DocAutoParam* doc_ = &ownDoc_;
 
-	bool deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,
-	                                    bool mayLoopAroundBackToEnd = true);
+	bool deleteRedundantNodeInLinearRun(deluge::project::DocAutoParam& doc, int32_t lastNodeInRunI,
+	                                    int32_t effectiveLength, bool mayLoopAroundBackToEnd = true);
 	void setupInterpolation(ModelStackWithAutoParam const* modelStack, ParamNode* nextNode, int32_t effectiveLength,
 	                        int32_t currentPos, bool reversed);
-	void homogenizeRegionTestSuccess(int32_t pos, int32_t regionEnd, int32_t startValue, bool interpolateStart,
-	                                 bool interpolateEnd);
-	void deleteNodesBeyondPos(int32_t pos);
 
 	// interpolation to calculate current value
 	bool useFloatInterpolation(ModelStackWithAutoParam const* modelStack);
