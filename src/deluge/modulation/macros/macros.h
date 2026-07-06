@@ -104,6 +104,11 @@ void decodeSynthDestination(uint8_t destination, deluge::modulation::params::Kin
 // PATCHED and UNPATCHED_SOUND params are, and never the macro lane params themselves).
 int32_t synthDestinationForParam(deluge::modulation::params::Kind kind, int32_t paramID);
 
+// Resolves a main-grid pad (x,y) to the destination byte it would pick in this domain, or -1 if the pad
+// can't be a macro target. SYNTH reads the const param-shortcut grids (+ the shared second layer); MIDI
+// reads midiFollow's cached CC-per-pad grid. Shared by the automation-lane picker and note-view picker.
+int32_t macroDestinationForPad(Domain domain, int32_t x, int32_t y, bool secondLayer = false);
+
 // The destination byte of macro macroIndex's own automation lane: the pseudo-CC id (128+idx) on
 // MIDI clips, the UNPATCHED_MACRO_n soundParamId byte (117+idx) on synth clips.
 uint8_t laneDestination(Domain domain, int32_t macroIndex);

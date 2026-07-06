@@ -7346,8 +7346,8 @@ void InstrumentClipView::renderMacroTargetPickerOverlay(RGB image[][kDisplayWidt
 	Macros::Macro& macro = instrument->macros[macroTargetPickerMacro];
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
 		for (int32_t x = 0; x < kDisplayWidth; x++) {
-			int32_t primary = automationView.macroDestinationForPad(domain, x, y, false);
-			int32_t second = automationView.macroDestinationForPad(domain, x, y, true);
+			int32_t primary = Macros::macroDestinationForPad(domain, x, y, false);
+			int32_t second = Macros::macroDestinationForPad(domain, x, y, true);
 			if (primary < 0 && second < 0) {
 				image[y][x] = colours::black; // not a valid destination
 				continue;
@@ -7394,8 +7394,8 @@ void InstrumentClipView::handleMacroTargetPickerPad(int32_t x, int32_t y, int32_
 		return;
 	}
 	Macros::Domain domain = Macros::domainForOutput(clip->output);
-	int32_t primary = automationView.macroDestinationForPad(domain, x, y, false);
-	int32_t second = automationView.macroDestinationForPad(domain, x, y, true);
+	int32_t primary = Macros::macroDestinationForPad(domain, x, y, false);
+	int32_t second = Macros::macroDestinationForPad(domain, x, y, true);
 	if (primary < 0 && second < 0) {
 		return; // a dark pad - not a pickable destination
 	}
@@ -7512,10 +7512,8 @@ void InstrumentClipView::deleteSelectedMacroTarget() {
 		return;
 	}
 	Macros::Domain domain = Macros::domainForOutput(clip->output);
-	int32_t primary =
-	    automationView.macroDestinationForPad(domain, macroTargetPickerLastX, macroTargetPickerLastY, false);
-	int32_t second =
-	    automationView.macroDestinationForPad(domain, macroTargetPickerLastX, macroTargetPickerLastY, true);
+	int32_t primary = Macros::macroDestinationForPad(domain, macroTargetPickerLastX, macroTargetPickerLastY, false);
+	int32_t second = Macros::macroDestinationForPad(domain, macroTargetPickerLastX, macroTargetPickerLastY, true);
 	Macros::Macro& macro = instrument->macros[macroTargetPickerMacro];
 	Macros::LayerAssignment la = Macros::layerAssignment(macro, primary, second);
 	bool primaryAssigned = la.primarySlot >= 0;

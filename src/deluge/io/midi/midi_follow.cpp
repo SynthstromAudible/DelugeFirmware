@@ -357,6 +357,39 @@ void MidiFollow::initDefaultMappings() {
 	globalParamToCC[params::UNPATCHED_REVERB_SEND_AMOUNT] = 91;
 	ccToGlobalParam[93] = params::UNPATCHED_MOD_FX_DEPTH;
 	globalParamToCC[params::UNPATCHED_MOD_FX_DEPTH] = 93;
+
+	buildMIDICCShortcutsForAutomation(); // cache the derived grid now the default maps are set
+}
+
+// Recomputes the automation-grid pad -> CC table from the current maps. Reads the const param-shortcut
+// grids (patchedParamShortcuts etc.), which are compile-time-constant .rodata (no static-init hazard).
+void MidiFollow::buildMIDICCShortcutsForAutomation() {
+	for (int32_t x = 0; x < kDisplayWidth; x++) {
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			uint8_t ccNumber = MIDI_CC_NONE;
+			uint32_t paramId = params::patchedParamShortcuts[x][y];
+			if (paramId != params::kNoParamID) {
+				ccNumber = soundParamToCC[paramId];
+				if (ccNumber == MIDI_CC_NONE) {
+					ccNumber = globalParamToCC[paramId];
+				}
+			}
+			if (ccNumber == MIDI_CC_NONE) {
+				paramId = params::unpatchedNonGlobalParamShortcuts[x][y];
+				if (paramId != params::kNoParamID) {
+					ccNumber = soundParamToCC[paramId + params::UNPATCHED_START];
+					if (ccNumber == MIDI_CC_NONE) {
+						ccNumber = globalParamToCC[paramId];
+					}
+				}
+			}
+			midiCCShortcutsForAutomation[x][y] = (ccNumber != MIDI_CC_NONE) ? ccNumber : params::kNoParamID;
+		}
+	}
+
+	midiCCShortcutsForAutomation[14][7] = CC_NUMBER_PITCH_BEND;
+	midiCCShortcutsForAutomation[15][0] = CC_NUMBER_AFTERTOUCH;
+	midiCCShortcutsForAutomation[15][7] = CC_NUMBER_Y_AXIS;
 }
 
 /// checks to see if there is an active clip for the current context
@@ -1693,6 +1726,7 @@ void MidiFollow::readDefaultsFromFile() {
 		reader.exitTag();
 	}
 	activeDeserializer->closeWriter();
+	buildMIDICCShortcutsForAutomation(); // XML overrode the maps - refresh the derived grid
 	successfullyReadDefaultsFromFile = true;
 }
 

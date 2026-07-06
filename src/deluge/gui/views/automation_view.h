@@ -185,9 +185,6 @@ public:
 	// Enters automation view showing macro `macroIndex`'s lane in the editor (the 8 mod buttons then
 	// become that macro's target quick-editors). Called from note-view MACRO mode (SHIFT + macro button).
 	void openMacroLaneEditor(Clip* clip, int32_t macroIndex);
-	// Resolves a main-grid pad to the destination byte it picks (or -1 if not a valid target), incl. the
-	// shared second-layer param. Public so the note-view macro-target picker reuses the same resolution.
-	int32_t macroDestinationForPad(Macros::Domain domain, int32_t x, int32_t y, bool secondLayer = false);
 
 	// public so menu and editor layouts can access it
 	bool onMenuView;
@@ -303,11 +300,6 @@ private:
 	bool macroCaptureShortcutBlinking;
 
 	int32_t getEffectiveLength(ModelStackWithTimelineCounter* modelStack);
-
-	// grid sized array to assign midi destination values to each pad on the grid
-	void initMIDICCShortcutsForAutomation();
-	uint32_t midiCCShortcutsForAutomation[kDisplayWidth][kDisplayHeight];
-	bool midiCCShortcutsLoaded;
 
 	bool probabilityChanged;
 	uint32_t timeSelectKnobLastReleased;

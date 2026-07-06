@@ -393,6 +393,30 @@ int32_t synthDestinationForParam(params::Kind kind, int32_t paramID) {
 	return -1;
 }
 
+int32_t macroDestinationForPad(Domain domain, int32_t x, int32_t y, bool secondLayer) {
+	if (domain == Domain::SYNTH) {
+		// Some patched params share a pad (e.g. LFO1 rate / LFO2 rate); the second layer is reached by
+		// pressing the pad again, mirroring the sound editor. Only patched params have a second layer.
+		if (secondLayer) {
+			uint32_t second = params::patchedParamShortcutsSecondLayer[x][y];
+			return (second != params::kNoParamID) ? synthDestinationForParam(params::Kind::PATCHED, second) : -1;
+		}
+		if (params::patchedParamShortcuts[x][y] != params::kNoParamID) {
+			return synthDestinationForParam(params::Kind::PATCHED, params::patchedParamShortcuts[x][y]);
+		}
+		if (params::unpatchedNonGlobalParamShortcuts[x][y] != params::kNoParamID) {
+			return synthDestinationForParam(params::Kind::UNPATCHED_SOUND,
+			                                params::unpatchedNonGlobalParamShortcuts[x][y]);
+		}
+		return -1;
+	}
+	if (secondLayer) {
+		return -1; // MIDI CC shortcuts have no second layer
+	}
+	uint32_t destination = midiFollow.midiCCShortcutsForAutomation[x][y];
+	return (destination != params::kNoParamID && destination <= kMaxMidiDestination) ? (int32_t)destination : -1;
+}
+
 uint8_t laneDestination(Domain domain, int32_t macroIndex) {
 	if (domain == Domain::SYNTH) {
 		return params::UNPATCHED_START + params::UNPATCHED_MACRO_1 + macroIndex;

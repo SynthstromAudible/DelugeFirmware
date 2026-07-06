@@ -395,47 +395,10 @@ AutomationView::AutomationView() {
 	onMenuView = false;
 	navSysId = NAVIGATION_CLIP;
 
-	initMIDICCShortcutsForAutomation();
-	midiCCShortcutsLoaded = false;
-
 	automationParamType = AutomationParamType::PER_SOUND;
 
 	probabilityChanged = false;
 	timeSelectKnobLastReleased = 0;
-}
-
-void AutomationView::initMIDICCShortcutsForAutomation() {
-	for (int x = 0; x < kDisplayWidth; x++) {
-		for (int y = 0; y < kDisplayHeight; y++) {
-			uint8_t ccNumber = MIDI_CC_NONE;
-			uint32_t paramId = patchedParamShortcuts[x][y];
-			if (paramId != kNoParamID) {
-				ccNumber = midiFollow.soundParamToCC[paramId];
-				if (ccNumber == MIDI_CC_NONE) {
-					ccNumber = midiFollow.globalParamToCC[paramId];
-				}
-			}
-			if (ccNumber == MIDI_CC_NONE) {
-				paramId = unpatchedNonGlobalParamShortcuts[x][y];
-				if (paramId != kNoParamID) {
-					ccNumber = midiFollow.soundParamToCC[paramId + params::UNPATCHED_START];
-					if (ccNumber == MIDI_CC_NONE) {
-						ccNumber = midiFollow.globalParamToCC[paramId];
-					}
-				}
-			}
-			if (ccNumber != MIDI_CC_NONE) {
-				midiCCShortcutsForAutomation[x][y] = ccNumber;
-			}
-			else {
-				midiCCShortcutsForAutomation[x][y] = kNoParamID;
-			}
-		}
-	}
-
-	midiCCShortcutsForAutomation[14][7] = CC_NUMBER_PITCH_BEND;
-	midiCCShortcutsForAutomation[15][0] = CC_NUMBER_AFTERTOUCH;
-	midiCCShortcutsForAutomation[15][7] = CC_NUMBER_Y_AXIS;
 }
 
 // called everytime you open up the automation view
@@ -451,11 +414,6 @@ bool AutomationView::opened() {
 
 void AutomationView::initializeView() {
 	navSysId = getNavSysId();
-
-	if (!midiCCShortcutsLoaded) {
-		initMIDICCShortcutsForAutomation();
-		midiCCShortcutsLoaded = true;
-	}
 
 	// grab the default setting for interpolation
 	interpolation = FlashStorage::automationInterpolate;
@@ -837,12 +795,12 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 		// it's this pad's PRIMARY param, yellow if it's the shared second-layer param (matching the
 		// second layer's colour elsewhere); pads that can't be a destination go dark.
 		if (macroPicker) {
-			int32_t destination = macroDestinationForPad(pickerDomain, xDisplay, yDisplay);
+			int32_t destination = Macros::macroDestinationForPad(pickerDomain, xDisplay, yDisplay);
 			if (destination < 0) {
 				pixel = colours::black;
 			}
 			else {
-				int32_t second = macroDestinationForPad(pickerDomain, xDisplay, yDisplay, true);
+				int32_t second = Macros::macroDestinationForPad(pickerDomain, xDisplay, yDisplay, true);
 				if (heldTargetPendingDestination == destination) {
 					pixel = colours::white_full; // primary layer picked
 				}
@@ -929,9 +887,10 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 			}
 
 			else if (outputType == OutputType::MIDI_OUT) {
-				if (midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
-					modelStackWithParam = getModelStackWithParamForClip(
-					    modelStackWithTimelineCounter, clip, midiCCShortcutsForAutomation[xDisplay][yDisplay]);
+				if (midiFollow.midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
+					modelStackWithParam =
+					    getModelStackWithParamForClip(modelStackWithTimelineCounter, clip,
+					                                  midiFollow.midiCCShortcutsForAutomation[xDisplay][yDisplay]);
 				}
 			}
 			else if (outputType == OutputType::CV) {
@@ -2133,10 +2092,11 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 		getLastSelectedGlobalParamArrayPosition(clip);
 	}
 
-	else if (outputType == OutputType::MIDI_OUT && midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
+	else if (outputType == OutputType::MIDI_OUT
+	         && midiFollow.midiCCShortcutsForAutomation[xDisplay][yDisplay] != kNoParamID) {
 
 		// if you are in a midi clip and the shortcut is valid, set the current selected ParamID
-		clip->lastSelectedParamID = midiCCShortcutsForAutomation[xDisplay][yDisplay];
+		clip->lastSelectedParamID = midiFollow.midiCCShortcutsForAutomation[xDisplay][yDisplay];
 	}
 	// expression params, so sounds or midi/cv, or a single drum
 	else if ((util::one_of(outputType, {OutputType::MIDI_OUT, OutputType::CV, OutputType::SYNTH})
@@ -2683,34 +2643,6 @@ bool AutomationView::macroPickerActive(Clip* clip) {
 	return macroLaneInstrument(clip, &macroIndex) != nullptr && macroIndex == heldTargetMacro;
 }
 
-// Resolves a main-grid pad to the destination byte it would pick in this domain, or -1 for a pad
-// that can't be a macro target (patch cables, expression and velocity aren't encodable as a
-// destination byte; the macro lane params are cascade-only, reachable by dial/menu). This is the
-// validity filter the picker overlay renders.
-int32_t AutomationView::macroDestinationForPad(Macros::Domain domain, int32_t x, int32_t y, bool secondLayer) {
-	if (domain == Macros::Domain::SYNTH) {
-		// Some patched params share a pad (e.g. LFO1 rate / LFO2 rate); the second layer is reached by
-		// pressing the pad again, mirroring the sound editor. Only patched params have a second layer.
-		if (secondLayer) {
-			uint32_t second = params::patchedParamShortcutsSecondLayer[x][y];
-			return (second != kNoParamID) ? Macros::synthDestinationForParam(params::Kind::PATCHED, second) : -1;
-		}
-		if (patchedParamShortcuts[x][y] != kNoParamID) {
-			return Macros::synthDestinationForParam(params::Kind::PATCHED, patchedParamShortcuts[x][y]);
-		}
-		if (unpatchedNonGlobalParamShortcuts[x][y] != kNoParamID) {
-			return Macros::synthDestinationForParam(params::Kind::UNPATCHED_SOUND,
-			                                        unpatchedNonGlobalParamShortcuts[x][y]);
-		}
-		return -1;
-	}
-	if (secondLayer) {
-		return -1; // MIDI CC shortcuts have no second layer
-	}
-	uint32_t destination = midiCCShortcutsForAutomation[x][y];
-	return (destination != kNoParamID && destination <= Macros::kMaxMidiDestination) ? (int32_t)destination : -1;
-}
-
 // A press on the picker overlay: picks that pad's param as the held target's pending destination,
 // with the same live feedback as dialing the select encoder onto it (readout, would-drive LED,
 // moved white highlight). The pick is still only committed on button release.
@@ -2723,7 +2655,7 @@ void AutomationView::handleMacroPickerPad(Clip* clip, int32_t x, int32_t y) {
 	Macros::Domain domain = Macros::domainForOutput(clip->output);
 	// Pressing the SAME pad again reaches the param that shares that shortcut (e.g. LFO1->LFO2 rate),
 	// like the sound editor's second-layer cycling. A different pad resets to the primary.
-	if (x == macroPickerLastX && y == macroPickerLastY && macroDestinationForPad(domain, x, y, true) >= 0) {
+	if (x == macroPickerLastX && y == macroPickerLastY && Macros::macroDestinationForPad(domain, x, y, true) >= 0) {
 		macroPickerSecondLayer = !macroPickerSecondLayer;
 	}
 	else {
@@ -2731,7 +2663,7 @@ void AutomationView::handleMacroPickerPad(Clip* clip, int32_t x, int32_t y) {
 	}
 	macroPickerLastX = x;
 	macroPickerLastY = y;
-	int32_t destination = macroDestinationForPad(domain, x, y, macroPickerSecondLayer);
+	int32_t destination = Macros::macroDestinationForPad(domain, x, y, macroPickerSecondLayer);
 	if (destination < 0) {
 		return; // a dark pad - not a pickable destination
 	}
@@ -3423,7 +3355,7 @@ void AutomationView::getLastSelectedParamShortcut(Clip* clip) {
 				}
 			}
 			else if (clip->output->type == OutputType::MIDI_OUT) {
-				if (midiCCShortcutsForAutomation[x][y] == clip->lastSelectedParamID) {
+				if (midiFollow.midiCCShortcutsForAutomation[x][y] == clip->lastSelectedParamID) {
 					clip->lastSelectedParamShortcutX = x;
 					clip->lastSelectedParamShortcutY = y;
 					paramShortcutFound = true;
