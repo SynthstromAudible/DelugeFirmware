@@ -26,9 +26,14 @@
 // homogenizeRegion forward (an unconditional Song->Clip cast for recordingLinearly; ASan global-buffer-overflow),
 // fixed in 0ec566d82.
 //
-// SCOPE (current): a scripted live-record sequence on a song-global param. Documented extensions (follow-ups):
-// undo (swapState) — limited here since getNewAction returns null in ARRANGEMENT mode; save/reload persistence;
-// and a finite-loop InstrumentClip target (the other representative recording scenario).
+// SCOPE (current): a scripted live-record sequence on a song-global param, PLUS undo/redo (swapState) and
+// save/reload persistence. Remaining follow-up — a finite-loop InstrumentClip target (the scenario that also
+// exercises homogenizeRegion's recordingLinearly forward-wrap branch; that branch's *logic* is already covered
+// by the param_projection_test homogenizeRegion oracle's finite-effLen + wrap cases, so this would add
+// integration confirmation, not new logic). It needs more setup than the song-global path: the clip must be
+// made active (Clip::isPlayingAutomationNow() checks currentSong->isClipActive(this)), and clip recording uses
+// RecordingMode::NORMAL, whose getNewAction actually allocates an Action (vs ARRANGEMENT returning null) — so
+// the Action subsystem's headless behaviour must be verified first.
 
 #include "deluge-project/param_automation.h"
 #include "deluge-project/serialization.h"
