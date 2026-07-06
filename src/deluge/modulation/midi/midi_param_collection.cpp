@@ -61,7 +61,7 @@ void MIDIParamCollection::bindDomStore() {
 	domStore_ = std::make_unique<deluge::project::DocParamSet>();
 	domStore_->params.resize(params.size());
 	for (int32_t i = 0; i < std::ssize(params); i++) {
-		params[i].param.borrowNodeStorage(&domStore_->params[i].nodes);
+		params[i].param.borrowNodeStorage(&domStore_->params[i]);
 	}
 }
 

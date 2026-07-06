@@ -1936,7 +1936,7 @@ skipInstance:
 		}
 #endif
 		for (int32_t p = 0; p < unpatchedEngine->getNumParams(); p++) {
-			unpatchedEngine->params[p].borrowNodeStorage(&store.params[p].nodes);
+			unpatchedEngine->params[p].borrowNodeStorage(&store.params[p]);
 		}
 	}
 

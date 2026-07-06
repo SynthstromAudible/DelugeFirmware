@@ -92,7 +92,7 @@ void PatchCableSet::bindDomStore() {
 	domStore_ = std::make_unique<deluge::project::DocParamSet>();
 	domStore_->params.resize(numPatchCables);
 	for (int32_t c = 0; c < numPatchCables; c++) {
-		patchCables[c].param.borrowNodeStorage(&domStore_->params[c].nodes);
+		patchCables[c].param.borrowNodeStorage(&domStore_->params[c]);
 	}
 }
 

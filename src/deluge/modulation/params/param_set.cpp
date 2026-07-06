@@ -63,7 +63,7 @@ void ParamSet::bindDomStore() {
 	}
 	domStore_ = std::make_unique<deluge::project::DocParamSet>(deluge::project::toDocParamSet(*this));
 	for (int32_t p = 0; p < numParams_; p++) {
-		params[p].borrowNodeStorage(&domStore_->params[p].nodes);
+		params[p].borrowNodeStorage(&domStore_->params[p]);
 	}
 }
 

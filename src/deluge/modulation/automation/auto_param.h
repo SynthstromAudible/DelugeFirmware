@@ -17,6 +17,7 @@
 
 #pragma once
 #include "definitions_cxx.hpp"
+#include "deluge-project/param_automation.h" // deluge::project::DocAutoParam (held by value)
 #include "model/action/action.h"
 #include "modulation/params/param_node_vector.h"
 #include "storage/storage_manager.h"
@@ -137,14 +138,17 @@ public:
 	}
 
 	/// The nodes that make up this parameter (if empty, \ref currentValue applies). The accessor is a clean seam
-	/// (the projection layer + the ~130 op call sites go through it); the AutoParam owns its nodes by value.
-	ParamNodeVector& nodes() { return *nodes_; }
-	const ParamNodeVector& nodes() const { return *nodes_; }
+	/// (the projection layer + the ~130 op call sites go through it); the nodes live in a `DocAutoParam` reached
+	/// via a redirectable handle (`&ownDoc_` normally, or a DOM-owned `DocAutoParam` when borrowed).
+	ParamNodeVector& nodes() { return doc_->nodes; }
+	const ParamNodeVector& nodes() const { return doc_->nodes; }
 
-	/// Point this param at a DOM-owned node store and move its current nodes into it. The store must outlive
+	/// Point this param at a DOM-owned `DocAutoParam` and move its current nodes into it. The store must outlive
 	/// this param and never relocate (the DOM holds it at a stable address). Afterwards, nodes() is the DOM
-	/// store and all engine edits/undo operate on it directly.
-	void borrowNodeStorage(ParamNodeVector* domStore);
+	/// store's node vector and all engine edits/undo operate on it directly. (M2-B: the handle is now the whole
+	/// `DocAutoParam`, not just its `.nodes` — scaffolding for forwarding ops to param_edit kernels; `doc_` is
+	/// removed entirely in M2-E, when callers thread the `DocAutoParam` per-call instead of it being stored.)
+	void borrowNodeStorage(deluge::project::DocAutoParam* domDoc);
 
 	/// Current value of the AutoParam. Updated by several functions.
 	int32_t currentValue;
@@ -162,12 +166,14 @@ public:
 	// it only works in empty stretches of time.
 
 private:
-	/// This param's default node storage (used when `nodes_` points here, i.e. un-borrowed). Owned by value.
-	ParamNodeVector ownNodes_{};
-	/// Redirectable borrow-pointer to the active store: `&ownNodes_` normally, or a DOM-owned store after
-	/// borrowNodeStorage(). Trivially relocatable, but a self-pointer — copy/move re-point it (see the
-	/// special members). All node access goes through nodes().
-	ParamNodeVector* nodes_ = &ownNodes_;
+	/// This param's default `DocAutoParam` storage (used when `doc_` points here, i.e. un-borrowed). Owned by
+	/// value. Only its `.nodes` is engine-relevant in M2-B; `.current_value` (the DOM base) is left untouched —
+	/// the RT cursor lives in the separate `currentValue` member.
+	deluge::project::DocAutoParam ownDoc_{};
+	/// Redirectable borrow-handle to the active `DocAutoParam`: `&ownDoc_` normally, or a DOM-owned store after
+	/// borrowNodeStorage(). Trivially relocatable, but a self-pointer — copy/move re-point it (see the special
+	/// members). All node access goes through nodes() (== doc_->nodes). Scaffolding: removed in M2-E.
+	deluge::project::DocAutoParam* doc_ = &ownDoc_;
 
 	bool deleteRedundantNodeInLinearRun(int32_t lastNodeInRunI, int32_t effectiveLength,
 	                                    bool mayLoopAroundBackToEnd = true);

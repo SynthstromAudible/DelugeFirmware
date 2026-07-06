@@ -62,9 +62,11 @@ AutoParam::AutoParam() {
 	renewedOverridingAtTime = 0;
 }
 
-// Copy: read the source's active store (borrow-aware) into our own; a copy always owns its storage
-// (nodes_ stays &ownNodes_ via the member initializer).
-AutoParam::AutoParam(AutoParam const& other) : currentValue(other.currentValue), ownNodes_(other.nodes()) {
+// Copy: read the source's active store (borrow-aware) into our own DocAutoParam; a copy always owns its
+// storage (doc_ stays &ownDoc_ via the member initializer). currentValue (the RT cursor) is a distinct member
+// — NOT ownDoc_.current_value (the DOM base value), which the engine leaves alone in M2-B.
+AutoParam::AutoParam(AutoParam const& other) : currentValue(other.currentValue) {
+	ownDoc_.nodes = other.nodes(); // copy the source's active nodes into our own DocAutoParam
 	resetInterpolationIncrement();
 	renewedOverridingAtTime = 0;
 }
@@ -74,22 +76,22 @@ AutoParam& AutoParam::operator=(AutoParam const& other) {
 		return *this;
 	}
 	currentValue = other.currentValue;
-	ownNodes_ = other.nodes(); // copy the source's active store into our own storage
-	nodes_ = &ownNodes_;       // a copy owns its storage — detach any prior borrow
+	ownDoc_.nodes = other.nodes(); // copy the source's active nodes into our own storage
+	doc_ = &ownDoc_;               // a copy owns its storage — detach any prior borrow
 	resetInterpolationIncrement();
 	renewedOverridingAtTime = 0;
 	return *this;
 }
 
-// Move: copy the transient fields (matching the previously-defaulted move), move ownNodes_, and re-point
-// nodes_ — inherit an external DOM borrow (that store didn't move), but re-anchor a self-borrow to *our*
-// ownNodes_ (a defaulted move would leave nodes_ dangling at the source's ownNodes_).
+// Move: copy the transient fields (matching the previously-defaulted move), move ownDoc_, and re-point
+// doc_ — inherit an external DOM borrow (that store didn't move), but re-anchor a self-borrow to *our*
+// ownDoc_ (a defaulted move would leave doc_ dangling at the source's ownDoc_).
 AutoParam::AutoParam(AutoParam&& other) noexcept
     : currentValue(other.currentValue), valueIncrementPerHalfTick(other.valueIncrementPerHalfTick),
       value_increment_per_half_tick_float(other.value_increment_per_half_tick_float),
       interpolation_increment_remainder_float(other.interpolation_increment_remainder_float),
-      renewedOverridingAtTime(other.renewedOverridingAtTime), ownNodes_(std::move(other.ownNodes_)) {
-	nodes_ = (other.nodes_ == &other.ownNodes_) ? &ownNodes_ : other.nodes_;
+      renewedOverridingAtTime(other.renewedOverridingAtTime), ownDoc_(std::move(other.ownDoc_)) {
+	doc_ = (other.doc_ == &other.ownDoc_) ? &ownDoc_ : other.doc_;
 }
 
 AutoParam& AutoParam::operator=(AutoParam&& other) noexcept {
@@ -101,14 +103,14 @@ AutoParam& AutoParam::operator=(AutoParam&& other) noexcept {
 	value_increment_per_half_tick_float = other.value_increment_per_half_tick_float;
 	interpolation_increment_remainder_float = other.interpolation_increment_remainder_float;
 	renewedOverridingAtTime = other.renewedOverridingAtTime;
-	ownNodes_ = std::move(other.ownNodes_);
-	nodes_ = (other.nodes_ == &other.ownNodes_) ? &ownNodes_ : other.nodes_;
+	ownDoc_ = std::move(other.ownDoc_);
+	doc_ = (other.doc_ == &other.ownDoc_) ? &ownDoc_ : other.doc_;
 	return *this;
 }
 
-void AutoParam::borrowNodeStorage(ParamNodeVector* domStore) {
-	*domStore = std::move(ownNodes_); // move current nodes into the DOM store (ownNodes_ left empty)
-	nodes_ = domStore;                // subsequent nodes() see the DOM store
+void AutoParam::borrowNodeStorage(deluge::project::DocAutoParam* domDoc) {
+	domDoc->nodes = std::move(ownDoc_.nodes); // move current nodes into the DOM store (ownDoc_.nodes left empty)
+	doc_ = domDoc;                            // subsequent nodes() see the DOM store's node vector
 }
 
 void AutoParam::init() {

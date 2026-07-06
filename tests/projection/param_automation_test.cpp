@@ -1490,15 +1490,15 @@ int main() {
 		setNode(p, 0, 111, false);
 		setNode(p, 48, -222, true);
 
-		ParamNodeVector ext; // stands in for the DOM-owned store
+		deluge::project::DocAutoParam ext; // stands in for the DOM-owned store (M2-B: the whole DocAutoParam)
 		p.borrowNodeStorage(&ext);
-		check(&p.nodes() == &ext, "borrow: nodes() aliases the external store");
-		check(ext.size() == 2 && ext[0].value == 111 && ext[1].value == -222,
+		check(&p.nodes() == &ext.nodes, "borrow: nodes() aliases the external store");
+		check(ext.nodes.size() == 2 && ext.nodes[0].value == 111 && ext.nodes[1].value == -222,
 		      "borrow: current nodes moved into the store");
 
 		// A subsequent edit through the param lands in the external store.
 		setNode(p, 24, 999, false);
-		check(ext.size() == 3, "borrow: edit lands in the external store");
+		check(ext.nodes.size() == 3, "borrow: edit lands in the external store");
 
 		// The undo swap (nodes().swap, as swapState does) operates on the external store.
 		AutoParamState snap;
@@ -1509,13 +1509,13 @@ int main() {
 			snap.nodes[si].interpolated = false;
 		}
 		p.nodes().swap(snap.nodes);
-		check(ext.size() == 1 && ext[0].value == 7, "borrow: swap operated on the external store");
+		check(ext.nodes.size() == 1 && ext.nodes[0].value == 7, "borrow: swap operated on the external store");
 		check(snap.nodes.size() == 3, "borrow: swap moved the store contents into the snapshot");
 
 		// A copy of a borrowed param owns INDEPENDENT storage (must not alias ext) — else clones would share
 		// the original's DOM store. (This is the invariant param_clone_test also guards.)
 		AutoParam copy(p);
-		check(&copy.nodes() != &ext, "borrow: a copy owns its own storage");
+		check(&copy.nodes() != &ext.nodes, "borrow: a copy owns its own storage");
 		check(copy.nodes().size() == p.nodes().size(), "borrow: copy has the same node count");
 	}
 
