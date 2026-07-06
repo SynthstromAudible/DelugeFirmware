@@ -2278,6 +2278,7 @@ int main() {
 				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
 				NoteRow nr;
 				ModelStackWithAutoParam* ms = buildStack(buf, loopLen, nr);
+				ms->autoParam = &ap; // M2-E: stealNodes/insertStolenNodes resolve nodes via modelStack->doc()
 
 				// --- stealNodes: engine call direct vs. the DOM kernel; diff both the stolen record and the
 				// residual timeline.
