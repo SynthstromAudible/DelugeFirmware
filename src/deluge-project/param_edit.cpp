@@ -730,4 +730,11 @@ void deleteNodesWithinRegion(DocAutoParam& p, int32_t pos, int32_t length, int32
 	}
 }
 
+void transposeCCValuesToChannelPressure(DocAutoParam& p) {
+	for (ParamNode& node : p.nodes) {
+		node.value = (node.value >> 1) + (1 << 30);
+	}
+	p.current_value = (p.current_value >> 1) + (1 << 30);
+}
+
 } // namespace deluge::project

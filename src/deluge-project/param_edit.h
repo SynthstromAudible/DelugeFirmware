@@ -96,4 +96,8 @@ void moveRegionHorizontally(DocAutoParam& p, int32_t pos, int32_t length, int32_
 /// after-wrap front — the engine did the reverse, a bug that left before-wrap nodes undeleted (now fixed).
 void deleteNodesWithinRegion(DocAutoParam& p, int32_t pos, int32_t length, int32_t effectiveLength);
 
+/// Remap CC-range values to channel-pressure-range: halve and bias into the top half (`v>>1 + 2^30`), applied to
+/// `current_value` and every node value. Faithful port of AutoParam::transposeCCValuesToChannelPressureValues.
+void transposeCCValuesToChannelPressure(DocAutoParam& p);
+
 } // namespace deluge::project

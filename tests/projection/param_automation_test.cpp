@@ -381,6 +381,33 @@ int main() {
 			}
 		}
 
+		// Movement 2 (M2-A): transposeCCValuesToChannelPressure — current_value + node values remap; oracle diff.
+		{
+			const struct {
+				int32_t currentValue;
+				std::vector<N> cfg;
+			} transposeCases[] = {
+			    {0, {{0, 0, true}, {48, 127, false}}},
+			    {64, {{0, -1073741824, true}, {48, 1073741823, false}}}, // full patch-cable range
+			    {100, {{0, 2000000000, true}, {48, -2000000000, false}}},
+			    {-2147483647 - 1, {{0, 2147483647, true}}}, // rails
+			};
+			for (const auto& tc : transposeCases) {
+				AutoParam ap;
+				ap.currentValue = tc.currentValue;
+				DocAutoParam doc{};
+				doc.current_value = tc.currentValue;
+				for (const N& n : tc.cfg) {
+					setNode(ap, n.pos, n.value, n.interpolated);
+					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
+				}
+				ap.transposeCCValuesToChannelPressureValues();
+				deluge::project::transposeCCValuesToChannelPressure(doc);
+				check(ap.currentValue == doc.current_value, "transposeCC: current_value matches engine oracle");
+				expectDocMatchesEngine(ap, doc, "transposeCC: nodes match engine oracle");
+			}
+		}
+
 		// generateRepeats oracle diff — tile out to newLength, both straight and pingponged, over node
 		// configs that live within the first repeat [0, oldLength).
 		const std::vector<std::vector<N>> repeatConfigs = {
