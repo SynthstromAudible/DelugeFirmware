@@ -589,7 +589,7 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 				}
 
 				Error error =
-				    midiParam->param.readFromFile(*midiParam->param.docForThreading(), reader, readAutomationUpToPos);
+				    midiParam->param.readFromFile(*midiParam->param.ownDocForFallback(), reader, readAutomationUpToPos);
 				if (error != Error::NONE) {
 					return error;
 				}

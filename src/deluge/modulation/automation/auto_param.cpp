@@ -1392,7 +1392,7 @@ Error AutoParam::readFromFile(deluge::project::DocAutoParam& doc, Deserializer& 
 
 	// Must first delete any automation because sometimes, due to that annoying support I have to do for late-2016
 	// files, we'll be overwriting a cloned ParamManager, which might have had automation.
-	deleteAutomationBasicForSetup(*docForThreading());
+	deleteAutomationBasicForSetup(doc);
 
 	if (!reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
 		return Error::NONE;

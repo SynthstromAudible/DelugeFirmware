@@ -83,7 +83,7 @@ void refreshAutomationFlags(ParamSet& set, ParamCollectionSummary& summary) {
 	}
 	int32_t numParams = set.getNumParams();
 	for (int32_t p = 0; p < numParams; p++) {
-		if (set.params[p].isAutomated(*set.params[p].docForThreading())) {
+		if (set.params[p].isAutomated(*set.docForParam(p))) {
 			set.paramHasAutomationNow(&summary, p);
 		}
 	}
@@ -542,7 +542,7 @@ DocAutoParam readDocAutoParam(Deserializer& in, int32_t readAutomationUpToPos) {
 	// Reuse the engine's leaf parser (hex blob, node reading, back-compat) on a throwaway AutoParam,
 	// then project the result — no reimplementation of the hex format.
 	AutoParam tmp;
-	tmp.readFromFile(*tmp.docForThreading(), in, readAutomationUpToPos);
+	tmp.readFromFile(*tmp.ownDocForFallback(), in, readAutomationUpToPos);
 	return toDocAutoParam(tmp);
 }
 
@@ -650,7 +650,7 @@ void readLiveParam(Deserializer& in, ParamSet& set, ParamCollectionSummary& summ
                    int32_t readAutomationUpToPos) {
 	DocAutoParam doc = readDocAutoParam(in, readAutomationUpToPos);
 	fromDocAutoParam(doc, set.params[p]);
-	if (set.params[p].isAutomated(*set.params[p].docForThreading())) {
+	if (set.params[p].isAutomated(*set.docForParam(p))) {
 		set.paramHasAutomationNow(&summary, p);
 	}
 }

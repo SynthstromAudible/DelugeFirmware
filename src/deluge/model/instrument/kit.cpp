@@ -1862,7 +1862,7 @@ void Kit::offerBendRangeUpdate(ModelStack* modelStack, MIDICable& cable, int32_t
 				if (noteRow) {
 					ExpressionParamSet* expressionParams = noteRow->paramManager.getOrCreateExpressionParamSet();
 					if (expressionParams) {
-						if (!expressionParams->params[0].isAutomated(*expressionParams->params[0].docForThreading())) {
+						if (!expressionParams->params[0].isAutomated(*expressionParams->docForParam(0))) {
 							expressionParams->bendRanges[whichBendRange] = bendSemitones;
 						}
 					}

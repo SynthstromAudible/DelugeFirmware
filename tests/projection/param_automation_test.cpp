@@ -332,7 +332,7 @@ int main() {
 					setNode(ap, n.pos, n.value, n.interpolated);
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
-				ap.insertTime(*ap.docForThreading(), ic.pos, ic.len);
+				ap.insertTime(*ap.ownDocForFallback(), ic.pos, ic.len);
 				deluge::project::insertTime(doc, ic.pos, ic.len);
 				expectDocMatchesEngine(ap, doc, "insertTime: matches engine oracle");
 			}
@@ -351,7 +351,7 @@ int main() {
 					setNode(ap, n.pos, n.value, n.interpolated);
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
-				ap.shiftHorizontally(*ap.docForThreading(), sc.amount, sc.effectiveLength);
+				ap.shiftHorizontally(*ap.ownDocForFallback(), sc.amount, sc.effectiveLength);
 				deluge::project::shiftHorizontally(doc, sc.amount, sc.effectiveLength);
 				expectDocMatchesEngine(ap, doc, "shiftHorizontally: matches engine oracle");
 			}
@@ -377,7 +377,7 @@ int main() {
 					setNode(ap, n.pos, n.value, n.interpolated);
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
-				ap.shiftValues(*ap.docForThreading(), offset);
+				ap.shiftValues(*ap.ownDocForFallback(), offset);
 				deluge::project::shiftValues(doc, offset);
 				check(ap.currentValue == doc.current_value, "shiftValues: current_value matches engine oracle");
 				expectDocMatchesEngine(ap, doc, "shiftValues: nodes match engine oracle");
@@ -404,7 +404,7 @@ int main() {
 					setNode(ap, n.pos, n.value, n.interpolated);
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
-				ap.transposeCCValuesToChannelPressureValues(*ap.docForThreading());
+				ap.transposeCCValuesToChannelPressureValues(*ap.ownDocForFallback());
 				deluge::project::transposeCCValuesToChannelPressure(doc);
 				check(ap.currentValue == doc.current_value, "transposeCC: current_value matches engine oracle");
 				expectDocMatchesEngine(ap, doc, "transposeCC: nodes match engine oracle");
@@ -432,7 +432,7 @@ int main() {
 						setNode(ap, n.pos, n.value, n.interpolated);
 						deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 					}
-					ap.generateRepeats(*ap.docForThreading(), rc.oldLength, rc.newLength, pingpong);
+					ap.generateRepeats(*ap.ownDocForFallback(), rc.oldLength, rc.newLength, pingpong);
 					deluge::project::generateRepeats(doc, rc.oldLength, rc.newLength, pingpong);
 					expectDocMatchesEngine(ap, doc, "generateRepeats: matches engine oracle");
 				}
@@ -644,7 +644,7 @@ int main() {
 		};
 		// Replica of the engine's (fixed) node-erase logic — tail-before-front in the wrap branch.
 		auto engineErase = [](AutoParam& ap, int32_t pos, int32_t length, int32_t effLen) {
-			if (!ap.isAutomated(*ap.docForThreading())) {
+			if (!ap.isAutomated(*ap.ownDocForFallback())) {
 				return;
 			}
 			if (length >= effLen) {
@@ -1713,7 +1713,7 @@ int main() {
 					setNode(ap, n.pos, n.value, n.interpolated);
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
-				ap.flattenReverse(*ap.docForThreading(), length);
+				ap.flattenReverse(*ap.ownDocForFallback(), length);
 				deluge::project::flattenReverse(doc, length);
 				check(ap.currentValue == doc.current_value,
 				      "flattenReverse: current_value untouched, matches engine oracle");
@@ -1729,7 +1729,7 @@ int main() {
 			doc.current_value = 7;
 			setNode(ap, 8, 5, true);
 			deluge::project::setNodeAtPos(doc, 8, 5, true);
-			ap.flattenReverse(*ap.docForThreading(), 0);
+			ap.flattenReverse(*ap.ownDocForFallback(), 0);
 			deluge::project::flattenReverse(doc, 0);
 			check(ap.currentValue == doc.current_value, "flattenReverse: length==0 leaves current_value alone");
 			expectDocMatchesEngine(ap, doc, "flattenReverse: reverseDirectionWithLength==0 is a no-op");
@@ -1739,7 +1739,7 @@ int main() {
 		{
 			AutoParam ap;
 			DocAutoParam doc{};
-			ap.flattenReverse(*ap.docForThreading(), 48);
+			ap.flattenReverse(*ap.ownDocForFallback(), 48);
 			deluge::project::flattenReverse(doc, 48);
 			expectDocMatchesEngine(ap, doc, "flattenReverse: empty nodes is a no-op");
 		}
@@ -1842,7 +1842,7 @@ int main() {
 							deluge::project::setNodeAtPos(otherDoc, n.pos, n.value, n.interpolated);
 						}
 
-						ap.appendParam(*ap.docForThreading(), *otherAp.docForThreading(), oldLength, reverseLen,
+						ap.appendParam(*ap.ownDocForFallback(), *otherAp.ownDocForFallback(), oldLength, reverseLen,
 						               pingpong);
 						deluge::project::appendParam(doc, otherDoc, oldLength, reverseLen, pingpong);
 
@@ -2339,7 +2339,7 @@ int main() {
 						setNode(ap, n.pos, n.value, n.interpolated);
 						deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 					}
-					ap.shiftParamVolumeByDB(*ap.docForThreading(), off);
+					ap.shiftParamVolumeByDB(*ap.ownDocForFallback(), off);
 					deluge::project::shiftParamVolumeByDB(doc, off);
 					check(ap.currentValue == doc.current_value, "shiftParamVolumeByDB: current_value matches engine");
 					expectDocMatchesEngine(ap, doc, "shiftParamVolumeByDB: nodes match engine");
@@ -2382,7 +2382,7 @@ int main() {
 					setNode(ap, n.pos, n.value, n.interpolated);
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
-				ap.makeInterpolationGoodAgain(*ap.docForThreading(), cfg.clipLength, rs);
+				ap.makeInterpolationGoodAgain(*ap.ownDocForFallback(), cfg.clipLength, rs);
 				bool ok = deluge::project::makeInterpolationGoodAgain(doc, cfg.clipLength, rs);
 				check(ok, "makeInterpolationGoodAgain: kernel completes (no RAM failure)");
 				expectDocMatchesEngine(ap, doc, "makeInterpolationGoodAgain: nodes match engine");
@@ -2409,7 +2409,7 @@ int main() {
 			ms->autoParam = &ap; // M2-E: ap.homogenizeRegion below resolves via modelStack->doc()
 			int32_t leftI;
 			if (doMPE || ticksToClear == 0) {
-				leftI = ap.setNodeAtPos(*ap.docForThreading(), livePos, value, interpL);
+				leftI = ap.setNodeAtPos(*ap.ownDocForFallback(), livePos, value, interpL);
 			}
 			else {
 				leftI = ap.homogenizeRegion(ms, livePos, ticksToClear, value, interpL, /*interpR=*/true, effLen,

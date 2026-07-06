@@ -1746,7 +1746,7 @@ loadOutput:
 				    && !((InstrumentClip*)thisClip)->arpSettings.syncLevel) {
 					ParamManagerForTimeline* thisParamManager = &thisClip->paramManager;
 					thisParamManager->getPatchedParamSet()->params[params::GLOBAL_ARP_RATE].shiftValues(
-					    *thisParamManager->getPatchedParamSet()->params[params::GLOBAL_ARP_RATE].docForThreading(),
+					    *thisParamManager->getPatchedParamSet()->docForParam(params::GLOBAL_ARP_RATE),
 					    (1 << 30) + (1 << 28));
 				}
 			}
@@ -4195,7 +4195,7 @@ void Song::setParamsInAutomationMode(bool newState) {
 
 		// Restore the unautomated values, where automation is present
 		for (int32_t p = 0; p < params::kMaxNumUnpatchedParams; p++) {
-			if (unpatchedParams->params[p].isAutomated(*unpatchedParams->params[p].docForThreading())) {
+			if (unpatchedParams->params[p].isAutomated(*unpatchedParams->docForParam(p))) {
 				unpatchedParams->params[p].currentValue = project.global_fx.unautomated_param_values[p];
 			}
 		}

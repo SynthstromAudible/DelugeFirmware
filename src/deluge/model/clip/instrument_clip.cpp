@@ -1868,7 +1868,7 @@ probablyApplyBendRangeMain:
 
 					// And only if mono pitch doesn't already contain data/automation...
 					if (expressionParams
-					    && !expressionParams->params[0].isAutomated(*expressionParams->params[0].docForThreading())) {
+					    && !expressionParams->params[0].isAutomated(*expressionParams->docForParam(0))) {
 						expressionParams->bendRanges[BEND_RANGE_MAIN] = newBendRanges[BEND_RANGE_MAIN];
 					}
 				}
@@ -3089,7 +3089,7 @@ expressionParam:
 				else if (!strcmp(tagName, "value")) {
 					if (param) {
 
-						Error error = param->readFromFile(*param->docForThreading(), reader, readAutomationUpToPos);
+						Error error = param->readFromFile(*param->ownDocForFallback(), reader, readAutomationUpToPos);
 						if (error != Error::NONE) {
 							return error;
 						}
@@ -3098,21 +3098,21 @@ expressionParam:
 							// Most other times you don't have to think about calling this. It's just because we didn't
 							// know which ParamCollection we were gonna load into, and MIDIParamCollection doesn't keep
 							// track of automation.
-							if (param->isAutomated(*param->docForThreading())) {
+							if (param->isAutomated(*param->ownDocForFallback())) {
 								expressionParams->paramHasAutomationNow(summary, paramId);
 							}
 
 							// If channel pressure, gotta move and scale the values from how they were in the pre-V3.2
 							// firmware
 							if (paramId) {
-								param->transposeCCValuesToChannelPressureValues(*param->docForThreading());
+								param->transposeCCValuesToChannelPressureValues(*param->ownDocForFallback());
 							}
 
 							// Or if pitch bend, it'll no longer interpolate, so go place some new nodes. Actually even
 							// without this step, you can only just tell there's any problem.
 							else {
 								param->makeInterpolationGoodAgain(
-								    *param->docForThreading(), loopLength,
+								    *param->ownDocForFallback(), loopLength,
 								    22); // 22 is picked somewhat arbitrarily - see comment for function itself.
 							}
 						}
@@ -4033,7 +4033,7 @@ haveNoDrum:
 								if (source->oscType == OscType::SAMPLE) {
 									if (sound->transpose || source->transpose || source->cents
 									    || patchedParams->params[params::LOCAL_PITCH_ADJUST].containsSomething(
-									        *patchedParams->params[params::LOCAL_PITCH_ADJUST].docForThreading(), 0)
+									        *patchedParams->docForParam(params::LOCAL_PITCH_ADJUST), 0)
 									    //||
 									    // thisNoteRow->paramManager->patchCableSet.doesParamHaveSomethingPatchedToIt(params::LOCAL_PITCH_ADJUST)
 									    //// No, can't call these cos patching isn't set up yet. Oh well
@@ -4042,8 +4042,7 @@ haveNoDrum:
 									    //+ s)
 									    || patchedParams->params[params::LOCAL_OSC_A_PITCH_ADJUST + s]
 									           .containsSomething(
-									               *patchedParams->params[params::LOCAL_OSC_A_PITCH_ADJUST + s]
-									                    .docForThreading(),
+									               *patchedParams->docForParam(params::LOCAL_OSC_A_PITCH_ADJUST + s),
 									               0)) {
 
 										source->sampleControls.interpolationMode = InterpolationMode::LINEAR;
@@ -4616,9 +4615,9 @@ doNormal: // Wrap it back to the start.
 		if (effectiveLength == distanceToNextNote) {
 			param->deleteAutomation(nullptr, modelStackWithAutoParam, false);
 
-			Error error = param->docForThreading()->nodes.insertAt(0).error_or(Error::NONE);
+			Error error = mpeParams->docForParam(m)->nodes.insertAt(0).error_or(Error::NONE);
 			if (error == Error::NONE) {
-				ParamNode* firstNode = &param->docForThreading()->nodes[0];
+				ParamNode* firstNode = &mpeParams->docForParam(m)->nodes[0];
 				firstNode->pos = quantizedPos;
 				firstNode->value = value;
 				firstNode->interpolated = reversed;
@@ -4628,7 +4627,7 @@ doNormal: // Wrap it back to the start.
 		else if (reversed) {
 doHomogenize:
 #if ENABLE_SEQUENTIALITY_TESTS
-			param->docForThreading()->nodes.testSequentiality(
+			mpeParams->docForParam(m)->nodes.testSequentiality(
 			    "E442"); // drbourbon got, when check was inside homogenizeRegion(). Now
 			             // trying to work out where that came from. March 2022.
 #endif
@@ -4641,7 +4640,7 @@ doHomogenize:
 
 			// Special case for if linear recording, quantized later, right to end of effectiveLength.
 			if (quantizedPos >= effectiveLength) {
-				param->setNodeAtPos(*param->docForThreading(), quantizedPos, value, false);
+				param->setNodeAtPos(*mpeParams->docForParam(m), quantizedPos, value, false);
 			}
 
 			// Or, normal case
@@ -4711,8 +4710,7 @@ bool InstrumentClip::hasAnyPitchExpressionAutomationOnNoteRows() {
 	for (int32_t i = 0; i < std::ssize(noteRows); i++) {
 		NoteRow* thisNoteRow = &noteRows[i];
 		ExpressionParamSet* expressionParams = thisNoteRow->paramManager.getExpressionParamSet();
-		if (expressionParams
-		    && expressionParams->params[0].isAutomated(*expressionParams->params[0].docForThreading())) {
+		if (expressionParams && expressionParams->params[0].isAutomated(*expressionParams->docForParam(0))) {
 			return true;
 		}
 	}

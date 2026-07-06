@@ -365,7 +365,7 @@ goAgainWithoutIncrement:
 
 	for (int32_t c = 0; c < numUsablePatchCables; c++) {
 
-		if (patchCables[c].param.isAutomated(*patchCables[c].param.docForThreading())) {
+		if (patchCables[c].param.isAutomated(*docForParam(c))) {
 			flagCable(modelStack->summary->whichParamsAreAutomated, c);
 
 			if (patchCables[c].param.hasInterpolationIncrement()) {
@@ -494,8 +494,8 @@ void PatchCableSet::deletePatchCable(ModelStackWithParamCollection const* modelS
 		return; // Could probably happen. (Still?)
 	}
 	patchCables[c].param.deleteAutomationBasicForSetup(
-	    *patchCables[c].param.docForThreading()); // No need to record what's happening - we kind of know that
-	                                              // there's no automation left anyway...
+	    *docForParam(c)); // No need to record what's happening - we kind of know that
+	                      // there's no automation left anyway...
 	patchCables[c].makeUnusable();
 	setupPatching(modelStack);
 
@@ -665,7 +665,7 @@ void PatchCableSet::generateRepeats(ModelStackWithParamCollection* modelStack, u
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated)
 
-	patchCables[c].param.generateRepeats(*patchCables[c].param.docForThreading(), oldLength, newLength, shouldPingpong);
+	patchCables[c].param.generateRepeats(*docForParam(c), oldLength, newLength, shouldPingpong);
 
 	FOR_EACH_PARAM_END
 }
@@ -682,8 +682,7 @@ void PatchCableSet::appendParamCollection(ModelStackWithParamCollection* modelSt
 	int32_t i = getPatchCableIndex(s, otherPatchCableSet->patchCables[c].destinationParamDescriptor);
 
 	if (i != 255) {
-		patchCables[i].param.appendParam(*patchCables[i].param.docForThreading(),
-		                                 *otherPatchCableSet->patchCables[c].param.docForThreading(), oldLength,
+		patchCables[i].param.appendParam(*docForParam(i), *otherPatchCableSet->docForParam(c), oldLength,
 		                                 reverseThisRepeatWithLength, pingpongingGenerally);
 	}
 
@@ -708,7 +707,7 @@ void PatchCableSet::trimToLength(uint32_t newLength, ModelStackWithParamCollecti
 	if (!param->hasInterpolationIncrement()) {
 		unflagCable(modelStack->summary->whichParamsAreInterpolating, c);
 
-		bool stillAutomated = param->isAutomated(*param->docForThreading());
+		bool stillAutomated = param->isAutomated(*docForParam(c));
 		if (!stillAutomated) {
 			anyStoppedBeingAutomated = true;
 			unflagCable(modelStack->summary->whichParamsAreAutomated, c);
@@ -729,7 +728,7 @@ void PatchCableSet::trimToLength(uint32_t newLength, ModelStackWithParamCollecti
 void PatchCableSet::shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount,
                                       int32_t effectiveLength) {
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated)
-	patchCables[c].param.shiftHorizontally(*patchCables[c].param.docForThreading(), amount, effectiveLength);
+	patchCables[c].param.shiftHorizontally(*docForParam(c), amount, effectiveLength);
 	FOR_EACH_PARAM_END
 }
 
@@ -810,7 +809,7 @@ PatchCableSet::PatchCableSet(PatchCableSet const& other)
 		patchCables[c] = other.patchCables[c];
 	}
 	for (int32_t c = numUsablePatchCables; c < kMaxNumPatchCables; c++) {
-		patchCables[c].param.init(*patchCables[c].param.docForThreading());
+		patchCables[c].param.init(*docForParam(c));
 	}
 
 	// Deep-copy the destination arrays last, so a throw above leaves no raw allocation to clean up.
@@ -855,13 +854,13 @@ Error PatchCableSet::clone(ParamCollection*& result, bool copyAutomation, int32_
 
 void PatchCableSet::stripAutomation() {
 	for (int32_t c = 0; c < numUsablePatchCables; c++) {
-		patchCables[c].param.docForThreading()->nodes.clear();
+		docForParam(c)->nodes.clear();
 	}
 }
 
 void PatchCableSet::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
 	for (int32_t c = 0; c < numUsablePatchCables; c++) {
-		patchCables[c].param.flattenReverse(*patchCables[c].param.docForThreading(), reverseDirectionWithLength);
+		patchCables[c].param.flattenReverse(*docForParam(c), reverseDirectionWithLength);
 	}
 }
 
@@ -898,7 +897,7 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 					    params::Kind::UNPATCHED_SOUND, reader.readTagOrAttributeValue(), true));
 				}
 				else if (!strcmp(tagName, "amount")) {
-					tempParam.readFromFile(*tempParam.docForThreading(), reader, readAutomationUpToPos);
+					tempParam.readFromFile(*tempParam.ownDocForFallback(), reader, readAutomationUpToPos);
 				}
 				else if (!strcmp(tagName, "rangeAdjustable")) { // Files before V3.2 had this
 					rangeAdjustable = reader.readTagOrAttributeValueInt();
@@ -920,7 +919,7 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 									rangeSource = stringToSource(reader.readTagOrAttributeValue());
 								}
 								else if (!strcmp(tagName, "amount")) {
-									tempRangeParam.readFromFile(*tempRangeParam.docForThreading(), reader,
+									tempRangeParam.readFromFile(*tempRangeParam.ownDocForFallback(), reader,
 									                            readAutomationUpToPos);
 								}
 								else if (!strcmp(tagName, "polarity")) {
@@ -931,7 +930,7 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 							reader.match('}'); // leave value
 							reader.match('}'); // leave box.
 							if (rangeSource != PatchSource::NONE
-							    && tempRangeParam.containsSomething(*tempRangeParam.docForThreading(), 0)) {
+							    && tempRangeParam.containsSomething(*tempRangeParam.ownDocForFallback(), 0)) {
 								// Ensure no previous patch cable matches this combination
 								for (int32_t c = numCablesAtStartOfThing; c < numPatchCables; c++) {
 									if (patchCables[c].from == rangeSource) {
@@ -955,7 +954,7 @@ doneWithThisRangeCable:
 				reader.exitTag();
 			}
 			if (source != PatchSource::NONE && !destinationParamDescriptor.isNull()
-			    && tempParam.containsSomething(*tempParam.docForThreading(), 0)) {
+			    && tempParam.containsSomething(*tempParam.ownDocForFallback(), 0)) {
 				// Just make sure this cable is allowed in some capacity
 				// Deactivated because maySourcePatchToParam() is a Sound function, and this probably isn't really
 				// necessary anyway
@@ -999,7 +998,7 @@ doneWithThisRangeCable:
 abandonThisCable:
 				// Discard any range-adjusting ones we'd just done above
 				for (int32_t c = numCablesAtStartOfThing; c < numPatchCables; c++) {
-					patchCables[c].param.deleteAutomationBasicForSetup(*patchCables[c].param.docForThreading());
+					patchCables[c].param.deleteAutomationBasicForSetup(*docForParam(c));
 				}
 				numPatchCables = numCablesAtStartOfThing;
 			}
@@ -1045,7 +1044,7 @@ void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomat
 		writer.printIndents();
 		writer.writeTagNameAndSeperator("amount");
 		writer.write("\"");
-		patchCables[c].param.writeToFile(*patchCables[c].param.docForThreading(), writer, writeAutomation);
+		patchCables[c].param.writeToFile(*docForParam(c), writer, writeAutomation);
 		writer.write("\"");
 
 		// See if another cable(s) controls the range/depth of this cable
@@ -1068,7 +1067,7 @@ void PatchCableSet::writePatchCablesToFile(Serializer& writer, bool writeAutomat
 				writer.printIndents();
 				writer.writeTagNameAndSeperator("amount");
 				writer.write("\"");
-				patchCables[d].param.writeToFile(*patchCables[d].param.docForThreading(), writer, writeAutomation);
+				patchCables[d].param.writeToFile(*docForParam(d), writer, writeAutomation);
 				writer.write("\"");
 				writer.closeTag(true);
 			}
@@ -1206,7 +1205,7 @@ void PatchCableSet::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset,
 	if (!param->hasInterpolationIncrement()) {
 		unflagCable(modelStack->summary->whichParamsAreInterpolating, c);
 
-		bool stillAutomated = param->isAutomated(*param->docForThreading());
+		bool stillAutomated = param->isAutomated(*docForParam(c));
 		if (!stillAutomated) {
 			anyStoppedBeingAutomated = true;
 			unflagCable(modelStack->summary->whichParamsAreAutomated, c);

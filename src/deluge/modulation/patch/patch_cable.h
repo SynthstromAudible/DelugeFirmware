@@ -42,7 +42,6 @@ public:
 	static bool hasPolarity(PatchSource source);
 	static Polarity getDefaultPolarity(PatchSource source);
 	void setup(PatchSource newFrom, uint8_t newTo, int32_t newAmount);
-	bool isActive();
 	void initAmount(int32_t value);
 	void makeUnusable();
 	/// @brief Converts a patch cable source to the correct polarity.

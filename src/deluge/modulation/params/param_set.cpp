@@ -83,14 +83,14 @@ deluge::project::DocAutoParam* ParamSet::docForParam(int32_t p) {
 void ParamSet::stripAutomation() {
 	int32_t numParams = getNumParams();
 	for (int32_t p = 0; p < numParams; p++) {
-		params[p].docForThreading()->nodes.clear();
+		docForParam(p)->nodes.clear();
 	}
 }
 
 void ParamSet::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
 	int32_t numParams = getNumParams();
 	for (int32_t p = 0; p < numParams; p++) {
-		params[p].flattenReverse(*params[p].docForThreading(), reverseDirectionWithLength);
+		params[p].flattenReverse(*docForParam(p), reverseDirectionWithLength);
 	}
 }
 
@@ -117,11 +117,11 @@ void ParamSet::notifyParamModifiedInSomeWay(ModelStackWithAutoParam const* model
 }
 
 void ParamSet::shiftParamValues(int32_t p, int32_t offset) {
-	params[p].shiftValues(*params[p].docForThreading(), offset);
+	params[p].shiftValues(*docForParam(p), offset);
 }
 
 void ParamSet::shiftParamVolumeByDB(int32_t p, float offset) {
-	params[p].shiftParamVolumeByDB(*params[p].docForThreading(), offset);
+	params[p].shiftParamVolumeByDB(*docForParam(p), offset);
 }
 
 void ParamSet::paramHasAutomationNow(ParamCollectionSummary* summary, int32_t p) {
@@ -228,7 +228,7 @@ void ParamSet::setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStac
 
 void ParamSet::writeParamAsAttribute(Serializer& writer, char const* name, int32_t p, bool writeAutomation,
                                      bool onlyIfContainsSomething, int32_t* valuesForOverride) {
-	if (onlyIfContainsSomething && !params[p].containsSomething(*params[p].docForThreading())) {
+	if (onlyIfContainsSomething && !params[p].containsSomething(*docForParam(p))) {
 		return;
 	}
 
@@ -238,14 +238,14 @@ void ParamSet::writeParamAsAttribute(Serializer& writer, char const* name, int32
 	writer.printIndents();
 	writer.writeTagNameAndSeperator(name);
 	writer.write("\"");
-	params[p].writeToFile(*params[p].docForThreading(), writer, writeAutomation, valueForOverride);
+	params[p].writeToFile(*docForParam(p), writer, writeAutomation, valueForOverride);
 	writer.write("\"");
 }
 
 void ParamSet::readParam(Deserializer& reader, ParamCollectionSummary* summary, int32_t p,
                          int32_t readAutomationUpToPos) {
-	params[p].readFromFile(*params[p].docForThreading(), reader, readAutomationUpToPos);
-	if (params[p].isAutomated(*params[p].docForThreading())) {
+	params[p].readFromFile(*docForParam(p), reader, readAutomationUpToPos);
+	if (params[p].isAutomated(*docForParam(p))) {
 		paramHasAutomationNow(summary, p);
 	}
 }
@@ -278,7 +278,7 @@ void ParamSet::grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* mo
 void ParamSet::generateRepeats(ModelStackWithParamCollection* modelStack, uint32_t oldLength, uint32_t newLength,
                                bool shouldPingpong) {
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);
-	params[p].generateRepeats(*params[p].docForThreading(), oldLength, newLength, shouldPingpong);
+	params[p].generateRepeats(*docForParam(p), oldLength, newLength, shouldPingpong);
 	FOR_EACH_PARAM_END
 }
 
@@ -289,8 +289,8 @@ void ParamSet::appendParamCollection(ModelStackWithParamCollection* modelStack,
 
 	FOR_EACH_FLAGGED_PARAM(
 	    otherModelStack->summary->whichParamsAreAutomated); // Iterate through the *other* ParamManager's stuff
-	params[p].appendParam(*params[p].docForThreading(), *otherParamSet->params[p].docForThreading(), oldLength,
-	                      reverseThisRepeatWithLength, pingpongingGenerally);
+	params[p].appendParam(*docForParam(p), *otherParamSet->docForParam(p), oldLength, reverseThisRepeatWithLength,
+	                      pingpongingGenerally);
 	FOR_EACH_PARAM_END
 
 	ticksTilNextEvent = 0;
@@ -305,7 +305,7 @@ void ParamSet::trimToLength(uint32_t newLength, ModelStackWithParamCollection* m
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, param);
 
 	params[p].trimToLength(newLength, action, modelStackWithAutoParam);
-	if (!params[p].isAutomated(*params[p].docForThreading())) {
+	if (!params[p].isAutomated(*docForParam(p))) {
 		paramHasNoAutomationNow(modelStack, p);
 	}
 
@@ -315,7 +315,7 @@ void ParamSet::trimToLength(uint32_t newLength, ModelStackWithParamCollection* m
 }
 
 void ParamSet::deleteAutomationForParamBasicForSetup(ModelStackWithParamCollection* modelStack, int32_t p) {
-	params[p].deleteAutomationBasicForSetup(*params[p].docForThreading());
+	params[p].deleteAutomationBasicForSetup(*docForParam(p));
 	paramHasNoAutomationNow(modelStack, p);
 }
 
@@ -323,7 +323,7 @@ void ParamSet::shiftHorizontally(ModelStackWithParamCollection* modelStack, int3
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);
 
-	params[p].shiftHorizontally(*params[p].docForThreading(), amount, effectiveLength);
+	params[p].shiftHorizontally(*docForParam(p), amount, effectiveLength);
 
 	FOR_EACH_PARAM_END
 }
@@ -359,7 +359,7 @@ void ParamSet::insertTime(ModelStackWithParamCollection* modelStack, int32_t pos
 
 	FOR_EACH_FLAGGED_PARAM(modelStack->summary->whichParamsAreAutomated);
 
-	params[p].insertTime(*params[p].docForThreading(), pos, lengthToInsert);
+	params[p].insertTime(*docForParam(p), pos, lengthToInsert);
 
 	FOR_EACH_PARAM_END
 }
@@ -371,7 +371,7 @@ void ParamSet::deleteTime(ModelStackWithParamCollection* modelStack, int32_t sta
 
 	ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(p, &params[p]);
 	params[p].deleteTime(startPos, lengthToDelete, modelStackWithAutoParam);
-	if (!params[p].isAutomated(*params[p].docForThreading())) {
+	if (!params[p].isAutomated(*docForParam(p))) {
 		paramHasNoAutomationNow(modelStack, p);
 	}
 
@@ -388,7 +388,7 @@ void ParamSet::nudgeNonInterpolatingNodesAtPos(int32_t pos, int32_t offset, int3
 
 	param->nudgeNonInterpolatingNodesAtPos(pos, offset, lengthBeforeLoop, action, modelStackWithAutoParam);
 
-	if (!params[p].isAutomated(*params[p].docForThreading())) {
+	if (!params[p].isAutomated(*docForParam(p))) {
 		paramHasNoAutomationNow(modelStack, p);
 	}
 
@@ -859,7 +859,7 @@ void ExpressionParamSet::deleteAllAutomation(Action* action, ModelStackWithParam
             if (whichParamHasAutomation >= 128) {
                 int32_t endAutomatedParams = (whichParamHasAutomation & 127);
                 for (int32_t p = 0; p <= endAutomatedParams; p++) {
-                    if (params[p].isAutomated(*params[p].docForThreading())) {
+                    if (params[p].isAutomated(*docForParam(p))) {
 
                         params[p].
 

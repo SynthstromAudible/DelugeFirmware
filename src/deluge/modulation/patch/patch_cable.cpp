@@ -82,12 +82,10 @@ void PatchCable::setup(PatchSource newFrom, uint8_t newTo, int32_t newAmount) {
 	setDefaultPolarity();
 }
 
-bool PatchCable::isActive() {
-	return param.containsSomething(*param.docForThreading(), 0);
-}
-
 void PatchCable::initAmount(int32_t value) {
-	param.docForThreading()->nodes.clear();
+	// Only ever called on a fresh/unbound cable (Sound default-cable setup at init; new-cable creation in
+	// getPatchCableIndex) — before any DOM bind — so the cable's own storage is the right (and only) target.
+	param.ownDocForFallback()->nodes.clear();
 	param.currentValue = value;
 }
 

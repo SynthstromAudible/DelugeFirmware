@@ -85,7 +85,7 @@ deluge::project::DocAutoParam* MIDIParamCollection::docParamForId(int32_t paramI
 void MIDIParamCollection::deleteAllParams(Action* action, bool deleteStorageToo) {
 	if (action) {
 		for (MIDIParam& midiParam : params) {
-			midiParam.param.deleteAutomationBasicForSetup(*midiParam.param.docForThreading());
+			midiParam.param.deleteAutomationBasicForSetup(*docParamForId(midiParam.cc));
 		}
 	}
 	params.clear(); // Destructs the params (the deleteStorageToo distinction is moot now this does both)
@@ -139,13 +139,13 @@ Error MIDIParamCollection::clone(ParamCollection*& result, bool copyAutomation,
 
 void MIDIParamCollection::stripAutomation() {
 	for (MIDIParam& midiParam : params) {
-		midiParam.param.docForThreading()->nodes.clear();
+		docParamForId(midiParam.cc)->nodes.clear();
 	}
 }
 
 void MIDIParamCollection::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
 	for (MIDIParam& midiParam : params) {
-		midiParam.param.flattenReverse(*midiParam.param.docForThreading(), reverseDirectionWithLength);
+		midiParam.param.flattenReverse(*docParamForId(midiParam.cc), reverseDirectionWithLength);
 	}
 }
 
@@ -167,7 +167,7 @@ void MIDIParamCollection::setPlayPos(uint32_t pos, ModelStackWithParamCollection
 void MIDIParamCollection::generateRepeats(ModelStackWithParamCollection* modelStack, uint32_t oldLength,
                                           uint32_t newLength, bool shouldPingpong) {
 	for (MIDIParam& midiParam : params) {
-		midiParam.param.generateRepeats(*midiParam.param.docForThreading(), oldLength, newLength, shouldPingpong);
+		midiParam.param.generateRepeats(*docParamForId(midiParam.cc), oldLength, newLength, shouldPingpong);
 	}
 }
 
@@ -180,8 +180,9 @@ void MIDIParamCollection::appendParamCollection(ModelStackWithParamCollection* m
 		// Find param in *this* collection for the same CC. There should be one
 		MIDIParam* midiParam = params.getParamFromCC(otherMidiParam.cc);
 		if (midiParam != nullptr) {
-			midiParam->param.appendParam(*midiParam->param.docForThreading(), *otherMidiParam.param.docForThreading(),
-			                             oldLength, reverseThisRepeatWithLength, pingpongingGenerally);
+			midiParam->param.appendParam(*docParamForId(midiParam->cc),
+			                             *otherMIDIParamCollection->docParamForId(otherMidiParam.cc), oldLength,
+			                             reverseThisRepeatWithLength, pingpongingGenerally);
 		}
 	}
 
@@ -202,7 +203,7 @@ void MIDIParamCollection::trimToLength(uint32_t newLength, ModelStackWithParamCo
 void MIDIParamCollection::shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount,
                                             int32_t effectiveLength) {
 	for (MIDIParam& midiParam : params) {
-		midiParam.param.shiftHorizontally(*midiParam.param.docForThreading(), amount, effectiveLength);
+		midiParam.param.shiftHorizontally(*docParamForId(midiParam.cc), amount, effectiveLength);
 	}
 }
 
@@ -248,7 +249,7 @@ void MIDIParamCollection::deleteAllAutomation(Action* action, ModelStackWithPara
 
 	for (MIDIParam& midiParam : params) {
 
-		if (midiParam.param.isAutomated(*midiParam.param.docForThreading())) {
+		if (midiParam.param.isAutomated(*docParamForId(midiParam.cc))) {
 			ModelStackWithAutoParam* modelStackWithParam = modelStack->addAutoParam(midiParam.cc, &midiParam.param);
 			midiParam.param.deleteAutomation(action, modelStackWithParam, false);
 		}
@@ -293,7 +294,7 @@ Error MIDIParamCollection::makeInterpolatedCCsGoodAgain(int32_t clipLength) {
 		if (midiParam.cc >= 120) {
 			return Error::NONE;
 		}
-		Error error = midiParam.param.makeInterpolationGoodAgain(*midiParam.param.docForThreading(), clipLength, 25);
+		Error error = midiParam.param.makeInterpolationGoodAgain(*docParamForId(midiParam.cc), clipLength, 25);
 		if (error != Error::NONE) {
 			return error;
 		}
@@ -309,7 +310,7 @@ void MIDIParamCollection::grabValuesFromPos(uint32_t pos, ModelStackWithParamCol
 
 		// With MIDI, we only want to send these out if the param is actually automated and the value is
 		// actually different
-		if (param->isAutomated(*param->docForThreading())) {
+		if (param->isAutomated(*docParamForId(midiParam.cc))) {
 
 			int32_t oldValue = param->getCurrentValue();
 			ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam.cc, param);
@@ -387,7 +388,7 @@ void MIDIParamCollection::writeToFile(Serializer& writer) {
 			}
 
 			writer.writeOpeningTag("value", false);
-			midiParam.param.writeToFile(*midiParam.param.docForThreading(), writer, true);
+			midiParam.param.writeToFile(*docParamForId(midiParam.cc), writer, true);
 			writer.writeClosingTag("value", false);
 
 			writer.writeClosingTag("param");
