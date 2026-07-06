@@ -146,20 +146,22 @@ int32_t FilterSet::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
 	if (LPFOn) {
 		if ((lpfMode_ == FilterMode::SVF_BAND) || (lpfMode_ == FilterMode::SVF_NOTCH)) {
 			if (SpecificFilter(lastLPFMode_).getFamily() != FilterFamily::SVF) {
-				lpfilter.svf.reset(lastLPFMode_ == FilterMode::OFF);
+				lpfilter.svf.reset(lastLPFMode_ == FilterMode::OFF && fadeLPFOnNextEnable_);
 			}
 			filterGain = lpfilter.svf.configure(lpfFrequency, lpfResonance, lpfMode_, lpfMorph, filterGain);
 		}
 		else {
 			if (SpecificFilter(lastLPFMode_).getFamily() != FilterFamily::LP_LADDER) {
-				lpfilter.ladder.reset(lastLPFMode_ == FilterMode::OFF);
+				lpfilter.ladder.reset(lastLPFMode_ == FilterMode::OFF && fadeLPFOnNextEnable_);
 			}
 			filterGain = lpfilter.ladder.configure(lpfFrequency, lpfResonance, lpfMode_, lpfMorph, filterGain);
 		}
 		lastLPFMode_ = lpfMode_;
+		fadeLPFOnNextEnable_ = false;
 	}
 	else {
 		lastLPFMode_ = FilterMode::OFF;
+		fadeLPFOnNextEnable_ = true;
 	}
 	// This changes the overall amplitude so that, with resonance on 50%, the amplitude is the same as it was pre June
 	// 2017
@@ -170,7 +172,7 @@ int32_t FilterSet::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
 		if (hpfMode_ == FilterMode::HPLADDER) {
 			filterGain = hpfilter.ladder.configure(hpfFrequency, hpfResonance, hpfmode, hpfMorph, filterGain);
 			if (lastHPFMode_ != hpfMode_) {
-				hpfilter.ladder.reset(lastHPFMode_ == FilterMode::OFF);
+				hpfilter.ladder.reset(lastHPFMode_ == FilterMode::OFF && fadeHPFOnNextEnable_);
 			}
 		}
 		// otherwise it's an SVF ((lpfmode == FilterMode::SVF_BAND) || (lpfmode == FilterMode::SVF_NOTCH))
@@ -179,13 +181,15 @@ int32_t FilterSet::setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode 
 			filterGain =
 			    hpfilter.svf.configure(hpfFrequency, hpfResonance, hpfmode, ((1 << 29) - 1) - hpfMorph, filterGain);
 			if (lastHPFMode_ != hpfMode_) {
-				hpfilter.svf.reset(lastHPFMode_ == FilterMode::OFF);
+				hpfilter.svf.reset(lastHPFMode_ == FilterMode::OFF && fadeHPFOnNextEnable_);
 			}
 		}
 		lastHPFMode_ = hpfMode_;
+		fadeHPFOnNextEnable_ = false;
 	}
 	else {
 		lastHPFMode_ = FilterMode::OFF;
+		fadeHPFOnNextEnable_ = true;
 	}
 
 	return filterGain;
@@ -199,6 +203,8 @@ void FilterSet::reset() {
 	hpfMode_ = FilterMode::OFF;
 	lastHPFMode_ = FilterMode::OFF;
 	routing_ = FilterRoute::HIGH_TO_LOW;
+	fadeLPFOnNextEnable_ = false;
+	fadeHPFOnNextEnable_ = false;
 	LPFOn = false;
 	HPFOn = false;
 }

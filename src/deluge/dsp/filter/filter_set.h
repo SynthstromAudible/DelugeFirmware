@@ -64,6 +64,8 @@ private:
 	FilterMode hpfMode_{FilterMode::OFF};
 	FilterMode lastHPFMode_{FilterMode::OFF};
 	FilterRoute routing_{FilterRoute::HIGH_TO_LOW};
+	bool fadeLPFOnNextEnable_{false};
+	bool fadeHPFOnNextEnable_{false};
 
 	void renderLPFLong(q31_t* startSample, q31_t* endSample, int32_t sampleIncrement = 1);
 	void renderLPFLongStereo(q31_t* startSample, q31_t* endSample);

@@ -113,6 +113,10 @@ public:
 			dryFade = 1;
 			wetLevel = 0;
 		}
+		else {
+			dryFade = 0;
+			wetLevel = ONE_Q31;
+		}
 	}
 
 	inline void updateBlend() {
