@@ -417,6 +417,34 @@ int32_t macroDestinationForPad(Domain domain, int32_t x, int32_t y, bool secondL
 	return (destination != params::kNoParamID && destination <= kMaxMidiDestination) ? (int32_t)destination : -1;
 }
 
+bool isParamMacroDriven(Clip* clip, params::Kind kind, int32_t paramID) {
+	MelodicInstrument* instrument = macroClipInstrument(clip);
+	if (instrument == nullptr) {
+		return false;
+	}
+	// Encode the automation-view param as a destination byte: synth via synthDestinationForParam; MIDI
+	// clips store the CC directly as lastSelectedParamID.
+	int32_t destination =
+	    (domainForOutput(clip->output) == Domain::SYNTH) ? synthDestinationForParam(kind, paramID) : paramID;
+	if (destination < 0 || destination > kMaxMidiDestination) {
+		return false;
+	}
+	// Any ACTIVE macro targeting this destination is driving the param. (A static macro bakes visible
+	// automation into the target instead, so the caller reaches this only for the live-driven empty-lane
+	// case; an inactive macro isn't driving, so it's excluded.)
+	for (int32_t m = 0; m < kNumMacros; m++) {
+		if (!instrument->macros[m].active) {
+			continue;
+		}
+		for (int32_t f = 0; f < kNumTargetSlots; f++) {
+			if (instrument->macros[m].targets[f].destination == (uint8_t)destination) {
+				return true;
+			}
+		}
+	}
+	return false;
+}
+
 uint8_t laneDestination(Domain domain, int32_t macroIndex) {
 	if (domain == Domain::SYNTH) {
 		return params::UNPATCHED_START + params::UNPATCHED_MACRO_1 + macroIndex;

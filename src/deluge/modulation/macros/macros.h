@@ -109,6 +109,11 @@ int32_t synthDestinationForParam(deluge::modulation::params::Kind kind, int32_t 
 // reads midiFollow's cached CC-per-pad grid. Shared by the automation-lane picker and note-view picker.
 int32_t macroDestinationForPad(Domain domain, int32_t x, int32_t y, bool secondLayer = false);
 
+// True if the given param (as selected in automation view) is a target of an ACTIVE macro on this clip -
+// i.e. its value is being driven by a macro rather than its own automation. Used for the automation
+// view's "(Macro Driven)" status. Returns false on non-macro clips (kit/audio/arranger).
+bool isParamMacroDriven(Clip* clip, deluge::modulation::params::Kind kind, int32_t paramID);
+
 // The destination byte of macro macroIndex's own automation lane: the pseudo-CC id (128+idx) on
 // MIDI clips, the UNPATCHED_MACRO_n soundParamId byte (117+idx) on synth clips.
 uint8_t laneDestination(Domain domain, int32_t macroIndex);
