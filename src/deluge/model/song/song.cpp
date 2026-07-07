@@ -257,6 +257,19 @@ extern gui::menu_item::IntegerRange defaultTempoMenu;
 extern gui::menu_item::IntegerRange defaultSwingAmountMenu;
 extern gui::menu_item::KeyRange defaultKeyMenu;
 
+namespace {
+// Option I (Slice S): relocate a ParamSet's read-populated OWN DOM store into the project tree `dest`, then re-bind
+// the engine set to the tree copy. initParams + the DOM-first read already put the authoritative scalar + nodes in
+// the own store, so this MOVES them into the tree with NO engine->store copy — unlike toDocParamSet, which reads
+// the engine cursor for current_value. Behaviour/golden-neutral (engine == store), but honours the single-store
+// policy (the engine is never the source of the persisted scalar).
+void relocateParamStoreToTree(ParamSet* set, std::optional<deluge::project::DocParamSet>& dest) {
+	set->bindDomStore(); // ensure the own store exists (the read normally created it) before relocating
+	dest = std::move(*set->domStore());
+	set->bindDomStoreExternal(&*dest);
+}
+} // namespace
+
 Clip* Song::getCurrentClip() {
 	return runtimeView.currentClip;
 }
@@ -1790,8 +1803,7 @@ loadOutput:
 				// engine-owned store. Seed the tree store from what the file read into the engine set first.
 				if (std::optional<uint32_t> id = thisClip->serialId()) {
 					deluge::project::DocParamManager& mgr = project.clip_params.getOrCreate(*id);
-					mgr.unpatched = deluge::project::toDocParamSet(*unpatched);
-					unpatched->bindDomStoreExternal(&*mgr.unpatched);
+					relocateParamStoreToTree(unpatched, mgr.unpatched);
 				}
 				else {
 					unpatched->bindDomStore();
@@ -1813,12 +1825,10 @@ loadOutput:
 					deluge::project::DocParamManager& mgr =
 					    project.backed_params.getOrCreate(deluge::project::OwnerId::instrument(*outId), *clipId);
 					UnpatchedParamSet* unpatched = thisClip->paramManager.getUnpatchedParamSet();
-					mgr.unpatched = deluge::project::toDocParamSet(*unpatched);
-					unpatched->bindDomStoreExternal(&*mgr.unpatched);
+					relocateParamStoreToTree(unpatched, mgr.unpatched);
 					if (thisClip->output->type == OutputType::SYNTH) {
 						if (PatchedParamSet* patched = thisClip->paramManager.getPatchedParamSet()) {
-							mgr.patched = deluge::project::toDocParamSet(*patched);
-							patched->bindDomStoreExternal(&*mgr.patched);
+							relocateParamStoreToTree(patched, mgr.patched);
 						}
 						// M2-G S4b: relocate the synth's patch-cable amount-automation into the tree's identity-keyed
 						// cable store (keyed (from, dest), NOT index — cables reorder at runtime). Seed from the
@@ -1832,8 +1842,7 @@ loadOutput:
 					// (instrument, clip) key. ExpressionParamSet is a ParamSet, so it binds exactly like the main
 					// sets; getExpressionParamSet() is null when the manager holds no MPE collection.
 					if (ExpressionParamSet* expression = thisClip->paramManager.getExpressionParamSet()) {
-						mgr.expression = deluge::project::toDocParamSet(*expression);
-						expression->bindDomStoreExternal(&*mgr.expression);
+						relocateParamStoreToTree(expression, mgr.expression);
 					}
 					// M2-G S3e: per-drum (NoteRow) automation for a kit clip → keyed (drum(drum serialId), clip).
 					// Each SoundDrum NoteRow holds its own manager (independent automation per (drum, clip) pair),
@@ -1853,16 +1862,13 @@ loadOutput:
 							deluge::project::DocParamManager& dmgr =
 							    project.backed_params.getOrCreate(deluge::project::OwnerId::drum(*drumId), *clipId);
 							UnpatchedParamSet* du = nr.paramManager.getUnpatchedParamSet();
-							dmgr.unpatched = deluge::project::toDocParamSet(*du);
-							du->bindDomStoreExternal(&*dmgr.unpatched);
+							relocateParamStoreToTree(du, dmgr.unpatched);
 							if (PatchedParamSet* dp = nr.paramManager.getPatchedParamSet()) {
-								dmgr.patched = deluge::project::toDocParamSet(*dp);
-								dp->bindDomStoreExternal(&*dmgr.patched);
+								relocateParamStoreToTree(dp, dmgr.patched);
 							}
 							// S4a: per-drum expression (MPE) automation → same (drum, clip) key.
 							if (ExpressionParamSet* de = nr.paramManager.getExpressionParamSet()) {
-								dmgr.expression = deluge::project::toDocParamSet(*de);
-								de->bindDomStoreExternal(&*dmgr.expression);
+								relocateParamStoreToTree(de, dmgr.expression);
 							}
 							// S4b: per-drum patch-cable amount-automation → same (drum, clip) key, identity-keyed.
 							if (PatchCableSet* dpcs = nr.paramManager.getPatchCableSet()) {
