@@ -274,7 +274,9 @@ The Task #64 lesson: the golden harness (load → render → compare audio) is *
 save-path corruption**. Before any M3 save-flip:
 
 - **Round-trip gate**: load fixture → save → reload → save again; compare semantically
-  (and byte-wise where the format is canonical).
+  (and byte-wise where the format is canonical). **Already exists** (discovered at M1
+  planning): `tests/golden/songs_run.py` pins `save(load(x))` to a settled fixed point with
+  committed hashes — M1d reduces to the undo/redo hook below.
 - **Undo/redo scripting hook**: moving mutation sites into Edits can silently break
   `Consequence` logging, which audio goldens also cannot see. Script edit → undo → compare,
   edit → undo → redo → compare, over the fixture set.
