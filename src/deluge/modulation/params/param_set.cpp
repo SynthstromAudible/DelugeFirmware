@@ -64,18 +64,16 @@ ParamSet::ParamSet(ParamSet const& other)
 ParamSet::~ParamSet() = default;
 
 void ParamSet::bindDomStore() {
-	if (domStore_) {
-		return; // already bound
-	}
-	domStore_ = std::make_unique<deluge::project::DocParamSet>(deluge::project::toDocParamSet(*this));
-	domStoreRef_ = domStore_.get();
-	for (int32_t p = 0; p < numParams_; p++) {
-		params[p].moveNodesInto(&domStore_->params[p]);
+	// M2-F: binding is now just "ensure a store exists" — docForParam lazily creates + binds the set's own store.
+	// (Node relocation from AutoParam::ownDoc_ is gone: deserialize + edits already land in the store directly.)
+	if (domStoreRef_ == nullptr && numParams_ > 0) {
+		(void)docForParam(0);
 	}
 }
 
 void ParamSet::bindDomStoreExternal(deluge::project::DocParamSet* ext) {
-	domStoreRef_ = ext; // owner-resolution points at the externally-owned store; domStore_ stays null (not ours)
+	domStore_.reset();  // drop any lazily-created own store — we resolve against the external one now
+	domStoreRef_ = ext; // owner-resolution points at the externally-owned store (not ours to free)
 }
 
 deluge::project::DocParamSet* ParamSet::domStore() {
@@ -83,7 +81,16 @@ deluge::project::DocParamSet* ParamSet::domStore() {
 }
 
 deluge::project::DocAutoParam* ParamSet::docForParam(int32_t p) {
-	return domStoreRef_ ? &domStoreRef_->params[p] : params[p].ownDocForFallback();
+	// M2-F: a ParamSet ALWAYS resolves to a DOM store slot — never to inline AutoParam storage. If not yet bound
+	// (e.g. mid-deserialize, or a fresh runtime set), lazily create this set's own store here so the first node
+	// access binds it. Owner-resolution is then uniform and `AutoParam::ownDoc_` is unused by ParamSets.
+	if (domStoreRef_ == nullptr) {
+		domStore_ = std::make_unique<deluge::project::DocParamSet>();
+		domStore_->kind = getParamKind();
+		domStore_->params.resize(numParams_);
+		domStoreRef_ = domStore_.get();
+	}
+	return &domStoreRef_->params[p];
 }
 
 void ParamSet::stripAutomation() {

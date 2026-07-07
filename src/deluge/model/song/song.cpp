@@ -1635,19 +1635,26 @@ loadOutput:
 					}
 					GlobalEffectable::initParams(&paramManager);
 				}
-				// Seed the store from the freshly-initialised engine set so params the file OMITS (they were at
-				// default) keep their init values; the reader then overwrites only the params actually present.
-				project.global_fx.params.unpatched =
-				    deluge::project::toDocParamSet(*paramManager.getUnpatchedParamSet());
+				// M2-F: seed the store from the freshly-initialised engine set (so params the file OMITS keep their
+				// init current_value), then BIND the engine set to it BEFORE reading — so the reader writes the
+				// present params' nodes straight into the DOM store the engine will resolve, with no ownDoc_ round
+				// trip. Nodes are never copied out of the store (avoids a projection self-copy).
+				UnpatchedParamSet* songUnpatched = paramManager.getUnpatchedParamSet();
+				project.global_fx.params.unpatched = deluge::project::toDocParamSet(*songUnpatched);
+				deluge::project::DocParamSet& songStore = *project.global_fx.params.unpatched;
+				songUnpatched->bindDomStoreExternal(&songStore);
 				char const* paramTag;
 				while (*(paramTag = reader.readNextTagOrAttributeName())) {
-					if (deluge::project::readGlobalEffectableParamTagToDoc(
-					        reader, paramTag, *project.global_fx.params.unpatched, 2147483647)) {}
+					if (deluge::project::readGlobalEffectableParamTagToDoc(reader, paramTag, songStore, 2147483647)) {}
 					else {
 						reader.exitTag(paramTag);
 					}
 				}
-				deluge::project::fromDocParamManager(project.global_fx.params, paramManager);
+				// Sync each engine RT cursor from the store's (read or seeded-default) current_value. Nodes already
+				// live in the store, resolved via owner-resolution.
+				for (int32_t p = 0; p < songUnpatched->getNumParams() && p < (int32_t)songStore.params.size(); p++) {
+					songUnpatched->params[p].currentValue = songStore.params[p].current_value;
+				}
 				reader.exitTag("songParams", true);
 			}
 
@@ -1920,29 +1927,23 @@ skipInstance:
 	setupPatchingForAllParamManagers();
 	AudioEngine::logAction("aaa4.3");
 
-	// Phase B (DOM single-store): make the DOM the sole owner of the song-global unpatched automation node
-	// storage — each engine unpatched AutoParam borrows its nodes from project.global_fx.params.unpatched, so
-	// every edit + undo operates on DOM-owned data and save can read it directly. The store address is stable
-	// (Song is a heap singleton; the store's params vector is sized once here and never resized after), which
-	// the borrow-pointer requires. Seed the store first if the file had no <songParams> tag.
+	// Phase B (DOM single-store): the DOM is the sole owner of the song-global unpatched automation node storage
+	// (project.global_fx.params.unpatched); the engine set owner-resolves to it, so every edit + undo operates on
+	// DOM-owned data and save reads it directly. The <songParams> read path above already created + bound the
+	// store; this handles the file-had-no-<songParams> case (seed from the engine defaults, then bind). M2-F: no
+	// moveNodesInto — the engine holds no ownDoc_ node data to move; reads/edits land in the store directly.
 	{
+		UnpatchedParamSet* unpatchedEngine = paramManager.getUnpatchedParamSet();
 		if (!project.global_fx.params.unpatched) {
-			project.global_fx.params.unpatched = deluge::project::toDocParamSet(*paramManager.getUnpatchedParamSet());
+			project.global_fx.params.unpatched = deluge::project::toDocParamSet(*unpatchedEngine);
 		}
 		deluge::project::DocParamSet& store = *project.global_fx.params.unpatched;
-		UnpatchedParamSet* unpatchedEngine = paramManager.getUnpatchedParamSet();
 #if ALPHA_OR_BETA_VERSION
 		if (static_cast<int32_t>(store.params.size()) != unpatchedEngine->getNumParams()) {
-			FREEZE_WITH_ERROR("E4B0"); // DOM/engine song-global param-count mismatch — borrow would be unsafe
+			FREEZE_WITH_ERROR("E4B0"); // DOM/engine song-global param-count mismatch
 		}
 #endif
-		for (int32_t p = 0; p < unpatchedEngine->getNumParams(); p++) {
-			unpatchedEngine->params[p].moveNodesInto(&store.params[p]);
-		}
-		// M2-E: also give the engine set owner-resolution to this (externally-owned) store, so modelStack->doc()
-		// resolves the same slots the AutoParams borrow — the song-global store lives in the DOM project, not in
-		// the set's own domStore_.
-		unpatchedEngine->bindDomStoreExternal(&store);
+		unpatchedEngine->bindDomStoreExternal(&store); // idempotent if the <songParams> path already bound it
 	}
 
 	// Phase C (InstrumentClip): borrow-point each instrument clip's automation node storage at DOM-owned

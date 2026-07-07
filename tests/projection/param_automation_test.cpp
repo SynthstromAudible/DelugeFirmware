@@ -100,6 +100,24 @@ void expectSameNodes(const AutoParam& a, const AutoParam& b, const char* name) {
 	}
 }
 
+// M2-F: compare two owner-resolved DOM node stores (for params that live in a ParamSet — their nodes are in the
+// set's store, not the AutoParam).
+void expectSameDoc(const deluge::project::DocAutoParam& a, const deluge::project::DocAutoParam& b, const char* name) {
+	check(a.nodes.size() == b.nodes.size(), name);
+	for (size_t i = 0; i < a.nodes.size() && i < b.nodes.size(); i++) {
+		check(a.nodes[i].pos == b.nodes[i].pos, name);
+		check(a.nodes[i].value == b.nodes[i].value, name);
+		check(a.nodes[i].interpolated == b.nodes[i].interpolated, name);
+	}
+}
+
+// M2-F: compare a param at index `idx` across two ParamSets — the RT cursor (currentValue) plus the owner-resolved
+// node store. Replaces expectSameNodes for params that live in a set.
+void expectSameParamInSet(ParamSet* a, ParamSet* b, int32_t idx, const char* name) {
+	check(a->params[idx].currentValue == b->params[idx].currentValue, name);
+	expectSameDoc(*a->docForParam(idx), *b->docForParam(idx), name);
+}
+
 // Build a live AutoParam from a value + node list, round-trip it through the document form, and assert
 // the rebuilt AutoParam is identical.
 void roundTrip(const char* name, int32_t currentValue, const std::vector<Node>& nodes) {
@@ -767,8 +785,8 @@ int main() {
 		ParamManagerForTimeline pm;
 		check(pm.setupWithPatching() == Error::NONE, "pm setupWithPatching");
 		pm.getPatchedParamSet()->params[5].currentValue = 12345;
-		setNode(pm.getPatchedParamSet()->params[5], 0, 100, true);
-		setNode(pm.getPatchedParamSet()->params[5], 32, -500, false);
+		setNodeIn(*pm.getPatchedParamSet()->docForParam(5), 0, 100, true);
+		setNodeIn(*pm.getPatchedParamSet()->docForParam(5), 32, -500, false);
 		pm.getUnpatchedParamSet()->params[2].currentValue = 678;
 
 		// A patch cable (Phase 3b): source -> destination param, with an automatable amount.
@@ -789,7 +807,7 @@ int main() {
 		check(pm2.setupWithPatching() == Error::NONE, "pm2 setupWithPatching");
 		deluge::project::fromDocParamManager(doc, pm2);
 		check(pm2.getPatchedParamSet()->params[5].currentValue == 12345, "pm patched currentValue");
-		expectSameNodes(pm2.getPatchedParamSet()->params[5], pm.getPatchedParamSet()->params[5], "pm patched nodes");
+		expectSameParamInSet(pm2.getPatchedParamSet(), pm.getPatchedParamSet(), 5, "pm patched nodes");
 		check(pm2.getUnpatchedParamSet()->params[2].currentValue == 678, "pm unpatched currentValue");
 
 		PatchCableSet* pcs2 = pm2.getPatchCableSet();
@@ -819,8 +837,8 @@ int main() {
 		ParamManagerForTimeline src;
 		check(src.setupWithPatching() == Error::NONE, "5c1 src setup");
 		src.getPatchedParamSet()->params[5].currentValue = 999;
-		setNode(src.getPatchedParamSet()->params[5], 0, 100, true); // automated in src
-		setNode(src.getPatchedParamSet()->params[5], 48, -200, false);
+		setNodeIn(*src.getPatchedParamSet()->docForParam(5), 0, 100, true); // automated in src
+		setNodeIn(*src.getPatchedParamSet()->docForParam(5), 48, -200, false);
 		src.getUnpatchedParamSet()->params[3].currentValue = 4242; // not automated in src
 
 		deluge::project::DocParamManager doc = deluge::project::toDocParamManager(src);
@@ -828,7 +846,7 @@ int main() {
 		// Target starts with conflicting state: param 5 NOT automated, but param 9 IS automated (must clear).
 		ParamManagerForTimeline dst;
 		check(dst.setupWithPatching() == Error::NONE, "5c1 dst setup");
-		setNode(dst.getPatchedParamSet()->params[9], 0, 7, true);
+		setNodeIn(*dst.getPatchedParamSet()->docForParam(9), 0, 7, true);
 		dst.getPatchedParamSet()->paramHasAutomationNow(dst.getPatchedParamSetSummary(), 9);
 		dst.getPatchedParamSet()->params[5].currentValue = -1; // stale value
 
@@ -933,8 +951,8 @@ int main() {
 		check(pm.setupWithPatching() == Error::NONE, "attr setup");
 		UnpatchedParamSet* unp = pm.getUnpatchedParamSet();
 		unp->params[2].currentValue = 424242; // automated
-		setNode(unp->params[2], 0, 10, true);
-		setNode(unp->params[2], 40, -20, false);
+		setNodeIn(*unp->docForParam(2), 0, 10, true);
+		setNodeIn(*unp->docForParam(2), 40, -20, false);
 		unp->params[5].currentValue = -7; // plain, non-empty
 		unp->params[8].currentValue = 0;  // empty
 
@@ -969,7 +987,7 @@ int main() {
 		UnpatchedParamSet* unp = pm.getUnpatchedParamSet();
 		unp->params[params::UNPATCHED_STUTTER_RATE].currentValue = 111;
 		unp->params[params::UNPATCHED_BITCRUSHING].currentValue = 222;
-		setNode(unp->params[params::UNPATCHED_ARP_GATE], 0, 50, true);
+		setNodeIn(*unp->docForParam(params::UNPATCHED_ARP_GATE), 0, 50, true);
 		unp->params[params::UNPATCHED_BASS].currentValue = -333; // equalizer group
 
 		deluge::project::DocParamManager doc = deluge::project::toDocParamManager(pm);
@@ -1009,8 +1027,8 @@ int main() {
 		UnpatchedParamSet* unp = pm.getUnpatchedParamSet();
 		unp->params[params::UNPATCHED_STUTTER_RATE].currentValue = 111;
 		unp->params[params::UNPATCHED_BITCRUSHING].currentValue = 222;
-		setNode(unp->params[params::UNPATCHED_ARP_GATE], 0, 50, true); // automated
-		setNode(unp->params[params::UNPATCHED_ARP_GATE], 48, -99, false);
+		setNodeIn(*unp->docForParam(params::UNPATCHED_ARP_GATE), 0, 50, true); // automated
+		setNodeIn(*unp->docForParam(params::UNPATCHED_ARP_GATE), 48, -99, false);
 		unp->params[params::UNPATCHED_BASS].currentValue = -333; // equalizer group
 		unp->params[params::UNPATCHED_ARP_SPREAD_OCTAVE].currentValue = 444;
 
@@ -1043,7 +1061,7 @@ int main() {
 		const int32_t ids[] = {params::UNPATCHED_STUTTER_RATE, params::UNPATCHED_BITCRUSHING,
 		                       params::UNPATCHED_ARP_GATE, params::UNPATCHED_BASS, params::UNPATCHED_ARP_SPREAD_OCTAVE};
 		for (int32_t id : ids) {
-			expectSameNodes(unp2->params[id], unp->params[id], "mca-rt param");
+			expectSameParamInSet(unp2, unp, id, "mca-rt param");
 		}
 		check(
 		    (sum2->whichParamsAreAutomated[params::UNPATCHED_ARP_GATE >> 5] & (1u << (params::UNPATCHED_ARP_GATE & 31)))
@@ -1061,12 +1079,12 @@ int main() {
 		UnpatchedParamSet* unp = pm.getUnpatchedParamSet();
 		unp->params[params::UNPATCHED_REVERB_SEND_AMOUNT].currentValue = 123;
 		unp->params[params::UNPATCHED_VOLUME].currentValue = 456;
-		unp->params[params::UNPATCHED_PITCH_ADJUST].currentValue = 789;         // exercises the conditional attr
-		setNode(unp->params[params::UNPATCHED_SIDECHAIN_VOLUME], 0, 99, false); // automated ⇒ conditional fires
-		unp->params[params::UNPATCHED_LPF_FREQ].currentValue = -111;            // <lpf> group
-		unp->params[params::UNPATCHED_DELAY_RATE].currentValue = 222;           // <delay> group
-		unp->params[params::UNPATCHED_STUTTER_RATE].currentValue = 333;         // shared block
-		unp->params[params::UNPATCHED_LPF_MORPH].currentValue = 444;            // community attr
+		unp->params[params::UNPATCHED_PITCH_ADJUST].currentValue = 789; // exercises the conditional attr
+		setNodeIn(*unp->docForParam(params::UNPATCHED_SIDECHAIN_VOLUME), 0, 99, false); // automated ⇒ conditional fires
+		unp->params[params::UNPATCHED_LPF_FREQ].currentValue = -111;                    // <lpf> group
+		unp->params[params::UNPATCHED_DELAY_RATE].currentValue = 222;                   // <delay> group
+		unp->params[params::UNPATCHED_STUTTER_RATE].currentValue = 333;                 // shared block
+		unp->params[params::UNPATCHED_LPF_MORPH].currentValue = 444;                    // community attr
 
 		deluge::project::DocParamManager doc = deluge::project::toDocParamManager(pm);
 
@@ -1103,13 +1121,13 @@ int main() {
 		check(pm.setupWithPatching() == Error::NONE, "ge-rt setup");
 		UnpatchedParamSet* unp = pm.getUnpatchedParamSet();
 		unp->params[params::UNPATCHED_REVERB_SEND_AMOUNT].currentValue = 123;
-		unp->params[params::UNPATCHED_PITCH_ADJUST].currentValue = 789;  // conditional attr
-		setNode(unp->params[params::UNPATCHED_LPF_FREQ], 0, -111, true); // <lpf> group, automated
-		unp->params[params::UNPATCHED_DELAY_RATE].currentValue = 222;    // <delay> group
-		unp->params[params::UNPATCHED_HPF_RES].currentValue = -55;       // <hpf> group
-		unp->params[params::UNPATCHED_LPF_MORPH].currentValue = 444;     // flat community attr
-		unp->params[params::UNPATCHED_STUTTER_RATE].currentValue = 333;  // shared MCA attr
-		unp->params[params::UNPATCHED_BASS].currentValue = -333;         // equalizer group
+		unp->params[params::UNPATCHED_PITCH_ADJUST].currentValue = 789;          // conditional attr
+		setNodeIn(*unp->docForParam(params::UNPATCHED_LPF_FREQ), 0, -111, true); // <lpf> group, automated
+		unp->params[params::UNPATCHED_DELAY_RATE].currentValue = 222;            // <delay> group
+		unp->params[params::UNPATCHED_HPF_RES].currentValue = -55;               // <hpf> group
+		unp->params[params::UNPATCHED_LPF_MORPH].currentValue = 444;             // flat community attr
+		unp->params[params::UNPATCHED_STUTTER_RATE].currentValue = 333;          // shared MCA attr
+		unp->params[params::UNPATCHED_BASS].currentValue = -333;                 // equalizer group
 
 		deluge::project::DocParamSet doc = deluge::project::toDocParamSet(*unp);
 
@@ -1142,7 +1160,7 @@ int main() {
 		    params::UNPATCHED_DELAY_RATE,         params::UNPATCHED_HPF_RES,      params::UNPATCHED_LPF_MORPH,
 		    params::UNPATCHED_STUTTER_RATE,       params::UNPATCHED_BASS};
 		for (int32_t id : ids) {
-			expectSameNodes(unp2->params[id], unp->params[id], "ge-rt param");
+			expectSameParamInSet(unp2, unp, id, "ge-rt param");
 		}
 
 		// Legacy back-compat: a hand-crafted <lpf morph="..."> (the writer emits flat lpfMorph, but old
@@ -1181,8 +1199,8 @@ int main() {
 		check(pm.setupWithPatching() == Error::NONE, "expr setup");
 		ExpressionParamSet* e = pm.getOrCreateExpressionParamSet();
 		check(e != nullptr, "expr param set created");
-		e->params[0].currentValue = 12345;    // pitchBend
-		setNode(e->params[2], 0, 6789, true); // pressure, automated
+		e->params[0].currentValue = 12345;            // pitchBend
+		setNodeIn(*e->docForParam(2), 0, 6789, true); // pressure, automated
 		// yExpression (index 1) left neutral ⇒ exercises the per-dimension skip.
 
 		deluge::project::DocParamManager doc = deluge::project::toDocParamManager(pm);
@@ -1210,8 +1228,8 @@ int main() {
 		check(pm.setupWithPatching() == Error::NONE, "expr-rt setup");
 		ExpressionParamSet* e = pm.getOrCreateExpressionParamSet();
 		check(e != nullptr, "expr-rt set created");
-		e->params[0].currentValue = 12345;    // pitchBend
-		setNode(e->params[2], 0, 6789, true); // pressure, automated
+		e->params[0].currentValue = 12345;            // pitchBend
+		setNodeIn(*e->docForParam(2), 0, 6789, true); // pressure, automated
 
 		deluge::project::DocParamSet doc = deluge::project::toDocParamSet(*e);
 
@@ -1247,8 +1265,8 @@ int main() {
 				reader.exitTag();
 			}
 		}
-		expectSameNodes(e2->params[0], e->params[0], "expr-rt pitchBend");
-		expectSameNodes(e2->params[2], e->params[2], "expr-rt pressure");
+		expectSameParamInSet(e2, e, 0, "expr-rt pitchBend");
+		expectSameParamInSet(e2, e, 2, "expr-rt pressure");
 		check((esum2->whichParamsAreAutomated[2 >> 5] & (1u << (2 & 31))) != 0, "expr-rt pressure automation flag");
 
 		// Legacy back-compat: <channelPressure> loads into dimension 2 via the engine tail in readFromFile.
@@ -1275,8 +1293,8 @@ int main() {
 		PatchedParamSet* pp = pm.getPatchedParamSet();
 		UnpatchedParamSet* up = pm.getUnpatchedParamSet();
 		pp->params[params::LOCAL_OSC_A_VOLUME].currentValue = 12345;
-		pp->params[params::LOCAL_PITCH_ADJUST].currentValue = 678;      // conditional attr — written
-		setNode(pp->params[params::LOCAL_ENV_0_ATTACK], 0, 4242, true); // envelope group, automated
+		pp->params[params::LOCAL_PITCH_ADJUST].currentValue = 678;              // conditional attr — written
+		setNodeIn(*pp->docForParam(params::LOCAL_ENV_0_ATTACK), 0, 4242, true); // envelope group, automated
 		pp->params[params::GLOBAL_REVERB_AMOUNT].currentValue = -999;
 		pp->params[params::LOCAL_LPF_MORPH].currentValue = 111; // community attr
 		up->params[params::UNPATCHED_PORTAMENTO].currentValue = 222;
@@ -1318,7 +1336,7 @@ int main() {
 		PatchedParamSet* pp = pm.getPatchedParamSet();
 		UnpatchedParamSet* up = pm.getUnpatchedParamSet();
 		pp->params[params::LOCAL_OSC_A_VOLUME].currentValue = 12345;
-		setNode(pp->params[params::LOCAL_ENV_0_ATTACK], 0, 4242, true); // envelope group, automated
+		setNodeIn(*pp->docForParam(params::LOCAL_ENV_0_ATTACK), 0, 4242, true); // envelope group, automated
 		pp->params[params::GLOBAL_REVERB_AMOUNT].currentValue = -999;
 		pp->params[params::LOCAL_LPF_MORPH].currentValue = 111; // community attr
 		pp->params[params::LOCAL_PITCH_ADJUST].currentValue = 678;
@@ -1355,7 +1373,7 @@ int main() {
 		                              params::GLOBAL_REVERB_AMOUNT, params::LOCAL_LPF_MORPH,
 		                              params::LOCAL_PITCH_ADJUST};
 		for (int32_t id : patchedIds) {
-			expectSameNodes(pp2->params[id], pp->params[id], "sound-rt patched");
+			expectSameParamInSet(pp2, pp, id, "sound-rt patched");
 		}
 		expectSameNodes(up2->params[params::UNPATCHED_PORTAMENTO], up->params[params::UNPATCHED_PORTAMENTO],
 		                "sound-rt portamento");
@@ -1374,13 +1392,13 @@ int main() {
 		ParamManagerForTimeline pm;
 		check(pm.setupWithPatching() == Error::NONE, "override setup");
 		UnpatchedParamSet* up = pm.getUnpatchedParamSet();
-		setNode(up->params[params::UNPATCHED_VOLUME], 0, 4242, true); // automated ⇒ override applies
-		up->params[params::UNPATCHED_PAN].currentValue = 555;         // not automated ⇒ override ignored
-		setNode(up->params[params::UNPATCHED_BASS], 0, 7, false);     // automated, equalizer group
+		setNodeIn(*up->docForParam(params::UNPATCHED_VOLUME), 0, 4242, true); // automated ⇒ override applies
+		up->params[params::UNPATCHED_PAN].currentValue = 555;                 // not automated ⇒ override ignored
+		setNodeIn(*up->docForParam(params::UNPATCHED_BASS), 0, 7, false);     // automated, equalizer group
 		// An automated ModControllableAudio arp attr: the engine writes it WITHOUT the override (only the
 		// first six MCA attrs honour valuesForOverride), so the override value must be ignored here.
-		setNode(up->params[params::UNPATCHED_ARP_GATE], 0, 13, true);
-		setNode(up->params[params::UNPATCHED_STUTTER_RATE], 0, 21, true); // override-eligible MCA attr
+		setNodeIn(*up->docForParam(params::UNPATCHED_ARP_GATE), 0, 13, true);
+		setNodeIn(*up->docForParam(params::UNPATCHED_STUTTER_RATE), 0, 21, true); // override-eligible MCA attr
 
 		deluge::project::DocParamManager doc = deluge::project::toDocParamManager(pm);
 		check(doc.unpatched.has_value(), "override unpatched present");
@@ -1427,8 +1445,8 @@ int main() {
 		UnpatchedParamSet* unp = pm.getUnpatchedParamSet();
 		unp->params[params::UNPATCHED_REVERB_SEND_AMOUNT].currentValue = 123;
 		unp->params[params::UNPATCHED_PITCH_ADJUST].currentValue = 789;
-		setNode(unp->params[params::UNPATCHED_LPF_FREQ], 0, -111, true); // <lpf> group, automated
-		setNode(unp->params[params::UNPATCHED_LPF_FREQ], 48, 222, false);
+		setNodeIn(*unp->docForParam(params::UNPATCHED_LPF_FREQ), 0, -111, true); // <lpf> group, automated
+		setNodeIn(*unp->docForParam(params::UNPATCHED_LPF_FREQ), 48, 222, false);
 		unp->params[params::UNPATCHED_DELAY_RATE].currentValue = 222;   // <delay> group
 		unp->params[params::UNPATCHED_HPF_RES].currentValue = -55;      // <hpf> group
 		unp->params[params::UNPATCHED_LPF_MORPH].currentValue = 444;    // flat community attr
@@ -1535,41 +1553,38 @@ int main() {
 		check(copy.ownDocForFallback()->nodes.empty(), "moveNodesInto: a copy owns independent (empty) storage");
 	}
 
-	// M2-E (owner-resolution): ParamSet::bindDomStore allocates the DOM store and RELOCATES every param's nodes
-	// into it; owner-resolution (docForParam) returns the store slot and each param's inline storage is emptied.
-	// A copy of a bound set gets its OWN deep copy of the store (independent nodes; no aliasing).
+	// M2-F (lazy owner store): a ParamSet ALWAYS resolves to a DOM store — the first owner-resolved access
+	// (docForParam) lazily creates + binds the set's own store; the AutoParam's inline storage is never used. A
+	// copy of a bound set gets its OWN deep copy of the store (independent nodes; no aliasing).
 	{
 		ParamManagerForTimeline pm;
-		check(pm.setupWithPatching() == Error::NONE, "bindDomStore setup");
+		check(pm.setupWithPatching() == Error::NONE, "lazy setup");
 		UnpatchedParamSet* unp = pm.getUnpatchedParamSet();
-		setNode(unp->params[2], 0, 111, false);
-		setNode(unp->params[2], 48, -222, true);
+		check(unp->domStore() == nullptr, "lazy: unbound before first access");
+		// First owner-resolved access lazily binds the store; edits land there.
+		setNodeIn(*unp->docForParam(2), 0, 111, false);
+		setNodeIn(*unp->docForParam(2), 48, -222, true);
 		unp->params[5].currentValue = 4242; // unautomated
 
-		check(unp->domStore() == nullptr, "bindDomStore: unbound before bind");
-		unp->bindDomStore();
 		deluge::project::DocParamSet* store = unp->domStore();
-		check(store != nullptr, "bindDomStore: store allocated");
-		check(static_cast<int32_t>(store->params.size()) == unp->getNumParams(), "bindDomStore: store sized to count");
-		// Owner-resolution returns the store slot; the param's inline storage was emptied by the relocation.
-		check(unp->docForParam(2) == &store->params[2], "bindDomStore: owner resolves the param to its store slot");
-		check(unp->params[2].ownDocForFallback()->nodes.empty(), "bindDomStore: param inline storage emptied");
-		// The authored nodes moved into the store.
+		check(store != nullptr, "lazy: store bound on first docForParam");
+		check(static_cast<int32_t>(store->params.size()) == unp->getNumParams(), "lazy: store sized to count");
+		check(unp->docForParam(2) == &store->params[2], "lazy: owner resolves the param to its store slot");
+		check(unp->params[2].ownDocForFallback()->nodes.empty(), "lazy: param inline storage unused");
 		check(store->params[2].nodes.size() == 2 && store->params[2].nodes[0].value == 111,
-		      "bindDomStore: authored nodes live in the store");
+		      "lazy: authored nodes live in the store");
 		// A subsequent edit (owner-resolved) lands in the store.
 		setNodeIn(*unp->docForParam(2), 24, 999, false);
-		check(store->params[2].nodes.size() == 3, "bindDomStore: edit lands in the store");
-		// Idempotent: a second bind must not reallocate / re-seed.
+		check(store->params[2].nodes.size() == 3, "lazy: edit lands in the store");
+		// bindDomStore is now just "ensure bound" — idempotent once resolved.
 		unp->bindDomStore();
-		check(unp->domStore() == store, "bindDomStore: idempotent (no realloc)");
+		check(unp->domStore() == store, "lazy: bindDomStore idempotent (no realloc)");
 
 		// A copy of a bound set gets an INDEPENDENT deep copy of the store.
 		UnpatchedParamSet copy(*unp);
-		check(copy.domStore() != nullptr && copy.domStore() != store, "bindDomStore: a copy owns an independent store");
-		check(copy.docForParam(2) != &store->params[2], "bindDomStore: copy's store slot is not aliased");
-		check(copy.docForParam(2)->nodes.size() == store->params[2].nodes.size(),
-		      "bindDomStore: copy has same node count");
+		check(copy.domStore() != nullptr && copy.domStore() != store, "lazy: a copy owns an independent store");
+		check(copy.docForParam(2) != &store->params[2], "lazy: copy's store slot is not aliased");
+		check(copy.docForParam(2)->nodes.size() == store->params[2].nodes.size(), "lazy: copy has same node count");
 	}
 
 	// Phase C: ParamManager::bindMainParamSetDomStores binds ALL of a sound manager's automatable collections in
@@ -2194,12 +2209,15 @@ int main() {
 							ParamManagerForTimeline pm;
 							check(pm.setupWithPatching() == Error::NONE, "copy_paste: pm setup");
 							AutoParam& ap2 = pm.getUnpatchedParamSet()->params[kDstParamId];
+							// M2-F: ap2 lives in a ParamSet, so its nodes are owner-resolved (the paste op below runs
+							// on a real ModelStack). Author + inspect via the set's docForParam, not ap2's ownDoc_.
+							deluge::project::DocAutoParam* ap2Doc = pm.getUnpatchedParamSet()->docForParam(kDstParamId);
 							DocAutoParam doc2{};
 							for (const N& n : dstCfg) {
-								setNode(ap2, n.pos, n.value, n.interpolated);
+								setNodeIn(*ap2Doc, n.pos, n.value, n.interpolated);
 								deluge::project::setNodeAtPos(doc2, n.pos, n.value, n.interpolated);
 							}
-							(void)ap2.ownDocForFallback()->nodes.reserveExtra(4);
+							(void)ap2Doc->nodes.reserveExtra(4);
 
 							alignas(ModelStackWithAutoParam) char pbuf[MODEL_STACK_MAX_SIZE];
 							NoteRow pnr;
@@ -2207,7 +2225,8 @@ int main() {
 							ap2.paste(pc.startPos, pc.endPos, pc.scaleFactor, msap, &ca, isPatchCable);
 							deluge::project::pasteRegion(doc2, pc.startPos, pc.endPos, pc.scaleFactor, loopLen,
 							                             isPatchCable, domCopied);
-							expectDocMatchesEngine(ap2, doc2, "pasteRegion: matches engine oracle");
+							expectSameDoc(*pm.getUnpatchedParamSet()->docForParam(kDstParamId), doc2,
+							              "pasteRegion: matches engine oracle");
 						}
 					}
 

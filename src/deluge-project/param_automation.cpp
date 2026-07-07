@@ -73,7 +73,12 @@ DocParamSet toDocParamSet(ParamSet& paramSet) {
 }
 
 void fromDocParamSet(const DocParamSet& doc, ParamSet& paramSet) {
-	fromDocParamSet(doc, paramSet.params, paramSet.getNumParams());
+	// M2-F: owner-resolve each param's node store (docForParam), so the projection lands in the set's DOM store
+	// (where the engine reads it) rather than the AutoParam's inline storage.
+	int32_t count = std::min(static_cast<int32_t>(doc.params.size()), paramSet.getNumParams());
+	for (int32_t p = 0; p < count; p++) {
+		fromDocAutoParam(doc.params[p], paramSet.params[p].currentValue, paramSet.docForParam(p)->nodes);
+	}
 }
 
 namespace params = deluge::modulation::params;
@@ -554,11 +559,14 @@ void serializePatchCables(const std::vector<DocPatchCable>& cables, Serializer& 
 }
 
 DocAutoParam readDocAutoParam(Deserializer& in, int32_t readAutomationUpToPos) {
-	// Reuse the engine's leaf parser (hex blob, node reading, back-compat) on a throwaway AutoParam,
-	// then project the result — no reimplementation of the hex format.
+	// Reuse the engine's leaf parser (hex blob, node reading, back-compat) on a throwaway AutoParam, reading the
+	// nodes straight into a local DocAutoParam (M2-F: no AutoParam inline storage). readFromFile sets tmp's RT
+	// cursor; the nodes land in `result`.
 	AutoParam tmp;
-	tmp.readFromFile(*tmp.ownDocForFallback(), in, readAutomationUpToPos);
-	return toDocAutoParam(tmp);
+	DocAutoParam result;
+	tmp.readFromFile(result, in, readAutomationUpToPos);
+	result.current_value = tmp.currentValue;
+	return result;
 }
 
 void deserializePatchCables(std::vector<DocPatchCable>& out, Deserializer& in, int32_t readAutomationUpToPos) {
@@ -664,7 +672,8 @@ namespace {
 void readLiveParam(Deserializer& in, ParamSet& set, ParamCollectionSummary& summary, int32_t p,
                    int32_t readAutomationUpToPos) {
 	DocAutoParam doc = readDocAutoParam(in, readAutomationUpToPos);
-	fromDocAutoParam(doc, set.params[p]);
+	// M2-F: land the value in the RT cursor and the nodes in the set's owner-resolved DOM store (not ownDoc_).
+	fromDocAutoParam(doc, set.params[p].currentValue, set.docForParam(p)->nodes);
 	if (set.params[p].isAutomated(*set.docForParam(p))) {
 		set.paramHasAutomationNow(&summary, p);
 	}

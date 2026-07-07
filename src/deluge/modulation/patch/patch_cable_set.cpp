@@ -876,6 +876,7 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 			ParamDescriptor destinationParamDescriptor;
 			destinationParamDescriptor.setToNull();
 			AutoParam tempParam;
+			deluge::project::DocAutoParam tempParamDoc; // M2-F: temp nodes live here, not in ownDoc_
 			Polarity polarity = Polarity::BIPOLAR;
 			bool rangeAdjustable = false;
 			while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -890,7 +891,7 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 					    params::Kind::UNPATCHED_SOUND, reader.readTagOrAttributeValue(), true));
 				}
 				else if (!strcmp(tagName, "amount")) {
-					tempParam.readFromFile(*tempParam.ownDocForFallback(), reader, readAutomationUpToPos);
+					tempParam.readFromFile(tempParamDoc, reader, readAutomationUpToPos);
 				}
 				else if (!strcmp(tagName, "rangeAdjustable")) { // Files before V3.2 had this
 					rangeAdjustable = reader.readTagOrAttributeValueInt();
@@ -906,14 +907,14 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 							reader.match('{');
 							PatchSource rangeSource = PatchSource::NONE;
 							AutoParam tempRangeParam;
+							deluge::project::DocAutoParam tempRangeParamDoc; // M2-F: temp nodes
 							Polarity rangePolarity = Polarity::BIPOLAR;
 							while (*(tagName = reader.readNextTagOrAttributeName())) {
 								if (!strcmp(tagName, "source")) {
 									rangeSource = stringToSource(reader.readTagOrAttributeValue());
 								}
 								else if (!strcmp(tagName, "amount")) {
-									tempRangeParam.readFromFile(*tempRangeParam.ownDocForFallback(), reader,
-									                            readAutomationUpToPos);
+									tempRangeParam.readFromFile(tempRangeParamDoc, reader, readAutomationUpToPos);
 								}
 								else if (!strcmp(tagName, "polarity")) {
 									rangePolarity = stringToPolarity(reader.readTagOrAttributeValue());
@@ -923,7 +924,7 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 							reader.match('}'); // leave value
 							reader.match('}'); // leave box.
 							if (rangeSource != PatchSource::NONE
-							    && tempRangeParam.containsSomething(*tempRangeParam.ownDocForFallback(), 0)) {
+							    && tempRangeParam.containsSomething(tempRangeParamDoc, 0)) {
 								// Ensure no previous patch cable matches this combination
 								for (int32_t c = numCablesAtStartOfThing; c < numPatchCables; c++) {
 									if (patchCables[c].from == rangeSource) {
@@ -936,8 +937,7 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 								patchCables[numPatchCables].param = tempRangeParam;
 								// M2-F: the deserialize temp read its nodes into its own store; relocate them into the
 								// cable's inline store (where owner-resolution reads them).
-								patchCables[numPatchCables].amount_.nodes =
-								    std::move(tempRangeParam.ownDocForFallback()->nodes);
+								patchCables[numPatchCables].amount_.nodes = std::move(tempRangeParamDoc.nodes);
 								patchCables[numPatchCables].polarity = rangePolarity;
 								numPatchCables++;
 							}
@@ -951,7 +951,7 @@ doneWithThisRangeCable:
 				reader.exitTag();
 			}
 			if (source != PatchSource::NONE && !destinationParamDescriptor.isNull()
-			    && tempParam.containsSomething(*tempParam.ownDocForFallback(), 0)) {
+			    && tempParam.containsSomething(tempParamDoc, 0)) {
 				// Just make sure this cable is allowed in some capacity
 				// Deactivated because maySourcePatchToParam() is a Sound function, and this probably isn't really
 				// necessary anyway
@@ -989,7 +989,7 @@ doneWithThisRangeCable:
 				patchCables[numPatchCables].destinationParamDescriptor = destinationParamDescriptor;
 				patchCables[numPatchCables].param = tempParam;
 				// M2-F: relocate the deserialize temp's nodes into the cable's inline store.
-				patchCables[numPatchCables].amount_.nodes = std::move(tempParam.ownDocForFallback()->nodes);
+				patchCables[numPatchCables].amount_.nodes = std::move(tempParamDoc.nodes);
 				patchCables[numPatchCables].polarity = polarity;
 				numPatchCables++;
 			}
