@@ -709,10 +709,16 @@ int32_t Song::getYVisualFromYNote(int32_t yNote, bool inKeyMode, const MusicalKe
 	return yVisualWithinOctave + octave * key.modeNotes.count() + key.rootNote;
 }
 
-int32_t Song::incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctave) const {
-	return incrementYNoteInKey(yNote, increment, inOctave, key);
+int32_t Song::incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctave, bool inKey) const {
+	if (inKey) {
+		return incrementYNoteInKey(yNote, increment, inOctave, key);
+	}
+	else {
+		return incrementYNoteNoKey(yNote, increment, inOctave, key);
+	}
 }
 
+// what if it's not in key?
 int32_t Song::incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctave, const MusicalKey& key) {
 	D_PRINTLN("Incrementing note %i by %i", yNote, increment);
 	auto inc = std::clamp<int32_t>(increment, -1, 1);
@@ -721,7 +727,6 @@ int32_t Song::incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctav
 	int32_t y_note_within_octave = (uint16_t)(y_note_relative_to_root + 120) % 12;
 
 	int32_t octave = ((uint16_t)(y_note_relative_to_root + 120 - y_note_within_octave) / 12) - 10;
-	auto old_octave = octave;
 	int32_t y_visual_within_octave = 0;
 	for (int32_t i = 0; i < num_scale_notes && key.modeNotes[i] <= y_note_within_octave; i++) {
 		y_visual_within_octave = i;
@@ -745,12 +750,30 @@ int32_t Song::incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctav
 		}
 	}
 	auto new_note = key.modeNotes[y_visual_within_octave] + (octave * 12) + key.rootNote;
-	if (std::abs(new_note - yNote) > 2) {
-		D_PRINTLN("new note is too different");
+
+	return new_note;
+}
+
+int32_t Song::incrementYNoteNoKey(int32_t yNote, int32_t increment, bool inOctave, const MusicalKey& key) {
+	auto inc = std::clamp<int32_t>(increment, -1, 1);
+	if (!inOctave) {
+		return yNote + inc;
 	}
-	D_PRINTLN("incremented from %i to %i", yNote, new_note);
-	D_PRINTLN("Octave %i, mode_note %i, old_octave %i, old mode note % i", octave, y_visual_within_octave, old_octave,
-	          old_mode_note);
+	// e.g. chromatic (revisit if someone adds microtonal support)
+	auto num_scale_notes = 12;
+	int32_t y_note_relative_to_root = yNote - key.rootNote;
+	int32_t y_note_within_octave = (uint16_t)(y_note_relative_to_root + 120) % 12;
+
+	int32_t octave = ((uint16_t)(y_note_relative_to_root + 120 - y_note_within_octave) / 12) - 10;
+
+	if (inOctave) {
+		y_note_within_octave = (y_note_within_octave + inc) % num_scale_notes;
+		if (y_note_within_octave < 0) {
+			y_note_within_octave = y_note_within_octave + num_scale_notes;
+		}
+	}
+
+	auto new_note = y_note_within_octave + (octave * 12) + key.rootNote;
 
 	return new_note;
 }
