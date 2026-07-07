@@ -100,14 +100,14 @@ AutoParam& AutoParam::operator=(AutoParam&& other) noexcept {
 	return *this;
 }
 
-// The DOM node store is resolved from the OWNER, by paramId — no engine object holds node storage.
-//
-// S1 (toward id-addressable resolution / ModelStack removal): when the owner is the Song itself (song-global
-// params, timelineCounter == song), resolve the DOM node from the project tree by a stable `ParamAddress`
-// (owner + kind + paramId) instead of the threaded `paramCollection` pointer. Other owners (clips/drums/MIDI)
-// fall through to the engine resolution until their slice relocates their storage into the tree. Behaviour-
-// identical: for song-global the address resolves to the same `global_fx.params.unpatched` slot the engine
-// path returns.
+// The DOM node store is resolved from the OWNER, by paramId — no engine object holds node storage. Every saved
+// owner (song / audio clip / synth-kit clip-level / per-drum / expression / patch cables / MIDI CC) resolves via a
+// stable `ParamAddress` in the project tree (`Song::resolveParam`). The engine fallback below serves the only
+// unaddressable case — a never-saved (no-serialId) owner, whose nodes live in the engine collection's own store
+// until first save relocates+binds them — and is behaviour-identical (it returns the same store the address would).
+// The `paramCollection` pointer is used here only to reach `getParamKind()` + `docParamForId()`; it stays for the
+// collection's polymorphic-dispatch role across the engine (the oracle harness also sets it directly), so node
+// resolution is not decoupled from it — that would require dissolving the ParamCollection hierarchy (separate work).
 deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 	if (song != nullptr) {
 		TimelineCounter* tc = getTimelineCounterAllowNull();
