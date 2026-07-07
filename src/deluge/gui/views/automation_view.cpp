@@ -150,8 +150,6 @@ const uint32_t mutePadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITION
 
 const uint32_t verticalScrollUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN, 0};
 
-constexpr int32_t kNumGlobalParamsForAutomation = 39;
-
 // synth and kit rows FX - sorted in the order that Parameters are scrolled through on the display
 const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutomation> nonGlobalParamsForAutomation{{
     // The four macro automation lanes scroll in first, mirroring MIDI clips (macros before CC 0)
@@ -278,6 +276,11 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
 // global FX - sorted in the order that Parameters are scrolled through on the display
 // used with kit affect entire, audio clips, and arranger
 const std::array<std::pair<params::Kind, ParamType>, kNumGlobalParamsForAutomation> globalParamsForAutomation{{
+    // The four macro automation lanes scroll in first, mirroring the synth list (macros before params)
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_GLOBAL_MACRO_1},
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_GLOBAL_MACRO_2},
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_GLOBAL_MACRO_3},
+    {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_GLOBAL_MACRO_4},
     // Master Volume, Pitch, Pan
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_PITCH_ADJUST},
@@ -2740,6 +2743,11 @@ void AutomationView::openMacroLaneEditor(Clip* clip, int32_t macroIndex) {
 		clip->lastSelectedParamID = params::UNPATCHED_MACRO_1 + macroIndex;
 		clip->lastSelectedParamArrayPosition = macroIndex;
 	}
+	else if (clip->output->type == OutputType::AUDIO) { // GLOBAL domain (audio clip)
+		clip->lastSelectedParamKind = params::Kind::UNPATCHED_GLOBAL;
+		clip->lastSelectedParamID = params::UNPATCHED_GLOBAL_MACRO_1 + macroIndex;
+		clip->lastSelectedParamArrayPosition = macroIndex; // lanes are the first four globalParamsForAutomation entries
+	}
 	else { // MIDI_OUT: the lane is tracked by paramID alone (kind unused)
 		clip->lastSelectedParamKind = params::Kind::NONE;
 		clip->lastSelectedParamID = Macros::paramIDForMacro(macroIndex);
@@ -3102,10 +3110,13 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 		                                             kNumGlobalParamsForAutomation);
 		auto [kind, id] = globalParamsForAutomation[idx];
 		{
+			// The arranger (Song) doesn't host macros, so its four macro lanes (list entries 0-3) are
+			// skipped in the param scroll, alongside the params the arranger has no use for.
 			while ((id == params::UNPATCHED_PITCH_ADJUST || id == params::UNPATCHED_SIDECHAIN_SHAPE
 			        || id == params::UNPATCHED_SIDECHAIN_VOLUME || id == params::UNPATCHED_COMPRESSOR_THRESHOLD
 			        || (id >= params::UNPATCHED_FIRST_ARP_PARAM && id <= params::UNPATCHED_LAST_ARP_PARAM)
-			        || id == params::UNPATCHED_ARP_RATE)) {
+			        || id == params::UNPATCHED_ARP_RATE
+			        || (id >= params::UNPATCHED_GLOBAL_MACRO_1 && id <= params::UNPATCHED_GLOBAL_MACRO_4))) {
 
 				if (offset < 0) {
 					offset -= 1;
@@ -3127,8 +3138,12 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 		                                             kNumGlobalParamsForAutomation);
 		auto [kind, id] = globalParamsForAutomation[idx];
 		{
+			// Skip the arp params (audio clips have no arp) and, when the macro feature is off, the four
+			// macro lanes (list entries 0-3). With macros on they stay scrollable, mirroring synth clips.
 			while ((id >= params::UNPATCHED_FIRST_ARP_PARAM && id <= params::UNPATCHED_LAST_ARP_PARAM)
-			       || id == params::UNPATCHED_ARP_RATE) {
+			       || id == params::UNPATCHED_ARP_RATE
+			       || ((id >= params::UNPATCHED_GLOBAL_MACRO_1 && id <= params::UNPATCHED_GLOBAL_MACRO_4)
+			           && !Macros::isEnabled())) {
 
 				if (offset < 0) {
 					offset -= 1;
@@ -3149,6 +3164,19 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 		auto idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
 		                                             kNumGlobalParamsForAutomation);
 		auto [kind, id] = globalParamsForAutomation[idx];
+		// Kit affect-entire doesn't host macros (kit-global macros are a later phase), so its four macro
+		// lanes (list entries 0-3) are skipped in the param scroll.
+		while (id >= params::UNPATCHED_GLOBAL_MACRO_1 && id <= params::UNPATCHED_GLOBAL_MACRO_4) {
+			if (offset < 0) {
+				offset -= 1;
+			}
+			else if (offset > 0) {
+				offset += 1;
+			}
+			idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
+			                                        kNumGlobalParamsForAutomation);
+			id = globalParamsForAutomation[idx].second;
+		}
 		clip->lastSelectedParamID = id;
 		clip->lastSelectedParamKind = kind;
 		clip->lastSelectedParamArrayPosition = idx;

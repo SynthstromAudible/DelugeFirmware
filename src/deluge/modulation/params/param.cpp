@@ -329,6 +329,10 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		    [UNPATCHED_SIDECHAIN_VOLUME - unc] = STRING_FOR_SIDECHAIN_LEVEL,
 		    [UNPATCHED_PITCH_ADJUST - unc] = STRING_FOR_MASTER_PITCH,
 		    [UNPATCHED_TEMPO - unc] = STRING_FOR_TEMPO,
+		    [UNPATCHED_GLOBAL_MACRO_1 - unc] = STRING_FOR_MACRO_1,
+		    [UNPATCHED_GLOBAL_MACRO_2 - unc] = STRING_FOR_MACRO_2,
+		    [UNPATCHED_GLOBAL_MACRO_3 - unc] = STRING_FOR_MACRO_3,
+		    [UNPATCHED_GLOBAL_MACRO_4 - unc] = STRING_FOR_MACRO_4,
 		};
 		return l10n::get(NAMES[p - unc]);
 	}
@@ -447,6 +451,15 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 				return "pitch";
 			}
 			return "pitchAdjust";
+
+		case UNPATCHED_GLOBAL_MACRO_1:
+			return "macro1";
+		case UNPATCHED_GLOBAL_MACRO_2:
+			return "macro2";
+		case UNPATCHED_GLOBAL_MACRO_3:
+			return "macro3";
+		case UNPATCHED_GLOBAL_MACRO_4:
+			return "macro4";
 
 		// explicit fallthrough cases
 		case UNPATCHED_TEMPO: // nothing, really?

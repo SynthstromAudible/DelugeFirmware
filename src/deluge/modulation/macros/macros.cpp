@@ -164,10 +164,10 @@ void appendDestinationName(StringBuf& buf, Output* instrument, uint8_t destinati
 		    util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1) + macroIndexFromParamID(destination))));
 		return;
 	}
-	if (instrument && instrument->type == OutputType::SYNTH) {
+	if (instrument && isDomainInternal(domainForOutput(instrument))) {
 		params::Kind kind;
 		int32_t id;
-		decodeSynthDestination(destination, &kind, &id);
+		decodeDestination(domainForOutput(instrument), destination, &kind, &id);
 		buf.append(params::getParamDisplayName(kind, id));
 		return;
 	}
@@ -231,7 +231,7 @@ static void appendTargetEndpoint(StringBuf& buf, Output* instrument, uint8_t des
 	}
 	params::Kind kind;
 	int32_t paramID;
-	decodeSynthDestination(destination, &kind, &paramID);
+	decodeDestination(domainForOutput(instrument), destination, &kind, &paramID);
 	buf.appendInt(view.calculateKnobPosForDisplay(kind, paramID, endpoint));
 }
 
@@ -345,7 +345,7 @@ static inline int32_t bigValueToUnit(int32_t value) {
 //
 //   domainForOutput                 - map an Output to its Domain
 //   getFanContext / FanContext      - per-clip resolution context (what a bake/live-write needs)
-//   decode/encode the byte          - synth uses decodeSynthDestination / synthDestinationForParam;
+//   decode/encode the byte          - internal domains use decodeDestination / internalDestinationForParam;
 //                                     a new kind adds its own byte<->param mapping
 //   laneDestination                 - the byte of a macro's own lane param in this domain
 //   numBaseDestinations, destinationForPosition, positionForDestination, isValidTargetDestination
@@ -363,19 +363,56 @@ static inline int32_t bigValueToUnit(int32_t value) {
 // ────────────────────────────────────────────────────────────────────────────────────────────────
 
 Domain domainForOutput(Output* output) {
-	return (output->type == OutputType::SYNTH) ? Domain::SYNTH : Domain::MIDI;
+	switch (output->type) {
+	case OutputType::SYNTH:
+		return Domain::SYNTH;
+	case OutputType::AUDIO:
+		return Domain::GLOBAL;
+	default:
+		return Domain::MIDI;
+	}
+}
+
+// The preset "type" attribute string for a domain. A preset only loads into a macro of the same
+// domain (a CC list is meaningless on a synth, a param list on MIDI, etc.), so this guards the load.
+static const char* domainTypeString(Domain domain) {
+	switch (domain) {
+	case Domain::SYNTH:
+		return "synth";
+	case Domain::GLOBAL:
+		return "global";
+	case Domain::MIDI:
+		return "midi";
+	}
+	return "midi";
 }
 
 Output* macroHost(Clip* clip) {
-	if (!clip || !clip->output
-	    || (clip->output->type != OutputType::MIDI_OUT && clip->output->type != OutputType::SYNTH)) {
+	if (!clip || !clip->output) {
 		return nullptr;
 	}
-	return clip->output;
+	switch (clip->output->type) {
+	case OutputType::MIDI_OUT:
+	case OutputType::SYNTH:
+	case OutputType::AUDIO:
+		return clip->output;
+	default: // CV, KIT (kit-global lands in a later phase)
+		return nullptr;
+	}
 }
 
-void decodeSynthDestination(uint8_t destination, params::Kind* kindOut, int32_t* idOut) {
-	// A cascade id addresses the downstream macro's own lane param on this domain.
+// Decodes a destination byte to its (Kind, paramID) on an internal-domain host. SYNTH: bytes below
+// UNPATCHED_START are PATCHED ids, bytes from UNPATCHED_START up are UNPATCHED_SOUND ids + offset.
+// GLOBAL: the byte IS the raw UNPATCHED_GLOBAL id (never offset - an offset byte would collide with
+// the cascade id range 128-131). In both, a cascade id addresses the downstream macro's lane param.
+void decodeDestination(Domain domain, uint8_t destination, params::Kind* kindOut, int32_t* idOut) {
+	if (domain == Domain::GLOBAL) {
+		*kindOut = params::Kind::UNPATCHED_GLOBAL;
+		*idOut = isMacroParamID(destination) ? params::UNPATCHED_GLOBAL_MACRO_1 + macroIndexFromParamID(destination)
+		                                     : destination; // raw UNPATCHED_GLOBAL paramID
+		return;
+	}
+	// SYNTH
 	if (isMacroParamID(destination)) {
 		*kindOut = params::Kind::UNPATCHED_SOUND;
 		*idOut = params::UNPATCHED_MACRO_1 + macroIndexFromParamID(destination);
@@ -403,6 +440,20 @@ int32_t synthDestinationForParam(params::Kind kind, int32_t paramID) {
 	return -1;
 }
 
+// Encodes an automation-view param (kind, paramID) to its destination byte in an internal domain, or
+// -1 if it isn't a valid macro target. GLOBAL: the byte is the raw UNPATCHED_GLOBAL id, excluding the
+// macro lane params (targetable only via cascade ids). SYNTH delegates to synthDestinationForParam.
+int32_t internalDestinationForParam(Domain domain, params::Kind kind, int32_t paramID) {
+	if (domain == Domain::GLOBAL) {
+		if (kind == params::Kind::UNPATCHED_GLOBAL && paramID >= 0 && paramID < params::UNPATCHED_GLOBAL_MAX_NUM
+		    && (paramID < params::UNPATCHED_GLOBAL_MACRO_1 || paramID > params::UNPATCHED_GLOBAL_MACRO_4)) {
+			return paramID;
+		}
+		return -1;
+	}
+	return synthDestinationForParam(kind, paramID);
+}
+
 int32_t macroDestinationForPad(Domain domain, int32_t x, int32_t y, bool secondLayer) {
 	if (domain == Domain::SYNTH) {
 		// Some patched params share a pad (e.g. LFO1 rate / LFO2 rate); the second layer is reached by
@@ -420,6 +471,16 @@ int32_t macroDestinationForPad(Domain domain, int32_t x, int32_t y, bool secondL
 		}
 		return -1;
 	}
+	if (domain == Domain::GLOBAL) {
+		if (secondLayer) {
+			return -1; // global params have no second layer
+		}
+		if (params::unpatchedGlobalParamShortcuts[x][y] != params::kNoParamID) {
+			return internalDestinationForParam(Domain::GLOBAL, params::Kind::UNPATCHED_GLOBAL,
+			                                   params::unpatchedGlobalParamShortcuts[x][y]);
+		}
+		return -1;
+	}
 	if (secondLayer) {
 		return -1; // MIDI CC shortcuts have no second layer
 	}
@@ -432,10 +493,10 @@ bool isParamMacroDriven(Clip* clip, params::Kind kind, int32_t paramID) {
 	if (instrument == nullptr) {
 		return false;
 	}
-	// Encode the automation-view param as a destination byte: synth via synthDestinationForParam; MIDI
-	// clips store the CC directly as lastSelectedParamID.
-	int32_t destination =
-	    (domainForOutput(clip->output) == Domain::SYNTH) ? synthDestinationForParam(kind, paramID) : paramID;
+	// Encode the automation-view param as a destination byte: internal domains via
+	// internalDestinationForParam; MIDI clips store the CC directly as lastSelectedParamID.
+	Domain domain = domainForOutput(clip->output);
+	int32_t destination = isDomainInternal(domain) ? internalDestinationForParam(domain, kind, paramID) : paramID;
 	if (destination < 0 || destination > kMaxMidiDestination) {
 		return false;
 	}
@@ -456,8 +517,15 @@ bool isParamMacroDriven(Clip* clip, params::Kind kind, int32_t paramID) {
 }
 
 uint8_t laneDestination(Domain domain, int32_t macroIndex) {
-	if (domain == Domain::SYNTH) {
+	switch (domain) {
+	case Domain::SYNTH:
 		return params::UNPATCHED_START + params::UNPATCHED_MACRO_1 + macroIndex;
+	case Domain::GLOBAL:
+		// raw UNPATCHED_GLOBAL id byte (no UNPATCHED_START offset - see decodeDestination); < 128 so it
+		// never aliases a cascade id
+		return params::UNPATCHED_GLOBAL_MACRO_1 + macroIndex;
+	case Domain::MIDI:
+		return paramIDForMacro(macroIndex);
 	}
 	return paramIDForMacro(macroIndex);
 }
@@ -473,20 +541,39 @@ int32_t macroIndexForLaneSelection(Output* output, params::Kind kind, int32_t pa
 	    && paramID >= params::UNPATCHED_MACRO_1 && paramID <= params::UNPATCHED_MACRO_4) {
 		return paramID - params::UNPATCHED_MACRO_1;
 	}
+	if (output->type == OutputType::AUDIO && kind == params::Kind::UNPATCHED_GLOBAL
+	    && paramID >= params::UNPATCHED_GLOBAL_MACRO_1 && paramID <= params::UNPATCHED_GLOBAL_MACRO_4) {
+		return paramID - params::UNPATCHED_GLOBAL_MACRO_1;
+	}
 	return -1;
 }
 
-// The ordered SYNTH destination list: every targetable byte, in automation-view scroll order (the
-// single source of param ordering). Built once, lazily, into a fixed buffer (no heap); excludes
-// EXPRESSION entries, patch cables (not encodable as a byte) and the macro lane params
-// (cascade-only).
-static const uint8_t* synthDestinationList(int32_t* countOut) {
+// The ordered internal-domain destination list: every targetable byte, in automation-view scroll
+// order (the single source of param ordering). Built once per domain, lazily, into a fixed buffer
+// (no heap); excludes EXPRESSION entries, patch cables (not encodable) and the macro lane params
+// (cascade-only, so internalDestinationForParam returns -1 for them).
+static const uint8_t* internalDestinationList(Domain domain, int32_t* countOut) {
+	if (domain == Domain::GLOBAL) {
+		static uint8_t list[kNumGlobalParamsForAutomation];
+		static int32_t count = -1;
+		if (count < 0) {
+			count = 0;
+			for (const auto& [kind, id] : globalParamsForAutomation) {
+				int32_t destination = internalDestinationForParam(Domain::GLOBAL, kind, id);
+				if (destination >= 0) {
+					list[count++] = (uint8_t)destination;
+				}
+			}
+		}
+		*countOut = count;
+		return list;
+	}
 	static uint8_t list[kNumNonGlobalParamsForAutomation];
 	static int32_t count = -1;
 	if (count < 0) {
 		count = 0;
 		for (const auto& [kind, id] : nonGlobalParamsForAutomation) {
-			int32_t destination = synthDestinationForParam(kind, id);
+			int32_t destination = internalDestinationForParam(Domain::SYNTH, kind, id);
 			if (destination >= 0) {
 				list[count++] = (uint8_t)destination;
 			}
@@ -498,9 +585,9 @@ static const uint8_t* synthDestinationList(int32_t* countOut) {
 
 // The number of non-cascade destinations in a domain's dial space.
 static int32_t numBaseDestinations(Domain domain) {
-	if (domain == Domain::SYNTH) {
+	if (isDomainInternal(domain)) {
 		int32_t count = 0;
-		synthDestinationList(&count);
+		internalDestinationList(domain, &count);
 		return count;
 	}
 	return kMaxMidiDestination + 1;
@@ -518,9 +605,9 @@ int32_t destinationForPosition(Domain domain, int32_t macroIndex, int32_t positi
 	if (position >= numBase) {
 		return paramIDForMacro(macroIndex) + 1 + (position - numBase);
 	}
-	if (domain == Domain::SYNTH) {
+	if (isDomainInternal(domain)) {
 		int32_t count = 0;
-		return synthDestinationList(&count)[position];
+		return internalDestinationList(domain, &count)[position];
 	}
 	return position;
 }
@@ -531,9 +618,9 @@ int32_t positionForDestination(Domain domain, int32_t macroIndex, uint8_t destin
 		int32_t offset = macroIndexFromParamID(destination) - macroIndex - 1;
 		return (offset >= 0) ? numBase + offset : -1;
 	}
-	if (domain == Domain::SYNTH) {
+	if (isDomainInternal(domain)) {
 		int32_t count = 0;
-		const uint8_t* list = synthDestinationList(&count);
+		const uint8_t* list = internalDestinationList(domain, &count);
 		for (int32_t i = 0; i < count; i++) {
 			if (list[i] == destination) {
 				return i;
@@ -548,7 +635,7 @@ bool isValidTargetDestination(Domain domain, int32_t destination, int32_t macroI
 	if (isCascadeDestination(destination, macroIndex)) {
 		return true;
 	}
-	if (domain == Domain::SYNTH) {
+	if (isDomainInternal(domain)) {
 		return destination >= 0 && destination <= UINT8_MAX
 		       && positionForDestination(domain, macroIndex, (uint8_t)destination) >= 0;
 	}
@@ -600,7 +687,7 @@ static void writeDestinationLive(Output* instrument, Clip* clip, ModelStackWithT
 	}
 	params::Kind kind;
 	int32_t id;
-	decodeSynthDestination(destination, &kind, &id);
+	decodeDestination(domain, destination, &kind, &id);
 	ModelStackWithAutoParam* msp = instrument->getModelStackWithParam(modelStack, clip, id, kind, true, false);
 	if (msp && msp->autoParam) {
 		msp->autoParam->setValuePossiblyForRegion(unitsToParamValue(msp, domain, units), msp, modPos, modLength);
@@ -661,7 +748,7 @@ static ModelStackWithAutoParam* destinationParamStack(const FanContext& ctx, Mod
 	}
 	params::Kind kind;
 	int32_t id;
-	decodeSynthDestination(destination, &kind, &id);
+	decodeDestination(ctx.domain, destination, &kind, &id);
 	ModelStackWithAutoParam* msp =
 	    (kind == params::Kind::PATCHED) ? three->getPatchedAutoParamFromId(id) : three->getUnpatchedAutoParamFromId(id);
 	return (msp != nullptr && msp->autoParam != nullptr) ? msp : nullptr;
@@ -675,7 +762,11 @@ static AutoParam* laneParam(const FanContext& ctx, int32_t macroIndex) {
 		return param ? &param->param : nullptr;
 	}
 	UnpatchedParamSet* unpatched = ctx.clip->paramManager.getUnpatchedParamSet();
-	return unpatched ? &unpatched->params[params::UNPATCHED_MACRO_1 + macroIndex] : nullptr;
+	if (!unpatched) {
+		return nullptr;
+	}
+	int32_t laneParamID = (ctx.domain == Domain::GLOBAL) ? params::UNPATCHED_GLOBAL_MACRO_1 : params::UNPATCHED_MACRO_1;
+	return &unpatched->params[laneParamID + macroIndex];
 }
 
 // Whether the macro's lane was ever touched on this clip - the gate for every re-fan: an untouched
@@ -730,11 +821,11 @@ static void refreshAutomationGridIfShowingDestination(Clip* clip, Domain domain,
 	if (getRootUI() != &automationView || automationView.onArrangerView) {
 		return;
 	}
-	if (domain == Domain::SYNTH) {
-		// synth lanes are tracked by (kind, id); a cascade id maps to the downstream lane param
+	if (isDomainInternal(domain)) {
+		// internal lanes are tracked by (kind, id); a cascade id maps to the downstream lane param
 		params::Kind kind;
 		int32_t id;
-		decodeSynthDestination(destination, &kind, &id);
+		decodeDestination(domain, destination, &kind, &id);
 		if (clip->lastSelectedParamKind == kind && clip->lastSelectedParamID == id) {
 			uiNeedsRendering(&automationView);
 		}
@@ -977,11 +1068,17 @@ static void writeTargetsToFile(Serializer& writer, Macro& macro, Domain domain) 
 			char tagName[10] = MACRO_TARGET_PREFIX "1"; // "target1"
 			tagName[6] = '1' + i;
 			writer.writeOpeningTagBeginning(tagName);
-			if (domain == Domain::SYNTH) {
-				uint8_t byte = isMacroParamID(target.destination)
-				                   ? laneDestination(Domain::SYNTH, macroIndexFromParamID(target.destination))
+			if (isDomainInternal(domain)) {
+				// A cascade target writes the downstream lane's own param name; a real target its param
+				// name. paramNameForFile takes the UNPATCHED_START-offset byte, so GLOBAL (whose bytes are
+				// raw ids) adds the offset back on.
+				uint8_t lane = isMacroParamID(target.destination)
+				                   ? laneDestination(domain, macroIndexFromParamID(target.destination))
 				                   : target.destination;
-				writer.writeAttribute("param", params::paramNameForFile(params::Kind::UNPATCHED_SOUND, byte), false);
+				params::Kind kind =
+				    (domain == Domain::GLOBAL) ? params::Kind::UNPATCHED_GLOBAL : params::Kind::UNPATCHED_SOUND;
+				int32_t byteForName = (domain == Domain::GLOBAL) ? params::UNPATCHED_START + lane : lane;
+				writer.writeAttribute("param", params::paramNameForFile(kind, byteForName), false);
 			}
 			else {
 				writer.writeAttribute("cc", target.destination, false);
@@ -1064,6 +1161,20 @@ static void readTargetFromFile(Deserializer& reader, MacroTargetSlot& target, in
 				destination = paramIDForMacro(destination - (params::UNPATCHED_START + params::UNPATCHED_MACRO_1));
 			}
 		}
+		else if (!strcmp(attrName, "param") && domain == Domain::GLOBAL) {
+			// name -> UNPATCHED_START-offset byte; GLOBAL destinations are the raw id, so drop the offset.
+			// A lane name maps back to its cascade id. Invalid names return GLOBAL_NONE (< UNPATCHED_START),
+			// which yields a negative raw id that the validity check below rejects.
+			int32_t offsetByte = params::fileStringToParam(params::Kind::UNPATCHED_GLOBAL,
+			                                               reader.readTagOrAttributeValue(), /*allowPatched=*/false);
+			int32_t rawId = offsetByte - params::UNPATCHED_START;
+			if (rawId >= params::UNPATCHED_GLOBAL_MACRO_1 && rawId <= params::UNPATCHED_GLOBAL_MACRO_4) {
+				destination = paramIDForMacro(rawId - params::UNPATCHED_GLOBAL_MACRO_1);
+			}
+			else {
+				destination = rawId;
+			}
+		}
 		else if (!strcmp(attrName, "from")) {
 			from = reader.readTagOrAttributeValueInt();
 		}
@@ -1122,14 +1233,14 @@ void readMacrosFromFile(Deserializer& reader, Macro* macros, Domain domain) {
 	}
 }
 
-// Writes a preset: targets only (<macroPreset type="midi|synth"><target1..8/></macroPreset>). A
+// Writes a preset: targets only (<macroPreset type="midi|synth|global"><target1..8/></macroPreset>). A
 // preset is a portable target configuration - it deliberately omits the source and the macro's
 // active state so it can be applied to any macro OF THE SAME DOMAIN (a CC list means nothing on a
 // synth and vice versa - the type attribute guards the mismatch on load). The caller (save
 // browser) owns createXMLFile()/closeFileAfterWriting().
 void writeMacroPreset(Serializer& writer, Macro* macros, int32_t macroIndex, Domain domain) {
 	writer.writeOpeningTagBeginning(MACRO_PRESET_TAG);
-	writer.writeAttribute("type", domain == Domain::SYNTH ? "synth" : "midi", false);
+	writer.writeAttribute("type", domainTypeString(domain), false);
 	writer.writeOpeningTagEnd();
 	writeTargetsToFile(writer, macros[macroIndex], domain);
 	writer.writeClosingTag(MACRO_PRESET_TAG);
@@ -1160,16 +1271,15 @@ Error loadMacroPreset(FilePointer* fp, Clip* clip, Macro* macros, int32_t macroI
 	// Read the whole preset into a scratch target set first: if its type doesn't match this clip's
 	// domain, the macro must be left untouched.
 	MacroTargetSlot loaded[kNumTargetSlots];
-	bool domainMatches = true; // presets from before the type attribute are MIDI ones
-	if (domain == Domain::SYNTH) {
-		domainMatches = false;
-	}
+	// Presets from before the type attribute have no <type> and are MIDI ones, so they only match a
+	// MIDI clip. A typed preset overwrites this on reading its "type" attribute below.
+	bool domainMatches = (domain == Domain::MIDI);
 
 	Deserializer& reader = *activeDeserializer;
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "type")) {
-			domainMatches = !strcmp(reader.readTagOrAttributeValue(), domain == Domain::SYNTH ? "synth" : "midi");
+			domainMatches = !strcmp(reader.readTagOrAttributeValue(), domainTypeString(domain));
 			reader.exitTag();
 			continue;
 		}
@@ -1182,7 +1292,7 @@ Error loadMacroPreset(FilePointer* fp, Clip* clip, Macro* macros, int32_t macroI
 	activeDeserializer->closeWriter();
 
 	if (!domainMatches) {
-		display->displayPopup(domain == Domain::SYNTH ? "MIDI preset" : "Synth preset"); // wrong domain
+		display->displayPopup("Wrong type"); // preset domain doesn't match this clip's
 		return Error::FILE_CORRUPTED;
 	}
 

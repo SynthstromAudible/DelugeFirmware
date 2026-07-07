@@ -170,7 +170,7 @@ public:
 				str.append('M');
 				str.appendInt(Macros::macroIndexFromParamID(destination) + 1);
 			}
-			else if (currentMacroDomain() == Macros::Domain::SYNTH) {
+			else if (Macros::isDomainInternal(currentMacroDomain())) {
 				// the param's display name - the canvas clips what doesn't fit the slot
 				Macros::appendDestinationName(str, currentMacroInstrument(), (uint8_t)destination);
 			}
@@ -190,7 +190,7 @@ public:
 		else if (isCascadeValue(v)) {
 			appendCascadeName(value, v);
 		}
-		else if (currentMacroDomain() == Macros::Domain::SYNTH) {
+		else if (Macros::isDomainInternal(currentMacroDomain())) {
 			Macros::appendDestinationName(value, currentMacroInstrument(), (uint8_t)valueToDestination(v));
 		}
 		else {
@@ -199,7 +199,7 @@ public:
 	}
 	void drawValue() override {
 		int32_t v = this->getValue();
-		if (v != 0 && (isCascadeValue(v) || currentMacroDomain() == Macros::Domain::SYNTH)) {
+		if (v != 0 && (isCascadeValue(v) || Macros::isDomainInternal(currentMacroDomain()))) {
 			DEF_STACK_STRING_BUF(text, 32);
 			getNotificationValue(text);
 			display->setScrollingText(text.c_str());
@@ -366,8 +366,8 @@ private:
 	int32_t macro;
 };
 
-// The macros submenu, shown in the MIDI clip's menu only while the feature is enabled in
-// Community Features and the current output is a MIDI track.
+// The macros submenu, shown while the feature is enabled in Community Features and the current
+// output can host macros (MIDI, synth, or audio - anything Macros::macroHost() accepts).
 class MacroMenu final : public Submenu {
 public:
 	using Submenu::Submenu;

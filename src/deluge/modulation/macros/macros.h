@@ -55,9 +55,11 @@ constexpr uint8_t kDefaultTo = 127; // output at source = 127 (defaults give pas
 // Which flavor of destinations a clip's macros drive. MIDI clips target output CCs (raw 0..127
 // byte). Synth clips target internal params, encoded as midi-follow's single-byte soundParamId:
 // bytes below params::UNPATCHED_START (90) are Kind::PATCHED paramIDs, bytes from 90 up are
-// Kind::UNPATCHED_SOUND paramIDs + 90. Everything keyed on the raw byte (ownership, shadowing,
-// cascades) works identically in both domains.
-enum class Domain : uint8_t { MIDI, SYNTH };
+// Kind::UNPATCHED_SOUND paramIDs + 90. GLOBAL clips (audio-clip and kit-global hosts, both
+// GlobalEffectableForClip) target UNPATCHED_GLOBAL params, encoded as the raw paramID byte (all
+// < 128). Everything keyed on the raw byte (ownership, shadowing, cascades) works identically in all
+// domains.
+enum class Domain : uint8_t { MIDI, SYNTH, GLOBAL };
 
 // True for domains whose destinations are internal AutoParams resolved through the host's own param
 // sets - knob-position value space (0..128, center 64) and serialized by param NAME. MIDI is the odd
@@ -71,6 +73,7 @@ constexpr bool isDomainInternal(Domain domain) {
 	case Domain::MIDI:
 		return false;
 	case Domain::SYNTH:
+	case Domain::GLOBAL:
 		return true;
 	}
 	return false; // unreachable; satisfies -Wreturn-type without a default that would mask new domains
@@ -123,12 +126,17 @@ inline bool isCascadeDestination(int32_t destination, int32_t macroIndex) {
 }
 
 // ── Destination byte space ──
-// SYNTH destination byte <-> (Kind, paramID). Cascade ids (128-131) decode to the downstream
-// macro's own lane param, which is where a cascade bake writes.
-void decodeSynthDestination(uint8_t destination, deluge::modulation::params::Kind* kindOut, int32_t* idOut);
-// The byte for a (kind, param) pair, or -1 if the pair isn't a valid macro destination (only
+// Internal-domain destination byte <-> (Kind, paramID). Cascade ids (128-131) decode to the
+// downstream macro's own lane param, which is where a cascade bake writes. SYNTH and GLOBAL encode
+// the byte differently (see the .cpp); the byte value alone is domain-ambiguous, so always pass the
+// clip's domain.
+void decodeDestination(Domain domain, uint8_t destination, deluge::modulation::params::Kind* kindOut, int32_t* idOut);
+// The byte for a SYNTH (kind, param) pair, or -1 if the pair isn't a valid macro destination (only
 // PATCHED and UNPATCHED_SOUND params are, and never the macro lane params themselves).
 int32_t synthDestinationForParam(deluge::modulation::params::Kind kind, int32_t paramID);
+// The byte for an internal-domain (kind, param) pair, or -1 if not a valid macro target. Dispatches
+// by domain (SYNTH -> synthDestinationForParam; GLOBAL -> raw UNPATCHED_GLOBAL id, lanes excluded).
+int32_t internalDestinationForParam(Domain domain, deluge::modulation::params::Kind kind, int32_t paramID);
 
 // Resolves a main-grid pad (x,y) to the destination byte it would pick in this domain, or -1 if the pad
 // can't be a macro target. SYNTH reads the const param-shortcut grids (+ the shared second layer); MIDI

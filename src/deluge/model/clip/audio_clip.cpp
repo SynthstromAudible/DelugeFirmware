@@ -31,6 +31,7 @@
 #include "model/sample/sample_recorder.h"
 #include "model/song/song.h"
 #include "model/voice/voice_sample.h"
+#include "modulation/macros/macros.h"
 #include "modulation/params/param_set.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
@@ -305,6 +306,11 @@ void AudioClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack, uin
 	if (modelStack->getTimelineCounter() != this) {
 		return;
 	}
+
+	// Macros: Clip::processCurrentPos above advanced each macro's lane param; drive each automated
+	// macro's targets live from its lane value (the lane is the source of truth on playback). Same
+	// GLOBAL-domain hook InstrumentClip runs for synth/MIDI; no-op unless this audio output hosts macros.
+	Macros::applyMacroLaneAutomation(this, modelStack);
 
 	// If we have a recorder that's gotten into error/aborted state, but we haven't registered that here yet, do that
 	// now. This isn't really the ideal place for this...

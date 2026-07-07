@@ -242,6 +242,16 @@ enum UnpatchedGlobal : ParamType {
 	UNPATCHED_SIDECHAIN_VOLUME,
 	UNPATCHED_PITCH_ADJUST,
 	UNPATCHED_TEMPO,
+	// The four macro automation lanes on GlobalEffectable tracks (audio clips and, later, kit-global).
+	// The GLOBAL-domain analog of UNPATCHED_MACRO_1..4 (sound) and the pseudo-CC lane params 128-131
+	// (MIDI). Nothing in the render code reads them, so they are inert as global params; the macro
+	// system mirrors its source into them and fans their automation out to the macro's target params.
+	// Their raw paramID bytes (43-46) must not be offered as macro target destinations - targets reach
+	// a macro lane only via the cascade ids.
+	UNPATCHED_GLOBAL_MACRO_1,
+	UNPATCHED_GLOBAL_MACRO_2,
+	UNPATCHED_GLOBAL_MACRO_3,
+	UNPATCHED_GLOBAL_MACRO_4,
 	UNPATCHED_GLOBAL_MAX_NUM,
 };
 
