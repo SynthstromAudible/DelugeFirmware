@@ -294,6 +294,12 @@ bool readGlobalEffectableParamTagToDoc(Deserializer& in, char const* tagName, Do
 bool readExpressionParamTagToDoc(Deserializer& in, char const* tagName, DocParamSet& doc,
                                  int32_t readAutomationUpToPos);
 
+/// Read one Sound param-block tag into the two DOM stores: unpatched flat attrs + the shared MCA block land in
+/// `unpatched`; patched flat attrs + the `<envelope1..4>` groups land in `patched`. `<patchCables>` is NOT handled
+/// here — the caller keeps the engine reader for it (pre-V3.2 cable back-compat the DOM reader drops).
+bool readSoundParamTagToDoc(Deserializer& in, char const* tagName, DocParamSet& patched, DocParamSet& unpatched,
+                            int32_t readAutomationUpToPos);
+
 // --- DOM-first editing (Phase 2 / 2b) ---
 // The DOM store is the authoritative record; the engine param is the runtime it drives. A DOM-first edit
 // mutates the store lane, then reprojects it into the engine so playback hears it (until the future

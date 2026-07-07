@@ -909,6 +909,17 @@ bool readSoundParamTag(Deserializer& in, char const* tagName, ParamSet& patched,
 	       || readModControllableParamTag(in, tagName, unpatched, unpatchedSummary, readAutomationUpToPos);
 }
 
+bool readSoundParamTagToDoc(Deserializer& in, char const* tagName, DocParamSet& patched, DocParamSet& unpatched,
+                            int32_t readAutomationUpToPos) {
+	return readDocParamFromTable(in, tagName, kSoundUnpatchedAttrs, unpatched, readAutomationUpToPos)
+	       || readDocParamFromTable(in, tagName, kSoundPatchedAttrs, patched, readAutomationUpToPos)
+	       || readDocParamGroup(in, tagName, "envelope1", kEnvelope1, patched, readAutomationUpToPos)
+	       || readDocParamGroup(in, tagName, "envelope2", kEnvelope2, patched, readAutomationUpToPos)
+	       || readDocParamGroup(in, tagName, "envelope3", kEnvelope3, patched, readAutomationUpToPos)
+	       || readDocParamGroup(in, tagName, "envelope4", kEnvelope4, patched, readAutomationUpToPos)
+	       || readModControllableParamTagToDoc(in, tagName, unpatched, readAutomationUpToPos);
+}
+
 bool readExpressionParamTag(Deserializer& in, char const* tagName, ParamSet& expression,
                             ParamCollectionSummary& summary, int32_t readAutomationUpToPos) {
 	// kExpressionParams maps pitchBend/yExpression/pressure to dimensions 0/1/2 (shared with the writer).

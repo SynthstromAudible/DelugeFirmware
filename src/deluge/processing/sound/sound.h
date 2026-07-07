@@ -243,8 +243,6 @@ public:
 	static void writeParamsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation);
 	static void readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* paramManager,
 	                               int32_t readAutomationUpToPos);
-	static bool readParamTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
-	                                 int32_t readAutomationUpToPos);
 	static void initParams(ParamManager* paramManager);
 	static Error createParamManagerForLoading(ParamManagerForTimeline* paramManager);
 	int32_t hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, bool getSampleLength = false,

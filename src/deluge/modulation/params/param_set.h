@@ -73,6 +73,12 @@ public:
 	/// The bound DOM store (owned or external), or nullptr if unbound. (Test / inspection accessor.)
 	deluge::project::DocParamSet* domStore();
 
+	/// Option I (read-authority): after a DOM-first read populated `domStore()`, project every engine RT cursor
+	/// from the store's current_value and set the summary's automated bit exactly as the engine reader
+	/// (readLiveParam) would — the nodes live in the store, but playback iterates the summary cache. Requires a
+	/// bound store.
+	void projectFromStoreAfterRead(ParamCollectionSummary* summary);
+
 	// M2-E: resolve a param's DOM node-store handle from this set (owner-rooted). docForParam takes the array
 	// index; docParamForId takes the ModelStack paramId (== index for a ParamSet).
 	deluge::project::DocAutoParam* docForParam(int32_t p);

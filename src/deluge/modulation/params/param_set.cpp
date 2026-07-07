@@ -80,6 +80,16 @@ deluge::project::DocParamSet* ParamSet::domStore() {
 	return domStoreRef_;
 }
 
+void ParamSet::projectFromStoreAfterRead(ParamCollectionSummary* summary) {
+	deluge::project::DocParamSet* store = domStoreRef_;
+	for (int32_t p = 0; p < getNumParams() && p < (int32_t)store->params.size(); p++) {
+		params[p].currentValue = store->params[p].current_value;
+		if (params[p].isAutomated(store->params[p])) {
+			paramHasAutomationNow(summary, p);
+		}
+	}
+}
+
 deluge::project::DocAutoParam* ParamSet::docForParam(int32_t p) {
 	// M2-F: a ParamSet ALWAYS resolves to a DOM store slot — never to inline AutoParam storage. If not yet bound
 	// (e.g. mid-deserialize, or a fresh runtime set), lazily create this set's own store here so the first node
@@ -807,13 +817,7 @@ void ExpressionParamSet::readFromFile(Deserializer& reader, ParamCollectionSumma
 			reader.exitTag();
 		}
 	}
-	// Project the engine cursors and set the summary's automated bit exactly as the engine reader would.
-	for (int32_t p = 0; p < getNumParams() && p < (int32_t)store->params.size(); p++) {
-		params[p].currentValue = store->params[p].current_value;
-		if (params[p].isAutomated(store->params[p])) {
-			paramHasAutomationNow(summary, p);
-		}
-	}
+	projectFromStoreAfterRead(summary);
 }
 
 void ExpressionParamSet::moveRegionHorizontally(ModelStackWithParamCollection* modelStack, int32_t pos, int32_t length,

@@ -3225,15 +3225,33 @@ bool Sound::hasFilters() {
 
 void Sound::readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* paramManager,
                                int32_t readAutomationUpToPos) {
+	// Option I (read-authority): read the sound param block DOM-first into BOTH the patched and unpatched DOM
+	// stores (initParams wrote each default straight into them via docForParam), then project each engine RT cursor
+	// from its store — the DOM holds the authoritative current_value, not just the nodes. <patchCables> keeps the
+	// engine reader (pre-V3.2 back-compat the DOM reader drops); it writes the cable inline store directly.
+	UnpatchedParamSet* unpatched = paramManager->getUnpatchedParamSet();
+	PatchedParamSet* patched = paramManager->getPatchedParamSet();
+	ParamCollectionSummary* unpatchedSummary = paramManager->getUnpatchedParamSetSummary();
+	ParamCollectionSummary* patchedSummary = paramManager->getPatchedParamSetSummary();
+	unpatched->bindDomStore();
+	patched->bindDomStore();
+	deluge::project::DocParamSet* uStore = unpatched->domStore();
+	deluge::project::DocParamSet* pStore = patched->domStore();
 	char const* tagName;
 	reader.match('{');
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (readParamTagFromFile(reader, tagName, paramManager, readAutomationUpToPos)) {}
+		if (!strcmp(tagName, "patchCables")) {
+			paramManager->getPatchCableSet()->readPatchCablesFromFile(reader, readAutomationUpToPos);
+			reader.exitTag("patchCables");
+		}
+		else if (deluge::project::readSoundParamTagToDoc(reader, tagName, *pStore, *uStore, readAutomationUpToPos)) {}
 		else {
 			reader.exitTag(tagName);
 		}
 	}
 	reader.match('}');
+	unpatched->projectFromStoreAfterRead(unpatchedSummary);
+	patched->projectFromStoreAfterRead(patchedSummary);
 }
 
 // paramManager only required for old old song files, or for presets (because you'd be wanting to extract the
@@ -3755,29 +3773,6 @@ justCloseTag:
 			writer.closeTag();
 		}
 	}
-}
-
-bool Sound::readParamTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
-                                 int32_t readAutomationUpToPos) {
-
-	ParamCollectionSummary* unpatchedParamsSummary = paramManager->getUnpatchedParamSetSummary();
-	UnpatchedParamSet* unpatchedParams = (UnpatchedParamSet*)unpatchedParamsSummary->paramCollection;
-	ParamCollectionSummary* patchedParamsSummary = paramManager->getPatchedParamSetSummary();
-	PatchedParamSet* patchedParams = (PatchedParamSet*)patchedParamsSummary->paramCollection;
-
-	// Patch cables keep the engine reader: it carries pre-V3.2 cable back-compat that the DOM
-	// deserializer intentionally drops (Phase 5b note).
-	if (!strcmp(tagName, "patchCables")) {
-		paramManager->getPatchCableSet()->readPatchCablesFromFile(reader, readAutomationUpToPos);
-		reader.exitTag("patchCables");
-		return true;
-	}
-
-	// Everything else (patched + unpatched flat attrs, the <envelope*> groups, the shared MCA block) is
-	// read from the value DOM (deluge::project) — byte-identical to the former hand-written dispatch,
-	// verified by the golden round-trip and param_projection_test.
-	return deluge::project::readSoundParamTag(reader, tagName, *patchedParams, *patchedParamsSummary, *unpatchedParams,
-	                                          *unpatchedParamsSummary, readAutomationUpToPos);
 }
 
 void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation) {
