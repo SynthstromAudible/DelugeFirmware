@@ -18,7 +18,9 @@
 #pragma once
 
 #include "modulation/params/param.h" // deluge::modulation::params::Kind
+#include <compare>
 #include <cstdint>
+#include <optional>
 
 namespace deluge::project {
 
@@ -28,15 +30,22 @@ namespace deluge::project {
 /// ModelStack's param-resolution role.
 struct OwnerId {
 	enum class Kind : uint8_t {
-		SONG, // song-global params (the GlobalEffects tier)
-		CLIP, // a clip's own params, identified by its Clip::serialId (relocated into the tree in a later slice)
+		SONG,       // song-global params (the GlobalEffects tier)
+		CLIP,       // a clip's own params, identified by its Clip::serialId (audio clips; S2b)
+		INSTRUMENT, // an instrument-shared owner (SoundInstrument / Kit), identified by its Output::serialId
+		DRUM,       // a per-drum owner (SoundDrum), identified by its Drum::serialId
 	};
 
 	Kind kind{Kind::SONG};
-	uint32_t clip_serial_id{0}; // meaningful only when kind == CLIP
+	uint32_t serial_id{0}; // the owner's serial id (Clip / Output / Drum, per kind); unused when kind == SONG
 
 	static constexpr OwnerId song() { return {Kind::SONG, 0}; }
 	static constexpr OwnerId clip(uint32_t serialId) { return {Kind::CLIP, serialId}; }
+	static constexpr OwnerId instrument(uint32_t outputSerialId) { return {Kind::INSTRUMENT, outputSerialId}; }
+	static constexpr OwnerId drum(uint32_t drumSerialId) { return {Kind::DRUM, drumSerialId}; }
+
+	// Ordered so OwnerId (and keys built from it) can index the ordered `fast_map` backed-param store.
+	auto operator<=>(const OwnerId&) const = default;
 };
 
 /// Names one automation lane: which owner, which param collection, which param within it. `Song::resolveParam`
@@ -46,6 +55,9 @@ struct ParamAddress {
 	OwnerId owner{};
 	deluge::modulation::params::Kind kind{deluge::modulation::params::Kind::NONE};
 	int32_t param_id{0};
+	// For INSTRUMENT/DRUM owners, which clip's override this lane belongs to (nullopt = the owner's shared
+	// default). Mirrors ParamBackup's (ModControllable, Clip) key. Unused for SONG/CLIP owners.
+	std::optional<uint32_t> clip_serial{};
 };
 
 } // namespace deluge::project

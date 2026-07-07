@@ -21,6 +21,36 @@ namespace deluge::project {
 
 Song::Song() = default;
 
+namespace {
+/// Resolve one param slot within a tree-resident DocParamManager: the address's params::Kind selects the
+/// collection, param_id indexes it. nullptr if the manager/collection/index isn't tree-resident. Patch cables /
+/// MIDI resolve in a later slice.
+DocAutoParam* slotInManager(DocParamManager* mgr, const ParamAddress& address) {
+	if (mgr == nullptr) {
+		return nullptr;
+	}
+	std::optional<DocParamSet>* set = nullptr;
+	switch (address.kind) {
+	case deluge::modulation::params::Kind::UNPATCHED_SOUND:
+	case deluge::modulation::params::Kind::UNPATCHED_GLOBAL:
+		set = &mgr->unpatched;
+		break;
+	case deluge::modulation::params::Kind::PATCHED:
+		set = &mgr->patched;
+		break;
+	case deluge::modulation::params::Kind::EXPRESSION:
+		set = &mgr->expression;
+		break;
+	default:
+		return nullptr; // PATCH_CABLE / MIDI / etc. — not tree-resident yet
+	}
+	if (set->has_value() && address.param_id >= 0 && address.param_id < static_cast<int32_t>((*set)->params.size())) {
+		return &(*set)->params[address.param_id];
+	}
+	return nullptr;
+}
+} // namespace
+
 DocAutoParam* Song::resolveParam(const ParamAddress& address) {
 	switch (address.owner.kind) {
 	case OwnerId::Kind::SONG: {
@@ -33,35 +63,15 @@ DocAutoParam* Song::resolveParam(const ParamAddress& address) {
 		}
 		return nullptr;
 	}
-	case OwnerId::Kind::CLIP: {
+	case OwnerId::Kind::CLIP:
 		// A clip's node storage is tree-resident only if it has been relocated here (keyed by serialId); otherwise
-		// nullptr → the caller falls back to the engine store. The kind selects the collection within the clip's
-		// DocParamManager. Patch cables / MIDI resolve in a later slice.
-		DocParamManager* mgr = clip_params.find(address.owner.clip_serial_id);
-		if (mgr == nullptr) {
-			return nullptr;
-		}
-		std::optional<DocParamSet>* set = nullptr;
-		switch (address.kind) {
-		case deluge::modulation::params::Kind::UNPATCHED_SOUND:
-		case deluge::modulation::params::Kind::UNPATCHED_GLOBAL:
-			set = &mgr->unpatched;
-			break;
-		case deluge::modulation::params::Kind::PATCHED:
-			set = &mgr->patched;
-			break;
-		case deluge::modulation::params::Kind::EXPRESSION:
-			set = &mgr->expression;
-			break;
-		default:
-			return nullptr; // PATCH_CABLE / MIDI / etc. — not tree-resident yet
-		}
-		if (set->has_value() && address.param_id >= 0
-		    && address.param_id < static_cast<int32_t>((*set)->params.size())) {
-			return &(*set)->params[address.param_id];
-		}
-		return nullptr;
-	}
+		// nullptr → the caller falls back to the engine store.
+		return slotInManager(clip_params.find(address.owner.serial_id), address);
+	case OwnerId::Kind::INSTRUMENT:
+	case OwnerId::Kind::DRUM:
+		// Instrument-shared / per-drum params, keyed by (owner, clip) — the persistent form of ParamBackup. Not
+		// populated until the relocation slice; until then this returns nullptr → engine fallback.
+		return slotInManager(backed_params.find(address.owner, address.clip_serial), address);
 	}
 	return nullptr;
 }

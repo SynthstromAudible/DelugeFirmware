@@ -18,6 +18,7 @@
 #pragma once
 
 #include "deluge-project/arrangement.h"
+#include "deluge-project/backed_params.h"
 #include "deluge-project/clip_params.h"
 #include "deluge-project/clips.h"
 #include "deluge-project/global_effects.h"
@@ -73,7 +74,8 @@ public:
 	MediaPool media;
 	Clips clips;
 	GlobalEffects global_fx;
-	ClipParams clip_params; // per-clip automation stores, keyed by Clip::serialId (id-addressable node storage)
+	ClipParams clip_params;     // per-clip automation stores, keyed by Clip::serialId (id-addressable node storage)
+	BackedParams backed_params; // instrument-shared automation, keyed by (owner, clip) — persistent form of ParamBackup
 	ParamBackup param_backup;
 };
 
