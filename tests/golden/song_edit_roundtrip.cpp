@@ -27,11 +27,14 @@
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/global_effectable/global_effectable.h"
+#include "model/instrument/kit.h"
+#include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
+#include "processing/sound/sound_drum.h"
 #include "storage/storage_manager.h"
 
 #include <array>
@@ -322,6 +325,59 @@ int main(int argc, char** argv) {
 			std::fprintf(stderr, "S3e FAIL: a SoundDrum row is not tree-resident after reload\n");
 			_exit(3);
 		}
+	}
+
+	// M2-G S3g: doc() must id-address kit clip-level FX and per-drum params to the SAME DocAutoParam the bound-store
+	// path (docForParam) returns — i.e. doc()'s owner classification (noteRow set ⇒ drum(OwnerId::drum); else
+	// synth/kit ⇒ OwnerId::instrument) is correct. Golden/save can't see this (they never resolve via doc()); a
+	// misclassification would silently resolve a drum param against the kit-FX entry. Build the REAL ModelStacks the
+	// engine uses and assert doc() == docForParam for a param of each kit clip-level manager and each SoundDrum row.
+	{
+		int32_t checked = 0;
+		std::array<ClipArray*, 2> arrs{&reloaded->project.clips.session_clips,
+		                               &reloaded->project.clips.arrangement_only_clips};
+		for (ClipArray* arr : arrs) {
+			for (int32_t c = 0; c < std::ssize(*arr); c++) {
+				Clip* clip = (*arr)[c];
+				if (clip->type != ClipType::INSTRUMENT || clip->output == nullptr
+				    || clip->output->type != OutputType::KIT) {
+					continue;
+				}
+				auto consistent = [&](ParamManagerForTimeline& pm, ModelStackWithAutoParam* msap) -> bool {
+					if (msap == nullptr || msap->autoParam == nullptr) {
+						return true; // no param at this id → nothing to check
+					}
+					checked++;
+					return msap->doc() == pm.getUnpatchedParamSet()->docForParam(0);
+				};
+				// Kit clip-level FX (no noteRow): expect an OwnerId::instrument(kit output) address.
+				char buf[MODEL_STACK_MAX_SIZE];
+				ModelStackWithThreeMainThings* m3 = setupModelStackWithThreeMainThingsButNoNoteRow(
+				    buf, reloaded, static_cast<Kit*>(clip->output)->toModControllable(), clip, &clip->paramManager);
+				if (!consistent(clip->paramManager, m3->getUnpatchedAutoParamFromId(0))) {
+					std::fprintf(stderr, "S3g FAIL: kit clip-level doc() != bound store (misclassified)\n");
+					_exit(3);
+				}
+				// Each SoundDrum NoteRow (noteRow set): expect an OwnerId::drum(drum serialId) address.
+				InstrumentClip* ic = static_cast<InstrumentClip*>(clip);
+				for (int32_t n = 0; n < std::ssize(ic->noteRows); n++) {
+					NoteRow& nr = ic->noteRows[n];
+					if (nr.drum == nullptr || nr.drum->type != DrumType::SOUND
+					    || !nr.paramManager.containsAnyMainParamCollections()) {
+						continue;
+					}
+					char dbuf[MODEL_STACK_MAX_SIZE];
+					ModelStackWithThreeMainThings* dm3 = setupModelStackWithThreeMainThingsIncludingNoteRow(
+					    dbuf, reloaded, clip, n, &nr, static_cast<SoundDrum*>(nr.drum)->toModControllable(),
+					    &nr.paramManager);
+					if (!consistent(nr.paramManager, dm3->getUnpatchedAutoParamFromId(0))) {
+						std::fprintf(stderr, "S3g FAIL: drum doc() != bound store (misclassified as kit-level)\n");
+						_exit(3);
+					}
+				}
+			}
+		}
+		std::fprintf(stderr, "kit/drum doc()==bound-store checks: %d\n", checked);
 	}
 
 	// 5. Both edits must have persisted into the reloaded DOM store (the authority) and the reloaded engine.

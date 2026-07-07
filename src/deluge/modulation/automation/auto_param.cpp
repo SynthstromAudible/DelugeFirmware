@@ -30,7 +30,9 @@
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
+#include "model/drum/drum.h"
 #include "model/model_stack.h"
+#include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/automation/copied_param_automation.h"
@@ -117,17 +119,26 @@ deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 			haveOwner = true;
 		}
 		else if (tc != nullptr) {
-			// Song and Clip are the only TimelineCounters, so a non-song tc is a Clip. A SYNTH clip's params are
-			// id-addressed at the instrument owner (S3c), keyed (instrument(output serialId), clip serialId); an
-			// AudioClip at the clip owner (S2b). Kit clip-level FX and per-drum params share tc == the kit clip and
-			// are indistinguishable here (a drum paramId would mis-resolve against the kit-FX entry), so they build a
-			// CLIP address → resolveParam nullptr → the engine fallback below, until doc() carries a builder-computed
-			// address. A never-saved clip/instrument (no serialId) also falls through safely.
+			// Song and Clip are the only TimelineCounters, so a non-song tc is a Clip. Classify the owner by the
+			// ModelStack context (S3c-S3g): a set noteRow ⇒ a per-drum param (OwnerId::drum, keyed by the drum's
+			// serialId); else a synth/kit InstrumentClip ⇒ clip-level instrument-shared (OwnerId::instrument(output));
+			// else an AudioClip ⇒ its own params (OwnerId::clip). noteRow is a RELIABLE drum signal — the ModelStack
+			// builders always set it explicitly (addNoteRow(0, nullptr) for the no-noteRow path), never stale. Any
+			// uncertain case (non-Sound drum, missing serialId) leaves haveOwner false → the engine fallback below.
 			Clip* clip = static_cast<Clip*>(tc);
-			std::optional<uint32_t> clipId = clip->serialId();
-			if (clipId.has_value()) {
-				if (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
-				    && clip->output->type == OutputType::SYNTH) {
+			if (std::optional<uint32_t> clipId = clip->serialId()) {
+				NoteRow* noteRow = getNoteRowAllowNull();
+				if (noteRow != nullptr) {
+					if (noteRow->drum != nullptr && noteRow->drum->type == DrumType::SOUND) {
+						if (std::optional<uint32_t> drumId = noteRow->drum->serialId()) {
+							owner = deluge::project::OwnerId::drum(*drumId);
+							clipSerial = clipId;
+							haveOwner = true;
+						}
+					}
+				}
+				else if (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
+				         && (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::KIT)) {
 					if (std::optional<uint32_t> outId = clip->output->serialId()) {
 						owner = deluge::project::OwnerId::instrument(*outId);
 						clipSerial = clipId;
