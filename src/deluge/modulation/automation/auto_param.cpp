@@ -110,23 +110,38 @@ deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 	if (song != nullptr) {
 		TimelineCounter* tc = getTimelineCounterAllowNull();
 		deluge::project::OwnerId owner{};
+		std::optional<uint32_t> clipSerial{}; // for INSTRUMENT/DRUM owners: which clip's override this lane is
 		bool haveOwner = false;
 		if (tc == static_cast<TimelineCounter*>(song)) {
 			owner = deluge::project::OwnerId::song();
 			haveOwner = true;
 		}
 		else if (tc != nullptr) {
-			// Song and Clip are the only TimelineCounters, so a non-song tc is a Clip. Address its params by the
-			// clip's stable serialId when it has one (assigned on save); a never-saved clip has none → the engine
-			// fallback below. resolveParam returns nullptr for a clip/collection not (yet) tree-resident (only
-			// AudioClip unpatched is, in this slice), so kit-clip / drum / synth params also fall through safely.
-			if (std::optional<uint32_t> id = static_cast<Clip*>(tc)->serialId()) {
-				owner = deluge::project::OwnerId::clip(*id);
-				haveOwner = true;
+			// Song and Clip are the only TimelineCounters, so a non-song tc is a Clip. A SYNTH clip's params are
+			// id-addressed at the instrument owner (S3c), keyed (instrument(output serialId), clip serialId); an
+			// AudioClip at the clip owner (S2b). Kit clip-level FX and per-drum params share tc == the kit clip and
+			// are indistinguishable here (a drum paramId would mis-resolve against the kit-FX entry), so they build a
+			// CLIP address → resolveParam nullptr → the engine fallback below, until doc() carries a builder-computed
+			// address. A never-saved clip/instrument (no serialId) also falls through safely.
+			Clip* clip = static_cast<Clip*>(tc);
+			std::optional<uint32_t> clipId = clip->serialId();
+			if (clipId.has_value()) {
+				if (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
+				    && clip->output->type == OutputType::SYNTH) {
+					if (std::optional<uint32_t> outId = clip->output->serialId()) {
+						owner = deluge::project::OwnerId::instrument(*outId);
+						clipSerial = clipId;
+						haveOwner = true;
+					}
+				}
+				else {
+					owner = deluge::project::OwnerId::clip(*clipId);
+					haveOwner = true;
+				}
 			}
 		}
 		if (haveOwner) {
-			deluge::project::ParamAddress address{owner, paramCollection->getParamKind(), paramId};
+			deluge::project::ParamAddress address{owner, paramCollection->getParamKind(), paramId, clipSerial};
 			if (deluge::project::DocAutoParam* resolved = song->project.resolveParam(address)) {
 				return resolved;
 			}
