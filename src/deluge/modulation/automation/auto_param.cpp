@@ -152,7 +152,15 @@ deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 			}
 		}
 		if (haveOwner) {
-			deluge::project::ParamAddress address{owner, paramCollection->getParamKind(), paramId, clipSerial};
+#if ALPHA_OR_BETA_VERSION
+			// Safety net for the threaded `kind`: every ModelStack builder that sets paramCollection must set kind
+			// to match. A mismatch means a builder (or the oracle stub) missed it — catch it loudly before it
+			// mis-resolves a ParamAddress against the wrong tree entry.
+			if (kind != paramCollection->getParamKind()) {
+				FREEZE_WITH_ERROR("DkND");
+			}
+#endif
+			deluge::project::ParamAddress address{owner, kind, paramId, clipSerial};
 			if (deluge::project::DocAutoParam* resolved = song->project.resolveParam(address)) {
 				return resolved;
 			}

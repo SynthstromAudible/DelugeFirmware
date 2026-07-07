@@ -19,6 +19,7 @@
 
 #include "hid/display/display.h"
 #include "modulation/params/param.h"
+#include "modulation/params/param_collection.h" // ParamCollection::getParamKind() — called by the builders below
 #include "modulation/params/param_manager.h"
 
 class Song;
@@ -255,6 +256,9 @@ class ModelStackWithParamCollection : public ModelStackWithThreeMainThings {
 public:
 	ParamCollection* paramCollection;
 	ParamCollectionSummary* summary;
+	// The collection's param Kind, carried so DOM resolution (doc()) can build a ParamAddress without a per-op
+	// virtual paramCollection->getParamKind() call. Set by every builder that sets paramCollection (below).
+	deluge::modulation::params::Kind kind;
 
 	ModelStackWithParamId* addParamId(int32_t newParamId) const;
 	ModelStackWithAutoParam* addAutoParam(int32_t newParamId, AutoParam* newAutoParam) const;
@@ -413,6 +417,7 @@ ModelStackWithThreeMainThings::addParamCollection(ParamCollection* newParamColle
 	ModelStackWithParamCollection* toReturn = (ModelStackWithParamCollection*)this;
 	toReturn->paramCollection = newParamCollection;
 	toReturn->summary = newSummary;
+	toReturn->kind = newParamCollection->getParamKind();
 	return toReturn;
 }
 
@@ -422,6 +427,7 @@ ModelStackWithThreeMainThings::addParamCollectionSummary(ParamCollectionSummary*
 	ModelStackWithParamCollection* toReturn = (ModelStackWithParamCollection*)this;
 	toReturn->summary = newSummary;
 	toReturn->paramCollection = newSummary->paramCollection;
+	toReturn->kind = newSummary->paramCollection->getParamKind();
 	return toReturn;
 }
 
@@ -431,6 +437,7 @@ ModelStackWithThreeMainThings::addParamCollectionAndId(ParamCollection* newParam
 	ModelStackWithParamId* toReturn = (ModelStackWithParamId*)this;
 	toReturn->paramCollection = newParamCollection;
 	toReturn->summary = newSummary;
+	toReturn->kind = newParamCollection->getParamKind();
 	toReturn->paramId = newParamId;
 	return toReturn;
 }
@@ -442,6 +449,7 @@ inline ModelStackWithAutoParam* ModelStackWithThreeMainThings::addParam(ParamCol
 	ModelStackWithAutoParam* toReturn = (ModelStackWithAutoParam*)this;
 	toReturn->paramCollection = newParamCollection;
 	toReturn->summary = newSummary;
+	toReturn->kind = newParamCollection->getParamKind();
 	toReturn->paramId = newParamId;
 	toReturn->autoParam = newAutoParam;
 	return toReturn;

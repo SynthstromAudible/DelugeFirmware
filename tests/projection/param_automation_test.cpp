@@ -94,6 +94,7 @@ void bindOracle(ModelStackWithAutoParam* ms, AutoParam* ap, deluge::project::Doc
 	g_oracleOwner.target = doc;
 	ms->autoParam = ap;
 	ms->paramCollection = &g_oracleOwner;
+	ms->kind = g_oracleOwner.getParamKind(); // keep the threaded kind consistent (doc() ALPHA-asserts they match)
 }
 
 // Author a node directly into a DOM node store (the owner-resolved slot for a bound param, or a standalone
