@@ -1783,14 +1783,15 @@ loadOutput:
 					unpatched->bindDomStore();
 				}
 			}
-			// M2-G S3c: relocate a SYNTH clip's automation into the persistent tree, keyed by (instrument, clip) —
-			// the persistent form of ParamBackup. Because stealParamCollectionsFrom moves only collection pointers,
-			// this external binding rides the ParamSet through every park / restore / clip-death re-key, so
-			// resolution survives all of it; the (owner, clip) key precision only matters for later id-addressing.
-			// A clip / instrument without a serialId (never saved) keeps its engine store. unpatched + patched only
-			// for now (expression / patch cables keep their M2-F inline stores).
+			// M2-G S3c/S3d: relocate instrument-shared clip-level automation into the persistent tree, keyed by
+			// (instrument(output), clip) — the persistent form of ParamBackup. Synth = unpatched + patched; kit
+			// clip-level FX = unpatched only (GlobalEffectableForClip). Because stealParamCollectionsFrom moves only
+			// collection pointers, this external binding rides the ParamSet through every park / restore /
+			// clip-death re-key, so resolution survives all of it; the (owner, clip) key precision only matters for
+			// later id-addressing. A clip / instrument without a serialId (never saved) keeps its engine store.
+			// Expression / patch cables keep their M2-F inline stores for now.
 			else if (thisClip->type == ClipType::INSTRUMENT && thisClip->output != nullptr
-			         && thisClip->output->type == OutputType::SYNTH
+			         && (thisClip->output->type == OutputType::SYNTH || thisClip->output->type == OutputType::KIT)
 			         && thisClip->paramManager.containsAnyMainParamCollections()) {
 				std::optional<uint32_t> clipId = thisClip->serialId();
 				std::optional<uint32_t> outId = thisClip->output->serialId();
@@ -1800,9 +1801,11 @@ loadOutput:
 					UnpatchedParamSet* unpatched = thisClip->paramManager.getUnpatchedParamSet();
 					mgr.unpatched = deluge::project::toDocParamSet(*unpatched);
 					unpatched->bindDomStoreExternal(&*mgr.unpatched);
-					if (PatchedParamSet* patched = thisClip->paramManager.getPatchedParamSet()) {
-						mgr.patched = deluge::project::toDocParamSet(*patched);
-						patched->bindDomStoreExternal(&*mgr.patched);
+					if (thisClip->output->type == OutputType::SYNTH) {
+						if (PatchedParamSet* patched = thisClip->paramManager.getPatchedParamSet()) {
+							mgr.patched = deluge::project::toDocParamSet(*patched);
+							patched->bindDomStoreExternal(&*mgr.patched);
+						}
 					}
 				}
 			}
