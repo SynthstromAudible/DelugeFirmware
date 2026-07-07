@@ -217,6 +217,9 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 
 					if (thisDrum->type == DrumType::SOUND) {
 						song->project.param_backup.deleteForModControllable((SoundDrum*)thisDrum);
+						if (std::optional<uint32_t> drumId = thisDrum->serialId()) { // S4.5b: retire its tree stores
+							song->project.backed_params.removeOwner(deluge::project::OwnerId::drum(*drumId));
+						}
 					}
 
 					drumRemoved(thisDrum);
@@ -1119,11 +1122,20 @@ void Kit::compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramM
 
 void Kit::deleteBackedUpParamManagers(Song* song) {
 	song->project.param_backup.deleteForModControllable(this);
+	// M2-G S4.5b: retire the kit's clip-level-FX tree stores (keyed by Output::serialId) and, below, each
+	// SoundDrum's per-drum stores (keyed by Drum::serialId), mirroring the param_backup purges. See
+	// SoundInstrument::deleteBackedUpParamManagers for the safety rationale. No-op when never saved (no serialId).
+	if (std::optional<uint32_t> id = serialId()) {
+		song->project.backed_params.removeOwner(deluge::project::OwnerId::instrument(*id));
+	}
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (thisDrum->type == DrumType::SOUND) {
 			AudioEngine::routineWithClusterLoading();
 			song->project.param_backup.deleteForModControllable((SoundDrum*)thisDrum);
+			if (std::optional<uint32_t> drumId = thisDrum->serialId()) {
+				song->project.backed_params.removeOwner(deluge::project::OwnerId::drum(*drumId));
+			}
 		}
 	}
 }

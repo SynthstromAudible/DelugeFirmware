@@ -5564,6 +5564,9 @@ void InstrumentClipView::deleteDrum(SoundDrum* drum) {
 
 	// Delete the Drum we came here to delete
 	currentSong->project.param_backup.deleteForModControllable(drum);
+	if (std::optional<uint32_t> drumId = drum->serialId()) { // S4.5b: retire its tree-resident automation stores
+		currentSong->project.backed_params.removeOwner(deluge::project::OwnerId::drum(*drumId));
+	}
 	void* toDealloc = dynamic_cast<void*>(drum);
 	drum->~SoundDrum();
 	delugeDealloc(toDealloc);

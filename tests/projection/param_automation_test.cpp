@@ -9,6 +9,7 @@
 // Exit: 0 = all round-trips faithful, 1 = a mismatch.
 
 #include "definitions_cxx.hpp"
+#include "deluge-project/backed_params.h"
 #include "deluge-project/param_automation.h"
 #include "deluge-project/param_backup.h"
 #include "deluge-project/param_edit.h"
@@ -2509,6 +2510,29 @@ int main() {
 				expectDocMatchesEngine(apDoc, doc, "recordLiveValue: nodes match engine oracle");
 			}
 		}
+	}
+
+	// S4.5b (retire-on-death): BackedParams::removeOwner must drop EXACTLY one owner's entries (every clip
+	// override + any shared default), contiguously, leaving other owners untouched — including an owner with the
+	// SAME serial number but a different kind (instrument(7) vs drum(7)), which must NOT collide because OwnerId
+	// orders by kind before serial.
+	{
+		deluge::project::BackedParams bp;
+		const deluge::project::OwnerId inst = deluge::project::OwnerId::instrument(7);
+		const deluge::project::OwnerId drum = deluge::project::OwnerId::drum(7);
+		const deluge::project::OwnerId other = deluge::project::OwnerId::instrument(9);
+		bp.getOrCreate(inst, 1);
+		bp.getOrCreate(inst, 2);
+		bp.getOrCreate(inst, std::nullopt);
+		bp.getOrCreate(drum, 1);
+		bp.getOrCreate(other, 1);
+		check(bp.by_owner.size() == 5, "removeOwner: seeded 5 entries");
+		bp.removeOwner(inst);
+		check(bp.find(inst, 1) == nullptr && bp.find(inst, 2) == nullptr && bp.find(inst, std::nullopt) == nullptr,
+		      "removeOwner: all of the owner's entries erased");
+		check(bp.find(drum, 1) != nullptr, "removeOwner: same-serial different-kind owner untouched");
+		check(bp.find(other, 1) != nullptr, "removeOwner: other owner untouched");
+		check(bp.by_owner.size() == 2, "removeOwner: exactly the owner's entries erased");
 	}
 
 	if (failures == 0) {

@@ -62,6 +62,17 @@ struct BackedParams {
 	void remove(const OwnerId& owner, std::optional<uint32_t> clipSerial) {
 		by_owner.erase(BackedParamKey{owner, clipSerial});
 	}
+
+	/// Drop EVERY store for `owner` (all clip overrides). Entries for one owner are contiguous in the ordered map
+	/// (BackedParamKey compares owner before clip_serial), so this is a single range-erase. Called on
+	/// instrument/drum death (retire-on-death) to keep the tree a faithful mirror of live owners — safe only once
+	/// the owner's engine ParamManagers are gone, so nothing is still bound to these stores.
+	void removeOwner(const OwnerId& owner) {
+		auto it = by_owner.lower_bound(BackedParamKey{owner, std::nullopt});
+		while (it != by_owner.end() && it->first.owner == owner) {
+			it = by_owner.erase(it);
+		}
+	}
 };
 
 } // namespace deluge::project
