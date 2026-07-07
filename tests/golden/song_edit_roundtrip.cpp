@@ -246,6 +246,41 @@ int main(int argc, char** argv) {
 		}
 	}
 
+	// M2-G S3c: every reloaded SYNTH clip's unpatched (+ patched) automation must be TREE-resident — its store is
+	// the project.backed_params entry keyed by (OwnerId::instrument(output serialId), clip serialId), not an
+	// engine-owned domStore_. Proves the instrument-shared relocation is live (again only post-save, once ids exist).
+	{
+		int32_t synthClips = 0, treeResident = 0;
+		std::array<ClipArray*, 2> arrs{&reloaded->project.clips.session_clips,
+		                               &reloaded->project.clips.arrangement_only_clips};
+		for (ClipArray* arr : arrs) {
+			for (int32_t c = 0; c < std::ssize(*arr); c++) {
+				Clip* clip = (*arr)[c];
+				if (clip->type != ClipType::INSTRUMENT || clip->output == nullptr
+				    || clip->output->type != OutputType::SYNTH
+				    || !clip->paramManager.containsAnyMainParamCollections()) {
+					continue;
+				}
+				synthClips++;
+				std::optional<uint32_t> clipId = clip->serialId();
+				std::optional<uint32_t> outId = clip->output->serialId();
+				if (clipId.has_value() && outId.has_value()) {
+					deluge::project::DocParamManager* mgr =
+					    reloaded->project.backed_params.find(deluge::project::OwnerId::instrument(*outId), *clipId);
+					if (mgr != nullptr && mgr->unpatched
+					    && clip->paramManager.getUnpatchedParamSet()->domStore() == &*mgr->unpatched) {
+						treeResident++;
+					}
+				}
+			}
+		}
+		std::fprintf(stderr, "synth clips tree-resident: %d/%d\n", treeResident, synthClips);
+		if (synthClips > 0 && treeResident != synthClips) {
+			std::fprintf(stderr, "S3c FAIL: a synth clip is not tree-resident after reload\n");
+			_exit(3);
+		}
+	}
+
 	// 5. Both edits must have persisted into the reloaded DOM store (the authority) and the reloaded engine.
 	if (!reloaded->project.global_fx.params.unpatched) {
 		std::fprintf(stderr, "reloaded store EMPTY\n");
