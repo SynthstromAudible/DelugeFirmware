@@ -132,55 +132,91 @@ void Sound::initParams(ParamManager* paramManager) {
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 	unpatchedParams->kind = params::Kind::UNPATCHED_SOUND;
 
-	unpatchedParams->params[params::UNPATCHED_PORTAMENTO].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_PORTAMENTO].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_PORTAMENTO), -2147483648);
 
 	PatchedParamSet* patchedParams = paramManager->getPatchedParamSet();
-	patchedParams->params[params::LOCAL_VOLUME].setCurrentValueBasicForSetup(0);
-	patchedParams->params[params::LOCAL_OSC_A_VOLUME].setCurrentValueBasicForSetup(2147483647);
-	patchedParams->params[params::LOCAL_OSC_B_VOLUME].setCurrentValueBasicForSetup(2147483647);
+	patchedParams->params[params::LOCAL_VOLUME].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::LOCAL_VOLUME), 0);
+	patchedParams->params[params::LOCAL_OSC_A_VOLUME].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::LOCAL_OSC_A_VOLUME), 2147483647);
+	patchedParams->params[params::LOCAL_OSC_B_VOLUME].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::LOCAL_OSC_B_VOLUME), 2147483647);
 	patchedParams->params[params::GLOBAL_VOLUME_POST_FX].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::GLOBAL_VOLUME_POST_FX),
 	    getParamFromUserValue(params::GLOBAL_VOLUME_POST_FX, 40));
-	patchedParams->params[params::GLOBAL_VOLUME_POST_REVERB_SEND].setCurrentValueBasicForSetup(0);
-	patchedParams->params[params::LOCAL_FOLD].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[params::LOCAL_HPF_RESONANCE].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[params::LOCAL_HPF_FREQ].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[params::LOCAL_HPF_MORPH].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[params::LOCAL_LPF_MORPH].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[params::LOCAL_PITCH_ADJUST].setCurrentValueBasicForSetup(0);
-	patchedParams->params[params::GLOBAL_REVERB_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[params::GLOBAL_DELAY_RATE].setCurrentValueBasicForSetup(0);
-	patchedParams->params[params::GLOBAL_ARP_RATE].setCurrentValueBasicForSetup(0);
-	patchedParams->params[params::GLOBAL_DELAY_FEEDBACK].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[params::LOCAL_CARRIER_0_FEEDBACK].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[params::LOCAL_CARRIER_1_FEEDBACK].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[params::LOCAL_MODULATOR_0_FEEDBACK].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[params::LOCAL_MODULATOR_1_FEEDBACK].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[params::LOCAL_MODULATOR_0_VOLUME].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[params::LOCAL_MODULATOR_1_VOLUME].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[params::LOCAL_OSC_A_PHASE_WIDTH].setCurrentValueBasicForSetup(0);
-	patchedParams->params[params::LOCAL_OSC_B_PHASE_WIDTH].setCurrentValueBasicForSetup(0);
+	patchedParams->params[params::GLOBAL_VOLUME_POST_REVERB_SEND].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::GLOBAL_VOLUME_POST_REVERB_SEND), 0);
+	patchedParams->params[params::LOCAL_FOLD].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::LOCAL_FOLD), -2147483648);
+	patchedParams->params[params::LOCAL_HPF_RESONANCE].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::LOCAL_HPF_RESONANCE), -2147483648);
+	patchedParams->params[params::LOCAL_HPF_FREQ].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::LOCAL_HPF_FREQ), -2147483648);
+	patchedParams->params[params::LOCAL_HPF_MORPH].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::LOCAL_HPF_MORPH), -2147483648);
+	patchedParams->params[params::LOCAL_LPF_MORPH].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::LOCAL_LPF_MORPH), -2147483648);
+	patchedParams->params[params::LOCAL_PITCH_ADJUST].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::LOCAL_PITCH_ADJUST), 0);
+	patchedParams->params[params::GLOBAL_REVERB_AMOUNT].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::GLOBAL_REVERB_AMOUNT), -2147483648);
+	patchedParams->params[params::GLOBAL_DELAY_RATE].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::GLOBAL_DELAY_RATE), 0);
+	patchedParams->params[params::GLOBAL_ARP_RATE].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::GLOBAL_ARP_RATE), 0);
+	patchedParams->params[params::GLOBAL_DELAY_FEEDBACK].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::GLOBAL_DELAY_FEEDBACK), -2147483648);
+	patchedParams->params[params::LOCAL_CARRIER_0_FEEDBACK].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::LOCAL_CARRIER_0_FEEDBACK), -2147483648);
+	patchedParams->params[params::LOCAL_CARRIER_1_FEEDBACK].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::LOCAL_CARRIER_1_FEEDBACK), -2147483648);
+	patchedParams->params[params::LOCAL_MODULATOR_0_FEEDBACK].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::LOCAL_MODULATOR_0_FEEDBACK), -2147483648);
+	patchedParams->params[params::LOCAL_MODULATOR_1_FEEDBACK].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::LOCAL_MODULATOR_1_FEEDBACK), -2147483648);
+	patchedParams->params[params::LOCAL_MODULATOR_0_VOLUME].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::LOCAL_MODULATOR_0_VOLUME), -2147483648);
+	patchedParams->params[params::LOCAL_MODULATOR_1_VOLUME].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::LOCAL_MODULATOR_1_VOLUME), -2147483648);
+	patchedParams->params[params::LOCAL_OSC_A_PHASE_WIDTH].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::LOCAL_OSC_A_PHASE_WIDTH), 0);
+	patchedParams->params[params::LOCAL_OSC_B_PHASE_WIDTH].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::LOCAL_OSC_B_PHASE_WIDTH), 0);
 	patchedParams->params[params::LOCAL_ENV_1_ATTACK].setCurrentValueBasicForSetup(
-	    getParamFromUserValue(params::LOCAL_ENV_1_ATTACK, 20));
+	    *patchedParams->docForParam(params::LOCAL_ENV_1_ATTACK), getParamFromUserValue(params::LOCAL_ENV_1_ATTACK, 20));
 	patchedParams->params[params::LOCAL_ENV_1_DECAY].setCurrentValueBasicForSetup(
-	    getParamFromUserValue(params::LOCAL_ENV_1_DECAY, 20));
+	    *patchedParams->docForParam(params::LOCAL_ENV_1_DECAY), getParamFromUserValue(params::LOCAL_ENV_1_DECAY, 20));
 	patchedParams->params[params::LOCAL_ENV_1_SUSTAIN].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::LOCAL_ENV_1_SUSTAIN),
 	    getParamFromUserValue(params::LOCAL_ENV_1_SUSTAIN, 25));
 	patchedParams->params[params::LOCAL_ENV_1_RELEASE].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::LOCAL_ENV_1_RELEASE),
 	    getParamFromUserValue(params::LOCAL_ENV_1_RELEASE, 20));
-	patchedParams->params[params::LOCAL_LFO_LOCAL_FREQ_1].setCurrentValueBasicForSetup(0);
+	patchedParams->params[params::LOCAL_LFO_LOCAL_FREQ_1].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::LOCAL_LFO_LOCAL_FREQ_1), 0);
 	patchedParams->params[params::GLOBAL_LFO_FREQ_1].setCurrentValueBasicForSetup(
-	    getParamFromUserValue(params::GLOBAL_LFO_FREQ_1, 30));
-	patchedParams->params[params::LOCAL_LFO_LOCAL_FREQ_2].setCurrentValueBasicForSetup(0);
+	    *patchedParams->docForParam(params::GLOBAL_LFO_FREQ_1), getParamFromUserValue(params::GLOBAL_LFO_FREQ_1, 30));
+	patchedParams->params[params::LOCAL_LFO_LOCAL_FREQ_2].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::LOCAL_LFO_LOCAL_FREQ_2), 0);
 	patchedParams->params[params::GLOBAL_LFO_FREQ_2].setCurrentValueBasicForSetup(
-	    getParamFromUserValue(params::GLOBAL_LFO_FREQ_2, 30));
-	patchedParams->params[params::LOCAL_PAN].setCurrentValueBasicForSetup(0);
-	patchedParams->params[params::LOCAL_NOISE_VOLUME].setCurrentValueBasicForSetup(-2147483648);
-	patchedParams->params[params::GLOBAL_MOD_FX_DEPTH].setCurrentValueBasicForSetup(0);
-	patchedParams->params[params::GLOBAL_MOD_FX_RATE].setCurrentValueBasicForSetup(0);
-	patchedParams->params[params::LOCAL_OSC_A_PITCH_ADJUST].setCurrentValueBasicForSetup(0);       // Don't change
-	patchedParams->params[params::LOCAL_OSC_B_PITCH_ADJUST].setCurrentValueBasicForSetup(0);       // Don't change
-	patchedParams->params[params::LOCAL_MODULATOR_0_PITCH_ADJUST].setCurrentValueBasicForSetup(0); // Don't change
-	patchedParams->params[params::LOCAL_MODULATOR_1_PITCH_ADJUST].setCurrentValueBasicForSetup(0); // Don't change
+	    *patchedParams->docForParam(params::GLOBAL_LFO_FREQ_2), getParamFromUserValue(params::GLOBAL_LFO_FREQ_2, 30));
+	patchedParams->params[params::LOCAL_PAN].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::LOCAL_PAN), 0);
+	patchedParams->params[params::LOCAL_NOISE_VOLUME].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::LOCAL_NOISE_VOLUME), -2147483648);
+	patchedParams->params[params::GLOBAL_MOD_FX_DEPTH].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::GLOBAL_MOD_FX_DEPTH), 0);
+	patchedParams->params[params::GLOBAL_MOD_FX_RATE].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::GLOBAL_MOD_FX_RATE), 0);
+	patchedParams->params[params::LOCAL_OSC_A_PITCH_ADJUST].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::LOCAL_OSC_A_PITCH_ADJUST), 0); // Don't change
+	patchedParams->params[params::LOCAL_OSC_B_PITCH_ADJUST].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::LOCAL_OSC_B_PITCH_ADJUST), 0); // Don't change
+	patchedParams->params[params::LOCAL_MODULATOR_0_PITCH_ADJUST].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::LOCAL_MODULATOR_0_PITCH_ADJUST), 0); // Don't change
+	patchedParams->params[params::LOCAL_MODULATOR_1_PITCH_ADJUST].setCurrentValueBasicForSetup(
+	    *patchedParams->docForParam(params::LOCAL_MODULATOR_1_PITCH_ADJUST), 0); // Don't change
 }
 
 void Sound::setupAsSample(ParamManagerForTimeline* paramManager) {

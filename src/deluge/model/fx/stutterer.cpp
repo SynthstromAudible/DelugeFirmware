@@ -25,7 +25,9 @@ namespace params = deluge::modulation::params;
 Stutterer stutterer{};
 
 void Stutterer::initParams(ParamManager* paramManager) {
-	paramManager->getUnpatchedParamSet()->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(0);
+	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+	unpatchedParams->params[params::UNPATCHED_STUTTER_RATE].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_STUTTER_RATE), 0);
 }
 
 int32_t Stutterer::getStutterRate(ParamManager* paramManager, int32_t magnitude, uint32_t timePerTickInverse) {

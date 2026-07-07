@@ -1647,12 +1647,14 @@ loadOutput:
 					}
 					GlobalEffectable::initParams(&paramManager);
 				}
-				// M2-F: seed the store from the freshly-initialised engine set (so params the file OMITS keep their
-				// init current_value), then BIND the engine set to it BEFORE reading — so the reader writes the
-				// present params' nodes straight into the DOM store the engine will resolve, with no ownDoc_ round
-				// trip. Nodes are never copied out of the store (avoids a projection self-copy).
+				// Option I (read-authority): initParams wrote each default straight into the set's own DOM store (via
+				// docForParam) — so it holds the authoritative defaults with NO engine->store copy. Relocate that
+				// store into the project tree and re-bind the engine set to the tree copy; the reader then lands the
+				// present params on top of the defaults, and nodes are never copied out (avoids a projection
+				// self-copy).
 				UnpatchedParamSet* songUnpatched = paramManager.getUnpatchedParamSet();
-				project.global_fx.params.unpatched = deluge::project::toDocParamSet(*songUnpatched);
+				songUnpatched->bindDomStore(); // ensure a store exists (init normally created it) before relocating
+				project.global_fx.params.unpatched = std::move(*songUnpatched->domStore());
 				deluge::project::DocParamSet& songStore = *project.global_fx.params.unpatched;
 				songUnpatched->bindDomStoreExternal(&songStore);
 				char const* paramTag;

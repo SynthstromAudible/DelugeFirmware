@@ -110,38 +110,63 @@ void ModControllableAudio::initParams(ParamManager* paramManager) {
 
 	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
 
-	unpatchedParams->params[params::UNPATCHED_BASS].setCurrentValueBasicForSetup(0);
-	unpatchedParams->params[params::UNPATCHED_TREBLE].setCurrentValueBasicForSetup(0);
-	unpatchedParams->params[params::UNPATCHED_BASS_FREQ].setCurrentValueBasicForSetup(0);
-	unpatchedParams->params[params::UNPATCHED_TREBLE_FREQ].setCurrentValueBasicForSetup(0);
+	unpatchedParams->params[params::UNPATCHED_BASS].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_BASS), 0);
+	unpatchedParams->params[params::UNPATCHED_TREBLE].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_TREBLE), 0);
+	unpatchedParams->params[params::UNPATCHED_BASS_FREQ].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_BASS_FREQ), 0);
+	unpatchedParams->params[params::UNPATCHED_TREBLE_FREQ].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_TREBLE_FREQ), 0);
 
-	unpatchedParams->params[params::UNPATCHED_ARP_GATE].setCurrentValueBasicForSetup(0);
-	unpatchedParams->params[params::UNPATCHED_NOTE_PROBABILITY].setCurrentValueBasicForSetup(2147483647);
-	unpatchedParams->params[params::UNPATCHED_ARP_BASS_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_SWAP_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_GLIDE_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_REVERSE_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_CHORD_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_PROBABILITY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_AMOUNT].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_SEQUENCE_LENGTH].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_CHORD_POLYPHONY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_RHYTHM].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_SPREAD_VELOCITY].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_GATE].setCurrentValueBasicForSetup(-2147483648);
-	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_OCTAVE].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_GATE].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_GATE), 0);
+	unpatchedParams->params[params::UNPATCHED_NOTE_PROBABILITY].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_NOTE_PROBABILITY), 2147483647);
+	unpatchedParams->params[params::UNPATCHED_ARP_BASS_PROBABILITY].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_BASS_PROBABILITY), -2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_SWAP_PROBABILITY].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_SWAP_PROBABILITY), -2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_GLIDE_PROBABILITY].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_GLIDE_PROBABILITY), -2147483648);
+	unpatchedParams->params[params::UNPATCHED_REVERSE_PROBABILITY].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_REVERSE_PROBABILITY), -2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_CHORD_PROBABILITY].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_CHORD_PROBABILITY), -2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_PROBABILITY].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_RATCHET_PROBABILITY), -2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_RATCHET_AMOUNT].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_RATCHET_AMOUNT), -2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_SEQUENCE_LENGTH].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_SEQUENCE_LENGTH), -2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_CHORD_POLYPHONY].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_CHORD_POLYPHONY), -2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_RHYTHM].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_RHYTHM), -2147483648);
+	unpatchedParams->params[params::UNPATCHED_SPREAD_VELOCITY].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_SPREAD_VELOCITY), -2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_GATE].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_SPREAD_GATE), -2147483648);
+	unpatchedParams->params[params::UNPATCHED_ARP_SPREAD_OCTAVE].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_SPREAD_OCTAVE), -2147483648);
 
 	Stutterer::initParams(paramManager);
 
-	unpatchedParams->params[params::UNPATCHED_MOD_FX_OFFSET].setCurrentValueBasicForSetup(0);
-	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(0);
+	unpatchedParams->params[params::UNPATCHED_MOD_FX_OFFSET].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_MOD_FX_OFFSET), 0);
+	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_MOD_FX_FEEDBACK), 0);
 
-	unpatchedParams->params[params::UNPATCHED_SAMPLE_RATE_REDUCTION].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_SAMPLE_RATE_REDUCTION].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_SAMPLE_RATE_REDUCTION), -2147483648);
 
-	unpatchedParams->params[params::UNPATCHED_BITCRUSHING].setCurrentValueBasicForSetup(-2147483648);
+	unpatchedParams->params[params::UNPATCHED_BITCRUSHING].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_BITCRUSHING), -2147483648);
 
-	unpatchedParams->params[params::UNPATCHED_SIDECHAIN_SHAPE].setCurrentValueBasicForSetup(-601295438);
-	unpatchedParams->params[params::UNPATCHED_COMPRESSOR_THRESHOLD].setCurrentValueBasicForSetup(0);
+	unpatchedParams->params[params::UNPATCHED_SIDECHAIN_SHAPE].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_SIDECHAIN_SHAPE), -601295438);
+	unpatchedParams->params[params::UNPATCHED_COMPRESSOR_THRESHOLD].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_COMPRESSOR_THRESHOLD), 0);
 }
 
 bool ModControllableAudio::hasBassAdjusted(ParamManager* paramManager) {

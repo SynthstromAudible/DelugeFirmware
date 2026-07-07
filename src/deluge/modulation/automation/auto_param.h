@@ -132,7 +132,17 @@ public:
 	int32_t getValuePossiblyAtPos(int32_t pos, ModelStackWithAutoParam* modelStack);
 	void notifyPingpongOccurred();
 
+	// Engine-only setter, kept for runtime re-setters (transient FX like stutter/slice — the store correctly holds
+	// the pre-FX base value, not the live FX value).
 	inline void setCurrentValueBasicForSetup(int32_t value) { currentValue = value; }
+
+	// DOM-authoritative default/setup setter: write the persisted scalar into the OWNER's store `doc` AND the RT
+	// cursor, from the same literal (the DOM is the source — no engine->store copy). Used by initParams so param
+	// defaults live in the DOM store directly. Pass the owner-resolved store slot: `set->docForParam(p)`.
+	inline void setCurrentValueBasicForSetup(deluge::project::DocAutoParam& doc, int32_t value) {
+		currentValue = value;
+		doc.current_value = value;
+	}
 
 	inline bool isAutomated(const deluge::project::DocAutoParam& doc) { return std::ssize(doc.nodes) != 0; }
 

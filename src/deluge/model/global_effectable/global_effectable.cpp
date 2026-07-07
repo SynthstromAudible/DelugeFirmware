@@ -68,35 +68,55 @@ void GlobalEffectable::initParams(ParamManager* paramManager) {
 	unpatchedParams->kind = deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
 
 	// Overwrite default arp Gate to 50 for Kit affect-entire arp
-	unpatchedParams->params[params::UNPATCHED_ARP_GATE].setCurrentValueBasicForSetup(2147483647);
-	unpatchedParams->params[params::UNPATCHED_ARP_RATE].setCurrentValueBasicForSetup(0);
+	unpatchedParams->params[params::UNPATCHED_ARP_GATE].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_GATE), 2147483647);
+	unpatchedParams->params[params::UNPATCHED_ARP_RATE].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_ARP_RATE), 0);
 
-	unpatchedParams->params[params::UNPATCHED_MOD_FX_RATE].setCurrentValueBasicForSetup(-536870912);
-	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
-	unpatchedParams->params[params::UNPATCHED_MOD_FX_DEPTH].setCurrentValueBasicForSetup(0);
-	unpatchedParams->params[params::UNPATCHED_DELAY_RATE].setCurrentValueBasicForSetup(0);
-	unpatchedParams->params[params::UNPATCHED_PAN].setCurrentValueBasicForSetup(0);
+	unpatchedParams->params[params::UNPATCHED_MOD_FX_RATE].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_MOD_FX_RATE), -536870912);
+	unpatchedParams->params[params::UNPATCHED_MOD_FX_FEEDBACK].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_MOD_FX_FEEDBACK), NEGATIVE_ONE_Q31);
+	unpatchedParams->params[params::UNPATCHED_MOD_FX_DEPTH].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_MOD_FX_DEPTH), 0);
+	unpatchedParams->params[params::UNPATCHED_DELAY_RATE].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_DELAY_RATE), 0);
+	unpatchedParams->params[params::UNPATCHED_PAN].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_PAN), 0);
 
-	unpatchedParams->params[params::UNPATCHED_DELAY_AMOUNT].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
-	unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
+	unpatchedParams->params[params::UNPATCHED_DELAY_AMOUNT].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_DELAY_AMOUNT), NEGATIVE_ONE_Q31);
+	unpatchedParams->params[params::UNPATCHED_REVERB_SEND_AMOUNT].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_REVERB_SEND_AMOUNT), NEGATIVE_ONE_Q31);
 
-	unpatchedParams->params[params::UNPATCHED_VOLUME].setCurrentValueBasicForSetup(0); // half of the way up
-	unpatchedParams->params[params::UNPATCHED_SIDECHAIN_VOLUME].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
-	unpatchedParams->params[params::UNPATCHED_PITCH_ADJUST].setCurrentValueBasicForSetup(0);
+	unpatchedParams->params[params::UNPATCHED_VOLUME].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_VOLUME), 0); // half of the way up
+	unpatchedParams->params[params::UNPATCHED_SIDECHAIN_VOLUME].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_SIDECHAIN_VOLUME), NEGATIVE_ONE_Q31);
+	unpatchedParams->params[params::UNPATCHED_PITCH_ADJUST].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_PITCH_ADJUST), 0);
 
-	unpatchedParams->params[params::UNPATCHED_LPF_RES].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
-	unpatchedParams->params[params::UNPATCHED_LPF_FREQ].setCurrentValueBasicForSetup(ONE_Q31);
+	unpatchedParams->params[params::UNPATCHED_LPF_RES].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_LPF_RES), NEGATIVE_ONE_Q31);
+	unpatchedParams->params[params::UNPATCHED_LPF_FREQ].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_LPF_FREQ), ONE_Q31);
 
-	unpatchedParams->params[params::UNPATCHED_HPF_RES].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
-	unpatchedParams->params[params::UNPATCHED_HPF_FREQ].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
+	unpatchedParams->params[params::UNPATCHED_HPF_RES].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_HPF_RES), NEGATIVE_ONE_Q31);
+	unpatchedParams->params[params::UNPATCHED_HPF_FREQ].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_HPF_FREQ), NEGATIVE_ONE_Q31);
 
-	unpatchedParams->params[params::UNPATCHED_LPF_MORPH].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
-	unpatchedParams->params[params::UNPATCHED_HPF_MORPH].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
+	unpatchedParams->params[params::UNPATCHED_LPF_MORPH].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_LPF_MORPH), NEGATIVE_ONE_Q31);
+	unpatchedParams->params[params::UNPATCHED_HPF_MORPH].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_HPF_MORPH), NEGATIVE_ONE_Q31);
 }
 
 void GlobalEffectable::initParamsForAudioClip(ParamManagerForTimeline* paramManager) {
 	initParams(paramManager);
-	paramManager->getUnpatchedParamSet()->params[params::UNPATCHED_VOLUME].setCurrentValueBasicForSetup(-536870912);
+	UnpatchedParamSet* unpatchedParams = paramManager->getUnpatchedParamSet();
+	unpatchedParams->params[params::UNPATCHED_VOLUME].setCurrentValueBasicForSetup(
+	    *unpatchedParams->docForParam(params::UNPATCHED_VOLUME), -536870912);
 }
 
 void GlobalEffectable::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {

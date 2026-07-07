@@ -1178,14 +1178,13 @@ someError:
 		else if (!strcmp(tagName, "params")) {
 			paramManager.setupUnpatched();
 			GlobalEffectableForClip::initParams(&paramManager);
-			// Flip Option I (read-authority): read DOM-first (mirroring song-global) so the DOM store holds the
-			// authoritative current_value, not just the nodes. Seed the store from the init'd engine (so
-			// file-omitted params keep their default), bind, read into the store via the same tables the engine
-			// reader uses, then project each engine RT cursor from the store. Byte-identical to the engine read.
+			// Flip Option I (read-authority): the DOM store holds the authoritative current_value, not just the
+			// nodes. initParams above wrote each default straight into the store (via docForParam), so file-omitted
+			// params keep their default with NO engine->store copy. Read the present params into the store via the
+			// same tables the engine reader uses, then project each engine RT cursor from the store.
 			UnpatchedParamSet* unpatched = paramManager.getUnpatchedParamSet();
 			unpatched->bindDomStore();
 			deluge::project::DocParamSet* store = unpatched->domStore();
-			*store = deluge::project::toDocParamSet(*unpatched);
 			char const* paramTag;
 			while (*(paramTag = reader.readNextTagOrAttributeName())) {
 				if (deluge::project::readGlobalEffectableParamTagToDoc(reader, paramTag, *store,
