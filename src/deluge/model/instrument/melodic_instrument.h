@@ -88,10 +88,6 @@ public:
 
 	Arpeggiator arpeggiator;
 
-	// Per-track macros: four source->target mappings, serialized with this instrument (song +
-	// preset). Shared by MIDI and synth tracks. See modulation/macros/macros.h.
-	Macros::Macro macros[Macros::kNumMacros];
-
 	struct EarlyNoteInfo {
 		uint8_t velocity;
 		bool still_active = false;

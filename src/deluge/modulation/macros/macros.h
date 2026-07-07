@@ -28,6 +28,11 @@ class Clip;
 class Output;
 class MelodicInstrument;
 class ModelStackWithTimelineCounter;
+// Reference-only in this header, so forward-declared rather than pulling storage_manager.h in (this
+// header is included by the core output.h). loadMacroPreset(FilePointer*) lives in macro_preset.h,
+// which can't be forward-declared (FilePointer is an anonymous-struct typedef).
+class Serializer;
+class Deserializer;
 
 // A macro: one source (learned CC, gold knob, or automation lane) broadcast to up to
 // kNumTargetSlots target destinations on the active clip. On a MIDI clip a destination is an
@@ -307,14 +312,11 @@ void setMacroActive(Clip* clip, int32_t macroIndex, bool active);
 void writeMacrosToFile(Serializer& writer, Macro* macros, Domain domain);
 void readMacrosFromFile(Deserializer& reader, Macro* macros, Domain domain);
 
-// Save/load a preset: a macro's targets only (not its source or active state), so a preset is a
-// portable target configuration applicable to any macro. writeMacroPreset() writes the body between
-// the browser's createXMLFile() and closeFileAfterWriting(); loadMacroPreset() replaces
-// macros[macroIndex]'s targets (keeping its source and active state), clears baked lanes left on
-// replaced CCs and re-bakes the macro lane into the new set on `clip`. Loaded CCs another macro
-// also targets resolve by the usual ownership rank (shadowed slots warn via the target LEDs).
+// Save a preset: a macro's targets only (not its source or active state), so a preset is a portable
+// target configuration applicable to any macro. writeMacroPreset() writes the body between the
+// browser's createXMLFile() and closeFileAfterWriting(). The load half, loadMacroPreset(FilePointer*),
+// is declared in macro_preset.h (it needs FilePointer, kept out of this core header).
 void writeMacroPreset(Serializer& writer, Macro* macros, int32_t macroIndex, Domain domain);
-Error loadMacroPreset(FilePointer* fp, Clip* clip, Macro* macros, int32_t macroIndex);
 
 // Snapshots the current value of each configured target CC on `clip` into that target's from
 // (toMax=false, "Capture From") or to (toMax=true, "Capture To"). The source then morphs the targets

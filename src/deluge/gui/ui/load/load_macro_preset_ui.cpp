@@ -24,6 +24,7 @@
 #include "model/instrument/midi_instrument.h"
 #include "model/output.h"
 #include "model/song/song.h"
+#include "modulation/macros/macro_preset.h"
 #include "modulation/macros/macros.h"
 #include "storage/file_item.h"
 #include "storage/storage_manager.h"

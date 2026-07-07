@@ -21,6 +21,7 @@
 #include "hid/button.h"
 #include "model/clip/clip_instance_vector.h"
 #include "model/sample/sample_recorder.h"
+#include "modulation/macros/macros.h"
 #include "modulation/params/param.h"
 #include "util/d_string.h"
 #include <cstdint>
@@ -109,6 +110,12 @@ public:
 	// Serialized per-instrument (like modKnobMode/activeModFunction). See Macros / View::inMacroKnobMode.
 	bool macroKnobMode = false;
 	uint8_t macroKnobSelected = 0; // which macro (0..kNumMacros-1) the gold knobs drive in MACRO mode
+
+	// The four macros. Hosted on Output (the common base) so every macro-capable output type - synth,
+	// MIDI, and later audio-clip / kit-global outputs - carries them; Macros::macroHost() gates which
+	// output types actually use them. Serialized per-host by that host's own write/read (see e.g.
+	// MelodicInstrument::writeMelodicInstrumentTagsToFile -> Macros::writeMacrosToFile).
+	Macros::Macro macros[Macros::kNumMacros];
 
 	// Temp stuff for doLaunch()
 	bool alreadyGotItsNewClip;
