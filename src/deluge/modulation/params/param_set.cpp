@@ -795,19 +795,23 @@ bool ExpressionParamSet::writeToFile(Serializer& writer, bool mustWriteOpeningTa
 void ExpressionParamSet::readFromFile(Deserializer& reader, ParamCollectionSummary* summary,
                                       int32_t readAutomationUpToPos) {
 
+	// Option I (read-authority): read MPE params INTO the DOM store (defaults are zero, so an unwritten store slot
+	// is already correct), then project each engine RT cursor from the store — the DOM holds the authoritative
+	// current_value, not just the nodes. The <channelPressure> legacy alias is folded into the DOM reader.
+	bindDomStore();
+	deluge::project::DocParamSet* store = domStore();
 	char const* tagName;
-
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		// Read the current format from the value DOM (deluge::project); keep the legacy `channelPressure`
-		// alias (pressure / dimension 2) as the engine tail.
-		if (deluge::project::readExpressionParamTag(reader, tagName, *this, *summary, readAutomationUpToPos)) {}
-		else if (!strcmp(tagName, "channelPressure")) { // Alpha testers had 2 weeks or so to create files like this -
-			                                            // not sure if anyone even did.
-			readParam(reader, summary, 2, readAutomationUpToPos);
-			reader.exitTag();
-		}
+		if (deluge::project::readExpressionParamTagToDoc(reader, tagName, *store, readAutomationUpToPos)) {}
 		else {
 			reader.exitTag();
+		}
+	}
+	// Project the engine cursors and set the summary's automated bit exactly as the engine reader would.
+	for (int32_t p = 0; p < getNumParams() && p < (int32_t)store->params.size(); p++) {
+		params[p].currentValue = store->params[p].current_value;
+		if (params[p].isAutomated(store->params[p])) {
+			paramHasAutomationNow(summary, p);
 		}
 	}
 }

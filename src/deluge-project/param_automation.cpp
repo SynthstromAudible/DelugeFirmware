@@ -915,4 +915,18 @@ bool readExpressionParamTag(Deserializer& in, char const* tagName, ParamSet& exp
 	return readLiveParamFromTable(in, tagName, kExpressionParams, expression, summary, readAutomationUpToPos);
 }
 
+bool readExpressionParamTagToDoc(Deserializer& in, char const* tagName, DocParamSet& doc,
+                                 int32_t readAutomationUpToPos) {
+	if (readDocParamFromTable(in, tagName, kExpressionParams, doc, readAutomationUpToPos)) {
+		return true;
+	}
+	// Legacy alias: early-alpha files stored pressure (dimension 2) as <channelPressure>.
+	if (!strcmp(tagName, "channelPressure")) {
+		readDocParamLeaf(in, doc, 2, readAutomationUpToPos);
+		in.exitTag(tagName);
+		return true;
+	}
+	return false;
+}
+
 } // namespace deluge::project

@@ -863,6 +863,7 @@ void GlobalEffectable::readParamsFromFileDomFirst(Deserializer& reader, ParamMan
 	// params keep their default with NO engine->store copy. Read the present params into the store via the same
 	// tables the engine reader uses, then project each engine RT cursor from the store.
 	UnpatchedParamSet* unpatched = paramManager->getUnpatchedParamSet();
+	ParamCollectionSummary* summary = paramManager->getUnpatchedParamSetSummary();
 	unpatched->bindDomStore();
 	deluge::project::DocParamSet* store = unpatched->domStore();
 	char const* tagName;
@@ -872,8 +873,13 @@ void GlobalEffectable::readParamsFromFileDomFirst(Deserializer& reader, ParamMan
 			reader.exitTag(tagName);
 		}
 	}
+	// Project each engine RT cursor from the store, and set the summary's automated bit exactly as the engine
+	// reader (readLiveParam) would — the nodes live in the store, but playback iterates the summary cache.
 	for (int32_t p = 0; p < unpatched->getNumParams() && p < (int32_t)store->params.size(); p++) {
 		unpatched->params[p].currentValue = store->params[p].current_value;
+		if (unpatched->params[p].isAutomated(store->params[p])) {
+			unpatched->paramHasAutomationNow(summary, p);
+		}
 	}
 }
 

@@ -289,6 +289,11 @@ bool readModControllableParamTagToDoc(Deserializer& in, char const* tagName, Doc
 bool readGlobalEffectableParamTagToDoc(Deserializer& in, char const* tagName, DocParamSet& doc,
                                        int32_t readAutomationUpToPos);
 
+/// Read one ExpressionParamSet (MPE) tag (pitchBend / yExpression / pressure) into `doc`, incl. the legacy
+/// `channelPressure` alias (pressure / dimension 2) that the engine reader keeps as a caller tail.
+bool readExpressionParamTagToDoc(Deserializer& in, char const* tagName, DocParamSet& doc,
+                                 int32_t readAutomationUpToPos);
+
 // --- DOM-first editing (Phase 2 / 2b) ---
 // The DOM store is the authoritative record; the engine param is the runtime it drives. A DOM-first edit
 // mutates the store lane, then reprojects it into the engine so playback hears it (until the future
