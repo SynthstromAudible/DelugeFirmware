@@ -107,11 +107,29 @@ AutoParam& AutoParam::operator=(AutoParam&& other) noexcept {
 // identical: for song-global the address resolves to the same `global_fx.params.unpatched` slot the engine
 // path returns.
 deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
-	if (song != nullptr && getTimelineCounterAllowNull() == static_cast<TimelineCounter*>(song)) {
-		deluge::project::ParamAddress address{deluge::project::OwnerId::song(), paramCollection->getParamKind(),
-		                                      paramId};
-		if (deluge::project::DocAutoParam* resolved = song->project.resolveParam(address)) {
-			return resolved;
+	if (song != nullptr) {
+		TimelineCounter* tc = getTimelineCounterAllowNull();
+		deluge::project::OwnerId owner{};
+		bool haveOwner = false;
+		if (tc == static_cast<TimelineCounter*>(song)) {
+			owner = deluge::project::OwnerId::song();
+			haveOwner = true;
+		}
+		else if (tc != nullptr) {
+			// Song and Clip are the only TimelineCounters, so a non-song tc is a Clip. Address its params by the
+			// clip's stable serialId when it has one (assigned on save); a never-saved clip has none → the engine
+			// fallback below. resolveParam returns nullptr for a clip/collection not (yet) tree-resident (only
+			// AudioClip unpatched is, in this slice), so kit-clip / drum / synth params also fall through safely.
+			if (std::optional<uint32_t> id = static_cast<Clip*>(tc)->serialId()) {
+				owner = deluge::project::OwnerId::clip(*id);
+				haveOwner = true;
+			}
+		}
+		if (haveOwner) {
+			deluge::project::ParamAddress address{owner, paramCollection->getParamKind(), paramId};
+			if (deluge::project::DocAutoParam* resolved = song->project.resolveParam(address)) {
+				return resolved;
+			}
 		}
 	}
 	return paramCollection->docParamForId(paramId);

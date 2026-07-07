@@ -216,6 +216,36 @@ int main(int argc, char** argv) {
 		_exit(1);
 	}
 
+	// M2-G S2b: the save (gen1) assigns serialIds, so on reload every audio clip's unpatched params must be
+	// TREE-resident — its store is the project.clip_params entry keyed by serialId, not an engine-owned domStore_.
+	// (The corpus files carry no ids on first load, so this only fires post-save — proving the tree path is live.)
+	{
+		int32_t audioClips = 0, treeResident = 0;
+		std::array<ClipArray*, 2> arrs{&reloaded->project.clips.session_clips,
+		                               &reloaded->project.clips.arrangement_only_clips};
+		for (ClipArray* arr : arrs) {
+			for (int32_t c = 0; c < std::ssize(*arr); c++) {
+				Clip* clip = (*arr)[c];
+				if (clip->type != ClipType::AUDIO || !clip->paramManager.containsAnyMainParamCollections()) {
+					continue;
+				}
+				audioClips++;
+				if (std::optional<uint32_t> id = clip->serialId()) {
+					deluge::project::DocParamManager* mgr = reloaded->project.clip_params.find(*id);
+					if (mgr != nullptr && mgr->unpatched
+					    && clip->paramManager.getUnpatchedParamSet()->domStore() == &*mgr->unpatched) {
+						treeResident++;
+					}
+				}
+			}
+		}
+		std::fprintf(stderr, "audio clips tree-resident: %d/%d\n", treeResident, audioClips);
+		if (audioClips > 0 && treeResident != audioClips) {
+			std::fprintf(stderr, "S2b FAIL: an audio clip is not tree-resident after reload\n");
+			_exit(3);
+		}
+	}
+
 	// 5. Both edits must have persisted into the reloaded DOM store (the authority) and the reloaded engine.
 	if (!reloaded->project.global_fx.params.unpatched) {
 		std::fprintf(stderr, "reloaded store EMPTY\n");

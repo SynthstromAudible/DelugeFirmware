@@ -1769,7 +1769,19 @@ loadOutput:
 		for (int32_t c = 0; c < std::ssize(*clipArray); c++) {
 			Clip* thisClip = (*clipArray)[c];
 			if (thisClip->type == ClipType::AUDIO && thisClip->paramManager.containsAnyMainParamCollections()) {
-				thisClip->paramManager.getUnpatchedParamSet()->bindDomStore();
+				UnpatchedParamSet* unpatched = thisClip->paramManager.getUnpatchedParamSet();
+				// M2-G S2b: relocate the audio clip's unpatched automation into the persistent project tree, keyed
+				// by the clip's stable serialId, and bind the engine set to that tree store (so doc() id-resolves
+				// it and docForParam/save read the same nodes). A clip with no serialId (never saved) keeps its
+				// engine-owned store. Seed the tree store from what the file read into the engine set first.
+				if (std::optional<uint32_t> id = thisClip->serialId()) {
+					deluge::project::DocParamManager& mgr = project.clip_params.getOrCreate(*id);
+					mgr.unpatched = deluge::project::toDocParamSet(*unpatched);
+					unpatched->bindDomStoreExternal(&*mgr.unpatched);
+				}
+				else {
+					unpatched->bindDomStore();
+				}
 			}
 		}
 	}
@@ -2819,6 +2831,10 @@ void Song::setTempoFromParams(int32_t magnitude, int8_t whichValue, bool shouldL
 
 void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRemoval instrumentRemovalInstruction) {
 
+	// M2-G S2b: the clip's tree-resident param store (if any) is retired with the clip. Capture the key now while
+	// the clip is valid; erase the entry after the clip (and its bound ParamSets) are destructed below.
+	std::optional<uint32_t> treeParamId = clip->serialId();
+
 	if (!songBeingDestroyedToo) {
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -2838,6 +2854,10 @@ void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRe
 	void* toDealloc = dynamic_cast<void*>(clip);
 	clip->~Clip();
 	delugeDealloc(toDealloc);
+
+	if (treeParamId.has_value()) {
+		project.clip_params.remove(*treeParamId);
+	}
 }
 
 int32_t Song::getMaxMIDIChannelSuffix(int32_t channel) {
