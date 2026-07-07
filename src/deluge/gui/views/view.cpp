@@ -1408,7 +1408,7 @@ void View::setKnobIndicatorLevels() {
 
 	// In note-view MACRO mode both rings show the selected macro's live position (both knobs drive it).
 	if (inMacroKnobMode()) {
-		MelodicInstrument* instrument = Macros::macroClipInstrument(getCurrentClip());
+		Output* instrument = Macros::macroHost(getCurrentClip());
 		if (instrument != nullptr) {
 			uint8_t level = instrument->macros[getCurrentClip()->output->macroKnobSelected].sourceKnobPos;
 			for (int32_t whichKnob = 0; whichKnob < NUM_LEVEL_INDICATORS; whichKnob++) {
@@ -1761,8 +1761,7 @@ void View::setModLedStates() {
 			bool targetConflicted = false;
 			if (!automationView.onArrangerView) {
 				Clip* clip = getCurrentClip();
-				MelodicInstrument* instrument =
-				    (Macros::isEnabled() && clip) ? Macros::macroClipInstrument(clip) : nullptr;
+				Output* instrument = (Macros::isEnabled() && clip) ? Macros::macroHost(clip) : nullptr;
 				int32_t macroIndex = (instrument != nullptr)
 				                         ? Macros::macroIndexForLaneSelection(clip->output, clip->lastSelectedParamKind,
 				                                                              clip->lastSelectedParamID)

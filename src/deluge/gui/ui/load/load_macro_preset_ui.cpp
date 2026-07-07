@@ -120,7 +120,7 @@ void LoadMacroPresetUI::enterKeyPress() {
 		// the first such collision instead of the plain "Preset loaded".
 		int32_t owner = -1;
 		uint8_t conflictDestination = 0;
-		if (MelodicInstrument* instrument = Macros::macroClipInstrument(getCurrentClip())) {
+		if (Output* instrument = Macros::macroHost(getCurrentClip())) {
 			Macros::Macro* macros = instrument->macros;
 			for (int32_t f = 0; f < Macros::kNumTargetSlots && owner < 0; f++) {
 				uint8_t destination = macros[Macros::presetMacroIndex].targets[f].destination;
@@ -179,14 +179,14 @@ Error LoadMacroPresetUI::performLoad() {
 
 	// Presets load into the current clip's instrument macros (per-track, MIDI or synth).
 	Clip* clip = getCurrentClip();
-	MelodicInstrument* instrument = Macros::macroClipInstrument(clip);
+	Output* instrument = Macros::macroHost(clip);
 	if (!instrument) {
 		return Error::NONE;
 	}
 	Error error =
 	    Macros::loadMacroPreset(&currentFileItem->filePointer, clip, instrument->macros, Macros::presetMacroIndex);
 	if (error == Error::NONE) {
-		instrument->editedByUser = true;
+		Macros::markHostEdited(instrument);
 	}
 	return error;
 }

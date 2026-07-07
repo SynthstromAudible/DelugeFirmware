@@ -26,7 +26,6 @@ class MIDICable;
 class Action;
 class Clip;
 class Output;
-class MelodicInstrument;
 class ModelStackWithTimelineCounter;
 // Reference-only in this header, so forward-declared rather than pulling storage_manager.h in (this
 // header is included by the core output.h). loadMacroPreset(FilePointer*) lives in macro_preset.h,
@@ -40,8 +39,9 @@ class Deserializer;
 // values are written into the clip's own params, so they reach the output/sound and record into
 // each destination's automation lane. A source CC is consumed; to forward/record it too, include
 // it as one of its macro's targets.
-// Config is per-track: the four macros live on each MelodicInstrument and serialize with it
-// (song + preset). Configured in the clip's menu.
+// Config is per-track: the four macros live on the track's Output (so every macro-capable output
+// type carries them; macroHost() gates which ones are used) and serialize with it (song + preset).
+// Configured in the clip's menu.
 namespace Macros {
 
 constexpr int32_t kNumMacros = 4;
@@ -83,12 +83,16 @@ inline uint8_t maxTargetValue(Domain domain) {
 	return isDomainInternal(domain) ? kMaxValueInternal : kMaxValue;
 }
 
-// The domain of a macro-capable output. Only call for outputs macroClipInstrument() accepts.
+// The domain of a macro-capable output. Only call for outputs macroHost() accepts.
 Domain domainForOutput(Output* output);
 
 // Validates the clip belongs to a macro-capable track (MIDI or synth) and returns its instrument,
 // else null. Kits, audio and CV tracks have no macros.
-MelodicInstrument* macroClipInstrument(Clip* clip);
+Output* macroHost(Clip* clip);
+
+// Marks a macro host edited so its preset re-saves (editedByUser). No-op for AUDIO hosts, which have
+// no such flag. Callable from views that mutate a macro's targets outside the engine.
+void markHostEdited(Output* host);
 
 // Each macro also appears as an automatable "lane" in MIDI automation view, stored as a pseudo-CC
 // MIDIParam at these IDs. They sit above the 0..127 CC byte range so no real target CC (max 127)
@@ -157,7 +161,7 @@ inline bool isValidTargetDestination(int32_t destination, int32_t macroIndex) {
 
 // Appends a destination's display label: "Macro N" for a cascade id, the param name on a synth
 // track, else the MIDI device's CC name if loaded, else "CC <n>".
-void appendDestinationName(StringBuf& buf, MelodicInstrument* instrument, uint8_t destination);
+void appendDestinationName(StringBuf& buf, Output* instrument, uint8_t destination);
 
 // If an automation-lane selection (kind, paramID) on this output is a macro lane, returns the
 // macro index, else -1. MIDI lanes are the pseudo-CC ids 128-131 (their clips track lanes by id
@@ -221,13 +225,13 @@ void showDestinationConflictPopup(uint8_t destination, int32_t ownerMacro, bool 
 // their menu range 0-50/-25..+25, MIDI CCs raw 0-127), or "Target Assign" when the slot is OFF. On
 // showConflict, an in-use (shadowed) target shows its owner instead of a range. Shared by the
 // automation-lane quick-edit editor and the note-view target picker.
-void showTargetRangeReadout(MelodicInstrument* instrument, int32_t macroIndex, int32_t target, uint8_t destination,
+void showTargetRangeReadout(Output* instrument, int32_t macroIndex, int32_t target, uint8_t destination,
                             bool showConflict);
 // Seeds the gold-knob LED bars to the target's From (knob 0) / To (knob 1) while its button is held.
-void showTargetKnobIndicators(MelodicInstrument* instrument, int32_t macroIndex, int32_t target);
+void showTargetKnobIndicators(Output* instrument, int32_t macroIndex, int32_t target);
 // Nudges a target's From (whichKnob 0) or To (whichKnob 1) by offset, clamped to the domain max,
 // marks the instrument edited and re-bakes just that lane. Returns true if the endpoint changed.
-bool editTargetEndpoint(Clip* clip, MelodicInstrument* instrument, int32_t macroIndex, int32_t slot, int32_t whichKnob,
+bool editTargetEndpoint(Clip* clip, Output* instrument, int32_t macroIndex, int32_t slot, int32_t whichKnob,
                         int32_t offset);
 
 // Which slot (first match, -1 if none) holds a pad's primary / second shortcut-layer destination as a

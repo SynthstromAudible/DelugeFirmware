@@ -146,10 +146,19 @@ int32_t findShadowingOwner(const Macro* macros, uint8_t destination, int32_t mac
 	return owner;
 }
 
+// macros[] lives on Output, but editedByUser (which gates instrument preset-save) is an Instrument
+// member - AudioOutput isn't an Instrument. So mark the host edited only when it IS an Instrument
+// (every non-AUDIO macro host - MelodicInstrument, Kit - is one); audio-clip macros have no such flag.
+void markHostEdited(Output* host) {
+	if (host->type != OutputType::AUDIO) {
+		static_cast<Instrument*>(host)->editedByUser = true;
+	}
+}
+
 // Appends a destination's label: "Macro N" for a cascade destination (always the plain macro
 // number, never its user name), the param's display name on a synth track, else the MIDI device's
 // CC name if loaded, else "CC <n>".
-void appendDestinationName(StringBuf& buf, MelodicInstrument* instrument, uint8_t destination) {
+void appendDestinationName(StringBuf& buf, Output* instrument, uint8_t destination) {
 	if (isMacroParamID(destination)) {
 		buf.append(deluge::l10n::get(static_cast<deluge::l10n::String>(
 		    util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1) + macroIndexFromParamID(destination))));
@@ -179,7 +188,7 @@ void appendDestinationName(StringBuf& buf, MelodicInstrument* instrument, uint8_
 // Appends "<destination>\nused by\nMacro N" (OLED) / "<destination> used by Macro N" (7SEG). The destination is
 // resolved against the selected/active clip's instrument, same as the conflict machinery.
 static void appendDestinationUsedBy(StringBuf& buf, uint8_t destination, int32_t ownerMacro) {
-	appendDestinationName(buf, macroClipInstrument(midiFollow.getSelectedOrActiveClip()), destination);
+	appendDestinationName(buf, macroHost(midiFollow.getSelectedOrActiveClip()), destination);
 	buf.append(display->haveOLED() ? '\n' : ' ');
 	buf.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_USED_BY)); // "used by"
 	buf.append(display->haveOLED() ? '\n' : ' ');
@@ -201,7 +210,7 @@ void showDestinationConflictPopup(uint8_t destination, int32_t ownerMacro, bool 
 
 // A target's name for its readout: "Macro N" for a cascade destination (always the plain macro number,
 // never its user name), the synth param name / MIDI CC name for a real destination, else "T<n>" when OFF.
-static void appendTargetName(StringBuf& buf, MelodicInstrument* instrument, int32_t target, uint8_t destination) {
+static void appendTargetName(StringBuf& buf, Output* instrument, int32_t target, uint8_t destination) {
 	if (destination == kNoDestination) {
 		buf.append('T');
 		buf.appendInt(target + 1);
@@ -215,7 +224,7 @@ static void appendTargetName(StringBuf& buf, MelodicInstrument* instrument, int3
 // number the automation view shows for that param. `endpoint` is the stored 0..maxTargetValue unit; for
 // synth that 0..128 space equals the automation view's knobPos+offset, so calculateKnobPosForDisplay
 // yields the identical readout.
-static void appendTargetEndpoint(StringBuf& buf, MelodicInstrument* instrument, uint8_t destination, uint8_t endpoint) {
+static void appendTargetEndpoint(StringBuf& buf, Output* instrument, uint8_t destination, uint8_t endpoint) {
 	if (!isDomainInternal(domainForOutput(instrument))) {
 		buf.appendInt(endpoint); // raw CC value
 		return;
@@ -226,13 +235,13 @@ static void appendTargetEndpoint(StringBuf& buf, MelodicInstrument* instrument, 
 	buf.appendInt(view.calculateKnobPosForDisplay(kind, paramID, endpoint));
 }
 
-void showTargetKnobIndicators(MelodicInstrument* instrument, int32_t macroIndex, int32_t target) {
+void showTargetKnobIndicators(Output* instrument, int32_t macroIndex, int32_t target) {
 	MacroTargetSlot& f = instrument->macros[macroIndex].targets[target];
 	indicator_leds::setKnobIndicatorLevel(0, f.from, false);
 	indicator_leds::setKnobIndicatorLevel(1, f.to, false);
 }
 
-void showTargetRangeReadout(MelodicInstrument* instrument, int32_t macroIndex, int32_t target, uint8_t destination,
+void showTargetRangeReadout(Output* instrument, int32_t macroIndex, int32_t target, uint8_t destination,
                             bool showConflict) {
 	// A shadowed target doesn't drive anything - show WHO owns the destination, not a range.
 	if (showConflict && destination != kNoDestination) {
@@ -257,7 +266,7 @@ void showTargetRangeReadout(MelodicInstrument* instrument, int32_t macroIndex, i
 	display->popupText(popup.c_str());
 }
 
-bool editTargetEndpoint(Clip* clip, MelodicInstrument* instrument, int32_t macroIndex, int32_t slot, int32_t whichKnob,
+bool editTargetEndpoint(Clip* clip, Output* instrument, int32_t macroIndex, int32_t slot, int32_t whichKnob,
                         int32_t offset) {
 	MacroTargetSlot& f = instrument->macros[macroIndex].targets[slot];
 	uint8_t& endpoint = (whichKnob == 1) ? f.to : f.from; // knob 0 = From, knob 1 = To
@@ -266,7 +275,7 @@ bool editTargetEndpoint(Clip* clip, MelodicInstrument* instrument, int32_t macro
 		return false;
 	}
 	endpoint = (uint8_t)v;
-	instrument->editedByUser = true;
+	markHostEdited(instrument);
 	reFanTarget(clip, macroIndex, slot, nullptr); // only this target's scaling changed - re-bake just its lane
 	return true;
 }
@@ -357,12 +366,12 @@ Domain domainForOutput(Output* output) {
 	return (output->type == OutputType::SYNTH) ? Domain::SYNTH : Domain::MIDI;
 }
 
-MelodicInstrument* macroClipInstrument(Clip* clip) {
+Output* macroHost(Clip* clip) {
 	if (!clip || !clip->output
 	    || (clip->output->type != OutputType::MIDI_OUT && clip->output->type != OutputType::SYNTH)) {
 		return nullptr;
 	}
-	return (MelodicInstrument*)clip->output;
+	return clip->output;
 }
 
 void decodeSynthDestination(uint8_t destination, params::Kind* kindOut, int32_t* idOut) {
@@ -419,7 +428,7 @@ int32_t macroDestinationForPad(Domain domain, int32_t x, int32_t y, bool secondL
 }
 
 bool isParamMacroDriven(Clip* clip, params::Kind kind, int32_t paramID) {
-	MelodicInstrument* instrument = macroClipInstrument(clip);
+	Output* instrument = macroHost(clip);
 	if (instrument == nullptr) {
 		return false;
 	}
@@ -567,10 +576,13 @@ static inline int32_t paramValueToUnits(ModelStackWithAutoParam* msp, Domain dom
 // Writes one destination live on the clip: MIDI routes through processParamFromInputMIDIChannel
 // (reaches the output and records like a manual CC change); SYNTH resolves the param and writes it
 // with the same region/cloning logic, via setValuePossiblyForRegion (which notifies the Sound).
-static void writeDestinationLive(MelodicInstrument* instrument, Clip* clip, ModelStackWithTimelineCounter* modelStack,
+static void writeDestinationLive(Output* instrument, Clip* clip, ModelStackWithTimelineCounter* modelStack,
                                  Domain domain, uint8_t destination, int32_t units) {
 	if (!isDomainInternal(domain)) {
-		instrument->processParamFromInputMIDIChannel(destination, (units - 64) << 25, modelStack);
+		// MIDI hosts are always Instruments (a MIDIInstrument); processParamFromInputMIDIChannel is an
+		// Instrument virtual, not on Output.
+		static_cast<Instrument*>(instrument)
+		    ->processParamFromInputMIDIChannel(destination, (units - 64) << 25, modelStack);
 		return;
 	}
 	int32_t modPos = 0;
@@ -611,7 +623,7 @@ static MIDIParamCollection* getMIDIParams(Clip* clip, ParamCollectionSummary** s
 // MIDI clips coll/summary point at the clip's MIDIParamCollection; on synths destinations live in
 // the clip's fixed patched/unpatched param sets instead (always present, never reallocated).
 struct FanContext {
-	MelodicInstrument* instrument = nullptr;
+	Output* instrument = nullptr;
 	Clip* clip = nullptr;
 	Domain domain = Domain::MIDI;
 	MIDIParamCollection* coll = nullptr;       // MIDI only
@@ -620,7 +632,7 @@ struct FanContext {
 
 // Fills the context; false if the clip isn't macro-capable (or a MIDI clip's params are missing).
 static bool getFanContext(Clip* clip, FanContext* ctx) {
-	ctx->instrument = macroClipInstrument(clip);
+	ctx->instrument = macroHost(clip);
 	if (!ctx->instrument) {
 		return false;
 	}
@@ -734,8 +746,8 @@ static void refreshAutomationGridIfShowingDestination(Clip* clip, Domain domain,
 	}
 }
 
-static void sendToTargets(MelodicInstrument* instrument, Clip* clip, ModelStackWithTimelineCounter* modelStack,
-                          Macro& macro, int32_t value, bool mirrorToLane = true) {
+static void sendToTargets(Output* instrument, Clip* clip, ModelStackWithTimelineCounter* modelStack, Macro& macro,
+                          int32_t value, bool mirrorToLane = true) {
 	Domain domain = domainForOutput(clip->output);
 	int32_t macroIndex = (int32_t)(&macro - instrument->macros);
 	// Mirror the raw source value into the macro's own automation lane so the lane tracks the
@@ -828,7 +840,7 @@ bool tryMacro(MIDICable& cable, int32_t channelOrZone, int32_t ccNumber, int32_t
 		return false;
 	}
 	Clip* clip = midiFollow.getSelectedOrActiveClip();
-	MelodicInstrument* instrument = macroClipInstrument(clip);
+	Output* instrument = macroHost(clip);
 	if (!instrument) {
 		return false;
 	}
@@ -857,7 +869,7 @@ bool tryKnobMacro(int32_t whichKnob, int32_t offset) {
 		return false;
 	}
 	Clip* clip = midiFollow.getSelectedOrActiveClip();
-	MelodicInstrument* instrument = macroClipInstrument(clip);
+	Output* instrument = macroHost(clip);
 	if (!instrument) {
 		return false;
 	}
@@ -900,7 +912,7 @@ bool driveMacro(int32_t macroIndex, int32_t offset) {
 		return false;
 	}
 	Clip* clip = midiFollow.getSelectedOrActiveClip();
-	MelodicInstrument* instrument = macroClipInstrument(clip); // synth or MIDI
+	Output* instrument = macroHost(clip); // synth or MIDI
 	if (!instrument) {
 		return false;
 	}
@@ -1127,7 +1139,7 @@ void writeMacroPreset(Serializer& writer, Macro* macros, int32_t macroIndex, Dom
 // leaving its source and active state untouched. Loaded destinations that another macro also
 // targets resolve by ownership rank; the fan-out below only bakes the slots this macro owns.
 Error loadMacroPreset(FilePointer* fp, Clip* clip, Macro* macros, int32_t macroIndex) {
-	MelodicInstrument* instrument = macroClipInstrument(clip);
+	Output* instrument = macroHost(clip);
 	if (!instrument) {
 		return Error::FILE_CORRUPTED; // no macro-capable clip context to load into
 	}
@@ -1278,7 +1290,7 @@ bool capture(Clip* clip, int32_t macroIndex, bool toMax) {
 		changed = true;
 	}
 	if (changed) {
-		ctx.instrument->editedByUser = true;
+		markHostEdited(ctx.instrument);
 	}
 	return changed;
 }
@@ -1356,7 +1368,7 @@ static void fanOutMacroLane(const FanContext& ctx, int32_t macroIndex, ModelStac
 			fanOutMacroLane(ctx, macroIndexFromParamID(target.destination), modelStack, action);
 		}
 	}
-	ctx.instrument->editedByUser = true;
+	markHostEdited(ctx.instrument);
 }
 
 void reFanMacro(Clip* clip, int32_t macroIndex, Action* action) {
@@ -1411,7 +1423,7 @@ void reFanTarget(Clip* clip, int32_t macroIndex, int32_t slot, Action* action) {
 	    && (target.send || laneEverTouched(ctx, macroIndexFromParamID(target.destination)))) {
 		fanOutMacroLane(ctx, macroIndexFromParamID(target.destination), modelStackWithTimelineCounter, action);
 	}
-	ctx.instrument->editedByUser = true;
+	markHostEdited(ctx.instrument);
 }
 
 void changeTargetDestination(Clip* clip, int32_t macroIndex, int32_t slot, uint8_t newDestination) {
@@ -1431,7 +1443,7 @@ void changeTargetDestination(Clip* clip, int32_t macroIndex, int32_t slot, uint8
 		return;
 	}
 	target.destination = newDestination;
-	ctx.instrument->editedByUser = true;
+	markHostEdited(ctx.instrument);
 
 	if (newDestination == kNoDestination) {
 		// A cleared slot returns to pristine defaults (range + Send), so a later reassignment into it
@@ -1529,7 +1541,7 @@ void setMacroActive(Clip* clip, int32_t macroIndex, bool active) {
 	}
 
 	macros[macroIndex].active = active;
-	ctx.instrument->editedByUser = true;
+	markHostEdited(ctx.instrument);
 
 	Action* action = nullptr;
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];

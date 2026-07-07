@@ -103,7 +103,7 @@ void AutomationEditorLayoutModControllable::renderAutomationEditor(
 	// activating restores full brightness
 	bool dimmed = false;
 	if (clip) {
-		MelodicInstrument* instrument = Macros::macroClipInstrument(clip);
+		Output* instrument = Macros::macroHost(clip);
 		int32_t macroIndex = (instrument != nullptr)
 		                         ? Macros::macroIndexForLaneSelection(clip->output, clip->lastSelectedParamKind,
 		                                                              clip->lastSelectedParamID)
@@ -472,7 +472,7 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 			// a synth macro lane can carry a user-given label: "Macro 1: Agitation" (an inactive
 			// macro is flagged by a persistent status popup instead, keeping the name intact here)
 			if (!getOnArrangerView() && clip != nullptr) {
-				MelodicInstrument* instrument = Macros::macroClipInstrument(clip);
+				Output* instrument = Macros::macroHost(clip);
 				int32_t macroIndex =
 				    (instrument != nullptr)
 				        ? Macros::macroIndexForLaneSelection(clip->output, lastSelectedParamKind, lastSelectedParamID)
@@ -1046,7 +1046,7 @@ static void reFanIfMacroLane() {
 		return;
 	}
 	Clip* clip = getCurrentClip();
-	if (!clip || Macros::macroClipInstrument(clip) == nullptr) {
+	if (!clip || Macros::macroHost(clip) == nullptr) {
 		return;
 	}
 	int32_t macroIndex =

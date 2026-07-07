@@ -118,11 +118,11 @@ using namespace deluge::gui;
 // macroIndex) which macro; else nullptr. Callers gate on being in the clip automation editor. Also
 // null with the community feature off: a lane selection can outlive the feature toggle (it's
 // deserialized with the clip), and none of the macro UI may act then.
-static MelodicInstrument* macroLaneInstrument(Clip* clip, int32_t* macroIndex) {
+static Output* macroLaneInstrument(Clip* clip, int32_t* macroIndex) {
 	if (!Macros::isEnabled() || !clip) {
 		return nullptr;
 	}
-	MelodicInstrument* instrument = Macros::macroClipInstrument(clip);
+	Output* instrument = Macros::macroHost(clip);
 	if (!instrument) {
 		return nullptr;
 	}
@@ -1943,7 +1943,7 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 
 			if (!inNoteEditor()) {
 				int32_t macroIndex = 0;
-				MelodicInstrument* macroInstrument =
+				Output* macroInstrument =
 				    (inAutomationEditor() && !onArrangerView) ? macroLaneInstrument(clip, &macroIndex) : nullptr;
 				if (macroInstrument != nullptr) {
 					// While an ACTIVE macro lane is in view, the two blinking RECORD-row pads snapshot
@@ -2599,7 +2599,7 @@ void AutomationView::modButtonAction(uint8_t whichButton, bool on) {
 	}
 
 	int32_t macroIndex = 0;
-	MelodicInstrument* instrument =
+	Output* instrument =
 	    (inAutomationEditor() && !onArrangerView) ? macroLaneInstrument(getCurrentClip(), &macroIndex) : nullptr;
 	if (instrument != nullptr && whichButton < Macros::kNumTargetSlots) {
 		heldTarget = whichButton;
@@ -2626,8 +2626,7 @@ void AutomationView::modButtonAction(uint8_t whichButton, bool on) {
 void AutomationView::commitHeldTargetDestination() {
 	Clip* clip = getCurrentClip();
 	int32_t macroIndex = 0;
-	MelodicInstrument* instrument =
-	    (inAutomationEditor() && !onArrangerView) ? macroLaneInstrument(clip, &macroIndex) : nullptr;
+	Output* instrument = (inAutomationEditor() && !onArrangerView) ? macroLaneInstrument(clip, &macroIndex) : nullptr;
 	if (instrument == nullptr || macroIndex != heldTargetMacro) {
 		return; // lane changed mid-hold: drop the pending value rather than commit to the wrong macro
 	}
@@ -2653,7 +2652,7 @@ bool AutomationView::macroPickerActive(Clip* clip) {
 // moved white highlight). The pick is still only committed on button release.
 void AutomationView::handleMacroPickerPad(Clip* clip, int32_t x, int32_t y) {
 	int32_t macroIndex = 0;
-	MelodicInstrument* instrument = macroLaneInstrument(clip, &macroIndex);
+	Output* instrument = macroLaneInstrument(clip, &macroIndex);
 	if (instrument == nullptr || macroIndex != heldTargetMacro) {
 		return;
 	}
@@ -2687,13 +2686,13 @@ void AutomationView::handleMacroPickerPad(Clip* clip, int32_t x, int32_t y) {
 bool AutomationView::clearMacroTargetAssignment(int32_t macroIndex, int32_t target) {
 	int32_t laneMacroIndex = 0;
 	Clip* clip = getCurrentClip();
-	MelodicInstrument* instrument = macroLaneInstrument(clip, &laneMacroIndex);
+	Output* instrument = macroLaneInstrument(clip, &laneMacroIndex);
 	bool ok = instrument != nullptr && macroIndex >= 0 && target >= 0 && laneMacroIndex == macroIndex;
 	if (ok) {
 		// must run while the slot still holds its CC (changeTargetDestination reads it as the old
 		// destination); clearing to kNoDestination also resets the slot's range/send to pristine defaults.
 		Macros::changeTargetDestination(clip, macroIndex, target, Macros::kNoDestination);
-		instrument->editedByUser = true;
+		Macros::markHostEdited(instrument);
 		view.setModLedStates(); // that target's assignment LED goes dark
 		display->displayPopup("Target cleared");
 	}
@@ -2713,7 +2712,7 @@ bool AutomationView::refuseEditIfMacroDriven(Clip* clip) {
 
 bool AutomationView::toggleMacroLaneActive() {
 	int32_t macroIndex = 0;
-	MelodicInstrument* instrument = macroLaneInstrument(getCurrentClip(), &macroIndex);
+	Output* instrument = macroLaneInstrument(getCurrentClip(), &macroIndex);
 	if (instrument == nullptr) {
 		return false; // not a macro lane - let the encoder press do its normal job
 	}
@@ -2731,7 +2730,7 @@ bool AutomationView::toggleMacroLaneActive() {
 }
 
 void AutomationView::openMacroLaneEditor(Clip* clip, int32_t macroIndex) {
-	if (!Macros::isEnabled() || Macros::macroClipInstrument(clip) == nullptr) {
+	if (!Macros::isEnabled() || Macros::macroHost(clip) == nullptr) {
 		return;
 	}
 	// Point the clip's selected param at macro `macroIndex`'s lane, so automation view opens straight
@@ -2757,9 +2756,9 @@ void AutomationView::openMacroLaneEditor(Clip* clip, int32_t macroIndex) {
 // return when still applicable.
 void AutomationView::refreshMacroInactivePopup() {
 	int32_t macroIndex = 0;
-	MelodicInstrument* instrument = (getCurrentUI() == &automationView && inAutomationEditor() && !onArrangerView)
-	                                    ? macroLaneInstrument(getCurrentClip(), &macroIndex)
-	                                    : nullptr;
+	Output* instrument = (getCurrentUI() == &automationView && inAutomationEditor() && !onArrangerView)
+	                         ? macroLaneInstrument(getCurrentClip(), &macroIndex)
+	                         : nullptr;
 	// while a quick-edit button is held, its readout owns the popup
 	if (instrument != nullptr && !instrument->macros[macroIndex].active && heldTarget < 0) {
 		display->popupText("Inactive", PopupType::MACRO_INACTIVE);
@@ -2782,7 +2781,7 @@ void AutomationView::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	if (heldTarget >= 0) {
 		Clip* heldClip = getCurrentClip();
 		int32_t macroIndex = 0;
-		MelodicInstrument* instrument = macroLaneInstrument(heldClip, &macroIndex);
+		Output* instrument = macroLaneInstrument(heldClip, &macroIndex);
 		if (instrument != nullptr && macroIndex == heldTargetMacro) {
 			// Shaping the range implicitly confirms a destination still pending from the select
 			// encoder - commit it now so From/To edit (and read out) the just-dialed CC.
@@ -2966,7 +2965,7 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 	// commitHeldTargetDestination), so scrolling never touches the automation of the CCs passed through.
 	if (heldTarget >= 0 && inAutomationEditor()) {
 		int32_t macroIndex = 0;
-		MelodicInstrument* instrument = macroLaneInstrument(clip, &macroIndex);
+		Output* instrument = macroLaneInstrument(clip, &macroIndex);
 		if (instrument != nullptr && macroIndex == heldTargetMacro) {
 			// One continuous dial: OFF, then the domain's destinations (CC 0-127 on MIDI clips, the
 			// targetable param list on synths), then this macro's cascade destinations (the
@@ -3733,7 +3732,7 @@ void AutomationView::blinkShortcuts() {
 	bool macroLaneActive = false;
 	if (getCurrentUI() == &automationView && inAutomationEditor() && !onArrangerView) {
 		int32_t macroIndex = 0;
-		MelodicInstrument* macroInstrument = macroLaneInstrument(getCurrentClip(), &macroIndex);
+		Output* macroInstrument = macroLaneInstrument(getCurrentClip(), &macroIndex);
 		macroLaneActive = macroInstrument != nullptr && macroInstrument->macros[macroIndex].active;
 	}
 	if (macroLaneActive) {

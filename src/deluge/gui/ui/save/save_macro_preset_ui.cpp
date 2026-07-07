@@ -109,7 +109,7 @@ fail:
 	}
 
 	// Presets save the current clip's instrument macros (per-track, MIDI or synth).
-	if (MelodicInstrument* instrument = Macros::macroClipInstrument(getCurrentClip())) {
+	if (Output* instrument = Macros::macroHost(getCurrentClip())) {
 		Macros::writeMacroPreset(GetSerializer(), instrument->macros, Macros::presetMacroIndex,
 		                         Macros::domainForOutput(instrument));
 	}

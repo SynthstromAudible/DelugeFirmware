@@ -38,20 +38,20 @@ namespace deluge::gui::menu_item::macros {
 // macros are stored per-track on the current clip's instrument. These helpers resolve it; they
 // return null when the active output isn't a MIDI or synth track (the menu is hidden then, but
 // read/write can still be reached defensively).
-inline MelodicInstrument* currentMacroInstrument() {
-	return Macros::macroClipInstrument(getCurrentClip());
+inline Output* currentMacroInstrument() {
+	return Macros::macroHost(getCurrentClip());
 }
 inline Macros::Macro* currentMacros() {
-	MelodicInstrument* instrument = currentMacroInstrument();
+	Output* instrument = currentMacroInstrument();
 	return instrument ? instrument->macros : nullptr;
 }
 inline Macros::Domain currentMacroDomain() {
-	MelodicInstrument* instrument = currentMacroInstrument();
+	Output* instrument = currentMacroInstrument();
 	return instrument ? Macros::domainForOutput(instrument) : Macros::Domain::MIDI;
 }
 inline void markMacroInstrumentEdited() {
-	if (MelodicInstrument* instrument = currentMacroInstrument()) {
-		instrument->editedByUser = true;
+	if (Output* instrument = currentMacroInstrument()) {
+		Macros::markHostEdited(instrument);
 	}
 }
 
@@ -63,7 +63,7 @@ public:
 	MacroSource(l10n::String newName, int32_t newMacro) : midi::Command(newName), macro(newMacro) {}
 	[[nodiscard]] LearnedMIDI& learned() const override {
 		static LearnedMIDI dummy;
-		MelodicInstrument* instrument = currentMacroInstrument();
+		Output* instrument = currentMacroInstrument();
 		return instrument ? instrument->macros[macro].source : dummy;
 	}
 	bool learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) override {
@@ -286,7 +286,7 @@ public:
 	// flows on to drive/record the param and reach the output. Only the focused From/To item responds,
 	// and only for its own CC - so MIDI clips only (a synth destination byte is not a CC number).
 	bool liveEditFromMidiCC(int32_t ccNumber, int32_t value) override {
-		MelodicInstrument* instrument = currentMacroInstrument();
+		Output* instrument = currentMacroInstrument();
 		if (!instrument || instrument->type != OutputType::MIDI_OUT
 		    || ccNumber != instrument->macros[macro].targets[slot].destination) {
 			return false;
@@ -294,7 +294,7 @@ public:
 		uint8_t& endpoint = get();
 		if (endpoint != value) {
 			endpoint = value;
-			instrument->editedByUser = true;
+			Macros::markHostEdited(instrument);
 			Macros::reFanTarget(getCurrentClip(), macro, slot, nullptr); // live from/to -> re-scale this lane
 			readValueAgain();                                            // re-read from the model and redraw the dial
 		}
@@ -304,7 +304,7 @@ public:
 private:
 	uint8_t& get() {
 		static uint8_t dummy = 0;
-		MelodicInstrument* instrument = currentMacroInstrument();
+		Output* instrument = currentMacroInstrument();
 		if (!instrument) {
 			return dummy;
 		}
