@@ -553,6 +553,24 @@ if(RT_LIB)
     target_link_libraries(param_clone_test PRIVATE ${RT_LIB})
 endif()
 
+# Edit substrate unit harness (M1a/M1b, docs/dev/project_model_migration_plan.md): dispatcher
+# contract, the SetParamValue pilot's mutation + Consequence/coalescence/undo behaviour.
+add_executable(edit_test
+    ${REPO_ROOT}/src/bsp/host/host_bsp.c
+    ${REPO_ROOT}/src/bsp/host/host_platform.c
+    ${REPO_ROOT}/src/bsp/host/host_audio.c
+    ${REPO_ROOT}/src/bsp/host/host_link.c
+    ${REPO_ROOT}/src/bsp/host/host_pcm.c
+    ${REPO_ROOT}/src/bsp/host/host_midi.c
+    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
+    ${REPO_ROOT}/tests/projection/edit_test.cpp
+)
+target_include_directories(edit_test PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
+target_link_libraries(edit_test PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
+if(RT_LIB)
+    target_link_libraries(edit_test PRIVATE ${RT_LIB})
+endif()
+
 # Clip-clone INTEGRATION test: duplicates a real InstrumentClip via InstrumentClip::clone() on a loaded Song —
 # the golden-blind edit path the unit harness can't reach (clone() needs a live Song + ModelStack). Takes a
 # song XML path (like song_edit_roundtrip); driven over the corpus by clip_clone_run.py.
@@ -577,6 +595,7 @@ enable_testing()
 
 add_test(NAME param_projection_test COMMAND param_projection_test)
 add_test(NAME param_clone_test COMMAND param_clone_test)
+add_test(NAME edit_test COMMAND edit_test)
 
 # Layout-invariance guard (CTest). Render each fixture at two heap-pad layouts
 # (DELUGE_SIM_HEAP_PAD via scripts/golden_mixdown.sh padsweep) and assert the
