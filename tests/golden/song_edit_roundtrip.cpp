@@ -282,6 +282,48 @@ int main(int argc, char** argv) {
 		}
 	}
 
+	// M2-G S3e: every reloaded SoundDrum NoteRow's unpatched automation must be TREE-resident — keyed by
+	// (OwnerId::drum(drum serialId), clip serialId) in project.backed_params. Per-drum params live per (drum, clip)
+	// pair (each kit clip's NoteRow has its own manager).
+	{
+		int32_t drumRows = 0, treeResident = 0;
+		std::array<ClipArray*, 2> arrs{&reloaded->project.clips.session_clips,
+		                               &reloaded->project.clips.arrangement_only_clips};
+		for (ClipArray* arr : arrs) {
+			for (int32_t c = 0; c < std::ssize(*arr); c++) {
+				Clip* clip = (*arr)[c];
+				if (clip->type != ClipType::INSTRUMENT || clip->output == nullptr
+				    || clip->output->type != OutputType::KIT) {
+					continue;
+				}
+				std::optional<uint32_t> clipId = clip->serialId();
+				InstrumentClip* ic = static_cast<InstrumentClip*>(clip);
+				for (int32_t n = 0; n < std::ssize(ic->noteRows); n++) {
+					NoteRow& nr = ic->noteRows[n];
+					if (nr.drum == nullptr || nr.drum->type != DrumType::SOUND
+					    || !nr.paramManager.containsAnyMainParamCollections()) {
+						continue;
+					}
+					drumRows++;
+					std::optional<uint32_t> drumId = nr.drum->serialId();
+					if (clipId.has_value() && drumId.has_value()) {
+						deluge::project::DocParamManager* mgr =
+						    reloaded->project.backed_params.find(deluge::project::OwnerId::drum(*drumId), *clipId);
+						if (mgr != nullptr && mgr->unpatched
+						    && nr.paramManager.getUnpatchedParamSet()->domStore() == &*mgr->unpatched) {
+							treeResident++;
+						}
+					}
+				}
+			}
+		}
+		std::fprintf(stderr, "drum rows tree-resident: %d/%d\n", treeResident, drumRows);
+		if (drumRows > 0 && treeResident != drumRows) {
+			std::fprintf(stderr, "S3e FAIL: a SoundDrum row is not tree-resident after reload\n");
+			_exit(3);
+		}
+	}
+
 	// 5. Both edits must have persisted into the reloaded DOM store (the authority) and the reloaded engine.
 	if (!reloaded->project.global_fx.params.unpatched) {
 		std::fprintf(stderr, "reloaded store EMPTY\n");

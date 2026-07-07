@@ -1807,6 +1807,32 @@ loadOutput:
 							patched->bindDomStoreExternal(&*mgr.patched);
 						}
 					}
+					// M2-G S3e: per-drum (NoteRow) automation for a kit clip → keyed (drum(drum serialId), clip).
+					// Each SoundDrum NoteRow holds its own manager (independent automation per (drum, clip) pair),
+					// parked as (SoundDrum, clip) in ParamBackup. Same binding-rides-the-ParamSet safety as above.
+					if (thisClip->output->type == OutputType::KIT) {
+						InstrumentClip* ic = static_cast<InstrumentClip*>(thisClip);
+						for (int32_t n = 0; n < std::ssize(ic->noteRows); n++) {
+							NoteRow& nr = ic->noteRows[n];
+							if (nr.drum == nullptr || nr.drum->type != DrumType::SOUND
+							    || !nr.paramManager.containsAnyMainParamCollections()) {
+								continue;
+							}
+							std::optional<uint32_t> drumId = nr.drum->serialId();
+							if (!drumId.has_value()) {
+								continue;
+							}
+							deluge::project::DocParamManager& dmgr =
+							    project.backed_params.getOrCreate(deluge::project::OwnerId::drum(*drumId), *clipId);
+							UnpatchedParamSet* du = nr.paramManager.getUnpatchedParamSet();
+							dmgr.unpatched = deluge::project::toDocParamSet(*du);
+							du->bindDomStoreExternal(&*dmgr.unpatched);
+							if (PatchedParamSet* dp = nr.paramManager.getPatchedParamSet()) {
+								dmgr.patched = deluge::project::toDocParamSet(*dp);
+								dp->bindDomStoreExternal(&*dmgr.patched);
+							}
+						}
+					}
 				}
 			}
 		}
