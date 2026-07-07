@@ -115,8 +115,8 @@ deluge::project::DocAutoParam* MIDIParamCollection::docParamForId(int32_t paramI
 
 void MIDIParamCollection::deleteAllParams(Action* action, bool deleteStorageToo) {
 	if (action) {
-		for (MIDIParam& midiParam : params) {
-			midiParam.param.deleteAutomationBasicForSetup(midiParam.nodes_);
+		for (int32_t i = 0; i < std::ssize(params); i++) {
+			params[i].param.deleteAutomationBasicForSetup(*docForParam(i));
 		}
 	}
 	params.clear(); // Destructs the params (the deleteStorageToo distinction is moot now this does both)
@@ -168,15 +168,18 @@ Error MIDIParamCollection::clone(ParamCollection*& result, bool copyAutomation,
 	return Error::NONE;
 }
 
+// Every automation op below resolves the CC's node store via docForParam(i) — the bound tree entry when bound
+// (where doc()/playback also read/write), the inline nodes_ otherwise. Reading nodes_ directly would operate on the
+// stale inline store once the collection is bound (S4c), diverging from the live tree.
 void MIDIParamCollection::stripAutomation() {
-	for (MIDIParam& midiParam : params) {
-		midiParam.nodes_.nodes.clear();
+	for (int32_t i = 0; i < std::ssize(params); i++) {
+		docForParam(i)->nodes.clear();
 	}
 }
 
 void MIDIParamCollection::flattenReverseAutomation(int32_t reverseDirectionWithLength) {
-	for (MIDIParam& midiParam : params) {
-		midiParam.param.flattenReverse(midiParam.nodes_, reverseDirectionWithLength);
+	for (int32_t i = 0; i < std::ssize(params); i++) {
+		params[i].param.flattenReverse(*docForParam(i), reverseDirectionWithLength);
 	}
 }
 
@@ -197,8 +200,8 @@ void MIDIParamCollection::setPlayPos(uint32_t pos, ModelStackWithParamCollection
 
 void MIDIParamCollection::generateRepeats(ModelStackWithParamCollection* modelStack, uint32_t oldLength,
                                           uint32_t newLength, bool shouldPingpong) {
-	for (MIDIParam& midiParam : params) {
-		midiParam.param.generateRepeats(midiParam.nodes_, oldLength, newLength, shouldPingpong);
+	for (int32_t i = 0; i < std::ssize(params); i++) {
+		params[i].param.generateRepeats(*docForParam(i), oldLength, newLength, shouldPingpong);
 	}
 }
 
@@ -207,11 +210,12 @@ void MIDIParamCollection::appendParamCollection(ModelStackWithParamCollection* m
                                                 int32_t reverseThisRepeatWithLength, bool pingpongingGenerally) {
 
 	MIDIParamCollection* otherMIDIParamCollection = (MIDIParamCollection*)otherModelStack->paramCollection;
-	for (MIDIParam& otherMidiParam : otherMIDIParamCollection->params) {
-		// Find param in *this* collection for the same CC. There should be one
-		MIDIParam* midiParam = params.getParamFromCC(otherMidiParam.cc);
-		if (midiParam != nullptr) {
-			midiParam->param.appendParam(midiParam->nodes_, otherMidiParam.nodes_, oldLength,
+	for (int32_t oi = 0; oi < std::ssize(otherMIDIParamCollection->params); oi++) {
+		uint8_t cc = otherMIDIParamCollection->params[oi].cc;
+		// Find the param in *this* collection for the same CC. There should be one.
+		int32_t ti = params.firstAtOrAfter(cc);
+		if (ti < std::ssize(params) && params[ti].cc == cc) {
+			params[ti].param.appendParam(*docForParam(ti), *otherMIDIParamCollection->docForParam(oi), oldLength,
 			                             reverseThisRepeatWithLength, pingpongingGenerally);
 		}
 	}
@@ -232,8 +236,8 @@ void MIDIParamCollection::trimToLength(uint32_t newLength, ModelStackWithParamCo
 
 void MIDIParamCollection::shiftHorizontally(ModelStackWithParamCollection* modelStack, int32_t amount,
                                             int32_t effectiveLength) {
-	for (MIDIParam& midiParam : params) {
-		midiParam.param.shiftHorizontally(midiParam.nodes_, amount, effectiveLength);
+	for (int32_t i = 0; i < std::ssize(params); i++) {
+		params[i].param.shiftHorizontally(*docForParam(i), amount, effectiveLength);
 	}
 }
 
@@ -277,11 +281,10 @@ void MIDIParamCollection::remotelySwapParamState(AutoParamState* state, ModelSta
 
 void MIDIParamCollection::deleteAllAutomation(Action* action, ModelStackWithParamCollection* modelStack) {
 
-	for (MIDIParam& midiParam : params) {
-
-		if (midiParam.param.isAutomated(midiParam.nodes_)) {
-			ModelStackWithAutoParam* modelStackWithParam = modelStack->addAutoParam(midiParam.cc, &midiParam.param);
-			midiParam.param.deleteAutomation(action, modelStackWithParam, false);
+	for (int32_t i = 0; i < std::ssize(params); i++) {
+		if (params[i].param.isAutomated(*docForParam(i))) {
+			ModelStackWithAutoParam* modelStackWithParam = modelStack->addAutoParam(params[i].cc, &params[i].param);
+			params[i].param.deleteAutomation(action, modelStackWithParam, false);
 		}
 	}
 }
@@ -319,12 +322,11 @@ void MIDIParamCollection::sendMIDI(MIDISource source, int32_t masterChannel, int
 // Returns error code
 Error MIDIParamCollection::makeInterpolatedCCsGoodAgain(int32_t clipLength) {
 
-	for (MIDIParam& midiParam : params) {
-
-		if (midiParam.cc >= 120) {
+	for (int32_t i = 0; i < std::ssize(params); i++) {
+		if (params[i].cc >= 120) {
 			return Error::NONE;
 		}
-		Error error = midiParam.param.makeInterpolationGoodAgain(midiParam.nodes_, clipLength, 25);
+		Error error = params[i].param.makeInterpolationGoodAgain(*docForParam(i), clipLength, 25);
 		if (error != Error::NONE) {
 			return error;
 		}
@@ -334,16 +336,16 @@ Error MIDIParamCollection::makeInterpolatedCCsGoodAgain(int32_t clipLength) {
 }
 
 void MIDIParamCollection::grabValuesFromPos(uint32_t pos, ModelStackWithParamCollection* modelStack) {
-	for (MIDIParam& midiParam : params) {
+	for (int32_t i = 0; i < std::ssize(params); i++) {
 
-		AutoParam* param = &midiParam.param;
+		AutoParam* param = &params[i].param;
 
 		// With MIDI, we only want to send these out if the param is actually automated and the value is
 		// actually different
-		if (param->isAutomated(midiParam.nodes_)) {
+		if (param->isAutomated(*docForParam(i))) {
 
 			int32_t oldValue = param->getCurrentValue();
-			ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(midiParam.cc, param);
+			ModelStackWithAutoParam* modelStackWithAutoParam = modelStack->addAutoParam(params[i].cc, param);
 			bool shouldSend = param->grabValueFromPos(pos, modelStackWithAutoParam);
 
 			if (shouldSend) {

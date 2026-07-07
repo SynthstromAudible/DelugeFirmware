@@ -662,6 +662,43 @@ int main(int argc, char** argv) {
 		}
 	}
 
+	// M2-G S6-fix (ops REGRESSION guard): MIDIParamCollection's automation ops (stripAutomation/generateRepeats/
+	// shiftHorizontally/...) must operate on the tree store (docForParam) when bound, not the stale inline nodes_.
+	// Representative check: plant a node in a bound MIDI CC's tree, call stripAutomation(), and require the TREE
+	// lane is cleared. Pre-fix stripAutomation cleared the inline nodes_ and left the tree untouched.
+	{
+		std::array<ClipArray*, 2> arrs{&reloaded->project.clips.session_clips,
+		                               &reloaded->project.clips.arrangement_only_clips};
+		for (ClipArray* arr : arrs) {
+			for (int32_t c = 0; c < std::ssize(*arr); c++) {
+				Clip* clip = (*arr)[c];
+				if (clip->type != ClipType::INSTRUMENT || clip->output == nullptr
+				    || clip->output->type != OutputType::MIDI_OUT
+				    || !clip->paramManager.containsAnyParamCollectionsIncludingExpression()) {
+					continue;
+				}
+				MIDIParamCollection* midi = clip->paramManager.getMIDIParamCollection();
+				if (midi == nullptr || midi->params.empty() || midi->domMidi() == nullptr) {
+					continue;
+				}
+				deluge::project::setNodeAtPos(*midi->docForParam(0), 21, 0x0B0B0B, false);
+				if (midi->docForParam(0)->nodes.size() == 0) {
+					std::fprintf(stderr, "S6-fix ops: planted node missing (setup error)\n");
+					_exit(3);
+				}
+				midi->stripAutomation();
+				if (midi->docForParam(0)->nodes.size() != 0) {
+					std::fprintf(stderr, "S6-fix FAIL: MIDI stripAutomation did not clear the TREE lane (op read "
+					                     "stale inline nodes_)\n");
+					_exit(3);
+				}
+				std::fprintf(stderr, "S6-fix ops: MIDI stripAutomation hit the tree OK\n");
+				goto opsChecked;
+			}
+		}
+opsChecked:;
+	}
+
 	// 5. Both edits must have persisted into the reloaded DOM store (the authority) and the reloaded engine.
 	if (!reloaded->project.global_fx.params.unpatched) {
 		std::fprintf(stderr, "reloaded store EMPTY\n");
