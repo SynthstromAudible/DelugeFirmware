@@ -1789,7 +1789,7 @@ loadOutput:
 			// collection pointers, this external binding rides the ParamSet through every park / restore /
 			// clip-death re-key, so resolution survives all of it; the (owner, clip) key precision only matters for
 			// later id-addressing. A clip / instrument without a serialId (never saved) keeps its engine store.
-			// Expression / patch cables keep their M2-F inline stores for now.
+			// S4a relocates expression (MPE) too; patch cables / MIDI keep their M2-F inline stores for now.
 			else if (thisClip->type == ClipType::INSTRUMENT && thisClip->output != nullptr
 			         && (thisClip->output->type == OutputType::SYNTH || thisClip->output->type == OutputType::KIT)
 			         && thisClip->paramManager.containsAnyMainParamCollections()) {
@@ -1806,6 +1806,13 @@ loadOutput:
 							mgr.patched = deluge::project::toDocParamSet(*patched);
 							patched->bindDomStoreExternal(&*mgr.patched);
 						}
+					}
+					// M2-G S4a: relocate this manager's expression (MPE) automation into the tree at the same
+					// (instrument, clip) key. ExpressionParamSet is a ParamSet, so it binds exactly like the main
+					// sets; getExpressionParamSet() is null when the manager holds no MPE collection.
+					if (ExpressionParamSet* expression = thisClip->paramManager.getExpressionParamSet()) {
+						mgr.expression = deluge::project::toDocParamSet(*expression);
+						expression->bindDomStoreExternal(&*mgr.expression);
 					}
 					// M2-G S3e: per-drum (NoteRow) automation for a kit clip → keyed (drum(drum serialId), clip).
 					// Each SoundDrum NoteRow holds its own manager (independent automation per (drum, clip) pair),
@@ -1830,6 +1837,11 @@ loadOutput:
 							if (PatchedParamSet* dp = nr.paramManager.getPatchedParamSet()) {
 								dmgr.patched = deluge::project::toDocParamSet(*dp);
 								dp->bindDomStoreExternal(&*dmgr.patched);
+							}
+							// S4a: per-drum expression (MPE) automation → same (drum, clip) key.
+							if (ExpressionParamSet* de = nr.paramManager.getExpressionParamSet()) {
+								dmgr.expression = deluge::project::toDocParamSet(*de);
+								de->bindDomStoreExternal(&*dmgr.expression);
 							}
 						}
 					}

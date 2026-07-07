@@ -327,6 +327,59 @@ int main(int argc, char** argv) {
 		}
 	}
 
+	// M2-G S4a: every reloaded manager that holds an expression (MPE) set — a synth/kit clip-level manager (keyed
+	// (instrument(output), clip)) or a SoundDrum NoteRow (keyed (drum, clip)) — must have that set TREE-resident,
+	// proving the expression relocation binds at the same (owner, clip) key as unpatched/patched. Counted across
+	// both owner tiers; 0/0 on a song with no MPE data is a pass (nothing to relocate).
+	{
+		int32_t mpeSets = 0, treeResident = 0;
+		std::array<ClipArray*, 2> arrs{&reloaded->project.clips.session_clips,
+		                               &reloaded->project.clips.arrangement_only_clips};
+		auto checkExpression = [&](ParamManager& pm, const deluge::project::OwnerId& owner,
+		                           std::optional<uint32_t> clipId) {
+			ExpressionParamSet* expression = pm.getExpressionParamSet();
+			if (expression == nullptr || !clipId.has_value()) {
+				return;
+			}
+			mpeSets++;
+			deluge::project::DocParamManager* mgr = reloaded->project.backed_params.find(owner, clipId);
+			if (mgr != nullptr && mgr->expression && expression->domStore() == &*mgr->expression) {
+				treeResident++;
+			}
+		};
+		for (ClipArray* arr : arrs) {
+			for (int32_t c = 0; c < std::ssize(*arr); c++) {
+				Clip* clip = (*arr)[c];
+				if (clip->type != ClipType::INSTRUMENT || clip->output == nullptr
+				    || (clip->output->type != OutputType::SYNTH && clip->output->type != OutputType::KIT)) {
+					continue;
+				}
+				std::optional<uint32_t> clipId = clip->serialId();
+				std::optional<uint32_t> outId = clip->output->serialId();
+				if (outId.has_value()) {
+					checkExpression(clip->paramManager, deluge::project::OwnerId::instrument(*outId), clipId);
+				}
+				if (clip->output->type == OutputType::KIT) {
+					InstrumentClip* ic = static_cast<InstrumentClip*>(clip);
+					for (int32_t n = 0; n < std::ssize(ic->noteRows); n++) {
+						NoteRow& nr = ic->noteRows[n];
+						if (nr.drum == nullptr || nr.drum->type != DrumType::SOUND) {
+							continue;
+						}
+						if (std::optional<uint32_t> drumId = nr.drum->serialId()) {
+							checkExpression(nr.paramManager, deluge::project::OwnerId::drum(*drumId), clipId);
+						}
+					}
+				}
+			}
+		}
+		std::fprintf(stderr, "expression (MPE) sets tree-resident: %d/%d\n", treeResident, mpeSets);
+		if (mpeSets > 0 && treeResident != mpeSets) {
+			std::fprintf(stderr, "S4a FAIL: an expression set is not tree-resident after reload\n");
+			_exit(3);
+		}
+	}
+
 	// M2-G S3g: doc() must id-address kit clip-level FX and per-drum params to the SAME DocAutoParam the bound-store
 	// path (docForParam) returns — i.e. doc()'s owner classification (noteRow set ⇒ drum(OwnerId::drum); else
 	// synth/kit ⇒ OwnerId::instrument) is correct. Golden/save can't see this (they never resolve via doc()); a
