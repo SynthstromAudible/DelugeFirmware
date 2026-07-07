@@ -221,6 +221,15 @@ int main(int argc, char** argv) {
 	}
 	dumpParam("after-record", msap);
 
+	// Flip Phase 1 (value authority): the engine edit method now also writes the owner's DOM store scalar, so save
+	// can read the store. After the recorded edits, the store's current_value must equal the engine cursor. To
+	// stderr so the stdout baseline is unaffected.
+	if (msap->doc()->current_value != ap.getCurrentValue()) {
+		fprintf(stderr, "PHASE1 FAIL: store current_value=%ld != engine currentValue=%ld\n",
+		        (long)msap->doc()->current_value, (long)ap.getCurrentValue());
+		return 3;
+	}
+
 	// Undo (swapState with the pre-record snapshot) must revert to empty/initial; redo (swap again) must restore
 	// the recorded automation exactly — exercising the AutoParam::swapState node/value swap on the DOM store.
 	ap.swapState(&undoState, msap);

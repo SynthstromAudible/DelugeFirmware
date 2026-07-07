@@ -178,6 +178,7 @@ void AutoParam::copyOverridingFrom(AutoParam* otherParam) {
 void AutoParam::setCurrentValueWithNoReversionOrRecording(ModelStackWithAutoParam const* modelStack, int32_t value) {
 	int32_t oldValue = currentValue;
 	currentValue = value;
+	modelStack->doc()->current_value = value; // value authority: sync the owner's DOM store scalar
 	bool automatedNow = isAutomated(*modelStack->doc());
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, automatedNow, automatedNow);
 }
@@ -362,6 +363,9 @@ skipThat: {}
 
 getOut:
 	currentValue = value;
+	// Value authority: keep the owner's DOM store scalar in sync with this user edit, so save can read the store
+	// (doc() resolves the tree store when bound, the engine-inline fallback otherwise).
+	modelStack->doc()->current_value = value;
 	bool automatedNow = isAutomated(*modelStack->doc());
 	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
 	                                                          automatedNow);
@@ -1131,6 +1135,7 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 			}
 		}
 		currentValue = value;
+		modelStack->doc()->current_value = value; // value authority: sync the owner's DOM store scalar
 	}
 
 	// Or, normal case
@@ -1173,6 +1178,7 @@ void AutoParam::setValueForRegion(uint32_t pos, uint32_t length, int32_t value,
 			resetInterpolationIncrement();
 yesChangeCurrentValue:
 			currentValue = value;
+			modelStack->doc()->current_value = value; // value authority: sync the owner's DOM store scalar
 		}
 		else {
 			view.notifyParamAutomationOccurred(modelStack->paramManager);
