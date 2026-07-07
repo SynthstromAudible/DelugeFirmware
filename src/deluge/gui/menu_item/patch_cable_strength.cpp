@@ -27,6 +27,9 @@
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
 #include "horizontal_menu.h"
+#include "model/edits/edit.h"
+#include "model/edits/param_address_for.h"
+#include "model/edits/set_param_value.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/params/param_descriptor.h"
@@ -239,7 +242,10 @@ void PatchCableStrength::writeCurrentValue() {
 	// rescale from 5000 to 2^30. The magic constant is ((2^30)/5000), shifted 32 bits for precision ((1<<(30+32))/5000)
 	int64_t magicConstant = (922337203685477 * 5000) / kMaxMenuPatchCableValue;
 	int32_t finalValue = (magicConstant * this->getValue()) >> 32;
-	modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(finalValue, modelStackWithParam);
+	deluge::edits::Context editCtx{*currentSong, currentSong->project};
+	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), finalValue, 0, 0,
+	                                  modelStackWithParam};
+	deluge::edits::apply(editCtx, edit);
 
 	if (getRootUI() == &automationView) {
 		int32_t p = modelStackWithParam->paramId;

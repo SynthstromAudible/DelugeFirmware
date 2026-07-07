@@ -21,6 +21,9 @@
 #include "gui/views/view.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/edit.h"
+#include "model/edits/param_address_for.h"
+#include "model/edits/set_param_value.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
@@ -39,7 +42,9 @@ void Integer::writeCurrentValue() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithAutoParam* modelStack = getModelStack(modelStackMemory);
 	int32_t value = getFinalValue();
-	modelStack->autoParam->setCurrentValueInResponseToUserInput(value, modelStack);
+	deluge::edits::Context editCtx{*currentSong, currentSong->project};
+	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStack), value, 0, 0, modelStack};
+	deluge::edits::apply(editCtx, edit);
 
 	// If affect-entire button held, do whole kit
 	if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
@@ -54,13 +59,18 @@ void Integer::writeCurrentValue() {
 				ModelStackWithAutoParam* modelStackForSoundDrum =
 				    getModelStackFromSoundDrum(modelStackMemoryForSoundDrum, soundDrum)
 				        ->getPatchedAutoParamFromId(getP());
-				modelStackForSoundDrum->autoParam->setCurrentValueInResponseToUserInput(value, modelStackForSoundDrum);
+				deluge::edits::Context drumEditCtx{*currentSong, currentSong->project};
+				deluge::edits::SetParamValue drumEdit{deluge::edits::addressFor(*modelStackForSoundDrum), value, 0, 0,
+				                                      modelStackForSoundDrum};
+				deluge::edits::apply(drumEditCtx, drumEdit);
 			}
 		}
 	}
 	// Or, the normal case of just one sound
 	else {
-		modelStack->autoParam->setCurrentValueInResponseToUserInput(value, modelStack);
+		deluge::edits::Context elseEditCtx{*currentSong, currentSong->project};
+		deluge::edits::SetParamValue elseEdit{deluge::edits::addressFor(*modelStack), value, 0, 0, modelStack};
+		deluge::edits::apply(elseEditCtx, elseEdit);
 	}
 
 	// send midi follow feedback
