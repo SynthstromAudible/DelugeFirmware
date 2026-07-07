@@ -61,6 +61,9 @@
 #include "model/clip/instrument_clip_minder.h"
 #include "model/consequence/consequence.h"
 #include "model/drum/drum.h"
+#include "model/edits/edit.h"
+#include "model/edits/param_address_for.h"
+#include "model/edits/set_param_value.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
@@ -923,8 +926,12 @@ void View::modEncoderAction_existentParam(int32_t whichModEncoder, int32_t offse
 
 	int32_t newValue = modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
-	// Perform the actual change
-	modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos, modLength);
+	// Perform the actual change, reified as the pilot Edit (M1b, docs/dev/project_model_migration_plan.md).
+	deluge::edits::Context editContext{*currentSong, currentSong->project};
+	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), newValue,
+	                                  static_cast<int32_t>(modPos), static_cast<int32_t>(modLength),
+	                                  modelStackWithParam};
+	deluge::edits::apply(editContext, edit);
 
 	if (activeModControllableModelStack.timelineCounterIsSet()) {
 		bool noteTailsAllowedAfter =
