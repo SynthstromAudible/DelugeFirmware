@@ -30,38 +30,10 @@
 
 namespace deluge::project {
 
-// Bare-AutoParam projection: operates on the param's OWN inline node storage (ownDoc_). Correct for the callers
-// that hold a param with no owner-resolvable slot — patch cables (which keep their nodes inline), deserialize
-// temp params, and the song-global load projection which runs before bind. Owner-bound ParamSets go through the
-// ParamSet& overload below, which owner-resolves each param's store slot.
-DocAutoParam toDocAutoParam(const AutoParam& param) {
-	return toDocAutoParam(param.currentValue, param.ownDocForFallback()->nodes);
-}
-
-void fromDocAutoParam(const DocAutoParam& doc, AutoParam& param) {
-	fromDocAutoParam(doc, param.currentValue, param.ownDocForFallback()->nodes);
-}
-
-DocParamSet toDocParamSet(deluge::modulation::params::Kind kind, const AutoParam* params, int32_t numParams) {
-	DocParamSet doc;
-	doc.kind = kind;
-	doc.params.reserve(numParams);
-	for (int32_t p = 0; p < numParams; p++) {
-		doc.params.push_back(toDocAutoParam(params[p]));
-	}
-	return doc;
-}
-
-void fromDocParamSet(const DocParamSet& doc, AutoParam* params, int32_t numParams) {
-	int32_t count = std::min(static_cast<int32_t>(doc.params.size()), numParams);
-	for (int32_t p = 0; p < count; p++) {
-		fromDocAutoParam(doc.params[p], params[p]);
-	}
-}
-
+// M2-F: projection operates on the OWNER-resolved DOM store. There is no bare-AutoParam form — an AutoParam holds
+// no node storage.
 DocParamSet toDocParamSet(ParamSet& paramSet) {
-	// Owner-resolve each param's node store (bound -> the set's DocParamSet slot; unbound -> the param's ownDoc_)
-	// so a bound set serialises the DOM store, not the params' now-empty inline storage.
+	// Owner-resolve each param's node store (docForParam) so a bound set serialises the DOM store.
 	DocParamSet doc;
 	doc.kind = paramSet.getParamKind();
 	int32_t numParams = paramSet.getNumParams();
@@ -821,8 +793,10 @@ bool setUnpatchedValueDomFirst(DocParamManager& store, int32_t p, int32_t value,
 	if (!store.unpatched || p < 0 || p >= static_cast<int32_t>(store.unpatched->params.size())) {
 		return false;
 	}
-	store.unpatched->params[p].current_value = value;          // authoritative write
-	fromDocAutoParam(store.unpatched->params[p], engineParam); // reproject into the engine runtime
+	store.unpatched->params[p].current_value = value; // authoritative write
+	// M2-F: only the value changed (not nodes, which the engine owner-resolves from this same store); sync the
+	// engine's RT cursor. No projection into AutoParam storage (there is none).
+	engineParam.currentValue = value;
 	return true;
 }
 

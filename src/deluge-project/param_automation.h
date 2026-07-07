@@ -84,8 +84,6 @@ inline void fromDocAutoParam(const DocAutoParam& doc, int32_t& current_value, Pa
 
 /// Project to/from a live `AutoParam` (defined in param_automation.cpp; reads/writes its public
 /// `currentValue` + `nodes` via the core above).
-DocAutoParam toDocAutoParam(const AutoParam& param);
-void fromDocAutoParam(const DocAutoParam& doc, AutoParam& param);
 
 /// Value-typed document form of one `ParamSet` — a parameter collection (patched / unpatched /
 /// expression). `params` is dense, indexed by param id within the collection (`params[p]` is the doc
@@ -95,12 +93,8 @@ struct DocParamSet {
 	std::vector<DocAutoParam> params;
 };
 
-/// Projection. The `(kind, params, numParams)` core operates on the raw AutoParam array so it is
-/// testable from a plain array without constructing a live ParamSet (which needs a collection summary);
-/// the `ParamSet&` wrappers apply it to a live collection via `params`/`getNumParams()`. All defined in
-/// param_automation.cpp. `fromDocParamSet` writes at most `min(doc.params.size(), numParams)` params.
-DocParamSet toDocParamSet(deluge::modulation::params::Kind kind, const AutoParam* params, int32_t numParams);
-void fromDocParamSet(const DocParamSet& doc, AutoParam* params, int32_t numParams);
+/// Projection between a live ParamSet and its DocParamSet, owner-resolving each param's node store. Defined in
+/// param_automation.cpp.
 DocParamSet toDocParamSet(ParamSet& paramSet);
 void fromDocParamSet(const DocParamSet& doc, ParamSet& paramSet);
 

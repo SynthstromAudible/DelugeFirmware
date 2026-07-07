@@ -58,6 +58,43 @@ void check(bool ok, const char* what) {
 	}
 }
 
+// M2-F5: a standalone oracle AutoParam has no real owner, so give it a minimal ParamCollection whose
+// docParamForId returns a caller-chosen DocAutoParam. This lets modelStack->doc() resolve through the normal
+// owner path (paramCollection->docParamForId) without any inline AutoParam storage. The other virtuals are never
+// exercised by the oracle (its ops only read doc()).
+struct OracleOwner : public ParamCollection {
+	deluge::project::DocAutoParam* target = nullptr;
+	explicit OracleOwner(ParamCollectionSummary* s) : ParamCollection(sizeof(OracleOwner), s) {}
+	deluge::project::DocAutoParam* docParamForId(int32_t) override { return target; }
+	Error clone(ParamCollection*&, bool, int32_t) const override { return Error::NONE; }
+	void tickSamples(int32_t, ModelStackWithParamCollection*) override {}
+	void tickTicks(int32_t, ModelStackWithParamCollection*) override {}
+	void playbackHasEnded(ModelStackWithParamCollection*) override {}
+	void grabValuesFromPos(uint32_t, ModelStackWithParamCollection*) override {}
+	void generateRepeats(ModelStackWithParamCollection*, uint32_t, uint32_t, bool) override {}
+	void appendParamCollection(ModelStackWithParamCollection*, ModelStackWithParamCollection*, int32_t, int32_t,
+	                           bool) override {}
+	void trimToLength(uint32_t, ModelStackWithParamCollection*, Action*, bool) override {}
+	void shiftHorizontally(ModelStackWithParamCollection*, int32_t, int32_t) override {}
+	void processCurrentPos(ModelStackWithParamCollection*, int32_t, bool, bool, bool) override {}
+	void remotelySwapParamState(AutoParamState*, ModelStackWithParamId*) override {}
+	void deleteAllAutomation(Action*, ModelStackWithParamCollection*) override {}
+	void nudgeNonInterpolatingNodesAtPos(int32_t, int32_t, int32_t, Action*, ModelStackWithParamCollection*) override {}
+	ModelStackWithAutoParam* getAutoParamFromId(ModelStackWithParamId*, bool) override { return nullptr; }
+	deluge::modulation::params::Kind getParamKind() override { return deluge::modulation::params::Kind::NONE; }
+};
+
+ParamCollectionSummary g_oracleSummary{};
+OracleOwner g_oracleOwner{&g_oracleSummary};
+
+// Wire a manually-built ModelStackWithAutoParam so modelStack->doc() resolves to `doc` (for MSWAP oracle ops on a
+// standalone param, which has no real owner).
+void bindOracle(ModelStackWithAutoParam* ms, AutoParam* ap, deluge::project::DocAutoParam* doc) {
+	g_oracleOwner.target = doc;
+	ms->autoParam = ap;
+	ms->paramCollection = &g_oracleOwner;
+}
+
 // Author a node directly into a DOM node store (the owner-resolved slot for a bound param, or a standalone
 // DocAutoParam). M2-E: node access is owner-resolved, so bound-param tests author through docForParam().
 void setNodeIn(deluge::project::DocAutoParam& doc, int32_t pos, int32_t value, bool interpolated) {
@@ -69,34 +106,20 @@ void setNodeIn(deluge::project::DocAutoParam& doc, int32_t pos, int32_t value, b
 	}
 }
 
-// Author into a (typically unbound/standalone) AutoParam's inline node storage.
-void setNode(AutoParam& ap, int32_t pos, int32_t value, bool interpolated) {
-	setNodeIn(*ap.ownDocForFallback(), pos, value, interpolated);
-}
-
 bool cableMatches(const deluge::project::DocPatchCable& a, const deluge::project::DocPatchCable& b) {
 	return a.from == b.from && a.destination.data == b.destination.data && a.polarity == b.polarity
 	       && a.amount.current_value == b.amount.current_value && a.amount.nodes.size() == b.amount.nodes.size();
 }
 
-// Compare a live AutoParam's node array against a DocAutoParam's, element-wise (used to oracle-diff a DOM
-// edit op against the engine op after applying the same mutation to each).
-void expectDocMatchesEngine(const AutoParam& eng, const deluge::project::DocAutoParam& doc, const char* name) {
-	check(eng.ownDocForFallback()->nodes.size() == doc.nodes.size(), name);
-	for (size_t i = 0; i < eng.ownDocForFallback()->nodes.size() && i < doc.nodes.size(); i++) {
-		check(eng.ownDocForFallback()->nodes[i].pos == doc.nodes[i].pos, name);
-		check(eng.ownDocForFallback()->nodes[i].value == doc.nodes[i].value, name);
-		check(eng.ownDocForFallback()->nodes[i].interpolated == doc.nodes[i].interpolated, name);
-	}
-}
-
-void expectSameNodes(const AutoParam& a, const AutoParam& b, const char* name) {
-	check(a.currentValue == b.currentValue, name);
-	check(a.ownDocForFallback()->nodes.size() == b.ownDocForFallback()->nodes.size(), name);
-	for (size_t i = 0; i < a.ownDocForFallback()->nodes.size() && i < b.ownDocForFallback()->nodes.size(); i++) {
-		check(a.ownDocForFallback()->nodes[i].pos == b.ownDocForFallback()->nodes[i].pos, name);
-		check(a.ownDocForFallback()->nodes[i].value == b.ownDocForFallback()->nodes[i].value, name);
-		check(a.ownDocForFallback()->nodes[i].interpolated == b.ownDocForFallback()->nodes[i].interpolated, name);
+// M2-F5: an engine op mutates a DocAutoParam (the standalone oracle param's local store); diff it against the DOM
+// kernel's DocAutoParam, element-wise.
+void expectDocMatchesEngine(const deluge::project::DocAutoParam& eng, const deluge::project::DocAutoParam& doc,
+                            const char* name) {
+	check(eng.nodes.size() == doc.nodes.size(), name);
+	for (size_t i = 0; i < eng.nodes.size() && i < doc.nodes.size(); i++) {
+		check(eng.nodes[i].pos == doc.nodes[i].pos, name);
+		check(eng.nodes[i].value == doc.nodes[i].value, name);
+		check(eng.nodes[i].interpolated == doc.nodes[i].interpolated, name);
 	}
 }
 
@@ -118,31 +141,26 @@ void expectSameParamInSet(ParamSet* a, ParamSet* b, int32_t idx, const char* nam
 	expectSameDoc(*a->docForParam(idx), *b->docForParam(idx), name);
 }
 
-// Build a live AutoParam from a value + node list, round-trip it through the document form, and assert
-// the rebuilt AutoParam is identical.
+// Round-trip a (value, node list) through the document projection helpers and assert it is preserved.
 void roundTrip(const char* name, int32_t currentValue, const std::vector<Node>& nodes) {
-	AutoParam ap;
-	ap.currentValue = currentValue;
+	deluge::project::DocAutoParam src;
 	for (const Node& n : nodes) {
-		int32_t i = ap.ownDocForFallback()->nodes.insertSorted(n.pos, /*isDefinitelyLast=*/true).value_or(-1);
-		check(i >= 0, "insertSorted (test setup)");
-		ap.ownDocForFallback()->nodes[i].pos = n.pos;
-		ap.ownDocForFallback()->nodes[i].value = n.value;
-		ap.ownDocForFallback()->nodes[i].interpolated = n.interpolated;
+		setNodeIn(src, n.pos, n.value, n.interpolated);
 	}
 
-	DocAutoParam doc = toDocAutoParam(ap);
+	DocAutoParam doc = toDocAutoParam(currentValue, src.nodes);
 	check(doc.current_value == currentValue, name);
 	check(doc.nodes.size() == nodes.size(), name);
 
-	AutoParam rebuilt;
-	fromDocAutoParam(doc, rebuilt);
-	check(rebuilt.currentValue == currentValue, name);
-	check(rebuilt.ownDocForFallback()->nodes.size() == nodes.size(), name);
-	for (size_t i = 0; i < nodes.size() && i < rebuilt.ownDocForFallback()->nodes.size(); i++) {
-		check(rebuilt.ownDocForFallback()->nodes[i].pos == nodes[i].pos, name);
-		check(rebuilt.ownDocForFallback()->nodes[i].value == nodes[i].value, name);
-		check(rebuilt.ownDocForFallback()->nodes[i].interpolated == nodes[i].interpolated, name);
+	int32_t rebuiltValue = 0;
+	deluge::project::DocAutoParam rebuilt;
+	fromDocAutoParam(doc, rebuiltValue, rebuilt.nodes);
+	check(rebuiltValue == currentValue, name);
+	check(rebuilt.nodes.size() == nodes.size(), name);
+	for (size_t i = 0; i < nodes.size() && i < rebuilt.nodes.size(); i++) {
+		check(rebuilt.nodes[i].pos == nodes[i].pos, name);
+		check(rebuilt.nodes[i].value == nodes[i].value, name);
+		check(rebuilt.nodes[i].interpolated == nodes[i].interpolated, name);
 	}
 }
 
@@ -214,7 +232,8 @@ int main() {
 			int32_t value;
 			bool interpolated;
 		};
-		auto engineValueAt = [](AutoParam& ap, uint32_t pos, int32_t loopLength, bool reversed) -> int32_t {
+		auto engineValueAt = [](AutoParam& ap, deluge::project::DocAutoParam& apDoc, uint32_t pos, int32_t loopLength,
+		                        bool reversed) -> int32_t {
 			// Only AutoParam::getValueAtPos's getLoopLength() call touches the ModelStack; a NoteRow with a
 			// non-zero loopLengthIfIndependent short-circuits it, so no Song/TimelineCounter is required.
 			alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
@@ -224,8 +243,7 @@ int main() {
 			NoteRow nr;
 			nr.loopLengthIfIndependent = loopLength;
 			ms->setNoteRow(&nr);
-			ms->autoParam = &ap; // M2-E: ops resolve their DOM handle via modelStack->doc() == autoParam->doc_
-			ms->paramCollection = nullptr; // M2-E: standalone oracle -> doc() falls back to ownDoc_
+			bindOracle(ms, &ap, &apDoc);
 			return ap.getValueAtPos(pos, ms, reversed);
 		};
 
@@ -244,15 +262,16 @@ int main() {
 
 		for (const auto& cfg : configs) {
 			AutoParam ap;
+			deluge::project::DocAutoParam apDoc;
 			DocAutoParam doc{};
 			for (const N& n : cfg) {
-				setNode(ap, n.pos, n.value, n.interpolated);
+				setNodeIn(apDoc, n.pos, n.value, n.interpolated);
 				deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 			}
 			for (int32_t loopLength : loopLengths) {
 				for (uint32_t pos : positions) {
 					for (bool reversed : {false, true}) {
-						int32_t want = engineValueAt(ap, pos, loopLength, reversed);
+						int32_t want = engineValueAt(ap, apDoc, pos, loopLength, reversed);
 						int32_t got = deluge::project::getValueAtPos(doc, pos, loopLength, reversed);
 						check(want == got, "getValueAtPos: matches engine oracle");
 					}
@@ -276,7 +295,8 @@ int main() {
 		DocAutoParam none{};
 		check(deluge::project::getDistanceToNextNode(none, 5, 96, false) == 96, "getDistanceToNextNode: empty -> loop");
 
-		auto engineDistance = [](AutoParam& ap, int32_t pos, int32_t loopLength, bool reversed) -> int32_t {
+		auto engineDistance = [](AutoParam& ap, deluge::project::DocAutoParam& apDoc, int32_t pos, int32_t loopLength,
+		                         bool reversed) -> int32_t {
 			alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
 			auto* ms = reinterpret_cast<ModelStackWithAutoParam*>(buf);
 			ms->song = nullptr;
@@ -284,8 +304,7 @@ int main() {
 			NoteRow nr;
 			nr.loopLengthIfIndependent = loopLength;
 			ms->setNoteRow(&nr);
-			ms->autoParam = &ap;           // M2-E: modelStack->doc() resolution
-			ms->paramCollection = nullptr; // M2-E: standalone oracle -> doc() falls back to ownDoc_
+			bindOracle(ms, &ap, &apDoc);
 			return ap.getDistanceToNextNode(ms, pos, reversed);
 		};
 
@@ -302,15 +321,16 @@ int main() {
 		const int32_t positions[] = {0, 1, 5, 10, 24, 47, 48, 49, 50, 63, 64, 80, 95, 96, 120, 127};
 		for (const auto& cfg : configs) {
 			AutoParam ap;
+			deluge::project::DocAutoParam apDoc;
 			DocAutoParam doc{};
 			for (const N& n : cfg) {
-				setNode(ap, n.pos, 0, n.interpolated);
+				setNodeIn(apDoc, n.pos, 0, n.interpolated);
 				deluge::project::setNodeAtPos(doc, n.pos, 0, n.interpolated);
 			}
 			for (int32_t loopLength : loopLengths) {
 				for (int32_t pos : positions) {
 					for (bool reversed : {false, true}) {
-						int32_t want = engineDistance(ap, pos, loopLength, reversed);
+						int32_t want = engineDistance(ap, apDoc, pos, loopLength, reversed);
 						int32_t got = deluge::project::getDistanceToNextNode(doc, pos, loopLength, reversed);
 						check(want == got, "getDistanceToNextNode: matches engine oracle");
 					}
@@ -354,14 +374,15 @@ int main() {
 		for (const auto& cfg : configs) {
 			for (const auto& ic : insertCases) {
 				AutoParam ap;
+				deluge::project::DocAutoParam apDoc;
 				DocAutoParam doc{};
 				for (const N& n : cfg) {
-					setNode(ap, n.pos, n.value, n.interpolated);
+					setNodeIn(apDoc, n.pos, n.value, n.interpolated);
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
-				ap.insertTime(*ap.ownDocForFallback(), ic.pos, ic.len);
+				ap.insertTime(*(&apDoc), ic.pos, ic.len);
 				deluge::project::insertTime(doc, ic.pos, ic.len);
-				expectDocMatchesEngine(ap, doc, "insertTime: matches engine oracle");
+				expectDocMatchesEngine(apDoc, doc, "insertTime: matches engine oracle");
 			}
 		}
 
@@ -373,14 +394,15 @@ int main() {
 		for (const auto& cfg : configs) {
 			for (const auto& sc : shiftCases) {
 				AutoParam ap;
+				deluge::project::DocAutoParam apDoc;
 				DocAutoParam doc{};
 				for (const N& n : cfg) {
-					setNode(ap, n.pos, n.value, n.interpolated);
+					setNodeIn(apDoc, n.pos, n.value, n.interpolated);
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
-				ap.shiftHorizontally(*ap.ownDocForFallback(), sc.amount, sc.effectiveLength);
+				ap.shiftHorizontally(*(&apDoc), sc.amount, sc.effectiveLength);
 				deluge::project::shiftHorizontally(doc, sc.amount, sc.effectiveLength);
-				expectDocMatchesEngine(ap, doc, "shiftHorizontally: matches engine oracle");
+				expectDocMatchesEngine(apDoc, doc, "shiftHorizontally: matches engine oracle");
 			}
 		}
 
@@ -397,17 +419,18 @@ int main() {
 		for (const auto& vc : valueCases) {
 			for (int32_t offset : shiftValueOffsets) {
 				AutoParam ap;
+				deluge::project::DocAutoParam apDoc;
 				ap.currentValue = vc.currentValue;
 				DocAutoParam doc{};
 				doc.current_value = vc.currentValue;
 				for (const N& n : vc.cfg) {
-					setNode(ap, n.pos, n.value, n.interpolated);
+					setNodeIn(apDoc, n.pos, n.value, n.interpolated);
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
-				ap.shiftValues(*ap.ownDocForFallback(), offset);
+				ap.shiftValues(*(&apDoc), offset);
 				deluge::project::shiftValues(doc, offset);
 				check(ap.currentValue == doc.current_value, "shiftValues: current_value matches engine oracle");
-				expectDocMatchesEngine(ap, doc, "shiftValues: nodes match engine oracle");
+				expectDocMatchesEngine(apDoc, doc, "shiftValues: nodes match engine oracle");
 			}
 		}
 
@@ -424,17 +447,18 @@ int main() {
 			};
 			for (const auto& tc : transposeCases) {
 				AutoParam ap;
+				deluge::project::DocAutoParam apDoc;
 				ap.currentValue = tc.currentValue;
 				DocAutoParam doc{};
 				doc.current_value = tc.currentValue;
 				for (const N& n : tc.cfg) {
-					setNode(ap, n.pos, n.value, n.interpolated);
+					setNodeIn(apDoc, n.pos, n.value, n.interpolated);
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
-				ap.transposeCCValuesToChannelPressureValues(*ap.ownDocForFallback());
+				ap.transposeCCValuesToChannelPressureValues(*(&apDoc));
 				deluge::project::transposeCCValuesToChannelPressure(doc);
 				check(ap.currentValue == doc.current_value, "transposeCC: current_value matches engine oracle");
-				expectDocMatchesEngine(ap, doc, "transposeCC: nodes match engine oracle");
+				expectDocMatchesEngine(apDoc, doc, "transposeCC: nodes match engine oracle");
 			}
 		}
 
@@ -454,14 +478,15 @@ int main() {
 			for (const auto& rc : repeatCases) {
 				for (bool pingpong : {false, true}) {
 					AutoParam ap;
+					deluge::project::DocAutoParam apDoc;
 					DocAutoParam doc{};
 					for (const N& n : cfg) {
-						setNode(ap, n.pos, n.value, n.interpolated);
+						setNodeIn(apDoc, n.pos, n.value, n.interpolated);
 						deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 					}
-					ap.generateRepeats(*ap.ownDocForFallback(), rc.oldLength, rc.newLength, pingpong);
+					ap.generateRepeats(*(&apDoc), rc.oldLength, rc.newLength, pingpong);
 					deluge::project::generateRepeats(doc, rc.oldLength, rc.newLength, pingpong);
-					expectDocMatchesEngine(ap, doc, "generateRepeats: matches engine oracle");
+					expectDocMatchesEngine(apDoc, doc, "generateRepeats: matches engine oracle");
 				}
 			}
 		}
@@ -474,8 +499,9 @@ int main() {
 	{
 		using deluge::project::DocAutoParam;
 
-		auto engineHomogenize = [](AutoParam& ap, int32_t startPos, int32_t length, int32_t startValue, bool interpL,
-		                           bool interpR, int32_t effLen, bool reversed, int32_t cut) -> int32_t {
+		auto engineHomogenize = [](AutoParam& ap, deluge::project::DocAutoParam& apDoc, int32_t startPos,
+		                           int32_t length, int32_t startValue, bool interpL, bool interpR, int32_t effLen,
+		                           bool reversed, int32_t cut) -> int32_t {
 			alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
 			auto* ms = reinterpret_cast<ModelStackWithAutoParam*>(buf);
 			ms->song = nullptr;
@@ -483,8 +509,7 @@ int main() {
 			NoteRow nr;
 			nr.loopLengthIfIndependent = effLen;
 			ms->setNoteRow(&nr);
-			ms->autoParam = &ap;           // M2-E: modelStack->doc() resolution
-			ms->paramCollection = nullptr; // M2-E: standalone oracle -> doc() falls back to ownDoc_
+			bindOracle(ms, &ap, &apDoc);
 			return ap.homogenizeRegion(ms, startPos, length, startValue, interpL, interpR, effLen, reversed, cut);
 		};
 
@@ -520,9 +545,10 @@ int main() {
 		for (const auto& cfg : configs) {
 			for (const auto& c : cases) {
 				AutoParam ap;
+				deluge::project::DocAutoParam apDoc;
 				DocAutoParam doc{};
 				for (const N& n : cfg) {
-					setNode(ap, n.pos, n.value, n.interpolated);
+					setNodeIn(apDoc, n.pos, n.value, n.interpolated);
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
 				// Reserve headroom so the engine's internal insertAt can't reallocate the node buffer mid-op.
@@ -530,14 +556,14 @@ int main() {
 				// pre-existing left-edge node, then a right-edge insert reallocates, so the left node's updated
 				// value is written to freed memory and the edit is silently lost) — which would make it a
 				// non-deterministic oracle. The DOM port is index-based and immune, so it is the correct result.
-				(void)ap.ownDocForFallback()->nodes.reserveExtra(4);
-				int32_t engRet = engineHomogenize(ap, c.startPos, c.length, c.startValue, c.interpL, c.interpR, effLen,
-				                                  c.reversed, c.cut);
+				(void)(&apDoc)->nodes.reserveExtra(4);
+				int32_t engRet = engineHomogenize(ap, apDoc, c.startPos, c.length, c.startValue, c.interpL, c.interpR,
+				                                  effLen, c.reversed, c.cut);
 				int32_t domRet = deluge::project::homogenizeRegion(doc, c.startPos, c.length, c.startValue, c.interpL,
 				                                                   c.interpR, effLen, c.reversed,
 				                                                   /*recordingLinearly=*/false, c.cut);
 				check(engRet == domRet, "homogenizeRegion: return index matches engine oracle");
-				expectDocMatchesEngine(ap, doc, "homogenizeRegion: nodes match engine oracle");
+				expectDocMatchesEngine(apDoc, doc, "homogenizeRegion: nodes match engine oracle");
 			}
 		}
 
@@ -619,20 +645,20 @@ int main() {
 		for (const auto& cfg : configs) {
 			for (const auto& dc : deleteCases) {
 				AutoParam ap;
+				deluge::project::DocAutoParam apDoc;
 				DocAutoParam doc{};
 				for (const N& n : cfg) {
-					setNode(ap, n.pos, n.value, n.interpolated);
+					setNodeIn(apDoc, n.pos, n.value, n.interpolated);
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
-				(void)ap.ownDocForFallback()->nodes.reserveExtra(4);
+				(void)(&apDoc)->nodes.reserveExtra(4);
 				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
 				NoteRow nr;
 				ModelStackWithAutoParam* ms = buildStack(buf, loopLen, nr);
-				ms->autoParam = &ap;           // M2-E: modelStack->doc() resolution
-				ms->paramCollection = nullptr; // M2-E: standalone oracle -> doc() falls back to ownDoc_
+				bindOracle(ms, &ap, &apDoc);
 				ap.deleteTime(dc.startPos, dc.len, ms);
 				deluge::project::deleteTime(doc, dc.startPos, dc.len, loopLen);
-				expectDocMatchesEngine(ap, doc, "deleteTime: matches engine oracle");
+				expectDocMatchesEngine(apDoc, doc, "deleteTime: matches engine oracle");
 			}
 		}
 
@@ -644,20 +670,20 @@ int main() {
 		for (const auto& cfg : configs) {
 			for (const auto& mc : moveCases) {
 				AutoParam ap;
+				deluge::project::DocAutoParam apDoc;
 				DocAutoParam doc{};
 				for (const N& n : cfg) {
-					setNode(ap, n.pos, n.value, n.interpolated);
+					setNodeIn(apDoc, n.pos, n.value, n.interpolated);
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
-				(void)ap.ownDocForFallback()->nodes.reserveExtra(4);
+				(void)(&apDoc)->nodes.reserveExtra(4);
 				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
 				NoteRow nr;
 				ModelStackWithAutoParam* ms = buildStack(buf, loopLen, nr);
-				ms->autoParam = &ap;           // M2-E: modelStack->doc() resolution
-				ms->paramCollection = nullptr; // M2-E: standalone oracle -> doc() falls back to ownDoc_
+				bindOracle(ms, &ap, &apDoc);
 				ap.moveRegionHorizontally(ms, mc.pos, mc.length, mc.offset, loopLen, nullptr);
 				deluge::project::moveRegionHorizontally(doc, mc.pos, mc.length, mc.offset, loopLen);
-				expectDocMatchesEngine(ap, doc, "moveRegionHorizontally: matches engine oracle");
+				expectDocMatchesEngine(apDoc, doc, "moveRegionHorizontally: matches engine oracle");
 			}
 		}
 	}
@@ -673,13 +699,13 @@ int main() {
 			bool interpolated;
 		};
 		// Replica of the engine's (fixed) node-erase logic — tail-before-front in the wrap branch.
-		auto engineErase = [](AutoParam& ap, int32_t pos, int32_t length, int32_t effLen) {
-			if (!ap.isAutomated(*ap.ownDocForFallback())) {
+		auto engineErase = [](AutoParam& ap, deluge::project::DocAutoParam& apDoc, int32_t pos, int32_t length,
+		                      int32_t effLen) {
+			if (!ap.isAutomated(*(&apDoc))) {
 				return;
 			}
 			if (length >= effLen) {
-				ap.ownDocForFallback()->nodes.erase(ap.ownDocForFallback()->nodes.begin(),
-				                                    ap.ownDocForFallback()->nodes.end());
+				(&apDoc)->nodes.erase((&apDoc)->nodes.begin(), (&apDoc)->nodes.end());
 				return;
 			}
 			int32_t st0 = pos, st1 = pos + length;
@@ -688,22 +714,19 @@ int main() {
 				st0 = st1 - effLen;
 				st1 = pos;
 			}
-			int32_t ri0 = ap.ownDocForFallback()->nodes.firstAtOrAfter(st0);
-			int32_t ri1 = ap.ownDocForFallback()->nodes.firstAtOrAfter(st1);
+			int32_t ri0 = (&apDoc)->nodes.firstAtOrAfter(st0);
+			int32_t ri1 = (&apDoc)->nodes.firstAtOrAfter(st1);
 			if (wrapping) {
-				int32_t numAtEnd = static_cast<int32_t>(ap.ownDocForFallback()->nodes.size()) - ri1;
+				int32_t numAtEnd = static_cast<int32_t>((&apDoc)->nodes.size()) - ri1;
 				if (numAtEnd) {
-					ap.ownDocForFallback()->nodes.erase(ap.ownDocForFallback()->nodes.begin() + ri1,
-					                                    ap.ownDocForFallback()->nodes.begin() + ri1 + numAtEnd);
+					(&apDoc)->nodes.erase((&apDoc)->nodes.begin() + ri1, (&apDoc)->nodes.begin() + ri1 + numAtEnd);
 				}
 				if (ri0) {
-					ap.ownDocForFallback()->nodes.erase(ap.ownDocForFallback()->nodes.begin(),
-					                                    ap.ownDocForFallback()->nodes.begin() + ri0);
+					(&apDoc)->nodes.erase((&apDoc)->nodes.begin(), (&apDoc)->nodes.begin() + ri0);
 				}
 			}
 			else {
-				ap.ownDocForFallback()->nodes.erase(ap.ownDocForFallback()->nodes.begin() + ri0,
-				                                    ap.ownDocForFallback()->nodes.begin() + ri1);
+				(&apDoc)->nodes.erase((&apDoc)->nodes.begin() + ri0, (&apDoc)->nodes.begin() + ri1);
 			}
 		};
 
@@ -720,14 +743,15 @@ int main() {
 		for (const auto& cfg : configs) {
 			for (const auto& c : cases) {
 				AutoParam ap;
+				deluge::project::DocAutoParam apDoc;
 				DocAutoParam doc{};
 				for (const N& n : cfg) {
-					setNode(ap, n.pos, n.value, n.interpolated);
+					setNodeIn(apDoc, n.pos, n.value, n.interpolated);
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
-				engineErase(ap, c.pos, c.length, effLen);
+				engineErase(ap, apDoc, c.pos, c.length, effLen);
 				deluge::project::deleteNodesWithinRegion(doc, c.pos, c.length, effLen);
-				expectDocMatchesEngine(ap, doc, "deleteNodesWithinRegion: matches fixed engine node logic");
+				expectDocMatchesEngine(apDoc, doc, "deleteNodesWithinRegion: matches fixed engine node logic");
 			}
 		}
 
@@ -755,29 +779,9 @@ int main() {
 	roundTrip("int32 extremes", 2147483647, {});
 	roundTrip("int32 min", -2147483647 - 1, {});
 
-	// Phase 2: a parameter collection (DocParamSet) round-trips its kind + every param (a mix of
-	// unautomated, automated, and patch-cable-range), preserving array order and count.
-	{
-		constexpr int kNumParams = 3;
-		AutoParam set[kNumParams];
-		set[0].currentValue = 111; // unautomated
-		set[1].currentValue = 222; // automated
-		setNode(set[1], 0, 100, false);
-		setNode(set[1], 48, -250000000, true);
-		set[2].currentValue = 333; // patch-cable range
-		setNode(set[2], 0, -1073741824, true);
-
-		using deluge::modulation::params::Kind;
-		deluge::project::DocParamSet doc = deluge::project::toDocParamSet(Kind::PATCHED, set, kNumParams);
-		check(doc.kind == Kind::PATCHED, "set kind");
-		check(static_cast<int>(doc.params.size()) == kNumParams, "set size");
-
-		AutoParam out[kNumParams];
-		deluge::project::fromDocParamSet(doc, out, kNumParams);
-		for (int p = 0; p < kNumParams; p++) {
-			expectSameNodes(out[p], set[p], "set param");
-		}
-	}
+	// Phase 2 DocParamSet kind + per-param round-trip is now covered by the Phase 3 block below (live
+	// ParamManager -> DocParamManager -> ParamManager); the old raw AutoParam[]-array projection helpers were
+	// retired with M2-F (no engine AutoParam holds node storage).
 
 	// Phase 3: a live ParamManager round-trips its present collections (patched + unpatched) through
 	// DocParamManager and projects faithfully into another already-set-up manager.
@@ -854,11 +858,10 @@ int main() {
 
 		ParamCollectionSummary* psum = dst.getPatchedParamSetSummary();
 		// param 5 restored + its automation flag set
-		expectSameNodes(dst.getPatchedParamSet()->params[5], src.getPatchedParamSet()->params[5],
-		                "5c1 param5 restored");
+		expectSameParamInSet(dst.getPatchedParamSet(), src.getPatchedParamSet(), 5, "5c1 param5 restored");
 		check((psum->whichParamsAreAutomated[5 >> 5] & (1u << (5 & 31))) != 0, "5c1 param5 flag set");
 		// param 9's stale automation cleared (nodes + flag)
-		check(dst.getPatchedParamSet()->params[9].ownDocForFallback()->nodes.empty(), "5c1 param9 nodes cleared");
+		check(dst.getPatchedParamSet()->docForParam(9)->nodes.empty(), "5c1 param9 nodes cleared");
 		check((psum->whichParamsAreAutomated[9 >> 5] & (1u << (9 & 31))) == 0, "5c1 param9 flag cleared");
 		// unpatched value restored
 		check(dst.getUnpatchedParamSet()->params[3].currentValue == 4242, "5c1 unpatched restored");
@@ -1375,10 +1378,8 @@ int main() {
 		for (int32_t id : patchedIds) {
 			expectSameParamInSet(pp2, pp, id, "sound-rt patched");
 		}
-		expectSameNodes(up2->params[params::UNPATCHED_PORTAMENTO], up->params[params::UNPATCHED_PORTAMENTO],
-		                "sound-rt portamento");
-		expectSameNodes(up2->params[params::UNPATCHED_STUTTER_RATE], up->params[params::UNPATCHED_STUTTER_RATE],
-		                "sound-rt mca");
+		expectSameParamInSet(up2, up, params::UNPATCHED_PORTAMENTO, "sound-rt portamento");
+		expectSameParamInSet(up2, up, params::UNPATCHED_STUTTER_RATE, "sound-rt mca");
 		check((psum2->whichParamsAreAutomated[params::LOCAL_ENV_0_ATTACK >> 5]
 		       & (1u << (params::LOCAL_ENV_0_ATTACK & 31)))
 		          != 0,
@@ -1511,8 +1512,8 @@ int main() {
 		    params::UNPATCHED_DELAY_RATE,         params::UNPATCHED_HPF_RES,      params::UNPATCHED_LPF_MORPH,
 		    params::UNPATCHED_STUTTER_RATE,       params::UNPATCHED_BASS};
 		for (int32_t id : ids) {
-			expectSameNodes(pmDom.getUnpatchedParamSet()->params[id], pmEng.getUnpatchedParamSet()->params[id],
-			                "5cB dom-read == engine-read");
+			expectSameParamInSet(pmDom.getUnpatchedParamSet(), pmEng.getUnpatchedParamSet(), id,
+			                     "5cB dom-read == engine-read");
 		}
 	}
 
@@ -1534,25 +1535,6 @@ int main() {
 		      "setUnpatchedValueDomFirst: unpopulated store is a no-op");
 	}
 
-	// M2-E: moveNodesInto relocates a param's inline nodes into a DOM store slot and empties the param's own
-	// storage. No pointer is stored back — the param no longer routes through the slot (the OWNER resolves it),
-	// which is what makes the store growable and kills the relocation-dangle hazard.
-	{
-		AutoParam p;
-		setNode(p, 0, 111, false);
-		setNode(p, 48, -222, true);
-
-		deluge::project::DocAutoParam ext; // stands in for the DOM-owned store slot
-		p.moveNodesInto(&ext);
-		check(ext.nodes.size() == 2 && ext.nodes[0].value == 111 && ext.nodes[1].value == -222,
-		      "moveNodesInto: current nodes relocated into the store slot");
-		check(p.ownDocForFallback()->nodes.empty(), "moveNodesInto: the param's inline storage is emptied");
-
-		// A copy of the param carries only its own (now-empty) inline storage — never a pointer into ext.
-		AutoParam copy(p);
-		check(copy.ownDocForFallback()->nodes.empty(), "moveNodesInto: a copy owns independent (empty) storage");
-	}
-
 	// M2-F (lazy owner store): a ParamSet ALWAYS resolves to a DOM store — the first owner-resolved access
 	// (docForParam) lazily creates + binds the set's own store; the AutoParam's inline storage is never used. A
 	// copy of a bound set gets its OWN deep copy of the store (independent nodes; no aliasing).
@@ -1570,7 +1552,6 @@ int main() {
 		check(store != nullptr, "lazy: store bound on first docForParam");
 		check(static_cast<int32_t>(store->params.size()) == unp->getNumParams(), "lazy: store sized to count");
 		check(unp->docForParam(2) == &store->params[2], "lazy: owner resolves the param to its store slot");
-		check(unp->params[2].ownDocForFallback()->nodes.empty(), "lazy: param inline storage unused");
 		check(store->params[2].nodes.size() == 2 && store->params[2].nodes[0].value == 111,
 		      "lazy: authored nodes live in the store");
 		// A subsequent edit (owner-resolved) lands in the store.
@@ -1733,42 +1714,45 @@ int main() {
 		for (const auto& cfg : flattenConfigs) {
 			for (int32_t length : reverseLengths) {
 				AutoParam ap;
+				deluge::project::DocAutoParam apDoc;
 				ap.currentValue = 42;
 				DocAutoParam doc{};
 				doc.current_value = 42;
 				for (const N& n : cfg) {
-					setNode(ap, n.pos, n.value, n.interpolated);
+					setNodeIn(apDoc, n.pos, n.value, n.interpolated);
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
-				ap.flattenReverse(*ap.ownDocForFallback(), length);
+				ap.flattenReverse(*(&apDoc), length);
 				deluge::project::flattenReverse(doc, length);
 				check(ap.currentValue == doc.current_value,
 				      "flattenReverse: current_value untouched, matches engine oracle");
-				expectDocMatchesEngine(ap, doc, "flattenReverse: matches engine oracle");
+				expectDocMatchesEngine(apDoc, doc, "flattenReverse: matches engine oracle");
 			}
 		}
 
 		// reverseDirectionWithLength == 0 is a documented no-op.
 		{
 			AutoParam ap;
+			deluge::project::DocAutoParam apDoc;
 			ap.currentValue = 7;
 			DocAutoParam doc{};
 			doc.current_value = 7;
-			setNode(ap, 8, 5, true);
+			setNodeIn(apDoc, 8, 5, true);
 			deluge::project::setNodeAtPos(doc, 8, 5, true);
-			ap.flattenReverse(*ap.ownDocForFallback(), 0);
+			ap.flattenReverse(*(&apDoc), 0);
 			deluge::project::flattenReverse(doc, 0);
 			check(ap.currentValue == doc.current_value, "flattenReverse: length==0 leaves current_value alone");
-			expectDocMatchesEngine(ap, doc, "flattenReverse: reverseDirectionWithLength==0 is a no-op");
+			expectDocMatchesEngine(apDoc, doc, "flattenReverse: reverseDirectionWithLength==0 is a no-op");
 		}
 
 		// Empty nodes: also a no-op, and mustn't crash indexing oldNodes[0]/oldNodes[numNodes-1].
 		{
 			AutoParam ap;
+			deluge::project::DocAutoParam apDoc;
 			DocAutoParam doc{};
-			ap.flattenReverse(*ap.ownDocForFallback(), 48);
+			ap.flattenReverse(*(&apDoc), 48);
 			deluge::project::flattenReverse(doc, 48);
-			expectDocMatchesEngine(ap, doc, "flattenReverse: empty nodes is a no-op");
+			expectDocMatchesEngine(apDoc, doc, "flattenReverse: empty nodes is a no-op");
 		}
 	}
 
@@ -1805,20 +1789,20 @@ int main() {
 		for (const auto& cfg : configs) {
 			for (int32_t newLen : trimLens) {
 				AutoParam ap;
+				deluge::project::DocAutoParam apDoc;
 				DocAutoParam doc{};
 				for (const N& n : cfg) {
-					setNode(ap, n.pos, n.value, n.interpolated);
+					setNodeIn(apDoc, n.pos, n.value, n.interpolated);
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
-				(void)ap.ownDocForFallback()->nodes.reserveExtra(4);
+				(void)(&apDoc)->nodes.reserveExtra(4);
 				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
 				NoteRow nr;
 				ModelStackWithAutoParam* ms = buildStack(buf, loopLen, nr);
-				ms->autoParam = &ap;           // M2-E: trimToLength calls getValueAtPos internally (resolves via doc())
-				ms->paramCollection = nullptr; // M2-E: standalone oracle -> doc() falls back to ownDoc_
+				bindOracle(ms, &ap, &apDoc);
 				ap.trimToLength(static_cast<uint32_t>(newLen), /*action=*/nullptr, ms);
 				deluge::project::trimToLength(doc, newLen, loopLen);
-				expectDocMatchesEngine(ap, doc, "trimToLength: matches engine oracle");
+				expectDocMatchesEngine(apDoc, doc, "trimToLength: matches engine oracle");
 			}
 		}
 	}
@@ -1858,25 +1842,26 @@ int main() {
 				for (int32_t reverseLen : {0, 48}) {
 					for (bool pingpong : {false, true}) {
 						AutoParam ap;
+						deluge::project::DocAutoParam apDoc;
 						AutoParam otherAp;
+						deluge::project::DocAutoParam otherApDoc;
 						DocAutoParam doc{};
 						DocAutoParam otherDoc{};
 						for (const N& n : dc) {
-							setNode(ap, n.pos, n.value, n.interpolated);
+							setNodeIn(apDoc, n.pos, n.value, n.interpolated);
 							deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 						}
 						for (const N& n : sc) {
-							setNode(otherAp, n.pos, n.value, n.interpolated);
+							setNodeIn(otherApDoc, n.pos, n.value, n.interpolated);
 							deluge::project::setNodeAtPos(otherDoc, n.pos, n.value, n.interpolated);
 						}
 
-						ap.appendParam(*ap.ownDocForFallback(), *otherAp.ownDocForFallback(), oldLength, reverseLen,
-						               pingpong);
+						ap.appendParam(*(&apDoc), *(&otherApDoc), oldLength, reverseLen, pingpong);
 						deluge::project::appendParam(doc, otherDoc, oldLength, reverseLen, pingpong);
 
 						check(ap.currentValue == doc.current_value,
 						      "appendParam: current_value untouched, matches engine oracle");
-						expectDocMatchesEngine(ap, doc, "appendParam: matches engine oracle");
+						expectDocMatchesEngine(apDoc, doc, "appendParam: matches engine oracle");
 					}
 				}
 			}
@@ -1933,22 +1918,22 @@ int main() {
 				}
 
 				AutoParam ap;
+				deluge::project::DocAutoParam apDoc;
 				DocAutoParam doc{};
 				for (const N& n : cfg) {
-					setNode(ap, n.pos, n.value, n.interpolated);
+					setNodeIn(apDoc, n.pos, n.value, n.interpolated);
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
-				(void)ap.ownDocForFallback()->nodes.reserveExtra(4);
+				(void)(&apDoc)->nodes.reserveExtra(4);
 
 				// M2-E: nudge now resolves nodes via modelStack->doc(); with action=nullptr it uses no other
 				// modelStack field, so a minimal stack carrying only autoParam suffices.
 				alignas(ModelStackWithAutoParam) char nbuf[MODEL_STACK_MAX_SIZE];
 				auto* nms = reinterpret_cast<ModelStackWithAutoParam*>(nbuf);
-				nms->autoParam = &ap;
-				nms->paramCollection = nullptr; // M2-E: standalone oracle -> doc() falls back to ownDoc_
+				bindOracle(nms, &ap, &apDoc);
 				ap.nudgeNonInterpolatingNodesAtPos(nc.pos, nc.offset, lengthBeforeLoop, nullptr, nms);
 				deluge::project::nudgeNonInterpolatingNodesAtPos(doc, nc.pos, nc.offset, lengthBeforeLoop);
-				expectDocMatchesEngine(ap, doc, "nudgeNonInterpolatingNodesAtPos: matches engine oracle");
+				expectDocMatchesEngine(apDoc, doc, "nudgeNonInterpolatingNodesAtPos: matches engine oracle");
 			}
 		}
 	}
@@ -1969,17 +1954,16 @@ int main() {
 			bool interpolated;
 		};
 
-		auto engineSetValueForRegion = [](AutoParam& ap, ModelStackWithAutoParam* ms, uint32_t pos, uint32_t length,
-		                                  int32_t value, int32_t effLen, bool interpL, bool interpR, bool clockActive,
-		                                  int32_t livePos, bool reversed) {
-			ms->autoParam = &ap;           // M2-E: ap.homogenizeRegion below resolves via modelStack->doc()
-			ms->paramCollection = nullptr; // M2-E: standalone oracle -> doc() falls back to ownDoc_
+		auto engineSetValueForRegion = [](AutoParam& ap, deluge::project::DocAutoParam& apDoc,
+		                                  ModelStackWithAutoParam* ms, uint32_t pos, uint32_t length, int32_t value,
+		                                  int32_t effLen, bool interpL, bool interpR, bool clockActive, int32_t livePos,
+		                                  bool reversed) {
+			bindOracle(ms, &ap, &apDoc);
 			if (pos >= static_cast<uint32_t>(effLen)) {
 				return;
 			}
 			if (length == static_cast<uint32_t>(effLen)) {
-				ap.ownDocForFallback()->nodes.erase(ap.ownDocForFallback()->nodes.begin(),
-				                                    ap.ownDocForFallback()->nodes.end());
+				(&apDoc)->nodes.erase((&apDoc)->nodes.begin(), (&apDoc)->nodes.end());
 				ap.currentValue = value;
 				return;
 			}
@@ -1992,10 +1976,9 @@ int main() {
 				ap.currentValue = value;
 				return;
 			}
-			int32_t mostRecentI =
-			    ap.ownDocForFallback()->nodes.firstAtOrAfter(livePos + static_cast<int32_t>(!reversed)) - 1;
+			int32_t mostRecentI = (&apDoc)->nodes.firstAtOrAfter(livePos + static_cast<int32_t>(!reversed)) - 1;
 			if (mostRecentI == -1) {
-				mostRecentI = static_cast<int32_t>(ap.ownDocForFallback()->nodes.size()) - 1;
+				mostRecentI = static_cast<int32_t>((&apDoc)->nodes.size()) - 1;
 			}
 			if (mostRecentI == firstI) {
 				ap.currentValue = value;
@@ -2036,15 +2019,16 @@ int main() {
 					for (int32_t livePos : livePositions) {
 						for (bool reversed : reversedFlags) {
 							AutoParam ap;
+							deluge::project::DocAutoParam apDoc;
 							DocAutoParam doc{};
 							for (const N& n : cfg) {
-								setNode(ap, n.pos, n.value, n.interpolated);
+								setNodeIn(apDoc, n.pos, n.value, n.interpolated);
 								deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 							}
 							// Same reallocation-safety reserve the homogenizeRegion oracle block above needs, for
 							// the same reason (the engine's homogenizeRegion has a latent dangling-pointer bug on
 							// mid-op reallocation; the DOM port is index-based and immune).
-							(void)ap.ownDocForFallback()->nodes.reserveExtra(4);
+							(void)(&apDoc)->nodes.reserveExtra(4);
 
 							alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
 							auto* ms = reinterpret_cast<ModelStackWithAutoParam*>(buf);
@@ -2054,8 +2038,8 @@ int main() {
 							nr.loopLengthIfIndependent = effLen;
 							ms->setNoteRow(&nr);
 
-							engineSetValueForRegion(ap, ms, c.pos, c.length, c.value, effLen, c.interpL, c.interpR,
-							                        clockActive, livePos, reversed);
+							engineSetValueForRegion(ap, apDoc, ms, c.pos, c.length, c.value, effLen, c.interpL,
+							                        c.interpR, clockActive, livePos, reversed);
 							auto domRet = deluge::project::setValueForRegion(
 							    doc, c.pos, c.length, c.value, effLen, c.interpL, c.interpR,
 							    /*recordingLinearly=*/false, clockActive, livePos, reversed);
@@ -2064,7 +2048,7 @@ int main() {
 							      "setValueForRegion: nullopt iff pos is at/past effectiveLength");
 							check(ap.currentValue == doc.current_value,
 							      "setValueForRegion: current_value matches engine oracle");
-							expectDocMatchesEngine(ap, doc, "setValueForRegion: nodes match engine oracle");
+							expectDocMatchesEngine(apDoc, doc, "setValueForRegion: nodes match engine oracle");
 						}
 					}
 				}
@@ -2167,12 +2151,13 @@ int main() {
 				for (const auto& cc : copyCases) {
 					// Build matching engine + DOM source params.
 					AutoParam ap;
+					deluge::project::DocAutoParam apDoc;
 					DocAutoParam doc{};
 					for (const N& n : srcCfg) {
-						setNode(ap, n.pos, n.value, n.interpolated);
+						setNodeIn(apDoc, n.pos, n.value, n.interpolated);
 						deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 					}
-					(void)ap.ownDocForFallback()->nodes.reserveExtra(4);
+					(void)(&apDoc)->nodes.reserveExtra(4);
 
 					::CopiedParamAutomation ca; // engine automation clipboard carrier
 					CopiedAutomation domCopied;
@@ -2180,8 +2165,7 @@ int main() {
 					alignas(ModelStackWithAutoParam) char cbuf[MODEL_STACK_MAX_SIZE];
 					NoteRow cnr;
 					ModelStackWithAutoParam* cms = lightStack(cbuf, loopLen, cnr);
-					cms->autoParam = &ap;           // M2-E: copy calls getValueAtPos internally (resolves via doc())
-					cms->paramCollection = nullptr; // M2-E: standalone oracle -> doc() falls back to ownDoc_
+					bindOracle(cms, &ap, &apDoc);
 					ap.copy(cc.startPos, cc.endPos, &ca, isPatchCable, cms);
 					deluge::project::copyRegion(doc, cc.startPos, cc.endPos, loopLen, isPatchCable, domCopied);
 
@@ -2271,8 +2255,9 @@ int main() {
 		};
 
 		// Replica of AutoParam::insertStolenNodes, minus its unconditional notifyParamModifiedInSomeWay tail.
-		auto engineInsertStolen = [](AutoParam& ap, ModelStackWithAutoParam* ms, int32_t pos, int32_t regionLength,
-		                             int32_t loopLength, StolenParamNodes* stolenNodeRecord) {
+		auto engineInsertStolen = [](AutoParam& ap, deluge::project::DocAutoParam& apDoc, ModelStackWithAutoParam* ms,
+		                             int32_t pos, int32_t regionLength, int32_t loopLength,
+		                             StolenParamNodes* stolenNodeRecord) {
 			ap.stealNodes(ms, pos, regionLength, loopLength, nullptr); // clear the destination area, unrecorded
 			for (int32_t sourceI = 0; sourceI < stolenNodeRecord->num; sourceI++) {
 				ParamNode* stolenNode = &stolenNodeRecord->nodes[sourceI];
@@ -2283,11 +2268,11 @@ int main() {
 				if (destPos >= loopLength) {
 					destPos -= loopLength;
 				}
-				int32_t destI = ap.ownDocForFallback()->nodes.insertSorted(destPos).value_or(-1);
+				int32_t destI = (&apDoc)->nodes.insertSorted(destPos).value_or(-1);
 				if (destI == -1) {
 					break;
 				}
-				ParamNode* destNode = &ap.ownDocForFallback()->nodes[destI];
+				ParamNode* destNode = &(&apDoc)->nodes[destI];
 				*destNode = *stolenNode;
 				destNode->pos = destPos;
 			}
@@ -2307,17 +2292,17 @@ int main() {
 		for (const auto& cfg : configs) {
 			for (const auto& c : cases) {
 				AutoParam ap;
+				deluge::project::DocAutoParam apDoc;
 				DocAutoParam doc{};
 				for (const N& n : cfg) {
-					setNode(ap, n.pos, n.value, n.interpolated);
+					setNodeIn(apDoc, n.pos, n.value, n.interpolated);
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
-				(void)ap.ownDocForFallback()->nodes.reserveExtra(4);
+				(void)(&apDoc)->nodes.reserveExtra(4);
 				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
 				NoteRow nr;
 				ModelStackWithAutoParam* ms = buildStack(buf, loopLen, nr);
-				ms->autoParam = &ap;           // M2-E: stealNodes/insertStolenNodes resolve nodes via modelStack->doc()
-				ms->paramCollection = nullptr; // M2-E: standalone oracle -> doc() falls back to ownDoc_
+				bindOracle(ms, &ap, &apDoc);
 
 				// --- stealNodes: engine call direct vs. the DOM kernel; diff both the stolen record and the
 				// residual timeline.
@@ -2339,14 +2324,14 @@ int main() {
 					check(engineRecord.nodes[i].interpolated == domRecord[i].interpolated,
 					      "stealNodes: stolen node interpolated matches engine oracle");
 				}
-				expectDocMatchesEngine(ap, doc, "stealNodes: residual timeline matches engine oracle");
+				expectDocMatchesEngine(apDoc, doc, "stealNodes: residual timeline matches engine oracle");
 
 				// --- insertStolenNodes: splice the stolen record back in at a (possibly different) destination.
-				engineInsertStolen(ap, ms, c.dstPos, c.dstLen, loopLen, &engineRecord);
+				engineInsertStolen(ap, apDoc, ms, c.dstPos, c.dstLen, loopLen, &engineRecord);
 				deluge::project::insertStolenNodes(doc, c.dstPos, c.dstLen, loopLen, domRecord);
 				check(ap.currentValue == doc.current_value,
 				      "insertStolenNodes: current_value untouched, matches engine oracle");
-				expectDocMatchesEngine(ap, doc, "insertStolenNodes: matches engine oracle");
+				expectDocMatchesEngine(apDoc, doc, "insertStolenNodes: matches engine oracle");
 			}
 		}
 	}
@@ -2370,17 +2355,18 @@ int main() {
 			for (int32_t cv : cvs) {
 				for (float off : offs) {
 					AutoParam ap;
+					deluge::project::DocAutoParam apDoc;
 					ap.currentValue = cv;
 					deluge::project::DocAutoParam doc{};
 					doc.current_value = cv;
 					for (const N& n : cfg) {
-						setNode(ap, n.pos, n.value, n.interpolated);
+						setNodeIn(apDoc, n.pos, n.value, n.interpolated);
 						deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 					}
-					ap.shiftParamVolumeByDB(*ap.ownDocForFallback(), off);
+					ap.shiftParamVolumeByDB(*(&apDoc), off);
 					deluge::project::shiftParamVolumeByDB(doc, off);
 					check(ap.currentValue == doc.current_value, "shiftParamVolumeByDB: current_value matches engine");
-					expectDocMatchesEngine(ap, doc, "shiftParamVolumeByDB: nodes match engine");
+					expectDocMatchesEngine(apDoc, doc, "shiftParamVolumeByDB: nodes match engine");
 				}
 			}
 		}
@@ -2415,15 +2401,16 @@ int main() {
 		for (const auto& cfg : cfgs) {
 			for (int32_t rs : rshifts) {
 				AutoParam ap;
+				deluge::project::DocAutoParam apDoc;
 				deluge::project::DocAutoParam doc{};
 				for (const N& n : cfg.nodes) {
-					setNode(ap, n.pos, n.value, n.interpolated);
+					setNodeIn(apDoc, n.pos, n.value, n.interpolated);
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
-				ap.makeInterpolationGoodAgain(*ap.ownDocForFallback(), cfg.clipLength, rs);
+				ap.makeInterpolationGoodAgain(*(&apDoc), cfg.clipLength, rs);
 				bool ok = deluge::project::makeInterpolationGoodAgain(doc, cfg.clipLength, rs);
 				check(ok, "makeInterpolationGoodAgain: kernel completes (no RAM failure)");
-				expectDocMatchesEngine(ap, doc, "makeInterpolationGoodAgain: nodes match engine");
+				expectDocMatchesEngine(apDoc, doc, "makeInterpolationGoodAgain: nodes match engine");
 			}
 		}
 	}
@@ -2441,27 +2428,27 @@ int main() {
 			bool interpolated;
 		};
 
-		auto engineRecordLiveValue = [](AutoParam& ap, ModelStackWithAutoParam* ms, int32_t livePos, int32_t value,
+		auto engineRecordLiveValue = [](AutoParam& ap, deluge::project::DocAutoParam& apDoc,
+		                                ModelStackWithAutoParam* ms, int32_t livePos, int32_t value,
 		                                int32_t ticksToClear, bool doMPE, bool interpL, int32_t effLen, bool reversed,
 		                                int32_t cut) -> int32_t {
-			ms->autoParam = &ap;           // M2-E: ap.homogenizeRegion below resolves via modelStack->doc()
-			ms->paramCollection = nullptr; // M2-E: standalone oracle -> doc() falls back to ownDoc_
+			bindOracle(ms, &ap, &apDoc);
 			int32_t leftI;
 			if (doMPE || ticksToClear == 0) {
-				leftI = ap.setNodeAtPos(*ap.ownDocForFallback(), livePos, value, interpL);
+				leftI = ap.setNodeAtPos(*(&apDoc), livePos, value, interpL);
 			}
 			else {
 				leftI = ap.homogenizeRegion(ms, livePos, ticksToClear, value, interpL, /*interpR=*/true, effLen,
 				                            reversed, cut);
 				if (reversed && leftI != -1) {
 					int32_t iFurtherRight = leftI + 2;
-					if (iFurtherRight >= static_cast<int32_t>(ap.ownDocForFallback()->nodes.size())) {
-						iFurtherRight -= static_cast<int32_t>(ap.ownDocForFallback()->nodes.size());
+					if (iFurtherRight >= static_cast<int32_t>((&apDoc)->nodes.size())) {
+						iFurtherRight -= static_cast<int32_t>((&apDoc)->nodes.size());
 					}
-					if (iFurtherRight >= static_cast<int32_t>(ap.ownDocForFallback()->nodes.size())) {
-						iFurtherRight -= static_cast<int32_t>(ap.ownDocForFallback()->nodes.size());
+					if (iFurtherRight >= static_cast<int32_t>((&apDoc)->nodes.size())) {
+						iFurtherRight -= static_cast<int32_t>((&apDoc)->nodes.size());
 					}
-					ap.ownDocForFallback()->nodes[iFurtherRight].interpolated = true;
+					(&apDoc)->nodes[iFurtherRight].interpolated = true;
 				}
 			}
 			ap.currentValue = value;
@@ -2494,14 +2481,15 @@ int main() {
 		for (const auto& cfg : configs) {
 			for (const auto& c : cases) {
 				AutoParam ap;
+				deluge::project::DocAutoParam apDoc;
 				DocAutoParam doc{};
 				for (const N& n : cfg) {
-					setNode(ap, n.pos, n.value, n.interpolated);
+					setNodeIn(apDoc, n.pos, n.value, n.interpolated);
 					deluge::project::setNodeAtPos(doc, n.pos, n.value, n.interpolated);
 				}
 				// Reserve headroom: the engine's homogenizeRegion has a latent dangling-pointer bug on mid-op
 				// reallocation (the DOM port is index-based and immune) — same guard the blocks above use.
-				(void)ap.ownDocForFallback()->nodes.reserveExtra(4);
+				(void)(&apDoc)->nodes.reserveExtra(4);
 
 				alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
 				auto* ms = reinterpret_cast<ModelStackWithAutoParam*>(buf);
@@ -2511,14 +2499,14 @@ int main() {
 				nr.loopLengthIfIndependent = effLen;
 				ms->setNoteRow(&nr);
 
-				int32_t engRet = engineRecordLiveValue(ap, ms, c.livePos, c.value, c.ticksToClear, c.doMPE, c.interpL,
-				                                       effLen, c.reversed, c.cut);
+				int32_t engRet = engineRecordLiveValue(ap, apDoc, ms, c.livePos, c.value, c.ticksToClear, c.doMPE,
+				                                       c.interpL, effLen, c.reversed, c.cut);
 				int32_t domRet = deluge::project::recordLiveValue(doc, c.livePos, c.value, c.ticksToClear, c.doMPE,
 				                                                  c.interpL, effLen, c.reversed,
 				                                                  /*recordingLinearly=*/false, c.cut);
 				check(engRet == domRet, "recordLiveValue: return index matches engine oracle");
 				check(ap.currentValue == doc.current_value, "recordLiveValue: current_value matches engine");
-				expectDocMatchesEngine(ap, doc, "recordLiveValue: nodes match engine oracle");
+				expectDocMatchesEngine(apDoc, doc, "recordLiveValue: nodes match engine oracle");
 			}
 		}
 	}

@@ -140,19 +140,9 @@ public:
 		renewedOverridingAtTime = 0;
 	}
 
-	/// M2-E (E3): the AutoParam holds NO pointer into DOM node data. Its node ops receive a `DocAutoParam&`
-	/// resolved by the OWNER (ModelStackWithAutoParam::doc() -> paramCollection->docParamForId()); this accessor is
-	/// only the fallback for a param that has no owner-store slot — an UNBOUND runtime MIDI-CC / patch-cable / temp
-	/// param, or a clone before bind. Its nodes live inline in `ownDoc_`, which rides with the param through
-	/// copy/move/memcpy (so ordered collections that reorder by index stay correct without a stored handle).
-	deluge::project::DocAutoParam* ownDocForFallback() { return &ownDoc_; }
-	const deluge::project::DocAutoParam* ownDocForFallback() const { return &ownDoc_; }
-
-	/// Move this param's current (inline) nodes into a DOM-owned `DocAutoParam` store slot. Used at bind time for
-	/// owner-resolved sets (ParamSet): the set seeds a `DocParamSet` from its params, then relocates each param's
-	/// nodes into it; thereafter the OWNER resolves the store by index and `ownDoc_` is left empty. No pointer is
-	/// stored back on the param — the relocation-dangle hazard is gone.
-	void moveNodesInto(deluge::project::DocAutoParam* domDoc);
+	/// M2-F: the AutoParam is a pure interpolation cursor — it holds NO node storage. Every node op receives a
+	/// `DocAutoParam&` resolved by the OWNER (ModelStackWithAutoParam::doc() -> paramCollection->docParamForId(),
+	/// or a per-owner docForParam). The DOM owns all automation node data.
 
 	/// Current value of the AutoParam. Updated by several functions.
 	int32_t currentValue;
@@ -170,12 +160,6 @@ public:
 	// it only works in empty stretches of time.
 
 private:
-	/// This param's inline `DocAutoParam` node storage. For an owner-bound param the nodes have been relocated
-	/// into the owner's `DocParamSet` slot (this is left empty and the owner resolves the store); for an unbound
-	/// param (fallback) the nodes live here. `.current_value` (the DOM base) is left untouched — the RT cursor
-	/// lives in the separate `currentValue` member. Held by value, so it rides with the param through copy/move.
-	deluge::project::DocAutoParam ownDoc_{};
-
 	bool deleteRedundantNodeInLinearRun(deluge::project::DocAutoParam& doc, int32_t lastNodeInRunI,
 	                                    int32_t effectiveLength, bool mayLoopAroundBackToEnd = true);
 	void setupInterpolation(ModelStackWithAutoParam const* modelStack, ParamNode* nextNode, int32_t effectiveLength,

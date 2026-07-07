@@ -3059,7 +3059,7 @@ expressionParam:
 						summary = paramManager.getExpressionParamSetSummary();
 						expressionParams = (ExpressionParamSet*)summary->paramCollection;
 						param = &expressionParams->params[paramId];
-						readTarget = param->ownDocForFallback();
+						readTarget = expressionParams->docForParam(paramId); // M2-F: owner-resolved store, not ownDoc_
 					}
 					else if (!strcasecmp(contents, "aftertouch")) {
 						paramId = Z_PRESSURE;

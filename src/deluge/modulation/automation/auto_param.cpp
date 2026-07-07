@@ -56,18 +56,15 @@
 #define UNINTERPOLATED_NODE_CANCELS_OVERRIDING_AFTER_SAMPLES                                                           \
 	6630 // 150ms. Only seems to have an effect for MIDI, which is confusing me...
 
+// M2-F: AutoParam is a pure interpolation cursor — it holds NO node storage. Node data lives in the DOM,
+// resolved per-op via the owner (ModelStackWithAutoParam::doc()). currentValue is the RT cursor.
 AutoParam::AutoParam() {
-	init(ownDoc_);
 	currentValue = 0;
 	resetInterpolationIncrement();
 	renewedOverridingAtTime = 0;
 }
 
-// M2-E (E3): the AutoParam holds no DOM pointer, so copy/move are ordinary value semantics over `ownDoc_`. Copy
-// carries this param's inline nodes (an OWNER-BOUND param has them relocated into the owner store, so its ownDoc_
-// is empty — the owner's copy-ctor deep-copies the store, not the param). currentValue (the RT cursor) is a
-// distinct member — NOT ownDoc_.current_value (the DOM base value), which the engine leaves alone.
-AutoParam::AutoParam(AutoParam const& other) : currentValue(other.currentValue), ownDoc_(other.ownDoc_) {
+AutoParam::AutoParam(AutoParam const& other) : currentValue(other.currentValue) {
 	resetInterpolationIncrement();
 	renewedOverridingAtTime = 0;
 }
@@ -77,20 +74,16 @@ AutoParam& AutoParam::operator=(AutoParam const& other) {
 		return *this;
 	}
 	currentValue = other.currentValue;
-	ownDoc_ = other.ownDoc_;
 	resetInterpolationIncrement();
 	renewedOverridingAtTime = 0;
 	return *this;
 }
 
-// Move: carry the transient fields (matching the previously-defaulted move) and move ownDoc_. No handle to
-// re-point — an owner-bound param's nodes live in the owner store (resolved by index), which this move doesn't
-// touch; the ordered collections rely on ownDoc_ riding with the param.
 AutoParam::AutoParam(AutoParam&& other) noexcept
     : currentValue(other.currentValue), valueIncrementPerHalfTick(other.valueIncrementPerHalfTick),
       value_increment_per_half_tick_float(other.value_increment_per_half_tick_float),
       interpolation_increment_remainder_float(other.interpolation_increment_remainder_float),
-      renewedOverridingAtTime(other.renewedOverridingAtTime), ownDoc_(std::move(other.ownDoc_)) {
+      renewedOverridingAtTime(other.renewedOverridingAtTime) {
 }
 
 AutoParam& AutoParam::operator=(AutoParam&& other) noexcept {
@@ -102,24 +95,12 @@ AutoParam& AutoParam::operator=(AutoParam&& other) noexcept {
 	value_increment_per_half_tick_float = other.value_increment_per_half_tick_float;
 	interpolation_increment_remainder_float = other.interpolation_increment_remainder_float;
 	renewedOverridingAtTime = other.renewedOverridingAtTime;
-	ownDoc_ = std::move(other.ownDoc_);
 	return *this;
 }
 
-void AutoParam::moveNodesInto(deluge::project::DocAutoParam* domDoc) {
-	domDoc->nodes = std::move(ownDoc_.nodes); // relocate nodes into the owner store; ownDoc_.nodes left empty
-}
-
-// M2-E (E3): the ModelStack resolves the DOM handle from the OWNER, by paramId — not from a pointer stored on the
-// engine AutoParam. This is the projection→owned-handle pivot: the collection maps paramId -> its DocParamSet slot
-// (or the param's own fallback store when unbound), so no engine object holds a pointer into DOM node data.
+// M2-F: the DOM node store is resolved entirely from the OWNER, by paramId. No engine object holds node storage.
 deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
-	if (paramCollection != nullptr) {
-		if (deluge::project::DocAutoParam* d = paramCollection->docParamForId(paramId)) {
-			return d;
-		}
-	}
-	return autoParam->ownDocForFallback();
+	return paramCollection->docParamForId(paramId);
 }
 
 void AutoParam::init(deluge::project::DocAutoParam& doc) {

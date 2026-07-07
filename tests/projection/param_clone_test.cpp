@@ -35,54 +35,27 @@ void check(bool ok, const char* what) {
 	}
 }
 
-// Insert-or-append a node (matches tests/projection/param_automation_test.cpp's helper).
-void setNode(AutoParam& ap, int32_t pos, int32_t value, bool interpolated) {
-	int32_t i = ap.ownDocForFallback()->nodes.insertSorted(pos, /*isDefinitelyLast=*/true).value_or(-1);
+// Author a node into a DOM node store (owner-resolved slot, or a standalone DocAutoParam).
+void setNodeIn(deluge::project::DocAutoParam& doc, int32_t pos, int32_t value, bool interpolated) {
+	int32_t i = doc.nodes.insertSorted(pos, /*isDefinitelyLast=*/true).value_or(-1);
 	if (i >= 0) {
-		ap.ownDocForFallback()->nodes[i].pos = pos;
-		ap.ownDocForFallback()->nodes[i].value = value;
-		ap.ownDocForFallback()->nodes[i].interpolated = interpolated;
+		doc.nodes[i].pos = pos;
+		doc.nodes[i].value = value;
+		doc.nodes[i].interpolated = interpolated;
 	}
 }
 
 int main() {
-	// (a) AutoParam copy assignment: nodes are deep-copied and independent of the source.
+	// (a) M2-F: AutoParam is a pure cursor — copy carries only currentValue (node storage lives in the DOM, and
+	// is exercised by the ParamManager/ParamSet clone blocks below).
 	{
 		AutoParam src;
-		setNode(src, 0, 111, false);
-		setNode(src, 48, -222, true);
-
+		src.currentValue = 555;
 		AutoParam dst;
-		dst = src; // copy assign (replaces the retired cloneFrom(&src, true))
-		check(dst.ownDocForFallback()->nodes.size() == 2, "autoparam clone: node count copied");
-		check(dst.ownDocForFallback()->nodes[0].value == 111 && dst.ownDocForFallback()->nodes[1].value == -222,
-		      "autoparam clone: node values copied");
-
-		src.ownDocForFallback()->nodes[0].value = 999; // mutate the source
-		src.ownDocForFallback()->nodes[1].value = 999;
-		check(dst.ownDocForFallback()->nodes[0].value == 111 && dst.ownDocForFallback()->nodes[1].value == -222,
-		      "autoparam clone: dst independent of src mutation");
-	}
-
-	// (a2) AutoParam copy constructor: deep-copies nodes + value.
-	{
-		AutoParam src;
-		setNode(src, 0, 111, false);
-		setNode(src, 48, -222, true);
-		src.currentValue = 55;
-
-		AutoParam dst(src); // copy ctor
-		check(dst.ownDocForFallback()->nodes.size() == 2 && dst.currentValue == 55,
-		      "autoparam copy ctor: nodes + value copied");
-		src.ownDocForFallback()->nodes[0].value = 999;
-		check(dst.ownDocForFallback()->nodes[0].value == 111, "autoparam copy ctor: dst independent");
-
-		AutoParam asn;
-		asn = src; // copy assign
-		check(asn.ownDocForFallback()->nodes.size() == 2 && asn.currentValue == 55,
-		      "autoparam copy assign: nodes + value copied");
-		src.ownDocForFallback()->nodes[1].value = 888;
-		check(asn.ownDocForFallback()->nodes[1].value == -222, "autoparam copy assign: dst independent");
+		dst = src; // copy assign
+		check(dst.currentValue == 555, "autoparam copy assign: currentValue copied");
+		AutoParam ctor(src); // copy ctor
+		check(ctor.currentValue == 555, "autoparam copy ctor: currentValue copied");
 	}
 
 	// (b) ParamManager clone: exercises the polymorphic per-collection clone chain
@@ -92,8 +65,8 @@ int main() {
 		check(pm.setupWithPatching() == Error::NONE, "pm setupWithPatching");
 
 		pm.getUnpatchedParamSet()->params[2].currentValue = 678;
-		setNode(pm.getUnpatchedParamSet()->params[2], 16, 321, false);
-		setNode(pm.getPatchedParamSet()->params[5], 0, 100, true);
+		setNodeIn(*pm.getUnpatchedParamSet()->docForParam(2), 16, 321, false);
+		setNodeIn(*pm.getPatchedParamSet()->docForParam(5), 0, 100, true);
 
 		PatchCableSet* pcs = pm.getPatchCableSet();
 		pcs->numPatchCables = 1;
@@ -101,28 +74,24 @@ int main() {
 		pcs->patchCables[0].from = PatchSource::ENVELOPE_0;
 		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(7);
 		pcs->patchCables[0].param.currentValue = 536870912;
-		setNode(pcs->patchCables[0].param, 0, -536870912, true);
+		setNodeIn(*pcs->docForParam(0), 0, -536870912, true);
 
 		ParamManagerForTimeline clone;
 		check(clone.cloneParamCollectionsFrom(&pm, /*copyAutomation=*/true) == Error::NONE,
 		      "pm clone: cloneParamCollectionsFrom");
-		check(clone.getUnpatchedParamSet()->params[2].ownDocForFallback()->nodes.size() == 1,
-		      "pm clone: unpatched node copied");
-		check(clone.getPatchedParamSet()->params[5].ownDocForFallback()->nodes.size() == 1,
-		      "pm clone: patched node copied");
-		check(clone.getPatchCableSet()->patchCables[0].param.ownDocForFallback()->nodes.size() == 1,
-		      "pm clone: patch-cable node copied");
+		check(clone.getUnpatchedParamSet()->docForParam(2)->nodes.size() == 1, "pm clone: unpatched node copied");
+		check(clone.getPatchedParamSet()->docForParam(5)->nodes.size() == 1, "pm clone: patched node copied");
+		check(clone.getPatchCableSet()->docForParam(0)->nodes.size() == 1, "pm clone: patch-cable node copied");
 
 		// Mutate every collection in the source; the clone must not move.
-		pm.getUnpatchedParamSet()->params[2].ownDocForFallback()->nodes[0].value = 999;
-		pm.getPatchedParamSet()->params[5].ownDocForFallback()->nodes[0].value = 999;
-		pcs->patchCables[0].param.ownDocForFallback()->nodes[0].value = 999;
+		pm.getUnpatchedParamSet()->docForParam(2)->nodes[0].value = 999;
+		pm.getPatchedParamSet()->docForParam(5)->nodes[0].value = 999;
+		pcs->docForParam(0)->nodes[0].value = 999;
 
-		check(clone.getUnpatchedParamSet()->params[2].ownDocForFallback()->nodes[0].value == 321,
+		check(clone.getUnpatchedParamSet()->docForParam(2)->nodes[0].value == 321,
 		      "pm clone: unpatched node independent");
-		check(clone.getPatchedParamSet()->params[5].ownDocForFallback()->nodes[0].value == 100,
-		      "pm clone: patched node independent");
-		check(clone.getPatchCableSet()->patchCables[0].param.ownDocForFallback()->nodes[0].value == -536870912,
+		check(clone.getPatchedParamSet()->docForParam(5)->nodes[0].value == 100, "pm clone: patched node independent");
+		check(clone.getPatchCableSet()->docForParam(0)->nodes[0].value == -536870912,
 		      "pm clone: patch-cable node independent");
 	}
 
@@ -131,17 +100,16 @@ int main() {
 	{
 		ParamManagerForTimeline pm;
 		check(pm.setupWithPatching() == Error::NONE, "clone(): pm setup");
-		setNode(pm.getUnpatchedParamSet()->params[2], 16, 321, false);
+		setNodeIn(*pm.getUnpatchedParamSet()->docForParam(2), 16, 321, false);
 
 		ParamCollection* cloned = nullptr;
 		Error e = pm.getUnpatchedParamSet()->clone(cloned, /*copyAutomation=*/true);
 		check(e == Error::NONE && cloned != nullptr, "clone(): unpatched clone ok");
 		if (cloned != nullptr) {
 			ParamSet* clonedSet = static_cast<ParamSet*>(cloned);
-			check(clonedSet->params[2].ownDocForFallback()->nodes.size() == 1, "clone(): unpatched node copied");
-			pm.getUnpatchedParamSet()->params[2].ownDocForFallback()->nodes[0].value = 999;
-			check(clonedSet->params[2].ownDocForFallback()->nodes[0].value == 321,
-			      "clone(): unpatched node independent");
+			check(clonedSet->docForParam(2)->nodes.size() == 1, "clone(): unpatched node copied");
+			pm.getUnpatchedParamSet()->docForParam(2)->nodes[0].value = 999;
+			check(clonedSet->docForParam(2)->nodes[0].value == 321, "clone(): unpatched node independent");
 		}
 	}
 
@@ -150,15 +118,15 @@ int main() {
 		ParamManagerForTimeline pm;
 		check(pm.setupWithPatching() == Error::NONE, "clone(strip): pm setup");
 		pm.getUnpatchedParamSet()->params[2].currentValue = 678;
-		setNode(pm.getUnpatchedParamSet()->params[2], 16, 321, false);
+		setNodeIn(*pm.getUnpatchedParamSet()->docForParam(2), 16, 321, false);
 
 		ParamCollection* cloned = nullptr;
 		Error e = pm.getUnpatchedParamSet()->clone(cloned, /*copyAutomation=*/false);
 		check(e == Error::NONE && cloned != nullptr, "clone(strip): clone ok");
 		if (cloned != nullptr) {
 			ParamSet* clonedSet = static_cast<ParamSet*>(cloned);
-			check(clonedSet->params[2].ownDocForFallback()->nodes.size() == 0, "clone(strip): automation dropped");
-			check(pm.getUnpatchedParamSet()->params[2].ownDocForFallback()->nodes.size() == 1,
+			check(clonedSet->docForParam(2)->nodes.size() == 0, "clone(strip): automation dropped");
+			check(pm.getUnpatchedParamSet()->docForParam(2)->nodes.size() == 1,
 			      "clone(strip): source automation intact");
 		}
 	}
@@ -168,8 +136,8 @@ int main() {
 		ParamManagerForTimeline pm;
 		check(pm.setupWithPatching() == Error::NONE, "clone(reverse): pm setup");
 		// Two nodes: pos 0 and pos 48 in a length-96 loop.
-		setNode(pm.getUnpatchedParamSet()->params[2], 0, 111, false);
-		setNode(pm.getUnpatchedParamSet()->params[2], 48, 222, true);
+		setNodeIn(*pm.getUnpatchedParamSet()->docForParam(2), 0, 111, false);
+		setNodeIn(*pm.getUnpatchedParamSet()->docForParam(2), 48, 222, true);
 
 		ParamCollection* cloned = nullptr;
 		Error e = pm.getUnpatchedParamSet()->clone(cloned, /*copyAutomation=*/true, /*reverseWithLength=*/96);
@@ -177,13 +145,13 @@ int main() {
 		if (cloned != nullptr) {
 			ParamSet* clonedSet = static_cast<ParamSet*>(cloned);
 			// Reversed: newPos = -oldPos (+96 if <0). Node at 0 stays 0; node at 48 -> 48.
-			check(clonedSet->params[2].ownDocForFallback()->nodes.size() == 2, "clone(reverse): node count preserved");
-			int32_t p0 = clonedSet->params[2].ownDocForFallback()->nodes[0].pos;
-			int32_t p1 = clonedSet->params[2].ownDocForFallback()->nodes[1].pos;
+			check(clonedSet->docForParam(2)->nodes.size() == 2, "clone(reverse): node count preserved");
+			int32_t p0 = clonedSet->docForParam(2)->nodes[0].pos;
+			int32_t p1 = clonedSet->docForParam(2)->nodes[1].pos;
 			check(p0 == 0 && p1 == 48, "clone(reverse): node positions reflected");
 			// Source untouched by the clone's reverse.
-			check(pm.getUnpatchedParamSet()->params[2].ownDocForFallback()->nodes[0].pos == 0
-			          && pm.getUnpatchedParamSet()->params[2].ownDocForFallback()->nodes[1].pos == 48,
+			check(pm.getUnpatchedParamSet()->docForParam(2)->nodes[0].pos == 0
+			          && pm.getUnpatchedParamSet()->docForParam(2)->nodes[1].pos == 48,
 			      "clone(reverse): source unchanged");
 		}
 	}
@@ -231,7 +199,7 @@ int main() {
 	{
 		NoteRow src(5);
 		check(src.paramManager.setupWithPatching() == Error::NONE, "noterow copy: pm setup");
-		setNode(src.paramManager.getUnpatchedParamSet()->params[2], 16, 321, false);
+		setNodeIn(*src.paramManager.getUnpatchedParamSet()->docForParam(2), 16, 321, false);
 
 		(void)src.notes.insertAt(0);
 		src.notes[0].pos = 10;
@@ -244,35 +212,31 @@ int main() {
 		check(dst.drum == fakeDrum, "noterow copy: drum pointer shared");
 		check(static_cast<DrumName*>(dst.firstOldDrumName) == nullptr, "noterow copy: drum-name list reset");
 		check(dst.notes.size() == 1 && dst.notes[0].pos == 10, "noterow copy: notes copied");
-		check(dst.paramManager.getUnpatchedParamSet()->params[2].ownDocForFallback()->nodes.size() == 1,
+		check(dst.paramManager.getUnpatchedParamSet()->docForParam(2)->nodes.size() == 1,
 		      "noterow copy: param automation copied");
 
 		// Mutate the source; the copy must not move.
 		src.notes[0].pos = 20;
-		src.paramManager.getUnpatchedParamSet()->params[2].ownDocForFallback()->nodes[0].value = 999;
+		src.paramManager.getUnpatchedParamSet()->docForParam(2)->nodes[0].value = 999;
 		check(dst.notes[0].pos == 10, "noterow copy: notes independent");
-		check(dst.paramManager.getUnpatchedParamSet()->params[2].ownDocForFallback()->nodes[0].value == 321,
+		check(dst.paramManager.getUnpatchedParamSet()->docForParam(2)->nodes[0].value == 321,
 		      "noterow copy: param automation independent");
 	}
 
-	// (c) Undo swap round-trip (the undo path uses swap, not the byte-copy idiom — regression guard).
+	// (c) Undo swap round-trip: the undo path swaps two DOM node stores (AutoParamState vs the live store).
 	{
-		AutoParam a, b;
-		setNode(a, 0, 10, false);
-		setNode(b, 0, 20, false);
-		setNode(b, 8, 30, false);
+		deluge::project::DocAutoParam a, b;
+		setNodeIn(a, 0, 10, false);
+		setNodeIn(b, 0, 20, false);
+		setNodeIn(b, 8, 30, false);
 
-		a.ownDocForFallback()->nodes.swap(b.ownDocForFallback()->nodes);
-		check(a.ownDocForFallback()->nodes.size() == 2 && a.ownDocForFallback()->nodes[1].value == 30,
-		      "swap: a took b's nodes");
-		check(b.ownDocForFallback()->nodes.size() == 1 && b.ownDocForFallback()->nodes[0].value == 10,
-		      "swap: b took a's nodes");
+		a.nodes.swap(b.nodes);
+		check(a.nodes.size() == 2 && a.nodes[1].value == 30, "swap: a took b's nodes");
+		check(b.nodes.size() == 1 && b.nodes[0].value == 10, "swap: b took a's nodes");
 
-		a.ownDocForFallback()->nodes.swap(b.ownDocForFallback()->nodes); // swap back
-		check(a.ownDocForFallback()->nodes.size() == 1 && a.ownDocForFallback()->nodes[0].value == 10,
-		      "swap back: a restored");
-		check(b.ownDocForFallback()->nodes.size() == 2 && b.ownDocForFallback()->nodes[1].value == 30,
-		      "swap back: b restored");
+		a.nodes.swap(b.nodes); // swap back
+		check(a.nodes.size() == 1 && a.nodes[0].value == 10, "swap back: a restored");
+		check(b.nodes.size() == 2 && b.nodes[1].value == 30, "swap back: b restored");
 	}
 
 	if (failures == 0) {
