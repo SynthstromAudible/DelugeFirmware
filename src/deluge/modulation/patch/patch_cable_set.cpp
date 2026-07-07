@@ -972,8 +972,10 @@ void PatchCableSet::readPatchCablesFromFile(Deserializer& reader, int32_t readAu
 								patchCables[numPatchCables].from = rangeSource;
 								patchCables[numPatchCables].param = tempRangeParam;
 								// M2-F: the deserialize temp read its nodes into its own store; relocate them into the
-								// cable's inline store (where owner-resolution reads them).
+								// cable's inline store (where owner-resolution reads them). Option I: carry the scalar
+								// too.
 								patchCables[numPatchCables].amount_.nodes = std::move(tempRangeParamDoc.nodes);
+								patchCables[numPatchCables].amount_.current_value = tempRangeParamDoc.current_value;
 								patchCables[numPatchCables].polarity = rangePolarity;
 								numPatchCables++;
 							}
@@ -1024,8 +1026,10 @@ doneWithThisRangeCable:
 				patchCables[numPatchCables].from = source;
 				patchCables[numPatchCables].destinationParamDescriptor = destinationParamDescriptor;
 				patchCables[numPatchCables].param = tempParam;
-				// M2-F: relocate the deserialize temp's nodes into the cable's inline store.
+				// M2-F: relocate the deserialize temp's nodes into the cable's inline store. Option I: carry the
+				// scalar too, so the store (not the engine cursor) is the source of the persisted current_value.
 				patchCables[numPatchCables].amount_.nodes = std::move(tempParamDoc.nodes);
+				patchCables[numPatchCables].amount_.current_value = tempParamDoc.current_value;
 				patchCables[numPatchCables].polarity = polarity;
 				numPatchCables++;
 			}

@@ -800,7 +800,8 @@ int main() {
 		pcs->patchCables[0].from = PatchSource::ENVELOPE_0;
 		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(7);
 		pcs->patchCables[0].polarity = Polarity::BIPOLAR;
-		pcs->patchCables[0].param.currentValue = 536870912;   // amount, patch-cable range
+		pcs->patchCables[0].param.currentValue = 536870912;   // amount, patch-cable range (engine cursor)
+		pcs->docForParam(0)->current_value = 536870912;       // Option I: store holds the persisted scalar
 		setNodeIn(*pcs->docForParam(0), 0, -536870912, true); // M2-F: cable nodes live in the cable's own store
 
 		deluge::project::DocParamManager doc = deluge::project::toDocParamManager(pm);
@@ -880,17 +881,20 @@ int main() {
 		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(7);
 		pcs->patchCables[0].polarity = Polarity::BIPOLAR;
 		pcs->patchCables[0].param.currentValue = 536870912;
+		pcs->docForParam(0)->current_value = 536870912;       // Option I: store holds the persisted scalar
 		setNodeIn(*pcs->docForParam(0), 0, -536870912, true); // M2-F: cable nodes live in the cable's own store
 		// flat cable 1: LFO_LOCAL_1 -> param 3
 		pcs->patchCables[1].from = PatchSource::LFO_LOCAL_1;
 		pcs->patchCables[1].destinationParamDescriptor.setToHaveParamOnly(3);
 		pcs->patchCables[1].polarity = Polarity::UNIPOLAR;
 		pcs->patchCables[1].param.currentValue = -100000;
+		pcs->docForParam(1)->current_value = -100000;
 		// range cable 2: LFO_LOCAL_2 controls the depth of cable 0 (param 7 + source ENVELOPE_0)
 		pcs->patchCables[2].from = PatchSource::LFO_LOCAL_2;
 		pcs->patchCables[2].destinationParamDescriptor.setToHaveParamAndSource(7, PatchSource::ENVELOPE_0);
 		pcs->patchCables[2].polarity = Polarity::BIPOLAR;
 		pcs->patchCables[2].param.currentValue = 12345;
+		pcs->docForParam(2)->current_value = 12345;
 
 		static char engineBuf[16384];
 		static char domBuf[16384];

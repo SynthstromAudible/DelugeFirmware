@@ -1454,6 +1454,7 @@ Error AutoParam::readFromFile(deluge::project::DocAutoParam& doc, Deserializer& 
 		for (int32_t i = 2; i < 12 && (buffer[i] = reader.readNextCharOfTagOrAttributeValue()); i++) {}
 		buffer[11] = 0;
 		currentValue = stringToInt(buffer);
+		doc.current_value = currentValue; // Option I (read-authority): the store scalar is sourced from the file
 		return Error::NONE;
 	}
 
@@ -1465,6 +1466,7 @@ Error AutoParam::readFromFile(deluge::project::DocAutoParam& doc, Deserializer& 
 		return Error::NONE;
 	}
 	currentValue = hexToIntFixedLength(hexChars, 8);
+	doc.current_value = currentValue; // Option I (read-authority): the store scalar is sourced from the file
 
 	// And now read in the automation
 	int32_t numElementsToAllocateFor = 0;

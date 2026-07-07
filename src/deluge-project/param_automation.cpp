@@ -113,9 +113,13 @@ std::vector<DocMidiParam> toDocMidiParams(MIDIParamCollection& midi) {
 	std::vector<DocMidiParam> out;
 	out.reserve(midi.params.size());
 	for (int32_t i = 0; i < std::ssize(midi.params); i++) {
+		// Option I (read-authority): value AND nodes both from the CC's CURRENT store via docForParam (the bound
+		// tree entry when bound — where the read seeds current_value and runtime edits land — else the inline
+		// nodes_). Reading param.currentValue (the engine cursor) would make the engine the source of the scalar.
+		deluge::project::DocAutoParam* d = midi.docForParam(i);
 		out.push_back(DocMidiParam{
 		    .cc = midi.params[i].cc,
-		    .param = toDocAutoParam(midi.params[i].param.currentValue, midi.docForParam(i)->nodes),
+		    .param = toDocAutoParam(d->current_value, d->nodes),
 		});
 	}
 	return out;
@@ -129,13 +133,15 @@ std::vector<DocPatchCable> toDocPatchCables(PatchCableSet& pcs) {
 	out.reserve(pcs.numPatchCables);
 	for (int32_t i = 0; i < pcs.numPatchCables; i++) {
 		PatchCable& cable = pcs.patchCables[i];
+		// Option I (read-authority): value AND nodes both from the cable's CURRENT store via docForParam (the bound
+		// tree entry when bound, where the read seeds current_value and runtime edits land — else the inline
+		// amount_). Reading cable.param.currentValue (the engine cursor) would make the engine the scalar's source.
+		deluge::project::DocAutoParam* d = pcs.docForParam(i);
 		out.push_back(DocPatchCable{
 		    .from = cable.from,
 		    .destination = cable.destinationParamDescriptor,
 		    .polarity = cable.polarity,
-		    // Nodes from the cable's CURRENT store via docForParam (the bound tree entry when bound, where runtime
-		    // edits land — NOT the inline amount_, which goes stale once bound; reading it would drop edits on save).
-		    .amount = toDocAutoParam(cable.param.currentValue, pcs.docForParam(i)->nodes),
+		    .amount = toDocAutoParam(d->current_value, d->nodes),
 		});
 	}
 	return out;

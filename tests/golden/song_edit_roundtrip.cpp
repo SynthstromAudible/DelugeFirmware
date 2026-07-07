@@ -129,6 +129,17 @@ int main(int argc, char** argv) {
 			PatchCableSet* pcs = pm.getPatchCableSet();
 			return pcs->docForParam(0) == &pcs->patchCables[0].amount_;
 		};
+		// Option I (read-authority, Slice C): each cable's store current_value must equal the engine cursor — the
+		// read now sources the persisted scalar from the store (docForParam), not the engine.
+		auto cableScalarOk = [](ParamManagerForTimeline& pm) {
+			PatchCableSet* pcs = pm.getPatchCableSet();
+			for (int32_t c = 0; c < pcs->numPatchCables; c++) {
+				if (pcs->docForParam(c)->current_value != pcs->patchCables[c].param.currentValue) {
+					return false;
+				}
+			}
+			return true;
+		};
 		// Option I (read-authority): the DOM-first read makes the store's current_value authoritative — it must
 		// equal the engine cursor for every param. On a no-serialId song (e.g. Sampling for audio) the post-load
 		// engine-seed is skipped, so the store scalar comes ONLY from the read, isolating read-authority; on
@@ -149,7 +160,7 @@ int main(int argc, char** argv) {
 		};
 		int32_t audioSeen = 0, audioBound = 0, audioScalarOk = 0, synthSeen = 0, synthBound = 0, synthScalarOk = 0;
 		int32_t kitSeen = 0, kitBound = 0, kitScalarOk = 0, drumSeen = 0, drumBound = 0, drumScalarOk = 0;
-		int32_t cableSeen = 0, cableBound = 0;
+		int32_t cableSeen = 0, cableBound = 0, cableScalarOkCount = 0;
 		std::array<ClipArray*, 2> clipArrays{&song->project.clips.session_clips,
 		                                     &song->project.clips.arrangement_only_clips};
 		for (ClipArray* arr : clipArrays) {
@@ -172,6 +183,7 @@ int main(int argc, char** argv) {
 					if (clip->paramManager.getPatchCableSet()->numPatchCables > 0) {
 						cableSeen++; // ...and its patch cables
 						cableBound += cablesBound(clip->paramManager) ? 1 : 0;
+						cableScalarOkCount += cableScalarOk(clip->paramManager) ? 1 : 0;
 					}
 				}
 				else if (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
@@ -191,6 +203,7 @@ int main(int argc, char** argv) {
 							if (nr.paramManager.getPatchCableSet()->numPatchCables > 0) {
 								cableSeen++; // ...and its patch cables
 								cableBound += cablesBound(nr.paramManager) ? 1 : 0;
+								cableScalarOkCount += cableScalarOk(nr.paramManager) ? 1 : 0;
 							}
 						}
 					}
@@ -199,9 +212,9 @@ int main(int argc, char** argv) {
 		}
 		std::fprintf(stderr,
 		             "audio: %d/%d (scalarOk %d) | synth: %d/%d (scalarOk %d) | kit: %d/%d (scalarOk %d) | "
-		             "drums: %d/%d (scalarOk %d) | patchCables: %d/%d\n",
+		             "drums: %d/%d (scalarOk %d) | patchCables: %d/%d (scalarOk %d)\n",
 		             audioBound, audioSeen, audioScalarOk, synthBound, synthSeen, synthScalarOk, kitBound, kitSeen,
-		             kitScalarOk, drumBound, drumSeen, drumScalarOk, cableBound, cableSeen);
+		             kitScalarOk, drumBound, drumSeen, drumScalarOk, cableBound, cableSeen, cableScalarOkCount);
 		if (audioSeen != audioBound || synthSeen != synthBound || kitSeen != kitBound || drumSeen != drumBound
 		    || cableSeen != cableBound) {
 			std::fprintf(stderr, "PHASE C: a clip/drum loaded UNBOUND (borrow not live)\n");
@@ -219,6 +232,11 @@ int main(int argc, char** argv) {
 		}
 		if (synthScalarOk != synthSeen || drumScalarOk != drumSeen) {
 			std::fprintf(stderr, "Flip Option I FAIL: a synth/drum clip's store current_value != engine (read not "
+			                     "DOM-authoritative)\n");
+			_exit(3);
+		}
+		if (cableScalarOkCount != cableSeen) {
+			std::fprintf(stderr, "Flip Option I FAIL: a patch cable's store current_value != engine (read not "
 			                     "DOM-authoritative)\n");
 			_exit(3);
 		}
