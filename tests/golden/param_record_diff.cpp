@@ -178,6 +178,20 @@ int main(int argc, char** argv) {
 	}
 	AutoParam& ap = *msap->autoParam;
 
+	// S1 proof: the song-global param's node store is resolved through the id-addressable project tree
+	// (Song::resolveParam by ParamAddress), not the engine fallback. resolveParam must return the SAME lane doc()
+	// returns, and it must be non-null (i.e. the addressed path is actually live, not silently falling back).
+	{
+		deluge::project::ParamAddress addr{deluge::project::OwnerId::song(), msap->paramCollection->getParamKind(),
+		                                   params::UNPATCHED_VOLUME};
+		deluge::project::DocAutoParam* viaAddress = song->project.resolveParam(addr);
+		if (viaAddress == nullptr || viaAddress != msap->doc()) {
+			fprintf(stderr, "S1 FAIL: song-global not id-addressed (resolveParam=%p doc=%p)\n", (void*)viaAddress,
+			        (void*)msap->doc());
+			return 3;
+		}
+	}
+
 	// --- Scripted live recording sequence -----------------------------------------------------------------
 	// A deterministic series of "knob turns" at explicit play positions (livePos passed directly, bypassing the
 	// play-position plumbing). Between events we advance AudioEngine::audioSampleTimer to model elapsed time,

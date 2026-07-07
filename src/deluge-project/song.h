@@ -18,11 +18,13 @@
 #pragma once
 
 #include "deluge-project/arrangement.h"
+#include "deluge-project/clip_params.h"
 #include "deluge-project/clips.h"
 #include "deluge-project/global_effects.h"
 #include "deluge-project/groove.h"
 #include "deluge-project/media_pool.h"
 #include "deluge-project/metadata.h"
+#include "deluge-project/param_address.h"
 #include "deluge-project/param_backup.h"
 #include "deluge-project/reverb_settings.h"
 #include "deluge-project/scale_settings.h"
@@ -53,6 +55,12 @@ class Song {
 public:
 	Song();
 
+	/// Id-addressable DOM param resolution: map a stable `ParamAddress` to the live `DocAutoParam` in the tree
+	/// (song-global → `global_fx.params`; clips → the per-clip store by serialId, added in a later slice). Returns
+	/// nullptr when the address names an owner/lane not (yet) tree-resident, so callers fall back to the engine
+	/// resolution path. This is the seam that lets param ops resolve by id rather than a threaded ModelStack.
+	DocAutoParam* resolveParam(const ParamAddress& address);
+
 	// Document / value tier — value-typed, serializable.
 	Metadata metadata;
 	Groove groove;
@@ -65,6 +73,7 @@ public:
 	MediaPool media;
 	Clips clips;
 	GlobalEffects global_fx;
+	ClipParams clip_params; // per-clip automation stores, keyed by Clip::serialId (id-addressable node storage)
 	ParamBackup param_backup;
 };
 

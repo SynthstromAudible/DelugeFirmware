@@ -98,8 +98,22 @@ AutoParam& AutoParam::operator=(AutoParam&& other) noexcept {
 	return *this;
 }
 
-// M2-F: the DOM node store is resolved entirely from the OWNER, by paramId. No engine object holds node storage.
+// The DOM node store is resolved from the OWNER, by paramId — no engine object holds node storage.
+//
+// S1 (toward id-addressable resolution / ModelStack removal): when the owner is the Song itself (song-global
+// params, timelineCounter == song), resolve the DOM node from the project tree by a stable `ParamAddress`
+// (owner + kind + paramId) instead of the threaded `paramCollection` pointer. Other owners (clips/drums/MIDI)
+// fall through to the engine resolution until their slice relocates their storage into the tree. Behaviour-
+// identical: for song-global the address resolves to the same `global_fx.params.unpatched` slot the engine
+// path returns.
 deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
+	if (song != nullptr && getTimelineCounterAllowNull() == static_cast<TimelineCounter*>(song)) {
+		deluge::project::ParamAddress address{deluge::project::OwnerId::song(), paramCollection->getParamKind(),
+		                                      paramId};
+		if (deluge::project::DocAutoParam* resolved = song->project.resolveParam(address)) {
+			return resolved;
+		}
+	}
 	return paramCollection->docParamForId(paramId);
 }
 
