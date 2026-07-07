@@ -17,6 +17,8 @@
 
 #include "deluge-project/param_automation.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/midi/midi_param.h"
+#include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
@@ -102,6 +104,20 @@ DocParamManager toDocParamManager(ParamManager& paramManager) {
 		doc.patch_cables = toDocPatchCables(*static_cast<PatchCableSet*>(c));
 	}
 	return doc;
+}
+
+std::vector<DocMidiParam> toDocMidiParams(MIDIParamCollection& midi) {
+	// Copy each CC param's identity (cc) + value/nodes. Nodes come from the CC's current store — its inline nodes_
+	// pre-bind (seed time), which is exactly what the persistent per-clip store should hold.
+	std::vector<DocMidiParam> out;
+	out.reserve(midi.params.size());
+	for (MIDIParam& midiParam : midi.params) {
+		out.push_back(DocMidiParam{
+		    .cc = midiParam.cc,
+		    .param = toDocAutoParam(midiParam.param.currentValue, midiParam.nodes_.nodes),
+		});
+	}
+	return out;
 }
 
 std::vector<DocPatchCable> toDocPatchCables(PatchCableSet& pcs) {

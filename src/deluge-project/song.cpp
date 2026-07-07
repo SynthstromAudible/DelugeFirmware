@@ -67,6 +67,21 @@ DocAutoParam* patchCableInManager(DocParamManager* mgr, int32_t paramId) {
 	}
 	return nullptr;
 }
+
+/// Resolve a MIDI-CC lane within a tree-resident manager by IDENTITY (S4c). The address's param_id is the CC
+/// number (the MIDIParamVector keys by cc); scan the manager's per-clip CC store for it. Identity, not index: a
+/// newly-learned CC reorders the engine vector, so only cc is stable.
+DocAutoParam* midiParamInManager(DocParamManager* mgr, int32_t cc) {
+	if (mgr == nullptr) {
+		return nullptr;
+	}
+	for (DocMidiParam& entry : mgr->midi_params) {
+		if (entry.cc == cc) {
+			return &entry.param;
+		}
+	}
+	return nullptr;
+}
 } // namespace
 
 DocAutoParam* Song::resolveParam(const ParamAddress& address) {
@@ -81,10 +96,16 @@ DocAutoParam* Song::resolveParam(const ParamAddress& address) {
 		}
 		return nullptr;
 	}
-	case OwnerId::Kind::CLIP:
+	case OwnerId::Kind::CLIP: {
 		// A clip's node storage is tree-resident only if it has been relocated here (keyed by serialId); otherwise
-		// nullptr → the caller falls back to the engine store.
-		return slotInManager(clip_params.find(address.owner.serial_id), address);
+		// nullptr → the caller falls back to the engine store. A MIDI_OUT clip's CC automation (S4c) resolves by cc
+		// within the same per-clip store; the audio-clip ParamSet resolves by index.
+		DocParamManager* mgr = clip_params.find(address.owner.serial_id);
+		if (address.kind == deluge::modulation::params::Kind::MIDI) {
+			return midiParamInManager(mgr, address.param_id);
+		}
+		return slotInManager(mgr, address);
+	}
 	case OwnerId::Kind::INSTRUMENT:
 	case OwnerId::Kind::DRUM: {
 		// Instrument-shared / per-drum params, keyed by (owner, clip) — the persistent form of ParamBackup. Patch

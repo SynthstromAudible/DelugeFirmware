@@ -22,6 +22,7 @@
 #include "modulation/midi/midi_param_vector.h"
 #include "modulation/params/param_collection.h"
 #include <memory>
+#include <vector>
 
 class Clip;
 class ModelStackWithParamCollection;
@@ -30,7 +31,9 @@ class Deserializer;
 
 namespace deluge::project {
 struct DocParamSet;
-}
+struct DocMidiParam;
+struct DocAutoParam;
+} // namespace deluge::project
 
 class MIDIParamCollection final : public ParamCollection {
 public:
@@ -90,6 +93,14 @@ public:
 	/// The bound DOM store, or nullptr if unbound. (Test / inspection accessor.)
 	deluge::project::DocParamSet* domStore();
 
+	/// S4c: bind this collection's CC automation to an external, identity-keyed (by cc) persistent store (the
+	/// clip's project-tree `DocParamManager::midi_params`). Once bound, docForParam resolves a CC's nodes from the
+	/// tree entry matching its cc — save + runtime edits share it — instead of the CC's inline `nodes_`. Matched by
+	/// identity, not index, so a newly-learned CC's reorder of the MIDIParamVector is transparent.
+	void bindDomMidiExternal(std::vector<deluge::project::DocMidiParam>* ext) { domMidiRef_ = ext; }
+	/// The bound external CC store, or nullptr if unbound. (Test / inspection accessor.)
+	std::vector<deluge::project::DocMidiParam>* domMidi() { return domMidiRef_; }
+
 	deluge::project::DocAutoParam* docForParam(int32_t i);
 	deluge::project::DocAutoParam* docParamForId(int32_t paramId) override;
 
@@ -97,6 +108,19 @@ private:
 	/// DOM-owned node store this collection's CC AutoParams borrow (nullptr = unbound). RAII-freed with the
 	/// collection (which is heap-allocated at a stable address, so the store address never moves).
 	std::unique_ptr<deluge::project::DocParamSet> domStore_;
+
+	/// S4c: external, identity-keyed (by cc) persistent CC store (the clip's project-tree `midi_params` vector), or
+	/// nullptr when this collection resolves its CCs inline. Non-owning — the project tree owns it and outlives
+	/// this engine collection. See bindDomMidiExternal().
+	std::vector<deluge::project::DocMidiParam>* domMidiRef_ = nullptr;
+
+	/// S4c: the tree entry for `cc` in the bound external store, creating one (growable — the AutoParam is a pure
+	/// cursor holding no pointer into the store) if this is a runtime-learned CC not yet mirrored. PRECONDITION:
+	/// domMidiRef_ != nullptr.
+	deluge::project::DocMidiParam& findOrCreateDomMidi(uint8_t cc);
+	/// S4c: the current nodes for `cc` in the bound external store, or nullptr if unbound or absent. Read-only
+	/// (used to copy live nodes when cloning a bound collection).
+	deluge::project::DocAutoParam* findDomMidiNodes(uint8_t cc) const;
 
 	void deleteAllParams(Action* action = NULL, bool deleteStorageToo = true);
 };

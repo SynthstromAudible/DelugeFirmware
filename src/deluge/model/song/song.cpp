@@ -2065,11 +2065,23 @@ skipInstance:
 						}
 					}
 				}
-				else if (ot == OutputType::MIDI_OUT || ot == OutputType::CV) {
-					// MIDI/CV clip managers hold a MIDIParamCollection (variable per-CC AutoParams), NOT a
-					// ParamSet — bind via its own store anchored on the heap-stable collection.
+				else if (ot == OutputType::MIDI_OUT) {
+					// M2-G S4c: a MIDI_OUT clip manager holds a MIDIParamCollection (variable per-CC AutoParams) at
+					// summaries[0], NOT a ParamSet. Relocate its CC automation into the clip's per-clip tree store —
+					// keyed by Clip::serialId, in project.clip_params like audio clips, because MIDI CC automation is
+					// per-clip (each InstrumentClip owns it; never instrument-shared, never in ParamBackup). doc()
+					// already builds an OwnerId::clip(clip) / Kind::MIDI address for these. A clip with no serialId
+					// (never saved) keeps its engine-owned inline store. (CV has no MIDIParamCollection — skipped.)
 					if (thisClip->paramManager.containsAnyParamCollectionsIncludingExpression()) {
-						thisClip->paramManager.getMIDIParamCollection()->bindDomStore();
+						MIDIParamCollection* midi = thisClip->paramManager.getMIDIParamCollection();
+						if (std::optional<uint32_t> id = thisClip->serialId()) {
+							deluge::project::DocParamManager& mgr = project.clip_params.getOrCreate(*id);
+							mgr.midi_params = deluge::project::toDocMidiParams(*midi);
+							midi->bindDomMidiExternal(&mgr.midi_params);
+						}
+						else {
+							midi->bindDomStore();
+						}
 					}
 				}
 			}

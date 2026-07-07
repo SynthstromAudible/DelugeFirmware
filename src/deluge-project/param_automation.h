@@ -30,6 +30,7 @@ class ParamSet;
 class ParamManager;
 class ParamCollectionSummary;
 class PatchCableSet;
+class MIDIParamCollection;
 class Serializer;
 class Deserializer;
 enum class Polarity : uint8_t; // opaque-enum decl (fixed underlying type ⇒ usable by value); from patch_cable.h
@@ -110,15 +111,24 @@ struct DocPatchCable {
 	DocAutoParam amount;
 };
 
+/// Value-typed document form of one MIDI-CC automation lane: the CC number that identifies it (the ordered
+/// MIDIParamVector keys by cc) plus its automatable value. Keyed by identity (cc), like patch cables by
+/// (from,dest) — the CC vector reorders on every learn, so index is not stable.
+struct DocMidiParam {
+	uint8_t cc{};
+	DocAutoParam param;
+};
+
 /// Value-typed document form of a `ParamManager`'s collections. Each ParamSet is present only when the
 /// live manager holds it (a sound has patched + unpatched + patch cables; a global-effectable / audio
-/// clip has only unpatched; expression/MPE is optional). The MIDI-CC collection is projected in a later
-/// sub-phase, so it is not yet a field here.
+/// clip has only unpatched; expression/MPE is optional). `midi_params` is populated only for MIDI_OUT
+/// clip managers (a per-clip CC-automation store — MIDI has no instrument-shared default).
 struct DocParamManager {
 	std::optional<DocParamSet> unpatched;
 	std::optional<DocParamSet> patched;
 	std::optional<DocParamSet> expression;
 	std::vector<DocPatchCable> patch_cables;
+	std::vector<DocMidiParam> midi_params;
 };
 
 /// Project to/from a live `ParamManager` (defined in param_automation.cpp). `fromDocParamManager`
@@ -133,6 +143,11 @@ void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager)
 /// destination + any range-cable nesting); nodes come from the cable's current store. Defined in
 /// param_automation.cpp.
 std::vector<DocPatchCable> toDocPatchCables(PatchCableSet& patchCableSet);
+
+/// Project a live MIDIParamCollection's CC params into their document form — the identity-keyed (by cc) persistent
+/// store the engine collection binds to (S4c). Nodes come from each CC's current store. Defined in
+/// param_automation.cpp.
+std::vector<DocMidiParam> toDocMidiParams(MIDIParamCollection& midiParamCollection);
 
 /// Commit a non-automated unpatched param value through the document store (authoritative flip, Phase 5c):
 /// record `value` into the DOM and return the value to project into the live AutoParam (so the live value

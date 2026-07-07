@@ -42,9 +42,20 @@ MIDIParamCollection::MIDIParamCollection(ParamCollectionSummary* summary)
 	summary->whichParamsAreInterpolating[0] = 0;
 }
 
-// domStore_ intentionally left null: a cloned collection starts UNBOUND (owns its nodes) until separately bound.
+// domStore_ / domMidiRef_ intentionally left null: a cloned collection starts UNBOUND (owns its nodes) until
+// separately bound.
 MIDIParamCollection::MIDIParamCollection(MIDIParamCollection const& other)
     : ParamCollection(other), params(other.params) {
+	// S4c: if `other` reads its live nodes from an external tree store, its inline nodes_ is stale (edits went to
+	// the tree). Copy the current tree nodes so this clone starts self-owned with correct automation — mirroring
+	// PatchCableSet's copy-ctor.
+	if (other.domMidiRef_ != nullptr) {
+		for (MIDIParam& midiParam : params) {
+			if (deluge::project::DocAutoParam* live = other.findDomMidiNodes(midiParam.cc)) {
+				midiParam.nodes_ = *live;
+			}
+		}
+	}
 }
 
 MIDIParamCollection::~MIDIParamCollection() {
@@ -63,8 +74,35 @@ deluge::project::DocParamSet* MIDIParamCollection::domStore() {
 }
 
 deluge::project::DocAutoParam* MIDIParamCollection::docForParam(int32_t i) {
-	// M2-F: the CC owns its automation store inline (rides with the MIDIParam through the vector's reorders).
+	// S4c: when bound to the clip's project-tree CC store, resolve this CC's nodes from the tree entry matching its
+	// cc — so save + runtime edits share the persistent store (the inline nodes_ is then unused). Unbound (M2-F):
+	// the CC owns its store inline and rides with the MIDIParam through the vector's reorders.
+	if (domMidiRef_ != nullptr) {
+		return &findOrCreateDomMidi(params[i].cc).param;
+	}
 	return &params[i].nodes_;
+}
+
+deluge::project::DocMidiParam& MIDIParamCollection::findOrCreateDomMidi(uint8_t cc) {
+	for (deluge::project::DocMidiParam& entry : *domMidiRef_) {
+		if (entry.cc == cc) {
+			return entry;
+		}
+	}
+	domMidiRef_->push_back(deluge::project::DocMidiParam{cc, {}});
+	return domMidiRef_->back();
+}
+
+deluge::project::DocAutoParam* MIDIParamCollection::findDomMidiNodes(uint8_t cc) const {
+	if (domMidiRef_ == nullptr) {
+		return nullptr;
+	}
+	for (deluge::project::DocMidiParam& entry : *domMidiRef_) {
+		if (entry.cc == cc) {
+			return &entry.param;
+		}
+	}
+	return nullptr;
 }
 
 deluge::project::DocAutoParam* MIDIParamCollection::docParamForId(int32_t paramId) {

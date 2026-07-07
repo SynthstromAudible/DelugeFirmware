@@ -32,6 +32,8 @@
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/midi/midi_param.h"
+#include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound_drum.h"
@@ -495,6 +497,53 @@ int main(int argc, char** argv) {
 		             cableSets, addrChecks);
 		if (cableSets > 0 && treeResident != cableSets) {
 			std::fprintf(stderr, "S4b FAIL: a synth/drum patch-cable set is not tree-resident after reload\n");
+			_exit(3);
+		}
+	}
+
+	// M2-G S4c: every reloaded MIDI_OUT clip's CC automation must be (a) tree-resident — the engine
+	// MIDIParamCollection bound to the clip's per-clip project-tree midi_params (keyed by Clip::serialId, in
+	// clip_params like audio clips, since MIDI CC automation is per-clip) — and (b) id-addressable: the address
+	// doc() builds (OwnerId::clip + Kind::MIDI + cc) must resolve to the SAME DocAutoParam the engine bound-store
+	// path (docForParam) returns. Catches a mis-keyed cc that save (never via doc()) would silently miss.
+	{
+		int32_t midiSets = 0, treeResident = 0, addrChecks = 0;
+		std::array<ClipArray*, 2> arrs{&reloaded->project.clips.session_clips,
+		                               &reloaded->project.clips.arrangement_only_clips};
+		for (ClipArray* arr : arrs) {
+			for (int32_t c = 0; c < std::ssize(*arr); c++) {
+				Clip* clip = (*arr)[c];
+				if (clip->type != ClipType::INSTRUMENT || clip->output == nullptr
+				    || clip->output->type != OutputType::MIDI_OUT
+				    || !clip->paramManager.containsAnyParamCollectionsIncludingExpression()) {
+					continue;
+				}
+				std::optional<uint32_t> clipId = clip->serialId();
+				if (!clipId.has_value()) {
+					continue;
+				}
+				MIDIParamCollection* midi = clip->paramManager.getMIDIParamCollection();
+				midiSets++;
+				deluge::project::DocParamManager* mgr = reloaded->project.clip_params.find(*clipId);
+				if (mgr != nullptr && midi->domMidi() == &mgr->midi_params) {
+					treeResident++;
+				}
+				for (int32_t i = 0; i < std::ssize(midi->params); i++) {
+					int32_t cc = midi->params[i].cc;
+					deluge::project::ParamAddress addr{deluge::project::OwnerId::clip(*clipId),
+					                                   deluge::modulation::params::Kind::MIDI, cc, std::nullopt};
+					if (reloaded->project.resolveParam(addr) != midi->docForParam(i)) {
+						std::fprintf(stderr, "S4c FAIL: MIDI doc() != bound store (mis-keyed cc)\n");
+						_exit(3);
+					}
+					addrChecks++;
+				}
+			}
+		}
+		std::fprintf(stderr, "MIDI CC sets tree-resident: %d/%d (doc()==bound-store checks: %d)\n", treeResident,
+		             midiSets, addrChecks);
+		if (midiSets > 0 && treeResident != midiSets) {
+			std::fprintf(stderr, "S4c FAIL: a MIDI_OUT CC set is not tree-resident after reload\n");
 			_exit(3);
 		}
 	}
