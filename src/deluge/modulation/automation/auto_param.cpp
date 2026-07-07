@@ -31,6 +31,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
+#include "model/edits/param_address_for.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -102,68 +103,17 @@ AutoParam& AutoParam::operator=(AutoParam&& other) noexcept {
 
 // The DOM node store is resolved from the OWNER, by paramId — no engine object holds node storage. Every saved
 // owner (song / audio clip / synth-kit clip-level / per-drum / expression / patch cables / MIDI CC) resolves via a
-// stable `ParamAddress` in the project tree (`Song::resolveParam`). The engine fallback below serves the only
-// unaddressable case — a never-saved (no-serialId) owner, whose nodes live in the engine collection's own store
-// until first save relocates+binds them — and is behaviour-identical (it returns the same store the address would).
-// The `paramCollection` pointer is used here only to reach `getParamKind()` + `docParamForId()`; it stays for the
-// collection's polymorphic-dispatch role across the engine (the oracle harness also sets it directly), so node
-// resolution is not decoupled from it — that would require dissolving the ParamCollection hierarchy (separate work).
+// stable `ParamAddress` in the project tree (`Song::resolveParam`); `deluge::edits::addressFor` builds that address
+// from this ModelStack (the owner classification lives there now, shared with the Edit substrate). The engine
+// fallback below serves the only unaddressable case — a never-saved (no-serialId) owner, whose nodes live in the
+// engine collection's own store until first save relocates+binds them — and is behaviour-identical (it returns the
+// same store the address would). The `paramCollection` pointer is used here only to reach `docParamForId()`; it
+// stays for the collection's polymorphic-dispatch role across the engine, so node resolution is not decoupled from
+// it — that would require dissolving the ParamCollection hierarchy (separate work).
 deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
-	if (song != nullptr) {
-		TimelineCounter* tc = getTimelineCounterAllowNull();
-		deluge::project::OwnerId owner{};
-		std::optional<uint32_t> clipSerial{}; // for INSTRUMENT/DRUM owners: which clip's override this lane is
-		bool haveOwner = false;
-		if (tc == static_cast<TimelineCounter*>(song)) {
-			owner = deluge::project::OwnerId::song();
-			haveOwner = true;
-		}
-		else if (tc != nullptr) {
-			// Song and Clip are the only TimelineCounters, so a non-song tc is a Clip. Classify the owner by the
-			// ModelStack context (S3c-S3g): a set noteRow ⇒ a per-drum param (OwnerId::drum, keyed by the drum's
-			// serialId); else a synth/kit InstrumentClip ⇒ clip-level instrument-shared (OwnerId::instrument(output));
-			// else an AudioClip ⇒ its own params (OwnerId::clip). noteRow is a RELIABLE drum signal — the ModelStack
-			// builders always set it explicitly (addNoteRow(0, nullptr) for the no-noteRow path), never stale. Any
-			// uncertain case (non-Sound drum, missing serialId) leaves haveOwner false → the engine fallback below.
-			Clip* clip = static_cast<Clip*>(tc);
-			if (std::optional<uint32_t> clipId = clip->serialId()) {
-				NoteRow* noteRow = getNoteRowAllowNull();
-				if (noteRow != nullptr) {
-					if (noteRow->drum != nullptr && noteRow->drum->type == DrumType::SOUND) {
-						if (std::optional<uint32_t> drumId = noteRow->drum->serialId()) {
-							owner = deluge::project::OwnerId::drum(*drumId);
-							clipSerial = clipId;
-							haveOwner = true;
-						}
-					}
-				}
-				else if (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
-				         && (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::KIT)) {
-					if (std::optional<uint32_t> outId = clip->output->serialId()) {
-						owner = deluge::project::OwnerId::instrument(*outId);
-						clipSerial = clipId;
-						haveOwner = true;
-					}
-				}
-				else {
-					owner = deluge::project::OwnerId::clip(*clipId);
-					haveOwner = true;
-				}
-			}
-		}
-		if (haveOwner) {
-#if ALPHA_OR_BETA_VERSION
-			// Safety net for the threaded `kind`: every ModelStack builder that sets paramCollection must set kind
-			// to match. A mismatch means a builder (or the oracle stub) missed it — catch it loudly before it
-			// mis-resolves a ParamAddress against the wrong tree entry.
-			if (kind != paramCollection->getParamKind()) {
-				FREEZE_WITH_ERROR("DkND");
-			}
-#endif
-			deluge::project::ParamAddress address{owner, kind, paramId, clipSerial};
-			if (deluge::project::DocAutoParam* resolved = song->project.resolveParam(address)) {
-				return resolved;
-			}
+	if (std::optional<deluge::project::ParamAddress> address = deluge::edits::addressFor(*this)) {
+		if (deluge::project::DocAutoParam* resolved = song->project.resolveParam(*address)) {
+			return resolved;
 		}
 	}
 	return paramCollection->docParamForId(paramId);
