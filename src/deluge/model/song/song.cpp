@@ -1090,13 +1090,25 @@ weAreInArrangementEditorOrInClipInstance:
 	int32_t* valuesForOverride =
 	    runtimeView.paramsInAutomationMode ? project.global_fx.unautomated_param_values.data() : nullptr;
 
-	// Note (Phase B / 5c-3): these read the engine unpatched params, whose automation nodes are BORROWED from
-	// project.global_fx.params.unpatched (the DOM store) — so save already serialises the DOM-owned node data.
-	// A future Phase D step can read the DocParamSet explicitly to fully decouple save from the engine.
+	// Flip Phase 2: serialize the song-global param block DIRECTLY from the DOM store — the singleton
+	// project.global_fx.params.unpatched — fully decoupling this block's save from the engine paramManager.
+	// Byte-identical: the store holds the authoritative nodes (the engine set borrows them via docForParam) and,
+	// since flip Phase 1, its current_value tracks user edits (and load seeds it from the file). valuesForOverride
+	// still applies (writeDocAutoParam checks the store's nodes for automated-ness). A never-loaded song whose
+	// store is still empty falls back to projecting the engine (first-save).
 	writer.writeOpeningTagBeginning("songParams");
-	GlobalEffectableForClip::writeParamAttributesToFile(writer, &paramManager, true, valuesForOverride);
-	writer.writeOpeningTagEnd();
-	GlobalEffectableForClip::writeParamTagsToFile(writer, &paramManager, true, valuesForOverride);
+	if (project.global_fx.params.unpatched) {
+		deluge::project::serializeGlobalEffectableParamAttributes(*project.global_fx.params.unpatched, writer, true,
+		                                                          valuesForOverride);
+		writer.writeOpeningTagEnd();
+		deluge::project::serializeGlobalEffectableParamTags(*project.global_fx.params.unpatched, writer, true,
+		                                                    valuesForOverride);
+	}
+	else {
+		GlobalEffectableForClip::writeParamAttributesToFile(writer, &paramManager, true, valuesForOverride);
+		writer.writeOpeningTagEnd();
+		GlobalEffectableForClip::writeParamTagsToFile(writer, &paramManager, true, valuesForOverride);
+	}
 	writer.writeClosingTag("songParams");
 
 	writer.writeArrayStart("instruments");

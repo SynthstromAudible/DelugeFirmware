@@ -209,6 +209,12 @@ int main(int argc, char** argv) {
 		_exit(3);
 	}
 
+	// Flip Phase 2 guard: DIVERGE the engine scalar from the store scalar for pVal, so that persistence PROVES the
+	// song-global save read the STORE (project.global_fx.params.unpatched, holding kSentinel) — NOT the engine
+	// cursor. If save still projected the engine, the file would carry this distinct value and the reload assert
+	// below (reloaded store == engine == kSentinel) would fail.
+	engVal.currentValue = 0x0BADF00D;
+
 	// 3. Save.
 	smSerializer.setMemoryBuffer(gen1, kCap);
 	deluge::project::saveSong(*song, smSerializer);

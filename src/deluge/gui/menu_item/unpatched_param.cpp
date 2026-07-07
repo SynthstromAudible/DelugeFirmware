@@ -67,20 +67,9 @@ void UnpatchedParam::writeCurrentValue() {
 			}
 		}
 	}
-	// Or, the normal case of just one sound
+	// Or, the normal case of just one sound. setCurrentValueInResponseToUserInput now writes the owner's DOM store
+	// scalar itself (flip Phase 1), so there is a single edit path for every owner — no song-global special case.
 	else {
-		// Phase 2 (2b) pilot: song-global unpatched params are DOM-live-authoritative. When editing one while
-		// stopped and unautomated (the plain gold-knob case), write the DOM store FIRST and reproject it into
-		// the engine, keeping the store current; then run the engine method for the runtime tail (undo + notify;
-		// it re-sets the same value, harmless). The recording/automated cases still go straight to the engine
-		// (they create nodes in the runtime — the deferred executor split is what will let those be DOM-first).
-		bool isSongGlobal = (modelStackWithParam->paramManager == &currentSong->paramManager);
-		if (isSongGlobal && !modelStackWithParam->autoParam->isAutomated(*modelStackWithParam->doc())
-		    && !playbackHandler.isEitherClockActive()) {
-			deluge::project::setUnpatchedValueDomFirst(currentSong->project.global_fx.params,
-			                                           modelStackWithParam->paramId, value,
-			                                           *modelStackWithParam->autoParam);
-		}
 		modelStackWithParam->autoParam->setCurrentValueInResponseToUserInput(value, modelStackWithParam);
 	}
 
