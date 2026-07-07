@@ -774,8 +774,9 @@ doCancelPopup:
 	// Vertical encoder button
 	else if (b == Y_ENC) {
 
-		// SHIFT + Y_ENC toggles the gold-knob MACRO mode (synth/MIDI clips only). Only when idle - so
-		// it never shadows the note-repeat / euclidean gestures that use Y_ENC while notes are held.
+		// SHIFT + Y_ENC toggles the gold-knob MACRO mode (any macro-capable note-view clip: synth, MIDI,
+		// kit). Only when idle - so it never shadows the note-repeat / euclidean gestures that use Y_ENC
+		// while notes are held.
 		if (on && Buttons::isShiftButtonPressed() && currentUIMode == UI_MODE_NONE && Macros::isEnabled()
 		    && Macros::macroHost(getCurrentClip()) != nullptr) {
 			view.toggleMacroKnobMode();

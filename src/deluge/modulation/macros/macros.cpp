@@ -367,6 +367,7 @@ Domain domainForOutput(Output* output) {
 	case OutputType::SYNTH:
 		return Domain::SYNTH;
 	case OutputType::AUDIO:
+	case OutputType::KIT: // kit-global (affect-entire) params, same UNPATCHED_GLOBAL space as audio clips
 		return Domain::GLOBAL;
 	default:
 		return Domain::MIDI;
@@ -395,8 +396,9 @@ Output* macroHost(Clip* clip) {
 	case OutputType::MIDI_OUT:
 	case OutputType::SYNTH:
 	case OutputType::AUDIO:
+	case OutputType::KIT: // kit-global macros (affect-entire params)
 		return clip->output;
-	default: // CV, KIT (kit-global lands in a later phase)
+	default: // CV has no macro-capable param space
 		return nullptr;
 	}
 }
@@ -541,7 +543,8 @@ int32_t macroIndexForLaneSelection(Output* output, params::Kind kind, int32_t pa
 	    && paramID >= params::UNPATCHED_MACRO_1 && paramID <= params::UNPATCHED_MACRO_4) {
 		return paramID - params::UNPATCHED_MACRO_1;
 	}
-	if (output->type == OutputType::AUDIO && kind == params::Kind::UNPATCHED_GLOBAL
+	// GLOBAL hosts (audio clips and kit affect-entire) both track their lanes as UNPATCHED_GLOBAL params.
+	if (domainForOutput(output) == Domain::GLOBAL && kind == params::Kind::UNPATCHED_GLOBAL
 	    && paramID >= params::UNPATCHED_GLOBAL_MACRO_1 && paramID <= params::UNPATCHED_GLOBAL_MACRO_4) {
 		return paramID - params::UNPATCHED_GLOBAL_MACRO_1;
 	}

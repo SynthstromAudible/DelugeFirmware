@@ -838,7 +838,7 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	// A gold knob learned as a macro source is dedicated: it drives that macro's targets and its
 	// normal param action is suppressed. tryKnobMacro returns false for every non-source knob.
 	if ((getCurrentOutputType() == OutputType::MIDI_OUT || getCurrentOutputType() == OutputType::SYNTH
-	     || getCurrentOutputType() == OutputType::AUDIO)
+	     || getCurrentOutputType() == OutputType::AUDIO || getCurrentOutputType() == OutputType::KIT)
 	    && Macros::isEnabled()) {
 		if (Macros::tryKnobMacro(whichModEncoder, offset)) {
 			return;
@@ -1810,7 +1810,9 @@ bool View::inMacroKnobMode() {
 	}
 	Clip* clip = getCurrentClip();
 	Output* output = clip ? clip->output : nullptr;
-	return output != nullptr && (output->type == OutputType::SYNTH || output->type == OutputType::MIDI_OUT)
+	return output != nullptr
+	       && (output->type == OutputType::SYNTH || output->type == OutputType::MIDI_OUT
+	           || output->type == OutputType::KIT)
 	       && output->macroKnobMode;
 }
 
