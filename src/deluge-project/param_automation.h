@@ -229,6 +229,11 @@ void serializeSoundParams(const DocParamSet& patched, const DocParamSet& unpatch
 /// `PatchCableSet::writePatchCablesToFile` (including the depth-controlling / range-cable nesting).
 void serializePatchCables(const std::vector<DocPatchCable>& cables, Serializer& out, bool writeAutomation);
 
+/// Write the `<midiParams>` block from the document's MIDI-CC params, byte-identical to
+/// `MIDIParamCollection::writeToFile`: one `<param>` per CC holding a `<cc>` tag (the number, or "none" for
+/// CC_NUMBER_NONE) and a `<value>` leaf (`writeDocAutoParam`). Nothing is emitted when there are no params.
+void serializeMidiParams(const std::vector<DocMidiParam>& midiParams, Serializer& out, bool writeAutomation);
+
 /// Read one AutoParam from the legacy hex blob into the document form — the read counterpart of
 /// `writeDocAutoParam`. Reuses the engine's `AutoParam::readFromFile` (so the leaf hex parsing and its
 /// back-compat are not reimplemented), then projects the result.

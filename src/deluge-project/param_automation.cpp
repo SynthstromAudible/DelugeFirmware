@@ -555,6 +555,31 @@ void serializePatchCables(const std::vector<DocPatchCable>& cables, Serializer& 
 	out.writeArrayEnding("patchCables");
 }
 
+void serializeMidiParams(const std::vector<DocMidiParam>& midiParams, Serializer& out, bool writeAutomation) {
+	// Byte-for-byte reproduction of MIDIParamCollection::writeToFile. Early-out matches the engine's
+	// `if (!params.empty())`; each param emits a <cc> tag (number, or "none" for CC_NUMBER_NONE) and a <value>
+	// leaf. writeDocAutoParam writes exactly what AutoParam::writeToFile does (the "0x…" hex + automation nodes).
+	if (midiParams.empty()) {
+		return;
+	}
+	out.writeOpeningTag("midiParams");
+	for (const DocMidiParam& mp : midiParams) {
+		out.writeOpeningTag("param");
+		int32_t cc = mp.cc;
+		if (cc == CC_NUMBER_NONE) {
+			out.writeTag("cc", "none");
+		}
+		else {
+			out.writeTag("cc", cc);
+		}
+		out.writeOpeningTag("value", false);
+		writeDocAutoParam(mp.param, out, writeAutomation);
+		out.writeClosingTag("value", false);
+		out.writeClosingTag("param");
+	}
+	out.writeClosingTag("midiParams");
+}
+
 DocAutoParam readDocAutoParam(Deserializer& in, int32_t readAutomationUpToPos) {
 	// Reuse the engine's leaf parser (hex blob, node reading, back-compat) on a throwaway AutoParam, reading the
 	// nodes straight into a local DocAutoParam (M2-F: no AutoParam inline storage). readFromFile sets tmp's RT

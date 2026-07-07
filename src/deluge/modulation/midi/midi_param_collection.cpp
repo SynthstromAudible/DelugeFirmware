@@ -404,33 +404,10 @@ void MIDIParamCollection::notifyPingpongOccurred(ModelStackWithParamCollection* 
 }
 
 void MIDIParamCollection::writeToFile(Serializer& writer) {
-	if (!params.empty()) {
-
-		writer.writeOpeningTag("midiParams");
-
-		for (int32_t i = 0; i < std::ssize(params); i++) {
-			int32_t cc = params[i].cc;
-
-			writer.writeOpeningTag("param");
-			if (cc == CC_NUMBER_NONE) { // Why would I have put this in here?
-				writer.writeTag("cc", "none");
-			}
-			else {
-				writer.writeTag("cc", cc);
-			}
-
-			writer.writeOpeningTag("value", false);
-			// Serialize from the CC's CURRENT store via docForParam (the bound tree entry when bound, where runtime
-			// edits land) — NOT the inline nodes_ directly, which goes stale once bound (S4c) so reading it here
-			// would drop MIDI automation edits on save.
-			params[i].param.writeToFile(*docForParam(i), writer, true);
-			writer.writeClosingTag("value", false);
-
-			writer.writeClosingTag("param");
-		}
-
-		writer.writeClosingTag("midiParams");
-	}
+	// Serialize from the value DOM (deluge::project) — byte-identical to the former hand-written sequence
+	// (verified in param_projection_test). toDocMidiParams reads each CC's live nodes via docForParam (the bound
+	// tree entry when bound), so this is the last owner block to move fully onto the DOM serializers.
+	deluge::project::serializeMidiParams(deluge::project::toDocMidiParams(*this), writer, true);
 }
 
 /*
