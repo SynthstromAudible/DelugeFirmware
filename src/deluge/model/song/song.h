@@ -259,12 +259,15 @@ public:
 	// session macros) can resolve by id instead of position.
 	uint32_t generateNewClipId() { return clipIdCounter_++; }
 	uint32_t generateNewOutputId() { return outputIdCounter_++; }
+	uint32_t generateNewDrumId() { return drumIdCounter_++; }
 	/// Advance the counters past every id seen in the just-loaded song, so newly created objects can't
 	/// collide with restored ids. Called once after a load completes.
 	void syncSerialIdCountersFromLoaded();
 	/// Resolve a serial id to its live object, or nullptr if no object carries that id.
 	[[nodiscard]] Clip* clipForId(uint32_t id);
 	[[nodiscard]] Output* outputForId(uint32_t id);
+	/// Resolve a drum serial id to its live Drum (scanning every Kit's drums), or nullptr if unassigned/absent.
+	[[nodiscard]] Drum* drumForId(uint32_t id);
 
 	void ensureAllInstrumentsHaveAClipOrBackedUpParamManager(char const* errorMessageNormal,
 	                                                         char const* errorMessageHibernating);
@@ -397,6 +400,7 @@ private:
 	// unassigned state is std::nullopt (Clip/Output::serialId), not a reserved id value.
 	uint32_t clipIdCounter_{1};
 	uint32_t outputIdCounter_{1};
+	uint32_t drumIdCounter_{1};
 };
 
 extern Song* currentSong;

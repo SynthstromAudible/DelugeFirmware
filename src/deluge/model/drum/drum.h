@@ -22,6 +22,7 @@
 #include "model/voiced.h"
 #include "modulation/arpeggiator.h"
 #include <cstdint>
+#include <optional>
 
 class Clip;
 class Kit;
@@ -61,6 +62,8 @@ public:
 
 	Drum* next;
 
+	std::optional<uint32_t> serial_id_; // Stable per-song identity; see serialId(). nullopt = unassigned.
+
 	LearnedMIDI midiInput;
 	LearnedMIDI muteMIDICommand;
 
@@ -82,8 +85,14 @@ public:
 	virtual void choke(ModelStackWithSoundFlags* modelStack) {} // modelStack can be NULL if you really insist
 
 	void writeMIDICommandsToFile(Serializer& writer);
-	void writeDrumTagsToFile(Serializer& writer);
+	void writeDrumTagsToFile(Serializer& writer, bool savingSong);
 	bool readDrumTagFromFile(Deserializer& reader, char const* tagName);
+
+	// --- Stable per-song serial identity (see Clip/Output::serialId). Assigned lazily on first song-save from
+	// Song::generateNewDrumId, restored on load, and used to address this drum's automation lane in the
+	// persistent tree (OwnerId::Drum) independent of its transient linked-list position. nullopt = unassigned. ---
+	[[nodiscard]] std::optional<uint32_t> serialId() const { return serial_id_; }
+	void setSerialId(uint32_t id) { serial_id_ = id; }
 	void recordNoteOnEarly(int32_t velocity, bool noteTailsAllowed);
 	void expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack, int16_t newValue,
 	                                     int32_t expressionDimension, int32_t level);

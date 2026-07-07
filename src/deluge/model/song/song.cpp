@@ -3418,6 +3418,13 @@ void Song::syncSerialIdCountersFromLoaded() {
 	for (Clip* clip : project.clips.arrangement_only_clips) {
 		advancePast(clipIdCounter_, clip->serialId());
 	}
+	for (Output* output = project.media.first_output; output != nullptr; output = output->next) {
+		if (output->type == OutputType::KIT) {
+			for (Drum* drum = ((Kit*)output)->firstDrum; drum != nullptr; drum = drum->next) {
+				advancePast(drumIdCounter_, drum->serialId());
+			}
+		}
+	}
 }
 
 Clip* Song::clipForId(uint32_t id) {
@@ -3438,6 +3445,20 @@ Output* Song::outputForId(uint32_t id) {
 	for (Output* output = project.media.first_output; output != nullptr; output = output->next) {
 		if (output->serialId() == id) {
 			return output;
+		}
+	}
+	return nullptr;
+}
+
+Drum* Song::drumForId(uint32_t id) {
+	for (Output* output = project.media.first_output; output != nullptr; output = output->next) {
+		if (output->type != OutputType::KIT) {
+			continue;
+		}
+		for (Drum* drum = ((Kit*)output)->firstDrum; drum != nullptr; drum = drum->next) {
+			if (drum->serialId() == id) {
+				return drum;
+			}
 		}
 	}
 	return nullptr;

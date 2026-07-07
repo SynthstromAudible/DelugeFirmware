@@ -130,7 +130,7 @@ void SoundDrum::writeToFileAsInstrument(bool savingSong, ParamManager* paramMana
 
 void SoundDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) {
 	writer.writeOpeningTagBeginning("sound", true);
-	writeDrumTagsToFile(writer);
+	writeDrumTagsToFile(writer, savingSong);
 
 	Sound::writeToFile(writer, savingSong, paramManager, &arpSettings, path.c_str());
 

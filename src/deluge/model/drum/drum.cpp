@@ -44,9 +44,15 @@ Drum::Drum(DrumType newType) : type(newType), arpeggiator(), arpSettings() {
 	memset(lastExpressionInputsReceived, 0, sizeof(lastExpressionInputsReceived));
 }
 
-void Drum::writeDrumTagsToFile(Serializer& writer) {
+void Drum::writeDrumTagsToFile(Serializer& writer, bool savingSong) {
 	// Called by subclasses to handle all the shared tags (except for MIDI commands).
 	writer.writeAttribute("name", drumName.c_str());
+	// Stable per-song serial identity, written only as part of a song (an intra-song reference; meaningless in a
+	// standalone kit/preset file). Lazily assigned in Kit::writeDrumToFile before this call, so a value present here
+	// under savingSong is always song-scoped.
+	if (savingSong && serialId().has_value()) {
+		writer.writeAttribute("id", *serialId());
+	}
 }
 
 void Drum::writeMIDICommandsToFile(Serializer& writer) {
@@ -66,6 +72,12 @@ bool Drum::readDrumTagFromFile(Deserializer& reader, char const* tagName) {
 	else if (!strcmp(tagName, "midiInput")) {
 		midiInput.readNoteFromFile(reader);
 		reader.exitTag();
+	}
+	else if (!strcmp(tagName, "id")) {
+		// Stable per-song serial identity (see Drum::serialId). Song::syncSerialIdCountersFromLoaded advances the
+		// drum id counter past all loaded ids after the load completes.
+		setSerialId(reader.readTagOrAttributeValueInt());
+		reader.exitTag("id");
 	}
 	else {
 		return false;

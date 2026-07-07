@@ -255,6 +255,12 @@ void Kit::writeDrumToFile(Serializer& writer, Drum* thisDrum, ParamManager* para
 		*selectedDrumIndex = *drumIndex;
 	}
 
+	// Lazily assign the drum's stable per-song serial identity on first song-save (see Drum::serialId), before it
+	// writes its tags. Only within a song — a standalone kit/preset save carries no intra-song ids.
+	if (savingSong && song != nullptr && !thisDrum->serialId().has_value()) {
+		thisDrum->setSerialId(song->generateNewDrumId());
+	}
+
 	thisDrum->writeToFile(writer, savingSong, paramManagerForDrum);
 	(*drumIndex)++;
 }
