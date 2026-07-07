@@ -96,24 +96,30 @@ DocParamManager toDocParamManager(ParamManager& paramManager) {
 			doc.expression = toDocParamSet(*e);
 		}
 	}
-	// Slot [2]: patch cables. Copy each cable's saved fields verbatim (the ParamDescriptor encodes the
-	// destination + any range-cable nesting); rangeAdjustmentPointer is runtime and rebuilt on projection.
+	// Slot [2]: patch cables.
 	if (ParamCollection* c = paramManager.summaries[2].paramCollection;
 	    c != nullptr && c->getParamKind() == Kind::PATCH_CABLE) {
-		PatchCableSet* pcs = static_cast<PatchCableSet*>(c);
-		doc.patch_cables.reserve(pcs->numPatchCables);
-		for (int32_t i = 0; i < pcs->numPatchCables; i++) {
-			PatchCable& cable = pcs->patchCables[i];
-			doc.patch_cables.push_back(DocPatchCable{
-			    .from = cable.from,
-			    .destination = cable.destinationParamDescriptor,
-			    .polarity = cable.polarity,
-			    // M2-F: nodes live in the cable's own store (amount_); the saved value is the RT cursor.
-			    .amount = toDocAutoParam(cable.param.currentValue, cable.amount_.nodes),
-			});
-		}
+		doc.patch_cables = toDocPatchCables(*static_cast<PatchCableSet*>(c));
 	}
 	return doc;
+}
+
+std::vector<DocPatchCable> toDocPatchCables(PatchCableSet& pcs) {
+	// Copy each cable's saved fields verbatim (the ParamDescriptor encodes the destination + any range-cable
+	// nesting); rangeAdjustmentPointer is runtime and rebuilt on projection. Nodes come from the cable's current
+	// store — its inline amount_ pre-bind (seed time), which is exactly what the persistent store should hold.
+	std::vector<DocPatchCable> out;
+	out.reserve(pcs.numPatchCables);
+	for (int32_t i = 0; i < pcs.numPatchCables; i++) {
+		PatchCable& cable = pcs.patchCables[i];
+		out.push_back(DocPatchCable{
+		    .from = cable.from,
+		    .destination = cable.destinationParamDescriptor,
+		    .polarity = cable.polarity,
+		    .amount = toDocAutoParam(cable.param.currentValue, cable.amount_.nodes),
+		});
+	}
+	return out;
 }
 
 void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager) {

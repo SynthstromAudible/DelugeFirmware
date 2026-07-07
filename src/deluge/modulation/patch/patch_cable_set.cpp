@@ -93,9 +93,38 @@ deluge::project::DocParamSet* PatchCableSet::domStore() {
 }
 
 deluge::project::DocAutoParam* PatchCableSet::docForParam(int32_t c) {
-	// M2-F: the cable owns its automation store inline (rides with it through reorder/removal memcpy). O(1), no
-	// separate store, no identity mirroring — the lifecycle coupling is automatic (cable dies → amount_ dies).
+	// S4b: when bound to the owner's project-tree cable store, resolve this cable's amount-nodes from the tree
+	// entry matching its (from, destination) identity — so save + runtime edits share the persistent store (the
+	// inline `amount_` is then unused). Unbound (M2-F): the cable owns its store inline and rides with it through
+	// the reorder/removal memcpy.
+	if (domCablesRef_ != nullptr) {
+		PatchCable& cable = patchCables[c];
+		return &findOrCreateDomCable(cable.from, cable.destinationParamDescriptor, cable.polarity).amount;
+	}
 	return &patchCables[c].amount_;
+}
+
+deluge::project::DocPatchCable& PatchCableSet::findOrCreateDomCable(PatchSource from, ParamDescriptor dest,
+                                                                    Polarity polarity) {
+	for (deluge::project::DocPatchCable& entry : *domCablesRef_) {
+		if (entry.from == from && entry.destination == dest) {
+			return entry;
+		}
+	}
+	domCablesRef_->push_back(deluge::project::DocPatchCable{from, dest, polarity, {}});
+	return domCablesRef_->back();
+}
+
+deluge::project::DocAutoParam* PatchCableSet::findDomCableAmount(PatchSource from, ParamDescriptor dest) const {
+	if (domCablesRef_ == nullptr) {
+		return nullptr;
+	}
+	for (deluge::project::DocPatchCable& entry : *domCablesRef_) {
+		if (entry.from == from && entry.destination == dest) {
+			return &entry.amount;
+		}
+	}
+	return nullptr;
 }
 
 deluge::project::DocAutoParam* PatchCableSet::docParamForId(int32_t paramId) {
@@ -800,6 +829,13 @@ PatchCableSet::PatchCableSet(PatchCableSet const& other)
 	// matching beenCloned()'s "avoid a rare crash" initialization of the unused tail.
 	for (int32_t c = 0; c < numUsablePatchCables; c++) {
 		patchCables[c] = other.patchCables[c];
+		// S4b: if `other` reads its live nodes from an external tree store, its inline amount_ is stale (edits went
+		// to the tree). Copy the current tree nodes so this clone starts self-owned (domCablesRef_ stays null, set
+		// below) with correct automation — mirroring ParamSet's copy-ctor deep-copying its bound store.
+		if (deluge::project::DocAutoParam* live =
+		        other.findDomCableAmount(patchCables[c].from, patchCables[c].destinationParamDescriptor)) {
+			patchCables[c].amount_ = *live;
+		}
 	}
 	for (int32_t c = numUsablePatchCables; c < kMaxNumPatchCables; c++) {
 		patchCables[c].param.init(*docForParam(c));

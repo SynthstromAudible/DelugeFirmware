@@ -29,6 +29,7 @@ class AutoParam;
 class ParamSet;
 class ParamManager;
 class ParamCollectionSummary;
+class PatchCableSet;
 class Serializer;
 class Deserializer;
 enum class Polarity : uint8_t; // opaque-enum decl (fixed underlying type ⇒ usable by value); from patch_cable.h
@@ -126,6 +127,12 @@ struct DocParamManager {
 /// in); it does not allocate or remove collections.
 DocParamManager toDocParamManager(ParamManager& paramManager);
 void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager);
+
+/// Project a live PatchCableSet's cables into their document form — the identity-keyed persistent cable store the
+/// engine set binds to (S4b). Each cable's saved fields are copied verbatim (the ParamDescriptor encodes the
+/// destination + any range-cable nesting); nodes come from the cable's current store. Defined in
+/// param_automation.cpp.
+std::vector<DocPatchCable> toDocPatchCables(PatchCableSet& patchCableSet);
 
 /// Commit a non-automated unpatched param value through the document store (authoritative flip, Phase 5c):
 /// record `value` into the DOM and return the value to project into the live AutoParam (so the live value

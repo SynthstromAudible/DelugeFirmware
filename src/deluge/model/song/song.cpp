@@ -1806,6 +1806,13 @@ loadOutput:
 							mgr.patched = deluge::project::toDocParamSet(*patched);
 							patched->bindDomStoreExternal(&*mgr.patched);
 						}
+						// M2-G S4b: relocate the synth's patch-cable amount-automation into the tree's identity-keyed
+						// cable store (keyed (from, dest), NOT index — cables reorder at runtime). Seed from the
+						// loaded inline stores, then bind so save + edits share the persistent store.
+						if (PatchCableSet* pcs = thisClip->paramManager.getPatchCableSet()) {
+							mgr.patch_cables = deluge::project::toDocPatchCables(*pcs);
+							pcs->bindDomCablesExternal(&mgr.patch_cables);
+						}
 					}
 					// M2-G S4a: relocate this manager's expression (MPE) automation into the tree at the same
 					// (instrument, clip) key. ExpressionParamSet is a ParamSet, so it binds exactly like the main
@@ -1842,6 +1849,11 @@ loadOutput:
 							if (ExpressionParamSet* de = nr.paramManager.getExpressionParamSet()) {
 								dmgr.expression = deluge::project::toDocParamSet(*de);
 								de->bindDomStoreExternal(&*dmgr.expression);
+							}
+							// S4b: per-drum patch-cable amount-automation → same (drum, clip) key, identity-keyed.
+							if (PatchCableSet* dpcs = nr.paramManager.getPatchCableSet()) {
+								dmgr.patch_cables = deluge::project::toDocPatchCables(*dpcs);
+								dpcs->bindDomCablesExternal(&dmgr.patch_cables);
 							}
 						}
 					}

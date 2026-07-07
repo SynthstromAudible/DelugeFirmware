@@ -433,6 +433,72 @@ int main(int argc, char** argv) {
 		std::fprintf(stderr, "kit/drum doc()==bound-store checks: %d\n", checked);
 	}
 
+	// M2-G S4b: every reloaded synth/drum manager's patch cables must be (a) tree-resident — the engine cable set
+	// bound to the owner's project-tree `patch_cables` — and (b) id-addressable: the address doc() builds for each
+	// cable (owner + PATCH_CABLE + the packed (dest,source) paramId) must resolve to the SAME DocAutoParam the
+	// engine bound-store path (docForParam) returns. Identity-matched, so this catches a mis-encoded/mis-owned
+	// cable that save (which never resolves via doc()) would silently miss.
+	{
+		int32_t cableSets = 0, treeResident = 0, addrChecks = 0;
+		std::array<ClipArray*, 2> arrs{&reloaded->project.clips.session_clips,
+		                               &reloaded->project.clips.arrangement_only_clips};
+		auto checkCables = [&](ParamManagerForTimeline& pm, const deluge::project::OwnerId& owner,
+		                       std::optional<uint32_t> clipId) {
+			PatchCableSet* pcs = pm.getPatchCableSet();
+			if (pcs == nullptr || !clipId.has_value()) {
+				return;
+			}
+			cableSets++;
+			deluge::project::DocParamManager* mgr = reloaded->project.backed_params.find(owner, clipId);
+			if (mgr != nullptr && pcs->domCables() == &mgr->patch_cables) {
+				treeResident++;
+			}
+			for (int32_t c = 0; c < pcs->numPatchCables; c++) {
+				int32_t packedId =
+				    PatchCableSet::getParamId(pcs->patchCables[c].destinationParamDescriptor, pcs->patchCables[c].from);
+				deluge::project::ParamAddress addr{owner, deluge::modulation::params::Kind::PATCH_CABLE, packedId,
+				                                   clipId};
+				if (reloaded->project.resolveParam(addr) != pcs->docForParam(c)) {
+					std::fprintf(stderr, "S4b FAIL: patch-cable doc() != bound store (mis-encoded/mis-owned)\n");
+					_exit(3);
+				}
+				addrChecks++;
+			}
+		};
+		for (ClipArray* arr : arrs) {
+			for (int32_t c = 0; c < std::ssize(*arr); c++) {
+				Clip* clip = (*arr)[c];
+				if (clip->type != ClipType::INSTRUMENT || clip->output == nullptr) {
+					continue;
+				}
+				std::optional<uint32_t> clipId = clip->serialId();
+				if (clip->output->type == OutputType::SYNTH) {
+					if (std::optional<uint32_t> outId = clip->output->serialId()) {
+						checkCables(clip->paramManager, deluge::project::OwnerId::instrument(*outId), clipId);
+					}
+				}
+				else if (clip->output->type == OutputType::KIT) {
+					InstrumentClip* ic = static_cast<InstrumentClip*>(clip);
+					for (int32_t n = 0; n < std::ssize(ic->noteRows); n++) {
+						NoteRow& nr = ic->noteRows[n];
+						if (nr.drum == nullptr || nr.drum->type != DrumType::SOUND) {
+							continue;
+						}
+						if (std::optional<uint32_t> drumId = nr.drum->serialId()) {
+							checkCables(nr.paramManager, deluge::project::OwnerId::drum(*drumId), clipId);
+						}
+					}
+				}
+			}
+		}
+		std::fprintf(stderr, "patch-cable sets tree-resident: %d/%d (doc()==bound-store checks: %d)\n", treeResident,
+		             cableSets, addrChecks);
+		if (cableSets > 0 && treeResident != cableSets) {
+			std::fprintf(stderr, "S4b FAIL: a synth/drum patch-cable set is not tree-resident after reload\n");
+			_exit(3);
+		}
+	}
+
 	// 5. Both edits must have persisted into the reloaded DOM store (the authority) and the reloaded engine.
 	if (!reloaded->project.global_fx.params.unpatched) {
 		std::fprintf(stderr, "reloaded store EMPTY\n");

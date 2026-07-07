@@ -20,10 +20,13 @@
 #include "modulation/params/param_collection.h"
 #include "modulation/patch/patch_cable.h"
 #include <memory>
+#include <vector>
 
 namespace deluge::project {
 struct DocParamSet;
-}
+struct DocPatchCable;
+struct DocAutoParam;
+} // namespace deluge::project
 
 class Song;
 class ModelStackWithParamCollection;
@@ -56,6 +59,14 @@ public:
 	void bindDomStore();
 	/// The bound DOM store, or nullptr if unbound. (Test / inspection accessor.)
 	deluge::project::DocParamSet* domStore();
+
+	/// S4b: bind this set's cable amount-automation to an external, identity-keyed persistent store (the owner's
+	/// project-tree `DocParamManager::patch_cables`). Once bound, docForParam resolves a cable's nodes from the tree
+	/// entry matching its (from, destination) — save + runtime edits share it — instead of the cable's inline
+	/// `amount_`. Cables are matched by identity, not index, so runtime reorder (setupPatching) is transparent.
+	void bindDomCablesExternal(std::vector<deluge::project::DocPatchCable>* ext) { domCablesRef_ = ext; }
+	/// The bound external cable store, or nullptr if unbound. (Test / inspection accessor.)
+	std::vector<deluge::project::DocPatchCable>* domCables() { return domCablesRef_; }
 
 	deluge::project::DocAutoParam* docForParam(int32_t i);
 	deluge::project::DocAutoParam* docParamForId(int32_t paramId) override;
@@ -134,6 +145,11 @@ public:
 	/// (heap-allocated, stable-address) collection. See bindDomStore().
 	std::unique_ptr<deluge::project::DocParamSet> domStore_;
 
+	/// S4b: external, identity-keyed persistent cable store (the owner's project-tree `patch_cables` vector), or
+	/// nullptr when this set resolves its cables inline. Non-owning — the project tree owns it and outlives this
+	/// engine collection. See bindDomCablesExternal().
+	std::vector<deluge::project::DocPatchCable>* domCablesRef_ = nullptr;
+
 	Destination* destinations[2]{};
 
 	bool shouldParamIndicateMiddleValue(ModelStackWithParamId const* modelStack) override { return true; };
@@ -141,6 +157,14 @@ public:
 	static void dissectParamId(uint32_t paramId, ParamDescriptor* destinationParamDescriptor, PatchSource* s);
 
 private:
+	/// S4b: the tree entry for the cable (from, dest) in the bound external store, creating one (growable — no
+	/// engine object holds a pointer into the store, so reallocation dangles nothing) if this is a runtime-added
+	/// cable not yet mirrored. PRECONDITION: domCablesRef_ != nullptr.
+	deluge::project::DocPatchCable& findOrCreateDomCable(PatchSource from, ParamDescriptor dest, Polarity polarity);
+	/// S4b: the current amount-nodes for the cable (from, dest) in the bound external store, or nullptr if unbound
+	/// or not present. Read-only (used to copy live nodes when cloning a bound set).
+	deluge::project::DocAutoParam* findDomCableAmount(PatchSource from, ParamDescriptor dest) const;
+
 	void swapCables(int32_t c1, int32_t c2);
 	void freeDestinationMemory(bool destructing);
 	/// Deep-copy a sentinel-terminated Destination array (terminated by an entry with sources == 0). Returns

@@ -49,6 +49,24 @@ DocAutoParam* slotInManager(DocParamManager* mgr, const ParamAddress& address) {
 	}
 	return nullptr;
 }
+
+/// Resolve a patch-cable amount lane within a tree-resident manager by IDENTITY (S4b). The address's param_id is
+/// the packed (destination + source) word `PatchCableSet::getParamId` produces, so recompute that word from each
+/// stored cable's (destination, from) — via the same `ParamDescriptor::addSource` the engine uses — and match.
+/// Identity, not index: the engine reorders cables at runtime (setupPatching), so only (from, dest) is stable.
+DocAutoParam* patchCableInManager(DocParamManager* mgr, int32_t paramId) {
+	if (mgr == nullptr) {
+		return nullptr;
+	}
+	for (DocPatchCable& cable : mgr->patch_cables) {
+		ParamDescriptor packed = cable.destination;
+		packed.addSource(cable.from);
+		if (static_cast<int32_t>(packed.data) == paramId) {
+			return &cable.amount;
+		}
+	}
+	return nullptr;
+}
 } // namespace
 
 DocAutoParam* Song::resolveParam(const ParamAddress& address) {
@@ -68,10 +86,16 @@ DocAutoParam* Song::resolveParam(const ParamAddress& address) {
 		// nullptr → the caller falls back to the engine store.
 		return slotInManager(clip_params.find(address.owner.serial_id), address);
 	case OwnerId::Kind::INSTRUMENT:
-	case OwnerId::Kind::DRUM:
-		// Instrument-shared / per-drum params, keyed by (owner, clip) — the persistent form of ParamBackup. Not
-		// populated until the relocation slice; until then this returns nullptr → engine fallback.
-		return slotInManager(backed_params.find(address.owner, address.clip_serial), address);
+	case OwnerId::Kind::DRUM: {
+		// Instrument-shared / per-drum params, keyed by (owner, clip) — the persistent form of ParamBackup. Patch
+		// cables (S4b) resolve by cable identity within the manager; the ParamSets resolve by index. nullptr when
+		// the owner/lane isn't tree-resident → engine fallback.
+		DocParamManager* mgr = backed_params.find(address.owner, address.clip_serial);
+		if (address.kind == deluge::modulation::params::Kind::PATCH_CABLE) {
+			return patchCableInManager(mgr, address.param_id);
+		}
+		return slotInManager(mgr, address);
+	}
 	}
 	return nullptr;
 }
