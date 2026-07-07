@@ -42,6 +42,21 @@ static void check(bool ok, const char* what) {
 	}
 }
 
+// Option I (Slice K): a clone's DOM store carries the source's authoritative current_value verbatim (ParamSet
+// copy-ctor deep-copies domStore_), and its engine cursors are copied too — so store scalar must equal engine
+// cursor for every param, exactly as post-load. Locks that clone preserves scalar read-authority.
+static bool scalarOk(ParamSet* s) {
+	if (s->domStore() == nullptr) {
+		return false;
+	}
+	for (int32_t p = 0; p < s->getNumParams() && p < (int32_t)s->domStore()->params.size(); p++) {
+		if (s->domStore()->params[p].current_value != s->params[p].currentValue) {
+			return false;
+		}
+	}
+	return true;
+}
+
 // load(xml) -> fully-loaded Song (currentSong set), or nullptr on load error. Mirrors song_edit_roundtrip.cpp.
 static Song* load_song(char* xml, size_t xmlLen, Error* loadErr) {
 	void* mem = GeneralMemoryAllocator::get().alloc(sizeof(Song));
@@ -147,6 +162,7 @@ int main(int argc, char** argv) {
 				check(cloneUnp->domStore() != nullptr, "audio clone: unpatched params DOM-bound");
 				check(cloneUnp->domStore() != nullptr && cloneUnp->docForParam(0) == &cloneUnp->domStore()->params[0],
 				      "audio clone: borrow is live (nodes alias the store lane)");
+				check(scalarOk(cloneUnp), "audio clone: store scalar == engine (read-authority preserved)");
 			}
 			if (failures != 0) {
 				std::fprintf(stderr, "clip_clone (audio): %d failure(s)\n", failures);
@@ -181,6 +197,8 @@ int main(int argc, char** argv) {
 				};
 				check(liveBound(kClone->paramManager.getUnpatchedParamSet()),
 				      "kit clone: clip-level FX DOM-bound with live borrow");
+				check(scalarOk(kClone->paramManager.getUnpatchedParamSet()),
+				      "kit clone: clip-level FX store scalar == engine");
 				int32_t drumRows = 0;
 				for (int32_t r = 0; r < std::ssize(kClone->noteRows); r++) {
 					NoteRow& nr = kClone->noteRows[r];
@@ -190,6 +208,9 @@ int main(int argc, char** argv) {
 						check(liveBound(nr.paramManager.getUnpatchedParamSet())
 						          && liveBound(nr.paramManager.getPatchedParamSet()),
 						      "kit clone: SoundDrum row DOM-bound (unpatched + patched)");
+						check(scalarOk(nr.paramManager.getUnpatchedParamSet())
+						          && scalarOk(nr.paramManager.getPatchedParamSet()),
+						      "kit clone: SoundDrum row store scalar == engine");
 					}
 				}
 				// drumRows may legitimately be 0 (a kit whose drum managers are all parked in ParamBackup / empty
