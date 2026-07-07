@@ -130,7 +130,7 @@ int main(int argc, char** argv) {
 			return pcs->docForParam(0) == &pcs->patchCables[0].amount_;
 		};
 		int32_t audioSeen = 0, audioBound = 0, audioScalarOk = 0, synthSeen = 0, synthBound = 0;
-		int32_t kitSeen = 0, kitBound = 0, drumSeen = 0, drumBound = 0, cableSeen = 0, cableBound = 0;
+		int32_t kitSeen = 0, kitBound = 0, kitScalarOk = 0, drumSeen = 0, drumBound = 0, cableSeen = 0, cableBound = 0;
 		std::array<ClipArray*, 2> clipArrays{&song->project.clips.session_clips,
 		                                     &song->project.clips.arrangement_only_clips};
 		for (ClipArray* arr : clipArrays) {
@@ -164,7 +164,15 @@ int main(int argc, char** argv) {
 				else if (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
 				         && clip->output->type == OutputType::KIT) {
 					kitSeen++; // kit clip-level global FX = unpatched only
-					kitBound += isLiveBound(clip->paramManager.getUnpatchedParamSet()) ? 1 : 0;
+					ParamSet* ku = clip->paramManager.getUnpatchedParamSet();
+					kitBound += isLiveBound(ku) ? 1 : 0;
+					// Option I (read-authority): kit-FX uses the set's OWN store (no seed at all), so the store
+					// scalar comes purely from init-defaults + the DOM-first read — it must equal the engine cursor.
+					bool kScalarOk = (ku->domStore() != nullptr);
+					for (int32_t p = 0; kScalarOk && p < ku->getNumParams(); p++) {
+						kScalarOk = (ku->domStore()->params[p].current_value == ku->params[p].currentValue);
+					}
+					kitScalarOk += kScalarOk ? 1 : 0;
 					InstrumentClip* ic = static_cast<InstrumentClip*>(clip);
 					for (int32_t n = 0; n < std::ssize(ic->noteRows); n++) {
 						NoteRow& nr = ic->noteRows[n];
@@ -182,9 +190,10 @@ int main(int argc, char** argv) {
 			}
 		}
 		std::fprintf(stderr,
-		             "audio: %d/%d (scalarOk %d) | synth: %d/%d | kit: %d/%d | drums: %d/%d | patchCables: %d/%d\n",
-		             audioBound, audioSeen, audioScalarOk, synthBound, synthSeen, kitBound, kitSeen, drumBound,
-		             drumSeen, cableBound, cableSeen);
+		             "audio: %d/%d (scalarOk %d) | synth: %d/%d | kit: %d/%d (scalarOk %d) | drums: %d/%d | "
+		             "patchCables: %d/%d\n",
+		             audioBound, audioSeen, audioScalarOk, synthBound, synthSeen, kitBound, kitSeen, kitScalarOk,
+		             drumBound, drumSeen, cableBound, cableSeen);
 		if (audioSeen != audioBound || synthSeen != synthBound || kitSeen != kitBound || drumSeen != drumBound
 		    || cableSeen != cableBound) {
 			std::fprintf(stderr, "PHASE C: a clip/drum loaded UNBOUND (borrow not live)\n");
@@ -192,6 +201,11 @@ int main(int argc, char** argv) {
 		}
 		if (audioScalarOk != audioSeen) {
 			std::fprintf(stderr, "Flip Option I FAIL: an audio clip's store current_value != engine (read not "
+			                     "DOM-authoritative)\n");
+			_exit(3);
+		}
+		if (kitScalarOk != kitSeen) {
+			std::fprintf(stderr, "Flip Option I FAIL: a kit clip's store current_value != engine (read not "
 			                     "DOM-authoritative)\n");
 			_exit(3);
 		}

@@ -51,6 +51,11 @@ public:
 	                                 int32_t* valuesForOverride = nullptr);
 	static void readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* paramManager,
 	                               int32_t readAutomationUpToPos);
+	// Option I (read-authority): read the param block INTO the owner's DOM store (defaults already written there by
+	// initParams), then project each engine RT cursor from the store — so the DOM holds the authoritative
+	// current_value, not just the automation nodes. Byte-identical to readParamsFromFile. Used by audio + kit clips.
+	static void readParamsFromFileDomFirst(Deserializer& reader, ParamManagerForTimeline* paramManager,
+	                                       int32_t readAutomationUpToPos);
 	static bool readParamTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                                 int32_t readAutomationUpToPos);
 	Delay::State createDelayWorkingState(ParamManager& paramManager, bool shouldLimitDelayFeedback = false,

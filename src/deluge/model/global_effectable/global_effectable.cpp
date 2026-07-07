@@ -857,6 +857,26 @@ void GlobalEffectable::readParamsFromFile(Deserializer& reader, ParamManagerForT
 	}
 }
 
+void GlobalEffectable::readParamsFromFileDomFirst(Deserializer& reader, ParamManagerForTimeline* paramManager,
+                                                  int32_t readAutomationUpToPos) {
+	// initParams already wrote each default straight into the set's own DOM store (via docForParam), so file-omitted
+	// params keep their default with NO engine->store copy. Read the present params into the store via the same
+	// tables the engine reader uses, then project each engine RT cursor from the store.
+	UnpatchedParamSet* unpatched = paramManager->getUnpatchedParamSet();
+	unpatched->bindDomStore();
+	deluge::project::DocParamSet* store = unpatched->domStore();
+	char const* tagName;
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (deluge::project::readGlobalEffectableParamTagToDoc(reader, tagName, *store, readAutomationUpToPos)) {}
+		else {
+			reader.exitTag(tagName);
+		}
+	}
+	for (int32_t p = 0; p < unpatched->getNumParams() && p < (int32_t)store->params.size(); p++) {
+		unpatched->params[p].currentValue = store->params[p].current_value;
+	}
+}
+
 bool GlobalEffectable::readParamTagFromFile(Deserializer& reader, char const* tagName,
                                             ParamManagerForTimeline* paramManager, int32_t readAutomationUpToPos) {
 	// Read the GlobalEffectable param block from the value DOM (deluge::project). The DOM reader handles

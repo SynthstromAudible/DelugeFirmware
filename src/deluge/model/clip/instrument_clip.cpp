@@ -2818,7 +2818,9 @@ createNewParamManager:
 
 			GlobalEffectableForClip::initParams(&paramManager);
 			reader.match('{');
-			GlobalEffectableForClip::readParamsFromFile(reader, &paramManager, readAutomationUpToPos);
+			// Option I (read-authority): read the kit clip-level FX block DOM-first so the store holds the
+			// authoritative current_value, not just the nodes (initParams wrote the defaults into the store).
+			GlobalEffectableForClip::readParamsFromFileDomFirst(reader, &paramManager, readAutomationUpToPos);
 			reader.match('}');
 		}
 
