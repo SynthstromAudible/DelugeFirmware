@@ -1178,7 +1178,25 @@ someError:
 		else if (!strcmp(tagName, "params")) {
 			paramManager.setupUnpatched();
 			GlobalEffectableForClip::initParams(&paramManager);
-			GlobalEffectableForClip::readParamsFromFile(reader, &paramManager, readAutomationUpToPos);
+			// Flip Option I (read-authority): read DOM-first (mirroring song-global) so the DOM store holds the
+			// authoritative current_value, not just the nodes. Seed the store from the init'd engine (so
+			// file-omitted params keep their default), bind, read into the store via the same tables the engine
+			// reader uses, then project each engine RT cursor from the store. Byte-identical to the engine read.
+			UnpatchedParamSet* unpatched = paramManager.getUnpatchedParamSet();
+			unpatched->bindDomStore();
+			deluge::project::DocParamSet* store = unpatched->domStore();
+			*store = deluge::project::toDocParamSet(*unpatched);
+			char const* paramTag;
+			while (*(paramTag = reader.readNextTagOrAttributeName())) {
+				if (deluge::project::readGlobalEffectableParamTagToDoc(reader, paramTag, *store,
+				                                                       readAutomationUpToPos)) {}
+				else {
+					reader.exitTag(paramTag);
+				}
+			}
+			for (int32_t p = 0; p < unpatched->getNumParams() && p < (int32_t)store->params.size(); p++) {
+				unpatched->params[p].currentValue = store->params[p].current_value;
+			}
 		}
 
 		else if (!strcmp(tagName, "onAutomationInstrumentClipView")) {
