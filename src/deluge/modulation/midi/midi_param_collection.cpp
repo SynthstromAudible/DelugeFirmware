@@ -406,8 +406,8 @@ void MIDIParamCollection::writeToFile(Serializer& writer) {
 
 		writer.writeOpeningTag("midiParams");
 
-		for (MIDIParam& midiParam : params) {
-			int32_t cc = midiParam.cc;
+		for (int32_t i = 0; i < std::ssize(params); i++) {
+			int32_t cc = params[i].cc;
 
 			writer.writeOpeningTag("param");
 			if (cc == CC_NUMBER_NONE) { // Why would I have put this in here?
@@ -418,7 +418,10 @@ void MIDIParamCollection::writeToFile(Serializer& writer) {
 			}
 
 			writer.writeOpeningTag("value", false);
-			midiParam.param.writeToFile(midiParam.nodes_, writer, true);
+			// Serialize from the CC's CURRENT store via docForParam (the bound tree entry when bound, where runtime
+			// edits land) — NOT the inline nodes_ directly, which goes stale once bound (S4c) so reading it here
+			// would drop MIDI automation edits on save.
+			params[i].param.writeToFile(*docForParam(i), writer, true);
 			writer.writeClosingTag("value", false);
 
 			writer.writeClosingTag("param");

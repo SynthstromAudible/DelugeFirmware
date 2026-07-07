@@ -97,6 +97,8 @@ int main(int argc, char** argv) {
 	char* orig = (char*)std::malloc(fileLen + 1);
 	char* gen1 = (char*)std::malloc(kCap);
 	char* gen1copy = (char*)std::malloc(kCap);
+	char* gen2 = (char*)std::malloc(kCap);     // S6-fix regression: 2nd-generation save buffer
+	char* gen2copy = (char*)std::malloc(kCap); // ...and its reload copy
 	fileLen = (long)std::fread(orig, 1, fileLen, f);
 	orig[fileLen] = 0;
 	std::fclose(f);
@@ -545,6 +547,118 @@ int main(int argc, char** argv) {
 		if (midiSets > 0 && treeResident != midiSets) {
 			std::fprintf(stderr, "S4c FAIL: a MIDI_OUT CC set is not tree-resident after reload\n");
 			_exit(3);
+		}
+	}
+
+	// M2-G S6-fix (data-loss REGRESSION guard): a runtime automation edit routes through doc() -> the TREE store,
+	// leaving the engine's inline patch-cable `amount_` / MIDI `nodes_` STALE. The SAVE projection must read the
+	// tree (docForParam), not the inline store, or the edit is silently lost. Corpus files carry no serialIds on
+	// first load (nothing is bound then), so the bound tree exists only on the RELOADED song — plant a distinctive
+	// node in a bound patch cable's and a bound MIDI CC's tree store here (via docForParam, exactly where doc()
+	// writes), leave the inline stale, then save+reload again and require it survived.
+	{
+		constexpr int32_t kMarkPos = 13;
+		constexpr int32_t kMarkVal = 0x5A5A5A;
+		bool plantedCable = false, plantedMidi = false;
+		std::optional<uint32_t> cableClipId, midiClipId;
+
+		auto scanCableForMark = [](Clip* clip) -> bool {
+			PatchCableSet* pcs = clip->paramManager.getPatchCableSet();
+			for (int32_t c = 0; pcs != nullptr && c < pcs->numPatchCables; c++) {
+				const auto& nodes = pcs->docForParam(c)->nodes;
+				for (int32_t n = 0; n < std::ssize(nodes); n++) {
+					if (nodes[n].pos == kMarkPos && nodes[n].value == kMarkVal) {
+						return true;
+					}
+				}
+			}
+			return false;
+		};
+		auto scanMidiForMark = [](Clip* clip) -> bool {
+			MIDIParamCollection* midi = clip->paramManager.getMIDIParamCollection();
+			for (int32_t i = 0; midi != nullptr && i < std::ssize(midi->params); i++) {
+				const auto& nodes = midi->docForParam(i)->nodes;
+				for (int32_t n = 0; n < std::ssize(nodes); n++) {
+					if (nodes[n].pos == kMarkPos && nodes[n].value == kMarkVal) {
+						return true;
+					}
+				}
+			}
+			return false;
+		};
+
+		std::array<ClipArray*, 2> arrs{&reloaded->project.clips.session_clips,
+		                               &reloaded->project.clips.arrangement_only_clips};
+		for (ClipArray* arr : arrs) {
+			for (int32_t c = 0; c < std::ssize(*arr); c++) {
+				Clip* clip = (*arr)[c];
+				if (clip->type != ClipType::INSTRUMENT || clip->output == nullptr) {
+					continue;
+				}
+				if (!plantedCable && clip->output->type == OutputType::SYNTH) {
+					PatchCableSet* pcs = clip->paramManager.getPatchCableSet();
+					if (pcs != nullptr && pcs->numPatchCables > 0 && pcs->domCables() != nullptr) {
+						deluge::project::setNodeAtPos(*pcs->docForParam(0), kMarkPos, kMarkVal, false);
+						cableClipId = clip->serialId();
+						plantedCable = true;
+					}
+				}
+				if (!plantedMidi && clip->output->type == OutputType::MIDI_OUT
+				    && clip->paramManager.containsAnyParamCollectionsIncludingExpression()) {
+					MIDIParamCollection* midi = clip->paramManager.getMIDIParamCollection();
+					if (midi != nullptr && !midi->params.empty() && midi->domMidi() != nullptr) {
+						deluge::project::setNodeAtPos(*midi->docForParam(0), kMarkPos, kMarkVal, false);
+						midiClipId = clip->serialId();
+						plantedMidi = true;
+					}
+				}
+			}
+		}
+
+		if (plantedCable || plantedMidi) {
+			smSerializer.setMemoryBuffer(gen2, kCap);
+			deluge::project::saveSong(*reloaded, smSerializer);
+			long n2 = smSerializer.bytesWritten();
+			std::memcpy(gen2copy, gen2, n2);
+			Error e3;
+			Song* reloaded2 = load_song(gen2copy, n2, &e3);
+			if (reloaded2 == nullptr) {
+				std::fprintf(stderr, "S6-fix: LOADFAIL gen2 -> Error %d\n", (int)e3);
+				_exit(1);
+			}
+			auto findClip = [&](std::optional<uint32_t> id) -> Clip* {
+				if (!id.has_value()) {
+					return nullptr;
+				}
+				std::array<ClipArray*, 2> a{&reloaded2->project.clips.session_clips,
+				                            &reloaded2->project.clips.arrangement_only_clips};
+				for (ClipArray* arr : a) {
+					for (int32_t c = 0; c < std::ssize(*arr); c++) {
+						if ((*arr)[c]->serialId() == id) {
+							return (*arr)[c];
+						}
+					}
+				}
+				return nullptr;
+			};
+			if (plantedCable) {
+				Clip* rc = findClip(cableClipId);
+				if (rc == nullptr || !scanCableForMark(rc)) {
+					std::fprintf(stderr, "S6-fix FAIL: patch-cable automation edit LOST on save (read stale inline "
+					                     "amount_, not the tree)\n");
+					_exit(3);
+				}
+			}
+			if (plantedMidi) {
+				Clip* rc = findClip(midiClipId);
+				if (rc == nullptr || !scanMidiForMark(rc)) {
+					std::fprintf(stderr, "S6-fix FAIL: MIDI CC automation edit LOST on save (writeToFile read stale "
+					                     "nodes_, not the tree)\n");
+					_exit(3);
+				}
+			}
+			std::fprintf(stderr, "S6-fix: tree-authoritative save OK (cable=%d midi=%d)\n", plantedCable ? 1 : 0,
+			             plantedMidi ? 1 : 0);
 		}
 	}
 

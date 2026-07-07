@@ -107,14 +107,15 @@ DocParamManager toDocParamManager(ParamManager& paramManager) {
 }
 
 std::vector<DocMidiParam> toDocMidiParams(MIDIParamCollection& midi) {
-	// Copy each CC param's identity (cc) + value/nodes. Nodes come from the CC's current store — its inline nodes_
-	// pre-bind (seed time), which is exactly what the persistent per-clip store should hold.
+	// Copy each CC param's identity (cc) + value/nodes. Nodes come from the CC's CURRENT store via docForParam —
+	// the bound tree entry when bound (where runtime edits land), the inline nodes_ otherwise — NOT the inline
+	// store directly (which goes stale once bound, so reading it would drop edits on save).
 	std::vector<DocMidiParam> out;
 	out.reserve(midi.params.size());
-	for (MIDIParam& midiParam : midi.params) {
+	for (int32_t i = 0; i < std::ssize(midi.params); i++) {
 		out.push_back(DocMidiParam{
-		    .cc = midiParam.cc,
-		    .param = toDocAutoParam(midiParam.param.currentValue, midiParam.nodes_.nodes),
+		    .cc = midi.params[i].cc,
+		    .param = toDocAutoParam(midi.params[i].param.currentValue, midi.docForParam(i)->nodes),
 		});
 	}
 	return out;
@@ -132,7 +133,9 @@ std::vector<DocPatchCable> toDocPatchCables(PatchCableSet& pcs) {
 		    .from = cable.from,
 		    .destination = cable.destinationParamDescriptor,
 		    .polarity = cable.polarity,
-		    .amount = toDocAutoParam(cable.param.currentValue, cable.amount_.nodes),
+		    // Nodes from the cable's CURRENT store via docForParam (the bound tree entry when bound, where runtime
+		    // edits land — NOT the inline amount_, which goes stale once bound; reading it would drop edits on save).
+		    .amount = toDocAutoParam(cable.param.currentValue, pcs.docForParam(i)->nodes),
 		});
 	}
 	return out;
