@@ -835,13 +835,15 @@ void GlobalEffectable::writeParamAttributesToFile(Serializer& writer, ParamManag
 	// Serialize from the value DOM (deluge::project) — byte-identical to the former hand-written sequence
 	// (verified in param_projection_test). serializeGlobalEffectableParamAttributes emits the global flat
 	// attrs around the shared ModControllableAudio attrs and the community attrs.
-	deluge::project::DocParamSet unpatched = deluge::project::toDocParamSet(*paramManager->getUnpatchedParamSet());
+	deluge::project::DocParamSet unpatched =
+	    deluge::project::toDocParamSetFromStore(*paramManager->getUnpatchedParamSet());
 	deluge::project::serializeGlobalEffectableParamAttributes(unpatched, writer, writeAutomation, valuesForOverride);
 }
 
 void GlobalEffectable::writeParamTagsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation,
                                             int32_t* valuesForOverride) {
-	deluge::project::DocParamSet unpatched = deluge::project::toDocParamSet(*paramManager->getUnpatchedParamSet());
+	deluge::project::DocParamSet unpatched =
+	    deluge::project::toDocParamSetFromStore(*paramManager->getUnpatchedParamSet());
 	deluge::project::serializeGlobalEffectableParamTags(unpatched, writer, writeAutomation, valuesForOverride);
 }
 

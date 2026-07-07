@@ -4145,7 +4145,8 @@ haveNoDrum:
 
 						patchedParams->deleteAutomationForParamBasicForSetup(modelStackWithParamCollection,
 						                                                     params::LOCAL_OSC_A_PHASE_WIDTH + s);
-						patchedParams->params[params::LOCAL_OSC_A_PHASE_WIDTH + s].setCurrentValueBasicForSetup(0);
+						patchedParams->params[params::LOCAL_OSC_A_PHASE_WIDTH + s].setCurrentValueBasicForSetup(
+						    *patchedParams->docForParam(params::LOCAL_OSC_A_PHASE_WIDTH + s), 0);
 						patchedCables->removeAllPatchingToParam(modelStackWithParamCollection,
 						                                        params::LOCAL_OSC_A_PHASE_WIDTH + s);
 					}

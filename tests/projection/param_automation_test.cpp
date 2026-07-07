@@ -165,6 +165,21 @@ void roundTrip(const char* name, int32_t currentValue, const std::vector<Node>& 
 	}
 }
 
+// Option I save-flip: the engine save wrappers (Sound/GlobalEffectable/ExpressionParamSet::writeToFile) now read
+// the DOM store's scalar, not the engine cursor. A test that authors state via params[p].currentValue must seed
+// the store to match — exactly as a real read/edit does. (docForParam resolves the set's own store here.)
+void authorStoreFromEngine(ParamSet& s) {
+	for (int32_t p = 0; p < s.getNumParams(); p++) {
+		s.docForParam(p)->current_value = s.params[p].currentValue;
+	}
+}
+void authorStoreFromEngine(ParamManagerForTimeline& pm) {
+	authorStoreFromEngine(*pm.getUnpatchedParamSet());
+	if (ParamSet* p = pm.getPatchedParamSet()) {
+		authorStoreFromEngine(*p);
+	}
+}
+
 } // namespace
 
 int main() {
@@ -1093,6 +1108,7 @@ int main() {
 		unp->params[params::UNPATCHED_DELAY_RATE].currentValue = 222;                   // <delay> group
 		unp->params[params::UNPATCHED_STUTTER_RATE].currentValue = 333;                 // shared block
 		unp->params[params::UNPATCHED_LPF_MORPH].currentValue = 444;                    // community attr
+		authorStoreFromEngine(pm); // the flipped save wrapper reads the store
 
 		deluge::project::DocParamManager doc = deluge::project::toDocParamManager(pm);
 
@@ -1210,6 +1226,7 @@ int main() {
 		e->params[0].currentValue = 12345;            // pitchBend
 		setNodeIn(*e->docForParam(2), 0, 6789, true); // pressure, automated
 		// yExpression (index 1) left neutral ⇒ exercises the per-dimension skip.
+		authorStoreFromEngine(*e); // the flipped ExpressionParamSet::writeToFile reads the store
 
 		deluge::project::DocParamManager doc = deluge::project::toDocParamManager(pm);
 		check(doc.expression.has_value(), "expr present in doc");
@@ -1315,6 +1332,9 @@ int main() {
 		pcs->patchCables[0].destinationParamDescriptor.setToHaveParamOnly(params::LOCAL_LPF_FREQ);
 		pcs->patchCables[0].polarity = Polarity::BIPOLAR;
 		pcs->patchCables[0].param.currentValue = 268435456;
+		// The flipped Sound::writeParamsToFile reads the store for params AND the cable amount.
+		authorStoreFromEngine(pm);
+		pcs->docForParam(0)->current_value = 268435456;
 
 		deluge::project::DocParamManager doc = deluge::project::toDocParamManager(pm);
 		check(doc.patched.has_value() && doc.unpatched.has_value(), "sound collections present");
@@ -1405,6 +1425,7 @@ int main() {
 		// first six MCA attrs honour valuesForOverride), so the override value must be ignored here.
 		setNodeIn(*up->docForParam(params::UNPATCHED_ARP_GATE), 0, 13, true);
 		setNodeIn(*up->docForParam(params::UNPATCHED_STUTTER_RATE), 0, 21, true); // override-eligible MCA attr
+		authorStoreFromEngine(pm); // the flipped GlobalEffectable::writeParamAttributesToFile reads the store
 
 		deluge::project::DocParamManager doc = deluge::project::toDocParamManager(pm);
 		check(doc.unpatched.has_value(), "override unpatched present");

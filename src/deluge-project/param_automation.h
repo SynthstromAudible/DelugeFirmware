@@ -98,6 +98,9 @@ struct DocParamSet {
 /// Projection between a live ParamSet and its DocParamSet, owner-resolving each param's node store. Defined in
 /// param_automation.cpp.
 DocParamSet toDocParamSet(ParamSet& paramSet);
+/// Option I save-flip: like toDocParamSet but reads the persisted scalar from the DOM store (docForParam), not the
+/// engine cursor — the authoritative source for saving. Every persistent value-setter writes the store.
+DocParamSet toDocParamSetFromStore(ParamSet& paramSet);
 void fromDocParamSet(const DocParamSet& doc, ParamSet& paramSet);
 
 /// Value-typed document form of one patch cable: a mod-matrix connection from a source to a destination
@@ -136,6 +139,9 @@ struct DocParamManager {
 /// and the target (the engine builds the collection structure on load before the values are projected
 /// in); it does not allocate or remove collections.
 DocParamManager toDocParamManager(ParamManager& paramManager);
+/// Option I save-flip: like toDocParamManager but reads each ParamSet's persisted scalar from the DOM store
+/// (patch cables already store-sourced). Used by the Sound save path.
+DocParamManager toDocParamManagerFromStore(ParamManager& paramManager);
 void fromDocParamManager(const DocParamManager& doc, ParamManager& paramManager);
 
 /// Project a live PatchCableSet's cables into their document form — the identity-keyed persistent cable store the

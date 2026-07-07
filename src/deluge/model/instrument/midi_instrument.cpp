@@ -691,9 +691,12 @@ Error MIDIInstrument::moveAutomationToDifferentCC(int32_t oldCC, int32_t newCC,
 			FREEZE_WITH_ERROR("E416");
 		}
 #endif
-		((ExpressionParamSet*)modelStackWithAutoParam->paramCollection)
-		    ->params[modelStackWithAutoParam->paramId]
-		    .setCurrentValueBasicForSetup(0);
+		{
+			// Option I: zero the store slot too (it's the persisted source), not just the engine cursor.
+			auto* eps = (ExpressionParamSet*)modelStackWithAutoParam->paramCollection;
+			int32_t pid = modelStackWithAutoParam->paramId;
+			eps->params[pid].setCurrentValueBasicForSetup(*eps->docForParam(pid), 0);
+		}
 	}
 
 	modelStackWithAutoParam = getParamToControlFromInputMIDIChannel(newCC, modelStack);

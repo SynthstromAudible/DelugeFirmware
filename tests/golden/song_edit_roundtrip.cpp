@@ -37,6 +37,7 @@
 #include "modulation/params/param_set.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "processing/sound/sound_drum.h"
+#include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
 
 #include <array>
@@ -240,6 +241,67 @@ int main(int argc, char** argv) {
 			                     "DOM-authoritative)\n");
 			_exit(3);
 		}
+	}
+
+	// Option I (save-flip gate): golden only LOADS songs, so it never exercises new-instrument creation
+	// (setupAsDefaultSynth / setupAsSample), which sets PERSISTENT params via the setup overload. With save now
+	// reading the DOM store (toDocParamSet), those setters MUST write the store or a freshly-created synth/sample
+	// would save wrong. Build fresh Sounds exactly as createNewInstrument does (setupWithPatching + initParams) and
+	// assert store == engine for every param (+ the setup()-created patch cable).
+	{
+		auto setScalarOk = [](ParamManagerForTimeline& pm) {
+			auto ok = [](ParamSet* s) {
+				for (int32_t p = 0; p < s->getNumParams(); p++) {
+					if (s->docForParam(p)->current_value != s->params[p].currentValue) {
+						return false;
+					}
+				}
+				return true;
+			};
+			return ok(pm.getUnpatchedParamSet()) && ok(pm.getPatchedParamSet());
+		};
+		auto cableScalarOk = [](ParamManagerForTimeline& pm) {
+			PatchCableSet* pcs = pm.getPatchCableSet();
+			for (int32_t c = 0; c < pcs->numPatchCables; c++) {
+				if (pcs->docForParam(c)->current_value != pcs->patchCables[c].param.currentValue) {
+					return false;
+				}
+			}
+			return true;
+		};
+		// setupAsDefaultSynth — pure param setters.
+		{
+			auto* si = new SoundInstrument();
+			ParamManagerForTimeline pm;
+			if (pm.setupWithPatching() != Error::NONE) {
+				std::fprintf(stderr, "new-synth pm setup fail\n");
+				_exit(3);
+			}
+			Sound::initParams(&pm);
+			static_cast<Sound*>(si)->setupAsDefaultSynth(&pm);
+			if (!setScalarOk(pm)) {
+				std::fprintf(stderr, "Flip Option I FAIL: setupAsDefaultSynth store != engine (new-synth save "
+				                     "would persist wrong values)\n");
+				_exit(3);
+			}
+		}
+		// setupAsSample — param setters + a velocity->volume patch cable created via PatchCable::setup().
+		{
+			auto* si = new SoundInstrument();
+			ParamManagerForTimeline pm;
+			if (pm.setupWithPatching() != Error::NONE) {
+				std::fprintf(stderr, "new-sample pm setup fail\n");
+				_exit(3);
+			}
+			Sound::initParams(&pm);
+			static_cast<Sound*>(si)->setupAsSample(&pm);
+			if (!setScalarOk(pm) || !cableScalarOk(pm)) {
+				std::fprintf(stderr, "Flip Option I FAIL: setupAsSample store != engine (new-sample save would "
+				                     "persist wrong values)\n");
+				_exit(3);
+			}
+		}
+		std::fprintf(stderr, "new-instrument setup scalarOk: OK\n");
 	}
 
 	// The store is populated by the <songParams> read; seed it from the engine if the song had none.

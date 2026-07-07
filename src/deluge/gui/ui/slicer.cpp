@@ -698,9 +698,11 @@ ramError2:
 
 			if (doEnvelopes) {
 				paramManager.getPatchedParamSet()->params[params::LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(
+				    *paramManager.getPatchedParamSet()->docForParam(params::LOCAL_ENV_0_ATTACK),
 				    getParamFromUserValue(params::LOCAL_ENV_0_ATTACK, 1));
 				if (i != numClips - 1) {
 					paramManager.getPatchedParamSet()->params[params::LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(
+					    *paramManager.getPatchedParamSet()->docForParam(params::LOCAL_ENV_0_RELEASE),
 					    getParamFromUserValue(params::LOCAL_ENV_0_RELEASE, 1));
 				}
 			}

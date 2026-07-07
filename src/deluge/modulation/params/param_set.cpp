@@ -797,7 +797,7 @@ char const* expressionParamNames[] = {"pitchBend", "yExpression", "pressure"};
 bool ExpressionParamSet::writeToFile(Serializer& writer, bool mustWriteOpeningTagEndFirst) {
 	// Serialize from the value DOM (deluge::project) — byte-identical to the former hand-written sequence
 	// (verified in param_projection_test).
-	deluge::project::DocParamSet doc = deluge::project::toDocParamSet(*this);
+	deluge::project::DocParamSet doc = deluge::project::toDocParamSetFromStore(*this);
 	return deluge::project::serializeExpressionParams(doc, writer, mustWriteOpeningTagEndFirst,
 	                                                  /*writeAutomation=*/true);
 }

@@ -1298,7 +1298,8 @@ void PatchCableSet::grabVelocityToLevelFromMIDICable(MIDICable& cable) {
 		return;
 	}
 
-	patchCable->param.setCurrentValueBasicForSetup(cable.defaultVelocityToLevel);
+	// Option I: write the cable's inline store (amount_ — the persisted source when unbound) too, not just the cursor.
+	patchCable->param.setCurrentValueBasicForSetup(patchCable->amount_, cable.defaultVelocityToLevel);
 }
 
 PatchCable* PatchCableSet::getPatchCableFromVelocityToLevel() {

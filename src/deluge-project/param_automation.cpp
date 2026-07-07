@@ -35,13 +35,31 @@ namespace deluge::project {
 // M2-F: projection operates on the OWNER-resolved DOM store. There is no bare-AutoParam form — an AutoParam holds
 // no node storage.
 DocParamSet toDocParamSet(ParamSet& paramSet) {
-	// Owner-resolve each param's node store (docForParam) so a bound set serialises the DOM store.
+	// Owner-resolve each param's node store (docForParam) so a bound set serialises the DOM store's nodes. The
+	// scalar comes from the engine cursor here; the SAVE path uses toDocParamSetFromStore (below) to read the
+	// store's authoritative scalar instead. (This engine-cursor form still backs the projection unit tests, which
+	// prove the DOM serializer matches the engine serializer for a given cursor value.)
 	DocParamSet doc;
 	doc.kind = paramSet.getParamKind();
 	int32_t numParams = paramSet.getNumParams();
 	doc.params.reserve(numParams);
 	for (int32_t p = 0; p < numParams; p++) {
 		doc.params.push_back(toDocAutoParam(paramSet.params[p].currentValue, paramSet.docForParam(p)->nodes));
+	}
+	return doc;
+}
+
+DocParamSet toDocParamSetFromStore(ParamSet& paramSet) {
+	// Option I (save-flip): serialise BOTH value and nodes from the owner-resolved DOM store — the authoritative
+	// record. Every persistent value-setter (initParams, the DOM-first reads, edits, the setupAs*/initAmount preset
+	// builders) writes docForParam->current_value, so the store holds the value to persist with NO engine read.
+	DocParamSet doc;
+	doc.kind = paramSet.getParamKind();
+	int32_t numParams = paramSet.getNumParams();
+	doc.params.reserve(numParams);
+	for (int32_t p = 0; p < numParams; p++) {
+		deluge::project::DocAutoParam* slot = paramSet.docForParam(p);
+		doc.params.push_back(toDocAutoParam(slot->current_value, slot->nodes));
 	}
 	return doc;
 }
@@ -99,6 +117,30 @@ DocParamManager toDocParamManager(ParamManager& paramManager) {
 		}
 	}
 	// Slot [2]: patch cables.
+	if (ParamCollection* c = paramManager.summaries[2].paramCollection;
+	    c != nullptr && c->getParamKind() == Kind::PATCH_CABLE) {
+		doc.patch_cables = toDocPatchCables(*static_cast<PatchCableSet*>(c));
+	}
+	return doc;
+}
+
+DocParamManager toDocParamManagerFromStore(ParamManager& paramManager) {
+	// Option I save-flip variant: patched/unpatched/expression scalars from the DOM store (toDocParamSetFromStore);
+	// patch cables already source their scalar+nodes from the store (toDocPatchCables via docForParam). Used by the
+	// Sound save path so the persisted values come from the authoritative store, never the engine cursor.
+	DocParamManager doc;
+	if (ParamCollection* c = paramManager.summaries[0].paramCollection; isUnpatchedSetSlot(c)) {
+		doc.unpatched = toDocParamSetFromStore(*static_cast<ParamSet*>(c));
+	}
+	if (ParamCollection* c = paramManager.summaries[1].paramCollection;
+	    c != nullptr && c->getParamKind() == Kind::PATCHED) {
+		doc.patched = toDocParamSetFromStore(*static_cast<ParamSet*>(c));
+	}
+	if (paramManager.getExpressionParamSetOffset() != 0) {
+		if (ExpressionParamSet* e = paramManager.getExpressionParamSet(); e != nullptr) {
+			doc.expression = toDocParamSetFromStore(*e);
+		}
+	}
 	if (ParamCollection* c = paramManager.summaries[2].paramCollection;
 	    c != nullptr && c->getParamKind() == Kind::PATCH_CABLE) {
 		doc.patch_cables = toDocPatchCables(*static_cast<PatchCableSet*>(c));
