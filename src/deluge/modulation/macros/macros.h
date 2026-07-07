@@ -54,11 +54,28 @@ constexpr uint8_t kDefaultTo = 127; // output at source = 127 (defaults give pas
 // cascades) works identically in both domains.
 enum class Domain : uint8_t { MIDI, SYNTH };
 
-// Synth targets are knob positions 0..128 (center 64), so bipolar params (pan) get a true center
-// and the +64 extreme is reachable; MIDI targets are CC values 0..127.
-constexpr uint8_t kMaxValueSynth = 128;
+// True for domains whose destinations are internal AutoParams resolved through the host's own param
+// sets - knob-position value space (0..128, center 64) and serialized by param NAME. MIDI is the odd
+// one out: destinations are CCs, stored sparsely in MIDIParamCollection, emitted over the wire, and
+// serialized by number (0..127). The value/display/live-write helpers branch on THIS; the genuinely
+// per-domain resolution/encoding/lane/list fns keep `== Domain::X` and grow an explicit arm per domain.
+// Exhaustive switch with no default: a new Domain enumerator becomes a -Wswitch diagnostic here,
+// forcing a conscious classification.
+constexpr bool isDomainInternal(Domain domain) {
+	switch (domain) {
+	case Domain::MIDI:
+		return false;
+	case Domain::SYNTH:
+		return true;
+	}
+	return false; // unreachable; satisfies -Wreturn-type without a default that would mask new domains
+}
+
+// Internal-domain targets are knob positions 0..128 (center 64), so bipolar params (pan) get a true
+// center and the +64 extreme is reachable; MIDI targets are CC values 0..127.
+constexpr uint8_t kMaxValueInternal = 128;
 inline uint8_t maxTargetValue(Domain domain) {
-	return (domain == Domain::SYNTH) ? kMaxValueSynth : kMaxValue;
+	return isDomainInternal(domain) ? kMaxValueInternal : kMaxValue;
 }
 
 // The domain of a macro-capable output. Only call for outputs macroClipInstrument() accepts.

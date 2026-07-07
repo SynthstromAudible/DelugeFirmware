@@ -215,7 +215,7 @@ static void appendTargetName(StringBuf& buf, MelodicInstrument* instrument, int3
 // synth that 0..128 space equals the automation view's knobPos+offset, so calculateKnobPosForDisplay
 // yields the identical readout.
 static void appendTargetEndpoint(StringBuf& buf, MelodicInstrument* instrument, uint8_t destination, uint8_t endpoint) {
-	if (domainForOutput(instrument) == Domain::MIDI) {
+	if (!isDomainInternal(domainForOutput(instrument))) {
 		buf.appendInt(endpoint); // raw CC value
 		return;
 	}
@@ -550,15 +550,15 @@ bool isValidTargetDestination(Domain domain, int32_t destination, int32_t macroI
 // synths. MIDI converts with the fixed (v-64)<<25 mapping; synths route through the destination
 // collection's own conversions so bipolar params (pan) and per-param overrides scale correctly.
 static inline int32_t unitsToParamValue(ModelStackWithAutoParam* msp, Domain domain, int32_t units) {
-	if (domain == Domain::SYNTH) {
+	if (isDomainInternal(domain)) {
 		return msp->paramCollection->knobPosToParamValue(units - 64, msp);
 	}
 	return (units - 64) << 25;
 }
 static inline int32_t paramValueToUnits(ModelStackWithAutoParam* msp, Domain domain, int32_t value) {
-	if (domain == Domain::SYNTH) {
+	if (isDomainInternal(domain)) {
 		return std::clamp<int32_t>(msp->paramCollection->paramValueToKnobPos(value, msp) + 64, 0,
-		                           (int32_t)kMaxValueSynth);
+		                           (int32_t)kMaxValueInternal);
 	}
 	return bigValueToUnit(value);
 }
@@ -568,7 +568,7 @@ static inline int32_t paramValueToUnits(ModelStackWithAutoParam* msp, Domain dom
 // with the same region/cloning logic, via setValuePossiblyForRegion (which notifies the Sound).
 static void writeDestinationLive(MelodicInstrument* instrument, Clip* clip, ModelStackWithTimelineCounter* modelStack,
                                  Domain domain, uint8_t destination, int32_t units) {
-	if (domain == Domain::MIDI) {
+	if (!isDomainInternal(domain)) {
 		instrument->processParamFromInputMIDIChannel(destination, (units - 64) << 25, modelStack);
 		return;
 	}
