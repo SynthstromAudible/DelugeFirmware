@@ -189,6 +189,58 @@ int main(int argc, char** argv) {
 		scriptEditUndoRedo("song-global", song, msap);
 	}
 
+	// Between targets: close the song-global Action so target 2 opens its own Action rather than coalescing
+	// into it (getNewAction coalesces same-type, still-open Actions). No free -> no audio-engine pump.
+	if (actionLogger.firstAction[BEFORE] != nullptr) {
+		actionLogger.firstAction[BEFORE]->openForAdditions = false;
+	}
+
+	// Target 2 — first synth/kit InstrumentClip's unpatched param (OwnerId::instrument[Session]()). S5-b's
+	// post-load relocation mints session ids and moves clip-level instrument params into the tree, so a freshly
+	// loaded (never-saved) song resolves them. Defensive: skip if no such clip, or if no unpatched param on it
+	// resolves to a live instrument address (still nothing to assert then; song-global is the guaranteed coverage).
+	{
+		InstrumentClip* instClip = nullptr;
+		for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips); c++) {
+			Clip* clip = song->project.clips.session_clips[c];
+			if (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
+			    && (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::KIT)) {
+				instClip = (InstrumentClip*)clip;
+				break;
+			}
+		}
+		if (instClip == nullptr) {
+			printf("# no-instrument-clip\n");
+		}
+		else {
+			// Find the first unpatched param on this clip that resolves to a live instrument address (a relocated
+			// lane). Unlike the song-global invariant, the instrument target is best-effort per song.
+			int32_t chosenPid = -1;
+			for (int32_t pid = 0; pid < params::kMaxNumUnpatchedParams && chosenPid < 0; pid++) {
+				char pm[MODEL_STACK_MAX_SIZE];
+				ModelStackWithThreeMainThings* p3 = setupModelStackWithThreeMainThingsButNoNoteRow(
+				    pm, song, instClip->output->toModControllable(), instClip, &instClip->paramManager);
+				ModelStackWithAutoParam* pmsap = p3->getUnpatchedAutoParamFromId(pid);
+				if (!pmsap || !pmsap->autoParam) {
+					continue;
+				}
+				std::optional<deluge::project::ParamAddress> pa = deluge::edits::addressFor(*pmsap);
+				if (pa.has_value() && song->project.resolveParam(*pa) != nullptr) {
+					chosenPid = pid;
+				}
+			}
+			if (chosenPid < 0) {
+				printf("# instrument-param-not-addressed\n");
+			}
+			else {
+				char instMem[MODEL_STACK_MAX_SIZE];
+				ModelStackWithThreeMainThings* i3 = setupModelStackWithThreeMainThingsButNoNoteRow(
+				    instMem, song, instClip->output->toModControllable(), instClip, &instClip->paramManager);
+				scriptEditUndoRedo("instrument-clip", song, i3->getUnpatchedAutoParamFromId(chosenPid));
+			}
+		}
+	}
+
 	std::free(xml);
 	return failures ? 3 : 0;
 }
