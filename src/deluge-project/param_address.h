@@ -45,9 +45,12 @@ struct OwnerId {
 	static constexpr OwnerId clip(uint32_t serialId) { return {Kind::CLIP, serialId}; }
 	static constexpr OwnerId instrument(uint32_t outputSerialId) { return {Kind::INSTRUMENT, outputSerialId}; }
 	static constexpr OwnerId drum(uint32_t drumSerialId) { return {Kind::DRUM, drumSerialId}; }
-	// S5-b: session-keyed (transient, not-yet-saved) owners — addressed by a session id, resolved in the session_*
-	// maps.
+	// S5-b: session-keyed (transient, not-yet-saved) owners — addressed by a session id. CLIP resolves in the
+	// session_clip_params map; INSTRUMENT/DRUM resolve in the SAME backed_params map (the is_session flag makes the
+	// key distinct from a serialId owner's, so no separate map is needed there).
 	static constexpr OwnerId clipSession(uint32_t sessionId) { return {Kind::CLIP, sessionId, true}; }
+	static constexpr OwnerId instrumentSession(uint32_t sessionId) { return {Kind::INSTRUMENT, sessionId, true}; }
+	static constexpr OwnerId drumSession(uint32_t sessionId) { return {Kind::DRUM, sessionId, true}; }
 
 	// Ordered so OwnerId (and keys built from it) can index the ordered `fast_map` backed-param store.
 	auto operator<=>(const OwnerId&) const = default;

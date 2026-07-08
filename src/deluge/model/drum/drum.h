@@ -63,6 +63,7 @@ public:
 	Drum* next;
 
 	std::optional<uint32_t> serial_id_; // Stable per-song identity; see serialId(). nullopt = unassigned.
+	uint32_t session_id_{0}; // Transient per-load identity; see sessionId(). 0 = unassigned. Never serialized.
 
 	LearnedMIDI midiInput;
 	LearnedMIDI muteMIDICommand;
@@ -93,6 +94,11 @@ public:
 	// persistent tree (OwnerId::Drum) independent of its transient linked-list position. nullopt = unassigned. ---
 	[[nodiscard]] std::optional<uint32_t> serialId() const { return serial_id_; }
 	void setSerialId(uint32_t id) { serial_id_ = id; }
+
+	/// S5-b: transient (never-serialized) session id for runtime DOM addressing of a NOT-YET-SAVED drum (no
+	/// serialId). 0 = unassigned. Minted at load/creation so doc() id-resolves its per-drum params.
+	[[nodiscard]] uint32_t sessionId() const { return session_id_; }
+	void setSessionId(uint32_t id) { session_id_ = id; }
 	void recordNoteOnEarly(int32_t velocity, bool noteTailsAllowed);
 	void expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack, int16_t newValue,
 	                                     int32_t expressionDimension, int32_t level);

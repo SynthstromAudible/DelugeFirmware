@@ -1830,9 +1830,32 @@ loadOutput:
 			         && thisClip->paramManager.containsAnyMainParamCollections()) {
 				std::optional<uint32_t> clipId = thisClip->serialId();
 				std::optional<uint32_t> outId = thisClip->output->serialId();
+				// S5-b.3: key by serialId when saved, else by transient session ids (the "both-session" case: the
+				// whole song is never-saved / freshly-loaded-old, so BOTH clip and output lack serialIds). A serialId
+				// owner with a newly-added no-serialId clip (mixed) is deferred → falls through to the engine store.
+				deluge::project::OwnerId instrOwner{};
+				std::optional<uint32_t> clipKey{};
+				bool useSession = false;
+				bool relocate = false;
 				if (clipId.has_value() && outId.has_value()) {
-					deluge::project::DocParamManager& mgr =
-					    project.backed_params.getOrCreate(deluge::project::OwnerId::instrument(*outId), *clipId);
+					instrOwner = deluge::project::OwnerId::instrument(*outId);
+					clipKey = clipId;
+					relocate = true;
+				}
+				else if (!clipId.has_value() && !outId.has_value()) {
+					if (thisClip->sessionId() == 0) {
+						thisClip->setSessionId(project.mintSessionId());
+					}
+					if (thisClip->output->sessionId() == 0) { // shared across the output's clips — mint once
+						thisClip->output->setSessionId(project.mintSessionId());
+					}
+					instrOwner = deluge::project::OwnerId::instrumentSession(thisClip->output->sessionId());
+					clipKey = thisClip->sessionId();
+					useSession = true;
+					relocate = true;
+				}
+				if (relocate) {
+					deluge::project::DocParamManager& mgr = project.backed_params.getOrCreate(instrOwner, clipKey);
 					UnpatchedParamSet* unpatched = thisClip->paramManager.getUnpatchedParamSet();
 					relocateParamStoreToTree(unpatched, mgr.unpatched);
 					if (thisClip->output->type == OutputType::SYNTH) {
@@ -1864,12 +1887,22 @@ loadOutput:
 							    || !nr.paramManager.containsAnyMainParamCollections()) {
 								continue;
 							}
-							std::optional<uint32_t> drumId = nr.drum->serialId();
-							if (!drumId.has_value()) {
-								continue;
+							deluge::project::OwnerId drumOwner{};
+							if (!useSession) {
+								std::optional<uint32_t> drumId = nr.drum->serialId();
+								if (!drumId.has_value()) {
+									continue;
+								}
+								drumOwner = deluge::project::OwnerId::drum(*drumId);
+							}
+							else {
+								if (nr.drum->sessionId() == 0) {
+									nr.drum->setSessionId(project.mintSessionId());
+								}
+								drumOwner = deluge::project::OwnerId::drumSession(nr.drum->sessionId());
 							}
 							deluge::project::DocParamManager& dmgr =
-							    project.backed_params.getOrCreate(deluge::project::OwnerId::drum(*drumId), *clipId);
+							    project.backed_params.getOrCreate(drumOwner, clipKey);
 							UnpatchedParamSet* du = nr.paramManager.getUnpatchedParamSet();
 							relocateParamStoreToTree(du, dmgr.unpatched);
 							if (PatchedParamSet* dp = nr.paramManager.getPatchedParamSet()) {

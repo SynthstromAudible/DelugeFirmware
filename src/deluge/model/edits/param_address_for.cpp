@@ -61,12 +61,35 @@ std::optional<deluge::project::ParamAddress> addressFor(const ModelStackWithAuto
 				haveOwner = true;
 			}
 		}
-		else if (clip->type == ClipType::AUDIO) {
-			// S5-b.1: a never-saved (no-serialId) audio clip is addressed by its transient session id
-			// (session_clip_params), so doc() id-resolves it instead of hitting the paramCollection fallback. The
-			// session id is minted + the store relocated in the post-load pass; 0 means not-yet-relocated (fallback).
-			if (uint32_t sid = clip->sessionId(); sid != 0) {
-				owner = deluge::project::OwnerId::clipSession(sid);
+		else {
+			// S5-b: NOT-YET-SAVED (no-serialId) owners are addressed by transient session ids so doc() id-resolves
+			// them instead of the paramCollection fallback. A session id of 0 means the owner wasn't relocated (→
+			// fallback). First cut handles the "both-session" case (whole song never saved / freshly loaded old
+			// song, so BOTH owner and clip lack serialIds); a serialId owner with a newly-added session clip stays on
+			// the fallback until the clip-session key is disambiguated (S5-b later; see the design doc). Mirrors the
+			// serialId classification above: per-drum (DRUM) / synth-kit clip-level (INSTRUMENT) / audio (CLIP).
+			uint32_t clipSess = clip->sessionId();
+			NoteRow* noteRow = modelStack.getNoteRowAllowNull();
+			if (clipSess == 0) {
+				// not relocated → fallback (haveOwner stays false)
+			}
+			else if (noteRow != nullptr) {
+				if (noteRow->drum != nullptr && noteRow->drum->type == DrumType::SOUND
+				    && noteRow->drum->sessionId() != 0) {
+					owner = deluge::project::OwnerId::drumSession(noteRow->drum->sessionId());
+					clipSerial = clipSess;
+					haveOwner = true;
+				}
+			}
+			else if (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
+			         && (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::KIT)
+			         && clip->output->sessionId() != 0) {
+				owner = deluge::project::OwnerId::instrumentSession(clip->output->sessionId());
+				clipSerial = clipSess;
+				haveOwner = true;
+			}
+			else if (clip->type == ClipType::AUDIO) {
+				owner = deluge::project::OwnerId::clipSession(clipSess);
 				haveOwner = true;
 			}
 		}

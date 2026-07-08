@@ -128,7 +128,9 @@ int main(int argc, char** argv) {
 		// cable owns its node store inline (amount_) and owner-resolution returns it.
 		auto cablesBound = [](ParamManagerForTimeline& pm) {
 			PatchCableSet* pcs = pm.getPatchCableSet();
-			return pcs->docForParam(0) == &pcs->patchCables[0].amount_;
+			// A cable's node store is DOM-resident either INLINE (M2-F unbound: docForParam == amount_) or bound to
+			// the identity-keyed tree store (S4b serialId / S5-b.3 session relocate: domCables() != nullptr). Both OK.
+			return pcs->domCables() != nullptr || pcs->docForParam(0) == &pcs->patchCables[0].amount_;
 		};
 		// Option I (read-authority, Slice C): each cable's store current_value must equal the engine cursor — the
 		// read now sources the persisted scalar from the store (docForParam), not the engine.
@@ -163,6 +165,18 @@ int main(int argc, char** argv) {
 		int32_t synthSeen = 0, synthBound = 0, synthScalarOk = 0;
 		int32_t kitSeen = 0, kitBound = 0, kitScalarOk = 0, drumSeen = 0, drumBound = 0, drumScalarOk = 0;
 		int32_t cableSeen = 0, cableBound = 0, cableScalarOkCount = 0;
+		// S5-b.3: no-serialId synth/kit clip-level (INSTRUMENT) + per-drum (DRUM) owners must resolve via session
+		// addressing (resolveParam == docForParam), i.e. doc() id-resolves them, not the fallback.
+		int32_t instSessionSeen = 0, instSessionOk = 0, drumSessionSeen = 0, drumSessionOk = 0;
+		auto instSessionResolves = [&](Clip* clip, ParamSet* set) {
+			if (clip->serialId() || clip->sessionId() == 0 || clip->output->sessionId() == 0) {
+				return; // not on the both-session path (deferred mixed case / serialId path)
+			}
+			instSessionSeen++;
+			deluge::project::ParamAddress addr{deluge::project::OwnerId::instrumentSession(clip->output->sessionId()),
+			                                   set->getParamKind(), 0, clip->sessionId()};
+			instSessionOk += (song->project.resolveParam(addr) == set->docForParam(0)) ? 1 : 0;
+		};
 		std::array<ClipArray*, 2> clipArrays{&song->project.clips.session_clips,
 		                                     &song->project.clips.arrangement_only_clips};
 		for (ClipArray* arr : clipArrays) {
@@ -190,6 +204,7 @@ int main(int argc, char** argv) {
 					synthSeen++; // a synth clip binds BOTH its unpatched and patched sets
 					synthBound += bothBound(clip->paramManager) ? 1 : 0;
 					synthScalarOk += bothScalarOk(clip->paramManager) ? 1 : 0;
+					instSessionResolves(clip, clip->paramManager.getUnpatchedParamSet());
 					if (clip->paramManager.getPatchCableSet()->numPatchCables > 0) {
 						cableSeen++; // ...and its patch cables
 						cableBound += cablesBound(clip->paramManager) ? 1 : 0;
@@ -202,6 +217,7 @@ int main(int argc, char** argv) {
 					ParamSet* ku = clip->paramManager.getUnpatchedParamSet();
 					kitBound += isLiveBound(ku) ? 1 : 0;
 					kitScalarOk += scalarOkSet(ku) ? 1 : 0;
+					instSessionResolves(clip, ku);
 					InstrumentClip* ic = static_cast<InstrumentClip*>(clip);
 					for (int32_t n = 0; n < std::ssize(ic->noteRows); n++) {
 						NoteRow& nr = ic->noteRows[n];
@@ -210,6 +226,14 @@ int main(int argc, char** argv) {
 							drumSeen++; // a SoundDrum row binds unpatched + patched
 							drumBound += bothBound(nr.paramManager) ? 1 : 0;
 							drumScalarOk += bothScalarOk(nr.paramManager) ? 1 : 0;
+							if (!nr.drum->serialId() && nr.drum->sessionId() != 0 && clip->sessionId() != 0) {
+								drumSessionSeen++;
+								ParamSet* du = nr.paramManager.getUnpatchedParamSet();
+								deluge::project::ParamAddress addr{
+								    deluge::project::OwnerId::drumSession(nr.drum->sessionId()), du->getParamKind(), 0,
+								    clip->sessionId()};
+								drumSessionOk += (song->project.resolveParam(addr) == du->docForParam(0)) ? 1 : 0;
+							}
 							if (nr.paramManager.getPatchCableSet()->numPatchCables > 0) {
 								cableSeen++; // ...and its patch cables
 								cableBound += cablesBound(nr.paramManager) ? 1 : 0;
@@ -239,6 +263,13 @@ int main(int argc, char** argv) {
 		if (audioSessionOk != audioSessionSeen) {
 			std::fprintf(stderr, "S5-b.1 FAIL: a no-serialId audio clip did not resolve via session addressing "
 			                     "(resolveParam != docForParam) — doc() would hit the engine fallback\n");
+			_exit(3);
+		}
+		std::fprintf(stderr, "instrument/drum session-addressed (S5-b.3): inst %d/%d, drum %d/%d\n", instSessionOk,
+		             instSessionSeen, drumSessionOk, drumSessionSeen);
+		if (instSessionOk != instSessionSeen || drumSessionOk != drumSessionSeen) {
+			std::fprintf(stderr, "S5-b.3 FAIL: a no-serialId instrument/drum owner did not resolve via session "
+			                     "addressing (resolveParam != docForParam) — doc() would hit the engine fallback\n");
 			_exit(3);
 		}
 		if (kitScalarOk != kitSeen) {

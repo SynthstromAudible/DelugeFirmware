@@ -97,6 +97,24 @@ clip), and by an ALPHA assert that `doc()` never nullptrs.
    the `paramCollection->docParamForId` line. `doc()` is now `paramCollection`-free.
 6. (later) **remove-on-death** for session entries (mirror S4.5b) to retire the bounded leak.
 
+## S5-b.3 refinement (found during S5-b.1) — the two-level key needs clip-session disambiguation
+
+The instrument/drum tier keys by `BackedParamKey{OwnerId owner, std::optional<uint32_t> clip_serial}`. `OwnerId`
+already carries `is_session` (so the owner dimension is disambiguated — a session INSTRUMENT and a serialId
+INSTRUMENT with the same number are distinct keys, and can share `backed_params`; no separate map needed, unlike
+the CLIP tier where `ClipParams` is a bare `uint32`→manager and *did* need `session_clip_params`). BUT the
+**`clip_serial` dimension is a bare `uint32`** with no session/serial flag. The **mixed case** breaks it: a saved
+output (serialId owner) with a **newly-added, not-yet-saved clip** (session clip-id) produces a key
+`(INSTRUMENT-serialId, clip=sessionId)` whose `sessionId` could collide with a real `clip-serialId` override under
+the same owner. So S5-b.3 must add a session/serial flag to the clip dimension too: add `bool clip_is_session` to
+both `BackedParamKey` and `ParamAddress` (and thread it through `BackedParams::find/getOrCreate/remove` + the
+relocate sites), OR change `clip_serial` to a `struct ClipRef{uint32 id; bool is_session}`. Both fully
+disambiguate; the `bool` is the smaller diff. (The CLIP tier has no such issue — its clip *is* the owner.)
+
+Owners needing a session id in S5-b.3: `Output` (synth/kit clip-level, INSTRUMENT owner) and `Drum` (per-drum,
+DRUM owner) — mirror `Clip::session_id_`. The ParamBackup ride-the-binding insight (S3c) carries over unchanged;
+no key mirroring on steal.
+
 ## Alternative considered — eager `serialId`
 
 Assign a `serialId` to every owner at load (reuse the existing machinery) so there are no no-serialId owners.
