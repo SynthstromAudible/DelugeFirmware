@@ -124,6 +124,18 @@ deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 	if (deluge::project::DocAutoParam* relocated = deluge::edits::relocateAndResolve(*this)) {
 		return relocated;
 	}
+#if ALPHA_OR_BETA_VERSION
+	// S5-b.5b: lazy relocation should now id-address every real owner, so this fallback is expected to be DEAD.
+	// Log the first time it is ever reached (kind = the param collection's kind) so on-device smoke testing can
+	// confirm nothing residual hits it — the gate for deleting this line outright. Not a FREEZE: a genuinely
+	// unclassifiable owner (e.g. a non-Sound drum) may legitimately land here, and bricking on it is unacceptable.
+	static bool loggedFallback = false;
+	if (!loggedFallback) {
+		loggedFallback = true;
+		D_PRINTLN("doc() engine fallback hit (kind=%d) — an owner is not id-addressed",
+		          static_cast<int32_t>(paramCollection->getParamKind()));
+	}
+#endif
 	return paramCollection->docParamForId(paramId);
 }
 
