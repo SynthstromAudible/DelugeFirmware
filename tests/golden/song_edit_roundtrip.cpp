@@ -168,6 +168,7 @@ int main(int argc, char** argv) {
 		// S5-b.3: no-serialId synth/kit clip-level (INSTRUMENT) + per-drum (DRUM) owners must resolve via session
 		// addressing (resolveParam == docForParam), i.e. doc() id-resolves them, not the fallback.
 		int32_t instSessionSeen = 0, instSessionOk = 0, drumSessionSeen = 0, drumSessionOk = 0;
+		int32_t midiSessionSeen = 0, midiSessionOk = 0; // S5-b.2: no-serialId MIDI clip CC automation
 		auto instSessionResolves = [&](Clip* clip, ParamSet* set) {
 			if (clip->serialId() || clip->sessionId() == 0 || clip->output->sessionId() == 0) {
 				return; // not on the both-session path (deferred mixed case / serialId path)
@@ -242,6 +243,18 @@ int main(int argc, char** argv) {
 						}
 					}
 				}
+				else if (clip->output != nullptr && clip->output->type == OutputType::MIDI_OUT) {
+					// S5-b.2: a no-serialId MIDI clip's CC automation must session-resolve (Kind::MIDI, by cc).
+					MIDIParamCollection* midi = clip->paramManager.getMIDIParamCollection();
+					if (midi != nullptr && !clip->serialId() && clip->sessionId() != 0) {
+						for (int32_t i = 0; i < std::ssize(midi->params); i++) {
+							midiSessionSeen++;
+							deluge::project::ParamAddress addr{deluge::project::OwnerId::clipSession(clip->sessionId()),
+							                                   params::Kind::MIDI, midi->params[i].cc, std::nullopt};
+							midiSessionOk += (song->project.resolveParam(addr) == midi->docForParam(i)) ? 1 : 0;
+						}
+					}
+				}
 			}
 		}
 		std::fprintf(stderr,
@@ -270,6 +283,11 @@ int main(int argc, char** argv) {
 		if (instSessionOk != instSessionSeen || drumSessionOk != drumSessionSeen) {
 			std::fprintf(stderr, "S5-b.3 FAIL: a no-serialId instrument/drum owner did not resolve via session "
 			                     "addressing (resolveParam != docForParam) — doc() would hit the engine fallback\n");
+			_exit(3);
+		}
+		std::fprintf(stderr, "MIDI-clip session-addressed (S5-b.2): %d/%d\n", midiSessionOk, midiSessionSeen);
+		if (midiSessionOk != midiSessionSeen) {
+			std::fprintf(stderr, "S5-b.2 FAIL: a no-serialId MIDI clip CC did not session-resolve\n");
 			_exit(3);
 		}
 		if (kitScalarOk != kitSeen) {

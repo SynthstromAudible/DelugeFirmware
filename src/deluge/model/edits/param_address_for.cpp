@@ -88,7 +88,12 @@ std::optional<deluge::project::ParamAddress> addressFor(const ModelStackWithAuto
 				clipSerial = clipSess;
 				haveOwner = true;
 			}
-			else if (clip->type == ClipType::AUDIO) {
+			else if (clip->type == ClipType::AUDIO
+			         || (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
+			             && clip->output->type == OutputType::MIDI_OUT)) {
+				// S5-b.2: an audio clip's own params, or a MIDI_OUT clip's per-clip CC automation (Kind::MIDI
+				// resolves by cc within the same session_clip_params entry) — both are CLIP owners keyed by the
+				// clip's session id.
 				owner = deluge::project::OwnerId::clipSession(clipSess);
 				haveOwner = true;
 			}

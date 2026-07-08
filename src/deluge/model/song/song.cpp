@@ -2142,7 +2142,16 @@ skipInstance:
 							midi->bindDomMidiExternal(&mgr.midi_params);
 						}
 						else {
-							midi->bindDomStore();
+							// S5-b.2: a never-saved (no-serialId) MIDI clip — relocate its CC automation into the
+							// session-keyed store + address it by session id (Kind::MIDI resolves by cc), so doc()
+							// id-resolves it instead of the fallback.
+							if (thisClip->sessionId() == 0) {
+								thisClip->setSessionId(project.mintSessionId());
+							}
+							deluge::project::DocParamManager& mgr =
+							    project.session_clip_params.getOrCreate(thisClip->sessionId());
+							mgr.midi_params = deluge::project::toDocMidiParams(*midi);
+							midi->bindDomMidiExternal(&mgr.midi_params);
 						}
 					}
 				}
