@@ -24,6 +24,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/edits/add_note.h"
+#include "model/edits/clip_address_for.h"
 #include "model/edits/edit.h"
 #include "model/edits/note_address_for.h"
 #include "model/edits/nudge_note.h"
@@ -33,6 +34,7 @@
 #include "model/edits/set_euclidean_events.h"
 #include "model/edits/set_note_row_length.h"
 #include "model/edits/set_param_value.h"
+#include "model/edits/shift_clip.h"
 #include "model/edits/shift_note_row.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/iterance/iterance.h"
@@ -568,6 +570,56 @@ void nudgeTarget(Song* song) {
 	song->setCurrentClip(nullptr);
 }
 
+// M2d pilot: shift a whole clip horizontally via ShiftClip, undo/redo (position restoration is the invariant). The
+// clip-tier twin of shiftTarget; exercises ClipAddress + clipAddressFor.
+void clipShiftTarget(Song* song) {
+	InstrumentClip* clip = nullptr;
+	NoteRow* noteRow = nullptr;
+	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->project.clips.session_clips[c];
+		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type == OutputType::KIT
+		    || cl->output->type == OutputType::AUDIO) {
+			continue;
+		}
+		if (!deluge::edits::clipAddressFor(*cl).has_value()) {
+			continue;
+		}
+		auto* ic = (InstrumentClip*)cl;
+		for (int32_t r = 0; r < std::ssize(ic->noteRows); r++) {
+			if (!ic->noteRows[r].notes.empty()) {
+				clip = ic;
+				noteRow = &ic->noteRows[r];
+				break;
+			}
+		}
+	}
+	if (clip == nullptr) {
+		printf("# no-addressable-clip-with-notes-for-shift\n");
+		return;
+	}
+	printf("# target clip-shift\n");
+	song->setCurrentClip(clip); // ConsequenceClipHorizontalShift::revert resolves the clip via getCurrentClip()
+
+	char mem[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(mem, song, clip);
+
+	std::vector<int32_t> before = notePositions(noteRow);
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::ShiftClip edit{deluge::edits::clipAddressFor(*clip), /*shiftAmount=*/3,
+	                              /*shiftAutomation=*/false, /*shiftSequenceAndMPE=*/true, ms};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "clip-shift: apply succeeds");
+	check(edit.shifted(), "clip-shift: the engine reported a shift");
+	check(notePositions(noteRow) != before, "clip-shift: note positions changed");
+	actionLogger.revert(BEFORE, false, false);
+	check(notePositions(noteRow) == before, "clip-shift: undo restores positions");
+	actionLogger.revert(AFTER, false, false);
+	check(notePositions(noteRow) != before, "clip-shift: redo re-applies");
+
+	song->setCurrentClip(nullptr);
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -674,6 +726,7 @@ int main(int argc, char** argv) {
 	euclideanTarget(song);
 	repeatTarget(song);
 	nudgeTarget(song);
+	clipShiftTarget(song);
 
 	std::free(xml);
 	return failures ? 3 : 0;

@@ -27,6 +27,9 @@
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
 #include "model/consequence/consequence_clip_horizontal_shift.h"
+#include "model/edits/clip_address_for.h"
+#include "model/edits/edit.h"
+#include "model/edits/shift_clip.h"
 #include "model/song/song.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/mode/session.h"
@@ -205,47 +208,18 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 		// Always shift Notes and MPE when you're not in Automation View
 		bool shiftSequenceAndMPE = (currentUI != &automationView);
 
-		bool wasShifted = clip->shiftHorizontally(modelStack, shiftAmount, shiftAutomation, shiftSequenceAndMPE);
-		if (!wasShifted) {
+		// Reify: ShiftClip does the engine shift then the coalesce/create-Consequence undo (goto-free restatement).
+		// shifted() preserves the "nothing moved → bail without rendering/recording" branch.
+		deluge::edits::Context clipCtx{*currentSong, currentSong->project};
+		deluge::edits::ShiftClip shiftEdit{deluge::edits::clipAddressFor(*clip), shiftAmount, shiftAutomation,
+		                                   shiftSequenceAndMPE, modelStack};
+		deluge::edits::apply(clipCtx, shiftEdit);
+		if (!shiftEdit.shifted()) {
 			// No need to show the user why it didnt succeed, usually these cases are fairly trivial
 			return ActionResult::DEALT_WITH;
 		}
 
 		uiNeedsRendering(getRootUI(), 0xFFFFFFFF, 0);
-
-		// If possible, just modify a previous Action to add this new shift amount to it.
-		Action* action = actionLogger.firstAction[BEFORE];
-		if (action && action->type == ActionType::CLIP_HORIZONTAL_SHIFT && action->openForAdditions
-		    && action->currentClip == clip) {
-
-			// If there's no Consequence in the Action, that's probably because we deleted it a previous time with the
-			// code just below. Or possibly because the Action was created but there wasn't enough RAM to create the
-			// Consequence. Anyway, just go add a consequence now.
-			if (!action->firstConsequence)
-				goto addConsequenceToAction;
-
-			ConsequenceClipHorizontalShift* consequence = (ConsequenceClipHorizontalShift*)action->firstConsequence;
-			consequence->amount += shiftAmount;
-
-			// It might look tempting that if we've completed one whole loop, we could delete the Consequence because
-			// everything would be back the same - but no! Remember different NoteRows might have different lengths.
-		}
-
-		// Or if no previous Action, go create a new one now.
-		else {
-
-			action = actionLogger.getNewAction(ActionType::CLIP_HORIZONTAL_SHIFT, ActionAddition::NOT_ALLOWED);
-			if (action) {
-addConsequenceToAction:
-				void* consMemory = deluge::memory::alloc_sdram(sizeof(ConsequenceClipHorizontalShift));
-
-				if (consMemory) {
-					ConsequenceClipHorizontalShift* newConsequence = new (consMemory)
-					    ConsequenceClipHorizontalShift(shiftAmount, shiftAutomation, shiftSequenceAndMPE);
-					action->addConsequence(newConsequence);
-				}
-			}
-		}
 		return ActionResult::DEALT_WITH;
 	}
 

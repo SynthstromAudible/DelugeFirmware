@@ -27,7 +27,7 @@ several Edits (e.g. `NOTE_EDIT` → add / remove / nudge / …); those land acro
 | `CLIP_CLEAR` | `ClearClip` | clip | M2d | pending |
 | `CLIP_DELETE` | `DeleteClip` | clip | M2d | pending |
 | `CLIP_MULTIPLY` | `MultiplyClip` | clip | M2d | pending |
-| `CLIP_HORIZONTAL_SHIFT` | `ShiftClip` | clip | M2d | pending |
+| `CLIP_HORIZONTAL_SHIFT` | `ShiftClip` | clip | M2d | **landed (M2d pilot)** — establishes `ClipAddress`/`clipAddressFor` (clip owner tier); mutation (`shiftHorizontally`) + coalesce/create `ConsequenceClipHorizontalShift`, goto-free; `shifted()` preserves the "nothing moved → bail" branch. edit_undo_redo clip-shift target, 13 songs. |
 | `PATTERN_PASTE` | `PastePattern` | clip | M2d | pending |
 | `SWING_CHANGE` | `SetSwing` | song-global | M2d | pending |
 | `TEMPO_CHANGE` | (tempo value via `SetParamValue` M1c S5; `recordTempoChange` path) | song-global | M2d | partial — value edit landed; the `TEMPO_CHANGE` recorded path pending |
