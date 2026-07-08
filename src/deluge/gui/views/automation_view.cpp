@@ -336,6 +336,16 @@ const std::array<std::pair<params::Kind, ParamType>, kNumGlobalParamsForAutomati
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_SEQUENCE_LENGTH},
 }};
 
+// The four GLOBAL macro lanes sit at the front of globalParamsForAutomation but are lane selections,
+// not scrollable params, so the select-encoder scroll skips them: always on hosts that can't drive
+// macros (the arranger, until Phase 4), and on macro-hosting clips (audio, kit) only while the feature
+// is off - on, they stay scrollable, mirroring synth's nonGlobalParamsForAutomation. They remain
+// reachable via the macro UI (gold-knob mode / lane editor).
+static bool skipGlobalMacroLaneInScroll(ParamType id, bool hostCanDriveMacros) {
+	return id >= params::UNPATCHED_GLOBAL_MACRO_1 && id <= params::UNPATCHED_GLOBAL_MACRO_4
+	       && (!hostCanDriveMacros || !Macros::isEnabled());
+}
+
 // shortcuts for toggling interpolation and pad selection mode
 constexpr uint8_t kInterpolationShortcutX = 0;
 constexpr uint8_t kInterpolationShortcutY = 6;
@@ -3110,13 +3120,11 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 		                                             kNumGlobalParamsForAutomation);
 		auto [kind, id] = globalParamsForAutomation[idx];
 		{
-			// The arranger (Song) doesn't host macros, so its four macro lanes (list entries 0-3) are
-			// skipped in the param scroll, alongside the params the arranger has no use for.
+			// Skip the params the arranger has no use for, plus its macro lanes (it can't drive macros).
 			while ((id == params::UNPATCHED_PITCH_ADJUST || id == params::UNPATCHED_SIDECHAIN_SHAPE
 			        || id == params::UNPATCHED_SIDECHAIN_VOLUME || id == params::UNPATCHED_COMPRESSOR_THRESHOLD
 			        || (id >= params::UNPATCHED_FIRST_ARP_PARAM && id <= params::UNPATCHED_LAST_ARP_PARAM)
-			        || id == params::UNPATCHED_ARP_RATE
-			        || (id >= params::UNPATCHED_GLOBAL_MACRO_1 && id <= params::UNPATCHED_GLOBAL_MACRO_4))) {
+			        || id == params::UNPATCHED_ARP_RATE || skipGlobalMacroLaneInScroll(id, false))) {
 
 				if (offset < 0) {
 					offset -= 1;
@@ -3138,12 +3146,9 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 		                                             kNumGlobalParamsForAutomation);
 		auto [kind, id] = globalParamsForAutomation[idx];
 		{
-			// Skip the arp params (audio clips have no arp) and, when the macro feature is off, the four
-			// macro lanes (list entries 0-3). With macros on they stay scrollable, mirroring synth clips.
+			// Skip the arp params (audio clips have no arp), plus the macro lanes when the feature is off.
 			while ((id >= params::UNPATCHED_FIRST_ARP_PARAM && id <= params::UNPATCHED_LAST_ARP_PARAM)
-			       || id == params::UNPATCHED_ARP_RATE
-			       || ((id >= params::UNPATCHED_GLOBAL_MACRO_1 && id <= params::UNPATCHED_GLOBAL_MACRO_4)
-			           && !Macros::isEnabled())) {
+			       || id == params::UNPATCHED_ARP_RATE || skipGlobalMacroLaneInScroll(id, true)) {
 
 				if (offset < 0) {
 					offset -= 1;
@@ -3164,10 +3169,8 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 		auto idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
 		                                             kNumGlobalParamsForAutomation);
 		auto [kind, id] = globalParamsForAutomation[idx];
-		// Kit affect-entire hosts macros; its four macro lanes (list entries 0-3) stay scrollable when the
-		// feature is on and are skipped only when it's off, mirroring synth and audio clips.
-		while ((id >= params::UNPATCHED_GLOBAL_MACRO_1 && id <= params::UNPATCHED_GLOBAL_MACRO_4)
-		       && !Macros::isEnabled()) {
+		// Kit affect-entire hosts macros, so its macro lanes stay scrollable when the feature is on.
+		while (skipGlobalMacroLaneInScroll(id, true)) {
 			if (offset < 0) {
 				offset -= 1;
 			}
