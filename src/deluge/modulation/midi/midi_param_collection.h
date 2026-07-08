@@ -100,6 +100,7 @@ public:
 	void bindDomMidiExternal(std::vector<deluge::project::DocMidiParam>* ext) { domMidiRef_ = ext; }
 	/// The bound external CC store, or nullptr if unbound. (Test / inspection accessor.)
 	std::vector<deluge::project::DocMidiParam>* domMidi() { return domMidiRef_; }
+	[[nodiscard]] bool domStoreIsExternal() const override { return domMidiRef_ != nullptr; }
 
 	deluge::project::DocAutoParam* docForParam(int32_t i);
 	deluge::project::DocAutoParam* docParamForId(int32_t paramId) override;

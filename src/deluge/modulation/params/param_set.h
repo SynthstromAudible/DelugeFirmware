@@ -83,6 +83,7 @@ public:
 	// index; docParamForId takes the ModelStack paramId (== index for a ParamSet).
 	deluge::project::DocAutoParam* docForParam(int32_t p);
 	deluge::project::DocAutoParam* docParamForId(int32_t paramId) override { return docForParam(paramId); }
+	[[nodiscard]] bool domStoreIsExternal() const override { return domStore_ == nullptr && domStoreRef_ != nullptr; }
 
 	inline int32_t getValue(int32_t p) { return params[p].getCurrentValue(); }
 	int32_t getValueAtPos(int32_t p, uint32_t pos, TimelineCounter* playPositionCounter);

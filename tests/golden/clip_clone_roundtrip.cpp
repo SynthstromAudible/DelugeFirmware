@@ -22,12 +22,14 @@
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
+#include "model/edits/param_address_for.h"
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "modulation/params/param_set.h"
+#include "processing/sound/sound_drum.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -56,6 +58,58 @@ static bool scalarOk(ParamSet* s) {
 		}
 	}
 	return true;
+}
+
+// S5-b.5b totality sweep: drive doc() over EVERY live automatable owner (clip-level synth/kit/audio unpatched +
+// synth patched, and each SoundDrum row's unpatched+patched). doc() lazily relocates any not-yet-tree-resident
+// owner (relocateAndResolve), so after the sweep deluge::edits::docFallbackHits must still be 0 — no owner reached
+// the engine fallback. This turns the fallback-is-dead claim into an exhaustive, corpus-wide host assertion (42
+// songs via the runner), covering the runtime-created owners the clone phases produce as well as every loaded one.
+// Returns the number of (owner, collection) pairs swept, so a vacuous run is visible.
+static int32_t sweepDoc(Song* song) {
+	int32_t swept = 0;
+	auto touch = [&](ModelStackWithAutoParam* msap) {
+		if (msap != nullptr && msap->autoParam != nullptr) {
+			(void)msap->doc(); // lazily relocates if needed; increments docFallbackHits iff it hits the fallback
+			swept++;
+		}
+	};
+	for (ClipArray* arr : {&song->project.clips.session_clips, &song->project.clips.arrangement_only_clips}) {
+		for (int32_t i = 0; i < std::ssize(*arr); i++) {
+			Clip* clip = (*arr)[i];
+			if (clip->output == nullptr || !clip->paramManager.containsAnyMainParamCollections()) {
+				continue;
+			}
+			ModControllable* mc = clip->output->toModControllable();
+			if (mc == nullptr) {
+				continue;
+			}
+			char buf[MODEL_STACK_MAX_SIZE];
+			ModelStackWithThreeMainThings* m3 =
+			    setupModelStackWithThreeMainThingsButNoNoteRow(buf, song, mc, clip, &clip->paramManager);
+			touch(m3->getUnpatchedAutoParamFromId(0));
+			if (clip->output->type == OutputType::SYNTH) {
+				touch(m3->getPatchedAutoParamFromId(0));
+			}
+			if (clip->output->type == OutputType::KIT) {
+				InstrumentClip* ic = static_cast<InstrumentClip*>(clip);
+				for (int32_t n = 0; n < std::ssize(ic->noteRows); n++) {
+					NoteRow& nr = ic->noteRows[n];
+					if (nr.drum == nullptr || nr.drum->type != DrumType::SOUND
+					    || !nr.paramManager.containsAnyMainParamCollections()) {
+						continue;
+					}
+					char dbuf[MODEL_STACK_MAX_SIZE];
+					ModelStackWithThreeMainThings* dm3 = setupModelStackWithThreeMainThingsIncludingNoteRow(
+					    dbuf, song, clip, n, &nr, static_cast<SoundDrum*>(nr.drum)->toModControllable(),
+					    &nr.paramManager);
+					touch(dm3->getUnpatchedAutoParamFromId(0));
+					touch(dm3->getPatchedAutoParamFromId(0));
+				}
+			}
+		}
+	}
+	return swept;
 }
 
 // load(xml) -> fully-loaded Song (currentSong set), or nullptr on load error. Mirrors song_edit_roundtrip.cpp.
@@ -270,6 +324,20 @@ int main(int argc, char** argv) {
 				std::fflush(stderr);
 				_exit(4);
 			}
+		}
+	}
+
+	// S5-b.5b totality gate: after loading AND the runtime clone mutations above, doc() must id-resolve EVERY live
+	// owner — none may reach the engine fallback. Placed before the note-clone SKIP so it runs for every corpus song.
+	{
+		int32_t swept = sweepDoc(song);
+		std::fprintf(stderr, "doc() totality sweep: %d (owner,collection) pairs, fallback hits=%u\n", swept,
+		             deluge::edits::docFallbackHits);
+		check(deluge::edits::docFallbackHits == 0,
+		      "doc() totality: an owner reached the engine fallback (not id-addressed)");
+		if (failures != 0) {
+			std::fflush(stderr);
+			_exit(4);
 		}
 	}
 

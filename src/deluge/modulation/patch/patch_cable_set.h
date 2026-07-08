@@ -67,6 +67,7 @@ public:
 	void bindDomCablesExternal(std::vector<deluge::project::DocPatchCable>* ext) { domCablesRef_ = ext; }
 	/// The bound external cable store, or nullptr if unbound. (Test / inspection accessor.)
 	std::vector<deluge::project::DocPatchCable>* domCables() { return domCablesRef_; }
+	[[nodiscard]] bool domStoreIsExternal() const override { return domCablesRef_ != nullptr; }
 
 	deluge::project::DocAutoParam* docForParam(int32_t i);
 	deluge::project::DocAutoParam* docParamForId(int32_t paramId) override;

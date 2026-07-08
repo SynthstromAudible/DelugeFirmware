@@ -15,6 +15,10 @@
 
 namespace deluge::edits {
 
+#if ALPHA_OR_BETA_VERSION
+uint32_t docFallbackHits = 0;
+#endif
+
 // The owner classification of ModelStackWithAutoParam::doc(), extracted verbatim (behaviour-identical) so an Edit
 // can build the same stable ParamAddress at construction time, before it holds a resolved engine ModelStack. The
 // `kind` carried into the address is the ModelStack's threaded param Kind (S5-a); the ALPHA safety-net assert that

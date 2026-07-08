@@ -126,12 +126,14 @@ deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 	}
 #if ALPHA_OR_BETA_VERSION
 	// S5-b.5b: lazy relocation should now id-address every real owner, so this fallback is expected to be DEAD.
-	// Log the first time it is ever reached (kind = the param collection's kind) so on-device smoke testing can
-	// confirm nothing residual hits it — the gate for deleting this line outright. Not a FREEZE: a genuinely
-	// unclassifiable owner (e.g. a non-Sound drum) may legitimately land here, and bricking on it is unacceptable.
-	static bool loggedFallback = false;
-	if (!loggedFallback) {
-		loggedFallback = true;
+	// Tally each hit (deluge::edits::docFallbackHits) and log the first (kind = the param collection's kind) so
+	// on-device smoke AND the host totality harness can confirm nothing residual reaches it — the gate for deleting
+	// this line outright. Not a FREEZE: a genuinely unclassifiable owner (e.g. a non-Sound drum) may legitimately
+	// land here, and bricking on it is unacceptable.
+	// Count as a real fallback ONLY when the collection is on engine-inline storage. A tree-BOUND MIDI/cable
+	// collection reaching docParamForId is legitimate lazy create-on-demand INTO the bound tree vector (a cc/cable
+	// not yet mirrored), not an engine fallback — so it does not count against the totality gate.
+	if (!paramCollection->domStoreIsExternal() && deluge::edits::docFallbackHits++ == 0) {
 		D_PRINTLN("doc() engine fallback hit (kind=%d) — an owner is not id-addressed",
 		          static_cast<int32_t>(paramCollection->getParamKind()));
 	}

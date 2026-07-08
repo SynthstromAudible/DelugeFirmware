@@ -49,6 +49,12 @@ public:
 	/// `ownDocForFallback()` for an unbound one. Each concrete collection maps its own paramId -> store index.
 	virtual deluge::project::DocAutoParam* docParamForId(int32_t paramId) { return nullptr; }
 
+	/// S5-b: does this collection resolve params against an EXTERNAL (project-tree) DOM store rather than its own
+	/// engine-inline storage? When true, reaching `docParamForId` is legitimate lazy create-on-demand INTO the tree
+	/// (a MIDI cc / patch cable not yet mirrored lands in the bound tree vector), NOT an engine fallback. The doc()
+	/// totality gate counts only the false case (an owner still on engine-inline storage). Default false.
+	[[nodiscard]] virtual bool domStoreIsExternal() const { return false; }
+
 	/// Deep-clone this collection into freshly-allocated memory (fallible; sets `result` on success). Each
 	/// concrete collection real-copy-constructs itself; copyAutomation=false drops automation (stripAutomation)
 	/// and reverseDirectionWithLength!=0 flatten-reverses it (flattenReverseAutomation).
