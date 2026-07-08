@@ -22,11 +22,17 @@
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/add_note.h"
 #include "model/edits/edit.h"
+#include "model/edits/note_address_for.h"
 #include "model/edits/param_address_for.h"
+#include "model/edits/remove_note.h"
 #include "model/edits/set_param_value.h"
 #include "model/global_effectable/global_effectable.h"
+#include "model/iterance/iterance.h"
 #include "model/model_stack.h"
+#include "model/note/note.h"
+#include "model/note/note_row.h"
 #include "model/output.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
@@ -142,6 +148,82 @@ void scriptEditUndoRedo(const char* label, Song* song, ModelStackWithAutoParam* 
 	check(equalSnapshot(snapshotOf(msap), post), "redo restores cv+nodes to post-edit");
 }
 
+// Presence of a note at pos in a note-row (NoteVector is an OrderedPosVector<Note>).
+bool noteAtPos(NoteRow* noteRow, int32_t pos) {
+	int32_t i = noteRow->notes.firstAtOrAfter(pos);
+	return i < std::ssize(noteRow->notes) && noteRow->notes[i].pos == pos;
+}
+
+// M2b: find the first MELODIC InstrumentClip note-row that HAS a note, then drive RemoveNote+undo/redo on
+// that real note and AddNote+undo/redo re-inserting it into the (now clear) slot with its own length — robust
+// against attemptNoteAdd's overlap rules (no guessing a free pos).
+void noteTarget(Song* song) {
+	InstrumentClip* clip = nullptr;
+	NoteRow* noteRow = nullptr;
+	int32_t rowIndex = -1;
+	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->project.clips.session_clips[c];
+		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type == OutputType::KIT
+		    || cl->output->type == OutputType::AUDIO) {
+			continue;
+		}
+		auto* ic = (InstrumentClip*)cl;
+		// Needs a durable clip id for NoteRowAddress. S5-b only mints session ids for clips with param
+		// collections, so a note-only clip may be unaddressed — skip those (a NOTE-owner id is future work).
+		if (!ic->serialId().has_value() && ic->sessionId() == 0) {
+			continue;
+		}
+		for (int32_t r = 0; r < std::ssize(ic->noteRows); r++) {
+			if (!ic->noteRows[r].notes.empty()) {
+				clip = ic;
+				noteRow = &ic->noteRows[r];
+				rowIndex = r;
+				break;
+			}
+		}
+	}
+	if (clip == nullptr) {
+		printf("# no-addressable-melodic-notes\n");
+		return;
+	}
+	printf("# target note-add-remove\n");
+
+	char mem[MODEL_STACK_MAX_SIZE];
+	int32_t noteRowId = clip->getNoteRowId(noteRow, rowIndex);
+	ModelStackWithNoteRow* ms = setupModelStackWithTimelineCounter(mem, song, clip)->addNoteRow(noteRowId, noteRow);
+	check(deluge::edits::noteRowAddressFor(*ms).has_value(), "note: noteRowAddressFor resolves");
+
+	// Capture a real note's data before touching it.
+	Note& seed = noteRow->notes[0];
+	int32_t pos0 = seed.pos, len0 = seed.getLength(), vel0 = seed.getVelocity(), prob0 = seed.getProbability();
+	Iterance iter0 = seed.getIterance();
+	check(noteAtPos(noteRow, pos0), "note: seed note present");
+
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+
+	// A. RemoveNote the real note -> undo restores -> redo removes.
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+	deluge::edits::RemoveNote rem{deluge::edits::noteRowAddressFor(*ms), pos0, ms};
+	check(deluge::edits::apply(ctx, rem) == Error::NONE, "note-remove: apply succeeds");
+	check(!noteAtPos(noteRow, pos0), "note-remove: note absent after remove");
+	actionLogger.revert(BEFORE, false, false);
+	check(noteAtPos(noteRow, pos0), "note-remove: undo restores the note");
+	actionLogger.revert(AFTER, false, false);
+	check(!noteAtPos(noteRow, pos0), "note-remove: redo removes the note again");
+
+	// B. AddNote it back into the now-clear slot (same length -> no overlap) -> undo -> redo.
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+	deluge::edits::AddNote add{deluge::edits::noteRowAddressFor(*ms), pos0, len0, vel0, prob0, iter0, /*fill=*/0, ms};
+	check(deluge::edits::apply(ctx, add) == Error::NONE, "note-add: apply succeeds");
+	check(noteAtPos(noteRow, pos0), "note-add: note present after add");
+	actionLogger.revert(BEFORE, false, false);
+	check(!noteAtPos(noteRow, pos0), "note-add: undo removes the note");
+	actionLogger.revert(AFTER, false, false);
+	check(noteAtPos(noteRow, pos0), "note-add: redo restores the note");
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -240,6 +322,8 @@ int main(int argc, char** argv) {
 			}
 		}
 	}
+
+	noteTarget(song);
 
 	std::free(xml);
 	return failures ? 3 : 0;
