@@ -28,6 +28,9 @@
 #include "model/consequence/consequence_note_existence.h"
 #include "model/drum/drum_name.h"
 #include "model/drum/gate_drum.h"
+#include "model/edits/edit.h"
+#include "model/edits/param_address_for.h"
+#include "model/edits/set_param_value.h"
 #include "model/instrument/kit.h"
 #include "model/note/copied_note_row.h"
 #include "model/note/note.h"
@@ -4490,7 +4493,11 @@ bool NoteRow::recordPolyphonicExpressionEvent(ModelStackWithNoteRow* modelStack,
 
 		// And also, set the values now, for in case they're instead gonna stop editing the note before
 		// releasing this MIDI note.
-		param->setValueForRegion(view.modPos, view.modLength, newValueBig, modelStackWithAutoParam);
+		deluge::edits::Context editCtx{*currentSong, currentSong->project};
+		deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithAutoParam), newValueBig,
+		                                  static_cast<int32_t>(view.modPos), static_cast<int32_t>(view.modLength),
+		                                  modelStackWithAutoParam};
+		deluge::edits::apply(editCtx, edit);
 	}
 	else {
 		int32_t distanceToNextNote =

@@ -62,6 +62,9 @@
 #include "model/consequence/consequence_note_row_length.h"
 #include "model/drum/drum.h"
 #include "model/drum/midi_drum.h"
+#include "model/edits/edit.h"
+#include "model/edits/param_address_for.h"
+#include "model/edits/set_param_value.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
 #include "model/instrument/non_audio_instrument.h"
@@ -7920,7 +7923,11 @@ void InstrumentClipView::reportNoteOffForMPEEditing(ModelStackWithNoteRow* model
 
 			int32_t newValue = (int32_t)mpeValuesAtHighestPressure[t][expressionDimension] << 16;
 
-			param->setValueForRegion(view.modPos, view.modLength, newValue, modelStackWithAutoParam);
+			deluge::edits::Context editCtx{*currentSong, currentSong->project};
+			deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithAutoParam), newValue,
+			                                  static_cast<int32_t>(view.modPos), static_cast<int32_t>(view.modLength),
+			                                  modelStackWithAutoParam};
+			deluge::edits::apply(editCtx, edit);
 		}
 
 		dontDeleteNotesOnDepress();
