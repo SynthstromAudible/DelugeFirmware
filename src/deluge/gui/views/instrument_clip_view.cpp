@@ -65,6 +65,7 @@
 #include "model/edits/add_note.h"
 #include "model/edits/edit.h"
 #include "model/edits/note_address_for.h"
+#include "model/edits/nudge_note.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/remove_note.h"
 #include "model/edits/repeat_note_edit.h"
@@ -6834,14 +6835,10 @@ void InstrumentClipView::nudgeNotes(int32_t offset) {
 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter;
 
-	Action* action = nullptr;
-
-	if (offset) {
-		action = actionLogger.getNewAction(ActionType::NOTE_NUDGE, ActionAddition::ALLOWED);
-		if (action) {
-			action->offset = offset;
-		}
-	}
+	// The shared NOTE_NUDGE Action is now owned by the NudgeNote Edit below: the first successfully-nudged pad opens
+	// it (getNewAction(NOTE_NUDGE, ALLOWED)) and the rest coalesce into it — same as the pre-loop creation this
+	// replaces, except an all-collision gesture no longer leaves an empty Action behind (a benign difference: an
+	// empty Action has nothing to undo).
 
 	modelStackWithTimelineCounter = modelStack->addTimelineCounter(currentClip);
 
@@ -6922,11 +6919,20 @@ doCompareNote:
 			}
 
 			if (!gotCollision) {
-				int32_t distanceTilNext =
-				    noteRow->getDistanceToNextNote(editPadPresses[i].intendedPos, modelStackWithNoteRow);
-
-				Error error = noteRow->nudgeNotesAcrossAllScreens(editPadPresses[i].intendedPos, modelStackWithNoteRow,
-				                                                  action, currentClip->getWrapEditLevel(), offset);
+				// Reify the per-pad mutation: NudgeNote nudges the notes across all screens then drags automation +
+				// MPE with them (note-row + clip level) under the shared NOTE_NUDGE Action; held pads coalesce into
+				// one Action via getNewAction(NOTE_NUDGE, ALLOWED). nudgeAutomation follows the flash setting, MPE
+				// always nudges. The Edit builds its own clip stack, so modelStackWithNoteRow stays valid below (this
+				// is why the note-row-editor square-info update — unchanged — can run after apply()).
+				deluge::edits::Context noteCtx{*currentSong, currentSong->project};
+				deluge::edits::NudgeNote nudgeEdit{deluge::edits::noteRowAddressFor(*modelStackWithNoteRow),
+				                                   editPadPresses[i].intendedPos,
+				                                   offset,
+				                                   currentClip->getWrapEditLevel(),
+				                                   /*nudgeAutomation=*/!FlashStorage::automationNudgeNote,
+				                                   /*nudgeMPE=*/true,
+				                                   modelStackWithNoteRow};
+				Error error = deluge::edits::apply(noteCtx, nudgeEdit);
 				if (error != Error::NONE) {
 					display->displayError(error);
 					return;
@@ -6944,35 +6950,6 @@ doCompareNote:
 							soundEditor.goUpOneLevel();
 						}
 					}
-				}
-
-				// Nudge automation with notes and MPE when default setting is false
-				bool nudgeAutomation = !FlashStorage::automationNudgeNote;
-
-				// MPE always gets nudged with notes when this function is called
-				bool nudgeMPE = true;
-
-				// Nudge automation at NoteRow level, while our ModelStack still has a pointer to the NoteRow
-				{
-					ModelStackWithThreeMainThings* modelStackWithThreeMainThingsForNoteRow =
-					    modelStackWithNoteRow->addOtherTwoThingsAutomaticallyGivenNoteRow();
-					noteRow->paramManager.nudgeAutomationHorizontallyAtPos(
-					    editPadPresses[i].intendedPos, offset, modelStackWithThreeMainThingsForNoteRow->getLoopLength(),
-					    action, modelStackWithThreeMainThingsForNoteRow, nudgeAutomation, nudgeMPE, distanceTilNext);
-				}
-
-				// WARNING! A bit dodgy, but at this stage, we can no longer refer to modelStackWithNoteRow, cos
-				// we're going to reuse its parent ModelStackWithTimelineCounter, below.
-
-				// Nudge automation at Clip level
-				{
-					int32_t lengthBeforeLoop = currentClip->getLoopLength();
-					ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-					    modelStackWithTimelineCounter->addOtherTwoThingsButNoNoteRow(
-					        currentClip->output->toModControllable(), &currentClip->paramManager);
-					currentClip->paramManager.nudgeAutomationHorizontallyAtPos(
-					    editPadPresses[i].intendedPos, offset, lengthBeforeLoop, action, modelStackWithThreeMainThings,
-					    nudgeAutomation, nudgeMPE);
 				}
 
 				editPadPresses[i].intendedPos = newPos;

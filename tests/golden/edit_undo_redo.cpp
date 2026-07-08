@@ -26,6 +26,7 @@
 #include "model/edits/add_note.h"
 #include "model/edits/edit.h"
 #include "model/edits/note_address_for.h"
+#include "model/edits/nudge_note.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/remove_note.h"
 #include "model/edits/repeat_note_edit.h"
@@ -499,6 +500,74 @@ void repeatTarget(Song* song) {
 	song->setCurrentClip(nullptr);
 }
 
+// M2c: nudge one note right by +1 via NudgeNote, undo/redo. We pick a note with a free slot at pos+1 (gap >= 2) and
+// one screen (wrapEditLevel == effectiveLength) so exactly that note moves.
+void nudgeTarget(Song* song) {
+	InstrumentClip* clip = nullptr;
+	NoteRow* noteRow = nullptr;
+	int32_t rowIndex = -1;
+	int32_t notePos = -1;
+	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->project.clips.session_clips[c];
+		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type == OutputType::KIT
+		    || cl->output->type == OutputType::AUDIO) {
+			continue;
+		}
+		auto* ic = (InstrumentClip*)cl;
+		if (!clipIsAddressable(ic)) {
+			continue;
+		}
+		for (int32_t r = 0; r < std::ssize(ic->noteRows) && clip == nullptr; r++) {
+			NoteRow& nr = ic->noteRows[r];
+			if (nr.notes.empty()) {
+				continue;
+			}
+			int32_t p0 = nr.notes[0].pos;
+			int32_t nextPos = (std::ssize(nr.notes) > 1) ? nr.notes[1].pos : (p0 + 2);
+			if (nextPos - p0 >= 2) { // slot at p0+1 is free
+				clip = ic;
+				noteRow = &nr;
+				rowIndex = r;
+				notePos = p0;
+			}
+		}
+	}
+	if (clip == nullptr) {
+		printf("# no-addressable-melodic-notes-for-nudge\n");
+		return;
+	}
+	printf("# target noterow-nudge\n");
+	song->setCurrentClip(clip); // note-array + automation reverts resolve the clip via getCurrentClip()
+
+	char mem[MODEL_STACK_MAX_SIZE];
+	ModelStackWithNoteRow* ms =
+	    setupModelStackWithTimelineCounter(mem, song, clip)->addNoteRow(clip->getNoteRowId(noteRow, rowIndex), noteRow);
+
+	uint32_t wrapEditLevel = ms->getLoopLength(); // one screen: only this note moves
+	check(noteAtPos(noteRow, notePos), "nudge: seed note present");
+
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::NudgeNote edit{deluge::edits::noteRowAddressFor(*ms),
+	                              notePos,
+	                              /*offset=*/1,
+	                              wrapEditLevel,
+	                              /*nudgeAutomation=*/false,
+	                              /*nudgeMPE=*/true,
+	                              ms};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "nudge: apply succeeds");
+	check(noteAtPos(noteRow, notePos + 1), "nudge: note moved right by 1");
+	check(!noteAtPos(noteRow, notePos), "nudge: original slot now empty");
+	actionLogger.revert(BEFORE, false, false);
+	check(noteAtPos(noteRow, notePos), "nudge: undo restores the note");
+	check(!noteAtPos(noteRow, notePos + 1), "nudge: undo clears the nudged slot");
+	actionLogger.revert(AFTER, false, false);
+	check(noteAtPos(noteRow, notePos + 1), "nudge: redo re-applies the nudge");
+
+	song->setCurrentClip(nullptr);
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -604,6 +673,7 @@ int main(int argc, char** argv) {
 	shiftTarget(song);
 	euclideanTarget(song);
 	repeatTarget(song);
+	nudgeTarget(song);
 
 	std::free(xml);
 	return failures ? 3 : 0;
