@@ -67,6 +67,7 @@
 #include "model/edits/note_address_for.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/remove_note.h"
+#include "model/edits/set_euclidean_events.h"
 #include "model/edits/set_note_row_length.h"
 #include "model/edits/set_param_value.h"
 #include "model/edits/shift_note_row.h"
@@ -7498,93 +7499,20 @@ justDisplayOldNumNotes:
 				}
 			}
 
-			// Do a "partial undo" if we can
-			Action* lastAction = actionLogger.firstAction[BEFORE];
-			// No need to check that lastAction was for the same Clip or anything - the Action gets "closed"
-			// manually when we stop auditioning.
-			if (lastAction && lastAction->type == ActionType::EUCLIDEAN_NUM_EVENTS_EDIT && lastAction->openForAdditions
-			    && lastAction->offset == -offset) {
-
-				char modelStackMemory2[MODEL_STACK_MAX_SIZE];
-				ModelStack* modelStackWithJustSong = setupModelStackWithSong(modelStackMemory2, modelStack->song);
-
-				bool revertedWholeAction = actionLogger.undoJustOneConsequencePerNoteRow(modelStackWithJustSong);
-				if (!revertedWholeAction) {
-					goto noteRowChanged;
-				}
-			}
-
-			else {
-				{
-					// Make new NoteVector for the new Notes, since ActionLogger should be "stealing" the old data
-					NoteVector newNotes;
-					if (newNumNotes) {
-						Error error =
-						    newNotes.insertAt(0, newNumNotes).error_or(Error::NONE); // Pre-allocate, so no errors later
-						if (error != Error::NONE) {
-							display->displayError(error);
-							return;
-						}
-					}
-
-					// Record Action
-					Action* action =
-					    actionLogger.getNewAction(ActionType::EUCLIDEAN_NUM_EVENTS_EDIT, ActionAddition::ALLOWED);
-					if (action) {
-						action->offset = offset;
-					}
-
-					// Create the Notes
-					for (int32_t n = 0; n < newNumNotes; n++) {
-						Note* note = &newNotes[n];
-						note->pos = (uint32_t)(n * numStepsAvailable) / (uint32_t)newNumNotes * squareWidth;
-						note->length = squareWidth;
-						note->probability = noteRow->getDefaultProbability();
-						note->velocity = ((Instrument*)clip->output)->defaultVelocity;
-						note->lift = kDefaultLiftValue;
-						note->iterance = noteRow->getDefaultIterance();
-						note->fill = noteRow->getDefaultFill(modelStack);
-					}
-
-					// Just make sure final note isn't too long
-					if (newNumNotes) {
-						Note* note = &newNotes[newNumNotes - 1];
-						int32_t maxLength = effectiveLength - note->pos;
-						if (note->length > maxLength) {
-							note->length = maxLength;
-						}
-					}
-
-					// Delete / steal / consequence-ize the MPE data first, because in order for partial undos to
-					// work, this has to be further down the linked list of Consequences than the note-array-change
-					// that we do next, below.
-					ParamCollectionSummary* mpeParamsSummary = noteRow->paramManager.getExpressionParamSetSummary();
-					ExpressionParamSet* mpeParams = (ExpressionParamSet*)mpeParamsSummary->paramCollection;
-					if (mpeParams) {
-						ModelStackWithParamCollection* modelStackWithParamCollection =
-						    modelStack->addOtherTwoThingsAutomaticallyGivenNoteRow()->addParamCollection(
-						        mpeParams, mpeParamsSummary);
-						mpeParams->deleteAllAutomation(action, modelStackWithParamCollection);
-					}
-
-					// Record change, stealing the old note data
-					if (action) {
-						// We "definitely" store the change, because unusually, we may want to revert individual
-						// Consequences in the Action one by one
-						action->recordNoteArrayChangeDefinitely(clip, modelStack->noteRowId, &noteRow->notes, true);
-					}
-
-					// Swap the new temporary note data into the permanent place
-					noteRow->notes.swap(newNotes);
-
-#if ENABLE_SEQUENTIALITY_TESTS
-					noteRow->notes.testSequentiality("E376");
-#endif
-				}
-
-noteRowChanged:
-				// Play it
-				clip->expectEvent();
+			// Reify the mutation: SetEuclideanEvents reproduces both the partial-undo and rebuild paths (the view
+			// keeps the clamp/display logic above; newNumNotes arrives already clamped).
+			deluge::edits::Context noteCtx{*currentSong, currentSong->project};
+			deluge::edits::SetEuclideanEvents euclideanEdit{deluge::edits::noteRowAddressFor(*modelStack),
+			                                                offset,
+			                                                newNumNotes,
+			                                                numStepsAvailable,
+			                                                effectiveLength,
+			                                                squareWidth,
+			                                                modelStack};
+			Error error = deluge::edits::apply(noteCtx, euclideanEdit);
+			if (error != Error::NONE) {
+				display->displayError(error);
+				return;
 			}
 		}
 	}

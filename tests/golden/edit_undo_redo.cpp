@@ -28,6 +28,7 @@
 #include "model/edits/note_address_for.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/remove_note.h"
+#include "model/edits/set_euclidean_events.h"
 #include "model/edits/set_note_row_length.h"
 #include "model/edits/set_param_value.h"
 #include "model/edits/shift_note_row.h"
@@ -355,6 +356,73 @@ void shiftTarget(Song* song) {
 	song->setCurrentClip(nullptr);
 }
 
+// M2c: rebuild a melodic note-row as a Euclidean pattern via SetEuclideanEvents, undo/redo (the old note array is
+// stolen into the undo Consequence and restored). The view keeps its clamp/display; we feed already-clamped inputs.
+void euclideanTarget(Song* song) {
+	InstrumentClip* clip = nullptr;
+	NoteRow* noteRow = nullptr;
+	int32_t rowIndex = -1;
+	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->project.clips.session_clips[c];
+		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type == OutputType::KIT
+		    || cl->output->type == OutputType::AUDIO) {
+			continue;
+		}
+		auto* ic = (InstrumentClip*)cl;
+		if (!clipIsAddressable(ic)) {
+			continue;
+		}
+		for (int32_t r = 0; r < std::ssize(ic->noteRows); r++) {
+			if (!ic->noteRows[r].notes.empty()) {
+				clip = ic;
+				noteRow = &ic->noteRows[r];
+				rowIndex = r;
+				break;
+			}
+		}
+	}
+	if (clip == nullptr) {
+		printf("# no-addressable-melodic-notes-for-euclidean\n");
+		return;
+	}
+	printf("# target noterow-euclidean\n");
+	song->setCurrentClip(clip); // undoJustOneConsequencePerNoteRow / note-array revert resolve via getCurrentClip()
+
+	char mem[MODEL_STACK_MAX_SIZE];
+	ModelStackWithNoteRow* ms =
+	    setupModelStackWithTimelineCounter(mem, song, clip)->addNoteRow(clip->getNoteRowId(noteRow, rowIndex), noteRow);
+
+	// Feed the Edit the same grid maths the view produces. squareWidth=1 gives the maximum step count
+	// (numStepsAvailable == effectiveLength), which is always >= the row's note count — so we never violate the
+	// view's guarantee that newNumNotes <= numStepsAvailable (that would yield duplicate positions -> E376).
+	int32_t effectiveLength = ms->getLoopLength();
+	uint32_t squareWidth = 1;
+	int32_t numStepsAvailable = effectiveLength; // (effectiveLength - 1) / 1 + 1
+	// Force a different event count than the row currently holds so the pattern (and count) provably changes.
+	int32_t origCount = std::ssize(noteRow->notes);
+	int32_t newNumNotes = (origCount + 1 <= numStepsAvailable) ? origCount + 1 : origCount - 1;
+	if (newNumNotes < 1) {
+		newNumNotes = 1;
+	}
+
+	std::vector<int32_t> before = notePositions(noteRow);
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::SetEuclideanEvents edit{
+	    deluge::edits::noteRowAddressFor(*ms),
+	    /*offset=*/newNumNotes - origCount,    newNumNotes, numStepsAvailable, effectiveLength, squareWidth, ms};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "euclidean: apply succeeds");
+	check(std::ssize(noteRow->notes) == newNumNotes, "euclidean: note count matches requested events");
+	check(notePositions(noteRow) != before, "euclidean: note pattern changed");
+	actionLogger.revert(BEFORE, false, false);
+	check(notePositions(noteRow) == before, "euclidean: undo restores original notes");
+	actionLogger.revert(AFTER, false, false);
+	check(std::ssize(noteRow->notes) == newNumNotes, "euclidean: redo re-applies the pattern");
+
+	song->setCurrentClip(nullptr);
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -458,6 +526,7 @@ int main(int argc, char** argv) {
 	kitNoteTarget(song);
 	lengthTarget(song);
 	shiftTarget(song);
+	euclideanTarget(song);
 
 	std::free(xml);
 	return failures ? 3 : 0;
