@@ -41,6 +41,7 @@
 #include "model/edits/clear_clip.h"
 #include "model/edits/clip_address_for.h"
 #include "model/edits/edit.h"
+#include "model/edits/set_clip_length.h"
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_playback_guide.h"
@@ -640,7 +641,9 @@ void AudioClipView::changeUnderlyingSampleLength(AudioClip& clip, const Sample* 
 	*valueToChange = newEndPosSamples;
 
 	Action* action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
-	currentSong->setClipLength(&clip, newLength, action);
+	deluge::edits::Context clipLenCtx{*currentSong, currentSong->project};
+	deluge::edits::SetClipLength lengthEdit{deluge::edits::clipAddressFor(clip), (uint32_t)newLength, action, &clip};
+	deluge::edits::apply(clipLenCtx, lengthEdit);
 	if (action) {
 		if (action->firstConsequence && action->firstConsequence->type == Consequence::CLIP_LENGTH) {
 			ConsequenceClipLength* consequence = (ConsequenceClipLength*)action->firstConsequence;
@@ -673,7 +676,10 @@ void AudioClipView::changeUnderlyingSampleStart(AudioClip& clip, const Sample* s
 		ActionType actionType =
 		    (newLengthTicks < oldLength) ? ActionType::CLIP_LENGTH_DECREASE : ActionType::CLIP_LENGTH_INCREASE;
 		Action* action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
-		currentSong->setClipLength(&clip, newLengthTicks, action);
+		deluge::edits::Context clipLenCtx{*currentSong, currentSong->project};
+		deluge::edits::SetClipLength lengthEdit{deluge::edits::clipAddressFor(clip), (uint32_t)newLengthTicks, action,
+		                                        &clip};
+		deluge::edits::apply(clipLenCtx, lengthEdit);
 		if (action) {
 			if (action->firstConsequence && action->firstConsequence->type == Consequence::CLIP_LENGTH) {
 				ConsequenceClipLength* consequence = (ConsequenceClipLength*)action->firstConsequence;
@@ -694,7 +700,10 @@ void AudioClipView::changeUnderlyingSampleStart(AudioClip& clip, const Sample* s
 		ActionType actionType =
 		    (newLengthTicks < oldLength) ? ActionType::CLIP_LENGTH_DECREASE : ActionType::CLIP_LENGTH_INCREASE;
 		Action* action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
-		currentSong->setClipLength(&clip, newLengthTicks, action);
+		deluge::edits::Context clipLenCtx{*currentSong, currentSong->project};
+		deluge::edits::SetClipLength lengthEdit{deluge::edits::clipAddressFor(clip), (uint32_t)newLengthTicks, action,
+		                                        &clip};
+		deluge::edits::apply(clipLenCtx, lengthEdit);
 		if (action) {
 			if (action->firstConsequence && action->firstConsequence->type == Consequence::CLIP_LENGTH) {
 				ConsequenceClipLength* consequence = (ConsequenceClipLength*)action->firstConsequence;

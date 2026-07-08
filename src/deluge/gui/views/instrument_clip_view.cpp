@@ -63,12 +63,15 @@
 #include "model/drum/drum.h"
 #include "model/drum/midi_drum.h"
 #include "model/edits/add_note.h"
+#include "model/edits/clip_address_for.h"
 #include "model/edits/edit.h"
+#include "model/edits/multiply_clip.h"
 #include "model/edits/note_address_for.h"
 #include "model/edits/nudge_note.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/remove_note.h"
 #include "model/edits/repeat_note_edit.h"
+#include "model/edits/set_clip_length.h"
 #include "model/edits/set_euclidean_events.h"
 #include "model/edits/set_note_row_length.h"
 #include "model/edits/set_param_value.h"
@@ -1689,22 +1692,15 @@ void InstrumentClipView::doubleClipLengthAction() {
 		return;
 	}
 
-	Action* action = actionLogger.getNewAction(ActionType::CLIP_MULTIPLY, ActionAddition::NOT_ALLOWED);
-
-	// Add the ConsequenceClipMultiply to the Action. This must happen before calling doubleClipLength(), which may add
-	// note changes and deletions, because when redoing, those have to happen after (and they'll have no effect at all,
-	// but who cares)
-	if (action) {
-		void* consMemory = deluge::memory::alloc_sdram(sizeof(ConsequenceInstrumentClipMultiply));
-
-		if (consMemory) {
-			ConsequenceInstrumentClipMultiply* newConsequence = new (consMemory) ConsequenceInstrumentClipMultiply();
-			action->addConsequence(newConsequence);
-		}
-	}
-
-	// Double the length, and duplicate the Clip content too
-	currentSong->doubleClipLength(getCurrentInstrumentClip(), action);
+	// Reify: MultiplyClip opens the Action, records the ConsequenceInstrumentClipMultiply before the mutation, and
+	// doubles the clip. action() gives us the Action back to stamp its AFTER zoom/scroll (Action view-state, M2h).
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack =
+	    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, getCurrentClip());
+	deluge::edits::Context clipCtx{*currentSong, currentSong->project};
+	deluge::edits::MultiplyClip multiplyEdit{deluge::edits::clipAddressFor(*getCurrentClip()), modelStack};
+	deluge::edits::apply(clipCtx, multiplyEdit);
+	Action* action = multiplyEdit.action();
 
 	zoomToMax(false);
 
@@ -2485,7 +2481,10 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 								noteRow->loopLengthIfIndependent = desiredNoteLength;
 							}
 							else {
-								currentSong->setClipLength(clip, desiredNoteLength, action);
+								deluge::edits::Context clipLenCtx{*currentSong, currentSong->project};
+								deluge::edits::SetClipLength lengthEdit{deluge::edits::clipAddressFor(*clip),
+								                                        (uint32_t)desiredNoteLength, action, clip};
+								deluge::edits::apply(clipLenCtx, lengthEdit);
 
 								// Clip length changing may visually change other rows too, so must re-render them all
 								whichRowsToReRender = 0xFFFFFFFF;

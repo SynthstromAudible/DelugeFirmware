@@ -29,6 +29,7 @@
 #include "model/consequence/consequence_clip_horizontal_shift.h"
 #include "model/edits/clip_address_for.h"
 #include "model/edits/edit.h"
+#include "model/edits/set_clip_length.h"
 #include "model/edits/shift_clip.h"
 #include "model/song/song.h"
 #include "playback/mode/playback_mode.h"
@@ -107,7 +108,10 @@ Action* ClipView::lengthenClip(int32_t newLength) {
 			action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
 		}
 
-		currentSong->setClipLength(getCurrentClip(), newLength, action);
+		deluge::edits::Context ctx{*currentSong, currentSong->project};
+		deluge::edits::SetClipLength edit{deluge::edits::clipAddressFor(*getCurrentClip()), (uint32_t)newLength, action,
+		                                  getCurrentClip()};
+		deluge::edits::apply(ctx, edit);
 	}
 
 	// Otherwise, do the resync that we missed out on doing
@@ -139,10 +143,12 @@ Action* ClipView::shortenClip(int32_t newLength) {
 		}
 	}
 
-	currentSong->setClipLength(
-	    getCurrentClip(), newLength,
-	    action); // Subsequently shortening by more squares won't cause additional Consequences to be added to the same
-	// Action - it checks, and only stores the data (snapshots and original length) once
+	// Subsequently shortening by more squares won't cause additional Consequences to be added to the same Action - it
+	// checks, and only stores the data (snapshots and original length) once.
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::SetClipLength edit{deluge::edits::clipAddressFor(*getCurrentClip()), (uint32_t)newLength, action,
+	                                  getCurrentClip()};
+	deluge::edits::apply(ctx, edit);
 	return action;
 }
 

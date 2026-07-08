@@ -54,6 +54,8 @@
 #include "model/consequence/consequence.h"
 #include "model/consequence/consequence_begin_playback.h"
 #include "model/consequence/consequence_tempo_change.h"
+#include "model/edits/edit.h"
+#include "model/edits/set_swing.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
@@ -2144,8 +2146,9 @@ void PlaybackHandler::commandEditSwingInterval(int8_t offset) {
 void PlaybackHandler::commandEditSwingAmount(int8_t offset) {
 	int32_t newSwingAmount = std::clamp(currentSong->project.groove.swing_amount + offset, -49, 49);
 	if (newSwingAmount != currentSong->project.groove.swing_amount) {
-		actionLogger.recordSwingChange(currentSong->project.groove.swing_amount, newSwingAmount);
-		currentSong->project.groove.swing_amount = newSwingAmount;
+		deluge::edits::Context swingCtx{*currentSong, currentSong->project};
+		deluge::edits::SetSwing swingEdit{static_cast<int8_t>(newSwingAmount)};
+		deluge::edits::apply(swingCtx, swingEdit);
 	}
 	commandDisplaySwingAmount();
 }

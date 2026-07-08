@@ -27,14 +27,17 @@
 #include "model/edits/clear_clip.h"
 #include "model/edits/clip_address_for.h"
 #include "model/edits/edit.h"
+#include "model/edits/multiply_clip.h"
 #include "model/edits/note_address_for.h"
 #include "model/edits/nudge_note.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/remove_note.h"
 #include "model/edits/repeat_note_edit.h"
+#include "model/edits/set_clip_length.h"
 #include "model/edits/set_euclidean_events.h"
 #include "model/edits/set_note_row_length.h"
 #include "model/edits/set_param_value.h"
+#include "model/edits/set_swing.h"
 #include "model/edits/shift_clip.h"
 #include "model/edits/shift_note_row.h"
 #include "model/global_effectable/global_effectable.h"
@@ -673,6 +676,115 @@ void clipClearTarget(Song* song) {
 	song->setCurrentClip(nullptr);
 }
 
+// M2d: double a clip's length (duplicating content) via MultiplyClip, undo/redo.
+void clipMultiplyTarget(Song* song) {
+	InstrumentClip* clip = nullptr;
+	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->project.clips.session_clips[c];
+		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type == OutputType::KIT
+		    || cl->output->type == OutputType::AUDIO) {
+			continue;
+		}
+		if (!deluge::edits::clipAddressFor(*cl).has_value()) {
+			continue;
+		}
+		auto* ic = (InstrumentClip*)cl;
+		// Need notes to prove content duplication, and room to double within the sequence limit.
+		if (totalNotes(ic) > 0 && (int64_t)ic->loopLength * 2 <= kMaxSequenceLength) {
+			clip = ic;
+		}
+	}
+	if (clip == nullptr) {
+		printf("# no-addressable-clip-for-multiply\n");
+		return;
+	}
+	printf("# target clip-multiply\n");
+	song->setCurrentClip(clip); // multiply's undo Consequences resolve the clip via getCurrentClip()
+
+	char mem[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(mem, song, clip);
+
+	int32_t lenBefore = clip->loopLength;
+	int32_t notesBefore = totalNotes(clip);
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::MultiplyClip edit{deluge::edits::clipAddressFor(*clip), ms};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "clip-multiply: apply succeeds");
+	check(clip->loopLength == lenBefore * 2, "clip-multiply: length doubled");
+	// Content is duplicated into the new second half; exact doubling isn't guaranteed (boundary notes /
+	// independent-length rows), so assert it grew and rely on undo for the exact-restoration invariant.
+	check(totalNotes(clip) >= notesBefore, "clip-multiply: content duplicated (grew)");
+	actionLogger.revert(BEFORE, false, false);
+	check(clip->loopLength == lenBefore, "clip-multiply: undo restores length");
+	check(totalNotes(clip) == notesBefore, "clip-multiply: undo restores notes");
+	actionLogger.revert(AFTER, false, false);
+	check(clip->loopLength == lenBefore * 2, "clip-multiply: redo re-doubles");
+
+	song->setCurrentClip(nullptr);
+}
+
+// M2d: set the song-global swing amount via SetSwing, undo/redo. Every song has a groove, so this always runs.
+void swingTarget(Song* song) {
+	printf("# target swing\n");
+	int8_t before = song->project.groove.swing_amount;
+	int8_t target = (before == 20) ? 21 : 20; // any value != current, within -49..49
+
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::SetSwing edit{target};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "swing: apply succeeds");
+	check(song->project.groove.swing_amount == target, "swing: value set");
+	actionLogger.revert(BEFORE, false, false);
+	check(song->project.groove.swing_amount == before, "swing: undo restores");
+	actionLogger.revert(AFTER, false, false);
+	check(song->project.groove.swing_amount == target, "swing: redo re-applies");
+}
+
+// M2d: set a clip's loop length via SetClipLength (mutation-only Edit; the harness supplies the Action the way the
+// call site's action-management would), undo/redo.
+void clipLengthTarget(Song* song) {
+	InstrumentClip* clip = nullptr;
+	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->project.clips.session_clips[c];
+		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type == OutputType::KIT
+		    || cl->output->type == OutputType::AUDIO) {
+			continue;
+		}
+		if (!deluge::edits::clipAddressFor(*cl).has_value()) {
+			continue;
+		}
+		auto* ic = (InstrumentClip*)cl;
+		if ((int64_t)ic->loopLength * 2 <= kMaxSequenceLength) {
+			clip = ic;
+		}
+	}
+	if (clip == nullptr) {
+		printf("# no-addressable-clip-for-set-length\n");
+		return;
+	}
+	printf("# target clip-set-length\n");
+	song->setCurrentClip(clip); // ConsequenceClipLength::revert resolves the clip via getCurrentClip()
+
+	int32_t before = clip->loopLength;
+	int32_t newLength = before * 2;
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+	Action* action = actionLogger.getNewAction(ActionType::CLIP_LENGTH_INCREASE, ActionAddition::NOT_ALLOWED);
+	check(action != nullptr, "set-length: harness opened an Action");
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::SetClipLength edit{deluge::edits::clipAddressFor(*clip), (uint32_t)newLength, action, clip};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "set-length: apply succeeds");
+	check(clip->loopLength == newLength, "set-length: length set");
+	actionLogger.revert(BEFORE, false, false);
+	check(clip->loopLength == before, "set-length: undo restores length");
+	actionLogger.revert(AFTER, false, false);
+	check(clip->loopLength == newLength, "set-length: redo re-applies");
+
+	song->setCurrentClip(nullptr);
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -781,6 +893,9 @@ int main(int argc, char** argv) {
 	nudgeTarget(song);
 	clipShiftTarget(song);
 	clipClearTarget(song);
+	clipMultiplyTarget(song);
+	swingTarget(song);
+	clipLengthTarget(song);
 
 	std::free(xml);
 	return failures ? 3 : 0;
