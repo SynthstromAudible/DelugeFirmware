@@ -201,6 +201,12 @@ public:
 	[[nodiscard]] std::optional<uint32_t> serialId() const { return serial_id_; }
 	void setSerialId(uint32_t id) { serial_id_ = id; }
 
+	/// S5-b: transient (never-serialized) session id for runtime DOM addressing of a NOT-YET-SAVED clip (one with
+	/// no serialId). 0 = unassigned. Minted from the project's session counter at load/creation so doc() can
+	/// id-resolve the clip's params (session_clip_params) instead of the engine fallback.
+	[[nodiscard]] uint32_t sessionId() const { return session_id_; }
+	void setSessionId(uint32_t id) { session_id_ = id; }
+
 	LaunchStyle launchStyle;
 	int64_t fillEventAtTickCount;
 	bool overdubsShouldCloneOutput{};
@@ -238,4 +244,6 @@ protected:
 private:
 	/// Stable per-song serial identity; see serialId(). nullopt = unassigned.
 	std::optional<uint32_t> serial_id_{};
+	/// Transient per-load session identity; see sessionId(). 0 = unassigned. Never serialized.
+	uint32_t session_id_{0};
 };

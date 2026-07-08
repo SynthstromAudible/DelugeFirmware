@@ -159,7 +159,8 @@ int main(int argc, char** argv) {
 		auto bothScalarOk = [&](ParamManagerForTimeline& pm) {
 			return scalarOkSet(pm.getUnpatchedParamSet()) && scalarOkSet(pm.getPatchedParamSet());
 		};
-		int32_t audioSeen = 0, audioBound = 0, audioScalarOk = 0, synthSeen = 0, synthBound = 0, synthScalarOk = 0;
+		int32_t audioSeen = 0, audioBound = 0, audioScalarOk = 0, audioSessionSeen = 0, audioSessionOk = 0;
+		int32_t synthSeen = 0, synthBound = 0, synthScalarOk = 0;
 		int32_t kitSeen = 0, kitBound = 0, kitScalarOk = 0, drumSeen = 0, drumBound = 0, drumScalarOk = 0;
 		int32_t cableSeen = 0, cableBound = 0, cableScalarOkCount = 0;
 		std::array<ClipArray*, 2> clipArrays{&song->project.clips.session_clips,
@@ -175,6 +176,14 @@ int main(int argc, char** argv) {
 					ParamSet* u = clip->paramManager.getUnpatchedParamSet();
 					audioBound += isLiveBound(u) ? 1 : 0;
 					audioScalarOk += scalarOkSet(u) ? 1 : 0;
+					// S5-b.1: a no-serialId audio clip must be SESSION-addressed — resolveParam(clipSession) must
+					// return the SAME store lane as docForParam, proving doc() id-resolves it (not the fallback).
+					if (!clip->serialId() && clip->sessionId() != 0) {
+						audioSessionSeen++;
+						deluge::project::ParamAddress addr{deluge::project::OwnerId::clipSession(clip->sessionId()),
+						                                   u->getParamKind(), 0, std::nullopt};
+						audioSessionOk += (song->project.resolveParam(addr) == u->docForParam(0)) ? 1 : 0;
+					}
 				}
 				else if (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
 				         && clip->output->type == OutputType::SYNTH) {
@@ -224,6 +233,12 @@ int main(int argc, char** argv) {
 		if (audioScalarOk != audioSeen) {
 			std::fprintf(stderr, "Flip Option I FAIL: an audio clip's store current_value != engine (read not "
 			                     "DOM-authoritative)\n");
+			_exit(3);
+		}
+		std::fprintf(stderr, "audio session-addressed (S5-b.1): %d/%d\n", audioSessionOk, audioSessionSeen);
+		if (audioSessionOk != audioSessionSeen) {
+			std::fprintf(stderr, "S5-b.1 FAIL: a no-serialId audio clip did not resolve via session addressing "
+			                     "(resolveParam != docForParam) — doc() would hit the engine fallback\n");
 			_exit(3);
 		}
 		if (kitScalarOk != kitSeen) {

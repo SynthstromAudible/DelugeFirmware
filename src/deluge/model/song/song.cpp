@@ -1809,7 +1809,13 @@ loadOutput:
 					relocateParamStoreToTree(unpatched, mgr.unpatched);
 				}
 				else {
-					unpatched->bindDomStore();
+					// S5-b.1: a never-saved (no-serialId) audio clip — relocate into the transient session-keyed
+					// store and address it by a session id, so doc() id-resolves it (dropping the engine fallback
+					// for audio clips). Session ids are never serialized, so this is golden-neutral.
+					uint32_t sid = project.mintSessionId();
+					thisClip->setSessionId(sid);
+					deluge::project::DocParamManager& mgr = project.session_clip_params.getOrCreate(sid);
+					relocateParamStoreToTree(unpatched, mgr.unpatched);
 				}
 			}
 			// M2-G S3c/S3d: relocate instrument-shared clip-level automation into the persistent tree, keyed by

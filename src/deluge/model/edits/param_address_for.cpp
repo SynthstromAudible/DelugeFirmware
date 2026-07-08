@@ -61,6 +61,15 @@ std::optional<deluge::project::ParamAddress> addressFor(const ModelStackWithAuto
 				haveOwner = true;
 			}
 		}
+		else if (clip->type == ClipType::AUDIO) {
+			// S5-b.1: a never-saved (no-serialId) audio clip is addressed by its transient session id
+			// (session_clip_params), so doc() id-resolves it instead of hitting the paramCollection fallback. The
+			// session id is minted + the store relocated in the post-load pass; 0 means not-yet-relocated (fallback).
+			if (uint32_t sid = clip->sessionId(); sid != 0) {
+				owner = deluge::project::OwnerId::clipSession(sid);
+				haveOwner = true;
+			}
+		}
 	}
 	if (!haveOwner) {
 		return std::nullopt;

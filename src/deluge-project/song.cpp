@@ -97,10 +97,11 @@ DocAutoParam* Song::resolveParam(const ParamAddress& address) {
 		return nullptr;
 	}
 	case OwnerId::Kind::CLIP: {
-		// A clip's node storage is tree-resident only if it has been relocated here (keyed by serialId); otherwise
-		// nullptr → the caller falls back to the engine store. A MIDI_OUT clip's CC automation (S4c) resolves by cc
-		// within the same per-clip store; the audio-clip ParamSet resolves by index.
-		DocParamManager* mgr = clip_params.find(address.owner.serial_id);
+		// A clip's node storage is tree-resident either by its persisted serialId (clip_params) or — for a
+		// not-yet-saved clip (S5-b) — by a transient session id (session_clip_params). A MIDI_OUT clip's CC
+		// automation (S4c) resolves by cc within the same per-clip store; the audio-clip ParamSet resolves by index.
+		DocParamManager* mgr = address.owner.is_session ? session_clip_params.find(address.owner.serial_id)
+		                                                : clip_params.find(address.owner.serial_id);
 		if (address.kind == deluge::modulation::params::Kind::MIDI) {
 			return midiParamInManager(mgr, address.param_id);
 		}

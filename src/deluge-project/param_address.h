@@ -37,12 +37,17 @@ struct OwnerId {
 	};
 
 	Kind kind{Kind::SONG};
-	uint32_t serial_id{0}; // the owner's serial id (Clip / Output / Drum, per kind); unused when kind == SONG
+	uint32_t serial_id{0};  // the owner's id (Clip / Output / Drum, per kind); a persisted serial_id, or — when
+	                        // is_session — a transient session id (S5-b: not-yet-saved owners). Unused when SONG.
+	bool is_session{false}; // true = serial_id is a transient session id (session_* tree maps), not a persisted one
 
 	static constexpr OwnerId song() { return {Kind::SONG, 0}; }
 	static constexpr OwnerId clip(uint32_t serialId) { return {Kind::CLIP, serialId}; }
 	static constexpr OwnerId instrument(uint32_t outputSerialId) { return {Kind::INSTRUMENT, outputSerialId}; }
 	static constexpr OwnerId drum(uint32_t drumSerialId) { return {Kind::DRUM, drumSerialId}; }
+	// S5-b: session-keyed (transient, not-yet-saved) owners — addressed by a session id, resolved in the session_*
+	// maps.
+	static constexpr OwnerId clipSession(uint32_t sessionId) { return {Kind::CLIP, sessionId, true}; }
 
 	// Ordered so OwnerId (and keys built from it) can index the ordered `fast_map` backed-param store.
 	auto operator<=>(const OwnerId&) const = default;

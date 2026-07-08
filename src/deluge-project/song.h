@@ -77,6 +77,13 @@ public:
 	ClipParams clip_params;     // per-clip automation stores, keyed by Clip::serialId (id-addressable node storage)
 	BackedParams backed_params; // instrument-shared automation, keyed by (owner, clip) — persistent form of ParamBackup
 	ParamBackup param_backup;
+
+	// S5-b: transient (never-serialized) automation stores for NOT-YET-SAVED (no-serialId) owners, keyed by a
+	// session id minted at load/creation, so doc() id-resolves EVERY owner and drops its paramCollection fallback.
+	// Golden-neutral (session ids aren't written). Rebuilt per song load, alongside clip_params.
+	ClipParams session_clip_params; // per-clip stores for no-serialId clips (S5-b.1: audio; later MIDI)
+	uint32_t next_session_id_{1};   // 0 reserved for "unassigned"
+	uint32_t mintSessionId() { return next_session_id_++; }
 };
 
 } // namespace deluge::project
