@@ -38,6 +38,9 @@
 #include "model/clip/audio_clip.h"
 #include "model/clip/clip_minder.h"
 #include "model/consequence/consequence_clip_length.h"
+#include "model/edits/clear_clip.h"
+#include "model/edits/clip_address_for.h"
+#include "model/edits/edit.h"
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_playback_guide.h"
@@ -422,13 +425,14 @@ dontDeactivateMarker:
 			}
 
 			// Clear Clip
-			Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR, ActionAddition::NOT_ALLOWED);
-
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack =
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, getCurrentClip());
 
-			getCurrentAudioClip()->clear(action, modelStack, !FlashStorage::automationClear, true);
+			deluge::edits::Context clipCtx{*currentSong, currentSong->project};
+			deluge::edits::ClearClip clearEdit{deluge::edits::clipAddressFor(*getCurrentClip()),
+			                                   !FlashStorage::automationClear, true, modelStack};
+			deluge::edits::apply(clipCtx, clearEdit);
 
 			// New default as part of Automation Clip View Implementation
 			// If this is enabled, then when you are in Audio Clip View, clearing

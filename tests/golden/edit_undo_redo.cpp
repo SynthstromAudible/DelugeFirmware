@@ -24,6 +24,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/edits/add_note.h"
+#include "model/edits/clear_clip.h"
 #include "model/edits/clip_address_for.h"
 #include "model/edits/edit.h"
 #include "model/edits/note_address_for.h"
@@ -620,6 +621,58 @@ void clipShiftTarget(Song* song) {
 	song->setCurrentClip(nullptr);
 }
 
+// Total notes across every row of an instrument clip.
+int32_t totalNotes(InstrumentClip* ic) {
+	int32_t total = 0;
+	for (int32_t r = 0; r < std::ssize(ic->noteRows); r++) {
+		total += std::ssize(ic->noteRows[r].notes);
+	}
+	return total;
+}
+
+// M2d: clear a whole clip via ClearClip, undo/redo (note count 0 after clear, restored after undo).
+void clipClearTarget(Song* song) {
+	InstrumentClip* clip = nullptr;
+	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->project.clips.session_clips[c];
+		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type == OutputType::KIT
+		    || cl->output->type == OutputType::AUDIO) {
+			continue;
+		}
+		if (!deluge::edits::clipAddressFor(*cl).has_value()) {
+			continue;
+		}
+		auto* ic = (InstrumentClip*)cl;
+		if (totalNotes(ic) > 0) {
+			clip = ic;
+		}
+	}
+	if (clip == nullptr) {
+		printf("# no-addressable-clip-with-notes-for-clear\n");
+		return;
+	}
+	printf("# target clip-clear\n");
+	song->setCurrentClip(clip); // clear's undo Consequences resolve the clip via getCurrentClip()
+
+	char mem[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(mem, song, clip);
+
+	int32_t before = totalNotes(clip);
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::ClearClip edit{deluge::edits::clipAddressFor(*clip), /*clearAutomation=*/true,
+	                              /*clearSequenceAndMPE=*/true, ms};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "clip-clear: apply succeeds");
+	check(totalNotes(clip) == 0, "clip-clear: all notes cleared");
+	actionLogger.revert(BEFORE, false, false);
+	check(totalNotes(clip) == before, "clip-clear: undo restores the notes");
+	actionLogger.revert(AFTER, false, false);
+	check(totalNotes(clip) == 0, "clip-clear: redo re-clears");
+
+	song->setCurrentClip(nullptr);
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -727,6 +780,7 @@ int main(int argc, char** argv) {
 	repeatTarget(song);
 	nudgeTarget(song);
 	clipShiftTarget(song);
+	clipClearTarget(song);
 
 	std::free(xml);
 	return failures ? 3 : 0;

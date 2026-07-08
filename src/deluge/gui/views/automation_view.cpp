@@ -65,8 +65,12 @@
 #include "model/consequence/consequence_note_row_mute.h"
 #include "model/drum/drum.h"
 #include "model/drum/midi_drum.h"
+#include "model/edits/clear_clip.h"
+#include "model/edits/clear_note_row.h"
+#include "model/edits/clip_address_for.h"
 #include "model/edits/delete_param_automation.h"
 #include "model/edits/edit.h"
+#include "model/edits/note_address_for.h"
 #include "model/edits/param_address_for.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
@@ -1553,16 +1557,15 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 			}
 			// clear all audio clip automation
 			else {
-				Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR, ActionAddition::NOT_ALLOWED);
-
 				char modelStackMemory[MODEL_STACK_MAX_SIZE];
 				ModelStackWithTimelineCounter* modelStack =
 				    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
 
 				// clear automation, don't clear sample and mpe
-				bool clearAutomation = true;
-				bool clearSequenceAndMPE = false;
-				clip->clear(action, modelStack, clearAutomation, clearSequenceAndMPE);
+				deluge::edits::Context clipCtx{*currentSong, currentSong->project};
+				deluge::edits::ClearClip clearEdit{deluge::edits::clipAddressFor(*clip), /*clearAutomation=*/true,
+				                                   /*clearSequenceAndMPE=*/false, modelStack};
+				deluge::edits::apply(clipCtx, clearEdit);
 			}
 			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_CLEARED));
 
@@ -1600,8 +1603,6 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 		}
 	}
 	else if (on && inNoteEditor()) {
-		Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR, ActionAddition::NOT_ALLOWED);
-
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack =
 		    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
@@ -1611,9 +1612,12 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 		    ((InstrumentClip*)clip)->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay, modelStack);
 
 		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-			NoteRow* noteRow = modelStackWithNoteRow->getNoteRow();
 			// don't clear automation, do clear notes and mpe
-			noteRow->clear(action, modelStackWithNoteRow, false, true);
+			deluge::edits::Context clearCtx{*currentSong, currentSong->project};
+			deluge::edits::ClearNoteRow clearEdit{deluge::edits::noteRowAddressFor(*modelStackWithNoteRow),
+			                                      /*clearAutomation=*/false, /*clearSequenceAndMPE=*/true,
+			                                      modelStackWithNoteRow};
+			deluge::edits::apply(clearCtx, clearEdit);
 
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_NOTES_CLEARED));
 		}

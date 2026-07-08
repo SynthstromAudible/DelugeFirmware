@@ -42,6 +42,9 @@
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence.h"
+#include "model/edits/clear_clip.h"
+#include "model/edits/clip_address_for.h"
+#include "model/edits/edit.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/scale/preset_scales.h"
@@ -489,8 +492,6 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 	else if (b == BACK && currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
 		if (on) {
 			// Clear Clip
-			Action* action = actionLogger.getNewAction(ActionType::CLIP_CLEAR, ActionAddition::NOT_ALLOWED);
-
 			char modelStackMemory[MODEL_STACK_MAX_SIZE];
 			ModelStackWithTimelineCounter* modelStack =
 			    setupModelStackWithTimelineCounter(modelStackMemory, currentSong, getCurrentClip());
@@ -507,7 +508,10 @@ ActionResult InstrumentClipMinder::buttonAction(deluge::hid::Button b, bool on, 
 			bool clearSequenceAndMPE =
 			    ((currentUI != &automationView) || (currentUI == &automationView && automationView.inNoteEditor()));
 
-			getCurrentInstrumentClip()->clear(action, modelStack, clearAutomation, clearSequenceAndMPE);
+			deluge::edits::Context clipCtx{*currentSong, currentSong->project};
+			deluge::edits::ClearClip clearEdit{deluge::edits::clipAddressFor(*getCurrentClip()), clearAutomation,
+			                                   clearSequenceAndMPE, modelStack};
+			deluge::edits::apply(clipCtx, clearEdit);
 
 			// New default as part of Automation Clip View Implementation
 			// If this is enabled, then when you are in a regular Instrument Clip View (Synth, Kit, MIDI, CV), clearing

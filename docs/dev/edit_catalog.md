@@ -24,7 +24,7 @@ several Edits (e.g. `NOTE_EDIT` → add / remove / nudge / …); those land acro
 | `NOTEROW_LENGTH_EDIT` | `SetNoteRowLength` | note-row | M2c | **landed (new-action branch)** — prevAction/secret-undo branch pending; edit_undo_redo-verified (apply+undo+redo, 9 songs) via the setCurrentClip harness coverage |
 | `NOTEROW_HORIZONTAL_SHIFT` | `ShiftNoteRow` | note-row | M2c | **landed** (mutation + coalescing undo; edit_undo_redo-verified, 9 songs) |
 | `CLIP_LENGTH_INCREASE` / `CLIP_LENGTH_DECREASE` | `SetClipLength` | clip | M2d | pending |
-| `CLIP_CLEAR` | `ClearClip` | clip | M2d | pending |
+| `CLIP_CLEAR` | `ClearClip` / `ClearNoteRow` | clip / note-row | M2d | **landed** — `ClearClip` (virtual `clip->clear`, funnels instrument + audio: instrument_clip_minder, automation_view audio-clip, audio_clip_view; edit_undo_redo clip-clear target, 13 songs). The automation-view note-editor "clear" is note-row-scoped → separate `ClearNoteRow` (funnels that 1 site). |
 | `CLIP_DELETE` | `DeleteClip` | clip | M2d | pending |
 | `CLIP_MULTIPLY` | `MultiplyClip` | clip | M2d | pending |
 | `CLIP_HORIZONTAL_SHIFT` | `ShiftClip` | clip | M2d | **landed (M2d pilot)** — establishes `ClipAddress`/`clipAddressFor` (clip owner tier); mutation (`shiftHorizontally`) + coalesce/create `ConsequenceClipHorizontalShift`, goto-free; `shifted()` preserves the "nothing moved → bail" branch. edit_undo_redo clip-shift target, 13 songs. |
