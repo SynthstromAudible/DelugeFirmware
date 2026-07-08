@@ -41,6 +41,9 @@
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_clip_existence.h"
+#include "model/edits/edit.h"
+#include "model/edits/param_address_for.h"
+#include "model/edits/set_param_value.h"
 #include "model/instrument/cv_instrument.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
@@ -2896,8 +2899,12 @@ void Song::setBPM(float tempoBPM, bool shouldLogAction) {
 	auto tempoParam = getModelStackWithParam(modelStackWithThreeMainThings, params::UnpatchedGlobal::UNPATCHED_TEMPO);
 	// record it with accuracy of .01. Max tempo is about 20 000bpm so this should fit fine
 	auto intTempo = (int32_t)(tempoBPM * 100);
-	int32_t pos = -1; // means use the live position
-	tempoParam->autoParam->setCurrentValueInResponseToUserInput(intTempo, tempoParam, shouldLogAction, pos);
+	// Scalar tempo edit (pos 0 => the scalar branch's implicit livePos -1). recordUnautomatedParamChange
+	// early-returns for UNPATCHED_TEMPO (tempo has its own recordTempoChange), so this opens no Action —
+	// same as the interior log did. shouldLogAction is dead here, kept below for setBPMInner.
+	deluge::edits::Context editCtx{*this, this->project};
+	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*tempoParam), intTempo, 0, 0, tempoParam};
+	deluge::edits::apply(editCtx, edit);
 	setBPMInner(tempoBPM, shouldLogAction);
 }
 
