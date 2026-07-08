@@ -65,6 +65,9 @@
 #include "model/consequence/consequence_note_row_mute.h"
 #include "model/drum/drum.h"
 #include "model/drum/midi_drum.h"
+#include "model/edits/delete_param_automation.h"
+#include "model/edits/edit.h"
+#include "model/edits/param_address_for.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
 #include "model/instrument/midi_instrument.h"
@@ -1586,8 +1589,10 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 		}
 
 		if (modelStackWithParam && modelStackWithParam->autoParam) {
-			Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE);
-			modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
+			deluge::edits::Context editCtx{*currentSong, currentSong->project};
+			deluge::edits::DeleteParamAutomation edit{deluge::edits::addressFor(*modelStackWithParam),
+			                                          modelStackWithParam};
+			deluge::edits::apply(editCtx, edit);
 
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
 
@@ -2554,8 +2559,9 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	}
 	// if they want to delete automation
 	else if (is_delete_action) {
-		Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE);
-		modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
+		deluge::edits::Context editCtx{*currentSong, currentSong->project};
+		deluge::edits::DeleteParamAutomation edit{deluge::edits::addressFor(*modelStackWithParam), modelStackWithParam};
+		deluge::edits::apply(editCtx, edit);
 
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
 

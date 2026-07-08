@@ -27,6 +27,9 @@
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
+#include "model/edits/delete_param_automation.h"
+#include "model/edits/edit.h"
+#include "model/edits/param_address_for.h"
 #include "model/model_stack.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
@@ -40,9 +43,9 @@ MenuItem* Automation::selectButtonPress() {
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithAutoParam* modelStack = getModelStackWithParam(modelStackMemory);
 		if (modelStack && modelStack->autoParam) {
-			Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
-
-			modelStack->autoParam->deleteAutomation(action, modelStack);
+			deluge::edits::Context editCtx{*currentSong, currentSong->project};
+			deluge::edits::DeleteParamAutomation edit{deluge::edits::addressFor(*modelStack), modelStack};
+			deluge::edits::apply(editCtx, edit);
 
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
 

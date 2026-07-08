@@ -9,9 +9,11 @@
 #include "model/edits/edit.h"
 #include <cstdio>
 
+#include "deluge-project/param_edit.h" // setNodeAtPos
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/consequence/consequence.h"
+#include "model/edits/delete_param_automation.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
 #include "model/model_stack.h"
@@ -164,6 +166,32 @@ void testSetParamValueRegionAndFlag(deluge::edits::Context& ctx) {
 	check(ms->autoParam->getCurrentValue() == target, "region/flag: value applied");
 }
 
+// M1c coda: DeleteParamAutomation funnels the AUTOMATION_DELETE sites. Seed automation, delete via the Edit,
+// assert the lane cleared and an AUTOMATION_DELETE Action holds the (stolen-nodes) undo Consequence.
+void testDeleteParamAutomation(deluge::edits::Context& ctx) {
+	constexpr int32_t kParam = 5;
+	// Leak-reset (crash-safe: no consequence freeing -> no headless audio pump).
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+
+	ParamManagerForTimeline pm;
+	pm.setupUnpatched();
+	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* ms = makeStack(buf, pm, kParam);
+
+	deluge::project::setNodeAtPos(*ms->doc(), 0, 100, false);
+	deluge::project::setNodeAtPos(*ms->doc(), 32, -200, true);
+	check(!ms->doc()->nodes.empty(), "delete: seeded automation");
+
+	deluge::edits::DeleteParamAutomation edit{deluge::edits::addressFor(*ms), ms};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "delete: apply succeeds");
+	check(ms->doc()->nodes.empty(), "delete: automation cleared");
+
+	Action* a = actionLogger.firstAction[BEFORE];
+	check(a != nullptr && a->type == ActionType::AUTOMATION_DELETE, "delete: AUTOMATION_DELETE Action opened");
+	check(a != nullptr && a->firstConsequence != nullptr, "delete: undo Consequence recorded (stolen nodes)");
+}
+
 } // namespace
 
 // Song construction; the Context members are stored, and the pilot dereferences currentSong via the
@@ -193,6 +221,7 @@ int main() {
 	testDispatcher(ctx);
 	testSetParamValuePilot(ctx);
 	testSetParamValueRegionAndFlag(ctx);
+	testDeleteParamAutomation(ctx);
 
 	if (failures == 0) {
 		std::fprintf(stdout, "edit_test: OK\n");

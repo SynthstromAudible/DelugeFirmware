@@ -61,6 +61,7 @@
 #include "model/clip/instrument_clip_minder.h"
 #include "model/consequence/consequence.h"
 #include "model/drum/drum.h"
+#include "model/edits/delete_param_automation.h"
 #include "model/edits/edit.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
@@ -1355,8 +1356,9 @@ void View::modEncoderButtonAction_deleteAutomation(uint8_t whichModEncoder) {
 	                                                                            &activeModControllableModelStack);
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
-		Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::NOT_ALLOWED);
-		modelStackWithParam->autoParam->deleteAutomation(action, modelStackWithParam);
+		deluge::edits::Context editCtx{*currentSong, currentSong->project};
+		deluge::edits::DeleteParamAutomation edit{deluge::edits::addressFor(*modelStackWithParam), modelStackWithParam};
+		deluge::edits::apply(editCtx, edit);
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUTOMATION_DELETED));
 	}
 }
