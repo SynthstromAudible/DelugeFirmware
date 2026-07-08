@@ -30,6 +30,7 @@
 #include "model/edits/remove_note.h"
 #include "model/edits/set_note_row_length.h"
 #include "model/edits/set_param_value.h"
+#include "model/edits/shift_note_row.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/iterance/iterance.h"
 #include "model/model_stack.h"
@@ -295,6 +296,65 @@ void lengthTarget(Song* song) {
 	song->setCurrentClip(nullptr);
 }
 
+std::vector<int32_t> notePositions(NoteRow* nr) {
+	std::vector<int32_t> v;
+	for (int32_t i = 0; i < std::ssize(nr->notes); i++) {
+		v.push_back(nr->notes[i].pos);
+	}
+	return v;
+}
+
+// M2c: shift a melodic note-row horizontally via ShiftNoteRow, undo/redo (position restoration is the invariant).
+void shiftTarget(Song* song) {
+	InstrumentClip* clip = nullptr;
+	NoteRow* noteRow = nullptr;
+	int32_t rowIndex = -1;
+	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->project.clips.session_clips[c];
+		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type == OutputType::KIT
+		    || cl->output->type == OutputType::AUDIO) {
+			continue;
+		}
+		auto* ic = (InstrumentClip*)cl;
+		if (!clipIsAddressable(ic)) {
+			continue;
+		}
+		for (int32_t r = 0; r < std::ssize(ic->noteRows); r++) {
+			if (!ic->noteRows[r].notes.empty()) {
+				clip = ic;
+				noteRow = &ic->noteRows[r];
+				rowIndex = r;
+				break;
+			}
+		}
+	}
+	if (clip == nullptr) {
+		printf("# no-addressable-melodic-notes-for-shift\n");
+		return;
+	}
+	printf("# target noterow-shift\n");
+	song->setCurrentClip(clip);
+
+	char mem[MODEL_STACK_MAX_SIZE];
+	ModelStackWithNoteRow* ms =
+	    setupModelStackWithTimelineCounter(mem, song, clip)->addNoteRow(clip->getNoteRowId(noteRow, rowIndex), noteRow);
+
+	std::vector<int32_t> before = notePositions(noteRow);
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::ShiftNoteRow edit{deluge::edits::noteRowAddressFor(*ms), /*shiftAmount=*/3,
+	                                 /*shiftAutomation=*/false, /*shiftSequenceAndMPE=*/true, ms};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "shift: apply succeeds");
+	check(notePositions(noteRow) != before, "shift: note positions changed");
+	actionLogger.revert(BEFORE, false, false);
+	check(notePositions(noteRow) == before, "shift: undo restores positions");
+	actionLogger.revert(AFTER, false, false);
+	check(notePositions(noteRow) != before, "shift: redo re-applies");
+
+	song->setCurrentClip(nullptr);
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -397,6 +457,7 @@ int main(int argc, char** argv) {
 	noteTarget(song);
 	kitNoteTarget(song);
 	lengthTarget(song);
+	shiftTarget(song);
 
 	std::free(xml);
 	return failures ? 3 : 0;

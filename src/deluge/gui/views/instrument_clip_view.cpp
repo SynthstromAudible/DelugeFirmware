@@ -69,6 +69,7 @@
 #include "model/edits/remove_note.h"
 #include "model/edits/set_note_row_length.h"
 #include "model/edits/set_param_value.h"
+#include "model/edits/shift_note_row.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
 #include "model/instrument/non_audio_instrument.h"
@@ -7644,50 +7645,15 @@ void InstrumentClipView::rotateNoteRowHorizontally(ModelStackWithNoteRow* modelS
 		bool shiftSequenceAndMPE =
 		    ((currentUI != &automationView) || (currentUI == &automationView && automationView.inNoteEditor()));
 
-		clip->shiftOnlyOneNoteRowHorizontally(modelStack, shiftAmount, shiftAutomation, shiftSequenceAndMPE);
+		deluge::edits::Context noteCtx{*currentSong, currentSong->project};
+		deluge::edits::ShiftNoteRow shiftEdit{deluge::edits::noteRowAddressFor(*modelStack), shiftAmount,
+		                                      shiftAutomation, shiftSequenceAndMPE, modelStack};
+		deluge::edits::apply(noteCtx, shiftEdit);
 
 		// Render change
 		if (yDisplay >= 0 && yDisplay < kDisplayHeight) {
 			// this could be called from automation view velocity editor
 			uiNeedsRendering(currentUI, 1 << yDisplay, 0);
-		}
-
-		// If possible, just modify a previous Action to add this new shift amount to it.
-		Action* action = actionLogger.firstAction[BEFORE];
-		if (action && action->type == ActionType::NOTEROW_HORIZONTAL_SHIFT && action->openForAdditions
-		    && action->currentClip == clip) {
-
-			// If there's no Consequence in the Action, that's probably because we deleted it a previous time with
-			// the code just below. Or possibly because the Action was created but there wasn't enough RAM to create
-			// the Consequence. Anyway, just go add a consequence now.
-			if (!action->firstConsequence) {
-				goto addConsequenceToAction;
-			}
-
-			ConsequenceNoteRowHorizontalShift* consequence =
-			    (ConsequenceNoteRowHorizontalShift*)action->firstConsequence;
-			if (consequence->noteRowId != modelStack->noteRowId) {
-				goto getNewAction;
-			}
-
-			consequence->amount += shiftAmount;
-		}
-
-		// Or if no previous Action, go create a new one now.
-		else {
-getNewAction:
-			action = actionLogger.getNewAction(ActionType::NOTEROW_HORIZONTAL_SHIFT, ActionAddition::NOT_ALLOWED);
-			if (action) {
-addConsequenceToAction:
-				void* consMemory = deluge::memory::alloc_sdram(sizeof(ConsequenceNoteRowHorizontalShift));
-
-				if (consMemory) {
-					ConsequenceNoteRowHorizontalShift* newConsequence =
-					    new (consMemory) ConsequenceNoteRowHorizontalShift(modelStack->noteRowId, shiftAmount,
-					                                                       shiftAutomation, shiftSequenceAndMPE);
-					action->addConsequence(newConsequence);
-				}
-			}
 		}
 	}
 
