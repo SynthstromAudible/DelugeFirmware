@@ -24,15 +24,18 @@
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
+#include "model/edits/add_kit_row.h"
 #include "model/edits/add_note.h"
 #include "model/edits/clear_clip.h"
 #include "model/edits/clip_address_for.h"
 #include "model/edits/edit.h"
+#include "model/edits/kit_row_address_for.h"
 #include "model/edits/multiply_clip.h"
 #include "model/edits/note_address_for.h"
 #include "model/edits/nudge_note.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/paste_note_row.h"
+#include "model/edits/remove_kit_row.h"
 #include "model/edits/remove_note.h"
 #include "model/edits/repeat_note_edit.h"
 #include "model/edits/set_clip_length.h"
@@ -44,6 +47,7 @@
 #include "model/edits/shift_clip.h"
 #include "model/edits/shift_note_row.h"
 #include "model/global_effectable/global_effectable.h"
+#include "model/instrument/kit.h"
 #include "model/iterance/iterance.h"
 #include "model/model_stack.h"
 #include "model/note/copied_note_row.h"
@@ -56,6 +60,7 @@
 #include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
+#include "processing/sound/sound_drum.h"
 #include "storage/storage_manager.h"
 
 #include <cstdint>
@@ -880,6 +885,90 @@ void pasteTarget(Song* song) {
 	song->setCurrentClip(nullptr);
 }
 
+int32_t drumCount(Kit* kit) {
+	int32_t n = 0;
+	for (Drum* d = kit->firstDrum; d != nullptr; d = d->next) {
+		n++;
+	}
+	return n;
+}
+
+// M2e: add a GATE drum + row via AddKitRow (apply-only — non-undoable by design).
+void kitAddTarget(Song* song) {
+	InstrumentClip* clip = nullptr;
+	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->project.clips.session_clips[c];
+		if (cl->type == ClipType::INSTRUMENT && cl->output != nullptr && cl->output->type == OutputType::KIT
+		    && !((InstrumentClip*)cl)->noteRows.empty()) {
+			clip = (InstrumentClip*)cl;
+		}
+	}
+	if (clip == nullptr) {
+		printf("# no-kit-clip-for-add\n");
+		return;
+	}
+	printf("# target kit-add\n");
+	song->setCurrentClip(clip);
+	auto* kit = static_cast<Kit*>(clip->output);
+	int32_t rowIndex = 0;
+	NoteRow* noteRow = &clip->noteRows[rowIndex];
+
+	char mem[MODEL_STACK_MAX_SIZE];
+	ModelStackWithNoteRow* ms =
+	    setupModelStackWithTimelineCounter(mem, song, clip)->addNoteRow(clip->getNoteRowId(noteRow, rowIndex), noteRow);
+
+	int32_t before = drumCount(kit);
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::AddKitRow edit{kit, noteRow, DrumType::GATE, ms};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "kit-add: apply succeeds");
+	check(edit.drum() != nullptr, "kit-add: a drum was created");
+	check(drumCount(kit) == before + 1, "kit-add: kit gained a drum");
+	check(kit->getDrumIndex(edit.drum()) >= 0, "kit-add: drum is in the kit");
+	check(noteRow->drum == edit.drum(), "kit-add: row points at the new drum");
+
+	song->setCurrentClip(nullptr);
+}
+
+// M2e: delete a SOUND-drum kit row via RemoveKitRow (apply-only — non-undoable by design).
+void kitRemoveTarget(Song* song) {
+	InstrumentClip* clip = nullptr;
+	SoundDrum* drum = nullptr;
+	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->project.clips.session_clips[c];
+		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type != OutputType::KIT) {
+			continue;
+		}
+		auto* kit = static_cast<Kit*>(cl->output);
+		if (drumCount(kit) < 2) { // keep at least one drum around
+			continue;
+		}
+		for (Drum* d = kit->firstDrum; d != nullptr; d = d->next) {
+			if (d->type == DrumType::SOUND) {
+				clip = (InstrumentClip*)cl;
+				drum = (SoundDrum*)d;
+				break;
+			}
+		}
+	}
+	if (clip == nullptr) {
+		printf("# no-kit-sound-drum-for-remove\n");
+		return;
+	}
+	printf("# target kit-remove\n");
+	song->setCurrentClip(clip);
+	auto* kit = static_cast<Kit*>(clip->output);
+	int32_t before = drumCount(kit);
+
+	char mem[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(mem, song, clip);
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::RemoveKitRow edit{deluge::edits::kitRowAddressFor(*kit, *drum), drum, ms};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "kit-remove: apply succeeds");
+	check(drumCount(kit) == before - 1, "kit-remove: kit lost a drum"); // drum is now freed; do NOT touch it
+
+	song->setCurrentClip(nullptr);
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -993,6 +1082,8 @@ int main(int argc, char** argv) {
 	clipLengthTarget(song);
 	tempoTarget(song);
 	pasteTarget(song);
+	kitAddTarget(song);
+	kitRemoveTarget(song);
 
 	std::free(xml);
 	return failures ? 3 : 0;

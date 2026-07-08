@@ -34,7 +34,7 @@ several Edits (e.g. `NOTE_EDIT` → add / remove / nudge / …); those land acro
 | `CLIP_INSTANCE_EDIT` | `EditClipInstance` | arrangement | M2f | pending |
 | `ARRANGEMENT_TIME_EXPAND` / `ARRANGEMENT_TIME_CONTRACT` | `ExpandArrangementTime` / `ContractArrangementTime` | arrangement | M2f | pending |
 | `ARRANGEMENT_CLEAR` | `ClearArrangement` | arrangement | M2f | pending |
-| (kit row membership, per-drum descriptors — no single ActionType) | `AddKitRow` / `RemoveKitRow` / … | kit / drum | M2e | pending |
+| (kit row membership — no single ActionType) | `AddKitRow` / `RemoveKitRow` (+ `KitRowAddress`) | kit / drum | M2e | **landed (funnel; NON-UNDOABLE by design)** — reify the synchronous MIDI/GATE drum-add (`createDrumForAuditionedNoteRow` branch) and `deleteDrum`. **No Consequence added** (kit-row ops aren't undoable today; a new Consequence would grow the doomed Action/Consequence system — undo is deferred to the command/undo-tree substrate). The view keeps `deleteAllLogs`. edit_undo_redo kit-add/kit-remove apply-then-assert targets, 9 songs each. **Deferred:** async SOUND-drum add (loadInstrumentPresetUI), drum-replace sub-mode, delete-row-pad gesture, per-drum descriptors (drumName/MIDI-learn), and ALL undo. |
 | (instrument swap — no single ActionType) | `SwapInstrument` | instrument | M2g | pending |
 | `RECORD` | — (recorded input, reconcile path) | — | M4 | out of scope (not an Edit) |
 | `ARRANGEMENT_RECORD` | — (recorded input, reconcile path) | — | M4 | out of scope (not an Edit) |

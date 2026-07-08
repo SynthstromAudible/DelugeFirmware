@@ -62,14 +62,17 @@
 #include "model/consequence/consequence_note_row_length.h"
 #include "model/drum/drum.h"
 #include "model/drum/midi_drum.h"
+#include "model/edits/add_kit_row.h"
 #include "model/edits/add_note.h"
 #include "model/edits/clip_address_for.h"
 #include "model/edits/edit.h"
+#include "model/edits/kit_row_address_for.h"
 #include "model/edits/multiply_clip.h"
 #include "model/edits/note_address_for.h"
 #include "model/edits/nudge_note.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/paste_note_row.h"
+#include "model/edits/remove_kit_row.h"
 #include "model/edits/remove_note.h"
 #include "model/edits/repeat_note_edit.h"
 #include "model/edits/set_clip_length.h"
@@ -1022,22 +1025,15 @@ ramError:
 
 	else {
 
-		Drum* newDrum = StorageManager::createNewDrum(drumType);
-
-		if (!newDrum) {
+		// Reify: AddKitRow creates the drum, adds it to the kit, and sets it on the row. Non-undoable (the
+		// deleteAllLogs above stays) — undo arrives with the command/undo-tree substrate, not a Consequence.
+		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
+		deluge::edits::Context kitCtx{*currentSong, currentSong->project};
+		deluge::edits::AddKitRow addEdit{kit, noteRow, drumType, modelStackWithNoteRow};
+		if (deluge::edits::apply(kitCtx, addEdit) != Error::NONE) {
 			goto ramError;
 		}
-
-		ParamManager paramManager;
-		// add sound loading code here
-
-		kit->addDrum(newDrum);
-
-		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
-
-		noteRow->setDrum(newDrum, kit, modelStackWithNoteRow, nullptr, &paramManager);
-
-		kit->beenEdited();
+		Drum* newDrum = addEdit.drum();
 		drawDrumName(newDrum);
 		setSelectedDrum(newDrum, true);
 	}
@@ -5566,45 +5562,13 @@ doDisplayError:
 
 void InstrumentClipView::deleteDrum(SoundDrum* drum) {
 
-	Kit* kit = getCurrentKit();
-
-	kit->removeDrum(drum);
-
-	// Find Drum's NoteRow
-	int32_t noteRowIndex;
-	NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowForDrum(drum, &noteRowIndex);
-	if (noteRow) {
-
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-
-		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowIndex, noteRow);
-
-		// Give NoteRow another unassigned Drum, or no Drum if there are none
-		noteRow->setDrum(kit->getFirstUnassignedDrum(getCurrentInstrumentClip()), kit, modelStackWithNoteRow);
-
-		if (!noteRow->drum) {
-			// If NoteRow has no Notes, just delete it - if it's not the last one
-			if (noteRow->hasNoNotes() && getCurrentInstrumentClip()->getNumNoteRows() > 1) {
-				if (noteRowIndex == 0) {
-					getCurrentInstrumentClip()->yScroll--;
-				}
-
-				getCurrentInstrumentClip()->deleteNoteRow(modelStack, noteRowIndex);
-			}
-		}
-	}
-
-	// Delete the Drum we came here to delete
-	currentSong->project.param_backup.deleteForModControllable(drum);
-	if (std::optional<uint32_t> drumId = drum->serialId()) { // S4.5b: retire its tree-resident automation stores
-		currentSong->project.backed_params.removeOwner(deluge::project::OwnerId::drum(*drumId));
-	}
-	void* toDealloc = dynamic_cast<void*>(drum);
-	drum->~SoundDrum();
-	delugeDealloc(toDealloc);
-
-	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+	// Reify: RemoveKitRow reproduces the delete (remove drum, reassign/prune the row, retire automation, dealloc).
+	// Non-undoable (the caller's deleteAllLogs stays) — no Consequence.
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	deluge::edits::Context kitCtx{*currentSong, currentSong->project};
+	deluge::edits::RemoveKitRow removeEdit{deluge::edits::kitRowAddressFor(*getCurrentKit(), *drum), drum, modelStack};
+	deluge::edits::apply(kitCtx, removeEdit);
 
 	// We should repopulateNoteRowsOnscreen() and everything, but this will only be called just before the UI
 	// sessions starts again anyway
