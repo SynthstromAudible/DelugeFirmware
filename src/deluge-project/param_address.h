@@ -66,6 +66,11 @@ struct ParamAddress {
 	// For INSTRUMENT/DRUM owners, which clip's override this lane belongs to (nullopt = the owner's shared
 	// default). Mirrors ParamBackup's (ModControllable, Clip) key. Unused for SONG/CLIP owners.
 	std::optional<uint32_t> clip_serial{};
+	// S5-b: for INSTRUMENT/DRUM owners, whether `clip_serial` is a transient session id (a not-yet-saved clip) vs a
+	// persisted serialId — the clip dimension's `is_session`, independent of the owner's. Disambiguates the "mixed"
+	// case: a saved instrument (serialId owner) carrying a runtime-added clip (session clip). Session and serial ids
+	// share a numeric space, so this flag is what keeps their keys distinct. Unused for SONG/CLIP owners.
+	bool clip_is_session{false};
 };
 
 } // namespace deluge::project

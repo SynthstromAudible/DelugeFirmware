@@ -34,6 +34,11 @@ namespace deluge::project {
 struct BackedParamKey {
 	OwnerId owner{};
 	std::optional<uint32_t> clip_serial{};
+	// S5-b: whether `clip_serial` is a transient session id (a not-yet-saved clip) rather than a persisted serialId.
+	// Keeps a runtime-added session clip's key distinct from a persisted clip's when both live under the same
+	// serialId owner (session and serial ids share a numeric space). Ordered after clip_serial, so `removeOwner`'s
+	// owner-range erase is unaffected.
+	bool clip_is_session{false};
 
 	auto operator<=>(const BackedParamKey&) const = default;
 };
@@ -48,19 +53,19 @@ struct BackedParams {
 	deluge::fast_map<BackedParamKey, DocParamManager> by_owner;
 
 	/// The store for exactly (owner, clip_serial), or nullptr if none is tree-resident.
-	DocParamManager* find(const OwnerId& owner, std::optional<uint32_t> clipSerial) {
-		auto it = by_owner.find(BackedParamKey{owner, clipSerial});
+	DocParamManager* find(const OwnerId& owner, std::optional<uint32_t> clipSerial, bool clipIsSession = false) {
+		auto it = by_owner.find(BackedParamKey{owner, clipSerial, clipIsSession});
 		return it == by_owner.end() ? nullptr : &it->second;
 	}
 
 	/// The store for (owner, clip_serial), creating an empty one if absent.
-	DocParamManager& getOrCreate(const OwnerId& owner, std::optional<uint32_t> clipSerial) {
-		return by_owner[BackedParamKey{owner, clipSerial}];
+	DocParamManager& getOrCreate(const OwnerId& owner, std::optional<uint32_t> clipSerial, bool clipIsSession = false) {
+		return by_owner[BackedParamKey{owner, clipSerial, clipIsSession}];
 	}
 
 	/// Drop the store for (owner, clip_serial).
-	void remove(const OwnerId& owner, std::optional<uint32_t> clipSerial) {
-		by_owner.erase(BackedParamKey{owner, clipSerial});
+	void remove(const OwnerId& owner, std::optional<uint32_t> clipSerial, bool clipIsSession = false) {
+		by_owner.erase(BackedParamKey{owner, clipSerial, clipIsSession});
 	}
 
 	/// Drop EVERY store for `owner` (all clip overrides). Entries for one owner are contiguous in the ordered map

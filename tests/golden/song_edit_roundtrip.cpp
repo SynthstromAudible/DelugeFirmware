@@ -175,7 +175,7 @@ int main(int argc, char** argv) {
 			}
 			instSessionSeen++;
 			deluge::project::ParamAddress addr{deluge::project::OwnerId::instrumentSession(clip->output->sessionId()),
-			                                   set->getParamKind(), 0, clip->sessionId()};
+			                                   set->getParamKind(), 0, clip->sessionId(), /*clip_is_session=*/true};
 			instSessionOk += (song->project.resolveParam(addr) == set->docForParam(0)) ? 1 : 0;
 		};
 		std::array<ClipArray*, 2> clipArrays{&song->project.clips.session_clips,
@@ -232,7 +232,7 @@ int main(int argc, char** argv) {
 								ParamSet* du = nr.paramManager.getUnpatchedParamSet();
 								deluge::project::ParamAddress addr{
 								    deluge::project::OwnerId::drumSession(nr.drum->sessionId()), du->getParamKind(), 0,
-								    clip->sessionId()};
+								    clip->sessionId(), /*clip_is_session=*/true};
 								drumSessionOk += (song->project.resolveParam(addr) == du->docForParam(0)) ? 1 : 0;
 							}
 							if (nr.paramManager.getPatchCableSet()->numPatchCables > 0) {

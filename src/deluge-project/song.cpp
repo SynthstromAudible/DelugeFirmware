@@ -112,7 +112,7 @@ DocAutoParam* Song::resolveParam(const ParamAddress& address) {
 		// Instrument-shared / per-drum params, keyed by (owner, clip) — the persistent form of ParamBackup. Patch
 		// cables (S4b) resolve by cable identity within the manager; the ParamSets resolve by index. nullptr when
 		// the owner/lane isn't tree-resident → engine fallback.
-		DocParamManager* mgr = backed_params.find(address.owner, address.clip_serial);
+		DocParamManager* mgr = backed_params.find(address.owner, address.clip_serial, address.clip_is_session);
 		if (address.kind == deluge::modulation::params::Kind::PATCH_CABLE) {
 			return patchCableInManager(mgr, address.param_id);
 		}

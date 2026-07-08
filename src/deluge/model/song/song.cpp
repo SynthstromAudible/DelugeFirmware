@@ -1855,7 +1855,11 @@ loadOutput:
 					relocate = true;
 				}
 				if (relocate) {
-					deluge::project::DocParamManager& mgr = project.backed_params.getOrCreate(instrOwner, clipKey);
+					// clip_is_session == useSession here: the load path only relocates the both-serial (useSession
+					// false) and both-session (useSession true) cases, so the clip dimension's session-ness equals the
+					// owner's. The mixed case (serialId owner + session clip) is minted at runtime, not at load.
+					deluge::project::DocParamManager& mgr =
+					    project.backed_params.getOrCreate(instrOwner, clipKey, useSession);
 					UnpatchedParamSet* unpatched = thisClip->paramManager.getUnpatchedParamSet();
 					relocateParamStoreToTree(unpatched, mgr.unpatched);
 					if (thisClip->output->type == OutputType::SYNTH) {
@@ -1902,7 +1906,7 @@ loadOutput:
 								drumOwner = deluge::project::OwnerId::drumSession(nr.drum->sessionId());
 							}
 							deluge::project::DocParamManager& dmgr =
-							    project.backed_params.getOrCreate(drumOwner, clipKey);
+							    project.backed_params.getOrCreate(drumOwner, clipKey, useSession);
 							UnpatchedParamSet* du = nr.paramManager.getUnpatchedParamSet();
 							relocateParamStoreToTree(du, dmgr.unpatched);
 							if (PatchedParamSet* dp = nr.paramManager.getPatchedParamSet()) {
