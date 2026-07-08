@@ -15,10 +15,10 @@ several Edits (e.g. `NOTE_EDIT` → add / remove / nudge / …); those land acro
 | `AUTOMATION_DELETE` | `DeleteParamAutomation` | param lane | coda | **landed** |
 | `AUTOMATION_PASTE` | `PasteParamAutomation` | param lane | coda | **landed** |
 | `NOTE_EDIT` | `AddNote` / `RemoveNote` (melodic) | note-row (`NoteRowAddress`) | **M2b** | **landed (melodic add/remove)** — kit rows ADDRESSED (drum-id); other note-row edits pending (M2c) |
-| `NOTE_TAIL_EXTEND` | `ExtendNoteTail` | note-row | M2c | pending |
-| `NOTE_NUDGE` | `NudgeNotes` | note-row | M2c | pending |
-| `NOTE_REPEAT_EDIT` | `RepeatNoteEdit` | note-row | M2c | pending |
-| `NOTES_PASTE` | `PasteNotes` | note-row | M2c | pending |
+| `NOTE_TAIL_EXTEND` | (none) | note-row | — | **dead ActionType** — never created via getNewAction (only in the enum + name table, like `NOTEROW_ROTATE`). Note-tail changes are recorded under note-length paths. No Edit. |
+| `NOTE_NUDGE` | `NudgeNotes` | note-row | M2c | **pending — the hard one.** Multi-pad gesture over view-owned `editPadPresses`; per-pad it calls `nudgeNotesAcrossAllScreens` + `nudgeAutomationHorizontallyAtPos` at BOTH note-row and clip level under ONE shared Action, with goto collision detection and note-row-editor UI (`gridSquareInfo`, `goUpOneLevel`). Design open: per-pad Edit relying on `getNewAction(NOTE_NUDGE, ALLOWED)` coalescing vs. a batch Edit. Merits its own design pass. |
+| `NOTE_REPEAT_EDIT` | `RepeatNoteEdit` | note-row | M2c | **landed** (secret-undo + new-action paths; edit_undo_redo-verified, 9 top-level songs) |
+| `NOTES_PASTE` / `PATTERN_PASTE` | `PasteNotes` | **clip** (multi-row) | **M2d** | deferred to clip-structure — `paste()` is a whole-clip op (lengthen/shorten/clearArea/zoomToMax across all rows), not a single note-row edit |
 | `EUCLIDEAN_NUM_EVENTS_EDIT` | `SetEuclideanEvents` | note-row | M2c | **landed** (partial-undo + rebuild paths; edit_undo_redo-verified, 40 songs) |
 | `NOTEROW_ROTATE` | (via `ShiftNoteRow`) | note-row | M2c | **covered** — `NOTEROW_ROTATE` is a dead ActionType (never created via getNewAction); the rotate gesture funnels through `ShiftNoteRow` (`rotateNoteRowHorizontally` → `NOTEROW_HORIZONTAL_SHIFT`). No separate Edit. |
 | `NOTEROW_LENGTH_EDIT` | `SetNoteRowLength` | note-row | M2c | **landed (new-action branch)** — prevAction/secret-undo branch pending; edit_undo_redo-verified (apply+undo+redo, 9 songs) via the setCurrentClip harness coverage |
