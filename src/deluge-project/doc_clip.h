@@ -25,12 +25,15 @@ namespace deluge::project {
 /// param/automation tier's DocAutoParam). Kept in `ClipStructure`, keyed by the clip's stable `Clip::serialId` (or a
 /// transient sessionId) — never by a `Clip*` or array index.
 ///
-/// SLICE 1 (shadow): owns only `loop_length` — the one clip-structure field with an Edit funnel (`SetClipLength`)
-/// today. It is written alongside the engine `Clip::loopLength` (dual-write) but nothing reads it yet; the engine
-/// field stays authoritative until the read/save/load flip. `section`/`colour_offset`/`launch_style` join this struct
-/// as their own Edits land.
+/// Shadow store: each field is written alongside its engine `Clip` field (dual-write) but nothing reads DocClip yet;
+/// the engine fields stay authoritative until the read/save/load flip. Fields join as their gestures get Edit-funneled:
+/// slice 1 = `loop_length` (`SetClipLength`); slice 2 = `colour_offset` (`SetClipColour`) + `launch_style`
+/// (`SetClipLaunchStyle`). `section` joins when its (scattered) gesture is funneled. `launch_style` stores the
+/// `LaunchStyle` enum's underlying value to keep this model header engine-light.
 struct DocClip {
 	int32_t loop_length{0};
+	int16_t colour_offset{-60}; ///< matches the engine Clip default
+	uint8_t launch_style{0};    ///< LaunchStyle underlying value (0 = DEFAULT)
 };
 
 } // namespace deluge::project

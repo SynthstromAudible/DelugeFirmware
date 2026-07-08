@@ -6,6 +6,9 @@
 #include "gui/ui/root_ui.h"
 #include "hid/display/display.h"
 #include "model/clip/clip.h"
+#include "model/edits/edit.h"
+#include "model/edits/set_clip_launch_style.h"
+#include "model/song/song.h"
 #include <cstddef>
 
 namespace deluge::gui::context_menu::clip_settings {
@@ -42,7 +45,9 @@ bool LaunchStyleMenu::setupAndCheckAvailability() {
 
 void LaunchStyleMenu::selectEncoderAction(int8_t offset) {
 	ContextMenu::selectEncoderAction(offset);
-	clip->launchStyle = static_cast<LaunchStyle>(this->currentOption);
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::SetClipLaunchStyle edit{clip, static_cast<LaunchStyle>(this->currentOption)};
+	deluge::edits::apply(ctx, edit);
 }
 
 } // namespace deluge::gui::context_menu::clip_settings

@@ -40,6 +40,8 @@
 #include "model/edits/remove_kit_row.h"
 #include "model/edits/remove_note.h"
 #include "model/edits/repeat_note_edit.h"
+#include "model/edits/set_clip_colour.h"
+#include "model/edits/set_clip_launch_style.h"
 #include "model/edits/set_clip_length.h"
 #include "model/edits/set_euclidean_events.h"
 #include "model/edits/set_note_row_length.h"
@@ -1018,6 +1020,56 @@ void arrangementTarget(Song* song) {
 	check(inst->length == newLength, "arrangement: redo re-applies");
 }
 
+// Find the first addressable session instrument clip (any output type). Returns nullptr if none.
+InstrumentClip* firstAddressableClip(Song* song) {
+	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips); c++) {
+		Clip* cl = song->project.clips.session_clips[c];
+		if (cl->type == ClipType::INSTRUMENT && cl->output != nullptr && cl->output->type != OutputType::AUDIO
+		    && deluge::edits::clipAddressFor(*cl).has_value()) {
+			return (InstrumentClip*)cl;
+		}
+	}
+	return nullptr;
+}
+
+// M3 owner-1 slice 2: set a clip's launch style via SetClipLaunchStyle (apply-only, non-undoable) + shadow check.
+void launchStyleTarget(Song* song) {
+	InstrumentClip* clip = firstAddressableClip(song);
+	if (clip == nullptr) {
+		printf("# no-addressable-clip-for-launchstyle\n");
+		return;
+	}
+	printf("# target launch-style\n");
+	LaunchStyle before = clip->launchStyle;
+	LaunchStyle target = (before == LaunchStyle::FILL) ? LaunchStyle::ONCE : LaunchStyle::FILL;
+
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::SetClipLaunchStyle edit{clip, target};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "launch-style: apply succeeds");
+	check(clip->launchStyle == target, "launch-style: engine field set");
+	deluge::project::DocClip* doc = song->project.resolveClip(*deluge::edits::clipAddressFor(*clip));
+	check(doc != nullptr && doc->launch_style == static_cast<uint8_t>(target),
+	      "launch-style: shadow DocClip matches engine");
+}
+
+// M3 owner-1 slice 2: nudge a clip's colour via SetClipColour (apply-only, non-undoable) + shadow check.
+void colourTarget(Song* song) {
+	InstrumentClip* clip = firstAddressableClip(song);
+	if (clip == nullptr) {
+		printf("# no-addressable-clip-for-colour\n");
+		return;
+	}
+	printf("# target colour\n");
+	int16_t before = clip->colourOffset;
+
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::SetClipColour edit{clip, /*offset=*/5};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "colour: apply succeeds");
+	check(clip->colourOffset == static_cast<int16_t>(before + 5), "colour: engine field nudged");
+	deluge::project::DocClip* doc = song->project.resolveClip(*deluge::edits::clipAddressFor(*clip));
+	check(doc != nullptr && doc->colour_offset == clip->colourOffset, "colour: shadow DocClip matches engine");
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -1134,6 +1186,8 @@ int main(int argc, char** argv) {
 	kitAddTarget(song);
 	kitRemoveTarget(song);
 	arrangementTarget(song);
+	launchStyleTarget(song);
+	colourTarget(song);
 
 	std::free(xml);
 	return failures ? 3 : 0;

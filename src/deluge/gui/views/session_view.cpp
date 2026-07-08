@@ -60,6 +60,8 @@
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
+#include "model/edits/edit.h"
+#include "model/edits/set_clip_colour.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/melodic_instrument.h"
 #include "model/note/note_row.h"
@@ -1434,7 +1436,9 @@ ActionResult SessionView::verticalEncoderAction(int32_t offset, bool inCardRouti
 			if (!clip)
 				return ActionResult::NOT_DEALT_WITH;
 
-			clip->colourOffset += offset;
+			deluge::edits::Context colourCtx{*currentSong, currentSong->project};
+			deluge::edits::SetClipColour colourEdit{clip, offset};
+			deluge::edits::apply(colourCtx, colourEdit);
 
 			requestRendering(this, 1 << selectedClipYDisplay, 0);
 
