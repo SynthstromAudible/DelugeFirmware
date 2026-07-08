@@ -21,7 +21,7 @@ several Edits (e.g. `NOTE_EDIT` → add / remove / nudge / …); those land acro
 | `NOTES_PASTE` | `PasteNotes` | note-row | M2c | pending |
 | `EUCLIDEAN_NUM_EVENTS_EDIT` | `SetEuclideanEvents` | note-row | M2c | pending |
 | `NOTEROW_ROTATE` | `RotateNoteRow` | note-row | M2c | pending |
-| `NOTEROW_LENGTH_EDIT` | `SetNoteRowLength` | note-row | M2c | **landed (new-action branch)** — prevAction/secret-undo branch pending; not headless-testable (UI-context deps), funnel-verified + hardware-gated |
+| `NOTEROW_LENGTH_EDIT` | `SetNoteRowLength` | note-row | M2c | **landed (new-action branch)** — prevAction/secret-undo branch pending; edit_undo_redo-verified (apply+undo+redo, 9 songs) via the setCurrentClip harness coverage |
 | `NOTEROW_HORIZONTAL_SHIFT` | `ShiftNoteRow` | note-row | M2c | pending |
 | `CLIP_LENGTH_INCREASE` / `CLIP_LENGTH_DECREASE` | `SetClipLength` | clip | M2d | pending |
 | `CLIP_CLEAR` | `ClearClip` | clip | M2d | pending |

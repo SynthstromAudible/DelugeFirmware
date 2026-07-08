@@ -28,6 +28,7 @@
 #include "model/edits/note_address_for.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/remove_note.h"
+#include "model/edits/set_note_row_length.h"
 #include "model/edits/set_param_value.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/iterance/iterance.h"
@@ -247,6 +248,53 @@ void kitNoteTarget(Song* song) {
 	printf("# no-addressable-kit-notes\n");
 }
 
+// M2c: set a melodic note-row's independent length via SetNoteRowLength, undo/redo. ConsequenceNoteRowLength's
+// revert re-resolves the clip via song->getCurrentClip(), so the harness sets the current clip first (the
+// coverage that lets these getCurrentClip-dependent ops be tested headless at all).
+void lengthTarget(Song* song) {
+	InstrumentClip* clip = nullptr;
+	NoteRow* noteRow = nullptr;
+	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->project.clips.session_clips[c];
+		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type == OutputType::KIT
+		    || cl->output->type == OutputType::AUDIO) {
+			continue;
+		}
+		auto* ic = (InstrumentClip*)cl;
+		if (clipIsAddressable(ic) && std::ssize(ic->noteRows) > 0) {
+			clip = ic;
+			noteRow = &ic->noteRows[0];
+		}
+	}
+	if (clip == nullptr) {
+		printf("# no-addressable-melodic-row\n");
+		return;
+	}
+	printf("# target noterow-length\n");
+	song->setCurrentClip(clip); // ConsequenceNoteRowLength::revert resolves the row via getCurrentClip()
+
+	char mem[MODEL_STACK_MAX_SIZE];
+	ModelStackWithNoteRow* ms =
+	    setupModelStackWithTimelineCounter(mem, song, clip)->addNoteRow(clip->getNoteRowId(noteRow, 0), noteRow);
+
+	int32_t oldLen = ms->getLoopLength();
+	int32_t newLen = oldLen * 2; // lengthening is the safe direction
+
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+	deluge::edits::SetNoteRowLength edit{deluge::edits::noteRowAddressFor(*ms), newLen, /*oldPos=*/0,
+	                                     noteRow->hasIndependentPlayPos(), ms};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "length: apply succeeds");
+	check(ms->getLoopLength() == newLen, "length: note-row length changed");
+	actionLogger.revert(BEFORE, false, false);
+	check(ms->getLoopLength() == oldLen, "length: undo restores old length");
+	actionLogger.revert(AFTER, false, false);
+	check(ms->getLoopLength() == newLen, "length: redo re-applies new length");
+
+	song->setCurrentClip(nullptr);
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -348,6 +396,7 @@ int main(int argc, char** argv) {
 
 	noteTarget(song);
 	kitNoteTarget(song);
+	lengthTarget(song);
 
 	std::free(xml);
 	return failures ? 3 : 0;
