@@ -19,7 +19,9 @@
 
 #include "deluge-project/arrangement.h"
 #include "deluge-project/backed_params.h"
+#include "deluge-project/clip_address.h"
 #include "deluge-project/clip_params.h"
+#include "deluge-project/clip_structure.h"
 #include "deluge-project/clips.h"
 #include "deluge-project/global_effects.h"
 #include "deluge-project/groove.h"
@@ -62,6 +64,12 @@ public:
 	/// resolution path. This is the seam that lets param ops resolve by id rather than a threaded ModelStack.
 	DocAutoParam* resolveParam(const ParamAddress& address);
 
+	/// M3 owner-1 (clip structure): resolve a clip's DOM-owned structural record (find; nullptr if not tree-resident),
+	/// or getOrCreate it (the dual-write target). Mirrors resolveParam's CLIP branch. Slice 1 is a shadow store —
+	/// written by the clip Edits, not yet read by anything.
+	DocClip* resolveClip(const ClipAddress& address);
+	DocClip& getOrCreateDocClip(const ClipAddress& address);
+
 	// Document / value tier — value-typed, serializable.
 	Metadata metadata;
 	Groove groove;
@@ -77,12 +85,14 @@ public:
 	ClipParams clip_params;     // per-clip automation stores, keyed by Clip::serialId (id-addressable node storage)
 	BackedParams backed_params; // instrument-shared automation, keyed by (owner, clip) — persistent form of ParamBackup
 	ParamBackup param_backup;
+	ClipStructure clip_structure; // M3 owner-1: per-clip structural records (loop_length…), keyed by Clip::serialId
 
 	// S5-b: transient (never-serialized) automation stores for NOT-YET-SAVED (no-serialId) owners, keyed by a
 	// session id minted at load/creation, so doc() id-resolves EVERY owner and drops its paramCollection fallback.
 	// Golden-neutral (session ids aren't written). Rebuilt per song load, alongside clip_params.
-	ClipParams session_clip_params; // per-clip stores for no-serialId clips (S5-b.1: audio; later MIDI)
-	uint32_t next_session_id_{1};   // 0 reserved for "unassigned"
+	ClipParams session_clip_params;       // per-clip stores for no-serialId clips (S5-b.1: audio; later MIDI)
+	ClipStructure session_clip_structure; // M3 owner-1: structural records for no-serialId clips, keyed by session id
+	uint32_t next_session_id_{1};         // 0 reserved for "unassigned"
 	uint32_t mintSessionId() { return next_session_id_++; }
 };
 

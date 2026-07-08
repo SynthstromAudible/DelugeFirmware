@@ -788,6 +788,19 @@ void clipLengthTarget(Song* song) {
 	deluge::edits::SetClipLength edit{deluge::edits::clipAddressFor(*clip), (uint32_t)newLength, action, clip};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "set-length: apply succeeds");
 	check(clip->loopLength == newLength, "set-length: length set");
+
+	// M3 owner-1 slice 1: the additive DOM shadow store matches the engine field after the dual-write. (The shadow is
+	// intentionally NOT reverted on undo — nothing reads it yet; shadow undo lands with the later read/save/load flip.)
+	std::optional<deluge::project::ClipAddress> clipAddr = deluge::edits::clipAddressFor(*clip);
+	check(clipAddr.has_value(), "set-length: clip is addressable (for the shadow store)");
+	if (clipAddr) {
+		deluge::project::DocClip* docClip = song->project.resolveClip(*clipAddr);
+		check(docClip != nullptr, "set-length: shadow DocClip created by dual-write");
+		if (docClip) {
+			check(docClip->loop_length == newLength, "set-length: shadow DocClip.loop_length matches engine");
+		}
+	}
+
 	actionLogger.revert(BEFORE, false, false);
 	check(clip->loopLength == before, "set-length: undo restores length");
 	actionLogger.revert(AFTER, false, false);
