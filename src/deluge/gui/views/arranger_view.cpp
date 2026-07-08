@@ -55,6 +55,8 @@
 #include "model/consequence/consequence_clip_existence.h"
 #include "model/consequence/consequence_clip_instance_change.h"
 #include "model/drum/drum.h"
+#include "model/edits/edit.h"
+#include "model/edits/edit_clip_instance.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
@@ -1595,7 +1597,10 @@ void ArrangerView::adjustClipInstanceLength(Output* output, int32_t x, int32_t y
 			arrangement.rowEdited(output, clipInstance->pos + lengthTilNewSquareStart,
 			                      clipInstance->pos + clipInstance->length, clipInstance->clip, nullptr);
 		}
-		clipInstance->change(action, output, clipInstance->pos, lengthTilNewSquareStart, clipInstance->clip);
+		deluge::edits::Context editCtx{*currentSong, currentSong->project};
+		deluge::edits::EditClipInstance instEdit{
+		    output, clipInstance, clipInstance->pos, lengthTilNewSquareStart, clipInstance->clip, action};
+		deluge::edits::apply(editCtx, instEdit);
 	}
 
 	// Lengthen
@@ -1623,7 +1628,10 @@ void ArrangerView::adjustClipInstanceLength(Output* output, int32_t x, int32_t y
 
 			Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::ALLOWED);
 
-			clipInstance->change(action, output, clipInstance->pos, newLength, clipInstance->clip);
+			deluge::edits::Context editCtx{*currentSong, currentSong->project};
+			deluge::edits::EditClipInstance instEdit{output,    clipInstance,       clipInstance->pos,
+			                                         newLength, clipInstance->clip, action};
+			deluge::edits::apply(editCtx, instEdit);
 			arrangement.rowEdited(output, clipInstance->pos + oldLength, clipInstance->pos + clipInstance->length,
 			                      nullptr, clipInstance);
 		}
@@ -2126,7 +2134,10 @@ itsInvalid:
 	// If order of elements hasn't changed and Output hasn't either...
 	if (newOutputToDragInto == pressedClipInstanceOutput
 	    && (prevClipInstance == clipInstance || nextClipInstance == clipInstance)) {
-		clipInstance->change(action, newOutputToDragInto, newStartPos, clipInstance->length, clipInstance->clip);
+		deluge::edits::Context editCtx{*currentSong, currentSong->project};
+		deluge::edits::EditClipInstance instEdit{newOutputToDragInto,  clipInstance,       newStartPos,
+		                                         clipInstance->length, clipInstance->clip, action};
+		deluge::edits::apply(editCtx, instEdit);
 	}
 
 	// Or if it has...
@@ -2549,7 +2560,9 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 		}
 		// log action
 		Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::ALLOWED);
-		clipInstance->change(action, output, clipInstance->pos, newLength, newClip);
+		deluge::edits::Context editCtx{*currentSong, currentSong->project};
+		deluge::edits::EditClipInstance instEdit{output, clipInstance, clipInstance->pos, newLength, newClip, action};
+		deluge::edits::apply(editCtx, instEdit);
 		// notify the arrangement that this clip instance will be added
 		arrangement.rowEdited(output, clipInstance->pos, clipInstance->pos + clipInstance->length, nullptr,
 		                      clipInstance);

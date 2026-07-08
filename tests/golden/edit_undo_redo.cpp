@@ -22,6 +22,7 @@
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
+#include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
 #include "model/edits/add_kit_row.h"
@@ -29,6 +30,7 @@
 #include "model/edits/clear_clip.h"
 #include "model/edits/clip_address_for.h"
 #include "model/edits/edit.h"
+#include "model/edits/edit_clip_instance.h"
 #include "model/edits/kit_row_address_for.h"
 #include "model/edits/multiply_clip.h"
 #include "model/edits/note_address_for.h"
@@ -969,6 +971,40 @@ void kitRemoveTarget(Song* song) {
 	song->setCurrentClip(nullptr);
 }
 
+// M2f: change an arrangement clip-instance's length via EditClipInstance, undo/redo (reuses
+// ConsequenceClipInstanceChange). Skips songs with no arrangement clip instances.
+void arrangementTarget(Song* song) {
+	Output* output = nullptr;
+	ClipInstance* inst = nullptr;
+	for (Output* o = song->project.media.first_output; o != nullptr; o = o->next) {
+		if (std::ssize(o->clipInstances) > 0) {
+			output = o;
+			inst = &o->clipInstances[0];
+			break;
+		}
+	}
+	if (output == nullptr) {
+		printf("# no-arrangement-clip-instance\n");
+		return;
+	}
+	printf("# target arrangement\n");
+	int32_t before = inst->length;
+	int32_t newLength = before + 24; // any different length; pos + clip held fixed for an unambiguous revert
+
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+	Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::NOT_ALLOWED);
+	check(action != nullptr, "arrangement: harness opened an Action");
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::EditClipInstance edit{output, inst, inst->pos, newLength, inst->clip, action};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "arrangement: apply succeeds");
+	check(inst->length == newLength, "arrangement: length changed");
+	actionLogger.revert(BEFORE, false, false);
+	check(inst->length == before, "arrangement: undo restores length");
+	actionLogger.revert(AFTER, false, false);
+	check(inst->length == newLength, "arrangement: redo re-applies");
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -1084,6 +1120,7 @@ int main(int argc, char** argv) {
 	pasteTarget(song);
 	kitAddTarget(song);
 	kitRemoveTarget(song);
+	arrangementTarget(song);
 
 	std::free(xml);
 	return failures ? 3 : 0;
