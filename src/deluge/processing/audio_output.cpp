@@ -123,6 +123,11 @@ bool AudioOutput::modeAllowsMonitoring() const {
 		return false;
 	}
 	if (mode == AudioOutputMode::sampler) {
+		// Reachable with a null activeClip via the SPECIFIC_OUTPUT branch, which renders a record-source output
+		// directly and so bypasses the inValidState guard in Song::renderAudio.
+		if (!activeClip) {
+			return false;
+		}
 		auto& activeAudioClip = static_cast<AudioClip&>(*activeClip);
 		return activeAudioClip.isEmpty();
 	}
@@ -260,8 +265,11 @@ renderEnvelope:
 			}
 		}
 	}
+	// Only render the record-source if it has an active clip: Output::renderOutput is documented to be called only
+	// when there's an activeClip, but this branch bypasses the inValidState guard in Song::renderAudio.
 	else if (modeAllowsMonitoring() && modelStack->song->isOutputActiveInArrangement(this)
-	         && inputChannel == AudioInputChannel::SPECIFIC_OUTPUT && (outputRecordingFrom != nullptr)) {
+	         && inputChannel == AudioInputChannel::SPECIFIC_OUTPUT && (outputRecordingFrom != nullptr)
+	         && (outputRecordingFrom->getActiveClip() != nullptr)) {
 		rendered = true;
 		std::byte modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStack* songModelStack = setupModelStackWithSong(modelStackMemory, currentSong);
