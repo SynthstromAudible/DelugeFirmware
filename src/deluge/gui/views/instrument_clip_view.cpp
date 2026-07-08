@@ -775,10 +775,10 @@ doCancelPopup:
 	else if (b == Y_ENC) {
 
 		// SHIFT + Y_ENC toggles the gold-knob MACRO mode (any macro-capable note-view clip: synth, MIDI,
-		// kit). Only when idle - so it never shadows the note-repeat / euclidean gestures that use Y_ENC
-		// while notes are held.
+		// kit - the last only in affect-entire, since kit macros drive kit-global params). Only when idle
+		// - so it never shadows the note-repeat / euclidean gestures that use Y_ENC while notes are held.
 		if (on && Buttons::isShiftButtonPressed() && currentUIMode == UI_MODE_NONE && Macros::isEnabled()
-		    && Macros::macroHost(getCurrentClip()) != nullptr) {
+		    && view.macroKnobModeAvailable(getCurrentClip())) {
 			view.toggleMacroKnobMode();
 			return ActionResult::DEALT_WITH;
 		}
@@ -3912,6 +3912,14 @@ ActionResult InstrumentClipView::handleNoteRowEditorButtonAction(deluge::hid::Bu
 		if (clip->output->type == OutputType::KIT) {
 			clip->affectEntire = !clip->affectEntire;
 			view.setActiveModControllableTimelineCounter(clip);
+			// A kit's gold-knob MACRO mode only applies in affect-entire (its macros drive kit-global
+			// params), so turning affect-entire off drops cleanly back to param control - re-enter with
+			// SHIFT+Y_ENC. Refresh the knob rings / mod LEDs so the switch is immediate.
+			if (!clip->affectEntire && clip->output->macroKnobMode) {
+				clip->output->macroKnobMode = false;
+				view.setKnobIndicatorLevels();
+				view.setModLedStates();
+			}
 		}
 	}
 	// to allow you to toggle playback on / off

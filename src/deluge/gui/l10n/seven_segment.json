@@ -593,6 +593,7 @@
 
         "STRING_FOR_MACRO": "MCRS",
         "STRING_FOR_MACROS": "MCRS",
+        "STRING_FOR_PARAMETERS": "PRMS",
         "STRING_FOR_MACRO_1": "MAC1",
         "STRING_FOR_MACRO_2": "MAC2",
         "STRING_FOR_MACRO_3": "MAC3",

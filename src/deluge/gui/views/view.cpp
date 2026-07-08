@@ -35,6 +35,7 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
@@ -1550,20 +1551,27 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 				}
 				else {
 					clip->output->macroKnobSelected = macro;
-					// The grid becomes this macro's target picker: announce the assign mode. The blinking
-					// macro-button LED shows which macro; the first pad tap replaces this with the per-target
-					// readout. Persistent for the whole hold (cancelled on release below).
-					display->popupText("Macro Assign");
 					setKnobIndicatorLevels();
 					setModLedStates();
-					// HOLD-TO-ASSIGN: while the button is held, the main grid becomes this macro's target
-					// picker - tap a param pad to assign it to the next free slot (released below).
-					instrumentClipView.openMacroTargetPicker(macro);
+					// The hold-to-assign target picker overlays the note grid with param shortcuts, which
+					// only instrumentClipView has. On audio clips (waveform grid) the press just selects the
+					// macro - the blinking macro-button LED shows which one; its targets are assigned in
+					// automation view instead.
+					if (getRootUI() == &instrumentClipView) {
+						// announce the assign mode; the first pad tap replaces this with the per-target
+						// readout. Persistent for the whole hold (cancelled on release below).
+						display->popupText("Macro Assign");
+						// HOLD-TO-ASSIGN: while the button is held, the main grid becomes this macro's target
+						// picker - tap a param pad to assign it to the next free slot (released below).
+						instrumentClipView.openMacroTargetPicker(macro);
+					}
 				}
 			}
 			else {
-				instrumentClipView.closeMacroTargetPicker(); // release: main grid back to notes
-				display->cancelPopup();                      // drop the persistent peek readout
+				if (getRootUI() == &instrumentClipView) {
+					instrumentClipView.closeMacroTargetPicker(); // release: main grid back to notes
+					display->cancelPopup();                      // drop the persistent peek readout
+				}
 				setKnobIndicatorLevels(); // restore the macro's sourceKnobPos rings (From/To editing displaced them)
 			}
 		}
@@ -1804,16 +1812,30 @@ int32_t View::getModKnobMode() {
 	return modKnobMode;
 }
 
+bool View::macroKnobModeAvailable(Clip* clip) {
+	Output* host = Macros::macroHost(clip);
+	if (host == nullptr) {
+		return false;
+	}
+	// Kit macros drive the kit-global (affect-entire) params, so the mode only applies in affect-entire.
+	if (host->type == OutputType::KIT) {
+		return clip->type == ClipType::INSTRUMENT && ((InstrumentClip*)clip)->affectEntire;
+	}
+	return true;
+}
+
 bool View::inMacroKnobMode() {
-	if (getRootUI() != &instrumentClipView || !Macros::isEnabled()) {
+	if (!Macros::isEnabled()) {
+		return false;
+	}
+	// Only the two clip-minder grid views drive macros from the gold knobs (audio clips render a
+	// waveform, not a note grid, but the mod-button/knob overlay works the same on both).
+	RootUI* root = getRootUI();
+	if (root != &instrumentClipView && root != &audioClipView) {
 		return false;
 	}
 	Clip* clip = getCurrentClip();
-	Output* output = clip ? clip->output : nullptr;
-	return output != nullptr
-	       && (output->type == OutputType::SYNTH || output->type == OutputType::MIDI_OUT
-	           || output->type == OutputType::KIT)
-	       && output->macroKnobMode;
+	return clip != nullptr && clip->output != nullptr && clip->output->macroKnobMode && macroKnobModeAvailable(clip);
 }
 
 void View::toggleMacroKnobMode() {

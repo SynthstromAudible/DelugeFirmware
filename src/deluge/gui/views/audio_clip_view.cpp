@@ -43,6 +43,7 @@
 #include "model/sample/sample_playback_guide.h"
 #include "model/sample/sample_recorder.h"
 #include "model/song/song.h"
+#include "modulation/macros/macros.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/mode/session.h"
@@ -323,6 +324,15 @@ void AudioClipView::needsRenderingDependingOnSubMode() {
 // put that here. Otherwise call the parent:
 ActionResult AudioClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
+
+	// SHIFT + Y_ENC toggles gold-knob MACRO mode on a macro-capable audio clip (idle only). Audio clips
+	// drive their macros from the gold knobs like note-view clips do; targets are assigned in automation
+	// view (there's no note grid here for the note-view hold-to-assign picker).
+	if (b == Y_ENC && on && Buttons::isShiftButtonPressed() && currentUIMode == UI_MODE_NONE && Macros::isEnabled()
+	    && view.macroKnobModeAvailable(getCurrentClip())) {
+		view.toggleMacroKnobMode();
+		return ActionResult::DEALT_WITH;
+	}
 
 	ActionResult result;
 
