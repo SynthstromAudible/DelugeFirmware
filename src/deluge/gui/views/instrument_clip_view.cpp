@@ -67,6 +67,7 @@
 #include "model/edits/note_address_for.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/remove_note.h"
+#include "model/edits/set_note_row_length.h"
 #include "model/edits/set_param_value.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
@@ -7783,8 +7784,10 @@ possiblyDoResumePlaybackOnNoteRow:
 
 	else {
 editLengthWithNewAction:
-		Action* action = actionLogger.getNewAction(ActionType::NOTEROW_LENGTH_EDIT, ActionAddition::NOT_ALLOWED);
-		if (!action) {
+		deluge::edits::Context noteCtx{*currentSong, currentSong->project};
+		deluge::edits::SetNoteRowLength lengthEdit{deluge::edits::noteRowAddressFor(*modelStack), newLength, oldPos,
+		                                           hadIndependentPlayPosBefore, modelStack};
+		if (deluge::edits::apply(noteCtx, lengthEdit) != Error::NONE) {
 ramError:
 			display->displayError(Error::INSUFFICIENT_RAM);
 			if (didSecretUndo) {
@@ -7795,18 +7798,6 @@ ramError:
 			}
 			return;
 		}
-
-		void* consMemory = deluge::memory::alloc_sdram(sizeof(ConsequenceNoteRowLength));
-		if (!consMemory) {
-			goto ramError;
-		}
-
-		ConsequenceNoteRowLength* newConsequence =
-		    new (consMemory) ConsequenceNoteRowLength(modelStack->noteRowId, newLength);
-		action->addConsequence(newConsequence);
-
-		// The ConsequenceNoteRowLength does the actual work for us for this function
-		newConsequence->performChange(modelStack, action, oldPos, hadIndependentPlayPosBefore);
 	}
 
 	bool didScroll;
