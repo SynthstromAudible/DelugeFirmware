@@ -23,6 +23,9 @@
 #include "memory/memory_allocator_interface.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
+#include "model/edits/edit.h"
+#include "model/edits/param_address_for.h"
+#include "model/edits/set_param_value.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -800,8 +803,11 @@ void AutomationEditorLayoutModControllable::automationModEncoderActionForUnselec
 			// use default interpolation settings
 			initInterpolation();
 
-			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, view.modPos,
-			                                                          view.modLength);
+			deluge::edits::Context editCtx{*currentSong, currentSong->project};
+			deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), newValue,
+			                                  static_cast<int32_t>(view.modPos), static_cast<int32_t>(view.modLength),
+			                                  modelStackWithParam};
+			deluge::edits::apply(editCtx, edit);
 
 			if (!getOnArrangerView()) {
 				modelStackWithParam->getTimelineCounter()->instrumentBeenEdited();
@@ -1014,16 +1020,20 @@ void AutomationEditorLayoutModControllable::setAutomationParameterValue(ModelSta
 	int32_t squareNodeLeftStart = squareStart - kParamNodeWidth;
 	if (squareNodeLeftStart >= 0) {
 		int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareNodeLeftStart, modelStack);
-		modelStack->autoParam->setValuePossiblyForRegion(currentValue, modelStack, squareNodeLeftStart,
-		                                                 kParamNodeWidth);
+		deluge::edits::Context leftEditCtx{*currentSong, currentSong->project};
+		deluge::edits::SetParamValue leftEdit{deluge::edits::addressFor(*modelStack), currentValue, squareNodeLeftStart,
+		                                      kParamNodeWidth, modelStack};
+		deluge::edits::apply(leftEditCtx, leftEdit);
 	}
 
 	// create a node to the right with the current interpolation status
 	int32_t squareNodeRightStart = squareStart + kParamNodeWidth;
 	if (squareNodeRightStart < effectiveLength) {
 		int32_t currentValue = modelStack->autoParam->getValuePossiblyAtPos(squareNodeRightStart, modelStack);
-		modelStack->autoParam->setValuePossiblyForRegion(currentValue, modelStack, squareNodeRightStart,
-		                                                 kParamNodeWidth);
+		deluge::edits::Context rightEditCtx{*currentSong, currentSong->project};
+		deluge::edits::SetParamValue rightEdit{deluge::edits::addressFor(*modelStack), currentValue,
+		                                       squareNodeRightStart, kParamNodeWidth, modelStack};
+		deluge::edits::apply(rightEditCtx, rightEdit);
 	}
 
 	// reset interpolation to false for the single pad we're changing (so that the nodes around it don't
@@ -1033,8 +1043,13 @@ void AutomationEditorLayoutModControllable::setAutomationParameterValue(ModelSta
 	// called twice because there was a weird bug where for some reason the first call wasn't taking
 	// effect on one pad (and whatever pad it was changed every time)...super weird...calling twice
 	// fixed it...
-	modelStack->autoParam->setValuePossiblyForRegion(newValue, modelStack, squareStart, squareWidth);
-	modelStack->autoParam->setValuePossiblyForRegion(newValue, modelStack, squareStart, squareWidth);
+	deluge::edits::Context padEditCtx{*currentSong, currentSong->project};
+	deluge::edits::SetParamValue padEdit1{deluge::edits::addressFor(*modelStack), newValue, squareStart, squareWidth,
+	                                      modelStack};
+	deluge::edits::apply(padEditCtx, padEdit1);
+	deluge::edits::SetParamValue padEdit2{deluge::edits::addressFor(*modelStack), newValue, squareStart, squareWidth,
+	                                      modelStack};
+	deluge::edits::apply(padEditCtx, padEdit2);
 
 	if (!getOnArrangerView()) {
 		modelStack->getTimelineCounter()->instrumentBeenEdited();
@@ -1341,10 +1356,13 @@ void AutomationEditorLayoutModControllable::handleAutomationMultiPadPress(
 			// set value for pads in between
 			int32_t newValue =
 			    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
-			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, squareStart,
-			                                                          squareWidth);
-			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, squareStart,
-			                                                          squareWidth);
+			deluge::edits::Context fillEditCtx{*currentSong, currentSong->project};
+			deluge::edits::SetParamValue fillEdit1{deluge::edits::addressFor(*modelStackWithParam), newValue,
+			                                       squareStart, squareWidth, modelStackWithParam};
+			deluge::edits::apply(fillEditCtx, fillEdit1);
+			deluge::edits::SetParamValue fillEdit2{deluge::edits::addressFor(*modelStackWithParam), newValue,
+			                                       squareStart, squareWidth, modelStackWithParam};
+			deluge::edits::apply(fillEditCtx, fillEdit2);
 
 			if (!getOnArrangerView()) {
 				modelStackWithParam->getTimelineCounter()->instrumentBeenEdited();
