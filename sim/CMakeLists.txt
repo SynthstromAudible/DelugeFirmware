@@ -514,6 +514,24 @@ if(RT_LIB)
     target_link_libraries(param_record_diff PRIVATE ${RT_LIB})
 endif()
 
+# M1d Edit undo/redo hook (docs/dev/project_model_migration_plan.md): drives SetParamValue/apply over a loaded
+# song and self-checks addressFor resolution + real ActionLogger undo/redo. No baseline (self-checking).
+add_executable(edit_undo_redo
+    ${REPO_ROOT}/src/bsp/host/host_bsp.c
+    ${REPO_ROOT}/src/bsp/host/host_platform.c
+    ${REPO_ROOT}/src/bsp/host/host_audio.c
+    ${REPO_ROOT}/src/bsp/host/host_link.c
+    ${REPO_ROOT}/src/bsp/host/host_pcm.c
+    ${REPO_ROOT}/src/bsp/host/host_midi.c
+    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
+    ${REPO_ROOT}/tests/golden/edit_undo_redo.cpp
+)
+target_include_directories(edit_undo_redo PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
+target_link_libraries(edit_undo_redo PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
+if(RT_LIB)
+    target_link_libraries(edit_undo_redo PRIVATE ${RT_LIB})
+endif()
+
 # Param/automation DOM projection round-trip (docs/dev/param_automation_dom.md, Phase 1).
 # Exercises DocAutoParam <-> live AutoParam against the real engine container + host allocator; runs on
 # x86 (build-sim) and ARM (build-sim-arm via qemu) for the dual-arch coverage the design doc calls for.
@@ -640,3 +658,11 @@ add_test(
             --binary $<TARGET_FILE:param_record_diff>
 )
 set_tests_properties(param_record_diff PROPERTIES SKIP_RETURN_CODE 77)
+
+# M1d: self-checking Edit undo/redo over the BYO corpus (exit 77 -> SKIPPED without DELUGE_SONG_CORPUS).
+add_test(
+    NAME edit_undo_redo
+    COMMAND ${Python_EXECUTABLE} ${REPO_ROOT}/tests/golden/edit_undo_redo_run.py
+            --binary $<TARGET_FILE:edit_undo_redo>
+)
+set_tests_properties(edit_undo_redo PROPERTIES SKIP_RETURN_CODE 77)
