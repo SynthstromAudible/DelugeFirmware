@@ -312,6 +312,14 @@ skipThat: {}
 		}
 	}
 
+	// RETAINED FOR RECORDED INPUT (M1c S6). Every UI-gesture producer of this log is now a
+	// deluge::edits::SetParamValue Edit whose idempotent pre-log records the consequence; this call then
+	// dedupes to a no-op for them (Action::containsConsequenceParamChange). The ONE remaining live
+	// producer is drum-MPE recorded input (drum.cpp's recording guard is commented out → note_row.cpp's
+	// recordPolyphonicExpressionEvent live-play branch reaches here when stopped). Deleting this line
+	// awaits M4's model/runtime split, which moves that live-sounding write off the undo path. See
+	// docs/superpowers/specs/2026-07-07-m1c-param-edit-sweep-design.md (Decisions 3 & 5).
+	//
 	// If still unautomated (or not currently playing), record value change
 	if (nodesRef.empty() || !isPlaying) {
 		if (value != currentValue) {

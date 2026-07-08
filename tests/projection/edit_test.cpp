@@ -11,6 +11,7 @@
 
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
+#include "model/consequence/consequence.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/set_param_value.h"
 #include "model/model_stack.h"
@@ -110,6 +111,17 @@ void testSetParamValuePilot(deluge::edits::Context& ctx) {
 	check(action->nextAction == nullptr, "pilot: still exactly one Action");
 	check(action->firstConsequence == firstCons, "pilot: before-state not re-snapshotted");
 	check(ms->autoParam->getCurrentValue() == newValue + 100, "pilot: second value applied");
+	// M1c S6 invariant: the Edit's pre-log recorded exactly one ConsequenceParamChange, and the
+	// interior log at auto_param.cpp did NOT add a second (containsConsequenceParamChange dedupe).
+	// This is why the interior log is redundant for every Edit path — only the recorded-input MPE
+	// producer still relies on it (see the M4 dependency at the interior log site).
+	int32_t paramConsequences = 0;
+	for (Consequence* c = action->firstConsequence; c != nullptr; c = c->next) {
+		if (c->type == Consequence::PARAM_CHANGE) {
+			paramConsequences++;
+		}
+	}
+	check(paramConsequences == 1, "pilot/S6: interior log did not double-record (dedupe holds)");
 
 	// 4. Undo restores the ORIGINAL value (the single snapshot is the pre-first-turn state). This
 	//    pilot is behaviour-preserving: undo runs the exact same ConsequenceParamChange::revert as
