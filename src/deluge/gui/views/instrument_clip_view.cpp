@@ -62,8 +62,11 @@
 #include "model/consequence/consequence_note_row_length.h"
 #include "model/drum/drum.h"
 #include "model/drum/midi_drum.h"
+#include "model/edits/add_note.h"
 #include "model/edits/edit.h"
+#include "model/edits/note_address_for.h"
 #include "model/edits/param_address_for.h"
+#include "model/edits/remove_note.h"
 #include "model/edits/set_param_value.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
@@ -4452,7 +4455,10 @@ void InstrumentClipView::scrollVertical_grabNotesPressed(ModelStackWithTimelineC
 					ModelStackWithNoteRow* modelStackWithNoteRow =
 					    clip->getNoteRowOnScreen(editPadPresses[i].yDisplay, modelStack);
 					NoteRow* thisNoteRow = modelStackWithNoteRow->getNoteRow();
-					thisNoteRow->deleteNoteByPos(modelStackWithNoteRow, pos, action);
+					deluge::edits::Context noteCtx{*currentSong, currentSong->project};
+					deluge::edits::RemoveNote remEdit{deluge::edits::noteRowAddressFor(*modelStackWithNoteRow), pos,
+					                                  modelStackWithNoteRow};
+					deluge::edits::apply(noteCtx, remEdit);
 
 					ParamCollectionSummary* mpeParamsSummary = thisNoteRow->paramManager.getExpressionParamSetSummary();
 					ExpressionParamSet* mpeParams = (ExpressionParamSet*)mpeParamsSummary->paramCollection;
@@ -4616,10 +4622,17 @@ cancelPress:
 
 			int32_t pos = editPadPresses[i].intendedPos;
 
-			bool success =
-			    noteRow->attemptNoteAdd(pos, editPadPresses[i].intendedLength, editPadPresses[i].intendedVelocity,
-			                            editPadPresses[i].intendedProbability, editPadPresses[i].intendedIterance,
-			                            editPadPresses[i].intendedFill, modelStackWithNoteRow, action);
+			deluge::edits::Context noteCtx{*currentSong, currentSong->project};
+			deluge::edits::AddNote addEdit{deluge::edits::noteRowAddressFor(*modelStackWithNoteRow),
+			                               pos,
+			                               editPadPresses[i].intendedLength,
+			                               editPadPresses[i].intendedVelocity,
+			                               editPadPresses[i].intendedProbability,
+			                               editPadPresses[i].intendedIterance,
+			                               editPadPresses[i].intendedFill,
+			                               modelStackWithNoteRow};
+			deluge::edits::apply(noteCtx, addEdit);
+			bool success = addEdit.added();
 
 			editPadPresses[i].deleteOnDepress = false;
 			editPadPresses[i].deleteOnScroll = success;

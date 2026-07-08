@@ -21,12 +21,17 @@ public:
 
 	Error apply(Context& ctx) override;
 
+	/// Whether the note was actually added (false when the engine refused — e.g. an overlapping note). Valid
+	/// after apply(); mirrors NoteRow::attemptNoteAdd's return so call sites keep their existing success flow.
+	[[nodiscard]] bool added() const { return added_; }
+
 private:
 	std::optional<project::NoteRowAddress> address_;
 	int32_t pos_, length_, velocity_, probability_;
 	Iterance iterance_;
 	int32_t fill_;
 	ModelStackWithNoteRow* engineStack_; ///< Funnel-phase borrow.
+	bool added_ = false;
 };
 
 } // namespace deluge::edits

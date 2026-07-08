@@ -9,8 +9,9 @@ namespace deluge::edits {
 Error AddNote::apply(Context& /*ctx*/) {
 	NoteRow* noteRow = engineStack_->getNoteRow();
 	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
-	// attemptNoteAdd records the note-array undo Consequence into `action` itself.
-	noteRow->attemptNoteAdd(pos_, length_, velocity_, probability_, iterance_, fill_, engineStack_, action);
+	// attemptNoteAdd records the note-array undo Consequence into `action` itself; its nonzero return means added.
+	added_ =
+	    noteRow->attemptNoteAdd(pos_, length_, velocity_, probability_, iterance_, fill_, engineStack_, action) != 0;
 	return Error::NONE;
 }
 
