@@ -116,6 +116,14 @@ deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 			return resolved;
 		}
 	}
+	// S5-b: the owner isn't tree-resident yet — a RUNTIME-created clip/instrument/drum (made after load, so it has
+	// neither a persisted serialId nor a session id). Mint session ids + relocate its store into the session tree so
+	// it id-resolves like a saved owner. After this, every real owner resolves through the project tree; the
+	// paramCollection fallback below is dead for them, surviving only as a non-bricking net for genuinely
+	// unclassifiable owners (e.g. non-Sound drums) until hardware sign-off lets it be deleted outright.
+	if (deluge::project::DocAutoParam* relocated = deluge::edits::relocateAndResolve(*this)) {
+		return relocated;
+	}
 	return paramCollection->docParamForId(paramId);
 }
 

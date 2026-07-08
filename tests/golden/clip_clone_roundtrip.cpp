@@ -22,6 +22,7 @@
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/drum/drum.h"
+#include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note.h"
 #include "model/note/note_row.h"
@@ -217,6 +218,52 @@ int main(int argc, char** argv) {
 				// rows — those bind on restore via NoteRow::setDrum, not at clone). Non-vacuous coverage comes
 				// from kits that DO have live drum rows (e.g. Kitchen Clave: 17).
 				std::fprintf(stderr, "kit clone: sound-drum rows=%d\n", drumRows);
+
+				// S5-b (runtime relocation): the clone is a RUNTIME-created clip with no serialId/sessionId, so its
+				// clip-level FX still live in an engine-owned INLINE store — doc() must lazily mint a session id and
+				// relocate that store into the session tree (relocateAndResolve), making the owner id-addressable
+				// instead of hitting the paramCollection fallback. Because the clone SHARES the source Kit's output
+				// (which kept its loaded serialId), this is the MIXED case: a serialId instrument carrying a session
+				// clip (clip_is_session=true) — the only coverage for it. Distinguish relocation from the fallback by
+				// asserting the store became TREE-resident (backed_params entry), not merely bound.
+				{
+					// Force the MIXED case deterministically: give the clone's (source-shared) output a serialId so it
+					// reads as a SAVED instrument carrying a runtime (session) clip. Without this the corpus kits have
+					// no output serialId and only the both-session runtime path fires (already proven). addressFor
+					// prefers the serialId, so this exercises OwnerId::instrument + clip_is_session=true.
+					if (!kClone->output->serialId().has_value()) {
+						kClone->output->setSerialId(0x5EED0001);
+					}
+					ParamSet* fx = kClone->paramManager.getUnpatchedParamSet();
+					char sbuf[MODEL_STACK_MAX_SIZE];
+					ModelStackWithThreeMainThings* sm3 = setupModelStackWithThreeMainThingsButNoNoteRow(
+					    sbuf, song, static_cast<Kit*>(kClone->output)->toModControllable(), kClone,
+					    &kClone->paramManager);
+					ModelStackWithAutoParam* msap = sm3->getUnpatchedAutoParamFromId(0);
+					check(kClone->sessionId() == 0, "kit clone: no session id before first doc()");
+					if (msap != nullptr && msap->autoParam != nullptr) {
+						deluge::project::DocAutoParam* resolved = msap->doc(); // triggers lazy relocation
+						uint32_t sid = kClone->sessionId();
+						check(sid != 0, "kit clone: doc() minted a session id for the runtime clip");
+						std::optional<uint32_t> kitSerial = kClone->output->serialId();
+						deluge::project::OwnerId owner =
+						    kitSerial.has_value()
+						        ? deluge::project::OwnerId::instrument(*kitSerial)
+						        : deluge::project::OwnerId::instrumentSession(kClone->output->sessionId());
+						deluge::project::DocParamManager* mgr =
+						    song->project.backed_params.find(owner, sid, /*clip_is_session=*/true);
+						check(mgr != nullptr && mgr->unpatched.has_value(),
+						      "kit clone: doc() relocated clip-level FX into the session tree (not the fallback)");
+						if (mgr != nullptr && mgr->unpatched.has_value()) {
+							check(fx->domStore() == &mgr->unpatched.value(),
+							      "kit clone: engine FX set rebound at the tree slot");
+							check(resolved == &mgr->unpatched->params[0],
+							      "kit clone: doc() id-resolves the relocated store");
+						}
+						std::fprintf(stderr, "kit clone: runtime relocation OK (sid=%u, %s case)\n", sid,
+						             kitSerial.has_value() ? "mixed serial-owner+session-clip" : "both-session");
+					}
+				}
 			}
 			if (failures != 0) {
 				std::fprintf(stderr, "clip_clone (kit): %d failure(s)\n", failures);
