@@ -131,6 +131,27 @@ void testSetParamValuePilot(deluge::edits::Context& ctx) {
 	check(actionLogger.firstAction[BEFORE] == nullptr, "pilot: value-unchanged apply opens no Action");
 }
 
+// M1c S2: the extended ctor (pos/length region args + the mayDelete funnel field). The song-less
+// standalone stack has no timeline counter, so setValuePossiblyForRegion routes to the scalar branch
+// regardless; this pins that the 6-arg ctor with mayDelete=false compiles, applies, and mutates.
+void testSetParamValueRegionAndFlag(deluge::edits::Context& ctx) {
+	// UNPATCHED_TEMPO is the one param shouldRecordUnautomatedParamChange skips, so apply() opens no
+	// Action here — deliberately: this case asserts only ctor + value plumbing, and opening an Action
+	// would make getNewAction free a prior test's redo-queue Action, pumping AudioEngine::routine
+	// (uninitialised in this bare harness — see testSetParamValuePilot).
+	constexpr int32_t kParam = deluge::modulation::params::UNPATCHED_TEMPO;
+
+	ParamManagerForTimeline pm;
+	pm.setupUnpatched();
+	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* ms = makeStack(buf, pm, kParam);
+
+	int32_t target = ms->autoParam->getCurrentValue() + 250;
+	deluge::edits::SetParamValue edit{deluge::edits::addressFor(*ms), target, 0, 0, ms, /*mayDelete=*/false};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "region/flag: apply succeeds");
+	check(ms->autoParam->getCurrentValue() == target, "region/flag: value applied");
+}
+
 } // namespace
 
 // Song construction; the Context members are stored, and the pilot dereferences currentSong via the
@@ -159,6 +180,7 @@ int main() {
 	deluge::edits::Context ctx{*song, song->project};
 	testDispatcher(ctx);
 	testSetParamValuePilot(ctx);
+	testSetParamValueRegionAndFlag(ctx);
 
 	if (failures == 0) {
 		std::fprintf(stdout, "edit_test: OK\n");

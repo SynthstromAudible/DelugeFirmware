@@ -36,6 +36,9 @@
 #include "memory/heaps.h"
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/edit.h"
+#include "model/edits/param_address_for.h"
+#include "model/edits/set_param_value.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
 #include "modulation/knob.h"
@@ -952,8 +955,10 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForClip(MIDICable& cabl
 				    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
 				// Set the new Parameter Value for the MIDI Learned Parameter
-				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
-				                                                          modLength);
+				deluge::edits::Context editCtx{*currentSong, currentSong->project};
+				deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), newValue, modPos,
+				                                  modLength, modelStackWithParam};
+				deluge::edits::apply(editCtx, edit);
 
 				// if you're in automation view and editing the same parameter that was just updated
 				// by a learned midi knob, then re-render the pads on the automation editor grid
@@ -1042,8 +1047,10 @@ bool ModControllableAudio::offerReceivedCCToLearnedParamsForSong(
 				    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
 				// Set the new Parameter Value for the MIDI Learned Parameter
-				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
-				                                                          modLength);
+				deluge::edits::Context editCtx{*currentSong, currentSong->project};
+				deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), newValue, modPos,
+				                                  modLength, modelStackWithParam};
+				deluge::edits::apply(editCtx, edit);
 
 				// check if you're currently editing the same learned param in automation view or
 				// performance view if so, you will need to refresh the automation editor grid or the
@@ -1112,8 +1119,10 @@ bool ModControllableAudio::offerReceivedPitchBendToLearnedParams(MIDICable& cabl
 
 				int32_t newValue = (value14 << 18) - 2147483648;
 
-				modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos,
-				                                                          modLength);
+				deluge::edits::Context editCtx{*currentSong, currentSong->project};
+				deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), newValue, modPos,
+				                                  modLength, modelStackWithParam};
+				deluge::edits::apply(editCtx, edit);
 				return true;
 			}
 		}

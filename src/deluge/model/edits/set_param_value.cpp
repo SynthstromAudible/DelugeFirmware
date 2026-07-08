@@ -37,7 +37,8 @@ Error SetParamValue::apply(Context& /*ctx*/) {
 	}
 
 	// Funnel phase: delegate to the exact engine mutation the call site used, behaviour-identical.
-	engineStack_->autoParam->setValuePossiblyForRegion(newValue_, engineStack_, pos_, length_);
+	engineStack_->autoParam->setValuePossiblyForRegion(newValue_, engineStack_, pos_, length_,
+	                                                   mayDeleteNodesInLinearRun_);
 	return Error::NONE;
 }
 

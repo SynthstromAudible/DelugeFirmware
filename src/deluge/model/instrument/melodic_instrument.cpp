@@ -25,6 +25,9 @@
 #include "io/midi/midi_follow.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/edit.h"
+#include "model/edits/param_address_for.h"
+#include "model/edits/set_param_value.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "modulation/arpeggiator.h"
@@ -658,9 +661,15 @@ void MelodicInstrument::processParamFromInputMIDIChannel(int32_t cc, int32_t new
 	    getParamToControlFromInputMIDIChannel(cc, modelStackWithThreeMainThings);
 
 	if (modelStackWithParam->autoParam) {
-		modelStackWithParam->autoParam->setValuePossiblyForRegion(
-		    newValue, modelStackWithParam, modPos, modLength,
-		    false); // Don't delete nodes in linear run, cos this might need to be outputted as MIDI again
+		// mayDelete=false: this value may need to be re-output as MIDI, so don't prune nodes in a linear run.
+		deluge::edits::Context editCtx{*currentSong, currentSong->project};
+		deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam),
+		                                  newValue,
+		                                  modPos,
+		                                  modLength,
+		                                  modelStackWithParam,
+		                                  /*mayDelete=*/false};
+		deluge::edits::apply(editCtx, edit);
 	}
 }
 

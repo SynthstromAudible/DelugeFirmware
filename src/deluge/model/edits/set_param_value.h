@@ -15,8 +15,9 @@ namespace deluge::edits {
 class SetParamValue final : public Edit {
 public:
 	SetParamValue(std::optional<project::ParamAddress> address, int32_t newValue, int32_t pos, int32_t length,
-	              ModelStackWithAutoParam* engineStack)
-	    : address_(address), newValue_(newValue), pos_(pos), length_(length), engineStack_(engineStack) {}
+	              ModelStackWithAutoParam* engineStack, bool mayDeleteNodesInLinearRun = true)
+	    : address_(address), newValue_(newValue), pos_(pos), length_(length),
+	      mayDeleteNodesInLinearRun_(mayDeleteNodesInLinearRun), engineStack_(engineStack) {}
 
 	Error apply(Context& ctx) override;
 
@@ -27,6 +28,10 @@ private:
 	int32_t newValue_;
 	int32_t pos_;
 	int32_t length_;
+	/// Engine-only node-pruning hint (not domain intent): forwarded verbatim to
+	/// setValuePossiblyForRegion. MIDI/MPE sites pass false so a value that may be re-emitted as MIDI
+	/// isn't pruned. Funnel-phase field — removed at the M3/M4 authority flip, like engineStack_.
+	bool mayDeleteNodesInLinearRun_;
 	/// Funnel-phase borrow (migration plan, module topology): the engine-side resolution the
 	/// mutation still delegates to. Valid only for the duration of apply(); never stored beyond
 	/// it. Retired when the engine consumes model events (M4) instead of being poked in-line.

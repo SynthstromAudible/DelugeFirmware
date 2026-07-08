@@ -37,6 +37,9 @@
 #include "mem_functions.h"
 #include "model/action/action_logger.h"
 #include "model/clip/instrument_clip.h"
+#include "model/edits/edit.h"
+#include "model/edits/param_address_for.h"
+#include "model/edits/set_param_value.h"
 #include "model/song/song.h"
 #include "modulation/params/param.h"
 #include "playback/mode/arrangement.h"
@@ -318,8 +321,8 @@ void PerformanceView::graphicsRoutine() {
 
 	bool reallyNoTickSquare =
 	    (!playbackHandler.isEitherClockActive() || currentUIMode == UI_MODE_EXPLODE_ANIMATION
-	     || currentUIMode == UI_MODE_IMPLODE_ANIMATION || currentSong->persistentView.lastClipInstanceEnteredStartPos != -1
-	     || !session.launchEventAtSwungTickCount);
+	     || currentUIMode == UI_MODE_IMPLODE_ANIMATION
+	     || currentSong->persistentView.lastClipInstanceEnteredStartPos != -1 || !session.launchEventAtSwungTickCount);
 
 	int32_t sixteenthNotesRemaining = 0;
 
@@ -774,7 +777,8 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 
 					Action* action = actionLogger.getNewAction(ActionType::ARRANGEMENT_RECORD);
 
-					arrangerView.xScrollWhenPlaybackStarted = currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT];
+					arrangerView.xScrollWhenPlaybackStarted =
+					    currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT];
 					if (action) {
 						action->posToClearArrangementFrom = arrangerView.xScrollWhenPlaybackStarted;
 					}
@@ -1425,8 +1429,11 @@ bool PerformanceView::setParameterValue(ModelStackWithThreeMainThings* modelStac
 			int32_t newParameterValue =
 			    modelStackWithParam->paramCollection->knobPosToParamValue(knobPos, modelStackWithParam);
 
-			modelStackWithParam->autoParam->setValuePossiblyForRegion(newParameterValue, modelStackWithParam,
-			                                                          view.modPos, view.modLength);
+			deluge::edits::Context editCtx{*currentSong, currentSong->project};
+			deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), newParameterValue,
+			                                  static_cast<int32_t>(view.modPos), static_cast<int32_t>(view.modLength),
+			                                  modelStackWithParam};
+			deluge::edits::apply(editCtx, edit);
 
 			if (!defaultEditingMode && params::isParamStutter(paramKind, paramID)
 			    && (fxPress[xDisplay].previousKnobPosition != knobPos)) {

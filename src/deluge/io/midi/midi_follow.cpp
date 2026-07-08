@@ -32,6 +32,9 @@
 #include "model/clip/instrument_clip.h"
 #include "model/clip/instrument_clip_minder.h"
 #include "model/drum/drum.h"
+#include "model/edits/edit.h"
+#include "model/edits/param_address_for.h"
+#include "model/edits/set_param_value.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
 #include "model/note/note_row.h"
@@ -1072,7 +1075,10 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 			    modelStackWithParam->paramCollection->knobPosToParamValue(newKnobPos, modelStackWithParam);
 
 			// Set the new Parameter Value for the MIDI Learned Parameter
-			modelStackWithParam->autoParam->setValuePossiblyForRegion(newValue, modelStackWithParam, modPos, modLength);
+			deluge::edits::Context editCtx{*currentSong, currentSong->project};
+			deluge::edits::SetParamValue edit{deluge::edits::addressFor(*modelStackWithParam), newValue, modPos,
+			                                  modLength, modelStackWithParam};
+			deluge::edits::apply(editCtx, edit);
 
 			// check if you're currently editing the same learned param in automation view or
 			// performance view if so, you will need to refresh the automation editor grid or the
