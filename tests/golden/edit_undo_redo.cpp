@@ -38,6 +38,7 @@
 #include "model/edits/set_note_row_length.h"
 #include "model/edits/set_param_value.h"
 #include "model/edits/set_swing.h"
+#include "model/edits/set_tempo.h"
 #include "model/edits/shift_clip.h"
 #include "model/edits/shift_note_row.h"
 #include "model/global_effectable/global_effectable.h"
@@ -785,6 +786,25 @@ void clipLengthTarget(Song* song) {
 	song->setCurrentClip(nullptr);
 }
 
+// M2d: set the song tempo via SetTempo (the grab-from-clip structural path), undo/redo. Song-global, always runs.
+void tempoTarget(Song* song) {
+	printf("# target tempo\n");
+	uint64_t before = song->project.transport.samples_per_timer_tick_big;
+	// Doubling the samples-per-tick halves the tempo — a guaranteed-different value.
+	double target = (double)(before >> 32) * 2.0 + 1.0;
+
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::SetTempo edit{target};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "tempo: apply succeeds");
+	check(song->project.transport.samples_per_timer_tick_big != before, "tempo: value changed");
+	actionLogger.revert(BEFORE, false, false);
+	check(song->project.transport.samples_per_timer_tick_big == before, "tempo: undo restores");
+	actionLogger.revert(AFTER, false, false);
+	check(song->project.transport.samples_per_timer_tick_big != before, "tempo: redo re-applies");
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -896,6 +916,7 @@ int main(int argc, char** argv) {
 	clipMultiplyTarget(song);
 	swingTarget(song);
 	clipLengthTarget(song);
+	tempoTarget(song);
 
 	std::free(xml);
 	return failures ? 3 : 0;

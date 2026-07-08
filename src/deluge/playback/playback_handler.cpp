@@ -56,6 +56,7 @@
 #include "model/consequence/consequence_tempo_change.h"
 #include "model/edits/edit.h"
 #include "model/edits/set_swing.h"
+#include "model/edits/set_tempo.h"
 #include "model/instrument/kit.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/model_stack.h"
@@ -2618,28 +2619,14 @@ void PlaybackHandler::grabTempoFromClip(Clip* clip) {
 	}
 
 	uint64_t loopLengthSamples = ((AudioClip*)clip)->sampleHolder.getLengthInSamplesAtSystemSampleRate(true);
-	Action* action = actionLogger.getNewAction(ActionType::TEMPO_CHANGE);
-
-	// setTempoFromAudioClipLength(loopLengthSamples, action);
 
 	double timePerTick = (double)loopLengthSamples / clip->loopLength;
 
-	uint64_t timePerBigBefore = currentSong->project.transport.samples_per_timer_tick_big;
-
-	currentSong->setTempoFromNumSamples(timePerTick, false);
-
-	// Record that change, ourselves. We sent false above because that mechanism of recording it would do all this
-	// other stuff
-	if (action) {
-
-		void* consMemory = deluge::memory::alloc_sdram(sizeof(ConsequenceTempoChange));
-
-		if (consMemory) {
-			ConsequenceTempoChange* newConsequence = new (consMemory)
-			    ConsequenceTempoChange(timePerBigBefore, currentSong->project.transport.samples_per_timer_tick_big);
-			action->addConsequence(newConsequence);
-		}
-	}
+	// Reify: SetTempo opens the TEMPO_CHANGE Action, applies the tempo (setTempoFromNumSamples with logging off), and
+	// records the ConsequenceTempoChange itself — verbatim from what this site did inline.
+	deluge::edits::Context tempoCtx{*currentSong, currentSong->project};
+	deluge::edits::SetTempo tempoEdit{timePerTick};
+	deluge::edits::apply(tempoCtx, tempoEdit);
 
 	commandDisplayTempo();
 }
