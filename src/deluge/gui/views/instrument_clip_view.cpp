@@ -67,6 +67,7 @@
 #include "model/edits/note_address_for.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/remove_note.h"
+#include "model/edits/repeat_note_edit.h"
 #include "model/edits/set_euclidean_events.h"
 #include "model/edits/set_note_row_length.h"
 #include "model/edits/set_param_value.h"
@@ -6763,25 +6764,17 @@ void InstrumentClipView::editNoteRepeat(int32_t offset) {
 	else {
 		editPadPresses[i].isBlurredSquare = true; // It's (probably) blurred now - better remember that.
 
-		// See if we can do a "secret UNDO".
-		Action* lastAction = actionLogger.firstAction[BEFORE];
-		if (offset && lastAction && lastAction->type == ActionType::NOTE_REPEAT_EDIT && lastAction->openForAdditions
-		    && lastAction->offset == -offset) {
-			actionLogger.undoJustOneConsequencePerNoteRow(
-			    modelStack->toWithSong()); // Only ok because we're not going to use the
-			                               // ModelStackWithTimelineCounter or with any more stuff again here.
-		}
-
-		else {
-			Action* action = actionLogger.getNewAction(ActionType::NOTE_REPEAT_EDIT, ActionAddition::ALLOWED);
-			if (action) {
-				action->offset = offset;
-			}
-
-			modelStackWithNoteRow->getNoteRow()->editNoteRepeatAcrossAllScreens(
-			    squareStart, squareWidth, modelStackWithNoteRow, action, currentClip->getWrapEditLevel(), newNumNotes);
-			D_PRINTLN("did actual note repeat edit");
-		}
+		// Reify the mutation: RepeatNoteEdit reproduces the secret-undo and new-action paths (offset is non-zero
+		// here, so the original's redundant `offset &&` guard is dropped).
+		deluge::edits::Context noteCtx{*currentSong, currentSong->project};
+		deluge::edits::RepeatNoteEdit repeatEdit{deluge::edits::noteRowAddressFor(*modelStackWithNoteRow),
+		                                         offset,
+		                                         squareStart,
+		                                         squareWidth,
+		                                         newNumNotes,
+		                                         currentClip->getWrapEditLevel(),
+		                                         modelStackWithNoteRow};
+		deluge::edits::apply(noteCtx, repeatEdit);
 
 		// use current UI because this might be called from automation view note editor
 		uiNeedsRendering(getCurrentUI(), 0xFFFFFFFF, 0);

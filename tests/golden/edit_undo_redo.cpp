@@ -28,6 +28,7 @@
 #include "model/edits/note_address_for.h"
 #include "model/edits/param_address_for.h"
 #include "model/edits/remove_note.h"
+#include "model/edits/repeat_note_edit.h"
 #include "model/edits/set_euclidean_events.h"
 #include "model/edits/set_note_row_length.h"
 #include "model/edits/set_param_value.h"
@@ -423,6 +424,81 @@ void euclideanTarget(Song* song) {
 	song->setCurrentClip(nullptr);
 }
 
+// M2c: split one note in a square into two repeats via RepeatNoteEdit, undo/redo. We synthesise a single-screen
+// square (wrapEditLevel == effectiveLength) around a note that has room after it, so the repeat adds exactly one
+// note (no cross-screen fan-out, no position collisions).
+void repeatTarget(Song* song) {
+	InstrumentClip* clip = nullptr;
+	NoteRow* noteRow = nullptr;
+	int32_t rowIndex = -1;
+	int32_t editPos = 0;
+	int32_t squareWidth = 0;
+	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->project.clips.session_clips[c];
+		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type == OutputType::KIT
+		    || cl->output->type == OutputType::AUDIO) {
+			continue;
+		}
+		auto* ic = (InstrumentClip*)cl;
+		if (!clipIsAddressable(ic)) {
+			continue;
+		}
+		for (int32_t r = 0; r < std::ssize(ic->noteRows) && clip == nullptr; r++) {
+			NoteRow& nr = ic->noteRows[r];
+			if (nr.notes.empty()) {
+				continue;
+			}
+			int32_t p0 = nr.notes[0].pos;
+			int32_t nextPos = (std::ssize(nr.notes) > 1) ? nr.notes[1].pos : nr.loopLengthIfIndependent;
+			// loopLengthIfIndependent is 0 for a shared-length row; fall back to a generous span in that case.
+			if (nextPos <= p0) {
+				nextPos = p0 + 32;
+			}
+			int32_t gap = nextPos - p0;
+			if (gap >= 4) { // room to place a 2nd note strictly inside [p0, p0 + gap/2)
+				clip = ic;
+				noteRow = &nr;
+				rowIndex = r;
+				editPos = p0;
+				squareWidth = gap / 2;
+			}
+		}
+	}
+	if (clip == nullptr) {
+		printf("# no-addressable-melodic-notes-for-repeat\n");
+		return;
+	}
+	printf("# target noterow-repeat\n");
+	song->setCurrentClip(clip); // secret-undo / note-array revert resolve the clip via getCurrentClip()
+
+	char mem[MODEL_STACK_MAX_SIZE];
+	ModelStackWithNoteRow* ms =
+	    setupModelStackWithTimelineCounter(mem, song, clip)->addNoteRow(clip->getNoteRowId(noteRow, rowIndex), noteRow);
+
+	int32_t effectiveLength = ms->getLoopLength();
+	uint32_t wrapEditLevel = effectiveLength; // one screen: numScreens == 1, no cross-screen fan-out
+	int32_t origTotal = std::ssize(noteRow->notes);
+
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::RepeatNoteEdit edit{deluge::edits::noteRowAddressFor(*ms),
+	                                   /*offset=*/1,
+	                                   editPos,
+	                                   squareWidth,
+	                                   /*newNumNotes=*/2,
+	                                   wrapEditLevel,
+	                                   ms};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "repeat: apply succeeds");
+	check(std::ssize(noteRow->notes) == origTotal + 1, "repeat: one repeat note added");
+	actionLogger.revert(BEFORE, false, false);
+	check(std::ssize(noteRow->notes) == origTotal, "repeat: undo restores the original note count");
+	actionLogger.revert(AFTER, false, false);
+	check(std::ssize(noteRow->notes) == origTotal + 1, "repeat: redo re-adds the repeat");
+
+	song->setCurrentClip(nullptr);
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -527,6 +603,7 @@ int main(int argc, char** argv) {
 	lengthTarget(song);
 	shiftTarget(song);
 	euclideanTarget(song);
+	repeatTarget(song);
 
 	std::free(xml);
 	return failures ? 3 : 0;
