@@ -14,7 +14,7 @@ several Edits (e.g. `NOTE_EDIT` → add / remove / nudge / …); those land acro
 | `PARAM_UNAUTOMATED_VALUE_CHANGE` | `SetParamValue` | param lane (`ParamAddress`) | M1b/M1c | **landed** |
 | `AUTOMATION_DELETE` | `DeleteParamAutomation` | param lane | coda | **landed** |
 | `AUTOMATION_PASTE` | `PasteParamAutomation` | param lane | coda | **landed** |
-| `NOTE_EDIT` | `AddNote` / `RemoveNote` (melodic) | note-row (`NoteRowAddress`) | **M2b** | **landed (melodic add/remove)** — kit + other note edits pending (M2c) |
+| `NOTE_EDIT` | `AddNote` / `RemoveNote` (melodic) | note-row (`NoteRowAddress`) | **M2b** | **landed (melodic add/remove)** — kit rows ADDRESSED (drum-id); other note-row edits pending (M2c) |
 | `NOTE_TAIL_EXTEND` | `ExtendNoteTail` | note-row | M2c | pending |
 | `NOTE_NUDGE` | `NudgeNotes` | note-row | M2c | pending |
 | `NOTE_REPEAT_EDIT` | `RepeatNoteEdit` | note-row | M2c | pending |

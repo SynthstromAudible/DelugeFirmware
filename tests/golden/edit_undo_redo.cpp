@@ -22,6 +22,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
 #include "model/clip/instrument_clip.h"
+#include "model/drum/drum.h"
 #include "model/edits/add_note.h"
 #include "model/edits/edit.h"
 #include "model/edits/note_address_for.h"
@@ -154,46 +155,15 @@ bool noteAtPos(NoteRow* noteRow, int32_t pos) {
 	return i < std::ssize(noteRow->notes) && noteRow->notes[i].pos == pos;
 }
 
-// M2b: find the first MELODIC InstrumentClip note-row that HAS a note, then drive RemoveNote+undo/redo on
-// that real note and AddNote+undo/redo re-inserting it into the (now clear) slot with its own length — robust
-// against attemptNoteAdd's overlap rules (no guessing a free pos).
-void noteTarget(Song* song) {
-	InstrumentClip* clip = nullptr;
-	NoteRow* noteRow = nullptr;
-	int32_t rowIndex = -1;
-	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
-		Clip* cl = song->project.clips.session_clips[c];
-		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type == OutputType::KIT
-		    || cl->output->type == OutputType::AUDIO) {
-			continue;
-		}
-		auto* ic = (InstrumentClip*)cl;
-		// Needs a durable clip id for NoteRowAddress. S5-b only mints session ids for clips with param
-		// collections, so a note-only clip may be unaddressed — skip those (a NOTE-owner id is future work).
-		if (!ic->serialId().has_value() && ic->sessionId() == 0) {
-			continue;
-		}
-		for (int32_t r = 0; r < std::ssize(ic->noteRows); r++) {
-			if (!ic->noteRows[r].notes.empty()) {
-				clip = ic;
-				noteRow = &ic->noteRows[r];
-				rowIndex = r;
-				break;
-			}
-		}
-	}
-	if (clip == nullptr) {
-		printf("# no-addressable-melodic-notes\n");
-		return;
-	}
-	printf("# target note-add-remove\n");
-
+// Drive RemoveNote+undo/redo on a real note and AddNote+undo/redo re-inserting it into the (now clear) slot
+// with its own length — robust against attemptNoteAdd's overlap rules (no guessing a free pos). Shared by the
+// melodic (M2b) and kit (M2c) targets.
+void driveNoteEdits(Song* song, InstrumentClip* clip, NoteRow* noteRow, int32_t rowIndex, const char* label) {
 	char mem[MODEL_STACK_MAX_SIZE];
 	int32_t noteRowId = clip->getNoteRowId(noteRow, rowIndex);
 	ModelStackWithNoteRow* ms = setupModelStackWithTimelineCounter(mem, song, clip)->addNoteRow(noteRowId, noteRow);
 	check(deluge::edits::noteRowAddressFor(*ms).has_value(), "note: noteRowAddressFor resolves");
 
-	// Capture a real note's data before touching it.
 	Note& seed = noteRow->notes[0];
 	int32_t pos0 = seed.pos, len0 = seed.getLength(), vel0 = seed.getVelocity(), prob0 = seed.getProbability();
 	Iterance iter0 = seed.getIterance();
@@ -222,6 +192,59 @@ void noteTarget(Song* song) {
 	check(!noteAtPos(noteRow, pos0), "note-add: undo removes the note");
 	actionLogger.revert(AFTER, false, false);
 	check(noteAtPos(noteRow, pos0), "note-add: redo restores the note");
+	(void)label;
+}
+
+// True if this clip is note-addressable (has a durable clip id — see the S5-b note-only-clip gap).
+bool clipIsAddressable(InstrumentClip* ic) {
+	return ic->serialId().has_value() || ic->sessionId() != 0;
+}
+
+// M2b: first MELODIC (synth/MIDI) InstrumentClip note-row with a note.
+void noteTarget(Song* song) {
+	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips); c++) {
+		Clip* cl = song->project.clips.session_clips[c];
+		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type == OutputType::KIT
+		    || cl->output->type == OutputType::AUDIO) {
+			continue;
+		}
+		auto* ic = (InstrumentClip*)cl;
+		if (!clipIsAddressable(ic)) {
+			continue;
+		}
+		for (int32_t r = 0; r < std::ssize(ic->noteRows); r++) {
+			if (!ic->noteRows[r].notes.empty()) {
+				printf("# target note-add-remove\n");
+				driveNoteEdits(song, ic, &ic->noteRows[r], r, "melodic");
+				return;
+			}
+		}
+	}
+	printf("# no-addressable-melodic-notes\n");
+}
+
+// M2c: first KIT InstrumentClip SOUND-drum note-row with a note (row keyed by drum id).
+void kitNoteTarget(Song* song) {
+	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips); c++) {
+		Clip* cl = song->project.clips.session_clips[c];
+		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type != OutputType::KIT) {
+			continue;
+		}
+		auto* ic = (InstrumentClip*)cl;
+		if (!clipIsAddressable(ic)) {
+			continue;
+		}
+		for (int32_t r = 0; r < std::ssize(ic->noteRows); r++) {
+			NoteRow& nr = ic->noteRows[r];
+			if (!nr.notes.empty() && nr.drum != nullptr && nr.drum->type == DrumType::SOUND
+			    && (nr.drum->serialId().has_value() || nr.drum->sessionId() != 0)) {
+				printf("# target kit-note-add-remove\n");
+				driveNoteEdits(song, ic, &nr, r, "kit");
+				return;
+			}
+		}
+	}
+	printf("# no-addressable-kit-notes\n");
 }
 
 } // namespace
@@ -324,6 +347,7 @@ int main(int argc, char** argv) {
 	}
 
 	noteTarget(song);
+	kitNoteTarget(song);
 
 	std::free(xml);
 	return failures ? 3 : 0;
