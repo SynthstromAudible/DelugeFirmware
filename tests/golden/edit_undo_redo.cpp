@@ -18,6 +18,7 @@
 #include "hid/display/display.h"
 #include "hid/display/seven_segment.h"
 #include "memory/general_memory_allocator.h"
+#include "memory/heaps.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
@@ -31,6 +32,7 @@
 #include "model/edits/note_address_for.h"
 #include "model/edits/nudge_note.h"
 #include "model/edits/param_address_for.h"
+#include "model/edits/paste_note_row.h"
 #include "model/edits/remove_note.h"
 #include "model/edits/repeat_note_edit.h"
 #include "model/edits/set_clip_length.h"
@@ -44,6 +46,7 @@
 #include "model/global_effectable/global_effectable.h"
 #include "model/iterance/iterance.h"
 #include "model/model_stack.h"
+#include "model/note/copied_note_row.h"
 #include "model/note/note.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
@@ -805,6 +808,78 @@ void tempoTarget(Song* song) {
 	check(song->project.transport.samples_per_timer_tick_big != before, "tempo: redo re-applies");
 }
 
+// M2d: paste one synthetic copied note into an empty target row via PasteNoteRow, undo/redo. paste() records into the
+// shared Action; the copy buffer is view state, so we build a minimal CopiedNoteRow here.
+void pasteTarget(Song* song) {
+	InstrumentClip* clip = nullptr;
+	NoteRow* noteRow = nullptr;
+	int32_t rowIndex = -1;
+	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->project.clips.session_clips[c];
+		if (cl->type != ClipType::INSTRUMENT || cl->output == nullptr || cl->output->type == OutputType::KIT
+		    || cl->output->type == OutputType::AUDIO) {
+			continue;
+		}
+		if (!deluge::edits::clipAddressFor(*cl).has_value()) {
+			continue;
+		}
+		auto* ic = (InstrumentClip*)cl;
+		for (int32_t r = 0; r < std::ssize(ic->noteRows); r++) {
+			if (ic->noteRows[r].notes.empty()) { // empty target so attemptNoteAdd has free space
+				clip = ic;
+				noteRow = &ic->noteRows[r];
+				rowIndex = r;
+				break;
+			}
+		}
+	}
+	if (clip == nullptr) {
+		printf("# no-empty-addressable-row-for-paste\n");
+		return;
+	}
+	// The pasted pos = xScroll + round(0 * 1) = xScroll; it must land inside the row for a note to appear.
+	int32_t xScroll = song->persistentView.xScroll[0];
+	if (xScroll < 0 || xScroll >= clip->loopLength) {
+		printf("# paste-xscroll-out-of-range\n");
+		return;
+	}
+	printf("# target paste\n");
+	song->setCurrentClip(clip);
+
+	char mem[MODEL_STACK_MAX_SIZE];
+	ModelStackWithNoteRow* ms =
+	    setupModelStackWithTimelineCounter(mem, song, clip)->addNoteRow(clip->getNoteRowId(noteRow, rowIndex), noteRow);
+
+	// Minimal copy buffer: one note at pos 0, length 1. notes[] is alloc_sdram'd so ~CopiedNoteRow can free it.
+	CopiedNoteRow copied;
+	copied.numNotes = 1;
+	copied.notes = (Note*)deluge::memory::alloc_sdram(sizeof(Note));
+	new (copied.notes) Note();
+	copied.notes[0].pos = 0;
+	copied.notes[0].setLength(1);
+	copied.notes[0].setVelocity(64);
+	copied.notes[0].setProbability(kNumProbabilityValues); // full probability
+	copied.yNote = noteRow->y;
+	copied.yDisplay = 0;
+
+	int32_t before = std::ssize(noteRow->notes);
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+	Action* action = actionLogger.getNewAction(ActionType::NOTES_PASTE, ActionAddition::NOT_ALLOWED);
+	check(action != nullptr, "paste: harness opened an Action");
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::PasteNoteRow edit{deluge::edits::noteRowAddressFor(*ms), &copied, /*scaleFactor=*/1.0f,
+	                                 /*screenEndPos=*/clip->loopLength,     action,  ms};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "paste: apply succeeds");
+	check(std::ssize(noteRow->notes) == before + 1, "paste: one note pasted");
+	actionLogger.revert(BEFORE, false, false);
+	check(std::ssize(noteRow->notes) == before, "paste: undo removes the pasted note");
+	actionLogger.revert(AFTER, false, false);
+	check(std::ssize(noteRow->notes) == before + 1, "paste: redo re-pastes");
+
+	song->setCurrentClip(nullptr);
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -917,6 +992,7 @@ int main(int argc, char** argv) {
 	swingTarget(song);
 	clipLengthTarget(song);
 	tempoTarget(song);
+	pasteTarget(song);
 
 	std::free(xml);
 	return failures ? 3 : 0;

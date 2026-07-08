@@ -69,6 +69,7 @@
 #include "model/edits/note_address_for.h"
 #include "model/edits/nudge_note.h"
 #include "model/edits/param_address_for.h"
+#include "model/edits/paste_note_row.h"
 #include "model/edits/remove_note.h"
 #include "model/edits/repeat_note_edit.h"
 #include "model/edits/set_clip_length.h"
@@ -1459,8 +1460,14 @@ ramError:
 				                       getCurrentInstrumentClip()->loopLength); // No cross-screen
 			}
 
-			bool success = thisNoteRow->paste(modelStackWithNoteRow, thisCopiedNoteRow, scaleFactor, endPos, action);
-			if (!success) {
+			deluge::edits::Context pasteCtx{*currentSong, currentSong->project};
+			deluge::edits::PasteNoteRow pasteEdit{deluge::edits::noteRowAddressFor(*modelStackWithNoteRow),
+			                                      thisCopiedNoteRow,
+			                                      scaleFactor,
+			                                      endPos,
+			                                      action,
+			                                      modelStackWithNoteRow};
+			if (deluge::edits::apply(pasteCtx, pasteEdit) != Error::NONE) {
 				goto ramError;
 			}
 		}
@@ -1492,8 +1499,14 @@ ramError:
 				goto ramError;
 			}
 
-			bool success = thisNoteRow->paste(modelStackWithNoteRow, thisCopiedNoteRow, scaleFactor, endPos, action);
-			if (!success) {
+			deluge::edits::Context pasteCtx{*currentSong, currentSong->project};
+			deluge::edits::PasteNoteRow pasteEdit{deluge::edits::noteRowAddressFor(*modelStackWithNoteRow),
+			                                      thisCopiedNoteRow,
+			                                      scaleFactor,
+			                                      endPos,
+			                                      action,
+			                                      modelStackWithNoteRow};
+			if (deluge::edits::apply(pasteCtx, pasteEdit) != Error::NONE) {
 				goto ramError;
 			}
 		}
