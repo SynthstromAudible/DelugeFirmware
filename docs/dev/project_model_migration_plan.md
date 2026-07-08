@@ -119,14 +119,25 @@ Structural creation/deletion are Edits too, not just value tweaks.
 `yScrollArranger`, zoom, mode fields, …) moves to a frontend-owned side-record keyed by the
 Action, leaving the core transaction layer model-only.
 
-**First slices**
+**Phase ladder** (owner-aligned — each phase funnels one owner-group's structural writes, so
+that owner's M3 flip can start as soon as its writes are funneled; see the running checklist
+`docs/dev/edit_catalog.md`):
 
-- **M2a — catalog.** Inventory the `ActionType`s and the mutation surface behind each into
-  a checkable Edit catalog (a table in this doc's companion or a header comment block):
-  Edit name → addressed target → engine sites it subsumes.
-- **M2b — pilot structural Edit: note add/remove.** The highest-traffic structural
-  mutation; exercises id-addressing a note inside a NoteRow inside a clip.
-- **M2c — Action view-state shed.** Mechanical, independently committable.
+- **M2a — Edit catalog.** The 28 `ActionType`s → Edit → addressed target → engine sites →
+  status (`edit_catalog.md`). Defines M2-done; drives every phase below.
+- **M2b — note add/remove pilot (melodic).** `NoteRowAddress` + `AddNote`/`RemoveNote`, the
+  primary pad-tap sites — cracks structural id-addressing (a note inside a NoteRow inside a
+  clip). Kit rows use a drum-id row-key, added in M2c.
+- **M2c — notes complete.** Kit note-rows + the remaining note/note-row `ActionType`s
+  (tail-extend, nudge, repeat, notes-paste, rotate, length, h-shift, euclidean). → M3 owner 2.
+- **M2d — clip-structure Edits.** create/delete, length, loop, section, colour, launch. → owner 1.
+- **M2e — kit/drum structure Edits.** row membership, per-drum descriptors. → owner 3.
+- **M2f — sample/audio-clip + arrangement Edits.** file refs + start/end/pitch; clip-instance
+  and arrangement-time edits. → owner 4.
+- **M2g — sound/instrument structure Edits.** instrument swap; largest, guided by
+  `docs/dev/synth_state_decoupling.md`. → owner 5.
+- **M2h — Action view-state shed.** Move `xScroll`/zoom/mode view-state to a frontend
+  side-record keyed by the Action. Mechanical, **independent track** (any time).
 
 **Exit criteria:** every persistent-state mutation in the codebase goes through an Edit;
 legacy scattered setters retired, or made private to Edit implementations so stragglers are
