@@ -15,9 +15,13 @@
 #include "model/consequence/consequence.h"
 #include "model/edits/delete_param_automation.h"
 #include "model/edits/param_address_for.h"
+#include "model/edits/paste_param_automation.h"
 #include "model/edits/set_param_value.h"
 #include "model/model_stack.h"
+#include "model/note/note_row.h"
+#include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_manager.h"
+#include "modulation/params/param_node.h"
 #include "modulation/params/param_set.h"
 #include <cstring>
 
@@ -192,6 +196,47 @@ void testDeleteParamAutomation(deluge::edits::Context& ctx) {
 	check(a != nullptr && a->firstConsequence != nullptr, "delete: undo Consequence recorded (stolen nodes)");
 }
 
+// M1c coda: PasteParamAutomation funnels the automation-paste site. Seed a clipboard, paste via the Edit,
+// assert nodes written and an AUTOMATION_PASTE Action opened.
+void testPasteParamAutomation(deluge::edits::Context& ctx) {
+	constexpr int32_t kParam = 6;
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+
+	ParamManagerForTimeline pm;
+	pm.setupUnpatched();
+	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* ms = makeStack(buf, pm, kParam);
+	// paste needs getLoopLength(); a no-timeline stack gets it from the noteRow's independent loop length.
+	// song stays null (makeStack memset) so addressFor short-circuits to nullopt -> collection store.
+	NoteRow nr;
+	nr.loopLengthIfIndependent = 128;
+	ms->setNoteRow(&nr);
+	// paste's automated-now path calls paramManager->notifyParamModifiedInSomeWay -> expectEvent.
+	ms->paramManager = &pm;
+
+	// Clipboard: two nodes on their own timeline; the first MUST be at pos 0.
+	ParamNode copiedNodes[2];
+	copiedNodes[0].pos = 0;
+	copiedNodes[0].value = 500000000;
+	copiedNodes[0].interpolated = false;
+	copiedNodes[1].pos = 64;
+	copiedNodes[1].value = -500000000;
+	copiedNodes[1].interpolated = true;
+	CopiedParamAutomation copied;
+	copied.width = 128;
+	copied.nodes = copiedNodes;
+	copied.numNodes = 2;
+
+	deluge::edits::PasteParamAutomation edit{deluge::edits::addressFor(*ms), 0, 128, 1.0f, &copied,
+	                                         /*isPatchCable=*/false,         ms};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "paste: apply succeeds");
+	check(!ms->doc()->nodes.empty(), "paste: nodes written");
+
+	Action* a = actionLogger.firstAction[BEFORE];
+	check(a != nullptr && a->type == ActionType::AUTOMATION_PASTE, "paste: AUTOMATION_PASTE Action opened");
+}
+
 } // namespace
 
 // Song construction; the Context members are stored, and the pilot dereferences currentSong via the
@@ -222,6 +267,7 @@ int main() {
 	testSetParamValuePilot(ctx);
 	testSetParamValueRegionAndFlag(ctx);
 	testDeleteParamAutomation(ctx);
+	testPasteParamAutomation(ctx);
 
 	if (failures == 0) {
 		std::fprintf(stdout, "edit_test: OK\n");

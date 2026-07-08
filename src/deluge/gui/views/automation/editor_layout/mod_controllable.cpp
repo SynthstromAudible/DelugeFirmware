@@ -25,6 +25,7 @@
 #include "model/clip/clip.h"
 #include "model/edits/edit.h"
 #include "model/edits/param_address_for.h"
+#include "model/edits/paste_param_automation.h"
 #include "model/edits/set_param_value.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
@@ -881,20 +882,21 @@ void AutomationEditorLayoutModControllable::pasteAutomation(ModelStackWithAutoPa
 	float scaleFactor = (float)pastedAutomationWidth / getCopiedParamAutomation()->width;
 
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
-		Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_PASTE);
-
-		if (action) {
-			action->recordParamChangeIfNotAlreadySnapshotted(modelStackWithParam, false);
-		}
-
 		bool isPatchCable = (modelStackWithParam->paramCollection
 		                     == modelStackWithParam->paramManager->getPatchCableSetAllowJibberish());
 		// Ok this is cursed, but will work fine so long as
 		// the possibly invalid memory here doesn't accidentally
 		// equal modelStack->paramCollection.
 
-		modelStackWithParam->autoParam->paste(startPos, endPos, scaleFactor, modelStackWithParam,
-		                                      getCopiedParamAutomation(), isPatchCable);
+		deluge::edits::Context editCtx{*currentSong, currentSong->project};
+		deluge::edits::PasteParamAutomation edit{deluge::edits::addressFor(*modelStackWithParam),
+		                                         startPos,
+		                                         endPos,
+		                                         scaleFactor,
+		                                         getCopiedParamAutomation(),
+		                                         isPatchCable,
+		                                         modelStackWithParam};
+		deluge::edits::apply(editCtx, edit);
 
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_PASTED));
 
