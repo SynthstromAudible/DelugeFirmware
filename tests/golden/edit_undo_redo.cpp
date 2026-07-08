@@ -43,6 +43,7 @@
 #include "model/edits/set_clip_colour.h"
 #include "model/edits/set_clip_launch_style.h"
 #include "model/edits/set_clip_length.h"
+#include "model/edits/set_clip_section.h"
 #include "model/edits/set_euclidean_events.h"
 #include "model/edits/set_note_row_length.h"
 #include "model/edits/set_param_value.h"
@@ -1070,6 +1071,24 @@ void colourTarget(Song* song) {
 	check(doc != nullptr && doc->colour_offset == clip->colourOffset, "colour: shadow DocClip matches engine");
 }
 
+// M3 owner-1 slice 2b: set a clip's section via SetClipSection (apply-only, non-undoable) + shadow check.
+void sectionTarget(Song* song) {
+	InstrumentClip* clip = firstAddressableClip(song);
+	if (clip == nullptr) {
+		printf("# no-addressable-clip-for-section\n");
+		return;
+	}
+	printf("# target section\n");
+	uint8_t target = (clip->section == 2) ? 3 : 2; // any two distinct valid section indices
+
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::SetClipSection edit{clip, target};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "section: apply succeeds");
+	check(clip->section == target, "section: engine field set");
+	deluge::project::DocClip* doc = song->project.resolveClip(*deluge::edits::clipAddressFor(*clip));
+	check(doc != nullptr && doc->section == target, "section: shadow DocClip matches engine");
+}
+
 } // namespace
 
 int main(int argc, char** argv) {
@@ -1188,6 +1207,7 @@ int main(int argc, char** argv) {
 	arrangementTarget(song);
 	launchStyleTarget(song);
 	colourTarget(song);
+	sectionTarget(song);
 
 	std::free(xml);
 	return failures ? 3 : 0;

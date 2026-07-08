@@ -62,6 +62,7 @@
 #include "model/clip/instrument_clip_minder.h"
 #include "model/edits/edit.h"
 #include "model/edits/set_clip_colour.h"
+#include "model/edits/set_clip_section.h"
 #include "model/instrument/instrument.h"
 #include "model/instrument/melodic_instrument.h"
 #include "model/note/note_row.h"
@@ -1171,7 +1172,10 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 					oldSection = (oldSection + 1) % kMaxNumSections;
 				} while (!sectionUsed[oldSection]);
 
-				clip->section = oldSection;
+				// Reify the persistent section write (the view keeps the next-available-section computation above).
+				deluge::edits::Context sectionCtx{*currentSong, currentSong->project};
+				deluge::edits::SetClipSection sectionEdit{clip, oldSection};
+				deluge::edits::apply(sectionCtx, sectionEdit);
 
 				// use root UI in case this is called from performanceView
 				requestRendering(getRootUI(), 0, 1 << y);

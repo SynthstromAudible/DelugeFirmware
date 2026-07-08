@@ -34,6 +34,7 @@ struct DocClip {
 	int32_t loop_length{0};
 	int16_t colour_offset{-60}; ///< matches the engine Clip default
 	uint8_t launch_style{0};    ///< LaunchStyle underlying value (0 = DEFAULT)
+	uint8_t section{0};
 };
 
 } // namespace deluge::project
