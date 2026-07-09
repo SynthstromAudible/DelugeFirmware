@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <string>
 #include <string_view>
+#include <type_traits>
 #include <utility>
 #include <variant>
 #include <vector>
@@ -64,6 +65,16 @@ private:
 	explicit Value(std::vector<Value> a) : data_(std::move(a)) {}
 
 	std::variant<std::string, MapType, std::vector<Value>> data_;
+
+	// type() casts data_.index() to Type, so the enum's order MUST match the variant's alternatives.
+	// Enforce it at compile time — a reorder of either would otherwise silently misclassify every node.
+	static_assert(std::variant_size_v<decltype(data_)> == 3);
+	static_assert(static_cast<std::size_t>(Type::Scalar) == 0
+	              && std::is_same_v<std::variant_alternative_t<0, decltype(data_)>, std::string>);
+	static_assert(static_cast<std::size_t>(Type::Map) == 1
+	              && std::is_same_v<std::variant_alternative_t<1, decltype(data_)>, MapType>);
+	static_assert(static_cast<std::size_t>(Type::Array) == 2
+	              && std::is_same_v<std::variant_alternative_t<2, decltype(data_)>, std::vector<Value>>);
 };
 
 } // namespace deluge::storage
