@@ -559,6 +559,7 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 
 	char const* tagName;
 	int32_t cc = CC_NUMBER_NONE;
+	reader.match('{'); // descend into the modKnob/param object (needed for JSON; a no-op in XML)
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "cc")) {
 			char const* contents = reader.readTagOrAttributeValue();
@@ -600,6 +601,7 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 			reader.exitTag(tagName);
 		}
 	}
+	reader.match('}');
 
 	if (getCC) {
 		*getCC = cc;

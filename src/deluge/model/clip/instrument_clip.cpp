@@ -3037,6 +3037,7 @@ Error InstrumentClip::readMIDIParamsFromFile(Deserializer& reader, int32_t readA
 
 	char const* tagName;
 
+	reader.match('{'); // descend into <midiParams> (needed for JSON; a no-op in XML)
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "param")) {
 			// Error error = reader.readMIDIParamFromFile(readAutomationUpToPos, this);
@@ -3051,6 +3052,7 @@ Error InstrumentClip::readMIDIParamsFromFile(Deserializer& reader, int32_t readA
 			ParamCollectionSummary* summary;
 			ExpressionParamSet* expressionParams = nullptr;
 
+			reader.match('{'); // descend into the <param> object (needed for JSON; a no-op in XML)
 			while (*(tagName = reader.readNextTagOrAttributeName())) {
 				if (!strcmp(tagName, "cc")) {
 					char const* contents = reader.readTagOrAttributeValue();
@@ -3134,6 +3136,7 @@ expressionParam:
 					reader.exitTag(tagName);
 				}
 			}
+			reader.match('}'); // close the <param> object
 
 			reader.exitTag("param");
 		}
@@ -3141,6 +3144,7 @@ expressionParam:
 			reader.exitTag(tagName);
 		}
 	}
+	reader.match('}'); // close <midiParams>
 
 	return Error::NONE;
 }
