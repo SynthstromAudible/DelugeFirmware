@@ -34,7 +34,7 @@ std::span<char const*> LaunchStyleMenu::getOptions() {
 
 bool LaunchStyleMenu::setupAndCheckAvailability() {
 	currentUIMode = UI_MODE_NONE;
-	this->currentOption = static_cast<int32_t>(clip->launchStyle);
+	this->currentOption = static_cast<int32_t>(clip->launchStyle());
 
 	if (display->haveOLED()) {
 		scrollPos = this->currentOption;

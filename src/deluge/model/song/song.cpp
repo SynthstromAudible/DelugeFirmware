@@ -1964,6 +1964,7 @@ loadOutput:
 			deluge::project::DocClip& doc = project.getOrCreateDocClip(*addr);
 			doc.loop_length = thisClip->loopLength();
 			doc.colour_offset = thisClip->colourOffset();
+			doc.launch_style = static_cast<uint8_t>(thisClip->launchStyle());
 			thisClip->bindDomClip(&doc);
 		}
 	}
@@ -1973,6 +1974,7 @@ loadOutput:
 			deluge::project::DocClip& doc = project.getOrCreateDocClip(*addr);
 			doc.loop_length = thisClip->loopLength();
 			doc.colour_offset = thisClip->colourOffset();
+			doc.launch_style = static_cast<uint8_t>(thisClip->launchStyle());
 			thisClip->bindDomClip(&doc);
 		}
 	}
@@ -3142,7 +3144,7 @@ void Song::turnSoloingIntoJustPlaying(bool getRidOfArmingToo) {
 			// Just get rid of arming
 			for (int32_t l = 0; l < std::ssize(project.clips.session_clips); l++) {
 				Clip* loopable = project.clips.session_clips[l];
-				if (loopable->launchStyle == LaunchStyle::DEFAULT
+				if (loopable->launchStyle() == LaunchStyle::DEFAULT
 				    && currentSong->project.arrangement.sections[loopable->section].num_repetitions != -2) {
 					loopable->armState = ArmState::OFF;
 				}
@@ -3160,7 +3162,7 @@ void Song::turnSoloingIntoJustPlaying(bool getRidOfArmingToo) {
 		clip->soloingInSessionMode = false;
 
 		if (getRidOfArmingToo) {
-			if (clip->launchStyle != LaunchStyle::FILL && clip->launchStyle != LaunchStyle::ONCE) {
+			if (clip->launchStyle() != LaunchStyle::FILL && clip->launchStyle() != LaunchStyle::ONCE) {
 				clip->armState = ArmState::OFF;
 			}
 		}
@@ -4132,7 +4134,7 @@ Clip* Song::getLongestActiveClipWithMultipleOrFactorLength(int32_t targetLength,
 	// For each Clip in session and arranger
 	for (Clip* clip : AllClips::everywhere(this)) {
 
-		if (clip != excludeClip && isClipActive(clip) && clip->launchStyle != LaunchStyle::FILL) {
+		if (clip != excludeClip && isClipActive(clip) && clip->launchStyle() != LaunchStyle::FILL) {
 			int32_t clipLength = clip->loopLength();
 			if (clipLength == targetLength
 			    || (clipLength > targetLength && ((uint32_t)clipLength % (uint32_t)targetLength) == 0)

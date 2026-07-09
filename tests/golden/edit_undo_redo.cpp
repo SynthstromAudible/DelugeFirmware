@@ -1052,16 +1052,17 @@ void launchStyleTarget(Song* song) {
 		return;
 	}
 	printf("# target launch-style\n");
-	LaunchStyle before = clip->launchStyle;
+	LaunchStyle before = clip->launchStyle();
 	LaunchStyle target = (before == LaunchStyle::FILL) ? LaunchStyle::ONCE : LaunchStyle::FILL;
 
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
 	deluge::edits::SetClipLaunchStyle edit{clip, target};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "launch-style: apply succeeds");
-	check(clip->launchStyle == target, "launch-style: engine field set");
+	check(clip->launchStyle() == target, "launch-style: accessor set");
+	// Loaded clips are bound: the accessor reads the tree DocClip, so resolveClip agrees.
 	deluge::project::DocClip* doc = song->project.resolveClip(*deluge::edits::clipAddressFor(*clip));
 	check(doc != nullptr && doc->launch_style == static_cast<uint8_t>(target),
-	      "launch-style: shadow DocClip matches engine");
+	      "launch-style: DocClip matches accessor");
 }
 
 // M3 owner-1 slice 2: nudge a clip's colour via SetClipColour (apply-only, non-undoable) + shadow check.

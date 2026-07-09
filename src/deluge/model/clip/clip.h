@@ -225,7 +225,13 @@ public:
 	[[nodiscard]] uint32_t sessionId() const { return session_id_; }
 	void setSessionId(uint32_t id) { session_id_ = id; }
 
-	LaunchStyle launchStyle;
+	/// M3 owner-1: clip launch style lives in the DOM DocClip (see loopLength()).
+	[[nodiscard]] LaunchStyle launchStyle() const {
+		return static_cast<LaunchStyle>((treeDoc_ != nullptr ? treeDoc_ : &ownDoc_)->launch_style);
+	}
+	void setLaunchStyle(LaunchStyle s) {
+		(treeDoc_ != nullptr ? *treeDoc_ : ownDoc_).launch_style = static_cast<uint8_t>(s);
+	}
 	int64_t fillEventAtTickCount;
 	bool overdubsShouldCloneOutput{};
 

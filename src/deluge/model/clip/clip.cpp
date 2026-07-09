@@ -59,7 +59,7 @@ Clip::Clip(ClipType newType) : type(newType) {
 	overdubNature = OverDubType::Normal;
 	originalLength = 0;
 	armedForRecording = true;
-	launchStyle = LaunchStyle::DEFAULT;
+	setLaunchStyle(LaunchStyle::DEFAULT);
 	fillEventAtTickCount = 0;
 
 	// initialize automation clip view variables
@@ -96,7 +96,7 @@ void Clip::cloneFrom(Clip const* otherClip) {
 	lastProcessedPos = otherClip->lastProcessedPos;
 	repeatCount = otherClip->repeatCount;
 	armedForRecording = otherClip->armedForRecording;
-	launchStyle = otherClip->launchStyle;
+	setLaunchStyle(otherClip->launchStyle());
 }
 
 void Clip::copyBasicsFrom(Clip const* otherClip) {
@@ -104,7 +104,7 @@ void Clip::copyBasicsFrom(Clip const* otherClip) {
 	setColourOffset(otherClip->colourOffset());
 	// modKnobMode = otherClip->modKnobMode;
 	section = otherClip->section;
-	launchStyle = otherClip->launchStyle;
+	setLaunchStyle(otherClip->launchStyle());
 	onAutomationClipView = otherClip->onAutomationClipView;
 }
 
@@ -692,8 +692,8 @@ void Clip::writeDataToFile(Serializer& writer, Song* song) {
 	if (song->getSyncScalingClip() == this) {
 		writer.writeAttribute("isSyncScaleClip", 1);
 	}
-	if (launchStyle != LaunchStyle::DEFAULT) {
-		writer.writeAttribute("launchStyle", launchStyleToString(launchStyle));
+	if (launchStyle() != LaunchStyle::DEFAULT) {
+		writer.writeAttribute("launchStyle", launchStyleToString(launchStyle()));
 	}
 }
 
@@ -776,7 +776,7 @@ void Clip::readTagFromFile(Deserializer& reader, char const* tagName, Song* song
 	}
 
 	else if (!strcmp(tagName, "launchStyle")) {
-		launchStyle = stringToLaunchStyle(reader.readTagOrAttributeValue());
+		setLaunchStyle(stringToLaunchStyle(reader.readTagOrAttributeValue()));
 	}
 
 	/*

@@ -2703,7 +2703,7 @@ RGB View::getClipMuteSquareColour(Clip* clip, RGB thisColour, bool allowMIDIFlas
 	// Or if not soloing...
 	else {
 		if (!clip->activeIfNoSolo) {
-			switch (clip->launchStyle) {
+			switch (clip->launchStyle()) {
 			case LaunchStyle::FILL:
 				thisColour = menu_item::fillColourMenu.getRGB(); // colours::red_orange;
 				break;

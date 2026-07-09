@@ -311,8 +311,8 @@ void Session::doLaunch(bool isFillLaunch) {
 
 			Output* output = clip->output;
 
-			if (isFillLaunch && clip->launchStyle == LaunchStyle::FILL && output->getActiveClip()
-			    && output->getActiveClip()->launchStyle != LaunchStyle::FILL) {
+			if (isFillLaunch && clip->launchStyle() == LaunchStyle::FILL && output->getActiveClip()
+			    && output->getActiveClip()->launchStyle() != LaunchStyle::FILL) {
 				/* There's a non fill clip already on this output, don't launch */
 				clip->armState = ArmState::OFF;
 				continue;
@@ -387,7 +387,7 @@ void Session::doLaunch(bool isFillLaunch) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 			Output* output = clip->output;
 
-			if (isFillLaunch && clip->launchStyle != LaunchStyle::FILL) {
+			if (isFillLaunch && clip->launchStyle() != LaunchStyle::FILL) {
 				/* For a fill launch, ignore all other clips */
 				continue;
 			}
@@ -501,7 +501,7 @@ stopOnlyIfOutputTaken:
 				// If some other Clip is launching for this Output, we gotta stop
 				if (outputsLaunchedFor.contains(output)) {
 
-					if (clip->launchStyle == LaunchStyle::FILL) {
+					if (clip->launchStyle() == LaunchStyle::FILL) {
 						// Must also disarm it if a fill clip to avoid it
 						// re-starting at the eventual launch event.
 						clip->armState = ArmState::OFF;
@@ -609,7 +609,7 @@ doNormalLaunch:
 					}
 
 					// Arm it again if a fill, so it stops at the launchEvent
-					if (isFillLaunch && (clip->launchStyle == LaunchStyle::FILL)) {
+					if (isFillLaunch && (clip->launchStyle() == LaunchStyle::FILL)) {
 						clip->armState = ArmState::ON_NORMAL;
 					}
 
@@ -633,7 +633,7 @@ doNormalLaunch:
 
 		// Arm it again if a ONCE clip, so it stops at the launchEvent
 		if (!isFillLaunch && (clip->activeIfNoSolo || clip->soloingInSessionMode)
-		    && clip->launchStyle == LaunchStyle::ONCE && clip->armState == ArmState::OFF) {
+		    && clip->launchStyle() == LaunchStyle::ONCE && clip->armState == ArmState::OFF) {
 			clip->armState = ArmState::ON_NORMAL;
 			distanceTilLaunchEvent = std::max(distanceTilLaunchEvent, clip->loopLength());
 		}
@@ -646,7 +646,7 @@ doNormalLaunch:
 
 		// If we found a playing Clip outside of the armed section, or vice versa, then we can't say we legitimately
 		// just launched a section
-		if (clip->launchStyle != LaunchStyle::FILL && clipActiveAfter != (clip->section == lastSectionArmed)
+		if (clip->launchStyle() != LaunchStyle::FILL && clipActiveAfter != (clip->section == lastSectionArmed)
 		    && currentSong->project.arrangement.sections[clip->section].num_repetitions != LAUNCH_EXCLUSIVE) {
 			sectionWasJustLaunched = false;
 		}
@@ -997,7 +997,7 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 	}
 
 	// If Clip armed, cancel arming - but not if it's an "instant" toggle
-	if (clip->launchStyle == LaunchStyle::FILL && clip->armState != ArmState::OFF && !clip->isActiveOnOutput()) {
+	if (clip->launchStyle() == LaunchStyle::FILL && clip->armState != ArmState::OFF && !clip->isActiveOnOutput()) {
 		// Fill clips can be disarmed (to start) if they haven't started yet
 		// Allowing the user to disarm them while armed to stop risks them
 		// getting stuck on after the launchEvent.
@@ -1083,7 +1083,7 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 				else if (currentPlaybackMode == this) {
 
 					// Instant-stop
-					if (doInstant || clip->launchStyle == LaunchStyle::FILL) {
+					if (doInstant || clip->launchStyle() == LaunchStyle::FILL) {
 						if (clip->armState != ArmState::OFF) { // In case also already armed
 							clip->armState = ArmState::OFF;
 							launchSchedulingMightNeedCancelling();
@@ -1412,7 +1412,7 @@ void Session::userWantsToArmClipsToStartOrSolo(uint8_t section, Clip* clip, bool
 		    clip->loopLength()); // Allow it to return our same Clip if it wants - and if it's active, which could be
 		                         // what we want in the case of arming-to-solo if Clip already active
 
-		if (clip->launchStyle == LaunchStyle::FILL) {
+		if (clip->launchStyle() == LaunchStyle::FILL) {
 			longestStartingClipLength = waitForClip->loopLength();
 		}
 		else {
@@ -1623,7 +1623,7 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 
 	// If we were doing this just for one Clip (so a late-start might be allowed too)...
 	if (clip) {
-		if (clip->launchStyle == LaunchStyle::DEFAULT || !doLateStart) {
+		if (clip->launchStyle() == LaunchStyle::DEFAULT || !doLateStart) {
 			if (!doLateStart && allowLateStart) { // Reminder - late start is never allowed for sections - just cos it's
 				                                  // not that useful, and tricky to implement
 
@@ -1647,7 +1647,7 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 		for (int32_t c = std::ssize(currentSong->project.clips.session_clips) - 1; c >= 0; c--) {
 			Clip* thisClip = currentSong->project.clips.session_clips[c];
 
-			if (thisClip->launchStyle == LaunchStyle::FILL) {
+			if (thisClip->launchStyle() == LaunchStyle::FILL) {
 				continue;
 			}
 
@@ -1689,7 +1689,7 @@ wantActive:
 					// If it's already active (less common)...
 					if (thisClip->activeIfNoSolo) {
 						// If it's armed to stop, cancel that
-						if (thisClip->armState != ArmState::OFF && thisClip->launchStyle != LaunchStyle::ONCE) {
+						if (thisClip->armState != ArmState::OFF && thisClip->launchStyle() != LaunchStyle::ONCE) {
 							thisClip->armState = ArmState::OFF;
 						}
 						output->nextClipFoundShouldGetArmed = true;
@@ -1816,7 +1816,7 @@ void Session::armClipToStartOrSoloUsingQuantization(Clip* thisClip, bool doLateS
 		if (doLateStart) {
 
 			if (thisClip->armState != ArmState::OFF
-			    && thisClip->launchStyle == LaunchStyle::DEFAULT) { // In case also already armed
+			    && thisClip->launchStyle() == LaunchStyle::DEFAULT) { // In case also already armed
 				thisClip->armState = ArmState::OFF;
 				launchSchedulingMightNeedCancelling();
 			}
@@ -1859,7 +1859,7 @@ setPosAndStuff:
  */
 void Session::scheduleFillClip(Clip* clip) {
 
-	if (clip->launchStyle == LaunchStyle::FILL) {
+	if (clip->launchStyle() == LaunchStyle::FILL) {
 		if (launchEventAtSwungTickCount > 0) {
 
 			int64_t fillStartTime = launchEventAtSwungTickCount - clip->getMaxLength()
@@ -1869,7 +1869,7 @@ void Session::scheduleFillClip(Clip* clip) {
 			// if (launchEventAtSwungTickCount < playbackHandler.getActualSwungTickCount() + clip->getMaxLength()) {
 			if (fillStartTime < playbackHandler.getActualSwungTickCount()) {
 				if (clip->output->getActiveClip()) {
-					if (clip->output->getActiveClip()->launchStyle == LaunchStyle::FILL) {
+					if (clip->output->getActiveClip()->launchStyle() == LaunchStyle::FILL) {
 						/* A fill clip is already here, steal the output */
 					}
 					else {
@@ -1930,10 +1930,10 @@ void Session::scheduleFillClips(uint8_t section) {
 		Clip* thisClip = currentSong->project.clips.session_clips[c];
 
 		// If thisClip is in the section we're wanting to arm...
-		if (thisClip->section == section && thisClip->launchStyle == LaunchStyle::FILL) {
+		if (thisClip->section == section && thisClip->launchStyle() == LaunchStyle::FILL) {
 
 			Output* output = thisClip->output;
-			if (output->getActiveClip() && output->getActiveClip()->launchStyle != LaunchStyle::FILL) {
+			if (output->getActiveClip() && output->getActiveClip()->launchStyle() != LaunchStyle::FILL) {
 				/* Some non-fill already has this output. We can't steal it.*/
 				continue;
 			}
