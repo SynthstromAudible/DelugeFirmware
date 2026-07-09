@@ -12,6 +12,7 @@ add_library(deluge_spec STATIC
 ../../src/deluge/storage/audio/audio_file_format.cpp
 ../../src/deluge/storage/build_value.cpp
 ../../src/deluge/storage/parse_json.cpp
+../../src/deluge/storage/parse_xml.cpp
 ../../src/deluge/storage/value.cpp
 ../../src/deluge/storage/value_tree_deserializer.cpp
 ../../src/deluge/util/audio_format_helpers.cpp
