@@ -420,7 +420,7 @@ void Session::doLaunch(bool isFillLaunch) {
 
 				// If that caused it to be armed *again*...
 				if (clip->armState == ArmState::ON_NORMAL) {
-					distanceTilLaunchEvent = std::max(distanceTilLaunchEvent, clip->loopLength);
+					distanceTilLaunchEvent = std::max(distanceTilLaunchEvent, clip->loopLength());
 				}
 			}
 			// If armed to stop (these mean stop normally or end soloing respectively)
@@ -605,7 +605,7 @@ doNormalLaunch:
 
 					// If that caused it to be armed *again*...
 					if (clip->armState == ArmState::ON_NORMAL) {
-						distanceTilLaunchEvent = std::max(distanceTilLaunchEvent, clip->loopLength);
+						distanceTilLaunchEvent = std::max(distanceTilLaunchEvent, clip->loopLength());
 					}
 
 					// Arm it again if a fill, so it stops at the launchEvent
@@ -635,7 +635,7 @@ doNormalLaunch:
 		if (!isFillLaunch && (clip->activeIfNoSolo || clip->soloingInSessionMode)
 		    && clip->launchStyle == LaunchStyle::ONCE && clip->armState == ArmState::OFF) {
 			clip->armState = ArmState::ON_NORMAL;
-			distanceTilLaunchEvent = std::max(distanceTilLaunchEvent, clip->loopLength);
+			distanceTilLaunchEvent = std::max(distanceTilLaunchEvent, clip->loopLength());
 		}
 
 		bool clipActiveAfter = clip->soloingInSessionMode || (clip->activeIfNoSolo && !anySoloingAfter);
@@ -827,7 +827,7 @@ void Session::reSyncClipToSongTicks(Clip* clip) {
 	// it just be put into the setPos() function? I basically copied this from Editor::launchClip()
 	int32_t modifiedStartPos = (int32_t)playbackHandler.lastSwungTickActioned;
 	while (modifiedStartPos < 0) {
-		modifiedStartPos += clip->loopLength; // Fairly unlikely I think
+		modifiedStartPos += clip->loopLength(); // Fairly unlikely I think
 	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -875,10 +875,10 @@ doReSyncToSongTicks:
 				else {
 					// ...but only if Clip length is a square multiple of input clock scaling
 					uint32_t a = modelStack->song->getInputTickScale();
-					while (a < clip->loopLength) {
+					while (a < clip->loopLength()) {
 						a <<= 1;
 					}
-					if (a == clip->loopLength) {
+					if (a == clip->loopLength()) {
 						goto doReSyncToSongTicks;
 					}
 				}
@@ -889,7 +889,7 @@ doReSyncToSongTicks:
 		// hopefully the same time signature)
 		else {
 			Clip* syncToClip =
-			    modelStack->song->getLongestActiveClipWithMultipleOrFactorLength(clip->loopLength, false, clip);
+			    modelStack->song->getLongestActiveClipWithMultipleOrFactorLength(clip->loopLength(), false, clip);
 			if (syncToClip) {
 
 				int32_t oldPos = clip->lastProcessedPos;
@@ -960,8 +960,9 @@ doTempolessRecording:
 				clip->armState = ArmState::ON_NORMAL;
 				int64_t wantToStopAtTime =
 				    playbackHandler.getActualSwungTickCount()
-				    - clip->getClipToRecordTo()->getActualCurrentPosAsIfPlayingInForwardDirection() + clip->loopLength;
-				scheduleLaunchTiming(wantToStopAtTime, 1, clip->loopLength);
+				    - clip->getClipToRecordTo()->getActualCurrentPosAsIfPlayingInForwardDirection()
+				    + clip->loopLength();
+				scheduleLaunchTiming(wantToStopAtTime, 1, clip->loopLength());
 			}
 		}
 	}
@@ -1148,10 +1149,10 @@ void Session::armClipToStopAction(Clip* clip) {
 	clip->armState = ArmState::ON_NORMAL;
 
 	int32_t actualCurrentPos = (uint32_t)clip->getClipToRecordTo()->getActualCurrentPosAsIfPlayingInForwardDirection()
-	                           % (uint32_t)clip->loopLength;
-	int64_t wantToStopAtTime = playbackHandler.getActualSwungTickCount() - actualCurrentPos + clip->loopLength;
+	                           % (uint32_t)clip->loopLength();
+	int64_t wantToStopAtTime = playbackHandler.getActualSwungTickCount() - actualCurrentPos + clip->loopLength();
 
-	scheduleLaunchTiming(wantToStopAtTime, 1, clip->loopLength);
+	scheduleLaunchTiming(wantToStopAtTime, 1, clip->loopLength());
 }
 
 void Session::soloClipAction(Clip* clip, bool doInstant, int32_t buttonPressLatency) {
@@ -1319,13 +1320,13 @@ void Session::scheduleOverdubToStartRecording(Clip* overdub, Clip* clipAbove) {
 
 	Clip* waitForClip = clipAbove;
 	if (!waitForClip || !currentSong->isClipActive(waitForClip)) {
-		waitForClip = currentSong->getLongestActiveClipWithMultipleOrFactorLength(overdub->loopLength, true, overdub);
+		waitForClip = currentSong->getLongestActiveClipWithMultipleOrFactorLength(overdub->loopLength(), true, overdub);
 	}
 
 	uint32_t quantization;
 	uint32_t currentPosWithinQuantization;
 	LaunchStatus launchStatus =
-	    investigateSyncedLaunch(waitForClip, &currentPosWithinQuantization, &quantization, overdub->loopLength, true);
+	    investigateSyncedLaunch(waitForClip, &currentPosWithinQuantization, &quantization, overdub->loopLength(), true);
 
 	// If nothing to sync to, which means no other Clips playing...
 	if (launchStatus == LaunchStatus::NOTHING_TO_SYNC_TO) {
@@ -1408,14 +1409,14 @@ void Session::userWantsToArmClipsToStartOrSolo(uint8_t section, Clip* clip, bool
 		// Clip (not a section). It seems that for the past several years(?) this was broken and would always just wait
 		// for the longest Clip.
 		waitForClip = currentSong->getLongestActiveClipWithMultipleOrFactorLength(
-		    clip->loopLength); // Allow it to return our same Clip if it wants - and if it's active, which could be what
-		                       // we want in the case of arming-to-solo if Clip already active
+		    clip->loopLength()); // Allow it to return our same Clip if it wants - and if it's active, which could be
+		                         // what we want in the case of arming-to-solo if Clip already active
 
 		if (clip->launchStyle == LaunchStyle::FILL) {
-			longestStartingClipLength = waitForClip->loopLength;
+			longestStartingClipLength = waitForClip->loopLength();
 		}
 		else {
-			longestStartingClipLength = clip->loopLength;
+			longestStartingClipLength = clip->loopLength();
 		}
 	}
 
@@ -1431,14 +1432,14 @@ void Session::userWantsToArmClipsToStartOrSolo(uint8_t section, Clip* clip, bool
 		for (int32_t c = 0; c < std::ssize(currentSong->project.clips.session_clips); c++) {
 			Clip* thisClip = currentSong->project.clips.session_clips[c];
 
-			if (thisClip->section == section && thisClip->loopLength > longestStartingClipLength) {
-				longestStartingClipLength = thisClip->loopLength;
+			if (thisClip->section == section && thisClip->loopLength() > longestStartingClipLength) {
+				longestStartingClipLength = thisClip->loopLength();
 			}
 		}
 
 		// If section was empty, use longest clip waitForClip length instead
 		if (longestStartingClipLength == 0) {
-			longestStartingClipLength = waitForClip->loopLength;
+			longestStartingClipLength = waitForClip->loopLength();
 		}
 	}
 
@@ -1535,12 +1536,12 @@ LaunchStatus Session::investigateSyncedLaunch(Clip* waitForClip, uint32_t* curre
 
 		// Quantize the launch to the length of the already-playing long Clip, or if the new Clip / section fits into it
 		// a whole number of times, use that length
-		if (allowSubdividedQuantization && longestStartingClipLength < waitForClip->loopLength
-		    && ((uint32_t)waitForClip->loopLength % longestStartingClipLength) == 0) {
+		if (allowSubdividedQuantization && longestStartingClipLength < waitForClip->loopLength()
+		    && ((uint32_t)waitForClip->loopLength() % longestStartingClipLength) == 0) {
 			*quantization = longestStartingClipLength;
 		}
 		else {
-			*quantization = waitForClip->loopLength;
+			*quantization = waitForClip->loopLength();
 		}
 
 		*currentPosWithinQuantization =
@@ -2201,7 +2202,7 @@ yeahNahItsOn:
 
 					if (clip->armState == ArmState::ON_NORMAL) { // Rohan: What's this for again? Auto arming of
 						                                         // sections? I think not linear recording...
-						distanceTilLaunchEvent = std::max(distanceTilLaunchEvent, clip->loopLength);
+						distanceTilLaunchEvent = std::max(distanceTilLaunchEvent, clip->loopLength());
 					}
 				}
 			}
@@ -2522,7 +2523,7 @@ void Session::unsoloClip(Clip* clip) {
 
 		int32_t modifiedStartPos = (int32_t)clip->lastProcessedPos; // - swungTicksSkipped;
 		if (modifiedStartPos < 0) {
-			modifiedStartPos += clip->loopLength;
+			modifiedStartPos += clip->loopLength();
 		}
 
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -2540,7 +2541,7 @@ void Session::unsoloClip(Clip* clip) {
 
 				if (hasPlaybackActive()) {
 					thisClip->setPos(modelStackWithTimelineCounter,
-					                 (uint32_t)modifiedStartPos % (uint32_t)thisClip->loopLength);
+					                 (uint32_t)modifiedStartPos % (uint32_t)thisClip->loopLength());
 					thisClip->resumePlayback(modelStackWithTimelineCounter);
 				}
 			}
@@ -2632,7 +2633,7 @@ int32_t Session::getPosAtWhichClipWillCut(ModelStackWithTimelineCounter const* m
 	// auto-extend it when we get there, so we don't want any wrapping-around happening
 	if (clip->isArrangementOnlyClip() && playbackHandler.recording == RecordingMode::ARRANGEMENT
 	    && clip->beingRecordedFromClip) {
-		return clip->currentlyPlayingReversed ? 0 : clip->loopLength;
+		return clip->currentlyPlayingReversed ? 0 : clip->loopLength();
 	}
 
 	int32_t cutPos;
@@ -2655,13 +2656,13 @@ int32_t Session::getPosAtWhichClipWillCut(ModelStackWithTimelineCounter const* m
 			if (cutPos < 0) {
 				cutPos = clip->lastProcessedPos
 				             ? 0
-				             : -clip->loopLength; // Check we're not right at pos 0, as we briefly will be when we
-				                                  // pingpong at the right-hand end of the Clip/etc.
+				             : -clip->loopLength(); // Check we're not right at pos 0, as we briefly will be when we
+				                                    // pingpong at the right-hand end of the Clip/etc.
 			}
 		}
 		else {
-			if (cutPos > clip->loopLength) {
-				cutPos = clip->loopLength;
+			if (cutPos > clip->loopLength()) {
+				cutPos = clip->loopLength();
 			}
 		}
 	}
@@ -2697,7 +2698,7 @@ bool Session::willClipContinuePlayingAtEnd(ModelStackWithTimelineCounter const* 
 
 	// Otherwise, one final test, which needed a bit of pre-logic.
 	int32_t ticksTilReachLoopPoint =
-	    clip->currentlyPlayingReversed ? clip->lastProcessedPos : (clip->loopLength - clip->lastProcessedPos);
+	    clip->currentlyPlayingReversed ? clip->lastProcessedPos : (clip->loopLength() - clip->lastProcessedPos);
 	return (launchEventAtSwungTickCount - playbackHandler.lastSwungTickActioned
 	        > ticksTilReachLoopPoint); // If launch event is after loop-point, it'll loop.
 }

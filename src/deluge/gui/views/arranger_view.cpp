@@ -1234,7 +1234,7 @@ void ArrangerView::interactWithClipInstance(Output* output, int32_t yDisplay, Cl
 
 	if (clip) {
 		// it looks like this variable isn't used anywhere
-		originallyPressedClipActualLength = clipInstance->clip->loopLength;
+		originallyPressedClipActualLength = clipInstance->clip->loopLength();
 
 		// we've changed the clip selected, so set clip to current
 		currentSong->setCurrentClip(clip);
@@ -1476,7 +1476,7 @@ ClipInstance* ArrangerView::createClipInstance(Output* output, int32_t y, int32_
 	clipInstance->clip = newClip;
 
 	if (clipInstance->clip) {
-		clipInstance->length = clipInstance->clip->loopLength;
+		clipInstance->length = clipInstance->clip->loopLength();
 	}
 	else {
 		clipInstance->length = kDefaultClipLength << currentSong->project.transport.inside_world_tick_magnitude;
@@ -1682,7 +1682,7 @@ void ArrangerView::createNewClipForClipInstance(Output* output, ClipInstance* cl
 	else
 		newClip = new (memory) InstrumentClip(currentSong);
 
-	newClip->loopLength = clipInstance->length;
+	newClip->setLoopLength(clipInstance->length);
 	newClip->section = 255;
 	newClip->activeIfNoSolo = false; // Always need to set arrangement-only Clips like this on create
 
@@ -1817,13 +1817,13 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 	currentSong->persistentView.lastClipInstanceEnteredStartPos = clipInstance->pos;
 
 	uint32_t xZoom = currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT];
-	while ((xZoom >> 1) * kDisplayWidth >= clip->loopLength) {
+	while ((xZoom >> 1) * kDisplayWidth >= clip->loopLength()) {
 		xZoom >>= 1;
 	}
 	currentSong->persistentView.xZoom[NAVIGATION_CLIP] = xZoom;
 
 	// If can see whole Clip at zoom level, set scroll to 0
-	if (xZoom * kDisplayWidth >= clip->loopLength) {
+	if (xZoom * kDisplayWidth >= clip->loopLength()) {
 		currentSong->persistentView.xScroll[NAVIGATION_CLIP] = 0;
 	}
 
@@ -1834,7 +1834,7 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 			newScroll = 0;
 		}
 		else {
-			newScroll = (uint32_t)newScroll % (uint32_t)clip->loopLength;
+			newScroll = (uint32_t)newScroll % (uint32_t)clip->loopLength();
 			newScroll = (uint32_t)newScroll / (xZoom * kDisplayWidth) * (xZoom * kDisplayWidth);
 		}
 
@@ -1906,7 +1906,7 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 	int64_t xStartBig = getSquareFromPos(clipInstance->pos + start) << 16;
 
 	int64_t clipLengthBig =
-	    ((uint64_t)clip->loopLength << 16) / currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT];
+	    ((uint64_t)clip->loopLength() << 16) / currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT];
 
 	if (clipLengthBig) {
 		while (true) {
@@ -1989,12 +1989,12 @@ bool ArrangerView::transitionToArrangementEditor() {
 	}
 
 	int64_t clipLengthBig =
-	    ((uint64_t)getCurrentClip()->loopLength << 16) / currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT];
+	    ((uint64_t)getCurrentClip()->loopLength() << 16) / currentSong->persistentView.xZoom[NAVIGATION_ARRANGEMENT];
 	int64_t xStartBig = getSquareFromPos(clipInstance->pos + start) << 16;
 
 	int64_t potentialMidClip = xStartBig + (clipLengthBig >> 1);
 
-	int32_t numExtraRepeats = (uint32_t)(clipInstance->length - 1) / (uint32_t)getCurrentClip()->loopLength;
+	int32_t numExtraRepeats = (uint32_t)(clipInstance->length - 1) / (uint32_t)getCurrentClip()->loopLength();
 
 	int64_t midClipDistanceFromMidDisplay;
 
@@ -2424,7 +2424,7 @@ squareStartPosSet:
 							}
 
 							float multipleOfLoopLength = static_cast<float>(relativeSquarePos)
-							                             / static_cast<float>(clipInstance->clip->loopLength);
+							                             / static_cast<float>(clipInstance->clip->loopLength());
 
 							bool isLoopStart = std::floor(multipleOfLoopLength) == multipleOfLoopLength;
 
@@ -2543,7 +2543,7 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 
 		else {
 			// choosing a section clip will reset the clip instance length to the length of that section clip
-			newLength = newClip->loopLength;
+			newLength = newClip->loopLength();
 		}
 
 		// Make sure it's not too long

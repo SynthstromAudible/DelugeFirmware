@@ -165,7 +165,7 @@ Error InstrumentClip::clone(ModelStackWithTimelineCounter* modelStack, bool shou
 
 	int32_t reverseWithLength = 0;
 	if (shouldFlattenReversing && sequenceDirectionMode == SequenceDirection::REVERSE) {
-		reverseWithLength = loopLength;
+		reverseWithLength = loopLength();
 	}
 
 	Error error = newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true, true, reverseWithLength);
@@ -235,8 +235,9 @@ void InstrumentClip::increaseLengthWithRepeats(ModelStackWithTimelineCounter* mo
                                                IndependentNoteRowLengthIncrease independentNoteRowInstruction,
                                                bool completelyRenderOutIterationDependence, Action* action) {
 
-	int32_t numRepeatsRounded =
-	    completelyRenderOutIterationDependence ? 0 : (uint32_t)(newLength + (loopLength >> 1)) / (uint32_t)loopLength;
+	int32_t numRepeatsRounded = completelyRenderOutIterationDependence
+	                                ? 0
+	                                : (uint32_t)(newLength + (loopLength() >> 1)) / (uint32_t)loopLength();
 
 	// Tell all the noteRows
 	for (int32_t i = 0; i < std::ssize(noteRows); i++) {
@@ -244,7 +245,7 @@ void InstrumentClip::increaseLengthWithRepeats(ModelStackWithTimelineCounter* mo
 		int32_t noteRowId = getNoteRowId(thisNoteRow, i);
 
 		int32_t numRepeatsRoundedHere = numRepeatsRounded;
-		int32_t oldLengthHere = loopLength;
+		int32_t oldLengthHere = loopLength();
 		int32_t newLengthHere = newLength;
 
 		// Deal specially with NoteRows with independent length.
@@ -285,10 +286,10 @@ void InstrumentClip::increaseLengthWithRepeats(ModelStackWithTimelineCounter* mo
 
 	bool pingponging = (sequenceDirectionMode == SequenceDirection::PINGPONG);
 
-	if (newLength > loopLength) {
+	if (newLength > loopLength()) {
 		ModelStackWithThreeMainThings* modelStackWithParamManager =
 		    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
-		paramManager.generateRepeats(modelStackWithParamManager, loopLength, newLength, pingponging);
+		paramManager.generateRepeats(modelStackWithParamManager, loopLength(), newLength, pingponging);
 	}
 
 	if (pingponging) {
@@ -297,14 +298,14 @@ void InstrumentClip::increaseLengthWithRepeats(ModelStackWithTimelineCounter* mo
 		                                // way, I think removing that setting now is best.
 	}
 
-	loopLength = newLength;
+	setLoopLength(newLength);
 }
 
 // If action is NULL, that means this is being called as part of an undo
 // Call this *after* you've set length to its new value (why did I do it this way?)
 void InstrumentClip::lengthChanged(ModelStackWithTimelineCounter* modelStack, int32_t oldLength, Action* action) {
 
-	if (loopLength < oldLength) {
+	if (loopLength() < oldLength) {
 		for (int32_t i = 0; i < std::ssize(noteRows); i++) {
 			NoteRow* thisNoteRow = &noteRows[i];
 
@@ -312,12 +313,12 @@ void InstrumentClip::lengthChanged(ModelStackWithTimelineCounter* modelStack, in
 			if (!thisNoteRow->loopLengthIfIndependent) {
 				ModelStackWithNoteRow* modelStackWithNoteRow =
 				    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
-				thisNoteRow->trimToLength(loopLength, modelStackWithNoteRow, action);
+				thisNoteRow->trimToLength(loopLength(), modelStackWithNoteRow, action);
 			}
 
 			// Or if it does have independent length, are we now the same length as it?
 			else {
-				if (thisNoteRow->loopLengthIfIndependent == loopLength) {
+				if (thisNoteRow->loopLengthIfIndependent == loopLength()) {
 					thisNoteRow->loopLengthIfIndependent = 0;
 				}
 			}
@@ -334,7 +335,7 @@ void InstrumentClip::repeatOrChopToExactLength(ModelStackWithTimelineCounter* mo
 		NoteRow* thisNoteRow = &noteRows[i];
 		int32_t oldLengthHere = thisNoteRow->loopLengthIfIndependent;
 		if (!oldLengthHere) {
-			oldLengthHere = loopLength;
+			oldLengthHere = loopLength();
 		}
 
 		if (oldLengthHere != newLength) {
@@ -355,13 +356,13 @@ void InstrumentClip::repeatOrChopToExactLength(ModelStackWithTimelineCounter* mo
 		thisNoteRow->loopLengthIfIndependent = 0; // It doesn't need to be independent anymore.
 	}
 
-	if (newLength > loopLength) {
+	if (newLength > loopLength()) {
 		bool pingponging = (sequenceDirectionMode == SequenceDirection::PINGPONG);
 
 		ModelStackWithThreeMainThings* modelStackWithParamManager =
 		    modelStack->addOtherTwoThingsButNoNoteRow(output->toModControllable(), &paramManager);
 
-		paramManager.generateRepeats(modelStackWithParamManager, loopLength, newLength, pingponging);
+		paramManager.generateRepeats(modelStackWithParamManager, loopLength(), newLength, pingponging);
 
 		if (pingponging) {
 			sequenceDirectionMode =
@@ -370,9 +371,9 @@ void InstrumentClip::repeatOrChopToExactLength(ModelStackWithTimelineCounter* mo
 		}
 	}
 
-	int32_t oldLength = loopLength;
+	int32_t oldLength = loopLength();
 
-	loopLength = newLength;
+	setLoopLength(newLength);
 
 	Clip::lengthChanged(modelStack, oldLength,
 	                    nullptr); // Call this on Clip::, not us InstrumentClip, because we've done our own version
@@ -621,7 +622,7 @@ Error InstrumentClip::appendClip(ModelStackWithTimelineCounter* thisModelStack,
 
 	InstrumentClip* otherInstrumentClip = (InstrumentClip*)otherModelStack->getTimelineCounter();
 
-	int32_t whichRepeatThisIs = (uint32_t)loopLength / (uint32_t)otherInstrumentClip->loopLength;
+	int32_t whichRepeatThisIs = (uint32_t)loopLength() / (uint32_t)otherInstrumentClip->loopLength();
 
 	if (output->type == OutputType::KIT) {
 		if (std::ssize(noteRows) != std::ssize(otherInstrumentClip->noteRows)) {
@@ -639,8 +640,9 @@ Error InstrumentClip::appendClip(ModelStackWithTimelineCounter* thisModelStack,
 			ModelStackWithNoteRow* thisModelStackWithNoteRow = thisModelStack->addNoteRow(i, thisNoteRow);
 			ModelStackWithNoteRow* otherModelStackWithNoteRow = otherModelStack->addNoteRow(i, otherNoteRow);
 
-			Error error = thisNoteRow->appendNoteRow(thisModelStackWithNoteRow, otherModelStackWithNoteRow, loopLength,
-			                                         whichRepeatThisIs, otherInstrumentClip->loopLength);
+			Error error =
+			    thisNoteRow->appendNoteRow(thisModelStackWithNoteRow, otherModelStackWithNoteRow, loopLength(),
+			                               whichRepeatThisIs, otherInstrumentClip->loopLength());
 			if (error != Error::NONE) {
 				return error;
 			}
@@ -663,8 +665,8 @@ Error InstrumentClip::appendClip(ModelStackWithTimelineCounter* thisModelStack,
 				    otherModelStack->addNoteRow(noteRowId, otherNoteRow);
 
 				Error error =
-				    thisNoteRow->appendNoteRow(thisModelStackWithNoteRow, otherModelStackWithNoteRow, loopLength,
-				                               whichRepeatThisIs, otherInstrumentClip->loopLength);
+				    thisNoteRow->appendNoteRow(thisModelStackWithNoteRow, otherModelStackWithNoteRow, loopLength(),
+				                               whichRepeatThisIs, otherInstrumentClip->loopLength());
 				if (error != Error::NONE) {
 					return error;
 				}
@@ -734,7 +736,7 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 			ticksTilNextNoteRowEvent = lastProcessedPos;
 		}
 		else {
-			ticksTilNextNoteRowEvent = loopLength - lastProcessedPos;
+			ticksTilNextNoteRowEvent = loopLength() - lastProcessedPos;
 		}
 
 		static PendingNoteOnList pendingNoteOnList; // Making this static, which it really should have always been,
@@ -1493,11 +1495,11 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 		}
 
 		thisNoteRow->renderRow(editorScreen, mainColour, tailColour, blurColour, image, occupancyMask, false,
-		                       loopLength, rowAllowsNoteTails, kDisplayWidth, xScroll, xZoom, xStart, xEnd,
+		                       loopLength(), rowAllowsNoteTails, kDisplayWidth, xScroll, xZoom, xStart, xEnd,
 		                       drawRepeats);
 	}
 	if (addUndefinedArea) {
-		drawUndefinedArea(xScroll, xZoom, loopLength, image, occupancyMask, kDisplayWidth, editorScreen,
+		drawUndefinedArea(xScroll, xZoom, loopLength(), image, occupancyMask, kDisplayWidth, editorScreen,
 		                  currentSong->persistentView.tripletsOn);
 	}
 
@@ -2213,7 +2215,7 @@ void InstrumentClip::restoreBackedUpParamManagerMIDI(ModelStackWithModControllab
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* modelStackWithThreeMainThings = modelStack->addParamManager(&paramManager);
 
-	paramManager.trimToLength(loopLength, modelStackWithThreeMainThings, nullptr,
+	paramManager.trimToLength(loopLength(), modelStackWithThreeMainThings, nullptr,
 	                          false); // oldLength actually has no consequence anyway
 }
 
@@ -2675,8 +2677,8 @@ someError:
 				return error;
 			}
 
-			if (loopLength) {
-				paramManager.getMIDIParamCollection()->makeInterpolatedCCsGoodAgain(loopLength);
+			if (loopLength()) {
+				paramManager.getMIDIParamCollection()->makeInterpolatedCCsGoodAgain(loopLength());
 			}
 		}
 
@@ -2953,7 +2955,7 @@ doReadBendRange:
 					    setupModelStackWithThreeMainThingsButNoNoteRow(modelStackMemory, song, modControllable, this,
 					                                                   &paramManager);
 
-					paramManager.trimToLength(loopLength, modelStackWithThreeMainThings, nullptr,
+					paramManager.trimToLength(loopLength(), modelStackWithThreeMainThings, nullptr,
 					                          false); // oldLength actually has no consequence anyway
 				}
 
@@ -3119,7 +3121,7 @@ expressionParam:
 							// without this step, you can only just tell there's any problem.
 							else {
 								param->makeInterpolationGoodAgain(
-								    *readTarget, loopLength,
+								    *readTarget, loopLength(),
 								    22); // 22 is picked somewhat arbitrarily - see comment for function itself.
 							}
 						}
@@ -3481,14 +3483,14 @@ bool InstrumentClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack
 			if (i == paramManager.getExpressionParamSetOffset()) {
 				if (shiftSequenceAndMPE) {
 					((ExpressionParamSet*)summary->paramCollection)
-					    ->shiftHorizontally(modelStackWithParamCollection, amount, loopLength);
+					    ->shiftHorizontally(modelStackWithParamCollection, amount, loopLength());
 				}
 			}
 
 			// Normal case (non MPE automation)
 			else {
 				if (shiftAutomation) {
-					summary->paramCollection->shiftHorizontally(modelStackWithParamCollection, amount, loopLength);
+					summary->paramCollection->shiftHorizontally(modelStackWithParamCollection, amount, loopLength());
 				}
 			}
 			summary++;
@@ -3584,7 +3586,7 @@ void InstrumentClip::clearArea(ModelStackWithTimelineCounter* modelStack, int32_
 		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, thisNoteRow);
 
 		thisNoteRow->clearArea(startPos, endPos - startPos, modelStackWithNoteRow, action,
-		                       loopLength); // No cross-screen
+		                       loopLength()); // No cross-screen
 	}
 }
 
@@ -4187,7 +4189,7 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 			Note* lastNote = thisNoteRow->notes.tryGetLast();
 
 			// If Note is past new end-point that we're setting now, then delete / move the Note
-			if (lastNote->pos >= loopLength) {
+			if (lastNote->pos >= loopLength()) {
 
 				mayStillLengthen = false;
 
@@ -4237,11 +4239,11 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 					// moveToFrontIfAlreadySnapshotted = true because we need to make the Consequence closer to the
 					// front than any previous Clip-lengthening that took place.
 
-					lastNote->setLength(loopLength - lastNote->pos);
+					lastNote->setLength(loopLength() - lastNote->pos);
 
 					// if we just recorded a drone note, transfer the note to the sequencer
 					// so that we can stop auditioning / sending midi and note will continue sustaining
-					if (thisNoteRow->isDroning(loopLength)) {
+					if (thisNoteRow->isDroning(loopLength())) {
 						thisNoteRow->sequenced = true;
 					}
 				}
@@ -4342,8 +4344,8 @@ useAlternativeLength:
 		}
 	}
 
-	int32_t oldLength = loopLength;
-	loopLength = suggestedLength;
+	int32_t oldLength = loopLength();
+	setLoopLength(suggestedLength);
 	lengthChanged(modelStack, oldLength);
 }
 
@@ -4702,7 +4704,7 @@ void InstrumentClip::yDisplayNoLongerAuditioning(int32_t yDisplay, Song* song) {
 }
 
 int32_t InstrumentClip::getMaxLength() {
-	int32_t maxLength = loopLength;
+	int32_t maxLength = loopLength();
 
 	for (int32_t i = 0; i < std::ssize(noteRows); i++) {
 		NoteRow* thisNoteRow = &noteRows[i];

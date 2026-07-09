@@ -791,9 +791,9 @@ removeLoadingAnimationAndGetOut:
 			newLength <<= 1;
 		}
 
-		int32_t oldLength = clip->loopLength;
+		int32_t oldLength = clip->loopLength();
 
-		clip->loopLength = newLength;
+		clip->setLoopLength(newLength);
 		clip->originalLength = newLength;
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);

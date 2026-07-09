@@ -37,7 +37,7 @@ Error ConsequenceClipLength::revert(TimeType time, ModelStack* modelStack) {
 		markerValueToRevertTo = markerValueBeforeRevert;
 	}
 
-	int32_t lengthBeforeRevert = clip->loopLength;
+	int32_t lengthBeforeRevert = clip->loopLength();
 
 	modelStack->song->setClipLength(clip, lengthToRevertTo, nullptr);
 

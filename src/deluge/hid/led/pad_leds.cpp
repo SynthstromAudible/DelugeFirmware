@@ -299,7 +299,7 @@ void writeToSideBar(uint8_t sideBarX, uint8_t yDisplay, uint8_t red, uint8_t gre
 }
 
 void setupInstrumentClipCollapseAnimation(bool collapsingOutOfClipMinder) {
-	clipLength = getCurrentClip()->loopLength;
+	clipLength = getCurrentClip()->loopLength();
 
 	if (collapsingOutOfClipMinder) {
 		// This shouldn't have to be done every time
@@ -428,7 +428,7 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 }
 
 void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip) {
-	clipLength = clip->loopLength;
+	clipLength = clip->loopLength();
 	audioClipColour = clip->getColour();
 
 	sampleReversed = clip->sampleControls.isCurrentlyReversed();

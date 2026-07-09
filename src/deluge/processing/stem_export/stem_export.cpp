@@ -511,7 +511,7 @@ void StemExport::restoreAllClipMutes(int32_t totalNumClips) {
 /// for clip export, gets length of longest note row that isn't empty
 /// we will use this length to record that clip until longest note row is fully recorded
 void StemExport::getLoopLengthOfLongestNotEmptyNoteRow(Clip* clip) {
-	loopLengthToStopStemExport = clip->loopLength;
+	loopLengthToStopStemExport = clip->loopLength();
 
 	if (clip->type == ClipType::INSTRUMENT) {
 		InstrumentClip* instrumentClip = (InstrumentClip*)clip;
@@ -557,7 +557,7 @@ int32_t StemExport::exportClipStems(StemExportType stemExportType) {
 			Clip* clip = currentSong->project.clips.session_clips[idxClip];
 			if (clip != nullptr) {
 				getLoopLengthOfLongestNotEmptyNoteRow(clip);
-				getLoopEndPointInSamplesForAudioFile(clip->loopLength);
+				getLoopEndPointInSamplesForAudioFile(clip->loopLength());
 
 				bool started = startCurrentStemExport(stemExportType, clip->output, clip->activeIfNoSolo, idxClip,
 				                                      clip->exportStem);
@@ -673,7 +673,7 @@ int32_t StemExport::exportDrumStems(StemExportType stemExportType) {
 					loopLengthToStopStemExport = thisNoteRow->loopLengthIfIndependent;
 				}
 				else {
-					loopLengthToStopStemExport = clip->loopLength;
+					loopLengthToStopStemExport = clip->loopLength();
 				}
 				getLoopEndPointInSamplesForAudioFile(loopLengthToStopStemExport);
 

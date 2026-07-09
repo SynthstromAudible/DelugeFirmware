@@ -232,7 +232,7 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	// if (ao->mode == AudioOutputMode::sampler) {
 	// 	ao->mode = AudioOutputMode::player;
 	// }
-	originalLength = loopLength;
+	originalLength = loopLength();
 	sampleHolder.filePath = recorder->sample->filePath;
 	sampleHolder.setAudioFile(recorder->sample, sampleControls.isCurrentlyReversed(), true,
 	                          CLUSTER_DONT_LOAD); // Adds a reason to the first Cluster(s). Must call this after
@@ -474,7 +474,7 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 		}
 		sequenceSyncStartedNumTicksAgo = 0; // The show must go on
 	}
-	sequenceSyncStartedNumTicksAgo = (uint32_t)sequenceSyncStartedNumTicksAgo % (uint32_t)loopLength; // Wrapping
+	sequenceSyncStartedNumTicksAgo = (uint32_t)sequenceSyncStartedNumTicksAgo % (uint32_t)loopLength(); // Wrapping
 	guide.sequenceSyncStartedAtTick =
 	    currentInternalTickCount - sequenceSyncStartedNumTicksAgo; // Finally, we've got our value
 
@@ -521,7 +521,7 @@ void AudioClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool m
 
 void AudioClip::setupPlaybackBounds() {
 	if (sampleHolder.audioFile) {
-		int32_t length = getCurrentlyRecordingLinearly() ? originalLength : loopLength;
+		int32_t length = getCurrentlyRecordingLinearly() ? originalLength : loopLength();
 		guide.sequenceSyncLengthTicks = length;
 		guide.setupPlaybackBounds(sampleControls.isCurrentlyReversed());
 	}
@@ -542,7 +542,7 @@ int64_t AudioClip::getNumSamplesTilLoop(ModelStackWithTimelineCounter* modelStac
 	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, nullptr);
 
 	int32_t cutPos = modelStackWithNoteRow->getPosAtWhichPlaybackWillCut();
-	int32_t loopPosWithinClip = std::min(cutPos, loopLength);
+	int32_t loopPosWithinClip = std::min(cutPos, loopLength());
 
 	int32_t ticksTilLoop = loopPosWithinClip - lastProcessedPos;
 	uint32_t loopTime = playbackHandler.getInternalTickTime(playbackHandler.lastSwungTickActioned + ticksTilLoop);
@@ -584,7 +584,7 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, std::span<q31_
 
 	uint32_t sampleLengthInSamples = sampleHolder.getDurationInSamples(true); // In the sample rate of the file!
 	uint32_t clipLengthInSamples =
-	    (playbackHandler.getTimePerInternalTickBig() * loopLength) >> 32; // We haven't rounded... should we?
+	    (playbackHandler.getTimePerInternalTickBig() * loopLength()) >> 32; // We haven't rounded... should we?
 
 	// To stop things getting insane, limit to 32x speed
 	// if ((sampleLengthInSamples >> 5) > clipLengthInSamples) return false;
@@ -903,7 +903,7 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 		ClipInstance* clipInstance = &output->clipInstances[clipInstanceI];
 		clipInstance->clip = newClip;
 		clipInstance->pos = arrangementRecordPos;
-		clipInstance->length = loopLength;
+		clipInstance->length = loopLength();
 
 		newClip->activeIfNoSolo = false; // And now, we want it to actually be false
 		output->setActiveClip(modelStack, PgmChangeSend::NEVER);
@@ -970,7 +970,7 @@ int64_t AudioClip::getSamplesFromTicks(int32_t ticks) {
 		return playbackHandler.getTimePerInternalTickFloat() * ticks;
 	}
 	else {
-		int32_t length = getCurrentlyRecordingLinearly() ? originalLength : loopLength;
+		int32_t length = getCurrentlyRecordingLinearly() ? originalLength : loopLength();
 		return (int64_t)ticks * sampleHolder.getDurationInSamples(true)
 		       / length; // Yup, ticks could be negative, and so could the result
 	}
@@ -1048,7 +1048,7 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 	}
 
 	if (addUndefinedArea) {
-		drawUndefinedArea(xScroll, xZoom, loopLength, image, occupancyMask, kDisplayWidth, editorScreen, false);
+		drawUndefinedArea(xScroll, xZoom, loopLength(), image, occupancyMask, kDisplayWidth, editorScreen, false);
 	}
 
 	return true;
@@ -1278,9 +1278,9 @@ void AudioClip::quantizeLengthForArrangementRecording(ModelStackWithTimelineCoun
 
 	sampleHolder.endPos = sampleHolder.startPos + samplesPerTick * suggestedLength + 0.5; // Rounds it
 
-	int32_t oldLength = loopLength;
-	loopLength = suggestedLength;
-	originalLength = loopLength;
+	int32_t oldLength = loopLength();
+	setLoopLength(suggestedLength);
+	originalLength = loopLength();
 	lengthChanged(modelStack, oldLength, nullptr);
 }
 
@@ -1364,14 +1364,14 @@ bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int
 			if (i == paramManager.getExpressionParamSetOffset()) {
 				if (shiftSequenceAndMPE) {
 					((ExpressionParamSet*)summary->paramCollection)
-					    ->shiftHorizontally(modelStackWithParamCollection, amount, loopLength);
+					    ->shiftHorizontally(modelStackWithParamCollection, amount, loopLength());
 				}
 			}
 
 			// Normal case (non MPE automation)
 			else {
 				if (shiftAutomation) {
-					summary->paramCollection->shiftHorizontally(modelStackWithParamCollection, amount, loopLength);
+					summary->paramCollection->shiftHorizontally(modelStackWithParamCollection, amount, loopLength());
 				}
 			}
 			summary++;
@@ -1422,7 +1422,7 @@ bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int
 }
 
 uint64_t AudioClip::getCullImmunity() {
-	uint32_t distanceFromEnd = loopLength - getLivePos();
+	uint32_t distanceFromEnd = loopLength() - getLivePos();
 	// We're gonna cull time-stretching ones first
 	bool doingTimeStretching = (voiceSample && voiceSample->timeStretcher);
 	return ((uint64_t)voicePriority << 33) + ((uint64_t)!doingTimeStretching << 32) + distanceFromEnd;

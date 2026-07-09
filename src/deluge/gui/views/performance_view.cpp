@@ -1592,7 +1592,7 @@ uint32_t PerformanceView::getMaxZoom() {
 
 /// why do I need this? (code won't compile without it)
 uint32_t PerformanceView::getMaxLength() {
-	return currentSong->getLongestClip(true, false)->loopLength;
+	return currentSong->getLongestClip(true, false)->loopLength();
 }
 
 /// updates the display if the mod encoder has just updated the same parameter currently being held / last held

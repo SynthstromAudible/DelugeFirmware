@@ -576,8 +576,8 @@ int32_t Arrangement::getPosAtWhichClipWillCut(ModelStackWithTimelineCounter cons
 		return clip->currentlyPlayingReversed ? (-2147483648) : 2147483647; // This shouldn't normally happen right?
 	}
 
-	int32_t cutPos = clipInstance->length - clip->loopLength * clip->repeatCount;
-	if (cutPos == clip->loopLength) { // If cutting right at the end of the current repeat...
+	int32_t cutPos = clipInstance->length - clip->loopLength() * clip->repeatCount;
+	if (cutPos == clip->loopLength()) { // If cutting right at the end of the current repeat...
 
 		if (clip->currentlyPlayingReversed) {
 			cutPos = 0; // Since we already knew it was loopLength.
@@ -604,7 +604,7 @@ int32_t Arrangement::getPosAtWhichClipWillCut(ModelStackWithTimelineCounter cons
 		}
 
 		else {
-			if (cutPos < clip->loopLength
+			if (cutPos < clip->loopLength()
 			    && cutPos <= clip->getLivePos()) { // We first check that cutPos is less than the loopLength, so as not
 				                                   // to waste time on the calculations in getLivePos if not necessary
 				cutPos = 2147483647;
@@ -625,7 +625,7 @@ bool Arrangement::willClipContinuePlayingAtEnd(ModelStackWithTimelineCounter con
 		return (cutPos < 0);
 	}
 	else {
-		return (cutPos > clip->loopLength);
+		return (cutPos > clip->loopLength());
 	}
 }
 
@@ -645,7 +645,7 @@ bool Arrangement::willClipLoopAtSomePoint(ModelStackWithTimelineCounter const* m
 	// If we're still not too near the end of this Instance, it'll loop
 	int32_t instanceEndPos = clipInstance->pos + clipInstance->length;
 	int32_t distanceFromInstanceEnd = instanceEndPos - lastProcessedPos;
-	if (distanceFromInstanceEnd > clip->loopLength) {
+	if (distanceFromInstanceEnd > clip->loopLength()) {
 		return true;
 	}
 
@@ -658,7 +658,7 @@ bool Arrangement::willClipLoopAtSomePoint(ModelStackWithTimelineCounter const* m
 	}
 
 	// Ok, we're near the end of the ClipInstance, but perhaps the last remaining bit contains a Clip loop-end-point?
-	return (clipInstance->length > clip->loopLength * (clip->repeatCount + 1));
+	return (clipInstance->length > clip->loopLength() * (clip->repeatCount + 1));
 }
 
 void Arrangement::endAnyLinearRecording() {

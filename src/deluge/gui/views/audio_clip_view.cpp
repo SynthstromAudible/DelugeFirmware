@@ -132,7 +132,7 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 
 	// end marker column
 	int32_t endSquareDisplay =
-	    divide_round_negative(clip.loopLength - currentSong->persistentView.xScroll[NAVIGATION_CLIP] - 1,
+	    divide_round_negative(clip.loopLength() - currentSong->persistentView.xScroll[NAVIGATION_CLIP] - 1,
 	                          currentSong->persistentView.xZoom[NAVIGATION_CLIP]);
 
 	// start marker column
@@ -505,9 +505,9 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 				}
 				AudioClip& clipRef = *clip;
 
-				int32_t endSquareDisplay =
-				    divide_round_negative(clipRef.loopLength - currentSong->persistentView.xScroll[NAVIGATION_CLIP] - 1,
-				                          currentSong->persistentView.xZoom[NAVIGATION_CLIP]);
+				int32_t endSquareDisplay = divide_round_negative(
+				    clipRef.loopLength() - currentSong->persistentView.xScroll[NAVIGATION_CLIP] - 1,
+				    currentSong->persistentView.xZoom[NAVIGATION_CLIP]);
 
 				int32_t startSquareDisplay =
 				    divide_round_negative(0 - currentSong->persistentView.xScroll[NAVIGATION_CLIP],
@@ -526,7 +526,7 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 						if (sample) {
 							int32_t newLength = (x + 1) * currentSong->persistentView.xZoom[NAVIGATION_CLIP]
 							                    + currentSong->persistentView.xScroll[NAVIGATION_CLIP];
-							int32_t oldLength = clipRef.loopLength;
+							int32_t oldLength = clipRef.loopLength();
 							uint64_t oldLengthSamples = clipRef.sampleHolder.getDurationInSamples(true);
 							changeUnderlyingSampleLength(clipRef, sample, newLength, oldLength, oldLengthSamples);
 							uiNeedsRendering(this, 0xFFFFFFFF, 0);
@@ -545,7 +545,7 @@ ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 						if (sample) {
 							int32_t newStartTicks = x * currentSong->persistentView.xZoom[NAVIGATION_CLIP]
 							                        + currentSong->persistentView.xScroll[NAVIGATION_CLIP];
-							int32_t oldLength = clipRef.loopLength;
+							int32_t oldLength = clipRef.loopLength();
 							uint64_t oldLengthSamples = clipRef.sampleHolder.getDurationInSamples(true);
 							changeUnderlyingSampleStart(clipRef, sample, newStartTicks, oldLength, oldLengthSamples);
 							uiNeedsRendering(this, 0xFFFFFFFF, 0);
@@ -723,7 +723,7 @@ void AudioClipView::clipNeedsReRendering(Clip* c) {
 	if (c == getCurrentAudioClip()) {
 		// Scroll back left if we need to - it's possible that the length just reverted, if recording got aborted.
 		// Ok, coming back to this, it seems it was a bit hacky that I put this in this function...
-		if (currentSong->persistentView.xScroll[NAVIGATION_CLIP] >= c->loopLength) {
+		if (currentSong->persistentView.xScroll[NAVIGATION_CLIP] >= c->loopLength()) {
 			horizontalScrollForLinearRecording(0);
 		}
 		else {
@@ -766,7 +766,7 @@ void AudioClipView::setClipLengthEqualToSampleLength() {
 }
 
 void AudioClipView::adjustLoopLength(int32_t newLength) {
-	int32_t oldLength = getCurrentClip()->loopLength;
+	int32_t oldLength = getCurrentClip()->loopLength();
 
 	if (oldLength != newLength) {
 		Action* action = nullptr;
@@ -818,7 +818,7 @@ ActionResult AudioClipView::editClipLengthWithoutTimestretching(int32_t offset) 
 	}
 
 	// If we're not scrolled all the way to the right, go there now
-	if (scrollRightToEndOfLengthIfNecessary(getCurrentClip()->loopLength)) {
+	if (scrollRightToEndOfLengthIfNecessary(getCurrentClip()->loopLength())) {
 		return ActionResult::DEALT_WITH;
 	}
 
@@ -826,7 +826,7 @@ ActionResult AudioClipView::editClipLengthWithoutTimestretching(int32_t offset) 
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
-	int32_t oldLength = getCurrentClip()->loopLength;
+	int32_t oldLength = getCurrentClip()->loopLength();
 	uint64_t oldLengthSamples = getCurrentAudioClip()->sampleHolder.getDurationInSamples(true);
 
 	Action* action = nullptr;
@@ -875,9 +875,9 @@ void AudioClipView::tellMatrixDriverWhichRowsContainSomethingZoomable() {
 
 uint32_t AudioClipView::getMaxLength() {
 	if (endMarkerVisible) {
-		return getCurrentClip()->loopLength + 1;
+		return getCurrentClip()->loopLength() + 1;
 	}
-	return getCurrentClip()->loopLength;
+	return getCurrentClip()->loopLength();
 }
 
 uint32_t AudioClipView::getMaxZoom() {

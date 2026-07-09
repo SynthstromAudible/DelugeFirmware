@@ -347,7 +347,7 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 					getCurrentInstrumentClip()->wrapEditLevel =
 					    currentSong->persistentView.xZoom[NAVIGATION_CLIP] * kDisplayWidth;
 					// Ensure that there are actually multiple screens to edit across
-					if (getCurrentInstrumentClip()->wrapEditLevel < getCurrentClip()->loopLength) {
+					if (getCurrentInstrumentClip()->wrapEditLevel < getCurrentClip()->loopLength()) {
 						getCurrentInstrumentClip()->wrapEditing = true;
 					}
 				}
@@ -1453,7 +1453,7 @@ ramError:
 
 			if (overwriteExisting && selectedDrumOnly) {
 				thisNoteRow->clearArea(startPos, endPos - startPos, modelStackWithNoteRow, action,
-				                       getCurrentInstrumentClip()->loopLength); // No cross-screen
+				                       getCurrentInstrumentClip()->loopLength()); // No cross-screen
 			}
 
 			deluge::edits::Context pasteCtx{*currentSong, currentSong->project};
@@ -1696,7 +1696,7 @@ getOut: {}
 void InstrumentClipView::doubleClipLengthAction() {
 
 	// If too big...
-	if (getCurrentClip()->loopLength > (kMaxSequenceLength >> 1)) {
+	if (getCurrentClip()->loopLength() > (kMaxSequenceLength >> 1)) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MAXIMUM_LENGTH_REACHED));
 		return;
 	}
@@ -2290,7 +2290,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 		if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
 
 			// Just check we're not beyond Clip length
-			if (squareStart >= clip->loopLength) {
+			if (squareStart >= clip->loopLength()) {
 				return;
 			}
 
@@ -6959,11 +6959,11 @@ doCompareNote:
 	}
 
 	else {
-		if (resultingTotalOffset >= (currentClip->loopLength >> 1)) {
-			resultingTotalOffset -= currentClip->loopLength;
+		if (resultingTotalOffset >= (currentClip->loopLength() >> 1)) {
+			resultingTotalOffset -= currentClip->loopLength();
 		}
-		else if (resultingTotalOffset <= -(currentClip->loopLength >> 1)) {
-			resultingTotalOffset += currentClip->loopLength;
+		else if (resultingTotalOffset <= -(currentClip->loopLength() >> 1)) {
+			resultingTotalOffset += currentClip->loopLength();
 		}
 
 		if (resultingTotalOffset > 0) {
@@ -7599,7 +7599,7 @@ void InstrumentClipView::editNoteRowLength(ModelStackWithNoteRow* modelStack, in
 
 			// If that got us to the intended length, all is good...
 			if (noteRow->loopLengthIfIndependent == newLength
-			    || (!noteRow->loopLengthIfIndependent && clip->loopLength == newLength)) {
+			    || (!noteRow->loopLengthIfIndependent && clip->loopLength() == newLength)) {
 possiblyDoResumePlaybackOnNoteRow:
 				// Need to do the resumePlayback that we blocked happening during the revert()
 				if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(clip)) {

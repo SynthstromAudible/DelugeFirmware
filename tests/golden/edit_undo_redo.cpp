@@ -704,7 +704,7 @@ void clipMultiplyTarget(Song* song) {
 		}
 		auto* ic = (InstrumentClip*)cl;
 		// Need notes to prove content duplication, and room to double within the sequence limit.
-		if (totalNotes(ic) > 0 && (int64_t)ic->loopLength * 2 <= kMaxSequenceLength) {
+		if (totalNotes(ic) > 0 && (int64_t)ic->loopLength() * 2 <= kMaxSequenceLength) {
 			clip = ic;
 		}
 	}
@@ -718,22 +718,22 @@ void clipMultiplyTarget(Song* song) {
 	char mem[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* ms = setupModelStackWithTimelineCounter(mem, song, clip);
 
-	int32_t lenBefore = clip->loopLength;
+	int32_t lenBefore = clip->loopLength();
 	int32_t notesBefore = totalNotes(clip);
 	actionLogger.firstAction[BEFORE] = nullptr;
 	actionLogger.firstAction[AFTER] = nullptr;
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
 	deluge::edits::MultiplyClip edit{deluge::edits::clipAddressFor(*clip), ms};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "clip-multiply: apply succeeds");
-	check(clip->loopLength == lenBefore * 2, "clip-multiply: length doubled");
+	check(clip->loopLength() == lenBefore * 2, "clip-multiply: length doubled");
 	// Content is duplicated into the new second half; exact doubling isn't guaranteed (boundary notes /
 	// independent-length rows), so assert it grew and rely on undo for the exact-restoration invariant.
 	check(totalNotes(clip) >= notesBefore, "clip-multiply: content duplicated (grew)");
 	actionLogger.revert(BEFORE, false, false);
-	check(clip->loopLength == lenBefore, "clip-multiply: undo restores length");
+	check(clip->loopLength() == lenBefore, "clip-multiply: undo restores length");
 	check(totalNotes(clip) == notesBefore, "clip-multiply: undo restores notes");
 	actionLogger.revert(AFTER, false, false);
-	check(clip->loopLength == lenBefore * 2, "clip-multiply: redo re-doubles");
+	check(clip->loopLength() == lenBefore * 2, "clip-multiply: redo re-doubles");
 
 	song->setCurrentClip(nullptr);
 }
@@ -770,7 +770,7 @@ void clipLengthTarget(Song* song) {
 			continue;
 		}
 		auto* ic = (InstrumentClip*)cl;
-		if ((int64_t)ic->loopLength * 2 <= kMaxSequenceLength) {
+		if ((int64_t)ic->loopLength() * 2 <= kMaxSequenceLength) {
 			clip = ic;
 		}
 	}
@@ -781,7 +781,7 @@ void clipLengthTarget(Song* song) {
 	printf("# target clip-set-length\n");
 	song->setCurrentClip(clip); // ConsequenceClipLength::revert resolves the clip via getCurrentClip()
 
-	int32_t before = clip->loopLength;
+	int32_t before = clip->loopLength();
 	int32_t newLength = before * 2;
 	actionLogger.firstAction[BEFORE] = nullptr;
 	actionLogger.firstAction[AFTER] = nullptr;
@@ -790,7 +790,7 @@ void clipLengthTarget(Song* song) {
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
 	deluge::edits::SetClipLength edit{deluge::edits::clipAddressFor(*clip), (uint32_t)newLength, action, clip};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "set-length: apply succeeds");
-	check(clip->loopLength == newLength, "set-length: length set");
+	check(clip->loopLength() == newLength, "set-length: length set");
 
 	// M3 owner-1 slice 1: the additive DOM shadow store matches the engine field after the dual-write. (The shadow is
 	// intentionally NOT reverted on undo — nothing reads it yet; shadow undo lands with the later read/save/load flip.)
@@ -805,9 +805,9 @@ void clipLengthTarget(Song* song) {
 	}
 
 	actionLogger.revert(BEFORE, false, false);
-	check(clip->loopLength == before, "set-length: undo restores length");
+	check(clip->loopLength() == before, "set-length: undo restores length");
 	actionLogger.revert(AFTER, false, false);
-	check(clip->loopLength == newLength, "set-length: redo re-applies");
+	check(clip->loopLength() == newLength, "set-length: redo re-applies");
 
 	song->setCurrentClip(nullptr);
 }
@@ -862,7 +862,7 @@ void pasteTarget(Song* song) {
 	}
 	// The pasted pos = xScroll + round(0 * 1) = xScroll; it must land inside the row for a note to appear.
 	int32_t xScroll = song->persistentView.xScroll[0];
-	if (xScroll < 0 || xScroll >= clip->loopLength) {
+	if (xScroll < 0 || xScroll >= clip->loopLength()) {
 		printf("# paste-xscroll-out-of-range\n");
 		return;
 	}
@@ -892,7 +892,7 @@ void pasteTarget(Song* song) {
 	check(action != nullptr, "paste: harness opened an Action");
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
 	deluge::edits::PasteNoteRow edit{deluge::edits::noteRowAddressFor(*ms), &copied, /*scaleFactor=*/1.0f,
-	                                 /*screenEndPos=*/clip->loopLength,     action,  ms};
+	                                 /*screenEndPos=*/clip->loopLength(),   action,  ms};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "paste: apply succeeds");
 	check(std::ssize(noteRow->notes) == before + 1, "paste: one note pasted");
 	actionLogger.revert(BEFORE, false, false);

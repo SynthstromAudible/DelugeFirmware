@@ -2620,7 +2620,7 @@ void PlaybackHandler::grabTempoFromClip(Clip* clip) {
 
 	uint64_t loopLengthSamples = ((AudioClip*)clip)->sampleHolder.getLengthInSamplesAtSystemSampleRate(true);
 
-	double timePerTick = (double)loopLengthSamples / clip->loopLength;
+	double timePerTick = (double)loopLengthSamples / clip->loopLength();
 
 	// Reify: SetTempo opens the TEMPO_CHANGE Action, applies the tempo (setTempoFromNumSamples with logging off), and
 	// records the ConsequenceTempoChange itself — verbatim from what this site did inline.
@@ -2706,10 +2706,10 @@ void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, in
 			}
 
 			// Set length, if different
-			if (clip->loopLength != ticksLong) {
+			if (clip->loopLength() != ticksLong) {
 
-				uint32_t oldLength = clip->loopLength;
-				clip->loopLength = ticksLong;
+				uint32_t oldLength = clip->loopLength();
+				clip->setLoopLength(ticksLong);
 
 				action->recordClipLengthChange(clip, oldLength);
 			}

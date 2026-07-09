@@ -367,7 +367,7 @@ bool Song::ensureAtLeastOneSessionClip() {
 	(void)project.clips.session_clips.insertClipAt(firstClip,
 	                                               0); // OOM impossible-in-practice this early; ignored as before
 
-	firstClip->loopLength = kDefaultClipLength << project.transport.inside_world_tick_magnitude;
+	firstClip->setLoopLength(kDefaultClipLength << project.transport.inside_world_tick_magnitude);
 
 	ParamManager newParamManager; // Deliberate don't set up.
 
@@ -707,7 +707,7 @@ uint32_t Song::getInputTickScale() {
 	if (!project.transport.sync_scaling_clip) {
 		return 3;
 	}
-	uint32_t inputTickScale = project.transport.sync_scaling_clip->loopLength;
+	uint32_t inputTickScale = project.transport.sync_scaling_clip->loopLength();
 	while (!(inputTickScale & 1)) {
 		inputTickScale >>= 1;
 	}
@@ -795,15 +795,15 @@ void Song::loadNextSong() {
 // If action is NULL, that means this is being called as part of an undo, so don't do any extra stuff.
 // Currently mayReSyncClip is only set to false in a call that happens when we've just finished recording that Clip.
 void Song::setClipLength(Clip* clip, uint32_t newLength, Action* action, bool mayReSyncClip) {
-	uint32_t oldLength = clip->loopLength;
+	uint32_t oldLength = clip->loopLength();
 
 	if (clip == project.transport.sync_scaling_clip) {
 		uint32_t oldScale = getInputTickScale();
-		clip->loopLength = newLength;
+		clip->setLoopLength(newLength);
 		inputTickScalePotentiallyJustChanged(oldScale);
 	}
 	else {
-		clip->loopLength = newLength;
+		clip->setLoopLength(newLength);
 	}
 
 	if (action) {
@@ -843,7 +843,7 @@ void Song::doubleClipLength(InstrumentClip* clip, Action* action) {
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, this)->addTimelineCounter(clip);
 
-	int32_t oldLength = clip->loopLength;
+	int32_t oldLength = clip->loopLength();
 
 	uint32_t oldScale = getInputTickScale();
 
@@ -4066,7 +4066,7 @@ Clip* Song::getLongestClip(bool includeInactive, bool includeArrangementOnly) {
 	for (Clip* clip : AllClips::everywhere(this)) {
 
 		if (includeInactive || isClipActive(clip)) {
-			if (!longestClip || clip->loopLength > longestClip->loopLength) {
+			if (!longestClip || clip->loopLength() > longestClip->loopLength()) {
 				longestClip = clip;
 			}
 		}
@@ -4087,7 +4087,7 @@ Clip* Song::getLongestActiveClipWithMultipleOrFactorLength(int32_t targetLength,
 	for (Clip* clip : AllClips::everywhere(this)) {
 
 		if (clip != excludeClip && isClipActive(clip) && clip->launchStyle != LaunchStyle::FILL) {
-			int32_t clipLength = clip->loopLength;
+			int32_t clipLength = clip->loopLength();
 			if (clipLength == targetLength
 			    || (clipLength > targetLength && ((uint32_t)clipLength % (uint32_t)targetLength) == 0)
 			    || (targetLength > clipLength && ((uint32_t)targetLength % (uint32_t)clipLength) == 0)) {
@@ -4229,7 +4229,7 @@ Error Song::placeFirstInstancesOfActiveClips(int32_t pos) {
 
 			ClipInstance* clipInstance = &clip->output->clipInstances[clipInstanceI];
 			clipInstance->clip = clip;
-			clipInstance->length = clip->loopLength;
+			clipInstance->length = clip->loopLength();
 			clipInstance->pos = pos;
 		}
 	}
@@ -5014,7 +5014,7 @@ void Song::removeSessionClip(Clip* clip, int32_t clipIndex, bool forceClipsAbove
 			bool deletedAnyElements = false;
 
 lookAtNextOne:
-			if (i + 1 < std::ssize(output->clipInstances) && (lengthGotUpTo % clip->loopLength) == 0) {
+			if (i + 1 < std::ssize(output->clipInstances) && (lengthGotUpTo % clip->loopLength()) == 0) {
 
 				// See if next ClipInstance has the same Clip and lines up as a repeat...
 				ClipInstance* nextClipInstance = &output->clipInstances[i + 1]; // We already checked that this exists

@@ -2669,7 +2669,7 @@ void NoteRow::setLength(ModelStackWithNoteRow* modelStack, int32_t newLength, Ac
 		oldPos = (uint32_t)oldPos % (uint32_t)newLength;
 	}
 
-	loopLengthIfIndependent = (newLength == clip->loopLength) ? 0 : newLength;
+	loopLengthIfIndependent = (newLength == clip->loopLength()) ? 0 : newLength;
 
 	if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(clip)) {
 		lastProcessedPosIfIndependent = oldPos;

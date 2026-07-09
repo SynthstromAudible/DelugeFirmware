@@ -1386,7 +1386,7 @@ void AutomationView::handleCrossScreenButtonAction(bool on) {
 					else {
 						clip->wrapEditLevel = currentSong->persistentView.xZoom[NAVIGATION_CLIP] * kDisplayWidth;
 						// Ensure that there are actually multiple screens to edit across
-						if (clip->wrapEditLevel < clip->loopLength) {
+						if (clip->wrapEditLevel < clip->loopLength()) {
 							clip->wrapEditing = true;
 						}
 						// If in we're in the note editor, we can check if the note row has multiple screens
@@ -3156,7 +3156,7 @@ int32_t AutomationView::getEffectiveLength(ModelStackWithTimelineCounter* modelS
 	}
 	else {
 		// this will differ for a kit when in note row mode
-		effectiveLength = clip->loopLength;
+		effectiveLength = clip->loopLength();
 	}
 
 	return effectiveLength;

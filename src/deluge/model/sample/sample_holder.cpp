@@ -106,7 +106,7 @@ int32_t SampleHolder::getLoopLengthAtSystemSampleRate(bool forTimeStretching) {
 
 		return static_cast<int32_t>(loopLength);
 	}
-	return getCurrentClip()->loopLength;
+	return getCurrentClip()->loopLength();
 }
 
 void SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manuallySelected,

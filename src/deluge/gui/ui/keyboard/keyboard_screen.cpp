@@ -910,7 +910,7 @@ void KeyboardScreen::graphicsRoutine() {
 	else {
 		newTickSquare = (uint64_t)(getCurrentClip()->lastProcessedPos
 		                           + playbackHandler.getNumSwungTicksInSinceLastActionedSwungTick())
-		                * kDisplayWidth / getCurrentClip()->loopLength;
+		                * kDisplayWidth / getCurrentClip()->loopLength();
 		if (newTickSquare < 0 || newTickSquare >= kDisplayWidth) {
 			newTickSquare = 255;
 		}

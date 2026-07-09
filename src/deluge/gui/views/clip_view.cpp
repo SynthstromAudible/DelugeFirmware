@@ -94,9 +94,9 @@ Action* ClipView::lengthenClip(int32_t newLength) {
 
 	// Only if that didn't get us directly to the correct length, manually set length. This will do a resync if playback
 	// active
-	if (getCurrentClip()->loopLength != newLength) {
-		ActionType actionType = (newLength < getCurrentClip()->loopLength) ? ActionType::CLIP_LENGTH_DECREASE
-		                                                                   : ActionType::CLIP_LENGTH_INCREASE;
+	if (getCurrentClip()->loopLength() != newLength) {
+		ActionType actionType = (newLength < getCurrentClip()->loopLength()) ? ActionType::CLIP_LENGTH_DECREASE
+		                                                                     : ActionType::CLIP_LENGTH_INCREASE;
 
 		// If we are in middle of PATTERN_PASTE Action -> Resize need to be part of preview Pattern
 		if (actionLogger.firstAction[BEFORE]->type == ActionType::PATTERN_PASTE) {
@@ -164,7 +164,7 @@ ActionResult ClipView::horizontalEncoderAction(int32_t offset) {
 			return ActionResult::DEALT_WITH;
 		}
 
-		uint32_t oldLength = getCurrentClip()->loopLength;
+		uint32_t oldLength = getCurrentClip()->loopLength();
 
 		// If we're not scrolled all the way to the right, go there now
 		if (scrollRightToEndOfLengthIfNecessary(oldLength)) {

@@ -192,7 +192,7 @@ void Output::clipLengthChanged(Clip* clip, int32_t oldLength) {
 		if (instance->clip == clip) {
 			if (instance->length == oldLength) {
 
-				int32_t newLength = clip->loopLength;
+				int32_t newLength = clip->loopLength();
 
 				ClipInstance* nextInstance = clipInstances.tryGet(i + 1);
 				if (nextInstance) {
@@ -456,7 +456,7 @@ Error Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
 
 	clipInstance->clip = newClip;
 	newClip->section = 255;
-	newClip->loopLength = kMaxSequenceLength;
+	newClip->setLoopLength(kMaxSequenceLength);
 
 	(void)song->project.clips.arrangement_only_clips.insertClipAt(newClip, 0); // Will succeed - we checked above
 
@@ -567,7 +567,7 @@ skipThat: {}
 
 		// Set the ClipInstance's length to match the Clip's new length
 		Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
-		clipInstance->change(action, this, clipInstance->pos, activeClip->loopLength, activeClip);
+		clipInstance->change(action, this, clipInstance->pos, activeClip->loopLength(), activeClip);
 
 		recordingInArrangement = false;
 	}

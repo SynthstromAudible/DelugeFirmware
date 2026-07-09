@@ -182,7 +182,11 @@ public:
 
 	LearnedMIDI muteMIDICommand;
 
-	int32_t loopLength{};
+	/// M3 owner-1 read flip (slice 3a): clip loop length is now reached through accessors so the read can later be
+	/// rebound to the DOM-owned DocClip (slice 3b). Behaviour-identical in 3a — the accessors read/write this field.
+	[[nodiscard]] int32_t loopLength() const { return loopLength_; }
+	void setLoopLength(int32_t newLength) { loopLength_ = newLength; }
+	int32_t loopLength_{};
 
 	// Before linear recording of this Clip began, and this Clip started getting extended to multiples of this
 	int32_t originalLength;

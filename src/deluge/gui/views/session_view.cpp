@@ -321,13 +321,13 @@ moveAfterClipInstance:
 				i++;
 				otherInstance = output->clipInstances.tryGet(i);
 				if (otherInstance) {
-					if (otherInstance->pos < proposedStartPos + clip->loopLength) {
+					if (otherInstance->pos < proposedStartPos + clip->loopLength()) {
 						goto moveAfterClipInstance;
 					}
 				}
 
 				// Make sure it won't be extending beyond numerical limit
-				if (proposedStartPos > kMaxSequenceLength - clip->loopLength) {
+				if (proposedStartPos > kMaxSequenceLength - clip->loopLength()) {
 					display->displayPopup(
 					    deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_WOULD_BREACH_MAX_ARRANGEMENT_LENGTH));
 					return ActionResult::DEALT_WITH;
@@ -343,8 +343,8 @@ moveAfterClipInstance:
 				ClipInstance* newInstance = &output->clipInstances[i];
 				newInstance->pos = proposedStartPos;
 				newInstance->clip = clip;
-				newInstance->length = clip->loopLength;
-				arrangement.rowEdited(output, proposedStartPos, proposedStartPos + clip->loopLength, nullptr,
+				newInstance->length = clip->loopLength();
+				arrangement.rowEdited(output, proposedStartPos, proposedStartPos + clip->loopLength(), nullptr,
 				                      newInstance);
 
 				int32_t howMuchLater = proposedStartPos - posPressed;
@@ -353,8 +353,8 @@ moveAfterClipInstance:
 				arrangerView.yPressedEffective = selectedClipPressYDisplay;
 				arrangerView.yPressedActual = selectedClipPressYDisplay;
 				arrangerView.actionOnDepress = false;
-				arrangerView.desiredLength = clip->loopLength;
-				arrangerView.originallyPressedClipActualLength = clip->loopLength;
+				arrangerView.desiredLength = clip->loopLength();
+				arrangerView.originallyPressedClipActualLength = clip->loopLength();
 				arrangerView.pressedClipInstanceIndex = i;
 				arrangerView.pressedClipInstanceXScrollWhenLastInValidPosition =
 				    currentSong->persistentView.xScroll[NAVIGATION_ARRANGEMENT] + howMuchLater;
@@ -2261,15 +2261,15 @@ void SessionView::graphicsRoutine() {
 
 			// If we are recording to another Clip, we have to use its position.
 			if (clipToRecordTo != clip) {
-				int32_t whichRepeat = (uint32_t)livePos / (uint32_t)clip->loopLength;
-				livePos -= whichRepeat * clip->loopLength;
+				int32_t whichRepeat = (uint32_t)livePos / (uint32_t)clip->loopLength();
+				livePos -= whichRepeat * clip->loopLength();
 
 				// But if it's currently reversing, we have to re-apply that here.
 				if (clip->sequenceDirectionMode == SequenceDirection::REVERSE
 				    || (clip->sequenceDirectionMode == SequenceDirection::PINGPONG && (whichRepeat & 1))) {
 					livePos = -livePos;
 					if (livePos < 0) {
-						livePos += clip->loopLength;
+						livePos += clip->loopLength();
 					}
 				}
 			}
@@ -2515,7 +2515,7 @@ int32_t SessionView::getClipPlaceOnScreen(Clip* clip) {
 }
 
 uint32_t SessionView::getMaxLength() {
-	return currentSong->getLongestClip(true, false)->loopLength;
+	return currentSong->getLongestClip(true, false)->loopLength();
 }
 
 bool SessionView::setupScroll(uint32_t oldScroll) {
@@ -2564,7 +2564,7 @@ noTransition:
 }
 
 uint32_t SessionView::getClipLocalScroll(Clip* clip, uint32_t overviewScroll, uint32_t xZoom) {
-	return std::min((clip->loopLength - 1) / (xZoom * kDisplayWidth) * xZoom * kDisplayWidth, overviewScroll);
+	return std::min((clip->loopLength() - 1) / (xZoom * kDisplayWidth) * xZoom * kDisplayWidth, overviewScroll);
 }
 
 void SessionView::flashPlayRoutine() {
@@ -3594,7 +3594,7 @@ void SessionView::setupNewClip(Clip* newClip) {
 	newClip->armState = ArmState::OFF;
 
 	if (currentSong->persistentView.sessionLayout == SessionLayoutType::SessionLayoutTypeGrid) {
-		newClip->loopLength = currentSong->getBarLength();
+		newClip->setLoopLength(currentSong->getBarLength());
 		newClip->activeIfNoSolo = false;
 	}
 	else {
@@ -3604,7 +3604,7 @@ void SessionView::setupNewClip(Clip* newClip) {
 		// Default Clip length. Default to current zoom, minimum 1 bar
 		int32_t newClipLength = std::max(currentDisplayLength, oneBar);
 
-		newClip->loopLength = newClipLength;
+		newClip->setLoopLength(newClipLength);
 
 		if (playbackHandler.playbackState
 		    && (currentPlaybackMode == &arrangement || !playbackHandler.isEitherClockActive())) {
