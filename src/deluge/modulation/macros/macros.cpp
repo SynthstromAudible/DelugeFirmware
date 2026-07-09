@@ -34,7 +34,6 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
-#include "modulation/macros/macro_preset.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/midi/midi_param_vector.h"
@@ -50,15 +49,12 @@
 
 namespace params = deluge::modulation::params;
 
-#define MACROS_TAG "macros"            // per-instrument block, embedded in the instrument's XML
-#define MACRO_PRESET_TAG "macroPreset" // preset file root (targets only)
-#define MACRO_ELEMENT_TAG "macro"      // one macro (source + targets)
-#define MACRO_SOURCE_TAG "source"      // the learned source CC
+#define MACROS_TAG "macros"       // per-instrument block, embedded in the instrument's XML
+#define MACRO_ELEMENT_TAG "macro" // one macro (source + targets)
+#define MACRO_SOURCE_TAG "source" // the learned source CC
 #define MACRO_TARGET_PREFIX "target"
 
 namespace Macros {
-
-int32_t presetMacroIndex = 0;
 
 bool isEnabled() {
 	return runtimeFeatureSettings.get(RuntimeFeatureSettingType::MacroSystem) == RuntimeFeatureStateToggle::On;
@@ -179,8 +175,7 @@ void appendDestinationName(StringBuf& buf, Output* instrument, uint8_t destinati
 		buf.append(name);
 	}
 	else {
-		buf.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MACRO_TARGET_CC)); // "CC"
-		buf.append(' ');
+		buf.append("CC ");
 		buf.appendInt(destination);
 	}
 }
@@ -356,7 +351,6 @@ static inline int32_t bigValueToUnit(int32_t value) {
 //   writeDestinationLive            - write a value to a destination live (source-driven fan-out)
 //   laneParam / laneEverTouched     - the macro's own lane param, and whether it was ever baked
 //   prepareDestinationForBake       - pre-create lazily-allocated params before pointers are taken
-//   capture()                       - read a destination's current value (has an inline domain branch)
 //
 // bigValueToUnit and the ownership/rank/cascade machinery are already domain-agnostic and need no
 // per-domain work.
@@ -372,20 +366,6 @@ Domain domainForOutput(Output* output) {
 	default:
 		return Domain::MIDI;
 	}
-}
-
-// The preset "type" attribute string for a domain. A preset only loads into a macro of the same
-// domain (a CC list is meaningless on a synth, a param list on MIDI, etc.), so this guards the load.
-static const char* domainTypeString(Domain domain) {
-	switch (domain) {
-	case Domain::SYNTH:
-		return "synth";
-	case Domain::GLOBAL:
-		return "global";
-	case Domain::MIDI:
-		return "midi";
-	}
-	return "midi";
 }
 
 Output* macroHost(Clip* clip) {
@@ -1227,178 +1207,6 @@ void readMacrosFromFile(Deserializer& reader, Macro* macros, Domain domain) {
 		}
 		reader.exitTag();
 	}
-}
-
-// Writes a preset: targets only (<macroPreset type="midi|synth|global"><target1..8/></macroPreset>). A
-// preset is a portable target configuration - it deliberately omits the source and the macro's
-// active state so it can be applied to any macro OF THE SAME DOMAIN (a CC list means nothing on a
-// synth and vice versa - the type attribute guards the mismatch on load). The caller (save
-// browser) owns createXMLFile()/closeFileAfterWriting().
-void writeMacroPreset(Serializer& writer, Macro* macros, int32_t macroIndex, Domain domain) {
-	writer.writeOpeningTagBeginning(MACRO_PRESET_TAG);
-	writer.writeAttribute("type", domainTypeString(domain), false);
-	writer.writeOpeningTagEnd();
-	writeTargetsToFile(writer, macros[macroIndex], domain);
-	writer.writeClosingTag(MACRO_PRESET_TAG);
-}
-
-// Loads a preset's targets into macros[macroIndex], replacing that macro's targets only and
-// leaving its source and active state untouched. Loaded destinations that another macro also
-// targets resolve by ownership rank; the fan-out below only bakes the slots this macro owns.
-Error loadMacroPreset(FilePointer* fp, Clip* clip, Macro* macros, int32_t macroIndex) {
-	Output* instrument = macroHost(clip);
-	if (!instrument) {
-		return Error::FILE_CORRUPTED; // no macro-capable clip context to load into
-	}
-	Domain domain = domainForOutput(clip->output);
-
-	Error error = StorageManager::openXMLFile(fp, smDeserializer, MACRO_PRESET_TAG);
-	if (error != Error::NONE) {
-		return error;
-	}
-
-	// Remember which destinations the old target set targeted, so their baked lanes can be cleared
-	// if the preset no longer uses them (otherwise they'd keep playing as ghost lanes).
-	uint8_t oldDestinations[kNumTargetSlots];
-	for (int32_t f = 0; f < kNumTargetSlots; f++) {
-		oldDestinations[f] = macros[macroIndex].targets[f].destination;
-	}
-
-	// Read the whole preset into a scratch target set first: if its type doesn't match this clip's
-	// domain, the macro must be left untouched.
-	MacroTargetSlot loaded[kNumTargetSlots];
-	// Presets from before the type attribute have no <type> and are MIDI ones, so they only match a
-	// MIDI clip. A typed preset overwrites this on reading its "type" attribute below.
-	bool domainMatches = (domain == Domain::MIDI);
-
-	Deserializer& reader = *activeDeserializer;
-	char const* tagName;
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, "type")) {
-			domainMatches = !strcmp(reader.readTagOrAttributeValue(), domainTypeString(domain));
-			reader.exitTag();
-			continue;
-		}
-		int32_t slot = targetSlotFromTagName(tagName);
-		if (slot >= 0) {
-			readTargetFromFile(reader, loaded[slot], macroIndex, domain);
-		}
-		reader.exitTag();
-	}
-	activeDeserializer->closeWriter();
-
-	if (!domainMatches) {
-		display->displayPopup("Wrong type"); // preset domain doesn't match this clip's
-		return Error::FILE_CORRUPTED;
-	}
-
-	// Commit: replace only the targets (slots the preset doesn't configure reset to OFF).
-	for (int32_t f = 0; f < kNumTargetSlots; f++) {
-		macros[macroIndex].targets[f] = loaded[f];
-	}
-
-	// Clear baked lanes on destinations the preset dropped, then re-bake the macro lane into the
-	// new set.
-	FanContext ctx;
-	if (getFanContext(clip, &ctx) && laneEverTouched(ctx, macroIndex)) {
-		char modelStackMemory[MODEL_STACK_MAX_SIZE];
-		ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-		ModelStackWithThreeMainThings* three =
-		    modelStack->addTimelineCounter(clip)
-		        ->addNoteRow(0, nullptr)
-		        ->addOtherTwoThings(ctx.instrument->toModControllable(), &clip->paramManager);
-		for (int32_t f = 0; f < kNumTargetSlots; f++) {
-			uint8_t oldDestination = oldDestinations[f];
-			if (oldDestination == kNoDestination || findTargetDestinationOwner(macros, oldDestination, -1, -1) >= 0) {
-				continue; // dropped destination still targeted by some target - its bake stays
-			}
-			ModelStackWithAutoParam* oldParamStack = destinationParamStack(ctx, three, oldDestination);
-			if (oldParamStack) {
-				oldParamStack->autoParam->deleteAutomation(nullptr, oldParamStack, false);
-				refreshAutomationGridIfShowingDestination(clip, ctx.domain, oldDestination);
-			}
-		}
-	}
-	reFanMacro(clip, macroIndex, nullptr); // new target set -> re-bake the macro lane into it
-	view.setModLedStates();                // refresh the target-assignment LEDs
-
-	return Error::NONE;
-}
-
-// The expression pseudo-CCs (bend/aftertouch/Y) live in the clip's ExpressionParamSet, not its MIDI
-// param collection; returns the dimension index, or -1 for a real CC. Same mapping as
-// MIDIInstrument::getParamToControlFromInputMIDIChannel - the path sendToTargets() writes through.
-static int32_t expressionDimensionFromCC(uint8_t destination) {
-	switch (destination) {
-	case CC_NUMBER_PITCH_BEND:
-		return 0;
-	case CC_NUMBER_Y_AXIS:
-		return 1;
-	case CC_NUMBER_AFTERTOUCH:
-		return 2;
-	default:
-		return -1;
-	}
-}
-
-bool capture(Clip* clip, int32_t macroIndex, bool toMax) {
-	if (getCurrentUI() == &loadSongUI) {
-		return false;
-	}
-	FanContext ctx;
-	if (!getFanContext(clip, &ctx)) {
-		return false;
-	}
-
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
-	ModelStackWithThreeMainThings* three =
-	    modelStack->addTimelineCounter(clip)
-	        ->addNoteRow(0, nullptr)
-	        ->addOtherTwoThings(ctx.instrument->toModControllable(), &clip->paramManager);
-
-	bool changed = false;
-	for (MacroTargetSlot& target : ctx.instrument->macros[macroIndex].targets) {
-		if (target.destination == kNoDestination) {
-			continue;
-		}
-		// Read this destination's current value on THIS clip - the inverse of the write in
-		// sendToTargets(). On MIDI, a CC that's never been moved/recorded here has no param (and no
-		// known value): leave its endpoint alone rather than capturing a made-up default. Synth
-		// params always exist, so every configured target captures.
-		if (ctx.domain == Domain::MIDI) {
-			AutoParam* param = nullptr;
-			MIDIParam* midiParam = ctx.coll->params.getParamFromCC(target.destination);
-			if (midiParam) {
-				param = &midiParam->param;
-			}
-			else {
-				int32_t dimension = expressionDimensionFromCC(target.destination);
-				ExpressionParamSet* expression =
-				    (dimension >= 0) ? clip->paramManager.getExpressionParamSet() : nullptr;
-				if (expression) {
-					param = &expression->params[dimension];
-				}
-			}
-			if (!param) {
-				continue;
-			}
-			(toMax ? target.to : target.from) = (uint8_t)bigValueToUnit(param->getCurrentValue());
-		}
-		else {
-			ModelStackWithAutoParam* msp = destinationParamStack(ctx, three, target.destination);
-			if (!msp) {
-				continue;
-			}
-			(toMax ? target.to : target.from) =
-			    (uint8_t)paramValueToUnits(msp, ctx.domain, msp->autoParam->getCurrentValue());
-		}
-		changed = true;
-	}
-	if (changed) {
-		markHostEdited(ctx.instrument);
-	}
-	return changed;
 }
 
 // Creates every MIDI param a fan-out of macroIndex will write - including the lanes and targets of

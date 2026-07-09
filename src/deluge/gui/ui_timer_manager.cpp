@@ -137,10 +137,6 @@ void UITimerManager::routine() {
 					automationView.blinkPadSelectionShortcut();
 					break;
 
-				case TimerName::MACRO_SHORTCUT_BLINK:
-					automationView.blinkMacroCaptureShortcuts();
-					break;
-
 				case TimerName::MACRO_ASSIGN_OVERLAY_PULSE:
 					macroAssignOverlay.pulse();
 					break;

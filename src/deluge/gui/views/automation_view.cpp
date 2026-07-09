@@ -27,12 +27,10 @@
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
-#include "gui/ui/load/load_macro_preset_ui.h"
 #include "gui/ui/menus.h"
 #include "gui/ui/rename/rename_drum_ui.h"
 #include "gui/ui/rename/rename_midi_cc_ui.h"
 #include "gui/ui/sample_marker_editor.h"
-#include "gui/ui/save/save_macro_preset_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
@@ -354,16 +352,6 @@ constexpr uint8_t kPadSelectionShortcutY = 7;
 constexpr uint8_t kVelocityShortcutX = 15;
 constexpr uint8_t kVelocityShortcutY = 1;
 
-// shortcuts available while a macro lane is in view (all four blink as one group while the macro is
-// active): capture the targets' current CC values into From/To on the RECORD row, and load/save that
-// macro's preset on the BROWSE row
-constexpr uint8_t kMacroCaptureFromShortcutX = 0;
-constexpr uint8_t kMacroCaptureToShortcutX = 1;
-constexpr uint8_t kMacroCaptureShortcutY = 4; // the RECORD row
-constexpr uint8_t kMacroPresetLoadShortcutX = 0;
-constexpr uint8_t kMacroPresetSaveShortcutX = 1;
-constexpr uint8_t kMacroPresetShortcutY = 5; // the BROWSE row
-
 PLACE_SDRAM_BSS AutomationView automationView{};
 
 AutomationView::AutomationView() {
@@ -393,8 +381,6 @@ AutomationView::AutomationView() {
 	interpolationShortcutBlinking = false;
 	// used to set pad selection shortcut blinking
 	padSelectionShortcutBlinking = false;
-	// used to set macro capture shortcut blinking
-	macroCaptureShortcutBlinking = false;
 	// used to enter pad selection mode
 	padSelectionOn = false;
 	multiPadPressSelected = false;
@@ -541,7 +527,6 @@ void AutomationView::focusRegained() {
 		parameterShortcutBlinking = false;
 		interpolationShortcutBlinking = false;
 		padSelectionShortcutBlinking = false;
-		macroCaptureShortcutBlinking = false;
 		instrumentClipView.noteRowBlinking = false;
 		// remove patch cable blink frequencies
 		soundEditor.resetSourceBlinks();
@@ -1955,46 +1940,6 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 		    || (isUIModeActive(UI_MODE_AUDITIONING) && !FlashStorage::automationDisableAuditionPadShortcuts)) {
 
 			if (!inNoteEditor()) {
-				int32_t macroIndex = 0;
-				Output* macroInstrument =
-				    (inAutomationEditor() && !onArrangerView) ? macroLaneInstrument(clip, &macroIndex) : nullptr;
-				if (macroInstrument != nullptr) {
-					// While an ACTIVE macro lane is in view, the two blinking RECORD-row pads snapshot
-					// the targets' current CC values into THIS macro's ranges: (0,4) = Capture From,
-					// (1,4) = Capture To. Tweak the destination params, capture From, tweak again,
-					// capture To, then the macro lane morphs between the two.
-					if (y == kMacroCaptureShortcutY
-					    && (x == kMacroCaptureFromShortcutX || x == kMacroCaptureToShortcutX)) {
-						if (macroInstrument->macros[macroIndex].active) {
-							bool toMax = (x == kMacroCaptureToShortcutX);
-							// no popup on a no-op: every configured target CC was untouched on this clip,
-							// so confirming a "capture" would claim a snapshot that never happened
-							if (Macros::capture(clip, macroIndex, toMax)) {
-								display->displayPopup(
-								    deluge::l10n::get(toMax ? deluge::l10n::String::STRING_FOR_MACRO_CAPTURE_TO
-								                            : deluge::l10n::String::STRING_FOR_MACRO_CAPTURE_FROM));
-							}
-						}
-						else {
-							// nothing captured: the persistent Inactive status explains why
-							refreshMacroInactivePopup();
-						}
-						return true;
-					}
-					// On the BROWSE row, (0,5) opens the load-preset browser and (1,5) the
-					// save-preset browser for this macro.
-					if (y == kMacroPresetShortcutY
-					    && (x == kMacroPresetLoadShortcutX || x == kMacroPresetSaveShortcutX)) {
-						Macros::presetMacroIndex = macroIndex;
-						if (x == kMacroPresetSaveShortcutX) {
-							openUI(&saveMacroPresetUI);
-						}
-						else {
-							openUI(&loadMacroPresetUI);
-						}
-						return true;
-					}
-				}
 				// toggle interpolation on / off
 				// not relevant for note editor because interpolation doesn't apply to note params
 				if ((x == kInterpolationShortcutX && y == kInterpolationShortcutY)) {
@@ -3759,22 +3704,6 @@ void AutomationView::blinkShortcuts() {
 	else {
 		resetPadSelectionShortcutBlinking();
 	}
-	// blink the macro pad group while an active macro lane is in view, to advertise that Capture
-	// From/To and preset Load/Save are available there
-	bool macroLaneActive = false;
-	if (getCurrentUI() == &automationView && inAutomationEditor() && !onArrangerView) {
-		int32_t macroIndex = 0;
-		Output* macroInstrument = macroLaneInstrument(getCurrentClip(), &macroIndex);
-		macroLaneActive = macroInstrument != nullptr && macroInstrument->macros[macroIndex].active;
-	}
-	if (macroLaneActive) {
-		if (!macroCaptureShortcutBlinking) {
-			blinkMacroCaptureShortcuts();
-		}
-	}
-	else {
-		resetMacroCaptureShortcutBlinking();
-	}
 	if (inNoteEditor()) {
 		if (!instrumentClipView.noteRowBlinking) {
 			instrumentClipView.blinkSelectedNoteRow();
@@ -3790,7 +3719,6 @@ void AutomationView::resetShortcutBlinking() {
 	resetParameterShortcutBlinking();
 	resetInterpolationShortcutBlinking();
 	resetPadSelectionShortcutBlinking();
-	resetMacroCaptureShortcutBlinking();
 	instrumentClipView.resetSelectedNoteRowBlinking();
 }
 
@@ -3826,27 +3754,4 @@ void AutomationView::blinkPadSelectionShortcut() {
 	PadLEDs::flashMainPad(kPadSelectionShortcutX, kPadSelectionShortcutY);
 	uiTimerManager.setTimer(TimerName::PAD_SELECTION_SHORTCUT_BLINK, 3000);
 	padSelectionShortcutBlinking = true;
-}
-
-// used to blink the macro pad group (Capture From/To + preset Load/Save) while an active macro lane
-// is in view. The four pads share one timer so they blink together, deliberately offset from the
-// interpolation/pad-selection blinks (which run on their own timers).
-void AutomationView::resetMacroCaptureShortcutBlinking() {
-	uiTimerManager.unsetTimer(TimerName::MACRO_SHORTCUT_BLINK);
-	macroCaptureShortcutBlinking = false;
-}
-
-void AutomationView::blinkMacroCaptureShortcuts() {
-	// A UI opened on top (the preset browsers open right from these pads) owns the pad grid: stop
-	// instead of flashing over it. blinkShortcuts() re-arms the blink when focus returns here.
-	if (getCurrentUI() != &automationView) {
-		resetMacroCaptureShortcutBlinking();
-		return;
-	}
-	PadLEDs::flashMainPad(kMacroCaptureFromShortcutX, kMacroCaptureShortcutY);
-	PadLEDs::flashMainPad(kMacroCaptureToShortcutX, kMacroCaptureShortcutY);
-	PadLEDs::flashMainPad(kMacroPresetLoadShortcutX, kMacroPresetShortcutY);
-	PadLEDs::flashMainPad(kMacroPresetSaveShortcutX, kMacroPresetShortcutY);
-	uiTimerManager.setTimer(TimerName::MACRO_SHORTCUT_BLINK, 3000);
-	macroCaptureShortcutBlinking = true;
 }

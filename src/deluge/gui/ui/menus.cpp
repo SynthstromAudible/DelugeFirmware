@@ -87,7 +87,6 @@
 #include "gui/menu_item/keyboard/layout.h"
 #include "gui/menu_item/lfo/sync.h"
 #include "gui/menu_item/lfo/type.h"
-#include "gui/menu_item/macros/macro_preset.h"
 #include "gui/menu_item/macros/macro_target.h"
 #include "gui/menu_item/master_transpose.h"
 #include "gui/menu_item/menu_item.h"
@@ -1131,14 +1130,14 @@ Submenu midiCommandsMenu{
 
 // Declares the Dest/From/To column items plus the horizontal page for macro m's target f.
 #define MACRO_TARGET(m, f)                                                                                             \
-	macros::MacroTarget macro##m##Target##f##CC{STRING_FOR_MACRO_TARGET_CC, (m) - 1, (f) - 1};                         \
+	macros::MacroTarget macro##m##Target##f##Dest{STRING_FOR_MACRO_TARGET_DEST, (m) - 1, (f) - 1};                     \
 	macros::MacroTargetRange macro##m##Target##f##From{STRING_FOR_MACRO_FROM, (m) - 1, (f) - 1,                        \
 	                                                   macros::MacroTargetRange::FROM};                                \
 	macros::MacroTargetRange macro##m##Target##f##To{STRING_FOR_MACRO_TO, (m) - 1, (f) - 1,                            \
 	                                                 macros::MacroTargetRange::TO};                                    \
 	HorizontalMenu macro##m##TargetPage##f {                                                                           \
 		STRING_FOR_MACRO_TARGET_##f, {                                                                                 \
-			&macro##m##Target##f##CC, &macro##m##Target##f##From, &macro##m##Target##f##To                             \
+			&macro##m##Target##f##Dest, &macro##m##Target##f##From, &macro##m##Target##f##To                           \
 		}                                                                                                              \
 	}
 
@@ -1158,11 +1157,9 @@ Submenu midiCommandsMenu{
 	                                      {&macro##m##TargetPage1, &macro##m##TargetPage2, &macro##m##TargetPage3,     \
 	                                       &macro##m##TargetPage4, &macro##m##TargetPage5, &macro##m##TargetPage6,     \
 	                                       &macro##m##TargetPage7, &macro##m##TargetPage8}};                           \
-	macros::MacroPreset macro##m##Load{STRING_FOR_MACRO_LOAD, (m) - 1, false};                                         \
-	macros::MacroPreset macro##m##Save{STRING_FOR_MACRO_SAVE, (m) - 1, true};                                          \
 	Submenu macro##m##Menu {                                                                                           \
 		STRING_FOR_MACRO_##m, {                                                                                        \
-			&macro##m##Active, &macro##m##Source, &macro##m##Targets, &macro##m##Load, &macro##m##Save                 \
+			&macro##m##Active, &macro##m##Source, &macro##m##Targets                                                   \
 		}                                                                                                              \
 	}
 
@@ -1512,9 +1509,9 @@ Submenu soundEditorRootMenu{
         &bendMenu,
         &drumBendRangeMenu,
         &patchCablesMenu,
-        &macrosMenu,
         &sequenceDirectionMenu,
         &outputMidiSubmenu,
+        &macrosMenu,
     },
 };
 
@@ -1628,7 +1625,6 @@ menu_item::Submenu soundEditorRootMenuMIDIOrCV{
     {
         &midiDeviceDefinitionMenu,
         &midiProgramMenu,
-        &macrosMenu,
         &arpMenuMIDIOrCV,
         &randomizerMenu,
         &bendMenu,
@@ -1636,6 +1632,7 @@ menu_item::Submenu soundEditorRootMenuMIDIOrCV{
         &mpeyToModWheelMenu,
         &midiMPEMenu,
         &sequenceDirectionMenu,
+        &macrosMenu,
     },
 };
 
@@ -1667,10 +1664,10 @@ menu_item::Submenu soundEditorRootMenuAudioClip{
         &globalFiltersMenu,
         &audioClipFXMenu,
         &globalSidechainMenu,
-        &macrosMenu,
         &audioClipSampleMenu,
         &audioClipAttackMenu,
         &priorityMenu,
+        &macrosMenu,
     },
 };
 

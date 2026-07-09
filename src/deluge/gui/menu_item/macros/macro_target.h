@@ -266,7 +266,7 @@ private:
 };
 
 // The From or To output of one macro target slot, each 0..kMaxValue. The source 0..127 is
-// scaled linearly onto [from, to] (from > to inverts). from/to are the A/B captures.
+// scaled linearly onto [from, to] (from > to inverts).
 class MacroTargetRange final : public Integer {
 public:
 	enum Field { FROM, TO };

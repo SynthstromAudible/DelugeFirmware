@@ -28,8 +28,7 @@ class Clip;
 class Output;
 class ModelStackWithTimelineCounter;
 // Reference-only in this header, so forward-declared rather than pulling storage_manager.h in (this
-// header is included by the core output.h). loadMacroPreset(FilePointer*) lives in macro_preset.h,
-// which can't be forward-declared (FilePointer is an anonymous-struct typedef).
+// header is included by the core output.h).
 class Serializer;
 class Deserializer;
 
@@ -185,11 +184,11 @@ int32_t macroIndexForLaneSelection(Output* output, deluge::modulation::params::K
 
 // One target CC slot: the source value 0..127 is scaled linearly onto [from, to]:
 //   out = clamp(from + (to - from) * input / 127, 0, 127)
-// Set from > to to invert the response; from == to sends a constant. from/to are the A/B captures.
+// Set from > to to invert the response; from == to sends a constant.
 struct MacroTargetSlot {
 	uint8_t destination = kNoDestination; // kNoDestination = OFF, else 0..kMaxMidiDestination
-	uint8_t from = kDefaultFrom;          // 0..kMaxValue, output when source is at 0 (capture A)
-	uint8_t to = kDefaultTo;              // 0..kMaxValue, output when source is at 127 (capture B; from>to inverts)
+	uint8_t from = kDefaultFrom;          // 0..kMaxValue, output when source is at 0
+	uint8_t to = kDefaultTo;              // 0..kMaxValue, output when source is at 127 (from>to inverts)
 };
 
 struct Macro {
@@ -261,13 +260,6 @@ LayerAssignment layerAssignment(const Macro& macro, int32_t primary, int32_t sec
 // or deactivated). Gates serialization so an all-default instrument writes nothing.
 bool anyMacroConfigured(Macro* macros);
 
-// Folder for per-macro preset files under SETTINGS. Presets are portable target configs, shared.
-constexpr char const* kPresetsFolder = "SETTINGS/MACRO_PRESETS";
-
-// Which macro a preset browser (load/save) is acting on. Set by the menu item before opening the
-// browser UI, read by the UI's performLoad()/performSave().
-extern int32_t presetMacroIndex;
-
 // If the incoming CC matches any active macro's learned source on the active MIDI clip's instrument
 // (and that instrument has macros enabled), writes its value to that macro's target CCs. Returns
 // whether it matched (and so consumed the message).
@@ -329,16 +321,4 @@ void setMacroActive(Clip* clip, int32_t macroIndex, bool active);
 // own XML. Reused for both the song file and standalone instrument presets.
 void writeMacrosToFile(Serializer& writer, Macro* macros, Domain domain);
 void readMacrosFromFile(Deserializer& reader, Macro* macros, Domain domain);
-
-// Save a preset: a macro's targets only (not its source or active state), so a preset is a portable
-// target configuration applicable to any macro. writeMacroPreset() writes the body between the
-// browser's createXMLFile() and closeFileAfterWriting(). The load half, loadMacroPreset(FilePointer*),
-// is declared in macro_preset.h (it needs FilePointer, kept out of this core header).
-void writeMacroPreset(Serializer& writer, Macro* macros, int32_t macroIndex, Domain domain);
-
-// Snapshots the current value of each configured target CC on `clip` into that target's from
-// (toMax=false, "Capture From") or to (toMax=true, "Capture To"). The source then morphs the targets
-// between the two captured states. Targets whose CC has never been touched on this clip (no param
-// exists, so no known value) keep their existing from/to. Returns whether anything was captured.
-bool capture(Clip* clip, int32_t macroIndex, bool toMax);
 }; // namespace Macros
