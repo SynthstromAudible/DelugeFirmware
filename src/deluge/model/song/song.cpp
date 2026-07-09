@@ -68,6 +68,8 @@
 #include "processing/stem_export/stem_export.h"
 #include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
+#include "storage/value.h"
+#include "storage/value_tree_deserializer.h"
 #include "util/etl_string.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/string.h"
@@ -2262,12 +2264,40 @@ readClip:
 				return Error::INSUFFICIENT_RAM;
 			}
 
+			// Durable-id Step 3: read the clip's shell (id + the three pure DocClip fields) tree-natively from the
+			// Value node, construct the clip WITH its file id (the ctor binds clip_structure[id]), then delegate the
+			// rest to the streaming readFromFile. The moved tags no longer have handlers there, so they are skipped.
+			const deluge::storage::Value* clipNode =
+			    static_cast<deluge::storage::ValueTreeDeserializer&>(reader).currentValue();
+			uint32_t loadedId = 0;
+			if (clipNode != nullptr) {
+				if (const deluge::storage::Value* n = clipNode->find("id")) {
+					loadedId = static_cast<uint32_t>(stringToInt(n->str().c_str()));
+				}
+			}
+
 			Clip* newClip;
 			if (clipType == ClipType::INSTRUMENT) {
-				newClip = new (memory) InstrumentClip(*this, /*initViewFromSong=*/false);
+				newClip = new (memory) InstrumentClip(*this, /*initViewFromSong=*/false, loadedId);
 			}
 			else {
-				newClip = new (memory) AudioClip(*this);
+				newClip = new (memory) AudioClip(*this, loadedId);
+			}
+
+			// Shell fields (pure setters -> the bound store). length/loopLength stays in readFromFile (its handler also
+			// sets originalLength + readAutomationUpToPos, coupling it to the automation read; it writes the same
+			// store).
+			if (clipNode != nullptr) {
+				if (const deluge::storage::Value* n = clipNode->find("section")) {
+					newClip->setSection(
+					    std::min<uint8_t>(stringToInt(n->str().c_str()), (uint8_t)(kMaxNumSections - 1)));
+				}
+				if (const deluge::storage::Value* n = clipNode->find("colourOffset")) {
+					newClip->setColourOffset(stringToInt(n->str().c_str()));
+				}
+				if (const deluge::storage::Value* n = clipNode->find("launchStyle")) {
+					newClip->setLaunchStyle(stringToLaunchStyle(n->str().c_str()));
+				}
 			}
 
 			Error error = newClip->readFromFile(reader, this);

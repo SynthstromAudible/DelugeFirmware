@@ -720,11 +720,8 @@ void Clip::readTagFromFile(Deserializer& reader, char const* tagName, Song* song
 		activeIfNoSolo = reader.readTagOrAttributeValueInt();
 	}
 
-	else if (!strcmp(tagName, "id")) {
-		// Stable per-song serial identity (see Clip::id). The song advances its id counter past
-		// all loaded ids after the load completes (Song::syncSerialIdCountersFromLoaded).
-		setId(reader.readTagOrAttributeValueInt());
-	}
+	// "id" is read tree-natively in readClipsFromFile (durable-id Step 3: id-first construction), so it has no handler
+	// here -- the tag falls through to exitTag() below.
 
 	else if (!strcmp(tagName, "isSoloing")) {
 		soloingInSessionMode = reader.readTagOrAttributeValueInt();
@@ -740,19 +737,14 @@ void Clip::readTagFromFile(Deserializer& reader, char const* tagName, Song* song
 		activeIfNoSolo = (newStatus == 2);
 	}
 
-	else if (!strcmp(tagName, "section")) {
-		setSection(std::min<uint8_t>(reader.readTagOrAttributeValueInt(), (uint8_t)(kMaxNumSections - 1)));
-	}
+	// "section", "colourOffset", "launchStyle" are read tree-natively in readClipsFromFile (durable-id Step 3); no
+	// handlers here. "length"/"trackLength" stays -- its handler also sets originalLength + readAutomationUpToPos.
 
 	else if (!strcmp(tagName, "trackLength") || !strcmp(tagName, "length")) {
 		setLoopLength(reader.readTagOrAttributeValueInt());
 		setLoopLength(std::max((int32_t)1, loopLength()));
 		originalLength = loopLength(); // it's 0 otherwise, which is fine except for audio clips
 		*readAutomationUpToPos = loopLength();
-	}
-
-	else if (!strcmp(tagName, "colourOffset")) {
-		setColourOffset(reader.readTagOrAttributeValueInt());
 	}
 
 	else if (!strcmp(tagName, "beingEdited")) {
@@ -785,10 +777,6 @@ void Clip::readTagFromFile(Deserializer& reader, char const* tagName, Song* song
 
 	else if (!strcmp(tagName, "sequenceDirection")) {
 		sequenceDirectionMode = stringToSequenceDirectionMode(reader.readTagOrAttributeValue());
-	}
-
-	else if (!strcmp(tagName, "launchStyle")) {
-		setLaunchStyle(stringToLaunchStyle(reader.readTagOrAttributeValue()));
 	}
 
 	/*
