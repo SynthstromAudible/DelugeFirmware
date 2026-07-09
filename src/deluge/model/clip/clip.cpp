@@ -55,7 +55,7 @@ Clip::Clip(ClipType newType) : type(newType) {
 	beingRecordedFromClip = nullptr;
 	isPendingOverdub = false;
 	isUnfinishedAutoOverdub = false;
-	colourOffset = -60;
+	setColourOffset(-60);
 	overdubNature = OverDubType::Normal;
 	originalLength = 0;
 	armedForRecording = true;
@@ -101,7 +101,7 @@ void Clip::cloneFrom(Clip const* otherClip) {
 
 void Clip::copyBasicsFrom(Clip const* otherClip) {
 	setLoopLength(otherClip->loopLength());
-	colourOffset = otherClip->colourOffset;
+	setColourOffset(otherClip->colourOffset());
 	// modKnobMode = otherClip->modKnobMode;
 	section = otherClip->section;
 	launchStyle = otherClip->launchStyle;
@@ -674,7 +674,7 @@ void Clip::writeDataToFile(Serializer& writer, Song* song) {
 	if (sequenceDirectionMode != SequenceDirection::FORWARD) {
 		writer.writeAttribute("sequenceDirection", sequenceDirectionModeToString(sequenceDirectionMode));
 	}
-	writer.writeAttribute("colourOffset", colourOffset);
+	writer.writeAttribute("colourOffset", colourOffset());
 	if (section != 255) {
 		writer.writeAttribute("section", section);
 	}
@@ -740,7 +740,7 @@ void Clip::readTagFromFile(Deserializer& reader, char const* tagName, Song* song
 	}
 
 	else if (!strcmp(tagName, "colourOffset")) {
-		colourOffset = reader.readTagOrAttributeValueInt();
+		setColourOffset(reader.readTagOrAttributeValueInt());
 	}
 
 	else if (!strcmp(tagName, "beingEdited")) {

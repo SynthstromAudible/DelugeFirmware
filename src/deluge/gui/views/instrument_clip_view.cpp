@@ -6400,7 +6400,7 @@ void InstrumentClipView::commandShiftColour(int32_t offset) {
 	// Otherwise, adjust whole colour spectrum
 	else if (currentUIMode == UI_MODE_NONE) {
 shiftAllColour:
-		getCurrentInstrumentClip()->colourOffset += offset;
+		getCurrentInstrumentClip()->setColourOffset(getCurrentInstrumentClip()->colourOffset() + offset);
 		recalculateColours();
 		whichRowsToRender = 0xFFFFFFFF;
 	}

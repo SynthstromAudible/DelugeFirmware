@@ -164,7 +164,11 @@ public:
 
 	Output* output;
 
-	int16_t colourOffset;
+	/// M3 owner-1: clip colour offset lives in the DOM DocClip (see loopLength()).
+	[[nodiscard]] int16_t colourOffset() const { return (treeDoc_ != nullptr ? treeDoc_ : &ownDoc_)->colour_offset; }
+	void setColourOffset(int32_t newOffset) {
+		(treeDoc_ != nullptr ? *treeDoc_ : ownDoc_).colour_offset = static_cast<int16_t>(newOffset);
+	}
 
 	const ClipType type;
 	uint8_t section;

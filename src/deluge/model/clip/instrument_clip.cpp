@@ -71,7 +71,7 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT), noteRow
 	currentlyRecordingLinearly = false;
 
 	if (song) {
-		colourOffset -= song->project.scale.key.rootNote;
+		setColourOffset(colourOffset() - song->project.scale.key.rootNote);
 	}
 
 	wrapEditing = false;
@@ -1253,7 +1253,7 @@ NoteRow* InstrumentClip::createNewNoteRowForKit(ModelStackWithTimelineCounter* m
 
 		// Adjust colour offset, because colour offset is relative to the lowest NoteRow, and we just made a new lowest
 		// one
-		colourOffset--;
+		setColourOffset(colourOffset() - 1);
 	}
 
 	if (getIndex) {
@@ -1263,7 +1263,7 @@ NoteRow* InstrumentClip::createNewNoteRowForKit(ModelStackWithTimelineCounter* m
 }
 
 RGB InstrumentClip::getMainColourFromY(int32_t yNote, int8_t noteRowColourOffset) {
-	return RGB::fromHue((yNote + colourOffset + noteRowColourOffset) * -8 / 3);
+	return RGB::fromHue((yNote + colourOffset() + noteRowColourOffset) * -8 / 3);
 }
 
 void InstrumentClip::replaceMusicalMode(const ScaleChange& changes, ModelStackWithTimelineCounter* modelStack) {
@@ -1347,7 +1347,7 @@ void InstrumentClip::transpose(int32_t semitones, ModelStackWithTimelineCounter*
 	}
 
 	yScroll += semitones;
-	colourOffset -= semitones;
+	setColourOffset(colourOffset() - semitones);
 }
 
 void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType type,

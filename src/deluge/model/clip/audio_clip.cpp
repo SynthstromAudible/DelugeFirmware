@@ -1264,7 +1264,7 @@ Error AudioClip::setOutput(ModelStackWithTimelineCounter* modelStack, Output* ne
 }
 
 RGB AudioClip::getColour() {
-	return RGB::fromHuePastel(colourOffset * -8 / 3);
+	return RGB::fromHuePastel(colourOffset() * -8 / 3);
 }
 
 void AudioClip::quantizeLengthForArrangementRecording(ModelStackWithTimelineCounter* modelStack,

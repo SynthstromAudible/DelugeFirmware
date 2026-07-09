@@ -135,7 +135,7 @@ void KeyboardLayoutVelocityDrums::renderPads(RGB image[][kDisplayWidth + kSideBa
 	// D_PRINTLN("render pads");
 	uint32_t highest_clip_note = getHighestClipNote();
 	uint32_t offset = getState().drums.scroll_offset;
-	uint32_t offset2 = getCurrentInstrumentClip()->colourOffset + 60;
+	uint32_t offset2 = getCurrentInstrumentClip()->colourOffset() + 60;
 	uint32_t zoom_level = getState().drums.zoom_level;
 	uint32_t edge_size_x = zoom_arr[zoom_level][0];
 	uint32_t edge_size_y = zoom_arr[zoom_level][1];

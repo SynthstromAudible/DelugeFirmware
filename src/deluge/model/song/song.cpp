@@ -1963,6 +1963,7 @@ loadOutput:
 		if (std::optional<deluge::project::ClipAddress> addr = deluge::edits::clipAddressFor(*thisClip)) {
 			deluge::project::DocClip& doc = project.getOrCreateDocClip(*addr);
 			doc.loop_length = thisClip->loopLength();
+			doc.colour_offset = thisClip->colourOffset();
 			thisClip->bindDomClip(&doc);
 		}
 	}
@@ -1971,6 +1972,7 @@ loadOutput:
 		if (std::optional<deluge::project::ClipAddress> addr = deluge::edits::clipAddressFor(*thisClip)) {
 			deluge::project::DocClip& doc = project.getOrCreateDocClip(*addr);
 			doc.loop_length = thisClip->loopLength();
+			doc.colour_offset = thisClip->colourOffset();
 			thisClip->bindDomClip(&doc);
 		}
 	}
@@ -5351,7 +5353,7 @@ Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int32_t clipIndex)
 
 	// Give the new clip its stuff
 	newClip->cloneFrom(oldClip);
-	newClip->colourOffset = random(72);
+	newClip->setColourOffset(random(72));
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, this);
 	newClip->setOutput(modelStack->addTimelineCounter(newClip), newOutput);

@@ -3586,7 +3586,7 @@ InstrumentClip* SessionView::gridCreateInstrumentClipWithNewTrack(OutputType typ
 
 // For safety we set it up the new clip exactly as we want it
 void SessionView::setupNewClip(Clip* newClip) {
-	newClip->colourOffset = random(72);
+	newClip->setColourOffset(random(72));
 	newClip->soloingInSessionMode = false;
 	newClip->wasActiveBefore = false;
 	newClip->isPendingOverdub = false;

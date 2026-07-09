@@ -600,7 +600,7 @@ ActionResult KeyboardScreen::verticalEncoderAction(int32_t offset, bool inCardRo
 	}
 
 	if (Buttons::isShiftButtonPressed() && currentUIMode == UI_MODE_NONE) {
-		getCurrentInstrumentClip()->colourOffset += offset;
+		getCurrentInstrumentClip()->setColourOffset(getCurrentInstrumentClip()->colourOffset() + offset);
 		layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->precalculate();
 	}
 	else {

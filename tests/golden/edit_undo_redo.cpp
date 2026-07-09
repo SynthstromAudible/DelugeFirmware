@@ -1072,14 +1072,15 @@ void colourTarget(Song* song) {
 		return;
 	}
 	printf("# target colour\n");
-	int16_t before = clip->colourOffset;
+	int16_t before = clip->colourOffset();
 
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
 	deluge::edits::SetClipColour edit{clip, /*offset=*/5};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "colour: apply succeeds");
-	check(clip->colourOffset == static_cast<int16_t>(before + 5), "colour: engine field nudged");
+	check(clip->colourOffset() == static_cast<int16_t>(before + 5), "colour: colour nudged");
+	// Loaded clips are bound (load-binding pass): the accessor reads the tree DocClip, so resolveClip agrees.
 	deluge::project::DocClip* doc = song->project.resolveClip(*deluge::edits::clipAddressFor(*clip));
-	check(doc != nullptr && doc->colour_offset == clip->colourOffset, "colour: shadow DocClip matches engine");
+	check(doc != nullptr && doc->colour_offset == clip->colourOffset(), "colour: DocClip matches accessor");
 }
 
 // Plan A: after load + assignSessionIds + the M3 load-binding pass, EVERY clip is id-addressable and bound to a

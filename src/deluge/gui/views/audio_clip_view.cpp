@@ -856,7 +856,7 @@ ActionResult AudioClipView::verticalEncoderAction(int32_t offset, bool inCardRou
 		}
 
 		// Shift colour spectrum
-		getCurrentAudioClip()->colourOffset += offset;
+		getCurrentAudioClip()->setColourOffset(getCurrentAudioClip()->colourOffset() + offset);
 		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	}
 	return ActionResult::DEALT_WITH;
