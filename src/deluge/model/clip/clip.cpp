@@ -667,7 +667,7 @@ void Clip::writeToFile(Serializer& writer, Song* song) {
 
 	// Stable per-song id (see Clip::id). Written in the non-virtual wrapper so it's emitted exactly once for both clip
 	// subtypes. Always set at construction (durable-id Phase 0), so no lazy mint here.
-	writer.writeAttribute("id", *id());
+	writer.writeAttribute("id", id());
 
 	writeDataToFile(writer, song);
 

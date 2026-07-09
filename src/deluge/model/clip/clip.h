@@ -221,7 +221,7 @@ public:
 	/// Stable, persisted, per-song serial identity (the DOM reference foundation, distinct from the
 	/// transient positional indexForSaving). nullopt until assigned lazily on first save from the
 	/// song's counter (or restored on load); resolve via Song::clipForId.
-	[[nodiscard]] std::optional<uint32_t> id() const { return id_; }
+	[[nodiscard]] uint32_t id() const { return id_; }
 	void setId(uint32_t id) { id_ = id; }
 
 	/// S5-b: transient (never-serialized) session id for runtime DOM addressing of a NOT-YET-SAVED clip (one with
@@ -272,7 +272,7 @@ protected:
 
 private:
 	/// Stable per-song serial identity; see id(). nullopt = unassigned.
-	std::optional<uint32_t> id_{};
+	uint32_t id_{0};
 	/// Transient per-load session identity; see sessionId(). 0 = unassigned. Never serialized.
 	uint32_t session_id_{0};
 };

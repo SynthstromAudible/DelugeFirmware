@@ -166,7 +166,7 @@ deluge::project::DocAutoParam* relocateAndResolve(const ModelStackWithAutoParam&
 
 	// Mint session ids for the owner chain this param belongs to (mint-once: a session id shared across the owner's
 	// clips/params stays stable). After this, addressFor can build a total ParamAddress.
-	if (!clip->id().has_value() && clip->sessionId() == 0) {
+	if (clip->id() == 0 && clip->sessionId() == 0) {
 		clip->setSessionId(proj.mintSessionId());
 	}
 	if (noteRow != nullptr) {

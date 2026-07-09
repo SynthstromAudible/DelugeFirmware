@@ -222,7 +222,7 @@ void driveNoteEdits(Song* song, InstrumentClip* clip, NoteRow* noteRow, int32_t 
 
 // True if this clip is note-addressable (has a durable clip id — see the S5-b note-only-clip gap).
 bool clipIsAddressable(InstrumentClip* ic) {
-	return ic->id().has_value() || ic->sessionId() != 0;
+	return ic->id() != 0 || ic->sessionId() != 0;
 }
 
 // M2b: first MELODIC (synth/MIDI) InstrumentClip note-row with a note.
