@@ -41,6 +41,10 @@ bool nibbleFromHexChar(char c, int& outNibble) {
 
 } // namespace
 
+const std::string* ValueTreeDeserializer::pendingScalar() const {
+	return (pending_ != nullptr && pending_->isScalar()) ? &pending_->str() : nullptr;
+}
+
 void ValueTreeDeserializer::reset() {
 	stack_.clear();
 	pending_ = root_;
@@ -48,121 +52,122 @@ void ValueTreeDeserializer::reset() {
 }
 
 char const* ValueTreeDeserializer::readNextTagOrAttributeName() {
+	pending_ = nullptr;
 	if (stack_.empty()) {
-		// Nothing has been descended into yet (or exitTag() popped the root frame).
-		pending_ = nullptr;
+		// Nothing has been descended into yet (or a close popped the last frame).
 		return "";
 	}
 
 	Frame& top = stack_.back();
-
-	if (top.node->isMap()) {
-		const auto& entries = top.node->entries();
-		if (top.index >= entries.size()) {
-			pending_ = nullptr;
-			return "";
-		}
-		const auto& [key, value] = entries[top.index];
-		++top.index;
-		pending_ = &value;
-		return key.c_str();
+	// Real callers only read names from inside an object box that a prior match('{') descended
+	// into, so the current frame is always a Map. (Arrays are walked via match('{') in the loop
+	// head -- their elements are never named directly.) A non-Map top therefore just means "no
+	// more names here".
+	if (!top.node->isMap()) {
+		return "";
 	}
 
-	if (top.node->isArray()) {
-		const auto& items = top.node->items();
-		if (top.index >= items.size()) {
-			pending_ = nullptr;
-			return "";
-		}
-		pending_ = &items[top.index];
-		// Array elements have no key of their own; synthesize one from the index so callers
-		// that treat the return value as a truthy "there's more" signal still see a non-empty
-		// string, while "" is reserved for genuine exhaustion.
-		arrayIndexName_ = std::to_string(top.index);
-		++top.index;
-		return arrayIndexName_.c_str();
+	const auto& entries = top.node->entries();
+	if (top.index >= entries.size()) {
+		return ""; // Exhausted: the file reader's end-of-object signal.
 	}
-
-	// A scalar frame can't happen via normal use (match() only pushes Map/Array), but cope
-	// gracefully rather than crash if it ever does.
-	pending_ = nullptr;
-	return "";
+	const auto& [key, value] = entries[top.index];
+	++top.index;
+	pending_ = &value;
+	return key.c_str();
 }
 
 bool ValueTreeDeserializer::match(char const ch) {
-	if (ch != '{' && ch != '[') {
-		return false;
-	}
-	const bool wantMap = (ch == '{');
+	switch (ch) {
+	case '{':
+	case '[': {
+		const bool wantMap = (ch == '{');
 
-	if (pending_ != nullptr) {
-		const bool matches = wantMap ? pending_->isMap() : pending_->isArray();
-		if (!matches) {
-			return false;
+		// Prefer descending into the value staged by the last readNextTagOrAttributeName().
+		if (pending_ != nullptr) {
+			if (wantMap ? pending_->isMap() : pending_->isArray()) {
+				stack_.push_back(Frame{pending_, 0});
+				pending_ = nullptr;
+				return true;
+			}
+			return false; // Scalar (or wrong container kind): no consume.
 		}
-		stack_.push_back(Frame{pending_, 0});
-		pending_ = nullptr;
-		return true;
-	}
 
-	// No pending value was explicitly staged by readNextTagOrAttributeName(). This is the
-	// `while (match('{') && *(name = readNextTagOrAttributeName())) { ... }` idiom used
-	// throughout existing readFromFile() code to walk an array of objects: peek the current
-	// array frame's next unread element and consume it if it's the right kind.
-	if (!stack_.empty()) {
-		Frame& top = stack_.back();
-		if (top.node->isArray()) {
+		// No value was staged: this is the `while (match('{') && *readNextTagOrAttributeName())`
+		// idiom that walks an array of object-boxes. Consume the current array frame's next
+		// element if it is the requested kind; return false (ending the loop) when exhausted.
+		if (!stack_.empty() && stack_.back().node->isArray()) {
+			Frame& top = stack_.back();
 			const auto& items = top.node->items();
 			if (top.index < items.size()) {
 				const Value* item = &items[top.index];
-				const bool matches = wantMap ? item->isMap() : item->isArray();
-				if (matches) {
+				if (wantMap ? item->isMap() : item->isArray()) {
 					++top.index;
 					stack_.push_back(Frame{item, 0});
 					return true;
 				}
 			}
 		}
+		return false;
 	}
-	return false;
+
+	case '}':
+		// Structural close of the current object -- pop back to the parent frame.
+		if (!stack_.empty() && stack_.back().node->isMap()) {
+			stack_.pop_back();
+			pending_ = nullptr;
+			return true;
+		}
+		return false;
+
+	case ']':
+		// Structural close of the current array.
+		if (!stack_.empty() && stack_.back().node->isArray()) {
+			stack_.pop_back();
+			pending_ = nullptr;
+			return true;
+		}
+		return false;
+
+	default:
+		return false;
+	}
 }
 
 void ValueTreeDeserializer::exitTag(char const* exitTagName, bool closeObject) {
 	(void)exitTagName;
-	(void)closeObject;
-	if (!stack_.empty()) {
+	// closeObject mirrors the file readers, where it closes one object box (like match('}')); it
+	// is used by the array-of-boxes patterns to pop the value-object / box frame. Without it,
+	// exitTag just finishes the current entry: the caller's own balanced match('{')/match('}')
+	// pairs already undo any descent, so there is nothing structural left to do here.
+	if (closeObject && !stack_.empty()) {
 		stack_.pop_back();
 	}
 	pending_ = nullptr;
 }
 
 char const* ValueTreeDeserializer::readTagOrAttributeValue() {
-	if (pending_ == nullptr) {
-		return "";
-	}
-	return pending_->str().c_str();
+	const std::string* s = pendingScalar();
+	return (s != nullptr) ? s->c_str() : "";
 }
 
 int32_t ValueTreeDeserializer::readTagOrAttributeValueInt() {
-	if (pending_ == nullptr) {
+	const std::string* s = pendingScalar();
+	if (s == nullptr) {
 		return 0;
 	}
-	const std::string& s = pending_->str();
 	int32_t result = 0;
-	std::from_chars(s.data(), s.data() + s.size(), result, 10);
+	std::from_chars(s->data(), s->data() + s->size(), result, 10);
 	return result;
 }
 
 int32_t ValueTreeDeserializer::readTagOrAttributeValueHex(int32_t errorValue) {
-	if (pending_ == nullptr) {
-		return errorValue;
-	}
-	const std::string& s = pending_->str();
-	if (s.size() < 2 || s[0] != '0' || s[1] != 'x') {
+	const std::string* s = pendingScalar();
+	if (s == nullptr || s->size() < 2 || (*s)[0] != '0' || (*s)[1] != 'x') {
 		return errorValue;
 	}
 	uint32_t result = 0;
-	auto [ptr, ec] = std::from_chars(s.data() + 2, s.data() + s.size(), result, 16);
+	auto [ptr, ec] = std::from_chars(s->data() + 2, s->data() + s->size(), result, 16);
 	if (ec != std::errc{}) {
 		return errorValue;
 	}
@@ -170,16 +175,16 @@ int32_t ValueTreeDeserializer::readTagOrAttributeValueHex(int32_t errorValue) {
 }
 
 int ValueTreeDeserializer::readTagOrAttributeValueHexBytes(uint8_t* bytes, int32_t maxLen) {
-	if (pending_ == nullptr) {
+	const std::string* s = pendingScalar();
+	if (s == nullptr) {
 		return 0;
 	}
-	const std::string& s = pending_->str();
 	int count = 0;
 	std::size_t pos = 0;
-	while (count < maxLen && pos + 2 <= s.size()) {
+	while (count < maxLen && pos + 2 <= s->size()) {
 		int hi = 0;
 		int lo = 0;
-		if (!nibbleFromHexChar(s[pos], hi) || !nibbleFromHexChar(s[pos + 1], lo)) {
+		if (!nibbleFromHexChar((*s)[pos], hi) || !nibbleFromHexChar((*s)[pos + 1], lo)) {
 			break;
 		}
 		bytes[count++] = static_cast<uint8_t>((hi << 4) | lo);
@@ -197,46 +202,38 @@ Error ValueTreeDeserializer::tryReadingFirmwareTagFromFile(char const* tagName, 
 }
 
 Error ValueTreeDeserializer::readTagOrAttributeValueString(std::string& string) {
-	string = (pending_ != nullptr) ? pending_->str() : std::string{};
+	const std::string* s = pendingScalar();
+	string = (s != nullptr) ? *s : std::string{};
 	return Error::NONE;
 }
 
 bool ValueTreeDeserializer::prepareToReadTagOrAttributeValueOneCharAtATime() {
 	charCursor_ = 0;
-	return pending_ != nullptr;
+	return pendingScalar() != nullptr;
 }
 
 char ValueTreeDeserializer::readNextCharOfTagOrAttributeValue() {
-	if (pending_ == nullptr) {
+	const std::string* s = pendingScalar();
+	if (s == nullptr || charCursor_ >= s->size()) {
 		return 0;
 	}
-	const std::string& s = pending_->str();
-	if (charCursor_ >= s.size()) {
-		return 0;
-	}
-	return s[charCursor_++];
+	return (*s)[charCursor_++];
 }
 
 int32_t ValueTreeDeserializer::getNumCharsRemainingInValueBeforeEndOfCluster() {
-	if (pending_ == nullptr) {
+	const std::string* s = pendingScalar();
+	if (s == nullptr || charCursor_ >= s->size()) {
 		return 0;
 	}
-	const std::string& s = pending_->str();
-	if (charCursor_ >= s.size()) {
-		return 0;
-	}
-	return static_cast<int32_t>(s.size() - charCursor_);
+	return static_cast<int32_t>(s->size() - charCursor_);
 }
 
 char const* ValueTreeDeserializer::readNextCharsOfTagOrAttributeValue(int32_t numChars) {
-	if (pending_ == nullptr || numChars < 0) {
+	const std::string* s = pendingScalar();
+	if (s == nullptr || numChars < 0 || charCursor_ + static_cast<std::size_t>(numChars) > s->size()) {
 		return nullptr;
 	}
-	const std::string& s = pending_->str();
-	if (charCursor_ + static_cast<std::size_t>(numChars) > s.size()) {
-		return nullptr;
-	}
-	const char* result = s.data() + charCursor_;
+	const char* result = s->data() + charCursor_;
 	charCursor_ += static_cast<std::size_t>(numChars);
 	return result;
 }

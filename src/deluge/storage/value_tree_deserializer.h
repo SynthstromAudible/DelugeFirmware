@@ -74,16 +74,19 @@ private:
 		std::size_t index = 0;
 	};
 
+	// The pending Value's scalar string, or nullptr when there is no pending scalar (pending is
+	// null, or is itself a Map/Array). The value-read methods use this so that reading the "value"
+	// of a container yields an empty/zero result instead of throwing bad_variant_access -- matching
+	// the file readers, which return garbage rather than crash.
+	[[nodiscard]] const std::string* pendingScalar() const;
+
 	const Value* root_;
 	std::vector<Frame> stack_;
 	// The Value most recently produced by readNextTagOrAttributeName() (or the root, before the
 	// first call) -- what match()/readTagOrAttributeValue*() act on. Null once consumed/exhausted.
 	const Value* pending_ = nullptr;
-	// Cursor into pending_->str() for the one-char/n-chars-at-a-time reading methods.
+	// Cursor into the pending scalar for the one-char/n-chars-at-a-time reading methods.
 	std::size_t charCursor_ = 0;
-	// Scratch buffer backing the synthesized "name" returned for array elements (which, unlike
-	// map entries, have no key of their own) by readNextTagOrAttributeName().
-	std::string arrayIndexName_;
 };
 
 } // namespace deluge::storage

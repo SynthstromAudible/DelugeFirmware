@@ -1,6 +1,8 @@
 #include "storage/value.h"
 #include "storage/value_tree_deserializer.h"
 #include <cppspec.hpp>
+#include <string>
+#include <vector>
 
 // clang-format off
 describe value_tree_deserializer("ValueTreeDeserializer", ${
@@ -40,6 +42,39 @@ describe value_tree_deserializer("ValueTreeDeserializer", ${
 		d.readNextTagOrAttributeName();
 		expect(d.match('{')).to_be_false();
 		expect(d.readTagOrAttributeValueInt()).to_equal(7);
+	});
+	// Mirrors Song::readClipsFromFile: an array of single-key object-boxes, each box wrapping a
+	// value object. Walks with `match('[')` then
+	// `while (match('{') && *readNextTagOrAttributeName()) { … exitTag(nullptr,true); match('}'); }`
+	// and a final `match(']')`. This FAILS if match('}')/match(']') no-op (only the first element
+	// would be visited).
+	it("iterates every box in an array like readClipsFromFile", _{
+		Value arr = Value::makeArray();
+		for (const char* v : {"10", "20"}) {
+			Value box = Value::makeMap();
+			Value clip = Value::makeMap();
+			clip.set("x", Value::makeScalar(v));
+			box.set("clip", std::move(clip));
+			arr.append(std::move(box));
+		}
+		ValueTreeDeserializer d{arr};
+		std::vector<int32_t> visited;
+		const char* tagName;
+		expect(d.match('[')).to_be_true();
+		while (d.match('{') && *(tagName = d.readNextTagOrAttributeName())) {
+			expect(std::string(tagName)).to_equal(std::string("clip"));
+			d.match('{'); // descend into the value object, as the clip's own readFromFile would
+			expect(std::string(d.readNextTagOrAttributeName())).to_equal(std::string("x"));
+			visited.push_back(d.readTagOrAttributeValueInt());
+			d.exitTag(nullptr, true); // leave the value object
+			d.match('}');             // leave the box
+		}
+		// The loop terminated because match('{') returned false on the exhausted array, and a final
+		// match(']') closes the array.
+		expect(d.match(']')).to_be_true();
+		expect(visited.size()).to_equal(static_cast<std::size_t>(2));
+		expect(visited[0]).to_equal(10);
+		expect(visited[1]).to_equal(20);
 	});
 });
 
