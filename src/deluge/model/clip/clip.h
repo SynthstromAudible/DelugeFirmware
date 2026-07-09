@@ -183,25 +183,20 @@ public:
 
 	LearnedMIDI muteMIDICommand;
 
-	/// M3 owner-1 read flip: clip loop length is reached through accessors bound to the DOM-owned DocClip. A clip is
-	/// UNBOUND (domClip_ == nullptr) until its first SetClipLength edit binds it (slice 3b); unbound clips read/write
-	/// the engine field exactly as before (safe fallback). Once bound, loopLength() reads DocClip.loop_length and
-	/// setLoopLength() syncs it — the DOM store is authoritative. loopLength_ is kept as a mirror (fallback + the
-	/// value carried across clone/load until (re)bound). domClip_ points into Song::clip_structure, a std::map, so the
-	/// pointer is address-stable across other clips' inserts.
-	[[nodiscard]] int32_t loopLength() const { return domClip_ != nullptr ? domClip_->loop_length : loopLength_; }
-	void setLoopLength(int32_t newLength) {
-		loopLength_ = newLength;
-		if (domClip_ != nullptr) {
-			domClip_->loop_length = newLength;
-		}
-	}
-	/// Bind this clip's loop length to its DOM record (slice 3b). The caller must have already set `d->loop_length` to
-	/// the current length so the read flip is consistent. Not carried across clone/copy — a clone rebinds on its own
-	/// first edit.
-	void bindDomClip(deluge::project::DocClip* d) { domClip_ = d; }
-	int32_t loopLength_{};
-	deluge::project::DocClip* domClip_{nullptr};
+	/// M3 owner-1: clip structure lives in a DOM `DocClip`, never an engine field. A clip carries its own `ownDoc_`
+	/// until it is adopted into the persistent tree store (`Song::clip_structure`) at load / first structural edit,
+	/// after which `treeDoc_` points at the tree store and is authoritative. Because every clip ALWAYS has a valid
+	/// DocClip (ownDoc_ by default), a freshly-created clip works immediately — there is no bind-at-creation step, and
+	/// there is no engine-field fallback to keep in sync. `treeDoc_` null-inits and is not copied by cloneFrom, so a
+	/// clone safely starts on its own ownDoc_ (seeded through the setters). `treeDoc_` points into a std::map
+	/// (clip_structure), so it is address-stable across other clips' inserts.
+	[[nodiscard]] int32_t loopLength() const { return (treeDoc_ != nullptr ? treeDoc_ : &ownDoc_)->loop_length; }
+	void setLoopLength(int32_t newLength) { (treeDoc_ != nullptr ? *treeDoc_ : ownDoc_).loop_length = newLength; }
+	/// Adopt this clip's structure into the persistent tree store: the caller seeds `*d` from the current values
+	/// first, then this repoints reads/writes at it (load relocation + SetClipLength's dual-write).
+	void bindDomClip(deluge::project::DocClip* d) { treeDoc_ = d; }
+	deluge::project::DocClip ownDoc_{};
+	deluge::project::DocClip* treeDoc_{nullptr};
 
 	// Before linear recording of this Clip began, and this Clip started getting extended to multiples of this
 	int32_t originalLength;
