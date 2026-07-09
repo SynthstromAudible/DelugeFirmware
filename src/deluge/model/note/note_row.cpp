@@ -3625,7 +3625,10 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 			writer.insertCommaIfNeeded();
 			writer.write("\n");
 			writer.printIndents();
-			writer.write("noteDataWithLift=\"0x");
+			// Use the format-aware tag/separator (JSON "name": vs XML name=) like noteDataWithSplitProb
+			// above, not a raw XML name="0x -- the latter emits invalid JSON when saving as JSON.
+			writer.writeTagNameAndSeperator("noteDataWithLift");
+			writer.write("\"0x");
 			for (int32_t n = 0; n < std::ssize(notes); n++) {
 				Note* thisNote = &notes[n];
 

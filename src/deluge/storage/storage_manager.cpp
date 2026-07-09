@@ -81,7 +81,10 @@ Deserializer* activeReader = &smDeserializer;
 PLACE_SDRAM_BSS std::optional<deluge::storage::Value> smSongTree;
 PLACE_SDRAM_BSS std::optional<deluge::storage::ValueTreeDeserializer> smTreeReader;
 
-const bool writeJsonFlag = false;
+// Master switch for the serialization format: GetSerializer() (and thus every write site that grabs it
+// -- Output/Sound/MIDI/etc.) plus the file-creation and prologue paths all key off this. Runtime-mutable
+// (was const false) so JSON output can be selected; defaults to false, so firmware still saves XML.
+bool writeJsonFlag = false;
 
 Serializer& GetSerializer() {
 	if (writeJsonFlag) {

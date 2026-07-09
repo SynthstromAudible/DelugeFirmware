@@ -417,7 +417,7 @@ Error openInstrumentFile(OutputType outputType, FilePointer* filePointer);
 extern FirmwareVersion song_firmware_version;
 extern FILINFO staticFNO;
 extern FatFS::Directory staticDIR;
-extern const bool writeJsonFlag;
+extern bool writeJsonFlag; // serialization format master switch; runtime-mutable, defaults false (XML)
 
 inline bool isCardReady() {
 	return !isSDRoutineActive() && Error::NONE == StorageManager::initSD();
