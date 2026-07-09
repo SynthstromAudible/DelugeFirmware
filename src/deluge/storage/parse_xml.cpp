@@ -56,7 +56,10 @@ private:
 	}
 
 	static bool isWhitespace(char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; }
-	static bool isNameStartChar(char c) { return std::isalpha(static_cast<unsigned char>(c)) || c == '_' || c == ':'; }
+	// The Deluge format uses digit-started names (e.g. numeric MIDI CC labels: <ccLabels 0="" 2=""/>),
+	// which strict XML forbids but XMLDeserializer accepts (its name reader takes any non-delimiter char).
+	// Include digits so parseXml stays faithful to the streaming reader.
+	static bool isNameStartChar(char c) { return std::isalnum(static_cast<unsigned char>(c)) || c == '_' || c == ':'; }
 	static bool isNameChar(char c) {
 		return isNameStartChar(c) || std::isdigit(static_cast<unsigned char>(c)) || c == '-' || c == '.';
 	}

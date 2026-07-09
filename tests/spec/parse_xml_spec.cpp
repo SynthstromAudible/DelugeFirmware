@@ -48,6 +48,15 @@ describe parse_xml("deluge::storage::parseXml", ${
 		expect(parseXml(R"(<n>a&amp;b</n>)")->find("n")->str()).to_equal(std::string("a&b"));
 		expect(parseXml("<n>unterminated").has_value()).to_be_false();
 	});
+	it("accepts digit-started names (Deluge numeric CC labels)", _{
+		// XMLDeserializer accepts any non-delimiter char in a name; Deluge writes <ccLabels 0="" 2=""/>.
+		auto v = parseXml(R"(<ccLabels 0="a" 2="b" 127="c"/>)");
+		expect(v.has_value()).to_be_true();
+		auto* cc = v->find("ccLabels");
+		expect(cc->find("0")->str()).to_equal(std::string("a"));
+		expect(cc->find("2")->str()).to_equal(std::string("b"));
+		expect(cc->find("127")->str()).to_equal(std::string("c"));
+	});
 });
 
 CPPSPEC_SPEC(parse_xml);

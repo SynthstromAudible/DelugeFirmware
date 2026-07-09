@@ -2673,7 +2673,8 @@ someError:
 				return error;
 			}
 
-			error = ((MIDIInstrument*)output)->readModKnobAssignmentsFromFile(readAutomationUpToPos, &paramManager);
+			error =
+			    ((MIDIInstrument*)output)->readModKnobAssignmentsFromFile(reader, readAutomationUpToPos, &paramManager);
 			if (error != Error::NONE) {
 				return error;
 			}

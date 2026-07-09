@@ -41,4 +41,10 @@ public:
 	virtual void exitTag(char const* exitTagName = NULL, bool closeObject = false) = 0;
 
 	virtual void reset() = 0;
+
+	/// Whether long reads may interleave the cooperative audio/SD routine. True for file-backed reads
+	/// (firmware default, which must service the SD cluster stream and pump the engine); false for
+	/// in-memory readers (e.g. the ValueTreeDeserializer), which have nothing to yield to. The
+	/// audio-yield gate (AudioEngine::routineWithClusterLoading) consults the reader currently in use.
+	[[nodiscard]] virtual bool shouldCallRoutines() const { return true; }
 };

@@ -201,6 +201,10 @@ class FileDeserializer : public Deserializer, public FileReader {
 public:
 	FileDeserializer() : FileReader() {}
 	FileDeserializer(uint8_t* inbuf, size_t buflen) : FileReader((char*)inbuf, buflen) {}
+
+	// Disambiguate the two inherited shouldCallRoutines() (Deserializer's virtual + FileReader's flag
+	// reader) and route the base virtual to the file-backed callRoutines flag.
+	[[nodiscard]] bool shouldCallRoutines() const override { return FileReader::shouldCallRoutines(); }
 };
 
 class XMLDeserializer : public FileDeserializer {
@@ -350,6 +354,10 @@ extern JsonSerializer smJsonSerializer;
 extern JsonDeserializer smJsonDeserializer;
 extern Serializer& GetSerializer();
 extern FileDeserializer* activeDeserializer;
+// The reader readFromFile is currently consuming. Same object as activeDeserializer for file-backed
+// loads, but a base pointer so an in-memory ValueTreeDeserializer (record-first deserializer) can be
+// the active reader too. The audio-yield gate consults this to decide whether to pump the engine.
+extern Deserializer* activeReader;
 
 namespace StorageManager {
 

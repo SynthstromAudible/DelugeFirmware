@@ -387,7 +387,7 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 	// audio yield: there is no SD cluster stream to service and no engine to pump. File-backed
 	// reads keep callRoutines == true, so firmware load behaviour is unchanged. This also lets a
 	// headless host harness load a Song without standing up the audio engine.
-	if (activeDeserializer != nullptr && !activeDeserializer->shouldCallRoutines()) {
+	if (activeReader != nullptr && !activeReader->shouldCallRoutines()) {
 		return;
 	}
 

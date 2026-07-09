@@ -73,6 +73,10 @@ public:
 
 	void reset() override;
 
+	// In-memory: the whole tree is already resident, so there is never anything to yield to. This
+	// gates the AudioEngine render loop off during a tree-backed load (via the active-reader gate).
+	[[nodiscard]] bool shouldCallRoutines() const override { return false; }
+
 private:
 	struct Frame {
 		const Value* node;

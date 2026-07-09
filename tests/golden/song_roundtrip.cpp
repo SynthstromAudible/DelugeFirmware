@@ -24,13 +24,35 @@
 #include "memory/general_memory_allocator.h"
 #include "model/global_effectable/global_effectable.h"
 #include "model/song/song.h"
+#include "storage/parse_xml.h"
 #include "storage/storage_manager.h"
+#include "storage/value_tree_deserializer.h"
 
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <optional>
+#include <string_view>
 #include <unistd.h>
+
+// Mimic XMLDeserializer::openXMLFile(nullptr, firstTag) over the Value tree: read top-level tags,
+// consuming firmware-version tags along the way, until `firstTag` is reached -- leaving the adapter
+// positioned inside that element exactly as the streaming reader leaves it (the tree-load counterpart
+// of "open the file and seek to <song>"). Faithful to the streaming path so load-via-tree stays
+// bit-identical; the whole-tree root + read-the-root-name idiom is the one the xml_replay_diff harness
+// proved token-for-token.
+static Error openTreeFile(Deserializer& reader, char const* firstTagName) {
+	char const* tagName;
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, firstTagName)) {
+			return Error::NONE;
+		}
+		reader.tryReadingFirmwareTagFromFile(tagName, false);
+		reader.exitTag(tagName);
+	}
+	return Error::FILE_CORRUPTED;
+}
 
 // load(xml) -> save into `out`. Returns serialized length, or -1 on load error
 // (code in *loadErr). `xml` must be writable (the reader null-terminates tokens
@@ -46,11 +68,23 @@ static long load_then_save(char* xml, size_t xmlLen, char* out, uint32_t outCap,
 	// (which setBPM triggers mid-load) inspects the old song's clips. Pointing currentSong
 	// at the half-loaded song instead makes getNewAction walk clips whose outputs aren't
 	// wired yet -> null deref. Set it only once the load is complete (writeToFile needs it).
-	XMLDeserializer reader((uint8_t*)xml, xmlLen);
-	activeDeserializer = &reader; // gate AudioEngine yields off (callRoutines == false)
-	Error e = reader.openXMLFile(nullptr, "song");
-	if (e == Error::NONE) {
-		e = deluge::project::loadSong(*song, reader);
+	// Load via the Value tree (record-first deserializer, step 2b): parse the whole XML to a Value,
+	// then replay it to the existing readFromFile through ValueTreeDeserializer instead of streaming
+	// the bytes. Must be bit-identical to the streaming load (the golden baselines are stream-made).
+	std::optional<deluge::storage::Value> tree =
+	    deluge::storage::parseXml(std::string_view(reinterpret_cast<const char*>(xml), static_cast<size_t>(xmlLen)));
+	Error e = Error::FILE_CORRUPTED;
+	if (tree) {
+		deluge::storage::ValueTreeDeserializer adapter(*tree, deluge::storage::SourceFormat::Xml);
+		// Point the active-reader gate at the adapter: its shouldCallRoutines()==false gates the
+		// AudioEngine render off during load (the in-memory tree never yields), exactly as the streaming
+		// XMLDeserializer's callRoutines==false did. (Interior read sites like MIDIInstrument modKnobs now
+		// take the reader param, so activeDeserializer itself need not point here.)
+		activeReader = &adapter;
+		e = openTreeFile(adapter, "song");
+		if (e == Error::NONE) {
+			e = deluge::project::loadSong(*song, adapter);
+		}
 	}
 	*loadErr = e;
 	if (e != Error::NONE) {

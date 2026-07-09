@@ -25,10 +25,11 @@ add_library(deluge_spec STATIC
 ../../src/deluge/util/lookuptables/lookuptables.cpp
 ../32bit_unit_tests/mocks/mock_display.cpp
 ../32bit_unit_tests/mocks/mock_print.cpp
+../32bit_unit_tests/mocks/mock_firmware_version.cpp
 )
 target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi)
 
-target_include_directories(deluge_spec PUBLIC ../../src/deluge ../../src ../32bit_unit_test/mocks/)
+target_include_directories(deluge_spec PUBLIC ../../src/deluge ../../src ../32bit_unit_tests/mocks/)
 
 set_target_properties(deluge_spec PROPERTIES
   CXX_STANDARD 26

@@ -45,7 +45,7 @@ public:
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) override;
 	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
 	bool readTagFromFile(Deserializer& reader, char const* tagName) override;
-	Error readModKnobAssignmentsFromFile(int32_t readAutomationUpToPos,
+	Error readModKnobAssignmentsFromFile(Deserializer& reader, int32_t readAutomationUpToPos,
 	                                     ParamManagerForTimeline* paramManager = nullptr);
 
 	// midi device definition file

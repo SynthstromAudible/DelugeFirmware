@@ -68,6 +68,7 @@ PLACE_SDRAM_BSS XMLDeserializer smDeserializer;
 PLACE_SDRAM_BSS JsonSerializer smJsonSerializer;
 PLACE_SDRAM_BSS JsonDeserializer smJsonDeserializer;
 FileDeserializer* activeDeserializer = &smDeserializer;
+Deserializer* activeReader = &smDeserializer;
 
 const bool writeJsonFlag = false;
 
@@ -724,6 +725,7 @@ Error StorageManager::openXMLFile(FilePointer* filePointer, XMLDeserializer& rea
 	openFilePointer(filePointer, reader);
 	Error err = reader.openXMLFile(filePointer, firstTagName, altTagName, ignoreIncorrectFirmware);
 	activeDeserializer = &reader;
+	activeReader = &reader;
 	if (err == Error::NONE)
 		return Error::NONE;
 	reader.closeWriter();
@@ -740,6 +742,7 @@ Error StorageManager::openJsonFile(FilePointer* filePointer, JsonDeserializer& r
 	openFilePointer(filePointer, reader);
 	Error err = reader.openJsonFile(filePointer, firstTagName, altTagName, ignoreIncorrectFirmware);
 	activeDeserializer = &reader;
+	activeReader = &reader;
 	if (err == Error::NONE)
 		return Error::NONE;
 	reader.closeWriter();

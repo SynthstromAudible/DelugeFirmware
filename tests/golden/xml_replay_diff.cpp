@@ -292,6 +292,22 @@ int main() {
 		m(r, t, '}');
 	});
 
+	// (10) NUMERIC attribute names. The Deluge format uses digit-started names (e.g. <ccLabels 0="" 2=""
+	// 127=""/> for MIDI CC labels). XMLDeserializer's name reader accepts any non-delimiter char, so
+	// parseXml must too -- an alpha-only isNameStartChar rejects these and fails the whole parse.
+	diff("numeric-attr-names", R"(<ccLabels 0="a" 2="b" 127="c"/>)", [](Deserializer& r, Transcript& t) {
+		name(r, t);   // "ccLabels"
+		m(r, t, '{'); // enter
+		name(r, t);   // "0"
+		vStr(r, t);   // "a"
+		name(r, t);   // "2"
+		vStr(r, t);   // "b"
+		name(r, t);   // "127"
+		vStr(r, t);   // "c"
+		name(r, t);   // "" end of attributes
+		exit_(r, t, nullptr, true);
+	});
+
 	printf(failures ? "XML_REPLAY_DIFF: %d FAIL\n" : "XML_REPLAY_DIFF: OK\n", failures);
 	return failures ? 1 : 0;
 }
