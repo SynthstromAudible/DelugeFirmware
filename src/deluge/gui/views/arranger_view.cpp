@@ -1678,9 +1678,9 @@ void ArrangerView::createNewClipForClipInstance(Output* output, ClipInstance* cl
 	Clip* newClip;
 
 	if (output->type == OutputType::AUDIO)
-		newClip = new (memory) AudioClip();
+		newClip = new (memory) AudioClip(*currentSong);
 	else
-		newClip = new (memory) InstrumentClip(currentSong);
+		newClip = new (memory) InstrumentClip(*currentSong);
 
 	newClip->setLoopLength(clipInstance->length);
 	newClip->setSection(255);

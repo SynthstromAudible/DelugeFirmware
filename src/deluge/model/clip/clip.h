@@ -48,7 +48,7 @@ class Deserializer;
 class Clip : public TimelineCounter {
 
 public:
-	Clip(ClipType newType);
+	Clip(ClipType newType, Song& song);
 	~Clip() override;
 	bool cancelAnyArming();
 	int32_t getMaxZoom();

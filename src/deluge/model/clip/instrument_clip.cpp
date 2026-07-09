@@ -63,15 +63,15 @@
 namespace params = deluge::modulation::params;
 
 // Supplying song is optional, and basically only for the purpose of setting yScroll according to root note
-InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT), noteRows() {
+InstrumentClip::InstrumentClip(Song& song, bool initViewFromSong) : Clip(ClipType::INSTRUMENT, song), noteRows() {
 	midiBank = 128; // Means none
 	midiSub = 128;  // Means none
 	midiPGM = 128;  // Means none
 
 	currentlyRecordingLinearly = false;
 
-	if (song) {
-		setColourOffset(colourOffset() - song->project.scale.key.rootNote);
+	if (initViewFromSong) {
+		setColourOffset(colourOffset() - song.project.scale.key.rootNote);
 	}
 
 	wrapEditing = false;
@@ -85,14 +85,14 @@ InstrumentClip::InstrumentClip(Song* song) : Clip(ClipType::INSTRUMENT), noteRow
 	inScaleMode = flashStorageCodeToScale(FlashStorage::defaultScale) != NO_SCALE;
 	onKeyboardScreen = false;
 
-	if (song) {
-		int32_t yNote = ((uint16_t)(song->project.scale.key.rootNote + 120) % 12) + 60;
+	if (initViewFromSong) {
+		int32_t yNote = ((uint16_t)(song.project.scale.key.rootNote + 120) % 12) + 60;
 		if (yNote > 66) {
 			yNote -= 12;
 		}
 		yScroll = getYVisualFromYNote(yNote,
-		                              song); // This takes into account the rootNote, which could be anything. Must be
-		                                     // called after the above stuff is set up
+		                              &song); // This takes into account the rootNote, which could be anything. Must be
+		                                      // called after the above stuff is set up
 	}
 	else {
 		yScroll =
@@ -159,7 +159,8 @@ Error InstrumentClip::clone(ModelStackWithTimelineCounter* modelStack, bool shou
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	auto newClip = new (clipMemory) InstrumentClip(); // Don't supply Song. yScroll will get set in copyBasicsFrom()
+	auto newClip = new (clipMemory)
+	    InstrumentClip(*modelStack->song, /*initViewFromSong=*/false); // yScroll set in copyBasicsFrom()
 
 	newClip->copyBasicsFrom(this);
 
@@ -4287,7 +4288,7 @@ ramError:
 		return nullptr;
 	}
 
-	InstrumentClip* newInstrumentClip = new (clipMemory) InstrumentClip(modelStack->song);
+	InstrumentClip* newInstrumentClip = new (clipMemory) InstrumentClip(*modelStack->song);
 	newInstrumentClip->setInstrument((Instrument*)output, modelStack->song, &newParamManager);
 
 	newInstrumentClip->setupForRecordingAsAutoOverdub(

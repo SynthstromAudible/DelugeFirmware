@@ -47,7 +47,7 @@ extern "C" {
 extern uint8_t currentlyAccessingCard;
 }
 
-AudioClip::AudioClip() : Clip(ClipType::AUDIO) {
+AudioClip::AudioClip(Song& song) : Clip(ClipType::AUDIO, song) {
 	overdubsShouldCloneOutput = true;
 	voiceSample = nullptr;
 	guide.audioFileHolder = &sampleHolder; // It needs to permanently point here
@@ -82,7 +82,7 @@ Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFla
 		return Error::INSUFFICIENT_RAM;
 	}
 
-	auto newClip = new (clipMemory) AudioClip();
+	auto newClip = new (clipMemory) AudioClip(*modelStack->song);
 
 	newClip->copyBasicsFrom(this);
 	Error error = newClip->paramManager.cloneParamCollectionsFrom(&paramManager, true);
@@ -260,7 +260,7 @@ ramError:
 		return nullptr;
 	}
 
-	AudioClip* newClip = new (clipMemory) AudioClip();
+	AudioClip* newClip = new (clipMemory) AudioClip(*modelStackOldClip->song);
 
 	newClip->setupForRecordingAsAutoOverdub(this, modelStackOldClip->song, newOverdubNature);
 

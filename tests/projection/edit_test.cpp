@@ -260,7 +260,7 @@ int main() {
 	// count — a zero-clip song makes it a 0-byte alloc (=> nullptr => no Action opens). A real song always has
 	// clips; give the harness one AUDIO clip (grabFromClip is a no-op for non-instrument clips) so the undo path
 	// the pilot exercises behaves as it does on-device.
-	(void)song->project.clips.session_clips.insertClipAt(new AudioClip(), 0);
+	(void)song->project.clips.session_clips.insertClipAt(new AudioClip(*song), 0);
 
 	deluge::edits::Context ctx{*song, song->project};
 	testDispatcher(ctx);

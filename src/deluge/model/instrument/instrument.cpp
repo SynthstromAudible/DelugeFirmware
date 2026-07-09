@@ -173,7 +173,7 @@ Clip* Instrument::createNewClipForArrangementRecording(ModelStack* modelStack) {
 		}
 	}
 
-	InstrumentClip* newInstrumentClip = new (clipMemory) InstrumentClip(modelStack->song);
+	InstrumentClip* newInstrumentClip = new (clipMemory) InstrumentClip(*modelStack->song);
 
 	ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(newInstrumentClip);
 

@@ -1705,7 +1705,7 @@ Clip* SessionView::createNewAudioClip(int32_t yDisplay) {
 	}
 
 	// Create the audio clip and ParamManager
-	AudioClip* newClip = new (clipMemory) AudioClip();
+	AudioClip* newClip = new (clipMemory) AudioClip(*currentSong);
 
 	// suss output
 	if (!createNewTrackForAudioClip(newClip)) {
@@ -1740,7 +1740,7 @@ Clip* SessionView::createNewInstrumentClip(OutputType outputType, int32_t yDispl
 	}
 
 	// create the instrument clip and param manager
-	InstrumentClip* newClip = new (clipMemory) InstrumentClip(currentSong);
+	InstrumentClip* newClip = new (clipMemory) InstrumentClip(*currentSong);
 
 	// suss output
 	if (!createNewTrackForInstrumentClip(outputType, newClip, true)) {
@@ -3553,7 +3553,7 @@ AudioClip* SessionView::gridCreateAudioClipWithNewTrack() {
 		return nullptr;
 	}
 
-	AudioClip* newClip = new (memory) AudioClip();
+	AudioClip* newClip = new (memory) AudioClip(*currentSong);
 	if (!createNewTrackForAudioClip(newClip)) {
 		newClip->~AudioClip();
 		delugeDealloc(memory);
@@ -3575,7 +3575,7 @@ InstrumentClip* SessionView::gridCreateInstrumentClipWithNewTrack(OutputType typ
 		return nullptr;
 	}
 
-	InstrumentClip* newClip = new (memory) InstrumentClip(currentSong);
+	InstrumentClip* newClip = new (memory) InstrumentClip(*currentSong);
 	if (!createNewTrackForInstrumentClip(type, newClip, true)) {
 		newClip->~InstrumentClip();
 		delugeDealloc(memory);

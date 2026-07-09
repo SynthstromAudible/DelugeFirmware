@@ -48,7 +48,7 @@ enum class VerticalNudgeType { ROW, OCTAVE };
 
 class InstrumentClip final : public Clip {
 public:
-	explicit InstrumentClip(Song* song = nullptr);
+	explicit InstrumentClip(Song& song, bool initViewFromSong = true);
 	~InstrumentClip() override;
 	void increaseLengthWithRepeats(ModelStackWithTimelineCounter* modelStack, int32_t newLength,
 	                               IndependentNoteRowLengthIncrease independentNoteRowInstruction,

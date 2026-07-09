@@ -43,7 +43,10 @@ namespace params = deluge::modulation::params;
 
 uint32_t loopRecordingCandidateRecentnessNextValue = 1;
 
-Clip::Clip(ClipType newType) : type(newType) {
+Clip::Clip(ClipType newType, Song& song) : type(newType) {
+	// Durable-id Phase 0: every clip gets its id in the ctor. A runtime clip mints from the per-song counter; a loaded
+	// clip mints a provisional id here that readTagFromFile's "id" tag immediately overwrites with the file id.
+	id_ = song.generateNewClipId();
 	soloingInSessionMode = false;
 	armState = ArmState::OFF;
 	activeIfNoSolo = true;
@@ -662,11 +665,8 @@ void Clip::writeToFile(Serializer& writer, Song* song) {
 
 	writer.writeOpeningTagBeginning(xmlTag, true);
 
-	// Stable per-song serial identity (see Clip::id). Written here in the non-virtual wrapper so
-	// it's emitted exactly once for both clip subtypes; assigned lazily on first save.
-	if (!id().has_value()) {
-		setId(song->generateNewClipId());
-	}
+	// Stable per-song id (see Clip::id). Written in the non-virtual wrapper so it's emitted exactly once for both clip
+	// subtypes. Always set at construction (durable-id Phase 0), so no lazy mint here.
 	writer.writeAttribute("id", *id());
 
 	writeDataToFile(writer, song);

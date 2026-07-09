@@ -363,7 +363,7 @@ bool Song::ensureAtLeastOneSessionClip() {
 	}
 
 	void* memory = deluge::memory::alloc_fast(sizeof(InstrumentClip));
-	InstrumentClip* firstClip = new (memory) InstrumentClip(this);
+	InstrumentClip* firstClip = new (memory) InstrumentClip(*this);
 
 	(void)project.clips.session_clips.insertClipAt(firstClip,
 	                                               0); // OOM impossible-in-practice this early; ignored as before
@@ -2262,10 +2262,10 @@ readClip:
 
 			Clip* newClip;
 			if (clipType == ClipType::INSTRUMENT) {
-				newClip = new (memory) InstrumentClip();
+				newClip = new (memory) InstrumentClip(*this, /*initViewFromSong=*/false);
 			}
 			else {
-				newClip = new (memory) AudioClip();
+				newClip = new (memory) AudioClip(*this);
 			}
 
 			Error error = newClip->readFromFile(reader, this);
@@ -5360,7 +5360,7 @@ Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int32_t clipIndex)
 	newOutput->colour = oldClip->output->colour;
 
 	// Create the audio clip and ParamManager
-	AudioClip* newClip = new (clipMemory) AudioClip();
+	AudioClip* newClip = new (clipMemory) AudioClip(*this);
 
 	// Give the new clip its stuff
 	newClip->cloneFrom(oldClip);

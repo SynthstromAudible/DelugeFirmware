@@ -377,7 +377,7 @@ Clip* AudioOutput::createNewClipForArrangementRecording(ModelStack* modelStack) 
 		return nullptr;
 	}
 
-	AudioClip* newClip = new (clipMemory) AudioClip();
+	AudioClip* newClip = new (clipMemory) AudioClip(*modelStack->song);
 	newClip->setOutput(modelStack->addTimelineCounter(newClip), this);
 
 #if ALPHA_OR_BETA_VERSION

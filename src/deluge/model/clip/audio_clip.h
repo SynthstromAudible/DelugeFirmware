@@ -34,7 +34,7 @@ class ModelStackWithTimelineCounter;
 
 class AudioClip final : public Clip {
 public:
-	AudioClip();
+	explicit AudioClip(Song& song);
 	~AudioClip() override;
 	void processCurrentPos(ModelStackWithTimelineCounter* modelStack, uint32_t ticksSinceLast) override;
 	void expectNoFurtherTicks(Song* song, bool actuallySoundChange = true) override;
