@@ -63,7 +63,8 @@
 namespace params = deluge::modulation::params;
 
 // Supplying song is optional, and basically only for the purpose of setting yScroll according to root note
-InstrumentClip::InstrumentClip(Song& song, bool initViewFromSong) : Clip(ClipType::INSTRUMENT, song), noteRows() {
+InstrumentClip::InstrumentClip(Song& song, bool initViewFromSong, uint32_t loadedId)
+    : Clip(ClipType::INSTRUMENT, song, loadedId), noteRows() {
 	midiBank = 128; // Means none
 	midiSub = 128;  // Means none
 	midiPGM = 128;  // Means none

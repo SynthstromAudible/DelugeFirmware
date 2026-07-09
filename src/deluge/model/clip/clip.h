@@ -48,7 +48,7 @@ class Deserializer;
 class Clip : public TimelineCounter {
 
 public:
-	Clip(ClipType newType, Song& song);
+	Clip(ClipType newType, Song& song, uint32_t loadedId = 0);
 	~Clip() override;
 	bool cancelAnyArming();
 	int32_t getMaxZoom();
@@ -165,15 +165,13 @@ public:
 	Output* output;
 
 	/// M3 owner-1: clip colour offset lives in the DOM DocClip (see loopLength()).
-	[[nodiscard]] int16_t colourOffset() const { return (treeDoc_ != nullptr ? treeDoc_ : &ownDoc_)->colour_offset; }
-	void setColourOffset(int32_t newOffset) {
-		(treeDoc_ != nullptr ? *treeDoc_ : ownDoc_).colour_offset = static_cast<int16_t>(newOffset);
-	}
+	[[nodiscard]] int16_t colourOffset() const { return treeDoc_->colour_offset; }
+	void setColourOffset(int32_t newOffset) { treeDoc_->colour_offset = static_cast<int16_t>(newOffset); }
 
 	const ClipType type;
 	/// M3 owner-1: clip section lives in the DOM DocClip (see loopLength()). 255 = arrangement-only.
-	[[nodiscard]] uint8_t section() const { return (treeDoc_ != nullptr ? treeDoc_ : &ownDoc_)->section; }
-	void setSection(uint8_t newSection) { (treeDoc_ != nullptr ? *treeDoc_ : ownDoc_).section = newSection; }
+	[[nodiscard]] uint8_t section() const { return treeDoc_->section; }
+	void setSection(uint8_t newSection) { treeDoc_->section = newSection; }
 	bool soloingInSessionMode;
 	ArmState armState;
 	bool activeIfNoSolo;
@@ -189,22 +187,16 @@ public:
 
 	LearnedMIDI muteMIDICommand;
 
-	/// M3 owner-1: clip structure lives in a DOM `DocClip`, never an engine field. A clip carries its own `ownDoc_`
-	/// until it is adopted into the persistent tree store (`Song::clip_structure`) at load / first structural edit,
-	/// after which `treeDoc_` points at the tree store and is authoritative. Because every clip ALWAYS has a valid
-	/// DocClip (ownDoc_ by default), a freshly-created clip works immediately — there is no bind-at-creation step, and
-	/// there is no engine-field fallback to keep in sync. `treeDoc_` null-inits and is not copied by cloneFrom, so a
-	/// clone safely starts on its own ownDoc_ (seeded through the setters). `treeDoc_` points into a std::map
-	/// (clip_structure), so it is address-stable across other clips' inserts.
-	[[nodiscard]] int32_t loopLength() const { return (treeDoc_ != nullptr ? treeDoc_ : &ownDoc_)->loop_length; }
-	void setLoopLength(int32_t newLength) { (treeDoc_ != nullptr ? *treeDoc_ : ownDoc_).loop_length = newLength; }
-	/// Adopt this clip's structure into the persistent tree store: the caller seeds `*d` from the current values
-	/// first, then this repoints reads/writes at it (load relocation + SetClipLength's dual-write).
+	/// M3 owner-1: clip structure lives in a DOM `DocClip` (`Song::clip_structure`), never an engine field. Durable-id
+	/// Step 3: `treeDoc_` is bound in the Clip ctor under the clip's durable id and is authoritative for the clip's
+	/// whole life -- always non-null, so there is no fallback and no bind-at-creation step. It points into a std::map
+	/// (clip_structure), so it is address-stable across other clips' inserts; `~Clip` removes the entry.
+	[[nodiscard]] int32_t loopLength() const { return treeDoc_->loop_length; }
+	void setLoopLength(int32_t newLength) { treeDoc_->loop_length = newLength; }
+	/// Repoint this clip's structure at a specific tree record (used by edit gestures that dual-write the store).
 	void bindDomClip(deluge::project::DocClip* d) { treeDoc_ = d; }
-	/// Whether this clip's structure reads/writes the persistent tree store (true) or its own transient ownDoc_
-	/// (false, the pre-adoption / detached state). Every song-resident clip is bound via Song::adoptClip.
+	/// Whether this clip's structure is bound to a tree record. Always true post-ctor (kept for legacy call sites).
 	[[nodiscard]] bool isDomBound() const { return treeDoc_ != nullptr; }
-	deluge::project::DocClip ownDoc_{};
 	deluge::project::DocClip* treeDoc_{nullptr};
 
 	// Before linear recording of this Clip began, and this Clip started getting extended to multiples of this
@@ -231,12 +223,8 @@ public:
 	void setSessionId(uint32_t id) { session_id_ = id; }
 
 	/// M3 owner-1: clip launch style lives in the DOM DocClip (see loopLength()).
-	[[nodiscard]] LaunchStyle launchStyle() const {
-		return static_cast<LaunchStyle>((treeDoc_ != nullptr ? treeDoc_ : &ownDoc_)->launch_style);
-	}
-	void setLaunchStyle(LaunchStyle s) {
-		(treeDoc_ != nullptr ? *treeDoc_ : ownDoc_).launch_style = static_cast<uint8_t>(s);
-	}
+	[[nodiscard]] LaunchStyle launchStyle() const { return static_cast<LaunchStyle>(treeDoc_->launch_style); }
+	void setLaunchStyle(LaunchStyle s) { treeDoc_->launch_style = static_cast<uint8_t>(s); }
 	int64_t fillEventAtTickCount;
 	bool overdubsShouldCloneOutput{};
 
