@@ -366,6 +366,7 @@ MIDICable* readDeviceReferenceFromFile(Deserializer& reader) {
 	MIDICable* device = nullptr;
 
 	char const* tagName;
+	reader.match('{'); // descend into the <device> object (needed for JSON; a no-op in XML)
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "vendorId")) {
 			vendorId = reader.readTagOrAttributeValueHex(0);
@@ -394,6 +395,7 @@ MIDICable* readDeviceReferenceFromFile(Deserializer& reader) {
 
 		reader.exitTag();
 	}
+	reader.match('}'); // close the <device> object
 
 	if (device) {
 		return device;

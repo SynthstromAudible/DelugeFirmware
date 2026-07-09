@@ -745,8 +745,11 @@ doReadPatchedParam:
 
 	else if (!strcmp(tagName, "midiKnobs")) {
 		reader.match('[');
-		while (*(tagName = reader.readNextTagOrAttributeName())) {
-			if (reader.match('{') && !strcmp(tagName, "midiKnob")) {
+		// Standard array-of-boxes idiom (mirrors the noteRows/clips loops): match('{') enters the box, the
+		// name is read, then the value object is entered. The previous readNext-before-match('{') ordering
+		// relied on XML implicit descent and read nothing in JSON mode. match('{')/match('}') are no-ops in XML.
+		while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
+			if (!strcmp(tagName, "midiKnob")) {
 
 				MIDICable* cable = nullptr;
 				uint8_t channel;
@@ -756,6 +759,7 @@ doReadPatchedParam:
 				PatchSource s = PatchSource::NOT_AVAILABLE;
 				PatchSource s2 = PatchSource::NOT_AVAILABLE;
 
+				reader.match('{'); // enter the midiKnob value object
 				while (*(tagName = reader.readNextTagOrAttributeName())) {
 					if (!strcmp(tagName, "device")) {
 						cable = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
@@ -785,8 +789,7 @@ doReadPatchedParam:
 					}
 					reader.exitTag();
 				}
-				reader.match('}'); // close value object.
-				reader.match('}'); // close box.
+				reader.match('}'); // close the midiKnob value object.
 
 				if (p != params::GLOBAL_NONE && p != params::PLACEHOLDER_RANGE) {
 					try {
@@ -817,7 +820,8 @@ doReadPatchedParam:
 					}
 				}
 			}
-			reader.exitTag();
+			reader.match('}'); // close the box.
+			reader.exitTag(nullptr, true);
 		}
 		reader.match(']'); // close array.
 		reader.exitTag("midiKnobs");
