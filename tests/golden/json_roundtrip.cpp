@@ -169,6 +169,13 @@ int main(int argc, char** argv) {
 		_exit(1);
 	}
 	long nB = saveJson(song2, jsonB, kCap);
+	if (const char* dump = getenv("JSON_DUMP2")) {
+		FILE* df = std::fopen(dump, "wb");
+		if (df) {
+			std::fwrite(jsonB, 1, nB, df);
+			std::fclose(df);
+		}
+	}
 
 	// (5) require jsonA == jsonB
 	bool settled = (nA == nB) && (std::memcmp(jsonA, jsonB, nA) == 0);
