@@ -231,11 +231,12 @@ void ValueTreeDeserializer::exitTag(char const* exitTagName, bool closeObject) {
 		return;
 	}
 	(void)exitTagName;
-	// closeObject mirrors the file readers, where it closes one object box (like match('}')); it
-	// is used by the array-of-boxes patterns to pop the value-object / box frame. Without it,
-	// exitTag just finishes the current entry: the caller's own balanced match('{')/match('}')
-	// pairs already undo any descent, so there is nothing structural left to do here.
-	if (closeObject && !stack_.empty()) {
+	// closeObject mirrors the file readers, where it closes one object box (like match('}')). In the
+	// array-of-boxes pattern `while (match('{') && readNext()) { …; match('}'); exitTag(nullptr, true); }`
+	// the caller's own match('}') has usually already popped the box, leaving the enclosing ARRAY frame on
+	// top -- so only pop when the top is a Map (an as-yet-unclosed object box). Popping unconditionally
+	// would eat the array frame too and end the loop after a single element (the noteRows/patchCables bug).
+	if (closeObject && !stack_.empty() && stack_.back().node->isMap()) {
 		stack_.pop_back();
 	}
 	pending_ = nullptr;
