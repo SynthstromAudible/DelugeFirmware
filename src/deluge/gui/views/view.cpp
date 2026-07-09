@@ -2141,10 +2141,10 @@ oledDrawString:
 				std::string info;
 				if (clip->name.empty()) {
 					info.append("Section ");
-					info += deluge::string::fromInt(clip->section + 1);
+					info += deluge::string::fromInt(clip->section() + 1);
 				}
 				else {
-					info += deluge::string::fromInt(clip->section + 1);
+					info += deluge::string::fromInt(clip->section() + 1);
 					info.append(": ");
 					info.append(clip->name.c_str());
 				}

@@ -888,7 +888,7 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 		newClip->beingRecordedFromClip = beingRecordedFromClip;
 		beingRecordedFromClip = nullptr;
 
-		newClip->section = 255;
+		newClip->setSection(255);
 
 		(void)modelStack->song->project.clips.arrangement_only_clips.insertClipAt(newClip,
 		                                                                          0); // Can't fail - checked above

@@ -64,7 +64,7 @@ bool SessionColumn::handleVerticalEncoder(int8_t pad, int32_t offset) {
 		break;
 
 	case SessionMacroKind::SECTION:
-		m.section = getCurrentClip()->section;
+		m.section = getCurrentClip()->section();
 
 	default:
 		break;

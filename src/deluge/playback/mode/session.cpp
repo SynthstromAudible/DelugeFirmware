@@ -142,17 +142,17 @@ void Session::armNextSection(int32_t oldSection, int32_t numRepetitions) {
 		numRepetitions = currentSong->project.arrangement.sections[oldSection].num_repetitions;
 	}
 	if (currentSong->persistentView.sessionLayout == SessionLayoutType::SessionLayoutTypeRows) {
-		if (currentSong->project.clips.session_clips[0]->section != oldSection) {
+		if (currentSong->project.clips.session_clips[0]->section() != oldSection) {
 
 			int32_t newSection = SECTION_OUT_OF_RANGE;
 			for (int32_t c = 1; c < std::ssize(currentSong->project.clips.session_clips);
 			     c++) { // NOTE: starts at 1, not 0
 				Clip* clip = currentSong->project.clips.session_clips[c];
-				int32_t tempSection = currentSong->project.clips.session_clips[c - 1]->section;
+				int32_t tempSection = currentSong->project.clips.session_clips[c - 1]->section();
 				if (currentSong->project.arrangement.sections[tempSection].num_repetitions != LAUNCH_EXCLUSIVE) {
 					newSection = tempSection;
 				}
-				if (clip->section == oldSection && newSection != SECTION_OUT_OF_RANGE) {
+				if (clip->section() == oldSection && newSection != SECTION_OUT_OF_RANGE) {
 					userWantsToArmClipsToStartOrSolo(newSection, nullptr, true, false, false, numRepetitions, false);
 					lastSectionArmed = newSection;
 					return;
@@ -646,8 +646,8 @@ doNormalLaunch:
 
 		// If we found a playing Clip outside of the armed section, or vice versa, then we can't say we legitimately
 		// just launched a section
-		if (clip->launchStyle() != LaunchStyle::FILL && clipActiveAfter != (clip->section == lastSectionArmed)
-		    && currentSong->project.arrangement.sections[clip->section].num_repetitions != LAUNCH_EXCLUSIVE) {
+		if (clip->launchStyle() != LaunchStyle::FILL && clipActiveAfter != (clip->section() == lastSectionArmed)
+		    && currentSong->project.arrangement.sections[clip->section()].num_repetitions != LAUNCH_EXCLUSIVE) {
 			sectionWasJustLaunched = false;
 		}
 	}
@@ -695,7 +695,7 @@ doNormalLaunch:
 							Clip* topClip =
 							    currentSong->project.clips
 							        .session_clips[std::ssize(currentSong->project.clips.session_clips) - 1];
-							sectionToArm = topClip->section;
+							sectionToArm = topClip->section();
 						}
 						armSectionWhenNeitherClockActive(modelStack, sectionToArm, true);
 						armingChanged();
@@ -992,7 +992,7 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 		return;
 	}
 
-	if (currentSong->project.arrangement.sections[clip->section].num_repetitions != LAUNCH_EXCLUSIVE) {
+	if (currentSong->project.arrangement.sections[clip->section()].num_repetitions != LAUNCH_EXCLUSIVE) {
 		lastSectionArmed = REALLY_OUT_OF_RANGE;
 	}
 
@@ -1215,12 +1215,12 @@ void Session::armSection(uint8_t section, int32_t buttonPressLatency) {
 		Clip* clip = currentSong->project.clips.session_clips[c];
 
 		// If a Clip in the section is not playing...
-		if (clip->section == section && !clip->activeIfNoSolo) {
+		if (clip->section() == section && !clip->activeIfNoSolo) {
 			goto yupThatsFine; // Remember, we cancelled any soloing, above
 		}
 
 		// If a Clip in another section is playing and we're not a "share" section...
-		if (currentSong->project.arrangement.sections[section].num_repetitions > -1 && clip->section != section
+		if (currentSong->project.arrangement.sections[section].num_repetitions > -1 && clip->section() != section
 		    && ((clip->armState != ArmState::OFF) != clip->activeIfNoSolo)) {
 			goto yupThatsFine;
 		}
@@ -1268,7 +1268,7 @@ void Session::armSectionWhenNeitherClockActive(ModelStack* modelStack, int32_t s
 	for (int32_t c = 0; c < std::ssize(modelStack->song->project.clips.session_clips); c++) {
 		Clip* clip = modelStack->song->project.clips.session_clips[c];
 
-		if (clip->section == section && !clip->activeIfNoSolo) {
+		if (clip->section() == section && !clip->activeIfNoSolo) {
 			clip->activeIfNoSolo = true;
 
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
@@ -1276,8 +1276,8 @@ void Session::armSectionWhenNeitherClockActive(ModelStack* modelStack, int32_t s
 			modelStack->song->assertActiveness(modelStackWithTimelineCounter);
 		}
 
-		if (stopAllOtherClips && clip->section != section && clip->activeIfNoSolo
-		    && currentSong->project.arrangement.sections[clip->section].num_repetitions != LAUNCH_EXCLUSIVE) {
+		if (stopAllOtherClips && clip->section() != section && clip->activeIfNoSolo
+		    && currentSong->project.arrangement.sections[clip->section()].num_repetitions != LAUNCH_EXCLUSIVE) {
 			// thisClip->expectNoFurtherTicks(currentSong); // No, don't need this, cos it's not playing!
 			clip->activeIfNoSolo = false;
 		}
@@ -1358,7 +1358,7 @@ void Session::armClipsAlongWithExistingLaunching(ArmState armState, uint8_t sect
 	{
 		for (int l = 0; l < std::ssize(currentSong->project.clips.session_clips); l++) {
 			Clip* thisClip = currentSong->project.clips.session_clips[l];
-			if (thisClip->section == section) {
+			if (thisClip->section() == section) {
 				// If we're arming a section, we know there's no soloing or armed Clips, so that's easy.
 				// Only arm if it's not playing
 				if (!thisClip->activeIfNoSolo) {
@@ -1383,7 +1383,7 @@ void Session::armClipsWithNothingToSyncTo(uint8_t section, Clip* clip) {
 	{
 		for (int c = 0; c < std::ssize(currentSong->project.clips.session_clips); c++) {
 			Clip* thisClip = currentSong->project.clips.session_clips[c];
-			if (thisClip->section == section) {
+			if (thisClip->section() == section) {
 				thisClip->activeIfNoSolo = true;
 				currentSong->assertActiveness(modelStack->addTimelineCounter(thisClip)); // Very inefficient
 			}
@@ -1432,7 +1432,7 @@ void Session::userWantsToArmClipsToStartOrSolo(uint8_t section, Clip* clip, bool
 		for (int32_t c = 0; c < std::ssize(currentSong->project.clips.session_clips); c++) {
 			Clip* thisClip = currentSong->project.clips.session_clips[c];
 
-			if (thisClip->section == section && thisClip->loopLength() > longestStartingClipLength) {
+			if (thisClip->section() == section && thisClip->loopLength() > longestStartingClipLength) {
 				longestStartingClipLength = thisClip->loopLength();
 			}
 		}
@@ -1652,7 +1652,7 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 			}
 
 			// If thisClip is in the section we're wanting to arm...
-			if (thisClip->section == section) {
+			if (thisClip->section() == section) {
 				// Because we're arming a section, we know there's no soloing Clips, so that's easy.
 				Output* output = thisClip->output;
 
@@ -1711,7 +1711,7 @@ wantActive:
 
 weWantThisClipInactive:
 					// Clip is launched exclusively
-					if (currentSong->project.arrangement.sections[thisClip->section].num_repetitions
+					if (currentSong->project.arrangement.sections[thisClip->section()].num_repetitions
 					    == LAUNCH_EXCLUSIVE) {
 						if (thisClip->activeIfNoSolo) {
 							thisClip->armState = ArmState::OFF;
@@ -1748,7 +1748,7 @@ weWantThisClipInactive:
 
 				// Ok, so if it's from another section (only those, because we've already dealt with the ones in our
 				// section)...
-				if (thisClip->section != section) {
+				if (thisClip->section() != section) {
 
 					// And if it's currently active...
 					if (thisClip->activeIfNoSolo) {
@@ -1930,7 +1930,7 @@ void Session::scheduleFillClips(uint8_t section) {
 		Clip* thisClip = currentSong->project.clips.session_clips[c];
 
 		// If thisClip is in the section we're wanting to arm...
-		if (thisClip->section == section && thisClip->launchStyle() == LaunchStyle::FILL) {
+		if (thisClip->section() == section && thisClip->launchStyle() == LaunchStyle::FILL) {
 
 			Output* output = thisClip->output;
 			if (output->getActiveClip() && output->getActiveClip()->launchStyle() != LaunchStyle::FILL) {
@@ -2001,23 +2001,23 @@ int32_t Session::getCurrentSection() {
 		Clip* clip = currentSong->project.clips.session_clips[l];
 
 		// Launch exclusively section
-		if (currentSong->project.arrangement.sections[clip->section].num_repetitions == LAUNCH_EXCLUSIVE) {
+		if (currentSong->project.arrangement.sections[clip->section()].num_repetitions == LAUNCH_EXCLUSIVE) {
 			continue;
 		}
 
 		if (clip->activeIfNoSolo) {
 			if (section == REALLY_OUT_OF_RANGE) {
-				section = clip->section;
+				section = clip->section();
 			}
-			else if (section != clip->section) {
+			else if (section != clip->section()) {
 				return SECTION_OUT_OF_RANGE;
 			}
 		}
 		else {
-			if (ALPHA_OR_BETA_VERSION && clip->section > kMaxNumSections) {
+			if (ALPHA_OR_BETA_VERSION && clip->section() > kMaxNumSections) {
 				FREEZE_WITH_ERROR("E243");
 			}
-			anyUnlaunchedLoopablesInSection[clip->section] = true;
+			anyUnlaunchedLoopablesInSection[clip->section()] = true;
 		}
 	}
 

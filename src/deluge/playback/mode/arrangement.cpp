@@ -527,7 +527,7 @@ Error Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32
 
 	Clip* newClip = (Clip*)modelStack->getTimelineCounter();
 
-	newClip->section = 255;
+	newClip->setSection(255);
 	newClip->activeIfNoSolo = false; // Always need to set arrangement-only Clips like this on create
 
 	if (shouldCloneRepeats && newLength != -1) {

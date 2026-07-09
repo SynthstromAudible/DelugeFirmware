@@ -50,7 +50,7 @@ Clip::Clip(ClipType newType) : type(newType) {
 	exportStem = false;
 	wasActiveBefore = false; // Want to set this default in case a Clip was created during playback
 
-	section = 0;
+	setSection(0);
 	output = nullptr;
 	beingRecordedFromClip = nullptr;
 	isPendingOverdub = false;
@@ -103,7 +103,7 @@ void Clip::copyBasicsFrom(Clip const* otherClip) {
 	setLoopLength(otherClip->loopLength());
 	setColourOffset(otherClip->colourOffset());
 	// modKnobMode = otherClip->modKnobMode;
-	section = otherClip->section;
+	setSection(otherClip->section());
 	setLaunchStyle(otherClip->launchStyle());
 	onAutomationClipView = otherClip->onAutomationClipView;
 }
@@ -204,7 +204,7 @@ Clip* Clip::getClipBeingRecordedFrom() {
 }
 
 bool Clip::isArrangementOnlyClip() const {
-	return (section == 255);
+	return (section() == 255);
 }
 
 bool Clip::isActiveOnOutput() {
@@ -675,8 +675,8 @@ void Clip::writeDataToFile(Serializer& writer, Song* song) {
 		writer.writeAttribute("sequenceDirection", sequenceDirectionModeToString(sequenceDirectionMode));
 	}
 	writer.writeAttribute("colourOffset", colourOffset());
-	if (section != 255) {
-		writer.writeAttribute("section", section);
+	if (section() != 255) {
+		writer.writeAttribute("section", section());
 	}
 
 	// writer.writeTag("activeModFunction", modKnobMode);
@@ -728,8 +728,7 @@ void Clip::readTagFromFile(Deserializer& reader, char const* tagName, Song* song
 	}
 
 	else if (!strcmp(tagName, "section")) {
-		section = reader.readTagOrAttributeValueInt();
-		section = std::min(section, (uint8_t)(kMaxNumSections - 1));
+		setSection(std::min<uint8_t>(reader.readTagOrAttributeValueInt(), (uint8_t)(kMaxNumSections - 1)));
 	}
 
 	else if (!strcmp(tagName, "trackLength") || !strcmp(tagName, "length")) {
@@ -1127,7 +1126,7 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 
 			Clip* newClip = (Clip*)modelStack->getTimelineCounter();
 
-			newClip->section = 255;
+			newClip->setSection(255);
 
 			int32_t newLength = loopLength();
 

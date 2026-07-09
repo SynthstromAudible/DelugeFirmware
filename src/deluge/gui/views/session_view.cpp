@@ -1059,7 +1059,7 @@ justEndClipPress:
 						if (isSDRoutineActive()) {
 							return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 						}
-						view.sectionMidiLearnPadPressed(on, clip->section);
+						view.sectionMidiLearnPadPressed(on, clip->section());
 						break;
 
 					case UI_MODE_NONE:
@@ -1145,9 +1145,9 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 
 				actionLogger.deleteAllLogs();
 
-				uint8_t oldSection = clip->section;
+				uint8_t oldSection = clip->section();
 
-				clip->section = 255;
+				clip->setSection(255);
 
 				bool sectionUsed[kMaxNumSections];
 				memset(sectionUsed, 0, sizeof(sectionUsed));
@@ -1155,8 +1155,8 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 				for (int32_t c = 0; c < std::ssize(currentSong->project.clips.session_clips); c++) {
 					Clip* thisClip = currentSong->project.clips.session_clips[c];
 
-					if (thisClip->section < kMaxNumSections) {
-						sectionUsed[thisClip->section] = true;
+					if (thisClip->section() < kMaxNumSections) {
+						sectionUsed[thisClip->section()] = true;
 					}
 				}
 
@@ -1184,7 +1184,7 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 			else {
 				enterUIMode(UI_MODE_HOLDING_SECTION_PAD);
 				performActionOnSectionPadRelease = true;
-				sectionPressed = clip->section;
+				sectionPressed = clip->section();
 				uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 300);
 			}
 		}
@@ -1208,7 +1208,7 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 		}
 
 		else if (isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
-			session.armSection(clip->section, kInternalButtonPressLatency);
+			session.armSection(clip->section(), kInternalButtonPressLatency);
 		}
 	}
 }
@@ -1571,16 +1571,17 @@ void SessionView::drawSectionSquare(uint8_t yDisplay, RGB thisImage[]) {
 	}
 	else {
 		if (view.midiLearnFlashOn
-		    && currentSong->project.arrangement.sections[clip->section].launch_midi_command.containsSomething()) {
+		    && currentSong->project.arrangement.sections[clip->section()].launch_midi_command.containsSomething()) {
 			thisColour = colours::midi_command;
 		}
 
 		else {
-			thisColour = defaultClipSectionColours[clip->section];
+			thisColour = defaultClipSectionColours[clip->section()];
 
 			// If user assigning MIDI controls and has this section selected, flash to half brightness
 			if (view.midiLearnFlashOn && currentSong
-			    && view.learnedThing == &currentSong->project.arrangement.sections[clip->section].launch_midi_command) {
+			    && view.learnedThing
+			           == &currentSong->project.arrangement.sections[clip->section()].launch_midi_command) {
 				thisColour = thisColour.dim();
 			}
 		}
@@ -1767,13 +1768,14 @@ bool SessionView::insertAndResyncNewClip(Clip* newClip, int32_t yDisplay) {
 	int32_t index = yDisplay + currentSong->persistentView.songViewYScroll;
 	if (index <= 0) {
 		index = 0;
-		newClip->section = currentSong->project.clips.session_clips[0]->section;
+		newClip->setSection(currentSong->project.clips.session_clips[0]->section());
 		currentSong->persistentView.songViewYScroll++;
 	}
 	else if (index >= std::ssize(currentSong->project.clips.session_clips)) {
 		index = std::ssize(currentSong->project.clips.session_clips);
-		newClip->section =
-		    currentSong->project.clips.session_clips[std::ssize(currentSong->project.clips.session_clips) - 1]->section;
+		newClip->setSection(
+		    currentSong->project.clips.session_clips[std::ssize(currentSong->project.clips.session_clips) - 1]
+		        ->section());
 	}
 	if (!currentSong->project.clips.session_clips.insertClipAt(newClip, index)) {
 		return false;
@@ -2169,7 +2171,7 @@ ramError:
 
 	Clip* newClip = (Clip*)modelStack->getTimelineCounter();
 
-	newClip->section = (uint8_t)(newClip->section + 1) % kMaxNumSections;
+	newClip->setSection((uint8_t)(newClip->section() + 1) % kMaxNumSections);
 	copyClipName(clipToClone, newClip, clipToClone->output);
 
 	int32_t newIndex = yDisplayTo + currentSong->persistentView.songViewYScroll;
@@ -2746,7 +2748,7 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 		clip = getCurrentClip();
 
 		// If there was no previous one (e.g. because we just loaded the Song), do nothing.
-		if (!clip || clip->section == 255) {
+		if (!clip || clip->section() == 255) {
 			return;
 		}
 	}
@@ -3039,10 +3041,10 @@ void SessionView::midiLearnFlash() {
 
 			if (clip->muteMIDICommand.containsSomething()
 			    || (view.thingPressedForMidiLearn == MidiLearn::CLIP && &clip->muteMIDICommand == view.learnedThing)
-			    || currentSong->project.arrangement.sections[clip->section].launch_midi_command.containsSomething()
+			    || currentSong->project.arrangement.sections[clip->section()].launch_midi_command.containsSomething()
 			    || (view.thingPressedForMidiLearn == MidiLearn::SECTION
 			        && view.learnedThing
-			               == &currentSong->project.arrangement.sections[clip->section].launch_midi_command)) {
+			               == &currentSong->project.arrangement.sections[clip->section()].launch_midi_command)) {
 				sideRowsToRender |= (1 << yDisplay);
 			}
 
@@ -3305,7 +3307,7 @@ bool SessionView::gridRenderMainPads(uint32_t whichRows, RGB image[][kDisplayWid
 		}
 
 		auto x = gridXFromTrack(trackIndex);
-		auto y = gridYFromSection(clip->section);
+		auto y = gridYFromSection(clip->section());
 
 		// Render colour for every valid clip
 		// make sure the square hasn't already been written to - otherwise multiple clips in the same section will
@@ -3403,7 +3405,7 @@ RGB SessionView::gridRenderClipColor(Clip* clip, int32_t x, int32_t y, bool rend
 			macroActive = (macro.output == clip->output);
 		}
 		else if (macro.kind == SessionMacroKind::SECTION) {
-			macroActive = (macro.section == clip->section);
+			macroActive = (macro.section == clip->section());
 		}
 
 		if (macroActive) {
@@ -3733,7 +3735,7 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 	ModelStackWithTimelineCounter* modelStack =
 	    setupModelStackWithSong(modelStackMemory, currentSong)->addTimelineCounter(newClip);
 
-	newClip->section = targetSection;
+	newClip->setSection(targetSection);
 	if (newClip->type == ClipType::INSTRUMENT) {
 		((InstrumentClip*)newClip)->onKeyboardScreen = false;
 	}
@@ -3898,8 +3900,8 @@ void SessionView::gridStartSection(uint32_t section, bool instant) {
 		for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->project.clips.session_clips); ++idxClip) {
 			Clip* clip = currentSong->project.clips.session_clips[idxClip];
 
-			if ((clip->section == section && !clip->activeIfNoSolo)
-			    || (clip->section != section && clip->activeIfNoSolo)) {
+			if ((clip->section() == section && !clip->activeIfNoSolo)
+			    || (clip->section() != section && clip->activeIfNoSolo)) {
 				gridToggleClipPlay(clip, instant);
 			}
 			else {
@@ -4486,7 +4488,7 @@ ActionResult SessionView::gridHandlePadsMacros(int32_t x, int32_t y, int32_t on,
 			macro.kind = SessionMacroKind::CLIP_LAUNCH;
 			macro.clip = clip;
 			macro.output = clip->output;
-			macro.section = clip->section;
+			macro.section = clip->section();
 		}
 		else {
 			int kindIndex = std::to_underlying(macro.kind) + 1;
@@ -4598,7 +4600,7 @@ void SessionView::gridTransitionToSessionView() {
 
 	auto clipX = std::clamp<int32_t>(gridXFromTrack(gridTrackIndexFromTrack(getCurrentOutput(), gridTrackCount())), 0,
 	                                 kDisplayWidth);
-	auto clipY = std::clamp<int32_t>(gridYFromSection(getCurrentClip()->section), 0, kDisplayHeight);
+	auto clipY = std::clamp<int32_t>(gridYFromSection(getCurrentClip()->section()), 0, kDisplayHeight);
 
 	if (getCurrentClip()->type == ClipType::AUDIO && getCurrentUI() != &automationView) {
 		waveformRenderer.collapseAnimationToWhichRow = clipY;
@@ -4632,7 +4634,7 @@ void SessionView::gridTransitionToViewForClip(Clip* clip) {
 
 	auto clipX = std::clamp<int32_t>(gridXFromTrack(gridTrackIndexFromTrack(getCurrentOutput(), gridTrackCount())), 0,
 	                                 kDisplayWidth);
-	auto clipY = std::clamp<int32_t>(gridYFromSection(getCurrentClip()->section), 0, kDisplayHeight);
+	auto clipY = std::clamp<int32_t>(gridYFromSection(getCurrentClip()->section()), 0, kDisplayHeight);
 
 	bool onKeyboardScreen = ((clip->type == ClipType::INSTRUMENT) && ((InstrumentClip*)clip)->onKeyboardScreen);
 
@@ -4835,7 +4837,7 @@ Clip* SessionView::gridClipFromCoords(uint32_t x, uint32_t y) {
 
 	for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->project.clips.session_clips); ++idxClip) {
 		Clip* clip = currentSong->project.clips.session_clips[idxClip];
-		if (clip->output == track && clip->section == section) {
+		if (clip->output == track && clip->section() == section) {
 			return clip;
 		}
 	}
@@ -4858,7 +4860,7 @@ int32_t SessionView::gridClipIndexFromCoords(uint32_t x, uint32_t y) {
 
 	for (int32_t idxClip = 0; idxClip < std::ssize(currentSong->project.clips.session_clips); ++idxClip) {
 		Clip* clip = currentSong->project.clips.session_clips[idxClip];
-		if (clip->output == track && clip->section == section) {
+		if (clip->output == track && clip->section() == section) {
 			return idxClip;
 		}
 	}
@@ -4880,7 +4882,7 @@ Cartesian SessionView::gridXYFromClip(Clip& clip) {
 	Output& track = *clip.output;
 	size_t maxTrack = gridTrackCount();
 	int32_t trackIndex = gridTrackIndexFromTrack(&track, maxTrack);
-	return {gridXFromTrack(trackIndex), gridYFromSection(clip.section)};
+	return {gridXFromTrack(trackIndex), gridYFromSection(clip.section())};
 }
 
 // stop pulsing selected clip

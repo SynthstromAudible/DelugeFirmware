@@ -155,7 +155,7 @@ void ArrangerView::moveClipToSession() {
 				intendedIndex = std::ssize(currentSong->project.clips.session_clips);
 			}
 
-			clip->section = currentSong->getLowestSectionWithNoSessionClipForOutput(output);
+			clip->setSection(currentSong->getLowestSectionWithNoSessionClipForOutput(output));
 			auto inserted = currentSong->project.clips.session_clips.insertClipAt(clip, intendedIndex);
 			Error error = inserted ? Error::NONE : inserted.error();
 			if (error != Error::NONE) {
@@ -1256,7 +1256,7 @@ void ArrangerView::interactWithClipInstance(Output* output, int32_t yDisplay, Cl
 void ArrangerView::rememberInteractionWithClipInstance(int32_t yDisplay, ClipInstance* clipInstance) {
 	lastInteractedOutputIndex = yDisplay + currentSong->persistentView.arrangementYScroll;
 	lastInteractedPos = clipInstance->pos;
-	lastInteractedSection = clipInstance->clip ? clipInstance->clip->section : 255;
+	lastInteractedSection = clipInstance->clip ? clipInstance->clip->section() : 255;
 	lastInteractedClipInstance = clipInstance;
 }
 
@@ -1543,7 +1543,7 @@ Clip* ArrangerView::getClipForNewClipInstance(Output* output, Output* lastOutput
 		else {
 			// If yes Clip, look for another one with that section
 			if (lastClipInstance->clip) {
-				lastInteractedSection = lastClipInstance->clip->section;
+				lastInteractedSection = lastClipInstance->clip->section();
 				newClip = getClipFromSection(output);
 			}
 		}
@@ -1683,7 +1683,7 @@ void ArrangerView::createNewClipForClipInstance(Output* output, ClipInstance* cl
 		newClip = new (memory) InstrumentClip(currentSong);
 
 	newClip->setLoopLength(clipInstance->length);
-	newClip->section = 255;
+	newClip->setSection(255);
 	newClip->activeIfNoSolo = false; // Always need to set arrangement-only Clips like this on create
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -2513,7 +2513,7 @@ void ArrangerView::selectEncoderAction(int8_t offset) {
 		ClipInstance* clipInstance = &output->clipInstances[pressedClipInstanceIndex];
 
 		// If an arrangement-only Clip, can't do anything
-		if (clipInstance->clip && clipInstance->clip->section == 255) {
+		if (clipInstance->clip && clipInstance->clip->section() == 255) {
 			return;
 		}
 

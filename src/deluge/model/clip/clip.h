@@ -171,7 +171,9 @@ public:
 	}
 
 	const ClipType type;
-	uint8_t section;
+	/// M3 owner-1: clip section lives in the DOM DocClip (see loopLength()). 255 = arrangement-only.
+	[[nodiscard]] uint8_t section() const { return (treeDoc_ != nullptr ? treeDoc_ : &ownDoc_)->section; }
+	void setSection(uint8_t newSection) { (treeDoc_ != nullptr ? *treeDoc_ : ownDoc_).section = newSection; }
 	bool soloingInSessionMode;
 	ArmState armState;
 	bool activeIfNoSolo;

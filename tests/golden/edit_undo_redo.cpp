@@ -1117,14 +1117,15 @@ void sectionTarget(Song* song) {
 		return;
 	}
 	printf("# target section\n");
-	uint8_t target = (clip->section == 2) ? 3 : 2; // any two distinct valid section indices
+	uint8_t target = (clip->section() == 2) ? 3 : 2; // any two distinct valid section indices
 
 	deluge::edits::Context ctx{*currentSong, currentSong->project};
 	deluge::edits::SetClipSection edit{clip, target};
 	check(deluge::edits::apply(ctx, edit) == Error::NONE, "section: apply succeeds");
-	check(clip->section == target, "section: engine field set");
+	check(clip->section() == target, "section: accessor set");
+	// Loaded clips are bound: the accessor reads the tree DocClip, so resolveClip agrees.
 	deluge::project::DocClip* doc = song->project.resolveClip(*deluge::edits::clipAddressFor(*clip));
-	check(doc != nullptr && doc->section == target, "section: shadow DocClip matches engine");
+	check(doc != nullptr && doc->section == target, "section: DocClip matches accessor");
 }
 
 } // namespace

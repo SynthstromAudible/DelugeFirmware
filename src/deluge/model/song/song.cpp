@@ -696,7 +696,7 @@ bool Song::areAllClipsInSectionPlaying(int32_t section) {
 
 	for (int32_t l = 0; l < std::ssize(project.clips.session_clips); l++) {
 		Clip* clip = project.clips.session_clips[l];
-		if (clip->section == section && !isClipActive(clip)) {
+		if (clip->section() == section && !isClipActive(clip)) {
 			return false;
 		}
 	}
@@ -918,7 +918,7 @@ Clip* Song::getSessionClipWithOutput(Output* output, int32_t requireSection, Cli
 			if (clip == excludeClip) {
 				continue;
 			}
-			if (requireSection != -1 && clip->section != requireSection) {
+			if (requireSection != -1 && clip->section() != requireSection) {
 				continue;
 			}
 			if (excludePendingOverdubs && clip->isPendingOverdub) {
@@ -1771,7 +1771,7 @@ loadOutput:
 	for (int32_t t = 0; t < std::ssize(project.clips.arrangement_only_clips); t++) {
 		Clip* clip = project.clips.arrangement_only_clips[t];
 
-		clip->section = 255;
+		clip->setSection(255);
 		clip->gotInstanceYet = false;
 	}
 
@@ -1965,6 +1965,7 @@ loadOutput:
 			doc.loop_length = thisClip->loopLength();
 			doc.colour_offset = thisClip->colourOffset();
 			doc.launch_style = static_cast<uint8_t>(thisClip->launchStyle());
+			doc.section = thisClip->section();
 			thisClip->bindDomClip(&doc);
 		}
 	}
@@ -1975,6 +1976,7 @@ loadOutput:
 			doc.loop_length = thisClip->loopLength();
 			doc.colour_offset = thisClip->colourOffset();
 			doc.launch_style = static_cast<uint8_t>(thisClip->launchStyle());
+			doc.section = thisClip->section();
 			thisClip->bindDomClip(&doc);
 		}
 	}
@@ -3145,7 +3147,7 @@ void Song::turnSoloingIntoJustPlaying(bool getRidOfArmingToo) {
 			for (int32_t l = 0; l < std::ssize(project.clips.session_clips); l++) {
 				Clip* loopable = project.clips.session_clips[l];
 				if (loopable->launchStyle() == LaunchStyle::DEFAULT
-				    && currentSong->project.arrangement.sections[loopable->section].num_repetitions != -2) {
+				    && currentSong->project.arrangement.sections[loopable->section()].num_repetitions != -2) {
 					loopable->armState = ArmState::OFF;
 				}
 			}
@@ -3848,8 +3850,8 @@ int32_t Song::getLowestSectionWithNoSessionClipForOutput(Output* output) {
 
 	for (int32_t c = 0; c < std::ssize(project.clips.session_clips); c++) {
 		Clip* clip = project.clips.session_clips[c];
-		if (clip->output == output && clip->section < kMaxNumSections) {
-			sectionRepresented[clip->section] = true;
+		if (clip->output == output && clip->section() < kMaxNumSections) {
+			sectionRepresented[clip->section()] = true;
 		}
 	}
 
@@ -5117,7 +5119,7 @@ lookAtNextOne:
 	if (foundAtLeastOneInstanceInArranger) {
 
 		(void)project.clips.arrangement_only_clips.insertClipAt((InstrumentClip*)clip, 0);
-		clip->section = 255;
+		clip->setSection(255);
 	}
 
 	// Otherwise, delete as usual

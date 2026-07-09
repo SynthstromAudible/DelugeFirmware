@@ -288,7 +288,7 @@ bool Output::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, 
 				}
 				else {
 					clipCode = thisInstance->clip->indexForSaving;
-					if (thisInstance->clip->section == 255) {
+					if (thisInstance->clip->section() == 255) {
 						clipCode |= (1 << 31);
 					}
 				}
@@ -455,7 +455,7 @@ Error Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
 	ClipInstance* clipInstance = &clipInstances[i];
 
 	clipInstance->clip = newClip;
-	newClip->section = 255;
+	newClip->setSection(255);
 	newClip->setLoopLength(kMaxSequenceLength);
 
 	(void)song->project.clips.arrangement_only_clips.insertClipAt(newClip, 0); // Will succeed - we checked above
