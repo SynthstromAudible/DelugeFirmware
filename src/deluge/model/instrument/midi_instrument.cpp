@@ -458,6 +458,7 @@ Error MIDIInstrument::readModKnobAssignmentsFromFile(Deserializer& reader, int32
                                                      ParamManagerForTimeline* paramManager) {
 	int32_t m = 0;
 	char const* tagName;
+	reader.match('{'); // descend into the <modKnobs> object (needed for JSON; a no-op in XML)
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "modKnob")) {
 			MIDIParamCollection* midiParamCollection = nullptr;
@@ -477,6 +478,7 @@ Error MIDIInstrument::readModKnobAssignmentsFromFile(Deserializer& reader, int32
 			break;
 		}
 	}
+	reader.match('}');
 
 	editedByUser = true;
 	return Error::NONE;

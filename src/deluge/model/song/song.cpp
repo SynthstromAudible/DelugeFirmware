@@ -1683,6 +1683,7 @@ loadOutput:
 							return Error::INSUFFICIENT_RAM;
 						}
 						newOutput = new (memory) MIDIInstrument();
+						reader.match('{'); // descend into the instrument object (needed for JSON; no-op in XML)
 						goto loadOutput;
 					}
 
@@ -1692,6 +1693,7 @@ loadOutput:
 							return Error::INSUFFICIENT_RAM;
 						}
 						newOutput = new (memory) CVInstrument();
+						reader.match('{'); // descend into the instrument object (needed for JSON; no-op in XML)
 						goto loadOutput;
 					}
 
