@@ -27,6 +27,8 @@
 
 namespace deluge::storage {
 
+enum class SourceFormat : uint8_t { Json, Xml };
+
 /// A `Deserializer` cursor that walks an in-memory `Value` tree instead of a byte stream.
 ///
 /// This is the adapter half of the record-first deserializer design: it implements the same
@@ -48,7 +50,10 @@ namespace deluge::storage {
 ///      pending. match() falls back to peeking the array's next unread element in that case.
 class ValueTreeDeserializer final : public Deserializer {
 public:
-	explicit ValueTreeDeserializer(const Value& root) : root_(&root) { reset(); }
+	explicit ValueTreeDeserializer(const Value& root, SourceFormat format = SourceFormat::Json)
+	    : root_(&root), format_(format) {
+		reset();
+	}
 
 	bool prepareToReadTagOrAttributeValueOneCharAtATime() override;
 	char readNextCharOfTagOrAttributeValue() override;
@@ -87,6 +92,7 @@ private:
 	const Value* pending_ = nullptr;
 	// Cursor into the pending scalar for the one-char/n-chars-at-a-time reading methods.
 	std::size_t charCursor_ = 0;
+	SourceFormat format_;
 };
 
 } // namespace deluge::storage
