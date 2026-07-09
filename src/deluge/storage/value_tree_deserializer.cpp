@@ -17,7 +17,14 @@
 
 #include "storage/value_tree_deserializer.h"
 
+#include "util/firmware_version.h"
+
 #include <charconv>
+#include <cstring>
+
+// Defined in storage_manager.cpp; forward-declared here to keep this lean adapter free of the
+// FatFS-heavy storage_manager.h. tryReadingFirmwareTagFromFile sets it, exactly as XMLDeserializer does.
+extern FirmwareVersion song_firmware_version;
 
 namespace deluge::storage {
 
@@ -282,10 +289,22 @@ int ValueTreeDeserializer::readTagOrAttributeValueHexBytes(uint8_t* bytes, int32
 }
 
 Error ValueTreeDeserializer::tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware) {
-	(void)tagName;
-	(void)ignoreIncorrectFirmware;
-	// Firmware-version handling is a Step-2 (later) concern for the record-first deserializer;
-	// the tree walker itself has nothing to check here.
+	// Format-agnostic: identical logic to XMLDeserializer::tryReadingFirmwareTagFromFile. Sets the
+	// global song_firmware_version, which gates dozens of version-conditional parse branches.
+	if (!strcmp(tagName, "firmwareVersion")) {
+		song_firmware_version = FirmwareVersion::parse(readTagOrAttributeValue());
+	}
+	// If this tag doesn't exist, it's from old firmware so is ok
+	else if (!strcmp(tagName, "earliestCompatibleFirmware")) {
+		auto earliestFirmware = FirmwareVersion::parse(readTagOrAttributeValue());
+		if (earliestFirmware > FirmwareVersion::current() && !ignoreIncorrectFirmware) {
+			// (XMLDeserializer closeWriter()s here; the adapter has no writer -- only the Error matters.)
+			return Error::FILE_FIRMWARE_VERSION_TOO_NEW;
+		}
+	}
+	else {
+		return Error::RESULT_TAG_UNUSED;
+	}
 	return Error::NONE;
 }
 
