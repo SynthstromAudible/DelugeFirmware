@@ -6,10 +6,11 @@
 
 **Architecture:** A `Value` is `orderedMap | array | rawStringScalar`. `parseJson` builds one from JSON bytes; `buildValue` builds one by driving any `Deserializer` (used with `XMLDeserializer`). `ValueTreeDeserializer` is a `Deserializer` cursor over a `Value`, so existing `readFromFile` code can later run tree-backed. Pure additive; nothing consumes these yet.
 
-**Tech Stack:** C++26 (CppSpec/`deluge_spec` build is `CXX_STANDARD 26`); CppSpec specs in `tests/spec/*_spec.cpp` (`describe`/`context`/`it`/`expect(...).to_equal(...)`), auto-globbed into the `all_specs` driver, run via CTest (`./dbt test`). The existing `Deserializer`/`XMLDeserializer` are in `src/deluge/storage/storage_manager.h`.
+**Tech Stack:** C++26 (CppSpec/`deluge_spec` build is `CXX_STANDARD 26`); CppSpec specs in `tests/spec/*_spec.cpp` (`describe`/`context`/`it`/`expect(...).to_equal(...)`), auto-globbed into the `all_specs` driver. Build+run via `cmake --build build/tests --target all_specs` then `ctest --test-dir build/tests -C Debug -R <spec_stem> --output-on-failure`. The existing `Deserializer`/`XMLDeserializer` are in `src/deluge/storage/storage_manager.h`.
 
 ## Global Constraints
 
+- **Verify specs with the spec driver, NOT `./dbt test`.** Build: `cmake --build build/tests --target all_specs`; run: `ctest --test-dir build/tests -C Debug -R <spec_stem> --output-on-failure`. RED = build fails to compile (missing symbol); GREEN = build succeeds AND ctest passes. `./dbt test` also builds the CppUTest `UnitTests` target, which is separately broken by pre-existing Song-mock drift (`clip_iterators.cpp` uses `song->project`, the `tests/unit/mocks` Song lacks it) — out of scope here; do not try to fix it.
 - Tests are **CppSpec** (`#include <cppspec.hpp>`, `describe name("...", ${ it("...", _{ expect(x).to_equal(y); }); });`), files named `*_spec.cpp` in `tests/spec/`. NOT CppUTest.
 - New spec-tested source `.cpp` files must be **added to the `deluge_spec` STATIC library source list** in `tests/spec/CMakeLists.txt` (that list is explicit, not globbed). Spec files themselves are auto-globbed by `create_specs_driver`.
 - Reads must eventually serve **both XML and JSON**; `Value`/`ValueTreeDeserializer` are format-agnostic, `buildValue` is the throwaway XML path, `parseJson` the permanent JSON path. (Spec: *Hard constraint*.)
@@ -42,7 +43,7 @@
 - [ ] **Step 1: Create `deserializer.h`** — move the `class Deserializer { … };` block verbatim (the 14 pure virtuals) into `src/deluge/storage/deserializer.h`, under `#pragma once`, with `#include "definitions_cxx.hpp"`, `<cstdint>`, `<string>`. Keep the same global namespace (no namespace) so no callers change.
 - [ ] **Step 2: Update `storage_manager.h`** — replace the inline `class Deserializer {…}` with `#include "storage/deserializer.h"`.
 - [ ] **Step 3: Build firmware to prove the move is neutral** — `./dbt build Debug 2>&1 | tail -2` → links (same elf size class as before; the move adds/removes no code).
-- [ ] **Step 4: Run the existing specs to prove nothing regressed** — `./dbt test 2>&1 | tail -5` → existing specs pass.
+- [ ] **Step 4: Run the existing specs to prove nothing regressed** — `cmake --build build/tests --target all_specs 2>&1 | tail -8   # then, on GREEN steps: ctest --test-dir build/tests -C Debug -R <spec_stem> --output-on-failure` → existing specs pass.
 - [ ] **Step 5: Commit** — `git commit -q -m "storage: extract abstract Deserializer interface into deserializer.h (deserializer step 1)"`.
 
 ---
@@ -112,9 +113,9 @@ describe value_spec("deluge::storage::Value", ${
 });
 ```
 - [ ] **Step 2: Add `value.cpp` to `deluge_spec`** in `tests/spec/CMakeLists.txt` (append `../../src/deluge/storage/value.cpp` to the `add_library(deluge_spec STATIC …)` list).
-- [ ] **Step 3: Run, verify it fails** — `./dbt test 2>&1 | tail -5` → FAIL (no `value.h` / unresolved).
+- [ ] **Step 3: Run, verify it fails** — `cmake --build build/tests --target all_specs 2>&1 | tail -8   # then, on GREEN steps: ctest --test-dir build/tests -C Debug -R <spec_stem> --output-on-failure` → FAIL (no `value.h` / unresolved).
 - [ ] **Step 4: Implement `value.{h,cpp}`** to the interface above.
-- [ ] **Step 5: Run, verify pass** — `./dbt test 2>&1 | tail -5` → `value_spec` passes, others green.
+- [ ] **Step 5: Run, verify pass** — `cmake --build build/tests --target all_specs 2>&1 | tail -8   # then, on GREEN steps: ctest --test-dir build/tests -C Debug -R <spec_stem> --output-on-failure` → `value_spec` passes, others green.
 - [ ] **Step 6: Commit** — `git commit -q -m "storage: Value tree type (deserializer step 1)"`.
 
 ---
@@ -161,7 +162,7 @@ describe parse_json_spec("deluge::storage::parseJson", ${
 });
 ```
 - [ ] **Step 2: Add `parse_json.cpp` to `deluge_spec`.**
-- [ ] **Step 3: Run, verify fail** — `./dbt test 2>&1 | tail -5` → FAIL.
+- [ ] **Step 3: Run, verify fail** — `cmake --build build/tests --target all_specs 2>&1 | tail -8   # then, on GREEN steps: ctest --test-dir build/tests -C Debug -R <spec_stem> --output-on-failure` → FAIL.
 - [ ] **Step 4: Implement** recursive-descent: skip whitespace; dispatch on `{`/`[`/`"`/number-or-keyword; strings unescape into scalar text; return `std::nullopt` on any structural error (unterminated, missing `:`/`,`, trailing garbage). Self-contained, no streaming-interface dependency.
 - [ ] **Step 5: Run, verify pass.**
 - [ ] **Step 6: Commit** — `git commit -q -m "storage: parseJson -> Value (deserializer step 1)"`.
@@ -233,7 +234,7 @@ describe value_tree_deserializer_spec("ValueTreeDeserializer", ${
 });
 ```
 - [ ] **Step 2: Add `value_tree_deserializer.cpp` to `deluge_spec`.** (Depends on Task 0's lean `deserializer.h`.)
-- [ ] **Step 3: Run, verify fail** — `./dbt test 2>&1 | tail -5` → FAIL.
+- [ ] **Step 3: Run, verify fail** — `cmake --build build/tests --target all_specs 2>&1 | tail -8   # then, on GREEN steps: ctest --test-dir build/tests -C Debug -R <spec_stem> --output-on-failure` → FAIL.
 - [ ] **Step 4: Implement** the cursor + frame stack. Non-spec-exercised methods (hex bytes, char-at-a-time) implemented correctly per the interface notes.
 - [ ] **Step 5: Run, verify pass.**
 - [ ] **Step 6: Commit** — `git commit -q -m "storage: ValueTreeDeserializer adapter (deserializer step 1)"`.
