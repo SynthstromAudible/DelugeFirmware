@@ -1182,7 +1182,9 @@ someError:
 			GlobalEffectableForClip::initParams(&paramManager);
 			// Option I (read-authority): read the <params> block DOM-first so the store holds the authoritative
 			// current_value, not just the nodes (initParams wrote the defaults straight into the store).
+			reader.match('{'); // descend into the params object (needed for JSON; no-op in XML), as InstrumentClip does
 			GlobalEffectableForClip::readParamsFromFileDomFirst(reader, &paramManager, readAutomationUpToPos);
+			reader.match('}');
 		}
 
 		else if (!strcmp(tagName, "onAutomationInstrumentClipView")) {
