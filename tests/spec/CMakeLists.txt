@@ -10,6 +10,7 @@ add_subdirectory(../../src/midi deluge_midi)
 add_library(deluge_spec STATIC
 # Audio-file header parser + its dependency-free byte/format helpers (file-loading regression net).
 ../../src/deluge/storage/audio/audio_file_format.cpp
+../../src/deluge/storage/parse_json.cpp
 ../../src/deluge/storage/value.cpp
 ../../src/deluge/util/audio_format_helpers.cpp
 ../../src/deluge/util/semver.cpp
