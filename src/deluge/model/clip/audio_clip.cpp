@@ -1123,8 +1123,9 @@ someError:
 
 	int32_t readAutomationUpToPos = kMaxSequenceLength;
 
+	reader.match('{'); // descend into the clip object -- required for JSON (a no-op in XML, where the
+	                   // element is entered implicitly); mirrors InstrumentClip::readFromFile.
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		// D_PRINTLN(tagName); delayMS(30);
 
 		if (!strcmp(tagName, "trackName")) {
 			reader.readTagOrAttributeValueString(outputNameWhileLoading);
@@ -1215,6 +1216,7 @@ someError:
 		reader.exitTag();
 	}
 
+	reader.match('}'); // close the clip object (balances the match('{') above; a no-op in XML).
 	return Error::NONE;
 }
 
