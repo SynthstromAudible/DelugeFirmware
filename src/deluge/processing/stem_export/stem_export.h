@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/l10n/strings.h"
 #include "processing/sound/sound_drum.h"
 #include "util/d_string.h"
 #include <cstdint>
@@ -33,6 +34,7 @@ public:
 	// start & stop process
 	void startStemExportProcess(StemExportType stemExportType);
 	void stopStemExportProcess();
+	void abortStemExportProcess(deluge::l10n::String reason);
 	void startOutputRecordingUntilLoopEndAndSilence();
 	void stopPlayback();
 	void stopOutputRecording();
@@ -95,8 +97,10 @@ public:
 	Error getUnusedStemRecordingFolderPath(String* filePath, AudioRecordingFolder folder);
 	int32_t highestUsedStemFolderNumber;
 	String lastFolderNameForStemExport;
-	void setWavFileNameForStemExport(StemExportType type, Output* output, int32_t fileNumber,
-	                                 SoundDrum* drum = nullptr);
+	/// returns false if no valid file name could be built (e.g. the output / drum names are too long
+	/// for the file system), in which case the stem must not be exported
+	[[nodiscard]] bool setWavFileNameForStemExport(StemExportType type, Output* output, int32_t fileNumber,
+	                                               SoundDrum* drum = nullptr);
 	String wavFileNameForStemExport;
 	bool wavFileNameForStemExportSet;
 

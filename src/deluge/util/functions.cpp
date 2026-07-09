@@ -1931,7 +1931,10 @@ void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutD
 		thisChar++;
 	}
 	if (appendOctaveNo) {
-		intToString(octave, thisChar, 1);
+		intToString(octave, thisChar, 1); // terminates the string for us
+	}
+	else {
+		*thisChar = 0;
 	}
 
 	if (getLengthWithoutDot) {
