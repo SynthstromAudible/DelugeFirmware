@@ -620,9 +620,11 @@ void serializeMidiParams(const std::vector<DocMidiParam>& midiParams, Serializer
 		else {
 			out.writeTag("cc", cc);
 		}
-		out.writeOpeningTag("value", false);
+		// <value> is a text-content element (its hex is written incrementally): an element in XML,
+		// a string in JSON (writeOpeningTag would make it an invalid object box {0x…} in JSON).
+		out.writeOpeningTextTag("value");
 		writeDocAutoParam(mp.param, out, writeAutomation);
-		out.writeClosingTag("value", false);
+		out.writeClosingTextTag("value");
 		out.writeClosingTag("param");
 	}
 	out.writeClosingTag("midiParams");

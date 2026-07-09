@@ -145,6 +145,13 @@ public:
 	virtual void writeClosingTag(char const* tag, bool shouldPrintIndents = true, bool box = false) = 0;
 	virtual void writeArrayStart(char const* tag, bool startNewLineAfter = true, bool box = false) = 0;
 	virtual void writeArrayEnding(char const* tag, bool shouldPrintIndents = true, bool box = false) = 0;
+
+	/// A text-content leaf element whose value is written incrementally between the two calls (e.g. an
+	/// auto-param "0x…" hex blob). XML writes it as an element (<tag>…</tag>); JSON overrides to a string
+	/// ("tag": "…"), since JSON has no text-content-element concept and the reader consumes it
+	/// char-at-a-time as a scalar. The default (element) keeps XMLSerializer byte-identical.
+	virtual void writeOpeningTextTag(char const* tag) { writeOpeningTag(tag, false); }
+	virtual void writeClosingTextTag(char const* tag) { writeClosingTag(tag, false); }
 	virtual void printIndents() = 0;
 	virtual void insertCommaIfNeeded() = 0;
 	virtual void write(char const* output) = 0;
@@ -264,6 +271,21 @@ class JsonSerializer : public Serializer, public FileWriter {
 public:
 	JsonSerializer();
 	~JsonSerializer() override = default;
+
+	// A text-content leaf as a JSON string ("tag": "…") rather than an object box, so the auto-param
+	// <value> hex round-trips (the reader reads it char-at-a-time as a scalar). See Serializer base.
+	void writeOpeningTextTag(char const* tag) override {
+		insertCommaIfNeeded();
+		write("\n");
+		printIndents();
+		write("\"");
+		write(tag);
+		write("\": \"");
+	}
+	void writeClosingTextTag(char const* /*tag*/) override {
+		write("\"");
+		firstItemHasBeenWritten = true;
+	}
 
 	void writeAttribute(char const* name, int32_t number, bool onNewLine = true) override;
 	void writeAttribute(char const* name, char const* value, bool onNewLine = true) override;
