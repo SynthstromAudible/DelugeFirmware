@@ -122,25 +122,18 @@ DocAutoParam* Song::resolveParam(const ParamAddress& address) {
 	return nullptr;
 }
 
-// M3 owner-1 (clip structure). Mirrors resolveParam's CLIP branch: a clip's structural record is tree-resident either
-// by its persisted id (clip_structure) or — for a not-yet-saved clip — by a transient session id
-// (session_clip_structure). Slice 1 is a shadow store: written by the clip Edits, not yet read by anything.
+// M3 owner-1 (clip structure): a clip's structural record is tree-resident by its durable id (clip_structure),
+// always set at construction (durable-id Phase 0), so there is no transient session-keyed store.
 DocClip* Song::resolveClip(const ClipAddress& address) {
-	return address.is_session ? session_clip_structure.find(address.clip_id) : clip_structure.find(address.clip_id);
+	return clip_structure.find(address.clip_id);
 }
 
 DocClip& Song::getOrCreateDocClip(const ClipAddress& address) {
-	return address.is_session ? session_clip_structure.getOrCreate(address.clip_id)
-	                          : clip_structure.getOrCreate(address.clip_id);
+	return clip_structure.getOrCreate(address.clip_id);
 }
 
 void Song::removeDocClip(const ClipAddress& address) {
-	if (address.is_session) {
-		session_clip_structure.remove(address.clip_id);
-	}
-	else {
-		clip_structure.remove(address.clip_id);
-	}
+	clip_structure.remove(address.clip_id);
 }
 
 } // namespace deluge::project
