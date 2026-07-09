@@ -41,6 +41,7 @@
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_clip_existence.h"
+#include "model/edits/clip_address_for.h"
 #include "model/edits/delete_param_automation.h"
 #include "model/edits/edit.h"
 #include "model/edits/param_address_for.h"
@@ -1926,6 +1927,28 @@ loadOutput:
 					}
 				}
 			}
+		}
+	}
+
+	// M3 owner-1 LOAD FLIP: seed + bind each addressable clip's DOM structural record from the loaded engine field, so
+	// ALL clips (not just edited ones) read loop length through the DOM store. Reuses the serial/session id resolved by
+	// the relocation above (never mints a new one — idempotent with the shared id lifecycle). Unaddressable clips stay
+	// unbound (safe field fallback). doc.loop_length is seeded from loopLength() while still unbound (= the field), so
+	// the flip is value-identical.
+	for (int32_t c = 0; c < std::ssize(project.clips.session_clips); c++) {
+		Clip* thisClip = project.clips.session_clips[c];
+		if (std::optional<deluge::project::ClipAddress> addr = deluge::edits::clipAddressFor(*thisClip)) {
+			deluge::project::DocClip& doc = project.getOrCreateDocClip(*addr);
+			doc.loop_length = thisClip->loopLength();
+			thisClip->bindDomClip(&doc);
+		}
+	}
+	for (int32_t c = 0; c < std::ssize(project.clips.arrangement_only_clips); c++) {
+		Clip* thisClip = project.clips.arrangement_only_clips[c];
+		if (std::optional<deluge::project::ClipAddress> addr = deluge::edits::clipAddressFor(*thisClip)) {
+			deluge::project::DocClip& doc = project.getOrCreateDocClip(*addr);
+			doc.loop_length = thisClip->loopLength();
+			thisClip->bindDomClip(&doc);
 		}
 	}
 
