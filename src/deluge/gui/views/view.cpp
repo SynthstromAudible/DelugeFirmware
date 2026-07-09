@@ -38,6 +38,7 @@
 #include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/macro_assign_overlay.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "hid/buttons.h"
@@ -827,8 +828,8 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	if (inMacroKnobMode()) {
 		// While the target picker is up with a slot selected, the knobs shape THAT target's From/To (with
 		// the macro-lane view's readout) instead of driving the whole macro.
-		if (instrumentClipView.macroPickerEditingTarget()) {
-			instrumentClipView.handleMacroPickerModEncoder(whichModEncoder, offset);
+		if (macroAssignOverlay.editingTarget()) {
+			macroAssignOverlay.handleModEncoder(whichModEncoder, offset);
 		}
 		else {
 			Macros::driveMacro(getCurrentClip()->output->macroKnobSelected, offset);
@@ -1553,26 +1554,20 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 					clip->output->macroKnobSelected = macro;
 					setKnobIndicatorLevels();
 					setModLedStates();
-					// The hold-to-assign target picker overlays the note grid with param shortcuts, which
-					// only instrumentClipView has. On audio clips (waveform grid) the press just selects the
-					// macro - the blinking macro-button LED shows which one; its targets are assigned in
-					// automation view instead.
-					if (getRootUI() == &instrumentClipView) {
-						// announce the assign mode; the first pad tap replaces this with the per-target
-						// readout. Persistent for the whole hold (cancelled on release below).
-						display->popupText("Macro Assign");
-						// HOLD-TO-ASSIGN: while the button is held, the main grid becomes this macro's target
-						// picker - tap a param pad to assign it to the next free slot (released below).
-						instrumentClipView.openMacroTargetPicker(macro);
-					}
+					// announce the assign mode; the first pad tap replaces this with the per-target readout.
+					// Persistent for the whole hold (cancelled on release below).
+					display->popupText("Macro Assign");
+					// HOLD-TO-ASSIGN: while the button is held, the main grid becomes this macro's target
+					// picker - tap a param pad to assign it to the next free slot (released below). The picker
+					// overlay renders on whichever clip-minder grid is active (note view, or an audio clip's
+					// waveform); its state lives on instrumentClipView but resolves the current clip's domain.
+					macroAssignOverlay.open(macro);
 				}
 			}
 			else {
-				if (getRootUI() == &instrumentClipView) {
-					instrumentClipView.closeMacroTargetPicker(); // release: main grid back to notes
-					display->cancelPopup();                      // drop the persistent peek readout
-				}
-				setKnobIndicatorLevels(); // restore the macro's sourceKnobPos rings (From/To editing displaced them)
+				macroAssignOverlay.close(); // release: main grid back to notes / waveform
+				display->cancelPopup();     // drop the persistent peek readout
+				setKnobIndicatorLevels();   // restore the macro's sourceKnobPos rings (From/To editing displaced them)
 			}
 		}
 		return; // the four non-macro buttons do nothing; never writes modKnobMode / toggles VU

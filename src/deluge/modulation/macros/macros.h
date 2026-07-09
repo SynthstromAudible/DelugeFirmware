@@ -59,6 +59,13 @@ constexpr uint8_t kDefaultTo = 127; // output at source = 127 (defaults give pas
 // GlobalEffectableForClip) target UNPATCHED_GLOBAL params, encoded as the raw paramID byte (all
 // < 128). Everything keyed on the raw byte (ownership, shadowing, cascades) works identically in all
 // domains.
+//
+// Domain is a 3-value abstraction over OutputType (the raw track type), bridged by domainForOutput().
+// It exists because the engine keys on how a param is *addressed and stored*, not on the track type:
+// KIT and AUDIO are different OutputTypes but their macros are handled IDENTICALLY (same
+// decode/encode, lane byte, "global" serialization, unpatchedGlobalParamShortcuts), so both collapse
+// to GLOBAL - while CV/NONE, which can't host macros, drop out. Keying the ~15 seam points on
+// OutputType instead would mean spelling out "KIT or AUDIO" and rejecting CV/NONE at every one.
 enum class Domain : uint8_t { MIDI, SYNTH, GLOBAL };
 
 // True for domains whose destinations are internal AutoParams resolved through the host's own param

@@ -195,41 +195,6 @@ public:
 	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea = true) override;
 
-	// Note-view macro-target picker: while a macro button is held in MACRO mode, the main grid becomes
-	// a parameter picker (reusing AutomationView::macroDestinationForPad); tapping a pad assigns that
-	// param to the macro's next free target slot (re-tapping cycles the last slot's shared second layer).
-	// macroTargetPickerMacro is the held macro (0..kNumMacros-1), or -1 when the picker is inactive.
-	int8_t macroTargetPickerMacro = -1;
-	bool macroTargetPickerActive() { return macroTargetPickerMacro >= 0; }
-	void openMacroTargetPicker(int32_t macroIndex);
-	void closeMacroTargetPicker();
-	void renderMacroTargetPickerOverlay(RGB image[][kDisplayWidth + kSideBarWidth],
-	                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]);
-	void handleMacroTargetPickerPad(int32_t x, int32_t y, int32_t velocity);
-	// Assigns `destination` to the macro's next free target slot and selects it (or shows MACRO SLOTS
-	// FULL). Used by handleMacroTargetPickerPad for both the grey-pad assign and the build-up add.
-	void addMacroPickerLayer(Clip* clip, int32_t x, int32_t y, int32_t destination, bool addingSecond);
-	// SHIFT+SAVE while the picker is up: remove the currently-selected pad's param from this macro's
-	// targets (the pad reverts to grey). "Selected" = the pad last tapped, at its current layer.
-	void deleteSelectedMacroTarget();
-	// True when the picker is up AND a target slot has been selected by a tap - the gold knobs then
-	// shape that target's From/To instead of driving the whole macro.
-	bool macroPickerEditingTarget() { return macroTargetPickerActive() && macroTargetPickerLastSlot >= 0; }
-	// Gold-knob turn while macroPickerEditingTarget(): knob 0 edits the selected target's From, knob 1
-	// its To, with the same range readout + knob-ring feedback as the macro-lane view.
-	void handleMacroPickerModEncoder(int32_t whichModEncoder, int32_t offset);
-	// Shows the selected target's range readout + knob rings on tap / selection change (press feedback).
-	void showSelectedMacroPickerTargetReadout();
-	int8_t macroTargetPickerLastX = -1;
-	int8_t macroTargetPickerLastY = -1;
-	int8_t macroTargetPickerLastSlot = -1;
-	bool macroTargetPickerSecondLayer = false;
-	// Re-tapping the already-selected both-layer pad defers the primary<->secondary cycle to pad
-	// RELEASE, so press-and-hold keeps the shown layer (SHIFT+DELETE then hits what you see).
-	bool macroTargetPickerCycleOnRelease = false;
-	// Slow white/yellow alternation for pads whose primary AND second-layer params are both assigned.
-	bool macroTargetPickerAltPhase = false;
-	void pulseMacroTargetPicker(); // called by uiTimerManager to advance the alternation
 	void performActualRender(uint32_t whichRows, RGB* image, uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
 	                         int32_t xScroll, uint32_t xZoom, int32_t renderWidth, int32_t imageWidth,
 	                         bool drawUndefinedArea = true);
