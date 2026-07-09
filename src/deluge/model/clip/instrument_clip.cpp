@@ -2501,7 +2501,9 @@ someError:
 	std::string instrumentPresetDirPath;
 	bool dirPathHasBeenSpecified = false;
 
-	int32_t readAutomationUpToPos = kMaxSequenceLength;
+	// loopLength is read tree-natively (readClipsFromFile) before this runs; bound automation reads by it, exactly as
+	// the old <length> attribute handler did (length is always written before any automation). 0 (absent) -> the max.
+	int32_t readAutomationUpToPos = loopLength() > 0 ? loopLength() : kMaxSequenceLength;
 
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		// D_PRINTLN(tagName); delayMS(30);

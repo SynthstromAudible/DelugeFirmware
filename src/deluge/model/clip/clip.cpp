@@ -737,15 +737,8 @@ void Clip::readTagFromFile(Deserializer& reader, char const* tagName, Song* song
 		activeIfNoSolo = (newStatus == 2);
 	}
 
-	// "section", "colourOffset", "launchStyle" are read tree-natively in readClipsFromFile (durable-id Step 3); no
-	// handlers here. "length"/"trackLength" stays -- its handler also sets originalLength + readAutomationUpToPos.
-
-	else if (!strcmp(tagName, "trackLength") || !strcmp(tagName, "length")) {
-		setLoopLength(reader.readTagOrAttributeValueInt());
-		setLoopLength(std::max((int32_t)1, loopLength()));
-		originalLength = loopLength(); // it's 0 otherwise, which is fine except for audio clips
-		*readAutomationUpToPos = loopLength();
-	}
+	// "section", "colourOffset", "launchStyle", "length"/"trackLength" are all read tree-natively in readClipsFromFile
+	// (durable-id readFromTree slices 1-2); no handlers here -- those tags fall through to exitTag() below.
 
 	else if (!strcmp(tagName, "beingEdited")) {
 		if (reader.readTagOrAttributeValueInt()) {

@@ -2267,6 +2267,16 @@ readClip:
 				if (const deluge::storage::Value* n = clipNode->find("launchStyle")) {
 					newClip->setLaunchStyle(stringToLaunchStyle(n->str().c_str()));
 				}
+				// loopLength (durable-id readFromTree slice 2): "length" is the current attribute name, "trackLength"
+				// the legacy alias. Clamp to >=1 and seed originalLength, matching the old readTagFromFile handler.
+				const deluge::storage::Value* lenNode = clipNode->find("length");
+				if (lenNode == nullptr) {
+					lenNode = clipNode->find("trackLength");
+				}
+				if (lenNode != nullptr) {
+					newClip->setLoopLength(std::max<int32_t>(1, stringToInt(lenNode->str().c_str())));
+					newClip->originalLength = newClip->loopLength();
+				}
 			}
 
 			Error error = newClip->readFromFile(reader, this);

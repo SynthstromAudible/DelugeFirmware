@@ -1120,7 +1120,9 @@ someError:
 
 	char const* tagName;
 
-	int32_t readAutomationUpToPos = kMaxSequenceLength;
+	// loopLength is read tree-natively (readClipsFromFile) before this runs; bound automation reads by it, exactly as
+	// the old <length> attribute handler did (length is always written before any automation). 0 (absent) -> the max.
+	int32_t readAutomationUpToPos = loopLength() > 0 ? loopLength() : kMaxSequenceLength;
 
 	reader.match('{'); // descend into the clip object -- required for JSON (a no-op in XML, where the
 	                   // element is entered implicitly); mirrors InstrumentClip::readFromFile.
