@@ -1082,6 +1082,31 @@ void colourTarget(Song* song) {
 	check(doc != nullptr && doc->colour_offset == clip->colourOffset, "colour: shadow DocClip matches engine");
 }
 
+// Plan A: after load + assignSessionIds + the M3 load-binding pass, EVERY clip is id-addressable and bound to a
+// DocClip.
+void universalIdsTarget(Song* song) {
+	printf("# target universal-ids\n");
+	int32_t clips = 0, addressable = 0, bound = 0;
+	auto checkArray = [&](auto& arr) {
+		for (int32_t c = 0; c < std::ssize(arr); c++) {
+			Clip* cl = arr[c];
+			clips++;
+			std::optional<deluge::project::ClipAddress> a = deluge::edits::clipAddressFor(*cl);
+			if (a.has_value()) {
+				addressable++;
+				if (song->project.resolveClip(*a) != nullptr) {
+					bound++;
+				}
+			}
+		}
+	};
+	checkArray(song->project.clips.session_clips);
+	checkArray(song->project.clips.arrangement_only_clips);
+	check(clips > 0, "universal-ids: song has clips");
+	check(addressable == clips, "universal-ids: EVERY clip is id-addressable");
+	check(bound == clips, "universal-ids: EVERY clip is bound to a DocClip (load flip is total)");
+}
+
 // M3 owner-1 slice 2b: set a clip's section via SetClipSection (apply-only, non-undoable) + shadow check.
 void sectionTarget(Song* song) {
 	InstrumentClip* clip = firstAddressableClip(song);
@@ -1134,6 +1159,8 @@ int main(int argc, char** argv) {
 	playbackHandler.recording = RecordingMode::OFF;
 
 	printf("# edit_undo_redo: %s\n", argv[1]);
+
+	universalIdsTarget(song); // first, on the pristine loaded song (before any target mutates clip/drum membership)
 
 	// Target 1 — song-global UNPATCHED_VOLUME (OwnerId::song()). Always present.
 	{

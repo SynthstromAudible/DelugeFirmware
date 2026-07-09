@@ -199,6 +199,11 @@ public:
 	void doubleClipLength(InstrumentClip* clip, Action* action = nullptr);
 	Clip* getClipWithOutput(Output* output, bool mustBeActive = false, Clip* excludeClip = nullptr);
 	Error readFromFile(Deserializer& reader);
+
+	/// M3: mint a transient session id for every clip / output / drum that lacks a durable serialId, so every entity
+	/// is id-addressable. Called at load before the param relocation; idempotent (skips entities that already have an
+	/// id). Session ids are never serialized → golden-neutral.
+	void assignSessionIds();
 	void writeToFile(Serializer& writer);
 	void loadAllSamples(bool mayActuallyReadFiles = true);
 	void renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuffer, int32_t sideChainHitPending);

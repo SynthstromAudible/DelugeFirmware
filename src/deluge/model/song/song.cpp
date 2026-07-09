@@ -1185,6 +1185,32 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeClosingTag("song", true, true);
 }
 
+void Song::assignSessionIds() {
+	auto assignClip = [this](Clip* c) {
+		if (!c->serialId() && c->sessionId() == 0) {
+			c->setSessionId(project.mintSessionId());
+		}
+	};
+	for (int32_t c = 0; c < std::ssize(project.clips.session_clips); c++) {
+		assignClip(project.clips.session_clips[c]);
+	}
+	for (int32_t c = 0; c < std::ssize(project.clips.arrangement_only_clips); c++) {
+		assignClip(project.clips.arrangement_only_clips[c]);
+	}
+	for (Output* o = project.media.first_output; o != nullptr; o = o->next) {
+		if (!o->serialId() && o->sessionId() == 0) {
+			o->setSessionId(project.mintSessionId());
+		}
+		if (o->type == OutputType::KIT) {
+			for (Drum* d = static_cast<Kit*>(o)->firstDrum; d != nullptr; d = d->next) {
+				if (!d->serialId() && d->sessionId() == 0) {
+					d->setSessionId(project.mintSessionId());
+				}
+			}
+		}
+	}
+}
+
 Error Song::readFromFile(Deserializer& reader) {
 	D_PRINTLN("DEBUG: readFromFile");
 
@@ -1792,6 +1818,11 @@ loadOutput:
 		}
 	}
 
+	// M3 universal ids: assign a session id to every no-serialId clip/output/drum BEFORE the relocation, so the
+	// relocation (and the loop-length load-binding pass below) resolve by an id that already exists — instead of
+	// minting conditionally inline. Golden-neutral (session ids aren't serialized).
+	assignSessionIds();
+
 	// Phase C (DOM single-store): borrow-point each AudioClip's unpatched automation node storage at a
 	// DOM-owned DocParamSet anchored on the ParamSet (Model A), mirroring the song-global borrow below. Every
 	// edit + undo then operates on DOM-owned data and save reads it directly. The store lives on the heap-stable,
@@ -1814,9 +1845,8 @@ loadOutput:
 					// S5-b.1: a never-saved (no-serialId) audio clip — relocate into the transient session-keyed
 					// store and address it by a session id, so doc() id-resolves it (dropping the engine fallback
 					// for audio clips). Session ids are never serialized, so this is golden-neutral.
-					uint32_t sid = project.mintSessionId();
-					thisClip->setSessionId(sid);
-					deluge::project::DocParamManager& mgr = project.session_clip_params.getOrCreate(sid);
+					deluge::project::DocParamManager& mgr =
+					    project.session_clip_params.getOrCreate(thisClip->sessionId());
 					relocateParamStoreToTree(unpatched, mgr.unpatched);
 				}
 			}
@@ -1845,12 +1875,7 @@ loadOutput:
 					relocate = true;
 				}
 				else if (!clipId.has_value() && !outId.has_value()) {
-					if (thisClip->sessionId() == 0) {
-						thisClip->setSessionId(project.mintSessionId());
-					}
-					if (thisClip->output->sessionId() == 0) { // shared across the output's clips — mint once
-						thisClip->output->setSessionId(project.mintSessionId());
-					}
+					// Session ids for this clip + its output were assigned up-front by assignSessionIds().
 					instrOwner = deluge::project::OwnerId::instrumentSession(thisClip->output->sessionId());
 					clipKey = thisClip->sessionId();
 					useSession = true;
@@ -1902,9 +1927,7 @@ loadOutput:
 								drumOwner = deluge::project::OwnerId::drum(*drumId);
 							}
 							else {
-								if (nr.drum->sessionId() == 0) {
-									nr.drum->setSessionId(project.mintSessionId());
-								}
+								// nr.drum's session id was assigned up-front by assignSessionIds().
 								drumOwner = deluge::project::OwnerId::drumSession(nr.drum->sessionId());
 							}
 							deluge::project::DocParamManager& dmgr =
@@ -2173,9 +2196,7 @@ skipInstance:
 							// S5-b.2: a never-saved (no-serialId) MIDI clip — relocate its CC automation into the
 							// session-keyed store + address it by session id (Kind::MIDI resolves by cc), so doc()
 							// id-resolves it instead of the fallback.
-							if (thisClip->sessionId() == 0) {
-								thisClip->setSessionId(project.mintSessionId());
-							}
+							// thisClip's session id was assigned up-front by assignSessionIds().
 							deluge::project::DocParamManager& mgr =
 							    project.session_clip_params.getOrCreate(thisClip->sessionId());
 							mgr.midi_params = deluge::project::toDocMidiParams(*midi);
