@@ -312,7 +312,7 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplayOLED(
 		// the moving-but-"unautomated" lane isn't confusing (the curve to edit lives in the macro's lane).
 		if (!getOnArrangerView() && clip != nullptr
 		    && Macros::isParamMacroDriven(clip, clip->lastSelectedParamKind, clip->lastSelectedParamID)) {
-			isAutomated = l10n::get(l10n::String::STRING_FOR_MACRO_DRIVEN);
+			isAutomated = l10n::get(l10n::String::STRING_FOR_MACRO_DRIVEN_STATUS);
 		}
 		else if (modelStackWithParam->autoParam->isAutomated()) {
 			isAutomated = l10n::get(l10n::String::STRING_FOR_AUTOMATION_ON);
