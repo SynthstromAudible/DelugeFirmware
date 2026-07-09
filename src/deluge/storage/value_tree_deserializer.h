@@ -77,6 +77,12 @@ public:
 	// gates the AudioEngine render loop off during a tree-backed load (via the active-reader gate).
 	[[nodiscard]] bool shouldCallRoutines() const override { return false; }
 
+	/// The Value node this cursor is currently positioned at -- the child element/value most recently
+	/// produced by readNextTagOrAttributeName() (null before the first read or once exhausted). Lets a
+	/// tree-native loader (readClipFromTree) read a node's fields directly while the streaming interface
+	/// still drives the rest. Read-only; does not advance the cursor.
+	[[nodiscard]] const Value* currentValue() const { return pending_; }
+
 private:
 	struct Frame {
 		const Value* node;
