@@ -371,6 +371,12 @@ Error openJsonFile(FilePointer* filePointer, JsonDeserializer& reader, char cons
                    char const* altTagName = "", bool ignoreIncorrectFirmware = false);
 Error openDelugeFile(FileItem* currentFileItem, char const* firstTagName, char const* altTagName = "",
                      bool ignoreIncorrectFirmware = false);
+// Record-first song load (deserializer step 2b): read the whole file and replay it to readFromFile via
+// the Value tree instead of streaming. Same post-condition as openDelugeFile (activeReader positioned
+// inside firstTagName). Pair every Error::NONE return with releaseTreeReader() once the load completes.
+Error openDelugeFileTree(FileItem* currentFileItem, char const* firstTagName, char const* altTagName = "",
+                         bool ignoreIncorrectFirmware = false);
+void releaseTreeReader();
 Error initSD();
 
 bool fileExists(char const* pathName);

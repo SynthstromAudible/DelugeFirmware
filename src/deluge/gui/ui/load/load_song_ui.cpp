@@ -339,9 +339,13 @@ void LoadSongUI::performLoad() {
 	if (arrangement.hasPlaybackActive()) {
 		playbackHandler.switchToSession();
 	}
-	Error error;
+	Error error = Error::NONE;
 
-	error = StorageManager::openDelugeFile(currentFileItem, "song");
+	// Record-first load (deserializer step 2b): read the whole file and replay it to readFromFile via the
+	// Value tree instead of streaming clusters. Kept separate from `error` because the open result must
+	// survive the paramManager.setupUnpatched() overwrite below and gate the loadSong() call. The tree is
+	// released after the read (releaseTreeReader) whether or not it succeeded.
+	Error openError = StorageManager::openDelugeFileTree(currentFileItem, "song");
 
 	currentUIMode = UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES;
 	indicator_leds::setLedState(IndicatorLED::LOAD, false);
@@ -446,7 +450,15 @@ gotErrorAfterCreatingSong:
 
 	// Will return false if we ran out of RAM. This isn't currently detected for while loading ParamNodes, but chances
 	// are, after failing on one of those, it'd try to load something else and that would fail.
-	error = deluge::project::loadSong(*preLoadedSong, *activeDeserializer);
+	if (openError != Error::NONE) {
+		error = openError; // whole-file read/parse failed (INSUFFICIENT_RAM / FILE_CORRUPTED): don't read a bad tree
+	}
+	else {
+		error = deluge::project::loadSong(*preLoadedSong, *activeReader);
+	}
+	// The tree is only needed during the read: free it and restore the file reader as the active reader
+	// (re-enabling the audio-yield gate) for both the success and failure paths.
+	StorageManager::releaseTreeReader();
 	if (error != Error::NONE) {
 		goto gotErrorAfterCreatingSong;
 	}

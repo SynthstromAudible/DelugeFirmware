@@ -40,6 +40,10 @@
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
+#include "storage/parse_json.h"
+#include "storage/parse_xml.h"
+#include "storage/value.h"
+#include "storage/value_tree_deserializer.h"
 
 #include "etl/string.h"
 #include "util/firmware_version.h"
@@ -69,6 +73,13 @@ PLACE_SDRAM_BSS JsonSerializer smJsonSerializer;
 PLACE_SDRAM_BSS JsonDeserializer smJsonDeserializer;
 FileDeserializer* activeDeserializer = &smDeserializer;
 Deserializer* activeReader = &smDeserializer;
+
+// Record-first song load (deserializer step 2b): the whole song file is parsed into this tree and
+// replayed to readFromFile through the adapter, instead of streaming clusters. Globals (not locals)
+// so they persist across performLoad's goto-based error handling and outlive the loadSong() call; the
+// tree is released once the load completes. See StorageManager::openDelugeFileTree.
+PLACE_SDRAM_BSS std::optional<deluge::storage::Value> smSongTree;
+PLACE_SDRAM_BSS std::optional<deluge::storage::ValueTreeDeserializer> smTreeReader;
 
 const bool writeJsonFlag = false;
 
@@ -762,6 +773,77 @@ Error StorageManager::openDelugeFile(FileItem* currentFileItem, char const* firs
 		                                    ignoreIncorrectFirmware);
 	}
 	return error;
+}
+
+// Record-first counterpart of openDelugeFile (deserializer step 2b): read the whole song file into a
+// heap buffer, parse it to a Value tree (JSON or XML by extension), and set up the tree adapter as the
+// active reader positioned inside firstTagName -- exactly the contract openDelugeFile leaves for
+// loadSong, but replaying an in-memory tree instead of streaming clusters. On return with Error::NONE,
+// *activeReader is the adapter and smDeserializer holds the still-open file handle for closeWriter.
+// Releases the buffer before returning; the tree (smSongTree) lives until releaseTreeReader().
+Error StorageManager::openDelugeFileTree(FileItem* currentFileItem, char const* firstTagName, char const* altTagName,
+                                         bool ignoreIncorrectFirmware) {
+	// Read the whole file. openFilePointer seeds smDeserializer.readFIL from the cluster info (fptr=0);
+	// closeWriter() closes it later, so leave it open here.
+	openFilePointer(&currentFileItem->filePointer, smDeserializer);
+	activeDeserializer = &smDeserializer;
+	activeReader = &smDeserializer; // safe default until (and unless) the adapter is ready; every failure
+	                                // return below thus leaves the engine-pumping file reader active
+	const uint32_t size = f_size(&smDeserializer.readFIL);
+	char* buffer = static_cast<char*>(GeneralMemoryAllocator::get().alloc(size == 0 ? 1 : size));
+	if (buffer == nullptr) {
+		return Error::INSUFFICIENT_RAM;
+	}
+	uint32_t total = 0;
+	while (total < size) {
+		UINT bytesRead = 0;
+		FRESULT result = f_read(&smDeserializer.readFIL, buffer + total, size - total, &bytesRead);
+		if (result != FR_OK) {
+			delugeDealloc(buffer);
+			return Error::SD_CARD;
+		}
+		if (bytesRead == 0) {
+			break; // EOF
+		}
+		total += bytesRead;
+	}
+
+	const bool isJson = currentFileItem->filename.find(".Json") != std::string::npos;
+	const std::string_view bytes(buffer, total);
+	smSongTree = isJson ? deluge::storage::parseJson(bytes) : deluge::storage::parseXml(bytes);
+	delugeDealloc(buffer); // the tree owns its own scalar copies
+	if (!smSongTree) {
+		return Error::FILE_CORRUPTED;
+	}
+
+	smTreeReader.emplace(*smSongTree,
+	                     isJson ? deluge::storage::SourceFormat::Json : deluge::storage::SourceFormat::Xml);
+
+	// Seek to firstTagName, mirroring XMLDeserializer::openXMLFile: read top-level tags, consuming
+	// firmware-version tags, until the wanted element is reached (leaving the adapter inside it). Reading
+	// tree names is pure memory (no engine pump), so activeReader need not point at the adapter yet -- it
+	// is switched to the adapter only on success, keeping every failure path on the safe file reader.
+	char const* tagName;
+	while (*(tagName = smTreeReader->readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, firstTagName) || (altTagName != nullptr && *altTagName && !strcmp(tagName, altTagName))) {
+			activeReader = &*smTreeReader;
+			return Error::NONE;
+		}
+		Error result = smTreeReader->tryReadingFirmwareTagFromFile(tagName, ignoreIncorrectFirmware);
+		if (result != Error::NONE && result != Error::RESULT_TAG_UNUSED) {
+			return result;
+		}
+		smTreeReader->exitTag(tagName);
+	}
+	return Error::FILE_CORRUPTED;
+}
+
+// Free the parsed song tree and its adapter after a tree-backed load completes, and restore the active
+// reader to the default file reader so the audio-yield gate resumes normal (engine-pumping) behaviour.
+void StorageManager::releaseTreeReader() {
+	smTreeReader.reset();
+	smSongTree.reset();
+	activeReader = &smDeserializer;
 }
 
 bool StorageManager::buildPathToFile(const char* fileName) {
