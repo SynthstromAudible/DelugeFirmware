@@ -538,6 +538,7 @@ Error Arrangement::doUniqueCloneOnClipInstance(ClipInstance* clipInstance, int32
 
 	// Add to Song
 	(void)currentSong->project.clips.arrangement_only_clips.insertClipAt(newClip, 0);
+	currentSong->adoptClip(newClip);
 
 	rowEdited(oldClip->output, clipInstance->pos, clipInstance->pos + clipInstance->length, clipInstance->clip,
 	          nullptr);

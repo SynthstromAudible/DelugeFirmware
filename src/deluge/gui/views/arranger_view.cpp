@@ -1720,6 +1720,7 @@ void ArrangerView::createNewClipForClipInstance(Output* output, ClipInstance* cl
 	}
 
 	(void)currentSong->project.clips.arrangement_only_clips.insertClipAt(newClip, 0);
+	currentSong->adoptClip(newClip);
 
 	Action* action = actionLogger.getNewAction(ActionType::CLIP_INSTANCE_EDIT, ActionAddition::NOT_ALLOWED);
 	if (action) {

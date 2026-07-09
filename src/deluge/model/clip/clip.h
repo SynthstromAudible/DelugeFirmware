@@ -201,6 +201,9 @@ public:
 	/// Adopt this clip's structure into the persistent tree store: the caller seeds `*d` from the current values
 	/// first, then this repoints reads/writes at it (load relocation + SetClipLength's dual-write).
 	void bindDomClip(deluge::project::DocClip* d) { treeDoc_ = d; }
+	/// Whether this clip's structure reads/writes the persistent tree store (true) or its own transient ownDoc_
+	/// (false, the pre-adoption / detached state). Every song-resident clip is bound via Song::adoptClip.
+	[[nodiscard]] bool isDomBound() const { return treeDoc_ != nullptr; }
 	deluge::project::DocClip ownDoc_{};
 	deluge::project::DocClip* treeDoc_{nullptr};
 
