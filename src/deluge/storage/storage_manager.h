@@ -195,26 +195,7 @@ private:
 	uint8_t indentAmount{};
 };
 
-class Deserializer {
-public:
-	virtual bool prepareToReadTagOrAttributeValueOneCharAtATime() = 0;
-	virtual char readNextCharOfTagOrAttributeValue() = 0;
-	virtual int32_t getNumCharsRemainingInValueBeforeEndOfCluster() = 0;
-
-	virtual char const* readNextTagOrAttributeName() = 0;
-	virtual char const* readTagOrAttributeValue() = 0;
-	virtual int32_t readTagOrAttributeValueInt() = 0;
-	virtual int32_t readTagOrAttributeValueHex(int32_t errorValue) = 0;
-	virtual int readTagOrAttributeValueHexBytes(uint8_t* bytes, int32_t maxLen) = 0;
-	virtual Error tryReadingFirmwareTagFromFile(char const* tagName, bool ignoreIncorrectFirmware = false) = 0;
-
-	virtual char const* readNextCharsOfTagOrAttributeValue(int32_t numChars) = 0;
-	virtual Error readTagOrAttributeValueString(std::string& string) = 0;
-	virtual bool match(char const ch) = 0;
-	virtual void exitTag(char const* exitTagName = NULL, bool closeObject = false) = 0;
-
-	virtual void reset() = 0;
-};
+#include "storage/deserializer.h"
 
 class FileDeserializer : public Deserializer, public FileReader {
 public:
