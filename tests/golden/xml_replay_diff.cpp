@@ -232,6 +232,66 @@ int main() {
 		m(r, t, '}');
 	});
 
+	// (8) An EMPTY container written open+close (not self-closing) -- how Deluge serializes an empty
+	// array, e.g. <sessionClips></sessionClips>. parseXml maps it to an empty Map, so the array-of-
+	// boxes idiom descends into it and immediately reads "" (loop exits), then a REAL following sibling
+	// (<tempo>) is read. If the empty element were a Scalar, the loop's readNext would leak the parent's
+	// next sibling instead of "" -- the exact fidelity bug this pins.
+	diff("empty-container", R"(<song><clips></clips><tempo v="120"/></song>)", [](Deserializer& r, Transcript& t) {
+		name(r, t);   // "song"
+		m(r, t, '{'); // enter song
+		name(r, t);   // "clips" (empty container, staged pending)
+		m(r, t, '[');
+		while (true) { // array-of-boxes walk: exits immediately on the empty container
+			if (!r.match('{')) {
+				t.push_back("match({)=0");
+				break;
+			}
+			t.push_back("match({)=1");
+			std::string n = r.readNextTagOrAttributeName();
+			t.push_back("name=" + n);
+			if (n.empty()) {
+				break; // empty container -> "" -> loop exits, matching XMLDeserializer
+			}
+			m(r, t, '}');
+			exit_(r, t, nullptr, true);
+		}
+		m(r, t, ']');
+		exit_(r, t, "clips"); // finish clips -> back to song level
+		name(r, t);           // "tempo" <-- REAL sibling after the empty container
+		m(r, t, '{');
+		name(r, t); // "v"
+		vInt(r, t); // 120
+		exit_(r, t, "v");
+		name(r, t); // "" end of tempo
+		m(r, t, '}');
+		exit_(r, t, "tempo");
+		name(r, t); // "" end of song
+		m(r, t, '}');
+	});
+
+	// (9) An EMPTY VALUE element written open+close (<name></name>): read as a string value, which
+	// must come back "" (parseXml maps it to an empty Map; the value-read methods serve "" via
+	// pendingScalar()'s non-Scalar guard, matching XMLDeserializer reading empty text). Then the real
+	// following sibling <x v="2"/> is read to confirm the cursor advanced correctly past the empty one.
+	diff("empty-value", R"(<clip><name></name><x v="2"/></clip>)", [](Deserializer& r, Transcript& t) {
+		name(r, t);   // "clip"
+		m(r, t, '{'); // enter clip
+		name(r, t);   // "name" (empty value element)
+		vStr(r, t);   // "" <-- empty-value read must still return ""
+		exit_(r, t, "name");
+		name(r, t); // "x" <-- REAL sibling after the empty value
+		m(r, t, '{');
+		name(r, t); // "v"
+		vInt(r, t); // 2
+		exit_(r, t, "v");
+		name(r, t); // "" end of x
+		m(r, t, '}');
+		exit_(r, t, "x");
+		name(r, t); // "" end of clip
+		m(r, t, '}');
+	});
+
 	printf(failures ? "XML_REPLAY_DIFF: %d FAIL\n" : "XML_REPLAY_DIFF: OK\n", failures);
 	return failures ? 1 : 0;
 }

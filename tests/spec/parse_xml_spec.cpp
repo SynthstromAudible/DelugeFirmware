@@ -28,6 +28,22 @@ describe parse_xml("deluge::storage::parseXml", ${
 		expect(clips->entries()[1].first).to_equal(std::string("clip"));
 		expect(clips->entries()[1].second.find("a")->str()).to_equal(std::string("2"));
 	});
+	it("maps both self-closing and empty open/close elements to an empty Map", _{
+		// A truly-empty element must parse identically whether written <n/> or <n></n> -- both are
+		// empty Maps, never Scalar(""). Deluge writes empty array containers as <tag></tag>, so this
+		// keeps XML-mode replay of an empty container equivalent to a self-closing one.
+		auto selfClosing = parseXml(R"(<n/>)");
+		auto openClose = parseXml(R"(<n></n>)");
+		expect(selfClosing.has_value()).to_be_true();
+		expect(openClose.has_value()).to_be_true();
+		expect(selfClosing->find("n")->isMap()).to_be_true();
+		expect(openClose->find("n")->isMap()).to_be_true();
+		expect(selfClosing->find("n")->entries().size()).to_equal(std::size_t{0});
+		expect(openClose->find("n")->entries().size()).to_equal(std::size_t{0});
+		// Whitespace-only body is still empty; a non-empty text body stays a Scalar.
+		expect(parseXml(R"(<n>  </n>)")->find("n")->isMap()).to_be_true();
+		expect(parseXml(R"(<n>0</n>)")->find("n")->isScalar()).to_be_true();
+	});
 	it("unescapes entities and returns nullopt on malformed input", _{
 		expect(parseXml(R"(<n>a&amp;b</n>)")->find("n")->str()).to_equal(std::string("a&b"));
 		expect(parseXml("<n>unterminated").has_value()).to_be_false();

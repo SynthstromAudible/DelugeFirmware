@@ -266,6 +266,17 @@ private:
 			}
 			return element;
 		}
+		// No attributes and no child elements. A body with real text is a text-content Scalar
+		// (<cc>0</cc>). An empty-or-whitespace-only body is a *truly empty* element and is mapped to an
+		// empty Map -- structurally identical to a self-closing <tag/>. This matters because Deluge
+		// writes an empty array container as <sessionClips></sessionClips> (open+close, not
+		// self-closing): as an empty Map the array-of-boxes replay descends into it and immediately
+		// reads "" (loop exits), matching XMLDeserializer; as a Scalar it would wrongly leak the
+		// parent's next sibling. An empty *value* element (<clipName></clipName>) is likewise an empty
+		// Map, which the value-read methods serve as "" via pendingScalar()'s non-Scalar guard.
+		if (text.find_first_not_of(" \t\r\n") == std::string::npos) {
+			return element; // empty Map
+		}
 		return Value::makeScalar(std::move(text));
 	}
 };
