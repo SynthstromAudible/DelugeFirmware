@@ -22,7 +22,7 @@ void useSessionClips() {
 		else {
 			sessionClips[i].type = ClipType::INSTRUMENT;
 		}
-		currentSong->sessionClips.push(&sessionClips[i]);
+		currentSong->project.clips.session_clips.push(&sessionClips[i]);
 	}
 }
 
@@ -35,7 +35,7 @@ void useArrangementOnlyClips() {
 		else {
 			arrangementOnlyClips[i].type = ClipType::INSTRUMENT;
 		}
-		currentSong->arrangementOnlyClips.push(&arrangementOnlyClips[i]);
+		currentSong->project.clips.arrangement_only_clips.push(&arrangementOnlyClips[i]);
 	}
 }
 
