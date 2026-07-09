@@ -103,7 +103,7 @@ public:
 
 	AudioOutputMode mode{AudioOutputMode::player};
 
-	Output* getOutputRecordingFrom() { return outputRecordingFrom; }
+	Output* getOutputRecordingFrom() override { return outputRecordingFrom; }
 	void clearRecordingFrom() override { setOutputRecordingFrom(nullptr); }
 	void setOutputRecordingFrom(Output* toRecordfrom) {
 		if (toRecordfrom == this) {
