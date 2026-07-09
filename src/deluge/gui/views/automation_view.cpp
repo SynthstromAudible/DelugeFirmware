@@ -445,7 +445,17 @@ void AutomationView::initializeView() {
 			// e.g. only UNPATCHED_GLOBAL param kind's can be used with Kit Affect Entire enabled
 			if ((outputType == OutputType::KIT) && (clip->lastSelectedParamKind != params::Kind::NONE)) {
 				if (clip->lastSelectedParamKind == params::Kind::UNPATCHED_GLOBAL) {
-					clip->affectEntire = true;
+					// A leftover macro lane selection must not resurrect affect-entire: kit macros only
+					// apply while it's on (the user turned it off), so drop to the overview instead.
+					if (!clip->affectEntire
+					    && Macros::macroIndexForLaneSelection(output, clip->lastSelectedParamKind,
+					                                          clip->lastSelectedParamID)
+					           >= 0) {
+						initParameterSelection();
+					}
+					else {
+						clip->affectEntire = true;
+					}
 				}
 				else {
 					clip->affectEntire = false;
@@ -3114,8 +3124,10 @@ void AutomationView::selectGlobalParam(int32_t offset, Clip* clip) {
 		auto idx = getNextSelectedParamArrayPosition(offset, clip->lastSelectedParamArrayPosition,
 		                                             kNumGlobalParamsForAutomation);
 		auto [kind, id] = globalParamsForAutomation[idx];
-		// Kit affect-entire hosts macros, so its macro lanes stay scrollable when the feature is on.
-		while (skipGlobalMacroLaneInScroll(id, true)) {
+		// Kit affect-entire hosts macros, so its macro lanes stay scrollable when the feature is on -
+		// but only while affect-entire actually is on (this branch can also serve menu contexts where
+		// getAffectEntire() is forced true with the clip's own flag off).
+		while (skipGlobalMacroLaneInScroll(id, view.macroKnobModeAvailable(clip))) {
 			if (offset < 0) {
 				offset -= 1;
 			}

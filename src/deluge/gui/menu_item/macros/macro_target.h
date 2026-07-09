@@ -338,7 +338,9 @@ private:
 };
 
 // The macros submenu, shown while the feature is enabled in Community Features and the current
-// output can host macros (MIDI, synth, or audio - anything Macros::macroHost() accepts).
+// output can host macros (anything Macros::macroHost() accepts). On kits this includes the row
+// sound menus - the menu configures the kit-global macros from anywhere, even though the macros
+// themselves only fire/show lanes while affect-entire is on.
 class MacroMenu final : public Submenu {
 public:
 	using Submenu::Submenu;
