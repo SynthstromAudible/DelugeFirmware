@@ -478,6 +478,24 @@ if(RT_LIB)
     target_link_libraries(song_roundtrip PRIVATE ${RT_LIB})
 endif()
 
+# JSON round-trip: XML-load -> JSON-save -> JSON-load -> JSON-save fixed point. Exercises the JSON side
+# of the record-first deserializer (JsonSerializer + parseJson + ValueTreeDeserializer JSON mode).
+add_executable(json_roundtrip
+    ${REPO_ROOT}/src/bsp/host/host_bsp.c
+    ${REPO_ROOT}/src/bsp/host/host_platform.c
+    ${REPO_ROOT}/src/bsp/host/host_audio.c
+    ${REPO_ROOT}/src/bsp/host/host_link.c
+    ${REPO_ROOT}/src/bsp/host/host_pcm.c
+    ${REPO_ROOT}/src/bsp/host/host_midi.c
+    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
+    ${REPO_ROOT}/tests/golden/json_roundtrip.cpp
+)
+target_include_directories(json_roundtrip PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
+target_link_libraries(json_roundtrip PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
+if(RT_LIB)
+    target_link_libraries(json_roundtrip PRIVATE ${RT_LIB})
+endif()
+
 # Edit-aware round-trip: load -> DOM-first edit a song-global param -> save -> reload -> assert persisted.
 # Exercises the Phase 2 DOM-authoritative edit loop that the load->save golden harness can't see.
 add_executable(song_edit_roundtrip
