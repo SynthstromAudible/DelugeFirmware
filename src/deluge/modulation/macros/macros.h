@@ -270,9 +270,10 @@ bool tryMacro(MIDICable& cable, int32_t channelOrZone, int32_t ccNumber, int32_t
 // it matched (so the caller suppresses the knob's normal action - a knob source is dedicated).
 bool tryKnobMacro(int32_t whichKnob, int32_t offset);
 
-// Note-view MACRO mode maps the four macros onto these mod-knob-mode buttons (the ones normally
-// attack/release, delay time/amount, sidechain/reverb, mod rate/depth). The other four go dark.
-constexpr uint8_t kMacroModButtons[kNumMacros] = {2, 3, 4, 5};
+// Note-view MACRO mode maps the four macros onto the left-most four mod-knob-mode buttons (the ones
+// normally level/pan, cutoff/res, attack/release, delay time/amount), so Macro 1 is simply the first
+// button. The other four go dark - no button keeps its normal role in this mode.
+constexpr uint8_t kMacroModButtons[kNumMacros] = {0, 1, 2, 3};
 
 // Macro index (0..kNumMacros-1) for a mod-knob-mode button, or -1 if that button isn't a macro button.
 inline int32_t macroFromModButton(int32_t button) {
