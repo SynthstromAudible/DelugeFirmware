@@ -929,6 +929,7 @@
     "STRING_FOR_CONFIGURE_EXPORT_STEMS_OFFLINE_RENDERING": "Offline Rendering",
     "STRING_FOR_CONFIGURE_EXPORT_STEMS_MIXDOWN": "Export Mixdown",
     "STRING_FOR_CANT_EXPORT_STEMS": "Turn off playback and/or recording",
+    "STRING_FOR_STEM_NAME_TOO_LONG": "Export stopped: name too long",
     "STRING_FOR_STOP_EXPORT_STEMS_QMARK": "Cancel Export?",
     "STRING_FOR_STOP_EXPORT_STEMS": "Export Cancelled",
     "STRING_FOR_DONE_EXPORT_STEMS": "Export Done!",
