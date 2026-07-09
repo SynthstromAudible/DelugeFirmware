@@ -69,6 +69,8 @@ public:
 	/// written by the clip Edits, not yet read by anything.
 	DocClip* resolveClip(const ClipAddress& address);
 	DocClip& getOrCreateDocClip(const ClipAddress& address);
+	/// Drop a clip's structural record when the clip is destructed, so the store doesn't accumulate dead entries.
+	void removeDocClip(const ClipAddress& address);
 
 	// Document / value tier — value-typed, serializable.
 	Metadata metadata;

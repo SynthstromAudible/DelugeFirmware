@@ -27,6 +27,7 @@
 #include "model/clip/clip_instance.h"
 #include "model/consequence/consequence_clip_begin_linear_record.h"
 #include "model/consequence/consequence_output_existence.h"
+#include "model/edits/clip_address_for.h"
 #include "model/output.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
@@ -81,6 +82,16 @@ Clip::~Clip() {
 	// the delete), so guard against it - getCurrentClip() dereferences currentSong.
 	if (currentSong && getCurrentClip() == this) {
 		currentSong->setCurrentClip(nullptr);
+	}
+	// M3 owner-1: drop this clip's DOM structural record so the tree store doesn't accumulate dead entries. Guarded on
+	// currentSong: during whole-song teardown it is nulled first and the entire project (clip_structure included) is
+	// destroyed wholesale, so no per-clip removal is needed then. An undoable delete keeps the Clip object alive in its
+	// consequence, so ~Clip — hence this removal — runs only when the clip is genuinely gone (the DocClip survives
+	// across undo/redo, matching the object).
+	if (currentSong && isDomBound()) {
+		if (std::optional<deluge::project::ClipAddress> addr = deluge::edits::clipAddressFor(*this)) {
+			currentSong->project.removeDocClip(*addr);
+		}
 	}
 }
 

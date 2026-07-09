@@ -134,4 +134,13 @@ DocClip& Song::getOrCreateDocClip(const ClipAddress& address) {
 	                          : clip_structure.getOrCreate(address.clip_id);
 }
 
+void Song::removeDocClip(const ClipAddress& address) {
+	if (address.is_session) {
+		session_clip_structure.remove(address.clip_id);
+	}
+	else {
+		clip_structure.remove(address.clip_id);
+	}
+}
+
 } // namespace deluge::project
