@@ -811,12 +811,14 @@ void ExpressionParamSet::readFromFile(Deserializer& reader, ParamCollectionSumma
 	bindDomStore();
 	deluge::project::DocParamSet* store = domStore();
 	char const* tagName;
+	reader.match('{'); // descend into <expressionData> (needed for JSON; a no-op in XML)
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (deluge::project::readExpressionParamTagToDoc(reader, tagName, *store, readAutomationUpToPos)) {}
 		else {
 			reader.exitTag();
 		}
 	}
+	reader.match('}');
 	projectFromStoreAfterRead(summary);
 }
 
