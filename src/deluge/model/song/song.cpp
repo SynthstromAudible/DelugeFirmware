@@ -369,7 +369,6 @@ bool Song::ensureAtLeastOneSessionClip() {
 
 	(void)project.clips.session_clips.insertClipAt(firstClip,
 	                                               0); // OOM impossible-in-practice this early; ignored as before
-	adoptClip(firstClip);
 
 	firstClip->setLoopLength(kDefaultClipLength << project.transport.inside_world_tick_magnitude);
 
@@ -1214,27 +1213,6 @@ void Song::assignSessionIds() {
 	}
 }
 
-void Song::adoptClip(Clip* clip) {
-	if (clip->isDomBound()) {
-		return; // already adopted (idempotent — e.g. undo re-insert of a clip that was never destructed)
-	}
-	if (!clip->id() && clip->sessionId() == 0) {
-		clip->setSessionId(project.mintSessionId());
-	}
-	std::optional<deluge::project::ClipAddress> addr = deluge::edits::clipAddressFor(*clip);
-	if (!addr) {
-		return; // defensive: an id was just ensured above, so this always resolves
-	}
-	// Seed the tree record from the clip's current (still-ownDoc_) values, then repoint reads/writes at it — so the
-	// flip is value-identical whether the clip was just created or freshly loaded.
-	deluge::project::DocClip& doc = project.getOrCreateDocClip(*addr);
-	doc.loop_length = clip->loopLength();
-	doc.colour_offset = clip->colourOffset();
-	doc.launch_style = static_cast<uint8_t>(clip->launchStyle());
-	doc.section = clip->section();
-	clip->bindDomClip(&doc);
-}
-
 Error Song::readFromFile(Deserializer& reader) {
 	D_PRINTLN("DEBUG: readFromFile");
 
@@ -1979,17 +1957,8 @@ loadOutput:
 		}
 	}
 
-	// M3 owner-1 LOAD FLIP: seed + bind each addressable clip's DOM structural record from the loaded engine field, so
-	// ALL clips (not just edited ones) read loop length through the DOM store. Reuses the serial/session id resolved by
-	// the relocation above (never mints a new one — idempotent with the shared id lifecycle). Unaddressable clips stay
-	// unbound (safe field fallback). doc.loop_length is seeded from loopLength() while still unbound (= the field), so
-	// the flip is value-identical.
-	for (int32_t c = 0; c < std::ssize(project.clips.session_clips); c++) {
-		adoptClip(project.clips.session_clips[c]);
-	}
-	for (int32_t c = 0; c < std::ssize(project.clips.arrangement_only_clips); c++) {
-		adoptClip(project.clips.arrangement_only_clips[c]);
-	}
+	// (Durable-id Step 3: the old M3 LOAD-FLIP passes that seeded + bound each clip's DocClip post-load are gone --
+	// every clip is now bound in its ctor under its file id, so nothing to do here.)
 
 	AudioEngine::logAction("matched up");
 
@@ -5291,7 +5260,6 @@ Clip* Song::createPendingNextOverdubBelowClip(Clip* clip, int32_t clipIndex, Ove
 		if (newClip && newClip != clip) {
 			newClip->overdubNature = newOverdubNature;
 			(void)project.clips.session_clips.insertClipAt(newClip, clipIndex);
-			adoptClip(newClip);
 			if (clipIndex != persistentView.songViewYScroll) {
 				persistentView.songViewYScroll++;
 			}

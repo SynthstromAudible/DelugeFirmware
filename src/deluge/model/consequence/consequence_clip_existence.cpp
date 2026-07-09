@@ -80,7 +80,6 @@ Error ConsequenceClipExistence::revert(TimeType time, ModelStack* modelStack) {
 #endif
 
 		(void)clipArray->insertClipAt(clip, clipIndex); // Can't fail; space reserved above
-		currentSong->adoptClip(clip);
 
 		clip->activeIfNoSolo = false;   // So we can toggle it back on, below
 		clip->armState = ArmState::OFF; // In case was left on before

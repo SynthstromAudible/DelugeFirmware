@@ -1140,7 +1140,6 @@ bool Clip::possiblyCloneForArrangementRecording(ModelStackWithTimelineCounter* m
 
 			// Add to Song
 			(void)modelStack->song->project.clips.arrangement_only_clips.insertClipAt(newClip, 0); // Can't fail
-			modelStack->song->adoptClip(newClip);
 
 			expectNoFurtherTicks(modelStack->song, false); // Don't sound
 

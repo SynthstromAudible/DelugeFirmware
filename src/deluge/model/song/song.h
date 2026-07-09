@@ -205,10 +205,6 @@ public:
 	/// id). Session ids are never serialized → golden-neutral.
 	void assignSessionIds();
 	/// Bind a song-resident clip to the persistent DOM structural store (mint a session id if it has none, seed its
-	/// DocClip from the current values, repoint reads/writes at the tree). Idempotent — a no-op on an already-bound
-	/// clip. Called at load (for every clip) and at every runtime clip insertion, so no live clip stays on its
-	/// transient ownDoc_.
-	void adoptClip(Clip* clip);
 	void writeToFile(Serializer& writer);
 	void loadAllSamples(bool mayActuallyReadFiles = true);
 	void renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuffer, int32_t sideChainHitPending);

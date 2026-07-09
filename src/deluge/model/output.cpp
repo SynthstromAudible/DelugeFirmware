@@ -459,7 +459,6 @@ Error Output::possiblyBeginArrangementRecording(Song* song, int32_t newPos) {
 	newClip->setLoopLength(kMaxSequenceLength);
 
 	(void)song->project.clips.arrangement_only_clips.insertClipAt(newClip, 0); // Will succeed - we checked above
-	song->adoptClip(newClip);
 
 	// Set the ClipInstance's length to just 1, which kinda is how long it logically "is" at this point in time before
 	// recording has started. This leaves space directly after it, which the user might choose to suddenly to create

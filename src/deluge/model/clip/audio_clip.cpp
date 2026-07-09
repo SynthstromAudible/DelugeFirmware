@@ -892,7 +892,6 @@ void AudioClip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 
 		(void)modelStack->song->project.clips.arrangement_only_clips.insertClipAt(newClip,
 		                                                                          0); // Can't fail - checked above
-		modelStack->song->adoptClip(newClip);
 
 		clipInstanceI++;
 

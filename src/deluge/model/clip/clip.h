@@ -214,7 +214,6 @@ public:
 	/// transient positional indexForSaving). nullopt until assigned lazily on first save from the
 	/// song's counter (or restored on load); resolve via Song::clipForId.
 	[[nodiscard]] uint32_t id() const { return id_; }
-	void setId(uint32_t id) { id_ = id; }
 
 	/// S5-b: transient (never-serialized) session id for runtime DOM addressing of a NOT-YET-SAVED clip (one with
 	/// no id). 0 = unassigned. Minted from the project's session counter at load/creation so doc() can

@@ -1780,7 +1780,6 @@ bool SessionView::insertAndResyncNewClip(Clip* newClip, int32_t yDisplay) {
 	if (!currentSong->project.clips.session_clips.insertClipAt(newClip, index)) {
 		return false;
 	}
-	currentSong->adoptClip(newClip);
 
 	// resync new clip play pos
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
@@ -2192,7 +2191,6 @@ ramError:
 	(void)currentSong->project.clips.session_clips.insertClipAt(
 	    newClip,
 	    newIndex); // Can't fail - we ensured enough space in advance
-	currentSong->adoptClip(newClip);
 
 	redrawClipsOnScreen();
 }
@@ -3748,7 +3746,6 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 		display->displayError(Error::INSUFFICIENT_RAM);
 		return nullptr;
 	}
-	currentSong->adoptClip(newClip);
 
 	// If we copied from source and the clip should go in another track we need to move it after putting it in the
 	// session Remember this assumes a non Audio clip
