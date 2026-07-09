@@ -143,10 +143,22 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 	case Value::OUTPUT:
 		audioOutput->inputChannel = AudioInputChannel::OUTPUT;
 		break;
-	case Value::TRACK:
+	case Value::TRACK: {
 		audioOutput->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
-		audioOutput->setOutputRecordingFrom(currentSong->getOutputFromIndex(0));
+		// Default to the first recordable output. Skip MIDI/CV (and ourselves), matching padAction, which rejects
+		// them - recording audio from a non-audio output is meaningless and drives that output's renderOutput.
+		Output* recordFrom = nullptr;
+		for (int32_t i = 0; i < currentSong->getNumOutputs(); i++) {
+			Output* candidate = currentSong->getOutputFromIndex(i);
+			if (candidate != audioOutput && candidate->type != OutputType::MIDI_OUT
+			    && candidate->type != OutputType::CV) {
+				recordFrom = candidate;
+				break;
+			}
+		}
+		audioOutput->setOutputRecordingFrom(recordFrom);
 		break;
+	}
 
 	default:
 		audioOutput->inputChannel = AudioInputChannel::NONE;
