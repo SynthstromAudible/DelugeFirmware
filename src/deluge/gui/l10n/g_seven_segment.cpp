@@ -566,7 +566,6 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_MACRO_TARGET_CC, "CC"},
         {STRING_FOR_MACRO_FROM, "FROM"},
         {STRING_FOR_MACRO_TO, "TO"},
-        {STRING_FOR_MACRO_SEND, "SEND"},
         {STRING_FOR_MACRO_ACTIVE, "ACTV"},
         {STRING_FOR_MACRO_LOAD, "LOAD"},
         {STRING_FOR_MACRO_SAVE, "SAVE"},

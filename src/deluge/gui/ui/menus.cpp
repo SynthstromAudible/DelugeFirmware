@@ -1126,20 +1126,19 @@ Submenu midiCommandsMenu{
 };
 
 // macro submenu - 4 groups, each a learnable source CC fanning out to 8 destinations.
-// Each destination is a horizontal menu page of three columns (CC | Base | Depth); the 8 pages
+// Each destination is a horizontal menu page of three columns (Dest | From | To); the 8 pages
 // are bundled into a HorizontalMenuGroup so you flip between destinations 1-8 from one page.
 
-// Declares the CC/From/To/Send column items plus the horizontal page for macro m's target f.
+// Declares the Dest/From/To column items plus the horizontal page for macro m's target f.
 #define MACRO_TARGET(m, f)                                                                                             \
 	macros::MacroTarget macro##m##Target##f##CC{STRING_FOR_MACRO_TARGET_CC, (m) - 1, (f) - 1};                         \
 	macros::MacroTargetRange macro##m##Target##f##From{STRING_FOR_MACRO_FROM, (m) - 1, (f) - 1,                        \
 	                                                   macros::MacroTargetRange::FROM};                                \
 	macros::MacroTargetRange macro##m##Target##f##To{STRING_FOR_MACRO_TO, (m) - 1, (f) - 1,                            \
 	                                                 macros::MacroTargetRange::TO};                                    \
-	macros::MacroTargetSend macro##m##Target##f##Send{STRING_FOR_MACRO_SEND, (m) - 1, (f) - 1};                        \
 	HorizontalMenu macro##m##TargetPage##f {                                                                           \
 		STRING_FOR_MACRO_TARGET_##f, {                                                                                 \
-			&macro##m##Target##f##CC, &macro##m##Target##f##From, &macro##m##Target##f##To, &macro##m##Target##f##Send \
+			&macro##m##Target##f##CC, &macro##m##Target##f##From, &macro##m##Target##f##To                             \
 		}                                                                                                              \
 	}
 

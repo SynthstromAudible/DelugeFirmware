@@ -316,35 +316,6 @@ private:
 	Field field;
 };
 
-// Send toggle for one macro target slot; keeps the slot's destination/from/to while off.
-class MacroTargetSend final : public Toggle {
-public:
-	MacroTargetSend(l10n::String newName, int32_t newMacro, int32_t newSlot)
-	    : Toggle(newName), macro(newMacro), slot(newSlot) {}
-	// The horizontal-menu slot keeps the on/off switcher icon; the toggle popup shows the state as
-	// text ("Send: On"/"Send: Off") so it's clear what changed (the base Toggle popup has no value).
-	void getNotificationValue(StringBuf& value) override { value.append(this->getValue() ? "On" : "Off"); }
-	void readCurrentValue() override {
-		Macros::Macro* m = currentMacros();
-		this->setValue(m ? m[macro].targets[slot].send : true);
-	}
-	void writeCurrentValue() override {
-		Macros::Macro* m = currentMacros();
-		if (!m) {
-			return;
-		}
-		if (this->getValue() != m[macro].targets[slot].send) {
-			m[macro].targets[slot].send = this->getValue();
-			markMacroInstrumentEdited();
-			Macros::reFanTarget(getCurrentClip(), macro, slot, nullptr); // re-bake (muted target gets cleared)
-		}
-	}
-
-private:
-	int32_t macro;
-	int32_t slot;
-};
-
 // Per-macro Active toggle - whether this macro participates while the instrument's macros are
 // enabled. Duplicate target CCs never block the toggle: ownership (active macros first, then scan
 // order) decides who drives a shared CC, and setMacroActive() re-bakes contested lanes on each flip.

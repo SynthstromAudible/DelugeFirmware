@@ -190,7 +190,6 @@ struct MacroTargetSlot {
 	uint8_t destination = kNoDestination; // kNoDestination = OFF, else 0..kMaxMidiDestination
 	uint8_t from = kDefaultFrom;          // 0..kMaxValue, output when source is at 0 (capture A)
 	uint8_t to = kDefaultTo;              // 0..kMaxValue, output when source is at 127 (capture B; from>to inverts)
-	bool send = true;                     // the "Send" toggle: muted when false, but keeps destination/from/to
 };
 
 struct Macro {
@@ -312,7 +311,7 @@ void applyMacroLaneAutomation(Clip* clip, ModelStackWithTimelineCounter* modelSt
 // snapshotted into it so one BACK restores the macro lane and its targets together.
 void reFanMacro(Clip* clip, int32_t macroIndex, Action* action);
 
-// Re-bakes a single target slot (cheaper than reFanMacro when only its from/to/send changed).
+// Re-bakes a single target slot (cheaper than reFanMacro when only its from/to changed).
 void reFanTarget(Clip* clip, int32_t macroIndex, int32_t slot, Action* action);
 
 // Repoints a target at a new destination CC: clears the bake left on the old CC (so no ghost lane

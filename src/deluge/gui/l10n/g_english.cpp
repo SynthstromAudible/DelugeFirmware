@@ -1007,7 +1007,6 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_MACRO_TARGET_CC, "CC"},
         {STRING_FOR_MACRO_FROM, "From"},
         {STRING_FOR_MACRO_TO, "To"},
-        {STRING_FOR_MACRO_SEND, "Send"},
         {STRING_FOR_MACRO_ACTIVE, "Active"},
         {STRING_FOR_MACRO_LOAD, "Load Preset"},
         {STRING_FOR_MACRO_SAVE, "Save Preset"},

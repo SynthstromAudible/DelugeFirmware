@@ -791,7 +791,7 @@ static void bakeTarget(const FanContext& ctx, ModelStackWithThreeMainThings* thr
                        AutoParam* source, Action* action) {
 	ModelStackWithAutoParam* modelStackWithParam = destinationParamStack(ctx, three, target.destination);
 	if (!modelStackWithParam) {
-		return; // never existed (MIDI): nothing to clear, and nothing will be written (send off)
+		return; // never existed (MIDI): nothing to clear
 	}
 
 	// Overwrite: clear first (deleteAutomation snapshots into `action` for undo when given).
@@ -805,19 +805,17 @@ static void bakeTarget(const FanContext& ctx, ModelStackWithThreeMainThings* thr
 		return;
 	}
 
-	if (target.send) {
-		int32_t outMax = maxTargetValue(ctx.domain);
-		for (int32_t n = 0; n < source->nodes.getNumElements(); n++) {
-			ParamNode* node = source->nodes.getElement(n);
-			int32_t out = scaleTarget(target, bigValueToUnit(node->value), outMax);
-			modelStackWithParam->autoParam->setNodeAtPos(
-			    node->pos, unitsToParamValue(modelStackWithParam, ctx.domain, out), node->interpolated);
-		}
-		// Base value for regions before the first node / when the source has no nodes.
-		int32_t base = scaleTarget(target, bigValueToUnit(source->getCurrentValue()), outMax);
-		modelStackWithParam->autoParam->setCurrentValueBasicForSetup(
-		    unitsToParamValue(modelStackWithParam, ctx.domain, base));
+	int32_t outMax = maxTargetValue(ctx.domain);
+	for (int32_t n = 0; n < source->nodes.getNumElements(); n++) {
+		ParamNode* node = source->nodes.getElement(n);
+		int32_t out = scaleTarget(target, bigValueToUnit(node->value), outMax);
+		modelStackWithParam->autoParam->setNodeAtPos(node->pos, unitsToParamValue(modelStackWithParam, ctx.domain, out),
+		                                             node->interpolated);
 	}
+	// Base value for regions before the first node / when the source has no nodes.
+	int32_t base = scaleTarget(target, bigValueToUnit(source->getCurrentValue()), outMax);
+	modelStackWithParam->autoParam->setCurrentValueBasicForSetup(
+	    unitsToParamValue(modelStackWithParam, ctx.domain, base));
 }
 
 static void refreshAutomationGridIfShowingDestination(Clip* clip, Domain domain, uint8_t destination) {
@@ -856,7 +854,7 @@ static void sendToTargets(Output* instrument, Clip* clip, ModelStackWithTimeline
 	}
 	for (int32_t slot = 0; slot < kNumTargetSlots; slot++) {
 		MacroTargetSlot& target = macro.targets[slot];
-		if (target.destination == kNoDestination || !target.send) {
+		if (target.destination == kNoDestination) {
 			continue;
 		}
 		// A shadowed target (another target owns its CC) is inert - only the owner drives.
@@ -1088,7 +1086,6 @@ static void writeTargetsToFile(Serializer& writer, Macro& macro, Domain domain) 
 			}
 			writer.writeAttribute("from", target.from, false);
 			writer.writeAttribute("to", target.to, false);
-			writer.writeAttribute("send", target.send ? 1 : 0, false);
 			writer.closeTag();
 		}
 	}
@@ -1142,13 +1139,13 @@ void writeMacrosToFile(Serializer& writer, Macro* macros, Domain domain) {
 	writer.writeClosingTag(MACROS_TAG);
 }
 
-// Reads a target's destination/param/from/to/send attributes (e.g. <target1 destination="42" from="0" to="100"
-// send="1" /> on MIDI, <target1 param="lpfFrequency" .../> on synths).
+// Reads a target's destination/param/from/to attributes (e.g. <target1 cc="42" from="0" to="100" />
+// on MIDI, <target1 param="lpfFrequency" .../> on internal domains). Unknown attributes - including
+// the retired "send" per-target mute from older files - are skipped.
 static void readTargetFromFile(Deserializer& reader, MacroTargetSlot& target, int32_t macroIndex, Domain domain) {
 	int32_t destination = kNoDestination;
 	int32_t from = kDefaultFrom;
 	int32_t to = kDefaultTo;
-	bool send = true;
 	char const* attrName;
 	while (*(attrName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(attrName, "cc") && domain == Domain::MIDI) {
@@ -1184,16 +1181,12 @@ static void readTargetFromFile(Deserializer& reader, MacroTargetSlot& target, in
 		else if (!strcmp(attrName, "to")) {
 			to = reader.readTagOrAttributeValueInt();
 		}
-		else if (!strcmp(attrName, "send")) {
-			send = reader.readTagOrAttributeValueInt() != 0;
-		}
 		reader.exitTag();
 	}
 	// a real destination, or a cascade (higher-indexed macro only - keeps the graph acyclic)
 	target.destination = isValidTargetDestination(domain, destination, macroIndex) ? destination : kNoDestination;
 	target.from = std::clamp<int32_t>(from, 0, maxTargetValue(domain));
 	target.to = std::clamp<int32_t>(to, 0, maxTargetValue(domain));
-	target.send = send;
 }
 
 static void readMacroFromFile(Deserializer& reader, Macro& macro, int32_t macroIndex, Domain domain) {
@@ -1419,8 +1412,7 @@ static void preCreateFanOutParams(const FanContext& ctx, int32_t macroIndex) {
 	}
 	for (int32_t slot = 0; slot < kNumTargetSlots; slot++) {
 		MacroTargetSlot& target = ctx.instrument->macros[macroIndex].targets[slot];
-		if (target.destination == kNoDestination || !target.send
-		    || isTargetShadowed(ctx.instrument->macros, macroIndex, slot)) {
+		if (target.destination == kNoDestination || isTargetShadowed(ctx.instrument->macros, macroIndex, slot)) {
 			continue;
 		}
 		ctx.coll->params.getOrCreateParamFromCC(target.destination, 0);
@@ -1432,11 +1424,11 @@ static void preCreateFanOutParams(const FanContext& ctx, int32_t macroIndex) {
 
 // Bake prep for a single target's destination: creates any lazily-allocated param it (and, for a
 // cascade destination, its downstream fan-out) will be baked into, BEFORE an AutoParam pointer into
-// this clip is taken - see preCreateFanOutParams for the pointer-dangle hazard. A no-op on synth
-// (fixed param arrays never move) and when the target isn't sending. Domain seam point: a future
-// destination kind that resolves its params lazily hooks its own pre-creation in here.
+// this clip is taken - see preCreateFanOutParams for the pointer-dangle hazard. A no-op on internal
+// domains (fixed param arrays never move). Domain seam point: a future destination kind that
+// resolves its params lazily hooks its own pre-creation in here.
 static void prepareDestinationForBake(const FanContext& ctx, const MacroTargetSlot& target) {
-	if (!target.send || ctx.domain != Domain::MIDI) {
+	if (ctx.domain != Domain::MIDI) {
 		return;
 	}
 	ctx.coll->params.getOrCreateParamFromCC(target.destination, 0);
@@ -1476,8 +1468,7 @@ static void fanOutMacroLane(const FanContext& ctx, int32_t macroIndex, ModelStac
 		refreshAutomationGridIfShowingDestination(ctx.clip, ctx.domain, target.destination);
 		// A cascade target's lane just changed: re-derive the downstream macro's own fan-out from
 		// it. Everything the recursion writes was pre-created above, so `source` stays valid.
-		if (isMacroParamID(target.destination)
-		    && (target.send || laneEverTouched(ctx, macroIndexFromParamID(target.destination)))) {
+		if (isMacroParamID(target.destination)) {
 			fanOutMacroLane(ctx, macroIndexFromParamID(target.destination), modelStack, action);
 		}
 	}
@@ -1532,8 +1523,7 @@ void reFanTarget(Clip* clip, int32_t macroIndex, int32_t slot, Action* action) {
 	bakeTarget(ctx, three, target, source, action);
 	refreshAutomationGridIfShowingDestination(clip, ctx.domain, target.destination);
 	// A cascade target's lane just changed: re-derive the downstream macro's fan-out from it.
-	if (isMacroParamID(target.destination)
-	    && (target.send || laneEverTouched(ctx, macroIndexFromParamID(target.destination)))) {
+	if (isMacroParamID(target.destination)) {
 		fanOutMacroLane(ctx, macroIndexFromParamID(target.destination), modelStackWithTimelineCounter, action);
 	}
 	markHostEdited(ctx.instrument);
@@ -1559,14 +1549,13 @@ void changeTargetDestination(Clip* clip, int32_t macroIndex, int32_t slot, uint8
 	markHostEdited(ctx.instrument);
 
 	if (newDestination == kNoDestination) {
-		// A cleared slot returns to pristine defaults (range + Send), so a later reassignment into it
-		// starts fresh instead of inheriting the departed target's from/to. Done here in the primitive so
+		// A cleared slot returns to its pristine default range, so a later reassignment into it starts
+		// fresh instead of inheriting the departed target's from/to. Done here in the primitive so
 		// every clear path is consistent - note-view SHIFT+DELETE, automation SHIFT+DELETE, and dialling a
 		// target to OFF - and so the pure-config early-return just below is covered too. (Re-pointing to a
 		// real destination keeps from/to: you're moving the same mapping, not clearing it.)
 		target.from = kDefaultFrom;
 		target.to = kDefaultTo;
-		target.send = MacroTargetSlot{}.send;
 	}
 
 	if (!laneEverTouched(ctx, macroIndex)) {
@@ -1610,7 +1599,7 @@ void changeTargetDestination(Clip* clip, int32_t macroIndex, int32_t slot, uint8
 	// and keeps our LED off).
 	if (newDestination != kNoDestination
 	    && findShadowingOwner(ctx.instrument->macros, newDestination, macroIndex, slot) < 0) {
-		if (target.send && ctx.domain == Domain::MIDI) {
+		if (ctx.domain == Domain::MIDI) {
 			ctx.coll->params.getOrCreateParamFromCC(newDestination, 0); // create before taking the source pointer
 			if (isMacroParamID(newDestination)) {
 				// the cascade below the new destination must be pre-created before pointers are taken
@@ -1622,8 +1611,7 @@ void changeTargetDestination(Clip* clip, int32_t macroIndex, int32_t slot, uint8
 			bakeTarget(ctx, three, target, source, action);
 			refreshAutomationGridIfShowingDestination(clip, ctx.domain, newDestination);
 			// A cascade destination's lane just changed: re-derive its macro's fan-out from it.
-			if (isMacroParamID(newDestination)
-			    && (target.send || laneEverTouched(ctx, macroIndexFromParamID(newDestination)))) {
+			if (isMacroParamID(newDestination)) {
 				fanOutMacroLane(ctx, macroIndexFromParamID(newDestination), modelStackWithTimelineCounter, action);
 			}
 		}
