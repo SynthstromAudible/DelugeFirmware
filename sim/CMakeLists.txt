@@ -532,6 +532,25 @@ if(RT_LIB)
     target_link_libraries(edit_undo_redo PRIVATE ${RT_LIB})
 endif()
 
+# XML replay differential harness (docs/superpowers/specs/2026-07-09-deserializer-step2a-xml-to-value-design.md,
+# Component 3): runs a fixed readFromFile-shaped script against both the real XMLDeserializer (ground truth) and
+# ValueTreeDeserializer in XML mode over parseXml() output, asserting token-for-token identical transcripts.
+add_executable(xml_replay_diff
+    ${REPO_ROOT}/src/bsp/host/host_bsp.c
+    ${REPO_ROOT}/src/bsp/host/host_platform.c
+    ${REPO_ROOT}/src/bsp/host/host_audio.c
+    ${REPO_ROOT}/src/bsp/host/host_link.c
+    ${REPO_ROOT}/src/bsp/host/host_pcm.c
+    ${REPO_ROOT}/src/bsp/host/host_midi.c
+    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
+    ${REPO_ROOT}/tests/golden/xml_replay_diff.cpp
+)
+target_include_directories(xml_replay_diff PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
+target_link_libraries(xml_replay_diff PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
+if(RT_LIB)
+    target_link_libraries(xml_replay_diff PRIVATE ${RT_LIB})
+endif()
+
 # Param/automation DOM projection round-trip (docs/dev/param_automation_dom.md, Phase 1).
 # Exercises DocAutoParam <-> live AutoParam against the real engine container + host allocator; runs on
 # x86 (build-sim) and ARM (build-sim-arm via qemu) for the dual-arch coverage the design doc calls for.

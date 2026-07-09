@@ -1,0 +1,212 @@
+// Differential fidelity harness for ValueTreeDeserializer's XML replay mode (deserializer step 2a).
+//
+// Ground truth is the real XMLDeserializer reading the fragment's bytes. For each fragment a fixed
+// *script* -- the exact call sequence readFromFile would issue for that shape -- is run against both
+//   1. XMLDeserializer{fragmentBytes}, and
+//   2. ValueTreeDeserializer{*parseXml(fragmentBytes), SourceFormat::Xml},
+// and the two return-transcripts must match token-for-token. XML mode is developed by making these
+// pass. This links only in the host-sim environment (XMLDeserializer is not available to CppSpec).
+//
+// Build+run:  cmake --build build-sim --target xml_replay_diff && build-sim/xml_replay_diff
+
+#include "storage/parse_xml.h"
+#include "storage/storage_manager.h"
+#include "storage/value_tree_deserializer.h"
+#include <cstdint>
+#include <cstdio>
+#include <cstring>
+#include <string>
+#include <vector>
+
+using deluge::storage::parseXml;
+using deluge::storage::SourceFormat;
+using deluge::storage::ValueTreeDeserializer;
+
+namespace {
+
+int failures = 0;
+using Transcript = std::vector<std::string>;
+
+// Transcript-append helpers, so each script reads as the readFromFile call sequence it mirrors.
+void name(Deserializer& r, Transcript& t) {
+	t.push_back(std::string("name=") + r.readNextTagOrAttributeName());
+}
+void vInt(Deserializer& r, Transcript& t) {
+	t.push_back(std::string("int=") + std::to_string(r.readTagOrAttributeValueInt()));
+}
+void vStr(Deserializer& r, Transcript& t) {
+	t.push_back(std::string("str=") + r.readTagOrAttributeValue());
+}
+void vHex(Deserializer& r, Transcript& t) {
+	t.push_back(std::string("hex=") + std::to_string(r.readTagOrAttributeValueHex(-1)));
+}
+void m(Deserializer& r, Transcript& t, char ch) {
+	t.push_back(std::string("match(") + ch + ")=" + (r.match(ch) ? "1" : "0"));
+}
+void exit_(Deserializer& r, Transcript& t, char const* tag = nullptr, bool closeObject = false) {
+	r.exitTag(tag, closeObject);
+	t.push_back("exitTag");
+}
+
+template <typename Script>
+void diff(const char* label, const char* xml, Script script) {
+	Transcript a;
+	Transcript b;
+
+	// XMLDeserializer null-terminates tokens in place, so it needs a mutable, NUL-padded copy.
+	std::vector<char> buf(xml, xml + std::strlen(xml));
+	buf.push_back('\0');
+	{
+		XMLDeserializer x(reinterpret_cast<uint8_t*>(buf.data()), static_cast<size_t>(std::strlen(xml)));
+		script(static_cast<Deserializer&>(x), a);
+	}
+
+	auto tree = parseXml(xml);
+	if (!tree) {
+		printf("FAIL %s: parseXml returned nullopt\n", label);
+		failures++;
+		return;
+	}
+	{
+		ValueTreeDeserializer v(*tree, SourceFormat::Xml);
+		script(static_cast<Deserializer&>(v), b);
+	}
+
+	if (a != b) {
+		failures++;
+		printf("FAIL %s: transcripts differ (xml=%zu adapter=%zu)\n", label, a.size(), b.size());
+		for (size_t i = 0; i < a.size() || i < b.size(); i++) {
+			printf("  [%zu] xml=%-24s | adapter=%s\n", i, i < a.size() ? a[i].c_str() : "<end>",
+			       i < b.size() ? b[i].c_str() : "<end>");
+		}
+	}
+	else {
+		printf("ok   %s (%zu tokens)\n", label, a.size());
+	}
+}
+
+} // namespace
+
+int main() {
+	// (1) A single attribute-only, self-closing element. Two attributes read back-to-back (no exitTag
+	// between them -- legal for attributes, whose value-read leaves the cursor at the next attribute).
+	diff("attr-only", R"(<clip section="0" length="384"/>)", [](Deserializer& r, Transcript& t) {
+		name(r, t);   // "clip"
+		m(r, t, '{'); // enter clip (permissive)
+		name(r, t);   // "section"
+		vInt(r, t);   // 0
+		name(r, t);   // "length"
+		vInt(r, t);   // 384
+		name(r, t);   // "" (end of clip's attributes)
+		exit_(r, t, nullptr, true);
+	});
+
+	// (2) A structured child element (implicit descent): entering <modKnobs> is done purely by
+	// continuing to read names -- no match('{') is required to descend into it.
+	diff("nested-elem", R"(<clip><modKnobs a="1" b="2"/></clip>)", [](Deserializer& r, Transcript& t) {
+		name(r, t);   // "clip"
+		m(r, t, '{'); // enter clip
+		name(r, t);   // "modKnobs" (structured child, staged pending)
+		m(r, t, '{'); // permissive; the real descent happens on the next readNext
+		name(r, t);   // "a" (implicit descent into modKnobs)
+		vInt(r, t);   // 1
+		name(r, t);   // "b"
+		vInt(r, t);   // 2
+		name(r, t);   // "" (end of modKnobs)
+		m(r, t, '}');
+		exit_(r, t); // finish modKnobs -> back to clip level
+		name(r, t);  // "" (end of clip)
+		m(r, t, '}');
+	});
+
+	// (3) A text-content element (<name>hello</name>) -- a Scalar entry read as a value. Requires an
+	// exitTag to skip the close tag before the next sibling (unlike an attribute).
+	diff("text-content", R"(<clip><name>hello</name><inKeyMode>1</inKeyMode></clip>)",
+	     [](Deserializer& r, Transcript& t) {
+		     name(r, t); // "clip"
+		     m(r, t, '{');
+		     name(r, t); // "name" (descend into clip)
+		     vStr(r, t); // "hello"
+		     exit_(r, t, "name");
+		     name(r, t); // "inKeyMode"
+		     vInt(r, t); // 1
+		     exit_(r, t, "inKeyMode");
+		     name(r, t); // "" (end of clip)
+		     m(r, t, '}');
+	     });
+
+	// (4) A container of repeated child elements, walked with the array-of-boxes idiom
+	//   while (match('{') && *(name = readNext())) { ...; match('}'); exitTag(nullptr, true); }
+	// that appears throughout readFromFile (e.g. noteRows). Repeated child names produce repeated
+	// ordered entries; there is no Array type.
+	diff("repeated-children", R"(<clip><noteRows><noteRow y="0"/><noteRow y="1"/><noteRow y="2"/></noteRows></clip>)",
+	     [](Deserializer& r, Transcript& t) {
+		     name(r, t); // "clip"
+		     m(r, t, '{');
+		     name(r, t); // "noteRows"
+		     m(r, t, '[');
+		     for (int i = 0; i < 4; i++) { // one past the 3 children: last iteration reads ""
+			     m(r, t, '{');
+			     name(r, t); // "noteRow" x3, then ""
+			     if (i < 3) {
+				     name(r, t); // "y" (descend into this noteRow)
+				     vInt(r, t); // i
+				     exit_(r, t, "y");
+				     name(r, t); // "" (end of this noteRow)
+			     }
+			     m(r, t, '}');
+			     exit_(r, t, nullptr, true); // leave box
+		     }
+		     m(r, t, ']');
+		     exit_(r, t); // finish noteRows -> back to clip
+		     name(r, t);  // "" (end of clip)
+		     m(r, t, '}');
+	     });
+
+	// (5) Deeply nested structured elements (song>clip>noteRow>note), each entered by implicit
+	// descent, then unwound level by level with exitTag.
+	diff("deeply-nested", R"(<song><clip><noteRow><note pos="0" length="3"/></noteRow></clip></song>)",
+	     [](Deserializer& r, Transcript& t) {
+		     name(r, t); // "song"
+		     m(r, t, '{');
+		     name(r, t); // "clip"
+		     m(r, t, '{');
+		     name(r, t); // "noteRow"
+		     m(r, t, '{');
+		     name(r, t); // "note"
+		     m(r, t, '{');
+		     name(r, t); // "pos"
+		     vInt(r, t); // 0
+		     name(r, t); // "length"
+		     vInt(r, t); // 3
+		     name(r, t); // "" end of note
+		     m(r, t, '}');
+		     exit_(r, t); // finish note
+		     name(r, t);  // "" end of noteRow
+		     m(r, t, '}');
+		     exit_(r, t); // finish noteRow
+		     name(r, t);  // "" end of clip
+		     m(r, t, '}');
+		     exit_(r, t); // finish clip
+		     name(r, t);  // "" end of song
+		     m(r, t, '}');
+	     });
+
+	// (6) Hex values, both as an attribute (0x..) and as a text-content element.
+	diff("hex-values", R"(<sample crc="0x7FABCDEF"><loopStart>0x40</loopStart></sample>)",
+	     [](Deserializer& r, Transcript& t) {
+		     name(r, t); // "sample"
+		     m(r, t, '{');
+		     name(r, t); // "crc"
+		     vHex(r, t); // 0x7FABCDEF
+		     exit_(r, t, "crc");
+		     name(r, t); // "loopStart"
+		     vHex(r, t); // 0x40
+		     exit_(r, t, "loopStart");
+		     name(r, t); // "" end of sample
+		     m(r, t, '}');
+	     });
+
+	printf(failures ? "XML_REPLAY_DIFF: %d FAIL\n" : "XML_REPLAY_DIFF: OK\n", failures);
+	return failures ? 1 : 0;
+}

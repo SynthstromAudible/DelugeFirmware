@@ -85,6 +85,19 @@ private:
 	// the file readers, which return garbage rather than crash.
 	[[nodiscard]] const std::string* pendingScalar() const;
 
+	// --- XML mode (SourceFormat::Xml) ---
+	// These mirror XMLDeserializer's contract over the all-ordered-maps tree parseXml() produces.
+	// XML has no object/array markers: structure is discovered purely by reading child names until
+	// a container is exhausted, so match(*) is permissive and elements are entered implicitly by
+	// continuing to read. See value_tree_deserializer.cpp for the depth-accounting derivation.
+	char const* readNextTagOrAttributeNameXml();
+	void exitTagXml();
+	// Mirror of XMLDeserializer::tagDepthFile: the number of currently-open XML elements. Equals the
+	// descended-frame count (excluding the document-root frame) plus one when the last-named entry is
+	// an as-yet-unentered child Map (its element is "open" the moment its name is read, per the file
+	// reader, even before we descend into it).
+	[[nodiscard]] int32_t xmlFileDepth() const;
+
 	const Value* root_;
 	std::vector<Frame> stack_;
 	// The Value most recently produced by readNextTagOrAttributeName() (or the root, before the
@@ -93,6 +106,9 @@ private:
 	// Cursor into the pending scalar for the one-char/n-chars-at-a-time reading methods.
 	std::size_t charCursor_ = 0;
 	SourceFormat format_;
+	// XML mode only: mirror of XMLDeserializer::tagDepthCaller -- how many names the caller has
+	// consumed since the last exitTag() reconciliation. Unused in JSON mode.
+	int32_t callerDepth_ = 0;
 };
 
 } // namespace deluge::storage

@@ -47,11 +47,87 @@ const std::string* ValueTreeDeserializer::pendingScalar() const {
 
 void ValueTreeDeserializer::reset() {
 	stack_.clear();
-	pending_ = root_;
 	charCursor_ = 0;
+	callerDepth_ = 0;
+	if (format_ == SourceFormat::Xml) {
+		// XML mode walks entries out of a frame stack from the very first read (the document root is
+		// itself a Map whose sole entry is the root element), so seed the stack with the root frame
+		// rather than staging the root as pending the way JSON mode does.
+		pending_ = nullptr;
+		stack_.push_back(Frame{root_, 0});
+	}
+	else {
+		pending_ = root_;
+	}
+}
+
+int32_t ValueTreeDeserializer::xmlFileDepth() const {
+	int32_t depth = static_cast<int32_t>(stack_.size()) - 1; // the document-root frame is depth 0
+	if (depth < 0) {
+		depth = 0;
+	}
+	if (pending_ != nullptr && pending_->isMap()) {
+		++depth; // a named-but-not-yet-entered child element is already "open"
+	}
+	return depth;
+}
+
+char const* ValueTreeDeserializer::readNextTagOrAttributeNameXml() {
+	// Implicit descent: XML "enters" a child element simply by continuing to read. If the previous
+	// read named a Map (a structured child element) and the caller neither read its value nor exited
+	// it, this next read descends into it -- mirroring the file reader continuing past the tag name
+	// into the element's contents with no match('{').
+	if (pending_ != nullptr && pending_->isMap()) {
+		stack_.push_back(Frame{pending_, 0});
+	}
+	pending_ = nullptr;
+
+	if (stack_.empty()) {
+		return "";
+	}
+	Frame& top = stack_.back();
+	if (!top.node->isMap() || top.index >= top.node->entries().size()) {
+		// Element-content end. Mirror the file reader reading the close tag: the element closes
+		// (fileDepth drops) and "" is returned. Popping here (rather than deferring to a match('}'),
+		// which is a permissive no-op in XML mode) keeps xmlFileDepth() in lockstep with the real
+		// tagDepthFile, whose close-tag decrement happens exactly at this "" return.
+		if (stack_.size() > 1) {
+			stack_.pop_back();
+		}
+		return "";
+	}
+	const auto& [key, value] = top.node->entries()[top.index];
+	++top.index;
+	pending_ = &value;
+	++callerDepth_; // mirror tagDepthCaller++ on every non-empty name
+	return key.c_str();
+}
+
+void ValueTreeDeserializer::exitTagXml() {
+	// Mirror XMLDeserializer::exitTag: back the file depth out to below the caller depth, then
+	// reconcile the caller depth to it. exitTagName/closeObject are ignored, exactly as in the real
+	// reader -- the depth arithmetic alone decides how far to pop. Each step here closes the
+	// innermost open element: an as-yet-unentered pending child (drop it, skipping its content) or a
+	// descended frame (pop it, discarding any siblings the caller didn't read).
+	while (xmlFileDepth() >= callerDepth_) {
+		if (pending_ != nullptr && pending_->isMap()) {
+			pending_ = nullptr;
+		}
+		else if (stack_.size() > 1) {
+			stack_.pop_back();
+		}
+		else {
+			break;
+		}
+	}
+	pending_ = nullptr;
+	callerDepth_ = xmlFileDepth();
 }
 
 char const* ValueTreeDeserializer::readNextTagOrAttributeName() {
+	if (format_ == SourceFormat::Xml) {
+		return readNextTagOrAttributeNameXml();
+	}
 	pending_ = nullptr;
 	if (stack_.empty()) {
 		// Nothing has been descended into yet (or a close popped the last frame).
@@ -78,6 +154,12 @@ char const* ValueTreeDeserializer::readNextTagOrAttributeName() {
 }
 
 bool ValueTreeDeserializer::match(char const ch) {
+	if (format_ == SourceFormat::Xml) {
+		// XMLDeserializer::match returns true unconditionally ("Only used by Json"). XML structure is
+		// discovered by reading child names, not by structural markers, so match is a permissive
+		// no-op here: it never descends or pops.
+		return true;
+	}
 	switch (ch) {
 	case '{':
 	case '[': {
@@ -135,6 +217,12 @@ bool ValueTreeDeserializer::match(char const ch) {
 }
 
 void ValueTreeDeserializer::exitTag(char const* exitTagName, bool closeObject) {
+	if (format_ == SourceFormat::Xml) {
+		(void)exitTagName;
+		(void)closeObject;
+		exitTagXml();
+		return;
+	}
 	(void)exitTagName;
 	// closeObject mirrors the file readers, where it closes one object box (like match('}')); it
 	// is used by the array-of-boxes patterns to pop the value-object / box frame. Without it,
