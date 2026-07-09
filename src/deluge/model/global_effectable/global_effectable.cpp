@@ -851,12 +851,14 @@ void GlobalEffectable::readParamsFromFile(Deserializer& reader, ParamManagerForT
                                           int32_t readAutomationUpToPos) {
 	char const* tagName;
 
+	reader.match('{'); // descend into the <defaultParams> object (needed for JSON; a no-op in XML)
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (readParamTagFromFile(reader, tagName, paramManager, readAutomationUpToPos)) {}
 		else {
 			reader.exitTag(tagName);
 		}
 	}
+	reader.match('}');
 }
 
 void GlobalEffectable::readParamsFromFileDomFirst(Deserializer& reader, ParamManagerForTimeline* paramManager,
