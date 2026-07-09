@@ -207,6 +207,31 @@ int main() {
 		     m(r, t, '}');
 	     });
 
+	// (7) A single exitTag that unwinds 2+ nesting levels at once, followed by a REAL intermediate
+	// sibling (not a terminating ""). This is the canonical readFromFile "skip an unrecognised child"
+	// pattern: <b> is named but never descended into, so one exitTag must discard its whole subtree
+	// (<b> AND the nested <c v="9"/> -- two levels) and land back at <a>'s level, where the next child
+	// <d y="2"/> is then read for real. This is exactly where a frame-accounting off-by-one would hide.
+	// (Note: the reverse -- descend a->b->c then one exitTag *back up* to a -- does NOT arise: caller
+	// depth tracks the descent 1:1, so a post-descent exitTag reconciles at most one level, yielding ""
+	// for the parent rather than a sibling. The forward multi-level skip below is the real stress.)
+	diff("multi-level-skip", R"(<a><b><c v="9"/></b><d y="2"/></a>)", [](Deserializer& r, Transcript& t) {
+		name(r, t);       // "a"
+		m(r, t, '{');     // enter a
+		name(r, t);       // "b" (unwanted child: skip its whole subtree, un-descended)
+		exit_(r, t, "b"); // ONE exitTag unwinds b AND nested c back to a's level
+		name(r, t);       // "d" <-- REAL intermediate sibling after the 2-level skip
+		m(r, t, '{');     // enter d
+		name(r, t);       // "y"
+		vInt(r, t);       // 2
+		exit_(r, t, "y");
+		name(r, t); // "" (end of d)
+		m(r, t, '}');
+		exit_(r, t, "d");
+		name(r, t); // "" (end of a)
+		m(r, t, '}');
+	});
+
 	printf(failures ? "XML_REPLAY_DIFF: %d FAIL\n" : "XML_REPLAY_DIFF: OK\n", failures);
 	return failures ? 1 : 0;
 }
