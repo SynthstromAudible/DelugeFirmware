@@ -264,9 +264,12 @@ private:
 			text += unescape(text_.substr(start, pos_ - start));
 		}
 		if (hasAttributes || sawChildElement) {
-			if (text.find_first_not_of(" \t\r\n") != std::string::npos) {
-				return std::nullopt; // real text mixed with attributes/children isn't a Deluge XML shape
-			}
+			// Stray non-whitespace text alongside attributes/children is DROPPED, not rejected. Once an
+			// element has structure, XMLDeserializer ignores inter-tag text -- readNextTagOrAttributeName
+			// does skipUntilChar('<') between tags -- so some (malformed) Deluge files carry ignorable text
+			// here, e.g. issue #2514's <kitParams> writes a stray '>' that turns its attributes into text
+			// before the real child elements. Matching the streaming reader (drop the text, keep the
+			// structure) rather than failing the whole parse keeps load-via-tree faithful on such files.
 			return element;
 		}
 		// No attributes and no child elements. A body with real text is a text-content Scalar

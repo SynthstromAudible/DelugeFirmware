@@ -48,6 +48,16 @@ describe parse_xml("deluge::storage::parseXml", ${
 		expect(parseXml(R"(<n>a&amp;b</n>)")->find("n")->str()).to_equal(std::string("a&b"));
 		expect(parseXml("<n>unterminated").has_value()).to_be_false();
 	});
+	it("drops stray text alongside child elements (malformed but tolerated, matches XMLDeserializer)", _{
+		// issue #2514: a stray '>' turns <kitParams>'s attributes into text before its real children.
+		// XMLDeserializer skips inter-tag text once an element has structure; parseXml must drop it, keep
+		// the children, and not fail the whole parse.
+		auto v = parseXml(R"(<p>a="1" b="2"<c v="3"/></p>)");
+		expect(v.has_value()).to_be_true();
+		expect(v->find("p")->isMap()).to_be_true();
+		expect(v->find("p")->find("c")->find("v")->str()).to_equal(std::string("3"));
+		expect(v->find("p")->find("a")).to_equal(nullptr); // the stray "attribute" text is gone
+	});
 	it("accepts digit-started names (Deluge numeric CC labels)", _{
 		// XMLDeserializer accepts any non-delimiter char in a name; Deluge writes <ccLabels 0="" 2=""/>.
 		auto v = parseXml(R"(<ccLabels 0="a" 2="b" 127="c"/>)");

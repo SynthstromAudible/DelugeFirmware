@@ -27,6 +27,7 @@
 #include "storage/parse_xml.h"
 #include "storage/storage_manager.h"
 #include "storage/value_tree_deserializer.h"
+#include "tree_load.h"
 
 #include <cstdint>
 #include <cstdio>
@@ -35,24 +36,6 @@
 #include <optional>
 #include <string_view>
 #include <unistd.h>
-
-// Mimic XMLDeserializer::openXMLFile(nullptr, firstTag) over the Value tree: read top-level tags,
-// consuming firmware-version tags along the way, until `firstTag` is reached -- leaving the adapter
-// positioned inside that element exactly as the streaming reader leaves it (the tree-load counterpart
-// of "open the file and seek to <song>"). Faithful to the streaming path so load-via-tree stays
-// bit-identical; the whole-tree root + read-the-root-name idiom is the one the xml_replay_diff harness
-// proved token-for-token.
-static Error openTreeFile(Deserializer& reader, char const* firstTagName) {
-	char const* tagName;
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, firstTagName)) {
-			return Error::NONE;
-		}
-		reader.tryReadingFirmwareTagFromFile(tagName, false);
-		reader.exitTag(tagName);
-	}
-	return Error::FILE_CORRUPTED;
-}
 
 // load(xml) -> save into `out`. Returns serialized length, or -1 on load error
 // (code in *loadErr). `xml` must be writable (the reader null-terminates tokens

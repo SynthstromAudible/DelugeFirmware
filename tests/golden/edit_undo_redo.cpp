@@ -66,13 +66,17 @@
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
 #include "processing/sound/sound_drum.h"
+#include "storage/parse_xml.h"
 #include "storage/storage_manager.h"
+#include "storage/value_tree_deserializer.h"
+#include "tree_load.h"
 
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 #include <optional>
+#include <string_view>
 #include <vector>
 
 namespace params = deluge::modulation::params;
@@ -94,11 +98,18 @@ Song* load_song(char* xml, size_t xmlLen, Error* loadErr) {
 	song->paramManager.setupUnpatched();
 	GlobalEffectable::initParams(&song->paramManager);
 
-	XMLDeserializer reader((uint8_t*)xml, xmlLen);
-	activeDeserializer = &reader;
-	Error e = reader.openXMLFile(nullptr, "song");
-	if (e == Error::NONE) {
-		e = deluge::project::loadSong(*song, reader);
+	// Load via the record-first Value tree (deserializer step 2b): parse the whole XML to a Value, then
+	// replay it to readFromFile through ValueTreeDeserializer -- bit-identical to the streaming load.
+	std::optional<deluge::storage::Value> tree =
+	    deluge::storage::parseXml(std::string_view(reinterpret_cast<const char*>(xml), static_cast<size_t>(xmlLen)));
+	Error e = Error::FILE_CORRUPTED;
+	if (tree) {
+		deluge::storage::ValueTreeDeserializer adapter(*tree, deluge::storage::SourceFormat::Xml);
+		activeReader = &adapter; // in-memory: gates the AudioEngine render off during load (as the stream path did)
+		e = openTreeFile(adapter, "song");
+		if (e == Error::NONE) {
+			e = deluge::project::loadSong(*song, adapter);
+		}
 	}
 	*loadErr = e;
 	if (e != Error::NONE) {

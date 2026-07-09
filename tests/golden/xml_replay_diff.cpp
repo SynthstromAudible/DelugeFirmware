@@ -308,6 +308,25 @@ int main() {
 		exit_(r, t, nullptr, true);
 	});
 
+	// (11) STRAY TEXT alongside a child element. Malformed Deluge files (issue #2514's <kitParams> writes
+	// a stray '>' turning its attributes into text before the real children) carry non-whitespace text
+	// inside an element that also has children. XMLDeserializer ignores inter-tag text (skipUntilChar('<')
+	// between tags), so the text is skipped and the child read next; parseXml must drop it, not fail.
+	diff("stray-text-with-child", R"(<p>a="1" b="2"<c v="3"/></p>)", [](Deserializer& r, Transcript& t) {
+		name(r, t);   // "p"
+		m(r, t, '{'); // enter p
+		name(r, t);   // "c" (stray text a="1" b="2" skipped)
+		m(r, t, '{');
+		name(r, t); // "v"
+		vInt(r, t); // 3
+		exit_(r, t, "v");
+		name(r, t); // "" end of c
+		m(r, t, '}');
+		exit_(r, t, nullptr, true); // leave c
+		name(r, t);                 // "" end of p
+		m(r, t, '}');
+	});
+
 	printf(failures ? "XML_REPLAY_DIFF: %d FAIL\n" : "XML_REPLAY_DIFF: OK\n", failures);
 	return failures ? 1 : 0;
 }
