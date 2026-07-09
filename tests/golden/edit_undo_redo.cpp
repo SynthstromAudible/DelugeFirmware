@@ -809,6 +809,17 @@ void clipLengthTarget(Song* song) {
 	actionLogger.revert(AFTER, false, false);
 	check(clip->loopLength() == newLength, "set-length: redo re-applies");
 
+	// M3 owner-1 slice 3b (READ FLIP): the clip is now bound to its DOM record. Poke the DocClip directly (bypassing
+	// setLoopLength) and confirm loopLength() reflects it — proving the read resolves through the DOM store, not the
+	// engine field. (loopLength_ is still newLength here, so a different result can only come from the DOM.)
+	deluge::project::DocClip* boundDoc = song->project.resolveClip(*clipAddr);
+	check(boundDoc != nullptr, "set-length: clip is bound to a DocClip");
+	if (boundDoc) {
+		boundDoc->loop_length = 424242;
+		check(clip->loopLength() == 424242, "set-length: loopLength() reads the DOM store (read flip proven)");
+		boundDoc->loop_length = newLength; // restore
+	}
+
 	song->setCurrentClip(nullptr);
 }
 

@@ -1,6 +1,7 @@
 #include "model/edits/set_clip_length.h"
 
 #include "deluge-project/song.h" // getOrCreateDocClip
+#include "model/clip/clip.h"     // bindDomClip
 #include "model/edits/clip_address_for.h"
 #include "model/song/song.h"
 
@@ -13,7 +14,9 @@ Error SetClipLength::apply(Context& ctx) {
 	// engine field stays authoritative until the read/save/load flip. Only shadow already-addressable clips; NEVER
 	// mint a session id here (that would fork the shared id lifecycle — piggyback on the param tier's minted id).
 	if (std::optional<project::ClipAddress> address = clipAddressFor(*clip_)) {
-		ctx.model.getOrCreateDocClip(*address).loop_length = static_cast<int32_t>(newLength_);
+		project::DocClip& doc = ctx.model.getOrCreateDocClip(*address);
+		doc.loop_length = static_cast<int32_t>(newLength_);
+		clip_->bindDomClip(&doc); // read flip: loopLength() now resolves through the DOM store for this clip
 	}
 	return Error::NONE;
 }

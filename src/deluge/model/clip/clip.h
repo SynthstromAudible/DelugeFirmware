@@ -18,6 +18,7 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_clip.h"
 #include "gui/colour/colour.h"
 #include "gui/views/audio_clip_view.h"
 #include "gui/waveform/waveform_render_data.h"
@@ -182,11 +183,25 @@ public:
 
 	LearnedMIDI muteMIDICommand;
 
-	/// M3 owner-1 read flip (slice 3a): clip loop length is now reached through accessors so the read can later be
-	/// rebound to the DOM-owned DocClip (slice 3b). Behaviour-identical in 3a — the accessors read/write this field.
-	[[nodiscard]] int32_t loopLength() const { return loopLength_; }
-	void setLoopLength(int32_t newLength) { loopLength_ = newLength; }
+	/// M3 owner-1 read flip: clip loop length is reached through accessors bound to the DOM-owned DocClip. A clip is
+	/// UNBOUND (domClip_ == nullptr) until its first SetClipLength edit binds it (slice 3b); unbound clips read/write
+	/// the engine field exactly as before (safe fallback). Once bound, loopLength() reads DocClip.loop_length and
+	/// setLoopLength() syncs it — the DOM store is authoritative. loopLength_ is kept as a mirror (fallback + the
+	/// value carried across clone/load until (re)bound). domClip_ points into Song::clip_structure, a std::map, so the
+	/// pointer is address-stable across other clips' inserts.
+	[[nodiscard]] int32_t loopLength() const { return domClip_ != nullptr ? domClip_->loop_length : loopLength_; }
+	void setLoopLength(int32_t newLength) {
+		loopLength_ = newLength;
+		if (domClip_ != nullptr) {
+			domClip_->loop_length = newLength;
+		}
+	}
+	/// Bind this clip's loop length to its DOM record (slice 3b). The caller must have already set `d->loop_length` to
+	/// the current length so the read flip is consistent. Not carried across clone/copy — a clone rebinds on its own
+	/// first edit.
+	void bindDomClip(deluge::project::DocClip* d) { domClip_ = d; }
 	int32_t loopLength_{};
+	deluge::project::DocClip* domClip_{nullptr};
 
 	// Before linear recording of this Clip began, and this Clip started getting extended to multiples of this
 	int32_t originalLength;
