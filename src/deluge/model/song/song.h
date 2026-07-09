@@ -200,7 +200,7 @@ public:
 	Clip* getClipWithOutput(Output* output, bool mustBeActive = false, Clip* excludeClip = nullptr);
 	Error readFromFile(Deserializer& reader);
 
-	/// M3: mint a transient session id for every clip / output / drum that lacks a durable serialId, so every entity
+	/// M3: mint a transient session id for every clip / output / drum that lacks a durable id, so every entity
 	/// is id-addressable. Called at load before the param relocation; idempotent (skips entities that already have an
 	/// id). Session ids are never serialized → golden-neutral.
 	void assignSessionIds();
@@ -263,7 +263,7 @@ public:
 	Output* getOutputFromIndex(int32_t index);
 
 	// --- Stable per-song serial identity for clips/outputs (the DOM reference foundation) ---
-	// Each clip/output carries a persisted serial id (Clip::serialId / Output::serialId), assigned
+	// Each clip/output carries a persisted serial id (Clip::id / Output::id), assigned
 	// lazily on first save from these per-song monotonic counters and restored on load. Unlike the
 	// transient positional index, the id survives reorders and reloads, so DOM references (e.g.
 	// session macros) can resolve by id instead of position.
@@ -407,7 +407,7 @@ private:
 	int32_t intBPM{0};
 
 	// Per-song monotonic serial-id counters (see generateNewClipId). First assigned id is 1; the
-	// unassigned state is std::nullopt (Clip/Output::serialId), not a reserved id value.
+	// unassigned state is std::nullopt (Clip/Output::id), not a reserved id value.
 	uint32_t clipIdCounter_{1};
 	uint32_t outputIdCounter_{1};
 	uint32_t drumIdCounter_{1};

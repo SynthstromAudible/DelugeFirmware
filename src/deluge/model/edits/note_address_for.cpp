@@ -17,7 +17,7 @@ std::optional<deluge::project::NoteRowAddress> noteRowAddressFor(const ModelStac
 	deluge::project::NoteRowAddress addr{};
 
 	// Clip identity (serial when saved, else the S5-b session id; else unaddressable).
-	if (std::optional<uint32_t> serial = clip->serialId()) {
+	if (std::optional<uint32_t> serial = clip->id()) {
 		addr.clip_id = *serial;
 		addr.clip_is_session = false;
 	}
@@ -35,7 +35,7 @@ std::optional<deluge::project::NoteRowAddress> noteRowAddressFor(const ModelStac
 		if (drum == nullptr || drum->type != DrumType::SOUND) {
 			return std::nullopt; // non-Sound / rowless drum — unaddressable (mirrors addressFor)
 		}
-		if (std::optional<uint32_t> serial = drum->serialId()) {
+		if (std::optional<uint32_t> serial = drum->id()) {
 			addr.row_key = static_cast<int32_t>(*serial);
 			addr.row_key_is_session = false;
 		}

@@ -28,15 +28,15 @@ namespace deluge::project {
 
 /// Composite identity of one instrument-shared automation store, mirroring `ParamBackup`'s
 /// `(ModControllableAudio*, Clip*)` key in engine-pointer-free serial terms: the `owner` is an
-/// `INSTRUMENT` (SoundInstrument / Kit, by Output::serialId) or a `DRUM` (SoundDrum, by Drum::serialId),
-/// and `clip_serial` is which clip's override this is — nullopt = the owner's shared default (the
+/// `INSTRUMENT` (SoundInstrument / Kit, by Output::id) or a `DRUM` (SoundDrum, by Drum::id),
+/// and `clip_id` is which clip's override this is — nullopt = the owner's shared default (the
 /// null-Clip backup entry). Ordered so it can key the `fast_map` (a `std::map`) store.
 struct BackedParamKey {
 	OwnerId owner{};
-	std::optional<uint32_t> clip_serial{};
-	// S5-b: whether `clip_serial` is a transient session id (a not-yet-saved clip) rather than a persisted serialId.
+	std::optional<uint32_t> clip_id{};
+	// S5-b: whether `clip_id` is a transient session id (a not-yet-saved clip) rather than a persisted id.
 	// Keeps a runtime-added session clip's key distinct from a persisted clip's when both live under the same
-	// serialId owner (session and serial ids share a numeric space). Ordered after clip_serial, so `removeOwner`'s
+	// id owner (session and serial ids share a numeric space). Ordered after clip_id, so `removeOwner`'s
 	// owner-range erase is unaffected.
 	bool clip_is_session{false};
 
@@ -52,24 +52,24 @@ struct BackedParamKey {
 struct BackedParams {
 	deluge::fast_map<BackedParamKey, DocParamManager> by_owner;
 
-	/// The store for exactly (owner, clip_serial), or nullptr if none is tree-resident.
+	/// The store for exactly (owner, clip_id), or nullptr if none is tree-resident.
 	DocParamManager* find(const OwnerId& owner, std::optional<uint32_t> clipSerial, bool clipIsSession = false) {
 		auto it = by_owner.find(BackedParamKey{owner, clipSerial, clipIsSession});
 		return it == by_owner.end() ? nullptr : &it->second;
 	}
 
-	/// The store for (owner, clip_serial), creating an empty one if absent.
+	/// The store for (owner, clip_id), creating an empty one if absent.
 	DocParamManager& getOrCreate(const OwnerId& owner, std::optional<uint32_t> clipSerial, bool clipIsSession = false) {
 		return by_owner[BackedParamKey{owner, clipSerial, clipIsSession}];
 	}
 
-	/// Drop the store for (owner, clip_serial).
+	/// Drop the store for (owner, clip_id).
 	void remove(const OwnerId& owner, std::optional<uint32_t> clipSerial, bool clipIsSession = false) {
 		by_owner.erase(BackedParamKey{owner, clipSerial, clipIsSession});
 	}
 
 	/// Drop EVERY store for `owner` (all clip overrides). Entries for one owner are contiguous in the ordered map
-	/// (BackedParamKey compares owner before clip_serial), so this is a single range-erase. Called on
+	/// (BackedParamKey compares owner before clip_id), so this is a single range-erase. Called on
 	/// instrument/drum death (retire-on-death) to keep the tree a faithful mirror of live owners — safe only once
 	/// the owner's engine ParamManagers are gone, so nothing is still bound to these stores.
 	void removeOwner(const OwnerId& owner) {

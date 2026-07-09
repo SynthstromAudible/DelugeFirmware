@@ -62,8 +62,8 @@ public:
 
 	Drum* next;
 
-	std::optional<uint32_t> serial_id_; // Stable per-song identity; see serialId(). nullopt = unassigned.
-	uint32_t session_id_{0}; // Transient per-load identity; see sessionId(). 0 = unassigned. Never serialized.
+	std::optional<uint32_t> id_; // Stable per-song identity; see id(). nullopt = unassigned.
+	uint32_t session_id_{0};     // Transient per-load identity; see sessionId(). 0 = unassigned. Never serialized.
 
 	LearnedMIDI midiInput;
 	LearnedMIDI muteMIDICommand;
@@ -89,14 +89,14 @@ public:
 	void writeDrumTagsToFile(Serializer& writer, bool savingSong);
 	bool readDrumTagFromFile(Deserializer& reader, char const* tagName);
 
-	// --- Stable per-song serial identity (see Clip/Output::serialId). Assigned lazily on first song-save from
+	// --- Stable per-song serial identity (see Clip/Output::id). Assigned lazily on first song-save from
 	// Song::generateNewDrumId, restored on load, and used to address this drum's automation lane in the
 	// persistent tree (OwnerId::Drum) independent of its transient linked-list position. nullopt = unassigned. ---
-	[[nodiscard]] std::optional<uint32_t> serialId() const { return serial_id_; }
-	void setSerialId(uint32_t id) { serial_id_ = id; }
+	[[nodiscard]] std::optional<uint32_t> id() const { return id_; }
+	void setId(uint32_t id) { id_ = id; }
 
 	/// S5-b: transient (never-serialized) session id for runtime DOM addressing of a NOT-YET-SAVED drum (no
-	/// serialId). 0 = unassigned. Minted at load/creation so doc() id-resolves its per-drum params.
+	/// id). 0 = unassigned. Minted at load/creation so doc() id-resolves its per-drum params.
 	[[nodiscard]] uint32_t sessionId() const { return session_id_; }
 	void setSessionId(uint32_t id) { session_id_ = id; }
 	void recordNoteOnEarly(int32_t velocity, bool noteTailsAllowed);

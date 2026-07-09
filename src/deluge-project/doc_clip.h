@@ -22,7 +22,7 @@
 namespace deluge::project {
 
 /// The DOM-owned structural record for one clip (M3 owner-1 — the clip-structure ownership inversion, mirroring the
-/// param/automation tier's DocAutoParam). Kept in `ClipStructure`, keyed by the clip's stable `Clip::serialId` (or a
+/// param/automation tier's DocAutoParam). Kept in `ClipStructure`, keyed by the clip's stable `Clip::id` (or a
 /// transient sessionId) — never by a `Clip*` or array index.
 ///
 /// Shadow store: each field is written alongside its engine `Clip` field (dual-write) but nothing reads DocClip yet;

@@ -50,8 +50,8 @@ void Drum::writeDrumTagsToFile(Serializer& writer, bool savingSong) {
 	// Stable per-song serial identity, written only as part of a song (an intra-song reference; meaningless in a
 	// standalone kit/preset file). Lazily assigned in Kit::writeDrumToFile before this call, so a value present here
 	// under savingSong is always song-scoped.
-	if (savingSong && serialId().has_value()) {
-		writer.writeAttribute("id", *serialId());
+	if (savingSong && id().has_value()) {
+		writer.writeAttribute("id", *id());
 	}
 }
 
@@ -74,9 +74,9 @@ bool Drum::readDrumTagFromFile(Deserializer& reader, char const* tagName) {
 		reader.exitTag();
 	}
 	else if (!strcmp(tagName, "id")) {
-		// Stable per-song serial identity (see Drum::serialId). Song::syncSerialIdCountersFromLoaded advances the
+		// Stable per-song serial identity (see Drum::id). Song::syncSerialIdCountersFromLoaded advances the
 		// drum id counter past all loaded ids after the load completes.
-		setSerialId(reader.readTagOrAttributeValueInt());
+		setId(reader.readTagOrAttributeValueInt());
 		reader.exitTag("id");
 	}
 	else {

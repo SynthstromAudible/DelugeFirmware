@@ -181,15 +181,15 @@ void serializeMacros(const Arrangement& arrangement, Serializer& writer) {
 			// Reference the target clip by its stable serial id (resolve via Song::clipForId on load),
 			// so the macro survives clip reordering. A clip is always saved before the macros, so its
 			// id is assigned by now.
-			if (m.clip != nullptr && m.clip->serialId().has_value()) {
+			if (m.clip != nullptr && m.clip->id().has_value()) {
 				writer.writeAttribute("kind", "clip_launch");
-				writer.writeAttribute("clipId", *m.clip->serialId());
+				writer.writeAttribute("clipId", *m.clip->id());
 			}
 			break;
 		case SessionMacroKind::OUTPUT_CYCLE:
-			if (m.output != nullptr && m.output->serialId().has_value()) {
+			if (m.output != nullptr && m.output->id().has_value()) {
 				writer.writeAttribute("kind", "output_cycle");
-				writer.writeAttribute("outputId", *m.output->serialId());
+				writer.writeAttribute("outputId", *m.output->id());
 			}
 			break;
 		case SessionMacroKind::SECTION:

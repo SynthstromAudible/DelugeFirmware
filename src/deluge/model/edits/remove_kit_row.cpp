@@ -42,7 +42,7 @@ Error RemoveKitRow::apply(Context& ctx) {
 
 	// Delete the Drum we came here to delete
 	ctx.model.param_backup.deleteForModControllable(drum_);
-	if (std::optional<uint32_t> drumId = drum_->serialId()) { // retire its tree-resident automation stores
+	if (std::optional<uint32_t> drumId = drum_->id()) { // retire its tree-resident automation stores
 		ctx.model.backed_params.removeOwner(deluge::project::OwnerId::drum(*drumId));
 	}
 	void* toDealloc = dynamic_cast<void*>(drum_);

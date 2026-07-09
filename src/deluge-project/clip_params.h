@@ -24,25 +24,25 @@
 namespace deluge::project {
 
 /// Per-clip automation node storage, owned by the persistent `project` tree and keyed by the clip's stable
-/// `Clip::serialId`. This is what makes a clip's params tree-resident and id-addressable (`Song::resolveParam`
+/// `Clip::id`. This is what makes a clip's params tree-resident and id-addressable (`Song::resolveParam`
 /// with a `Clip` owner), instead of engine-owned on the live `ParamSet::domStore_`. Because it is keyed by the
 /// serial id — not by a `Clip*` or array index — it is unaffected by clip reorders and by
 /// `stealParamCollectionsFrom`/`ParamBackup` moving the engine cursor-holder (the nodes stay here, resolved by
 /// id). A component of `deluge::project::Song`.
 struct ClipParams {
-	deluge::fast_map<uint32_t, DocParamManager> by_serial_id;
+	deluge::fast_map<uint32_t, DocParamManager> by_id;
 
 	/// The clip's DocParamManager, or nullptr if this clip has no tree-resident store.
-	DocParamManager* find(uint32_t serialId) {
-		auto it = by_serial_id.find(serialId);
-		return it == by_serial_id.end() ? nullptr : &it->second;
+	DocParamManager* find(uint32_t id) {
+		auto it = by_id.find(id);
+		return it == by_id.end() ? nullptr : &it->second;
 	}
 
 	/// The clip's DocParamManager, creating an empty one if absent.
-	DocParamManager& getOrCreate(uint32_t serialId) { return by_serial_id[serialId]; }
+	DocParamManager& getOrCreate(uint32_t id) { return by_id[id]; }
 
 	/// Drop the clip's store (on clip destruction).
-	void remove(uint32_t serialId) { by_serial_id.erase(serialId); }
+	void remove(uint32_t id) { by_id.erase(id); }
 };
 
 } // namespace deluge::project

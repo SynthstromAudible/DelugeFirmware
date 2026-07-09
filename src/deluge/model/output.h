@@ -108,11 +108,11 @@ public:
 	/// Stable, persisted, per-song serial identity (the DOM reference foundation). nullopt until
 	/// assigned lazily on first save from the song's counter (or restored on load); resolve via
 	/// Song::outputForId.
-	[[nodiscard]] std::optional<uint32_t> serialId() const { return serial_id_; }
-	void setSerialId(uint32_t id) { serial_id_ = id; }
+	[[nodiscard]] std::optional<uint32_t> id() const { return id_; }
+	void setId(uint32_t id) { id_ = id; }
 
 	/// S5-b: transient (never-serialized) session id for runtime DOM addressing of a NOT-YET-SAVED instrument
-	/// (no serialId). 0 = unassigned. Minted at load/creation so doc() id-resolves its clip-level params.
+	/// (no id). 0 = unassigned. Minted at load/creation so doc() id-resolves its clip-level params.
 	[[nodiscard]] uint32_t sessionId() const { return session_id_; }
 	void setSessionId(uint32_t id) { session_id_ = id; }
 
@@ -246,8 +246,8 @@ protected:
 	SampleRecorder* recorder{nullptr};
 
 private:
-	/// Stable per-song serial identity; see serialId(). nullopt = unassigned.
-	std::optional<uint32_t> serial_id_{};
+	/// Stable per-song serial identity; see id(). nullopt = unassigned.
+	std::optional<uint32_t> id_{};
 	/// Transient per-load session identity; see sessionId(). 0 = unassigned. Never serialized.
 	uint32_t session_id_{0};
 };

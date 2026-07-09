@@ -273,20 +273,20 @@ int main(int argc, char** argv) {
 				// from kits that DO have live drum rows (e.g. Kitchen Clave: 17).
 				std::fprintf(stderr, "kit clone: sound-drum rows=%d\n", drumRows);
 
-				// S5-b (runtime relocation): the clone is a RUNTIME-created clip with no serialId/sessionId, so its
+				// S5-b (runtime relocation): the clone is a RUNTIME-created clip with no id/sessionId, so its
 				// clip-level FX still live in an engine-owned INLINE store — doc() must lazily mint a session id and
 				// relocate that store into the session tree (relocateAndResolve), making the owner id-addressable
 				// instead of hitting the paramCollection fallback. Because the clone SHARES the source Kit's output
-				// (which kept its loaded serialId), this is the MIXED case: a serialId instrument carrying a session
+				// (which kept its loaded id), this is the MIXED case: a id instrument carrying a session
 				// clip (clip_is_session=true) — the only coverage for it. Distinguish relocation from the fallback by
 				// asserting the store became TREE-resident (backed_params entry), not merely bound.
 				{
-					// Force the MIXED case deterministically: give the clone's (source-shared) output a serialId so it
+					// Force the MIXED case deterministically: give the clone's (source-shared) output a id so it
 					// reads as a SAVED instrument carrying a runtime (session) clip. Without this the corpus kits have
-					// no output serialId and only the both-session runtime path fires (already proven). addressFor
-					// prefers the serialId, so this exercises OwnerId::instrument + clip_is_session=true.
-					if (!kClone->output->serialId().has_value()) {
-						kClone->output->setSerialId(0x5EED0001);
+					// no output id and only the both-session runtime path fires (already proven). addressFor
+					// prefers the id, so this exercises OwnerId::instrument + clip_is_session=true.
+					if (!kClone->output->id().has_value()) {
+						kClone->output->setId(0x5EED0001);
 					}
 					ParamSet* fx = kClone->paramManager.getUnpatchedParamSet();
 					char sbuf[MODEL_STACK_MAX_SIZE];
@@ -299,7 +299,7 @@ int main(int argc, char** argv) {
 						deluge::project::DocAutoParam* resolved = msap->doc(); // triggers lazy relocation
 						uint32_t sid = kClone->sessionId();
 						check(sid != 0, "kit clone: doc() minted a session id for the runtime clip");
-						std::optional<uint32_t> kitSerial = kClone->output->serialId();
+						std::optional<uint32_t> kitSerial = kClone->output->id();
 						deluge::project::OwnerId owner =
 						    kitSerial.has_value()
 						        ? deluge::project::OwnerId::instrument(*kitSerial)

@@ -23,7 +23,7 @@ uint32_t docFallbackHits = 0;
 // can build the same stable ParamAddress at construction time, before it holds a resolved engine ModelStack. The
 // `kind` carried into the address is the ModelStack's threaded param Kind (S5-a); the ALPHA safety-net assert that
 // it matches the collection's own getParamKind() rides along with it, unchanged. The one unaddressable case — a
-// never-saved (no-serialId) owner — returns nullopt, exactly the fallthrough doc() takes to its engine store.
+// never-saved (no-id) owner — returns nullopt, exactly the fallthrough doc() takes to its engine store.
 std::optional<deluge::project::ParamAddress> addressFor(const ModelStackWithAutoParam& modelStack) {
 	if (modelStack.song == nullptr) {
 		return std::nullopt;
@@ -45,16 +45,16 @@ std::optional<deluge::project::ParamAddress> addressFor(const ModelStackWithAuto
 		// builders always set it explicitly (addNoteRow(0, nullptr) for the no-noteRow path), never stale.
 		//
 		// S5-b: the OWNER dimension (clip / output / drum) and the CLIP dimension are each addressed by a persisted
-		// serialId when the object was saved, else by a transient session id (id-address a not-yet-saved owner so
+		// id when the object was saved, else by a transient session id (id-address a not-yet-saved owner so
 		// doc() resolves it instead of the paramCollection fallback). The two dimensions are INDEPENDENT — a saved
-		// instrument (serialId) can carry a runtime-added clip (session id): the "mixed" case, disambiguated by
+		// instrument (id) can carry a runtime-added clip (session id): the "mixed" case, disambiguated by
 		// clip_is_session. A missing id in EITHER dimension (never relocated) leaves haveOwner false → the fallback.
 		Clip* clip = static_cast<Clip*>(tc);
 		NoteRow* noteRow = modelStack.getNoteRowAllowNull();
 
-		// Clip dimension: serialId (persisted) or session id (runtime / never-saved). Used as the (owner, clip) key
+		// Clip dimension: id (persisted) or session id (runtime / never-saved). Used as the (owner, clip) key
 		// for INSTRUMENT/DRUM owners, and as the CLIP owner's own id for audio/MIDI.
-		std::optional<uint32_t> clipSerialOpt = clip->serialId();
+		std::optional<uint32_t> clipSerialOpt = clip->id();
 		bool haveClip = false;
 		uint32_t clipKey = 0;
 		bool clipIsSession = false;
@@ -75,7 +75,7 @@ std::optional<deluge::project::ParamAddress> addressFor(const ModelStackWithAuto
 			// Per-drum (DRUM owner): resolve the drum dimension independently of the clip dimension.
 			if (noteRow->drum != nullptr && noteRow->drum->type == DrumType::SOUND) {
 				Drum* drum = noteRow->drum;
-				if (std::optional<uint32_t> drumId = drum->serialId()) {
+				if (std::optional<uint32_t> drumId = drum->id()) {
 					owner = deluge::project::OwnerId::drum(*drumId);
 					clipSerial = clipKey;
 					haveOwner = true;
@@ -91,7 +91,7 @@ std::optional<deluge::project::ParamAddress> addressFor(const ModelStackWithAuto
 		         && (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::KIT)) {
 			// Synth/kit clip-level instrument-shared (INSTRUMENT owner): resolve the output dimension independently.
 			Output* out = clip->output;
-			if (std::optional<uint32_t> outId = out->serialId()) {
+			if (std::optional<uint32_t> outId = out->id()) {
 				owner = deluge::project::OwnerId::instrument(*outId);
 				clipSerial = clipKey;
 				haveOwner = true;
@@ -106,14 +106,14 @@ std::optional<deluge::project::ParamAddress> addressFor(const ModelStackWithAuto
 		         || (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
 		             && clip->output->type == OutputType::MIDI_OUT)) {
 			// An audio clip's own params, or a MIDI_OUT clip's per-clip CC automation (Kind::MIDI resolves by cc
-			// within the per-clip store) — both are CLIP owners keyed by the clip's serialId or session id.
+			// within the per-clip store) — both are CLIP owners keyed by the clip's id or session id.
 			owner = clipIsSession ? deluge::project::OwnerId::clipSession(clipKey)
 			                      : deluge::project::OwnerId::clip(clipKey);
 			haveOwner = true;
 		}
 		if (haveOwner) {
 			// For INSTRUMENT/DRUM owners, record whether the clip dimension is a session id (the mixed case's
-			// disambiguator). Harmless for CLIP owners (clip_serial unused there; is_session rides in the OwnerId).
+			// disambiguator). Harmless for CLIP owners (clip_id unused there; is_session rides in the OwnerId).
 			clipDimIsSession = clipIsSession;
 		}
 	}
@@ -138,11 +138,11 @@ deluge::project::DocParamManager* managerForAddress(deluge::project::Song& proj,
                                                     const deluge::project::ParamAddress& address) {
 	switch (address.owner.kind) {
 	case deluge::project::OwnerId::Kind::CLIP:
-		return address.owner.is_session ? &proj.session_clip_params.getOrCreate(address.owner.serial_id)
-		                                : &proj.clip_params.getOrCreate(address.owner.serial_id);
+		return address.owner.is_session ? &proj.session_clip_params.getOrCreate(address.owner.id)
+		                                : &proj.clip_params.getOrCreate(address.owner.id);
 	case deluge::project::OwnerId::Kind::INSTRUMENT:
 	case deluge::project::OwnerId::Kind::DRUM:
-		return &proj.backed_params.getOrCreate(address.owner, address.clip_serial, address.clip_is_session);
+		return &proj.backed_params.getOrCreate(address.owner, address.clip_id, address.clip_is_session);
 	case deluge::project::OwnerId::Kind::SONG:
 		return nullptr;
 	}
@@ -166,18 +166,18 @@ deluge::project::DocAutoParam* relocateAndResolve(const ModelStackWithAutoParam&
 
 	// Mint session ids for the owner chain this param belongs to (mint-once: a session id shared across the owner's
 	// clips/params stays stable). After this, addressFor can build a total ParamAddress.
-	if (!clip->serialId().has_value() && clip->sessionId() == 0) {
+	if (!clip->id().has_value() && clip->sessionId() == 0) {
 		clip->setSessionId(proj.mintSessionId());
 	}
 	if (noteRow != nullptr) {
-		if (noteRow->drum != nullptr && noteRow->drum->type == DrumType::SOUND && !noteRow->drum->serialId().has_value()
+		if (noteRow->drum != nullptr && noteRow->drum->type == DrumType::SOUND && !noteRow->drum->id().has_value()
 		    && noteRow->drum->sessionId() == 0) {
 			noteRow->drum->setSessionId(proj.mintSessionId());
 		}
 	}
 	else if (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
 	         && (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::KIT)
-	         && !clip->output->serialId().has_value() && clip->output->sessionId() == 0) {
+	         && !clip->output->id().has_value() && clip->output->sessionId() == 0) {
 		clip->output->setSessionId(proj.mintSessionId());
 	}
 

@@ -314,12 +314,12 @@ void SoundInstrument::setupPatchingForAllParamManagers(Song* song) {
 
 void SoundInstrument::deleteBackedUpParamManagers(Song* song) {
 	song->project.param_backup.deleteForModControllable(this);
-	// M2-G S4.5b: also retire this instrument's tree-resident automation stores (keyed by Output::serialId), so
+	// M2-G S4.5b: also retire this instrument's tree-resident automation stores (keyed by Output::id), so
 	// the persistent tree stays a faithful mirror of live owners. Safe here: deleteForModControllable above
 	// destroyed every parked ParamManager, and the instrument's clips are gone by the time an Output is deleted,
-	// so nothing is still bound to these stores. No-op when the instrument was never saved (no serialId).
-	if (std::optional<uint32_t> id = serialId()) {
-		song->project.backed_params.removeOwner(deluge::project::OwnerId::instrument(*id));
+	// so nothing is still bound to these stores. No-op when the instrument was never saved (no id).
+	if (std::optional<uint32_t> ownId = id()) {
+		song->project.backed_params.removeOwner(deluge::project::OwnerId::instrument(*ownId));
 	}
 }
 

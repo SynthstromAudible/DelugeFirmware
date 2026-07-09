@@ -1188,7 +1188,7 @@ weAreInArrangementEditorOrInClipInstance:
 
 void Song::assignSessionIds() {
 	auto assignClip = [this](Clip* c) {
-		if (!c->serialId() && c->sessionId() == 0) {
+		if (!c->id() && c->sessionId() == 0) {
 			c->setSessionId(project.mintSessionId());
 		}
 	};
@@ -1199,12 +1199,12 @@ void Song::assignSessionIds() {
 		assignClip(project.clips.arrangement_only_clips[c]);
 	}
 	for (Output* o = project.media.first_output; o != nullptr; o = o->next) {
-		if (!o->serialId() && o->sessionId() == 0) {
+		if (!o->id() && o->sessionId() == 0) {
 			o->setSessionId(project.mintSessionId());
 		}
 		if (o->type == OutputType::KIT) {
 			for (Drum* d = static_cast<Kit*>(o)->firstDrum; d != nullptr; d = d->next) {
-				if (!d->serialId() && d->sessionId() == 0) {
+				if (!d->id() && d->sessionId() == 0) {
 					d->setSessionId(project.mintSessionId());
 				}
 			}
@@ -1216,7 +1216,7 @@ void Song::adoptClip(Clip* clip) {
 	if (clip->isDomBound()) {
 		return; // already adopted (idempotent — e.g. undo re-insert of a clip that was never destructed)
 	}
-	if (!clip->serialId() && clip->sessionId() == 0) {
+	if (!clip->id() && clip->sessionId() == 0) {
 		clip->setSessionId(project.mintSessionId());
 	}
 	std::optional<deluge::project::ClipAddress> addr = deluge::edits::clipAddressFor(*clip);
@@ -1840,7 +1840,7 @@ loadOutput:
 		}
 	}
 
-	// M3 universal ids: assign a session id to every no-serialId clip/output/drum BEFORE the relocation, so the
+	// M3 universal ids: assign a session id to every no-id clip/output/drum BEFORE the relocation, so the
 	// relocation (and the loop-length load-binding pass below) resolve by an id that already exists — instead of
 	// minting conditionally inline. Golden-neutral (session ids aren't serialized).
 	assignSessionIds();
@@ -1856,15 +1856,15 @@ loadOutput:
 			if (thisClip->type == ClipType::AUDIO && thisClip->paramManager.containsAnyMainParamCollections()) {
 				UnpatchedParamSet* unpatched = thisClip->paramManager.getUnpatchedParamSet();
 				// M2-G S2b: relocate the audio clip's unpatched automation into the persistent project tree, keyed
-				// by the clip's stable serialId, and bind the engine set to that tree store (so doc() id-resolves
-				// it and docForParam/save read the same nodes). A clip with no serialId (never saved) keeps its
+				// by the clip's stable id, and bind the engine set to that tree store (so doc() id-resolves
+				// it and docForParam/save read the same nodes). A clip with no id (never saved) keeps its
 				// engine-owned store. Seed the tree store from what the file read into the engine set first.
-				if (std::optional<uint32_t> id = thisClip->serialId()) {
+				if (std::optional<uint32_t> id = thisClip->id()) {
 					deluge::project::DocParamManager& mgr = project.clip_params.getOrCreate(*id);
 					relocateParamStoreToTree(unpatched, mgr.unpatched);
 				}
 				else {
-					// S5-b.1: a never-saved (no-serialId) audio clip — relocate into the transient session-keyed
+					// S5-b.1: a never-saved (no-id) audio clip — relocate into the transient session-keyed
 					// store and address it by a session id, so doc() id-resolves it (dropping the engine fallback
 					// for audio clips). Session ids are never serialized, so this is golden-neutral.
 					deluge::project::DocParamManager& mgr =
@@ -1877,16 +1877,16 @@ loadOutput:
 			// clip-level FX = unpatched only (GlobalEffectableForClip). Because stealParamCollectionsFrom moves only
 			// collection pointers, this external binding rides the ParamSet through every park / restore /
 			// clip-death re-key, so resolution survives all of it; the (owner, clip) key precision only matters for
-			// later id-addressing. A clip / instrument without a serialId (never saved) keeps its engine store.
+			// later id-addressing. A clip / instrument without a id (never saved) keeps its engine store.
 			// S4a relocates expression (MPE) too; patch cables / MIDI keep their M2-F inline stores for now.
 			else if (thisClip->type == ClipType::INSTRUMENT && thisClip->output != nullptr
 			         && (thisClip->output->type == OutputType::SYNTH || thisClip->output->type == OutputType::KIT)
 			         && thisClip->paramManager.containsAnyMainParamCollections()) {
-				std::optional<uint32_t> clipId = thisClip->serialId();
-				std::optional<uint32_t> outId = thisClip->output->serialId();
-				// S5-b.3: key by serialId when saved, else by transient session ids (the "both-session" case: the
-				// whole song is never-saved / freshly-loaded-old, so BOTH clip and output lack serialIds). A serialId
-				// owner with a newly-added no-serialId clip (mixed) is deferred → falls through to the engine store.
+				std::optional<uint32_t> clipId = thisClip->id();
+				std::optional<uint32_t> outId = thisClip->output->id();
+				// S5-b.3: key by id when saved, else by transient session ids (the "both-session" case: the
+				// whole song is never-saved / freshly-loaded-old, so BOTH clip and output lack ids). A id
+				// owner with a newly-added no-id clip (mixed) is deferred → falls through to the engine store.
 				deluge::project::OwnerId instrOwner{};
 				std::optional<uint32_t> clipKey{};
 				bool useSession = false;
@@ -1906,7 +1906,7 @@ loadOutput:
 				if (relocate) {
 					// clip_is_session == useSession here: the load path only relocates the both-serial (useSession
 					// false) and both-session (useSession true) cases, so the clip dimension's session-ness equals the
-					// owner's. The mixed case (serialId owner + session clip) is minted at runtime, not at load.
+					// owner's. The mixed case (id owner + session clip) is minted at runtime, not at load.
 					deluge::project::DocParamManager& mgr =
 					    project.backed_params.getOrCreate(instrOwner, clipKey, useSession);
 					UnpatchedParamSet* unpatched = thisClip->paramManager.getUnpatchedParamSet();
@@ -1929,7 +1929,7 @@ loadOutput:
 					if (ExpressionParamSet* expression = thisClip->paramManager.getExpressionParamSet()) {
 						relocateParamStoreToTree(expression, mgr.expression);
 					}
-					// M2-G S3e: per-drum (NoteRow) automation for a kit clip → keyed (drum(drum serialId), clip).
+					// M2-G S3e: per-drum (NoteRow) automation for a kit clip → keyed (drum(drum id), clip).
 					// Each SoundDrum NoteRow holds its own manager (independent automation per (drum, clip) pair),
 					// parked as (SoundDrum, clip) in ParamBackup. Same binding-rides-the-ParamSet safety as above.
 					if (thisClip->output->type == OutputType::KIT) {
@@ -1942,7 +1942,7 @@ loadOutput:
 							}
 							deluge::project::OwnerId drumOwner{};
 							if (!useSession) {
-								std::optional<uint32_t> drumId = nr.drum->serialId();
+								std::optional<uint32_t> drumId = nr.drum->id();
 								if (!drumId.has_value()) {
 									continue;
 								}
@@ -2193,19 +2193,19 @@ skipInstance:
 				else if (ot == OutputType::MIDI_OUT) {
 					// M2-G S4c: a MIDI_OUT clip manager holds a MIDIParamCollection (variable per-CC AutoParams) at
 					// summaries[0], NOT a ParamSet. Relocate its CC automation into the clip's per-clip tree store —
-					// keyed by Clip::serialId, in project.clip_params like audio clips, because MIDI CC automation is
+					// keyed by Clip::id, in project.clip_params like audio clips, because MIDI CC automation is
 					// per-clip (each InstrumentClip owns it; never instrument-shared, never in ParamBackup). doc()
-					// already builds an OwnerId::clip(clip) / Kind::MIDI address for these. A clip with no serialId
+					// already builds an OwnerId::clip(clip) / Kind::MIDI address for these. A clip with no id
 					// (never saved) keeps its engine-owned inline store. (CV has no MIDIParamCollection — skipped.)
 					if (thisClip->paramManager.containsAnyParamCollectionsIncludingExpression()) {
 						MIDIParamCollection* midi = thisClip->paramManager.getMIDIParamCollection();
-						if (std::optional<uint32_t> id = thisClip->serialId()) {
+						if (std::optional<uint32_t> id = thisClip->id()) {
 							deluge::project::DocParamManager& mgr = project.clip_params.getOrCreate(*id);
 							mgr.midi_params = deluge::project::toDocMidiParams(*midi);
 							midi->bindDomMidiExternal(&mgr.midi_params);
 						}
 						else {
-							// S5-b.2: a never-saved (no-serialId) MIDI clip — relocate its CC automation into the
+							// S5-b.2: a never-saved (no-id) MIDI clip — relocate its CC automation into the
 							// session-keyed store + address it by session id (Kind::MIDI resolves by cc), so doc()
 							// id-resolves it instead of the fallback.
 							// thisClip's session id was assigned up-front by assignSessionIds().
@@ -3058,7 +3058,7 @@ void Song::deleteClipObject(Clip* clip, bool songBeingDestroyedToo, InstrumentRe
 
 	// M2-G S2b: the clip's tree-resident param store (if any) is retired with the clip. Capture the key now while
 	// the clip is valid; erase the entry after the clip (and its bound ParamSets) are destructed below.
-	std::optional<uint32_t> treeParamId = clip->serialId();
+	std::optional<uint32_t> treeParamId = clip->id();
 
 	if (!songBeingDestroyedToo) {
 
@@ -3635,18 +3635,18 @@ void Song::syncSerialIdCountersFromLoaded() {
 		}
 	};
 	for (Output* output = project.media.first_output; output != nullptr; output = output->next) {
-		advancePast(outputIdCounter_, output->serialId());
+		advancePast(outputIdCounter_, output->id());
 	}
 	for (Clip* clip : project.clips.session_clips) {
-		advancePast(clipIdCounter_, clip->serialId());
+		advancePast(clipIdCounter_, clip->id());
 	}
 	for (Clip* clip : project.clips.arrangement_only_clips) {
-		advancePast(clipIdCounter_, clip->serialId());
+		advancePast(clipIdCounter_, clip->id());
 	}
 	for (Output* output = project.media.first_output; output != nullptr; output = output->next) {
 		if (output->type == OutputType::KIT) {
 			for (Drum* drum = ((Kit*)output)->firstDrum; drum != nullptr; drum = drum->next) {
-				advancePast(drumIdCounter_, drum->serialId());
+				advancePast(drumIdCounter_, drum->id());
 			}
 		}
 	}
@@ -3654,12 +3654,12 @@ void Song::syncSerialIdCountersFromLoaded() {
 
 Clip* Song::clipForId(uint32_t id) {
 	for (Clip* clip : project.clips.session_clips) {
-		if (clip->serialId() == id) {
+		if (clip->id() == id) {
 			return clip;
 		}
 	}
 	for (Clip* clip : project.clips.arrangement_only_clips) {
-		if (clip->serialId() == id) {
+		if (clip->id() == id) {
 			return clip;
 		}
 	}
@@ -3668,7 +3668,7 @@ Clip* Song::clipForId(uint32_t id) {
 
 Output* Song::outputForId(uint32_t id) {
 	for (Output* output = project.media.first_output; output != nullptr; output = output->next) {
-		if (output->serialId() == id) {
+		if (output->id() == id) {
 			return output;
 		}
 	}
@@ -3681,7 +3681,7 @@ Drum* Song::drumForId(uint32_t id) {
 			continue;
 		}
 		for (Drum* drum = ((Kit*)output)->firstDrum; drum != nullptr; drum = drum->next) {
-			if (drum->serialId() == id) {
+			if (drum->id() == id) {
 				return drum;
 			}
 		}

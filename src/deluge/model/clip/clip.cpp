@@ -662,12 +662,12 @@ void Clip::writeToFile(Serializer& writer, Song* song) {
 
 	writer.writeOpeningTagBeginning(xmlTag, true);
 
-	// Stable per-song serial identity (see Clip::serialId). Written here in the non-virtual wrapper so
+	// Stable per-song serial identity (see Clip::id). Written here in the non-virtual wrapper so
 	// it's emitted exactly once for both clip subtypes; assigned lazily on first save.
-	if (!serialId().has_value()) {
-		setSerialId(song->generateNewClipId());
+	if (!id().has_value()) {
+		setId(song->generateNewClipId());
 	}
-	writer.writeAttribute("id", *serialId());
+	writer.writeAttribute("id", *id());
 
 	writeDataToFile(writer, song);
 
@@ -719,9 +719,9 @@ void Clip::readTagFromFile(Deserializer& reader, char const* tagName, Song* song
 	}
 
 	else if (!strcmp(tagName, "id")) {
-		// Stable per-song serial identity (see Clip::serialId). The song advances its id counter past
+		// Stable per-song serial identity (see Clip::id). The song advances its id counter past
 		// all loaded ids after the load completes (Song::syncSerialIdCountersFromLoaded).
-		setSerialId(reader.readTagOrAttributeValueInt());
+		setId(reader.readTagOrAttributeValueInt());
 	}
 
 	else if (!strcmp(tagName, "isSoloing")) {

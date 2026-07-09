@@ -217,7 +217,7 @@ bool Kit::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Son
 
 					if (thisDrum->type == DrumType::SOUND) {
 						song->project.param_backup.deleteForModControllable((SoundDrum*)thisDrum);
-						if (std::optional<uint32_t> drumId = thisDrum->serialId()) { // S4.5b: retire its tree stores
+						if (std::optional<uint32_t> drumId = thisDrum->id()) { // S4.5b: retire its tree stores
 							song->project.backed_params.removeOwner(deluge::project::OwnerId::drum(*drumId));
 						}
 					}
@@ -258,10 +258,10 @@ void Kit::writeDrumToFile(Serializer& writer, Drum* thisDrum, ParamManager* para
 		*selectedDrumIndex = *drumIndex;
 	}
 
-	// Lazily assign the drum's stable per-song serial identity on first song-save (see Drum::serialId), before it
+	// Lazily assign the drum's stable per-song serial identity on first song-save (see Drum::id), before it
 	// writes its tags. Only within a song — a standalone kit/preset save carries no intra-song ids.
-	if (savingSong && song != nullptr && !thisDrum->serialId().has_value()) {
-		thisDrum->setSerialId(song->generateNewDrumId());
+	if (savingSong && song != nullptr && !thisDrum->id().has_value()) {
+		thisDrum->setId(song->generateNewDrumId());
 	}
 
 	thisDrum->writeToFile(writer, savingSong, paramManagerForDrum);
@@ -1122,18 +1122,18 @@ void Kit::compensateInstrumentVolumeForResonance(ParamManagerForTimeline* paramM
 
 void Kit::deleteBackedUpParamManagers(Song* song) {
 	song->project.param_backup.deleteForModControllable(this);
-	// M2-G S4.5b: retire the kit's clip-level-FX tree stores (keyed by Output::serialId) and, below, each
-	// SoundDrum's per-drum stores (keyed by Drum::serialId), mirroring the param_backup purges. See
-	// SoundInstrument::deleteBackedUpParamManagers for the safety rationale. No-op when never saved (no serialId).
-	if (std::optional<uint32_t> id = serialId()) {
-		song->project.backed_params.removeOwner(deluge::project::OwnerId::instrument(*id));
+	// M2-G S4.5b: retire the kit's clip-level-FX tree stores (keyed by Output::id) and, below, each
+	// SoundDrum's per-drum stores (keyed by Drum::id), mirroring the param_backup purges. See
+	// SoundInstrument::deleteBackedUpParamManagers for the safety rationale. No-op when never saved (no id).
+	if (std::optional<uint32_t> ownId = id()) {
+		song->project.backed_params.removeOwner(deluge::project::OwnerId::instrument(*ownId));
 	}
 
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (thisDrum->type == DrumType::SOUND) {
 			AudioEngine::routineWithClusterLoading();
 			song->project.param_backup.deleteForModControllable((SoundDrum*)thisDrum);
-			if (std::optional<uint32_t> drumId = thisDrum->serialId()) {
+			if (std::optional<uint32_t> drumId = thisDrum->id()) {
 				song->project.backed_params.removeOwner(deluge::project::OwnerId::drum(*drumId));
 			}
 		}

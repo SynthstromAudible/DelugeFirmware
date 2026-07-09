@@ -7,7 +7,7 @@ namespace deluge::edits {
 
 std::optional<deluge::project::KitRowAddress> kitRowAddressFor(const Kit& kit, const Drum& drum) {
 	deluge::project::KitRowAddress addr{};
-	if (std::optional<uint32_t> serial = kit.serialId()) {
+	if (std::optional<uint32_t> serial = kit.id()) {
 		addr.kit_id = *serial;
 		addr.kit_is_session = false;
 	}
@@ -18,7 +18,7 @@ std::optional<deluge::project::KitRowAddress> kitRowAddressFor(const Kit& kit, c
 	else {
 		return std::nullopt;
 	}
-	if (std::optional<uint32_t> serial = drum.serialId()) {
+	if (std::optional<uint32_t> serial = drum.id()) {
 		addr.drum_id = *serial;
 		addr.drum_is_session = false;
 	}

@@ -105,7 +105,7 @@ AutoParam& AutoParam::operator=(AutoParam&& other) noexcept {
 // owner (song / audio clip / synth-kit clip-level / per-drum / expression / patch cables / MIDI CC) resolves via a
 // stable `ParamAddress` in the project tree (`Song::resolveParam`); `deluge::edits::addressFor` builds that address
 // from this ModelStack (the owner classification lives there now, shared with the Edit substrate). The engine
-// fallback below serves the only unaddressable case — a never-saved (no-serialId) owner, whose nodes live in the
+// fallback below serves the only unaddressable case — a never-saved (no-id) owner, whose nodes live in the
 // engine collection's own store until first save relocates+binds them — and is behaviour-identical (it returns the
 // same store the address would). The `paramCollection` pointer is used here only to reach `docParamForId()`; it
 // stays for the collection's polymorphic-dispatch role across the engine, so node resolution is not decoupled from
@@ -117,7 +117,7 @@ deluge::project::DocAutoParam* ModelStackWithAutoParam::doc() const {
 		}
 	}
 	// S5-b: the owner isn't tree-resident yet — a RUNTIME-created clip/instrument/drum (made after load, so it has
-	// neither a persisted serialId nor a session id). Mint session ids + relocate its store into the session tree so
+	// neither a persisted id nor a session id). Mint session ids + relocate its store into the session tree so
 	// it id-resolves like a saved owner. After this, every real owner resolves through the project tree; the
 	// paramCollection fallback below is dead for them, surviving only as a non-bricking net for genuinely
 	// unclassifiable owners (e.g. non-Sound drums) until hardware sign-off lets it be deleted outright.

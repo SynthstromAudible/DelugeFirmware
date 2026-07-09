@@ -97,11 +97,11 @@ DocAutoParam* Song::resolveParam(const ParamAddress& address) {
 		return nullptr;
 	}
 	case OwnerId::Kind::CLIP: {
-		// A clip's node storage is tree-resident either by its persisted serialId (clip_params) or — for a
+		// A clip's node storage is tree-resident either by its persisted id (clip_params) or — for a
 		// not-yet-saved clip (S5-b) — by a transient session id (session_clip_params). A MIDI_OUT clip's CC
 		// automation (S4c) resolves by cc within the same per-clip store; the audio-clip ParamSet resolves by index.
-		DocParamManager* mgr = address.owner.is_session ? session_clip_params.find(address.owner.serial_id)
-		                                                : clip_params.find(address.owner.serial_id);
+		DocParamManager* mgr =
+		    address.owner.is_session ? session_clip_params.find(address.owner.id) : clip_params.find(address.owner.id);
 		if (address.kind == deluge::modulation::params::Kind::MIDI) {
 			return midiParamInManager(mgr, address.param_id);
 		}
@@ -112,7 +112,7 @@ DocAutoParam* Song::resolveParam(const ParamAddress& address) {
 		// Instrument-shared / per-drum params, keyed by (owner, clip) — the persistent form of ParamBackup. Patch
 		// cables (S4b) resolve by cable identity within the manager; the ParamSets resolve by index. nullptr when
 		// the owner/lane isn't tree-resident → engine fallback.
-		DocParamManager* mgr = backed_params.find(address.owner, address.clip_serial, address.clip_is_session);
+		DocParamManager* mgr = backed_params.find(address.owner, address.clip_id, address.clip_is_session);
 		if (address.kind == deluge::modulation::params::Kind::PATCH_CABLE) {
 			return patchCableInManager(mgr, address.param_id);
 		}
@@ -123,7 +123,7 @@ DocAutoParam* Song::resolveParam(const ParamAddress& address) {
 }
 
 // M3 owner-1 (clip structure). Mirrors resolveParam's CLIP branch: a clip's structural record is tree-resident either
-// by its persisted serialId (clip_structure) or — for a not-yet-saved clip — by a transient session id
+// by its persisted id (clip_structure) or — for a not-yet-saved clip — by a transient session id
 // (session_clip_structure). Slice 1 is a shadow store: written by the clip Edits, not yet read by anything.
 DocClip* Song::resolveClip(const ClipAddress& address) {
 	return address.is_session ? session_clip_structure.find(address.clip_id) : clip_structure.find(address.clip_id);
