@@ -23,6 +23,7 @@
 #include "deluge-project/clip_params.h"
 #include "deluge-project/clip_structure.h"
 #include "deluge-project/clips.h"
+#include "deluge-project/drum_structure.h"
 #include "deluge-project/global_effects.h"
 #include "deluge-project/groove.h"
 #include "deluge-project/media_pool.h"
@@ -88,6 +89,7 @@ public:
 	BackedParams backed_params; // instrument-shared automation, keyed by (owner, clip) — persistent form of ParamBackup
 	ParamBackup param_backup;
 	ClipStructure clip_structure; // M3 owner-1: per-clip structural records (loop_length…), keyed by Clip::id
+	DrumStructure drum_structure; // M3 owner-3: per-drum structural records (channel/note…), keyed by Drum::id
 };
 
 } // namespace deluge::project
