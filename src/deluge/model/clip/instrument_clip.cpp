@@ -51,6 +51,7 @@
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
+#include "storage/value.h"
 #include "util/exceptions.h"
 #include "util/firmware_version.h"
 #include "util/string.h"
@@ -2470,6 +2471,57 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 	}
 }
 
+void InstrumentClip::readShellFromTree(const deluge::storage::Value& clipNode) {
+	Clip::readShellFromTree(clipNode);
+	using deluge::storage::Value;
+	if (const Value* n = clipNode.find("clipName")) {
+		name = n->str();
+	}
+	if (const Value* n = clipNode.find("inKeyMode")) {
+		inScaleMode = stringToInt(n->str().c_str());
+	}
+	if (const Value* n = clipNode.find("yScroll")) {
+		yScroll = stringToInt(n->str().c_str());
+	}
+	if (const Value* n = clipNode.find("keyboardLayout")) {
+		keyboardState.currentLayout = static_cast<KeyboardLayoutType>(stringToInt(n->str().c_str()));
+	}
+	if (const Value* n = clipNode.find("yScrollKeyboard")) {
+		keyboardState.isomorphic.scrollOffset = stringToInt(n->str().c_str());
+	}
+	if (const Value* n = clipNode.find("keyboardRowInterval")) {
+		keyboardState.isomorphic.rowInterval = stringToInt(n->str().c_str());
+	}
+	if (const Value* n = clipNode.find("drumsScrollOffset")) {
+		keyboardState.drums.scroll_offset = stringToInt(n->str().c_str());
+	}
+	if (const Value* n = clipNode.find("drumsZoomLevel")) {
+		keyboardState.drums.zoom_level = stringToInt(n->str().c_str());
+	}
+	if (const Value* n = clipNode.find("inKeyScrollOffset")) {
+		keyboardState.inKey.scrollOffset = stringToInt(n->str().c_str());
+	}
+	if (const Value* n = clipNode.find("inKeyRowInterval")) {
+		keyboardState.inKey.rowInterval = stringToInt(n->str().c_str());
+	}
+	if (const Value* n = clipNode.find("crossScreenEditLevel")) {
+		wrapEditLevel = stringToInt(n->str().c_str());
+		wrapEditing = true;
+	}
+	if (const Value* n = clipNode.find("onKeyboardScreen")) {
+		onKeyboardScreen = stringToInt(n->str().c_str());
+	}
+	if (const Value* n = clipNode.find("lastSelectedInstrumentType")) {
+		lastSelectedOutputType = static_cast<OutputType>(stringToInt(n->str().c_str()));
+	}
+	if (const Value* n = clipNode.find("lastSelectedPatchSource")) {
+		lastSelectedPatchSource = static_cast<PatchSource>(stringToInt(n->str().c_str()));
+	}
+	if (const Value* n = clipNode.find("affectEntire")) {
+		affectEntire = stringToInt(n->str().c_str());
+	}
+}
+
 Error InstrumentClip::readFromFile(Deserializer& reader, Song* song) {
 
 	Error error;
@@ -2510,14 +2562,8 @@ someError:
 
 		int32_t temp;
 
-		if (!strcmp(tagName, "clipName")) {
-			reader.readTagOrAttributeValueString(name);
-		}
-		else if (!strcmp(tagName, "inKeyMode")) {
-			inScaleMode = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "instrumentPresetSlot")) {
+		// clipName/inKeyMode + the view-state group below are read tree-natively in readShellFromTree (slice 4).
+		if (!strcmp(tagName, "instrumentPresetSlot")) {
 			int32_t slotHere = reader.readTagOrAttributeValueInt();
 			std::string slotChars;
 			slotChars = deluge::string::fromInt(slotHere, 3);
@@ -2574,82 +2620,9 @@ someError:
 			midiPGM = reader.readTagOrAttributeValueInt();
 		}
 
-		else if (!strcmp(tagName, "yScroll")) {
-			yScroll = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "keyboardLayout")) {
-			keyboardState.currentLayout = (KeyboardLayoutType)reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "yScrollKeyboard")) {
-			keyboardState.isomorphic.scrollOffset = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "keyboardRowInterval")) {
-			keyboardState.isomorphic.rowInterval = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "drumsScrollOffset")) {
-			keyboardState.drums.scroll_offset = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "drumsZoomLevel")) {
-			keyboardState.drums.zoom_level = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "inKeyScrollOffset")) {
-			keyboardState.inKey.scrollOffset = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "inKeyRowInterval")) {
-			keyboardState.inKey.rowInterval = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "crossScreenEditLevel")) {
-			wrapEditLevel = reader.readTagOrAttributeValueInt();
-			wrapEditing = true;
-		}
-
-		else if (!strcmp(tagName, "onKeyboardScreen")) {
-			onKeyboardScreen = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "onAutomationInstrumentClipView")) {
-			onAutomationClipView = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "lastSelectedParamID")) {
-			lastSelectedParamID = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "lastSelectedParamKind")) {
-			lastSelectedParamKind = static_cast<params::Kind>(reader.readTagOrAttributeValueInt());
-		}
-
-		else if (!strcmp(tagName, "lastSelectedParamShortcutX")) {
-			lastSelectedParamShortcutX = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "lastSelectedParamShortcutY")) {
-			lastSelectedParamShortcutY = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
-			lastSelectedParamArrayPosition = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "lastSelectedInstrumentType")) {
-			lastSelectedOutputType = static_cast<OutputType>(reader.readTagOrAttributeValueInt());
-		}
-
-		else if (!strcmp(tagName, "lastSelectedPatchSource")) {
-			lastSelectedPatchSource = static_cast<PatchSource>(reader.readTagOrAttributeValueInt());
-		}
-
-		else if (!strcmp(tagName, "affectEntire")) {
-			affectEntire = reader.readTagOrAttributeValueInt();
-		}
+		// The view-state group (yScroll, keyboard*/drums*/inKey*, crossScreenEditLevel, onKeyboardScreen,
+		// onAutomationInstrumentClipView, lastSelectedParam*, lastSelectedInstrumentType/PatchSource, affectEntire)
+		// is read tree-natively in InstrumentClip::readShellFromTree (readFromTree slice 4).
 
 		else if (!strcmp(tagName, "soundMidiCommand")) { // Only for pre V2.0 song files
 			soundMidiCommand.readChannelFromFile(reader);

@@ -155,6 +155,7 @@ public:
 	                                  bool shouldRetainLinksToSounds, bool shouldGrabMidiCommands,
 	                                  bool shouldBackUpExpressionParamsToo);
 	Error readFromFile(Deserializer& reader, Song* song) override;
+	void readShellFromTree(const deluge::storage::Value& clipNode) override;
 	void writeDataToFile(Serializer& writer, Song* song) override;
 	void prepNoteRowsForExitingKitMode(Song* song);
 	void deleteNoteRow(ModelStackWithTimelineCounter* modelStack, int32_t i);

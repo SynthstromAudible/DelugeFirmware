@@ -1188,32 +1188,9 @@ someError:
 			reader.match('}');
 		}
 
-		else if (!strcmp(tagName, "onAutomationInstrumentClipView")) {
-			onAutomationClipView = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "lastSelectedParamID")) {
-			lastSelectedParamID = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "lastSelectedParamKind")) {
-			lastSelectedParamKind = static_cast<params::Kind>(reader.readTagOrAttributeValueInt());
-		}
-
-		else if (!strcmp(tagName, "lastSelectedParamShortcutX")) {
-			lastSelectedParamShortcutX = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "lastSelectedParamShortcutY")) {
-			lastSelectedParamShortcutY = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "lastSelectedParamArrayPosition")) {
-			lastSelectedParamArrayPosition = reader.readTagOrAttributeValueInt();
-		}
-
-		// Base-clip tags are read tree-natively in Song::readClipsFromFile (readFromTree slice 3); anything not
-		// handled above falls through to the reader.exitTag() below.
+		// The shared view-state (onAutomationInstrumentClipView, lastSelectedParam*) is read tree-natively in
+		// Clip::readShellFromTree (readFromTree slice 4); base-clip tags in Song::readClipsFromFile (slice 3).
+		// Anything not handled above falls through to the reader.exitTag() below.
 
 		reader.exitTag();
 	}

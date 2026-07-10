@@ -45,6 +45,10 @@ class ModelStackWithTimelineCounter;
 class Serializer;
 class Deserializer;
 
+namespace deluge::storage {
+class Value;
+}
+
 class Clip : public TimelineCounter {
 
 public:
@@ -131,6 +135,9 @@ public:
 	void writeMidiCommandsToFile(Serializer& writer, Song* song);
 	virtual char const* getXMLTag() = 0;
 	virtual Error readFromFile(Deserializer& reader, Song* song) = 0;
+	// Read this clip type's pure view-state from its Value node (durable-id readFromTree slice 4); called by
+	// Song::readClipsFromFile right after construction. Base reads the fields shared by both clip types.
+	virtual void readShellFromTree(const deluge::storage::Value& clipNode);
 
 	virtual void copyBasicsFrom(Clip const* otherClip);
 	void setupForRecordingAsAutoOverdub(Clip* existingClip, Song* song, OverDubType newOverdubNature);

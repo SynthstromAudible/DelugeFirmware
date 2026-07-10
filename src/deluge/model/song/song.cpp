@@ -2330,6 +2330,9 @@ readClip:
 					auto& treeReader = static_cast<deluge::storage::ValueTreeDeserializer&>(reader);
 					treeReader.readChildObject(*muteNode, [&] { newClip->muteMIDICommand.readNoteFromFile(reader); });
 				}
+
+				// Per-type view-state (readFromTree slice 4): each clip type reads its own pure UI/view attributes.
+				newClip->readShellFromTree(*clipNode);
 			}
 
 			Error error = newClip->readFromFile(reader, this);

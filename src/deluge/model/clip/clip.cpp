@@ -37,6 +37,7 @@
 #include "playback/playback_handler.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
+#include "storage/value.h"
 #include <new>
 
 namespace params = deluge::modulation::params;
@@ -718,6 +719,31 @@ void Clip::writeMidiCommandsToFile(Serializer& writer, Song* song) {
 // (id/section/colourOffset/launchStyle/length), the plain attributes + selection/sync hints, and the nested
 // muteMidiCommand -- is now read tree-natively in Song::readClipsFromFile. Unrecognized tags in the subclass
 // readFromFile loops fall straight through to reader.exitTag().
+
+// Reads the pure per-type view-state from the clip's Value node (durable-id readFromTree slice 4): the fields
+// below have no construction/song coupling, so readClipsFromFile calls this right after construction and the
+// subclass readFromFile loops no longer handle them. Base reads the fields shared by both clip types.
+void Clip::readShellFromTree(const deluge::storage::Value& clipNode) {
+	using deluge::storage::Value;
+	if (const Value* n = clipNode.find("onAutomationInstrumentClipView")) {
+		onAutomationClipView = stringToInt(n->str().c_str());
+	}
+	if (const Value* n = clipNode.find("lastSelectedParamID")) {
+		lastSelectedParamID = stringToInt(n->str().c_str());
+	}
+	if (const Value* n = clipNode.find("lastSelectedParamKind")) {
+		lastSelectedParamKind = static_cast<params::Kind>(stringToInt(n->str().c_str()));
+	}
+	if (const Value* n = clipNode.find("lastSelectedParamShortcutX")) {
+		lastSelectedParamShortcutX = stringToInt(n->str().c_str());
+	}
+	if (const Value* n = clipNode.find("lastSelectedParamShortcutY")) {
+		lastSelectedParamShortcutY = stringToInt(n->str().c_str());
+	}
+	if (const Value* n = clipNode.find("lastSelectedParamArrayPosition")) {
+		lastSelectedParamArrayPosition = stringToInt(n->str().c_str());
+	}
+}
 
 void Clip::prepareForDestruction(ModelStackWithTimelineCounter* modelStack,
                                  InstrumentRemoval instrumentRemovalInstruction) {
