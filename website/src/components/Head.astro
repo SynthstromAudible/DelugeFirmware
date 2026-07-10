@@ -11,4 +11,35 @@ import Default from "@astrojs/starlight/components/Head.astro"
   })
 </script>
 
+<script>
+  import mermaid from "mermaid"
+
+  let mermaidInitialized = false
+
+  async function renderMermaidDiagrams() {
+    const nodes = document.querySelectorAll("pre.mermaid")
+    if (!nodes.length) {
+      return
+    }
+
+    const theme =
+      document.documentElement.dataset.theme === "light" ? "default" : "dark"
+
+    if (!mermaidInitialized) {
+      mermaid.initialize({ startOnLoad: false, theme })
+      mermaidInitialized = true
+    } else {
+      mermaid.initialize({ startOnLoad: false, theme })
+    }
+
+    await mermaid.run({ querySelector: "pre.mermaid" })
+  }
+
+  document.addEventListener("astro:page-load", () => {
+    void renderMermaidDiagrams()
+  })
+
+  void renderMermaidDiagrams()
+</script>
+
 <Default><slot /></Default>
