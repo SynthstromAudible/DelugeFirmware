@@ -72,6 +72,7 @@ add_executable(UnitTests
         clip_iterator_tests.cpp
         function_tests.cpp
         volume_param_gain_tests.cpp
+        db_shift_tests.cpp
         sync_tests.cpp
         chord_tests.cpp
         time_tests.cpp
