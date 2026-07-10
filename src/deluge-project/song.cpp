@@ -134,4 +134,14 @@ void Song::removeDocClip(const ClipAddress& address) {
 	clip_structure.remove(address.clip_id);
 }
 
+// M3 owner-4 (audio-clip descriptors): the AudioClip's descriptor record is tree-resident by its durable id, in a
+// store SEPARATE from clip_structure (DocClip is shared with InstrumentClip; DocAudioClip is AudioClip-only).
+DocAudioClip& Song::getOrCreateDocAudioClip(const ClipAddress& address) {
+	return audio_clip_structure.getOrCreate(address.clip_id);
+}
+
+void Song::removeDocAudioClip(const ClipAddress& address) {
+	audio_clip_structure.remove(address.clip_id);
+}
+
 } // namespace deluge::project

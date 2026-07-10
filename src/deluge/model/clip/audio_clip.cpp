@@ -18,6 +18,7 @@
 #include "model/clip/audio_clip.h"
 #include "clip.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_audio_clip.h"
 #include "dsp/timestretch/time_stretcher.h"
 #include "gui/views/automation_view.h"
 #include "gui/waveform/waveform_renderer.h"
@@ -26,6 +27,7 @@
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
 #include "model/consequence/consequence_output_existence.h"
+#include "model/edits/clip_address_for.h"
 #include "model/model_stack.h"
 #include "model/sample/sample.h"
 #include "model/sample/sample_recorder.h"
@@ -48,6 +50,9 @@ extern uint8_t currentlyAccessingCard;
 }
 
 AudioClip::AudioClip(Song& song, uint32_t loadedId) : Clip(ClipType::AUDIO, song, loadedId) {
+	// M3 owner-4 (ctor-binding): the base Clip ctor has already minted/bound id_ and docClip_. Bind this clip's
+	// AudioClip-specific DOM record under the same durable id, mirroring how the Clip base ctor binds docClip_.
+	docAudioClip_ = &song.project.getOrCreateDocAudioClip({.clip_id = id()});
 	overdubsShouldCloneOutput = true;
 	voiceSample = nullptr;
 	guide.audioFileHolder = &sampleHolder; // It needs to permanently point here
@@ -63,6 +68,15 @@ AudioClip::AudioClip(Song& song, uint32_t loadedId) : Clip(ClipType::AUDIO, song
 }
 
 AudioClip::~AudioClip() {
+	// M3 owner-4: drop this clip's DOM descriptor record so the store doesn't accumulate dead entries. Mirrors the
+	// docClip_ removal in ~Clip: guarded on currentSong (nulled first during whole-song teardown, when the entire
+	// project — audio_clip_structure included — is destroyed wholesale) and on docAudioClip_ being bound.
+	if (currentSong && docAudioClip_ != nullptr) {
+		if (std::optional<deluge::project::ClipAddress> addr = deluge::edits::clipAddressFor(*this)) {
+			currentSong->project.removeDocAudioClip(*addr);
+		}
+	}
+
 	if (recorder) {
 		FREEZE_WITH_ERROR("E278");
 	}

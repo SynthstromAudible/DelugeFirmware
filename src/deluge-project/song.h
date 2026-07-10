@@ -18,6 +18,7 @@
 #pragma once
 
 #include "deluge-project/arrangement.h"
+#include "deluge-project/audio_clip_structure.h"
 #include "deluge-project/backed_params.h"
 #include "deluge-project/clip_address.h"
 #include "deluge-project/clip_params.h"
@@ -73,6 +74,12 @@ public:
 	/// Drop a clip's structural record when the clip is destructed, so the store doesn't accumulate dead entries.
 	void removeDocClip(const ClipAddress& address);
 
+	/// M3 owner-4 (audio-clip descriptors): getOrCreate an AudioClip's DOM-owned DocAudioClip (bound as the clip's
+	/// `docAudioClip_` in the AudioClip ctor), or drop it on destruction. Separate store from DocClip. Mirrors
+	/// getOrCreateDocClip/removeDocClip.
+	DocAudioClip& getOrCreateDocAudioClip(const ClipAddress& address);
+	void removeDocAudioClip(const ClipAddress& address);
+
 	// Document / value tier — value-typed, serializable.
 	Metadata metadata;
 	Groove groove;
@@ -90,6 +97,7 @@ public:
 	ParamBackup param_backup;
 	ClipStructure clip_structure; // M3 owner-1: per-clip structural records (loop_length…), keyed by Clip::id
 	DrumStructure drum_structure; // M3 owner-3: per-drum structural records (channel/note…), keyed by Drum::id
+	AudioClipStructure audio_clip_structure; // M3 owner-4: per-AudioClip descriptor records, keyed by Clip::id
 };
 
 } // namespace deluge::project

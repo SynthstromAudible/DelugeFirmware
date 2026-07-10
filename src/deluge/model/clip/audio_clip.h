@@ -32,6 +32,10 @@ class VoiceSample;
 class SampleRecorder;
 class ModelStackWithTimelineCounter;
 
+namespace deluge::project {
+struct DocAudioClip;
+}
+
 class AudioClip final : public Clip {
 public:
 	AudioClip(Song& song, uint32_t loadedId = 0);
@@ -110,6 +114,13 @@ public:
 	int32_t attack;
 
 	VoicePriority voicePriority;
+
+	/// M3 owner-4: this AudioClip's DOM-owned descriptor record, held in the project's `audio_clip_structure` keyed
+	/// by id(). Bound in the AudioClip ctor under the clip's durable id (mirroring how the Clip base ctor binds
+	/// `docClip_`); erased in ~AudioClip. Additive shadow this slice — rebuilt from the engine at load + save by
+	/// syncDocAudioClip(), never read; the engine AudioClip stays authoritative for runtime + render.
+	deluge::project::DocAudioClip* docAudioClip_{nullptr};
+	void bindDocAudioClip(deluge::project::DocAudioClip* d) { docAudioClip_ = d; }
 
 	bool doingLateStart{};
 	bool maySetupCache{};
