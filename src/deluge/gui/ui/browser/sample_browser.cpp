@@ -19,7 +19,9 @@
 #include "fatfs.hpp"
 #include "hid/button.h"
 #include "model/sample/sample.h"
+#include "modulation/patch/patch_cable_set.h"
 #include "util/try.h"
+#include "util/volume_param_gain.h"
 #include <ranges>
 #undef __GNU_VISIBLE
 #define __GNU_VISIBLE 1 // Makes strcasestr visible. Might already be the reason for the define above
@@ -542,6 +544,22 @@ bool SampleBrowser::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	return true;
 }
 
+namespace {
+/// The depth of the target Sound's VELOCITY -> LOCAL_VOLUME patch cable, or 0 if it has none. The preview drum always
+/// notes on at velocity 64, so matching this depth makes its final per-voice volume match the target's.
+int32_t targetVelocityToVolumeCableDepth(ParamManagerForTimeline* paramManager) {
+	PatchCableSet* cables = paramManager->getPatchCableSet();
+	for (int32_t c = 0; c < cables->numPatchCables; c++) {
+		PatchCable& cable = cables->patchCables[c];
+		if (cable.from == PatchSource::VELOCITY && cable.destinationParamDescriptor.isJustAParam()
+		    && cable.destinationParamDescriptor.getJustTheParam() == params::LOCAL_VOLUME) {
+			return cable.param.getCurrentValue();
+		}
+	}
+	return 0;
+}
+} // namespace
+
 void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 
 	/*
@@ -585,7 +603,40 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 			}
 		}
 
-		AudioEngine::previewSample(&filePath, &currentFileItem->filePointer, shouldActuallySound);
+		// Work out the volume the sample will play at once it's loaded into the current instrument / kit-row, so the
+		// preview can match it (issue #1591). The song master volume is applied to the preview downstream, so we only
+		// need the target Sound's own volume, plus - for a kit - the kit's output volume.
+		//
+		// Not modelled: the kit's x1.25 postFX baseline and setupFilterSetConfig()'s resonance scaling, both applied
+		// in GlobalEffectableForClip::renderOutput(). A resonant kit will still preview slightly off. Modelling them
+		// would couple the preview path to the kit render chain.
+		AudioEngine::PreviewVolume previewVolume = AudioEngine::PreviewVolume::neutral();
+
+		if (shouldActuallySound && soundEditor.currentSound != nullptr && soundEditor.currentParamManager != nullptr
+		    && soundEditor.currentParamManager->containsAnyMainParamCollections()) {
+			PatchedParamSet* targetParams = soundEditor.currentParamManager->getPatchedParamSet();
+			previewVolume.volumePostFX = targetParams->getValue(params::GLOBAL_VOLUME_POST_FX);
+			previewVolume.localVolume = targetParams->getValue(params::LOCAL_VOLUME);
+			previewVolume.velocityCableDepth = targetVelocityToVolumeCableDepth(soundEditor.currentParamManager);
+
+			if (getCurrentOutputType() == OutputType::KIT) {
+				ParamManagerForTimeline& kitParamManager = getCurrentInstrumentClip()->paramManager;
+				if (kitParamManager.containsAnyParamCollectionsIncludingExpression()) {
+					int32_t kitVolumeParam = kitParamManager.getUnpatchedParamSet()->getValue(params::UNPATCHED_VOLUME);
+					int32_t kitGainPos = volumeParamToGainPos(kitVolumeParam);
+
+					// Fold the kit's output volume into LOCAL_VOLUME first: it sits at neutral by default, so it has
+					// exactly the 4x of headroom the kit's maximum gain demands. Anything that doesn't fit - only
+					// possible when the drum's own local volume is already boosted - spills into GLOBAL_VOLUME_POST_FX.
+					VolumeParamGain local = applyGainToVolumeParam(previewVolume.localVolume, kitGainPos);
+					previewVolume.localVolume = local.param;
+					previewVolume.volumePostFX =
+					    applyGainToVolumeParam(previewVolume.volumePostFX, local.remainingGainPos).param;
+				}
+			}
+		}
+
+		AudioEngine::previewSample(&filePath, &currentFileItem->filePointer, shouldActuallySound, previewVolume);
 
 		if (autoLoadEnabled && getCurrentClip()->type != ClipType::AUDIO) {
 			// Feature: if Load has been toggled on, then the file will be auto-loaded into the current instrument

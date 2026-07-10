@@ -1315,7 +1315,15 @@ void registerSideChainHit(int32_t strength) {
 	sideChainHitPending = combineHitStrengths(strength, sideChainHitPending);
 }
 
-void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySound) {
+PreviewVolume PreviewVolume::neutral() {
+	return {
+	    .volumePostFX = getParamFromUserValue(params::GLOBAL_VOLUME_POST_FX, kDefaultSoundVolumeUserValue),
+	    .localVolume = 0,
+	    .velocityCableDepth = getParamFromUserValue(params::PATCH_CABLE, kSampleDrumVelocityCableUserValue),
+	};
+}
+
+void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySound, PreviewVolume const& volume) {
 	stopAnyPreviewing();
 	MultisampleRange* range = (MultisampleRange*)sampleForPreview->sources[0].getOrCreateFirstRange();
 	if (!range) {
@@ -1329,6 +1337,21 @@ void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySo
 	}
 
 	if (shouldActuallySound) {
+		// Adopt the volume of the instrument / kit-row the sample will be loaded into, so the preview sounds the same
+		// before and after selecting it (issue #1591). The song master volume is applied downstream in renderSongFX().
+		PatchedParamSet* previewParams = paramManagerForSamplePreview->getPatchedParamSet();
+		previewParams->params[params::GLOBAL_VOLUME_POST_FX].setCurrentValueBasicForSetup(volume.volumePostFX);
+		previewParams->params[params::LOCAL_VOLUME].setCurrentValueBasicForSetup(volume.localVolume);
+
+		// setupAsSample() gives the preview drum exactly one patch cable: VELOCITY -> LOCAL_VOLUME.
+		paramManagerForSamplePreview->getPatchCableSet()->patchCables[0].param.setCurrentValueBasicForSetup(
+		    volume.velocityCableDepth);
+
+		// GLOBAL_VOLUME_POST_FX is a Sound-level param with no patch cables on the preview drum, so its final value
+		// won't update on its own - recompute it before we note-on. LOCAL_VOLUME is per-voice and is picked up when
+		// the new voice is patched during noteOn().
+		sampleForPreview->recalculatePatchingToParam(params::GLOBAL_VOLUME_POST_FX, paramManagerForSamplePreview);
+
 		char modelStackMemory[MODEL_STACK_MAX_SIZE];
 		ModelStackWithThreeMainThings* modelStack = setupModelStackWithThreeMainThingsButNoNoteRow(
 		    modelStackMemory, currentSong, sampleForPreview, NULL, paramManagerForSamplePreview);

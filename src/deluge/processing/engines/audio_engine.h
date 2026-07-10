@@ -145,7 +145,19 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween = false);
 void runRoutine();
 
 void init();
-void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySound);
+/// The volume context for a sample preview: the params the preview drum should adopt so that it sounds like the
+/// instrument or kit-row the sample will be loaded into (issue #1591). Values are already fully resolved - any kit
+/// output volume has been folded in by the caller.
+struct PreviewVolume {
+	int32_t volumePostFX;       ///< params::GLOBAL_VOLUME_POST_FX
+	int32_t localVolume;        ///< params::LOCAL_VOLUME
+	int32_t velocityCableDepth; ///< depth of the VELOCITY -> LOCAL_VOLUME patch cable
+
+	/// The defaults the preview drum is built with, from Sound::initParams() and Sound::setupAsSample().
+	static PreviewVolume neutral();
+};
+
+void previewSample(String* path, FilePointer* filePointer, bool shouldActuallySound, PreviewVolume const& volume);
 void stopAnyPreviewing();
 
 void songSwapAboutToHappen();
