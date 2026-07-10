@@ -1251,6 +1251,9 @@ void InstrumentClip::bindNoteRowStructure(NoteRow& nr) {
 	d.colour_offset = nr.colourOffset();
 	d.sequence_direction = static_cast<uint8_t>(nr.sequenceDirectionMode());
 	d.muted = nr.muted();
+	// M3 owner-2/3 join: seed the drum_id shadow. `nr.drum` is a real pointer/nullptr here (bind runs at create/clone
+	// or pre-readFromTree, never while a load sentinel is stashed); a later setDrum/reconnection corrects it.
+	d.drum_id = (nr.drum != nullptr) ? nr.drum->id() : std::nullopt;
 	nr.bindDocNoteRow(&d);
 }
 
@@ -2611,6 +2614,7 @@ someError:
 		for (int32_t i = 0; i < std::ssize(noteRows); i++) {
 			NoteRow* thisNoteRow = &noteRows[i];
 			thisNoteRow->drum = nullptr;
+			thisNoteRow->syncDrumId(); // phony sentinel cleared to real nullptr — safe to mirror
 		}
 
 		return error;
@@ -4015,6 +4019,7 @@ Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 			// Maybe we (cryptically) marked it as "no drum".
 			if ((uintptr_t)thisNoteRow->drum == 0xFFFFFFFF) {
 				thisNoteRow->drum = nullptr;
+				thisNoteRow->syncDrumId(); // sentinel resolved to real nullptr — safe to mirror
 			}
 
 			// Or a gate drum from a pre-V2.0 Song file...
@@ -4023,6 +4028,7 @@ Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 				int32_t gateChannel = 0xFFFFFFFE - (uintptr_t)thisNoteRow->drum;
 
 				thisNoteRow->drum = kit->getGateDrumForChannel(gateChannel);
+				thisNoteRow->syncDrumId(); // sentinel resolved to a real gate drum (or nullptr) — safe to mirror
 
 				if (!thisNoteRow->drum) {
 					void* drumMemory = deluge::memory::alloc_fast(sizeof(GateDrum));
@@ -4034,6 +4040,7 @@ Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 
 					kit->addDrum(newDrum);
 					thisNoteRow->drum = newDrum;
+					thisNoteRow->syncDrumId(); // freshly-created real gate drum — safe to mirror
 				}
 				thisNoteRow->giveMidiCommandsToDrum();
 			}
@@ -4070,6 +4077,7 @@ Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 
 				// Cool ok, we found our Drum!
 				thisNoteRow->drum = drumFromIndex;
+				thisNoteRow->syncDrumId(); // sentinel index resolved to the real Drum* — safe to mirror
 				thisNoteRow->giveMidiCommandsToDrum();
 
 				// If we didn't get a paramManager (means pre-September-2016 song). TODO: this whole section would lead
@@ -4101,6 +4109,7 @@ Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 							FREEZE_WITH_ERROR("E011");
 haveNoDrum:
 							thisNoteRow->drum = nullptr;
+							thisNoteRow->syncDrumId(); // drum released to real nullptr — safe to mirror
 						}
 					}
 				}
@@ -4164,6 +4173,7 @@ haveNoDrum:
 		for (int32_t i = 0; i < std::ssize(noteRows); i++) {
 			NoteRow* thisNoteRow = &noteRows[i];
 			thisNoteRow->drum = nullptr;
+			thisNoteRow->syncDrumId(); // any stashed sentinel is now cleared to real nullptr — safe to mirror
 		}
 
 		// And...

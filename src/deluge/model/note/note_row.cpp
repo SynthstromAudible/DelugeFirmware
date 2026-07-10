@@ -3925,6 +3925,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 	}
 
 	drum = newDrum;
+	syncDrumId(); // `drum` is now the real newDrum (or nullptr) — mirror it into the DOM shadow.
 
 	if (drum) {
 		drum->noteRowAssignedTemp = true;
@@ -3951,6 +3952,15 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 			}
 		}
 	}
+}
+
+// M3 owner-2/3 join: dual-write the DOM shadow's drum_id from the CURRENT `drum` member. Reads `drum` directly, so
+// callers MUST ensure it is a real pointer or nullptr (never a load-time sentinel int stashed by readFromTree).
+void NoteRow::syncDrumId() {
+	if (docNoteRow_ == nullptr) {
+		return;
+	}
+	docNoteRow_->drum_id = (drum != nullptr) ? drum->id() : std::nullopt;
 }
 
 void NoteRow::rememberDrumName() {

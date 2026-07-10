@@ -173,6 +173,11 @@ public:
 	             InstrumentClip* favourClipForCloningParamManager = nullptr, ParamManager* paramManager = nullptr,
 	             bool backupOldParamManager = true);
 
+	/// M3 owner-2/3 join: dual-write this row's DocNoteRow.drum_id from the CURRENT `drum` member (nullopt if null).
+	/// No-op until bound. The caller MUST guarantee `drum` holds a real pointer (or nullptr), NEVER a load-time
+	/// sentinel int — call it only after a real drum (re)assignment, never from readFromTree.
+	void syncDrumId();
+
 	int32_t getDistanceToNextNote(int32_t pos, ModelStackWithNoteRow const* modelStack, bool reversed = false);
 
 private:

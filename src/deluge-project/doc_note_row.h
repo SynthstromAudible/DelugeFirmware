@@ -19,6 +19,7 @@
 
 #include "deluge-project/doc_note.h"
 #include <cstdint>
+#include <optional>
 #include <vector>
 
 namespace deluge::project {
@@ -32,6 +33,12 @@ struct DocNoteRow {
 	int8_t colour_offset{0};
 	uint8_t sequence_direction{0}; ///< SequenceDirection enum underlying value
 	bool muted{false};
+
+	/// M3 owner-2/3 join (dual-write phase): the durable id of this row's drum (`Drum::id()`), or nullopt if the row
+	/// has no drum. Dual-written from the engine NoteRow's `drum` member via `NoteRow::syncDrumId()` at every real
+	/// drum (re)assignment. Shadow only — nothing reads it yet and it is NOT serialized (the on-disk join is still
+	/// the positional `drumIndex`/`gateOutput`).
+	std::optional<uint32_t> drum_id;
 
 	/// M3 owner-2 Slice 2c: SAVE-time note representation, rebuilt from the engine note vector at write and freed
 	/// after (transient scratch — must not permanently double note RAM). Contiguous vector (no stable-address
