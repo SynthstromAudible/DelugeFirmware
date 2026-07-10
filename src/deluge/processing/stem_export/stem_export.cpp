@@ -520,9 +520,9 @@ void StemExport::getLoopLengthOfLongestNotEmptyNoteRow(Clip* clip) {
 			// iterate through all the note rows to find the longest one
 			for (int32_t idxNoteRow = 0; idxNoteRow < totalNumNoteRows; ++idxNoteRow) {
 				NoteRow* thisNoteRow = instrumentClip->noteRows.tryGet(idxNoteRow);
-				if ((thisNoteRow != nullptr) && (thisNoteRow->loopLengthIfIndependent > loopLengthToStopStemExport)
+				if ((thisNoteRow != nullptr) && (thisNoteRow->loopLengthIfIndependent() > loopLengthToStopStemExport)
 				    && !thisNoteRow->hasNoNotes()) {
-					loopLengthToStopStemExport = thisNoteRow->loopLengthIfIndependent;
+					loopLengthToStopStemExport = thisNoteRow->loopLengthIfIndependent();
 				}
 			}
 		}
@@ -669,8 +669,8 @@ int32_t StemExport::exportDrumStems(StemExportType stemExportType) {
 				clip->activeIfNoSolo = true; // unmute clip
 
 				// set the loop length that the drum stem export should be stopped at
-				if (thisNoteRow->loopLengthIfIndependent != 0) {
-					loopLengthToStopStemExport = thisNoteRow->loopLengthIfIndependent;
+				if (thisNoteRow->loopLengthIfIndependent() != 0) {
+					loopLengthToStopStemExport = thisNoteRow->loopLengthIfIndependent();
 				}
 				else {
 					loopLengthToStopStemExport = clip->loopLength();

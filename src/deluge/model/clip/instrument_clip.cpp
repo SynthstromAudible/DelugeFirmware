@@ -263,16 +263,16 @@ void InstrumentClip::increaseLengthWithRepeats(ModelStackWithTimelineCounter* mo
 		int32_t newLengthHere = newLength;
 
 		// Deal specially with NoteRows with independent length.
-		if (thisNoteRow->loopLengthIfIndependent) {
+		if (thisNoteRow->loopLengthIfIndependent()) {
 
 			switch (independentNoteRowInstruction) {
 			case IndependentNoteRowLengthIncrease::DOUBLE:
-				newLengthHere = thisNoteRow->loopLengthIfIndependent << 1;
+				newLengthHere = thisNoteRow->loopLengthIfIndependent() << 1;
 				break;
 
 			case IndependentNoteRowLengthIncrease::ROUND_UP:
-				newLengthHere = ((uint32_t)(newLength - 1) / (uint32_t)thisNoteRow->loopLengthIfIndependent + 1)
-				                * thisNoteRow->loopLengthIfIndependent;
+				newLengthHere = ((uint32_t)(newLength - 1) / (uint32_t)thisNoteRow->loopLengthIfIndependent() + 1)
+				                * thisNoteRow->loopLengthIfIndependent();
 				break;
 
 			default:
@@ -281,10 +281,10 @@ void InstrumentClip::increaseLengthWithRepeats(ModelStackWithTimelineCounter* mo
 
 			numRepeatsRoundedHere = completelyRenderOutIterationDependence
 			                            ? 0
-			                            : (uint32_t)(newLengthHere + (thisNoteRow->loopLengthIfIndependent >> 1))
-			                                  / (uint32_t)thisNoteRow->loopLengthIfIndependent;
+			                            : (uint32_t)(newLengthHere + (thisNoteRow->loopLengthIfIndependent() >> 1))
+			                                  / (uint32_t)thisNoteRow->loopLengthIfIndependent();
 
-			oldLengthHere = thisNoteRow->loopLengthIfIndependent;
+			oldLengthHere = thisNoteRow->loopLengthIfIndependent();
 		}
 
 		if (newLengthHere > oldLengthHere) { // Or do nothing if length staying the same
@@ -293,8 +293,8 @@ void InstrumentClip::increaseLengthWithRepeats(ModelStackWithTimelineCounter* mo
 			                             action);
 		}
 
-		if (thisNoteRow->loopLengthIfIndependent) {
-			thisNoteRow->loopLengthIfIndependent = newLengthHere;
+		if (thisNoteRow->loopLengthIfIndependent()) {
+			thisNoteRow->setLoopLengthIfIndependent(newLengthHere);
 		}
 	}
 
@@ -324,7 +324,7 @@ void InstrumentClip::lengthChanged(ModelStackWithTimelineCounter* modelStack, in
 			NoteRow* thisNoteRow = &noteRows[i];
 
 			// Only if NoteRow doesn't have independent length set, then trim it and stuff
-			if (!thisNoteRow->loopLengthIfIndependent) {
+			if (!thisNoteRow->loopLengthIfIndependent()) {
 				ModelStackWithNoteRow* modelStackWithNoteRow =
 				    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
 				thisNoteRow->trimToLength(loopLength(), modelStackWithNoteRow, action);
@@ -332,8 +332,8 @@ void InstrumentClip::lengthChanged(ModelStackWithTimelineCounter* modelStack, in
 
 			// Or if it does have independent length, are we now the same length as it?
 			else {
-				if (thisNoteRow->loopLengthIfIndependent == loopLength()) {
-					thisNoteRow->loopLengthIfIndependent = 0;
+				if (thisNoteRow->loopLengthIfIndependent() == loopLength()) {
+					thisNoteRow->setLoopLengthIfIndependent(0);
 				}
 			}
 		}
@@ -347,7 +347,7 @@ void InstrumentClip::lengthChanged(ModelStackWithTimelineCounter* modelStack, in
 void InstrumentClip::repeatOrChopToExactLength(ModelStackWithTimelineCounter* modelStack, int32_t newLength) {
 	for (int32_t i = 0; i < std::ssize(noteRows); i++) {
 		NoteRow* thisNoteRow = &noteRows[i];
-		int32_t oldLengthHere = thisNoteRow->loopLengthIfIndependent;
+		int32_t oldLengthHere = thisNoteRow->loopLengthIfIndependent();
 		if (!oldLengthHere) {
 			oldLengthHere = loopLength();
 		}
@@ -367,7 +367,7 @@ void InstrumentClip::repeatOrChopToExactLength(ModelStackWithTimelineCounter* mo
 			}
 		}
 
-		thisNoteRow->loopLengthIfIndependent = 0; // It doesn't need to be independent anymore.
+		thisNoteRow->setLoopLengthIfIndependent(0); // It doesn't need to be independent anymore.
 	}
 
 	if (newLength > loopLength()) {
@@ -405,8 +405,8 @@ void InstrumentClip::halveNoteRowsWithIndependentLength(ModelStackWithTimelineCo
 
 		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(getNoteRowId(noteRow, i), noteRow);
 
-		if (noteRow->loopLengthIfIndependent) {
-			noteRow->setLength(modelStackWithNoteRow, noteRow->loopLengthIfIndependent >> 1, nullptr,
+		if (noteRow->loopLengthIfIndependent()) {
+			noteRow->setLength(modelStackWithNoteRow, noteRow->loopLengthIfIndependent() >> 1, nullptr,
 			                   modelStackWithNoteRow->getLastProcessedPos(), true);
 		}
 	}
@@ -645,7 +645,7 @@ Error InstrumentClip::appendClip(ModelStackWithTimelineCounter* thisModelStack,
 
 		for (int32_t i = 0; i < std::ssize(noteRows); i++) {
 			NoteRow* otherNoteRow = &otherInstrumentClip->noteRows[i];
-			if (otherNoteRow->loopLengthIfIndependent) {
+			if (otherNoteRow->loopLengthIfIndependent()) {
 				continue; // Skip NoteRows with independent length - they'll take care of themselves.
 			}
 
@@ -666,7 +666,7 @@ Error InstrumentClip::appendClip(ModelStackWithTimelineCounter* thisModelStack,
 	else {
 		for (int32_t i = 0; i < std::ssize(otherInstrumentClip->noteRows); i++) {
 			NoteRow* otherNoteRow = &otherInstrumentClip->noteRows[i];
-			if (otherNoteRow->loopLengthIfIndependent) {
+			if (otherNoteRow->loopLengthIfIndependent()) {
 				continue; // Skip NoteRows with independent length - they'll take care of themselves.
 			}
 
@@ -1247,7 +1247,7 @@ void InstrumentClip::bindNoteRowStructure(NoteRow& nr) {
 	}
 	deluge::project::DocNoteRow& d = docClip_->note_rows.emplace_back();
 	d.y = nr.y;
-	d.loop_length_if_independent = nr.loopLengthIfIndependent;
+	d.loop_length_if_independent = nr.loopLengthIfIndependent();
 	d.colour_offset = nr.colourOffset();
 	d.sequence_direction = static_cast<uint8_t>(nr.sequenceDirectionMode);
 	d.muted = nr.muted();
@@ -4529,7 +4529,7 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 
 						// If the NoteRow has independent *length* (not just independent play-pos), then it needs to be
 						// treated individually.
-						if (noteRow->loopLengthIfIndependent != 0) {
+						if (noteRow->loopLengthIfIndependent() != 0) {
 							if (output->type == OutputType::KIT
 							    && std::ssize(noteRows)
 							           != std::ssize(static_cast<InstrumentClip*>(beingRecordedFromClip)->noteRows)) {
@@ -4545,11 +4545,12 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 								if (otherNoteRow != nullptr) { // It "should" always have it...
 
 									int32_t whichRepeatThisIs =
-									    noteRow->loopLengthIfIndependent / otherNoteRow->loopLengthIfIndependent;
+									    noteRow->loopLengthIfIndependent() / otherNoteRow->loopLengthIfIndependent();
 									noteRow->appendNoteRow(modelStack, otherModelStackWithNoteRow,
-									                       noteRow->loopLengthIfIndependent, whichRepeatThisIs,
-									                       otherNoteRow->loopLengthIfIndependent);
-									noteRow->loopLengthIfIndependent += otherNoteRow->loopLengthIfIndependent;
+									                       noteRow->loopLengthIfIndependent(), whichRepeatThisIs,
+									                       otherNoteRow->loopLengthIfIndependent());
+									noteRow->setLoopLengthIfIndependent(noteRow->loopLengthIfIndependent()
+									                                    + otherNoteRow->loopLengthIfIndependent());
 								}
 							}
 						}
@@ -4758,8 +4759,8 @@ int32_t InstrumentClip::getMaxLength() {
 
 	for (int32_t i = 0; i < std::ssize(noteRows); i++) {
 		NoteRow* thisNoteRow = &noteRows[i];
-		if (thisNoteRow->loopLengthIfIndependent > maxLength) {
-			maxLength = thisNoteRow->loopLengthIfIndependent;
+		if (thisNoteRow->loopLengthIfIndependent() > maxLength) {
+			maxLength = thisNoteRow->loopLengthIfIndependent();
 		}
 	}
 

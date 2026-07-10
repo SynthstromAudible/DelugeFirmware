@@ -66,7 +66,7 @@ bool ModelStackWithNoteRow::isCurrentlyPlayingReversed() const {
 	// Under a few different conditions, we just use the Song's or the parent Clip's reversing status.
 	if (!noteRow
 	    || (noteRow->sequenceDirectionMode == SequenceDirection::OBEY_PARENT
-	        && (!noteRow->loopLengthIfIndependent
+	        && (!noteRow->loopLengthIfIndependent()
 	            || getTimelineCounter()->sequenceDirectionMode != SequenceDirection::PINGPONG))) {
 		return getTimelineCounter()->currentlyPlayingReversed;
 	}
@@ -78,8 +78,8 @@ bool ModelStackWithNoteRow::isCurrentlyPlayingReversed() const {
 }
 
 int32_t ModelStackWithNoteRow::getLoopLength() const {
-	if (noteRow && noteRow->loopLengthIfIndependent) {
-		return noteRow->loopLengthIfIndependent;
+	if (noteRow && noteRow->loopLengthIfIndependent()) {
+		return noteRow->loopLengthIfIndependent();
 	}
 	else {
 		return getTimelineCounter()->getLoopLength();

@@ -210,7 +210,7 @@ void testPasteParamAutomation(deluge::edits::Context& ctx) {
 	// paste needs getLoopLength(); a no-timeline stack gets it from the noteRow's independent loop length.
 	// song stays null (makeStack memset) so addressFor short-circuits to nullopt -> collection store.
 	NoteRow nr;
-	nr.loopLengthIfIndependent = 128;
+	nr.setLoopLengthIfIndependent(128);
 	ms->setNoteRow(&nr);
 	// paste's automated-now path calls paramManager->notifyParamModifiedInSomeWay -> expectEvent.
 	ms->paramManager = &pm;

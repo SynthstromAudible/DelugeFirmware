@@ -63,7 +63,7 @@ NoteRow::NoteRow(int16_t newY) {
 	probabilityValue = kNumProbabilityValues;
 	iteranceValue = kDefaultIteranceValue;
 	fillValue = FillMode::OFF;
-	loopLengthIfIndependent = 0;
+	loopLengthIfIndependent_ = 0;
 	sequenceDirectionMode = SequenceDirection::OBEY_PARENT;
 	exportStem = false;
 }
@@ -77,7 +77,7 @@ NoteRow::NoteRow(int16_t newY) {
 //  - ignoreNoteOnsBefore_ / ignoreUntil / ignoredTicks: transient playback state, reset
 NoteRow::NoteRow(NoteRow const& other)
     : y(other.y), muted_(other.muted_), mutedBeforeStemExport(other.mutedBeforeStemExport),
-      exportStem(other.exportStem), loopLengthIfIndependent(other.loopLengthIfIndependent),
+      exportStem(other.exportStem), loopLengthIfIndependent_(other.loopLengthIfIndependent_),
       lastProcessedPosIfIndependent(other.lastProcessedPosIfIndependent),
       repeatCountIfIndependent(other.repeatCountIfIndependent),
       currentlyPlayingReversedIfIndependent(other.currentlyPlayingReversedIfIndependent),
@@ -2063,8 +2063,8 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 		// Remember, lastProcessedPosIfIndependent has already been incremented during call to Clip::incrementPos().
 
 		// Deal with recording from session to arrangement.
-		if (loopLengthIfIndependent // Only if independent *length* - which isn't always the case when we have
-		                            // independent play pos.
+		if (loopLengthIfIndependent() // Only if independent *length* - which isn't always the case when we have
+		                              // independent play pos.
 		    && playbackHandler.recording == RecordingMode::ARRANGEMENT
 		    && lastProcessedPosIfIndependent
 		           == (playingReversedNow ? 0 : effectiveLength) // If reached end (or start) of row length.
@@ -2078,13 +2078,14 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 
 			if (otherNoteRow) {
 
-				int32_t whichRepeatThisIs = (uint32_t)effectiveLength / (uint32_t)otherNoteRow->loopLengthIfIndependent;
+				int32_t whichRepeatThisIs =
+				    (uint32_t)effectiveLength / (uint32_t)otherNoteRow->loopLengthIfIndependent();
 
 				appendNoteRow(modelStack, otherModelStackWithNoteRow, effectiveLength, whichRepeatThisIs,
-				              otherNoteRow->loopLengthIfIndependent);
+				              otherNoteRow->loopLengthIfIndependent());
 
-				loopLengthIfIndependent += otherNoteRow->loopLengthIfIndependent;
-				effectiveLength = loopLengthIfIndependent; // Re-get, since we changed it.
+				setLoopLengthIfIndependent(loopLengthIfIndependent() + otherNoteRow->loopLengthIfIndependent());
+				effectiveLength = loopLengthIfIndependent(); // Re-get, since we changed it.
 			}
 		}
 
@@ -2171,14 +2172,14 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 noFurtherNotes:
 		// If this NoteRow has independent length set, make sure we come back at its end. Otherwise, the Clip
 		// handles this.
-		if (loopLengthIfIndependent) {
+		if (loopLengthIfIndependent()) {
 			ticksTilNextNoteEvent = effectiveCurrentPos;
 			if (!playingReversedNow) {
-				ticksTilNextNoteEvent = loopLengthIfIndependent - ticksTilNextNoteEvent;
+				ticksTilNextNoteEvent = loopLengthIfIndependent() - ticksTilNextNoteEvent;
 			}
 			else if (!ticksTilNextNoteEvent) {
 				ticksTilNextNoteEvent =
-				    loopLengthIfIndependent; // Wrap from 0 up to length. Need to do this when playing reversed.
+				    loopLengthIfIndependent(); // Wrap from 0 up to length. Need to do this when playing reversed.
 			}
 		}
 	}
@@ -2672,13 +2673,7 @@ void NoteRow::setLength(ModelStackWithNoteRow* modelStack, int32_t newLength, Ac
 		oldPos = (uint32_t)oldPos % (uint32_t)newLength;
 	}
 
-	loopLengthIfIndependent = (newLength == clip->loopLength()) ? 0 : newLength;
-
-	// M3 owner-2 (dual-write phase): the length funnel — mirror to the DOM shadow. Covers the SetNoteRowLength Edit
-	// and its undo/redo, which all route length changes through here. Guarded on non-null; nothing reads it yet.
-	if (docNoteRow_ != nullptr) {
-		docNoteRow_->loop_length_if_independent = loopLengthIfIndependent;
-	}
+	setLoopLengthIfIndependent((newLength == clip->loopLength()) ? 0 : newLength);
 
 	if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(clip)) {
 		lastProcessedPosIfIndependent = oldPos;
@@ -3475,8 +3470,8 @@ Error NoteRow::readFromTree(Deserializer& reader, const deluge::storage::Value& 
 
 	// length first: it bounds readAutomationUpToPos for the param/note reads below.
 	if (const Value* n = node.find("length")) {
-		loopLengthIfIndependent = stringToInt(n->str().c_str());
-		readAutomationUpToPos = loopLengthIfIndependent;
+		setLoopLengthIfIndependent(stringToInt(n->str().c_str()));
+		readAutomationUpToPos = loopLengthIfIndependent();
 	}
 	if (const Value* n = node.find("muted")) {
 		setMuted(stringToInt(n->str().c_str()));
@@ -3565,7 +3560,6 @@ Error NoteRow::readFromTree(Deserializer& reader, const deluge::storage::Value& 
 	// insert site). Guarded on non-null; nothing reads the shadow yet, so this is purely additive.
 	if (docNoteRow_ != nullptr) {
 		docNoteRow_->y = y;
-		docNoteRow_->loop_length_if_independent = loopLengthIfIndependent;
 		docNoteRow_->sequence_direction = static_cast<uint8_t>(sequenceDirectionMode);
 	}
 	return Error::NONE;
@@ -3587,8 +3581,8 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 		writer.writeAttribute("colourOffset", getColourOffset(clip));
 	}
 
-	if (loopLengthIfIndependent) {
-		writer.writeAttribute("length", loopLengthIfIndependent);
+	if (loopLengthIfIndependent()) {
+		writer.writeAttribute("length", loopLengthIfIndependent());
 	}
 	if (sequenceDirectionMode != SequenceDirection::OBEY_PARENT) {
 		writer.writeAttribute("sequenceDirection", sequenceDirectionModeToString(sequenceDirectionMode));
@@ -4406,7 +4400,7 @@ uint32_t NoteRow::getLivePos(ModelStackWithNoteRow const* modelStack) {
 }
 
 bool NoteRow::hasIndependentPlayPos() {
-	return (loopLengthIfIndependent || sequenceDirectionMode != SequenceDirection::OBEY_PARENT);
+	return (loopLengthIfIndependent() || sequenceDirectionMode != SequenceDirection::OBEY_PARENT);
 }
 
 void NoteRow::getMPEValues(ModelStackWithNoteRow* modelStack, int16_t* mpeValues) {

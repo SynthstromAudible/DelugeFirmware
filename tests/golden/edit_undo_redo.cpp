@@ -481,7 +481,7 @@ void repeatTarget(Song* song) {
 				continue;
 			}
 			int32_t p0 = nr.notes[0].pos;
-			int32_t nextPos = (std::ssize(nr.notes) > 1) ? nr.notes[1].pos : nr.loopLengthIfIndependent;
+			int32_t nextPos = (std::ssize(nr.notes) > 1) ? nr.notes[1].pos : nr.loopLengthIfIndependent();
 			// loopLengthIfIndependent is 0 for a shared-length row; fall back to a generous span in that case.
 			if (nextPos <= p0) {
 				nextPos = p0 + 32;

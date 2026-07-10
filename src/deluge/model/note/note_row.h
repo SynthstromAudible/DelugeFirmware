@@ -180,7 +180,17 @@ public:
 	bool mutedBeforeStemExport{}; // Used by stem export to restore previous state
 	bool exportStem;              // Used by stem export to flag if this note row should be exported
 
-	int32_t loopLengthIfIndependent; // 0 means obeying parent
+	// M3 owner-2 slice 2a: read-flip onto the DOM shadow when bound; the engine field is a synced fallback.
+	// 0 means obeying parent.
+	int32_t loopLengthIfIndependent() const {
+		return docNoteRow_ != nullptr ? docNoteRow_->loop_length_if_independent : loopLengthIfIndependent_;
+	}
+	void setLoopLengthIfIndependent(int32_t v) {
+		loopLengthIfIndependent_ = v;
+		if (docNoteRow_ != nullptr) {
+			docNoteRow_->loop_length_if_independent = v;
+		}
+	}
 	int32_t lastProcessedPosIfIndependent{};
 	int32_t repeatCountIfIndependent{};
 
@@ -311,6 +321,7 @@ private:
 	// these engine fields); written through the setters, which keep both stores in sync.
 	bool muted_{false};
 	int8_t colourOffset_{0};
+	int32_t loopLengthIfIndependent_{0};
 
 	// Decode a hex noteData value (V1.4+) into notes[]. noteHexLength selects the format variant (20/22/26/28).
 	// Reads the value char-at-a-time from the reader's current scalar. Returns INSUFFICIENT_RAM on alloc failure.

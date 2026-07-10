@@ -2486,8 +2486,8 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 						// independent length, do that instead).
 						if (noteRow->hasNoNotes() && !clip->wrapEditing && desiredNoteLength > effectiveLength) {
 							squareStart = 0;
-							if (noteRow->loopLengthIfIndependent) {
-								noteRow->loopLengthIfIndependent = desiredNoteLength;
+							if (noteRow->loopLengthIfIndependent()) {
+								noteRow->setLoopLengthIfIndependent(desiredNoteLength);
 							}
 							else {
 								deluge::edits::Context clipLenCtx{*currentSong, currentSong->project};
@@ -7598,8 +7598,8 @@ void InstrumentClipView::editNoteRowLength(ModelStackWithNoteRow* modelStack, in
 			didSecretUndo = true;
 
 			// If that got us to the intended length, all is good...
-			if (noteRow->loopLengthIfIndependent == newLength
-			    || (!noteRow->loopLengthIfIndependent && clip->loopLength() == newLength)) {
+			if (noteRow->loopLengthIfIndependent() == newLength
+			    || (!noteRow->loopLengthIfIndependent() && clip->loopLength() == newLength)) {
 possiblyDoResumePlaybackOnNoteRow:
 				// Need to do the resumePlayback that we blocked happening during the revert()
 				if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(clip)) {

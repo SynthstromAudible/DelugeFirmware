@@ -258,7 +258,7 @@ int main() {
 			ms->song = nullptr;
 			ms->setTimelineCounter(nullptr);
 			NoteRow nr;
-			nr.loopLengthIfIndependent = loopLength;
+			nr.setLoopLengthIfIndependent(loopLength);
 			ms->setNoteRow(&nr);
 			bindOracle(ms, &ap, &apDoc);
 			return ap.getValueAtPos(pos, ms, reversed);
@@ -319,7 +319,7 @@ int main() {
 			ms->song = nullptr;
 			ms->setTimelineCounter(nullptr);
 			NoteRow nr;
-			nr.loopLengthIfIndependent = loopLength;
+			nr.setLoopLengthIfIndependent(loopLength);
 			ms->setNoteRow(&nr);
 			bindOracle(ms, &ap, &apDoc);
 			return ap.getDistanceToNextNode(ms, pos, reversed);
@@ -524,7 +524,7 @@ int main() {
 			ms->song = nullptr;
 			ms->setTimelineCounter(nullptr);
 			NoteRow nr;
-			nr.loopLengthIfIndependent = effLen;
+			nr.setLoopLengthIfIndependent(effLen);
 			ms->setNoteRow(&nr);
 			bindOracle(ms, &ap, &apDoc);
 			return ap.homogenizeRegion(ms, startPos, length, startValue, interpL, interpR, effLen, reversed, cut);
@@ -650,7 +650,7 @@ int main() {
 			auto* ms = reinterpret_cast<ModelStackWithAutoParam*>(buf);
 			ms->song = nullptr;
 			ms->setTimelineCounter(nullptr);
-			nr.loopLengthIfIndependent = effLen;
+			nr.setLoopLengthIfIndependent(effLen);
 			ms->setNoteRow(&nr);
 			return ms;
 		};
@@ -1808,7 +1808,7 @@ int main() {
 			auto* ms = reinterpret_cast<ModelStackWithAutoParam*>(buf);
 			ms->song = nullptr;
 			ms->setTimelineCounter(nullptr);
-			nr.loopLengthIfIndependent = effLen;
+			nr.setLoopLengthIfIndependent(effLen);
 			ms->setNoteRow(&nr);
 			return ms;
 		};
@@ -2062,7 +2062,7 @@ int main() {
 							ms->song = nullptr;
 							ms->setTimelineCounter(nullptr);
 							NoteRow nr;
-							nr.loopLengthIfIndependent = effLen;
+							nr.setLoopLengthIfIndependent(effLen);
 							ms->setNoteRow(&nr);
 
 							engineSetValueForRegion(ap, apDoc, ms, c.pos, c.length, c.value, effLen, c.interpL,
@@ -2141,7 +2141,7 @@ int main() {
 			auto* ms = reinterpret_cast<ModelStackWithAutoParam*>(buf);
 			ms->song = nullptr;
 			ms->setTimelineCounter(nullptr);
-			nr.loopLengthIfIndependent = effLen;
+			nr.setLoopLengthIfIndependent(effLen);
 			ms->setNoteRow(&nr);
 			return ms;
 		};
@@ -2155,7 +2155,7 @@ int main() {
 			ms->song = nullptr;
 			auto* withTC = ms->addTimelineCounter(nullptr);
 			auto* withNR = withTC->addNoteRow(0, &nr);
-			nr.loopLengthIfIndependent = effLen;
+			nr.setLoopLengthIfIndependent(effLen);
 			auto* with3 = withNR->addOtherTwoThings(nullptr, &pm);
 			return with3->getUnpatchedAutoParamFromId(kDstParamId);
 		};
@@ -2276,7 +2276,7 @@ int main() {
 			auto* ms = reinterpret_cast<ModelStackWithAutoParam*>(buf);
 			ms->song = nullptr;
 			ms->setTimelineCounter(nullptr);
-			nr.loopLengthIfIndependent = effLen;
+			nr.setLoopLengthIfIndependent(effLen);
 			ms->setNoteRow(&nr);
 			return ms;
 		};
@@ -2523,7 +2523,7 @@ int main() {
 				ms->song = nullptr;
 				ms->setTimelineCounter(nullptr);
 				NoteRow nr;
-				nr.loopLengthIfIndependent = effLen;
+				nr.setLoopLengthIfIndependent(effLen);
 				ms->setNoteRow(&nr);
 
 				int32_t engRet = engineRecordLiveValue(ap, apDoc, ms, c.livePos, c.value, c.ticksToClear, c.doMPE,
