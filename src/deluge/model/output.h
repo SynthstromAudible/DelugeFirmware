@@ -45,6 +45,10 @@ class ParamManager;
 class Serializer;
 class Deserializer;
 
+namespace deluge::project {
+struct DocOutput;
+}
+
 inline const char* outputTypeToString(OutputType type) {
 	switch (type) {
 	case OutputType::SYNTH:
@@ -110,6 +114,13 @@ public:
 	/// Song::outputForId.
 	[[nodiscard]] std::optional<uint32_t> id() const { return id_; }
 	void setId(uint32_t id) { id_ = id; }
+
+	// M3 owner-5 (output identity): non-owning pointer to this output's DOM-owned DocOutput in
+	// project.output_structure, bound via Song::adoptOutput. Null until adopted. syncDocOutput() copies the
+	// Output-base identity fields engine->record at load + save (rebuild-at-save; self-guards when unbound).
+	deluge::project::DocOutput* docOutput_{nullptr};
+	void bindDocOutput(deluge::project::DocOutput* d) { docOutput_ = d; }
+	void syncDocOutput();
 
 	// Temp stuff for doLaunch()
 	bool alreadyGotItsNewClip{};

@@ -29,6 +29,7 @@
 #include "deluge-project/groove.h"
 #include "deluge-project/media_pool.h"
 #include "deluge-project/metadata.h"
+#include "deluge-project/output_structure.h"
 #include "deluge-project/param_address.h"
 #include "deluge-project/param_backup.h"
 #include "deluge-project/reverb_settings.h"
@@ -98,6 +99,7 @@ public:
 	ClipStructure clip_structure; // M3 owner-1: per-clip structural records (loop_length…), keyed by Clip::id
 	DrumStructure drum_structure; // M3 owner-3: per-drum structural records (channel/note…), keyed by Drum::id
 	AudioClipStructure audio_clip_structure; // M3 owner-4: per-AudioClip descriptor records, keyed by Clip::id
+	OutputStructure output_structure; // M3 owner-5: per-output identity records (name/colour…), keyed by Output::id
 };
 
 } // namespace deluge::project
