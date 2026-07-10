@@ -66,11 +66,17 @@ bool Drum::readDrumTagFromFile(Deserializer& reader, char const* tagName) {
 		reader.exitTag("name");
 	}
 	else if (!strcmp(tagName, "midiMuteCommand")) {
+		// LearnedMIDI writes an object (channel/note + optional nested <device>). match('{')/match('}') give the
+		// explicit descent JSON needs; both are no-ops in XML (implicit descent), so this stays golden-neutral.
+		reader.match('{');
 		muteMIDICommand.readNoteFromFile(reader);
+		reader.match('}');
 		reader.exitTag();
 	}
 	else if (!strcmp(tagName, "midiInput")) {
+		reader.match('{');
 		midiInput.readNoteFromFile(reader);
+		reader.match('}');
 		reader.exitTag();
 	}
 	else if (!strcmp(tagName, "id")) {
