@@ -68,6 +68,20 @@ void ValueTreeDeserializer::reset() {
 	}
 }
 
+void ValueTreeDeserializer::enterChildObject(const Value& childObject) {
+	// Root a fresh, self-consistent sub-cursor at childObject (mirrors reset() with childObject as the root
+	// frame): it becomes the sole frame, callerDepth starts at 0, and pending is clear. The sub-reader's
+	// readNextTagOrAttributeName() loop then reads childObject's children directly and terminates when they
+	// run out -- in JSON (reads the top frame's entries) and XML alike (same, with the exitTag depth
+	// reconciliation balancing against callerDepth 0 instead of the outer parse's depth). readChildObject
+	// brackets this with full save/restore, so replacing stack_ here cannot leak into the parent parse.
+	stack_.clear();
+	stack_.push_back(Frame{&childObject, 0});
+	pending_ = nullptr;
+	charCursor_ = 0;
+	callerDepth_ = 0;
+}
+
 int32_t ValueTreeDeserializer::xmlFileDepth() const {
 	int32_t depth = static_cast<int32_t>(stack_.size()) - 1; // the document-root frame is depth 0
 	if (depth < 0) {

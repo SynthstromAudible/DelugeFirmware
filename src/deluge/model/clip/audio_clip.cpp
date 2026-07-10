@@ -1212,9 +1212,8 @@ someError:
 			lastSelectedParamArrayPosition = reader.readTagOrAttributeValueInt();
 		}
 
-		else {
-			readTagFromFile(reader, tagName, song, &readAutomationUpToPos);
-		}
+		// Base-clip tags are read tree-natively in Song::readClipsFromFile (readFromTree slice 3); anything not
+		// handled above falls through to the reader.exitTag() below.
 
 		reader.exitTag();
 	}

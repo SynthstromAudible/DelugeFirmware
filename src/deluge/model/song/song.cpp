@@ -2321,6 +2321,15 @@ readClip:
 				if (syncNode != nullptr && stringToInt(syncNode->str().c_str())) {
 					project.transport.sync_scaling_clip = newClip;
 				}
+
+				// muteMidiCommand (readFromTree slice 3): a nested <note> object read by the shared streaming
+				// sub-reader LearnedMIDI::readFromFile. readChildObject drives that reader against the child node
+				// hermetically. Covered by the corpus song carrying a muteMidiCommand (song_roundtrip +
+				// json_roundtrip).
+				if (const deluge::storage::Value* muteNode = clipNode->find("muteMidiCommand")) {
+					auto& treeReader = static_cast<deluge::storage::ValueTreeDeserializer&>(reader);
+					treeReader.readChildObject(*muteNode, [&] { newClip->muteMIDICommand.readNoteFromFile(reader); });
+				}
 			}
 
 			Error error = newClip->readFromFile(reader, this);

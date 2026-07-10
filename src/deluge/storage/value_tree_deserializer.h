@@ -23,6 +23,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 namespace deluge::storage {
@@ -83,6 +84,28 @@ public:
 	/// still drives the rest. Read-only; does not advance the cursor.
 	[[nodiscard]] const Value* currentValue() const { return pending_; }
 
+	/// Run `body` against a specific child object node, then restore the cursor exactly. `body` drives the
+	/// ordinary streaming interface (readNextTagOrAttributeName / match / exitTag) over `childObject`'s
+	/// children -- exactly as a mid-stream readFromFile would -- letting a tree-native loader delegate a
+	/// nested object to a shared streaming sub-reader (e.g. LearnedMIDI::readFromFile) without rewriting it.
+	/// Hermetic: the entire cursor state is saved and restored around `body`, so the sub-read can never
+	/// desync the parent stream regardless of format/depth subtleties.
+	template <typename F>
+	void readChildObject(const Value& childObject, F&& body) {
+		auto savedStack = stack_;
+		const Value* savedPending = pending_;
+		std::size_t savedCharCursor = charCursor_;
+		int32_t savedCallerDepth = callerDepth_;
+
+		enterChildObject(childObject);
+		body();
+
+		stack_ = std::move(savedStack);
+		pending_ = savedPending;
+		charCursor_ = savedCharCursor;
+		callerDepth_ = savedCallerDepth;
+	}
+
 private:
 	struct Frame {
 		const Value* node;
@@ -94,6 +117,11 @@ private:
 	// of a container yields an empty/zero result instead of throwing bad_variant_access -- matching
 	// the file readers, which return garbage rather than crash.
 	[[nodiscard]] const std::string* pendingScalar() const;
+
+	// Establish a fresh, self-consistent sub-cursor rooted at childObject (the state readChildObject runs
+	// `body` in). childObject becomes the sole frame, so the sub-reader's readNextTagOrAttributeName() loop
+	// reads its children directly and terminates when exhausted -- in both JSON and XML mode.
+	void enterChildObject(const Value& childObject);
 
 	// --- XML mode (SourceFormat::Xml) ---
 	// These mirror XMLDeserializer's contract over the all-ordered-maps tree parseXml() produces.

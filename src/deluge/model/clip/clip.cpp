@@ -714,17 +714,10 @@ void Clip::writeMidiCommandsToFile(Serializer& writer, Song* song) {
 	muteMIDICommand.writeNoteToFile(writer, "muteMidiCommand");
 }
 
-void Clip::readTagFromFile(Deserializer& reader, char const* tagName, Song* song, int32_t* readAutomationUpToPos) {
-
-	// The base-clip shell (id/section/colourOffset/launchStyle/length) and the plain attributes + selection/sync-scale
-	// hints (isPlaying/isSoloing/isArmedForRecording/status/sequenceDirection/beingEdited/selected/isSyncScaleClip) are
-	// all read tree-natively in readClipsFromFile (durable-id readFromTree slices 1-3). Only muteMidiCommand -- a
-	// nested object read by the shared LearnedMIDI sub-reader -- remains here (readFromTree slice 3 part 2 moves it
-	// too).
-	if (!strcmp(tagName, "muteMidiCommand")) {
-		muteMIDICommand.readNoteFromFile(reader);
-	}
-}
+// Clip::readTagFromFile is gone (durable-id readFromTree slice 3): every base-clip tag -- the shell
+// (id/section/colourOffset/launchStyle/length), the plain attributes + selection/sync hints, and the nested
+// muteMidiCommand -- is now read tree-natively in Song::readClipsFromFile. Unrecognized tags in the subclass
+// readFromFile loops fall straight through to reader.exitTag().
 
 void Clip::prepareForDestruction(ModelStackWithTimelineCounter* modelStack,
                                  InstrumentRemoval instrumentRemovalInstruction) {
