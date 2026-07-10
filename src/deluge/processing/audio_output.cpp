@@ -59,9 +59,7 @@ AudioOutput::AudioOutput() : Output(OutputType::AUDIO) {
 }
 
 AudioOutput::~AudioOutput() {
-	if (outputRecordingFrom) {
-		outputRecordingFrom->setRenderingToAudioOutput(false, nullptr);
-	}
+	releaseMonitoringClaim();
 }
 
 void AudioOutput::cloneFrom(ModControllableAudio* other) {
@@ -88,9 +86,7 @@ void AudioOutput::cloneFrom(ModControllableAudio* other) {
 	if (inputChannel == AudioInputChannel::SPECIFIC_OUTPUT) {
 		outputRecordingFrom = ao->outputRecordingFrom;
 		// now steal the monitoring of the original track if necessary (i.e. we're a looper or sampler)
-		if (mode != AudioOutputMode::player) {
-			outputRecordingFrom->setRenderingToAudioOutput(true, this);
-		}
+		updateMonitoringClaim();
 	}
 }
 
