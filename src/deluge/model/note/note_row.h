@@ -58,6 +58,9 @@ class TimelineView;
 namespace deluge::storage {
 class Value;
 }
+namespace deluge::project {
+struct DocNoteRow;
+}
 
 class ModelStackWithTimelineCounter;
 class ModelStackWithNoteRow;
@@ -187,6 +190,11 @@ public:
 	Drum* drum;
 	OldDrumNameHead firstOldDrumName;
 	NoteVector notes{};
+
+	/// M3 owner-2 (dual-write phase): non-owning pointer to this row's DOM record in its clip's DocClip.note_rows
+	/// pool. Bound at create/clone/load by InstrumentClip; nullptr until bound. Nothing reads it yet (shadow).
+	deluge::project::DocNoteRow* docNoteRow_{nullptr};
+	void bindDocNoteRow(deluge::project::DocNoteRow* d) { docNoteRow_ = d; }
 	// values for whole row
 	uint8_t probabilityValue;
 	Iterance iteranceValue;

@@ -17,7 +17,9 @@
 
 #pragma once
 
+#include "deluge-project/doc_note_row.h"
 #include <cstdint>
+#include <list>
 
 namespace deluge::project {
 
@@ -35,6 +37,11 @@ struct DocClip {
 	int16_t colour_offset{-60}; ///< matches the engine Clip default
 	uint8_t launch_style{0};    ///< LaunchStyle underlying value (0 = DEFAULT)
 	uint8_t section{0};
+
+	/// M3 owner-2: per-note-row structural records, one per engine NoteRow. A std::list for STABLE element
+	/// addresses (each engine NoteRow holds a raw pointer into this pool). Order within the list is irrelevant —
+	/// note-row order is a function of `y`, reproduced at save from the engine's y-ordered noteRows.
+	std::list<DocNoteRow> note_rows;
 };
 
 } // namespace deluge::project
