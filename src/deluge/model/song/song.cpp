@@ -1187,20 +1187,10 @@ weAreInArrangementEditorOrInClipInstance:
 	writer.writeClosingTag("song", true, true);
 }
 
-void Song::assignSessionIds() {
-	auto assignClip = [this](Clip* c) {
-		if (!c->id() && c->sessionId() == 0) {
-			c->setSessionId(project.mintSessionId());
-		}
-	};
-	for (int32_t c = 0; c < std::ssize(project.clips.session_clips); c++) {
-		assignClip(project.clips.session_clips[c]);
-	}
-	for (int32_t c = 0; c < std::ssize(project.clips.arrangement_only_clips); c++) {
-		assignClip(project.clips.arrangement_only_clips[c]);
-	}
-	// durable-id Slice 1: give every song-member output/drum a DURABLE id (not a transient session id) so the param
-	// addressing (OwnerId) always takes its id branch. Loaded owners already have file ids -> no-op for them.
+void Song::assignMissingIds() {
+	// Give every song-member output/drum a durable id if it lacks one (a runtime owner never saved/loaded). Loaded
+	// owners already have file ids -> no-op. Clips always have an id from their ctor. This guarantees param addressing
+	// (OwnerId) can always resolve by durable id -- the durable-id program's replacement for transient session ids.
 	for (Output* o = project.media.first_output; o != nullptr; o = o->next) {
 		if (!o->id()) {
 			o->setId(generateNewOutputId());
@@ -1824,10 +1814,9 @@ loadOutput:
 		}
 	}
 
-	// M3 universal ids: assign a session id to every no-id clip/output/drum BEFORE the relocation, so the
-	// relocation (and the loop-length load-binding pass below) resolve by an id that already exists — instead of
-	// minting conditionally inline. Golden-neutral (session ids aren't serialized).
-	assignSessionIds();
+	// Give every no-id output/drum a durable id BEFORE the relocation, so the relocation (and the loop-length
+	// load-binding pass below) resolve by an id that already exists. Loaded owners keep their file ids (no-op).
+	assignMissingIds();
 
 	// Phase C (DOM single-store): borrow-point each AudioClip's unpatched automation node storage at a
 	// DOM-owned DocParamSet anchored on the ParamSet (Model A), mirroring the song-global borrow below. Every
@@ -1843,16 +1832,9 @@ loadOutput:
 				// by the clip's stable id, and bind the engine set to that tree store (so doc() id-resolves
 				// it and docForParam/save read the same nodes). A clip with no id (never saved) keeps its
 				// engine-owned store. Seed the tree store from what the file read into the engine set first.
+				// Clips always have a durable id (ctor-minted), so relocate keyed by it.
 				if (std::optional<uint32_t> id = thisClip->id()) {
 					deluge::project::DocParamManager& mgr = project.clip_params.getOrCreate(*id);
-					relocateParamStoreToTree(unpatched, mgr.unpatched);
-				}
-				else {
-					// S5-b.1: a never-saved (no-id) audio clip — relocate into the transient session-keyed
-					// store and address it by a session id, so doc() id-resolves it (dropping the engine fallback
-					// for audio clips). Session ids are never serialized, so this is golden-neutral.
-					deluge::project::DocParamManager& mgr =
-					    project.session_clip_params.getOrCreate(thisClip->sessionId());
 					relocateParamStoreToTree(unpatched, mgr.unpatched);
 				}
 			}
@@ -1868,31 +1850,19 @@ loadOutput:
 			         && thisClip->paramManager.containsAnyMainParamCollections()) {
 				std::optional<uint32_t> clipId = thisClip->id();
 				std::optional<uint32_t> outId = thisClip->output->id();
-				// S5-b.3: key by id when saved, else by transient session ids (the "both-session" case: the
-				// whole song is never-saved / freshly-loaded-old, so BOTH clip and output lack ids). A id
-				// owner with a newly-added no-id clip (mixed) is deferred → falls through to the engine store.
+				// Both clip and output always have durable ids (ctor / assignMissingIds), so relocate keyed by
+				// (instrument(output), clip). The mixed/no-id cases are gone with the session machinery.
 				deluge::project::OwnerId instrOwner{};
 				std::optional<uint32_t> clipKey{};
-				bool useSession = false;
 				bool relocate = false;
 				if (clipId.has_value() && outId.has_value()) {
 					instrOwner = deluge::project::OwnerId::instrument(*outId);
 					clipKey = clipId;
 					relocate = true;
 				}
-				else if (!clipId.has_value() && !outId.has_value()) {
-					// Session ids for this clip + its output were assigned up-front by assignSessionIds().
-					instrOwner = deluge::project::OwnerId::instrumentSession(thisClip->output->sessionId());
-					clipKey = thisClip->sessionId();
-					useSession = true;
-					relocate = true;
-				}
 				if (relocate) {
-					// clip_is_session == useSession here: the load path only relocates the both-serial (useSession
-					// false) and both-session (useSession true) cases, so the clip dimension's session-ness equals the
-					// owner's. The mixed case (id owner + session clip) is minted at runtime, not at load.
 					deluge::project::DocParamManager& mgr =
-					    project.backed_params.getOrCreate(instrOwner, clipKey, useSession);
+					    project.backed_params.getOrCreate(instrOwner, clipKey, false);
 					UnpatchedParamSet* unpatched = thisClip->paramManager.getUnpatchedParamSet();
 					relocateParamStoreToTree(unpatched, mgr.unpatched);
 					if (thisClip->output->type == OutputType::SYNTH) {
@@ -1924,20 +1894,13 @@ loadOutput:
 							    || !nr.paramManager.containsAnyMainParamCollections()) {
 								continue;
 							}
-							deluge::project::OwnerId drumOwner{};
-							if (!useSession) {
-								std::optional<uint32_t> drumId = nr.drum->id();
-								if (!drumId.has_value()) {
-									continue;
-								}
-								drumOwner = deluge::project::OwnerId::drum(*drumId);
+							std::optional<uint32_t> drumId = nr.drum->id();
+							if (!drumId.has_value()) {
+								continue;
 							}
-							else {
-								// nr.drum's session id was assigned up-front by assignSessionIds().
-								drumOwner = deluge::project::OwnerId::drumSession(nr.drum->sessionId());
-							}
+							deluge::project::OwnerId drumOwner = deluge::project::OwnerId::drum(*drumId);
 							deluge::project::DocParamManager& dmgr =
-							    project.backed_params.getOrCreate(drumOwner, clipKey, useSession);
+							    project.backed_params.getOrCreate(drumOwner, clipKey, false);
 							UnpatchedParamSet* du = nr.paramManager.getUnpatchedParamSet();
 							relocateParamStoreToTree(du, dmgr.unpatched);
 							if (PatchedParamSet* dp = nr.paramManager.getPatchedParamSet()) {
@@ -2174,18 +2137,9 @@ skipInstance:
 					// (never saved) keeps its engine-owned inline store. (CV has no MIDIParamCollection — skipped.)
 					if (thisClip->paramManager.containsAnyParamCollectionsIncludingExpression()) {
 						MIDIParamCollection* midi = thisClip->paramManager.getMIDIParamCollection();
+						// Clips always have a durable id (ctor-minted), so relocate keyed by it.
 						if (std::optional<uint32_t> id = thisClip->id()) {
 							deluge::project::DocParamManager& mgr = project.clip_params.getOrCreate(*id);
-							mgr.midi_params = deluge::project::toDocMidiParams(*midi);
-							midi->bindDomMidiExternal(&mgr.midi_params);
-						}
-						else {
-							// S5-b.2: a never-saved (no-id) MIDI clip — relocate its CC automation into the
-							// session-keyed store + address it by session id (Kind::MIDI resolves by cc), so doc()
-							// id-resolves it instead of the fallback.
-							// thisClip's session id was assigned up-front by assignSessionIds().
-							deluge::project::DocParamManager& mgr =
-							    project.session_clip_params.getOrCreate(thisClip->sessionId());
 							mgr.midi_params = deluge::project::toDocMidiParams(*midi);
 							midi->bindDomMidiExternal(&mgr.midi_params);
 						}

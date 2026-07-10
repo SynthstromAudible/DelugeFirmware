@@ -62,11 +62,6 @@ std::optional<deluge::project::ParamAddress> addressFor(const ModelStackWithAuto
 			clipKey = *clipSerialOpt;
 			haveClip = true;
 		}
-		else if (clip->sessionId() != 0) {
-			clipKey = clip->sessionId();
-			clipIsSession = true;
-			haveClip = true;
-		}
 
 		if (!haveClip) {
 			// clip not relocated → fallback (haveOwner stays false)
@@ -80,11 +75,6 @@ std::optional<deluge::project::ParamAddress> addressFor(const ModelStackWithAuto
 					clipSerial = clipKey;
 					haveOwner = true;
 				}
-				else if (drum->sessionId() != 0) {
-					owner = deluge::project::OwnerId::drumSession(drum->sessionId());
-					clipSerial = clipKey;
-					haveOwner = true;
-				}
 			}
 		}
 		else if (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
@@ -93,11 +83,6 @@ std::optional<deluge::project::ParamAddress> addressFor(const ModelStackWithAuto
 			Output* out = clip->output;
 			if (std::optional<uint32_t> outId = out->id()) {
 				owner = deluge::project::OwnerId::instrument(*outId);
-				clipSerial = clipKey;
-				haveOwner = true;
-			}
-			else if (out->sessionId() != 0) {
-				owner = deluge::project::OwnerId::instrumentSession(out->sessionId());
 				clipSerial = clipKey;
 				haveOwner = true;
 			}
@@ -164,11 +149,8 @@ deluge::project::DocAutoParam* relocateAndResolve(const ModelStackWithAutoParam&
 	Clip* clip = static_cast<Clip*>(tc);
 	NoteRow* noteRow = modelStack.getNoteRowAllowNull();
 
-	// Mint session ids for the owner chain this param belongs to (mint-once: a session id shared across the owner's
-	// clips/params stays stable). After this, addressFor can build a total ParamAddress.
-	if (clip->id() == 0 && clip->sessionId() == 0) {
-		clip->setSessionId(proj.mintSessionId());
-	}
+	// Ensure the owner chain this param belongs to has a durable id, minting one for a runtime owner never
+	// saved/loaded (clips always have one from their ctor). After this, addressFor can build a total ParamAddress.
 	if (noteRow != nullptr) {
 		if (noteRow->drum != nullptr && noteRow->drum->type == DrumType::SOUND && !noteRow->drum->id().has_value()) {
 			noteRow->drum->setId(modelStack.song->generateNewDrumId());

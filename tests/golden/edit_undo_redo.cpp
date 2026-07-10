@@ -231,9 +231,9 @@ void driveNoteEdits(Song* song, InstrumentClip* clip, NoteRow* noteRow, int32_t 
 	(void)label;
 }
 
-// True if this clip is note-addressable (has a durable clip id — see the S5-b note-only-clip gap).
+// True if this clip is note-addressable (has a durable clip id).
 bool clipIsAddressable(InstrumentClip* ic) {
-	return ic->id() != 0 || ic->sessionId() != 0;
+	return ic->id() != 0;
 }
 
 // M2b: first MELODIC (synth/MIDI) InstrumentClip note-row with a note.
@@ -273,7 +273,7 @@ void kitNoteTarget(Song* song) {
 		for (int32_t r = 0; r < std::ssize(ic->noteRows); r++) {
 			NoteRow& nr = ic->noteRows[r];
 			if (!nr.notes.empty() && nr.drum != nullptr && nr.drum->type == DrumType::SOUND
-			    && (nr.drum->id().has_value() || nr.drum->sessionId() != 0)) {
+			    && nr.drum->id().has_value()) {
 				printf("# target kit-note-add-remove\n");
 				driveNoteEdits(song, ic, &nr, r, "kit");
 				return;

@@ -203,7 +203,7 @@ public:
 	/// M3: mint a transient session id for every clip / output / drum that lacks a durable id, so every entity
 	/// is id-addressable. Called at load before the param relocation; idempotent (skips entities that already have an
 	/// id). Session ids are never serialized → golden-neutral.
-	void assignSessionIds();
+	void assignMissingIds();
 	/// Bind a song-resident clip to the persistent DOM structural store (mint a session id if it has none, seed its
 	void writeToFile(Serializer& writer);
 	void loadAllSamples(bool mayActuallyReadFiles = true);

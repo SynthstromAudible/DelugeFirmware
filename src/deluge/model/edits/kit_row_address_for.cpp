@@ -11,20 +11,12 @@ std::optional<deluge::project::KitRowAddress> kitRowAddressFor(const Kit& kit, c
 		addr.kit_id = *serial;
 		addr.kit_is_session = false;
 	}
-	else if (uint32_t session = kit.sessionId(); session != 0) {
-		addr.kit_id = session;
-		addr.kit_is_session = true;
-	}
 	else {
 		return std::nullopt;
 	}
 	if (std::optional<uint32_t> serial = drum.id()) {
 		addr.drum_id = *serial;
 		addr.drum_is_session = false;
-	}
-	else if (uint32_t session = drum.sessionId(); session != 0) {
-		addr.drum_id = session;
-		addr.drum_is_session = true;
 	}
 	else {
 		return std::nullopt;

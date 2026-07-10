@@ -221,12 +221,6 @@ public:
 	/// song's counter (or restored on load); resolve via Song::clipForId.
 	[[nodiscard]] uint32_t id() const { return id_; }
 
-	/// S5-b: transient (never-serialized) session id for runtime DOM addressing of a NOT-YET-SAVED clip (one with
-	/// no id). 0 = unassigned. Minted from the project's session counter at load/creation so doc() can
-	/// id-resolve the clip's params (session_clip_params) instead of the engine fallback.
-	[[nodiscard]] uint32_t sessionId() const { return session_id_; }
-	void setSessionId(uint32_t id) { session_id_ = id; }
-
 	/// M3 owner-1: clip launch style lives in the DOM DocClip (see loopLength()).
 	[[nodiscard]] LaunchStyle launchStyle() const { return static_cast<LaunchStyle>(treeDoc_->launch_style); }
 	void setLaunchStyle(LaunchStyle s) { treeDoc_->launch_style = static_cast<uint8_t>(s); }
@@ -264,8 +258,6 @@ protected:
 	virtual void pingpongOccurred(ModelStackWithTimelineCounter* modelStack) {}
 
 private:
-	/// Stable per-song serial identity; see id(). nullopt = unassigned.
+	/// Stable per-song serial identity; see id(). Minted in the ctor.
 	uint32_t id_{0};
-	/// Transient per-load session identity; see sessionId(). 0 = unassigned. Never serialized.
-	uint32_t session_id_{0};
 };

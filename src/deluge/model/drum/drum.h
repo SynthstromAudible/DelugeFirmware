@@ -62,8 +62,7 @@ public:
 
 	Drum* next;
 
-	std::optional<uint32_t> id_; // Stable per-song identity; see id(). nullopt = unassigned.
-	uint32_t session_id_{0};     // Transient per-load identity; see sessionId(). 0 = unassigned. Never serialized.
+	std::optional<uint32_t> id_; // Stable per-song identity; see id(). nullopt = standalone / unassigned.
 
 	LearnedMIDI midiInput;
 	LearnedMIDI muteMIDICommand;
@@ -95,10 +94,6 @@ public:
 	[[nodiscard]] std::optional<uint32_t> id() const { return id_; }
 	void setId(uint32_t id) { id_ = id; }
 
-	/// S5-b: transient (never-serialized) session id for runtime DOM addressing of a NOT-YET-SAVED drum (no
-	/// id). 0 = unassigned. Minted at load/creation so doc() id-resolves its per-drum params.
-	[[nodiscard]] uint32_t sessionId() const { return session_id_; }
-	void setSessionId(uint32_t id) { session_id_ = id; }
 	void recordNoteOnEarly(int32_t velocity, bool noteTailsAllowed);
 	void expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack, int16_t newValue,
 	                                     int32_t expressionDimension, int32_t level);

@@ -16,14 +16,10 @@ std::optional<deluge::project::NoteRowAddress> noteRowAddressFor(const ModelStac
 	}
 	deluge::project::NoteRowAddress addr{};
 
-	// Clip identity (serial when saved, else the S5-b session id; else unaddressable).
+	// Clip identity (durable id; clips always have one from their ctor).
 	if (std::optional<uint32_t> serial = clip->id()) {
 		addr.clip_id = *serial;
 		addr.clip_is_session = false;
-	}
-	else if (uint32_t session = clip->sessionId(); session != 0) {
-		addr.clip_id = session;
-		addr.clip_is_session = true;
 	}
 	else {
 		return std::nullopt;
@@ -38,10 +34,6 @@ std::optional<deluge::project::NoteRowAddress> noteRowAddressFor(const ModelStac
 		if (std::optional<uint32_t> serial = drum->id()) {
 			addr.row_key = static_cast<int32_t>(*serial);
 			addr.row_key_is_session = false;
-		}
-		else if (uint32_t session = drum->sessionId(); session != 0) {
-			addr.row_key = static_cast<int32_t>(session);
-			addr.row_key_is_session = true;
 		}
 		else {
 			return std::nullopt;
