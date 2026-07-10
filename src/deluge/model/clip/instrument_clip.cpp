@@ -1249,7 +1249,7 @@ void InstrumentClip::bindNoteRowStructure(NoteRow& nr) {
 	d.y = nr.y;
 	d.loop_length_if_independent = nr.loopLengthIfIndependent();
 	d.colour_offset = nr.colourOffset();
-	d.sequence_direction = static_cast<uint8_t>(nr.sequenceDirectionMode);
+	d.sequence_direction = static_cast<uint8_t>(nr.sequenceDirectionMode());
 	d.muted = nr.muted();
 	nr.bindDocNoteRow(&d);
 }

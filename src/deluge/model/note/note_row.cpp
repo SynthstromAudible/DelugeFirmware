@@ -64,7 +64,7 @@ NoteRow::NoteRow(int16_t newY) {
 	iteranceValue = kDefaultIteranceValue;
 	fillValue = FillMode::OFF;
 	loopLengthIfIndependent_ = 0;
-	sequenceDirectionMode = SequenceDirection::OBEY_PARENT;
+	sequenceDirectionMode_ = SequenceDirection::OBEY_PARENT;
 	exportStem = false;
 }
 
@@ -81,7 +81,7 @@ NoteRow::NoteRow(NoteRow const& other)
       lastProcessedPosIfIndependent(other.lastProcessedPosIfIndependent),
       repeatCountIfIndependent(other.repeatCountIfIndependent),
       currentlyPlayingReversedIfIndependent(other.currentlyPlayingReversedIfIndependent),
-      sequenceDirectionMode(other.sequenceDirectionMode), drum(other.drum), notes(other.notes),
+      sequenceDirectionMode_(other.sequenceDirectionMode_), drum(other.drum), notes(other.notes),
       probabilityValue(other.probabilityValue), iteranceValue(other.iteranceValue), fillValue(other.fillValue),
       muteMIDICommand(other.muteMIDICommand), midiInput(other.midiInput), colourOffset_(other.colourOffset_),
       sequenced(other.sequenced), ignoreNoteOnsBefore_(0) {
@@ -219,8 +219,8 @@ Error NoteRow::flattenReverse(ModelStackWithNoteRow* modelStack) {
 		}
 	}
 
-	if (sequenceDirectionMode != SequenceDirection::PINGPONG) {
-		sequenceDirectionMode = SequenceDirection::OBEY_PARENT;
+	if (sequenceDirectionMode() != SequenceDirection::PINGPONG) {
+		setSequenceDirectionModeRaw(SequenceDirection::OBEY_PARENT);
 	}
 	// Pingponging won't have been flattened by a single clone. And we may be about to flatten it with a
 	// generateRepeats(), so need to keep this designation for now.
@@ -2039,11 +2039,11 @@ void NoteRow::renderRow(TimelineView* editorScreen, RGB rowColour, RGB rowTailCo
 }
 
 SequenceDirection NoteRow::getEffectiveSequenceDirectionMode(ModelStackWithNoteRow const* modelStack) {
-	if (sequenceDirectionMode == SequenceDirection::OBEY_PARENT) {
+	if (sequenceDirectionMode() == SequenceDirection::OBEY_PARENT) {
 		return ((Clip*)modelStack->getTimelineCounter())->sequenceDirectionMode;
 	}
 	else {
-		return sequenceDirectionMode;
+		return sequenceDirectionMode();
 	}
 }
 
@@ -2806,12 +2806,12 @@ bool NoteRow::generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLoo
 
 	InstrumentClip* clip = (InstrumentClip*)modelStack->getTimelineCounter();
 
-	if (sequenceDirectionMode == SequenceDirection::PINGPONG) {
+	if (sequenceDirectionMode() == SequenceDirection::PINGPONG) {
 		// Pingponging is being flattened out, and although there are arguments either way, I think removing
 		// that setting now is best.
-		sequenceDirectionMode = (clip->sequenceDirectionMode == SequenceDirection::REVERSE)
-		                            ? SequenceDirection::FORWARD
-		                            : SequenceDirection::OBEY_PARENT;
+		setSequenceDirectionModeRaw((clip->sequenceDirectionMode == SequenceDirection::REVERSE)
+		                                ? SequenceDirection::FORWARD
+		                                : SequenceDirection::OBEY_PARENT);
 	}
 
 	int32_t numNotesBefore = std::ssize(notes);
@@ -3490,7 +3490,7 @@ Error NoteRow::readFromTree(Deserializer& reader, const deluge::storage::Value& 
 		drum = (Drum*)(0xFFFFFFFE - gateChannel);
 	}
 	if (const Value* n = node.find("sequenceDirection")) {
-		sequenceDirectionMode = stringToSequenceDirectionMode(n->str().c_str());
+		setSequenceDirectionModeRaw(stringToSequenceDirectionMode(n->str().c_str()));
 	}
 	if (const Value* n = node.find("bendRange")) {
 		newBendRange = stringToInt(n->str().c_str());
@@ -3560,7 +3560,6 @@ Error NoteRow::readFromTree(Deserializer& reader, const deluge::storage::Value& 
 	// insert site). Guarded on non-null; nothing reads the shadow yet, so this is purely additive.
 	if (docNoteRow_ != nullptr) {
 		docNoteRow_->y = y;
-		docNoteRow_->sequence_direction = static_cast<uint8_t>(sequenceDirectionMode);
 	}
 	return Error::NONE;
 }
@@ -3584,8 +3583,8 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 	if (loopLengthIfIndependent()) {
 		writer.writeAttribute("length", loopLengthIfIndependent());
 	}
-	if (sequenceDirectionMode != SequenceDirection::OBEY_PARENT) {
-		writer.writeAttribute("sequenceDirection", sequenceDirectionModeToString(sequenceDirectionMode));
+	if (sequenceDirectionMode() != SequenceDirection::OBEY_PARENT) {
+		writer.writeAttribute("sequenceDirection", sequenceDirectionModeToString(sequenceDirectionMode()));
 	}
 
 	if (!notes.empty()) {
@@ -4400,7 +4399,7 @@ uint32_t NoteRow::getLivePos(ModelStackWithNoteRow const* modelStack) {
 }
 
 bool NoteRow::hasIndependentPlayPos() {
-	return (loopLengthIfIndependent() || sequenceDirectionMode != SequenceDirection::OBEY_PARENT);
+	return (loopLengthIfIndependent() || sequenceDirectionMode() != SequenceDirection::OBEY_PARENT);
 }
 
 void NoteRow::getMPEValues(ModelStackWithNoteRow* modelStack, int16_t* mpeValues) {
@@ -4525,7 +4524,7 @@ void NoteRow::setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, Sequen
 	int32_t lastProcessedPosBefore = modelStack->getLastProcessedPos();
 
 	bool reversedBefore = modelStack->isCurrentlyPlayingReversed();
-	sequenceDirectionMode = newMode;
+	setSequenceDirectionModeRaw(newMode);
 	lastProcessedPosIfIndependent = lastProcessedPosBefore; // We might change this, below.
 
 	// If now pingponging...

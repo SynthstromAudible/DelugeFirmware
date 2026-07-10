@@ -197,7 +197,19 @@ public:
 	// Valid only if not obeying parent, or if obeyed parent is pingponging and we have independent length
 	bool currentlyPlayingReversedIfIndependent{};
 
-	SequenceDirection sequenceDirectionMode;
+	// M3 owner-2 slice 2a: read-flip onto the DOM shadow when bound; the engine field is a synced fallback. The
+	// public setSequenceDirectionMode(ModelStack*, ...) below routes its field write through
+	// setSequenceDirectionModeRaw.
+	SequenceDirection sequenceDirectionMode() const {
+		return docNoteRow_ != nullptr ? static_cast<SequenceDirection>(docNoteRow_->sequence_direction)
+		                              : sequenceDirectionMode_;
+	}
+	void setSequenceDirectionModeRaw(SequenceDirection v) {
+		sequenceDirectionMode_ = v;
+		if (docNoteRow_ != nullptr) {
+			docNoteRow_->sequence_direction = static_cast<uint8_t>(v);
+		}
+	}
 	uint32_t getLivePos(ModelStackWithNoteRow const* modelStack);
 	bool hasIndependentPlayPos();
 
@@ -322,6 +334,7 @@ private:
 	bool muted_{false};
 	int8_t colourOffset_{0};
 	int32_t loopLengthIfIndependent_{0};
+	SequenceDirection sequenceDirectionMode_{SequenceDirection::OBEY_PARENT};
 
 	// Decode a hex noteData value (V1.4+) into notes[]. noteHexLength selects the format variant (20/22/26/28).
 	// Reads the value char-at-a-time from the reader's current scalar. Returns INSUFFICIENT_RAM on alloc failure.

@@ -65,7 +65,7 @@ ModelStackWithNoteRow* ModelStackWithNoteRowId::automaticallyAddNoteRowFromId() 
 bool ModelStackWithNoteRow::isCurrentlyPlayingReversed() const {
 	// Under a few different conditions, we just use the Song's or the parent Clip's reversing status.
 	if (!noteRow
-	    || (noteRow->sequenceDirectionMode == SequenceDirection::OBEY_PARENT
+	    || (noteRow->sequenceDirectionMode() == SequenceDirection::OBEY_PARENT
 	        && (!noteRow->loopLengthIfIndependent()
 	            || getTimelineCounter()->sequenceDirectionMode != SequenceDirection::PINGPONG))) {
 		return getTimelineCounter()->currentlyPlayingReversed;
