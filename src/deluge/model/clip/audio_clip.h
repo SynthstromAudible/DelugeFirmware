@@ -95,6 +95,11 @@ public:
 
 	Error readFromFile(Deserializer& reader, Song* song) override;
 	void writeDataToFile(Serializer& writer, Song* song) override;
+
+	/// M3 owner-4: rebuild the bound DocAudioClip (`docAudioClip_`) from the engine AudioClip's persistent
+	/// descriptor fields. Called at load (readFromFile end) and save (writeDataToFile start) — rebuild-at-save, so
+	/// no per-mutator dual-write is needed. WRITE-ONLY into the shadow record; self-guards on a null docAudioClip_.
+	void syncDocAudioClip();
 	char const* getXMLTag() override { return "audioClip"; }
 	int32_t nextSampleRestartPos{};
 	SampleControls sampleControls;

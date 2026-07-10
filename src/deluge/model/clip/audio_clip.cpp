@@ -1068,7 +1068,28 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 	return true;
 }
 
+void AudioClip::syncDocAudioClip() {
+	if (docAudioClip_ == nullptr) {
+		return;
+	}
+	deluge::project::DocAudioClip& d = *docAudioClip_;
+	// Reference the sample by portable path, matching writeDataToFile's audioFile ? audioFile->filePath : filePath.
+	d.file_path = sampleHolder.audioFile ? sampleHolder.audioFile->filePath : sampleHolder.filePath;
+	d.start_pos = sampleHolder.startPos;
+	d.end_pos = sampleHolder.endPos;
+	d.transpose = sampleHolder.transpose;
+	d.cents = sampleHolder.cents;
+	d.interpolation_mode = static_cast<uint8_t>(sampleControls.interpolationMode);
+	d.pitch_and_speed_independent = sampleControls.pitchAndSpeedAreIndependent;
+	d.reversed = sampleControls.reversed;
+	d.attack = attack;
+	d.voice_priority = static_cast<uint8_t>(voicePriority);
+	d.overdubs_should_clone = overdubsShouldCloneOutput;
+}
+
 void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
+
+	syncDocAudioClip(); // M3 owner-4: rebuild-at-save — capture runtime menu/consequence mutations into the DOM record.
 
 	writer.writeAttribute("trackName", output->name.c_str());
 
@@ -1210,6 +1231,8 @@ someError:
 	}
 
 	reader.match('}'); // close the clip object (balances the match('{') above; a no-op in XML).
+
+	syncDocAudioClip(); // M3 owner-4: rebuild the DOM descriptor record from the just-loaded engine fields.
 	return Error::NONE;
 }
 
