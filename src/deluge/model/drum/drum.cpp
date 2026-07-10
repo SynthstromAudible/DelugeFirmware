@@ -46,6 +46,18 @@ Drum::Drum(DrumType newType) : type(newType), arpeggiator(), arpSettings() {
 	memset(lastExpressionInputsReceived, 0, sizeof(lastExpressionInputsReceived));
 }
 
+// M3 owner-3 slice 2: the single write funnel for the drum name. Slice 2 Task 1 keeps these behaviour-identical to the
+// raw `drumName = ...` assignments they replace (the DocDrum dual-write is added in Task 2).
+void Drum::setName(const char* newName) {
+	drumName = newName;
+}
+void Drum::setName(std::string_view newName) {
+	drumName.assign(newName);
+}
+void Drum::setName(std::string&& newName) {
+	drumName = std::move(newName);
+}
+
 void Drum::writeDrumTagsToFile(Serializer& writer, bool savingSong) {
 	// Called by subclasses to handle all the shared tags (except for MIDI commands).
 	writer.writeAttribute("name", drumName.c_str());
@@ -64,7 +76,10 @@ void Drum::writeMIDICommandsToFile(Serializer& writer) {
 
 bool Drum::readDrumTagFromFile(Deserializer& reader, char const* tagName) {
 	if (!strcmp(tagName, "name")) {
-		reader.readTagOrAttributeValueString(drumName);
+		std::string name;
+		reader.readTagOrAttributeValueString(name);
+		setName(
+		    std::move(name)); // funnel the load write (docDrum_ is null here; adoptDrum re-seeds from drumName later)
 		reader.exitTag("name");
 	}
 	else if (!strcmp(tagName, "midiMuteCommand")) {

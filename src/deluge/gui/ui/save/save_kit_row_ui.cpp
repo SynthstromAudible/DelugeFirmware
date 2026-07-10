@@ -153,7 +153,7 @@ fail:
 	}
 
 	// Give the Instrument in memory its new slot
-	soundDrumToSave->drumName = enteredText.c_str();
+	soundDrumToSave->setName(enteredText.c_str());
 	soundDrumToSave->path = currentDir.c_str();
 
 	// There's now no chance that we saved over a preset that's already in use in the song, because we didn't allow the

@@ -998,7 +998,7 @@ doLoadAsSample:
 					}
 				}
 
-				drum->drumName = newName.c_str();
+				drum->setName(newName.c_str());
 			}
 
 			// If a synth...
@@ -1977,7 +1977,7 @@ getOut:
 					}
 				}
 
-				drum->drumName = newName.c_str();
+				drum->setName(newName.c_str());
 			}
 skipNameStuff:
 

@@ -448,7 +448,7 @@ void Slicer::preview(int64_t startPoint, int64_t endPoint, int32_t transpose, in
 		ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
 
 		MultisampleRange* range = (MultisampleRange*)drum->sources[0].getOrCreateFirstRange();
-		drum->drumName = "1";
+		drum->setName("1");
 		drum->sources[0].repeatMode = SampleRepeatMode::ONCE;
 
 		if (!(waveformBasicNavigator.sample->filePath == range->sampleHolder.filePath)) {
@@ -609,7 +609,7 @@ getOut:
 		SoundDrum* firstDrum = (SoundDrum*)soundEditor.currentSound;
 
 		if (firstDrum->nameIsDiscardable) {
-			firstDrum->drumName = "1";
+			firstDrum->setName("1");
 		}
 
 		MultisampleRange* firstRange = (MultisampleRange*)firstDrum->sources[0].getOrCreateFirstRange();
@@ -679,7 +679,7 @@ ramError2:
 				goto ramError;
 			}
 
-			newDrum->drumName = deluge::string::fromInt(i + 1);
+			newDrum->setName(deluge::string::fromInt(i + 1));
 
 			Sound::initParams(&paramManager);
 

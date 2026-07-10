@@ -2148,7 +2148,7 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSample(Kit* kit, Drum* 
 			// Remove the extension (e.g., ".WAV", ".AIFF") from chosenFilename before assigning as name
 			*dot = '\0';
 		}
-		soundDrum->drumName = chosenFilename;
+		soundDrum->setName(chosenFilename);
 		kit->beenEdited();
 		*slashAddress = '/';
 
@@ -5525,7 +5525,7 @@ doDisplayError:
 
 	modelStack->song->project.param_backup.backUp(newDrum, modelStack->song->getCurrentClip(), &paramManager, true);
 
-	newDrum->drumName = soundName.c_str();
+	newDrum->setName(soundName.c_str());
 	newDrum->nameIsDiscardable = true;
 
 	kit->addDrum(newDrum);

@@ -23,6 +23,8 @@
 #include "modulation/arpeggiator.h"
 #include <cstdint>
 #include <optional>
+#include <string>
+#include <string_view>
 
 class Clip;
 class Kit;
@@ -53,6 +55,16 @@ public:
 
 	std::string drumName{};
 	Kit* kit;
+
+	// M3 owner-3 (drum structure) slice 2: the single write funnel for the drum name. All the scattered `drumName =`
+	// assignment sites route through here so the name can be shadowed into DocDrum (added in slice 2 Task 2). This
+	// slice is a pure funnel — the body just writes `drumName` (behaviour-identical); the DocDrum dual-write lands in
+	// Task 2. Overloads mirror the argument shapes at the call sites: string literals / `.c_str()` (const char*),
+	// `std::string_view` (rename UI), and `std::string` rvalues (move-preserving). Bodies live in drum.cpp so the
+	// dual-write can see the complete DocDrum type without pulling the doc header into this light header.
+	void setName(const char* newName);
+	void setName(std::string_view newName);
+	void setName(std::string&& newName);
 
 	const DrumType type;
 	bool noteRowAssignedTemp{};

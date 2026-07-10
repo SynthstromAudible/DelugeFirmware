@@ -83,7 +83,7 @@ bool AudioRecorder::opened() {
 			return false;
 		}
 
-		drum->drumName = newName.c_str();
+		drum->setName(newName.c_str());
 	}
 
 	PadLEDs::clearTickSquares(true);

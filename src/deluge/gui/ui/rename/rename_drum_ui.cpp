@@ -50,6 +50,6 @@ bool RenameDrumUI::trySetName(std::string_view name) {
 		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_DUPLICATE_NAMES));
 		return false;
 	}
-	kit->selectedDrum->drumName = name;
+	kit->selectedDrum->setName(name);
 	return true;
 }
