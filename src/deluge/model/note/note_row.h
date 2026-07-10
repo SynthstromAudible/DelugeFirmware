@@ -54,6 +54,11 @@ class NoteRow;
 class CopiedNoteRow;
 class Sound;
 class TimelineView;
+
+namespace deluge::storage {
+class Value;
+}
+
 class ModelStackWithTimelineCounter;
 class ModelStackWithNoteRow;
 class ParamManagerForTimeline;
@@ -150,7 +155,8 @@ public:
 	bool hasNoNotes();
 	void resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMakeSound);
 	void writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip);
-	Error readFromFile(Deserializer& reader, int32_t*, InstrumentClip*, Song* song, int32_t readAutomationUpToPos);
+	Error readFromTree(Deserializer& reader, const deluge::storage::Value& node, int32_t* minY,
+	                   InstrumentClip* parentClip, Song* song, int32_t readAutomationUpToPos);
 	inline int32_t getNoteCode() { return y; }
 	void writeToFlash();
 	void readFromFlash(InstrumentClip* parentClip);
@@ -281,6 +287,15 @@ public:
 	bool isDroning(int32_t effectiveLength);
 
 private:
+	// Decode a hex noteData value (V1.4+) into notes[]. noteHexLength selects the format variant (20/22/26/28).
+	// Reads the value char-at-a-time from the reader's current scalar. Returns INSUFFICIENT_RAM on alloc failure.
+	Error readNoteDataHex(Deserializer& reader, uint16_t noteHexLength);
+	// Read the pre-1.4 <notes> element (an array of <note> with velocity/pos/length) into notes[].
+	Error readLegacyNotes(Deserializer& reader);
+	// Set up this NoteRow's paramManager for a <soundParams> block (incl. the pre-2016 backup-clone hack) and read
+	// the sound params. Returns any error from the clone/read.
+	Error readSoundParams(Deserializer& reader, InstrumentClip* parentClip, Song* song, int32_t readAutomationUpToPos);
+
 	void playNote(bool, ModelStackWithNoteRow* modelStack, Note*, int32_t ticksLate = 0, uint32_t samplesLate = 0,
 	              bool noteMightBeConstant = false, PendingNoteOnList* pendingNoteOnList = nullptr);
 	void playNextNote(InstrumentClip*, bool, bool noteMightBeConstant = false,

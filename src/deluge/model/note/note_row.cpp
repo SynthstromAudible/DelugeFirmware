@@ -43,6 +43,8 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
+#include "storage/value.h"
+#include "storage/value_tree_deserializer.h"
 #include "util/exceptions.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
@@ -3201,305 +3203,78 @@ uint32_t NoteRow::getNumNotes() {
 	return std::ssize(notes);
 }
 
-Error NoteRow::readFromFile(Deserializer& reader, int32_t* minY, InstrumentClip* parentClip, Song* song,
-                            int32_t readAutomationUpToPos) {
-	char const* tagName;
+Error NoteRow::readSoundParams(Deserializer& reader, InstrumentClip* parentClip, Song* song,
+                               int32_t readAutomationUpToPos) {
 
-	drum = (Drum*)0xFFFFFFFF; // Code for "no drum". We swap this for a real value soon
+	// Sneaky sorta hack for 2016 files - allow more params to be loaded into a ParamManager that
+	// already had some loading done by the Drum
+	if (song_firmware_version < FirmwareVersion::official({1, 2, 0}) && parentClip->output) {
 
-	int32_t newBendRange = -1; // Temp variable for this because we can't actually create the expressionParams
-	                           // before we know what kind of Drum (if any) we have.
+		SoundDrum* actualDrum = (SoundDrum*)((Kit*)parentClip->output)->getDrumFromIndex((int32_t)(uintptr_t)drum);
 
-	reader.match('{');
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		// D_PRINTLN(tagName); delayMS(50);
-
-		uint16_t noteHexLength;
-
-		if (!strcmp(tagName, "muted")) {
-			muted = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "y")) {
-			y = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "colourOffset")) {
-			colourOffset = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "drumIndex")) {
-			drum = (Drum*)reader.readTagOrAttributeValueInt(); // Sneaky - we store an integer in place of this pointer,
-			                                                   // then swap it back to something meaningful later
-		}
-
-		else if (!strcmp(tagName, "gateOutput")) {
-			int32_t gateChannel = reader.readTagOrAttributeValueInt();
-			gateChannel = std::clamp<int32_t>(gateChannel, 0, NUM_GATE_CHANNELS - 1);
-
-			drum = (Drum*)(0xFFFFFFFE - gateChannel);
-		}
-
-		else if (!strcmp(tagName, "muteMidiCommand")) {
-			muteMIDICommand.readNoteFromFile(reader);
-		}
-
-		else if (!strcmp(tagName, "soundMidiCommand")) {
-			midiInput.readNoteFromFile(reader);
-		}
-
-		else if (!strcmp(tagName, "length")) {
-			loopLengthIfIndependent = reader.readTagOrAttributeValueInt();
-			readAutomationUpToPos = loopLengthIfIndependent; // So we can read automation right up to the actual
-			                                                 // length of this NoteRow.
-		}
-
-		else if (!strcmp(tagName, "sequenceDirection")) {
-			sequenceDirectionMode = stringToSequenceDirectionMode(reader.readTagOrAttributeValue());
-		}
-
-		else if (!strcmp(tagName, "bendRange")) {
-			newBendRange = reader.readTagOrAttributeValueInt();
-		}
-
-		else if (!strcmp(tagName, "soundParams")) {
-
-			// Sneaky sorta hack for 2016 files - allow more params to be loaded into a ParamManager that
-			// already had some loading done by the Drum
-			if (song_firmware_version < FirmwareVersion::official({1, 2, 0}) && parentClip->output) {
-
-				SoundDrum* actualDrum =
-				    (SoundDrum*)((Kit*)parentClip->output)->getDrumFromIndex((int32_t)(uintptr_t)drum);
-
-				if (actualDrum) {
-					ParamManager* existingParamManager =
-					    song->project.param_backup.getPreferablyWithClip(actualDrum, parentClip);
-					if (existingParamManager) {
-						Error error = paramManager.cloneParamCollectionsFrom(existingParamManager, false);
-						if (error != Error::NONE) {
-							return error;
-						}
-						goto finishedNormalStuff;
-					}
+		if (actualDrum) {
+			ParamManager* existingParamManager =
+			    song->project.param_backup.getPreferablyWithClip(actualDrum, parentClip);
+			if (existingParamManager) {
+				Error error = paramManager.cloneParamCollectionsFrom(existingParamManager, false);
+				if (error != Error::NONE) {
+					return error;
 				}
+				goto finishedNormalStuff;
 			}
+		}
+	}
 
-			paramManager.setupWithPatching();
-			Sound::initParams(&paramManager);
+	paramManager.setupWithPatching();
+	Sound::initParams(&paramManager);
 
 finishedNormalStuff:
-			Sound::readParamsFromFile(reader, &paramManager, readAutomationUpToPos);
-		}
+	Sound::readParamsFromFile(reader, &paramManager, readAutomationUpToPos);
+	return Error::NONE;
+}
 
-		// Notes stored as XML (before V1.4) - NOT CONVERTED TO ALSO WORK WITH JSON.
-		else if (!strcmp(tagName, "notes")) {
-			// Read each Note
-			uint32_t minPos = 0;
+Error NoteRow::readLegacyNotes(Deserializer& reader) {
+	char const* tagName;
+	// Read each Note
+	uint32_t minPos = 0;
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+
+		if (!strcmp(tagName, "note")) {
+			// Set defaults for this Note
+			uint8_t velocity = 64;
+			uint32_t pos = 0;
+			uint32_t length = 1;
+
+			// Read in this note's data
 			while (*(tagName = reader.readNextTagOrAttributeName())) {
-
-				if (!strcmp(tagName, "note")) {
-					// Set defaults for this Note
-					uint8_t velocity = 64;
-					uint32_t pos = 0;
-					uint32_t length = 1;
-
-					// Read in this note's data
-					while (*(tagName = reader.readNextTagOrAttributeName())) {
-						if (!strcmp(tagName, "velocity")) {
-							velocity = reader.readTagOrAttributeValueInt();
-							velocity = std::min((uint8_t)127, (uint8_t)std::max((uint8_t)1, (uint8_t)velocity));
-							reader.exitTag("velocity");
-						}
-
-						else if (!strcmp(tagName, "pos")) {
-							pos = reader.readTagOrAttributeValueInt();
-							pos = std::max(minPos, pos);
-							reader.exitTag("pos");
-						}
-
-						else if (!strcmp(tagName, "length")) {
-							length = reader.readTagOrAttributeValueInt();
-							length = std::max((uint32_t)1, (uint32_t)length);
-							reader.exitTag("length");
-						}
-
-						else {
-							reader.exitTag(tagName);
-						}
-					}
-
-					if (!(pos < minPos || length < 0 || pos > kMaxSequenceLength - length)) {
-
-						minPos = pos + length;
-
-						// Make this Note
-						int32_t i = notes.insertSorted(pos, true).value_or(-1);
-						if (i == -1) {
-							return Error::INSUFFICIENT_RAM;
-						}
-						Note* newNote = &notes[i];
-						newNote->setLength(length);
-						newNote->setVelocity(velocity);
-						newNote->setLift(kDefaultLiftValue);
-						newNote->setProbability(kNumProbabilityValues);
-						newNote->setIterance(kDefaultIteranceValue);
-						newNote->setFill(FillMode::OFF);
-					}
-
-					reader.exitTag("note");
+				if (!strcmp(tagName, "velocity")) {
+					velocity = reader.readTagOrAttributeValueInt();
+					velocity = std::min((uint8_t)127, (uint8_t)std::max((uint8_t)1, (uint8_t)velocity));
+					reader.exitTag("velocity");
 				}
+
+				else if (!strcmp(tagName, "pos")) {
+					pos = reader.readTagOrAttributeValueInt();
+					pos = std::max(minPos, pos);
+					reader.exitTag("pos");
+				}
+
+				else if (!strcmp(tagName, "length")) {
+					length = reader.readTagOrAttributeValueInt();
+					length = std::max((uint32_t)1, (uint32_t)length);
+					reader.exitTag("length");
+				}
+
 				else {
 					reader.exitTag(tagName);
 				}
 			}
-		}
 
-		// Notes stored as hex data (V1.4 onwards)
-		else if (!strcmp(tagName, "noteData")) {
-			noteHexLength = 20;
-doReadNoteData:
-			int32_t minPos = 0;
-
-			int32_t numElementsToAllocateFor = 0;
-
-			if (!reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
-				goto getOut;
-			}
-
-			{
-				char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
-				if (!firstChars || *(uint16_t*)firstChars != charsToIntegerConstant('0', 'x')) {
-					goto getOut;
-				}
-			}
-
-			while (true) {
-
-				// Every time we've reached the end of a cluster...
-				if (numElementsToAllocateFor <= 0) {
-
-					// See how many more chars before the end of the cluster. If there are any...
-					uint32_t charsRemaining = reader.getNumCharsRemainingInValueBeforeEndOfCluster();
-					if (charsRemaining) {
-
-						// Allocate space for the right number of notes, and remember how long it'll be before
-						// we need to do this check again
-						numElementsToAllocateFor = (uint32_t)(charsRemaining - 1) / noteHexLength + 1;
-						notes.reserveExtra(numElementsToAllocateFor)
-						    .has_value(); // If it returns false... oh well. We'll fail later
-					}
-				}
-
-				char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(noteHexLength);
-				if (!hexChars) {
-					goto getOut;
-				}
-
-				int32_t pos = hexToIntFixedLength(hexChars, 8);
-				int32_t length = hexToIntFixedLength(&hexChars[8], 8);
-				uint8_t velocity = hexToIntFixedLength(&hexChars[16], 2);
-				uint8_t lift, probability, fill;
-				Iterance iterance;
-
-				if (noteHexLength == 28) { // if reading custom iterance and fill
-					fill = hexToIntFixedLength(&hexChars[26], 2);
-					iterance = Iterance::fromInt(hexToIntFixedLength(&hexChars[22], 4));
-					probability = hexToIntFixedLength(&hexChars[20], 2);
-					lift = hexToIntFixedLength(&hexChars[18], 2);
-					if (lift == 0 || lift > 127) {
-						goto useDefaultLift;
-					}
-				}
-				else if (noteHexLength == 26) { // if nightly firmware 1.3 with no custom iterances
-					fill = hexToIntFixedLength(&hexChars[24], 2);
-					iterance = Iterance::fromPresetIndex(hexToIntFixedLength(&hexChars[22], 2));
-					probability = hexToIntFixedLength(&hexChars[20], 2);
-					lift = hexToIntFixedLength(&hexChars[18], 2);
-					if (lift == 0 || lift > 127) {
-						goto useDefaultLift;
-					}
-				}
-				else if (noteHexLength == 22) { // If reading lift...
-					probability = hexToIntFixedLength(&hexChars[20], 2);
-
-					if (probability == kOldFillProbabilityValue || probability == kOldNotFillProbabilityValue) {
-						if (probability == kOldFillProbabilityValue) {
-							fill = FillMode::FILL;
-						}
-						else {
-							fill = FillMode::NOT_FILL;
-						}
-						iterance = kDefaultIteranceValue;    // iterance off
-						probability = kNumProbabilityValues; // 100% probability
-					}
-					else if (probability > kNumProbabilityValues
-					         && probability <= kNumProbabilityValues + kNumIterancePresets) {
-						fill = FillMode::OFF;
-						iterance = iterancePresets[probability - kNumProbabilityValues - 1];
-						probability = kNumProbabilityValues; // 100% probability
-					}
-					else {
-						fill = FillMode::OFF;
-						iterance = kDefaultIteranceValue; // iterance off
-					}
-					lift = hexToIntFixedLength(&hexChars[18], 2);
-					if (lift == 0 || lift > 127) {
-						goto useDefaultLift;
-					}
-				}
-				else { // Or if no lift here to read
-					probability = hexToIntFixedLength(&hexChars[18], 2);
-
-					if (probability == kOldFillProbabilityValue || probability == kOldNotFillProbabilityValue) {
-						if (probability == kOldFillProbabilityValue) {
-							fill = FillMode::FILL;
-						}
-						else {
-							fill = FillMode::NOT_FILL;
-						}
-						iterance = kDefaultIteranceValue;    // iterance off
-						probability = kNumProbabilityValues; // 100% probability
-					}
-					else if (probability > kNumProbabilityValues
-					         && probability <= kNumProbabilityValues + kNumIterancePresets) {
-						fill = FillMode::OFF;
-						iterance = iterancePresets[probability - kNumProbabilityValues - 1];
-						probability = kNumProbabilityValues; // 100% probability
-					}
-					else {
-						fill = FillMode::OFF;
-						iterance = kDefaultIteranceValue; // iterance off
-					}
-
-					lift = hexToIntFixedLength(&hexChars[18], 2);
-					if (lift == 0 || lift > 127) {
-						goto useDefaultLift;
-					}
-
-useDefaultLift:
-					lift = kDefaultLiftValue;
-				}
-
-				// See if that's all allowed
-				if (length <= 0) {
-					length = 1; // This happened somehow in Simon Wollwage's song, May 2020
-				}
-				if (pos < minPos || pos > kMaxSequenceLength - length) {
-					continue;
-				}
-				if (velocity == 0 || velocity > 127) {
-					velocity = 64;
-				}
-				if ((probability & 127) > kNumProbabilityValues || probability >= (kNumProbabilityValues | 128)) {
-					probability = kNumProbabilityValues;
-				}
-				if (fill < FillMode::OFF || fill > FillMode::FILL) {
-					fill = FillMode::OFF;
-				}
+			if (!(pos < minPos || length < 0 || pos > kMaxSequenceLength - length)) {
 
 				minPos = pos + length;
 
-				// Ok, make the note
+				// Make this Note
 				int32_t i = notes.insertSorted(pos, true).value_or(-1);
 				if (i == -1) {
 					return Error::INSUFFICIENT_RAM;
@@ -3507,58 +3282,277 @@ useDefaultLift:
 				Note* newNote = &notes[i];
 				newNote->setLength(length);
 				newNote->setVelocity(velocity);
-				newNote->setLift(lift);
-				newNote->setProbability(probability);
-				newNote->setIterance(iterance);
-				newNote->setFill(fill);
-
-				numElementsToAllocateFor--;
+				newNote->setLift(kDefaultLiftValue);
+				newNote->setProbability(kNumProbabilityValues);
+				newNote->setIterance(kDefaultIteranceValue);
+				newNote->setFill(FillMode::OFF);
 			}
+
+			reader.exitTag("note");
+		}
+		else {
+			reader.exitTag(tagName);
+		}
+	}
+	return Error::NONE;
+}
+
+Error NoteRow::readNoteDataHex(Deserializer& reader, uint16_t noteHexLength) {
+	int32_t minPos = 0;
+
+	int32_t numElementsToAllocateFor = 0;
+
+	if (!reader.prepareToReadTagOrAttributeValueOneCharAtATime()) {
+		goto getOut;
+	}
+
+	{
+		char const* firstChars = reader.readNextCharsOfTagOrAttributeValue(2);
+		if (!firstChars || *(uint16_t*)firstChars != charsToIntegerConstant('0', 'x')) {
+			goto getOut;
+		}
+	}
+
+	while (true) {
+
+		// Every time we've reached the end of a cluster...
+		if (numElementsToAllocateFor <= 0) {
+
+			// See how many more chars before the end of the cluster. If there are any...
+			uint32_t charsRemaining = reader.getNumCharsRemainingInValueBeforeEndOfCluster();
+			if (charsRemaining) {
+
+				// Allocate space for the right number of notes, and remember how long it'll be before
+				// we need to do this check again
+				numElementsToAllocateFor = (uint32_t)(charsRemaining - 1) / noteHexLength + 1;
+				notes.reserveExtra(numElementsToAllocateFor)
+				    .has_value(); // If it returns false... oh well. We'll fail later
+			}
+		}
+
+		char const* hexChars = reader.readNextCharsOfTagOrAttributeValue(noteHexLength);
+		if (!hexChars) {
+			goto getOut;
+		}
+
+		int32_t pos = hexToIntFixedLength(hexChars, 8);
+		int32_t length = hexToIntFixedLength(&hexChars[8], 8);
+		uint8_t velocity = hexToIntFixedLength(&hexChars[16], 2);
+		uint8_t lift, probability, fill;
+		Iterance iterance;
+
+		if (noteHexLength == 28) { // if reading custom iterance and fill
+			fill = hexToIntFixedLength(&hexChars[26], 2);
+			iterance = Iterance::fromInt(hexToIntFixedLength(&hexChars[22], 4));
+			probability = hexToIntFixedLength(&hexChars[20], 2);
+			lift = hexToIntFixedLength(&hexChars[18], 2);
+			if (lift == 0 || lift > 127) {
+				goto useDefaultLift;
+			}
+		}
+		else if (noteHexLength == 26) { // if nightly firmware 1.3 with no custom iterances
+			fill = hexToIntFixedLength(&hexChars[24], 2);
+			iterance = Iterance::fromPresetIndex(hexToIntFixedLength(&hexChars[22], 2));
+			probability = hexToIntFixedLength(&hexChars[20], 2);
+			lift = hexToIntFixedLength(&hexChars[18], 2);
+			if (lift == 0 || lift > 127) {
+				goto useDefaultLift;
+			}
+		}
+		else if (noteHexLength == 22) { // If reading lift...
+			probability = hexToIntFixedLength(&hexChars[20], 2);
+
+			if (probability == kOldFillProbabilityValue || probability == kOldNotFillProbabilityValue) {
+				if (probability == kOldFillProbabilityValue) {
+					fill = FillMode::FILL;
+				}
+				else {
+					fill = FillMode::NOT_FILL;
+				}
+				iterance = kDefaultIteranceValue;    // iterance off
+				probability = kNumProbabilityValues; // 100% probability
+			}
+			else if (probability > kNumProbabilityValues
+			         && probability <= kNumProbabilityValues + kNumIterancePresets) {
+				fill = FillMode::OFF;
+				iterance = iterancePresets[probability - kNumProbabilityValues - 1];
+				probability = kNumProbabilityValues; // 100% probability
+			}
+			else {
+				fill = FillMode::OFF;
+				iterance = kDefaultIteranceValue; // iterance off
+			}
+			lift = hexToIntFixedLength(&hexChars[18], 2);
+			if (lift == 0 || lift > 127) {
+				goto useDefaultLift;
+			}
+		}
+		else { // Or if no lift here to read
+			probability = hexToIntFixedLength(&hexChars[18], 2);
+
+			if (probability == kOldFillProbabilityValue || probability == kOldNotFillProbabilityValue) {
+				if (probability == kOldFillProbabilityValue) {
+					fill = FillMode::FILL;
+				}
+				else {
+					fill = FillMode::NOT_FILL;
+				}
+				iterance = kDefaultIteranceValue;    // iterance off
+				probability = kNumProbabilityValues; // 100% probability
+			}
+			else if (probability > kNumProbabilityValues
+			         && probability <= kNumProbabilityValues + kNumIterancePresets) {
+				fill = FillMode::OFF;
+				iterance = iterancePresets[probability - kNumProbabilityValues - 1];
+				probability = kNumProbabilityValues; // 100% probability
+			}
+			else {
+				fill = FillMode::OFF;
+				iterance = kDefaultIteranceValue; // iterance off
+			}
+
+			lift = hexToIntFixedLength(&hexChars[18], 2);
+			if (lift == 0 || lift > 127) {
+				goto useDefaultLift;
+			}
+
+useDefaultLift:
+			lift = kDefaultLiftValue;
+		}
+
+		// See if that's all allowed
+		if (length <= 0) {
+			length = 1; // This happened somehow in Simon Wollwage's song, May 2020
+		}
+		if (pos < minPos || pos > kMaxSequenceLength - length) {
+			continue;
+		}
+		if (velocity == 0 || velocity > 127) {
+			velocity = 64;
+		}
+		if ((probability & 127) > kNumProbabilityValues || probability >= (kNumProbabilityValues | 128)) {
+			probability = kNumProbabilityValues;
+		}
+		if (fill < FillMode::OFF || fill > FillMode::FILL) {
+			fill = FillMode::OFF;
+		}
+
+		minPos = pos + length;
+
+		// Ok, make the note
+		int32_t i = notes.insertSorted(pos, true).value_or(-1);
+		if (i == -1) {
+			return Error::INSUFFICIENT_RAM;
+		}
+		Note* newNote = &notes[i];
+		newNote->setLength(length);
+		newNote->setVelocity(velocity);
+		newNote->setLift(lift);
+		newNote->setProbability(probability);
+		newNote->setIterance(iterance);
+		newNote->setFill(fill);
+
+		numElementsToAllocateFor--;
+	}
 getOut: {}
-		}
+	return Error::NONE;
+}
 
-		// Notes stored as hex data including lift (V3.2 onwards)
-		else if (song_firmware_version < FirmwareVersion::community({1, 3, 0})
-		         && !strcmp(tagName, "noteDataWithLift")) {
-			noteHexLength = 22;
-			goto doReadNoteData;
-		}
-#if ALPHA_OR_BETA_VERSION
-		// Notes stored as hex data in nightly firmware 1.3 previous to the addition of custom iterances
-		else if (song_firmware_version < FirmwareVersion::community({1, 3, 0})
-		         && !strcmp(tagName, "noteDataWithIteranceAndFill")) {
-			noteHexLength = 26;
-			goto doReadNoteData;
-		}
-#endif
-		// Notes stored as hex data including custom iterance and fill (community firmware 1.3 onwards)
-		else if (!strcmp(tagName, "noteDataWithSplitProb")) {
-			noteHexLength = 28;
-			goto doReadNoteData;
-		}
+Error NoteRow::readFromTree(Deserializer& reader, const deluge::storage::Value& node, int32_t* minY,
+                            InstrumentClip* parentClip, Song* song, int32_t readAutomationUpToPos) {
+	using deluge::storage::Value;
+	auto& treeReader = static_cast<deluge::storage::ValueTreeDeserializer&>(reader);
+	drum = (Drum*)0xFFFFFFFF; // "no drum" sentinel, resolved to a real drum later
+	int32_t newBendRange = -1;
+	Error error = Error::NONE;
 
-		else if (!strcmp(tagName, "expressionData")) {
+	// length first: it bounds readAutomationUpToPos for the param/note reads below.
+	if (const Value* n = node.find("length")) {
+		loopLengthIfIndependent = stringToInt(n->str().c_str());
+		readAutomationUpToPos = loopLengthIfIndependent;
+	}
+	if (const Value* n = node.find("muted")) {
+		muted = stringToInt(n->str().c_str());
+	}
+	if (const Value* n = node.find("y")) {
+		y = stringToInt(n->str().c_str());
+	}
+	if (const Value* n = node.find("colourOffset")) {
+		colourOffset = stringToInt(n->str().c_str());
+	}
+	if (const Value* n = node.find("drumIndex")) {
+		drum = (Drum*)stringToInt(n->str().c_str());
+	}
+	if (const Value* n = node.find("gateOutput")) {
+		int32_t gateChannel = std::clamp<int32_t>(stringToInt(n->str().c_str()), 0, NUM_GATE_CHANNELS - 1);
+		drum = (Drum*)(0xFFFFFFFE - gateChannel);
+	}
+	if (const Value* n = node.find("sequenceDirection")) {
+		sequenceDirectionMode = stringToSequenceDirectionMode(n->str().c_str());
+	}
+	if (const Value* n = node.find("bendRange")) {
+		newBendRange = stringToInt(n->str().c_str());
+	}
+	if (const Value* n = node.find("muteMidiCommand")) {
+		treeReader.readChildObject(*n, [&] { muteMIDICommand.readNoteFromFile(reader); });
+	}
+	if (const Value* n = node.find("soundMidiCommand")) {
+		treeReader.readChildObject(*n, [&] { midiInput.readNoteFromFile(reader); });
+	}
+	if (const Value* n = node.find("soundParams")) {
+		treeReader.readChildObject(*n,
+		                           [&] { error = readSoundParams(reader, parentClip, song, readAutomationUpToPos); });
+		if (error != Error::NONE) {
+			return error;
+		}
+	}
+	if (const Value* n = node.find("expressionData")) {
+		treeReader.readChildObject(*n, [&] {
 			paramManager.ensureExpressionParamSetExists();
 			ParamCollectionSummary* summary = paramManager.getExpressionParamSetSummary();
 			ExpressionParamSet* expressionParams = (ExpressionParamSet*)summary->paramCollection;
 			if (expressionParams) {
 				expressionParams->readFromFile(reader, summary, readAutomationUpToPos);
 			}
+		});
+	}
+	// Hex note data (V1.4+) -- exactly one variant per row; guards mirror the streaming reader.
+	const Value* nd = node.find("noteData");
+	uint16_t noteHexLength = 20;
+	if (nd == nullptr && song_firmware_version < FirmwareVersion::community({1, 3, 0})
+	    && (nd = node.find("noteDataWithLift")) != nullptr) {
+		noteHexLength = 22;
+	}
+#if ALPHA_OR_BETA_VERSION
+	else if (nd == nullptr && song_firmware_version < FirmwareVersion::community({1, 3, 0})
+	         && (nd = node.find("noteDataWithIteranceAndFill")) != nullptr) {
+		noteHexLength = 26;
+	}
+#endif
+	else if (nd == nullptr && (nd = node.find("noteDataWithSplitProb")) != nullptr) {
+		noteHexLength = 28;
+	}
+	if (nd != nullptr) {
+		treeReader.readScalarValue(*nd, [&] { error = readNoteDataHex(reader, noteHexLength); });
+		if (error != Error::NONE) {
+			return error;
 		}
-
-		reader.exitTag();
+	}
+	if (const Value* n = node.find("notes")) {
+		treeReader.readChildObject(*n, [&] { error = readLegacyNotes(reader); });
+		if (error != Error::NONE) {
+			return error;
+		}
 	}
 
 	y = std::max(y, (int16_t)*minY);
 	*minY = y + 1;
-
 	if (newBendRange != -1) {
 		ExpressionParamSet* expressionParams = paramManager.getOrCreateExpressionParamSet();
 		if (expressionParams) {
 			expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] = newBendRange;
 		}
 	}
-	reader.match('}');
 	return Error::NONE;
 }
 

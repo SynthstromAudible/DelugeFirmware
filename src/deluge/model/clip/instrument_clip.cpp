@@ -52,6 +52,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
 #include "storage/value.h"
+#include "storage/value_tree_deserializer.h"
 #include "util/exceptions.h"
 #include "util/firmware_version.h"
 #include "util/string.h"
@@ -2818,23 +2819,38 @@ createNewParamManager:
 		}
 
 		else if (!strcmp(tagName, "noteRows")) {
-			reader.match('[');
+			// readFromTree slice: drive NoteRow::readFromTree per row over the tree node. parseXml gives a Map with
+			// repeated "noteRow" keys; parseJson gives an Array of {noteRow:{…}} boxes -- handle both. The trailing
+			// reader.exitTag() below skips the streaming noteRows element.
 			int32_t minY = -32768;
-			while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
-				if (!strcmp(tagName, "noteRow")) {
+			const deluge::storage::Value* rowsNode =
+			    static_cast<deluge::storage::ValueTreeDeserializer&>(reader).currentValue();
+			if (rowsNode != nullptr) {
+				const bool asArray = rowsNode->isArray();
+				const size_t count = asArray ? rowsNode->items().size() : rowsNode->entries().size();
+				for (size_t idx = 0; idx < count; idx++) {
+					const deluge::storage::Value* rowNode;
+					if (asArray) {
+						const deluge::storage::Value& item = rowsNode->items()[idx];
+						rowNode = item.isMap() ? item.find("noteRow") : nullptr;
+					}
+					else {
+						const auto& [key, value] = rowsNode->entries()[idx];
+						rowNode = (key == "noteRow") ? &value : nullptr;
+					}
+					if (rowNode == nullptr) {
+						continue;
+					}
 					NoteRow* newNoteRow = noteRows.insertNoteRowAtIndex(std::ssize(noteRows));
 					if (!newNoteRow) {
 						goto ramError;
 					}
-					error = newNoteRow->readFromFile(reader, &minY, this, song, readAutomationUpToPos);
+					error = newNoteRow->readFromTree(reader, *rowNode, &minY, this, song, readAutomationUpToPos);
 					if (error != Error::NONE) {
 						goto someError;
 					}
 				}
-				reader.match('}');             // leave value object.
-				reader.exitTag(nullptr, true); // leave box.
 			}
-			reader.match(']');
 		}
 
 		// These are the expression params for MPE

@@ -90,6 +90,27 @@ public:
 	/// nested object to a shared streaming sub-reader (e.g. LearnedMIDI::readFromFile) without rewriting it.
 	/// Hermetic: the entire cursor state is saved and restored around `body`, so the sub-read can never
 	/// desync the parent stream regardless of format/depth subtleties.
+	/// Position the cursor at a scalar Value so the char-at-a-time value readers
+	/// (prepareToReadTagOrAttributeValueOneCharAtATime / readNextCharsOfTagOrAttributeValue / …) read from it,
+	/// run `body`, then restore the cursor exactly. Lets a tree-native reader hand a scalar (e.g. a hex noteData
+	/// blob) to existing char-decoding code without rewriting it. Hermetic (full save/restore).
+	template <typename F>
+	void readScalarValue(const Value& scalarNode, F&& body) {
+		auto savedStack = stack_;
+		const Value* savedPending = pending_;
+		std::size_t savedCharCursor = charCursor_;
+		int32_t savedCallerDepth = callerDepth_;
+
+		pending_ = &scalarNode;
+		charCursor_ = 0;
+		body();
+
+		stack_ = std::move(savedStack);
+		pending_ = savedPending;
+		charCursor_ = savedCharCursor;
+		callerDepth_ = savedCallerDepth;
+	}
+
 	template <typename F>
 	void readChildObject(const Value& childObject, F&& body) {
 		auto savedStack = stack_;
