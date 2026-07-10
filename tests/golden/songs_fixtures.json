@@ -13,5 +13,6 @@
   "SONG1.XML": "351d20246cf0496182e98ebe59f4df25c9d5ece00f2b77d1bfa03e51e8043841",
   "SONG2.XML": "6cc0f3050cf7194d4c2fb492a6869716b53649baae7dfd10ed57cb2d4d86c23c",
   "Sampling.XML": "2ca0b88ada7a5e8bea2e6ced2fbbd4a0dbae305f4ed79d1df10bf3b179184829",
-  "Weird.XML": "42eebdb8a3fcd3e8b5c163f56970ce1e05d9c0c6d01433b49e609a86d0b990d6"
+  "Weird.XML": "42eebdb8a3fcd3e8b5c163f56970ce1e05d9c0c6d01433b49e609a86d0b990d6",
+  "synthetic/syncscale.XML": "2cd56bfb229fae670ac72abd3511397e29289d844117f686c66d1cff78a91d94"
 }

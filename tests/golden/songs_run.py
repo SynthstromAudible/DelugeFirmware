@@ -44,6 +44,11 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 REPO = os.path.abspath(os.path.join(HERE, "..", ".."))
 DEFAULT_CORPUS = os.path.join(HERE, "songs")
 FIXTURES = os.path.join(HERE, "songs_fixtures.json")
+# Committed, privacy-clean synthetic songs that exercise rare structures the BYO corpus may lack
+# (e.g. a sync-scale clip). Their fixture keys are prefixed "synthetic/" and resolve against HERE,
+# not --corpus, so they are ALWAYS present -- giving real coverage even in CI with no corpus.
+SYNTHETIC = os.path.join(HERE, "synthetic")
+SYNTHETIC_PREFIX = "synthetic/"
 
 # Driver exit codes.
 EXIT_SETTLED, EXIT_LOADFAIL, EXIT_USAGE, EXIT_MISMATCH = 0, 1, 2, 3
@@ -125,10 +130,17 @@ def main():
             for s in find_songs(args.corpus)
             if args.filter in s and (not args.exclude or args.exclude not in s)
         ]
+        # Always also re-baseline the committed synthetic fixtures, keyed "synthetic/..." and
+        # resolved from HERE, so --update (which rewrites the whole file) never drops them.
+        songs += [(SYNTHETIC_PREFIX, s) for s in find_songs(SYNTHETIC)]
         out = {}
         n_settled = n_skip = 0
         for song in songs:
-            rel = os.path.relpath(song, args.corpus)
+            if isinstance(song, tuple):  # (prefix, path) -> synthetic, keyed from HERE
+                rel = os.path.relpath(song[1], HERE)
+                song = song[1]
+            else:
+                rel = os.path.relpath(song, args.corpus)
             rc, digest, tail = run_driver(pre, args.binary, song, args.timeout)
             if rc == EXIT_SETTLED:
                 out[rel] = digest
@@ -151,7 +163,12 @@ def main():
     items = [(rel, h) for rel, h in sorted(fixtures.items()) if args.filter in rel]
     n_ok = n_regress = n_absent = 0
     for rel, want in items:
-        song = os.path.join(args.corpus, rel)
+        # Synthetic fixtures are committed under tests/golden/synthetic/ (resolved from HERE);
+        # everything else is a BYO corpus song resolved against --corpus.
+        if rel.startswith(SYNTHETIC_PREFIX):
+            song = os.path.join(HERE, rel)
+        else:
+            song = os.path.join(args.corpus, rel)
         if not os.path.isfile(song):
             n_absent += 1
             continue

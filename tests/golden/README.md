@@ -81,3 +81,15 @@ song that settles; songs that don't settle are skipped, not committed). Aim for
 spread across formats (legacy tag-format **and** modern attribute-format),
 firmware versions, and features (synth/kit/MIDI/CV, arrangement, automation,
 scales). Re-baselining after an intended change is the same `--update`.
+
+### Synthetic fixtures (committed, for rare structures)
+
+Some structures never appear in a given BYO corpus (e.g. a **sync-scale clip**),
+so a read for them would be golden-blind. For those, commit a small,
+privacy-clean hand-authored song under `tests/golden/synthetic/`. Its fixture key
+is prefixed `synthetic/` and resolves against this directory rather than the
+corpus, so it is **always present** — it runs (and gives real coverage) even in
+CI with no corpus, instead of *Skipped*. `--update` re-baselines these alongside
+the corpus. To make one: author a minimal song that exercises the structure, run
+it through the driver until it *settles* (exit 0), commit the emitted `gen1`, and
+`--update` (or add its `gen1` SHA-256 under a `synthetic/<name>.XML` key).
