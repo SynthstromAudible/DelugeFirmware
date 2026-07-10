@@ -27,21 +27,21 @@ struct DocNoteRow {
 	bool muted{false};
 };
 ```
-(Defaults must match the engine `NoteRow` ctor defaults — verified during implementation against `NoteRow`'s field inits.)
+(The struct's field defaults are placeholders — a new note-row's `DocNoteRow` is **seeded from the engine `NoteRow`'s actual values at bind time**, not from these. This matters: `NoteRow`'s `colourOffset` is `random(71)` at construction, so the shadow must copy that specific value, not a fixed default.)
 
-### 2. `DocClip` grows an ordered, stable-address note-row collection
+### 2. `DocClip` grows a stable-address note-row POOL
 
-`DocClip` (`doc_clip.h`) gains `note_rows`. **Stable element addresses are required** — the engine `NoteRow` holds a `DocNoteRow*`, so the container must not move elements on insert/remove. A plain `std::vector<DocNoteRow>` is wrong (reallocation dangles the pointers). Use a node-stable ordered container: **`std::list<DocNoteRow>`** (stable addresses, preserves order, O(n) positional insert — fine for ≤128 rows) — OR a pool/deque if the codebase prefers; the invariant is *stable addresses + insertion-order*. (Implementation picks per convention; the spec's contract is "stable-address ordered list of DocNoteRow, one per engine note-row, in the same order.")
+`DocClip` (`doc_clip.h`) gains `note_rows` — a **stable-address owning pool** of `DocNoteRow` (NOT an index-aligned vector). The engine `NoteRow` is stored **by value** in an `OrderedPosVector<NoteRow,&y>` (contiguous, ordered by `y`, elements move on insert), and it carries its `DocNoteRow*` as a member — so on reorder the member moves with the note-row and the pairing is preserved **by pointer**. No index-lockstep is needed. The pool only needs **stable element addresses** (a `std::vector<DocNoteRow>` is wrong — reallocation dangles the pointers). Use a node-stable container (`std::list<DocNoteRow>` — stable addresses, O(1) splice; order within the pool is irrelevant). **Note-row order is a function of the data** (`y`), reproduced at save by iterating the engine's y-ordered `noteRows` (or, once model-authoritative, by sorting the pool on `y`) — so the pool carries no order itself.
 
 ### 3. The binding lifecycle (the real work)
 
-Engine `NoteRow` gains `DocNoteRow* docNoteRow_{nullptr}` + `bindDocNoteRow(DocNoteRow*)`. The invariant: **`InstrumentClip`'s engine `noteRows[i]` ↔ its `DocClip.note_rows`'s i-th element, same order, 1:1.** Maintained at every lifecycle point:
-- **Create** (`insertNoteRowAtIndex`/`insertNoteRowAtY` in `note_row_vector` / `InstrumentClip`): after the engine row is inserted at index `i`, insert a `DocNoteRow` at the matching position in the owning clip's `DocClip.note_rows` and `bindDocNoteRow` it. This needs the owning clip's `DocClip` — thread it (or resolve via the clip that owns the vector).
-- **Remove**: erase the matching `DocNoteRow` from `DocClip.note_rows`.
-- **Load** (`Song::readClipsFromFile` → `NoteRow::readFromTree` per row): the note-row is created (→ DocNoteRow created + bound) before its fields are read; the readFromTree scalar reads dual-write (below).
-- **Clone / clip copy**: clone the note-row's `DocNoteRow` alongside.
+Engine `NoteRow` gains `DocNoteRow* docNoteRow_{nullptr}` + `bindDocNoteRow(DocNoteRow*)`. `docNoteRow_` is a **non-owning cache**; the pool owns lifetime, and lifetime is managed **only at explicit hooks** (never in `NoteRow`'s copy/move/dtor — the by-value container's shifts would otherwise wrongly create/free pool entries). Hooks, all at the `InstrumentClip` level (which has `docClip_`):
+- **Create** (`InstrumentClip`'s note-row insert sites, after `insertNoteRowAtIndex`/`AtY` returns the new row): `emplace` a `DocNoteRow` in `this->docClip_->note_rows` and `bindDocNoteRow` the new engine row to it.
+- **Remove** (before `deleteNoteRowAtIndex`): erase the row's `docNoteRow_` from the pool.
+- **Load** (`readFromTree` per row): the row is created (→ pool entry + bind) before its fields are read; the scalar reads dual-write.
+- **Clone / clip copy** (deep-copy of a `NoteRowVector`): the copied engine rows' `docNoteRow_` would alias the ORIGINAL's pool entries — **wrong**. The clone path must, per copied row, `emplace` a fresh `DocNoteRow` (copied from the source) in the CLONE's `docClip_->note_rows` and rebind.
 
-Because the engine `noteRows` vector and `DocClip.note_rows` are maintained in lockstep, the engine row's own `docNoteRow_` pointer is all it needs — no index threading at read time.
+Because each engine row carries its own `docNoteRow_`, reads/dual-writes need no index threading — just `docNoteRow_->field`.
 
 ### 4. Dual-write the scalars (no read-flip yet)
 
@@ -57,7 +57,7 @@ Additive/golden-neutral: `song_roundtrip OK=16 REGRESS=0`, `edit_undo_redo OK=40
 
 ## Risks
 
-1. **Lockstep invariant** — the hard part. Every engine note-row create/remove/reorder/clone must maintain `DocClip.note_rows` 1:1 in order. A missed site → the shadow drifts (harmless in Slice 1 since nothing reads it, but must be right before the read-flip). Mitigation: funnel all note-row lifecycle through the `note_row_vector` insert/erase primitives + a lockstep assert (ALPHA) that `ssize(noteRows) == size(DocClip.note_rows)`.
-2. **Stable-address container** — a `vector<DocNoteRow>` would dangle the engine pointers; use a node-stable container. Verified by the ALPHA lockstep assert + goldens.
-3. **Owning-DocClip access at note-row create** — the insert primitive needs the owning clip's `DocClip`. Thread the clip (the vector already lives inside an `InstrumentClip`; its `docClip_` is reachable).
-4. **Reaching the Model from `NoteRow`** — sidestepped: `NoteRow` never resolves; it holds a bound `docNoteRow_` set at create by the clip that has the `DocClip`. (This is why binding-at-create, not resolve-at-use.)
+1. **Binding-hook completeness** — the hard part. Every engine note-row **create / remove / clone** must create/erase/rebind its pool entry, and this must live at explicit `InstrumentClip` hooks, NEVER in `NoteRow`'s copy/move/dtor (the by-value container's element shifts on insert/delete would otherwise wrongly touch the pool). A missed site → the shadow drifts. **Golden-neutral in Slice 1 since nothing reads `docNoteRow_`** — a drift bug is silent here and only bites at the read-flip. Mitigation: an ALPHA invariant check that every engine `noteRow.docNoteRow_` is non-null and points into its clip's pool, run after load + after edits; keep the read-flip (Slice 2a) small so drift surfaces immediately under the goldens.
+2. **Stable-address pool** — a `vector<DocNoteRow>` would dangle the engine pointers on reallocation; use a node-stable container (`std::list`). No index-lockstep needed (pairing is by the note-row's own pointer, which survives reorder).
+3. **Clone rebind** — deep-copying a `NoteRowVector` (clip clone) copies each `NoteRow` *including its `docNoteRow_`*, aliasing the source's pool entries. The clone path must emplace fresh pool entries in the clone's `DocClip` and rebind. Easy to miss → the highest-value site to get right.
+4. **`colourOffset` = `random(71)`** — the shadow seeds from the engine's actual value at bind, not a fixed default (§1).
