@@ -46,10 +46,10 @@ uint32_t loopRecordingCandidateRecentnessNextValue = 1;
 
 Clip::Clip(ClipType newType, Song& song, uint32_t loadedId) : type(newType) {
 	// Durable-id Step 3 (ctor-binding): use the loaded file id when known (id-first construction), else mint from the
-	// per-song counter. Bind the DOM structure record under that id IN the ctor -- treeDoc_ is authoritative and never
+	// per-song counter. Bind the DOM structure record under that id IN the ctor -- docClip_ is authoritative and never
 	// null hereafter, so the clip works immediately with no bind-at-creation pass and no ownDoc_ fallback.
 	id_ = loadedId != 0 ? loadedId : song.generateNewClipId();
-	treeDoc_ = &song.project.getOrCreateDocClip({.clip_id = id_});
+	docClip_ = &song.project.getOrCreateDocClip({.clip_id = id_});
 	soloingInSessionMode = false;
 	armState = ArmState::OFF;
 	activeIfNoSolo = true;

@@ -65,7 +65,7 @@ public:
 	DocAutoParam* resolveParam(const ParamAddress& address);
 
 	/// M3 owner-1 (clip structure): resolve a clip's DOM-owned structural record (find; nullptr if not tree-resident),
-	/// or getOrCreate it (bound as the clip's authoritative `treeDoc_` in the Clip ctor). Mirrors resolveParam's CLIP
+	/// or getOrCreate it (bound as the clip's authoritative `docClip_` in the Clip ctor). Mirrors resolveParam's CLIP
 	/// branch. The DocClip is the sole storage for the clip's loop_length/colour/section/launch — no engine shadow.
 	DocClip* resolveClip(const ClipAddress& address);
 	DocClip& getOrCreateDocClip(const ClipAddress& address);

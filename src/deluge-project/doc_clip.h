@@ -26,7 +26,7 @@ namespace deluge::project {
 /// by a `Clip*` or array index.
 ///
 /// AUTHORITATIVE: the `Clip` has no own copies of these fields — its accessors (`loopLength()`/`colourOffset()`/
-/// `section()`/`launchStyle()`) read and write this record directly through the clip's bound `treeDoc_` (durable-id
+/// `section()`/`launchStyle()`) read and write this record directly through the clip's bound `docClip_` (durable-id
 /// Step 3). Save reads it (via those accessors), load writes it (`readShellFromTree` + setters); the ownership
 /// inversion for clip structure is complete. `launch_style` stores the `LaunchStyle` enum's underlying value to
 /// keep this model header engine-light.
