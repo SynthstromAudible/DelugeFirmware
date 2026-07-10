@@ -17,6 +17,7 @@
 
 #include "model/note/note_row.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_note_row.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
@@ -2673,6 +2674,12 @@ void NoteRow::setLength(ModelStackWithNoteRow* modelStack, int32_t newLength, Ac
 
 	loopLengthIfIndependent = (newLength == clip->loopLength()) ? 0 : newLength;
 
+	// M3 owner-2 (dual-write phase): the length funnel — mirror to the DOM shadow. Covers the SetNoteRowLength Edit
+	// and its undo/redo, which all route length changes through here. Guarded on non-null; nothing reads it yet.
+	if (docNoteRow_ != nullptr) {
+		docNoteRow_->loop_length_if_independent = loopLengthIfIndependent;
+	}
+
 	if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(clip)) {
 		lastProcessedPosIfIndependent = oldPos;
 		currentlyPlayingReversedIfIndependent =
@@ -3552,6 +3559,16 @@ Error NoteRow::readFromTree(Deserializer& reader, const deluge::storage::Value& 
 		if (expressionParams) {
 			expressionParams->bendRanges[BEND_RANGE_FINGER_LEVEL] = newBendRange;
 		}
+	}
+
+	// M3 owner-2 (dual-write phase): mirror the fully-read scalar fields into the DOM shadow (bound at the load
+	// insert site). Guarded on non-null; nothing reads the shadow yet, so this is purely additive.
+	if (docNoteRow_ != nullptr) {
+		docNoteRow_->y = y;
+		docNoteRow_->loop_length_if_independent = loopLengthIfIndependent;
+		docNoteRow_->colour_offset = colourOffset;
+		docNoteRow_->sequence_direction = static_cast<uint8_t>(sequenceDirectionMode);
+		docNoteRow_->muted = muted;
 	}
 	return Error::NONE;
 }

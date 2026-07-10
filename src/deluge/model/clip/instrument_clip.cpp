@@ -17,6 +17,7 @@
 
 #include "model/clip/instrument_clip.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_note_row.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/load/load_instrument_preset_ui.h"
@@ -196,6 +197,15 @@ deleteClipAndGetOut:
 	} catch (deluge::exception&) {
 		error = Error::INSUFFICIENT_RAM;
 		goto deleteClipAndGetOut;
+	}
+
+	// M3 owner-2: the copied rows are unbound (NoteRow's copy ctor drops docNoteRow_). Rebuild the clone's own
+	// note-row pool from scratch and rebind each copied row to a fresh, freshly-seeded DocNoteRow.
+	if (newClip->docClip_ != nullptr) {
+		newClip->docClip_->note_rows.clear();
+		for (int32_t n = 0; n < std::ssize(newClip->noteRows); n++) {
+			newClip->bindNoteRowStructure(newClip->noteRows[n]);
+		}
 	}
 
 	// Phase C (kit): each cloned SoundDrum row's param manager is a fresh, unbound deep copy — bind them too.
@@ -1115,6 +1125,7 @@ ModelStackWithNoteRow* InstrumentClip::getOrCreateNoteRowForYNote(int32_t yNote,
 
 		// If that created successfully (i.e. enough RAM)...
 		if (thisNoteRow) {
+			bindNoteRowStructure(*thisNoteRow);
 
 			// Check that this yNote is allowed within our scale, if we have a scale. And if not allowed, then...
 			if (!modelStack->song->isYNoteAllowed(yNote, inScaleMode)) {
@@ -1229,10 +1240,28 @@ void InstrumentClip::stopAllNotesPlaying(ModelStackWithTimelineCounter* modelSta
 	}
 }
 
+// M3 owner-2 (dual-write phase): seed a fresh DocNoteRow from this engine row's current scalars and bind it.
+void InstrumentClip::bindNoteRowStructure(NoteRow& nr) {
+	if (docClip_ == nullptr) {
+		return;
+	}
+	deluge::project::DocNoteRow& d = docClip_->note_rows.emplace_back();
+	d.y = nr.y;
+	d.loop_length_if_independent = nr.loopLengthIfIndependent;
+	d.colour_offset = nr.colourOffset;
+	d.sequence_direction = static_cast<uint8_t>(nr.sequenceDirectionMode);
+	d.muted = nr.muted;
+	nr.bindDocNoteRow(&d);
+}
+
 // Returns false in rare case that there wasn't enough ram to do this
 NoteRow* InstrumentClip::createNewNoteRowForYVisual(int32_t yVisual, Song* song) {
 	int32_t y = getYNoteFromYVisual(yVisual, song);
-	return noteRows.insertNoteRowAtY(y);
+	NoteRow* newNoteRow = noteRows.insertNoteRowAtY(y);
+	if (newNoteRow) {
+		bindNoteRowStructure(*newNoteRow);
+	}
+	return newNoteRow;
 }
 
 // Returns false in rare case that there wasn't enough ram to do this
@@ -1251,6 +1280,8 @@ NoteRow* InstrumentClip::createNewNoteRowForKit(ModelStackWithTimelineCounter* m
 	ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(index, newNoteRow);
 
 	newNoteRow->setDrum(newDrum, (Kit*)output, modelStackWithNoteRow); // It might end up NULL. That's fine
+
+	bindNoteRowStructure(*newNoteRow);
 
 	if (atStart) {
 		yScroll++;
@@ -1829,7 +1860,10 @@ Error InstrumentClip::changeInstrument(ModelStackWithTimelineCounter* modelStack
 
 		// If changing from a kit to a kit, we may have ended up with 0 NoteRows. We do need to keep at least 1
 		if (noteRows.empty()) {
-			noteRows.insertNoteRowAtIndex(0);
+			NoteRow* newNoteRow = noteRows.insertNoteRowAtIndex(0);
+			if (newNoteRow) {
+				bindNoteRowStructure(*newNoteRow);
+			}
 		}
 	}
 
@@ -2061,6 +2095,7 @@ insertSomeAtBottom:
 			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, newNoteRow);
 
 			newNoteRow->setDrum(thisDrum, kit, modelStackWithNoteRow);
+			bindNoteRowStructure(*newNoteRow);
 			numNoteRowsInsertedAtBottom++;
 		}
 		yScroll += numNoteRowsInsertedAtBottom;
@@ -2134,6 +2169,7 @@ noUnassignedDrumsLeft:
 			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, newNoteRow);
 
 			newNoteRow->setDrum(nextPotentiallyUnassignedDrum, kit, modelStackWithNoteRow);
+			bindNoteRowStructure(*newNoteRow);
 		}
 	}
 }
@@ -2452,6 +2488,17 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 	writer.writeClosingTag("columnControls");
 
 	if (!noteRows.empty()) {
+#if ALPHA_OR_BETA_VERSION
+		// M3 owner-2 (dual-write phase) invariant: every engine note-row must have a bound shadow by save time.
+		// Non-fatal — surfaces a missed create/clone/load bind site during the golden run without crashing release.
+		if (docClip_ != nullptr) {
+			for (int32_t i = 0; i < std::ssize(noteRows); i++) {
+				if (noteRows[i].docNoteRow_ == nullptr) {
+					D_PRINTLN("owner-2: unbound noteRow docNoteRow_ at save (index %d)", i);
+				}
+			}
+		}
+#endif
 		writer.writeArrayStart("noteRows");
 
 		for (int32_t i = 0; i < std::ssize(noteRows); i++) {
@@ -2846,6 +2893,8 @@ createNewParamManager:
 					if (!newNoteRow) {
 						goto ramError;
 					}
+					// Bind before readFromTree so its trailing dual-write mirrors the loaded scalars into the shadow.
+					bindNoteRowStructure(*newNoteRow);
 					error = newNoteRow->readFromTree(reader, *rowNode, &minY, this, song, readAutomationUpToPos);
 					if (error != Error::NONE) {
 						goto someError;
@@ -3454,6 +3503,9 @@ NoteRow* InstrumentClip::getNoteRowFromId(int32_t id) {
 		// Might need to create, possibly if scale/mode changed
 		if (!noteRow) {
 			noteRow = noteRows.insertNoteRowAtY(id);
+			if (noteRow) {
+				bindNoteRowStructure(*noteRow);
+			}
 		}
 		return noteRow;
 	}
