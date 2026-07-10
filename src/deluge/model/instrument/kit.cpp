@@ -368,7 +368,7 @@ Error Kit::readDrumFromFile(Deserializer& reader, Song* song, Clip* clip, DrumTy
 		delugeDealloc(toDealloc);
 		return error;
 	}
-	addDrum(newDrum);
+	addDrum(newDrum, song);
 
 	return Error::NONE;
 }
@@ -431,7 +431,7 @@ void Kit::loadCrucialAudioFilesOnly() {
 	}
 }
 
-void Kit::addDrum(Drum* newDrum) {
+void Kit::addDrum(Drum* newDrum, Song* adoptSong) {
 	Drum** prevPointer = &firstDrum;
 	while (*prevPointer != nullptr) {
 		prevPointer = &((*prevPointer)->next);
@@ -441,10 +441,14 @@ void Kit::addDrum(Drum* newDrum) {
 	newDrum->kit = this;
 
 	// M3 owner-3: bind the drum to its DOM structural record. Idempotent — during load the drum is (re)bound by
-	// assignMissingIds against the loading song, so this hook is for runtime-created drums. Guarded on currentSong
-	// (null during early boot / whole-song teardown), mirroring the DOM binding's other call sites.
-	if (currentSong != nullptr) {
-		currentSong->adoptDrum(newDrum);
+	// assignMissingIds against the loading song, so this hook is for runtime-created drums. Bind into the song that
+	// owns this kit (`adoptSong`, threaded through by the load callers) rather than the ambient `currentSong`, which
+	// during a load-while-another-song-plays is still the *previous* song. Runtime callers pass nullptr and fall back
+	// to `currentSong` (correct at runtime). Guarded for null (early boot / whole-song teardown), mirroring the DOM
+	// binding's other call sites.
+	Song* songForAdopt = (adoptSong != nullptr) ? adoptSong : currentSong;
+	if (songForAdopt != nullptr) {
+		songForAdopt->adoptDrum(newDrum);
 	}
 }
 

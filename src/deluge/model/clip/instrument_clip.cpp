@@ -4038,7 +4038,7 @@ Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 					GateDrum* newDrum = new (drumMemory) GateDrum();
 					newDrum->channel = gateChannel;
 
-					kit->addDrum(newDrum);
+					kit->addDrum(newDrum, modelStack->song);
 					thisNoteRow->drum = newDrum;
 					thisNoteRow->syncDrumId(); // freshly-created real gate drum — safe to mirror
 				}
