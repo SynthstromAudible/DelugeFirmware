@@ -160,6 +160,9 @@ public:
 	bool hasNoNotes();
 	void resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMakeSound);
 	void writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip);
+	/// M3 owner-2 Slice 2c: rebuild the DOM note pool from the engine note vector (SAVE-time scratch). No-op when
+	/// this row is not bound to a DocNoteRow.
+	void rebuildDocNotes();
 	Error readFromTree(Deserializer& reader, const deluge::storage::Value& node, int32_t* minY,
 	                   InstrumentClip* parentClip, Song* song, int32_t readAutomationUpToPos);
 	inline int32_t getNoteCode() { return y(); }

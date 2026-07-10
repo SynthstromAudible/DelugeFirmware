@@ -17,6 +17,7 @@
 
 #include "model/note/note_row.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_note.h"
 #include "deluge-project/doc_note_row.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -3564,6 +3565,106 @@ Error NoteRow::readFromTree(Deserializer& reader, const deluge::storage::Value& 
 	return Error::NONE;
 }
 
+namespace {
+/// Emit one `noteDataWithSplitProb` hex record (current format). Widths must match the legacy loop exactly:
+/// pos/length default 8, velocity/lift/probability/fill 2, iterance 4.
+void writeSplitProbRecord(Serializer& writer, int32_t pos, int32_t length, uint8_t velocity, uint8_t lift,
+                          uint8_t probability, uint16_t iteranceInt, uint8_t fill) {
+	char buffer[9];
+
+	intToHex(pos, buffer);
+	writer.write(buffer);
+
+	intToHex(length, buffer);
+	writer.write(buffer);
+
+	intToHex(velocity, buffer, 2);
+	writer.write(buffer);
+
+	intToHex(lift, buffer, 2);
+	writer.write(buffer);
+
+	intToHex(probability, buffer, 2);
+	writer.write(buffer);
+
+	intToHex(iteranceInt, buffer, 4);
+	writer.write(buffer);
+
+	intToHex(fill, buffer, 2);
+	writer.write(buffer);
+}
+
+#if ALPHA_OR_BETA_VERSION
+/// Emit one legacy `noteDataWithLift` hex record. The Iterance is reconstructed from its packed form so the
+/// `oldProbability` priority logic (preserved verbatim from the original loop) can call `toPresetIndex()`.
+void writeLiftRecord(Serializer& writer, int32_t pos, int32_t length, uint8_t velocity, uint8_t lift,
+                     uint16_t iteranceInt, uint8_t fill, uint8_t probability) {
+	char buffer[9];
+
+	intToHex(pos, buffer);
+	writer.write(buffer);
+
+	intToHex(length, buffer);
+	writer.write(buffer);
+
+	intToHex(velocity, buffer, 2);
+	writer.write(buffer);
+
+	intToHex(lift, buffer, 2);
+	writer.write(buffer);
+
+	// Do here an attempt to keep the most significant information, in order of priority
+	// 1st - Iterance preset
+	// 2nd - Fill/NotFill
+	// 3rd - Probability
+	// 4th - Custom iterance (since this does not exist in 1.2 it will be always discarded)
+	int32_t oldProbability = kNumProbabilityValues; // Defaults to 100% probability
+	Iterance iterance = Iterance::fromInt(iteranceInt);
+	int32_t iterancePresetIndex = iterance.toPresetIndex();
+	if (iterancePresetIndex > 0 && iterancePresetIndex != kCustomIterancePreset) {
+		// We found the note has an iterance preset compatible with 1.2 and backwards, use it
+		oldProbability = kNumProbabilityValues + iterancePresetIndex;
+	}
+	else if (fill != FillMode::OFF) {
+		// We found the note has a fill mode, use it
+		if (fill == FillMode::FILL) {
+			oldProbability = 0; // 0 means FILL
+		}
+		else {
+			oldProbability = 128; // 128 means NOT_FILL
+		}
+	}
+	else if (probability != kNumProbabilityValues) {
+		// we found the note has a probability different than 100%, use it
+		oldProbability = probability;
+	}
+	intToHex(oldProbability, buffer, 2);
+	writer.write(buffer);
+}
+#endif
+} // namespace
+
+void NoteRow::rebuildDocNotes() {
+	if (docNoteRow_ == nullptr) {
+		return;
+	}
+	auto& pool = docNoteRow_->notes;
+	pool.clear();
+	pool.reserve(notes.size());
+	for (int32_t n = 0; n < std::ssize(notes); n++) {
+		Note& note = notes[n];
+		pool.push_back(deluge::project::DocNote{
+		    .pos = note.pos,
+		    .length = note.getLength(),
+		    .velocity = static_cast<uint8_t>(note.getVelocity()),
+		    .probability = static_cast<uint8_t>(note.getProbability()),
+		    .iterance = note.getIterance().toInt(),
+		    .fill = static_cast<uint8_t>(note.getFill()),
+		    .lift = static_cast<uint8_t>(note.getLift()),
+		});
+	}
+}
+
 void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip) {
 	writer.writeOpeningTagBeginning("noteRow", true);
 
@@ -3588,36 +3689,26 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 	}
 
 	if (!notes.empty()) {
+		// M3 owner-2 Slice 2c: rebuild the DOM note pool from the engine vector, then write from it (the DOM is
+		// the note SAVE-authority). Rows not yet bound to a DocNoteRow fall back to the engine vector directly.
+		rebuildDocNotes();
+
 		writer.insertCommaIfNeeded();
 		writer.write("\n");
 		writer.printIndents();
 		writer.writeTagNameAndSeperator("noteDataWithSplitProb");
 		writer.write("\"0x");
-		for (int32_t n = 0; n < std::ssize(notes); n++) {
-			Note* thisNote = &notes[n];
-
-			char buffer[9];
-
-			intToHex(thisNote->pos, buffer);
-			writer.write(buffer);
-
-			intToHex(thisNote->getLength(), buffer);
-			writer.write(buffer);
-
-			intToHex(thisNote->getVelocity(), buffer, 2);
-			writer.write(buffer);
-
-			intToHex(thisNote->getLift(), buffer, 2);
-			writer.write(buffer);
-
-			intToHex(thisNote->getProbability(), buffer, 2);
-			writer.write(buffer);
-
-			intToHex(thisNote->getIterance().toInt(), buffer, 4);
-			writer.write(buffer);
-
-			intToHex(thisNote->getFill(), buffer, 2);
-			writer.write(buffer);
+		if (docNoteRow_ != nullptr) {
+			for (const auto& d : docNoteRow_->notes) {
+				writeSplitProbRecord(writer, d.pos, d.length, d.velocity, d.lift, d.probability, d.iterance, d.fill);
+			}
+		}
+		else {
+			for (int32_t n = 0; n < std::ssize(notes); n++) {
+				Note& note = notes[n];
+				writeSplitProbRecord(writer, note.pos, note.getLength(), note.getVelocity(), note.getLift(),
+				                     note.getProbability(), note.getIterance().toInt(), note.getFill());
+			}
 		}
 		writer.write("\"");
 
@@ -3631,55 +3722,27 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 			// above, not a raw XML name="0x -- the latter emits invalid JSON when saving as JSON.
 			writer.writeTagNameAndSeperator("noteDataWithLift");
 			writer.write("\"0x");
-			for (int32_t n = 0; n < std::ssize(notes); n++) {
-				Note* thisNote = &notes[n];
-
-				char buffer[9];
-
-				intToHex(thisNote->pos, buffer);
-				writer.write(buffer);
-
-				intToHex(thisNote->getLength(), buffer);
-				writer.write(buffer);
-
-				intToHex(thisNote->getVelocity(), buffer, 2);
-				writer.write(buffer);
-
-				intToHex(thisNote->getLift(), buffer, 2);
-				writer.write(buffer);
-
-				// Do here an attempt to keep the most significant information, in order of priority
-				// 1st - Iterance preset
-				// 2nd - Fill/NotFill
-				// 3rd - Probability
-				// 4th - Custom iterance (since this does not exist in 1.2 it will be always discarded)
-				int32_t oldProbability = kNumProbabilityValues; // Defaults to 100% probability
-				int32_t iterancePresetIndex = thisNote->getIterance().toPresetIndex();
-				int32_t fill = thisNote->getFill();
-				int32_t probability = thisNote->getProbability();
-				if (iterancePresetIndex > 0 && iterancePresetIndex != kCustomIterancePreset) {
-					// We found the note has an iterance preset compatible with 1.2 and backwards, use it
-					oldProbability = kNumProbabilityValues + iterancePresetIndex;
+			if (docNoteRow_ != nullptr) {
+				for (const auto& d : docNoteRow_->notes) {
+					writeLiftRecord(writer, d.pos, d.length, d.velocity, d.lift, d.iterance, d.fill, d.probability);
 				}
-				else if (fill != FillMode::OFF) {
-					// We found the note has a fill mode, use it
-					if (fill == FillMode::FILL) {
-						oldProbability = 0; // 0 means FILL
-					}
-					else {
-						oldProbability = 128; // 128 means NOT_FILL
-					}
+			}
+			else {
+				for (int32_t n = 0; n < std::ssize(notes); n++) {
+					Note& note = notes[n];
+					writeLiftRecord(writer, note.pos, note.getLength(), note.getVelocity(), note.getLift(),
+					                note.getIterance().toInt(), note.getFill(), note.getProbability());
 				}
-				else if (probability != kNumProbabilityValues) {
-					// we found the note has a probability different than 100%, use it
-					oldProbability = probability;
-				}
-				intToHex(oldProbability, buffer, 2);
-				writer.write(buffer);
 			}
 			writer.write("\"");
 		}
 #endif
+
+		// Free the SAVE-time scratch so it does not permanently double note RAM (swap releases capacity,
+		// unlike clear()).
+		if (docNoteRow_ != nullptr) {
+			std::vector<deluge::project::DocNote>().swap(docNoteRow_->notes);
+		}
 	}
 
 	ExpressionParamSet* expressionParams = paramManager.getExpressionParamSet();
