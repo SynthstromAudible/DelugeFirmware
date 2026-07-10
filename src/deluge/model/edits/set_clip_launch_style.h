@@ -9,7 +9,8 @@ namespace deluge::edits {
 
 /// Set a clip's launch style (the reification of LaunchStyleMenu::selectEncoderAction). NON-UNDOABLE by design — no
 /// Consequence, matching today's behaviour (undo deferred to the command/undo-tree substrate, not Action/Consequence).
-/// Dual-writes the DOM shadow `DocClip.launch_style` (M3 owner-1 slice 2). Funnel-phase engine borrow.
+/// Writes via `setLaunchStyle` into the clip's authoritative `DocClip.launch_style` (M3 owner-1 — the DocClip is the
+/// sole storage; no engine shadow).
 class SetClipLaunchStyle final : public Edit {
 public:
 	SetClipLaunchStyle(Clip* clip, LaunchStyle newStyle) : clip_(clip), newStyle_(newStyle) {}
