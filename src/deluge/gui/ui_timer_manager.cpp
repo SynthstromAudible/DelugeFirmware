@@ -21,6 +21,7 @@
 #include "gui/ui/sound_editor.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/macro_assign_overlay.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -96,6 +97,11 @@ void UITimerManager::routine() {
 					else {
 						display->timerRoutine();
 					}
+					// an expiring transient popup displaces the persistent macro-inactive status -
+					// re-show it once the popup layer is empty, if an inactive macro lane is in view
+					if (!display->hasPopup()) {
+						automationView.refreshMacroInactivePopup();
+					}
 
 					break;
 
@@ -129,6 +135,10 @@ void UITimerManager::routine() {
 
 				case TimerName::PAD_SELECTION_SHORTCUT_BLINK:
 					automationView.blinkPadSelectionShortcut();
+					break;
+
+				case TimerName::MACRO_ASSIGN_OVERLAY_PULSE:
+					macroAssignOverlay.pulse();
 					break;
 
 				case TimerName::NOTE_ROW_BLINK:

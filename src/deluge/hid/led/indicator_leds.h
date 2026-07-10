@@ -20,7 +20,8 @@
 #include "definitions_cxx.hpp"
 #include <cstdint>
 
-constexpr size_t numLedBlinkers = 6;
+// enough for all 8 macro-target button LEDs blinking at once plus the usual single-LED blinkers
+constexpr size_t numLedBlinkers = 14;
 
 namespace indicator_leds {
 

@@ -24,6 +24,31 @@
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/note/note_row.h"
 #include "modulation/automation/copied_param_automation.h"
+#include "modulation/params/param.h"
+#include <array>
+#include <utility>
+
+// Synth and kit-row params in the order automation view scrolls through them. Also the canonical
+// destination order for the macro system's synth-target pickers (modulation/macros). The first
+// four entries are the macro automation lanes (skipped while the macro feature is off, and always
+// on kit rows); they are lane selections only, never target destinations.
+constexpr int32_t kNumMacroLanesForAutomation = 4;
+constexpr int32_t kNumNonGlobalParamsForAutomation = 87;
+extern const std::array<std::pair<deluge::modulation::params::Kind, deluge::modulation::params::ParamType>,
+                        kNumNonGlobalParamsForAutomation>
+    nonGlobalParamsForAutomation;
+
+// Audio-clip / kit-global params in automation-view scroll order. Also the canonical destination
+// order for the macro system's GLOBAL-target pickers. Like the synth list above, the first four
+// entries are the macro automation lanes (lane selections only, never target destinations).
+constexpr int32_t kNumGlobalParamsForAutomation = 43;
+extern const std::array<std::pair<deluge::modulation::params::Kind, deluge::modulation::params::ParamType>,
+                        kNumGlobalParamsForAutomation>
+    globalParamsForAutomation;
+
+namespace Macros {
+enum class Domain : uint8_t;
+}
 
 class Action;
 class CopiedNoteRow;
@@ -114,7 +139,27 @@ public:
 	// mod encoder action
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset) override;
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on) override;
+	void modButtonAction(uint8_t whichButton, bool on) override;
+	void commitHeldTargetDestination();
 	CopiedParamAutomation copiedParamAutomation;
+
+	// While a macro lane is selected, holding a param-select button (0..7) quick-edits that
+	// target: select encoder = CC, gold knob 0 = From, gold knob 1 = To. -1 = no button held.
+	int8_t heldTarget = -1;
+	// The macro the hold started on, so a lane switch mid-hold can't commit to the wrong macro.
+	int8_t heldTargetMacro = -1;
+	// CC value being dialed during the hold (-1 = OFF, 0..127 = CC); committed only on button
+	// release, so scrolling never touches the automation of the CCs passed through.
+	int16_t heldTargetPendingDestination = -1;
+	// Clears a target's assignment (SHIFT+SAVE while holding its button): deletes the baked
+	// automation on that param and hands ownership to any shadowed co-target. Returns success.
+	bool clearMacroTargetAssignment(int32_t macroIndex, int32_t target);
+	// If the selected automation param is driven by an active macro, flash the "(Macro Driven)" popup and
+	// return true so the caller refuses the value edit (the macro would overwrite it). Edit the macro
+	// instead. Clip-only. Returns false (edit allowed) on arranger / non-macro / not-macro-driven params.
+	bool refuseEditIfMacroDriven(Clip* clip);
+	// SHIFT + horizontal encoder press on a macro lane: toggle that macro Active/Inactive.
+	bool toggleMacroLaneActive();
 
 	// Select encoder action
 	void selectEncoderAction(int8_t offset) override;
@@ -145,6 +190,12 @@ public:
 	// public so uiTimerManager and editor layouts can access it
 	void blinkInterpolationShortcut();
 	void blinkPadSelectionShortcut();
+	// persistent "Macro N / Inactive" status while an inactive macro lane is in view; safe to call
+	// anytime - shows, re-shows or clears based on current state
+	void refreshMacroInactivePopup();
+	// Enters automation view showing macro `macroIndex`'s lane in the editor (the 8 mod buttons then
+	// become that macro's target quick-editors). Called from note-view MACRO mode (SHIFT + macro button).
+	void openMacroLaneEditor(Clip* clip, int32_t macroIndex);
 
 	// public so menu and editor layouts can access it
 	bool onMenuView;
@@ -200,6 +251,16 @@ private:
 	                       int32_t xScroll, int32_t xZoom, SquareInfo& squareInfo);
 	void handleParameterSelection(Clip* clip, Output* output, OutputType outputType, int32_t xDisplay,
 	                              int32_t yDisplay);
+	// macro destination picker: while a target quick-edit button is held on a macro lane, the main
+	// grid shows the parameter overview and a pad press picks that param as the target's pending
+	// destination (committed on button release, like the select-encoder dial)
+	bool macroPickerActive(Clip* clip);
+	void handleMacroPickerPad(Clip* clip, int32_t x, int32_t y);
+	// Grid-picker shared-shortcut cycling: pressing the same pad again reaches the second-layer param
+	// (e.g. LFO1 rate -> LFO2 rate). Reset when a target-button hold begins.
+	int8_t macroPickerLastX = -1;
+	int8_t macroPickerLastY = -1;
+	bool macroPickerSecondLayer = false;
 	// mute pad action
 	ActionResult handleMutePadAction(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
 	                                 InstrumentClip* instrumentClip, Output* output, OutputType outputType, int32_t y,
@@ -217,7 +278,7 @@ private:
 	                              ModelStackWithThreeMainThings* modelStackWithThreeMainThings, Clip* clip,
 	                              OutputType outputType, RGB image[][kDisplayWidth + kSideBarWidth],
 	                              uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay,
-	                              bool isMIDICVDrum);
+	                              bool isMIDICVDrum, bool macroPicker);
 	void renderDisplayOLED(Clip* clip, Output* output, OutputType outputType, int32_t knobPosLeft = kNoSelection,
 	                       int32_t knobPosRight = kNoSelection);
 	void renderAutomationOverviewDisplayOLED(deluge::hid::display::oled_canvas::Canvas& canvas, Output* output,
@@ -248,11 +309,6 @@ private:
 	bool padSelectionShortcutBlinking;
 
 	int32_t getEffectiveLength(ModelStackWithTimelineCounter* modelStack);
-
-	// grid sized array to assign midi cc values to each pad on the grid
-	void initMIDICCShortcutsForAutomation();
-	uint32_t midiCCShortcutsForAutomation[kDisplayWidth][kDisplayHeight];
-	bool midiCCShortcutsLoaded;
 
 	bool probabilityChanged;
 	uint32_t timeSelectKnobLastReleased;

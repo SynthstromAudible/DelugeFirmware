@@ -99,6 +99,11 @@ bool changeUIAtLevel(UI* newUI, int32_t level) {
 // Called when we navigate between "root" UIs, like sessionView, instrumentClipView, automationView,
 // performanceView, etc.
 void changeRootUI(UI* newUI) {
+	// the macro-inactive status popup is tied to the automation lane it was shown over; automation
+	// view re-shows it from focusRegained() when still applicable
+	if (display->hasPopupOfType(PopupType::MACRO_INACTIVE)) {
+		display->cancelPopup();
+	}
 	newUI = newUI->getUI();
 	uiNavigationHierarchy[0] = newUI;
 	numUIsOpen = 1;
@@ -225,6 +230,11 @@ void closeUI(UI* uiToClose) {
 }
 
 bool openUI(UI* newUI) {
+	// the macro-inactive status popup mustn't sit over a UI opened on top; automation view
+	// re-shows it from focusRegained() when the UI closes
+	if (display->hasPopupOfType(PopupType::MACRO_INACTIVE)) {
+		display->cancelPopup();
+	}
 	newUI = newUI->getUI();
 	UI* oldUI = getCurrentUI();
 	uiNavigationHierarchy[numUIsOpen] = newUI;

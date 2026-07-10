@@ -68,6 +68,12 @@ public:
 	std::array<uint8_t, kMaxMIDIValue + 1> ccToGlobalParam;
 	std::array<uint8_t, params::UNPATCHED_START + params::UNPATCHED_SOUND_MAX_NUM> soundParamToCC;
 	std::array<uint8_t, params::UNPATCHED_GLOBAL_MAX_NUM> globalParamToCC;
+	// The CC that each automation-grid pad maps to (kNoParamID = none), derived from the maps above and
+	// the param-shortcut layout. Cached (read per-pad in automation render) and rebuilt whenever the maps
+	// change - built here rather than in AutomationView's ctor to avoid the cross-TU static-init-order
+	// hazard (the view's ctor could read these maps before they were populated). Also feeds the macro
+	// target picker's MIDI destination resolution (Macros::macroDestinationForPad).
+	uint32_t midiCCShortcutsForAutomation[kDisplayWidth][kDisplayHeight];
 
 	int32_t previousKnobPos[kMaxMIDIValue + 1];
 	uint32_t timeLastCCSent[kMaxMIDIValue + 1];
@@ -81,12 +87,18 @@ public:
 	void handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounter& modelStack, Clip* clip, int32_t ccNumber,
 	                      int32_t ccValue);
 
+	// public so the macro can target the active clip's output
+	Clip* getSelectedOrActiveClip();
+
 private:
 	// initialize
 	void init();
 	void initState();
 	void clearMappings();
 	void initDefaultMappings();
+	// Recomputes midiCCShortcutsForAutomation from the current CC maps + the const param-shortcut grids.
+	// Called after the maps are set (initDefaultMappings, and post-XML in readDefaultsFromFile).
+	void buildMIDICCShortcutsForAutomation();
 
 	// note recieved
 	Output* noteMessageReceivedForSelectedOrActiveClip(MIDICable& cable, bool on, int32_t channel, int32_t note,
@@ -116,7 +128,6 @@ private:
 	                                        bool* doingMidiThru, ModelStack* modelStack, Output* specific_track,
 	                                        int32_t specific_track_index);
 
-	Clip* getSelectedOrActiveClip();
 	Clip* getSelectedClip();
 	Clip* getActiveClip(ModelStack* modelStack);
 	[[nodiscard]] const size_t getTrackCount() const;

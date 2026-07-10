@@ -26,6 +26,7 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
+#include "gui/views/macro_assign_overlay.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "gui/waveform/waveform_renderer.h"
@@ -43,6 +44,7 @@
 #include "model/sample/sample_playback_guide.h"
 #include "model/sample/sample_recorder.h"
 #include "model/song/song.h"
+#include "modulation/macros/macros.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/mode/session.h"
@@ -103,6 +105,14 @@ bool AudioClipView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth
 	}
 
 	if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING) || isUIModeActive(UI_MODE_IMPLODE_ANIMATION)) {
+		return true;
+	}
+
+	// While a macro button is held in MACRO mode, the shared target-picker overlay owns the main pads
+	// (param shortcuts to assign), exactly as in note view - it replaces the waveform for the duration
+	// of the hold, resolving this audio clip's GLOBAL destinations.
+	if (macroAssignOverlay.active()) {
+		macroAssignOverlay.renderOverlay(image, occupancyMask);
 		return true;
 	}
 
@@ -324,6 +334,22 @@ void AudioClipView::needsRenderingDependingOnSubMode() {
 ActionResult AudioClipView::buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 	using namespace deluge::hid::button;
 
+	// SHIFT + Y_ENC toggles gold-knob MACRO mode on a macro-capable audio clip (idle only). Audio clips
+	// drive their macros from the gold knobs like note-view clips do, and hold-a-macro-button opens the
+	// shared target-picker overlay on these pads (the waveform is replaced for the hold).
+	if (b == Y_ENC && on && Buttons::isShiftButtonPressed() && currentUIMode == UI_MODE_NONE && Macros::isEnabled()
+	    && view.macroKnobModeAvailable(getCurrentClip())) {
+		view.toggleMacroKnobMode();
+		return ActionResult::DEALT_WITH;
+	}
+
+	// SHIFT + SAVE/DELETE while the macro target-picker overlay is up: remove the selected pad's
+	// assignment (the same gesture note view offers during the hold).
+	if (macroAssignOverlay.active() && b == SAVE && on && Buttons::isShiftButtonPressed()) {
+		macroAssignOverlay.deleteSelectedTarget();
+		return ActionResult::DEALT_WITH;
+	}
+
 	ActionResult result;
 
 	// Song view button
@@ -471,6 +497,15 @@ deactivateMarkerIfNecessary:
 
 ActionResult AudioClipView::padAction(int32_t x, int32_t y, int32_t on) {
 	if (x < kDisplayWidth) {
+		// While the macro target-picker overlay owns the main pads, a tap picks that param as the held
+		// macro's target; every press is consumed so nothing edits the waveform under the overlay.
+		if (macroAssignOverlay.active()) {
+			if (sdRoutineLock) {
+				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
+			}
+			macroAssignOverlay.handlePad(x, y, on);
+			return ActionResult::DEALT_WITH;
+		}
 		if (Buttons::isButtonPressed(deluge::hid::button::TEMPO_ENC)) {
 			if (on) {
 				playbackHandler.grabTempoFromClip(getCurrentAudioClip());

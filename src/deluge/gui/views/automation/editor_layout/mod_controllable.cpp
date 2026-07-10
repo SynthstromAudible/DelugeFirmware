@@ -24,9 +24,11 @@
 #include "model/clip/clip.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/song/song.h"
+#include "modulation/macros/macros.h"
 #include "modulation/patch/patch_cable_set.h"
 #include "playback/mode/playback_mode.h"
 #include "playback/playback_handler.h"
+#include "util/misc.h"
 
 // namespace deluge::gui::views::automation::editor_layout {
 
@@ -35,6 +37,9 @@ namespace params = deluge::modulation::params;
 using namespace deluge::gui;
 
 constexpr int32_t kParamNodeWidth = 3;
+
+// If the edited automation lane is a macro lane, bake its curve into the target CC lanes.
+static void reFanIfMacroLane();
 
 // VU meter style colours for the automation editor
 
@@ -94,9 +99,22 @@ void AutomationEditorLayoutModControllable::renderAutomationEditor(
     ModelStackWithAutoParam* modelStackWithParam, Clip* clip, RGB image[][kDisplayWidth + kSideBarWidth],
     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t renderWidth, int32_t xScroll, uint32_t xZoom,
     int32_t effectiveLength, int32_t xDisplay, bool drawUndefinedArea, params::Kind kind, bool isBipolar) {
+	// an INACTIVE macro's lane renders dimmed, so the state is visible in the lane itself;
+	// activating restores full brightness
+	bool dimmed = false;
+	if (clip) {
+		Output* instrument = Macros::macroHost(clip);
+		int32_t macroIndex = (instrument != nullptr)
+		                         ? Macros::macroIndexForLaneSelection(clip->output, clip->lastSelectedParamKind,
+		                                                              clip->lastSelectedParamID)
+		                         : -1;
+		if (macroIndex >= 0) {
+			dimmed = !instrument->macros[macroIndex].active;
+		}
+	}
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 		renderAutomationColumn(modelStackWithParam, image, occupancyMask, effectiveLength, xDisplay,
-		                       modelStackWithParam->autoParam->isAutomated(), xScroll, xZoom, kind, isBipolar);
+		                       modelStackWithParam->autoParam->isAutomated(), xScroll, xZoom, kind, isBipolar, dimmed);
 	}
 	if (drawUndefinedArea) {
 		renderUndefinedArea(xScroll, xZoom, effectiveLength, image, occupancyMask, renderWidth,
@@ -108,7 +126,7 @@ void AutomationEditorLayoutModControllable::renderAutomationEditor(
 void AutomationEditorLayoutModControllable::renderAutomationColumn(
     ModelStackWithAutoParam* modelStackWithParam, RGB image[][kDisplayWidth + kSideBarWidth],
     uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t lengthToDisplay, int32_t xDisplay, bool isAutomated,
-    int32_t xScroll, int32_t xZoom, params::Kind kind, bool isBipolar) {
+    int32_t xScroll, int32_t xZoom, params::Kind kind, bool isBipolar, bool dimmed) {
 
 	uint32_t squareStart = getMiddlePosFromSquare(xDisplay, lengthToDisplay, xScroll, xZoom);
 	int32_t knobPos = getAutomationParameterKnobPos(modelStackWithParam, squareStart) + kKnobPosOffset;
@@ -116,10 +134,10 @@ void AutomationEditorLayoutModControllable::renderAutomationColumn(
 	// iterate through each square
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		if (isBipolar) {
-			renderAutomationBipolarSquare(image, occupancyMask, xDisplay, yDisplay, isAutomated, kind, knobPos);
+			renderAutomationBipolarSquare(image, occupancyMask, xDisplay, yDisplay, isAutomated, kind, knobPos, dimmed);
 		}
 		else {
-			renderAutomationUnipolarSquare(image, occupancyMask, xDisplay, yDisplay, isAutomated, knobPos);
+			renderAutomationUnipolarSquare(image, occupancyMask, xDisplay, yDisplay, isAutomated, knobPos, dimmed);
 		}
 	}
 }
@@ -127,7 +145,7 @@ void AutomationEditorLayoutModControllable::renderAutomationColumn(
 /// render column for bipolar params - e.g. pan, pitch, patch cable
 void AutomationEditorLayoutModControllable::renderAutomationBipolarSquare(
     RGB image[][kDisplayWidth + kSideBarWidth], uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-    int32_t xDisplay, int32_t yDisplay, bool isAutomated, params::Kind kind, int32_t knobPos) {
+    int32_t xDisplay, int32_t yDisplay, bool isAutomated, params::Kind kind, int32_t knobPos, bool dimmed) {
 	RGB& pixel = image[yDisplay][xDisplay];
 
 	int32_t middleKnobPos;
@@ -170,8 +188,10 @@ void AutomationEditorLayoutModControllable::renderAutomationBipolarSquare(
 	}
 
 	// render automation lane
+	// `dimmed` (inactive macro) reuses the unautomated tail brightness: a lane only lights fully
+	// when there's automation AND the macro is active
 	if (doRender) {
-		if (isAutomated) { // automated, render bright colour
+		if (isAutomated && !dimmed) { // automated, render bright colour
 			if (knobPos > middleKnobPos) {
 				pixel = rowBipolarDownColour[-yDisplay + 7];
 			}
@@ -179,7 +199,7 @@ void AutomationEditorLayoutModControllable::renderAutomationBipolarSquare(
 				pixel = rowBipolarDownColour[yDisplay];
 			}
 		}
-		else { // not automated, render less bright tail colour
+		else { // not automated (or inactive macro), render less bright tail colour
 			if (knobPos > middleKnobPos) {
 				pixel = rowBipolarDownTailColour[-yDisplay + 7];
 			}
@@ -213,7 +233,7 @@ void AutomationEditorLayoutModControllable::renderAutomationBipolarSquare(
 /// render column for unipolar params (e.g. not pan, pitch, or patch cables)
 void AutomationEditorLayoutModControllable::renderAutomationUnipolarSquare(
     RGB image[][kDisplayWidth + kSideBarWidth], uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
-    int32_t xDisplay, int32_t yDisplay, bool isAutomated, int32_t knobPos) {
+    int32_t xDisplay, int32_t yDisplay, bool isAutomated, int32_t knobPos, bool dimmed) {
 	RGB& pixel = image[yDisplay][xDisplay];
 
 	// determine whether or not you should render a row based on current value
@@ -222,12 +242,13 @@ void AutomationEditorLayoutModControllable::renderAutomationUnipolarSquare(
 		doRender = (knobPos >= nonPatchCableMinPadDisplayValues[yDisplay]);
 	}
 
-	// render square
+	// render square. `dimmed` (inactive macro) reuses the unautomated tail brightness: a lane only
+	// lights fully when there's automation AND the macro is active
 	if (doRender) {
-		if (isAutomated) { // automated, render bright colour
+		if (isAutomated && !dimmed) { // automated, render bright colour
 			pixel = rowColour[yDisplay];
 		}
-		else { // not automated, render less bright tail colour
+		else { // not automated (or inactive macro), render less bright tail colour
 			pixel = rowTailColour[yDisplay];
 		}
 		occupancyMask[yDisplay][xDisplay] = 64;
@@ -285,7 +306,15 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplayOLED(
 	// check if Parameter is currently automated so that the automation status can be drawn on
 	// the screen with the Parameter Name
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
-		if (modelStackWithParam->autoParam->isAutomated()) {
+		// A macro-driven target is owned by its macro: an automated macro drives it live without baking
+		// (empty lane), and a static macro bakes only a current value (no nodes) - so isAutomated() is
+		// always false here anyway. Show "(Macro Driven)" first so the status is explicit either way and
+		// the moving-but-"unautomated" lane isn't confusing (the curve to edit lives in the macro's lane).
+		if (!getOnArrangerView() && clip != nullptr
+		    && Macros::isParamMacroDriven(clip, clip->lastSelectedParamKind, clip->lastSelectedParamID)) {
+			isAutomated = l10n::get(l10n::String::STRING_FOR_MACRO_DRIVEN);
+		}
+		else if (modelStackWithParam->autoParam->isAutomated()) {
 			isAutomated = l10n::get(l10n::String::STRING_FOR_AUTOMATION_ON);
 		}
 		else {
@@ -440,6 +469,19 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 		}
 		else {
 			parameterName.append(getParamDisplayName(lastSelectedParamKind, lastSelectedParamID));
+			// a synth macro lane can carry a user-given label: "Macro 1: Agitation" (an inactive
+			// macro is flagged by a persistent status popup instead, keeping the name intact here)
+			if (!getOnArrangerView() && clip != nullptr) {
+				Output* instrument = Macros::macroHost(clip);
+				int32_t macroIndex =
+				    (instrument != nullptr)
+				        ? Macros::macroIndexForLaneSelection(clip->output, lastSelectedParamKind, lastSelectedParamID)
+				        : -1;
+				if (macroIndex >= 0 && !instrument->macros[macroIndex].name.isEmpty()) {
+					parameterName.append(": ");
+					parameterName.append(instrument->macros[macroIndex].name.get());
+				}
+			}
 		}
 	}
 	else {
@@ -454,6 +496,19 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 		}
 		else if (clip->lastSelectedParamID == CC_EXTERNAL_MOD_WHEEL || clip->lastSelectedParamID == CC_NUMBER_Y_AXIS) {
 			parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
+		}
+		else if (Macros::isMacroParamID(clip->lastSelectedParamID)) {
+			// "Macro N" - reuse the contiguous STRING_FOR_MACRO_1..4
+			int32_t macroIndex = Macros::macroIndexFromParamID(clip->lastSelectedParamID);
+			parameterName.append(deluge::l10n::get(static_cast<deluge::l10n::String>(
+			    util::to_underlying(deluge::l10n::String::STRING_FOR_MACRO_1) + macroIndex)));
+			MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
+			// user-given label (SHIFT + name pad to edit): "Macro 1: Agitation". An inactive macro
+			// is flagged by a persistent status popup instead, keeping the name intact here.
+			if (!midiInstrument->macros[macroIndex].name.isEmpty()) {
+				parameterName.append(": ");
+				parameterName.append(midiInstrument->macros[macroIndex].name.get());
+			}
 		}
 		else {
 			MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
@@ -804,6 +859,8 @@ void AutomationEditorLayoutModControllable::automationModEncoderActionForUnselec
 				modelStackWithParam->getTimelineCounter()->instrumentBeenEdited();
 			}
 
+			reFanIfMacroLane();
+
 			if (!playbackHandler.isEitherClockActive() || !modelStackWithParam->autoParam->isAutomated()) {
 				int32_t knobPos = newKnobPos + kKnobPosOffset;
 				renderDisplay(knobPos, kNoSelection, true);
@@ -885,6 +942,9 @@ void AutomationEditorLayoutModControllable::pasteAutomation(ModelStackWithAutoPa
 
 		modelStackWithParam->autoParam->paste(startPos, endPos, scaleFactor, modelStackWithParam,
 		                                      getCopiedParamAutomation(), isPatchCable);
+
+		// pasting into a macro lane must fan the new curve out to the target CC lanes
+		reFanIfMacroLane();
 
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_PASTED));
 
@@ -977,6 +1037,26 @@ bool AutomationEditorLayoutModControllable::getAutomationNodeInterpolation(Model
 	}
 }
 
+// If the edited automation lane is a macro lane, bake its curve into the target lanes,
+// joining the user's current NOTE_EDIT action so one BACK undoes the lane edit and the targets.
+static void reFanIfMacroLane() {
+	// In arranger automation the edited lane is a song param; the current clip's stale macro
+	// lastSelectedParamID must not trigger a re-fan of an unrelated clip.
+	if (automationView.onArrangerView) {
+		return;
+	}
+	Clip* clip = getCurrentClip();
+	if (!clip || Macros::macroHost(clip) == nullptr) {
+		return;
+	}
+	int32_t macroIndex =
+	    Macros::macroIndexForLaneSelection(clip->output, clip->lastSelectedParamKind, clip->lastSelectedParamID);
+	if (macroIndex >= 0) {
+		Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
+		Macros::reFanMacro(clip, macroIndex, action);
+	}
+}
+
 // this function writes the new values calculated by the handleAutomationSinglePadPress and
 // handleAutomationMultiPadPress functions
 void AutomationEditorLayoutModControllable::setAutomationParameterValue(ModelStackWithAutoParam* modelStack,
@@ -1046,6 +1126,11 @@ void AutomationEditorLayoutModControllable::setAutomationParameterValue(ModelSta
 	// midi follow and midi feedback enabled
 	// re-send midi cc because learned parameter value has changed
 	view.sendMidiFollowFeedback(modelStack, knobPos);
+
+	// single-pad macro-lane edit -> fan out (a multi-pad ramp re-fans once from handleAutomationMultiPadPress)
+	if (!getMultiPadPressSelected()) {
+		reFanIfMacroLane();
+	}
 }
 
 // sets both knob indicators to the same value when pressing single pad,
@@ -1353,6 +1438,9 @@ void AutomationEditorLayoutModControllable::handleAutomationMultiPadPress(
 		// render the multi pad press
 		uiNeedsRendering(getAutomationView());
 	}
+
+	// macro-lane ramp committed -> fan out once
+	reFanIfMacroLane();
 }
 
 // new function to render display when a long press is active
