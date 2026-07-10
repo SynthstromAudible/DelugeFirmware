@@ -439,6 +439,13 @@ void Kit::addDrum(Drum* newDrum) {
 	*prevPointer = newDrum;
 
 	newDrum->kit = this;
+
+	// M3 owner-3: bind the drum to its DOM structural record. Idempotent — during load the drum is (re)bound by
+	// assignMissingIds against the loading song, so this hook is for runtime-created drums. Guarded on currentSong
+	// (null during early boot / whole-song teardown), mirroring the DOM binding's other call sites.
+	if (currentSong != nullptr) {
+		currentSong->adoptDrum(newDrum);
+	}
 }
 
 void Kit::removeDrumFromKitArpeggiator(int32_t drumIndex) {
@@ -462,6 +469,13 @@ void Kit::removeDrumFromLinkedList(Drum* drum) {
 }
 
 void Kit::drumRemoved(Drum* drum) {
+	// M3 owner-3: drop the drum's DOM structural record on genuine removal. Guarded on currentSong && docDrum_ so
+	// whole-song teardown (currentSong nulled first, the project destroyed wholesale) does no per-drum removal.
+	if (currentSong != nullptr && drum->docDrum_ != nullptr) {
+		currentSong->removeDocDrum(drum);
+		drum->docDrum_ = nullptr;
+	}
+
 	if (selectedDrum == drum) {
 		selectedDrum = nullptr;
 	}

@@ -16,6 +16,7 @@
  */
 
 #include "model/drum/midi_drum.h"
+#include "deluge-project/doc_drum.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/display/display.h"
@@ -169,6 +170,10 @@ int8_t MIDIDrum::modEncoderAction(ModelStackWithThreeMainThings* modelStack, int
 	if ((getCurrentUI()->getUIContextType() == UIType::INSTRUMENT_CLIP) && (currentUIMode == UI_MODE_AUDITIONING)) {
 		if (whichModEncoder == 1) {
 			modChange(modelStack, offset, &noteEncoderCurrentOffset, &note, 128);
+			// M3 owner-3 dual-write (shadow, not yet read): mirror the funneled note scalar into the DOM record.
+			if (docDrum_ != nullptr) {
+				docDrum_->note = note;
+			}
 		}
 	}
 

@@ -204,7 +204,16 @@ public:
 	/// is id-addressable. Called at load before the param relocation; idempotent (skips entities that already have an
 	/// id). Session ids are never serialized → golden-neutral.
 	void assignMissingIds();
-	/// Bind a song-resident clip to the persistent DOM structural store (mint a session id if it has none, seed its
+
+	/// M3 owner-3 (drum structure): bind a song-resident drum to the persistent DOM structural store. Idempotent —
+	/// early-returns if already bound; mints a durable id via generateNewDrumId() only if the drum has none; then
+	/// getOrCreates the drum's DocDrum in project.drum_structure, seeds it from the engine drum, and points
+	/// docDrum_ at it. Called per drum from assignMissingIds (load) and Kit::addDrum (runtime).
+	void adoptDrum(Drum* drum);
+	/// Drop a drum's structural record when the drum is genuinely destroyed, so the store doesn't accumulate dead
+	/// entries. Guarded like removeDocClip: skipped during whole-song teardown.
+	void removeDocDrum(Drum* drum);
+
 	void writeToFile(Serializer& writer);
 	void loadAllSamples(bool mayActuallyReadFiles = true);
 	void renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuffer, int32_t sideChainHitPending);

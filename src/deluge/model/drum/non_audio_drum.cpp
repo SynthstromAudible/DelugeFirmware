@@ -17,6 +17,7 @@
 
 #include "model/drum/non_audio_drum.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_drum.h"
 #include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
@@ -76,6 +77,13 @@ void NonAudioDrum::modChange(ModelStackWithThreeMainThings* modelStack, int32_t 
 	}
 
 	*value = newValue;
+
+	// M3 owner-3 dual-write (shadow, not yet read): mirror the funneled channel scalar into the DOM record. This
+	// funnel also carries MIDIDrum's note (via *value == &note); the channel member is unchanged in that case, so
+	// this re-writes its current value harmlessly. The note itself is mirrored at MIDIDrum::modEncoderAction.
+	if (docDrum_ != nullptr) {
+		docDrum_->channel = channel;
+	}
 
 	instrumentClipView.drawDrumName(this, true);
 

@@ -17,6 +17,7 @@
 
 #include "model/song/song.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_drum.h"
 #include "deluge-project/serialization.h"
 #include "dsp/reverb/reverb.hpp"
 #include "gui/l10n/l10n.h"
@@ -41,6 +42,8 @@
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence_clip_existence.h"
+#include "model/drum/midi_drum.h"
+#include "model/drum/non_audio_drum.h"
 #include "model/edits/clip_address_for.h"
 #include "model/edits/delete_param_automation.h"
 #include "model/edits/edit.h"
@@ -1200,8 +1203,42 @@ void Song::assignMissingIds() {
 				if (!d->id()) {
 					d->setId(generateNewDrumId());
 				}
+				// M3 owner-3: the drum already has its id (file-restored or just minted above), so adoptDrum sees it
+				// and binds without minting again — the id lifecycle is unchanged.
+				adoptDrum(d);
 			}
 		}
+	}
+}
+
+// M3 owner-3 (drum structure): bind a drum to its DOM-owned DocDrum in project.drum_structure (mint an id only if it
+// lacks one, mirroring assignMissingIds's own mint via generateNewDrumId), seed the record from the engine drum, and
+// point docDrum_ at it. Idempotent: a drum already bound returns immediately, so the assignMissingIds and Kit::addDrum
+// call sites compose without double-binding or double-minting.
+void Song::adoptDrum(Drum* drum) {
+	if (drum->docDrum_ != nullptr) {
+		return;
+	}
+	if (!drum->id().has_value()) {
+		drum->setId(generateNewDrumId());
+	}
+	deluge::project::DocDrum& d = project.drum_structure.getOrCreate(*drum->id());
+	d.drum_type = static_cast<uint8_t>(drum->type);
+	if (drum->type != DrumType::SOUND) {
+		d.channel = static_cast<NonAudioDrum*>(drum)->channel;
+	}
+	if (drum->type == DrumType::MIDI) {
+		d.note = static_cast<MIDIDrum*>(drum)->note;
+	}
+	drum->bindDocDrum(&d);
+}
+
+// M3 owner-3: drop a drum's structural record on genuine destruction. Callers guard on currentSong && drum->docDrum_
+// (mirroring removeDocClip): during whole-song teardown currentSong is nulled first and the whole project — the
+// drum_structure with it — is destroyed wholesale, so no per-drum removal is needed then.
+void Song::removeDocDrum(Drum* drum) {
+	if (drum->id()) {
+		project.drum_structure.remove(*drum->id());
 	}
 }
 

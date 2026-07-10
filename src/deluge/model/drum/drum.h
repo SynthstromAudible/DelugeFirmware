@@ -34,6 +34,10 @@ class ParamManager;
 class ParamManagerForTimeline;
 class Song;
 
+namespace deluge::project {
+struct DocDrum;
+}
+
 /*
  * Kits are made up of multiple Drums. Even when they are not drum sounds, the class is called Drum, for better or
  * worse. In most instructional material for users, Synthstrom has referred to them often as “items within kits”, or
@@ -93,6 +97,12 @@ public:
 	// persistent tree (OwnerId::Drum) independent of its transient linked-list position. nullopt = unassigned. ---
 	[[nodiscard]] std::optional<uint32_t> id() const { return id_; }
 	void setId(uint32_t id) { id_ = id; }
+
+	// M3 owner-3 (drum structure): non-owning pointer to this drum's DOM-owned structural record, held in the
+	// project's `drum_structure` keyed by id(). Bound via Song::adoptDrum once the drum has an id. Nothing reads it
+	// yet (shadow, dual-write only). Not carried across any drum copy path (drums aren't value-copied).
+	deluge::project::DocDrum* docDrum_{nullptr};
+	void bindDocDrum(deluge::project::DocDrum* d) { docDrum_ = d; }
 
 	void recordNoteOnEarly(int32_t velocity, bool noteTailsAllowed);
 	void expressionEventPossiblyToRecord(ModelStackWithTimelineCounter* modelStack, int16_t newValue,
