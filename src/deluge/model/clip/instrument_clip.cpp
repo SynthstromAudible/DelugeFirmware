@@ -1254,6 +1254,22 @@ void InstrumentClip::bindNoteRowStructure(NoteRow& nr) {
 	nr.bindDocNoteRow(&d);
 }
 
+// M3 owner-2 slice 2a: on note-row delete, erase its DocNoteRow from the pool and unbind, keeping the pool size ==
+// live-row count. O(n) address scan by pointer is fine (per-clip pools are small; std::list addresses are stable).
+void InstrumentClip::unbindNoteRowStructure(NoteRow& nr) {
+	if (docClip_ == nullptr || nr.docNoteRow_ == nullptr) {
+		return;
+	}
+	auto& pool = docClip_->note_rows;
+	for (auto it = pool.begin(); it != pool.end(); ++it) {
+		if (&*it == nr.docNoteRow_) {
+			pool.erase(it);
+			break;
+		}
+	}
+	nr.docNoteRow_ = nullptr;
+}
+
 // Returns false in rare case that there wasn't enough ram to do this
 NoteRow* InstrumentClip::createNewNoteRowForYVisual(int32_t yVisual, Song* song) {
 	int32_t y = getYNoteFromYVisual(yVisual, song);
@@ -1341,6 +1357,7 @@ void InstrumentClip::noteRemovedFromMode(int32_t yNoteWithinOctave, Song* song) 
 		NoteRow* thisNoteRow = &noteRows[i];
 
 		if ((thisNoteRow->y + 120) % 12 == yNoteWithinOctave) {
+			unbindNoteRowStructure(noteRows[i]);
 			noteRows.deleteNoteRowAtIndex(i);
 		}
 		else {
@@ -1360,6 +1377,7 @@ void InstrumentClip::seeWhatNotesWithinOctaveArePresent(NoteSet& notesWithinOcta
 
 		// If this NoteRow has no notes, delete it, otherwise we'll have problems as the musical mode is changed
 		else {
+			unbindNoteRowStructure(noteRows[i]);
 			noteRows.deleteNoteRowAtIndex(i);
 		}
 	}
@@ -1704,6 +1722,7 @@ void InstrumentClip::prepareToEnterKitMode(Song* song) {
 		int32_t yDisplay = getYVisualFromYNote(thisNoteRow->y, song) - yScroll;
 
 		if ((yDisplay < 0 || yDisplay >= kDisplayHeight) && thisNoteRow->hasNoNotes()) {
+			unbindNoteRowStructure(noteRows[i]);
 			noteRows.deleteNoteRowAtIndex(i);
 		}
 		else {
@@ -1960,6 +1979,7 @@ void InstrumentClip::deleteEmptyNoteRowsAtEitherEnd(bool onlyIfNoDrum, ModelStac
 				ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
 				noteRow->setDrum(nullptr, (Kit*)output, modelStackWithNoteRow);
 			}
+			unbindNoteRowStructure(*noteRow);
 		}
 		noteRows.deleteNoteRowAtIndex(firstToDelete, numToDelete);
 	}
@@ -1983,6 +2003,7 @@ void InstrumentClip::deleteEmptyNoteRowsAtEitherEnd(bool onlyIfNoDrum, ModelStac
 				ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, noteRow);
 				noteRow->setDrum(nullptr, (Kit*)output, modelStackWithNoteRow);
 			}
+			unbindNoteRowStructure(*noteRow);
 		}
 		noteRows.deleteNoteRowAtIndex(0, firstToKeep);
 
@@ -2489,13 +2510,18 @@ void InstrumentClip::writeDataToFile(Serializer& writer, Song* song) {
 
 	if (!noteRows.empty()) {
 #if ALPHA_OR_BETA_VERSION
-		// M3 owner-2 (dual-write phase) invariant: every engine note-row must have a bound shadow by save time.
-		// Non-fatal — surfaces a missed create/clone/load bind site during the golden run without crashing release.
+		// M3 owner-2 slice 2a invariant: every engine note-row must have a bound shadow by save time, AND — now that
+		// delete sites erase the shadow — the pool holds exactly one DocNoteRow per live row (no orphans). Non-fatal:
+		// surfaces a missed create/clone/load bind or a missed delete-erase during the golden run without crashing.
 		if (docClip_ != nullptr) {
 			for (int32_t i = 0; i < std::ssize(noteRows); i++) {
 				if (noteRows[i].docNoteRow_ == nullptr) {
 					D_PRINTLN("owner-2: unbound noteRow docNoteRow_ at save (index %d)", i);
 				}
+			}
+			if (std::ssize(docClip_->note_rows) != std::ssize(noteRows)) {
+				D_PRINTLN("owner-2: DocNoteRow pool size %d != live noteRow count %d at save",
+				          (int32_t)std::ssize(docClip_->note_rows), (int32_t)std::ssize(noteRows));
 			}
 		}
 #endif
@@ -3314,6 +3340,7 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 					delugeDealloc(toDealloc);
 				}
 
+				unbindNoteRowStructure(noteRows[i]);
 				noteRows.deleteNoteRowAtIndex(i);
 
 				AudioEngine::routineWithClusterLoading();
@@ -3346,6 +3373,7 @@ void InstrumentClip::deleteNoteRow(ModelStackWithTimelineCounter* modelStack, in
 	kit->removeDrumFromKitArpeggiator(noteRowIndex);
 
 	noteRow->setDrum(nullptr, (Kit*)output, modelStackWithNoteRow);
+	unbindNoteRowStructure(noteRows[noteRowIndex]);
 	noteRows.deleteNoteRowAtIndex(noteRowIndex);
 }
 

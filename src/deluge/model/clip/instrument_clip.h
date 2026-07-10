@@ -262,6 +262,8 @@ private:
 	/// the engine row's current scalar fields, and bind the row to it. No-op if the clip isn't DOM-bound. Called at
 	/// every note-row create/clone/load site; nothing reads the shadow yet.
 	void bindNoteRowStructure(NoteRow& nr);
+	/// M3 owner-2 slice 2a: erase a removed engine row's DocNoteRow from the DocClip pool and clear its back-pointer.
+	void unbindNoteRowStructure(NoteRow& nr);
 
 	bool lastProbabilities[kNumProbabilityValues]{};
 	int32_t lastProbabiltyPos[kNumProbabilityValues]{};
