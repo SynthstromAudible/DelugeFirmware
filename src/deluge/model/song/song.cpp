@@ -1226,7 +1226,7 @@ void Song::adoptDrum(Drum* drum) {
 	d.drum_type = static_cast<uint8_t>(drum->type);
 	d.name = drum->name();
 	if (drum->type != DrumType::SOUND) {
-		d.channel = static_cast<NonAudioDrum*>(drum)->channel;
+		d.channel = static_cast<NonAudioDrum*>(drum)->channel();
 	}
 	if (drum->type == DrumType::MIDI) {
 		d.note = static_cast<MIDIDrum*>(drum)->note;

@@ -1407,7 +1407,7 @@ GateDrum* Kit::getGateDrumForChannel(int32_t gateChannel) {
 	for (Drum* thisDrum = firstDrum; thisDrum; thisDrum = thisDrum->next) {
 		if (thisDrum->type == DrumType::GATE) {
 			GateDrum* gateDrum = (GateDrum*)thisDrum;
-			if (gateDrum->channel == gateChannel) {
+			if (gateDrum->channel() == gateChannel) {
 				return gateDrum;
 			}
 		}
@@ -1458,7 +1458,7 @@ void Kit::receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDICab
 	                                                                // there are some special cases below where
 	                                                                // we might insist on making it true
 	// If MIDIDrum, outputting same note, then don't additionally do thru
-	if (doingMidiThru && thisDrum->type == DrumType::MIDI && ((MIDIDrum*)thisDrum)->channel == channel
+	if (doingMidiThru && thisDrum->type == DrumType::MIDI && ((MIDIDrum*)thisDrum)->channel() == channel
 	    && ((MIDIDrum*)thisDrum)->note == note) {
 		*doingMidiThru = false;
 	}

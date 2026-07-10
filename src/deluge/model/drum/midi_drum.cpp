@@ -28,7 +28,7 @@
 #include <string.h>
 
 MIDIDrum::MIDIDrum() : NonAudioDrum(DrumType::MIDI) {
-	channel = 0;
+	setChannel(0);
 	note = 0;
 }
 
@@ -71,12 +71,12 @@ void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 void MIDIDrum::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) {
 	NonAudioDrum::noteOnPostArp(noteCodePostArp, arpNote, noteIndex);
 	lastVelocity = arpNote->velocity;
-	midiEngine.sendNote(this, true, noteCodePostArp, arpNote->velocity, channel, kMIDIOutputFilterNoMPE);
+	midiEngine.sendNote(this, true, noteCodePostArp, arpNote->velocity, channel(), kMIDIOutputFilterNoMPE);
 }
 
 void MIDIDrum::noteOffPostArp(int32_t noteCodePostArp) {
 	NonAudioDrum::noteOffPostArp(noteCodePostArp);
-	midiEngine.sendNote(this, false, noteCodePostArp, kDefaultNoteOffVelocity, channel, kMIDIOutputFilterNoMPE);
+	midiEngine.sendNote(this, false, noteCodePostArp, kDefaultNoteOffVelocity, channel(), kMIDIOutputFilterNoMPE);
 }
 
 void MIDIDrum::killAllVoices() {
@@ -89,7 +89,7 @@ void MIDIDrum::killAllVoices() {
 void MIDIDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) {
 	writer.writeOpeningTagBeginning("midiOutput", true);
 	writeDrumTagsToFile(writer, savingSong);
-	writer.writeAttribute("channel", channel, false);
+	writer.writeAttribute("channel", channel(), false);
 	writer.writeAttribute("note", note, false);
 	writer.writeOpeningTagEnd();
 
@@ -119,7 +119,7 @@ Error MIDIDrum::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32
 }
 
 std::string MIDIDrum::getDrumName() {
-	int32_t channelToDisplay = channel + 1;
+	int32_t channelToDisplay = channel() + 1;
 	std::string buffer;
 
 	if (display->haveOLED()) {
@@ -187,7 +187,7 @@ void MIDIDrum::expressionEvent(int32_t newValue, int32_t expressionDimension) {
 		int32_t value7 = newValue >> 24;
 		// Note: use the note code currently on post-arp, because this drum supports "Chord Simulator" and "Octaves" and
 		// the note code could be different
-		midiEngine.sendPolyphonicAftertouch(this, channel, value7, arpeggiator.active_note.noteCodeOnPostArp[0],
+		midiEngine.sendPolyphonicAftertouch(this, channel(), value7, arpeggiator.active_note.noteCodeOnPostArp[0],
 		                                    kMIDIOutputFilterNoMPE);
 	}
 }

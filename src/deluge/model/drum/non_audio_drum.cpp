@@ -24,6 +24,22 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 
+// M3 owner-3 slice 3: read the channel from the DOM record when bound, else the engine fallback (kept in sync by
+// setChannel / the modChange mirror).
+uint8_t NonAudioDrum::channel() const {
+	return docDrum_ != nullptr ? docDrum_->channel : channel_;
+}
+
+// M3 owner-3 slice 3: the write funnel for the channel — writes the authoritative engine `channel_` and (when bound)
+// mirrors into the DOM record. Used by the ctors and the load default; modChange writes `channel_` in place and mirrors
+// separately (it operates through a raw `uint8_t*`).
+void NonAudioDrum::setChannel(uint8_t newChannel) {
+	channel_ = newChannel;
+	if (docDrum_ != nullptr) {
+		docDrum_->channel = newChannel;
+	}
+}
+
 void NonAudioDrum::killAllVoices() {
 	if (hasActiveVoices()) {
 		noteOff(nullptr);
@@ -36,7 +52,7 @@ int8_t NonAudioDrum::modEncoderAction(ModelStackWithThreeMainThings* modelStack,
 
 	if ((getCurrentUI()->getUIContextType() == UIType::INSTRUMENT_CLIP) && (currentUIMode == UI_MODE_AUDITIONING)) {
 		if (whichModEncoder == 0) {
-			modChange(modelStack, offset, &channelEncoderCurrentOffset, &channel, getNumChannels());
+			modChange(modelStack, offset, &channelEncoderCurrentOffset, &channel_, getNumChannels());
 		}
 	}
 
@@ -78,11 +94,12 @@ void NonAudioDrum::modChange(ModelStackWithThreeMainThings* modelStack, int32_t 
 
 	*value = newValue;
 
-	// M3 owner-3 dual-write (shadow, not yet read): mirror the funneled channel scalar into the DOM record. This
-	// funnel also carries MIDIDrum's note (via *value == &note); the channel member is unchanged in that case, so
-	// this re-writes its current value harmlessly. The note itself is mirrored at MIDIDrum::modEncoderAction.
+	// M3 owner-3 dual-write: mirror the funneled channel scalar into the DOM record (channel() is read-authoritative as
+	// of slice 3). This funnel also carries MIDIDrum's note (via *value == &note_); the channel member is unchanged in
+	// that case, so this re-writes its current value harmlessly. The note itself is mirrored at
+	// MIDIDrum::modEncoderAction.
 	if (docDrum_ != nullptr) {
-		docDrum_->channel = channel;
+		docDrum_->channel = channel_;
 	}
 
 	instrumentClipView.drawDrumName(this, true);
@@ -105,7 +122,7 @@ void NonAudioDrum::writeArpeggiatorToFile(Serializer& writer) {
 bool NonAudioDrum::readDrumTagFromFile(Deserializer& reader, char const* tagName) {
 
 	if (!strcmp(tagName, "channel")) {
-		channel = reader.readTagOrAttributeValueInt();
+		setChannel(reader.readTagOrAttributeValueInt());
 		reader.exitTag("channel");
 	}
 	else if (!strcmp(tagName, "arpeggiator")) {

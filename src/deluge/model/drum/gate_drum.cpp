@@ -26,7 +26,7 @@
 #include <cstring>
 
 GateDrum::GateDrum() : NonAudioDrum(DrumType::GATE) {
-	channel = 2;
+	setChannel(2);
 	arpSettings.numOctaves = 1;
 }
 
@@ -76,7 +76,7 @@ void GateDrum::killAllVoices() {
 void GateDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) {
 	writer.writeOpeningTagBeginning("gateOutput", true);
 	writeDrumTagsToFile(writer, savingSong);
-	writer.writeAttribute("channel", channel, false);
+	writer.writeAttribute("channel", channel(), false);
 	writer.writeOpeningTagEnd();
 
 	NonAudioDrum::writeArpeggiatorToFile(writer);
@@ -113,7 +113,7 @@ std::string GateDrum::getDrumName() {
 		buffer = "GAT";
 	}
 
-	buffer.append(deluge::string::fromInt(channel + 1));
+	buffer.append(deluge::string::fromInt(channel() + 1));
 
 	return buffer;
 }
@@ -124,10 +124,10 @@ int32_t GateDrum::getNumChannels() {
 
 void GateDrum::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) {
 	NonAudioDrum::noteOnPostArp(noteCodePostArp, arpNote, noteIndex);
-	cvEngine.sendNote(true, channel, kNoteForDrum);
+	cvEngine.sendNote(true, channel(), kNoteForDrum);
 }
 
 void GateDrum::noteOffPostArp(int32_t noteCodePostArp) {
 	NonAudioDrum::noteOffPostArp(noteCodePostArp);
-	cvEngine.sendNote(false, channel, kNoteForDrum);
+	cvEngine.sendNote(false, channel(), kNoteForDrum);
 }

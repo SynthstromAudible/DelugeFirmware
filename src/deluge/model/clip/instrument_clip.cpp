@@ -4036,7 +4036,7 @@ Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 						return Error::INSUFFICIENT_RAM;
 					}
 					GateDrum* newDrum = new (drumMemory) GateDrum();
-					newDrum->channel = gateChannel;
+					newDrum->setChannel(gateChannel);
 
 					kit->addDrum(newDrum, modelStack->song);
 					thisNoteRow->drum = newDrum;
