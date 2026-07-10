@@ -297,6 +297,9 @@ void Song::deleteAllOutputs(Output** prevPointer) {
 		Output* toDelete = *prevPointer;
 		*prevPointer = toDelete->next;
 
+		// toDelete is already unlinked, so this only visits outputs that are still alive
+		clearRecordingFromReferencesTo(toDelete);
+
 		void* toDealloc = dynamic_cast<void*>(toDelete);
 		toDelete->~Output();
 		delugeDealloc(toDealloc);
@@ -3548,7 +3551,19 @@ deleteIt:
 	}
 }
 
+// Call before an Output is destructed. Output only remembers the one AudioOutput that monitors it, but any number of
+// AudioOutputs can be recording from it (a cloned overdub copies the pointer without taking over the monitoring), and
+// each of those would be left pointing at freed memory.
+void Song::clearRecordingFromReferencesTo(Output* output) {
+	for (Output* other = firstOutput; other; other = other->next) {
+		if (other != output && other->getOutputRecordingFrom() == output) {
+			other->clearRecordingFrom();
+		}
+	}
+}
+
 void Song::deleteOutput(Output* output) {
+	clearRecordingFromReferencesTo(output);
 	for (int y = 0; y < 8; y++) {
 		auto& m = sessionMacros[y];
 		if (m.kind == OUTPUT_CYCLE && m.output == output) {
