@@ -1199,14 +1199,16 @@ void Song::assignSessionIds() {
 	for (int32_t c = 0; c < std::ssize(project.clips.arrangement_only_clips); c++) {
 		assignClip(project.clips.arrangement_only_clips[c]);
 	}
+	// durable-id Slice 1: give every song-member output/drum a DURABLE id (not a transient session id) so the param
+	// addressing (OwnerId) always takes its id branch. Loaded owners already have file ids -> no-op for them.
 	for (Output* o = project.media.first_output; o != nullptr; o = o->next) {
-		if (!o->id() && o->sessionId() == 0) {
-			o->setSessionId(project.mintSessionId());
+		if (!o->id()) {
+			o->setId(generateNewOutputId());
 		}
 		if (o->type == OutputType::KIT) {
 			for (Drum* d = static_cast<Kit*>(o)->firstDrum; d != nullptr; d = d->next) {
-				if (!d->id() && d->sessionId() == 0) {
-					d->setSessionId(project.mintSessionId());
+				if (!d->id()) {
+					d->setId(generateNewDrumId());
 				}
 			}
 		}

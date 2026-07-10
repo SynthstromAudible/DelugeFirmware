@@ -170,15 +170,14 @@ deluge::project::DocAutoParam* relocateAndResolve(const ModelStackWithAutoParam&
 		clip->setSessionId(proj.mintSessionId());
 	}
 	if (noteRow != nullptr) {
-		if (noteRow->drum != nullptr && noteRow->drum->type == DrumType::SOUND && !noteRow->drum->id().has_value()
-		    && noteRow->drum->sessionId() == 0) {
-			noteRow->drum->setSessionId(proj.mintSessionId());
+		if (noteRow->drum != nullptr && noteRow->drum->type == DrumType::SOUND && !noteRow->drum->id().has_value()) {
+			noteRow->drum->setId(modelStack.song->generateNewDrumId());
 		}
 	}
 	else if (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
 	         && (clip->output->type == OutputType::SYNTH || clip->output->type == OutputType::KIT)
-	         && !clip->output->id().has_value() && clip->output->sessionId() == 0) {
-		clip->output->setSessionId(proj.mintSessionId());
+	         && !clip->output->id().has_value()) {
+		clip->output->setId(modelStack.song->generateNewOutputId());
 	}
 
 	std::optional<deluge::project::ParamAddress> address = addressFor(modelStack);
