@@ -455,6 +455,19 @@ void Kit::drumRemoved(Drum* drum) {
 		selectedDrum = nullptr;
 	}
 
+	// The caller is about to destruct + dealloc this drum. If view.activeModControllableModelStack
+	// has the drum's Sound cached (from a prior sound-editor session), null it now so the next
+	// gold-encoder turn or menu open doesn't dereference freed memory. We don't try to repopulate;
+	// the next interactive event will refresh it cleanly via setActiveModControllableTimelineCounter.
+	if (drum->type == DrumType::SOUND) {
+		Sound* asSound = static_cast<SoundDrum*>(drum);
+		if (view.activeModControllableModelStack.modControllable == asSound) {
+			view.activeModControllableModelStack.modControllable = nullptr;
+			view.activeModControllableModelStack.paramManager = nullptr;
+			view.activeModControllableModelStack.setTimelineCounter(nullptr);
+		}
+	}
+
 #if ALPHA_OR_BETA_VERSION
 	int32_t i = drumsWithRenderingActive.searchExact((int32_t)drum);
 	if (i != -1) {
