@@ -17,7 +17,9 @@
 
 #pragma once
 
+#include "deluge-project/doc_note.h"
 #include <cstdint>
+#include <vector>
 
 namespace deluge::project {
 
@@ -30,6 +32,11 @@ struct DocNoteRow {
 	int8_t colour_offset{0};
 	uint8_t sequence_direction{0}; ///< SequenceDirection enum underlying value
 	bool muted{false};
+
+	/// M3 owner-2 Slice 2c: SAVE-time note representation, rebuilt from the engine note vector at write and freed
+	/// after (transient scratch — must not permanently double note RAM). Contiguous vector (no stable-address
+	/// requirement — nothing holds a pointer into it, unlike the note-row pool).
+	std::vector<DocNote> notes;
 };
 
 } // namespace deluge::project
