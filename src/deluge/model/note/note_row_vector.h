@@ -20,7 +20,7 @@
 #include "model/note/note_row.h"
 #include "util/container/ordered_pos_vector.h"
 
-class NoteRowVector final : public deluge::OrderedPosVector<NoteRow, &NoteRow::y> {
+class NoteRowVector final : public deluge::OrderedPosVector<NoteRow, &NoteRow::y_> {
 public:
 	NoteRow* insertNoteRowAtIndex(int32_t index);
 	NoteRow* insertNoteRowAtY(int32_t y, int32_t* getIndex = nullptr);

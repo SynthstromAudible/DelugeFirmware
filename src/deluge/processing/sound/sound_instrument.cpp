@@ -191,7 +191,7 @@ yesTickParamManagerForClip:
 				result = expressionParamsSummary->whichParamsAreInterpolating[0];
 			}
 			if (result) {
-				modelStackWithThreeMainThings->setNoteRow(thisNoteRow, thisNoteRow->y);
+				modelStackWithThreeMainThings->setNoteRow(thisNoteRow, thisNoteRow->y());
 				modelStackWithThreeMainThings->paramManager = &thisNoteRow->paramManager;
 				thisNoteRow->paramManager.tickSamples(output.size(), modelStackWithThreeMainThings);
 			}

@@ -39,7 +39,7 @@ std::optional<deluge::project::NoteRowAddress> noteRowAddressFor(const ModelStac
 		addr.is_kit = true;
 	}
 	else {
-		addr.row_key = noteRow->y;
+		addr.row_key = noteRow->y();
 		addr.is_kit = false;
 	}
 	return addr;

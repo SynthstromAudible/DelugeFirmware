@@ -615,12 +615,12 @@ Error InstrumentClip::transferVoicesToOriginalClipFromThisClone(ModelStackWithTi
 		for (int32_t i = 0; i < std::ssize(noteRows); i++) {
 			NoteRow* clonedNoteRow = &noteRows[i];
 			NoteRow* originalNoteRow = originalClip->getNoteRowForYNote(
-			    clonedNoteRow->y); // Might come back NULL cos it doesn't exist - that's ok
+			    clonedNoteRow->y()); // Might come back NULL cos it doesn't exist - that's ok
 
 			ModelStackWithNoteRow* modelStackWithNoteRowClone =
-			    modelStackClone->addNoteRow(clonedNoteRow->y, clonedNoteRow);
+			    modelStackClone->addNoteRow(clonedNoteRow->y(), clonedNoteRow);
 			ModelStackWithNoteRow* modelStackWithNoteRowOriginal =
-			    modelStackOriginal->addNoteRow(clonedNoteRow->y, originalNoteRow); // May end up with NULL noteRow
+			    modelStackOriginal->addNoteRow(clonedNoteRow->y(), originalNoteRow); // May end up with NULL noteRow
 
 			clonedNoteRow->resumeOriginalNoteRowFromThisClone(modelStackWithNoteRowOriginal,
 			                                                  modelStackWithNoteRowClone);
@@ -670,7 +670,7 @@ Error InstrumentClip::appendClip(ModelStackWithTimelineCounter* thisModelStack,
 				continue; // Skip NoteRows with independent length - they'll take care of themselves.
 			}
 
-			int32_t noteRowId = otherNoteRow->y;
+			int32_t noteRowId = otherNoteRow->y();
 
 			ModelStackWithNoteRow* thisModelStackWithNoteRow = getNoteRowForYNote(noteRowId, thisModelStack);
 			NoteRow* thisNoteRow = thisModelStackWithNoteRow->getNoteRowAllowNull();
@@ -1040,7 +1040,7 @@ NoteRow* InstrumentClip::getNoteRowForYNote(int32_t yNote, int32_t* getIndex) {
 	int32_t i = noteRows.firstAtOrAfter(yNote);
 	if (i < std::ssize(noteRows)) {
 		NoteRow* noteRow = &noteRows[i];
-		if (noteRow->y == yNote) {
+		if (noteRow->y() == yNote) {
 			if (getIndex) {
 				*getIndex = i;
 			}
@@ -1246,7 +1246,7 @@ void InstrumentClip::bindNoteRowStructure(NoteRow& nr) {
 		return;
 	}
 	deluge::project::DocNoteRow& d = docClip_->note_rows.emplace_back();
-	d.y = nr.y;
+	d.y = nr.y();
 	d.loop_length_if_independent = nr.loopLengthIfIndependent();
 	d.colour_offset = nr.colourOffset();
 	d.sequence_direction = static_cast<uint8_t>(nr.sequenceDirectionMode());
@@ -1328,13 +1328,13 @@ void InstrumentClip::replaceMusicalMode(const ScaleChange& changes, ModelStackWi
 	MusicalKey key = modelStack->song->project.scale.key;
 	for (int32_t i = 0; i < std::ssize(noteRows); i++) {
 		NoteRow* thisNoteRow = &noteRows[i];
-		int8_t degree = key.degreeOf(thisNoteRow->y);
+		int8_t degree = key.degreeOf(thisNoteRow->y());
 		if (degree >= 0) {
 			ModelStackWithNoteRow* modelStackWithNoteRow =
 			    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
 
 			thisNoteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow); // Otherwise we'd leave a MIDI note playing
-			thisNoteRow->y += changes[degree];
+			thisNoteRow->setY(thisNoteRow->y() + changes[degree]);
 		}
 	}
 
@@ -1356,7 +1356,7 @@ void InstrumentClip::noteRemovedFromMode(int32_t yNoteWithinOctave, Song* song) 
 	for (int32_t i = 0; i < std::ssize(noteRows);) {
 		NoteRow* thisNoteRow = &noteRows[i];
 
-		if ((thisNoteRow->y + 120) % 12 == yNoteWithinOctave) {
+		if ((thisNoteRow->y() + 120) % 12 == yNoteWithinOctave) {
 			unbindNoteRowStructure(noteRows[i]);
 			noteRows.deleteNoteRowAtIndex(i);
 		}
@@ -1396,7 +1396,7 @@ void InstrumentClip::transpose(int32_t semitones, ModelStackWithTimelineCounter*
 
 	for (int32_t i = 0; i < std::ssize(noteRows); i++) {
 		NoteRow* thisNoteRow = &noteRows[i];
-		thisNoteRow->y += semitones;
+		thisNoteRow->setY(thisNoteRow->y() + semitones);
 	}
 
 	yScroll += semitones;
@@ -1433,7 +1433,7 @@ void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 		for (int32_t i = 0; i < std::ssize(noteRows); i++) {
 			NoteRow* thisNoteRow = &noteRows[i];
 			// transpose by semitones or by octave
-			thisNoteRow->y += change;
+			thisNoteRow->setY(thisNoteRow->y() + change);
 		}
 	}
 	else {
@@ -1445,7 +1445,7 @@ void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 			for (int32_t i = 0; i < std::ssize(noteRows); i++) {
 				NoteRow* thisNoteRow = &noteRows[i];
 				// transpose by semitones or by octave
-				thisNoteRow->y += changeInSemitones;
+				thisNoteRow->setY(thisNoteRow->y() + changeInSemitones);
 			}
 		}
 
@@ -1489,7 +1489,7 @@ void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 					}
 				}
 				// transpose by semitones
-				thisNoteRow->y += changeInSemitones;
+				thisNoteRow->setY(thisNoteRow->y() + changeInSemitones);
 			}
 		}
 	}
@@ -1535,7 +1535,7 @@ bool InstrumentClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack
 			yNote = i;
 		}
 		else {
-			yNote = thisNoteRow->y;
+			yNote = thisNoteRow->y();
 		}
 
 		RGB mainColour = getMainColourFromY(yNote, thisNoteRow->getColourOffset(this));
@@ -1719,7 +1719,7 @@ void InstrumentClip::prepareToEnterKitMode(Song* song) {
 	for (int32_t i = 0; i < std::ssize(noteRows); i++) {
 		NoteRow* thisNoteRow = &noteRows[i];
 
-		int32_t yDisplay = getYVisualFromYNote(thisNoteRow->y, song) - yScroll;
+		int32_t yDisplay = getYVisualFromYNote(thisNoteRow->y(), song) - yScroll;
 
 		if ((yDisplay < 0 || yDisplay >= kDisplayHeight) && thisNoteRow->hasNoNotes()) {
 			unbindNoteRowStructure(noteRows[i]);
@@ -1732,7 +1732,7 @@ void InstrumentClip::prepareToEnterKitMode(Song* song) {
 
 	// Figure out the new scroll value
 	if (!noteRows.empty()) {
-		yScroll -= getYVisualFromYNote(noteRows[0].y, song);
+		yScroll -= getYVisualFromYNote(noteRows[0].y(), song);
 	}
 	else {
 		yScroll = 0;
@@ -1938,7 +1938,7 @@ probablyApplyBendRangeMain:
 		if (oldInstrument->type == OutputType::KIT) {
 			prepNoteRowsForExitingKitMode(modelStack->song);
 
-			yScroll += getYVisualFromYNote(noteRows[0].y, modelStack->song);
+			yScroll += getYVisualFromYNote(noteRows[0].y(), modelStack->song);
 		}
 	}
 
@@ -3236,7 +3236,7 @@ void InstrumentClip::prepNoteRowsForExitingKitMode(Song* song) {
 		// See if any NoteRows are a root note
 		for (int32_t i = 0; i < std::ssize(noteRows); i++) {
 			NoteRow* thisNoteRow = &noteRows[i];
-			if (thisNoteRow->y != -32768 && key.intervalOf(thisNoteRow->y) == 0) {
+			if (thisNoteRow->y() != -32768 && key.intervalOf(thisNoteRow->y()) == 0) {
 				chosenNoteRow = thisNoteRow;
 				chosenNoteRowIndex = i;
 				break;
@@ -3249,11 +3249,11 @@ void InstrumentClip::prepNoteRowsForExitingKitMode(Song* song) {
 
 		for (int32_t i = 0; i < std::ssize(noteRows); i++) {
 			NoteRow* thisNoteRow = &noteRows[i];
-			if (thisNoteRow->y != -32768) {
+			if (thisNoteRow->y() != -32768) {
 
 				// But, if we're in key-mode, make sure this yNote fits within the scale!
 				if (inScaleMode) {
-					uint8_t yNoteWithinOctave = key.intervalOf(thisNoteRow->y);
+					uint8_t yNoteWithinOctave = key.intervalOf(thisNoteRow->y());
 
 					// Make sure this yNote fits the scale/mode
 					if (!song->project.scale.key.modeNotes.has(yNoteWithinOctave)) {
@@ -3271,7 +3271,7 @@ noteRowFailed: {}
 
 	// Occasionally we get a crazy scroll value. Not sure how. It happened to Jon Hutton
 	if (chosenNoteRow) {
-		if (chosenNoteRow->y < -256 || chosenNoteRow->y >= 256) {
+		if (chosenNoteRow->y() < -256 || chosenNoteRow->y() >= 256) {
 			goto useRootNote; // Can't use isScrollWithinRange, cos that relies on existing note positions, which are
 			                  // messed up
 		}
@@ -3282,17 +3282,17 @@ noteRowFailed: {}
 		chosenNoteRow = &noteRows[0];
 		chosenNoteRowIndex = 0;
 useRootNote:
-		chosenNoteRow->y = (song->project.scale.key.rootNote % 12) + 60; // Just do this even if we're not in key-mode
+		chosenNoteRow->setY((song->project.scale.key.rootNote % 12) + 60); // Just do this even if we're not in key-mode
 	}
 
 	// Now, give all the other NoteRows yNotes
-	int32_t chosenNoteRowYVisual = song->project.scale.key.getYVisualFromYNote(chosenNoteRow->y, inScaleMode);
+	int32_t chosenNoteRowYVisual = song->project.scale.key.getYVisualFromYNote(chosenNoteRow->y(), inScaleMode);
 
 	for (int32_t i = 0; i < std::ssize(noteRows); i++) {
 		NoteRow* thisNoteRow = &noteRows[i];
 		if (i != chosenNoteRowIndex) {
-			thisNoteRow->y =
-			    song->project.scale.key.getYNoteFromYVisual(chosenNoteRowYVisual - chosenNoteRowIndex + i, inScaleMode);
+			thisNoteRow->setY(song->project.scale.key.getYNoteFromYVisual(chosenNoteRowYVisual - chosenNoteRowIndex + i,
+			                                                              inScaleMode));
 		}
 	}
 }
@@ -3400,14 +3400,14 @@ int16_t InstrumentClip::getTopYNote() {
 	if (noteRows.empty()) {
 		return 64;
 	}
-	return noteRows[std::ssize(noteRows) - 1].y;
+	return noteRows[std::ssize(noteRows) - 1].y();
 }
 
 int16_t InstrumentClip::getBottomYNote() {
 	if (noteRows.empty()) {
 		return 64;
 	}
-	return noteRows[0].y;
+	return noteRows[0].y();
 }
 
 uint32_t InstrumentClip::getWrapEditLevel() {
@@ -3513,7 +3513,7 @@ int32_t InstrumentClip::getNoteRowId(NoteRow* noteRow, int32_t noteRowIndex) {
 		return noteRowIndex;
 	}
 	else {
-		return noteRow->y;
+		return noteRow->y();
 	}
 }
 
@@ -4279,7 +4279,7 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 					}
 					else {
 						modelStackWithNoteRow =
-						    newInstrumentClip->getOrCreateNoteRowForYNote(thisNoteRow->y, modelStack);
+						    newInstrumentClip->getOrCreateNoteRowForYNote(thisNoteRow->y(), modelStack);
 					}
 
 					NoteRow* newNoteRow = modelStackWithNoteRow->getNoteRowAllowNull();

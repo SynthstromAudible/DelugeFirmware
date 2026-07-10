@@ -208,7 +208,7 @@ int main() {
 		src.drum = fakeDrum;
 
 		NoteRow dst(src); // copy ctor
-		check(dst.y == 5, "noterow copy: y copied");
+		check(dst.y() == 5, "noterow copy: y copied");
 		check(dst.drum == fakeDrum, "noterow copy: drum pointer shared");
 		check(static_cast<DrumName*>(dst.firstOldDrumName) == nullptr, "noterow copy: drum-name list reset");
 		check(dst.notes.size() == 1 && dst.notes[0].pos == 10, "noterow copy: notes copied");

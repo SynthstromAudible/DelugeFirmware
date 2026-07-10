@@ -53,7 +53,7 @@
 #include <string.h>
 
 NoteRow::NoteRow(int16_t newY) {
-	y = newY;
+	y_ = newY;
 	muted_ = false;
 	colourOffset_ = random(71);
 	drum = nullptr;
@@ -76,7 +76,7 @@ NoteRow::NoteRow(int16_t newY) {
 //  - firstOldDrumName: NOT copied — a clone starts with no owned drum-name list
 //  - ignoreNoteOnsBefore_ / ignoreUntil / ignoredTicks: transient playback state, reset
 NoteRow::NoteRow(NoteRow const& other)
-    : y(other.y), muted_(other.muted_), mutedBeforeStemExport(other.mutedBeforeStemExport),
+    : y_(other.y_), muted_(other.muted_), mutedBeforeStemExport(other.mutedBeforeStemExport),
       exportStem(other.exportStem), loopLengthIfIndependent_(other.loopLengthIfIndependent_),
       lastProcessedPosIfIndependent(other.lastProcessedPosIfIndependent),
       repeatCountIfIndependent(other.repeatCountIfIndependent),
@@ -2424,7 +2424,7 @@ bool NoteRow::isAuditioning(ModelStackWithNoteRow* modelStack) {
 		return drum && drum->auditioned;
 	}
 	else {
-		return ((MelodicInstrument*)output)->notesAuditioned.contains(y);
+		return ((MelodicInstrument*)output)->notesAuditioned.contains(y());
 	}
 }
 
@@ -3477,7 +3477,7 @@ Error NoteRow::readFromTree(Deserializer& reader, const deluge::storage::Value& 
 		setMuted(stringToInt(n->str().c_str()));
 	}
 	if (const Value* n = node.find("y")) {
-		y = stringToInt(n->str().c_str());
+		y_ = stringToInt(n->str().c_str());
 	}
 	if (const Value* n = node.find("colourOffset")) {
 		setColourOffset(stringToInt(n->str().c_str()));
@@ -3547,8 +3547,8 @@ Error NoteRow::readFromTree(Deserializer& reader, const deluge::storage::Value& 
 		}
 	}
 
-	y = std::max(y, (int16_t)*minY);
-	*minY = y + 1;
+	y_ = std::max(y_, (int16_t)*minY);
+	*minY = y_ + 1;
 	if (newBendRange != -1) {
 		ExpressionParamSet* expressionParams = paramManager.getOrCreateExpressionParamSet();
 		if (expressionParams) {
@@ -3559,7 +3559,7 @@ Error NoteRow::readFromTree(Deserializer& reader, const deluge::storage::Value& 
 	// M3 owner-2 (dual-write phase): mirror the fully-read scalar fields into the DOM shadow (bound at the load
 	// insert site). Guarded on non-null; nothing reads the shadow yet, so this is purely additive.
 	if (docNoteRow_ != nullptr) {
-		docNoteRow_->y = y;
+		docNoteRow_->y = y_;
 	}
 	return Error::NONE;
 }
@@ -3570,7 +3570,7 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 	bool forKit = (clip->output->type == OutputType::KIT);
 
 	if (!forKit) {
-		writer.writeAttribute("y", y);
+		writer.writeAttribute("y", y());
 	}
 	if (muted()) {
 		writer.writeAttribute("muted", muted());

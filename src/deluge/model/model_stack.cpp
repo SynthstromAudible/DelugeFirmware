@@ -43,7 +43,7 @@ ModelStackWithThreeMainThings* ModelStackWithTimelineCounter::addNoteRowAndExtra
 	InstrumentClip* clip = (InstrumentClip*)getTimelineCounter();
 	Output* output = clip->output;
 	bool isKit = (output->type == OutputType::KIT);
-	toReturn->noteRowId = isKit ? noteRowIndex : newNoteRow->y;
+	toReturn->noteRowId = isKit ? noteRowIndex : newNoteRow->y();
 	toReturn->setNoteRow(newNoteRow);
 	toReturn->modControllable =
 	    (isKit && newNoteRow->drum) ? newNoteRow->drum->toModControllable() : output->toModControllable();

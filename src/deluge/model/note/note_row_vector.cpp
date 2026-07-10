@@ -35,7 +35,7 @@ NoteRow* NoteRowVector::insertNoteRowAtY(int32_t y, int32_t* getIndex) {
 		if (getIndex) {
 			*getIndex = i;
 		}
-		noteRow->y = y;
+		noteRow->setY(y); // row not yet bound → writes only the engine field y_
 	}
 	return noteRow;
 }

@@ -1156,7 +1156,7 @@ void InstrumentClipView::copyNotes(Serializer* writer, bool selectedDrumOnly) {
 		}
 		else { // Or for non-Kits
 			int32_t yVisual = currentSong->project.scale.key.getYVisualFromYNote(
-			    thisNoteRow->y, getCurrentInstrumentClip()->inScaleMode);
+			    thisNoteRow->y(), getCurrentInstrumentClip()->inScaleMode);
 			noteRowYDisplay = yVisual - getCurrentInstrumentClip()->yScroll;
 		}
 		if (isFilteredCopy) {
@@ -1207,14 +1207,14 @@ ramError:
 
 				// Fill in some details for the row
 				newCopiedNoteRow->numNotes = numNotes;
-				newCopiedNoteRow->yNote = thisNoteRow->y;
+				newCopiedNoteRow->yNote = thisNoteRow->y();
 				newCopiedNoteRow->yDisplay = noteRowYDisplay;
 
 				if (copyToFile) {
 					writer->writeOpeningTagBeginning("noteRow");
 
 					writer->writeAttribute("numNotes", numNotes);
-					writer->writeAttribute("yNote", thisNoteRow->y);
+					writer->writeAttribute("yNote", thisNoteRow->y());
 					writer->writeAttribute("yDisplay", noteRowYDisplay);
 					writer->insertCommaIfNeeded();
 					writer->write("\n");
@@ -4229,7 +4229,7 @@ doDisplayError:
 			display->displayError(Error::INSUFFICIENT_RAM);
 		}
 		else {
-			noteRowId = noteRow->y;
+			noteRowId = noteRow->y();
 		}
 	}
 
@@ -4507,8 +4507,8 @@ void InstrumentClipView::scrollVertical_dragSelectedNoteRow(InstrumentClip* clip
                                                             int32_t noteRowToShiftI, int32_t noteRowToSwapWithI) {
 	actionLogger.deleteAllLogs(); // Can't undo past this!
 
-	clip->noteRows[noteRowToShiftI].y = -32768; // Need to remember not to try and use the yNote value
-	                                            // of this NoteRow if we switch back out of Kit mode
+	clip->noteRows[noteRowToShiftI].setY(-32768); // Need to remember not to try and use the yNote value
+	                                              // of this NoteRow if we switch back out of Kit mode
 	std::swap(clip->noteRows[noteRowToShiftI], clip->noteRows[noteRowToSwapWithI]);
 
 	// If the Kit arpeggiator is active and playback is stopped, we must reset it so notes are reassigned
@@ -5744,19 +5744,19 @@ void InstrumentClipView::enterScaleMode(uint8_t yDisplay) {
 		PadLEDs::numAnimatedRows = 0;
 		for (int32_t i = 0; i < std::ssize(clip->noteRows); i++) {
 			NoteRow* thisNoteRow = &clip->noteRows[i];
-			int32_t yVisualTo = clip->getYVisualFromYNote(thisNoteRow->y, currentSong);
+			int32_t yVisualTo = clip->getYVisualFromYNote(thisNoteRow->y(), currentSong);
 			int32_t yDisplayTo = yVisualTo - newScroll;
-			int32_t yDisplayFrom = thisNoteRow->y - clip->yScroll;
+			int32_t yDisplayFrom = thisNoteRow->y() - clip->yScroll;
 
 			// If this NoteRow is going to end up on-screen or come from on-screen...
 			if ((yDisplayTo >= 0 && yDisplayTo < kDisplayHeight)
 			    || (yDisplayFrom >= 0 && yDisplayFrom < kDisplayHeight)) {
 
-				ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(thisNoteRow->y, thisNoteRow);
+				ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(thisNoteRow->y(), thisNoteRow);
 
 				PadLEDs::animatedRowGoingTo[PadLEDs::numAnimatedRows] = yDisplayTo;
 				PadLEDs::animatedRowGoingFrom[PadLEDs::numAnimatedRows] = yDisplayFrom;
-				RGB mainColour = clip->getMainColourFromY(thisNoteRow->y, thisNoteRow->getColourOffset(clip));
+				RGB mainColour = clip->getMainColourFromY(thisNoteRow->y(), thisNoteRow->getColourOffset(clip));
 				RGB tailColour = mainColour.forTail();
 				RGB blurColour = mainColour.forBlur();
 
@@ -5845,9 +5845,9 @@ void InstrumentClipView::exitScaleMode() {
 		PadLEDs::numAnimatedRows = 0;
 		for (int32_t i = 0; i < std::ssize(clip->noteRows); i++) {
 			NoteRow* thisNoteRow = &clip->noteRows[i];
-			int32_t yDisplayTo = thisNoteRow->y - (clip->yScroll + scrollAdjust);
+			int32_t yDisplayTo = thisNoteRow->y() - (clip->yScroll + scrollAdjust);
 			clip->inScaleMode = true;
-			int32_t yDisplayFrom = clip->getYVisualFromYNote(thisNoteRow->y, currentSong) - clip->yScroll;
+			int32_t yDisplayFrom = clip->getYVisualFromYNote(thisNoteRow->y(), currentSong) - clip->yScroll;
 			clip->inScaleMode = false;
 
 			// If this NoteRow is going to end up on-screen or come from on-screen...
@@ -5855,11 +5855,11 @@ void InstrumentClipView::exitScaleMode() {
 			    || (yDisplayFrom >= 0 && yDisplayFrom < kDisplayHeight)) {
 				PadLEDs::animatedRowGoingTo[PadLEDs::numAnimatedRows] = yDisplayTo;
 				PadLEDs::animatedRowGoingFrom[PadLEDs::numAnimatedRows] = yDisplayFrom;
-				RGB mainColour = clip->getMainColourFromY(thisNoteRow->y, thisNoteRow->getColourOffset(clip));
+				RGB mainColour = clip->getMainColourFromY(thisNoteRow->y(), thisNoteRow->getColourOffset(clip));
 				RGB tailColour = mainColour.forTail();
 				RGB blurColour = mainColour.forBlur();
 
-				ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(thisNoteRow->y, thisNoteRow);
+				ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(thisNoteRow->y(), thisNoteRow);
 
 				thisNoteRow->renderRow(
 				    this, mainColour, tailColour, blurColour, PadLEDs::imageStore[PadLEDs::numAnimatedRows],
@@ -6245,10 +6245,10 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 	auto num_note_rows = clip->getNumNoteRows();
 	for (int32_t index = 0; index < num_note_rows; index++) {
 		NoteRow* noteRow = clip->noteRows.tryGet(index);
-		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRow->y, noteRow);
+		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRow->y(), noteRow);
 
 		if (noteRow && !noteRow->hasNoNotes()) {
-			int32_t currentYNote = noteRow->y;
+			int32_t currentYNote = noteRow->y();
 			auto destYNote = currentSong->project.scale.key.incrementYNoteInKey(currentYNote, offset, inOctave);
 			D_PRINTLN("Moving note from row %i to %i", currentYNote, destYNote);
 
@@ -6650,8 +6650,8 @@ void InstrumentClipView::commandQuantizeNotes(int8_t offset, NudgeMode nudgeMode
 			modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, thisNoteRow);
 
 			// If the note row being quantized is on screen, mark the row as dirty
-			if (currentClip->yScroll <= thisNoteRow->y && thisNoteRow->y <= currentClip->yScroll + kDisplayHeight) {
-				rowUpdateMask |= 1 << (thisNoteRow->y - currentClip->yScroll);
+			if (currentClip->yScroll <= thisNoteRow->y() && thisNoteRow->y() <= currentClip->yScroll + kDisplayHeight) {
+				rowUpdateMask |= 1 << (thisNoteRow->y() - currentClip->yScroll);
 			}
 		}
 		else {

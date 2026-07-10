@@ -904,7 +904,7 @@ void pasteTarget(Song* song) {
 	copied.notes[0].setLength(1);
 	copied.notes[0].setVelocity(64);
 	copied.notes[0].setProbability(kNumProbabilityValues); // full probability
-	copied.yNote = noteRow->y;
+	copied.yNote = noteRow->y();
 	copied.yDisplay = 0;
 
 	int32_t before = std::ssize(noteRow->notes);

@@ -503,7 +503,7 @@ bool MelodicInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack,
 }
 
 bool MelodicInstrument::isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) {
-	return notesAuditioned.contains(noteRow->y) && !earlyNotes.contains(noteRow->y);
+	return notesAuditioned.contains(noteRow->y()) && !earlyNotes.contains(noteRow->y());
 }
 
 void MelodicInstrument::stopAnyAuditioning(ModelStack* modelStack) {

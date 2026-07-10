@@ -52,6 +52,7 @@ class Kit;
 class DrumName;
 class Action;
 class NoteRow;
+class NoteRowVector;
 class CopiedNoteRow;
 class Sound;
 class TimelineView;
@@ -128,6 +129,9 @@ private:
 };
 
 class NoteRow {
+	// M3 owner-2 slice 2b: the container sorts by (and raw-writes at insert) the private y_ key.
+	friend class NoteRowVector;
+
 public:
 	NoteRow(int16_t newY = -32768);
 	~NoteRow();
@@ -158,7 +162,7 @@ public:
 	void writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip);
 	Error readFromTree(Deserializer& reader, const deluge::storage::Value& node, int32_t* minY,
 	                   InstrumentClip* parentClip, Song* song, int32_t readAutomationUpToPos);
-	inline int32_t getNoteCode() { return y; }
+	inline int32_t getNoteCode() { return y(); }
 	void writeToFlash();
 	void readFromFlash(InstrumentClip* parentClip);
 	uint32_t getNumNotes();
@@ -168,7 +172,19 @@ public:
 
 	int32_t getDistanceToNextNote(int32_t pos, ModelStackWithNoteRow const* modelStack, bool reversed = false);
 
-	int16_t y; // This has to be at the top
+private:
+	int16_t y_{0}; // This has to be at the top (first data member; the NoteRowVector sort key)
+
+public:
+	// M3 owner-2 slice 2b: read-flip onto the DOM shadow when bound; the engine field is a synced fallback.
+	int16_t y() const { return docNoteRow_ != nullptr ? docNoteRow_->y : y_; }
+	void setY(int16_t v) {
+		y_ = v;
+		if (docNoteRow_ != nullptr) {
+			docNoteRow_->y = v; // plain write-through; NO sort assertion (transpose loops mutate y in place)
+		}
+	}
+
 	// M3 owner-2 slice 2a: read-flip onto the DOM shadow when bound; the engine field is a synced fallback.
 	bool muted() const { return docNoteRow_ != nullptr ? docNoteRow_->muted : muted_; }
 	void setMuted(bool v) {
