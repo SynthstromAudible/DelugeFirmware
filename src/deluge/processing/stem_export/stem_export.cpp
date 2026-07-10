@@ -620,7 +620,7 @@ int32_t StemExport::disarmAllDrumsForStemExport() {
 				    3) it has a drum assigned to it
 				    4) the drum assigned to it is a sound drum
 				*/
-				if (thisNoteRow->drum != nullptr && thisNoteRow->drum->type == DrumType::SOUND && !thisNoteRow->muted
+				if (thisNoteRow->drum != nullptr && thisNoteRow->drum->type == DrumType::SOUND && !thisNoteRow->muted()
 				    && !thisNoteRow->hasNoNotes()) {
 					thisNoteRow->exportStem = true;
 					totalNumStemsToExport++;
@@ -628,8 +628,8 @@ int32_t StemExport::disarmAllDrumsForStemExport() {
 				else {
 					thisNoteRow->exportStem = false;
 				}
-				thisNoteRow->mutedBeforeStemExport = thisNoteRow->muted;
-				thisNoteRow->muted = true;
+				thisNoteRow->mutedBeforeStemExport = thisNoteRow->muted();
+				thisNoteRow->setMuted(true);
 			}
 		}
 	}
@@ -644,7 +644,7 @@ void StemExport::restoreAllDrumMutes(int32_t totalNumNoteRows) {
 	for (int32_t idxNoteRow = 0; idxNoteRow < totalNumNoteRows; ++idxNoteRow) {
 		NoteRow* thisNoteRow = clip->noteRows.tryGet(idxNoteRow);
 		if (thisNoteRow != nullptr) {
-			thisNoteRow->muted = thisNoteRow->mutedBeforeStemExport;
+			thisNoteRow->setMuted(thisNoteRow->mutedBeforeStemExport);
 		}
 	}
 }
@@ -677,8 +677,12 @@ int32_t StemExport::exportDrumStems(StemExportType stemExportType) {
 				}
 				getLoopEndPointInSamplesForAudioFile(loopLengthToStopStemExport);
 
-				bool started = startCurrentStemExport(stemExportType, output, thisNoteRow->muted, idxNoteRow,
+				// startCurrentStemExport mutates the mute flag by reference (unmute-for-record); route the
+				// write-back through setMuted so the DOM shadow stays in sync.
+				bool drumMuteState = thisNoteRow->muted();
+				bool started = startCurrentStemExport(stemExportType, output, drumMuteState, idxNoteRow,
 				                                      thisNoteRow->exportStem, (SoundDrum*)thisNoteRow->drum);
+				thisNoteRow->setMuted(drumMuteState);
 
 				if (!started) {
 					// skip this stem and move to the next one
@@ -697,7 +701,10 @@ int32_t StemExport::exportDrumStems(StemExportType stemExportType) {
 					         || playbackHandler.isEitherClockActive());
 				});
 
-				finishCurrentStemExport(stemExportType, thisNoteRow->muted);
+				// finishCurrentStemExport re-mutes via the reference; route the write-back through setMuted.
+				bool drumMuteStateAfter = thisNoteRow->muted();
+				finishCurrentStemExport(stemExportType, drumMuteStateAfter);
+				thisNoteRow->setMuted(drumMuteStateAfter);
 			}
 			// in the event that stem exporting is cancelled while iterating through drums
 			// break out of the loop

@@ -54,7 +54,7 @@
 
 NoteRow::NoteRow(int16_t newY) {
 	y = newY;
-	muted = false;
+	muted_ = false;
 	colourOffset = random(71);
 	drum = nullptr;
 	firstOldDrumName = nullptr;
@@ -76,8 +76,8 @@ NoteRow::NoteRow(int16_t newY) {
 //  - firstOldDrumName: NOT copied — a clone starts with no owned drum-name list
 //  - ignoreNoteOnsBefore_ / ignoreUntil / ignoredTicks: transient playback state, reset
 NoteRow::NoteRow(NoteRow const& other)
-    : y(other.y), muted(other.muted), mutedBeforeStemExport(other.mutedBeforeStemExport), exportStem(other.exportStem),
-      loopLengthIfIndependent(other.loopLengthIfIndependent),
+    : y(other.y), muted_(other.muted_), mutedBeforeStemExport(other.mutedBeforeStemExport),
+      exportStem(other.exportStem), loopLengthIfIndependent(other.loopLengthIfIndependent),
       lastProcessedPosIfIndependent(other.lastProcessedPosIfIndependent),
       repeatCountIfIndependent(other.repeatCountIfIndependent),
       currentlyPlayingReversedIfIndependent(other.currentlyPlayingReversedIfIndependent),
@@ -443,7 +443,7 @@ addNewNote:
 			                                  newNote, ExistenceChangeType::CREATE);
 		}
 
-		if (clipCurrentlyPlaying && !muted) {
+		if (clipCurrentlyPlaying && !muted()) {
 			((InstrumentClip*)modelStack->getTimelineCounter())->expectEvent();
 
 			if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::CatchNotes) == RuntimeFeatureStateToggle::On)) {
@@ -2167,7 +2167,7 @@ int32_t NoteRow::processCurrentPos(ModelStackWithNoteRow* modelStack, int32_t ti
 		ignoreNoteOnsBefore_ = 0;
 	}
 
-	if (muted) {
+	if (muted()) {
 noFurtherNotes:
 		// If this NoteRow has independent length set, make sure we come back at its end. Otherwise, the Clip
 		// handles this.
@@ -3124,11 +3124,11 @@ switchOff:
 }
 
 void NoteRow::toggleMute(ModelStackWithNoteRow* modelStack, bool clipIsActiveAndPlaybackIsOn) {
-	muted = !muted;
+	setMuted(!muted());
 
 	if (clipIsActiveAndPlaybackIsOn) {
 		// If we just muted it, make sure we're not playing a note
-		if (muted) {
+		if (muted()) {
 			stopCurrentlyPlayingNote(modelStack);
 		}
 
@@ -3203,7 +3203,7 @@ bool NoteRow::hasNoNotes() {
 }
 
 bool NoteRow::noteRowMayMakeSound(bool clipMayMakeSound) {
-	return clipMayMakeSound && !muted;
+	return clipMayMakeSound && !muted();
 }
 
 uint32_t NoteRow::getNumNotes() {
@@ -3479,7 +3479,7 @@ Error NoteRow::readFromTree(Deserializer& reader, const deluge::storage::Value& 
 		readAutomationUpToPos = loopLengthIfIndependent;
 	}
 	if (const Value* n = node.find("muted")) {
-		muted = stringToInt(n->str().c_str());
+		setMuted(stringToInt(n->str().c_str()));
 	}
 	if (const Value* n = node.find("y")) {
 		y = stringToInt(n->str().c_str());
@@ -3568,7 +3568,6 @@ Error NoteRow::readFromTree(Deserializer& reader, const deluge::storage::Value& 
 		docNoteRow_->loop_length_if_independent = loopLengthIfIndependent;
 		docNoteRow_->colour_offset = colourOffset;
 		docNoteRow_->sequence_direction = static_cast<uint8_t>(sequenceDirectionMode);
-		docNoteRow_->muted = muted;
 	}
 	return Error::NONE;
 }
@@ -3581,8 +3580,8 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 	if (!forKit) {
 		writer.writeAttribute("y", y);
 	}
-	if (muted) {
-		writer.writeAttribute("muted", muted);
+	if (muted()) {
+		writer.writeAttribute("muted", muted());
 	}
 
 	if (forKit) {
@@ -4357,16 +4356,16 @@ Error NoteRow::appendNoteRow(ModelStackWithNoteRow* thisModelStack, ModelStackWi
 void NoteRow::resumeOriginalNoteRowFromThisClone(ModelStackWithNoteRow* modelStackOriginal,
                                                  ModelStackWithNoteRow* modelStackClone) {
 
-	bool wasSounding = (!muted && sequenced);
+	bool wasSounding = (!muted() && sequenced);
 
 	NoteRow* originalNoteRow =
 	    modelStackOriginal->getNoteRowAllowNull(); // It might be NULL - we'll check for that below.
 
-	if (originalNoteRow && !originalNoteRow->muted) {
+	if (originalNoteRow && !originalNoteRow->muted()) {
 		originalNoteRow->silentlyResumePlayback(modelStackOriginal);
 	}
 
-	bool stillSounding = (originalNoteRow && !originalNoteRow->muted && originalNoteRow->sequenced);
+	bool stillSounding = (originalNoteRow && !originalNoteRow->muted() && originalNoteRow->sequenced);
 
 	bool shouldSoundNoteOffNow = (wasSounding && !stillSounding);
 
@@ -4550,7 +4549,7 @@ void NoteRow::setSequenceDirectionMode(ModelStackWithNoteRow* modelStack, Sequen
 		if (reversedBefore != modelStack->isCurrentlyPlayingReversed()) {
 			lastProcessedPosIfIndependent =
 			    modelStack->getLoopLength() - lastProcessedPosIfIndependent; // Again, might have no effect.
-			if (!muted && playbackHandler.isEitherClockActive()
+			if (!muted() && playbackHandler.isEitherClockActive()
 			    && modelStack->song->isClipActive((Clip*)modelStack->getTimelineCounter())) {
 				resumePlayback(modelStack, true);
 			}

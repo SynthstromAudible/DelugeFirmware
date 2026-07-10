@@ -421,7 +421,7 @@ void Kit::loadCrucialAudioFilesOnly() {
 	AudioEngine::logAction("Kit::loadCrucialSamplesOnly");
 	for (int32_t i = 0; i < std::ssize(((InstrumentClip*)activeClip)->noteRows); i++) {
 		NoteRow* thisNoteRow = &((InstrumentClip*)activeClip)->noteRows[i];
-		if (!thisNoteRow->muted && !thisNoteRow->hasNoNotes() && thisNoteRow->drum) {
+		if (!thisNoteRow->muted() && !thisNoteRow->hasNoNotes() && thisNoteRow->drum) {
 			thisNoteRow->drum->loadAllSamples(true); // Why don't we deal with the error?
 		}
 	}

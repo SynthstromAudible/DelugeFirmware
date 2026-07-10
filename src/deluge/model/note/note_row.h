@@ -20,6 +20,7 @@
 #include <utility>
 
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_note_row.h"
 #include "gui/colour/colour.h"
 #include "io/midi/learned_midi.h"
 #include "model/iterance/iterance.h"
@@ -57,9 +58,6 @@ class TimelineView;
 
 namespace deluge::storage {
 class Value;
-}
-namespace deluge::project {
-struct DocNoteRow;
 }
 
 class ModelStackWithTimelineCounter;
@@ -171,7 +169,14 @@ public:
 	int32_t getDistanceToNextNote(int32_t pos, ModelStackWithNoteRow const* modelStack, bool reversed = false);
 
 	int16_t y; // This has to be at the top
-	bool muted;
+	// M3 owner-2 slice 2a: read-flip onto the DOM shadow when bound; the engine field is a synced fallback.
+	bool muted() const { return docNoteRow_ != nullptr ? docNoteRow_->muted : muted_; }
+	void setMuted(bool v) {
+		muted_ = v;
+		if (docNoteRow_ != nullptr) {
+			docNoteRow_->muted = v;
+		}
+	}
 	bool mutedBeforeStemExport{}; // Used by stem export to restore previous state
 	bool exportStem;              // Used by stem export to flag if this note row should be exported
 
@@ -295,6 +300,10 @@ public:
 	bool isDroning(int32_t effectiveLength);
 
 private:
+	// M3 owner-2 slice 2a: DOM-shadowed scalars. Read through the public accessors (bound → DOM record, unbound →
+	// these engine fields); written through the setters, which keep both stores in sync.
+	bool muted_{false};
+
 	// Decode a hex noteData value (V1.4+) into notes[]. noteHexLength selects the format variant (20/22/26/28).
 	// Reads the value char-at-a-time from the reader's current scalar. Returns INSUFFICIENT_RAM on alloc failure.
 	Error readNoteDataHex(Deserializer& reader, uint16_t noteHexLength);

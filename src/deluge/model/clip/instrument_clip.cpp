@@ -1171,7 +1171,7 @@ ModelStackWithNoteRow* InstrumentClip::getOrCreateNoteRowForYNote(int32_t yNote,
 void InstrumentClip::resumePlayback(ModelStackWithTimelineCounter* modelStack, bool mayMakeSound) {
 	for (int32_t i = 0; i < std::ssize(noteRows); i++) {
 		NoteRow* thisNoteRow = &noteRows[i];
-		if (!thisNoteRow->muted) {
+		if (!thisNoteRow->muted()) {
 			int32_t noteRowId = getNoteRowId(thisNoteRow, i);
 			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRowId, thisNoteRow);
 			thisNoteRow->resumePlayback(modelStackWithNoteRow, mayMakeSound);
@@ -1250,7 +1250,7 @@ void InstrumentClip::bindNoteRowStructure(NoteRow& nr) {
 	d.loop_length_if_independent = nr.loopLengthIfIndependent;
 	d.colour_offset = nr.colourOffset;
 	d.sequence_direction = static_cast<uint8_t>(nr.sequenceDirectionMode);
-	d.muted = nr.muted;
+	d.muted = nr.muted();
 	nr.bindDocNoteRow(&d);
 }
 
@@ -3285,7 +3285,7 @@ bool InstrumentClip::deleteSoundsWhichWontSound(Song* song) {
 			NoteRow* noteRow = &noteRows[i];
 
 			// If the NoteRow isn't gonna make any more sound...
-			if ((!clipIsActive || noteRow->muted || noteRow->hasNoNotes())
+			if ((!clipIsActive || noteRow->muted() || noteRow->hasNoNotes())
 			    // ...and it doesn't have a currently still-rendering Drum Sound
 			    && (!noteRow->drum || noteRow->drum->type != DrumType::SOUND
 			        || ((SoundDrum*)noteRow->drum)->skippingRendering)

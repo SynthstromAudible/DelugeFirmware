@@ -2029,7 +2029,7 @@ ActionResult InstrumentClipView::potentiallyRandomizeDrumSamples() {
 				NoteRow* thisNoteRow;
 				if (randomizeAll) {
 					thisNoteRow = &instrumentClip->noteRows[i];
-					if (thisNoteRow->muted || thisNoteRow->hasNoNotes()) {
+					if (thisNoteRow->muted() || thisNoteRow->hasNoNotes()) {
 						continue;
 					}
 				}
@@ -5947,7 +5947,7 @@ void InstrumentClipView::drawMuteSquare(NoteRow* thisNoteRow, RGB thisImage[], u
 		*thisOccupancy = 64;
 	}
 
-	else if (thisNoteRow == nullptr || !thisNoteRow->muted) {
+	else if (thisNoteRow == nullptr || !thisNoteRow->muted()) {
 		if (thisNoteRow == nullptr && getCurrentOutputType() == OutputType::KIT) {
 			thisColour = colours::black;
 		}
@@ -7107,7 +7107,7 @@ void InstrumentClipView::graphicsRoutine() {
 		if (!inNoteEditor) {
 			noteRow = clip->getNoteRowOnScreen(yDisplay, currentSong, &noteRowIndex);
 		}
-		colours[yDisplay] = (noteRow && noteRow->muted) ? 1 : nonMutedColour;
+		colours[yDisplay] = (noteRow && noteRow->muted()) ? 1 : nonMutedColour;
 
 		if (!reallyNoTickSquare) {
 			if (noteRow && noteRow->hasIndependentPlayPos()) {
