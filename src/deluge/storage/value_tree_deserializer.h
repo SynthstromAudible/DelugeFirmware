@@ -87,7 +87,8 @@ public:
 	/// Run `body` against a specific child object node, then restore the cursor exactly. `body` drives the
 	/// ordinary streaming interface (readNextTagOrAttributeName / match / exitTag) over `childObject`'s
 	/// children -- exactly as a mid-stream readFromFile would -- letting a tree-native loader delegate a
-	/// nested object to a shared streaming sub-reader (e.g. LearnedMIDI::readFromFile) without rewriting it.
+	/// nested object to a shared streaming sub-reader (e.g. Sound::readParamsFromFile, readDeviceReferenceFromFile)
+	/// without rewriting it.
 	/// Hermetic: the entire cursor state is saved and restored around `body`, so the sub-read can never
 	/// desync the parent stream regardless of format/depth subtleties.
 	/// Position the cursor at a scalar Value so the char-at-a-time value readers

@@ -19,6 +19,10 @@
 #include "definitions_cxx.hpp"
 #include "io/midi/midi_device.h"
 #include "storage/storage_manager.h"
+#include "storage/value.h"
+#include "storage/value_tree_deserializer.h"
+#include "util/functions.h"
+#include <algorithm>
 #include <string.h>
 
 LearnedMIDI::LearnedMIDI() {
@@ -100,25 +104,28 @@ void LearnedMIDI::writeToFile(Serializer& writer, char const* commandName, int32
 	}
 }
 
-void LearnedMIDI::readFromFile(Deserializer& reader, int32_t midiMessageType) {
-
-	char const* tagName;
-	while (*(tagName = reader.readNextTagOrAttributeName())) {
-		if (!strcmp(tagName, "channel")) {
-			channelOrZone = reader.readTagOrAttributeValueInt();
+void LearnedMIDI::readFromTree(const deluge::storage::Value& node, Deserializer& reader, int32_t midiMessageType) {
+	using deluge::storage::Value;
+	if (const Value* n = node.find("channel")) {
+		channelOrZone = stringToInt(n->str().c_str());
+	}
+	if (const Value* n = node.find("mpeZone")) {
+		// mpeZone is a scalar "lower"/"upper" (the streaming readMPEZone, inlined for the tree path).
+		if (n->str() == "lower") {
+			channelOrZone = MIDI_CHANNEL_MPE_LOWER_ZONE;
 		}
-		else if (!strcmp(tagName, "mpeZone")) {
-			readMPEZone(reader);
+		else if (n->str() == "upper") {
+			channelOrZone = MIDI_CHANNEL_MPE_UPPER_ZONE;
 		}
-		else if (!strcmp(tagName, "device")) {
-			cable = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
+	}
+	if (const Value* n = node.find("device")) {
+		static_cast<deluge::storage::ValueTreeDeserializer&>(reader).readChildObject(
+		    *n, [&] { cable = MIDIDeviceManager::readDeviceReferenceFromFile(reader); });
+	}
+	if (midiMessageType != MIDI_MESSAGE_NONE) {
+		if (const Value* n = node.find(getTagNameFromMIDIMessageType(midiMessageType))) {
+			noteOrCC = std::min<int32_t>(stringToInt(n->str().c_str()), 127);
 		}
-		else if (midiMessageType != MIDI_MESSAGE_NONE
-		         && !strcmp(tagName, getTagNameFromMIDIMessageType(midiMessageType))) {
-			noteOrCC = reader.readTagOrAttributeValueInt();
-			noteOrCC = std::min<int32_t>(noteOrCC, 127);
-		}
-		reader.exitTag();
 	}
 }
 

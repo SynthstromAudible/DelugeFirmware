@@ -3494,10 +3494,10 @@ Error NoteRow::readFromTree(Deserializer& reader, const deluge::storage::Value& 
 		newBendRange = stringToInt(n->str().c_str());
 	}
 	if (const Value* n = node.find("muteMidiCommand")) {
-		treeReader.readChildObject(*n, [&] { muteMIDICommand.readNoteFromFile(reader); });
+		muteMIDICommand.readNoteFromTree(*n, reader);
 	}
 	if (const Value* n = node.find("soundMidiCommand")) {
-		treeReader.readChildObject(*n, [&] { midiInput.readNoteFromFile(reader); });
+		midiInput.readNoteFromTree(*n, reader);
 	}
 	if (const Value* n = node.find("soundParams")) {
 		treeReader.readChildObject(*n,

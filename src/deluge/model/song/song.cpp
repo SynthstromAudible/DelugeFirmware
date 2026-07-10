@@ -2322,13 +2322,10 @@ readClip:
 					project.transport.sync_scaling_clip = newClip;
 				}
 
-				// muteMidiCommand (readFromTree slice 3): a nested <note> object read by the shared streaming
-				// sub-reader LearnedMIDI::readFromFile. readChildObject drives that reader against the child node
-				// hermetically. Covered by the corpus song carrying a muteMidiCommand (song_roundtrip +
-				// json_roundtrip).
+				// muteMidiCommand: a nested <note> object, read tree-natively via LearnedMIDI::readFromTree. Covered by
+				// the corpus song carrying a muteMidiCommand (song_roundtrip + json_roundtrip).
 				if (const deluge::storage::Value* muteNode = clipNode->find("muteMidiCommand")) {
-					auto& treeReader = static_cast<deluge::storage::ValueTreeDeserializer&>(reader);
-					treeReader.readChildObject(*muteNode, [&] { newClip->muteMIDICommand.readNoteFromFile(reader); });
+					newClip->muteMIDICommand.readNoteFromTree(*muteNode, reader);
 				}
 
 				// Per-type view-state (readFromTree slice 4): each clip type reads its own pure UI/view attributes.

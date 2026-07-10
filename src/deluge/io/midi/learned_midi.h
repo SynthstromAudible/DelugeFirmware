@@ -26,6 +26,9 @@
 #define MIDI_MESSAGE_CC 2
 
 class MIDICable;
+namespace deluge::storage {
+class Value;
+}
 enum class MIDIMatchType { NO_MATCH, CHANNEL, MPE_MEMBER, MPE_MASTER };
 class LearnedMIDI {
 public:
@@ -67,7 +70,6 @@ public:
 	void writeAttributesToFile(Serializer& writer, int32_t midiMessageType);
 	void writeToFile(Serializer& writer, char const* commandName,
 	                 int32_t midiMessageType); // Writes the actual tag in addition to the attributes
-	void readFromFile(Deserializer& reader, int32_t midiMessageType);
 
 	inline void writeNoteToFile(Serializer& writer, char const* commandName) {
 		writeToFile(writer, commandName, MIDI_MESSAGE_NOTE);
@@ -79,9 +81,19 @@ public:
 		writeToFile(writer, commandName, MIDI_MESSAGE_NONE);
 	}
 
-	inline void readNoteFromFile(Deserializer& reader) { readFromFile(reader, MIDI_MESSAGE_NOTE); }
-	inline void readCCFromFile(Deserializer& reader) { readFromFile(reader, MIDI_MESSAGE_CC); }
-	inline void readChannelFromFile(Deserializer& reader) { readFromFile(reader, MIDI_MESSAGE_NONE); }
+	// Tree-native reader (readFromTree per-type conversion). Reads channel/mpeZone/note from `node`, and the nested
+	// <device> via the reader's readChildObject bridge. Supersedes readFromFile (retired). `reader` must be a
+	// ValueTreeDeserializer (all song loads are, post record-first deserializer).
+	void readFromTree(const deluge::storage::Value& node, Deserializer& reader, int32_t midiMessageType);
+	inline void readNoteFromTree(const deluge::storage::Value& node, Deserializer& reader) {
+		readFromTree(node, reader, MIDI_MESSAGE_NOTE);
+	}
+	inline void readCCFromTree(const deluge::storage::Value& node, Deserializer& reader) {
+		readFromTree(node, reader, MIDI_MESSAGE_CC);
+	}
+	inline void readChannelFromTree(const deluge::storage::Value& node, Deserializer& reader) {
+		readFromTree(node, reader, MIDI_MESSAGE_NONE);
+	}
 
 	void readMPEZone(Deserializer& reader);
 

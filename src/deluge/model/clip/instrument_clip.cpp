@@ -2626,7 +2626,8 @@ someError:
 		// is read tree-natively in InstrumentClip::readShellFromTree (readFromTree slice 4).
 
 		else if (!strcmp(tagName, "soundMidiCommand")) { // Only for pre V2.0 song files
-			soundMidiCommand.readChannelFromFile(reader);
+			soundMidiCommand.readChannelFromTree(
+			    *static_cast<deluge::storage::ValueTreeDeserializer&>(reader).currentValue(), reader);
 		}
 
 		else if (!strcmp(tagName, "modKnobs")) { // Pre V2.0 only - for compatibility

@@ -45,6 +45,8 @@
 #include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
+#include "storage/value.h"
+#include "storage/value_tree_deserializer.h"
 #include <cstring>
 
 namespace params = deluge::modulation::params;
@@ -313,7 +315,8 @@ doReadDrum:
 			reader.exitTag("selectedDrumIndex");
 		}
 		else if (!strcmp(tagName, "MIDIInput")) {
-			midiInput.readNoteFromFile(reader);
+			midiInput.readNoteFromTree(*static_cast<deluge::storage::ValueTreeDeserializer&>(reader).currentValue(),
+			                           reader);
 			reader.exitTag();
 		}
 		else {

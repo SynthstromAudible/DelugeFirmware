@@ -27,6 +27,8 @@
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param_set.h"
 #include "storage/storage_manager.h"
+#include "storage/value.h"
+#include "storage/value_tree_deserializer.h"
 #include "util/functions.h"
 #include <string.h>
 
@@ -66,17 +68,13 @@ bool Drum::readDrumTagFromFile(Deserializer& reader, char const* tagName) {
 		reader.exitTag("name");
 	}
 	else if (!strcmp(tagName, "midiMuteCommand")) {
-		// LearnedMIDI writes an object (channel/note + optional nested <device>). match('{')/match('}') give the
-		// explicit descent JSON needs; both are no-ops in XML (implicit descent), so this stays golden-neutral.
-		reader.match('{');
-		muteMIDICommand.readNoteFromFile(reader);
-		reader.match('}');
+		muteMIDICommand.readNoteFromTree(*static_cast<deluge::storage::ValueTreeDeserializer&>(reader).currentValue(),
+		                                 reader);
 		reader.exitTag();
 	}
 	else if (!strcmp(tagName, "midiInput")) {
-		reader.match('{');
-		midiInput.readNoteFromFile(reader);
-		reader.match('}');
+		midiInput.readNoteFromTree(*static_cast<deluge::storage::ValueTreeDeserializer&>(reader).currentValue(),
+		                           reader);
 		reader.exitTag();
 	}
 	else if (!strcmp(tagName, "id")) {
