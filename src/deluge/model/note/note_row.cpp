@@ -3970,7 +3970,7 @@ void NoteRow::rememberDrumName() {
 		SoundDrum* soundDrum = (SoundDrum*)drum;
 
 		// If it's all numeric (most likely meaning it's a slice), don't store it
-		if (stringIsNumericChars(soundDrum->drumName)) {
+		if (stringIsNumericChars(soundDrum->name())) {
 			return;
 		}
 
@@ -3979,7 +3979,7 @@ void NoteRow::rememberDrumName() {
 		while (*prevPointer) {
 
 			// If we'd already stored the name we were gonna store now, no need to do anything
-			if (deluge::string::caselessEquals((*prevPointer)->name.c_str(), soundDrum->drumName)) {
+			if (deluge::string::caselessEquals((*prevPointer)->name.c_str(), soundDrum->name())) {
 				return;
 			}
 
@@ -3990,7 +3990,7 @@ void NoteRow::rememberDrumName() {
 		// to the end of the list now Paul: Might make sense to put these into Internal?
 		void* drumNameMemory = deluge::memory::alloc_sdram(sizeof(DrumName));
 		if (drumNameMemory) {
-			*prevPointer = new (drumNameMemory) DrumName(soundDrum->drumName);
+			*prevPointer = new (drumNameMemory) DrumName(soundDrum->name());
 		}
 	}
 }

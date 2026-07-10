@@ -123,8 +123,8 @@ std::string MIDIDrum::getDrumName() {
 	std::string buffer;
 
 	if (display->haveOLED()) {
-		if (!drumName.empty()) {
-			buffer.append(drumName);
+		if (!name().empty()) {
+			buffer.append(name());
 			buffer.append("\n");
 		}
 		buffer.append("MIDI CH");

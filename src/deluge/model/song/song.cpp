@@ -1224,7 +1224,7 @@ void Song::adoptDrum(Drum* drum) {
 	}
 	deluge::project::DocDrum& d = project.drum_structure.getOrCreate(*drum->id());
 	d.drum_type = static_cast<uint8_t>(drum->type);
-	d.name = drum->drumName;
+	d.name = drum->name();
 	if (drum->type != DrumType::SOUND) {
 		d.channel = static_cast<NonAudioDrum*>(drum)->channel;
 	}

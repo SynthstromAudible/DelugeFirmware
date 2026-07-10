@@ -66,5 +66,5 @@ public:
 	ArpeggiatorBase* getArp() override { return &arpeggiator; }
 	ArpeggiatorSettings* getArpSettings(InstrumentClip* clip = nullptr) override { return &arpSettings; }
 	void resetTimeEnteredState();
-	const char* getName() override { return drumName.c_str(); }
+	const char* getName() override { return name().c_str(); }
 };

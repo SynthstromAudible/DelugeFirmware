@@ -977,7 +977,7 @@ doLoadAsSample:
 				autoDetectSideChainSending(drum, soundEditor.currentSource, enteredText.c_str());
 
 				// Give Drum no name, momentarily. We don't want it to show up when we're searching for duplicates
-				drum->drumName.clear();
+				drum->setName("");
 
 				std::string newName;
 				if (!numCharsInPrefix || display->haveOLED()) {

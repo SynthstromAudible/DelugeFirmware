@@ -76,7 +76,7 @@ bool LoadInstrumentPresetUI::opened() {
 	if (loadingSynthToKitRow) {
 		initialOutputType = outputTypeToLoad = OutputType::SYNTH;
 		if (soundDrumToReplace) {
-			initialName = soundDrumToReplace->drumName;
+			initialName = soundDrumToReplace->name();
 		}
 		else {
 			initialName = "";
@@ -211,9 +211,9 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 	else {
 		if (loadingSynthToKitRow && soundDrumToReplace) {
 
-			if (!soundDrumToReplace->drumName.empty()) {
-				enteredText = soundDrumToReplace->drumName;
-				searchFilename = soundDrumToReplace->drumName;
+			if (!soundDrumToReplace->name().empty()) {
+				enteredText = soundDrumToReplace->name();
+				searchFilename = soundDrumToReplace->name();
 			}
 
 			if (&soundDrumToReplace->path) {

@@ -58,7 +58,7 @@ doReturnFalse:
 		return false;
 	}
 
-	enteredText = soundDrumToSave->drumName;
+	enteredText = soundDrumToSave->name();
 	enteredTextEditPos = enteredText.size();
 	currentFolderIsEmpty = false;
 

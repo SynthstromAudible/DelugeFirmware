@@ -186,5 +186,5 @@ void SoundDrum::drumWontBeRenderedForAWhile() {
 }
 
 std::string SoundDrum::getDrumName() {
-	return drumName;
+	return name();
 }

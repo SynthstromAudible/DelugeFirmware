@@ -1099,7 +1099,7 @@ ModelStackWithNoteRow* InstrumentClip::getNoteRowForDrumName(ModelStackWithTimel
 		    && thisNoteRow->drum->type == DrumType::SOUND) {
 			SoundDrum* thisDrum = (SoundDrum*)thisNoteRow->drum;
 
-			if (deluge::string::caselessEquals(thisDrum->drumName, name)) {
+			if (deluge::string::caselessEquals(thisDrum->name(), name)) {
 				goto foundIt;
 			}
 		}
@@ -2043,7 +2043,7 @@ bool InstrumentClip::possiblyDeleteEmptyNoteRow(NoteRow* noteRow, bool onlyIfNoD
 			return false;
 		}
 
-		if (onlyIfNonNumeric && drum->type == DrumType::SOUND && stringIsNumericChars(drum->drumName.c_str())) {
+		if (onlyIfNonNumeric && drum->type == DrumType::SOUND && stringIsNumericChars(drum->name().c_str())) {
 			return false;
 		}
 

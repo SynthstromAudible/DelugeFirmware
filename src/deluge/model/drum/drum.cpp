@@ -47,31 +47,37 @@ Drum::Drum(DrumType newType) : type(newType), arpeggiator(), arpSettings() {
 	memset(lastExpressionInputsReceived, 0, sizeof(lastExpressionInputsReceived));
 }
 
-// M3 owner-3 slice 2: the single write funnel for the drum name. Each overload writes the authoritative engine
-// `drumName`, then (if this drum is bound to its DOM record) shadows the stored value into `DocDrum::name`. The mirror
-// reads `drumName` back after the assign so all overloads share one write-only mirror line and copy the exact stored
-// bytes (no re-move). Write-only this slice — nothing reads `DocDrum::name` yet, so this stays golden bit-identical.
+// M3 owner-3 slice 2/3: the single write funnel for the drum name. Each overload writes the authoritative engine
+// `drumName_`, then (if this drum is bound to its DOM record) shadows the stored value into `DocDrum::name`. The mirror
+// reads `drumName_` back after the assign so all overloads share one mirror line and copy the exact stored
+// bytes (no re-move). As of slice 3 the DOM record is read-authoritative via name(); the two stay in sync here.
 void Drum::mirrorNameToDoc() {
 	if (docDrum_ != nullptr) {
-		docDrum_->name = drumName;
+		docDrum_->name = drumName_;
 	}
 }
 void Drum::setName(const char* newName) {
-	drumName = newName;
+	drumName_ = newName;
 	mirrorNameToDoc();
 }
 void Drum::setName(std::string_view newName) {
-	drumName.assign(newName);
+	drumName_.assign(newName);
 	mirrorNameToDoc();
 }
 void Drum::setName(std::string&& newName) {
-	drumName = std::move(newName);
+	drumName_ = std::move(newName);
 	mirrorNameToDoc();
+}
+
+// M3 owner-3 slice 3: read the drum name from the DOM record when bound, else the engine fallback (kept in sync by
+// setName). Both ternary branches are `std::string` lvalues, so this returns a reference into stable storage.
+const std::string& Drum::name() const {
+	return docDrum_ != nullptr ? docDrum_->name : drumName_;
 }
 
 void Drum::writeDrumTagsToFile(Serializer& writer, bool savingSong) {
 	// Called by subclasses to handle all the shared tags (except for MIDI commands).
-	writer.writeAttribute("name", drumName.c_str());
+	writer.writeAttribute("name", name().c_str());
 	// Stable per-song serial identity, written only as part of a song (an intra-song reference; meaningless in a
 	// standalone kit/preset file). Lazily assigned in Kit::writeDrumToFile before this call, so a value present here
 	// under savingSong is always song-scoped.

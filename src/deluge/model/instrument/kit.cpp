@@ -541,7 +541,7 @@ Drum* Kit::getDrumFromName(std::string_view name, bool onlyIfNoNoteRow) {
 			continue;
 		}
 
-		if (deluge::string::caselessEquals(name, thisDrum->drumName)) {
+		if (deluge::string::caselessEquals(name, thisDrum->name())) {
 			return thisDrum;
 		}
 	}

@@ -35,7 +35,7 @@ std::string_view RenameDrumUI::getCurrentName() const {
 		FREEZE_WITH_ERROR("RN01");
 		return "NONE";
 	}
-	return kit->selectedDrum->drumName;
+	return kit->selectedDrum->name();
 }
 
 bool RenameDrumUI::trySetName(std::string_view name) {
