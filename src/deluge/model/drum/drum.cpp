@@ -18,6 +18,7 @@
 #include "model/drum/drum.h"
 
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_drum.h" // complete DocDrum type for the setName dual-write
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -46,16 +47,26 @@ Drum::Drum(DrumType newType) : type(newType), arpeggiator(), arpSettings() {
 	memset(lastExpressionInputsReceived, 0, sizeof(lastExpressionInputsReceived));
 }
 
-// M3 owner-3 slice 2: the single write funnel for the drum name. Slice 2 Task 1 keeps these behaviour-identical to the
-// raw `drumName = ...` assignments they replace (the DocDrum dual-write is added in Task 2).
+// M3 owner-3 slice 2: the single write funnel for the drum name. Each overload writes the authoritative engine
+// `drumName`, then (if this drum is bound to its DOM record) shadows the stored value into `DocDrum::name`. The mirror
+// reads `drumName` back after the assign so all overloads share one write-only mirror line and copy the exact stored
+// bytes (no re-move). Write-only this slice — nothing reads `DocDrum::name` yet, so this stays golden bit-identical.
+void Drum::mirrorNameToDoc() {
+	if (docDrum_ != nullptr) {
+		docDrum_->name = drumName;
+	}
+}
 void Drum::setName(const char* newName) {
 	drumName = newName;
+	mirrorNameToDoc();
 }
 void Drum::setName(std::string_view newName) {
 	drumName.assign(newName);
+	mirrorNameToDoc();
 }
 void Drum::setName(std::string&& newName) {
 	drumName = std::move(newName);
+	mirrorNameToDoc();
 }
 
 void Drum::writeDrumTagsToFile(Serializer& writer, bool savingSong) {

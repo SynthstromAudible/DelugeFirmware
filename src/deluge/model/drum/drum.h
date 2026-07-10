@@ -66,6 +66,12 @@ public:
 	void setName(std::string_view newName);
 	void setName(std::string&& newName);
 
+private:
+	// Shadow the just-written `drumName` into the bound DocDrum (no-op when unbound). Defined in drum.cpp where the
+	// complete DocDrum type is visible. Write-only in slice 2.
+	void mirrorNameToDoc();
+
+public:
 	const DrumType type;
 	bool noteRowAssignedTemp{};
 	uint8_t earlyNoteVelocity; // If 0, then there's none
