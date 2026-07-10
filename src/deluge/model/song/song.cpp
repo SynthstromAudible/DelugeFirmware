@@ -2277,6 +2277,50 @@ readClip:
 					newClip->setLoopLength(std::max<int32_t>(1, stringToInt(lenNode->str().c_str())));
 					newClip->originalLength = newClip->loopLength();
 				}
+
+				// Plain base-clip attributes (readFromTree slice 3): pure field writes, same members the
+				// deleted Clip::readTagFromFile handlers wrote.
+				if (const deluge::storage::Value* n = clipNode->find("isPlaying")) {
+					newClip->activeIfNoSolo = (stringToInt(n->str().c_str()) != 0);
+				}
+				if (const deluge::storage::Value* n = clipNode->find("isSoloing")) {
+					newClip->soloingInSessionMode = (stringToInt(n->str().c_str()) != 0);
+				}
+				if (const deluge::storage::Value* n = clipNode->find("isArmedForRecording")) {
+					newClip->armedForRecording = (stringToInt(n->str().c_str()) != 0);
+				}
+				// "status" is the legacy back-compat form of isPlaying/isSoloing (status==2 -> playing, never soloing).
+				if (const deluge::storage::Value* n = clipNode->find("status")) {
+					newClip->soloingInSessionMode = false;
+					newClip->activeIfNoSolo = (stringToInt(n->str().c_str()) == 2);
+				}
+				if (const deluge::storage::Value* n = clipNode->find("sequenceDirection")) {
+					newClip->sequenceDirectionMode = stringToSequenceDirectionMode(n->str().c_str());
+				}
+
+				// Selection / sync-scale hints (readFromTree slice 3): read the flag, then perform the same Song-state
+				// side effect the deleted handlers did. Clips are processed in file order, so these last-wins
+				// singletons resolve identically to firing mid-readFromFile. isSyncScaleClip is guarded by
+				// synthetic/syncscale.XML.
+				if (const deluge::storage::Value* n = clipNode->find("beingEdited")) {
+					if (stringToInt(n->str().c_str())) {
+						setCurrentClip(newClip);
+						runtimeView.inClipMinderViewOnLoad = true;
+					}
+				}
+				if (const deluge::storage::Value* n = clipNode->find("selected")) {
+					if (stringToInt(n->str().c_str())) {
+						setCurrentClip(newClip);
+						runtimeView.inClipMinderViewOnLoad = false;
+					}
+				}
+				const deluge::storage::Value* syncNode = clipNode->find("isSyncScaleClip");
+				if (syncNode == nullptr) {
+					syncNode = clipNode->find("isSyncScaleTrack"); // legacy alias
+				}
+				if (syncNode != nullptr && stringToInt(syncNode->str().c_str())) {
+					project.transport.sync_scaling_clip = newClip;
+				}
 			}
 
 			Error error = newClip->readFromFile(reader, this);

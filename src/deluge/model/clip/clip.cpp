@@ -716,68 +716,14 @@ void Clip::writeMidiCommandsToFile(Serializer& writer, Song* song) {
 
 void Clip::readTagFromFile(Deserializer& reader, char const* tagName, Song* song, int32_t* readAutomationUpToPos) {
 
-	if (!strcmp(tagName, "isPlaying")) {
-		activeIfNoSolo = reader.readTagOrAttributeValueInt();
-	}
-
-	// "id" is read tree-natively in readClipsFromFile (durable-id Step 3: id-first construction), so it has no handler
-	// here -- the tag falls through to exitTag() below.
-
-	else if (!strcmp(tagName, "isSoloing")) {
-		soloingInSessionMode = reader.readTagOrAttributeValueInt();
-	}
-
-	else if (!strcmp(tagName, "isArmedForRecording")) {
-		armedForRecording = reader.readTagOrAttributeValueInt();
-	}
-
-	else if (!strcmp(tagName, "status")) { // For backwards compatibility
-		soloingInSessionMode = false;
-		int32_t newStatus = reader.readTagOrAttributeValueInt();
-		activeIfNoSolo = (newStatus == 2);
-	}
-
-	// "section", "colourOffset", "launchStyle", "length"/"trackLength" are all read tree-natively in readClipsFromFile
-	// (durable-id readFromTree slices 1-2); no handlers here -- those tags fall through to exitTag() below.
-
-	else if (!strcmp(tagName, "beingEdited")) {
-		if (reader.readTagOrAttributeValueInt()) {
-			song->setCurrentClip(this);
-			song->runtimeView.inClipMinderViewOnLoad = true;
-		}
-	}
-
-	else if (!strcmp(tagName, "selected")) {
-		if (reader.readTagOrAttributeValueInt()) {
-			song->setCurrentClip(this);
-			song->runtimeView.inClipMinderViewOnLoad = false;
-		}
-	}
-
-	else if (!strcmp(tagName, "isSyncScaleTrack") || !strcmp(tagName, "isSyncScaleClip")) {
-		bool is = reader.readTagOrAttributeValueInt();
-
-		// This is naughty - inputTickScaleClip shouldn't be accessed directly. But for simplicity, I'm using it to hold
-		// this Clip for now, and then in song.cpp this gets made right in a moment...
-		if (is) {
-			song->project.transport.sync_scaling_clip = this;
-		}
-	}
-
-	else if (!strcmp(tagName, "muteMidiCommand")) {
+	// The base-clip shell (id/section/colourOffset/launchStyle/length) and the plain attributes + selection/sync-scale
+	// hints (isPlaying/isSoloing/isArmedForRecording/status/sequenceDirection/beingEdited/selected/isSyncScaleClip) are
+	// all read tree-natively in readClipsFromFile (durable-id readFromTree slices 1-3). Only muteMidiCommand -- a
+	// nested object read by the shared LearnedMIDI sub-reader -- remains here (readFromTree slice 3 part 2 moves it
+	// too).
+	if (!strcmp(tagName, "muteMidiCommand")) {
 		muteMIDICommand.readNoteFromFile(reader);
 	}
-
-	else if (!strcmp(tagName, "sequenceDirection")) {
-		sequenceDirectionMode = stringToSequenceDirectionMode(reader.readTagOrAttributeValue());
-	}
-
-	/*
-	else if (!strcmp(tagName, "activeModFunction")) {
-	    //modKnobMode = stringToInt(reader.readTagContents());
-	    //modKnobMode = std::min(modKnobMode, (uint8_t)(NUM_MOD_BUTTONS - 1));
-	}
-	*/
 }
 
 void Clip::prepareForDestruction(ModelStackWithTimelineCounter* modelStack,
