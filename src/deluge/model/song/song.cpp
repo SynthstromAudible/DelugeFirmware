@@ -1861,8 +1861,7 @@ loadOutput:
 					relocate = true;
 				}
 				if (relocate) {
-					deluge::project::DocParamManager& mgr =
-					    project.backed_params.getOrCreate(instrOwner, clipKey, false);
+					deluge::project::DocParamManager& mgr = project.backed_params.getOrCreate(instrOwner, clipKey);
 					UnpatchedParamSet* unpatched = thisClip->paramManager.getUnpatchedParamSet();
 					relocateParamStoreToTree(unpatched, mgr.unpatched);
 					if (thisClip->output->type == OutputType::SYNTH) {
@@ -1900,7 +1899,7 @@ loadOutput:
 							}
 							deluge::project::OwnerId drumOwner = deluge::project::OwnerId::drum(*drumId);
 							deluge::project::DocParamManager& dmgr =
-							    project.backed_params.getOrCreate(drumOwner, clipKey, false);
+							    project.backed_params.getOrCreate(drumOwner, clipKey);
 							UnpatchedParamSet* du = nr.paramManager.getUnpatchedParamSet();
 							relocateParamStoreToTree(du, dmgr.unpatched);
 							if (PatchedParamSet* dp = nr.paramManager.getPatchedParamSet()) {

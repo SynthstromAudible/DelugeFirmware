@@ -88,11 +88,6 @@ public:
 	BackedParams backed_params; // instrument-shared automation, keyed by (owner, clip) — persistent form of ParamBackup
 	ParamBackup param_backup;
 	ClipStructure clip_structure; // M3 owner-1: per-clip structural records (loop_length…), keyed by Clip::id
-
-	// S5-b: transient (never-serialized) automation stores for NOT-YET-SAVED (no-id) owners, keyed by a
-	// session id minted at load/creation, so doc() id-resolves EVERY owner and drops its paramCollection fallback.
-	// Golden-neutral (session ids aren't written). Rebuilt per song load, alongside clip_params.
-	ClipParams session_clip_params; // DEAD (durable-id: no owner is session-keyed now); removed in Slice 2b
 };
 
 } // namespace deluge::project

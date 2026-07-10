@@ -37,20 +37,12 @@ struct OwnerId {
 	};
 
 	Kind kind{Kind::SONG};
-	uint32_t id{0};         // the owner's id (Clip / Output / Drum, per kind); a persisted id, or — when
-	                        // is_session — a transient session id (S5-b: not-yet-saved owners). Unused when SONG.
-	bool is_session{false}; // true = id is a transient session id (session_* tree maps), not a persisted one
+	uint32_t id{0}; // the owner's durable id (Clip / Output / Drum, per kind). Unused when SONG.
 
 	static constexpr OwnerId song() { return {Kind::SONG, 0}; }
 	static constexpr OwnerId clip(uint32_t id) { return {Kind::CLIP, id}; }
 	static constexpr OwnerId instrument(uint32_t outputSerialId) { return {Kind::INSTRUMENT, outputSerialId}; }
 	static constexpr OwnerId drum(uint32_t drumSerialId) { return {Kind::DRUM, drumSerialId}; }
-	// S5-b: session-keyed (transient, not-yet-saved) owners — addressed by a session id. CLIP resolves in the
-	// session_clip_params map; INSTRUMENT/DRUM resolve in the SAME backed_params map (the is_session flag makes the
-	// key distinct from a id owner's, so no separate map is needed there).
-	static constexpr OwnerId clipSession(uint32_t sessionId) { return {Kind::CLIP, sessionId, true}; }
-	static constexpr OwnerId instrumentSession(uint32_t sessionId) { return {Kind::INSTRUMENT, sessionId, true}; }
-	static constexpr OwnerId drumSession(uint32_t sessionId) { return {Kind::DRUM, sessionId, true}; }
 
 	// Ordered so OwnerId (and keys built from it) can index the ordered `fast_map` backed-param store.
 	auto operator<=>(const OwnerId&) const = default;
@@ -66,11 +58,6 @@ struct ParamAddress {
 	// For INSTRUMENT/DRUM owners, which clip's override this lane belongs to (nullopt = the owner's shared
 	// default). Mirrors ParamBackup's (ModControllable, Clip) key. Unused for SONG/CLIP owners.
 	std::optional<uint32_t> clip_id{};
-	// S5-b: for INSTRUMENT/DRUM owners, whether `clip_id` is a transient session id (a not-yet-saved clip) vs a
-	// persisted id — the clip dimension's `is_session`, independent of the owner's. Disambiguates the "mixed"
-	// case: a saved instrument (id owner) carrying a runtime-added clip (session clip). Session and serial ids
-	// share a numeric space, so this flag is what keeps their keys distinct. Unused for SONG/CLIP owners.
-	bool clip_is_session{false};
 };
 
 } // namespace deluge::project

@@ -19,7 +19,6 @@ std::optional<deluge::project::NoteRowAddress> noteRowAddressFor(const ModelStac
 	// Clip identity (durable id; clips always have one from their ctor).
 	if (std::optional<uint32_t> serial = clip->id()) {
 		addr.clip_id = *serial;
-		addr.clip_is_session = false;
 	}
 	else {
 		return std::nullopt;
@@ -33,7 +32,6 @@ std::optional<deluge::project::NoteRowAddress> noteRowAddressFor(const ModelStac
 		}
 		if (std::optional<uint32_t> serial = drum->id()) {
 			addr.row_key = static_cast<int32_t>(*serial);
-			addr.row_key_is_session = false;
 		}
 		else {
 			return std::nullopt;

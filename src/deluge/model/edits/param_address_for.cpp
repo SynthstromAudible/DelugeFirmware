@@ -31,7 +31,6 @@ std::optional<deluge::project::ParamAddress> addressFor(const ModelStackWithAuto
 	TimelineCounter* tc = modelStack.getTimelineCounterAllowNull();
 	deluge::project::OwnerId owner{};
 	std::optional<uint32_t> clipSerial{}; // for INSTRUMENT/DRUM owners: which clip's override this lane is
-	bool clipDimIsSession = false;        // for INSTRUMENT/DRUM owners: is clipSerial a session id (mixed case)?
 	bool haveOwner = false;
 	if (tc == static_cast<TimelineCounter*>(modelStack.song)) {
 		owner = deluge::project::OwnerId::song();
@@ -52,12 +51,11 @@ std::optional<deluge::project::ParamAddress> addressFor(const ModelStackWithAuto
 		Clip* clip = static_cast<Clip*>(tc);
 		NoteRow* noteRow = modelStack.getNoteRowAllowNull();
 
-		// Clip dimension: id (persisted) or session id (runtime / never-saved). Used as the (owner, clip) key
-		// for INSTRUMENT/DRUM owners, and as the CLIP owner's own id for audio/MIDI.
+		// Clip dimension: the clip's durable id. Used as the (owner, clip) key for INSTRUMENT/DRUM owners, and as
+		// the CLIP owner's own id for audio/MIDI.
 		std::optional<uint32_t> clipSerialOpt = clip->id();
 		bool haveClip = false;
 		uint32_t clipKey = 0;
-		bool clipIsSession = false;
 		if (clipSerialOpt.has_value()) {
 			clipKey = *clipSerialOpt;
 			haveClip = true;
@@ -91,15 +89,9 @@ std::optional<deluge::project::ParamAddress> addressFor(const ModelStackWithAuto
 		         || (clip->type == ClipType::INSTRUMENT && clip->output != nullptr
 		             && clip->output->type == OutputType::MIDI_OUT)) {
 			// An audio clip's own params, or a MIDI_OUT clip's per-clip CC automation (Kind::MIDI resolves by cc
-			// within the per-clip store) — both are CLIP owners keyed by the clip's id or session id.
-			owner = clipIsSession ? deluge::project::OwnerId::clipSession(clipKey)
-			                      : deluge::project::OwnerId::clip(clipKey);
+			// within the per-clip store) — both are CLIP owners keyed by the clip's durable id.
+			owner = deluge::project::OwnerId::clip(clipKey);
 			haveOwner = true;
-		}
-		if (haveOwner) {
-			// For INSTRUMENT/DRUM owners, record whether the clip dimension is a session id (the mixed case's
-			// disambiguator). Harmless for CLIP owners (clip_id unused there; is_session rides in the OwnerId).
-			clipDimIsSession = clipIsSession;
 		}
 	}
 	if (!haveOwner) {
@@ -113,7 +105,7 @@ std::optional<deluge::project::ParamAddress> addressFor(const ModelStackWithAuto
 		FREEZE_WITH_ERROR("DkND");
 	}
 #endif
-	return deluge::project::ParamAddress{owner, modelStack.kind, modelStack.paramId, clipSerial, clipDimIsSession};
+	return deluge::project::ParamAddress{owner, modelStack.kind, modelStack.paramId, clipSerial};
 }
 
 namespace {
@@ -123,11 +115,10 @@ deluge::project::DocParamManager* managerForAddress(deluge::project::Song& proj,
                                                     const deluge::project::ParamAddress& address) {
 	switch (address.owner.kind) {
 	case deluge::project::OwnerId::Kind::CLIP:
-		return address.owner.is_session ? &proj.session_clip_params.getOrCreate(address.owner.id)
-		                                : &proj.clip_params.getOrCreate(address.owner.id);
+		return &proj.clip_params.getOrCreate(address.owner.id);
 	case deluge::project::OwnerId::Kind::INSTRUMENT:
 	case deluge::project::OwnerId::Kind::DRUM:
-		return &proj.backed_params.getOrCreate(address.owner, address.clip_id, address.clip_is_session);
+		return &proj.backed_params.getOrCreate(address.owner, address.clip_id);
 	case deluge::project::OwnerId::Kind::SONG:
 		return nullptr;
 	}
