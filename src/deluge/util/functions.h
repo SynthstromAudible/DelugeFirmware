@@ -23,6 +23,7 @@
 #include "gui/colour/colour.h" // IWYU pragma: export todo: this probably shouldn't be exported from here
 #include "util/cfunctions.h"   // IWYU pragma: export - minimal set of functions which need c linkage
 #include "util/d_string.h"
+#include "util/db_shift.h"
 #include "util/fixedpoint.h"
 #include "util/lookuptables/lookuptables.h"
 #include "util/waves.h"
@@ -232,7 +233,6 @@ char const* sourceToString(PatchSource source);
 PatchSource stringToSource(char const* string);
 char const* sourceToStringShort(PatchSource source);
 
-int32_t shiftVolumeByDB(int32_t oldValue, float offset);
 int32_t quickLog(uint32_t input);
 
 int32_t interpolateTable(uint32_t input, int32_t numBitsInInput, const uint16_t* table, int32_t numBitsInTableSize = 8);
