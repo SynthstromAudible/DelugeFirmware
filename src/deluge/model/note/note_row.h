@@ -208,7 +208,14 @@ public:
 	LearnedMIDI muteMIDICommand;
 	LearnedMIDI midiInput;
 
-	int8_t colourOffset;
+	// M3 owner-2 slice 2a: read-flip onto the DOM shadow when bound; the engine field is a synced fallback.
+	int8_t colourOffset() const { return docNoteRow_ != nullptr ? docNoteRow_->colour_offset : colourOffset_; }
+	void setColourOffset(int8_t v) {
+		colourOffset_ = v;
+		if (docNoteRow_ != nullptr) {
+			docNoteRow_->colour_offset = v;
+		}
+	}
 
 	// External classes aren't really supposed to set this to OFF. Call something like cancelAutitioning() instead -
 	// which calls Clip::expectEvent(), which is needed
@@ -303,6 +310,7 @@ private:
 	// M3 owner-2 slice 2a: DOM-shadowed scalars. Read through the public accessors (bound → DOM record, unbound →
 	// these engine fields); written through the setters, which keep both stores in sync.
 	bool muted_{false};
+	int8_t colourOffset_{0};
 
 	// Decode a hex noteData value (V1.4+) into notes[]. noteHexLength selects the format variant (20/22/26/28).
 	// Reads the value char-at-a-time from the reader's current scalar. Returns INSUFFICIENT_RAM on alloc failure.

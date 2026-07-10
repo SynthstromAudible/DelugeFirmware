@@ -6382,12 +6382,12 @@ void InstrumentClipView::commandShiftColour(int32_t offset) {
 					NoteRow* noteRow = modelStackWithNoteRow->getNoteRowAllowNull();
 					if (noteRow) { // This is fine. If we were in Kit mode, we could only be auditioning if
 						           // there was a NoteRow already
-						noteRow->colourOffset += offset;
-						if (noteRow->colourOffset >= 72) {
-							noteRow->colourOffset -= 72;
+						noteRow->setColourOffset(noteRow->colourOffset() + offset);
+						if (noteRow->colourOffset() >= 72) {
+							noteRow->setColourOffset(noteRow->colourOffset() - 72);
 						}
-						if (noteRow->colourOffset < 0) {
-							noteRow->colourOffset += 72;
+						if (noteRow->colourOffset() < 0) {
+							noteRow->setColourOffset(noteRow->colourOffset() + 72);
 						}
 						recalculateColour(yDisplay);
 						whichRowsToRender |= (1 << yDisplay);

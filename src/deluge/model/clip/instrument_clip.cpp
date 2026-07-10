@@ -1248,7 +1248,7 @@ void InstrumentClip::bindNoteRowStructure(NoteRow& nr) {
 	deluge::project::DocNoteRow& d = docClip_->note_rows.emplace_back();
 	d.y = nr.y;
 	d.loop_length_if_independent = nr.loopLengthIfIndependent;
-	d.colour_offset = nr.colourOffset;
+	d.colour_offset = nr.colourOffset();
 	d.sequence_direction = static_cast<uint8_t>(nr.sequenceDirectionMode);
 	d.muted = nr.muted();
 	nr.bindDocNoteRow(&d);
@@ -4357,7 +4357,7 @@ ramError:
 			NoteRow* oldNoteRow = &noteRows[i];
 			NoteRow* newNoteRow = &newInstrumentClip->noteRows[i];
 
-			newNoteRow->colourOffset = oldNoteRow->colourOffset;
+			newNoteRow->setColourOffset(oldNoteRow->colourOffset());
 		}
 	}
 

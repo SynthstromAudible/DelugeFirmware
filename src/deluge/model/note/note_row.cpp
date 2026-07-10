@@ -55,7 +55,7 @@
 NoteRow::NoteRow(int16_t newY) {
 	y = newY;
 	muted_ = false;
-	colourOffset = random(71);
+	colourOffset_ = random(71);
 	drum = nullptr;
 	firstOldDrumName = nullptr;
 	sequenced = false;
@@ -83,7 +83,7 @@ NoteRow::NoteRow(NoteRow const& other)
       currentlyPlayingReversedIfIndependent(other.currentlyPlayingReversedIfIndependent),
       sequenceDirectionMode(other.sequenceDirectionMode), drum(other.drum), notes(other.notes),
       probabilityValue(other.probabilityValue), iteranceValue(other.iteranceValue), fillValue(other.fillValue),
-      muteMIDICommand(other.muteMIDICommand), midiInput(other.midiInput), colourOffset(other.colourOffset),
+      muteMIDICommand(other.muteMIDICommand), midiInput(other.midiInput), colourOffset_(other.colourOffset_),
       sequenced(other.sequenced), ignoreNoteOnsBefore_(0) {
 	// firstOldDrumName defaults to nullptr (OldDrumNameHead default ctor) — clones own no drum-name list.
 	// Deep-clone the automation/param collections through the clone()-dispatched path.
@@ -3485,7 +3485,7 @@ Error NoteRow::readFromTree(Deserializer& reader, const deluge::storage::Value& 
 		y = stringToInt(n->str().c_str());
 	}
 	if (const Value* n = node.find("colourOffset")) {
-		colourOffset = stringToInt(n->str().c_str());
+		setColourOffset(stringToInt(n->str().c_str()));
 	}
 	if (const Value* n = node.find("drumIndex")) {
 		drum = (Drum*)stringToInt(n->str().c_str());
@@ -3566,7 +3566,6 @@ Error NoteRow::readFromTree(Deserializer& reader, const deluge::storage::Value& 
 	if (docNoteRow_ != nullptr) {
 		docNoteRow_->y = y;
 		docNoteRow_->loop_length_if_independent = loopLengthIfIndependent;
-		docNoteRow_->colour_offset = colourOffset;
 		docNoteRow_->sequence_direction = static_cast<uint8_t>(sequenceDirectionMode);
 	}
 	return Error::NONE;
@@ -3726,7 +3725,7 @@ void NoteRow::writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip*
 
 int8_t NoteRow::getColourOffset(InstrumentClip* clip) {
 	if (clip->output->type == OutputType::KIT) {
-		return colourOffset;
+		return colourOffset();
 	}
 	else {
 		return 0;
