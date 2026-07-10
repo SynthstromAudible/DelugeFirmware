@@ -214,6 +214,15 @@ public:
 	/// entries. Guarded like removeDocClip: skipped during whole-song teardown.
 	void removeDocDrum(Drum* drum);
 
+	/// M3 owner-5 (output identity): bind a song-resident output to the persistent DOM identity store. Idempotent —
+	/// early-returns if already bound; mints a durable id via generateNewOutputId() only if the output has none; then
+	/// getOrCreates the output's DocOutput in project.output_structure, seeds it via Output::syncDocOutput(), and
+	/// points docOutput_ at it. Called per output from assignMissingIds (load) — reuses the loop's existing mint.
+	void adoptOutput(Output* output);
+	/// Drop an output's identity record when the output is genuinely destroyed, so the store doesn't accumulate dead
+	/// entries. Guarded like removeDocDrum: skipped during whole-song teardown.
+	void removeDocOutput(Output* output);
+
 	void writeToFile(Serializer& writer);
 	void loadAllSamples(bool mayActuallyReadFiles = true);
 	void renderAudio(std::span<StereoSample> outputBuffer, int32_t* reverbBuffer, int32_t sideChainHitPending);

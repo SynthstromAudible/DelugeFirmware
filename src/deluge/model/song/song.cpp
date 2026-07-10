@@ -18,6 +18,7 @@
 #include "model/song/song.h"
 #include "definitions_cxx.hpp"
 #include "deluge-project/doc_drum.h"
+#include "deluge-project/doc_output.h"
 #include "deluge-project/serialization.h"
 #include "dsp/reverb/reverb.hpp"
 #include "gui/l10n/l10n.h"
@@ -1198,6 +1199,9 @@ void Song::assignMissingIds() {
 		if (!o->id()) {
 			o->setId(generateNewOutputId());
 		}
+		// M3 owner-5: the output already has its id (file-restored or just minted above), so adoptOutput sees it and
+		// binds without minting again — the id lifecycle is unchanged.
+		adoptOutput(o);
 		if (o->type == OutputType::KIT) {
 			for (Drum* d = static_cast<Kit*>(o)->firstDrum; d != nullptr; d = d->next) {
 				if (!d->id()) {
@@ -1240,6 +1244,31 @@ void Song::adoptDrum(Drum* drum) {
 void Song::removeDocDrum(Drum* drum) {
 	if (drum->id()) {
 		project.drum_structure.remove(*drum->id());
+	}
+}
+
+// M3 owner-5 (output identity): bind an output to its DOM-owned DocOutput in project.output_structure (mint an id only
+// if it lacks one, mirroring assignMissingIds's own mint via generateNewOutputId), seed the record from the engine
+// output via syncDocOutput(), and point docOutput_ at it. Idempotent: an output already bound returns immediately, so
+// the assignMissingIds call site composes without double-binding or double-minting.
+void Song::adoptOutput(Output* output) {
+	if (output->docOutput_ != nullptr) {
+		return;
+	}
+	if (!output->id().has_value()) {
+		output->setId(generateNewOutputId());
+	}
+	deluge::project::DocOutput& d = project.output_structure.getOrCreate(*output->id());
+	output->bindDocOutput(&d);
+	output->syncDocOutput();
+}
+
+// M3 owner-5: drop an output's identity record on genuine destruction. Callers guard on currentSong && docOutput_
+// (mirroring removeDocDrum): during whole-song teardown currentSong is nulled first and the whole project — the
+// output_structure with it — is destroyed wholesale, so no per-output removal is needed then.
+void Song::removeDocOutput(Output* output) {
+	if (output->id()) {
+		project.output_structure.remove(*output->id());
 	}
 }
 

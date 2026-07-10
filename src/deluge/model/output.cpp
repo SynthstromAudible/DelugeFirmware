@@ -17,6 +17,7 @@
 
 #include "model/output.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_output.h" // complete DocOutput type for syncDocOutput
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
@@ -45,12 +46,33 @@ Output::Output(OutputType newType) : type(newType) {
 }
 
 Output::~Output() {
+	// M3 owner-5: drop this output's DOM identity record on genuine destruction. Guarded on currentSong && docOutput_
+	// so whole-song teardown (currentSong nulled first, the project destroyed wholesale) does no per-output removal.
+	if (currentSong != nullptr && docOutput_ != nullptr) {
+		currentSong->removeDocOutput(this);
+		docOutput_ = nullptr;
+	}
 	removeRecorder();
 	// if another output is recording this one, we need to tell the other output to clear the pointer since we don't
 	// exist
 	if (outputRecordingThisOutput) {
 		outputRecordingThisOutput->clearRecordingFrom();
 	}
+}
+
+// M3 owner-5 (output identity): copy the Output-base identity fields engine->record. Called at load (via
+// Song::adoptOutput during assignMissingIds) and at save (Output::writeToFile) to keep the shadow record in step with
+// the authoritative engine Output. Self-guards when unbound; nothing reads DocOutput yet (additive shadow this slice).
+void Output::syncDocOutput() {
+	if (docOutput_ == nullptr) {
+		return;
+	}
+	docOutput_->name = name;
+	docOutput_->colour = colour;
+	docOutput_->mod_knob_mode = modKnobMode;
+	docOutput_->muted_in_arrangement = mutedInArrangementMode;
+	docOutput_->soloing_in_arrangement = soloingInArrangementMode;
+	docOutput_->armed_for_recording = armedForRecording;
 }
 
 Clip* Output::getClipFromName(std::string_view name) {
@@ -224,6 +246,10 @@ ParamManager* Output::getParamManager(Song* song) {
 }
 
 void Output::writeToFile(Clip* clipForSavingOutputOnly, Song* song) {
+
+	// M3 owner-5: rebuild the DOM identity shadow from the authoritative engine Output before saving (self-guards when
+	// unbound). Nothing reads DocOutput yet, so this cannot affect the serialized bytes this slice.
+	syncDocOutput();
 
 	Serializer& writer = GetSerializer();
 	char const* tagName = getXMLTag();
