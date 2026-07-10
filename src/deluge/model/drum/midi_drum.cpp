@@ -29,7 +29,23 @@
 
 MIDIDrum::MIDIDrum() : NonAudioDrum(DrumType::MIDI) {
 	setChannel(0);
-	note = 0;
+	setNote(0);
+}
+
+// M3 owner-3 slice 3: read the note from the DOM record when bound, else the engine fallback (kept in sync by setNote /
+// the modChange mirror).
+uint8_t MIDIDrum::note() const {
+	return docDrum_ != nullptr ? docDrum_->note : note_;
+}
+
+// M3 owner-3 slice 3: the write funnel for the note — writes the authoritative engine `note_` and (when bound) mirrors
+// into the DOM record. Used by the ctor and the load default; modChange writes `note_` in place via a raw `uint8_t*`
+// and mirrors separately in MIDIDrum::modEncoderAction.
+void MIDIDrum::setNote(uint8_t newNote) {
+	note_ = newNote;
+	if (docDrum_ != nullptr) {
+		docDrum_->note = newNote;
+	}
 }
 
 void MIDIDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, int16_t const* mpeValues,
@@ -37,7 +53,7 @@ void MIDIDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocit
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 	ArpReturnInstruction instruction;
 	// Run everything by the Arp...
-	arpeggiator.noteOn(arpSettings, note, velocity, &instruction, fromMIDIChannel, mpeValues);
+	arpeggiator.noteOn(arpSettings, note(), velocity, &instruction, fromMIDIChannel, mpeValues);
 	if (instruction.arpNoteOn != nullptr) {
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
@@ -53,7 +69,7 @@ void MIDIDrum::noteOff(ModelStackWithThreeMainThings* modelStack, int32_t veloci
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 	ArpReturnInstruction instruction;
 	// Run everything by the Arp...
-	arpeggiator.noteOff(arpSettings, note, &instruction);
+	arpeggiator.noteOff(arpSettings, note(), &instruction);
 	for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 		if (instruction.glideNoteCodeOffPostArp[n] == ARP_NOTE_NONE) {
 			break;
@@ -90,7 +106,7 @@ void MIDIDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* pa
 	writer.writeOpeningTagBeginning("midiOutput", true);
 	writeDrumTagsToFile(writer, savingSong);
 	writer.writeAttribute("channel", channel(), false);
-	writer.writeAttribute("note", note, false);
+	writer.writeAttribute("note", note(), false);
 	writer.writeOpeningTagEnd();
 
 	NonAudioDrum::writeArpeggiatorToFile(writer);
@@ -106,7 +122,7 @@ Error MIDIDrum::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32
 
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		if (!strcmp(tagName, "note")) {
-			note = reader.readTagOrAttributeValueInt();
+			setNote(reader.readTagOrAttributeValueInt());
 			reader.exitTag("note");
 		}
 		else if (NonAudioDrum::readDrumTagFromFile(reader, tagName)) {}
@@ -130,22 +146,22 @@ std::string MIDIDrum::getDrumName() {
 		buffer.append("MIDI CH");
 		buffer.append(deluge::string::fromInt(channelToDisplay));
 		buffer.append(": ");
-		buffer.append(deluge::string::fromInt(note));
+		buffer.append(deluge::string::fromInt(note()));
 		buffer.append(" (");
 		char noteLabel[5];
-		noteCodeToString(note, noteLabel);
+		noteCodeToString(note(), noteLabel);
 		buffer.append(noteLabel);
 		buffer.append(")");
 	}
 	else {
 
 		// Old 7-seg logic adapted to std::string.
-		if (channelToDisplay < 10 && note < 100) {
+		if (channelToDisplay < 10 && note() < 100) {
 			buffer = " ";
 		}
 
 		// If can't fit everything on display, show channel as hexadecimal
-		if (channelToDisplay >= 10 && note >= 100) {
+		if (channelToDisplay >= 10 && note() >= 100) {
 			buffer.push_back('A' + channelToDisplay - 10);
 		}
 		else {
@@ -154,10 +170,10 @@ std::string MIDIDrum::getDrumName() {
 
 		buffer.push_back('.');
 
-		if (note < 10 && channelToDisplay < 100) {
+		if (note() < 10 && channelToDisplay < 100) {
 			buffer.push_back(' ');
 		}
-		buffer.append(deluge::string::fromInt(note));
+		buffer.append(deluge::string::fromInt(note()));
 	}
 
 	return buffer;
@@ -169,10 +185,11 @@ int8_t MIDIDrum::modEncoderAction(ModelStackWithThreeMainThings* modelStack, int
 
 	if ((getCurrentUI()->getUIContextType() == UIType::INSTRUMENT_CLIP) && (currentUIMode == UI_MODE_AUDITIONING)) {
 		if (whichModEncoder == 1) {
-			modChange(modelStack, offset, &noteEncoderCurrentOffset, &note, 128);
-			// M3 owner-3 dual-write (shadow, not yet read): mirror the funneled note scalar into the DOM record.
+			modChange(modelStack, offset, &noteEncoderCurrentOffset, &note_, 128);
+			// M3 owner-3 dual-write: mirror the funneled note scalar into the DOM record (note() is read-authoritative
+			// as of slice 3). modChange writes `note_` in place; this keeps the DOM copy in sync.
 			if (docDrum_ != nullptr) {
-				docDrum_->note = note;
+				docDrum_->note = note_;
 			}
 		}
 	}

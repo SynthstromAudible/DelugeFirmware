@@ -1459,7 +1459,7 @@ void Kit::receivedNoteForDrum(ModelStackWithTimelineCounter* modelStack, MIDICab
 	                                                                // we might insist on making it true
 	// If MIDIDrum, outputting same note, then don't additionally do thru
 	if (doingMidiThru && thisDrum->type == DrumType::MIDI && ((MIDIDrum*)thisDrum)->channel() == channel
-	    && ((MIDIDrum*)thisDrum)->note == note) {
+	    && ((MIDIDrum*)thisDrum)->note() == note) {
 		*doingMidiThru = false;
 	}
 

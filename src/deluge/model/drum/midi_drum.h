@@ -43,6 +43,17 @@ public:
 	                                              int32_t channelOrNoteNumber,
 	                                              MIDICharacteristic whichCharacteristic) override;
 
-	uint8_t note;
 	int8_t noteEncoderCurrentOffset{};
+
+	// M3 owner-3 slice 3: read/write authority for the MIDI drum note. note() returns the bound DOM record's `note`
+	// when bound, else the engine `note_` fallback (kept in sync by setNote / the modChange mirror). Bodies in
+	// midi_drum.cpp for the complete DocDrum type.
+	[[nodiscard]] uint8_t note() const;
+	void setNote(uint8_t newNote);
+
+private:
+	// The authoritative engine copy of the MIDI note. Read via note() (DOM-authoritative when bound), written via
+	// setNote / modChange's in-place `&note_` write (which re-mirrors). Private so every external read routes through
+	// note().
+	uint8_t note_{};
 };

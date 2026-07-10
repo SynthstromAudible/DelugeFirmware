@@ -1229,7 +1229,7 @@ void Song::adoptDrum(Drum* drum) {
 		d.channel = static_cast<NonAudioDrum*>(drum)->channel();
 	}
 	if (drum->type == DrumType::MIDI) {
-		d.note = static_cast<MIDIDrum*>(drum)->note;
+		d.note = static_cast<MIDIDrum*>(drum)->note();
 	}
 	drum->bindDocDrum(&d);
 }
