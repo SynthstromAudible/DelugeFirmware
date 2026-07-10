@@ -83,6 +83,8 @@ public:
 	// SoundInstrument, DocDrum for a SoundDrum). Bound from Song::adoptOutput/adoptDrum; write-only shadow this slice.
 	deluge::project::DocSound* docSound_{nullptr};
 	void bindDocSound(deluge::project::DocSound* d) { docSound_ = d; }
+	// Rebuild-at-save: copy the cold scalars engine->record. Self-guards when unbound. Called at writeToFile start.
+	void syncDocSound();
 
 	Patcher patcher;
 

@@ -68,6 +68,7 @@
 #include "processing/audio_output.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
+#include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/stem_export/stem_export.h"
 #include "storage/flash_storage.h"
@@ -1236,6 +1237,14 @@ void Song::adoptDrum(Drum* drum) {
 		d.note = static_cast<MIDIDrum*>(drum)->note();
 	}
 	drum->bindDocDrum(&d);
+	// M3 owner-5 slice B: a SoundDrum owns a Sound 1:1 — nest its DocSound in this DocDrum and bind the engine
+	// Sound's docSound_. The double static_cast lands on the correct Sound base subobject of the SoundDrum.
+	if (drum->type == DrumType::SOUND) {
+		d.sound.emplace();
+		Sound* sound = static_cast<Sound*>(static_cast<SoundDrum*>(drum));
+		sound->bindDocSound(&*d.sound);
+		sound->syncDocSound();
+	}
 }
 
 // M3 owner-3: drop a drum's structural record on genuine destruction. Callers guard on currentSong && drum->docDrum_
@@ -1261,6 +1270,14 @@ void Song::adoptOutput(Output* output) {
 	deluge::project::DocOutput& d = project.output_structure.getOrCreate(*output->id());
 	output->bindDocOutput(&d);
 	output->syncDocOutput();
+	// M3 owner-5 slice B: a SoundInstrument (SYNTH output) owns a Sound 1:1 — nest its DocSound in this DocOutput and
+	// bind the engine Sound's docSound_. The double static_cast lands on the correct Sound base subobject.
+	if (output->type == OutputType::SYNTH) {
+		d.sound.emplace();
+		Sound* sound = static_cast<Sound*>(static_cast<SoundInstrument*>(output));
+		sound->bindDocSound(&*d.sound);
+		sound->syncDocSound();
+	}
 }
 
 // M3 owner-5: drop an output's identity record on genuine destruction. Callers guard on currentSong && docOutput_

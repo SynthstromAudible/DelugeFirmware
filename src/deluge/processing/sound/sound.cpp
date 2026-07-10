@@ -17,6 +17,7 @@
 
 #include "processing/sound/sound.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_sound.h"
 #include "deluge-project/param_automation.h"
 #include "dsp/dx/engine.h"
 #include "gui/l10n/l10n.h"
@@ -3819,8 +3820,24 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	deluge::project::serializeSoundParams(*doc.patched, *doc.unpatched, doc.patch_cables, writer, writeAutomation);
 }
 
+// M3 owner-5 slice B: rebuild-at-save the cold scalars into the DOM record (nested std::optional<DocSound> in the
+// owner's DocOutput/DocDrum). Write-only shadow this slice — nothing reads it back yet. Self-guards when unbound.
+void Sound::syncDocSound() {
+	if (docSound_ == nullptr) {
+		return;
+	}
+	deluge::project::DocSound& d = *docSound_;
+	d.voice_priority = static_cast<uint8_t>(voicePriority);
+	d.max_voice_count = maxVoiceCount;
+	d.side_chain_send_level = sideChainSendLevel;
+	d.output_midi_channel = outputMidiChannel;
+	d.output_midi_note_for_drum = outputMidiNoteForDrum;
+	d.oscillator_sync = oscillatorSync;
+}
+
 void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager,
                         ArpeggiatorSettings* arpSettings, const char* pathAttribute) {
+	syncDocSound();
 
 	writer.writeAttribute("polyphonic", polyphonyModeToString(polyphonic));
 	writer.writeAttribute("voicePriority", util::to_underlying(voicePriority));
