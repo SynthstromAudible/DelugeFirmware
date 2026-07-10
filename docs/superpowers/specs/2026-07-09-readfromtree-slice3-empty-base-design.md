@@ -101,10 +101,10 @@ Then remove all three groups' handlers from `Clip::readTagFromFile`, which empti
 
 Behaviour-preserving; bit-identity is the gate. `song_roundtrip` `OK=15 REGRESS=0`, `edit_undo_redo` `OK=40`, `param_record` `OK=3`, `json_roundtrip` fixtures 14/14 + backup `OK=37`, `./dbt test` 15/15, firmware links. Corpus: `export DELUGE_SONG_CORPUS="/home/kate/Deluge Backup/SONGS"`.
 
-Corpus coverage of the moved tags: `selected` 34 songs, `beingEdited` 11, `sequenceDirection` 3, `muteMidiCommand` 1 — all exercised. `isSyncScaleClip`/`isSyncScaleTrack`: **0 songs** — see Risks.
+Corpus coverage of the moved tags: `selected` 34 songs, `beingEdited` 11, `sequenceDirection` 3, `muteMidiCommand` 1 — all exercised. `isSyncScaleClip` had **0 corpus songs**, so a committed synthetic fixture now guards it: `tests/golden/synthetic/syncscale.XML` (a minimal privacy-clean song with a sync-scale clip), hash-baselined in `songs_fixtures.json` under `synthetic/syncscale.XML` and always run by `songs_run.py` (verified to REGRESS if the marker is dropped). Landed ahead of this slice in `071123307`.
 
 ## Risks
 
 1. **`readChildObject` dual-mode depth accounting** — the one subtle piece; mitigated by the full save/restore (hermetic sub-read) plus the `muteMidiCommand` corpus song round-tripping bit-identically in both the XML-tree (`song_roundtrip`) and JSON (`json_roundtrip`) nets.
-2. **`isSyncScaleClip` golden-blind** — 0 corpus songs carry it, so the sync-scale move is unverified by the goldens. It is a mechanical one-line pointer set (`transport.sync_scaling_clip = this`) identical to the deleted handler; flagged for Kate. A targeted fixture can be added later (per the "add harnesses when we have valid files" convention).
+2. ~~**`isSyncScaleClip` golden-blind**~~ — RESOLVED: the committed synthetic fixture `tests/golden/synthetic/syncscale.XML` (`071123307`) now guards the sync-scale move; its baseline hash embeds `isSyncScaleClip`, so a dropped read REGRESSes.
 3. **Selection hints fire pre-`readFromFile`** — `beingEdited`/`selected` now call `setCurrentClip` before the clip body is read rather than during it. Nothing in the remaining clip read depends on `currentClip`; covered by 45 corpus songs.
