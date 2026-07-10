@@ -47,6 +47,10 @@ class ModelStackWithThreeMainThings;
 class ModelStackWithSoundFlags;
 class ModelStackWithModControllable;
 
+namespace deluge::project {
+struct DocSound;
+}
+
 #define PARAM_LPF_OFF (-1)
 
 struct ParamLPF {
@@ -74,6 +78,11 @@ public:
 
 	Sound();
 	~Sound() override { std::erase(AudioEngine::sounds, this); }
+
+	// M3 owner-5 slice B: non-owning pointer into the parent's std::optional<DocSound> (in DocOutput for a
+	// SoundInstrument, DocDrum for a SoundDrum). Bound from Song::adoptOutput/adoptDrum; write-only shadow this slice.
+	deluge::project::DocSound* docSound_{nullptr};
+	void bindDocSound(deluge::project::DocSound* d) { docSound_ = d; }
 
 	Patcher patcher;
 

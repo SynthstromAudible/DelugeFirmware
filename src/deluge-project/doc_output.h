@@ -17,7 +17,9 @@
 
 #pragma once
 
+#include "deluge-project/doc_sound.h"
 #include <cstdint>
+#include <optional>
 #include <string>
 
 namespace deluge::project {
@@ -33,6 +35,8 @@ struct DocOutput {
 	bool muted_in_arrangement{false};
 	bool soloing_in_arrangement{false};
 	bool armed_for_recording{false};
+	/// Present only for SoundInstruments (OutputType::SYNTH); nullopt otherwise. Owns the nested Sound record 1:1.
+	std::optional<DocSound> sound;
 };
 
 } // namespace deluge::project

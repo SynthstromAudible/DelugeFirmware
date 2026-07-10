@@ -17,7 +17,9 @@
 
 #pragma once
 
+#include "deluge-project/doc_sound.h"
 #include <cstdint>
+#include <optional>
 #include <string>
 
 namespace deluge::project {
@@ -32,6 +34,8 @@ struct DocDrum {
 	uint8_t channel{0};
 	uint8_t note{0};
 	std::string name;
+	/// Present only for SoundDrums (DrumType::SOUND); nullopt otherwise. Owns the nested Sound record 1:1.
+	std::optional<DocSound> sound;
 };
 
 } // namespace deluge::project
