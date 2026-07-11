@@ -1,0 +1,4254 @@
+[
+  {
+    "name": "View zoom level",
+    "steps": [
+      {
+        "action": 0,
+        "control": 20
+      }
+    ],
+    "views": [0],
+    "paragraphs": []
+  },
+  {
+    "name": "Change zoom level",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 20
+          },
+          {
+            "action": 2,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [0],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "When you "
+          },
+          {
+            "steps": [
+              {
+                "action": 2,
+                "control": 20
+              }
+            ]
+          },
+          {
+            "text": " clockwise, the resolution doubles. So instead of 16th notes, you'll see 32nd notes displayed."
+          }
+        ]
+      },
+      {
+        "spans": [
+          {
+            "text": "Similarly, when you "
+          },
+          {
+            "steps": [
+              {
+                "action": 2,
+                "control": 20
+              }
+            ]
+          },
+          {
+            "text": " counterclockwise, the resolution is halved."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Scroll horizontal",
+    "steps": [
+      {
+        "action": 2,
+        "control": 20
+      }
+    ],
+    "views": [0],
+    "paragraphs": []
+  },
+  {
+    "name": "Scroll vertical",
+    "steps": [
+      {
+        "action": 2,
+        "control": 21
+      }
+    ],
+    "views": [0],
+    "paragraphs": []
+  },
+  {
+    "name": "Undo",
+    "steps": [
+      {
+        "action": 0,
+        "control": 5
+      }
+    ],
+    "views": [0],
+    "paragraphs": []
+  },
+  {
+    "name": "Redo",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 5
+          }
+        ]
+      }
+    ],
+    "views": [0],
+    "paragraphs": []
+  },
+  {
+    "name": "New song",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 3
+          }
+        ]
+      }
+    ],
+    "views": [0],
+    "paragraphs": []
+  },
+  {
+    "name": "Delete song",
+    "steps": [
+      {
+        "action": 0,
+        "control": 3
+      },
+      {
+        "action": 2,
+        "control": 22
+      },
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 6
+          }
+        ]
+      },
+      {
+        "action": 0,
+        "control": 6
+      }
+    ],
+    "views": [0],
+    "paragraphs": []
+  },
+  {
+    "name": "Load song",
+    "steps": [
+      {
+        "action": 0,
+        "control": 3
+      },
+      {
+        "action": 2,
+        "control": 22
+      },
+      {
+        "action": 0,
+        "control": 3
+      }
+    ],
+    "views": [0],
+    "paragraphs": []
+  },
+  {
+    "name": "Save song",
+    "steps": [
+      {
+        "action": 0,
+        "control": 6
+      },
+      {
+        "action": 2,
+        "control": 22
+      },
+      {
+        "action": 0,
+        "control": 22
+      }
+    ],
+    "views": [0],
+    "paragraphs": []
+  },
+  {
+    "name": "Change tempo (course)",
+    "steps": [
+      {
+        "action": 2,
+        "control": 23
+      }
+    ],
+    "views": [0],
+    "paragraphs": []
+  },
+  {
+    "name": "Change tempo (fine)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 23
+          },
+          {
+            "action": 2,
+            "control": 23
+          }
+        ]
+      }
+    ],
+    "views": [0],
+    "paragraphs": []
+  },
+  {
+    "name": "Metronome",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 7
+          }
+        ]
+      }
+    ],
+    "views": [0],
+    "paragraphs": []
+  },
+  {
+    "name": "Swing",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 2,
+            "control": 23
+          }
+        ]
+      }
+    ],
+    "views": [0],
+    "paragraphs": []
+  },
+  {
+    "name": "File system up",
+    "steps": [
+      {
+        "action": 0,
+        "control": 5
+      }
+    ],
+    "views": [0],
+    "paragraphs": []
+  },
+  {
+    "name": "Adjust brightness",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 1,
+            "control": 9
+          },
+          {
+            "action": 2,
+            "control": 21
+          }
+        ]
+      }
+    ],
+    "views": [0],
+    "paragraphs": []
+  },
+  {
+    "name": "Settings menu",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 22
+          }
+        ]
+      }
+    ],
+    "views": [0],
+    "paragraphs": []
+  },
+  {
+    "name": "Save song, collect all samples",
+    "steps": [
+      {
+        "action": 0,
+        "control": 6
+      },
+      {
+        "action": 2,
+        "control": 22
+      },
+      {
+        "action": 1,
+        "control": 22
+      },
+      {
+        "action": 0,
+        "control": 22
+      }
+    ],
+    "views": [0],
+    "paragraphs": []
+  },
+  {
+    "name": "Pad refresh rate",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 10
+          },
+          {
+            "action": 2,
+            "control": 22
+          }
+        ]
+      }
+    ],
+    "views": [0],
+    "paragraphs": []
+  },
+  {
+    "name": "Start playback from current scroll position (Alternative Playback)",
+    "steps": [
+      {
+        "action": 0,
+        "control": 2
+      }
+    ],
+    "views": [0],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Requires \"Alternative Playback Start Behaviour\" enabled. With playback off."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Start playback from start (Alternative Playback)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 20
+          },
+          {
+            "action": 0,
+            "control": 2
+          }
+        ]
+      }
+    ],
+    "views": [0],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Requires \"Alternative Playback Start Behaviour\" enabled. With playback off."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Make long note",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 24
+          },
+          {
+            "action": 0,
+            "control": 25
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Make long note across the next screen",
+    "steps": [
+      {
+        "action": 0,
+        "control": 24
+      },
+      {
+        "action": 2,
+        "control": 20
+      },
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 20
+          },
+          {
+            "action": 0,
+            "control": 25
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Adjust note velocity",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 24
+          },
+          {
+            "action": 2,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Note probability; clockwise is iteration and counter is probability",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 24
+          },
+          {
+            "action": 2,
+            "control": 22
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Copy notes",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 9
+          },
+          {
+            "action": 0,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Paste notes",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 1,
+            "control": 9
+          },
+          {
+            "action": 0,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Cross screen editing, real time note cloning",
+    "steps": [
+      {
+        "action": 0,
+        "control": 15
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Add instrument / row to kit",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 12
+          }
+        ]
+      },
+      {
+        "action": 2,
+        "control": 22
+      },
+      {
+        "action": 0,
+        "control": 22
+      }
+    ],
+    "views": [5],
+    "paragraphs": []
+  },
+  {
+    "name": "Note zoom level - 128th and 256th level",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 9
+          },
+          {
+            "action": 2,
+            "control": 23
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Record live - notes into sequencer",
+    "steps": [
+      {
+        "action": 0,
+        "control": 2
+      },
+      {
+        "action": 0,
+        "control": 1
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Duplicate clip content - double and append",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Change clip length",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 2,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Shift all notes horizontally",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 21
+          },
+          {
+            "action": 2,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Clear clip",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 20
+          },
+          {
+            "action": 0,
+            "control": 5
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Change clip color",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 2,
+            "control": 21
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Change row color - instrument row in kit",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 2,
+            "control": 21
+          }
+        ]
+      }
+    ],
+    "views": [5],
+    "paragraphs": []
+  },
+  {
+    "name": "Reorder kit clip row up or down",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 1,
+            "control": 28
+          },
+          {
+            "action": 2,
+            "control": 21
+          }
+        ]
+      }
+    ],
+    "views": [5],
+    "paragraphs": []
+  },
+  {
+    "name": "Note nudge individual note",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 26
+          },
+          {
+            "action": 1,
+            "control": 20
+          },
+          {
+            "action": 2,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Clip play direction",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 24
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Euclidian seq events - number of events / notes",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 1,
+            "control": 21
+          },
+          {
+            "action": 2,
+            "control": 21
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Euclidian seq length - row length",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 2,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Euclidian seq rotate - shift / rotate events or notes",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 20
+          },
+          {
+            "action": 2,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Launch clip - queue",
+    "steps": [
+      {
+        "action": 0,
+        "control": 28
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Launch clip - immediately",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 28
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Fast scroll song list",
+    "steps": [
+      {
+        "action": 0,
+        "control": 3
+      },
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 2,
+            "control": 22
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Create clip (empty row)",
+    "steps": [
+      {
+        "action": 0,
+        "control": 25
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Enter clip (non-empty row)",
+    "steps": [
+      {
+        "action": 0,
+        "control": 24
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Move row clip up or down",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 24
+          },
+          {
+            "action": 2,
+            "control": 21
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Clip section color - change or create new",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 27
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Launch section",
+    "steps": [
+      {
+        "action": 0,
+        "control": 27
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Section repeat (hold audition for 1 sec)",
+    "steps": [
+      {
+        "action": 1,
+        "control": 27
+      },
+      {
+        "action": 2,
+        "control": 22
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Clone/duplicate clip (hold source, press destination)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 24
+          },
+          {
+            "action": 0,
+            "control": 24
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Delete clip",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 24
+          },
+          {
+            "action": 0,
+            "control": 6
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Solo clip - queue",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 20
+          },
+          {
+            "action": 0,
+            "control": 28
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Solo clip - immediately",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 1,
+            "control": 20
+          },
+          {
+            "action": 0,
+            "control": 28
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Clip parameter change (per clip)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 24
+          },
+          {
+            "action": 2,
+            "control": 33
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Clip parameter change (per song)",
+    "steps": [
+      {
+        "action": 0,
+        "control": 16
+      },
+      {
+        "action": 2,
+        "control": 33
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Change existing clip preset",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 24
+          },
+          {
+            "action": 2,
+            "control": 22
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Change existing clip to synth",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 24
+          },
+          {
+            "action": 0,
+            "control": 11
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Change existing clip to MIDI",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 24
+          },
+          {
+            "action": 0,
+            "control": 13
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Change existing clip to CV",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 24
+          },
+          {
+            "action": 0,
+            "control": 14
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Create audio track (in empty clip)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 24
+          },
+          {
+            "action": 0,
+            "control": 22
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Check name and type of non-empty clip",
+    "steps": [
+      {
+        "action": 1,
+        "control": 24
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Clip Settings Menu (Song Grid View)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 24
+          },
+          {
+            "action": 0,
+            "control": 22
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Clip Settings Menu (Song Row View)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 28
+          },
+          {
+            "action": 0,
+            "control": 22
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Uses status pad (mute/launch) in first column of sidebar."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Resample / record all audio output",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 1
+          }
+        ]
+      }
+    ],
+    "views": [5],
+    "paragraphs": []
+  },
+  {
+    "name": "Loop resample",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 1
+          },
+          {
+            "action": 0,
+            "control": 2
+          }
+        ]
+      },
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 1
+          },
+          {
+            "action": 0,
+            "control": 2
+          }
+        ]
+      }
+    ],
+    "views": [5],
+    "paragraphs": []
+  },
+  {
+    "name": "Record sample into a kit",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 12
+          }
+        ]
+      },
+      {
+        "action": 0,
+        "control": 1
+      }
+    ],
+    "views": [5],
+    "paragraphs": []
+  },
+  {
+    "name": "Load sample into a kit row",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 3
+          }
+        ]
+      },
+      {
+        "action": 2,
+        "control": 22
+      },
+      {
+        "action": 0,
+        "control": 22
+      }
+    ],
+    "views": [5],
+    "paragraphs": []
+  },
+  {
+    "name": "Load sample into a kit row silently",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 3
+          }
+        ]
+      },
+      {
+        "action": 2,
+        "control": 22
+      },
+      {
+        "action": 0,
+        "control": 22
+      }
+    ],
+    "views": [5],
+    "paragraphs": []
+  },
+  {
+    "name": "Synth resample",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 1
+          },
+          {
+            "action": 0,
+            "control": 27
+          }
+        ]
+      },
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 1
+          },
+          {
+            "action": 0,
+            "control": 24
+          }
+        ]
+      }
+    ],
+    "views": [5],
+    "paragraphs": []
+  },
+  {
+    "name": "Load all samples from folder to kit",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 12
+          }
+        ]
+      },
+      {
+        "action": 2,
+        "control": 22
+      },
+      {
+        "action": 1,
+        "control": 22
+      },
+      {
+        "action": 3,
+        "control": 0
+      },
+      {
+        "action": 0,
+        "control": 22
+      }
+    ],
+    "views": [5],
+    "paragraphs": []
+  },
+  {
+    "name": "Slice sample",
+    "steps": [
+      {
+        "action": 1,
+        "control": 4
+      },
+      {
+        "action": 0,
+        "control": 12
+      },
+      {
+        "action": 2,
+        "control": 22
+      },
+      {
+        "action": 1,
+        "control": 22
+      },
+      {
+        "action": 3,
+        "control": 0
+      },
+      {
+        "action": 0,
+        "control": 22
+      },
+      {
+        "action": 3,
+        "control": 0
+      },
+      {
+        "action": 0,
+        "control": 22
+      }
+    ],
+    "views": [5],
+    "paragraphs": []
+  },
+  {
+    "name": "Rename kit row or instrument",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 24
+          }
+        ]
+      }
+    ],
+    "views": [5],
+    "paragraphs": []
+  },
+  {
+    "name": "Create new audio clip in song view (press empty row)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 25
+          },
+          {
+            "action": 0,
+            "control": 22
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Source for audio clip in song view",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 9
+          },
+          {
+            "action": 0,
+            "control": 24
+          }
+        ]
+      },
+      {
+        "action": 2,
+        "control": 22
+      },
+      {
+        "action": 0,
+        "control": 22
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Create new audio track in arranger view",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 22
+          }
+        ]
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Source for audio clip in arranger view",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 9
+          },
+          {
+            "action": 0,
+            "control": 27
+          }
+        ]
+      },
+      {
+        "action": 2,
+        "control": 22
+      },
+      {
+        "action": 0,
+        "control": 22
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Clear audio clip recording",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 20
+          },
+          {
+            "action": 0,
+            "control": 5
+          }
+        ]
+      }
+    ],
+    "views": [8],
+    "paragraphs": []
+  },
+  {
+    "name": "Change color of audio wave",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 2,
+            "control": 21
+          }
+        ]
+      }
+    ],
+    "views": [8],
+    "paragraphs": []
+  },
+  {
+    "name": "End point / loop length (use red end point marker)",
+    "steps": [
+      {
+        "action": 0,
+        "control": 24
+      },
+      {
+        "action": 0,
+        "control": 24
+      }
+    ],
+    "views": [8],
+    "paragraphs": []
+  },
+  {
+    "name": "Waveform start / end point",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 24
+          }
+        ]
+      }
+    ],
+    "views": [8],
+    "paragraphs": []
+  },
+  {
+    "name": "Adjust length - audio clip waveform",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 2,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [8],
+    "paragraphs": []
+  },
+  {
+    "name": "Set clip length to sample length",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 0,
+            "control": 21
+          },
+          {
+            "action": 0,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [8],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Also available in Audio Clip Sound Menu > ACTIONS."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Adjust audio clip length without timestretching",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 21
+          },
+          {
+            "action": 2,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [8],
+    "paragraphs": []
+  },
+  {
+    "name": "New synth",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 11
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "New kit",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 12
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "View synth preset browser",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 3
+          },
+          {
+            "action": 0,
+            "control": 11
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "View kit preset browser",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 3
+          },
+          {
+            "action": 0,
+            "control": 12
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Save synth preset",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 6
+          },
+          {
+            "action": 0,
+            "control": 11
+          }
+        ]
+      },
+      {
+        "action": 2,
+        "control": 22
+      },
+      {
+        "action": 0,
+        "control": 22
+      }
+    ],
+    "views": [4],
+    "paragraphs": []
+  },
+  {
+    "name": "Save kit preset",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 6
+          },
+          {
+            "action": 0,
+            "control": 12
+          }
+        ]
+      },
+      {
+        "action": 2,
+        "control": 22
+      },
+      {
+        "action": 0,
+        "control": 22
+      }
+    ],
+    "views": [5],
+    "paragraphs": []
+  },
+  {
+    "name": "Note keyboard view",
+    "steps": [
+      {
+        "action": 0,
+        "control": 17
+      }
+    ],
+    "views": [4, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Clear notes and automation",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 20
+          },
+          {
+            "action": 0,
+            "control": 5
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Setting up choke group",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 24
+          }
+        ]
+      },
+      {
+        "action": 2,
+        "control": 22
+      },
+      {
+        "action": 3,
+        "control": 0
+      },
+      {
+        "action": 0,
+        "control": 22
+      }
+    ],
+    "views": [5],
+    "paragraphs": []
+  },
+  {
+    "name": "Cycle default scales",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 18
+          }
+        ]
+      }
+    ],
+    "views": [4, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Change root note",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 18
+          },
+          {
+            "action": 0,
+            "control": 27
+          }
+        ]
+      }
+    ],
+    "views": [4, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Alter current scale",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 2,
+            "control": 22
+          }
+        ]
+      }
+    ],
+    "views": [4, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Clone synth preset",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 3
+          },
+          {
+            "action": 0,
+            "control": 11
+          }
+        ]
+      },
+      {
+        "action": 2,
+        "control": 22
+      },
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 3
+          },
+          {
+            "action": 3,
+            "control": 0
+          }
+        ]
+      },
+      {
+        "action": 0,
+        "control": 22
+      }
+    ],
+    "views": [4],
+    "paragraphs": []
+  },
+  {
+    "name": "Clone kit preset",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 3
+          },
+          {
+            "action": 0,
+            "control": 12
+          }
+        ]
+      },
+      {
+        "action": 2,
+        "control": 22
+      },
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 3
+          },
+          {
+            "action": 3,
+            "control": 0
+          }
+        ]
+      },
+      {
+        "action": 0,
+        "control": 22
+      }
+    ],
+    "views": [5],
+    "paragraphs": []
+  },
+  {
+    "name": "Kit clip affect all - first select parameter",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 1,
+            "control": 24
+          }
+        ]
+      },
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 16
+          },
+          {
+            "action": 2,
+            "control": 22
+          }
+        ]
+      }
+    ],
+    "views": [5],
+    "paragraphs": []
+  },
+  {
+    "name": "Select kit/ instrument row silently",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 27
+          }
+        ]
+      }
+    ],
+    "views": [5],
+    "paragraphs": []
+  },
+  {
+    "name": "Change clip preset",
+    "steps": [
+      {
+        "action": 2,
+        "control": 22
+      }
+    ],
+    "views": [4, 5],
+    "paragraphs": []
+  },
+  {
+    "name": "Transpose clip by octave",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 21
+          },
+          {
+            "action": 2,
+            "control": 21
+          }
+        ]
+      }
+    ],
+    "views": [4, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Transpose current clip by semitone (scale off)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 1,
+            "control": 21
+          },
+          {
+            "action": 2,
+            "control": 21
+          }
+        ]
+      }
+    ],
+    "views": [4, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Transpose all clips by semitone (scale on)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 1,
+            "control": 21
+          },
+          {
+            "action": 2,
+            "control": 21
+          }
+        ]
+      }
+    ],
+    "views": [4, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Randomize drum sample (selected drum)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 3
+          },
+          {
+            "action": 0,
+            "control": 38
+          }
+        ]
+      }
+    ],
+    "views": [5],
+    "paragraphs": []
+  },
+  {
+    "name": "Randomize drum sample (multiple selected)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 3
+          },
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 38
+          }
+        ]
+      }
+    ],
+    "views": [5],
+    "paragraphs": []
+  },
+  {
+    "name": "Randomize all active drums",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 3
+          },
+          {
+            "action": 1,
+            "control": 16
+          },
+          {
+            "action": 0,
+            "control": 38
+          }
+        ]
+      }
+    ],
+    "views": [5],
+    "paragraphs": []
+  },
+  {
+    "name": "Delete unused kit rows",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 12
+          },
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 6
+          }
+        ]
+      }
+    ],
+    "views": [5],
+    "paragraphs": []
+  },
+  {
+    "name": "Note Probability",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 37
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Randomizer Lock",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 38
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Velocity Probability",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 39
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Manual Slicing (Lazy Chop)",
+    "steps": [
+      {
+        "action": 0,
+        "control": 20
+      }
+    ],
+    "views": [5],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "While in Slice Menu."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Chromatic sample - same sample, different pitches (on new synth)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 3
+          }
+        ]
+      },
+      {
+        "action": 0,
+        "control": 22
+      },
+      {
+        "action": 2,
+        "control": 22
+      },
+      {
+        "action": 0,
+        "control": 22
+      }
+    ],
+    "views": [4],
+    "paragraphs": []
+  },
+  {
+    "name": "Basic sample - load sample with no pitch detection",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 3
+          }
+        ]
+      },
+      {
+        "action": 0,
+        "control": 22
+      },
+      {
+        "action": 2,
+        "control": 22
+      },
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 22
+          },
+          {
+            "action": 3,
+            "control": 0
+          }
+        ]
+      },
+      {
+        "action": 0,
+        "control": 22
+      }
+    ],
+    "views": [4],
+    "paragraphs": []
+  },
+  {
+    "name": "Multi-sampling",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 3
+          }
+        ]
+      },
+      {
+        "action": 0,
+        "control": 22
+      },
+      {
+        "action": 2,
+        "control": 22
+      },
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 22
+          },
+          {
+            "action": 3,
+            "control": 0
+          }
+        ]
+      },
+      {
+        "action": 0,
+        "control": 22
+      }
+    ],
+    "views": [4],
+    "paragraphs": []
+  },
+  {
+    "name": "Single cycle waveforms",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 3
+          }
+        ]
+      },
+      {
+        "action": 0,
+        "control": 22
+      },
+      {
+        "action": 2,
+        "control": 22
+      },
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 22
+          },
+          {
+            "action": 3,
+            "control": 0
+          }
+        ]
+      },
+      {
+        "action": 0,
+        "control": 22
+      }
+    ],
+    "views": [4],
+    "paragraphs": []
+  },
+  {
+    "name": "External sound source",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 24
+          }
+        ]
+      },
+      {
+        "action": 2,
+        "control": 22
+      },
+      {
+        "action": 3,
+        "control": 0
+      },
+      {
+        "action": 0,
+        "control": 2
+      }
+    ],
+    "views": [4],
+    "paragraphs": []
+  },
+  {
+    "name": "Record to arranger - live record parameter changes and MIDI notes (RECORD to end)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 1
+          },
+          {
+            "action": 0,
+            "control": 19
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Append recording to existing arrangement (from arrangement mode; RECORD to end)",
+    "steps": [
+      {
+        "action": 2,
+        "control": 20
+      },
+      {
+        "action": 0,
+        "control": 19
+      },
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 1
+          },
+          {
+            "action": 0,
+            "control": 19
+          }
+        ]
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Waveform edit view - change start / end / loop",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 24
+          }
+        ]
+      }
+    ],
+    "views": [4, 5],
+    "paragraphs": []
+  },
+  {
+    "name": "Zoom in and out",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 20
+          },
+          {
+            "action": 2,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [9],
+    "paragraphs": []
+  },
+  {
+    "name": "Move along waveform",
+    "steps": [
+      {
+        "action": 2,
+        "control": 20
+      }
+    ],
+    "views": [9],
+    "paragraphs": []
+  },
+  {
+    "name": "Change start",
+    "steps": [
+      {
+        "action": 0,
+        "control": 29
+      },
+      {
+        "action": 0,
+        "control": 24
+      }
+    ],
+    "views": [9],
+    "paragraphs": []
+  },
+  {
+    "name": "Change end",
+    "steps": [
+      {
+        "action": 0,
+        "control": 30
+      },
+      {
+        "action": 0,
+        "control": 24
+      }
+    ],
+    "views": [9],
+    "paragraphs": []
+  },
+  {
+    "name": "Create loop start point",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 29
+          },
+          {
+            "action": 0,
+            "control": 24
+          }
+        ]
+      }
+    ],
+    "views": [9],
+    "paragraphs": []
+  },
+  {
+    "name": "Delete loop start point",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 31
+          },
+          {
+            "action": 0,
+            "control": 29
+          }
+        ]
+      }
+    ],
+    "views": [9],
+    "paragraphs": []
+  },
+  {
+    "name": "Create loop end point",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 30
+          },
+          {
+            "action": 0,
+            "control": 24
+          }
+        ]
+      }
+    ],
+    "views": [9],
+    "paragraphs": []
+  },
+  {
+    "name": "Delete loop end point",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 32
+          },
+          {
+            "action": 0,
+            "control": 30
+          }
+        ]
+      }
+    ],
+    "views": [9],
+    "paragraphs": []
+  },
+  {
+    "name": "Waveform Loop Lock",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 31
+          },
+          {
+            "action": 0,
+            "control": 32
+          }
+        ]
+      }
+    ],
+    "views": [9],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Locks loop points together. Repeat to unlock."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "name": "Add clip into arranger",
+    "steps": [
+      {
+        "action": 0,
+        "control": 25
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Change / select instance's clip",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 24
+          },
+          {
+            "action": 2,
+            "control": 22
+          }
+        ]
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Delete clip instance from arranger (left-most clip grid button)",
+    "steps": [
+      {
+        "action": 0,
+        "control": 26
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Clear arranger clips (all clip instances)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 20
+          },
+          {
+            "action": 0,
+            "control": 5
+          }
+        ]
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Move clip instance horizontally",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 26
+          },
+          {
+            "action": 2,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Move row vertically",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 2,
+            "control": 21
+          }
+        ]
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Change instance length of clip",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 24
+          },
+          {
+            "action": 0,
+            "control": 24
+          }
+        ]
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Mute / unmute",
+    "steps": [
+      {
+        "action": 0,
+        "control": 28
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Audition",
+    "steps": [
+      {
+        "action": 0,
+        "control": 27
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Solo instrument",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 20
+          },
+          {
+            "action": 0,
+            "control": 28
+          }
+        ]
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Enter clip (anything besides left-most grid button)",
+    "steps": [
+      {
+        "action": 0,
+        "control": 26
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Scroll timeline with progress bar",
+    "steps": [
+      {
+        "action": 0,
+        "control": 15
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Start playback from current screen",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 20
+          },
+          {
+            "action": 0,
+            "control": 2
+          }
+        ]
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Make clip instance unique (white; left-most clip grid button)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 26
+          }
+        ]
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Adjust clip parameter of clip instance",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 26
+          },
+          {
+            "action": 2,
+            "control": 33
+          }
+        ]
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Copy clip from arranger to song mode, eg to save white instance as its own clip",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 26
+          },
+          {
+            "action": 0,
+            "control": 19
+          }
+        ]
+      },
+      {
+        "action": 2,
+        "control": 21
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Copy clip from song to arranger mode",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 26
+          },
+          {
+            "action": 0,
+            "control": 19
+          }
+        ]
+      },
+      {
+        "action": 2,
+        "control": 20
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Insert / delete time; applies to currently visible screen (clockwise: insert; counter: delete)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 2,
+            "control": 20
+          }
+        ]
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Enable loop play mode from arrange to song mode",
+    "steps": [
+      {
+        "action": 0,
+        "control": 27
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Disable loop play mode from arrange to song mode",
+    "steps": [
+      {
+        "action": 0,
+        "control": 28
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Change instrument preset",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 2,
+            "control": 22
+          }
+        ]
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Change clip type to synth",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 11
+          }
+        ]
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Change clip type to MIDI",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 13
+          }
+        ]
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Change clip type to CV",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 14
+          }
+        ]
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Add new instrument clip from arranger view (unused row)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 2,
+            "control": 22
+          }
+        ]
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Add new synth clip type (unused row)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 11
+          }
+        ]
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Add new MIDI clip type (unused row)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 13
+          }
+        ]
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Add new CV clip type (unused row)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 14
+          }
+        ]
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Delete instrument row from arranger",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 6
+          }
+        ]
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Rename track",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 24
+          }
+        ]
+      }
+    ],
+    "views": [2],
+    "paragraphs": []
+  },
+  {
+    "name": "Assign gold dial control of parameters - first select parameter",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 9
+          },
+          {
+            "action": 2,
+            "control": 33
+          }
+        ]
+      }
+    ],
+    "views": [4, 5],
+    "paragraphs": []
+  },
+  {
+    "name": "Check gold dial control of parameters - first select parameter",
+    "steps": [
+      {
+        "action": 2,
+        "control": 33
+      }
+    ],
+    "views": [4, 5],
+    "paragraphs": []
+  },
+  {
+    "name": "Record automation of parameter",
+    "steps": [
+      {
+        "action": 0,
+        "control": 1
+      },
+      {
+        "action": 0,
+        "control": 2
+      },
+      {
+        "action": 2,
+        "control": 33
+      }
+    ],
+    "views": [4, 5],
+    "paragraphs": []
+  },
+  {
+    "name": "Delete automation of recorded parameter",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 33
+          }
+        ]
+      }
+    ],
+    "views": [4, 5],
+    "paragraphs": []
+  },
+  {
+    "name": "Copy automation of parameter",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 9
+          },
+          {
+            "action": 0,
+            "control": 33
+          }
+        ]
+      }
+    ],
+    "views": [4, 5],
+    "paragraphs": []
+  },
+  {
+    "name": "Paste automation of parameter",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 1,
+            "control": 9
+          },
+          {
+            "action": 0,
+            "control": 33
+          }
+        ]
+      }
+    ],
+    "views": [4, 5],
+    "paragraphs": []
+  },
+  {
+    "name": "Parameter change / lock per note in clip view",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 26
+          },
+          {
+            "action": 2,
+            "control": 33
+          }
+        ]
+      }
+    ],
+    "views": [10],
+    "paragraphs": []
+  },
+  {
+    "name": "Parameter change / lock per clip in song view",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 26
+          },
+          {
+            "action": 2,
+            "control": 33
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Setup MIDI sequencing of notes",
+    "steps": [
+      {
+        "action": 0,
+        "control": 13
+      },
+      {
+        "action": 2,
+        "control": 22
+      }
+    ],
+    "views": [4, 5, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "MIDI sequencing of parameters - first select parameter",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 33
+          },
+          {
+            "action": 2,
+            "control": 22
+          }
+        ]
+      },
+      {
+        "action": 2,
+        "control": 33
+      }
+    ],
+    "views": [6],
+    "paragraphs": []
+  },
+  {
+    "name": "Record MIDI automation",
+    "steps": [
+      {
+        "action": 0,
+        "control": 1
+      },
+      {
+        "action": 0,
+        "control": 2
+      },
+      {
+        "action": 2,
+        "control": 33
+      }
+    ],
+    "views": [6],
+    "paragraphs": []
+  },
+  {
+    "name": "Record MIDI step automation",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 24
+          },
+          {
+            "action": 2,
+            "control": 33
+          }
+        ]
+      }
+    ],
+    "views": [6],
+    "paragraphs": []
+  },
+  {
+    "name": "Change dial control, but keep automation",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 33
+          },
+          {
+            "action": 1,
+            "control": 22
+          },
+          {
+            "action": 2,
+            "control": 22
+          }
+        ]
+      }
+    ],
+    "views": [6],
+    "paragraphs": []
+  },
+  {
+    "name": "MIDI note output in a kit clip",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 13
+          }
+        ]
+      }
+    ],
+    "views": [5],
+    "paragraphs": []
+  },
+  {
+    "name": "MIDI note output in a kit clip: MIDI channel assign",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 2,
+            "control": 34
+          }
+        ]
+      }
+    ],
+    "views": [5],
+    "paragraphs": []
+  },
+  {
+    "name": "MIDI note output in a kit clip: MIDI note value",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 2,
+            "control": 35
+          }
+        ]
+      }
+    ],
+    "views": [5],
+    "paragraphs": []
+  },
+  {
+    "name": "Settings menu for additional MIDI, CV, and Gate parameters",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 22
+          }
+        ]
+      }
+    ],
+    "views": [6],
+    "paragraphs": []
+  },
+  {
+    "name": "External controller to play synth or kit",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 9
+          },
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 36
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "External controller to trigger clip (from song mode)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 9
+          },
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 36
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "External controller to trigger play (from song mode)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 9
+          },
+          {
+            "action": 1,
+            "control": 2
+          },
+          {
+            "action": 0,
+            "control": 36
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "External controller to trigger record (from song mode)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 9
+          },
+          {
+            "action": 1,
+            "control": 1
+          },
+          {
+            "action": 0,
+            "control": 36
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Unlearn external controller to play synth or kit",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 1,
+            "control": 9
+          },
+          {
+            "action": 0,
+            "control": 27
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Unlearn external controller to trigger clip (from song mode)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 1,
+            "control": 9
+          },
+          {
+            "action": 1,
+            "control": 27
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Unlearn external controller to trigger play (from song mode)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 1,
+            "control": 9
+          },
+          {
+            "action": 1,
+            "control": 2
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Unlearn external controller to trigger record (from song mode)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 1,
+            "control": 9
+          },
+          {
+            "action": 1,
+            "control": 1
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "External control of parameter - first select parameter",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 9
+          },
+          {
+            "action": 0,
+            "control": 36
+          }
+        ]
+      }
+    ],
+    "views": [4, 5],
+    "paragraphs": []
+  },
+  {
+    "name": "Unlearn external control of parameter - first select parameter",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 1,
+            "control": 9
+          }
+        ]
+      }
+    ],
+    "views": [4, 5],
+    "paragraphs": []
+  },
+  {
+    "name": "Nudge MIDI clock",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 20
+          },
+          {
+            "action": 2,
+            "control": 23
+          }
+        ]
+      }
+    ],
+    "views": [6],
+    "paragraphs": []
+  },
+  {
+    "name": "Record external notes",
+    "steps": [
+      {
+        "action": 0,
+        "control": 1
+      },
+      {
+        "action": 0,
+        "control": 2
+      },
+      {
+        "action": 0,
+        "control": 36
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Sync scaling for unusual time signitures",
+    "steps": [
+      {
+        "action": 0,
+        "control": 8
+      }
+    ],
+    "views": [4, 5, 6, 7],
+    "paragraphs": []
+  },
+  {
+    "name": "Mute by external MIDI for individual kit rows - in kit mode",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 9
+          },
+          {
+            "action": 1,
+            "control": 28
+          },
+          {
+            "action": 0,
+            "control": 36
+          }
+        ]
+      }
+    ],
+    "views": [5],
+    "paragraphs": []
+  },
+  {
+    "name": "Toggle record arm",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 1
+          },
+          {
+            "action": 0,
+            "control": 28
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Start loop record",
+    "steps": [
+      {
+        "action": 0,
+        "control": 1
+      },
+      {
+        "action": 0,
+        "control": 2
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Close loop recording - on recording clip row",
+    "steps": [
+      {
+        "action": 0,
+        "control": 28
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Close loop recording and immediately play in solo",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 20
+          },
+          {
+            "action": 0,
+            "control": 28
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Record loop during playback",
+    "steps": [
+      {
+        "action": 0,
+        "control": 1
+      },
+      {
+        "action": 0,
+        "control": 2
+      },
+      {
+        "action": 0,
+        "control": 28
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Record overdub - press grid directly underneath existing audio clip",
+    "steps": [
+      {
+        "action": 0,
+        "control": 1
+      },
+      {
+        "action": 0,
+        "control": 2
+      },
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 1
+          },
+          {
+            "action": 0,
+            "control": 24
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Record overdub - with continuous layering - press grid directly underneath existing audio clip",
+    "steps": [
+      {
+        "action": 0,
+        "control": 1
+      },
+      {
+        "action": 0,
+        "control": 2
+      },
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 1
+          },
+          {
+            "action": 0,
+            "control": 27
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Tempo detection for loop pedal recording - start with a blank song",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 7
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Preset tempo for loop recording",
+    "steps": [
+      {
+        "action": 0,
+        "control": 25
+      },
+      {
+        "action": 0,
+        "control": 12
+      },
+      {
+        "action": 2,
+        "control": 23
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Grab tempo from existing audio clip",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 23
+          },
+          {
+            "action": 0,
+            "control": 26
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Enable count-in before audio recording",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 22
+          }
+        ]
+      },
+      {
+        "action": 3,
+        "control": 0
+      },
+      {
+        "action": 3,
+        "control": 0
+      }
+    ],
+    "views": [1],
+    "paragraphs": []
+  },
+  {
+    "name": "Audio Export (Start)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 0,
+            "control": 6
+          },
+          {
+            "action": 0,
+            "control": 1
+          }
+        ]
+      }
+    ],
+    "views": [0, 1, 2],
+    "paragraphs": []
+  },
+  {
+    "name": "Velocity View (from Instrument Clip)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 39
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7, 11, 12],
+    "paragraphs": []
+  },
+  {
+    "name": "Velocity View (from Automation View)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 27
+          },
+          {
+            "action": 0,
+            "control": 39
+          }
+        ]
+      }
+    ],
+    "views": [4, 5, 6, 7, 11, 12],
+    "paragraphs": []
+  },
+  {
+    "name": "Performance View (from Song/Arranger)",
+    "steps": [
+      {
+        "action": 0,
+        "control": 17
+      }
+    ],
+    "views": [1, 2, 3],
+    "paragraphs": []
+  },
+  {
+    "name": "Master Transpose (Chromatic)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 0,
+            "control": 21
+          },
+          {
+            "action": 2,
+            "control": 21
+          }
+        ]
+      }
+    ],
+    "views": [1, 2, 3],
+    "paragraphs": []
+  },
+  {
+    "name": "Master Transpose (Customize Semitones)",
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 21
+          },
+          {
+            "action": 2,
+            "control": 21
+          }
+        ]
+      }
+    ],
+    "views": [1, 2],
+    "paragraphs": []
+  }
+]
