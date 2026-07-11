@@ -5,9 +5,9 @@
   "packageManager": "pnpm@10.24.0",
   "scripts": {
     "dev": "kill-port 4321 && pnpm run dev:companion-data & astro dev",
-    "dev:companion-data": "tsx ./src/components/deluge-companion/utils/convert-md-to-json.ts --watch",
+    "dev:companion-data": "tsx ./src/components/deluge_companion/utils/convert-md-to-json.ts --watch",
     "start": "pnpm run dev",
-    "build": "tsx ./src/components/deluge-companion/utils/convert-md-to-json.ts && astro build",
+    "build": "tsx ./src/components/deluge_companion/utils/convert-md-to-json.ts && astro build",
     "preview": "pnpm run build && astro preview",
     "astro": "astro",
     "check": "astro check && eslint . --max-warnings=0 && prettier . --check",

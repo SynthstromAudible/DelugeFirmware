@@ -1,0 +1,27 @@
+---
+title: Deluge Companion
+sidebar:
+  order: 2
+tableOfContents: false
+---
+
+import { Aside, Badge } from "@astrojs/starlight/components"
+import DelugeCompanionPage from "../../../components/DelugeCompanionPage.astro"
+
+This page hosts a locally integrated version of the Deluge Companion shortcuts explorer, updated for <Badge text="c1.3" variant="tip" />
+
+Full credit to [Florian Heft](https://fheft.github.io/deluge-companion/) for the original implementation.
+
+<Aside type="caution">
+Note: This page is still a work in progress as of July 11, 2026, shortcuts may be incorrect and/or missing.
+</Aside>
+
+<DelugeCompanionPage />
+
+<style is:global>{`
+  @media (min-width: 50em) {
+    html[data-has-sidebar] {
+      --sl-content-width: 86rem;
+    }
+  }
+`}</style>
