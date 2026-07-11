@@ -3851,6 +3851,11 @@ void Sound::syncDocSound() {
 		d.lfo_sync_type[i] = static_cast<uint8_t>(lfoConfig[i].syncType);
 		d.lfo_sync_level[i] = static_cast<uint8_t>(lfoConfig[i].syncLevel);
 	}
+	for (int32_t k = 0; k < kNumModButtons; k++) {
+		for (int32_t w = 0; w < kNumPhysicalModKnobs; w++) {
+			d.mod_knob_param_descriptor[k][w] = modKnobs[k][w].paramDescriptor.data;
+		}
+	}
 }
 
 void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager,

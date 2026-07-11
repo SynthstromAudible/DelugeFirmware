@@ -51,6 +51,11 @@ struct DocSound {
 	uint8_t lfo_wave_type[4]{};
 	uint8_t lfo_sync_type[4]{};
 	uint8_t lfo_sync_level[4]{};
+
+	// modKnobs: physical mod-knob assignments [kNumModButtons=8][kNumPhysicalModKnobs=2]. Each knob's entire
+	// persistent state is its ParamDescriptor (a single uint32_t); everything the serializer emits (the controlled
+	// param + patch sources) derives from it.
+	uint32_t mod_knob_param_descriptor[8][2]{};
 };
 
 } // namespace deluge::project
