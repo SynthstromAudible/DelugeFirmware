@@ -199,12 +199,26 @@ deleteClipAndGetOut:
 		goto deleteClipAndGetOut;
 	}
 
-	// M3 owner-2: the copied rows are unbound (NoteRow's copy ctor drops docNoteRow_). Rebuild the clone's own
-	// note-row pool from scratch and rebind each copied row to a fresh, freshly-seeded DocNoteRow.
-	if (newClip->docClip_ != nullptr) {
+	// M3 owner-2: the copied engine rows are unbound (NoteRow's copy ctor drops docNoteRow_). Rebuild the clone's own
+	// note-row pool by copying each SOURCE row's DocNoteRow (the authoritative field values) in vector order, then
+	// binding the cloned row to it. Copying the source's DOM record — rather than re-seeding from the copied engine
+	// row's native fields — is what lets those native scalars be retired: a clone's values flow model→model, never
+	// through an engine field. Source model values equal the source's native fields (kept in sync by the dual-write),
+	// so this is bit-identical to the previous re-seed.
+	if (newClip->docClip_ != nullptr && docClip_ != nullptr) {
 		newClip->docClip_->note_rows.clear();
 		for (int32_t n = 0; n < std::ssize(newClip->noteRows); n++) {
-			newClip->bindNoteRowStructure(newClip->noteRows[n]);
+			deluge::project::DocNoteRow* src = noteRows[n].docNoteRow_;
+			if (src == nullptr) {
+				// Invariant: a live source row is always bound. Post-retirement its values live only in the DOM, so an
+				// unbound source is unrecoverable — loudly flag it (beta) and skip rather than emit wrong clone data.
+				if (ALPHA_OR_BETA_VERSION) {
+					D_PRINTLN("M3 clone: source note row unbound; cannot copy its DOM record");
+				}
+				continue;
+			}
+			deluge::project::DocNoteRow& d = newClip->docClip_->note_rows.emplace_back(*src);
+			newClip->noteRows[n].bindDocNoteRow(&d);
 		}
 	}
 
