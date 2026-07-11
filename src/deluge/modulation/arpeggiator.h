@@ -161,6 +161,11 @@ struct ArpNote {
 	bool isPending() {
 		return std::ranges::any_of(noteStatus, [](ArpNoteStatus status) { return status == ArpNoteStatus::PENDING; });
 	}
+	/// Whether this note is waiting to start AND actually has a note to play. Only slot 0 can be pending when the arp
+	/// is off, which is the only time notes pend in the `notes` array.
+	bool isStartablePending() {
+		return noteStatus[0] == ArpNoteStatus::PENDING && noteCodeOnPostArp[0] != ARP_NOTE_NONE;
+	}
 	void resetPostArpArrays() {
 		outputMemberChannel.fill(MIDI_CHANNEL_NONE);
 		noteCodeOnPostArp.fill(ARP_NOTE_NONE);
@@ -237,6 +242,11 @@ public:
 	virtual bool hasAnyInputNotesActive() = 0;
 	virtual void reset() = 0;
 	virtual ArpType getArpType() = 0;
+	/// A null settings means no arpeggiation, same as ArpMode::OFF. Everything that branches on "is the arp on" must
+	/// agree on this, or notes pend in one place and get looked for in another.
+	static bool arpIsOff(ArpeggiatorSettings* settings) {
+		return (settings == nullptr) || settings->mode == ArpMode::OFF;
+	}
 	ArpNote active_note; // For the currently active note.
 
 	std::array<int16_t, ARP_MAX_INSTRUCTION_NOTES> glideNoteCodeCurrentlyOnPostArp;
