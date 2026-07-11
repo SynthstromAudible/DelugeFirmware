@@ -17,6 +17,7 @@
 
 #include "gui/ui/browser/default_name.h"
 #include <cctype>
+#include <cstdint>
 
 namespace deluge::gui::browser {
 

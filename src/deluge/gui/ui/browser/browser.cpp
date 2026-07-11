@@ -998,92 +998,63 @@ void Browser::selectEncoderAction(int8_t offset) {
 		}
 	}
 	else {
-		// If user is holding shift, skip past any subslots. And on numeric Deluge, user may have chosen one digit to
-		// "edit".
-		if (display->haveOLED()) {
-			// TODO: deal with deleted FileItems here...
-			int32_t numberEditPosNow = numberEditPos;
-			if (Buttons::isShiftButtonPressed() && numberEditPosNow == -1) {
-				numberEditPosNow = 0;
+		// If user is holding shift, skip past any subslots. And the user may have chosen one digit to "edit" (7SEG
+		// only - numberEditPos is -1 otherwise).
+		//
+		// Names always carry the file prefix, so there is one path here, not one per display. (The two branches this
+		// replaced were each written for the *other* display's convention, leaving both dead.)
+		int32_t numberEditPosNow = numberEditPos;
+		if (Buttons::isShiftButtonPressed() && numberEditPosNow == -1) {
+			numberEditPosNow = 0;
+		}
+
+		if (numberEditPosNow != -1) {
+			char const* numberPart = nameAfterPrefix(enteredText.get());
+			if (!numberPart) {
+				goto nonNumeric;
+			}
+			Slot thisSlot = getSlot(numberPart);
+			if (thisSlot.slot < 0) {
+				goto nonNumeric;
+			}
+			thisSlot.subSlot = -1;
+
+			switch (numberEditPosNow) {
+			case 0:
+				thisSlot.slot += offset;
+				break;
+
+			case 1:
+				thisSlot.slot = (thisSlot.slot / 10 + offset) * 10;
+				break;
+
+			case 2:
+				thisSlot.slot = (thisSlot.slot / 100 + offset) * 100;
+				break;
+
+			default:
+				__builtin_unreachable();
 			}
 
-			if (numberEditPosNow != -1) {
-				Slot thisSlot = getSlot(enteredText.get());
-				if (thisSlot.slot < 0) {
-					goto nonNumeric;
-				}
-				D_PRINTLN("treating as numeric");
-				thisSlot.subSlot = -1;
-				switch (numberEditPosNow) {
-				case 0:
-					thisSlot.slot += offset;
-					break;
-
-				case 1:
-					thisSlot.slot = (thisSlot.slot / 10 + offset) * 10;
-					break;
-
-				case 2:
-					thisSlot.slot = (thisSlot.slot / 100 + offset) * 100;
-					break;
-
-				default:
-					__builtin_unreachable();
-				}
-
-				char searchString[6];
-				char* searchStringNumbersStart = searchString;
-				int32_t minNumDigits = 1;
-				intToString(thisSlot.slot, searchStringNumbersStart, minNumDigits);
-				if (offset < 0) {
-					char* pos = strchr(searchStringNumbersStart, 0);
-					*pos = 'A';
-					pos++;
-					*pos = 0;
-				}
-				newFileIndex = fileItems.search(searchString);
-				if (offset < 0) {
-					newFileIndex--;
-				}
+			int32_t filePrefixLength = strlen(filePrefix);
+			char searchString[16];
+			memcpy(searchString, filePrefix, filePrefixLength);
+			char* searchStringNumbersStart = searchString + filePrefixLength;
+			intToString(thisSlot.slot, searchStringNumbersStart, 1);
+			if (offset < 0) {
+				char* pos = strchr(searchStringNumbersStart, 0);
+				*pos = 'A';
+				pos++;
+				*pos = 0;
 			}
-			else {
-				newFileIndex = fileIndexSelected + offset;
+			newFileIndex = fileItems.search(searchString);
+			if (offset < 0) {
+				newFileIndex--;
 			}
 		}
 		else {
-			if (filePrefix && Buttons::isShiftButtonPressed()) {
-				int32_t filePrefixLength = strlen(filePrefix);
-				char const* enteredTextChars = enteredText.get();
-				if (memcasecmp(filePrefix, enteredTextChars, filePrefixLength)) {
-					goto nonNumeric;
-				}
-				Slot thisSlot = getSlot(&enteredTextChars[filePrefixLength]);
-				if (thisSlot.slot < 0) {
-					goto nonNumeric;
-				}
-				D_PRINTLN("treating as numeric");
-				thisSlot.slot += offset;
-
-				char searchString[9];
-				memcpy(searchString, filePrefix, filePrefixLength);
-				char* searchStringNumbersStart = searchString + filePrefixLength;
-				int32_t minNumDigits = 3;
-				intToString(thisSlot.slot, searchStringNumbersStart, minNumDigits);
-				if (offset < 0) {
-					char* pos = strchr(searchStringNumbersStart, 0);
-					*pos = 'A';
-					pos++;
-					*pos = 0;
-				}
-				newFileIndex = fileItems.search(searchString);
-				if (offset < 0) {
-					newFileIndex--;
-				}
-			}
-			else {
 nonNumeric:
-				newFileIndex = fileIndexSelected + offset;
-			}
+			newFileIndex = fileIndexSelected + offset;
 		}
 	}
 
@@ -1431,6 +1402,19 @@ searchForChar:
 	}
 }
 
+// Names always carry the file prefix (e.g. "SONG185"). Only rendering strips it, so anything wanting the numeric part
+// goes through here first.
+char const* Browser::nameAfterPrefix(char const* name) const {
+	if (!filePrefix) {
+		return nullptr;
+	}
+	int32_t prefixLength = strlen(filePrefix);
+	if (memcasecmp(name, filePrefix, prefixLength)) {
+		return nullptr;
+	}
+	return &name[prefixLength];
+}
+
 // Supply a string with no prefix (e.g. SONG), and no file extension.
 // If name is non-numeric, a slot of -1 will be returned.
 Slot Browser::getSlot(char const* displayName) {
@@ -1514,9 +1498,12 @@ void Browser::displayText(bool blinkImmediately) {
 			}
 			else {
 
-				if (filePrefix) {
+				// A name is always the full on-card name ("SONG185"). On 7SEG we render the numeric part alone
+				// ("185") so it fits the four-character display.
+				char const* numberPart = nameAfterPrefix(enteredText.get());
+				if (numberPart) {
 
-					Slot thisSlot = getSlot(enteredText.get());
+					Slot thisSlot = getSlot(numberPart);
 					if (thisSlot.slot >= 0) {
 						display->setTextAsSlot(thisSlot.slot, thisSlot.subSlot, (fileIndexSelected != -1), true,
 						                       numberEditPos, blinkImmediately);
