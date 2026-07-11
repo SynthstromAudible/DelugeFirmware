@@ -31,6 +31,73 @@
     first.control === second.control &&
     knobControls.has(first.control);
 
+  // Preserve left alignment on the first row, then right-align wrapped continuations.
+  function alignWrappedRows(node: HTMLDivElement) {
+    let lineStartFrame: number | undefined;
+    let lineStartTimeouts: ReturnType<typeof setTimeout>[] = [];
+    const resizeObserver =
+      typeof ResizeObserver === "undefined"
+        ? undefined
+        : new ResizeObserver(scheduleLineStartUpdate);
+
+    function updateLineStartIndices() {
+      const children = [...node.children] as HTMLElement[];
+      let previousTop = children[0]?.offsetTop ?? 0;
+
+      children.forEach((child, idx) => {
+        const currentTop = child.offsetTop;
+        const startsContinuationLine = idx > 0 && currentTop > previousTop + 1;
+
+        child.style.marginLeft = startsContinuationLine ? "auto" : "";
+
+        previousTop = currentTop;
+      });
+    }
+
+    function scheduleLineStartUpdate() {
+      if (typeof requestAnimationFrame === "undefined") {
+        updateLineStartIndices();
+        return;
+      }
+
+      if (lineStartFrame !== undefined) {
+        cancelAnimationFrame(lineStartFrame);
+      }
+
+      lineStartFrame = requestAnimationFrame(() => {
+        lineStartFrame = requestAnimationFrame(() => {
+          lineStartFrame = undefined;
+          updateLineStartIndices();
+        });
+      });
+    }
+
+    function scheduleSettledUpdates() {
+      lineStartTimeouts.forEach((timeout) => clearTimeout(timeout));
+      lineStartTimeouts = [0, 50, 250, 750].map((delay) =>
+        setTimeout(scheduleLineStartUpdate, delay),
+      );
+      document.fonts?.ready.then(scheduleLineStartUpdate);
+    }
+
+    resizeObserver?.observe(node);
+    window.addEventListener("resize", scheduleLineStartUpdate);
+    scheduleSettledUpdates();
+
+    return {
+      update: scheduleSettledUpdates,
+      destroy() {
+        resizeObserver?.disconnect();
+        window.removeEventListener("resize", scheduleLineStartUpdate);
+        lineStartTimeouts.forEach((timeout) => clearTimeout(timeout));
+
+        if (lineStartFrame !== undefined) {
+          cancelAnimationFrame(lineStartFrame);
+        }
+      },
+    };
+  }
+
   $: renderedSubsteps = step.substeps.reduce<RenderedSubstep[]>((acc, _, idx, all) => {
     const current = all[idx];
     const next = all[idx + 1];
@@ -49,16 +116,44 @@
   }, []);
 </script>
 
-<div class="substeps-row flex items-start gap-2">
+<div
+  use:alignWrappedRows={renderedSubsteps.length}
+  class="substeps-row flex w-full max-w-full flex-wrap items-start gap-x-2 gap-y-1"
+>
   {#each renderedSubsteps as renderedSubstep, idx}
-    {#if idx > 0}
-      <span class="substeps-plus">+</span>
+    {#if idx === 0}
+      <span class="substeps-item">
+        <StepView
+          step={renderedSubstep.step}
+          {inline}
+          compositeAction={renderedSubstep.compositeAction}
+        />
+      </span>
+    {:else}
+      <span class="substeps-item substeps-break">
+        <span class="substeps-plus">+</span>
+        <StepView
+          step={renderedSubstep.step}
+          {inline}
+          compositeAction={renderedSubstep.compositeAction}
+        />
+      </span>
     {/if}
-    <StepView step={renderedSubstep.step} {inline} compositeAction={renderedSubstep.compositeAction} />
   {/each}
 </div>
 
 <style>
+  .substeps-item {
+    display: inline-flex;
+    max-width: 100%;
+    min-width: 0;
+  }
+
+  .substeps-break {
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+
   .substeps-plus {
     align-self: end;
     font-size: var(--dc-step-font-size, 0.9rem);
