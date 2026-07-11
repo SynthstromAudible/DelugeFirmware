@@ -120,10 +120,14 @@ void Arpeggiator::reset() {
 	notes.empty();
 	notesAsPlayed.empty();
 	notesByPattern.empty();
+	anyPending = false;
 }
 
 // Surely this shouldn't be quite necessary?
 void ArpeggiatorForDrum::reset() {
+	// Must clear the note statuses too, not just the velocity - a note left PENDING here would keep the Sound out of
+	// render-skipping forever, and could be started spuriously later
+	active_note.resetPostArpArrays();
 	active_note.velocity = 0;
 }
 
@@ -497,6 +501,25 @@ bool Arpeggiator::handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnIns
 	else {
 		// if on then we just want to check if the active arp note is pending
 		return ArpeggiatorBase::handlePendingNotes(settings, instruction);
+	}
+
+	return false;
+}
+
+bool Arpeggiator::hasPendingNotes(ArpeggiatorSettings* settings) {
+	if ((settings != nullptr) && settings->mode != ArpMode::OFF) {
+		return ArpeggiatorBase::hasPendingNotes(settings);
+	}
+
+	if (!anyPending) {
+		return false;
+	}
+
+	for (int i = 0; i < notes.getNumElements(); i++) {
+		if (auto* arp_note = static_cast<ArpNote*>(notes.getElementAddress(i));
+		    arp_note->noteStatus[0] == ArpNoteStatus::PENDING && arp_note->noteCodeOnPostArp[0] != ARP_NOTE_NONE) {
+			return true;
+		}
 	}
 
 	return false;
@@ -1440,6 +1463,10 @@ bool ArpeggiatorBase::handlePendingNotes(ArpeggiatorSettings* settings, ArpRetur
 	}
 	instruction->arpNoteOn = nullptr;
 	return false;
+}
+
+bool ArpeggiatorBase::hasPendingNotes(ArpeggiatorSettings* settings) {
+	return active_note.isPending();
 }
 // Check arpeggiator is on before you call this.
 // May switch notes on and/or off.
