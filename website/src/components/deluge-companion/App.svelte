@@ -9,10 +9,10 @@
   updateView();
 </script>
 
-{#if currentView === ""}
-  <ShortcutsView />
-{:else if currentView === "#editor"}
+{#if currentView === "#editor"}
   <EditorView />
+{:else}
+  <ShortcutsView />
 {/if}
 
 <svelte:window on:hashchange={updateView} />

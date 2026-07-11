@@ -27,6 +27,9 @@
 
 <style>
   .dc-step-card {
+    box-sizing: border-box;
+    max-width: 100%;
+    min-width: 0;
     border-color: var(--dc-step-border, rgb(103 118 143 / 0.5));
     background: var(--dc-step-bg, rgb(13 18 30 / 0.45));
   }
