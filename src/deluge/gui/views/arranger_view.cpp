@@ -838,7 +838,7 @@ Instrument* ArrangerView::createNewInstrument(OutputType newOutputType, bool* in
 
 	if (!newInstrument) {
 		String newPresetName;
-		fileItem->getDisplayNameWithoutExtension(&newPresetName);
+		fileItem->getFilenameWithoutExtension(&newPresetName);
 		error = StorageManager::loadInstrumentFromFile(currentSong, nullptr, newOutputType, false, &newInstrument,
 		                                               &fileItem->filePointer, &newPresetName, &Browser::currentDir);
 	}

@@ -336,7 +336,6 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 
 		if (currentFileItem
 		        ->instrument) { // When would this not have something? Well ok, maybe now that we have folders.
-			convertToPrefixFormatIfPossible();
 		}
 
 		if (outputTypeToLoad == OutputType::KIT && showingAuditionPads()) {
@@ -366,7 +365,6 @@ doChangeOutputType:
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
-			convertToPrefixFormatIfPossible(); // Why did I put this here?
 			changeOutputType(newOutputType);
 		}
 	}
@@ -431,7 +429,6 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 
 		if (available) {
 			display->setNextTransitionDirection(1);
-			convertToPrefixFormatIfPossible();
 			openUI(&gui::context_menu::loadInstrumentPreset);
 		}
 		else {
@@ -1565,7 +1562,7 @@ doneMoving:
 		view.displayOutputName(toReturn.fileItem->instrument, doBlink);
 	}
 	else {
-		toReturn.error = toReturn.fileItem->getDisplayNameWithoutExtension(&newName);
+		toReturn.error = toReturn.fileItem->getFilenameWithoutExtension(&newName);
 		if (toReturn.error != Error::NONE) {
 			emptyFileItems();
 			return toReturn;

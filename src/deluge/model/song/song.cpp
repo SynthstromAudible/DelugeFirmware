@@ -136,9 +136,6 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	insideWorldTickMagnitudeOffsetFromBPM = 0;
 	syncScalingClip = nullptr;
 	currentClip = nullptr;
-	slot = 32767;
-	subSlot = -1;
-
 	xScroll[NAVIGATION_CLIP] = 0;
 	xScroll[NAVIGATION_ARRANGEMENT] = 0;
 	xScrollForReturnToSongView = 0;
@@ -410,7 +407,7 @@ bool Song::ensureAtLeastOneSessionClip() {
 	                                                                                Availability::ANY);
 	if (result) {
 		String newPresetName;
-		result.value()->getDisplayNameWithoutExtension(&newPresetName);
+		result.value()->getFilenameWithoutExtension(&newPresetName);
 		error =
 		    StorageManager::loadInstrumentFromFile(this, firstClip, OutputType::SYNTH, false, &newInstrument,
 		                                           &result.value()->filePointer, &newPresetName, &Browser::currentDir);
@@ -5031,7 +5028,7 @@ gotAnInstrument: {}
 
 		if (!newInstrument) {
 			String newPresetName;
-			fileItem->getDisplayNameWithoutExtension(&newPresetName);
+			fileItem->getFilenameWithoutExtension(&newPresetName);
 			error =
 			    StorageManager::loadInstrumentFromFile(this, nullptr, newOutputType, false, &newInstrument,
 			                                           &fileItem->filePointer, &newPresetName, &Browser::currentDir);

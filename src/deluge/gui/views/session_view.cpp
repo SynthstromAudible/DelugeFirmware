@@ -1593,7 +1593,7 @@ Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, 
 
 	if (!newInstrument) {
 		String newPresetName;
-		fileItem->getDisplayNameWithoutExtension(&newPresetName);
+		fileItem->getFilenameWithoutExtension(&newPresetName);
 		error = StorageManager::loadInstrumentFromFile(currentSong, nullptr, outputType, false, &newInstrument,
 		                                               &fileItem->filePointer, &newPresetName, &Browser::currentDir);
 	}
