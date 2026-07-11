@@ -1324,15 +1324,17 @@ void InstrumentClip::transpose(int32_t semitones, ModelStackWithTimelineCounter*
 
 void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType type,
                                           ModelStackWithTimelineCounter* modelStack) {
-	// This method is limited to no more than an octave of "change", currently used
-	// by the "hold and turn vertical encoder" and "shift + hold and turn vertical
-	// encoder" shorcuts.
+	// This method transposes every note row by up to an octave per call, currently
+	// used by the "hold and turn vertical encoder" and "shift + hold and turn
+	// vertical encoder" shortcuts.
 
 	if (!direction) {
 		// It's not clear if we ever get "zero" as direction of change, but let's
 		// make sure we behave sensibly in that case as well.
 		return;
 	}
+
+	int32_t numRows = noteRows.getNumElements();
 
 	int32_t change = direction > 0 ? 1 : -1;
 	if (type == VerticalNudgeType::OCTAVE) {
@@ -1344,73 +1346,71 @@ void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 		}
 	}
 
+	const MusicalKey& key = modelStack->song->key;
+	const bool wholeOctave = std::abs(change) == key.modeNotes.count();
+
+	// Work out the semitone shift a given note row will receive. Every row moves in
+	// the same direction as `change`, so a scale clip stays internally consistent.
+	auto semitoneShiftFor = [&](NoteRow* noteRow) -> int32_t {
+		if (!isScaleModeClip()) {
+			// Non scale clip, transpose directly by semitone (or octave) jumps
+			return change;
+		}
+		if (wholeOctave) {
+			return (change > 0) ? 12 : -12;
+		}
+		// Scale clip changing less than an octave, transpose by scale note jumps
+		int32_t numModeNotes = key.modeNotes.count();
+		int32_t yNoteWithinOctave = key.intervalOf(noteRow->getNoteCode());
+		int32_t oldModeNoteIndex = 0;
+		for (; oldModeNoteIndex < numModeNotes; oldModeNoteIndex++) {
+			if (key.modeNotes[oldModeNoteIndex] == yNoteWithinOctave) {
+				break;
+			}
+		}
+		int32_t newModeNoteIndex = (oldModeNoteIndex + change + numModeNotes) % numModeNotes;
+		int32_t shift = key.modeNotes[newModeNoteIndex] - key.modeNotes[oldModeNoteIndex];
+		if (change > 0 && newModeNoteIndex <= oldModeNoteIndex) {
+			shift += 12; // wrapped up into the next octave
+		}
+		else if (change < 0 && newModeNoteIndex >= oldModeNoteIndex) {
+			shift -= 12; // wrapped down into the previous octave
+		}
+		return shift;
+	};
+
+	// Reject the whole transpose if it would push any note out of the playable range,
+	// matching the limit that vertical scrolling enforces. We scan every row for the
+	// resulting extreme note rather than assuming the top/bottom row stays the
+	// extreme, because a scale clip's out-of-scale rows can shift by uneven amounts.
+	if (numRows > 0) {
+		NoteRow* firstRow = noteRows.getElement(0);
+		int32_t highestNewYNote = firstRow->y + semitoneShiftFor(firstRow);
+		int32_t lowestNewYNote = highestNewYNote;
+		for (int32_t i = 1; i < numRows; i++) {
+			NoteRow* thisNoteRow = noteRows.getElement(i);
+			int32_t newYNote = thisNoteRow->y + semitoneShiftFor(thisNoteRow);
+			if (newYNote > highestNewYNote) {
+				highestNewYNote = newYNote;
+			}
+			if (newYNote < lowestNewYNote) {
+				lowestNewYNote = newYNote;
+			}
+		}
+		int32_t extremeNewYNote = (change > 0) ? highestNewYNote : lowestNewYNote;
+		if (!isScrollWithinRange(change, extremeNewYNote)) {
+			return;
+		}
+	}
+
 	// Make sure no notes sounding
 	stopAllNotesPlaying(modelStack);
 
-	if (!this->isScaleModeClip()) {
-		// Non scale clip, transpose directly by semitone jumps
-		for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
-			NoteRow* thisNoteRow = noteRows.getElement(i);
-			// transpose by semitones or by octave
-			thisNoteRow->y += change;
-		}
+	for (int32_t i = 0; i < numRows; i++) {
+		NoteRow* thisNoteRow = noteRows.getElement(i);
+		thisNoteRow->y += semitoneShiftFor(thisNoteRow);
 	}
-	else {
-		// Scale clip, transpose by scale note jumps
 
-		// wanting to change a full octave
-		if (std::abs(change) == modelStack->song->key.modeNotes.count()) {
-			int32_t changeInSemitones = (change > 0) ? 12 : -12;
-			for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
-				NoteRow* thisNoteRow = noteRows.getElement(i);
-				// transpose by semitones or by octave
-				thisNoteRow->y += changeInSemitones;
-			}
-		}
-
-		// wanting to change less than an octave
-		else {
-			for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
-				MusicalKey key = modelStack->song->key;
-				NoteRow* thisNoteRow = noteRows.getElement(i);
-				int32_t changeInSemitones = 0;
-				int32_t yNoteWithinOctave = key.intervalOf(thisNoteRow->getNoteCode());
-				int32_t oldModeNoteIndex = 0;
-				for (; oldModeNoteIndex < key.modeNotes.count(); oldModeNoteIndex++) {
-					if (key.modeNotes[oldModeNoteIndex] == yNoteWithinOctave) {
-						break;
-					}
-				}
-				int32_t newModeNoteIndex = (oldModeNoteIndex + change + modelStack->song->key.modeNotes.count())
-				                           % modelStack->song->key.modeNotes.count();
-
-				int32_t s = 0;
-				if ((change > 0 && newModeNoteIndex > oldModeNoteIndex)
-				    || (change < 0 && newModeNoteIndex < oldModeNoteIndex)) {
-					// within the same octave
-					changeInSemitones = modelStack->song->key.modeNotes[newModeNoteIndex]
-					                    - modelStack->song->key.modeNotes[oldModeNoteIndex];
-					s = 1;
-				}
-				else {
-					if (change > 0) {
-						// go up an octave
-						changeInSemitones = modelStack->song->key.modeNotes[newModeNoteIndex]
-						                    - modelStack->song->key.modeNotes[oldModeNoteIndex] + 12;
-						s = 2;
-					}
-					else {
-						// go down an octave
-						changeInSemitones = modelStack->song->key.modeNotes[newModeNoteIndex]
-						                    - modelStack->song->key.modeNotes[oldModeNoteIndex] - 12;
-						s = 3;
-					}
-				}
-				// transpose by semitones
-				thisNoteRow->y += changeInSemitones;
-			}
-		}
-	}
 	yScroll += change;
 }
 
