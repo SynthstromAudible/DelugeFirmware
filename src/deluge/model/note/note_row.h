@@ -184,7 +184,10 @@ private:
 	int16_t y_{0}; // This has to be at the top (first data member; the NoteRowVector sort key)
 
 public:
-	// M3 owner-2 slice 2b: read-flip onto the DOM shadow when bound; the engine field is a synced fallback.
+	// M3 owner-2 scalars (y/muted/loopLengthIfIndependent/sequenceDirection/colourOffset): the DocNoteRow is the
+	// authoritative persistence store (save/load go through these accessors/setters); the engine `*_` fields are
+	// synced derived caches, kept — NOT retired — because NoteRow is a moved-by-value container element (an inline
+	// owner-1-style ownDoc_ would dangle) and y_/colourOffset_ must stay engine-side anyway. See [[m1-edit-substrate]].
 	int16_t y() const { return docNoteRow_ != nullptr ? docNoteRow_->y : y_; }
 	void setY(int16_t v) {
 		y_ = v;
@@ -193,7 +196,7 @@ public:
 		}
 	}
 
-	// M3 owner-2 slice 2a: read-flip onto the DOM shadow when bound; the engine field is a synced fallback.
+	// muted (see the owner-2 cache-doctrine note above).
 	bool muted() const { return docNoteRow_ != nullptr ? docNoteRow_->muted : muted_; }
 	void setMuted(bool v) {
 		muted_ = v;
@@ -204,8 +207,7 @@ public:
 	bool mutedBeforeStemExport{}; // Used by stem export to restore previous state
 	bool exportStem;              // Used by stem export to flag if this note row should be exported
 
-	// M3 owner-2 slice 2a: read-flip onto the DOM shadow when bound; the engine field is a synced fallback.
-	// 0 means obeying parent.
+	// loopLengthIfIndependent (see the owner-2 cache-doctrine note above). 0 means obeying parent.
 	int32_t loopLengthIfIndependent() const {
 		return docNoteRow_ != nullptr ? docNoteRow_->loop_length_if_independent : loopLengthIfIndependent_;
 	}
@@ -242,8 +244,9 @@ public:
 	OldDrumNameHead firstOldDrumName;
 	NoteVector notes{};
 
-	/// M3 owner-2 (dual-write phase): non-owning pointer to this row's DOM record in its clip's DocClip.note_rows
-	/// pool. Bound at create/clone/load by InstrumentClip; nullptr until bound. Nothing reads it yet (shadow).
+	/// M3 owner-2: non-owning pointer to this row's authoritative DOM record in its clip's DocClip.note_rows pool
+	/// (the persistence store for the owner-2 scalars). Bound at create/clone/load by InstrumentClip; nullptr until
+	/// bound, when the scalar accessors fall back to the engine caches.
 	deluge::project::DocNoteRow* docNoteRow_{nullptr};
 	void bindDocNoteRow(deluge::project::DocNoteRow* d) { docNoteRow_ = d; }
 	// values for whole row
