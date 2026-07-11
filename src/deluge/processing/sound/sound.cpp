@@ -3857,6 +3857,18 @@ void Sound::syncDocSound() {
 		}
 	}
 	syncDocModControllable(d.mod_controllable);
+	for (int32_t s = 0; s < kNumSources; s++) {
+		Source& src = sources[s];
+		deluge::project::DocSource& ds = d.sources[s];
+		ds.osc_type = static_cast<uint8_t>(src.oscType);
+		ds.transpose = src.transpose;
+		ds.cents = src.cents;
+		ds.repeat_mode = static_cast<uint8_t>(src.repeatMode);
+		ds.time_stretch_amount = src.timeStretchAmount;
+		ds.interpolation_mode = static_cast<uint8_t>(src.sampleControls.interpolationMode);
+		ds.pitch_and_speed_independent = src.sampleControls.pitchAndSpeedAreIndependent;
+		ds.reversed = src.sampleControls.reversed;
+	}
 }
 
 void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager,

@@ -18,6 +18,7 @@
 #pragma once
 
 #include "deluge-project/doc_mod_controllable.h"
+#include "deluge-project/doc_source.h"
 
 #include <cstdint>
 
@@ -61,6 +62,9 @@ struct DocSound {
 
 	// Slice F: shared non-param ModControllableAudio structure (filter/modFX + delay/sidechain/compressor/stutter).
 	DocModControllable mod_controllable;
+
+	// Slice G: the two oscillator Sources (kNumSources == 2).
+	DocSource sources[2];
 };
 
 } // namespace deluge::project
