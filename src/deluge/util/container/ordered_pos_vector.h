@@ -22,22 +22,31 @@
 #include <algorithm>
 #include <cstring>
 #include <expected>
+#include <functional>
 #include <new>
 #include <span>
 #include <type_traits>
 
 namespace deluge {
 
-/// A sorted vector backed by deluge::fast_vector; the (ascending) sort key is the member named by
-/// keyMember - by default T::pos. Replaces the old OrderedResizeableArray(With32bitKey).
+/// A sorted vector backed by deluge::fast_vector; the (ascending) sort key is projected by `keyMember` -
+/// by default the data member T::pos. Replaces the old OrderedResizeableArray(With32bitKey).
+///
+/// `keyMember` may be a pointer-to-DATA-member (the usual case, e.g. `&T::pos`, which is also assignable so the
+/// key-*writing* batch ops work) OR a pointer-to-const-GETTER (e.g. `&NoteRow::y`, when the key lives behind an
+/// accessor — the model owns it). Getter keys are read-only: the key-writing ops (insertSorted/shiftHorizontal/
+/// generateRepeats/insertAt-then-assign) static_assert a data-member key, so a getter-keyed instantiation that
+/// never calls them (like NoteRowVector, which hand-rolls its inserts) compiles fine.
 ///
 /// Beyond the standard surface, it offers: key-based lookups (lower_bound/find_key/firstAtOrAfter/tryGet),
 /// fallible std::expected mutations (insertAt/insertSorted/reserveExtra), the sequencer batch algorithms
 /// (searchMultiple/searchDual/shiftHorizontal/generateRepeats), and value semantics (copy/move ctor+assign) —
 /// deep copies go through copy construction/assignment, which throw deluge::exception on OOM.
 template <typename T, auto keyMember = &T::pos>
-requires std::is_member_object_pointer_v<decltype(keyMember)>
+requires std::is_member_pointer_v<decltype(keyMember)>
 class OrderedPosVector {
+	static constexpr bool keyIsWritable = std::is_member_object_pointer_v<decltype(keyMember)>;
+
 public:
 	OrderedPosVector() = default;
 	~OrderedPosVector() = default;
@@ -90,6 +99,7 @@ public:
 
 	/// Inserts a default-constructed element with the given key at its sorted position; returns its index.
 	std::expected<int32_t, Error> insertSorted(int32_t key, bool isDefinitelyLast = false) {
+		static_assert(keyIsWritable, "insertSorted writes the key; needs a data-member key, not a getter");
 		int32_t i = isDefinitelyLast ? static_cast<int32_t>(elements_.size()) : firstAtOrAfter(key);
 		auto inserted = insertAt(i);
 		if (!inserted) {
@@ -137,7 +147,7 @@ public:
 	/// Iterator to the element with exactly this key, or end()
 	[[nodiscard]] iterator find_key(int32_t key) {
 		auto it = lower_bound(key);
-		return (it != elements_.end() && (*it).*keyMember == key) ? it : elements_.end();
+		return (it != elements_.end() && std::invoke(keyMember, *it) == key) ? it : elements_.end();
 	}
 
 	/// Erases by iterator (returns the iterator following the removed range, as std containers do)
@@ -191,6 +201,7 @@ public:
 	/// Rotates all keys forward by `amount` (which may be negative) within a span of `effectiveLength`,
 	/// keeping the array sorted by rotating the elements correspondingly.
 	void shiftHorizontal(int32_t amount, int32_t effectiveLength) {
+		static_assert(keyIsWritable, "shiftHorizontal writes keys; needs a data-member key, not a getter");
 		if (elements_.empty()) {
 			return;
 		}
@@ -228,6 +239,7 @@ public:
 
 	/// Tiles the contents (all of which must lie before wrapPoint) out to endPos. Returns false on OOM.
 	bool generateRepeats(int32_t wrapPoint, int32_t endPos) {
+		static_assert(keyIsWritable, "generateRepeats writes keys; needs a data-member key, not a getter");
 		if (elements_.empty()) {
 			return true;
 		}
@@ -264,7 +276,7 @@ public:
 #if ENABLE_SEQUENTIALITY_TESTS
 		int32_t lastKey = -2147483648;
 		for (int32_t i = 0; i < static_cast<int32_t>(elements_.size()); i++) {
-			int32_t key = elements_[i].*keyMember;
+			int32_t key = std::invoke(keyMember, elements_[i]);
 			if (key <= lastKey) {
 				FREEZE_WITH_ERROR(errorCode);
 			}
