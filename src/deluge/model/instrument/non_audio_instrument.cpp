@@ -17,6 +17,7 @@
 
 #include "model/instrument/non_audio_instrument.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_output.h" // complete DocOutput type for syncDocOutput
 #include "dsp/stereo_sample.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
@@ -26,6 +27,15 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include <cstring>
+
+// M3 owner-5 Slice E: add the NonAudioInstrument channel to the DOM shadow (calls the Instrument tier first).
+void NonAudioInstrument::syncDocOutput() {
+	Instrument::syncDocOutput();
+	if (docOutput_ == nullptr) {
+		return;
+	}
+	docOutput_->channel = getChannel();
+}
 
 void NonAudioInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,
                                       int32_t reverbAmountAdjust, int32_t sideChainHitPending,

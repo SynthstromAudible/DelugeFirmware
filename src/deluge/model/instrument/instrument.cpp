@@ -17,6 +17,7 @@
 
 #include "model/instrument/instrument.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_output.h" // complete DocOutput type for syncDocOutput
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip_instance.h"
@@ -36,6 +37,16 @@ Instrument::~Instrument() {
     // ClipInstances will all get deallocated by the vector destructor
 }
 */
+
+// M3 owner-5 Slice E: add the Instrument-tier descriptor fields to the DOM shadow (calls the Output base first).
+void Instrument::syncDocOutput() {
+	Output::syncDocOutput();
+	if (docOutput_ == nullptr) {
+		return;
+	}
+	docOutput_->dir_path = dirPath;
+	docOutput_->default_velocity = defaultVelocity;
+}
 
 // Returns whether subslot changed
 void Instrument::beenEdited(bool shouldMoveToEmptySlot) {

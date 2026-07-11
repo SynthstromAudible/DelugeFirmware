@@ -45,6 +45,9 @@ public:
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) override;
 	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
 	bool readTagFromFile(Deserializer& reader, char const* tagName) override;
+
+	// M3 owner-5 Slice E: add the MIDIInstrument descriptor fields to the DOM shadow.
+	void syncDocOutput() override;
 	Error readModKnobAssignmentsFromFile(Deserializer& reader, int32_t readAutomationUpToPos,
 	                                     ParamManagerForTimeline* paramManager = nullptr);
 

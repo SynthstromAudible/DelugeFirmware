@@ -38,6 +38,9 @@ public:
 	                                              int32_t noteIndex) override;
 	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
 	bool readTagFromFile(Deserializer& reader, const char* tagName) override;
+
+	// M3 owner-5 Slice E: add the CVInstrument cv2 source to the DOM shadow.
+	void syncDocOutput() override;
 	void monophonicExpressionEvent(int32_t newValue, int32_t expressionDmiension) override;
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) override;
 	void setupWithoutActiveClip(ModelStack* modelStack) override;

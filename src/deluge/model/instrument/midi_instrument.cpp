@@ -17,6 +17,7 @@
 
 #include "model/instrument/midi_instrument.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_output.h" // complete DocOutput type for syncDocOutput
 #include "gui/ui/ui.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -44,6 +45,20 @@ MIDIInstrument::MIDIInstrument()
       modKnobCCAssignments() {
 	modKnobMode = 0;
 	modKnobCCAssignments.fill(CC_NUMBER_NONE);
+}
+
+// M3 owner-5 Slice E: add the MIDIInstrument descriptor fields to the DOM shadow (calls the NonAudioInstrument tier
+// first).
+void MIDIInstrument::syncDocOutput() {
+	NonAudioInstrument::syncDocOutput();
+	if (docOutput_ == nullptr) {
+		return;
+	}
+	docOutput_->channel_suffix = channelSuffix;
+	docOutput_->device_definition_file_name = deviceDefinitionFileName;
+	docOutput_->collapse_aftertouch = collapseAftertouch;
+	docOutput_->collapse_mpe = collapseMPE;
+	docOutput_->output_mpe_y = static_cast<uint8_t>(outputMPEY);
 }
 
 // Returns whether any change made. For MIDI Instruments, this has no consequence

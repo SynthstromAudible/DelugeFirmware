@@ -57,6 +57,9 @@ public:
 	ModControllable* toModControllable() override { return this; }
 	virtual void setChannel(int newChannel) { channel = newChannel; }
 	inline int32_t getChannel() const { return channel; }
+
+	// M3 owner-5 Slice E: add the NonAudioInstrument channel to the DOM shadow.
+	void syncDocOutput() override;
 	// Cache these here just in case there's no ParamManager - because CVInstruments don't do backedUpParamManagers.
 	uint8_t cachedBendRanges[2]{};
 	bool needsEarlyPlayback() const override;

@@ -16,6 +16,7 @@
  */
 
 #include "model/instrument/cv_instrument.h"
+#include "deluge-project/doc_output.h" // complete DocOutput type for syncDocOutput
 #include "model/model_stack.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param_set.h"
@@ -26,6 +27,15 @@
 CVInstrument::CVInstrument() : NonAudioInstrument(OutputType::CV) {
 	monophonicPitchBendValue = 0;
 	polyPitchBendValue = 0;
+}
+
+// M3 owner-5 Slice E: add the CVInstrument cv2 source to the DOM shadow (calls the NonAudioInstrument tier first).
+void CVInstrument::syncDocOutput() {
+	NonAudioInstrument::syncDocOutput();
+	if (docOutput_ == nullptr) {
+		return;
+	}
+	docOutput_->cv2_source = static_cast<uint8_t>(getCV2Mode());
 }
 
 void CVInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) {

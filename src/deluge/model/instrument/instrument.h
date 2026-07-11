@@ -76,6 +76,9 @@ public:
 	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
 	bool readTagFromFile(Deserializer& reader, char const* tagName) override;
 
+	// M3 owner-5 Slice E: add the Instrument-tier descriptor fields (dirPath/defaultVelocity) to the DOM shadow.
+	void syncDocOutput() override;
+
 	virtual void compensateInstrumentVolumeForResonance(ModelStackWithThreeMainThings* modelStack) {}
 	virtual bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) = 0;
 	virtual void processParamFromInputMIDIChannel(int32_t cc, int32_t newValue,

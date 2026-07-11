@@ -120,7 +120,7 @@ public:
 	// Output-base identity fields engine->record at load + save (rebuild-at-save; self-guards when unbound).
 	deluge::project::DocOutput* docOutput_{nullptr};
 	void bindDocOutput(deluge::project::DocOutput* d) { docOutput_ = d; }
-	void syncDocOutput();
+	virtual void syncDocOutput();
 
 	// Temp stuff for doLaunch()
 	bool alreadyGotItsNewClip{};
