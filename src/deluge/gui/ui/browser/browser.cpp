@@ -993,10 +993,12 @@ bool Browser::predictExtendedText() {
 				error = prefixed.concatenate(&enteredText);
 			}
 			if (error != Error::NONE) {
+				// Must not advance enteredTextEditPos here: it indexes into enteredText, and a short/stale string with
+				// an advanced edit pos would make the shorten() and memcasecmp() below read out of bounds.
 				display->displayError(error);
 				return false;
 			}
-			enteredText.set(&prefixed);
+			enteredText.set(&prefixed); // Cannot fail - takes ownership of the already-allocated buffer.
 			enteredTextEditPos += prefixLength;
 		}
 	}
@@ -1214,16 +1216,9 @@ searchForChar:
 }
 
 // Names always carry the file prefix (e.g. "SONG185"). Only rendering strips it, so anything wanting the numeric part
-// goes through here first.
+// goes through here first. Zero-padding is skipped too - getSlot() cannot parse "001". See default_name.h.
 char const* Browser::nameAfterPrefix(char const* name) const {
-	if (!filePrefix) {
-		return nullptr;
-	}
-	int32_t prefixLength = strlen(filePrefix);
-	if (memcasecmp(name, filePrefix, prefixLength)) {
-		return nullptr;
-	}
-	return &name[prefixLength];
+	return deluge::gui::browser::numberPartOf(name, filePrefix);
 }
 
 // Supply a string with no prefix (e.g. SONG), and no file extension.

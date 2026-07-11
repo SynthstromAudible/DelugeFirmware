@@ -103,6 +103,41 @@ TEST(DefaultNameTests, nonNumericNameSharingThePrefixIsNotTreatedAsASlot) {
 	CHECK_EQUAL(std::string{"SONGIDEA 2"}, nextDefaultName("SONGIDEA", "SONG", files));
 }
 
+// --- Zero-padded names (vanilla cards write songs 1-99 as SONG001..SONG099) -------------
+
+TEST(DefaultNameTests, zeroPaddedSongGetsALetterSuffix) {
+	FakeFileList files{{"SONG001.XML"}};
+	CHECK_EQUAL(std::string{"SONG001A"}, nextDefaultName("SONG001", "SONG", files));
+}
+
+TEST(DefaultNameTests, zeroPaddedLetterSuffixesAdvance) {
+	FakeFileList files{{"SONG001.XML", "SONG001A.XML"}};
+	CHECK_EQUAL(std::string{"SONG001B"}, nextDefaultName("SONG001A", "SONG", files));
+}
+
+TEST(DefaultNameTests, numberPartSkipsZeroPadding) {
+	// getSlot() reads a leading '0' as a whole one-digit slot and then chokes on the next digit, so it rejects "001"
+	// outright. Everything feeding it must skip the padding first, or 7SEG scrolls "SONG001" instead of showing "1".
+	STRCMP_EQUAL("1", deluge::gui::browser::numberPartOf("SONG001", "SONG"));
+	STRCMP_EQUAL("10", deluge::gui::browser::numberPartOf("SONG010", "SONG"));
+	STRCMP_EQUAL("185", deluge::gui::browser::numberPartOf("SONG185", "SONG"));
+	STRCMP_EQUAL("1A", deluge::gui::browser::numberPartOf("SONG001A", "SONG"));
+	// The last digit always survives, so slot 0 is still reachable.
+	STRCMP_EQUAL("0", deluge::gui::browser::numberPartOf("SONG000", "SONG"));
+	STRCMP_EQUAL("0", deluge::gui::browser::numberPartOf("SONG0", "SONG"));
+	// A name that does not carry the prefix has no number part.
+	CHECK(deluge::gui::browser::numberPartOf("MYTRACK", "SONG") == nullptr);
+}
+
+// --- Extensions -------------------------------------------------------------------------
+
+TEST(DefaultNameTests, aJsonFileAlsoTakesTheName) {
+	// The browser lists .XML and .Json alike, and saving picks between them via writeJsonFlag. Probing only .XML would
+	// hand back SONG185A when SONG185A.Json already exists on the card.
+	FakeFileList files{{"SONG185.XML", "SONG185A.Json"}};
+	CHECK_EQUAL(std::string{"SONG185B"}, nextDefaultName("SONG185", "SONG", files));
+}
+
 TEST(DefaultNameTests, presetsKeepTheNumericSuffix) {
 	// Only songs get letter suffixes. Presets pass an empty slotPrefix, so SYNT005 takes the
 	// numeric path - preserving current OLED preset behaviour. See Global Constraints.

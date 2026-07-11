@@ -18,6 +18,7 @@
 #include "gui/ui/browser/default_name.h"
 #include <cctype>
 #include <cstdint>
+#include <cstring>
 
 namespace deluge::gui::browser {
 
@@ -27,8 +28,10 @@ constexpr size_t kMaxSlotDigits = 3;
 constexpr int32_t kMaxNumericSuffix = 9999;
 
 bool exists(FileListView const& files, std::string const& nameWithoutExtension) {
-	std::string probe = nameWithoutExtension + ".XML";
-	return files.contains(probe.c_str());
+	// The browser lists both extensions (allowedFileExtensionsXML), and saving picks between them via writeJsonFlag, so
+	// a name is taken if *either* form is on the card. Probing only .XML would hand back a name that already exists.
+	return files.contains((nameWithoutExtension + ".XML").c_str())
+	       || files.contains((nameWithoutExtension + ".Json").c_str());
 }
 
 char upper(char c) {
@@ -98,6 +101,25 @@ std::string numericStem(std::string_view name, char* delimiter) {
 }
 
 } // namespace
+
+char const* numberPartOf(char const* name, char const* filePrefix) {
+	if (!filePrefix) {
+		return nullptr;
+	}
+	size_t prefixLength = strlen(filePrefix);
+	for (size_t i = 0; i < prefixLength; i++) {
+		if (upper(name[i]) != upper(filePrefix[i])) {
+			return nullptr;
+		}
+	}
+
+	char const* numberPart = &name[prefixLength];
+	// Skip zero-padding, but keep the final digit so "SONG000" still reads as slot 0. See the header for why.
+	while (*numberPart == '0' && std::isdigit(static_cast<unsigned char>(numberPart[1]))) {
+		numberPart++;
+	}
+	return numberPart;
+}
 
 std::string nextDefaultName(std::string_view currentName, std::string_view slotPrefix, FileListView const& files) {
 	char letter = 0;

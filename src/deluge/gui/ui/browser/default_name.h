@@ -36,6 +36,16 @@ public:
 /// Deliberately NOT display-dependent: a name must never depend on which Deluge saved it.
 inline constexpr char kNumericSuffixDelimiter = ' ';
 
+/// Steps past `filePrefix` and any zero-padding, yielding the part Browser::getSlot() expects:
+///   "SONG001" -> "1"   "SONG010" -> "10"   "SONG185A" -> "185A"   "SONG000" -> "0"
+/// Returns nullptr if `name` does not carry the prefix.
+///
+/// The zero-skipping is load-bearing, not cosmetic: getSlot() reads a leading '0' as a complete one-digit slot and
+/// then treats the *next* digit as a subslot letter, so it rejects "001" outright (slot = -1). Vanilla cards write
+/// songs 1-99 zero-padded, so without this the 7SEG renders "SONG001" as a scrolling full name instead of "1", and
+/// slot navigation dies for those songs.
+char const* numberPartOf(char const* name, char const* filePrefix);
+
 /// Derives the default name for the next variation of `currentName`.
 ///
 /// `currentName` and the result are real on-card names: no extension, and no display-specific mangling (always
