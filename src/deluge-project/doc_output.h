@@ -35,6 +35,16 @@ struct DocOutput {
 	bool muted_in_arrangement{false};
 	bool soloing_in_arrangement{false};
 	bool armed_for_recording{false};
+	// Owner-5 Slice E: per-instrument-type descriptors (populated only for the relevant OutputType; 0/empty otherwise).
+	std::string dir_path;                    ///< Instrument (non-AUDIO)
+	uint8_t default_velocity{0};             ///< Instrument
+	int32_t channel{0};                      ///< NonAudioInstrument (MIDI_OUT/CV)
+	int32_t channel_suffix{-1};              ///< MIDIInstrument
+	std::string device_definition_file_name; ///< MIDIInstrument
+	bool collapse_aftertouch{false};         ///< MIDIInstrument
+	bool collapse_mpe{true};                 ///< MIDIInstrument
+	uint8_t output_mpe_y{0};                 ///< MIDIInstrument (CCNumber underlying)
+	uint8_t cv2_source{0};                   ///< CVInstrument (CVMode underlying)
 	/// Present only for SoundInstruments (OutputType::SYNTH); nullopt otherwise. Owns the nested Sound record 1:1.
 	std::optional<DocSound> sound;
 };
