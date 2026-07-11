@@ -17,7 +17,6 @@
   class:px-2={!inline}
   class:py-1={!inline}
   class:inline-block={inline}
-  class:dc-step-card--substeps={isSubstepContainer(step) && !inline}
 >
   {#if isStep(step)}
     <StepView bind:step bind:inline />
@@ -33,9 +32,5 @@
     min-width: 0;
     border-color: var(--dc-step-border, rgb(103 118 143 / 0.5));
     background: var(--dc-step-bg, rgb(13 18 30 / 0.45));
-  }
-
-  .dc-step-card--substeps {
-    width: 100%;
   }
 </style>

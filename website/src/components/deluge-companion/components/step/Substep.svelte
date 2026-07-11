@@ -31,26 +31,82 @@
     first.control === second.control &&
     knobControls.has(first.control);
 
-  // Preserve left alignment on the first row, then right-align wrapped continuations.
+  // Measure at full width, shrink to the widest line, then right-align continuations.
   function alignWrappedRows(node: HTMLDivElement) {
     let lineStartFrame: number | undefined;
     let lineStartTimeouts: ReturnType<typeof setTimeout>[] = [];
-    const resizeObserver =
-      typeof ResizeObserver === "undefined"
-        ? undefined
-        : new ResizeObserver(scheduleLineStartUpdate);
 
-    function updateLineStartIndices() {
+    function resetChildren() {
+      [...node.children].forEach((child) => {
+        (child as HTMLElement).style.marginLeft = "";
+      });
+    }
+
+    function getCardWidthOffset(card: HTMLElement) {
+      const styles = getComputedStyle(card);
+      return (
+        parseFloat(styles.paddingLeft) +
+        parseFloat(styles.paddingRight) +
+        parseFloat(styles.borderLeftWidth) +
+        parseFloat(styles.borderRightWidth)
+      );
+    }
+
+    function getLineStarts() {
       const children = [...node.children] as HTMLElement[];
-      let previousTop = children[0]?.offsetTop ?? 0;
+      const lineStarts = new Set<number>();
+      const lineWidths: number[] = [];
+      const rowLeft = node.getBoundingClientRect().left;
+      let currentLineTop = children[0]?.offsetTop ?? 0;
+      let currentLineWidth = 0;
 
       children.forEach((child, idx) => {
-        const currentTop = child.offsetTop;
-        const startsContinuationLine = idx > 0 && currentTop > previousTop + 1;
+        const childTop = child.offsetTop;
+        const childRight = child.getBoundingClientRect().right - rowLeft;
 
-        child.style.marginLeft = startsContinuationLine ? "auto" : "";
+        if (idx > 0 && childTop > currentLineTop + 1) {
+          lineWidths.push(currentLineWidth);
+          lineStarts.add(idx);
+          currentLineTop = childTop;
+          currentLineWidth = 0;
+        }
 
-        previousTop = currentTop;
+        currentLineWidth = Math.max(currentLineWidth, childRight);
+      });
+
+      if (children.length > 0) {
+        lineWidths.push(currentLineWidth);
+      }
+
+      return { children, lineStarts, lineWidths };
+    }
+
+    function updateLineStartIndices() {
+      const card = node.closest(".dc-step-card") as HTMLElement | null;
+
+      if (!card) {
+        return;
+      }
+
+      card.style.width = "100%";
+      resetChildren();
+
+      const availableCardWidth = card.getBoundingClientRect().width;
+      const measuredLines = getLineStarts();
+      const widestLineWidth = Math.max(...measuredLines.lineWidths, 0);
+      const cardWidth = Math.min(
+        Math.ceil(widestLineWidth + getCardWidthOffset(card)),
+        availableCardWidth,
+      );
+
+      if (cardWidth > 0) {
+        card.style.width = `${cardWidth}px`;
+      }
+
+      const alignedLines = getLineStarts();
+
+      alignedLines.children.forEach((child, idx) => {
+        child.style.marginLeft = alignedLines.lineStarts.has(idx) ? "auto" : "";
       });
     }
 
@@ -80,14 +136,12 @@
       document.fonts?.ready.then(scheduleLineStartUpdate);
     }
 
-    resizeObserver?.observe(node);
     window.addEventListener("resize", scheduleLineStartUpdate);
     scheduleSettledUpdates();
 
     return {
       update: scheduleSettledUpdates,
       destroy() {
-        resizeObserver?.disconnect();
         window.removeEventListener("resize", scheduleLineStartUpdate);
         lineStartTimeouts.forEach((timeout) => clearTimeout(timeout));
 
