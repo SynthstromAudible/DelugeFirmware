@@ -1,6 +1,8 @@
 #include "model/edits/set_param_value.h"
 
 #include "deluge-project/param_automation.h" // DocAutoParam::nodes
+#include "deluge-project/song.h"             // Song::resolveParam
+#include "io/debug/log.h"
 #include "model/action/action_logger.h"
 #include "model/model_stack.h"
 #include "model/timeline_counter.h"
@@ -40,6 +42,18 @@ Error SetParamValue::apply(Context& /*ctx*/) {
 	engineStack_->autoParam->setValuePossiblyForRegion(newValue_, engineStack_, pos_, length_,
 	                                                   mayDeleteNodesInLinearRun_);
 	return Error::NONE;
+}
+
+void SetParamValue::emitEvent(Context& ctx) {
+#if ALPHA_OR_BETA_VERSION
+	// M4 event-feed pilot (additive/observational — the first real consumer of the emission hook). The
+	// model-changed event keys on the durable ParamAddress; verify it resolves to a live DOM param, proving the
+	// feed's addressing end-to-end. The engine is still poked in-line by apply(); this only observes. A nullopt
+	// address is a legitimately engine-only lane (never-saved owner, engine-resolved only) and is skipped.
+	if (address_.has_value() && ctx.model.resolveParam(*address_) == nullptr) {
+		D_PRINTLN("M4 event feed: SetParamValue address did not resolve to a DOM param");
+	}
+#endif
 }
 
 } // namespace deluge::edits

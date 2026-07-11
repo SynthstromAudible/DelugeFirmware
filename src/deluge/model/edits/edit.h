@@ -31,6 +31,12 @@ public:
 	/// Perform the mutation (and record its undo Consequence(s)). Any resolved pointer lives only
 	/// for the duration of this call — an ephemeral borrow, never a stored member.
 	virtual Error apply(Context& ctx) = 0;
+
+	/// M4 (snapshot boundary) event feed: emitted through the single dispatch point after a successful apply().
+	/// Default no-op; an Edit overrides it to publish its model-changed event (its durable {address, value}) for
+	/// the engine to turn into a snapshot patch. Additive during the M4 pilot — the in-line engine poke in apply()
+	/// still runs; the event is a parallel consumer. Off-RT (Edits are UI/off-audio-thread constructs).
+	virtual void emitEvent(Context& /*ctx*/) {}
 };
 
 /// The single dispatch point every Edit goes through. Today: applies the edit. From M4: also the

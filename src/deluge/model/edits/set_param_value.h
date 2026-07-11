@@ -21,6 +21,10 @@ public:
 
 	Error apply(Context& ctx) override;
 
+	/// M4 event-feed pilot: publish the model-changed event keyed on `address_`. Additive/observational this
+	/// slice — verifies the address resolves to a live DOM param (the feed's first real consumer).
+	void emitEvent(Context& ctx) override;
+
 private:
 	/// Id-identity of the lane (nullopt = never-saved owner, engine-resolved only). Unused by the
 	/// funnel-phase body; it is the durable name the M4 event feed and later model-first writes key on.
