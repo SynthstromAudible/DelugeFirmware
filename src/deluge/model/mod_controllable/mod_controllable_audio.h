@@ -33,6 +33,10 @@
 #include "modulation/params/param_set.h"
 #include "modulation/sidechain/sidechain.h"
 
+namespace deluge::project {
+struct DocModControllable;
+}
+
 class Clip;
 class Knob;
 class MIDICable;
@@ -55,6 +59,9 @@ public:
 	                                bool doAmplitudeIncrement = false);
 	void writeAttributesToFile(Serializer& writer);
 	void writeTagsToFile(Serializer& writer);
+
+	/// M3 owner-5 slice F: copy this base's non-param structural fields into the shared DocModControllable (shadow).
+	void syncDocModControllable(deluge::project::DocModControllable& d);
 	virtual Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                              int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
 	void processSRRAndBitcrushing(std::span<StereoSample> buffer, int32_t* postFXVolume, ParamManager* paramManager);

@@ -18,6 +18,7 @@
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "ModFXProcessor.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_mod_controllable.h"
 #include "deluge-project/param_automation.h"
 #include "deluge/dsp/granular/GranularProcessor.h"
 #include "deluge/model/settings/runtime_feature_settings.h"
@@ -445,6 +446,31 @@ void ModControllableAudio::writeAttributesToFile(Serializer& writer) {
 	if (clippingAmount) {
 		writer.writeAttribute("clippingAmount", clippingAmount);
 	}
+}
+
+void ModControllableAudio::syncDocModControllable(deluge::project::DocModControllable& d) {
+	d.clipping_amount = clippingAmount;
+	d.lpf_mode = static_cast<uint8_t>(lpfMode);
+	d.hpf_mode = static_cast<uint8_t>(hpfMode);
+	d.filter_route = static_cast<uint8_t>(filterRoute);
+	d.mod_fx_type = static_cast<uint8_t>(modFXType_);
+	d.delay.ping_pong = delay.pingPong;
+	d.delay.analog = delay.analog;
+	d.delay.sync_type = static_cast<uint8_t>(delay.syncType);
+	d.delay.sync_level = static_cast<uint8_t>(delay.syncLevel);
+	d.sidechain.attack = sidechain.attack;
+	d.sidechain.release = sidechain.release;
+	d.sidechain.sync_type = static_cast<uint8_t>(sidechain.syncType);
+	d.sidechain.sync_level = static_cast<uint8_t>(sidechain.syncLevel);
+	d.compressor.attack = compressor.getAttack();
+	d.compressor.release = compressor.getRelease();
+	d.compressor.threshold = compressor.getThreshold();
+	d.compressor.ratio = compressor.getRatio();
+	d.compressor.sidechain_hpf = compressor.getSidechain();
+	d.compressor.blend = compressor.getBlend();
+	d.stutter.quantized = stutterConfig.quantized;
+	d.stutter.reversed = stutterConfig.reversed;
+	d.stutter.ping_pong = stutterConfig.pingPong;
 }
 
 void ModControllableAudio::writeTagsToFile(Serializer& writer) {

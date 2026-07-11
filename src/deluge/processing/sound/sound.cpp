@@ -3856,6 +3856,7 @@ void Sound::syncDocSound() {
 			d.mod_knob_param_descriptor[k][w] = modKnobs[k][w].paramDescriptor.data;
 		}
 	}
+	syncDocModControllable(d.mod_controllable);
 }
 
 void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager,
