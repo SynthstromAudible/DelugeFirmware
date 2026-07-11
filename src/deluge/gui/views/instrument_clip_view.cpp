@@ -7235,13 +7235,6 @@ bool InstrumentClipView::getAffectEntire() {
 	return getCurrentInstrumentClip()->affectEntire;
 }
 
-void InstrumentClipView::tellMatrixDriverWhichRowsContainSomethingZoomable() {
-	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
-		NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, currentSong);
-		PadLEDs::transitionTakingPlaceOnRow[yDisplay] = (noteRow && !noteRow->hasNoNotes());
-	}
-}
-
 void InstrumentClipView::notifyPlaybackBegun() {
 	reassessAllAuditionStatus();
 }
