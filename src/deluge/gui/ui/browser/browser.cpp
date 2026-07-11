@@ -282,14 +282,6 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 	maxNumFileItemsNow = newMaxNumFileItems;
 	filenameToStartSearchAt = filenameToStartAt;
 
-	int32_t filePrefixLength;
-
-	if (display->have7SEG()) {
-		if (filePrefixHere) {
-			filePrefixLength = strlen(filePrefixHere);
-		}
-	}
-
 	while (true) {
 		AudioEngine::logAction("while loop");
 
