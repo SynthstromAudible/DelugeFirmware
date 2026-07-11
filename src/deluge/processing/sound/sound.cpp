@@ -3833,6 +3833,19 @@ void Sound::syncDocSound() {
 	d.output_midi_channel = outputMidiChannel;
 	d.output_midi_note_for_drum = outputMidiNoteForDrum;
 	d.oscillator_sync = oscillatorSync;
+	d.polyphonic = static_cast<uint8_t>(polyphonic);
+	d.synth_mode = static_cast<uint8_t>(synthMode);
+	d.transpose = transpose;
+	d.num_unison = numUnison;
+	d.unison_detune = unisonDetune;
+	d.unison_stereo_spread = unisonStereoSpread;
+	d.modulator1_to_modulator0 = modulator1ToModulator0;
+	for (int32_t i = 0; i < 2; i++) {
+		d.modulator_transpose[i] = modulatorTranspose[i];
+		d.modulator_cents[i] = modulatorCents[i];
+		d.osc_retrigger_phase[i] = oscRetriggerPhase[i];
+		d.modulator_retrigger_phase[i] = modulatorRetriggerPhase[i];
+	}
 }
 
 void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager,

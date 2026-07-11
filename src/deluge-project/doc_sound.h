@@ -32,6 +32,20 @@ struct DocSound {
 	uint8_t output_midi_channel{0};
 	uint8_t output_midi_note_for_drum{0};
 	bool oscillator_sync{false};
+
+	// Slice C: remaining top-level Sound scalars (hot + cold; shadow only, no read-flip). Arrays are size 2
+	// (kNumSources == kNumModulators == 2).
+	uint8_t polyphonic{0}; ///< PolyphonyMode underlying
+	uint8_t synth_mode{0}; ///< SynthMode underlying
+	int16_t transpose{0};
+	uint8_t num_unison{0};
+	int8_t unison_detune{0};
+	uint8_t unison_stereo_spread{0};
+	bool modulator1_to_modulator0{false};
+	int16_t modulator_transpose[2]{};
+	int8_t modulator_cents[2]{};
+	uint32_t osc_retrigger_phase[2]{};
+	uint32_t modulator_retrigger_phase[2]{};
 };
 
 } // namespace deluge::project
