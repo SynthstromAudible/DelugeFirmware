@@ -929,6 +929,13 @@ bool AutomationView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth
 	}
 }
 
+void AutomationView::clipNeedsReRendering(Clip* clip) {
+	// When on the arranger's automation, we're not displaying a Clip at all.
+	if (!onArrangerView && clip == getCurrentClip()) {
+		uiNeedsRendering(this);
+	}
+}
+
 /*render's what is displayed on OLED or 7SEG screens when in Automation View
 
 On Automation Overview:
