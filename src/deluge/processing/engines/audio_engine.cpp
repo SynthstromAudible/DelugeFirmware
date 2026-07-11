@@ -1513,9 +1513,10 @@ void slowRoutine() {
 	doRecorderCardRoutines();
 }
 
+// will need to take in the config argument
 SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderID, AudioInputChannel mode,
                                bool keepFirstReasons, bool writeLoopPoints, int32_t buttonPressLatency,
-                               bool shouldNormalize, Output* outputRecordingFrom) {
+                               bool shouldNormalize, Output* outputRecordingFrom, RecorderConfig config) {
 	Error error;
 
 	void* recorderMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SampleRecorder));
@@ -1524,9 +1525,8 @@ SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderI
 	}
 
 	SampleRecorder* newRecorder = new (recorderMemory) SampleRecorder();
-
 	error = newRecorder->setup(numChannels, mode, keepFirstReasons, writeLoopPoints, folderID, buttonPressLatency,
-	                           outputRecordingFrom);
+	                           outputRecordingFrom, config);
 	if (error != Error::NONE) {
 errorAfterAllocation:
 		newRecorder->~SampleRecorder();
