@@ -20,16 +20,82 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
   Overview](/features/community_features)!
 </Aside>
 
+<Aside type="tip">
+  A new shortcuts page is available, check the [Deluge
+  Companion](/reference/deluge_companion)!
+</Aside>
+
 ## c1.3.0 Derbyshire <Badge text="Upcoming" variant="tip" />
+
+### Major Workflow / UI Changes from Official or Previous Community Releases
+
+#### <ins>Audio clips / Audio Clip View</ins>
+
+- Added audio output modes, and changed audio clip monitoring to be seperate from source selection. Monitoring is now on
+  when the output is a SAMPLER or a LOOPER, chosen by turning the select knob in an audio clip.
+- Added the ability to trim from the start of an audio clip without reversing it (enable in Community Features menu).
+
+#### <ins>Session View</ins>
+
+##### Creating New Clips
+
+- Updated mechanism for creating New Clips in New Tracks in `SESSION GRID VIEW` and `SESSION ROW VIEW`.
+  - The default clip type for new clips created can be configured in `SETTINGS > DEFAULTS > UI > CLIP TYPE > NEW CLIP TYPE` menu.
+    - You can also configure whether the clip type for the next clip type you create should default to the last clip type you created. This helps with fast creation of multiple clips of the same type. You can enable this default setting in the `SETTINGS > DEFAULTS > UI > CLIP TYPE > USE LAST CLIP TYPE` menu.
+    - NOTE for `SESSION ROW VIEW`: The default clip type / last clip type setting cannot be used with CV clips and Audio clips in Session Row View. If you set the default to CV or Audio or enable use of the last clip type (and the last clip type is a CV or Audio Clip), then it will create a Synth clip by default.
+
+#### <ins>MIDI Follow</ins>
+
+- MIDI Follow settings are no longer stored in Flash Memory. They are now saved in the MIDIFollow.XML file found in SD CARD/Settings/MIDIFollow.XML
+- If you are updating to <Badge text="c1.3" variant="tip" /> from an earlier firmware, please delete all existing MIDIFollow.XML files from your SD card so that the file can be re-generated with the new file format.
+
+#### <ins>Instrument Clips / Instrument Clip View</ins>
+
+##### Notes
+
+- Note velocity is now displayed in clips using colour intensities. The note head (the bright part) now stands out from the tail in proportion to its velocity. At velocity 127 it is identical to official, at velocity 0 it would look the same as its tail (but you can't have 0 velocity).
+- Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill.
+  - To edit probability, hold a note / audition pad and turn the select encoder to the left to display current probability value / set new probability value.
+  - To edit iterance, hold a note / audition pad and turn the select encoder to the right to display current iterance value / set new iterance value.
+  - To edit fill, hold a note / audition pad and press sync scaling to view the current fill setting and cycle through fill modes.
+- Added new note and note row editor menu's to edit note and note row parameters.
+  - Hold a note and press the select encoder to enter the note editor menu. While in the note editor menu, the selected note will blink. You can select other notes by pressing the notes on the grid. In addition, notes which have had their probability, iterance or fill settings changed from default will be highlighted yellow to help quickly identify edited notes.
+  - Hold a note row audition pad and press the select encoder to enter the note row editor menu. While in the note row editor menu, the selected note row's audition pad will blink. You can select other note row's by pressing the note row audition pad or by scrolling with the vertical encoder.
+  - The iteration is now also customizable with custom iteration steps. If you scroll the iteration parameter all the way to the right, you will see the `CUSTOM` option. If you click the :key[Select] encoder, a new menu will appear to select the `DIVISOR` parameter (you can select from 1 to 8), and also as many `ITERATION #` toggles as `DIVISOR` is set, to allow you to activate or deactivate each iteration step.
+
+##### Layered Shortcuts
+
+- Layered Shortcuts mechanism allows multiple shortcuts to be accessed under a single shortcut pad. Holding :key[Shift] and pressing the same :key[Shortcut Pad] again cycles between shortcuts. The items available under layered shortcuts can also be accessed from menu: layered shortcut is never the only access method.
+- Following shortcuts have layers:
+  - `ENV` shortcuts: cycles between envelope 1 and 3 (ENV1 shortcuts), and envelope 2 and 4 (ENV2 shortcuts). This also applies to ENV modulator shortcuts.
+  - `LFO` shortcuts: cycles between LFO 1 and 3 (LFO1 shortcuts), and between LFO 2 and 4 (LFO2 shortcuts). This also applies to LFO modulator shortcuts.
+  - `UNISON NUMBER`: cycles between `UNISON NUMBER` and `UNISON STEREO SPREAD`, in addition to the previous "press select when in `UNISON NUMBER` access mechanism for `UNISON STEREO SPREAD`.
+  - `COMPRESSOR THRESHOLD`: cycles between `COMPRESSOR THRESHOLD` and `COMPRESSOR RATIO`
+  - `STUTTER RATE`: cycles between `STUTTER RATE` and `STUTTER DIRECTION`
 
 ### Sound Engine
 
-- Added a Warbler fx and a warble LFO to synths/kits/kit rows/song/audio clips
+#### <ins>Mod FX</ins>
+
+- Added a Warbler fx to synths/kits/kit rows/song/audio clips
 - Added a boss/roland style Dimension effect
 - Made grain much faster and updated controls
+
+#### <ins>Reverb</ins>
+
 - Added LPF to Mutable Instruments Reverb
-- Added two more envelopes (Envelope 3 and Envelope 4)
-- Added two more LFOs (LFO 3 -global- and LFO 4 -per voice-)
+
+#### <ins>LFO's</ins>
+
+- Added Warble LFO type to synths and kit rows
+- Added two more LFOs (LFO 3 -global- and LFO 4 -per voice-), accessible in menu and with layered shortcuts
+
+#### <ins>Envelopes</ins>
+
+- Added two more envelopes (Envelope 3 and Envelope 4), accessible in menu and with layered shortcuts
+
+#### <ins>Mod Matrix / Patch Cables</ins>
+
 - Patch cables can be toggled to unipolar or bipolar mode
   - `Press + Turn select encoder` to change the polarity while in the patch cable menu
   - For OLED: `MIDI`/`CV` buttons can be used as an additional way to change it, with corresponding graphics on the display
@@ -47,6 +113,10 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
 
 #### <ins>New Shortcuts</ins>
 
+Added shortcut to return to Session / Arranger view from menu
+
+- Press :key[SONG] while in the Menu to exit the menu and enter Arranger / Session view
+
 Added main grid pad shortcuts for the following parameters:
 
 - `COMPRESSOR THRESHOLD`: accessed using :key[SHIFT] / :key[AUDITION PAD] + :key[PAD] between :key[DECIMATION PAD] and :key[LPF db/OCT PAD]
@@ -57,17 +127,6 @@ Added main grid pad shortcuts for the following parameters:
   - Note: :key[AUDITION PAD] + :key[RANDOM PAD] is reserved for future functionality
 - `VELOCITY PROBABILITY`: accessed using :key[SHIFT] + :key[VELOCITY PAD] in the `PATCH SOURCE` column between :key[AFTERTOUCH PAD] and :key[RANDOM PAD]
   - Note: :key[AUDITION PAD] + :key[VELOCITY PAD] is reserved for entering the Velocity Automation View
-- Press :key[SONG] while in the Menu to exit the menu and enter Arranger / Song view
-
-#### <ins>Layered Shortcuts</ins>
-
-- Layered Shortcuts mechanism allows multiple shortcuts to be accessed under a single shortcut pad. Holding shift and pressing the same shortcut again cycles between shortcuts. The items available under layered shortcuts can also be accessed from menu: layered shortcut is never the only access method.
-- Following shortcuts have layers:
-  - `ENV` shortcuts: cycles between envelope 1 and 3 (ENV1 shortcuts), and envelope 2 and 4 (ENV2 shortcuts). This also applies to ENV modulator shortcuts.
-  - `LFO` shortcuts: cycles between LFO 1 and 3 (LFO1 shortcuts), and between LFO 2 and 4 (LFO2 shortcuts). This also applies to LFO modulator shortcuts.
-  - `UNISON NUMBER`: cycles between `UNISON NUMBER` and `UNISON STEREO SPREAD`, in addition to the previous "press select when in `UNISON NUMBER` access mechanism for `UNISON STEREO SPREAD`.
-  - `COMPRESSOR THRESHOLD`: cycles between `COMPRESSOR THRESHOLD` and `COMPRESSOR RATIO`
-  - `STUTTER RATE`: cycles between `STUTTER RATE` and `STUTTER DIRECTION`
 
 #### <ins>Accessibility</ins>
 
@@ -140,6 +199,11 @@ Added main grid pad shortcuts for the following parameters:
   - You can also view and temporarily change the current threshold recording setting as follows:
     - :key[Record + Turn Select]
     - Enter the Song menu while in Song or Arranger View by pressing :key[Select] and entering the `SONG > THRESHOLD RECORDING (THRE) > MODE` submenu
+- Note regarding `AUDIO CLIP LIMITATIONS`: Threshold recording will not stop an audio clip from starting to record.
+  - Threshold recording will only prevent audio from filling the audio file buffer until the threshold is reached.
+  - Thus, depending on when the threshold is reached after starting recording, the audio file waveform rendered in the audio clip may show silent audio.
+  - If there is silence at the start of the audio file, you can then trim the start of the waveform as the transient (non-silent audio) will be easy to spot.
+  - If you do not want to potentially trim the start of an audio file, then we recommend sampling into a kit row instead with threshold recording.
 
 ##### Loop Recording
 
@@ -184,31 +248,12 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 
 - Added ability to enter clips in `Song Grid View Green Mode` by `Pressing a Clip Pad` + `Pressing the Clip button` if you have `Select in Green Mode` enabled in the `SETTINGS > DEFAULTS > UI > SONG > GRID` menu.
 
-##### Creating New Clips
-
-- Updated mechanism for creating New Clips in New Tracks in `SONG GRID VIEW` and `SONG ROW VIEW`.
-  - The default clip type for new clips created can be configured in `SETTINGS > DEFAULTS > UI > CLIP TYPE > NEW CLIP TYPE` menu.
-    - You can also configure whether the clip type for the next clip type you create should default to the last clip type you created. This helps with fast creation of multiple clips of the same type. You can enable this default setting in the `SETTINGS > DEFAULTS > UI > CLIP TYPE > USE LAST CLIP TYPE` menu.
-    - NOTE for `SONG ROW VIEW`: The default clip type / last clip type setting cannot be used with CV clips and Audio clips in Song Row View. If you set the default to CV or Audio or enable use of the last clip type (and the last clip type is a CV or Audio Clip), then it will create a Synth clip by default.
-
 ##### Selected Clip Pulsing
 
 - The selected clip in `Song Grid View` (which is the last clip you interacted with), now shows a `pulsing / breathing` animation whereby the clip pad will fade in and out between the clip's normal colour and a blurred colour.
 - This will help you keep track of what clip midi follow is currently controlling and what clip is selected for loop recording.
 
-#### <ins>Audio Clips</ins>
-
-- Added audio output modes, and changed audio clip monitoring to be seperate from source selection. Monitoring is now on
-  when the output is a SAMPLER or a LOOPER, chosen by turning the select knob in an audio clip.
-- Added the ability to trim from the start of an audio clip without reversing it (enable in Community Features menu).
-
 #### <ins>Instrument Clip View</ins>
-
-##### Pad Rendering
-
-- Note velocity is now displayed in clips using colour intensities. The note head (the bright part)
-  now stands out from the tail in proportion to its velocity. At velocity 127 it is identical to official,
-  at velocity 0 it would look the same as its tail (but you can't have 0 velocity).
 
 ##### Scale Mode
 
@@ -226,17 +271,6 @@ A `Favourites` feature has been added to the browser for most file types. The `F
   - `Velocity Spread`: This parameters lets you apply some random variation to the notes.
   - `Note probability`: This parameter determines the likelihood of a note being played or not (this is in addition to the Note/Row probability).
   - `Reverse Probability`: This parameter determines the likelihood of a note's sample of being reversed.
-
-##### Note / Note Row Probability, Iterance, Fill
-
-- Enhanced existing note probability, iteration and fill function functionality by enabling you to use each type independently. This means that you can now apply probability to iteration and fill and you can also apply iteration to fill.
-  - To edit probability, hold a note / audition pad and turn the select encoder to the left to display current probability value / set new probability value.
-  - To edit iterance, hold a note / audition pad and turn the select encoder to the right to display current iterance value / set new iterance value.
-  - To edit fill, hold a note / audition pad and press sync scaling to view the current fill setting and cycle through fill modes.
-- Added new note and note row editor menu's to edit note and note row parameters.
-  - Hold a note and press the select encoder to enter the note editor menu. While in the note editor menu, the selected note will blink. You can select other notes by pressing the notes on the grid. In addition, notes which have had their probability, iterance or fill settings changed from default will be highlighted yellow to help quickly identify edited notes.
-  - Hold a note row audition pad and press the select encoder to enter the note row editor menu. While in the note row editor menu, the selected note row's audition pad will blink. You can select other note row's by pressing the note row audition pad or by scrolling with the vertical encoder.
-  - The iteration is now also customizable with custom iteration steps. If you scroll the iteration parameter all the way to the right, you will see the `CUSTOM` option. If you click the :key[Select] encoder, a new menu will appear to select the `DIVISOR` parameter (you can select from 1 to 8), and also as many `ITERATION #` toggles as `DIVISOR` is set, to allow you to activate or deactivate each iteration step.
 
 ##### Recording
 

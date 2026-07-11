@@ -187,7 +187,14 @@ ActionResult KeyboardScreen::padAction(int32_t x, int32_t y, int32_t velocity) {
 		updateActiveNotes();
 	}
 
-	requestRendering();
+	// The main pad grid only changes when the set of active notes changes, but rendering it re-transmits the whole
+	// grid over UART. During rapid pressing that competes with reading incoming pad events; the reporter of #3168
+	// specifically saw redundant redraws (e.g. a second finger on an already-lit note, or lifting one of two
+	// fingers on the same note - both leave the highlight unchanged). Skip the main render for those no-op events,
+	// but always refresh the sidebar since column-control pads can change it. uiNeedsRendering OR-accumulates, so
+	// this can never suppress a render another code path already requested.
+	uint32_t mainRowsToRender = (currentNotesState.states != lastNotesState.states) ? 0xFFFFFFFF : 0;
+	uiNeedsRendering(this, mainRowsToRender, 0xFFFFFFFF);
 	return ActionResult::DEALT_WITH;
 }
 
