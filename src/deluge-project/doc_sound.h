@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "deluge-project/doc_mod_controllable.h"
+
 #include <cstdint>
 
 namespace deluge::project {
@@ -56,6 +58,9 @@ struct DocSound {
 	// persistent state is its ParamDescriptor (a single uint32_t); everything the serializer emits (the controlled
 	// param + patch sources) derives from it.
 	uint32_t mod_knob_param_descriptor[8][2]{};
+
+	// Slice F: shared non-param ModControllableAudio structure (filter/modFX + delay/sidechain/compressor/stutter).
+	DocModControllable mod_controllable;
 };
 
 } // namespace deluge::project
