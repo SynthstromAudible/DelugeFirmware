@@ -86,6 +86,7 @@ Changes to the existing UI should follow the following process:
 - Following a full beta cycle and user feedback, open a poll on the feature
 - At the end of the beta cycle there will be a community meeting on Discord to discuss changes
 - Given maintainer approval and positive feedback, the feature can be moved from the community menu to the default UI.
+
 </details>
 
 ## Workflow

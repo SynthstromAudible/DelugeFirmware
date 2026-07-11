@@ -8,17 +8,18 @@ import remarkGfm from "remark-gfm"
 import remarkGithub from "remark-github"
 // @ts-expect-error remark-link-rewrite has no types
 import RemarkLinkRewrite from "remark-link-rewrite"
-import { withBase } from "./src/utils"
 import tailwindcss from "@tailwindcss/vite"
 import { remarkDelugeKey } from "./src/markdown-directives/remark-deluge-key/remark-deluge-key.ts"
 import { remarkDelugeScreen } from "./src/markdown-directives/remark-deluge-screen/remark-deluge-screen.ts"
 import remarkDirective from "remark-directive"
 import starlightSidebarTopics from "starlight-sidebar-topics"
 
+const siteBasePath = process.env.SITE_BASE_PATH || ""
+
 // https://astro.build/config
 const config = defineConfig({
   site: process.env.SITE_URL,
-  base: process.env.SITE_BASE_PATH || "",
+  base: siteBasePath,
   trailingSlash: "never",
   integrations: [
     svelte(),
@@ -168,7 +169,7 @@ const config = defineConfig({
         {
           replacer: (/** @type {string} */ link) => {
             if (link.startsWith("/")) {
-              return withBase(link)
+              return `${siteBasePath}${link}`
             }
             return link
           },
