@@ -2,12 +2,13 @@
   "name": "deluge-community-website",
   "type": "module",
   "version": "0.0.1",
+  "packageManager": "pnpm@10.24.0",
   "scripts": {
-    "dev": "kill-port 4321 && bun run dev:companion-data & astro dev",
-    "dev:companion-data": "bun run ./src/components/deluge-companion/utils/convert-md-to-json.ts --watch",
-    "start": "bun run dev",
-    "build": "bun run ./src/components/deluge-companion/utils/convert-md-to-json.ts && astro build",
-    "preview": "bun run build && astro preview",
+    "dev": "kill-port 4321 && pnpm run dev:companion-data & astro dev",
+    "dev:companion-data": "tsx ./src/components/deluge-companion/utils/convert-md-to-json.ts --watch",
+    "start": "pnpm run dev",
+    "build": "tsx ./src/components/deluge-companion/utils/convert-md-to-json.ts && astro build",
+    "preview": "pnpm run build && astro preview",
     "astro": "astro",
     "check": "astro check && eslint . --max-warnings=0 && prettier . --check",
     "check:fix": "prettier . --write && eslint . --fix"
@@ -20,6 +21,7 @@
     "exponential-backoff": "^3.1.3",
     "fuzzysort": "^3.1.0",
     "link-preview-js": "^3.1.0",
+    "marked": "^16.4.2",
     "mdast-util-to-string": "^4.0.0",
     "mermaid": "^11.16.0",
     "playwright": "1.55.1",
@@ -32,11 +34,15 @@
     "starlight-links-validator": "^0.14.3",
     "starlight-sidebar-topics": "^0.6.2",
     "tailwindcss": "^4.1.17",
+    "unist-util-visit": "^5.0.0",
     "zod": "^3.25.76"
   },
   "devDependencies": {
+    "@eslint/js": "^9.39.5",
     "@astrojs/check": "^0.9.5",
     "@astrojs/svelte": "4.0.0",
+    "@types/hast": "^3.0.5",
+    "@types/mdast": "^4.0.4",
     "@typescript-eslint/parser": "^8.46.4",
     "astro-eslint-parser": "^1.2.2",
     "cross-port-killer": "^1.4.0",
@@ -44,18 +50,29 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-astro": "^1.5.0",
     "eslint-plugin-jsx-a11y": "^6.10.2",
+    "globals": "^16.5.0",
     "prettier": "^3.6.2",
     "prettier-plugin-astro": "^0.14.1",
     "prettier-plugin-tailwindcss": "^0.6.14",
     "svelte": "4.2.19",
+    "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.4"
   },
-  "overrides": {
-    "pagefind": "1.4.0-alpha.1"
-  },
-  "patchedDependencies": {
-    "@astrojs/starlight@0.32.5": "patches/@astrojs%2Fstarlight@0.32.5.patch",
-    "@astrojs/markdown-remark@6.3.1": "patches/@astrojs%2Fmarkdown-remark@6.3.1.patch"
+  "pnpm": {
+    "overrides": {
+      "@astrojs/markdown-remark": "6.3.8",
+      "@astrojs/sitemap": "3.3.0",
+      "pagefind": "1.4.0-alpha.1"
+    },
+    "patchedDependencies": {
+      "@astrojs/starlight@0.32.6": "patches/@astrojs%2Fstarlight@0.32.5.patch",
+      "@astrojs/markdown-remark@6.3.8": "patches/@astrojs%2Fmarkdown-remark@6.3.1.patch"
+    },
+    "onlyBuiltDependencies": [
+      "canvas",
+      "esbuild",
+      "sharp"
+    ]
   }
 }
