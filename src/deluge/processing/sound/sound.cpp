@@ -3846,6 +3846,11 @@ void Sound::syncDocSound() {
 		d.osc_retrigger_phase[i] = oscRetriggerPhase[i];
 		d.modulator_retrigger_phase[i] = modulatorRetriggerPhase[i];
 	}
+	for (int32_t i = 0; i < LFO_COUNT; i++) {
+		d.lfo_wave_type[i] = static_cast<uint8_t>(lfoConfig[i].waveType);
+		d.lfo_sync_type[i] = static_cast<uint8_t>(lfoConfig[i].syncType);
+		d.lfo_sync_level[i] = static_cast<uint8_t>(lfoConfig[i].syncLevel);
+	}
 }
 
 void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager,

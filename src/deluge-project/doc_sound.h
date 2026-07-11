@@ -46,6 +46,11 @@ struct DocSound {
 	int8_t modulator_cents[2]{};
 	uint32_t osc_retrigger_phase[2]{};
 	uint32_t modulator_retrigger_phase[2]{};
+
+	// Slice D: LFO config — 4 LFOs (LFO_COUNT == 4), each {waveType, syncType, syncLevel} stored as underlying.
+	uint8_t lfo_wave_type[4]{};
+	uint8_t lfo_sync_type[4]{};
+	uint8_t lfo_sync_level[4]{};
 };
 
 } // namespace deluge::project
