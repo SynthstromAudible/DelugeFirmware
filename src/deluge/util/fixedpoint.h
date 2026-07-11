@@ -155,8 +155,23 @@ static inline q31_t multiply_32x32_rshift32_rounded(q31_t a, q31_t b) {
 	return (int32_t)(((int64_t)a * b + 0x80000000) >> 32);
 }
 
+// This multiplies two numbers in signed Q31 fixed point, returning the result in q31. Matches the ARM
+// `smmul`-then-`* 2` of the hardware path (smmul = multiply_32x32_rshift32).
+static inline q31_t q31_mult(q31_t a, q31_t b) {
+	return multiply_32x32_rshift32(a, b) * 2;
+}
+
+// This multiplies a number in q31 by a number in q32, returning a scaled value. The ARM path is `smmul`
+// (a signed multiply) even though proportion is unsigned, so match that by treating proportion as signed.
+static inline q31_t q31tRescale(q31_t a, uint32_t proportion) {
+	return multiply_32x32_rshift32(a, (q31_t)proportion);
+}
+
 // Multiplies A and B, adds to sum, and returns output.
-// NB: keep the 64-bit product term separate and add `sum` last.
+// NB: keep the 64-bit product term separate and add `sum` last. The old form shifted sum<<32 first
+// (~2^63) then added a*b (~2^62), overflowing int64 (UB) for Q31-scale operands — it diverged from the
+// ARM smmla (which wraps in 32-bit) and, at -O2, the UB corrupted neighbouring code. Mathematically the
+// non-overflowing forms below are identical to the originals: floor((sum<<32 ± a*b)/2^32) = sum ± (a*b>>32).
 static inline q31_t multiply_accumulate_32x32_rshift32(q31_t sum, q31_t a, q31_t b) {
 	return (q31_t)(sum + (((int64_t)a * b) >> 32));
 }
@@ -177,7 +192,8 @@ static inline q31_t multiply_subtract_32x32_rshift32_rounded(q31_t sum, q31_t a,
 }
 
 // Matches ARM `ssat %0, %1, #bits`: clamp to the signed range representable in `bits` bits,
-// i.e. [-2^(bits-1), 2^(bits-1)-1].
+// i.e. [-2^(bits-1), 2^(bits-1)-1]. (The old host stub `std::min(val, 1<<bits)` clamped only the
+// upper bound, to the wrong value, with no lower bound — silently wrong saturation in the DSP.)
 template <uint8_t bits>
 static inline int32_t signed_saturate(int32_t val) {
 	constexpr int32_t hi = static_cast<int32_t>((static_cast<uint32_t>(1) << (bits - 1)) - 1);
@@ -185,7 +201,8 @@ static inline int32_t signed_saturate(int32_t val) {
 	return val > hi ? hi : (val < lo ? lo : val);
 }
 
-// Matches ARM `qadd`: saturating add, clamped to the signed 32-bit range.
+// Matches ARM `qadd`: saturating add, clamped to the signed 32-bit range (the old host stub
+// `a + b` wrapped on overflow — a ramp past INT32_MAX flipped to negative instead of pinning).
 static inline int32_t add_saturate(int32_t a, int32_t b) __attribute__((always_inline, unused));
 static inline int32_t add_saturate(int32_t a, int32_t b) {
 	int64_t r = static_cast<int64_t>(a) + b;
@@ -232,6 +249,11 @@ inline int32_t clz(uint32_t input) {
 	uint32_t mantissa = (bits << 8) | 0x80000000;
 	q31_t output_value = static_cast<q31_t>(mantissa >> shift);
 	return (negative) ? -output_value : output_value;
+}
+
+///@brief Convert from a q31 to a float. Matches the ARM `vcvt.f32.s32 #31` (divide by 2^31).
+static inline float q31_to_float(q31_t value) {
+	return static_cast<float>(value) / 2147483648.0f;
 }
 #endif
 
@@ -283,6 +305,48 @@ public:
 	constexpr static bool rounded = Rounded;
 	constexpr static bool fast_approximation = FastApproximation;
 
+	// --- Portable emulation of the ARM VFP fixed-point conversion instructions ---
+	//
+	// vcvt.{s32.f32,f32.s32,s32.f64,f64.s32} back the float/double conversions on ARM. Off-target
+	// (no VFP) and during constant evaluation we must reproduce them *bit-exactly*, or the host-sim
+	// diverges from the firmware. The hardware behaviour is: scale by exactly 2^fractional_bits,
+	// round toward zero, saturate to the int32 range, and map NaN to 0. Verified lane-for-lane
+	// against qemu-arm in tests/qemu/spec/fixedpoint_vfp_spec.cpp.
+	//
+	// Note the scale is 2^fractional_bits, NOT one() — one() is INT32_MAX (not 2^31) when
+	// fractional_bits == 31, whereas VFP always uses the power of two. 2^fractional_bits is exact
+	// in double for every valid fractional_bits, so the scaling never rounds.
+	static constexpr double vfp_scale() noexcept { return static_cast<double>(uint64_t{1} << fractional_bits); }
+
+	/// Round toward zero and saturate a scaled real value to int32, as VFP's f->fixed convert does.
+	static constexpr BaseType saturate_to_raw(double scaled) noexcept {
+		// INT32_MAX + 1 == 2^31 and INT32_MIN - 1 == -(2^31)-1, both exact in double. +inf/-inf
+		// compare past these bounds and saturate, matching the hardware.
+		if (scaled >= static_cast<double>(std::numeric_limits<BaseType>::max()) + 1.0) {
+			return std::numeric_limits<BaseType>::max();
+		}
+		if (scaled <= static_cast<double>(std::numeric_limits<BaseType>::min()) - 1.0) {
+			return std::numeric_limits<BaseType>::min();
+		}
+		return static_cast<BaseType>(scaled); // double->int truncates toward zero; guaranteed in range here
+	}
+
+	/// vcvt.s32.f32 / vcvt.s32.f64: floating point -> fixed point. (float promotes to double exactly.)
+	static constexpr BaseType float_to_raw(double value) noexcept {
+		if (value != value) { // NaN -> 0
+			return 0;
+		}
+		return saturate_to_raw(value * vfp_scale());
+	}
+
+	/// vcvt.f32.s32: fixed point -> float (a single round-to-nearest, as the hardware does).
+	static constexpr float raw_to_float(BaseType raw) noexcept {
+		return static_cast<float>(static_cast<double>(raw) / vfp_scale());
+	}
+
+	/// vcvt.f64.s32: fixed point -> double (exact).
+	static constexpr double raw_to_double(BaseType raw) noexcept { return static_cast<double>(raw) / vfp_scale(); }
+
 	/// @brief Default constructor
 	constexpr FixedPoint() = default;
 
@@ -318,62 +382,60 @@ public:
 	/// @brief Convert from a float to a fixed point number
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
 	constexpr explicit FixedPoint(float value) noexcept {
-		if constexpr (std::is_constant_evaluated()) {
-			value *= FixedPoint::one();
-			// convert from floating-point to fixed point
-			if constexpr (rounded) {
-				value_ = static_cast<BaseType>((value >= 0.0) ? std::ceil(value) : std::floor(value));
-			}
-			else {
-				value_ = static_cast<BaseType>(value);
-			}
-		}
-		else {
+#if defined(__arm__)
+		// Note: a plain (not `if constexpr`) runtime check — `if constexpr (std::is_constant_evaluated())`
+		// is always true, which would discard the VFP path entirely. On host there is no VFP, so the asm
+		// branch is compiled out and the portable path below is always taken.
+		if (!std::is_constant_evaluated()) {
 			asm("vcvt.s32.f32 %0, %1, %2" : "=t"(value) : "t"(value), "I"(fractional_bits));
 			value_ = std::bit_cast<int32_t>(value); // NOLINT
+			return;
 		}
+#endif
+		value_ = float_to_raw(value);
 	}
 
 	/// @brief Explicit conversion to float
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
 	constexpr explicit operator float() const noexcept {
-		if constexpr (std::is_constant_evaluated()) {
-			return static_cast<float>(value_) / FixedPoint::one();
+#if defined(__arm__)
+		if (!std::is_constant_evaluated()) {
+			int32_t output = value_;
+			asm("vcvt.f32.s32 %0, %1, %2" : "=t"(output) : "t"(output), "I"(fractional_bits));
+			return std::bit_cast<float>(output);
 		}
-		int32_t output = value_;
-		asm("vcvt.f32.s32 %0, %1, %2" : "=t"(output) : "t"(output), "I"(fractional_bits));
-		return std::bit_cast<float>(output);
+#endif
+		return raw_to_float(value_);
 	}
 
 	/// @brief Convert from a double to a fixed point number
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
 	constexpr explicit FixedPoint(double value) noexcept {
-		if constexpr (std::is_constant_evaluated()) {
-			value *= FixedPoint::one();
-			// convert from floating-point to fixed point
-			if constexpr (rounded) {
-				value_ = static_cast<BaseType>((value >= 0.0) ? std::ceil(value) : std::floor(value));
-			}
-			else {
-				value_ = static_cast<BaseType>(value);
-			}
-		}
-		else {
+#if defined(__arm__)
+		if (!std::is_constant_evaluated()) {
 			auto output = std::bit_cast<int64_t>(value);
-			asm("vcvt.s32.f64 %0, %1, %2" : "=w"(output) : "w"(output), "I"(fractional_bits));
+			// %P selects the 64-bit d-register name (the fixed-point vcvt.*.f64 operate on a d-reg; a
+			// bare %0 prints the single-precision s-name). The instruction is in-place — operands must
+			// be the same register — so use a single read-write (+w) operand rather than tied =w/w.
+			asm("vcvt.s32.f64 %P0, %P0, %1" : "+w"(output) : "I"(fractional_bits));
 			value_ = static_cast<BaseType>(output);
+			return;
 		}
+#endif
+		value_ = float_to_raw(value);
 	}
 
 	/// @brief Explicit conversion to double
 	/// @note VFP instruction - 1 cycle for issue, 4 cycles result latency
 	explicit operator double() const noexcept {
-		if constexpr (std::is_constant_evaluated()) {
-			return static_cast<double>(value_) / FixedPoint::one();
+#if defined(__arm__)
+		if (!std::is_constant_evaluated()) {
+			auto output = std::bit_cast<double>((int64_t)value_);
+			asm("vcvt.f64.s32 %P0, %P0, %1" : "+w"(output) : "I"(fractional_bits));
+			return output;
 		}
-		auto output = std::bit_cast<double>((int64_t)value_);
-		asm("vcvt.f64.s32 %0, %1, %2" : "=w"(output) : "w"(output), "I"(fractional_bits));
-		return output;
+#endif
+		return raw_to_double(value_);
 	}
 
 	/// @brief Convert to a fixed point number with a different number of fractional bits
