@@ -19,6 +19,8 @@
 
 #include <cstdint>
 #include <optional>
+#include <string>
+#include <vector>
 
 namespace deluge::project {
 
@@ -28,6 +30,20 @@ struct DocDxPatch {
 	uint8_t params[156]{};
 	uint8_t engine_mode{0};
 	int32_t random_detune{0};
+};
+
+/// One sample/wavetable key-split range within a Source. Ordered by `top_note` (the highest MIDI note this range
+/// covers). The sample is referenced by portable PATH. The zone fields (start/end/loop/transpose/cents) apply only
+/// to SAMPLE sources; WAVETABLE ranges use just `top_note` + `file_path` (matching the serializer).
+struct DocRange {
+	int16_t top_note{0};
+	std::string file_path;
+	uint64_t start_pos{0};
+	uint64_t end_pos{0};
+	uint32_t loop_start_pos{0};
+	uint32_t loop_end_pos{0};
+	int16_t transpose{0};
+	int8_t cents{0};
 };
 
 /// The DOM-owned structural record for one Sound oscillator Source (M3 owner-5, slice G). Nested per-source in
@@ -46,6 +62,9 @@ struct DocSource {
 
 	/// G2: the DX7 patch — present iff oscType == DX7 (the engine's dxPatch pointer is non-null).
 	std::optional<DocDxPatch> dx_patch;
+
+	/// G3: the sample/wavetable key-split ranges (variable length; ordered by top_note).
+	std::vector<DocRange> ranges;
 };
 
 } // namespace deluge::project

@@ -3880,6 +3880,27 @@ void Sound::syncDocSound() {
 		else {
 			ds.dx_patch.reset();
 		}
+		// Ranges: mirror writeSourceToFile's iteration (getElement + the MultisampleRange cast — both range kinds
+		// carry an AudioFileHolder at that offset). Zone fields are meaningful for SAMPLE sources only.
+		ds.ranges.clear();
+		int32_t numRanges = std::ssize(src.ranges);
+		ds.ranges.reserve(numRanges);
+		for (int32_t e = 0; e < numRanges; e++) {
+			MultisampleRange* range = (MultisampleRange*)src.ranges.getElement(e);
+			deluge::project::DocRange dr;
+			dr.top_note = range->topNote;
+			dr.file_path =
+			    range->sampleHolder.audioFile ? range->sampleHolder.audioFile->filePath : range->sampleHolder.filePath;
+			if (src.oscType == OscType::SAMPLE) {
+				dr.start_pos = range->sampleHolder.startPos;
+				dr.end_pos = range->sampleHolder.endPos;
+				dr.loop_start_pos = range->sampleHolder.loopStartPos;
+				dr.loop_end_pos = range->sampleHolder.loopEndPos;
+				dr.transpose = range->sampleHolder.transpose;
+				dr.cents = range->sampleHolder.cents;
+			}
+			ds.ranges.push_back(std::move(dr));
+		}
 	}
 }
 
