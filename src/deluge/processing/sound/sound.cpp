@@ -3868,6 +3868,18 @@ void Sound::syncDocSound() {
 		ds.interpolation_mode = static_cast<uint8_t>(src.sampleControls.interpolationMode);
 		ds.pitch_and_speed_independent = src.sampleControls.pitchAndSpeedAreIndependent;
 		ds.reversed = src.sampleControls.reversed;
+		if (src.dxPatch != nullptr) {
+			deluge::project::DocDxPatch p;
+			for (int32_t b = 0; b < 156; b++) {
+				p.params[b] = src.dxPatch->params[b];
+			}
+			p.engine_mode = src.dxPatch->engineMode;
+			p.random_detune = src.dxPatch->random_detune;
+			ds.dx_patch = p;
+		}
+		else {
+			ds.dx_patch.reset();
+		}
 	}
 }
 

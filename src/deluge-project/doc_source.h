@@ -18,8 +18,17 @@
 #pragma once
 
 #include <cstdint>
+#include <optional>
 
 namespace deluge::project {
+
+/// The DX7 FM patch a Source carries when oscType == DX7 (else absent). The 156 raw patch bytes plus the two
+/// extension scalars — everything the serializer round-trips (dx7patch hex + dx7enginemode + dx7randomdetune).
+struct DocDxPatch {
+	uint8_t params[156]{};
+	uint8_t engine_mode{0};
+	int32_t random_detune{0};
+};
 
 /// The DOM-owned structural record for one Sound oscillator Source (M3 owner-5, slice G). Nested per-source in
 /// DocSound (Sound has kNumSources==2). Params are already in the DOM param tier; this holds the Source's non-param
@@ -34,6 +43,9 @@ struct DocSource {
 	uint8_t interpolation_mode{0}; ///< SampleControls::interpolationMode underlying
 	bool pitch_and_speed_independent{false};
 	bool reversed{false};
+
+	/// G2: the DX7 patch — present iff oscType == DX7 (the engine's dxPatch pointer is non-null).
+	std::optional<DocDxPatch> dx_patch;
 };
 
 } // namespace deluge::project
