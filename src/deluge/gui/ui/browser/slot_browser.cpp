@@ -170,25 +170,6 @@ void SlotBrowser::convertToPrefixFormatIfPossible() {
 	}
 }
 
-std::string SlotBrowser::getCurrentFilenameWithoutExtension() {
-	if (display->have7SEG()) {
-		// If numeric...
-		Slot slot = getSlot(enteredText.get());
-		if (slot.slot != -1) {
-			std::string filenameWithoutExtension{filePrefix};
-			filenameWithoutExtension.append(deluge::string::fromInt(slot.slot, 3));
-			if (slot.subSlot != -1) {
-				char buffer[2];
-				buffer[0] = 'A' + slot.subSlot;
-				buffer[1] = 0;
-				filenameWithoutExtension.append(buffer);
-			}
-			return filenameWithoutExtension;
-		}
-	}
-	return enteredText.get();
-}
-
 Error SlotBrowser::getCurrentFilePath(String* path) {
 	path->set(&currentDir);
 
@@ -197,9 +178,8 @@ Error SlotBrowser::getCurrentFilePath(String* path) {
 		return error;
 	}
 
-	std::string filenameWithoutExtension = getCurrentFilenameWithoutExtension();
-
-	error = path->concatenate(filenameWithoutExtension);
+	// enteredText is the real on-card name now, so it needs no reassembling.
+	error = path->concatenate(&enteredText);
 	if (error != Error::NONE) {
 		return error;
 	}

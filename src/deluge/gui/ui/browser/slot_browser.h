@@ -39,7 +39,6 @@ protected:
 	virtual void predictExtendedTextFromMemory() {}
 	void convertToPrefixFormatIfPossible();
 	void enterKeyPress() override;
-	std::string getCurrentFilenameWithoutExtension();
 
 	static bool currentFileHasSuffixFormatNameImplied;
 

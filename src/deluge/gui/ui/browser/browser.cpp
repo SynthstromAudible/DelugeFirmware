@@ -21,6 +21,7 @@
 #include "fatfs.hpp"
 #include "gui/context_menu/delete_file.h"
 #include "gui/l10n/l10n.h"
+#include "gui/ui/browser/default_name.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -339,46 +340,10 @@ extensionNotSupported:
 		thisItem->isFolder = isFolder;
 		thisItem->filePointer = thisFilePointer;
 
-		char const* storedFilenameChars = thisItem->filename.get();
-		if (display->have7SEG()) {
-			if (filePrefixHere) {
-				if (memcasecmp(storedFilenameChars, filePrefixHere, filePrefixLength)) {
-					goto nonNumericFile;
-				}
-
-				char* dotAddress = strrchr(storedFilenameChars, '.');
-				if (!dotAddress) {
-					goto nonNumericFile; // Shouldn't happen?
-				}
-
-				int32_t dotPos = (uintptr_t)dotAddress - (uintptr_t)storedFilenameChars;
-				if (dotPos < filePrefixLength + 3) {
-					goto nonNumericFile;
-				}
-
-				char const* numbersStartAddress = &storedFilenameChars[filePrefixLength];
-
-				if (!memIsNumericChars(numbersStartAddress, 3)) {
-					goto nonNumericFile;
-				}
-
-				thisItem->displayName = numbersStartAddress;
-
-				if (*thisItem->displayName == '0') {
-					thisItem->displayName++;
-					if (*thisItem->displayName == '0') {
-						thisItem->displayName++;
-					}
-				}
-			}
-			else {
-				goto nonNumericFile;
-			}
-		}
-		else {
-nonNumericFile:
-			thisItem->displayName = storedFilenameChars;
-		}
+		// displayName is the CStringArray sort key, and must equal the real on-card name. The 7SEG short form ("185")
+		// is produced at render time, not stored here - storing it made enteredText display-dependent, which is what
+		// broke default naming on 7SEG (#1069).
+		thisItem->displayName = thisItem->filename.get();
 	}
 	staticDIR.close();
 
@@ -595,6 +560,18 @@ tryReadingItems:
 	return Error::NONE;
 }
 
+namespace {
+/// Adapts Browser::fileItems to the FileListView seam used by nextDefaultName().
+class BrowserFileListView final : public deluge::gui::browser::FileListView {
+public:
+	bool contains(char const* nameWithExtension) const override {
+		bool foundExact = false;
+		Browser::fileItems.search(nameWithExtension, &foundExact);
+		return foundExact;
+	}
+};
+} // namespace
+
 // If OLED, then you should make sure renderUIsForOLED() gets called after this.
 // outputTypeToLoad must be set before calling this.
 Error Browser::arrivedInNewFolder(int32_t direction, char const* filenameToStartAt, char const* defaultDirToAlsoTry) {
@@ -686,151 +663,21 @@ useFoundFile:
 		if (error != Error::NONE) {
 			goto gotErrorAfterAllocating;
 		}
-		// `#if 1 || !OLED` macro was here
-		char const* enteredTextChars = enteredText.get();
-		if (!memcasecmp(enteredTextChars, "SONG", 4)) {
-			Slot thisSlot = getSlot(&enteredTextChars[4]);
-			if (thisSlot.slot < 0) {
-				goto doNormal;
+		// Come up with a new name variation. Names are display-agnostic ("SONG185", never "185"), so this is one
+		// code path for both displays - see default_name.h.
+		{
+			BrowserFileListView view;
+			// Only songs earn letter suffixes; presets pass an empty slotPrefix and take the numeric suffix path,
+			// preserving existing preset behaviour.
+			char const* slotPrefix = (filePrefix && !memcasecmp(filePrefix, "SONG", 4)) ? filePrefix : "";
+			std::string newName = deluge::gui::browser::nextDefaultName(enteredText.get(), slotPrefix, view);
+			if (newName == enteredText.get()) {
+				goto useFoundFile; // No free variation available - stay on the file we found.
 			}
-
-			if (thisSlot.subSlot >= 25) {
-				goto useFoundFile;
-			}
-
-			char nameBuffer[20];
-			char* nameBufferPos = nameBuffer;
-			if (display->haveOLED()) {
-				*(nameBufferPos++) = 'S';
-				*(nameBufferPos++) = 'O';
-				*(nameBufferPos++) = 'N';
-				*(nameBufferPos++) = 'G';
-			}
-			intToString(thisSlot.slot, nameBufferPos);
-			char* subSlotPos = strchr(nameBufferPos, 0);
-			char* charPosHere = subSlotPos + 1;
-			*(charPosHere++) = '.';
-			*(charPosHere++) = 'X';
-			*(charPosHere++) = 'M';
-			*(charPosHere++) = 'L';
-			*(charPosHere) = 0;
-			while (true) {
-				thisSlot.subSlot++;
-
-				*subSlotPos = 'A' + thisSlot.subSlot;
-				bool foundExactHere;
-				fileIndexSelected = fileItems.search(nameBuffer, &foundExactHere);
-				if (!foundExactHere) {
-					break;
-				}
-				else if (thisSlot.subSlot >= 25) {
-					goto setEnteredTextAndUseFoundFile; // If we're stuck on the "Z" subslot.
-				}
-			}
-			*(subSlotPos + 1) = 0; // Removes ".XML"
-			error = enteredText.set(nameBuffer);
+			error = enteredText.set(newName.c_str());
 			if (error != Error::NONE) {
 				goto gotErrorAfterAllocating;
 			}
-		}
-		/* This was originally never accessible as the `else` branch of a `#if 1 || !OLED` macro
-		int32_t length = enteredText.getLength();
-		if (length > 0) {
-		    char const* enteredTextChars = enteredText.get();
-		    if (enteredTextChars[length - 1] >= '0' && enteredTextChars[length - 1] <= '9') {
-		        enteredText.concatenateAtPos("A", length, 1);
-		    }
-		    else if (length >= 2 && enteredTextChars[length - 2] >= '0' && enteredTextChars[length - 2] <= '9'
-		             && ((enteredTextChars[length - 1] >= 'a'
-		                  && enteredTextChars[length - 1]
-		                         < 'z') // That's *less than*, because if it's Z, we'll have to doNormal.
-		                 || (enteredTextChars[length - 1] >= 'A' && enteredTextChars[length - 1] < 'Z'))) {
-		        char newSuffix = enteredTextChars[length - 1] + 1;
-		        enteredText.concatenateAtPos(&newSuffix, length - 1, 1);
-		    }
-		    else
-		        goto doNormal;
-		}
-*/
-		else {
-doNormal: // FileItem* currentFile = (FileItem*)fileItems.getElementAddress(fileIndexSelected);
-			String endSearchString;
-			// error = currentFile->getFilenameWithoutExtension(&endSearchString);		if (error != Error::NONE) goto
-			// gotErrorAfterAllocating;
-			endSearchString.set(&enteredText);
-
-			// Did it already have an underscore at the end with a positive integer after it?
-			char const* endSearchStringChars = endSearchString.get();
-			char delimeterChar = '_';
-tryAgain:
-			char const* delimeterAddress = strrchr(endSearchStringChars, delimeterChar);
-			int32_t numberStartPos;
-			if (delimeterAddress) {
-				int32_t underscorePos = delimeterAddress - endSearchStringChars;
-
-				// Ok, it what comes after the underscore a positive integer?
-				int32_t number = stringToUIntOrError(delimeterAddress + 1);
-				if (number < 0) {
-					goto noNumberYet;
-				}
-
-				numberStartPos = underscorePos + 1;
-				error = endSearchString.concatenateAtPos(":", numberStartPos);
-				if (error != Error::NONE) {
-					goto gotErrorAfterAllocating; // Colon is the next character after the ascii digits, so searching
-					                              // for this will get us past the final number present.
-				}
-			}
-			else {
-noNumberYet:
-				if (delimeterChar == '_') {
-					delimeterChar = ' ';
-					goto tryAgain;
-				}
-				numberStartPos = endSearchString.getLength() + 1;
-				error = endSearchString.concatenate(display->haveOLED() ? " :" : "_:");
-				if (error != Error::NONE) {
-					goto gotErrorAfterAllocating; // See above comment.
-				}
-			}
-
-			int32_t searchResult = fileItems.search(endSearchString.get());
-#if ALPHA_OR_BETA_VERSION
-			if (searchResult <= 0) {
-				FREEZE_WITH_ERROR("E448");
-				error = Error::BUG;
-				goto gotErrorAfterAllocating;
-			}
-#endif
-			FileItem* prevFile = (FileItem*)fileItems.getElementAddress(searchResult - 1);
-			String prevFilename;
-			error = prevFile->getFilenameWithoutExtension(&prevFilename);
-			if (error != Error::NONE) {
-				goto gotErrorAfterAllocating;
-			}
-			char const* prevFilenameChars = prevFilename.get();
-			int32_t number;
-			if (prevFilename.getLength() > numberStartPos) {
-				number = stringToUIntOrError(&prevFilenameChars[numberStartPos]);
-				if (number < 0) {
-					number = 1;
-				}
-			}
-			else {
-				number = 1;
-			}
-
-			number++;
-			enteredText.set(&endSearchString);
-			error = enteredText.shorten(numberStartPos);
-			if (error != Error::NONE) {
-				goto gotErrorAfterAllocating;
-			}
-			error = enteredText.concatenateInt(number);
-			if (error != Error::NONE) {
-				goto gotErrorAfterAllocating;
-			}
-
 			enteredTextEditPos = enteredText.getLength();
 		}
 	}
@@ -877,18 +724,12 @@ everythingFinalized:
 Error Browser::getUnusedSlot(OutputType outputType, String* newName, char const* thingName) {
 
 	Error error;
-	if (display->haveOLED()) {
-		char filenameToStartAt[6]; // thingName is max 4 chars.
-		strcpy(filenameToStartAt, thingName);
-		strcat(filenameToStartAt, ":");
-		error = readFileItemsFromFolderAndMemory(currentSong, outputType, getThingName(outputType), filenameToStartAt,
-		                                         NULL, false, Availability::ANY, CATALOG_SEARCH_LEFT);
-	}
-	else {
-		char const* filenameToStartAt = ":"; // Colon is the first character after the digits
-		error = readFileItemsFromFolderAndMemory(currentSong, outputType, getThingName(outputType), filenameToStartAt,
-		                                         NULL, false, Availability::ANY, CATALOG_SEARCH_LEFT);
-	}
+	// Names always carry the prefix now, on both displays, so there is one search key.
+	char filenameToStartAt[6]; // thingName is max 4 chars.
+	strcpy(filenameToStartAt, thingName);
+	strcat(filenameToStartAt, ":"); // Colon is the first character after the digits.
+	error = readFileItemsFromFolderAndMemory(currentSong, outputType, getThingName(outputType), filenameToStartAt, NULL,
+	                                         false, Availability::ANY, CATALOG_SEARCH_LEFT);
 
 	if (error != Error::NONE) {
 doReturn:
@@ -897,17 +738,17 @@ doReturn:
 
 	sortFileItems();
 
-	if (display->haveOLED()) {
+	{
 		int32_t freeSlotNumber = 1;
 		int32_t minNumDigits = 1;
 		if (fileItems.getNumElements()) {
 			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(fileItems.getNumElements() - 1);
-			String displayName;
-			error = fileItem->getDisplayNameWithoutExtension(&displayName);
+			String filename;
+			error = fileItem->getFilenameWithoutExtension(&filename);
 			if (error != Error::NONE) {
 				goto emptyFileItemsAndReturn;
 			}
-			char const* readingChar = &displayName.get()[strlen(thingName)];
+			char const* readingChar = &filename.get()[strlen(thingName)];
 			freeSlotNumber = 0;
 			minNumDigits = 0;
 			while (*readingChar >= '0' && *readingChar <= '9') {
@@ -924,50 +765,6 @@ doReturn:
 			goto emptyFileItemsAndReturn;
 		}
 		error = newName->concatenateInt(freeSlotNumber, minNumDigits);
-	}
-	else {
-		int32_t nextHigherSlotFound = kNumSongSlots; // I think the use of this is a bit deprecated...
-		int32_t i = fileItems.getNumElements();
-
-		// Ok, due to not bothering to reload fileItems if we need to look too far back, we may sometimes fail to see an
-		// empty slot further back when later ones are taken. Oh well.
-goBackOne:
-		i--;
-		int32_t freeSlotNumber;
-		if (i < 0) {
-noMoreToLookAt:
-			if (nextHigherSlotFound <= 0) {
-				newName->clear(); // Indicate no slots available.
-				goto emptyFileItemsAndReturn;
-			}
-			freeSlotNumber = 0;
-		}
-		else {
-			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(i);
-			String displayName;
-			error = fileItem->getDisplayNameWithoutExtension(&displayName);
-			if (error != Error::NONE) {
-				goto emptyFileItemsAndReturn;
-			}
-			char const* displayNameChars = displayName.get();
-			if (displayNameChars[0] < '0') {
-				goto noMoreToLookAt;
-			}
-
-			Slot slotHere = getSlot(displayNameChars);
-			if (slotHere.slot < 0) {
-				goto goBackOne;
-			}
-
-			freeSlotNumber = slotHere.slot + 1; // Well, hopefully it's free...
-			if (freeSlotNumber >= nextHigherSlotFound) {
-				nextHigherSlotFound = slotHere.slot;
-				goto goBackOne;
-			}
-		}
-
-		// If still here, we found an unused slot.
-		error = newName->setInt(freeSlotNumber);
 	}
 
 emptyFileItemsAndReturn:

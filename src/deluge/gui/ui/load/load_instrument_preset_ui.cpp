@@ -1085,8 +1085,7 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 	display->displayLoadingAnimationText("Loading", false, true);
 	soundDrumToReplace->loadAllSamples(true);
 
-	// soundDrumToReplace->name.set(getCurrentFilenameWithoutExtension());
-	soundDrumToReplace->drumName = getCurrentFilenameWithoutExtension();
+	soundDrumToReplace->drumName = enteredText.get();
 	soundDrumToReplace->path.set(&currentDir);
 	ParamManager* paramManager =
 	    currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor);
