@@ -1843,6 +1843,9 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 			// Automation view reuses instrument clip offscreen rows during explode animations.
 			instrumentClipView.fillOffScreenImageStores();
 		}
+		else {
+			PadLEDs::clearTransitionStoreOffScreenRows();
+		}
 
 		automationView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1], false);
 	}

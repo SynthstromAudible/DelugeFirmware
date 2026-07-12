@@ -833,12 +833,8 @@ bool KeyboardScreen::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth
 	layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->renderSidebarPads(image);
 
 	if (occupancyMask) {
-		// Keyboard sidebars may contain black / empty pads. Marking those as empty keeps transition blends from
-		// pulling stale sidebar colours into the animation.
 		for (int32_t y = 0; y < kDisplayHeight; y++) {
-			for (int32_t x = kDisplayWidth; x < kDisplayWidth + kSideBarWidth; x++) {
-				occupancyMask[y][x] = (image[y][x] == colours::black) ? 0 : 64;
-			}
+			PadLEDs::refreshSidebarOccupancy(image[y], occupancyMask[y]);
 		}
 	}
 

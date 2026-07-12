@@ -304,6 +304,19 @@ void writeToSideBar(uint8_t sideBarX, uint8_t yDisplay, uint8_t red, uint8_t gre
 	image[yDisplay][sideBarX + kDisplayWidth] = RGB(red, green, blue);
 }
 
+void refreshSidebarOccupancy(RGB rowImage[], uint8_t rowOccupancyMask[]) {
+	for (int32_t x = kDisplayWidth; x < kDisplayWidth + kSideBarWidth; x++) {
+		rowOccupancyMask[x] = (rowImage[x] == gui::colours::black) ? 0 : 64;
+	}
+}
+
+void clearTransitionStoreOffScreenRows() {
+	for (int32_t storeRow : {int32_t{0}, int32_t{kDisplayHeight + 1}}) {
+		std::fill_n(imageStore[storeRow], kDisplayWidth + kSideBarWidth, gui::colours::black);
+		memset(occupancyMaskStore[storeRow], 0, kDisplayWidth + kSideBarWidth);
+	}
+}
+
 void setupInstrumentClipCollapseAnimation(bool collapsingOutOfClipMinder, bool collapsingKeyboardScreen_) {
 	clipLength = getCurrentClip()->loopLength;
 	collapsingKeyboardScreen = collapsingKeyboardScreen_;
@@ -325,6 +338,14 @@ void setupInstrumentClipCollapseAnimation(bool collapsingOutOfClipMinder, bool c
 			clipSectionSquareColour = gui::colours::black;
 		}
 	}
+}
+
+// Smoothstep, in 16.16. Avoids harsh colour changes on the sidebar while rows are moving quickly.
+uint16_t smoothProgress(uint16_t progress) {
+	uint32_t p = progress;
+	uint32_t pSquared = (p * p) >> 16;
+	uint32_t pCubed = (pSquared * p) >> 16;
+	return static_cast<uint16_t>(std::min<uint32_t>((3 * pSquared) - (2 * pCubed), 65535));
 }
 
 void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, int32_t progress) {
@@ -356,6 +377,13 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 		intensity2Array[i] = newRowPosition; // & 65535;
 		intensity1Array[i] = 65535 - intensity2Array[i];
 	}
+
+	// Blend amounts for the two sidebar columns. They don't vary per column, so work them out once.
+	bool expanding = isUIModeActive(UI_MODE_INSTRUMENT_CLIP_EXPANDING);
+	bool keyboardSidebarCollapsing = collapsingKeyboardScreen && isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING);
+	uint16_t clippedProgress = std::min<int32_t>(progress, 65535);
+	uint16_t muteBlendProgress = expanding ? smoothProgress(clippedProgress) : clippedProgress;
+	uint16_t keyboardGlobalDestinationBlend = keyboardSidebarCollapsing ? smoothProgress(65535 - clippedProgress) : 0;
 
 	int32_t greyStart =
 	    instrumentClipView.getSquareFromPos(clipLength - 1, NULL, currentSong->xScroll[NAVIGATION_CLIP]) + 1;
@@ -407,28 +435,9 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 			}
 		}
 
-		bool expandingMuteColumn = isUIModeActive(UI_MODE_INSTRUMENT_CLIP_EXPANDING) && col == kDisplayWidth;
-		bool collapsingKeyboardSidebar = collapsingKeyboardScreen && isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING)
-		                                 && col >= kDisplayWidth && col < kDisplayWidth + kSideBarWidth;
-		uint16_t clippedProgress = std::min<int32_t>(progress, 65535);
-		// Smoothstep avoids harsh colour changes on the sidebar while rows are moving quickly.
-		auto smoothProgress = [](uint16_t progress) {
-			uint32_t p = progress;
-			uint32_t pSquared = (p * p) >> 16;
-			uint32_t pCubed = (pSquared * p) >> 16;
-			return static_cast<uint16_t>(std::min<uint32_t>((3 * pSquared) - (2 * pCubed), 65535));
-		};
-
-		uint16_t muteBlendProgress = clippedProgress;
-		if (expandingMuteColumn) {
-			muteBlendProgress = smoothProgress(muteBlendProgress);
-		}
-
-		uint16_t keyboardGlobalDestinationBlend = 0;
-		if (collapsingKeyboardSidebar) {
-			uint32_t collapseElapsed = 65535 - clippedProgress;
-			keyboardGlobalDestinationBlend = smoothProgress(std::min<uint32_t>(collapseElapsed, 65535));
-		}
+		bool expandingMuteColumn = expanding && col == kDisplayWidth;
+		bool collapsingKeyboardSidebar =
+		    keyboardSidebarCollapsing && col >= kDisplayWidth && col < kDisplayWidth + kSideBarWidth;
 
 		if (expandingMuteColumn && animatedRowGoingTo[0] >= 0 && animatedRowGoingTo[0] < kDisplayHeight) {
 			int32_t sessionMuteIntensity = 65535 - muteBlendProgress;
@@ -473,8 +482,9 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 						}
 						uint16_t proximityBlend = 0;
 						if (distanceFromDestination < kKeyboardColourBlendDistance) {
+							// 64-bit intermediate: the numerator reaches 3 * 65536 * 65535, well past INT32_MAX.
 							uint32_t proximityProgress =
-							    ((kKeyboardColourBlendDistance - distanceFromDestination) * 65535)
+							    ((uint64_t)(kKeyboardColourBlendDistance - distanceFromDestination) * 65535)
 							    / kKeyboardColourBlendDistance;
 							proximityBlend = smoothProgress(std::min<uint32_t>(proximityProgress, 65535));
 						}

@@ -364,8 +364,8 @@ private:
 
 	int32_t quantizeAmount{};
 	uint32_t timeSongButtonPressed{};
-	// Session button state is split so short presses can transition without briefly drawing macro sidebar pads.
-	bool sessionButtonPressPending{};
+	// Set once a held Session button passes the long-press threshold, so short presses never flash macro colours into
+	// the sidebar on their way to Session view.
 	bool sessionMacroSidebarActive{};
 
 	std::array<RGB, kDisplayHeight> rowColour;

@@ -165,6 +165,8 @@ void InstrumentClipView::focusRegained() {
 	ClipView::focusRegained();
 
 	auditioningSilently = false; // Necessary?
+	// The Session button release that would normally clear this can be missed if the view changed while it was held.
+	sessionMacroSidebarActive = false;
 
 	InstrumentClipMinder::focusRegained();
 
@@ -261,39 +263,33 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 	else if (b == SESSION_VIEW) {
 		if (on) {
 			if (currentUIMode == UI_MODE_NONE) {
+				currentUIMode = UI_MODE_HOLDING_SONG_BUTTON;
 				timeSongButtonPressed = AudioEngine::audioSampleTimer;
-				// Defer showing the macro sidebar until the long-press threshold. A short press can then transition
-				// straight to Session without flashing macro colours into the sidebar first.
-				sessionButtonPressPending = true;
+				// The macro sidebar colours are only drawn once the press passes the long-press threshold, so a short
+				// press can transition straight to Session without flashing them. Macro pad presses still work
+				// immediately, as they always have.
 				sessionMacroSidebarActive = false;
 				indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, true);
 				uiTimerManager.setTimerSamples(TimerName::UI_SPECIFIC, kShortPressTime);
 			}
 		}
 		else {
-			if (!sessionButtonPressPending && !isUIModeActive(UI_MODE_HOLDING_SONG_BUTTON)) {
+			if (!isUIModeActive(UI_MODE_HOLDING_SONG_BUTTON)) {
 				return ActionResult::DEALT_WITH;
 			}
 			uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
+			exitUIMode(UI_MODE_HOLDING_SONG_BUTTON);
 
-			// If the timer already promoted the press, or the release arrives after the threshold, consume it as a
-			// macro-sidebar press instead of transitioning to Session.
-			bool macroPress =
-			    sessionMacroSidebarActive
-			    || ((int32_t)(AudioEngine::audioSampleTimer - timeSongButtonPressed) >= (int32_t)kShortPressTime);
-
-			sessionButtonPressPending = false;
+			bool sidebarNeedsClearing = sessionMacroSidebarActive;
 			sessionMacroSidebarActive = false;
 
-			if (isUIModeActive(UI_MODE_HOLDING_SONG_BUTTON)) {
-				exitUIMode(UI_MODE_HOLDING_SONG_BUTTON);
-			}
-
-			if (macroPress) {
-				uiNeedsRendering(this, 0, 0xFFFFFFFF);
+			if ((int32_t)(AudioEngine::audioSampleTimer - timeSongButtonPressed) >= (int32_t)kShortPressTime) {
+				if (sidebarNeedsClearing) {
+					uiNeedsRendering(this, 0, 0xFFFFFFFF);
+				}
 				indicator_leds::setLedState(IndicatorLED::SESSION_VIEW, false);
 				return ActionResult::DEALT_WITH;
 			}
@@ -871,10 +867,9 @@ passToOthers:
 ActionResult InstrumentClipView::timerCallback() {
 	using namespace deluge::hid::button;
 
-	// Promote a pending Session button press into macro-sidebar mode only after it is still held long enough.
-	if (sessionButtonPressPending && currentUIMode == UI_MODE_NONE && Buttons::isButtonPressed(SESSION_VIEW)
-	    && (int32_t)(AudioEngine::audioSampleTimer - timeSongButtonPressed) >= (int32_t)kShortPressTime) {
-		currentUIMode = UI_MODE_HOLDING_SONG_BUTTON;
+	// Reveal the macro sidebar only once the Session button has been held past the long-press threshold.
+	if (isUIModeActive(UI_MODE_HOLDING_SONG_BUTTON) && !sessionMacroSidebarActive
+	    && Buttons::isButtonPressed(SESSION_VIEW)) {
 		sessionMacroSidebarActive = true;
 		uiNeedsRendering(this, 0, 0xFFFFFFFF);
 	}
@@ -1924,8 +1919,7 @@ doRegularEditPadActionProbably:
 		if (currentUIMode == UI_MODE_MIDI_LEARN) [[unlikely]] {
 			return commandLearnMutePad(y, velocity);
 		}
-		else if (sessionMacroSidebarActive) {
-			// The macro sidebar is now explicit state rather than any held Session button mode.
+		else if (isUIModeActive(UI_MODE_HOLDING_SONG_BUTTON)) {
 			return commandActivateSongMacro(y, velocity);
 		}
 		else if (getCurrentOutputType() == OutputType::KIT && lastAuditionedYDisplay == y
@@ -5936,10 +5930,7 @@ bool InstrumentClipView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayW
 			}
 			drawAuditionSquare(i, image[i]);
 
-			// Sidebar cells that render black should not participate in transition blending.
-			for (int32_t x = kDisplayWidth; x < kDisplayWidth + kSideBarWidth; x++) {
-				occupancyMask[i][x] = (image[i][x] == colours::black) ? 0 : 64;
-			}
+			PadLEDs::refreshSidebarOccupancy(image[i], occupancyMask[i]);
 		}
 	}
 	if (armed) {
@@ -5957,7 +5948,6 @@ void InstrumentClipView::drawMuteSquare(NoteRow* thisNoteRow, RGB thisImage[], u
 	if (view.midiLearnFlashOn && thisNoteRow && thisNoteRow->drum
 	    && thisNoteRow->drum->muteMIDICommand.containsSomething()) {
 		thisColour = colours::midi_command;
-		*thisOccupancy = 64;
 	}
 
 	else if (thisNoteRow == nullptr || !thisNoteRow->muted) {
@@ -5970,14 +5960,12 @@ void InstrumentClipView::drawMuteSquare(NoteRow* thisNoteRow, RGB thisImage[], u
 	}
 	else {
 		thisColour = menu_item::mutedColourMenu.getRGB();
-		*thisOccupancy = 64;
 	}
 
 	// If user assigning MIDI controls and has this Clip selected, flash to half brightness
 	if (view.midiLearnFlashOn && thisNoteRow != nullptr && view.thingPressedForMidiLearn == MidiLearn::NOTEROW_MUTE
 	    && thisNoteRow->drum && &thisNoteRow->drum->muteMIDICommand == view.learnedThing) {
 		thisColour = thisColour.dim();
-		*thisOccupancy = 64;
 	}
 
 	// Keep the occupancy mask in sync with the final colour, including kit rows with no note row.
@@ -7196,62 +7184,44 @@ void InstrumentClipView::fillOffScreenImageStores() {
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
-	// Use the active timeline editor so automation and note views render offscreen rows with the same context.
-	TimelineView* editor_screen = getRootUI()->toTimelineView();
-
-	getCurrentClip()->renderAsSingleRow(modelStack, editor_screen, xScroll, xZoom, PadLEDs::imageStore[0],
+	// Render as the clip editor, not as whatever root UI is currently up: this is also called from Session and
+	// Arranger while they are still the root UI, and ArrangerView::supportsTriplets() is false, which would place
+	// the offscreen notes on different squares than the visible rows.
+	getCurrentClip()->renderAsSingleRow(modelStack, this, xScroll, xZoom, PadLEDs::imageStore[0],
 	                                    PadLEDs::occupancyMaskStore[0], false, 0, noteRowIndexBottom, 0, kDisplayWidth,
 	                                    true, false);
 	// Visible rows live in store rows 1..kDisplayHeight during clip transitions, so the top offscreen row is +1.
-	getCurrentClip()->renderAsSingleRow(modelStack, editor_screen, xScroll, xZoom,
-	                                    PadLEDs::imageStore[kDisplayHeight + 1],
+	getCurrentClip()->renderAsSingleRow(modelStack, this, xScroll, xZoom, PadLEDs::imageStore[kDisplayHeight + 1],
 	                                    PadLEDs::occupancyMaskStore[kDisplayHeight + 1], false, noteRowIndexTop,
 	                                    2147483647, 0, kDisplayWidth, true, false);
 
-	auto clearOffScreenSidebar = [](int32_t storeRow) {
-		for (int32_t x = kDisplayWidth; x < kDisplayWidth + kSideBarWidth; x++) {
-			PadLEDs::imageStore[storeRow][x] = colours::black;
-			PadLEDs::occupancyMaskStore[storeRow][x] = 0;
-		}
-	};
+	// Fill in each offscreen row's sidebar the same way an onscreen row's would be, so the sidebar columns have real
+	// content to animate from top to bottom.
+	auto fillOffScreenSidebar = [this](int32_t yDisplay, int32_t storeRow) {
+		RGB* rowImage = PadLEDs::imageStore[storeRow];
+		uint8_t* rowOccupancy = PadLEDs::occupancyMaskStore[storeRow];
 
-	clearOffScreenSidebar(0);
-	clearOffScreenSidebar(kDisplayHeight + 1);
+		rowImage[kDisplayWidth + 1] = colours::black;
 
-	auto markOffScreenSidebarOccupancy = [](int32_t storeRow) {
-		for (int32_t x = kDisplayWidth; x < kDisplayWidth + kSideBarWidth; x++) {
-			PadLEDs::occupancyMaskStore[storeRow][x] = (PadLEDs::imageStore[storeRow][x] == colours::black) ? 0 : 64;
-		}
-	};
-
-	drawMuteSquare(getCurrentInstrumentClip()->getNoteRowOnScreen(-1, currentSong), PadLEDs::imageStore[0],
-	               PadLEDs::occupancyMaskStore[0]);
-	drawMuteSquare(getCurrentInstrumentClip()->getNoteRowOnScreen(kDisplayHeight, currentSong),
-	               PadLEDs::imageStore[kDisplayHeight + 1], PadLEDs::occupancyMaskStore[kDisplayHeight + 1]);
-	markOffScreenSidebarOccupancy(0);
-	markOffScreenSidebarOccupancy(kDisplayHeight + 1);
-
-	if (getCurrentOutputType() != OutputType::KIT) {
-		// The root-note audition pad can sit just offscreen, so render it into the matching offscreen row.
-		auto renderOffScreenRootNote = [this](int32_t yDisplay, int32_t storeRow) {
+		drawMuteSquare(getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, currentSong), rowImage, rowOccupancy);
+		// The root-note audition pad can sit just offscreen. drawAuditionSquare() can't be reused here: it depends on
+		// state that only exists for onscreen rows.
+		if (getCurrentOutputType() != OutputType::KIT) {
 			int32_t yNote = getCurrentInstrumentClip()->getYNoteFromYDisplay(yDisplay, currentSong);
-			if (!isSameNote(yNote, currentSong->key.rootNote)) {
-				return;
+			if (isSameNote(yNote, currentSong->key.rootNote)) {
+				int32_t colourOffset = 0;
+				if (NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, currentSong)) {
+					colourOffset = noteRow->getColourOffset(getCurrentInstrumentClip());
+				}
+				rowImage[kDisplayWidth + 1] = getCurrentInstrumentClip()->getMainColourFromY(yNote, colourOffset);
 			}
+		}
 
-			int32_t colourOffset = 0;
-			if (NoteRow* noteRow = getCurrentInstrumentClip()->getNoteRowOnScreen(yDisplay, currentSong)) {
-				colourOffset = noteRow->getColourOffset(getCurrentInstrumentClip());
-			}
+		PadLEDs::refreshSidebarOccupancy(rowImage, rowOccupancy);
+	};
 
-			PadLEDs::imageStore[storeRow][kDisplayWidth + 1] =
-			    getCurrentInstrumentClip()->getMainColourFromY(yNote, colourOffset);
-			PadLEDs::occupancyMaskStore[storeRow][kDisplayWidth + 1] = 64;
-		};
-
-		renderOffScreenRootNote(-1, 0);
-		renderOffScreenRootNote(kDisplayHeight, kDisplayHeight + 1);
-	}
+	fillOffScreenSidebar(-1, 0);
+	fillOffScreenSidebar(kDisplayHeight, kDisplayHeight + 1);
 }
 
 uint32_t InstrumentClipView::getSquareWidth(int32_t square, int32_t effectiveLength) {
