@@ -80,7 +80,7 @@ public:
 						multi_sample_range->sampleHolder.setCents(cents);
 					}
 					else {
-						source.transpose = transpose;
+						source.setTranspose(transpose);
 						source.setCents(cents);
 					}
 
@@ -106,7 +106,7 @@ public:
 				multi_sample_range->sampleHolder.setCents(cents);
 			}
 			else {
-				source.transpose = transpose;
+				source.setTranspose(transpose);
 				source.setCents(cents);
 			}
 

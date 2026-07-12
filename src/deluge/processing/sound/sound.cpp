@@ -3048,6 +3048,9 @@ void Sound::doneReadingFromFile() {
 		seedDocSoundScalars();
 		seedModKnobsRecord();
 		seedDocModControllable();
+		for (int32_t s = 0; s < kNumSources; s++) {
+			sources[s].seedDocSourceScalars();
+		}
 	}
 }
 
@@ -3700,11 +3703,15 @@ justExitTag:
 void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName) {
 
 	Source* source = &sources[s];
+	// M3 owner-5 slice G: read the authoritative DocSource record when bound (cache fallback only for an unbound
+	// Sound).
+	deluge::project::DocSource* dsrc = docSound_ != nullptr ? &docSound_->sources[s] : nullptr;
 
 	writer.writeOpeningTagBeginning(tagName);
 
 	if (synthMode != SynthMode::FM) {
-		writer.writeAttribute("type", oscTypeToString(source->oscType));
+		writer.writeAttribute(
+		    "type", oscTypeToString(dsrc != nullptr ? static_cast<OscType>(dsrc->osc_type) : source->oscType));
 	}
 
 	// If (multi)sample...
@@ -3776,8 +3783,8 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 
 	// Otherwise, if we're *not* a (multi)sample, here's the other option, which includes (multi)wavetable
 	else {
-		writer.writeAttribute("transpose", source->transpose);
-		writer.writeAttribute("cents", source->cents);
+		writer.writeAttribute("transpose", dsrc != nullptr ? dsrc->transpose : source->transpose);
+		writer.writeAttribute("cents", dsrc != nullptr ? dsrc->cents : source->cents);
 		bool oscSync = docSound_ != nullptr ? docSound_->oscillator_sync : oscillatorSync; // M3 owner-5: read record
 		if (s == 1 && oscSync) {
 			writer.writeAttribute("oscillatorSync", oscSync);
@@ -3908,6 +3915,9 @@ void Sound::bindDocSound(deluge::project::DocSound* d) {
 	seedDocSoundScalars();
 	seedModKnobsRecord();
 	bindDocModControllable(&d->mod_controllable);
+	for (int32_t s = 0; s < kNumSources; s++) {
+		sources[s].bindDocSource(&d->sources[s]);
+	}
 }
 
 // M3 owner-5: DOM-owned scalars — each setter writes the authoritative record (when bound) AND the native cache. Render
@@ -4012,9 +4022,8 @@ void Sound::syncDocSound() {
 	for (int32_t s = 0; s < kNumSources; s++) {
 		Source& src = sources[s];
 		deluge::project::DocSource& ds = d.sources[s];
-		ds.osc_type = static_cast<uint8_t>(src.oscType);
-		ds.transpose = src.transpose;
-		ds.cents = src.cents;
+		// osc_type / transpose / cents are DOM-owned (seeded at bind + doneReadingFromFile, written by the Source
+		// setters, read at save) — no longer shadowed here.
 		ds.repeat_mode = static_cast<uint8_t>(src.repeatMode);
 		ds.time_stretch_amount = src.timeStretchAmount;
 		ds.interpolation_mode = static_cast<uint8_t>(src.sampleControls.interpolationMode);

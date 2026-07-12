@@ -17,6 +17,7 @@
 
 #include "processing/source.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_source.h"
 #include "dsp/dx/engine.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
@@ -50,6 +51,64 @@ Source::Source() {
 Source::~Source() {
 }
 
+void Source::bindDocSource(deluge::project::DocSource* d) {
+	docSource_ = d;
+	seedDocSourceScalars();
+}
+
+// Copy the DOM-owned scalars native->record (guarded). Load-bridge: run at bind and re-run at doneReadingFromFile (a
+// SoundDrum binds before its fields are parsed, so the bind-time seed is stale for drums). dxPatch + ranges are later
+// slices — not seeded here.
+void Source::seedDocSourceScalars() {
+	if (docSource_ == nullptr) {
+		return;
+	}
+	deluge::project::DocSource& d = *docSource_;
+	d.osc_type = static_cast<uint8_t>(oscType);
+	d.transpose = transpose;
+	d.cents = cents;
+	d.repeat_mode = static_cast<uint8_t>(repeatMode);
+	d.time_stretch_amount = timeStretchAmount;
+	d.interpolation_mode = static_cast<uint8_t>(sampleControls.interpolationMode);
+	d.pitch_and_speed_independent = sampleControls.pitchAndSpeedAreIndependent;
+	d.reversed = sampleControls.reversed;
+}
+
+void Source::setTranspose(int16_t newTranspose) {
+	transpose = newTranspose;
+	if (docSource_ != nullptr) {
+		docSource_->transpose = newTranspose;
+	}
+}
+
+void Source::setRepeatMode(SampleRepeatMode newMode) {
+	repeatMode = newMode;
+	if (docSource_ != nullptr) {
+		docSource_->repeat_mode = static_cast<uint8_t>(newMode);
+	}
+}
+
+void Source::setTimeStretchAmount(int8_t newAmount) {
+	timeStretchAmount = newAmount;
+	if (docSource_ != nullptr) {
+		docSource_->time_stretch_amount = newAmount;
+	}
+}
+
+void Source::setInterpolationMode(InterpolationMode newMode) {
+	sampleControls.interpolationMode = newMode;
+	if (docSource_ != nullptr) {
+		docSource_->interpolation_mode = static_cast<uint8_t>(newMode);
+	}
+}
+
+void Source::setPitchAndSpeedIndependent(bool independent) {
+	sampleControls.pitchAndSpeedAreIndependent = independent;
+	if (docSource_ != nullptr) {
+		docSource_->pitch_and_speed_independent = independent;
+	}
+}
+
 // Only to be called if already determined that oscType == OscType::SAMPLE
 int32_t Source::getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeStretching) {
 	MultiRange* range = getRange(note);
@@ -61,6 +120,9 @@ int32_t Source::getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeS
 
 void Source::setCents(int32_t newCents) {
 	cents = newCents;
+	if (docSource_ != nullptr) {
+		docSource_->cents = newCents;
+	}
 	recalculateFineTuner();
 }
 
@@ -111,6 +173,9 @@ Error Source::loadAllSamples(bool mayActuallyReadFiles) {
 // Only to be called if already determined that oscType == OscType::SAMPLE
 void Source::setReversed(bool newReversed) {
 	sampleControls.reversed = newReversed;
+	if (docSource_ != nullptr) {
+		docSource_->reversed = newReversed;
+	}
 	for (int32_t e = 0; e < std::ssize(ranges); e++) {
 		MultiRange* range = (MultisampleRange*)ranges.getElement(e);
 		SampleHolder* holder = (SampleHolder*)range->getAudioFileHolder();
@@ -266,6 +331,9 @@ doChangeType:
 	}
 
 	oscType = newType;
+	if (docSource_ != nullptr) {
+		docSource_->osc_type = static_cast<uint8_t>(newType);
+	}
 	if (oscType == OscType::DX7) {
 		ensureDxPatch();
 	}
