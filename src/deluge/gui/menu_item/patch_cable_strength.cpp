@@ -387,10 +387,4 @@ void PatchCableStrength::updatePolarityUI() {
 	renderUIsForOled();
 }
 
-void PatchCableStrength::appendAdditionalDots(std::vector<uint8_t>& dotPositions) {
-	if (polarity_in_the_ui_ == Polarity::UNIPOLAR) {
-		dotPositions.push_back(3);
-	}
-}
-
 } // namespace deluge::gui::menu_item

@@ -53,8 +53,6 @@ public:
 
 	// OLED Only
 	void renderOLED() override;
-	// 7SEG only
-	void appendAdditionalDots(std::vector<uint8_t>& dotPositions) override;
 
 	void unlearnAction() final { MenuItemWithCCLearning::unlearnAction(); }
 	bool allowsLearnMode() final { return MenuItemWithCCLearning::allowsLearnMode(); }

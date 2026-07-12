@@ -863,15 +863,6 @@ void StemExport::displayStemExportProgressOLED(StemExportType stemExportType) {
 	deluge::hid::display::OLED::markChanged();
 }
 
-void StemExport::displayStemExportProgress7SEG() {
-	// if we're in the context menu for cancelling stem export, we don't want to show pop-ups
-	if (inContextMenu()) {
-		return;
-	}
-	etl::string<50> exportStatus;
-	deluge::string::appendInt(exportStatus, totalNumStemsToExport - numStemsExported);
-}
-
 // creates the full file path for stem exporting including the stem folder structure and wav file name
 Error StemExport::getUnusedStemRecordingFilePath(std::string* filePath, AudioRecordingFolder folder) {
 	const auto folderID = util::to_underlying(folder);

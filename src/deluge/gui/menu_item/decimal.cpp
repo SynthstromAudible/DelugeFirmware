@@ -163,32 +163,6 @@ void Decimal::drawPixelsForOled() {
 	hid::display::OLED::setupBlink(ourDigitStartX + 1, digitWidth - 2, 41, 42, movingCursor);
 }
 
-void Decimal::drawActualValue(bool justDidHorizontalScroll) {
-	char buffer[12];
-	int32_t minNumDigits = getNumDecimalPlaces() + 1;
-	minNumDigits = std::max<int32_t>(minNumDigits, soundEditor.numberEditPos + 1);
-	intToString(this->getValue(), buffer, minNumDigits);
-	int32_t stringLength = strlen(buffer);
-
-	char* outputText = buffer + std::max(stringLength - 4 - soundEditor.numberScrollAmount, 0_i32);
-
-	if (strlen(outputText) > 4) {
-		outputText[4] = 0;
-	}
-
-	std::vector<uint8_t> dotPositions{};
-	if (getNumDecimalPlaces()) {
-		dotPositions.push_back(soundEditor.numberScrollAmount + 3 - getNumDecimalPlaces());
-	}
-	appendAdditionalDots(dotPositions);
-
-	indicator_leds::blinkLed(IndicatorLED::BACK, 255, 0, !justDidHorizontalScroll);
-
-	uint8_t blinkMask[kNumericDisplayLength];
-	memset(&blinkMask, 255, kNumericDisplayLength);
-	blinkMask[3 + soundEditor.numberScrollAmount - soundEditor.numberEditPos] = 0b10000000;
-}
-
 int32_t Decimal::getNumNonZeroDecimals(int32_t value) {
 	const float remaining = std::abs(value / 100 - value / 100.0f);
 	if (remaining == 0) {
@@ -242,13 +216,6 @@ void DecimalWithoutScrolling::drawDecimal(int32_t textWidth, int32_t textHeight,
 
 void DecimalWithoutScrolling::drawPixelsForOled() {
 	drawDecimal(kTextHugeSpacingX, kTextHugeSizeY, 18);
-}
-
-void DecimalWithoutScrolling::drawActualValue(bool justDidHorizontalScroll) {
-	const float displayValue = getDisplayValue();
-	const int32_t numDecimalPlaces = displayValue > 100 ? 1 : 2;
-	char buffer[12];
-	floatToString(displayValue, buffer, numDecimalPlaces, numDecimalPlaces);
 }
 
 void DecimalWithoutScrolling::getNotificationValue(etl::istring& value) {
