@@ -256,6 +256,10 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	                          CLUSTER_DONT_LOAD); // Adds a reason to the first Cluster(s). Must call this after
 	                                              // endSyncedRecording(), which puts some final values in the Sample
 
+	// M3 owner-4: setAudioFile (manuallySelected) just set startPos/endPos on the sampleHolder cache but not the
+	// record; reflect the resolved window into docAudioClip_ so save persists the recorded length, not a stale zone.
+	syncSampleRecordFromEngine();
+
 	renderData.xScroll = -1; // Force re-render - though this would surely happen anyway
 
 	if (recorder->recordingExtraMargins) {
@@ -1169,6 +1173,20 @@ void AudioClip::setOverdubsShouldCloneOutput(bool value) {
 	}
 	docAudioClip_->overdubs_should_clone = value;
 	overdubsShouldCloneOutput = value;
+}
+
+// M3 owner-4: reflect the resolved sample window from the engine cache into the record at the end of a sample-load
+// gesture. `loadFile`/`setAudioFile` derive filePath/startPos/endPos onto the sampleHolder cache but never touch
+// docAudioClip_; save reads the record (syncDocAudioClip retired), so without this reflection a browse-load or
+// recording-finish would persist a stale/empty sample. These are exactly the three fields the old syncDocAudioClip
+// rebuilt from the engine at save (file_path resolved as audioFile ? audioFile->filePath : filePath).
+void AudioClip::syncSampleRecordFromEngine() {
+	if (docAudioClip_ == nullptr) {
+		return;
+	}
+	docAudioClip_->file_path = sampleHolder.audioFile ? sampleHolder.audioFile->filePath : sampleHolder.filePath;
+	docAudioClip_->start_pos = sampleHolder.startPos;
+	docAudioClip_->end_pos = sampleHolder.endPos;
 }
 
 // M3 owner-4: seed the engine's runtime caches from the authoritative DocAudioClip.

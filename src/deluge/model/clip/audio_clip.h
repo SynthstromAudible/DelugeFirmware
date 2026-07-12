@@ -152,6 +152,14 @@ public:
 	void setSampleCents(int32_t value);
 	void setOverdubsShouldCloneOutput(bool value);
 
+	/// M3 owner-4: reflect the resolved sample window (file_path/start_pos/end_pos) from the engine cache into the
+	/// record at the completion of a sample-load gesture (browser claim, linear-recording finish). This is the
+	/// targeted inverse of `deriveEngineFromDoc` for the load-derived window: `loadFile`/`setAudioFile` set those
+	/// three on the `sampleHolder` cache but never touch `docAudioClip_`, so without this the record would drift and
+	/// save (which reads the record since `syncDocAudioClip` was deleted) would persist a stale/empty sample. Matches
+	/// exactly what the retired `syncDocAudioClip` wrote for these three fields. Guarded on `docAudioClip_`.
+	void syncSampleRecordFromEngine();
+
 	/// M3 owner-4: this AudioClip's DOM-owned descriptor record, held in the project's `audio_clip_structure` keyed
 	/// by id(). Bound in the AudioClip ctor under the clip's durable id (mirroring how the Clip base ctor binds
 	/// `docClip_`); erased in ~AudioClip. The load path parses into it and derives the engine cache

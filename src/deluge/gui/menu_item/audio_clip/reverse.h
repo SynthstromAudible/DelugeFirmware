@@ -48,7 +48,9 @@ public:
 			if (clip->sampleControls.isCurrentlyReversed()) {
 				uint64_t lengthInSamples = (static_cast<Sample*>(clip->sampleHolder.audioFile))->lengthInSamples;
 				if (clip->sampleHolder.endPos > lengthInSamples) {
-					clip->sampleHolder.endPos = lengthInSamples;
+					// M3 owner-4: endPos is DOM-owned — funnel the defensive clamp through the setter (record + cache).
+					// Writing sampleHolder.endPos raw would leave docAudioClip_->end_pos stale at save.
+					clip->setSampleEndPos(lengthInSamples);
 				}
 			}
 

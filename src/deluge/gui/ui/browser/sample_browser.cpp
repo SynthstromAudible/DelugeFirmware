@@ -750,6 +750,14 @@ Error SampleBrowser::claimAudioFileForAudioClip() {
 	bool reversed = getCurrentAudioClip()->sampleControls.isCurrentlyReversed();
 	Error error = holder->loadFile(reversed, true, true);
 
+	// M3 owner-4: loadFile derived filePath/startPos/endPos onto the sampleHolder cache (line 748 wrote filePath raw,
+	// setAudioFile set the zone) but never touched docAudioClip_. Reflect the resolved window into the record now, so
+	// save (which reads the record since syncDocAudioClip was deleted) persists the loaded sample rather than the
+	// stale/empty record. This is the owner-4 twin of the ranges seedDocRanges() reseed in claimAudioFileForInstrument.
+	if (error == Error::NONE) {
+		getCurrentAudioClip()->syncSampleRecordFromEngine();
+	}
+
 	// If there's a pre-margin, we want to set an attack-time
 	if (error == Error::NONE && ((SampleHolder*)holder)->startPos) {
 		getCurrentAudioClip()->setAttack(kAudioClipDefaultAttackIfPreMargin);
