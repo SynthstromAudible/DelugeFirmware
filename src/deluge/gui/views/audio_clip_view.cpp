@@ -638,7 +638,13 @@ void AudioClipView::changeUnderlyingSampleLength(AudioClip& clip, const Sample* 
 	// Change sample end-pos value. Must do this before calling setClipLength(), which will end
 	// up reading this value.
 	uint64_t oldValue = *valueToChange;
-	*valueToChange = newEndPosSamples;
+	// M3 owner-4: funnel through the model setter (record + cache). oldValue captured above.
+	if (valueToChange == &clip.sampleHolder.startPos) {
+		clip.setSampleStartPos(newEndPosSamples);
+	}
+	else {
+		clip.setSampleEndPos(newEndPosSamples);
+	}
 
 	Action* action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
 	deluge::edits::Context clipLenCtx{*currentSong, currentSong->project};
@@ -671,7 +677,7 @@ void AudioClipView::changeUnderlyingSampleStart(AudioClip& clip, const Sample* s
 		if (newEndPos > sample->lengthInSamples) {
 			newEndPos = sample->lengthInSamples;
 		}
-		clip.sampleHolder.endPos = newEndPos;
+		clip.setSampleEndPos(newEndPos);
 
 		ActionType actionType =
 		    (newLengthTicks < oldLength) ? ActionType::CLIP_LENGTH_DECREASE : ActionType::CLIP_LENGTH_INCREASE;
@@ -695,7 +701,7 @@ void AudioClipView::changeUnderlyingSampleStart(AudioClip& clip, const Sample* s
 		if ((int64_t)newStartPos < 0) {
 			newStartPos = 0;
 		}
-		clip.sampleHolder.startPos = newStartPos;
+		clip.setSampleStartPos(newStartPos);
 
 		ActionType actionType =
 		    (newLengthTicks < oldLength) ? ActionType::CLIP_LENGTH_DECREASE : ActionType::CLIP_LENGTH_INCREASE;

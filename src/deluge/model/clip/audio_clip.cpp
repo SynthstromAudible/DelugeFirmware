@@ -251,7 +251,7 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	// 	ao->mode = AudioOutputMode::player;
 	// }
 	originalLength = loopLength();
-	sampleHolder.filePath = recorder->sample->filePath;
+	setSampleFilePath(recorder->sample->filePath.c_str());
 	sampleHolder.setAudioFile(recorder->sample, sampleControls.isCurrentlyReversed(), true,
 	                          CLUSTER_DONT_LOAD); // Adds a reason to the first Cluster(s). Must call this after
 	                                              // endSyncedRecording(), which puts some final values in the Sample
@@ -1414,7 +1414,7 @@ void AudioClip::quantizeLengthForArrangementRecording(ModelStackWithTimelineCoun
 
 	double samplesPerTick = (double)sampleHolder.getDurationInSamples(true) / numTicksDone;
 
-	sampleHolder.endPos = sampleHolder.startPos + samplesPerTick * suggestedLength + 0.5; // Rounds it
+	setSampleEndPos(sampleHolder.startPos + samplesPerTick * suggestedLength + 0.5); // Rounds it
 
 	int32_t oldLength = loopLength();
 	setLoopLength(suggestedLength);
@@ -1542,8 +1542,8 @@ bool AudioClip::shiftHorizontally(ModelStackWithTimelineCounter* modelStack, int
 		bool active = (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this) && voiceSample);
 		unassignVoiceSample(false);
 
-		sampleHolder.startPos = newStartPos;
-		sampleHolder.endPos = newStartPos + length;
+		setSampleStartPos(newStartPos);
+		setSampleEndPos(newStartPos + length);
 
 		sampleHolder.claimClusterReasons(sampleControls.isCurrentlyReversed(), CLUSTER_LOAD_IMMEDIATELY_OR_ENQUEUE);
 
