@@ -882,6 +882,8 @@ doLoadAsWaveTable:
 					    params::LOCAL_OSC_B_WAVE_INDEX);
 				}
 				getCurrentOutput()->modKnobMode = 7;
+				// M3 owner-5: reflect the auto-assigned wavetable mod knobs into the DOM record
+				soundEditor.currentSound->seedModKnobsRecord();
 			}
 			view.setKnobIndicatorLevels(); // Visually update.
 			view.setModLedStates();
@@ -1039,6 +1041,8 @@ doLoadAsSample:
 				getCurrentOutput()->modKnobMode = 1;
 				view.setKnobIndicatorLevels(); // Visually update.
 				view.setModLedStates();
+				// M3 owner-5: reflect the removed wavetable mod knobs into the DOM record
+				soundEditor.currentSound->seedModKnobsRecord();
 			}
 		}
 

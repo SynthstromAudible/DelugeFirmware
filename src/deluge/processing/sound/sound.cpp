@@ -2909,6 +2909,7 @@ bool Sound::learnKnob(MIDICable* cable, ParamDescriptor paramDescriptor, uint8_t
 			ensureInaccessibleParamPresetValuesWithoutKnobsAreZero(song);
 		}
 
+		seedModKnobsRecord(); // M3 owner-5: reflect the reassignment into the DOM record
 		return true;
 	}
 
@@ -3042,6 +3043,7 @@ void Sound::doneReadingFromFile() {
 	// post-parse.
 	if (docSound_ != nullptr) {
 		seedDocSoundScalars();
+		seedModKnobsRecord();
 	}
 }
 
@@ -3147,6 +3149,8 @@ void Sound::setSynthMode(SynthMode value, Song* song) {
 	// in Sound::maySourcePatchToParam, the filter mode is checked to determine if patch cables are allowed
 	// Setup patching after changing filter mode above to ensure PatchCableAcceptance is correctly determined
 	setupPatchingForAllParamManagers(song);
+
+	seedModKnobsRecord(); // M3 owner-5: the FM switch above may have reassigned mod knobs — reflect into the DOM record
 }
 
 void Sound::setModulatorTranspose(int32_t m, int32_t value, ModelStackWithSoundFlags* modelStack) {
@@ -3881,12 +3885,24 @@ void Sound::seedDocSoundScalars() {
 	}
 }
 
+void Sound::seedModKnobsRecord() {
+	if (docSound_ == nullptr) {
+		return;
+	}
+	for (int32_t k = 0; k < kNumModButtons; k++) {
+		for (int32_t w = 0; w < kNumPhysicalModKnobs; w++) {
+			docSound_->mod_knob_param_descriptor[k][w] = modKnobs[k][w].paramDescriptor.data;
+		}
+	}
+}
+
 void Sound::bindDocSound(deluge::project::DocSound* d) {
 	docSound_ = d;
 	// Seed the DOM-owned scalars from the engine caches. Correct for a SoundInstrument (bound at assignMissingIds,
 	// after its fields are parsed) and for a freshly-created Sound. A SoundDrum is bound BEFORE parse (adoptDrum runs
 	// first), so this seed is stale for drums — doneReadingFromFile re-runs it once parsing is done.
 	seedDocSoundScalars();
+	seedModKnobsRecord();
 }
 
 // M3 owner-5: DOM-owned scalars — each setter writes the authoritative record (when bound) AND the native cache. Render
@@ -3985,13 +4001,8 @@ void Sound::syncDocSound() {
 	// DOM-owned (seeded at bind + re-seeded at doneReadingFromFile, written by their setters, read at save), no longer
 	// shadowed here: voice_priority, max_voice_count, side_chain_send_level, output_midi_*, oscillator_sync, and the
 	// Slice C top-level scalars (polyphonic, synth_mode, transpose, num_unison, unison_detune, unison_stereo_spread,
-	// modulator1_to_modulator0, modulator_transpose/cents, osc/modulator_retrigger_phase, and the LFO config
-	// (lfo_wave_type/sync_type/sync_level).
-	for (int32_t k = 0; k < kNumModButtons; k++) {
-		for (int32_t w = 0; w < kNumPhysicalModKnobs; w++) {
-			d.mod_knob_param_descriptor[k][w] = modKnobs[k][w].paramDescriptor.data;
-		}
-	}
+	// modulator1_to_modulator0, modulator_transpose/cents, osc/modulator_retrigger_phase, the LFO config
+	// (lfo_wave_type/sync_type/sync_level), and mod_knob_param_descriptor (DOM-owned via seedModKnobsRecord).
 	syncDocModControllable(d.mod_controllable);
 	for (int32_t s = 0; s < kNumSources; s++) {
 		Source& src = sources[s];
@@ -4161,23 +4172,21 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 		writer.closeTag();
 	}
 
-	// Mod knobs
+	// Mod knobs (M3 owner-5: read the authoritative record; cache fallback only for an unbound Sound)
 	writer.writeArrayStart("modKnobs");
 	for (int32_t k = 0; k < kNumModButtons; k++) {
 		for (int32_t w = 0; w < kNumPhysicalModKnobs; w++) {
-			ModKnob* knob = &modKnobs[k][w];
+			ParamDescriptor pd;
+			pd.data =
+			    docSound_ != nullptr ? docSound_->mod_knob_param_descriptor[k][w] : modKnobs[k][w].paramDescriptor.data;
 			writer.writeOpeningTagBeginning("modKnob", true);
-			writer.writeAttribute(
-			    "controlsParam",
-			    params::paramNameForFile(params::Kind::UNPATCHED_SOUND, knob->paramDescriptor.getJustTheParam()),
-			    false);
-			if (!knob->paramDescriptor.isJustAParam()) {
-				writer.writeAttribute("patchAmountFromSource",
-				                      sourceToString(knob->paramDescriptor.getTopLevelSource()), false);
+			writer.writeAttribute("controlsParam",
+			                      params::paramNameForFile(params::Kind::UNPATCHED_SOUND, pd.getJustTheParam()), false);
+			if (!pd.isJustAParam()) {
+				writer.writeAttribute("patchAmountFromSource", sourceToString(pd.getTopLevelSource()), false);
 
-				if (knob->paramDescriptor.hasSecondSource()) {
-					writer.writeAttribute("patchAmountFromSecondSource",
-					                      sourceToString(knob->paramDescriptor.getSecondSourceFromTop()));
+				if (pd.hasSecondSource()) {
+					writer.writeAttribute("patchAmountFromSecondSource", sourceToString(pd.getSecondSourceFromTop()));
 				}
 			}
 			writer.closeTag(true);
@@ -4382,6 +4391,14 @@ ModelStackWithAutoParam* Sound::getParamFromModEncoderDeeper(int32_t whichModEnc
 }
 
 bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) {
+	bool result = modEncoderButtonActionImpl(whichModEncoder, on, modelStack);
+	// M3 owner-5: the impl may reassign mod knobs in-place (LPF/HPF/EQ cycling) via any of its early-return branches —
+	// re-seed the whole block once here so the DOM record stays in sync without threading a reseed through each branch.
+	seedModKnobsRecord();
+	return result;
+}
+
+bool Sound::modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) {
 
 	int32_t modKnobMode = *getModKnobMode();
 

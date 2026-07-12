@@ -89,6 +89,12 @@ public:
 	// AND re-run at doneReadingFromFile — a SoundDrum's adoptDrum binds the record BEFORE its fields are parsed, so the
 	// bind-time seed is stale for drums and must be refreshed once parsing has finished.
 	void seedDocSoundScalars();
+	// Copy the 16 mod-knob ParamDescriptors engine->record. modKnobs is mutated in-place (setToHaveParamOnly etc.) at
+	// several gestures rather than through one setter, so instead of funnelling each write we re-seed the whole block
+	// after any mutation (bind, doneReadingFromFile, learnKnob, setSynthMode, modEncoderButtonAction, sample
+	// auto-assign). The native ModKnob array stays the working structure; the record mirrors it and is what save reads.
+	// Public so the external sample-load auto-assign can re-seed.
+	void seedModKnobsRecord();
 	// Rebuild-at-save: copy the not-yet-inverted cold scalars engine->record. Self-guards when unbound. Called at
 	// writeToFile start. No longer touches voice_priority (that field is DOM-owned — seeded at bind, written by the
 	// setter, read at save).
@@ -283,6 +289,9 @@ public:
 	void setupAsDefaultSynth(ParamManager* paramManager);
 	void modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) final;
 	bool modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) final;
+	// The real body; the override above wraps it to re-seed the modKnobs record after any in-place reassignment,
+	// without having to touch this function's many early returns.
+	bool modEncoderButtonActionImpl(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack);
 	static void writeParamsToFile(Serializer& writer, ParamManager* paramManager, bool writeAutomation);
 	static void readParamsFromFile(Deserializer& reader, ParamManagerForTimeline* paramManager,
 	                               int32_t readAutomationUpToPos);
