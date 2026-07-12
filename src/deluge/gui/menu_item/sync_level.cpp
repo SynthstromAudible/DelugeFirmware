@@ -24,13 +24,10 @@
 namespace deluge::gui::menu_item {
 
 void SyncLevel::drawValue() {
-	if (this->getValue() == 0) {
-		display->setText(l10n::get(l10n::String::STRING_FOR_OFF));
-	}
+	if (this->getValue() == 0) {}
 	else {
 		etl::string<kShortStringBufferSize> buffer;
 		getNoteLengthName(buffer);
-		display->setScrollingText(buffer.data(), 0);
 	}
 }
 

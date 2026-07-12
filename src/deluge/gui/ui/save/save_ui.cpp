@@ -114,7 +114,6 @@ ActionResult SaveUI::timerCallback() {
 
 		if (available) {
 			currentUIMode = UI_MODE_NONE;
-			display->setNextTransitionDirection(1);
 			openUI(&gui::context_menu::saveSongOrInstrument);
 		}
 		else {

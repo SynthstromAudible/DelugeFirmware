@@ -152,8 +152,7 @@ protected:
 	int32_t fileIconPt2Width;
 
 	// 7Seg Only
-	static int8_t numberEditPos; // -1 is default
-	static NumericLayerScrollingText* scrollingText;
+	static int8_t numberEditPos;   // -1 is default
 	bool shouldWrapFolderContents; // As in, wrap around at the end.
 
 	bool mayDefaultToBrandNewNameOnEntry;

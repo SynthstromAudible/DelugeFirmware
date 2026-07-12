@@ -124,8 +124,6 @@ void DxCartridge::drawPixelsForOled() {
 void DxCartridge::drawValue() {
 	char names[32][11];
 	pd->getProgramNames(names);
-
-	display->setScrollingText(names[currentValue]);
 }
 
 bool DxCartridge::tryLoad(std::string_view path) {

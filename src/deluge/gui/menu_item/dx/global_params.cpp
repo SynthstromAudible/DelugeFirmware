@@ -61,7 +61,6 @@ void DxGlobalParams::drawPixelsForOled() {
 }
 
 void DxGlobalParams::drawValue() {
-	display->setScrollingText(items[currentValue].shortname);
 }
 
 void DxGlobalParams::selectEncoderAction(int32_t offset) {

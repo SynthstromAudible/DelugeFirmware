@@ -30,7 +30,7 @@ public:
 	Integer(l10n::String newName, l10n::String title, int32_t newP, RenderingStyle style)
 	    : PatchedParam(newP), IntegerContinuous(newName, title), number_style_{style} {}
 	// 7SEG Only
-	void drawValue() override { display->setTextAsNumber(this->getValue(), shouldDrawDotOnName()); }
+	void drawValue() override {}
 
 	bool usesAffectEntire() override { return true; }
 

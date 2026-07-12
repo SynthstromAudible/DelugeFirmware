@@ -95,11 +95,8 @@ void PatchCables::drawPixelsForOled() {
 void PatchCables::drawValue() {
 	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
 	if (set->numPatchCables == 0) {
-		display->setText("none", false, false);
 		return;
 	}
-
-	display->setScrollingText(options[currentValue].begin());
 }
 
 void PatchCables::selectEncoderAction(int32_t offset) {

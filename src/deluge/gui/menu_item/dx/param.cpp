@@ -335,14 +335,9 @@ void DxParam::flashParamName() {
 				strcpy(buf + 3, desc_op_short[idx]);
 			}
 		}
-		display->setScrollingText(buf, 0, 600, 1);
 	}
-	else if (param >= 6 * 21 && param < 6 * 21 + 18) {
-		display->setScrollingText(desc_global_short[param - 6 * 21], 0, 600, 1);
-	}
-	else {
-		display->setScrollingText(getTitle().begin(), 0, 600, 1);
-	}
+	else if (param >= 6 * 21 && param < 6 * 21 + 18) {}
+	else {}
 }
 
 using deluge::hid::display::OLED;

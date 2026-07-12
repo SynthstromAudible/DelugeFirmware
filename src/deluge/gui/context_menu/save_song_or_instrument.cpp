@@ -61,8 +61,7 @@ bool SaveSongOrInstrument::acceptCurrentOption() {
 	case 2: { // Delete file
 		bool available = context_menu::deleteFile.setupAndCheckAvailability();
 
-		if (available) { // It always will be - but we gotta check.
-			display->setNextTransitionDirection(1);
+		if (available) {                       // It always will be - but we gotta check.
 			openUI(&context_menu::deleteFile); // Might fail
 		}
 		return available;

@@ -32,6 +32,6 @@ public:
 
 	void beginSession(MenuItem* navigatedBackwardFrom) override { drawValue(); }
 
-	void drawValue() { display->setScrollingText(kFirmwareVersionString); }
+	void drawValue() {}
 };
 } // namespace deluge::gui::menu_item::firmware

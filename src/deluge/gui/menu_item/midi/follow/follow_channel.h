@@ -84,18 +84,10 @@ public:
 	}
 
 	void drawValue() override {
-		if (this->getValue() == MIDI_CHANNEL_MPE_LOWER_ZONE) {
-			display->setText(l10n::get(l10n::String::STRING_FOR_MPE_LOWER_ZONE));
-		}
-		else if (this->getValue() == MIDI_CHANNEL_MPE_UPPER_ZONE) {
-			display->setText(l10n::get(l10n::String::STRING_FOR_MPE_UPPER_ZONE));
-		}
-		else if (this->getValue() == MIDI_CHANNEL_NONE) {
-			display->setText(l10n::get(l10n::String::STRING_FOR_NONE));
-		}
-		else {
-			display->setTextAsNumber(this->getValue() + 1);
-		}
+		if (this->getValue() == MIDI_CHANNEL_MPE_LOWER_ZONE) {}
+		else if (this->getValue() == MIDI_CHANNEL_MPE_UPPER_ZONE) {}
+		else if (this->getValue() == MIDI_CHANNEL_NONE) {}
+		else {}
 	}
 
 	void selectEncoderAction(int32_t offset) override {

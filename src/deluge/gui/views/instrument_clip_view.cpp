@@ -418,7 +418,6 @@ ActionResult InstrumentClipView::buttonAction(deluge::hid::Button b, bool on, bo
 			bool available = context_menu::cancelStemExport.setupAndCheckAvailability();
 
 			if (available) {
-				display->setNextTransitionDirection(1);
 				openUI(&context_menu::cancelStemExport);
 			}
 		}
@@ -3491,7 +3490,6 @@ bool InstrumentClipView::enterNoteEditor() {
 	if (numEditPadPresses == 1 && lastSelectedNoteXDisplay != kNoSelection
 	    && lastSelectedNoteYDisplay != kNoSelection) {
 		dontDeleteNotesOnDepress();
-		display->setNextTransitionDirection(1);
 		InstrumentClip* clip = getCurrentInstrumentClip();
 		if (soundEditor.setup(clip, &noteEditorRootMenu)) {
 			// if it's a kit with affect entire enabled, toggle it off when entering note editor
@@ -3658,7 +3656,6 @@ bool InstrumentClipView::enterNoteRowEditor() {
 
 		// does note row exist?
 		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
-			display->setNextTransitionDirection(1);
 			InstrumentClip* clip = getCurrentInstrumentClip();
 			if (soundEditor.setup(clip, &noteRowEditorRootMenu)) {
 				// if it's a kit with affect entire enabled, toggle it off when entering note row editor

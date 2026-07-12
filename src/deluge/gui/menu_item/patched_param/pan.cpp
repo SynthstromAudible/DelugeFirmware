@@ -41,7 +41,6 @@ void Pan::drawValue() {
 	else if (this->getValue() > 0) {
 		strcat(buffer, "R");
 	}
-	display->setText(buffer, true, drawDot);
 }
 
 int32_t Pan::getFinalValue() {

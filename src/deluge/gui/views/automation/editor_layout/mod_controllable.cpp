@@ -375,9 +375,7 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplay7SEG(Cl
 		if (modEncoderAction && !padSelected) {
 			display->displayPopup(buffer, 3, true);
 		}
-		else {
-			display->setText(buffer, true, 255, false);
-		}
+		else {}
 	}
 	// display parameter name
 	else if (knobPosLeft == kNoSelection) {
@@ -391,9 +389,7 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplay7SEG(Cl
 		if (padSelected || (playbackStarted && isAutomated)) {
 			display->displayPopup(parameterName.c_str(), 3, true, isAutomated ? 3 : 255);
 		}
-		else {
-			display->setScrollingText(parameterName.c_str(), 0, 600, -1, isAutomated ? 3 : 255);
-		}
+		else {}
 	}
 }
 

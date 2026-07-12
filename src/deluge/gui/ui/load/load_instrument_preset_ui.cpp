@@ -413,7 +413,6 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 		bool available = gui::context_menu::loadInstrumentPreset.setupAndCheckAvailability();
 
 		if (available) {
-			display->setNextTransitionDirection(1);
 			openUI(&gui::context_menu::loadInstrumentPreset);
 		}
 		else {

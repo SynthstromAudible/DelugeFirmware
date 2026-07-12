@@ -756,8 +756,6 @@ static void deluge_boot(const DelugeBoard* board) {
 
 	while (true) {
 
-		display->setTextAsNumber(count);
-
 		int32_t fileNumber = (uint32_t)getNoise() % 10000;
 		int32_t fileSize = (uint32_t)getNoise() % 1000000;
 
@@ -767,7 +765,6 @@ static void deluge_boot(const DelugeBoard* board) {
 
 		result = f_open(&fil, fileName, FA_CREATE_ALWAYS | FA_WRITE);
 		if (result) {
-			display->setText("AAAA");
 			while (1) {}
 		}
 
@@ -778,7 +775,6 @@ static void deluge_boot(const DelugeBoard* board) {
 			result = f_write(&fil, &miscStringBuffer, 256, &bytesWritten);
 
 			if (bytesWritten != 256) {
-				display->setText("BBBB");
 				while (1) {}
 			}
 
@@ -841,11 +837,9 @@ extern "C" int32_t deluge_main(void) {
 // deluge_block_poll_card_event() instead of the BSP calling up into the app.
 
 extern "C" void setNumeric(char* text) {
-	display->setText(text);
 }
 
 extern "C" void setNumericNumber(int32_t number) {
-	display->setTextAsNumber(number);
 }
 
 extern "C" void routineWithClusterLoading() {

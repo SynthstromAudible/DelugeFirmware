@@ -33,9 +33,7 @@ public:
 	[[nodiscard]] int32_t getMinValue() const override { return -1; }
 
 	void drawValue() override {
-		if (this->getValue() < 0) {
-			display->setText(l10n::get(l10n::String::STRING_FOR_AUTO));
-		}
+		if (this->getValue() < 0) {}
 		else {
 			Integer::drawValue();
 		}

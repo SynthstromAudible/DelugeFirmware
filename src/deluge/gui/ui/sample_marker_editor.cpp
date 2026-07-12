@@ -676,7 +676,6 @@ ActionResult SampleMarkerEditor::buttonAction(deluge::hid::Button b, bool on, bo
 }
 
 ActionResult SampleMarkerEditor::exitUI() {
-	display->setNextTransitionDirection(-1);
 	close();
 	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
@@ -1262,8 +1261,6 @@ void SampleMarkerEditor::displayText() {
 
 	char buffer[5];
 	intToString(number, buffer, numDecimals + 1);
-
-	display->setText(buffer, true, drawDot);
 }
 
 void SampleMarkerEditor::renderColumn(int32_t col, RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth],

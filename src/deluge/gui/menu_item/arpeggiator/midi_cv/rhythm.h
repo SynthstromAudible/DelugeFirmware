@@ -38,7 +38,7 @@ public:
 		soundEditor.currentArpSettings->rhythm = value;
 	}
 
-	void drawValue() override { display->setScrollingText(arpRhythmPatternNames[this->getValue()]); }
+	void drawValue() override {}
 
 	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) override {
 		oled_canvas::Canvas& canvas = OLED::main;

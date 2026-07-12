@@ -52,7 +52,6 @@ public:
 	void drawValue() {
 		char buffer[50];
 		getBatteryString(buffer);
-		display->setScrollingText(buffer);
 	}
 
 	ActionResult timerCallback() override {

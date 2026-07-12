@@ -125,7 +125,6 @@ bool SampleBrowser::opened() {
 	if (error != Error::NONE) {
 sdError:
 		display->displayError(error);
-		display->setNextTransitionDirection(0); // Cancel the transition that we'll now not be doing
 		return false;
 	}
 
@@ -253,7 +252,6 @@ void SampleBrowser::currentFileChanged(int32_t movementDirection) {
 }
 
 void SampleBrowser::exitAndNeverDeleteDrum() {
-	display->setNextTransitionDirection(-1);
 	close();
 }
 
@@ -261,7 +259,6 @@ void SampleBrowser::exitAndNeverDeleteDrum() {
 void SampleBrowser::exitAction() {
 	UI* redrawUI = nullptr;
 
-	display->setNextTransitionDirection(-1);
 	if (!isUIOpen(&soundEditor)) {
 		// If no file was selected, the user wanted to get out of creating this Drum.
 		// Only if some unassigned Drums
@@ -315,7 +312,6 @@ considerContextMenu:
 				bool available = contextMenu->setupAndCheckAvailability();
 
 				if (available) { // Not sure if this can currently fail.
-					display->setNextTransitionDirection(1);
 					openUI(contextMenu);
 				}
 				else {
@@ -645,9 +641,7 @@ void SampleBrowser::scrollFinished() {
 }
 
 void SampleBrowser::displayCurrentFilename() {
-	if (fileIndexSelected == -1) {
-		display->setText("----");
-	}
+	if (fileIndexSelected == -1) {}
 
 	else {}
 }

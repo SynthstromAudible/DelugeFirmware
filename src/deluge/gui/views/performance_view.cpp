@@ -792,7 +792,6 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 			defaultEditingMode = false;
 			editingParam = false;
 			indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
-			display->setNextTransitionDirection(-1);
 			close();
 		}
 	}
@@ -830,7 +829,6 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 			}
 
 			if (!defaultEditingMode) {
-				display->setNextTransitionDirection(1);
 				if (soundEditor.setup(nullptr, &soundEditorRootMenuPerformanceView)) {
 					openUI(&soundEditor);
 				}
@@ -861,7 +859,6 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 					editingParam = false;
 					indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
 
-					display->setNextTransitionDirection(-1);
 					close();
 				}
 				else {
@@ -876,7 +873,6 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 						resetPerformanceView(modelStack);
 					}
 					if (!inEditingMode) {
-						display->setNextTransitionDirection(1);
 						openUI(&performanceView);
 					}
 					else {

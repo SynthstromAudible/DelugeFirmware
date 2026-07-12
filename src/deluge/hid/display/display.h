@@ -50,11 +50,6 @@ public:
 
 	constexpr virtual size_t getNumBrowserAndMenuLines() = 0;
 
-	virtual void setText(std::string_view newText, bool alignRight = false, uint8_t drawDot = 255, bool doBlink = false,
-	                     uint8_t* newBlinkMask = nullptr, bool blinkImmediately = false, bool shouldBlinkFast = false,
-	                     int32_t scrollPos = 0, uint8_t* blinkAddition = nullptr,
-	                     bool justReplaceBottomLayer = false) {};
-
 	virtual void displayPopup(char const* newText, int8_t numFlashes = 3, bool alignRight = false,
 	                          uint8_t drawDot = 255, int32_t blinkSpeed = 1, PopupType type = PopupType::GENERAL) = 0;
 
@@ -72,8 +67,6 @@ public:
 
 	virtual void popupText(char const* text, PopupType type = PopupType::GENERAL) = 0;
 	virtual void popupTextTemporary(char const* text, PopupType type = PopupType::GENERAL) = 0;
-
-	virtual void setNextTransitionDirection(int8_t thisDirection) {};
 
 	virtual void cancelPopup() = 0;
 	virtual void freezeWithError(char const* text) = 0;
@@ -95,21 +88,6 @@ public:
 	virtual void consoleText(char const* text) = 0;
 
 	virtual void timerRoutine() = 0;
-
-	virtual void setTextAsNumber(int16_t number, uint8_t drawDot = 255, bool doBlink = false) {}
-	virtual int32_t getEncodedPosFromLeft(int32_t textPos, char const* text, bool* andAHalf) { return 0; }
-	virtual void setTextAsSlot(int16_t currentSlot, int8_t currentSubSlot, bool currentSlotExists, bool doBlink = false,
-	                           int32_t blinkPos = -1, bool blinkImmediately = false) {}
-	virtual void setTextWithMultipleDots(std::string_view newText, std::vector<uint8_t> dotPositions,
-	                                     bool alignRight = false, bool doBlink = false, uint8_t* newBlinkMask = nullptr,
-	                                     bool blinkImmediately = false) {}
-	virtual NumericLayerScrollingText* setScrollingText(char const* newText, int32_t startAtPos = 0,
-	                                                    int32_t initialDelay = 600, int count = -1,
-	                                                    uint8_t fixedDot = 255) {
-		return nullptr;
-	}
-
-	virtual std::array<uint8_t, kNumericDisplayLength> getLast() { return {0}; }; // to match SevenSegment
 
 	bool haveOLED() { return displayType == DisplayType::OLED; }
 	bool have7SEG() { return displayType == DisplayType::SEVENSEG; }

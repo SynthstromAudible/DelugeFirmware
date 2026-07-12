@@ -448,7 +448,6 @@ moveAfterClipInstance:
 			bool available = context_menu::cancelStemExport.setupAndCheckAvailability();
 
 			if (available) {
-				display->setNextTransitionDirection(1);
 				openUI(&context_menu::cancelStemExport);
 			}
 		}
@@ -548,7 +547,6 @@ moveAfterClipInstance:
 					}
 				}
 				// open Song FX menu
-				display->setNextTransitionDirection(1);
 				soundEditor.setup();
 				openUI(&soundEditor);
 			}
@@ -1944,9 +1942,7 @@ void SessionView::redrawNumericDisplay() {
 			if (isArrangerView) {
 
 				if (currentUIMode != UI_MODE_HOLDING_SECTION_PAD && currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW) {
-					if (playbackHandler.stopOutputRecordingAtLoopEnd) {
-						display->setText("1", true, 255, true, NULL, false, true);
-					}
+					if (playbackHandler.stopOutputRecordingAtLoopEnd) {}
 					else {
 						clearNumericDisplay();
 					}
@@ -1978,15 +1974,12 @@ void SessionView::clearNumericDisplay() {
 	if (getCurrentUI() == &performanceView) {
 		performanceView.renderViewDisplay();
 	}
-	else {
-		display->setText("");
-	}
+	else {}
 }
 
 void SessionView::displayRepeatsTilLaunch() {
 	char buffer[5];
 	intToString(session.numRepeatsTilLaunch, buffer);
-	display->setText(buffer, true, 255, true, NULL, false, true);
 }
 
 /// render session view display on opening

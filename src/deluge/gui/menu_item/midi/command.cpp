@@ -96,7 +96,6 @@ void Command::drawValue() const {
 	else {
 		output = l10n::get(l10n::String::STRING_FOR_SET);
 	}
-	display->setText(output);
 }
 
 void Command::selectEncoderAction(int32_t offset) {

@@ -4850,7 +4850,6 @@ gotAnInstrument: {}
 	}
 
 #if ALPHA_OR_BETA_VERSION
-	display->setText("A002");
 #endif
 	replaceInstrument(oldInstrument, newInstrument);
 

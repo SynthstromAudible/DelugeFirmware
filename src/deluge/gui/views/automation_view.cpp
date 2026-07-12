@@ -1055,7 +1055,6 @@ void AutomationView::renderAutomationOverviewDisplay7SEG(Output* output, OutputT
 	else {
 		overviewText = l10n::get(l10n::String::STRING_FOR_AUTOMATION);
 	}
-	display->setScrollingText(overviewText);
 }
 
 // adjust the LED meters and update the display
@@ -1635,7 +1634,6 @@ void AutomationView::handleSelectEncoderButtonAction(bool on) {
 			soundEditor.setupKitGlobalFXMenu = true;
 		}
 
-		display->setNextTransitionDirection(1);
 		Clip* clip = onArrangerView ? nullptr : getCurrentClip();
 		if (soundEditor.setup(clip)) {
 			openUI(&soundEditor);

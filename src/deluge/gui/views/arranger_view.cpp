@@ -302,7 +302,6 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 			bool available = context_menu::cancelStemExport.setupAndCheckAvailability();
 
 			if (available) {
-				display->setNextTransitionDirection(1);
 				openUI(&context_menu::cancelStemExport);
 			}
 		}
@@ -330,7 +329,6 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 		}
 		// open Song FX menu
 		else if (on && currentUIMode == UI_MODE_NONE) {
-			display->setNextTransitionDirection(1);
 			soundEditor.setup();
 			openUI(&soundEditor);
 		}

@@ -71,13 +71,10 @@ public:
 
 	void drawValue() override {
 		int32_t value = this->getValue();
-		if (value == 0) {
-			display->setScrollingText(l10n::get(l10n::String::STRING_FOR_OFF));
-		}
+		if (value == 0) {}
 		else {
 			char name[12];
 			snprintf(name, sizeof(name), "%d", value);
-			display->setScrollingText(name);
 		}
 	}
 

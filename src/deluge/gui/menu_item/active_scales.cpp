@@ -23,7 +23,6 @@ void ActiveScaleMenu::readValueAgain() {
 }
 
 void ActiveScaleMenu::drawName() {
-	display->setScrollingText(getName().data());
 }
 
 void ActiveScaleMenu::drawPixelsForOled() {

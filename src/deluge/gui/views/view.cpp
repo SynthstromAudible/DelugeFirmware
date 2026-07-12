@@ -458,7 +458,6 @@ possiblyRevert:
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			display->setNextTransitionDirection(1);
 			soundEditor.setup();
 			openUI(&soundEditor);
 		}

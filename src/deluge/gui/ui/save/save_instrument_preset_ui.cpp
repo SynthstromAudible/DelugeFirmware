@@ -157,7 +157,6 @@ fail:
 		bool available = gui::context_menu::overwriteFile.setupAndCheckAvailability();
 
 		if (available) { // Will always be true.
-			display->setNextTransitionDirection(1);
 			openUI(&gui::context_menu::overwriteFile);
 			return true;
 		}

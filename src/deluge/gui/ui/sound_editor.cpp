@@ -327,7 +327,6 @@ void SoundEditor::enterSubmenu(MenuItem* newItem, MenuItem* navigatedBackwardFro
 
 	navigationDepth++;
 	menuItemNavigationRecord[navigationDepth] = newItem;
-	display->setNextTransitionDirection(1);
 	beginScreen(navigatedBackwardFrom);
 }
 
@@ -683,8 +682,6 @@ void SoundEditor::goUpOneLevel() {
 	} while (getCurrentMenuItem()->checkPermissionToBeginSession(currentModControllable, currentSourceIndex,
 	                                                             &currentMultiRange)
 	         == MenuPermission::NO);
-	display->setNextTransitionDirection(-1);
-
 	MenuItem* oldItem = menuItemNavigationRecord[navigationDepth + 1];
 	if (oldItem == &menu_item::multiRangeMenu) {
 		oldItem = menu_item::multiRangeMenu.menuItemHeadingTo;
@@ -723,7 +720,6 @@ ActionResult SoundEditor::exitCompletely() {
 	// end current menu item session before exiting
 	endScreen();
 
-	display->setNextTransitionDirection(-1);
 	close();
 	possibleChangeToCurrentRangeDisplay();
 
@@ -1247,9 +1243,6 @@ getOut:
 							modulationItemFound = true;
 							navigationDepth = newNavigationDepth + 1;
 							menuItemNavigationRecord[navigationDepth] = newMenuItem;
-							if (!wentBack) {
-								display->setNextTransitionDirection(1);
-							}
 							beginScreen();
 
 							if (getRootUI() == &automationView) {
@@ -1372,7 +1365,6 @@ void SoundEditor::enterOrUpdateSoundEditor(bool on) {
 	// If not in SoundEditor yet
 	if (getCurrentUI() != &soundEditor) {
 		if (getCurrentUI() == &sampleMarkerEditor) {
-			display->setNextTransitionDirection(0);
 			changeUIAtLevel(&soundEditor, 1);
 			renderingNeededRegardlessOfUI(); // Not sure if this is 100% needed... some of it is.
 		}
@@ -1383,7 +1375,6 @@ void SoundEditor::enterOrUpdateSoundEditor(bool on) {
 
 	// Or if already in SoundEditor
 	else {
-		display->setNextTransitionDirection(0);
 		beginScreen();
 
 		if (getRootUI() == &automationView) {
@@ -1841,8 +1832,6 @@ doMIDIOrCV:
 	navigationDepth = 0;
 	shouldGoUpOneLevelOnBegin = false;
 	menuItemNavigationRecord[navigationDepth] = newItem;
-	display->setNextTransitionDirection(1);
-
 	return true;
 }
 

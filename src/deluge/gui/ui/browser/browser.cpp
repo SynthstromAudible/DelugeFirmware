@@ -64,7 +64,6 @@ char const* Browser::filenameToStartSearchAt;
 
 // 7SEG ONLY
 int8_t Browser::numberEditPos;
-NumericLayerScrollingText* Browser::scrollingText;
 
 char const* allowedFileExtensionsXML[] = {"XML", "Json", NULL};
 
@@ -72,7 +71,6 @@ Browser::Browser() {
 	fileIcon = deluge::hid::display::OLED::songIcon;
 	fileIconPt2 = nullptr;
 	fileIconPt2Width = 0;
-	scrollingText = NULL;
 	shouldWrapFolderContents = true;
 
 	mayDefaultToBrandNewNameOnEntry = false;
@@ -1363,7 +1361,6 @@ void Browser::goIntoDeleteFileContextMenu() {
 	bool available = context_menu::deleteFile.setupAndCheckAvailability();
 
 	if (available) {
-		display->setNextTransitionDirection(1);
 		openUI(&context_menu::deleteFile);
 	}
 }
@@ -1398,7 +1395,6 @@ Error Browser::goIntoFolder(char const* folderName) {
 	enteredText.clear();
 	enteredTextEditPos = 0;
 
-	display->setNextTransitionDirection(1);
 	error = arrivedInNewFolder(1);
 	if (error == Error::NONE) {
 		renderUIsForOled();
@@ -1420,7 +1416,6 @@ Error Browser::goUpOneDirectoryLevel() {
 	currentDir.resize(slashPos);
 	enteredTextEditPos = 0;
 
-	display->setNextTransitionDirection(-1);
 	Error error = arrivedInNewFolder(-1, enteredText.c_str());
 	if (error == Error::NONE) {
 		renderUIsForOled();

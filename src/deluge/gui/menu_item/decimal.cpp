@@ -191,12 +191,6 @@ void Decimal::drawActualValue(bool justDidHorizontalScroll) {
 	uint8_t blinkMask[kNumericDisplayLength];
 	memset(&blinkMask, 255, kNumericDisplayLength);
 	blinkMask[3 + soundEditor.numberScrollAmount - soundEditor.numberEditPos] = 0b10000000;
-
-	display->setTextWithMultipleDots(outputText, dotPositions,
-	                                 true, // alignRight
-	                                 true, // doBlink
-	                                 blinkMask,
-	                                 false); // blinkImmediately
 }
 
 int32_t Decimal::getNumNonZeroDecimals(int32_t value) {
@@ -259,7 +253,6 @@ void DecimalWithoutScrolling::drawActualValue(bool justDidHorizontalScroll) {
 	const int32_t numDecimalPlaces = displayValue > 100 ? 1 : 2;
 	char buffer[12];
 	floatToString(displayValue, buffer, numDecimalPlaces, numDecimalPlaces);
-	display->setText(buffer, true, 3 - numDecimalPlaces);
 }
 
 void DecimalWithoutScrolling::getNotificationValue(etl::istring& value) {

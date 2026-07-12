@@ -145,7 +145,6 @@ ActionResult ContextMenu::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 getOut:
-			display->setNextTransitionDirection(-1);
 			close();
 		}
 	}
@@ -183,7 +182,6 @@ ActionResult ContextMenu::padAction(int32_t x, int32_t y, int32_t on) {
 		if (isSDRoutineActive()) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
-		display->setNextTransitionDirection(-1);
 		close();
 	}
 

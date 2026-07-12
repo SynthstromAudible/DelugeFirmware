@@ -45,12 +45,8 @@ public:
 	}
 
 	void drawValue() override {
-		if (this->getValue() == 128) {
-			display->setText(l10n::get(l10n::String::STRING_FOR_NONE));
-		}
-		else {
-			display->setTextAsNumber(this->getValue());
-		}
+		if (this->getValue() == 128) {}
+		else {}
 	}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {

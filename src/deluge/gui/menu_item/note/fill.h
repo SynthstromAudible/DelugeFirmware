@@ -83,7 +83,7 @@ public:
 		valueBuf.append(instrumentClipView.getFillString(this->getValue()));
 	}
 
-	void drawValue() override { display->setText(instrumentClipView.getFillString(this->getValue())); }
+	void drawValue() override {}
 
 	void writeCurrentValue() override { ; }
 };

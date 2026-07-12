@@ -168,57 +168,10 @@ void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t
 }
 
 void QwertyUI::displayText(bool blinkImmediately) {
-
-	int32_t totalTextLength = enteredText.size();
-
-	bool encodedEditPosAndAHalf;
-	int32_t encodedEditPos =
-	    display->getEncodedPosFromLeft(enteredTextEditPos, enteredText.c_str(), &encodedEditPosAndAHalf);
-
-	bool encodedEndPosAndAHalf;
-	int32_t encodedEndPos =
-	    display->getEncodedPosFromLeft(totalTextLength, enteredText.c_str(), &encodedEndPosAndAHalf);
-
-	int32_t scrollPos = encodedEditPos - (kNumericDisplayLength >> 1) + encodedEditPosAndAHalf;
-	int32_t maxScrollPos = encodedEndPos - kNumericDisplayLength;
-	if (totalTextLength == enteredTextEditPos) {
-		maxScrollPos++;
-	}
-	scrollPos = std::min(scrollPos, maxScrollPos);
-	scrollPos = std::max(scrollPos, 0_i32);
-
-	int32_t editPosOnscreen = encodedEditPos - scrollPos;
-
-	// Place the '_' for editing
-	uint8_t encodedAddition[kNumericDisplayLength];
-	memset(encodedAddition, 0, kNumericDisplayLength);
-	if (totalTextLength == enteredTextEditPos || enteredText.c_str()[enteredTextEditPos] == ' ') {
-		if (ALPHA_OR_BETA_VERSION && (editPosOnscreen < 0 || editPosOnscreen >= kNumericDisplayLength)) {
-			FREEZE_WITH_ERROR("E292");
-		}
-		encodedAddition[editPosOnscreen] = 0x08;
-		encodedEditPosAndAHalf = false; // Hard to put into words why this is needed, but without it, the blinking _
-		                                // after a . just won't blink
-	}
-
-	uint8_t blinkMask[kNumericDisplayLength];
-	for (int32_t i = 0; i < kNumericDisplayLength; i++) {
-		if (i < editPosOnscreen) {
-			blinkMask[i] = 255; // Blink none
-		}
-		else if (i == editPosOnscreen && encodedEditPosAndAHalf) {
-			blinkMask[i] = 0b01111111; // Blink the dot
-		}
-		else {
-			blinkMask[i] = 0; // Blink all
-		}
-	}
-
+	// The OLED renders entered text via the pixel path (see renderOLED / drawKeys); this base
+	// method now only drives the editing-cursor LED blink. The old 7-segment text layout (scroll
+	// position, blink mask, dot placement) went to Display::setText, which is a no-op on OLED.
 	indicator_leds::ledBlinkTimeout(0, true, !blinkImmediately);
-
-	// Set the text, replacing the bottom layer - cos in some cases, we want this to slip under an existing loading
-	// animation layer
-	display->setText(enteredText.c_str(), false, 255, true, blinkMask, false, false, scrollPos, encodedAddition, false);
 }
 
 const char keyboardChars[][5][11] = {{

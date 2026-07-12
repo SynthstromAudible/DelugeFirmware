@@ -47,7 +47,6 @@ void Rate::drawValue() {
 	}
 
 	const char* label = getQuantizedOptionLabel();
-	display->setText(label);
 }
 
 void Rate::drawPixelsForOled() {

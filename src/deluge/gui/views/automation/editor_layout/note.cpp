@@ -109,11 +109,9 @@ void AutomationEditorLayoutNote::renderNoteEditorDisplay7SEG(InstrumentClip* cli
 	if (knobPosLeft != kNoSelection) {
 		char buffer[5];
 		intToString(knobPosLeft, buffer);
-		display->setText(buffer, true, 255, false);
 	}
 	else {
 		std::string noteRowName = getNoteRowName(modelStackWithNoteRow->getNoteRowAllowNull(), isKit);
-		display->setScrollingText(noteRowName.c_str());
 	}
 }
 

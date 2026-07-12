@@ -180,8 +180,6 @@ void SourceSelection::drawValue() {
 	}
 
 	uint8_t drawDot = shouldDrawDotOnValue();
-
-	display->setText(l10n::get(text), false, drawDot);
 }
 
 void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {

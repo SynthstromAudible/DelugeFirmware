@@ -97,7 +97,6 @@ void Slicer::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 }
 
 void Slicer::redraw() {
-	display->setTextAsNumber(slicerMode == SLICER_MODE_REGION ? numClips : numManualSlice, 255, true);
 }
 
 bool Slicer::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
@@ -376,7 +375,6 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 			range->sampleHolder.transpose = 0;
 		}
 
-		display->setNextTransitionDirection(-1);
 		close();
 	}
 	else {
@@ -672,7 +670,6 @@ ramError2:
 	// New NoteRows have probably been created, whose colours haven't been grabbed yet.
 	instrumentClipView.recalculateColours();
 
-	display->setNextTransitionDirection(-1);
 	sampleBrowser.exitAndNeverDeleteDrum();
 	uiNeedsRendering(&instrumentClipView);
 }

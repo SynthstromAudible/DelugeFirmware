@@ -149,7 +149,6 @@ gotError:
 
 		if (available) { // Always true.
 			display->removeWorkingAnimation();
-			display->setNextTransitionDirection(1);
 			openUI(&context_menu::overwriteFile);
 			return true;
 		}

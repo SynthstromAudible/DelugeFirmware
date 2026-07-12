@@ -75,7 +75,7 @@ public:
 		return PatchedParam::patchingSourceShortcutPress(s, previousPressStillActive);
 	}
 
-	void drawValue() override { display->setTextAsNumber(this->getValue(), shouldDrawDotOnName()); }
+	void drawValue() override {}
 
 	void unlearnAction() override { MenuItemWithCCLearning::unlearnAction(); }
 	bool allowsLearnMode() override { return MenuItemWithCCLearning::allowsLearnMode(); }

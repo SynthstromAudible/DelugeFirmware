@@ -32,7 +32,7 @@ public:
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxPresetArpRhythm; }
 
-	void drawValue() override { display->setScrollingText(arpRhythmPatternNames[this->getValue()]); }
+	void drawValue() override {}
 
 	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) override {
 		char name[12];
