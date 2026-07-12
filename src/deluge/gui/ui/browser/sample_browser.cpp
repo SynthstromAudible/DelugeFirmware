@@ -1975,6 +1975,8 @@ getOut:
 			holder->filePath = thisSample->filePath;
 			holder->setAudioFile(thisSample, source->sampleControls.isCurrentlyReversed(), true);
 
+			source->seedDocRanges(); // M3 owner-5: reflect the imported sample range into the DOM record
+
 			autoDetectSideChainSending(drum, source, thisSample->filePath.c_str());
 
 			std::string newName;
