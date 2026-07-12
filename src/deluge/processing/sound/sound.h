@@ -85,6 +85,10 @@ public:
 	// Bind the record and seed the DOM-owned (already-inverted) fields from the engine — the load-bridge, since the
 	// engine field was parsed before docSound_ existed. Non-inline: needs the complete DocSound type.
 	void bindDocSound(deluge::project::DocSound* d);
+	// Copy the DOM-owned scalars engine->record. Assumes docSound_ is bound. Used as the load-bridge from bindDocSound
+	// AND re-run at doneReadingFromFile — a SoundDrum's adoptDrum binds the record BEFORE its fields are parsed, so the
+	// bind-time seed is stale for drums and must be refreshed once parsing has finished.
+	void seedDocSoundScalars();
 	// Rebuild-at-save: copy the not-yet-inverted cold scalars engine->record. Self-guards when unbound. Called at
 	// writeToFile start. No longer touches voice_priority (that field is DOM-owned — seeded at bind, written by the
 	// setter, read at save).
@@ -162,6 +166,15 @@ public:
 	// bind, written via setVoicePriority, read at save); render keeps reading this field directly.
 	VoicePriority voicePriority = VoicePriority::MEDIUM;
 	void setVoicePriority(VoicePriority value);
+
+	// M3 owner-5: setters for the DOM-owned scalar batch (records in DocSound; native fields kept as caches, seeded at
+	// bind, so this recipe is uniform whether the field is hot like oscillatorSync or cold). Each writes the record
+	// (when bound) AND the cache; every runtime write site funnels through these, save reads the record.
+	void setMaxVoiceCount(uint8_t value);
+	void setSideChainSendLevel(int32_t value);
+	void setOutputMidiChannel(uint8_t value);
+	void setOutputMidiNoteForDrum(uint8_t value);
+	void setOscillatorSync(bool value);
 
 	bool skippingRendering = true;
 

@@ -52,13 +52,13 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					soundDrum->outputMidiNoteForDrum = value;
+					soundDrum->setOutputMidiNoteForDrum(value);
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->outputMidiNoteForDrum = value;
+			soundEditor.currentSound->setOutputMidiNoteForDrum(value);
 		}
 	}
 };

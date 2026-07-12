@@ -3035,6 +3035,14 @@ void Sound::doneReadingFromFile() {
 	for (int32_t m = 0; m < kNumModulators; m++) {
 		recalculateModulatorTransposer(m, nullptr);
 	}
+
+	// M3 owner-5: parsing is complete, so refresh the DOM-owned scalars from the now-final engine fields. This is the
+	// load-bridge for a SoundDrum, whose adoptDrum bound the record with default values BEFORE its fields were parsed.
+	// A SoundInstrument/fresh Sound isn't bound yet here (docSound_ == nullptr) — bindDocSound seeds it later,
+	// post-parse.
+	if (docSound_ != nullptr) {
+		seedDocSoundScalars();
+	}
 }
 
 // Unusually, modelStack may be supplied as NULL, because when unassigning all voices e.g. on song swap, we won't have
@@ -3744,8 +3752,9 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 	else {
 		writer.writeAttribute("transpose", source->transpose);
 		writer.writeAttribute("cents", source->cents);
-		if (s == 1 && oscillatorSync) {
-			writer.writeAttribute("oscillatorSync", oscillatorSync);
+		bool oscSync = docSound_ != nullptr ? docSound_->oscillator_sync : oscillatorSync; // M3 owner-5: read record
+		if (s == 1 && oscSync) {
+			writer.writeAttribute("oscillatorSync", oscSync);
 		}
 		writer.writeAttribute("retrigPhase", oscRetriggerPhase[s]);
 
@@ -3820,21 +3829,64 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	deluge::project::serializeSoundParams(*doc.patched, *doc.unpatched, doc.patch_cables, writer, writeAutomation);
 }
 
-// M3 owner-5: bind the DOM record and seed the already-inverted fields from the engine cache. This is the load-bridge:
-// the engine field was parsed (Sound::readFromFile) before docSound_ existed (binding happens later, at
-// Song::adoptOutput/adoptDrum), so the parsed value lives in the engine field and is copied into the record here, once.
-// From then on the record is authoritative for those fields (setter writes it, save reads it).
-void Sound::bindDocSound(deluge::project::DocSound* d) {
-	docSound_ = d;
-	d->voice_priority = static_cast<uint8_t>(voicePriority);
+// M3 owner-5: copy the DOM-owned scalars engine->record (the load-bridge). Assumes docSound_ is bound. Run from
+// bindDocSound and re-run at doneReadingFromFile (see those for the bind-vs-parse ordering that makes the re-run
+// necessary for SoundDrums).
+void Sound::seedDocSoundScalars() {
+	deluge::project::DocSound& d = *docSound_;
+	d.voice_priority = static_cast<uint8_t>(voicePriority);
+	d.max_voice_count = maxVoiceCount;
+	d.side_chain_send_level = sideChainSendLevel;
+	d.output_midi_channel = outputMidiChannel;
+	d.output_midi_note_for_drum = outputMidiNoteForDrum;
+	d.oscillator_sync = oscillatorSync;
 }
 
-// M3 owner-5: voice priority is DOM-owned with `voicePriority` kept as the hot render cache. Write the authoritative
-// record (when bound) AND the cache; render reads the cache, save reads the record.
+void Sound::bindDocSound(deluge::project::DocSound* d) {
+	docSound_ = d;
+	// Seed the DOM-owned scalars from the engine caches. Correct for a SoundInstrument (bound at assignMissingIds,
+	// after its fields are parsed) and for a freshly-created Sound. A SoundDrum is bound BEFORE parse (adoptDrum runs
+	// first), so this seed is stale for drums — doneReadingFromFile re-runs it once parsing is done.
+	seedDocSoundScalars();
+}
+
+// M3 owner-5: DOM-owned scalars — each setter writes the authoritative record (when bound) AND the native cache. Render
+// / note-on / MIDI-send read the cache; save reads the record. Guard on docSound_ so pre-bind writes (load, preview)
+// land in the cache and get picked up by the bind-time seed.
 void Sound::setVoicePriority(VoicePriority value) {
 	voicePriority = value;
 	if (docSound_ != nullptr) {
 		docSound_->voice_priority = static_cast<uint8_t>(value);
+	}
+}
+void Sound::setMaxVoiceCount(uint8_t value) {
+	maxVoiceCount = value;
+	if (docSound_ != nullptr) {
+		docSound_->max_voice_count = value;
+	}
+}
+void Sound::setSideChainSendLevel(int32_t value) {
+	sideChainSendLevel = value;
+	if (docSound_ != nullptr) {
+		docSound_->side_chain_send_level = value;
+	}
+}
+void Sound::setOutputMidiChannel(uint8_t value) {
+	outputMidiChannel = value;
+	if (docSound_ != nullptr) {
+		docSound_->output_midi_channel = value;
+	}
+}
+void Sound::setOutputMidiNoteForDrum(uint8_t value) {
+	outputMidiNoteForDrum = value;
+	if (docSound_ != nullptr) {
+		docSound_->output_midi_note_for_drum = value;
+	}
+}
+void Sound::setOscillatorSync(bool value) {
+	oscillatorSync = value;
+	if (docSound_ != nullptr) {
+		docSound_->oscillator_sync = value;
 	}
 }
 
@@ -3847,11 +3899,8 @@ void Sound::syncDocSound() {
 		return;
 	}
 	deluge::project::DocSound& d = *docSound_;
-	d.max_voice_count = maxVoiceCount;
-	d.side_chain_send_level = sideChainSendLevel;
-	d.output_midi_channel = outputMidiChannel;
-	d.output_midi_note_for_drum = outputMidiNoteForDrum;
-	d.oscillator_sync = oscillatorSync;
+	// max_voice_count / side_chain_send_level / output_midi_* / oscillator_sync are DOM-owned (seeded at bind, written
+	// by their setters, read at save) — no longer shadowed here, alongside voice_priority.
 	d.polyphonic = static_cast<uint8_t>(polyphonic);
 	d.synth_mode = static_cast<uint8_t>(synthMode);
 	d.transpose = transpose;
@@ -3934,9 +3983,10 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	                                                                                      docSound_->voice_priority)
 	                                                                                : voicePriority));
 
-	// Send level
-	if (sideChainSendLevel != 0) {
-		writer.writeAttribute("sideChainSend", sideChainSendLevel);
+	// Send level (M3 owner-5: read the authoritative record; cache fallback only for an unbound Sound)
+	int32_t sideChainSend = docSound_ != nullptr ? docSound_->side_chain_send_level : sideChainSendLevel;
+	if (sideChainSend != 0) {
+		writer.writeAttribute("sideChainSend", sideChainSend);
 	}
 
 	writer.writeAttribute("mode", (char*)synthModeToString(synthMode));
@@ -3951,7 +4001,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	if (pathAttribute) {
 		writer.writeAttribute("path", pathAttribute);
 	}
-	writer.writeAttribute("maxVoices", maxVoiceCount);
+	writer.writeAttribute("maxVoices", docSound_ != nullptr ? docSound_->max_voice_count : maxVoiceCount);
 
 	writer.writeOpeningTagEnd();
 
@@ -4048,8 +4098,9 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 
 	// Output MIDI note for Drums
 	writer.writeOpeningTagBeginning("midiOutput");
-	writer.writeAttribute("channel", outputMidiChannel);
-	writer.writeAttribute("noteForDrum", outputMidiNoteForDrum);
+	writer.writeAttribute("channel", docSound_ != nullptr ? docSound_->output_midi_channel : outputMidiChannel);
+	writer.writeAttribute("noteForDrum",
+	                      docSound_ != nullptr ? docSound_->output_midi_note_for_drum : outputMidiNoteForDrum);
 	writer.closeTag();
 
 	ModControllableAudio::writeTagsToFile(writer);

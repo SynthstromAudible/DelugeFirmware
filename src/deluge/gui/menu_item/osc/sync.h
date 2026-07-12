@@ -43,14 +43,14 @@ public:
 					// Note: we need to apply the same filtering as stated in the isRelevant() function
 					if (soundDrum->synthMode != SynthMode::FM && soundDrum->sources[0].oscType != OscType::SAMPLE
 					    && soundDrum->sources[1].oscType != OscType::SAMPLE) {
-						soundDrum->oscillatorSync = current_value;
+						soundDrum->setOscillatorSync(current_value);
 					}
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->oscillatorSync = current_value;
+			soundEditor.currentSound->setOscillatorSync(current_value);
 		}
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {

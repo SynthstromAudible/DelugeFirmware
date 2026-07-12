@@ -53,14 +53,14 @@ public:
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 					// Note: we need to apply the same filtering as stated in the isRelevant() function
 					if (soundDrum->polyphonic == PolyphonyMode::POLY) {
-						soundDrum->maxVoiceCount = current_value;
+						soundDrum->setMaxVoiceCount(current_value);
 					}
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->maxVoiceCount = current_value;
+			soundEditor.currentSound->setMaxVoiceCount(current_value);
 		}
 	}
 	[[nodiscard]] int32_t getMinValue() const override { return 0; }

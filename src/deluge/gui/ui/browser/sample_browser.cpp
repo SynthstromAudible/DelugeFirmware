@@ -1080,7 +1080,7 @@ void SampleBrowser::autoDetectSideChainSending(SoundDrum* drum, Source* source, 
 
 	// If this looks like a kick, make it send to sidechain. Otherwise, no change
 	if (source->repeatMode == SampleRepeatMode::ONCE && (strcasestr(fileName, "kick") || strcasestr(fileName, "bd"))) {
-		drum->sideChainSendLevel = 2147483647;
+		drum->setSideChainSendLevel(2147483647); // M3 owner-5: DOM-owned (record + cache)
 	}
 }
 

@@ -235,7 +235,7 @@ void init() {
 	((PatchCableSet*)modelStackWithParamCollection->paramCollection)->setupPatching(modelStackWithParamCollection);
 	sampleForPreview->patcher.performInitialPatching(*sampleForPreview, *paramManagerForSamplePreview);
 
-	sampleForPreview->sideChainSendLevel = 2147483647;
+	sampleForPreview->setSideChainSendLevel(2147483647); // M3 owner-5: DOM-owned (unbound preview → cache only)
 
 	deluge_audio_start();
 	inputRingPos = (uintptr_t)inputRing;
