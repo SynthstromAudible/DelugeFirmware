@@ -16,7 +16,7 @@
  */
 
 #include "model/instrument/cv_instrument.h"
-#include "deluge-project/doc_output.h" // complete DocOutput type for syncDocOutput
+#include "deluge-project/doc_output.h" // complete DocOutput type for seedDocOutputIdentity + setters
 #include "model/model_stack.h"
 #include "model/timeline_counter.h"
 #include "modulation/params/param_set.h"
@@ -27,16 +27,6 @@
 CVInstrument::CVInstrument() : NonAudioInstrument(OutputType::CV) {
 	monophonicPitchBendValue = 0;
 	polyPitchBendValue = 0;
-}
-
-// M3 owner-5 Slice E: add the CVInstrument cv2 source to the DOM shadow (calls the NonAudioInstrument tier first).
-// DO3: cv2_source is now DOM-owned — every forward write funnels through setCV2Mode()/setChannel() (or
-// seedDocOutputIdentity() for the polymorphic/clone sites) instead of landing here.
-void CVInstrument::syncDocOutput() {
-	NonAudioInstrument::syncDocOutput();
-	if (docOutput_ == nullptr) {
-		return;
-	}
 }
 
 // DO3: reseed the record's cv2_source field (and, via the base, channel) from the current native values.

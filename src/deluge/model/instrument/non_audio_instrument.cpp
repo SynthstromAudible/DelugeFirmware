@@ -17,7 +17,7 @@
 
 #include "model/instrument/non_audio_instrument.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/doc_output.h" // complete DocOutput type for syncDocOutput
+#include "deluge-project/doc_output.h" // complete DocOutput type for seedDocOutputIdentity + setters
 #include "dsp/stereo_sample.h"
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
@@ -27,17 +27,6 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include <cstring>
-
-// M3 owner-5 Slice E: add the NonAudioInstrument channel to the DOM shadow (calls the Instrument tier first).
-// DO3: channel is now DOM-owned — every forward write funnels through setChannel() (or seedDocOutputIdentity() for
-// the polymorphic/clone sites) instead of landing here. Nothing left for this method to do for it; it stays (still
-// calling the Instrument base) because subclasses (MIDI/CV) chain through it for their own not-yet-inverted tiers.
-void NonAudioInstrument::syncDocOutput() {
-	Instrument::syncDocOutput();
-	if (docOutput_ == nullptr) {
-		return;
-	}
-}
 
 // DO3: reseed the record's channel field from the current native value. Called (via virtual dispatch) from
 // adoptOutput's load-bridge seed and the clone/replace blocks in song.cpp/view.cpp.

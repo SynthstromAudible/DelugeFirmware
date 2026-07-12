@@ -17,7 +17,7 @@
 
 #include "model/instrument/midi_instrument.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/doc_output.h" // complete DocOutput type for syncDocOutput
+#include "deluge-project/doc_output.h" // complete DocOutput type for seedDocOutputIdentity + setters
 #include "gui/ui/ui.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -45,17 +45,6 @@ MIDIInstrument::MIDIInstrument()
       modKnobCCAssignments() {
 	modKnobMode = 0;
 	modKnobCCAssignments.fill(CC_NUMBER_NONE);
-}
-
-// M3 owner-5 Slice E: add the MIDIInstrument descriptor fields to the DOM shadow (calls the NonAudioInstrument tier
-// first).
-// DO3: all 5 fields are now DOM-owned — every forward write funnels through the set*() methods below (or
-// seedDocOutputIdentity() for the polymorphic/clone sites) instead of landing here.
-void MIDIInstrument::syncDocOutput() {
-	NonAudioInstrument::syncDocOutput();
-	if (docOutput_ == nullptr) {
-		return;
-	}
 }
 
 // DO3: reseed the record's 5 tier fields (and, via the base, channel) from the current native values.

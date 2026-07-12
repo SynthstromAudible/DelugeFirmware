@@ -116,11 +116,11 @@ public:
 	void setId(uint32_t id) { id_ = id; }
 
 	// M3 owner-5 (output identity): non-owning pointer to this output's DOM-owned DocOutput in
-	// project.output_structure, bound via Song::adoptOutput. Null until adopted. syncDocOutput() copies the
-	// Output-base identity fields engine->record at load + save (rebuild-at-save; self-guards when unbound).
+	// project.output_structure, bound via Song::adoptOutput. Null until adopted. seedDocOutputIdentity() copies the
+	// Output-base identity fields engine->record at load (and at the clone/replace bulk-copy sites); saves read the
+	// record directly.
 	deluge::project::DocOutput* docOutput_{nullptr};
 	void bindDocOutput(deluge::project::DocOutput* d) { docOutput_ = d; }
-	virtual void syncDocOutput();
 
 	// M3 owner-5 (DocOutput identity, DO1): the base 6 Output identity scalars (name/colour/modKnobMode/
 	// mutedInArrangementMode/soloingInArrangementMode/armedForRecording) are now DOM-authoritative at save. Every

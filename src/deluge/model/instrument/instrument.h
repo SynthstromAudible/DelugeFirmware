@@ -76,9 +76,6 @@ public:
 	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
 	bool readTagFromFile(Deserializer& reader, char const* tagName) override;
 
-	// M3 owner-5 Slice E: add the Instrument-tier descriptor fields (dirPath/defaultVelocity) to the DOM shadow.
-	void syncDocOutput() override;
-
 	// DO2: dirPath/defaultVelocity are DOM-authoritative at save. Every forward write funnels through these setters
 	// (write native cache + record; guarded, no FREEZE — mirrors Output::set*() from DO1).
 	void setDirPath(std::string_view newPath);

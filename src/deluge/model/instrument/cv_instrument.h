@@ -39,8 +39,6 @@ public:
 	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
 	bool readTagFromFile(Deserializer& reader, const char* tagName) override;
 
-	// M3 owner-5 Slice E: add the CVInstrument cv2 source to the DOM shadow.
-	void syncDocOutput() override;
 	// DO3: channel/cv2_source are DOM-authoritative at save. Reseeds both this tier's fields (calls the
 	// NonAudioInstrument base first, which reseeds channel).
 	void seedDocOutputIdentity() override;

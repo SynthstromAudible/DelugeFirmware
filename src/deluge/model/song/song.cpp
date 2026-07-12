@@ -1258,8 +1258,8 @@ void Song::removeDocDrum(Drum* drum) {
 
 // M3 owner-5 (output identity): bind an output to its DOM-owned DocOutput in project.output_structure (mint an id only
 // if it lacks one, mirroring assignMissingIds's own mint via generateNewOutputId), seed the record from the engine
-// output via syncDocOutput(), and point docOutput_ at it. Idempotent: an output already bound returns immediately, so
-// the assignMissingIds call site composes without double-binding or double-minting.
+// output via seedDocOutputIdentity(), and point docOutput_ at it. Idempotent: an output already bound returns
+// immediately, so the assignMissingIds call site composes without double-binding or double-minting.
 void Song::adoptOutput(Output* output) {
 	if (output->docOutput_ != nullptr) {
 		return;
@@ -1269,10 +1269,9 @@ void Song::adoptOutput(Output* output) {
 	}
 	deluge::project::DocOutput& d = project.output_structure.getOrCreate(*output->id());
 	output->bindDocOutput(&d);
-	// DO1: the base 6 identity scalars are DOM-owned now, so syncDocOutput() no longer seeds them — reseed
-	// explicitly here so the record is correct at save for a freshly-loaded, never-edited output.
+	// DO4: all 15 Output-hierarchy identity fields are DOM-owned now, seeded here so the record is correct at save
+	// for a freshly-loaded, never-edited output.
 	output->seedDocOutputIdentity();
-	output->syncDocOutput();
 	// M3 owner-5 slice B: a SoundInstrument (SYNTH output) owns a Sound 1:1 — nest its DocSound in this DocOutput and
 	// bind the engine Sound's docSound_. The double static_cast lands on the correct Sound base subobject.
 	if (output->type == OutputType::SYNTH) {

@@ -17,7 +17,7 @@
 
 #include "model/output.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/doc_output.h" // complete DocOutput type for syncDocOutput
+#include "deluge-project/doc_output.h" // complete DocOutput type for seedDocOutputIdentity + setters
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
@@ -57,21 +57,6 @@ Output::~Output() {
 	// exist
 	if (outputRecordingThisOutput) {
 		outputRecordingThisOutput->clearRecordingFrom();
-	}
-}
-
-// M3 owner-5 (output identity): copy the Output-base identity fields engine->record. Called at load (via
-// Song::adoptOutput during assignMissingIds) and at save (Output::writeToFile) to keep the shadow record in step with
-// the authoritative engine Output. Self-guards when unbound. Subclass overrides call this first, then add their own
-// tier's fields.
-//
-// DO1: the base 6 identity scalars (name/colour/modKnobMode/mutedInArrangementMode/soloingInArrangementMode/
-// armedForRecording) are now DOM-owned — every forward write funnels through Output::set*() (or, for the
-// polymorphic/clone sites, seedDocOutputIdentity()) instead of landing here. Nothing left for this method to do for
-// them; it stays (empty of the base 6) because subclasses still call it for their own tiers.
-void Output::syncDocOutput() {
-	if (docOutput_ == nullptr) {
-		return;
 	}
 }
 
@@ -298,10 +283,6 @@ ParamManager* Output::getParamManager(Song* song) {
 }
 
 void Output::writeToFile(Clip* clipForSavingOutputOnly, Song* song) {
-
-	// M3 owner-5: rebuild the DOM identity shadow from the authoritative engine Output before saving (self-guards when
-	// unbound). Nothing reads DocOutput yet, so this cannot affect the serialized bytes this slice.
-	syncDocOutput();
 
 	Serializer& writer = GetSerializer();
 	char const* tagName = getXMLTag();

@@ -17,7 +17,7 @@
 
 #include "model/instrument/instrument.h"
 #include "definitions_cxx.hpp"
-#include "deluge-project/doc_output.h" // complete DocOutput type for syncDocOutput
+#include "deluge-project/doc_output.h" // complete DocOutput type for seedDocOutputIdentity + setters
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
 #include "model/clip/clip_instance.h"
@@ -37,18 +37,6 @@ Instrument::~Instrument() {
     // ClipInstances will all get deallocated by the vector destructor
 }
 */
-
-// M3 owner-5 Slice E: add the Instrument-tier descriptor fields to the DOM shadow (calls the Output base first).
-// DO2: dir_path/default_velocity are now DOM-owned — every forward write funnels through setDirPath()/
-// setDefaultVelocity() (or seedDocOutputIdentity() for the polymorphic/clone sites) instead of landing here. Nothing
-// left for this method to do for them; it stays (still calling the Output base) because subclasses (NonAudio/MIDI/CV)
-// chain through it for their own not-yet-inverted tiers.
-void Instrument::syncDocOutput() {
-	Output::syncDocOutput();
-	if (docOutput_ == nullptr) {
-		return;
-	}
-}
 
 // DO2: reseed this tier's two identity fields from the current native values. Called (via virtual dispatch, since
 // Output::seedDocOutputIdentity() is virtual) from adoptOutput's load-bridge seed and the clone/replace blocks in

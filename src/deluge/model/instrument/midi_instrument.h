@@ -46,8 +46,6 @@ public:
 	bool writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) override;
 	bool readTagFromFile(Deserializer& reader, char const* tagName) override;
 
-	// M3 owner-5 Slice E: add the MIDIInstrument descriptor fields to the DOM shadow.
-	void syncDocOutput() override;
 	// DO3: override of the virtual seedDocOutputIdentity() chain — calls the base (channel), then reseeds this
 	// tier's 5 fields from the current native values.
 	void seedDocOutputIdentity() override;

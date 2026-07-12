@@ -216,8 +216,8 @@ public:
 
 	/// M3 owner-5 (output identity): bind a song-resident output to the persistent DOM identity store. Idempotent —
 	/// early-returns if already bound; mints a durable id via generateNewOutputId() only if the output has none; then
-	/// getOrCreates the output's DocOutput in project.output_structure, seeds it via Output::syncDocOutput(), and
-	/// points docOutput_ at it. Called per output from assignMissingIds (load) — reuses the loop's existing mint.
+	/// getOrCreates the output's DocOutput in project.output_structure, seeds it via Output::seedDocOutputIdentity(),
+	/// and points docOutput_ at it. Called per output from assignMissingIds (load) — reuses the loop's existing mint.
 	void adoptOutput(Output* output);
 	/// Drop an output's identity record when the output is genuinely destroyed, so the store doesn't accumulate dead
 	/// entries. Guarded like removeDocDrum: skipped during whole-song teardown.
