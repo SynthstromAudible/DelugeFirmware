@@ -51,7 +51,7 @@ deluge::snapshot::RegionContext gatherRegionContext(ModelStackWithAutoParam* eng
 }
 } // namespace
 
-Error SetParamValue::apply(Context& /*ctx*/) {
+Error SetParamValue::apply(Context& ctx) {
 	// The Edit owns its undo record (migration plan M1: do-site == undo-record-site): snapshot the before-state into
 	// the open Action up front, replicating the guard at the interior log site (auto_param.cpp
 	// setCurrentValueInResponseToUserInput, "record value change") evaluated pre-mutation. The interior log then
@@ -66,16 +66,37 @@ Error SetParamValue::apply(Context& /*ctx*/) {
 	// setValuePossiblyForRegion sends (length != 0 && timelineCounterIsSet) to setValueForRegion; everything else is
 	// the scalar path that reaches the interior unautomated-change log.
 	const bool scalarPath = length_ == 0 || !engineStack_->timelineCounterIsSet();
-	if (scalarPath && newValue_ != engineStack_->autoParam->getCurrentValue()) {
-		const bool isPlaying =
+
+	// Hoisted out of the pre-log so the commit-flip decision below can reuse them. recordingActive is the exact
+	// condition under which the scalar poke RECORDS automation (setCurrentValueInResponseToUserInput's recording
+	// branch) — that case is NOT flipped (it writes nodes); everything else is the plain scalar tail.
+	bool isPlaying = false;
+	bool recordingActive = false;
+	if (scalarPath) {
+		isPlaying =
 		    playbackHandler.isEitherClockActive() && !playbackHandler.ticksLeftInCountIn
 		    && (!engineStack_->timelineCounterIsSet() || engineStack_->getTimelineCounter()->isPlayingAutomationNow());
 		const bool recordingArmed = playbackHandler.recording != RecordingMode::OFF
 		                            && engineStack_->timelineCounterIsSet()
 		                            && engineStack_->getTimelineCounter()->armedForRecording;
-		if (!(isPlaying && recordingArmed) && (engineStack_->doc()->nodes.empty() || !isPlaying)) {
+		recordingActive = isPlaying && recordingArmed;
+
+		if (newValue_ != engineStack_->autoParam->getCurrentValue() && !recordingActive
+		    && (engineStack_->doc()->nodes.empty() || !isPlaying)) {
 			actionLogger.recordUnautomatedParamChange(engineStack_);
 		}
+	}
+
+	// M4a commit-flip: the persistent scalar store write is now model-first (ParamSnapshot::applyPatch is the sole
+	// writer), and the engine derives its RT state (cursor/interpolation/notify/latch) from the store. Taken only
+	// for a resolvable scalar lane that isn't recording automation. Region, recording-active scalar, and
+	// unaddressable/not-yet-relocated lanes keep the in-line poke as the writer (it resolves via doc() with the
+	// relocate/engine-store fallback, so no lane is dropped) — behaviour-identical to before for those.
+	if (scalarPath && !recordingActive && address_.has_value() && ctx.model.resolveParam(*address_) != nullptr) {
+		const int32_t oldValue = engineStack_->autoParam->getCurrentValue();
+		deluge::snapshot::ParamSnapshot::applyPatch(ctx.model, *address_, newValue_, 0, 0, std::nullopt);
+		engineStack_->autoParam->projectScalarFromStore(engineStack_, oldValue, isPlaying);
+		return Error::NONE;
 	}
 
 	// Funnel phase: delegate to the exact engine mutation the call site used, behaviour-identical.
@@ -96,22 +117,13 @@ void SetParamValue::emitEvent(Context& ctx) {
 		D_PRINTLN("M4 event feed: SetParamValue address did not resolve to a DOM param");
 	}
 #endif
-	// M4a: the emission hook's first real consumer. OFF by default (A/B) — apply()'s in-line poke is still the
-	// shipped path, so goldens are bit-identical and RT is unchanged; when the toggle is enabled (the host
-	// equivalence spec), the model-first patch runs so its result can be compared lane-for-lane against the in-line
-	// poke. Full projection (projectFromStoreAfterRead) stays the fallback for load / coarse invalidation, never
-	// this per-edit path.
-	if (!m4EventPatchToggle()) {
-		return;
-	}
-	// Mirror apply()'s scalar-vs-region dispatch (setValuePossiblyForRegion): a nonzero-length edit with a live
-	// timeline counter is the region path; everything else is the scalar current_value write.
-	if (length_ != 0 && engineStack_->timelineCounterIsSet()) {
+	// Scalar edits are now written model-first by apply() itself (the commit-flip: ParamSnapshot::applyPatch is the
+	// sole scalar-store writer), so emitEvent no longer patches scalar. The REGION path is not yet flipped — its
+	// store write still comes from the in-line setValueForRegion — so keep the region event-patch behind the
+	// off-by-default A/B toggle, which the host equivalence spec flips to compare it against the in-line region poke.
+	if (m4EventPatchToggle() && length_ != 0 && engineStack_->timelineCounterIsSet()) {
 		deluge::snapshot::ParamSnapshot::applyPatch(ctx.model, *address_, newValue_, pos_, length_,
 		                                            gatherRegionContext(engineStack_));
-	}
-	else {
-		deluge::snapshot::ParamSnapshot::applyPatch(ctx.model, *address_, newValue_, pos_, length_, std::nullopt);
 	}
 }
 

@@ -356,10 +356,10 @@ void testParamSnapshotEquivalence(deluge::edits::Context& ctx, ::Song* engineSon
 	check(ms->autoParam->getCurrentValue() == 0x33333333, "projectScalarFromStore: engine cursor synced from store");
 }
 
-// M4a Task 3 — SetParamValue::emitEvent drives ParamSnapshot::applyPatch behind the A/B toggle. Isolates the
-// event path (calls emitEvent directly, on a store seeded to a baseline the in-line poke did NOT write) so the
-// patch's own effect is what's asserted: toggle OFF leaves the store untouched; toggle ON reproduces Task 1's
-// pinned {current_value, nodes} for a scalar AND a region edit.
+// M4a Task 3 / commit-flip — SetParamValue::emitEvent drives the REGION event-patch behind the A/B toggle. (Scalar
+// is now written model-first by apply() itself — see testScalarFlipViaApply — so emitEvent no longer patches
+// scalar.) Isolates the event path (calls emitEvent directly on a seeded baseline): toggle OFF leaves the store
+// untouched; toggle ON reproduces the pinned region {current_value, nodes}.
 void testEmitEventDrivesPatch(deluge::edits::Context& ctx, ::Song* engineSong, TimelineCounter* clipTC) {
 	// Leak-reset (crash-safe: no consequence freeing -> no headless audio pump).
 	actionLogger.firstAction[BEFORE] = nullptr;
@@ -386,29 +386,20 @@ void testEmitEventDrivesPatch(deluge::edits::Context& ctx, ::Song* engineSong, T
 		store->current_value = 0x11111111; // a value neither edit writes, so any change is the patch's doing
 	};
 
-	// A) toggle OFF (the default / firmware build): emitEvent must NOT patch the model store — the in-line poke in
-	//    apply() is the sole path, which is what keeps goldens bit-identical.
+	// A) toggle OFF (the default / firmware build): emitEvent must NOT patch — region's in-line poke is the writer.
 	seedBaseline();
 	deluge::edits::m4EventPatchToggle() = false;
 	{
-		deluge::edits::SetParamValue edit{addr, 0x40000000, 0, 0, ms};
+		deluge::edits::SetParamValue edit{addr, 0x20000000, 0, 96, ms};
 		edit.emitEvent(ctx);
 	}
-	check(store->current_value == 0x11111111 && store->nodes.empty(), "emitEvent OFF: store untouched");
+	check(store->current_value == 0x11111111 && store->nodes.empty(), "emitEvent OFF: region store untouched");
 
-	// B) toggle ON, SCALAR: emitEvent -> applyPatch(scalar) reaches the pinned current_value.
-	seedBaseline();
-	deluge::edits::m4EventPatchToggle() = true;
-	{
-		deluge::edits::SetParamValue edit{addr, 0x40000000, 0, 0, ms};
-		edit.emitEvent(ctx);
-	}
-	check(store->current_value == 0x40000000 && store->nodes.empty(), "emitEvent ON scalar: current_value == pinned");
-
-	// C) toggle ON, REGION: emitEvent gathers the region context from the engine stack (effLen 128 from the clip's
+	// B) toggle ON, REGION: emitEvent gathers the region context from the engine stack (effLen 128 from the clip's
 	//    loop length; clock inactive; not on the automation view) and drives applyPatch(region) -> the pinned node
 	//    vector. node1 restores the pre-region value (the 0x11111111 baseline current_value).
 	seedBaseline();
+	deluge::edits::m4EventPatchToggle() = true;
 	{
 		deluge::edits::SetParamValue edit{addr, 0x20000000, 0, 96, ms};
 		edit.emitEvent(ctx);
@@ -420,6 +411,49 @@ void testEmitEventDrivesPatch(deluge::edits::Context& ctx, ::Song* engineSong, T
 
 	deluge::edits::m4EventPatchToggle() =
 	    false; // restore the default so the rest of the harness / default build is unpatched
+}
+
+// M4a commit-flip (Task 2) — SetParamValue::apply writes the SCALAR store model-first: on a resolvable lane it calls
+// ParamSnapshot::applyPatch (the sole scalar-store writer) then projectScalarFromStore to sync the engine cursor,
+// instead of the in-line poke. Asserts both the model store and the engine cursor track the edit, and undo (the
+// unchanged pre-log path) still restores the engine value.
+void testScalarFlipViaApply(deluge::edits::Context& ctx, ::Song* engineSong, TimelineCounter* clipTC) {
+	// Leak-reset (crash-safe): orphan any prior actions rather than freeing them here.
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+
+	constexpr int32_t kParam = 6;
+	ParamManagerForTimeline pm;
+	pm.setupUnpatched();
+	pm.getUnpatchedParamSet()->kind = deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
+	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* ms = makeStack(buf, pm, kParam);
+	ms->song = engineSong;
+	ms->setTimelineCounter(clipTC);
+	ms->paramManager = &pm;
+
+	std::optional<deluge::project::ParamAddress> addrOpt = deluge::edits::addressFor(*ms);
+	check(addrOpt.has_value(), "scalar-flip: resolvable address");
+	deluge::project::ParamAddress addr = *addrOpt;
+	deluge::project::DocAutoParam* store = ms->doc(); // relocate the lane into the model tree
+	check(store != nullptr && ctx.model.resolveParam(addr) == store, "scalar-flip: store resolves (model-first path)");
+
+	int32_t oldValue = ms->autoParam->getCurrentValue();
+	int32_t newValue = oldValue + 12345;
+
+	{
+		deluge::edits::SetParamValue edit{addr, newValue, 0, 0, ms};
+		check(deluge::edits::apply(ctx, edit) == Error::NONE, "scalar-flip: apply succeeds");
+	}
+	// Model-first: applyPatch wrote the store; projectScalarFromStore synced the engine cursor from it.
+	check(store->current_value == newValue,
+	      "scalar-flip: model store current_value updated (applyPatch is the writer)");
+	check(ms->autoParam->getCurrentValue() == newValue, "scalar-flip: engine cursor synced (projectScalarFromStore)");
+	check(store->nodes.empty(), "scalar-flip: unautomated scalar -> no nodes");
+
+	// Undo path is unchanged (the Edit's pre-log recorded the before-state): revert restores the engine value.
+	actionLogger.revert(BEFORE, /*updateVisually=*/false, /*doNavigation=*/false);
+	check(ms->autoParam->getCurrentValue() == oldValue, "scalar-flip: undo restores engine value");
 }
 
 } // namespace
@@ -458,6 +492,7 @@ int main() {
 	testInlinePokeCharacterization(ctx, audioClip);
 	testParamSnapshotEquivalence(ctx, song, audioClip);
 	testEmitEventDrivesPatch(ctx, song, audioClip);
+	testScalarFlipViaApply(ctx, song, audioClip);
 
 	if (failures == 0) {
 		std::fprintf(stdout, "edit_test: OK\n");
