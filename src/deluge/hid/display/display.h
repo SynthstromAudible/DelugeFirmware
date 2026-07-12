@@ -40,11 +40,9 @@ enum class PopupType {
 
 namespace deluge::hid {
 
-enum struct DisplayType { OLED, SEVENSEG };
-
 class Display {
 public:
-	Display(DisplayType displayType) : displayType(displayType) {}
+	Display() = default;
 
 	virtual ~Display() = default;
 
@@ -83,12 +81,6 @@ public:
 	virtual void consoleText(char const* text) = 0;
 
 	virtual void timerRoutine() = 0;
-
-	bool haveOLED() { return displayType == DisplayType::OLED; }
-	bool have7SEG() { return displayType == DisplayType::SEVENSEG; }
-
-private:
-	DisplayType displayType;
 };
 
 } // namespace deluge::hid

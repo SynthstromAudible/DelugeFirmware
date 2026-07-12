@@ -5,7 +5,7 @@
 
 class MockDisplay : public deluge::hid::Display {
 public:
-	MockDisplay() : deluge::hid::Display(deluge::hid::DisplayType::SEVENSEG) {}
+	MockDisplay() = default;
 
 	~MockDisplay() = default;
 

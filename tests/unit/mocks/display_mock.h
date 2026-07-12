@@ -1,8 +1,5 @@
 #pragma once
 
-class Display {
-public:
-	bool have7SEG() { return false; }
-};
+class Display {};
 
 extern Display* display;

@@ -42,7 +42,7 @@ struct Icon {
 
 class OLED : public Display {
 public:
-	OLED() : Display(DisplayType::OLED) { l10n::chosenLanguage = &l10n::built_in::english; }
+	OLED() { l10n::chosenLanguage = &l10n::built_in::english; }
 
 	/// Clear the canvas currently being used as the main image.
 	///
