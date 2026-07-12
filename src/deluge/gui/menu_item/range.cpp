@@ -30,10 +30,6 @@ namespace deluge::gui::menu_item {
 void Range::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	soundEditor.editingRangeEdge = RangeEdit::OFF;
-
-	if (display->have7SEG()) {
-		drawValue(0, false);
-	}
 }
 
 void Range::horizontalEncoderAction(int32_t offset) {
@@ -48,13 +44,7 @@ void Range::horizontalEncoderAction(int32_t offset) {
 		if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
 switchOff:
 			soundEditor.editingRangeEdge = RangeEdit::OFF;
-			if (display->haveOLED()) {
-				goto justDrawValueForEditingRange;
-			}
-			else {
-				int32_t startPos = (soundEditor.editingRangeEdge == RangeEdit::RIGHT) ? 999 : 0;
-				drawValue(startPos);
-			}
+			goto justDrawValueForEditingRange;
 		}
 
 		else {
@@ -62,12 +52,7 @@ switchOff:
 			if (mayEditRangeEdge(RangeEdit::LEFT)) {
 				soundEditor.editingRangeEdge = RangeEdit::LEFT;
 justDrawValueForEditingRange:
-				if (display->haveOLED()) {
-					renderUIsForOled();
-				}
-				else {
-					drawValueForEditingRange(true);
-				}
+				renderUIsForOled();
 			}
 			else {
 				if (soundEditor.editingRangeEdge == RangeEdit::RIGHT) {
@@ -111,63 +96,11 @@ bool Range::cancelEditingIfItsOn() {
 }
 
 void Range::drawValue(int32_t startPos, bool renderSidebarToo) {
-	if (display->haveOLED()) {
-
-		renderUIsForOled();
-	}
-	else {
-		char* buffer = shortStringBuffer;
-		getText(buffer);
-
-		if (strlen(buffer) <= kNumericDisplayLength) {
-			display->setText(buffer, true);
-		}
-		else {
-			display->setScrollingText(buffer, startPos);
-		}
-	}
+	renderUIsForOled();
 }
 
 void Range::drawValueForEditingRange(bool blinkImmediately) {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-		return;
-	}
-
-	int32_t leftLength, rightLength;
-	char* buffer = shortStringBuffer;
-
-	getText(buffer, &leftLength, &rightLength, false);
-
-	int32_t textLength = leftLength + rightLength + 1;
-
-	uint8_t blinkMask[kNumericDisplayLength];
-	if (soundEditor.editingRangeEdge == RangeEdit::LEFT) {
-		for (int32_t i = 0; i < kNumericDisplayLength; i++) {
-			if (i < leftLength + kNumericDisplayLength - std::min(4_i32, textLength))
-				blinkMask[i] = 0;
-			else
-				blinkMask[i] = 255;
-		}
-	}
-
-	else {
-		for (int32_t i = 0; i < kNumericDisplayLength; i++) {
-			if (kNumericDisplayLength - 1 - i < rightLength)
-				blinkMask[i] = 0;
-			else
-				blinkMask[i] = 255;
-		}
-	}
-
-	bool alignRight = (soundEditor.editingRangeEdge == RangeEdit::RIGHT) || (textLength < kNumericDisplayLength);
-
-	// Sorta hackish, to reset timing of blinking LED and always show text "on" initially on edit value
-	indicator_leds::blinkLed(IndicatorLED::BACK, 255, 0, !blinkImmediately);
-
-	display->setText(buffer, alignRight, 255, true, blinkMask);
-
-	soundEditor.possibleChangeToCurrentRangeDisplay();
+	renderUIsForOled();
 }
 
 void Range::drawPixelsForOled() {

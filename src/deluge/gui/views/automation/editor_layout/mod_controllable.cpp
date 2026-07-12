@@ -423,16 +423,11 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 
 			parameterName.append(sourceToStringShort(lastSelectedPatchSource));
 
-			if (display->haveOLED()) {
-				parameterName.append(" -> ");
-			}
-			else {
-				parameterName.append(" - ");
-			}
+			parameterName.append(" -> ");
 
 			if (source2 != PatchSource::NONE) {
 				parameterName.append(sourceToStringShort(source2));
-				parameterName.append(display->haveOLED() ? " -> " : " - ");
+				parameterName.append(" -> ");
 			}
 
 			parameterName.append(params::getPatchedParamShortName(
@@ -472,19 +467,8 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 
 			// if we don't have a midi cc name set, draw CC number instead
 			if (!appendedName) {
-				if (display->haveOLED()) {
-					parameterName.append("CC ");
-					deluge::string::appendInt(parameterName, clip->lastSelectedParamID);
-				}
-				else {
-					if (clip->lastSelectedParamID < 100) {
-						parameterName.append("CC");
-					}
-					else {
-						parameterName.append("C");
-					}
-					deluge::string::appendInt(parameterName, clip->lastSelectedParamID);
-				}
+				parameterName.append("CC ");
+				deluge::string::appendInt(parameterName, clip->lastSelectedParamID);
 			}
 		}
 	}
@@ -516,7 +500,7 @@ bool AutomationEditorLayoutModControllable::toggleAutomationPadSelectionMode(
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_OFF));
 
 		initPadSelection();
-		displayAutomation(true, !display->have7SEG());
+		displayAutomation(true, true);
 	}
 	else {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_ON));
@@ -1390,18 +1374,7 @@ void AutomationEditorLayoutModControllable::renderAutomationDisplayForMultiPadPr
 			}
 		}
 
-		if (display->haveOLED()) {
-			renderDisplay(knobPosLeft, knobPosRight);
-		}
-		// display pad value of second pad pressed
-		else {
-			if (modEncoderAction) {
-				renderDisplay(getLastPadSelectedKnobPos());
-			}
-			else {
-				renderDisplay();
-			}
-		}
+		renderDisplay(knobPosLeft, knobPosRight);
 
 		setAutomationKnobIndicatorLevels(modelStackWithParam, knobPosLeft, knobPosRight);
 

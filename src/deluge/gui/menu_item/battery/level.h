@@ -19,7 +19,6 @@
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "hid/display/seven_segment.h"
 #include "model/settings/runtime_feature_settings.h"
 #include <cstdio>
 // External battery voltage variable from deluge.cpp

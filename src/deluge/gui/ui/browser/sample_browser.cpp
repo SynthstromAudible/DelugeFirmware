@@ -115,9 +115,7 @@ bool SampleBrowser::opened() {
 
 	autoLoadEnabled = false;
 
-	if (display->haveOLED()) {
-		fileIndexSelected = 0;
-	}
+	fileIndexSelected = 0;
 
 	if (currentUIMode == UI_MODE_AUDITIONING) {
 		instrumentClipView.cancelAllAuditioning();
@@ -205,9 +203,6 @@ void SampleBrowser::possiblySetUpBlinking() {
 void SampleBrowser::focusRegained() {
 	// displayCurrentFilename();
 	indicator_leds::setLedState(IndicatorLED::SAVE, false); // In case returning from delete-file context menu
-	if (display->have7SEG()) {
-		displayText(); // In case returning from delete-file context menu
-	}
 }
 
 void SampleBrowser::folderContentsReady(int32_t entryDirection) {
@@ -340,13 +335,7 @@ void SampleBrowser::enterKeyPress() {
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	if (!currentFileItem) {
-		if (display->haveOLED()) {
-			display->displayError(Error::FILE_NOT_FOUND);
-		}
-		else {
-			// Make it say "NONE" on numeric Deluge, for consistency with old times.
-			display->displayError(Error::NO_FURTHER_FILES_THIS_DIRECTION);
-		}
+		display->displayError(Error::FILE_NOT_FOUND);
 		return;
 	}
 
@@ -979,12 +968,7 @@ doLoadAsSample:
 				drum->drumName.clear();
 
 				std::string newName;
-				if (!numCharsInPrefix || display->haveOLED()) {
-					newName = enteredText;
-				}
-				else {
-					newName = &enteredText.c_str()[numCharsInPrefix];
-				}
+				newName = enteredText;
 
 				Kit* kit = getCurrentKit();
 

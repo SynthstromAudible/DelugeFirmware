@@ -218,19 +218,10 @@ void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 			}
 		}
 	}
-
-	if (display->have7SEG()) {
-		drawValue();
-	}
 }
 
 void SourceSelection::readValueAgain() {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		drawValue();
-	}
+	renderUIsForOled();
 }
 
 void SourceSelection::selectEncoderAction(int32_t offset) {
@@ -258,12 +249,7 @@ void SourceSelection::selectEncoderAction(int32_t offset) {
 	s = sourceMenuContents[newValue];
 	this->setValue(newValue);
 
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		drawValue();
-	}
+	renderUIsForOled();
 }
 
 bool SourceSelection::sourceIsAllowed(PatchSource source) {

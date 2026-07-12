@@ -158,14 +158,7 @@ public:
 		}
 	}
 
-	void renderDisplay() {
-		if (display->haveOLED()) {
-			renderUIsForOled();
-		}
-		else {
-			drawValue();
-		}
-	}
+	void renderDisplay() { renderUIsForOled(); }
 
 	MIDIFollowChannelType channelType;
 

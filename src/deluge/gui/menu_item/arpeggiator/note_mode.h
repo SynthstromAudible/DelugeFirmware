@@ -71,12 +71,7 @@ public:
 class NoteModeFromOctaveMode final : public NoteMode {
 public:
 	using NoteMode::NoteMode;
-	void readCurrentValue() override {
-		if (display->have7SEG()) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NOTE_MODE));
-		}
-		NoteMode::readCurrentValue();
-	}
+	void readCurrentValue() override { NoteMode::readCurrentValue(); }
 };
 
 extern NoteModeFromOctaveMode arpNoteModeFromOctaveModeMenu;

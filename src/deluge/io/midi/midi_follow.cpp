@@ -617,19 +617,14 @@ void MidiFollow::displayParamControlError(int32_t soundParamId, int32_t globalPa
 	}
 
 	if (paramID != PARAM_ID_NONE) {
-		if (display->haveOLED()) {
-			etl::string<40> popupMsg;
+		etl::string<40> popupMsg;
 
-			const char* name = getParamDisplayName(paramKind, paramID);
-			if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {
-				popupMsg.append("Can't control: \n");
-				popupMsg.append(name);
-			}
-			display->displayPopup(popupMsg.c_str());
+		const char* name = getParamDisplayName(paramKind, paramID);
+		if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {
+			popupMsg.append("Can't control: \n");
+			popupMsg.append(name);
 		}
-		else {
-			display->displayPopup(l10n::get(l10n::String::STRING_FOR_PARAMETER_NOT_APPLICABLE));
-		}
+		display->displayPopup(popupMsg.c_str());
 	}
 }
 

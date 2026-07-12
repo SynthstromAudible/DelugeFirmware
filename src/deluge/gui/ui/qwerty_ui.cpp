@@ -493,7 +493,7 @@ doDisplayText:
 ActionResult QwertyUI::timerCallback() {
 	if (currentUIMode == UI_MODE_HOLDING_BACKSPACE) {
 		processBackspace();
-		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, display->haveOLED() ? 80 : 125);
+		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 80);
 	}
 
 	// Flash selected Bank & Favourite Pads

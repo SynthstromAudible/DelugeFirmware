@@ -290,17 +290,12 @@ extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 
 	device->freshly_connected = true; // Used to trigger hookOnConnected from the input loop
 
-	if (display->haveOLED()) {
-		std::string text;
-		text = device->name;
-		text.append(" attached");
-		Error error = Error::NONE;
-		if (error == Error::NONE) {
-			consoleTextIfAllBootedUp(text.c_str());
-		}
-	}
-	else {
-		consoleTextIfAllBootedUp("MIDI");
+	std::string text;
+	text = device->name;
+	text.append(" attached");
+	Error error = Error::NONE;
+	if (error == Error::NONE) {
+		consoleTextIfAllBootedUp(text.c_str());
 	}
 }
 

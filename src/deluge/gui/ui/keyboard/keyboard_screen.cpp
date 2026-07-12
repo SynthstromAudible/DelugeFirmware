@@ -359,12 +359,7 @@ void KeyboardScreen::updateActiveNotes() {
 	if (lastNotesState.count != 0 && currentNotesState.count == 0) {
 		exitUIMode(UI_MODE_AUDITIONING);
 
-		if (display->haveOLED()) {
-			deluge::hid::display::OLED::removePopup();
-		}
-		else {
-			redrawNumericDisplay();
-		}
+		deluge::hid::display::OLED::removePopup();
 	}
 }
 
@@ -461,9 +456,6 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 				else {
 					enterScaleMode();
 				}
-			}
-			else if (inScaleMode && display->have7SEG()) {
-				displayCurrentScaleName();
 			}
 		}
 	}
@@ -724,11 +716,9 @@ void KeyboardScreen::selectEncoderAction(int8_t offset) {
 
 		char noteName[3] = {0};
 		noteName[0] = useSharps ? noteCodeToNoteLetter[newRootNote] : noteCodeToNoteLetterFlats[newRootNote];
-		if (display->haveOLED()) {
-			if (noteCodeIsSharp[newRootNote]) {
-				char accidential = useSharps ? '#' : FLAT_CHAR;
-				noteName[1] = accidential;
-			}
+		if (noteCodeIsSharp[newRootNote]) {
+			char accidential = useSharps ? '#' : FLAT_CHAR;
+			noteName[1] = accidential;
 		}
 		display->displayPopup(noteName, 3, false, (noteCodeIsSharp[newRootNote] ? 0 : 255));
 		layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->handleHorizontalEncoder(
@@ -752,9 +742,6 @@ void KeyboardScreen::exitAuditionMode() {
 	updateActiveNotes();
 
 	exitUIMode(UI_MODE_AUDITIONING);
-	if (display->have7SEG()) {
-		redrawNumericDisplay();
-	}
 }
 
 bool KeyboardScreen::opened() {
@@ -846,12 +833,7 @@ void KeyboardScreen::enterScaleMode(int32_t selectedRootNote) {
 
 	getCurrentInstrumentClip()->yScroll = instrumentClipView.setupForEnteringScaleMode(selectedRootNote);
 
-	if (display->haveOLED()) {
-		currentSong->displayCurrentRootNoteAndScaleName();
-	}
-	else {
-		displayCurrentScaleName();
-	}
+	currentSong->displayCurrentRootNoteAndScaleName();
 
 	evaluateActiveNotes();
 	updateActiveNotes();

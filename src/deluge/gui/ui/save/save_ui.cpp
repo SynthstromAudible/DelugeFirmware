@@ -85,13 +85,7 @@ void SaveUI::enterKeyPress() {
 	else if (enteredText.empty()) {} // Previously had &&currentFolderIsEmpty ... why?
 
 	else {
-		bool dealtWith = performSave(false);
-
-		if (display->have7SEG()) {
-			if (!dealtWith) {
-				displayText(false);
-			}
-		}
+		performSave(false);
 	}
 }
 

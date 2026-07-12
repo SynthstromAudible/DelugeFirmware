@@ -48,30 +48,14 @@ void DxEngineSelect::drawPixelsForOled() {
 }
 
 void DxEngineSelect::drawValue() {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		static const char* items[] = {"AUTO", "MODR", "VINT"};
-		display->setScrollingText(items[currentValue]);
-	}
+	renderUIsForOled();
 }
 
 void DxEngineSelect::selectEncoderAction(int32_t offset) {
 	int32_t newValue = currentValue + offset;
 
-	if (display->haveOLED()) {
-		if (newValue >= numValues || newValue < 0) {
-			return;
-		}
-	}
-	else {
-		if (newValue >= numValues) {
-			newValue %= numValues;
-		}
-		else if (newValue < 0) {
-			newValue = (newValue % numValues + numValues) % numValues;
-		}
+	if (newValue >= numValues || newValue < 0) {
+		return;
 	}
 
 	patch->setEngineMode(newValue);

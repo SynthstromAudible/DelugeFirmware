@@ -60,13 +60,6 @@ public:
 		return modelStackWithNoteRow;
 	}
 
-	void updateDisplay() {
-		if (display->haveOLED()) {
-			renderUIsForOled();
-		}
-		else {
-			drawValue();
-		}
-	}
+	void updateDisplay() { renderUIsForOled(); }
 };
 } // namespace deluge::gui::menu_item::note_row

@@ -21,12 +21,7 @@ const char* Toggle::getNameFor(bool enabled) {
 }
 
 void Toggle::drawValue() {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		display->setText(getNameFor(getValue()));
-	}
+	renderUIsForOled();
 }
 
 void Toggle::drawPixelsForOled() {
@@ -53,12 +48,7 @@ void Toggle::drawPixelsForOled() {
 
 // renders check box on OLED and dot on 7seg
 void Toggle::displayToggleValue() {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		drawName();
-	}
+	renderUIsForOled();
 }
 
 void Toggle::renderSubmenuItemTypeForOled(int32_t yPixel) {

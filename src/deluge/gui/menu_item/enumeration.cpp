@@ -12,7 +12,7 @@ void Enumeration::beginSession(MenuItem* navigatedBackwardFrom) {
 bool Enumeration::wrapAround() {
 	// This is the legacy behaviour, but OLED should wrap at least in some contexts
 	// as well probably.
-	return display->have7SEG();
+	return false;
 }
 
 void Enumeration::selectEncoderAction(int32_t offset) {
@@ -36,12 +36,7 @@ void Enumeration::selectEncoderAction(int32_t offset) {
 }
 
 void Enumeration::drawValue() {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	if (display->have7SEG()) {
-		display->setTextAsNumber(getValue());
-	}
+	renderUIsForOled();
 }
 
 void Enumeration::getShortOption(etl::istring& opt) {

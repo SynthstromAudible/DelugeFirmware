@@ -47,12 +47,7 @@ void Decimal::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 void Decimal::drawValue() {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		drawActualValue();
-	}
+	renderUIsForOled();
 }
 
 int32_t Decimal::getNumberEditSize() {
@@ -104,15 +99,9 @@ void Decimal::horizontalEncoderAction(int32_t offset) {
 		}
 	}
 
-	if (display->haveOLED()) {
-		movingCursor = true;
-		renderUIsForOled();
-		movingCursor = false;
-	}
-	else {
-		scrollToGoodPos();
-		drawActualValue(true);
-	}
+	movingCursor = true;
+	renderUIsForOled();
+	movingCursor = false;
 }
 
 void Decimal::scrollToGoodPos() {

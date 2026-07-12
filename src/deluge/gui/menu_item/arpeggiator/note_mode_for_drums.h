@@ -79,12 +79,7 @@ public:
 class NoteModeFromOctaveModeForDrums final : public NoteModeForDrums {
 public:
 	using NoteModeForDrums::NoteModeForDrums;
-	void readCurrentValue() override {
-		if (display->have7SEG()) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NOTE_MODE));
-		}
-		NoteModeForDrums::readCurrentValue();
-	}
+	void readCurrentValue() override { NoteModeForDrums::readCurrentValue(); }
 };
 
 extern NoteModeFromOctaveModeForDrums arpNoteModeFromOctaveModeMenuForDrums;

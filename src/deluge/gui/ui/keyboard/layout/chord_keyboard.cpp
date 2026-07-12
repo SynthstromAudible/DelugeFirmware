@@ -162,12 +162,7 @@ void KeyboardLayoutChord::precalculate() {
 		else {
 			keyboardScreen.setScale(lastScale);
 		}
-		if (display->haveOLED()) {
-			display->popupTextTemporary("Chord mode only supports modes of major and minor scales");
-		}
-		else {
-			display->setScrollingText("SCALE NOT SUPPORTED", 0);
-		}
+		display->popupTextTemporary("Chord mode only supports modes of major and minor scales");
 	}
 	else {
 		lastScale = currentScale;
@@ -270,14 +265,8 @@ void KeyboardLayoutChord::drawChordName(int16_t noteCode, const char* chordName,
 	else {
 		sprintf(fullChordName, "%s%s", noteName, chordName);
 	}
-	if (display->haveOLED()) {
-		display->popupTextTemporary(fullChordName);
-		D_PRINTLN("Popup text: %s", fullChordName);
-	}
-	else {
-		int8_t drawDot = !isNatural ? 0 : 255;
-		display->setScrollingText(fullChordName, 0);
-	}
+	display->popupTextTemporary(fullChordName);
+	D_PRINTLN("Popup text: %s", fullChordName);
 }
 
 uint8_t KeyboardLayoutChord::noteFromCoordsRow(int32_t x, int32_t y, int32_t root, NoteSet& scaleNotes,

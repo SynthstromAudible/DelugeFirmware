@@ -84,9 +84,6 @@ void AudioClipView::focusRegained() {
 	view.focusRegained();
 	view.setActiveModControllableTimelineCounter(getCurrentClip());
 
-	if (display->have7SEG()) {
-		view.displayOutputName(getCurrentOutput(), false);
-	}
 #ifdef currentClipStatusButtonX
 	view.drawCurrentClipPad(getCurrentClip());
 #endif

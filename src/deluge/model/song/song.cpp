@@ -4678,12 +4678,11 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 		PresetNavigationResult results =
 		    loadInstrumentPresetUI.doPresetNavigation(offset, oldInstrument, Availability::INSTRUMENT_UNUSED, true);
 		if (results.error == Error::NO_ERROR_BUT_GET_OUT) {
-removeWorkingAnimationAndGetOut:
-			if (display->haveOLED()) {
-				auto oled = static_cast<deluge::hid::display::OLED*>(display);
-				oled->consoleTimerEvent();
-				oled->removeWorkingAnimation();
-			}
+removeWorkingAnimationAndGetOut: {
+	auto oled = static_cast<deluge::hid::display::OLED*>(display);
+	oled->consoleTimerEvent();
+	oled->removeWorkingAnimation();
+}
 			return output;
 		}
 		else if (results.error != Error::NONE) {
@@ -4854,11 +4853,6 @@ gotAnInstrument: {}
 	display->setText("A002");
 #endif
 	replaceInstrument(oldInstrument, newInstrument);
-#if ALPHA_OR_BETA_VERSION
-	if (display->have7SEG()) {
-		view.displayOutputName(newInstrument);
-	}
-#endif
 
 	instrumentSwapped(newInstrument);
 
@@ -5706,16 +5700,14 @@ void Song::getCurrentRootNoteAndScaleName(etl::istring& buffer) {
 	noteCodeToString(currentSong->key.rootNote, noteName, &isNatural);
 
 	buffer.append(noteName);
-	if (display->haveOLED()) {
-		buffer.append(" ");
-		buffer.append(getScaleName(getCurrentScale()));
-	}
+	buffer.append(" ");
+	buffer.append(getScaleName(getCurrentScale()));
 }
 
 void Song::displayCurrentRootNoteAndScaleName() {
 	etl::string<40> popupMsg;
 	getCurrentRootNoteAndScaleName(popupMsg);
-	if (display->haveOLED()) {
+	{
 		UI* currentUI = getCurrentUI();
 		bool isSessionView = (currentUI == &sessionView || currentUI == &arrangerView);
 		// only display pop-up if we're using 7SEG or we're not currently in Song / Arranger View
@@ -5761,23 +5753,13 @@ void Song::adjustMasterTransposeInterval(int32_t interval) {
 void Song::displayMasterTransposeInterval() {
 	etl::string<40> popupMsg;
 
-	if (display->haveOLED()) {
-		popupMsg.append("Transpose Interval: \n");
-		if (masterTransposeInterval == 0) {
-			popupMsg.append("Encoder");
-		}
-		else {
-			deluge::string::appendInt(popupMsg, masterTransposeInterval);
-			popupMsg.append(" Semitones");
-		}
+	popupMsg.append("Transpose Interval: \n");
+	if (masterTransposeInterval == 0) {
+		popupMsg.append("Encoder");
 	}
 	else {
-		if (masterTransposeInterval == 0) {
-			popupMsg.append("ENC");
-		}
-		else {
-			deluge::string::appendInt(popupMsg, masterTransposeInterval);
-		}
+		deluge::string::appendInt(popupMsg, masterTransposeInterval);
+		popupMsg.append(" Semitones");
 	}
 	display->displayPopup(popupMsg.c_str());
 }
@@ -5836,9 +5818,7 @@ void Song::changeThresholdRecordingMode(int8_t offset) {
 
 void Song::displayThresholdRecordingMode() {
 	etl::string<40> popupMsg;
-	if (display->haveOLED()) {
-		popupMsg.append("Threshold: ");
-	}
+	popupMsg.append("Threshold: ");
 
 	switch (currentSong->thresholdRecordingMode) {
 	case ThresholdRecordingMode::OFF:

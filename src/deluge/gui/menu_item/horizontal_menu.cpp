@@ -594,7 +594,7 @@ void HorizontalMenu::endSession() {
 }
 
 Submenu::RenderingStyle HorizontalMenu::renderingStyle() const {
-	if (display->haveOLED() && runtimeFeatureSettings.isOn(HorizontalMenus)) {
+	if (runtimeFeatureSettings.isOn(HorizontalMenus)) {
 		return HORIZONTAL;
 	}
 	return VERTICAL;

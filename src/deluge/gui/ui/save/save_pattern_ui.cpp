@@ -140,14 +140,6 @@ ActionResult SavePatternUI::buttonAction(deluge::hid::Button b, bool on, bool in
 }
 
 bool SavePatternUI::performSave(bool mayOverwrite) {
-	if (display->have7SEG()) {
-		display->displayLoadingAnimation();
-	}
-
-	if (display->have7SEG()) {
-		display->displayLoadingAnimation();
-	}
-
 	std::string filePath = getCurrentFilePath();
 	Error error = Error::NONE;
 	if (error != Error::NONE) {
@@ -178,9 +170,7 @@ fail:
 		goto fail;
 	}
 
-	if (display->haveOLED()) {
-		deluge::hid::display::OLED::displayWorkingAnimation("Saving");
-	}
+	deluge::hid::display::OLED::displayWorkingAnimation("Saving");
 
 	Serializer& writer = GetSerializer();
 

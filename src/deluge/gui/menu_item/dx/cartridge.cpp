@@ -92,12 +92,7 @@ void DxCartridge::readValueAgain() {
 	if (pd == nullptr) {
 		return;
 	}
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		drawValue();
-	}
+	renderUIsForOled();
 
 	DxPatch* patch = soundEditor.currentSource->ensureDxPatch();
 	pd->unpackProgram(patch->params, currentValue);
@@ -155,9 +150,7 @@ void DxCartridge::selectEncoderAction(int32_t offset) {
 
 	currentValue = newValue;
 
-	if (display->haveOLED()) {
-		scrollPos = std::clamp<int>(newValue - 1, 0, numValues - kOLEDMenuNumOptionsVisible);
-	}
+	scrollPos = std::clamp<int>(newValue - 1, 0, numValues - kOLEDMenuNumOptionsVisible);
 
 	readValueAgain(); // redraw
 }

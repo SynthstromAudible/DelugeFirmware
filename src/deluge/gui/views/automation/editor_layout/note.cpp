@@ -133,16 +133,11 @@ std::string AutomationEditorLayoutNote::getNoteRowName(NoteRow* noteRow, bool is
 		}
 	}
 	else {
-		if (display->haveOLED()) {
-			if (isKit) {
-				return "(Select Drum)";
-			}
-			else {
-				return "(Select Note)";
-			}
+		if (isKit) {
+			return "(Select Drum)";
 		}
 		else {
-			return "NONE";
+			return "(Select Note)";
 		}
 	}
 }

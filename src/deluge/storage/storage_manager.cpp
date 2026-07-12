@@ -916,9 +916,7 @@ void FileReader::readDone() {
 
 		uiTimerManager.routine();
 
-		if (display->haveOLED()) {
-			deluge_display_service();
-		}
+		deluge_display_service();
 		deluge_control_flush();
 	}
 }

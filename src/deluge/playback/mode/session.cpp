@@ -788,18 +788,13 @@ void Session::cancelAllLaunchScheduling() {
 void Session::launchSchedulingMightNeedCancelling() {
 	if (!preLoadedSong && !areAnyClipsArmed()) {
 		cancelAllLaunchScheduling();
-		if (display->haveOLED()) {
-			RootUI* rootUI = getRootUI();
-			if (loadSongUI.isLoadingSong()) {
-				loadSongUI.displayLoopsRemainingPopup(); // Wait, could this happen?
-			}
-			else if ((rootUI == &sessionView || rootUI == &performanceView)
-			         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
-				renderUIsForOled();
-			}
+		RootUI* rootUI = getRootUI();
+		if (loadSongUI.isLoadingSong()) {
+			loadSongUI.displayLoopsRemainingPopup(); // Wait, could this happen?
 		}
-		else {
-			sessionView.redrawNumericDisplay();
+		else if ((rootUI == &sessionView || rootUI == &performanceView)
+		         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
+			renderUIsForOled();
 		}
 	}
 }
@@ -1286,14 +1281,9 @@ void Session::armingChanged() {
 		sessionView.requestRendering(rootUI, 0, 0xFFFFFFFF);
 
 		if (getCurrentUI()->canSeeViewUnderneath()) {
-			if (display->haveOLED()) {
-				if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
-				    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
-					renderUIsForOled();
-				}
-			}
-			else {
-				sessionView.redrawNumericDisplay();
+			if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
+			    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
+				renderUIsForOled();
 			}
 probablyDoFlashPlayEnable:
 			if (hasPlaybackActive()) {
@@ -2331,18 +2321,13 @@ traverseClips:
 		else {
 
 			launchEventAtSwungTickCount = playbackHandler.lastSwungTickActioned + currentArmedLaunchLengthForOneRepeat;
-			if (display->haveOLED()) {
-				RootUI* rootUI = getRootUI();
-				if (loadSongUI.isLoadingSong()) {
-					loadSongUI.displayLoopsRemainingPopup();
-				}
-				else if ((rootUI == &sessionView || rootUI == &performanceView)
-				         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
-					renderUIsForOled();
-				}
+			RootUI* rootUI = getRootUI();
+			if (loadSongUI.isLoadingSong()) {
+				loadSongUI.displayLoopsRemainingPopup();
 			}
-			else {
-				sessionView.redrawNumericDisplay();
+			else if ((rootUI == &sessionView || rootUI == &performanceView)
+			         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
+				renderUIsForOled();
 			}
 		}
 	}

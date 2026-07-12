@@ -48,7 +48,7 @@ void HIDSysex::requestOLEDDisplay(MIDICable& cable, uint8_t* data, int32_t len) 
 		midiDisplayCable = &cable;
 		// two seconds
 		midiDisplayUntil = AudioEngine::audioSampleTimer + 2 * kSampleRate;
-		if (display->haveOLED()) {
+		{
 			if (force) {
 				oledDeltaForce = true;
 			}
@@ -76,13 +76,11 @@ void HIDSysex::sendDisplayIfChanged() {
 		return;
 	}
 
-	if (display->haveOLED()) {
-		sendOLEDDataDelta(*midiDisplayCable, false);
-	}
+	sendOLEDDataDelta(*midiDisplayCable, false);
 }
 
 void HIDSysex::sendOLEDData(MIDICable& cable, bool rle) {
-	if (display->haveOLED()) {
+	{
 		const int32_t data_size = 768;
 		const int32_t max_packed_size = 922;
 		// 		uint8_t reply_hdr[5] = {0xf0, 0x7d, 0x02, 0x40, rle ? 0x01_u8 : 0x00_u8};

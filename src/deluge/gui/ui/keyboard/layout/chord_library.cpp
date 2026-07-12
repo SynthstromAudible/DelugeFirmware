@@ -177,13 +177,7 @@ void KeyboardLayoutChordLibrary::drawChordName(int16_t noteCode, const char* cho
 		sprintf(fullChordName, "%s%s", noteName, chordName);
 	}
 
-	if (display->haveOLED()) {
-		display->popupTextTemporary(fullChordName);
-	}
-	else {
-		int8_t drawDot = !isNatural ? 0 : 255;
-		display->setScrollingText(fullChordName, 0);
-	}
+	display->popupTextTemporary(fullChordName);
 }
 
 bool KeyboardLayoutChordLibrary::allowSidebarType(ColumnControlFunction sidebarType) {

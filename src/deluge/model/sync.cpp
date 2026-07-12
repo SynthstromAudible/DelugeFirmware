@@ -79,8 +79,7 @@ void syncValueToString(uint32_t value, etl::istring& buffer, int32_t tickMagnitu
 	getNoteLengthNameFromMagnitude(buffer, getNoteMagnitudeFfromNoteLength(noteLength, tickMagnitude), typeStr, false);
 	if (typeStr != nullptr) {
 		int32_t magnitudeLevelBars = SYNC_LEVEL_8TH - tickMagnitude;
-		if (((type == SYNC_TYPE_TRIPLET || type == SYNC_TYPE_DOTTED) && level <= magnitudeLevelBars)
-		    || display->have7SEG()) {
+		if ((type == SYNC_TYPE_TRIPLET || type == SYNC_TYPE_DOTTED) && level <= magnitudeLevelBars) {
 			// On OLED, getNoteLengthNameForMagniture() handles adding this for the non-bar levels. On 7seg, always
 			// append it
 			buffer.append(typeStr);

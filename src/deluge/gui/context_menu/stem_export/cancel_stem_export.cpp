@@ -37,14 +37,8 @@ char const* CancelStemExport::getTitle() {
 std::span<char const*> CancelStemExport::getOptions() {
 	using enum l10n::String;
 
-	if (display->haveOLED()) {
-		static char const* options[] = {l10n::get(STRING_FOR_OK)};
-		return {options, 1};
-	}
-	else {
-		static char const* options[] = {l10n::get(STRING_FOR_SURE)};
-		return {options, 1};
-	}
+	static char const* options[] = {l10n::get(STRING_FOR_OK)};
+	return {options, 1};
 }
 
 bool CancelStemExport::acceptCurrentOption() {

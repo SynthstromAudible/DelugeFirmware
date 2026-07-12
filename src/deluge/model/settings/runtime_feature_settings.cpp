@@ -62,11 +62,11 @@ static void SetupSyncScalingActionSetting(RuntimeFeatureSetting& setting, deluge
 
 	setting.options = {
 	    {
-	        .displayName = display->haveOLED() ? "Sync Scaling" : "SCAL",
+	        .displayName = "Sync Scaling",
 	        .value = RuntimeFeatureStateSyncScalingAction::SyncScaling,
 	    },
 	    {
-	        .displayName = display->haveOLED() ? "Fill mode" : "FILL",
+	        .displayName = "Fill mode",
 	        .value = RuntimeFeatureStateSyncScalingAction::Fill,
 	    },
 	};

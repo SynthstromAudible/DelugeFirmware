@@ -80,7 +80,7 @@ std::string fromNoteCode(int32_t noteCode, size_t* getLengthWithoutDot, bool app
 
 	output += noteCodeToNoteLetter[noteCodeWithinOctave];
 	if (noteCodeIsSharp[noteCodeWithinOctave]) {
-		output += display->haveOLED() ? '#' : '.';
+		output += '#';
 	}
 	if (appendOctaveNo) {
 		output += std::to_string(octave);

@@ -36,12 +36,7 @@ void DxGlobalParams::beginSession(MenuItem* navigatedBackwardFrom) {
 }
 
 void DxGlobalParams::readValueAgain() {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		drawValue();
-	}
+	renderUIsForOled();
 }
 
 struct {
@@ -79,9 +74,7 @@ void DxGlobalParams::selectEncoderAction(int32_t offset) {
 
 	currentValue = newValue;
 
-	if (display->haveOLED()) {
-		scrollPos = std::clamp<int>(newValue - 1, 0, numValues - kOLEDMenuNumOptionsVisible);
-	}
+	scrollPos = std::clamp<int>(newValue - 1, 0, numValues - kOLEDMenuNumOptionsVisible);
 
 	readValueAgain(); // redraw
 }

@@ -314,7 +314,7 @@ bool readButtonsAndPads() {
 
 	// OLED transfer-ack: the input decode consumed the PIC ack, so pump the next
 	// low-level OLED transfer here rather than off a raw byte.
-	if (deluge_display_consume_transfer_ack() && deluge::hid::display::have_oled_screen) {
+	if (deluge_display_consume_transfer_ack()) {
 		uiTimerManager.setTimer(TimerName::OLED_LOW_LEVEL, 3);
 	}
 
@@ -365,9 +365,7 @@ void setUIForLoadedSong(Song* song) {
 	setRootUILowLevel(newUI);
 
 	getCurrentUI()->opened();
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
+	renderUIsForOled();
 }
 
 void setupBlankSong() {
@@ -563,9 +561,7 @@ void registerTasks() {
 	// 31-39: Idle priority (40 for dyn tasks)
 	p = 31;
 	addRepeatingTask(&deluge_control_flush, p++, 0.001, 0.001, 0.02, "PIC flush", RESOURCE_NONE);
-	if (hid::display::have_oled_screen) {
-		addRepeatingTask(&deluge_display_service, p++, 0.01, 0.01, 0.02, "oled routine", RESOURCE_NONE);
-	}
+	addRepeatingTask(&deluge_display_service, p++, 0.01, 0.01, 0.02, "oled routine", RESOURCE_NONE);
 	// needs to be called very frequently,
 	// handles animations and checks on the timers for any infrequent actions
 	// long term this should probably be made into an idle task
@@ -582,9 +578,7 @@ extern "C" void deluge_app_tick(void) {
 	uiTimerManager.routine();
 
 	// Flush stuff - we just have to do this, regularly
-	if (hid::display::have_oled_screen) {
-		deluge_display_service();
-	}
+	deluge_display_service();
 	deluge_control_flush();
 
 	AudioEngine::routineWithClusterLoading(true);

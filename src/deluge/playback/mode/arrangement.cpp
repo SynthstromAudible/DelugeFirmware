@@ -557,12 +557,7 @@ int32_t Arrangement::getLivePos(uint32_t* timeRemainder) {
 
 void Arrangement::stopOutputRecordingAtLoopEnd() {
 	playbackHandler.stopOutputRecordingAtLoopEnd = true;
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		sessionView.redrawNumericDisplay();
-	}
+	renderUIsForOled();
 }
 
 int32_t Arrangement::getPosAtWhichClipWillCut(ModelStackWithTimelineCounter const* modelStack) {

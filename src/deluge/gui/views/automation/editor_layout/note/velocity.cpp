@@ -296,13 +296,7 @@ void AutomationEditorLayoutNoteVelocity::velocityEditPadAction(ModelStackWithNot
 		if (getMultiPadPressActive()) {
 			int32_t leftPadSelectedVelocity = getVelocityFromY(getLeftPadSelectedY());
 			int32_t rightPadSelectedVelocity = getVelocityFromY(getRightPadSelectedY());
-			if (display->haveOLED()) {
-				renderDisplay(leftPadSelectedVelocity, rightPadSelectedVelocity);
-			}
-			else {
-				// for 7seg, render value of last pad pressed
-				renderDisplay(getLeftPadSelectedX() == x ? leftPadSelectedVelocity : rightPadSelectedVelocity);
-			}
+			renderDisplay(leftPadSelectedVelocity, rightPadSelectedVelocity);
 		}
 		else {
 			if (velocity) {

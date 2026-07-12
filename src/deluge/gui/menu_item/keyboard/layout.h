@@ -31,7 +31,7 @@ public:
 		return {
 		    "QWERTY",
 		    "AZERTY",
-		    display->haveOLED() ? "QWERTZ" : "QRTZ",
+		    "QWERTZ",
 		};
 	}
 };

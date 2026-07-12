@@ -817,16 +817,14 @@ void changeDimmerInterval(int32_t offset) {
 		setDimmerInterval(newInterval);
 	}
 
-	if (display->haveOLED()) {
-		char text[20];
-		strcpy(text, "Brightness: ");
-		char* pos = strchr(text, 0);
-		intToString((25 - dimmerInterval) << 2, pos);
-		pos = strchr(text, 0);
-		*(pos++) = '%';
-		*pos = 0;
-		display->popupTextTemporary(text);
-	}
+	char text[20];
+	strcpy(text, "Brightness: ");
+	char* pos = strchr(text, 0);
+	intToString((25 - dimmerInterval) << 2, pos);
+	pos = strchr(text, 0);
+	*(pos++) = '%';
+	*pos = 0;
+	display->popupTextTemporary(text);
 }
 
 void setDimmerInterval(int32_t newInterval) {

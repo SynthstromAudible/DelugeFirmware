@@ -923,9 +923,7 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 		return false;
 	}
 
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
+	renderUIsForOled();
 
 	currentItem->updatePadLights();
 
@@ -1340,7 +1338,7 @@ doSetup:
 					// Special shortcut for Note Row Editor menu: [audition pad] + [sequence direction pad]
 					Clip* currentClip = getCurrentClip();
 					if (currentClip->type == ClipType::INSTRUMENT && item == &sequenceDirectionMenu
-					    && display->haveOLED() && runtimeFeatureSettings.get(HorizontalMenus) == On
+					    && runtimeFeatureSettings.get(HorizontalMenus) == On
 					    && instrumentClipView.getNumNoteRowsAuditioning() == 1) {
 
 						noteRowEditorRootMenu.focusChild(&sequenceDirectionMenu);
@@ -1802,9 +1800,7 @@ doMIDIOrCV:
 		newItem = parent;
 	}
 
-	if (display->haveOLED()) {
-		display->cancelPopup();
-	}
+	display->cancelPopup();
 
 	allowsNoteTails = true;
 	if (newSound != nullptr) {
@@ -2056,7 +2052,7 @@ std::optional<std::span<HorizontalMenu* const>> SoundEditor::getCurrentHorizonta
 		// we shouldn't allow switching between menus in the chain because the sound menu has different hierarchy
 		return std::nullopt;
 	}
-	if (!display->haveOLED() || runtimeFeatureSettings.get(HorizontalMenus) == Off) {
+	if (runtimeFeatureSettings.get(HorizontalMenus) == Off) {
 		return std::nullopt;
 	}
 	if (!rootUIIsClipMinderScreen()) {

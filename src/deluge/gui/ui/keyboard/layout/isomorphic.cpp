@@ -64,7 +64,7 @@ void KeyboardLayoutIsomorphic::offsetPads(int32_t offset, bool shiftEnabled) {
 		state.rowInterval = std::clamp(state.rowInterval, kMinIsomorphicRowInterval, kMaxIsomorphicRowInterval);
 
 		char buffer[13] = "Row step:   ";
-		auto displayOffset = (display->haveOLED() ? 10 : 0);
+		auto displayOffset = 10;
 		intToString(state.rowInterval, buffer + displayOffset, 1);
 		display->displayPopup(buffer);
 

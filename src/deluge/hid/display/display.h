@@ -122,9 +122,4 @@ private:
 
 extern deluge::hid::Display* display;
 
-namespace deluge::hid::display {
-// physical screen is oled
-extern bool have_oled_screen;
-} // namespace deluge::hid::display
-
 extern "C" void consoleTextIfAllBootedUp(char const* text);

@@ -259,52 +259,9 @@ void TimelineView::displayNumberOfBarsAndBeats(uint32_t number, uint32_t quantiz
 		whichSubBeat++;
 	}
 
-	if (display->haveOLED()) {
-		char buffer[15];
-		sprintf(buffer, "%d : %d : %d", whichBar, whichBeat, whichSubBeat);
-		display->popupTextTemporary(buffer);
-	}
-	else {
-		char text[5];
-
-		uint8_t dotMask = 0b10000000;
-
-		if (whichBar >= 10000) {
-			strcpy(text, tooLongText);
-		}
-		else {
-			strcpy(text, "    ");
-
-			if (whichBar < 10) {
-				intToString(whichBar, &text[1]);
-			}
-			else {
-				intToString(whichBar, &text[0]);
-			}
-
-			if (whichBar < 100) {
-				dotMask |= 1 << 2;
-
-				if (quantization >= (oneBar >> 2)) {
-					text[2] = ' ';
-					goto putBeatCountOnFarRight;
-				}
-
-				intToString(whichBeat, &text[2]);
-				dotMask |= 1 << 1;
-
-				intToString(whichSubBeat, &text[3]);
-			}
-			else if (whichBar < 1000) {
-				dotMask |= 1 << 1;
-
-putBeatCountOnFarRight:
-				intToString(whichBeat, &text[3]);
-			}
-		}
-
-		display->displayPopup(text, 3, false, dotMask);
-	}
+	char buffer[15];
+	sprintf(buffer, "%d : %d : %d", whichBar, whichBeat, whichSubBeat);
+	display->popupTextTemporary(buffer);
 }
 
 // Changes the actual xScroll.

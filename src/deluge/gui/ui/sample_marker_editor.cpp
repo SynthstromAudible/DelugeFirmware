@@ -128,10 +128,6 @@ bool SampleMarkerEditor::opened() {
 
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 
-	if (display->have7SEG()) {
-		displayText();
-	}
-
 	if (getRootUI() != &instrumentClipView) {
 		renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
 	}
@@ -335,12 +331,7 @@ void SampleMarkerEditor::selectEncoderAction(int8_t offset) {
 	blinkPhase = 0;
 
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		displayText();
-	}
+	renderUIsForOled();
 }
 
 ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
@@ -635,12 +626,7 @@ doWriteValue:
 
 doRender:
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
-			if (display->haveOLED()) {
-				renderUIsForOled();
-			}
-			else {
-				displayText();
-			}
+			renderUIsForOled();
 		}
 
 		// Release press

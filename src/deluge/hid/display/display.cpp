@@ -81,8 +81,6 @@ std::string_view getErrorMessage(Error error) {
 	}
 }
 
-bool have_oled_screen = false;
-
 } // namespace deluge::hid::display
 
 extern "C" void freezeWithError(char const* error) {

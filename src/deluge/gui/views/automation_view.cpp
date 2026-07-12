@@ -984,13 +984,7 @@ void AutomationView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bo
 	}
 
 	// OLED Display
-	if (display->haveOLED()) {
-		renderDisplayOLED(clip, output, outputType, knobPosLeft, knobPosRight);
-	}
-	// 7SEG Display
-	else {
-		renderDisplay7SEG(clip, output, outputType, knobPosLeft, modEncoderAction);
-	}
+	renderDisplayOLED(clip, output, outputType, knobPosLeft, knobPosRight);
 }
 
 void AutomationView::renderDisplayOLED(Clip* clip, Output* output, OutputType outputType, int32_t knobPosLeft,
@@ -1098,10 +1092,7 @@ void AutomationView::displayAutomation(bool padSelected, bool updateDisplay) {
 
 				int32_t knobPos = getAutomationParameterKnobPos(modelStackWithParam, view.modPos) + kKnobPosOffset;
 
-				bool displayValue = updateDisplay
-				                    && (display->haveOLED()
-				                        || (display->have7SEG() && inAutomationEditor()
-				                            && (playbackHandler.isEitherClockActive() || padSelected)));
+				bool displayValue = updateDisplay;
 
 				// update value on the screen when playing back automation
 				// don't update value displayed if there's no automation unless instructed to update display
@@ -1235,12 +1226,6 @@ passToOthers:
 			if (padSelectionOn) {
 				initPadSelection();
 			}
-		}
-
-		// if you just toggle playback off, re-render 7SEG display
-		if (!on && (b == PLAY) && display->have7SEG() && inAutomationEditor() && !padSelectionOn
-		    && !playbackHandler.isEitherClockActive()) {
-			renderDisplay();
 		}
 
 		uiNeedsRendering(&automationView);
@@ -1586,7 +1571,7 @@ bool AutomationView::handleBackAndHorizontalEncoderButtonComboAction(Clip* clip,
 
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
 
-			displayAutomation(padSelectionOn, !display->have7SEG());
+			displayAutomation(padSelectionOn, true);
 		}
 	}
 	else if (on && inNoteEditor()) {
@@ -1987,9 +1972,6 @@ void AutomationView::handleParameterSelection(Clip* clip, Output* output, Output
 		instrumentClipView.resetSelectedNoteRowBlinking();
 	}
 	blinkShortcuts();
-	if (display->have7SEG()) {
-		renderDisplay(); // always display parameter name first, if there's automation it will show after
-	}
 	displayAutomation(true);
 	view.setModLedStates();
 	uiNeedsRendering(&automationView);
@@ -2167,9 +2149,6 @@ ActionResult AutomationView::auditionPadAction(InstrumentClip* clip, Output* out
 	// Or if auditioning this NoteRow just finished...
 	else {
 		instrumentClipView.finishAuditioningRow(yDisplay, modelStackWithNoteRowOnCurrentClip, noteRowOnActiveClip);
-		if (display->have7SEG()) {
-			renderDisplay();
-		}
 	}
 
 	if (selectedRowChanged || (selectedDrumChanged && (!getAffectEntire() || inNoteEditor()))) {
@@ -2558,7 +2537,7 @@ void AutomationView::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_DELETED));
 
-		displayAutomation(padSelectionOn, !display->have7SEG());
+		displayAutomation(padSelectionOn, true);
 	}
 
 	// refresh automation editor grid to show copy / pasted automation or deleted automation
@@ -2665,7 +2644,7 @@ void AutomationView::selectEncoderAction(int8_t offset) {
 		                                                                              effectiveLength, xScroll, xZoom);
 	}
 	else {
-		displayAutomation(true, !display->have7SEG());
+		displayAutomation(true, true);
 	}
 	resetParameterShortcutBlinking();
 	blinkShortcuts();

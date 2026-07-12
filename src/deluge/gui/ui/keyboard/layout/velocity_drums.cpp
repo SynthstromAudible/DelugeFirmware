@@ -111,9 +111,7 @@ void KeyboardLayoutVelocityDrums::handleHorizontalEncoder(int32_t offset, bool s
 			return;
 
 		etl::string<16> buffer;
-		if (display->haveOLED()) {
-			buffer.append("Zoom Level: ");
-		}
+		buffer.append("Zoom Level: ");
 		deluge::string::appendInt(buffer, state.zoom_level + 1);
 		display->displayPopup(buffer.c_str());
 
