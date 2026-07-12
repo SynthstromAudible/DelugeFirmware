@@ -52,14 +52,14 @@ public:
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 					Source* source = &soundDrum->sources[source_id_];
-					source->timeStretchAmount = getValue();
+					source->setTimeStretchAmount(getValue());
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
 			Source& source = soundEditor.currentSound->sources[source_id_];
-			source.timeStretchAmount = getValue();
+			source.setTimeStretchAmount(getValue());
 		}
 	}
 	[[nodiscard]] int32_t getMinValue() const override { return -48; }

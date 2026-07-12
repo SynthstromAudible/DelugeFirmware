@@ -449,7 +449,7 @@ void Slicer::preview(int64_t startPoint, int64_t endPoint, int32_t transpose, in
 
 		MultisampleRange* range = (MultisampleRange*)drum->sources[0].getOrCreateFirstRange();
 		drum->setName("1");
-		drum->sources[0].repeatMode = SampleRepeatMode::ONCE;
+		drum->sources[0].setRepeatMode(SampleRepeatMode::ONCE);
 
 		if (!(waveformBasicNavigator.sample->filePath == range->sampleHolder.filePath)) {
 			stopAnyPreviewing();

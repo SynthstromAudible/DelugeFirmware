@@ -939,7 +939,7 @@ doLoadAsSample:
 
 				// Otherwise, set play mode to LOOP, and we'll just do single-cycle as a sample. (This is now pretty
 				// rare.)
-				soundEditor.currentSource->repeatMode = SampleRepeatMode::LOOP;
+				soundEditor.currentSource->setRepeatMode(SampleRepeatMode::LOOP);
 				doingSingleCycleNow = true;
 			}
 
@@ -956,10 +956,10 @@ doLoadAsSample:
 					// If this led to an actual loop end pos, with more waveform after it, and the sample's not too
 					// long, we can do a ONCE.
 					if (((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.loopEndPos && mSec < 2002) {
-						soundEditor.currentSource->repeatMode = SampleRepeatMode::ONCE;
+						soundEditor.currentSource->setRepeatMode(SampleRepeatMode::ONCE);
 					}
 					else {
-						soundEditor.currentSource->repeatMode = SampleRepeatMode::LOOP;
+						soundEditor.currentSource->setRepeatMode(SampleRepeatMode::LOOP);
 					}
 				}
 
@@ -1829,17 +1829,17 @@ skipOctaveCorrection:
 		// If this led to an actual loop end pos, with more waveform after it, and the sample's not too long, we can do
 		// a ONCE
 		if (numWithResultingLoopEndPoints * 2 >= numSamples && averageMSec < 2002) {
-			soundEditor.currentSource->repeatMode = SampleRepeatMode::ONCE;
+			soundEditor.currentSource->setRepeatMode(SampleRepeatMode::ONCE);
 		}
 		else {
-			soundEditor.currentSource->repeatMode = SampleRepeatMode::LOOP;
+			soundEditor.currentSource->setRepeatMode(SampleRepeatMode::LOOP);
 		}
 	}
 
 	// Or if no loop points set...
 	else {
 		// If 2 seconds or less, set play mode to ONCE. Otherwise, cut
-		soundEditor.currentSource->repeatMode = (averageMSec < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT;
+		soundEditor.currentSource->setRepeatMode((averageMSec < 2002) ? SampleRepeatMode::ONCE : SampleRepeatMode::CUT);
 	}
 
 	soundEditor.setCurrentMultiRange(numSamples >> 1);

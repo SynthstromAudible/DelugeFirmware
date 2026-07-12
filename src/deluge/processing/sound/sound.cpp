@@ -3717,10 +3717,12 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 	// If (multi)sample...
 	if (source->oscType == OscType::SAMPLE
 	    && synthMode != SynthMode::FM) { // Don't combine this with the above "if" - there's an "else" below
-		writer.writeAttribute("loopMode", util::to_underlying(source->repeatMode));
+		writer.writeAttribute("loopMode",
+		                      dsrc != nullptr ? dsrc->repeat_mode : util::to_underlying(source->repeatMode));
 		writer.writeAttribute("reversed", source->sampleControls.reversed);
 		writer.writeAttribute("timeStretchEnable", source->sampleControls.pitchAndSpeedAreIndependent);
-		writer.writeAttribute("timeStretchAmount", source->timeStretchAmount);
+		writer.writeAttribute("timeStretchAmount",
+		                      dsrc != nullptr ? dsrc->time_stretch_amount : source->timeStretchAmount);
 		if (source->sampleControls.interpolationMode == InterpolationMode::LINEAR) {
 			writer.writeAttribute("linearInterpolation", 1);
 		}
@@ -4022,10 +4024,8 @@ void Sound::syncDocSound() {
 	for (int32_t s = 0; s < kNumSources; s++) {
 		Source& src = sources[s];
 		deluge::project::DocSource& ds = d.sources[s];
-		// osc_type / transpose / cents are DOM-owned (seeded at bind + doneReadingFromFile, written by the Source
-		// setters, read at save) — no longer shadowed here.
-		ds.repeat_mode = static_cast<uint8_t>(src.repeatMode);
-		ds.time_stretch_amount = src.timeStretchAmount;
+		// osc_type / transpose / cents / repeat_mode / time_stretch_amount are DOM-owned (seeded at bind +
+		// doneReadingFromFile, written by the Source setters, read at save) — no longer shadowed here.
 		ds.interpolation_mode = static_cast<uint8_t>(src.sampleControls.interpolationMode);
 		ds.pitch_and_speed_independent = src.sampleControls.pitchAndSpeedAreIndependent;
 		ds.reversed = src.sampleControls.reversed;

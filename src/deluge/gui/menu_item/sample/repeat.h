@@ -73,7 +73,7 @@ public:
 						sendNoteOffForKitArpeggiator(kit);
 					}
 
-					source->repeatMode = current_value;
+					source->setRepeatMode(current_value);
 				}
 			}
 		}
@@ -96,7 +96,7 @@ public:
 				sendNoteOffForKitArpeggiator(kit);
 			}
 
-			source.repeatMode = current_value;
+			source.setRepeatMode(current_value);
 		}
 
 		// We need to re-render all rows, because this will have changed whether Note tails are displayed. Probably just
