@@ -15,7 +15,6 @@
 
 uint8_t currentlyAccessingCard = false;
 uint32_t usbLock = false;
-bool sdRoutineLock = false;
 namespace {
 
 struct SelfRemoving {
@@ -65,7 +64,16 @@ void yield_2ms_with_lock() {
 TEST_GROUP(Scheduler){
 
     void setup(){taskManager = TaskManager();
+sdRoutineActive = false;
+currentlyAccessingCard = false;
 } // namespace
+
+// These are globals the ResourceChecker reads. Reset them here as well as in setup(), so that a test which fails
+// part-way through while holding one can't leave it locked and silently starve every later resource-gated task.
+void teardown() {
+	sdRoutineActive = false;
+	currentlyAccessingCard = false;
+}
 }
 ;
 
@@ -119,6 +127,36 @@ TEST(Scheduler, scheduleConditionalDoesntRun) {
 	// will load as blocked but immediately pass condition
 	addConditionalTask(sleep_50ns, 0, []() { return false; }, "sleep 50ns", RESOURCE_NONE);
 	// run the scheduler for just under 10ms, calling the function to sleep 50ns every 1ms
+	taskManager.start(0.0095);
+	mock().checkExpectations();
+};
+
+// The SD card busy-wait yields to the scheduler, so any task holding an SD resource must stay unrunnable for as long
+// as that resource is locked. AudioRecorder::slowRoutine() depends on this: it frees the SampleRecorder, and doing so
+// from inside the card routine leaves SampleRecorder::cardRoutine() running on freed memory.
+TEST(Scheduler, sdRoutineActiveBlocksSdRoutineTask) {
+	mock().clear();
+	mock().expectNCalls(0, "sleep_50ns");
+	sdRoutineActive = true;
+	addRepeatingTask(sleep_50ns, 0, 0.001, 0.001, 0.001, "sd routine task", RESOURCE_SD_ROUTINE);
+	taskManager.start(0.0095);
+	mock().checkExpectations();
+};
+
+TEST(Scheduler, cardAccessBlocksSdTask) {
+	mock().clear();
+	mock().expectNCalls(0, "sleep_50ns");
+	currentlyAccessingCard = true;
+	addRepeatingTask(sleep_50ns, 0, 0.001, 0.001, 0.001, "sd task", RESOURCE_SD);
+	taskManager.start(0.0095);
+	mock().checkExpectations();
+};
+
+// ...and the blocking above is real, not just a task that never runs: with the resources free it runs every period.
+TEST(Scheduler, sdTaskRunsOnceResourcesUnlocked) {
+	mock().clear();
+	mock().expectNCalls(0.01 / 0.001, "sleep_50ns");
+	addRepeatingTask(sleep_50ns, 0, 0.001, 0.001, 0.001, "sd task", RESOURCE_SD | RESOURCE_SD_ROUTINE);
 	taskManager.start(0.0095);
 	mock().checkExpectations();
 };
