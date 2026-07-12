@@ -85,8 +85,6 @@ public:
 		}
 	}
 
-	void drawFor7seg() { char const* text = audioOutputBeingEdited->getOutputRecordingFrom()->name.c_str(); }
-
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		audioOutputBeingEdited = (AudioOutput*)getCurrentOutput();
 		return audioOutputBeingEdited->inputChannel == AudioInputChannel::SPECIFIC_OUTPUT;

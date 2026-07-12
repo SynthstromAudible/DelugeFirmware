@@ -1889,99 +1889,6 @@ void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 	}
 }
 
-void SessionView::redrawNumericDisplay() {
-	if ((currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW || stemExport.processStarted)) {
-		return;
-	}
-
-	UI* currentUI = getCurrentUI();
-
-	bool isPerformanceView = (currentUI == &performanceView);
-
-	bool isSessionView =
-	    ((currentUI == &sessionView) || (isPerformanceView && currentSong->lastClipInstanceEnteredStartPos == -1));
-
-	bool isArrangerView =
-	    ((currentUI == &arrangerView) || (isPerformanceView && currentSong->lastClipInstanceEnteredStartPos != -1));
-
-	// If playback on...
-	if (playbackHandler.isEitherClockActive()) {
-
-		// Session playback
-		if (currentPlaybackMode == &session) {
-			if (!session.launchEventAtSwungTickCount) {
-				goto nothingToDisplay;
-			}
-
-			if (loadSongUI.isLoadingSong()) {
-				if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
-					displayRepeatsTilLaunch();
-				}
-			}
-
-			else if (isArrangerView) {
-				if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW
-				    || currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
-					if (session.switchToArrangementAtLaunchEvent) {
-						displayRepeatsTilLaunch();
-					}
-					else {
-						clearNumericDisplay();
-					}
-				}
-			}
-
-			else if (isSessionView) {
-				if (currentUIMode != UI_MODE_HOLDING_SECTION_PAD) {
-					displayRepeatsTilLaunch();
-				}
-			}
-		}
-
-		else { // Arrangement playback
-			if (isArrangerView) {
-
-				if (currentUIMode != UI_MODE_HOLDING_SECTION_PAD && currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW) {
-					if (playbackHandler.stopOutputRecordingAtLoopEnd) {}
-					else {
-						clearNumericDisplay();
-					}
-				}
-			}
-			else if (isSessionView) {
-				clearNumericDisplay();
-			}
-		}
-	}
-
-	// Or if no playback active...
-	else {
-nothingToDisplay:
-		if ((isSessionView || isArrangerView)) {
-			if (currentUIMode != UI_MODE_HOLDING_SECTION_PAD) {
-				clearNumericDisplay();
-			}
-		}
-	}
-
-	// don't override LED states set by performance view
-	if (!isPerformanceView) {
-		setCentralLEDStates();
-	}
-}
-
-void SessionView::clearNumericDisplay() {
-	if (getCurrentUI() == &performanceView) {
-		performanceView.renderViewDisplay();
-	}
-	else {}
-}
-
-void SessionView::displayRepeatsTilLaunch() {
-	char buffer[5];
-	intToString(session.numRepeatsTilLaunch, buffer);
-}
-
 /// render session view display on opening
 void SessionView::renderViewDisplay() {
 	deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
@@ -2062,8 +1969,6 @@ void SessionView::displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_
 	canvas.drawString(rootNoteAndScaleName.c_str(), 0, yPos, kTextSpacingX, kTextSpacingY);
 }
 
-// This gets called by redrawNumericDisplay() - or, if OLED, it gets called instead, because this still needs to
-// happen.
 void SessionView::setCentralLEDStates() {
 	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
 	indicator_leds::setLedState(IndicatorLED::KIT, false);

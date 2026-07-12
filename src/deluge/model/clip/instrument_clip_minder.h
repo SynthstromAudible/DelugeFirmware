@@ -35,7 +35,6 @@ class ModelStack;
 class InstrumentClipMinder : public ClipMinder {
 public:
 	InstrumentClipMinder();
-	static void redrawNumericDisplay();
 	virtual void displayOrLanguageChanged();
 	bool createNewInstrument(OutputType newOutputType, bool is_dx = false);
 	void setLedStates();

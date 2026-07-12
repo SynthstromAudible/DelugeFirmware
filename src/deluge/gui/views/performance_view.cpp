@@ -637,10 +637,6 @@ void PerformanceView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canv
 	sessionView.renderOLED(canvas);
 }
 
-void PerformanceView::redrawNumericDisplay() {
-	sessionView.redrawNumericDisplay();
-}
-
 void PerformanceView::setLedStates() {
 	setCentralLEDStates();
 	view.setLedStates();    // inherited from session view

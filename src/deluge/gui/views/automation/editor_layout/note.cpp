@@ -91,30 +91,6 @@ void AutomationEditorLayoutNote::renderNoteEditorDisplayOLED(deluge::hid::displa
 	}
 }
 
-void AutomationEditorLayoutNote::renderNoteEditorDisplay7SEG(InstrumentClip* clip, OutputType outputType,
-                                                             int32_t knobPosLeft) {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-	bool isKit = outputType == OutputType::KIT;
-
-	ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
-	                                                                        modelStack); // don't create
-	if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-		if (!isKit) {
-			modelStackWithNoteRow =
-			    instrumentClipView.createNoteRowForYDisplay(modelStack, instrumentClipView.lastAuditionedYDisplay);
-		}
-	}
-
-	if (knobPosLeft != kNoSelection) {
-		char buffer[5];
-		intToString(knobPosLeft, buffer);
-	}
-	else {
-		std::string noteRowName = getNoteRowName(modelStackWithNoteRow->getNoteRowAllowNull(), isKit);
-	}
-}
-
 std::string AutomationEditorLayoutNote::getNoteRowName(NoteRow* noteRow, bool isKit) {
 	if (noteRow != nullptr) {
 		if (isKit) {

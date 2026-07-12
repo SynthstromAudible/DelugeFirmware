@@ -1030,33 +1030,6 @@ void AutomationView::renderAutomationOverviewDisplayOLED(deluge::hid::display::o
 	}
 }
 
-void AutomationView::renderDisplay7SEG(Clip* clip, Output* output, OutputType outputType, int32_t knobPosLeft,
-                                       bool modEncoderAction) {
-	// display OVERVIEW
-	if (onAutomationOverview()) {
-		renderAutomationOverviewDisplay7SEG(output, outputType);
-	}
-	else {
-		if (inAutomationEditor()) {
-			automationEditorLayoutModControllable.renderAutomationEditorDisplay7SEG(clip, outputType, knobPosLeft,
-			                                                                        modEncoderAction);
-		}
-		else {
-			automationEditorLayoutNote.renderNoteEditorDisplay7SEG((InstrumentClip*)clip, outputType, knobPosLeft);
-		}
-	}
-}
-
-void AutomationView::renderAutomationOverviewDisplay7SEG(Output* output, OutputType outputType) {
-	char const* overviewText;
-	if (!onArrangerView && (outputType == OutputType::KIT && !getAffectEntire() && !((Kit*)output)->selectedDrum)) {
-		overviewText = l10n::get(l10n::String::STRING_FOR_SELECT_A_ROW_OR_AFFECT_ENTIRE);
-	}
-	else {
-		overviewText = l10n::get(l10n::String::STRING_FOR_AUTOMATION);
-	}
-}
-
 // adjust the LED meters and update the display
 
 /*updated function for displaying automation when playback is enabled (called from ui_timer_manager).

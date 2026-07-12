@@ -102,12 +102,6 @@ void InstrumentClipMinder::selectEncoderAction(int32_t offset) {
 	}
 }
 
-void InstrumentClipMinder::redrawNumericDisplay() {
-	if (stemExport.processStarted) {
-		return;
-	}
-}
-
 void InstrumentClipMinder::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	if (stemExport.processStarted) {
 		stemExport.displayStemExportProgressOLED(StemExportType::DRUM);
