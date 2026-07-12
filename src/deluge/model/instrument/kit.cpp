@@ -47,6 +47,7 @@
 #include "storage/storage_manager.h"
 #include "storage/value.h"
 #include "storage/value_tree_deserializer.h"
+#include "util/functions.h" // stringToInt (id-first drum peek)
 #include <cstring>
 
 namespace params = deluge::modulation::params;
@@ -359,16 +360,34 @@ Error Kit::readDrumFromFile(Deserializer& reader, Song* song, Clip* clip, DrumTy
 		return Error::INSUFFICIENT_RAM;
 	}
 
+	// M3 owner-3: bind the drum to its DOM record BEFORE reading its tags, so the name/channel/note tag reads write
+	// straight into the bound DocDrum (the step that lets the engine fallback fields be retired). Peek the durable id
+	// from the tree node id-first (mirroring Song::readClipsFromFile) so adoptDrum keys the record by the file id
+	// rather than minting a throwaway that the later "id" tag would orphan. A drum with no id (old song / standalone)
+	// mints in adoptDrum exactly as before.
+	if (song != nullptr) {
+		if (const deluge::storage::Value* drumNode =
+		        static_cast<deluge::storage::ValueTreeDeserializer&>(reader).currentValue()) {
+			if (const deluge::storage::Value* idNode = drumNode->find("id")) {
+				newDrum->setId(static_cast<uint32_t>(stringToInt(idNode->str().c_str())));
+			}
+		}
+		song->adoptDrum(newDrum);
+	}
+
 	Error error = newDrum->readFromFile(
 	    reader, song, clip,
 	    readAutomationUpToPos); // Will create and "back up" a new ParamManager if anything to read into it
 	if (error != Error::NONE) {
+		if (song != nullptr) {
+			song->removeDocDrum(newDrum); // drop the DOM record adoptDrum created before freeing the drum
+		}
 		void* toDealloc = dynamic_cast<void*>(newDrum);
 		newDrum->~Drum();
 		delugeDealloc(toDealloc);
 		return error;
 	}
-	addDrum(newDrum, song);
+	addDrum(newDrum, song); // linked-list + kit assignment; the adoptDrum() inside is now an idempotent no-op
 
 	return Error::NONE;
 }
