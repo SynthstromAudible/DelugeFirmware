@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/menu_item.h"
+#include "gui/ui/ui.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include <version.h>
@@ -30,8 +31,6 @@ public:
 		canvas.drawStringCentredShrinkIfNecessary(kFirmwareVersionString, 22, 18, 20);
 	}
 
-	void beginSession(MenuItem* navigatedBackwardFrom) override { drawValue(); }
-
-	void drawValue() {}
+	void beginSession(MenuItem* navigatedBackwardFrom) override { renderUIsForOled(); }
 };
 } // namespace deluge::gui::menu_item::firmware

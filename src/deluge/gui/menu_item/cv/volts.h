@@ -49,13 +49,6 @@ public:
 		}
 	}
 
-	void drawValue() override {
-		if (this->getValue() == 0) {}
-		else {
-			Decimal::drawValue();
-		}
-	}
-
 	void horizontalEncoderAction(int32_t offset) override {
 		if (this->getValue() != 0) {
 			Decimal::horizontalEncoderAction(offset);

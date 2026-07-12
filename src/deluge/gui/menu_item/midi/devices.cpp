@@ -126,7 +126,7 @@ void Devices::selectEncoderAction(int32_t offset) {
 		}
 	}
 
-	drawValue();
+	renderUIsForOled();
 }
 
 MIDICable* Devices::getCable(int32_t deviceIndex) {
@@ -149,10 +149,6 @@ MIDICable* Devices::getCable(int32_t deviceIndex) {
 		return MIDIDeviceManager::hostedMIDIDevices[deviceIndex];
 	}
 	}
-}
-
-void Devices::drawValue() {
-	renderUIsForOled();
 }
 
 MenuItem* Devices::selectButtonPress() {

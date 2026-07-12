@@ -83,8 +83,6 @@ public:
 		valueBuf.append(instrumentClipView.getFillString(this->getValue()));
 	}
 
-	void drawValue() override {}
-
 	void writeCurrentValue() override { ; }
 };
 } // namespace deluge::gui::menu_item::note

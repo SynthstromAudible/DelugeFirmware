@@ -34,7 +34,6 @@ public:
 	int32_t getOccupiedSlots() const override { return 1; };
 
 protected:
-	void drawValue() final;
 	virtual void getNoteLengthName(etl::istring& buffer);
 	void drawPixelsForOled() override;
 	void renderInHorizontalMenu(const SlotPosition& slot) override;

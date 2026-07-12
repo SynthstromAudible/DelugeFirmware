@@ -62,9 +62,6 @@ void DxOperatorParams::drawPixelsForOled() {
 	drawItemsForOled(itemNames, currentValue - scrollPos, scrollPos);
 }
 
-void DxOperatorParams::drawValue() {
-}
-
 void DxOperatorParams::selectEncoderAction(int32_t offset) {
 	int32_t newValue = std::clamp<int32_t>(currentValue + offset, 0, numValues - 1);
 

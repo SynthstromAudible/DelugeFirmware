@@ -51,9 +51,6 @@ public:
 protected:
 	virtual void writeCurrentValue() {}
 
-	// 7SEG ONLY
-	virtual void drawValue() = 0;
-
 private:
 	T value_;
 };

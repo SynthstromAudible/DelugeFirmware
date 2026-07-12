@@ -5,10 +5,6 @@
 #include "hid/display/oled.h"
 
 namespace deluge::gui::menu_item {
-void Selection::drawValue() {
-	renderUIsForOled();
-}
-
 void Selection::drawPixelsForOled() {
 	int32_t current = getValue();
 	// Earliest item that might be on the screen.

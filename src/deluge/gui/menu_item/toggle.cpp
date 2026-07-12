@@ -8,7 +8,7 @@ namespace deluge::gui::menu_item {
 
 void Toggle::beginSession(MenuItem* navigatedBackwardFrom) {
 	Value::beginSession(navigatedBackwardFrom);
-	drawValue();
+	renderUIsForOled();
 }
 
 void Toggle::selectEncoderAction(int32_t offset) {
@@ -18,10 +18,6 @@ void Toggle::selectEncoderAction(int32_t offset) {
 
 const char* Toggle::getNameFor(bool enabled) {
 	return enabled ? l10n::get(l10n::String::STRING_FOR_ENABLED) : l10n::get(l10n::String::STRING_FOR_DISABLED);
-}
-
-void Toggle::drawValue() {
-	renderUIsForOled();
 }
 
 void Toggle::drawPixelsForOled() {

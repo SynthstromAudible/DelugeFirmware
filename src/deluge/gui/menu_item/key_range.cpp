@@ -42,7 +42,7 @@ void KeyRange::selectEncoderAction(int32_t offset) {
 			upper = std::clamp(upper + offset, lower, KEY_MAX);
 		}
 
-		drawValueForEditingRange(false);
+		renderUIsForOled();
 	}
 
 	else {
@@ -53,7 +53,7 @@ void KeyRange::selectEncoderAction(int32_t offset) {
 		lower = std::clamp(lower + offset, KEY_MIN, KEY_MAX);
 		upper = lower;
 
-		drawValue();
+		renderUIsForOled();
 	}
 }
 

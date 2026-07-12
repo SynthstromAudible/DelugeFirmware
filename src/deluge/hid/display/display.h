@@ -11,7 +11,6 @@ extern "C" {
 }
 
 class NumericLayer;
-class NumericLayerScrollingText;
 
 enum class PopupType {
 	NONE,

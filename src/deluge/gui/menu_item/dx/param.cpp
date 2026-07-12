@@ -124,7 +124,7 @@ void DxParam::readValueAgain() {
 		x = 7;
 	}
 
-	drawValue();
+	renderUIsForOled();
 	if (x >= 0 && y >= 0) {
 		// TODO: different color!
 		soundEditor.setupShortcutBlink(x, y, 1);
@@ -171,7 +171,7 @@ void DxParam::selectEncoderAction(int32_t offset) {
 	setValue(newval);
 	displayValue = newval;
 
-	drawValue();
+	renderUIsForOled();
 }
 
 void DxParam::horizontalEncoderAction(int32_t offset) {
@@ -532,10 +532,6 @@ void DxParam::drawPixelsForOled() {
 	else if (param >= 137 && param < 144) {
 		renderLFO(patch->params, param);
 	}
-}
-
-void DxParam::drawValue() {
-	renderUIsForOled();
 }
 
 void DxParam::openForOpOrGlobal(int op) {

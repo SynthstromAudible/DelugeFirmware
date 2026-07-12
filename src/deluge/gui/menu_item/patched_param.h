@@ -39,9 +39,6 @@ public:
 	}
 	void horizontalEncoderAction(int32_t offset) { return Param::horizontalEncoderAction(offset); }
 
-	// 7SEG Only
-	virtual void drawValue() = 0;
-
 	ParamDescriptor getLearningThing() override;
 	virtual deluge::modulation::params::Kind getParamKind();
 	virtual uint32_t getParamIndex();

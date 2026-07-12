@@ -51,7 +51,7 @@ void IntegerRange::selectEncoderAction(int32_t offset) {
 			}
 		}
 
-		drawValueForEditingRange(false);
+		renderUIsForOled();
 	}
 
 	else {
@@ -63,7 +63,7 @@ void IntegerRange::selectEncoderAction(int32_t offset) {
 		upper = lower;
 
 justDrawOneNumber:
-		drawValue();
+		renderUIsForOled();
 	}
 }
 

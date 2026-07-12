@@ -34,7 +34,6 @@ public:
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
 
 protected:
-	void drawValue() override;
 	[[nodiscard]] virtual int32_t getNumDecimalPlaces() const = 0;
 	[[nodiscard]] virtual int32_t getDefaultEditPos() const { return 2; }
 	[[nodiscard]] virtual int32_t getNumberEditSize();

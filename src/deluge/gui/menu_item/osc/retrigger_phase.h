@@ -57,13 +57,6 @@ public:
 		*getValueAddress() = value;
 	}
 
-	void drawValue() override {
-		if (this->getValue() < 0) {}
-		else {
-			Decimal::drawValue();
-		}
-	}
-
 	void drawPixelsForOled() override {
 		oled_canvas::Canvas& canvas = OLED::main;
 		if (this->getValue() < 0) {

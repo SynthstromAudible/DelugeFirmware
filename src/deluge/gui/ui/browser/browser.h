@@ -35,7 +35,6 @@ FRESULT f_readdir_get_filepointer(DIR* dp,      /* Pointer to the open directory
 
 class Instrument;
 class FileItem;
-class NumericLayerScrollingText;
 class Song;
 
 // FIXME: std::expected<std::pair<bool, FileItem*>, Error>

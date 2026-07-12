@@ -77,8 +77,6 @@ public:
 		                              kTextSpacingX, kTextSpacingY, slot.width);
 	}
 
-	void drawValue() override { const std::string value = getIteranceDisplayValue("%dof%d"); }
-
 	void getNotificationValue(etl::istring& valueBuf) override {
 		deluge::string::append(valueBuf, getIteranceDisplayValue("%d of %d"));
 	}

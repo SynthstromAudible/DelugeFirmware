@@ -75,8 +75,6 @@ public:
 		return PatchedParam::patchingSourceShortcutPress(s, previousPressStillActive);
 	}
 
-	void drawValue() override {}
-
 	void unlearnAction() override { MenuItemWithCCLearning::unlearnAction(); }
 	bool allowsLearnMode() override { return MenuItemWithCCLearning::allowsLearnMode(); }
 	void learnKnob(MIDICable* cable, int32_t whichKnob, int32_t modKnobMode, int32_t midiChannel) override {

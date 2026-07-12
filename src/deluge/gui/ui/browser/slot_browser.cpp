@@ -61,11 +61,8 @@ ActionResult SlotBrowser::horizontalEncoderAction(int32_t offset) {
 	if (!isNoUIModeActive()) {
 		return ActionResult::DEALT_WITH;
 	}
-	{
-		// Maintain consistency with before - don't do this on numeric
-		qwertyVisible = true;
-		return Browser::horizontalEncoderAction(offset);
-	}
+	qwertyVisible = true;
+	return Browser::horizontalEncoderAction(offset);
 }
 
 void SlotBrowser::processBackspace() {

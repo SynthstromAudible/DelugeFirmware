@@ -92,13 +92,6 @@ void PatchCables::drawPixelsForOled() {
 	drawItemsForOled(options, currentValue - scrollPos, scrollPos);
 }
 
-void PatchCables::drawValue() {
-	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
-	if (set->numPatchCables == 0) {
-		return;
-	}
-}
-
 void PatchCables::selectEncoderAction(int32_t offset) {
 	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
 

@@ -43,10 +43,6 @@ void Decimal::beginSession(MenuItem* navigatedBackwardFrom) {
 
 	readCurrentValue();
 	scrollToGoodPos();
-	drawValue();
-}
-
-void Decimal::drawValue() {
 	renderUIsForOled();
 }
 

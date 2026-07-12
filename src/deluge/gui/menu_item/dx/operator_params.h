@@ -36,7 +36,6 @@ public:
 	void readValueAgain() final;
 	void selectEncoderAction(int32_t offset) final;
 	MenuItem* selectButtonPress() final;
-	void drawValue();
 
 	int op = 0;
 

@@ -88,16 +88,6 @@ void Command::drawPixelsForOled() {
 	}
 }
 
-void Command::drawValue() const {
-	char const* output = nullptr;
-	if (!midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].containsSomething()) {
-		output = l10n::get(l10n::String::STRING_FOR_NONE);
-	}
-	else {
-		output = l10n::get(l10n::String::STRING_FOR_SET);
-	}
-}
-
 void Command::selectEncoderAction(int32_t offset) {
 	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].clear();
 	renderUIsForOled();

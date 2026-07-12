@@ -23,14 +23,6 @@
 
 namespace deluge::gui::menu_item {
 
-void SyncLevel::drawValue() {
-	if (this->getValue() == 0) {}
-	else {
-		etl::string<kShortStringBufferSize> buffer;
-		getNoteLengthName(buffer);
-	}
-}
-
 void SyncLevel::getNoteLengthName(etl::istring& buffer) {
 	syncValueToString(this->getValue(), buffer, currentSong->getInputTickMagnitude());
 }

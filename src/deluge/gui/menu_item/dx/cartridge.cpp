@@ -121,11 +121,6 @@ void DxCartridge::drawPixelsForOled() {
 	drawItemsForOled(itemNames, currentValue - scrollPos, scrollPos);
 }
 
-void DxCartridge::drawValue() {
-	char names[32][11];
-	pd->getProgramNames(names);
-}
-
 bool DxCartridge::tryLoad(std::string_view path) {
 	if (pd == nullptr) {
 		pd = new DX7Cartridge();

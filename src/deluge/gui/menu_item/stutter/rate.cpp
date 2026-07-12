@@ -37,21 +37,12 @@ void Rate::selectEncoderAction(int32_t offset) {
 
 	setValue(optionValues[idx]);
 	writeCurrentValue();
-	drawValue();
-}
-
-// For 7SEG display
-void Rate::drawValue() {
-	if (!isStutterQuantized()) {
-		return UnpatchedParam::drawValue();
-	}
-
-	const char* label = getQuantizedOptionLabel();
+	renderUIsForOled();
 }
 
 void Rate::drawPixelsForOled() {
 	if (!isStutterQuantized()) {
-		return UnpatchedParam::drawValue();
+		return UnpatchedParam::drawPixelsForOled();
 	}
 
 	const char* label = getQuantizedOptionLabel();

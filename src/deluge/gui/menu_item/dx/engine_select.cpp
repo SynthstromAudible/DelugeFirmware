@@ -37,7 +37,7 @@ void DxEngineSelect::beginSession(MenuItem* navigatedBackwardFrom) {
 void DxEngineSelect::readValueAgain() {
 	patch = soundEditor.currentSource->ensureDxPatch();
 	currentValue = patch->engineMode;
-	drawValue();
+	renderUIsForOled();
 }
 
 constexpr int numValues = 3;
@@ -45,10 +45,6 @@ constexpr int numValues = 3;
 void DxEngineSelect::drawPixelsForOled() {
 	etl::vector<std::string_view, numValues> itemNames = {"auto", "modern", "vintage"};
 	drawItemsForOled(itemNames, currentValue, 0);
-}
-
-void DxEngineSelect::drawValue() {
-	renderUIsForOled();
 }
 
 void DxEngineSelect::selectEncoderAction(int32_t offset) {
@@ -60,7 +56,7 @@ void DxEngineSelect::selectEncoderAction(int32_t offset) {
 
 	patch->setEngineMode(newValue);
 	currentValue = newValue;
-	drawValue();
+	renderUIsForOled();
 }
 
 MenuItem* DxEngineSelect::selectButtonPress() {

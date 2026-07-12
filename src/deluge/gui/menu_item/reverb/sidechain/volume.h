@@ -32,13 +32,6 @@ public:
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	[[nodiscard]] int32_t getMinValue() const override { return -1; }
 
-	void drawValue() override {
-		if (this->getValue() < 0) {}
-		else {
-			Integer::drawValue();
-		}
-	}
-
 	void drawPixelsForOled() override {
 		oled_canvas::Canvas& canvas = OLED::main;
 		if (getValue() < 0) {

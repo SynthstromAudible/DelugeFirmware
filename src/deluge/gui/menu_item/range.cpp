@@ -89,18 +89,9 @@ bool Range::cancelEditingIfItsOn() {
 		return false;
 	}
 
-	int32_t startPos = (soundEditor.editingRangeEdge == RangeEdit::RIGHT) ? 999 : 0;
 	soundEditor.editingRangeEdge = RangeEdit::OFF;
-	drawValue(startPos);
+	renderUIsForOled();
 	return true;
-}
-
-void Range::drawValue(int32_t startPos, bool renderSidebarToo) {
-	renderUIsForOled();
-}
-
-void Range::drawValueForEditingRange(bool blinkImmediately) {
-	renderUIsForOled();
 }
 
 void Range::drawPixelsForOled() {

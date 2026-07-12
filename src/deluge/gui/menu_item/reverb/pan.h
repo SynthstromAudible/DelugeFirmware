@@ -26,16 +26,6 @@ namespace deluge::gui::menu_item::reverb {
 class Pan final : public Integer {
 public:
 	using Integer::Integer;
-	virtual void drawValue() {
-		char buffer[5];
-		intToString(std::abs(this->getValue()), buffer, 1);
-		if (this->getValue() < 0) {
-			strcat(buffer, "L");
-		}
-		else if (this->getValue() > 0) {
-			strcat(buffer, "R");
-		}
-	}
 
 	void writeCurrentValue() override { AudioEngine::reverbPan = computeFinalValueForPan(this->getValue()); }
 

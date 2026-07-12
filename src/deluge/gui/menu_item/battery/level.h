@@ -16,6 +16,7 @@
  */
 #pragma once
 #include "gui/menu_item/menu_item.h"
+#include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
@@ -44,14 +45,9 @@ public:
 		lastBatteryMV = batteryMV;
 		voltageCheckCounter = 0;
 
-		drawValue();
+		renderUIsForOled();
 		// Start the timer for updates
 		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 500);
-	}
-
-	void drawValue() {
-		char buffer[50];
-		getBatteryString(buffer);
 	}
 
 	ActionResult timerCallback() override {
@@ -66,7 +62,7 @@ public:
 			voltageCheckCounter = 0;
 		}
 
-		drawValue();
+		renderUIsForOled();
 		uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 500);
 		return ActionResult::DEALT_WITH;
 	}
