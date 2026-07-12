@@ -3733,7 +3733,10 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 			writer.writeAttribute("linearInterpolation", 1);
 		}
 
-		int32_t numRanges = std::ssize(source->ranges);
+		// M3 owner-5 slice G3: emit ranges from the authoritative DocSource record when bound (cache fallback only for
+		// an unbound Sound). The DocRange fields are kept in lockstep with the engine ranges by seedDocRanges, so the
+		// record list and the engine list are the same length and index-aligned.
+		int32_t numRanges = dsrc != nullptr ? std::ssize(dsrc->ranges) : std::ssize(source->ranges);
 
 		if (numRanges > 1) {
 			writer.writeOpeningTagEnd();
@@ -3741,36 +3744,42 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 		}
 
 		for (int32_t e = 0; e < numRanges; e++) {
-			MultisampleRange* range = (MultisampleRange*)source->ranges.getElement(e);
+			deluge::project::DocRange const* dr = dsrc != nullptr ? &dsrc->ranges[e] : nullptr;
+			MultisampleRange* range = dr != nullptr ? nullptr : (MultisampleRange*)source->ranges.getElement(e);
 
 			if (numRanges > 1) {
 				writer.writeOpeningTagBeginning("sampleRange", true);
 
 				if (e != numRanges - 1) {
-					writer.writeAttribute("rangeTopNote", range->topNote);
+					writer.writeAttribute("rangeTopNote", dr != nullptr ? dr->top_note : range->topNote);
 				}
 			}
 
-			writer.writeAttribute("fileName", range->sampleHolder.audioFile
+			writer.writeAttribute("fileName", dr != nullptr ? dr->file_path.c_str()
+			                                  : range->sampleHolder.audioFile
 			                                      ? range->sampleHolder.audioFile->filePath.c_str()
 			                                      : range->sampleHolder.filePath.c_str());
-			if (range->sampleHolder.transpose) {
-				writer.writeAttribute("transpose", range->sampleHolder.transpose);
+			int16_t rTranspose = dr != nullptr ? dr->transpose : range->sampleHolder.transpose;
+			if (rTranspose) {
+				writer.writeAttribute("transpose", rTranspose);
 			}
-			if (range->sampleHolder.cents) {
-				writer.writeAttribute("cents", range->sampleHolder.cents);
+			int8_t rCents = dr != nullptr ? dr->cents : range->sampleHolder.cents;
+			if (rCents) {
+				writer.writeAttribute("cents", rCents);
 			}
 
 			writer.writeOpeningTagEnd();
 
 			writer.writeOpeningTagBeginning("zone");
-			writer.writeAttribute("startSamplePos", range->sampleHolder.startPos);
-			writer.writeAttribute("endSamplePos", range->sampleHolder.endPos);
-			if (range->sampleHolder.loopStartPos) {
-				writer.writeAttribute("startLoopPos", range->sampleHolder.loopStartPos);
+			writer.writeAttribute("startSamplePos", dr != nullptr ? dr->start_pos : range->sampleHolder.startPos);
+			writer.writeAttribute("endSamplePos", dr != nullptr ? dr->end_pos : range->sampleHolder.endPos);
+			uint32_t rLoopStart = dr != nullptr ? dr->loop_start_pos : range->sampleHolder.loopStartPos;
+			if (rLoopStart) {
+				writer.writeAttribute("startLoopPos", rLoopStart);
 			}
-			if (range->sampleHolder.loopEndPos) {
-				writer.writeAttribute("endLoopPos", range->sampleHolder.loopEndPos);
+			uint32_t rLoopEnd = dr != nullptr ? dr->loop_end_pos : range->sampleHolder.loopEndPos;
+			if (rLoopEnd) {
+				writer.writeAttribute("endLoopPos", rLoopEnd);
 			}
 			writer.closeTag();
 
