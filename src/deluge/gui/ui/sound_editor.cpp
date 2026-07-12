@@ -204,7 +204,6 @@ bool SoundEditor::editingGateDrumRow() {
 void SoundEditor::setCurrentSource(int32_t sourceIndex) {
 	currentSource = &currentSound->sources[sourceIndex];
 	currentSourceIndex = sourceIndex;
-	currentSampleControls = &currentSource->sampleControls;
 
 	if (currentMultiRange == nullptr && std::ssize(currentSource->ranges)) {
 		currentMultiRange = static_cast<MultisampleRange*>(currentSource->ranges.getElement(0));
@@ -1824,7 +1823,6 @@ doMIDIOrCV:
 	if (currentSound) {
 		currentSourceIndex = sourceIndex;
 		currentSource = &currentSound->sources[currentSourceIndex];
-		currentSampleControls = &currentSource->sampleControls;
 		currentPriority = &currentSound->voicePriority;
 
 		if (result == MenuPermission::YES && currentMultiRange == nullptr) {
@@ -1835,7 +1833,6 @@ doMIDIOrCV:
 	}
 	else if (clip->type == ClipType::AUDIO) {
 		AudioClip* audioClip = (AudioClip*)clip;
-		currentSampleControls = &audioClip->sampleControls;
 		currentPriority = &audioClip->voicePriority;
 	}
 

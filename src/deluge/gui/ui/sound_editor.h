@@ -68,7 +68,6 @@ public:
 	SideChain* currentSidechain{};
 	ArpeggiatorSettings* currentArpSettings{};
 	::MultiRange* currentMultiRange{};
-	SampleControls* currentSampleControls{};
 	VoicePriority* currentPriority{};
 	int16_t currentMultiRangeIndex{};
 	MIDICable* currentMIDICable{};

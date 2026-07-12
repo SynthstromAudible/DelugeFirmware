@@ -18,6 +18,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
+#include "model/clip/audio_clip.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/song/song.h"
@@ -26,14 +27,32 @@
 #include "util/misc.h"
 
 namespace deluge::gui::menu_item::voice {
+
+// Resolve-at-use seam for the voice-priority field, which is owned by either the current audio clip or the current
+// sound/drum (mirrors getCurrentSampleControls). By-value get/set, never a mutable reference to the native field, so
+// the owning class can route the access through its DOM record and retire the engine copy (project_model_menu_seam.md).
+inline VoicePriority getCurrentVoicePriority() {
+	if (AudioClip* audioClip = getCurrentAudioClip(); audioClip != nullptr) {
+		return audioClip->voicePriority;
+	}
+	return soundEditor.currentSound->voicePriority;
+}
+inline void setCurrentVoicePriority(VoicePriority value) {
+	if (AudioClip* audioClip = getCurrentAudioClip(); audioClip != nullptr) {
+		audioClip->voicePriority = value;
+		return;
+	}
+	soundEditor.currentSound->voicePriority = value;
+}
+
 class Priority final : public Selection {
 public:
 	using Selection::Selection;
-	void readCurrentValue() override { this->setValue(*soundEditor.currentPriority); }
+	void readCurrentValue() override { this->setValue(getCurrentVoicePriority()); }
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
 		auto current_value = this->getValue<VoicePriority>();
-		*soundEditor.currentPriority = current_value;
+		setCurrentVoicePriority(current_value);
 		// If affect-entire button held, do whole kit
 		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
 
@@ -45,10 +64,6 @@ public:
 					soundDrum->voicePriority = current_value;
 				}
 			}
-		}
-		// Or, the normal case of just one sound (or audio clip)
-		else {
-			*soundEditor.currentPriority = current_value;
 		}
 	}
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
