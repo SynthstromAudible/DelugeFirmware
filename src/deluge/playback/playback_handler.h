@@ -120,6 +120,15 @@ public:
 	bool freeRunningClockActive;
 	uint64_t timeNextFreeRunningTickBig; // 32.32 sample time of next free-running tick
 
+	// Set when we're starting playback aligned to the free-running clock, and so the Start / Continue message has to
+	// be emitted immediately ahead of the out-tick that lands on the alignment boundary (which is out-tick 0) rather
+	// than at button-press time. See setupPlaybackUsingInternalClock().
+	bool startMessagePending;
+	// The play position that deferred Start / Continue was decided from. That's the position the immediate send site
+	// would have used, which isn't necessarily posToNextContinuePlaybackFrom - setupPlayback() may shift that
+	// according to the clip instance.
+	int32_t startMessagePendingPos;
+
 	// Playback
 	uint8_t playbackState;
 	bool usingAnalogClockInput; // Value is only valid if usingInternalClock is false

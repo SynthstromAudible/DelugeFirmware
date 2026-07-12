@@ -118,6 +118,8 @@ PlaybackHandler::PlaybackHandler() {
 	skipMidiClocks = 0;
 	freeRunningClockActive = false;
 	timeNextFreeRunningTickBig = 0;
+	startMessagePending = false;
+	startMessagePendingPos = 0;
 }
 
 extern "C" uint32_t triggerClockRisingEdgeTimes[];
@@ -428,8 +430,19 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 
 	numOutputClocksWaitingToBeSent = 0;
 
+	// If the MIDI clock out is free-running (mode ALWAYS - it can't be active in any other mode), we align the start
+	// of playback to it: timer tick 0, and so out-tick 0, land on the next free-running tick rather than at the
+	// moment of the button press, so the out-tick spacing stays perfectly even across the seam. A tempoless record
+	// sends no clocks and no Start, so it doesn't align to anything.
+	bool aligningToFreeRunningClock = freeRunningClockActive && !doingTempolessRecord;
+
+	// When we're aligning, the Start / Continue goes out at that aligned out-tick, immediately ahead of it, rather
+	// than now. Except with a count-in, where it's already deferred to the end of the count-in (by actionSwungTick())
+	// and any position pointer still has to go out now - so leave that path exactly as it is.
+	bool deferStartMessage = aligningToFreeRunningClock && !ticksLeftInCountIn;
+
 	// Want to send start / continue message, probably
-	if (currentlySendingMIDIOutputClocks()) {
+	if (currentlySendingMIDIOutputClocks() && !deferStartMessage) {
 		if (newPos) { // "continue"
 			sendOutPositionViaMIDI(newPos,
 			                       !ticksLeftInCountIn); // "Continue" message will only be sent if no count-in
@@ -454,7 +467,20 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 	setupPlayback(newPlaybackState, newPos, true, true, buttonPressLatency);
 
 	// Set this *after* calling setupPlayback, which will call the audio routine before we do the first tick
-	timeNextTimerTickBig = (uint64_t)AudioEngine::audioSampleTimer << 32;
+	if (aligningToFreeRunningClock) {
+		// Anchor timer tick 0 to the free-running clock's next tick, which setupPlayback() left it still holding a
+		// schedule for. Everything downstream - swung ticks, notes, out-tick 0 - derives from this grid, so nothing
+		// sounds before the boundary and out-tick 0 lands exactly on it. That free-running tick *is* out-tick 0:
+		// setupPlayback() reset lastMIDIClockOutTickDone to -1, so the tick already scheduled at the boundary takes
+		// it -1 -> 0, and the normal scheduler picks up from out-tick 1 once actionTimerTick() has actioned timer
+		// tick 0 at that same instant.
+		timeNextTimerTickBig = timeNextFreeRunningTickBig;
+		startMessagePending = deferStartMessage;
+		startMessagePendingPos = newPos;
+	}
+	else {
+		timeNextTimerTickBig = (uint64_t)AudioEngine::audioSampleTimer << 32;
+	}
 
 	swungTicksTilNextEvent = 0; // Need to ensure this, here, otherwise, it'll be set to some weird thing by some
 	                            // recent call to expectEvent()
@@ -527,13 +553,24 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	lastMIDIClockOutTickDone = -1;
 	timeLastMIDIClockOutTickSent = 0;
 	timeLastTriggerClockOutTickSent = 0;
+	startMessagePending = false;
 
 	swungTickScheduled = false;
 	triggerClockOutTickScheduled = false;
-	midiClockOutTickScheduled = false;
 
-	// Playback's starting, so the normal scheduler takes the MIDI clock out over from here
-	stopFreeRunningClock();
+	// Playback's starting, so the normal scheduler takes the MIDI clock out over from here - unless the free-running
+	// clock is running and it's the internal clock we're starting, in which case we're doing an aligned handover from
+	// it (setupPlaybackUsingInternalClock() takes it from here) and it stays in charge until timer tick 0 is actioned
+	// at the alignment boundary. It has to: the normal scheduler derives its times from lastTimerTickActioned /
+	// timeLastTimerTickBig, which are stale until then. And the out-tick it already has scheduled at that boundary is
+	// out-tick 0, so we mustn't clear its schedule either.
+	// Every other caller gets the old behaviour: an external clock start (which does its own clock out) and a
+	// tempoless record (which sends no clocks at all) both leave PLAYBACK_CLOCK_INTERNAL_ACTIVE unset.
+	bool aligningToFreeRunningClock = freeRunningClockActive && (newPlaybackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE);
+	if (!aligningToFreeRunningClock) {
+		midiClockOutTickScheduled = false;
+		stopFreeRunningClock();
+	}
 
 	swungTicksTilNextEvent = 0; // Until recently (Aug 2019) I did not do this here for some reason I can't remember
 	                            // and insanely most stuff worked
@@ -559,7 +596,15 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 		// Bit sneaky - we want to call the audio routine one last time, but need it to think that playback's not
 		// happening so it doesn't do the first tick yet
 		playbackState = 0;
+		// And for the same reason, the free-running clock out has to be held off during that call. With playbackState
+		// 0 it'd be the stopped branch of tickSongFinalizeWindows() that runs, and if the alignment boundary happened
+		// to fall within that window it would emit out-tick 0 - before its Start message has been armed, and before
+		// timer tick 0 has been anchored to that boundary, which it would then advance past. Nothing else looks at
+		// the free-running clock while playbackState is 0, so it's enough to just switch it off across the call.
+		bool freeRunningClockWasActive = freeRunningClockActive;
+		freeRunningClockActive = false;
 		AudioEngine::routineWithClusterLoading();
+		freeRunningClockActive = freeRunningClockWasActive;
 		playbackState = newPlaybackState;
 	}
 
@@ -588,6 +633,11 @@ void PlaybackHandler::endPlayback() {
 	if (isInternalClockActive() && currentlySendingMIDIOutputClocks()) {
 		midiEngine.sendStop(this);
 	}
+
+	// If playback is being stopped before the aligned out-tick 0 we were about to start on ever came around (i.e.
+	// within one out-tick of the play button being pressed), that Start message must not go out - the free-running
+	// clock, which startFreeRunningClock() picks back up below, would otherwise emit it while stopped.
+	startMessagePending = false;
 
 	ignoringMidiClockInput = false;
 	if (currentUIMode == UI_MODE_RECORD_COUNT_IN) {
@@ -716,6 +766,13 @@ void PlaybackHandler::actionTimerTick() {
 	// Do this timer tick
 	lastTimerTickActioned = nextTimerTickScheduled;
 	timeLastTimerTickBig = timeNextTimerTickBig;
+
+	// If we were handing over from the free-running clock out (see setupPlaybackUsingInternalClock()), this is timer
+	// tick 0, landing exactly on the free-running tick that becomes out-tick 0. The timer-tick grid is valid from
+	// here, so the normal scheduler takes the clock out back over. Note we deliberately don't call
+	// stopFreeRunningClock(): that would clear midiClockOutTickScheduled, which is the schedule for out-tick 0 -
+	// still to be emitted, later in this same audio window.
+	freeRunningClockActive = false;
 
 	// Do any swung ticks up to and including now.
 	// Warning - this could do a song swap and reset a bunch of stuff
@@ -1043,6 +1100,22 @@ void PlaybackHandler::doMIDIClockOutTick() {
 	midiClockOutTickScheduled = false;
 	lastMIDIClockOutTickDone++;
 	timeLastMIDIClockOutTickSent = AudioEngine::audioSampleTimer;
+
+	// If we started playback aligned to the free-running clock, this is out-tick 0, the tick that lands on the
+	// alignment boundary, and the Start / Continue was deferred to here so it goes out immediately ahead of it -
+	// which is what followers expect.
+	if (startMessagePending) {
+		startMessagePending = false;
+		if (startMessagePendingPos) {
+			// Position pointer, then "continue". (This also sends the surplus clocks the follower needs to get to a
+			// position finer than the position pointer's resolution, exactly as the button-press send site did.)
+			sendOutPositionViaMIDI(startMessagePendingPos, true);
+		}
+		else {
+			midiEngine.sendStart(this);
+		}
+	}
+
 	if (skipMidiClocks) {
 		skipMidiClocks--;
 	}
@@ -2475,6 +2548,9 @@ void PlaybackHandler::setMidiOutClockMode(MIDIClockOutMode newMode) {
 		// Or if we just disabled it...
 		else if (!isSending && wasSending) {
 			midiClockOutTickScheduled = false;
+			// No clocks are going out anymore, so a Start deferred to an out-tick that'll now never happen would
+			// otherwise sit armed indefinitely
+			startMessagePending = false;
 			midiEngine.sendStop(this);
 		}
 
