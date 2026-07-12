@@ -17,6 +17,7 @@
 
 #include "model/drum/midi_drum.h"
 #include "deluge-project/doc_drum.h"
+#include "foundation/panic.h" // FREEZE_WITH_ERROR (M3 owner-3 unbound-read guard)
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/display/display.h"
@@ -27,25 +28,24 @@
 
 #include <string.h>
 
+// The channel (0) and note (0) defaults come from DocDrum's member initializers, applied when adoptDrum binds the
+// record (the ctor runs before the drum is bound, so it can't write the model here).
 MIDIDrum::MIDIDrum() : NonAudioDrum(DrumType::MIDI) {
-	setChannel(0);
-	setNote(0);
 }
 
-// M3 owner-3 slice 3: read the note from the DOM record when bound, else the engine fallback (kept in sync by setNote /
-// the modChange mirror).
+// M3 owner-3: read the note from the authoritative DOM record (the drum is bound before any read — adopt precedes tag
+// reads at load; runtime drums bind on addDrum). The ALPHA guard makes any stray unbound read fail loudly.
 uint8_t MIDIDrum::note() const {
-	return docDrum_ != nullptr ? docDrum_->note : note_;
+	if (ALPHA_OR_BETA_VERSION && docDrum_ == nullptr) {
+		FREEZE_WITH_ERROR("Dr3T");
+	}
+	return docDrum_->note;
 }
 
-// M3 owner-3 slice 3: the write funnel for the note — writes the authoritative engine `note_` and (when bound) mirrors
-// into the DOM record. Used by the ctor and the load default; modChange writes `note_` in place via a raw `uint8_t*`
-// and mirrors separately in MIDIDrum::modEncoderAction.
+// M3 owner-3: the write funnel for the note — writes the authoritative `DocDrum::note` (the drum is bound before any
+// write). modChange writes `docDrum_->note` in place through a raw `uint8_t*`.
 void MIDIDrum::setNote(uint8_t newNote) {
-	note_ = newNote;
-	if (docDrum_ != nullptr) {
-		docDrum_->note = newNote;
-	}
+	docDrum_->note = newNote;
 }
 
 void MIDIDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, int16_t const* mpeValues,
@@ -185,12 +185,8 @@ int8_t MIDIDrum::modEncoderAction(ModelStackWithThreeMainThings* modelStack, int
 
 	if ((getCurrentUI()->getUIContextType() == UIType::INSTRUMENT_CLIP) && (currentUIMode == UI_MODE_AUDITIONING)) {
 		if (whichModEncoder == 1) {
-			modChange(modelStack, offset, &noteEncoderCurrentOffset, &note_, 128);
-			// M3 owner-3 dual-write: mirror the funneled note scalar into the DOM record (note() is read-authoritative
-			// as of slice 3). modChange writes `note_` in place; this keeps the DOM copy in sync.
-			if (docDrum_ != nullptr) {
-				docDrum_->note = note_;
-			}
+			// M3 owner-3: modChange writes the authoritative DOM scalar in place (`value` points at docDrum_->note).
+			modChange(modelStack, offset, &noteEncoderCurrentOffset, &docDrum_->note, 128);
 		}
 	}
 

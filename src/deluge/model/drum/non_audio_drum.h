@@ -26,12 +26,6 @@
 class NonAudioDrum : public Drum, public ModControllable {
 	bool state_ = false;
 
-	// M3 owner-3 slice 3: the authoritative engine copy of the non-audio drum channel (MIDI channel for MIDIDrum, gate
-	// channel for GateDrum). Read via channel() (DOM-authoritative when bound), written via setChannel (which also
-	// mirrors into DocDrum::channel). Private so every external read routes through channel(); modChange writes it in
-	// place via `&channel_` and re-mirrors.
-	uint8_t channel_{};
-
 public:
 	NonAudioDrum(DrumType newType) : Drum(newType) {}
 
@@ -53,9 +47,9 @@ public:
 
 	int8_t channelEncoderCurrentOffset = 0;
 
-	// M3 owner-3 slice 3: read/write authority for the non-audio drum channel. channel() returns the bound DOM record's
-	// `channel` when bound, else the engine `channel_` fallback (kept in sync by setChannel). Bodies in
-	// non_audio_drum.cpp for the complete DocDrum type.
+	// M3 owner-3: read/write authority for the non-audio drum channel (MIDI channel for MIDIDrum, gate channel for
+	// GateDrum) — the authoritative store is `DocDrum::channel`. Bodies in non_audio_drum.cpp for the complete DocDrum
+	// type.
 	[[nodiscard]] uint8_t channel() const;
 	void setChannel(uint8_t newChannel);
 

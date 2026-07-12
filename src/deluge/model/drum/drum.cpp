@@ -18,7 +18,8 @@
 #include "model/drum/drum.h"
 
 #include "definitions_cxx.hpp"
-#include "deluge-project/doc_drum.h" // complete DocDrum type for the setName dual-write
+#include "deluge-project/doc_drum.h" // complete DocDrum type — the authoritative store for the drum name
+#include "foundation/panic.h"        // FREEZE_WITH_ERROR (M3 owner-3 unbound-read guard)
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "hid/display/display.h"
@@ -47,32 +48,28 @@ Drum::Drum(DrumType newType) : type(newType), arpeggiator(), arpSettings() {
 	memset(lastExpressionInputsReceived, 0, sizeof(lastExpressionInputsReceived));
 }
 
-// M3 owner-3 slice 2/3: the single write funnel for the drum name. Each overload writes the authoritative engine
-// `drumName_`, then (if this drum is bound to its DOM record) shadows the stored value into `DocDrum::name`. The mirror
-// reads `drumName_` back after the assign so all overloads share one mirror line and copy the exact stored
-// bytes (no re-move). As of slice 3 the DOM record is read-authoritative via name(); the two stay in sync here.
-void Drum::mirrorNameToDoc() {
-	if (docDrum_ != nullptr) {
-		docDrum_->name = drumName_;
-	}
-}
+// M3 owner-3: the single write funnel for the drum name — writes the authoritative `DocDrum::name`. The drum is always
+// bound before any name write (Kit::readDrumFromFile adopts before reading tags; runtime drums bind on addDrum).
+// Overloads mirror the argument shapes at the call sites (const char* literals/`.c_str()`, `string_view` rename UI,
+// `std::string` rvalues).
 void Drum::setName(const char* newName) {
-	drumName_ = newName;
-	mirrorNameToDoc();
+	docDrum_->name = newName;
 }
 void Drum::setName(std::string_view newName) {
-	drumName_.assign(newName);
-	mirrorNameToDoc();
+	docDrum_->name.assign(newName);
 }
 void Drum::setName(std::string&& newName) {
-	drumName_ = std::move(newName);
-	mirrorNameToDoc();
+	docDrum_->name = std::move(newName);
 }
 
-// M3 owner-3 slice 3: read the drum name from the DOM record when bound, else the engine fallback (kept in sync by
-// setName). Both ternary branches are `std::string` lvalues, so this returns a reference into stable storage.
+// M3 owner-3: read the drum name from the authoritative DOM record. The drum is bound before any read (adopt precedes
+// tag reads at load; runtime drums bind on addDrum) — the ALPHA guard makes any stray unbound read fail loudly rather
+// than deref null.
 const std::string& Drum::name() const {
-	return docDrum_ != nullptr ? docDrum_->name : drumName_;
+	if (ALPHA_OR_BETA_VERSION && docDrum_ == nullptr) {
+		FREEZE_WITH_ERROR("Dr3N");
+	}
+	return docDrum_->name;
 }
 
 void Drum::writeDrumTagsToFile(Serializer& writer, bool savingSong) {
@@ -95,8 +92,7 @@ bool Drum::readDrumTagFromFile(Deserializer& reader, char const* tagName) {
 	if (!strcmp(tagName, "name")) {
 		std::string name;
 		reader.readTagOrAttributeValueString(name);
-		setName(
-		    std::move(name)); // funnel the load write (docDrum_ is null here; adoptDrum re-seeds from drumName later)
+		setName(std::move(name)); // funnel the load write straight into the bound DocDrum (adoptDrum ran first)
 		reader.exitTag("name");
 	}
 	else if (!strcmp(tagName, "midiMuteCommand")) {

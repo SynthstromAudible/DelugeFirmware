@@ -26,7 +26,8 @@
 #include <cstring>
 
 GateDrum::GateDrum() : NonAudioDrum(DrumType::GATE) {
-	setChannel(2);
+	// The gate channel default (2) is applied by adoptDrum when it binds the DocDrum — the ctor runs before the drum is
+	// bound, so it can't write the model here (M3 owner-3).
 	arpSettings.numOctaves = 1;
 }
 

@@ -4050,9 +4050,10 @@ Error InstrumentClip::claimOutput(ModelStackWithTimelineCounter* modelStack) {
 						return Error::INSUFFICIENT_RAM;
 					}
 					GateDrum* newDrum = new (drumMemory) GateDrum();
-					newDrum->setChannel(gateChannel);
 
 					kit->addDrum(newDrum, modelStack->song);
+					// M3 owner-3: set the channel after addDrum binds the DocDrum (setChannel writes the model).
+					newDrum->setChannel(gateChannel);
 					thisNoteRow->drum = newDrum;
 					thisNoteRow->syncDrumId(); // freshly-created real gate drum — safe to mirror
 				}

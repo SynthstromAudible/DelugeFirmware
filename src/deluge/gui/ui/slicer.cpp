@@ -679,11 +679,11 @@ ramError2:
 				goto ramError;
 			}
 
-			newDrum->setName(deluge::string::fromInt(i + 1));
-
 			Sound::initParams(&paramManager);
 
 			kit->addDrum(newDrum);
+			// M3 owner-3: name after addDrum binds the DocDrum (setName writes the model, which requires binding).
+			newDrum->setName(deluge::string::fromInt(i + 1));
 			newDrum->setupAsSample(&paramManager);
 
 			range->sampleHolder.startPos = nextDrumStart;

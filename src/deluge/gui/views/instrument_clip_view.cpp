@@ -5525,10 +5525,11 @@ doDisplayError:
 
 	modelStack->song->project.param_backup.backUp(newDrum, modelStack->song->getCurrentClip(), &paramManager, true);
 
-	newDrum->setName(soundName.c_str());
 	newDrum->nameIsDiscardable = true;
 
 	kit->addDrum(newDrum);
+	// M3 owner-3: name after addDrum binds the DocDrum (setName writes the model, which requires binding).
+	newDrum->setName(soundName.c_str());
 	modelStack->getNoteRow()->setDrum(newDrum, kit,
 	                                  modelStack); // Sets noteRow->paramManager to newDrum->backedUpParamManager
 

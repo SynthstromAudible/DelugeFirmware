@@ -1229,12 +1229,13 @@ void Song::adoptDrum(Drum* drum) {
 	}
 	deluge::project::DocDrum& d = project.drum_structure.getOrCreate(*drum->id());
 	d.drum_type = static_cast<uint8_t>(drum->type);
-	d.name = drum->name();
-	if (drum->type != DrumType::SOUND) {
-		d.channel = static_cast<NonAudioDrum*>(drum)->channel();
-	}
-	if (drum->type == DrumType::MIDI) {
-		d.note = static_cast<MIDIDrum*>(drum)->note();
+	// M3 owner-3: the DocDrum is the authoritative store for name/channel/note. Bind it (below) BEFORE the drum's tags
+	// are read (Kit::readDrumFromFile adopts first), so the name/channel/note tag reads write straight in — no engine
+	// seed. DocDrum's member initializers supply the MIDI/Sound defaults (channel 0, note 0); a GateDrum's ctor default
+	// of channel 2 is reproduced here now that its engine channel field is gone (the file's channel tag overwrites it
+	// for loaded gate drums; a runtime-created gate drum keeps 2).
+	if (drum->type == DrumType::GATE) {
+		d.channel = 2;
 	}
 	drum->bindDocDrum(&d);
 	// M3 owner-5 slice B: a SoundDrum owns a Sound 1:1 — nest its DocSound in this DocDrum and bind the engine

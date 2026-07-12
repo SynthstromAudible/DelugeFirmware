@@ -55,33 +55,22 @@ public:
 
 	Kit* kit;
 
-	// M3 owner-3 (drum structure) slice 2/3: the single write funnel for the drum name. All the scattered assignment
-	// sites route through here, dual-writing the authoritative engine `drumName_` and (when bound) the DOM record's
-	// `DocDrum::name`. Overloads mirror the argument shapes at the call sites: string literals / `.c_str()`
-	// (const char*), `std::string_view` (rename UI), and `std::string` rvalues (move-preserving). Bodies live in
-	// drum.cpp so the dual-write can see the complete DocDrum type without pulling the doc header into this light
+	// M3 owner-3 (drum structure): the single write funnel for the drum name. All the scattered assignment sites route
+	// through here, writing the authoritative `DocDrum::name` (the drum is bound before any write — adopt precedes tag
+	// reads at load, runtime drums bind on addDrum). Overloads mirror the argument shapes at the call sites: string
+	// literals / `.c_str()` (const char*), `std::string_view` (rename UI), and `std::string` rvalues (move-preserving).
+	// Bodies live in drum.cpp so they can see the complete DocDrum type without pulling the doc header into this
 	// header.
 	void setName(const char* newName);
 	void setName(std::string_view newName);
 	void setName(std::string&& newName);
 
-	// M3 owner-3 slice 3: the read authority for the drum name. Returns the bound DOM record's `name` when this drum is
-	// bound, else the engine `drumName_` fallback (the two are kept in sync by setName). Returns by reference: both
-	// ternary branches are same-type `std::string` lvalues, so the result is an lvalue — callers that need a stable
+	// M3 owner-3: the read authority for the drum name — returns the authoritative DOM record's `name` (the drum is
+	// always bound before a read). Returns by reference into stable DocDrum storage — callers that need a stable
 	// pointer/view (SoundDrum::getName const char*, RenameDrumUI string_view) rely on this. Body in drum.cpp for the
 	// complete DocDrum type.
 	[[nodiscard]] const std::string& name() const;
 
-private:
-	// The authoritative engine copy of the drum name. Read via name() (DOM-authoritative when bound), written via
-	// setName (which also mirrors into DocDrum::name). Private so every external read routes through name().
-	std::string drumName_{};
-
-	// Shadow the just-written `drumName_` into the bound DocDrum (no-op when unbound). Defined in drum.cpp where the
-	// complete DocDrum type is visible.
-	void mirrorNameToDoc();
-
-public:
 	const DrumType type;
 	bool noteRowAssignedTemp{};
 	uint8_t earlyNoteVelocity; // If 0, then there's none
