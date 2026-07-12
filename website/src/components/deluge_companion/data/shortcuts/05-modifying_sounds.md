@@ -54,6 +54,8 @@ hold(SAVE) + press(KIT), turn(SELECT), press(SELECT)
 press(KEY)
 ```
 
+For synth, MIDI, and CV clips this opens keyboard view. For kits it shows drum pads. You can still change presets and parameters while in keyboard view.
+
 # Clear notes and automation
 
 #SYNTH #KIT #MIDI #CV
@@ -69,6 +71,8 @@ hold(X) + press(BACK)
 ```shortcut
 hold(AUDITION) + press(GRID), turn(SELECT), menu(NONE), press(SELECT)
 ```
+
+Select CHOKe. When playing, this stops all other notes in the same kit that are set to the same choke group.
 
 # Cycle default scales
 
@@ -86,6 +90,8 @@ hold(SHIFT) + press(SCALE)
 hold(SCALE) + press(AUDITION)
 ```
 
+Sets the new root note. This can also be set from keyboard view.
+
 # Alter current scale
 
 #SYNTH #MIDI #CV
@@ -93,6 +99,8 @@ hold(SCALE) + press(AUDITION)
 ```shortcut
 hold(AUDITION) + turn(SELECT)
 ```
+
+Sharpens or flattens a note. Scale must be lit; otherwise all notes / semitones are present. Prepend Shift to do this silently.
 
 # Clone synth preset
 
@@ -102,6 +110,8 @@ hold(AUDITION) + turn(SELECT)
 hold(LOAD) + press(SYNTH), turn(SELECT), hold(LOAD) + menu(NONE), press(SELECT)
 ```
 
+A single preset can only appear in one active clip, so clone the original preset for multiple instances in the same song. It is good practice to clone first when tweaking to avoid affecting interdependent songs.
+
 # Clone kit preset
 
 #KIT
@@ -109,6 +119,8 @@ hold(LOAD) + press(SYNTH), turn(SELECT), hold(LOAD) + menu(NONE), press(SELECT)
 ```shortcut
 hold(LOAD) + press(KIT), turn(SELECT), hold(LOAD) + menu(NONE), press(SELECT)
 ```
+
+A single preset can only appear in one active clip, so clone the original preset for multiple instances in the same song. It is good practice to clone first when tweaking to avoid affecting interdependent songs.
 
 # Kit clip affect all - first select parameter
 
@@ -118,6 +130,8 @@ hold(LOAD) + press(KIT), turn(SELECT), hold(LOAD) + menu(NONE), press(SELECT)
 hold(SHIFT) + hold(GRID), hold(ENTIRE) + turn(SELECT)
 ```
 
+Applies to all rows in a kit.
+
 # Select kit/ instrument row silently
 
 #KIT
@@ -126,6 +140,8 @@ hold(SHIFT) + hold(GRID), hold(ENTIRE) + turn(SELECT)
 hold(SHIFT) + press(AUDITION)
 ```
 
+The row is selected and the instrument or sample name flashes on the LCD, but no note sounds. You can then modify parameters, change presets, and so on.
+
 # Change clip preset
 
 #SYNTH #KIT
@@ -133,6 +149,38 @@ hold(SHIFT) + press(AUDITION)
 ```shortcut
 turn(SELECT)
 ```
+
+Changes the current clip preset.
+
+# Keyboard mode view
+
+#SYNTH #MIDI #CV
+
+```shortcut
+hold(KEY) + turn(SELECT)
+```
+
+Changes keyboard mode between Isomorphic, In-Key, Piano, Chord, Chord Library, and Norns. Note: Chord, Chord Library and Norns need to be enabled in Community Features.
+
+# Keyboard scale / root
+
+#SYNTH #MIDI #CV
+
+```shortcut
+hold(SCALE) + press(SELECT)
+```
+
+Changes keyboard scale or root from keyboard view.
+
+# Keyboard note offset
+
+#SYNTH #MIDI #CV
+
+```shortcut
+hold(SHIFT) + turn(X)
+```
+
+Changes keyboard note offset.
 
 # Transpose clip by octave
 
@@ -165,6 +213,8 @@ hold(SHIFT) + hold(Y) + turn(Y)
 ```shortcut
 hold(LOAD) + press(RANDOM_PATCH_SOURCE)
 ```
+
+Randomizes the sample or preset for the selected row.
 
 # Randomize drum sample (multiple selected)
 
@@ -223,3 +273,5 @@ press(X)
 ```
 
 While in Slice Menu.
+
+Lazy chop allows the grid pads to manually chop the sample into slices. Press the green pad to start and lower pads to capture slices on the fly.

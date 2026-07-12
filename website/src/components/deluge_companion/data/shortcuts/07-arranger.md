@@ -14,6 +14,8 @@ press(GRID_UNLIT)
 hold(GRID) + turn(SELECT)
 ```
 
+This command is fundamental to arranger principles. You can switch between Arranger only clips (white) or Clips assigned to different Sections in Session View.
+
 # Delete clip instance from arranger (left-most clip grid button)
 
 #ARRANGER
@@ -21,6 +23,8 @@ hold(GRID) + turn(SELECT)
 ```shortcut
 press(GRID_LIT)
 ```
+
+The fully lit left-most grid button deletes the instance from arranger only. This can be undone and redone.
 
 # Clear arranger clips (all clip instances)
 
@@ -54,6 +58,8 @@ hold(AUDITION) + turn(Y)
 hold(GRID) + press(GRID)
 ```
 
+Used to shorten as well as lengthen clip instances.
+
 # Mute / unmute
 
 #ARRANGER
@@ -61,6 +67,8 @@ hold(GRID) + press(GRID)
 ```shortcut
 press(LAUNCH)
 ```
+
+Mute/unmute an instrument instance.
 
 # Audition
 
@@ -70,6 +78,8 @@ press(LAUNCH)
 press(AUDITION)
 ```
 
+Audition sounds a synth's root note or a kit row instance.
+
 # Solo instrument
 
 #ARRANGER
@@ -77,6 +87,8 @@ press(AUDITION)
 ```shortcut
 hold(X) + press(LAUNCH)
 ```
+
+Mute pads turn blue. You can solo more than one instrument at the same time. Press the blue mute pad to unsolo.
 
 # Enter clip (anything besides left-most grid button)
 
@@ -86,6 +98,8 @@ hold(X) + press(LAUNCH)
 press(GRID_LIT)
 ```
 
+Click on the instance tail only. Pressing Play after entering a clip this way continues arranger playback from the start of that clip.
+
 # Scroll timeline with progress bar
 
 #ARRANGER
@@ -93,6 +107,8 @@ press(GRID_LIT)
 ```shortcut
 press(CROSS)
 ```
+
+Only works when playback is on and the progress bar is visible.
 
 # Start playback from current screen
 
@@ -102,6 +118,8 @@ press(CROSS)
 hold(X) + press(PLAY)
 ```
 
+Playback begins from the left-most visible column.
+
 # Make clip instance unique (white; left-most clip grid button)
 
 #ARRANGER
@@ -109,6 +127,8 @@ hold(X) + press(PLAY)
 ```shortcut
 hold(SHIFT) + press(GRID_LIT)
 ```
+
+The colored instance turns white to indicate a unique instance. It contains note and parameter data too.
 
 # Adjust clip parameter of clip instance
 
@@ -126,6 +146,8 @@ hold(GRID_LIT) + turn(PARAMETER)
 hold(GRID_LIT) + press(SONG), turn(Y)
 ```
 
+Useful for saving a white instance as its own clip. You can scroll before releasing to place the instance.
+
 # Copy clip from song to arranger mode
 
 #ARRANGER
@@ -133,6 +155,8 @@ hold(GRID_LIT) + press(SONG), turn(Y)
 ```shortcut
 hold(GRID_LIT) + press(SONG), turn(X)
 ```
+
+You can scroll before releasing to place the instance.
 
 # Insert / delete time; applies to currently visible screen (clockwise: insert; counter: delete)
 
@@ -142,6 +166,8 @@ hold(GRID_LIT) + press(SONG), turn(X)
 hold(SHIFT) + turn(X)
 ```
 
+Applies to the currently visible screen. Notes falling off the left side are deleted. Press Back to undo.
+
 # Enable loop play mode from arrange to song mode
 
 #ARRANGER
@@ -149,6 +175,8 @@ hold(SHIFT) + turn(X)
 ```shortcut
 press(AUDITION)
 ```
+
+Playing instruments are indicated by colored lit audition buttons. Once a button is pressed, all audition buttons light to show loop mode is active.
 
 # Disable loop play mode from arrange to song mode
 
@@ -158,6 +186,8 @@ press(AUDITION)
 press(LAUNCH)
 ```
 
+Play switches from clip loop mode back to arranger at the left-most visible column. The change happens at the end of the loop, in time with the sequence.
+
 # Change instrument preset
 
 #ARRANGER
@@ -165,6 +195,8 @@ press(LAUNCH)
 ```shortcut
 hold(AUDITION) + turn(SELECT)
 ```
+
+Not for audio clips.
 
 # Change clip type to synth
 
@@ -198,6 +230,8 @@ hold(AUDITION) + press(CV)
 hold(AUDITION) + turn(SELECT)
 ```
 
+Uses a greyed-out button on an unused row.
+
 # Add new synth clip type (unused row)
 
 #ARRANGER
@@ -230,6 +264,8 @@ hold(AUDITION) + press(CV)
 hold(AUDITION) + press(SAVE)
 ```
 
+If the row contains unique / white instances they are lost completely.
+
 # Rename track
 
 #ARRANGER
@@ -237,3 +273,5 @@ hold(AUDITION) + press(SAVE)
 ```shortcut
 hold(AUDITION) + press(GRID)
 ```
+
+The only way to rename tracks is in Arranger mode.

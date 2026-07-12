@@ -47,9 +47,18 @@
       <StepContainerView bind:step />
     {/each}
   </button>
-  {#each shortcut.paragraphs as paragraph}
-    <ParagraphView bind:paragraph />
-  {/each}
+  {#if shortcut.description}
+    <p class="shortcut-description mt-2 mb-0 text-sm leading-6">
+      {shortcut.description}
+    </p>
+  {/if}
+  {#if shortcut.paragraphs.length > 0}
+    <aside class="shortcut-aside mt-4 rounded-md px-3 py-1" data-type="tip">
+      {#each shortcut.paragraphs as paragraph}
+        <ParagraphView bind:paragraph />
+      {/each}
+    </aside>
+  {/if}
   {#if showDetails}
     <div class="mt-4 border border-[var(--sl-color-gray-5)]">
       <DelugeView bind:steps={shortcut.steps} />
@@ -65,6 +74,9 @@
     --dc-strip-border: rgb(102 118 143 / 0.45);
     --dc-step-bg: rgb(13 18 30 / 0.45);
     --dc-step-border: rgb(103 118 143 / 0.5);
+    --dc-aside-bg: rgb(83 98 120 / 0.24);
+    --dc-aside-border: rgb(178 205 222 / 0.72);
+    --dc-aside-fg: var(--sl-color-gray-2);
 
     border: 1px solid var(--dc-card-border);
     background: var(--dc-card-bg);
@@ -82,6 +94,9 @@
     --dc-strip-border: rgb(148 163 184 / 0.7);
     --dc-step-bg: rgb(248 250 252 / 0.96);
     --dc-step-border: rgb(148 163 184 / 0.8);
+    --dc-aside-bg: rgb(226 232 240 / 0.82);
+    --dc-aside-border: rgb(106 148 187 / 0.85);
+    --dc-aside-fg: rgb(51 65 85);
   }
 
   .shortcut-header {
@@ -101,6 +116,24 @@
   .shortcut-steps > :global(*) {
     align-self: start;
     margin-top: 0;
+  }
+
+  .shortcut-description {
+    color: var(--sl-color-gray-2);
+  }
+
+  :global(html[data-theme="light"]) .shortcut-description {
+    color: var(--sl-color-gray-3);
+  }
+
+  .shortcut-aside {
+    border-inline-start: 0.25rem solid var(--dc-aside-border);
+    background: var(--dc-aside-bg);
+    color: var(--dc-aside-fg);
+  }
+
+  .shortcut-aside :global(p) {
+    margin-block: 0.5rem;
   }
 
   .dc-view-chip {

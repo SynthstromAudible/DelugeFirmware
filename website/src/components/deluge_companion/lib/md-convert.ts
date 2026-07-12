@@ -9,6 +9,7 @@ import type {
 import { Action } from "../data/actions.js"
 import { Control } from "../data/targets.js"
 import { Views } from "../data/views.js"
+import { describeShortcutSteps } from "../data/shortcut_descriptions.js"
 
 /**
  * Parse a string like 'press(X)' into an action (PRESS) and control (X).
@@ -65,6 +66,29 @@ const parseSteps = (str: string): StepOrSubstep[] => {
     })
 }
 
+const normalizeText = (text: string) => text.trim().replace(/\s+/g, " ")
+
+const getPlainParagraphText = (spans: Span[]) => {
+  if (spans.some((span) => span.steps)) {
+    return null
+  }
+
+  return spans.map((span) => span.text ?? "").join("")
+}
+
+const isGeneratedDescriptionParagraph = (
+  spans: Span[],
+  description: string | undefined,
+) => {
+  const paragraphText = getPlainParagraphText(spans)
+
+  if (!paragraphText || !description) {
+    return false
+  }
+
+  return normalizeText(paragraphText) === normalizeText(description)
+}
+
 export const parseMd = (mdContent: string): Shortcut[] => {
   const results: Shortcut[] = []
 
@@ -86,6 +110,7 @@ export const parseMd = (mdContent: string): Shortcut[] => {
       if (t.lang === "shortcut" && current) {
         // code tag containing shortcut definition
         current.steps.push(...parseSteps(t.text))
+        current.description = describeShortcutSteps(current.steps)
         return
       }
     }
@@ -130,7 +155,13 @@ export const parseMd = (mdContent: string): Shortcut[] => {
           }
         })
         .filter((s) => !!s)
-      current?.paragraphs.push({ spans })
+
+      if (
+        current &&
+        !isGeneratedDescriptionParagraph(spans, current.description)
+      ) {
+        current.paragraphs.push({ spans })
+      }
       return
     }
 
