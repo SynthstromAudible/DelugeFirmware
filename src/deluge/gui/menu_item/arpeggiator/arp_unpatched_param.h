@@ -30,9 +30,7 @@ public:
 		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingNonAudioDrumRow();
 	}
 
-	void getColumnLabel(etl::istring& label) override {
-		label.append(deluge::l10n::get(l10n::built_in::seven_segment, this->name));
-	}
+	void getColumnLabel(etl::istring& label) override { label.append(deluge::l10n::get(this->name)); }
 
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return style_; }
 

@@ -28,8 +28,6 @@ public:
 		return (soundEditor.editingCVOrMIDIClip() || soundEditor.editingNonAudioDrumRow())
 		       && soundEditor.currentArpSettings->mode != ArpMode::OFF;
 	}
-	void getColumnLabel(etl::istring& label) override {
-		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
-	}
+	void getColumnLabel(etl::istring& label) override { label.append(deluge::l10n::get(this->name)); }
 };
 } // namespace deluge::gui::menu_item::randomizer::midi_cv

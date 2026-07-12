@@ -59,8 +59,7 @@ public:
 		using enum l10n::String;
 		return {
 		    l10n::getView(STRING_FOR_CARRIERS),
-		    optType == OptType::SHORT ? l10n::getView(l10n::built_in::seven_segment, STRING_FOR_MODULATOR_1)
-		                              : l10n::getView(STRING_FOR_MODULATOR_1),
+		    optType == OptType::SHORT ? l10n::getView(STRING_FOR_MODULATOR_1) : l10n::getView(STRING_FOR_MODULATOR_1),
 		};
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
