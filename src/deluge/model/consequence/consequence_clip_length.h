@@ -21,6 +21,7 @@
 #include <cstdint>
 
 class Clip;
+class AudioClip;
 
 class ConsequenceClipLength final : public Consequence {
 public:
@@ -30,6 +31,10 @@ public:
 	Clip* clip;
 	int32_t lengthToRevertTo;
 
-	uint64_t* pointerToMarkerValue;
+	// M3 owner-4: which AudioClip sample marker (if any) this length change also moved, reverted through the model
+	// setter — replaces the former raw uint64_t* into sampleHolder. NONE for non-audio clips (length only).
+	enum class Marker : uint8_t { NONE, START, END };
+	Marker marker{Marker::NONE};
+	AudioClip* audioClip{nullptr};
 	uint64_t markerValueToRevertTo{};
 };

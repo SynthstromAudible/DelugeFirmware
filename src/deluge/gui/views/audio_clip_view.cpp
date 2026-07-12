@@ -653,7 +653,9 @@ void AudioClipView::changeUnderlyingSampleLength(AudioClip& clip, const Sample* 
 	if (action) {
 		if (action->firstConsequence && action->firstConsequence->type == Consequence::CLIP_LENGTH) {
 			ConsequenceClipLength* consequence = (ConsequenceClipLength*)action->firstConsequence;
-			consequence->pointerToMarkerValue = valueToChange;
+			consequence->audioClip = &clip;
+			consequence->marker = (valueToChange == &clip.sampleHolder.startPos) ? ConsequenceClipLength::Marker::START
+			                                                                     : ConsequenceClipLength::Marker::END;
 			consequence->markerValueToRevertTo = oldValue;
 		}
 		actionLogger.closeAction(actionType);
@@ -689,7 +691,8 @@ void AudioClipView::changeUnderlyingSampleStart(AudioClip& clip, const Sample* s
 		if (action) {
 			if (action->firstConsequence && action->firstConsequence->type == Consequence::CLIP_LENGTH) {
 				ConsequenceClipLength* consequence = (ConsequenceClipLength*)action->firstConsequence;
-				consequence->pointerToMarkerValue = &clip.sampleHolder.endPos;
+				consequence->audioClip = &clip;
+				consequence->marker = ConsequenceClipLength::Marker::END;
 				consequence->markerValueToRevertTo = oldValue;
 			}
 			actionLogger.closeAction(actionType);
@@ -713,7 +716,8 @@ void AudioClipView::changeUnderlyingSampleStart(AudioClip& clip, const Sample* s
 		if (action) {
 			if (action->firstConsequence && action->firstConsequence->type == Consequence::CLIP_LENGTH) {
 				ConsequenceClipLength* consequence = (ConsequenceClipLength*)action->firstConsequence;
-				consequence->pointerToMarkerValue = &clip.sampleHolder.startPos;
+				consequence->audioClip = &clip;
+				consequence->marker = ConsequenceClipLength::Marker::START;
 				consequence->markerValueToRevertTo = oldValue;
 			}
 			actionLogger.closeAction(actionType);

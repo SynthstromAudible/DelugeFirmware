@@ -840,7 +840,7 @@ void clipLengthTarget(Song* song) {
 
 // A0 (task-A0-brief.md): AudioClip end-marker drag, guarding ConsequenceClipLength's marker-revert path ahead of
 // Phase A's rewrite. Unlike clipLengthTarget (InstrumentClip, excludes AUDIO), an AudioClip end-marker drag also
-// mutates sampleHolder.endPos directly and back-patches the Consequence's raw pointerToMarkerValue/
+// mutates sampleHolder.endPos directly and back-patches the Consequence's marker discriminator (audioClip + marker) /
 // markerValueToRevertTo -- replicating AudioClipView::changeUnderlyingSampleLength exactly
 // (audio_clip_view.cpp:635-654), which is private and not otherwise reachable from here.
 //
@@ -928,7 +928,8 @@ void audioClipMarkerTarget(Song* song) {
 	      "marker-drag: apply recorded a CLIP_LENGTH consequence");
 	if (action->firstConsequence != nullptr && action->firstConsequence->type == Consequence::CLIP_LENGTH) {
 		auto* consequence = (ConsequenceClipLength*)action->firstConsequence;
-		consequence->pointerToMarkerValue = valueToChange;
+		consequence->audioClip = clip;
+		consequence->marker = ConsequenceClipLength::Marker::END;
 		consequence->markerValueToRevertTo = oldValue;
 	}
 	actionLogger.closeAction(actionType);
