@@ -110,13 +110,6 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 		if (on) {
 			display->cancelPopup();
 		}
-		if (on && isShiftButtonPressed() && isButtonPressed(LEARN)) {
-			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EmulatedDisplay)
-			    != RuntimeFeatureStateEmulatedDisplay::Hardware) {
-				deluge::hid::display::swapDisplayType();
-				goto dealtWith;
-			}
-		}
 	}
 	else if (b == BACK) [[unlikely]] {
 		if (on) {

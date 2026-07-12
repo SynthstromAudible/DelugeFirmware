@@ -659,12 +659,7 @@ void SevenSegment::render() {
 		putDot(segments.data(), layer->fixedDot);
 	}
 
-	if (have_oled_screen) {
-		OLED::renderEmulated7Seg(segments);
-	}
-	else {
-		deluge_display_write_seven_segment(segments.data(), segments.size());
-	}
+	deluge_display_write_seven_segment(segments.data(), segments.size());
 	HIDSysex::sendDisplayIfChanged();
 
 	if (layer->fixedDot != 255) {

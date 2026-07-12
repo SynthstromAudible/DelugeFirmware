@@ -17,7 +17,6 @@
 
 #include "settings.h"
 #include "devSysexSetting.h"
-#include "emulated_display.h"
 #include "setting.h"
 #include "shift_is_sticky.h"
 #include <array>
@@ -40,7 +39,6 @@ SettingToggle menuDisplayNornsLayout(RuntimeFeatureSettingType::DisplayNornsLayo
 ShiftIsSticky menuShiftIsSticky{};
 SettingToggle menuLightShiftLed(RuntimeFeatureSettingType::LightShiftLed);
 SettingToggle menuEnableDX7Engine(RuntimeFeatureSettingType::EnableDX7Engine);
-EmulatedDisplay menuEmulatedDisplay{};
 SettingToggle menuEnableKeyboardViewSidebarMenuExit(RuntimeFeatureSettingType::EnableKeyboardViewSidebarMenuExit);
 SettingToggle menuEnableLaunchEventPlayhead(RuntimeFeatureSettingType::EnableLaunchEventPlayhead);
 SettingToggle menuDisplayChordLayout(RuntimeFeatureSettingType::DisplayChordKeyboard);
@@ -65,7 +63,6 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuShiftIsSticky,
     &menuLightShiftLed,
     &menuEnableDX7Engine,
-    &menuEmulatedDisplay,
     &menuEnableKeyboardViewSidebarMenuExit,
     &menuEnableLaunchEventPlayhead,
     &menuDisplayChordLayout,

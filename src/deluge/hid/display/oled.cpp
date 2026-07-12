@@ -765,44 +765,6 @@ void OLED::displayNotification(std::string_view param_title, std::optional<std::
 	uiTimerManager.setTimer(TimerName::DISPLAY, 2000);
 }
 
-void OLED::renderEmulated7Seg(const std::array<uint8_t, kNumericDisplayLength>& display) {
-	clearMainImage();
-	for (int i = 0; i < 4; i++) {
-		int ix = 33 * i + 1;
-		const int dy = 17;
-
-		const int horz[] = {6, 0, 3};
-		for (int y = 0; y < 3; y++) {
-			if (display[i] & (1 << horz[y])) {
-				int ybase = 7 + dy * y;
-				main.invertArea(ix + 3, 15, ybase + 0, ybase + 0);
-				main.invertArea(ix + 2, 17, ybase + 1, ybase + 1);
-				main.invertArea(ix + 3, 15, ybase + 2, ybase + 2);
-			}
-		}
-
-		const int vert[] = {1, 2, 5, 4};
-		for (int x = 0; x < 2; x++) {
-			int xside = x * 2 - 1;
-			for (int y = 0; y < 2; y++) {
-				if (display[i] & (1 << vert[2 * x + y])) {
-					int xbase = ix + 18 * x + 1;
-					int ybase = 10 + dy * y;
-					int yside = y * -2 + 1;
-					main.invertArea(xbase + xside, 1, ybase + yside, ybase + 13 + yside);
-					main.invertArea(xbase, 1, ybase + 0, ybase + 13);
-					main.invertArea(xbase - xside, 1, ybase + 1, ybase + 12);
-				}
-			}
-		}
-
-		if (display[i] & (1 << 7)) {
-			main.invertArea(ix + 21, 3, 41, 43);
-		}
-	}
-	markChanged();
-}
-
 #define CONSOLE_ANIMATION_FRAME_TIME_SAMPLES (6 * 44) // 6
 
 void OLED::consoleText(char const* text) {

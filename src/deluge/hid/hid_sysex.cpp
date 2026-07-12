@@ -68,11 +68,6 @@ void HIDSysex::requestOLEDDisplay(MIDICable& cable, uint8_t* data, int32_t len) 
 			send7SegData(cable);
 		}
 	}
-	// else if (data[4] == 4) { // SWAP
-	else if (data[2] == 4) { // SWAP
-		deluge::hid::display::swapDisplayType();
-		oledDeltaForce = true;
-	}
 }
 
 void HIDSysex::sendDisplayIfChanged() {
