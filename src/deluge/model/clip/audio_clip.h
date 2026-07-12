@@ -97,9 +97,12 @@ public:
 	void writeDataToFile(Serializer& writer, Song* song) override;
 
 	/// M3 owner-4: rebuild the bound DocAudioClip (`docAudioClip_`) from the engine AudioClip's persistent
-	/// descriptor fields. Called at load (readFromFile end) and save (writeDataToFile start) — rebuild-at-save, so
-	/// no per-mutator dual-write is needed. WRITE-ONLY into the shadow record; self-guards on a null docAudioClip_.
+	/// descriptor fields. Called at save (writeDataToFile start) to capture runtime edits into the record until the
+	/// edit sites are funnelled. Self-guards on a null docAudioClip_.
 	void syncDocAudioClip();
+	/// M3 owner-4 (inverse): seed the engine runtime cache from the authoritative DocAudioClip. Called at
+	/// construction (model defaults) and after the DOM-first load parse. Self-guards on a null docAudioClip_.
+	void deriveEngineFromDoc();
 	char const* getXMLTag() override { return "audioClip"; }
 	int32_t nextSampleRestartPos{};
 	SampleControls sampleControls;

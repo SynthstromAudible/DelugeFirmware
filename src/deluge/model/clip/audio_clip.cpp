@@ -53,18 +53,17 @@ AudioClip::AudioClip(Song& song, uint32_t loadedId) : Clip(ClipType::AUDIO, song
 	// M3 owner-4 (ctor-binding): the base Clip ctor has already minted/bound id_ and docClip_. Bind this clip's
 	// AudioClip-specific DOM record under the same durable id, mirroring how the Clip base ctor binds docClip_.
 	docAudioClip_ = &song.project.getOrCreateDocAudioClip({.clip_id = id()});
-	overdubsShouldCloneOutput = true;
 	voiceSample = nullptr;
 	guide.audioFileHolder = &sampleHolder; // It needs to permanently point here
-
-	sampleControls.pitchAndSpeedAreIndependent = true;
 
 	recorder = nullptr;
 
 	renderData.xScroll = -1;
 
-	voicePriority = VoicePriority::MEDIUM;
-	attack = -2147483648;
+	// M3 owner-4: the DocAudioClip (freshly created with its default descriptor values) is authoritative; derive the
+	// engine's runtime cache (sampleHolder / sampleControls / attack / voicePriority / overdubs) from it. Replaces the
+	// scattered engine-default assignments — the defaults now live in DocAudioClip's member initializers.
+	deriveEngineFromDoc();
 }
 
 AudioClip::~AudioClip() {
@@ -1087,6 +1086,28 @@ void AudioClip::syncDocAudioClip() {
 	d.overdubs_should_clone = overdubsShouldCloneOutput;
 }
 
+// M3 owner-4 (inverse of syncDocAudioClip): seed the engine's runtime cache (sampleHolder / sampleControls /
+// attack / voicePriority / overdubs) from the authoritative DocAudioClip. Called at construction (from the model
+// defaults) and after the DOM-first load parse. The engine fields remain the render/edit target for now; the
+// save path still rebuilds the record from them (syncDocAudioClip) until the runtime edit sites are funnelled.
+void AudioClip::deriveEngineFromDoc() {
+	if (docAudioClip_ == nullptr) {
+		return;
+	}
+	const deluge::project::DocAudioClip& d = *docAudioClip_;
+	sampleHolder.filePath = d.file_path;
+	sampleHolder.startPos = d.start_pos;
+	sampleHolder.endPos = d.end_pos;
+	sampleHolder.transpose = d.transpose;
+	sampleHolder.cents = d.cents;
+	sampleControls.interpolationMode = static_cast<InterpolationMode>(d.interpolation_mode);
+	sampleControls.pitchAndSpeedAreIndependent = d.pitch_and_speed_independent;
+	sampleControls.reversed = d.reversed;
+	attack = d.attack;
+	voicePriority = static_cast<VoicePriority>(d.voice_priority);
+	overdubsShouldCloneOutput = d.overdubs_should_clone;
+}
+
 void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 
 	syncDocAudioClip(); // M3 owner-4: rebuild-at-save — capture runtime menu/consequence mutations into the DOM record.
@@ -1167,50 +1188,52 @@ someError:
 			reader.readTagOrAttributeValueString(outputNameWhileLoading);
 		}
 
+		// M3 owner-4: the descriptor is read DOM-first into the DocAudioClip; the engine runtime cache is derived from
+		// it after the parse loop (deriveEngineFromDoc, below). trackName stays an engine-side load local.
 		else if (!strcmp(tagName, "filePath")) {
-			reader.readTagOrAttributeValueString(sampleHolder.filePath);
+			reader.readTagOrAttributeValueString(docAudioClip_->file_path);
 		}
 
 		else if (!strcmp(tagName, "overdubsShouldCloneAudioTrack")) {
-			overdubsShouldCloneOutput = reader.readTagOrAttributeValueInt();
+			docAudioClip_->overdubs_should_clone = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "startSamplePos")) {
-			sampleHolder.startPos = reader.readTagOrAttributeValueInt();
+			docAudioClip_->start_pos = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "endSamplePos")) {
-			sampleHolder.endPos = reader.readTagOrAttributeValueInt();
+			docAudioClip_->end_pos = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "pitchSpeedIndependent")) {
-			sampleControls.pitchAndSpeedAreIndependent = reader.readTagOrAttributeValueInt();
+			docAudioClip_->pitch_and_speed_independent = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "linearInterpolation")) {
 			if (reader.readTagOrAttributeValueInt()) {
-				sampleControls.interpolationMode = InterpolationMode::LINEAR;
+				docAudioClip_->interpolation_mode = util::to_underlying(InterpolationMode::LINEAR);
 			}
 		}
 
 		else if (!strcmp(tagName, "attack")) {
-			attack = reader.readTagOrAttributeValueInt();
+			docAudioClip_->attack = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "priority")) {
-			voicePriority = static_cast<VoicePriority>(reader.readTagOrAttributeValueInt());
+			docAudioClip_->voice_priority = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "reversed")) {
-			sampleControls.reversed = reader.readTagOrAttributeValueInt();
+			docAudioClip_->reversed = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "transpose")) {
-			sampleHolder.transpose = reader.readTagOrAttributeValueInt();
+			docAudioClip_->transpose = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "cents")) {
-			sampleHolder.cents = reader.readTagOrAttributeValueInt();
+			docAudioClip_->cents = reader.readTagOrAttributeValueInt();
 		}
 
 		else if (!strcmp(tagName, "params")) {
@@ -1232,7 +1255,7 @@ someError:
 
 	reader.match('}'); // close the clip object (balances the match('{') above; a no-op in XML).
 
-	syncDocAudioClip(); // M3 owner-4: rebuild the DOM descriptor record from the just-loaded engine fields.
+	deriveEngineFromDoc(); // M3 owner-4: the descriptor was read DOM-first; seed the engine runtime cache from it.
 	return Error::NONE;
 }
 
