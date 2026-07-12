@@ -53,18 +53,24 @@ public:
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 
-					soundDrum->sidechain.syncType = syncValueToSyncType(current_value);
-					soundDrum->sidechain.syncLevel = syncValueToSyncLevel(current_value);
+					soundDrum->setSidechainSyncType(syncValueToSyncType(current_value));
+					soundDrum->setSidechainSyncLevel(syncValueToSyncLevel(current_value));
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			const auto sidechain = getSidechain(is_reverb_sidechain_);
-			sidechain->syncType = syncValueToSyncType(current_value);
-			sidechain->syncLevel = syncValueToSyncLevel(current_value);
+			// M3 owner-5: reverb sidechain is a separate global; only the owner's own sidechain funnels through the
+			// setter.
 			if (is_reverb_sidechain_) {
+				SideChain* sidechain = getSidechain(true);
+				sidechain->syncType = syncValueToSyncType(current_value);
+				sidechain->syncLevel = syncValueToSyncLevel(current_value);
 				currentSong->project.reverb.sidechain_sync = syncValueToSyncLevel(current_value);
+			}
+			else {
+				soundEditor.currentModControllable->setSidechainSyncType(syncValueToSyncType(current_value));
+				soundEditor.currentModControllable->setSidechainSyncLevel(syncValueToSyncLevel(current_value));
 			}
 		}
 

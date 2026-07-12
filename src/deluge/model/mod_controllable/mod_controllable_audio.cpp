@@ -528,6 +528,30 @@ void ModControllableAudio::setStutterPingPong(bool value) {
 		docModControllable_->stutter.ping_pong = value;
 	}
 }
+void ModControllableAudio::setSidechainAttack(int32_t value) {
+	sidechain.attack = value;
+	if (docModControllable_ != nullptr) {
+		docModControllable_->sidechain.attack = value;
+	}
+}
+void ModControllableAudio::setSidechainRelease(int32_t value) {
+	sidechain.release = value;
+	if (docModControllable_ != nullptr) {
+		docModControllable_->sidechain.release = value;
+	}
+}
+void ModControllableAudio::setSidechainSyncType(SyncType value) {
+	sidechain.syncType = value;
+	if (docModControllable_ != nullptr) {
+		docModControllable_->sidechain.sync_type = static_cast<uint8_t>(value);
+	}
+}
+void ModControllableAudio::setSidechainSyncLevel(SyncLevel value) {
+	sidechain.syncLevel = value;
+	if (docModControllable_ != nullptr) {
+		docModControllable_->sidechain.sync_level = static_cast<uint8_t>(value);
+	}
+}
 
 void ModControllableAudio::seedDocModControllable() {
 	if (docModControllable_ == nullptr) {
@@ -613,21 +637,27 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 
 	// Sidechain (renamed from "compressor" from the official firmware)
 	writer.writeOpeningTagBeginning("sidechain");
-	writer.writeAttribute("attack", sidechain.attack);
-	writer.writeAttribute("release", sidechain.release);
-	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", sidechain.syncLevel, true);
+	writer.writeAttribute("attack", bound ? docModControllable_->sidechain.attack : sidechain.attack);
+	writer.writeAttribute("release", bound ? docModControllable_->sidechain.release : sidechain.release);
+	writer.writeAbsoluteSyncLevelToFile(
+	    currentSong, "syncLevel",
+	    bound ? static_cast<SyncLevel>(docModControllable_->sidechain.sync_level) : sidechain.syncLevel, true);
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeSyncTypeToFile(currentSong, "syncType", sidechain.syncType, true);
+	writer.writeSyncTypeToFile(
+	    currentSong, "syncType",
+	    bound ? static_cast<SyncType>(docModControllable_->sidechain.sync_type) : sidechain.syncType, true);
 	writer.closeTag();
 
-	// Audio compressor (this section is all new so we write it at the end)
+	// Audio compressor (this section is all new so we write it at the end). M3 owner-5: the five stable knob positions
+	// read the record when bound (load-only for a Sound); threshold is re-derived from its param every render, so it
+	// stays a live native read to preserve the exact saved snapshot.
 	writer.writeOpeningTagBeginning("audioCompressor");
-	writer.writeAttribute("attack", compressor.getAttack());
-	writer.writeAttribute("release", compressor.getRelease());
+	writer.writeAttribute("attack", bound ? docModControllable_->compressor.attack : compressor.getAttack());
+	writer.writeAttribute("release", bound ? docModControllable_->compressor.release : compressor.getRelease());
 	writer.writeAttribute("thresh", compressor.getThreshold());
-	writer.writeAttribute("ratio", compressor.getRatio());
-	writer.writeAttribute("compHPF", compressor.getSidechain());
-	writer.writeAttribute("compBlend", compressor.getBlend());
+	writer.writeAttribute("ratio", bound ? docModControllable_->compressor.ratio : compressor.getRatio());
+	writer.writeAttribute("compHPF", bound ? docModControllable_->compressor.sidechain_hpf : compressor.getSidechain());
+	writer.writeAttribute("compBlend", bound ? docModControllable_->compressor.blend : compressor.getBlend());
 	writer.closeTag();
 
 	// Stutter

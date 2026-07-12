@@ -50,16 +50,20 @@ public:
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 
-					soundDrum->sidechain.release = current_value;
+					soundDrum->setSidechainRelease(current_value);
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			const auto sidechain = getSidechain(is_reverb_sidechain_);
-			sidechain->release = current_value;
+			// M3 owner-5: reverb sidechain is a separate global; only the owner's own sidechain funnels through the
+			// setter.
 			if (is_reverb_sidechain_) {
+				getSidechain(true)->release = current_value;
 				currentSong->project.reverb.sidechain_release = current_value;
+			}
+			else {
+				soundEditor.currentModControllable->setSidechainRelease(current_value);
 			}
 		}
 

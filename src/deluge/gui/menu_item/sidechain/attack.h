@@ -50,16 +50,20 @@ public:
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 
-					soundDrum->sidechain.attack = current_value;
+					soundDrum->setSidechainAttack(current_value);
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			const auto sidechain = getSidechain(is_reverb_sidechain_);
-			sidechain->attack = current_value;
+			// M3 owner-5: the reverb sidechain is a separate global (saved via project.reverb); only the owner's own
+			// sidechain funnels through the DOM-owning setter.
 			if (is_reverb_sidechain_) {
+				getSidechain(true)->attack = current_value;
 				currentSong->project.reverb.sidechain_attack = current_value;
+			}
+			else {
+				soundEditor.currentModControllable->setSidechainAttack(current_value);
 			}
 		}
 

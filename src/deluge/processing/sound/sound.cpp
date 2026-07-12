@@ -4397,9 +4397,11 @@ ModelStackWithAutoParam* Sound::getParamFromModEncoderDeeper(int32_t whichModEnc
 
 bool Sound::modEncoderButtonAction(uint8_t whichModEncoder, bool on, ModelStackWithThreeMainThings* modelStack) {
 	bool result = modEncoderButtonActionImpl(whichModEncoder, on, modelStack);
-	// M3 owner-5: the impl may reassign mod knobs in-place (LPF/HPF/EQ cycling) via any of its early-return branches —
-	// re-seed the whole block once here so the DOM record stays in sync without threading a reseed through each branch.
+	// M3 owner-5: the impl may reassign mod knobs in-place (LPF/HPF/EQ cycling) or re-derive sidechain.syncLevel via
+	// any of its early-return branches — re-seed both records once here so they stay in sync without threading a reseed
+	// through each branch.
 	seedModKnobsRecord();
+	seedDocModControllable();
 	return result;
 }
 

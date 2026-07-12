@@ -99,6 +99,14 @@ public:
 	void setStutterQuantized(bool value);
 	void setStutterReversed(bool value);
 	void setStutterPingPong(bool value);
+	// Sidechain (slice 3). Native sub-fields kept as hot cache; record authoritative for save. NB the reverb sidechain
+	// (AudioEngine::reverbSidechain) is a separate global — not a ModControllableAudio, so its menu path does not
+	// funnel here. compressor.threshold is per-render derived so it stays native-read at save; the other five are
+	// load-only for a Sound and read from the record.
+	void setSidechainAttack(int32_t value);
+	void setSidechainRelease(int32_t value);
+	void setSidechainSyncType(SyncType value);
+	void setSidechainSyncLevel(SyncLevel value);
 	bool offerReceivedCCToLearnedParamsForClip(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                           ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
 	bool offerReceivedCCToLearnedParamsForSong(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
