@@ -95,8 +95,11 @@ bool Instrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOn
 	}
 	// saving song
 	if (!clipForSavingOutputOnly) {
-		if (!name.empty()) {
-			writer.writeAttribute("presetName", name.c_str());
+		// DO1: read the DOM identity record's name when bound (rebuild-at-save); fall back to the native field when
+		// unbound.
+		bool hasPresetName = docOutput_ != nullptr ? !docOutput_->name.empty() : !name.empty();
+		if (hasPresetName) {
+			writer.writeAttribute("presetName", docOutput_ != nullptr ? docOutput_->name.c_str() : name.c_str());
 		}
 		else if (type == OutputType::CV) {
 			char const* slotXMLTag = getSlotXMLTag();

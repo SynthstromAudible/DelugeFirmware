@@ -3380,7 +3380,7 @@ RGB SessionView::gridRenderClipColor(Clip* clip, int32_t x, int32_t y, bool rend
 	// Set a random colour if unset and convert to result colour
 	if (clip->output->colour == 0) {
 		lastColour = std::fmod(lastColour + colourStep + 192, 192);
-		clip->output->colour = lastColour;
+		clip->output->setColour(static_cast<int16_t>(lastColour));
 	}
 
 	RGB resultColour = RGB::fromHue(clip->output->colour);
@@ -4543,13 +4543,14 @@ ActionResult SessionView::gridHandleScroll(int32_t offsetX, int32_t offsetY) {
 		auto track = gridTrackFromX(gridFirstPressedX, gridTrackCount());
 		if (track != nullptr) {
 			if (Buttons::isButtonPressed(hid::button::Y_ENC)) {
-				track->colour += offsetY;
-				if (track->colour == 0) {
-					track->colour += offsetY;
+				int16_t newColour = static_cast<int16_t>(track->colour + offsetY);
+				if (newColour == 0) {
+					newColour = static_cast<int16_t>(newColour + offsetY);
 				}
+				track->setColour(newColour);
 			}
 			else {
-				track->colour = static_cast<int16_t>(track->colour + (colourStep * offsetY) + 192) % 192;
+				track->setColour(static_cast<int16_t>(track->colour + (colourStep * offsetY) + 192) % 192);
 			}
 			requestRendering(this);
 		}

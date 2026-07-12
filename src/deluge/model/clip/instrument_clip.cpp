@@ -3018,7 +3018,7 @@ doReadBendRange:
 
 			case OutputType::SYNTH:
 			case OutputType::KIT:
-				((Instrument*)output)->name = instrumentPresetName;
+				((Instrument*)output)->setName(instrumentPresetName);
 				break;
 
 			default:

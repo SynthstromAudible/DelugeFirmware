@@ -418,7 +418,7 @@ couldntLoad:
 
 		newInstrument->dirPath = "SYNTHS";
 
-		newInstrument->name = "0";
+		newInstrument->setName("0");
 
 		((SoundInstrument*)newInstrument)->setupAsDefaultSynth(&newParamManager);
 		display->displayError(error); // E.g. show the CARD error.
@@ -1269,6 +1269,9 @@ void Song::adoptOutput(Output* output) {
 	}
 	deluge::project::DocOutput& d = project.output_structure.getOrCreate(*output->id());
 	output->bindDocOutput(&d);
+	// DO1: the base 6 identity scalars are DOM-owned now, so syncDocOutput() no longer seeds them — reseed
+	// explicitly here so the record is correct at save for a freshly-loaded, never-edited output.
+	output->seedDocOutputIdentity();
 	output->syncDocOutput();
 	// M3 owner-5 slice B: a SoundInstrument (SYNTH output) owns a Sound 1:1 — nest its DocSound in this DocOutput and
 	// bind the engine Sound's docSound_. The double static_cast lands on the correct Sound base subobject.
@@ -3524,6 +3527,12 @@ traverseClips:
 	newOutput->armedForRecording = oldOutput->armedForRecording;
 	oldOutput->armedForRecording = false;
 
+	// DO1: the field copies above (colour/mutedInArrangementMode/soloingInArrangementMode/armedForRecording) bypass
+	// the setters for a bulk cross-Output copy+reset — reseed both records from their now-final native values so
+	// neither is stale at save (oldOutput may only be hibernated, not destroyed, below).
+	newOutput->seedDocOutputIdentity();
+	oldOutput->seedDocOutputIdentity();
+
 	// Properly do away with the oldInstrument
 	deleteOrAddToHibernationListOutput(oldOutput);
 
@@ -4970,7 +4979,7 @@ AudioOutput* Song::createNewAudioOutput(Output* replaceOutput) {
 	}
 
 	auto* newOutput = new (outputMemory) AudioOutput();
-	newOutput->name = newName;
+	newOutput->setName(newName);
 
 	// Set input channel to previously used one. If none selected, see what's in Song
 	if (defaultAudioOutputInputChannel == AudioInputChannel::UNSET) {
@@ -5075,6 +5084,11 @@ void Song::replaceOutputLowLevel(Output* newOutput, Output* oldOutput) {
 
 	newOutput->armedForRecording = oldOutput->armedForRecording;
 	oldOutput->armedForRecording = false;
+
+	// DO1: reseed both records from their now-final native values (see the matching comment in
+	// swapInstrument/replaceOutput's sibling clone block above) — oldOutput may only be hibernated, not destroyed.
+	newOutput->seedDocOutputIdentity();
+	oldOutput->seedDocOutputIdentity();
 
 	// Properly do away with the oldInstrument
 	deleteOrAddToHibernationListOutput(oldOutput);
@@ -5458,7 +5472,7 @@ Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int32_t clipIndex)
 		return nullptr;
 	}
 
-	newOutput->colour = oldClip->output->colour;
+	newOutput->setColour(oldClip->output->colour);
 
 	// Create the audio clip and ParamManager
 	AudioClip* newClip = new (clipMemory) AudioClip(*this);

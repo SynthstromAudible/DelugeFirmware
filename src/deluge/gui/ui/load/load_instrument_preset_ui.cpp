@@ -933,7 +933,7 @@ giveUsedError:
 		loadedFromFile = true;
 
 		if (doClone) {
-			newInstrument->name = clonedName;
+			newInstrument->setName(clonedName);
 			newInstrument->editedByUser = true;
 		}
 	}

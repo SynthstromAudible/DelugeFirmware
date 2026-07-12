@@ -1031,7 +1031,7 @@ ActionResult ArrangerView::handleStatusPadAction(int32_t y, int32_t velocity, UI
 
 		switch (currentUIMode) {
 		case UI_MODE_VIEWING_RECORD_ARMING:
-			output->armedForRecording = !output->armedForRecording;
+			output->setArmedForRecording(!output->armedForRecording);
 			PadLEDs::reassessGreyout(true);
 			return ActionResult::DEALT_WITH; // No need to draw anything
 
@@ -1068,13 +1068,13 @@ ActionResult ArrangerView::handleStatusPadAction(int32_t y, int32_t velocity, UI
 					rowsToRedraw = 0xFFFFFFFF; // Redraw other mute pads
 				}
 
-				output->soloingInArrangementMode = true;
+				output->setSoloingInArrangement(true);
 			}
 
 			// Unsoloing
 			else {
 doUnsolo:
-				output->soloingInArrangementMode = false;
+				output->setSoloingInArrangement(false);
 				currentSong->reassessWhetherAnyOutputsSoloingInArrangement();
 
 				// If no more soloing, redraw other mute pads
@@ -1114,7 +1114,7 @@ doUnsolo:
 			// If the user was just quick and is actually holding the record button but the submode just hasn't changed
 			// yet...
 			if (velocity && Buttons::isButtonPressed(deluge::hid::button::RECORD)) {
-				output->armedForRecording = !output->armedForRecording;
+				output->setArmedForRecording(!output->armedForRecording);
 				timerCallback();                 // Get into UI_MODE_VIEWING_RECORD_ARMING
 				return ActionResult::DEALT_WITH; // No need to draw anything
 			}
@@ -1129,7 +1129,7 @@ regularMutePadPress:
 
 			// Unmuting
 			if (output->mutedInArrangementMode) {
-				output->mutedInArrangementMode = false;
+				output->setMutedInArrangement(false);
 				if (arrangement.hasPlaybackActive() && !currentSong->getAnyOutputsSoloingInArrangement()) {
 					outputActivated(output);
 				}
@@ -1140,7 +1140,7 @@ regularMutePadPress:
 				if (!currentSong->getAnyOutputsSoloingInArrangement()) {
 					outputDeactivated(output);
 				}
-				output->mutedInArrangementMode = true;
+				output->setMutedInArrangement(true);
 			}
 			break;
 		default:

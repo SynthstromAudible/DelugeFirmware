@@ -62,8 +62,23 @@ Output::~Output() {
 
 // M3 owner-5 (output identity): copy the Output-base identity fields engine->record. Called at load (via
 // Song::adoptOutput during assignMissingIds) and at save (Output::writeToFile) to keep the shadow record in step with
-// the authoritative engine Output. Self-guards when unbound; nothing reads DocOutput yet (additive shadow this slice).
+// the authoritative engine Output. Self-guards when unbound. Subclass overrides call this first, then add their own
+// tier's fields.
+//
+// DO1: the base 6 identity scalars (name/colour/modKnobMode/mutedInArrangementMode/soloingInArrangementMode/
+// armedForRecording) are now DOM-owned — every forward write funnels through Output::set*() (or, for the
+// polymorphic/clone sites, seedDocOutputIdentity()) instead of landing here. Nothing left for this method to do for
+// them; it stays (empty of the base 6) because subclasses still call it for their own tiers.
 void Output::syncDocOutput() {
+	if (docOutput_ == nullptr) {
+		return;
+	}
+}
+
+// DO1: reseed the record's 6 base identity fields from the current native values. Load-bridge (called from
+// Song::adoptOutput at bind time) plus reseed helper for sites that can't call a single setter (the polymorphic
+// modKnobMode write in View::modButtonAction; the clone/replace families in song.cpp).
+void Output::seedDocOutputIdentity() {
 	if (docOutput_ == nullptr) {
 		return;
 	}
@@ -73,6 +88,43 @@ void Output::syncDocOutput() {
 	docOutput_->muted_in_arrangement = mutedInArrangementMode;
 	docOutput_->soloing_in_arrangement = soloingInArrangementMode;
 	docOutput_->armed_for_recording = armedForRecording;
+}
+
+void Output::setName(std::string_view newName) {
+	name = newName;
+	if (docOutput_ != nullptr) {
+		docOutput_->name = name;
+	}
+}
+void Output::setColour(int16_t newColour) {
+	colour = newColour;
+	if (docOutput_ != nullptr) {
+		docOutput_->colour = newColour;
+	}
+}
+void Output::setModKnobMode(uint8_t newMode) {
+	modKnobMode = newMode;
+	if (docOutput_ != nullptr) {
+		docOutput_->mod_knob_mode = newMode;
+	}
+}
+void Output::setMutedInArrangement(bool v) {
+	mutedInArrangementMode = v;
+	if (docOutput_ != nullptr) {
+		docOutput_->muted_in_arrangement = v;
+	}
+}
+void Output::setSoloingInArrangement(bool v) {
+	soloingInArrangementMode = v;
+	if (docOutput_ != nullptr) {
+		docOutput_->soloing_in_arrangement = v;
+	}
+}
+void Output::setArmedForRecording(bool v) {
+	armedForRecording = v;
+	if (docOutput_ != nullptr) {
+		docOutput_->armed_for_recording = v;
+	}
 }
 
 Clip* Output::getClipFromName(std::string_view name) {
@@ -281,14 +333,17 @@ void Output::writeToFile(Clip* clipForSavingOutputOnly, Song* song) {
 bool Output::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) {
 
 	if (!clipForSavingOutputOnly) {
-		if (mutedInArrangementMode) {
+		// DO1: read the DOM identity record when bound (rebuild-at-save); fall back to the native field when
+		// unbound (standalone preset save before adoption, if that's even reachable here).
+		if (docOutput_ != nullptr ? docOutput_->muted_in_arrangement : mutedInArrangementMode) {
 			writer.writeAttribute("isMutedInArrangement", 1);
 		}
-		if (soloingInArrangementMode) {
+		if (docOutput_ != nullptr ? docOutput_->soloing_in_arrangement : soloingInArrangementMode) {
 			writer.writeAttribute("isSoloingInArrangement", 1);
 		}
-		writer.writeAttribute("isArmedForRecording", armedForRecording);
-		writer.writeAttribute("activeModFunction", modKnobMode);
+		writer.writeAttribute("isArmedForRecording",
+		                      docOutput_ != nullptr ? docOutput_->armed_for_recording : armedForRecording);
+		writer.writeAttribute("activeModFunction", docOutput_ != nullptr ? docOutput_->mod_knob_mode : modKnobMode);
 
 		if (!clipInstances.empty()) {
 			writer.insertCommaIfNeeded();
@@ -325,7 +380,7 @@ bool Output::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, 
 			writer.write("\"");
 		}
 
-		writer.writeAttribute("colour", colour);
+		writer.writeAttribute("colour", docOutput_ != nullptr ? docOutput_->colour : colour);
 	}
 
 	return false;

@@ -307,7 +307,7 @@ gotError:
 
 	setLedStates();
 
-	newInstrument->name = newName;
+	newInstrument->setName(newName);
 
 	if (is_dx) {
 		soundEditor.setup(getCurrentInstrumentClip(), &dxMenu, 0);

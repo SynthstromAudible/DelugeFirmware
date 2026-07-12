@@ -343,13 +343,13 @@ int32_t StemExport::disarmAllInstrumentsForStemExport(StemExportType stemExportT
 				// except for the MIDI transpose track, which must remain enabled for proper transposition
 				if (stemExportType != StemExportType::MIXDOWN) {
 					output->mutedInArrangementModeBeforeStemExport = output->mutedInArrangementMode;
-					output->mutedInArrangementMode =
-					    (output->type != OutputType::MIDI_OUT
-					     || ((NonAudioInstrument*)output)->getChannel() != MIDI_CHANNEL_TRANSPOSE);
+					output->setMutedInArrangement(output->type != OutputType::MIDI_OUT
+					                              || ((NonAudioInstrument*)output)->getChannel()
+					                                     != MIDI_CHANNEL_TRANSPOSE);
 				}
 				output->recordingInArrangement = false;
-				output->armedForRecording = false;
-				output->soloingInArrangementMode = false;
+				output->setArmedForRecording(false);
+				output->setSoloingInArrangement(false);
 			}
 		}
 	}
@@ -368,7 +368,7 @@ void StemExport::restoreAllInstrumentMutes(int32_t totalNumOutputs) {
 		for (int32_t idxOutput = 0; idxOutput < totalNumOutputs; ++idxOutput) {
 			Output* output = currentSong->getOutputFromIndex(idxOutput);
 			if (output != nullptr) {
-				output->mutedInArrangementMode = output->mutedInArrangementModeBeforeStemExport;
+				output->setMutedInArrangement(output->mutedInArrangementModeBeforeStemExport);
 			}
 		}
 	}

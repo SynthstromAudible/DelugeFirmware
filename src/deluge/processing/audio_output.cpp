@@ -18,6 +18,7 @@
 #include "processing/audio_output.h"
 #include "definitions.h"
 #include "definitions_cxx.hpp"
+#include "deluge-project/doc_output.h" // complete DocOutput type for the DO1 identity-record save flip
 #include "dsp/stereo_sample.h"
 #include "gui/views/view.h"
 #include "memory/general_memory_allocator.h"
@@ -289,7 +290,9 @@ void AudioOutput::getThingWithMostReverb(Sound** soundWithMostReverb,
 // be NULL
 bool AudioOutput::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOnly, Song* song) {
 
-	writer.writeAttribute("name", name.c_str());
+	// DO1: read the DOM identity record's name when bound (rebuild-at-save); fall back to the native field when
+	// unbound.
+	writer.writeAttribute("name", docOutput_ != nullptr ? docOutput_->name.c_str() : name.c_str());
 
 	writer.writeAttribute("mode", aoModeToString(mode));
 

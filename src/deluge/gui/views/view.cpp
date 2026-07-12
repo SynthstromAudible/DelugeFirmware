@@ -1532,7 +1532,19 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 
 				// change the button selection before calling mod button action so that mod button action
 				// knows the mod button parameter context
-				*activeModControllableModelStack.modControllable->getModKnobMode() = whichButton;
+				uint8_t* modKnobModeSlot = activeModControllableModelStack.modControllable->getModKnobMode();
+				*modKnobModeSlot = whichButton;
+				// DO1 (DocOutput identity): getModKnobMode() is polymorphic — for SoundInstrument/MIDIInstrument/
+				// AudioOutput/Kit it returns &(that Output's own) modKnobMode; for SoundDrum it returns
+				// &kit->modKnobMode (the enclosing Kit's own field, still an Output field); for
+				// GlobalEffectableForSong it returns a private field that is NOT this record (the song-global gold
+				// knob). Reseed the DOM identity record only when the slot just written is genuinely the current
+				// output's own field — a pointer-identity check that's correct across every override without a
+				// downcast.
+				Output* currentOutputForModKnob = getCurrentOutput();
+				if (currentOutputForModKnob != nullptr && modKnobModeSlot == &currentOutputForModKnob->modKnobMode) {
+					currentOutputForModKnob->seedDocOutputIdentity();
+				}
 
 				activeModControllableModelStack.modControllable->modButtonAction(
 				    whichButton, true, (ParamManagerForTimeline*)activeModControllableModelStack.paramManager);

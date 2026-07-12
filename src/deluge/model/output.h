@@ -122,6 +122,21 @@ public:
 	void bindDocOutput(deluge::project::DocOutput* d) { docOutput_ = d; }
 	virtual void syncDocOutput();
 
+	// M3 owner-5 (DocOutput identity, DO1): the base 6 Output identity scalars (name/colour/modKnobMode/
+	// mutedInArrangementMode/soloingInArrangementMode/armedForRecording) are now DOM-authoritative at save. Every
+	// forward write funnels through these setters (write native cache + record; guarded, no FREEZE — Output may be
+	// momentarily unbound, a pre-bind write lands in the cache and the bind-time seed picks it up).
+	void setName(std::string_view newName);
+	void setColour(int16_t newColour);
+	void setModKnobMode(uint8_t newMode);
+	void setMutedInArrangement(bool v);
+	void setSoloingInArrangement(bool v);
+	void setArmedForRecording(bool v);
+	// Reseed the record's 6 base identity fields from the current native values (load-bridge + reseed helper for
+	// sites that can't call a single setter directly: the polymorphic modKnobMode write in View::modButtonAction,
+	// and the clone/replace families in song.cpp that bulk-copy fields between Outputs).
+	void seedDocOutputIdentity();
+
 	// Temp stuff for doLaunch()
 	bool alreadyGotItsNewClip{};
 	bool isGettingSoloingClip{};
