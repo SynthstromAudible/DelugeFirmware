@@ -348,6 +348,72 @@ void testParamSnapshotEquivalence(deluge::edits::Context& ctx, ::Song* engineSon
 	check(store->current_value == 0x20000000, "applyPatch region: model current_value == pinned");
 }
 
+// M4a Task 3 — SetParamValue::emitEvent drives ParamSnapshot::applyPatch behind the A/B toggle. Isolates the
+// event path (calls emitEvent directly, on a store seeded to a baseline the in-line poke did NOT write) so the
+// patch's own effect is what's asserted: toggle OFF leaves the store untouched; toggle ON reproduces Task 1's
+// pinned {current_value, nodes} for a scalar AND a region edit.
+void testEmitEventDrivesPatch(deluge::edits::Context& ctx, ::Song* engineSong, TimelineCounter* clipTC) {
+	// Leak-reset (crash-safe: no consequence freeing -> no headless audio pump).
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+
+	constexpr int32_t kParam = 5;
+	ParamManagerForTimeline pm;
+	pm.setupUnpatched();
+	pm.getUnpatchedParamSet()->kind = deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
+	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* ms = makeStack(buf, pm, kParam);
+	ms->song = engineSong;
+	ms->setTimelineCounter(clipTC);
+	ms->paramManager = &pm;
+
+	std::optional<deluge::project::ParamAddress> addrOpt = deluge::edits::addressFor(*ms);
+	check(addrOpt.has_value(), "emitEvent: edit has a resolvable ParamAddress");
+	deluge::project::ParamAddress addr = *addrOpt;
+	deluge::project::DocAutoParam* store = ms->doc();
+	check(store != nullptr && ctx.model.resolveParam(addr) == store, "emitEvent: address resolves to the model store");
+
+	auto seedBaseline = [&] {
+		store->nodes.erase(store->nodes.begin(), store->nodes.end());
+		store->current_value = 0x11111111; // a value neither edit writes, so any change is the patch's doing
+	};
+
+	// A) toggle OFF (the default / firmware build): emitEvent must NOT patch the model store — the in-line poke in
+	//    apply() is the sole path, which is what keeps goldens bit-identical.
+	seedBaseline();
+	deluge::edits::m4EventPatchToggle() = false;
+	{
+		deluge::edits::SetParamValue edit{addr, 0x40000000, 0, 0, ms};
+		edit.emitEvent(ctx);
+	}
+	check(store->current_value == 0x11111111 && store->nodes.empty(), "emitEvent OFF: store untouched");
+
+	// B) toggle ON, SCALAR: emitEvent -> applyPatch(scalar) reaches the pinned current_value.
+	seedBaseline();
+	deluge::edits::m4EventPatchToggle() = true;
+	{
+		deluge::edits::SetParamValue edit{addr, 0x40000000, 0, 0, ms};
+		edit.emitEvent(ctx);
+	}
+	check(store->current_value == 0x40000000 && store->nodes.empty(), "emitEvent ON scalar: current_value == pinned");
+
+	// C) toggle ON, REGION: emitEvent gathers the region context from the engine stack (effLen 128 from the clip's
+	//    loop length; clock inactive; not on the automation view) and drives applyPatch(region) -> the pinned node
+	//    vector. node1 restores the pre-region value (the 0x11111111 baseline current_value).
+	seedBaseline();
+	{
+		deluge::edits::SetParamValue edit{addr, 0x20000000, 0, 96, ms};
+		edit.emitEvent(ctx);
+	}
+	check(store->nodes.size() == 2, "emitEvent ON region: node count == pinned");
+	check(store->nodes[0].pos == 0 && store->nodes[0].value == 0x20000000, "emitEvent ON region: node0 == pinned");
+	check(store->nodes[1].pos == 96 && store->nodes[1].value == 0x11111111, "emitEvent ON region: node1 == pinned");
+	check(store->current_value == 0x20000000, "emitEvent ON region: current_value == pinned");
+
+	deluge::edits::m4EventPatchToggle() =
+	    false; // restore the default so the rest of the harness / default build is unpatched
+}
+
 } // namespace
 
 // Song construction; the Context members are stored, and the pilot dereferences currentSong via the
@@ -383,6 +449,7 @@ int main() {
 	testPasteParamAutomation(ctx);
 	testInlinePokeCharacterization(ctx, audioClip);
 	testParamSnapshotEquivalence(ctx, song, audioClip);
+	testEmitEventDrivesPatch(ctx, song, audioClip);
 
 	if (failures == 0) {
 		std::fprintf(stdout, "edit_test: OK\n");

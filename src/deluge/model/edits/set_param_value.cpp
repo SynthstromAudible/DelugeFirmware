@@ -2,14 +2,54 @@
 
 #include "deluge-project/param_automation.h" // DocAutoParam::nodes
 #include "deluge-project/song.h"             // Song::resolveParam
+#include "gui/ui/ui.h"                       // getRootUI
+#include "gui/views/automation_view.h"       // automationView interpolation flags
 #include "io/debug/log.h"
 #include "model/action/action_logger.h"
+#include "model/clip/clip.h" // Clip::getCurrentlyRecordingLinearly (region context)
 #include "model/model_stack.h"
+#include "model/snapshot/param_snapshot.h" // ParamSnapshot::applyPatch (M4a event-patch)
+#include "model/song/song.h"               // engine Song (tc != song comparison)
 #include "model/timeline_counter.h"
 #include "modulation/automation/auto_param.h"
 #include "playback/playback_handler.h"
 
 namespace deluge::edits {
+
+bool& m4EventPatchToggle() {
+	static bool enabled = false;
+	return enabled;
+}
+
+namespace {
+// Gather the timeline/playback context the region patch needs, reading it from the (still-borrowed, M4a) engine
+// stack at EXACTLY the sites AutoParam::setValueForRegion / homogenizeRegion read it — so applyPatch's region path
+// reproduces the in-line poke. The north-star read-side flip will source these from the model/snapshot instead.
+// livePos/reversed are consulted by the kernel only when the clock is active (auto_param.cpp routes to
+// yesChangeCurrentValue otherwise), so they are gathered lazily — matching the engine and staying safe on a
+// stopped-transport stack.
+deluge::snapshot::RegionContext gatherRegionContext(ModelStackWithAutoParam* engineStack) {
+	deluge::snapshot::RegionContext r{};
+	r.effectiveLength = engineStack->getLoopLength();
+	// Interpolation flags mirror AutoParam::setValueForRegion: the automation view supplies them, else both false.
+	if (getRootUI() == &automationView) {
+		r.interpolateLeftNode = automationView.interpolationBefore;
+		r.interpolateRightNode = automationView.interpolationAfter;
+	}
+	// recordingLinearly mirrors AutoParam::homogenizeRegion's guarded Clip cast (the Song-as-timeline case is not a
+	// Clip, so it stays false there).
+	TimelineCounter* tc = engineStack->getTimelineCounterAllowNull();
+	if (tc != nullptr && tc != static_cast<TimelineCounter*>(engineStack->song)) {
+		r.recordingLinearly = static_cast<Clip*>(tc)->getCurrentlyRecordingLinearly();
+	}
+	r.clockActive = playbackHandler.isEitherClockActive();
+	if (r.clockActive) {
+		r.livePos = engineStack->getLivePos();
+		r.currentlyPlayingReversed = engineStack->isCurrentlyPlayingReversed();
+	}
+	return r;
+}
+} // namespace
 
 Error SetParamValue::apply(Context& /*ctx*/) {
 	// The Edit owns its undo record (migration plan M1: do-site == undo-record-site): snapshot the before-state into
@@ -45,15 +85,34 @@ Error SetParamValue::apply(Context& /*ctx*/) {
 }
 
 void SetParamValue::emitEvent(Context& ctx) {
+	if (!address_.has_value()) {
+		// Engine-only lane (never-saved owner, engine-resolved only) — nothing to patch in the model.
+		return;
+	}
 #if ALPHA_OR_BETA_VERSION
-	// M4 event-feed pilot (additive/observational — the first real consumer of the emission hook). The
-	// model-changed event keys on the durable ParamAddress; verify it resolves to a live DOM param, proving the
-	// feed's addressing end-to-end. The engine is still poked in-line by apply(); this only observes. A nullopt
-	// address is a legitimately engine-only lane (never-saved owner, engine-resolved only) and is skipped.
-	if (address_.has_value() && ctx.model.resolveParam(*address_) == nullptr) {
+	// M4 event-feed pilot observation (regardless of the A/B toggle): verify the durable ParamAddress still
+	// resolves to a live DOM param, proving the feed's addressing end-to-end.
+	if (ctx.model.resolveParam(*address_) == nullptr) {
 		D_PRINTLN("M4 event feed: SetParamValue address did not resolve to a DOM param");
 	}
 #endif
+	// M4a: the emission hook's first real consumer. OFF by default (A/B) — apply()'s in-line poke is still the
+	// shipped path, so goldens are bit-identical and RT is unchanged; when the toggle is enabled (the host
+	// equivalence spec), the model-first patch runs so its result can be compared lane-for-lane against the in-line
+	// poke. Full projection (projectFromStoreAfterRead) stays the fallback for load / coarse invalidation, never
+	// this per-edit path.
+	if (!m4EventPatchToggle()) {
+		return;
+	}
+	// Mirror apply()'s scalar-vs-region dispatch (setValuePossiblyForRegion): a nonzero-length edit with a live
+	// timeline counter is the region path; everything else is the scalar current_value write.
+	if (length_ != 0 && engineStack_->timelineCounterIsSet()) {
+		deluge::snapshot::ParamSnapshot::applyPatch(ctx.model, *address_, newValue_, pos_, length_,
+		                                            gatherRegionContext(engineStack_));
+	}
+	else {
+		deluge::snapshot::ParamSnapshot::applyPatch(ctx.model, *address_, newValue_, pos_, length_, std::nullopt);
+	}
 }
 
 } // namespace deluge::edits
