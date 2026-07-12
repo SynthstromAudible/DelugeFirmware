@@ -95,10 +95,6 @@ public:
 	// auto-assign). The native ModKnob array stays the working structure; the record mirrors it and is what save reads.
 	// Public so the external sample-load auto-assign can re-seed.
 	void seedModKnobsRecord();
-	// Rebuild-at-save: copy the not-yet-inverted cold scalars engine->record. Self-guards when unbound. Called at
-	// writeToFile start. No longer touches voice_priority (that field is DOM-owned — seeded at bind, written by the
-	// setter, read at save).
-	void syncDocSound();
 
 	Patcher patcher;
 

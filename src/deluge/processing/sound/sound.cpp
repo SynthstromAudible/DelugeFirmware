@@ -4030,56 +4030,8 @@ void Sound::setLfoSync(int32_t lfoId, SyncType syncType, SyncLevel syncLevel) {
 	}
 }
 
-// M3 owner-5 slice B: rebuild-at-save the not-yet-inverted cold scalars into the DOM record (nested
-// std::optional<DocSound> in the owner's DocOutput/DocDrum). Write-only shadow for those fields — nothing reads them
-// back yet. voice_priority is NOT here — it is DOM-owned (seeded at bind, written by setVoicePriority, read at save).
-// Self-guards when unbound.
-void Sound::syncDocSound() {
-	if (docSound_ == nullptr) {
-		return;
-	}
-	deluge::project::DocSound& d = *docSound_;
-	// DOM-owned (seeded at bind + re-seeded at doneReadingFromFile, written by their setters, read at save), no longer
-	// shadowed here: voice_priority, max_voice_count, side_chain_send_level, output_midi_*, oscillator_sync, and the
-	// Slice C top-level scalars (polyphonic, synth_mode, transpose, num_unison, unison_detune, unison_stereo_spread,
-	// modulator1_to_modulator0, modulator_transpose/cents, osc/modulator_retrigger_phase, the LFO config
-	// (lfo_wave_type/sync_type/sync_level), and mod_knob_param_descriptor (DOM-owned via seedModKnobsRecord).
-	// mod_controllable is DOM-owned too now (docModControllable_, seeded at bind + doneReadingFromFile).
-	for (int32_t s = 0; s < kNumSources; s++) {
-		Source& src = sources[s];
-		deluge::project::DocSource& ds = d.sources[s];
-		// All 8 DocSource scalars (osc_type / transpose / cents / repeat_mode / time_stretch_amount /
-		// interpolation_mode / pitch_and_speed_independent / reversed) plus dx_patch are DOM-owned — seeded at bind +
-		// doneReadingFromFile (dx_patch via seedDocDxPatch), written by the Source setters / DX7 menus, read at save.
-		// Only ranges remain shadowed here (M4-gated — the sampleHolder raw-pointer entanglement, same as owner-4).
-		// Ranges: mirror writeSourceToFile's iteration (getElement + the MultisampleRange cast — both range kinds
-		// carry an AudioFileHolder at that offset). Zone fields are meaningful for SAMPLE sources only.
-		ds.ranges.clear();
-		int32_t numRanges = std::ssize(src.ranges);
-		ds.ranges.reserve(numRanges);
-		for (int32_t e = 0; e < numRanges; e++) {
-			MultisampleRange* range = (MultisampleRange*)src.ranges.getElement(e);
-			deluge::project::DocRange dr;
-			dr.top_note = range->topNote;
-			dr.file_path =
-			    range->sampleHolder.audioFile ? range->sampleHolder.audioFile->filePath : range->sampleHolder.filePath;
-			if (src.oscType == OscType::SAMPLE) {
-				dr.start_pos = range->sampleHolder.startPos;
-				dr.end_pos = range->sampleHolder.endPos;
-				dr.loop_start_pos = range->sampleHolder.loopStartPos;
-				dr.loop_end_pos = range->sampleHolder.loopEndPos;
-				dr.transpose = range->sampleHolder.transpose;
-				dr.cents = range->sampleHolder.cents;
-			}
-			ds.ranges.push_back(std::move(dr));
-		}
-	}
-}
-
 void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager,
                         ArpeggiatorSettings* arpSettings, const char* pathAttribute) {
-	syncDocSound();
-
 	// M3 owner-5 save-flip: the DOM-owned scalars read the authoritative record (falling back to the engine cache only
 	// for an unbound Sound — e.g. the audio preview — which has no record and isn't part of a saved song anyway). The
 	// FM gate below reads savedSynthMode too, so the whole modulator block projects from the model.

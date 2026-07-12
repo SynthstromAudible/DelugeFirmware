@@ -1244,7 +1244,6 @@ void Song::adoptDrum(Drum* drum) {
 		d.sound.emplace();
 		Sound* sound = static_cast<Sound*>(static_cast<SoundDrum*>(drum));
 		sound->bindDocSound(&*d.sound);
-		sound->syncDocSound();
 	}
 }
 
@@ -1277,7 +1276,6 @@ void Song::adoptOutput(Output* output) {
 		d.sound.emplace();
 		Sound* sound = static_cast<Sound*>(static_cast<SoundInstrument*>(output));
 		sound->bindDocSound(&*d.sound);
-		sound->syncDocSound();
 	}
 }
 
