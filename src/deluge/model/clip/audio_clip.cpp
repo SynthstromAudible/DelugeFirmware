@@ -121,7 +121,7 @@ Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFla
 
 	memcpy(&newClip->sampleControls, &sampleControls, sizeof(sampleControls));
 	// The memcpy copied the sampleControls render cache (incl. the runtime invertReversed); the DOM-owned descriptor
-	// fields still need copying into the clone's record (syncDocAudioClip no longer rebuilds them from the engine).
+	// fields still need copying into the clone's record via their setters (save reads the record directly).
 	newClip->setInterpolationMode(sampleControls.interpolationMode);
 	newClip->setPitchAndSpeedIndependent(sampleControls.pitchAndSpeedAreIndependent);
 	newClip->setReversed(sampleControls.reversed);
@@ -134,7 +134,7 @@ Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFla
 
 void AudioClip::copyBasicsFrom(Clip const* otherClip) {
 	Clip::copyBasicsFrom(otherClip);
-	overdubsShouldCloneOutput = ((AudioClip*)otherClip)->overdubsShouldCloneOutput;
+	setOverdubsShouldCloneOutput(((AudioClip*)otherClip)->overdubsShouldCloneOutput);
 }
 
 void AudioClip::abortRecording() {
@@ -1149,6 +1149,20 @@ void AudioClip::setSampleFilePath(const char* value) {
 	docAudioClip_->file_path = value;
 	sampleHolder.filePath = value;
 }
+void AudioClip::setSampleTranspose(int32_t value) {
+	if (docAudioClip_ == nullptr) {
+		FREEZE_WITH_ERROR("AC4H");
+	}
+	docAudioClip_->transpose = value;
+	sampleHolder.transpose = value;
+}
+void AudioClip::setSampleCents(int32_t value) {
+	if (docAudioClip_ == nullptr) {
+		FREEZE_WITH_ERROR("AC4H");
+	}
+	docAudioClip_->cents = value;
+	sampleHolder.cents = value;
+}
 void AudioClip::setOverdubsShouldCloneOutput(bool value) {
 	if (docAudioClip_ == nullptr) {
 		FREEZE_WITH_ERROR("AC4H");
@@ -1157,28 +1171,11 @@ void AudioClip::setOverdubsShouldCloneOutput(bool value) {
 	overdubsShouldCloneOutput = value;
 }
 
-void AudioClip::syncDocAudioClip() {
-	if (docAudioClip_ == nullptr) {
-		return;
-	}
-	deluge::project::DocAudioClip& d = *docAudioClip_;
-	// Reference the sample by portable path, matching writeDataToFile's audioFile ? audioFile->filePath : filePath.
-	d.file_path = sampleHolder.audioFile ? sampleHolder.audioFile->filePath : sampleHolder.filePath;
-	d.start_pos = sampleHolder.startPos;
-	d.end_pos = sampleHolder.endPos;
-	d.transpose = sampleHolder.transpose;
-	d.cents = sampleHolder.cents;
-	// interpolation_mode / pitch_and_speed_independent / reversed are DOM-owned (the SampleControls setters keep the
-	// record authoritative + re-seed the sampleControls cache), and attack + voice_priority are retired natives — none
-	// are rebuilt from the engine here.
-	d.overdubs_should_clone = overdubsShouldCloneOutput;
-}
-
-// M3 owner-4 (inverse of syncDocAudioClip): seed the engine's runtime caches from the authoritative DocAudioClip.
+// M3 owner-4: seed the engine's runtime caches from the authoritative DocAudioClip.
 // Called at construction (from the model defaults) and after the DOM-first load parse. Seeds the sampleHolder +
 // SampleControls render caches; the DOM-owned cold scalars (attack, voice_priority) have no cache and read the record
-// directly via their accessors. sampleHolder + overdubs_should_clone are still engine-authoritative (see
-// syncDocAudioClip) so their seeding here is the load-side half of that residual sync.
+// directly via their accessors. As of owner-4 completion all AudioClip persistent fields are DOM-authoritative and
+// save reads the record directly (syncDocAudioClip retired); this is the load-side seed of the engine caches.
 void AudioClip::deriveEngineFromDoc() {
 	if (docAudioClip_ == nullptr) {
 		return;
@@ -1199,17 +1196,13 @@ void AudioClip::deriveEngineFromDoc() {
 
 void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 
-	// M3 owner-4: residual rebuild-at-save for the not-yet-inverted fields only (sampleHolder group +
-	// overdubs_should_clone). The DOM-owned fields (attack, voice_priority, SampleControls group) are read straight
-	// from docAudioClip_ below; this sync no longer touches them.
-	syncDocAudioClip();
-
+	// M3 owner-4 complete: every persistent AudioClip field is DOM-authoritative and read straight from docAudioClip_
+	// below — no rebuild-at-save sync remains.
 	writer.writeAttribute("trackName", output->name.c_str());
 
-	writer.writeAttribute("filePath", sampleHolder.audioFile ? sampleHolder.audioFile->filePath.c_str()
-	                                                         : sampleHolder.filePath.c_str());
-	writer.writeAttribute("startSamplePos", sampleHolder.startPos);
-	writer.writeAttribute("endSamplePos", sampleHolder.endPos);
+	writer.writeAttribute("filePath", docAudioClip_->file_path.c_str());
+	writer.writeAttribute("startSamplePos", docAudioClip_->start_pos);
+	writer.writeAttribute("endSamplePos", docAudioClip_->end_pos);
 	// M3 owner-4 save-flip: the SampleControls descriptor fields read from the authoritative record, not the engine
 	// cache. `reversed` here is the stored value (docAudioClip_->reversed); for an AudioClip invertReversed is only
 	// ever false (Voice/Sound/arp toggle it for sound sources, never clips), so this equals the old
@@ -1224,14 +1217,14 @@ void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 	writer.writeAttribute("attack", attack());
 	writer.writeAttribute("priority", util::to_underlying(voicePriority()));
 
-	if (sampleHolder.transpose) {
-		writer.writeAttribute("transpose", sampleHolder.transpose);
+	if (docAudioClip_->transpose) {
+		writer.writeAttribute("transpose", docAudioClip_->transpose);
 	}
-	if (sampleHolder.cents) {
-		writer.writeAttribute("cents", sampleHolder.cents);
+	if (docAudioClip_->cents) {
+		writer.writeAttribute("cents", docAudioClip_->cents);
 	}
 
-	writer.writeAttribute("overdubsShouldCloneAudioTrack", overdubsShouldCloneOutput);
+	writer.writeAttribute("overdubsShouldCloneAudioTrack", docAudioClip_->overdubs_should_clone);
 
 	if (onAutomationClipView) {
 		writer.writeAttribute("onAutomationInstrumentClipView", 1);

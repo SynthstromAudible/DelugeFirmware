@@ -33,10 +33,11 @@ public:
 		int32_t transpose, cents;
 		computeFinalValuesForTranspose(this->getValue(), &transpose, &cents);
 
-		auto& sampleHolder = getCurrentAudioClip()->sampleHolder;
-		sampleHolder.transpose = transpose;
-		sampleHolder.cents = cents;
-		sampleHolder.recalculateNeutralPhaseIncrement();
+		// M3 owner-4: transpose/cents are DOM-owned — funnel through the setters (record + cache).
+		AudioClip* clip = getCurrentAudioClip();
+		clip->setSampleTranspose(transpose);
+		clip->setSampleCents(cents);
+		clip->sampleHolder.recalculateNeutralPhaseIncrement();
 	}
 
 	[[nodiscard]] int32_t getMinValue() const override { return -9600; }

@@ -205,19 +205,20 @@ int main(int argc, char** argv) {
 		return 3;
 	}
 
-	// --- Scripted "menu-style" edits over the 11 descriptor fields. Poked the way today's audio-clip menus /
-	// gestures do (direct engine writes); the owner-4 flip rewires these through the DocAudioClip, but the values
-	// -- and the committed baseline -- stay fixed. Deliberately distinct, non-default values.
-	clip->sampleHolder.startPos = 1000;
-	clip->sampleHolder.endPos = 500000;
-	clip->sampleHolder.transpose = 7;
-	clip->sampleHolder.cents = -13;
+	// --- Scripted "menu-style" edits over the 11 descriptor fields. The owner-4 flip rewired the audio-clip menus /
+	// gestures through the DocAudioClip setters (record + engine cache), so this harness now drives the same model
+	// API; the scripted VALUES -- and therefore the committed baseline -- stay fixed. Deliberately distinct,
+	// non-default values.
+	clip->setSampleStartPos(1000);
+	clip->setSampleEndPos(500000);
+	clip->setSampleTranspose(7);
+	clip->setSampleCents(-13);
 	clip->setReversed(!clip->sampleControls.reversed);
 	clip->setInterpolationMode(InterpolationMode::LINEAR);
 	clip->setPitchAndSpeedIndependent(true);
 	clip->setAttack(0x30000000);
 	clip->setVoicePriority(VoicePriority::HIGH);
-	clip->overdubsShouldCloneOutput = !clip->overdubsShouldCloneOutput;
+	clip->setOverdubsShouldCloneOutput(!clip->overdubsShouldCloneOutput);
 	dumpClip("after-edit", 0, clip);
 
 	// Persistence: save + reload; the edited descriptor must survive the round-trip, and the reloaded engine

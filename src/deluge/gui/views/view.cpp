@@ -2753,13 +2753,13 @@ ActionResult View::clipStatusPadAction(Clip* clip, bool on, int32_t yDisplayIfIn
 			if (!clip->armedForRecording) {
 				clip->armedForRecording = true;
 				if (clip->type == ClipType::AUDIO) {
-					((AudioClip*)clip)->overdubsShouldCloneOutput = false;
+					((AudioClip*)clip)->setOverdubsShouldCloneOutput(false);
 					currentSong->defaultAudioClipOverdubOutputCloning = 0;
 				}
 			}
 			else {
 				if (clip->type == ClipType::AUDIO && !((AudioClip*)clip)->overdubsShouldCloneOutput) {
-					((AudioClip*)clip)->overdubsShouldCloneOutput = true;
+					((AudioClip*)clip)->setOverdubsShouldCloneOutput(true);
 					currentSong->defaultAudioClipOverdubOutputCloning = 1;
 					break; // No need to reassess greyout
 				}

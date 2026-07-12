@@ -3627,7 +3627,7 @@ void SessionView::setupNewClip(Clip* newClip) {
 				}
 			}
 		}
-		newClip->overdubsShouldCloneOutput = currentSong->defaultAudioClipOverdubOutputCloning;
+		((AudioClip*)newClip)->setOverdubsShouldCloneOutput(currentSong->defaultAudioClipOverdubOutputCloning);
 	}
 }
 

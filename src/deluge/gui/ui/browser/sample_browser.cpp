@@ -802,8 +802,8 @@ removeLoadingAnimationAndGetOut:
 		// load sample without time stretching
 		// audioClipView.adjustLoopLength(clip->sampleHolder.getLoopLengthAtSystemSampleRate(true));
 
-		clip->sampleHolder.transpose = 0;
-		clip->sampleHolder.cents = 0;
+		clip->setSampleTranspose(0); // M3 owner-4: transpose/cents are DOM-owned — funnel through the setters
+		clip->setSampleCents(0);
 		clip->setReversed(false); // M3 owner-4: reversed is DOM-owned — funnel through the setter (record + cache)
 		clip->sampleControls.invertReversed = false;
 	}

@@ -5484,7 +5484,7 @@ Clip* Song::replaceInstrumentClipWithAudioClip(Clip* oldClip, int32_t clipIndex)
 			}
 		}
 	}
-	newClip->overdubsShouldCloneOutput = defaultAudioClipOverdubOutputCloning;
+	newClip->setOverdubsShouldCloneOutput(defaultAudioClipOverdubOutputCloning);
 
 	// Might want to prevent new audio clip from being active if playback is on
 	if (playbackHandler.playbackState && isClipActive(oldClip)) {
