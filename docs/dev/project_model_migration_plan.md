@@ -174,6 +174,25 @@ flip; retire the engine fields.
 holds no persistent copy of that owner's data; save and load for that owner operate on the
 model; goldens + round-trip green; hardware check at the owner boundary for save flips.
 
+**Status (2026-07-12).** Owners 1–3 done. Owner 4 (audio-clip) and owner 5 (sounds) are
+save-authoritative for all their **scalar / config** groups; the two remaining
+pointer/collection groups — AudioClip `sampleHolder` and Source `ranges` — were completed in
+the *write-side completion* slice (spec/plan `docs/superpowers/{specs,plans}/2026-07-12-owner4-5-write-side-completion*`):
+the forward mutations funnel through model setters, the two entangled AudioClip undo
+Consequences (`ConsequenceClipLength` — the last raw `uint64_t*` into engine state —
+and `ConsequenceAudioClipSetSample`) now revert **through the model**, and **`syncDocAudioClip`
++ `syncDocSound` are deleted**. Goldens bit-identical (song 16 / json 38 / edit 40 / param 3 /
+audio_clip 1, x86); firmware links; hardware check outstanding (owner's call).
+
+**Not yet inverted (remaining owner-5 slice):** the per-Output **identity** group (`DocOutput`
+— name, colour, modKnobMode, arrangement mute/solo/arm) is still an additive **write-only
+shadow** (`Output::syncDocOutput`, populated at load+save, read by nothing). DocOutput is
+therefore still engine-authoritative at save; its inversion is a separate, straightforward
+scalar slice (flip Output/Instrument/MIDI/CV load+save, funnel the identity setters, delete
+`syncDocOutput`) — it did **not** block sampleHolder/ranges and was outside this slice's scope.
+So "no `syncDoc*` in any save path" holds for AudioClip + Sound, but `syncDocOutput` remains
+until that slice lands.
+
 ### M4 — Snapshot boundary + event feed
 
 Deliberately after M3's bulk, so snapshots project **from the model** and are built once,
