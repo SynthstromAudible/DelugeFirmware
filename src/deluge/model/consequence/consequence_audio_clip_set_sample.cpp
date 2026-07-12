@@ -38,8 +38,8 @@ Error ConsequenceAudioClipSetSample::revert(TimeType time, ModelStack* modelStac
 	clip->unassignVoiceSample(true);
 
 	clip->sampleHolder.setAudioFile(nullptr);
-	clip->sampleHolder.filePath = filePathToRevertTo;
-	clip->sampleHolder.endPos = endPosToRevertTo;
+	clip->setSampleFilePath(filePathToRevertTo.c_str());
+	clip->setSampleEndPos(endPosToRevertTo);
 
 	if (filePathToRevertTo.empty()) {
 

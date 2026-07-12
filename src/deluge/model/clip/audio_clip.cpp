@@ -1451,7 +1451,7 @@ void AudioClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack,
 				action->recordAudioClipSampleChange(this);
 			}
 
-			sampleHolder.filePath.clear();
+			setSampleFilePath("");
 			sampleHolder.setAudioFile(nullptr);
 			name = "";
 
