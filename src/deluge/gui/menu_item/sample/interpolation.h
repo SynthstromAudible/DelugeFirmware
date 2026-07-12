@@ -47,7 +47,7 @@ public:
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 					// Note: we need to apply the same filtering as stated in the isRelevant() function
 					Source* source = &soundDrum->sources[source_id_];
-					source->sampleControls.interpolationMode = current_value;
+					source->setInterpolationMode(current_value);
 				}
 			}
 		}

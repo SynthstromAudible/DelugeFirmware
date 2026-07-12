@@ -2103,7 +2103,7 @@ skipInstance:
 				for (int32_t s = 0; s < kNumSources; s++) {
 					Source* source = &sound->sources[s];
 					if (source->oscType == OscType::SAMPLE) {
-						source->sampleControls.interpolationMode = InterpolationMode::LINEAR;
+						source->setInterpolationMode(InterpolationMode::LINEAR);
 					}
 				}
 			}

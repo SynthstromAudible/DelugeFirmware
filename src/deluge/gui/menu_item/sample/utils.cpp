@@ -28,7 +28,7 @@ void setCurrentInterpolationMode(int32_t whichThing, InterpolationMode mode) {
 		audioClip->setInterpolationMode(mode); // DOM-owned (record + cache)
 		return;
 	}
-	soundEditor.currentSound->sources[whichThing].sampleControls.interpolationMode = mode;
+	soundEditor.currentSound->sources[whichThing].setInterpolationMode(mode); // DOM-owned (record + cache)
 }
 
 void setCurrentPitchAndSpeedIndependent(int32_t whichThing, bool independent) {
@@ -36,5 +36,6 @@ void setCurrentPitchAndSpeedIndependent(int32_t whichThing, bool independent) {
 		audioClip->setPitchAndSpeedIndependent(independent); // DOM-owned (record + cache)
 		return;
 	}
-	soundEditor.currentSound->sources[whichThing].sampleControls.pitchAndSpeedAreIndependent = independent;
+	soundEditor.currentSound->sources[whichThing].setPitchAndSpeedIndependent(
+	    independent); // DOM-owned (record + cache)
 }

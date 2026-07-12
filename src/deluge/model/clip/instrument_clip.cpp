@@ -4156,7 +4156,7 @@ haveNoDrum:
 									               *patchedParams->docForParam(params::LOCAL_OSC_A_PITCH_ADJUST + s),
 									               0)) {
 
-										source->sampleControls.interpolationMode = InterpolationMode::LINEAR;
+										source->setInterpolationMode(InterpolationMode::LINEAR);
 									}
 								}
 							}
@@ -4223,7 +4223,7 @@ haveNoDrum:
 			for (int32_t s = 0; s < kNumSources; s++) {
 				Source* source = &sound->sources[s];
 				if (source->oscType == OscType::SAMPLE) {
-					source->sampleControls.interpolationMode = InterpolationMode::LINEAR;
+					source->setInterpolationMode(InterpolationMode::LINEAR);
 				}
 			}
 		}

@@ -51,7 +51,7 @@ public:
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 					Source* source = &soundDrum->sources[source_id_];
-					source->sampleControls.pitchAndSpeedAreIndependent = this->getValue();
+					source->setPitchAndSpeedIndependent(this->getValue());
 				}
 			}
 		}
