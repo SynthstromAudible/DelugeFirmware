@@ -206,7 +206,7 @@ fail:
 	}
 
 	// Give the Instrument in memory its new slot
-	instrumentToSave->name = enteredText;
+	instrumentToSave->setName(enteredText);
 	instrumentToSave->dirPath = currentDir;
 	instrumentToSave->mightExistOnCard = true;
 
