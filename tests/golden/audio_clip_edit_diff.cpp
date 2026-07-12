@@ -83,7 +83,7 @@ static void dumpClip(const char* label, int32_t idx, const AudioClip* c) {
 	       (unsigned long long)c->sampleHolder.endPos, (int)c->sampleHolder.transpose, (int)c->sampleHolder.cents,
 	       (int)util::to_underlying(c->sampleControls.interpolationMode),
 	       (int)c->sampleControls.pitchAndSpeedAreIndependent, (int)c->sampleControls.isCurrentlyReversed(),
-	       (long)c->attack, (int)util::to_underlying(c->voicePriority()), (int)c->overdubsShouldCloneOutput);
+	       (long)c->attack(), (int)util::to_underlying(c->voicePriority()), (int)c->overdubsShouldCloneOutput);
 }
 
 // Dump every audio clip in the song's session list, in order, under `label`.
@@ -114,10 +114,13 @@ static bool checkDocMatchesEngine(Song* song) {
 			ok = false;
 			continue;
 		}
+		// attack + voice_priority are DOM-owned (retired native fields) — no engine cache to disagree with, so they
+		// are not part of the doc-vs-engine cross-check. The remaining fields are still engine caches derived from the
+		// record, so they must match.
 		if (d->file_path != clipFilePath(c) || d->start_pos != c->sampleHolder.startPos
 		    || d->end_pos != c->sampleHolder.endPos || d->transpose != c->sampleHolder.transpose
-		    || d->cents != c->sampleHolder.cents || d->attack != c->attack
-		    || d->overdubs_should_clone != c->overdubsShouldCloneOutput || d->reversed != c->sampleControls.reversed) {
+		    || d->cents != c->sampleHolder.cents || d->overdubs_should_clone != c->overdubsShouldCloneOutput
+		    || d->reversed != c->sampleControls.reversed) {
 			fprintf(stderr, "DOC-CHECK clip[%d]: DocAudioClip disagrees with engine cache\n", i);
 			ok = false;
 		}
@@ -212,7 +215,7 @@ int main(int argc, char** argv) {
 	clip->sampleControls.reversed = !clip->sampleControls.reversed;
 	clip->sampleControls.interpolationMode = InterpolationMode::LINEAR;
 	clip->sampleControls.pitchAndSpeedAreIndependent = true;
-	clip->attack = 0x30000000;
+	clip->setAttack(0x30000000);
 	clip->setVoicePriority(VoicePriority::HIGH);
 	clip->overdubsShouldCloneOutput = !clip->overdubsShouldCloneOutput;
 	dumpClip("after-edit", 0, clip);

@@ -745,7 +745,7 @@ Error SampleBrowser::claimAudioFileForAudioClip() {
 
 	// If there's a pre-margin, we want to set an attack-time
 	if (error == Error::NONE && ((SampleHolder*)holder)->startPos) {
-		getCurrentAudioClip()->attack = kAudioClipDefaultAttackIfPreMargin;
+		getCurrentAudioClip()->setAttack(kAudioClipDefaultAttackIfPreMargin);
 	}
 
 	return error;

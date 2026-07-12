@@ -117,7 +117,7 @@ Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFla
 	newClip->soloingInSessionMode = false;
 	newClip->output = output;
 
-	newClip->attack = attack;
+	newClip->setAttack(attack());
 
 	memcpy(&newClip->sampleControls, &sampleControls, sizeof(sampleControls));
 	newClip->setVoicePriority(voicePriority());
@@ -254,7 +254,7 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	renderData.xScroll = -1; // Force re-render - though this would surely happen anyway
 
 	if (recorder->recordingExtraMargins) {
-		attack = kAudioClipDefaultAttackIfPreMargin; // TODO: make these undoable?
+		setAttack(kAudioClipDefaultAttackIfPreMargin); // TODO: make these undoable?
 	}
 
 	isUnfinishedAutoOverdub = false;
@@ -1067,6 +1067,21 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 	return true;
 }
 
+// M3 owner-4: attack is DOM-owned — the accessor reads/writes docAudioClip_ directly (no native engine copy).
+// Bound for the whole clip lifetime (ctor→dtor), so an unbound record here is a logic error, not a runtime state.
+int32_t AudioClip::attack() const {
+	if (docAudioClip_ == nullptr) {
+		FREEZE_WITH_ERROR("AC4A");
+	}
+	return docAudioClip_->attack;
+}
+void AudioClip::setAttack(int32_t value) {
+	if (docAudioClip_ == nullptr) {
+		FREEZE_WITH_ERROR("AC4A");
+	}
+	docAudioClip_->attack = value;
+}
+
 // M3 owner-4: voice priority is DOM-owned — the accessor reads/writes docAudioClip_ directly (no native engine copy).
 // Bound for the whole clip lifetime (ctor→dtor), so an unbound record here is a logic error, not a runtime state.
 VoicePriority AudioClip::voicePriority() const {
@@ -1096,8 +1111,7 @@ void AudioClip::syncDocAudioClip() {
 	d.interpolation_mode = static_cast<uint8_t>(sampleControls.interpolationMode);
 	d.pitch_and_speed_independent = sampleControls.pitchAndSpeedAreIndependent;
 	d.reversed = sampleControls.reversed;
-	d.attack = attack;
-	// voice_priority is DOM-owned (retired native field) — not rebuilt from the engine here.
+	// attack + voice_priority are DOM-owned (retired native fields) — not rebuilt from the engine here.
 	d.overdubs_should_clone = overdubsShouldCloneOutput;
 }
 
@@ -1118,8 +1132,8 @@ void AudioClip::deriveEngineFromDoc() {
 	sampleControls.interpolationMode = static_cast<InterpolationMode>(d.interpolation_mode);
 	sampleControls.pitchAndSpeedAreIndependent = d.pitch_and_speed_independent;
 	sampleControls.reversed = d.reversed;
-	attack = d.attack;
-	// voice_priority is DOM-owned (retired native field) — read directly via voicePriority(), no engine cache to seed.
+	// attack + voice_priority are DOM-owned (retired native fields) — read directly via attack()/voicePriority(),
+	// no engine cache to seed.
 	overdubsShouldCloneOutput = d.overdubs_should_clone;
 }
 
@@ -1140,7 +1154,7 @@ void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 	if (sampleControls.isCurrentlyReversed()) {
 		writer.writeAttribute("reversed", 1);
 	}
-	writer.writeAttribute("attack", attack);
+	writer.writeAttribute("attack", attack());
 	writer.writeAttribute("priority", util::to_underlying(voicePriority()));
 
 	if (sampleHolder.transpose) {

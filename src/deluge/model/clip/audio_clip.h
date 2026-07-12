@@ -119,7 +119,12 @@ public:
 	// TODO: For looping without monitoring we'll need a second recorder plus maybe a second sample player?
 	SampleRecorder* recorder; // Will be set to NULL right at the end of the loop's recording, even though the
 	                          // SampleRecorder itself will usually persist slightly longer
-	int32_t attack;
+	/// M3 owner-4: attack is DOM-owned (`docAudioClip_->attack`); the native engine field is retired. A cold field —
+	/// read only at note-on/per-render-block envelope setup (AudioOutput::resetEnvelope +
+	/// renderGlobalEffectableForClip) and save — so the accessor reads the record directly rather than keeping a
+	/// derived cache.
+	int32_t attack() const;
+	void setAttack(int32_t value);
 
 	/// M3 owner-4: voice priority is DOM-owned (`docAudioClip_->voice_priority`); the native engine field is retired.
 	/// A cold field — read only at voice-cull time (getCullImmunity) and save — so the accessor reads the record

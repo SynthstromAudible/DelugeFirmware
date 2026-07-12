@@ -107,7 +107,7 @@ void AudioOutput::resetEnvelope() {
 	if (activeClip) {
 		AudioClip* activeAudioClip = (AudioClip*)activeClip;
 
-		bool directlyToDecay = (activeAudioClip->attack == -2147483648);
+		bool directlyToDecay = (activeAudioClip->attack() == -2147483648);
 		envelope.noteOn(directlyToDecay);
 	}
 	amplitudeLastTime = 0;
@@ -142,7 +142,7 @@ bool AudioOutput::renderGlobalEffectableForClip(ModelStackWithTimelineCounter* m
 		if (activeAudioClip.voiceSample) {
 
 			int32_t attackNeutralValue = paramNeutralValues[params::LOCAL_ENV_0_ATTACK];
-			int32_t attack = getExp(attackNeutralValue, -(activeAudioClip.attack / 4));
+			int32_t attack = getExp(attackNeutralValue, -(activeAudioClip.attack() / 4));
 
 renderEnvelope:
 			int32_t amplitudeLocal =
