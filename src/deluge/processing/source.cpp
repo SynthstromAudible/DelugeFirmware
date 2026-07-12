@@ -55,6 +55,7 @@ void Source::bindDocSource(deluge::project::DocSource* d) {
 	docSource_ = d;
 	seedDocSourceScalars();
 	seedDocDxPatch();
+	seedDocRanges();
 }
 
 // Copy the DOM-owned scalars native->record (guarded). Load-bridge: run at bind and re-run at doneReadingFromFile (a
@@ -90,6 +91,31 @@ void Source::seedDocDxPatch() {
 	}
 	else {
 		docSource_->dx_patch.reset();
+	}
+}
+
+void Source::seedDocRanges() {
+	if (docSource_ == nullptr) {
+		return;
+	}
+	docSource_->ranges.clear();
+	int32_t numRanges = std::ssize(ranges);
+	docSource_->ranges.reserve(numRanges);
+	for (int32_t e = 0; e < numRanges; e++) {
+		MultisampleRange* range = (MultisampleRange*)ranges.getElement(e);
+		deluge::project::DocRange dr;
+		dr.top_note = range->topNote;
+		dr.file_path =
+		    range->sampleHolder.audioFile ? range->sampleHolder.audioFile->filePath : range->sampleHolder.filePath;
+		if (oscType == OscType::SAMPLE) {
+			dr.start_pos = range->sampleHolder.startPos;
+			dr.end_pos = range->sampleHolder.endPos;
+			dr.loop_start_pos = range->sampleHolder.loopStartPos;
+			dr.loop_end_pos = range->sampleHolder.loopEndPos;
+			dr.transpose = range->sampleHolder.transpose;
+			dr.cents = range->sampleHolder.cents;
+		}
+		docSource_->ranges.push_back(std::move(dr));
 	}
 }
 

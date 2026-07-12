@@ -48,6 +48,10 @@ public:
 	// the dx/ menus, setOscType→ensureDxPatch). Copies the 156 params + engineMode + random_detune, or clears it when
 	// the engine patch is absent (non-DX7 osc).
 	void seedDocDxPatch();
+	// ranges (owner-5, no undo): whole-list reseed of the DocRange list after any range mutation (zone edit,
+	// add/remove, sample-set, reverse). The engine sampleHolder/ranges stay the working structure; this mirrors them
+	// into the record.
+	void seedDocRanges();
 
 	SampleControls sampleControls;
 

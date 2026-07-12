@@ -3051,6 +3051,7 @@ void Sound::doneReadingFromFile() {
 		for (int32_t s = 0; s < kNumSources; s++) {
 			sources[s].seedDocSourceScalars();
 			sources[s].seedDocDxPatch();
+			sources[s].seedDocRanges();
 		}
 	}
 }
