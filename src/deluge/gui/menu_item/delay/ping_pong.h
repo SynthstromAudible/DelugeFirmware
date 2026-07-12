@@ -41,13 +41,13 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					soundDrum->delay.pingPong = current_value;
+					soundDrum->setDelayPingPong(current_value);
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentModControllable->delay.pingPong = current_value;
+			soundEditor.currentModControllable->setDelayPingPong(current_value);
 		}
 	}
 

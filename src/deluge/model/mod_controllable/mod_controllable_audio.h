@@ -91,6 +91,14 @@ public:
 	void setLpfMode(FilterMode value);
 	void setHpfMode(FilterMode value);
 	void setFilterRoute(FilterRoute value);
+	// Delay + stutter config (slice 2). Native sub-fields kept as hot cache; record authoritative for save.
+	void setDelayPingPong(bool value);
+	void setDelayAnalog(bool value);
+	void setDelaySyncType(SyncType value);
+	void setDelaySyncLevel(SyncLevel value);
+	void setStutterQuantized(bool value);
+	void setStutterReversed(bool value);
+	void setStutterPingPong(bool value);
 	bool offerReceivedCCToLearnedParamsForClip(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                           ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
 	bool offerReceivedCCToLearnedParamsForSong(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,

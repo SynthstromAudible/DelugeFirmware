@@ -486,6 +486,48 @@ void ModControllableAudio::setFilterRoute(FilterRoute value) {
 		docModControllable_->filter_route = static_cast<uint8_t>(value);
 	}
 }
+void ModControllableAudio::setDelayPingPong(bool value) {
+	delay.pingPong = value;
+	if (docModControllable_ != nullptr) {
+		docModControllable_->delay.ping_pong = value;
+	}
+}
+void ModControllableAudio::setDelayAnalog(bool value) {
+	delay.analog = value;
+	if (docModControllable_ != nullptr) {
+		docModControllable_->delay.analog = value;
+	}
+}
+void ModControllableAudio::setDelaySyncType(SyncType value) {
+	delay.syncType = value;
+	if (docModControllable_ != nullptr) {
+		docModControllable_->delay.sync_type = static_cast<uint8_t>(value);
+	}
+}
+void ModControllableAudio::setDelaySyncLevel(SyncLevel value) {
+	delay.syncLevel = value;
+	if (docModControllable_ != nullptr) {
+		docModControllable_->delay.sync_level = static_cast<uint8_t>(value);
+	}
+}
+void ModControllableAudio::setStutterQuantized(bool value) {
+	stutterConfig.quantized = value;
+	if (docModControllable_ != nullptr) {
+		docModControllable_->stutter.quantized = value;
+	}
+}
+void ModControllableAudio::setStutterReversed(bool value) {
+	stutterConfig.reversed = value;
+	if (docModControllable_ != nullptr) {
+		docModControllable_->stutter.reversed = value;
+	}
+}
+void ModControllableAudio::setStutterPingPong(bool value) {
+	stutterConfig.pingPong = value;
+	if (docModControllable_ != nullptr) {
+		docModControllable_->stutter.ping_pong = value;
+	}
+}
 
 void ModControllableAudio::seedDocModControllable() {
 	if (docModControllable_ == nullptr) {
@@ -517,13 +559,21 @@ void ModControllableAudio::seedDocModControllable() {
 }
 
 void ModControllableAudio::writeTagsToFile(Serializer& writer) {
+	// M3 owner-5 slice F: when bound (a Sound), delay + stutter read the authoritative record; an unbound owner
+	// (GlobalEffectable) keeps reading native. sidechain + compressor still save from native (later slice).
+	bool bound = docModControllable_ != nullptr;
+
 	// Delay
 	writer.writeOpeningTagBeginning("delay");
-	writer.writeAttribute("pingPong", delay.pingPong);
-	writer.writeAttribute("analog", delay.analog);
-	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", delay.syncLevel, true);
+	writer.writeAttribute("pingPong", bound ? docModControllable_->delay.ping_pong : delay.pingPong);
+	writer.writeAttribute("analog", bound ? docModControllable_->delay.analog : delay.analog);
+	writer.writeAbsoluteSyncLevelToFile(
+	    currentSong, "syncLevel",
+	    bound ? static_cast<SyncLevel>(docModControllable_->delay.sync_level) : delay.syncLevel, true);
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeSyncTypeToFile(currentSong, "syncType", delay.syncType, true);
+	writer.writeSyncTypeToFile(currentSong, "syncType",
+	                           bound ? static_cast<SyncType>(docModControllable_->delay.sync_type) : delay.syncType,
+	                           true);
 	writer.closeTag();
 
 	// MIDI knobs
@@ -582,9 +632,9 @@ void ModControllableAudio::writeTagsToFile(Serializer& writer) {
 
 	// Stutter
 	writer.writeOpeningTagBeginning("stutter");
-	writer.writeAttribute("quantized", stutterConfig.quantized);
-	writer.writeAttribute("reverse", stutterConfig.reversed);
-	writer.writeAttribute("pingPong", stutterConfig.pingPong);
+	writer.writeAttribute("quantized", bound ? docModControllable_->stutter.quantized : stutterConfig.quantized);
+	writer.writeAttribute("reverse", bound ? docModControllable_->stutter.reversed : stutterConfig.reversed);
+	writer.writeAttribute("pingPong", bound ? docModControllable_->stutter.ping_pong : stutterConfig.pingPong);
 	writer.closeTag();
 }
 
@@ -1240,11 +1290,11 @@ void ModControllableAudio::endStutter(ParamManagerForTimeline* paramManager) {
 }
 
 void ModControllableAudio::switchDelayPingPong() {
-	delay.pingPong = !delay.pingPong;
+	setDelayPingPong(!delay.pingPong);
 }
 
 void ModControllableAudio::switchDelayAnalog() {
-	delay.analog = !delay.analog;
+	setDelayAnalog(!delay.analog);
 }
 
 char const* ModControllableAudio::getDelayTypeDisplayName() {
@@ -1260,14 +1310,14 @@ char const* ModControllableAudio::getDelayTypeDisplayName() {
 void ModControllableAudio::switchDelaySyncType() {
 	switch (delay.syncType) {
 	case SYNC_TYPE_TRIPLET:
-		delay.syncType = SYNC_TYPE_DOTTED;
+		setDelaySyncType(SYNC_TYPE_DOTTED);
 		break;
 	case SYNC_TYPE_DOTTED:
-		delay.syncType = SYNC_TYPE_EVEN;
+		setDelaySyncType(SYNC_TYPE_EVEN);
 		break;
 
 	default: // SYNC_TYPE_EVEN
-		delay.syncType = SYNC_TYPE_TRIPLET;
+		setDelaySyncType(SYNC_TYPE_TRIPLET);
 		break;
 	}
 }
@@ -1285,12 +1335,12 @@ char const* ModControllableAudio::getDelaySyncTypeDisplayName() {
 
 void ModControllableAudio::switchDelaySyncLevel() {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
-	delay.syncLevel = (SyncLevel)((delay.syncLevel) % SyncLevel::SYNC_LEVEL_256TH + 1); // cycle from 1 to 9 (omit 0)
+	setDelaySyncLevel((SyncLevel)((delay.syncLevel) % SyncLevel::SYNC_LEVEL_256TH + 1)); // cycle from 1 to 9 (omit 0)
 }
 
 void ModControllableAudio::getDelaySyncLevelDisplayName(char* displayName) {
 	// Note: SYNC_LEVEL_NONE (value 0) can't be selected
-	delay.syncLevel = (SyncLevel)(delay.syncLevel % SyncLevel::SYNC_LEVEL_256TH); // cycle from 1 to 9 (omit 0)
+	setDelaySyncLevel((SyncLevel)(delay.syncLevel % SyncLevel::SYNC_LEVEL_256TH)); // cycle from 1 to 9 (omit 0)
 	etl::string<kShortStringBufferSize> buffer;
 	currentSong->getNoteLengthName(buffer, (uint32_t)3 << (SYNC_LEVEL_256TH - delay.syncLevel));
 	strncpy(displayName, buffer.data(), 29);

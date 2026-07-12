@@ -80,13 +80,13 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					applyOptionToStutterConfig(value, soundDrum->stutterConfig);
+					applyOptionToStutterConfig(value, soundDrum);
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			applyOptionToStutterConfig(value, soundEditor.currentModControllable->stutterConfig);
+			applyOptionToStutterConfig(value, soundEditor.currentModControllable);
 		}
 	}
 
@@ -104,15 +104,18 @@ private:
 
 	static bool showUseSongOption() { return !soundEditor.currentModControllable->isSong(); }
 
-	static void applyOptionToStutterConfig(const Direction value, StutterConfig& stutter) {
-		stutter.useSongStutter = value == USE_SONG_STUTTER;
-		stutter.reversed = value == REVERSED || value == REVERSED_PING_PONG;
-		stutter.pingPong = value == FORWARD_PING_PONG || value == REVERSED_PING_PONG;
+	// M3 owner-5 slice F: route through the ModControllableAudio setters so the DocModControllable record stays in
+	// sync. useSongStutter is NOT persisted (not in the record), so it stays a direct field write.
+	static void applyOptionToStutterConfig(const Direction value, ModControllableAudio* mc) {
+		mc->stutterConfig.useSongStutter = value == USE_SONG_STUTTER;
+		mc->setStutterReversed(value == REVERSED || value == REVERSED_PING_PONG);
+		mc->setStutterPingPong(value == FORWARD_PING_PONG || value == REVERSED_PING_PONG);
 
-		if (stutter.useSongStutter) {
-			stutter.quantized = currentSong->project.global_fx.global_effectable.stutterConfig.quantized;
-			stutter.reversed = currentSong->project.global_fx.global_effectable.stutterConfig.reversed;
-			stutter.pingPong = currentSong->project.global_fx.global_effectable.stutterConfig.pingPong;
+		if (mc->stutterConfig.useSongStutter) {
+			const auto& songStutter = currentSong->project.global_fx.global_effectable.stutterConfig;
+			mc->setStutterQuantized(songStutter.quantized);
+			mc->setStutterReversed(songStutter.reversed);
+			mc->setStutterPingPong(songStutter.pingPong);
 		}
 	}
 

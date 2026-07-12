@@ -40,13 +40,13 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					soundDrum->delay.analog = current_value;
+					soundDrum->setDelayAnalog(current_value);
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentModControllable->delay.analog = current_value;
+			soundEditor.currentModControllable->setDelayAnalog(current_value);
 		}
 	}
 	deluge::vector<std::string_view> getOptions(OptType optType) override {

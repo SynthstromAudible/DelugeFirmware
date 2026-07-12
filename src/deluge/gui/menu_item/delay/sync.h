@@ -43,15 +43,15 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					soundDrum->delay.syncType = syncValueToSyncType(current_value);
-					soundDrum->delay.syncLevel = syncValueToSyncLevel(current_value);
+					soundDrum->setDelaySyncType(syncValueToSyncType(current_value));
+					soundDrum->setDelaySyncLevel(syncValueToSyncLevel(current_value));
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentModControllable->delay.syncType = syncValueToSyncType(current_value);
-			soundEditor.currentModControllable->delay.syncLevel = syncValueToSyncLevel(current_value);
+			soundEditor.currentModControllable->setDelaySyncType(syncValueToSyncType(current_value));
+			soundEditor.currentModControllable->setDelaySyncLevel(syncValueToSyncLevel(current_value));
 		}
 	}
 };

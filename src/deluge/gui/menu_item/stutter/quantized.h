@@ -44,14 +44,14 @@ public:
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 					// Note: we need to apply the same filtering as stated in the isRelevant() function
 					if (!soundEditor.currentModControllable->stutterConfig.useSongStutter) {
-						soundDrum->stutterConfig.quantized = current_value;
+						soundDrum->setStutterQuantized(current_value);
 					}
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentModControllable->stutterConfig.quantized = current_value;
+			soundEditor.currentModControllable->setStutterQuantized(current_value);
 		}
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
