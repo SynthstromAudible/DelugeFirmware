@@ -60,6 +60,11 @@ public:
 	void setCurrentValueInResponseToUserInput(int32_t value, ModelStackWithAutoParam const* modelStack,
 	                                          bool shouldLogAction = true, int32_t livePos = -1,
 	                                          bool mayDeleteNodesInLinearRun = true, bool isMPE = false);
+	/// M4a commit-flip: the model-first projection half of the scalar poke. The persistent store `current_value`
+	/// has ALREADY been written (ParamSnapshot::applyPatch); this derives the engine's RT state from it —
+	/// reproducing setCurrentValueInResponseToUserInput's NON-recording scalar tail (interpolation reset, the
+	/// playing latch, cursor sync, notify) exactly, but sourcing the value from the store rather than an in-line arg.
+	void projectScalarFromStore(ModelStackWithAutoParam const* modelStack, int32_t oldValue, bool isPlaying);
 	int32_t processCurrentPos(ModelStackWithAutoParam const* modelStack, bool reversed, bool didPinpong,
 	                          bool mayInterpolate = true, bool mustUpdateValueAtEveryNode = false);
 	void setValueForRegion(uint32_t pos, uint32_t length, int32_t value, ModelStackWithAutoParam const* modelStack,

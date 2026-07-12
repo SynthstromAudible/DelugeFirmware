@@ -359,6 +359,25 @@ getOut:
 	                                                          automatedNow);
 }
 
+void AutoParam::projectScalarFromStore(ModelStackWithAutoParam const* modelStack, int32_t oldValue, bool isPlaying) {
+	// M4a commit-flip: the store's current_value was ALREADY written model-first (ParamSnapshot::applyPatch); this
+	// derives the engine's RT state from it, reproducing setCurrentValueInResponseToUserInput's non-recording scalar
+	// tail exactly. A scalar patch never touches nodes, so isAutomated is invariant across the write
+	// (automatedBefore == automatedNow) and the notify's automationChanged is false — matching the getOut: tail.
+	auto& nodesRef = modelStack->doc()->nodes;
+	resetInterpolationIncrement();
+	// The playing-non-recording latch (the else-branch of the recording check): held until we hit some nodes.
+	if (isPlaying && !nodesRef.empty()) {
+		renewedOverridingAtTime = AudioEngine::audioSampleTimer;
+		if (renewedOverridingAtTime <= 1) {
+			renewedOverridingAtTime = 0xFFFFFFFF;
+		}
+	}
+	currentValue = modelStack->doc()->current_value;
+	bool automatedNow = isAutomated(*modelStack->doc());
+	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, false, automatedNow, automatedNow);
+}
+
 bool AutoParam::deleteRedundantNodeInLinearRun(deluge::project::DocAutoParam& doc, int32_t lastNodeInRunI,
                                                int32_t effectiveLength, bool mayLoopAroundBackToEnd) {
 

@@ -346,6 +346,14 @@ void testParamSnapshotEquivalence(deluge::edits::Context& ctx, ::Song* engineSon
 	check(store->nodes[0].pos == 0 && store->nodes[0].value == 0x20000000, "applyPatch region: node0 == pinned");
 	check(store->nodes[1].pos == 96 && store->nodes[1].value == 0x40000000, "applyPatch region: node1 == pinned");
 	check(store->current_value == 0x20000000, "applyPatch region: model current_value == pinned");
+
+	// M4a commit-flip (Task 1): projectScalarFromStore derives the engine cursor from the store. Clear the nodes so
+	// this is the scalar shape, write a fresh store current_value, then project — the engine cursor must track it.
+	store->nodes.erase(store->nodes.begin(), store->nodes.end());
+	int32_t prev = ms->autoParam->getCurrentValue();
+	store->current_value = 0x33333333;
+	ms->autoParam->projectScalarFromStore(ms, prev, /*isPlaying=*/false);
+	check(ms->autoParam->getCurrentValue() == 0x33333333, "projectScalarFromStore: engine cursor synced from store");
 }
 
 // M4a Task 3 — SetParamValue::emitEvent drives ParamSnapshot::applyPatch behind the A/B toggle. Isolates the
