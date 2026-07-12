@@ -3820,14 +3820,33 @@ void Sound::writeParamsToFile(Serializer& writer, ParamManager* paramManager, bo
 	deluge::project::serializeSoundParams(*doc.patched, *doc.unpatched, doc.patch_cables, writer, writeAutomation);
 }
 
-// M3 owner-5 slice B: rebuild-at-save the cold scalars into the DOM record (nested std::optional<DocSound> in the
-// owner's DocOutput/DocDrum). Write-only shadow this slice — nothing reads it back yet. Self-guards when unbound.
+// M3 owner-5: bind the DOM record and seed the already-inverted fields from the engine cache. This is the load-bridge:
+// the engine field was parsed (Sound::readFromFile) before docSound_ existed (binding happens later, at
+// Song::adoptOutput/adoptDrum), so the parsed value lives in the engine field and is copied into the record here, once.
+// From then on the record is authoritative for those fields (setter writes it, save reads it).
+void Sound::bindDocSound(deluge::project::DocSound* d) {
+	docSound_ = d;
+	d->voice_priority = static_cast<uint8_t>(voicePriority);
+}
+
+// M3 owner-5: voice priority is DOM-owned with `voicePriority` kept as the hot render cache. Write the authoritative
+// record (when bound) AND the cache; render reads the cache, save reads the record.
+void Sound::setVoicePriority(VoicePriority value) {
+	voicePriority = value;
+	if (docSound_ != nullptr) {
+		docSound_->voice_priority = static_cast<uint8_t>(value);
+	}
+}
+
+// M3 owner-5 slice B: rebuild-at-save the not-yet-inverted cold scalars into the DOM record (nested
+// std::optional<DocSound> in the owner's DocOutput/DocDrum). Write-only shadow for those fields — nothing reads them
+// back yet. voice_priority is NOT here — it is DOM-owned (seeded at bind, written by setVoicePriority, read at save).
+// Self-guards when unbound.
 void Sound::syncDocSound() {
 	if (docSound_ == nullptr) {
 		return;
 	}
 	deluge::project::DocSound& d = *docSound_;
-	d.voice_priority = static_cast<uint8_t>(voicePriority);
 	d.max_voice_count = maxVoiceCount;
 	d.side_chain_send_level = sideChainSendLevel;
 	d.output_midi_channel = outputMidiChannel;
@@ -3909,7 +3928,11 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	syncDocSound();
 
 	writer.writeAttribute("polyphonic", polyphonyModeToString(polyphonic));
-	writer.writeAttribute("voicePriority", util::to_underlying(voicePriority));
+	// M3 owner-5 save-flip: voice priority reads the authoritative record (falls back to the engine cache only for an
+	// unbound Sound — e.g. the audio preview — which has no record and isn't part of a saved song anyway).
+	writer.writeAttribute("voicePriority", util::to_underlying(docSound_ != nullptr ? static_cast<VoicePriority>(
+	                                                                                      docSound_->voice_priority)
+	                                                                                : voicePriority));
 
 	// Send level
 	if (sideChainSendLevel != 0) {

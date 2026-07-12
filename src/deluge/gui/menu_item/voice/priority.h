@@ -42,7 +42,7 @@ inline void setCurrentVoicePriority(VoicePriority value) {
 		audioClip->setVoicePriority(value);
 		return;
 	}
-	soundEditor.currentSound->voicePriority = value;
+	soundEditor.currentSound->setVoicePriority(value); // owner-5: DOM-owned (record + hot cache)
 }
 
 class Priority final : public Selection {
@@ -61,7 +61,7 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					soundDrum->voicePriority = current_value;
+					soundDrum->setVoicePriority(current_value);
 				}
 			}
 		}

@@ -29,7 +29,7 @@ namespace deluge::project {
 /// param tier; this holds Sound's NON-param structure. Slice B = cold scalars; later slices grow it (hot scalars,
 /// LFO, modKnobs, sources). Enums stored as underlying values.
 struct DocSound {
-	uint8_t voice_priority{0};
+	uint8_t voice_priority{1}; ///< VoicePriority underlying (MEDIUM) — matches Sound's engine default; seeded at bind.
 	uint8_t max_voice_count{0};
 	int32_t side_chain_send_level{0};
 	uint8_t output_midi_channel{0};

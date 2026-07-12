@@ -79,11 +79,15 @@ public:
 	Sound();
 	~Sound() override { std::erase(AudioEngine::sounds, this); }
 
-	// M3 owner-5 slice B: non-owning pointer into the parent's std::optional<DocSound> (in DocOutput for a
-	// SoundInstrument, DocDrum for a SoundDrum). Bound from Song::adoptOutput/adoptDrum; write-only shadow this slice.
+	// M3 owner-5: non-owning pointer into the parent's std::optional<DocSound> (in DocOutput for a SoundInstrument,
+	// DocDrum for a SoundDrum). Bound from Song::adoptOutput/adoptDrum.
 	deluge::project::DocSound* docSound_{nullptr};
-	void bindDocSound(deluge::project::DocSound* d) { docSound_ = d; }
-	// Rebuild-at-save: copy the cold scalars engine->record. Self-guards when unbound. Called at writeToFile start.
+	// Bind the record and seed the DOM-owned (already-inverted) fields from the engine — the load-bridge, since the
+	// engine field was parsed before docSound_ existed. Non-inline: needs the complete DocSound type.
+	void bindDocSound(deluge::project::DocSound* d);
+	// Rebuild-at-save: copy the not-yet-inverted cold scalars engine->record. Self-guards when unbound. Called at
+	// writeToFile start. No longer touches voice_priority (that field is DOM-owned — seeded at bind, written by the
+	// setter, read at save).
 	void syncDocSound();
 
 	Patcher patcher;
@@ -153,7 +157,11 @@ public:
 
 	bool oscillatorSync = false;
 
+	// M3 owner-5: voice priority is DOM-owned (`docSound_->voice_priority`). It is read per render block in
+	// Voice::getPriorityRating(), so this field is kept as a hot derived cache — the record is authoritative (seeded at
+	// bind, written via setVoicePriority, read at save); render keeps reading this field directly.
 	VoicePriority voicePriority = VoicePriority::MEDIUM;
+	void setVoicePriority(VoicePriority value);
 
 	bool skippingRendering = true;
 
