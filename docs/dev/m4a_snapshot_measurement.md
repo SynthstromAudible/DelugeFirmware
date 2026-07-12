@@ -98,9 +98,14 @@ firmware links; the in-line poke remains the default (no commit-flip in M4a).
 
 Inherited by the later sub-milestones:
 
-- **The deferred commit-flip** — make the event-patch the sole path and delete the in-line poke — gated on the
-  on-device confirmation. When it lands, the region context must move from the engine-stack borrow to the
-  model/snapshot (the `RegionContext` is the seam).
+- **The commit-flip — SCALAR half landed** (`docs/superpowers/specs/2026-07-12-m4a-commit-flip-design.md`):
+  `SetParamValue::apply`'s scalar path now writes the persistent store model-first via `ParamSnapshot::applyPatch`
+  (the sole scalar-store writer), and `AutoParam::projectScalarFromStore` derives the engine's RT cursor/notify/latch
+  from the store; the in-line scalar poke is retired for the resolvable scalar lane. Behaviour-preserving (goldens
+  bit-identical, x86≡ARM). **Region defers** — `setValueForRegion` interleaves its undo Action with the node write,
+  so flipping it needs the region undo-snapshot reorder (its own slice / M6 convergence). The on-device
+  audio-callback confirmation of the RT cost remains the named follow-up before the region flip. When region flips,
+  the `RegionContext` is the seam that moves from the engine-stack borrow to the model/snapshot.
 - **M4b** — hot Sound fields (`record + native cache` dual-writes) onto the snapshot; render reads the snapshot.
 - **M4c** — the note VECTOR onto the snapshot (`AddNote`/`RemoveNote` events patch a note snapshot the playback path
   reads) — the biggest remaining read-side independence gap, RT-critical.
