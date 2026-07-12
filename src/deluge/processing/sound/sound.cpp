@@ -3812,7 +3812,9 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 		// Sub-option for (multi)wavetable
 		if (source->oscType == OscType::WAVETABLE && synthMode != SynthMode::FM) {
 
-			int32_t numRanges = std::ssize(source->ranges);
+			// M3 owner-5 slice G3: emit wavetable ranges from the authoritative DocSource record when bound (cache
+			// fallback only for an unbound Sound). Wavetable ranges carry just top_note + file_path (no zone).
+			int32_t numRanges = dsrc != nullptr ? std::ssize(dsrc->ranges) : std::ssize(source->ranges);
 
 			if (numRanges > 1) {
 				writer.writeOpeningTagEnd();
@@ -3820,17 +3822,19 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 			}
 
 			for (int32_t e = 0; e < numRanges; e++) {
-				MultisampleRange* range = (MultisampleRange*)source->ranges.getElement(e);
+				deluge::project::DocRange const* dr = dsrc != nullptr ? &dsrc->ranges[e] : nullptr;
+				MultisampleRange* range = dr != nullptr ? nullptr : (MultisampleRange*)source->ranges.getElement(e);
 
 				if (numRanges > 1) {
 					writer.writeOpeningTagBeginning("wavetableRange", true);
 
 					if (e != numRanges - 1) {
-						writer.writeAttribute("rangeTopNote", range->topNote);
+						writer.writeAttribute("rangeTopNote", dr != nullptr ? dr->top_note : range->topNote);
 					}
 				}
 
-				writer.writeAttribute("fileName", range->sampleHolder.audioFile
+				writer.writeAttribute("fileName", dr != nullptr ? dr->file_path.c_str()
+				                                  : range->sampleHolder.audioFile
 				                                      ? range->sampleHolder.audioFile->filePath.c_str()
 				                                      : range->sampleHolder.filePath.c_str());
 
