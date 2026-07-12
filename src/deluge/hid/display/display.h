@@ -10,8 +10,6 @@ extern "C" {
 #include "util/cfunctions.h"
 }
 
-class NumericLayer;
-
 enum class PopupType {
 	NONE,
 	/// Default popup type, if not specified.
@@ -62,7 +60,6 @@ public:
 
 	virtual void cancelPopup() = 0;
 	virtual void freezeWithError(char const* text) = 0;
-	virtual bool isLayerCurrentlyOnTop(NumericLayer* layer) = 0;
 	virtual void displayError(Error error) = 0;
 
 	virtual void removeWorkingAnimation() = 0;

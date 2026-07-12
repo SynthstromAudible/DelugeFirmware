@@ -835,11 +835,8 @@ void StemExport::updateScrollPosition(StemExportType stemExportType, int32_t ind
 }
 
 /// display how many stems we've exported so far
-void StemExport::displayStemExportProgress(StemExportType stemExportType) {
-	displayStemExportProgressOLED(stemExportType);
-}
 
-void StemExport::displayStemExportProgressOLED(StemExportType stemExportType) {
+void StemExport::displayStemExportProgress(StemExportType stemExportType) {
 	// if we're in the context menu for cancelling stem export, we don't want to show pop-ups
 	if (inContextMenu()) {
 		return;

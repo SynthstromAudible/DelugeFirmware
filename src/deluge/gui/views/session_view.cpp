@@ -1858,7 +1858,7 @@ extern char loopsRemainingText[];
 
 void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	if (stemExport.processStarted) {
-		stemExport.displayStemExportProgressOLED(StemExportType::CLIP);
+		stemExport.displayStemExportProgress(StemExportType::CLIP);
 		return;
 	}
 

@@ -105,10 +105,10 @@ ArrangerView::ArrangerView() {
 void ArrangerView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	if (stemExport.processStarted) {
 		if (stemExport.exportMixdown) {
-			stemExport.displayStemExportProgressOLED(StemExportType::MIXDOWN);
+			stemExport.displayStemExportProgress(StemExportType::MIXDOWN);
 		}
 		else {
-			stemExport.displayStemExportProgressOLED(StemExportType::TRACK);
+			stemExport.displayStemExportProgress(StemExportType::TRACK);
 		}
 	}
 	else if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {

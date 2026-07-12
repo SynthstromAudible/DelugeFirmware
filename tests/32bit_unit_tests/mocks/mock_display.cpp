@@ -19,7 +19,6 @@ public:
 
 	void cancelPopup() {};
 	void freezeWithError(char const* text) { std::cout << text << std::endl; };
-	bool isLayerCurrentlyOnTop(NumericLayer* layer) { return false; };
 	void displayError(Error error) { std::cout << util::to_underlying(error) << std::endl; };
 
 	void removeWorkingAnimation() {};
