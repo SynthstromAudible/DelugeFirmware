@@ -49,16 +49,56 @@ MIDIInstrument::MIDIInstrument()
 
 // M3 owner-5 Slice E: add the MIDIInstrument descriptor fields to the DOM shadow (calls the NonAudioInstrument tier
 // first).
+// DO3: all 5 fields are now DOM-owned — every forward write funnels through the set*() methods below (or
+// seedDocOutputIdentity() for the polymorphic/clone sites) instead of landing here.
 void MIDIInstrument::syncDocOutput() {
 	NonAudioInstrument::syncDocOutput();
 	if (docOutput_ == nullptr) {
 		return;
 	}
-	docOutput_->channel_suffix = channelSuffix;
-	docOutput_->device_definition_file_name = deviceDefinitionFileName;
-	docOutput_->collapse_aftertouch = collapseAftertouch;
-	docOutput_->collapse_mpe = collapseMPE;
-	docOutput_->output_mpe_y = static_cast<uint8_t>(outputMPEY);
+}
+
+// DO3: reseed the record's 5 tier fields (and, via the base, channel) from the current native values.
+void MIDIInstrument::seedDocOutputIdentity() {
+	NonAudioInstrument::seedDocOutputIdentity();
+	if (docOutput_ != nullptr) {
+		docOutput_->channel_suffix = channelSuffix;
+		docOutput_->device_definition_file_name = deviceDefinitionFileName;
+		docOutput_->collapse_aftertouch = collapseAftertouch;
+		docOutput_->collapse_mpe = collapseMPE;
+		docOutput_->output_mpe_y = static_cast<uint8_t>(outputMPEY);
+	}
+}
+
+void MIDIInstrument::setChannelSuffix(int32_t v) {
+	channelSuffix = v;
+	if (docOutput_ != nullptr) {
+		docOutput_->channel_suffix = v;
+	}
+}
+void MIDIInstrument::setDeviceDefinitionFileName(std::string_view v) {
+	deviceDefinitionFileName = v;
+	if (docOutput_ != nullptr) {
+		docOutput_->device_definition_file_name = deviceDefinitionFileName;
+	}
+}
+void MIDIInstrument::setCollapseAftertouch(bool v) {
+	collapseAftertouch = v;
+	if (docOutput_ != nullptr) {
+		docOutput_->collapse_aftertouch = v;
+	}
+}
+void MIDIInstrument::setCollapseMPE(bool v) {
+	collapseMPE = v;
+	if (docOutput_ != nullptr) {
+		docOutput_->collapse_mpe = v;
+	}
+}
+void MIDIInstrument::setOutputMPEY(CCNumber v) {
+	outputMPEY = v;
+	if (docOutput_ != nullptr) {
+		docOutput_->output_mpe_y = static_cast<uint8_t>(v);
+	}
 }
 
 // Returns whether any change made. For MIDI Instruments, this has no consequence
@@ -340,10 +380,14 @@ bool MIDIInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutp
 		}
 		writer.writeClosingTag("modKnobs");
 
+		// DO3: read the DOM identity record's collapseAftertouch/collapseMPE/outputMPEY when bound (rebuild-at-save);
+		// fall back to the native fields when unbound. Stays inside the editedByUser||clipForSavingOutputOnly branch.
 		writer.writeOpeningTagBeginning("polyToMonoConversion");
-		writer.writeAttribute("aftertouch", (int32_t)collapseAftertouch);
-		writer.writeAttribute("mpe", (int32_t)collapseMPE);
-		writer.writeAttribute("yCC", (int32_t)outputMPEY);
+		writer.writeAttribute("aftertouch",
+		                      (int32_t)(docOutput_ != nullptr ? docOutput_->collapse_aftertouch : collapseAftertouch));
+		writer.writeAttribute("mpe", (int32_t)(docOutput_ != nullptr ? docOutput_->collapse_mpe : collapseMPE));
+		writer.writeAttribute(
+		    "yCC", (int32_t)(docOutput_ != nullptr ? docOutput_->output_mpe_y : static_cast<uint8_t>(outputMPEY)));
 		writer.closeTag();
 
 		writeDeviceDefinitionFile(writer, true);
@@ -376,12 +420,16 @@ void MIDIInstrument::writeDeviceDefinitionFile(Serializer& writer, bool writeFil
 }
 
 void MIDIInstrument::writeDeviceDefinitionFileNameToPresetOrSong(Serializer& writer) {
+	// DO3: read the DOM identity record's device_definition_file_name when bound (rebuild-at-save); fall back to the
+	// native field when unbound. Preserve the empty-string emission.
+	std::string const& nameToSave =
+	    docOutput_ != nullptr ? docOutput_->device_definition_file_name : deviceDefinitionFileName;
 	writer.writeOpeningTagBeginning("definitionFile");
-	if (deviceDefinitionFileName.empty()) {
+	if (nameToSave.empty()) {
 		writer.writeAttribute("name", "");
 	}
 	else {
-		writer.writeAttribute("name", deviceDefinitionFileName.c_str());
+		writer.writeAttribute("name", nameToSave.c_str());
 	}
 	writer.closeTag();
 }

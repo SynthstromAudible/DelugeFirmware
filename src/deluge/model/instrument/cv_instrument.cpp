@@ -30,12 +30,37 @@ CVInstrument::CVInstrument() : NonAudioInstrument(OutputType::CV) {
 }
 
 // M3 owner-5 Slice E: add the CVInstrument cv2 source to the DOM shadow (calls the NonAudioInstrument tier first).
+// DO3: cv2_source is now DOM-owned — every forward write funnels through setCV2Mode()/setChannel() (or
+// seedDocOutputIdentity() for the polymorphic/clone sites) instead of landing here.
 void CVInstrument::syncDocOutput() {
 	NonAudioInstrument::syncDocOutput();
 	if (docOutput_ == nullptr) {
 		return;
 	}
-	docOutput_->cv2_source = static_cast<uint8_t>(getCV2Mode());
+}
+
+// DO3: reseed the record's cv2_source field (and, via the base, channel) from the current native values.
+void CVInstrument::seedDocOutputIdentity() {
+	NonAudioInstrument::seedDocOutputIdentity();
+	if (docOutput_ != nullptr) {
+		docOutput_->cv2_source = static_cast<uint8_t>(getCV2Mode());
+	}
+}
+
+// DO3: setMode (called below) mutates cvmode[1] (= cv2_source) as a side effect of a channel change, so reseed
+// cv2_source here too — not just channel — after delegating to the base setter.
+void CVInstrument::setChannel(int channel) {
+	if (channel <= both) {
+		NonAudioInstrument::setChannel(channel);
+		setMode(static_cast<CVInstrumentMode>(channel));
+	}
+	else {
+		NonAudioInstrument::setChannel(0);
+		setMode(static_cast<CVInstrumentMode>(0));
+	}
+	if (docOutput_ != nullptr) {
+		docOutput_->cv2_source = static_cast<uint8_t>(getCV2Mode());
+	}
 }
 
 void CVInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, int32_t noteIndex) {
@@ -111,7 +136,10 @@ bool CVInstrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutput
 	// NonAudioInstrument::writeDataToFile(clipForSavingOutputOnly, song); // Nope, this gets called within the below
 	// call
 	writeMelodicInstrumentAttributesToFile(writer, clipForSavingOutputOnly, song);
-	writer.writeAttribute("cv2Source", static_cast<int32_t>(cvmode[1]));
+	// DO3: read the DOM identity record's cv2_source when bound (rebuild-at-save); fall back to the native field
+	// when unbound.
+	writer.writeAttribute("cv2Source", docOutput_ != nullptr ? static_cast<int32_t>(docOutput_->cv2_source)
+	                                                         : static_cast<int32_t>(cvmode[1]));
 	if (clipForSavingOutputOnly || !midiInput.containsSomething()) {
 		return false; // If we don't need to write a "device" tag, opt not to end the opening tag
 	}
@@ -195,4 +223,7 @@ void CVInstrument::sendMonophonicExpressionEvent(int32_t dimension) {
 }
 void CVInstrument::setCV2Mode(CVMode mode) {
 	cvmode[1] = mode;
+	if (docOutput_ != nullptr) {
+		docOutput_->cv2_source = static_cast<uint8_t>(mode);
+	}
 }

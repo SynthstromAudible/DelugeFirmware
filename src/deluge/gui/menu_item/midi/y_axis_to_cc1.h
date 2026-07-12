@@ -32,8 +32,8 @@ public:
 		this->setValue(((MIDIInstrument*)getCurrentOutput())->outputMPEY == CC_EXTERNAL_MOD_WHEEL);
 	}
 	void writeCurrentValue() override {
-		((MIDIInstrument*)getCurrentOutput())->outputMPEY =
-		    this->getValue() ? CC_EXTERNAL_MOD_WHEEL : CC_EXTERNAL_MPE_Y;
+		((MIDIInstrument*)getCurrentOutput())
+		    ->setOutputMPEY(this->getValue() ? CC_EXTERNAL_MOD_WHEEL : CC_EXTERNAL_MPE_Y);
 		getCurrentInstrument()->editedByUser = true;
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {

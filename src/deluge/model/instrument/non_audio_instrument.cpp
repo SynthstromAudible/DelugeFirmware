@@ -29,12 +29,32 @@
 #include <cstring>
 
 // M3 owner-5 Slice E: add the NonAudioInstrument channel to the DOM shadow (calls the Instrument tier first).
+// DO3: channel is now DOM-owned — every forward write funnels through setChannel() (or seedDocOutputIdentity() for
+// the polymorphic/clone sites) instead of landing here. Nothing left for this method to do for it; it stays (still
+// calling the Instrument base) because subclasses (MIDI/CV) chain through it for their own not-yet-inverted tiers.
 void NonAudioInstrument::syncDocOutput() {
 	Instrument::syncDocOutput();
 	if (docOutput_ == nullptr) {
 		return;
 	}
-	docOutput_->channel = getChannel();
+}
+
+// DO3: reseed the record's channel field from the current native value. Called (via virtual dispatch) from
+// adoptOutput's load-bridge seed and the clone/replace blocks in song.cpp/view.cpp.
+void NonAudioInstrument::seedDocOutputIdentity() {
+	Instrument::seedDocOutputIdentity();
+	if (docOutput_ != nullptr) {
+		docOutput_->channel = getChannel();
+	}
+}
+
+// DO3: channel is DOM-authoritative at save. Every forward write funnels through this setter (write native cache +
+// record; guarded, no FREEZE — mirrors Output::set*()/Instrument::set*() from DO1/DO2).
+void NonAudioInstrument::setChannel(int newChannel) {
+	channel = newChannel;
+	if (docOutput_ != nullptr) {
+		docOutput_->channel = getChannel();
+	}
 }
 
 void NonAudioInstrument::renderOutput(ModelStack* modelStack, std::span<StereoSample> output, int32_t* reverbBuffer,

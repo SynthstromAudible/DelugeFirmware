@@ -2467,7 +2467,7 @@ void View::navigateThroughPresetsForInstrumentClip(int32_t offset, ModelStackWit
 			// the existing Instrument object!
 			oldNonAudioInstrument->setChannel(newChannel);
 			if (outputType == OutputType::MIDI_OUT) {
-				((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix = newChannelSuffix;
+				((MIDIInstrument*)oldNonAudioInstrument)->setChannelSuffix(newChannelSuffix);
 			}
 
 			newInstrument = oldNonAudioInstrument;

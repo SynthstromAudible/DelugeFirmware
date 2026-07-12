@@ -4303,7 +4303,7 @@ MIDIInstrument* Song::grabHibernatingMIDIInstrument(int32_t channel, int32_t cha
 		toReturn->inValidState = false;
 
 		toReturn->setChannel(channel);
-		toReturn->channelSuffix = channelSuffix;
+		toReturn->setChannelSuffix(channelSuffix);
 	}
 	return toReturn;
 }
@@ -4713,7 +4713,7 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 		// the existing Instrument object!
 		oldNonAudioInstrument->setChannel(newChannel);
 		if (outputType == OutputType::MIDI_OUT) {
-			((MIDIInstrument*)oldNonAudioInstrument)->channelSuffix = newChannelSuffix;
+			((MIDIInstrument*)oldNonAudioInstrument)->setChannelSuffix(newChannelSuffix);
 		}
 
 		view.displayOutputName(oldNonAudioInstrument);

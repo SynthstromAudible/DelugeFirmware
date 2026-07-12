@@ -97,26 +97,30 @@ bool Instrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOn
 	// midi channels are always saved, either to the midi preset or the song
 	if (type == OutputType::MIDI_OUT) {
 		char const* slotXMLTag = getSlotXMLTag();
+		// DO3: read the DOM identity record's channel when bound (rebuild-at-save); fall back to the native field
+		// when unbound. Feed the record's channel into the same zone/internalDest/numeric branching (native and
+		// record are always in sync when bound, since every write funnels through setChannel()).
+		int32_t channelToSave = docOutput_ != nullptr ? docOutput_->channel : ((NonAudioInstrument*)this)->getChannel();
 		if (((MIDIInstrument*)this)->sendsToMPE()) {
-			writer.writeAttribute(slotXMLTag, (((NonAudioInstrument*)this)->getChannel() == MIDI_CHANNEL_MPE_LOWER_ZONE)
-			                                      ? "lower"
-			                                      : "upper");
+			writer.writeAttribute(slotXMLTag, (channelToSave == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "lower" : "upper");
 		}
 		else if (((MIDIInstrument*)this)->sendsToInternal()) {
-			switch (((NonAudioInstrument*)this)->getChannel()) {
+			switch (channelToSave) {
 			case MIDI_CHANNEL_TRANSPOSE:
 				writer.writeAttribute(slotXMLTag, "transpose");
 				break;
 			default:
-				writer.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->getChannel());
+				writer.writeAttribute(slotXMLTag, channelToSave);
 			}
 		}
 		else {
-			writer.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->getChannel());
+			writer.writeAttribute(slotXMLTag, channelToSave);
 		}
 		char const* subSlotTag = getSubSlotXMLTag();
 		if (subSlotTag) {
-			writer.writeAttribute(subSlotTag, ((MIDIInstrument*)this)->channelSuffix);
+			// DO3: read the DOM identity record's channel_suffix when bound; fall back to the native field.
+			writer.writeAttribute(subSlotTag, docOutput_ != nullptr ? docOutput_->channel_suffix
+			                                                        : ((MIDIInstrument*)this)->channelSuffix);
 		}
 	}
 	// saving song
@@ -129,8 +133,9 @@ bool Instrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOn
 		}
 		else if (type == OutputType::CV) {
 			char const* slotXMLTag = getSlotXMLTag();
-
-			writer.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->getChannel());
+			// DO3: read the DOM identity record's channel when bound; fall back to the native field.
+			writer.writeAttribute(slotXMLTag, docOutput_ != nullptr ? docOutput_->channel
+			                                                        : ((NonAudioInstrument*)this)->getChannel());
 		}
 		// DO2: read the DOM identity record's dir_path/default_velocity when bound (rebuild-at-save); fall back to the
 		// native field when unbound.

@@ -180,7 +180,7 @@ fail:
 	}
 
 	// Link the instrument with the definition file saved
-	midiInstrumentToSave->deviceDefinitionFileName = filePath.c_str();
+	midiInstrumentToSave->setDeviceDefinitionFileName(filePath.c_str());
 
 	display->consoleText(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MIDI_DEVICE_SAVED));
 	close();

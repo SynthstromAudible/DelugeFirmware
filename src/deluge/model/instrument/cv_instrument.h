@@ -41,6 +41,9 @@ public:
 
 	// M3 owner-5 Slice E: add the CVInstrument cv2 source to the DOM shadow.
 	void syncDocOutput() override;
+	// DO3: channel/cv2_source are DOM-authoritative at save. Reseeds both this tier's fields (calls the
+	// NonAudioInstrument base first, which reseeds channel).
+	void seedDocOutputIdentity() override;
 	void monophonicExpressionEvent(int32_t newValue, int32_t expressionDmiension) override;
 	bool setActiveClip(ModelStackWithTimelineCounter* modelStack, PgmChangeSend maySendMIDIPGMs) override;
 	void setupWithoutActiveClip(ModelStack* modelStack) override;
@@ -67,16 +70,10 @@ public:
 	int32_t polyPitchBendValue;
 
 	char const* getXMLTag() override { return "cvChannel"; }
-	void setChannel(int channel) override {
-		if (channel <= both) {
-			NonAudioInstrument::setChannel(channel);
-			setMode(static_cast<CVInstrumentMode>(channel));
-		}
-		else {
-			NonAudioInstrument::setChannel(0);
-			setMode(static_cast<CVInstrumentMode>(0));
-		}
-	}
+	// DO3: setMode (called below) mutates cvmode[1] as a side effect, so this override must ALSO reseed cv2_source
+	// after the base channel write — defined in cv_instrument.cpp so it can reach the record without needing the
+	// complete DocOutput type in this header.
+	void setChannel(int channel) override;
 	CVMode getCV2Mode() { return cvmode[1]; }
 
 	void setCV2Mode(CVMode mode);

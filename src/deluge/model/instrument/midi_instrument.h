@@ -48,6 +48,17 @@ public:
 
 	// M3 owner-5 Slice E: add the MIDIInstrument descriptor fields to the DOM shadow.
 	void syncDocOutput() override;
+	// DO3: override of the virtual seedDocOutputIdentity() chain — calls the base (channel), then reseeds this
+	// tier's 5 fields from the current native values.
+	void seedDocOutputIdentity() override;
+	// DO3: channelSuffix/deviceDefinitionFileName/collapseAftertouch/collapseMPE/outputMPEY are DOM-authoritative at
+	// save. Every forward write funnels through these setters (write native cache + record; guarded, no FREEZE —
+	// mirrors Output::set*()/Instrument::set*() from DO1/DO2).
+	void setChannelSuffix(int32_t v);
+	void setDeviceDefinitionFileName(std::string_view v);
+	void setCollapseAftertouch(bool v);
+	void setCollapseMPE(bool v);
+	void setOutputMPEY(CCNumber v);
 	Error readModKnobAssignmentsFromFile(Deserializer& reader, int32_t readAutomationUpToPos,
 	                                     ParamManagerForTimeline* paramManager = nullptr);
 

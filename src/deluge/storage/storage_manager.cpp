@@ -478,7 +478,9 @@ Error StorageManager::loadMidiDeviceDefinitionFile(MIDIInstrument* midiInstrumen
 		return error;
 	}
 	else if (updateFileName) {
-		midiInstrument->deviceDefinitionFileName = fileName->c_str();
+		// DO3: resolved-path funnel (mirrors the AudioClip filePath-normalization lesson) — the record must hold the
+		// RESOLVED path this call computed, not just the native cache.
+		midiInstrument->setDeviceDefinitionFileName(fileName->c_str());
 	}
 
 	return Error::NONE;
