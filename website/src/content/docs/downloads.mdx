@@ -3,6 +3,8 @@ title: Downloads
 description: Download the latest Deluge community firmware
 ---
 
+import BetaDownloadDialog from "../../components/BetaDownloadDialog.astro"
+
 We aim to maintain compatibility, prevent data loss and provide a stable experience but accidents can happen so <strong style={{ color: "#ef494d" }}>please backup your SD card before switching to community firmware to prevent losing data</strong>. You can always go back to the [official firmware](https://synthstrom.com/product/deluge/#downloads) but be aware that songs created with community firmware **can not be loaded by the official firmware**.
 
 ## Release - 1.2.1 (Chopin)
@@ -53,14 +55,7 @@ The current beta build is available below. The beta firmware captures the curren
 Be aware that in addition to new features there are large internal changes - we believe these will make the deluge more efficient and stable in the long term, but there may be short term issues with perceived performance due to interactions between sub systems.
 
 <div className="button-group">
-  <a
-    className="btn"
-    href="https://github.com/SynthstromAudible/DelugeFirmware/releases/download/nightly/nightly.zip"
-    target="_blank"
-    rel="noopener noreferrer"
-  >
-    Download today's beta build
-  </a>
+  <BetaDownloadDialog />
   <a
     className="btn"
     href="https://delugecommunity.com/changelogs/changelog/"

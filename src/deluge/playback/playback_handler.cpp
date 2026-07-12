@@ -365,15 +365,16 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 				bool recordingToArranger = isArrangerView && (recording == RecordingMode::NORMAL);
 				bool inArrangerCrossScreen = isArrangerView && currentSong->arrangerAutoScrollModeActive;
 
-				// start from current screen if:
-				// 1) restart shortcut is pressed and alternativePlaybackStartBehaviour is disabled
-				// 2) restart shortcut is not pressed and alternativePlaybackStartBehaviour is enabled
-				// 3) recording to arranger
-				// 4) in arranger view with cross screen auto scroll mode enabled
+				// Cross screen (arranger auto scroll) and alternativePlaybackStartBehaviour both flip the
+				// *default* direction so that plain play starts from the current screen; the restart shortcut
+				// always toggles the other way. This guarantees one combo starts from the current screen and
+				// the other from the beginning, even when cross screen and the community setting are both on
+				// (issue #3166). Recording into arranger always starts from the current screen.
 
-				startFromCurrentScreen = (isRestartShortcutPressed && !alternativePlaybackStartBehaviour)
-				                         || (!isRestartShortcutPressed && alternativePlaybackStartBehaviour)
-				                         || recordingToArranger || inArrangerCrossScreen;
+				bool startFromCurrentScreenByDefault = alternativePlaybackStartBehaviour || inArrangerCrossScreen;
+
+				startFromCurrentScreen =
+				    recordingToArranger || (isRestartShortcutPressed != startFromCurrentScreenByDefault);
 			}
 		}
 	}
@@ -2694,7 +2695,7 @@ void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, in
 				if (!sampleHolder->audioFile) {
 					continue; // Could maybe happen if some error?
 				}
-
+				// todo: adjust for threshold recording
 				foundAnyYet = true;
 				uint64_t loopLengthSamples = sampleHolder->getDurationInSamples(true);
 				action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);

@@ -296,10 +296,17 @@ bool readButtonsAndPads() {
 
 		// "No presses happening" message
 		else if (value == PIC::Response::NO_PRESSES_HAPPENING) {
-			if (!sdRoutineLock) {
-				matrixDriver.noPressesHappening(sdRoutineLock);
-				Buttons::noPressesHappening(sdRoutineLock);
+			// This is the safety net that releases any pad the firmware still thinks is held (e.g. because a
+			// release event was lost under load). It must not be dropped while the SD routine holds the lock -
+			// otherwise stuck notes persist until the pad is pressed again (see issue #3168). Defer it, exactly
+			// like pad/button events above, so it runs once the routine ends.
+			if (sdRoutineLock) {
+				uartPutCharBack(UART_ITEM_PIC);
+				waitingForSDRoutineToEnd = true;
+				return false;
 			}
+			matrixDriver.noPressesHappening(sdRoutineLock);
+			Buttons::noPressesHappening(sdRoutineLock);
 		}
 		else if (util::to_underlying(value) == oledWaitingForMessage && deluge::hid::display::have_oled_screen) {
 			uiTimerManager.setTimer(TimerName::OLED_LOW_LEVEL, 3);

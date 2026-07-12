@@ -858,10 +858,6 @@ bool AudioClipView::setupScroll(uint32_t oldScroll) {
 	return ClipView::setupScroll(oldScroll);
 }
 
-void AudioClipView::tellMatrixDriverWhichRowsContainSomethingZoomable() {
-	memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
-}
-
 uint32_t AudioClipView::getMaxLength() {
 	if (endMarkerVisible) {
 		return getCurrentClip()->loopLength + 1;

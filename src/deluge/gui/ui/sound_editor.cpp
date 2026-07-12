@@ -244,6 +244,9 @@ bool SoundEditor::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 			*cols = 0xFFFFFFFE;
 		}
 		break;
+	case UIType::PERFORMANCE:
+		doGreyout = false;
+		break;
 	default:
 		*cols = 0xFFFFFFFF;
 		break;
@@ -343,8 +346,8 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	// Encoder button
 	if (b == SELECT_ENC) {
 		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING
-		    || currentUIMode == UI_MODE_NOTES_PRESSED
-		    || currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR) {
+		    || currentUIMode == UI_MODE_NOTES_PRESSED || currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    || currentUIMode == UI_MODE_STUTTERING) {
 			if (!on && !Buttons::selectButtonPressUsedUp) {
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -414,8 +417,8 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 	// Back button
 	else if (b == BACK) {
 		if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_AUDITIONING
-		    || currentUIMode == UI_MODE_NOTES_PRESSED
-		    || currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR) {
+		    || currentUIMode == UI_MODE_NOTES_PRESSED || currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR
+		    || currentUIMode == UI_MODE_STUTTERING) {
 			if (on) {
 				if (inCardRoutine) {
 					return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
@@ -709,6 +712,8 @@ ActionResult SoundEditor::exitCompletely() {
 	}
 	else if (inNoteEditor()) {
 		instrumentClipView.exitNoteEditor();
+		// refresh grid to potentially unhighlight edited notes
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	}
 	else if (inNoteRowEditor()) {
 		instrumentClipView.exitNoteRowEditor();
@@ -1020,7 +1025,7 @@ void SoundEditor::scrollFinished() {
 }
 
 const uint32_t selectEncoderUIModes[] = {UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR, UI_MODE_NOTES_PRESSED,
-                                         UI_MODE_AUDITIONING, 0};
+                                         UI_MODE_AUDITIONING, UI_MODE_STUTTERING, 0};
 
 void SoundEditor::selectEncoderAction(int8_t offset) {
 	int8_t scaledOffset = offset;
@@ -1446,6 +1451,11 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 		}
 	}
 
+	// Allow using performance view pads while in the sound editor menu
+	else if (rootUI == &performanceView) {
+		return performanceView.padAction(x, y, on);
+	}
+
 	// Otherwise...
 	if (currentUIMode == UI_MODE_NONE && on) {
 		if (getCurrentMenuItem() == &firmwareVersionMenu && y == 7) {
@@ -1471,12 +1481,6 @@ ActionResult SoundEditor::padAction(int32_t x, int32_t y, int32_t on) {
 				display->displayPopup(buffer);
 				return ActionResult::DEALT_WITH;
 			}
-		}
-
-		// used in performanceView to ignore pad presses when you just exited soundEditor
-		// with a padAction
-		if (rootUI == &performanceView) {
-			performanceView.justExitedSoundEditor = true;
 		}
 
 		exitCompletely();

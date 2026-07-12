@@ -1048,11 +1048,15 @@ void View::getParameterNameFromModEncoder(int32_t whichModEncoder, char* paramet
 				}
 			}
 
-			paramDisplayName.append(modulation::params::getPatchedParamShortName(modelStackWithParam->paramId));
+			paramDisplayName.append(modulation::params::getPatchedParamShortName(
+			    modelStackWithParam->paramId, (ModControllableAudio*)activeModControllableModelStack.modControllable));
 			strncpy(parameterName, paramDisplayName.c_str(), 29);
 		}
 		else {
-			strncpy(parameterName, getParamDisplayName(kind, modelStackWithParam->paramId), 29);
+			strncpy(parameterName,
+			        getParamDisplayName(kind, modelStackWithParam->paramId,
+			                            (ModControllableAudio*)activeModControllableModelStack.modControllable),
+			        29);
 		}
 	}
 }
@@ -1121,7 +1125,8 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 				parameter_name.append(sourceToStringShort(source2));
 				parameter_name.append("->");
 			}
-			parameter_name.append(modulation::params::getPatchedParamShortName(paramID));
+			parameter_name.append(modulation::params::getPatchedParamShortName(
+			    paramID, (ModControllableAudio*)view.activeModControllableModelStack.modControllable));
 		}
 		else if (isClipContext() && getCurrentOutputType() == OutputType::MIDI_OUT) {
 			MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
@@ -1149,7 +1154,8 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 			}
 		}
 		else {
-			const char* name = getParamDisplayName(kind, paramID);
+			const char* name = getParamDisplayName(
+			    kind, paramID, (ModControllableAudio*)view.activeModControllableModelStack.modControllable);
 			if (name != l10n::get(l10n::String::STRING_FOR_NONE)) {
 				parameter_name.append(name);
 			}

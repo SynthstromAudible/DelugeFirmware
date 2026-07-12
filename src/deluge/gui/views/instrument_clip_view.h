@@ -190,7 +190,6 @@ public:
 	void cancelAllAuditioning();
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on) override;
 
-	void tellMatrixDriverWhichRowsContainSomethingZoomable() override;
 	void drawDrumName(Drum* drum, bool justPopUp = false);
 	void notifyPlaybackBegun() override;
 	void openedInBackground();
