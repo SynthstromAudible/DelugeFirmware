@@ -23,6 +23,8 @@
     Control.UPPER_PARAM,
   ]);
 
+  // Detects adjacent press+turn operations on knob-like controls and merges them.
+  // Returns true when two adjacent steps should render as one composite action.
   const isPressTurnPair = (first: Step | undefined, second: Step | undefined) =>
     !!first &&
     !!second &&
@@ -32,16 +34,20 @@
     knobControls.has(first.control);
 
   // Measure at full width, shrink to the widest line, then right-align continuations.
+  // Returns a Svelte action object with update/destroy hooks.
   function alignWrappedRows(node: HTMLDivElement) {
     let lineStartFrame: number | undefined;
     let lineStartTimeouts: ReturnType<typeof setTimeout>[] = [];
 
+    // Clears per-child margin overrides before re-measuring wrapping.
+    // Returns void.
     function resetChildren() {
       [...node.children].forEach((child) => {
         (child as HTMLElement).style.marginLeft = "";
       });
     }
 
+    // Returns the total horizontal padding+border contribution for the card.
     function getCardWidthOffset(card: HTMLElement) {
       const styles = getComputedStyle(card);
       return (
@@ -52,6 +58,8 @@
       );
     }
 
+    // Captures row starts and measured line widths from child offsets.
+    // Returns children, line-start indices, and measured line widths.
     function getLineStarts() {
       const children = [...node.children] as HTMLElement[];
       const lineStarts = new Set<number>();
@@ -60,6 +68,7 @@
       let currentLineTop = children[0]?.offsetTop ?? 0;
       let currentLineWidth = 0;
 
+      // Branch: wrapped to a new visual row.
       children.forEach((child, idx) => {
         const childTop = child.offsetTop;
         const childRight = child.getBoundingClientRect().right - rowLeft;
@@ -81,9 +90,12 @@
       return { children, lineStarts, lineWidths };
     }
 
+    // Recomputes card width and continuation alignment based on wrapped rows.
+    // Returns void.
     function updateLineStartIndices() {
       const card = node.closest(".dc-step-card") as HTMLElement | null;
 
+      // Branch: action used outside expected step card context.
       if (!card) {
         return;
       }
@@ -110,7 +122,10 @@
       });
     }
 
+    // Defers expensive measurement to the next paint(s).
+    // Returns void.
     function scheduleLineStartUpdate() {
+      // Branch: SSR/non-browser fallback.
       if (typeof requestAnimationFrame === "undefined") {
         updateLineStartIndices();
         return;
@@ -128,6 +143,8 @@
       });
     }
 
+    // Re-run alignment after layout settles (fonts/transitions/resize).
+    // Returns void.
     function scheduleSettledUpdates() {
       lineStartTimeouts.forEach((timeout) => clearTimeout(timeout));
       lineStartTimeouts = [0, 50, 250, 750].map((delay) =>
@@ -152,29 +169,35 @@
     };
   }
 
+  // Render-time normalization that fuses press+turn pairs into a single visual step.
   $: renderedSubsteps = step.substeps.reduce<RenderedSubstep[]>((acc, _, idx, all) => {
     const current = all[idx];
     const next = all[idx + 1];
 
+    // Branch: current + next collapse into one composite action.
     if (isPressTurnPair(current, next)) {
       acc.push({ step: next, compositeAction: "press-turn" });
       return acc;
     }
 
+    // Branch: skip current because it was consumed by previous pair.
     if (isPressTurnPair(all[idx - 1], current)) {
       return acc;
     }
 
+    // Branch: regular substep.
     acc.push({ step: current, compositeAction: "none" });
     return acc;
   }, []);
 </script>
 
+<!-- Wrapped substep row with right-aligned continuation lines. -->
 <div
   use:alignWrappedRows={renderedSubsteps.length}
   class="substeps-row flex w-full max-w-full flex-wrap items-start gap-x-2 gap-y-1"
 >
   {#each renderedSubsteps as renderedSubstep, idx}
+    <!-- First item renders without leading plus marker. -->
     {#if idx === 0}
       <span class="substeps-item">
         <StepView
@@ -184,6 +207,7 @@
         />
       </span>
     {:else}
+      <!-- Continuation items prepend a visual plus separator. -->
       <span class="substeps-item substeps-break">
         <span class="substeps-plus">+</span>
         <StepView

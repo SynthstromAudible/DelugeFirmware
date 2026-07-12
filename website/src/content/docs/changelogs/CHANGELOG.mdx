@@ -97,7 +97,7 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
 #### <ins>Mod Matrix / Patch Cables</ins>
 
 - Patch cables can be toggled to unipolar or bipolar mode
-  - `Press + Turn select encoder` to change the polarity while in the patch cable menu
+  - :key[press turn select] to change the polarity while in the patch cable menu
   - For OLED: `MIDI`/`CV` buttons can be used as an additional way to change it, with corresponding graphics on the display
   - For 7SEG: a little dot will be displayed on the right side when the polarity is unipolar
 
@@ -132,7 +132,7 @@ Added main grid pad shortcuts for the following parameters:
 
 - Added `DEFAULTS (DEFA) > UI > ACCESSIBILITY (ACCE)` menu which contains accessibility changes to the Deluge UI to make the deluge more accessible to users with disabilities. These changes include:
   - `Shortcuts (SHOR)` to make specific shortcut combinations more accessible for users with mobility restrictions.
-    - `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` is changed to `CROSS SCREEN` + `PLAY`
+    - :key[horizontal] + :key[play] is changed to :key[crossscreen] + :key[play]
   - `Menu Highlighting (HIGH)` changes how menu highlighting is rendered on `OLED` displays by drawing a vertical bar `|` on the left edge of the display beside the selected menu item instead of highlighting the area of the selected menu item by inverting the text.
 
 #### <ins>OLED Display Improvements</ins>
@@ -166,14 +166,14 @@ Added main grid pad shortcuts for the following parameters:
   - Voice.
   - Arpeggiator.
 - Horizontal Menu controls.
-  - `Turn select encoder` to change the value of the selected menu item
-  - You can select the different menu item's on the currently visible horizontal menu page using the `SYNTH`, `KIT`, `MIDI`, `CV` buttons
+  - :key[turn select] to change the value of the selected menu item
+  - You can select the different menu item's on the currently visible horizontal menu page using the :key[synth], :key[kit], :key[midi], :key[cv] buttons
     - When in a Horizontal Menu, the selected instruments LED corresponding to the Horizontal Menu item selected will light up
-  - You can use the `SCALE` and `CROSS-SCREEN` buttons to switch between pages and adjacent menus
-    - Use `CROSS-SCREEN` button to switch to the next page
-    - Use `SCALE` button to switch to the previous page
-    - Use `SHIFT + CROSS-SCREEN` button combo to switch to the next adjacent Horizontal menu
-    - Use `SHIFT + SCALE` button combo to switch to the previous adjacent Horizontal menu
+  - You can use the :key[scale] and :key[crossscreen] buttons to switch between pages and adjacent menus
+    - Use :key[crossscreen] button to switch to the next page
+    - Use :key[scale] button to switch to the previous page
+    - Use :key[shift + crossscreen] button combo to switch to the next adjacent Horizontal menu
+    - Use :key[shift + scale] button combo to switch to the previous adjacent Horizontal menu
   - You can fine-tune values (e.g., oscillator transpose) in a menu by either :key[PRESS TURN SELECT] or :key[SHIFT + TURN SELECT]
 
 #### <ins>Clip Name Display & Copying</ins>
@@ -184,7 +184,7 @@ Added main grid pad shortcuts for the following parameters:
 
 #### <ins>Tempo</ins>
 
-- Added Community Feature toggle (`Settings > Community Features > Alternative Tap Tempo Behaviour (TAPT)`) to adjust number of `TAP TEMPO` button presses to engage `TAP TEMPO` to `FOUR (4)` to avoid mistakingly changing tempo.
+- Added Community Feature toggle (`Settings > Community Features > Alternative Tap Tempo Behaviour (TAPT)`) to adjust number of :key[taptempo] button presses to engage `TAP TEMPO` to `FOUR (4)` to avoid mistakingly changing tempo.
 
 #### <ins>Recording</ins>
 
@@ -198,7 +198,7 @@ Added main grid pad shortcuts for the following parameters:
     - `HIGH`: Sets a high threshold that is good for noisy signals / microphones with gain
   - You can also view and temporarily change the current threshold recording setting as follows:
     - :key[Record + Turn Select]
-    - Enter the Song menu while in Song or Arranger View by pressing :key[Select] and entering the `SONG > THRESHOLD RECORDING (THRE) > MODE` submenu
+    - Enter the  menu while in Session or Arranger View by pressing :key[Select] and entering the `SONG > THRESHOLD RECORDING (THRE) > MODE` submenu
 - Note regarding `AUDIO CLIP LIMITATIONS`: Threshold recording will not stop an audio clip from starting to record.
   - Threshold recording will only prevent audio from filling the audio file buffer until the threshold is reached.
   - Thus, depending on when the threshold is reached after starting recording, the audio file waveform rendered in the audio clip may show silent audio.
@@ -207,7 +207,7 @@ Added main grid pad shortcuts for the following parameters:
 
 ##### Loop Recording
 
-- Easier loop recording in `SONG VIEW` (similar to Kit Row sampling working). Added ability to trigger a loop recording for a specific clip in `SONG VIEW` by holding a `CLIP` and pressing `RECORD`. By default this will trigger the Global MIDI Command `LAYERING LOOP`, however this can be changed in the `SETTINGS > RECORDING > LOOP COMMAND (LOOP)` submenu.
+- Easier loop recording in `Session View` (similar to Kit Row sampling working). Added ability to trigger a loop recording for a specific clip in `Session View` by holding a `CLIP` and pressing `RECORD`. By default this will trigger the Global MIDI Command `LAYERING LOOP`, however this can be changed in the `SETTINGS > RECORDING > LOOP COMMAND (LOOP)` submenu.
   - Note: to end a recording, you will send to send the Global MIDI Command again, which can be done by holding a clip and pressing record again.
 
 #### <ins>Audio Export</ins>
@@ -218,7 +218,7 @@ Added main grid pad shortcuts for the following parameters:
 
 #### <ins>Save/Load Patterns</ins>
 
-- Added ability to save / load Pattern-Files to Files. A Pattern represents all Notes of the actual Deluge Screen including Velocity, Probability, Lift, Iterance and Fill. The Patterns can be either of Type melodic Instrument (Synt, Midi, CV) or rhythmic Instrument (Kit, Drum). It's also possible to convert Midi-Files to patterns, which can then be used on the Deluge. See documentation at [Save / Load Patterns feature ](/features/save_load_patterns) for more info.
+- Added ability to save / load Pattern-Files to Files. A Pattern represents all Notes of the actual Deluge Screen including Velocity, Probability, Lift, Iterance and Fill. The Patterns can be either of Type Melodic Instrument (Synth, Midi, CV) or Rhythmic Instrument (Kit, Drum). It's also possible to convert Midi-Files to patterns, which can then be used on the Deluge. See documentation at [Save / Load Patterns feature ](/features/save_load_patterns) for more info.
 
 #### <ins>Favourites</ins>
 
@@ -228,17 +228,17 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 
 - Added ability to start / restart arrangement playback from the clip pad you're holding in arranger.
   - Note: you need to select a pad of any clip in arranger in order for this to work (it cannot be an empty pad)
-- Restored original behaviour which enabled you to insert / delete time for all automated parameters using `shift + <>`
+- Restored original behaviour which enabled you to insert / delete time for all automated parameters using :key[shift + horizontal]
 
-#### <ins>Song View</ins>
+#### <ins>Session View</ins>
 
-- Doubled the number of Song View sections from 12 to 24.
+- Doubled the number of Session View sections from 12 to 24.
 
 ##### <ins>Clip/Section Launching</ins>
 
 - A new option, 'Launch Exclusively', isolates a clip section from all other launch activity. This option is found to the left of option 'Launch non-exclusively' when selecting the section's number of repetitions. As a complement to non-exclusive sections that arm and turn off when another section is launched, exclusive sections remain independant.
 
-#### <ins>Song Grid View</ins>
+#### <ins>Session Grid View</ins>
 
 ##### General
 
@@ -246,11 +246,11 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 
 ##### Entering Clips
 
-- Added ability to enter clips in `Song Grid View Green Mode` by `Pressing a Clip Pad` + `Pressing the Clip button` if you have `Select in Green Mode` enabled in the `SETTINGS > DEFAULTS > UI > SONG > GRID` menu.
+- Added ability to enter clips in `Session Grid View Green Mode` by `Pressing a Clip Pad` + `Pressing the Clip button` if you have `Select in Green Mode` enabled in the `SETTINGS > DEFAULTS > UI > SONG > GRID` menu.
 
 ##### Selected Clip Pulsing
 
-- The selected clip in `Song Grid View` (which is the last clip you interacted with), now shows a `pulsing / breathing` animation whereby the clip pad will fade in and out between the clip's normal colour and a blurred colour.
+- The selected clip in `Session Grid View` (which is the last clip you interacted with), now shows a `pulsing / breathing` animation whereby the clip pad will fade in and out between the clip's normal colour and a blurred colour.
 - This will help you keep track of what clip midi follow is currently controlling and what clip is selected for loop recording.
 
 #### <ins>Instrument Clip View</ins>
@@ -294,7 +294,7 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 ##### CV Clips
 
 - Added the ability to set a CV instrument to use both 1 and 2 channels, which makes the cv2 source selectable between mod wheel, velocity, and aftertouch
-  - Turn :key[Select] to choose `1 AND 2 (BOTH)` CV / Gate channel.
+  - :key[Turn Select] to choose `1 AND 2 (BOTH)` CV / Gate channel.
   - Press :key[Select] to enter the `CV Instrument Menu`
   - Enter the `CV 2 Source (CV2)` submenu
   - Select from `OFF, Y, Aftertouch, Velocity`
@@ -303,7 +303,7 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 ##### MIDI Clips
 
 - Added ability to rename MIDI CC's in MIDI clips. Changes are saved by Instrument (e.g. per MIDI channel). Changes can be saved to a `MIDI preset`, with the `Song`, or to a `MIDI device definition file`. See documentation on [MIDI Device Definition Files](/features/midi_device_definition_files) for more info.
-- Added MIDI CC numbers and labels to `Gold (Mod) Encoder` popups.
+- Added MIDI CC numbers and labels to :key[gold] encoder popups.
 - Updated MIDI Program menu to show values 0-127.
   - Values for program, bank and sub-bank were previously shown as 1-128, but now reflect the actual transmitted MIDI values.
 
@@ -312,18 +312,18 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 ##### General
 
 - Fixed Quantize/Humanize bug which would freeze the velocity view UI
-- Updated shortcut for `Note Velocity View`. You can now only enter `Note Velocity View` by holding `Audition Pad` + pressing the `Velocity` pad.
+- Updated shortcut for `Note Velocity View`. You can now only enter `Note Velocity View` by holding :key[audition pad] + pressing the `Velocity` :key[pad].
 
 #### <ins>Automation View</ins>
 
 ##### Defaults
 
-- The `Settings/Defaults/Automation/Shift` toggle now only applies to Clip View. In Arranger View if you use `shift + <>` to insert / delete time at a specific point in the arrangement, all paramet[...]
+- The `Settings/Defaults/Automation/Shift` toggle now only applies to Clip View. In Arranger View if you use :key[shift + horizontal] to insert / delete time at a specific point in the arrangement, all parameteter automation is shifted.
 
 ##### Automation Overview and Shortcuts
 
-- Removed the `Note Velocity View` shortcut from the Automation Overview. The `Velocity` pad on the Automation Overview now represents the Automatable parameter `Velocity Spread`
-- Updated shortcut for `Note Velocity View`. You can now only enter `Note Velocity View` by holding `Audition Pad` + pressing the `Velocity` pad.
+- Removed the `Note Velocity View` shortcut from the Automation Overview. The `Velocity` :key[pad] on the Automation Overview now represents the Automatable parameter `Velocity Spread`
+- Updated shortcut for `Note Velocity View`. You can now only enter `Note Velocity View` by holding :key[audition pad] + pressing the `Velocity` :key[pad].
 
 ##### Parameters
 
@@ -333,15 +333,15 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 
 ##### Copy/Paste
 
-- Added same shortcut that is used for copy / pasting notes in Instrument Clip View to Automation View to copy / paste automation. While in the Automation Editor, Copy with `Learn + <>`. Paste with `Shift + Learn + <>`.
+- Added same shortcut that is used for copy / pasting notes in Instrument Clip View to Automation View to copy / paste automation. While in the Automation Editor, Copy with :key[learn + horizontal]. Paste with :key[shift + learn + horizontal].
 
 #### <ins>Keyboard View</ins>
 
 ##### Kits
 
-- Added ability to change the pad size in the `KIT VELOCITY KEYBOARD VIEW` using the Zoom In/Out shortcut by `Pressing + Turning <>`
+- Added ability to change the pad size in the `KIT VELOCITY KEYBOARD VIEW` using the Zoom In/Out shortcut by :key[press turn horizontal]
 - `KIT VELOCITY KEYBOARD VIEW` Changes:
-  - Additional shortcut of `Pressing + Turning <>` to change the pad size using the Zoom In/Out.
+  - Additional shortcut of :key[press turn horizontal] to change the pad size using the Zoom In/Out.
   - Went from 8 zoom levels to 13, with mostly smaller jumps in size and number of drum pads between levels.
   - Rectangular pads of various sizes are used where needed to fully cover the screen without any partial pads. This means you can now have six or four pads, or even the entire screen as a single pad.
   - Zoom level 1 pads play the system-level default velocity (64 by default out of a maximum 127, but it is user defineable), and levels 2 and 3 have a slightly lowered max velocity of 100 to make them more useable.
@@ -394,12 +394,12 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 - `Midi Learned Note Input for the Whole Kit` now persists between Kit preset changes.
 - Fixed unexpected behaviour for `Synth` and `Kit` clips that would cause `MIDI LEARNED PARAMS` to get lost when changing presets for Synth / Kits.
   - Note: for `Kit` clips it will migrate midi learn for `Kit Affect Entire` params only.
-- Added new `MIDI LEARN` menu to the `SONG` menu. In `Song Grid View` this menu enables you to learn `Clip/Section Launch`. In `Song Row View` this menu enables you to learn the `Clip/Section Launch` and `Instrument`.
+- Added new `MIDI LEARN` menu to the `SONG` menu. In `Session Grid View` this menu enables you to learn `Clip/Section Launch`. In `Session Row View` this menu enables you to learn the `Clip/Section Launch` and `Instrument`.
   - While in this menu, you just need to `hold a clip / section` and send midi to learn that clip / section. If you press the `clip / section` again you will unlearn it.
-- Added ability to `Midi Learn Instruments` and `Select the Audio Source for Audio Clips` in `Song Grid View Green Mode` by moving `Midi Learn Clip/Section Launch` actions to the `MIDI LEARN` menu mentioned above.
+- Added ability to `Midi Learn Instruments` and `Select the Audio Source for Audio Clips` in `Session Grid View Green Mode` by moving `Midi Learn Clip/Section Launch` actions to the `MIDI LEARN` menu mentioned above.
 - Added new learnable global commands:
   - `LOAD NEXT SONG`, which when received while playing, it will queue to load the next song within the folder of the current song.
-  - `SHIFT` to toggle the deluge's `SHIFT` button. It can also be used to toggle sticky shift.
+  - `SHIFT` to toggle the deluge's :key[shift] button. It can also be used to toggle sticky shift.
     - Shift down: Note On or CC Value > 0
     - Shift up: Note Off or CC Value = 0
 
@@ -437,7 +437,7 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 
 ### Sound Engine
 
-- Fixed a bug that was causing audio clicks when recording audio and when scrolling / zooming in song row view and the audio waveform renderer.
+- Fixed a bug that was causing audio clicks when recording audio and when scrolling / zooming in Session Row View and the audio waveform renderer.
 
 ## c1.2.0 Chopin
 
@@ -496,8 +496,8 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 
 - The maximum zoom level for timelines has been increased. Now, the maximum zoom is the point the point where the entire timeline is represented by a single grid cell.
 - Added community feature toggle `Alternative Playback Start Behaviour (STAR)` to change the behaviour of playback start shortcuts as follows:
-  - With playback off, pressing `PLAY` will start playback from the current grid scroll position
-  - With playback off, pressing `HORIZONTAL ENCODER ◀︎▶︎` + `PLAY` will start playback from the start of the arrangement or clip
+  - With playback off, pressing :key[play] will start playback from the current grid scroll position
+  - With playback off, pressing :key[horizontal + play] will start playback from the start of the arrangement or clip
 - Removed `High CPU Usage Indicator` feature.
 
 #### <ins>Menu UI Improvements</ins>
@@ -511,12 +511,12 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 
 #### <ins>OLED Display Improvements</ins>
 
-- Updated OLED display for `SONG VIEW` and `ARRANGER VIEW` to display the Song Name, Current Tempo and Current Root Note and Scale Name.
+- Updated OLED display for `Session View` and `ARRANGER VIEW` to display the Song Name, Current Tempo and Current Root Note and Scale Name.
 - Updated OLED display to stop scrolling text while playback is running.
 
 #### <ins>Audio Export</ins>
 
-- Added `AUDIO EXPORT`, an automated process for exporting `CLIP's` while in `SONG VIEW` and `TRACK's` while in `ARRANGER VIEW` to individual files. Press :key[Save + Record] to start exporting clips/tracks. Press :key[Back] to cancel exporting and stop recording and playback.
+- Added `AUDIO EXPORT`, an automated process for exporting `CLIP's` while in `Session View` and `TRACK's` while in `ARRANGER VIEW` to individual files. Press :key[Save + Record] to start exporting clips/tracks. Press :key[Back] to cancel exporting and stop recording and playback.
   - You can also start audio export via a new `EXPORT AUDIO` menu found in the `SONG` menu accessible in Song and Arranger Views. Start the export by entering the `SONG\EXPORT AUDIO\` menu and pressing :key[Select] on the menu item titled `START EXPORT`. It will exit out of the menu and display the export progress on the display.
 
 #### <ins>Recording</ins>
@@ -528,7 +528,7 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 
 - A white playhead is now rendered in Song Grid and Performance Views that let's you know when a clip or section launch event is scheduled to occur. The playhead only renders the last 16 notes before a launch event.
   - Note: this playhead can be turned off in the Community Features submenu titled: `Enable Launch Event Playhead (PLAY)`
-- The display now shows the number of Bars (or Quarter Notes for the last bar) remaining until a clip or section launch event in all Song views (Grid, Row, Performance).
+- The display now shows the number of Bars (or Quarter Notes for the last bar) remaining until a clip or section launch event in all Session Views (Grid, Row, Performance).
 
 #### <ins>Audio Clips</ins>
 
@@ -555,50 +555,50 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 
 ##### Velocity View
 
-- Added `VELOCITY VIEW`, accessible from `AUTOMATION VIEW OVERVIEW` by pressing the `VELOCITY` shortcut, from `AUTOMATION VIEW EDITOR` by pressing `SHIFT OR AUDITION PAD + VELOCITY` or from `INSTRUMENT CLIP VIEW` by pressing `AUDITION PAD + VELOCITY`.
+- **(Shortcut changed in 1.3)** Added `VELOCITY VIEW`, accessible from `AUTOMATION VIEW OVERVIEW` by pressing the `VELOCITY` shortcut, from `AUTOMATION VIEW EDITOR` by pressing :key[shift] or :key[audition pad] + VELOCITY :key[pad] or from `INSTRUMENT CLIP VIEW` by pressing :key[audition pad] + VELOCITY :key[pad].
   - Velocity View enables you to edit the velocities and other parameters of notes in a single note row using a similar interface to `AUTOMATION VIEW`.
 
 ##### Scales
 
 - Added learning a user specified scale.
-  - Hold `LEARN` and press `SCALE` while in clip view. Notes from current clip & all scale mode clips are learned as the "USER" scale. This scale is part of the normal scale rotation, accessible with `SHIFT + SCALE`, and saved as part of the song. If another user scale is learned, the previous one is overwritten: currently each song can only have one user scale.
+  - Hold :key[learn] and press :key[scale] while in clip view. Notes from current clip & all scale mode clips are learned as the "USER" scale. This scale is part of the normal scale rotation, accessible with :key[shift + scale], and saved as part of the song. If another user scale is learned, the previous one is overwritten: currently each song can only have one user scale.
   - If you enter scale mode from a chromatic clip, and the implied scale cannot be represented by any of the existing preset scales, it will be learned as a user scale, overwriting the previous USER scale.
 - Added `ACTIVE SCALES` menu.
-  - `SONG > ACTIVE SCALES` toggles scales on and off from the `SHIFT + SCALE` rotation for the current song. Active scales are saved as part of the song. On 7-segment display dot indicates that the named scale is active, lack of dot indicates it has been disabled.
+  - `SONG > ACTIVE SCALES` toggles scales on and off from the :key[shift + scale] rotation for the current song. Active scales are saved as part of the song. On 7-segment display dot indicates that the named scale is active, lack of dot indicates it has been disabled.
   - `DEFAULTS > SCALE > ACTIVE SCALES` sets the active scales for new songs. When `RANDOM` is set as `DEFAULTS > SCALE > INIT SCALE`, the random scale is selected from default active scales.
 
-#### <ins>Song View</ins>
+#### <ins>Session View</ins>
 
 ##### Song Macros
 
-- Added ability to create song macros to quickly switch playing clips from inside clip view without needing to go into song view.
-- From song view, open the `SONG MENU` and enter the `CONFIGURE MACROS` menu to edit macros
+- Added ability to create song macros to quickly switch playing clips from inside clip view without needing to go into Session View.
+- From Session View, open the `SONG MENU` and enter the `CONFIGURE MACROS` menu to edit macros
 
 ##### Clip Settings Menu
 
-- Holding a clip in `SONG GRID VIEW` or the status pad for a clip in `SONG ROW VIEW` and pressing :key[Select] brings up a `CLIP SETTINGS` menu.
+- Holding a clip in `Session Grid View` or the status pad for a clip in `Session Row View` and pressing :key[Select] brings up a `CLIP SETTINGS` menu.
 - If you open the menu with with an `INSTRUMENT CLIP` selected, then the menu will give you three options:
   1. `Convert to Audio`: Press select on this option to convert the selected `instrument clip` into an `audio clip`. The menu will exit after converting the clip.
-  - Note: for `SONG ROW VIEW`, you can still convert an empty instrument clip to an audio clip the regular way by holding a pad for that clip in the main grid and pressing select.
+  - Note: for `Session Row View`, you can still convert an empty instrument clip to an audio clip the regular way by holding a pad for that clip in the main grid and pressing select.
   2. `Clip Mode`: Press select on this option to enter the `Clip Mode` menu so you can change the Clip Mode between `INFINITE`, `FILL` and `ONCE`.
   3. `Clip Name`: Press select on this option to enter the `Clip Name` UI to set the name for the clip.
 - If you open the menu with an `AUDIO CLIP` selected, then the menu will give two options: `Clip Mode` and `Clip Name`.
 
-#### <ins>Song Grid View</ins>
+#### <ins>Session Grid View</ins>
 
 ##### Creating New Clips
 
-- Added new mechanism for creating New Clips in New Tracks in `SONG GRID VIEW`.
+- Added new mechanism for creating New Clips in New Tracks in `Session Grid View`.
   - When you press a pad in a new track, a menu will appear asking you to confirm the type of clip you wish to create. The clip type selected to be created is shown on the display and is also indicated by the clip type button that is blinking.
     - The default clip type for new clips created can be configured in `SETTINGS > DEFAULTS > UI > CLIP TYPE > NEW CLIP TYPE` menu.
     - You can also configure whether the clip type for the next clip type you create should default to the last clip type you created. This helps with fast creation of multiple clips of the same type. You can enable this default setting in the `SETTINGS > DEFAULTS > UI > CLIP TYPE > USE LAST CLIP TYPE` menu.
     - If you just a tap a pad quickly to create a new clip, it will create that new clip using either the default clip type or the last clip type you created (if you enable this).
     - If you press and hold a pad, you can choose a different type to create in a number of ways:
       - by turning the select encoder to switch between the various clip types. You can create that clip type by pressing on the select encoder or letting go of the pad.
-      - by pressing one of the clip type buttons (e.g. `SYNTH`, `KIT`, `MIDI`, `CV`).
+      - by pressing one of the clip type buttons (e.g. :key[synth], :key[kit], :key[midi], :key[cv]).
       - If you let go of the pad without selecting a different type, it will create the clip using the last create type (or the last selected type if you changed selection using select encoder).
-    - If you press `BACK` before releasing a pad or selecting a clip type, it will cancel the clip creation.
-    - These changes only apply to `SONG GRID VIEW` and NOT `SONG ROW VIEW`
+    - If you press :[back] before releasing a pad or selecting a clip type, it will cancel the clip creation.
+    - These changes only apply to `Session Grid View` and NOT `Session Row View`
 
 ##### Converting Empty Instrument Clips to Audio Clips
 
@@ -610,7 +610,7 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 
 ##### Entering Performance View
 
-- Changed the shortcut to enter Performance View in `SONG GRID VIEW` from the `PINK GRID MODE` to the :key[Keyboard] button for consistency with `SONG ROW VIEW` and `ARRANGER VIEW`.
+- Changed the shortcut to enter Performance View in `Session Grid View` from the `PINK GRID MODE` to the :key[Keyboard] button for consistency with `Session Row View` and `ARRANGER VIEW`.
 - Removed `PINK GRID MODE`
 
 #### <ins>Performance View</ins>
@@ -639,7 +639,7 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 
 ##### General
 
-- Added ability to scroll `KEYBOARD VIEW` horizontally using `<>` while editing Param values in the menu.
+- Added ability to scroll `KEYBOARD VIEW` horizontally using :key[horizontal] while editing Param values in the menu.
 
 ##### Chord Layouts
 
@@ -663,8 +663,8 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 - Fixed a couple bugs around `VU METER` rendering.
 - Fixed a `MIDI FOLLOW` bug where the Deluge could crash if sending a note while loading a new song.
 - Fixed `KIT CLIP` bug where having a note row without a drum blocked creating a drum in that row
-- Fixed `SONG GRID VIEW` bug where `SECTIONS` would playback in the order of `SONG ROW VIEW`
-- Fixed an `ARRANGER VIEW` bug where you could not move a `WHITE` clip to `SONG GRID VIEW` without the Deluge freezing.
+- Fixed `Session Grid View` bug where `SECTIONS` would playback in the order of `Session Row View`
+- Fixed an `ARRANGER VIEW` bug where you could not move a `WHITE` clip to `Session Grid View` without the Deluge freezing.
 
 ## c1.1.0 Beethoven
 
@@ -685,7 +685,7 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 #### <ins>Compressors</ins>
 
 - Added compressors to synths, kits, audio clips, and kit rows. The compressor can be enabled and edited from their respective menus.
-- Compressor behavior has been changed to reduce clipping. Songs made with community release 1.0.x may need to have their volume manually adjusted to compensate. This is done via :key[AffectEntire] in song/arranger mode, or by entering the `SONG MENU` by pressing :key[Select] in Song View and navigating to `MASTER > VOLUME`
+- Compressor behavior has been changed to reduce clipping. Songs made with community release 1.0.x may need to have their volume manually adjusted to compensate. This is done via :key[AffectEntire] in song/arranger mode, or by entering the `SONG MENU` by pressing :key[Select] in Session View and navigating to `MASTER > VOLUME`
 
 #### <ins>Polyphony / Voice Count </ins>
 
@@ -716,7 +716,7 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 #### <ins>OLED Display Improvements</ins>
 
 - Added parameter names (including mod matrix / patch cable mappings) to Mod (Gold) Encoder popups.
-- `ARRANGER VIEW` and `SONG VIEW` now display the name of the current view on the screen.
+- `ARRANGER VIEW` and `Session View` now display the name of the current view on the screen.
 - The 12TET note name is now displayed along with the MIDI note number.
 - Added a new community setting which allows emulating the 7SEG style on the OLED display. When set to `TOGGLE` press :key[Shift + LearnInput + AffectEntire] to switch to the emulated 7SEG display.
 - Fixed several cases where popups could get stuck open.
@@ -737,7 +737,7 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 
 #### <ins>Performance View</ins>
 
-- Added `PERFORMANCE VIEW`, accessible in Song View by pressing the Keyboard button. Allows quick control of Song Global FX.
+- Added `PERFORMANCE VIEW`, accessible in Session View by pressing the Keyboard button. Allows quick control of Song Global FX.
 
 #### <ins>Automation View</ins>
 
@@ -758,20 +758,20 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 
 #### <ins>Song Menu</ins>
 
-- Added a menu for Song-level parameters, accessible in `SONG VIEW` and `ARRANGER VIEW` by pressing :key[Select].
+- Added a menu for Song-level parameters, accessible in `Session View` and `ARRANGER VIEW` by pressing :key[Select].
 
-#### <ins>Song Grid View</ins>
+#### <ins>Session Grid View</ins>
 
 - Streamlined recording new clips in `GRID VIEW` while the Deluge is playing. Short-press empty clip pads in Grid View's `GREEN MODE` while recording is armed to automatically create a new clip and queue it to record at the start of the next bar.
 - Fixed a bug preventing clip selection while :key[Shift] was held.
 
 #### <ins>Master Transpose</ins>
 
-- Added Master Chromatic Transpose of All Scale Mode Instrument Clips from any SONG View (`SONG VIEW`, `ARRANGER VIEW`, `ARRANGER AUTOMATION VIEW` and `PERFORMANCE VIEW`). Uses the same shortcut as in a Synth/Midi/CV clip (:key[Press Turn Vertical] to transpose all clips by +/- 1 semitone). The number of semitones transposed is customizable (:key[Shift + Press Turn Vertical]). After transposing, the display shows the new Root Note (and Scale Name on OLED displays).
+- Added Master Chromatic Transpose of All Scale Mode Instrument Clips from any Session View (`Session View`, `ARRANGER VIEW`, `ARRANGER AUTOMATION VIEW` and `PERFORMANCE VIEW`). Uses the same shortcut as in a Synth/Midi/CV clip (:key[Press Turn Vertical] to transpose all clips by +/- 1 semitone). The number of semitones transposed is customizable (:key[Shift + Press Turn Vertical]). After transposing, the display shows the new Root Note (and Scale Name on OLED displays).
 
 #### <ins>VU Meter</ins>
 
-- Added a `VU METER` toggle that displays the VU Meter on the sidebar in `SONG`, `ARRANGER`, & `PERFORMANCE VIEW`. To activate it, on a song view ensure :key[AffectEntire] is enabled, then select the `LEVEL/PAN` mod button and press it again to activate the meter.
+- Added a `VU METER` toggle that displays the VU Meter on the sidebar in `SONG`, `ARRANGER`, & `PERFORMANCE VIEW`. To activate it, on a Session View ensure :key[AffectEntire] is enabled, then select the `LEVEL/PAN` mod button and press it again to activate the meter.
 
 #### <ins>Clip Type Conversion</ins>
 
@@ -822,7 +822,7 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 
 #### <ins>Presets</ins>
 
-- When changing instrument presets in `SONG VIEW` or `ARRANGER VIEW`, all pertaining clips of that instrument switch as well. Individual clips can still have only their preset changed by doing so in `CLIP VIEW`.
+- When changing instrument presets in `Session View` or `ARRANGER VIEW`, all pertaining clips of that instrument switch as well. Individual clips can still have only their preset changed by doing so in `CLIP VIEW`.
 
 #### <ins>Arpeggiator</ins>
 
@@ -918,7 +918,7 @@ A `Favourites` feature has been added to the browser for most file types. The `F
 
 ##### Effects
 
-- A `MASTER COMPRESSOR` has been added and is accessible in Song View.
+- A `MASTER COMPRESSOR` has been added and is accessible in Session View.
 - `STEREO CHORUS` has been added to `MOD FX TYPES`. Adjust stereo depth via `MOD FX DEPTH`.
 - `GRAIN` has been added to `MOD FX TYPES`. Choose from 5 Grain Presets via `MOD FX FEEDBACK`. †
 - `WAVEFOLD` distortion has been added and occurs pre-filter. The parameter pad shortcut is between `SATURATION`
@@ -982,7 +982,7 @@ and MIDI clips on a per step basis at any zoom level. (Excludes MPE automations)
 
 ### User Interface Improvements
 
-- `GRID VIEW` is an alternate `SONG VIEW` layout similar to Ableton's 'Session View'. It displays unique clips across
+- `GRID VIEW` is an alternate `Session View` layout similar to Ableton's 'Session View'. It displays unique clips across
   pad rows and the clip variations across pad columns. Effectively allows you to view and launch 128 clips and
   variations without the need of scrolling to reveal more clips in comparison to `ROW VIEW`'s 8 clips at a time.
 - Manual Slicing aka 'Lazy Chopping' is now possible by pressing the :key[Horizontal] encoder when in the Slice Menu. Allows you
@@ -996,7 +996,7 @@ and MIDI clips on a per step basis at any zoom level. (Excludes MPE automations)
   itself to play the fill at such a time that it _finishes_ by the start of the next loop and then mutes itself.
 - You can now scroll through parameter values and menus faster by +/- 5 by holding :key[Shift] while turning the :key[Select]
   encoder.
-- You can now shift a clip's row color from Song View without having to enter the given clip to do so.
+- You can now shift a clip's row color from Session View without having to enter the given clip to do so.
 - You can now set the stutter effect to be quantized to `4TH, 8TH, 16TH, 32ND, and 64TH` notes before engaging it. †
 - Increased the resolution of modulation between sources and their destinations by including two decimal places to the
   modulation amount. \*
@@ -1015,7 +1015,7 @@ and MIDI clips on a per step basis at any zoom level. (Excludes MPE automations)
   result in less unexpected percussive sounds triggering when instantly switching between clips. \*
 - Waveform Loop Lock - When a sample has loop start and loop end points set, holding down loop start and tapping loop
   end will lock the loop points together when adjusting their position across the waveform.
-- Pressing `AUDITION` + `RANDOM` on a drum kit row will load a random sample from the same folder as the current
+- **Shortcut changed in 1.3** Pressing :key[Audition Pad] + Random :key[pad] on a drum kit row will load a random sample from the same folder as the current
   sample. \*
 - You can now batch delete kit rows which do not contain any notes, freeing kits from unused sounds. \*
 - Audio waveforms can be shifted in an Audio clip, similar to instrument clips, with the exclusion of wrapping the audio

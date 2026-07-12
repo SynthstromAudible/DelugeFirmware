@@ -144,7 +144,7 @@ export const controlDescriptions: ControlDescriptions = {
     classes: ["dc-affect-entire"],
   },
   [Control.KEY]: {
-    title: "Key (piano icon)",
+    title: "Keyboard",
     type: ControlType.circleButton,
     classes: ["dc-keyboard"],
   },

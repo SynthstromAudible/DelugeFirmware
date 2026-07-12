@@ -26,13 +26,16 @@
   import pressTurnSelectIcon from "../../../../assets/icons/press-turn-select.svg?url";
   import pressTurnTempoIcon from "../../../../assets/icons/press-turn-tempo.svg?url";
   import pressTurnGoldIcon from "../../../../assets/icons/press-turn-gold.svg?url";
+  import keyboardButtonIcon from "../../../../assets/icons/button-keyboard.svg?url";
 
   export let step: Step;
   export let inline: boolean;
   export let compositeAction: "none" | "press-turn" = "none";
 
+  // Lookup control metadata from shared target map.
   $: description = controlDescriptions[step.control];
 
+  // Chooses image-based icon variants for press, turn, and press+turn combinations.
   $: controlIcon =
     compositeAction === "press-turn"
       ? step.control === Control.X
@@ -62,6 +65,8 @@
                     step.control === Control.UPPER_PARAM
                   ? { src: turnGoldIcon, alt: "Turn gold", scale: 1.24 }
                   : undefined
+        : step.control === Control.KEY
+          ? { src: keyboardButtonIcon, alt: "Keyboard button", scale: 1.14 }
         : step.control === Control.X
           ? { src: horizontalIcon, alt: "Horizontal", scale: 1.24 }
           : step.control === Control.Y
@@ -77,11 +82,14 @@
                   : undefined;
 </script>
 
+<!-- Branch: menu action uses only textual label. -->
 {#if step.action === Action.MENU}
   <span class="target-icon" class:hidden={inline}>&nbsp;</span>
   <span class="target-title">{@html step.label}</span>
+<!-- Branch: defensive fallback for invalid control types. -->
 {:else if description.type === ControlType.none}
   <span class="target-icon font-bold text-[#f00]">INVALID</span>
+<!-- Branch: image-backed controls (knobs and keyboard variants). -->
 {:else if controlIcon}
   <span
     class="target-icon target-icon-control-image flex items-center justify-center"
@@ -95,12 +103,14 @@
     />
   </span>
   <span class="target-title">{@html step.label || description.title}</span>
+<!-- Branch: generic circle button control. -->
 {:else if description.type === ControlType.circleButton}
   <span
     class="target-icon target-icon-control-image text-[var(--sl-color-text)]"
     class:hidden={inline}
   ><CircleButton /></span>
   <span class="target-title uppercase">{@html description.title}</span>
+<!-- Branch: grid pad control with lit/unlit coloring. -->
 {:else if description.type === ControlType.grid}
   <span
     class={"target-icon " +
@@ -112,6 +122,7 @@
     <FullGrid />
   </span>
   <span class="target-title">{@html step.label || description.title}</span>
+<!-- Branch: single grid-column icon control. -->
 {:else if description.type === ControlType.gridCol}
   <span
     class={"target-icon " + (description.color && `text-${description.color}`)}
@@ -120,16 +131,19 @@
     <GridCol />
   </span>
   <span class="target-title">{@html description.title}</span>
+<!-- Branch: black encoder icon control. -->
 {:else if description.type === ControlType.blackKnob}
   <span class="target-icon text-[var(--sl-color-text)]" class:hidden={inline}
     ><Knob /></span
   >
   <span class="target-title uppercase">{@html description.title}</span>
+<!-- Branch: gold encoder icon control. -->
 {:else if description.type === ControlType.goldKnob}
   <span class="target-icon text-[var(--sl-color-accent)]" class:hidden={inline}
     ><Knob /></span
   >
   <span class="target-title uppercase">{@html description.title}</span>
+<!-- Branch: display control renders monospace display token. -->
 {:else if description.type === ControlType.display}
   <span class="target-icon" class:hidden={inline}>&nbsp;</span>
   <span class="target-title rounded bg-[var(--sl-color-black)]/85 px-2 font-mono text-[var(--sl-color-white)]"
@@ -137,6 +151,7 @@
   >
   <span class="target-title font-mono uppercase">{@html description.title}</span
   >
+<!-- Branch: external MIDI control. -->
 {:else if description.type === ControlType.external}
   <span class="target-icon text-[var(--sl-color-gray-4)]" class:hidden={inline}
     ><Midi /></span

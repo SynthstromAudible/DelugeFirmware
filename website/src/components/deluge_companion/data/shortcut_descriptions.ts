@@ -76,14 +76,17 @@ export const shortcutControlDescriptions: Record<Control, string> = {
   [Control.VELOCITY_PATCH_SOURCE]: "'Velocity' patch source pad",
 }
 
+// Returns sentence with leading character capitalized.
 const capitalizeSentence = (sentence: string) => {
   return sentence.charAt(0).toUpperCase() + sentence.slice(1)
 }
 
+// Returns sentence with a trailing period.
 const punctuateSentence = (sentence: string) => {
   return sentence.endsWith(".") ? sentence : `${sentence}.`
 }
 
+// Returns a readable phrase for one concrete shortcut step.
 const describeStep = (step: Step) => {
   const actionDescription = shortcutActionDescriptions[step.action]
 
@@ -98,6 +101,7 @@ const describeStep = (step: Step) => {
   return `${actionDescription.prefix} ${shortcutControlDescriptions[step.control]}`
 }
 
+// Returns a readable phrase for either single step or substep container.
 const describeStepOrSubstep = (step: StepOrSubstep) => {
   if (isSubstepContainer(step)) {
     return step.substeps.map(describeStep).join(", ")
@@ -106,6 +110,7 @@ const describeStepOrSubstep = (step: StepOrSubstep) => {
   return describeStep(step)
 }
 
+// Returns a full prose description for a full shortcut step sequence.
 export const describeShortcutSteps = (steps: StepOrSubstep[]) => {
   return steps
     .map(describeStepOrSubstep)

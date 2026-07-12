@@ -66,6 +66,10 @@ const config = defineConfig({
                 slug: "downloads",
               },
               {
+                label: "Companion",
+                slug: "reference/deluge_companion",
+              },
+              {
                 label: "Change Log",
                 slug: "changelogs/changelog",
               },
