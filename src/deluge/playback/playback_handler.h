@@ -115,8 +115,11 @@ public:
 
 	// Free-running MIDI clock out (MIDIClockOutMode::ALWAYS): clock ticking while the transport is stopped. The
 	// normal scheduler derives tick times from the timer-tick grid, which isn't valid while stopped, so instead we
-	// keep our own schedule anchored to AudioEngine::audioSampleTimer, in 32.32 fixed point. Only ever active while
-	// !isEitherClockActive().
+	// keep our own schedule anchored to AudioEngine::audioSampleTimer, in 32.32 fixed point.
+	// Active while !isEitherClockActive(), plus one further stretch: when playback is starting aligned to this clock,
+	// it stays active - and so stays in charge of the clock out - from the button press until timer tick 0 is actioned
+	// at the alignment boundary, even though the internal clock is already marked active. See isAwaitingAlignedStart(),
+	// setupPlaybackUsingInternalClock() and actionTimerTick(). It is never active while the *external* clock is.
 	bool freeRunningClockActive;
 	uint64_t timeNextFreeRunningTickBig; // 32.32 sample time of next free-running tick
 
@@ -250,6 +253,15 @@ public:
 	inline bool isExternalClockActive() { return (playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE); }
 	inline bool isInternalClockActive() { return (playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE); }
 	inline bool isEitherClockActive() { return (playbackState & PLAYBACK_CLOCK_EITHER_ACTIVE); }
+
+	// True exactly during the "gap" of an aligned start: playback has been set up (the internal clock is active) but
+	// timer tick 0 hasn't been actioned yet, because it's been anchored to the free-running MIDI clock out's next tick,
+	// up to one out-tick (~21ms at 120BPM) in the future. During that gap the timer-tick grid isn't valid yet -
+	// getCurrentInternalTickCount() reads a flat 0 - so anything that would otherwise begin sounding "now", in step
+	// with a sequence position that doesn't exist yet, must wait for the boundary instead. It can only be true in
+	// MIDIClockOutMode::ALWAYS, and only while a free-running-aligned start is actually in progress: everywhere else
+	// freeRunningClockActive is false whenever a clock is active.
+	inline bool isAwaitingAlignedStart() { return freeRunningClockActive && isInternalClockActive(); }
 
 	// TEMPO encoder commands
 	void commandDisplaySwingAmount();

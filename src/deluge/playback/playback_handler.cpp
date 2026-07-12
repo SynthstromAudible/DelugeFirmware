@@ -1109,6 +1109,12 @@ void PlaybackHandler::doMIDIClockOutTick() {
 		if (startMessagePendingPos) {
 			// Position pointer, then "continue". (This also sends the surplus clocks the follower needs to get to a
 			// position finer than the position pointer's resolution, exactly as the button-press send site did.)
+			// Note this call happens inside our CriticalSectionGuard, i.e. on the audio thread with interrupts off,
+			// whereas the button-press send site called it from the UI thread. It only reads state and pushes bytes
+			// into the MIDI output buffer - no allocation, no blocking, no locking - so the hard-realtime constraint
+			// holds. The one cost is that in the (rare) positionPointer >= 16384 case it walks every Clip via
+			// getLongestClip(), an O(numClips) traversal with IRQs off. Deliberate: it happens at most once per
+			// playback start, and only for arrangements long enough to overflow the position pointer.
 			sendOutPositionViaMIDI(startMessagePendingPos, true);
 		}
 		else {
