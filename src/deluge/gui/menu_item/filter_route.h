@@ -43,14 +43,14 @@ public:
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
 					// Note: we need to apply the same filtering as stated in the isRelevant() function
 					if (soundDrum->lpfMode != FilterMode::OFF && soundDrum->hpfMode != FilterMode::OFF) {
-						soundDrum->filterRoute = current_value;
+						soundDrum->setFilterRoute(current_value);
 					}
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentModControllable->filterRoute = current_value;
+			soundEditor.currentModControllable->setFilterRoute(current_value);
 		}
 	}
 

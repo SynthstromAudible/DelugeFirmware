@@ -438,17 +438,60 @@ inline void ModControllableAudio::doEQ(bool doBass, bool doTreble, int32_t* inpu
 }
 
 void ModControllableAudio::writeAttributesToFile(Serializer& writer) {
-	writer.writeAttribute("modFXType", (char*)fxTypeToString(modFXType_));
-	writer.writeAttribute("lpfMode", (char*)lpfTypeToString(lpfMode));
+	// M3 owner-5 slice F: read the authoritative record when bound (a Sound); an unbound owner (GlobalEffectable, no
+	// record yet) keeps reading the native fields, so the flip is transparent for it.
+	bool bound = docModControllable_ != nullptr;
+	ModFXType savedModFXType = bound ? static_cast<ModFXType>(docModControllable_->mod_fx_type) : modFXType_;
+	FilterMode savedLpfMode = bound ? static_cast<FilterMode>(docModControllable_->lpf_mode) : lpfMode;
+	FilterMode savedHpfMode = bound ? static_cast<FilterMode>(docModControllable_->hpf_mode) : hpfMode;
+	FilterRoute savedFilterRoute = bound ? static_cast<FilterRoute>(docModControllable_->filter_route) : filterRoute;
+	uint8_t savedClippingAmount = bound ? docModControllable_->clipping_amount : clippingAmount;
+
+	writer.writeAttribute("modFXType", (char*)fxTypeToString(savedModFXType));
+	writer.writeAttribute("lpfMode", (char*)lpfTypeToString(savedLpfMode));
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeAttribute("hpfMode", (char*)lpfTypeToString(hpfMode));
-	writer.writeAttribute("filterRoute", (char*)filterRouteToString(filterRoute));
-	if (clippingAmount) {
-		writer.writeAttribute("clippingAmount", clippingAmount);
+	writer.writeAttribute("hpfMode", (char*)lpfTypeToString(savedHpfMode));
+	writer.writeAttribute("filterRoute", (char*)filterRouteToString(savedFilterRoute));
+	if (savedClippingAmount) {
+		writer.writeAttribute("clippingAmount", savedClippingAmount);
 	}
 }
 
-void ModControllableAudio::syncDocModControllable(deluge::project::DocModControllable& d) {
+void ModControllableAudio::bindDocModControllable(deluge::project::DocModControllable* d) {
+	docModControllable_ = d;
+	seedDocModControllable();
+}
+
+void ModControllableAudio::setClippingAmount(uint8_t value) {
+	clippingAmount = value;
+	if (docModControllable_ != nullptr) {
+		docModControllable_->clipping_amount = value;
+	}
+}
+void ModControllableAudio::setLpfMode(FilterMode value) {
+	lpfMode = value;
+	if (docModControllable_ != nullptr) {
+		docModControllable_->lpf_mode = static_cast<uint8_t>(value);
+	}
+}
+void ModControllableAudio::setHpfMode(FilterMode value) {
+	hpfMode = value;
+	if (docModControllable_ != nullptr) {
+		docModControllable_->hpf_mode = static_cast<uint8_t>(value);
+	}
+}
+void ModControllableAudio::setFilterRoute(FilterRoute value) {
+	filterRoute = value;
+	if (docModControllable_ != nullptr) {
+		docModControllable_->filter_route = static_cast<uint8_t>(value);
+	}
+}
+
+void ModControllableAudio::seedDocModControllable() {
+	if (docModControllable_ == nullptr) {
+		return;
+	}
+	deluge::project::DocModControllable& d = *docModControllable_;
 	d.clipping_amount = clippingAmount;
 	d.lpf_mode = static_cast<uint8_t>(lpfMode);
 	d.hpf_mode = static_cast<uint8_t>(hpfMode);
@@ -1269,6 +1312,9 @@ char const* ModControllableAudio::getFilterTypeDisplayName(FilterType currentFil
 
 void ModControllableAudio::switchLPFMode() {
 	lpfMode = static_cast<FilterMode>((util::to_underlying(lpfMode) + 1) % kNumLPFModes);
+	if (docModControllable_ != nullptr) {
+		docModControllable_->lpf_mode = static_cast<uint8_t>(lpfMode); // M3 owner-5: reflect the toggle into the record
+	}
 }
 
 // for future use with FM
@@ -1283,6 +1329,9 @@ void ModControllableAudio::switchLPFModeWithOff() {
 		break;
 	default:
 		lpfMode = static_cast<FilterMode>((util::to_underlying(lpfMode) + 1));
+	}
+	if (docModControllable_ != nullptr) {
+		docModControllable_->lpf_mode = static_cast<uint8_t>(lpfMode); // M3 owner-5: reflect the toggle into the record
 	}
 }
 
@@ -1319,6 +1368,9 @@ char const* ModControllableAudio::getLPFModeDisplayName() {
 void ModControllableAudio::switchHPFMode() {
 	// this works fine, the offset to the first hpf doesn't matter with the modulus
 	hpfMode = static_cast<FilterMode>((util::to_underlying(hpfMode) + 1) % kNumHPFModes + kFirstHPFMode);
+	if (docModControllable_ != nullptr) {
+		docModControllable_->hpf_mode = static_cast<uint8_t>(hpfMode); // M3 owner-5: reflect the toggle into the record
+	}
 }
 
 // for future use with FM
@@ -1329,6 +1381,9 @@ void ModControllableAudio::switchHPFModeWithOff() {
 		break;
 	default:
 		hpfMode = static_cast<FilterMode>((util::to_underlying(hpfMode) + 1));
+	}
+	if (docModControllable_ != nullptr) {
+		docModControllable_->hpf_mode = static_cast<uint8_t>(hpfMode); // M3 owner-5: reflect the toggle into the record
 	}
 }
 
@@ -1365,6 +1420,9 @@ bool ModControllableAudio::setModFXType(ModFXType newType) {
 	// For us ModControllableAudios, this is really simple. Memory gets allocated in
 	// GlobalEffectable::processFXForGlobalEffectable(). This function is overridden in Sound
 	modFXType_ = newType;
+	if (docModControllable_ != nullptr) {
+		docModControllable_->mod_fx_type = static_cast<uint8_t>(newType);
+	}
 	return true;
 }
 

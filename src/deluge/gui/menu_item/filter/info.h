@@ -60,15 +60,15 @@ public:
 	void setMode(int32_t value) const { setModeForModControllable(value, soundEditor.currentModControllable); }
 	void setModeForModControllable(int32_t value, ModControllableAudio* modControllable) const {
 		if (slot == FilterSlot::HPF) {
-			modControllable->hpfMode = static_cast<FilterMode>(value + kFirstHPFMode);
+			modControllable->setHpfMode(static_cast<FilterMode>(value + kFirstHPFMode));
 		}
 		else {
 			// num lpf modes counts off but there's HPF modes in the middle
 			if (value >= kNumLPFModes) {
-				modControllable->lpfMode = FilterMode::OFF;
+				modControllable->setLpfMode(FilterMode::OFF);
 			}
 			else {
-				modControllable->lpfMode = static_cast<FilterMode>(value);
+				modControllable->setLpfMode(static_cast<FilterMode>(value));
 			}
 		}
 	}

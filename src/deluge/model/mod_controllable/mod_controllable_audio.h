@@ -60,8 +60,14 @@ public:
 	void writeAttributesToFile(Serializer& writer);
 	void writeTagsToFile(Serializer& writer);
 
-	/// M3 owner-5 slice F: copy this base's non-param structural fields into the shared DocModControllable (shadow).
-	void syncDocModControllable(deluge::project::DocModControllable& d);
+	/// M3 owner-5 slice F: non-owning pointer to this base's DocModControllable record. Bound by the owner when it
+	/// binds its own Doc (Sound points it at docSound_->mod_controllable). Stays null for owners without a record yet
+	/// (GlobalEffectable), whose save keeps reading the native fields — so the flip is transparent for them.
+	deluge::project::DocModControllable* docModControllable_{nullptr};
+	void bindDocModControllable(deluge::project::DocModControllable* d);
+	/// Copy the non-param structural fields native->record (guarded on docModControllable_). The load-bridge: run at
+	/// bind and re-run once parsing is done (the owner's doneReadingFromFile), mirroring the DocSound scalar seed.
+	void seedDocModControllable();
 	virtual Error readTagFromFile(Deserializer& reader, char const* tagName, ParamManagerForTimeline* paramManager,
 	                              int32_t readAutomationUpToPos, ArpeggiatorSettings* arpSettings, Song* song);
 	void processSRRAndBitcrushing(std::span<StereoSample> buffer, int32_t* postFXVolume, ParamManager* paramManager);
@@ -77,6 +83,14 @@ public:
 	void endStutter(ParamManagerForTimeline* paramManager);
 	virtual ModFXType getModFXType() = 0;
 	virtual bool setModFXType(ModFXType newType);
+	// M3 owner-5 slice F: setters for the DOM-owned filter/clipping scalars (record in DocModControllable; native kept
+	// as hot cache). Each writes the record (when bound) AND the cache; menu/gesture sites funnel through these, save
+	// reads the record. The filter-mode toggles below mutate in several steps, so they re-seed their field at the end
+	// instead.
+	void setClippingAmount(uint8_t value);
+	void setLpfMode(FilterMode value);
+	void setHpfMode(FilterMode value);
+	void setFilterRoute(FilterRoute value);
 	bool offerReceivedCCToLearnedParamsForClip(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,
 	                                           ModelStackWithTimelineCounter* modelStack, int32_t noteRowIndex = -1);
 	bool offerReceivedCCToLearnedParamsForSong(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value,

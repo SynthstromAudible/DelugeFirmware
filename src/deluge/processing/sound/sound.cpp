@@ -404,6 +404,9 @@ bool Sound::setModFXType(ModFXType newType) {
 	}
 
 	modFXType_ = newType;
+	if (docModControllable_ != nullptr) {
+		docModControllable_->mod_fx_type = static_cast<uint8_t>(newType);
+	}
 	return true;
 }
 
@@ -3044,6 +3047,7 @@ void Sound::doneReadingFromFile() {
 	if (docSound_ != nullptr) {
 		seedDocSoundScalars();
 		seedModKnobsRecord();
+		seedDocModControllable();
 	}
 }
 
@@ -3903,6 +3907,7 @@ void Sound::bindDocSound(deluge::project::DocSound* d) {
 	// first), so this seed is stale for drums — doneReadingFromFile re-runs it once parsing is done.
 	seedDocSoundScalars();
 	seedModKnobsRecord();
+	bindDocModControllable(&d->mod_controllable);
 }
 
 // M3 owner-5: DOM-owned scalars — each setter writes the authoritative record (when bound) AND the native cache. Render
@@ -4003,7 +4008,7 @@ void Sound::syncDocSound() {
 	// Slice C top-level scalars (polyphonic, synth_mode, transpose, num_unison, unison_detune, unison_stereo_spread,
 	// modulator1_to_modulator0, modulator_transpose/cents, osc/modulator_retrigger_phase, the LFO config
 	// (lfo_wave_type/sync_type/sync_level), and mod_knob_param_descriptor (DOM-owned via seedModKnobsRecord).
-	syncDocModControllable(d.mod_controllable);
+	// mod_controllable is DOM-owned too now (docModControllable_, seeded at bind + doneReadingFromFile).
 	for (int32_t s = 0; s < kNumSources; s++) {
 		Source& src = sources[s];
 		deluge::project::DocSource& ds = d.sources[s];

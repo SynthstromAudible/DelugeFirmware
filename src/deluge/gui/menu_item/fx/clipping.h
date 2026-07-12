@@ -43,13 +43,13 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					soundDrum->clippingAmount = current_value;
+					soundDrum->setClippingAmount(current_value);
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentModControllable->clippingAmount = current_value;
+			soundEditor.currentModControllable->setClippingAmount(current_value);
 		}
 	}
 	[[nodiscard]] int32_t getMaxValue() const override { return 15; }
