@@ -37,7 +37,7 @@ public:
 	[[nodiscard]] int32_t getDefaultEditPos() const override { return 1; }
 
 	void readCurrentValue() override {
-		uint32_t value = *getValueAddress();
+		uint32_t value = getCurrentPhase();
 		if (value == 0xFFFFFFFF) {
 			this->setValue(-1);
 		}
@@ -54,7 +54,7 @@ public:
 		else {
 			value = this->getValue() * 11930464;
 		}
-		*getValueAddress() = value;
+		setCurrentPhase(value);
 	}
 
 	void drawValue() override {
@@ -140,11 +140,21 @@ private:
 	bool for_modulator_;
 	uint8_t source_id_;
 
-	[[nodiscard]] uint32_t* getValueAddress() const {
+	// M3 owner-5: retrigger phases are DOM-owned (record authoritative, native kept as hot cache). Read the cache by
+	// value; route the write through the Sound setter so it updates both the record and the cache — no raw field
+	// pointer escapes the seam.
+	[[nodiscard]] uint32_t getCurrentPhase() const {
+		Sound* sound = soundEditor.currentSound;
+		return for_modulator_ ? sound->modulatorRetriggerPhase[source_id_] : sound->oscRetriggerPhase[source_id_];
+	}
+	void setCurrentPhase(uint32_t value) const {
+		Sound* sound = soundEditor.currentSound;
 		if (for_modulator_) {
-			return &soundEditor.currentSound->modulatorRetriggerPhase[source_id_];
+			sound->setModulatorRetriggerPhase(source_id_, value);
 		}
-		return &soundEditor.currentSound->oscRetriggerPhase[source_id_];
+		else {
+			sound->setOscRetriggerPhase(source_id_, value);
+		}
 	}
 };
 } // namespace deluge::gui::menu_item::osc

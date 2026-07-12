@@ -44,14 +44,14 @@ public:
 
 					// Note: we need to apply the same filtering as stated in the isRelevant() function
 					if (soundDrum->synthMode == SynthMode::FM) {
-						soundDrum->modulator1ToModulator0 = current_value;
+						soundDrum->setModulator1ToModulator0(current_value);
 					}
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->modulator1ToModulator0 = current_value;
+			soundEditor.currentSound->setModulator1ToModulator0(current_value);
 		}
 	}
 	deluge::vector<std::string_view> getOptions(OptType optType) override {

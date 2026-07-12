@@ -112,13 +112,13 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					soundDrum->polyphonic = current_value;
+					soundDrum->setPolyphonic(current_value);
 				}
 			}
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->polyphonic = current_value;
+			soundEditor.currentSound->setPolyphonic(current_value);
 		}
 	}
 

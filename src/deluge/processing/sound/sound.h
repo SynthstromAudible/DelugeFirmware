@@ -175,6 +175,13 @@ public:
 	void setOutputMidiChannel(uint8_t value);
 	void setOutputMidiNoteForDrum(uint8_t value);
 	void setOscillatorSync(bool value);
+	// Slice C top-level scalars — same recipe. setSynthMode / setNumUnison / setUnison* / setModulator{Transpose,Cents}
+	// already exist below (they do engine-side recalcs); those gained a record write too.
+	void setPolyphonic(PolyphonyMode value);
+	void setTranspose(int16_t value);
+	void setModulator1ToModulator0(bool value);
+	void setOscRetriggerPhase(int32_t s, uint32_t value);
+	void setModulatorRetriggerPhase(int32_t m, uint32_t value);
 
 	bool skippingRendering = true;
 
