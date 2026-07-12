@@ -1145,7 +1145,7 @@ ToggleBool midiInputDifferentiationMenu{STRING_FOR_DIFFERENTIATE_INPUTS, STRING_
                                         MIDIDeviceManager::differentiatingInputsByDevice};
 
 // MIDI clock menu
-midi::SendClock send_clock_menu{STRING_FOR_OUTPUT, STRING_FOR_MIDI_CLOCK_OUT, playbackHandler.midiOutClockEnabled};
+midi::SendClock send_clock_menu{STRING_FOR_OUTPUT, STRING_FOR_MIDI_CLOCK_OUT};
 midi::ReceiveClock receive_clock_menu{STRING_FOR_INPUT, STRING_FOR_MIDI_CLOCK_IN, playbackHandler.midiInClockEnabled};
 ToggleBool tempoMagnitudeMatchingMenu{STRING_FOR_TEMPO_MAGNITUDE_MATCHING, STRING_FOR_TEMPO_MAGNITUDE_MATCHING,
                                       playbackHandler.tempoMagnitudeMatchingEnabled};

@@ -274,7 +274,7 @@ void resetSettings() {
 	playbackHandler.analogClockInputAutoStart = true;
 	playbackHandler.analogInTicksPPQN = 24;
 	playbackHandler.analogOutTicksPPQN = 24;
-	playbackHandler.midiOutClockEnabled = true;
+	playbackHandler.midiOutClockMode = MIDIClockOutMode::PLAYING;
 	playbackHandler.midiInClockEnabled = true;
 	playbackHandler.tempoMagnitudeMatchingEnabled = false;
 
@@ -415,7 +415,14 @@ void readSettings() {
 	playbackHandler.analogClockInputAutoStart = buffer[31];
 	playbackHandler.analogInTicksPPQN = buffer[32];
 	playbackHandler.analogOutTicksPPQN = buffer[33];
-	playbackHandler.midiOutClockEnabled = buffer[34];
+	// Old saves hold 0 or 1 (bool), which map exactly onto OFF/PLAYING. Clamp anything else to PLAYING rather
+	// than casting blindly, in case the byte is out of range (e.g. corrupted or from a newer firmware).
+	if (buffer[34] > util::to_underlying(MIDIClockOutMode::ALWAYS)) {
+		playbackHandler.midiOutClockMode = MIDIClockOutMode::PLAYING;
+	}
+	else {
+		playbackHandler.midiOutClockMode = MIDIClockOutMode{buffer[34]};
+	}
 	playbackHandler.midiInClockEnabled = buffer[52];
 	playbackHandler.tempoMagnitudeMatchingEnabled = buffer[35];
 
@@ -828,7 +835,7 @@ void writeSettings() {
 	buffer[31] = playbackHandler.analogClockInputAutoStart;
 	buffer[32] = playbackHandler.analogInTicksPPQN;
 	buffer[33] = playbackHandler.analogOutTicksPPQN;
-	buffer[34] = playbackHandler.midiOutClockEnabled;
+	buffer[34] = util::to_underlying(playbackHandler.midiOutClockMode);
 	buffer[52] = playbackHandler.midiInClockEnabled;
 	buffer[35] = playbackHandler.tempoMagnitudeMatchingEnabled;
 	buffer[36] = PadLEDs::flashCursor;

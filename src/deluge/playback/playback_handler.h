@@ -27,6 +27,15 @@ enum class RecordingMode {
 	ARRANGEMENT,
 };
 
+// OFF: never send MIDI clock out. PLAYING: send MIDI clock out only while the transport is playing (the
+// long-standing default behaviour). ALWAYS: keep MIDI clock out running continuously, including while the
+// transport is stopped (free-running clock out, added in a later task).
+enum class MIDIClockOutMode : uint8_t {
+	OFF = 0,
+	PLAYING = 1,
+	ALWAYS = 2,
+};
+
 constexpr int32_t kNumInputTicksForMovingAverage = 24;
 
 #define PLAYBACK_CLOCK_INTERNAL_ACTIVE 1
@@ -157,7 +166,7 @@ public:
 
 	// User options
 	bool metronomeOn;
-	bool midiOutClockEnabled;
+	MIDIClockOutMode midiOutClockMode;
 	bool midiInClockEnabled;
 	bool tempoMagnitudeMatchingEnabled;
 	uint8_t countInBars;
@@ -187,7 +196,7 @@ public:
 	void analogClockRisingEdge(uint32_t time);
 	void toggleMetronomeStatus();
 	void commandDisplayTempo();
-	void setMidiOutClockMode(bool newValue);
+	void setMidiOutClockMode(MIDIClockOutMode newMode);
 	void pitchBendReceived(MIDICable& cable, uint8_t channel, uint8_t data1, uint8_t data2, bool* doingMidiThru);
 	void midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t ccNumber, uint8_t value, bool* doingMidiThru);
 	void programChangeReceived(MIDICable& cable, int32_t channel, int32_t program);
@@ -216,6 +225,7 @@ public:
 	void actionSwungTick();
 	void scheduleSwungTickFromInternalClock();
 	bool currentlySendingMIDIOutputClocks();
+	bool isContinuousClockOutEnabled();
 
 	inline bool isExternalClockActive() { return (playbackState & PLAYBACK_CLOCK_EXTERNAL_ACTIVE); }
 	inline bool isInternalClockActive() { return (playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE); }

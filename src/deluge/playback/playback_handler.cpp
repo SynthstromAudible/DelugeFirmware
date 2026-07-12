@@ -105,7 +105,7 @@ PlaybackHandler::PlaybackHandler() {
 	analogOutTicksPPQN = 24;
 	analogClockInputAutoStart = true;
 	metronomeOn = false;
-	midiOutClockEnabled = true;
+	midiOutClockMode = MIDIClockOutMode::PLAYING;
 	midiInClockEnabled = true;
 	tempoMagnitudeMatchingEnabled = false;
 	posToNextContinuePlaybackFrom = 0;
@@ -459,7 +459,11 @@ void PlaybackHandler::setupPlaybackUsingInternalClock(int32_t buttonPressLatency
 }
 
 bool PlaybackHandler::currentlySendingMIDIOutputClocks() {
-	return midiOutClockEnabled;
+	return midiOutClockMode != MIDIClockOutMode::OFF;
+}
+
+bool PlaybackHandler::isContinuousClockOutEnabled() {
+	return midiOutClockMode == MIDIClockOutMode::ALWAYS;
 }
 
 uint32_t PlaybackHandler::timerTicksToOutputTicks(uint32_t timerTicks) {
@@ -2365,28 +2369,36 @@ void PlaybackHandler::sendOutPositionViaMIDI(int32_t pos, bool sendContinueMessa
 	}
 }
 
-void PlaybackHandler::setMidiOutClockMode(bool newValue) {
-	if (newValue == midiOutClockEnabled) {
+void PlaybackHandler::setMidiOutClockMode(MIDIClockOutMode newMode) {
+	if (newMode == midiOutClockMode) {
 		return;
 	}
-	int32_t oldValue = midiOutClockEnabled;
-	midiOutClockEnabled = newValue;
+	MIDIClockOutMode oldMode = midiOutClockMode;
+	midiOutClockMode = newMode;
+
+	bool wasSending = (oldMode != MIDIClockOutMode::OFF);
+	bool isSending = (newMode != MIDIClockOutMode::OFF);
 
 	// If currently playing on internal clock...
 	if (isInternalClockActive()) {
 
 		// If we just enabled the output clock...
-		if (!oldValue) {
+		if (isSending && !wasSending) {
 			resyncMIDIClockOutTicksToInternalTicks();
 			sendOutPositionViaMIDI(getCurrentInternalTickCount(), true);
 		}
 
 		// Or if we just disabled it...
-		else if (!newValue) {
+		else if (!isSending && wasSending) {
 			midiClockOutTickScheduled = false;
 			midiEngine.sendStop(this);
 		}
+
+		// A PLAYING <-> ALWAYS transition doesn't change whether we're sending clocks while playing, so no
+		// action is needed here in that case.
 	}
+	// else: internal clock isn't active (transport stopped, or external clock in charge). Starting/stopping
+	// a free-running clock out here for MIDIClockOutMode::ALWAYS is a later task.
 }
 
 void PlaybackHandler::setMidiInClockEnabled(bool newValue) {

@@ -15,13 +15,25 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
-#include "gui/menu_item/toggle.h"
+#include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
+#include "gui/menu_item/selection.h"
 #include "playback/playback_handler.h"
 
 namespace deluge::gui::menu_item::midi {
-class SendClock final : public ToggleBool {
+class SendClock final : public Selection {
 public:
-	using ToggleBool::ToggleBool;
-	void writeCurrentValue() override { playbackHandler.setMidiOutClockMode(getValue()); }
+	using Selection::Selection;
+	void readCurrentValue() override { this->setValue(playbackHandler.midiOutClockMode); }
+	void writeCurrentValue() override { playbackHandler.setMidiOutClockMode(this->getValue<MIDIClockOutMode>()); }
+	deluge::vector<std::string_view> getOptions(OptType optType) override {
+		(void)optType;
+		using enum l10n::String;
+		return {
+		    l10n::getView(STRING_FOR_OFF),
+		    l10n::getView(STRING_FOR_MIDI_CLOCK_OUT_PLAYING),
+		    l10n::getView(STRING_FOR_MIDI_CLOCK_OUT_ALWAYS),
+		};
+	}
 };
 } // namespace deluge::gui::menu_item::midi

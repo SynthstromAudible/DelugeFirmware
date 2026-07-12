@@ -675,6 +675,8 @@
     "STRING_FOR_MIDI_COMMANDS": "MIDI commands",
     "STRING_FOR_DIFFERENTIATE_INPUTS": "Differentiate inputs",
     "STRING_FOR_MIDI_CLOCK_OUT": "MIDI clock out",
+    "STRING_FOR_MIDI_CLOCK_OUT_PLAYING": "Playing",
+    "STRING_FOR_MIDI_CLOCK_OUT_ALWAYS": "Always",
     "STRING_FOR_MIDI_CLOCK_IN": "MIDI clock in",
     "STRING_FOR_DEVICES": "Devices",
     "STRING_FOR_MIDI_DEVICES": "MIDI devices",

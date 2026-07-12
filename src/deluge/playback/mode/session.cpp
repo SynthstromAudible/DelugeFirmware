@@ -1483,7 +1483,7 @@ LaunchStatus Session::investigateSyncedLaunch(Clip* waitForClip, uint32_t* curre
 		else {
 
 			// If a clock is coming in or out, or metronome is on, use that to work out the loop point
-			if (playbackHandler.isExternalClockActive() || playbackHandler.midiOutClockEnabled
+			if (playbackHandler.isExternalClockActive() || playbackHandler.currentlySendingMIDIOutputClocks()
 			    || playbackHandler.metronomeOn
 			    || cvEngine.gateChannels[WHICH_GATE_OUTPUT_IS_CLOCK].mode == GateType::SPECIAL
 			    || playbackHandler.recording == RecordingMode::ARRANGEMENT) {
