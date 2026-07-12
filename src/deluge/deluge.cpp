@@ -36,7 +36,7 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "hid/display/seven_segment.h"
+#include "hid/display/seven_segment_tombstone.h"
 #include "hid/encoder_input.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
@@ -625,12 +625,16 @@ void mainLoop() {
 // reuse it without duplicating boot or reordering encoder init.
 static void deluge_boot(const DelugeBoard* board) {
 	(void)board;
-	bool have_oled = deluge_board_probe_oled();
+
+	if (!deluge_board_probe_oled()) {
+		// This firmware does not support 7-segment hardware. Tell the user and stop,
+		// before we bring up audio, SD, or the task manager.
+		deluge_control_init();
+		deluge::hid::display::tombstoneAndHalt();
+	}
 
 	// Give the control surface its startup configuration.
-	if (have_oled) {
-		deluge_control_enable_oled();
-	}
+	deluge_control_enable_oled();
 
 	deluge_control_init();
 
@@ -644,17 +648,10 @@ static void deluge_boot(const DelugeBoard* board) {
 
 	// One-time board bring-up: GPIO directions + initial state, the CV DAC SPI,
 	// and (when an OLED is fitted) its shared-SPI plumbing.
-	deluge_board_init_early(have_oled);
+	deluge_board_init_early(true);
 
-	if (have_oled) {
-		deluge_display_init(); // Set up OLED now
-		display = new deluge::hid::display::OLED;
-	}
-	else {
-		display = new deluge::hid::display::SevenSegment;
-	}
-	// remember the physical display type
-	deluge::hid::display::have_oled_screen = have_oled;
+	deluge_display_init(); // Set up OLED now
+	display = new deluge::hid::display::OLED;
 
 	// Setup audio output on SSI0
 	deluge_board_init_audio();
