@@ -215,6 +215,12 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 		soundEditor.currentSound->sampleZoneChanged(markerTypeNow, soundEditor.currentSourceIndex, modelStack);
 		getCurrentInstrument()->beenEdited(true);
 	}
+
+	// M3 owner-5: reflect the marker zone edit into the DOM range record. AudioClip markers are owner-4 (handled
+	// elsewhere).
+	if (getCurrentAudioClip() == nullptr && soundEditor.currentSource != nullptr) {
+		soundEditor.currentSource->seedDocRanges();
+	}
 }
 
 int32_t SampleMarkerEditor::getStartColOnScreen(int32_t unscrolledPos) {
