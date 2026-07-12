@@ -252,12 +252,13 @@ bool MIDIInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, Pg
 	bool shouldSendPGMs;
 	if (modelStack) {
 		InstrumentClip* newInstrumentClip = (InstrumentClip*)modelStack->getTimelineCounter();
-		InstrumentClip* oldInstrumentClip = (InstrumentClip*)activeClip;
 
-		shouldSendPGMs = (maySendMIDIPGMs != PgmChangeSend::NEVER && activeClip && activeClip != newInstrumentClip
-		                  && (newInstrumentClip->midiPGM != oldInstrumentClip->midiPGM
-		                      || newInstrumentClip->midiSub != oldInstrumentClip->midiSub
-		                      || newInstrumentClip->midiBank != oldInstrumentClip->midiBank));
+		// Send PC whenever switching to a different clip that has any program/bank/sub configured.
+		// Previously required activeClip != nullptr AND a value change between clips, which meant the
+		// first clip activation never sent a PC and grid-view re-launches with the same PGM didn't fire.
+		shouldSendPGMs = (maySendMIDIPGMs != PgmChangeSend::NEVER && newInstrumentClip != activeClip
+		                  && (newInstrumentClip->midiPGM != 128 || newInstrumentClip->midiSub != 128
+		                      || newInstrumentClip->midiBank != 128));
 	}
 	else {
 		shouldSendPGMs = false;
