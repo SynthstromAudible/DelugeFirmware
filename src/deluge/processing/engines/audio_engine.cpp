@@ -815,7 +815,7 @@ startAgain:
 	// coming. Note we don't shorten the window here: that's only for timer and swung ticks, whose actioning has to
 	// happen at exactly the right sample. Setting timeWithinWindowAtWhichMIDIOrGateOccurs is all that's needed to get
 	// the byte out at the right sample offset within the window.
-	else if (playbackHandler.freeRunningClockActive) {
+	else if (playbackHandler.freeRunningClockActive && playbackHandler.currentlySendingMIDIOutputClocks()) {
 		if (!stemExport.renderingOffline()) {
 			doAnyMIDIClockOutTickInWindow(numSamples, timeWithinWindowAtWhichMIDIOrGateOccurs, true);
 		}

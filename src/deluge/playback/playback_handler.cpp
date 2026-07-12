@@ -998,8 +998,13 @@ void PlaybackHandler::startFreeRunningClock() {
 }
 
 void PlaybackHandler::stopFreeRunningClock() {
-	freeRunningClockActive = false;
-	midiClockOutTickScheduled = false;
+	// Only clear midiClockOutTickScheduled if the free-running clock actually owns it - otherwise this can be
+	// called while an external clock is running (e.g. switching MIDI-clock-out mode from ALWAYS to PLAYING) and
+	// stomp on a schedule owned by scheduleMIDIClockOutTickFromExternalClock() instead.
+	if (freeRunningClockActive) {
+		freeRunningClockActive = false;
+		midiClockOutTickScheduled = false;
+	}
 }
 
 // The stopped-transport counterpart to scheduleMIDIClockOutTick(). The timer-tick grid that one derives its times from
