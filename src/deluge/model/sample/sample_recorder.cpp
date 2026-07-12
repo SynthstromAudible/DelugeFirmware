@@ -108,9 +108,10 @@ void SampleRecorder::detachSample() {
 	sample->removeReason("E400");
 }
 
+// config stuff
 Error SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode, bool newKeepingReasons,
                             bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID, int32_t buttonPressLatency,
-                            Output* outputRecordingFrom_) {
+                            Output* outputRecordingFrom_, RecorderConfig config) {
 
 	outputRecordingFrom = outputRecordingFrom_;
 	keepingReasonsForFirstClusters = newKeepingReasons;
@@ -243,7 +244,7 @@ gotError:
 	int32_t lengthSamples = lengthSec * sample->sampleRate;
 	audioDataLengthBytesAsWrittenToFile = lengthSamples * 3 * recordingNumChannels;
 
-	setRecordingThreshold();
+	setRecordingThreshold(config);
 
 	// Riff chunk -------------------------------------------------------
 	writeInt32(&writePos, 0x46464952);                                                               // "RIFF"
@@ -293,9 +294,15 @@ gotError:
 	return Error::NONE;
 }
 
-void SampleRecorder::setRecordingThreshold() {
+void SampleRecorder::setRecordingThreshold(RecorderConfig config) {
+	if (config.neverUseThreshold) {
+		D_PRINTLN("ignoring threshold");
+	}
+	else {
+		D_PRINTLN("following settings");
+	}
 	// don't use threshold recording if we're resampling internal input
-	if (currentSong->thresholdRecordingMode == ThresholdRecordingMode::OFF
+	if (config.neverUseThreshold || currentSong->thresholdRecordingMode == ThresholdRecordingMode::OFF
 	    || mode >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) {
 		startValueThreshold = 0;
 		thresholdRecording = false;

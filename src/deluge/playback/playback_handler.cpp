@@ -2695,7 +2695,7 @@ void PlaybackHandler::finishTempolessRecording(bool shouldStartPlaybackAgain, in
 				if (!sampleHolder->audioFile) {
 					continue; // Could maybe happen if some error?
 				}
-
+				// todo: adjust for threshold recording
 				foundAnyYet = true;
 				uint64_t loopLengthSamples = sampleHolder->getDurationInSamples(true);
 				action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);

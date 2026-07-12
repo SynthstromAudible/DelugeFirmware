@@ -172,9 +172,14 @@ Error AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	}
 	bool shouldRecordMarginsNow =
 	    FlashStorage::audioClipRecordMargins && inputChannel < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION;
+	// unless we're doing a tempoless recording we want to ignore the threshold setting
+	bool tempoless_recording =
+	    currentPlaybackMode->wantsToDoTempolessRecord(modelStack->getTimelineCounter()->getLastProcessedPos());
 
+	// recorder needs more config settings
 	recorder = AudioEngine::getNewRecorder(numChannels, AudioRecordingFolder::CLIPS, inputChannel, true,
-	                                       shouldRecordMarginsNow, buttonPressLatency, false, outputRecordingFrom);
+	                                       shouldRecordMarginsNow, buttonPressLatency, false, outputRecordingFrom,
+	                                       {.neverUseThreshold = not tempoless_recording});
 	if (!recorder) {
 		return Error::INSUFFICIENT_RAM;
 	}

@@ -80,6 +80,7 @@ add_executable(UnitTests
         clock_output_scheduler_tests.cpp
         name_compare_tests.cpp
         default_name_tests.cpp
+        rgb_tests.cpp
         notes_state_tests.cpp
 )
 add_test(NAME UnitTests

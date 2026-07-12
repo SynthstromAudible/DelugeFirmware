@@ -839,6 +839,12 @@ bool KeyboardScreen::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth
 
 	layout_list[getCurrentInstrumentClip()->keyboardState.currentLayout]->renderSidebarPads(image);
 
+	if (occupancyMask) {
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			PadLEDs::refreshSidebarOccupancy(image[y], occupancyMask[y]);
+		}
+	}
+
 	return true;
 }
 
