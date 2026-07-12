@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { activeView } from "../stores/viewStore.js";
+  import { activeView } from "../stores/view_store.js";
   import type { View } from "../types/shortcut.js";
   export let view: View;
 

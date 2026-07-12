@@ -1,5 +1,5 @@
 import * as fs from "fs"
-import { extname } from "node:path"
+import { basename, extname } from "node:path"
 import { parseMd } from "../lib/md-convert.js"
 import type { Shortcut } from "../types/shortcut.js"
 
@@ -28,7 +28,12 @@ function regenerateJson() {
 
   const output = mdFiles.flatMap((filename) => {
     const mdContent = fs.readFileSync(inputPath + filename, "utf-8")
-    return parseMd(mdContent)
+    const group = basename(filename, extname(filename))
+
+    return parseMd(mdContent).map((shortcut) => ({
+      ...shortcut,
+      group,
+    }))
   })
 
   fs.writeFileSync(outputPath, stringifyShortcutData(output))

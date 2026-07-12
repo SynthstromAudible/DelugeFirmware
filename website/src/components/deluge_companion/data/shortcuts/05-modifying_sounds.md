@@ -130,7 +130,7 @@ A single preset can only appear in one active clip, so clone the original preset
 hold(SHIFT) + hold(GRID), hold(ENTIRE) + turn(SELECT)
 ```
 
- Applies to all rows in a kit.
+Applies to all rows in a kit.
 
 # Select kit/ instrument row silently
 

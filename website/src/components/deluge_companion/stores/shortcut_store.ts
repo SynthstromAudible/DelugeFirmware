@@ -1,8 +1,9 @@
 import { derived, writable } from "svelte/store"
 import jsonData from "../data/v4.1.0.json"
 import fuzzysort from "fuzzysort"
-import { searchQuery } from "./searchStore"
-import { activeView } from "./viewStore"
+import { searchQuery } from "./search_store"
+import { activeView } from "./view_store"
+import { activeShortcutGroup } from "./group_store"
 import type {
   Shortcut,
   StepOrSubstep,
@@ -40,8 +41,21 @@ const allShortcuts = derived(rawShortcuts, ($rawShortcuts) => {
   }))
 })
 
+const filteredByGroups = derived(
+  [allShortcuts, activeShortcutGroup],
+  ([$shortcuts, $activeShortcutGroup]) => {
+    if ($activeShortcutGroup === null) {
+      return $shortcuts
+    }
+
+    return $shortcuts.filter(
+      (shortcut) => shortcut.group === $activeShortcutGroup,
+    )
+  },
+)
+
 const filteredByViews = derived(
-  [allShortcuts, activeView],
+  [filteredByGroups, activeView],
   ([$shortcuts, $activeView]) => {
     if ($activeView === null) {
       return $shortcuts
