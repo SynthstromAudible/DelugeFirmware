@@ -39,6 +39,7 @@ export type Shortcut = {
   name: string
   views: Views[]
   steps: StepOrSubstep[]
+  description?: string
   paragraphs: Paragraph[]
   fuzzysortPrepared?: ReturnType<typeof import("fuzzysort").prepare>
 }

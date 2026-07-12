@@ -8,7 +8,8 @@
       }
     ],
     "views": [0],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Change zoom level",
@@ -64,7 +65,8 @@
           }
         ]
       }
-    ]
+    ],
+    "description": "Hold the Horizontal (Left/Right) encoder, turn the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Scroll horizontal",
@@ -75,7 +77,8 @@
       }
     ],
     "views": [0],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Turn the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Scroll vertical",
@@ -86,7 +89,8 @@
       }
     ],
     "views": [0],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Turn the Vertical (Up/Down) encoder."
   },
   {
     "name": "Undo",
@@ -97,7 +101,8 @@
       }
     ],
     "views": [0],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Back / Undo (Redo) button."
   },
   {
     "name": "Redo",
@@ -116,7 +121,8 @@
       }
     ],
     "views": [0],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the Back / Undo (Redo) button."
   },
   {
     "name": "New song",
@@ -135,7 +141,8 @@
       }
     ],
     "views": [0],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the Load (New) button."
   },
   {
     "name": "Delete song",
@@ -166,7 +173,8 @@
       }
     ],
     "views": [0],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Load (New) button. Turn the Select (Settings) encoder. Hold the Shift button, press the Save (Delete) button. Press the Save (Delete) button."
   },
   {
     "name": "Load song",
@@ -185,7 +193,8 @@
       }
     ],
     "views": [0],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Load (New) button. Turn the Select (Settings) encoder. Press the Load (New) button."
   },
   {
     "name": "Save song",
@@ -204,7 +213,8 @@
       }
     ],
     "views": [0],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Save (Delete) button. Turn the Select (Settings) encoder. Press the Select (Settings) encoder."
   },
   {
     "name": "Change tempo (course)",
@@ -215,7 +225,8 @@
       }
     ],
     "views": [0],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Turn the Tempo (Swing) encoder."
   },
   {
     "name": "Change tempo (fine)",
@@ -234,7 +245,8 @@
       }
     ],
     "views": [0],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Tempo (Swing) encoder, turn the Tempo (Swing) encoder."
   },
   {
     "name": "Metronome",
@@ -253,7 +265,8 @@
       }
     ],
     "views": [0],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the Tap Tempo (Metronome) button."
   },
   {
     "name": "Swing",
@@ -272,7 +285,8 @@
       }
     ],
     "views": [0],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, turn the Tempo (Swing) encoder."
   },
   {
     "name": "File system up",
@@ -283,7 +297,8 @@
       }
     ],
     "views": [0],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Back / Undo (Redo) button."
   },
   {
     "name": "Adjust brightness",
@@ -306,7 +321,8 @@
       }
     ],
     "views": [0],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, hold the Learn / Input button, turn the Vertical (Up/Down) encoder."
   },
   {
     "name": "Settings menu",
@@ -325,7 +341,8 @@
       }
     ],
     "views": [0],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the Select (Settings) encoder."
   },
   {
     "name": "Save song, collect all samples",
@@ -348,7 +365,8 @@
       }
     ],
     "views": [0],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Save (Delete) button. Turn the Select (Settings) encoder. Hold the Select (Settings) encoder. Press the Select (Settings) encoder."
   },
   {
     "name": "Pad refresh rate",
@@ -367,7 +385,8 @@
       }
     ],
     "views": [0],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Clip button, turn the Select (Settings) encoder."
   },
   {
     "name": "Start playback from current scroll position (Alternative Playback)",
@@ -386,7 +405,8 @@
           }
         ]
       }
-    ]
+    ],
+    "description": "Press the Play button."
   },
   {
     "name": "Start playback from start (Alternative Playback)",
@@ -413,7 +433,8 @@
           }
         ]
       }
-    ]
+    ],
+    "description": "Hold the Horizontal (Left/Right) encoder, press the Play button."
   },
   {
     "name": "Make long note",
@@ -432,7 +453,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Grid pad (lit or unlit), press the Unlit grid pad."
   },
   {
     "name": "Make long note across the next screen",
@@ -459,7 +481,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Grid pad (lit or unlit). Turn the Horizontal (Left/Right) encoder. Hold the Horizontal (Left/Right) encoder, press the Unlit grid pad."
   },
   {
     "name": "Adjust note velocity",
@@ -478,7 +501,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Grid pad (lit or unlit), turn the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Note probability; clockwise is iteration and counter is probability",
@@ -497,7 +521,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Grid pad (lit or unlit), turn the Select (Settings) encoder."
   },
   {
     "name": "Copy notes",
@@ -516,7 +541,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Learn / Input button, press the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Paste notes",
@@ -539,7 +565,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, hold the Learn / Input button, press the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Cross screen editing, real time note cloning",
@@ -550,7 +577,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Cross-screen button."
   },
   {
     "name": "Add instrument / row to kit",
@@ -577,7 +605,8 @@
       }
     ],
     "views": [5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, press the Kit button. Turn the Select (Settings) encoder. Press the Select (Settings) encoder."
   },
   {
     "name": "Note zoom level - 128th and 256th level",
@@ -596,7 +625,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Learn / Input button, turn the Tempo (Swing) encoder."
   },
   {
     "name": "Record live - notes into sequencer",
@@ -611,7 +641,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Play button. Press the Record button."
   },
   {
     "name": "Duplicate clip content - double and append",
@@ -630,7 +661,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Change clip length",
@@ -649,7 +681,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, turn the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Shift all notes horizontally",
@@ -668,7 +701,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Vertical (Up/Down) encoder, turn the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Clear clip",
@@ -687,7 +721,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Horizontal (Left/Right) encoder, press the Back / Undo (Redo) button."
   },
   {
     "name": "Change clip color",
@@ -706,7 +741,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, turn the Vertical (Up/Down) encoder."
   },
   {
     "name": "Change row color - instrument row in kit",
@@ -729,7 +765,8 @@
       }
     ],
     "views": [5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, hold the Audition / Section button for row, turn the Vertical (Up/Down) encoder."
   },
   {
     "name": "Reorder kit clip row up or down",
@@ -752,7 +789,8 @@
       }
     ],
     "views": [5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, hold the Mute / Launch button for row, turn the Vertical (Up/Down) encoder."
   },
   {
     "name": "Note nudge individual note",
@@ -775,7 +813,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Lit grid pad, hold the Horizontal (Left/Right) encoder, turn the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Clip play direction",
@@ -794,7 +833,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the Grid pad (lit or unlit)."
   },
   {
     "name": "Euclidian seq events - number of events / notes",
@@ -817,7 +857,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, hold the Vertical (Up/Down) encoder, turn the Vertical (Up/Down) encoder."
   },
   {
     "name": "Euclidian seq length - row length",
@@ -836,7 +877,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, turn the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Euclidian seq rotate - shift / rotate events or notes",
@@ -859,7 +901,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, press the Horizontal (Left/Right) encoder, turn the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Launch clip - queue",
@@ -870,7 +913,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Mute / Launch button for row."
   },
   {
     "name": "Launch clip - immediately",
@@ -889,7 +933,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the Mute / Launch button for row."
   },
   {
     "name": "Fast scroll song list",
@@ -912,7 +957,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Load (New) button. Hold the Shift button, turn the Select (Settings) encoder."
   },
   {
     "name": "Create clip (empty row)",
@@ -923,7 +969,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Unlit grid pad."
   },
   {
     "name": "Enter clip (non-empty row)",
@@ -934,7 +981,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Grid pad (lit or unlit)."
   },
   {
     "name": "Move row clip up or down",
@@ -953,7 +1001,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Grid pad (lit or unlit), turn the Vertical (Up/Down) encoder."
   },
   {
     "name": "Clip section color - change or create new",
@@ -972,7 +1021,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the Audition / Section button for row."
   },
   {
     "name": "Launch section",
@@ -983,7 +1033,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Audition / Section button for row."
   },
   {
     "name": "Section repeat (hold audition for 1 sec)",
@@ -998,7 +1049,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row. Turn the Select (Settings) encoder."
   },
   {
     "name": "Clone/duplicate clip (hold source, press destination)",
@@ -1017,7 +1069,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Grid pad (lit or unlit), press the Grid pad (lit or unlit)."
   },
   {
     "name": "Delete clip",
@@ -1036,7 +1089,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Grid pad (lit or unlit), press the Save (Delete) button."
   },
   {
     "name": "Solo clip - queue",
@@ -1055,7 +1109,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Horizontal (Left/Right) encoder, press the Mute / Launch button for row."
   },
   {
     "name": "Solo clip - immediately",
@@ -1078,7 +1133,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, hold the Horizontal (Left/Right) encoder, press the Mute / Launch button for row."
   },
   {
     "name": "Clip parameter change (per clip)",
@@ -1097,7 +1153,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Grid pad (lit or unlit), turn the parameter encoders."
   },
   {
     "name": "Clip parameter change (per song)",
@@ -1112,7 +1169,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Affect Entire button. Turn the parameter encoders."
   },
   {
     "name": "Change existing clip preset",
@@ -1131,7 +1189,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Grid pad (lit or unlit), turn the Select (Settings) encoder."
   },
   {
     "name": "Change existing clip to synth",
@@ -1150,7 +1209,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Grid pad (lit or unlit), press the Synth button."
   },
   {
     "name": "Change existing clip to MIDI",
@@ -1169,7 +1229,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Grid pad (lit or unlit), press the MIDI button."
   },
   {
     "name": "Change existing clip to CV",
@@ -1188,7 +1249,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Grid pad (lit or unlit), press the CV button."
   },
   {
     "name": "Create audio track (in empty clip)",
@@ -1207,7 +1269,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Grid pad (lit or unlit), press the Select (Settings) encoder."
   },
   {
     "name": "Check name and type of non-empty clip",
@@ -1218,7 +1281,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Grid pad (lit or unlit)."
   },
   {
     "name": "Clip Settings Menu (Song Grid View)",
@@ -1237,7 +1301,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Grid pad (lit or unlit), press the Select (Settings) encoder."
   },
   {
     "name": "Clip Settings Menu (Song Row View)",
@@ -1264,7 +1329,8 @@
           }
         ]
       }
-    ]
+    ],
+    "description": "Hold the Mute / Launch button for row, press the Select (Settings) encoder."
   },
   {
     "name": "Resample / record all audio output",
@@ -1283,7 +1349,8 @@
       }
     ],
     "views": [5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the Record button."
   },
   {
     "name": "Loop resample",
@@ -1314,7 +1381,8 @@
       }
     ],
     "views": [5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Record button, press the Play button. Hold the Record button, press the Play button."
   },
   {
     "name": "Record sample into a kit",
@@ -1337,7 +1405,8 @@
       }
     ],
     "views": [5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the Kit button. Press the Record button."
   },
   {
     "name": "Load sample into a kit row",
@@ -1364,7 +1433,8 @@
       }
     ],
     "views": [5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, press the Load (New) button. Turn the Select (Settings) encoder. Press the Select (Settings) encoder."
   },
   {
     "name": "Load sample into a kit row silently",
@@ -1395,7 +1465,8 @@
       }
     ],
     "views": [5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, hold the Audition / Section button for row, press the Load (New) button. Turn the Select (Settings) encoder. Press the Select (Settings) encoder."
   },
   {
     "name": "Synth resample",
@@ -1426,7 +1497,8 @@
       }
     ],
     "views": [5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Record button, press the Audition / Section button for row. Hold the Record button, press the Grid pad (lit or unlit)."
   },
   {
     "name": "Load all samples from folder to kit",
@@ -1461,7 +1533,8 @@
       }
     ],
     "views": [5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the Kit button. Turn the Select (Settings) encoder. Hold the Select (Settings) encoder. Select an option from the on-screen menu. Press the Select (Settings) encoder."
   },
   {
     "name": "Slice sample",
@@ -1500,7 +1573,8 @@
       }
     ],
     "views": [5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button. Press the Kit button. Turn the Select (Settings) encoder. Hold the Select (Settings) encoder. Select an option from the on-screen menu. Press the Select (Settings) encoder. Select an option from the on-screen menu. Press the Select (Settings) encoder."
   },
   {
     "name": "Rename kit row or instrument",
@@ -1519,7 +1593,8 @@
       }
     ],
     "views": [5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, press the Grid pad (lit or unlit)."
   },
   {
     "name": "Create new audio clip in song view (press empty row)",
@@ -1538,7 +1613,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Unlit grid pad, press the Select (Settings) encoder."
   },
   {
     "name": "Source for audio clip in song view",
@@ -1565,7 +1641,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Learn / Input button, press the Grid pad (lit or unlit). Turn the Select (Settings) encoder. Press the Select (Settings) encoder."
   },
   {
     "name": "Create new audio track in arranger view",
@@ -1584,7 +1661,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, press the Select (Settings) encoder."
   },
   {
     "name": "Source for audio clip in arranger view",
@@ -1611,7 +1689,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Learn / Input button, press the Audition / Section button for row. Turn the Select (Settings) encoder. Press the Select (Settings) encoder."
   },
   {
     "name": "Clear audio clip recording",
@@ -1630,7 +1709,8 @@
       }
     ],
     "views": [8],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Horizontal (Left/Right) encoder, press the Back / Undo (Redo) button."
   },
   {
     "name": "Change color of audio wave",
@@ -1649,7 +1729,8 @@
       }
     ],
     "views": [8],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, turn the Vertical (Up/Down) encoder."
   },
   {
     "name": "End point / loop length (use red end point marker)",
@@ -1664,7 +1745,8 @@
       }
     ],
     "views": [8],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Grid pad (lit or unlit). Press the Grid pad (lit or unlit)."
   },
   {
     "name": "Waveform start / end point",
@@ -1683,7 +1765,8 @@
       }
     ],
     "views": [8],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the Grid pad (lit or unlit)."
   },
   {
     "name": "Adjust length - audio clip waveform",
@@ -1702,7 +1785,8 @@
       }
     ],
     "views": [8],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, turn the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Set clip length to sample length",
@@ -1729,7 +1813,8 @@
           }
         ]
       }
-    ]
+    ],
+    "description": "Press the Vertical (Up/Down) encoder, press the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Adjust audio clip length without timestretching",
@@ -1752,7 +1837,8 @@
       }
     ],
     "views": [8],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the Vertical (Up/Down) encoder, turn the Horizontal (Left/Right) encoder."
   },
   {
     "name": "New synth",
@@ -1771,7 +1857,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the Synth button."
   },
   {
     "name": "New kit",
@@ -1790,7 +1877,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the Kit button."
   },
   {
     "name": "View synth preset browser",
@@ -1809,7 +1897,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Load (New) button, press the Synth button."
   },
   {
     "name": "View kit preset browser",
@@ -1828,7 +1917,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Load (New) button, press the Kit button."
   },
   {
     "name": "Save synth preset",
@@ -1855,7 +1945,8 @@
       }
     ],
     "views": [4],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Save (Delete) button, press the Synth button. Turn the Select (Settings) encoder. Press the Select (Settings) encoder."
   },
   {
     "name": "Save kit preset",
@@ -1882,7 +1973,8 @@
       }
     ],
     "views": [5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Save (Delete) button, press the Kit button. Turn the Select (Settings) encoder. Press the Select (Settings) encoder."
   },
   {
     "name": "Note keyboard view",
@@ -1893,7 +1985,8 @@
       }
     ],
     "views": [4, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Key button (keyboard icon)."
   },
   {
     "name": "Clear notes and automation",
@@ -1912,7 +2005,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Horizontal (Left/Right) encoder, press the Back / Undo (Redo) button."
   },
   {
     "name": "Setting up choke group",
@@ -1943,7 +2037,8 @@
       }
     ],
     "views": [5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, press the Grid pad (lit or unlit). Turn the Select (Settings) encoder. Select an option from the on-screen menu. Press the Select (Settings) encoder."
   },
   {
     "name": "Cycle default scales",
@@ -1962,7 +2057,8 @@
       }
     ],
     "views": [4, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the Scale button."
   },
   {
     "name": "Change root note",
@@ -1981,7 +2077,8 @@
       }
     ],
     "views": [4, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Scale button, press the Audition / Section button for row."
   },
   {
     "name": "Alter current scale",
@@ -2000,7 +2097,8 @@
       }
     ],
     "views": [4, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, turn the Select (Settings) encoder."
   },
   {
     "name": "Clone synth preset",
@@ -2039,7 +2137,8 @@
       }
     ],
     "views": [4],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Load (New) button, press the Synth button. Turn the Select (Settings) encoder. Hold the Load (New) button, select an option from the on-screen menu. Press the Select (Settings) encoder."
   },
   {
     "name": "Clone kit preset",
@@ -2078,7 +2177,8 @@
       }
     ],
     "views": [5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Load (New) button, press the Kit button. Turn the Select (Settings) encoder. Hold the Load (New) button, select an option from the on-screen menu. Press the Select (Settings) encoder."
   },
   {
     "name": "Kit clip affect all - first select parameter",
@@ -2109,7 +2209,8 @@
       }
     ],
     "views": [5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, hold the Grid pad (lit or unlit). Hold the Affect Entire button, turn the Select (Settings) encoder."
   },
   {
     "name": "Select kit/ instrument row silently",
@@ -2128,7 +2229,8 @@
       }
     ],
     "views": [5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the Audition / Section button for row."
   },
   {
     "name": "Change clip preset",
@@ -2139,7 +2241,8 @@
       }
     ],
     "views": [4, 5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Turn the Select (Settings) encoder."
   },
   {
     "name": "Transpose clip by octave",
@@ -2158,7 +2261,8 @@
       }
     ],
     "views": [4, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Vertical (Up/Down) encoder, turn the Vertical (Up/Down) encoder."
   },
   {
     "name": "Transpose current clip by semitone (scale off)",
@@ -2181,7 +2285,8 @@
       }
     ],
     "views": [4, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, hold the Vertical (Up/Down) encoder, turn the Vertical (Up/Down) encoder."
   },
   {
     "name": "Transpose all clips by semitone (scale on)",
@@ -2204,7 +2309,8 @@
       }
     ],
     "views": [4, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, hold the Vertical (Up/Down) encoder, turn the Vertical (Up/Down) encoder."
   },
   {
     "name": "Randomize drum sample (selected drum)",
@@ -2223,7 +2329,8 @@
       }
     ],
     "views": [5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Load (New) button, press the 'Random' patch source pad."
   },
   {
     "name": "Randomize drum sample (multiple selected)",
@@ -2246,7 +2353,8 @@
       }
     ],
     "views": [5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Load (New) button, hold the Audition / Section button for row, press the 'Random' patch source pad."
   },
   {
     "name": "Randomize all active drums",
@@ -2269,7 +2377,8 @@
       }
     ],
     "views": [5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Load (New) button, hold the Affect Entire button, press the 'Random' patch source pad."
   },
   {
     "name": "Delete unused kit rows",
@@ -2292,7 +2401,8 @@
       }
     ],
     "views": [5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Kit button, hold the Shift button, press the Save (Delete) button."
   },
   {
     "name": "Note Probability",
@@ -2311,7 +2421,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the 'Note' patch source pad."
   },
   {
     "name": "Randomizer Lock",
@@ -2330,7 +2441,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the 'Random' patch source pad."
   },
   {
     "name": "Velocity Probability",
@@ -2349,7 +2461,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the 'Velocity' patch source pad."
   },
   {
     "name": "Manual Slicing (Lazy Chop)",
@@ -2368,7 +2481,8 @@
           }
         ]
       }
-    ]
+    ],
+    "description": "Press the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Chromatic sample - same sample, different pitches (on new synth)",
@@ -2399,7 +2513,8 @@
       }
     ],
     "views": [4],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, press the Load (New) button. Press the Select (Settings) encoder. Turn the Select (Settings) encoder. Press the Select (Settings) encoder."
   },
   {
     "name": "Basic sample - load sample with no pitch detection",
@@ -2442,7 +2557,8 @@
       }
     ],
     "views": [4],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, press the Load (New) button. Press the Select (Settings) encoder. Turn the Select (Settings) encoder. Hold the Select (Settings) encoder, select an option from the on-screen menu. Press the Select (Settings) encoder."
   },
   {
     "name": "Multi-sampling",
@@ -2485,7 +2601,8 @@
       }
     ],
     "views": [4],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, press the Load (New) button. Press the Select (Settings) encoder. Turn the Select (Settings) encoder. Hold the Select (Settings) encoder, select an option from the on-screen menu. Press the Select (Settings) encoder."
   },
   {
     "name": "Single cycle waveforms",
@@ -2528,7 +2645,8 @@
       }
     ],
     "views": [4],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, press the Load (New) button. Press the Select (Settings) encoder. Turn the Select (Settings) encoder. Hold the Select (Settings) encoder, select an option from the on-screen menu. Press the Select (Settings) encoder."
   },
   {
     "name": "External sound source",
@@ -2559,7 +2677,8 @@
       }
     ],
     "views": [4],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the Grid pad (lit or unlit). Turn the Select (Settings) encoder. Select an option from the on-screen menu. Press the Play button."
   },
   {
     "name": "Record to arranger - live record parameter changes and MIDI notes (RECORD to end)",
@@ -2578,7 +2697,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Record button, press the Song button."
   },
   {
     "name": "Append recording to existing arrangement (from arrangement mode; RECORD to end)",
@@ -2605,7 +2725,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Turn the Horizontal (Left/Right) encoder. Press the Song button. Hold the Record button, press the Song button."
   },
   {
     "name": "Waveform edit view - change start / end / loop",
@@ -2624,7 +2745,8 @@
       }
     ],
     "views": [4, 5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the Grid pad (lit or unlit)."
   },
   {
     "name": "Zoom in and out",
@@ -2643,7 +2765,8 @@
       }
     ],
     "views": [9],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Horizontal (Left/Right) encoder, turn the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Move along waveform",
@@ -2654,7 +2777,8 @@
       }
     ],
     "views": [9],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Turn the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Change start",
@@ -2669,7 +2793,8 @@
       }
     ],
     "views": [9],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the green grid column representing waveform start. Press the Grid pad (lit or unlit)."
   },
   {
     "name": "Change end",
@@ -2684,7 +2809,8 @@
       }
     ],
     "views": [9],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the red grid column representing waveform end. Press the Grid pad (lit or unlit)."
   },
   {
     "name": "Create loop start point",
@@ -2703,7 +2829,8 @@
       }
     ],
     "views": [9],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the green grid column representing waveform start, press the Grid pad (lit or unlit)."
   },
   {
     "name": "Delete loop start point",
@@ -2722,7 +2849,8 @@
       }
     ],
     "views": [9],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the blue grid column representing waveform loop start, press the green grid column representing waveform start."
   },
   {
     "name": "Create loop end point",
@@ -2741,7 +2869,8 @@
       }
     ],
     "views": [9],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the red grid column representing waveform end, press the Grid pad (lit or unlit)."
   },
   {
     "name": "Delete loop end point",
@@ -2760,7 +2889,8 @@
       }
     ],
     "views": [9],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the purple grid column representing waveform loop end, press the red grid column representing waveform end."
   },
   {
     "name": "Waveform Loop Lock",
@@ -2787,7 +2917,8 @@
           }
         ]
       }
-    ]
+    ],
+    "description": "Hold the blue grid column representing waveform loop start, press the purple grid column representing waveform loop end."
   },
   {
     "name": "Add clip into arranger",
@@ -2798,7 +2929,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Unlit grid pad."
   },
   {
     "name": "Change / select instance's clip",
@@ -2817,7 +2949,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Grid pad (lit or unlit), turn the Select (Settings) encoder."
   },
   {
     "name": "Delete clip instance from arranger (left-most clip grid button)",
@@ -2828,7 +2961,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Lit grid pad."
   },
   {
     "name": "Clear arranger clips (all clip instances)",
@@ -2847,7 +2981,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Horizontal (Left/Right) encoder, press the Back / Undo (Redo) button."
   },
   {
     "name": "Move clip instance horizontally",
@@ -2866,7 +3001,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Lit grid pad, turn the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Move row vertically",
@@ -2885,7 +3021,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, turn the Vertical (Up/Down) encoder."
   },
   {
     "name": "Change instance length of clip",
@@ -2904,7 +3041,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Grid pad (lit or unlit), press the Grid pad (lit or unlit)."
   },
   {
     "name": "Mute / unmute",
@@ -2915,7 +3053,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Mute / Launch button for row."
   },
   {
     "name": "Audition",
@@ -2926,7 +3065,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Audition / Section button for row."
   },
   {
     "name": "Solo instrument",
@@ -2945,7 +3085,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Horizontal (Left/Right) encoder, press the Mute / Launch button for row."
   },
   {
     "name": "Enter clip (anything besides left-most grid button)",
@@ -2956,7 +3097,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Lit grid pad."
   },
   {
     "name": "Scroll timeline with progress bar",
@@ -2967,7 +3109,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Cross-screen button."
   },
   {
     "name": "Start playback from current screen",
@@ -2986,7 +3129,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Horizontal (Left/Right) encoder, press the Play button."
   },
   {
     "name": "Make clip instance unique (white; left-most clip grid button)",
@@ -3005,7 +3149,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the Lit grid pad."
   },
   {
     "name": "Adjust clip parameter of clip instance",
@@ -3024,7 +3169,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Lit grid pad, turn the parameter encoders."
   },
   {
     "name": "Copy clip from arranger to song mode, eg to save white instance as its own clip",
@@ -3047,7 +3193,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Lit grid pad, press the Song button. Turn the Vertical (Up/Down) encoder."
   },
   {
     "name": "Copy clip from song to arranger mode",
@@ -3070,7 +3217,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Lit grid pad, press the Song button. Turn the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Insert / delete time; applies to currently visible screen (clockwise: insert; counter: delete)",
@@ -3089,7 +3237,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, turn the Horizontal (Left/Right) encoder."
   },
   {
     "name": "Enable loop play mode from arrange to song mode",
@@ -3100,7 +3249,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Audition / Section button for row."
   },
   {
     "name": "Disable loop play mode from arrange to song mode",
@@ -3111,7 +3261,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Mute / Launch button for row."
   },
   {
     "name": "Change instrument preset",
@@ -3130,7 +3281,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, turn the Select (Settings) encoder."
   },
   {
     "name": "Change clip type to synth",
@@ -3149,7 +3301,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, press the Synth button."
   },
   {
     "name": "Change clip type to MIDI",
@@ -3168,7 +3321,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, press the MIDI button."
   },
   {
     "name": "Change clip type to CV",
@@ -3187,7 +3341,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, press the CV button."
   },
   {
     "name": "Add new instrument clip from arranger view (unused row)",
@@ -3206,7 +3361,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, turn the Select (Settings) encoder."
   },
   {
     "name": "Add new synth clip type (unused row)",
@@ -3225,7 +3381,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, press the Synth button."
   },
   {
     "name": "Add new MIDI clip type (unused row)",
@@ -3244,7 +3401,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, press the MIDI button."
   },
   {
     "name": "Add new CV clip type (unused row)",
@@ -3263,7 +3421,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, press the CV button."
   },
   {
     "name": "Delete instrument row from arranger",
@@ -3282,7 +3441,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, press the Save (Delete) button."
   },
   {
     "name": "Rename track",
@@ -3301,7 +3461,8 @@
       }
     ],
     "views": [2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, press the Grid pad (lit or unlit)."
   },
   {
     "name": "Assign gold dial control of parameters - first select parameter",
@@ -3320,7 +3481,8 @@
       }
     ],
     "views": [4, 5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Learn / Input button, turn the parameter encoders."
   },
   {
     "name": "Check gold dial control of parameters - first select parameter",
@@ -3331,7 +3493,8 @@
       }
     ],
     "views": [4, 5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Turn the parameter encoders."
   },
   {
     "name": "Record automation of parameter",
@@ -3350,7 +3513,8 @@
       }
     ],
     "views": [4, 5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Record button. Press the Play button. Turn the parameter encoders."
   },
   {
     "name": "Delete automation of recorded parameter",
@@ -3369,7 +3533,8 @@
       }
     ],
     "views": [4, 5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the parameter encoders."
   },
   {
     "name": "Copy automation of parameter",
@@ -3388,7 +3553,8 @@
       }
     ],
     "views": [4, 5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Learn / Input button, press the parameter encoders."
   },
   {
     "name": "Paste automation of parameter",
@@ -3411,7 +3577,8 @@
       }
     ],
     "views": [4, 5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, hold the Learn / Input button, press the parameter encoders."
   },
   {
     "name": "Parameter change / lock per note in clip view",
@@ -3430,7 +3597,8 @@
       }
     ],
     "views": [10],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Lit grid pad, turn the parameter encoders."
   },
   {
     "name": "Parameter change / lock per clip in song view",
@@ -3449,7 +3617,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Lit grid pad, turn the parameter encoders."
   },
   {
     "name": "Setup MIDI sequencing of notes",
@@ -3464,7 +3633,8 @@
       }
     ],
     "views": [4, 5, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the MIDI button. Turn the Select (Settings) encoder."
   },
   {
     "name": "MIDI sequencing of parameters - first select parameter",
@@ -3487,7 +3657,8 @@
       }
     ],
     "views": [6],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the parameter encoders, turn the Select (Settings) encoder. Turn the parameter encoders."
   },
   {
     "name": "Record MIDI automation",
@@ -3506,7 +3677,8 @@
       }
     ],
     "views": [6],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Record button. Press the Play button. Turn the parameter encoders."
   },
   {
     "name": "Record MIDI step automation",
@@ -3525,7 +3697,8 @@
       }
     ],
     "views": [6],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Grid pad (lit or unlit), turn the parameter encoders."
   },
   {
     "name": "Change dial control, but keep automation",
@@ -3548,7 +3721,8 @@
       }
     ],
     "views": [6],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the parameter encoders, hold the Select (Settings) encoder, turn the Select (Settings) encoder."
   },
   {
     "name": "MIDI note output in a kit clip",
@@ -3567,7 +3741,8 @@
       }
     ],
     "views": [5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, press the MIDI button."
   },
   {
     "name": "MIDI note output in a kit clip: MIDI channel assign",
@@ -3586,7 +3761,8 @@
       }
     ],
     "views": [5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, turn the lower parameter encoder."
   },
   {
     "name": "MIDI note output in a kit clip: MIDI note value",
@@ -3605,7 +3781,8 @@
       }
     ],
     "views": [5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, turn the upper parameter encoder."
   },
   {
     "name": "Settings menu for additional MIDI, CV, and Gate parameters",
@@ -3624,7 +3801,8 @@
       }
     ],
     "views": [6],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the Select (Settings) encoder."
   },
   {
     "name": "External controller to play synth or kit",
@@ -3647,7 +3825,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Learn / Input button, hold the Audition / Section button for row, trigger the external MIDI controller."
   },
   {
     "name": "External controller to trigger clip (from song mode)",
@@ -3670,7 +3849,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Learn / Input button, hold the Audition / Section button for row, trigger the external MIDI controller."
   },
   {
     "name": "External controller to trigger play (from song mode)",
@@ -3693,7 +3873,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Learn / Input button, hold the Play button, trigger the external MIDI controller."
   },
   {
     "name": "External controller to trigger record (from song mode)",
@@ -3716,7 +3897,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Learn / Input button, hold the Record button, trigger the external MIDI controller."
   },
   {
     "name": "Unlearn external controller to play synth or kit",
@@ -3739,7 +3921,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, hold the Learn / Input button, press the Audition / Section button for row."
   },
   {
     "name": "Unlearn external controller to trigger clip (from song mode)",
@@ -3762,7 +3945,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, hold the Learn / Input button, hold the Audition / Section button for row."
   },
   {
     "name": "Unlearn external controller to trigger play (from song mode)",
@@ -3785,7 +3969,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, hold the Learn / Input button, hold the Play button."
   },
   {
     "name": "Unlearn external controller to trigger record (from song mode)",
@@ -3808,7 +3993,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, hold the Learn / Input button, hold the Record button."
   },
   {
     "name": "External control of parameter - first select parameter",
@@ -3827,7 +4013,8 @@
       }
     ],
     "views": [4, 5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Learn / Input button, trigger the external MIDI controller."
   },
   {
     "name": "Unlearn external control of parameter - first select parameter",
@@ -3846,7 +4033,8 @@
       }
     ],
     "views": [4, 5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, hold the Learn / Input button."
   },
   {
     "name": "Nudge MIDI clock",
@@ -3865,7 +4053,8 @@
       }
     ],
     "views": [6],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Horizontal (Left/Right) encoder, turn the Tempo (Swing) encoder."
   },
   {
     "name": "Record external notes",
@@ -3884,7 +4073,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Record button. Press the Play button. Trigger the external MIDI controller."
   },
   {
     "name": "Sync scaling for unusual time signitures",
@@ -3895,7 +4085,8 @@
       }
     ],
     "views": [4, 5, 6, 7],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Sync-Scaling button."
   },
   {
     "name": "Mute by external MIDI for individual kit rows - in kit mode",
@@ -3918,7 +4109,8 @@
       }
     ],
     "views": [5],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Learn / Input button, hold the Mute / Launch button for row, trigger the external MIDI controller."
   },
   {
     "name": "Toggle record arm",
@@ -3937,7 +4129,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Record button, press the Mute / Launch button for row."
   },
   {
     "name": "Start loop record",
@@ -3952,7 +4145,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Record button. Press the Play button."
   },
   {
     "name": "Close loop recording - on recording clip row",
@@ -3963,7 +4157,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Mute / Launch button for row."
   },
   {
     "name": "Close loop recording and immediately play in solo",
@@ -3982,7 +4177,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Horizontal (Left/Right) encoder, press the Mute / Launch button for row."
   },
   {
     "name": "Record loop during playback",
@@ -4001,7 +4197,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Record button. Press the Play button. Press the Mute / Launch button for row."
   },
   {
     "name": "Record overdub - press grid directly underneath existing audio clip",
@@ -4028,7 +4225,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Record button. Press the Play button. Hold the Record button, press the Grid pad (lit or unlit)."
   },
   {
     "name": "Record overdub - with continuous layering - press grid directly underneath existing audio clip",
@@ -4055,7 +4253,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Record button. Press the Play button. Hold the Record button, press the Audition / Section button for row."
   },
   {
     "name": "Tempo detection for loop pedal recording - start with a blank song",
@@ -4074,7 +4273,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the Tap Tempo (Metronome) button."
   },
   {
     "name": "Preset tempo for loop recording",
@@ -4093,7 +4293,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Unlit grid pad. Press the Kit button. Turn the Tempo (Swing) encoder."
   },
   {
     "name": "Grab tempo from existing audio clip",
@@ -4112,7 +4313,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Tempo (Swing) encoder, press the Lit grid pad."
   },
   {
     "name": "Enable count-in before audio recording",
@@ -4139,7 +4341,8 @@
       }
     ],
     "views": [1],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the Select (Settings) encoder. Select an option from the on-screen menu. Select an option from the on-screen menu."
   },
   {
     "name": "Audio Export (Start)",
@@ -4158,7 +4361,8 @@
       }
     ],
     "views": [0, 1, 2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Save (Delete) button, press the Record button."
   },
   {
     "name": "Velocity View (from Instrument Clip)",
@@ -4177,7 +4381,8 @@
       }
     ],
     "views": [4, 5, 6, 7, 11, 12],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, press the 'Velocity' patch source pad."
   },
   {
     "name": "Velocity View (from Automation View)",
@@ -4196,7 +4401,8 @@
       }
     ],
     "views": [4, 5, 6, 7, 11, 12],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Audition / Section button for row, press the 'Velocity' patch source pad."
   },
   {
     "name": "Performance View (from Song/Arranger)",
@@ -4207,7 +4413,8 @@
       }
     ],
     "views": [1, 2, 3],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Key button (keyboard icon)."
   },
   {
     "name": "Master Transpose (Chromatic)",
@@ -4226,7 +4433,8 @@
       }
     ],
     "views": [1, 2, 3],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Press the Vertical (Up/Down) encoder, turn the Vertical (Up/Down) encoder."
   },
   {
     "name": "Master Transpose (Customize Semitones)",
@@ -4249,6 +4457,7 @@
       }
     ],
     "views": [1, 2],
-    "paragraphs": []
+    "paragraphs": [],
+    "description": "Hold the Shift button, press the Vertical (Up/Down) encoder, turn the Vertical (Up/Down) encoder."
   }
 ]
