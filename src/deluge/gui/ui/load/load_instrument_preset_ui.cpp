@@ -641,7 +641,7 @@ gotAnInstrument:
 	else {
 
 		// If that Instrument wasn't already in use in the Song, copy default velocity over
-		initialInstrument->defaultVelocity = instrumentToReplace->defaultVelocity;
+		initialInstrument->setDefaultVelocity(instrumentToReplace->defaultVelocity);
 
 		// If we're here, we know the Clip is not playing in the arranger (and doesn't even have an instance in there)
 
@@ -973,7 +973,7 @@ giveUsedError:
 	else {
 
 		// If that Instrument wasn't already in use in the Song, copy default velocity over
-		newInstrument->defaultVelocity = instrumentToReplace->defaultVelocity;
+		newInstrument->setDefaultVelocity(instrumentToReplace->defaultVelocity);
 
 		// If we're here, we know the Clip is not playing in the arranger (and doesn't even have an instance in there)
 

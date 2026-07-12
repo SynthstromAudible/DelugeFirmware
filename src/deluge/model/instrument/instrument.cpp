@@ -39,13 +39,39 @@ Instrument::~Instrument() {
 */
 
 // M3 owner-5 Slice E: add the Instrument-tier descriptor fields to the DOM shadow (calls the Output base first).
+// DO2: dir_path/default_velocity are now DOM-owned — every forward write funnels through setDirPath()/
+// setDefaultVelocity() (or seedDocOutputIdentity() for the polymorphic/clone sites) instead of landing here. Nothing
+// left for this method to do for them; it stays (still calling the Output base) because subclasses (NonAudio/MIDI/CV)
+// chain through it for their own not-yet-inverted tiers.
 void Instrument::syncDocOutput() {
 	Output::syncDocOutput();
 	if (docOutput_ == nullptr) {
 		return;
 	}
-	docOutput_->dir_path = dirPath;
-	docOutput_->default_velocity = defaultVelocity;
+}
+
+// DO2: reseed this tier's two identity fields from the current native values. Called (via virtual dispatch, since
+// Output::seedDocOutputIdentity() is virtual) from adoptOutput's load-bridge seed and the clone/replace blocks in
+// song.cpp that bulk-copy fields between Outputs without going through a setter.
+void Instrument::seedDocOutputIdentity() {
+	Output::seedDocOutputIdentity();
+	if (docOutput_ != nullptr) {
+		docOutput_->dir_path = dirPath;
+		docOutput_->default_velocity = defaultVelocity;
+	}
+}
+
+void Instrument::setDirPath(std::string_view newPath) {
+	dirPath = newPath;
+	if (docOutput_ != nullptr) {
+		docOutput_->dir_path = dirPath;
+	}
+}
+void Instrument::setDefaultVelocity(uint8_t v) {
+	defaultVelocity = v;
+	if (docOutput_ != nullptr) {
+		docOutput_->default_velocity = v;
+	}
 }
 
 // Returns whether subslot changed
@@ -106,10 +132,15 @@ bool Instrument::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputOn
 
 			writer.writeAttribute(slotXMLTag, ((NonAudioInstrument*)this)->getChannel());
 		}
-		if (!dirPath.empty() && (type == OutputType::SYNTH || type == OutputType::KIT)) {
-			writer.writeAttribute("presetFolder", dirPath.c_str());
+		// DO2: read the DOM identity record's dir_path/default_velocity when bound (rebuild-at-save); fall back to the
+		// native field when unbound.
+		bool hasDirPath = docOutput_ != nullptr ? !docOutput_->dir_path.empty() : !dirPath.empty();
+		if (hasDirPath && (type == OutputType::SYNTH || type == OutputType::KIT)) {
+			writer.writeAttribute("presetFolder",
+			                      docOutput_ != nullptr ? docOutput_->dir_path.c_str() : dirPath.c_str());
 		}
-		writer.writeAttribute("defaultVelocity", defaultVelocity);
+		writer.writeAttribute("defaultVelocity",
+		                      docOutput_ != nullptr ? docOutput_->default_velocity : defaultVelocity);
 	}
 
 	return Output::writeDataToFile(writer, clipForSavingOutputOnly, song);

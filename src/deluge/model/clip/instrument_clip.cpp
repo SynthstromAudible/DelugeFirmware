@@ -2814,7 +2814,7 @@ someError:
 					outputTypeWhileLoading = OutputType::SYNTH;
 
 					SoundInstrument* soundInstrument = new (instrumentMemory) SoundInstrument();
-					soundInstrument->dirPath = "SYNTHS";
+					soundInstrument->setDirPath("SYNTHS");
 					output = soundInstrument;
 				}
 
@@ -2846,7 +2846,7 @@ loadInstrument:
 
 				outputTypeWhileLoading = OutputType::KIT;
 				Kit* kit = new (instrumentMemory) Kit();
-				kit->dirPath = "KITS";
+				kit->setDirPath("KITS");
 				output = kit;
 				goto loadInstrument;
 			}

@@ -135,7 +135,10 @@ public:
 	// Reseed the record's 6 base identity fields from the current native values (load-bridge + reseed helper for
 	// sites that can't call a single setter directly: the polymorphic modKnobMode write in View::modButtonAction,
 	// and the clone/replace families in song.cpp that bulk-copy fields between Outputs).
-	void seedDocOutputIdentity();
+	// Virtual (DO2): Instrument overrides to also reseed its own tier (dir_path/default_velocity), so every existing
+	// polymorphic call site (adoptOutput, the clone/replace blocks in song.cpp) covers those fields too, without
+	// having to touch each call site again.
+	virtual void seedDocOutputIdentity();
 
 	// Temp stuff for doLaunch()
 	bool alreadyGotItsNewClip{};

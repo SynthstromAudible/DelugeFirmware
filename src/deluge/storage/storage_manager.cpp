@@ -426,7 +426,7 @@ paramManagersMissing:
 	}
 
 	newInstrument->setName(*name);
-	newInstrument->dirPath = *dirPath;
+	newInstrument->setDirPath(*dirPath);
 	newInstrument->mightExistOnCard = true;
 	newInstrument->loadAllAudioFiles(mayReadSamplesFromFiles); // Needs name, directory and slots set first, above.
 

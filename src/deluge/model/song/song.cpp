@@ -416,7 +416,7 @@ couldntLoad:
 			while (1) {}
 		}
 
-		newInstrument->dirPath = "SYNTHS";
+		newInstrument->setDirPath("SYNTHS");
 
 		newInstrument->setName("0");
 
@@ -1704,7 +1704,7 @@ unknownTag:
 						defaultDirPath = "SYNTHS";
 
 setDirPathFirst:
-						((Instrument*)newOutput)->dirPath = defaultDirPath;
+						((Instrument*)newOutput)->setDirPath(defaultDirPath);
 
 loadOutput:
 						error = newOutput->readFromFile(
@@ -5627,13 +5627,13 @@ TimelineCounter* Song::getTimelineCounterToRecordTo() {
 void Song::setDefaultVelocityForAllInstruments(uint8_t newDefaultVelocity) {
 	for (Output* output = project.media.first_output; output; output = output->next) {
 		if (output->type != OutputType::AUDIO) {
-			((Instrument*)output)->defaultVelocity = newDefaultVelocity;
+			((Instrument*)output)->setDefaultVelocity(newDefaultVelocity);
 		}
 	}
 
 	for (Instrument* instrument = project.media.first_hibernating_instrument; instrument;
 	     instrument = (Instrument*)instrument->next) {
-		instrument->defaultVelocity = newDefaultVelocity;
+		instrument->setDefaultVelocity(newDefaultVelocity);
 	}
 }
 

@@ -79,6 +79,16 @@ public:
 	// M3 owner-5 Slice E: add the Instrument-tier descriptor fields (dirPath/defaultVelocity) to the DOM shadow.
 	void syncDocOutput() override;
 
+	// DO2: dirPath/defaultVelocity are DOM-authoritative at save. Every forward write funnels through these setters
+	// (write native cache + record; guarded, no FREEZE — mirrors Output::set*() from DO1).
+	void setDirPath(std::string_view newPath);
+	void setDefaultVelocity(uint8_t v);
+	// DO2: override of the virtual Output::seedDocOutputIdentity() — calls the base (still covers the base 6), then
+	// reseeds this tier's two fields from the current native values. Makes every existing polymorphic
+	// seedDocOutputIdentity() call site (adoptOutput, song.cpp clone/replace blocks) cover dir_path/default_velocity
+	// for Instruments via virtual dispatch.
+	void seedDocOutputIdentity() override;
+
 	virtual void compensateInstrumentVolumeForResonance(ModelStackWithThreeMainThings* modelStack) {}
 	virtual bool isNoteRowStillAuditioningAsLinearRecordingEnded(NoteRow* noteRow) = 0;
 	virtual void processParamFromInputMIDIChannel(int32_t cc, int32_t newValue,

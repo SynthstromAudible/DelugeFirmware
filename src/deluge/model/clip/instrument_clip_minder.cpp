@@ -240,7 +240,7 @@ gotError:
 	}
 
 	// Set dirPath.
-	newInstrument->dirPath = getInstrumentFolder(newOutputType);
+	newInstrument->setDirPath(getInstrumentFolder(newOutputType));
 
 	actionLogger.deleteAllLogs(); // Can't undo past this!
 

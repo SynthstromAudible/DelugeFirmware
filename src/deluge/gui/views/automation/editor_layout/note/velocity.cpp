@@ -335,7 +335,7 @@ int32_t AutomationEditorLayoutNoteVelocity::getYFromVelocity(int32_t velocity) {
 void AutomationEditorLayoutNoteVelocity::addNoteWithNewVelocity(int32_t x, int32_t velocity, int32_t newVelocity) {
 	if (velocity) {
 		// we change the instrument default velocity because it is used for new notes
-		getCurrentInstrument()->defaultVelocity = newVelocity;
+		getCurrentInstrument()->setDefaultVelocity(newVelocity);
 	}
 
 	// record pad press and release

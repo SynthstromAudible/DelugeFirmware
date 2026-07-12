@@ -207,7 +207,7 @@ fail:
 
 	// Give the Instrument in memory its new slot
 	instrumentToSave->setName(enteredText);
-	instrumentToSave->dirPath = currentDir;
+	instrumentToSave->setDirPath(currentDir);
 	instrumentToSave->mightExistOnCard = true;
 
 	// There's now no chance that we saved over a preset that's already in use in the song, because we didn't allow the

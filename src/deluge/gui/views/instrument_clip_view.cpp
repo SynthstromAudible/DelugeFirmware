@@ -2691,7 +2691,7 @@ void InstrumentClipView::editPadAction(bool state, uint8_t yDisplay, uint8_t xDi
 			// Or if not deleting...
 			else {
 				if (rootUI == this) {
-					instrument->defaultVelocity = velocity;
+					instrument->setDefaultVelocity(velocity);
 				}
 			}
 
@@ -2902,7 +2902,7 @@ void InstrumentClipView::displayVelocity(int32_t velocityValue, int32_t velocity
 			UI* currentUI = getCurrentUI();
 			bool inAutomationView = currentUI == &automationView;
 			bool inNoteEditor = currentUI == &soundEditor && soundEditor.inNoteEditor();
-			getCurrentInstrument()->defaultVelocity = velocityValue;
+			getCurrentInstrument()->setDefaultVelocity(velocityValue);
 			if (!inAutomationView && !inNoteEditor) {
 				if (display->haveOLED()) {
 					strcpy(buffer, "Velocity: ");
