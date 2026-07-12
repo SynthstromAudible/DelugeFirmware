@@ -96,12 +96,19 @@ public:
 	Error readFromFile(Deserializer& reader, Song* song) override;
 	void writeDataToFile(Serializer& writer, Song* song) override;
 
-	/// M3 owner-4: rebuild the bound DocAudioClip (`docAudioClip_`) from the engine AudioClip's persistent
-	/// descriptor fields. Called at save (writeDataToFile start) to capture runtime edits into the record until the
-	/// edit sites are funnelled. Self-guards on a null docAudioClip_.
+	/// M3 owner-4: residual engine→record sync for the descriptor fields that are NOT yet DOM-authoritative — the
+	/// sampleHolder group (file_path / start_pos / end_pos / transpose / cents) and overdubs_should_clone. Called at
+	/// save (writeDataToFile start) so the record reflects those engine-owned values. The DOM-owned fields (attack,
+	/// voice_priority, and the SampleControls group) are NOT touched here — they funnel through their setters. The
+	/// sampleHolder group is deferred because its sample window is authored by SampleHolder::loadFile at load time and
+	/// reverted raw by two undo Consequences (ConsequenceClipLength via a stored uint64_t*,
+	/// ConsequenceAudioClipSetSample); inverting it needs the M4 edit→model+undo funnel, not an owner-4 setter.
+	/// overdubs_should_clone is a polymorphic Clip-base field. Self-guards on a null docAudioClip_.
 	void syncDocAudioClip();
 	/// M3 owner-4 (inverse): seed the engine runtime cache from the authoritative DocAudioClip. Called at
-	/// construction (model defaults) and after the DOM-first load parse. Self-guards on a null docAudioClip_.
+	/// construction (model defaults) and after the DOM-first load parse. Seeds the sampleHolder + SampleControls caches
+	/// (the DOM-owned cold scalars attack/voice_priority have no cache — they read the record directly). Self-guards on
+	/// a null docAudioClip_.
 	void deriveEngineFromDoc();
 	char const* getXMLTag() override { return "audioClip"; }
 	int32_t nextSampleRestartPos{};

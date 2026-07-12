@@ -75,8 +75,33 @@ expose a mutable reference to the native field.**
    by-value resolver; delete `currentPriority` + its 2 binds. No retirement yet.
 3. **Retire per field, owner by owner** — flip the owning class's accessor to the `Doc*`,
    delete the native field, redirect the ≤5 engine touch-sites. Owner-4 (`AudioClip`) first
-   (`voicePriority`, `attack`, then the `sampleControls`/`sampleHolder` hot-cache group),
-   then owner-5 (`Sound`/`ModControllableAudio`) reuses the identical recipe.
+   (`voicePriority`, `attack`, then the `sampleControls` hot group), then owner-5
+   (`Sound`/`ModControllableAudio`) reuses the identical recipe.
+
+## Owner-4 outcome (as of this pass)
+
+- **Retired cold scalars** — `voicePriority`, `attack`: native field deleted, accessor reads
+  the record, save reads the record. No cache.
+- **DOM-owned hot group with derived cache** — `sampleControls` (interpolation /
+  pitch-speed-independence / reversed): record authoritative, `sampleControls` kept as the
+  render cache, writes funnel through `AudioClip::set*` (+ the `sample/utils` by-value
+  dispatchers for the shared source/clip menus), save reads the record.
+- **Deferred, still engine-authoritative** (`syncDocAudioClip` retained as the residual
+  engine→record sync for exactly these):
+  - **`sampleHolder` group** (`file_path` / `start_pos` / `end_pos` / `transpose` / `cents`).
+    Blocked, not skipped: the sample window is authored by `SampleHolder::loadFile` at load
+    time and **reverted raw by two undo Consequences** — `ConsequenceClipLength` writes
+    `sampleHolder.endPos`/`startPos` through a stored `uint64_t*`
+    (`audio_clip_view.cpp` sets `pointerToMarkerValue = &clip.sampleHolder.endPos`), and
+    `ConsequenceAudioClipSetSample::revert` writes `filePath`/`endPos` then `loadFile()`s.
+    A retired/cache field written by a raw-pointer undo silently desyncs from the record.
+    Inverting it means teaching the generic Consequence/undo machinery about the model — the
+    edit→model+undo funnel that **M4** generalizes — not an owner-4 setter. Do it with M4.
+  - **`overdubsShouldCloneOutput`** — a polymorphic `Clip`-base field (`clip.h`), read/written
+    across session/view/playback/song; belongs to a `DocClip`-ownership slice, not owner-4.
+
+So `syncDocAudioClip` shrinks to (sampleHolder + overdubs) and cannot be fully deleted until
+those two are done; the save path already reads every *inverted* field straight from the record.
 
 ## Invariant (the exit bar)
 

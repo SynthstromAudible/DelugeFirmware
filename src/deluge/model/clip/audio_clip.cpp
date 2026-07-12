@@ -1143,10 +1143,11 @@ void AudioClip::syncDocAudioClip() {
 	d.overdubs_should_clone = overdubsShouldCloneOutput;
 }
 
-// M3 owner-4 (inverse of syncDocAudioClip): seed the engine's runtime cache (sampleHolder / sampleControls /
-// attack / voicePriority / overdubs) from the authoritative DocAudioClip. Called at construction (from the model
-// defaults) and after the DOM-first load parse. The engine fields remain the render/edit target for now; the
-// save path still rebuilds the record from them (syncDocAudioClip) until the runtime edit sites are funnelled.
+// M3 owner-4 (inverse of syncDocAudioClip): seed the engine's runtime caches from the authoritative DocAudioClip.
+// Called at construction (from the model defaults) and after the DOM-first load parse. Seeds the sampleHolder +
+// SampleControls render caches; the DOM-owned cold scalars (attack, voice_priority) have no cache and read the record
+// directly via their accessors. sampleHolder + overdubs_should_clone are still engine-authoritative (see
+// syncDocAudioClip) so their seeding here is the load-side half of that residual sync.
 void AudioClip::deriveEngineFromDoc() {
 	if (docAudioClip_ == nullptr) {
 		return;
@@ -1167,7 +1168,10 @@ void AudioClip::deriveEngineFromDoc() {
 
 void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 
-	syncDocAudioClip(); // M3 owner-4: rebuild-at-save — capture runtime menu/consequence mutations into the DOM record.
+	// M3 owner-4: residual rebuild-at-save for the not-yet-inverted fields only (sampleHolder group +
+	// overdubs_should_clone). The DOM-owned fields (attack, voice_priority, SampleControls group) are read straight
+	// from docAudioClip_ below; this sync no longer touches them.
+	syncDocAudioClip();
 
 	writer.writeAttribute("trackName", output->name.c_str());
 
