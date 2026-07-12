@@ -101,6 +101,7 @@ void DxCartridge::readValueAgain() {
 
 	DxPatch* patch = soundEditor.currentSource->ensureDxPatch();
 	pd->unpackProgram(patch->params, currentValue);
+	soundEditor.currentSource->seedDocDxPatch(); // M3 owner-5: reflect the loaded cartridge program into the DOM record
 	soundEditor.currentSound->killAllVoices();
 	Instrument* instrument = getCurrentInstrument();
 	if (instrument->type == OutputType::SYNTH && !instrument->mightExistOnCard) {

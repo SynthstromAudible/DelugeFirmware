@@ -54,6 +54,7 @@ Source::~Source() {
 void Source::bindDocSource(deluge::project::DocSource* d) {
 	docSource_ = d;
 	seedDocSourceScalars();
+	seedDocDxPatch();
 }
 
 // Copy the DOM-owned scalars native->record (guarded). Load-bridge: run at bind and re-run at doneReadingFromFile (a
@@ -72,6 +73,24 @@ void Source::seedDocSourceScalars() {
 	d.interpolation_mode = static_cast<uint8_t>(sampleControls.interpolationMode);
 	d.pitch_and_speed_independent = sampleControls.pitchAndSpeedAreIndependent;
 	d.reversed = sampleControls.reversed;
+}
+
+void Source::seedDocDxPatch() {
+	if (docSource_ == nullptr) {
+		return;
+	}
+	if (dxPatch != nullptr) {
+		deluge::project::DocDxPatch p;
+		for (int32_t b = 0; b < 156; b++) {
+			p.params[b] = dxPatch->params[b];
+		}
+		p.engine_mode = dxPatch->engineMode;
+		p.random_detune = dxPatch->random_detune;
+		docSource_->dx_patch = p;
+	}
+	else {
+		docSource_->dx_patch.reset();
+	}
 }
 
 void Source::setTranspose(int16_t newTranspose) {
@@ -337,6 +356,7 @@ doChangeType:
 	if (oscType == OscType::DX7) {
 		ensureDxPatch();
 	}
+	seedDocDxPatch(); // reflect the (possibly newly-created) patch into the record
 }
 
 DxPatch* Source::ensureDxPatch() {

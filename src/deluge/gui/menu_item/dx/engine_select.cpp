@@ -75,6 +75,7 @@ void DxEngineSelect::selectEncoderAction(int32_t offset) {
 	}
 
 	patch->setEngineMode(newValue);
+	soundEditor.currentSource->seedDocDxPatch(); // M3 owner-5: reflect the engine-mode change into the DOM record
 	currentValue = newValue;
 	drawValue();
 }

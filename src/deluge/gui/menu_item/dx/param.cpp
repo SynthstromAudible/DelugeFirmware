@@ -61,6 +61,7 @@ void DxParam::setValue(int val) {
 
 	// NOTE: we don't use currentSource as currently only OSC1 can be DX7
 	soundEditor.currentSound->sources[0].dxPatchChanged = true;
+	soundEditor.currentSound->sources[0].seedDocDxPatch(); // M3 owner-5: reflect the param edit into the DOM record
 }
 
 void DxParam::readValueAgain() {

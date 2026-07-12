@@ -3050,6 +3050,7 @@ void Sound::doneReadingFromFile() {
 		seedDocModControllable();
 		for (int32_t s = 0; s < kNumSources; s++) {
 			sources[s].seedDocSourceScalars();
+			sources[s].seedDocDxPatch();
 		}
 	}
 }
@@ -3840,15 +3841,20 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 		         && synthMode != SynthMode::FM) { // Don't combine this with the above "if" - there's an "else" below
 			if (source->dxPatch) {
 				DxPatch* patch = source->dxPatch;
-				writer.writeAttributeHexBytes("dx7patch", patch->params, 156);
+				// M3 owner-5: read the authoritative record when bound (cache fallback only for an unbound Sound).
+				deluge::project::DocDxPatch* dp =
+				    (dsrc != nullptr && dsrc->dx_patch.has_value()) ? &*dsrc->dx_patch : nullptr;
+				writer.writeAttributeHexBytes("dx7patch", dp != nullptr ? dp->params : patch->params, 156);
 
-				if (patch->engineMode != 0) {
-					writer.writeAttribute("dx7enginemode", patch->engineMode);
+				uint8_t engineMode = dp != nullptr ? dp->engine_mode : patch->engineMode;
+				if (engineMode != 0) {
+					writer.writeAttribute("dx7enginemode", engineMode);
 				}
 
 				// real extension:
-				if (patch->random_detune != 0) {
-					writer.writeAttribute("dx7randomdetune", patch->random_detune);
+				int32_t randomDetune = dp != nullptr ? dp->random_detune : patch->random_detune;
+				if (randomDetune != 0) {
+					writer.writeAttribute("dx7randomdetune", randomDetune);
 				}
 			}
 			goto justCloseTag;
@@ -4029,21 +4035,9 @@ void Sound::syncDocSound() {
 		Source& src = sources[s];
 		deluge::project::DocSource& ds = d.sources[s];
 		// All 8 DocSource scalars (osc_type / transpose / cents / repeat_mode / time_stretch_amount /
-		// interpolation_mode / pitch_and_speed_independent / reversed) are DOM-owned — seeded at bind +
-		// doneReadingFromFile, written by the Source setters, read at save. Only dx_patch + ranges remain shadowed
-		// here.
-		if (src.dxPatch != nullptr) {
-			deluge::project::DocDxPatch p;
-			for (int32_t b = 0; b < 156; b++) {
-				p.params[b] = src.dxPatch->params[b];
-			}
-			p.engine_mode = src.dxPatch->engineMode;
-			p.random_detune = src.dxPatch->random_detune;
-			ds.dx_patch = p;
-		}
-		else {
-			ds.dx_patch.reset();
-		}
+		// interpolation_mode / pitch_and_speed_independent / reversed) plus dx_patch are DOM-owned — seeded at bind +
+		// doneReadingFromFile (dx_patch via seedDocDxPatch), written by the Source setters / DX7 menus, read at save.
+		// Only ranges remain shadowed here (M4-gated — the sampleHolder raw-pointer entanglement, same as owner-4).
 		// Ranges: mirror writeSourceToFile's iteration (getElement + the MultisampleRange cast — both range kinds
 		// carry an AudioFileHolder at that offset). Zone fields are meaningful for SAMPLE sources only.
 		ds.ranges.clear();

@@ -43,6 +43,11 @@ public:
 	deluge::project::DocSource* docSource_{nullptr};
 	void bindDocSource(deluge::project::DocSource* d);
 	void seedDocSourceScalars();
+	// The DX7 patch is mutated in-place (per-param edits, engine mode, cartridge load) rather than through one setter,
+	// so like modKnobs it re-seeds the whole optional<DocDxPatch> record after any mutation (bind, doneReadingFromFile,
+	// the dx/ menus, setOscType→ensureDxPatch). Copies the 156 params + engineMode + random_detune, or clears it when
+	// the engine patch is absent (non-DX7 osc).
+	void seedDocDxPatch();
 
 	SampleControls sampleControls;
 
