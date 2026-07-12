@@ -184,14 +184,21 @@ and `ConsequenceAudioClipSetSample`) now revert **through the model**, and **`sy
 + `syncDocSound` are deleted**. Goldens bit-identical (song 16 / json 38 / edit 40 / param 3 /
 audio_clip 1, x86); firmware links; hardware check outstanding (owner's call).
 
-**Not yet inverted (remaining owner-5 slice):** the per-Output **identity** group (`DocOutput`
-— name, colour, modKnobMode, arrangement mute/solo/arm) is still an additive **write-only
-shadow** (`Output::syncDocOutput`, populated at load+save, read by nothing). DocOutput is
-therefore still engine-authoritative at save; its inversion is a separate, straightforward
-scalar slice (flip Output/Instrument/MIDI/CV load+save, funnel the identity setters, delete
-`syncDocOutput`) — it did **not** block sampleHolder/ranges and was outside this slice's scope.
-So "no `syncDoc*` in any save path" holds for AudioClip + Sound, but `syncDocOutput` remains
-until that slice lands.
+**DocOutput identity slice — DONE (2026-07-12).** The per-Output identity group (all 15 fields
+across `Output`→`Instrument`→`NonAudioInstrument`/`MIDIInstrument`/`CVInstrument`: name, colour,
+modKnobMode, arrangement mute/solo/arm, dirPath, defaultVelocity, MIDI channel/suffix/device-
+definition/collapse-aftertouch/collapse-mpe/mpe-y, CV cv2-source) is now DOM-authoritative at
+save. Forward mutations funnel through setters (record + cache); a virtual `seedDocOutputIdentity()`
+chain is the sole native→record seed at adopt + clone; save reads the record with every original
+conditional byte-preserved; **`syncDocOutput` is deleted**. (The nested `sound` record was already
+DOM-owned.) Goldens bit-identical; firmware links.
+
+**M3 SAVE-AUTHORITY COMPLETE.** No `syncDoc*` engine-walk remains in ANY save path
+(`syncDocAudioClip`, `syncDocSound`, `syncDocOutput` all deleted). Every persistent field of
+every owner serializes from the `deluge::project` model. Remaining before the real M4 (read-side
+snapshot boundary): the M3 read-projection deferrals (note vector, hot Sound fields, LearnedMIDI)
+land in M4, not here. Hardware ear-checks outstanding (golden-blind gestures): browser-load-then-
+save, DX7 patch round-trip.
 
 ### M4 — Snapshot boundary + event feed
 
