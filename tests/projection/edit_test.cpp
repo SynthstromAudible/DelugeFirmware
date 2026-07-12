@@ -237,6 +237,63 @@ void testPasteParamAutomation(deluge::edits::Context& ctx) {
 	check(a != nullptr && a->type == ActionType::AUTOMATION_PASTE, "paste: AUTOMATION_PASTE Action opened");
 }
 
+// M4a Task 1 — characterize what the in-line poke does to the engine cursor AND the model store
+// (deluge-project DocAutoParam) for a SCALAR edit and a REGION edit, driven through the real
+// deluge::edits::apply. This PINS the {engine cursor, model current_value, model nodes} transition the
+// event-patch (Tasks 2-3) must reproduce. `regionTimelineCounter` is a real Clip (its
+// getCurrentlyRecordingLinearly() cast in homogenizeRegion must be valid; the value is inert here).
+void testInlinePokeCharacterization(deluge::edits::Context& ctx, TimelineCounter* regionTimelineCounter) {
+	// Leak-reset (crash-safe: no consequence freeing -> no headless audio pump).
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+
+	constexpr int32_t kParam = 3;
+	ParamManagerForTimeline pm;
+	pm.setupUnpatched();
+	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* ms = makeStack(buf, pm, kParam);
+
+	// (a) SCALAR edit (length 0): setValuePossiblyForRegion -> setCurrentValueInResponseToUserInput. song stays
+	//     null so addressFor short-circuits to nullopt and doc() resolves to the collection's own store.
+	{
+		deluge::edits::SetParamValue edit{deluge::edits::addressFor(*ms), 0x40000000, 0, 0, ms};
+		check(deluge::edits::apply(ctx, edit) == Error::NONE, "characterize/scalar: apply succeeds");
+	}
+	check(ms->autoParam->getCurrentValue() == 0x40000000, "characterize/scalar: engine cursor == value");
+	// FINDING: the in-line SCALAR poke keeps the model store's current_value in sync (also asserted by the pilot's
+	// step 1). So applyPatch's scalar path is a plain current_value write; no nodes are created for an
+	// unautomated param.
+	check(ms->doc()->current_value == 0x40000000, "characterize/scalar: model current_value synced");
+	check(ms->doc()->nodes.empty(), "characterize/scalar: unautomated -> no nodes created");
+
+	// (b) REGION edit (nonzero length + timeline counter): setValuePossiblyForRegion -> setValueForRegion, whose
+	//     node/current_value mutation is a proven-equivalent DOM kernel deluge::project::setValueForRegion (see the
+	//     exhaustive engine==DOM matrix in param_automation_test.cpp). The region dispatch needs
+	//     timelineCounterIsSet(); getLoopLength() is satisfied by a NoteRow with an independent loop length (no
+	//     Song deref). song stays null so addressFor -> nullopt -> the same collection store the scalar half used.
+	NoteRow nr;
+	nr.setLoopLengthIfIndependent(128);
+	ms->setNoteRow(&nr);
+	ms->setTimelineCounter(regionTimelineCounter);
+	ms->paramManager = &pm;
+
+	{
+		deluge::edits::SetParamValue edit{deluge::edits::addressFor(*ms), 0x20000000, 0, 96, ms};
+		check(deluge::edits::apply(ctx, edit) == Error::NONE, "characterize/region: apply succeeds");
+	}
+	deluge::project::DocAutoParam* doc = ms->doc();
+	check(ms->autoParam->getCurrentValue() == 0x20000000, "characterize/region: engine cursor == value");
+	check(doc->current_value == 0x20000000, "characterize/region: model current_value synced");
+	// Region write homogenizes [0,96) to a flat segment. PIN the exact node vector the event-patch must reproduce
+	// (values below filled from the actual run — this spec locks the true current transition).
+	check(doc->nodes.size() == 2, "characterize/region: node count");
+	check(doc->nodes[0].pos == 0 && doc->nodes[0].value == 0x20000000, "characterize/region: node0 = (0, value)");
+	// node1 restores the value just PAST the region — the flat current_value the param carried before this edit,
+	// i.e. the 0x40000000 the scalar edit above left on the same param — so [96,128) plays unchanged.
+	check(doc->nodes[1].pos == 96 && doc->nodes[1].value == 0x40000000,
+	      "characterize/region: node1 = (96, pre-region value)");
+}
+
 } // namespace
 
 // Song construction; the Context members are stored, and the pilot dereferences currentSong via the
@@ -260,7 +317,8 @@ int main() {
 	// count — a zero-clip song makes it a 0-byte alloc (=> nullptr => no Action opens). A real song always has
 	// clips; give the harness one AUDIO clip (grabFromClip is a no-op for non-instrument clips) so the undo path
 	// the pilot exercises behaves as it does on-device.
-	(void)song->project.clips.session_clips.insertClipAt(new AudioClip(*song), 0);
+	auto* audioClip = new AudioClip(*song);
+	(void)song->project.clips.session_clips.insertClipAt(audioClip, 0);
 
 	deluge::edits::Context ctx{*song, song->project};
 	testDispatcher(ctx);
@@ -268,6 +326,7 @@ int main() {
 	testSetParamValueRegionAndFlag(ctx);
 	testDeleteParamAutomation(ctx);
 	testPasteParamAutomation(ctx);
+	testInlinePokeCharacterization(ctx, audioClip);
 
 	if (failures == 0) {
 		std::fprintf(stdout, "edit_test: OK\n");
