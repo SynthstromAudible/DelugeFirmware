@@ -105,9 +105,11 @@ bool sampleReversed;
 // Same for InstrumentClips
 int32_t clipLength;
 RGB clipMuteSquareColour;
-// Keyboard collapse needs both final sidebar colours because both keyboard sidebar columns animate into one row.
+// Keyboard view has no mute / section columns of its own, so its two sidebar columns morph between the keyboard
+// colours and the Session colours of the row they collapse into (or expand out of). Both destination colours are
+// needed; the mute one is clipMuteSquareColour above.
 RGB clipSectionSquareColour;
-bool collapsingKeyboardScreen;
+bool morphKeyboardSidebar;
 
 bool renderingLock;
 
@@ -317,27 +319,19 @@ void clearTransitionStoreOffScreenRows() {
 	}
 }
 
-void setupInstrumentClipCollapseAnimation(bool collapsingOutOfClipMinder, bool collapsingKeyboardScreen_) {
+void setupInstrumentClipCollapseAnimation(bool collapsingOutOfClipMinder) {
 	clipLength = getCurrentClip()->loopLength;
-	collapsingKeyboardScreen = collapsingKeyboardScreen_;
+	morphKeyboardSidebar = false;
 
 	if (collapsingOutOfClipMinder) {
 		// This shouldn't have to be done every time
 		clipMuteSquareColour = view.getClipMuteSquareColour(getCurrentClip(), clipMuteSquareColour);
-
-		// Keyboard collapse animates both sidebar columns into the session row, so cache the row's final section
-		// colour as well as the mute colour.
-		int32_t clipRow = collapsingKeyboardScreen ? sessionView.getClipPlaceOnScreen(getCurrentClip()) : -1;
-		if (collapsingKeyboardScreen && clipRow >= 0 && clipRow < kDisplayHeight) {
-			RGB sidebarRow[kDisplayWidth + kSideBarWidth];
-			memset(sidebarRow, 0, sizeof(sidebarRow));
-			sessionView.drawSectionSquare(clipRow, sidebarRow);
-			clipSectionSquareColour = sidebarRow[kDisplayWidth + 1];
-		}
-		else {
-			clipSectionSquareColour = gui::colours::black;
-		}
 	}
+}
+
+void enableKeyboardSidebarMorph(RGB sessionSectionColour) {
+	morphKeyboardSidebar = true;
+	clipSectionSquareColour = sessionSectionColour;
 }
 
 // Smoothstep, in 16.16. Avoids harsh colour changes on the sidebar while rows are moving quickly.
@@ -380,10 +374,14 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 
 	// Blend amounts for the two sidebar columns. They don't vary per column, so work them out once.
 	bool expanding = isUIModeActive(UI_MODE_INSTRUMENT_CLIP_EXPANDING);
-	bool keyboardSidebarCollapsing = collapsingKeyboardScreen && isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING);
+	bool transitioning = expanding || isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING);
+	bool keyboardSidebarMorphing = morphKeyboardSidebar && transitioning;
 	uint16_t clippedProgress = std::min<int32_t>(progress, 65535);
 	uint16_t muteBlendProgress = expanding ? smoothProgress(clippedProgress) : clippedProgress;
-	uint16_t keyboardGlobalDestinationBlend = keyboardSidebarCollapsing ? smoothProgress(65535 - clippedProgress) : 0;
+	// How much of the Session sidebar colour to show. `progress` already runs backwards for a collapse, so this
+	// single expression covers both directions: it starts at the Session colours and ends at the keyboard ones when
+	// expanding, and does the reverse when collapsing.
+	uint16_t keyboardSessionBlend = keyboardSidebarMorphing ? smoothProgress(65535 - clippedProgress) : 0;
 
 	int32_t greyStart =
 	    instrumentClipView.getSquareFromPos(clipLength - 1, NULL, currentSong->xScroll[NAVIGATION_CLIP]) + 1;
@@ -436,8 +434,8 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 		}
 
 		bool expandingMuteColumn = expanding && col == kDisplayWidth;
-		bool collapsingKeyboardSidebar =
-		    keyboardSidebarCollapsing && col >= kDisplayWidth && col < kDisplayWidth + kSideBarWidth;
+		bool keyboardSidebarColumn =
+		    keyboardSidebarMorphing && col >= kDisplayWidth && col < kDisplayWidth + kSideBarWidth;
 
 		if (expandingMuteColumn && animatedRowGoingTo[0] >= 0 && animatedRowGoingTo[0] < kDisplayHeight) {
 			int32_t sessionMuteIntensity = 65535 - muteBlendProgress;
@@ -457,24 +455,17 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 			int32_t intensity1 = intensity1Array[i];
 			int32_t intensity2 = intensity2Array[i];
 
-			if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_COLLAPSING)
-			    || isUIModeActive(UI_MODE_INSTRUMENT_CLIP_EXPANDING)) {
+			if (transitioning) {
 
-				// Fade the clip-view audition column in when expanding. When collapsing,
-				// keep it visible until the follow-up fade blends to the session sidebar.
-				if (isUIModeActive(UI_MODE_INSTRUMENT_CLIP_EXPANDING) && col == kDisplayWidth + kSideBarWidth - 1) {
-					intensity1 = ((uint32_t)intensity1 * progress) >> 16;
-					intensity2 = ((uint32_t)intensity2 * progress) >> 16;
-				}
-
-				// Keyboard sidebar columns collapse from their source keyboard colours into the session colours.
-				if (collapsingKeyboardSidebar) {
-					RGB sessionSidebarColour = (col == kDisplayWidth) ? clipMuteSquareColour : clipSectionSquareColour;
-					uint16_t keyboardDestinationBlend = keyboardGlobalDestinationBlend;
+				// Keyboard's sidebar columns morph between their keyboard colours and the Session colours of the row
+				// they collapse into / expand out of, in whichever direction we're going.
+				if (keyboardSidebarColumn) {
+					RGB sessionColour = (col == kDisplayWidth) ? clipMuteSquareColour : clipSectionSquareColour;
+					uint16_t sessionBlend = keyboardSessionBlend;
 					if (animatedRowGoingTo[i] >= 0 && animatedRowGoingTo[i] < kDisplayHeight) {
 						constexpr int32_t kKeyboardColourBlendDistance = 3 * 65536;
-						// Cap the colour morph by distance so pads keep their keyboard colours until they are
-						// visually close to collapsing into the session clip row.
+						// Cap the morph by how far this row still is from the Session row, so pads hold their keyboard
+						// colours until they're visually close to it rather than changing colour across the display.
 						int32_t distanceFromDestination =
 						    newRowPositionArray[i] - ((int32_t)animatedRowGoingTo[i] * 65536);
 						if (distanceFromDestination < 0) {
@@ -488,9 +479,16 @@ void renderInstrumentClipCollapseAnimation(int32_t xStart, int32_t xEndOverall, 
 							    / kKeyboardColourBlendDistance;
 							proximityBlend = smoothProgress(std::min<uint32_t>(proximityProgress, 65535));
 						}
-						keyboardDestinationBlend = std::min(keyboardDestinationBlend, proximityBlend);
+						sessionBlend = std::min(sessionBlend, proximityBlend);
 					}
-					squareColours = RGB::blend(sessionSidebarColour, squareColours, keyboardDestinationBlend);
+					squareColours = RGB::blend(sessionColour, squareColours, sessionBlend);
+				}
+
+				// The clip's audition column has nowhere to go in Session view, so fade it as we go: `progress` runs
+				// forwards when expanding and backwards when collapsing, so this fades it in and out respectively.
+				else if (col == kDisplayWidth + kSideBarWidth - 1) {
+					intensity1 = ((uint32_t)intensity1 * progress) >> 16;
+					intensity2 = ((uint32_t)intensity2 * progress) >> 16;
 				}
 
 				// If the mute-col, we want to alter the colour

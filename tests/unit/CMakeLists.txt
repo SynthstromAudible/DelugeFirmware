@@ -75,6 +75,7 @@ add_executable(UnitTests
         chord_tests.cpp
         time_tests.cpp
         clock_output_scheduler_tests.cpp
+        rgb_tests.cpp
 )
 add_test(NAME UnitTests
         COMMAND UnitTests)

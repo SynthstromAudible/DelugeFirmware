@@ -119,8 +119,11 @@ void renderFade(int32_t progress);
 void recordTransitionBegin(uint32_t newTransitionLength);
 int32_t getTransitionProgress();
 void renderAudioClipExpandOrCollapse();
-// The keyboard-screen flag enables the two-column sidebar colour morph used when collapsing back to Session.
-void setupInstrumentClipCollapseAnimation(bool collapsingOutOfClipMinder, bool collapsingKeyboardScreen = false);
+void setupInstrumentClipCollapseAnimation(bool collapsingOutOfClipMinder);
+/// Morph keyboard view's two sidebar columns to/from the Session sidebar colours of the row the clip collapses into
+/// or expands out of. Keyboard view has no mute / section columns of its own, so without this they would pop.
+/// Call after setupInstrumentClipCollapseAnimation(), which clears it.
+void enableKeyboardSidebarMorph(RGB sessionSectionColour);
 void setupAudioClipCollapseOrExplodeAnimation(AudioClip* clip);
 
 void setGreyoutAmount(float newAmount);

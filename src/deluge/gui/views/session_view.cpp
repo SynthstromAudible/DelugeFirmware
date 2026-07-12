@@ -94,6 +94,19 @@ using namespace gui;
 
 PLACE_SDRAM_BSS SessionView sessionView{};
 
+namespace {
+// Keyboard view's sidebar columns morph to/from the Session colours of the clip's row. The mute colour PadLEDs
+// already has; hand it the section colour, unless the clip's row is off-screen and there is nothing to morph to.
+void setUpKeyboardSidebarMorph(int32_t clipRow) {
+	if (clipRow < 0 || clipRow >= kDisplayHeight) {
+		return;
+	}
+	RGB sidebarRow[kDisplayWidth + kSideBarWidth]{};
+	sessionView.drawSectionSquare(clipRow, sidebarRow);
+	PadLEDs::enableKeyboardSidebarMorph(sidebarRow[kDisplayWidth + 1]);
+}
+} // namespace
+
 SessionView::SessionView() {
 	xScrollBeforeFollowingAutoExtendingLinearRecording = -1;
 	createClip = false;
@@ -2825,6 +2838,9 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 		}
 
 		PadLEDs::setupInstrumentClipCollapseAnimation(true);
+		if (onKeyboardScreen) {
+			setUpKeyboardSidebarMorph(clipPlaceOnScreen);
+		}
 
 		// As above: don't let the store setup eat into the animation's 200ms.
 		PadLEDs::recordTransitionBegin(kClipCollapseSpeed);
@@ -2943,7 +2959,10 @@ void SessionView::transitionToSessionView() {
 		// The sidebar occupancy the renderSidebar() calls above produced is authoritative: a black sidebar pad is
 		// empty, and forcing it to occupied would make drawSquare() marginalise the destination pad it collapses into.
 
-		PadLEDs::setupInstrumentClipCollapseAnimation(true, transitioningFromKeyboardScreen);
+		PadLEDs::setupInstrumentClipCollapseAnimation(true);
+		if (transitioningFromKeyboardScreen) {
+			setUpKeyboardSidebarMorph(transitioningToRow);
+		}
 
 		if (getCurrentUI() == &instrumentClipView) {
 			instrumentClipView.fillOffScreenImageStores();
