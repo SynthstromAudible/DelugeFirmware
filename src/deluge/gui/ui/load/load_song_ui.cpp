@@ -159,7 +159,6 @@ void LoadSongUI::enterKeyPress() {
 	}
 
 	else {
-		LoadUI::enterKeyPress(); // Converts name to numeric-only if it was typed as text
 		// Run the load on the worker fiber: performLoad() yields mid-load (waiting for
 		// clusters, or for the LOAD-button release while playing), and that must suspend
 		// the *operation*, not this button handler — otherwise the executor (and PIC

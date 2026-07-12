@@ -331,7 +331,6 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 
 		if (currentFileItem
 		        ->instrument) { // When would this not have something? Well ok, maybe now that we have folders.
-			convertToPrefixFormatIfPossible();
 		}
 
 		if (outputTypeToLoad == OutputType::KIT && showingAuditionPads()) {
@@ -361,7 +360,6 @@ doChangeOutputType:
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
-			convertToPrefixFormatIfPossible(); // Why did I put this here?
 			changeOutputType(newOutputType);
 		}
 	}
@@ -421,7 +419,6 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 
 		if (available) {
 			display->setNextTransitionDirection(1);
-			convertToPrefixFormatIfPossible();
 			openUI(&gui::context_menu::loadInstrumentPreset);
 		}
 		else {
@@ -1072,8 +1069,8 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 	display->displayLoadingAnimationText("Loading", false, true);
 	soundDrumToReplace->loadAllSamples(true);
 
-	// soundDrumToReplace->name.set(getCurrentFilenameWithoutExtension());
-	soundDrumToReplace->drumName = getCurrentFilenameWithoutExtension();
+	// enteredText is the real on-card name now (display-agnostic), so it needs no reassembling.
+	soundDrumToReplace->drumName = enteredText;
 	soundDrumToReplace->path = currentDir.c_str();
 	ParamManager* paramManager =
 	    currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor);
@@ -1537,7 +1534,7 @@ doneMoving:
 		view.displayOutputName(toReturn.fileItem->instrument, doBlink);
 	}
 	else {
-		newName = toReturn.fileItem->getDisplayNameWithoutExtension();
+		newName = toReturn.fileItem->getFilenameWithoutExtension();
 		oldNameString = toReturn.fileItem->displayName;
 		toReturn.error = Error::NONE;
 		if (toReturn.error != Error::NONE) {

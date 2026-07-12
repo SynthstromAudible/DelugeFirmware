@@ -260,10 +260,17 @@ static bool dispatchInputEvent(const DelugeInputEvent& ev) {
 		break;
 	}
 	case DELUGE_EVENT_NO_PRESSES:
-		if (!isSDRoutineActive()) {
-			matrixDriver.noPressesHappening(isSDRoutineActive());
-			Buttons::noPressesHappening(isSDRoutineActive());
+		// This is the safety net that releases any pad the firmware still thinks is held (e.g. because a
+		// release event was lost under load). It must not be dropped while the SD routine holds the lock -
+		// otherwise stuck notes persist until the pad is pressed again (see issue #3168). Defer it, exactly
+		// like pad/button events above, so it runs once the routine ends.
+		if (isSDRoutineActive()) {
+			heldInputEvent = ev;
+			waitingForSDRoutineToEnd = true;
+			return false;
 		}
+		matrixDriver.noPressesHappening(isSDRoutineActive());
+		Buttons::noPressesHappening(isSDRoutineActive());
 		break;
 	default:
 		break; // ENCODER events do not arrive on this channel

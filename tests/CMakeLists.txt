@@ -44,6 +44,7 @@ FetchContent_Declare(
 FetchContent_MakeAvailable(etl)
 link_libraries(etl::etl)
 
+add_compile_options(-Wno-unknown-warning-option)
 #needs to support -m32 since the allocator conformance assumes a 32 bit architecture
 if (UNIX AND NOT APPLE)
     # -mfpmath=sse -msse2: do double math in SSE (64-bit IEEE) rather than the x87 stack (80-bit). x87 excess precision

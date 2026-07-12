@@ -43,7 +43,9 @@ union HighPass {
 
 class FilterSet {
 public:
-	void reset();
+	FilterSet() { reset(); }
+	void reset() { memset(this, 0, sizeof(FilterSet)); }
+
 	int32_t setConfig(q31_t lpfFrequency, q31_t lpfResonance, FilterMode lpfmode, q31_t lpfMorph, q31_t hpfFrequency,
 	                  q31_t hpfResonance, FilterMode hpfmode, q31_t hpfMorph, q31_t filterGain, FilterRoute routing,
 	                  bool adjustVolumeForHPFResonance, q31_t* overallOscAmplitude);

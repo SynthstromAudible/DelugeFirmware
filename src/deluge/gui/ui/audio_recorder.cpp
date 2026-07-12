@@ -129,7 +129,7 @@ bool AudioRecorder::setupRecordingToFile(AudioInputChannel newMode, int32_t newN
 	}
 
 	recorder = AudioEngine::getNewRecorder(newNumChannels, folderID, newMode, false, writeLoopPoints,
-	                                       kInternalButtonPressLatency, false, nullptr);
+	                                       kInternalButtonPressLatency, false, nullptr, {false});
 	if (!recorder) {
 		display->displayError(Error::INSUFFICIENT_RAM);
 		return false;

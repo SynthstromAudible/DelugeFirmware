@@ -17,10 +17,19 @@ jobs:
         working-directory: website
     steps:
       - uses: actions/checkout@v7
-      - uses: oven-sh/setup-bun@v2
-      - run: |
-          bun install
-          bun run check:fix
+      - uses: pnpm/action-setup@v6
+        with:
+          version: 10.24.0
+          run_install: false
+      - uses: actions/setup-node@v6
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: website/pnpm-lock.yaml
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile --ignore-scripts
+      - name: Format website
+        run: pnpm run check:fix
       - uses: autofix-ci/action@v1
         with:
           commit-message: "Apply Prettier format"

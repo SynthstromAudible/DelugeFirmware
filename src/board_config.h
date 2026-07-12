@@ -100,13 +100,15 @@
 // The platform/linker provides these sections; a host build defines them as no-ops.
 // Paul: It seems this area is not executable, could not find a reason in the datasheet,
 // marked NOLOAD now
-#if defined(__APPLE__)
+#if defined(__APPLE__) || IN_UNIT_TESTS
 // Mach-O rejects ELF-style ".name" section specifiers (it wants "__SEG,__sect", <=16 chars), and a
 // macOS build is always the host — which has no real SDRAM — so these placements are no-ops there.
+// Unit tests are likewise a host build with no SDRAM, and no linker script providing the sections.
 #define PLACE_INTERNAL_FRUNK
 #define PLACE_SDRAM_BSS
 #define PLACE_SDRAM_DATA
 #define PLACE_SDRAM_RODATA
+#define PLACE_SDRAM_TEXT
 #else
 #define PLACE_INTERNAL_FRUNK __attribute__((__section__(".frunk_bss")))
 

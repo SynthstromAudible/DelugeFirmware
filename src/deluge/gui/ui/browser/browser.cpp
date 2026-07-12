@@ -21,6 +21,7 @@
 #include "fatfs.hpp"
 #include "gui/context_menu/delete_file.h"
 #include "gui/l10n/l10n.h"
+#include "gui/ui/browser/default_name.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
@@ -263,14 +264,6 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 	maxNumFileItemsNow = newMaxNumFileItems;
 	filenameToStartSearchAt = filenameToStartAt;
 
-	int32_t filePrefixLength;
-
-	if (display->have7SEG()) {
-		if (filePrefixHere) {
-			filePrefixLength = strlen(filePrefixHere);
-		}
-	}
-
 	while (true) {
 		AudioEngine::logAction("while loop");
 
@@ -318,46 +311,10 @@ extensionNotSupported:
 		thisItem->isFolder = isFolder;
 		thisItem->filePointer = thisFilePointer;
 
-		char const* storedFilenameChars = thisItem->filename.c_str();
-		if (display->have7SEG()) {
-			if (filePrefixHere) {
-				if (memcasecmp(storedFilenameChars, filePrefixHere, filePrefixLength)) {
-					goto nonNumericFile;
-				}
-
-				char const* dotAddress = strrchr(storedFilenameChars, '.');
-				if (!dotAddress) {
-					goto nonNumericFile; // Shouldn't happen?
-				}
-
-				int32_t dotPos = (uintptr_t)dotAddress - (uintptr_t)storedFilenameChars;
-				if (dotPos < filePrefixLength + 3) {
-					goto nonNumericFile;
-				}
-
-				char const* numbersStartAddress = &storedFilenameChars[filePrefixLength];
-
-				if (!memIsNumericChars(numbersStartAddress, 3)) {
-					goto nonNumericFile;
-				}
-
-				thisItem->displayName = numbersStartAddress;
-
-				if (*thisItem->displayName == '0') {
-					thisItem->displayName++;
-					if (*thisItem->displayName == '0') {
-						thisItem->displayName++;
-					}
-				}
-			}
-			else {
-				goto nonNumericFile;
-			}
-		}
-		else {
-nonNumericFile:
-			thisItem->displayName = storedFilenameChars;
-		}
+		// displayName is the sort key, and must equal the real on-card name. The 7SEG short form ("185")
+		// is produced at render time, not stored here - storing it made enteredText display-dependent, which is what
+		// broke default naming on 7SEG (#1069).
+		thisItem->displayName = thisItem->filename.c_str();
 	}
 	staticDIR.close();
 
@@ -565,6 +522,18 @@ tryReadingItems:
 	return Error::NONE;
 }
 
+namespace {
+/// Adapts Browser::fileItems to the FileListView seam used by nextDefaultName().
+class BrowserFileListView final : public deluge::gui::browser::FileListView {
+public:
+	bool contains(char const* nameWithExtension) const override {
+		bool foundExact = false;
+		Browser::searchFileItems(nameWithExtension, &foundExact);
+		return foundExact;
+	}
+};
+} // namespace
+
 // If OLED, then you should make sure renderUIsForOLED() gets called after this.
 // outputTypeToLoad must be set before calling this.
 Error Browser::arrivedInNewFolder(int32_t direction, char const* filenameToStartAt, char const* defaultDirToAlsoTry) {
@@ -656,132 +625,18 @@ useFoundFile:
 		if (error != Error::NONE) {
 			goto gotErrorAfterAllocating;
 		}
-		// `#if 1 || !OLED` macro was here
-		char const* enteredTextChars = enteredText.c_str();
-		if (!memcasecmp(enteredTextChars, "SONG", 4)) {
-			Slot thisSlot = getSlot(&enteredTextChars[4]);
-			if (thisSlot.slot < 0) {
-				goto doNormal;
+		// Come up with a new name variation. Names are display-agnostic ("SONG185", never "185"), so this is one
+		// code path for both displays - see default_name.h.
+		{
+			BrowserFileListView view;
+			// Only songs earn letter suffixes; presets pass an empty slotPrefix and take the numeric suffix path,
+			// preserving existing preset behaviour.
+			char const* slotPrefix = (filePrefix && !memcasecmp(filePrefix, "SONG", 4)) ? filePrefix : "";
+			std::string newName = deluge::gui::browser::nextDefaultName(enteredText.c_str(), slotPrefix, view);
+			if (newName == enteredText) {
+				goto useFoundFile; // No free variation available - stay on the file we found.
 			}
-
-			if (thisSlot.subSlot >= 25) {
-				goto useFoundFile;
-			}
-
-			char nameBuffer[20];
-			char* nameBufferPos = nameBuffer;
-			if (display->haveOLED()) {
-				*(nameBufferPos++) = 'S';
-				*(nameBufferPos++) = 'O';
-				*(nameBufferPos++) = 'N';
-				*(nameBufferPos++) = 'G';
-			}
-			intToString(thisSlot.slot, nameBufferPos);
-			char* subSlotPos = strchr(nameBufferPos, 0);
-			char* charPosHere = subSlotPos + 1;
-			*(charPosHere++) = '.';
-			*(charPosHere++) = 'X';
-			*(charPosHere++) = 'M';
-			*(charPosHere++) = 'L';
-			*(charPosHere) = 0;
-			while (true) {
-				thisSlot.subSlot++;
-
-				*subSlotPos = 'A' + thisSlot.subSlot;
-				bool foundExactHere;
-				fileIndexSelected = searchFileItems(nameBuffer, &foundExactHere);
-				if (!foundExactHere) {
-					break;
-				}
-				else if (thisSlot.subSlot >= 25) {
-					goto setEnteredTextAndUseFoundFile; // If we're stuck on the "Z" subslot.
-				}
-			}
-			*(subSlotPos + 1) = 0; // Removes ".XML"
-			enteredText = nameBuffer;
-		}
-		/* This was originally never accessible as the `else` branch of a `#if 1 || !OLED` macro
-		int32_t length = enteredText.getLength();
-		if (length > 0) {
-		    char const* enteredTextChars = enteredText.get();
-		    if (enteredTextChars[length - 1] >= '0' && enteredTextChars[length - 1] <= '9') {
-		        enteredText.concatenateAtPos("A", length, 1);
-		    }
-		    else if (length >= 2 && enteredTextChars[length - 2] >= '0' && enteredTextChars[length - 2] <= '9'
-		             && ((enteredTextChars[length - 1] >= 'a'
-		                  && enteredTextChars[length - 1]
-		                         < 'z') // That's *less than*, because if it's Z, we'll have to doNormal.
-		                 || (enteredTextChars[length - 1] >= 'A' && enteredTextChars[length - 1] < 'Z'))) {
-		        char newSuffix = enteredTextChars[length - 1] + 1;
-		        enteredText.concatenateAtPos(&newSuffix, length - 1, 1);
-		    }
-		    else
-		        goto doNormal;
-		}
-*/
-		else {
-doNormal: // FileItem* currentFile = &fileItems[fileIndexSelected];
-			std::string endSearchString;
-			// error = currentFile->getFilenameWithoutExtension(&endSearchString);		if (error != Error::NONE) goto
-			// gotErrorAfterAllocating;
-			endSearchString = enteredText;
-
-			// Did it already have an underscore at the end with a positive integer after it?
-			char const* endSearchStringChars = endSearchString.c_str();
-			char delimeterChar = '_';
-tryAgain:
-			char const* delimeterAddress = strrchr(endSearchStringChars, delimeterChar);
-			int32_t numberStartPos;
-			if (delimeterAddress) {
-				int32_t underscorePos = delimeterAddress - endSearchStringChars;
-
-				// Ok, it what comes after the underscore a positive integer?
-				int32_t number = stringToUIntOrError(delimeterAddress + 1);
-				if (number < 0) {
-					goto noNumberYet;
-				}
-
-				numberStartPos = underscorePos + 1;
-				endSearchString.resize(numberStartPos);
-				endSearchString.append(":");
-			}
-			else {
-noNumberYet:
-				if (delimeterChar == '_') {
-					delimeterChar = ' ';
-					goto tryAgain;
-				}
-				numberStartPos = endSearchString.size() + 1;
-				endSearchString.append(display->haveOLED() ? " :" : "_:");
-			}
-
-			int32_t searchResult = searchFileItems(endSearchString.c_str());
-#if ALPHA_OR_BETA_VERSION
-			if (searchResult <= 0) {
-				FREEZE_WITH_ERROR("E448");
-				error = Error::BUG;
-				goto gotErrorAfterAllocating;
-			}
-#endif
-			FileItem* prevFile = &fileItems[searchResult - 1];
-			std::string prevFilename = prevFile->getFilenameWithoutExtension();
-			char const* prevFilenameChars = prevFilename.c_str();
-			int32_t number;
-			if (prevFilename.size() > numberStartPos) {
-				number = stringToUIntOrError(&prevFilenameChars[numberStartPos]);
-				if (number < 0) {
-					number = 1;
-				}
-			}
-			else {
-				number = 1;
-			}
-
-			number++;
-			enteredText = endSearchString;
-			enteredText.resize(numberStartPos);
-			enteredText.append(deluge::string::fromInt(number));
-
+			enteredText = newName;
 			enteredTextEditPos = enteredText.size();
 		}
 	}
@@ -828,18 +683,12 @@ everythingFinalized:
 Error Browser::getUnusedSlot(OutputType outputType, std::string* newName, char const* thingName) {
 
 	Error error;
-	if (display->haveOLED()) {
-		char filenameToStartAt[6]; // thingName is max 4 chars.
-		strcpy(filenameToStartAt, thingName);
-		strcat(filenameToStartAt, ":");
-		error = readFileItemsFromFolderAndMemory(currentSong, outputType, getThingName(outputType), filenameToStartAt,
-		                                         NULL, false, Availability::ANY, CATALOG_SEARCH_LEFT);
-	}
-	else {
-		char const* filenameToStartAt = ":"; // Colon is the first character after the digits
-		error = readFileItemsFromFolderAndMemory(currentSong, outputType, getThingName(outputType), filenameToStartAt,
-		                                         NULL, false, Availability::ANY, CATALOG_SEARCH_LEFT);
-	}
+	// Names always carry the prefix now, on both displays, so there is one search key.
+	char filenameToStartAt[6]; // thingName is max 4 chars.
+	strcpy(filenameToStartAt, thingName);
+	strcat(filenameToStartAt, ":"); // Colon is the first character after the digits.
+	error = readFileItemsFromFolderAndMemory(currentSong, outputType, getThingName(outputType), filenameToStartAt, NULL,
+	                                         false, Availability::ANY, CATALOG_SEARCH_LEFT);
 
 	if (error != Error::NONE) {
 doReturn:
@@ -848,13 +697,14 @@ doReturn:
 
 	sortFileItems();
 
-	if (display->haveOLED()) {
+	{
 		int32_t freeSlotNumber = 1;
 		int32_t minNumDigits = 1;
 		if (!fileItems.empty()) {
 			FileItem* fileItem = &fileItems[fileItems.size() - 1];
-			std::string displayName = fileItem->getDisplayNameWithoutExtension();
-			char const* readingChar = &displayName.c_str()[strlen(thingName)];
+			// The name carries the prefix on both displays now, so read the real filename, not a display form.
+			std::string filename = fileItem->getFilenameWithoutExtension();
+			char const* readingChar = &filename.c_str()[strlen(thingName)];
 			freeSlotNumber = 0;
 			minNumDigits = 0;
 			while (*readingChar >= '0' && *readingChar <= '9') {
@@ -868,47 +718,6 @@ doReturn:
 
 		(*newName) = thingName;
 		(*newName).append(deluge::string::fromInt(freeSlotNumber, minNumDigits));
-		error = Error::NONE;
-	}
-	else {
-		int32_t nextHigherSlotFound = kNumSongSlots; // I think the use of this is a bit deprecated...
-		int32_t i = static_cast<int32_t>(fileItems.size());
-
-		// Ok, due to not bothering to reload fileItems if we need to look too far back, we may sometimes fail to see an
-		// empty slot further back when later ones are taken. Oh well.
-goBackOne:
-		i--;
-		int32_t freeSlotNumber;
-		if (i < 0) {
-noMoreToLookAt:
-			if (nextHigherSlotFound <= 0) {
-				newName->clear(); // Indicate no slots available.
-				goto emptyFileItemsAndReturn;
-			}
-			freeSlotNumber = 0;
-		}
-		else {
-			FileItem* fileItem = &fileItems[i];
-			std::string displayName = fileItem->getDisplayNameWithoutExtension();
-			char const* displayNameChars = displayName.c_str();
-			if (displayNameChars[0] < '0') {
-				goto noMoreToLookAt;
-			}
-
-			Slot slotHere = getSlot(displayNameChars);
-			if (slotHere.slot < 0) {
-				goto goBackOne;
-			}
-
-			freeSlotNumber = slotHere.slot + 1; // Well, hopefully it's free...
-			if (freeSlotNumber >= nextHigherSlotFound) {
-				nextHigherSlotFound = slotHere.slot;
-				goto goBackOne;
-			}
-		}
-
-		// If still here, we found an unused slot.
-		(*newName) = deluge::string::fromInt(freeSlotNumber);
 		error = Error::NONE;
 	}
 
@@ -940,92 +749,63 @@ void Browser::selectEncoderAction(int8_t offset) {
 		}
 	}
 	else {
-		// If user is holding shift, skip past any subslots. And on numeric Deluge, user may have chosen one digit to
-		// "edit".
-		if (display->haveOLED()) {
-			// TODO: deal with deleted FileItems here...
-			int32_t numberEditPosNow = numberEditPos;
-			if (Buttons::isShiftButtonPressed() && numberEditPosNow == -1) {
-				numberEditPosNow = 0;
+		// If user is holding shift, skip past any subslots. And the user may have chosen one digit to "edit" (7SEG
+		// only - numberEditPos is -1 otherwise).
+		//
+		// Names always carry the file prefix, so there is one path here, not one per display. (The two branches this
+		// replaced were each written for the *other* display's convention, leaving both dead.)
+		int32_t numberEditPosNow = numberEditPos;
+		if (Buttons::isShiftButtonPressed() && numberEditPosNow == -1) {
+			numberEditPosNow = 0;
+		}
+
+		if (numberEditPosNow != -1) {
+			char const* numberPart = nameAfterPrefix(enteredText.c_str());
+			if (!numberPart) {
+				goto nonNumeric;
+			}
+			Slot thisSlot = getSlot(numberPart);
+			if (thisSlot.slot < 0) {
+				goto nonNumeric;
+			}
+			thisSlot.subSlot = -1;
+
+			switch (numberEditPosNow) {
+			case 0:
+				thisSlot.slot += offset;
+				break;
+
+			case 1:
+				thisSlot.slot = (thisSlot.slot / 10 + offset) * 10;
+				break;
+
+			case 2:
+				thisSlot.slot = (thisSlot.slot / 100 + offset) * 100;
+				break;
+
+			default:
+				__builtin_unreachable();
 			}
 
-			if (numberEditPosNow != -1) {
-				Slot thisSlot = getSlot(enteredText.c_str());
-				if (thisSlot.slot < 0) {
-					goto nonNumeric;
-				}
-				D_PRINTLN("treating as numeric");
-				thisSlot.subSlot = -1;
-				switch (numberEditPosNow) {
-				case 0:
-					thisSlot.slot += offset;
-					break;
-
-				case 1:
-					thisSlot.slot = (thisSlot.slot / 10 + offset) * 10;
-					break;
-
-				case 2:
-					thisSlot.slot = (thisSlot.slot / 100 + offset) * 100;
-					break;
-
-				default:
-					__builtin_unreachable();
-				}
-
-				char searchString[6];
-				char* searchStringNumbersStart = searchString;
-				int32_t minNumDigits = 1;
-				intToString(thisSlot.slot, searchStringNumbersStart, minNumDigits);
-				if (offset < 0) {
-					char* pos = strchr(searchStringNumbersStart, 0);
-					*pos = 'A';
-					pos++;
-					*pos = 0;
-				}
-				newFileIndex = searchFileItems(searchString);
-				if (offset < 0) {
-					newFileIndex--;
-				}
+			int32_t filePrefixLength = strlen(filePrefix);
+			char searchString[16];
+			memcpy(searchString, filePrefix, filePrefixLength);
+			char* searchStringNumbersStart = searchString + filePrefixLength;
+			intToString(thisSlot.slot, searchStringNumbersStart, 1);
+			if (offset < 0) {
+				char* pos = strchr(searchStringNumbersStart, 0);
+				*pos = 'A';
+				pos++;
+				*pos = 0;
 			}
-			else {
-				newFileIndex = fileIndexSelected + offset;
+			newFileIndex = searchFileItems(searchString);
+			if (offset < 0) {
+				newFileIndex--;
 			}
 		}
 		else {
-			if (filePrefix && Buttons::isShiftButtonPressed()) {
-				int32_t filePrefixLength = strlen(filePrefix);
-				char const* enteredTextChars = enteredText.c_str();
-				if (memcasecmp(filePrefix, enteredTextChars, filePrefixLength)) {
-					goto nonNumeric;
-				}
-				Slot thisSlot = getSlot(&enteredTextChars[filePrefixLength]);
-				if (thisSlot.slot < 0) {
-					goto nonNumeric;
-				}
-				D_PRINTLN("treating as numeric");
-				thisSlot.slot += offset;
-
-				char searchString[9];
-				memcpy(searchString, filePrefix, filePrefixLength);
-				char* searchStringNumbersStart = searchString + filePrefixLength;
-				int32_t minNumDigits = 3;
-				intToString(thisSlot.slot, searchStringNumbersStart, minNumDigits);
-				if (offset < 0) {
-					char* pos = strchr(searchStringNumbersStart, 0);
-					*pos = 'A';
-					pos++;
-					*pos = 0;
-				}
-				newFileIndex = searchFileItems(searchString);
-				if (offset < 0) {
-					newFileIndex--;
-				}
-			}
-			else {
 nonNumeric:
-				newFileIndex = fileIndexSelected + offset;
-			}
+			newFileIndex = fileIndexSelected + offset;
 		}
 	}
 
@@ -1161,6 +941,18 @@ bool Browser::predictExtendedText() {
 	arrivedAtFileByTyping = true;
 	shouldInterpretNoteNames = shouldInterpretNoteNamesForThisBrowser;
 	octaveStartsFromA = false;
+
+	// Names always carry the file prefix, but on 7SEG the user only ever sees and types the number ("185"). When
+	// typing begins with a digit, treat the prefix as implicitly typed - otherwise "1" would match nothing. The typed
+	// portion of enteredText is [0, enteredTextEditPos), so the prefix has to go *into* enteredText and be counted,
+	// not merely prepended to the search key.
+	if (filePrefix && enteredTextEditPos > 0 && !enteredText.empty()) {
+		if (enteredText[0] >= '0' && enteredText[0] <= '9') {
+			int32_t prefixLength = strlen(filePrefix);
+			enteredText.insert(0, filePrefix);
+			enteredTextEditPos += prefixLength;
+		}
+	}
 
 	FileItem* oldFileItem = getCurrentFileItem();
 	DWORD oldClust = 0;
@@ -1375,6 +1167,12 @@ searchForChar:
 	}
 }
 
+// Names always carry the file prefix (e.g. "SONG185"). Only rendering strips it, so anything wanting the numeric part
+// goes through here first. Zero-padding is skipped too - getSlot() cannot parse "001". See default_name.h.
+char const* Browser::nameAfterPrefix(char const* name) const {
+	return deluge::gui::browser::numberPartOf(name, filePrefix);
+}
+
 // Supply a string with no prefix (e.g. SONG), and no file extension.
 // If name is non-numeric, a slot of -1 will be returned.
 Slot Browser::getSlot(char const* displayName) {
@@ -1458,9 +1256,12 @@ void Browser::displayText(bool blinkImmediately) {
 			}
 			else {
 
-				if (filePrefix) {
+				// A name is always the full on-card name ("SONG185"). On 7SEG we render the numeric part alone
+				// ("185") so it fits the four-character display.
+				char const* numberPart = nameAfterPrefix(enteredText.c_str());
+				if (numberPart) {
 
-					Slot thisSlot = getSlot(enteredText.c_str());
+					Slot thisSlot = getSlot(numberPart);
 					if (thisSlot.slot >= 0) {
 						display->setTextAsSlot(thisSlot.slot, thisSlot.subSlot, (fileIndexSelected != -1), true,
 						                       numberEditPos, blinkImmediately);

@@ -229,6 +229,12 @@ Note: if the MIDI CC being received is for a Parameter that cannot be controlled
 
 ## Troubleshooting
 
+### MIDI Follow is unresponsive to MIDI controller input
+
+As of <Badge text="c1.3" variant="tip" /> MIDI Follow settings are no longer stored in Flash Memory. They are now saved in the MIDIFollow.XML file found in SD CARD/Settings/MIDIFollow.XML
+
+If you are updating to <Badge text="c1.3" variant="tip" /> from an earlier firmware, please delete all existing MIDIFollow.XML files from your SD card so that the file can be re-generated with the new file format.
+
 ### When using MIDI Follow, you experience MIDI stutter (lag)
 
 If you experience MIDI stutter / lag while using MIDI follow mode, you may need to adjust your MIDI Feedback settings.

@@ -251,6 +251,10 @@ bool AudioClipView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth 
 		if (isUIModeActive(UI_MODE_HOLDING_SONG_BUTTON)) {
 			armed |= view.renderMacros(macroColumn, y, -1, image, occupancyMask);
 		}
+
+		if (occupancyMask) {
+			PadLEDs::refreshSidebarOccupancy(image[y], occupancyMask[y]);
+		}
 	}
 	if (armed) {
 		view.flashPlayEnable();
@@ -852,10 +856,6 @@ bool AudioClipView::setupScroll(uint32_t oldScroll) {
 		return false;
 	}
 	return ClipView::setupScroll(oldScroll);
-}
-
-void AudioClipView::tellMatrixDriverWhichRowsContainSomethingZoomable() {
-	memset(PadLEDs::transitionTakingPlaceOnRow, 1, sizeof(PadLEDs::transitionTakingPlaceOnRow));
 }
 
 uint32_t AudioClipView::getMaxLength() {

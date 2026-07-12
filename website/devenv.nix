@@ -26,7 +26,7 @@ in
 
   # https://devenv.sh/languages/
   languages.javascript.enable = true;
-  languages.javascript.bun.enable = true;
+  languages.javascript.pnpm.enable = true;
 
   # https://devenv.sh/processes/
   # processes.dev.exec = "${lib.getExe pkgs.watchexec} -n -- ls -la";
@@ -36,7 +36,7 @@ in
 
   # https://devenv.sh/scripts/
   scripts.install.exec = ''
-    bun install
+    pnpm install
   '';
 
   # https://devenv.sh/basics/

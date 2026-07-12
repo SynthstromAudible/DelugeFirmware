@@ -57,6 +57,13 @@ void KeyboardLayoutVelocityDrums::evaluatePads(PressedPad presses[kMaxNumKeyboar
 		    (velocityFromCoords(x, y, edge_size_x, edge_size_y) >> 1); // uses bitshift to divide by two, to get 0-127
 		// D_PRINTLN("note, velocity: %d, %d", note, velocity);
 		auto note_on_idx = currentNotesState.enableNote(note, velocity);
+		// enableNote returns `count` (>= the number of tracked notes) when the note could not be added - either
+		// the state is full or the note is out of range (e.g. a kit with more drums than kHighestKeyboardNote).
+		// A real add or retrigger always returns an index < count. Guard against the failure sentinels so we
+		// never index note_on_times / currentNotesState.notes past the live entries.
+		if (note_on_idx >= currentNotesState.count) {
+			continue;
+		}
 
 		if ((active_notes & (1 << note_on_idx)) == 0) {
 			active_notes |= 1 << note_on_idx;

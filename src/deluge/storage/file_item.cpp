@@ -51,19 +51,3 @@ std::string FileItem::getFilenameWithoutExtension() const {
 	}
 	return result;
 }
-
-std::string FileItem::getDisplayNameWithoutExtension() const {
-	if (display->haveOLED()) {
-		return getFilenameWithoutExtension();
-	}
-
-	// 7SEG...
-	std::string result = displayName;
-	if (filenameIncludesExtension) {
-		size_t dotPos = result.rfind('.');
-		if (dotPos != std::string::npos) {
-			result.resize(dotPos);
-		}
-	}
-	return result;
-}

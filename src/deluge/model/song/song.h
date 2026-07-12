@@ -109,8 +109,9 @@ public:
 	void replaceMusicalMode(const ScaleChange& changes, bool affectMIDITranspose);
 	int32_t getYVisualFromYNote(int32_t yNote, bool inKeyMode);
 	int32_t getYVisualFromYNote(int32_t yNote, bool inKeyMode, const MusicalKey& key);
-	int32_t incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctave) const;
+	int32_t incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctave, bool inKey) const;
 	static int32_t incrementYNoteInKey(int32_t yNote, int32_t increment, bool inOctave, const MusicalKey& key);
+	static int32_t incrementYNoteNoKey(int32_t yNote, int32_t increment, bool inOctave, const MusicalKey& key);
 	int32_t getYNoteFromYVisual(int32_t yVisual, bool inKeyMode);
 	int32_t getYNoteFromYVisual(int32_t yVisual, bool inKeyMode, const MusicalKey& key);
 	bool mayMoveModeNote(int16_t yVisualWithinOctave, int8_t newOffset);
@@ -221,8 +222,6 @@ public:
 	MusicalKey key;
 	std::bitset<NUM_PRESET_SCALES> disabledPresetScales{};
 
-	uint16_t slot;
-	int8_t subSlot;
 	std::string name{};
 
 	bool affectEntire;
@@ -362,6 +361,7 @@ public:
 	bool hasAnyPendingNextOverdubs();
 	Output* getNextAudioOutput(int32_t offset, Output* oldOutput, Availability availabilityRequirement);
 	void deleteOutput(Output* output);
+	void clearRecordingFromReferencesTo(Output* output);
 	void cullAudioClipVoice();
 	int32_t getYScrollSongViewWithoutPendingOverdubs();
 	int32_t removeOutputFromMainList(Output* output, bool stopAnyAuditioningFirst = true);

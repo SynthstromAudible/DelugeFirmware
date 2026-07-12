@@ -877,15 +877,6 @@ void AutomationView::renderAutomationOverview(ModelStackWithTimelineCounter* mod
 		else {
 			pixel = colours::black; // erase pad
 		}
-
-		if (!onArrangerView && !(outputType == OutputType::KIT && getAffectEntire())
-		    && clip->type == ClipType::INSTRUMENT) {
-			// highlight velocity pad
-			if (xDisplay == kVelocityShortcutX && yDisplay == kVelocityShortcutY) {
-				pixel = colours::grey;
-				occupancyMask[yDisplay][xDisplay] = 64;
-			}
-		}
 	}
 }
 
@@ -931,6 +922,13 @@ bool AutomationView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth
 	}
 	else {
 		return getCurrentClip()->renderSidebar(whichRows, image, occupancyMask);
+	}
+}
+
+void AutomationView::clipNeedsReRendering(Clip* clip) {
+	// When on the arranger's automation, we're not displaying a Clip at all.
+	if (!onArrangerView && clip == getCurrentClip()) {
+		uiNeedsRendering(this);
 	}
 }
 
@@ -1769,6 +1767,30 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
 		return ActionResult::DEALT_WITH;
 	}
 
+	// potentially enter or refresh note velocity editor if you're in an instrument clip, holding audition pad and
+	// pressing PatchSource::Velocity shortcut
+	if (!onArrangerView && clip->type == ClipType::INSTRUMENT && isUIModeActive(UI_MODE_AUDITIONING)
+	    && isNoteVelocityEditorShortcut(x, y)) {
+		// don't enter if we're in a kit with affect entire enabled
+		if (!(outputType == OutputType::KIT && getAffectEntire())) {
+			if (outputType == OutputType::KIT) {
+				potentiallyVerticalScrollToSelectedDrum((InstrumentClip*)clip, output);
+			}
+			initParameterSelection(false);
+			automationParamType = AutomationParamType::NOTE_VELOCITY;
+			clip->lastSelectedParamShortcutX = x;
+			clip->lastSelectedParamShortcutY = y;
+			blinkShortcuts();
+			renderDisplay();
+			uiNeedsRendering(&automationView);
+			// if you're in note editor, turn led on
+			if (((InstrumentClip*)clip)->wrapEditing) {
+				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, true);
+			}
+		}
+		return ActionResult::DEALT_WITH;
+	}
+
 	int32_t xScroll = currentSong->xScroll[navSysId];
 	int32_t xZoom = currentSong->xZoom[navSysId];
 
@@ -1795,6 +1817,10 @@ ActionResult AutomationView::handleEditPadAction(ModelStackWithAutoParam* modelS
 		}
 	}
 	return ActionResult::DEALT_WITH;
+}
+
+bool AutomationView::isNoteVelocityEditorShortcut(int32_t x, int32_t y) {
+	return (x == kVelocityShortcutX && y == kVelocityShortcutY);
 }
 
 /// handles shortcut pad actions, including:
@@ -1826,7 +1852,7 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 
 			shortcutPress = true;
 		}
-		// this means you are selecting a parameter
+		// this means you are selecting a parameter / entering or refreshing note editor
 		if (shortcutPress || onAutomationOverview()) {
 			// don't change parameters this way if we're in the menu
 			if (getCurrentUI() == &automationView) {
@@ -1855,38 +1881,14 @@ bool AutomationView::shortcutPadAction(ModelStackWithAutoParam* modelStackWithPa
 // overview or by using a grid shortcut combo
 void AutomationView::handleParameterSelection(Clip* clip, Output* output, OutputType outputType, int32_t xDisplay,
                                               int32_t yDisplay) {
-	// PatchSource::Velocity shortcut
-	// Enter Velocity Note Editor
-	if (xDisplay == kVelocityShortcutX && yDisplay == kVelocityShortcutY) {
-		if (clip->type == ClipType::INSTRUMENT) {
-			// don't enter if we're in a kit with affect entire enabled
-			if (!(outputType == OutputType::KIT && getAffectEntire())) {
-				if (outputType == OutputType::KIT) {
-					potentiallyVerticalScrollToSelectedDrum((InstrumentClip*)clip, output);
-				}
-				initParameterSelection(false);
-				automationParamType = AutomationParamType::NOTE_VELOCITY;
-				clip->lastSelectedParamShortcutX = xDisplay;
-				clip->lastSelectedParamShortcutY = yDisplay;
-				blinkShortcuts();
-				renderDisplay();
-				uiNeedsRendering(&automationView);
-				// if you're in note editor, turn led on
-				if (((InstrumentClip*)clip)->wrapEditing) {
-					indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, true);
-				}
-			}
-			return;
-		}
-	}
 	// potentially select a regular automatable parameter
-	else if (!onArrangerView
-	         && (outputType == OutputType::SYNTH
-	             || (outputType == OutputType::KIT && !getAffectEntire() && ((Kit*)output)->selectedDrum
-	                 && ((Kit*)output)->selectedDrum->type == DrumType::SOUND))
-	         && ((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
-	             || (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)
-	             || params::isPatchCableShortcut(xDisplay, yDisplay))) {
+	if (!onArrangerView
+	    && (outputType == OutputType::SYNTH
+	        || (outputType == OutputType::KIT && !getAffectEntire() && ((Kit*)output)->selectedDrum
+	            && ((Kit*)output)->selectedDrum->type == DrumType::SOUND))
+	    && ((patchedParamShortcuts[xDisplay][yDisplay] != kNoParamID)
+	        || (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] != kNoParamID)
+	        || params::isPatchCableShortcut(xDisplay, yDisplay))) {
 		// don't allow automation of portamento in kit's
 		if ((outputType == OutputType::KIT)
 		    && (unpatchedNonGlobalParamShortcuts[xDisplay][yDisplay] == params::UNPATCHED_PORTAMENTO)) {
@@ -3201,8 +3203,7 @@ void AutomationView::setAutomationParamType() {
 	automationParamType = AutomationParamType::PER_SOUND;
 	if (!inAutomationEditor()) {
 		Clip* clip = getCurrentClip();
-		if ((clip->lastSelectedParamShortcutX == kVelocityShortcutX)
-		    && (clip->lastSelectedParamShortcutY == kVelocityShortcutY)) {
+		if (isNoteVelocityEditorShortcut(clip->lastSelectedParamShortcutX, clip->lastSelectedParamShortcutY)) {
 			automationParamType = AutomationParamType::NOTE_VELOCITY;
 		}
 	}

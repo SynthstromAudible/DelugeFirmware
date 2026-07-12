@@ -61,6 +61,9 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/gui/ui/keyboard/chords.cpp
         # For clock output scheduler tests
         ../../src/deluge/playback/clock_output_scheduler.cpp
+        # For name comparison / default naming tests
+        ../../src/deluge/util/name_compare.cpp
+        ../../src/deluge/gui/ui/browser/default_name.cpp
 )
 
 add_executable(UnitTests
@@ -76,6 +79,10 @@ add_executable(UnitTests
         chord_tests.cpp
         time_tests.cpp
         clock_output_scheduler_tests.cpp
+        name_compare_tests.cpp
+        default_name_tests.cpp
+        rgb_tests.cpp
+        notes_state_tests.cpp
 )
 add_test(NAME UnitTests
         COMMAND UnitTests)

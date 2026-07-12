@@ -282,16 +282,13 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplayOLED(
 		modelStackWithParam = getModelStackWithParamForClip(modelStack, clip);
 	}
 
-	char const* isAutomated;
+	char const* isAutomated = l10n::get(l10n::String::STRING_FOR_AUTOMATION_OFF);
 
 	// check if Parameter is currently automated so that the automation status can be drawn on
 	// the screen with the Parameter Name
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 		if (modelStackWithParam->autoParam->isAutomated()) {
 			isAutomated = l10n::get(l10n::String::STRING_FOR_AUTOMATION_ON);
-		}
-		else {
-			isAutomated = l10n::get(l10n::String::STRING_FOR_AUTOMATION_OFF);
 		}
 	}
 
@@ -438,10 +435,13 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 				parameterName.append(display->haveOLED() ? " -> " : " - ");
 			}
 
-			parameterName.append(params::getPatchedParamShortName(lastSelectedParamID));
+			parameterName.append(params::getPatchedParamShortName(
+			    lastSelectedParamID, (ModControllableAudio*)view.activeModControllableModelStack.modControllable));
 		}
 		else {
-			parameterName.append(getParamDisplayName(lastSelectedParamKind, lastSelectedParamID));
+			parameterName.append(
+			    getParamDisplayName(lastSelectedParamKind, lastSelectedParamID,
+			                        (ModControllableAudio*)view.activeModControllableModelStack.modControllable));
 		}
 	}
 	else {
