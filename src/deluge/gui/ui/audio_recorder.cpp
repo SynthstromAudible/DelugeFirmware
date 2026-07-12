@@ -179,7 +179,23 @@ void AudioRecorder::endRecordingSoon(int32_t buttonLatency) {
 }
 
 void AudioRecorder::slowRoutine() {
+	// finishRecording() frees the SampleRecorder, which discardRecorder() forbids doing from inside the SD card
+	// routine - the recorder may be suspended part-way through its own cardRoutine(), and freeing it there leaves
+	// that cardRoutine() running on freed memory (then freeing it a second time). As a scheduler task we're already
+	// held off by our RESOURCE_SD | RESOURCE_SD_ROUTINE registration; this guard covers the one call site that
+	// bypasses the scheduler, the legacy non-USE_TASK_MANAGER mainLoop.
+	if (sdRoutineLock || currentlyAccessingCard) {
+		return;
+	}
+
 	if (recordingSource >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) {
+		// setupRecordingToFile() always assigns recorder before recordingSource, so this can't happen - but don't let
+		// it become a silent hang: StemExport's yield loop waits on recordingSource, which only finishRecording()
+		// clears, so quietly skipping would wedge the export forever with nothing on screen.
+		if (recorder == nullptr) {
+			FREEZE_WITH_ERROR("E250");
+			return;
+		}
 		if (recorder->status >= RecorderStatus::COMPLETE) {
 			indicator_leds::setLedState(IndicatorLED::RECORD, (playbackHandler.recording == RecordingMode::NORMAL));
 			finishRecording();
