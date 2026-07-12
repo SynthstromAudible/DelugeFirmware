@@ -21,9 +21,12 @@
 #include "memory/heaps.h"
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
+#include "model/clip/audio_clip.h"
 #include "model/clip/clip.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
+#include "model/consequence/consequence.h"
+#include "model/consequence/consequence_clip_length.h"
 #include "model/drum/drum.h"
 #include "model/edits/add_kit_row.h"
 #include "model/edits/add_note.h"
@@ -59,6 +62,7 @@
 #include "model/note/note.h"
 #include "model/note/note_row.h"
 #include "model/output.h"
+#include "model/sample/sample.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param.h"
@@ -834,6 +838,112 @@ void clipLengthTarget(Song* song) {
 	song->setCurrentClip(nullptr);
 }
 
+// A0 (task-A0-brief.md): AudioClip end-marker drag, guarding ConsequenceClipLength's marker-revert path ahead of
+// Phase A's rewrite. Unlike clipLengthTarget (InstrumentClip, excludes AUDIO), an AudioClip end-marker drag also
+// mutates sampleHolder.endPos directly and back-patches the Consequence's raw pointerToMarkerValue/
+// markerValueToRevertTo -- replicating AudioClipView::changeUnderlyingSampleLength exactly
+// (audio_clip_view.cpp:635-654), which is private and not otherwise reachable from here.
+//
+// "Loaded sample" here means the clip's DocAudioClip/sampleHolder descriptor references a sample file (filePath
+// set, so startPos/endPos are real parsed values, not just-constructed zeros) -- NOT that the underlying WAV was
+// actually opened. This harness's load_song() (deluge::project::loadSong) never calls Song::loadAllSamples(), so
+// sampleHolder.audioFile is nullptr for every AudioClip here even in songs with real samples; gating on audioFile
+// would make this target unreachable across the whole corpus. sampleHolder.startPos/endPos ARE populated straight
+// from the XML's startSamplePos/endSamplePos via deriveEngineFromDoc() regardless, so the marker-revert mechanics
+// under test don't need the real audio file open.
+void audioClipMarkerTarget(Song* song) {
+	AudioClip* clip = nullptr;
+	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->project.clips.session_clips[c];
+		if (cl->type != ClipType::AUDIO || cl->output == nullptr || cl->output->type != OutputType::AUDIO) {
+			continue;
+		}
+		auto* ac = (AudioClip*)cl;
+		// A sample-referencing, forward-playing clip: reversed clips drag sampleHolder.startPos instead, and this
+		// target asserts endPos specifically (matching the brief's exact assertion). Mirrors clipLengthTarget's
+		// kMaxSequenceLength guard (this target always lengthens -- see the newLength comment below).
+		if (ac->sampleHolder.filePath.empty() || ac->sampleControls.isCurrentlyReversed()) {
+			continue;
+		}
+		if ((int64_t)ac->loopLength() * 2 > kMaxSequenceLength) {
+			continue;
+		}
+		if (!deluge::edits::clipAddressFor(*ac).has_value()) {
+			continue;
+		}
+		clip = ac;
+	}
+	if (clip == nullptr) {
+		printf("# no-forward-sample-clip-for-marker-drag\n");
+		return;
+	}
+	printf("# target audio-clip-marker-drag\n");
+	song->setCurrentClip(clip); // ConsequenceClipLength::revert resolves the clip via getCurrentClip()
+
+	// getSample() (audio_clip_view.cpp:65-71) casts sampleHolder.audioFile to Sample*; it's null here for the
+	// reason explained above, so the real UI's lengthInSamples clamp is simply skipped (nothing to clamp against).
+	auto* sample = static_cast<Sample*>(clip->sampleHolder.audioFile);
+	int32_t oldLength = clip->loopLength();
+	// Always lengthen (like clipLengthTarget's before*2): Clip::lengthChanged (clip.cpp:814-833) -- called from
+	// Song::setClipLength only on a DEcrease -- can trim automation into its OWN Consequence on this same Action,
+	// which addConsequence prepends ahead of ours (action.cpp:113-115: newest consequence becomes firstConsequence).
+	// That would make audio_clip_view.cpp:648's `firstConsequence->type == CLIP_LENGTH` check (mirrored below) fail
+	// to find our Consequence on any clip carrying automation -- a real gap in the current call site, but shrinking
+	// isn't needed to exercise the marker-backpatch mechanics this target guards, so avoid tripping over it here.
+	int32_t newLength = oldLength * 2;
+
+	uint64_t oldLengthSamples = clip->sampleHolder.getDurationInSamples(true);
+	uint64_t newLengthSamples =
+	    (uint64_t)(oldLengthSamples * (uint64_t)newLength + (oldLength >> 1)) / (uint32_t)oldLength;
+	int64_t newEndPosSamples = (int64_t)clip->sampleHolder.startPos + (int64_t)newLengthSamples;
+	if (sample != nullptr && newEndPosSamples > (int64_t)sample->lengthInSamples) {
+		newEndPosSamples = (int64_t)sample->lengthInSamples;
+	}
+	uint64_t* valueToChange = &clip->sampleHolder.endPos;
+	uint64_t oldValue = *valueToChange;
+	check(oldValue != (uint64_t)newEndPosSamples, "marker-drag: chosen drag distance actually moves the marker");
+
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+
+	ActionType actionType =
+	    (newLength < oldLength) ? ActionType::CLIP_LENGTH_DECREASE : ActionType::CLIP_LENGTH_INCREASE;
+
+	// audio_clip_view.cpp:640-641 -- the marker is mutated BEFORE apply(); setClipLength()'s resample math reads
+	// the already-dragged value back out.
+	*valueToChange = (uint64_t)newEndPosSamples;
+
+	Action* action = actionLogger.getNewAction(actionType, ActionAddition::NOT_ALLOWED);
+	check(action != nullptr, "marker-drag: harness opened an Action");
+	deluge::edits::Context ctx{*currentSong, currentSong->project};
+	deluge::edits::SetClipLength edit{deluge::edits::clipAddressFor(*clip), (uint32_t)newLength, action, clip};
+	check(deluge::edits::apply(ctx, edit) == Error::NONE, "marker-drag: apply succeeds");
+	check(clip->loopLength() == newLength, "marker-drag: length set");
+	check(clip->sampleHolder.endPos == (uint64_t)newEndPosSamples, "marker-drag: endPos set to dragged value");
+
+	// audio_clip_view.cpp:647-654 -- back-patch the Consequence apply() just recorded with the raw marker pointer
+	// + its pre-drag value, so ActionLogger::revert also restores the marker (SetClipLength's own Consequence only
+	// knows about loopLength, not the raw sampleHolder field the UI mutated directly).
+	check(action->firstConsequence != nullptr && action->firstConsequence->type == Consequence::CLIP_LENGTH,
+	      "marker-drag: apply recorded a CLIP_LENGTH consequence");
+	if (action->firstConsequence != nullptr && action->firstConsequence->type == Consequence::CLIP_LENGTH) {
+		auto* consequence = (ConsequenceClipLength*)action->firstConsequence;
+		consequence->pointerToMarkerValue = valueToChange;
+		consequence->markerValueToRevertTo = oldValue;
+	}
+	actionLogger.closeAction(actionType);
+
+	actionLogger.revert(BEFORE, false, false);
+	check(clip->loopLength() == oldLength, "marker-drag: undo restores length");
+	check(clip->sampleHolder.endPos == oldValue, "marker-drag: undo restores marker (ConsequenceClipLength backpatch)");
+
+	actionLogger.revert(AFTER, false, false);
+	check(clip->loopLength() == newLength, "marker-drag: redo re-applies length");
+	check(clip->sampleHolder.endPos == (uint64_t)newEndPosSamples, "marker-drag: redo re-applies marker");
+
+	song->setCurrentClip(nullptr);
+}
+
 // M2d: set the song tempo via SetTempo (the grab-from-clip structural path), undo/redo. Song-global, always runs.
 void tempoTarget(Song* song) {
 	printf("# target tempo\n");
@@ -1252,6 +1362,7 @@ int main(int argc, char** argv) {
 	clipMultiplyTarget(song);
 	swingTarget(song);
 	clipLengthTarget(song);
+	audioClipMarkerTarget(song);
 	tempoTarget(song);
 	pasteTarget(song);
 	kitAddTarget(song);
