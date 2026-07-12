@@ -33,13 +33,13 @@ namespace deluge::gui::menu_item::voice {
 // the owning class can route the access through its DOM record and retire the engine copy (project_model_menu_seam.md).
 inline VoicePriority getCurrentVoicePriority() {
 	if (AudioClip* audioClip = getCurrentAudioClip(); audioClip != nullptr) {
-		return audioClip->voicePriority;
+		return audioClip->voicePriority(); // DOM-owned accessor (owner-4 retired the native field)
 	}
-	return soundEditor.currentSound->voicePriority;
+	return soundEditor.currentSound->voicePriority; // owner-5: still a native Sound field
 }
 inline void setCurrentVoicePriority(VoicePriority value) {
 	if (AudioClip* audioClip = getCurrentAudioClip(); audioClip != nullptr) {
-		audioClip->voicePriority = value;
+		audioClip->setVoicePriority(value);
 		return;
 	}
 	soundEditor.currentSound->voicePriority = value;

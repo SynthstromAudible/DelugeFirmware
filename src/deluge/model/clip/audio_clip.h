@@ -121,12 +121,17 @@ public:
 	                          // SampleRecorder itself will usually persist slightly longer
 	int32_t attack;
 
-	VoicePriority voicePriority;
+	/// M3 owner-4: voice priority is DOM-owned (`docAudioClip_->voice_priority`); the native engine field is retired.
+	/// A cold field — read only at voice-cull time (getCullImmunity) and save — so the accessor reads the record
+	/// directly rather than keeping a derived cache. Written by the menu via the priority.h by-value seam.
+	VoicePriority voicePriority() const;
+	void setVoicePriority(VoicePriority value);
 
 	/// M3 owner-4: this AudioClip's DOM-owned descriptor record, held in the project's `audio_clip_structure` keyed
 	/// by id(). Bound in the AudioClip ctor under the clip's durable id (mirroring how the Clip base ctor binds
-	/// `docClip_`); erased in ~AudioClip. Additive shadow this slice — rebuilt from the engine at load + save by
-	/// syncDocAudioClip(), never read; the engine AudioClip stays authoritative for runtime + render.
+	/// `docClip_`); erased in ~AudioClip. The load path parses into it and derives the engine cache
+	/// (deriveEngineFromDoc); retired fields (e.g. voice_priority) read it directly; the save path still rebuilds the
+	/// not-yet-retired fields from the engine via syncDocAudioClip().
 	deluge::project::DocAudioClip* docAudioClip_{nullptr};
 	void bindDocAudioClip(deluge::project::DocAudioClip* d) { docAudioClip_ = d; }
 

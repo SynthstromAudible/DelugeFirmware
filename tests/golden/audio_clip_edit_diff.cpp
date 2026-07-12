@@ -83,7 +83,7 @@ static void dumpClip(const char* label, int32_t idx, const AudioClip* c) {
 	       (unsigned long long)c->sampleHolder.endPos, (int)c->sampleHolder.transpose, (int)c->sampleHolder.cents,
 	       (int)util::to_underlying(c->sampleControls.interpolationMode),
 	       (int)c->sampleControls.pitchAndSpeedAreIndependent, (int)c->sampleControls.isCurrentlyReversed(),
-	       (long)c->attack, (int)util::to_underlying(c->voicePriority), (int)c->overdubsShouldCloneOutput);
+	       (long)c->attack, (int)util::to_underlying(c->voicePriority()), (int)c->overdubsShouldCloneOutput);
 }
 
 // Dump every audio clip in the song's session list, in order, under `label`.
@@ -213,7 +213,7 @@ int main(int argc, char** argv) {
 	clip->sampleControls.interpolationMode = InterpolationMode::LINEAR;
 	clip->sampleControls.pitchAndSpeedAreIndependent = true;
 	clip->attack = 0x30000000;
-	clip->voicePriority = VoicePriority::HIGH;
+	clip->setVoicePriority(VoicePriority::HIGH);
 	clip->overdubsShouldCloneOutput = !clip->overdubsShouldCloneOutput;
 	dumpClip("after-edit", 0, clip);
 

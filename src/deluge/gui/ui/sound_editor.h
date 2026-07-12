@@ -68,7 +68,6 @@ public:
 	SideChain* currentSidechain{};
 	ArpeggiatorSettings* currentArpSettings{};
 	::MultiRange* currentMultiRange{};
-	VoicePriority* currentPriority{};
 	int16_t currentMultiRangeIndex{};
 	MIDICable* currentMIDICable{};
 	deluge::gui::menu_item::RangeEdit editingRangeEdge;

@@ -1823,17 +1823,12 @@ doMIDIOrCV:
 	if (currentSound) {
 		currentSourceIndex = sourceIndex;
 		currentSource = &currentSound->sources[currentSourceIndex];
-		currentPriority = &currentSound->voicePriority;
 
 		if (result == MenuPermission::YES && currentMultiRange == nullptr) {
 			if (!currentSource->ranges.empty()) {
 				currentMultiRange = (MultisampleRange*)currentSource->ranges.getElement(0); // Is this good?
 			}
 		}
-	}
-	else if (clip->type == ClipType::AUDIO) {
-		AudioClip* audioClip = (AudioClip*)clip;
-		currentPriority = &audioClip->voicePriority;
 	}
 
 	// end current menu item session before beginning new menu item session
