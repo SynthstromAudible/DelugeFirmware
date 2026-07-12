@@ -12,6 +12,7 @@
 // no audio-engine pump). recording=OFF so the pre-log opens the Action. Assertions compare currentValue + nodes,
 // NOT doc()->current_value (store-scalar undo is M3+).
 
+#include "deluge-project/doc_audio_clip.h"
 #include "deluge-project/param_address.h"
 #include "deluge-project/param_automation.h"
 #include "deluge-project/serialization.h"
@@ -26,6 +27,7 @@
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
 #include "model/consequence/consequence.h"
+#include "model/consequence/consequence_audio_clip_set_sample.h"
 #include "model/consequence/consequence_clip_length.h"
 #include "model/drum/drum.h"
 #include "model/edits/add_kit_row.h"
@@ -945,6 +947,76 @@ void audioClipMarkerTarget(Song* song) {
 	song->setCurrentClip(nullptr);
 }
 
+// A6 (task-A6-brief.md): AudioClip set-sample undo, guarding ConsequenceAudioClipSetSample::revert's model-setter
+// routing (setSampleFilePath/setSampleEndPos) added ahead of Phase A's rework.
+//
+// revert() unconditionally runs those two setters, then branches: filePathToRevertTo.empty() skips loadFile()
+// entirely, but the non-empty branch calls sampleHolder.loadFile() -- which needs a real file on disk. As
+// audioClipMarkerTarget documents above, this harness's load_song() never opens real sample files, so a
+// set-sample-then-undo case that lands in the non-empty branch is not driveable headless. The empty branch IS
+// driveable, and still exercises exactly the setter routing under test: start from a clip with NO sample assigned
+// (filePath already empty, like a freshly-created/blank audio track slot), then replicate the mutation
+// AudioClip::finishLinearRecording performs (audio_clip.cpp:223-254: record the consequence *before* mutating
+// filePath/endPos, then set them) -- i.e. simulate "a sample got set onto a blank clip". Undoing that action makes
+// filePathToRevertTo == "" at revert time, landing in the empty branch, which still round-trips filePath/endPos
+// through setSampleFilePath/setSampleEndPos back to docAudioClip_ + sampleHolder. That's a genuine regression
+// guard on the reworked revert: if the setter routing broke (e.g. reverted to the wrong record, or stopped writing
+// docAudioClip_), this fails.
+void audioClipSetSampleTarget(Song* song) {
+	AudioClip* clip = nullptr;
+	for (int32_t c = 0; c < std::ssize(song->project.clips.session_clips) && clip == nullptr; c++) {
+		Clip* cl = song->project.clips.session_clips[c];
+		if (cl->type != ClipType::AUDIO || cl->output == nullptr || cl->output->type != OutputType::AUDIO) {
+			continue;
+		}
+		auto* ac = (AudioClip*)cl;
+		// Need a clip with NO sample assigned, so the consequence's filePathToRevertTo captures "" and revert()
+		// takes the empty branch (no loadFile call) -- see the comment above.
+		if (!ac->sampleHolder.filePath.empty() || ac->docAudioClip_ == nullptr) {
+			continue;
+		}
+		clip = ac;
+	}
+	if (clip == nullptr) {
+		printf("# no-blank-audio-clip-for-set-sample\n");
+		return;
+	}
+	printf("# target audio-clip-set-sample\n");
+
+	check(clip->sampleHolder.filePath.empty(), "set-sample: baseline clip has no sample (sampleHolder)");
+	check(clip->docAudioClip_->file_path.empty(), "set-sample: baseline clip has no sample (docAudioClip_)");
+	uint64_t oldEndPos = clip->sampleHolder.endPos;
+	check(clip->docAudioClip_->end_pos == oldEndPos, "set-sample: baseline endPos in sync");
+
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+
+	// Mirrors AudioClip::finishLinearRecording (audio_clip.cpp:223-229): the consequence is recorded BEFORE
+	// mutating filePath/endPos ("Call this *before* you change the Sample or its filePath" -- action.cpp:335).
+	Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::NOT_ALLOWED);
+	check(action != nullptr, "set-sample: harness opened an Action");
+	action->recordAudioClipSampleChange(clip);
+	check(action->firstConsequence != nullptr, "set-sample: recordAudioClipSampleChange added a consequence");
+
+	const char* newFilePath = "SAMPLES/GOLDEN_TEST_SAMPLE.WAV";
+	uint64_t newEndPos = oldEndPos + 88200; // arbitrary, guaranteed-different value
+	clip->setSampleFilePath(newFilePath);
+	clip->setSampleEndPos(newEndPos);
+	actionLogger.closeAction(ActionType::RECORD);
+
+	check(clip->sampleHolder.filePath == newFilePath, "set-sample: filePath set (sampleHolder)");
+	check(clip->docAudioClip_->file_path == newFilePath, "set-sample: filePath set (docAudioClip_)");
+	check(clip->sampleHolder.endPos == newEndPos, "set-sample: endPos set (sampleHolder)");
+	check(clip->docAudioClip_->end_pos == newEndPos, "set-sample: endPos set (docAudioClip_)");
+
+	actionLogger.revert(BEFORE, false, false);
+	check(clip->sampleHolder.filePath.empty(), "set-sample: undo restores empty filePath (sampleHolder)");
+	check(clip->docAudioClip_->file_path.empty(),
+	      "set-sample: undo restores empty filePath (docAudioClip_ round-trip)");
+	check(clip->sampleHolder.endPos == oldEndPos, "set-sample: undo restores endPos (sampleHolder)");
+	check(clip->docAudioClip_->end_pos == oldEndPos, "set-sample: undo restores endPos (docAudioClip_ round-trip)");
+}
+
 // M2d: set the song tempo via SetTempo (the grab-from-clip structural path), undo/redo. Song-global, always runs.
 void tempoTarget(Song* song) {
 	printf("# target tempo\n");
@@ -1364,6 +1436,7 @@ int main(int argc, char** argv) {
 	swingTarget(song);
 	clipLengthTarget(song);
 	audioClipMarkerTarget(song);
+	audioClipSetSampleTarget(song);
 	tempoTarget(song);
 	pasteTarget(song);
 	kitAddTarget(song);
