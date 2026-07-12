@@ -3,7 +3,6 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/oled.h"
-#include "hid/display/seven_segment.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/sysex.h"
@@ -25,10 +24,6 @@ void HIDSysex::sysexReceived(MIDICable& cable, uint8_t* data, int32_t len) {
 	switch (data[1]) {
 	case 0:
 		requestOLEDDisplay(cable, data, len);
-		break;
-
-	case 1:
-		request7SegDisplay(cable, data, len);
 		break;
 
 	case 2:
@@ -64,9 +59,6 @@ void HIDSysex::requestOLEDDisplay(MIDICable& cable, uint8_t* data, int32_t len) 
 			}
 		}
 		sendDisplayIfChanged();
-		if (force && display->have7SEG()) {
-			send7SegData(cable);
-		}
 	}
 }
 
@@ -86,9 +78,6 @@ void HIDSysex::sendDisplayIfChanged() {
 
 	if (display->haveOLED()) {
 		sendOLEDDataDelta(*midiDisplayCable, false);
-	}
-	if (display->have7SEG()) {
-		send7SegData(*midiDisplayCable);
 	}
 }
 
@@ -124,29 +113,6 @@ void HIDSysex::sendOLEDData(MIDICable& cable, bool rle) {
 		reply[9 + packed] = 0xf7;            // end of transmission
 		                                     // 		device->sendSysex(reply, packed + 7); //
 		cable.sendSysex(reply, packed + 10); //
-	}
-}
-
-void HIDSysex::request7SegDisplay(MIDICable& cable, uint8_t* data, int32_t len) {
-	if (data[2] == 0) { // was 4
-		send7SegData(cable);
-	}
-}
-
-void HIDSysex::send7SegData(MIDICable& cable) {
-	if (display->have7SEG()) {
-		// aschually 8 segments if you count the dot
-		auto data = display->getLast();
-		const int32_t packed_data_size = 5;
-		//		uint8_t reply[12] = {0xf0, 0x7d, 0x02, 0x41, 0x00, 0x00};
-		uint8_t reply[15] = {0xf0, 0x00, 0x21, 0x7B, 0x01, 0x02, 0x41, 0x00, 0x00};
-		//  	pack_8bit_to_7bit(reply + 6, packed_data_size, data.data(), data.size());
-		// int32_t pack_8bit_to_7bit(uint8_t* dst, int32_t dst_size, uint8_t* src, int32_t src_len);
-		pack_8bit_to_7bit(reply + 9, packed_data_size, data.data(), data.size());
-		//		reply[6 + packed_data_size] = 0xf7; // end of transmission
-		reply[9 + packed_data_size] = 0xf7; // end of transmission
-		                                    //		device->sendSysex(reply, packed_data_size + 7);
-		cable.sendSysex(reply, packed_data_size + 10);
 	}
 }
 
