@@ -3874,6 +3874,11 @@ void Sound::seedDocSoundScalars() {
 		d.osc_retrigger_phase[i] = oscRetriggerPhase[i];
 		d.modulator_retrigger_phase[i] = modulatorRetriggerPhase[i];
 	}
+	for (int32_t i = 0; i < LFO_COUNT; i++) {
+		d.lfo_wave_type[i] = static_cast<uint8_t>(lfoConfig[i].waveType);
+		d.lfo_sync_type[i] = static_cast<uint8_t>(lfoConfig[i].syncType);
+		d.lfo_sync_level[i] = static_cast<uint8_t>(lfoConfig[i].syncLevel);
+	}
 }
 
 void Sound::bindDocSound(deluge::project::DocSound* d) {
@@ -3953,6 +3958,20 @@ void Sound::setModulatorRetriggerPhase(int32_t m, uint32_t value) {
 		docSound_->modulator_retrigger_phase[m] = value;
 	}
 }
+void Sound::setLfoWaveType(int32_t lfoId, LFOType value) {
+	lfoConfig[lfoId].waveType = value;
+	if (docSound_ != nullptr) {
+		docSound_->lfo_wave_type[lfoId] = static_cast<uint8_t>(value);
+	}
+}
+void Sound::setLfoSync(int32_t lfoId, SyncType syncType, SyncLevel syncLevel) {
+	lfoConfig[lfoId].syncType = syncType;
+	lfoConfig[lfoId].syncLevel = syncLevel;
+	if (docSound_ != nullptr) {
+		docSound_->lfo_sync_type[lfoId] = static_cast<uint8_t>(syncType);
+		docSound_->lfo_sync_level[lfoId] = static_cast<uint8_t>(syncLevel);
+	}
+}
 
 // M3 owner-5 slice B: rebuild-at-save the not-yet-inverted cold scalars into the DOM record (nested
 // std::optional<DocSound> in the owner's DocOutput/DocDrum). Write-only shadow for those fields — nothing reads them
@@ -3966,12 +3985,8 @@ void Sound::syncDocSound() {
 	// DOM-owned (seeded at bind + re-seeded at doneReadingFromFile, written by their setters, read at save), no longer
 	// shadowed here: voice_priority, max_voice_count, side_chain_send_level, output_midi_*, oscillator_sync, and the
 	// Slice C top-level scalars (polyphonic, synth_mode, transpose, num_unison, unison_detune, unison_stereo_spread,
-	// modulator1_to_modulator0, modulator_transpose/cents, osc/modulator_retrigger_phase).
-	for (int32_t i = 0; i < LFO_COUNT; i++) {
-		d.lfo_wave_type[i] = static_cast<uint8_t>(lfoConfig[i].waveType);
-		d.lfo_sync_type[i] = static_cast<uint8_t>(lfoConfig[i].syncType);
-		d.lfo_sync_level[i] = static_cast<uint8_t>(lfoConfig[i].syncLevel);
-	}
+	// modulator1_to_modulator0, modulator_transpose/cents, osc/modulator_retrigger_phase, and the LFO config
+	// (lfo_wave_type/sync_type/sync_level).
 	for (int32_t k = 0; k < kNumModButtons; k++) {
 		for (int32_t w = 0; w < kNumPhysicalModKnobs; w++) {
 			d.mod_knob_param_descriptor[k][w] = modKnobs[k][w].paramDescriptor.data;
@@ -4067,33 +4082,43 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	writeSourceToFile(writer, 0, "osc1");
 	writeSourceToFile(writer, 1, "osc2");
 
-	// LFOs
+	// LFOs (M3 owner-5: read the authoritative record; cache fallback only for an unbound Sound)
+	auto lfoWave = [&](int32_t id) {
+		return docSound_ != nullptr ? static_cast<LFOType>(docSound_->lfo_wave_type[id]) : lfoConfig[id].waveType;
+	};
+	auto lfoSyncLevel = [&](int32_t id) {
+		return docSound_ != nullptr ? static_cast<SyncLevel>(docSound_->lfo_sync_level[id]) : lfoConfig[id].syncLevel;
+	};
+	auto lfoSyncType = [&](int32_t id) {
+		return docSound_ != nullptr ? static_cast<SyncType>(docSound_->lfo_sync_type[id]) : lfoConfig[id].syncType;
+	};
+
 	writer.writeOpeningTagBeginning("lfo1");
-	writer.writeAttribute("type", lfoTypeToString(lfoConfig[LFO1_ID].waveType), false);
-	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoConfig[LFO1_ID].syncLevel, false);
+	writer.writeAttribute("type", lfoTypeToString(lfoWave(LFO1_ID)), false);
+	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoSyncLevel(LFO1_ID), false);
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeSyncTypeToFile(currentSong, "syncType", lfoConfig[LFO1_ID].syncType, false);
+	writer.writeSyncTypeToFile(currentSong, "syncType", lfoSyncType(LFO1_ID), false);
 	writer.closeTag();
 
 	writer.writeOpeningTagBeginning("lfo2");
-	writer.writeAttribute("type", lfoTypeToString(lfoConfig[LFO2_ID].waveType), false);
+	writer.writeAttribute("type", lfoTypeToString(lfoWave(LFO2_ID)), false);
 	// Community Firmware parameters
-	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoConfig[LFO2_ID].syncLevel, false);
-	writer.writeSyncTypeToFile(currentSong, "syncType", lfoConfig[LFO2_ID].syncType, false);
+	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoSyncLevel(LFO2_ID), false);
+	writer.writeSyncTypeToFile(currentSong, "syncType", lfoSyncType(LFO2_ID), false);
 	writer.closeTag();
 
 	writer.writeOpeningTagBeginning("lfo3");
-	writer.writeAttribute("type", lfoTypeToString(lfoConfig[LFO3_ID].waveType), false);
-	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoConfig[LFO3_ID].syncLevel, false);
+	writer.writeAttribute("type", lfoTypeToString(lfoWave(LFO3_ID)), false);
+	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoSyncLevel(LFO3_ID), false);
 	// Community Firmware parameters (always write them after the official ones, just before closing the parent tag)
-	writer.writeSyncTypeToFile(currentSong, "syncType", lfoConfig[LFO3_ID].syncType, false);
+	writer.writeSyncTypeToFile(currentSong, "syncType", lfoSyncType(LFO3_ID), false);
 	writer.closeTag();
 
 	writer.writeOpeningTagBeginning("lfo4");
-	writer.writeAttribute("type", lfoTypeToString(lfoConfig[LFO4_ID].waveType), false);
+	writer.writeAttribute("type", lfoTypeToString(lfoWave(LFO4_ID)), false);
 	// Community Firmware parameters
-	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoConfig[LFO4_ID].syncLevel, false);
-	writer.writeSyncTypeToFile(currentSong, "syncType", lfoConfig[LFO4_ID].syncType, false);
+	writer.writeAbsoluteSyncLevelToFile(currentSong, "syncLevel", lfoSyncLevel(LFO4_ID), false);
+	writer.writeSyncTypeToFile(currentSong, "syncType", lfoSyncType(LFO4_ID), false);
 	writer.closeTag();
 
 	if (savedSynthMode == SynthMode::FM) {

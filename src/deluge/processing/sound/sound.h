@@ -182,6 +182,10 @@ public:
 	void setModulator1ToModulator0(bool value);
 	void setOscRetriggerPhase(int32_t s, uint32_t value);
 	void setModulatorRetriggerPhase(int32_t m, uint32_t value);
+	// LFO config (lfoConfig[] kept as hot render cache; record authoritative). Sync writes both fields together to
+	// match the menu gesture (one sync value → type+level).
+	void setLfoWaveType(int32_t lfoId, LFOType value);
+	void setLfoSync(int32_t lfoId, SyncType syncType, SyncLevel syncLevel);
 
 	bool skippingRendering = true;
 

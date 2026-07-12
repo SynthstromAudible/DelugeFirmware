@@ -58,7 +58,7 @@ public:
 			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
 				if (thisDrum->type == DrumType::SOUND) {
 					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
-					soundDrum->lfoConfig[lfoId_].waveType = current_value;
+					soundDrum->setLfoWaveType(lfoId_, current_value);
 					// This fires unnecessarily for LFO2 assignments as well, but that's ok. It's not
 					// entirely clear if we really need this for the LFO1, even: maybe the clock-driven resyncs
 					// would be enough?
@@ -68,7 +68,7 @@ public:
 		}
 		// Or, the normal case of just one sound
 		else {
-			soundEditor.currentSound->lfoConfig[lfoId_].waveType = current_value;
+			soundEditor.currentSound->setLfoWaveType(lfoId_, current_value);
 			// This fires unnecessarily for LFO2 assignments as well, but that's ok. It's not
 			// entirely clear if we really need this for the LFO1, even: maybe the clock-driven resyncs
 			// would be enough?
