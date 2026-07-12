@@ -6185,14 +6185,17 @@ ActionResult InstrumentClipView::commandTransposeKey(int32_t offset, bool inCard
 		return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 	}
 
-	actionLogger.deleteAllLogs();
-
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
 
 	InstrumentClip* clip = getCurrentInstrumentClip();
 	auto nudgeType = Buttons::isShiftButtonPressed() ? VerticalNudgeType::ROW : VerticalNudgeType::OCTAVE;
-	clip->nudgeNotesVertically(offset, nudgeType, modelStack);
+	if (!clip->nudgeNotesVertically(offset, nudgeType, modelStack)) {
+		// Out of range, so nothing changed - leave the undo history alone.
+		return ActionResult::DEALT_WITH;
+	}
+
+	actionLogger.deleteAllLogs(); // Can't undo past this
 
 	recalculateColours();
 	uiNeedsRendering(getRootUI(), 0xFFFFFFFF, 0xFFFFFFFF);
