@@ -10,6 +10,7 @@
 #include <cstdio>
 
 #include "deluge-project/param_edit.h" // setNodeAtPos
+#include "deluge-project/song.h"       // deluge::project::Song::resolveParam (equivalence spec)
 #include "model/action/action.h"
 #include "model/action/action_logger.h"
 #include "model/consequence/consequence.h"
@@ -19,6 +20,7 @@
 #include "model/edits/set_param_value.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/snapshot/param_snapshot.h"
 #include "modulation/automation/copied_param_automation.h"
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_node.h"
@@ -294,6 +296,58 @@ void testInlinePokeCharacterization(deluge::edits::Context& ctx, TimelineCounter
 	      "characterize/region: node1 = (96, pre-region value)");
 }
 
+// M4a Task 2/3 — ParamSnapshot::applyPatch (the model-first event-patch) must land the model store in the SAME
+// state Task 1 pinned for the in-line poke. `clipTC` is a real Clip with an id and a loop length, so the edit's
+// ParamAddress resolves (song set) and doc() relocates the touched store into the model tree — the realistic
+// on-device situation where the engine cursor and the model store are the same DocAutoParam.
+void testParamSnapshotEquivalence(deluge::edits::Context& ctx, ::Song* engineSong, TimelineCounter* clipTC) {
+	// Leak-reset (crash-safe: no consequence freeing -> no headless audio pump).
+	actionLogger.firstAction[BEFORE] = nullptr;
+	actionLogger.firstAction[AFTER] = nullptr;
+
+	constexpr int32_t kParam = 4;
+	ParamManagerForTimeline pm;
+	pm.setupUnpatched();
+	// An audio clip's params are UNPATCHED_GLOBAL; the bare setupUnpatched leaves the set's kind NONE (it is
+	// normally stamped by GlobalEffectable::initParams). Set it so the address resolves in the model tree
+	// (slotInManager keys the unpatched slot by UNPATCHED_SOUND/UNPATCHED_GLOBAL).
+	pm.getUnpatchedParamSet()->kind = deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
+	alignas(ModelStackWithAutoParam) char buf[MODEL_STACK_MAX_SIZE];
+	ModelStackWithAutoParam* ms = makeStack(buf, pm, kParam);
+	ms->song = engineSong;
+	ms->setTimelineCounter(clipTC);
+	ms->paramManager = &pm;
+
+	// The edit's durable address, and the store it resolves to. First doc() touch relocates pm's store into the
+	// model's clip_params tree (the S5-b lazy relocation) so resolveParam and doc() return the same DocAutoParam.
+	std::optional<deluge::project::ParamAddress> addrOpt = deluge::edits::addressFor(*ms);
+	check(addrOpt.has_value(), "equivalence: audio-clip edit has a resolvable ParamAddress");
+	deluge::project::ParamAddress addr = *addrOpt;
+	deluge::project::DocAutoParam* store = ms->doc();
+	check(store != nullptr && ctx.model.resolveParam(addr) == store,
+	      "equivalence: address resolves to the same store doc() uses");
+
+	// SCALAR via applyPatch (region absent): reproduces Task 1's pinned scalar transition.
+	deluge::snapshot::ParamSnapshot::applyPatch(ctx.model, addr, 0x40000000, 0, 0, std::nullopt);
+	check(store->current_value == 0x40000000, "applyPatch scalar: model current_value == pinned");
+	check(store->nodes.empty(), "applyPatch scalar: no nodes created");
+
+	// REGION via applyPatch: context mirrors Task 1's region edit (effLen 128, no interpolation, clock inactive).
+	// Asserts the SAME {nodes, current_value} Task 1 pinned for the in-line region poke.
+	deluge::snapshot::RegionContext rc{/*effectiveLength*/ 128,
+	                                   /*interpolateLeftNode*/ false,
+	                                   /*interpolateRightNode*/ false,
+	                                   /*recordingLinearly*/ false,
+	                                   /*clockActive*/ false,
+	                                   /*livePos*/ 0,
+	                                   /*currentlyPlayingReversed*/ false};
+	deluge::snapshot::ParamSnapshot::applyPatch(ctx.model, addr, 0x20000000, 0, 96, rc);
+	check(store->nodes.size() == 2, "applyPatch region: node count == pinned");
+	check(store->nodes[0].pos == 0 && store->nodes[0].value == 0x20000000, "applyPatch region: node0 == pinned");
+	check(store->nodes[1].pos == 96 && store->nodes[1].value == 0x40000000, "applyPatch region: node1 == pinned");
+	check(store->current_value == 0x20000000, "applyPatch region: model current_value == pinned");
+}
+
 } // namespace
 
 // Song construction; the Context members are stored, and the pilot dereferences currentSong via the
@@ -318,6 +372,7 @@ int main() {
 	// clips; give the harness one AUDIO clip (grabFromClip is a no-op for non-instrument clips) so the undo path
 	// the pilot exercises behaves as it does on-device.
 	auto* audioClip = new AudioClip(*song);
+	audioClip->setLoopLength(128); // give the region-edit timeline counter a loop length (getLoopLength())
 	(void)song->project.clips.session_clips.insertClipAt(audioClip, 0);
 
 	deluge::edits::Context ctx{*song, song->project};
@@ -327,6 +382,7 @@ int main() {
 	testDeleteParamAutomation(ctx);
 	testPasteParamAutomation(ctx);
 	testInlinePokeCharacterization(ctx, audioClip);
+	testParamSnapshotEquivalence(ctx, song, audioClip);
 
 	if (failures == 0) {
 		std::fprintf(stdout, "edit_test: OK\n");
