@@ -1126,6 +1126,37 @@ void AudioClip::setReversed(bool reversed) {
 	sampleControls.reversed = reversed;
 }
 
+// M3 owner-4 prep (task A1): sampleHolder/overdubs model setters. Each writes the authoritative record AND the
+// engine cache; no reload here (callers that need a reload keep doing it themselves). Not yet called anywhere.
+void AudioClip::setSampleStartPos(uint64_t value) {
+	if (docAudioClip_ == nullptr) {
+		FREEZE_WITH_ERROR("AC4H");
+	}
+	docAudioClip_->start_pos = value;
+	sampleHolder.startPos = value;
+}
+void AudioClip::setSampleEndPos(uint64_t value) {
+	if (docAudioClip_ == nullptr) {
+		FREEZE_WITH_ERROR("AC4H");
+	}
+	docAudioClip_->end_pos = value;
+	sampleHolder.endPos = value;
+}
+void AudioClip::setSampleFilePath(const char* value) {
+	if (docAudioClip_ == nullptr) {
+		FREEZE_WITH_ERROR("AC4H");
+	}
+	docAudioClip_->file_path = value;
+	sampleHolder.filePath = value;
+}
+void AudioClip::setOverdubsShouldCloneOutput(bool value) {
+	if (docAudioClip_ == nullptr) {
+		FREEZE_WITH_ERROR("AC4H");
+	}
+	docAudioClip_->overdubs_should_clone = value;
+	overdubsShouldCloneOutput = value;
+}
+
 void AudioClip::syncDocAudioClip() {
 	if (docAudioClip_ == nullptr) {
 		return;

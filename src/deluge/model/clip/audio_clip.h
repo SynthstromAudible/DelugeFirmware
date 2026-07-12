@@ -150,6 +150,15 @@ public:
 	void setPitchAndSpeedIndependent(bool independent);
 	void setReversed(bool reversed);
 
+	/// M3 owner-4 prep (task A1): sampleHolder/overdubs model setters. These write `docAudioClip_->*` AND the engine
+	/// cache (sampleHolder / overdubsShouldCloneOutput) but do NOT perform a reload — callers that need a reload
+	/// (e.g. re-pointing the sample) keep doing that themselves; this only adds the record write. Not yet called
+	/// anywhere (behavior-neutral until a later task wires call sites).
+	void setSampleStartPos(uint64_t value);
+	void setSampleEndPos(uint64_t value);
+	void setSampleFilePath(const char* value);
+	void setOverdubsShouldCloneOutput(bool value);
+
 	/// M3 owner-4: this AudioClip's DOM-owned descriptor record, held in the project's `audio_clip_structure` keyed
 	/// by id(). Bound in the AudioClip ctor under the clip's durable id (mirroring how the Clip base ctor binds
 	/// `docClip_`); erased in ~AudioClip. The load path parses into it and derives the engine cache
