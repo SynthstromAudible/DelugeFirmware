@@ -53,12 +53,7 @@ void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
 	}
 
 	soundEditor.currentMIDICable = getCable(this->getValue());
-	if (display->haveOLED()) {
-		current_scroll_ = computeScrollForSelected(this->getValue());
-	}
-	else {
-		drawValue();
-	}
+	current_scroll_ = computeScrollForSelected(this->getValue());
 }
 
 int32_t Devices::computeScrollForSelected(int32_t selected) {
@@ -92,20 +87,14 @@ void Devices::selectEncoderAction(int32_t offset) {
 		int32_t newValue = this->getValue() + offset;
 
 		if (newValue >= static_cast<int32_t>(MIDIDeviceManager::hostedMIDIDevices.size())) {
-			if (display->haveOLED()) {
-				this->setValue(startValue);
-				soundEditor.currentMIDICable = getCable(startValue);
-				return;
-			}
-			newValue = lowestDeviceNum;
+			this->setValue(startValue);
+			soundEditor.currentMIDICable = getCable(startValue);
+			return;
 		}
 		else if (newValue < lowestDeviceNum) {
-			if (display->haveOLED()) {
-				this->setValue(startValue);
-				soundEditor.currentMIDICable = getCable(startValue);
-				return;
-			}
-			newValue = static_cast<int32_t>(MIDIDeviceManager::hostedMIDIDevices.size()) - 1;
+			this->setValue(startValue);
+			soundEditor.currentMIDICable = getCable(startValue);
+			return;
 		}
 
 		this->setValue(newValue);
@@ -115,31 +104,29 @@ void Devices::selectEncoderAction(int32_t offset) {
 	} while (!soundEditor.currentMIDICable->connectionFlags);
 	// Don't show devices which aren't connected. Sometimes we won't even have a name to display for them.
 
-	if (display->haveOLED()) {
-		current_scroll_ = std::min(this->getValue(), current_scroll_);
-		//
-		if (offset >= 0) {
-			int32_t d = this->getValue();
-			int32_t numSeen = 1;
-			while (d > lowestDeviceNum) {
-				d--;
-				if (d == current_scroll_) {
-					break;
-				}
-				auto device = getCable(d);
-				if (!(device && device->connectionFlags)) {
-					continue;
-				}
-				numSeen++;
-				if (numSeen >= kOLEDMenuNumOptionsVisible) {
-					current_scroll_ = d;
-					break;
-				}
+	current_scroll_ = std::min(this->getValue(), current_scroll_);
+	//
+	if (offset >= 0) {
+		int32_t d = this->getValue();
+		int32_t numSeen = 1;
+		while (d > lowestDeviceNum) {
+			d--;
+			if (d == current_scroll_) {
+				break;
+			}
+			auto device = getCable(d);
+			if (!(device && device->connectionFlags)) {
+				continue;
+			}
+			numSeen++;
+			if (numSeen >= kOLEDMenuNumOptionsVisible) {
+				current_scroll_ = d;
+				break;
 			}
 		}
 	}
 
-	drawValue();
+	renderUIsForOled();
 }
 
 MIDICable* Devices::getCable(int32_t deviceIndex) {
@@ -161,16 +148,6 @@ MIDICable* Devices::getCable(int32_t deviceIndex) {
 	default: {
 		return MIDIDeviceManager::hostedMIDIDevices[deviceIndex];
 	}
-	}
-}
-
-void Devices::drawValue() {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		char const* displayName = soundEditor.currentMIDICable->getDisplayName();
-		display->setScrollingText(displayName);
 	}
 }
 

@@ -250,7 +250,7 @@ void AutomationEditorLayoutModControllable::renderAutomationUnipolarSquare(
 	}
 }
 
-void AutomationEditorLayoutModControllable::renderAutomationEditorDisplayOLED(
+void AutomationEditorLayoutModControllable::renderAutomationEditorDisplay(
     deluge::hid::display::oled_canvas::Canvas& canvas, Clip* clip, OutputType outputType, int32_t knobPosLeft,
     int32_t knobPosRight) {
 	// display parameter name
@@ -319,84 +319,6 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplayOLED(
 	}
 }
 
-void AutomationEditorLayoutModControllable::renderAutomationEditorDisplay7SEG(Clip* clip, OutputType outputType,
-                                                                              int32_t knobPosLeft,
-                                                                              bool modEncoderAction) {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-	ModelStackWithAutoParam* modelStackWithParam = nullptr;
-
-	if (getOnArrangerView()) {
-		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
-		    currentSong->setupModelStackWithSongAsTimelineCounter(modelStackMemory);
-
-		modelStackWithParam =
-		    currentSong->getModelStackWithParam(modelStackWithThreeMainThings, currentSong->lastSelectedParamID);
-	}
-	else {
-		modelStackWithParam = getModelStackWithParamForClip(modelStack, clip);
-	}
-
-	bool padSelected = (!getPadSelectionOn() && isUIModeActive(UI_MODE_NOTES_PRESSED)) || getPadSelectionOn();
-
-	/* check if you're holding a pad
-	 * if yes, store pad press knob position in getLastPadSelectedKnobPos()
-	 * so that it can be used next time as the knob position if returning here
-	 * to display parameter value after another popup has been cancelled (e.g. audition pad)
-	 */
-	if (padSelected) {
-		if (knobPosLeft != kNoSelection) {
-			getLastPadSelectedKnobPos() = knobPosLeft;
-		}
-		else if (getLastPadSelectedKnobPos() != kNoSelection) {
-			params::Kind lastSelectedParamKind = params::Kind::NONE;
-			int32_t lastSelectedParamID = params::kNoParamID;
-			if (getOnArrangerView()) {
-				lastSelectedParamKind = currentSong->lastSelectedParamKind;
-				lastSelectedParamID = currentSong->lastSelectedParamID;
-			}
-			else {
-				lastSelectedParamKind = clip->lastSelectedParamKind;
-				lastSelectedParamID = clip->lastSelectedParamID;
-			}
-			knobPosLeft = view.calculateKnobPosForDisplay(lastSelectedParamKind, lastSelectedParamID,
-			                                              getLastPadSelectedKnobPos());
-		}
-	}
-
-	bool isAutomated =
-	    modelStackWithParam && modelStackWithParam->autoParam && modelStackWithParam->autoParam->isAutomated();
-	bool playbackStarted = playbackHandler.isEitherClockActive();
-
-	// display parameter value if knobPos is provided
-	if ((knobPosLeft != kNoSelection) && (padSelected || (playbackStarted && isAutomated) || modEncoderAction)) {
-		char buffer[5];
-		intToString(knobPosLeft, buffer);
-		if (modEncoderAction && !padSelected) {
-			display->displayPopup(buffer, 3, true);
-		}
-		else {
-			display->setText(buffer, true, 255, false);
-		}
-	}
-	// display parameter name
-	else if (knobPosLeft == kNoSelection) {
-		etl::string<30> parameterName;
-		getAutomationParameterName(clip, outputType, parameterName);
-		// if playback is running and there is automation, the screen will display the
-		// current automation value at the playhead position
-		// when changing to a parameter with automation, flash the parameter name first
-		// before the value is displayed
-		// otherwise if there's no automation, just scroll the parameter name
-		if (padSelected || (playbackStarted && isAutomated)) {
-			display->displayPopup(parameterName.c_str(), 3, true, isAutomated ? 3 : 255);
-		}
-		else {
-			display->setScrollingText(parameterName.c_str(), 0, 600, -1, isAutomated ? 3 : 255);
-		}
-	}
-}
-
 // get's the name of the Parameter being edited so it can be displayed on the screen
 void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* clip, OutputType outputType,
                                                                        etl::istring& parameterName) {
@@ -423,16 +345,11 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 
 			parameterName.append(sourceToStringShort(lastSelectedPatchSource));
 
-			if (display->haveOLED()) {
-				parameterName.append(" -> ");
-			}
-			else {
-				parameterName.append(" - ");
-			}
+			parameterName.append(" -> ");
 
 			if (source2 != PatchSource::NONE) {
 				parameterName.append(sourceToStringShort(source2));
-				parameterName.append(display->haveOLED() ? " -> " : " - ");
+				parameterName.append(" -> ");
 			}
 
 			parameterName.append(params::getPatchedParamShortName(
@@ -472,19 +389,8 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 
 			// if we don't have a midi cc name set, draw CC number instead
 			if (!appendedName) {
-				if (display->haveOLED()) {
-					parameterName.append("CC ");
-					deluge::string::appendInt(parameterName, clip->lastSelectedParamID);
-				}
-				else {
-					if (clip->lastSelectedParamID < 100) {
-						parameterName.append("CC");
-					}
-					else {
-						parameterName.append("C");
-					}
-					deluge::string::appendInt(parameterName, clip->lastSelectedParamID);
-				}
+				parameterName.append("CC ");
+				deluge::string::appendInt(parameterName, clip->lastSelectedParamID);
 			}
 		}
 	}
@@ -516,7 +422,7 @@ bool AutomationEditorLayoutModControllable::toggleAutomationPadSelectionMode(
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_OFF));
 
 		initPadSelection();
-		displayAutomation(true, !display->have7SEG());
+		displayAutomation(true, true);
 	}
 	else {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_PAD_SELECTION_ON));
@@ -1390,18 +1296,7 @@ void AutomationEditorLayoutModControllable::renderAutomationDisplayForMultiPadPr
 			}
 		}
 
-		if (display->haveOLED()) {
-			renderDisplay(knobPosLeft, knobPosRight);
-		}
-		// display pad value of second pad pressed
-		else {
-			if (modEncoderAction) {
-				renderDisplay(getLastPadSelectedKnobPos());
-			}
-			else {
-				renderDisplay();
-			}
-		}
+		renderDisplay(knobPosLeft, knobPosRight);
 
 		setAutomationKnobIndicatorLevels(modelStackWithParam, knobPosLeft, knobPosRight);
 

@@ -121,43 +121,19 @@ std::string MIDIDrum::getDrumName() {
 	int32_t channelToDisplay = channel + 1;
 	std::string buffer;
 
-	if (display->haveOLED()) {
-		if (!drumName.empty()) {
-			buffer.append(drumName);
-			buffer.append("\n");
-		}
-		buffer.append("MIDI CH");
-		buffer.append(deluge::string::fromInt(channelToDisplay));
-		buffer.append(": ");
-		buffer.append(deluge::string::fromInt(note));
-		buffer.append(" (");
-		char noteLabel[5];
-		noteCodeToString(note, noteLabel);
-		buffer.append(noteLabel);
-		buffer.append(")");
+	if (!drumName.empty()) {
+		buffer.append(drumName);
+		buffer.append("\n");
 	}
-	else {
-
-		// Old 7-seg logic adapted to std::string.
-		if (channelToDisplay < 10 && note < 100) {
-			buffer = " ";
-		}
-
-		// If can't fit everything on display, show channel as hexadecimal
-		if (channelToDisplay >= 10 && note >= 100) {
-			buffer.push_back('A' + channelToDisplay - 10);
-		}
-		else {
-			buffer.append(deluge::string::fromInt(channelToDisplay));
-		}
-
-		buffer.push_back('.');
-
-		if (note < 10 && channelToDisplay < 100) {
-			buffer.push_back(' ');
-		}
-		buffer.append(deluge::string::fromInt(note));
-	}
+	buffer.append("MIDI CH");
+	buffer.append(deluge::string::fromInt(channelToDisplay));
+	buffer.append(": ");
+	buffer.append(deluge::string::fromInt(note));
+	buffer.append(" (");
+	char noteLabel[5];
+	noteCodeToString(note, noteLabel);
+	buffer.append(noteLabel);
+	buffer.append(")");
 
 	return buffer;
 }

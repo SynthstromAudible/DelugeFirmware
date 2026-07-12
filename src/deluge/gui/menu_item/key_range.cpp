@@ -42,7 +42,7 @@ void KeyRange::selectEncoderAction(int32_t offset) {
 			upper = std::clamp(upper + offset, lower, KEY_MAX);
 		}
 
-		drawValueForEditingRange(false);
+		renderUIsForOled();
 	}
 
 	else {
@@ -53,7 +53,7 @@ void KeyRange::selectEncoderAction(int32_t offset) {
 		lower = std::clamp(lower + offset, KEY_MIN, KEY_MAX);
 		upper = lower;
 
-		drawValue();
+		renderUIsForOled();
 	}
 }
 
@@ -67,10 +67,8 @@ void KeyRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLe
 	int32_t leftLength = 1;
 
 	if (noteCodeIsSharp[lower]) {
-		*(buffer++) = (display->haveOLED()) ? accidential : '.';
-		if (display->haveOLED()) {
-			leftLength++;
-		}
+		*(buffer++) = accidential;
+		leftLength++;
 	}
 
 	if (getLeftLength) {
@@ -90,10 +88,8 @@ void KeyRange::getText(char* buffer, int32_t* getLeftLength, int32_t* getRightLe
 	*(buffer++) = useSharps ? noteCodeToNoteLetter[upper] : noteCodeToNoteLetterFlats[upper];
 	int32_t rightLength = 1;
 	if (noteCodeIsSharp[upper]) {
-		*(buffer++) = (display->haveOLED()) ? accidential : '.';
-		if (display->haveOLED()) {
-			rightLength++;
-		}
+		*(buffer++) = accidential;
+		rightLength++;
 	}
 
 	*buffer = 0;

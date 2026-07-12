@@ -57,15 +57,6 @@ public:
 		*getValueAddress() = value;
 	}
 
-	void drawValue() override {
-		if (this->getValue() < 0) {
-			display->setText(l10n::get(l10n::String::STRING_FOR_DISABLED), false, 255, true);
-		}
-		else {
-			Decimal::drawValue();
-		}
-	}
-
 	void drawPixelsForOled() override {
 		oled_canvas::Canvas& canvas = OLED::main;
 		if (this->getValue() < 0) {

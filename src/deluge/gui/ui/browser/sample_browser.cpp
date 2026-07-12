@@ -115,9 +115,7 @@ bool SampleBrowser::opened() {
 
 	autoLoadEnabled = false;
 
-	if (display->haveOLED()) {
-		fileIndexSelected = 0;
-	}
+	fileIndexSelected = 0;
 
 	if (currentUIMode == UI_MODE_AUDITIONING) {
 		instrumentClipView.cancelAllAuditioning();
@@ -127,7 +125,6 @@ bool SampleBrowser::opened() {
 	if (error != Error::NONE) {
 sdError:
 		display->displayError(error);
-		display->setNextTransitionDirection(0); // Cancel the transition that we'll now not be doing
 		return false;
 	}
 
@@ -205,9 +202,6 @@ void SampleBrowser::possiblySetUpBlinking() {
 void SampleBrowser::focusRegained() {
 	// displayCurrentFilename();
 	indicator_leds::setLedState(IndicatorLED::SAVE, false); // In case returning from delete-file context menu
-	if (display->have7SEG()) {
-		displayText(); // In case returning from delete-file context menu
-	}
 }
 
 void SampleBrowser::folderContentsReady(int32_t entryDirection) {
@@ -258,7 +252,6 @@ void SampleBrowser::currentFileChanged(int32_t movementDirection) {
 }
 
 void SampleBrowser::exitAndNeverDeleteDrum() {
-	display->setNextTransitionDirection(-1);
 	close();
 }
 
@@ -266,7 +259,6 @@ void SampleBrowser::exitAndNeverDeleteDrum() {
 void SampleBrowser::exitAction() {
 	UI* redrawUI = nullptr;
 
-	display->setNextTransitionDirection(-1);
 	if (!isUIOpen(&soundEditor)) {
 		// If no file was selected, the user wanted to get out of creating this Drum.
 		// Only if some unassigned Drums
@@ -320,7 +312,6 @@ considerContextMenu:
 				bool available = contextMenu->setupAndCheckAvailability();
 
 				if (available) { // Not sure if this can currently fail.
-					display->setNextTransitionDirection(1);
 					openUI(contextMenu);
 				}
 				else {
@@ -340,13 +331,7 @@ void SampleBrowser::enterKeyPress() {
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	if (!currentFileItem) {
-		if (display->haveOLED()) {
-			display->displayError(Error::FILE_NOT_FOUND);
-		}
-		else {
-			// Make it say "NONE" on numeric Deluge, for consistency with old times.
-			display->displayError(Error::NO_FURTHER_FILES_THIS_DIRECTION);
-		}
+		display->displayError(Error::FILE_NOT_FOUND);
 		return;
 	}
 
@@ -656,9 +641,7 @@ void SampleBrowser::scrollFinished() {
 }
 
 void SampleBrowser::displayCurrentFilename() {
-	if (fileIndexSelected == -1) {
-		display->setText("----");
-	}
+	if (fileIndexSelected == -1) {}
 
 	else {}
 }
@@ -979,12 +962,7 @@ doLoadAsSample:
 				drum->drumName.clear();
 
 				std::string newName;
-				if (!numCharsInPrefix || display->haveOLED()) {
-					newName = enteredText;
-				}
-				else {
-					newName = &enteredText.c_str()[numCharsInPrefix];
-				}
+				newName = enteredText;
 
 				Kit* kit = getCurrentKit();
 

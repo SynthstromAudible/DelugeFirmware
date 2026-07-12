@@ -124,7 +124,7 @@ void DxParam::readValueAgain() {
 		x = 7;
 	}
 
-	drawValue();
+	renderUIsForOled();
 	if (x >= 0 && y >= 0) {
 		// TODO: different color!
 		soundEditor.setupShortcutBlink(x, y, 1);
@@ -171,7 +171,7 @@ void DxParam::selectEncoderAction(int32_t offset) {
 	setValue(newval);
 	displayValue = newval;
 
-	drawValue();
+	renderUIsForOled();
 }
 
 void DxParam::horizontalEncoderAction(int32_t offset) {
@@ -203,10 +203,6 @@ void DxParam::horizontalEncoderAction(int32_t offset) {
 	}
 
 	readValueAgain();
-
-	if (display->have7SEG()) {
-		flashParamName();
-	}
 }
 
 bool DxParam::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
@@ -242,9 +238,6 @@ bool DxParam::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
 	if (found_param >= -1) {
 		param = found_param;
 		readValueAgain();
-		if (display->have7SEG()) {
-			flashParamName();
-		}
 	}
 
 	// even if we didn't find param, we want to return true so that we ignore other non-dx shortcut presses
@@ -342,14 +335,9 @@ void DxParam::flashParamName() {
 				strcpy(buf + 3, desc_op_short[idx]);
 			}
 		}
-		display->setScrollingText(buf, 0, 600, 1);
 	}
-	else if (param >= 6 * 21 && param < 6 * 21 + 18) {
-		display->setScrollingText(desc_global_short[param - 6 * 21], 0, 600, 1);
-	}
-	else {
-		display->setScrollingText(getTitle().begin(), 0, 600, 1);
-	}
+	else if (param >= 6 * 21 && param < 6 * 21 + 18) {}
+	else {}
 }
 
 using deluge::hid::display::OLED;
@@ -546,40 +534,6 @@ void DxParam::drawPixelsForOled() {
 	}
 }
 
-void DxParam::drawValue() {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		int op = param / 21;
-		int idx = param % 21;
-		int val = getValue();
-		const char* text = NULL;
-		if (param < 6 * 21 && (idx == 17)) {
-			text = val ? "fixd" : "rati";
-		}
-		else if (param < 6 * 21 && (idx == 11 || idx == 12)) {
-			text = curves[std::min(val, 4)];
-		}
-		else if (param == 142) {
-			int shap = std::min(val, 5);
-			text = shapes_short[shap];
-		}
-		else if (param == 6 * 21 + 8) {
-			val += 1; // algorithms start at one
-		}
-		else if (param < 6 * 21 && (idx == 20)) {
-			val -= 7; // detuning -7 - 7
-		}
-		if (text) {
-			display->setText(text);
-		}
-		else {
-			display->setTextAsNumber(val);
-		}
-	}
-}
-
 void DxParam::openForOpOrGlobal(int op) {
 	bool was_focused = true; // was already in DxParam
 	if (!isUIOpen(&soundEditor) || soundEditor.getCurrentMenuItem() != this) {
@@ -608,9 +562,6 @@ void DxParam::openForOpOrGlobal(int op) {
 	}
 	param = new_param;
 	readValueAgain();
-	if (flash && display->have7SEG()) {
-		flashParamName();
-	}
 }
 
 } // namespace deluge::gui::menu_item

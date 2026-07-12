@@ -43,7 +43,7 @@ void CVEngine::init() {
 	// CV DAC linearity init + gate pin setup are board concerns (the CV DAC shares
 	// SPI with the OLED; pass whether a display is present so writes are routed
 	// correctly).
-	deluge_cv_init(display->haveOLED());
+	deluge_cv_init(true);
 	deluge_gate_init();
 
 	// Switch all gate "off" to begin with - whatever "off" means
@@ -173,12 +173,7 @@ void CVEngine::sendVoltageOut(uint8_t channel, uint16_t voltage) {
 	deluge_cv_set(channel, voltage);
 	// On non-OLED units the CV DAC has the SPI bus to itself, so the write has
 	// already completed; OLED units serialise it through the display queue.
-	if (!deluge::hid::display::have_oled_screen) {
-		cvOutPending = false;
-	}
-	else {
-		cvSentSnapshot = sentBefore;
-	}
+	cvSentSnapshot = sentBefore;
 }
 
 void CVEngine::physicallySwitchGate(int32_t channel) {

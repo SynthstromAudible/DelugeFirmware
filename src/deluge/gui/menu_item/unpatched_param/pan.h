@@ -23,7 +23,6 @@ namespace deluge::gui::menu_item::unpatched_param {
 class Pan final : public UnpatchedParam {
 public:
 	using UnpatchedParam::UnpatchedParam;
-	virtual void drawValue();
 
 protected:
 	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuRelativeValue; }

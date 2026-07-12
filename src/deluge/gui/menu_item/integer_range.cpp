@@ -25,10 +25,8 @@ namespace deluge::gui::menu_item {
 
 void IntegerRange::beginSession(MenuItem* navigatedBackwardFrom) {
 	Range::beginSession(navigatedBackwardFrom);
-	if (display->haveOLED()) {
-		if (lower != upper) {
-			soundEditor.editingRangeEdge = RangeEdit::LEFT;
-		}
+	if (lower != upper) {
+		soundEditor.editingRangeEdge = RangeEdit::LEFT;
 	}
 }
 
@@ -53,7 +51,7 @@ void IntegerRange::selectEncoderAction(int32_t offset) {
 			}
 		}
 
-		drawValueForEditingRange(false);
+		renderUIsForOled();
 	}
 
 	else {
@@ -65,7 +63,7 @@ void IntegerRange::selectEncoderAction(int32_t offset) {
 		upper = lower;
 
 justDrawOneNumber:
-		drawValue();
+		renderUIsForOled();
 	}
 }
 

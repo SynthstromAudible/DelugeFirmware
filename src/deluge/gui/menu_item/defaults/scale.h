@@ -32,7 +32,7 @@ public:
 		FlashStorage::defaultScale = scaleToFlashStorageCode(optionIndexToScale(static_cast<Scale>(this->getValue())));
 	}
 
-	void drawName() override { display->setScrollingText(getName().data()); }
+	void drawName() override {}
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		(void)optType;

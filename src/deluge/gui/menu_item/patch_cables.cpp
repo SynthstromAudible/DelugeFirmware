@@ -20,9 +20,7 @@ void PatchCables::beginSession(MenuItem* navigatedBackwardFrom) {
 		currentValue = savedVal;
 	}
 
-	if (display->haveOLED()) {
-		scrollPos = std::max((int32_t)0, currentValue - 1);
-	}
+	scrollPos = std::max((int32_t)0, currentValue - 1);
 
 	readValueAgain();
 }
@@ -37,12 +35,7 @@ void PatchCables::readValueAgain() {
 
 	renderOptions();
 
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		drawValue();
-	}
+	renderUIsForOled();
 	blinkShortcutsSoon();
 }
 
@@ -99,16 +92,6 @@ void PatchCables::drawPixelsForOled() {
 	drawItemsForOled(options, currentValue - scrollPos, scrollPos);
 }
 
-void PatchCables::drawValue() {
-	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
-	if (set->numPatchCables == 0) {
-		display->setText("none", false, false);
-		return;
-	}
-
-	display->setScrollingText(options[currentValue].begin());
-}
-
 void PatchCables::selectEncoderAction(int32_t offset) {
 	PatchCableSet* set = soundEditor.currentParamManager->getPatchCableSet();
 
@@ -121,17 +104,15 @@ void PatchCables::selectEncoderAction(int32_t offset) {
 
 	currentValue = newValue;
 
-	if (display->haveOLED()) {
-		int32_t max = std::max<int32_t>(0, set->numPatchCables - kOLEDMenuNumOptionsVisible);
-		scrollPos = std::clamp<int32_t>(newValue - 1, 0, max);
-	}
+	int32_t max = std::max<int32_t>(0, set->numPatchCables - kOLEDMenuNumOptionsVisible);
+	scrollPos = std::clamp<int32_t>(newValue - 1, 0, max);
 
 	readValueAgain(); // redraw
 }
 
 void PatchCables::blinkShortcutsSoon() {
 	// some throttling so menu scrolling doesn't become a lightning storm of flashes
-	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, display->haveOLED() ? 500 : 200);
+	uiTimerManager.setTimer(TimerName::UI_SPECIFIC, 500);
 	uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 }
 

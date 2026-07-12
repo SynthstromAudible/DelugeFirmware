@@ -60,7 +60,7 @@ void KeyboardLayoutInKey::offsetPads(int32_t offset, bool shiftEnabled) {
 		state.rowInterval = std::clamp(state.rowInterval, kMinInKeyRowInterval, kMaxInKeyRowInterval);
 
 		char buffer[13] = "Row step:   ";
-		int32_t displayOffset = (display->haveOLED() ? 10 : 0);
+		int32_t displayOffset = 10;
 		intToString(state.rowInterval, buffer + displayOffset, 1);
 		display->displayPopup(buffer);
 

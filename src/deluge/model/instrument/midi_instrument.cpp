@@ -76,12 +76,7 @@ bool MIDIInstrument::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 	else {
 		if (currentUIMode == UI_MODE_SELECTING_MIDI_CC) {
 			currentUIMode = UI_MODE_NONE;
-			if (display->haveOLED()) {
-				deluge::hid::display::OLED::removePopup();
-			}
-			else {
-				InstrumentClipMinder::redrawNumericDisplay();
-			}
+			deluge::hid::display::OLED::removePopup();
 		}
 		return false;
 	}
@@ -102,12 +97,7 @@ void MIDIInstrument::modButtonAction(uint8_t whichModButton, bool on, ParamManag
 	// If we're leaving this mod function or anything else is happening, we want to be sure that stutter has stopped
 	if (currentUIMode == UI_MODE_SELECTING_MIDI_CC) {
 		currentUIMode = UI_MODE_NONE;
-		if (display->haveOLED()) {
-			deluge::hid::display::OLED::removePopup();
-		}
-		else {
-			InstrumentClipMinder::redrawNumericDisplay();
-		}
+		deluge::hid::display::OLED::removePopup();
 	}
 }
 

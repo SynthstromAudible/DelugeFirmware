@@ -85,13 +85,7 @@ void SaveUI::enterKeyPress() {
 	else if (enteredText.empty()) {} // Previously had &&currentFolderIsEmpty ... why?
 
 	else {
-		bool dealtWith = performSave(false);
-
-		if (display->have7SEG()) {
-			if (!dealtWith) {
-				displayText(false);
-			}
-		}
+		performSave(false);
 	}
 }
 
@@ -120,7 +114,6 @@ ActionResult SaveUI::timerCallback() {
 
 		if (available) {
 			currentUIMode = UI_MODE_NONE;
-			display->setNextTransitionDirection(1);
 			openUI(&gui::context_menu::saveSongOrInstrument);
 		}
 		else {

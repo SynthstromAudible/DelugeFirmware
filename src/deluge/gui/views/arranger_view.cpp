@@ -105,10 +105,10 @@ ArrangerView::ArrangerView() {
 void ArrangerView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	if (stemExport.processStarted) {
 		if (stemExport.exportMixdown) {
-			stemExport.displayStemExportProgressOLED(StemExportType::MIXDOWN);
+			stemExport.displayStemExportProgress(StemExportType::MIXDOWN);
 		}
 		else {
-			stemExport.displayStemExportProgressOLED(StemExportType::TRACK);
+			stemExport.displayStemExportProgress(StemExportType::TRACK);
 		}
 	}
 	else if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION) {
@@ -302,7 +302,6 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 			bool available = context_menu::cancelStemExport.setupAndCheckAvailability();
 
 			if (available) {
-				display->setNextTransitionDirection(1);
 				openUI(&context_menu::cancelStemExport);
 			}
 		}
@@ -330,7 +329,6 @@ ActionResult ArrangerView::buttonAction(deluge::hid::Button b, bool on, bool inC
 		}
 		// open Song FX menu
 		else if (on && currentUIMode == UI_MODE_NONE) {
-			display->setNextTransitionDirection(1);
 			soundEditor.setup();
 			openUI(&soundEditor);
 		}
@@ -428,7 +426,7 @@ doActualSimpleChange:
 	else if (b == Y_ENC) {
 		if (on && !Buttons::isShiftButtonPressed()) {
 			UI* currentUI = getCurrentUI();
-			bool isOLEDSessionView = display->haveOLED() && (currentUI == &sessionView || currentUI == &arrangerView);
+			bool isOLEDSessionView = (currentUI == &sessionView || currentUI == &arrangerView);
 			// only display pop-up if we're using 7SEG or we're not currently in Song / Arranger View
 			if (!isOLEDSessionView) {
 				currentSong->displayCurrentRootNoteAndScaleName();
@@ -945,7 +943,7 @@ void ArrangerView::auditionEnded() {
 
 	if (getRootUI() == &automationView) {
 		if (automationView.inAutomationEditor()) {
-			automationView.displayAutomation(true, !display->have7SEG());
+			automationView.displayAutomation(true, true);
 		}
 		else {
 			automationView.renderDisplay();
@@ -1783,12 +1781,7 @@ void ArrangerView::exitSubModeWithoutAction(UI* ui) {
 
 /// redraw OLED and 7SEG displays
 void ArrangerView::renderDisplay() {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		sessionView.redrawNumericDisplay();
-	}
+	renderUIsForOled();
 }
 
 /// enter clip view
@@ -3119,9 +3112,7 @@ void ArrangerView::graphicsRoutine() {
 		PadLEDs::sendOutSidebarColours();
 	}
 
-	if (display->haveOLED()) {
-		sessionView.displayPotentialTempoChange(this);
-	}
+	sessionView.displayPotentialTempoChange(this);
 
 	if (PadLEDs::flashCursor != FLASH_CURSOR_OFF) {
 

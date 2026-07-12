@@ -48,9 +48,9 @@ void AutomationEditorLayoutNote::renderNoteEditor(ModelStackWithNoteRow* modelSt
 	}
 }
 
-void AutomationEditorLayoutNote::renderNoteEditorDisplayOLED(deluge::hid::display::oled_canvas::Canvas& canvas,
-                                                             InstrumentClip* clip, OutputType outputType,
-                                                             int32_t knobPosLeft, int32_t knobPosRight) {
+void AutomationEditorLayoutNote::renderNoteEditorDisplay(deluge::hid::display::oled_canvas::Canvas& canvas,
+                                                         InstrumentClip* clip, OutputType outputType,
+                                                         int32_t knobPosLeft, int32_t knobPosRight) {
 	// display note parameter name
 	etl::string<30> parameterName;
 	if (getAutomationParamType() == AutomationParamType::NOTE_VELOCITY) {
@@ -87,33 +87,7 @@ void AutomationEditorLayoutNote::renderNoteEditorDisplayOLED(deluge::hid::displa
 	yPos = yPos + 12;
 
 	if (getAutomationParamType() == AutomationParamType::NOTE_VELOCITY) {
-		automationEditorLayoutNoteVelocity.displayParameterValueOLED(canvas, yPos, knobPosLeft, knobPosRight);
-	}
-}
-
-void AutomationEditorLayoutNote::renderNoteEditorDisplay7SEG(InstrumentClip* clip, OutputType outputType,
-                                                             int32_t knobPosLeft) {
-	char modelStackMemory[MODEL_STACK_MAX_SIZE];
-	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
-	bool isKit = outputType == OutputType::KIT;
-
-	ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowOnScreen(instrumentClipView.lastAuditionedYDisplay,
-	                                                                        modelStack); // don't create
-	if (!modelStackWithNoteRow->getNoteRowAllowNull()) {
-		if (!isKit) {
-			modelStackWithNoteRow =
-			    instrumentClipView.createNoteRowForYDisplay(modelStack, instrumentClipView.lastAuditionedYDisplay);
-		}
-	}
-
-	if (knobPosLeft != kNoSelection) {
-		char buffer[5];
-		intToString(knobPosLeft, buffer);
-		display->setText(buffer, true, 255, false);
-	}
-	else {
-		std::string noteRowName = getNoteRowName(modelStackWithNoteRow->getNoteRowAllowNull(), isKit);
-		display->setScrollingText(noteRowName.c_str());
+		automationEditorLayoutNoteVelocity.displayParameterValue(canvas, yPos, knobPosLeft, knobPosRight);
 	}
 }
 
@@ -133,16 +107,11 @@ std::string AutomationEditorLayoutNote::getNoteRowName(NoteRow* noteRow, bool is
 		}
 	}
 	else {
-		if (display->haveOLED()) {
-			if (isKit) {
-				return "(Select Drum)";
-			}
-			else {
-				return "(Select Note)";
-			}
+		if (isKit) {
+			return "(Select Drum)";
 		}
 		else {
-			return "NONE";
+			return "(Select Note)";
 		}
 	}
 }

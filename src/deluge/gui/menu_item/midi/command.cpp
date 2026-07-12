@@ -28,9 +28,6 @@
 namespace deluge::gui::menu_item::midi {
 
 void Command::beginSession(MenuItem* navigatedBackwardFrom) {
-	if (display->have7SEG()) {
-		drawValue();
-	}
 }
 
 void Command::drawPixelsForOled() {
@@ -91,36 +88,15 @@ void Command::drawPixelsForOled() {
 	}
 }
 
-void Command::drawValue() const {
-	char const* output = nullptr;
-	if (!midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].containsSomething()) {
-		output = l10n::get(l10n::String::STRING_FOR_NONE);
-	}
-	else {
-		output = l10n::get(l10n::String::STRING_FOR_SET);
-	}
-	display->setText(output);
-}
-
 void Command::selectEncoderAction(int32_t offset) {
 	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].clear();
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		drawValue();
-	}
+	renderUIsForOled();
 }
 
 void Command::unlearnAction() {
 	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].clear();
 	if (soundEditor.getCurrentMenuItem() == this) {
-		if (display->haveOLED()) {
-			renderUIsForOled();
-		}
-		else {
-			drawValue();
-		}
+		renderUIsForOled();
 	}
 	else {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_UNLEARNED));
@@ -141,12 +117,7 @@ bool Command::learnNoteOn(MIDICable& cable, int32_t channel, int32_t noteCode) {
 	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].channelOrZone = channel;
 	midiEngine.globalMIDICommands[util::to_underlying(commandNumber)].noteOrCC = noteCode;
 	if (soundEditor.getCurrentMenuItem() == this) {
-		if (display->haveOLED()) {
-			renderUIsForOled();
-		}
-		else {
-			drawValue();
-		}
+		renderUIsForOled();
 	}
 	else {
 		display->displayPopup(l10n::get(l10n::String::STRING_FOR_LEARNED));

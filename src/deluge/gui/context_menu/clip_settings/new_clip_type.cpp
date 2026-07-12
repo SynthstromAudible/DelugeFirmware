@@ -66,9 +66,7 @@ bool NewClipType::setupAndCheckAvailability() {
 
 	indicator_leds::blinkLed(IndicatorLED::BACK);
 
-	if (display->haveOLED()) {
-		scrollPos = currentOption;
-	}
+	scrollPos = currentOption;
 
 	return true;
 }
@@ -151,7 +149,6 @@ bool NewClipType::acceptCurrentOption() {
 ActionResult NewClipType::padAction(int32_t x, int32_t y, int32_t on) {
 	ActionResult result = sessionView.padAction(x, y, on); // let the grid handle this
 
-	display->setNextTransitionDirection(-1);
 	close();
 
 	return result;
@@ -167,7 +164,6 @@ ActionResult NewClipType::buttonAction(deluge::hid::Button b, bool on, bool inCa
 		sessionView.clipCreationButtonPressed(b, on, inCardRoutine); // let the grid handle this
 	}
 
-	display->setNextTransitionDirection(-1);
 	close();
 
 	return ActionResult::DEALT_WITH;

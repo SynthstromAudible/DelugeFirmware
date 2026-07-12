@@ -21,7 +21,7 @@ def argparser() -> argparse.ArgumentParser:
         default="oled",
         const="oled",
         nargs="?",
-        choices=["7seg", "oled"],
+        choices=["oled"],
     )
     return parser
 

@@ -57,5 +57,4 @@ private:
 
 namespace deluge::l10n::built_in {
 extern deluge::l10n::Language english;
-extern deluge::l10n::Language seven_segment;
 } // namespace deluge::l10n::built_in

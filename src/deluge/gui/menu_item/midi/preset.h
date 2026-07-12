@@ -44,15 +44,6 @@ public:
 		canvas.drawStringCentred(text, yPixel + OLED_MAIN_TOPMOST_PIXEL, textWidth, textHeight);
 	}
 
-	void drawValue() override {
-		if (this->getValue() == 128) {
-			display->setText(l10n::get(l10n::String::STRING_FOR_NONE));
-		}
-		else {
-			display->setTextAsNumber(this->getValue());
-		}
-	}
-
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return getCurrentOutputType() == OutputType::MIDI_OUT;
 	}

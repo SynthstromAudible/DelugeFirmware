@@ -27,7 +27,6 @@ public:
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override;
 	void selectEncoderAction(int32_t offset) override;
 	MIDICable* getCable(int32_t deviceIndex);
-	virtual void drawValue();
 	MenuItem* selectButtonPress() override;
 	void drawPixelsForOled();
 

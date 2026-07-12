@@ -1549,77 +1549,44 @@ bool ModControllableAudio::unlearnKnobs(ParamDescriptor paramDescriptor, Song* s
 }
 
 void ModControllableAudio::displayFilterSettings(bool on, FilterType currentFilterType) {
-	if (display->haveOLED()) {
-		if (on) {
-			etl::string<40> popupMsg;
-			popupMsg.append(getFilterTypeDisplayName(currentFilterType));
-			if (currentFilterType != FilterType::EQ) {
-				popupMsg.append("\n");
-				popupMsg.append(getFilterModeDisplayName(currentFilterType));
-			}
-			display->popupText(popupMsg.c_str());
+	if (on) {
+		etl::string<40> popupMsg;
+		popupMsg.append(getFilterTypeDisplayName(currentFilterType));
+		if (currentFilterType != FilterType::EQ) {
+			popupMsg.append("\n");
+			popupMsg.append(getFilterModeDisplayName(currentFilterType));
 		}
-		else {
-			display->cancelPopup();
-		}
+		display->popupText(popupMsg.c_str());
 	}
 	else {
-		if (on) {
-			display->displayPopup(getFilterTypeDisplayName(currentFilterType));
-		}
-		else {
-			display->displayPopup(getFilterModeDisplayName(currentFilterType));
-		}
+		display->cancelPopup();
 	}
 }
 
 void ModControllableAudio::displayDelaySettings(bool on) {
-	if (display->haveOLED()) {
-		if (on) {
-			etl::string<100> popupMsg;
-			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
-			    == RuntimeFeatureStateToggle::On) {
-				popupMsg.append("Type: ");
-				popupMsg.append(getDelaySyncTypeDisplayName());
-
-				popupMsg.append("\nSync: ");
-				char displayName[30];
-				getDelaySyncLevelDisplayName(displayName);
-				popupMsg.append(displayName);
-			}
-			else {
-				popupMsg.append("Ping pong: ");
-				popupMsg.append(getDelayPingPongStatusDisplayName());
-				popupMsg.append("\n");
-				popupMsg.append(getDelayTypeDisplayName());
-			}
-
-			display->popupText(popupMsg.c_str());
-		}
-		else {
-			display->cancelPopup();
-		}
-	}
-	else {
+	if (on) {
+		etl::string<100> popupMsg;
 		if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::AltGoldenKnobDelayParams)
 		    == RuntimeFeatureStateToggle::On) {
-			if (on) {
-				display->displayPopup(getDelaySyncTypeDisplayName());
-			}
-			else {
-				char displayName[30];
-				getDelaySyncLevelDisplayName(displayName);
-				display->displayPopup(displayName);
-			}
+			popupMsg.append("Type: ");
+			popupMsg.append(getDelaySyncTypeDisplayName());
+
+			popupMsg.append("\nSync: ");
+			char displayName[30];
+			getDelaySyncLevelDisplayName(displayName);
+			popupMsg.append(displayName);
 		}
 		else {
-			if (on) {
-				display->displayPopup(getDelayPingPongStatusDisplayName());
-			}
-			else {
-				display->displayPopup(getDelayTypeDisplayName());
-			}
+			popupMsg.append("Ping pong: ");
+			popupMsg.append(getDelayPingPongStatusDisplayName());
+			popupMsg.append("\n");
+			popupMsg.append(getDelayTypeDisplayName());
 		}
+
+		display->popupText(popupMsg.c_str());
+	}
+	else {
+		display->cancelPopup();
 	}
 }
 
@@ -1635,31 +1602,21 @@ char const* ModControllableAudio::getDelayPingPongStatusDisplayName() {
 
 void ModControllableAudio::displaySidechainAndReverbSettings(bool on) {
 	// Sidechain
-	if (display->haveOLED()) {
-		if (on) {
-			etl::string<100> popupMsg;
-			// Sidechain
-			popupMsg.append("Sidechain: ");
-			popupMsg.append(getSidechainDisplayName());
+	if (on) {
+		etl::string<100> popupMsg;
+		// Sidechain
+		popupMsg.append("Sidechain: ");
+		popupMsg.append(getSidechainDisplayName());
 
-			popupMsg.append("\n");
+		popupMsg.append("\n");
 
-			// Reverb
-			popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+		// Reverb
+		popupMsg.append(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
 
-			display->popupText(popupMsg.c_str());
-		}
-		else {
-			display->cancelPopup();
-		}
+		display->popupText(popupMsg.c_str());
 	}
 	else {
-		if (on) {
-			display->displayPopup(getSidechainDisplayName());
-		}
-		else {
-			display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
-		}
+		display->cancelPopup();
 	}
 }
 
@@ -1701,7 +1658,7 @@ void ModControllableAudio::displayOtherModKnobSettings(uint8_t whichModButton, b
 	// if we have an OLED display
 	// or a 7SEG display and mod button is pressed
 	// then we will display the top gold knob parameter
-	if (display->haveOLED() || on) {
+	{
 		char parameterName[30];
 		view.getParameterNameFromModEncoder(1, parameterName);
 		popupMsg.append(parameterName);
@@ -1711,15 +1668,12 @@ void ModControllableAudio::displayOtherModKnobSettings(uint8_t whichModButton, b
 	if (!((whichModButton == 6) && (!view.isClipContext()))) {
 		// if we have an OLED display, we want to add a new line so we can
 		// display the bottom gold knob param below the top gold knob param
-		if (display->haveOLED()) {
-			popupMsg.append("\n");
-		}
+		popupMsg.append("\n");
 		// if we have an OLED display
 		// or a 7SEG display and mod button is released
 		// then we will display the bottom gold knob parameter
 		// on OLED bottom gold knob param is rendered below the top gold knob param
-		if (display->haveOLED() || !on) {
-
+		{
 			char parameterName[30];
 			view.getParameterNameFromModEncoder(0, parameterName);
 			popupMsg.append(parameterName);
@@ -1727,18 +1681,11 @@ void ModControllableAudio::displayOtherModKnobSettings(uint8_t whichModButton, b
 	}
 	// if we have OLED, a pop up is shown while we are holding down mod button
 	// pop-up is removed after we release the mod button
-	if (display->haveOLED()) {
-		if (on) {
-			display->popupText(popupMsg.c_str());
-		}
-		else {
-			display->cancelPopup();
-		}
+	if (on) {
+		display->popupText(popupMsg.c_str());
 	}
-	// if we have 7SEG, we display a temporary popup whenever mod button is pressed
-	// and when it is released
 	else {
-		display->displayPopup(popupMsg.c_str());
+		display->cancelPopup();
 	}
 }
 bool ModControllableAudio::enableGrain() {

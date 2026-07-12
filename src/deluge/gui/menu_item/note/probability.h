@@ -78,15 +78,6 @@ public:
 		                              kTextSpacingY, slot.width);
 	}
 
-	void drawValue() override {
-		char buffer[20];
-		bool latching = false;
-
-		intToString(getProbabilityValue(latching), buffer);
-
-		display->setText(buffer, true, latching ? 3 : 255);
-	}
-
 	void getNotificationValue(etl::istring& valueBuf) override {
 		bool latching = false;
 		deluge::string::appendInt(valueBuf, getProbabilityValue(latching));

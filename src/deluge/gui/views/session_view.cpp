@@ -182,12 +182,7 @@ void SessionView::focusRegained() {
 		view.setActiveModControllableTimelineCounter(currentSong);
 	}
 
-	if (display->haveOLED()) {
-		setCentralLEDStates();
-	}
-	else {
-		redrawNumericDisplay();
-	}
+	setCentralLEDStates();
 
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
 
@@ -453,7 +448,6 @@ moveAfterClipInstance:
 			bool available = context_menu::cancelStemExport.setupAndCheckAvailability();
 
 			if (available) {
-				display->setNextTransitionDirection(1);
 				openUI(&context_menu::cancelStemExport);
 			}
 		}
@@ -548,17 +542,11 @@ moveAfterClipInstance:
 						session.cancelAllArming();
 						session.cancelAllLaunchScheduling();
 						session.lastSectionArmed = 255;
-						if (display->haveOLED()) {
-							renderUIsForOled();
-						}
-						else {
-							redrawNumericDisplay();
-						}
+						renderUIsForOled();
 						requestRendering(this, 0, 0xFFFFFFFF);
 					}
 				}
 				// open Song FX menu
-				display->setNextTransitionDirection(1);
 				soundEditor.setup();
 				openUI(&soundEditor);
 			}
@@ -674,7 +662,7 @@ doActualSimpleChange:
 	else if (b == Y_ENC) {
 		if (on && !Buttons::isShiftButtonPressed()) {
 			UI* currentUI = getCurrentUI();
-			bool isOLEDSessionView = display->haveOLED() && (currentUI == &sessionView || currentUI == &arrangerView);
+			bool isOLEDSessionView = (currentUI == &sessionView || currentUI == &arrangerView);
 			// only display pop-up if we're using 7SEG or we're not currently in Song / Arranger View
 			if (!isOLEDSessionView) {
 				currentSong->displayCurrentRootNoteAndScaleName();
@@ -1095,12 +1083,7 @@ void SessionView::clipPressEnded() {
 
 	if (isUIModeActive(UI_MODE_HOLDING_SECTION_PAD)) {
 		exitUIMode(UI_MODE_HOLDING_SECTION_PAD);
-		if (display->haveOLED()) {
-			deluge::hid::display::OLED::removePopup();
-		}
-		else {
-			redrawNumericDisplay();
-		}
+		deluge::hid::display::OLED::removePopup();
 	}
 
 	if (currentUIMode == UI_MODE_EXPLODE_ANIMATION) {
@@ -1118,15 +1101,10 @@ void SessionView::clipPressEnded() {
 
 	currentUIMode = UI_MODE_NONE;
 	view.setActiveModControllableTimelineCounter(currentSong);
-	if (display->haveOLED()) {
-		renderUIsForOled();
-		// check UI in case this code is called from performance view
-		if (getCurrentUI() == &sessionView) {
-			setCentralLEDStates();
-		}
-	}
-	else {
-		redrawNumericDisplay();
+	renderUIsForOled();
+	// check UI in case this code is called from performance view
+	if (getCurrentUI() == &sessionView) {
+		setCentralLEDStates();
 	}
 }
 
@@ -1202,12 +1180,7 @@ void SessionView::sectionPadAction(uint8_t y, bool on) {
 				session.armSection(sectionPressed, kInternalButtonPressLatency);
 			}
 			exitUIMode(UI_MODE_HOLDING_SECTION_PAD);
-			if (display->haveOLED()) {
-				deluge::hid::display::OLED::removePopup();
-			}
-			else {
-				redrawNumericDisplay();
-			}
+			deluge::hid::display::OLED::removePopup();
 			uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 		}
 
@@ -1249,7 +1222,7 @@ ActionResult SessionView::timerCallback() {
 void SessionView::drawSectionRepeatNumber() {
 	int32_t number = currentSong->sections[sectionPressed].numRepetitions;
 	char const* outputText;
-	if (display->haveOLED()) {
+	{
 		char buffer[21];
 		if (number == -2) {
 			outputText = "Launch \nexclusively"; // Need line break to match format of next label.
@@ -1274,20 +1247,6 @@ void SessionView::drawSectionRepeatNumber() {
 		else {
 			display->popupTextTemporary(outputText);
 		}
-	}
-	else {
-		char buffer[5];
-		if (number == -1) {
-			outputText = "SHAR";
-		}
-		else if (number == 0) {
-			outputText = "INFI";
-		}
-		else {
-			intToString(number, buffer);
-			outputText = buffer;
-		}
-		display->setText(outputText, true, 255, true);
 	}
 }
 
@@ -1395,12 +1354,7 @@ void SessionView::editNumRepeatsTilLaunch(int32_t offset) {
 		session.numRepeatsTilLaunch = 9999;
 	}
 	else {
-		if (display->haveOLED()) {
-			renderUIsForOled();
-		}
-		else {
-			redrawNumericDisplay();
-		}
+		renderUIsForOled();
 	}
 }
 
@@ -1617,12 +1571,7 @@ Error setPresetOrNextUnlaunchedOne(InstrumentClip* clip, OutputType outputType, 
 		currentSong->removeInstrumentFromHibernationList(newInstrument);
 	}
 
-	if (display->haveOLED()) {
-		deluge::hid::display::OLED::displayWorkingAnimation("Loading");
-	}
-	else {
-		display->displayLoadingAnimation();
-	}
+	deluge::hid::display::OLED::displayWorkingAnimation("Loading");
 
 	newInstrument->loadAllAudioFiles(true);
 
@@ -1909,7 +1858,7 @@ extern char loopsRemainingText[];
 
 void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	if (stemExport.processStarted) {
-		stemExport.displayStemExportProgressOLED(StemExportType::CLIP);
+		stemExport.displayStemExportProgress(StemExportType::CLIP);
 		return;
 	}
 
@@ -1938,104 +1887,6 @@ void SessionView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 			}
 		}
 	}
-}
-
-void SessionView::redrawNumericDisplay() {
-	if ((currentUIMode == UI_MODE_CLIP_PRESSED_IN_SONG_VIEW || stemExport.processStarted)) {
-		return;
-	}
-
-	UI* currentUI = getCurrentUI();
-
-	bool isPerformanceView = (currentUI == &performanceView);
-
-	bool isSessionView =
-	    ((currentUI == &sessionView) || (isPerformanceView && currentSong->lastClipInstanceEnteredStartPos == -1));
-
-	bool isArrangerView =
-	    ((currentUI == &arrangerView) || (isPerformanceView && currentSong->lastClipInstanceEnteredStartPos != -1));
-
-	// If playback on...
-	if (playbackHandler.isEitherClockActive()) {
-
-		// Session playback
-		if (currentPlaybackMode == &session) {
-			if (!session.launchEventAtSwungTickCount) {
-				goto nothingToDisplay;
-			}
-
-			if (loadSongUI.isLoadingSong()) {
-				if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {
-					displayRepeatsTilLaunch();
-				}
-			}
-
-			else if (isArrangerView) {
-				if (currentUIMode == UI_MODE_NONE || currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW
-				    || currentUIMode == UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON) {
-					if (session.switchToArrangementAtLaunchEvent) {
-						displayRepeatsTilLaunch();
-					}
-					else {
-						clearNumericDisplay();
-					}
-				}
-			}
-
-			else if (isSessionView) {
-				if (currentUIMode != UI_MODE_HOLDING_SECTION_PAD) {
-					displayRepeatsTilLaunch();
-				}
-			}
-		}
-
-		else { // Arrangement playback
-			if (isArrangerView) {
-
-				if (currentUIMode != UI_MODE_HOLDING_SECTION_PAD && currentUIMode != UI_MODE_HOLDING_ARRANGEMENT_ROW) {
-					if (playbackHandler.stopOutputRecordingAtLoopEnd) {
-						display->setText("1", true, 255, true, NULL, false, true);
-					}
-					else {
-						clearNumericDisplay();
-					}
-				}
-			}
-			else if (isSessionView) {
-				clearNumericDisplay();
-			}
-		}
-	}
-
-	// Or if no playback active...
-	else {
-nothingToDisplay:
-		if ((isSessionView || isArrangerView)) {
-			if (currentUIMode != UI_MODE_HOLDING_SECTION_PAD) {
-				clearNumericDisplay();
-			}
-		}
-	}
-
-	// don't override LED states set by performance view
-	if (!isPerformanceView) {
-		setCentralLEDStates();
-	}
-}
-
-void SessionView::clearNumericDisplay() {
-	if (getCurrentUI() == &performanceView) {
-		performanceView.renderViewDisplay();
-	}
-	else {
-		display->setText("");
-	}
-}
-
-void SessionView::displayRepeatsTilLaunch() {
-	char buffer[5];
-	intToString(session.numRepeatsTilLaunch, buffer);
-	display->setText(buffer, true, 255, true, NULL, false, true);
 }
 
 /// render session view display on opening
@@ -2118,8 +1969,6 @@ void SessionView::displayCurrentRootNoteAndScaleName(deluge::hid::display::oled_
 	canvas.drawString(rootNoteAndScaleName.c_str(), 0, yPos, kTextSpacingX, kTextSpacingY);
 }
 
-// This gets called by redrawNumericDisplay() - or, if OLED, it gets called instead, because this still needs to
-// happen.
 void SessionView::setCentralLEDStates() {
 	indicator_leds::setLedState(IndicatorLED::SYNTH, false);
 	indicator_leds::setLedState(IndicatorLED::KIT, false);
@@ -2197,9 +2046,7 @@ void SessionView::graphicsRoutine() {
 		PadLEDs::sendOutSidebarColours();
 	}
 
-	if (display->haveOLED()) {
-		displayPotentialTempoChange(this);
-	}
+	displayPotentialTempoChange(this);
 
 	bool reallyNoTickSquare = (!playbackHandler.isEitherClockActive() || currentUIMode == UI_MODE_EXPLODE_ANIMATION
 	                           || currentUIMode == UI_MODE_IMPLODE_ANIMATION || !session.launchEventAtSwungTickCount);
@@ -2394,19 +2241,15 @@ int32_t SessionView::displayLoopsRemainingPopup(bool ephemeral) {
 			etl::string<40> popupMsg;
 			if (sixteenthNotesRemaining > 16) {
 				int32_t barsRemaining = ((sixteenthNotesRemaining - 1) / 16) + 1;
-				if (display->haveOLED()) {
-					popupMsg.append("Bars Remaining: ");
-				}
+				popupMsg.append("Bars Remaining: ");
 				deluge::string::appendInt(popupMsg, barsRemaining);
 			}
 			else {
 				int32_t quarterNotesRemaining = ((sixteenthNotesRemaining - 1) / 4) + 1;
-				if (display->haveOLED()) {
-					popupMsg.append("Beats Remaining: ");
-				}
+				popupMsg.append("Beats Remaining: ");
 				deluge::string::appendInt(popupMsg, quarterNotesRemaining);
 			}
-			if (display->haveOLED() && !ephemeral) {
+			if (!ephemeral) {
 				deluge::hid::display::OLED::clearMainImage();
 				deluge::hid::display::OLED::drawPermanentPopupLookingText(popupMsg.c_str());
 				deluge::hid::display::OLED::sendMainImage();
@@ -3876,9 +3719,7 @@ void SessionView::gridNewTrackClipAndEnter(uint32_t packedXY) {
 		transitionToViewForClip(clip);
 		return;
 	}
-	if (display->haveOLED()) {
-		deluge::hid::display::OLED::removePopup();
-	}
+	deluge::hid::display::OLED::removePopup();
 	view.displayOutputName(clip->output, true, clip);
 	gridSelectClipForPulsing(*clip);
 	currentSong->setCurrentClip(clip);
@@ -4049,12 +3890,7 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 		else {
 			if (isUIModeActive(UI_MODE_HOLDING_SECTION_PAD)) {
 				exitUIMode(UI_MODE_HOLDING_SECTION_PAD);
-				if (display->haveOLED()) {
-					deluge::hid::display::OLED::removePopup();
-				}
-				else {
-					redrawNumericDisplay();
-				}
+				deluge::hid::display::OLED::removePopup();
 			}
 		}
 
@@ -4112,11 +3948,9 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 			if (clip == nullptr) {
 				return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 			}
-			if (display->haveOLED()) {
-				// removes potential stuck pop-up if you're previewing / entering a clip
-				// while holding section pad and repeats popup is displayed
-				deluge::hid::display::OLED::removePopup();
-			}
+			// removes potential stuck pop-up if you're previewing / entering a clip
+			// while holding section pad and repeats popup is displayed
+			deluge::hid::display::OLED::removePopup();
 			view.displayOutputName(clip->output, true, clip);
 
 			// we've either created or selected a clip, so set it to be current
@@ -4251,12 +4085,7 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 					session.armSection(sectionPressed, kInternalButtonPressLatency);
 				}
 				exitUIMode(UI_MODE_HOLDING_SECTION_PAD);
-				if (display->haveOLED()) {
-					deluge::hid::display::OLED::removePopup();
-				}
-				else {
-					redrawNumericDisplay();
-				}
+				deluge::hid::display::OLED::removePopup();
 				uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 			}
 		}
@@ -4515,13 +4344,7 @@ ActionResult SessionView::gridHandlePadsMacros(int32_t x, int32_t y, int32_t on,
 			macro.kind = (SessionMacroKind)kindIndex;
 		}
 
-		if (display->haveOLED()) {
-			renderUIsForOled();
-		}
-		else {
-			const char* macroKind = getMacroKindString(macro.kind);
-			display->displayPopup(macroKind);
-		}
+		renderUIsForOled();
 
 		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 	}

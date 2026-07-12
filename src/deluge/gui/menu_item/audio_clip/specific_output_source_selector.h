@@ -36,12 +36,7 @@ public:
 			outputIndex = 0;
 		}
 		numOutputs = currentSong->getNumOutputs();
-		if (display->haveOLED()) {
-			renderUIsForOled();
-		}
-		else {
-			drawFor7seg(); // Probably not necessary either...
-		}
+		renderUIsForOled();
 	}
 
 	void selectEncoderAction(int32_t offset) override {
@@ -49,12 +44,7 @@ public:
 		outputIndex = std::clamp<int32_t>(outputIndex, 0, numOutputs - 1);
 		auto newRecordingFrom = currentSong->getOutputFromIndex(outputIndex);
 		audioOutputBeingEdited->setOutputRecordingFrom(newRecordingFrom);
-		if (display->haveOLED()) {
-			renderUIsForOled();
-		}
-		else {
-			drawFor7seg(); // Probably not necessary either...
-		}
+		renderUIsForOled();
 	}
 	void drawPixelsForOled() override {
 		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
@@ -93,11 +83,6 @@ public:
 			                                              yPos + kTextTitleSizeY, kTextTitleSpacingX, kTextTitleSizeY,
 			                                              false);
 		}
-	}
-
-	void drawFor7seg() {
-		char const* text = audioOutputBeingEdited->getOutputRecordingFrom()->name.c_str();
-		display->setScrollingText(text, 0);
 	}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {

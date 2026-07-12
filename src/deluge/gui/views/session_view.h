@@ -102,11 +102,6 @@ public:
 
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 
-	// 7SEG only
-	void redrawNumericDisplay();
-	void clearNumericDisplay();
-	void displayRepeatsTilLaunch();
-
 	uint32_t selectedClipTimePressed{};
 	uint8_t selectedClipYDisplay{};      // Where the clip is on screen
 	uint8_t selectedClipPressYDisplay{}; // Where the user's finger actually is on screen

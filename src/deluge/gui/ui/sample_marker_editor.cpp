@@ -128,10 +128,6 @@ bool SampleMarkerEditor::opened() {
 
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
 
-	if (display->have7SEG()) {
-		displayText();
-	}
-
 	if (getRootUI() != &instrumentClipView) {
 		renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
 	}
@@ -335,12 +331,7 @@ void SampleMarkerEditor::selectEncoderAction(int8_t offset) {
 	blinkPhase = 0;
 
 	uiNeedsRendering(this, 0xFFFFFFFF, 0);
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		displayText();
-	}
+	renderUIsForOled();
 }
 
 ActionResult SampleMarkerEditor::padAction(int32_t x, int32_t y, int32_t on) {
@@ -635,12 +626,7 @@ doWriteValue:
 
 doRender:
 			uiNeedsRendering(this, 0xFFFFFFFF, 0);
-			if (display->haveOLED()) {
-				renderUIsForOled();
-			}
-			else {
-				displayText();
-			}
+			renderUIsForOled();
 		}
 
 		// Release press
@@ -690,7 +676,6 @@ ActionResult SampleMarkerEditor::buttonAction(deluge::hid::Button b, bool on, bo
 }
 
 ActionResult SampleMarkerEditor::exitUI() {
-	display->setNextTransitionDirection(-1);
 	close();
 	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
@@ -1276,8 +1261,6 @@ void SampleMarkerEditor::displayText() {
 
 	char buffer[5];
 	intToString(number, buffer, numDecimals + 1);
-
-	display->setText(buffer, true, drawDot);
 }
 
 void SampleMarkerEditor::renderColumn(int32_t col, RGB image[kDisplayHeight][kDisplayWidth + kSideBarWidth],

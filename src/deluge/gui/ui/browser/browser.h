@@ -35,7 +35,6 @@ FRESULT f_readdir_get_filepointer(DIR* dp,      /* Pointer to the open directory
 
 class Instrument;
 class FileItem;
-class NumericLayerScrollingText;
 class Song;
 
 // FIXME: std::expected<std::pair<bool, FileItem*>, Error>
@@ -152,8 +151,7 @@ protected:
 	int32_t fileIconPt2Width;
 
 	// 7Seg Only
-	static int8_t numberEditPos; // -1 is default
-	static NumericLayerScrollingText* scrollingText;
+	static int8_t numberEditPos;   // -1 is default
 	bool shouldWrapFolderContents; // As in, wrap around at the end.
 
 	bool mayDefaultToBrandNewNameOnEntry;

@@ -36,12 +36,7 @@ public:
 		midiEngine.midiFollowKitRootNote = noteCode;
 
 		if (soundEditor.getCurrentMenuItem() == this) {
-			if (display->haveOLED()) {
-				renderUIsForOled();
-			}
-			else {
-				drawValue();
-			}
+			renderUIsForOled();
 		}
 		else {
 			display->displayPopup(l10n::get(l10n::String::STRING_FOR_LEARNED));

@@ -154,32 +154,30 @@ Error LoadInstrumentPresetUI::setupForOutputType() {
 	fileIconPt2 = nullptr;
 	fileIconPt2Width = 0;
 
-	if (display->haveOLED()) {
-		if (loadingSynthToKitRow) {
-			title = "Synth to row";
+	if (loadingSynthToKitRow) {
+		title = "Synth to row";
+		fileIcon = deluge::hid::display::OLED::synthIcon;
+	}
+	else {
+		switch (outputTypeToLoad) {
+		case OutputType::SYNTH:
+			title = "Load synth";
 			fileIcon = deluge::hid::display::OLED::synthIcon;
-		}
-		else {
-			switch (outputTypeToLoad) {
-			case OutputType::SYNTH:
-				title = "Load synth";
-				fileIcon = deluge::hid::display::OLED::synthIcon;
-				break;
-			case OutputType::KIT:
-				title = "Load kit";
-				fileIcon = deluge::hid::display::OLED::kitIcon;
-				break;
-			case OutputType::MIDI_OUT:
-				title = "Load midi preset";
-				fileIcon = deluge::hid::display::OLED::midiIcon;
-				fileIconPt2 = deluge::hid::display::OLED::midiIconPt2;
-				fileIconPt2Width = 1;
-				break;
-			// explicit fallthrough cases
-			case OutputType::AUDIO:
-			case OutputType::CV:
-			case OutputType::NONE:;
-			}
+			break;
+		case OutputType::KIT:
+			title = "Load kit";
+			fileIcon = deluge::hid::display::OLED::kitIcon;
+			break;
+		case OutputType::MIDI_OUT:
+			title = "Load midi preset";
+			fileIcon = deluge::hid::display::OLED::midiIcon;
+			fileIconPt2 = deluge::hid::display::OLED::midiIconPt2;
+			fileIconPt2Width = 1;
+			break;
+		// explicit fallthrough cases
+		case OutputType::AUDIO:
+		case OutputType::CV:
+		case OutputType::NONE:;
 		}
 	}
 
@@ -269,9 +267,6 @@ useDefaultFolder:
 		renderingNeededRegardlessOfUI(0, 0xFFFFFFFF);
 	}
 
-	if (display->have7SEG()) {
-		displayText(false);
-	}
 	return Error::NONE;
 }
 
@@ -418,7 +413,6 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 		bool available = gui::context_menu::loadInstrumentPreset.setupAndCheckAvailability();
 
 		if (available) {
-			display->setNextTransitionDirection(1);
 			openUI(&gui::context_menu::loadInstrumentPreset);
 		}
 		else {
@@ -472,12 +466,7 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 			// confirmation
 			if (!getRootUI()->toClipMinder()) {
 				char const* message;
-				if (display->haveOLED()) {
-					message = "Instrument switched to CV channel";
-				}
-				else {
-					message = "DONE";
-				}
+				message = "Instrument switched to CV channel";
 				display->displayPopup(message);
 			}
 
@@ -496,9 +485,7 @@ void LoadInstrumentPresetUI::changeOutputType(OutputType newOutputType) {
 			return;
 		}
 
-		if (display->haveOLED()) {
-			renderUIsForOled();
-		}
+		renderUIsForOled();
 		performLoad();
 	}
 }
@@ -676,105 +663,7 @@ bool LoadInstrumentPresetUI::findUnusedSlotVariation(std::string* oldName, std::
 	char const* oldNameChars = oldName->c_str();
 	int32_t oldNameLength = strlen(oldNameChars);
 
-	if (display->have7SEG()) {
-		int32_t subSlot = -1;
-		// For numbered slots
-		if (oldNameLength == 3) {
-doSlotNumber:
-			char buffer[5];
-			buffer[0] = oldNameChars[0];
-			buffer[1] = oldNameChars[1];
-			buffer[2] = oldNameChars[2];
-			buffer[3] = 0;
-			buffer[4] = 0;
-			int32_t slotNumber = stringToUIntOrError(buffer);
-			if (slotNumber < 0) {
-				goto nonNumeric;
-			}
-
-			while (true) {
-				// Try next subSlot up
-				subSlot++;
-
-				// If reached end of alphabet/subslots, try next number up.
-				if (subSlot >= 26) {
-					goto tryWholeNewSlotNumbers;
-				}
-
-				buffer[3] = 'A' + subSlot;
-
-				int32_t i = searchFileItems(buffer);
-				if (i >= static_cast<int32_t>(fileItems.size())) {
-					break;
-				}
-
-				FileItem* fileItem = &fileItems[i];
-				char const* fileItemNameChars = fileItem->filename.c_str();
-				if (!memcasecmp(buffer, fileItemNameChars, 4)) {
-					if (fileItemNameChars[4] == 0) {
-						continue;
-					}
-					if (fileItemNameChars[4] == '.' && fileItem->filenameIncludesExtension) {
-						continue;
-					}
-				}
-				break;
-			}
-
-			if (false) {
-tryWholeNewSlotNumbers:
-				while (true) {
-					slotNumber++;
-					if (slotNumber >= kNumSongSlots) {
-						(*newName) = *oldName;
-						return false;
-					}
-					intToString(slotNumber, buffer, 3);
-
-					int32_t i = searchFileItems(buffer);
-					if (i >= static_cast<int32_t>(fileItems.size())) {
-						break;
-					}
-
-					FileItem* fileItem = &fileItems[i];
-					char const* fileItemNameChars = fileItem->filename.c_str();
-					if (!memcasecmp(buffer, fileItemNameChars, 4)) {
-						if (fileItemNameChars[4] == 0) {
-							continue;
-						}
-						if (fileItemNameChars[4] == '.' && fileItem->filenameIncludesExtension) {
-							continue;
-						}
-					}
-					break;
-				}
-			}
-
-			(*newName) = buffer;
-		}
-		else if (oldNameLength == 4) {
-			char subSlotChar = oldNameChars[3];
-			if (subSlotChar >= 'a' && subSlotChar <= 'z') {
-				subSlot = subSlotChar - 'a';
-			}
-			else if (subSlotChar >= 'A' && subSlotChar <= 'Z') {
-				subSlot = subSlotChar - 'A';
-			}
-			else {
-				goto nonNumeric;
-			}
-
-			goto doSlotNumber;
-		}
-
-		// Or, for named slots
-		else {
-			goto nonNumeric;
-		}
-	}
-
 	{
-nonNumeric:
 		int32_t oldNumber = 1;
 		(*newName) = *oldName;
 
@@ -842,7 +731,7 @@ Error LoadInstrumentPresetUI::performLoad(bool doClone) {
 	if (currentFileItem == nullptr) {
 		// Make it say "NONE" on numeric Deluge, for
 		// consistency with old times.
-		return display->haveOLED() ? Error::FILE_NOT_FOUND : Error::NO_FURTHER_FILES_THIS_DIRECTION;
+		return Error::FILE_NOT_FOUND;
 	}
 
 	if (currentFileItem->isFolder) {
@@ -1036,7 +925,7 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 	Kit* kitToLoadFor = static_cast<Kit*>(instrumentToReplace);
 	if (!currentFileItem) {
 		// Make it say "NONE" on numeric Deluge, for consistency with old times.
-		return display->haveOLED() ? Error::FILE_NOT_FOUND : Error::NO_FURTHER_FILES_THIS_DIRECTION;
+		return Error::FILE_NOT_FOUND;
 	}
 
 	if (currentFileItem->isFolder) {
@@ -1544,9 +1433,7 @@ doneMoving:
 		view.drawOutputNameFromDetails(outputType, 0, 0, newName.c_str(), newName.empty(), false, doBlink);
 	}
 
-	if (display->haveOLED()) {
-		deluge::hid::display::OLED::sendMainImage(); // Sorta cheating - bypassing the UI layered renderer.
-	}
+	deluge::hid::display::OLED::sendMainImage(); // Sorta cheating - bypassing the UI layered renderer.
 
 	if (encoders::select.pending()) {
 		D_PRINTLN("go again 1 --------------------------");

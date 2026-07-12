@@ -41,14 +41,8 @@ char const* ClearSong::getTitle() {
 
 std::span<char const*> ClearSong::getOptions() {
 	using enum l10n::String;
-	if (display->haveOLED()) {
-		static char const* options[] = {l10n::get(STRING_FOR_OK)};
-		return {options, 1};
-	}
-	else {
-		static char const* options[] = {l10n::get(STRING_FOR_NEW)};
-		return {options, 1};
-	}
+	static char const* options[] = {l10n::get(STRING_FOR_OK)};
+	return {options, 1};
 }
 
 void ClearSong::focusRegained() {

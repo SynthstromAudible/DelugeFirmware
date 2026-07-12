@@ -45,14 +45,8 @@ char const* ConfigureSongMacros::getTitle() {
 std::span<char const*> ConfigureSongMacros::getOptions() {
 	using enum l10n::String;
 
-	if (display->haveOLED()) {
-		static char const* options[] = {l10n::get(STRING_FOR_CONFIGURE_SONG_MACROS_EXIT)};
-		return {options, 1};
-	}
-	else {
-		static char const* options[] = {l10n::get(STRING_FOR_CONFIGURE_SONG_MACROS_EXIT)};
-		return {options, 1};
-	}
+	static char const* options[] = {l10n::get(STRING_FOR_CONFIGURE_SONG_MACROS_EXIT)};
+	return {options, 1};
 }
 
 bool ConfigureSongMacros::setupAndCheckAvailability() {

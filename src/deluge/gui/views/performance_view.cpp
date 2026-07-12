@@ -289,10 +289,6 @@ void PerformanceView::focusRegained() {
 
 	updateLayoutChangeStatus();
 
-	if (display->have7SEG()) {
-		redrawNumericDisplay();
-	}
-
 	uiNeedsRendering(this);
 }
 
@@ -469,7 +465,7 @@ void PerformanceView::renderViewDisplay() {
 	}
 
 	if (defaultEditingMode) {
-		if (display->haveOLED()) {
+		{
 			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 			deluge::hid::display::OLED::clearMainImage();
 
@@ -505,19 +501,9 @@ void PerformanceView::renderViewDisplay() {
 
 			deluge::hid::display::OLED::markChanged();
 		}
-		else {
-			char const* editingModeType;
-			if (editingParam) {
-				editingModeType = l10n::get(l10n::String::STRING_FOR_PERFORM_EDIT_PARAM);
-			}
-			else {
-				editingModeType = l10n::get(l10n::String::STRING_FOR_PERFORM_EDIT_VALUE);
-			}
-			display->setScrollingText(editingModeType);
-		}
 	}
 	else {
-		if (display->haveOLED()) {
+		{
 			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 			deluge::hid::display::OLED::clearMainImage();
 
@@ -534,9 +520,6 @@ void PerformanceView::renderViewDisplay() {
 			                        kTextSpacingY);
 
 			deluge::hid::display::OLED::markChanged();
-		}
-		else {
-			display->setScrollingText(l10n::get(l10n::String::STRING_FOR_PERFORM_VIEW));
 		}
 	}
 	onFXDisplay = false;
@@ -556,7 +539,7 @@ void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, i
 		        getParamDisplayName(paramKind, paramID,
 		                            (ModControllableAudio*)view.activeModControllableModelStack.modControllable),
 		        29);
-		if (display->haveOLED()) {
+		{
 			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 			deluge::hid::display::OLED::clearMainImage();
 
@@ -571,12 +554,9 @@ void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, i
 
 			deluge::hid::display::OLED::markChanged();
 		}
-		else {
-			display->setScrollingText(parameterName);
-		}
 	}
 	else {
-		if (display->haveOLED()) {
+		{
 			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 			deluge::hid::display::OLED::clearMainImage();
 
@@ -625,34 +605,6 @@ void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, i
 
 			deluge::hid::display::OLED::markChanged();
 		}
-		// 7Seg Display
-		else {
-			if (params::isParamQuantizedStutter(
-			        paramKind, paramID, (ModControllableAudio*)view.activeModControllableModelStack.modControllable)) {
-				char const* buffer;
-				if (knobPos < -39) { // 4ths stutter: no leds turned on
-					buffer = "4ths";
-				}
-				else if (knobPos < -14) { // 8ths stutter: 1 led turned on
-					buffer = "8ths";
-				}
-				else if (knobPos < 14) { // 16ths stutter: 2 leds turned on
-					buffer = "16th";
-				}
-				else if (knobPos < 39) { // 32nds stutter: 3 leds turned on
-					buffer = "32nd";
-				}
-				else { // 64ths stutter: all 4 leds turned on
-					buffer = "64th";
-				}
-				display->setText(buffer, true);
-			}
-			else {
-				char buffer[5];
-				intToString(knobPos, buffer);
-				display->setText(buffer, true);
-			}
-		}
 	}
 
 	onFXDisplay = true;
@@ -683,10 +635,6 @@ bool PerformanceView::possiblyRefreshPerformanceViewDisplay(params::Kind kind, i
 void PerformanceView::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	renderViewDisplay();
 	sessionView.renderOLED(canvas);
-}
-
-void PerformanceView::redrawNumericDisplay() {
-	sessionView.redrawNumericDisplay();
 }
 
 void PerformanceView::setLedStates() {
@@ -840,7 +788,6 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 			defaultEditingMode = false;
 			editingParam = false;
 			indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
-			display->setNextTransitionDirection(-1);
 			close();
 		}
 	}
@@ -878,7 +825,6 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 			}
 
 			if (!defaultEditingMode) {
-				display->setNextTransitionDirection(1);
 				if (soundEditor.setup(nullptr, &soundEditorRootMenuPerformanceView)) {
 					openUI(&soundEditor);
 				}
@@ -909,7 +855,6 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 					editingParam = false;
 					indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
 
-					display->setNextTransitionDirection(-1);
 					close();
 				}
 				else {
@@ -924,7 +869,6 @@ ActionResult PerformanceView::buttonAction(deluge::hid::Button b, bool on, bool 
 						resetPerformanceView(modelStack);
 					}
 					if (!inEditingMode) {
-						display->setNextTransitionDirection(1);
 						openUI(&performanceView);
 					}
 					else {

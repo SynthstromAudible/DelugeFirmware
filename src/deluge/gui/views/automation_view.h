@@ -219,13 +219,8 @@ private:
 	                              OutputType outputType, RGB image[][kDisplayWidth + kSideBarWidth],
 	                              uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay,
 	                              bool isMIDICVDrum);
-	void renderDisplayOLED(Clip* clip, Output* output, OutputType outputType, int32_t knobPosLeft = kNoSelection,
-	                       int32_t knobPosRight = kNoSelection);
-	void renderAutomationOverviewDisplayOLED(deluge::hid::display::oled_canvas::Canvas& canvas, Output* output,
-	                                         OutputType outputType);
-	void renderDisplay7SEG(Clip* clip, Output* output, OutputType outputType, int32_t knobPosLeft = kNoSelection,
-	                       bool modEncoderAction = false);
-	void renderAutomationOverviewDisplay7SEG(Output* output, OutputType outputType);
+	void renderAutomationOverviewDisplay(deluge::hid::display::oled_canvas::Canvas& canvas, Output* output,
+	                                     OutputType outputType);
 
 	// Horizontal Encoder Action
 	void shiftAutomationHorizontally(ModelStackWithAutoParam* modelStackWithParam, int32_t offset,

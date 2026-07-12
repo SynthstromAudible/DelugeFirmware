@@ -41,7 +41,6 @@ void MenuItem::renderOLED() {
 }
 
 void MenuItem::drawName() {
-	display->setText(getName(), false, shouldDrawDotOnName());
 }
 
 // A couple of our child classes call this - that's all

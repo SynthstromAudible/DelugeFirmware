@@ -102,16 +102,11 @@ Error GateDrum::readFromFile(Deserializer& reader, Song* song, Clip* clip, int32
 
 std::string GateDrum::getDrumName() {
 	std::string buffer;
-	if (display->haveOLED()) {
-		if (!drumName.empty()) {
-			buffer.append(drumName);
-			buffer.append("\n");
-		}
-		buffer.append("GATE ");
+	if (!drumName.empty()) {
+		buffer.append(drumName);
+		buffer.append("\n");
 	}
-	else {
-		buffer = "GAT";
-	}
+	buffer.append("GATE ");
 
 	buffer.append(deluge::string::fromInt(channel + 1));
 

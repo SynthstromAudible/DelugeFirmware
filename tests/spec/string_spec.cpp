@@ -45,16 +45,16 @@ describe string("deluge::string", ${
 		});
 
 		it("appends the octave number", _ {
-			expect(string::fromNoteCode(63, nullptr, true)).to_equal("D.3"s);
+			expect(string::fromNoteCode(63, nullptr, true)).to_equal("D#3"s);
 		});
 
 		it("does not append the octave number", _ {
 			expect(string::fromNoteCode(60, nullptr, false)).to_equal("C"s);
 		});
 
-		it("returns the length without the dot", _ {
+		it("returns the length without the accidental", _ {
 			size_t length;
-			expect(string::fromNoteCode(63, &length)).to_equal("D.3"s);
+			expect(string::fromNoteCode(63, &length)).to_equal("D#3"s);
 			expect(length).to_equal(2);
 		});
 	});

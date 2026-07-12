@@ -60,19 +60,17 @@ public:
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return !soundEditor.editingGateDrumRow() && !soundEditor.editingKitAffectEntire();
 	}
-	void getColumnLabel(etl::istring& label) override {
-		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
-	}
+	void getColumnLabel(etl::istring& label) override { label.append(deluge::l10n::get(this->name)); }
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		using enum l10n::String;
 		if (optType == OptType::SHORT) {
 			return {
-			    l10n::getView(l10n::built_in::seven_segment, STRING_FOR_UP),        //<
-			    l10n::getView(l10n::built_in::seven_segment, STRING_FOR_DOWN),      //<
-			    l10n::getView(l10n::built_in::seven_segment, STRING_FOR_UP_DOWN),   //<
-			    l10n::getView(l10n::built_in::seven_segment, STRING_FOR_ALTERNATE), //<
-			    l10n::getView(l10n::built_in::seven_segment, STRING_FOR_RANDOM),    //<
+			    l10n::getView(STRING_FOR_UP),        //<
+			    l10n::getView(STRING_FOR_DOWN),      //<
+			    l10n::getView(STRING_FOR_UP_DOWN),   //<
+			    l10n::getView(STRING_FOR_ALTERNATE), //<
+			    l10n::getView(STRING_FOR_RANDOM),    //<
 			};
 		}
 		return {
@@ -88,12 +86,7 @@ public:
 class OctaveModeToNoteMode final : public OctaveMode {
 public:
 	using OctaveMode::OctaveMode;
-	void readCurrentValue() override {
-		if (display->have7SEG()) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_OCTAVE_MODE));
-		}
-		OctaveMode::readCurrentValue();
-	}
+	void readCurrentValue() override { OctaveMode::readCurrentValue(); }
 	MenuItem* selectButtonPress() override { return &arpeggiator::arpNoteModeFromOctaveModeMenu; }
 };
 
@@ -102,12 +95,7 @@ extern OctaveModeToNoteMode arpOctaveModeToNoteModeMenu;
 class OctaveModeToNoteModeForDrums final : public OctaveMode {
 public:
 	using OctaveMode::OctaveMode;
-	void readCurrentValue() override {
-		if (display->have7SEG()) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_OCTAVE_MODE));
-		}
-		OctaveMode::readCurrentValue();
-	}
+	void readCurrentValue() override { OctaveMode::readCurrentValue(); }
 	MenuItem* selectButtonPress() override { return &arpeggiator::arpNoteModeFromOctaveModeMenuForDrums; }
 };
 

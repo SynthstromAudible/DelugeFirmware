@@ -128,10 +128,6 @@ gotError:
 #pragma GCC diagnostic pop
 
 bool SaveMidiDeviceDefinitionUI::performSave(bool mayOverwrite) {
-	if (display->have7SEG()) {
-		display->displayLoadingAnimation();
-	}
-
 	MIDIInstrument* midiInstrumentToSave = (MIDIInstrument*)getCurrentInstrument();
 
 	std::string filePath = getCurrentFilePath();
@@ -150,7 +146,6 @@ fail:
 		bool available = gui::context_menu::overwriteFile.setupAndCheckAvailability();
 
 		if (available) { // Will always be true.
-			display->setNextTransitionDirection(1);
 			openUI(&gui::context_menu::overwriteFile);
 			return true;
 		}
@@ -164,9 +159,7 @@ fail:
 		goto fail;
 	}
 
-	if (display->haveOLED()) {
-		deluge::hid::display::OLED::displayWorkingAnimation("Saving");
-	}
+	deluge::hid::display::OLED::displayWorkingAnimation("Saving");
 
 	Serializer& writer = GetSerializer();
 

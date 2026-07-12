@@ -55,7 +55,6 @@ bool Kit::acceptCurrentOption() {
 	case 0: // Import whole folder
 		return sampleBrowser.importFolderAsKit();
 	default: // Slicer
-		display->setNextTransitionDirection(1);
 		openUI(&slicer);
 		return true;
 	}

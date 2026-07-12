@@ -33,9 +33,7 @@ bool LaunchStyleMenu::setupAndCheckAvailability() {
 	currentUIMode = UI_MODE_NONE;
 	this->currentOption = static_cast<int32_t>(clip->launchStyle);
 
-	if (display->haveOLED()) {
-		scrollPos = this->currentOption;
-	}
+	scrollPos = this->currentOption;
 
 	return true;
 }

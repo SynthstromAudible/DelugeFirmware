@@ -69,18 +69,6 @@ public:
 		}
 	}
 
-	void drawValue() override {
-		int32_t value = this->getValue();
-		if (value == 0) {
-			display->setScrollingText(l10n::get(l10n::String::STRING_FOR_OFF));
-		}
-		else {
-			char name[12];
-			snprintf(name, sizeof(name), "%d", value);
-			display->setScrollingText(name);
-		}
-	}
-
 	void drawInteger(int32_t textWidth, int32_t textHeight, int32_t yPixel) override {
 		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 		int32_t value = this->getValue();

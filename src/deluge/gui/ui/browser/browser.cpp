@@ -64,7 +64,6 @@ char const* Browser::filenameToStartSearchAt;
 
 // 7SEG ONLY
 int8_t Browser::numberEditPos;
-NumericLayerScrollingText* Browser::scrollingText;
 
 char const* allowedFileExtensionsXML[] = {"XML", "Json", NULL};
 
@@ -72,7 +71,6 @@ Browser::Browser() {
 	fileIcon = deluge::hid::display::OLED::songIcon;
 	fileIconPt2 = nullptr;
 	fileIconPt2Width = 0;
-	scrollingText = NULL;
 	shouldWrapFolderContents = true;
 
 	mayDefaultToBrandNewNameOnEntry = false;
@@ -559,9 +557,7 @@ gotErrorAfterAllocating:
 	}
 
 	enteredTextEditPos = 0;
-	if (display->haveOLED()) {
-		scrollPosHorizontal = 0;
-	}
+	scrollPosHorizontal = 0;
 
 	bool foundExact = false;
 	if (static_cast<int32_t>(fileItems.size())) {
@@ -673,9 +669,6 @@ useNonExistentFileName:     // Normally this will get skipped over - if we found
 everythingFinalized:
 	folderContentsReady(direction);
 
-	if (display->have7SEG()) {
-		displayText();
-	}
 	return Error::NONE;
 }
 
@@ -833,10 +826,6 @@ gotErrorAfterAllocating:
 			D_PRINTLN("new file Index is %d", newFileIndex);
 		}
 
-		else if (!shouldWrapFolderContents && display->have7SEG()) {
-			return;
-		}
-
 		else { // Wrap to end
 			scrollPosVertical = 0;
 
@@ -868,10 +857,6 @@ searchFromOneEnd:
 			goto tryReadingItems;
 		}
 
-		else if (!shouldWrapFolderContents && display->have7SEG()) {
-			return;
-		}
-
 		else {
 			scrollPosVertical = 9999;
 
@@ -899,31 +884,7 @@ searchFromOneEnd:
 	}
 
 	enteredTextEditPos = 0;
-	if (display->haveOLED()) {
-		scrollPosHorizontal = 0;
-	}
-	else {
-		char const* oldCharAddress = enteredText.c_str();
-		char const* newCharAddress = getCurrentFileItem()->displayName; // Will have file extension, so beware...
-		while (true) {
-			char oldChar = *oldCharAddress;
-			char newChar = *newCharAddress;
-
-			if (oldChar >= 'A' && oldChar <= 'Z') {
-				oldChar += 32;
-			}
-			if (newChar >= 'A' && newChar <= 'Z') {
-				newChar += 32;
-			}
-
-			if (oldChar != newChar) {
-				break;
-			}
-			oldCharAddress++;
-			newCharAddress++;
-			enteredTextEditPos++;
-		}
-	}
+	scrollPosHorizontal = 0;
 
 	error = setEnteredTextFromCurrentFilename();
 	if (error != Error::NONE) {
@@ -1005,7 +966,7 @@ gotErrorAfterAllocating:
 
 		// Otherwise if we already tried that, then our whole search is fruitless.
 notFound:
-		if (display->haveOLED() && !mayDefaultToBrandNewNameOnEntry) {
+		if (!mayDefaultToBrandNewNameOnEntry) {
 			if (fileIndexSelected >= 0) {
 				setEnteredTextFromCurrentFilename(); // Set it back
 			}
@@ -1046,7 +1007,7 @@ notFound:
 	fileIndexSelected = i;
 
 	// Move scroll only if found item is completely offscreen.
-	if (display->have7SEG() || scrollPosVertical > i || scrollPosVertical < i - (OLED_HEIGHT_CHARS - 1) + 1) {
+	if (scrollPosVertical > i || scrollPosVertical < i - (OLED_HEIGHT_CHARS - 1) + 1) {
 		scrollPosVertical = i;
 	}
 
@@ -1237,52 +1198,7 @@ doReturn:
 }
 
 void Browser::displayText(bool blinkImmediately) {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		if (arrivedAtFileByTyping || qwertyVisible) {
-			if (!arrivedAtFileByTyping) {
-				// This means a key has been hit while browsing
-				// to bring up the keyboard, so set position to -1
-				// this might not be neccesary?
-				numberEditPos = -1;
-			}
-			QwertyUI::displayText(blinkImmediately);
-		}
-		else {
-			if (enteredText.empty() && fileIndexSelected == -1) {
-				display->setText("----");
-			}
-			else {
-
-				// A name is always the full on-card name ("SONG185"). On 7SEG we render the numeric part alone
-				// ("185") so it fits the four-character display.
-				char const* numberPart = nameAfterPrefix(enteredText.c_str());
-				if (numberPart) {
-
-					Slot thisSlot = getSlot(numberPart);
-					if (thisSlot.slot >= 0) {
-						display->setTextAsSlot(thisSlot.slot, thisSlot.subSlot, (fileIndexSelected != -1), true,
-						                       numberEditPos, blinkImmediately);
-						return;
-					}
-				}
-				int16_t scrollStart = enteredTextEditPos;
-				// if the first difference would be visible on
-				// screen anyway, start scroll from the beginning
-				if (enteredTextEditPos < 3) {
-					scrollStart = 0;
-				}
-				else {
-					// provide some context in case the post-fix is long
-					scrollStart = enteredTextEditPos - 2;
-				}
-
-				scrollingText = display->setScrollingText(enteredText.c_str(), scrollStart);
-			}
-		}
-	}
+	renderUIsForOled();
 }
 
 FileItem* Browser::getCurrentFileItem() {
@@ -1445,7 +1361,6 @@ void Browser::goIntoDeleteFileContextMenu() {
 	bool available = context_menu::deleteFile.setupAndCheckAvailability();
 
 	if (available) {
-		display->setNextTransitionDirection(1);
 		openUI(&context_menu::deleteFile);
 	}
 }
@@ -1480,12 +1395,9 @@ Error Browser::goIntoFolder(char const* folderName) {
 	enteredText.clear();
 	enteredTextEditPos = 0;
 
-	display->setNextTransitionDirection(1);
 	error = arrivedInNewFolder(1);
-	if (display->haveOLED()) {
-		if (error == Error::NONE) {
-			renderUIsForOled();
-		}
+	if (error == Error::NONE) {
+		renderUIsForOled();
 	}
 
 	return error;
@@ -1504,12 +1416,9 @@ Error Browser::goUpOneDirectoryLevel() {
 	currentDir.resize(slashPos);
 	enteredTextEditPos = 0;
 
-	display->setNextTransitionDirection(-1);
 	Error error = arrivedInNewFolder(-1, enteredText.c_str());
-	if (display->haveOLED()) {
-		if (error == Error::NONE) {
-			renderUIsForOled();
-		}
+	if (error == Error::NONE) {
+		renderUIsForOled();
 	}
 	return error;
 }

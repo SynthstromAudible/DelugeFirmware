@@ -110,9 +110,7 @@ void changeRootUI(UI* newUI) {
 	PadLEDs::reassessGreyout();
 	newUI->opened(); // These all can't fail, I guess.
 
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
+	renderUIsForOled();
 }
 
 // Only called when setting up blank song, so don't worry about this
@@ -126,9 +124,7 @@ void setRootUILowLevel(UI* newUI) {
 bool changeUISideways(UI* newUI) {
 	newUI = newUI->getUI();
 	bool success = changeUIAtLevel(newUI, numUIsOpen - 1);
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
+	renderUIsForOled();
 	return success;
 }
 
@@ -196,9 +192,7 @@ void closeUI(UI* uiToClose) {
 	uiTimerManager.unsetTimer(TimerName::UI_SPECIFIC);
 	PadLEDs::reassessGreyout();
 	newUI->focusRegained();
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
+	renderUIsForOled();
 
 	bool redrawMainPadsOrig = redrawMainPads;
 	bool redrawSidebarOrig = redrawSidebar;
@@ -241,9 +235,7 @@ bool openUI(UI* newUI) {
 		oldUI->focusRegained(); // Or maybe we should instead let the caller deal with this failure, and call this if
 		                        // they wish?
 	}
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
+	renderUIsForOled();
 	return success;
 }
 

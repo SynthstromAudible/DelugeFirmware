@@ -87,27 +87,19 @@ void UITimerManager::routine() {
 					view.flashPlayRoutine();
 					break;
 				}
-				case TimerName::DISPLAY:
-					if (display->haveOLED()) {
-						auto* oled = static_cast<deluge::hid::display::OLED*>(display);
-						oled->timerRoutine();
-					}
-					else {
-						display->timerRoutine();
-					}
+				case TimerName::DISPLAY: {
+					auto* oled = static_cast<deluge::hid::display::OLED*>(display);
+					oled->timerRoutine();
 
 					break;
+				}
 
-				case TimerName::LOADING_ANIMATION:
-					if (display->haveOLED()) {
-						auto* oled = static_cast<deluge::hid::display::OLED*>(display);
-						oled->timerRoutine();
-					}
-					else {
-						display->timerRoutine();
-					}
+				case TimerName::LOADING_ANIMATION: {
+					auto* oled = static_cast<deluge::hid::display::OLED*>(display);
+					oled->timerRoutine();
 
 					break;
+				}
 
 				case TimerName::LED_BLINK:
 				case TimerName::LED_BLINK_TYPE_1:
@@ -221,22 +213,17 @@ void UITimerManager::routine() {
 					break;
 
 				case TimerName::OLED_LOW_LEVEL:
-					if (deluge::hid::display::have_oled_screen) {
-						deluge_display_timer_event();
-					}
+					deluge_display_timer_event();
 					break;
 
-				case TimerName::OLED_CONSOLE:
-					if (display->haveOLED()) {
-						auto* oled = static_cast<deluge::hid::display::OLED*>(display);
-						oled->consoleTimerEvent();
-					}
+				case TimerName::OLED_CONSOLE: {
+					auto* oled = static_cast<deluge::hid::display::OLED*>(display);
+					oled->consoleTimerEvent();
 					break;
+				}
 
 				case TimerName::OLED_SCROLLING_AND_BLINKING:
-					if (display->haveOLED()) {
-						deluge::hid::display::OLED::scrollingAndBlinkingTimerEvent();
-					}
+					deluge::hid::display::OLED::scrollingAndBlinkingTimerEvent();
 					break;
 
 				case TimerName::SYSEX_DISPLAY:

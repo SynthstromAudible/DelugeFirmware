@@ -4,7 +4,6 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "hid/display/oled.h"
-#include "hid/display/seven_segment.h"
 #include "hid/hid_sysex.h"
 #include "io/debug/log.h"
 #include "io/debug/print.h"

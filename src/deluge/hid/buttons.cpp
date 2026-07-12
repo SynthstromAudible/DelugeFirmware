@@ -110,13 +110,6 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 		if (on) {
 			display->cancelPopup();
 		}
-		if (on && isShiftButtonPressed() && isButtonPressed(LEARN)) {
-			if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EmulatedDisplay)
-			    != RuntimeFeatureStateEmulatedDisplay::Hardware) {
-				deluge::hid::display::swapDisplayType();
-				goto dealtWith;
-			}
-		}
 	}
 	else if (b == BACK) [[unlikely]] {
 		if (on) {
@@ -220,8 +213,7 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 			}
 			else {
 				UI* currentUI = getCurrentUI();
-				bool isOLEDSessionView =
-				    display->haveOLED() && (currentUI == &sessionView || currentUI == &arrangerView);
+				bool isOLEDSessionView = (currentUI == &sessionView || currentUI == &arrangerView);
 				// only display tempo pop-up if we're using 7SEG or we're not currently in Song / Arranger View
 				if (!loadSongUI.isLoadingSong() && !isOLEDSessionView) {
 					playbackHandler.commandDisplayTempo();

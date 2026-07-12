@@ -70,10 +70,8 @@ tryDefaultDir:
 		currentDir = defaultDir;
 	}
 
-	if (display->haveOLED()) {
-		fileIcon = deluge::hid::display::OLED::synthIcon;
-		title = "Save synth preset";
-	}
+	fileIcon = deluge::hid::display::OLED::synthIcon;
+	title = "Save synth preset";
 
 	filePrefix = "SYNT";
 
@@ -91,10 +89,6 @@ gotError:
 }
 
 bool SaveKitRowUI::performSave(bool mayOverwrite) {
-	if (display->have7SEG()) {
-		display->displayLoadingAnimation();
-	}
-
 	// We can't save into this slot if another Instrument in this Song already uses it
 	if (currentSong->getInstrumentFromPresetSlot(outputTypeToLoad, 0, 0, enteredText.c_str(), currentDir.c_str(),
 	                                             false)) {
@@ -123,7 +117,6 @@ fail:
 		bool available = gui::context_menu::overwriteFile.setupAndCheckAvailability();
 
 		if (available) { // Will always be true.
-			display->setNextTransitionDirection(1);
 			openUI(&gui::context_menu::overwriteFile);
 			return true;
 		}
@@ -137,9 +130,7 @@ fail:
 		goto fail;
 	}
 
-	if (display->haveOLED()) {
-		deluge::hid::display::OLED::displayWorkingAnimation("Saving");
-	}
+	deluge::hid::display::OLED::displayWorkingAnimation("Saving");
 
 	soundDrumToSave->writeToFileAsInstrument(false, paramManagerToSave);
 

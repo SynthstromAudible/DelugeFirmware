@@ -52,12 +52,7 @@ void RenameUI::enterKeyPress() {
 }
 
 void RenameUI::displayText(bool blinkImmediately) {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		QwertyUI::displayText(blinkImmediately);
-	}
+	renderUIsForOled();
 }
 
 bool RenameUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
@@ -91,7 +86,6 @@ void RenameUI::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 }
 
 ActionResult RenameUI::exitUI() {
-	display->setNextTransitionDirection(-1);
 	close();
 	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }

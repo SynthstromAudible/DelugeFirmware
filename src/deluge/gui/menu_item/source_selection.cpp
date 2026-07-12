@@ -98,90 +98,13 @@ void SourceSelection::drawPixelsForOled() {
 	int32_t selectedRowOnScreen = 0;
 	for (int32_t i = 0; i < items.size(); i++) {
 		sourceIndex = items[i];
-		names.push_back(getSourceDisplayNameForOLED(sourceMenuContents[sourceIndex]));
+		names.push_back(getSourceDisplayName(sourceMenuContents[sourceIndex]));
 		if (sourceIndex == selected) {
 			selectedRowOnScreen = i;
 		}
 	}
 	// All done.
 	drawItemsForOled(names, selectedRowOnScreen);
-}
-
-// 7SEG only
-void SourceSelection::drawValue() {
-	l10n::String text;
-	using enum l10n::String;
-
-	switch (sourceMenuContents[this->getValue()]) {
-	case PatchSource::LFO_GLOBAL_1:
-		text = STRING_FOR_PATCH_SOURCE_LFO_GLOBAL_1;
-		break;
-
-	case PatchSource::LFO_GLOBAL_2:
-		text = STRING_FOR_PATCH_SOURCE_LFO_GLOBAL_2;
-		break;
-
-	case PatchSource::LFO_LOCAL_1:
-		text = STRING_FOR_PATCH_SOURCE_LFO_LOCAL_1;
-		break;
-
-	case PatchSource::LFO_LOCAL_2:
-		text = STRING_FOR_PATCH_SOURCE_LFO_LOCAL_2;
-		break;
-
-	case PatchSource::ENVELOPE_0:
-		text = STRING_FOR_PATCH_SOURCE_ENVELOPE_0;
-		break;
-
-	case PatchSource::ENVELOPE_1:
-		text = STRING_FOR_PATCH_SOURCE_ENVELOPE_1;
-		break;
-
-	case PatchSource::ENVELOPE_2:
-		text = STRING_FOR_PATCH_SOURCE_ENVELOPE_2;
-		break;
-
-	case PatchSource::ENVELOPE_3:
-		text = STRING_FOR_PATCH_SOURCE_ENVELOPE_3;
-		break;
-
-	case PatchSource::SIDECHAIN:
-		text = STRING_FOR_PATCH_SOURCE_SIDECHAIN;
-		break;
-
-	case PatchSource::VELOCITY:
-		text = STRING_FOR_PATCH_SOURCE_VELOCITY;
-		break;
-
-	case PatchSource::NOTE:
-		text = STRING_FOR_PATCH_SOURCE_NOTE;
-		break;
-
-	case PatchSource::RANDOM:
-		text = STRING_FOR_PATCH_SOURCE_RANDOM;
-		break;
-
-	case PatchSource::AFTERTOUCH:
-		text = STRING_FOR_PATCH_SOURCE_AFTERTOUCH;
-		break;
-
-	case PatchSource::X:
-		text = STRING_FOR_PATCH_SOURCE_X;
-		break;
-
-	case PatchSource::Y:
-		text = STRING_FOR_PATCH_SOURCE_Y;
-		break;
-
-	// explicit fallthrough cases
-	case PatchSource::NOT_AVAILABLE:
-	case PatchSource::SOON:
-	case PatchSource::NONE:;
-	}
-
-	uint8_t drawDot = shouldDrawDotOnValue();
-
-	display->setText(l10n::get(text), false, drawDot);
 }
 
 void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
@@ -218,19 +141,10 @@ void SourceSelection::beginSession(MenuItem* navigatedBackwardFrom) {
 			}
 		}
 	}
-
-	if (display->have7SEG()) {
-		drawValue();
-	}
 }
 
 void SourceSelection::readValueAgain() {
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		drawValue();
-	}
+	renderUIsForOled();
 }
 
 void SourceSelection::selectEncoderAction(int32_t offset) {
@@ -258,12 +172,7 @@ void SourceSelection::selectEncoderAction(int32_t offset) {
 	s = sourceMenuContents[newValue];
 	this->setValue(newValue);
 
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		drawValue();
-	}
+	renderUIsForOled();
 }
 
 bool SourceSelection::sourceIsAllowed(PatchSource source) {

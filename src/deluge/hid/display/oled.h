@@ -42,11 +42,7 @@ struct Icon {
 
 class OLED : public Display {
 public:
-	OLED() : Display(DisplayType::OLED) {
-		if (l10n::chosenLanguage == nullptr || l10n::chosenLanguage == &l10n::built_in::seven_segment) {
-			l10n::chosenLanguage = &l10n::built_in::english;
-		}
-	}
+	OLED() { l10n::chosenLanguage = &l10n::built_in::english; }
 
 	/// Clear the canvas currently being used as the main image.
 	///
@@ -91,8 +87,6 @@ public:
 
 	void consoleTimerEvent();
 	static void scrollingAndBlinkingTimerEvent();
-
-	static void renderEmulated7Seg(const std::array<uint8_t, kNumericDisplayLength>& display);
 
 	static oled_canvas::Canvas main;
 	static oled_canvas::Canvas popup;
@@ -171,7 +165,6 @@ public:
 	}
 
 	void cancelPopup() override { removePopup(); }
-	bool isLayerCurrentlyOnTop(NumericLayer* layer) override { return (!this->hasPopup()); }
 	void displayError(Error error) override;
 
 	// Loading animations

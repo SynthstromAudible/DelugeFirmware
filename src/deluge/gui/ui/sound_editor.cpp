@@ -327,7 +327,6 @@ void SoundEditor::enterSubmenu(MenuItem* newItem, MenuItem* navigatedBackwardFro
 
 	navigationDepth++;
 	menuItemNavigationRecord[navigationDepth] = newItem;
-	display->setNextTransitionDirection(1);
 	beginScreen(navigatedBackwardFrom);
 }
 
@@ -683,8 +682,6 @@ void SoundEditor::goUpOneLevel() {
 	} while (getCurrentMenuItem()->checkPermissionToBeginSession(currentModControllable, currentSourceIndex,
 	                                                             &currentMultiRange)
 	         == MenuPermission::NO);
-	display->setNextTransitionDirection(-1);
-
 	MenuItem* oldItem = menuItemNavigationRecord[navigationDepth + 1];
 	if (oldItem == &menu_item::multiRangeMenu) {
 		oldItem = menu_item::multiRangeMenu.menuItemHeadingTo;
@@ -723,7 +720,6 @@ ActionResult SoundEditor::exitCompletely() {
 	// end current menu item session before exiting
 	endScreen();
 
-	display->setNextTransitionDirection(-1);
 	close();
 	possibleChangeToCurrentRangeDisplay();
 
@@ -923,9 +919,7 @@ bool SoundEditor::beginScreen(MenuItem* oldMenuItem) {
 		return false;
 	}
 
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
+	renderUIsForOled();
 
 	currentItem->updatePadLights();
 
@@ -1249,9 +1243,6 @@ getOut:
 							modulationItemFound = true;
 							navigationDepth = newNavigationDepth + 1;
 							menuItemNavigationRecord[navigationDepth] = newMenuItem;
-							if (!wentBack) {
-								display->setNextTransitionDirection(1);
-							}
 							beginScreen();
 
 							if (getRootUI() == &automationView) {
@@ -1340,7 +1331,7 @@ doSetup:
 					// Special shortcut for Note Row Editor menu: [audition pad] + [sequence direction pad]
 					Clip* currentClip = getCurrentClip();
 					if (currentClip->type == ClipType::INSTRUMENT && item == &sequenceDirectionMenu
-					    && display->haveOLED() && runtimeFeatureSettings.get(HorizontalMenus) == On
+					    && runtimeFeatureSettings.get(HorizontalMenus) == On
 					    && instrumentClipView.getNumNoteRowsAuditioning() == 1) {
 
 						noteRowEditorRootMenu.focusChild(&sequenceDirectionMenu);
@@ -1374,7 +1365,6 @@ void SoundEditor::enterOrUpdateSoundEditor(bool on) {
 	// If not in SoundEditor yet
 	if (getCurrentUI() != &soundEditor) {
 		if (getCurrentUI() == &sampleMarkerEditor) {
-			display->setNextTransitionDirection(0);
 			changeUIAtLevel(&soundEditor, 1);
 			renderingNeededRegardlessOfUI(); // Not sure if this is 100% needed... some of it is.
 		}
@@ -1385,7 +1375,6 @@ void SoundEditor::enterOrUpdateSoundEditor(bool on) {
 
 	// Or if already in SoundEditor
 	else {
-		display->setNextTransitionDirection(0);
 		beginScreen();
 
 		if (getRootUI() == &automationView) {
@@ -1802,9 +1791,7 @@ doMIDIOrCV:
 		newItem = parent;
 	}
 
-	if (display->haveOLED()) {
-		display->cancelPopup();
-	}
+	display->cancelPopup();
 
 	allowsNoteTails = true;
 	if (newSound != nullptr) {
@@ -1845,8 +1832,6 @@ doMIDIOrCV:
 	navigationDepth = 0;
 	shouldGoUpOneLevelOnBegin = false;
 	menuItemNavigationRecord[navigationDepth] = newItem;
-	display->setNextTransitionDirection(1);
-
 	return true;
 }
 
@@ -2056,7 +2041,7 @@ std::optional<std::span<HorizontalMenu* const>> SoundEditor::getCurrentHorizonta
 		// we shouldn't allow switching between menus in the chain because the sound menu has different hierarchy
 		return std::nullopt;
 	}
-	if (!display->haveOLED() || runtimeFeatureSettings.get(HorizontalMenus) == Off) {
+	if (runtimeFeatureSettings.get(HorizontalMenus) == Off) {
 		return std::nullopt;
 	}
 	if (!rootUIIsClipMinderScreen()) {

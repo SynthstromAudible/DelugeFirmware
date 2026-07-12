@@ -29,7 +29,6 @@ public:
 	Command(l10n::String newName, GlobalMIDICommand newCommandNumber = GlobalMIDICommand::PLAYBACK_RESTART)
 	    : MenuItem(newName), commandNumber(newCommandNumber) {}
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
-	void drawValue() const;
 	void selectEncoderAction(int32_t offset) override;
 	bool allowsLearnMode() override { return true; }
 	bool shouldBlinkLearnLed() override { return true; }

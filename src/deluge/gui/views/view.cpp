@@ -458,7 +458,6 @@ possiblyRevert:
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 
-			display->setNextTransitionDirection(1);
 			soundEditor.setup();
 			openUI(&soundEditor);
 		}
@@ -1028,26 +1027,16 @@ void View::getParameterNameFromModEncoder(int32_t whichModEncoder, char* paramet
 
 			etl::string<30> paramDisplayName;
 			if (source2 == PatchSource::NONE) {
-				paramDisplayName.append(getSourceDisplayNameForOLED(source1));
+				paramDisplayName.append(getSourceDisplayName(source1));
 			}
 			else {
 				paramDisplayName.append(sourceToStringShort(source1));
 			}
-			if (display->haveOLED()) {
-				paramDisplayName.append(" -> ");
-			}
-			else {
-				paramDisplayName.append(" - ");
-			}
+			paramDisplayName.append(" -> ");
 
 			if (source2 != PatchSource::NONE) {
 				paramDisplayName.append(sourceToStringShort(source2));
-				if (display->haveOLED()) {
-					paramDisplayName.append(" -> ");
-				}
-				else {
-					paramDisplayName.append(" - ");
-				}
+				paramDisplayName.append(" -> ");
 			}
 
 			paramDisplayName.append(modulation::params::getPatchedParamShortName(
@@ -1119,7 +1108,7 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 	etl::string<40> parameter_value;
 
 	// On OLED, display the name of the parameter on the first line of the popup
-	if (display->haveOLED()) {
+	{
 		if (kind == params::Kind::PATCH_CABLE) {
 			parameter_name.append(sourceToStringShort(source1));
 			parameter_name.append("->");
@@ -1195,15 +1184,10 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 	// if turning arpeggiator rhythm mod encoder
 	else if (isParamArpRhythm(kind, paramID)) {
 		current_display_value = calculateKnobPosForDisplay(kind, paramID, newKnobPos + kKnobPosOffset);
-		if (display->haveOLED()) {
-			char name[12];
-			// Index: Name
-			snprintf(name, sizeof(name), "%d: %s", current_display_value, arpRhythmPatternNames[current_display_value]);
-			parameter_value.append(name);
-		}
-		else {
-			parameter_value.append(arpRhythmPatternNames[current_display_value]);
-		}
+		char name[12];
+		// Index: Name
+		snprintf(name, sizeof(name), "%d: %s", current_display_value, arpRhythmPatternNames[current_display_value]);
+		parameter_value.append(name);
 	}
 	else {
 		current_display_value = calculateKnobPosForDisplay(kind, paramID, newKnobPos + kKnobPosOffset);
@@ -1211,7 +1195,7 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 	}
 
 	// Check if we need to update the notification (avoid excessive updates)
-	if (display->haveOLED()) {
+	{
 
 		// Check if notification popup is active and if the parameter info has changed
 		bool has_param_info_changed = true;
@@ -1285,9 +1269,6 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 			last_display_update_time = current_time;
 		}
 	}
-	else {
-		display->displayPopup(parameter_value.c_str());
-	}
 }
 
 // convert deluge internal knobPos range to same range as used by menu's.
@@ -1326,11 +1307,6 @@ void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 	// If the learn button is pressed, user is trying to copy or paste, and the fact that we've ended up here means they
 	// can't
 	if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
-		if (display->have7SEG()) {
-			if (on) {
-				display->displayPopup("CANT");
-			}
-		}
 		return;
 	}
 
@@ -2077,7 +2053,7 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 	// hook to render display for OLED and 7SEG when in Automation View
 	if (getCurrentUI() == &automationView && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
 		if (automationView.inAutomationEditor()) {
-			automationView.displayAutomation(true, !display->have7SEG());
+			automationView.displayAutomation(true, true);
 		}
 		else {
 			automationView.renderDisplay();
@@ -2085,7 +2061,7 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 		return;
 	}
 
-	if (display->haveOLED()) {
+	{
 		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 		hid::display::OLED::clearMainImage();
 
@@ -2103,7 +2079,7 @@ void View::drawOutputNameFromDetails(OutputType outputType, int32_t channel, int
 	char const* nameToDraw = nullptr;
 
 	if (!isNameEmpty) {
-		if (display->haveOLED()) {
+		{
 			nameToDraw = name;
 oledDrawString:
 			deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
@@ -2144,48 +2120,9 @@ oledDrawString:
 				                                              false);
 			}
 		}
-		else {
-			bool andAHalf;
-			if (display->getEncodedPosFromLeft(99999, name, &andAHalf) > kNumericDisplayLength) { // doBlink &&
-				display->setScrollingText(name, 0, kInitialFlashTime + kFlashTime);
-			}
-			else {
-				// If numeric-looking, we might want to align right.
-				bool alignRight = false;
-				uint8_t dotPos = 255;
-
-				char const* charPos = name;
-				if (*charPos == '0') { // If first digit is 0, then no more digits allowed.
-					charPos++;
-				}
-				else { // Otherwise, up to 3 digits allowed.
-					while (*charPos >= '0' && *charPos <= '9' && charPos < (name + 3)) {
-						charPos++;
-					}
-				}
-
-				if (charPos != name) { // We are required to have found at least 1 digit.
-					if (*charPos == 0) {
-yesAlignRight:
-						alignRight = true;
-						if (!editedByUser) {
-							dotPos = 3;
-						}
-					}
-					else if ((*charPos >= 'a' && *charPos <= 'z') || (*charPos >= 'A' && *charPos <= 'Z')) {
-						charPos++;
-						if (*charPos == 0) {
-							goto yesAlignRight;
-						}
-					}
-				}
-
-				display->setText(name, alignRight, dotPos, doBlink);
-			}
-		}
 	}
 	else if (outputType == OutputType::MIDI_OUT) {
-		if (display->haveOLED()) {
+		{
 			if (channel < 16) {
 				slotToString(channel + 1, channelSuffix, buffer, 1);
 				goto oledOutputBuffer;
@@ -2199,21 +2136,9 @@ yesAlignRight:
 				goto oledDrawString;
 			}
 		}
-		else {
-			if (channel < 16) {
-				display->setTextAsSlot(channel + 1, channelSuffix, false, doBlink);
-			}
-			else if (channel == MIDI_CHANNEL_MPE_LOWER_ZONE || channel == MIDI_CHANNEL_MPE_UPPER_ZONE) {
-				char const* text = (channel == MIDI_CHANNEL_MPE_LOWER_ZONE) ? "Lower" : "Upper";
-				display->setText(text, false, 255, doBlink);
-			}
-			else {
-				display->setText("Transpose", false, 255, doBlink);
-			}
-		}
 	}
 	else if (outputType == OutputType::CV) {
-		if (display->haveOLED()) {
+		{
 			if (channel < both) {
 				intToString(channel + 1, buffer);
 			}
@@ -2223,14 +2148,6 @@ yesAlignRight:
 oledOutputBuffer:
 			nameToDraw = buffer;
 			goto oledDrawString;
-		}
-		else {
-			if (channel < both) {
-				display->setTextAsNumber(channel + 1, 255, doBlink);
-			}
-			else {
-				display->setText("Both");
-			}
 		}
 	}
 }

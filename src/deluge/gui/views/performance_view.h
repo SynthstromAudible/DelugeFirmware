@@ -78,8 +78,6 @@ public:
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
 	void renderViewDisplay();
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
-	// 7SEG only
-	void redrawNumericDisplay();
 	void setLedStates();
 
 	// button action

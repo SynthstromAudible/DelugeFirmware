@@ -314,7 +314,7 @@ char const* sourceToString(PatchSource source) {
 	}
 }
 
-char const* getSourceDisplayNameForOLED(PatchSource s) {
+char const* getSourceDisplayName(PatchSource s) {
 	using enum l10n::String;
 	auto lang = l10n::chosenLanguage;
 
@@ -1690,7 +1690,7 @@ void noteCodeToString(int32_t noteCode, char* buffer, int32_t* getLengthWithoutD
 	thisChar++;
 	if (noteCodeIsSharp[noteCodeWithinOctave]) {
 		char accidential = useSharps ? '#' : FLAT_CHAR;
-		*thisChar = display->haveOLED() ? accidential : '.';
+		*thisChar = accidential;
 		thisChar++;
 	}
 	if (appendOctaveNo) {
@@ -1819,66 +1819,29 @@ void getNoteLengthNameFromMagnitude(etl::istring& noteLengthBuf, int32_t magnitu
 	// Positive magnitudes are bars, negative magnitudes are divisions of bars.
 	uint32_t division = (uint32_t)1 << (0 - magnitude);
 
-	if (display->haveOLED()) {
-		if (magnitude < 0) {
-			deluge::string::appendInt(noteLengthBuf, division);
-			// this is not fully general but since division are always a power of 2, it works out in practice (no need
-			// for "rd")
-			char const* suffix = ((division % 10) == 2) ? "nd" : "th";
-			noteLengthBuf.append(suffix);
-			if (notesString != nullptr) {
-				noteLengthBuf.append(notesString);
-			}
-		}
-		else {
-			uint32_t numBars = (uint32_t)1 << magnitude;
-			deluge::string::appendInt(noteLengthBuf, numBars);
-			if (clarifyPerColumn) {
-				if (numBars == 1) {
-					noteLengthBuf.append(" bar (per column)");
-				}
-				else {
-					noteLengthBuf.append(" bars (per column)");
-				}
-			}
-			else {
-				noteLengthBuf.append("-bar");
-			}
+	if (magnitude < 0) {
+		deluge::string::appendInt(noteLengthBuf, division);
+		// this is not fully general but since division are always a power of 2, it works out in practice (no need
+		// for "rd")
+		char const* suffix = ((division % 10) == 2) ? "nd" : "th";
+		noteLengthBuf.append(suffix);
+		if (notesString != nullptr) {
+			noteLengthBuf.append(notesString);
 		}
 	}
 	else {
-		if (magnitude < 0) {
-			if (division <= 9999) {
-				deluge::string::appendInt(noteLengthBuf, division);
-				if (division == 2 || division == 32) {
-					noteLengthBuf.append("ND");
-				}
-				else if (division <= 99) {
-					noteLengthBuf.append("TH");
-				}
-				else if (division <= 999) {
-					noteLengthBuf.append("T");
-				}
+		uint32_t numBars = (uint32_t)1 << magnitude;
+		deluge::string::appendInt(noteLengthBuf, numBars);
+		if (clarifyPerColumn) {
+			if (numBars == 1) {
+				noteLengthBuf.append(" bar (per column)");
 			}
 			else {
-				noteLengthBuf.append("TINY");
+				noteLengthBuf.append(" bars (per column)");
 			}
 		}
 		else {
-			uint32_t numBars = (uint32_t)1 << magnitude;
-			if (numBars <= 9999) {
-				deluge::string::appendInt(noteLengthBuf, numBars);
-				auto size = noteLengthBuf.size();
-				if (size == 1) {
-					noteLengthBuf.append("BAR");
-				}
-				else if (size <= 3) {
-					noteLengthBuf.append("B");
-				}
-			}
-			else {
-				noteLengthBuf.append("BIG");
-			}
+			noteLengthBuf.append("-bar");
 		}
 	}
 }

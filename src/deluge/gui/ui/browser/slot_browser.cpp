@@ -61,47 +61,14 @@ ActionResult SlotBrowser::horizontalEncoderAction(int32_t offset) {
 	if (!isNoUIModeActive()) {
 		return ActionResult::DEALT_WITH;
 	}
-	if (display->have7SEG()) {
-		FileItem* currentFileItem = getCurrentFileItem();
-		if (currentFileItem) {
-			// See if it's numeric. enteredText carries the prefix ("SONG185"), so step past it first.
-			char const* numberPart = nameAfterPrefix(enteredText.c_str());
-			if (!numberPart) {
-				goto nonNumeric;
-			}
-
-			Slot thisSlot = getSlot(numberPart);
-			if (thisSlot.slot < 0) {
-				goto nonNumeric;
-			}
-
-			numberEditPos -= offset;
-			if (numberEditPos > 2) {
-				numberEditPos = 2;
-			}
-			else if (numberEditPos < -1) {
-				numberEditPos = -1;
-			}
-
-			displayText(numberEditPos >= 0);
-			return ActionResult::DEALT_WITH;
-		}
-	}
-	{
-nonNumeric:
-		if (display->haveOLED()) { // Maintain consistency with before - don't do this on numeric
-			qwertyVisible = true;
-		}
-		return Browser::horizontalEncoderAction(offset);
-	}
+	qwertyVisible = true;
+	return Browser::horizontalEncoderAction(offset);
 }
 
 void SlotBrowser::processBackspace() {
 	Browser::processBackspace();
-	if (display->haveOLED()) {
-		if (fileIndexSelected == -1) {
-			predictExtendedText();
-		}
+	if (fileIndexSelected == -1) {
+		predictExtendedText();
 	}
 }
 

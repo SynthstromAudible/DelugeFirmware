@@ -36,7 +36,7 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
-#include "hid/display/seven_segment.h"
+#include "hid/display/seven_segment_tombstone.h"
 #include "hid/encoder_input.h"
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
@@ -314,7 +314,7 @@ bool readButtonsAndPads() {
 
 	// OLED transfer-ack: the input decode consumed the PIC ack, so pump the next
 	// low-level OLED transfer here rather than off a raw byte.
-	if (deluge_display_consume_transfer_ack() && deluge::hid::display::have_oled_screen) {
+	if (deluge_display_consume_transfer_ack()) {
 		uiTimerManager.setTimer(TimerName::OLED_LOW_LEVEL, 3);
 	}
 
@@ -365,9 +365,7 @@ void setUIForLoadedSong(Song* song) {
 	setRootUILowLevel(newUI);
 
 	getCurrentUI()->opened();
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
+	renderUIsForOled();
 }
 
 void setupBlankSong() {
@@ -563,9 +561,7 @@ void registerTasks() {
 	// 31-39: Idle priority (40 for dyn tasks)
 	p = 31;
 	addRepeatingTask(&deluge_control_flush, p++, 0.001, 0.001, 0.02, "PIC flush", RESOURCE_NONE);
-	if (hid::display::have_oled_screen) {
-		addRepeatingTask(&deluge_display_service, p++, 0.01, 0.01, 0.02, "oled routine", RESOURCE_NONE);
-	}
+	addRepeatingTask(&deluge_display_service, p++, 0.01, 0.01, 0.02, "oled routine", RESOURCE_NONE);
 	// needs to be called very frequently,
 	// handles animations and checks on the timers for any infrequent actions
 	// long term this should probably be made into an idle task
@@ -582,9 +578,7 @@ extern "C" void deluge_app_tick(void) {
 	uiTimerManager.routine();
 
 	// Flush stuff - we just have to do this, regularly
-	if (hid::display::have_oled_screen) {
-		deluge_display_service();
-	}
+	deluge_display_service();
 	deluge_control_flush();
 
 	AudioEngine::routineWithClusterLoading(true);
@@ -625,12 +619,16 @@ void mainLoop() {
 // reuse it without duplicating boot or reordering encoder init.
 static void deluge_boot(const DelugeBoard* board) {
 	(void)board;
-	bool have_oled = deluge_board_probe_oled();
+
+	if (!deluge_board_probe_oled()) {
+		// This firmware does not support 7-segment hardware. Tell the user and stop,
+		// before we bring up audio, SD, or the task manager.
+		deluge_control_init();
+		deluge::hid::display::tombstoneAndHalt();
+	}
 
 	// Give the control surface its startup configuration.
-	if (have_oled) {
-		deluge_control_enable_oled();
-	}
+	deluge_control_enable_oled();
 
 	deluge_control_init();
 
@@ -644,17 +642,10 @@ static void deluge_boot(const DelugeBoard* board) {
 
 	// One-time board bring-up: GPIO directions + initial state, the CV DAC SPI,
 	// and (when an OLED is fitted) its shared-SPI plumbing.
-	deluge_board_init_early(have_oled);
+	deluge_board_init_early(true);
 
-	if (have_oled) {
-		deluge_display_init(); // Set up OLED now
-		display = new deluge::hid::display::OLED;
-	}
-	else {
-		display = new deluge::hid::display::SevenSegment;
-	}
-	// remember the physical display type
-	deluge::hid::display::have_oled_screen = have_oled;
+	deluge_display_init(); // Set up OLED now
+	display = new deluge::hid::display::OLED;
 
 	// Setup audio output on SSI0
 	deluge_board_init_audio();
@@ -711,11 +702,6 @@ static void deluge_boot(const DelugeBoard* board) {
 
 	runtimeFeatureSettings.init();
 
-	if (runtimeFeatureSettings.get(RuntimeFeatureSettingType::EmulatedDisplay)
-	    == RuntimeFeatureStateEmulatedDisplay::OnBoot) {
-		deluge::hid::display::swapDisplayType();
-	}
-
 	// Assign each ConnectedUSBMIDIDevice its boundary MIDI port and initialise the
 	// MIDI transport before the USB stack can drive any MIDI transfers.
 	MIDIDeviceManager::init();
@@ -770,8 +756,6 @@ static void deluge_boot(const DelugeBoard* board) {
 
 	while (true) {
 
-		display->setTextAsNumber(count);
-
 		int32_t fileNumber = (uint32_t)getNoise() % 10000;
 		int32_t fileSize = (uint32_t)getNoise() % 1000000;
 
@@ -781,7 +765,6 @@ static void deluge_boot(const DelugeBoard* board) {
 
 		result = f_open(&fil, fileName, FA_CREATE_ALWAYS | FA_WRITE);
 		if (result) {
-			display->setText("AAAA");
 			while (1) {}
 		}
 
@@ -792,7 +775,6 @@ static void deluge_boot(const DelugeBoard* board) {
 			result = f_write(&fil, &miscStringBuffer, 256, &bytesWritten);
 
 			if (bytesWritten != 256) {
-				display->setText("BBBB");
 				while (1) {}
 			}
 
@@ -855,11 +837,9 @@ extern "C" int32_t deluge_main(void) {
 // deluge_block_poll_card_event() instead of the BSP calling up into the app.
 
 extern "C" void setNumeric(char* text) {
-	display->setText(text);
 }
 
 extern "C" void setNumericNumber(int32_t number) {
-	display->setTextAsNumber(number);
 }
 
 extern "C" void routineWithClusterLoading() {

@@ -72,27 +72,25 @@ tryDefaultDir:
 	fileIconPt2 = nullptr;
 	fileIconPt2Width = 0;
 
-	if (display->haveOLED()) {
-		switch (outputTypeToLoad) {
-		case OutputType::SYNTH:
-			title = "Save synth";
-			fileIcon = deluge::hid::display::OLED::synthIcon;
-			break;
-		case OutputType::KIT:
-			title = "Save kit";
-			fileIcon = deluge::hid::display::OLED::kitIcon;
-			break;
-		case OutputType::MIDI_OUT:
-			title = "Save midi preset";
-			fileIcon = deluge::hid::display::OLED::midiIcon;
-			fileIconPt2 = deluge::hid::display::OLED::midiIconPt2;
-			fileIconPt2Width = 1;
-			break;
-		// explicit fallthrough cases
-		case OutputType::CV:
-		case OutputType::AUDIO:
-		case OutputType::NONE:;
-		}
+	switch (outputTypeToLoad) {
+	case OutputType::SYNTH:
+		title = "Save synth";
+		fileIcon = deluge::hid::display::OLED::synthIcon;
+		break;
+	case OutputType::KIT:
+		title = "Save kit";
+		fileIcon = deluge::hid::display::OLED::kitIcon;
+		break;
+	case OutputType::MIDI_OUT:
+		title = "Save midi preset";
+		fileIcon = deluge::hid::display::OLED::midiIcon;
+		fileIconPt2 = deluge::hid::display::OLED::midiIconPt2;
+		fileIconPt2Width = 1;
+		break;
+	// explicit fallthrough cases
+	case OutputType::CV:
+	case OutputType::AUDIO:
+	case OutputType::NONE:;
 	}
 
 	// not used for midi
@@ -123,9 +121,6 @@ gotError:
 }
 
 bool SaveInstrumentPresetUI::performSave(bool mayOverwrite) {
-	if (display->have7SEG()) {
-		display->displayLoadingAnimation();
-	}
 	Instrument* instrumentToSave = getCurrentInstrument();
 
 	bool isDifferentSlot = !deluge::string::caselessEquals(enteredText, instrumentToSave->name);
@@ -162,7 +157,6 @@ fail:
 		bool available = gui::context_menu::overwriteFile.setupAndCheckAvailability();
 
 		if (available) { // Will always be true.
-			display->setNextTransitionDirection(1);
 			openUI(&gui::context_menu::overwriteFile);
 			return true;
 		}
@@ -176,9 +170,7 @@ fail:
 		goto fail;
 	}
 
-	if (display->haveOLED()) {
-		deluge::hid::display::OLED::displayWorkingAnimation("Saving");
-	}
+	deluge::hid::display::OLED::displayWorkingAnimation("Saving");
 
 	instrumentToSave->writeToFile(getCurrentClip(), currentSong);
 

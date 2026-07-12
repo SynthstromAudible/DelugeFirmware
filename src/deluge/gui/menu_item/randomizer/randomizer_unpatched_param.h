@@ -41,9 +41,7 @@ public:
 		return isGlobal || soundEditor.currentArpSettings->mode != ArpMode::OFF;
 	}
 
-	void getColumnLabel(etl::istring& label) override {
-		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
-	}
+	void getColumnLabel(etl::istring& label) override { label.append(deluge::l10n::get(this->name)); }
 
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return style_; }
 
@@ -58,9 +56,7 @@ public:
 		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingKitAffectEntire()
 		       && !soundEditor.editingNonAudioDrumRow() && soundEditor.currentArpSettings->mode != ArpMode::OFF;
 	}
-	void getColumnLabel(etl::istring& label) override {
-		label.append(deluge::l10n::getView(deluge::l10n::built_in::seven_segment, this->name).data());
-	}
+	void getColumnLabel(etl::istring& label) override { label.append(deluge::l10n::getView(this->name).data()); }
 };
 
 class RandomizerNonKitSoundUnpatchedParam final : public UnpatchedParam {
@@ -74,9 +70,7 @@ public:
 		return !soundEditor.editingCVOrMIDIClip() && !soundEditor.editingKit()
 		       && soundEditor.currentArpSettings->mode != ArpMode::OFF;
 	}
-	void getColumnLabel(etl::istring& label) override {
-		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
-	}
+	void getColumnLabel(etl::istring& label) override { label.append(deluge::l10n::get(this->name)); }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return style_; }
 
 private:

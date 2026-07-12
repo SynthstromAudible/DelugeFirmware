@@ -59,9 +59,7 @@ public:
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return soundEditor.editingKitRow() && !soundEditor.editingGateDrumRow();
 	}
-	void getColumnLabel(etl::istring& label) override {
-		label.append(deluge::l10n::get(deluge::l10n::built_in::seven_segment, this->name));
-	}
+	void getColumnLabel(etl::istring& label) override { label.append(deluge::l10n::get(this->name)); }
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		(void)optType;
@@ -81,12 +79,7 @@ public:
 class NoteModeFromOctaveModeForDrums final : public NoteModeForDrums {
 public:
 	using NoteModeForDrums::NoteModeForDrums;
-	void readCurrentValue() override {
-		if (display->have7SEG()) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NOTE_MODE));
-		}
-		NoteModeForDrums::readCurrentValue();
-	}
+	void readCurrentValue() override { NoteModeForDrums::readCurrentValue(); }
 };
 
 extern NoteModeFromOctaveModeForDrums arpNoteModeFromOctaveModeMenuForDrums;

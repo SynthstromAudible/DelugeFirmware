@@ -92,12 +92,7 @@ void DxCartridge::readValueAgain() {
 	if (pd == nullptr) {
 		return;
 	}
-	if (display->haveOLED()) {
-		renderUIsForOled();
-	}
-	else {
-		drawValue();
-	}
+	renderUIsForOled();
 
 	DxPatch* patch = soundEditor.currentSource->ensureDxPatch();
 	pd->unpackProgram(patch->params, currentValue);
@@ -126,13 +121,6 @@ void DxCartridge::drawPixelsForOled() {
 	drawItemsForOled(itemNames, currentValue - scrollPos, scrollPos);
 }
 
-void DxCartridge::drawValue() {
-	char names[32][11];
-	pd->getProgramNames(names);
-
-	display->setScrollingText(names[currentValue]);
-}
-
 bool DxCartridge::tryLoad(std::string_view path) {
 	if (pd == nullptr) {
 		pd = new DX7Cartridge();
@@ -155,9 +143,7 @@ void DxCartridge::selectEncoderAction(int32_t offset) {
 
 	currentValue = newValue;
 
-	if (display->haveOLED()) {
-		scrollPos = std::clamp<int>(newValue - 1, 0, numValues - kOLEDMenuNumOptionsVisible);
-	}
+	scrollPos = std::clamp<int>(newValue - 1, 0, numValues - kOLEDMenuNumOptionsVisible);
 
 	readValueAgain(); // redraw
 }

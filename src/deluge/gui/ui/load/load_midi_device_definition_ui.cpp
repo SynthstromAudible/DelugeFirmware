@@ -82,12 +82,10 @@ Error LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition() {
 	fileIconPt2 = nullptr;
 	fileIconPt2Width = 0;
 
-	if (display->haveOLED()) {
-		title = "Load midi device";
-		fileIcon = deluge::hid::display::OLED::midiIcon;
-		fileIconPt2 = deluge::hid::display::OLED::midiIconPt2;
-		fileIconPt2Width = 1;
-	}
+	title = "Load midi device";
+	fileIcon = deluge::hid::display::OLED::midiIcon;
+	fileIconPt2 = deluge::hid::display::OLED::midiIconPt2;
+	fileIconPt2Width = 1;
 
 	enteredText.clear();
 
@@ -130,10 +128,6 @@ Error LoadMidiDeviceDefinitionUI::setupForLoadingMidiDeviceDefinition() {
 	currentLabelLoadError = (fileIndexSelected >= 0) ? Error::NONE : Error::UNSPECIFIED;
 
 	drawKeys();
-
-	if (display->have7SEG()) {
-		displayText(false);
-	}
 
 	return Error::NONE;
 }
@@ -212,7 +206,7 @@ Error LoadMidiDeviceDefinitionUI::performLoad(bool doClone) {
 	if (currentFileItem == nullptr) {
 		// Make it say "NONE" on numeric Deluge, for
 		// consistency with old times.
-		return display->haveOLED() ? Error::FILE_NOT_FOUND : Error::NO_FURTHER_FILES_THIS_DIRECTION;
+		return Error::FILE_NOT_FOUND;
 	}
 
 	if (currentFileItem->isFolder) {
