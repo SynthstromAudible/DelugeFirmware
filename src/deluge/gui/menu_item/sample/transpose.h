@@ -78,6 +78,8 @@ public:
 						auto* multi_sample_range = static_cast<MultisampleRange*>(source.ranges.getElement(0));
 						multi_sample_range->sampleHolder.transpose = transpose;
 						multi_sample_range->sampleHolder.setCents(cents);
+						// M3 owner-5: range-level transpose/cents edit — reflect into the record.
+						source.seedDocRanges();
 					}
 					else {
 						source.setTranspose(transpose);
@@ -104,6 +106,8 @@ public:
 				        : static_cast<MultisampleRange*>(source.ranges.getElement(0));
 				multi_sample_range->sampleHolder.transpose = transpose;
 				multi_sample_range->sampleHolder.setCents(cents);
+				// M3 owner-5: range-level transpose/cents edit — reflect into the record.
+				source.seedDocRanges();
 			}
 			else {
 				source.setTranspose(transpose);

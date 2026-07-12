@@ -396,6 +396,9 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 				range->sampleHolder.endPos = (i == numManualSlice - 1) ? waveformBasicNavigator.sample->lengthInSamples
 				                                                       : this->manualSlicePoints[i + 1].startPos;
 				range->sampleHolder.transpose = manualSlicePoints[i].transpose;
+				// M3 owner-5: the manual-slice zone edits above overwrote this drum's range — reflect into the
+				// record.
+				soundDrum->sources[0].seedDocRanges();
 			}
 		}
 	}
@@ -418,6 +421,8 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 			range->sampleHolder.startPos = 0;
 			range->sampleHolder.endPos = sample->lengthInSamples;
 			range->sampleHolder.transpose = 0;
+			// M3 owner-5: the zone reset above changed the range — reflect into the record.
+			soundDrum->sources[0].seedDocRanges();
 		}
 
 		display->setNextTransitionDirection(-1);
@@ -437,6 +442,8 @@ void Slicer::stopAnyPreviewing() {
 	if (std::ssize(drum->sources[0].ranges)) {
 		MultisampleRange* range = (MultisampleRange*)drum->sources[0].ranges.getElement(0);
 		range->sampleHolder.setAudioFile(nullptr);
+		// M3 owner-5: reflect the cleared audio file into the record.
+		drum->sources[0].seedDocRanges();
 	}
 }
 void Slicer::preview(int64_t startPoint, int64_t endPoint, int32_t transpose, int32_t on) {
@@ -460,6 +467,9 @@ void Slicer::preview(int64_t startPoint, int64_t endPoint, int32_t transpose, in
 		if (endPoint != -1)
 			range->sampleHolder.endPos = endPoint;
 		range->sampleHolder.transpose = transpose;
+		// M3 owner-5: the preview-audition zone edits above changed the range's file/zone/transpose — reflect
+		// into the record.
+		drum->sources[0].seedDocRanges();
 
 		ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 		ModelStackWithParamId* modelStackWithParamId =
@@ -642,6 +652,9 @@ getOut:
 
 		firstRange->sampleHolder.claimClusterReasons(firstDrum->sources[0].sampleControls.isCurrentlyReversed(),
 		                                             CLUSTER_ENQUEUE);
+		// M3 owner-5: the zone edits above set up the first drum's slice range — reflect into the record.
+		// (setReversed() above already reseeded itself; this catches the startPos/endPos zone edits too.)
+		firstDrum->sources[0].seedDocRanges();
 		if (doEnvelopes) {
 			ParamCollectionSummary* summary = modelStack->paramManager->getPatchedParamSetSummary();
 			ModelStackWithParamId* modelStackWithParamId =
@@ -695,6 +708,9 @@ ramError2:
 
 			range->sampleHolder.filePath = sample->filePath;
 			range->sampleHolder.loadFile(false, false, true);
+			// M3 owner-5: this new drum's slice range was just populated (zone + file) — reflect into the
+			// record.
+			newDrum->sources[0].seedDocRanges();
 
 			if (doEnvelopes) {
 				paramManager.getPatchedParamSet()->params[params::LOCAL_ENV_0_ATTACK].setCurrentValueBasicForSetup(

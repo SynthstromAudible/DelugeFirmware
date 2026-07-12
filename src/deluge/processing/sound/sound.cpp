@@ -4723,6 +4723,8 @@ void Sound::deleteMultiRange(int32_t s, int32_t r) {
 	AudioEngine::audioRoutineLocked = true;
 	sources[s].ranges.erase(sources[s].ranges.begin() + r); // Destructs the range
 	AudioEngine::audioRoutineLocked = false;
+	// M3 owner-5: the range collection just shrank — reflect into the record.
+	sources[s].seedDocRanges();
 }
 
 // This function has to give the same outcome as Source::renderInStereo()

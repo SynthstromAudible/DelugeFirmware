@@ -729,8 +729,15 @@ Error SampleBrowser::claimAudioFileForInstrument(bool makeWaveTableWorkAtAllCost
 	holder->setAudioFile(nullptr);
 	holder->filePath = getCurrentFilePath();
 
-	return holder->loadFile(soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true, true,
-	                        CLUSTER_ENQUEUE, nullptr, makeWaveTableWorkAtAllCosts);
+	Error error = holder->loadFile(soundEditor.currentSource->sampleControls.isCurrentlyReversed(), true, true,
+	                               CLUSTER_ENQUEUE, nullptr, makeWaveTableWorkAtAllCosts);
+	// M3 owner-5: the range sample-file set path — reflect the newly-claimed file onto the current range into the
+	// record. No-op for an AudioClip (getCurrentAudioFileHolder() returns the clip's own holder there, not a
+	// Source range; owner-4 territory).
+	if (getCurrentClip()->type != ClipType::AUDIO) {
+		soundEditor.currentSource->seedDocRanges();
+	}
+	return error;
 }
 
 Error SampleBrowser::claimAudioFileForAudioClip() {
@@ -1020,6 +1027,10 @@ doLoadAsSample:
 					((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.transpose = 0;
 					((MultisampleRange*)soundEditor.currentMultiRange)->sampleHolder.setCents(0);
 				}
+
+				// M3 owner-5: the pitch-detect/reset above changed the current range's transpose/cents — reflect
+				// into the record.
+				soundEditor.currentSource->seedDocRanges();
 			}
 
 			// Anyway, by now we know we've loaded as a Sample, not a Wavetable.
@@ -1816,6 +1827,10 @@ skipOctaveCorrection:
 	}
 
 	D_PRINTLN("distinct ranges: %d", numSamples);
+
+	// M3 owner-5: the multisample-import builder above rebuilt the whole range collection (topNote/file/transpose
+	// per range) — reflect into the record.
+	soundEditor.currentSource->seedDocRanges();
 
 	delugeDealloc(sortArea);
 

@@ -151,6 +151,10 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 			}
 		}
 
+		// M3 owner-5: the boundary edits above changed topNote on one or two ranges — reflect the whole list into
+		// the record.
+		soundEditor.currentSource->seedDocRanges();
+
 		if (display->haveOLED()) {
 			renderUIsForOled();
 		}
@@ -225,6 +229,10 @@ void MultiRange::selectEncoderAction(int32_t offset) {
 					currentScroll++; // Won't go past end of list, cos list just grew.
 				}
 			}
+
+			// M3 owner-5: the range collection just grew, and topNote boundaries above were adjusted — reflect the
+			// whole list into the record.
+			soundEditor.currentSource->seedDocRanges();
 
 			this->setValue(newI);
 			if (display->haveOLED()) {
@@ -327,6 +335,10 @@ void MultiRange::deletePress() {
 		else {
 			soundEditor.currentMultiRange->topNote = (soundEditor.currentMultiRange->topNote + oldTopNote) >> 1;
 		}
+
+		// M3 owner-5: deleteMultiRange() already reseeded after the erase, but the survivor's topNote was just
+		// adjusted above (post-delete) — reseed again to capture it.
+		soundEditor.currentSource->seedDocRanges();
 	}
 
 	display->displayPopup(l10n::get(l10n::String::STRING_FOR_RANGE_DELETED));
