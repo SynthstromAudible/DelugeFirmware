@@ -116,6 +116,8 @@ PlaybackHandler::PlaybackHandler() {
 	currentVisualCountForCountIn = 0;
 	skipAnalogClocks = 0;
 	skipMidiClocks = 0;
+	freeRunningClockActive = false;
+	timeNextFreeRunningTickBig = 0;
 }
 
 extern "C" uint32_t triggerClockRisingEdgeTimes[];
@@ -530,6 +532,9 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	triggerClockOutTickScheduled = false;
 	midiClockOutTickScheduled = false;
 
+	// Playback's starting, so the normal scheduler takes the MIDI clock out over from here
+	stopFreeRunningClock();
+
 	swungTicksTilNextEvent = 0; // Until recently (Aug 2019) I did not do this here for some reason I can't remember
 	                            // and insanely most stuff worked
 
@@ -600,6 +605,11 @@ void PlaybackHandler::endPlayback() {
 	// tick, which needs to refer to which clock is active, which is stored in playbackState.
 	playbackState = 0;
 
+	// Call this *after* playbackState is cleared - it won't do anything until no clock is active anymore. Picks the
+	// free-running clock up from the last tick we sent, so the tick interval across the stop stays even. If an instant
+	// song swap happens below, that'll re-anchor it to the new song's tempo.
+	startFreeRunningClock();
+
 	cvEngine.playbackEnded(); // Call this *after* playbackState is set
 	PadLEDs::clearTickSquares();
 
@@ -648,6 +658,16 @@ void PlaybackHandler::getMIDIClockOutTicksToInternalTicksRatio(uint32_t* interna
 	else {
 		*midiClockOutTicksPer <<= -magnitudeAdjustment;
 	}
+}
+
+// The time between two MIDI clock out ticks, in 32.32 fixed-point samples, at the song's current tempo. Only call
+// this with currentSong set.
+uint64_t PlaybackHandler::getTimePerMIDIClockOutTickBig() {
+	uint32_t internalTicksPer;
+	uint32_t midiClockOutTicksPer;
+	getMIDIClockOutTicksToInternalTicksRatio(&internalTicksPer, &midiClockOutTicksPer);
+
+	return currentSong->timePerTimerTickBig * internalTicksPer / midiClockOutTicksPer;
 }
 
 uint32_t PlaybackHandler::getTimePerInternalTick() {
@@ -949,6 +969,60 @@ void PlaybackHandler::scheduleMIDIClockOutTickFromExternalClock() {
 	case ClockScheduleAction::None:
 		break;
 	}
+}
+
+// Starts the free-running (transport stopped) MIDI clock out. Safe to call unconditionally: it only does anything if
+// continuous clock out is switched on, we have a song to get a tempo from, and no clock is actually running.
+void PlaybackHandler::startFreeRunningClock() {
+	if (!isContinuousClockOutEnabled() || currentSong == nullptr || isEitherClockActive()) {
+		return;
+	}
+
+	uint64_t timePerTickBig = getTimePerMIDIClockOutTickBig();
+
+	// If we sent a clock out tick less than one tick-period ago - which is the case when we've just stopped playback -
+	// keep the phase we already had, so the interval across the stop is even. Otherwise (switching to ALWAYS from the
+	// menu while stopped, or after a song load, where that timestamp means nothing) just start one period from now.
+	uint32_t timeSinceLastTickSent = AudioEngine::audioSampleTimer - timeLastMIDIClockOutTickSent;
+	bool lastTickPhaseIsMeaningful =
+	    (timeLastMIDIClockOutTickSent != 0) && (timeSinceLastTickSent < (timePerTickBig >> 32));
+
+	uint64_t anchorBig = lastTickPhaseIsMeaningful ? ((uint64_t)timeLastMIDIClockOutTickSent << 32)
+	                                               : ((uint64_t)AudioEngine::audioSampleTimer << 32);
+
+	freeRunningClockActive = true;
+	timeNextFreeRunningTickBig = anchorBig + timePerTickBig;
+
+	midiClockOutTickScheduled = true;
+	timeNextMIDIClockOutTick = timeNextFreeRunningTickBig >> 32;
+}
+
+void PlaybackHandler::stopFreeRunningClock() {
+	freeRunningClockActive = false;
+	midiClockOutTickScheduled = false;
+}
+
+// The stopped-transport counterpart to scheduleMIDIClockOutTick(). The timer-tick grid that one derives its times from
+// isn't valid while stopped, so we keep our own schedule instead, accumulating in 32.32 by adding exactly one tick
+// period each time - never re-deriving from audioSampleTimer, whose rounding error would compound tick after tick.
+// The period is recomputed each call, so a tempo change while stopped is picked up from the next tick onwards.
+void PlaybackHandler::scheduleFreeRunningMIDIClockOutTick() {
+	if (!freeRunningClockActive || currentSong == nullptr) {
+		return;
+	}
+
+	// doMIDIClockOutTick() bails out without sending anything, leaving midiClockOutTickScheduled set, if a MIDI/gate
+	// output is already scheduled. If that just happened, keep the schedule we've got so the tick gets retried in the
+	// next window rather than being advanced past. (scheduleMIDIClockOutTick() gets this for free, by re-deriving the
+	// same tick time from an un-incremented lastMIDIClockOutTickDone.)
+	if (midiClockOutTickScheduled) {
+		return;
+	}
+
+	timeNextFreeRunningTickBig += getTimePerMIDIClockOutTickBig();
+
+	midiClockOutTickScheduled = true;
+	timeNextMIDIClockOutTick = timeNextFreeRunningTickBig >> 32;
 }
 
 void PlaybackHandler::doMIDIClockOutTick() {
@@ -1537,6 +1611,11 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 		// Or if we weren't switching to the arranger, the equivalent of that would get called from
 		// Session::considerLaunchEvent()
 	}
+
+	// If we're not playing, re-anchor the free-running clock out onto the song we just swapped in, so it picks up that
+	// song's tempo and never holds a schedule derived from the song we just threw away. No-op while playing - the
+	// normal scheduler is in charge then.
+	startFreeRunningClock();
 
 	AudioEngine::bypassCulling = true;
 
@@ -2397,8 +2476,18 @@ void PlaybackHandler::setMidiOutClockMode(MIDIClockOutMode newMode) {
 		// A PLAYING <-> ALWAYS transition doesn't change whether we're sending clocks while playing, so no
 		// action is needed here in that case.
 	}
-	// else: internal clock isn't active (transport stopped, or external clock in charge). Starting/stopping
-	// a free-running clock out here for MIDIClockOutMode::ALWAYS is a later task.
+
+	// Otherwise the internal clock isn't running, so it's the free-running clock out that's affected, if anything.
+	// Switching to ALWAYS starts it (a no-op if an external clock is active - that path does its own clock out).
+	else if (newMode == MIDIClockOutMode::ALWAYS) {
+		startFreeRunningClock();
+	}
+
+	// And switching away from ALWAYS stops it. No stop message here - if we were playing, one was already sent when
+	// playback ended.
+	else if (oldMode == MIDIClockOutMode::ALWAYS) {
+		stopFreeRunningClock();
+	}
 }
 
 void PlaybackHandler::setMidiInClockEnabled(bool newValue) {

@@ -99,7 +99,11 @@ public:
 	int32_t getInternalTickTime(int64_t internalTickCount);
 	void scheduleTriggerClockOutTick();
 	void scheduleMIDIClockOutTick();
+	void scheduleFreeRunningMIDIClockOutTick();
 	void scheduleNextTimerTick(uint32_t doubleSwingInterval);
+
+	void startFreeRunningClock();
+	void stopFreeRunningClock();
 
 	// MIDI-clock-out ticks
 	bool midiClockOutTickScheduled;
@@ -108,6 +112,13 @@ public:
 	// audioSampleTimer when we last actually sent a MIDI clock out tick. Used to rate-limit emission under external
 	// clock so a backlog of buffered input clocks (e.g. drained after a blocking song load/save) can't burst out.
 	uint32_t timeLastMIDIClockOutTickSent;
+
+	// Free-running MIDI clock out (MIDIClockOutMode::ALWAYS): clock ticking while the transport is stopped. The
+	// normal scheduler derives tick times from the timer-tick grid, which isn't valid while stopped, so instead we
+	// keep our own schedule anchored to AudioEngine::audioSampleTimer, in 32.32 fixed point. Only ever active while
+	// !isEitherClockActive().
+	bool freeRunningClockActive;
+	uint64_t timeNextFreeRunningTickBig; // 32.32 sample time of next free-running tick
 
 	// Playback
 	uint8_t playbackState;
@@ -274,6 +285,7 @@ private:
 	void displayTempoBPM(float tempoBPM);
 	void getAnalogOutTicksToInternalTicksRatio(uint32_t* internalTicksPer, uint32_t* analogOutTicksPer);
 	void getMIDIClockOutTicksToInternalTicksRatio(uint32_t* internalTicksPer, uint32_t* midiClockOutTicksPer);
+	uint64_t getTimePerMIDIClockOutTickBig();
 	void getInternalTicksToInputTicksRatio(uint32_t* inputTicksPer, uint32_t* internalTicksPer);
 	void sendOutPositionViaMIDI(int32_t pos, bool outputClocksWereSwitchedOff = false);
 	// void scheduleNextTimerTick();

@@ -704,6 +704,36 @@ void flushMIDIGateBuffers() { // Flush everything out of the MIDI buffer now. At
 	}
 }
 
+/// Send any MIDI clock out tick which falls within this window of audio samples, and schedule the next one. Shared by
+/// the playing path and the free-running (transport stopped) path, which differ only in how the next tick is scheduled:
+/// the normal scheduler derives it from the timer-tick grid, which isn't valid while stopped.
+void doAnyMIDIClockOutTickInWindow(size_t numSamples, int32_t& timeWithinWindowAtWhichMIDIOrGateOccurs,
+                                   bool freeRunning) {
+	auto scheduleNextTick = [freeRunning]() {
+		if (freeRunning) {
+			playbackHandler.scheduleFreeRunningMIDIClockOutTick();
+		}
+		else {
+			playbackHandler.scheduleMIDIClockOutTick();
+		}
+	};
+
+	if (playbackHandler.midiClockOutTickScheduled) {
+		int32_t timeTilMIDIClockOutTick = playbackHandler.timeNextMIDIClockOutTick - audioSampleTimer;
+		if (std::cmp_less(timeTilMIDIClockOutTick, numSamples)) {
+			playbackHandler.doMIDIClockOutTick();
+			scheduleNextTick(); // Schedules another one
+
+			if (timeWithinWindowAtWhichMIDIOrGateOccurs == -1) {
+				timeWithinWindowAtWhichMIDIOrGateOccurs = timeTilMIDIClockOutTick;
+			}
+		}
+	}
+	else {
+		scheduleNextTick();
+	}
+}
+
 int32_t tickSongFinalizeWindows(size_t& numSamples) {
 	int32_t timeWithinWindowAtWhichMIDIOrGateOccurs = -1; // -1 means none
 
@@ -776,23 +806,21 @@ startAgain:
 
 			// only send midi clock out if you've enabled it
 			if (playbackHandler.currentlySendingMIDIOutputClocks()) {
-				if (playbackHandler.midiClockOutTickScheduled) {
-					int32_t timeTilMIDIClockOutTick = playbackHandler.timeNextMIDIClockOutTick - audioSampleTimer;
-					if (std::cmp_less(timeTilMIDIClockOutTick, numSamples)) {
-						playbackHandler.doMIDIClockOutTick();
-						playbackHandler.scheduleMIDIClockOutTick(); // Schedules another one
-
-						if (timeWithinWindowAtWhichMIDIOrGateOccurs == -1) {
-							timeWithinWindowAtWhichMIDIOrGateOccurs = timeTilMIDIClockOutTick;
-						}
-					}
-				}
-				else {
-					playbackHandler.scheduleMIDIClockOutTick();
-				}
+				doAnyMIDIClockOutTickInWindow(numSamples, timeWithinWindowAtWhichMIDIOrGateOccurs, false);
 			}
 		}
 	}
+
+	// Or if the transport is stopped but the MIDI clock out is free-running (MIDIClockOutMode::ALWAYS), keep its ticks
+	// coming. Note we don't shorten the window here: that's only for timer and swung ticks, whose actioning has to
+	// happen at exactly the right sample. Setting timeWithinWindowAtWhichMIDIOrGateOccurs is all that's needed to get
+	// the byte out at the right sample offset within the window.
+	else if (playbackHandler.freeRunningClockActive) {
+		if (!stemExport.renderingOffline()) {
+			doAnyMIDIClockOutTickInWindow(numSamples, timeWithinWindowAtWhichMIDIOrGateOccurs, true);
+		}
+	}
+
 	return timeWithinWindowAtWhichMIDIOrGateOccurs;
 }
 

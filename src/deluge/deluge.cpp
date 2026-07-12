@@ -389,6 +389,10 @@ void setupBlankSong() {
 
 	setUIForLoadedSong(currentSong);
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+
+	// We now have a song (and so a tempo) to run a free-running MIDI clock out from, which we didn't at startup. No-op
+	// unless continuous clock out is switched on.
+	playbackHandler.startFreeRunningClock();
 }
 
 /// Can only happen after settings, which includes default settings, have been read
