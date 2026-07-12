@@ -532,6 +532,22 @@ if(RT_LIB)
     target_link_libraries(param_record_diff PRIVATE ${RT_LIB})
 endif()
 
+add_executable(audio_clip_edit_diff
+    ${REPO_ROOT}/src/bsp/host/host_bsp.c
+    ${REPO_ROOT}/src/bsp/host/host_platform.c
+    ${REPO_ROOT}/src/bsp/host/host_audio.c
+    ${REPO_ROOT}/src/bsp/host/host_link.c
+    ${REPO_ROOT}/src/bsp/host/host_pcm.c
+    ${REPO_ROOT}/src/bsp/host/host_midi.c
+    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
+    ${REPO_ROOT}/tests/golden/audio_clip_edit_diff.cpp
+)
+target_include_directories(audio_clip_edit_diff PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
+target_link_libraries(audio_clip_edit_diff PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
+if(RT_LIB)
+    target_link_libraries(audio_clip_edit_diff PRIVATE ${RT_LIB})
+endif()
+
 # M1d Edit undo/redo hook (docs/dev/project_model_migration_plan.md): drives SetParamValue/apply over a loaded
 # song and self-checks addressFor resolution + real ActionLogger undo/redo. No baseline (self-checking).
 add_executable(edit_undo_redo
@@ -695,6 +711,16 @@ add_test(
             --binary $<TARGET_FILE:param_record_diff>
 )
 set_tests_properties(param_record_diff PROPERTIES SKIP_RETURN_CODE 77)
+
+# CTest gate: the AudioClip descriptor edit + save/reload path must reproduce its committed baseline (owner-4
+# inversion net). BYO corpus (DELUGE_SONG_CORPUS); without it the runner exits 77 -> SKIPPED. Covers the runtime
+# edit + derive-at-load surfaces the load->save golden structurally cannot see.
+add_test(
+    NAME audio_clip_edit_diff
+    COMMAND ${Python_EXECUTABLE} ${REPO_ROOT}/tests/golden/audio_clip_edit_run.py
+            --binary $<TARGET_FILE:audio_clip_edit_diff>
+)
+set_tests_properties(audio_clip_edit_diff PROPERTIES SKIP_RETURN_CODE 77)
 
 # M1d: self-checking Edit undo/redo over the BYO corpus (exit 77 -> SKIPPED without DELUGE_SONG_CORPUS).
 add_test(
