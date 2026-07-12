@@ -40,7 +40,9 @@ public:
 
 		clip->unassignVoiceSample(false);
 
-		clip->sampleControls.reversed = this->getValue();
+		// M3 owner-4: reversed is DOM-owned — funnel through the setter (record + render cache). The endPos clamp +
+		// cluster-reason side effects below still act on the sampleHolder cache (its owner-4 slice is separate).
+		clip->setReversed(this->getValue());
 
 		if (clip->sampleHolder.audioFile != nullptr) {
 			if (clip->sampleControls.isCurrentlyReversed()) {

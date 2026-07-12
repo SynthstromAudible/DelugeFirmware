@@ -18,8 +18,9 @@ public:
 
 	bool usesAffectEntire() override { return true; }
 	void writeCurrentValue() override {
-		auto& sampleControls = getCurrentAudioClip()->sampleControls;
-		sampleControls.interpolationMode = getValue<InterpolationMode>();
+		// M3 owner-4: interpolation is DOM-owned — funnel through the setter (record + render cache), not the cache
+		// ref.
+		getCurrentAudioClip()->setInterpolationMode(getValue<InterpolationMode>());
 	}
 
 	deluge::vector<std::string_view> getOptions(OptType optType) override {

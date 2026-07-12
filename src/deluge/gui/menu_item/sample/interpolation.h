@@ -51,10 +51,9 @@ public:
 				}
 			}
 		}
-		// Or, the normal case of just one sound
+		// Or, the normal case of just one sound (or audio clip — funnels to the DOM record for owner-4)
 		else {
-			auto& sampleControls = getCurrentSampleControls(source_id_);
-			sampleControls.interpolationMode = current_value;
+			setCurrentInterpolationMode(source_id_, current_value);
 		}
 	}
 

@@ -120,6 +120,11 @@ Error AudioClip::clone(ModelStackWithTimelineCounter* modelStack, bool shouldFla
 	newClip->setAttack(attack());
 
 	memcpy(&newClip->sampleControls, &sampleControls, sizeof(sampleControls));
+	// The memcpy copied the sampleControls render cache (incl. the runtime invertReversed); the DOM-owned descriptor
+	// fields still need copying into the clone's record (syncDocAudioClip no longer rebuilds them from the engine).
+	newClip->setInterpolationMode(sampleControls.interpolationMode);
+	newClip->setPitchAndSpeedIndependent(sampleControls.pitchAndSpeedAreIndependent);
+	newClip->setReversed(sampleControls.reversed);
 	newClip->setVoicePriority(voicePriority());
 
 	newClip->sampleHolder.beenClonedFrom(&sampleHolder, sampleControls.isCurrentlyReversed());
@@ -1097,6 +1102,30 @@ void AudioClip::setVoicePriority(VoicePriority value) {
 	docAudioClip_->voice_priority = static_cast<uint8_t>(value);
 }
 
+// M3 owner-4: SampleControls descriptor fields are DOM-owned with `sampleControls` kept as a derived render cache.
+// Each setter writes the authoritative record AND re-seeds the cache; render keeps reading the cache directly.
+void AudioClip::setInterpolationMode(InterpolationMode mode) {
+	if (docAudioClip_ == nullptr) {
+		FREEZE_WITH_ERROR("AC4S");
+	}
+	docAudioClip_->interpolation_mode = static_cast<uint8_t>(mode);
+	sampleControls.interpolationMode = mode;
+}
+void AudioClip::setPitchAndSpeedIndependent(bool independent) {
+	if (docAudioClip_ == nullptr) {
+		FREEZE_WITH_ERROR("AC4S");
+	}
+	docAudioClip_->pitch_and_speed_independent = independent;
+	sampleControls.pitchAndSpeedAreIndependent = independent;
+}
+void AudioClip::setReversed(bool reversed) {
+	if (docAudioClip_ == nullptr) {
+		FREEZE_WITH_ERROR("AC4S");
+	}
+	docAudioClip_->reversed = reversed;
+	sampleControls.reversed = reversed;
+}
+
 void AudioClip::syncDocAudioClip() {
 	if (docAudioClip_ == nullptr) {
 		return;
@@ -1108,10 +1137,9 @@ void AudioClip::syncDocAudioClip() {
 	d.end_pos = sampleHolder.endPos;
 	d.transpose = sampleHolder.transpose;
 	d.cents = sampleHolder.cents;
-	d.interpolation_mode = static_cast<uint8_t>(sampleControls.interpolationMode);
-	d.pitch_and_speed_independent = sampleControls.pitchAndSpeedAreIndependent;
-	d.reversed = sampleControls.reversed;
-	// attack + voice_priority are DOM-owned (retired native fields) — not rebuilt from the engine here.
+	// interpolation_mode / pitch_and_speed_independent / reversed are DOM-owned (the SampleControls setters keep the
+	// record authoritative + re-seed the sampleControls cache), and attack + voice_priority are retired natives — none
+	// are rebuilt from the engine here.
 	d.overdubs_should_clone = overdubsShouldCloneOutput;
 }
 
@@ -1147,11 +1175,15 @@ void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 	                                                         : sampleHolder.filePath.c_str());
 	writer.writeAttribute("startSamplePos", sampleHolder.startPos);
 	writer.writeAttribute("endSamplePos", sampleHolder.endPos);
-	writer.writeAttribute("pitchSpeedIndependent", sampleControls.pitchAndSpeedAreIndependent);
-	if (sampleControls.interpolationMode == InterpolationMode::LINEAR) {
+	// M3 owner-4 save-flip: the SampleControls descriptor fields read from the authoritative record, not the engine
+	// cache. `reversed` here is the stored value (docAudioClip_->reversed); for an AudioClip invertReversed is only
+	// ever false (Voice/Sound/arp toggle it for sound sources, never clips), so this equals the old
+	// isCurrentlyReversed().
+	writer.writeAttribute("pitchSpeedIndependent", docAudioClip_->pitch_and_speed_independent);
+	if (static_cast<InterpolationMode>(docAudioClip_->interpolation_mode) == InterpolationMode::LINEAR) {
 		writer.writeAttribute("linearInterpolation", 1);
 	}
-	if (sampleControls.isCurrentlyReversed()) {
+	if (docAudioClip_->reversed) {
 		writer.writeAttribute("reversed", 1);
 	}
 	writer.writeAttribute("attack", attack());

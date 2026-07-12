@@ -132,6 +132,17 @@ public:
 	VoicePriority voicePriority() const;
 	void setVoicePriority(VoicePriority value);
 
+	/// M3 owner-4: the SampleControls descriptor fields (interpolation / pitch-speed-independence / reversed) are
+	/// DOM-owned (`docAudioClip_->{interpolation_mode,pitch_and_speed_independent,reversed}`). Unlike the cold scalars
+	/// these are HOT — read per render sample via `sampleControls` — so `sampleControls` is retained as a derived
+	/// cache: the record is authoritative (save reads it, load seeds the cache in deriveEngineFromDoc), and every
+	/// write goes through these setters which update the record AND re-seed the cache. `sampleControls.invertReversed`
+	/// is pure runtime playback state and has no record slot. Menu writes funnel here via the sample/utils by-value
+	/// seam; render/read sites keep reading `sampleControls` directly.
+	void setInterpolationMode(InterpolationMode mode);
+	void setPitchAndSpeedIndependent(bool independent);
+	void setReversed(bool reversed);
+
 	/// M3 owner-4: this AudioClip's DOM-owned descriptor record, held in the project's `audio_clip_structure` keyed
 	/// by id(). Bound in the AudioClip ctor under the clip's durable id (mirroring how the Clip base ctor binds
 	/// `docClip_`); erased in ~AudioClip. The load path parses into it and derives the engine cache

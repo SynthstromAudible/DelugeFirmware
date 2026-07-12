@@ -22,3 +22,19 @@ SampleControls& getCurrentSampleControls(int32_t whichThing) {
 	Source& source = soundEditor.currentSound->sources[whichThing];
 	return source.sampleControls;
 }
+
+void setCurrentInterpolationMode(int32_t whichThing, InterpolationMode mode) {
+	if (AudioClip* audioClip = getCurrentAudioClip(); audioClip != nullptr) {
+		audioClip->setInterpolationMode(mode); // DOM-owned (record + cache)
+		return;
+	}
+	soundEditor.currentSound->sources[whichThing].sampleControls.interpolationMode = mode;
+}
+
+void setCurrentPitchAndSpeedIndependent(int32_t whichThing, bool independent) {
+	if (AudioClip* audioClip = getCurrentAudioClip(); audioClip != nullptr) {
+		audioClip->setPitchAndSpeedIndependent(independent); // DOM-owned (record + cache)
+		return;
+	}
+	soundEditor.currentSound->sources[whichThing].sampleControls.pitchAndSpeedAreIndependent = independent;
+}

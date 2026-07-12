@@ -212,9 +212,9 @@ int main(int argc, char** argv) {
 	clip->sampleHolder.endPos = 500000;
 	clip->sampleHolder.transpose = 7;
 	clip->sampleHolder.cents = -13;
-	clip->sampleControls.reversed = !clip->sampleControls.reversed;
-	clip->sampleControls.interpolationMode = InterpolationMode::LINEAR;
-	clip->sampleControls.pitchAndSpeedAreIndependent = true;
+	clip->setReversed(!clip->sampleControls.reversed);
+	clip->setInterpolationMode(InterpolationMode::LINEAR);
+	clip->setPitchAndSpeedIndependent(true);
 	clip->setAttack(0x30000000);
 	clip->setVoicePriority(VoicePriority::HIGH);
 	clip->overdubsShouldCloneOutput = !clip->overdubsShouldCloneOutput;
