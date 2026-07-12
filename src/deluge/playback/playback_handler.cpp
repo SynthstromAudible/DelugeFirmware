@@ -630,13 +630,14 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 }
 
 void PlaybackHandler::endPlayback() {
-	if (isInternalClockActive() && currentlySendingMIDIOutputClocks()) {
-		midiEngine.sendStop(this);
-	}
-
 	// If playback is being stopped before the aligned out-tick 0 we were about to start on ever came around (i.e.
 	// within one out-tick of the play button being pressed), that Start message must not go out - the free-running
-	// clock, which startFreeRunningClock() picks back up below, would otherwise emit it while stopped.
+	// clock, which startFreeRunningClock() picks back up below, would otherwise emit it while stopped. Since no
+	// Start ever went out for this playback attempt in that case, sending a Stop here would emit an isolated Stop
+	// with no matching Start, so skip it too.
+	if (isInternalClockActive() && currentlySendingMIDIOutputClocks() && !startMessagePending) {
+		midiEngine.sendStop(this);
+	}
 	startMessagePending = false;
 
 	ignoringMidiClockInput = false;
@@ -2554,10 +2555,14 @@ void PlaybackHandler::setMidiOutClockMode(MIDIClockOutMode newMode) {
 		// Or if we just disabled it...
 		else if (!isSending && wasSending) {
 			midiClockOutTickScheduled = false;
-			// No clocks are going out anymore, so a Start deferred to an out-tick that'll now never happen would
-			// otherwise sit armed indefinitely
+			// If a Start was deferred to an out-tick that'll now never happen (we're mid-gap, aligning to the
+			// free-running clock), no Start ever went out for this playback attempt, so sending a Stop here would
+			// emit an isolated Stop with no matching Start - skip it. Clear the pending flag either way so it can't
+			// sit armed indefinitely.
+			if (!startMessagePending) {
+				midiEngine.sendStop(this);
+			}
 			startMessagePending = false;
-			midiEngine.sendStop(this);
 		}
 
 		// A PLAYING <-> ALWAYS transition doesn't change whether we're sending clocks while playing, so no
