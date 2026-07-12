@@ -98,7 +98,7 @@ void SourceSelection::drawPixelsForOled() {
 	int32_t selectedRowOnScreen = 0;
 	for (int32_t i = 0; i < items.size(); i++) {
 		sourceIndex = items[i];
-		names.push_back(getSourceDisplayNameForOLED(sourceMenuContents[sourceIndex]));
+		names.push_back(getSourceDisplayName(sourceMenuContents[sourceIndex]));
 		if (sourceIndex == selected) {
 			selectedRowOnScreen = i;
 		}

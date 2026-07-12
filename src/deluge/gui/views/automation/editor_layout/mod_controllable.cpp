@@ -250,7 +250,7 @@ void AutomationEditorLayoutModControllable::renderAutomationUnipolarSquare(
 	}
 }
 
-void AutomationEditorLayoutModControllable::renderAutomationEditorDisplayOLED(
+void AutomationEditorLayoutModControllable::renderAutomationEditorDisplay(
     deluge::hid::display::oled_canvas::Canvas& canvas, Clip* clip, OutputType outputType, int32_t knobPosLeft,
     int32_t knobPosRight) {
 	// display parameter name

@@ -983,34 +983,28 @@ void AutomationView::renderDisplay(int32_t knobPosLeft, int32_t knobPosRight, bo
 		}
 	}
 
-	// OLED Display
-	renderDisplayOLED(clip, output, outputType, knobPosLeft, knobPosRight);
-}
-
-void AutomationView::renderDisplayOLED(Clip* clip, Output* output, OutputType outputType, int32_t knobPosLeft,
-                                       int32_t knobPosRight) {
 	deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 	hid::display::OLED::clearMainImage();
 
 	if (onAutomationOverview()) {
-		renderAutomationOverviewDisplayOLED(canvas, output, outputType);
+		renderAutomationOverviewDisplay(canvas, output, outputType);
 	}
 	else {
 		if (inAutomationEditor()) {
-			automationEditorLayoutModControllable.renderAutomationEditorDisplayOLED(canvas, clip, outputType,
-			                                                                        knobPosLeft, knobPosRight);
+			automationEditorLayoutModControllable.renderAutomationEditorDisplay(canvas, clip, outputType, knobPosLeft,
+			                                                                    knobPosRight);
 		}
 		else {
-			automationEditorLayoutNote.renderNoteEditorDisplayOLED(canvas, (InstrumentClip*)clip, outputType,
-			                                                       knobPosLeft, knobPosRight);
+			automationEditorLayoutNote.renderNoteEditorDisplay(canvas, (InstrumentClip*)clip, outputType, knobPosLeft,
+			                                                   knobPosRight);
 		}
 	}
 
 	deluge::hid::display::OLED::markChanged();
 }
 
-void AutomationView::renderAutomationOverviewDisplayOLED(deluge::hid::display::oled_canvas::Canvas& canvas,
-                                                         Output* output, OutputType outputType) {
+void AutomationView::renderAutomationOverviewDisplay(deluge::hid::display::oled_canvas::Canvas& canvas, Output* output,
+                                                     OutputType outputType) {
 	// align string to vertically to the centre of the display
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 	int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 24;

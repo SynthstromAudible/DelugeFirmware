@@ -48,9 +48,9 @@ void AutomationEditorLayoutNote::renderNoteEditor(ModelStackWithNoteRow* modelSt
 	}
 }
 
-void AutomationEditorLayoutNote::renderNoteEditorDisplayOLED(deluge::hid::display::oled_canvas::Canvas& canvas,
-                                                             InstrumentClip* clip, OutputType outputType,
-                                                             int32_t knobPosLeft, int32_t knobPosRight) {
+void AutomationEditorLayoutNote::renderNoteEditorDisplay(deluge::hid::display::oled_canvas::Canvas& canvas,
+                                                         InstrumentClip* clip, OutputType outputType,
+                                                         int32_t knobPosLeft, int32_t knobPosRight) {
 	// display note parameter name
 	etl::string<30> parameterName;
 	if (getAutomationParamType() == AutomationParamType::NOTE_VELOCITY) {
@@ -87,7 +87,7 @@ void AutomationEditorLayoutNote::renderNoteEditorDisplayOLED(deluge::hid::displa
 	yPos = yPos + 12;
 
 	if (getAutomationParamType() == AutomationParamType::NOTE_VELOCITY) {
-		automationEditorLayoutNoteVelocity.displayParameterValueOLED(canvas, yPos, knobPosLeft, knobPosRight);
+		automationEditorLayoutNoteVelocity.displayParameterValue(canvas, yPos, knobPosLeft, knobPosRight);
 	}
 }
 

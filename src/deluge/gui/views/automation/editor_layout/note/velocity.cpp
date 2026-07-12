@@ -104,9 +104,9 @@ void AutomationEditorLayoutNoteVelocity::renderNoteSquare(RGB image[][kDisplayWi
 }
 
 /// updates OLED display to display the current velocity
-void AutomationEditorLayoutNoteVelocity::displayParameterValueOLED(deluge::hid::display::oled_canvas::Canvas& canvas,
-                                                                   int32_t yPos, int32_t knobPosLeft,
-                                                                   int32_t knobPosRight) {
+void AutomationEditorLayoutNoteVelocity::displayParameterValue(deluge::hid::display::oled_canvas::Canvas& canvas,
+                                                               int32_t yPos, int32_t knobPosLeft,
+                                                               int32_t knobPosRight) {
 	if (knobPosRight != kNoSelection) {
 		char bufferLeft[10];
 		bufferLeft[0] = 'L';

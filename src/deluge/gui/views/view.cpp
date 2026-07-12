@@ -1027,7 +1027,7 @@ void View::getParameterNameFromModEncoder(int32_t whichModEncoder, char* paramet
 
 			etl::string<30> paramDisplayName;
 			if (source2 == PatchSource::NONE) {
-				paramDisplayName.append(getSourceDisplayNameForOLED(source1));
+				paramDisplayName.append(getSourceDisplayName(source1));
 			}
 			else {
 				paramDisplayName.append(sourceToStringShort(source1));
