@@ -1051,10 +1051,32 @@ void routine() {
 				sideChainHitPending = 0;
 				audioSampleTimer += numSamples;
 				doSomeOutputting();
-				// gross and hacky way to make sure the audio recorder writes all of its data so it can't be stolen
-				while (audioRecorder.recorder->firstUnwrittenClusterIndex
-				       < audioRecorder.recorder->currentRecordClusterIndex) {
-					doRecorderCardRoutines();
+
+				// Write out the recorder's completed clusters so they can't be stolen. There's no recorder at all
+				// between stems, and one that has hit a card error or been aborted (RAM exhaustion) will never
+				// advance firstUnwrittenClusterIndex again, because cardRoutine() early-returns in both cases -
+				// so bail on those, and bound the loop regardless rather than trusting that list to be complete.
+				SampleRecorder* recorder = audioRecorder.recorder;
+				if (recorder != nullptr) {
+					// Each call writes at most one cluster, and we don't render (so can't produce new ones) until
+					// the drain finishes. The slack covers calls that return without reaching this recorder at all:
+					// doRecorderCardRoutines() abandons its traversal whenever a recorder was recently created.
+					int32_t callsRemaining =
+					    recorder->currentRecordClusterIndex - recorder->firstUnwrittenClusterIndex + 8;
+
+					while (callsRemaining-- > 0) {
+						if (recorder->hadCardError || recorder->status >= RecorderStatus::COMPLETE
+						    || recorder->firstUnwrittenClusterIndex >= recorder->currentRecordClusterIndex) {
+							break;
+						}
+
+						doRecorderCardRoutines();
+
+						// doRecorderCardRoutines() can finish and free recorders - don't trust the pointer after it
+						if (audioRecorder.recorder != recorder) {
+							break;
+						}
+					}
 				}
 
 				audioFileManager.loadAnyEnqueuedClusters(128, false);
@@ -1560,7 +1582,15 @@ errorAfterAllocation:
 }
 
 // PLEASE don't call this if there's any chance you might be in the SD card routine...
+// ...because the recorder may be suspended part-way through its own cardRoutine(), and freeing it there leaves that
+// cardRoutine() operating on freed memory before handing it back to doRecorderCardRoutines() to be freed a second
+// time. That's a double free, and it surfaces as M123 from the allocator, a long way from here - so rather than
+// leaving the rule as a comment for each caller to honour, enforce it.
 void discardRecorder(SampleRecorder* recorder) {
+	if (ALPHA_OR_BETA_VERSION && (sdRoutineLock || currentlyAccessingCard)) {
+		FREEZE_WITH_ERROR("E251");
+	}
+
 	int32_t count = 0;
 	SampleRecorder** prevPointer = &firstRecorder;
 	while (*prevPointer) {
