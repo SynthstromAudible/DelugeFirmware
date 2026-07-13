@@ -63,6 +63,11 @@ bool LoadInstrumentPresetUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* row
 
 bool LoadInstrumentPresetUI::opened() {
 
+	// The QWERTY keyboard is always shown in this UI (qwertyAlwaysVisible stays true), so the favourites row should
+	// be too. The static qwertyVisible flag can be left false by another browser (e.g. song load with the keyboard
+	// toggled off); without resetting it here the favourites row would stay hidden until something else set it. #4674
+	qwertyVisible = true;
+
 	if (getRootUI() == &keyboardScreen) {
 		PadLEDs::skipGreyoutFade();
 	}
