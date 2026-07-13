@@ -66,10 +66,11 @@ public:
 	/// reproducing setCurrentValueInResponseToUserInput's NON-recording scalar tail (interpolation reset, the
 	/// playing latch, cursor sync, notify) exactly, but sourcing the value from the store rather than an in-line arg.
 	void projectScalarFromStore(ModelStackWithAutoParam const* modelStack, int32_t oldValue, bool isPlaying);
-	/// M4a region commit-flip: the model-first projection half of the STOPPED-TRANSPORT region poke. The store
-	/// (nodes + current_value) has ALREADY been written (ParamSnapshot::applyPatch's region kernel); this derives the
-	/// engine's RT tail — cursor sync + notify — reproducing setValueForRegion's `!clockActive` path (which takes
-	/// neither the interpolation reset nor the UI notify). `automationChanged` is the kernel's return.
+	/// M4a region commit-flip: the model-first projection half of the region poke, for EVERY clock state. The store
+	/// (nodes + current_value) has ALREADY been written (ParamSnapshot::applyPatch's region kernel); this reproduces
+	/// setValueForRegion's post-mutation tail — cursor sync + the interpolation-reset (clock-active, playhead in
+	/// region) or UI-notify (clock-active, playhead outside) + notify — from the branch `result.currentValueEffect`
+	/// names (the kernel decided it; the engine tail here just replays it).
 	void projectRegionFromStore(ModelStackWithAutoParam const* modelStack, int32_t oldValue, bool automatedBefore,
 	                            deluge::project::RegionWriteResult result);
 	int32_t processCurrentPos(ModelStackWithAutoParam const* modelStack, bool reversed, bool didPinpong,

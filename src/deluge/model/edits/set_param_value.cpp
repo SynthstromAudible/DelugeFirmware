@@ -95,14 +95,19 @@ Error SetParamValue::apply(Context& ctx) {
 		return Error::NONE;
 	}
 
-	// M4a region commit-flip: the STOPPED-TRANSPORT region store write is also model-first — applyPatch writes the
-	// nodes + current_value (via the proven DOM kernel), and the engine derives its RT tail (cursor + notify) from
-	// the store. The undo snapshot is reordered AHEAD of the patch (the exact getNewAction + record call
-	// setValueForRegion makes at auto_param.cpp:1109-1112, so held-pad region drags coalesce identically). Clock-
-	// active region (interpolation-reset / UI-notify sub-branch not surfaced by the kernel) and unresolvable lanes
-	// keep the in-line poke below.
-	if (length_ != 0 && engineStack_->timelineCounterIsSet() && !playbackHandler.isEitherClockActive()
-	    && address_.has_value() && ctx.model.resolveParam(*address_) != nullptr) {
+	// M4a region commit-flip: the region store write is model-first for EVERY clock state — applyPatch writes the
+	// nodes + current_value (via the proven DOM kernel), and projectRegionFromStore derives the engine RT tail
+	// (cursor + interpolation-reset / UI-notify + notify) from the branch the kernel took (RegionWriteResult). The
+	// undo snapshot is reordered AHEAD of the patch (the exact getNewAction + record call setValueForRegion makes at
+	// auto_param.cpp:1109-1112, so held-pad region drags coalesce identically). Only unresolvable / not-yet-relocated
+	// lanes keep the in-line poke below.
+	if (length_ != 0 && engineStack_->timelineCounterIsSet() && address_.has_value()
+	    && ctx.model.resolveParam(*address_) != nullptr) {
+		// Mirror setValueForRegion's pos>=effectiveLength early return (before any Action), so a held-pad edit beyond
+		// the loop is a true no-op — no undo step, exactly as the in-line path.
+		if (pos_ >= engineStack_->getLoopLength()) {
+			return Error::NONE;
+		}
 		const int32_t oldValue = engineStack_->autoParam->getCurrentValue();
 		const bool automatedBefore = engineStack_->autoParam->isAutomated(*engineStack_->doc());
 		Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
