@@ -359,16 +359,16 @@ void testParamSnapshotEquivalence(deluge::edits::Context& ctx, ::Song* engineSon
 	check(ms->autoParam->getCurrentValue() == 0x33333333, "projectScalarFromStore: engine cursor synced from store");
 }
 
-// M4a Task 3 / commit-flip — SetParamValue::emitEvent drives the REGION event-patch behind the A/B toggle. (Scalar
-// is now written model-first by apply() itself — see testScalarFlipViaApply — so emitEvent no longer patches
-// scalar.) Isolates the event path (calls emitEvent directly on a seeded baseline): toggle OFF leaves the store
-// untouched; toggle ON reproduces the pinned region {current_value, nodes}.
-void testEmitEventDrivesPatch(deluge::edits::Context& ctx, ::Song* engineSong, TimelineCounter* clipTC) {
-	// Leak-reset (crash-safe: no consequence freeing -> no headless audio pump).
+// M4a region commit-flip (Task 2) — SetParamValue::apply writes the STOPPED-TRANSPORT region store model-first: it
+// opens the same Action + snapshots the pre-state, calls ParamSnapshot::applyPatch (nodes + current_value via the DOM
+// kernel), then projectRegionFromStore to sync the engine cursor. Asserts the homogenized node vector + synced
+// cursor, and that undo (the reordered snapshot) restores the pre-mutation state.
+void testRegionFlipViaApply(deluge::edits::Context& ctx, ::Song* engineSong, TimelineCounter* clipTC) {
+	// Leak-reset (crash-safe): orphan any prior actions rather than freeing them here.
 	actionLogger.firstAction[BEFORE] = nullptr;
 	actionLogger.firstAction[AFTER] = nullptr;
 
-	constexpr int32_t kParam = 5;
+	constexpr int32_t kParam = 7;
 	ParamManagerForTimeline pm;
 	pm.setupUnpatched();
 	pm.getUnpatchedParamSet()->kind = deluge::modulation::params::Kind::UNPATCHED_GLOBAL;
@@ -379,41 +379,31 @@ void testEmitEventDrivesPatch(deluge::edits::Context& ctx, ::Song* engineSong, T
 	ms->paramManager = &pm;
 
 	std::optional<deluge::project::ParamAddress> addrOpt = deluge::edits::addressFor(*ms);
-	check(addrOpt.has_value(), "emitEvent: edit has a resolvable ParamAddress");
+	check(addrOpt.has_value(), "region-flip: resolvable address");
 	deluge::project::ParamAddress addr = *addrOpt;
-	deluge::project::DocAutoParam* store = ms->doc();
-	check(store != nullptr && ctx.model.resolveParam(addr) == store, "emitEvent: address resolves to the model store");
+	deluge::project::DocAutoParam* store = ms->doc(); // relocate the lane into the model tree
+	check(store != nullptr && ctx.model.resolveParam(addr) == store, "region-flip: store resolves (model-first path)");
 
-	auto seedBaseline = [&] {
-		store->nodes.erase(store->nodes.begin(), store->nodes.end());
-		store->current_value = 0x11111111; // a value neither edit writes, so any change is the patch's doing
-	};
+	// Seed a CONSISTENT scalar baseline (engine cursor AND store, as they'd be on-device) so the region's far-edge
+	// node value and the undo target are predictable.
+	store->nodes.erase(store->nodes.begin(), store->nodes.end());
+	ms->autoParam->setCurrentValueBasicForSetup(*store, 0x40000000);
 
-	// A) toggle OFF (the default / firmware build): emitEvent must NOT patch — region's in-line poke is the writer.
-	seedBaseline();
-	deluge::edits::m4EventPatchToggle() = false;
 	{
 		deluge::edits::SetParamValue edit{addr, 0x20000000, 0, 96, ms};
-		edit.emitEvent(ctx);
+		check(deluge::edits::apply(ctx, edit) == Error::NONE, "region-flip: apply succeeds");
 	}
-	check(store->current_value == 0x11111111 && store->nodes.empty(), "emitEvent OFF: region store untouched");
+	// Model-first: applyPatch homogenized [0,96); projectRegionFromStore synced the cursor (clock inactive).
+	check(store->nodes.size() == 2, "region-flip: node count (homogenized)");
+	check(store->nodes[0].pos == 0 && store->nodes[0].value == 0x20000000, "region-flip: node0 == value");
+	check(store->nodes[1].pos == 96 && store->nodes[1].value == 0x40000000, "region-flip: node1 == pre-region value");
+	check(store->current_value == 0x20000000, "region-flip: model current_value synced");
+	check(ms->autoParam->getCurrentValue() == 0x20000000, "region-flip: engine cursor synced");
 
-	// B) toggle ON, REGION: emitEvent gathers the region context from the engine stack (effLen 128 from the clip's
-	//    loop length; clock inactive; not on the automation view) and drives applyPatch(region) -> the pinned node
-	//    vector. node1 restores the pre-region value (the 0x11111111 baseline current_value).
-	seedBaseline();
-	deluge::edits::m4EventPatchToggle() = true;
-	{
-		deluge::edits::SetParamValue edit{addr, 0x20000000, 0, 96, ms};
-		edit.emitEvent(ctx);
-	}
-	check(store->nodes.size() == 2, "emitEvent ON region: node count == pinned");
-	check(store->nodes[0].pos == 0 && store->nodes[0].value == 0x20000000, "emitEvent ON region: node0 == pinned");
-	check(store->nodes[1].pos == 96 && store->nodes[1].value == 0x11111111, "emitEvent ON region: node1 == pinned");
-	check(store->current_value == 0x20000000, "emitEvent ON region: current_value == pinned");
-
-	deluge::edits::m4EventPatchToggle() =
-	    false; // restore the default so the rest of the harness / default build is unpatched
+	// Undo restores the pre-mutation state (the reordered snapshot captured it before applyPatch): nodes cleared.
+	actionLogger.revert(BEFORE, /*updateVisually=*/false, /*doNavigation=*/false);
+	check(store->nodes.empty(), "region-flip: undo cleared the nodes");
+	check(ms->autoParam->getCurrentValue() == 0x40000000, "region-flip: undo restored engine value");
 }
 
 // M4a commit-flip (Task 2) — SetParamValue::apply writes the SCALAR store model-first: on a resolvable lane it calls
@@ -494,8 +484,8 @@ int main() {
 	testPasteParamAutomation(ctx);
 	testInlinePokeCharacterization(ctx, audioClip);
 	testParamSnapshotEquivalence(ctx, song, audioClip);
-	testEmitEventDrivesPatch(ctx, song, audioClip);
 	testScalarFlipViaApply(ctx, song, audioClip);
+	testRegionFlipViaApply(ctx, song, audioClip);
 
 	if (failures == 0) {
 		std::fprintf(stdout, "edit_test: OK\n");

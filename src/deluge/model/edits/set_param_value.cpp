@@ -5,6 +5,7 @@
 #include "gui/ui/ui.h"                       // getRootUI
 #include "gui/views/automation_view.h"       // automationView interpolation flags
 #include "io/debug/log.h"
+#include "model/action/action.h" // recordParamChangeIfNotAlreadySnapshotted (region undo snapshot)
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h" // Clip::getCurrentlyRecordingLinearly (region context)
 #include "model/model_stack.h"
@@ -15,11 +16,6 @@
 #include "playback/playback_handler.h"
 
 namespace deluge::edits {
-
-bool& m4EventPatchToggle() {
-	static bool enabled = false;
-	return enabled;
-}
 
 namespace {
 // Gather the timeline/playback context the region patch needs, reading it from the (still-borrowed, M4a) engine
@@ -99,6 +95,27 @@ Error SetParamValue::apply(Context& ctx) {
 		return Error::NONE;
 	}
 
+	// M4a region commit-flip: the STOPPED-TRANSPORT region store write is also model-first — applyPatch writes the
+	// nodes + current_value (via the proven DOM kernel), and the engine derives its RT tail (cursor + notify) from
+	// the store. The undo snapshot is reordered AHEAD of the patch (the exact getNewAction + record call
+	// setValueForRegion makes at auto_param.cpp:1109-1112, so held-pad region drags coalesce identically). Clock-
+	// active region (interpolation-reset / UI-notify sub-branch not surfaced by the kernel) and unresolvable lanes
+	// keep the in-line poke below.
+	if (length_ != 0 && engineStack_->timelineCounterIsSet() && !playbackHandler.isEitherClockActive()
+	    && address_.has_value() && ctx.model.resolveParam(*address_) != nullptr) {
+		const int32_t oldValue = engineStack_->autoParam->getCurrentValue();
+		const bool automatedBefore = engineStack_->autoParam->isAutomated(*engineStack_->doc());
+		Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
+		if (action != nullptr) {
+			action->recordParamChangeIfNotAlreadySnapshotted(engineStack_);
+		}
+		std::optional<bool> changed = deluge::snapshot::ParamSnapshot::applyPatch(
+		    ctx.model, *address_, newValue_, pos_, length_, gatherRegionContext(engineStack_));
+		engineStack_->autoParam->projectRegionFromStore(engineStack_, oldValue, automatedBefore,
+		                                                changed.value_or(false));
+		return Error::NONE;
+	}
+
 	// Funnel phase: delegate to the exact engine mutation the call site used, behaviour-identical.
 	engineStack_->autoParam->setValuePossiblyForRegion(newValue_, engineStack_, pos_, length_,
 	                                                   mayDeleteNodesInLinearRun_);
@@ -111,20 +128,16 @@ void SetParamValue::emitEvent(Context& ctx) {
 		return;
 	}
 #if ALPHA_OR_BETA_VERSION
-	// M4 event-feed pilot observation (regardless of the A/B toggle): verify the durable ParamAddress still
-	// resolves to a live DOM param, proving the feed's addressing end-to-end.
+	// M4 event-feed pilot observation: verify the durable ParamAddress still resolves to a live DOM param, proving
+	// the feed's addressing end-to-end. The store WRITE is now owned by apply() (scalar + stopped-transport region
+	// are model-first via ParamSnapshot::applyPatch; clock-active region + unresolvable lanes keep the in-line poke),
+	// so emitEvent no longer patches — the M4a A/B toggle has been retired.
 	if (ctx.model.resolveParam(*address_) == nullptr) {
 		D_PRINTLN("M4 event feed: SetParamValue address did not resolve to a DOM param");
 	}
+#else
+	(void)ctx;
 #endif
-	// Scalar edits are now written model-first by apply() itself (the commit-flip: ParamSnapshot::applyPatch is the
-	// sole scalar-store writer), so emitEvent no longer patches scalar. The REGION path is not yet flipped — its
-	// store write still comes from the in-line setValueForRegion — so keep the region event-patch behind the
-	// off-by-default A/B toggle, which the host equivalence spec flips to compare it against the in-line region poke.
-	if (m4EventPatchToggle() && length_ != 0 && engineStack_->timelineCounterIsSet()) {
-		deluge::snapshot::ParamSnapshot::applyPatch(ctx.model, *address_, newValue_, pos_, length_,
-		                                            gatherRegionContext(engineStack_));
-	}
 }
 
 } // namespace deluge::edits

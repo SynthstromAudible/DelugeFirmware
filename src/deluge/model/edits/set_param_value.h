@@ -9,14 +9,6 @@ class ModelStackWithAutoParam;
 
 namespace deluge::edits {
 
-/// M4a A/B toggle (default false): when true, SetParamValue::emitEvent drives the model-first
-/// ParamSnapshot::applyPatch IN ADDITION to apply()'s in-line engine poke, so the host equivalence spec can compare
-/// the two paths. The firmware/default build leaves it false — the in-line poke stays the sole path, so goldens are
-/// bit-identical and there is zero RT change. Flipping it to the sole path (deleting the in-line poke) is the
-/// deferred commit-flip, past M4a. Returns a reference so a test can set it; a function-local static keeps the
-/// default centralised.
-bool& m4EventPatchToggle();
-
 /// Pilot Edit (M1b): set a param's value from a user knob-turn — the reification of the mutation
 /// in View::modEncoderAction_existentParam. `pos`/`length` mirror the view's modPos/modLength
 /// (length 0 = plain scalar turn; nonzero = held-pad region edit in automation view).
