@@ -118,7 +118,7 @@ public:
 	// keep our own schedule anchored to AudioEngine::audioSampleTimer, in 32.32 fixed point.
 	// Active while !isEitherClockActive(), plus one further stretch: when playback is starting aligned to this clock,
 	// it stays active - and so stays in charge of the clock out - from the button press until timer tick 0 is actioned
-	// at the alignment boundary, even though the internal clock is already marked active. See isAwaitingAlignedStart(),
+	// at the alignment boundary, even though the internal clock is already marked active. See
 	// setupPlaybackUsingInternalClock() and actionTimerTick(). It is never active while the *external* clock is.
 	bool freeRunningClockActive;
 	uint64_t timeNextFreeRunningTickBig; // 32.32 sample time of next free-running tick
@@ -256,14 +256,21 @@ public:
 	inline bool isInternalClockActive() { return (playbackState & PLAYBACK_CLOCK_INTERNAL_ACTIVE); }
 	inline bool isEitherClockActive() { return (playbackState & PLAYBACK_CLOCK_EITHER_ACTIVE); }
 
-	// True exactly during the "gap" of an aligned start: playback has been set up (the internal clock is active) but
-	// timer tick 0 hasn't been actioned yet, because it's been anchored to the free-running MIDI clock out's next tick,
-	// up to one out-tick (~21ms at 120BPM) in the future. During that gap the timer-tick grid isn't valid yet -
-	// getCurrentInternalTickCount() reads a flat 0 - so anything that would otherwise begin sounding "now", in step
-	// with a sequence position that doesn't exist yet, must wait for the boundary instead. It can only be true in
-	// MIDIClockOutMode::ALWAYS, and only while a free-running-aligned start is actually in progress: everywhere else
-	// freeRunningClockActive is false whenever a clock is active.
-	inline bool isAwaitingAlignedStart() { return freeRunningClockActive && isInternalClockActive(); }
+	/// True while internal-clock playback has been set up but timer tick 0 hasn't been actioned yet - the pre-roll.
+	/// The timer-tick grid is empty during it: lastTimerTickActioned / timeLastTimerTickBig are stale, and
+	/// getCurrentInternalTickCount() answers a flat 0 by special case rather than by calculation.
+	///
+	/// The rule: nothing may begin *sounding* during the pre-roll. There is no sequence position to sound in step
+	/// with yet, and no elapsed-time-since-tick-0 to place it against, so anything that would otherwise start
+	/// "right now" has to wait for tick 0 instead - notes get this for free (they're only triggered by swung ticks),
+	/// but anything that starts from the audio renderer must ask.
+	///
+	/// This used to be a distinction without a difference, because no audio was ever rendered inside the pre-roll:
+	/// setupPlayback() anchors tick 0 to the very next audio window. An aligned start (see
+	/// setupPlaybackUsingInternalClock()) breaks that assumption - it anchors tick 0 to the free-running MIDI clock
+	/// out's next tick, up to one out-tick (~21ms at 120BPM) away, and real audio windows render in between. Hence
+	/// the rule, and hence stating it against the tick grid rather than against whatever pushed tick 0 out.
+	inline bool isPlaybackPreRoll() { return isInternalClockActive() && !nextTimerTickScheduled; }
 
 	// TEMPO encoder commands
 	void commandDisplaySwingAmount();

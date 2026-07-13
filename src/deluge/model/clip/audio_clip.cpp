@@ -562,13 +562,11 @@ void AudioClip::render(ModelStackWithTimelineCounter* modelStack, std::span<q31_
 	// hasn't loaded yet)
 	if (doingLateStart && static_cast<AudioOutput*>(this->output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
 
-		// Unlike notes, which only sound when a swung tick is actioned, our late start would happen right now, in the
-		// very next audio window. If playback is starting aligned to the free-running MIDI clock out, "right now" is up
-		// to one clock-out tick before timer tick 0 - so starting the sample here would flam it ahead of the first
-		// note. Hold off; once timer tick 0 has been actioned at the alignment boundary, getSyncedNumSamplesIn() is 0
-		// and we start at sample 0 of the sample, in step with the notes. (Inert in every mode but ALWAYS, and even
-		// there only while an aligned start is actually in progress.)
-		if (playbackHandler.isAwaitingAlignedStart()) {
+		// Unlike notes, which only sound when a swung tick is actioned, our late start would happen right now, in this
+		// very audio window - so if playback is still in its pre-roll, we'd be sounding ahead of timer tick 0, and
+		// getSyncedNumSamplesIn() would be placing us against a sequence position that doesn't exist yet. Wait for
+		// tick 0: at that point getSyncedNumSamplesIn() is 0 and we start at sample 0, in step with the notes.
+		if (playbackHandler.isPlaybackPreRoll()) {
 			return;
 		}
 

@@ -1469,7 +1469,10 @@ int64_t PlaybackHandler::getCurrentInternalTickCount(uint32_t* timeRemainder) {
 
 		// If no timer ticks have occurred yet, the answer is a resounding zero, and we have to have this as a
 		// special case because timeLastTimerTickBig won't have been set yet. This will happen all the time during
-		// playback setup, e.g. in AudioClip::resumePlayback()
+		// playback setup, e.g. in AudioClip::resumePlayback().
+		// Note this 0 is a placeholder, not a measurement: it doesn't advance with audioSampleTimer, so a caller
+		// deciding when to start sounding must not build on it. isPlaybackPreRoll() is this same condition, named -
+		// test it rather than inferring from the 0.
 		if (!nextTimerTickScheduled) {
 			if (timeRemainder) {
 				*timeRemainder = 0;
