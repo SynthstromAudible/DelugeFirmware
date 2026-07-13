@@ -162,17 +162,36 @@ void nudgeNonInterpolatingNodesAtPos(DocAutoParam& p, int32_t pos, int32_t offse
 /// homogenized forward (the engine's only call site passes `reversed=false` to homogenizeRegion) —
 /// `currentlyPlayingReversed` is the unrelated live transport direction, used solely for that live-pos check.
 ///
+/// Which value-branch AutoParam::setValueForRegion's post-mutation tail takes — named here (the kernel already
+/// decides it internally) so the engine wiring seam can reproduce the interpolation-cursor / UI-notify step the
+/// kernel itself does not port. `currentValue = doc->current_value` is uniform across all three (value-taking
+/// branches wrote it; `NotifyOnly` left it unchanged).
+enum class RegionCurrentValueEffect : uint8_t {
+	Set,               ///< current_value written; NO interpolation reset (whole-region, or normal + transport stopped)
+	SetAndResetInterp, ///< current_value written AND the interpolation cursor should reset (clock-active, playhead in
+	                   ///< region)
+	NotifyOnly, ///< current_value UNCHANGED; the engine notifies the UI of automation (clock-active, playhead outside)
+};
+
+/// Result of setValueForRegion: the `automationChanged` the wiring seam feeds notifyParamModifiedInSomeWay, plus the
+/// value-branch the tail must reproduce.
+struct RegionWriteResult {
+	bool automationChanged;
+	RegionCurrentValueEffect currentValueEffect;
+};
+
 /// Returns std::nullopt when nothing was touched at all — `pos` at/past `effectiveLength` (matching the
 /// engine's early return, before which it never even creates an Action or calls notify). Otherwise returns the
 /// engine's local `automationChanged` (false on the whole-region collapse path, true on the normal homogenize
-/// path): the value the wiring seam needs for its notifyParamModifiedInSomeWay(..., automationChanged, ...)
-/// call, which the engine otherwise makes unconditionally whenever this doesn't return nullopt. Action
-/// snapshotting, the notify call itself, and interpolation-cursor state (resetInterpolationIncrement) are
-/// engine wiring and are not ported. Faithful port of AutoParam::setValueForRegion's node/value mutation.
-std::optional<bool> setValueForRegion(DocAutoParam& p, uint32_t pos, uint32_t length, int32_t value,
-                                      int32_t effectiveLength, bool interpolateLeftNode, bool interpolateRightNode,
-                                      bool recordingLinearly, bool clockActive, int32_t livePos,
-                                      bool currentlyPlayingReversed);
+/// path) AND which value-branch the post-mutation tail took (see RegionCurrentValueEffect) — the value the wiring
+/// seam needs for its notifyParamModifiedInSomeWay(..., automationChanged, ...) call and to reproduce the
+/// interpolation-cursor / UI-notify step. Action snapshotting, the notify call itself, and interpolation-cursor
+/// state (resetInterpolationIncrement) are engine wiring and are not ported. Faithful port of
+/// AutoParam::setValueForRegion's node/value mutation.
+std::optional<RegionWriteResult> setValueForRegion(DocAutoParam& p, uint32_t pos, uint32_t length, int32_t value,
+                                                   int32_t effectiveLength, bool interpolateLeftNode,
+                                                   bool interpolateRightNode, bool recordingLinearly, bool clockActive,
+                                                   int32_t livePos, bool currentlyPlayingReversed);
 
 /// Value carrier for copyRegion/pasteRegion: automation nodes lifted onto their own little timeline, always
 /// starting with a node at pos 0 (`width` is the number of ticks it spans). Mirrors the engine's

@@ -379,15 +379,24 @@ void AutoParam::projectScalarFromStore(ModelStackWithAutoParam const* modelStack
 }
 
 void AutoParam::projectRegionFromStore(ModelStackWithAutoParam const* modelStack, int32_t oldValue,
-                                       bool automatedBefore, bool automationChanged) {
+                                       bool automatedBefore, deluge::project::RegionWriteResult result) {
 	// M4a region commit-flip: the store (nodes + current_value) was ALREADY written model-first
-	// (ParamSnapshot::applyPatch's region kernel). Derive the engine RT tail for the STOPPED-TRANSPORT case — the
-	// engine's !clockActive setValueForRegion path takes neither the interpolation reset nor the UI notify, so this
-	// is exactly cursor-sync + notify (the automationChanged flag is the kernel's return, feeding notify's arg).
+	// (ParamSnapshot::applyPatch's region kernel). Reproduce setValueForRegion's post-mutation tail from the branch
+	// the kernel took (result.currentValueEffect). currentValue = doc->current_value is uniform: the value-taking
+	// branches wrote the new value into the store; NotifyOnly left it unchanged.
+	using deluge::project::RegionCurrentValueEffect;
+	if (result.currentValueEffect == RegionCurrentValueEffect::SetAndResetInterp) {
+		// clock-active, playhead inside the edited region: the engine resets the interpolation cursor here.
+		resetInterpolationIncrement();
+	}
+	else if (result.currentValueEffect == RegionCurrentValueEffect::NotifyOnly) {
+		// clock-active, playhead outside: the engine leaves current_value alone and notifies the UI of automation.
+		view.notifyParamAutomationOccurred(modelStack->paramManager);
+	}
 	currentValue = modelStack->doc()->current_value;
 	bool automatedNow = isAutomated(*modelStack->doc());
-	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, automationChanged, automatedBefore,
-	                                                          automatedNow);
+	modelStack->paramCollection->notifyParamModifiedInSomeWay(modelStack, oldValue, result.automationChanged,
+	                                                          automatedBefore, automatedNow);
 }
 
 bool AutoParam::deleteRedundantNodeInLinearRun(deluge::project::DocAutoParam& doc, int32_t lastNodeInRunI,

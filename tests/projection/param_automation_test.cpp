@@ -1981,27 +1981,30 @@ int main() {
 			bool interpolated;
 		};
 
+		// Returns the value-branch the engine tail takes (nullopt on the no-op / OOM early returns), so the DOM
+		// kernel's RegionWriteResult.currentValueEffect can be checked against it across the whole matrix.
 		auto engineSetValueForRegion = [](AutoParam& ap, deluge::project::DocAutoParam& apDoc,
 		                                  ModelStackWithAutoParam* ms, uint32_t pos, uint32_t length, int32_t value,
 		                                  int32_t effLen, bool interpL, bool interpR, bool clockActive, int32_t livePos,
-		                                  bool reversed) {
+		                                  bool reversed) -> std::optional<deluge::project::RegionCurrentValueEffect> {
+			using deluge::project::RegionCurrentValueEffect;
 			bindOracle(ms, &ap, &apDoc);
 			if (pos >= static_cast<uint32_t>(effLen)) {
-				return;
+				return std::nullopt;
 			}
 			if (length == static_cast<uint32_t>(effLen)) {
 				(&apDoc)->nodes.erase((&apDoc)->nodes.begin(), (&apDoc)->nodes.end());
 				ap.currentValue = value;
-				return;
+				return RegionCurrentValueEffect::Set;
 			}
 			int32_t firstI = ap.homogenizeRegion(ms, static_cast<int32_t>(pos), static_cast<int32_t>(length), value,
 			                                     interpL, interpR, effLen, /*reversed=*/false);
 			if (firstI == -1) {
-				return;
+				return std::nullopt;
 			}
 			if (!clockActive) {
 				ap.currentValue = value;
-				return;
+				return RegionCurrentValueEffect::Set;
 			}
 			int32_t mostRecentI = (&apDoc)->nodes.firstAtOrAfter(livePos + static_cast<int32_t>(!reversed)) - 1;
 			if (mostRecentI == -1) {
@@ -2009,7 +2012,9 @@ int main() {
 			}
 			if (mostRecentI == firstI) {
 				ap.currentValue = value;
+				return RegionCurrentValueEffect::SetAndResetInterp;
 			}
+			return RegionCurrentValueEffect::NotifyOnly;
 		};
 
 		const std::vector<std::vector<N>> configs = {
@@ -2065,14 +2070,19 @@ int main() {
 							nr.setLoopLengthIfIndependent(effLen);
 							ms->setNoteRow(&nr);
 
-							engineSetValueForRegion(ap, apDoc, ms, c.pos, c.length, c.value, effLen, c.interpL,
-							                        c.interpR, clockActive, livePos, reversed);
+							auto expectedEffect =
+							    engineSetValueForRegion(ap, apDoc, ms, c.pos, c.length, c.value, effLen, c.interpL,
+							                            c.interpR, clockActive, livePos, reversed);
 							auto domRet = deluge::project::setValueForRegion(
 							    doc, c.pos, c.length, c.value, effLen, c.interpL, c.interpR,
 							    /*recordingLinearly=*/false, clockActive, livePos, reversed);
 
 							check(domRet.has_value() == (c.pos < static_cast<uint32_t>(effLen)),
 							      "setValueForRegion: nullopt iff pos is at/past effectiveLength");
+							check(domRet.has_value() == expectedEffect.has_value(),
+							      "setValueForRegion: has_value matches engine oracle");
+							check(!domRet.has_value() || domRet->currentValueEffect == *expectedEffect,
+							      "setValueForRegion: currentValueEffect matches engine branch");
 							check(ap.currentValue == doc.current_value,
 							      "setValueForRegion: current_value matches engine oracle");
 							expectDocMatchesEngine(apDoc, doc, "setValueForRegion: nodes match engine oracle");
@@ -2087,8 +2097,9 @@ int main() {
 		{
 			DocAutoParam doc{};
 			auto r = deluge::project::setValueForRegion(doc, 0, 128, 999, 128, true, true, false, true, 0, false);
-			check(r.has_value() && *r == false,
-			      "setValueForRegion: full-region collapse reports automationChanged=false");
+			check(r.has_value() && !r->automationChanged
+			          && r->currentValueEffect == deluge::project::RegionCurrentValueEffect::Set,
+			      "setValueForRegion: full-region collapse reports automationChanged=false, effect Set");
 			check(doc.current_value == 999 && doc.nodes.empty(),
 			      "setValueForRegion: full-region collapse clears nodes and sets current_value");
 		}
@@ -2101,8 +2112,9 @@ int main() {
 		{
 			DocAutoParam doc{};
 			auto r = deluge::project::setValueForRegion(doc, 16, 32, 500, 128, true, true, false, false, 0, false);
-			check(r.has_value() && *r == true,
-			      "setValueForRegion: normal homogenize-region path reports automationChanged=true");
+			check(r.has_value() && r->automationChanged
+			          && r->currentValueEffect == deluge::project::RegionCurrentValueEffect::Set,
+			      "setValueForRegion: normal homogenize-region (stopped) reports automationChanged=true, effect Set");
 		}
 	}
 

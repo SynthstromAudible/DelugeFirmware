@@ -18,6 +18,7 @@
 #pragma once
 #include "definitions_cxx.hpp"
 #include "deluge-project/param_automation.h" // deluge::project::DocAutoParam (held by value)
+#include "deluge-project/param_edit.h"       // deluge::project::RegionWriteResult (projectRegionFromStore)
 #include "model/action/action.h"
 #include "modulation/params/param_node_vector.h"
 #include "storage/storage_manager.h"
@@ -70,7 +71,7 @@ public:
 	/// engine's RT tail — cursor sync + notify — reproducing setValueForRegion's `!clockActive` path (which takes
 	/// neither the interpolation reset nor the UI notify). `automationChanged` is the kernel's return.
 	void projectRegionFromStore(ModelStackWithAutoParam const* modelStack, int32_t oldValue, bool automatedBefore,
-	                            bool automationChanged);
+	                            deluge::project::RegionWriteResult result);
 	int32_t processCurrentPos(ModelStackWithAutoParam const* modelStack, bool reversed, bool didPinpong,
 	                          bool mayInterpolate = true, bool mustUpdateValueAtEveryNode = false);
 	void setValueForRegion(uint32_t pos, uint32_t length, int32_t value, ModelStackWithAutoParam const* modelStack,

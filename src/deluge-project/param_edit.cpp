@@ -1053,10 +1053,10 @@ void nudgeNonInterpolatingNodesAtPos(DocAutoParam& p, int32_t pos, int32_t offse
 	}
 }
 
-std::optional<bool> setValueForRegion(DocAutoParam& p, uint32_t pos, uint32_t length, int32_t value,
-                                      int32_t effectiveLength, bool interpolateLeftNode, bool interpolateRightNode,
-                                      bool recordingLinearly, bool clockActive, int32_t livePos,
-                                      bool currentlyPlayingReversed) {
+std::optional<RegionWriteResult> setValueForRegion(DocAutoParam& p, uint32_t pos, uint32_t length, int32_t value,
+                                                   int32_t effectiveLength, bool interpolateLeftNode,
+                                                   bool interpolateRightNode, bool recordingLinearly, bool clockActive,
+                                                   int32_t livePos, bool currentlyPlayingReversed) {
 	auto& nodes = p.nodes;
 
 	// The user can't edit beyond the length of the loop/Clip/TimelineCounter they're editing within.
@@ -1069,7 +1069,8 @@ std::optional<bool> setValueForRegion(DocAutoParam& p, uint32_t pos, uint32_t le
 	if (length == static_cast<uint32_t>(effectiveLength)) {
 		nodes.clear();
 		p.current_value = value;
-		return false; // automationChanged stays false on this path, matching the engine
+		// automationChanged stays false on this path; the engine sets current_value with no interp reset / UI notify.
+		return RegionWriteResult{false, RegionCurrentValueEffect::Set};
 	}
 
 	// Normal case: homogenize the region to a single flat/ramped segment.
@@ -1083,19 +1084,21 @@ std::optional<bool> setValueForRegion(DocAutoParam& p, uint32_t pos, uint32_t le
 	// If the transport isn't running right now, the edit takes effect on current_value immediately.
 	if (!clockActive) {
 		p.current_value = value;
-		return true;
+		return RegionWriteResult{true, RegionCurrentValueEffect::Set};
 	}
 
-	// Otherwise, it only takes effect immediately if the playhead is inside the edited region right now.
-	// (resetInterpolationIncrement on that path is engine wiring — interpolation-cursor state, not ported.)
+	// Otherwise, it only takes effect immediately if the playhead is inside the edited region right now — and on that
+	// branch the engine also resets the interpolation cursor; otherwise it leaves current_value alone and notifies
+	// the UI (both engine wiring, reported here so the seam can reproduce them).
 	int32_t mostRecentI = firstAtOrAfter(nodes, livePos + static_cast<int32_t>(!currentlyPlayingReversed)) - 1;
 	if (mostRecentI == -1) {
 		mostRecentI = static_cast<int32_t>(nodes.size()) - 1;
 	}
 	if (mostRecentI == firstI) {
 		p.current_value = value;
+		return RegionWriteResult{true, RegionCurrentValueEffect::SetAndResetInterp};
 	}
-	return true;
+	return RegionWriteResult{true, RegionCurrentValueEffect::NotifyOnly};
 }
 
 void copyRegion(const DocAutoParam& p, int32_t startPos, int32_t endPos, int32_t loopLength, bool isPatchCable,

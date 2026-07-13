@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include "deluge-project/param_edit.h" // RegionWriteResult (applyPatch's region return)
 #include <cstdint>
 #include <optional>
 
@@ -57,9 +58,10 @@ public:
 	///
 	/// Returns the region kernel's `automationChanged` (what the engine's notifyParamModifiedInSomeWay needs), or
 	/// `std::nullopt` for the scalar path and when the address does not resolve (no-op).
-	static std::optional<bool> applyPatch(deluge::project::Song& model, const deluge::project::ParamAddress& address,
-	                                      int32_t value, int32_t pos, int32_t length,
-	                                      const std::optional<RegionContext>& region);
+	static std::optional<deluge::project::RegionWriteResult> applyPatch(deluge::project::Song& model,
+	                                                                    const deluge::project::ParamAddress& address,
+	                                                                    int32_t value, int32_t pos, int32_t length,
+	                                                                    const std::optional<RegionContext>& region);
 };
 
 } // namespace deluge::snapshot

@@ -109,10 +109,11 @@ Error SetParamValue::apply(Context& ctx) {
 		if (action != nullptr) {
 			action->recordParamChangeIfNotAlreadySnapshotted(engineStack_);
 		}
-		std::optional<bool> changed = deluge::snapshot::ParamSnapshot::applyPatch(
+		std::optional<deluge::project::RegionWriteResult> result = deluge::snapshot::ParamSnapshot::applyPatch(
 		    ctx.model, *address_, newValue_, pos_, length_, gatherRegionContext(engineStack_));
-		engineStack_->autoParam->projectRegionFromStore(engineStack_, oldValue, automatedBefore,
-		                                                changed.value_or(false));
+		if (result.has_value()) {
+			engineStack_->autoParam->projectRegionFromStore(engineStack_, oldValue, automatedBefore, *result);
+		}
 		return Error::NONE;
 	}
 

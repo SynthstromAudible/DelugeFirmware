@@ -23,9 +23,9 @@
 
 namespace deluge::snapshot {
 
-std::optional<bool> ParamSnapshot::applyPatch(deluge::project::Song& model,
-                                              const deluge::project::ParamAddress& address, int32_t value, int32_t pos,
-                                              int32_t length, const std::optional<RegionContext>& region) {
+std::optional<deluge::project::RegionWriteResult>
+ParamSnapshot::applyPatch(deluge::project::Song& model, const deluge::project::ParamAddress& address, int32_t value,
+                          int32_t pos, int32_t length, const std::optional<RegionContext>& region) {
 	deluge::project::DocAutoParam* doc = model.resolveParam(address);
 	if (doc == nullptr) {
 		// Engine-only lane (never-saved owner not yet id-addressed) — nothing to patch in the model; the engine's
