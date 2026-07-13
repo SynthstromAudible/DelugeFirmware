@@ -98,20 +98,22 @@ firmware links; the in-line poke remains the default (no commit-flip in M4a).
 
 Inherited by the later sub-milestones:
 
-- **The commit-flip — SCALAR + STOPPED-TRANSPORT REGION landed**
+- **The commit-flip — COMPLETE for every reified user param edit** (scalar + region, all clock states)
   (`docs/superpowers/specs/2026-07-12-m4a-commit-flip-design.md`,
-  `docs/superpowers/specs/2026-07-12-m4a-region-commit-flip-design.md`): `SetParamValue::apply` now writes the
-  persistent store model-first via `ParamSnapshot::applyPatch` (the sole writer) for both the scalar path and the
-  **stopped-transport** region path, with `AutoParam::projectScalarFromStore` / `projectRegionFromStore` deriving the
-  engine RT tail from the store. The region flip reordered the undo snapshot
-  (`recordParamChangeIfNotAlreadySnapshotted`) ahead of the patch — the undo-path work the scalar spec deferred. The
-  M4a A/B toggle is retired (`emitEvent` is now observation-only). Behaviour-preserving (goldens bit-identical,
-  x86≡ARM; `edit_undo_redo` + `param_record` are the load-bearing gates). **Still deferred: CLOCK-ACTIVE region** —
-  its engine-side `resetInterpolationIncrement()` / `view.notifyParamAutomationOccurred()` sub-branch (chosen by a
-  `mostRecentI == firstI` decision internal to `homogenizeRegion`) is not surfaced by `applyPatch`; flipping it needs
-  the kernel to return that decision (and a non-view notify seam) — its own slice / M6 convergence. The on-device
-  audio-callback confirmation of the RT cost remains the named follow-up. When clock-active region flips, the
-  `RegionContext` is the seam that moves from the engine-stack borrow to the model/snapshot.
+  `.../2026-07-12-m4a-region-commit-flip-design.md`, `.../2026-07-12-m4a-clockactive-region-flip-design.md`):
+  `SetParamValue::apply` writes the persistent store model-first via `ParamSnapshot::applyPatch` (the sole writer)
+  for the scalar path AND the region path in every clock state, with `AutoParam::projectScalarFromStore` /
+  `projectRegionFromStore` deriving the engine RT tail from the store. The region flip reordered the undo snapshot
+  (`recordParamChangeIfNotAlreadySnapshotted`) ahead of the patch. The clock-active region flip taught the DOM kernel
+  `deluge::project::setValueForRegion` to RETURN its value-branch decision (`RegionWriteResult` /
+  `RegionCurrentValueEffect`), so `projectRegionFromStore` reproduces the `resetInterpolationIncrement()` /
+  `view.notifyParamAutomationOccurred()` tail engine-tier (no layering break — that method already lives in
+  `auto_param.cpp`); the kernel's new field is proven faithful across `param_automation_test`'s exhaustive engine≡DOM
+  matrix. The M4a A/B toggle is retired (`emitEvent` is observation-only). Behaviour-preserving (goldens bit-identical
+  x86≡ARM; **`param_record`** — clock-active editing during playback — is the load-bearing gate, alongside
+  `edit_undo_redo`). **The in-line poke now survives only for unresolvable / not-yet-relocated lanes and
+  recording-active SCALAR** (drum-MPE, which lives in `setCurrentValueInResponseToUserInput` — M4d retires it). The
+  on-device audio-callback confirmation of the RT cost remains the named follow-up.
 - **M4b** — hot Sound fields (`record + native cache` dual-writes) onto the snapshot; render reads the snapshot.
 - **M4c** — the note VECTOR onto the snapshot (`AddNote`/`RemoveNote` events patch a note snapshot the playback path
   reads) — the biggest remaining read-side independence gap, RT-critical.
