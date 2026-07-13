@@ -341,7 +341,10 @@ void testParamSnapshotEquivalence(deluge::edits::Context& ctx, ::Song* engineSon
 	                                   /*clockActive*/ false,
 	                                   /*livePos*/ 0,
 	                                   /*currentlyPlayingReversed*/ false};
-	deluge::snapshot::ParamSnapshot::applyPatch(ctx.model, addr, 0x20000000, 0, 96, rc);
+	std::optional<bool> regionChanged =
+	    deluge::snapshot::ParamSnapshot::applyPatch(ctx.model, addr, 0x20000000, 0, 96, rc);
+	check(regionChanged.has_value() && *regionChanged,
+	      "applyPatch region: automationChanged==true (normal homogenize)");
 	check(store->nodes.size() == 2, "applyPatch region: node count == pinned");
 	check(store->nodes[0].pos == 0 && store->nodes[0].value == 0x20000000, "applyPatch region: node0 == pinned");
 	check(store->nodes[1].pos == 96 && store->nodes[1].value == 0x40000000, "applyPatch region: node1 == pinned");

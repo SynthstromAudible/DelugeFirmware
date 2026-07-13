@@ -53,9 +53,13 @@ public:
 	/// per-edit path). `region` absent → the scalar path: make the store's current_value authoritative (the in-line
 	/// poke's characterized scalar effect; nodes untouched). `region` present → the region path: reproduce
 	/// AutoParam::setValueForRegion's node/current_value mutation via the DOM kernel proven bit-equivalent to it
-	/// (the engine==DOM matrix in tests/projection/param_automation_test.cpp). No-op if the address does not resolve.
-	static void applyPatch(deluge::project::Song& model, const deluge::project::ParamAddress& address, int32_t value,
-	                       int32_t pos, int32_t length, const std::optional<RegionContext>& region);
+	/// (the engine==DOM matrix in tests/projection/param_automation_test.cpp).
+	///
+	/// Returns the region kernel's `automationChanged` (what the engine's notifyParamModifiedInSomeWay needs), or
+	/// `std::nullopt` for the scalar path and when the address does not resolve (no-op).
+	static std::optional<bool> applyPatch(deluge::project::Song& model, const deluge::project::ParamAddress& address,
+	                                      int32_t value, int32_t pos, int32_t length,
+	                                      const std::optional<RegionContext>& region);
 };
 
 } // namespace deluge::snapshot
