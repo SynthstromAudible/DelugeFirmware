@@ -255,8 +255,8 @@ void KeyboardScreen::updateActiveNotes() {
 			if (currentNotesState.count == 1 && !currentNotesState.notes[idx].generatedNote
 			    && activeInstrument->type == OutputType::SYNTH) {
 				if (getCurrentUI() == &soundEditor && soundEditor.getCurrentMenuItem() == &menu_item::multiRangeMenu) {
-					menu_item::multiRangeMenu.noteOnToChangeRange(newNote
-					                                              + ((SoundInstrument*)activeInstrument)->transpose);
+					menu_item::multiRangeMenu.noteOnToChangeRange(
+					    newNote + ((SoundInstrument*)activeInstrument)->getTranspose());
 				}
 			}
 		}

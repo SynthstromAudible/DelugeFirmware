@@ -1913,7 +1913,7 @@ void SoundEditor::toggleNoteEditorParamMenu(int32_t on) {
 
 bool SoundEditor::isUntransposedNoteWithinRange(int32_t noteCode) {
 	return (std::ssize(soundEditor.currentSource->ranges) > 1
-	        && soundEditor.currentSource->getRange(noteCode + soundEditor.currentSound->transpose)
+	        && soundEditor.currentSource->getRange(noteCode + soundEditor.currentSound->getTranspose())
 	               == soundEditor.currentMultiRange);
 }
 

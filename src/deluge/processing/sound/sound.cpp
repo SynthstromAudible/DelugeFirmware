@@ -304,7 +304,7 @@ void Sound::setupAsDefaultSynth(ParamManager* paramManager) {
 	numUnison = 4;
 	unisonDetune = 10;
 
-	transpose = -12;
+	setTranspose(-12); // M4b: unbound at this setup point → writes the snapshot
 
 	doneReadingFromFile();
 }
@@ -637,7 +637,7 @@ Error Sound::readTagFromFileOrError(Deserializer& reader, char const* tagName, P
 	}
 
 	else if (!strcmp(tagName, "transpose")) {
-		transpose = reader.readTagOrAttributeValueInt();
+		setTranspose(reader.readTagOrAttributeValueInt()); // M4b: routes to record (bound drum) or snapshot (unbound)
 		reader.exitTag("transpose");
 	}
 
@@ -2044,7 +2044,7 @@ int32_t Sound::hasAnyTimeStretchSyncing(ParamManagerForTimeline* paramManager, b
 		if (sourceEverActive && sources[s].oscType == OscType::SAMPLE
 		    && sources[s].repeatMode == SampleRepeatMode::STRETCH) {
 			if (getSampleLength) {
-				return sources[s].getLengthInSamplesAtSystemSampleRate(note + transpose, true);
+				return sources[s].getLengthInSamplesAtSystemSampleRate(note + snapshot_.transpose, true);
 			}
 			return 1;
 		}
@@ -3048,6 +3048,7 @@ void Sound::doneReadingFromFile() {
 		seedDocSoundScalars();
 		seedModKnobsRecord();
 		seedDocModControllable();
+		projectSnapshot(); // M4b: refresh the render read-view from the now-final record (SoundDrum load-bridge)
 		for (int32_t s = 0; s < kNumSources; s++) {
 			sources[s].seedDocSourceScalars();
 			sources[s].seedDocDxPatch();
@@ -3904,7 +3905,7 @@ void Sound::seedDocSoundScalars() {
 	// before parse, so this re-seed at doneReadingFromFile is what captures their loaded values into the record.
 	d.polyphonic = static_cast<uint8_t>(polyphonic);
 	d.synth_mode = static_cast<uint8_t>(synthMode);
-	d.transpose = transpose;
+	d.transpose = snapshot_.transpose; // M4b: transpose lives on the snapshot; the record seeds from it (bind-time)
 	d.num_unison = numUnison;
 	d.unison_detune = unisonDetune;
 	d.unison_stereo_spread = unisonStereoSpread;
@@ -3920,6 +3921,15 @@ void Sound::seedDocSoundScalars() {
 		d.lfo_sync_type[i] = static_cast<uint8_t>(lfoConfig[i].syncType);
 		d.lfo_sync_level[i] = static_cast<uint8_t>(lfoConfig[i].syncLevel);
 	}
+}
+
+void Sound::projectSnapshot() {
+	// M4b: re-derive the engine's hot-field read-view from the authoritative DocSound. No-op when unbound (preview /
+	// GlobalEffectable) — those sounds write snapshot_ directly and have no record to project from. Grows per slice.
+	if (docSound_ == nullptr) {
+		return;
+	}
+	snapshot_.transpose = docSound_->transpose;
 }
 
 void Sound::seedModKnobsRecord() {
@@ -3940,6 +3950,7 @@ void Sound::bindDocSound(deluge::project::DocSound* d) {
 	// first), so this seed is stale for drums — doneReadingFromFile re-runs it once parsing is done.
 	seedDocSoundScalars();
 	seedModKnobsRecord();
+	projectSnapshot(); // M4b: derive the render read-view from the now-seeded record
 	bindDocModControllable(&d->mod_controllable);
 	for (int32_t s = 0; s < kNumSources; s++) {
 		sources[s].bindDocSource(&d->sources[s]);
@@ -3992,9 +4003,14 @@ void Sound::setPolyphonic(PolyphonyMode value) {
 	}
 }
 void Sound::setTranspose(int16_t value) {
-	transpose = value;
+	// M4b: bound → write the authoritative record then reproject the read-view (a derivation, not a dual-write);
+	// unbound (preview / GlobalEffectable) → write the snapshot directly (no record).
 	if (docSound_ != nullptr) {
 		docSound_->transpose = value;
+		snapshot_.transpose = docSound_->transpose;
+	}
+	else {
+		snapshot_.transpose = value;
 	}
 }
 void Sound::setModulator1ToModulator0(bool value) {
@@ -4038,7 +4054,7 @@ void Sound::writeToFile(Serializer& writer, bool savingSong, ParamManager* param
 	PolyphonyMode savedPolyphonic =
 	    docSound_ != nullptr ? static_cast<PolyphonyMode>(docSound_->polyphonic) : polyphonic;
 	SynthMode savedSynthMode = docSound_ != nullptr ? static_cast<SynthMode>(docSound_->synth_mode) : synthMode;
-	int16_t savedTranspose = docSound_ != nullptr ? docSound_->transpose : transpose;
+	int16_t savedTranspose = docSound_ != nullptr ? docSound_->transpose : snapshot_.transpose;
 
 	writer.writeAttribute("polyphonic", polyphonyModeToString(savedPolyphonic));
 	writer.writeAttribute("voicePriority", util::to_underlying(docSound_ != nullptr ? static_cast<VoicePriority>(
@@ -4205,7 +4221,7 @@ int16_t Sound::getMaxOscTranspose(InstrumentClip* clip) {
 		maxRawOscTranspose += (arpSettings->numOctaves - 1) * 12;
 	}
 
-	return maxRawOscTranspose + transpose;
+	return maxRawOscTranspose + snapshot_.transpose;
 }
 
 int16_t Sound::getMinOscTranspose() {
@@ -4226,7 +4242,7 @@ int16_t Sound::getMinOscTranspose() {
 		minRawOscTranspose = 0;
 	}
 
-	return minRawOscTranspose + transpose;
+	return minRawOscTranspose + snapshot_.transpose;
 }
 
 // Returns true if more loading needed later

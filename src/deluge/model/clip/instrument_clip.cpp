@@ -4142,7 +4142,7 @@ haveNoDrum:
 							for (int32_t s = 0; s < kNumSources; s++) {
 								Source* source = &sound->sources[s];
 								if (source->oscType == OscType::SAMPLE) {
-									if (sound->transpose || source->transpose || source->cents
+									if (sound->getTranspose() || source->transpose || source->cents
 									    || patchedParams->params[params::LOCAL_PITCH_ADJUST].containsSomething(
 									        *patchedParams->docForParam(params::LOCAL_PITCH_ADJUST), 0)
 									    //||

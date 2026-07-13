@@ -32,7 +32,7 @@ class MasterTranspose final : public Integer, public PatchedParam {
 public:
 	using Integer::Integer;
 	bool usesAffectEntire() override { return true; }
-	void readCurrentValue() override { this->setValue(soundEditor.currentSound->transpose); }
+	void readCurrentValue() override { this->setValue(soundEditor.currentSound->getTranspose()); }
 	void writeCurrentValue() override {
 
 		int16_t value = this->getValue();

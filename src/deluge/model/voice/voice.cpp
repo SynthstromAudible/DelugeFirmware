@@ -224,7 +224,7 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 			    && (sound.sources[s].oscType == OscType::SAMPLE || sound.sources[s].oscType == OscType::WAVETABLE)) {
 
 				// Set up MultiRange
-				MultiRange* range = sound.sources[s].getRange(noteCodeAfterArpeggiation + sound.transpose);
+				MultiRange* range = sound.sources[s].getRange(noteCodeAfterArpeggiation + sound.getTranspose());
 				if (!range) { // There could be no Range for a SAMPLE or WAVETABLE Source that just hasn't had a file
 					          // loaded, like how OSC2 very often would be sitting
 					goto gotInactive;
@@ -412,7 +412,7 @@ void Voice::calculatePhaseIncrements(ModelStackWithSoundFlags* modelStack) {
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 	Sound& sound = *static_cast<Sound*>(modelStack->modControllable);
 
-	int32_t noteCodeWithMasterTranspose = noteCodeAfterArpeggiation + sound.transpose;
+	int32_t noteCodeWithMasterTranspose = noteCodeAfterArpeggiation + sound.getTranspose();
 
 	for (int32_t s = 0; s < kNumSources; s++) {
 

@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/sample/sample_recorder.h"
+#include "model/snapshot/sound_snapshot.h"
 #include "model/voiced.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/knob.h"
@@ -89,6 +90,13 @@ public:
 	// AND re-run at doneReadingFromFile — a SoundDrum's adoptDrum binds the record BEFORE its fields are parsed, so the
 	// bind-time seed is stale for drums and must be refreshed once parsing has finished.
 	void seedDocSoundScalars();
+
+	// M4b: the engine's derived read-view of the hot Sound render fields, PROJECTED from docSound_ by
+	// projectSnapshot() at bind / doneReadingFromFile / after edits; the render reads it (getTranspose() etc.).
+	// Always present — unbound sounds (no docSound_) write it directly, so the render never needs a null-fallback.
+	deluge::snapshot::SoundSnapshot snapshot_{};
+	// Re-derive snapshot_ from docSound_ (no-op when unbound). Additive per-slice as fields move onto the snapshot.
+	void projectSnapshot();
 	// Copy the 16 mod-knob ParamDescriptors engine->record. modKnobs is mutated in-place (setToHaveParamOnly etc.) at
 	// several gestures rather than through one setter, so instead of funnelling each write we re-seed the whole block
 	// after any mutation (bind, doneReadingFromFile, learnKnob, setSynthMode, modEncoderButtonAction, sample
@@ -136,7 +144,7 @@ public:
 	PolyphonyMode polyphonic = PolyphonyMode::POLY;
 	uint8_t maxVoiceCount = 8;
 
-	int16_t transpose = 0;
+	// M4b: `transpose` retired into the SoundSnapshot read-view (see snapshot_ / getTranspose()).
 
 	uint8_t numUnison = 1;
 	int8_t unisonDetune = 8;
@@ -181,6 +189,7 @@ public:
 	// already exist below (they do engine-side recalcs); those gained a record write too.
 	void setPolyphonic(PolyphonyMode value);
 	void setTranspose(int16_t value);
+	[[nodiscard]] int16_t getTranspose() const { return snapshot_.transpose; }
 	void setModulator1ToModulator0(bool value);
 	void setOscRetriggerPhase(int32_t s, uint32_t value);
 	void setModulatorRetriggerPhase(int32_t m, uint32_t value);
