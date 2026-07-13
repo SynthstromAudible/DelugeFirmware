@@ -709,8 +709,8 @@ Error SampleRecorder::finalizeRecordedFile() {
 	// that's the most likely to still be in memory
 
 	// If some processing of the recorded audio data needs to happen...
-	if (lshiftAmount || action != MonitoringAction::NONE) {
-
+	if (lshiftAmount || (sample->audioStartDetected && sample->audioDetectedStartPoint)
+	    or action != MonitoringAction::NONE) {
 		auto closed = this->file->close();
 		if (!closed) {
 			return Error::SD_CARD;
@@ -1049,21 +1049,19 @@ doFinishCapturing:
 				}
 			}
 
-			// if we're not threshold recording or we're threshold recording and detected audio
-			if (!thresholdRecording || sample->audioStartDetected) {
-				writePos = reinterpret_cast<char*>(writePosNow);
-				numSamplesCaptured += numSamplesThisCycle;
-			}
 			// if we're threshold recording and didn't detect audio in previous cycles
 			// check if there's any audio in this cycle
-			else {
+			if (thresholdRecording && !sample->audioStartDetected) [[unlikely]] {
 				StereoFloatSample approxRMSLevel = envelopeFollower.calcApproxRMS(input);
 				if (std::max(approxRMSLevel.l, approxRMSLevel.r) > startValueThreshold) {
-					writePos = reinterpret_cast<char*>(writePosNow);
-					numSamplesCaptured += numSamplesThisCycle;
+					sample->audioDetectedStartPoint = std::max<int>(0, numSamplesCaptured - 128);
 					sample->audioStartDetected = true;
+					D_PRINTLN("start detected at %i samples", sample->audioDetectedStartPoint);
 				}
 			}
+			// if we're not threshold recording or we're threshold recording and detected audio
+			writePos = reinterpret_cast<char*>(writePosNow);
+			numSamplesCaptured += numSamplesThisCycle;
 
 			// update our input view to exclude the chunk we just processed
 			input = input.subspan(numSamplesThisCycle);
@@ -1130,7 +1128,6 @@ void SampleRecorder::totalSampleLengthNowKnown(uint32_t totalLengthSamples, uint
 
 	sample->lengthInSamples = totalLengthSamples;
 	sample->audioDataLengthBytes = totalLengthSamples * sample->byteDepth * sample->numChannels;
-
 	// when stem recording is done, we want to update the sample loop end position in the sample holder
 	// so that that loop end marker is available right away if you want to load that sample into a kit
 	if (stemExport.writeLoopEndPos()) {
@@ -1247,6 +1244,7 @@ Error SampleRecorder::alterFile(MonitoringAction action, int32_t lshiftAmount, u
 		data16 = 1 * 3;
 		memcpy(&currentWriteCluster->data[32], &data16, 2);
 	}
+	uint32_t offset = 0;
 
 	char* readPos = &currentReadCluster->data[sample->audioDataStartPosBytes];
 	char* writePos = &currentWriteCluster->data[sample->audioDataStartPosBytes];

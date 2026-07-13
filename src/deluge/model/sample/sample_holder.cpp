@@ -124,7 +124,7 @@ void SampleHolder::setAudioFile(AudioFile* newSample, bool reversed, bool manual
 
 		// If we're here as a result of the user having manually selected a new file, set the zone to its actual length.
 		if (manuallySelected) {
-			startPos = 0;
+			startPos = ((Sample*)audioFile)->audioStartDetected ? ((Sample*)audioFile)->audioDetectedStartPoint : 0;
 			endPos = lengthInSamples;
 		}
 

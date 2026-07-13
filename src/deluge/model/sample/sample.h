@@ -111,7 +111,8 @@ public:
 	uint32_t audioDataStartPosBytes; // That is, the offset from the start of the WAV file
 	uint64_t audioDataLengthBytes;
 	uint32_t bitMask{0};
-	bool audioStartDetected;
+	bool audioStartDetected{false};
+	uint32_t audioDetectedStartPoint;
 
 	uint64_t lengthInSamples;
 
