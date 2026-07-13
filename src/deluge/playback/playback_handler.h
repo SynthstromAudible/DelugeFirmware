@@ -124,8 +124,10 @@ public:
 	uint64_t timeNextFreeRunningTickBig; // 32.32 sample time of next free-running tick
 
 	// Set when we're starting playback aligned to the free-running clock, and so the Start / Continue message has to
-	// be emitted immediately ahead of the out-tick that lands on the alignment boundary (which is out-tick 0) rather
-	// than at button-press time. See setupPlaybackUsingInternalClock().
+	// be emitted at the alignment boundary rather than at button-press time. It goes out from actionTimerTick(), as
+	// timer tick 0 is actioned and before that tick's notes are - the same relative order as every other way of
+	// starting playback - with out-tick 0's clock byte following from doMIDIClockOutTick() later in the same audio
+	// window. See setupPlaybackUsingInternalClock().
 	bool startMessagePending;
 	// The play position that deferred Start / Continue was decided from. That's the position the immediate send site
 	// would have used, which isn't necessarily posToNextContinuePlaybackFrom - setupPlayback() may shift that

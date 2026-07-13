@@ -709,28 +709,25 @@ void flushMIDIGateBuffers() { // Flush everything out of the MIDI buffer now. At
 /// the normal scheduler derives it from the timer-tick grid, which isn't valid while stopped.
 void doAnyMIDIClockOutTickInWindow(size_t numSamples, int32_t& timeWithinWindowAtWhichMIDIOrGateOccurs,
                                    bool freeRunning) {
-	auto scheduleNextTick = [freeRunning]() {
-		if (freeRunning) {
-			playbackHandler.scheduleFreeRunningMIDIClockOutTick();
-		}
-		else {
-			playbackHandler.scheduleMIDIClockOutTick();
-		}
-	};
-
 	if (playbackHandler.midiClockOutTickScheduled) {
 		int32_t timeTilMIDIClockOutTick = playbackHandler.timeNextMIDIClockOutTick - audioSampleTimer;
-		if (std::cmp_less(timeTilMIDIClockOutTick, numSamples)) {
-			playbackHandler.doMIDIClockOutTick();
-			scheduleNextTick(); // Schedules another one
+		if (!std::cmp_less(timeTilMIDIClockOutTick, numSamples)) {
+			return; // Not during this window
+		}
 
-			if (timeWithinWindowAtWhichMIDIOrGateOccurs == -1) {
-				timeWithinWindowAtWhichMIDIOrGateOccurs = timeTilMIDIClockOutTick;
-			}
+		playbackHandler.doMIDIClockOutTick();
+
+		if (timeWithinWindowAtWhichMIDIOrGateOccurs == -1) {
+			timeWithinWindowAtWhichMIDIOrGateOccurs = timeTilMIDIClockOutTick;
 		}
 	}
+
+	// Schedule the next one
+	if (freeRunning) {
+		playbackHandler.scheduleFreeRunningMIDIClockOutTick();
+	}
 	else {
-		scheduleNextTick();
+		playbackHandler.scheduleMIDIClockOutTick();
 	}
 }
 
