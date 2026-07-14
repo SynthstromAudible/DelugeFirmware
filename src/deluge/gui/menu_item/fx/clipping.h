@@ -52,7 +52,7 @@ public:
 			soundEditor.currentModControllable->clippingAmount = current_value;
 		}
 	}
-	[[nodiscard]] int32_t getMaxValue() const override { return 15; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxMenuValue; }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return BAR; }
 };
 
