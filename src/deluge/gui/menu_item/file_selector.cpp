@@ -35,6 +35,7 @@ namespace deluge::gui::menu_item {
 void FileSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.shouldGoUpOneLevelOnBegin = true;
 	soundEditor.setCurrentSource(sourceId_);
+	sampleBrowser.targetRoundRobinSlot = 0;
 
 	if (getRootUI() == &keyboardScreen && currentUIMode == UI_MODE_AUDITIONING) {
 		keyboardScreen.exitAuditionMode();
