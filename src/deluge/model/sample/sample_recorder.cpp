@@ -1054,11 +1054,11 @@ doFinishCapturing:
 
 			// if we're threshold recording and didn't detect audio in previous cycles
 			// check if there's any audio in this cycle
-			if (thresholdRecording && !sample->audioStartDetected) [[unlikely]] {
+			if (thresholdRecording) [[unlikely]] {
 				size_t samples_to_copy = minThresholdMargin;
 				StereoFloatSample approxRMSLevel = envelopeFollower.calcApproxRMS(input);
 				if (std::max(approxRMSLevel.l, approxRMSLevel.r) > startValueThreshold) {
-					sample->audioStartDetected = true;
+					thresholdRecording = false;
 					samples_to_copy += numSamplesThisCycle;
 				}
 
