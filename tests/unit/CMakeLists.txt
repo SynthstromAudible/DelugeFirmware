@@ -71,6 +71,7 @@ add_executable(UnitTests
         scheduler_tests.cpp
         lfo_tests.cpp
         multisample_round_robin_tests.cpp
+        round_robin_parser_tests.cpp
         scale_tests.cpp
         value_scaling_tests.cpp
         clip_iterator_tests.cpp

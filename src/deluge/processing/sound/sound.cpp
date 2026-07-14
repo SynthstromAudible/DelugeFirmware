@@ -55,6 +55,7 @@
 #include "storage/flash_storage.h"
 #include "storage/multi_range/multi_wave_table_range.h"
 #include "storage/multi_range/multisample_range.h"
+#include "storage/multi_range/round_robin_serialization.h"
 #include "storage/storage_manager.h"
 #include "util/comparison.h"
 #include "util/exceptions.h"
@@ -3478,6 +3479,26 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 			}
 			reader.exitTag("zone", true);
 		}
+		else if (!strcmp(tagName, "roundRobinAlternates")) {
+
+			MultisampleRange* range = (MultisampleRange*)source->getOrCreateFirstRange();
+			if (!range) {
+				return Error::INSUFFICIENT_RAM;
+			}
+
+			Error error = readRoundRobinAlternates(reader, range);
+			if (error != Error::NONE) {
+				return error;
+			}
+		}
+		else if (!strcmp(tagName, "rrMode")) {
+			MultisampleRange* range = (MultisampleRange*)source->getOrCreateFirstRange();
+			if (!range) {
+				return Error::INSUFFICIENT_RAM;
+			}
+			range->rrMode = (MultisampleRange::RRMode)reader.readTagOrAttributeValueInt();
+			reader.exitTag("rrMode");
+		}
 		else if (!strcmp(tagName, "sampleRanges") || !strcmp(tagName, "wavetableRanges")) {
 			reader.match('[');
 			while (reader.match('{') && *(tagName = reader.readNextTagOrAttributeName())) {
@@ -3543,6 +3564,18 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 							else if (!strcmp(tagName, "cents")) {
 								((SampleHolderForVoice*)holder)->setCents(reader.readTagOrAttributeValueInt());
 								reader.exitTag("cents");
+							}
+							else if (!strcmp(tagName, "roundRobinAlternates")) {
+								Error error = readRoundRobinAlternates(reader, (MultisampleRange*)tempRange);
+								if (error != Error::NONE) {
+									tempRange->~MultiRange();
+									return error;
+								}
+							}
+							else if (!strcmp(tagName, "rrMode")) {
+								((MultisampleRange*)tempRange)->rrMode =
+								    (MultisampleRange::RRMode)reader.readTagOrAttributeValueInt();
+								reader.exitTag("rrMode");
 							}
 							else {
 								goto justExitTag;
@@ -3656,6 +3689,46 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 				writer.writeAttribute("endLoopPos", range->sampleHolder.loopEndPos);
 			}
 			writer.closeTag();
+
+			if (range->rrMode != MultisampleRange::RRMode::Cycle) {
+				writer.writeTag("rrMode", (int32_t)range->rrMode);
+			}
+
+			if (range->rrCount > 0) {
+				writer.writeArrayStart("roundRobinAlternates");
+				for (int32_t a = 0; a < range->rrCount; a++) {
+					SampleHolderForVoice* alternateHolder = range->getVariantHolder(a + 1);
+					if (!alternateHolder) {
+						continue;
+					}
+
+					writer.writeOpeningTagBeginning("alternate", true);
+					writer.writeAttribute("fileName", alternateHolder->audioFile
+					                                      ? alternateHolder->audioFile->filePath.get()
+					                                      : alternateHolder->filePath.get());
+					if (alternateHolder->transpose) {
+						writer.writeAttribute("transpose", alternateHolder->transpose);
+					}
+					if (alternateHolder->cents) {
+						writer.writeAttribute("cents", alternateHolder->cents);
+					}
+					writer.writeOpeningTagEnd();
+
+					writer.writeOpeningTagBeginning("zone");
+					writer.writeAttribute("startSamplePos", alternateHolder->startPos);
+					writer.writeAttribute("endSamplePos", alternateHolder->endPos);
+					if (alternateHolder->loopStartPos) {
+						writer.writeAttribute("startLoopPos", alternateHolder->loopStartPos);
+					}
+					if (alternateHolder->loopEndPos) {
+						writer.writeAttribute("endLoopPos", alternateHolder->loopEndPos);
+					}
+					writer.closeTag();
+
+					writer.writeClosingTag("alternate", true, true);
+				}
+				writer.writeArrayEnding("roundRobinAlternates");
+			}
 
 			if (numRanges > 1) {
 				writer.writeClosingTag("sampleRange", true, true);
