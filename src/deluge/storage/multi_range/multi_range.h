@@ -16,6 +16,7 @@
  */
 
 #pragma once
+#include "definitions_cxx.hpp"
 #include <cstdint>
 
 class AudioFileHolder;
@@ -26,6 +27,14 @@ public:
 	virtual ~MultiRange();
 
 	virtual AudioFileHolder* getAudioFileHolder() = 0;
+
+	/// Load audio files for all holders in this range (primary + any alternates).
+	/// Default implementation loads just the primary holder via getAudioFileHolder().
+	virtual Error loadAllAudioFiles(bool reversed, bool mayActuallyReadFiles);
+
+	/// Release audio file references for all holders in this range.
+	/// Default implementation releases just the primary holder via getAudioFileHolder().
+	virtual void detachAllAudioFiles();
 
 	int16_t topNote;
 };
