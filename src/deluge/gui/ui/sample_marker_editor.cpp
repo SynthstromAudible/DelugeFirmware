@@ -63,7 +63,14 @@ SampleHolder& getCurrentSampleHolder() {
 		return current->sampleHolder;
 	}
 
-	return getCurrentMultisampleRange().sampleHolder;
+	MultisampleRange& range = getCurrentMultisampleRange();
+	if (sampleMarkerEditor.targetRoundRobinSlot > 0) {
+		SampleHolderForVoice* holder = range.getVariantHolder(sampleMarkerEditor.targetRoundRobinSlot);
+		if (holder != nullptr) {
+			return *holder;
+		}
+	}
+	return range.sampleHolder;
 }
 
 SampleControls* getCurrentSampleControls() {
@@ -75,7 +82,8 @@ SampleControls* getCurrentSampleControls() {
 }
 
 bool isLoopLocked() {
-	return getCurrentClip()->type != ClipType::AUDIO && getCurrentMultisampleRange().sampleHolder.loopLocked;
+	return getCurrentClip()->type != ClipType::AUDIO
+	       && static_cast<SampleHolderForVoice&>(getCurrentSampleHolder()).loopLocked;
 }
 
 MarkerType SampleMarkerEditor::reverseRemap(MarkerType type) const {
@@ -166,8 +174,7 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 		getCurrentSampleHolder().startPos = value;
 	}
 	else if (markerTypeNow == MarkerType::LOOP_START) {
-		auto& multiSampleRange = getCurrentMultisampleRange();
-		auto& sampleHolder = multiSampleRange.sampleHolder;
+		auto& sampleHolder = static_cast<SampleHolderForVoice&>(getCurrentSampleHolder());
 		if (sampleHolder.loopLocked) {
 			uint32_t intendedLoopEndPos = value + static_cast<uint32_t>(sampleHolder.loopLength());
 			if (uint64_t{intendedLoopEndPos} <= sampleHolder.endPos) {
@@ -180,8 +187,7 @@ void SampleMarkerEditor::writeValue(uint32_t value, MarkerType markerTypeNow) {
 		}
 	}
 	else if (markerTypeNow == MarkerType::LOOP_END) {
-		auto& multiSampleRange = getCurrentMultisampleRange();
-		auto& sampleHolder = multiSampleRange.sampleHolder;
+		auto& sampleHolder = static_cast<SampleHolderForVoice&>(getCurrentSampleHolder());
 		if (sampleHolder.loopLocked) {
 			int32_t intendedLoopStartPos = static_cast<int32_t>(value) - sampleHolder.loopLength();
 			// pos == 0 would disable the loop, so the smallest legal start position is sample 1
@@ -485,7 +491,7 @@ ensureNotPastSampleLength:
 					}
 					else if (markerHeld == MarkerType::LOOP_START && markerPressed == MarkerType::LOOP_END) {
 						// Toggle loop lock
-						if (getCurrentMultisampleRange().sampleHolder.loopLocked) {
+						if (static_cast<SampleHolderForVoice&>(getCurrentSampleHolder()).loopLocked) {
 							this->loopUnlock();
 						}
 						else {
@@ -689,6 +695,7 @@ ActionResult SampleMarkerEditor::buttonAction(deluge::hid::Button b, bool on, bo
 }
 
 ActionResult SampleMarkerEditor::exitUI() {
+	targetRoundRobinSlot = 0;
 	display->setNextTransitionDirection(-1);
 	close();
 	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
@@ -1235,14 +1242,12 @@ printSeconds:
 }
 
 void SampleMarkerEditor::loopUnlock() {
-	auto& multiSampleRange = getCurrentMultisampleRange();
-	multiSampleRange.sampleHolder.loopLocked = false;
+	static_cast<SampleHolderForVoice&>(getCurrentSampleHolder()).loopLocked = false;
 	display->displayPopup("FREE");
 }
 
 void SampleMarkerEditor::loopLock() {
-	auto& multiSampleRange = getCurrentMultisampleRange();
-	multiSampleRange.sampleHolder.loopLocked = true;
+	static_cast<SampleHolderForVoice&>(getCurrentSampleHolder()).loopLocked = true;
 	display->displayPopup("LOCK");
 }
 
