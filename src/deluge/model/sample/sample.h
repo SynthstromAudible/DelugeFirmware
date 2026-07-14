@@ -112,7 +112,6 @@ public:
 	uint64_t audioDataLengthBytes;
 	uint32_t bitMask{0};
 	bool audioStartDetected{false};
-	uint32_t audioDetectedStartPoint;
 
 	uint64_t lengthInSamples;
 

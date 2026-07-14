@@ -306,6 +306,7 @@ void SampleRecorder::setRecordingThreshold(RecorderConfig config) {
 	    || mode >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) {
 		startValueThreshold = 0;
 		thresholdRecording = false;
+		minThresholdMargin = 0;
 	}
 	else {
 		// max possible sample value = 1 << kBitDepth = 16777216
@@ -335,6 +336,7 @@ void SampleRecorder::setRecordingThreshold(RecorderConfig config) {
 		}
 
 		thresholdRecording = true;
+		minThresholdMargin = std::min<uint32_t>(sample->fileLoopStartSamples, 256);
 	}
 }
 
@@ -709,8 +711,7 @@ Error SampleRecorder::finalizeRecordedFile() {
 	// that's the most likely to still be in memory
 
 	// If some processing of the recorded audio data needs to happen...
-	if (lshiftAmount || (sample->audioStartDetected && sample->audioDetectedStartPoint)
-	    or action != MonitoringAction::NONE) {
+	if (lshiftAmount || action != MonitoringAction::NONE) {
 		auto closed = this->file->close();
 		if (!closed) {
 			return Error::SD_CARD;
@@ -1048,20 +1049,34 @@ doFinishCapturing:
 					}
 				}
 			}
+			writePos = reinterpret_cast<char*>(writePosNow);
+			numSamplesCaptured += numSamplesThisCycle;
 
 			// if we're threshold recording and didn't detect audio in previous cycles
 			// check if there's any audio in this cycle
 			if (thresholdRecording && !sample->audioStartDetected) [[unlikely]] {
+				size_t samples_to_copy = minThresholdMargin;
 				StereoFloatSample approxRMSLevel = envelopeFollower.calcApproxRMS(input);
 				if (std::max(approxRMSLevel.l, approxRMSLevel.r) > startValueThreshold) {
-					sample->audioDetectedStartPoint = std::max<int>(0, numSamplesCaptured - 128);
 					sample->audioStartDetected = true;
-					D_PRINTLN("start detected at %i samples", sample->audioDetectedStartPoint);
+					samples_to_copy += numSamplesThisCycle;
+				}
+
+				// is this overkill? yes, we could  let the cluster fill up before doing the copy
+				// is there a downside? no - threshold recording only occurs when a single audio clip is being recorded
+				// or the standalone sampler is being used so whatever this is simple
+				if (numSamplesCaptured > minThresholdMargin) {
+					auto* endpos = (char*)writePosNow;
+					ptrdiff_t num_bytes = samples_to_copy * 3 * recordingNumChannels;
+					char* audio_start_pos = endpos - num_bytes;
+					char* cluster_start_pos = &currentRecordCluster->data[sample->audioDataStartPosBytes];
+					if (audio_start_pos > cluster_start_pos) {
+						memcpy(cluster_start_pos, audio_start_pos, num_bytes);
+						writePos = cluster_start_pos + num_bytes;
+						numSamplesCaptured = samples_to_copy;
+					}
 				}
 			}
-			// if we're not threshold recording or we're threshold recording and detected audio
-			writePos = reinterpret_cast<char*>(writePosNow);
-			numSamplesCaptured += numSamplesThisCycle;
 
 			// update our input view to exclude the chunk we just processed
 			input = input.subspan(numSamplesThisCycle);
@@ -1244,7 +1259,6 @@ Error SampleRecorder::alterFile(MonitoringAction action, int32_t lshiftAmount, u
 		data16 = 1 * 3;
 		memcpy(&currentWriteCluster->data[32], &data16, 2);
 	}
-	uint32_t offset = 0;
 
 	char* readPos = &currentReadCluster->data[sample->audioDataStartPosBytes];
 	char* writePos = &currentWriteCluster->data[sample->audioDataStartPosBytes];
