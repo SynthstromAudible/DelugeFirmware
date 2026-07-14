@@ -70,6 +70,7 @@ add_executable(UnitTests
         RunAllTests.cpp
         scheduler_tests.cpp
         lfo_tests.cpp
+        multisample_round_robin_tests.cpp
         scale_tests.cpp
         value_scaling_tests.cpp
         clip_iterator_tests.cpp

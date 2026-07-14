@@ -98,7 +98,7 @@ void Source::detachAllAudioFiles() {
 		if (!(e & 7)) { // 7 works, 15 occasionally drops voices - for multisampled synths
 			AudioEngine::routineWithClusterLoading();
 		}
-		ranges.getElement(e)->getAudioFileHolder()->setAudioFile(nullptr);
+		ranges.getElement(e)->detachAllAudioFiles();
 	}
 }
 
@@ -111,8 +111,7 @@ Error Source::loadAllSamples(bool mayActuallyReadFiles) {
 		if (mayActuallyReadFiles && shouldAbortLoading()) {
 			return Error::ABORTED_BY_USER;
 		}
-		ranges.getElement(e)->getAudioFileHolder()->loadFile(sampleControls.isCurrentlyReversed(), false,
-		                                                     mayActuallyReadFiles, CLUSTER_ENQUEUE, nullptr, true);
+		ranges.getElement(e)->loadAllAudioFiles(sampleControls.isCurrentlyReversed(), mayActuallyReadFiles);
 	}
 
 	return Error::NONE;

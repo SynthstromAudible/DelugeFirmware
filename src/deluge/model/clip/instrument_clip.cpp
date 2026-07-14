@@ -920,7 +920,8 @@ void InstrumentClip::sendPendingNoteOn(ModelStackWithTimelineCounter* modelStack
 
 		pendingNoteOn->noteRow->drum->kit->noteOnPreKitArp(modelStackWithThreeMainThings, pendingNoteOn->noteRow->drum,
 		                                                   pendingNoteOn->velocity, mpeValues, MIDI_CHANNEL_NONE,
-		                                                   pendingNoteOn->sampleSyncLength, pendingNoteOn->ticksLate);
+		                                                   pendingNoteOn->sampleSyncLength, pendingNoteOn->ticksLate, 0,
+		                                                   pendingNoteOn->noteMightBeConstant);
 	}
 	else {
 		ModelStackWithThreeMainThings* modelStackWithThreeMainThings =
