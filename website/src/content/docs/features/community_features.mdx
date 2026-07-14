@@ -781,6 +781,15 @@ Here is a list of features that have been added to the firmware as a list, group
 
 - (#3213) <Badge text="c1.3" variant="tip" /> A new option, 'Launch Exclusively', isolates a clip section from all other launch activity. This option is found to the left of option 'Launch non-exclusively' when selecting the section's number of repetitions. As a complement to non-exclusive sections that arm and turn off when another section is launched, exclusive sections remain independant and continue playing.
 
+### 4.2.11 - Round-Robin Sample Variants
+
+- Each oscillator sample zone in Synth and Kit sound sources can now hold up to 4 sample variants: the primary
+  sample plus up to 3 alternates, played in rotation each time the zone is triggered - the classic
+  multi-sample-per-pad workflow known from MPC-style samplers, useful for removing the "machine gun" effect on
+  repeated drum hits.
+- For a detailed description of this feature, please refer to the feature documentation:
+  [Round-Robin Sample Variants Documentation](/features/round_robin_sample_variants)
+
 ## 4.3 - Instrument Clip View - General Features
 
 These features were added to the Instrument Clip View and affect Synth, Kit and MIDI instrument clip types.
@@ -1384,6 +1393,11 @@ Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD ca
 
 - `Show Battery Level (BATT)` <Badge text="c1.3" variant="tip" />
   - When On, displays battery level information in the System menu. Shows voltage and percentage on OLED displays, percentage on 7-segment displays.
+- `Round-Robin Sample Variants (VARI)`
+  - When On, enables the `VARIANTS` menu under `OSC1`/`OSC2` for sample-mode oscillators, letting you load up to 3
+    alternate samples per zone that play in rotation. See [Round-Robin Sample Variants Documentation](/features/round_robin_sample_variants).
+    When Off, the menu is hidden and playback always uses the primary sample; variant data already saved in songs is
+    preserved either way.
 
 ## 6. Sysex Handling
 
