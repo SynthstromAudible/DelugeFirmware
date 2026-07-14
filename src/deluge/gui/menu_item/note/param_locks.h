@@ -41,7 +41,7 @@ public:
 	void endSession() override;
 	/// Writes a pending edit to the notes (once). Safe to call more than once.
 	void commit();
-	void deletePress();
+	void deletePress() override;
 
 protected:
 	int32_t getDisplayValue() override;
@@ -69,7 +69,7 @@ public:
 	}
 	void renderInHorizontalMenu(const SlotPosition& slot) override;
 	void drawPixelsForOled() override;
-	void deletePress();
+	void deletePress() override;
 
 private:
 	void readLocks();
