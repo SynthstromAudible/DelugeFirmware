@@ -199,11 +199,8 @@ Added main grid pad shortcuts for the following parameters:
   - You can also view and temporarily change the current threshold recording setting as follows:
     - :key[Record + Turn Select]
     - Enter the Song menu while in Song or Arranger View by pressing :key[Select] and entering the `SONG > THRESHOLD RECORDING (THRE) > MODE` submenu
-- Note regarding `AUDIO CLIP LIMITATIONS`: Threshold recording will not stop an audio clip from starting to record.
-  - Threshold recording will only prevent audio from filling the audio file buffer until the threshold is reached.
-  - Thus, depending on when the threshold is reached after starting recording, the audio file waveform rendered in the audio clip may show silent audio.
-  - If there is silence at the start of the audio file, you can then trim the start of the waveform as the transient (non-silent audio) will be easy to spot.
-  - If you do not want to potentially trim the start of an audio file, then we recommend sampling into a kit row instead with threshold recording.
+  - Note: `THRESHOLD RECORDING` only applies to audio recorded to kit rows and to the first “tempoless” audio clip
+    - For the first "tempoless" audio clip, the tempo will be set from the time the recorded audio first exceeds the threshold to the time the recording is ended.
 
 ##### Loop Recording
 
