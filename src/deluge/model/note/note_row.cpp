@@ -2621,6 +2621,8 @@ storePendingNoteOn:
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].sampleSyncLength =
 					    thisNote->getLength();
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].ticksLate = ticksLate;
+					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].noteMightBeConstant =
+					    noteMightBeConstant;
 					const deluge::note_locks::LiveEdit* live = liveEditFor(modelStack, thisNote);
 					pendingNoteOnList->pendingNoteOns[pendingNoteOnList->count].locks = {
 					    thisNote->lockSet, live != nullptr ? live->tag : uint16_t{0}};
@@ -2688,7 +2690,8 @@ storePendingNoteOn:
 					deluge::note_locks::PendingScope locks(modelStack->song->noteLocks, thisNote->lockSet,
 					                                       liveEditFor(modelStack, thisNote));
 					drum->kit->noteOnPreKitArp(modelStackWithThreeMainThings, drum, thisNote->velocity, mpeValues,
-					                           MIDI_CHANNEL_NONE, thisNote->length, ticksLate, samplesLate);
+					                           MIDI_CHANNEL_NONE, thisNote->length, ticksLate, samplesLate,
+					                           noteMightBeConstant);
 				}
 			}
 		}

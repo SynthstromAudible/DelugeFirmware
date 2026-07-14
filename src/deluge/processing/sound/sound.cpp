@@ -1548,7 +1548,7 @@ PatchCableAcceptance Sound::maySourcePatchToParam(PatchSource s, uint8_t p, Para
 
 void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* arpeggiator, int32_t noteCodePreArp,
                    int16_t const* mpeValues, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate,
-                   int32_t velocity, int32_t fromMIDIChannel) {
+                   int32_t velocity, int32_t fromMIDIChannel, bool noteMightBeConstant) {
 
 	ParamManagerForTimeline* paramManager = (ParamManagerForTimeline*)modelStack->paramManager;
 
@@ -1601,6 +1601,7 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 			                                .invertReversed = instruction.invertReversed,
 			                                // With the arp on, the note it starts may be another held one
 			                                .locks = instruction.arpNoteOn->locks,
+			                                .noteMightBeConstant = noteMightBeConstant,
 			                            });
 			instruction.arpNoteOn->noteStatus[n] = ArpNoteStatus::PLAYING;
 		}
@@ -1658,7 +1659,8 @@ void Sound::updateLiveNoteLocks(uint16_t tag, int32_t param, int32_t value, Mode
 
 void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t noteCodePreArp, int32_t noteCodePostArp,
                                   int32_t velocity, int16_t const* mpeValues, uint32_t sampleSyncLength,
-                                  int32_t ticksLate, uint32_t samplesLate, int32_t fromMIDIChannel) {
+                                  int32_t ticksLate, uint32_t samplesLate, int32_t fromMIDIChannel,
+                                  bool noteMightBeConstant) {
 	const ActiveVoice* voiceToReuse = nullptr;
 	const ActiveVoice* voiceForLegato = nullptr;
 
@@ -1731,8 +1733,9 @@ void Sound::noteOnPostArpeggiator(ModelStackWithSoundFlags* modelStack, int32_t 
 				AudioEngine::registerSideChainHit(sideChainSendLevel);
 			}
 
-			bool success = voice->noteOn(modelStack, noteCodePreArp, noteCodePostArp, velocity, sampleSyncLength,
-			                             ticksLate, samplesLate, voiceToReuse == nullptr, fromMIDIChannel, mpeValues);
+			bool success =
+			    voice->noteOn(modelStack, noteCodePreArp, noteCodePostArp, velocity, sampleSyncLength, ticksLate,
+			                  samplesLate, voiceToReuse == nullptr, fromMIDIChannel, mpeValues, noteMightBeConstant);
 			if (success) {
 				if (voiceToReuse != nullptr) {
 					for (int32_t e = 0; e < kNumEnvelopes; e++) {
@@ -3642,7 +3645,7 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 								reader.exitTag("transpose");
 							}
 							else if (!strcmp(tagName, "cents")) {
-								((SampleHolderForVoice*)holder)->cents = reader.readTagOrAttributeValueInt();
+								((SampleHolderForVoice*)holder)->setCents(reader.readTagOrAttributeValueInt());
 								reader.exitTag("cents");
 							}
 							else {

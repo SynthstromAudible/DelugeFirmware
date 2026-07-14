@@ -72,6 +72,8 @@ struct DeferredNoteOn {
 	uint32_t sampleSyncLength;
 	int32_t ticksLate;
 	int64_t swungTickQueued; // playbackHandler.lastSwungTickActioned when queued, which ticksLate is relative to
+	// May carry on from the same note ending (see Voice::noteOn())
+	bool noteMightBeConstant;
 };
 
 // A 20-note chord on a busy Deluge queues most of its notes for a render or two; a few busy kits and synths stepping
@@ -178,6 +180,7 @@ void sendSequenced(DeferredNoteOn const& d) {
 	noteOn.ticksLate = ticksLateNow(d);
 	noteOn.locks = d.locks;
 	noteOn.locksWhenDue = &d.locksWhenDue;
+	noteOn.noteMightBeConstant = d.noteMightBeConstant;
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithTimelineCounter* modelStack = setupModelStackWithTimelineCounter(modelStackMemory, currentSong, clip);
@@ -267,7 +270,7 @@ void startVoiceNow(ModelStackWithSoundFlags* modelStack, Sound& sound, VoiceStar
 	}
 	sound.noteOnPostArpeggiator(modelStack, start.noteCodePreArp, start.noteCodePostArp, start.velocity,
 	                            start.mpeValues, start.sampleSyncLength, start.ticksLate, start.samplesLate,
-	                            start.fromMIDIChannel);
+	                            start.fromMIDIChannel, start.noteMightBeConstant);
 	// Charge it to the budget, and teach the budget what a start costs. When the queue is full, this may go over it
 	AudioEngine::voiceStarted(getSystemTicks() - startTicks);
 }
@@ -297,6 +300,7 @@ void sendVoice(DeferredNoteOn const& d) {
 	                  .invertReversed = d.invertReversed,
 	                  .locks = d.locks,
 	                  .locksWhenDue = &d.locksWhenDue,
+	                  .noteMightBeConstant = d.noteMightBeConstant,
 	              });
 }
 
@@ -327,6 +331,7 @@ void startVoice(ModelStackWithSoundFlags* modelStack, Sound& sound, VoiceStart c
 	d.sampleSyncLength = start.sampleSyncLength;
 	d.ticksLate = start.ticksLate;
 	d.swungTickQueued = playbackHandler.lastSwungTickActioned;
+	d.noteMightBeConstant = start.noteMightBeConstant;
 }
 
 bool tryDefer(InstrumentClip* clip, PendingNoteOn const& note) {
@@ -353,6 +358,7 @@ bool tryDefer(InstrumentClip* clip, PendingNoteOn const& note) {
 	d.sampleSyncLength = note.sampleSyncLength;
 	d.ticksLate = note.ticksLate;
 	d.swungTickQueued = playbackHandler.lastSwungTickActioned;
+	d.noteMightBeConstant = note.noteMightBeConstant;
 	return true;
 }
 
