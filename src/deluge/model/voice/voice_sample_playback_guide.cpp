@@ -97,5 +97,11 @@ LoopType VoiceSamplePlaybackGuide::getLoopingType(const Source& source) const {
 	if (loopEndPlaybackAtByte) {
 		return noteOffReceived ? LoopType::NONE : LoopType::LOW_LEVEL;
 	}
+	// Only fall back to the shared repeatMode when this holder has no loop-start point either -
+	// otherwise a sibling slot's inferred LOOP mode would wrongly activate this holder's incomplete
+	// loop (loopStartPos set, loopEndPos == 0).
+	if (((SampleHolderForVoice*)audioFileHolder)->loopStartPos) {
+		return LoopType::NONE;
+	}
 	return (source.repeatMode == SampleRepeatMode::LOOP) ? LoopType::LOW_LEVEL : LoopType::NONE;
 }
