@@ -12,20 +12,27 @@
     purple: "dc-view-purple",
   };
 
+  // Derive active state and color class from selected view + map.
   $: isActive = $activeView != null && $activeView === view.id;
   $: colorClass = viewClassByColor[view.color] ?? "dc-view-neutral";
   $: classes = `dc-filter-chip ${colorClass} ${isActive ? "is-active" : ""}`;
 
+  // Toggle selected view filter chip.
+  // Returns void after updating active view store.
   function onClick() {
     activeView.update((oldValue) => {
+      // Branch: clicking active chip clears selection.
       if (oldValue === view.id) {
         return null;
       }
+
+      // Branch: select this view id.
       return view.id;
     });
   }
 </script>
 
+<!-- View filter chip. -->
 <button
   class={classes}
   on:click={onClick}
@@ -57,6 +64,11 @@
     background-color: var(--dc-chip-bg);
     border-color: var(--dc-chip-border);
     color: var(--dc-chip-fg);
+  }
+
+  .dc-filter-chip:hover:not(.is-active) {
+    background: color-mix(in srgb, var(--dc-chip-border) 20%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--dc-chip-border) 35%, transparent) inset;
   }
 
   .dc-view-blue {

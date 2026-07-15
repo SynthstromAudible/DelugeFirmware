@@ -1,5 +1,6 @@
 import { ControlType, Control } from "../data/targets.js"
 import type { Views } from "../data/views.js"
+import type { Firmwares } from "../data/firmware.js"
 import type { Action } from "../data/actions.js"
 
 export type ActionDescriptions = Record<
@@ -23,6 +24,12 @@ export type View = {
   color: string
 }
 
+export type Firmware = {
+  id: Firmwares
+  title: string
+  color: string
+}
+
 export type Step = {
   action: Action
   control: Control
@@ -37,7 +44,15 @@ export type StepOrSubstep = Step | SubstepContainer
 
 export type Shortcut = {
   name: string
-  group?: string
+  capability?: string
+  capabilityParentId?: string
+  capabilityOrder?: number
+  subCapabilityTitle?: string
+  subCapabilityOrder?: number
+  subSubCapabilityId?: string
+  subSubCapabilityTitle?: string
+  subSubCapabilityOrder?: number
+  firmware: Firmwares[]
   views: Views[]
   steps: StepOrSubstep[]
   description?: string
@@ -46,6 +61,7 @@ export type Shortcut = {
 }
 
 export type Paragraph = {
+  type?: "community"
   spans: Span[]
 }
 
@@ -54,10 +70,12 @@ export type Span = {
   text?: string
 }
 
+// Returns true when candidate is a concrete Step action/control record.
 export function isStep(candidate: StepOrSubstep): candidate is Step {
   return "action" in candidate && "control" in candidate
 }
 
+// Returns true when candidate is a substep container wrapper.
 export function isSubstepContainer(
   candidate: StepOrSubstep,
 ): candidate is SubstepContainer {

@@ -10,6 +10,7 @@
     "build": "tsx ./src/components/deluge_companion/utils/convert-md-to-json.ts && astro build",
     "preview": "pnpm run build && astro preview",
     "astro": "astro",
+    "perf:guard": "node ./scripts/perf-guard.mjs",
     "check": "astro check && eslint . --max-warnings=0 && prettier . --check",
     "check:fix": "prettier . --write && eslint . --fix"
   },

@@ -1,3 +1,4 @@
+<!-- Static SVG label layer for the Deluge hardware illustration. -->
 <g transform="translate(23.798 -59.052)">
   <rect
     x="-23.798"

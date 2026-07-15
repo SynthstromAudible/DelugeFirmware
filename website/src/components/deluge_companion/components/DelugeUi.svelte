@@ -1,9 +1,44 @@
 <script lang="ts">
+  import { onDestroy } from "svelte";
   import { controlDescriptions } from "../data/targets.js";
   import { isStep, type StepOrSubstep } from "../types/shortcut.js";
   import DelugeUiLabels from "./DelugeUiLabels.svelte";
+  import {
+    pickActiveDelugeDemo,
+    type DemoCell,
+    type DelugeDemoDefinition,
+    type DelugeDemoLoop,
+  } from "./demos/deluge_demos.js";
+
+  // Grid geometry in SVG coordinate space.
+  const GRID_ORIGIN_X = 5.2917;
+  const GRID_ORIGIN_Y = 75.406;
+  const GRID_STRIDE = 14.5523;
+  const GRID_PAD_SIZE = 9.2604;
+  const GRID_COLS = 16;
+  const GRID_ROWS = 8;
 
   export let steps: StepOrSubstep[];
+
+  // Active demo runtime state.
+  let activeDemo: DelugeDemoDefinition | undefined;
+  let activeDemoId: string | undefined;
+  let activeDemoLoop: DelugeDemoLoop | undefined;
+  let demoCells: DemoCell[] = [];
+
+  // Convert 1-based grid column to SVG x coordinate.
+  // Returns SVG x-coordinate for the provided grid column.
+  function gridXForColumn(column: number): number {
+    return GRID_ORIGIN_X + (column - 1) * GRID_STRIDE;
+  }
+
+  // Convert 1-based grid row to SVG y coordinate.
+  // Returns SVG y-coordinate for the provided grid row.
+  function gridYForRow(row: number): number {
+    return GRID_ORIGIN_Y + (row - 1) * GRID_STRIDE;
+  }
+
+  // Collect target CSS classes referenced by current shortcut steps for highlighting.
   $: highlightedClasses = steps
     .flatMap((step) => {
       if (isStep(step)) {
@@ -15,11 +50,51 @@
     .map((control) => controlDescriptions[control])
     .flatMap((control) => control.classes && control.classes);
 
+  $: activeDemo = pickActiveDelugeDemo(steps);
+
+  // Start/stop demo loop whenever matched demo changes.
+  $: {
+    const nextDemoId = activeDemo?.id;
+
+    // Branch: demo changed, so tear down prior loop and initialize next one.
+    if (nextDemoId !== activeDemoId) {
+      activeDemoLoop?.stop();
+      activeDemoLoop = undefined;
+      activeDemoId = undefined;
+      demoCells = [];
+
+      // Branch: matched demo exists for current step sequence.
+      if (activeDemo) {
+        activeDemoLoop = activeDemo.createLoop((cells) => {
+          demoCells = cells;
+        });
+        activeDemoLoop.start();
+        activeDemoId = activeDemo.id;
+      }
+    }
+  }
+
+  onDestroy(() => {
+    activeDemoLoop?.stop();
+  });
+
+  // Returns whether a control-class segment should be highlighted.
   function isHighlighted(name: string): boolean {
     return highlightedClasses.includes(name);
   }
+
+  // Returns per-cell fill style for current demo (or empty if none active).
+  function getActiveDemoCellFillStyle(cell: DemoCell): string {
+    return activeDemo ? activeDemo.getCellFillStyle(cell) : "";
+  }
+
+  // Returns per-cell detail style for current demo (or empty if none active).
+  function getActiveDemoCellDetailStyle(cell: DemoCell): string {
+    return activeDemo ? activeDemo.getCellDetailStyle(cell) : "";
+  }
 </script>
 
+<!-- Main Deluge hardware SVG with dynamic highlights and optional demo overlay. -->
 <svg
   width="278.04mm"
   height="193.32mm"
@@ -1352,6 +1427,32 @@
       />
     </g>
   </g>
+
+  {#if activeDemo}
+    <g class="dc-demo-overlay" aria-label="Demo animation preview">
+      {#each demoCells as cell (cell.row * 100 + cell.col)}
+        <g>
+          <rect
+            x={gridXForColumn(cell.col)}
+            y={gridYForRow(cell.row)}
+            width={GRID_PAD_SIZE}
+            height={GRID_PAD_SIZE}
+            class="dc-demo-note"
+            style={getActiveDemoCellFillStyle(cell)}
+          />
+          <rect
+            x={gridXForColumn(cell.col) + 1.15}
+            y={gridYForRow(cell.row) + 1.15}
+            width={GRID_PAD_SIZE - 2.3}
+            height={GRID_PAD_SIZE - 2.3}
+            class="dc-demo-note-detail"
+            style={getActiveDemoCellDetailStyle(cell)}
+          />
+        </g>
+      {/each}
+
+    </g>
+  {/if}
 </svg>
 
 <style lang="postcss">
@@ -1365,6 +1466,19 @@
 
   .dc-gold-leds {
     fill: #64452f;
+  }
+
+  .dc-demo-overlay {
+    pointer-events: none;
+  }
+
+  .dc-demo-note {
+    stroke-width: 0.5;
+  }
+
+  .dc-demo-note-detail {
+    fill: rgb(255 255 255 / 0.92);
+    pointer-events: none;
   }
 
   .highlight {

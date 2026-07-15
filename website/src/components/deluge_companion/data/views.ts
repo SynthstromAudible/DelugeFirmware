@@ -1,49 +1,84 @@
 import type { View } from "../types/shortcut.js"
 
 export enum Views {
-  GLOBAL,
-  SONG,
-  ARRANGER,
   PERFORMANCE,
+  ARRANGER,
+  SESSION,
+  SESSION_ROW,
+  SESSION_GRID,
+  CLIP,
+  CLIP_INSTRUMENT,
+  CLIP_AUDIO,
+  AUDIO,
   SYNTH,
   KIT,
   MIDI,
   CV,
-  AUDIO,
   WAVEFORM,
-  CLIP,
-  AUTOMATION,
-  VELOCITY,
   KEYBOARD,
+  AUTOMATION,
+  AUTOMATION_OVERVIEW,
+  AUTOMATION_PARAMETER,
+  AUTOMATION_VELOCITY,
+  MENU,
+  MENU_SETTINGS,
+  MENU_SOUND,
+  MENU_NOTE,
+  MENU_NOTEROW,
 }
 
 export type ViewsMap = Record<Views, View>
 
 export const viewsById: ViewsMap = {
-  [Views.GLOBAL]: {
-    id: Views.GLOBAL,
-    title: "Global",
+  [Views.PERFORMANCE]: {
+    id: Views.PERFORMANCE,
+    title: "Performance",
     color: "neutral",
-  },
-  [Views.SONG]: {
-    id: Views.SONG,
-    title: "Song",
-    color: "gold",
   },
   [Views.ARRANGER]: {
     id: Views.ARRANGER,
     title: "Arranger",
     color: "red",
   },
-  [Views.PERFORMANCE]: {
-    id: Views.PERFORMANCE,
-    title: "Performance",
-    color: "red",
+  [Views.SESSION]: {
+    id: Views.SESSION,
+    title: "Session",
+    color: "gold",
+  },
+  [Views.SESSION_ROW]: {
+    id: Views.SESSION_ROW,
+    title: "Session (Row Layout)",
+    color: "gold",
+  },
+  [Views.SESSION_GRID]: {
+    id: Views.SESSION_GRID,
+    title: "Session (Grid Layout)",
+    color: "gold",
+  },
+  [Views.CLIP]: {
+    id: Views.CLIP,
+    title: "Clip",
+    color: "purple",
+  },
+  [Views.CLIP_INSTRUMENT]: {
+    id: Views.CLIP_INSTRUMENT,
+    title: "Clip (Instrument)",
+    color: "purple",
+  },
+  [Views.CLIP_AUDIO]: {
+    id: Views.CLIP_AUDIO,
+    title: "Clip (Audio)",
+    color: "purple",
+  },
+  [Views.AUDIO]: {
+    id: Views.AUDIO,
+    title: "Audio",
+    color: "purple",
   },
   [Views.SYNTH]: {
     id: Views.SYNTH,
     title: "Synth",
-    color: "green",
+    color: "blue",
   },
   [Views.KIT]: {
     id: Views.KIT,
@@ -60,19 +95,14 @@ export const viewsById: ViewsMap = {
     title: "CV",
     color: "blue",
   },
-  [Views.AUDIO]: {
-    id: Views.AUDIO,
-    title: "Audio",
-    color: "purple",
-  },
   [Views.WAVEFORM]: {
     id: Views.WAVEFORM,
     title: "Waveform",
     color: "purple",
   },
-  [Views.CLIP]: {
-    id: Views.CLIP,
-    title: "Clip",
+  [Views.KEYBOARD]: {
+    id: Views.KEYBOARD,
+    title: "Keyboard",
     color: "purple",
   },
   [Views.AUTOMATION]: {
@@ -80,14 +110,44 @@ export const viewsById: ViewsMap = {
     title: "Automation",
     color: "purple",
   },
-  [Views.VELOCITY]: {
-    id: Views.VELOCITY,
-    title: "Velocity",
+  [Views.AUTOMATION_OVERVIEW]: {
+    id: Views.AUTOMATION_OVERVIEW,
+    title: "Automation (Sound Parameter Overview)",
     color: "purple",
   },
-  [Views.KEYBOARD]: {
-    id: Views.KEYBOARD,
-    title: "Keyboard",
+  [Views.AUTOMATION_PARAMETER]: {
+    id: Views.AUTOMATION_PARAMETER,
+    title: "Automation (Sound Parameter Editor)",
     color: "purple",
+  },
+  [Views.AUTOMATION_VELOCITY]: {
+    id: Views.AUTOMATION_VELOCITY,
+    title: "Automation (Note Velocity Editor)",
+    color: "purple",
+  },
+  [Views.MENU]: {
+    id: Views.MENU,
+    title: "Menu",
+    color: "neutral",
+  },
+  [Views.MENU_SETTINGS]: {
+    id: Views.MENU_SETTINGS,
+    title: "Menu (Settings)",
+    color: "neutral",
+  },
+  [Views.MENU_SOUND]: {
+    id: Views.MENU_SOUND,
+    title: "Menu (Sound Editor)",
+    color: "neutral",
+  },
+  [Views.MENU_NOTE]: {
+    id: Views.MENU_NOTE,
+    title: "Menu (Note Editor)",
+    color: "neutral",
+  },
+  [Views.MENU_NOTEROW]: {
+    id: Views.MENU_NOTEROW,
+    title: "Menu (Note Row Editor)",
+    color: "neutral",
   },
 }

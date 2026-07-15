@@ -5,7 +5,10 @@
   import { onMount } from "svelte";
 
   let error: string | null = null;
-  let mdInput = `# Example shortcut
+  let mdInput = `capability: GLOBAL
+sub-capability: Example
+
+# Example shortcut
 
 #song #synth #midi
 
@@ -27,16 +30,18 @@ This example is even shorter: \`press(PLAY)\`
 
   let shortcuts: Types.Shortcut[] = [];
 
+  // Returns void after updating parsed shortcuts or setting an error message.
   function convert() {
     error = null;
     try {
-      shortcuts = parseMd(mdInput);
+      shortcuts = parseMd(mdInput, { subCapabilityId: "example" });
     } catch (ex: any) {
       error = ex.message;
       return;
     }
   }
 
+  // Returns void after delegating to convert on textarea keyup.
   function mdKeyup() {
     convert();
   }

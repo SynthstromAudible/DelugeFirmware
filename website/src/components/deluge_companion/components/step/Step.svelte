@@ -8,6 +8,7 @@
   export let compositeAction: "none" | "press-turn" = "none";
 </script>
 
+<!-- Single step pairs action text with control icon/label. -->
 <div class="step step grid items-baseline justify-items-center gap-x-1 text-[0.9rem]">
   <ActionView {step} {compositeAction} />
   <ControlView {step} {inline} {compositeAction} />

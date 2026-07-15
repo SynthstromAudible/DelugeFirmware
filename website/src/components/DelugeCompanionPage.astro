@@ -2,6 +2,130 @@
 import CompanionApp from "./DelugeCompanionApp.svelte"
 ---
 
-<div class="not-prose">
+<div class="not-prose dc-companion-host" id="dc-companion-host">
+  <div
+    class="dc-loading-shell overflow-hidden rounded-xl border border-[var(--sl-color-gray-5)] bg-[var(--sl-color-bg-nav)]/50 p-3 shadow-sm"
+    id="dc-companion-loader"
+  >
+    <div
+      class="overflow-hidden rounded-lg border border-[var(--sl-color-gray-5)] bg-[var(--sl-color-bg)] px-4 py-4"
+    >
+      <p class="dc-loading-title">Loading Deluge Companion...</p>
+      <div class="dc-loading-bar" aria-hidden="true">
+        <span class="dc-loading-bar-indicator"></span>
+      </div>
+    </div>
+  </div>
+
   <CompanionApp client:only="svelte" />
 </div>
+
+<script is:inline>
+  ;(() => {
+    const host = document.getElementById("dc-companion-host")
+    const loader = document.getElementById("dc-companion-loader")
+    if (!host || !loader) {
+      return
+    }
+
+    const minVisibleMs = 450
+    const shownAtMs = performance.now()
+    let isHidden = false
+
+    const hideLoader = () => {
+      if (isHidden) {
+        return
+      }
+
+      const elapsedMs = performance.now() - shownAtMs
+      const delayMs = Math.max(0, minVisibleMs - elapsedMs)
+
+      window.setTimeout(() => {
+        if (isHidden) {
+          return
+        }
+        loader.setAttribute("hidden", "")
+        isHidden = true
+      }, delayMs)
+    }
+
+    const isCompanionReady = () => {
+      return Boolean(host.querySelector('input[type="search"]'))
+    }
+
+    if (isCompanionReady()) {
+      hideLoader()
+      return
+    }
+
+    const observer = new MutationObserver(() => {
+      if (isCompanionReady()) {
+        hideLoader()
+        observer.disconnect()
+      }
+    })
+
+    observer.observe(host, { childList: true, subtree: true })
+
+    window.addEventListener(
+      "deluge-companion-ready",
+      () => {
+        hideLoader()
+        observer.disconnect()
+      },
+      { once: true },
+    )
+  })()
+</script>
+
+<style is:inline>
+  .dc-companion-host {
+    position: relative;
+  }
+
+  .dc-loading-title {
+    margin: 0;
+    color: var(--sl-color-gray-2);
+    font-size: 0.95rem;
+  }
+
+  .dc-loading-bar {
+    margin-top: 0.6rem;
+    position: relative;
+    height: 0.34rem;
+    border-radius: 9999px;
+    overflow: hidden;
+    background: rgba(148, 163, 184, 0.35);
+    background: color-mix(in srgb, var(--sl-color-gray-5) 55%, transparent);
+  }
+
+  .dc-loading-bar-indicator {
+    position: absolute;
+    inset-block: 0;
+    left: 0;
+    width: 34%;
+    border-radius: inherit;
+    background: linear-gradient(90deg, #60a5fa 0%, #3b82f6 55%, #2563eb 100%);
+    animation: dc-loading-slide 880ms ease-in-out infinite;
+  }
+
+  @keyframes dc-loading-slide {
+    0% {
+      transform: translateX(-15%);
+    }
+    100% {
+      transform: translateX(235%);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .dc-loading-bar-indicator {
+      animation: none;
+      transform: none;
+    }
+  }
+
+  html[data-theme="light"] .dc-loading-title {
+    color: var(--sl-color-gray-3);
+  }
+</style>
