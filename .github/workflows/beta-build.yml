@@ -3,8 +3,8 @@ name: Beta Build
 on:
   workflow_dispatch: # allows manual triggering
 # To enable scheduled beta builds, uncomment the schedule below:
-#  schedule:
-#    - cron: "14 0 * * *" # runs daily at 00:14
+  schedule:
+    - cron: "14 0 * * *" # runs daily at 00:14
 
 jobs:
   beta-detect:
