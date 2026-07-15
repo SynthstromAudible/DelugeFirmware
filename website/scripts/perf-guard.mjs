@@ -43,7 +43,7 @@ function makeUrl(baseUrl, path) {
 
 async function waitForHttp(url, timeoutMs = 60000) {
   const startedAt = Date.now()
-   
+
   while (true) {
     try {
       const response = await fetch(url)
@@ -199,7 +199,6 @@ async function main() {
 
     const runs = []
     for (let i = 0; i < config.runs; i += 1) {
-       
       const result = await runProbe(targetUrl)
       runs.push(result)
     }
