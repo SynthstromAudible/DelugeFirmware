@@ -3,7 +3,6 @@ capability-order: 9
 sub-capability: Controls (Parameters)
 sub-capability-order: 3
 
-
 # Assign gold dial control of parameters - first select parameter
 
 #OFFICIAL #SYNTH #KIT

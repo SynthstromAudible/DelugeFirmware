@@ -3,10 +3,13 @@ import Default from "@astrojs/starlight/components/Head.astro"
 ---
 
 <script is:inline>
-  (() => {
+  ;(() => {
     const isCompanionRoute = () => {
       const path = window.location.pathname.toLowerCase()
-      return path.endsWith("/reference/deluge_companion") || path.endsWith("/reference/deluge_companion/")
+      return (
+        path.endsWith("/reference/deluge_companion") ||
+        path.endsWith("/reference/deluge_companion/")
+      )
     }
 
     const initPosthog = () => {
@@ -30,9 +33,12 @@ import Default from "@astrojs/starlight/components/Head.astro"
       }
 
       if ("requestIdleCallback" in window) {
-        window.requestIdleCallback(() => {
-          initPosthog()
-        }, { timeout: 3000 })
+        window.requestIdleCallback(
+          () => {
+            initPosthog()
+          },
+          { timeout: 3000 },
+        )
       } else {
         window.setTimeout(() => {
           initPosthog()

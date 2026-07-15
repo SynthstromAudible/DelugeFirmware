@@ -82,11 +82,15 @@ regenerateJson()
 
 if (watchMode) {
   console.log("Watching markdown shortcut files for changes...")
-  fs.watch(inputPath, { persistent: true, recursive: true }, (eventType, filename) => {
-    if (!filename || extname(filename) !== ".md") {
-      return
-    }
-    console.log(`[${eventType}] ${filename} -> regenerating JSON`)
-    regenerateJson()
-  })
+  fs.watch(
+    inputPath,
+    { persistent: true, recursive: true },
+    (eventType, filename) => {
+      if (!filename || extname(filename) !== ".md") {
+        return
+      }
+      console.log(`[${eventType}] ${filename} -> regenerating JSON`)
+      regenerateJson()
+    },
+  )
 }

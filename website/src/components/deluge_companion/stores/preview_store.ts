@@ -9,7 +9,10 @@ export const openHardwarePreviewIds = writable<number[]>([])
 // Version tick used to force one-shot UI reset reactions in cards.
 export const shortcutPreviewResetVersion = writable(0)
 
-export const setHardwarePreviewOpen = (previewId: number, shouldOpen: boolean) => {
+export const setHardwarePreviewOpen = (
+  previewId: number,
+  shouldOpen: boolean,
+) => {
   // Returns void via writable.update side-effect.
   openHardwarePreviewIds.update((current) => {
     // Branch: explicit close removes preview id.

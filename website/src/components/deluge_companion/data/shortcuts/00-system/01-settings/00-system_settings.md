@@ -15,7 +15,7 @@ hold(SHIFT) + press(SELECT)
 
 #OFFICIAL
 
-```shortcut 
+```shortcut
 hold(SHIFT) + hold(LEARN) + turn(Y)
 ```
 

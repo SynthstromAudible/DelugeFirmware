@@ -3,8 +3,13 @@ import CompanionApp from "./DelugeCompanionApp.svelte"
 ---
 
 <div class="not-prose dc-companion-host" id="dc-companion-host">
-  <div class="dc-loading-shell overflow-hidden rounded-xl border border-[var(--sl-color-gray-5)] bg-[var(--sl-color-bg-nav)]/50 p-3 shadow-sm" id="dc-companion-loader">
-    <div class="overflow-hidden rounded-lg border border-[var(--sl-color-gray-5)] bg-[var(--sl-color-bg)] px-4 py-4">
+  <div
+    class="dc-loading-shell overflow-hidden rounded-xl border border-[var(--sl-color-gray-5)] bg-[var(--sl-color-bg-nav)]/50 p-3 shadow-sm"
+    id="dc-companion-loader"
+  >
+    <div
+      class="overflow-hidden rounded-lg border border-[var(--sl-color-gray-5)] bg-[var(--sl-color-bg)] px-4 py-4"
+    >
       <p class="dc-loading-title">Loading Deluge Companion...</p>
       <div class="dc-loading-bar" aria-hidden="true">
         <span class="dc-loading-bar-indicator"></span>
@@ -16,7 +21,7 @@ import CompanionApp from "./DelugeCompanionApp.svelte"
 </div>
 
 <script is:inline>
-  (() => {
+  ;(() => {
     const host = document.getElementById("dc-companion-host")
     const loader = document.getElementById("dc-companion-loader")
     if (!host || !loader) {
@@ -62,10 +67,14 @@ import CompanionApp from "./DelugeCompanionApp.svelte"
 
     observer.observe(host, { childList: true, subtree: true })
 
-    window.addEventListener("deluge-companion-ready", () => {
-      hideLoader()
-      observer.disconnect()
-    }, { once: true })
+    window.addEventListener(
+      "deluge-companion-ready",
+      () => {
+        hideLoader()
+        observer.disconnect()
+      },
+      { once: true },
+    )
   })()
 </script>
 

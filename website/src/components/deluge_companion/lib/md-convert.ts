@@ -108,7 +108,7 @@ const toMetadataSlug = (value: string) =>
     .replace(/[^a-z0-9]+/g, "-")
     .replace(/^-+|-+$/g, "")
 
-  // Returns parsed metadata directive info, or null when line is not a directive.
+// Returns parsed metadata directive info, or null when line is not a directive.
 const parseFileMetadataDirective = (rawLine: string) => {
   const line = rawLine.trim()
   const matches = line.match(/^([A-Za-z][A-Za-z\s-]*)\s*:\s*(.+)$/)
@@ -156,10 +156,7 @@ const parseFileMetadataDirective = (rawLine: string) => {
     return { type: "subCapabilityOrder" as const, value: Number(value) }
   }
 
-  if (
-    key === "sub-sub-capability-order" ||
-    key === "subsubcapability-order"
-  ) {
+  if (key === "sub-sub-capability-order" || key === "subsubcapability-order") {
     if (!/^\d+$/.test(value)) {
       throw new Error(
         `Invalid numeric value in file metadata directive "${rawLine}"`,
@@ -173,7 +170,10 @@ const parseFileMetadataDirective = (rawLine: string) => {
 }
 
 // Returns normalized shortcut objects parsed from markdown content.
-export const parseMd = (mdContent: string, options: ParseMdOptions): Shortcut[] => {
+export const parseMd = (
+  mdContent: string,
+  options: ParseMdOptions,
+): Shortcut[] => {
   const results: Shortcut[] = []
 
   let current: Shortcut | null = null
@@ -221,8 +221,9 @@ export const parseMd = (mdContent: string, options: ParseMdOptions): Shortcut[] 
             fileSubCapabilityTitle && fileSubSubCapabilityTitle
               ? `${fileSubCapabilityId}::${toMetadataSlug(fileSubSubCapabilityTitle)}`
               : undefined,
-          subSubCapabilityTitle:
-            fileSubCapabilityTitle ? fileSubSubCapabilityTitle : undefined,
+          subSubCapabilityTitle: fileSubCapabilityTitle
+            ? fileSubSubCapabilityTitle
+            : undefined,
           subSubCapabilityOrder:
             fileSubCapabilityTitle && fileSubSubCapabilityTitle
               ? fileSubSubCapabilityOrder
@@ -318,8 +319,7 @@ export const parseMd = (mdContent: string, options: ParseMdOptions): Shortcut[] 
             return
           }
 
-          const parsedFirmware =
-            Firmwares[upperTag as keyof typeof Firmwares]
+          const parsedFirmware = Firmwares[upperTag as keyof typeof Firmwares]
           if (parsedFirmware != null) {
             currentShortcut.firmware.push(parsedFirmware)
             return

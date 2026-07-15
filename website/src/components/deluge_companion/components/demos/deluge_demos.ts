@@ -1,4 +1,4 @@
-import type { StepOrSubstep } from "../../types/shortcut.js";
+import type { StepOrSubstep } from "../../types/shortcut.js"
 import {
   buildHorizontalZoomDemoCells,
   createHorizontalZoomDemoLoop,
@@ -7,21 +7,21 @@ import {
   isStandaloneHorizontalZoomShortcut,
   type DemoCell,
   type HorizontalZoomDemoLoop,
-} from "./horizontal_zoom_demo.js";
+} from "./horizontal_zoom_demo.js"
 
-const GRID_COLS = 16;
-const GRID_ROWS = 8;
+const GRID_COLS = 16
+const GRID_ROWS = 8
 
-export type DelugeDemoLoop = HorizontalZoomDemoLoop;
+export type DelugeDemoLoop = HorizontalZoomDemoLoop
 
 // Generic demo contract consumed by Deluge UI component.
 export type DelugeDemoDefinition = {
-  id: string;
-  matches: (steps: StepOrSubstep[]) => boolean;
-  createLoop: (onCells: (cells: DemoCell[]) => void) => DelugeDemoLoop;
-  getCellFillStyle: (cell: DemoCell) => string;
-  getCellDetailStyle: (cell: DemoCell) => string;
-};
+  id: string
+  matches: (steps: StepOrSubstep[]) => boolean
+  createLoop: (onCells: (cells: DemoCell[]) => void) => DelugeDemoLoop
+  getCellFillStyle: (cell: DemoCell) => string
+  getCellDetailStyle: (cell: DemoCell) => string
+}
 
 // Horizontal zoom demo wiring.
 const horizontalZoomDemo: DelugeDemoDefinition = {
@@ -37,18 +37,20 @@ const horizontalZoomDemo: DelugeDemoDefinition = {
           runtime.toScale,
           runtime.renderBlend,
         ),
-      );
-    });
+      )
+    })
   },
   getCellFillStyle: getHorizontalZoomCellFillStyle,
   getCellDetailStyle: getHorizontalZoomCellDetailStyle,
-};
+}
 
-const DEMOS: DelugeDemoDefinition[] = [horizontalZoomDemo];
+const DEMOS: DelugeDemoDefinition[] = [horizontalZoomDemo]
 
-export type { DemoCell };
+export type { DemoCell }
 
 // Selects first demo definition matching the current step sequence.
-export function pickActiveDelugeDemo(steps: StepOrSubstep[]): DelugeDemoDefinition | undefined {
-  return DEMOS.find((demo) => demo.matches(steps));
+export function pickActiveDelugeDemo(
+  steps: StepOrSubstep[],
+): DelugeDemoDefinition | undefined {
+  return DEMOS.find((demo) => demo.matches(steps))
 }

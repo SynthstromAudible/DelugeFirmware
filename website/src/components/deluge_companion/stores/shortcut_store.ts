@@ -94,7 +94,9 @@ const convertRawShortcuts = (shortcuts: RawShortcut[]): Shortcut[] => {
       // Canonicalize capability ids so aliases map to stable keys.
       capability: resolveSubCapabilityId(shortcut.capability),
       steps,
-      subSubCapabilityId: resolveSubSubCapabilityId(shortcut.subSubCapabilityId),
+      subSubCapabilityId: resolveSubSubCapabilityId(
+        shortcut.subSubCapabilityId,
+      ),
       // If firmware is missing, default shortcut visibility to both tracks.
       firmware:
         shortcut.firmware && shortcut.firmware.length > 0
@@ -118,7 +120,9 @@ export const ensureShortcutsLoaded = async () => {
       // Capability maps must exist before shortcut normalization.
       await ensureCapabilitiesLoaded()
       const module = await import("../data/v4.1.0.json")
-      const loadedShortcuts = convertRawShortcuts(module.default as RawShortcut[])
+      const loadedShortcuts = convertRawShortcuts(
+        module.default as RawShortcut[],
+      )
       rawShortcuts.set(loadedShortcuts)
     } finally {
       // Always clear loading indicator, success or failure.

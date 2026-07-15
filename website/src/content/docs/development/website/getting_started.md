@@ -122,18 +122,18 @@ Static assets, like favicons, can be placed in the `public/` directory.
 
 All commands are run from the `website` directory, from a terminal:
 
-| Command                                                              | Action                                                |
-| :------------------------------------------------------------------- | :---------------------------------------------------- |
-| `pnpm install`                                                       | Installs dependencies                                 |
-| `pnpm run dev` (or `pnpm dev`)                                       | Starts local dev server at `localhost:4321`           |
-| `pnpm run build`                                                     | Builds the production site to `./dist/`               |
-| `pnpm run preview`                                                   | Builds and previews your site locally                 |
-| `pnpm run check`                                                     | Runs Astro type/content checks, ESLint, and Prettier |
-| `pnpm run check:fix`                                                 | Applies lint/format fixes                             |
-| `pnpm run perf:guard`                                                | Runs local Deluge Companion perf guard                |
-| `pnpm exec playwright install --with-deps chromium chromium-headless-shell` | Installs Playwright browsers/deps                     |
-| `pnpm astro ...`                                                     | Runs Astro CLI commands like `astro add`              |
-| `pnpm astro -- --help`                                               | Get help using the Astro CLI                          |
+| Command                                                                     | Action                                               |
+| :-------------------------------------------------------------------------- | :--------------------------------------------------- |
+| `pnpm install`                                                              | Installs dependencies                                |
+| `pnpm run dev` (or `pnpm dev`)                                              | Starts local dev server at `localhost:4321`          |
+| `pnpm run build`                                                            | Builds the production site to `./dist/`              |
+| `pnpm run preview`                                                          | Builds and previews your site locally                |
+| `pnpm run check`                                                            | Runs Astro type/content checks, ESLint, and Prettier |
+| `pnpm run check:fix`                                                        | Applies lint/format fixes                            |
+| `pnpm run perf:guard`                                                       | Runs local Deluge Companion perf guard               |
+| `pnpm exec playwright install --with-deps chromium chromium-headless-shell` | Installs Playwright browsers/deps                    |
+| `pnpm astro ...`                                                            | Runs Astro CLI commands like `astro add`             |
+| `pnpm astro -- --help`                                                      | Get help using the Astro CLI                         |
 
 ## 👀 Want to learn more?
 

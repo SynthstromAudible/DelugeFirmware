@@ -39,13 +39,10 @@ type RawShortcutMetadata = {
 // Normalizes labels for de-duplication keys.
 // Returns lowercase, space-normalized label text.
 const normalizeLabel = (value: string) =>
-  value
-    .trim()
-    .toLowerCase()
-    .replace(/\s+/g, " ")
+  value.trim().toLowerCase().replace(/\s+/g, " ")
 
-  // Converts slug-like ids to presentable labels.
-  // Returns title-cased words split from slug/underscore separators.
+// Converts slug-like ids to presentable labels.
+// Returns title-cased words split from slug/underscore separators.
 const toTitleCase = (value: string) =>
   value
     .toLowerCase()
@@ -54,7 +51,7 @@ const toTitleCase = (value: string) =>
     .map((part) => part[0].toUpperCase() + part.slice(1))
     .join(" ")
 
-  // Mutable in-memory indexes populated once from shortcut metadata.
+// Mutable in-memory indexes populated once from shortcut metadata.
 export const shortcutCapabilities: ShortcutCapability[] = []
 export const shortcutSubCapabilities: ShortcutSubCapability[] = []
 export const shortcutSubSubCapabilities: ShortcutSubSubCapability[] = []
@@ -131,13 +128,19 @@ function buildCapabilityIndex(shortcuts: RawShortcutMetadata[]) {
         order: shortcut.capabilityOrder,
       })
       seenCapabilityIds.add(capabilityId)
-      capabilityInsertionIndexById.set(capabilityId, shortcutCapabilities.length - 1)
+      capabilityInsertionIndexById.set(
+        capabilityId,
+        shortcutCapabilities.length - 1,
+      )
       capabilityOrderById.set(capabilityId, shortcut.capabilityOrder)
-    // Branch: update missing order when later record includes one.
+      // Branch: update missing order when later record includes one.
     } else if (shortcut.capabilityOrder != null) {
       const currentOrder = capabilityOrderById.get(shortcut.capabilityParentId)
       if (currentOrder == null) {
-        capabilityOrderById.set(shortcut.capabilityParentId, shortcut.capabilityOrder)
+        capabilityOrderById.set(
+          shortcut.capabilityParentId,
+          shortcut.capabilityOrder,
+        )
       }
     }
 
@@ -150,9 +153,8 @@ function buildCapabilityIndex(shortcuts: RawShortcutMetadata[]) {
       const subCapabilityTitle = shortcut.subCapabilityTitle.trim()
       const subCapabilityKey = `${shortcut.capabilityParentId}::${normalizeLabel(subCapabilityTitle)}`
 
-      let canonicalSubCapabilityId = canonicalSubCapabilityIdByKey.get(
-        subCapabilityKey,
-      )
+      let canonicalSubCapabilityId =
+        canonicalSubCapabilityIdByKey.get(subCapabilityKey)
 
       if (!canonicalSubCapabilityId) {
         canonicalSubCapabilityId = shortcut.capability
@@ -184,11 +186,16 @@ function buildCapabilityIndex(shortcuts: RawShortcutMetadata[]) {
           canonicalSubCapabilityId,
           shortcut.subCapabilityOrder,
         )
-      // Branch: backfill missing order on existing canonical id.
+        // Branch: backfill missing order on existing canonical id.
       } else if (shortcut.subCapabilityOrder != null) {
-        const currentOrder = subCapabilityOrderById.get(canonicalSubCapabilityId)
+        const currentOrder = subCapabilityOrderById.get(
+          canonicalSubCapabilityId,
+        )
         if (currentOrder == null) {
-          subCapabilityOrderById.set(canonicalSubCapabilityId, shortcut.subCapabilityOrder)
+          subCapabilityOrderById.set(
+            canonicalSubCapabilityId,
+            shortcut.subCapabilityOrder,
+          )
         }
       }
     }
@@ -206,9 +213,8 @@ function buildCapabilityIndex(shortcuts: RawShortcutMetadata[]) {
       const subSubCapabilityTitle = shortcut.subSubCapabilityTitle.trim()
       const subSubCapabilityKey = `${canonicalSubCapabilityId}::${normalizeLabel(subSubCapabilityTitle)}`
 
-      let canonicalSubSubCapabilityId = canonicalSubSubCapabilityIdByKey.get(
-        subSubCapabilityKey,
-      )
+      let canonicalSubSubCapabilityId =
+        canonicalSubSubCapabilityIdByKey.get(subSubCapabilityKey)
 
       if (!canonicalSubSubCapabilityId) {
         canonicalSubSubCapabilityId = shortcut.subSubCapabilityId
@@ -241,9 +247,11 @@ function buildCapabilityIndex(shortcuts: RawShortcutMetadata[]) {
           canonicalSubSubCapabilityId,
           shortcut.subSubCapabilityOrder,
         )
-      // Branch: backfill missing order on existing canonical id.
+        // Branch: backfill missing order on existing canonical id.
       } else if (shortcut.subSubCapabilityOrder != null) {
-        const currentOrder = subSubCapabilityOrderById.get(canonicalSubSubCapabilityId)
+        const currentOrder = subSubCapabilityOrderById.get(
+          canonicalSubSubCapabilityId,
+        )
         if (currentOrder == null) {
           subSubCapabilityOrderById.set(
             canonicalSubSubCapabilityId,
@@ -256,8 +264,10 @@ function buildCapabilityIndex(shortcuts: RawShortcutMetadata[]) {
 
   // Stable sort capabilities by explicit order, then original insertion.
   shortcutCapabilities.sort((a, b) => {
-    const aIndex = capabilityInsertionIndexById.get(a.id) ?? Number.MAX_SAFE_INTEGER
-    const bIndex = capabilityInsertionIndexById.get(b.id) ?? Number.MAX_SAFE_INTEGER
+    const aIndex =
+      capabilityInsertionIndexById.get(a.id) ?? Number.MAX_SAFE_INTEGER
+    const bIndex =
+      capabilityInsertionIndexById.get(b.id) ?? Number.MAX_SAFE_INTEGER
     const aOrder = capabilityOrderById.get(a.id) ?? aIndex + 1
     const bOrder = capabilityOrderById.get(b.id) ?? bIndex + 1
 
@@ -279,7 +289,10 @@ function buildCapabilityIndex(shortcuts: RawShortcutMetadata[]) {
       capabilityPositionById.get(a.capabilityId) ?? Number.MAX_SAFE_INTEGER
     const bCapabilityPosition =
       capabilityPositionById.get(b.capabilityId) ?? Number.MAX_SAFE_INTEGER
-    const capabilityDiff = compareNumbers(aCapabilityPosition, bCapabilityPosition)
+    const capabilityDiff = compareNumbers(
+      aCapabilityPosition,
+      bCapabilityPosition,
+    )
     if (capabilityDiff !== 0) {
       return capabilityDiff
     }
@@ -300,15 +313,20 @@ function buildCapabilityIndex(shortcuts: RawShortcutMetadata[]) {
   })
 
   const subCapabilityPositionById = new Map(
-    shortcutSubCapabilities.map((subCapability, index) => [subCapability.id, index]),
+    shortcutSubCapabilities.map((subCapability, index) => [
+      subCapability.id,
+      index,
+    ]),
   )
 
   // Stable sort sub-sub-capabilities grouped by parent sub-capability.
   shortcutSubSubCapabilities.sort((a, b) => {
     const aSubCapabilityPosition =
-      subCapabilityPositionById.get(a.subCapabilityId) ?? Number.MAX_SAFE_INTEGER
+      subCapabilityPositionById.get(a.subCapabilityId) ??
+      Number.MAX_SAFE_INTEGER
     const bSubCapabilityPosition =
-      subCapabilityPositionById.get(b.subCapabilityId) ?? Number.MAX_SAFE_INTEGER
+      subCapabilityPositionById.get(b.subCapabilityId) ??
+      Number.MAX_SAFE_INTEGER
     const subCapabilityDiff = compareNumbers(
       aSubCapabilityPosition,
       bSubCapabilityPosition,
@@ -333,7 +351,10 @@ function buildCapabilityIndex(shortcuts: RawShortcutMetadata[]) {
   })
 
   for (const subCapability of shortcutSubCapabilities) {
-    capabilityBySubCapabilityId.set(subCapability.id, subCapability.capabilityId)
+    capabilityBySubCapabilityId.set(
+      subCapability.id,
+      subCapability.capabilityId,
+    )
     subCapabilityTitleById.set(subCapability.id, subCapability.title)
   }
 
@@ -413,9 +434,8 @@ export const getSubCapabilityTitle = (subCapabilityId: string | undefined) => {
 export const getSubCapabilityIdForSubSubCapability = (
   subSubCapabilityId: string | undefined,
 ) => {
-  const resolvedSubSubCapabilityId = resolveSubSubCapabilityId(
-    subSubCapabilityId,
-  )
+  const resolvedSubSubCapabilityId =
+    resolveSubSubCapabilityId(subSubCapabilityId)
   if (!resolvedSubSubCapabilityId) {
     return undefined
   }
@@ -427,9 +447,8 @@ export const getSubCapabilityIdForSubSubCapability = (
 export const getSubSubCapabilityTitle = (
   subSubCapabilityId: string | undefined,
 ) => {
-  const resolvedSubSubCapabilityId = resolveSubSubCapabilityId(
-    subSubCapabilityId,
-  )
+  const resolvedSubSubCapabilityId =
+    resolveSubSubCapabilityId(subSubCapabilityId)
   if (!resolvedSubSubCapabilityId) {
     return undefined
   }

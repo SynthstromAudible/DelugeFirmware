@@ -3,7 +3,6 @@ capability-order: 4
 sub-capability: Clip (Audio)
 sub-capability-order: 1
 
-
 # Create new audio clip in session view (press empty pad)
 
 #OFFICIAL #SESSION

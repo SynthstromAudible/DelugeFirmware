@@ -3,7 +3,6 @@ capability-order: 9
 sub-capability: Controls (MIDI)
 sub-capability-order: 2
 
-
 # External controller to play synth or kit
 
 #OFFICIAL #SYNTH #KIT #MIDI #CV

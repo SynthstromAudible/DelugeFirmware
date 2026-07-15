@@ -333,7 +333,6 @@ press(Y) + turn(Y)
 
 Transposes the selected note row while editing velocity data.
 
-
 # Clear Selected Note Row
 
 #COMMUNITY #SYNTH #KIT #MIDI #CV #AUTOMATION #AUTOMATION_VELOCITY

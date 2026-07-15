@@ -43,7 +43,7 @@ function makeUrl(baseUrl, path) {
 
 async function waitForHttp(url, timeoutMs = 60000) {
   const startedAt = Date.now()
-  // eslint-disable-next-line no-constant-condition
+   
   while (true) {
     try {
       const response = await fetch(url)
@@ -160,7 +160,9 @@ function evaluateThresholds(stats) {
   }
 
   if (stats.medianDclMs > config.maxMedianDclMs) {
-    failures.push(`median DCL ${stats.medianDclMs}ms > ${config.maxMedianDclMs}ms`)
+    failures.push(
+      `median DCL ${stats.medianDclMs}ms > ${config.maxMedianDclMs}ms`,
+    )
   }
 
   if (stats.avgRequests > config.maxAvgRequests) {
@@ -170,7 +172,9 @@ function evaluateThresholds(stats) {
   }
 
   if (stats.avgScripts > config.maxAvgScripts) {
-    failures.push(`average scripts ${stats.avgScripts} > ${config.maxAvgScripts}`)
+    failures.push(
+      `average scripts ${stats.avgScripts} > ${config.maxAvgScripts}`,
+    )
   }
 
   if (stats.avgScriptTransferBytes > config.maxAvgScriptTransferBytes) {
@@ -195,20 +199,26 @@ async function main() {
 
     const runs = []
     for (let i = 0; i < config.runs; i += 1) {
-      // eslint-disable-next-line no-await-in-loop
+       
       const result = await runProbe(targetUrl)
       runs.push(result)
     }
 
     const stats = {
-      medianInteractiveMs: Math.round(median(runs.map((run) => run.companionInteractiveAt))),
-      medianDclMs: Math.round(median(runs.map((run) => run.domContentLoadedAt))),
+      medianInteractiveMs: Math.round(
+        median(runs.map((run) => run.companionInteractiveAt)),
+      ),
+      medianDclMs: Math.round(
+        median(runs.map((run) => run.domContentLoadedAt)),
+      ),
       avgRequests: Math.round(average(runs.map((run) => run.totalRequests))),
       avgScripts: Math.round(average(runs.map((run) => run.scriptCount))),
       avgScriptTransferBytes: Math.round(
         average(runs.map((run) => run.scriptTransferBytes)),
       ),
-      avgNetworkIdleMs: Math.round(average(runs.map((run) => run.networkIdleAt))),
+      avgNetworkIdleMs: Math.round(
+        average(runs.map((run) => run.networkIdleAt)),
+      ),
     }
 
     printSummary(targetUrl, runs, stats)
