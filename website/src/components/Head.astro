@@ -53,7 +53,8 @@ import Default from "@astrojs/starlight/components/Head.astro"
 
 <script>
   let mermaidInitialized = false
-  let mermaidModulePromise
+  let mermaidModulePromise:
+    Promise<(typeof import("mermaid"))["default"]> | undefined
 
   async function getMermaid() {
     if (!mermaidModulePromise) {
