@@ -1,36 +1,23 @@
 <script lang="ts">
   import { activeControl, type ShortcutControlFilter } from "../stores/control_store.js"
-  import { activeFirmware } from "../stores/firmware_store.js"
-  import {
-    activeShortcutCapability,
-    activeShortcutSubCapability,
-    activeShortcutSubSubCapability,
-  } from "../stores/capability_store.js"
-  import { activeView } from "../stores/view_store.js"
 
   export let control: ShortcutControlFilter;
 
   // Active state for chip styling.
-  $: isActive = $activeControl === control.id;
+  $: isActive = $activeControl.has(control.id);
 
-  // Toggle control selection and clear other facet groups.
-  // Returns void after updating shared filter stores.
+  // Toggle control selection.
   function onClick() {
-    // Keep control facet mutually exclusive with firmware/view/capability facets.
-    activeFirmware.set(null)
-    activeShortcutCapability.set(null)
-    activeShortcutSubCapability.set(null)
-    activeShortcutSubSubCapability.set(null)
-    activeView.set(null)
-
-    activeControl.update((oldValue) => {
-      // Branch: clicking active chip clears control filter.
-      if (oldValue === control.id) {
-        return null;
+    activeControl.update((prev) => {
+      const next = new Set(prev);
+      // Branch: clicking active chip removes it from selection.
+      if (next.has(control.id)) {
+        next.delete(control.id);
+      } else {
+        // Branch: add this control id to the selection.
+        next.add(control.id);
       }
-
-      // Branch: select this control id.
-      return control.id;
+      return next;
     });
   }
 </script>
@@ -70,7 +57,12 @@
     color: var(--dc-control-fg);
   }
 
-  .dc-control-chip:hover {
+  .dc-control-chip:hover:not(.active) {
+    background: color-mix(in srgb, var(--dc-control-border) 20%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--dc-control-border) 35%, transparent) inset;
+  }
+
+  .dc-control-chip.active:hover {
     filter: brightness(1.05);
   }
 

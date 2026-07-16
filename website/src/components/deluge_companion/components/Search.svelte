@@ -3,107 +3,81 @@
   import Cross from "../icons/Cross.svelte";
   import {
     hasPendingSearchInput,
-    isSearchLoading,
-    searchLoadingProgress,
     searchQuery,
   } from "../stores/search_store.js";
 
   let inputEl: HTMLInputElement;
   let localQuery = "";
-  let progressTimer: ReturnType<typeof setInterval> | undefined;
+  let applyTimer: ReturnType<typeof setTimeout> | undefined;
+  // Match the site-wide Starlight/Pagefind search input debounce.
+  const SEARCH_APPLY_DEBOUNCE_MS = 300;
 
-  // UI-derived state for clear button + enter hint.
+  // UI-derived state for clear button.
   $: hasContent = localQuery.length > 0;
-  $: showEnterHint = hasContent && localQuery.trim() !== $searchQuery.trim();
-  $: hasPendingSearchInput.set(showEnterHint);
+  $: hasPendingSearchInput.set(false);
 
-  // Defensive helper so we never leak interval timers.
+  // Defensive helper so we never leak delayed apply timers.
   // Returns void.
-  function clearProgressTimer() {
-    if (!progressTimer) {
+  function clearApplyTimer() {
+    if (!applyTimer) {
       return;
     }
 
-    clearInterval(progressTimer);
-    progressTimer = undefined;
+    clearTimeout(applyTimer);
+    applyTimer = undefined;
   }
 
-  // Applies local text to global query with a short, bounded loading animation.
-  // Returns a Promise that resolves after query and loading UI state are synchronized.
-  async function applySearch(force = false) {
+  // Applies local text to the shared query store.
+  // Returns void.
+  function applySearch(force = false) {
     const nextValue = localQuery.trim();
 
     // Branch: skip redundant updates unless caller forces commit.
     if (!force && nextValue === $searchQuery.trim()) {
       return;
     }
-
-    isSearchLoading.set(true);
-    searchLoadingProgress.set(0);
-    clearProgressTimer();
-
-    const startTime = performance.now();
-    const minimumDurationMs = nextValue.length === 0 ? 0 : 120;
-
-    // Simulate smooth loading progress while expensive derived filters recompute.
-    progressTimer = setInterval(() => {
-      const elapsedMs = performance.now() - startTime;
-      const progress = Math.min(95, Math.round((elapsedMs / minimumDurationMs) * 95));
-      searchLoadingProgress.set(progress);
-    }, 30);
-
-    // Yield one frame so loading UI can render before filter recomputation.
-    await new Promise((resolve) => requestAnimationFrame(() => resolve(undefined)));
     searchQuery.set(nextValue);
-
-    const elapsedMs = performance.now() - startTime;
-    if (minimumDurationMs > 0 && elapsedMs < minimumDurationMs) {
-      await new Promise((resolve) => setTimeout(resolve, minimumDurationMs - elapsedMs));
-    }
-
-    clearProgressTimer();
-    searchLoadingProgress.set(100);
-    if (minimumDurationMs > 0) {
-      await new Promise((resolve) => setTimeout(resolve, 30));
-    }
-    isSearchLoading.set(false);
-    searchLoadingProgress.set(0);
   }
 
   // Initialize input from store and autofocus on mount.
   onMount(() => {
     localQuery = $searchQuery;
-    isSearchLoading.set(false);
     inputEl.focus();
   });
 
   // Restore global search UI state on component teardown.
   onDestroy(() => {
-    clearProgressTimer();
+    clearApplyTimer();
     hasPendingSearchInput.set(false);
-    isSearchLoading.set(false);
-    searchLoadingProgress.set(0);
   });
 
   // Clears local + global query and resets loading flags.
   // Returns void.
   function clear() {
-    clearProgressTimer();
+    clearApplyTimer();
     localQuery = "";
     searchQuery.set("");
     hasPendingSearchInput.set(false);
-    isSearchLoading.set(false);
-    searchLoadingProgress.set(0);
     inputEl.blur();
   }
 
-  // Auto-apply when user erases query back to empty.
+  // Apply query after a short pause so results don't refresh on every keystroke.
   // Returns void.
   function handleInput() {
-    // Clearing to empty should trigger the same loading flow as Enter apply.
-    if (localQuery.trim().length === 0 && $searchQuery.trim().length > 0) {
-      applySearch();
+    clearApplyTimer();
+
+    const nextValue = localQuery.trim();
+    const previousValue = $searchQuery.trim();
+
+    // Fast-path: clearing search should apply immediately.
+    if (nextValue.length === 0 && previousValue.length > 0) {
+      void applySearch(true);
+      return;
     }
+
+    applyTimer = setTimeout(() => {
+      void applySearch();
+    }, SEARCH_APPLY_DEBOUNCE_MS);
   }
 
   // Keyboard handling for in-field shortcuts and apply behavior.
@@ -119,12 +93,12 @@
       return;
     }
 
-    // Branch: escape clears, enter commits.
+    // Branch: escape clears, enter applies immediately.
     if (ev.key === "Escape") {
       clear();
     } else if (ev.key === "Enter") {
-      applySearch();
-      inputEl.blur();
+      clearApplyTimer();
+      void applySearch(true);
     }
   }
 
@@ -148,7 +122,7 @@
 <div class="relative block">
   <input
     type="search"
-    placeholder="Search... (⌨&#xFE0E; F, Enter / Return to apply)"
+    placeholder="Search... (⌨&#xFE0E; F)"
     class="w-full rounded-full bg-[var(--sl-color-bg)] pl-6 pr-16 py-3 text-[var(--sl-color-text)] outline outline-1 outline-[var(--sl-color-gray-5)] focus:outline-2"
     bind:value={localQuery}
     bind:this={inputEl}
