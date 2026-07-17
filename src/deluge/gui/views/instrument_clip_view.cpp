@@ -6250,6 +6250,7 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 		uint8_t probability;
 		Iterance iterance;
 		uint8_t fill;
+		bool restartAfterMove;
 		StolenParamNodes stolenMPE[kNumExpressionDimensions]{0};
 	};
 
@@ -6258,6 +6259,7 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 	notesToMove.reserve(100);
 	// First pass: collect all notes from visible rows within screen bounds
 	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
+	bool clipIsActiveAndPlaybackOn = playbackHandler.isEitherClockActive() && currentSong->isClipActive(clip);
 
 	auto num_note_rows = clip->getNumNoteRows();
 	for (int32_t index = 0; index < num_note_rows; index++) {
@@ -6291,6 +6293,19 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 					ntm.probability = note->probability;
 					ntm.iterance = note->iterance;
 					ntm.fill = note->fill;
+					ntm.restartAfterMove = false;
+
+					if (clipIsActiveAndPlaybackOn && !noteRow->muted && noteRow->sequenced) {
+						int32_t loopLength = modelStackWithNoteRow->getLoopLength();
+						int32_t howFarIntoNote = noteRow->getLivePos(modelStackWithNoteRow) - note->pos;
+						if (howFarIntoNote < 0) {
+							howFarIntoNote += loopLength;
+						}
+						ntm.restartAfterMove = howFarIntoNote < note->getLength();
+						if (ntm.restartAfterMove) {
+							noteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow, true, note);
+						}
+					}
 
 					// Steal expression/MPE parameter data
 					ParamCollectionSummary* mpeParamsSummary = noteRow->paramManager.getExpressionParamSetSummary();
@@ -6369,6 +6384,10 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 							param->insertStolenNodes(modelStackWithAutoParam, ntm.pos, distanceToNextNote, loopLength,
 							                         action, &ntm.stolenMPE[m]);
 						}
+					}
+
+					if (ntm.restartAfterMove) {
+						destRow->resumePlayback(destModelStack, true, true);
 					}
 				}
 			}

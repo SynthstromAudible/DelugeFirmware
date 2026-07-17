@@ -3115,9 +3115,10 @@ void NoteRow::toggleMute(ModelStackWithNoteRow* modelStack, bool clipIsActiveAnd
 	}
 }
 
-void NoteRow::maybeStartLateNote(ModelStackWithNoteRow* modelStack, int32_t effectiveActualCurrentPos) {
+void NoteRow::maybeStartLateNote(ModelStackWithNoteRow* modelStack, int32_t effectiveActualCurrentPos,
+                                 bool restartCurrentNote) {
 	// See if our play-pos is inside of a note, which we might want to try playing...
-	int32_t i = notes.search(effectiveActualCurrentPos, LESS);
+	int32_t i = notes.search(effectiveActualCurrentPos + (restartCurrentNote ? 1 : 0), LESS);
 	bool wrapping = (i == -1);
 	if (wrapping) {
 		i = notes.getNumElements() - 1;
@@ -3129,12 +3130,17 @@ void NoteRow::maybeStartLateNote(ModelStackWithNoteRow* modelStack, int32_t effe
 	}
 
 	if (noteEnd > effectiveActualCurrentPos) {
-		// if we're not allowed we'll just come back here later (next tick)
-		attemptLateStartOfNextNoteToPlay(modelStack, note);
+		if (restartCurrentNote) {
+			playNote(true, modelStack, note);
+		}
+		else {
+			// if we're not allowed we'll just come back here later (next tick)
+			attemptLateStartOfNextNoteToPlay(modelStack, note);
+		}
 	}
 }
 // Attempts (possibly late) start of any note at or overlapping the currentPos
-void NoteRow::resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMakeSound) {
+void NoteRow::resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMakeSound, bool restartCurrentNote) {
 	if (noteRowMayMakeSound(clipMayMakeSound) && !sequenced && !isAuditioning(modelStack)) {
 
 		if (!notes.getNumElements()) {
@@ -3143,8 +3149,9 @@ void NoteRow::resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMake
 
 		int32_t effectiveActualCurrentPos = getLivePos(modelStack);
 
-		if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::CatchNotes) == RuntimeFeatureStateToggle::On)) {
-			maybeStartLateNote(modelStack, effectiveActualCurrentPos);
+		if (restartCurrentNote
+		    || (runtimeFeatureSettings.get(RuntimeFeatureSettingType::CatchNotes) == RuntimeFeatureStateToggle::On)) {
+			maybeStartLateNote(modelStack, effectiveActualCurrentPos, restartCurrentNote);
 		}
 	}
 
