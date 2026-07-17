@@ -76,7 +76,7 @@ Select CHOKe. When playing, this stops all other notes in the same kit that are 
 #OFFICIAL #KIT
 
 ```shortcut
-hold(AUDITION) + press(GRID)
+hold(AUDITION) + press(NAME)
 ```
 
 # MIDI note output in a kit clip

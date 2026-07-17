@@ -9,6 +9,17 @@ import {
   type HorizontalZoomDemoLoop,
 } from "./horizontal_zoom_demo.js"
 
+export {
+  appendTurnIndicator,
+  clearTurnIndicators,
+  shouldBlinkTurnControl,
+} from "./encoder_turn_demo.js"
+export { buildQwertyPadColorMap } from "./qwerty_demo.js"
+export {
+  getHorizontalZoomTurnAngle,
+  getLatestHorizontalZoomTurnAngle,
+} from "./horizontal_zoom_demo.js"
+
 const GRID_COLS = 16
 const GRID_ROWS = 8
 

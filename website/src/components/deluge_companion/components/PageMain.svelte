@@ -1,49 +1,31 @@
 <script>
   import ShortcutList from "./ShortcutList.svelte";
   import ViewFilter from "./ViewFilter.svelte";
-  import {
-    hasPendingSearchInput,
-    isSearchLoading,
-    isShortcutDataLoading,
-    searchLoadingProgress,
-  } from "../stores/search_store.js";
+  import { isShortcutDataLoading, searchQuery } from "../stores/search_store.js";
+  import { filteredShortcuts } from "../stores/shortcut_store.js";
 
-  // Main content gate: show loading/status states until search data is ready,
-  // then render filters + virtualized list.
+  // Hide filters when an active search has no matches.
+  $: hasNoSearchMatches =
+    $searchQuery.trim().length > 0 && $filteredShortcuts.length === 0;
 </script>
 
 <main class="mb-8 flex flex-col gap-4">
-  <!-- Branch: show loading/pending states before full filter/list UI. -->
-  {#if $isShortcutDataLoading || $isSearchLoading || $hasPendingSearchInput}
+  <!-- Branch: show loading state before full filter/list UI. -->
+  {#if $isShortcutDataLoading}
     <div class="loading-shortcuts rounded-md border border-[var(--sl-color-gray-5)] px-4 py-3 text-sm">
-      <!-- Branch: initial dataset load. -->
-      {#if $isShortcutDataLoading}
-        <p class="loading-title">Loading shortcuts dataset...</p>
-        <div class="loading-bar" aria-hidden="true">
-          <span
-            class="loading-bar-indicator loading-bar-indicator-indeterminate"
-            style={`width: 36%;`}
-          ></span>
-        </div>
-      <!-- Branch: asynchronous search/filter refresh progress. -->
-      {:else if $isSearchLoading}
-        <p class="loading-title">Loading shortcuts...</p>
-        <div class="loading-bar" aria-hidden="true">
-          <span
-            class="loading-bar-indicator"
-            style={`width: ${Math.max($searchLoadingProgress, 4)}%;`}
-          ></span>
-        </div>
-      <!-- Branch: user has typed but has not submitted search yet. -->
-      {:else}
-        <p class="loading-title">
-          Press Enter / Return to search
-        </p>
-      {/if}
+      <p class="loading-title">Loading shortcuts dataset...</p>
+      <div class="loading-bar" aria-hidden="true">
+        <span
+          class="loading-bar-indicator loading-bar-indicator-indeterminate"
+          style={`width: 36%;`}
+        ></span>
+      </div>
     </div>
   {:else}
-    <!-- Ready state: render filter controls and incremental result list. -->
-    <ViewFilter />
+    <!-- Ready state: hide filters when a search has no matches. -->
+    {#if !hasNoSearchMatches}
+      <ViewFilter />
+    {/if}
     <ShortcutList />
   {/if}
 </main>

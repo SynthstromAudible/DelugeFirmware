@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Paragraph } from "../types/shortcut.js";
   import ParagraphSpan from "./ParagraphSpan.svelte";
+  import SearchHighlight from "./SearchHighlight.svelte";
 
   export let paragraph: Paragraph;
 
@@ -82,12 +83,12 @@
       {#if block.type === "list"}
         <ul class="community-list">
           {#each block.items as item}
-            <li>{item}</li>
+            <li><SearchHighlight text={item} /></li>
           {/each}
         </ul>
       {:else}
         {#each block.lines as line}
-          <p class="community-text-line">{line}</p>
+          <p class="community-text-line"><SearchHighlight text={line} /></p>
         {/each}
       {/if}
     {/each}

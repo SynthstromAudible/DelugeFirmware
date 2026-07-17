@@ -74,6 +74,8 @@ export const shortcutControlDescriptions: Record<Control, string> = {
   [Control.NOTE_PATCH_SOURCE]: "'Note' patch source pad",
   [Control.RANDOM_PATCH_SOURCE]: "'Random' patch source pad",
   [Control.VELOCITY_PATCH_SOURCE]: "'Velocity' patch source pad",
+  [Control.NAME]: "'Name' grid pad",
+  [Control.QWERTY]: "QWERTY keyboard overlay",
 }
 
 // Returns sentence with leading character capitalized.

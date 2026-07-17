@@ -1,5 +1,4 @@
 import { derived, writable } from "svelte/store"
-import fuzzysort from "fuzzysort"
 import { searchQuery } from "./search_store"
 import { isShortcutDataLoading } from "./search_store"
 import { activeView } from "./view_store"
@@ -42,8 +41,7 @@ type RawShortcut = Omit<Shortcut, "steps" | "firmware"> & {
 
 // Runtime shortcut shape with precomputed search + control metadata.
 type PreparedShortcut = Shortcut & {
-  fuzzysortPrepared: ReturnType<typeof fuzzysort.prepare>
-  normalizedName: string
+  normalizedSearchText: string
   controls: ReadonlySet<Control>
 }
 
@@ -160,12 +158,31 @@ const getShortcutControls = (shortcut: Shortcut): ReadonlySet<Control> => {
   return ids
 }
 
+// Builds the normalized text corpus searched by the query filter.
+// Keep this aligned with text surfaces users can actually read in result cards.
+const getSearchCorpus = (shortcut: Shortcut): string => {
+  const chunks: string[] = [shortcut.name]
+
+  if (shortcut.description) {
+    chunks.push(shortcut.description)
+  }
+
+  for (const paragraph of shortcut.paragraphs) {
+    for (const span of paragraph.spans) {
+      if (span.text) {
+        chunks.push(span.text)
+      }
+    }
+  }
+
+  return chunks.join(" ").toLowerCase()
+}
+
 const shortcutIndex = derived(rawShortcuts, ($rawShortcuts): ShortcutIndex => {
   // Precompute data used repeatedly by search and facet filtering.
   const shortcuts: PreparedShortcut[] = $rawShortcuts.map((shortcut) => ({
     ...shortcut,
-    fuzzysortPrepared: fuzzysort.prepare(shortcut.name),
-    normalizedName: shortcut.name.toLowerCase(),
+    normalizedSearchText: getSearchCorpus(shortcut),
     controls: getShortcutControls(shortcut),
   }))
 
@@ -242,22 +259,10 @@ const filteredBySearch = derived(
       return []
     }
 
-    const fuzzyResults = fuzzysort.go(query, $shortcutIndex.shortcuts, {
-      key: "fuzzysortPrepared",
-      threshold: -1000,
-    })
-
-    const strictResults = fuzzyResults.filter((result) =>
-      result.obj.normalizedName.includes(normalizedQuery),
+    // Only include shortcuts where the query text exists in searchable card content.
+    return $shortcutIndex.shortcuts.filter((shortcut) =>
+      shortcut.normalizedSearchText.includes(normalizedQuery),
     )
-
-    // Prefer strict title-substring matches when available, otherwise use fuzzy ordering.
-    // Branch: strict match set exists.
-    // Branch: fallback to fuzzy set when strict is empty.
-    const preferredResults =
-      strictResults.length > 0 ? strictResults : fuzzyResults
-
-    return preferredResults.map((result) => result.obj)
   },
 )
 
@@ -291,7 +296,7 @@ const filterState = derived(
     const hasSubSubCapability = $activeShortcutSubSubCapability !== null
     const hasFirmware = $activeFirmware !== null
     const hasView = $activeView !== null
-    const hasControl = $activeControl !== null
+    const hasControl = $activeControl.size > 0
     const hasAnyFacet =
       hasCapability ||
       hasSubCapability ||
@@ -345,7 +350,8 @@ const filterState = derived(
         !hasFirmware || shortcut.firmware.includes($activeFirmware)
       const matchesView = !hasView || shortcut.views.includes($activeView)
       const matchesControl =
-        !hasControl || shortcut.controls.has($activeControl)
+        !hasControl ||
+        [...$activeControl].every((c) => shortcut.controls.has(c))
 
       // Availability for capability chips under current partial constraints.
       if (
@@ -416,7 +422,8 @@ const filterState = derived(
         matchesSubCapability &&
         matchesSubSubCapability &&
         matchesFirmware &&
-        matchesView
+        matchesView &&
+        matchesControl
       ) {
         for (const control of shortcut.controls) {
           availableControls.add(control)
@@ -458,7 +465,9 @@ const filterState = derived(
     }
 
     if (hasControl) {
-      availableControls.add($activeControl)
+      for (const c of $activeControl) {
+        availableControls.add(c)
+      }
     }
 
     return {

@@ -2,6 +2,7 @@
   import { tick } from "svelte";
   import type { Shortcut } from "../types/shortcut.js";
   import StepContainerView from "./step/StepContainer.svelte";
+  import DelugeUiExternal from "./DelugeUiExternal.svelte";
   import { Firmwares, firmwaresById } from "../data/firmware.js";
   import { viewsById } from "../data/views.js";
   import {
@@ -10,6 +11,7 @@
     getSubSubCapabilityTitle,
   } from "../stores/capability_store.js";
   import ParagraphView from "./ParagraphView.svelte";
+  import SearchHighlight from "./SearchHighlight.svelte";
   import {
     openHardwarePreviewIds,
     setHardwarePreviewOpen,
@@ -46,8 +48,6 @@
   };
 
   let showDetails: boolean = false;
-  let isDelugeViewLoading = false;
-  let DelugeViewComponent: any = null;
   let shortcutCardEl: HTMLDivElement | undefined;
   let areDescriptionSectionsExpanded: boolean = true;
   let areCommunitySectionsExpanded: boolean = true;
@@ -89,7 +89,6 @@
   $: if (showDetails !== isPreviewOpen) {
     showDetails = isPreviewOpen;
     if (showDetails) {
-      void ensureDelugeViewLoaded();
       areDescriptionSectionsExpanded = false;
       areCommunitySectionsExpanded = false;
     } else {
@@ -105,23 +104,6 @@
     areDescriptionSectionsExpanded = true;
     areCommunitySectionsExpanded = true;
     showDetails = false;
-  }
-
-  // Lazy-loads the heavy hardware preview component.
-  // Returns a Promise that resolves after the component is loaded (or already available).
-  async function ensureDelugeViewLoaded() {
-    // Hardware SVG preview is expensive; load it only when a card is opened.
-    if (DelugeViewComponent || isDelugeViewLoading) {
-      return;
-    }
-
-    isDelugeViewLoading = true;
-    try {
-      const module = await import("./DelugeUi.svelte");
-      DelugeViewComponent = module.default;
-    } finally {
-      isDelugeViewLoading = false;
-    }
   }
 
   // Toggles preview state and, when opening, scrolls this card into a stable visible position.
@@ -196,7 +178,7 @@
       {/each}
     </div>
     <h3 class="shortcut-title">
-      {shortcut.name}
+      <SearchHighlight text={shortcut.name} />
     </h3>
   </div>
   <!-- Step sequence acts as preview toggle (mouse + keyboard accessible). -->
@@ -229,7 +211,7 @@
       {#if areDescriptionSectionsExpanded}
         {#if shortcut.description}
           <p class="shortcut-description mt-2 mb-0 text-sm leading-6">
-            {shortcut.description}
+            <SearchHighlight text={shortcut.description} />
           </p>
         {/if}
         {#each descriptionParagraphs as paragraph}
@@ -265,11 +247,7 @@
   <!-- Lazy-loaded hardware preview. -->
   {#if showDetails}
     <div class="mt-4 border border-[var(--sl-color-gray-5)]">
-      {#if DelugeViewComponent}
-        <svelte:component this={DelugeViewComponent} bind:steps={shortcut.steps} />
-      {:else}
-        <p class="px-3 py-2 text-sm text-[var(--sl-color-gray-3)]">Loading control map...</p>
-      {/if}
+      <DelugeUiExternal bind:steps={shortcut.steps} />
     </div>
   {/if}
 </div>

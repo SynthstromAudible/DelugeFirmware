@@ -51,6 +51,8 @@ export enum Control {
   NOTE_PATCH_SOURCE,
   RANDOM_PATCH_SOURCE,
   VELOCITY_PATCH_SOURCE,
+  NAME,
+  QWERTY,
 }
 
 export const controlDescriptions: ControlDescriptions = {
@@ -280,16 +282,26 @@ export const controlDescriptions: ControlDescriptions = {
   [Control.NOTE_PATCH_SOURCE]: {
     title: "'Note' patch source pad",
     type: ControlType.grid,
-    classes: ["dc-grid-5-15"],
+    classes: ["dc-grid-5-16"],
   },
   [Control.RANDOM_PATCH_SOURCE]: {
     title: "'Random' patch source pad",
     type: ControlType.grid,
-    classes: ["dc-grid-6-15"],
+    classes: ["dc-grid-6-16"],
   },
   [Control.VELOCITY_PATCH_SOURCE]: {
     title: "'Velocity' patch source pad",
     type: ControlType.grid,
-    classes: ["dc-grid-7-15"],
+    classes: ["dc-grid-7-16"],
+  },
+  [Control.NAME]: {
+    title: "'Name' grid pad",
+    type: ControlType.grid,
+    classes: ["dc-grid-3-12"],
+  },
+  [Control.QWERTY]: {
+    title: "Qwerty",
+    type: ControlType.grid,
+    classes: ["dc-grid"],
   },
 }

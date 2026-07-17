@@ -276,7 +276,7 @@ If the row contains unique / white instances they are lost completely.
 #OFFICIAL #ARRANGER
 
 ```shortcut
-hold(AUDITION) + press(GRID)
+hold(AUDITION) + press(NAME)
 ```
 
 The only way to rename tracks is in Arranger mode.

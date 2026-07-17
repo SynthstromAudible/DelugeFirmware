@@ -53,7 +53,7 @@
       $activeShortcutSubCapability,
       $activeShortcutSubSubCapability,
       $activeView,
-      $activeControl,
+      [...$activeControl].sort(),
     ]);
 
     if (
@@ -84,14 +84,7 @@
     ),
   );
 
-  type SelectedFilterChipKey =
-    | "search"
-    | "firmware"
-    | "capability"
-    | "sub-capability"
-    | "sub-sub-capability"
-    | "view"
-    | "control";
+  type SelectedFilterChipKey = string;
 
   type SelectedFilterChip = {
     key: SelectedFilterChipKey;
@@ -136,12 +129,10 @@
           label: `View: ${viewsById[$activeView]?.title ?? $activeView}`,
         }
       : null,
-    $activeControl !== null
-      ? {
-          key: "control",
-          label: `Control: ${controlTitleById.get($activeControl) ?? $activeControl}`,
-        }
-      : null,
+    ...[...$activeControl].map((controlId) => ({
+      key: `control:${controlId}`,
+      label: `Control: ${controlTitleById.get(controlId) ?? controlId}`,
+    })),
   ].filter((chip): chip is SelectedFilterChip => chip !== null);
 
   function removeSelectedFilter(key: SelectedFilterChipKey) {
@@ -182,7 +173,15 @@
       return;
     }
 
-    activeControl.set(null);
+    if (key.startsWith("control:")) {
+      const id = Number(key.slice("control:".length));
+      activeControl.update((prev) => {
+        const next = new Set(prev);
+        next.delete(id);
+        return next;
+      });
+      return;
+    }
   }
 
   function clearAllFilters() {
@@ -194,7 +193,7 @@
     activeShortcutSubSubCapability.set(null);
     activeFirmware.set(null);
     activeView.set(null);
-    activeControl.set(null);
+    activeControl.set(new Set());
 
     resetShortcutPreviewUi();
 

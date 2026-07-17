@@ -30,7 +30,7 @@ Note: If a preset is changed or you enter sound editor, then the redo history is
 #OFFICIAL
 
 ```shortcut
-press(GRID_UNLIT)
+press(QWERTY)
 ```
 
 When loading, saving, browsing or renaming, the deluge QWERTY keyboard can be used. It pops up automatically, except in song loading where the keyboard is hidden to enable viewing scrolling content, Tap grid to bring up keyboard.

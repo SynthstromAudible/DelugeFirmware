@@ -72,9 +72,10 @@ export const shortcutControlGroups: ShortcutControlGroup[] = [
       { id: Control.NOTE_PATCH_SOURCE, title: "Note Patch Source Pad" },
       { id: Control.RANDOM_PATCH_SOURCE, title: "Random Patch Source Pad" },
       { id: Control.VELOCITY_PATCH_SOURCE, title: "Velocity Patch Source Pad" },
+      { id: Control.NAME, title: "Name Grid Pad" },
     ],
   },
 ]
 
-// Currently selected control filter.
-export const activeControl = writable<Control | null>(null)
+// Currently selected control filters (multi-select).
+export const activeControl = writable<Set<Control>>(new Set())

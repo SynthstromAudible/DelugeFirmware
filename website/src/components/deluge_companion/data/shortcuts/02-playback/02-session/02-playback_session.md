@@ -71,7 +71,7 @@ press(AUDITION)
 
 All audition / section rows of the same color flash, then launch together when the current longest-playing clip loops or starts again.
 
-# Section repeat (hold audition for 1 sec)
+# Section repeat
 
 #OFFICIAL #SESSION
 
@@ -79,15 +79,19 @@ All audition / section rows of the same color flash, then launch together when t
 hold(AUDITION), turn(SELECT)
 ```
 
+Hold audition for 1 sec to show repeat popup and then turn select.
+
 Changes INFInite to a repeat count for the section. The display counts down; press Select to cancel the section switch during countdown.
 
-# Clone/duplicate clip (hold source, press destination)
+# Clone/duplicate clip
 
 #OFFICIAL #SESSION
 
 ```shortcut
 hold(GRID) + press(GRID)
 ```
+
+Hold source clip and press destination pad.
 
 Destination row can be another existing clip. The cloned clip is inserted.
 

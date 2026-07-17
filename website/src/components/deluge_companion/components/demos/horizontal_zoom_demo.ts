@@ -4,15 +4,21 @@ import { isStep, type Step, type StepOrSubstep } from "../../types/shortcut.js"
 
 const GRID_ROWS = 8
 const DEMO_PIN_COL = 1
-const DEMO_HOLD_START_MS = 520
-const DEMO_HOLD_ZOOMED_MS = 520
-const DEMO_HOLD_RETURN_MS = 520
+export const HORIZONTAL_ZOOM_HOLD_START_MS = 520
+export const HORIZONTAL_ZOOM_HOLD_ZOOMED_MS = 520
+export const HORIZONTAL_ZOOM_HOLD_RETURN_MS = 520
 const SCALE_16TH = 1
 const SCALE_32TH = 2
 
 // Public timing/scale constants consumed by UI and tests.
 export const HORIZONTAL_ZOOM_INITIAL_SCALE = SCALE_16TH
 export const HORIZONTAL_ZOOM_TRANSITION_MS = 360
+export const HORIZONTAL_ZOOM_CYCLE_MS =
+  HORIZONTAL_ZOOM_HOLD_START_MS +
+  HORIZONTAL_ZOOM_TRANSITION_MS +
+  HORIZONTAL_ZOOM_HOLD_ZOOMED_MS +
+  HORIZONTAL_ZOOM_TRANSITION_MS +
+  HORIZONTAL_ZOOM_HOLD_RETURN_MS
 
 // Scripted phases of the looping zoom animation.
 export type ZoomDemoStep =
@@ -105,7 +111,7 @@ export const HORIZONTAL_ZOOM_STEPS: ZoomDemoStep[] = [
   {
     kind: "hold",
     scale: SCALE_16TH,
-    durationMs: DEMO_HOLD_START_MS,
+    durationMs: HORIZONTAL_ZOOM_HOLD_START_MS,
     label: "16th",
   },
   {
@@ -118,7 +124,7 @@ export const HORIZONTAL_ZOOM_STEPS: ZoomDemoStep[] = [
   {
     kind: "hold",
     scale: SCALE_32TH,
-    durationMs: DEMO_HOLD_ZOOMED_MS,
+    durationMs: HORIZONTAL_ZOOM_HOLD_ZOOMED_MS,
     label: "32nd",
   },
   {
@@ -131,10 +137,68 @@ export const HORIZONTAL_ZOOM_STEPS: ZoomDemoStep[] = [
   {
     kind: "hold",
     scale: SCALE_16TH,
-    durationMs: DEMO_HOLD_RETURN_MS,
+    durationMs: HORIZONTAL_ZOOM_HOLD_RETURN_MS,
     label: "16th",
   },
 ]
+
+let latestHorizontalZoomTurnAngle: number | undefined
+
+function getElapsedMsForRuntime(runtime: HorizontalZoomDemoRuntime): number {
+  let elapsed = runtime.stepElapsedMs
+
+  for (let i = 0; i < runtime.stepIndex; i++) {
+    const step = HORIZONTAL_ZOOM_STEPS[i]
+    elapsed +=
+      step.kind === "hold" ? step.durationMs : HORIZONTAL_ZOOM_TRANSITION_MS
+  }
+
+  return elapsed
+}
+
+export function getLatestHorizontalZoomTurnAngle(): number | undefined {
+  return latestHorizontalZoomTurnAngle
+}
+
+// Returns absolute line angle for X encoder indicator during horizontal zoom demo.
+// Undefined means "hold phase" where the line should remain centered.
+export function getHorizontalZoomTurnAngle(
+  elapsedMs: number,
+): number | undefined {
+  const phase =
+    ((elapsedMs % HORIZONTAL_ZOOM_CYCLE_MS) + HORIZONTAL_ZOOM_CYCLE_MS) %
+    HORIZONTAL_ZOOM_CYCLE_MS
+
+  const zoomInStart = HORIZONTAL_ZOOM_HOLD_START_MS
+  const zoomInEnd = zoomInStart + HORIZONTAL_ZOOM_TRANSITION_MS
+  const zoomOutStart = zoomInEnd + HORIZONTAL_ZOOM_HOLD_ZOOMED_MS
+  const zoomOutEnd = zoomOutStart + HORIZONTAL_ZOOM_TRANSITION_MS
+
+  // Hold at top-center before expansion begins.
+  if (phase < zoomInStart) {
+    return 0
+  }
+
+  if (phase >= zoomInStart && phase < zoomInEnd) {
+    const t = (phase - zoomInStart) / HORIZONTAL_ZOOM_TRANSITION_MS
+    const eased = 0.5 - 0.5 * Math.cos(Math.PI * t)
+    return eased * 28
+  }
+
+  // Hold at far-right while zoomed in.
+  if (phase >= zoomInEnd && phase < zoomOutStart) {
+    return 28
+  }
+
+  if (phase >= zoomOutStart && phase < zoomOutEnd) {
+    const t = (phase - zoomOutStart) / HORIZONTAL_ZOOM_TRANSITION_MS
+    const eased = 0.5 - 0.5 * Math.cos(Math.PI * t)
+    return 28 - eased * 28
+  }
+
+  // Hold at top-center once collapse is complete.
+  return 0
+}
 
 // Creates deterministic initial runtime state.
 export function createInitialHorizontalZoomDemoRuntime(): HorizontalZoomDemoRuntime {
@@ -212,6 +276,9 @@ export function createHorizontalZoomDemoLoop(
     const dt = lastTs === undefined ? 16 : Math.min(40, ts - lastTs)
     lastTs = ts
     runtime = advanceHorizontalZoomDemoRuntime(runtime, dt)
+    latestHorizontalZoomTurnAngle = getHorizontalZoomTurnAngle(
+      getElapsedMsForRuntime(runtime),
+    )
     onFrame(runtime)
     rafId = requestAnimationFrame(tick)
   }
@@ -220,6 +287,7 @@ export function createHorizontalZoomDemoLoop(
     start() {
       this.stop()
       runtime = createInitialHorizontalZoomDemoRuntime()
+      latestHorizontalZoomTurnAngle = getHorizontalZoomTurnAngle(0)
       onFrame(runtime)
       running = true
       rafId = requestAnimationFrame(tick)
@@ -233,6 +301,7 @@ export function createHorizontalZoomDemoLoop(
       running = false
       lastTs = undefined
       runtime = createInitialHorizontalZoomDemoRuntime()
+      latestHorizontalZoomTurnAngle = undefined
       onFrame(runtime)
     },
     isRunning() {
@@ -347,7 +416,7 @@ export function buildHorizontalZoomDemoCells(
 
 // Formats rgb color with alpha using modern CSS syntax.
 function rgbCss(r: number, g: number, b: number, alpha: number): string {
-  return `rgb(${Math.round(r)} ${Math.round(g)} ${Math.round(b)} / ${alpha})`
+  return `rgba(${Math.round(r)}, ${Math.round(g)}, ${Math.round(b)}, ${alpha})`
 }
 
 // Converts display row index to firmware-style gradient color.
@@ -362,21 +431,23 @@ function rowBaseColourForDisplayRow(
 // Returns full fill+stroke inline style for one demo cell.
 export function getHorizontalZoomCellFillStyle(cell: DemoCell): string {
   const i = Math.max(0, Math.min(1, cell.intensity))
+  const blend = Math.pow(i, 0.55)
   const [r, g, b] = rowBaseColourForDisplayRow(cell.row)
-  const alpha = i > 0.001 ? 0.08 + i * 0.92 : 0
+  const defaultFill: [number, number, number] = [178, 183, 190]
+  const defaultStroke: [number, number, number] = [208, 213, 220]
 
-  const fillBoost = 0.42 + i * 0.78
-  const strokeBoost = 0.2 + i * 0.44
+  const fillR = defaultFill[0] * (1 - blend) + r * blend
+  const fillG = defaultFill[1] * (1 - blend) + g * blend
+  const fillB = defaultFill[2] * (1 - blend) + b * blend
 
-  const fillR = Math.min(255, r * fillBoost)
-  const fillG = Math.min(255, g * fillBoost)
-  const fillB = Math.min(255, b * fillBoost)
+  const strokeR =
+    defaultStroke[0] * (1 - blend) + Math.min(255, r * 0.9 + 18) * blend
+  const strokeG =
+    defaultStroke[1] * (1 - blend) + Math.min(255, g * 0.9 + 18) * blend
+  const strokeB =
+    defaultStroke[2] * (1 - blend) + Math.min(255, b * 0.9 + 18) * blend
 
-  const strokeR = Math.min(255, r * strokeBoost)
-  const strokeG = Math.min(255, g * strokeBoost)
-  const strokeB = Math.min(255, b * strokeBoost)
-
-  return `fill:${rgbCss(fillR, fillG, fillB, alpha)};stroke:${rgbCss(strokeR, strokeG, strokeB, alpha)};`
+  return `fill:${rgbCss(fillR, fillG, fillB, 1)};stroke:${rgbCss(strokeR, strokeG, strokeB, 1)};`
 }
 
 // Returns subtle top-detail overlay style for one demo cell.

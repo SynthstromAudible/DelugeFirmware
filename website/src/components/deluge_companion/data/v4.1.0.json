@@ -202,7 +202,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 25
+        "control": 41
       }
     ],
     "views": [],
@@ -216,7 +216,7 @@
         ]
       }
     ],
-    "description": "Press the Unlit grid pad."
+    "description": "Press the QWERTY keyboard overlay."
   },
   {
     "name": "Check current zoom level",
@@ -2357,7 +2357,7 @@
           },
           {
             "action": 0,
-            "control": 24
+            "control": 40
           }
         ]
       }
@@ -2373,7 +2373,7 @@
         ]
       }
     ],
-    "description": "Hold the Audition / Section button for row, press the Grid pad (lit or unlit)."
+    "description": "Hold the Audition / Section button for row, press the 'Name' grid pad."
   },
   {
     "name": "Start playback from current scroll position (Alternative Playback)",
@@ -4858,7 +4858,7 @@
           },
           {
             "action": 0,
-            "control": 24
+            "control": 40
           }
         ]
       }
@@ -4866,7 +4866,7 @@
     "views": [10],
     "firmware": [0],
     "paragraphs": [],
-    "description": "Hold the Audition / Section button for row, press the Grid pad (lit or unlit)."
+    "description": "Hold the Audition / Section button for row, press the 'Name' grid pad."
   },
   {
     "name": "MIDI note output in a kit clip",

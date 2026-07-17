@@ -129,7 +129,7 @@ Exits a menu and returns to Song or Arranger View.
 
 # Change value in currently selected menu
 
-#COMMUNITY #MENU #SYNTH #KIT #MIDI #CV
+#OFFICIAL #MENU #SYNTH #KIT #MIDI #CV
 
 ```shortcut
 turn(SELECT)
