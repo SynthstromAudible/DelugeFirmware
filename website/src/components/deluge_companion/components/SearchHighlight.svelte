@@ -30,14 +30,3 @@
 </script>
 
 {@html highlightedHtml}
-
-<style>
-  :global(.dc-search-hit) {
-    background: color-mix(in srgb, var(--sl-color-accent, #60a5fa) 38%, transparent);
-    color: inherit;
-    border-radius: 0.18rem;
-    padding: 0 0.08rem;
-    box-decoration-break: clone;
-    -webkit-box-decoration-break: clone;
-  }
-</style>

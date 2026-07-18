@@ -3,10 +3,18 @@
   import ViewFilter from "./ViewFilter.svelte";
   import { isShortcutDataLoading, searchQuery } from "../stores/search_store.js";
   import { filteredShortcuts } from "../stores/shortcut_store.js";
+  import { setAllShortcutDescriptionsVisible } from "../stores/shortcut_description_visibility_store.js";
 
   // Hide filters when an active search has no matches.
   $: hasNoSearchMatches =
     $searchQuery.trim().length > 0 && $filteredShortcuts.length === 0;
+
+  let areAllDescriptionsVisible = false;
+
+  // Applies global description visibility command across all currently rendered cards.
+  function onDescriptionVisibilityChanged() {
+    setAllShortcutDescriptionsVisible(areAllDescriptionsVisible);
+  }
 </script>
 
 <main class="mb-8 flex flex-col gap-4">
@@ -26,6 +34,22 @@
     {#if !hasNoSearchMatches}
       <ViewFilter />
     {/if}
+
+    <section class="description-visibility-toggle" aria-label="Shortcut description visibility">
+      <label class="description-visibility-label" for="toggle-shortcut-descriptions">
+        <input
+          id="toggle-shortcut-descriptions"
+          class="description-visibility-input"
+          type="checkbox"
+          bind:checked={areAllDescriptionsVisible}
+          on:change={onDescriptionVisibilityChanged}
+        />
+        <span class="description-visibility-text">
+          {areAllDescriptionsVisible ? "Hide all shortcut descriptions" : "Show all shortcut descriptions"}
+        </span>
+      </label>
+    </section>
+
     <ShortcutList />
   {/if}
 </main>
@@ -78,5 +102,33 @@
   :global(html[data-theme="light"]) .loading-shortcuts {
     color: var(--sl-color-gray-3);
     background: color-mix(in srgb, var(--sl-color-bg) 88%, var(--sl-color-gray-6));
+  }
+
+  .description-visibility-toggle {
+    margin-top: -0.25rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    padding: 0.55rem 0.75rem;
+    background: color-mix(in srgb, var(--sl-color-bg) 88%, var(--sl-color-gray-6));
+  }
+
+  .description-visibility-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.55rem;
+    cursor: pointer;
+    user-select: none;
+  }
+
+  .description-visibility-input {
+    margin: 0;
+    width: 1rem;
+    height: 1rem;
+  }
+
+  .description-visibility-text {
+    font-size: 0.92rem;
+    font-weight: 600;
+    color: var(--sl-color-text);
   }
 </style>
