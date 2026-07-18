@@ -641,7 +641,7 @@
       }
     ],
     "views": [19, 9, 10, 11, 12],
-    "firmware": [1],
+    "firmware": [0],
     "paragraphs": [],
     "description": "Turn the Select (Settings) encoder."
   },
@@ -2634,7 +2634,7 @@
     "description": "Press the Audition / Section button for row."
   },
   {
-    "name": "Section repeat (hold audition for 1 sec)",
+    "name": "Section repeat",
     "capability": "02-playback_session",
     "capabilityParentId": "PLAYBACK",
     "capabilityOrder": 3,
@@ -2656,6 +2656,13 @@
       {
         "spans": [
           {
+            "text": "Hold audition for 1 sec to show repeat popup and then turn select."
+          }
+        ]
+      },
+      {
+        "spans": [
+          {
             "text": "Changes INFInite to a repeat count for the section. The display counts down; press Select to cancel the section switch during countdown."
           }
         ]
@@ -2664,7 +2671,7 @@
     "description": "Hold the Audition / Section button for row. Turn the Select (Settings) encoder."
   },
   {
-    "name": "Clone/duplicate clip (hold source, press destination)",
+    "name": "Clone/duplicate clip",
     "capability": "02-playback_session",
     "capabilityParentId": "PLAYBACK",
     "capabilityOrder": 3,
@@ -2687,6 +2694,13 @@
     "views": [2],
     "firmware": [0],
     "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Hold source clip and press destination pad."
+          }
+        ]
+      },
       {
         "spans": [
           {
