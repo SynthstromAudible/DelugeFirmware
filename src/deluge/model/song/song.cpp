@@ -3578,6 +3578,11 @@ void Song::moveInstrumentToHibernationList(Instrument* instrument) {
 
 	removeOutputFromMainList(instrument);
 
+	// The instrument is leaving the main output list, so any audio track recording from it must
+	// let go of it now, same as when it's deleted - otherwise they'd keep displaying (and trying
+	// to record) a source which is no longer in the song (issue #4677)
+	clearRecordingFromReferencesTo(instrument);
+
 	if (instrument->type == OutputType::MIDI_OUT) {
 		setHibernatingMIDIInstrument((MIDIInstrument*)instrument);
 	}

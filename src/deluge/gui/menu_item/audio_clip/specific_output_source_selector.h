@@ -33,7 +33,9 @@ public:
 			outputIndex = currentSong->getOutputIndex(audioOutputBeingEdited->getOutputRecordingFrom());
 		}
 		else {
-			outputIndex = 0;
+			// Nothing selected yet - park before the first output so the first clockwise
+			// scroll considers output 0
+			outputIndex = -1;
 		}
 		numOutputs = currentSong->getNumOutputs();
 		if (display->haveOLED()) {
@@ -45,9 +47,23 @@ public:
 	}
 
 	void selectEncoderAction(int32_t offset) override {
-		outputIndex += offset;
-		outputIndex = std::clamp<int32_t>(outputIndex, 0, numOutputs - 1);
-		auto newRecordingFrom = currentSong->getOutputFromIndex(outputIndex);
+		// Step to the next output in the scroll direction which we can actually record from -
+		// skip ourselves, MIDI and CV (issue #4677)
+		int32_t direction = (offset < 0) ? -1 : 1;
+		int32_t newIndex = outputIndex;
+		Output* newRecordingFrom = nullptr;
+		while (newRecordingFrom == nullptr) {
+			newIndex += direction;
+			if (newIndex < 0 || newIndex >= numOutputs) {
+				return; // no recordable output any further in this direction - stay put
+			}
+			Output* candidate = currentSong->getOutputFromIndex(newIndex);
+			if (candidate != audioOutputBeingEdited && candidate->type != OutputType::MIDI_OUT
+			    && candidate->type != OutputType::CV) {
+				newRecordingFrom = candidate;
+			}
+		}
+		outputIndex = newIndex;
 		audioOutputBeingEdited->setOutputRecordingFrom(newRecordingFrom);
 		if (display->haveOLED()) {
 			renderUIsForOled();
@@ -59,17 +75,24 @@ public:
 	void drawPixelsForOled() override {
 		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 
-		// track
-		Output* output = currentSong->getOutputFromIndex(outputIndex);
+		// Show the source that's actually stored, not whatever the scroll index points at -
+		// the stored one is what will be recorded (issue #4677)
+		Output* output = audioOutputBeingEdited->getOutputRecordingFrom();
+		if (output == nullptr) {
+			canvas.drawStringCentred("None", OLED_MAIN_TOPMOST_PIXEL + 14, kTextSpacingX, kTextSpacingY);
+			return;
+		}
 
 		// track type
 		OutputType outputType = output->type;
 
-		// for midi instruments, get the channel
-		int32_t channel;
+		int32_t channel = 0;
 		if (outputType == OutputType::MIDI_OUT) {
 			Instrument* instrument = (Instrument*)output;
 			channel = ((NonAudioInstrument*)instrument)->getChannel();
+		}
+		else if (outputType == OutputType::AUDIO) {
+			channel = static_cast<int32_t>(((AudioOutput*)output)->mode);
 		}
 
 		char const* outputTypeText = getOutputTypeName(outputType, channel);
@@ -80,7 +103,7 @@ public:
 		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 28;
 
 		// draw the track name
-		char const* name = audioOutputBeingEdited->getOutputRecordingFrom()->name.get();
+		char const* name = output->name.get();
 
 		int32_t stringLengthPixels = canvas.getStringWidthInPixels(name, kTextTitleSizeY);
 
@@ -96,8 +119,8 @@ public:
 	}
 
 	void drawFor7seg() {
-		char const* text = audioOutputBeingEdited->getOutputRecordingFrom()->name.get();
-		display->setScrollingText(text, 0);
+		Output* output = audioOutputBeingEdited->getOutputRecordingFrom();
+		display->setScrollingText(output != nullptr ? output->name.get() : "NONE", 0);
 	}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {

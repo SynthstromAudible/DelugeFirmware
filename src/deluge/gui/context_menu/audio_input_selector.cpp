@@ -171,7 +171,7 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 ActionResult AudioInputSelector::padAction(int32_t x, int32_t y, int32_t on) {
 	if (on && getUIUpOneLevel() == &sessionView) {
 		auto track = (&sessionView)->getOutputFromPad(x, y);
-		if (track && track->type != OutputType::MIDI_OUT && track->type != OutputType::CV) {
+		if (track && track != audioOutput && track->type != OutputType::MIDI_OUT && track->type != OutputType::CV) {
 			audioOutput->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
 			audioOutput->setOutputRecordingFrom(track);
 			display->popupTextTemporary(track->name.get());
@@ -179,6 +179,9 @@ ActionResult AudioInputSelector::padAction(int32_t x, int32_t y, int32_t on) {
 			scrollPos = static_cast<int32_t>(Value::TRACK);
 			currentOption = scrollPos;
 			renderUIsForOled();
+		}
+		else if (track == audioOutput) {
+			display->popupTextTemporary("Can't record from itself!");
 		}
 		else if (track) {
 			display->popupTextTemporary("Can't record MIDI or CV!");
