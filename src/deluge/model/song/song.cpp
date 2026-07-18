@@ -1952,7 +1952,9 @@ unknownTag:
 						}
 
 						if (id < kMaxNumSections) {
-							if (channel < 16 && note < 128) {
+							// channelOrZone can also be an MPE zone (16-17) or a CC learn
+							// (18-35, offset by IS_A_CC) - see LearnedMIDI (issue #4680)
+							if (channel < IS_A_CC + NUM_CHANNELS && note < 128) {
 								sections[id].launchMIDICommand.cable = cable;
 								sections[id].launchMIDICommand.channelOrZone = channel;
 								sections[id].launchMIDICommand.noteOrCC = note;
