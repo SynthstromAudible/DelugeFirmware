@@ -41,7 +41,8 @@ class MidiFollow final {
 public:
 	MidiFollow();
 	void factoryReset(bool showPopup = true);
-	void writeDefaultsToFile();
+	/// @return true if the file was actually written to the card.
+	bool writeDefaultsToFile();
 	void readDefaultsFromFile();
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
@@ -61,11 +62,6 @@ public:
 
 	void clearStoredClips();
 	void removeClip(Clip* clip);
-
-	/// Set by FlashStorage::readSettings() when it migrates MIDI-follow settings out of a pre-c1.3 save, where they
-	/// lived in flash rather than in MIDIFollow.XML. While this is set, the migrated values take precedence over the
-	/// <settings> block of any MIDIFollow.XML we find, and readDefaultsFromFile() persists them to the file.
-	bool legacyFlashSettingsPending = false;
 
 	// midi CC mappings
 	int32_t getCCFromParam(deluge::modulation::params::Kind paramKind, int32_t paramID);
@@ -176,6 +172,8 @@ private:
 
 	// Loading
 	bool successfullyReadDefaultsFromFile;
+
+	void completeLegacyFlashMigration(bool defaultsWereWritten);
 
 	// CC Mappings
 	void readDefaultMappingsFromFile(Deserializer& reader);
