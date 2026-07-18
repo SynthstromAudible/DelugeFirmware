@@ -60,6 +60,13 @@ public:
 
 	int8_t collapseAnimationToWhichRow;
 
+	// When >= 0, findPeaksPerCol() may perform at most this many synchronous SD cluster loads,
+	// decrementing as it goes; columns which would need further loads are left uninvestigated and
+	// the render reports incomplete so the caller re-requests it. -1 means unlimited (default).
+	// Session view sets this around row rendering so scrolling doesn't stall on SD reads while
+	// waveforms for many/long audio clips are (re)investigated (issue #4460).
+	int32_t singleRowLoadBudget = -1;
+
 private:
 	int32_t getColBrightnessForSingleRow(int32_t xDisplay, int32_t maxPeakFromZero, WaveformRenderData* data);
 	void getColBarPositions(int32_t xDisplay, WaveformRenderData* data, int32_t* min24, int32_t* max24,

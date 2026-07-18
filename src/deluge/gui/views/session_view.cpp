@@ -2663,6 +2663,12 @@ bool SessionView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 
 	PadLEDs::renderingLock = true;
 
+	// Bound how many synchronous SD cluster loads audio clip waveforms may perform across this
+	// whole refresh, so scrolling stays responsive when many/long audio clips need their peaks
+	// (re)investigated. Rows left incomplete are re-requested below and fill in progressively
+	// (issue #4460).
+	waveformRenderer.singleRowLoadBudget = 2;
+
 	for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++) {
 		if (whichRows & (1 << yDisplay)) {
 			bool success = renderRow(modelStack, yDisplay, image[yDisplay], occupancyMask[yDisplay], drawUndefinedArea);
@@ -2671,9 +2677,13 @@ bool SessionView::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 			}
 		}
 	}
+
+	waveformRenderer.singleRowLoadBudget = -1;
 	PadLEDs::renderingLock = false;
 
-	if (whichRowsCouldntBeRendered && image == PadLEDs::image) {
+	// Also when rendering into the store for a scroll animation: the flags persist until the UI
+	// unblocks, at which point the incomplete rows get re-rendered into the live image (issue #4460)
+	if (whichRowsCouldntBeRendered) {
 		requestRendering(this, whichRowsCouldntBeRendered, 0);
 	}
 

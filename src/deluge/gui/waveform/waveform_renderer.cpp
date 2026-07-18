@@ -77,10 +77,10 @@ bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64
 	}
 
 	bool completeSuccess = findPeaksPerCol(sample, xScroll, xZoom, data, recorder, xStartSource, xEndSource);
-	if (!completeSuccess) {
-		return false;
-	}
 
+	// Even if not all columns could be investigated (SD busy, or load budget exhausted), still
+	// draw what we have - uninvestigated columns render black below, and returning false makes
+	// the caller re-request rendering until the waveform completes (issue #4460)
 	int32_t maxPeakFromZero = sample->getMaxPeakFromZero();
 
 	for (int32_t xDisplayOutput = xStart; xDisplayOutput < xEnd; xDisplayOutput++) {
@@ -108,7 +108,7 @@ bool WaveformRenderer::renderAsSingleRow(Sample* sample, int64_t xScroll, uint64
 		});
 	}
 
-	return true;
+	return completeSuccess;
 }
 
 // Value out of 255
@@ -408,6 +408,18 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 				                    // Malte P.
 			}
 
+			// If this column needs an actual SD read but the per-render load budget is spent,
+			// leave it uninvestigated for a follow-up render (issue #4460)
+			bool needsSdLoad = (sampleCluster->cluster == nullptr) || !sampleCluster->cluster->loaded;
+			if (needsSdLoad && singleRowLoadBudget == 0) {
+				data->colStatus[col] = 0;
+				hadAnyTroubleLoading = true;
+				continue;
+			}
+			if (needsSdLoad && singleRowLoadBudget > 0) {
+				singleRowLoadBudget--;
+			}
+
 			Cluster* cluster = sampleCluster->getCluster(sample, clusterIndexToDo, CLUSTER_LOAD_IMMEDIATELY);
 			if (!cluster) {
 cantReadData:
@@ -437,6 +449,17 @@ cantReadData:
 				if ((nextSampleCluster->cluster != nullptr) && nextSampleCluster->cluster->numReasonsToBeLoaded < 0) {
 					FREEZE_WITH_ERROR("E450"); // Trying to catch errer before i028, which users have gotten.
 				}
+
+				// Same budget rule as above for the boundary-straddling second cluster (issue #4460)
+				bool nextNeedsSdLoad = (nextSampleCluster->cluster == nullptr) || !nextSampleCluster->cluster->loaded;
+				if (nextNeedsSdLoad && singleRowLoadBudget == 0) {
+					audioFileManager.removeReasonFromCluster(*cluster, "po8w");
+					goto cantReadData;
+				}
+				if (nextNeedsSdLoad && singleRowLoadBudget > 0) {
+					singleRowLoadBudget--;
+				}
+
 				nextCluster = nextSampleCluster->getCluster(sample, clusterIndexToDo, CLUSTER_LOAD_IMMEDIATELY);
 
 				if (cluster->numReasonsToBeLoaded <= 0) {
