@@ -24,7 +24,14 @@ public:
 		              "EnumStringMap requires an enum type with the same number of values as the initializer list");
 	}
 
-	constexpr const char* operator()(Enum a) { return stringList_[static_cast<std::underlying_type_t<Enum>>(a)]; }
+	/// Convert enum to string, returning the last mapped string if the value has no entry
+	constexpr const char* operator()(Enum a) {
+		auto index = static_cast<std::size_t>(static_cast<std::underlying_type_t<Enum>>(a));
+		if (index >= N) {
+			index = N - 1;
+		}
+		return stringList_[index];
+	}
 
 	/// Convert string to enum, returning enum variant N on failure
 	constexpr Enum operator()(const char* str) {

@@ -5,12 +5,16 @@
 // converts lpf/hpf mode to string for saving
 namespace deluge::dsp::filter {
 
-EnumStringMap<FilterMode, kNumFilterModes> filterMap({{{FilterMode::TRANSISTOR_12DB, "12dB"},
-                                                       {FilterMode::TRANSISTOR_24DB, "24dB"},
-                                                       {FilterMode::TRANSISTOR_24DB_DRIVE, "24dBDrive"},
-                                                       {FilterMode::SVF_BAND, "SVF_Band"},
-                                                       {FilterMode::SVF_NOTCH, "SVF_Notch"},
-                                                       {FilterMode::HPLADDER, "HPLadder"}}});
+// OFF must be in the map so it round-trips through XML (issue #4684). It also makes the
+// string->enum failure fallback (last variant) resolve to OFF, so files saved by builds
+// which wrote garbage for OFF load back as OFF rather than HPLadder.
+EnumStringMap<FilterMode, kNumFilterModes + 1> filterMap({{{FilterMode::TRANSISTOR_12DB, "12dB"},
+                                                           {FilterMode::TRANSISTOR_24DB, "24dB"},
+                                                           {FilterMode::TRANSISTOR_24DB_DRIVE, "24dBDrive"},
+                                                           {FilterMode::SVF_BAND, "SVF_Band"},
+                                                           {FilterMode::SVF_NOTCH, "SVF_Notch"},
+                                                           {FilterMode::HPLADDER, "HPLadder"},
+                                                           {FilterMode::OFF, "off"}}});
 
 EnumStringMap<FilterRoute, kNumFilterRoutes> routeMap({{
     {FilterRoute::LOW_TO_HIGH, "L2H"},
