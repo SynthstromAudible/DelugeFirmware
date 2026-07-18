@@ -17,6 +17,9 @@
     setHardwarePreviewOpen,
     shortcutPreviewResetVersion,
   } from "../stores/preview_store.js";
+  import {
+    shortcutDescriptionVisibilityCommand,
+  } from "../stores/shortcut_description_visibility_store.js";
 
   // One shortcut card instance plus a stable id used by shared preview state.
   export let shortcut: Shortcut;
@@ -49,9 +52,12 @@
 
   let showDetails: boolean = false;
   let shortcutCardEl: HTMLDivElement | undefined;
-  let areDescriptionSectionsExpanded: boolean = true;
-  let areCommunitySectionsExpanded: boolean = true;
+  let areDescriptionSectionsExpanded: boolean = false;
+  let areCommunitySectionsExpanded: boolean = false;
   let lastResetVersion = 0;
+  let lastDescriptionVisibilityCommandVersion = 0;
+  let previousDescriptionExpandedBeforePreview: boolean | null = null;
+  let previousCommunityExpandedBeforePreview: boolean | null = null;
 
   // Computes the occupied top offset from sticky/fixed site chrome so
   // programmatic scroll positioning does not hide content under the header.
@@ -85,15 +91,44 @@
   // Card-local state mirrors the shared preview store.
   $: isPreviewOpen = $openHardwarePreviewIds.includes(shortcutPreviewId);
 
+  // Apply global visibility command exactly once per command version.
+  $: if (
+    $shortcutDescriptionVisibilityCommand.version !==
+    lastDescriptionVisibilityCommandVersion
+  ) {
+    lastDescriptionVisibilityCommandVersion =
+      $shortcutDescriptionVisibilityCommand.version;
+    if (isPreviewOpen) {
+      // If command changes while preview is open, apply after preview closes.
+      previousDescriptionExpandedBeforePreview =
+        $shortcutDescriptionVisibilityCommand.visible;
+      previousCommunityExpandedBeforePreview =
+        $shortcutDescriptionVisibilityCommand.visible;
+    } else {
+      areDescriptionSectionsExpanded =
+        $shortcutDescriptionVisibilityCommand.visible;
+      areCommunitySectionsExpanded =
+        $shortcutDescriptionVisibilityCommand.visible;
+    }
+  }
+
   // Keep card visibility and description expansion synced with shared preview state.
   $: if (showDetails !== isPreviewOpen) {
     showDetails = isPreviewOpen;
     if (showDetails) {
+      previousDescriptionExpandedBeforePreview = areDescriptionSectionsExpanded;
+      previousCommunityExpandedBeforePreview = areCommunitySectionsExpanded;
       areDescriptionSectionsExpanded = false;
       areCommunitySectionsExpanded = false;
     } else {
-      areDescriptionSectionsExpanded = true;
-      areCommunitySectionsExpanded = true;
+      areDescriptionSectionsExpanded =
+          previousDescriptionExpandedBeforePreview ??
+          $shortcutDescriptionVisibilityCommand.visible;
+      areCommunitySectionsExpanded =
+          previousCommunityExpandedBeforePreview ??
+          $shortcutDescriptionVisibilityCommand.visible;
+      previousDescriptionExpandedBeforePreview = null;
+      previousCommunityExpandedBeforePreview = null;
     }
   }
 
@@ -101,8 +136,10 @@
   $: if ($shortcutPreviewResetVersion !== lastResetVersion) {
     lastResetVersion = $shortcutPreviewResetVersion;
     // Global filter/search resets should restore the card to collapsed content state.
-    areDescriptionSectionsExpanded = true;
-    areCommunitySectionsExpanded = true;
+    previousDescriptionExpandedBeforePreview = null;
+    previousCommunityExpandedBeforePreview = null;
+    areDescriptionSectionsExpanded = $shortcutDescriptionVisibilityCommand.visible;
+    areCommunitySectionsExpanded = $shortcutDescriptionVisibilityCommand.visible;
     showDetails = false;
   }
 
@@ -388,8 +425,20 @@
     margin-top: 0.5rem;
   }
 
+  .shortcut-description-aside {
+    padding-bottom: 0.15rem;
+  }
+
+  .shortcut-description-aside :global(p:last-child) {
+    margin-bottom: 0.2rem;
+  }
+
+  .shortcut-description-aside + .shortcut-aside[data-type="caution"] {
+    margin-top: 0;
+  }
+
   .description-aside-title {
-    margin: 0.35rem 0 0.2rem;
+    margin: 0;
     font-size: 0.76rem;
     line-height: 1.2;
     letter-spacing: 0.01em;
@@ -401,7 +450,7 @@
 
   .aside-title-button {
     display: flex;
-    align-items: center;
+    align-items: baseline;
     justify-content: space-between;
     width: 100%;
     gap: 0.75rem;
@@ -416,7 +465,7 @@
 
   .aside-toggle-indicator {
     font-size: 0.72rem;
-    line-height: 1;
+    line-height: 1.2;
     font-weight: 700;
     text-transform: uppercase;
     letter-spacing: 0.02em;
@@ -424,7 +473,7 @@
   }
 
   .community-aside-title {
-    margin: 0.35rem 0 0.2rem;
+    margin: 0;
     font-size: 0.76rem;
     line-height: 1.2;
     letter-spacing: 0.01em;
