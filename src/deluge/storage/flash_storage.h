@@ -90,7 +90,14 @@ extern bool defaultUseSharps;
 void readSettings();
 void writeSettings();
 void resetSettings();
-void resetMidiFollowSettings();
 void resetAutomationSettings();
+
+/// True when readSettings() recovered MIDI-follow settings from a pre-c1.3 save, where they lived in flash rather
+/// than in SETTINGS/MIDIFollow.XML. While this holds, the recovered values take precedence over the <settings> block
+/// of any MIDIFollow.XML on the card, and MidiFollow::readDefaultsFromFile() is responsible for persisting them.
+bool areLegacyMidiFollowSettingsPending();
+
+/// Called by MidiFollow::readDefaultsFromFile() once the recovered settings have actually reached the card.
+void clearLegacyMidiFollowSettingsPending();
 
 } // namespace FlashStorage

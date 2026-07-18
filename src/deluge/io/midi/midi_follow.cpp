@@ -40,6 +40,7 @@
 #include "modulation/params/param_set.h"
 #include "playback/mode/session.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/flash_storage.h"
 #include "storage/storage_manager.h"
 #include "util/d_string.h"
 #include <cstdlib>
@@ -1477,11 +1478,11 @@ bool MidiFollow::isFeedbackEnabled() {
 
 /// create default XML file and write defaults
 /// I should check if file exists before creating one
-void MidiFollow::writeDefaultsToFile() {
+bool MidiFollow::writeDefaultsToFile() {
 	// MidiFollow.xml
 	Error error = StorageManager::createXMLFile(MIDI_FOLLOW_XML, smSerializer, true);
 	if (error != Error::NONE) {
-		return;
+		return false;
 	}
 	Serializer& writer = GetSerializer();
 
@@ -1503,7 +1504,7 @@ void MidiFollow::writeDefaultsToFile() {
 
 	writer.writeClosingTag(MIDI_DEFAULTS_TAG);
 
-	writer.closeFileAfterWriting();
+	return writer.closeFileAfterWriting() == Error::NONE;
 }
 
 /// convert paramID to a paramName to write to XML
@@ -1645,6 +1646,21 @@ void MidiFollow::writeDisplayParamSettingToFile(Serializer& writer) {
 	writer.writeTag(MIDI_DEFAULTS_SETTINGS_DISPLAYPARAM_POPUP_TAG, getNameFromBool(midiEngine.midiFollowDisplayParam));
 }
 
+/// Close out the pre-c1.3 flash migration started by FlashStorage::readSettings().
+///
+/// Stamping this firmware's version into flash is what stops readSettings() migrating again on the next boot - it is
+/// not otherwise written until the user happens to exit the settings menu, so without this the migration would repeat
+/// on every boot and keep overwriting the <settings> block of MIDIFollow.XML. That same write zeroes the legacy bytes
+/// 126-145, so it must not happen until the recovered values are safely on the card: if the XML write failed (no card,
+/// card full, write-protected) we leave both the flash bytes and the pending flag alone and retry next boot.
+void MidiFollow::completeLegacyFlashMigration(bool defaultsWereWritten) {
+	if (!FlashStorage::areLegacyMidiFollowSettingsPending() || !defaultsWereWritten) {
+		return;
+	}
+	FlashStorage::clearLegacyMidiFollowSettingsPending();
+	FlashStorage::writeSettings();
+}
+
 /// read defaults from XML
 void MidiFollow::readDefaultsFromFile() {
 	// no need to keep reading from SD card after first load
@@ -1663,8 +1679,7 @@ void MidiFollow::readDefaultsFromFile() {
 		if (result == FR_OK || result == FR_EXIST) {
 			// folder eixsts now, write defaults
 			// (this also persists any settings migrated out of flash by FlashStorage::readSettings())
-			writeDefaultsToFile();
-			legacyFlashSettingsPending = false;
+			completeLegacyFlashMigration(writeDefaultsToFile());
 			successfullyReadDefaultsFromFile = true;
 			return;
 		}
@@ -1673,8 +1688,7 @@ void MidiFollow::readDefaultsFromFile() {
 	//<defaults>
 	Error error = StorageManager::openXMLFile(&fp, smDeserializer, MIDI_DEFAULTS_TAG);
 	if (error != Error::NONE) {
-		writeDefaultsToFile();
-		legacyFlashSettingsPending = false;
+		completeLegacyFlashMigration(writeDefaultsToFile());
 		successfullyReadDefaultsFromFile = true;
 		return;
 	}
@@ -1693,7 +1707,7 @@ void MidiFollow::readDefaultsFromFile() {
 		// (skipped while migrating a pre-c1.3 save - back then these settings lived in flash, so whatever this file
 		// says about them is either absent or a default we wrote over the top of the real values)
 		else if (!strcmp(tag_name, MIDI_DEFAULTS_SETTINGS_TAG)) {
-			if (!legacyFlashSettingsPending) {
+			if (!FlashStorage::areLegacyMidiFollowSettingsPending()) {
 				readDefaultSettingsFromFile(reader);
 			}
 		}
@@ -1702,10 +1716,9 @@ void MidiFollow::readDefaultsFromFile() {
 	activeDeserializer->closeWriter();
 	successfullyReadDefaultsFromFile = true;
 
-	// Write the migrated settings back out, so the migration only ever happens once
-	if (legacyFlashSettingsPending) {
-		legacyFlashSettingsPending = false;
-		writeDefaultsToFile();
+	// Write the migrated settings back out over the <settings> block we just skipped
+	if (FlashStorage::areLegacyMidiFollowSettingsPending()) {
+		completeLegacyFlashMigration(writeDefaultsToFile());
 	}
 }
 
