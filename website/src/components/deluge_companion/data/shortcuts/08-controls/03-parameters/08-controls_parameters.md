@@ -34,7 +34,7 @@ In the community firmware, turning a gold dial will display the name of the para
 Press Parameter Button
 
 ```community
-In the community firmware, turning a gold dial will display the name of the parameter it controls in addition to the current value on the OLED display.
+In the community firmware, pressing the circular buttons between the gold dials will display the parameters that each gold dial controls.
 ```
 
 # Delete automation of recorded parameter
