@@ -1662,7 +1662,9 @@ void MidiFollow::readDefaultsFromFile() {
 		FRESULT result = f_mkdir(SETTINGS_FOLDER);
 		if (result == FR_OK || result == FR_EXIST) {
 			// folder eixsts now, write defaults
+			// (this also persists any settings migrated out of flash by FlashStorage::readSettings())
 			writeDefaultsToFile();
+			legacyFlashSettingsPending = false;
 			successfullyReadDefaultsFromFile = true;
 			return;
 		}
@@ -1672,6 +1674,7 @@ void MidiFollow::readDefaultsFromFile() {
 	Error error = StorageManager::openXMLFile(&fp, smDeserializer, MIDI_DEFAULTS_TAG);
 	if (error != Error::NONE) {
 		writeDefaultsToFile();
+		legacyFlashSettingsPending = false;
 		successfullyReadDefaultsFromFile = true;
 		return;
 	}
@@ -1687,13 +1690,23 @@ void MidiFollow::readDefaultsFromFile() {
 			readDefaultMappingsFromFile(reader);
 		}
 		// step into the <settings> tag
+		// (skipped while migrating a pre-c1.3 save - back then these settings lived in flash, so whatever this file
+		// says about them is either absent or a default we wrote over the top of the real values)
 		else if (!strcmp(tag_name, MIDI_DEFAULTS_SETTINGS_TAG)) {
-			readDefaultSettingsFromFile(reader);
+			if (!legacyFlashSettingsPending) {
+				readDefaultSettingsFromFile(reader);
+			}
 		}
 		reader.exitTag();
 	}
 	activeDeserializer->closeWriter();
 	successfullyReadDefaultsFromFile = true;
+
+	// Write the migrated settings back out, so the migration only ever happens once
+	if (legacyFlashSettingsPending) {
+		legacyFlashSettingsPending = false;
+		writeDefaultsToFile();
+	}
 }
 
 /// compares param name tag to the list of params available are midi controllable

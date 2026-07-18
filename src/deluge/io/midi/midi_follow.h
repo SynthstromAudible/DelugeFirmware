@@ -60,6 +60,11 @@ public:
 	void clearStoredClips();
 	void removeClip(Clip* clip);
 
+	/// Set by FlashStorage::readSettings() when it migrates MIDI-follow settings out of a pre-c1.3 save, where they
+	/// lived in flash rather than in MIDIFollow.XML. While this is set, the migrated values take precedence over the
+	/// <settings> block of any MIDIFollow.XML we find, and readDefaultsFromFile() persists them to the file.
+	bool legacyFlashSettingsPending = false;
+
 	// midi CC mappings
 	int32_t getCCFromParam(deluge::modulation::params::Kind paramKind, int32_t paramID);
 	bool isGlobalEffectableContext();
