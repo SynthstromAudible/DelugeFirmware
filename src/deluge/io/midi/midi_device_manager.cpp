@@ -644,7 +644,9 @@ void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage) {
 		}
 		queued = ringBufWriteIdx - ringBufReadIdx;
 	}
-	if (queued > MIDI_SEND_BUFFER_LEN_RING) {
+	// >= : at queued == MIDI_SEND_BUFFER_LEN_RING the ring is exactly full, and writing would
+	// land on readIdx's slot, corrupting the oldest not-yet-sent message
+	if (queued >= MIDI_SEND_BUFFER_LEN_RING) {
 		// TODO: show some error message
 		return;
 	}

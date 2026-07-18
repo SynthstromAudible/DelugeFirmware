@@ -769,7 +769,12 @@ void PlaybackHandler::actionTimerTickPart2() {
 				// immediately otherwise set it to be done by the audio engine
 				if (fractionNextMIDIClockOutTick < fractionLastTimerTick) {
 					doMIDIClockOutTick();
-					fractionNextMIDIClockOutTick += midiClockOutTicksPer;
+					// One more out-tick = internalTicksPer in this fraction space (same as the
+					// analog block above). Adding midiClockOutTicksPer here scheduled the next
+					// tick early by (internalTicksPer - midiClockOutTicksPer) whenever the ratio
+					// isn't 1:1 - with the default insideWorldTickMagnitude of 2 that's 3/4 of a
+					// MIDI clock period early after every catch-up (issue #4687)
+					fractionNextMIDIClockOutTick += internalTicksPer;
 				}
 
 				// Schedule another MIDI clock output tick
