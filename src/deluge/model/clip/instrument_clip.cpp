@@ -1320,6 +1320,13 @@ void InstrumentClip::transpose(int32_t semitones, ModelStackWithTimelineCounter*
 
 	yScroll += semitones;
 	colourOffset -= semitones;
+
+	// Re-sound any notes we just cut off, at their new pitch, instead of leaving them silent until
+	// the sequencer next reaches their start position (issue #2939). NoteRow::resumePlayback() only
+	// late-starts notes when the CatchNotes community feature is enabled.
+	if (playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this)) {
+		resumePlayback(modelStack, true);
+	}
 }
 
 void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType type,
