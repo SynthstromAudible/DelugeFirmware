@@ -30,5 +30,6 @@
     font-size: var(--dc-step-action-size, 1rem);
     font-weight: 500;
     line-height: 1;
+    white-space: nowrap;
   }
 </style>

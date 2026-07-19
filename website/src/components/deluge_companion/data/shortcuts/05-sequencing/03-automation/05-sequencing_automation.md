@@ -15,7 +15,7 @@ Opens Automation View from Arranger View or any clip view.
 
 # Toggle Automation Editor from Sound Editor Menu
 
-#COMMUNITY #MENU_SOUND #AUTOMATION_PARAMETER
+#COMMUNITY #MENU #AUTOMATION_PARAMETER
 
 ```shortcut
 press(CLIP)

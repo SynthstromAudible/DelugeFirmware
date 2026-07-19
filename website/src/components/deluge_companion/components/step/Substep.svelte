@@ -58,6 +58,23 @@
       );
     }
 
+    // Measures the row width when substeps are forced onto a single line.
+    // Returns the unwrapped content width in pixels.
+    function getUnwrappedWidth() {
+      const previousWrap = node.style.flexWrap;
+      const previousWidth = node.style.width;
+
+      node.style.flexWrap = "nowrap";
+      node.style.width = "max-content";
+
+      const unwrappedWidth = node.scrollWidth;
+
+      node.style.flexWrap = previousWrap;
+      node.style.width = previousWidth;
+
+      return unwrappedWidth;
+    }
+
     // Captures row starts and measured line widths from child offsets.
     // Returns children, line-start indices, and measured line widths.
     function getLineStarts() {
@@ -94,6 +111,8 @@
     // Returns void.
     function updateLineStartIndices() {
       const card = node.closest(".dc-step-card") as HTMLElement | null;
+      const stepsContainer = node.closest(".shortcut-steps") as HTMLElement | null;
+      const shortcutCard = stepsContainer?.closest(".shortcut-card") as HTMLElement | null;
 
       // Branch: action used outside expected step card context.
       if (!card) {
@@ -103,11 +122,52 @@
       card.style.width = "100%";
       resetChildren();
 
-      const availableCardWidth = card.getBoundingClientRect().width;
+      const cardStyles = getComputedStyle(card);
+      const stepsStyles = stepsContainer ? getComputedStyle(stepsContainer) : undefined;
+      const shortcutCardStyles = shortcutCard
+        ? getComputedStyle(shortcutCard)
+        : undefined;
+      const cardWidthOffset = getCardWidthOffset(card);
+      const shortcutCardInnerWidth = shortcutCard
+        ? shortcutCard.clientWidth -
+          parseFloat(shortcutCardStyles?.paddingLeft ?? "0") -
+          parseFloat(shortcutCardStyles?.paddingRight ?? "0")
+        : undefined;
+      const stepsContainerWidth = stepsContainer
+        ? (shortcutCardInnerWidth ?? stepsContainer.clientWidth) -
+          parseFloat(stepsStyles?.paddingLeft ?? "0") -
+          parseFloat(stepsStyles?.paddingRight ?? "0") -
+          parseFloat(stepsStyles?.borderLeftWidth ?? "0") -
+          parseFloat(stepsStyles?.borderRightWidth ?? "0")
+        : undefined;
+      const availableCardWidth = Math.max(
+        0,
+        (stepsContainerWidth ?? card.getBoundingClientRect().width) -
+          parseFloat(cardStyles.marginLeft) -
+          parseFloat(cardStyles.marginRight),
+      );
+      const unwrappedWidth = getUnwrappedWidth();
+      const totalUnwrappedCardWidth = unwrappedWidth + cardWidthOffset;
+
+      // Branch: full combo fits on one line, so keep the natural width and
+      // clear any continuation alignment from prior wrapped states.
+      if (
+        totalUnwrappedCardWidth > 0 &&
+        totalUnwrappedCardWidth <= availableCardWidth + 0.5
+      ) {
+        card.style.width = `${Math.ceil(
+          Math.min(totalUnwrappedCardWidth, availableCardWidth),
+        )}px`;
+        node.style.flexWrap = "nowrap";
+        resetChildren();
+        return;
+      }
+
+      node.style.flexWrap = "wrap";
       const measuredLines = getLineStarts();
       const widestLineWidth = Math.max(...measuredLines.lineWidths, 0);
       const cardWidth = Math.min(
-        Math.ceil(widestLineWidth + getCardWidthOffset(card)),
+        Math.ceil(widestLineWidth + cardWidthOffset),
         availableCardWidth,
       );
 

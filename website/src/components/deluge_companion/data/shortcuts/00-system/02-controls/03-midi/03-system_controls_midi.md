@@ -1,7 +1,9 @@
-capability: CONTROLS
-capability-order: 9
-sub-capability: Controls (MIDI)
+capability: SYSTEM
+capability-order: 1
+sub-capability: System (Controls)
 sub-capability-order: 2
+sub-sub-capability: System (MIDI)
+sub-sub-capability-order: 3
 
 # External controller to play synth or kit
 

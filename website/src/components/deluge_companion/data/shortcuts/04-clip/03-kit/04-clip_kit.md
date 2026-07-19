@@ -3,6 +3,14 @@ capability-order: 5
 sub-capability: Clip (Kit)
 sub-capability-order: 3
 
+# Create new kit
+
+#OFFICIAL #KIT
+
+```shortcut
+hold(SHIFT) + press(KIT)
+```
+
 # View kit preset browser
 
 #OFFICIAL #KIT
@@ -11,6 +19,16 @@ sub-capability-order: 3
 hold(LOAD) + press(KIT)
 ```
 
+# Change kit preset
+
+#OFFICIAL #KIT
+
+```shortcut
+turn(SELECT)
+```
+
+Changes the current kit preset.
+
 # Save kit preset
 
 #OFFICIAL #KIT
@@ -18,6 +36,16 @@ hold(LOAD) + press(KIT)
 ```shortcut
 hold(SAVE) + press(KIT), turn(SELECT), press(SELECT)
 ```
+
+# Clone kit preset
+
+#OFFICIAL #KIT
+
+```shortcut
+hold(LOAD) + press(KIT), turn(SELECT), hold(LOAD) + menu(NONE), press(SELECT)
+```
+
+A single preset can only appear in one active clip, so clone the original preset for multiple instances in the same song. It is good practice to clone first when tweaking to avoid affecting interdependent songs.
 
 # Load sample into a kit row
 
@@ -78,6 +106,16 @@ Select CHOKe. When playing, this stops all other notes in the same kit that are 
 ```shortcut
 hold(AUDITION) + press(NAME)
 ```
+
+# Delete kit row
+
+#OFFICIAL #KIT
+
+```shortcut
+hold(AUDITION) + press(SAVE)
+```
+
+Hold the audition pad for the row you want to delete, then press Save/Delete.
 
 # MIDI note output in a kit clip
 

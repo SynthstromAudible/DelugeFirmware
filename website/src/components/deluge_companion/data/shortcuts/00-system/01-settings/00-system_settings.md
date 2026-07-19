@@ -5,7 +5,7 @@ sub-capability-order: 1
 
 # Enter Settings menu
 
-#OFFICIAL #MENU_SETTINGS
+#OFFICIAL #MENU #MENU_SETTINGS
 
 ```shortcut
 hold(SHIFT) + press(SELECT)

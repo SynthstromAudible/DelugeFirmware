@@ -215,16 +215,21 @@
   });
 
   // Computes the occupied top offset from sticky/fixed site chrome so
-  // programmatic scroll positioning does not hide content under the header.
-  // Returns the scroll offset in pixels required to keep content below sticky UI.
-  function getViewportTopOffset() {
+  // programmatic scroll positioning does not hide content under overlapping UI.
+  // Returns the scroll offset in pixels required to keep the given target visible.
+  function getViewportTopOffset(targetElement?: HTMLElement) {
     if (typeof window === "undefined") {
       return 0;
     }
 
     let maxBottom = 0;
+    const targetRect = targetElement?.getBoundingClientRect();
+    const sampleX = targetRect
+      ? targetRect.left + targetRect.width / 2
+      : window.innerWidth / 2;
+
     const candidates = document.querySelectorAll<HTMLElement>(
-      "header, [role='banner'], .sl-header",
+      "header, [role='banner'], .sl-header, .dc-control-panel",
     );
 
     for (const element of candidates) {
@@ -234,13 +239,19 @@
       }
 
       const rect = element.getBoundingClientRect();
-      if (rect.top <= 0 && rect.bottom > maxBottom) {
+      // Count only chrome that actually overlaps this card's column.
+      if (sampleX < rect.left || sampleX > rect.right) {
+        continue;
+      }
+
+      // Include top-attached sticky/fixed chrome that can obscure card headers.
+      if (rect.top < 160 && rect.bottom > 0 && rect.bottom > maxBottom) {
         maxBottom = rect.bottom;
       }
     }
 
-    // Keep a small visual gap below the sticky top navigation.
-    return Math.max(0, Math.ceil(maxBottom)) + 8;
+    // Keep a small visual gap below sticky top UI and avoid sub-pixel clipping.
+    return Math.max(0, Math.ceil(maxBottom)) + 12;
   }
 
   // Card-local state mirrors the shared preview store.
@@ -338,12 +349,35 @@
       return;
     }
 
-    // Align the opened shortcut card under sticky header to maximize preview visibility.
-    const top =
-      window.scrollY +
-      shortcutCardEl.getBoundingClientRect().top -
-      getViewportTopOffset();
-    window.scrollTo({ top, behavior: "smooth" });
+    const alignCardTop = (behavior: ScrollBehavior) => {
+      if (!shortcutCardEl) {
+        return;
+      }
+
+      const top =
+        window.scrollY +
+        shortcutCardEl.getBoundingClientRect().top -
+        getViewportTopOffset(shortcutCardEl);
+      window.scrollTo({ top, behavior });
+    };
+
+    // Initial smooth alignment, then corrective passes after layout settles.
+    alignCardTop("smooth");
+    window.requestAnimationFrame(() => {
+      if (isPreviewOpen) {
+        alignCardTop("auto");
+      }
+    });
+    window.setTimeout(() => {
+      if (isPreviewOpen) {
+        alignCardTop("auto");
+      }
+    }, 180);
+    window.setTimeout(() => {
+      if (isPreviewOpen) {
+        alignCardTop("auto");
+      }
+    }, 360);
   }
 
   // Keyboard accessibility for the clickable step sequence area.
@@ -461,7 +495,7 @@
           on:click={toggleCommunitySection}
         >
           <span class="community-aside-title">
-            Community Firmware Behaviour Change
+            Official Behaviour Change
           </span>
           <span class="aside-toggle-indicator">{areCommunitySectionsExpanded ? "Hide" : "Show"}</span>
         </button>

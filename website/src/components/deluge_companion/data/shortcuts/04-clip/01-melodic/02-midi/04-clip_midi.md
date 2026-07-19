@@ -35,6 +35,26 @@ hold(PARAMETER) + hold(SELECT) + turn(SELECT)
 
 Parameters with recorded automation are not shown with the normal Change MIDI Parameter command, so this command avoids writing automation in error.
 
+# Load MIDI instrument preset
+
+#COMMUNITY #MIDI
+
+```shortcut
+hold(LOAD) + press(MIDI)
+```
+
+Loads a MIDI instrument preset for the current MIDI clip.
+
+# Save MIDI instrument preset
+
+#COMMUNITY #MIDI
+
+```shortcut
+hold(SAVE) + press(MIDI)
+```
+
+Saves the current MIDI clip as a MIDI instrument preset.
+
 # Save MIDI CC Labels to Song
 
 #COMMUNITY #MIDI

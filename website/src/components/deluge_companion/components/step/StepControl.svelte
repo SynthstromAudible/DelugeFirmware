@@ -65,7 +65,7 @@
                     step.control === Control.UPPER_PARAM
                   ? { src: turnGoldIcon, alt: "Turn gold", scale: 1.24 }
                   : undefined
-        : step.control === Control.KEY
+        : step.control === Control.KEY || step.control === Control.PERFORMANCE
           ? { src: keyboardButtonIcon, alt: "Keyboard button", scale: 1.14 }
         : step.control === Control.X
           ? { src: horizontalIcon, alt: "Horizontal", scale: 1.24 }
