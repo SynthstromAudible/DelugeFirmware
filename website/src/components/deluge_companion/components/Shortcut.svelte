@@ -97,7 +97,9 @@
   let previousDescriptionExpandedBeforePreview: boolean | null = null;
   let previousCommunityExpandedBeforePreview: boolean | null = null;
   let previousHeaderChipsExpandedBeforePreview: boolean | null = null;
+  let shortcutChipStripEl: HTMLDivElement | undefined;
   let shortcutChipRowEl: HTMLDivElement | undefined;
+  let shortcutChipToggleEl: HTMLButtonElement | undefined;
   let shortcutChipResizeObserver: ResizeObserver | undefined;
   let chipRecalcTimeouts: ReturnType<typeof setTimeout>[] = [];
   let hasCollapsedHeaderChips = false;
@@ -113,9 +115,45 @@
       return;
     }
 
-    // Toggle is rendered outside this row, so native overflow is accurate.
-    hasCollapsedHeaderChips =
-      shortcutChipRowEl.scrollWidth > shortcutChipRowEl.clientWidth + 1;
+    // Always measure overflow in compact mode; expanded mode wraps chips and
+    // would otherwise report no overflow, causing immediate re-collapse.
+    const row = shortcutChipRowEl;
+    const wasExpanded = row.classList.contains("shortcut-chip-row-expanded");
+    if (wasExpanded) {
+      row.classList.remove("shortcut-chip-row-expanded");
+    }
+
+    // Ignore toggle footprint while measuring so the toggle itself does not
+    // manufacture overflow on rows that otherwise fit on one line.
+    const toggleWidth = shortcutChipToggleEl?.offsetWidth ?? 0;
+    let toggleGapWidth = 0;
+    if (shortcutChipToggleEl && shortcutChipStripEl) {
+      const parsedGap = Number.parseFloat(
+        window.getComputedStyle(shortcutChipStripEl).columnGap,
+      );
+      if (Number.isFinite(parsedGap)) {
+        toggleGapWidth = parsedGap;
+      }
+    }
+
+    const availableWidthWithoutToggle =
+      row.clientWidth + toggleWidth + toggleGapWidth;
+
+    // scrollWidth/clientWidth are integer-rounded and can miss sub-pixel clipping.
+    // Include child geometry so partially clipped chips still count as overflow.
+    const rowRect = row.getBoundingClientRect();
+    let maxChipRight = 0;
+    for (const chip of row.children) {
+      const chipRect = (chip as HTMLElement).getBoundingClientRect();
+      maxChipRight = Math.max(maxChipRight, chipRect.right - rowRect.left);
+    }
+
+    const measuredOverflowWidth = Math.max(row.scrollWidth, maxChipRight);
+    hasCollapsedHeaderChips = measuredOverflowWidth > availableWidthWithoutToggle + 0.5;
+
+    if (wasExpanded) {
+      row.classList.add("shortcut-chip-row-expanded");
+    }
 
     // If everything now fits, reset expanded state back to compact mode.
     if (!hasCollapsedHeaderChips) {
@@ -133,7 +171,7 @@
   // Returns void.
   function scheduleHeaderChipRecalculation() {
     chipRecalcTimeouts.forEach((timeoutId) => clearTimeout(timeoutId));
-    chipRecalcTimeouts = [0, 60, 180, 360].map((delayMs) =>
+    chipRecalcTimeouts = [0, 80, 220, 480, 900].map((delayMs) =>
       setTimeout(recalculateVisibleHeaderChips, delayMs),
     );
     document.fonts?.ready.then(recalculateVisibleHeaderChips);
@@ -141,6 +179,7 @@
 
   // React to chip data/layout changes after DOM updates settle.
   $: if (shortcutChipRowEl) {
+    headerChips;
     void tick().then(scheduleHeaderChipRecalculation);
   }
 
@@ -333,7 +372,7 @@
 <div bind:this={shortcutCardEl} class="shortcut-card rounded-lg p-4 text-[var(--sl-color-text)]">
   <!-- Header with firmware/capability/view chips and title. -->
   <div class="shortcut-header">
-    <div class="shortcut-chip-strip mb-0 leading-none">
+    <div bind:this={shortcutChipStripEl} class="shortcut-chip-strip mb-0 leading-none">
       <div
         bind:this={shortcutChipRowEl}
         class="shortcut-chip-row"
@@ -350,6 +389,7 @@
 
       {#if hasCollapsedHeaderChips}
         <button
+          bind:this={shortcutChipToggleEl}
           type="button"
           class="shortcut-chip-toggle"
           aria-expanded={areAllHeaderChipsExpanded && hasCollapsedHeaderChips}
