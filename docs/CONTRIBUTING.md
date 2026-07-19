@@ -8,7 +8,7 @@ Please see also, the [Code of Conduct](CODE_OF_CONDUCT.md) document.
 
 This is ultimately a human project. Having an LLM code a fun feature for your own use is fun but does not mean we will include it in our supported firmware.
 While we welcome the use of LLM assistance (and we all use it) you must put in the effort to ensure your code is explainable and maintainable. 
-A good measure before submitting is ensuring you can read and inderstand your code clearly enough to hand write a PR description explaining what it does and why.
+A good measure before submitting is ensuring you can read and understand your code clearly enough to hand write a PR description explaining what it does and why.
 If we feel like we are talking to an LLM we will just close PRs and issues.
 
 As a bare minimum:
