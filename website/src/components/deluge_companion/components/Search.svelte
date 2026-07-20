@@ -257,4 +257,12 @@
     box-shadow: 0 0 0 1px color-mix(in srgb, var(--sl-color-gray-5) 35%, transparent) inset;
   }
 
+  /* iOS Safari auto-zooms focused inputs below 16px. */
+  @media (hover: none) and (pointer: coarse) {
+    .search-field input[type="search"],
+    .search-field .toolbar-search-input {
+      font-size: 16px;
+    }
+  }
+
 </style>
