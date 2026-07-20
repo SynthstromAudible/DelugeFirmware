@@ -148,10 +148,15 @@
     {#if hasContent}
       <button
         on:click={clear}
-        class="aspect-square h-8 rounded-full p-2 text-[var(--sl-color-gray-4)] hover:bg-[var(--sl-color-black)]/10"
+        class:toolbar-clear-button={variant === "toolbar"}
+        class="search-clear-button"
         aria-label="Clear search"
       >
-        <Cross />
+        {#if variant === "toolbar"}
+          Clear
+        {:else}
+          <Cross />
+        {/if}
       </button>
     {/if}
   </div>
@@ -194,6 +199,18 @@
     min-height: 2rem;
   }
 
+  .search-clear-button {
+    aspect-ratio: 1 / 1;
+    height: 2rem;
+    padding: 0.5rem;
+    border-radius: 999px;
+    color: var(--sl-color-gray-4);
+  }
+
+  .search-clear-button:hover {
+    background: color-mix(in srgb, var(--sl-color-black) 10%, transparent);
+  }
+
   .toolbar-search-input {
     min-height: 34px;
     border: 1px solid var(--sl-color-gray-5);
@@ -216,12 +233,28 @@
     right: 0.5rem;
   }
 
-  .toolbar-search .search-actions button {
-    height: 1.75rem;
-    width: 1.75rem;
-    padding: 0.35rem;
-    border-radius: 0.375rem;
-    color: var(--sl-color-gray-3);
+  .toolbar-search .search-actions .toolbar-clear-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: auto;
+    height: auto;
+    min-width: 0;
+    width: auto;
+    padding: 0.28rem 0.55rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.35rem;
+    background: transparent;
+    color: var(--sl-color-text);
+    font-size: 0.82rem;
+    font-weight: 600;
+    line-height: 1.2;
+    box-shadow: none;
+  }
+
+  .toolbar-search .search-actions .toolbar-clear-button:hover {
+    background: color-mix(in srgb, var(--sl-color-gray-5) 20%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--sl-color-gray-5) 35%, transparent) inset;
   }
 
 </style>
