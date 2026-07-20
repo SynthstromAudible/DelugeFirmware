@@ -22,7 +22,15 @@
   let innerWidth = 0;
   let isBackToTopVisible = false;
   let isMobilePanelStuck = false;
+  let isCompactControlPanel = false;
   let controlPanelEl: HTMLElement | undefined;
+
+  $: {
+    innerWidth;
+    isCompactControlPanel =
+      typeof window !== "undefined" &&
+      window.matchMedia("(max-width: 71.999rem)").matches;
+  }
 
   function getCompanionTitleEl() {
     return document.querySelector<HTMLElement>(
@@ -199,20 +207,28 @@
     class="dc-control-panel"
     aria-label="Search and filters panel"
   >
-    <button
-      type="button"
-      class="dc-control-panel-toggle"
-      aria-expanded={isMobilePanelOpen}
-      aria-controls="dc-control-panel-content"
-      on:click={toggleMobilePanel}
-    >
-      <span>Search and Filters</span>
-      <span class:open={isMobilePanelOpen} class="dc-control-panel-caret" aria-hidden="true">
-        <svg class="dc-control-panel-caret-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
-          <path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"></path>
-        </svg>
-      </span>
-    </button>
+    {#if isCompactControlPanel}
+      <div class="dc-control-panel-bar">
+        <button
+          type="button"
+          class="dc-control-panel-toggle"
+          aria-expanded={isMobilePanelOpen}
+          aria-controls="dc-control-panel-content"
+          on:click={toggleMobilePanel}
+        >
+          <span>Search and Filters</span>
+          <span class:open={isMobilePanelOpen} class="dc-control-panel-caret" aria-hidden="true">
+            <svg class="dc-control-panel-caret-icon" width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
+              <path d="m14.83 11.29-4.24-4.24a1 1 0 1 0-1.42 1.41L12.71 12l-3.54 3.54a1 1 0 0 0 0 1.41 1 1 0 0 0 .71.29 1 1 0 0 0 .71-.29l4.24-4.24a1.002 1.002 0 0 0 0-1.42Z"></path>
+            </svg>
+          </span>
+        </button>
+
+        <div class="dc-control-panel-search">
+          <SearchView autoFocus={false} variant="toolbar" />
+        </div>
+      </div>
+    {/if}
 
     <div
       id="dc-control-panel-content"
@@ -222,7 +238,11 @@
       <div class="dc-control-panel-shell">
         <h2 class="dc-control-panel-title">Search and Filters</h2>
         <SelectedFiltersBar />
-        <SearchView autoFocus={false} />
+        {#if !isCompactControlPanel}
+          <div class="dc-panel-search-wrap">
+            <SearchView autoFocus={false} enableGlobalFocusShortcut={true} variant="toolbar" />
+          </div>
+        {/if}
         <ViewFilter />
         <ShortcutVisibilityToggles />
       </div>
@@ -282,7 +302,7 @@
 
   .dc-control-panel-toggle {
     width: auto;
-    max-width: min(92vw, 20rem);
+    max-width: none;
     min-height: 34px;
     border: 1px solid var(--sl-color-gray-5);
     border-radius: 0.5rem;
@@ -299,6 +319,23 @@
     justify-content: space-between;
     gap: 0.5rem;
     cursor: pointer;
+  }
+
+  .dc-control-panel-bar {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+    gap: 0.75rem;
+  }
+
+  .dc-control-panel-search {
+    flex: 1 1 auto;
+    min-width: 0;
+    margin-top: 0;
+  }
+
+  .dc-control-panel-bar .dc-control-panel-toggle {
+    flex: 0 0 auto;
   }
 
   .dc-control-panel-toggle:hover {
@@ -359,6 +396,10 @@
     max-height: calc(100dvh - var(--sl-nav-height, 3.5rem) - 11.75rem);
   }
 
+  .dc-panel-search-wrap {
+    width: 100%;
+  }
+
   .dc-control-panel-shell::-webkit-scrollbar {
     width: 0;
     height: 0;
@@ -367,6 +408,10 @@
   @media (max-width: 49.999rem) {
     .dc-shortcuts-layout {
       padding-top: 0;
+    }
+
+    .dc-control-panel-bar {
+      align-items: stretch;
     }
 
     :global(main > .content-panel:first-child) {
@@ -501,13 +546,17 @@
       display: none;
     }
 
+    .dc-control-panel-bar {
+      display: none;
+    }
+
     .dc-control-panel-content {
       display: block;
       border-top: 0;
     }
 
     .dc-control-panel-shell {
-      margin-top: 0;
+      margin-top: 1rem;
       border: 0;
       border-radius: 0;
       background: var(--sl-color-bg);

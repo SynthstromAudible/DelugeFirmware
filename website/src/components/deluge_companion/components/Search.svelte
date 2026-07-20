@@ -7,6 +7,8 @@
   } from "../stores/search_store.js";
 
   export let autoFocus = true;
+  export let enableGlobalFocusShortcut = true;
+  export let variant: "default" | "toolbar" = "default";
 
   let inputEl: HTMLInputElement;
   let localQuery = "";
@@ -17,6 +19,13 @@
   // UI-derived state for clear button.
   $: hasContent = localQuery.length > 0;
   $: hasPendingSearchInput.set(false);
+  $: if (
+    inputEl &&
+    document.activeElement !== inputEl &&
+    localQuery !== $searchQuery
+  ) {
+    localQuery = $searchQuery;
+  }
 
   // Defensive helper so we never leak delayed apply timers.
   // Returns void.
@@ -109,7 +118,7 @@
   // Global focus shortcut for search input.
   // Returns void.
   function handleGlobalKeyDown(ev: KeyboardEvent) {
-    if (["f", "F"].includes(ev.key)) {
+    if (enableGlobalFocusShortcut && ["f", "F"].includes(ev.key)) {
       ev.preventDefault();
       inputEl.focus();
     }
@@ -123,11 +132,12 @@
 </script>
 
 <!-- Search input and clear action. -->
-<div class="relative block">
+<div class:toolbar-search={variant === "toolbar"} class="search-field relative block">
   <input
     type="search"
     placeholder="Search... (⌨&#xFE0E; F)"
-    class="w-full rounded-full bg-[var(--sl-color-bg)] pl-6 pr-16 py-2 text-[var(--sl-color-text)] leading-6 outline outline-1 outline-[var(--sl-color-gray-5)] focus:outline-2"
+    class:toolbar-search-input={variant === "toolbar"}
+    class="w-full rounded-full bg-[var(--sl-color-bg)] pl-6 pr-16 py-2 text-[var(--sl-color-text)] leading-6 outline outline-1 outline-[var(--sl-color-gray-5)] focus:outline-none"
     bind:value={localQuery}
     bind:this={inputEl}
     on:input={handleInput}
@@ -155,8 +165,22 @@
 />
 
 <style lang="postcss">
+  input[type="search"] {
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
   input[type="search"]::-webkit-search-cancel-button {
     -webkit-appearance: none;
+  }
+
+  .search-field {
+    width: 100%;
+  }
+
+  .search-field input[type="search"]:focus {
+    outline: none;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--sl-color-gray-4) 70%, var(--sl-color-gray-5)) inset;
   }
 
   .search-actions {
@@ -168,6 +192,36 @@
     align-items: center;
     gap: 0.35rem;
     min-height: 2rem;
+  }
+
+  .toolbar-search-input {
+    min-height: 34px;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background: var(--sl-color-bg);
+    padding: 0.5rem 2.75rem 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 400;
+    line-height: 1;
+    color: inherit;
+    outline: 0;
+    box-shadow: none;
+  }
+
+  .toolbar-search-input:focus {
+    outline: none;
+  }
+
+  .toolbar-search .search-actions {
+    right: 0.5rem;
+  }
+
+  .toolbar-search .search-actions button {
+    height: 1.75rem;
+    width: 1.75rem;
+    padding: 0.35rem;
+    border-radius: 0.375rem;
+    color: var(--sl-color-gray-3);
   }
 
 </style>
