@@ -2,7 +2,7 @@ capability: SYSTEM
 capability-order: 1
 sub-capability: System (Controls)
 sub-capability-order: 2
-sub-sub-capability: System (Navigation Controls)
+sub-sub-capability: System (Navigation)
 sub-sub-capability-order: 2
 
 # Check current zoom level
@@ -63,9 +63,9 @@ turn(SELECT)
 
 Turn select encoder to scroll up and down in a vertical menu.
 
-# Navigate on Current Horizontal Menu Page - Synth
+# Navigate on Current Horizontal Menu Page
 
-#COMMUNITY #MENU_SOUND #SYNTH #KIT #MIDI #CV
+#COMMUNITY #MENU #SYNTH #KIT #MIDI #CV
 
 ```shortcut
 press(SYNTH), press(KIT), press(MIDI), press(CV)
@@ -75,7 +75,7 @@ With the current horizontal menu page open, press Synth, Kit, MIDI, or CV to sel
 
 # Navigate to the Previous or Next Horizontal Menu Page
 
-#COMMUNITY #MENU_SOUND #SYNTH #KIT #MIDI #CV
+#COMMUNITY #MENU #SYNTH #KIT #MIDI #CV
 
 ```shortcut
 press(SCALE), press(CROSS)
@@ -86,7 +86,7 @@ Press cross screen to navigate to the next horizontal menu page.
 
 # Navigate to the Previous or Next Adjacent Horizontal Menu
 
-#COMMUNITY #MENU_SOUND #SYNTH #KIT #MIDI #CV
+#COMMUNITY #MENU #SYNTH #KIT #MIDI #CV
 
 ```shortcut
 hold(SHIFT) + press(SCALE), hold(SHIFT) + press(CROSS)
@@ -119,45 +119,17 @@ Go back up one level from within the menu / browser / file system.
 
 # Return to Session or Arranger from Menu
 
-#COMMUNITY #ARRANGER #SESSION #MENU
+#COMMUNITY #MENU
 
 ```shortcut
 press(SONG)
 ```
 
-Exits a menu and returns to Song or Arranger View.
-
-# Change value in currently selected menu
-
-#OFFICIAL #MENU #SYNTH #KIT #MIDI #CV
-
-```shortcut
-turn(SELECT)
-```
-
-# Fine tune decimal value in vertical menu
-
-#OFFICIAL #MENU
-
-```shortcut
-turn(X), turn(SELECT)
-```
-
-To edit decimal values in the currently selected vertical menu, use the horizontal encoder to select the decimal position and turn select to edit the value at that position.
-
-# Fine tune decimal value in horizontal menu
-
-#COMMUNITY #MENU_SOUND #SYNTH #KIT #MIDI #CV
-
-```shortcut
-press(SELECT) + turn(SELECT), hold(SHIFT) + turn(SELECT)
-```
-
-Press and turn select or hold shift and turn select to edit fine edit decimal values in the currently selected horizontal menu.
+Exits a menu and returns to Session or Arranger View.
 
 # Layered Shortcuts
 
-#COMMUNITY #SYNTH #KIT
+#COMMUNITY #MENU #MENU_SOUND #SYNTH #KIT
 
 ```shortcut
 hold(SHIFT) + press(GRID)

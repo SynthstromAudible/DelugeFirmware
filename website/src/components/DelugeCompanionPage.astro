@@ -17,8 +17,16 @@ import CompanionApp from "./DelugeCompanionApp.svelte"
   ;(() => {
     const host = document.getElementById("dc-companion-host")
     const loader = document.getElementById("dc-companion-loader")
+    const pageTitle = document.getElementById("_top")
     if (!host || !loader) {
       return
+    }
+
+    if (pageTitle && !pageTitle.hasAttribute("data-dc-brand-applied")) {
+      pageTitle.innerHTML =
+        '<span class="dc-page-brand-base">deluge</span><span class="dc-page-brand-accent">Companion</span>'
+      pageTitle.setAttribute("data-dc-brand-applied", "true")
+      pageTitle.setAttribute("aria-label", "delugeCompanion")
     }
 
     const minVisibleMs = 450

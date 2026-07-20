@@ -2,7 +2,7 @@
 title: Deluge Companion
 sidebar:
   hidden: true
-tableOfContents: true
+tableOfContents: false
 ---
 
 import { Aside, Badge } from "@astrojs/starlight/components"
@@ -12,17 +12,76 @@ This page hosts a locally integrated version of the Deluge Companion shortcuts e
 
 Full credit to [Florian Heft](https://fheft.github.io/deluge-companion/) and [Matthew](https://handeyeco.github.io/deluge-shortcuts) for their original implementations.
 
-<Aside type="caution">
-  Note: This page is still a work in progress. Shortcuts may be incorrect and/or
-  missing. Please send us feedback on GitHub, and/or Discord to improve this
-  tool!
-</Aside>
+<details>
+  <summary>Caution</summary>
+  <Aside type="caution">
+    Note: This page is still a work in progress. Shortcuts may be incorrect
+    and/or missing. Please send us feedback on GitHub, and/or Discord to improve
+    this tool!
+  </Aside>
+</details>
+
+<details>
+  <summary>Tips</summary>
+  <Aside type="tip">
+    - Use the search and filters panel to quickly find shortcuts. - Click on a
+    shortcut to show the controls on the Deluge interface.
+  </Aside>
+</details>
 
 <DelugeCompanionPage />
 
 <style is:global>{`
+  body:has(#dc-companion-host) h1#_top {
+    letter-spacing: inherit;
+    text-decoration-line: underline;
+    text-decoration-style: dashed;
+    text-decoration-color: #a855f7;
+    text-decoration-thickness: from-font;
+    text-underline-offset: from-font;
+    color: var(--sl-color-text);
+  }
+
+  body:has(#dc-companion-host) h1#_top .dc-page-brand-base,
+  body:has(#dc-companion-host) h1#_top .dc-page-brand-accent {
+    font: inherit;
+  }
+
+  body:has(#dc-companion-host) h1#_top .dc-page-brand-base {
+    color: currentColor;
+  }
+
+  body:has(#dc-companion-host) h1#_top .dc-page-brand-accent {
+    color: #a855f7;
+    font-weight: 500;
+  }
+
+  body:has(#dc-companion-host) .right-sidebar-container {
+    display: none;
+  }
+
+  body:has(#dc-companion-host) .main-pane {
+    width: 100%;
+  }
+
+  @media (max-width: 71.999rem) {
+    body:has(#dc-companion-host) .sl-container {
+      max-width: none;
+    }
+
+    body:has(#dc-companion-host) main > .content-panel:first-child {
+      padding-top: 3rem;
+    }
+  }
+
+  @media (min-width: 72rem) {
+    body:has(#dc-companion-host) .content-panel {
+      padding-right: calc(18.75rem + 1.5rem);
+    }
+  }
+
   @media (min-width: 50em) {
-    html[data-has-sidebar] {
+    html[data-has-sidebar]:has(#dc-companion-host) {
       --sl-content-width: 86rem;
     }
   }

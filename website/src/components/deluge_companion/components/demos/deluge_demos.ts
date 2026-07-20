@@ -8,6 +8,13 @@ import {
   type DemoCell,
   type HorizontalZoomDemoLoop,
 } from "./horizontal_zoom_demo.js"
+import {
+  createPerformanceViewOpeningDemoLoop,
+  getPerformanceViewOpeningCellDetailStyle,
+  getPerformanceViewOpeningCellFillStyle,
+  isStandalonePerformanceViewEntryShortcut,
+  type PerformanceViewOpeningDemoLoop,
+} from "./performance_view_open_demo.js"
 
 export {
   appendTurnIndicator,
@@ -23,7 +30,8 @@ export {
 const GRID_COLS = 16
 const GRID_ROWS = 8
 
-export type DelugeDemoLoop = HorizontalZoomDemoLoop
+export type DelugeDemoLoop =
+  HorizontalZoomDemoLoop | PerformanceViewOpeningDemoLoop
 
 // Generic demo contract consumed by Deluge UI component.
 export type DelugeDemoDefinition = {
@@ -55,7 +63,21 @@ const horizontalZoomDemo: DelugeDemoDefinition = {
   getCellDetailStyle: getHorizontalZoomCellDetailStyle,
 }
 
-const DEMOS: DelugeDemoDefinition[] = [horizontalZoomDemo]
+// Performance view opening demo wiring.
+const performanceViewOpeningDemo: DelugeDemoDefinition = {
+  id: "performance-view-opening",
+  matches: isStandalonePerformanceViewEntryShortcut,
+  createLoop(onCells) {
+    return createPerformanceViewOpeningDemoLoop(onCells)
+  },
+  getCellFillStyle: getPerformanceViewOpeningCellFillStyle,
+  getCellDetailStyle: getPerformanceViewOpeningCellDetailStyle,
+}
+
+const DEMOS: DelugeDemoDefinition[] = [
+  horizontalZoomDemo,
+  performanceViewOpeningDemo,
+]
 
 export type { DemoCell }
 

@@ -6,6 +6,8 @@
     searchQuery,
   } from "../stores/search_store.js";
 
+  export let autoFocus = true;
+
   let inputEl: HTMLInputElement;
   let localQuery = "";
   let applyTimer: ReturnType<typeof setTimeout> | undefined;
@@ -42,7 +44,9 @@
   // Initialize input from store and autofocus on mount.
   onMount(() => {
     localQuery = $searchQuery;
-    inputEl.focus();
+    if (autoFocus) {
+      inputEl.focus();
+    }
   });
 
   // Restore global search UI state on component teardown.
@@ -123,7 +127,7 @@
   <input
     type="search"
     placeholder="Search... (⌨&#xFE0E; F)"
-    class="w-full rounded-full bg-[var(--sl-color-bg)] pl-6 pr-16 py-3 text-[var(--sl-color-text)] outline outline-1 outline-[var(--sl-color-gray-5)] focus:outline-2"
+    class="w-full rounded-full bg-[var(--sl-color-bg)] pl-6 pr-16 py-2 text-[var(--sl-color-text)] leading-6 outline outline-1 outline-[var(--sl-color-gray-5)] focus:outline-2"
     bind:value={localQuery}
     bind:this={inputEl}
     on:input={handleInput}

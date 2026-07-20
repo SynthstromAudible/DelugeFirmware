@@ -31,7 +31,9 @@ In the community firmware, turning a gold dial will display the name of the para
 
 #COMMUNITY #ARRANGER #SESSION #SYNTH #KIT
 
-Press Parameter Button
+```shortcut
+hold(PARAMBUTTON)
+```
 
 ```community
 In the community firmware, pressing the circular buttons between the gold dials will display the parameters that each gold dial controls.

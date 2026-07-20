@@ -40,6 +40,7 @@ export const shortcutControlGroups: ShortcutControlGroup[] = [
       { id: Control.MIDI, title: "MIDI" },
       { id: Control.CV, title: "CV" },
       { id: Control.CROSS, title: "Cross-screen" },
+      { id: Control.PERFORMANCE, title: "Performance" },
       { id: Control.KEY, title: "Keyboard" },
       { id: Control.SCALE, title: "Scale" },
       { id: Control.EXTERNAL, title: "External MIDI Controller" },
@@ -55,6 +56,20 @@ export const shortcutControlGroups: ShortcutControlGroup[] = [
       { id: Control.PARAMETER, title: "Gold Encoders" },
       { id: Control.LOWER_PARAM, title: "Lower Gold Encoder" },
       { id: Control.UPPER_PARAM, title: "Upper Gold Encoder" },
+    ],
+  },
+  {
+    title: "Parameter Buttons",
+    controls: [
+      { id: Control.PARAMBUTTON, title: "PARAM BUTTON" },
+      { id: Control.PARAMBUTTON1, title: "LEVEL/PAN BUTTON" },
+      { id: Control.PARAMBUTTON2, title: "CUTOFF/RES BUTTON" },
+      { id: Control.PARAMBUTTON3, title: "ATTACK/RELEASE BUTTON" },
+      { id: Control.PARAMBUTTON4, title: "DELAY TIME/AMOUNT BUTTON" },
+      { id: Control.PARAMBUTTON5, title: "SIDECHAIN/REVERB BUTTON" },
+      { id: Control.PARAMBUTTON6, title: "MOD RATE/DEPTH BUTTON" },
+      { id: Control.PARAMBUTTON7, title: "STUTTER/CUSTOM 1 BUTTON" },
+      { id: Control.PARAMBUTTON8, title: "CUSTOM 2/3 BUTTON" },
     ],
   },
   {

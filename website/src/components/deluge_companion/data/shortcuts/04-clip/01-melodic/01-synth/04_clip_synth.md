@@ -5,6 +5,14 @@ sub-capability-order: 2
 sub-sub-capability: Clip (Synth)
 sub-sub-capability-order: 1
 
+# Create new synth
+
+#OFFICIAL #SYNTH
+
+```shortcut
+hold(SHIFT) + press(SYNTH)
+```
+
 # View synth preset browser
 
 #OFFICIAL #SYNTH
@@ -12,6 +20,26 @@ sub-sub-capability-order: 1
 ```shortcut
 hold(LOAD) + press(SYNTH)
 ```
+
+# Change synth preset
+
+#OFFICIAL #SYNTH
+
+```shortcut
+turn(SELECT)
+```
+
+Changes the current synth preset.
+
+# Clone synth preset
+
+#OFFICIAL #SYNTH
+
+```shortcut
+hold(LOAD) + press(SYNTH), turn(SELECT), hold(LOAD) + menu(NONE), press(SELECT)
+```
+
+A single preset can only appear in one active clip, so clone the original preset for multiple instances in the same song. It is good practice to clone first when tweaking to avoid affecting interdependent songs.
 
 # Save synth preset
 
@@ -26,10 +54,10 @@ hold(SAVE) + press(SYNTH), turn(SELECT), press(SELECT)
 #COMMUNITY #SYNTH
 
 ```shortcut
-press(SYNTH)
+hold(PARAMBUTTON7) + press(SYNTH)
 ```
 
-With the DX7 community feature enabled and CUSTOM 1 active, this creates a new DX7 synth.
+With the DX7 community feature enabled, this creates a new DX7 synth.
 
 # Chromatic sample - same sample, different pitches (on new synth)
 
