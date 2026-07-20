@@ -7,6 +7,8 @@
   } from "../stores/search_store.js";
 
   export let autoFocus = true;
+  export let enableGlobalFocusShortcut = true;
+  export let variant: "default" | "toolbar" = "default";
 
   let inputEl: HTMLInputElement;
   let localQuery = "";
@@ -17,6 +19,13 @@
   // UI-derived state for clear button.
   $: hasContent = localQuery.length > 0;
   $: hasPendingSearchInput.set(false);
+  $: if (
+    inputEl &&
+    document.activeElement !== inputEl &&
+    localQuery !== $searchQuery
+  ) {
+    localQuery = $searchQuery;
+  }
 
   // Defensive helper so we never leak delayed apply timers.
   // Returns void.
@@ -109,7 +118,7 @@
   // Global focus shortcut for search input.
   // Returns void.
   function handleGlobalKeyDown(ev: KeyboardEvent) {
-    if (["f", "F"].includes(ev.key)) {
+    if (enableGlobalFocusShortcut && ["f", "F"].includes(ev.key)) {
       ev.preventDefault();
       inputEl.focus();
     }
@@ -123,11 +132,12 @@
 </script>
 
 <!-- Search input and clear action. -->
-<div class="relative block">
+<div class:toolbar-search={variant === "toolbar"} class="search-field relative block">
   <input
     type="search"
     placeholder="Search... (⌨&#xFE0E; F)"
-    class="w-full rounded-full bg-[var(--sl-color-bg)] pl-6 pr-16 py-2 text-[var(--sl-color-text)] leading-6 outline outline-1 outline-[var(--sl-color-gray-5)] focus:outline-2"
+    class:toolbar-search-input={variant === "toolbar"}
+    class="w-full rounded-full bg-[var(--sl-color-bg)] pl-6 pr-16 py-2 text-[var(--sl-color-text)] leading-6 outline outline-1 outline-[var(--sl-color-gray-5)] focus:outline-none"
     bind:value={localQuery}
     bind:this={inputEl}
     on:input={handleInput}
@@ -138,10 +148,15 @@
     {#if hasContent}
       <button
         on:click={clear}
-        class="aspect-square h-8 rounded-full p-2 text-[var(--sl-color-gray-4)] hover:bg-[var(--sl-color-black)]/10"
+        class:toolbar-clear-button={variant === "toolbar"}
+        class="search-clear-button"
         aria-label="Clear search"
       >
-        <Cross />
+        {#if variant === "toolbar"}
+          Clear
+        {:else}
+          <Cross />
+        {/if}
       </button>
     {/if}
   </div>
@@ -155,8 +170,22 @@
 />
 
 <style lang="postcss">
+  input[type="search"] {
+    appearance: none;
+    -webkit-appearance: none;
+  }
+
   input[type="search"]::-webkit-search-cancel-button {
     -webkit-appearance: none;
+  }
+
+  .search-field {
+    width: 100%;
+  }
+
+  .search-field input[type="search"]:focus {
+    outline: none;
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--sl-color-gray-4) 70%, var(--sl-color-gray-5)) inset;
   }
 
   .search-actions {
@@ -168,6 +197,64 @@
     align-items: center;
     gap: 0.35rem;
     min-height: 2rem;
+  }
+
+  .search-clear-button {
+    aspect-ratio: 1 / 1;
+    height: 2rem;
+    padding: 0.5rem;
+    border-radius: 999px;
+    color: var(--sl-color-gray-4);
+  }
+
+  .search-clear-button:hover {
+    background: color-mix(in srgb, var(--sl-color-black) 10%, transparent);
+  }
+
+  .toolbar-search-input {
+    min-height: 34px;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.5rem;
+    background: var(--sl-color-bg);
+    padding: 0.5rem 2.75rem 0.5rem 0.75rem;
+    font-size: 0.8125rem;
+    font-weight: 400;
+    line-height: 1;
+    color: inherit;
+    outline: 0;
+    box-shadow: none;
+  }
+
+  .toolbar-search-input:focus {
+    outline: none;
+  }
+
+  .toolbar-search .search-actions {
+    right: 0.5rem;
+  }
+
+  .toolbar-search .search-actions .toolbar-clear-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    aspect-ratio: auto;
+    height: auto;
+    min-width: 0;
+    width: auto;
+    padding: 0.28rem 0.55rem;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 0.35rem;
+    background: transparent;
+    color: var(--sl-color-text);
+    font-size: 0.82rem;
+    font-weight: 600;
+    line-height: 1.2;
+    box-shadow: none;
+  }
+
+  .toolbar-search .search-actions .toolbar-clear-button:hover {
+    background: color-mix(in srgb, var(--sl-color-gray-5) 20%, transparent);
+    box-shadow: 0 0 0 1px color-mix(in srgb, var(--sl-color-gray-5) 35%, transparent) inset;
   }
 
 </style>
