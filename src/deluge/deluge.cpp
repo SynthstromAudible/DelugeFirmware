@@ -37,7 +37,6 @@
 #include "system/power_manager.h"
 #include "util/cfunctions.h"
 #include "util/functions.h"
-
 #include "RZA1/sdhi/inc/sdif.h"
 #include "definitions_cxx.hpp"
 #include "drivers/pic/pic.h"
