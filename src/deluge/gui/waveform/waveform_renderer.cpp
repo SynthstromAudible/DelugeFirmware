@@ -279,8 +279,16 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 
 	uint64_t numValidBytes = numValidSamples * sample->byteDepth * sample->numChannels;
 
-	if (xZoomSamples != data->xZoom || static_cast<int64_t>(numValidSamples) != data->validLengthSamples) {
-		// Zoom changed, or the waveform length changed (e.g. sample replaced/shrunk): nothing is reusable.
+	bool lengthChanged = static_cast<int64_t>(numValidSamples) != data->validLengthSamples;
+	if (recorder != nullptr) {
+		// During recording the waveform grows every frame. A monotonic append leaves already-investigated
+		// columns valid (the growing edge is re-checked below because only COL_STATUS_INVESTIGATED columns are
+		// skipped), so don't nuke the whole cache each frame just because the length ticked up (#4460).
+		lengthChanged = false;
+	}
+	if (xZoomSamples != data->xZoom || lengthChanged) {
+		// Zoom changed, or (off the record path) the waveform length changed (e.g. sample replaced/shrunk):
+		// nothing is reusable.
 		std::ranges::fill(data->colStatus, COL_STATUS_NOT_INVESTIGATED);
 	}
 	else if (xScrollSamples != data->xScroll) {
@@ -377,16 +385,9 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 		else if (numClustersSpan >= 2) {
 			clusterIndexToDo = colStartCluster + 1;
 
-			int32_t startByteWithinFirstCluster = static_cast<int32_t>(colStartByte & (Cluster::size - 1));
-
-			int32_t unusedBytesAtEndOfPrevCluster =
-			    (Cluster::size - startByteWithinFirstCluster) % (sample->numChannels * sample->byteDepth);
-			if (unusedBytesAtEndOfPrevCluster == 0) {
-				startByteWithinCluster = 0;
-			}
-			else {
-				startByteWithinCluster = (sample->numChannels * sample->byteDepth) - unusedBytesAtEndOfPrevCluster;
-			}
+			startByteWithinCluster =
+			    firstFrameStartWithinCluster(clusterStartByte(clusterIndexToDo, Cluster::size_magnitude),
+			                                 sample->audioDataStartPosBytes, sample->numChannels * sample->byteDepth);
 
 			endByteWithinCluster = Cluster::size;
 			investigatingAWholeCluster = true;
@@ -411,14 +412,9 @@ bool WaveformRenderer::findPeaksPerCol(Sample* sample, int64_t xScrollSamples, u
 			else {
 				clusterIndexToDo = colEndCluster;
 
-				int32_t unusedBytesAtEndOfPrevCluster =
-				    (Cluster::size - startByteWithinFirstCluster) % (sample->numChannels * sample->byteDepth);
-				if (unusedBytesAtEndOfPrevCluster == 0) {
-					startByteWithinCluster = 0;
-				}
-				else {
-					startByteWithinCluster = (sample->numChannels * sample->byteDepth) - unusedBytesAtEndOfPrevCluster;
-				}
+				startByteWithinCluster = firstFrameStartWithinCluster(
+				    clusterStartByte(clusterIndexToDo, Cluster::size_magnitude), sample->audioDataStartPosBytes,
+				    sample->numChannels * sample->byteDepth);
 
 				endByteWithinCluster = bytesInSecondCluster;
 			}
@@ -626,15 +622,8 @@ bool WaveformRenderer::investigateWholeCluster(Sample* sample, int32_t clusterIn
 	// Work out the first frame-aligned byte of audio data within this cluster. 64-bit so multi-GB samples
 	// (cluster index << size_magnitude) don't overflow (#4460).
 	const int64_t clusterStartByteAbs = clusterStartByte(clusterIndex, Cluster::size_magnitude);
-	int32_t startByteWithinCluster;
-	if (clusterStartByteAbs <= static_cast<int64_t>(sample->audioDataStartPosBytes)) {
-		// This cluster still contains the file header; audio data begins at audioDataStartPosBytes.
-		startByteWithinCluster = static_cast<int32_t>(sample->audioDataStartPosBytes - clusterStartByteAbs);
-	}
-	else {
-		const int32_t rem = static_cast<int32_t>((clusterStartByteAbs - sample->audioDataStartPosBytes) % frameSize);
-		startByteWithinCluster = (rem == 0) ? 0 : (frameSize - rem);
-	}
+	const int32_t startByteWithinCluster =
+	    firstFrameStartWithinCluster(clusterStartByteAbs, sample->audioDataStartPosBytes, frameSize);
 
 	int32_t endByteWithinCluster = Cluster::size;
 	if (clusterIndex == endClusters - 1) {
@@ -701,9 +690,11 @@ bool WaveformRenderer::advanceOverviewScan(Sample* sample, int32_t maxClusters) 
 			continue;
 		}
 
-		// Bail if the card or audio routine became busy since entry, rather than issuing another
-		// synchronous load this tick (#4460). `currentlyAccessingCard` is the file-scope extern declared at
-		// the top of this file; `clusterBeingLoaded` is a public AudioFileManager member.
+		// Authoritative "is card I/O safe right now?" guard: each investigateWholeCluster can issue a
+		// synchronous load, so bail before every one rather than compete with the card or audio routine
+		// (#4460). This is the single source of truth, so it also scales safely if maxClusters ever grows
+		// past 1. `currentlyAccessingCard` is the file-scope extern declared at the top of this file;
+		// `clusterBeingLoaded` is a public AudioFileManager member.
 		if (currentlyAccessingCard || (audioFileManager.clusterBeingLoaded != nullptr)
 		    || AudioEngine::audioRoutineLocked) {
 			return true;

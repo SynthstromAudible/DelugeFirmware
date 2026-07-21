@@ -39,6 +39,24 @@ TEST(WaveformPeakMath, ClusterStartByteNoOverflow) {
 	CHECK_EQUAL(static_cast<int64_t>(2293760000LL), clusterStartByte(70000, 15));
 }
 
+// firstFrameStartWithinCluster: header cluster -> audio starts at audioDataStartPosBytes.
+TEST(WaveformPeakMath, FirstFrameStartHeaderCluster) {
+	// Cluster 0 starts at absolute byte 0 and still holds the 44-byte WAV header.
+	CHECK_EQUAL(44, firstFrameStartWithinCluster(0, 44, 4));
+}
+
+// firstFrameStartWithinCluster: boundary that lands exactly on a frame -> 0.
+TEST(WaveformPeakMath, FirstFrameStartFrameAlignedIsZero) {
+	// (32768 - 44) % 4 == 0, so the cluster starts on a frame boundary.
+	CHECK_EQUAL(0, firstFrameStartWithinCluster(32768, 44, 4));
+}
+
+// firstFrameStartWithinCluster: 24-bit (frameSize 3) boundary that doesn't divide evenly.
+TEST(WaveformPeakMath, FirstFrameStartMisaligned24Bit) {
+	// (32769 - 44) % 3 == 1, so the first whole frame begins 3 - 1 == 2 bytes in.
+	CHECK_EQUAL(2, firstFrameStartWithinCluster(32769, 44, 3));
+}
+
 // scanClusterPeak: finds the min and max of the 32-bit values it samples.
 TEST(WaveformPeakMath, ScanClusterPeakFindsMinMax32Bit) {
 	// byteDepth 4 (32-bit), mono. Buffer of 8 int32 values; misalignment (byteDepth-4)==0.

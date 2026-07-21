@@ -47,3 +47,12 @@ int32_t lastAudioClusterEndByte(uint64_t numValidBytes, uint32_t audioDataStartP
 int64_t clusterStartByte(int32_t clusterIndex, int32_t sizeMagnitude) {
 	return static_cast<int64_t>(clusterIndex) << sizeMagnitude;
 }
+
+int32_t firstFrameStartWithinCluster(int64_t clusterStartByteAbs, uint32_t audioDataStartPosBytes, int32_t frameSize) {
+	if (clusterStartByteAbs <= static_cast<int64_t>(audioDataStartPosBytes)) {
+		// This cluster still contains the file header; audio data begins at audioDataStartPosBytes.
+		return static_cast<int32_t>(audioDataStartPosBytes - clusterStartByteAbs);
+	}
+	int32_t rem = static_cast<int32_t>((clusterStartByteAbs - audioDataStartPosBytes) % frameSize);
+	return (rem == 0) ? 0 : (frameSize - rem);
+}

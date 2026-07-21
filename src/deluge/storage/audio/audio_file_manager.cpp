@@ -190,6 +190,11 @@ clusterSizeChangedButItsOk:
 
 					// Or if we're still here, the file's fine - who knows, maybe it's even fine again after it wasn't
 					// for a while (e.g. if the user temporarily had a different card inserted)
+					if (((Sample*)thisAudioFile)->unloadable) {
+						// It just became loadable again: re-arm the background overview pre-scan so its waveform
+						// overview gets rebuilt (the scan skips unloadable samples and may have gone idle) (#4460).
+						overviewScanAllDone = false;
+					}
 					((Sample*)thisAudioFile)->unloadable = false;
 				}
 			}
@@ -1264,9 +1269,9 @@ void AudioFileManager::backgroundWaveformOverviewScan() {
 		return;
 	}
 
-	// Don't compete with the card or the audio routine.
-	if (cardEjected || cardDisabled || currentlyAccessingCard || (clusterBeingLoaded != nullptr)
-	    || AudioEngine::audioRoutineLocked) {
+	// Can we scan at all right now? (The finer-grained "is card I/O safe this instant?" busy-check lives in
+	// advanceOverviewScan, which guards each individual cluster load - see waveform_renderer.cpp.)
+	if (cardEjected || cardDisabled) {
 		return;
 	}
 
@@ -1276,7 +1281,6 @@ void AudioFileManager::backgroundWaveformOverviewScan() {
 	}
 
 	// One sample's worth of work per call, round-robined so no single sample starves the others.
-	bool anyWorkRemaining = false;
 	for (int32_t tried = 0; tried < numFiles; tried++) {
 		if (overviewScanFileIndex >= numFiles) {
 			overviewScanFileIndex = 0;
@@ -1288,18 +1292,21 @@ void AudioFileManager::backgroundWaveformOverviewScan() {
 			continue;
 		}
 
-		// Advance this sample by a small budget. If there was real work to do, stop here for this call.
+		// Skip samples whose clusters can never load - re-scanning them would spin forever and prevent us
+		// from ever going idle. They re-arm the scan if they become loadable again (#4460).
 		Sample* sample = (Sample*)audioFile;
+		if (sample->unloadable) {
+			continue;
+		}
+
+		// Advance this sample by a small budget. If there was real work to do, stop here for this call.
 		if (waveformRenderer.advanceOverviewScan(sample, kOverviewScanClustersPerCall)) {
-			anyWorkRemaining = true;
 			return;
 		}
 	}
 
 	// A full pass found nothing left to scan: go idle until something re-arms us.
-	if (!anyWorkRemaining) {
-		overviewScanAllDone = true;
-	}
+	overviewScanAllDone = true;
 }
 
 #define REPORT_AWAY_TIME 0

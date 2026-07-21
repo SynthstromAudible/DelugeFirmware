@@ -32,3 +32,10 @@ int32_t lastAudioClusterEndByte(uint64_t numValidBytes, uint32_t audioDataStartP
 
 // Absolute byte offset of a cluster's start, in 64-bit so multi-GB samples don't overflow.
 int64_t clusterStartByte(int32_t clusterIndex, int32_t sizeMagnitude);
+
+// Offset within a cluster of its first whole audio frame. The frame grid is anchored at
+// audioDataStartPosBytes, and a cluster boundary rarely lands on a frame boundary for non-power-of-two
+// frame sizes (e.g. 24-bit), so the first whole frame in the cluster can start a few bytes in. If the
+// cluster still contains the file header (its start is at/before audioDataStartPosBytes), audio begins
+// at audioDataStartPosBytes. frameSize is numChannels * byteDepth.
+int32_t firstFrameStartWithinCluster(int64_t clusterStartByteAbs, uint32_t audioDataStartPosBytes, int32_t frameSize);
