@@ -8,3 +8,46 @@
 @import "./directives/key.css";
 @import "./directives/screen.css";
 @import "./sidebar-topics.css";
+
+@media (min-width: 72rem) {
+  html[data-has-sidebar][data-has-toc] .right-sidebar-container {
+    flex: 0 0 var(--sl-sidebar-width);
+    width: var(--sl-sidebar-width);
+  }
+
+  html[data-has-sidebar][data-has-toc] .right-sidebar {
+    inset-inline-end: 0;
+    width: var(--sl-sidebar-width);
+  }
+
+  html[data-has-sidebar][data-has-toc] .main-pane {
+    --sl-content-margin-inline: 0;
+
+    width: calc(100% - var(--sl-sidebar-width));
+  }
+
+  html[data-has-sidebar][data-has-toc]
+    .main-pane
+    .content-panel
+    > .sl-container {
+    max-width: none;
+  }
+
+  html[data-has-sidebar][data-has-toc] .right-sidebar-panel {
+    display: flex;
+    justify-content: flex-end;
+  }
+}
+
+.dc-search-hit {
+  background: color-mix(
+    in srgb,
+    var(--sl-color-accent, #60a5fa) 38%,
+    transparent
+  );
+  color: inherit;
+  border-radius: 0.18rem;
+  padding: 0 0.08rem;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}

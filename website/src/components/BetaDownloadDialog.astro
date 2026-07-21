@@ -1,0 +1,294 @@
+---
+import { getEntry, render } from "astro:content"
+
+const {
+  downloadUrl = "https://github.com/SynthstromAudible/DelugeFirmware/releases/download/beta/beta.zip",
+} = Astro.props
+
+const changelog = await getEntry("docs", "changelogs/changelog")
+
+if (!changelog) {
+  throw new Error("Unable to find the beta changelog content.")
+}
+
+const { Content } = await render(changelog)
+---
+
+<a
+  class="btn beta-download-dialog__trigger"
+  href={downloadUrl}
+  target="_blank"
+  rel="noopener noreferrer"
+  data-beta-changelog-trigger
+>
+  Download today's beta build
+</a>
+
+<dialog
+  class="beta-download-dialog"
+  aria-labelledby="beta-changelog-title"
+  aria-describedby="beta-changelog-description"
+  data-beta-changelog-dialog
+>
+  <div class="beta-download-dialog__panel">
+    <header class="beta-download-dialog__header">
+      <div>
+        <p class="beta-download-dialog__eyebrow">Read before downloading</p>
+        <h2 id="beta-changelog-title">Today's beta changelog</h2>
+        <p id="beta-changelog-description">
+          Review the current beta changes, then continue to the build when
+          you're ready.
+        </p>
+      </div>
+      <button
+        class="beta-download-dialog__close"
+        type="button"
+        aria-label="Close changelog"
+        data-beta-changelog-close
+      >
+        ×
+      </button>
+    </header>
+
+    <div
+      class="beta-download-dialog__content sl-markdown-content"
+      data-beta-changelog-content
+    >
+      <Content />
+    </div>
+
+    <footer class="beta-download-dialog__footer">
+      <a
+        class="btn beta-download-dialog__download"
+        href={downloadUrl}
+        target="_blank"
+        rel="noopener noreferrer"
+      >
+        Continue to beta download
+      </a>
+      <button
+        class="beta-download-dialog__secondary"
+        type="button"
+        data-beta-changelog-close
+      >
+        Close
+      </button>
+    </footer>
+  </div>
+</dialog>
+
+<script>
+  const trigger = document.querySelector("[data-beta-changelog-trigger]")
+  const dialog = document.querySelector("[data-beta-changelog-dialog]")
+
+  if (
+    trigger instanceof HTMLAnchorElement &&
+    dialog instanceof HTMLDialogElement
+  ) {
+    const closeButtons = dialog.querySelectorAll("[data-beta-changelog-close]")
+
+    const closeDialog = () => {
+      if (dialog.open) {
+        dialog.close()
+      }
+    }
+
+    trigger.addEventListener("click", (event) => {
+      event.preventDefault()
+      const previouslyFocusedElement =
+        document.activeElement instanceof HTMLElement
+          ? document.activeElement
+          : null
+
+      dialog.addEventListener(
+        "close",
+        () => {
+          document.documentElement.classList.remove(
+            "beta-changelog-dialog-open",
+          )
+          previouslyFocusedElement?.focus()
+        },
+        { once: true },
+      )
+
+      dialog.showModal()
+      const closeButton = dialog.querySelector("[data-beta-changelog-close]")
+      if (closeButton instanceof HTMLElement) {
+        closeButton.focus()
+      }
+      document.documentElement.classList.add("beta-changelog-dialog-open")
+    })
+
+    closeButtons.forEach((button) => {
+      button.addEventListener("click", closeDialog)
+    })
+
+    dialog.addEventListener("click", (event) => {
+      if (event.target === dialog) {
+        closeDialog()
+      }
+    })
+  }
+</script>
+
+<style>
+  .beta-download-dialog {
+    width: min(1080px, calc(100vw - 2rem));
+    max-width: none;
+    height: min(880px, calc(100vh - 2rem));
+    max-height: none;
+    padding: 0;
+    overflow: hidden;
+    color: var(--sl-color-white);
+    background: var(--sl-color-bg);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 8px;
+    box-shadow: 0 24px 72px rgb(0 0 0 / 0.45);
+  }
+
+  .beta-download-dialog::backdrop {
+    background: rgb(0 0 0 / 0.62);
+  }
+
+  :global(.beta-changelog-dialog-open) {
+    overflow: hidden;
+  }
+
+  .beta-download-dialog__panel {
+    display: grid;
+    grid-template-rows: auto minmax(0, 1fr) auto;
+    height: 100%;
+    min-height: 0;
+  }
+
+  .beta-download-dialog__header,
+  .beta-download-dialog__footer {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0.85rem 1rem;
+    background: var(--sl-color-gray-7);
+    border-color: var(--sl-color-gray-5);
+  }
+
+  .beta-download-dialog__header {
+    border-bottom: 1px solid var(--sl-color-gray-5);
+  }
+
+  .beta-download-dialog__footer {
+    flex-wrap: wrap;
+    border-top: 1px solid var(--sl-color-gray-5);
+  }
+
+  .beta-download-dialog__eyebrow,
+  .beta-download-dialog__header p {
+    margin: 0;
+  }
+
+  .beta-download-dialog__eyebrow {
+    color: var(--sl-color-accent-high);
+    font-size: var(--sl-text-sm);
+    font-weight: 700;
+  }
+
+  .beta-download-dialog__header h2 {
+    margin: 0.15rem 0 0;
+    font-size: clamp(1.2rem, 1.8vw, 1.55rem);
+    line-height: 1.2;
+  }
+
+  .beta-download-dialog__header p:not(.beta-download-dialog__eyebrow) {
+    margin-top: 0.35rem;
+    color: var(--sl-color-gray-2);
+    font-size: var(--sl-text-sm);
+    line-height: 1.45;
+  }
+
+  .beta-download-dialog__close,
+  .beta-download-dialog__secondary {
+    color: var(--sl-color-white);
+    background: transparent;
+    border: 1px solid var(--sl-color-gray-4);
+    cursor: pointer;
+  }
+
+  .beta-download-dialog__close {
+    flex: 0 0 auto;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    border-radius: 999px;
+    font-size: 1.75rem;
+    line-height: 1;
+  }
+
+  .beta-download-dialog__secondary {
+    min-height: 2.5rem;
+    padding: 0.45rem 0.9rem;
+    border-radius: 8px;
+    font: inherit;
+  }
+
+  .beta-download-dialog__close:hover,
+  .beta-download-dialog__close:focus-visible,
+  .beta-download-dialog__secondary:hover,
+  .beta-download-dialog__secondary:focus-visible {
+    color: var(--sl-color-black);
+    background: var(--sl-color-accent-high);
+    border-color: var(--sl-color-accent-high);
+  }
+
+  .beta-download-dialog__content {
+    min-height: 0;
+    padding: 1.25rem min(5vw, 3rem) 2rem;
+    overflow: auto;
+    overscroll-behavior: contain;
+    background: var(--sl-color-bg);
+    scrollbar-gutter: stable;
+  }
+
+  .beta-download-dialog__content:focus {
+    outline: none;
+  }
+
+  .beta-download-dialog__content:focus-visible {
+    outline: 2px solid var(--sl-color-accent-high);
+    outline-offset: -2px;
+  }
+
+  .beta-download-dialog__content :global(> :first-child) {
+    margin-top: 0;
+  }
+
+  .beta-download-dialog__download {
+    margin-inline-end: auto;
+  }
+
+  @media (max-width: 44rem) {
+    .beta-download-dialog {
+      width: 100vw;
+      height: 100vh;
+      border-radius: 0;
+    }
+
+    .beta-download-dialog__header {
+      align-items: flex-start;
+      padding: 0.85rem;
+    }
+
+    .beta-download-dialog__footer {
+      padding: 0.9rem;
+    }
+
+    .beta-download-dialog__content {
+      padding: 1rem;
+    }
+
+    .beta-download-dialog__download,
+    .beta-download-dialog__secondary {
+      width: 100%;
+      text-align: center;
+    }
+  }
+</style>

@@ -62,27 +62,3 @@ Error FileItem::getFilenameWithoutExtension(String* filenameWithoutExtension) {
 	}
 	return Error::NONE;
 }
-
-Error FileItem::getDisplayNameWithoutExtension(String* displayNameWithoutExtension) {
-	if (display->haveOLED()) {
-		return getFilenameWithoutExtension(displayNameWithoutExtension);
-	}
-
-	// 7SEG...
-	Error error = displayNameWithoutExtension->set(displayName);
-	if (error != Error::NONE) {
-		return error;
-	}
-	if (filenameIncludesExtension) {
-		char const* chars = displayNameWithoutExtension->get();
-		char const* dotAddress = strrchr(chars, '.');
-		if (dotAddress) {
-			int32_t newLength = (uint32_t)dotAddress - (uint32_t)chars;
-			error = displayNameWithoutExtension->shorten(newLength);
-			if (error != Error::NONE) {
-				return error;
-			}
-		}
-	}
-	return Error::NONE;
-}

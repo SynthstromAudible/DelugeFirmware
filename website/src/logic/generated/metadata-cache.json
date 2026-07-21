@@ -151,6 +151,12 @@
     "title": "Deluge Random Synth",
     "url": "https://randomdelugesynth.azurewebsites.net/"
   },
+  "https://solaris76.github.io/Deluge-Synth-Editor/": {
+    "image": "https://solaris76.github.io/Deluge-Synth-Editor/logo-deluge@2x.png",
+    "siteName": "solaris76.github.io",
+    "title": "Deluge Synth Editor",
+    "url": "https://solaris76.github.io/Deluge-Synth-Editor/"
+  },
   "https://www.fentonia.com/catnip/midian/index.html": {
     "siteName": "www.fentonia.com",
     "title": "Midian",

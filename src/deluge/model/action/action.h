@@ -19,6 +19,8 @@
 
 #include "definitions_cxx.hpp"
 #include "model/scale/note_set.h"
+#include "util/container/enum_to_string_map.hpp"
+
 #include <cstdint>
 
 class Consequence;
@@ -71,6 +73,8 @@ enum class ActionType {
 	NOTEROW_LENGTH_EDIT,
 	NOTEROW_HORIZONTAL_SHIFT,
 };
+
+extern EnumStringMap<ActionType, 28> actionTypeMap;
 
 class Action {
 public:

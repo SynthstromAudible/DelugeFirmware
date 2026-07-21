@@ -712,6 +712,8 @@ ActionResult SoundEditor::exitCompletely() {
 	}
 	else if (inNoteEditor()) {
 		instrumentClipView.exitNoteEditor();
+		// refresh grid to potentially unhighlight edited notes
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 	}
 	else if (inNoteRowEditor()) {
 		instrumentClipView.exitNoteRowEditor();

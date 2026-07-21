@@ -33,15 +33,15 @@
 // is implicitly position-independent because all jumps (except `bx/blx` to
 // registers) in armv7a are relative.
 //
-// All of this work needs to be done with the MMU and caches disabled because
-// the RZ/A1L cache is extremely broken, and doesn't respect most of the cache
-// maintenance operations. This includes CP15 MCRs, the usual DMB/IMB
-// instructions, and the ARM-recommended L1$ flush logic.
-//
-// It's possible all of this actually works and it's the L2$ misbehaving -- We
-// haven't tried flushing that cache instead yet. But disabling the MMU is
-// easy, doesn't cost meaningful performance here, and seems to work (mostly)
-// reliably.
+// All of this work is done with the MMU and caches disabled so the copies go
+// straight to physical RAM. (This comment used to claim the RZ/A1 cache
+// "doesn't respect" maintenance operations; it does. The historical
+// unreliability had a different cause: disabling the D-cache doesn't empty
+// it, so lines left dirty by the old firmware were written back over freshly
+// copied words by the DCCMVAU housekeeping below. chainload_from_buf() now
+// cleans & invalidates every range this code touches - while the MMU is still
+// on, before jumping here - which is what the "works (mostly) reliably"
+// caveat that used to live in this comment was missing.)
   .align 4
   .text
   .arm

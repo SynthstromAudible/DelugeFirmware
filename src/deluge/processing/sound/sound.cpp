@@ -1535,6 +1535,7 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 	arpeggiator->noteOn(arpSettings, noteCodePreArp, velocity, &instruction, fromMIDIChannel, mpeValues);
 
 	bool atLeastOneNoteOn = false;
+	bool atLeastOneNoteLeftPending = false;
 	if (instruction.arpNoteOn != nullptr) {
 		for (int32_t n = 0; n < ARP_MAX_INSTRUCTION_NOTES; n++) {
 			if (instruction.arpNoteOn->noteCodeOnPostArp[n] == ARP_NOTE_NONE) {
@@ -1553,8 +1554,9 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 			}
 			else {
 				// D_PRINTLN("couldn't start note from sound::noteon");
+				// It stays PENDING, and render() will start it as soon as a voice is available
+				atLeastOneNoteLeftPending = true;
 			}
-			// todo: end pending note?
 		}
 	}
 	if (!atLeastOneNoteOn) {
@@ -1563,6 +1565,11 @@ void Sound::noteOn(ModelStackWithThreeMainThings* modelStack, ArpeggiatorBase* a
 		if (arpSettings != nullptr && arpeggiator->hasAnyInputNotesActive() && arpSettings->mode != ArpMode::OFF) {
 			reassessRenderSkippingStatus(modelStackWithSoundFlags);
 		}
+	}
+	else if (atLeastOneNoteLeftPending) {
+		// We started no voice for that note, so nothing else will have taken us out of render-skipping - and render()
+		// is the only thing that can start the pending note (issue #2262)
+		reassessRenderSkippingStatus(modelStackWithSoundFlags);
 	}
 }
 
@@ -2161,9 +2168,12 @@ void Sound::reassessRenderSkippingStatus(ModelStackWithSoundFlags* modelStack, b
 	// ModelStack, cos many deeper-nested functions called by this one need it too!
 	ArpeggiatorSettings* arpSettings = getArpSettings();
 
+	// A note that couldn't get a voice yet is only ever started from render(), so we must keep rendering while one is
+	// pending - otherwise it'd stay pending forever (issue #2262)
 	bool skippingStatusNow =
 	    (voices_.empty() && (delay.repeatsUntilAbandon == 0u) && !stutterer.isStuttering(this)
-	     && ((arpSettings == nullptr) || !getArp()->hasAnyInputNotesActive() || arpSettings->mode == ArpMode::OFF));
+	     && ((arpSettings == nullptr) || !getArp()->hasAnyInputNotesActive() || arpSettings->mode == ArpMode::OFF)
+	     && !getArp()->hasPendingNotes(arpSettings));
 
 	if (skippingStatusNow != skippingRendering) {
 
@@ -3132,8 +3142,11 @@ void Sound::setNumUnison(int32_t newNum, ModelStackWithSoundFlags* modelStack) {
 							VoiceSample& newVoiceSample = *newPart->voiceSample;
 							VoiceSample& oldVoiceSample = *oldPart->voiceSample;
 
-							// Just clones the SampleLowLevelReader stuff
-							newVoiceSample = SampleLowLevelReader(oldVoiceSample);
+							// Just clones the SampleLowLevelReader stuff - assign through the base subobject so this
+							// can't slice via the implicit VoiceSample(SampleLowLevelReader&&) conversion and clobber
+							// the derived members (timeStretcher/cache). See the matching guard in
+							// TimeStretcher::hopEnd.
+							static_cast<SampleLowLevelReader&>(newVoiceSample) = SampleLowLevelReader(oldVoiceSample);
 							newVoiceSample.pendingSamplesLate = oldVoiceSample.pendingSamplesLate;
 							newVoiceSample.doneFirstRenderYet = true;
 

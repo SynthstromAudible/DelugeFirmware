@@ -756,34 +756,40 @@ startAgain:
 		// And now we know how long the window's definitely going to be, see if we want to do any trigger clock or
 		// MIDI clock out ticks during it
 		if (!stemExport.renderingOffline()) {
-			if (playbackHandler.triggerClockOutTickScheduled) {
-				int32_t timeTilTriggerClockOutTick = playbackHandler.timeNextTriggerClockOutTick - audioSampleTimer;
-				if (std::cmp_less(timeTilTriggerClockOutTick, numSamples)) {
-					playbackHandler.doTriggerClockOutTick();
-					playbackHandler.scheduleTriggerClockOutTick(); // Schedules another one
+			// only send trigger clock out if you've enabled it
+			if (cvEngine.isTriggerClockOutputEnabled()) {
+				if (playbackHandler.triggerClockOutTickScheduled) {
+					int32_t timeTilTriggerClockOutTick = playbackHandler.timeNextTriggerClockOutTick - audioSampleTimer;
+					if (std::cmp_less(timeTilTriggerClockOutTick, numSamples)) {
+						playbackHandler.doTriggerClockOutTick();
+						playbackHandler.scheduleTriggerClockOutTick(); // Schedules another one
 
-					if (timeWithinWindowAtWhichMIDIOrGateOccurs == -1) {
-						timeWithinWindowAtWhichMIDIOrGateOccurs = timeTilTriggerClockOutTick;
+						if (timeWithinWindowAtWhichMIDIOrGateOccurs == -1) {
+							timeWithinWindowAtWhichMIDIOrGateOccurs = timeTilTriggerClockOutTick;
+						}
 					}
 				}
-			}
-			else {
-				playbackHandler.scheduleTriggerClockOutTick();
-			}
-
-			if (playbackHandler.midiClockOutTickScheduled) {
-				int32_t timeTilMIDIClockOutTick = playbackHandler.timeNextMIDIClockOutTick - audioSampleTimer;
-				if (std::cmp_less(timeTilMIDIClockOutTick, numSamples)) {
-					playbackHandler.doMIDIClockOutTick();
-					playbackHandler.scheduleMIDIClockOutTick(); // Schedules another one
-
-					if (timeWithinWindowAtWhichMIDIOrGateOccurs == -1) {
-						timeWithinWindowAtWhichMIDIOrGateOccurs = timeTilMIDIClockOutTick;
-					}
+				else {
+					playbackHandler.scheduleTriggerClockOutTick();
 				}
 			}
-			else {
-				playbackHandler.scheduleMIDIClockOutTick();
+
+			// only send midi clock out if you've enabled it
+			if (playbackHandler.currentlySendingMIDIOutputClocks()) {
+				if (playbackHandler.midiClockOutTickScheduled) {
+					int32_t timeTilMIDIClockOutTick = playbackHandler.timeNextMIDIClockOutTick - audioSampleTimer;
+					if (std::cmp_less(timeTilMIDIClockOutTick, numSamples)) {
+						playbackHandler.doMIDIClockOutTick();
+						playbackHandler.scheduleMIDIClockOutTick(); // Schedules another one
+
+						if (timeWithinWindowAtWhichMIDIOrGateOccurs == -1) {
+							timeWithinWindowAtWhichMIDIOrGateOccurs = timeTilMIDIClockOutTick;
+						}
+					}
+				}
+				else {
+					playbackHandler.scheduleMIDIClockOutTick();
+				}
 			}
 		}
 	}
@@ -1045,10 +1051,32 @@ void routine() {
 				sideChainHitPending = 0;
 				audioSampleTimer += numSamples;
 				doSomeOutputting();
-				// gross and hacky way to make sure the audio recorder writes all of its data so it can't be stolen
-				while (audioRecorder.recorder->firstUnwrittenClusterIndex
-				       < audioRecorder.recorder->currentRecordClusterIndex) {
-					doRecorderCardRoutines();
+
+				// Write out the recorder's completed clusters so they can't be stolen. There's no recorder at all
+				// between stems, and one that has hit a card error or been aborted (RAM exhaustion) will never
+				// advance firstUnwrittenClusterIndex again, because cardRoutine() early-returns in both cases -
+				// so bail on those, and bound the loop regardless rather than trusting that list to be complete.
+				SampleRecorder* recorder = audioRecorder.recorder;
+				if (recorder != nullptr) {
+					// Each call writes at most one cluster, and we don't render (so can't produce new ones) until
+					// the drain finishes. The slack covers calls that return without reaching this recorder at all:
+					// doRecorderCardRoutines() abandons its traversal whenever a recorder was recently created.
+					int32_t callsRemaining =
+					    recorder->currentRecordClusterIndex - recorder->firstUnwrittenClusterIndex + 8;
+
+					while (callsRemaining-- > 0) {
+						if (recorder->hadCardError || recorder->status >= RecorderStatus::COMPLETE
+						    || recorder->firstUnwrittenClusterIndex >= recorder->currentRecordClusterIndex) {
+							break;
+						}
+
+						doRecorderCardRoutines();
+
+						// doRecorderCardRoutines() can finish and free recorders - don't trust the pointer after it
+						if (audioRecorder.recorder != recorder) {
+							break;
+						}
+					}
 				}
 
 				audioFileManager.loadAnyEnqueuedClusters(128, false);
@@ -1507,9 +1535,10 @@ void slowRoutine() {
 	doRecorderCardRoutines();
 }
 
+// will need to take in the config argument
 SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderID, AudioInputChannel mode,
                                bool keepFirstReasons, bool writeLoopPoints, int32_t buttonPressLatency,
-                               bool shouldNormalize, Output* outputRecordingFrom) {
+                               bool shouldNormalize, Output* outputRecordingFrom, RecorderConfig config) {
 	Error error;
 
 	void* recorderMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SampleRecorder));
@@ -1518,9 +1547,8 @@ SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderI
 	}
 
 	SampleRecorder* newRecorder = new (recorderMemory) SampleRecorder();
-
 	error = newRecorder->setup(numChannels, mode, keepFirstReasons, writeLoopPoints, folderID, buttonPressLatency,
-	                           outputRecordingFrom);
+	                           outputRecordingFrom, config);
 	if (error != Error::NONE) {
 errorAfterAllocation:
 		newRecorder->~SampleRecorder();
@@ -1554,7 +1582,15 @@ errorAfterAllocation:
 }
 
 // PLEASE don't call this if there's any chance you might be in the SD card routine...
+// ...because the recorder may be suspended part-way through its own cardRoutine(), and freeing it there leaves that
+// cardRoutine() operating on freed memory before handing it back to doRecorderCardRoutines() to be freed a second
+// time. That's a double free, and it surfaces as M123 from the allocator, a long way from here - so rather than
+// leaving the rule as a comment for each caller to honour, enforce it.
 void discardRecorder(SampleRecorder* recorder) {
+	if (ALPHA_OR_BETA_VERSION && (sdRoutineLock || currentlyAccessingCard)) {
+		FREEZE_WITH_ERROR("E251");
+	}
+
 	int32_t count = 0;
 	SampleRecorder** prevPointer = &firstRecorder;
 	while (*prevPointer) {
