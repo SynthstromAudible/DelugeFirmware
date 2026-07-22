@@ -983,7 +983,7 @@ bool Browser::predictExtendedText() {
 	// typing begins with a digit, treat the prefix as implicitly typed - otherwise "1" would match nothing. The typed
 	// portion of enteredText is [0, enteredTextEditPos), so the prefix has to go *into* enteredText and be counted,
 	// not merely prepended to the search key.
-	if (filePrefix && enteredTextEditPos > 0) {
+	if (display->have7SEG() && filePrefix && enteredTextEditPos > 0) {
 		char const* typed = enteredText.get();
 		if (typed[0] >= '0' && typed[0] <= '9') {
 			int32_t prefixLength = strlen(filePrefix);
