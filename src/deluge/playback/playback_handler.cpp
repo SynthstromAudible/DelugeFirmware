@@ -3000,6 +3000,63 @@ bool PlaybackHandler::offerNoteToLearnedThings(MIDICable& cable, bool on, int32_
 	return foundAnything;
 }
 
+// ---- Sustain (damper) pedal helpers (MIDI CC 64) ----
+
+bool PlaybackHandler::holdSustainedNote(MIDICable& cable, int32_t channel, int32_t note, int32_t velocity) {
+	// If we're already holding this exact note, just refresh its release velocity.
+	for (int32_t i = 0; i < numHeldSustainNotes; i++) {
+		HeldSustainNote& h = heldSustainNotes[i];
+		if (h.cable == &cable && h.channel == channel && h.note == note) {
+			h.velocity = velocity;
+			return true;
+		}
+	}
+	if (numHeldSustainNotes >= kMaxNumHeldSustainNotes) {
+		return false; // Table full - caller will release the note normally.
+	}
+	HeldSustainNote& h = heldSustainNotes[numHeldSustainNotes++];
+	h.cable = &cable;
+	h.channel = (uint8_t)channel;
+	h.note = (uint8_t)note;
+	h.velocity = (uint8_t)velocity;
+	return true;
+}
+
+void PlaybackHandler::forgetSustainedNote(MIDICable& cable, int32_t channel, int32_t note) {
+	for (int32_t i = 0; i < numHeldSustainNotes; i++) {
+		HeldSustainNote& h = heldSustainNotes[i];
+		if (h.cable == &cable && h.channel == channel && h.note == note) {
+			heldSustainNotes[i] = heldSustainNotes[--numHeldSustainNotes];
+			return;
+		}
+	}
+}
+
+void PlaybackHandler::releaseSustainedNotesForChannel(MIDICable& cable, int32_t channel, bool* doingMidiThru) {
+	for (int32_t i = 0; i < numHeldSustainNotes;) {
+		HeldSustainNote& h = heldSustainNotes[i];
+		if (h.cable == &cable && h.channel == channel) {
+			int32_t note = h.note;
+			int32_t velocity = h.velocity;
+			// Remove the entry before replaying, so the replayed note-off can't be re-held.
+			heldSustainNotes[i] = heldSustainNotes[--numHeldSustainNotes];
+			noteMessageReceived(cable, false, channel, note, velocity, doingMidiThru);
+		}
+		else {
+			i++;
+		}
+	}
+}
+
+void PlaybackHandler::clearSustainedNotes() {
+	// Replay every deferred note-off so nothing is left hanging, then clear all pedal flags.
+	while (numHeldSustainNotes > 0) {
+		HeldSustainNote h = heldSustainNotes[--numHeldSustainNotes];
+		bool doingMidiThru = false;
+		noteMessageReceived(*h.cable, false, h.channel, h.note, h.velocity, &doingMidiThru);
+	}
+}
+
 void PlaybackHandler::noteMessageReceived(MIDICable& cable, bool on, int32_t channel, int32_t note, int32_t velocity,
                                           bool* doingMidiThru) {
 	// If user assigning/learning MIDI commands, do that
@@ -3019,6 +3076,23 @@ void PlaybackHandler::noteMessageReceived(MIDICable& cable, bool on, int32_t cha
 
 	if (offerNoteToLearnedThings(cable, on, channel, note)) {
 		return;
+	}
+
+	// Sustain (damper) pedal handling. Only for normal (non-MPE) channels 0-15.
+	if (channel >= 0 && channel < 16 && note >= 0 && note <= 127
+	    && !cable.ports[MIDI_DIRECTION_INPUT_TO_DELUGE].isChannelPartOfAnMPEZone(channel)) {
+		if (on) {
+			// A fresh note-on retriggers the note: drop any deferred note-off for it so the pedal
+			// release later on can't cut the new note short.
+			forgetSustainedNote(cable, channel, note);
+		}
+		else if (cable.inputChannels[channel].sustainPedalDown) {
+			// Pedal is down: defer this note-off until the pedal is released. If the store is full
+			// we fall through and release the note normally, so notes can never get stuck.
+			if (holdSustainedNote(cable, channel, note, velocity)) {
+				return;
+			}
+		}
 	}
 
 	bool shouldRecordNotesNowNow = shouldRecordNotesNow();
@@ -3186,6 +3260,23 @@ void PlaybackHandler::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t 
 		else if (offerNoteToLearnedThings(cable, value > 0, channelOrZone + IS_A_CC, ccNumber)) {
 			return;
 		}
+	}
+
+	// Sustain (damper) pedal: MIDI CC 64. Standard convention is value >= 64 means pressed.
+	// Handled here (after MIDI-learn, which is dealt with above) so a real pedal just works, while
+	// users can still learn CC64 to something else in MIDI-learn mode if they prefer.
+	if (!isMPE && ccNumber == 64 && channel < 16) {
+		bool pedalDown = (value >= 64);
+		MIDIInputChannel& inputChannel = cable.inputChannels[channel];
+		if (!pedalDown && inputChannel.sustainPedalDown) {
+			// Clear the flag *before* replaying note-offs so they aren't immediately re-held.
+			inputChannel.sustainPedalDown = false;
+			releaseSustainedNotesForChannel(cable, channel, doingMidiThru);
+		}
+		else {
+			inputChannel.sustainPedalDown = pedalDown;
+		}
+		return;
 	}
 
 	char modelStackMemory[MODEL_STACK_MAX_SIZE];

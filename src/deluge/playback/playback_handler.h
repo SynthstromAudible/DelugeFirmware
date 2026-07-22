@@ -199,6 +199,11 @@ public:
 
 	void noteMessageReceived(MIDICable& cable, bool on, int32_t channel, int32_t note, int32_t velocity,
 	                         bool* doingMidiThru);
+
+	/// Release every note-off currently being held by a sustain (damper) pedal, and clear all
+	/// pedal state. Safe to call at any time (e.g. on playback stop or song swap) to avoid stuck notes.
+	void clearSustainedNotes();
+
 	bool subModeAllowsRecording();
 
 	float calculateBPM(float timePerInternalTick);
@@ -280,6 +285,27 @@ private:
 	void scheduleMIDIClockOutTickParamsKnown(uint32_t midiClockOutTicksPer, uint64_t fractionLastTimerTick,
 	                                         uint64_t fractionNextMIDIClockOutTick);
 	void scheduleMIDIClockOutTickFromExternalClock();
+
+	// --- Sustain (damper) pedal support (MIDI CC 64) ---
+	// While a channel's pedal is held, incoming note-offs are stored here and replayed when the
+	// pedal is released. Fixed-size and allocation-free so it is safe to touch from the MIDI thread.
+	struct HeldSustainNote {
+		MIDICable* cable;
+		uint8_t channel;
+		uint8_t note;
+		uint8_t velocity;
+	};
+	static constexpr int32_t kMaxNumHeldSustainNotes = 64;
+	HeldSustainNote heldSustainNotes[kMaxNumHeldSustainNotes];
+	int32_t numHeldSustainNotes = 0;
+
+	// Store a deferred note-off. Returns false if the table is full (caller should then let the
+	// note-off through normally so notes can never get stuck).
+	bool holdSustainedNote(MIDICable& cable, int32_t channel, int32_t note, int32_t velocity);
+	// Drop any deferred note-off matching cable+channel+note (used when a note is retriggered).
+	void forgetSustainedNote(MIDICable& cable, int32_t channel, int32_t note);
+	// Replay and clear all deferred note-offs for a given cable+channel (pedal released).
+	void releaseSustainedNotesForChannel(MIDICable& cable, int32_t channel, bool* doingMidiThru);
 };
 
 extern PlaybackHandler playbackHandler;
