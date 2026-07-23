@@ -21,6 +21,7 @@
 #include "gui/menu_item/colour.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/led/pad_leds.h"
+#include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_transpose.h"
 #include "model/scale/preset_scales.h"
@@ -51,6 +52,27 @@ namespace FlashStorage {
 
 // Static declarations
 static bool areAutomationSettingsValid(std::span<uint8_t> buffer);
+static bool areLegacyMidiFollowSettingsValid(std::span<uint8_t> buffer);
+
+/// MIDIFollowChannelType::NONE as it was numbered before c1.3 inserted Track ahead of it.
+constexpr uint8_t kLegacyMidiFollowChannelTypeNone = 3;
+
+/// First community release to store MIDI-follow settings at bytes 126-145. c1.0.x put unrelated settings there
+/// (see PR #843, which shuffled the block), so migrating from anything older reads garbage.
+constexpr FirmwareVersion kFirstVersionWithLegacyMidiFollowBlock = FirmwareVersion::community({1, 1, 0});
+
+/// First community release to keep MIDI-follow settings in SETTINGS/MIDIFollow.XML instead of flash (PR #4526).
+constexpr FirmwareVersion kFirstVersionWithMidiFollowXML = FirmwareVersion::community({1, 3, 0});
+
+static bool legacyMidiFollowSettingsPending = false;
+
+bool areLegacyMidiFollowSettingsPending() {
+	return legacyMidiFollowSettingsPending;
+}
+
+void clearLegacyMidiFollowSettingsPending() {
+	legacyMidiFollowSettingsPending = false;
+}
 
 enum Entries {
 	FIRMWARE_TYPE = 0,
@@ -144,7 +166,11 @@ enum Entries {
 124: defaultKeyboardLayout
 125: gridEmptyPadsUnarm
 
-126-145: free (previously reserved for midi follow)
+126-145: free as of c1.3, which moved midi follow settings into SETTINGS/MIDIFollow.XML. Held midi follow only
+         between c1.1 and c1.2 - c1.0 had an unrelated layout here (see PR #843). Still read (never written) by
+         the one-time c1.1/c1.2 migration in readSettings(), so don't reuse these until that goes away:
+         126-128 follow channel A/B/C, 129 kit root note, 130 display param, 131 feedback channel type,
+         132 feedback automation mode, 133 feedback filter, 134-145 follow device A/B/C references
 
 146: gridEmptyPadsCreateRec
 147: midi select kit row on learned note message received
@@ -614,6 +640,46 @@ void readSettings() {
 
 	gridEmptyPadsUnarm = buffer[125];
 
+	// Between c1.1 and c1.2, MIDI-follow settings lived in flash bytes 126-145. c1.3 moved them into
+	// SETTINGS/MIDIFollow.XML, which left everyone upgrading from 1.2 with MIDI follow silently switched off - the new
+	// file has no record of the old settings, so every follow channel came back as MIDI_CHANNEL_NONE and nothing
+	// reached the instruments. Pull them out of flash one last time; midiFollow.readDefaultsFromFile() runs shortly
+	// after us, persists them to the XML, and only then stamps this firmware's version into flash so we stop.
+	//
+	// This only works while the old bytes survive. writeSettings() zero-fills the whole buffer and no longer writes
+	// 126-145, so the first settings write on c1.3 destroys them - which is also why this can't be driven off the
+	// values themselves (a zeroed byte 126 is indistinguishable from a genuine "channel 1").
+	if (savedVersion.type() == FirmwareVersion::Type::COMMUNITY
+	    && savedVersion >= kFirstVersionWithLegacyMidiFollowBlock && savedVersion < kFirstVersionWithMidiFollowXML
+	    && areLegacyMidiFollowSettingsValid(buffer)) {
+		midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::A)].channelOrZone = buffer[126];
+		midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::B)].channelOrZone = buffer[127];
+		midiEngine.midiFollowChannelType[util::to_underlying(MIDIFollowChannelType::C)].channelOrZone = buffer[128];
+		MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::A, &buffer[134]);
+		/* buffer[135]  \
+		   buffer[136]   device reference above occupies 4 bytes
+		   buffer[137] */
+		MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::B, &buffer[138]);
+		/* buffer[139]  \
+		   buffer[140]   device reference above occupies 4 bytes
+		   buffer[141] */
+		MIDIDeviceManager::readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType::C, &buffer[142]);
+		/* buffer[143]  \
+		   buffer[144]   device reference above occupies 4 bytes
+		   buffer[145] */
+		midiEngine.midiFollowKitRootNote = buffer[129];
+		midiEngine.midiFollowDisplayParam = !!buffer[130];
+		// MIDIFollowChannelType was {A, B, C, NONE} before c1.3 inserted Track at 3 and pushed NONE out to 4, so the
+		// stored 3 has to be remapped or it comes back as Track. A/B/C keep their values.
+		midiEngine.midiFollowFeedbackChannelType = (buffer[131] == kLegacyMidiFollowChannelTypeNone)
+		                                               ? MIDIFollowChannelType::NONE
+		                                               : static_cast<MIDIFollowChannelType>(buffer[131]);
+		midiEngine.midiFollowFeedbackAutomation = static_cast<MIDIFollowFeedbackAutomationMode>(buffer[132]);
+		midiEngine.midiFollowFeedbackFilter = !!buffer[133];
+
+		legacyMidiFollowSettingsPending = true;
+	}
+
 	gridEmptyPadsCreateRec = buffer[146];
 
 	midiEngine.midiSelectKitRow = buffer[147];
@@ -775,6 +841,39 @@ void readSettings() {
 	else {
 		defaultPatchCablePolarity = static_cast<Polarity>(buffer[189]);
 	}
+}
+
+/// Sanity-check the pre-c1.3 MIDI-follow block (bytes 126-145) before migrating it. Same checks the deleted
+/// areMidiFollowSettingsValid() used, against the enum values as they were numbered back then.
+static bool areLegacyMidiFollowSettingsValid(std::span<uint8_t> buffer) {
+	// follow channel A/B/C
+	for (int32_t i = 126; i <= 128; i++) {
+		if (buffer[i] >= NUM_CHANNELS && buffer[i] != MIDI_CHANNEL_NONE) {
+			return false;
+		}
+	}
+	// midiFollowKitRootNote
+	if (buffer[129] > kMaxMIDIValue) {
+		return false;
+	}
+	// midiFollowDisplayParam
+	if (buffer[130] != 0 && buffer[130] != 1) {
+		return false;
+	}
+	// midiFollowFeedbackChannelType
+	if (buffer[131] > kLegacyMidiFollowChannelTypeNone) {
+		return false;
+	}
+	// midiFollowFeedbackAutomation
+	if (buffer[132] > util::to_underlying(kLastValidMIDIFollowFeedbackAutomationMode)) {
+		return false;
+	}
+	// midiFollowFeedbackFilter
+	if (buffer[133] != 0 && buffer[133] != 1) {
+		return false;
+	}
+
+	return true;
 }
 
 static bool areAutomationSettingsValid(std::span<uint8_t> buffer) {

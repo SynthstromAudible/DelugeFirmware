@@ -39,7 +39,8 @@ namespace params = deluge::modulation::params;
 class MidiFollow final {
 public:
 	MidiFollow();
-	void writeDefaultsToFile();
+	/// @return true if the file was actually written to the card.
+	bool writeDefaultsToFile();
 	void readDefaultsFromFile();
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStackWithTimelineCounter,
@@ -157,6 +158,8 @@ private:
 
 	// Loading
 	bool successfullyReadDefaultsFromFile;
+
+	void completeLegacyFlashMigration(bool defaultsWereWritten);
 
 	// CC Mappings
 	void readDefaultMappingsFromFile(Deserializer& reader);
