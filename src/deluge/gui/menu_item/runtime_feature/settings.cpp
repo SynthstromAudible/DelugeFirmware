@@ -19,6 +19,7 @@
 #include "devSysexSetting.h"
 #include "emulated_display.h"
 #include "hid/display/display.h"
+#include "hid/display/oled_canvas/canvas.h"
 #include "setting.h"
 #include "shift_is_sticky.h"
 #include <array>
@@ -28,11 +29,23 @@ extern deluge::gui::menu_item::runtime_feature::Setting runtimeFeatureSettingMen
 namespace deluge::gui::menu_item::runtime_feature {
 
 // A SettingToggle that is only relevant (and thus only shown) when an OLED display is
-// active. Used for features that have no effect on the 7-segment display.
-class OledOnlySettingToggle final : public SettingToggle {
+// active — real or emulated. Used for features that have no effect in 7-segment mode.
+class OledOnlySettingToggle : public SettingToggle {
 public:
 	using SettingToggle::SettingToggle;
 	bool isRelevant(ModControllableAudio*, int32_t) override { return display->haveOLED(); }
+};
+
+// The RoundedCorners toggle additionally pushes its value into the Canvas drawing flag,
+// so the low-level primitives don't have to read runtime feature settings themselves.
+class RoundedCornersSettingToggle final : public OledOnlySettingToggle {
+public:
+	using OledOnlySettingToggle::OledOnlySettingToggle;
+	void writeCurrentValue() override {
+		OledOnlySettingToggle::writeCurrentValue();
+		hid::display::oled_canvas::Canvas::roundedCornersEnabled =
+		    runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundedCorners);
+	}
 };
 
 // Generic menu item instances
@@ -59,7 +72,7 @@ SettingToggle menuAlternativeTapTempoBehaviour(RuntimeFeatureSettingType::Altern
 OledOnlySettingToggle menuHorizontalMenus(RuntimeFeatureSettingType::HorizontalMenus);
 SettingToggle menuTrimFromStartOfAudioClip(RuntimeFeatureSettingType::TrimFromStartOfAudioClip);
 SettingToggle menuShowBatteryLevel(RuntimeFeatureSettingType::ShowBatteryLevel);
-OledOnlySettingToggle menuRoundedCorners(RuntimeFeatureSettingType::RoundedCorners);
+RoundedCornersSettingToggle menuRoundedCorners(RuntimeFeatureSettingType::RoundedCorners);
 
 std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
     &menuDrumRandomizer,

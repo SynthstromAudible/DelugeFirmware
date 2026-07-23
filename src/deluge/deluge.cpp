@@ -818,6 +818,8 @@ extern "C" int32_t deluge_main(void) {
 
 	// Hopefully we can read these files now
 	runtimeFeatureSettings.readSettingsFromFile();
+	deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled =
+	    runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundedCorners);
 	MIDIDeviceManager::readDevicesFromFile();
 	midiFollow.readDefaultsFromFile();
 	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
