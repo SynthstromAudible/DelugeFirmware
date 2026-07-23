@@ -837,7 +837,7 @@ Instrument* ArrangerView::createNewInstrument(OutputType newOutputType, bool* in
 
 	if (!newInstrument) {
 		String newPresetName;
-		fileItem->getDisplayNameWithoutExtension(&newPresetName);
+		fileItem->getFilenameWithoutExtension(&newPresetName);
 		error = StorageManager::loadInstrumentFromFile(currentSong, nullptr, newOutputType, false, &newInstrument,
 		                                               &fileItem->filePointer, &newPresetName, &Browser::currentDir);
 	}
@@ -1839,6 +1839,11 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 
 		if (clip->type == ClipType::INSTRUMENT) {
 			instrumentClipView.recalculateColours();
+			// Automation view reuses instrument clip offscreen rows during explode animations.
+			instrumentClipView.fillOffScreenImageStores();
+		}
+		else {
+			PadLEDs::clearTransitionStoreOffScreenRows();
 		}
 
 		automationView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1], false);
@@ -1948,7 +1953,9 @@ bool ArrangerView::transitionToArrangementEditor() {
 
 	memcpy(PadLEDs::imageStore[1], PadLEDs::image, (kDisplayWidth + kSideBarWidth) * kDisplayHeight * sizeof(RGB));
 	memcpy(PadLEDs::occupancyMaskStore[1], PadLEDs::occupancyMask, (kDisplayWidth + kSideBarWidth) * kDisplayHeight);
-	if (getCurrentUI() == &instrumentClipView) {
+	// Both instrument and automation views need the offscreen instrument rows for a complete collapse into Arranger.
+	if (getCurrentClip()->type == ClipType::INSTRUMENT
+	    && (getCurrentUI() == &instrumentClipView || getCurrentUI() == &automationView)) {
 		instrumentClipView.fillOffScreenImageStores();
 	}
 

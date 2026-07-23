@@ -63,6 +63,11 @@ bool LoadInstrumentPresetUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* row
 
 bool LoadInstrumentPresetUI::opened() {
 
+	// The QWERTY keyboard is always shown in this UI (qwertyAlwaysVisible stays true), so the favourites row should
+	// be too. The static qwertyVisible flag can be left false by another browser (e.g. song load with the keyboard
+	// toggled off); without resetting it here the favourites row would stay hidden until something else set it. #4674
+	qwertyVisible = true;
+
 	if (getRootUI() == &keyboardScreen) {
 		PadLEDs::skipGreyoutFade();
 	}
@@ -336,7 +341,6 @@ void LoadInstrumentPresetUI::enterKeyPress() {
 
 		if (currentFileItem
 		        ->instrument) { // When would this not have something? Well ok, maybe now that we have folders.
-			convertToPrefixFormatIfPossible();
 		}
 
 		if (outputTypeToLoad == OutputType::KIT && showingAuditionPads()) {
@@ -366,7 +370,6 @@ doChangeOutputType:
 			if (inCardRoutine) {
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
-			convertToPrefixFormatIfPossible(); // Why did I put this here?
 			changeOutputType(newOutputType);
 		}
 	}
@@ -431,7 +434,6 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 
 		if (available) {
 			display->setNextTransitionDirection(1);
-			convertToPrefixFormatIfPossible();
 			openUI(&gui::context_menu::loadInstrumentPreset);
 		}
 		else {
@@ -1085,8 +1087,7 @@ Error LoadInstrumentPresetUI::performLoadSynthToKit() {
 	display->displayLoadingAnimationText("Loading", false, true);
 	soundDrumToReplace->loadAllSamples(true);
 
-	// soundDrumToReplace->name.set(getCurrentFilenameWithoutExtension());
-	soundDrumToReplace->drumName = getCurrentFilenameWithoutExtension();
+	soundDrumToReplace->drumName = enteredText.get();
 	soundDrumToReplace->path.set(&currentDir);
 	ParamManager* paramManager =
 	    currentSong->getBackedUpParamManagerPreferablyWithClip(soundDrumToReplace, instrumentClipToLoadFor);
@@ -1566,7 +1567,7 @@ doneMoving:
 		view.displayOutputName(toReturn.fileItem->instrument, doBlink);
 	}
 	else {
-		toReturn.error = toReturn.fileItem->getDisplayNameWithoutExtension(&newName);
+		toReturn.error = toReturn.fileItem->getFilenameWithoutExtension(&newName);
 		if (toReturn.error != Error::NONE) {
 			emptyFileItems();
 			return toReturn;

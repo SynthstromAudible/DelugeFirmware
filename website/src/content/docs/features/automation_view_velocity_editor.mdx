@@ -40,48 +40,59 @@ Note Velocity Editing View that has been added as part of the existing Automatio
 
 ### Enter the Velocity Editor View
 
-- While in the Automation Instrument Clip View, use Shift + Velocity or press Velocity pad on Automation Overview to enter the Velocity Note Editor
-  OR
-- While in the Instrument Clip View, hold Audition pad + Press Velocity shortcut pad
+- While in the Automation or Instrument Clip View, hold :key[Audition pad] + Velocity Patch Source :key[Pad]
 
 ### Select note row
 
-- Press audition pad or Vertical scroll to select different note rows
-- The audition pad will blink to indicate the currently selected note row
+- Press :key[audition pad] pad or :key[turn vertical] to select different note rows
+- The :key[audition pad] pad will blink to indicate the currently selected note row
 - The display will indicate the note code / drum name of the row you have selected
 
 ### Add Note / Adjust Velocity Using Grid
 
-- Press grid to set/adjust velocities of existing notes and add note (if no note exists)
+- Press grid :key[Pad] to set/adjust velocities of existing notes and add note (if no note exists)
 - Set a Velocity Ramp:
-  - Press and hold two grid note pads to set a velocity ramp between the two notes.
-  - Note: for this to work, you must first press a pad that has a note in it and then press a second pad that has a note in it. if the second pad has no note already in it, it will set a tail instead for the first note pad pressed (or if it's a drum sound, like a kick, it will just add another note in the position of the second pad press).
+  - Press and hold two grid :key[note pad] pads to set a velocity ramp between the two notes.
+  - Note: for this to work, you must first press a :key[pad] that has a note in it and then press a second :key[pad] that has a note in it.
+    - If the second :key[pad] has no note already in it, it will set a tail instead for the first :key[note pad] pad pressed (or if it's a drum sound, like a kick, it will just add another note in the position of the second :key[pad] press).
 
 ### Remove Note
 
-- Short press top velocity pad in a note column to remove note
+- Short press top velocity :key[pad] in a note column to remove note
 
 ### Select Note and Adjust Note Parameters
 
-- Long press top velocity pad in a note column to see note's velocity and perform note related adjustment actions (e.g. adjust velocity, probability). Note press related actions include:
-  - **Adjust Velocity:** :key[turn Horizontal]
-  - **Adjust Probability:** :key[turn Select]
-  - **Adjust Note Repeat:** :key[press turn Vertical]
-  - **Adjust Automation:** :key[turn Gold]
+- Long press top velocity :key[pad] in a note column to see note's velocity and perform note related adjustment actions (e.g. adjust velocity, probability). Note press related actions include:
+  - **Adjust Velocity:** :key[note pad] + :key[turn Horizontal]
+  - **Adjust Probability:** :key[note pad] + :key[turn Select] left
+  - **Adjust Iterance:** :key[note pad] + :key[turn Select] right
+  - **Adjust Fill:** :key[note pad] + :key[SyncScaling] (Community Feature Setting must be enabled)
+  - **Adjust Note Repeat:** :key[note pad] + :key[press turn Vertical]
+  - **Adjust Automation:** :key[note pad] + :key[turn Gold]
 
 ### Adjust Note Row Transpose
 
-- Press and turn vertical encoder
+- :key[press turn vertical]
 - Note: does not work if you are holding a note (transpose gets replaced with editing note repeats)
 
 ### Adjust Note Row Probability
 
-- Hold Audition Pad + Turn Select Encoder to change the selected Note Row's probability
+- Hold :key[Audition pad] + :key[Turn Select] left to change the selected Note Row's probability
+  - Note: does not work if you are currently holding a note
+
+### Adjust Note Row Iterance
+
+- Hold :key[Audition pad] + :key[Turn Select] right to change the selected Note Row's probability
+  - Note: does not work if you are currently holding a note
+
+### Adjust Note Row Fill
+
+- Hold :key[Audition pad] + :key[SyncScaling] (Community Feature Setting must be enabled)
   - Note: does not work if you are currently holding a note
 
 ### Add/Remove Notes with Euclidean
 
-- Hold Audition Pad + Press and turn vertical encoder
+- Hold :key[Audition pad] + :key[press turn vertical]
 - Note: The Euclidean action is replaced by note repeat editing if you have selected a note (either by holding a note outside pad selection mode or if you are in pad selection mode)
 
 ### Change clip length
@@ -107,9 +118,9 @@ Note Velocity Editing View that has been added as part of the existing Automatio
 ### Quantize / Humanize notes
 
 - Enabling Quantize community feature
-- Hold audition pad + press and turn tempo encoder to set quantize / humanize %
+- Hold :key[Audition Pad + press turn tempo] to set quantize / humanize %
 
 ### Cross Screen Editing
 
-- Press cross screen while in the Velocity Note Editor to edit notes across multiple screens.
+- Press :key[crossscreen] while in the Velocity Note Editor to edit notes across multiple screens.
 - Note: you can only toggle cross screen editing if the clip has multiple screens OR the current note row selected has multiple screens.

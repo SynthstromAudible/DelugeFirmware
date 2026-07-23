@@ -167,7 +167,6 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 		modulatorAmplitudeLastTime.fill(0);
 		overallOscAmplitudeLastTime = 0;
 		doneFirstRender = false;
-
 		filterSet.reset();
 
 		lastSaturationTanHWorkingValue[0] = 2147483648;

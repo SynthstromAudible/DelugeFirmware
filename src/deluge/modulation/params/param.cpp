@@ -19,6 +19,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
+#include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
 #include "model/song/song.h"
 #include "util/container/enum_to_string_map.hpp"
@@ -179,6 +180,24 @@ char const* getPatchedParamShortName(ParamType type) {
 	}
 }
 
+char const* getPatchedParamShortName(ParamType type, ModControllableAudio* modControllable) {
+	if (modControllable != nullptr) {
+		// See getParamDisplayName: the ladder filters rename morph after what it actually does.
+		if (type == LOCAL_LPF_MORPH
+		    && dsp::filter::SpecificFilter(modControllable->lpfMode).getFamily()
+		           == dsp::filter::FilterFamily::LP_LADDER) {
+			return "LPF Drive";
+		}
+		if (type == LOCAL_HPF_MORPH
+		    && dsp::filter::SpecificFilter(modControllable->hpfMode).getFamily()
+		           == dsp::filter::FilterFamily::HP_LADDER) {
+			return "HPF FM";
+		}
+	}
+
+	return getPatchedParamShortName(type);
+}
+
 char const* getPatchedParamDisplayName(int32_t p) {
 	using enum l10n::String;
 
@@ -332,6 +351,34 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 	}
 
 	return l10n::get(STRING_FOR_NONE);
+}
+
+char const* getParamDisplayName(Kind kind, int32_t p, ModControllableAudio* modControllable) {
+	using enum l10n::String;
+
+	if (modControllable != nullptr) {
+		bool isLPFMorph = (kind == Kind::PATCHED && p == LOCAL_LPF_MORPH)
+		                  || (kind == Kind::UNPATCHED_GLOBAL && p == UnpatchedGlobal::UNPATCHED_LPF_MORPH);
+		bool isHPFMorph = (kind == Kind::PATCHED && p == LOCAL_HPF_MORPH)
+		                  || (kind == Kind::UNPATCHED_GLOBAL && p == UnpatchedGlobal::UNPATCHED_HPF_MORPH);
+
+		// The ladder filters repurpose morph, so they name it after what it actually does. The SVF modes really do
+		// morph, and a filter which is off has no morph param at all, so both keep the default name.
+		if (isLPFMorph) {
+			if (dsp::filter::SpecificFilter(modControllable->lpfMode).getFamily()
+			    == dsp::filter::FilterFamily::LP_LADDER) {
+				return l10n::get(STRING_FOR_LPF_DRIVE);
+			}
+		}
+		else if (isHPFMorph) {
+			if (dsp::filter::SpecificFilter(modControllable->hpfMode).getFamily()
+			    == dsp::filter::FilterFamily::HP_LADDER) {
+				return l10n::get(STRING_FOR_HPF_FM);
+			}
+		}
+	}
+
+	return getParamDisplayName(kind, p);
 }
 
 bool paramNeedsLPF(ParamType p, bool fromAutomation) {

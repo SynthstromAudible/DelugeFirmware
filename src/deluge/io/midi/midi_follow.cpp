@@ -801,8 +801,13 @@ Output* MidiFollow::sendNoteToClip(MIDICable& cable, Clip* clip, MIDIMatchType m
 	if (clip && (!on || currentSong->isOutputActiveInArrangement(clip->output))) {
 		selected_track = clip->output;
 
+		// ensure output is a kit or melodic instrument
+		if (clip->type != ClipType::INSTRUMENT) {
+			// if it's an audio clip, return the track so it can be skipped by specific track processing
+			return selected_track;
+		}
+
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
-		// Output is a kit or melodic instrument
 		if (modelStackWithTimelineCounter) {
 			// Definitely don't record if muted in arrangement
 			bool shouldRecordNotes = shouldRecordNotesNowNow && currentSong->isOutputActiveInArrangement(clip->output);
@@ -915,7 +920,8 @@ Output* MidiFollow::midiCCReceivedForSelectedOrActiveClip(MIDICable& cable, uint
 		}
 		// for these cc's, always use the active clip for the output selected
 		clip = getActiveClip(modelStack);
-		if (clip) {
+		// these cc's are only relevant for instrument clips
+		if (clip && clip->type == ClipType::INSTRUMENT) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 			if (modelStackWithTimelineCounter) {
 				if (clip->output->type == OutputType::KIT) {
@@ -1290,6 +1296,12 @@ Output* MidiFollow::pitchBendReceivedForSelectedOrActiveClip(MIDICable& cable, u
 		if (clip) {
 			selected_track = clip->output;
 
+			// ensure output is a kit or melodic instrument
+			if (clip->type != ClipType::INSTRUMENT) {
+				// if it's an audio clip, return the track so it can be skipped by specific track processing
+				return selected_track;
+			}
+
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 
 			if (modelStackWithTimelineCounter) {
@@ -1382,6 +1394,12 @@ Output* MidiFollow::aftertouchReceivedForSelectedOrActiveClip(MIDICable& cable, 
 		Clip* clip = getActiveClip(modelStack);
 		if (clip) {
 			selected_track = clip->output;
+
+			// ensure output is a kit or melodic instrument
+			if (clip->type != ClipType::INSTRUMENT) {
+				// if it's an audio clip, return the track so it can be skipped by specific track processing
+				return selected_track;
+			}
 
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack->addTimelineCounter(clip);
 

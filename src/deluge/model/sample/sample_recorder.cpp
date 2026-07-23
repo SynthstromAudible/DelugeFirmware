@@ -105,9 +105,10 @@ void SampleRecorder::detachSample() {
 	sample->removeReason("E400");
 }
 
+// config stuff
 Error SampleRecorder::setup(int32_t newNumChannels, AudioInputChannel newMode, bool newKeepingReasons,
                             bool shouldRecordExtraMargins, AudioRecordingFolder newFolderID, int32_t buttonPressLatency,
-                            Output* outputRecordingFrom_) {
+                            Output* outputRecordingFrom_, RecorderConfig config) {
 
 	outputRecordingFrom = outputRecordingFrom_;
 	keepingReasonsForFirstClusters = newKeepingReasons;
@@ -240,7 +241,7 @@ gotError:
 	int32_t lengthSamples = lengthSec * sample->sampleRate;
 	audioDataLengthBytesAsWrittenToFile = lengthSamples * 3 * recordingNumChannels;
 
-	setRecordingThreshold();
+	setRecordingThreshold(config);
 
 	// Riff chunk -------------------------------------------------------
 	writeInt32(&writePos, 0x46464952);                                                               // "RIFF"
@@ -290,12 +291,19 @@ gotError:
 	return Error::NONE;
 }
 
-void SampleRecorder::setRecordingThreshold() {
+void SampleRecorder::setRecordingThreshold(RecorderConfig config) {
+	if (config.neverUseThreshold) {
+		D_PRINTLN("ignoring threshold");
+	}
+	else {
+		D_PRINTLN("following settings");
+	}
 	// don't use threshold recording if we're resampling internal input
-	if (currentSong->thresholdRecordingMode == ThresholdRecordingMode::OFF
+	if (config.neverUseThreshold || currentSong->thresholdRecordingMode == ThresholdRecordingMode::OFF
 	    || mode >= AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION) {
 		startValueThreshold = 0;
 		thresholdRecording = false;
+		minThresholdMargin = 0;
 	}
 	else {
 		// max possible sample value = 1 << kBitDepth = 16777216
@@ -325,6 +333,7 @@ void SampleRecorder::setRecordingThreshold() {
 		}
 
 		thresholdRecording = true;
+		minThresholdMargin = std::min<uint32_t>(sample->fileLoopStartSamples, 256);
 	}
 }
 
@@ -700,7 +709,6 @@ Error SampleRecorder::finalizeRecordedFile() {
 
 	// If some processing of the recorded audio data needs to happen...
 	if (lshiftAmount || action != MonitoringAction::NONE) {
-
 		auto closed = this->file->close();
 		if (!closed) {
 			return Error::SD_CARD;
@@ -1038,20 +1046,32 @@ doFinishCapturing:
 					}
 				}
 			}
+			writePos = reinterpret_cast<char*>(writePosNow);
+			numSamplesCaptured += numSamplesThisCycle;
 
-			// if we're not threshold recording or we're threshold recording and detected audio
-			if (!thresholdRecording || sample->audioStartDetected) {
-				writePos = reinterpret_cast<char*>(writePosNow);
-				numSamplesCaptured += numSamplesThisCycle;
-			}
 			// if we're threshold recording and didn't detect audio in previous cycles
 			// check if there's any audio in this cycle
-			else {
+			if (thresholdRecording) [[unlikely]] {
+				size_t samples_to_copy = minThresholdMargin;
 				StereoFloatSample approxRMSLevel = envelopeFollower.calcApproxRMS(input);
 				if (std::max(approxRMSLevel.l, approxRMSLevel.r) > startValueThreshold) {
-					writePos = reinterpret_cast<char*>(writePosNow);
-					numSamplesCaptured += numSamplesThisCycle;
-					sample->audioStartDetected = true;
+					thresholdRecording = false;
+					samples_to_copy += numSamplesThisCycle;
+				}
+
+				// is this overkill? yes, we could  let the cluster fill up before doing the copy
+				// is there a downside? no - threshold recording only occurs when a single audio clip is being recorded
+				// or the standalone sampler is being used so whatever this is simple
+				if (numSamplesCaptured > minThresholdMargin) {
+					auto* endpos = (char*)writePosNow;
+					ptrdiff_t num_bytes = samples_to_copy * 3 * recordingNumChannels;
+					char* audio_start_pos = endpos - num_bytes;
+					char* cluster_start_pos = &currentRecordCluster->data[sample->audioDataStartPosBytes];
+					if (audio_start_pos > cluster_start_pos) {
+						memcpy(cluster_start_pos, audio_start_pos, num_bytes);
+						writePos = cluster_start_pos + num_bytes;
+						numSamplesCaptured = samples_to_copy;
+					}
 				}
 			}
 
@@ -1120,7 +1140,6 @@ void SampleRecorder::totalSampleLengthNowKnown(uint32_t totalLengthSamples, uint
 
 	sample->lengthInSamples = totalLengthSamples;
 	sample->audioDataLengthBytes = totalLengthSamples * sample->byteDepth * sample->numChannels;
-
 	// when stem recording is done, we want to update the sample loop end position in the sample holder
 	// so that that loop end marker is available right away if you want to load that sample into a kit
 	if (stemExport.writeLoopEndPos()) {

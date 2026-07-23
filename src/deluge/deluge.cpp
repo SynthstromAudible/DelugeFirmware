@@ -259,10 +259,17 @@ static bool dispatchInputEvent(const DelugeInputEvent& ev) {
 		break;
 	}
 	case DELUGE_EVENT_NO_PRESSES:
-		if (!isSDRoutineActive()) {
-			matrixDriver.noPressesHappening(isSDRoutineActive());
-			Buttons::noPressesHappening(isSDRoutineActive());
+		// This is the safety net that releases any pad the firmware still thinks is held (e.g. because a
+		// release event was lost under load). It must not be dropped while the SD routine holds the lock -
+		// otherwise stuck notes persist until the pad is pressed again (see issue #3168). Defer it, exactly
+		// like pad/button events above, so it runs once the routine ends.
+		if (isSDRoutineActive()) {
+			heldInputEvent = ev;
+			waitingForSDRoutineToEnd = true;
+			return false;
 		}
+		matrixDriver.noPressesHappening(isSDRoutineActive());
+		Buttons::noPressesHappening(isSDRoutineActive());
 		break;
 	default:
 		break; // ENCODER events do not arrive on this channel
@@ -542,7 +549,10 @@ void registerTasks() {
 	// these ones are actually "slow" -> file manager just checks if an sd card has been inserted, audio recorder checks
 	// if recordings are finished
 	addRepeatingTask([]() { audioFileManager.slowRoutine(); }, p++, 0.1, 0.1, 0.2, "audio file slow", RESOURCE_SD);
-	addRepeatingTask([]() { audioRecorder.slowRoutine(); }, p++, 0.01, 0.09, 0.1, "audio recorder slow", RESOURCE_NONE);
+	// Needs the SD resources: it can call finishRecording(), which frees the SampleRecorder, and that must not happen
+	// while the card routine is part-way through using it.
+	addRepeatingTask([]() { audioRecorder.slowRoutine(); }, p++, 0.01, 0.09, 0.1, "audio recorder slow",
+	                 RESOURCE_SD | RESOURCE_SD_ROUTINE);
 	// formerly part of cluster loading (why? no idea), actions undo/redo midi commands
 	addRepeatingTask([]() { playbackHandler.slowRoutine(); }, p++, 0.01, 0.09, 0.1, "playback slow routine",
 	                 RESOURCE_SD);

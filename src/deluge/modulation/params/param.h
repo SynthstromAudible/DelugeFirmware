@@ -277,7 +277,13 @@ void getPatchCableFromShortcut(int32_t xDisplay, int32_t yDisplay, ParamDescript
 char const* getPatchedParamDisplayName(int32_t p);
 /// Get the short version of a param name, for use in the OLED mod matrix display (maximum 10 characters)
 char const* getPatchedParamShortName(ParamType type);
+/// As above, but resolves the LPF/HPF morph params to the name the current filter mode gives them. Falls back to the
+/// mode-agnostic name if modControllable is null.
+char const* getPatchedParamShortName(ParamType type, ModControllableAudio* modControllable);
 char const* getParamDisplayName(Kind kind, int32_t p);
+/// As above, but resolves the LPF/HPF morph params to the name the current filter mode gives them (the ladder filters
+/// call it drive and FM respectively). Falls back to the mode-agnostic name if modControllable is null.
+char const* getParamDisplayName(Kind kind, int32_t p, ModControllableAudio* modControllable);
 
 bool paramNeedsLPF(ParamType p, bool fromAutomation);
 

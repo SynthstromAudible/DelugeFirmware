@@ -10,7 +10,8 @@ EnumStringMap<FilterMode, kNumFilterModes> filterMap({{{FilterMode::TRANSISTOR_1
                                                        {FilterMode::TRANSISTOR_24DB_DRIVE, "24dBDrive"},
                                                        {FilterMode::SVF_BAND, "SVF_Band"},
                                                        {FilterMode::SVF_NOTCH, "SVF_Notch"},
-                                                       {FilterMode::HPLADDER, "HPLadder"}}});
+                                                       {FilterMode::HPLADDER, "HPLadder"},
+                                                       {FilterMode::OFF, "Off"}}});
 
 EnumStringMap<FilterRoute, kNumFilterRoutes> routeMap({{
     {FilterRoute::LOW_TO_HIGH, "L2H"},

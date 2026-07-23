@@ -116,14 +116,21 @@ void ArpeggiatorForKit::removeDrumIndex(ArpeggiatorSettings* arpSettings, int32_
 	}
 }
 
+// Both resets must clear the note statuses, not just the note lists / velocity: switchNoteOn() leaves a note PENDING
+// until the next render picks it up, and a PENDING note surviving a reset would keep the Sound out of render-skipping
+// forever (FREEZE E322 in Sound::wontBeRenderedForAWhile), and could be started spuriously later
 void Arpeggiator::reset() {
 	notes.empty();
 	notesAsPlayed.empty();
 	notesByPattern.empty();
+	anyPending = false;
+	active_note.resetPostArpArrays();
+	active_note.velocity = 0;
 }
 
 // Surely this shouldn't be quite necessary?
 void ArpeggiatorForDrum::reset() {
+	active_note.resetPostArpArrays();
 	active_note.velocity = 0;
 }
 
@@ -259,6 +266,9 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 	lastVelocity = originalVelocity;
 
 	bool note_exists = false;
+	// Sticky on purpose: with the arp on, switchNoteOn() leaves the `notes` element PENDING (only the active_note copy
+	// of it gets marked PLAYING), and that's what lets handlePendingNotes() start the held note if the arp is switched
+	// off later. Don't scope this to the arp-off branch.
 	anyPending = true;
 
 	ArpNote* arp_note = nullptr;
@@ -328,7 +338,7 @@ void Arpeggiator::noteOn(ArpeggiatorSettings* settings, int32_t noteCode, int32_
 	arp_note->inputCharacteristics[util::to_underlying(MIDICharacteristic::CHANNEL)] = fromMIDIChannel;
 
 	// If we're an arpeggiator...
-	if ((settings != nullptr) && settings->mode != ArpMode::OFF) {
+	if (!arpIsOff(settings)) {
 
 		// If this was the first note-on and we want to sound a note right now...
 		if (notes.getNumElements() == 1) {
@@ -474,21 +484,20 @@ void Arpeggiator::noteOff(ArpeggiatorSettings* settings, int32_t noteCodePreArp,
 	}
 }
 bool Arpeggiator::handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnInstruction* instruction) {
-	if ((settings != nullptr) && settings->mode == ArpMode::OFF) {
+	if (arpIsOff(settings)) {
 		// if off make sure there aren't any notes waiting to start
 		if (anyPending) {
 			for (int i = 0; i < notes.getNumElements(); i++) {
 				if (auto* arp_note = static_cast<ArpNote*>(notes.getElementAddress(i));
 				    arp_note->noteStatus[0] == ArpNoteStatus::PENDING) {
-					if (arp_note->noteCodeOnPostArp[0] == ARP_NOTE_NONE) {
-						arp_note->noteStatus[0] = ArpNoteStatus::OFF;
-					}
-					else {
+					if (arp_note->isStartablePending()) {
 						instruction->arpNoteOn = arp_note;
 						arp_note->noteStatus[0] = ArpNoteStatus::PLAYING;
 						ARP_PRINTLN("found a pending a live note, starting it");
 						return true;
 					}
+					// Pending, but with nothing to actually play
+					arp_note->noteStatus[0] = ArpNoteStatus::OFF;
 				}
 			}
 			anyPending = false;
@@ -497,6 +506,26 @@ bool Arpeggiator::handlePendingNotes(ArpeggiatorSettings* settings, ArpReturnIns
 	else {
 		// if on then we just want to check if the active arp note is pending
 		return ArpeggiatorBase::handlePendingNotes(settings, instruction);
+	}
+
+	return false;
+}
+
+// Must agree with handlePendingNotes() about where a pending note lives, otherwise a Sound gets held out of
+// render-skipping waiting for a note that handlePendingNotes() will never find and start
+bool Arpeggiator::hasPendingNotes(ArpeggiatorSettings* settings) {
+	if (!arpIsOff(settings)) {
+		return ArpeggiatorBase::hasPendingNotes(settings);
+	}
+
+	if (!anyPending) {
+		return false;
+	}
+
+	for (int i = 0; i < notes.getNumElements(); i++) {
+		if (static_cast<ArpNote*>(notes.getElementAddress(i))->isStartablePending()) {
+			return true;
+		}
 	}
 
 	return false;
@@ -1440,6 +1469,10 @@ bool ArpeggiatorBase::handlePendingNotes(ArpeggiatorSettings* settings, ArpRetur
 	}
 	instruction->arpNoteOn = nullptr;
 	return false;
+}
+
+bool ArpeggiatorBase::hasPendingNotes(ArpeggiatorSettings* settings) {
+	return active_note.isPending();
 }
 // Check arpeggiator is on before you call this.
 // May switch notes on and/or off.

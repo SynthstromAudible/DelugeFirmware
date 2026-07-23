@@ -14,8 +14,8 @@
 // periodic heap walk) compiles away to nothing.
 //
 // Disabled automatically under a sanitizer (host-sim AddressSanitizer, or DELUGE_VALGRIND): MEM_GUARD writes and reads
-// the freed block body (its poison fill + verify-on-realloc), which would itself trip the sanitizer. When a sanitizer is
-// active the heap_poison.h hooks own corruption detection instead - they give strictly stronger, hardware-accurate
+// the freed block body (its poison fill + verify-on-realloc), which would itself trip the sanitizer. When a sanitizer
+// is active the heap_poison.h hooks own corruption detection instead - they give strictly stronger, hardware-accurate
 // coverage and must be the sole writer of freed-block shadow state.
 #if defined(__SANITIZE_ADDRESS__) || defined(DELUGE_VALGRIND)
 #define MEM_GUARD 0

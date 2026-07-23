@@ -128,6 +128,9 @@ protected:
 	virtual void currentFileChanged(int32_t movementDirection) {}
 	void displayText(bool blinkImmediately = false) override;
 	static Slot getSlot(char const* displayName);
+	/// Returns the character just past filePrefix within `name`, or nullptr if `name` does not start with filePrefix.
+	/// Names always carry the prefix; only *rendering* strips it.
+	char const* nameAfterPrefix(char const* name) const;
 	Error readFileItemsFromFolderAndMemory(Song* song, OutputType outputType, char const* filePrefixHere,
 	                                       char const* filenameToStartAt, char const* defaultDirToAlsoTry,
 	                                       bool allowFoldersint,
