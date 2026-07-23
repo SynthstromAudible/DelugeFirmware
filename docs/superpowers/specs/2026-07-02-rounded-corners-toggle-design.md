@@ -88,8 +88,9 @@ Follows the `ShowBatteryLevel` toggle end to end.
      item should not appear on 7SEG either. Its enum, l10n, and default are unchanged;
      only the menu-item class changes.
    - `Submenu` already filters entries by `isRelevant()`, so returning `false` hides the
-     item in 7SEG mode. `display->haveOLED()` is true for emulated OLED, so these items
-     stay visible there and only hide in genuine 7-segment mode.
+     item in 7SEG mode. `display->haveOLED()` reflects the *active* display mode, so these
+     items hide whenever the unit is in 7-segment mode — real or emulated — and show
+     whenever an OLED-style display is active.
 
 4. l10n strings (mirror `STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL`):
    - `src/deluge/gui/l10n/strings.h` — add `STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS`.
