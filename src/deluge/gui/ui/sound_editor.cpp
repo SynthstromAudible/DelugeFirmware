@@ -1870,7 +1870,7 @@ bool SoundEditor::inNoteRowEditor() {
 void SoundEditor::toggleNoteEditorParamMenu(int32_t on) {
 	MenuItem* currentMenuItem = getCurrentMenuItem();
 	MenuItem* newMenuItem = nullptr;
-	bool inHorizontalMenu = runtimeFeatureSettings.isOn(HorizontalMenus);
+	bool inHorizontalMenu = display->haveOLED() && runtimeFeatureSettings.isOn(HorizontalMenus);
 
 	// if you're holding down a note
 	// see if you're currently editing a row param

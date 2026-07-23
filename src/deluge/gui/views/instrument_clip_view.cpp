@@ -3825,7 +3825,7 @@ void InstrumentClipView::handleNoteRowEditorAuditionPadAction(int32_t y) {
 
 ActionResult InstrumentClipView::handleNoteRowEditorVerticalEncoderAction(int32_t offset, bool inCardRoutine) {
 	bool isHoldingVerticalEncoder = Buttons::isButtonPressed(deluge::hid::button::Y_ENC);
-	bool isInHorizontalMenu = runtimeFeatureSettings.get(HorizontalMenus) == On;
+	bool isInHorizontalMenu = display->haveOLED() && runtimeFeatureSettings.get(HorizontalMenus) == On;
 
 	// if you haven't selected a row and you are holding down vertical encoder
 	// ignore this action because it makes it too easy to transpose by mistake
