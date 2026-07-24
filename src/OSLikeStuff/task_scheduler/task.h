@@ -142,7 +142,7 @@ struct Task {
 
 	Time totalTime{0};
 	int32_t timesCalled{0};
-	Time lastRunTime{0};
+	Time lastRunTime;
 
 	ResourceChecker _checker;
 	bool yielded = false;
