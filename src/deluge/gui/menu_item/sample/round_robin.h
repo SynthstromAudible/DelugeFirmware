@@ -17,10 +17,13 @@
 #pragma once
 
 #include "gui/l10n/l10n.h"
-#include "gui/menu_item/integer.h"
+#include "gui/menu_item/decimal.h"
+#include "gui/menu_item/horizontal_menu.h"
+#include "gui/menu_item/sample/loop_point.h"
 #include "gui/menu_item/sample/utils.h"
 #include "gui/menu_item/selection.h"
 #include "gui/menu_item/submenu.h"
+#include "gui/menu_item/value_scaling.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sample_marker_editor.h"
@@ -29,6 +32,7 @@
 #include "hid/display/oled.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
+#include "storage/audio/audio_file.h"
 #include "storage/multi_range/multisample_range.h"
 #include "util/functions.h"
 
@@ -143,8 +147,16 @@ public:
 	}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
-		return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants)
-		       && isSampleModeSample(modControllable, sourceId_);
+		if (!runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants)
+		    || !isSampleModeSample(modControllable, sourceId_)) {
+			return false;
+		}
+		// Variants are scoped to a single sample zone. On a multi-zone (key-split) instrument the
+		// zone-selection flow (note-range menu) is built for flat, single-hop params like FILE/START/
+		// END/TRANSPOSE, not for a nested submenu like this one, so round-robin steps aside there
+		// rather than trying to compose with it.
+		auto* sound = static_cast<Sound*>(modControllable);
+		return sound->sources[sourceId_].ranges.getNumElements() == 1;
 	}
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
@@ -206,21 +218,26 @@ public:
 		return NO_NAVIGATION;
 	}
 
+	void renderInHorizontalMenu(const SlotPosition& slot) override {
+		deluge::hid::display::OLED::main.drawIconCentered(deluge::hid::display::OLED::folderIconBig, slot.start_x,
+		                                                  slot.width, slot.start_y - 1);
+	}
+
 private:
 	uint8_t sourceId_;
 	uint8_t slotIndex_;
 };
 
-// Opens the sample marker editor on the slot's own holder. Start, end and (if applicable) loop
-// markers are all editable from within that single editor screen - pressing near a marker
-// switches focus to it - so one menu entry covers all of them; there is no need for separate
-// Start/End items.
-class VariantMarkers final : public MenuItem {
+// Base class for a per-variant Start/End marker editor. Opens the exact same sample marker editor
+// screen LoopPoint does at the OSC level - start, end and loop points are all reachable from within
+// that one screen, focus just starts on whichever marker this item represents - but also targets
+// this specific slot for auditioning and for the marker editor to operate on.
+class VariantLoopPoint : public LoopPoint {
 public:
-	VariantMarkers(l10n::String newName, uint8_t sourceId, uint8_t slotIndex)
-	    : MenuItem(newName), sourceId_(sourceId), slotIndex_(slotIndex) {}
+	VariantLoopPoint(l10n::String newName, uint8_t sourceId, uint8_t slotIndex)
+	    : LoopPoint(newName, sourceId), slotIndex_(slotIndex) {}
 
-	bool isRangeDependent() override { return true; }
+	[[nodiscard]] bool allowToBeginSessionFromHorizontalMenu() override { return true; }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return isSampleModeSample(modControllable, sourceId_) && variantHolderIsLoaded(sourceId_, slotIndex_);
@@ -229,11 +246,6 @@ public:
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
 	                                             MultiRange** currentRange) override {
 		return checkVariantHolderPermission(modControllable, sourceId_, slotIndex_, currentRange);
-	}
-
-	MenuItem* selectButtonPress() override {
-		beginSession();
-		return NO_NAVIGATION;
 	}
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
@@ -245,24 +257,40 @@ public:
 		// While editing this slot's markers, auditioning plays this exact slot.
 		MultisampleRange::setAuditionSlot(getRoundRobinRange(sourceId_), slotIndex_);
 		sampleMarkerEditor.targetRoundRobinSlot = slotIndex_;
-		sampleMarkerEditor.markerType = MarkerType::START;
+		sampleMarkerEditor.markerType = markerType;
 		if (const bool success = openUI(&sampleMarkerEditor); !success) {
 			uiTimerManager.unsetTimer(TimerName::SHORTCUT_BLINK);
 		}
 	}
 
-private:
-	uint8_t sourceId_;
+protected:
 	uint8_t slotIndex_;
 };
 
-// Base class for per-variant pitch parameter editors (transpose, cents), reading/writing directly
-// on the slot's own SampleHolderForVoice (for slot 0 these are the same values the range-level
-// transpose edits; the Source-level transpose is a separate, additional offset).
-class VariantPitchParam : public Integer {
+class VariantStart final : public VariantLoopPoint {
 public:
-	VariantPitchParam(l10n::String newName, uint8_t sourceId, uint8_t slotIndex)
-	    : Integer(newName), sourceId_(sourceId), slotIndex_(slotIndex) {}
+	VariantStart(l10n::String newName, uint8_t sourceId, uint8_t slotIndex)
+	    : VariantLoopPoint(newName, sourceId, slotIndex) {
+		markerType = MarkerType::START;
+	}
+};
+
+class VariantEnd final : public VariantLoopPoint {
+public:
+	VariantEnd(l10n::String newName, uint8_t sourceId, uint8_t slotIndex)
+	    : VariantLoopPoint(newName, sourceId, slotIndex) {
+		markerType = MarkerType::END;
+	}
+};
+
+// Combined transpose+cents editor for one variant slot: a single decimal value read/written
+// directly on the slot's own SampleHolderForVoice (for slot 0 this is the same data the OSC-level
+// sample::Transpose edits), mirroring how OSC-level pitch is one entry rather than two separate
+// Transpose/Cents rows.
+class VariantTranspose final : public Decimal {
+public:
+	VariantTranspose(l10n::String newName, uint8_t sourceId, uint8_t slotIndex)
+	    : Decimal(newName), sourceId_(sourceId), slotIndex_(slotIndex) {}
 
 	bool isRangeDependent() override { return true; }
 
@@ -275,7 +303,29 @@ public:
 		return checkVariantHolderPermission(modControllable, sourceId_, slotIndex_, currentRange);
 	}
 
-protected:
+	[[nodiscard]] int32_t getMinValue() const override { return -9600; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 9600; }
+	[[nodiscard]] int32_t getNumDecimalPlaces() const override { return 2; }
+
+	void readCurrentValue() override {
+		SampleHolderForVoice* holder = getHolder();
+		if (holder != nullptr) {
+			this->setValue(computeCurrentValueForTranspose(holder->transpose, holder->cents));
+		}
+	}
+
+	void writeCurrentValue() override {
+		SampleHolderForVoice* holder = getHolder();
+		if (holder != nullptr) {
+			int32_t transpose, cents;
+			computeFinalValuesForTranspose(this->getValue(), &transpose, &cents);
+			holder->transpose = transpose;
+			holder->setCents(cents);
+			getCurrentInstrument()->beenEdited();
+		}
+	}
+
+private:
 	SampleHolderForVoice* getHolder() const {
 		MultisampleRange* range = getRoundRobinRange(sourceId_);
 		return range != nullptr ? range->getVariantHolder(slotIndex_) : nullptr;
@@ -285,59 +335,14 @@ protected:
 	uint8_t slotIndex_;
 };
 
-class VariantTranspose final : public VariantPitchParam {
-public:
-	using VariantPitchParam::VariantPitchParam;
-
-	[[nodiscard]] int32_t getMinValue() const override { return -96; }
-	[[nodiscard]] int32_t getMaxValue() const override { return 96; }
-
-	void readCurrentValue() override {
-		SampleHolderForVoice* holder = getHolder();
-		if (holder != nullptr) {
-			this->setValue(holder->transpose);
-		}
-	}
-
-	void writeCurrentValue() override {
-		SampleHolderForVoice* holder = getHolder();
-		if (holder != nullptr) {
-			holder->transpose = this->getValue();
-			getCurrentInstrument()->beenEdited();
-		}
-	}
-};
-
-class VariantCents final : public VariantPitchParam {
-public:
-	using VariantPitchParam::VariantPitchParam;
-
-	[[nodiscard]] int32_t getMinValue() const override { return -50; }
-	[[nodiscard]] int32_t getMaxValue() const override { return 50; }
-
-	void readCurrentValue() override {
-		SampleHolderForVoice* holder = getHolder();
-		if (holder != nullptr) {
-			this->setValue(holder->cents);
-		}
-	}
-
-	void writeCurrentValue() override {
-		SampleHolderForVoice* holder = getHolder();
-		if (holder != nullptr) {
-			holder->setCents(this->getValue());
-			getCurrentInstrument()->beenEdited();
-		}
-	}
-};
-
-// Submenu for one round-robin slot: [File, Start, End, Transpose, Cents].
+// Horizontal, icon-based menu for one round-robin slot: [File, Strt, End, Transpose] - the same
+// horizontal/paging mechanics OSC1/OSC2 (submenu::ActualSource) use one level up.
 // slotIndex 0 is the primary sample and is always accessible; slots 1-3 are alternates, guarded so
 // only loaded slots and the next empty slot can be opened.
-class RoundRobinSlot final : public menu_item::Submenu {
+class RoundRobinSlot final : public menu_item::HorizontalMenu {
 public:
 	RoundRobinSlot(l10n::String newName, std::span<MenuItem*> children, uint8_t sourceId, uint8_t slotIndex)
-	    : menu_item::Submenu(newName, children), sourceId_(sourceId), slotIndex_(slotIndex) {}
+	    : menu_item::HorizontalMenu(newName, children), sourceId_(sourceId), slotIndex_(slotIndex) {}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		return isSampleModeSample(modControllable, sourceId_);
@@ -359,7 +364,7 @@ public:
 	}
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
-		Submenu::beginSession(navigatedBackwardFrom);
+		HorizontalMenu::beginSession(navigatedBackwardFrom);
 		soundEditor.setCurrentSource(sourceId_);
 		// While this slot's menu is open, auditioning plays this exact slot (without advancing the cycle).
 		MultisampleRange::setAuditionSlot(getRoundRobinRange(sourceId_), slotIndex_);
