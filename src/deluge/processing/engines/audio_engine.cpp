@@ -319,14 +319,22 @@ void terminateOneVoice(size_t numSamples) {
 		return;
 	}
 
-	const Sound::ActiveVoice* best = &all_voices.front();
-	for (const auto& voice : all_voices | std::views::drop(1)) {
+	// The skip filter must apply to the first voice too (see Sound::terminateOneActiveVoice / issue #4721):
+	// seeding `best` unfiltered let an already-fast-releasing front voice absorb every cull in the window.
+	const Sound::ActiveVoice* best = nullptr;
+	for (const auto& voice : all_voices) {
 		// if we're not skipping releasing voices, or if we are and this one isn't in fast release
 		if (voice->envelopes[0].state >= EnvelopeStage::FAST_RELEASE
 		    && voice->envelopes[0].fastReleaseIncrement >= SOFT_CULL_INCREMENT) {
 			continue;
 		}
-		best = (*best)->getPriorityRating() < voice->getPriorityRating() ? &voice : best;
+		if (best == nullptr || (*best)->getPriorityRating() < voice->getPriorityRating()) {
+			best = &voice;
+		}
+	}
+
+	if (best == nullptr) {
+		return;
 	}
 
 	const Sound::ActiveVoice& voice = *best;
@@ -346,14 +354,23 @@ void forceReleaseOneVoice(size_t num_samples) {
 		return;
 	}
 
-	const Sound::ActiveVoice* best = &all_voices.front();
-	for (const auto& voice : all_voices | std::views::drop(1)) {
+	// Cover the first voice with the same treatment as the rest (see issue #4721) - previously it was seeded
+	// into `best` without the fast-release check, so a fast-releasing front voice was never sped up and could
+	// win the priority comparison, wasting the cull.
+	const Sound::ActiveVoice* best = nullptr;
+	for (const auto& voice : all_voices) {
 		// if a voice is already fast releasing just speed it up
 		if (voice->envelopes[0].state == EnvelopeStage::FAST_RELEASE) {
 			voice->speedUpRelease();
 			return;
 		}
-		best = (*best)->getPriorityRating() < voice->getPriorityRating() ? &voice : best;
+		if (best == nullptr || (*best)->getPriorityRating() < voice->getPriorityRating()) {
+			best = &voice;
+		}
+	}
+
+	if (best == nullptr) {
+		return;
 	}
 
 	const Sound::ActiveVoice& voice = *best;
