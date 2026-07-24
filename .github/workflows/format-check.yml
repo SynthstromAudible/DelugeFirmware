@@ -30,10 +30,12 @@ jobs:
       - name: Run Ruff format check for Python code
         uses: astral-sh/ruff-action@v3
         with:
+          version: "0.16.0"
           args: "format --check"
           src: "./scripts/ ./contrib ./tests ./src"
 
       - name: Run Ruff lint check for Python code
         uses: astral-sh/ruff-action@v3
         with:
+          version: "0.16.0"
           src: "./scripts/ ./contrib ./tests ./src"
