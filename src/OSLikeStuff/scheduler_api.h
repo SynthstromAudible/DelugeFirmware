@@ -65,6 +65,7 @@ int8_t addConditionalTask(TaskHandle task, uint8_t priority, RunCondition condit
 void ignoreForStats();
 double getAverageRunTimeForTask(TaskID id);
 double getAverageRunTimeforCurrentTask();
+double getLastRunTimeForTask(TaskID id);
 double getSystemTime();
 void setNextRunTimeforCurrentTask(double seconds);
 void removeTask(TaskID id);
