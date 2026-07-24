@@ -37,6 +37,9 @@
 #include "model/instrument/melodic_instrument.h"   // MelodicInstrument
 #include "model/model_stack.h"                     // MODEL_STACK_MAX_SIZE, setupModelStackWithSong
 #include "model/song/song.h"                       // currentSong, getCurrentInstrumentClip/Instrument
+#include "model/voice/voice.h"                     // Voice envelope state (churn harness histogram)
+#include "playback/mode/session.h"                 // session.armSection (song-play harness)
+#include "playback/playback_handler.h"             // playbackHandler (song-play harness)
 #include "processing/engines/audio_engine.h"       // AudioEngine::getNumVoices
 #include "processing/sound/sound_instrument.h"     // SoundInstrument
 #include "processing/source.h"                     // Source, oscType, ranges
@@ -493,7 +496,304 @@ void runScrollHarnessIfDue() {
 		auditionNote(true);
 	}
 }
+// ---- Song-play harness (issue #4721) ---------------------------------------
+// Load a real song from the card and PLAY it (the song-load harness above only loads). This is the closest host
+// mirror of the actual report: the user's collect-all song, sequenced clips triggering multisampled synths, voices
+// churning under the per-sound limiter and (host-inflated) engine culling. Run under ASan for the crash; capture the
+// WAV for the pops.
+//   DELUGE_HOST_SONG_PLAY="SONGS/Strange Mountain.XML"   song to load + play
+//   DELUGE_HOST_SONG_PLAY_BLOCKS=N                       audio blocks to render before exiting (default 4000)
+//   DELUGE_HOST_CHURN_BYPASS_CULL=1                      (shared) suppress engine culling
+int g_spEnabled = -1;
+uint32_t g_spPoll = 0;
+int g_spBlocks = 4000;
+const char* g_spSong = nullptr;
+reason_check::Snapshot g_spSnap = 0;
+
+void runSongPlayHarnessIfDue() {
+	if (g_spEnabled < 0) {
+		g_spSong = std::getenv("DELUGE_HOST_SONG_PLAY");
+		g_spEnabled = g_spSong ? 1 : 0;
+		const char* b = std::getenv("DELUGE_HOST_SONG_PLAY_BLOCKS");
+		g_spBlocks = b ? std::atoi(b) : 4000;
+	}
+	if (g_spEnabled <= 0) {
+		return;
+	}
+	uint32_t t = g_spPoll++;
+	const uint32_t kBoot = 200;
+	const uint32_t kLoad = kBoot + 5;
+	const uint32_t kPlay = kLoad + 30;
+	const uint32_t kStop = kPlay + (uint32_t)g_spBlocks;
+	if (t < kBoot) {
+		return;
+	}
+	if (std::getenv("DELUGE_HOST_CHURN_BYPASS_CULL") != nullptr) {
+		AudioEngine::bypassCulling = true;
+	}
+	if (t == kBoot) {
+		printf("[song-play] === #4721 song-play harness: %s for %d blocks ===\n", g_spSong, g_spBlocks);
+		g_spSnap = reason_check::snapshot();
+	}
+	else if (t == kLoad) {
+		loadOneSong(g_spSong);
+		printf("[song-play] loaded. pinned clusters=%u\n", (unsigned)reason_check::liveClusters());
+	}
+	else if (t == kPlay) {
+		// Songs are usually saved stopped (every session clip isPlaying=0), so pressing play alone starts silence.
+		// Arm a section BEFORE starting playback - with neither clock active this marks the section's clips active
+		// immediately (armSectionWhenNeitherClockActive), so play then starts them from beat 1.
+		const char* sec = std::getenv("DELUGE_HOST_SONG_PLAY_SECTION");
+		int section = sec ? std::atoi(sec) : 0;
+		printf("[song-play] arming section %d\n", section);
+		session.armSection((uint8_t)section, 0);
+		if (currentSong != nullptr) {
+			for (int32_t c = 0; c < currentSong->sessionClips.getNumElements(); c++) {
+				Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
+				printf("[song-play]   clip %d: section=%d type=%d active=%d len=%d out=%s\n", c, (int)clip->section,
+				       (int)clip->output->type, (int)clip->activeIfNoSolo, (int)clip->loopLength,
+				       clip->output->name.get());
+			}
+		}
+	}
+	else if (t == kPlay + 3) {
+		printf("[song-play] pressing play\n");
+		playbackHandler.playButtonPressed(0);
+	}
+	else if (t > kPlay + 3 && t < kStop) {
+		static int g_spSecBlocks = -2;
+		static int g_spCurSection = 0;
+		if (g_spSecBlocks == -2) {
+			const char* sb = std::getenv("DELUGE_HOST_SONG_PLAY_SECTION_BLOCKS");
+			g_spSecBlocks = sb ? std::atoi(sb) : 0;
+			const char* sec = std::getenv("DELUGE_HOST_SONG_PLAY_SECTION");
+			g_spCurSection = sec ? std::atoi(sec) : 0;
+		}
+		if (g_spSecBlocks > 0 && (t - kPlay - 3) % (uint32_t)g_spSecBlocks == 0) {
+			g_spCurSection = (g_spCurSection + 1) % 9;
+			printf("[song-play] advancing to section %d\n", g_spCurSection);
+			session.armSection((uint8_t)g_spCurSection, 0);
+		}
+		if ((t - kPlay) % 500 == 0) {
+			int activeClips = 0;
+			char activeList[128] = {0};
+			if (currentSong != nullptr) {
+				for (int32_t c = 0; c < currentSong->sessionClips.getNumElements(); c++) {
+					Clip* clip = currentSong->sessionClips.getClipAtIndex(c);
+					if (clip->activeIfNoSolo) {
+						activeClips++;
+						size_t off = strlen(activeList);
+						snprintf(activeList + off, sizeof(activeList) - off, "%d(t%d,p%d) ", c, (int)clip->output->type,
+						         (int)currentSong->isClipActive(clip));
+					}
+				}
+			}
+			printf("[song-play]   active: %s\n", activeList);
+			printf("[song-play] +%u blocks: voices=%d audio=%d pinned=%u direness=%d pbState=%d intClk=%d "
+			       "activeClips=%d sampleTimer=%u nextTimerTick=%u\n",
+			       (unsigned)(t - kPlay), AudioEngine::getNumVoices(), AudioEngine::getNumAudio(),
+			       (unsigned)reason_check::liveClusters(), (int)AudioEngine::cpuDireness,
+			       (int)playbackHandler.playbackState, (int)playbackHandler.isInternalClockActive(), activeClips,
+			       (unsigned)AudioEngine::audioSampleTimer, (unsigned)(playbackHandler.timeNextTimerTickBig >> 32));
+			std::fflush(stdout);
+		}
+	}
+	else if (t == kStop) {
+		printf("[song-play] stopping playback\n");
+		playbackHandler.playButtonPressed(0);
+	}
+	else if (t == kStop + 100) {
+		printf("[song-play] reasons outstanding since snapshot:\n");
+		std::fflush(stdout);
+		reason_check::reportOutstanding(g_spSnap);
+#if defined(__SANITIZE_ADDRESS__)
+		__lsan_do_recoverable_leak_check();
+#endif
+		printf("[song-play] complete, exiting\n");
+		std::fflush(stdout);
+		std::quick_exit(0);
+	}
+	std::fflush(stdout);
+}
+
+// ---- Note-churn harness (issue #4721) --------------------------------------
+// Reproduces the "severe voice limiting in multisampled instruments" report: load a multisample SYNTH preset (one
+// sampleRange per source WAV, like the Rephazzer packs from the report), then drive many overlapping note on/offs so
+// voices are constantly started while older ones are still sounding. With a low <maxVoices> this churns
+// Sound::acquireVoice -> terminateOneActiveVoice / stealOneActiveVoice (the per-sound limiter); with engine culling
+// left ACTIVE it also churns cullVoices -> forceRelease/terminate/killOneVoice. Run under ASan for the crash half of
+// the report; the captured WAV (DELUGE_HOST_WAV) is scanned offline for discontinuities for the pops/clicks half.
+//
+//   DELUGE_HOST_NOTE_CHURN=N            enable; total note-on events to fire
+//   DELUGE_HOST_CHURN_PRESET=path       preset to load (default SYNTHS/MultiBloom.XML)
+//   DELUGE_HOST_CHURN_ON_BLOCKS=6       audio blocks between successive note-ons
+//   DELUGE_HOST_CHURN_HOLD=40           blocks each note is held before its note-off
+//   DELUGE_HOST_CHURN_CHORD=2           notes started per note-on event
+//   DELUGE_HOST_CHURN_BYPASS_CULL=1     suppress engine-level culling (isolate the per-sound limiter)
+int g_ncEnabled = -1;
+uint32_t g_ncPoll = 0;
+int g_ncTotal = 0;
+int g_ncOnBlocks = 6;
+int g_ncHold = 40;
+int g_ncChord = 2;
+int g_ncBypassCull = 0;
+const char* g_ncPreset = "SYNTHS/MultiBloom.XML";
+reason_check::Snapshot g_ncSnap = 0;
+
+void churnNote(int note, bool on) {
+	MelodicInstrument* synth = currentSynth();
+	if (!synth) {
+		printf("[churn] current instrument is not a SYNTH\n");
+		return;
+	}
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
+	if (on) {
+		synth->beginAuditioningForNote(modelStack, note, 127, zeroMPEValues, MIDI_CHANNEL_NONE, 0);
+	}
+	else {
+		synth->endAuditioningForNote(modelStack, note);
+	}
+}
+
+void runNoteChurnHarnessIfDue() {
+	if (g_ncEnabled < 0) {
+		const char* n = std::getenv("DELUGE_HOST_NOTE_CHURN");
+		g_ncEnabled = n ? 1 : 0;
+		g_ncTotal = n ? std::atoi(n) : 0;
+		const char* p = std::getenv("DELUGE_HOST_CHURN_PRESET");
+		if (p != nullptr) {
+			g_ncPreset = p;
+		}
+		const char* ob = std::getenv("DELUGE_HOST_CHURN_ON_BLOCKS");
+		g_ncOnBlocks = ob ? std::atoi(ob) : 6;
+		const char* h = std::getenv("DELUGE_HOST_CHURN_HOLD");
+		g_ncHold = h ? std::atoi(h) : 40;
+		const char* c = std::getenv("DELUGE_HOST_CHURN_CHORD");
+		g_ncChord = c ? std::atoi(c) : 2;
+		g_ncBypassCull = std::getenv("DELUGE_HOST_CHURN_BYPASS_CULL") ? 1 : 0;
+	}
+	if (g_ncEnabled <= 0) {
+		return;
+	}
+	uint32_t t = g_ncPoll++;
+	const uint32_t kBoot = 200;
+	const uint32_t kLoad = kBoot + 5;
+	const uint32_t kStart = kLoad + 10;
+	if (t < kBoot) {
+		return;
+	}
+	if (g_ncBypassCull) {
+		AudioEngine::bypassCulling = true; // self-resets each render; re-assert every poll
+	}
+
+	if (t == kBoot) {
+		printf("[churn] === #4721 note-churn harness: %d note-ons, chord=%d, on every %d blocks, hold %d ===\n",
+		       g_ncTotal, g_ncChord, g_ncOnBlocks, g_ncHold);
+		printf("[churn] preset=%s bypassCull=%d\n", g_ncPreset, g_ncBypassCull);
+		g_ncSnap = reason_check::snapshot();
+	}
+	else if (t == kLoad) {
+		loadPreset(g_ncPreset);
+		probeSources();
+	}
+	else if (t >= kStart) {
+		uint32_t rel = t - kStart;
+		// A wide note walk - crosses many multisample ranges so successive voices use different Samples.
+		static const int kWalk[] = {36, 55, 67, 43, 74, 50, 62, 81, 45, 69, 57, 88, 40, 76, 52, 93, 47, 64, 59, 71};
+		constexpr int kWalkLen = sizeof(kWalk) / sizeof(kWalk[0]);
+		int eventsFired = (int)(rel / (uint32_t)g_ncOnBlocks);
+
+		if (rel % (uint32_t)g_ncOnBlocks == 0) {
+			int ev = eventsFired;
+			if (ev >= g_ncTotal) {
+				// Wind down: release everything, render a tail, then report + exit.
+				for (int i = 0; i < kWalkLen; i++) {
+					churnNote(kWalk[i] % 128, false);
+					churnNote((kWalk[i] + 12) % 128, false);
+				}
+				printf("[churn] done (%d events). voices now=%d. reasons outstanding since snapshot:\n", g_ncTotal,
+				       AudioEngine::getNumVoices());
+				std::fflush(stdout);
+				reason_check::reportOutstanding(g_ncSnap);
+#if defined(__SANITIZE_ADDRESS__)
+				__lsan_do_recoverable_leak_check();
+#endif
+				printf("[churn] complete, exiting\n");
+				std::fflush(stdout);
+				std::quick_exit(0);
+			}
+			for (int c = 0; c < g_ncChord; c++) {
+				int note = kWalk[(ev + c * 7) % kWalkLen] + ((c > 0) ? 12 : 0);
+				churnNote(note % 128, true);
+			}
+			if (ev % 8 == 0) {
+				printf("[churn] event %d/%d: voices=%d pinned=%u\n", ev, g_ncTotal, AudioEngine::getNumVoices(),
+				       (unsigned)reason_check::liveClusters());
+				// Envelope-stage histogram over the current synth's voices: distinguishes "stuck in SUSTAIN"
+				// (note-off lost) from "slow RELEASE tail" from "fast-release not completing".
+				MelodicInstrument* synth = currentSynth();
+				if (synth != nullptr) {
+					Sound* soundInst = static_cast<SoundInstrument*>(synth);
+					int stageCounts[7] = {0};
+					uint32_t minFRI = 0xFFFFFFFF, maxFRI = 0;
+					for (const Sound::ActiveVoice& v : soundInst->voices()) {
+						int st = (int)v->envelopes[0].state;
+						if (st >= 0 && st < 7) {
+							stageCounts[st]++;
+						}
+						uint32_t fri = v->envelopes[0].fastReleaseIncrement;
+						minFRI = fri < minFRI ? fri : minFRI;
+						maxFRI = fri > maxFRI ? fri : maxFRI;
+					}
+					printf("[churn]   env0 stages: ATK=%d HOLD=%d DEC=%d SUS=%d REL=%d FASTREL=%d OFF=%d "
+					       "fastRelInc=[%u..%u]\n",
+					       stageCounts[0], stageCounts[1], stageCounts[2], stageCounts[3], stageCounts[4],
+					       stageCounts[5], stageCounts[6], (unsigned)minFRI, (unsigned)maxFRI);
+					for (const Sound::ActiveVoice& v : soundInst->voices()) {
+						if (v->envelopes[0].state >= EnvelopeStage::RELEASE) {
+							printf("[churn]     v=%p stage=%d pos=%u inc=%u\n", (void*)v.get(),
+							       (int)v->envelopes[0].state, (unsigned)v->envelopes[0].pos,
+							       (unsigned)v->envelopes[0].fastReleaseIncrement);
+						}
+					}
+				}
+				std::fflush(stdout);
+			}
+		}
+		// Note-offs: an event's notes are released g_ncHold blocks after their on.
+		if (rel >= (uint32_t)g_ncHold && (rel - (uint32_t)g_ncHold) % (uint32_t)g_ncOnBlocks == 0) {
+			int ev = (int)((rel - (uint32_t)g_ncHold) / (uint32_t)g_ncOnBlocks);
+			if (ev < g_ncTotal) {
+				for (int c = 0; c < g_ncChord; c++) {
+					int note = kWalk[(ev + c * 7) % kWalkLen] + ((c > 0) ? 12 : 0);
+					churnNote(note % 128, false);
+				}
+			}
+		}
+	}
+}
 } // namespace
+
+// DSP-time model for offline renders (see audio_engine.cpp setDireness seam). Wall-clock task time is meaningless
+// when rendering offline (and wildly inflated under ASan), so model the device's load instead:
+//   modeled dspTime = (DELUGE_HOST_DSP_BASE + DELUGE_HOST_DSP_PER_VOICE * numVoices) samples per render window.
+// With the firmware's numSamplesLimit=80, BASE=40/PER_VOICE=4 means ~10 concurrent voices hit the cull threshold —
+// approximating a heavily-loaded device so the 1.3 culling paths actually run (and can be A/B'd by varying the knobs).
+// DELUGE_HOST_DSP_BASE=-1 disables the override (keeps wall-clock behavior).
+extern "C" int32_t deluge_sim_dsp_time_override(int32_t measured, int32_t numSamples, int32_t numVoices) {
+	static int base = -2, perVoice = 0;
+	if (base == -2) {
+		const char* b = std::getenv("DELUGE_HOST_DSP_BASE");
+		const char* v = std::getenv("DELUGE_HOST_DSP_PER_VOICE");
+		base = b ? std::atoi(b) : -1;
+		perVoice = v ? std::atoi(v) : 4;
+	}
+	if (base < 0) {
+		return measured;
+	}
+	return base + perVoice * numVoices;
+}
 
 extern "C" void deluge_host_debug_install(void) {
 	std::signal(SIGUSR1, onSignal);
@@ -508,6 +808,8 @@ extern "C" void deluge_host_debug_poll(void) {
 	runSongLoadHarnessIfDue();
 	runPresetSwitchHarnessIfDue();
 	runScrollHarnessIfDue();
+	runNoteChurnHarnessIfDue();
+	runSongPlayHarnessIfDue();
 
 	int req = g_request;
 	if (req == 0) {

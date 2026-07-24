@@ -777,6 +777,7 @@ tryRegular:
 				}
 
 notFound:
+				D_PRINTLN("audio file not found: %s (f_open result %d)", filePath.get(), (int)result);
 				*error = Error::FILE_UNREADABLE;
 				return NULL;
 			}

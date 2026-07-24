@@ -273,6 +273,9 @@ void songSwapAboutToHappen() {
 
 enum CullType { HARD, FORCE, SOFT_ALWAYS, SOFT };
 
+// Host-sim DSP-time model hook (see setDireness). Weak + unimplemented on firmware.
+extern "C" [[gnu::weak]] int32_t deluge_sim_dsp_time_override(int32_t measured, int32_t numSamples, int32_t numVoices);
+
 #define AUDIO_LOG_SIZE 64
 bool definitelyLog = false;
 #if DO_AUDIO_LOG
@@ -506,6 +509,12 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 inline void setDireness(size_t numSamples) { // Consider direness and culling - before increasing the number of samples
 	// number of samples it took to do the last render
 	auto dspTime = (int32_t)(getAverageRunTimeForTask(routine_task_id) * 44100.);
+	// Host-sim seam: offline renders measure wall-clock task time (meaningless under ASan/non-realtime), which pegs
+	// direness and culls everything. The host harness can define this to substitute a modeled DSP time; absent (weak,
+	// as on firmware) it resolves to null and this branch is dead.
+	if (deluge_sim_dsp_time_override != nullptr) {
+		dspTime = deluge_sim_dsp_time_override(dspTime, (int32_t)numSamples, getNumVoices());
+	}
 	size_t nonDSP = numSamples - dspTime;
 	// we don't care about the number that were rendered in the last go, only the ones taken by the first routine call
 	numSamples = std::max<int32_t>(dspTime - (int32_t)(numRoutines * numSamples), 0);
