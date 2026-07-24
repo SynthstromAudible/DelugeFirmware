@@ -4873,7 +4873,9 @@ ModelStackWithAutoParam* Sound::getParamFromMIDIKnob(MIDIKnob& knob, ModelStackW
 }
 
 const Sound::ActiveVoice& Sound::acquireVoice() noexcept(false) {
-	if (voices_.size() >= maxVoiceCount) {
+	auto count_toward_voice_limit = [](const ActiveVoice& voice) { return !voice->isCullFading(); };
+
+	if (std::ranges::count_if(voices_, count_toward_voice_limit) >= maxVoiceCount) {
 		this->terminateOneActiveVoice();
 	}
 
@@ -4941,14 +4943,18 @@ void Sound::terminateOneActiveVoice() {
 		return;
 	}
 
-	ActiveVoice* best = &voices_.front();
-	for (ActiveVoice& voice : voices_ | std::views::drop(1)) {
-		// skip voices which are already releasing faster than we're going to release them
-		if (voice->envelopes[0].state >= EnvelopeStage::FAST_RELEASE
-		    && voice->envelopes[0].fastReleaseIncrement >= SOFT_CULL_INCREMENT) {
+	// The eligibility filter must apply to EVERY voice, including the first: seeding `best` with front()
+	// unfiltered meant a just-fast-released front voice (highest rating, since FAST_RELEASE outranks every
+	// sounding stage) absorbed every subsequent terminate in the same render window - so chords overran
+	// maxVoiceCount and the limiter sometimes chopped held notes instead (issue #4721).
+	ActiveVoice* best = nullptr;
+	for (ActiveVoice& voice : voices_) {
+		if (voice->isCullFading()) {
 			continue;
 		}
-		best = (*best)->getPriorityRating() < voice->getPriorityRating() ? &voice : best;
+		if (best == nullptr || (*best)->getPriorityRating() < voice->getPriorityRating()) {
+			best = &voice;
+		}
 	}
 
 	if (best == nullptr) {
@@ -4956,7 +4962,10 @@ void Sound::terminateOneActiveVoice() {
 	}
 
 	const ActiveVoice& voice = *best;
-	bool still_rendering = voice->doFastRelease(4 * SOFT_CULL_INCREMENT);
+	// SOFT_CULL_INCREMENT = a 128-sample (~2.9 ms) fade, matching release 1.2's voice-limit steal. Faster rates
+	// (the 4x, 32-sample sub-millisecond one) read as a pop on sustained material when a low maxVoices makes every
+	// note-on steal (issue #4721).
+	bool still_rendering = voice->doFastRelease(SOFT_CULL_INCREMENT);
 
 	if (!still_rendering) {
 		this->freeActiveVoice(voice);
@@ -4968,19 +4977,26 @@ void Sound::forceReleaseOneActiveVoice() {
 		return;
 	}
 
-	ActiveVoice* best = &voices_.front();
-	for (ActiveVoice& voice : voices_ | std::views::drop(1)) {
-		// skip voices releasing faster than this - we'd rather release another voice
-		if (voice->envelopes[0].state >= EnvelopeStage::FAST_RELEASE
-		    && voice->envelopes[0].fastReleaseIncrement >= 4096) {
+	// As in terminateOneActiveVoice: the filter must cover the first voice too, or an already-fast-releasing
+	// front voice (highest rating) soaks up every call in the window.
+	// Note isCullFading() only protects voices already fading at >= SOFT_CULL_INCREMENT; a voice fast-releasing
+	// more slowly (increment in [4096, SOFT_CULL_INCREMENT)) is still eligible, so speedUpRelease() below doubles
+	// it up to the cull-fade rate. This is intentional: a slow fade shouldn't be allowed to linger under load.
+	ActiveVoice* best = nullptr;
+	for (ActiveVoice& voice : voices_) {
+		if (voice->isCullFading()) {
 			continue;
 		}
-		best = (*best)->getPriorityRating() < voice->getPriorityRating() ? &voice : best;
+		if (best == nullptr || (*best)->getPriorityRating() < voice->getPriorityRating()) {
+			best = &voice;
+		}
+	}
+
+	if (best == nullptr) {
+		return;
 	}
 
 	const ActiveVoice& voice = *best;
-
-	auto stage = voice->envelopes[0].state;
 
 	bool still_rendering = voice->speedUpRelease();
 

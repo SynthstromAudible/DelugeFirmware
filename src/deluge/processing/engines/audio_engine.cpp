@@ -306,14 +306,20 @@ void terminateOneVoice(size_t numSamples) {
 		return;
 	}
 
-	const Sound::ActiveVoice* best = &all_voices.front();
-	for (const auto& voice : all_voices | std::views::drop(1)) {
-		// if we're not skipping releasing voices, or if we are and this one isn't in fast release
-		if (voice->envelopes[0].state >= EnvelopeStage::FAST_RELEASE
-		    && voice->envelopes[0].fastReleaseIncrement >= SOFT_CULL_INCREMENT) {
+	// The skip filter must apply to the first voice too (see Sound::terminateOneActiveVoice / issue #4721):
+	// seeding `best` unfiltered let an already-fast-releasing front voice absorb every cull in the window.
+	const Sound::ActiveVoice* best = nullptr;
+	for (const auto& voice : all_voices) {
+		if (voice->isCullFading()) {
 			continue;
 		}
-		best = (*best)->getPriorityRating() < voice->getPriorityRating() ? &voice : best;
+		if (best == nullptr || (*best)->getPriorityRating() < voice->getPriorityRating()) {
+			best = &voice;
+		}
+	}
+
+	if (best == nullptr) {
+		return;
 	}
 
 	const Sound::ActiveVoice& voice = *best;
@@ -333,14 +339,21 @@ void forceReleaseOneVoice(size_t num_samples) {
 		return;
 	}
 
-	const Sound::ActiveVoice* best = &all_voices.front();
-	for (const auto& voice : all_voices | std::views::drop(1)) {
-		// if a voice is already fast releasing just speed it up
-		if (voice->envelopes[0].state == EnvelopeStage::FAST_RELEASE) {
-			voice->speedUpRelease();
-			return;
+	// Don't spend another soft cull on a voice that's already disappearing at the cull fade rate. FAST_RELEASE has a
+	// high priority rating, so without this filter repeated soft culls can chase the same fading voice while long
+	// musical-release tails keep stacking up.
+	const Sound::ActiveVoice* best = nullptr;
+	for (const auto& voice : all_voices) {
+		if (voice->isCullFading()) {
+			continue;
 		}
-		best = (*best)->getPriorityRating() < voice->getPriorityRating() ? &voice : best;
+		if (best == nullptr || (*best)->getPriorityRating() < voice->getPriorityRating()) {
+			best = &voice;
+		}
+	}
+
+	if (best == nullptr) {
+		return;
 	}
 
 	const Sound::ActiveVoice& voice = *best;
