@@ -733,49 +733,48 @@ void PlaybackHandler::actionTimerTickPart2() {
 
 	// If not in count-in...
 	if (!ticksLeftInCountIn) {
-
 		currentSong->resyncLFOs();
-		if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
-			// Trigger clock output ticks
-			if (cvEngine.isTriggerClockOutputEnabled()) {
-				// Do any trigger clock output ticks up to and including now
-				uint32_t internalTicksPer;
-				uint32_t analogOutTicksPer;
-				getAnalogOutTicksToInternalTicksRatio(&internalTicksPer, &analogOutTicksPer);
-				uint64_t fractionLastTimerTick = lastTimerTickActioned * analogOutTicksPer;
-				uint64_t fractionNextAnalogOutTick = (lastTriggerClockOutTickDone + 1) * internalTicksPer;
+	}
 
-				// if we've fallen behind the timer ticks somehow then scheduling won't work properly so output
-				// immediately otherwise set it to be done by the audio engine
-				if (fractionNextAnalogOutTick < fractionLastTimerTick) {
-					doTriggerClockOutTick();
-					fractionNextAnalogOutTick += internalTicksPer;
-				}
-				// Schedule another trigger clock output tick
-				scheduleTriggerClockOutTickParamsKnown(analogOutTicksPer, fractionLastTimerTick,
-				                                       fractionNextAnalogOutTick);
+	if (!stemExport.processStarted || (stemExport.processStarted && !stemExport.renderOffline)) {
+		// Trigger clock output ticks
+		if (cvEngine.isTriggerClockOutputEnabled()) {
+			// Do any trigger clock output ticks up to and including now
+			uint32_t internalTicksPer;
+			uint32_t analogOutTicksPer;
+			getAnalogOutTicksToInternalTicksRatio(&internalTicksPer, &analogOutTicksPer);
+			uint64_t fractionLastTimerTick = lastTimerTickActioned * analogOutTicksPer;
+			uint64_t fractionNextAnalogOutTick = (lastTriggerClockOutTickDone + 1) * internalTicksPer;
+
+			// if we've fallen behind the timer ticks somehow then scheduling won't work properly so output
+			// immediately otherwise set it to be done by the audio engine
+			if (fractionNextAnalogOutTick < fractionLastTimerTick) {
+				doTriggerClockOutTick();
+				fractionNextAnalogOutTick += internalTicksPer;
+			}
+			// Schedule another trigger clock output tick
+			scheduleTriggerClockOutTickParamsKnown(analogOutTicksPer, fractionLastTimerTick, fractionNextAnalogOutTick);
+		}
+
+		// MIDI clock output ticks
+		if (currentlySendingMIDIOutputClocks()) {
+			// Do any MIDI clock output ticks up to and including now
+			uint32_t internalTicksPer;
+			uint32_t midiClockOutTicksPer;
+			getMIDIClockOutTicksToInternalTicksRatio(&internalTicksPer, &midiClockOutTicksPer);
+			uint64_t fractionLastTimerTick = lastTimerTickActioned * midiClockOutTicksPer;
+
+			uint64_t fractionNextMIDIClockOutTick = (lastMIDIClockOutTickDone + 1) * internalTicksPer;
+			// if we've fallen behind the timer ticks somehow then scheduling won't work properly so output
+			// immediately otherwise set it to be done by the audio engine
+			if (fractionNextMIDIClockOutTick < fractionLastTimerTick) {
+				doMIDIClockOutTick();
+				fractionNextMIDIClockOutTick += midiClockOutTicksPer;
 			}
 
-			// MIDI clock output ticks
-			if (currentlySendingMIDIOutputClocks()) {
-				// Do any MIDI clock output ticks up to and including now
-				uint32_t internalTicksPer;
-				uint32_t midiClockOutTicksPer;
-				getMIDIClockOutTicksToInternalTicksRatio(&internalTicksPer, &midiClockOutTicksPer);
-				uint64_t fractionLastTimerTick = lastTimerTickActioned * midiClockOutTicksPer;
-
-				uint64_t fractionNextMIDIClockOutTick = (lastMIDIClockOutTickDone + 1) * internalTicksPer;
-				// if we've fallen behind the timer ticks somehow then scheduling won't work properly so output
-				// immediately otherwise set it to be done by the audio engine
-				if (fractionNextMIDIClockOutTick < fractionLastTimerTick) {
-					doMIDIClockOutTick();
-					fractionNextMIDIClockOutTick += midiClockOutTicksPer;
-				}
-
-				// Schedule another MIDI clock output tick
-				scheduleMIDIClockOutTickParamsKnown(midiClockOutTicksPer, fractionLastTimerTick,
-				                                    fractionNextMIDIClockOutTick);
-			}
+			// Schedule another MIDI clock output tick
+			scheduleMIDIClockOutTickParamsKnown(midiClockOutTicksPer, fractionLastTimerTick,
+			                                    fractionNextMIDIClockOutTick);
 		}
 	}
 }
@@ -993,6 +992,9 @@ void PlaybackHandler::actionSwungTick() {
 			lastTimerTickActioned = 0;
 			lastSwungTickActioned = 0;
 			swungTicksTilNextEvent = 0;
+
+			lastTriggerClockOutTickDone = -1;
+			lastMIDIClockOutTickDone = -1;
 
 			// May not call audio routine during this, cos that'd try doing ticks before everything's set up
 			currentPlaybackMode->resetPlayPos(
