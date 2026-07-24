@@ -421,18 +421,13 @@ uint8_t numRoutines = 0;
 void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 
 	bool culled = false;
-	// at high loads voicesStarted is limited to 2. Since starting voices is a heavy load and we know it's temporary
-	// we can be a bit more lenient with the limit
-	auto max_num_samples = numSamplesLimit + (20 * voices_started_this_render);
 	if (numAudio + numVoice > MIN_VOICES) {
-		static int32_t last_num_samples_over = 0;
-
-		int32_t num_samples_over_limit = numSamples - max_num_samples;
+		int32_t num_samples_over_limit = numSamples - numSamplesLimit;
 		// If it's real dire, do a proper immediate cull
 		if (num_samples_over_limit >= 32) {
 			int32_t num_to_cull = (num_samples_over_limit >> 4);
 
-			// leave at least 7 - below this point culling won't save us
+			// leave at least MIN_VOICES - below this point culling won't save us
 			// if they can't load their sample in time they'll stop the same way anyway
 			num_to_cull = std::min(num_to_cull, numAudio + numVoice - MIN_VOICES);
 			D_PRINTLN("Culling %d voices", num_to_cull);
@@ -454,19 +449,15 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 			culled = true;
 		}
 
-		// Or if it's just a little bit dire, do a soft cull with fade-out, but only cull for sure if numSamples
-		// is increasing
+		// Or if it's just a little bit dire, do a soft cull with fade-out.
 		else if (num_samples_over_limit >= 0) {
-			if (last_num_samples_over > 0 && num_samples_over_limit >= last_num_samples_over) {
-				forceReleaseOneVoice(numSamples);
-				logAction("soft cull");
-				if (numRoutines > 0) {
-					culled = true;
-					D_PRINTLN("culling in second routine");
-				}
+			forceReleaseOneVoice(numSamples);
+			logAction("soft cull");
+			if (numRoutines > 0) {
+				culled = true;
+				D_PRINTLN("culling in second routine");
 			}
 		}
-		last_num_samples_over = num_samples_over_limit;
 	}
 	else {
 		int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
