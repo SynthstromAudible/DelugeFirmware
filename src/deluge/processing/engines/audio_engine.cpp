@@ -424,15 +424,19 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 	if (numAudio + numVoice > MIN_VOICES) {
 		int32_t num_samples_over_limit = numSamples - numSamplesLimit;
 		// If it's real dire, do a proper immediate cull
-		if (num_samples_over_limit >= 20) {
-			int32_t num_to_cull = (num_samples_over_limit >> 3);
+		if (num_samples_over_limit >= 32) {
+			int32_t num_to_cull = (num_samples_over_limit >> 4);
 
 			// leave at least MIN_VOICES - below this point culling won't save us
 			// if they can't load their sample in time they'll stop the same way anyway
 			num_to_cull = std::min(num_to_cull, numAudio + numVoice - MIN_VOICES);
 			D_PRINTLN("Culling %d voices", num_to_cull);
 
-			for (int32_t i = 0; i < num_to_cull; i++) {
+			for (int32_t i = num_to_cull / 2; i < num_to_cull; i++) {
+				// cull with fast release
+				terminateOneVoice(numSamples);
+			}			
+			for (int32_t i = 0; i < num_to_cull / 2; i++) {
 				// cull with immediate release
 				killOneVoice(numSamples);
 			}
@@ -445,8 +449,7 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 			culled = true;
 		}
 
-		// Or if it's just a little bit dire, do a soft cull with fade-out. Release 1.2 did this immediately when over
-		// the limit; waiting for a rising trend lets max-release voices stack up until the hard-cull path fires.
+		// Or if it's just a little bit dire, do a soft cull with fade-out.
 		else if (num_samples_over_limit >= 0) {
 			forceReleaseOneVoice(numSamples);
 			logAction("soft cull");
