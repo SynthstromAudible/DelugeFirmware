@@ -2878,19 +2878,35 @@ void AutomationView::selectMIDICC(int32_t offset, Clip* clip) {
 	if (onAutomationOverview()) {
 		clip->lastSelectedParamID = CC_NUMBER_NONE;
 	}
-	auto newCC = clip->lastSelectedParamID;
-	newCC += offset;
-	if (newCC < 0) {
-		newCC = CC_NUMBER_Y_AXIS;
+
+	// when the device definition asks to only show defined CCs, skip past any plain CC that has no
+	// named label. expression params (pitch bend / aftertouch / MPE-Y, >= kNumRealCCNumbers) are always
+	// shown, so the visible set is never empty and this loop can never get stuck.
+	bool only_show_defined_ccs = false;
+	MIDIInstrument* midi_instrument = nullptr;
+	if (clip->output != nullptr && clip->output->type == OutputType::MIDI_OUT) {
+		midi_instrument = static_cast<MIDIInstrument*>(clip->output);
+		only_show_defined_ccs = midi_instrument->only_show_defined_ccs;
 	}
-	else if (newCC >= kNumCCExpression) {
-		newCC = 0;
-	}
-	if (newCC == CC_EXTERNAL_MOD_WHEEL) {
-		// mod wheel is actually CC_NUMBER_Y_AXIS (122) internally
-		newCC += offset;
-	}
-	clip->lastSelectedParamID = newCC;
+
+	auto new_cc = clip->lastSelectedParamID;
+	int32_t guard = 0;
+	do {
+		new_cc += offset;
+		if (new_cc < 0) {
+			new_cc = CC_NUMBER_Y_AXIS;
+		}
+		else if (new_cc >= kNumCCExpression) {
+			new_cc = 0;
+		}
+		if (new_cc == CC_EXTERNAL_MOD_WHEEL) {
+			// mod wheel is actually CC_NUMBER_Y_AXIS (122) internally
+			new_cc += offset;
+		}
+	} while (only_show_defined_ccs && new_cc < kNumRealCCNumbers && midi_instrument->getNameFromCC(new_cc).empty()
+	         && ++guard <= kNumCCExpression);
+
+	clip->lastSelectedParamID = new_cc;
 	automationParamType = AutomationParamType::PER_SOUND;
 }
 
