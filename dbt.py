@@ -5,8 +5,8 @@ import importlib
 import os
 import sys
 import textwrap
-from shutil import copytree
 from pathlib import Path
+from shutil import copytree
 
 PROG_NAME = sys.argv[0].split(".")[0]
 
@@ -15,7 +15,7 @@ TASKS_DIR = SCRIPTS_DIR / "tasks"
 DBT_DEBUG_DIR = SCRIPTS_DIR / "debug"
 
 os.environ["DBT_DEBUG_DIR"] = str(DBT_DEBUG_DIR)
-os.environ["DELUGE_FW_ROOT"] = str(Path(".").resolve())
+os.environ["DELUGE_FW_ROOT"] = str(Path.cwd())
 
 if "DBT_TOOLCHAIN_PATH" not in os.environ:
     os.environ["DBT_TOOLCHAIN_PATH"] = os.environ["DELUGE_FW_ROOT"]
@@ -61,7 +61,7 @@ def print_tasks_usage(tasks):
 
 def print_help(argparser: argparse.ArgumentParser, tasks: dict):
     argparser.print_help()
-    print("")
+    print()
     print("subcommands: ")
     print_tasks_usage(tasks)
 
@@ -107,11 +107,11 @@ def main() -> int:
     # nothing on the command line
     if args.help or len(sys.argv) == 1:
         print_help(parser, tasks)
-        exit()
+        sys.exit()
 
     if args.subcommand not in tasks:
         print(f"{PROG_NAME}: '{args.subcommand}' is not a valid subcommand.")
-        print("")
+        print()
         print("Valid subcommands:")
         print_tasks_usage(tasks)
 

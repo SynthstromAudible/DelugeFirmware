@@ -1,12 +1,13 @@
 #! /usr/bin/env python3
 import argparse
 import importlib
+import os
 import subprocess
 import sys
-from typing import Sequence
-import util
-import os
 import webbrowser
+from collections.abc import Sequence
+
+import util
 
 
 def argparser() -> argparse.ArgumentParser:
@@ -25,7 +26,7 @@ def argparser() -> argparse.ArgumentParser:
 
 
 def main(argv: Sequence[str] = sys.argv) -> int:
-    (args, unknown_args) = argparser().parse_known_args(argv)
+    (_args, _unknown_args) = argparser().parse_known_args(argv)
 
     project_root = util.get_git_root()
     build_dir = project_root.absolute() / "build"
@@ -41,7 +42,7 @@ def main(argv: Sequence[str] = sys.argv) -> int:
     build_args += ["--build", "build"]
     build_args += ["--target", "doxygen"]
 
-    result = subprocess.run(["cmake"] + build_args, env=os.environ)
+    result = subprocess.run(["cmake"] + build_args, env=os.environ, check=False)
     if result.returncode == 0:
         if webbrowser.open(index_page.absolute()):
             return 0
