@@ -44,6 +44,11 @@ public:
 	MenuItem* selectButtonPress() final;
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	void readValueAgain() final { updateDisplay(); }
+	// Forward live CC edits to the focused child (e.g. the focused macro From/To column). current_item_
+	// tracks the focused item for both vertical submenus and horizontal menu groups.
+	bool liveEditFromMidiCC(int32_t ccNumber, int32_t value) override {
+		return (*current_item_)->liveEditFromMidiCC(ccNumber, value);
+	}
 	void unlearnAction() final;
 	bool usesAffectEntire() override;
 	bool allowsLearnMode() final;

@@ -23,6 +23,8 @@ class MIDIParam {
 public:
 	MIDIParam();
 
-	uint8_t cc;
+	// int32_t (not uint8_t) so the MIDIParamVector's 32-bit key can hold macro-lane pseudo-CCs (128-131)
+	// without the 8-bit-signed key sign-extending them into negatives. Real CCs are still 0..123.
+	int32_t cc;
 	AutoParam param;
 };

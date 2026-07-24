@@ -318,6 +318,12 @@ bool AudioOutput::writeDataToFile(Serializer& writer, Clip* clipForSavingOutputO
 
 	GlobalEffectableForClip::writeTagsToFile(writer, paramManager, true);
 
+	// The GLOBAL-domain macros block (audio-clip macros live on this Output, like synth/MIDI macros
+	// live on the instrument). Only written when a macro deviates from its defaults.
+	if (Macros::anyMacroConfigured(macros)) {
+		Macros::writeMacrosToFile(writer, macros, Macros::domainForOutput(this));
+	}
+
 	return true;
 }
 
@@ -349,6 +355,11 @@ Error AudioOutput::readFromFile(Deserializer& reader, Song* song, Clip* clip, in
 
 		else if (!strcmp(tagName, "outputRecordingIndex")) {
 			outputRecordingFromIndex = reader.readTagOrAttributeValueInt();
+		}
+
+		else if (!strcmp(tagName, "macros")) {
+			Macros::readMacrosFromFile(reader, macros, Macros::domainForOutput(this));
+			reader.exitTag();
 		}
 
 		else if (Output::readTagFromFile(reader, tagName)) {}

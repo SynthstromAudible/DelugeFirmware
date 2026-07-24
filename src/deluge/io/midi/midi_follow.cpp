@@ -36,6 +36,7 @@
 #include "model/instrument/melodic_instrument.h"
 #include "model/note/note_row.h"
 #include "model/song/song.h"
+#include "modulation/macros/macros.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_set.h"
 #include "playback/mode/session.h"
@@ -357,6 +358,51 @@ void MidiFollow::initDefaultMappings() {
 	globalParamToCC[params::UNPATCHED_REVERB_SEND_AMOUNT] = 91;
 	ccToGlobalParam[93] = params::UNPATCHED_MOD_FX_DEPTH;
 	globalParamToCC[params::UNPATCHED_MOD_FX_DEPTH] = 93;
+
+	// Macros 1-4 on CCs 114-117: the macro lane params stand in for "the macro itself" - a follow
+	// CC landing on one drives the clip's macros (fan-out to their targets, all macro-capable clip
+	// types including MIDI) via Macros::tryFollowMacro(), never a generic param write. The sound
+	// and global ids both map so synth and audio/kit contexts resolve alike; each pair shares one
+	// XML tag ("macro1".."macro4") since both param kinds file under the same name.
+	for (int32_t m = 0; m < Macros::kNumMacros; m++) {
+		ccToSoundParam[114 + m] = params::UNPATCHED_START + params::UNPATCHED_MACRO_1 + m;
+		soundParamToCC[params::UNPATCHED_START + params::UNPATCHED_MACRO_1 + m] = 114 + m;
+		ccToGlobalParam[114 + m] = params::UNPATCHED_GLOBAL_MACRO_1 + m;
+		globalParamToCC[params::UNPATCHED_GLOBAL_MACRO_1 + m] = 114 + m;
+	}
+
+	buildMIDICCShortcutsForAutomation(); // cache the derived grid now the default maps are set
+}
+
+// Recomputes the automation-grid pad -> CC table from the current maps. Reads the const param-shortcut
+// grids (patchedParamShortcuts etc.), which are compile-time-constant .rodata (no static-init hazard).
+void MidiFollow::buildMIDICCShortcutsForAutomation() {
+	for (int32_t x = 0; x < kDisplayWidth; x++) {
+		for (int32_t y = 0; y < kDisplayHeight; y++) {
+			uint8_t ccNumber = MIDI_CC_NONE;
+			uint32_t paramId = params::patchedParamShortcuts[x][y];
+			if (paramId != params::kNoParamID) {
+				ccNumber = soundParamToCC[paramId];
+				if (ccNumber == MIDI_CC_NONE) {
+					ccNumber = globalParamToCC[paramId];
+				}
+			}
+			if (ccNumber == MIDI_CC_NONE) {
+				paramId = params::unpatchedNonGlobalParamShortcuts[x][y];
+				if (paramId != params::kNoParamID) {
+					ccNumber = soundParamToCC[paramId + params::UNPATCHED_START];
+					if (ccNumber == MIDI_CC_NONE) {
+						ccNumber = globalParamToCC[paramId];
+					}
+				}
+			}
+			midiCCShortcutsForAutomation[x][y] = (ccNumber != MIDI_CC_NONE) ? ccNumber : params::kNoParamID;
+		}
+	}
+
+	midiCCShortcutsForAutomation[14][7] = CC_NUMBER_PITCH_BEND;
+	midiCCShortcutsForAutomation[15][0] = CC_NUMBER_AFTERTOUCH;
+	midiCCShortcutsForAutomation[15][7] = CC_NUMBER_Y_AXIS;
 }
 
 /// checks to see if there is an active clip for the current context
@@ -897,6 +943,15 @@ Output* MidiFollow::midiCCReceivedForSelectedOrActiveClip(MIDICable& cable, uint
 			selected_track = clip->output;
 		}
 
+		// A follow CC mapped to a macro (CCs 114-117 by default) drives the clip's macros directly
+		// and is consumed, like a learned macro source CC. It must sit above both blocks below:
+		// the internal-params gate excludes MIDI clips, which do host macros, and the
+		// melodic-instrument offer would instead forward the CC out raw.
+		if (clip && (match == MIDIMatchType::MPE_MASTER || match == MIDIMatchType::CHANNEL)
+		    && Macros::tryFollowMacro(clip, ccToSoundParam[ccNumber], ccToGlobalParam[ccNumber], ccValue)) {
+			return selected_track;
+		}
+
 		// don't offer to handleReceivedCC if it's a MIDI or CV Clip
 		// this is because this function is used to control internal deluge parameters only (patched, unpatched)
 		// midi/cv clip cc parameters are handled below in the offerReceivedCCToMelodicInstrument function
@@ -977,6 +1032,12 @@ void MidiFollow::midiCCReceivedForSpecificTrack(MIDICable& cable, uint8_t channe
 				isCVClip = true;
 			}
 
+			// same macro-CC interception as the selected/active-clip path - see there
+			if ((match == MIDIMatchType::MPE_MASTER || match == MIDIMatchType::CHANNEL)
+			    && Macros::tryFollowMacro(clip, ccToSoundParam[ccNumber], ccToGlobalParam[ccNumber], ccValue)) {
+				return;
+			}
+
 			// don't offer to handleReceivedCC if it's a MIDI or CV Clip
 			// this is because this function is used to control internal deluge parameters only (patched, unpatched)
 			// midi/cv clip cc parameters are handled below in the offerReceivedCCToMelodicInstrument function
@@ -1050,6 +1111,13 @@ void MidiFollow::handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounte
 	uint8_t globalParamId = ccToGlobalParam[ccNumber];
 	if (soundParamId == PARAM_ID_NONE && globalParamId == PARAM_ID_NONE) {
 		// Abort
+		return;
+	}
+	// A macro lane param is never written via the generic path below: a macro CC that fired was
+	// already consumed in tryFollowMacro() before this. Reaching here means it didn't fire
+	// (inactive/cascade-fed macro, or the feature is off), and writing the inert lane param
+	// directly would move the macro silently without fanning out to its targets.
+	if (Macros::followMacroIndex(soundParamId, globalParamId) >= 0) {
 		return;
 	}
 
@@ -1711,6 +1779,7 @@ void MidiFollow::readDefaultsFromFile() {
 		reader.exitTag();
 	}
 	activeDeserializer->closeWriter();
+	buildMIDICCShortcutsForAutomation(); // XML overrode the maps - refresh the derived grid
 	successfullyReadDefaultsFromFile = true;
 }
 
