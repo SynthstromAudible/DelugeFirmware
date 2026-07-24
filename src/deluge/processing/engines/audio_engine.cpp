@@ -387,9 +387,7 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 	audioFileManager.loadAnyEnqueuedClusters(128, mayProcessUserActionsBetween);
 
 	if (!routineBeenCalled) {
-		// This catch-up routine is already running after SD / cluster-loading work delayed audio. Release 1.2 skipped
-		// culling here so a one-off storage stall didn't get treated as a synth load problem.
-		bypassCulling = true;
+		// bypassCulling = true; // yolo? Sean: not sure if this is necessary
 
 		logAction("call runRoutine() from routineWithClusterLoading()");
 		runRoutine();
