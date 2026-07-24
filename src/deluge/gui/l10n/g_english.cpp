@@ -988,6 +988,18 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_DEFAULT_HORIZONTAL_MENU, "Horizontal Menu"},
         {STRING_FOR_CHORD_KEYBOARD_MODE_ROW, "Chord Row Mode"},
         {STRING_FOR_CHORD_KEYBOARD_MODE_COLUMN, "Chord Column Mode"},
+        {STRING_FOR_COMMUNITY_FEATURE_ROUND_ROBIN_VARIANTS, "Round-Robin Sample Variants"},
+        {STRING_FOR_VARIANTS, "Variants"},
+        {STRING_FOR_VARIANT_SLOT_1, "Slot 1"},
+        {STRING_FOR_VARIANT_SLOT_2, "Slot 2"},
+        {STRING_FOR_VARIANT_SLOT_3, "Slot 3"},
+        {STRING_FOR_VARIANT_SLOT_4, "Slot 4"},
+        {STRING_FOR_FILE, "File"},
+        {STRING_FOR_MARKERS, "Markers"},
+        {STRING_FOR_CENTS, "Cents"},
+        {STRING_FOR_CYCLE, "Cycle"},
+        {STRING_FOR_NO_REPEAT, "No Repeat"},
+        {STRING_FOR_LOAD, "Load"},
     },
 };
 } // namespace deluge::l10n::built_in

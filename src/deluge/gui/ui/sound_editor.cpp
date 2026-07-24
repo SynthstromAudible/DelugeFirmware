@@ -259,6 +259,9 @@ bool SoundEditor::opened() {
 	// we don't want to process select button release when entering menu
 	Buttons::selectButtonPressUsedUp = true;
 
+	// Belt and braces: no variant-slot audition override should survive from a previous session.
+	MultisampleRange::clearAuditionSlot();
+
 	bool success = beginScreen(); // Could fail for instance if going into WaveformView but sample not found on card, or
 	                              // going into SampleBrowser but card not present
 	if (!success) {
@@ -453,9 +456,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 				return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 			}
 			if (Buttons::isShiftButtonPressed()) {
-				if (getCurrentMenuItem() == &menu_item::multiRangeMenu) {
-					menu_item::multiRangeMenu.deletePress();
-				}
+				getCurrentMenuItem()->deletePress();
 			}
 			else {
 				openUI(&saveInstrumentPresetUI);
@@ -721,6 +722,9 @@ ActionResult SoundEditor::exitCompletely() {
 
 	// end current menu item session before exiting
 	endScreen();
+
+	// Any variant-slot audition override belongs to the menu session that just ended.
+	MultisampleRange::clearAuditionSlot();
 
 	display->setNextTransitionDirection(-1);
 	close();

@@ -18,6 +18,7 @@
 #include "loop_point.h"
 
 #include "gui/menu_item/menu_item.h"
+#include "gui/menu_item/sample/round_robin.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sample_marker_editor.h"
 #include "gui/ui/sound_editor.h"
@@ -32,7 +33,13 @@
 namespace deluge::gui::menu_item::sample {
 
 bool LoopPoint::isRelevant(ModControllableAudio* modControllable, int32_t) {
-	return isSampleModeSample(modControllable, sourceId_);
+	if (!isSampleModeSample(modControllable, sourceId_)) {
+		return false;
+	}
+	// Once an alternate variant is loaded, editing slot 0's markers here would be a second path to
+	// the exact same data as the new per-variant Strt/End items, so this OSC-level entry steps aside.
+	MultisampleRange* range = getRoundRobinRange(sourceId_);
+	return range == nullptr || range->rrCount == 0;
 }
 
 MenuPermission LoopPoint::checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t,

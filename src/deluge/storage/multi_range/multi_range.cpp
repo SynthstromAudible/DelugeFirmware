@@ -16,10 +16,19 @@
  */
 
 #include "storage/multi_range/multi_range.h"
+#include "storage/audio/audio_file_holder.h"
 
 MultiRange::MultiRange() {
 	topNote = 32767;
 }
 
 MultiRange::~MultiRange() {
+}
+
+Error MultiRange::loadAllAudioFiles(bool reversed, bool mayActuallyReadFiles) {
+	return getAudioFileHolder()->loadFile(reversed, false, mayActuallyReadFiles, CLUSTER_ENQUEUE, nullptr, true);
+}
+
+void MultiRange::detachAllAudioFiles() {
+	getAudioFileHolder()->setAudioFile(nullptr);
 }
