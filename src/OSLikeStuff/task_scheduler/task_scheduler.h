@@ -45,6 +45,7 @@ struct TaskManager {
 
 	[[nodiscard]] Time getAverageRunTimeForCurrentTask() const;
 	[[nodiscard]] Time getAverageRunTimeForTask(TaskID id) const;
+	[[nodiscard]] Time getLastRunTimeForTask(TaskID id) const;
 
 private:
 	// All current tasks

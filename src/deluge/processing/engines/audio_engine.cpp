@@ -310,9 +310,7 @@ void terminateOneVoice(size_t numSamples) {
 	// seeding `best` unfiltered let an already-fast-releasing front voice absorb every cull in the window.
 	const Sound::ActiveVoice* best = nullptr;
 	for (const auto& voice : all_voices) {
-		// if we're not skipping releasing voices, or if we are and this one isn't in fast release
-		if (voice->envelopes[0].state >= EnvelopeStage::FAST_RELEASE
-		    && voice->envelopes[0].fastReleaseIncrement >= SOFT_CULL_INCREMENT) {
+		if (voice->isCullFading()) {
 			continue;
 		}
 		if (best == nullptr || (*best)->getPriorityRating() < voice->getPriorityRating()) {
@@ -341,15 +339,13 @@ void forceReleaseOneVoice(size_t num_samples) {
 		return;
 	}
 
-	// Cover the first voice with the same treatment as the rest (see issue #4721) - previously it was seeded
-	// into `best` without the fast-release check, so a fast-releasing front voice was never sped up and could
-	// win the priority comparison, wasting the cull.
+	// Don't spend another soft cull on a voice that's already disappearing at the cull fade rate. FAST_RELEASE has a
+	// high priority rating, so without this filter repeated soft culls can chase the same fading voice while long
+	// musical-release tails keep stacking up.
 	const Sound::ActiveVoice* best = nullptr;
 	for (const auto& voice : all_voices) {
-		// if a voice is already fast releasing just speed it up
-		if (voice->envelopes[0].state == EnvelopeStage::FAST_RELEASE) {
-			voice->speedUpRelease();
-			return;
+		if (voice->isCullFading()) {
+			continue;
 		}
 		if (best == nullptr || (*best)->getPriorityRating() < voice->getPriorityRating()) {
 			best = &voice;
@@ -391,7 +387,9 @@ void routineWithClusterLoading(bool mayProcessUserActionsBetween) {
 	audioFileManager.loadAnyEnqueuedClusters(128, mayProcessUserActionsBetween);
 
 	if (!routineBeenCalled) {
-		// bypassCulling = true; // yolo? Sean: not sure if this is necessary
+		// This catch-up routine is already running after SD / cluster-loading work delayed audio. Release 1.2 skipped
+		// culling here so a one-off storage stall didn't get treated as a synth load problem.
+		bypassCulling = true;
 
 		logAction("call runRoutine() from routineWithClusterLoading()");
 		runRoutine();
@@ -423,27 +421,18 @@ uint8_t numRoutines = 0;
 void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 
 	bool culled = false;
-	// at high loads voicesStarted is limited to 2. Since starting voices is a heavy load and we know it's temporary
-	// we can be a bit more lenient with the limit
-	auto max_num_samples = numSamplesLimit + (20 * voices_started_this_render);
 	if (numAudio + numVoice > MIN_VOICES) {
-		static int32_t last_num_samples_over = 0;
-
-		int32_t num_samples_over_limit = numSamples - max_num_samples;
+		int32_t num_samples_over_limit = numSamples - numSamplesLimit;
 		// If it's real dire, do a proper immediate cull
-		if (num_samples_over_limit >= 32) {
-			int32_t num_to_cull = (num_samples_over_limit >> 4);
+		if (num_samples_over_limit >= 20) {
+			int32_t num_to_cull = (num_samples_over_limit >> 3);
 
-			// leave at least 7 - below this point culling won't save us
+			// leave at least MIN_VOICES - below this point culling won't save us
 			// if they can't load their sample in time they'll stop the same way anyway
 			num_to_cull = std::min(num_to_cull, numAudio + numVoice - MIN_VOICES);
 			D_PRINTLN("Culling %d voices", num_to_cull);
 
-			for (int32_t i = num_to_cull / 2; i < num_to_cull; i++) {
-				// cull with fast release
-				terminateOneVoice(numSamples);
-			}
-			for (int32_t i = 1; i < num_to_cull / 2; i++) {
+			for (int32_t i = 0; i < num_to_cull; i++) {
 				// cull with immediate release
 				killOneVoice(numSamples);
 			}
@@ -456,19 +445,16 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 			culled = true;
 		}
 
-		// Or if it's just a little bit dire, do a soft cull with fade-out, but only cull for sure if numSamples
-		// is increasing
+		// Or if it's just a little bit dire, do a soft cull with fade-out. Release 1.2 did this immediately when over
+		// the limit; waiting for a rising trend lets max-release voices stack up until the hard-cull path fires.
 		else if (num_samples_over_limit >= 0) {
-			if (last_num_samples_over > 0 && num_samples_over_limit >= last_num_samples_over) {
-				forceReleaseOneVoice(numSamples);
-				logAction("soft cull");
-				if (numRoutines > 0) {
-					culled = true;
-					D_PRINTLN("culling in second routine");
-				}
+			forceReleaseOneVoice(numSamples);
+			logAction("soft cull");
+			if (numRoutines > 0) {
+				culled = true;
+				D_PRINTLN("culling in second routine");
 			}
 		}
-		last_num_samples_over = num_samples_over_limit;
 	}
 	else {
 		int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
@@ -492,7 +478,7 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 /// set the direness level and cull any voices
 inline void setDireness(size_t numSamples) { // Consider direness and culling - before increasing the number of samples
 	// number of samples it took to do the last render
-	auto dspTime = (int32_t)(getAverageRunTimeForTask(routine_task_id) * 44100.);
+	auto dspTime = (int32_t)(getLastRunTimeForTask(routine_task_id) * 44100.);
 	size_t nonDSP = numSamples - dspTime;
 	// we don't care about the number that were rendered in the last go, only the ones taken by the first routine call
 	numSamples = std::max<int32_t>(dspTime - (int32_t)(numRoutines * numSamples), 0);

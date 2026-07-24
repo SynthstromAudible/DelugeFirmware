@@ -202,6 +202,13 @@ Time TaskManager::getAverageRunTimeForTask(TaskID id) const {
 	return task->durationStats.average;
 }
 
+Time TaskManager::getLastRunTimeForTask(TaskID id) const {
+	if (id < 0 || id >= kMaxTasks || list[id].handle == nullptr || list[id].timesCalled == 0) [[unlikely]] {
+		return Time{0};
+	}
+	return list[id].lastRunTime;
+}
+
 void TaskManager::setNextRunTimeforCurrentTask(Time seconds) {
 	auto currentTask = &list[currentID];
 	currentTask->schedule.maxInterval = seconds;

@@ -2512,41 +2512,29 @@ bool Voice::doFastRelease(uint32_t releaseIncrement) {
 	}
 }
 
-bool Voice::forceNormalRelease() {
-	if (doneFirstRender) {
-		// If no release-stage, we'll stop as soon as we can
-		if (!hasReleaseStage()) {
-			envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE, SOFT_CULL_INCREMENT);
-		}
-		// otherwise we'll just let it get there on its own
-		else {
-			envelopes[0].unconditionalRelease();
-		}
-		return true;
-	}
-
-	// Or if first render not done yet, we actually don't want to hear anything at all, so just unassign it
-	else {
+bool Voice::speedUpRelease(uint32_t minFastReleaseIncrement) {
+	if (!doneFirstRender) {
 		return false;
 	}
-}
 
-bool Voice::speedUpRelease() {
 	auto stage = envelopes[0].state;
 	if (stage == EnvelopeStage::RELEASE) {
 		auto currentRelease = paramFinalValues[params::LOCAL_ENV_0_RELEASE];
-		envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE, currentRelease * 2);
+		envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE,
+		                                  std::max<uint32_t>(currentRelease * 2, minFastReleaseIncrement));
 		return true;
 	}
 	else if (stage == EnvelopeStage::FAST_RELEASE) {
 		auto currentRelease = envelopes[0].fastReleaseIncrement;
-		envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE, currentRelease * 2);
+		envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE,
+		                                  std::max<uint32_t>(currentRelease * 2, minFastReleaseIncrement));
 		return true;
 	}
 
-	// Or if we're not releasing just start the release
+	// Cull-driven release must not inherit a patch's long musical release, or culled voices can stack up.
 	else {
-		return forceNormalRelease();
+		envelopes[0].unconditionalRelease(EnvelopeStage::FAST_RELEASE, minFastReleaseIncrement);
+		return true;
 	}
 }
 
