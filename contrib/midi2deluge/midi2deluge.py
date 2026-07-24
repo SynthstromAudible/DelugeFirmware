@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 
-import mido
 import os
 import sys
+
+import mido
 
 
 def get_valid_screen_width(last_note_end):

@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 
 # Copyright Kate Whitlock (2023)
-from typing import Tuple
-from subprocess import Popen, PIPE
-from pathlib import Path
+import argparse
 import os
+import pprint
 import re
 import sys
-import argparse
+from pathlib import Path
+from subprocess import PIPE, Popen
 
-import pprint
 import in_place
 
 pp = pprint.PrettyPrinter(indent=4)
@@ -21,7 +20,7 @@ def get_git_renames(start: str, end: str):
         stdout=PIPE,
         stderr=PIPE,
     )
-    stdout, stderr = p.communicate()
+    stdout, _stderr = p.communicate()
     status_list = stdout.decode("utf-8").splitlines()
     return [(line.split("\t")[1], line.split("\t")[2]) for line in status_list]
 
@@ -30,7 +29,7 @@ def filter_headers(filename):
     return Path(filename).suffix in [".h", ".hpp", ".hh"]
 
 
-def reduce_rename_map(filemap) -> Tuple[bool, str]:
+def reduce_rename_map(filemap) -> tuple[bool, str]:
     reduced = True
     for old, new in filemap.items():
         if new in filemap:
@@ -103,26 +102,26 @@ def main():
 
     for file_path in iterator:
         try:
-            if args.dry_run:
-                file = open(file_path, encoding="utf-8")
-            else:
-                file = in_place.InPlace(file_path, encoding="utf-8")
-        except Exception as e:
+            file = (
+                open(file_path, encoding="utf-8")  # noqa: SIM115 - closed by `with file` below
+                if args.dry_run
+                else in_place.InPlace(file_path, encoding="utf-8")
+            )
+        except Exception:
             print(f"Error with file: {file_path}")
-            raise e
+            raise
 
-        for line in file:
-            for old_re, new_str in regex_map.items():
-                if args.verbose:
-                    if re.search(old_re, line):
+        with file:
+            for line in file:
+                for old_re, new_str in regex_map.items():
+                    if args.verbose and re.search(old_re, line):
                         print(line.strip())
                         print(f"=> {new_str}")
                         print()
+                    if not args.dry_run:
+                        line = re.sub(old_re, new_str, line)
                 if not args.dry_run:
-                    line = re.sub(old_re, new_str, line)
-            if not args.dry_run:
-                file.write(line)
-        file.close()
+                    file.write(line)
 
 
 if __name__ == "__main__":

@@ -1,8 +1,8 @@
 #! /usr/bin/env python3
 import argparse
+import os
 import platform
 import subprocess
-import os
 import sys
 
 PLATFORM = platform.system().lower()
@@ -18,7 +18,7 @@ def argparser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
-    result = subprocess.run(sys.argv[1:], env=os.environ, shell=True)
+    result = subprocess.run(sys.argv[1:], env=os.environ, shell=True, check=False)
     return result.returncode
 
 

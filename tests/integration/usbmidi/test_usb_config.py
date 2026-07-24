@@ -1,6 +1,6 @@
+import pytest
 import rtmidi
 import usb
-import pytest
 
 
 @pytest.fixture
