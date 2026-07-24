@@ -4962,10 +4962,10 @@ void Sound::terminateOneActiveVoice() {
 	}
 
 	const ActiveVoice& voice = *best;
-	// 2x SOFT_CULL_INCREMENT = a 64-sample (~1.5 ms) fade. Deliberately faster than 1.2's voice-limit steal (1x,
-	// which was felt to reclaim voices too slowly) but not the 4x (32-sample, sub-millisecond) rate that read as a
-	// pop on sustained material when a low maxVoices makes every note-on steal (issue #4721).
-	bool still_rendering = voice->doFastRelease(2 * SOFT_CULL_INCREMENT);
+	// SOFT_CULL_INCREMENT = a 128-sample (~2.9 ms) fade, matching release 1.2's voice-limit steal. Faster rates
+	// (the 4x, 32-sample sub-millisecond one) read as a pop on sustained material when a low maxVoices makes every
+	// note-on steal (issue #4721).
+	bool still_rendering = voice->doFastRelease(SOFT_CULL_INCREMENT);
 
 	if (!still_rendering) {
 		this->freeActiveVoice(voice);
