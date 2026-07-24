@@ -436,7 +436,7 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 				// cull with fast release
 				terminateOneVoice(numSamples);
 			}			
-			for (int32_t i = 0; i < num_to_cull / 2; i++) {
+			for (int32_t i = 1; i < num_to_cull / 2; i++) {
 				// cull with immediate release
 				killOneVoice(numSamples);
 			}
