@@ -8,9 +8,10 @@ slot is loaded, each new trigger of the zone picks a slot according to the selec
 * <string-for name="STRING_FOR_RANDOM">RANDOM</string-for> — pick any slot at random.
 * <string-for name="STRING_FOR_NO_REPEAT">NO REPEAT</string-for> — pick at random, but never the same slot twice in a row.
 
-Every slot has its own file, markers and transpose/cents, edited from the slot's submenu. `MARKERS`
-opens the sample marker editor for that slot, where start, end and loop points are all editable from
-the one screen. While a slot's submenu (or its marker editor) is open, auditioning plays that exact
-slot without advancing the cycle. Alternates must be filled in order; pressing SHIFT + SAVE/DELETE on
-an alternate slot clears it. The whole feature can be disabled in SETTINGS > COMMUNITY FEATURES;
+Every slot has its own horizontal menu: `FILE` to load a sample into that slot, `STRT`/`END` to open
+the sample marker editor focused on that marker (loop points stay reachable from the same editor
+screen), and `TRANSPOSE` to adjust that slot's pitch as a single combined semitones+cents value.
+While a slot's menu (or its marker editor) is open, auditioning plays that exact slot without
+advancing the cycle. Alternates must be filled in order; pressing SHIFT + SAVE/DELETE on an
+alternate slot clears it. The whole feature can be disabled in SETTINGS > COMMUNITY FEATURES;
 variant data in songs is preserved while off.

@@ -17,6 +17,7 @@
 
 #include "file_selector.h"
 #include "definitions_cxx.hpp"
+#include "gui/menu_item/sample/round_robin.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
@@ -61,8 +62,13 @@ bool FileSelector::isRelevant(ModControllableAudio* modControllable, int32_t whi
 	const Source& source = sound->sources[sourceId_];
 
 	// Browsing can load a sample even when the oscillator currently uses a synth waveform.
-	return sound->getSynthMode() == SynthMode::SUBTRACTIVE
-	       || (sound->getSynthMode() == SynthMode::RINGMOD && source.oscType == OscType::WAVETABLE);
+	const bool canBrowse = sound->getSynthMode() == SynthMode::SUBTRACTIVE
+	                       || (sound->getSynthMode() == SynthMode::RINGMOD && source.oscType == OscType::WAVETABLE);
+
+	// Once an alternate variant is loaded, loading into slot 0 here would be a second path to the
+	// exact same data as the new per-variant File item, so this OSC-level entry steps aside.
+	MultisampleRange* range = sample::getRoundRobinRange(sourceId_);
+	return canBrowse && (range == nullptr || range->rrCount == 0);
 }
 MenuPermission FileSelector::checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
                                                            ::MultiRange** currentRange) {
