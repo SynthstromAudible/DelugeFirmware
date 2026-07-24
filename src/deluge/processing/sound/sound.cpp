@@ -4979,6 +4979,9 @@ void Sound::forceReleaseOneActiveVoice() {
 
 	// As in terminateOneActiveVoice: the filter must cover the first voice too, or an already-fast-releasing
 	// front voice (highest rating) soaks up every call in the window.
+	// Note isCullFading() only protects voices already fading at >= SOFT_CULL_INCREMENT; a voice fast-releasing
+	// more slowly (increment in [4096, SOFT_CULL_INCREMENT)) is still eligible, so speedUpRelease() below doubles
+	// it up to the cull-fade rate. This is intentional: a slow fade shouldn't be allowed to linger under load.
 	ActiveVoice* best = nullptr;
 	for (ActiveVoice& voice : voices_) {
 		if (voice->isCullFading()) {
