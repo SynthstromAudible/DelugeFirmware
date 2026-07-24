@@ -32,8 +32,10 @@ float AbsValueFollower::runEnvelope(float current, float desired, float numSampl
 // output range is 0-21 (2^31)
 // dac clipping is at 16
 StereoFloatSample AbsValueFollower::calcApproxRMS(std::span<StereoSample> buffer) {
-	q31_t l = 0;
-	q31_t r = 0;
+	// 64-bit accumulators: a window of 128 full-scale q31 samples sums to ~2^38, which overflows (UB) in 32 bits
+	// and glitches the RMS estimate on loud buffers.
+	int64_t l = 0;
+	int64_t r = 0;
 	StereoFloatSample logMean;
 
 	for (StereoSample sample : buffer) {
