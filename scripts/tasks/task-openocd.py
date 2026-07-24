@@ -1,10 +1,10 @@
 #! /usr/bin/env python3
 import argparse
-from enum import Enum
-import subprocess
-import shutil
-import sys
 import os
+import shutil
+import subprocess
+import sys
+from enum import Enum
 
 
 # Based on dbt_tools/openocd.py by litui
@@ -52,7 +52,7 @@ _OPENOCD_CONFIG_MAP = {
 
 
 def _get_acceptable_hardware(hardware):
-    if hardware in _OPENOCD_CONFIG_MAP.keys():
+    if hardware in _OPENOCD_CONFIG_MAP:
         return hardware
 
     # Always default to delugeprobe if weird stuff
@@ -64,11 +64,11 @@ def _get_acceptable_protocol(hardware, protocol):
     checked_hw = _get_acceptable_hardware(hardware)
     protocols = _OPENOCD_CONFIG_MAP[checked_hw]
 
-    if protocol in protocols.keys():
+    if protocol in protocols:
         return protocol
 
     # If provided protocol is not in list
-    for k, v in protocols.items():
+    for k in protocols:
         return k
 
     # If for whatever reason there are no listed protocols
@@ -103,11 +103,11 @@ def main() -> int:
     hardware = os.environ.get("DEBUG_HARDWARE") or "delugeprobe"
     protocol = os.environ.get("DEBUG_PROTOCOL") or "swd"
 
-    if hardware not in _OPENOCD_CONFIG_MAP.keys():
+    if hardware not in _OPENOCD_CONFIG_MAP:
         print(f"Debugging hardware [{hardware}] is not yet supported.")
         sys.exit(ExitCodes.OPENOCD_UNSUPPORTED_HARDWARE)
 
-    if protocol not in _OPENOCD_CONFIG_MAP[hardware].keys():
+    if protocol not in _OPENOCD_CONFIG_MAP[hardware]:
         better_protocol = _get_acceptable_protocol(hardware, protocol)
         print(
             f"Debugging protocol [{protocol}] is not supported on hardware [{hardware}]."
@@ -125,7 +125,7 @@ def main() -> int:
 
     if args.verbose:
         print(" ".join(ocd_cmd))
-    result = subprocess.run(ocd_cmd)
+    result = subprocess.run(ocd_cmd, check=False)
     return result.returncode
 
 

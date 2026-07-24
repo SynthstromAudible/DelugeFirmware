@@ -6,8 +6,9 @@ import itertools
 
 try:
     # We attempt to import GDB, and if it fails fall back to an emulation mode
-    import gdb
     import re
+
+    import gdb
 
     _SPACE_MATCHER = re.compile(r"0x([0-9a-fA-F]+) - 0x([0-9a-fA-F]+) is \.(.+)$")
     HEAP_START = None
@@ -265,7 +266,7 @@ def print_bytes(base_offset, data):
         print(end="   ")
     while offset < next_line:
         offset += 1
-        print("{:02x}".format(next(data_iter)), end=" ")
+        print(f"{next(data_iter):02x}", end=" ")
     print()
     for i, chunk in enumerate(iter_chunks(data_iter, N)):
         addr = offset + i * N
@@ -297,7 +298,7 @@ def walk_linked_list_from_node(inferior, offset, end):
         try:
             memory = inferior.read_memory(  # noqa: F841
                 offset, TY_BidirectionalLinkedListNode.sizeof
-            )  # noqa: F841
+            )
             offset = bytes_as_uint32(inferior.read_memory(offset + next_offset, 4))
             list_addr = bytes_as_uint32(inferior.read_memory(offset + list_offset, 4))
             print(f"Stealable node at: {offset:08x} for list {list_addr:08x}")
@@ -416,7 +417,9 @@ def parse_heap(inferior, start, end):
             block_start += length + 8
 
 
-def parse_gma(inferior=gdb.inferiors()[0]):
+def parse_gma(inferior=None):
+    if inferior is None:
+        inferior = gdb.inferiors()[0]
     # iterate over both memory regions
     regions_offset = find_field(TY_GeneralMemoryAllocator, "regions").bitpos // 8
     for i in range(3):
