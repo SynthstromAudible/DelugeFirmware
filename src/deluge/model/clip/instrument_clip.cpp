@@ -44,6 +44,7 @@
 #include "model/scale/utils.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
+#include "modulation/macros/macros.h"
 #include "modulation/midi/midi_param.h"
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/patch/patch_cable_set.h"
@@ -695,6 +696,10 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 	if (modelStack->getTimelineCounter() != this) {
 		return; // Is this in case it's created a new Clip or something?
 	}
+
+	// Macros: the param automation above just advanced each macro's lane; now drive each automated
+	// macro's targets live from its lane value (the lane is the source of truth on playback).
+	Macros::applyMacroLaneAutomation(this, modelStack);
 
 	// We already incremented / decremented noteRowsNumTicksBehindClip and ticksTilNextNoteRowEvent, in the call to
 	// incrementPos().
@@ -3041,7 +3046,9 @@ expressionParam:
 					}
 					else {
 						paramId = stringToInt(contents);
-						if (paramId < kNumRealCCNumbers) {
+						// real CCs, plus the macro automation lanes (pseudo-CCs 128-131) which are
+						// stored in the same collection - without this they'd be dropped on load
+						if (paramId < kNumRealCCNumbers || Macros::isMacroParamID(paramId)) {
 							if (paramId == CC_EXTERNAL_MOD_WHEEL) {
 								// m-m-adams - used to convert CC74 to y-axis, and I don't think that would
 								// ever have been desireable. Now convert mod wheel, as mono y axis outputs as mod wheel

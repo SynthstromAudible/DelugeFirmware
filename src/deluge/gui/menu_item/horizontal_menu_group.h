@@ -27,6 +27,8 @@ class HorizontalMenuGroup final : public HorizontalMenu {
 public:
 	HorizontalMenuGroup(std::initializer_list<HorizontalMenu*> menus)
 	    : HorizontalMenu(l10n::String::STRING_FOR_NONE, {}), menus_{menus} {}
+	HorizontalMenuGroup(l10n::String newName, std::initializer_list<HorizontalMenu*> menus)
+	    : HorizontalMenu(newName, {}), menus_{menus} {}
 
 	[[nodiscard]] std::string_view getTitle() const override;
 	bool focusChild(const MenuItem* child) override;

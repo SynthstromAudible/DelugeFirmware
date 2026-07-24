@@ -30,6 +30,12 @@ ParamDescriptor Range::getDestinationDescriptor() {
 }
 
 MenuItem* Range::selectButtonPress() {
+	// A macro row toggles the cable's DEPTH as a target of that macro - "macro modulates the
+	// modulation" - and stays in the menu; a real source proceeds into the range editor as always.
+	if (isMacroRow(this->getValue())) {
+		toggleMacroRow(macroForRow(this->getValue()));
+		return NO_NAVIGATION;
+	}
 	return &patch_cable_strength::rangeMenu;
 }
 

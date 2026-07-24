@@ -20,6 +20,7 @@
 #include "io/midi/learned_midi.h"
 #include "model/instrument/instrument.h"
 #include "modulation/arpeggiator.h"
+#include "modulation/macros/macros.h"
 #include "util/containers.h"
 
 class PostArpTriggerable;

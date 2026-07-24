@@ -200,6 +200,9 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShowBatteryLevel],
 	                  STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL, "showBatteryLevel",
 	                  RuntimeFeatureStateToggle::On);
+	// macro
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::MacroSystem], STRING_FOR_COMMUNITY_FEATURE_MACROS, "macros",
+	                  RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {
