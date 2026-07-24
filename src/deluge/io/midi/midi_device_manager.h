@@ -78,7 +78,10 @@ struct ConnectedUSBMIDIDevice {
 	uint8_t sq; // Only for connections as HOST
 	uint8_t canHaveMIDISent;
 	uint16_t numBytesReceived;
-	__attribute__((aligned(8))) uint8_t receiveData[64];
+	// Receive transfers are armed for one 64-byte packet at a time, but the peripheral-mode bulk pipe is
+	// double-buffered, so its BRDY handler can have to drain up to two packets (plus margin) in one go rather than
+	// dropping what the hardware already ACKed - see usb_pstd_brdy_pipe_process_rohan_midi().
+	__attribute__((aligned(8))) uint8_t receiveData[192];
 
 	// This buffer is passed directly to the USB driver, and is limited to what the hardware allows
 	uint8_t dataSendingNow[MIDI_SEND_BUFFER_LEN_INNER * 4];
