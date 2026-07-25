@@ -28,12 +28,25 @@ struct FakeRange {
 	uint8_t rrMode = 0;
 	FakeHolder holders[kMaxRoundRobinAlternates];
 	bool failAllocation = false;
+	uint8_t velocityRangeMin[kMaxRoundRobinSlots] = {1, 1, 1, 1};
+	uint8_t velocityRangeMax[kMaxRoundRobinSlots] = {127, 127, 127, 127};
 
 	FakeHolder* ensureAlternateHolder(uint8_t alternateSlotIndex) {
 		if (failAllocation || alternateSlotIndex >= kMaxRoundRobinAlternates) {
 			return nullptr;
 		}
 		return &holders[alternateSlotIndex];
+	}
+
+	uint8_t getVelocityRangeMin(uint8_t slotIndex) const { return velocityRangeMin[slotIndex]; }
+	uint8_t getVelocityRangeMax(uint8_t slotIndex) const { return velocityRangeMax[slotIndex]; }
+	bool setVelocityRange(uint8_t slotIndex, uint8_t min, uint8_t max) {
+		if (slotIndex >= kMaxRoundRobinSlots) {
+			return false;
+		}
+		velocityRangeMin[slotIndex] = min;
+		velocityRangeMax[slotIndex] = max;
+		return true;
 	}
 };
 
@@ -277,6 +290,34 @@ TEST(RoundRobinParser, propagatesAllocationFailure) {
 
 	CHECK_TRUE(readRoundRobinAlternates(reader, &range) == Error::INSUFFICIENT_RAM);
 	CHECK_EQUAL(0, range.rrCount);
+}
+
+TEST(RoundRobinParser, parsesVelocityRangeOnAlternate) {
+	MockDeserializer reader;
+	reader.names = {
+	    "alternate", "fileName", "velocityRangeMin", "velocityRangeMax", "", "",
+	};
+	reader.strings = {"a.wav"};
+	reader.ints = {40, 90};
+
+	FakeRange range;
+	CHECK_TRUE(readRoundRobinAlternates(reader, &range) == Error::NONE);
+
+	CHECK_EQUAL(1, range.rrCount);
+	CHECK_EQUAL(40, range.getVelocityRangeMin(1));
+	CHECK_EQUAL(90, range.getVelocityRangeMax(1));
+}
+
+TEST(RoundRobinParser, alternateWithoutVelocityRangeKeepsDefaults) {
+	MockDeserializer reader;
+	reader.names = {"alternate", "fileName", "", ""};
+	reader.strings = {"a.wav"};
+
+	FakeRange range;
+	CHECK_TRUE(readRoundRobinAlternates(reader, &range) == Error::NONE);
+
+	CHECK_EQUAL(1, range.getVelocityRangeMin(1));
+	CHECK_EQUAL(127, range.getVelocityRangeMax(1));
 }
 
 TEST(RoundRobinParser, emptyArrayYieldsNoAlternates) {

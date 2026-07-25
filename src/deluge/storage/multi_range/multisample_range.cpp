@@ -33,9 +33,19 @@ static_assert(offsetof(MultisampleRange, rrIndex) == offsetof(MultisampleRange, 
               "rrCount and rrIndex must be adjacent");
 #pragma GCC diagnostic pop
 // Per-zone overhead when no alternates are loaded: pointer (4) + rrCount (1) + rrIndex (1) + rrMode (1)
-// + lastResolvedSlotIndex (1) = 8 bytes (no padding needed).
+// + lastResolvedSlotIndex (1) = 8 bytes (no padding needed). This bound also guarantees the
+// baseline-zero-cost property RRMode::Velocity depends on: per-slot velocity ranges live in
+// RoundRobinAlternates (see below), not as new fields here, so a zone that never touches
+// round-robin at all - Velocity mode included - pays nothing beyond this unchanged 8 bytes.
 static_assert(sizeof(MultisampleRange) <= sizeof(MultiRange) + sizeof(SampleHolderForVoice) + sizeof(void*) + 8,
               "MultisampleRange grew unexpectedly — check for unintended member additions");
+// RoundRobinAlternates itself is only allocated once a zone actually uses round-robin (first
+// alternate load, or first velocity-range edit); this bound just guards against unintended growth
+// of that allocation. kMaxRoundRobinAlternates pointers for slots[], plus one uint8_t per slot
+// (kMaxRoundRobinSlots) for each of velocityRangeMin/velocityRangeMax - no padding, since the
+// pointer array's own size is already pointer-aligned before the trailing uint8_t arrays begin.
+static_assert(sizeof(RoundRobinAlternates) == sizeof(void*) * kMaxRoundRobinAlternates + 2 * kMaxRoundRobinSlots,
+              "RoundRobinAlternates grew unexpectedly — check for unintended member additions");
 
 MultisampleRange::MultisampleRange()
     : alternates(nullptr), rrCount(0), rrIndex(0), rrMode(RRMode::Cycle), lastResolvedSlotIndex(0) {
@@ -162,7 +172,7 @@ SampleHolderForVoice* MultisampleRange::getVariantHolder(uint8_t slotIndex) {
 MultisampleRange* MultisampleRange::auditionRange_ = nullptr;
 uint8_t MultisampleRange::auditionSlotIndex_ = 0;
 
-SampleHolderForVoice* MultisampleRange::resolveVariant(uint8_t* resolvedSlotIndex) {
+SampleHolderForVoice* MultisampleRange::resolveVariant(uint8_t velocity, uint8_t* resolvedSlotIndex) {
 	uint8_t slotIndex;
 
 	if (this == auditionRange_) [[unlikely]] {
@@ -179,6 +189,9 @@ SampleHolderForVoice* MultisampleRange::resolveVariant(uint8_t* resolvedSlotInde
 			// When rrCount <= 1 there is no real choice; pass 0 directly to avoid random(0) ambiguity.
 			slotIndex = resolveNoRepeatSlotIndex(rrCount, lastResolvedSlotIndex,
 			                                     rrCount > 1 ? (uint8_t)random(rrCount - 1) : 0);
+			break;
+		case RRMode::Velocity:
+			slotIndex = resolveVelocitySlotIndex(rrCount, velocity, alternates);
 			break;
 		default: // RRMode::Cycle
 			slotIndex = resolveNextSlotIndex(rrCount, rrIndex);
@@ -217,4 +230,17 @@ SampleHolderForVoice* MultisampleRange::resolveVariant(uint8_t* resolvedSlotInde
 	}
 
 	return holder;
+}
+
+bool MultisampleRange::setVelocityRange(uint8_t slotIndex, uint8_t min, uint8_t max) {
+	if (slotIndex >= kMaxRoundRobinSlots) {
+		return false;
+	}
+	RoundRobinAlternates* alts = ensureAlternates();
+	if (alts == nullptr) {
+		return false;
+	}
+	alts->velocityRangeMin[slotIndex] = min;
+	alts->velocityRangeMax[slotIndex] = max;
+	return true;
 }
