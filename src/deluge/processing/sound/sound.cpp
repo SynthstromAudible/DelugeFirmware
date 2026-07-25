@@ -4873,9 +4873,8 @@ ModelStackWithAutoParam* Sound::getParamFromMIDIKnob(MIDIKnob& knob, ModelStackW
 }
 
 const Sound::ActiveVoice& Sound::acquireVoice() noexcept(false) {
-	auto count_toward_voice_limit = [](const ActiveVoice& voice) { return !voice->isCullFading(); };
-
-	if (std::ranges::count_if(voices_, count_toward_voice_limit) >= maxVoiceCount) {
+	// Cull-fading voices still render, so keep them in the per-sound voice limit.
+	if (voices_.size() >= maxVoiceCount) {
 		this->terminateOneActiveVoice();
 	}
 
