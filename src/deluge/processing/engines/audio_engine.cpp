@@ -310,7 +310,9 @@ void terminateOneVoice(size_t numSamples) {
 	// seeding `best` unfiltered let an already-fast-releasing front voice absorb every cull in the window.
 	const Sound::ActiveVoice* best = nullptr;
 	for (const auto& voice : all_voices) {
-		if (voice->isCullFading()) {
+		// if we're not skipping releasing voices, or if we are and this one isn't in fast release
+		if (voice->envelopes[0].state >= EnvelopeStage::FAST_RELEASE
+		    && voice->envelopes[0].fastReleaseIncrement >= SOFT_CULL_INCREMENT) {
 			continue;
 		}
 		if (best == nullptr || (*best)->getPriorityRating() < voice->getPriorityRating()) {
@@ -339,13 +341,15 @@ void forceReleaseOneVoice(size_t num_samples) {
 		return;
 	}
 
-	// Don't spend another soft cull on a voice that's already disappearing at the cull fade rate. FAST_RELEASE has a
-	// high priority rating, so without this filter repeated soft culls can chase the same fading voice while long
-	// musical-release tails keep stacking up.
+	// Cover the first voice with the same treatment as the rest (see issue #4721) - previously it was seeded
+	// into `best` without the fast-release check, so a fast-releasing front voice was never sped up and could
+	// win the priority comparison, wasting the cull.
 	const Sound::ActiveVoice* best = nullptr;
 	for (const auto& voice : all_voices) {
-		if (voice->isCullFading()) {
-			continue;
+		// if a voice is already fast releasing just speed it up
+		if (voice->envelopes[0].state == EnvelopeStage::FAST_RELEASE) {
+			voice->speedUpRelease();
+			return;
 		}
 		if (best == nullptr || (*best)->getPriorityRating() < voice->getPriorityRating()) {
 			best = &voice;
