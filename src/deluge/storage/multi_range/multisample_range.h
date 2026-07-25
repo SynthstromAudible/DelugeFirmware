@@ -26,12 +26,34 @@ class Cluster;
 
 /// Maximum number of round-robin alternate samples per zone (slot 0 is sampleHolder, slots 1-3 are alternates).
 static constexpr uint8_t kMaxRoundRobinAlternates = 3;
+/// Number of round-robin slots including the primary (slot 0) and up to 3 alternates (slots 1-3).
+static constexpr uint8_t kMaxRoundRobinSlots = kMaxRoundRobinAlternates + 1;
 
-/// Lazily-allocated table of pointers to alternate SampleHolderForVoice objects.
-/// The table is allocated when the first alternate is loaded; each individual alternate holder
-/// is then allocated separately on demand.
+/// Lazily-allocated per-zone storage for round-robin alternates and, since RRMode::Velocity, their
+/// shared per-slot velocity ranges. The table is allocated when the first alternate is loaded, or
+/// when a velocity range is first edited away from its default (see
+/// MultisampleRange::setVelocityRange()); each individual alternate holder is then allocated
+/// separately on demand.
+///
+/// `slots[]` holds pointers to the *alternate* SampleHolderForVoice objects only - index i is
+/// slotIndex i+1, since the primary sample's own holder lives directly on MultisampleRange as
+/// `sampleHolder` and is never stored here.
+///
+/// `velocityRangeMin`/`velocityRangeMax`, by contrast, index all 4 slots directly (array index ==
+/// slotIndex, including the primary at index 0), so RRMode::Velocity resolution can look up any
+/// slot's range the same way. That makes "Alternates" a slight misnomer once Velocity mode is in
+/// play - this struct now also carries the primary slot's own range - but it's kept here, rather
+/// than added as a new field on MultisampleRange, because this struct is already lazily allocated
+/// exactly when a zone starts actually using round-robin. That's what keeps MultisampleRange's own
+/// baseline size (paid by every multisampled zone, round-robin or not) unchanged - see
+/// static_asserts in multisample_range.cpp.
 struct RoundRobinAlternates {
 	SampleHolderForVoice* slots[kMaxRoundRobinAlternates] = {nullptr, nullptr, nullptr};
+	/// Per-slot velocity range for RRMode::Velocity, 1-127 inclusive. Defaults to the full range so
+	/// an unconfigured slot always matches, mirroring note::Velocity / defaults::Velocity's 1-127
+	/// convention (see gui/menu_item/note/velocity.h, gui/menu_item/defaults/velocity.h).
+	uint8_t velocityRangeMin[kMaxRoundRobinSlots] = {1, 1, 1, 1};
+	uint8_t velocityRangeMax[kMaxRoundRobinSlots] = {127, 127, 127, 127};
 };
 
 class MultisampleRange final : public MultiRange {
@@ -126,18 +148,24 @@ public:
 	}
 	static void clearAuditionSlot() { auditionRange_ = nullptr; }
 
-	/// Resolve the next variant to play using read-then-advance round robin.
+	/// Resolve the next variant to play using read-then-advance round robin (or, in Velocity mode,
+	/// by matching the incoming note's velocity against each slot's configured range).
 	/// If there is only one active slot, this returns &sampleHolder immediately.
-	SampleHolderForVoice* resolveVariant(uint8_t* resolvedSlotIndex = nullptr);
+	SampleHolderForVoice* resolveVariant(uint8_t velocity, uint8_t* resolvedSlotIndex = nullptr);
 
 	/// Ensure the alternates pointer table is allocated and return it. Returns nullptr on allocation failure.
 	RoundRobinAlternates* ensureAlternates();
 	/// Ensure one alternate holder is allocated and return it. alternateSlotIndex is 0..2.
 	SampleHolderForVoice* ensureAlternateHolder(uint8_t alternateSlotIndex);
 
-	enum class RRMode : uint8_t { Cycle = 0, Random = 1, NoRepeat = 2 };
+	// Serialized as a raw integer in song XML (see sound.cpp), so existing values must never be
+	// renumbered - only appended to.
+	enum class RRMode : uint8_t { Cycle = 0, Random = 1, NoRepeat = 2, Velocity = 3 };
 	/// One past the highest RRMode. Anything read from a file at or above this isn't a mode this firmware has.
-	static constexpr uint8_t kNumRRModes = 3;
+	static constexpr uint8_t kNumRRModes = 4;
+
+	static constexpr uint8_t kDefaultVelocityMin = 1;
+	static constexpr uint8_t kDefaultVelocityMax = 127;
 
 	/// Picks a random slot from [0, rrCount], updating rrIndex.
 	/// randomSlot must be in [0, rrCount] (caller passes random(rrCount)).
@@ -162,6 +190,42 @@ public:
 		}
 		return pick;
 	}
+
+	/// Picks the slot whose configured [min, max] velocity range contains `velocity`, the same way
+	/// MPC's Velocity layer-play mode works. Scans slots 0..rrCount in order and returns the first
+	/// match; if none match (gaps between configured ranges are allowed, not an error), falls back
+	/// to slot 0. `alts` may be nullptr (e.g. a hand-edited song claiming RRMode::Velocity with no
+	/// alternates ever loaded) - defaults apply just as if every slot's range were unset.
+	///
+	/// velocity == 128 is an internal "max" sentinel Voice::noteOn uses for the VELOCITY patch
+	/// source (see voice.cpp) - never a genuine pad-hit or MIDI velocity - so it's clamped to 127
+	/// before matching; otherwise it would fail to fall inside any slot's range, since ranges are
+	/// capped at 127.
+	static uint8_t resolveVelocitySlotIndex(uint8_t rrCount, uint8_t velocity, const RoundRobinAlternates* alts) {
+		uint8_t clampedVelocity = (velocity > kDefaultVelocityMax) ? kDefaultVelocityMax : velocity;
+		for (uint8_t slotIndex = 0; slotIndex <= rrCount; slotIndex++) {
+			uint8_t min = (alts != nullptr) ? alts->velocityRangeMin[slotIndex] : kDefaultVelocityMin;
+			uint8_t max = (alts != nullptr) ? alts->velocityRangeMax[slotIndex] : kDefaultVelocityMax;
+			if (clampedVelocity >= min && clampedVelocity <= max) {
+				return slotIndex;
+			}
+		}
+		return 0;
+	}
+
+	/// Returns slotIndex's configured velocity range, or the full 1-127 default if that slot's
+	/// range was never explicitly set (including every slot of a zone that has never allocated
+	/// `alternates` at all).
+	uint8_t getVelocityRangeMin(uint8_t slotIndex) const {
+		return (alternates != nullptr) ? alternates->velocityRangeMin[slotIndex] : kDefaultVelocityMin;
+	}
+	uint8_t getVelocityRangeMax(uint8_t slotIndex) const {
+		return (alternates != nullptr) ? alternates->velocityRangeMax[slotIndex] : kDefaultVelocityMax;
+	}
+
+	/// Sets slotIndex's velocity range, lazily allocating `alternates` if this zone has never
+	/// populated an alternate or customized a range before. Returns false on allocation failure.
+	bool setVelocityRange(uint8_t slotIndex, uint8_t min, uint8_t max);
 
 	// --- Memory layout notes ---
 	// sampleHolder stays at offsetof(MultiRange)+padding = 8, identical to the pre-round-robin layout.

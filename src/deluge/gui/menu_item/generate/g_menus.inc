@@ -66,12 +66,14 @@ PLACE_SDRAM_BSS sample::RoundRobinFileItem sample0RRFile1{STRING_FOR_FILE, 0, 0}
 PLACE_SDRAM_BSS sample::VariantStart sample0RRStart1{STRING_FOR_START_POINT, 0, 0};
 PLACE_SDRAM_BSS sample::VariantEnd sample0RREnd1{STRING_FOR_END_POINT, 0, 0};
 PLACE_SDRAM_BSS sample::VariantTranspose sample0RRTranspose1{STRING_FOR_TRANSPOSE, 0, 0};
+PLACE_SDRAM_BSS sample::VariantVelocityRange sample0RRVelocityRange1{STRING_FOR_VELOCITY, 0, 0};
 PLACE_SDRAM_BSS sample::VariantVolume sample0RRVolume1{STRING_FOR_VARIANT_VOLUME, 0, 0};
-PLACE_SDRAM_DATA std::array<MenuItem*, 5> child6 = {
+PLACE_SDRAM_DATA std::array<MenuItem*, 6> child6 = {
     &sample0RRFile1,
     &sample0RRStart1,
     &sample0RREnd1,
     &sample0RRTranspose1,
+    &sample0RRVelocityRange1,
     &sample0RRVolume1,
 };
 PLACE_SDRAM_BSS sample::RoundRobinSlot sample0RoundRobinSlot1Menu{STRING_FOR_VARIANT_SLOT_1, child6, 0, 0};
@@ -79,12 +81,14 @@ PLACE_SDRAM_BSS sample::RoundRobinFileItem sample0RRFile2{STRING_FOR_FILE, 0, 1}
 PLACE_SDRAM_BSS sample::VariantStart sample0RRStart2{STRING_FOR_START_POINT, 0, 1};
 PLACE_SDRAM_BSS sample::VariantEnd sample0RREnd2{STRING_FOR_END_POINT, 0, 1};
 PLACE_SDRAM_BSS sample::VariantTranspose sample0RRTranspose2{STRING_FOR_TRANSPOSE, 0, 1};
+PLACE_SDRAM_BSS sample::VariantVelocityRange sample0RRVelocityRange2{STRING_FOR_VELOCITY, 0, 1};
 PLACE_SDRAM_BSS sample::VariantVolume sample0RRVolume2{STRING_FOR_VARIANT_VOLUME, 0, 1};
-PLACE_SDRAM_DATA std::array<MenuItem*, 5> child7 = {
+PLACE_SDRAM_DATA std::array<MenuItem*, 6> child7 = {
     &sample0RRFile2,
     &sample0RRStart2,
     &sample0RREnd2,
     &sample0RRTranspose2,
+    &sample0RRVelocityRange2,
     &sample0RRVolume2,
 };
 PLACE_SDRAM_BSS sample::RoundRobinSlot sample0RoundRobinSlot2Menu{STRING_FOR_VARIANT_SLOT_2, child7, 0, 1};
@@ -92,12 +96,14 @@ PLACE_SDRAM_BSS sample::RoundRobinFileItem sample0RRFile3{STRING_FOR_FILE, 0, 2}
 PLACE_SDRAM_BSS sample::VariantStart sample0RRStart3{STRING_FOR_START_POINT, 0, 2};
 PLACE_SDRAM_BSS sample::VariantEnd sample0RREnd3{STRING_FOR_END_POINT, 0, 2};
 PLACE_SDRAM_BSS sample::VariantTranspose sample0RRTranspose3{STRING_FOR_TRANSPOSE, 0, 2};
+PLACE_SDRAM_BSS sample::VariantVelocityRange sample0RRVelocityRange3{STRING_FOR_VELOCITY, 0, 2};
 PLACE_SDRAM_BSS sample::VariantVolume sample0RRVolume3{STRING_FOR_VARIANT_VOLUME, 0, 2};
-PLACE_SDRAM_DATA std::array<MenuItem*, 5> child8 = {
+PLACE_SDRAM_DATA std::array<MenuItem*, 6> child8 = {
     &sample0RRFile3,
     &sample0RRStart3,
     &sample0RREnd3,
     &sample0RRTranspose3,
+    &sample0RRVelocityRange3,
     &sample0RRVolume3,
 };
 PLACE_SDRAM_BSS sample::RoundRobinSlot sample0RoundRobinSlot3Menu{STRING_FOR_VARIANT_SLOT_3, child8, 0, 2};
@@ -105,12 +111,14 @@ PLACE_SDRAM_BSS sample::RoundRobinFileItem sample0RRFile4{STRING_FOR_FILE, 0, 3}
 PLACE_SDRAM_BSS sample::VariantStart sample0RRStart4{STRING_FOR_START_POINT, 0, 3};
 PLACE_SDRAM_BSS sample::VariantEnd sample0RREnd4{STRING_FOR_END_POINT, 0, 3};
 PLACE_SDRAM_BSS sample::VariantTranspose sample0RRTranspose4{STRING_FOR_TRANSPOSE, 0, 3};
+PLACE_SDRAM_BSS sample::VariantVelocityRange sample0RRVelocityRange4{STRING_FOR_VELOCITY, 0, 3};
 PLACE_SDRAM_BSS sample::VariantVolume sample0RRVolume4{STRING_FOR_VARIANT_VOLUME, 0, 3};
-PLACE_SDRAM_DATA std::array<MenuItem*, 5> child9 = {
+PLACE_SDRAM_DATA std::array<MenuItem*, 6> child9 = {
     &sample0RRFile4,
     &sample0RRStart4,
     &sample0RREnd4,
     &sample0RRTranspose4,
+    &sample0RRVelocityRange4,
     &sample0RRVolume4,
 };
 PLACE_SDRAM_BSS sample::RoundRobinSlot sample0RoundRobinSlot4Menu{STRING_FOR_VARIANT_SLOT_4, child9, 0, 3};
@@ -159,12 +167,14 @@ PLACE_SDRAM_BSS sample::RoundRobinFileItem sample1RRFile1{STRING_FOR_FILE, 1, 0}
 PLACE_SDRAM_BSS sample::VariantStart sample1RRStart1{STRING_FOR_START_POINT, 1, 0};
 PLACE_SDRAM_BSS sample::VariantEnd sample1RREnd1{STRING_FOR_END_POINT, 1, 0};
 PLACE_SDRAM_BSS sample::VariantTranspose sample1RRTranspose1{STRING_FOR_TRANSPOSE, 1, 0};
+PLACE_SDRAM_BSS sample::VariantVelocityRange sample1RRVelocityRange1{STRING_FOR_VELOCITY, 1, 0};
 PLACE_SDRAM_BSS sample::VariantVolume sample1RRVolume1{STRING_FOR_VARIANT_VOLUME, 1, 0};
-PLACE_SDRAM_DATA std::array<MenuItem*, 5> child12 = {
+PLACE_SDRAM_DATA std::array<MenuItem*, 6> child12 = {
     &sample1RRFile1,
     &sample1RRStart1,
     &sample1RREnd1,
     &sample1RRTranspose1,
+    &sample1RRVelocityRange1,
     &sample1RRVolume1,
 };
 PLACE_SDRAM_BSS sample::RoundRobinSlot sample1RoundRobinSlot1Menu{STRING_FOR_VARIANT_SLOT_1, child12, 1, 0};
@@ -172,12 +182,14 @@ PLACE_SDRAM_BSS sample::RoundRobinFileItem sample1RRFile2{STRING_FOR_FILE, 1, 1}
 PLACE_SDRAM_BSS sample::VariantStart sample1RRStart2{STRING_FOR_START_POINT, 1, 1};
 PLACE_SDRAM_BSS sample::VariantEnd sample1RREnd2{STRING_FOR_END_POINT, 1, 1};
 PLACE_SDRAM_BSS sample::VariantTranspose sample1RRTranspose2{STRING_FOR_TRANSPOSE, 1, 1};
+PLACE_SDRAM_BSS sample::VariantVelocityRange sample1RRVelocityRange2{STRING_FOR_VELOCITY, 1, 1};
 PLACE_SDRAM_BSS sample::VariantVolume sample1RRVolume2{STRING_FOR_VARIANT_VOLUME, 1, 1};
-PLACE_SDRAM_DATA std::array<MenuItem*, 5> child13 = {
+PLACE_SDRAM_DATA std::array<MenuItem*, 6> child13 = {
     &sample1RRFile2,
     &sample1RRStart2,
     &sample1RREnd2,
     &sample1RRTranspose2,
+    &sample1RRVelocityRange2,
     &sample1RRVolume2,
 };
 PLACE_SDRAM_BSS sample::RoundRobinSlot sample1RoundRobinSlot2Menu{STRING_FOR_VARIANT_SLOT_2, child13, 1, 1};
@@ -185,12 +197,14 @@ PLACE_SDRAM_BSS sample::RoundRobinFileItem sample1RRFile3{STRING_FOR_FILE, 1, 2}
 PLACE_SDRAM_BSS sample::VariantStart sample1RRStart3{STRING_FOR_START_POINT, 1, 2};
 PLACE_SDRAM_BSS sample::VariantEnd sample1RREnd3{STRING_FOR_END_POINT, 1, 2};
 PLACE_SDRAM_BSS sample::VariantTranspose sample1RRTranspose3{STRING_FOR_TRANSPOSE, 1, 2};
+PLACE_SDRAM_BSS sample::VariantVelocityRange sample1RRVelocityRange3{STRING_FOR_VELOCITY, 1, 2};
 PLACE_SDRAM_BSS sample::VariantVolume sample1RRVolume3{STRING_FOR_VARIANT_VOLUME, 1, 2};
-PLACE_SDRAM_DATA std::array<MenuItem*, 5> child14 = {
+PLACE_SDRAM_DATA std::array<MenuItem*, 6> child14 = {
     &sample1RRFile3,
     &sample1RRStart3,
     &sample1RREnd3,
     &sample1RRTranspose3,
+    &sample1RRVelocityRange3,
     &sample1RRVolume3,
 };
 PLACE_SDRAM_BSS sample::RoundRobinSlot sample1RoundRobinSlot3Menu{STRING_FOR_VARIANT_SLOT_3, child14, 1, 2};
@@ -198,12 +212,14 @@ PLACE_SDRAM_BSS sample::RoundRobinFileItem sample1RRFile4{STRING_FOR_FILE, 1, 3}
 PLACE_SDRAM_BSS sample::VariantStart sample1RRStart4{STRING_FOR_START_POINT, 1, 3};
 PLACE_SDRAM_BSS sample::VariantEnd sample1RREnd4{STRING_FOR_END_POINT, 1, 3};
 PLACE_SDRAM_BSS sample::VariantTranspose sample1RRTranspose4{STRING_FOR_TRANSPOSE, 1, 3};
+PLACE_SDRAM_BSS sample::VariantVelocityRange sample1RRVelocityRange4{STRING_FOR_VELOCITY, 1, 3};
 PLACE_SDRAM_BSS sample::VariantVolume sample1RRVolume4{STRING_FOR_VARIANT_VOLUME, 1, 3};
-PLACE_SDRAM_DATA std::array<MenuItem*, 5> child15 = {
+PLACE_SDRAM_DATA std::array<MenuItem*, 6> child15 = {
     &sample1RRFile4,
     &sample1RRStart4,
     &sample1RREnd4,
     &sample1RRTranspose4,
+    &sample1RRVelocityRange4,
     &sample1RRVolume4,
 };
 PLACE_SDRAM_BSS sample::RoundRobinSlot sample1RoundRobinSlot4Menu{STRING_FOR_VARIANT_SLOT_4, child15, 1, 3};
