@@ -64,6 +64,8 @@ file(GLOB_RECURSE deluge_SOURCES
         # For name comparison / default naming tests
         ../../src/deluge/util/name_compare.cpp
         ../../src/deluge/gui/ui/browser/default_name.cpp
+        # For sample-folder-import velocity parsing tests
+        ../../src/deluge/util/sample_velocity_parse.cpp
         # For iterance migration tests (links against the real iterancePresets[]
         # from lookuptables.cpp, already included above)
         ../../src/deluge/model/iterance/iterance_migration.cpp
@@ -97,6 +99,7 @@ add_executable(UnitTests
         encoder_acceleration_tests.cpp
         rgb_tests.cpp
         notes_state_tests.cpp
+        sample_velocity_parse_tests.cpp
         iterance_migration_tests.cpp
         waveform_peak_math_tests.cpp
         midi_queue_tests.cpp
