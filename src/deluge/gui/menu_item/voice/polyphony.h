@@ -20,6 +20,7 @@
 #include "gui/menu_item/integer.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
+#include "model/drum/choke_group.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
 #include "model/settings/runtime_feature_settings.h"
@@ -126,8 +127,8 @@ public:
 			static_cast<SoundDrum*>(soundEditor.currentSound)->chokeGroup = current_value;
 		}
 	}
-	[[nodiscard]] int32_t getMinValue() const override { return 1; }
-	[[nodiscard]] int32_t getMaxValue() const override { return 8; }
+	[[nodiscard]] int32_t getMinValue() const override { return deluge::drum::kMinChokeGroup; }
+	[[nodiscard]] int32_t getMaxValue() const override { return deluge::drum::kMaxChokeGroup; }
 	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {

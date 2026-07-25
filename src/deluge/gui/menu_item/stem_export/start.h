@@ -17,10 +17,12 @@
 
 #pragma once
 #include "gui/menu_item/menu_item.h"
+#include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/session_view.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "processing/stem_export/stem_export.h"
 
 namespace deluge::gui::menu_item::stem_export {
@@ -43,11 +45,36 @@ public:
 			stemExport.startStemExportProcess(StemExportType::CLIP);
 		}
 		else if (rootUI == &instrumentClipView && getCurrentOutputType() == OutputType::KIT) {
-			stemExport.startStemExportProcess(StemExportType::DRUM);
+			// re-check the gating (not just whether the toggle happens to be set) at the point of
+			// export, the same way the CHOKE GROUP voice menu item itself re-checks it in
+			// PolyphonyType::selectButtonPress() rather than only hiding the toggle that leads here
+			if (stemExport.exportChokeGroups && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ChokeGroups)
+			    && stemExport.currentKitSpansMultipleChokeGroups()) {
+				stemExport.startStemExportProcess(StemExportType::CHOKE_GROUP);
+			}
+			else {
+				stemExport.startStemExportProcess(StemExportType::DRUM);
+			}
 		}
 		return NO_NAVIGATION;
 	}
 
 	bool shouldEnterSubmenu() override { return false; }
+};
+
+/// Toggle in the Kit's Configure Export submenu that switches the kit-context export granularity
+/// between DRUM (one file per pad, the default) and CHOKE_GROUP (one file per numbered choke group)
+/// - see Start::selectButtonPress() above for where this is actually consulted.
+class ExportChokeGroups final : public ToggleBool {
+public:
+	using ToggleBool::ToggleBool;
+
+	// Only offer the choice when the community feature is on AND it would actually produce more
+	// than one file - if every eligible drum shares a single choke group, CHOKE_GROUP export
+	// degenerates to the same single-file output as leaving this off, so there's nothing to choose.
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
+		return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ChokeGroups)
+		       && stemExport.currentKitSpansMultipleChokeGroups();
+	}
 };
 } // namespace deluge::gui::menu_item::stem_export

@@ -21,6 +21,11 @@
 
 namespace deluge::drum {
 
+/// The valid range of choke group numbers. Shared by the CHOKE GROUP menu item (polyphony.h) and
+/// the choke-group stem export granularity (stem_export.cpp) so both stay in sync with each other.
+constexpr uint8_t kMinChokeGroup = 1;
+constexpr uint8_t kMaxChokeGroup = 8;
+
 /// A drum chokes when a note triggers a CHOKE-mode drum belonging to the same numbered choke
 /// group (1..8). The triggering drum itself is always among the candidates Kit::choke() visits,
 /// so when targetChokeGroup belongs to the triggering drum, this naturally also returns true for
@@ -44,6 +49,24 @@ uint8_t readChokeGroupFromFile(DeserializerT& reader) {
 	uint8_t chokeGroup = reader.readTagOrAttributeValueInt();
 	reader.exitTag("chokeGroup");
 	return chokeGroup;
+}
+
+/// Counts how many of the 8 possible choke groups have at least one eligible drum in them - i.e.
+/// how many separate files choke-group stem export would produce for a kit. Templated on a
+/// predicate rather than taking a collection directly, so the caller doesn't need to materialize a
+/// list of every drum's group into a buffer first: stem_export.cpp instead passes a closure that
+/// scans its own NoteRows for a given group number. This also means the counting algorithm itself -
+/// "the new grouping logic" - can be unit-tested on the host with a trivial fake predicate, without
+/// needing a live Kit/InstrumentClip/NoteRow - see tests/unit/choke_group_tests.cpp.
+template <typename HasEligibleDrumInGroupFn>
+uint8_t countDistinctChokeGroups(HasEligibleDrumInGroupFn hasEligibleDrumInGroup) {
+	uint8_t count = 0;
+	for (uint8_t group = kMinChokeGroup; group <= kMaxChokeGroup; group++) {
+		if (hasEligibleDrumInGroup(group)) {
+			count++;
+		}
+	}
+	return count;
 }
 
 } // namespace deluge::drum

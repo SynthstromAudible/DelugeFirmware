@@ -58,11 +58,7 @@ void SoundDrum::resetTimeEnteredState() {
 	}
 }
 
-// With the ChokeGroups community feature off, every CHOKE drum behaves as choke group 1 regardless
-// of what's actually stored, reproducing the pre-feature "one shared, kit-wide choke group"
-// behaviour exactly. The stored chokeGroup value itself is left untouched either way, so toggling
-// the feature back on later recovers any groups the user had already set up.
-static uint8_t effectiveChokeGroup(uint8_t storedChokeGroup) {
+uint8_t SoundDrum::effectiveChokeGroup(uint8_t storedChokeGroup) {
 	return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ChokeGroups) ? storedChokeGroup : 1;
 }
 
