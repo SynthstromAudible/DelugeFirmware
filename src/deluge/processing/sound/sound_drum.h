@@ -36,6 +36,14 @@ public:
 	// behaviour where there was only ever one implicit, kit-wide choke group.
 	uint8_t chokeGroup = 1;
 
+	// With the ChokeGroups community feature off, every CHOKE drum behaves as choke group 1
+	// regardless of what's actually stored in chokeGroup, reproducing the pre-feature "one shared,
+	// kit-wide choke group" behaviour exactly. The stored value itself is untouched either way, so
+	// toggling the feature back on later recovers whatever groups the user had already set up.
+	// Public and static (not tied to a particular instance) so it's also usable by code that needs
+	// to reason about a drum's effective group without triggering it, e.g. choke-group stem export.
+	static uint8_t effectiveChokeGroup(uint8_t storedChokeGroup);
+
 	SoundDrum() : Drum(DrumType::SOUND) {}
 
 	using Sound::allowNoteTails;

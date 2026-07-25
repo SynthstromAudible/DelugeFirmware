@@ -459,8 +459,7 @@ PLACE_SDRAM_BSS voice::Priority priorityMenu{STRING_FOR_PRIORITY};
 
 PLACE_SDRAM_BSS HorizontalMenu voiceMenu{
     STRING_FOR_VOICE,
-    {&priorityMenu, &polyphonyMenu, &voice::polyphonicVoiceCountMenu, &voice::chokeGroupMenu, &portaMenu,
-     &unisonMenu},
+    {&priorityMenu, &polyphonyMenu, &voice::polyphonicVoiceCountMenu, &voice::chokeGroupMenu, &portaMenu, &unisonMenu},
     HorizontalMenu::Layout::FIXED};
 PLACE_SDRAM_BSS HorizontalMenu voiceMenuWithoutUnison{
     STRING_FOR_VOICE,
@@ -1793,6 +1792,9 @@ PLACE_SDRAM_BSS ToggleBool configureOfflineRenderingMenu{STRING_FOR_CONFIGURE_EX
                                                          stemExport.renderOffline};
 PLACE_SDRAM_BSS ToggleBool configureMixdownMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_MIXDOWN,
                                                 STRING_FOR_CONFIGURE_EXPORT_STEMS_MIXDOWN, stemExport.exportMixdown};
+PLACE_SDRAM_BSS menu_item::stem_export::ExportChokeGroups configureExportChokeGroupsMenu{
+    STRING_FOR_CONFIGURE_EXPORT_STEMS_CHOKE_GROUPS, STRING_FOR_CONFIGURE_EXPORT_STEMS_CHOKE_GROUPS,
+    stemExport.exportChokeGroups};
 PLACE_SDRAM_BSS menu_item::Submenu configureStemExportMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS,
                                                            {
                                                                &configureNormalizationMenu,
@@ -1817,6 +1819,7 @@ PLACE_SDRAM_BSS menu_item::Submenu kitGlobalFXConfigureStemExportMenu{STRING_FOR
                                                                           &configureSilenceMenu,
                                                                           &configureSongFXMenu,
                                                                           &configureOfflineRenderingMenu,
+                                                                          &configureExportChokeGroupsMenu,
                                                                       }};
 
 PLACE_SDRAM_BSS menu_item::Submenu kitGlobalFXStemExportMenu{

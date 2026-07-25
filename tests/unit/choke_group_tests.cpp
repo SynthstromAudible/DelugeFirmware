@@ -1,10 +1,12 @@
 #include "CppUTest/TestHarness.h"
 #include "model/drum/choke_group.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <string>
 #include <vector>
 
+using deluge::drum::countDistinctChokeGroups;
 using deluge::drum::readChokeGroupFromFile;
 using deluge::drum::shouldChoke;
 using deluge::drum::writeChokeGroupToFile;
@@ -93,4 +95,54 @@ TEST(ChokeGroup, xmlRoundTripAcrossAllValidGroups) {
 		reader.valueToReturn = writer.attributeValues[0];
 		CHECK_EQUAL(group, readChokeGroupFromFile(reader));
 	}
+}
+
+// countDistinctChokeGroups() backs choke-group stem export: it's what turns "these drums have these
+// effective choke groups" into "this many WAV files get produced." Tested here against a fake
+// predicate (a lookup into a plain std::vector standing in for a kit's eligible drums) rather than
+// real NoteRow/InstrumentClip/Kit objects, the same host-testable approach the XML round-trip tests
+// above use for the (de)serializer - see stem_export.cpp's disarmAllChokeGroupsForStemExport() and
+// currentKitSpansMultipleChokeGroups() for the real, firmware-side callers of this same function.
+namespace {
+uint8_t countGroupsPresentIn(const std::vector<uint8_t>& presentGroups) {
+	return countDistinctChokeGroups([&](uint8_t group) {
+		return std::find(presentGroups.begin(), presentGroups.end(), group) != presentGroups.end();
+	});
+}
+} // namespace
+
+TEST_GROUP(ChokeGroupExport){};
+
+TEST(ChokeGroupExport, noEligibleDrumsYieldsZeroGroups) {
+	// An empty kit, or one where every drum is muted/empty/non-CHOKE, produces no stems at all.
+	CHECK_EQUAL(0, countGroupsPresentIn({}));
+}
+
+TEST(ChokeGroupExport, allDrumsInOneGroupYieldsOneStem) {
+	// Every drum still defaulted to (or explicitly set to) group 1 - the common case for kits that
+	// never touched the CHOKE GROUP menu - produces exactly one file, same as a plain whole-kit
+	// export. This is also the exact condition currentKitSpansMultipleChokeGroups() checks for to
+	// decide whether the choke-group export option is worth surfacing in the UI at all.
+	CHECK_EQUAL(1, countGroupsPresentIn({1, 1, 1, 1}));
+}
+
+TEST(ChokeGroupExport, drumsSpanningMultipleGroupsAreCountedSeparately) {
+	CHECK_EQUAL(3, countGroupsPresentIn({1, 1, 3, 3, 3, 5}));
+}
+
+TEST(ChokeGroupExport, duplicateGroupValuesAreNotDoubleCounted) {
+	// Ten drums all sharing group 7 must still yield exactly one stem, not ten.
+	CHECK_EQUAL(1, countGroupsPresentIn({7, 7, 7, 7, 7, 7, 7, 7, 7, 7}));
+}
+
+TEST(ChokeGroupExport, allEightGroupsPresentYieldsEightStems) {
+	CHECK_EQUAL(8, countGroupsPresentIn({1, 2, 3, 4, 5, 6, 7, 8}));
+}
+
+TEST(ChokeGroupExport, spansMultipleGroupsMatchesGreaterThanOneCount) {
+	// currentKitSpansMultipleChokeGroups() is implemented as countDistinctChokeGroups(...) > 1;
+	// verify that composition directly rather than just trusting the individual counts above.
+	CHECK_FALSE(countGroupsPresentIn({}) > 1);
+	CHECK_FALSE(countGroupsPresentIn({4, 4, 4}) > 1);
+	CHECK_TRUE(countGroupsPresentIn({4, 4, 6}) > 1);
 }
