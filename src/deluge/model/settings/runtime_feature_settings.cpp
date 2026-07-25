@@ -217,6 +217,10 @@ void RuntimeFeatureSettings::init() {
 	    {l10n::getView(STRING_FOR_SHORTCUT_OVERLAY_MENU_AND_CLIP),
 	     static_cast<uint32_t>(RuntimeFeatureStateShortcutOverlay::MenuAndClip)},
 	};
+
+	// Numbered choke groups
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ChokeGroups], STRING_FOR_COMMUNITY_FEATURE_CHOKE_GROUPS,
+	                  "chokeGroups", RuntimeFeatureStateToggle::On);
 }
 
 void RuntimeFeatureSettings::factoryReset(bool showPopup) {
