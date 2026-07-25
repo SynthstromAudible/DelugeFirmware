@@ -23,7 +23,9 @@
 #include "mem_functions.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip.h"
+#include "model/drum/choke_group.h"
 #include "model/instrument/kit.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "model/voice/voice.h"
 #include "processing/engines/audio_engine.h"
@@ -35,6 +37,9 @@ bool SoundDrum::readTagFromFile(Deserializer& reader, char const* tagName) {
 	if (!strcmp(tagName, "path")) {
 		reader.readTagOrAttributeValueString(&path);
 		reader.exitTag("path");
+	}
+	else if (!strcmp(tagName, "chokeGroup")) {
+		chokeGroup = deluge::drum::readChokeGroupFromFile(reader);
 	}
 	else if (readDrumTagFromFile(reader, tagName)) {
 		// Delegation is also considered a success.
@@ -53,12 +58,20 @@ void SoundDrum::resetTimeEnteredState() {
 	}
 }
 
+// With the ChokeGroups community feature off, every CHOKE drum behaves as choke group 1 regardless
+// of what's actually stored, reproducing the pre-feature "one shared, kit-wide choke group"
+// behaviour exactly. The stored chokeGroup value itself is left untouched either way, so toggling
+// the feature back on later recovers any groups the user had already set up.
+static uint8_t effectiveChokeGroup(uint8_t storedChokeGroup) {
+	return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ChokeGroups) ? storedChokeGroup : 1;
+}
+
 void SoundDrum::noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, int16_t const* mpeValues,
                        int32_t fromMIDIChannel, uint32_t sampleSyncLength, int32_t ticksLate, uint32_t samplesLate) {
 
-	// If part of a Kit, and in choke mode, choke other drums
+	// If part of a Kit, and in choke mode, choke other drums in the same choke group
 	if (polyphonic == PolyphonyMode::CHOKE && (kit != nullptr)) {
-		kit->choke();
+		kit->choke(effectiveChokeGroup(chokeGroup));
 	}
 
 	Sound::noteOn(modelStack, &arpeggiator, kNoteForDrum, mpeValues, sampleSyncLength, ticksLate, samplesLate, velocity,
@@ -131,6 +144,7 @@ void SoundDrum::writeToFileAsInstrument(bool savingSong, ParamManager* paramMana
 void SoundDrum::writeToFile(Serializer& writer, bool savingSong, ParamManager* paramManager) {
 	writer.writeOpeningTagBeginning("sound", true);
 	writeDrumTagsToFile(writer);
+	deluge::drum::writeChokeGroupToFile(writer, chokeGroup);
 
 	Sound::writeToFile(writer, savingSong, paramManager, &arpSettings, path.get());
 
@@ -150,8 +164,8 @@ Error SoundDrum::readFromFile(Deserializer& reader, Song* song, Clip* clip, int3
 }
 
 // modelStack may be NULL
-void SoundDrum::choke(ModelStackWithSoundFlags* modelStack) {
-	if (polyphonic == PolyphonyMode::CHOKE) {
+void SoundDrum::choke(ModelStackWithSoundFlags* modelStack, uint8_t triggeringChokeGroup) {
+	if (deluge::drum::shouldChoke(polyphonic, effectiveChokeGroup(chokeGroup), triggeringChokeGroup)) {
 
 		// Don't choke it if it's auditioned
 		if ((getRootUI() == &instrumentClipView || getRootUI() == &automationView)

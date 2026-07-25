@@ -17,10 +17,12 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
+#include "gui/menu_item/integer.h"
 #include "gui/menu_item/selection.h"
 #include "gui/ui/sound_editor.h"
 #include "model/drum/drum.h"
 #include "model/instrument/kit.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "processing/sound/sound.h"
 #include "processing/sound/sound_drum.h"
@@ -96,6 +98,51 @@ public:
 
 extern VoiceCount polyphonicVoiceCountMenu;
 
+class ChokeGroup : public Integer {
+public:
+	using Integer::Integer;
+	void readCurrentValue() override { this->setValue(static_cast<SoundDrum*>(soundEditor.currentSound)->chokeGroup); }
+	bool usesAffectEntire() override { return true; }
+	void writeCurrentValue() override {
+		int32_t current_value = this->getValue();
+
+		// If affect-entire button held, do whole kit
+		if (currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR && soundEditor.editingKitRow()) {
+
+			Kit* kit = getCurrentKit();
+
+			for (Drum* thisDrum = kit->firstDrum; thisDrum != nullptr; thisDrum = thisDrum->next) {
+				if (thisDrum->type == DrumType::SOUND) {
+					auto* soundDrum = static_cast<SoundDrum*>(thisDrum);
+					// Note: we need to apply the same filtering as stated in the isRelevant() function
+					if (soundDrum->polyphonic == PolyphonyMode::CHOKE) {
+						soundDrum->chokeGroup = current_value;
+					}
+				}
+			}
+		}
+		// Or, the normal case of just one sound
+		else {
+			static_cast<SoundDrum*>(soundEditor.currentSound)->chokeGroup = current_value;
+		}
+	}
+	[[nodiscard]] int32_t getMinValue() const override { return 1; }
+	[[nodiscard]] int32_t getMaxValue() const override { return 8; }
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
+
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) const override {
+		Sound* sound = static_cast<Sound*>(modControllable);
+		return runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ChokeGroups) && soundEditor.editingKit()
+		       && sound->polyphonic == PolyphonyMode::CHOKE;
+	}
+
+	void getColumnLabel(StringBuf& label) override {
+		label.append(deluge::l10n::get(l10n::String::STRING_FOR_CHOKE_GROUP_SHORT));
+	}
+};
+
+extern ChokeGroup chokeGroupMenu;
+
 class PolyphonyType final : public Selection {
 public:
 	using Selection::Selection;
@@ -139,6 +186,10 @@ public:
 	MenuItem* selectButtonPress() override {
 		if (this->getValue<PolyphonyMode>() == PolyphonyMode::POLY) {
 			return &polyphonicVoiceCountMenu;
+		}
+		else if (this->getValue<PolyphonyMode>() == PolyphonyMode::CHOKE
+		         && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::ChokeGroups)) {
+			return &chokeGroupMenu;
 		}
 		return Selection::selectButtonPress();
 	}
