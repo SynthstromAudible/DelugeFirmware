@@ -453,16 +453,18 @@ PLACE_SDRAM_BSS Submenu kitArpMenu{
 
 PLACE_SDRAM_BSS voice::PolyphonyType polyphonyMenu{STRING_FOR_POLYPHONY};
 PLACE_SDRAM_BSS voice::VoiceCount voice::polyphonicVoiceCountMenu{STRING_FOR_MAX_VOICES};
+PLACE_SDRAM_BSS voice::ChokeGroup voice::chokeGroupMenu{STRING_FOR_CHOKE_GROUP};
 PLACE_SDRAM_BSS voice::Portamento portaMenu{STRING_FOR_PORTAMENTO};
 PLACE_SDRAM_BSS voice::Priority priorityMenu{STRING_FOR_PRIORITY};
 
 PLACE_SDRAM_BSS HorizontalMenu voiceMenu{
     STRING_FOR_VOICE,
-    {&priorityMenu, &polyphonyMenu, &voice::polyphonicVoiceCountMenu, &portaMenu, &unisonMenu},
+    {&priorityMenu, &polyphonyMenu, &voice::polyphonicVoiceCountMenu, &voice::chokeGroupMenu, &portaMenu,
+     &unisonMenu},
     HorizontalMenu::Layout::FIXED};
 PLACE_SDRAM_BSS HorizontalMenu voiceMenuWithoutUnison{
     STRING_FOR_VOICE,
-    {&priorityMenu, &polyphonyMenu, &voice::polyphonicVoiceCountMenu, &portaMenu},
+    {&priorityMenu, &polyphonyMenu, &voice::polyphonicVoiceCountMenu, &voice::chokeGroupMenu, &portaMenu},
     HorizontalMenu::Layout::FIXED};
 PLACE_SDRAM_BSS HorizontalMenuGroup voiceMenuGroup{{&unisonMenu, &voiceMenuWithoutUnison}};
 
