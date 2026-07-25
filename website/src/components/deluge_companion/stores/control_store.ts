@@ -43,6 +43,8 @@ export const shortcutControlGroups: ShortcutControlGroup[] = [
       { id: Control.PERFORMANCE, title: "Performance" },
       { id: Control.KEY, title: "Keyboard" },
       { id: Control.SCALE, title: "Scale" },
+      { id: Control.POWER_SWITCH, title: "Power switch" },
+      { id: Control.TRIPLETSVIEW, title: "Triplets View" },
       { id: Control.EXTERNAL, title: "External MIDI Controller" },
     ],
   },

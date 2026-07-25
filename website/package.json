@@ -59,5 +59,14 @@
     "tsx": "^4.20.6",
     "typescript": "^5.9.3",
     "typescript-eslint": "^8.46.4"
+  },
+  "overrides": {
+    "@astrojs/markdown-remark": "6.3.8",
+    "@astrojs/sitemap": "3.3.0",
+    "pagefind": "1.4.0-alpha.1"
+  },
+  "patchedDependencies": {
+    "@astrojs/starlight@0.32.6": "patches/@astrojs%2Fstarlight@0.32.5.patch",
+    "@astrojs/markdown-remark@6.3.8": "patches/@astrojs%2Fmarkdown-remark@6.3.1.patch"
   }
 }

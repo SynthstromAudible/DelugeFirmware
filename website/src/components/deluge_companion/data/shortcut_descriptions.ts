@@ -62,6 +62,8 @@ export const shortcutControlDescriptions: Record<Control, string> = {
   [Control.PERFORMANCE]: "Performance button (keyboard icon)",
   [Control.KEY]: "Key button (keyboard icon)",
   [Control.SCALE]: "Scale button",
+  [Control.POWER_SWITCH]: "Power switch",
+  [Control.TRIPLETSVIEW]: "Triplets View button",
   [Control.SONG]: "Song button",
   [Control.X]: "Horizontal (Left/Right) encoder",
   [Control.Y]: "Vertical (Up/Down) encoder",

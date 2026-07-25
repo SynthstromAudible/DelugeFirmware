@@ -33,10 +33,14 @@ The fully lit left-most grid button deletes the instance from arranger only. Thi
 
 # Clear arranger clips (all clip instances)
 
-#OFFICIAL #ARRANGER
+#OFFICIAL #COMMUNITY #ARRANGER
 
 ```shortcut
 hold(X) + press(BACK)
+```
+
+```community
+In the community firmware, you can decide whether automation should be cleared together with clips by toggling the automation default setting: Settings > Defaults > Automation > Clear.
 ```
 
 # Move clip instance horizontally
@@ -65,7 +69,7 @@ hold(GRID) + press(GRID)
 
 Used to shorten as well as lengthen clip instances.
 
-# Mute / unmute
+# Mute / unmute track
 
 #OFFICIAL #ARRANGER
 
@@ -73,9 +77,9 @@ Used to shorten as well as lengthen clip instances.
 press(LAUNCH)
 ```
 
-Mute/unmute an instrument instance.
+Mute/unmute a track.
 
-# Audition
+# Audition track
 
 #OFFICIAL #ARRANGER
 
@@ -83,9 +87,9 @@ Mute/unmute an instrument instance.
 press(AUDITION)
 ```
 
-Audition sounds a synth's root note or a kit row instance.
+Audition a synth's root note or a kit row instance.
 
-# Solo instrument
+# Solo track
 
 #OFFICIAL #ARRANGER
 
@@ -93,7 +97,7 @@ Audition sounds a synth's root note or a kit row instance.
 hold(X) + press(LAUNCH)
 ```
 
-Mute pads turn blue. You can solo more than one instrument at the same time. Press the blue mute pad to unsolo.
+Mute pads turn blue. You can solo more than one track at the same time. Press the blue mute pad to unsolo.
 
 # Enter clip (anything besides left-most grid button)
 
@@ -115,7 +119,7 @@ press(CROSS)
 
 Only works when playback is on and the progress bar is visible.
 
-# Start playback from current screen
+# Start arranger playback from current screen
 
 #OFFICIAL #ARRANGER
 
@@ -124,6 +128,18 @@ hold(X) + press(PLAY)
 ```
 
 Playback begins from the left-most visible column.
+
+# Start / Restart arranger playback from a held arranger clip pad
+
+#COMMUNITY #ARRANGER
+
+```shortcut
+hold(GRID_LIT) + press(PLAY)
+```
+
+```community
+Hold a clip pad in arranger view and press play to start or restart playback from that clip.
+```
 
 # Make clip instance unique (white; left-most clip grid button)
 
@@ -134,14 +150,6 @@ hold(SHIFT) + press(GRID_LIT)
 ```
 
 The colored instance turns white to indicate a unique instance. It contains note and parameter data too.
-
-# Adjust clip parameter of clip instance
-
-#OFFICIAL #ARRANGER
-
-```shortcut
-hold(GRID_LIT) + turn(PARAMETER)
-```
 
 # Copy clip from arranger to song mode, eg to save white instance as its own clip
 
@@ -291,7 +299,7 @@ press(PLAY)
 
 Requires "Alternative Playback Start Behaviour" enabled. With playback off.
 
-# Start playback from start (Alternative Playback)
+# Start Arranger playback from start (Alternative Playback)
 
 #OFFICIAL #COMMUNITY #ARRANGER
 
@@ -300,3 +308,13 @@ hold(X) + press(PLAY)
 ```
 
 Requires "Alternative Playback Start Behaviour" enabled. With playback off.
+
+# Toggle Arranger Auto-Scroll
+
+#COMMUNITY #ARRANGER #AUTOMATION_PARAMETER
+
+```shortcut
+press(CROSS)
+```
+
+Toggles automatic scrolling during playback in Arranger View.

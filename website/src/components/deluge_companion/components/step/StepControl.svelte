@@ -5,6 +5,7 @@
     ControlType,
   } from "../../data/targets";
   import CircleButton from "../../icons/CircleButton.svelte";
+  import PowerSwitch from "../../icons/PowerSwitch.svelte";
   import FullGrid from "../../icons/FullGrid.svelte";
   import Knob from "../../icons/Knob.svelte";
   import GridCol from "../../icons/GridCol.svelte";
@@ -104,6 +105,12 @@
   </span>
   <span class="target-title">{@html step.label || description.title}</span>
 <!-- Branch: generic circle button control. -->
+{:else if step.control === Control.POWER_SWITCH}
+  <span
+    class="target-icon target-icon-control-image target-icon-power-switch text-[var(--sl-color-text)]"
+    class:hidden={inline}
+  ><PowerSwitch /></span>
+  <span class="target-title uppercase">{@html description.title}</span>
 {:else if description.type === ControlType.circleButton}
   <span
     class="target-icon target-icon-control-image text-[var(--sl-color-text)]"
@@ -196,5 +203,10 @@
     object-fit: contain;
     transform-origin: center;
     transform: scale(var(--dc-control-icon-scale, 1));
+  }
+
+  .target-icon-power-switch :global(svg) {
+    transform-origin: center;
+    transform: scale(3.2);
   }
 </style>

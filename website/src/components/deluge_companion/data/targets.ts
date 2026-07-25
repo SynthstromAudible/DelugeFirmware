@@ -40,6 +40,8 @@ export enum Control {
   PERFORMANCE,
   KEY,
   SCALE,
+  POWER_SWITCH,
+  TRIPLETSVIEW,
   SONG,
   X,
   Y,
@@ -223,6 +225,16 @@ export const controlDescriptions: ControlDescriptions = {
     title: "Scale",
     type: ControlType.circleButton,
     classes: ["dc-scale"],
+  },
+  [Control.POWER_SWITCH]: {
+    title: "Power switch",
+    type: ControlType.circleButton,
+    classes: ["dc-power-switch"],
+  },
+  [Control.TRIPLETSVIEW]: {
+    title: "Triplets View",
+    type: ControlType.circleButton,
+    classes: ["dc-triplets-view"],
   },
   [Control.X]: {
     title: "Horizontal",

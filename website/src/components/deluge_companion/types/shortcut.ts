@@ -61,7 +61,7 @@ export type Shortcut = {
 }
 
 export type Paragraph = {
-  type?: "community"
+  type?: "community" | "list"
   spans: Span[]
 }
 
