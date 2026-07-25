@@ -191,6 +191,77 @@ TEST(MultisampleRoundRobinStaleState, cycleAfterRandomModeStaysInPool) {
 	CHECK_EQUAL(0, rrIndex); // wrapped
 }
 
+// ---------------------------------------------------------------------------
+// Velocity mode — verify slot selection by incoming note velocity
+// ---------------------------------------------------------------------------
+
+TEST_GROUP(MultisampleRoundRobinVelocityMode){};
+
+TEST(MultisampleRoundRobinVelocityMode, allDefaultFullRangeAlwaysMatchesSlotZero) {
+	// Every slot defaults to the full 1-127 range, so slot 0 (scanned first) always wins.
+	RoundRobinAlternates alts{};
+	CHECK_EQUAL(0, MultisampleRange::resolveVelocitySlotIndex(3, 1, &alts));
+	CHECK_EQUAL(0, MultisampleRange::resolveVelocitySlotIndex(3, 64, &alts));
+	CHECK_EQUAL(0, MultisampleRange::resolveVelocitySlotIndex(3, 127, &alts));
+}
+
+TEST(MultisampleRoundRobinVelocityMode, velocityInsideExactlyOneSlotRangeMatchesThatSlot) {
+	RoundRobinAlternates alts{};
+	alts.velocityRangeMin[0] = 1;
+	alts.velocityRangeMax[0] = 40;
+	alts.velocityRangeMin[1] = 41;
+	alts.velocityRangeMax[1] = 80;
+	alts.velocityRangeMin[2] = 81;
+	alts.velocityRangeMax[2] = 127;
+
+	CHECK_EQUAL(0, MultisampleRange::resolveVelocitySlotIndex(2, 20, &alts));
+	CHECK_EQUAL(1, MultisampleRange::resolveVelocitySlotIndex(2, 60, &alts));
+	CHECK_EQUAL(2, MultisampleRange::resolveVelocitySlotIndex(2, 100, &alts));
+}
+
+TEST(MultisampleRoundRobinVelocityMode, velocityInGapFallsBackToSlotZero) {
+	// Slots cover 1-40 and 61-127; 41-60 is an unconfigured gap.
+	RoundRobinAlternates alts{};
+	alts.velocityRangeMin[0] = 1;
+	alts.velocityRangeMax[0] = 40;
+	alts.velocityRangeMin[1] = 61;
+	alts.velocityRangeMax[1] = 127;
+
+	CHECK_EQUAL(0, MultisampleRange::resolveVelocitySlotIndex(1, 50, &alts));
+}
+
+TEST(MultisampleRoundRobinVelocityMode, overlappingRangesFirstSlotInScanOrderWins) {
+	RoundRobinAlternates alts{};
+	alts.velocityRangeMin[0] = 1;
+	alts.velocityRangeMax[0] = 100;
+	alts.velocityRangeMin[1] = 50;
+	alts.velocityRangeMax[1] = 127;
+
+	// Velocity 70 falls inside both slot 0's and slot 1's range - slot 0 wins since it's scanned first.
+	CHECK_EQUAL(0, MultisampleRange::resolveVelocitySlotIndex(1, 70, &alts));
+	// Velocity 120 only falls inside slot 1's range.
+	CHECK_EQUAL(1, MultisampleRange::resolveVelocitySlotIndex(1, 120, &alts));
+}
+
+TEST(MultisampleRoundRobinVelocityMode, sentinel128ClampsToMaxVelocity) {
+	// voice.cpp treats velocity == 128 as an internal "max" sentinel, never a real pad-hit
+	// velocity. It must clamp to 127 rather than fail to match any slot's (max-127) range.
+	RoundRobinAlternates alts{};
+	alts.velocityRangeMin[0] = 1;
+	alts.velocityRangeMax[0] = 100;
+	alts.velocityRangeMin[1] = 101;
+	alts.velocityRangeMax[1] = 127;
+
+	CHECK_EQUAL(1, MultisampleRange::resolveVelocitySlotIndex(1, 128, &alts));
+}
+
+TEST(MultisampleRoundRobinVelocityMode, nullAlternatesFallsBackToDefaultFullRange) {
+	// Defensive case: a hand-edited or corrupted song could claim RRMode::Velocity with rrCount > 0
+	// but no alternates ever allocated. Every slot behaves as if its range is the 1-127 default.
+	CHECK_EQUAL(0, MultisampleRange::resolveVelocitySlotIndex(2, 1, nullptr));
+	CHECK_EQUAL(0, MultisampleRange::resolveVelocitySlotIndex(2, 127, nullptr));
+}
+
 TEST_GROUP(MultisampleRoundRobinUnloadedSlots){};
 
 TEST(MultisampleRoundRobinUnloadedSlots, loadedSlotIsKept) {

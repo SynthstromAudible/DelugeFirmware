@@ -262,7 +262,7 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 						}
 					}
 					else {
-						resolvedHolder = sampleRange->resolveVariant();
+						resolvedHolder = sampleRange->resolveVariant(velocity);
 					}
 					holder = static_cast<AudioFileHolder*>(resolvedHolder);
 				}
