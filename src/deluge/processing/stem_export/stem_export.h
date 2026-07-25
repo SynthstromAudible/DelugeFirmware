@@ -54,6 +54,7 @@ public:
 	bool includeKitFX;
 	bool renderOffline;
 	bool exportMixdown;
+	bool exportChokeGroups;
 
 	// export instruments
 	int32_t disarmAllInstrumentsForStemExport(StemExportType stemExportType);
@@ -75,6 +76,14 @@ public:
 	int32_t disarmAllDrumsForStemExport();
 	int32_t exportDrumStems(StemExportType stemExportType);
 	void restoreAllDrumMutes(int32_t totalNumNoteRows);
+
+	// export choke groups
+	int32_t disarmAllChokeGroupsForStemExport();
+	int32_t exportChokeGroupStems(StemExportType stemExportType);
+	/// read-only check for whether choke-group export would actually produce more than one file for
+	/// the kit clip currently open - used to decide whether to surface the option in the UI at all.
+	/// Unlike disarmAllChokeGroupsForStemExport(), this does not touch NoteRow mute state.
+	bool currentKitSpansMultipleChokeGroups();
 
 	// start exporting
 	bool startCurrentStemExport(StemExportType stemExportType, Output* output, bool& muteState, int32_t fileNumber,
