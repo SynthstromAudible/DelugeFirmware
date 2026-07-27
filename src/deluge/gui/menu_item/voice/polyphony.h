@@ -95,6 +95,10 @@ public:
 		}
 		IntegerWithOff::renderInHorizontalMenu(slot);
 	}
+
+	// VCNT and ChokeGroup's CGRP are mutually exclusive (POLY vs CHOKE); once ChokeGroup is defined below,
+	// don't show a redundant "-" here while CGRP is the one actually in use.
+	[[nodiscard]] bool hideWhenIrrelevant() const override;
 };
 
 extern VoiceCount polyphonicVoiceCountMenu;
@@ -140,9 +144,16 @@ public:
 	void getColumnLabel(StringBuf& label) override {
 		label.append(deluge::l10n::get(l10n::String::STRING_FOR_CHOKE_GROUP_SHORT));
 	}
+
+	// See VoiceCount::hideWhenIrrelevant() above for why.
+	[[nodiscard]] bool hideWhenIrrelevant() const override { return isItemRelevant(&polyphonicVoiceCountMenu); }
 };
 
 extern ChokeGroup chokeGroupMenu;
+
+inline bool VoiceCount::hideWhenIrrelevant() const {
+	return isItemRelevant(&chokeGroupMenu);
+}
 
 class PolyphonyType final : public Selection {
 public:
