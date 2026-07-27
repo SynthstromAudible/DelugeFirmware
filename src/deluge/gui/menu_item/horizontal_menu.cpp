@@ -244,23 +244,29 @@ void HorizontalMenu::renderMenuItems(std::span<MenuItem*> items, const MenuItem*
 			continue;
 		}
 
-		if (item->showColumnLabel()) {
-			// Draw the label at the bottom
-			renderColumnLabel(item, label_y, current_x, box_width, is_selected);
-			content_height -= label_height;
-		}
+		// A mutually-exclusive sibling item may ask to be left fully blank (no label, no "-") while it's
+		// irrelevant and its counterpart is occupying the equivalent role instead.
+		const bool hide_completely = layout == FIXED && !is_relevant && item->hideWhenIrrelevant();
 
-		if (layout == FIXED && !isItemRelevant(item)) {
-			// Draw a dash as a value indicating that the item is disabled
-			image.drawStringCentered("-", current_x, base_y + kHorizontalMenuSlotYOffset, kTextTitleSpacingX,
-			                         kTextTitleSizeY, box_width);
-		}
-		else {
-			// Draw content of the menu item
-			item->renderInHorizontalMenu({.start_x = current_x,
-			                              .start_y = base_y,
-			                              .width = static_cast<uint8_t>(box_width - 1),
-			                              .height = content_height});
+		if (!hide_completely) {
+			if (item->showColumnLabel()) {
+				// Draw the label at the bottom
+				renderColumnLabel(item, label_y, current_x, box_width, is_selected);
+				content_height -= label_height;
+			}
+
+			if (layout == FIXED && !is_relevant) {
+				// Draw a dash as a value indicating that the item is disabled
+				image.drawStringCentered("-", current_x, base_y + kHorizontalMenuSlotYOffset, kTextTitleSpacingX,
+				                         kTextTitleSizeY, box_width);
+			}
+			else {
+				// Draw content of the menu item
+				item->renderInHorizontalMenu({.start_x = current_x,
+				                              .start_y = base_y,
+				                              .width = static_cast<uint8_t>(box_width - 1),
+				                              .height = content_height});
+			}
 		}
 
 		// Highlight the selected item if it doesn't occupy the whole page
