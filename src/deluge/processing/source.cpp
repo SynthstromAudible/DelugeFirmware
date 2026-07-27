@@ -21,6 +21,7 @@
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/sound_editor.h"
 #include "model/sample/sample.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "storage/audio/audio_file_manager.h"
@@ -29,6 +30,7 @@
 #include "storage/multi_range/multisample_range.h"
 #include "storage/wave_table/wave_table.h"
 #include "util/functions.h"
+#include <algorithm>
 #include <cstring>
 
 Source::Source() {
@@ -63,10 +65,27 @@ void Source::destructAllMultiRanges() {
 // Only to be called if already determined that oscType == OscType::SAMPLE
 int32_t Source::getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeStretching) {
 	MultiRange* range = getRange(note);
-	if (range != nullptr) {
-		return ((SampleHolder*)range->getAudioFileHolder())->getLengthInSamplesAtSystemSampleRate(forTimeStretching);
+	if (range == nullptr) {
+		return 1; // Why did I put 1?
 	}
-	return 1; // Why did I put 1?
+
+	int32_t length =
+	    ((SampleHolder*)range->getAudioFileHolder())->getLengthInSamplesAtSystemSampleRate(forTimeStretching);
+
+	// A round-robin zone's alternates may be longer than the primary sample. Use the longest of all
+	// of them, so a note auto-sized to sample length (e.g. when creating a note in the sequencer)
+	// isn't cut short just because a shorter variant happens to be the primary.
+	if (runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants)) {
+		auto* multisampleRange = static_cast<MultisampleRange*>(range);
+		for (uint8_t slotIndex = 1; slotIndex <= multisampleRange->rrCount; slotIndex++) {
+			SampleHolderForVoice* variantHolder = multisampleRange->getVariantHolder(slotIndex);
+			if (variantHolder != nullptr && variantHolder->audioFile != nullptr) {
+				length = std::max(length, variantHolder->getLengthInSamplesAtSystemSampleRate(forTimeStretching));
+			}
+		}
+	}
+
+	return length;
 }
 
 void Source::setCents(int32_t newCents) {
