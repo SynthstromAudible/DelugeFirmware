@@ -19,6 +19,7 @@
 
 #include "io/midi/sysex.h"
 #include "io/debug/print.h"
+#include "io/debug/sdram_text_bench.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
 #include "util/chainload.h"
@@ -35,6 +36,7 @@ void Debug::sysexReceived(MIDICable& cable, uint8_t* data, int32_t len) {
 	case 0:
 		if (data[2] == 1) {
 			midiDebugCable = &cable;
+			sdramTextBenchReport();
 		}
 		else if (data[2] == 0) {
 			midiDebugCable = nullptr;
