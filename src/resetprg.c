@@ -208,6 +208,8 @@ void resetprg(void) {
 	if (&__sdram_text_end != &__sdram_text_start) {
 		invalidate_range_all_caches((uintptr_t)&__sdram_text_start, (uintptr_t)&__sdram_text_end);
 		L1_I_CacheFlushAll();
+		__asm__ volatile("mcr p15, 0, %0, c7, c5, 6" ::"r"(0)); // BPIALL - A9 branch predictor is not
+		                                                        // invalidated by ICIALLU alone
 		__asm__ volatile("dsb\n"
 		                 "isb");
 	}

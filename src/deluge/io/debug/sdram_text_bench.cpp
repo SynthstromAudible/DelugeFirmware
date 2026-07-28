@@ -21,12 +21,18 @@
 #include "io/debug/sdram_text_bench.h"
 #include "definitions.h"
 #include "io/debug/print.h"
+#include "io/midi/sysex.h"
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
 
 extern "C" {
 #include "RZA1/cache/cache.h"
+#include "util/cfunctions.h"
+}
+
+namespace Debug {
+extern MIDICable* midiDebugCable;
 }
 
 extern uint32_t __sdram_text_start;
@@ -91,6 +97,7 @@ void makeAllCachesCold() {
 	L1_D_CacheWritebackFlushAll();
 	L2CacheFlushAll();
 	L1_I_CacheFlushAll();
+	__asm__ volatile("mcr p15, 0, %0, c7, c5, 6" ::"r"(0)); // BPIALL
 	__asm__ volatile("dsb\nisb");
 }
 
@@ -121,38 +128,94 @@ Stats measure(Fn fn, bool cold) {
 	return Stats{samples[0], samples[kTrials / 2]};
 }
 
-void printHex(char const* label, uint32_t value) {
+// Debug::print/println are compiled out unless ENABLE_TEXT_OUTPUT (debug/relwithdebinfo only), so
+// this report emits through sysexDebugPrint directly, like the crash-breadcrumb dump - it must work
+// on release builds, which are what actually gets benchmarked.
+char lineBuf[256];
+uint32_t linePos;
+
+void lineStart() {
+	linePos = 0;
+	lineBuf[0] = 0;
+}
+
+void append(char const* s) {
+	while (*s != 0 && linePos < sizeof(lineBuf) - 1) {
+		lineBuf[linePos++] = *s++;
+	}
+	lineBuf[linePos] = 0;
+}
+
+void appendNum(uint32_t value) {
+	char buf[12];
+	intToString((int32_t)value, buf, 1);
+	append(buf);
+}
+
+void appendHex(uint32_t value) {
 	static char const digits[] = "0123456789ABCDEF";
 	char buf[11] = "0x";
 	for (int32_t i = 0; i < 8; i++) {
 		buf[2 + i] = digits[(value >> (28 - i * 4)) & 0xF];
 	}
 	buf[10] = 0;
-	Debug::print(label);
-	Debug::print(buf);
+	append(buf);
+}
+
+// Finished lines are queued and emitted ONE per task tick: sysexDebugPrint formats every message
+// in the shared midiEngine.sysex_fmt_buffer, so rapid back-to-back sends clobber lines still in
+// flight (observed on hardware: only the last two of seven lines arrived).
+constexpr uint32_t kMaxReportLines = 8;
+char reportLines[kMaxReportLines][sizeof(lineBuf)];
+uint32_t numReportLines;
+uint32_t nextReportLine;
+
+void lineQueue() {
+	if (numReportLines < kMaxReportLines) {
+		memcpy(reportLines[numReportLines++], lineBuf, linePos + 1);
+	}
 }
 
 void reportKernel(char const* name, char const* placement, Stats cold, Stats warm) {
-	Debug::print("{\"bench\":\"sdram_text\",\"kernel\":\"");
-	Debug::print(name);
-	Debug::print("\",\"placement\":\"");
-	Debug::print(placement);
-	Debug::print("\",\"cold_min\":");
-	Debug::print((int32_t)cold.min);
-	Debug::print(",\"cold_med\":");
-	Debug::print((int32_t)cold.median);
-	Debug::print(",\"warm_min\":");
-	Debug::print((int32_t)warm.min);
-	Debug::print(",\"warm_med\":");
-	Debug::print((int32_t)warm.median);
-	Debug::println("}");
+	lineStart();
+	append("{\"bench\":\"sdram_text\",\"kernel\":\"");
+	append(name);
+	append("\",\"placement\":\"");
+	append(placement);
+	append("\",\"cold_min\":");
+	appendNum(cold.min);
+	append(",\"cold_med\":");
+	appendNum(cold.median);
+	append(",\"warm_min\":");
+	appendNum(warm.min);
+	append(",\"warm_med\":");
+	appendNum(warm.median);
+	append("}");
+	lineQueue();
 }
 
 } // namespace
 
-void sdramTextBenchReport() {
+namespace {
+bool benchRequested = false;
+}
+
+void sdramTextBenchRequest() {
+	benchRequested = true;
+}
+
+void sdramTextBenchRoutine() {
 	static bool hasRun = false;
+	if (!benchRequested || Debug::midiDebugCable == nullptr) {
+		return;
+	}
+
+	// Drain phase: one queued line per tick so each send clears the shared sysex buffer
+	// before the next overwrites it.
 	if (hasRun) {
+		if (nextReportLine < numReportLines) {
+			Debug::sysexDebugPrint(*Debug::midiDebugCable, reportLines[nextReportLine++], true);
+		}
 		return;
 	}
 	hasRun = true;
@@ -160,20 +223,31 @@ void sdramTextBenchReport() {
 	Debug::init(); // Idempotent; guarantees the PMU cycle counter is enabled
 
 	// Self-documenting layout line: proves at runtime where each copy actually lives.
-	Debug::print("{\"bench\":\"sdram_text\",\"info\":\"layout\"");
-	printHex(",\"sdram_text_start\":\"", (uint32_t)&__sdram_text_start);
-	printHex("\",\"sdram_text_end\":\"", (uint32_t)&__sdram_text_end);
-	printHex("\",\"tight_internal\":\"", (uint32_t)&tightInternal);
-	printHex("\",\"tight_sdram\":\"", (uint32_t)&tightSdram);
-	printHex("\",\"sprawl_internal\":\"", (uint32_t)&sprawlInternal);
-	printHex("\",\"sprawl_sdram\":\"", (uint32_t)&sprawlSdram);
-	Debug::println("\"}");
+	lineStart();
+	append("{\"bench\":\"sdram_text\",\"info\":\"layout\",\"sdram_text_start\":\"");
+	appendHex((uint32_t)&__sdram_text_start);
+	append("\",\"sdram_text_end\":\"");
+	appendHex((uint32_t)&__sdram_text_end);
+	append("\",\"tight_internal\":\"");
+	appendHex((uint32_t)&tightInternal);
+	append("\",\"tight_sdram\":\"");
+	appendHex((uint32_t)&tightSdram);
+	append("\",\"sprawl_internal\":\"");
+	appendHex((uint32_t)&sprawlInternal);
+	append("\",\"sprawl_sdram\":\"");
+	appendHex((uint32_t)&sprawlSdram);
+	append("\"}");
+	lineQueue();
 
 	// Marker before the first SDRAM-placed call: in a SDRAM_TEXT_SKIP_CACHE_FIX build, a crash
 	// after this line and before the next result attributes the fault to SDRAM execution.
-	Debug::println("{\"bench\":\"sdram_text\",\"info\":\"calling sdram-placed code next\"}");
+	lineStart();
+	append("{\"bench\":\"sdram_text\",\"info\":\"calling sdram-placed code next\"}");
+	lineQueue();
 	sink = tightSdram(1, 1);
-	Debug::println("{\"bench\":\"sdram_text\",\"info\":\"sdram-placed code returned ok\"}");
+	lineStart();
+	append("{\"bench\":\"sdram_text\",\"info\":\"sdram-placed code returned ok\"}");
+	lineQueue();
 
 	// Interleave placements so drift (interrupt load etc.) cancels rather than biasing one side.
 	Stats tightIntCold = measure(tightInternal, true);

@@ -25,4 +25,10 @@
 // with the PMU cycle counter in the same run - cold-cache and warm-cache. Results are
 // printed as JSON lines to the sysex debug console on first console attach.
 // See docs/dev/sdram_text_prototype.md for protocol and interpretation.
-void sdramTextBenchReport();
+
+// Called from the sysex rx handler on console attach. Only flags the request: the report
+// sends multiple sysex replies, and sending from inside the rx handler deadlocks the USB
+// pipeline, so the actual run happens in sdramTextBenchRoutine() from the task scheduler.
+void sdramTextBenchRequest();
+// Scheduler task: runs the benchmark and sends the report if one was requested.
+void sdramTextBenchRoutine();

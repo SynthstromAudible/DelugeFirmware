@@ -279,8 +279,12 @@ SECTIONS
         . = ALIGN(4);
         PROVIDE(__sdram_text_start = .);
         *(.sdram_text .sdram_text*)
-        . = ALIGN(4);
 		KEEP(*(.sdram_text))
+        /* Pad to 32 (max input alignment we allow in these sections): the AT() staging chain uses
+           raw SIZEOF sums while ld aligns each section's start VMA to its largest input alignment.
+           Any mismatch skews relocateSDRAMSection's src pointer and corrupts every later section
+           (this bit us: 4-byte skew shifted all OLED strings). Ends must land on ALIGN boundaries. */
+        . = ALIGN(32);
         PROVIDE(__sdram_text_end = .);
 	} > SDRAM
 
@@ -289,8 +293,8 @@ SECTIONS
         . = ALIGN(4);
         PROVIDE(__sdram_data_start = .);
         *(.sdram_data .sdram_data*)
-        . = ALIGN(4);
 		KEEP(*(.sdram_data))
+        . = ALIGN(32);
         PROVIDE(__sdram_data_end = .);
 	} > SDRAM
 
@@ -302,7 +306,7 @@ SECTIONS
         *(.sdram_rodata)
         *(.sdram_rodata*)
         PROVIDE(__sdram_rodata_end = .);
-        . = ALIGN(0x4);
+        . = ALIGN(32);
     } > SDRAM
 
     .exceptions : AT(ADDR(.heap) + SIZEOF(.sdram_text) + SIZEOF(.sdram_data) + SIZEOF(.sdram_rodata)) {
@@ -314,6 +318,7 @@ SECTIONS
          *(.gnu.linkonce.armexidx.*)
         PROVIDE_HIDDEN(__exidx_end = .);
         PROVIDE(__reloc_sections_end__ = .);
+        . = ALIGN(32);
     } > SDRAM
 
 	/* Reset location counter to RAM012L. Warning: Changing relocation sections before that will require change here */

@@ -132,6 +132,39 @@ Interpretation guide:
 | `sprawl cold` SDRAM ≫ internal | Penalty is per-miss; still fine for menus/UI (human-speed), keep audio-path code internal |
 | skip-fix build crashes at the marker | 2023 root cause confirmed |
 
+## Measured results (2026-07-27, release build, chainloaded, Deluge OLED hardware)
+
+The fixed build's first SDRAM-placed execution returned correctly ("calling sdram-placed code
+next" → "sdram-placed code returned ok"), with the layout line confirming placements at runtime
+(SDRAM kernels at 0x0C000001/0x0C000029 — Thumb bit set; internal at 0x200D…).
+
+| kernel        | placement | cold_min | cold_med | warm_min | warm_med |
+|---------------|-----------|----------|----------|----------|----------|
+| tight         | internal  | 34,451   | 41,714   | 27,384   | 40,408   |
+| tight         | SDRAM     | 34,772   | 42,209   | 27,389   | 40,411   |
+| sprawl (33KB) | internal  | 38,289   | 41,687   | 27,437   | 40,424   |
+| sprawl (33KB) | SDRAM     | 188,363  | 193,739  | 24,666   | 40,598   |
+
+- **Warm execution is placement-invariant** (all four warm medians within 0.5%) — once cached,
+  code home does not matter. The tight kernel is also cold-invariant, validating the harness.
+- **Cold penalty**: +150,074 cycles for a fully-cold 33KB walk = **~145 extra cycles per 32-byte
+  line**, ≈ 4.9× slower cold. At 400MHz that is ~375µs per fully-cold 33KB — a one-time cost per
+  cache-cold visit. For human-speed UI code this is imperceptible (a 50KB fully-cold menu open
+  would cost ~0.5ms once); for the per-buffer audio path (~2.9ms budget) it is prohibitive —
+  which sets the migration rule: menus/UI/serialization may move, audio render and IRQ paths must
+  not. (Medians carry ~13k cycles of interrupt noise vs mins, equally across placements.)
+
+Hardware lessons encoded in this branch, found the hard way:
+1. Linker `AT()` staging offsets must exactly match VMA offsets — a 4-byte alignment skew shifted
+   every relocated SDRAM byte and garbled all OLED strings (fixed: ALIGN(32) section ends; the
+   SDRAM sections now form one contiguous LOAD segment whose LMA is __heap_start).
+2. Never send multiple sysex replies from inside the sysex RX handler (USB tx deadlock — device
+   freeze, no fault, no breadcrumb). The report runs from a scheduler task instead.
+3. `sysexDebugPrint` shares one format buffer; rapid consecutive sends clobber in-flight lines.
+   The report emits one line per task tick.
+4. `Debug::print` is compiled out of release builds (ENABLE_TEXT_OUTPUT); anything that must
+   report on release firmware uses sysexDebugPrint directly.
+
 ## What moves next (after benchmarks come back sane)
 
 Candidates in rough order of size-payoff and coldness: menu system (`gui/menu_item`,

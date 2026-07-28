@@ -36,7 +36,7 @@ void Debug::sysexReceived(MIDICable& cable, uint8_t* data, int32_t len) {
 	case 0:
 		if (data[2] == 1) {
 			midiDebugCable = &cable;
-			sdramTextBenchReport();
+			sdramTextBenchRequest();
 		}
 		else if (data[2] == 0) {
 			midiDebugCable = nullptr;
