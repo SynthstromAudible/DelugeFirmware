@@ -2705,6 +2705,33 @@ bool Session::willClipLoopAtSomePoint(ModelStackWithTimelineCounter const* model
 	return willClipContinuePlayingAtEnd(modelStack);
 }
 
+bool Session::willClipBeReplacedAtLaunch(ModelStackWithTimelineCounter const* modelStack) const {
+	if (!launchEventAtSwungTickCount || numRepeatsTilLaunch > 1) {
+		return false;
+	}
+
+	Clip* clip = (Clip*)modelStack->getTimelineCounter();
+	if (!modelStack->song->isClipActive(clip) || clip->armState != ArmState::ON_NORMAL) {
+		return false;
+	}
+
+	for (int32_t c = 0; c < modelStack->song->sessionClips.getNumElements(); c++) {
+		Clip* otherClip = modelStack->song->sessionClips.getClipAtIndex(c);
+		if (otherClip == clip || otherClip->output != clip->output || otherClip->armState == ArmState::OFF
+		    || modelStack->song->isClipActive(otherClip)) {
+			continue;
+		}
+
+		if (otherClip->isPendingOverdub && otherClip->willCloneOutputForOverdub()) {
+			continue;
+		}
+
+		return true;
+	}
+
+	return false;
+}
+
 // The point of this is to re-enable any other Clip with same Output
 bool Session::deletingClipWhichCouldBeAbandonedOverdub(Clip* clip) {
 

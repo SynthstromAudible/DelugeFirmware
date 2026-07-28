@@ -727,12 +727,15 @@ justDontTimeStretch:
 
 		// We want to do a fast release *before* the end, to finish right as the end is reached. So that any waveform
 		// after the end isn't heard.
-		// TODO: in an ideal world, would we only do this if there actually is some waveform "margin" after the end that
-		// we want to avoid hearing, and otherwise just do the release right at the end (does that already happen, I
-		// forgot?) It's perhaps a little bit surprising, but this even works and sounds perfect (you never hear any of
-		// the margin) when time-stretching is happening! Down to about half speed. Below that, you hear some of the
-		// margin.
-		if (static_cast<AudioOutput*>(this->output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
+		// NOTE: only do this if there actually is some waveform "margin" after the end that
+		// we want to avoid hearing. Otherwise just do the release right at the end
+		// Also, only do this if the Clip isn't going to be replaced by another Clip at the end,
+		// because then we don't want to do a release at all, because the next Clip will be doing its own release (if
+		// necessary)
+		if (static_cast<AudioOutput*>(this->output)->envelope.state < EnvelopeStage::FAST_RELEASE
+		    && ((guide.playDirection == 1) ? (sampleHolder.endPos < sample->lengthInSamples)
+		                                   : (sampleHolder.startPos != 0))
+		    && !(currentPlaybackMode == &session && session.willClipBeReplacedAtLaunch(modelStack))) {
 
 			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, nullptr);
 
