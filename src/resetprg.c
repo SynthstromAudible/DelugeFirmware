@@ -198,6 +198,21 @@ void resetprg(void) {
 	relocateSDRAMSection(&__sdram_data_start, &__sdram_data_end);
 	relocateSDRAMSection(&__sdram_rodata_start, &__sdram_rodata_end);
 
+	// .sdram_text is executable, and the copy above went through the D-cache (enabled just before
+	// this in R_CACHE_L1Init) while instruction fetch bypasses it - and speculative fetches during
+	// the SDRAM memset may already have populated I/L2 lines for these addresses. Without this
+	// maintenance, executing from SDRAM ran stale/garbage instructions (the 2023 PLACE_SDRAM_TEXT
+	// "maybe timing?" failure). Data/rodata relocations need none of this: all their later readers
+	// go through the same D-cache. Define SDRAM_TEXT_SKIP_CACHE_FIX to reproduce the 2023 behaviour.
+#ifndef SDRAM_TEXT_SKIP_CACHE_FIX
+	if (&__sdram_text_end != &__sdram_text_start) {
+		invalidate_range_all_caches((uintptr_t)&__sdram_text_start, (uintptr_t)&__sdram_text_end);
+		L1_I_CacheFlushAll();
+		__asm__ volatile("dsb\n"
+		                 "isb");
+	}
+#endif
+
 	__libc_init_array();
 	// located in OSLikeStuff/main.c
 	main();

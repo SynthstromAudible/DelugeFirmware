@@ -80,8 +80,13 @@ extern void freezeWithError(char const* errmsg);
 #define PLACE_SDRAM_BSS __attribute__((__section__(".sdram_bss")))
 #define PLACE_SDRAM_DATA __attribute__((__section__(".sdram_data")))
 #define PLACE_SDRAM_RODATA __attribute__((__section__(".sdram_rodata")))
-// #define PLACE_SDRAM_TEXT __attribute__((__section__(".sdram_text"))) // Paul: I had problems with execution from
-// SDRAM, maybe timing?
+// Re-enabled 2026-07: Paul's 2023 "problems with execution from SDRAM, maybe timing?" were most
+// likely stale caches - resetprg.c copied the code with I/D caches already enabled and did no
+// cache maintenance afterward, so instruction fetch could see stale lines. Fixed in resetprg.c
+// (clean D + invalidate I after the .sdram_text relocation). The MMU was never the obstacle:
+// SDRAM is mapped TTB_PARA_NORMAL_CACHE (write-back, XN=0/executable) in ttb_init.S.
+// See docs/dev/sdram_text_prototype.md.
+#define PLACE_SDRAM_TEXT __attribute__((__section__(".sdram_text")))
 #else
 #define PLACE_SDRAM_BSS
 #define PLACE_SDRAM_DATA
