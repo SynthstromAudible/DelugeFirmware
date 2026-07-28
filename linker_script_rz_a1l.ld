@@ -180,9 +180,12 @@ SECTIONS
     .text : ALIGN(0x4) {
 		_stext = .;
 		
-		*(.text)
-		*(.text*)
-		*(.text.startup)
+		/* Menu/browser/settings-UI objects execute from SDRAM: excluded here, claimed by
+		   .sdram_text below. They are compiled -fno-lto so these path patterns can see them
+		   (LTO partitions lose file identity). Keep in sync with deluge_SDRAM_TEXT_SOURCES. */
+		*(EXCLUDE_FILE(*/gui/menu_item/* */gui/context_menu/* */gui/ui/browser/* */gui/ui/save/* */gui/ui/load/* */gui/ui/menus.cpp*) .text)
+		*(EXCLUDE_FILE(*/gui/menu_item/* */gui/context_menu/* */gui/ui/browser/* */gui/ui/save/* */gui/ui/load/* */gui/ui/menus.cpp*) .text*)
+		*(EXCLUDE_FILE(*/gui/menu_item/* */gui/context_menu/* */gui/ui/browser/* */gui/ui/save/* */gui/ui/load/* */gui/ui/menus.cpp*) .text.startup)
 
 		_etext = .;
         PROVIDE(program_code_end = .);
@@ -278,6 +281,12 @@ SECTIONS
 	{
         . = ALIGN(4);
         PROVIDE(__sdram_text_start = .);
+        */gui/menu_item/*(.text .text* .text.startup)
+        */gui/context_menu/*(.text .text* .text.startup)
+        */gui/ui/browser/*(.text .text* .text.startup)
+        */gui/ui/save/*(.text .text* .text.startup)
+        */gui/ui/load/*(.text .text* .text.startup)
+        */gui/ui/menus.cpp*(.text .text* .text.startup)
         *(.sdram_text .sdram_text*)
 		KEEP(*(.sdram_text))
         /* Pad to 32 (max input alignment we allow in these sections): the AT() staging chain uses

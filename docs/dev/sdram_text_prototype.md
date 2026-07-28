@@ -1,8 +1,9 @@
 # Executing code from SDRAM (`.sdram_text`): prototype, history, and measurements
 
-Status: prototype on branch `proto/sdram-text` (2026-07-27). No production code has been moved yet;
-this branch proves the mechanism, explains what kept the 2023 groundwork from being enabled, and
-ships an on-device A/B benchmark so placement decisions can be made from data.
+Status: hardware-validated and landed on `dev` (2026-07/08). The mechanism is proven, the first
+production migration (menu/browser/settings UI code, +265KB fast heap) is in, and an on-device A/B
+benchmark ships with it so further placement decisions can be made from data. This document
+explains the mechanism, what kept the 2023 groundwork from being enabled, and the measurements.
 
 ## Why: internal RAM pressure (the justification)
 
@@ -165,11 +166,21 @@ Hardware lessons encoded in this branch, found the hard way:
 4. `Debug::print` is compiled out of release builds (ENABLE_TEXT_OUTPUT); anything that must
    report on release firmware uses sysexDebugPrint directly.
 
-## What moves next (after benchmarks come back sane)
+## What moved, and what moves next
 
-Candidates in rough order of size-payoff and coldness: menu system (`gui/menu_item`,
-`gui/context_menu`, `gui/ui/menus.cpp`), browser/file UI, settings/serialization, OLED rendering
-helpers. Never: audio render path, interrupt handlers, SD/DMA-adjacent code. Per-file placement can
-use a linker-script input pattern on object paths rather than per-function attributes. Each KB
-moved is a KB returned to the fast heap; moving ~400KB of cold code would fully restore upstream's
+First migration (landed with this work): menu system (`gui/menu_item`, `gui/context_menu`,
+`gui/ui/menus.cpp`), browser/file UI and settings — +265KB returned to the fast heap.
+
+Scope note: only executable sections (`.text*`) of those objects move. Vtables, typeinfo, string
+literals and all other `.rodata`/data of the moved classes stay in internal SRAM (verified in the
+built ELF: every vtable links at a `0x2…` internal address, none at `0x0C…`). Vtable *entries* for
+the moved virtual functions point into SDRAM — resolved at link time and valid before `main()` via
+the boot relocation — so virtual dispatch is mechanically unchanged; the only cost is the measured
+cold instruction-fetch when a call lands on uncached SDRAM code.
+
+Remaining
+candidates in rough order of size-payoff and coldness: serialization, OLED rendering helpers.
+Never: audio render path, interrupt handlers, SD/DMA-adjacent code. Per-file placement uses a
+linker-script input pattern on object paths rather than per-function attributes. Each KB moved is
+a KB returned to the fast heap; moving ~400KB of cold code would fully restore upstream's
 internal-heap headroom.

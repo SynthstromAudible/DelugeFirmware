@@ -19,6 +19,27 @@ list(FILTER deluge_SOURCES EXCLUDE REGEX .*/dsp/.*)
 # Ensure the menu sources are built prior to building the main target
 add_dependencies(deluge deluge_menus)
 
+# Menu code executes from SDRAM (.sdram_text) to reclaim internal RAM for the fast heap - see
+# docs/dev/sdram_text_prototype.md. The linker script places these objects by path, which needs
+# them to keep their file identity: LTO would merge them into anonymous ltrans partitions, so
+# it's disabled here. They're cold UI code; LTO buys nothing measurable on them.
+file(GLOB_RECURSE deluge_SDRAM_TEXT_SOURCES CONFIGURE_DEPENDS
+  ${CMAKE_CURRENT_LIST_DIR}/gui/menu_item/*.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/gui/context_menu/*.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/gui/ui/browser/*.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/gui/ui/save/*.cpp
+  ${CMAKE_CURRENT_LIST_DIR}/gui/ui/load/*.cpp
+)
+# menus.cpp generates most of the header-defined menu_item code
+# (sound_editor.cpp deliberately NOT moved: bisect round 1 for the E365 boot freeze)
+list(APPEND deluge_SDRAM_TEXT_SOURCES
+  ${CMAKE_CURRENT_LIST_DIR}/gui/ui/menus.cpp
+)
+# TARGET_DIRECTORY: the deluge target is created in a parent directory, and source properties
+# are directory-scoped by default - without this the option silently doesn't apply.
+set_source_files_properties(${deluge_SDRAM_TEXT_SOURCES} TARGET_DIRECTORY deluge PROPERTIES
+                            COMPILE_OPTIONS "-fno-lto")
+
 target_sources(deluge PUBLIC
   ${deluge_SOURCES}
   # Add strings-sources explicitly: since they're build artefacts clean nukes them,
