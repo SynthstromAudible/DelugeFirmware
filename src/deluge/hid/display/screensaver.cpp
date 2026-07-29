@@ -20,17 +20,24 @@
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "processing/stem_export/stem_export.h"
 #include "storage/flash_storage.h"
 
 namespace deluge::hid::display {
 
 bool Screensaver::active_ = false;
+bool Screensaver::frameDirty_ = false;
 oled_canvas::Canvas Screensaver::canvas_;
 Starfield Screensaver::starfield_;
 
 /// Starscape frame interval. For comparison, scrolling text re-arms at 15ms and
 /// 5ms (see OLED::scrollingAndBlinkingTimerEvent), so this is the lighter load.
 constexpr int32_t kFrameIntervalMS = 50;
+
+/// Blank re-check interval while already showing. Blank has no per-frame animation
+/// to drive, so this exists solely so a popup or working animation that appears
+/// while we're showing gets noticed -- without pushing an unchanged frame every tick.
+constexpr int32_t kInhibitRecheckMS = 1000;
 
 constexpr int32_t kMillisecondsPerMinute = 60000;
 
@@ -39,15 +46,16 @@ void Screensaver::arm() {
 }
 
 void Screensaver::noteActivity() {
-	if (FlashStorage::screensaverMode == ScreensaverMode::OFF) {
-		return;
-	}
-
 	if (active_) {
 		active_ = false;
-		// The main canvas was never written to while we were showing, so this
-		// re-pushes the pre-screensaver image exactly as it was.
+		// The screensaver never writes to `main`, so this doesn't need to restore
+		// anything -- it just marks the display dirty so the current `main` content
+		// gets pushed again.
 		OLED::markChanged();
+	}
+
+	if (FlashStorage::screensaverMode == ScreensaverMode::OFF || !::display->haveOLED()) {
+		return;
 	}
 
 	arm();
@@ -60,26 +68,38 @@ void Screensaver::timerEvent() {
 		return;
 	}
 
-	if (!active_) {
-		// Never blank something the display is asking the user to read.
-		if (OLED::isPermanentPopupPresent() || OLED::isWorkingAnimationPresent()) {
-			arm();
-			return;
+	// Never cover a message the display is asking the user to read. Re-checked every
+	// tick, not just at activation, so a card error or loading animation that appears
+	// while we're showing gets the screen back.
+	if (OLED::isPermanentPopupPresent() || OLED::isWorkingAnimationPresent() || stemExport.processStarted) {
+		if (active_) {
+			active_ = false;
+			OLED::markChanged();
 		}
+		arm();
+		return;
+	}
+
+	bool changed = false;
+	if (!active_) {
 		active_ = true;
 		starfield_.scatter();
+		changed = true;
 	}
-	else {
+	else if (FlashStorage::screensaverMode == ScreensaverMode::STARSCAPE) {
 		starfield_.advance();
+		changed = true;
+	}
+	// BLANK while already showing: nothing changed, this tick is only an inhibitor re-check.
+
+	if (changed) {
+		render();
+		OLED::markChanged();
 	}
 
-	render();
-	OLED::markChanged();
-
-	if (FlashStorage::screensaverMode == ScreensaverMode::STARSCAPE) {
-		uiTimerManager.setTimer(TimerName::SCREENSAVER, kFrameIntervalMS);
-	}
-	// BLANK draws once and then waits for input, so it needs no further timer.
+	uiTimerManager.setTimer(TimerName::SCREENSAVER, FlashStorage::screensaverMode == ScreensaverMode::STARSCAPE
+	                                                    ? kFrameIntervalMS
+	                                                    : kInhibitRecheckMS);
 }
 
 void Screensaver::settingsChanged() {
@@ -98,6 +118,7 @@ void Screensaver::settingsChanged() {
 
 void Screensaver::render() {
 	canvas_.clear();
+	frameDirty_ = true;
 
 	if (FlashStorage::screensaverMode != ScreensaverMode::STARSCAPE) {
 		return; // BLANK: a cleared canvas is the whole picture.

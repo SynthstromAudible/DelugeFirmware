@@ -378,9 +378,16 @@ void OLED::sendMainImage() {
 	oledCurrentImage = &main.hackGetImageStore()[0];
 
 	if (Screensaver::isActive()) {
+		if (!Screensaver::consumeFrameDirty()) {
+			// Some other timer marked the display dirty while we're showing. Nothing
+			// about our frame changed, so swallow it rather than re-pushing an
+			// identical frame -- scrolling text re-arms every 5-15ms forever, which
+			// would otherwise flood the SPI bus we share with CV output.
+			needsSending = false;
+			return;
+		}
 		// The screensaver owns the whole screen: console items and popups stay behind
-		// it until input wakes us. The main canvas is left untouched, so waking up
-		// needs no re-render.
+		// it until input wakes us.
 		oledCurrentImage = &Screensaver::getCanvas().hackGetImageStore()[0];
 	}
 	else {
