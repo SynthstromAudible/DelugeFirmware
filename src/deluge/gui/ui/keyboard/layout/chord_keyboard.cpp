@@ -246,12 +246,18 @@ void KeyboardLayoutChord::handleControlButton(int32_t x, int32_t y) {
 	// 	}
 	// }
 	if (x == kDisplayWidth - 1 && y == kDisplayHeight - 1) {
-		mode = ChordKeyboardMode::ROW;
+		if (mode != ChordKeyboardMode::ROW) {
+			mode = ChordKeyboardMode::ROW;
+			keyboardScreen.requestRendering();
+		}
 		char const* shortLong[2] = {"ROW", "Chord Row Mode"};
 		display->displayPopup(shortLong);
 	}
 	else if (x == kDisplayWidth - 1 && y == kDisplayHeight - 2) {
-		mode = ChordKeyboardMode::COLUMN;
+		if (mode != ChordKeyboardMode::COLUMN) {
+			mode = ChordKeyboardMode::COLUMN;
+			keyboardScreen.requestRendering();
+		}
 		char const* shortLong[2] = {"COLM", "Chord Column Mode"};
 		display->displayPopup(shortLong);
 	}
