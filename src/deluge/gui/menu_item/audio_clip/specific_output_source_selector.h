@@ -34,6 +34,7 @@ public:
 		Output* selectedOutput = audioOutputBeingEdited->getOutputRecordingFrom();
 		outputIndex = getRecordableOutputIndex(selectedOutput);
 		if (outputIndex < 0) {
+			// If the stored source was removed or became invalid, land on the first valid target instead.
 			outputIndex = getNextRecordableOutputIndex(-1, 1);
 			selectedOutput = getOutputFromSelectedIndex();
 			audioOutputBeingEdited->setOutputRecordingFrom(selectedOutput);
@@ -134,6 +135,7 @@ private:
 			return -1;
 		}
 
+		// Only outputs still in the main song list are selectable; hibernated instruments should not display here.
 		int32_t index = 0;
 		for (Output* candidate = currentSong->firstOutput; candidate; candidate = candidate->next) {
 			if (candidate == output) {
@@ -163,6 +165,7 @@ private:
 
 		for (int32_t step = 0; step < steps; step++) {
 			int32_t candidateIndex = selectedIndex;
+			// Walk the raw song indices, but stop only on rows the audio track can actually record from.
 			while (true) {
 				candidateIndex += direction;
 				if (candidateIndex < 0 || candidateIndex >= numOutputs) {

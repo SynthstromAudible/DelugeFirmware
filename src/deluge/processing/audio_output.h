@@ -105,6 +105,7 @@ public:
 
 	Output* getOutputRecordingFrom() override { return outputRecordingFrom; }
 	void clearRecordingFrom() override { setOutputRecordingFrom(nullptr); }
+	// Specific-track recording only makes sense from another audio-capable output.
 	bool canRecordFrom(Output const* source) const {
 		return source && source != this && source->type != OutputType::MIDI_OUT && source->type != OutputType::CV;
 	}

@@ -42,6 +42,7 @@ constexpr size_t kNumValues = 8;
 AudioInputSelector audioInputSelector{};
 
 namespace {
+// A saved source pointer can become stale if its instrument leaves the active song list, e.g. by being hibernated.
 Output* getRecordableOutputInSong(AudioOutput* audioOutput, Output* selectedOutput) {
 	if (!audioOutput->canRecordFrom(selectedOutput)) {
 		return nullptr;
@@ -56,6 +57,7 @@ Output* getRecordableOutputInSong(AudioOutput* audioOutput, Output* selectedOutp
 	return nullptr;
 }
 
+// Used when entering Track mode without a valid previous source.
 Output* getFirstRecordableOutput(AudioOutput* audioOutput) {
 	for (Output* output = currentSong->firstOutput; output; output = output->next) {
 		if (audioOutput->canRecordFrom(output)) {
@@ -138,6 +140,7 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 
 	auto valueOption = static_cast<Value>(currentOption);
 	if (display->haveOLED() && valueOption == Value::TRACK) {
+		// Keep Track on the first visible row so the selected track name has room below it.
 		scrollPos = currentOption;
 	}
 
@@ -174,6 +177,7 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 		break;
 	case Value::TRACK: {
 		audioOutput->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
+		// Preserve the chosen source if possible; only choose a default when the previous source is gone.
 		Output* recordFrom = getRecordableOutputInSong(audioOutput, audioOutput->getOutputRecordingFrom());
 		if (!recordFrom) {
 			recordFrom = getFirstRecordableOutput(audioOutput);
@@ -201,6 +205,7 @@ ActionResult AudioInputSelector::padAction(int32_t x, int32_t y, int32_t on) {
 			audioOutput->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
 			audioOutput->setOutputRecordingFrom(track);
 			if (display->have7SEG()) {
+				// OLED shows this persistently in renderOLED(); 7SEG still needs popup feedback.
 				display->popupTextTemporary(track->name.get());
 			}
 			// sets scroll to the position of specific output
@@ -227,6 +232,7 @@ void AudioInputSelector::renderOLED(deluge::hid::display::oled_canvas::Canvas& c
 		return;
 	}
 
+	// Show the selected target in the context menu footer.
 	Output* recordFrom = getRecordableOutputInSong(audioOutput, audioOutput->getOutputRecordingFrom());
 	char const* trackName = recordFrom ? recordFrom->name.get() : "No track";
 
