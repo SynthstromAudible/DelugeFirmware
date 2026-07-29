@@ -3578,6 +3578,8 @@ void Song::deleteOutput(Output* output) {
 
 void Song::moveInstrumentToHibernationList(Instrument* instrument) {
 
+	clearRecordingFromReferencesTo(instrument);
+
 	removeOutputFromMainList(instrument);
 
 	if (instrument->type == OutputType::MIDI_OUT) {
