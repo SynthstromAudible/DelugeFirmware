@@ -78,6 +78,8 @@ extern MenuHighlighting accessibilityMenuHighlighting;
 
 extern OutputType defaultNewClipType;
 extern bool defaultUseLastClipType;
+extern ScreensaverMode screensaverMode;
+extern uint8_t screensaverTimeoutMinutes;
 
 extern ThresholdRecordingMode defaultThresholdRecordingMode;
 

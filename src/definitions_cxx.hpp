@@ -1096,5 +1096,9 @@ enum class LaunchStyle { DEFAULT, FILL, ONCE };
 enum class StartupSongMode { BLANK, TEMPLATE, LASTOPENED, LASTSAVED };
 constexpr auto kNumStartupSongMode = util::to_underlying(StartupSongMode::LASTSAVED) + 1;
 
+/// What the screensaver shows once the idle timeout expires. OLED only.
+enum class ScreensaverMode : uint8_t { OFF, BLANK, STARSCAPE };
+constexpr auto kNumScreensaverModes = util::to_underlying(ScreensaverMode::STARSCAPE) + 1;
+
 constexpr uint8_t kHorizontalMenuSlotYOffset = 2;
 constexpr uint8_t kScreenTitleSeparatorY = 12 + OLED_MAIN_TOPMOST_PIXEL;

@@ -232,6 +232,8 @@ StartupSongMode defaultStartupSongMode;
 bool highCPUUsageIndicator;
 
 uint8_t defaultHoldTime;
+ScreensaverMode screensaverMode;
+uint8_t screensaverTimeoutMinutes;
 int32_t holdTime;
 
 uint8_t defaultSwingInterval;
@@ -347,6 +349,9 @@ void resetSettings() {
 
 	defaultHoldTime = 2;
 	holdTime = (defaultHoldTime * kSampleRate) / 20;
+
+	screensaverMode = ScreensaverMode::OFF;
+	screensaverTimeoutMinutes = 5;
 
 	defaultSwingInterval = 8 - defaultMagnitude; // 16th notes
 
@@ -775,6 +780,22 @@ void readSettings() {
 	else {
 		defaultPatchCablePolarity = static_cast<Polarity>(buffer[189]);
 	}
+
+	// Bytes 196-197 were unused before this feature, so an upgrading unit reads
+	// whatever was there. Anything out of range -- including erased 0xFF and a
+	// zeroed byte -- falls back to the shipped defaults, so nobody upgrading
+	// gets a surprise behaviour change.
+	if (buffer[196] >= kNumScreensaverModes) {
+		screensaverMode = ScreensaverMode::OFF;
+	}
+	else {
+		screensaverMode = static_cast<ScreensaverMode>(buffer[196]);
+	}
+
+	screensaverTimeoutMinutes = buffer[197];
+	if (screensaverTimeoutMinutes < 1 || screensaverTimeoutMinutes > 60) {
+		screensaverTimeoutMinutes = 5;
+	}
 }
 
 static bool areAutomationSettingsValid(std::span<uint8_t> buffer) {
@@ -1008,6 +1029,9 @@ void writeSettings() {
 	buffer[188] = defaultUseSharps;
 
 	buffer[189] = util::to_underlying(defaultPatchCablePolarity);
+
+	buffer[196] = util::to_underlying(screensaverMode);
+	buffer[197] = screensaverTimeoutMinutes;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
