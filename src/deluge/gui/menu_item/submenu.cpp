@@ -186,7 +186,8 @@ void Submenu::selectEncoderAction(int32_t offset) {
 
 bool Submenu::shouldForwardButtons() {
 	// Should we deliver buttons to selected menu item instead?
-	return (*current_item_)->isSubmenu() == false && renderingStyle() == RenderingStyle::HORIZONTAL;
+	return renderingStyle() == RenderingStyle::HORIZONTAL && current_item_ != items.end()
+	       && (*current_item_)->isSubmenu() == false;
 }
 
 MenuItem* Submenu::selectButtonPress() {
