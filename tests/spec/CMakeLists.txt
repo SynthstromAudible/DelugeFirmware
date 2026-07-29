@@ -11,6 +11,7 @@ add_library(deluge_spec STATIC
 ../../src/deluge/util/string.cpp
 ../../src/deluge/util/cfunctions.c
 ../../src/deluge/util/lookuptables/lookuptables.cpp
+../../src/deluge/hid/display/starfield.cpp
 ../32bit_unit_tests/mocks/mock_display.cpp
 ../32bit_unit_tests/mocks/mock_print.cpp
 )
