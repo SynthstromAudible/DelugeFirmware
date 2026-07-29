@@ -68,6 +68,7 @@ public:
 
 	void sendNoteToInternal(bool on, int32_t note, uint8_t velocity, uint8_t channel);
 
+	static int32_t getNextSelectableCC(int32_t cc, int32_t offset, bool includeNoCC = false);
 	int32_t changeControlNumberForModKnob(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode);
 	int32_t getFirstUnusedCC(ModelStackWithThreeMainThings* modelStack, int32_t direction, int32_t startAt,
 	                         int32_t stopAt);

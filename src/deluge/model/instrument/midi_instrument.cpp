@@ -606,22 +606,33 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 	return Error::NONE;
 }
 
+int32_t MIDIInstrument::getNextSelectableCC(int32_t cc, int32_t offset, bool includeNoCC) {
+	int32_t newCC = cc;
+	int32_t direction = (offset < 0) ? -1 : 1;
+	int32_t steps = (offset < 0) ? -offset : offset;
+	int32_t numSelectableCCs = includeNoCC ? kNumCCNumbersIncludingFake : kNumCCExpression;
+
+	for (int32_t i = 0; i < steps; i++) {
+		newCC += direction;
+		if (newCC < 0) {
+			newCC += numSelectableCCs;
+		}
+		else if (newCC >= numSelectableCCs) {
+			newCC -= numSelectableCCs;
+		}
+		if (newCC == CC_EXTERNAL_MOD_WHEEL) {
+			// Mod wheel is represented by CC_NUMBER_Y_AXIS internally.
+			newCC += direction;
+		}
+	}
+
+	return newCC;
+}
+
 int32_t MIDIInstrument::changeControlNumberForModKnob(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode) {
 	int8_t* cc = &modKnobCCAssignments[modKnobMode * kNumPhysicalModKnobs + whichModEncoder];
 
-	int32_t newCC = *cc;
-
-	newCC += offset;
-	if (newCC < 0) {
-		newCC += kNumCCNumbersIncludingFake;
-	}
-	else if (newCC >= kNumCCNumbersIncludingFake) {
-		newCC -= kNumCCNumbersIncludingFake;
-	}
-	if (newCC == 1) {
-		// mod wheel is actually CC_NUMBER_Y_AXIS (122) internally
-		newCC += offset;
-	}
+	int32_t newCC = getNextSelectableCC(*cc, offset, true);
 
 	*cc = newCC;
 
@@ -641,14 +652,7 @@ int32_t MIDIInstrument::getFirstUnusedCC(ModelStackWithThreeMainThings* modelSta
 			return proposedCC;
 		}
 
-		proposedCC += direction;
-
-		if (proposedCC < 0) {
-			proposedCC += CC_NUMBER_NONE;
-		}
-		else if (proposedCC >= CC_NUMBER_NONE) {
-			proposedCC -= CC_NUMBER_NONE;
-		}
+		proposedCC = getNextSelectableCC(proposedCC, direction);
 
 		if (proposedCC == stopAt) {
 			return -1;
@@ -714,13 +718,7 @@ int32_t MIDIInstrument::moveAutomationToDifferentCC(int32_t offset, int32_t whic
 		return *cc;
 	}
 
-	int32_t newCC = *cc + offset;
-	if (newCC < 0) {
-		newCC += CC_NUMBER_NONE;
-	}
-	else if (newCC >= CC_NUMBER_NONE) {
-		newCC -= CC_NUMBER_NONE;
-	}
+	int32_t newCC = getNextSelectableCC(*cc, offset);
 
 	// Need to pick a new cc which is blank on all Clips' ParamManagers with this Instrument
 	// For each Clip in session and arranger for specific Output (that Output is "this")
