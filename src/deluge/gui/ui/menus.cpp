@@ -830,11 +830,25 @@ HorizontalMenu globalSidechainMenu{
 
 // AudioClip stuff ---------------------------------------------------------------------------
 
+menu_item::EditName nameEditMenu{STRING_FOR_RENAME_CLIP, menu_item::EditName::Target::CLIP};
+menu_item::EditName drumNameEditMenu{STRING_FOR_RENAME_DRUM, menu_item::EditName::Target::DRUM};
+menu_item::EditName audioOutputNameEditMenu{STRING_FOR_EDIT_TRACK_NAME, menu_item::EditName::Target::AUDIO_OUTPUT};
+menu_item::EditName audioClipNameEditMenu{STRING_FOR_EDIT_CLIP_NAME, menu_item::EditName::Target::CLIP};
+
 audio_clip::SetClipLengthEqualToSampleLength setClipLengthMenu{STRING_FOR_SET_CLIP_LENGTH_EQUAL_TO_SAMPLE_LENGTH};
+
+Submenu editNameMenu{
+    STRING_FOR_EDIT_NAME,
+    {
+        &audioOutputNameEditMenu,
+        &audioClipNameEditMenu,
+    },
+};
 
 Submenu audioClipActionsMenu{
     STRING_FOR_ACTIONS,
     {
+        &editNameMenu,
         &setClipLengthMenu,
     },
 };
@@ -889,15 +903,13 @@ HorizontalMenu audioClipSampleMenu{
 
 audio_clip::Attack audioClipAttackMenu{STRING_FOR_ATTACK};
 
-menu_item::EditName nameEditMenu{STRING_FOR_RENAME_CLIP};
-
 PLACE_SDRAM_DATA const MenuItem* midiOrCVParamShortcuts[kDisplayHeight] = {
     &arpRateMenuMIDIOrCV,
     &arpSyncMenu,
     &arpGateMenuMIDIOrCV,
     &arpOctavesMenu,
     &arpPresetModeMenu,
-    &nameEditMenu,
+    &editNameMenu,
     nullptr,
     nullptr,
 };
@@ -908,7 +920,7 @@ PLACE_SDRAM_DATA const MenuItem* gateDrumParamShortcuts[kDisplayHeight] = {
     &arpGateMenuMIDIOrCV,
     &arpRhythmMenuMIDIOrCV,
     &arpModeMenu,
-    &nameEditMenu,
+    &drumNameEditMenu,
     nullptr,
     nullptr,
 };
@@ -1423,13 +1435,51 @@ Submenu soundFXMenu{
 
 Submenu soundEditorRootActionsMenu{
     STRING_FOR_ACTIONS,
-    {&nameEditMenu, &sample0RecorderMenu, &sample1RecorderMenu},
+    {&editNameMenu, &sample0RecorderMenu, &sample1RecorderMenu},
+};
+
+Submenu soundEditorRootDrumActionsMenu{
+    STRING_FOR_ACTIONS,
+    {&drumNameEditMenu, &sample0RecorderMenu, &sample1RecorderMenu},
 };
 
 Submenu soundEditorRootMenu{
     STRING_FOR_SOUND,
     {
         &soundEditorRootActionsMenu,
+        &soundMasterMenu,
+        &arpMenu,
+        &randomizerMenu,
+        &audioCompMenu,
+        &soundFiltersMenu,
+        &soundFXMenu,
+        &sidechainMenu,
+        &source0Menu,
+        &source1Menu,
+        &modulator0Menu,
+        &modulator1Menu,
+        &oscMixerMenu,
+        &env1Menu,
+        &env2Menu,
+        &env3Menu,
+        &env4Menu,
+        &lfo1Menu,
+        &lfo2Menu,
+        &lfo3Menu,
+        &lfo4Menu,
+        &voiceMenu,
+        &bendMenu,
+        &drumBendRangeMenu,
+        &patchCablesMenu,
+        &sequenceDirectionMenu,
+        &outputMidiSubmenu,
+    },
+};
+
+Submenu soundEditorRootMenuDrum{
+    STRING_FOR_SOUND,
+    {
+        &soundEditorRootDrumActionsMenu,
         &soundMasterMenu,
         &arpMenu,
         &randomizerMenu,
@@ -1564,9 +1614,17 @@ menu_item::midi::ProgramSubMenu midiProgramMenu{STRING_FOR_MIDI_PROGRAM_MENU_TIT
                                                 2};
 
 // Root menu for MIDI / CV
+Submenu soundEditorRootActionsMenuMIDIOrCV{
+    STRING_FOR_ACTIONS,
+    {
+        &editNameMenu,
+    },
+};
+
 menu_item::Submenu soundEditorRootMenuMIDIOrCV{
     STRING_FOR_MIDI_INST_MENU_TITLE,
     {
+        &soundEditorRootActionsMenuMIDIOrCV,
         &midiDeviceDefinitionMenu,
         &midiProgramMenu,
         &arpMenuMIDIOrCV,
@@ -1583,6 +1641,7 @@ menu_item::Submenu soundEditorRootMenuMIDIOrCV{
 menu_item::Submenu soundEditorRootMenuMidiDrum{
     STRING_FOR_MIDI,
     {
+        &soundEditorRootDrumActionsMenu,
         &arpMenuMIDIOrCV,
         &randomizerMenu,
     },
@@ -1590,6 +1649,7 @@ menu_item::Submenu soundEditorRootMenuMidiDrum{
 menu_item::Submenu soundEditorRootMenuGateDrum{
     STRING_FOR_GATE,
     {
+        &soundEditorRootDrumActionsMenu,
         &arpMenuMIDIOrCV,
         &randomizerMenu,
     },
@@ -1710,6 +1770,7 @@ menu_item::Submenu soundEditorRootMenuSongView{
 menu_item::Submenu kitGlobalFXActionsMenu{
     STRING_FOR_ACTIONS,
     {
+        &editNameMenu,
         &kitGlobalFXStemExportMenu,
     },
 };
@@ -1763,7 +1824,7 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForSounds[][kDisplayHeight] = {
     {&env1ReleaseMenu,		&env1SustainMenu,			&env1DecayMenu,                 &env1AttackMenu,                &lpfMorphMenu,			&lpfModeMenu,				&lpfResMenu,					&lpfFreqMenu                       },
     {&env2ReleaseMenu,		&env2SustainMenu,			&env2DecayMenu,                 &env2AttackMenu,                &hpfMorphMenu,			&hpfModeMenu,				&hpfResMenu,					&hpfFreqMenu                       },
     {&sidechainReleaseMenu,	&sidechainSyncMenu,			&sidechainVolumeShortcutMenu,   &sidechainAttackMenu,           &sidechainShapeMenu,	&sidechainSendMenu,			&bassMenu,						&bassFreqMenu                      },
-    {&arpRateMenu,			&arpSyncMenu,				&arpGateMenu,                   &arpOctavesMenu,                &arpPresetModeMenu,		&nameEditMenu,				&trebleMenu,					&trebleFreqMenu                    },
+    {&arpRateMenu,			&arpSyncMenu,				&arpGateMenu,                   &arpOctavesMenu,                &arpPresetModeMenu,		&editNameMenu,				&trebleMenu,					&trebleFreqMenu                    },
     {&lfo1RateMenu,			&lfo1SyncMenu,				&lfo1TypeMenu,                  &modFXTypeMenu,                 &modFXOffsetMenu,		&modFXFeedbackMenu,			&modFXDepthMenu,				&modFXRateMenu                     },
     {&lfo2RateMenu,			&lfo2SyncMenu,				&lfo2TypeMenu,                  &reverbAmountMenu,              &reverbPanMenu,			&reverbWidthMenu,			&reverbDampingMenu,				&reverbRoomSizeMenu                },
     {&delayRateMenu,			&delaySyncMenu,				&delayAnalogMenu,               &delayFeedbackMenu,             &delayPingPongMenu,		nullptr,					nullptr,						nullptr                            },
@@ -1801,7 +1862,7 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForAudioClips[kDisplayWidth][kDisplayHe
     {nullptr,                 nullptr,                 nullptr,                    &audioClipAttackMenu,        &globalLPFMorphMenu,  &lpfModeMenu,       &globalLPFResMenu,        &globalLPFFreqMenu                 },
     {nullptr,                 nullptr,                 nullptr,                    &audioClipAttackMenu,        &globalHPFMorphMenu,  &hpfModeMenu,       &globalHPFResMenu,        &globalHPFFreqMenu                 },
     {&sidechainReleaseMenu,   &sidechainSyncMenu,      &globalSidechainVolumeMenu, &sidechainAttackMenu,        &sidechainShapeMenu,  nullptr,            &bassMenu,                &bassFreqMenu                      },
-    {nullptr,                 nullptr,                 nullptr,                    nullptr,                     nullptr,              &nameEditMenu,      &trebleMenu,              &trebleFreqMenu                    },
+    {nullptr,                 nullptr,                 nullptr,                    nullptr,                     nullptr,              &editNameMenu,      &trebleMenu,              &trebleFreqMenu                    },
     {nullptr,                 nullptr,                 nullptr,                    &modFXTypeMenu,              &modFXOffsetMenu,     &modFXFeedbackMenu, &globalModFXDepthMenu,    &globalModFXRateMenu               },
     {nullptr,                 nullptr,                 nullptr,                    &globalReverbSendAmountMenu, &reverbPanMenu,       &reverbWidthMenu,   &reverbDampingMenu,       &reverbRoomSizeMenu                },
     {&globalDelayRateMenu,    &delaySyncMenu,          &delayAnalogMenu,           &globalDelayFeedbackMenu,    &delayPingPongMenu,   nullptr,            nullptr,                  nullptr                            },
@@ -1839,7 +1900,7 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForKitGlobalFX[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        &globalLPFMorphMenu,         &lpfModeMenu,           &globalLPFResMenu,        &globalLPFFreqMenu                 },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        &globalHPFMorphMenu,         &hpfModeMenu,           &globalHPFResMenu,        &globalHPFFreqMenu                 },
     {&sidechainReleaseMenu,   &sidechainSyncMenu,      &globalSidechainVolumeMenu,     &sidechainAttackMenu,           &sidechainShapeMenu,         nullptr,                &bassMenu,                &bassFreqMenu                      },
-    {&arpRateMenu,            &arpSyncMenu,            &arpGateMenu,                   &arpOctavesMenu,                &arpPresetModeMenu,          &nameEditMenu,          &trebleMenu,              &trebleFreqMenu                    },
+    {&arpRateMenu,            &arpSyncMenu,            &arpGateMenu,                   &arpOctavesMenu,                &arpPresetModeMenu,          &editNameMenu,          &trebleMenu,              &trebleFreqMenu                    },
     {nullptr,                 nullptr,                 nullptr,                        &modFXTypeMenu,                 &modFXOffsetMenu,            &modFXFeedbackMenu,     &globalModFXDepthMenu,    &globalModFXRateMenu               },
     {nullptr,                 nullptr,                 nullptr,                        &globalReverbSendAmountMenu,    &reverbPanMenu,              &reverbWidthMenu,       &reverbDampingMenu,       &reverbRoomSizeMenu                },
     {&globalDelayRateMenu,    &delaySyncMenu,          &delayAnalogMenu,               &globalDelayFeedbackMenu,       &delayPingPongMenu,          nullptr,                nullptr,                  nullptr                            },
