@@ -47,3 +47,13 @@ endfunction()
 
 create_specs_driver(all_specs ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(all_specs PUBLIC deluge_spec)
+
+# Visual harness for the OLED starfield. Renders frames as ASCII so the ported
+# animation can be checked by eye without hardware. Deliberately has no add_test:
+# it asserts nothing, and its filename avoids the *_spec.cpp glob.
+add_executable(StarfieldPreview starfield_preview.cpp)
+target_link_libraries(StarfieldPreview PRIVATE deluge_spec)
+set_target_properties(StarfieldPreview PROPERTIES
+  CXX_STANDARD 23
+  CXX_STANDARD_REQUIRED YES
+)
