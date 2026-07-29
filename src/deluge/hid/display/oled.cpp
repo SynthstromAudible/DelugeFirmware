@@ -378,6 +378,12 @@ void OLED::sendMainImage() {
 	oledCurrentImage = &main.hackGetImageStore()[0];
 
 	if (Screensaver::isActive()) {
+		// Point at the screensaver canvas before the dirty guard below. This global is
+		// also read by the sysex display path (HIDSysex::sendOLEDData/Delta), which runs
+		// independently of this function -- leaving it pointed at `main` would make the
+		// virtual screen show the live UI while the panel is blank.
+		oledCurrentImage = &Screensaver::getCanvas().hackGetImageStore()[0];
+
 		if (!Screensaver::consumeFrameDirty()) {
 			// Some other timer marked the display dirty while we're showing. Nothing
 			// about our frame changed, so swallow it rather than re-pushing an
@@ -386,9 +392,6 @@ void OLED::sendMainImage() {
 			needsSending = false;
 			return;
 		}
-		// The screensaver owns the whole screen: console items and popups stay behind
-		// it until input wakes us.
-		oledCurrentImage = &Screensaver::getCanvas().hackGetImageStore()[0];
 	}
 	else {
 		if (hasConsoleItems()) {

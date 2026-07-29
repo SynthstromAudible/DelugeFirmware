@@ -34,7 +34,9 @@ public:
 	/// Called from the input path whenever a physical control is touched. Wakes the
 	/// screensaver if it is showing, and re-arms the idle timer either way.
 	///
-	/// Sits on the input hot path: returns immediately when the feature is off.
+	/// Sits on the input hot path: the wake check runs first, before the
+	/// mode-is-off check, so a mode that somehow reached OFF without going through
+	/// settingsChanged() can never strand the panel permanently blank.
 	static void noteActivity();
 
 	/// Dispatched from UITimerManager when TimerName::SCREENSAVER fires. Either
