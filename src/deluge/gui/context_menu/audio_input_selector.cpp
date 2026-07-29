@@ -41,6 +41,32 @@ constexpr size_t kNumValues = 8;
 
 AudioInputSelector audioInputSelector{};
 
+namespace {
+Output* getRecordableOutputInSong(AudioOutput* audioOutput, Output* selectedOutput) {
+	if (!audioOutput->canRecordFrom(selectedOutput)) {
+		return nullptr;
+	}
+
+	for (Output* output = currentSong->firstOutput; output; output = output->next) {
+		if (output == selectedOutput) {
+			return selectedOutput;
+		}
+	}
+
+	return nullptr;
+}
+
+Output* getFirstRecordableOutput(AudioOutput* audioOutput) {
+	for (Output* output = currentSong->firstOutput; output; output = output->next) {
+		if (audioOutput->canRecordFrom(output)) {
+			return output;
+		}
+	}
+
+	return nullptr;
+}
+} // namespace
+
 char const* AudioInputSelector::getTitle() {
 	using enum l10n::String;
 	return l10n::get(STRING_FOR_AUDIO_SOURCE);
@@ -111,6 +137,9 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 	ContextMenu::selectEncoderAction(offset);
 
 	auto valueOption = static_cast<Value>(currentOption);
+	if (display->haveOLED() && valueOption == Value::TRACK) {
+		scrollPos = currentOption;
+	}
 
 	// When switching away from SPECIFIC_OUTPUT, clear the recording-from state
 	// so the previously-selected track is no longer silently muted
@@ -145,15 +174,9 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 		break;
 	case Value::TRACK: {
 		audioOutput->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
-		// Default to the first recordable output. Skip MIDI/CV (and ourselves), matching padAction, which rejects
-		// them - recording audio from a non-audio output is meaningless and drives that output's renderOutput.
-		Output* recordFrom = nullptr;
-		for (int32_t i = 0; i < currentSong->getNumOutputs(); i++) {
-			Output* candidate = currentSong->getOutputFromIndex(i);
-			if (audioOutput->canRecordFrom(candidate)) {
-				recordFrom = candidate;
-				break;
-			}
+		Output* recordFrom = getRecordableOutputInSong(audioOutput, audioOutput->getOutputRecordingFrom());
+		if (!recordFrom) {
+			recordFrom = getFirstRecordableOutput(audioOutput);
 		}
 		audioOutput->setOutputRecordingFrom(recordFrom);
 		break;
@@ -164,6 +187,10 @@ void AudioInputSelector::selectEncoderAction(int8_t offset) {
 	}
 
 	defaultAudioOutputInputChannel = audioOutput->inputChannel;
+
+	if (display->haveOLED()) {
+		renderUIsForOled();
+	}
 }
 
 // if they're in session view and press a clip's pad, record from that output
@@ -173,7 +200,9 @@ ActionResult AudioInputSelector::padAction(int32_t x, int32_t y, int32_t on) {
 		if (audioOutput->canRecordFrom(track)) {
 			audioOutput->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
 			audioOutput->setOutputRecordingFrom(track);
-			display->popupTextTemporary(track->name.get());
+			if (display->have7SEG()) {
+				display->popupTextTemporary(track->name.get());
+			}
 			// sets scroll to the position of specific output
 			scrollPos = static_cast<int32_t>(Value::TRACK);
 			currentOption = scrollPos;
@@ -189,6 +218,22 @@ ActionResult AudioInputSelector::padAction(int32_t x, int32_t y, int32_t on) {
 		return ActionResult::DEALT_WITH;
 	}
 	return ContextMenu::padAction(x, y, on);
+}
+
+void AudioInputSelector::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
+	ContextMenu::renderOLED(canvas);
+
+	if (audioOutput->inputChannel != AudioInputChannel::SPECIFIC_OUTPUT) {
+		return;
+	}
+
+	Output* recordFrom = getRecordableOutputInSong(audioOutput, audioOutput->getOutputRecordingFrom());
+	char const* trackName = recordFrom ? recordFrom->name.get() : "No track";
+
+	int32_t windowHeight = 40;
+	int32_t windowMinY = (OLED_MAIN_HEIGHT_PIXELS - windowHeight) >> 1;
+	int32_t textPixelY = windowMinY + 20 + kTextSpacingY;
+	canvas.drawString(trackName, 22, textPixelY, kTextSpacingX, kTextSpacingY, 0, OLED_MAIN_WIDTH_PIXELS - 26);
 }
 
 } // namespace deluge::gui::context_menu
