@@ -23,6 +23,7 @@
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/display/screensaver.h"
 #include "hid/hid_sysex.h"
 #include "io/debug/log.h"
 #include "io/midi/sysex.h"
@@ -307,6 +308,10 @@ bool OLED::isPermanentPopupPresent() {
 	return drawnPermanentPopup;
 }
 
+bool OLED::isWorkingAnimationPresent() {
+	return working_animation_count != 0;
+}
+
 void copyRowWithMask(uint8_t destMask, uint8_t sourceRow[], uint8_t destRow[], int32_t minX, int32_t maxX) {
 	uint8_t sourceMask = ~destMask;
 	uint8_t* __restrict__ source = &sourceRow[minX];
@@ -372,16 +377,24 @@ void OLED::sendMainImage() {
 
 	oledCurrentImage = &main.hackGetImageStore()[0];
 
-	if (hasConsoleItems()) {
-		copyBackgroundAroundForeground(main.hackGetImageStore(), console.hackGetImageStore(), consoleMinX,
-		                               consoleItems[numConsoleItems - 1].minY - 1, consoleMaxX,
-		                               OLED_MAIN_HEIGHT_PIXELS - 1);
-		oledCurrentImage = &console.hackGetImageStore()[0];
+	if (Screensaver::isActive()) {
+		// The screensaver owns the whole screen: console items and popups stay behind
+		// it until input wakes us. The main canvas is left untouched, so waking up
+		// needs no re-render.
+		oledCurrentImage = &Screensaver::getCanvas().hackGetImageStore()[0];
 	}
-	if (oledPopupWidth) {
-		copyBackgroundAroundForeground(oledCurrentImage, popup.hackGetImageStore(), popupMinX, popupMinY, popupMaxX,
-		                               popupMaxY);
-		oledCurrentImage = &popup.hackGetImageStore()[0];
+	else {
+		if (hasConsoleItems()) {
+			copyBackgroundAroundForeground(main.hackGetImageStore(), console.hackGetImageStore(), consoleMinX,
+			                               consoleItems[numConsoleItems - 1].minY - 1, consoleMaxX,
+			                               OLED_MAIN_HEIGHT_PIXELS - 1);
+			oledCurrentImage = &console.hackGetImageStore()[0];
+		}
+		if (oledPopupWidth) {
+			copyBackgroundAroundForeground(oledCurrentImage, popup.hackGetImageStore(), popupMinX, popupMinY, popupMaxX,
+			                               popupMaxY);
+			oledCurrentImage = &popup.hackGetImageStore()[0];
+		}
 	}
 
 #if OLED_LOG_TIMING

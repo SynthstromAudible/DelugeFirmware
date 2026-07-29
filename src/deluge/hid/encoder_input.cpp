@@ -22,6 +22,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/buttons.h"
+#include "hid/display/screensaver.h"
 #include "hid/encoders.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
@@ -189,6 +190,10 @@ checkResult:
 				}
 			}
 		}
+	}
+
+	if (anything) {
+		deluge::hid::display::Screensaver::noteActivity();
 	}
 
 	return anything;

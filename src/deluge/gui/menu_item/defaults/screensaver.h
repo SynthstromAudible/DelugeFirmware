@@ -23,6 +23,7 @@
 #include "gui/menu_item/selection.h"
 #include "gui/menu_item/submenu.h"
 #include "hid/display/display.h"
+#include "hid/display/screensaver.h"
 #include "storage/flash_storage.h"
 
 namespace deluge::gui::menu_item::defaults {
@@ -33,7 +34,10 @@ class ScreensaverModeMenu final : public Selection {
 public:
 	using Selection::Selection;
 	void readCurrentValue() override { this->setValue(FlashStorage::screensaverMode); }
-	void writeCurrentValue() override { FlashStorage::screensaverMode = this->getValue<::ScreensaverMode>(); }
+	void writeCurrentValue() override {
+		FlashStorage::screensaverMode = this->getValue<::ScreensaverMode>();
+		hid::display::Screensaver::settingsChanged();
+	}
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		(void)optType;
 		return {l10n::getView(l10n::String::STRING_FOR_OFF),
@@ -50,7 +54,10 @@ public:
 	[[nodiscard]] int32_t getMinValue() const override { return 1; }
 	[[nodiscard]] int32_t getMaxValue() const override { return 60; }
 	void readCurrentValue() override { this->setValue(FlashStorage::screensaverTimeoutMinutes); }
-	void writeCurrentValue() override { FlashStorage::screensaverTimeoutMinutes = this->getValue(); }
+	void writeCurrentValue() override {
+		FlashStorage::screensaverTimeoutMinutes = this->getValue();
+		hid::display::Screensaver::settingsChanged();
+	}
 	const char* getUnit() override { return " MIN"; }
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override { return display->haveOLED(); }
 };
