@@ -18,12 +18,13 @@
 #pragma once
 
 #include "hid/display/oled_canvas/canvas.h"
+#include "hid/display/rainfall.h"
 #include "hid/display/starfield.h"
 
 namespace deluge::hid::display {
 
-/// @brief Blanks the OLED, or replaces it with a starfield, after a configurable period without
-///        physical input.
+/// @brief Blanks the OLED, or replaces it with a starfield or a field of Deluge rain, after a
+///        configurable period without physical input.
 ///
 /// OLED only: 7SEG units never activate it. All state is static -- there is exactly one screensaver.
 ///
@@ -87,11 +88,16 @@ private:
 	static void arm();
 	/// @brief Draw the current frame into canvas_ and mark it dirty.
 	static void render();
+	/// @brief Draw the starfield's stars into canvas_.
+	static void renderStarfield();
+	/// @brief Draw the rainfall's streaks into canvas_.
+	static void renderRainfall();
 
 	static bool active_;
 	static bool frameDirty_;
 	static oled_canvas::Canvas canvas_;
 	static Starfield starfield_;
+	static Rainfall rainfall_;
 };
 
 } // namespace deluge::hid::display

@@ -29,6 +29,14 @@ bool Screensaver::active_ = false;
 bool Screensaver::frameDirty_ = false;
 oled_canvas::Canvas Screensaver::canvas_;
 Starfield Screensaver::starfield_;
+Rainfall Screensaver::rainfall_;
+
+// Rainfall repeats the panel dimensions rather than including cpu_specific.h, which is target-only
+// and would break the host specs. This file does see the real macros, so it is where the two are
+// held together.
+static_assert(Rainfall::kWidth == OLED_MAIN_WIDTH_PIXELS);
+static_assert(Rainfall::kHeight == OLED_MAIN_HEIGHT_PIXELS);
+static_assert(Rainfall::kTopmost == OLED_MAIN_TOPMOST_PIXEL);
 
 /// Starscape frame interval. For comparison, scrolling text re-arms at 15ms and
 /// 5ms (see OLED::scrollingAndBlinkingTimerEvent), so this is the lighter load.
@@ -40,6 +48,28 @@ constexpr int32_t kFrameIntervalMS = 50;
 constexpr int32_t kInhibitRecheckMS = 1000;
 
 constexpr int32_t kMillisecondsPerMinute = 60000;
+
+namespace {
+/// @brief True for the modes that redraw every frame, as opposed to BLANK.
+constexpr bool isAnimated(ScreensaverMode mode) {
+	return mode == ScreensaverMode::STARSCAPE || mode == ScreensaverMode::DELUGE;
+}
+
+/// @brief Draw a filled square, clipping it to the panel.
+///
+/// @note Rows 0-4 are off-panel, hence the clip at OLED_MAIN_TOPMOST_PIXEL rather than zero.
+void drawBlock(oled_canvas::Canvas& canvas, int32_t left, int32_t top, int32_t size) {
+	for (int32_t dy = 0; dy < size; dy++) {
+		for (int32_t dx = 0; dx < size; dx++) {
+			const int32_t x = left + dx;
+			const int32_t y = top + dy;
+			if (x >= 0 && x < OLED_MAIN_WIDTH_PIXELS && y >= OLED_MAIN_TOPMOST_PIXEL && y < OLED_MAIN_HEIGHT_PIXELS) {
+				canvas.drawPixel(x, y);
+			}
+		}
+	}
+}
+} // namespace
 
 void Screensaver::arm() {
 	uiTimerManager.setTimer(TimerName::SCREENSAVER, FlashStorage::screensaverTimeoutMinutes * kMillisecondsPerMinute);
@@ -83,23 +113,42 @@ void Screensaver::timerEvent() {
 	bool changed = false;
 	if (!active_) {
 		active_ = true;
-		starfield_.scatter();
+		switch (FlashStorage::screensaverMode) {
+		case ScreensaverMode::STARSCAPE:
+			starfield_.scatter();
+			break;
+		case ScreensaverMode::DELUGE:
+			rainfall_.scatter();
+			break;
+		default:
+			break;
+		}
 		changed = true;
 	}
-	else if (FlashStorage::screensaverMode == ScreensaverMode::STARSCAPE) {
-		starfield_.advance();
-		changed = true;
+	else {
+		switch (FlashStorage::screensaverMode) {
+		case ScreensaverMode::STARSCAPE:
+			starfield_.advance();
+			changed = true;
+			break;
+		case ScreensaverMode::DELUGE:
+			rainfall_.advance();
+			changed = true;
+			break;
+		default:
+			// BLANK while already showing: nothing changed, this tick is only an inhibitor
+			// re-check.
+			break;
+		}
 	}
-	// BLANK while already showing: nothing changed, this tick is only an inhibitor re-check.
 
 	if (changed) {
 		render();
 		OLED::markChanged();
 	}
 
-	uiTimerManager.setTimer(TimerName::SCREENSAVER, FlashStorage::screensaverMode == ScreensaverMode::STARSCAPE
-	                                                    ? kFrameIntervalMS
-	                                                    : kInhibitRecheckMS);
+	uiTimerManager.setTimer(TimerName::SCREENSAVER,
+	                        isAnimated(FlashStorage::screensaverMode) ? kFrameIntervalMS : kInhibitRecheckMS);
 }
 
 void Screensaver::settingsChanged() {
@@ -120,22 +169,30 @@ void Screensaver::render() {
 	canvas_.clear();
 	frameDirty_ = true;
 
-	if (FlashStorage::screensaverMode != ScreensaverMode::STARSCAPE) {
-		return; // BLANK: a cleared canvas is the whole picture.
+	switch (FlashStorage::screensaverMode) {
+	case ScreensaverMode::STARSCAPE:
+		renderStarfield();
+		break;
+	case ScreensaverMode::DELUGE:
+		renderRainfall();
+		break;
+	default:
+		break; // BLANK: a cleared canvas is the whole picture.
 	}
+}
 
+void Screensaver::renderStarfield() {
 	for (size_t i = 0; i < Starfield::kNumStars; i++) {
 		const Starfield::Projected star = starfield_.project(i);
-		for (int32_t dy = 0; dy < star.size; dy++) {
-			for (int32_t dx = 0; dx < star.size; dx++) {
-				const int32_t x = star.x + dx;
-				const int32_t y = star.y + dy;
-				// Rows 0-4 are off-panel, so clip at OLED_MAIN_TOPMOST_PIXEL.
-				if (x >= 0 && x < OLED_MAIN_WIDTH_PIXELS && y >= OLED_MAIN_TOPMOST_PIXEL
-				    && y < OLED_MAIN_HEIGHT_PIXELS) {
-					canvas_.drawPixel(x, y);
-				}
-			}
+		drawBlock(canvas_, star.x, star.y, star.size);
+	}
+}
+
+void Screensaver::renderRainfall() {
+	for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
+		for (size_t cell = 0; cell < rainfall_.lengthOf(drop); cell++) {
+			const Rainfall::Block block = rainfall_.cellAt(drop, cell);
+			drawBlock(canvas_, block.x, block.y, block.size);
 		}
 	}
 }
