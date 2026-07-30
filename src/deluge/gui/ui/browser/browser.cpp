@@ -616,15 +616,8 @@ setEnteredTextAndUseFoundFile:
 				}
 useFoundFile:
 				scrollPosVertical = fileIndexSelected;
-				if (display->getNumBrowserAndMenuLines() > 1) {
-					int32_t lastAllowed = fileItems.getNumElements() - display->getNumBrowserAndMenuLines();
-					if (scrollPosVertical > lastAllowed) {
-						scrollPosVertical = lastAllowed;
-						if (scrollPosVertical < 0) {
-							scrollPosVertical = 0;
-						}
-					}
-				}
+				// Starting in the middle or end of a short folder should still fill as many display rows as possible.
+				clampFileSelectionAndScroll();
 
 				goto everythingFinalized;
 			}
@@ -927,12 +920,11 @@ searchFromOneEnd:
 	}
 
 	fileIndexSelected = newFileIndex;
-
-	if (scrollPosVertical > fileIndexSelected) {
-		scrollPosVertical = fileIndexSelected;
-	}
-	else if (scrollPosVertical < fileIndexSelected - NUM_FILES_ON_SCREEN + 1) {
-		scrollPosVertical = fileIndexSelected - NUM_FILES_ON_SCREEN + 1;
+	// A fast turn may be delivered as a multi-file offset; after a folder-window re-read, that offset can still
+	// overshoot.
+	clampFileSelectionAndScroll(false);
+	if (fileIndexSelected == -1) {
+		return;
 	}
 
 	enteredTextEditPos = 0;
@@ -1093,10 +1085,8 @@ notFound:
 
 	fileIndexSelected = i;
 
-	// Move scroll only if found item is completely offscreen.
-	if (display->have7SEG() || scrollPosVertical > i || scrollPosVertical < i - (OLED_HEIGHT_CHARS - 1) + 1) {
-		scrollPosVertical = i;
-	}
+	// Typing/prediction can land on a cached item without needing to move the viewport unless it is offscreen.
+	clampFileSelectionAndScroll();
 
 	error = setEnteredTextFromCurrentFilename();
 	if (error != Error::NONE) {
@@ -1133,6 +1123,8 @@ void Browser::currentFileDeleted() {
 	else {
 		setEnteredTextFromCurrentFilename();
 	}
+	// Deleting the last visible item can leave the top row past the new end of the list.
+	clampFileSelectionAndScroll();
 	currentFileChanged(0);
 }
 
@@ -1155,16 +1147,21 @@ void Browser::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) {
 	bool isSelectedIndex = true;
 	char const* displayName;
 	int32_t o;
+	// Use the display contract for browser/menu rows instead of assuming the OLED character-grid height.
+	int32_t visibleRows = display->getNumBrowserAndMenuLines();
+	if (visibleRows < 1) {
+		visibleRows = 1;
+	}
 
 	// If we're currently typing a filename which doesn't (yet?) have a file...
 	if (fileIndexSelected == -1) {
 		displayName = enteredText.get();
-		o = OLED_HEIGHT_CHARS; // Make sure below loop doesn't keep looping.
+		o = visibleRows; // Make sure below loop doesn't keep looping.
 		goto drawAFile;
 	}
 
 	else {
-		for (o = 0; o < OLED_HEIGHT_CHARS - 1; o++) {
+		for (o = 0; o < visibleRows; o++) {
 			{
 				int32_t i = o + scrollPosVertical;
 
@@ -1212,6 +1209,62 @@ searchForChar:
 
 			yPixel += kTextSpacingY;
 		}
+	}
+}
+
+void Browser::clampFileSelectionAndScroll(bool allowNoFileSelection) {
+	int32_t numFileItems = fileItems.getNumElements();
+	if (numFileItems <= 0) {
+		// No cached files means there is no real selection, and the viewport must reset to the top.
+		fileIndexSelected = -1;
+		scrollPosVertical = 0;
+		return;
+	}
+
+	if (fileIndexSelected >= numFileItems) {
+		// A large encoder offset can overshoot the freshly cached window; land on the last cached item instead.
+		fileIndexSelected = numFileItems - 1;
+	}
+	else if (fileIndexSelected < 0) {
+		// -1 is valid only while typing a new name; encoder browsing must stay on a real cached file.
+		fileIndexSelected = allowNoFileSelection ? -1 : 0;
+	}
+
+	// Fast encoder turns can arrive as multi-file jumps after the cached folder window has been re-read.
+	// Keep both the selection and the visible window inside the files we actually have.
+	int32_t visibleRows = display->getNumBrowserAndMenuLines();
+	if (visibleRows < 1) {
+		// Defensive fallback for mock or future displays; the scroll math needs at least one visible row.
+		visibleRows = 1;
+	}
+	int32_t lastAllowedScroll = numFileItems - visibleRows;
+	if (lastAllowedScroll < 0) {
+		// Short folders cannot fill every row, so their top visible row is always the first item.
+		lastAllowedScroll = 0;
+	}
+
+	if (fileIndexSelected == -1) {
+		// While typing a new name, the rendered row is enteredText rather than an item from fileItems.
+		scrollPosVertical = 0;
+		return;
+	}
+
+	if (scrollPosVertical > fileIndexSelected) {
+		// The selected item is above the current viewport; move it to the first visible row.
+		scrollPosVertical = fileIndexSelected;
+	}
+	else if (scrollPosVertical < fileIndexSelected - visibleRows + 1) {
+		// The selected item is below the current viewport; move it to the last visible row.
+		scrollPosVertical = fileIndexSelected - visibleRows + 1;
+	}
+
+	if (scrollPosVertical > lastAllowedScroll) {
+		// Keep the viewport from starting so low that the bottom browser rows would be blank.
+		scrollPosVertical = lastAllowedScroll;
+	}
+	if (scrollPosVertical < 0) {
+		// Short-folder and typing cases can make the intermediate top row negative; clamp back to the start.
+		scrollPosVertical = 0;
 	}
 }
 

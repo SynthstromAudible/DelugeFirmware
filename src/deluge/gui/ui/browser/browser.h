@@ -50,8 +50,6 @@ struct Slot {
 	int8_t subSlot;
 };
 
-#define NUM_FILES_ON_SCREEN 3
-
 #define CATALOG_SEARCH_LEFT 0
 #define CATALOG_SEARCH_RIGHT 1
 #define CATALOG_SEARCH_BOTH 2
@@ -127,6 +125,8 @@ protected:
 	virtual void folderContentsReady(int32_t entryDirection) {}
 	virtual void currentFileChanged(int32_t movementDirection) {}
 	void displayText(bool blinkImmediately = false) override;
+	// Keeps the selected file index and top visible browser row inside Browser::fileItems.
+	void clampFileSelectionAndScroll(bool allowNoFileSelection = true);
 	static Slot getSlot(char const* displayName);
 	/// Returns the character just past filePrefix within `name`, or nullptr if `name` does not start with filePrefix.
 	/// Names always carry the prefix; only *rendering* strips it.
