@@ -216,6 +216,178 @@ describe rainfall("Rainfall", $ {
 		expect(moved).to_be_greater_than(10000);
 	});
 
+	context("logo emission", _ {
+		it("carries the bootloader's own logo, as seven diagonal runs of three or four", _ {
+			// The cell table is transcribed from the bootloader's logoPixels. A single wrong nibble
+			// would be invisible in review and wrong on the panel, so decode all 25 and check the
+			// shape they make: exactly seven runs stepping down-right, each 3 or 4 cells long --
+			// which is what lets the logo be built from the rain's own vocabulary.
+			Rainfall field;
+			field.forceLogo();
+			field.advance();
+			expect(field.logoActive()).to_be_true();
+
+			const int32_t scale = field.logoScale();
+			std::set<std::pair<int32_t, int32_t>> cells;
+			const Rainfall::Block origin = field.logoCellAt(0);
+			for (size_t cell = 0; cell < Rainfall::kLogoCells; cell++) {
+				const Rainfall::Block block = field.logoCellAt(cell);
+				expect(block.size).to_equal(scale);
+				// Recover the grid coordinate this cell sits at.
+				const int32_t gx = (block.x - origin.x) / scale;
+				const int32_t gy = (block.y - origin.y) / scale;
+				cells.emplace(gx, gy);
+			}
+			expect(cells.size()).to_equal(Rainfall::kLogoCells);
+
+			// Peel maximal down-right runs; every cell must belong to one of length 3 or 4.
+			int32_t runs = 0;
+			for (const auto& [x, y] : cells) {
+				if (cells.contains({x - 1, y - 1})) {
+					continue; // not the start of a run
+				}
+				int32_t length = 0;
+				int32_t cx = x;
+				int32_t cy = y;
+				while (cells.contains({cx, cy})) {
+					length++;
+					cx++;
+					cy++;
+				}
+				expect(length >= 3 && length <= 4).to_be_true();
+				runs++;
+			}
+			expect(runs).to_equal(7);
+		});
+
+		it("keeps its scale and speed paired, like any drop", _ {
+			// The logo is never speed-special-cased: having picked a cell scale it takes that
+			// scale's native speed, so a big logo flashes past and a small one lingers. That is
+			// correct parallax, and it is the reason every scale is allowed.
+			Rainfall field;
+			for (int32_t emission = 0; emission < 60; emission++) {
+				field.forceLogo();
+				while (!field.logoActive()) {
+					field.advance();
+				}
+				const int32_t scale = field.logoScale();
+				const float speed = field.logoSpeed();
+				expect(scale >= 1 && scale <= 3).to_be_true();
+				expect(speed).to_be_greater_than(0.0f);
+				const float steps = speed / Rainfall::kSpeedStep;
+				expect(steps == std::floor(steps)).to_be_true();
+				// Larger scale is nearer, so never slower.
+				expect(speed >= Rainfall::kSpeedFar && speed <= Rainfall::kSpeedNear).to_be_true();
+				while (field.logoActive()) {
+					field.advance();
+				}
+			}
+		});
+
+		it("holds its formation rigid and never wiggles", _ {
+			// Every cell keeps a constant offset from the first, so the mark cannot shear as it
+			// falls; and the whole logo obeys the same equal-step invariant the drops do, since it
+			// shares their mechanism -- one integrated axis, the other derived.
+			Rainfall field;
+			field.forceLogo();
+			while (!field.logoActive()) {
+				field.advance();
+			}
+
+			std::array<int32_t, Rainfall::kLogoCells> offsetX{};
+			std::array<int32_t, Rainfall::kLogoCells> offsetY{};
+			const Rainfall::Block first = field.logoCellAt(0);
+			for (size_t cell = 0; cell < Rainfall::kLogoCells; cell++) {
+				offsetX[cell] = field.logoCellAt(cell).x - first.x;
+				offsetY[cell] = field.logoCellAt(cell).y - first.y;
+			}
+
+			int32_t prevX = first.x;
+			int32_t prevY = first.y;
+			int32_t moved = 0;
+			while (field.logoActive()) {
+				field.advance();
+				if (!field.logoActive()) {
+					break;
+				}
+				const Rainfall::Block head = field.logoCellAt(0);
+				const int32_t dx = head.x - prevX;
+				const int32_t dy = head.y - prevY;
+				expect(dx).to_equal(dy);
+				if (dx != 0) {
+					moved++;
+				}
+				prevX = head.x;
+				prevY = head.y;
+				for (size_t cell = 0; cell < Rainfall::kLogoCells; cell++) {
+					expect(field.logoCellAt(cell).x - head.x).to_equal(offsetX[cell]);
+					expect(field.logoCellAt(cell).y - head.y).to_equal(offsetY[cell]);
+				}
+			}
+			expect(moved).to_be_greater_than(10);
+		});
+
+		it("retires and re-arms, so sightings keep coming", _ {
+			// The failure this guards is a countdown that never restarts: one logo ever, then rain
+			// for the rest of the session, which nobody would notice was broken.
+			constexpr int32_t kFrames = 60000;
+			Rainfall field;
+			int32_t emissions = 0;
+			int32_t lastEnd = 0;
+			int32_t shortestGap = kFrames;
+			int32_t longestGap = 0;
+			bool wasActive = false;
+			for (int32_t frame = 0; frame < kFrames; frame++) {
+				field.advance();
+				const bool isActive = field.logoActive();
+				if (isActive && !wasActive) {
+					emissions++;
+					if (lastEnd > 0) {
+						const int32_t gap = frame - lastEnd;
+						shortestGap = (gap < shortestGap) ? gap : shortestGap;
+						longestGap = (gap > longestGap) ? gap : longestGap;
+					}
+				}
+				if (!isActive && wasActive) {
+					lastEnd = frame;
+				}
+				wasActive = isActive;
+			}
+			expect(emissions).to_be_greater_than(5);
+			expect(shortestGap).to_be_greater_than(Rainfall::kLogoIntervalMinFrames - 2);
+			expect(longestGap).to_be_less_than(Rainfall::kLogoIntervalMaxFrames + 2);
+		});
+
+		it("weights the scale away from the camouflaged smallest one", _ {
+			// At scale 1 the logo is single pixels at the far layer's own speed, so the drizzle
+			// around it hides it. It stays possible, but must not be a third of sightings.
+			Rainfall field;
+			std::array<int32_t, 4> counts{};
+			for (int32_t emission = 0; emission < 300; emission++) {
+				field.forceLogo();
+				while (!field.logoActive()) {
+					field.advance();
+				}
+				counts[field.logoScale()]++;
+				while (field.logoActive()) {
+					field.advance();
+				}
+			}
+			expect(counts[1]).to_be_greater_than(0);
+			expect(counts[1]).to_be_less_than(counts[2]);
+			expect(counts[1]).to_be_less_than(counts[3]);
+			expect(counts[2]).to_be_greater_than(50);
+			expect(counts[3]).to_be_greater_than(50);
+		});
+
+		it("does not emit one on activation, so a sighting stays a surprise", _ {
+			Rainfall field;
+			expect(field.logoActive()).to_be_false();
+			field.scatter();
+			expect(field.logoActive()).to_be_false();
+		});
+	});
+
 	it("respawns drops that leave the panel, so none run away", _ {
 		// A drop is replaced within the same advance() that carries its tail off the panel, so
 		// after any advance() every head sits close to the panel. The margins are loose: the

@@ -28,6 +28,18 @@ namespace {
 constexpr float spanAlongTravel(int32_t size, int32_t length) {
 	return 2.0f * static_cast<float>((length - 1) * size);
 }
+
+// The Deluge logo, as cells on an 11x10 grid packed (x << 4) | y. Transcribed verbatim from the
+// bootloader's logoPixels, in the same packing so the two are visibly the same table. The 25 cells
+// form seven diagonal runs of three or four -- the same shape a Drop is, which is what lets the
+// logo fall through the field as one of its own rather than as a special case.
+constexpr uint8_t kLogoPixels[] = {
+    (1 << 4) | 0,  (2 << 4) | 1, (3 << 4) | 2, (4 << 4) | 3, (4 << 4) | 0, (5 << 4) | 1, (6 << 4) | 2,
+    (7 << 4) | 3,  (0 << 4) | 2, (1 << 4) | 3, (2 << 4) | 4, (3 << 4) | 5, (5 << 4) | 5, (6 << 4) | 6,
+    (7 << 4) | 7,  (1 << 4) | 6, (2 << 4) | 7, (3 << 4) | 8, (4 << 4) | 9, (8 << 4) | 5, (9 << 4) | 6,
+    (10 << 4) | 7, (5 << 4) | 7, (6 << 4) | 8, (7 << 4) | 9,
+};
+static_assert(std::size(kLogoPixels) == Rainfall::kLogoCells);
 } // namespace
 
 float Rainfall::separationSquared(const Streak& a, const Streak& b) {
@@ -145,6 +157,71 @@ void Rainfall::spawn(size_t index, bool seeded) {
 	drops_[index] = best;
 }
 
+void Rainfall::emitLogo() {
+	// Weighted away from the smallest scale, where the far drizzle camouflages the mark.
+	const float pick = nextRandomFloat();
+	float bandLow = 0.0f;
+	if (pick < kLogoSmallScaleChance) {
+		logo_.size = 1;
+		bandLow = 0.0f;
+	}
+	else if (pick < kLogoSmallScaleChance + (1.0f - kLogoSmallScaleChance) * 0.5f) {
+		logo_.size = 2;
+		bandLow = 0.33f;
+	}
+	else {
+		logo_.size = 3;
+		bandLow = 0.66f;
+	}
+
+	// Speed is never special-cased: draw a depth from the chosen scale's own band and run it
+	// through the same mapping a drop uses, so a big logo flashes past and a small one lingers.
+	const float depth = bandLow + nextRandomFloat() * 0.33f;
+	const float raw = kSpeedFar + (kSpeedNear - kSpeedFar) * depth;
+	logo_.speed = std::round(raw / kSpeedStep) * kSpeedStep;
+
+	const float gridW = static_cast<float>(kLogoGridWidth * logo_.size);
+	const float gridH = static_cast<float>(kLogoGridHeight * logo_.size);
+	if (nextRandomFloat() < kSpawnFromTop) {
+		logo_.x = nextRandomFloat() * (kWidth + gridW) - gridW;
+		logo_.y = kTopmost - gridH;
+	}
+	else {
+		logo_.x = -gridW;
+		logo_.y = nextRandomFloat() * kVisibleHeight + kTopmost;
+	}
+
+	// Same contract as a Drop: pin y to x by a whole-pixel offset and derive it from here on.
+	logo_.axisOffset = static_cast<int32_t>(std::lround(logo_.x - logo_.y));
+	logo_.y = logo_.x - static_cast<float>(logo_.axisOffset);
+	logo_.active = true;
+}
+
+void Rainfall::advanceLogo() {
+	if (logo_.active) {
+		logo_.x += logo_.speed;
+		logo_.y = logo_.x - static_cast<float>(logo_.axisOffset);
+		// The grid extends down and right from its origin, so once the origin itself passes the far
+		// edges every cell has gone with it.
+		if (logo_.y > kHeight || logo_.x > kWidth) {
+			logo_.active = false;
+			logoCountdown_ = nextLogoInterval();
+		}
+		return;
+	}
+
+	if (logoCountdown_ > 0) {
+		logoCountdown_--;
+		return;
+	}
+	emitLogo();
+}
+
+int32_t Rainfall::nextLogoInterval() {
+	const float span = static_cast<float>(kLogoIntervalMaxFrames - kLogoIntervalMinFrames);
+	return kLogoIntervalMinFrames + static_cast<int32_t>(nextRandomFloat() * span);
+}
+
 void Rainfall::scatter() {
 	// Zeroed slots have size zero, which spawn() treats as "not yet placed" -- so each drop is
 	// only spaced against the ones already down.
@@ -152,6 +229,11 @@ void Rainfall::scatter() {
 	for (size_t index = 0; index < kNumDrops; index++) {
 		spawn(index, true);
 	}
+
+	// No logo at activation, and a fresh random wait: a sighting must stay a surprise rather than
+	// become something that reliably greets you when the screensaver appears.
+	logo_ = Logo{};
+	logoCountdown_ = nextLogoInterval();
 }
 
 void Rainfall::advance() {
@@ -168,6 +250,21 @@ void Rainfall::advance() {
 			spawn(index, false);
 		}
 	}
+
+	advanceLogo();
+}
+
+Rainfall::Block Rainfall::logoCellAt(size_t cell) const {
+	const int32_t packed = kLogoPixels[cell];
+	const int32_t gridX = packed >> 4;
+	const int32_t gridY = packed & 0x0F;
+	// Both axes from the same floored x, exactly as cellAt() does, so the logo cannot wiggle.
+	const int32_t x = static_cast<int32_t>(std::floor(logo_.x));
+	return {
+	    .x = x + gridX * logo_.size,
+	    .y = x - logo_.axisOffset + gridY * logo_.size,
+	    .size = logo_.size,
+	};
 }
 
 Rainfall::Block Rainfall::cellAt(size_t drop, size_t cell) const {

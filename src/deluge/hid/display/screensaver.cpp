@@ -206,6 +206,15 @@ void Screensaver::renderRainfall() {
 			drawBlock(canvas_, block.x, block.y, block.size);
 		}
 	}
+
+	// Every few minutes a whole logo falls through the field. It draws through the same clipped
+	// block helper as the rain, because it is built from the same shapes.
+	if (rainfall_.logoActive()) {
+		for (size_t cell = 0; cell < Rainfall::kLogoCells; cell++) {
+			const Rainfall::Block block = rainfall_.logoCellAt(cell);
+			drawBlock(canvas_, block.x, block.y, block.size);
+		}
+	}
 }
 
 } // namespace deluge::hid::display

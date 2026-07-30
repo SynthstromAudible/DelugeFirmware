@@ -31,7 +31,6 @@ namespace deluge::hid::display {
 /// @note Deliberately has no display dependency, so the motion maths is unit-testable on the host
 ///       and the ASCII preview harness can drive it. That is why the panel dimensions below are
 ///       repeated rather than included -- cpu_specific.h is target-only.
-/// @see docs/superpowers/specs/2026-07-30-deluge-rain-screensaver-design.md
 class Rainfall {
 public:
 	/// @name Panel geometry
@@ -70,6 +69,32 @@ public:
 
 	/// Candidate positions tried per spawn before settling for the roomiest one found.
 	static constexpr int32_t kSpawnAttempts = 6;
+
+	/// @name Logo emission
+	/// @{
+
+	/// Cells in the logo's grid, and the width and height of that grid in cells.
+	static constexpr size_t kLogoCells = 25;
+	static constexpr int32_t kLogoGridWidth = 11;
+	static constexpr int32_t kLogoGridHeight = 10;
+
+	/// @brief Shortest and longest wait between logo emissions, in frames.
+	///
+	/// @note 2 to 6 minutes at the screensaver's 50ms tick. Deliberately long: a sighting should
+	///       be a surprise, so a short idle period usually shows none at all.
+	/// @{
+	static constexpr int32_t kLogoIntervalMinFrames = 2400;
+	static constexpr int32_t kLogoIntervalMaxFrames = 7200;
+	/// @}
+
+	/// @brief Chance a logo is emitted at the smallest cell scale.
+	///
+	/// @note Weighted away from scale 1: there the logo is single pixels moving at the far layer's
+	///       own speed, so the surrounding drizzle camouflages it and it reads as a dense patch of
+	///       rain rather than as the mark. Acceptable as the rare case, not as a third of them.
+	static constexpr float kLogoSmallScaleChance = 0.10f;
+
+	/// @}
 
 	/// @brief Minimum distance allowed between two live drops of the same block size, px.
 	///
@@ -143,6 +168,42 @@ public:
 	/// @return The drop's speed, always a multiple of kSpeedStep.
 	[[nodiscard]] float speedOf(size_t drop) const { return drops_[drop].speed; }
 
+	/// @name Logo emission
+	///
+	/// Every few minutes one complete Deluge logo falls through the field and leaves. It is one
+	/// object rather than seven drops: the bootloader's logo is exactly seven diagonal runs of
+	/// three or four cells -- the rain's own vocabulary, arranged -- so its 25 cells sit at fixed
+	/// offsets from a single origin.
+	/// @{
+
+	/// @return True while a logo is on or approaching the panel.
+	[[nodiscard]] bool logoActive() const { return logo_.active; }
+
+	/// @brief One cell of the logo.
+	///
+	/// @pre logoActive() is true.
+	/// @param cell Cell index, less than kLogoCells.
+	/// @return The cell's unclipped block position and pixel size.
+	[[nodiscard]] Block logoCellAt(size_t cell) const;
+
+	/// @brief Cell scale of the live logo, in pixels. Exposed for tests.
+	///
+	/// @return 1, 2 or 3; zero when no logo is active.
+	[[nodiscard]] int32_t logoScale() const { return logo_.active ? logo_.size : 0; }
+
+	/// @brief Speed of the live logo, px per frame. Exposed for tests.
+	///
+	/// @return The logo's speed, always a multiple of kSpeedStep; zero when none is active.
+	[[nodiscard]] float logoSpeed() const { return logo_.active ? logo_.speed : 0.0f; }
+
+	/// @brief Emit a logo on the next advance(), whatever the countdown says.
+	///
+	/// @note For the preview harness: the interval is minutes long, so the animation would
+	///       otherwise be uninspectable without waiting it out. Does nothing if one is already up.
+	void forceLogo() { logoCountdown_ = 0; }
+
+	/// @}
+
 private:
 	struct Drop {
 		float x{};            ///< leading cell, left edge; the only axis that is integrated
@@ -191,6 +252,29 @@ private:
 	/// @param seeded True to place it anywhere on the panel, false to enter the top or left edge.
 	void place(Drop& drop, bool seeded);
 
+	/// @brief The whole logo, as one object.
+	///
+	/// @note Mirrors Drop's motion contract exactly -- y derived from x by a whole-pixel offset,
+	///       speed on the kSpeedStep grid -- so it inherits the same no-wiggle and repeating-cadence
+	///       behaviour rather than reimplementing it.
+	struct Logo {
+		float x{};            ///< grid origin, left edge; the only axis that is integrated
+		float y{};            ///< grid origin, top edge; derived as x - axisOffset
+		int32_t axisOffset{}; ///< whole pixels, x - y; fixed for the emission
+		float speed{};        ///< px per frame, native to size, on the kSpeedStep grid
+		uint8_t size{};       ///< cell scale in pixels: 1, 2 or 3
+		bool active{};
+	};
+
+	/// @brief Start a logo falling, picking its scale, speed and entry edge.
+	void emitLogo();
+
+	/// @brief Move the live logo, retire it once clear, and run the emission countdown.
+	void advanceLogo();
+
+	/// @return A fresh wait before the next emission, in frames.
+	int32_t nextLogoInterval();
+
 	/// @brief Replace drops_[index], honouring the minimum-spacing rule.
 	///
 	/// @param index  Slot in drops_ to replace.
@@ -198,6 +282,10 @@ private:
 	void spawn(size_t index, bool seeded);
 
 	std::array<Drop, kNumDrops> drops_{};
+	Logo logo_{};
+	/// Frames until the next emission. Only counts down while no logo is active, so two can never
+	/// overlap and the gap is measured between sightings rather than between starts.
+	int32_t logoCountdown_{kLogoIntervalMinFrames};
 	uint32_t rngState_{0x1EAF7A11};
 };
 
