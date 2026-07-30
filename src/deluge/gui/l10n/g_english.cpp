@@ -417,6 +417,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_SAMPLE_PREVIEW, "Sample preview"},
         {STRING_FOR_PLAY_CURSOR, "Play-cursor"},
         {STRING_FOR_FIRMWARE_VERSION, "Firmware version"},
+        {STRING_FOR_BATTERY_STATUS, "Battery status"},
         {STRING_FOR_COMMUNITY_FTS, "Community features"},
         {STRING_FOR_MIDI_THRU, "MIDI-thru"},
         {STRING_FOR_TAKEOVER, "TAKEOVER"},
