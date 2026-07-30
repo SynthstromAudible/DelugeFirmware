@@ -476,6 +476,12 @@ void AutomationView::focusRegained() {
 		currentSong->affectEntire = true;
 		view.focusRegained();
 		view.setActiveModControllableTimelineCounter(currentSong);
+
+		// On 7SEG, automation display text is not updated by LED/grid rendering.
+		// Refresh it whenever automation regains focus (e.g. exiting a menu).
+		if (display->have7SEG()) {
+			renderDisplay();
+		}
 	}
 	else {
 		ClipView::focusRegained();
