@@ -1,10 +1,36 @@
 #include "hid/display/rainfall.h"
 
 #include "cppspec.hpp"
+#include <array>
 #include <cmath>
 #include <cstddef>
+#include <set>
+#include <utility>
+#include <vector>
 
 using deluge::hid::display::Rainfall;
+
+namespace {
+
+/// @brief Every panel pixel a drop currently lights, clipped to the visible rows.
+std::set<std::pair<int32_t, int32_t>> painted(const Rainfall& field, size_t drop) {
+	std::set<std::pair<int32_t, int32_t>> pixels;
+	for (size_t cell = 0; cell < field.lengthOf(drop); cell++) {
+		const Rainfall::Block block = field.cellAt(drop, cell);
+		for (int32_t dy = 0; dy < block.size; dy++) {
+			for (int32_t dx = 0; dx < block.size; dx++) {
+				const int32_t x = block.x + dx;
+				const int32_t y = block.y + dy;
+				if (x >= 0 && x < Rainfall::kWidth && y >= Rainfall::kTopmost && y < Rainfall::kHeight) {
+					pixels.emplace(x, y);
+				}
+			}
+		}
+	}
+	return pixels;
+}
+
+} // namespace
 
 // clang-format off
 describe rainfall("Rainfall", $ {
@@ -59,6 +85,74 @@ describe rainfall("Rainfall", $ {
 		}
 	});
 
+	it("moves every drop equally on both axes, so streaks never skid sideways", _ {
+		// "steps every streak down-right at 45 degrees" above only checks the layout of cells
+		// within a single streak at a single instant -- it would not notice advance() adding
+		// different increments to x and y. This checks the thing that test cannot: that a drop's
+		// head actually travels the same distance on both axes, across time.
+		//
+		// Exact equality per window will not do, even over a long span: cellAt() truncates float
+		// positions to int32_t, and a drop's x and y generally start with different fractional
+		// parts (they come from independent random draws), so the two axes cross pixel boundaries
+		// at different frames. That truncation offset is bounded to one pixel -- empirically
+		// confirmed up to 30,000 frames of this field's motion -- but it does not shrink with a
+		// longer window, so a tolerance of one pixel is required and sufficient. A real per-axis
+		// speed asymmetry instead grows with the window: over 50 frames it is already several
+		// pixels, well outside that tolerance, so it cannot hide behind the truncation noise.
+		//
+		// Measured per drop over many 50-frame windows rather than one long one, because most
+		// drops respawn well before 50*kNumDrops frames have passed; a single window per drop
+		// starting at the first frame would mostly get discarded as a mid-window respawn, leaving
+		// nothing measured.
+		constexpr int32_t kFrames = 5000;
+		constexpr int32_t kWindow = 50;
+		Rainfall field;
+		std::array<int32_t, Rainfall::kNumDrops> baseX{};
+		std::array<int32_t, Rainfall::kNumDrops> baseY{};
+		std::array<int32_t, Rainfall::kNumDrops> prevX{};
+		std::array<int32_t, Rainfall::kNumDrops> prevY{};
+		std::array<int32_t, Rainfall::kNumDrops> sinceBase{};
+		for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
+			const Rainfall::Block head = field.cellAt(drop, 0);
+			baseX[drop] = head.x;
+			baseY[drop] = head.y;
+			prevX[drop] = head.x;
+			prevY[drop] = head.y;
+		}
+
+		int32_t windowsMeasured = 0;
+		for (int32_t frame = 0; frame < kFrames; frame++) {
+			field.advance();
+			for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
+				const Rainfall::Block head = field.cellAt(drop, 0);
+				// A respawn teleports the drop backwards (up and/or left) rather than down-right;
+				// restart the window there instead of letting the teleport masquerade as skid.
+				if (head.x < prevX[drop] || head.y < prevY[drop]) {
+					baseX[drop] = head.x;
+					baseY[drop] = head.y;
+					sinceBase[drop] = 0;
+				}
+				else {
+					sinceBase[drop]++;
+					if (sinceBase[drop] == kWindow) {
+						const int32_t dx = head.x - baseX[drop];
+						const int32_t dy = head.y - baseY[drop];
+						const int32_t diff = (dx > dy) ? (dx - dy) : (dy - dx);
+						expect(diff).to_be_less_than(2);
+						windowsMeasured++;
+						baseX[drop] = head.x;
+						baseY[drop] = head.y;
+						sinceBase[drop] = 0;
+					}
+				}
+				prevX[drop] = head.x;
+				prevY[drop] = head.y;
+			}
+		}
+		// Guards against the assertion above passing vacuously because nothing was ever measured.
+		expect(windowsMeasured).to_be_greater_than(100);
+	});
+
 	it("respawns drops that leave the panel, so none run away", _ {
 		// A drop is replaced within the same advance() that carries its tail off the panel, so
 		// after any advance() every head sits close to the panel. The margins are loose: the
@@ -107,6 +201,83 @@ describe rainfall("Rainfall", $ {
 			}
 		}
 		expect(anyDifferent).to_be_true();
+	});
+
+	it("lights every column, which is the whole point of a screensaver", _ {
+		// A screensaver that never touches column 3 burns column 3. This is the only test that
+		// checks the feature's actual purpose.
+		Rainfall field;
+		std::array<bool, Rainfall::kWidth> lit{};
+		for (int32_t frame = 0; frame < 4000; frame++) {
+			field.advance();
+			for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
+				for (const auto& [x, y] : painted(field, drop)) {
+					lit[static_cast<size_t>(x)] = true;
+				}
+			}
+		}
+		for (size_t x = 0; x < static_cast<size_t>(Rainfall::kWidth); x++) {
+			expect(lit[x]).to_be_true();
+		}
+	});
+
+	it("never lets the field drain", _ {
+		// The failure mode if the left-edge spawn range or kSpawnFromTop is wrong: drops leave
+		// faster than they arrive and the panel slowly empties. Measured worst case is 22 of 34.
+		Rainfall field;
+		for (int32_t frame = 0; frame < 10000; frame++) {
+			field.advance();
+			size_t visible = 0;
+			for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
+				if (!painted(field, drop).empty()) {
+					visible++;
+				}
+			}
+			expect(visible).to_be_greater_than(static_cast<size_t>(15));
+		}
+	});
+
+	it("keeps same-size drops from merging into blobs", _ {
+		// Same-size drops may differ in speed, so a faster one can catch a slower one after spawn.
+		// The spawn-time spacing rule keeps that to brief glances -- measured at 8.8% of frames
+		// and 2.6 overlapping pixels. These bounds are loose around those figures, so this catches
+		// a regression to permanent blobs without tripping every time a constant is retuned.
+		constexpr int32_t kFrames = 2000;
+		Rainfall field;
+		int32_t framesWithOverlap = 0;
+		int32_t totalOverlapPixels = 0;
+
+		for (int32_t frame = 0; frame < kFrames; frame++) {
+			field.advance();
+
+			std::vector<std::set<std::pair<int32_t, int32_t>>> pixels;
+			pixels.reserve(Rainfall::kNumDrops);
+			for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
+				pixels.push_back(painted(field, drop));
+			}
+
+			int32_t overlap = 0;
+			for (size_t a = 0; a < Rainfall::kNumDrops; a++) {
+				for (size_t b = a + 1; b < Rainfall::kNumDrops; b++) {
+					if (field.cellAt(a, 0).size != field.cellAt(b, 0).size) {
+						continue;
+					}
+					for (const auto& pixel : pixels[b]) {
+						if (pixels[a].contains(pixel)) {
+							overlap++;
+						}
+					}
+				}
+			}
+
+			if (overlap > 0) {
+				framesWithOverlap++;
+				totalOverlapPixels += overlap;
+			}
+		}
+
+		expect(framesWithOverlap).to_be_less_than(kFrames / 5);
+		expect(totalOverlapPixels).to_be_less_than(framesWithOverlap * 8 + 1);
 	});
 });
 
