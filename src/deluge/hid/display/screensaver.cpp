@@ -31,12 +31,17 @@ oled_canvas::Canvas Screensaver::canvas_;
 Starfield Screensaver::starfield_;
 Rainfall Screensaver::rainfall_;
 
-// Rainfall repeats the panel dimensions rather than including cpu_specific.h, which is target-only
-// and would break the host specs. This file does see the real macros, so it is where the two are
-// held together.
+// Rainfall and Starfield each repeat the panel dimensions rather than including cpu_specific.h,
+// which is target-only and would break the host specs. This file does see the real macros, so it
+// is where the two are held together.
 static_assert(Rainfall::kWidth == OLED_MAIN_WIDTH_PIXELS);
 static_assert(Rainfall::kHeight == OLED_MAIN_HEIGHT_PIXELS);
 static_assert(Rainfall::kTopmost == OLED_MAIN_TOPMOST_PIXEL);
+
+// kCentreY is deliberately the truncated integer division (26.0f), not the true centre (26.5) --
+// project() truncates float positions the same way, so this matches what actually renders.
+static_assert(Starfield::kCentreX == OLED_MAIN_WIDTH_PIXELS / 2.0f);
+static_assert(Starfield::kCentreY == (OLED_MAIN_TOPMOST_PIXEL + OLED_MAIN_HEIGHT_PIXELS) / 2);
 
 /// Starscape frame interval. For comparison, scrolling text re-arms at 15ms and
 /// 5ms (see OLED::scrollingAndBlinkingTimerEvent), so this is the lighter load.
@@ -98,9 +103,15 @@ void Screensaver::timerEvent() {
 		return;
 	}
 
-	// Never cover a message the display is asking the user to read. Re-checked every
-	// tick, not just at activation, so a card error or loading animation that appears
-	// while we're showing gets the screen back.
+	// Covers the drawPermanentPopupLookingText() popup class (stem export, session view,
+	// automation view) plus the working animation and stem export itself. Re-checked every tick,
+	// not just at activation, so one of these appearing while we're showing gets the screen back.
+	//
+	// Deliberately does NOT cover Display::popupText(..., persistent=true), which sets
+	// oledPopupWidth instead: inhibiting on that would let a stuck persistent popup permanently
+	// disable burn-in protection, which is worse than the alternative. The popup itself returns on
+	// the first input regardless, and the screensaver only appears after minutes of idle, so the
+	// window where it could cover one is short.
 	if (OLED::isPermanentPopupPresent() || OLED::isWorkingAnimationPresent() || stemExport.processStarted) {
 		if (active_) {
 			active_ = false;

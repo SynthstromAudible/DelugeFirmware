@@ -94,9 +94,11 @@ describe rainfall("Rainfall", $ {
 		// Exact equality per window will not do, even over a long span: cellAt() truncates float
 		// positions to int32_t, and a drop's x and y generally start with different fractional
 		// parts (they come from independent random draws), so the two axes cross pixel boundaries
-		// at different frames. That truncation offset is bounded to one pixel -- empirically
-		// confirmed up to 30,000 frames of this field's motion -- but it does not shrink with a
-		// longer window, so a tolerance of one pixel is required and sufficient. A real per-axis
+		// at different frames. That truncation offset is bounded to one pixel -- structurally
+		// guaranteed for a window that starts at a respawn, since place() pins one axis to an exact
+		// integer there; only the very first window after scatter() is probabilistic, since scatter()
+		// draws both axes continuously. It does not shrink with a longer window either way, so a
+		// tolerance of one pixel is required and sufficient. A real per-axis
 		// speed asymmetry instead grows with the window: over 50 frames it is already several
 		// pixels, well outside that tolerance, so it cannot hide behind the truncation noise.
 		//
@@ -218,6 +220,26 @@ describe rainfall("Rainfall", $ {
 		}
 		for (size_t x = 0; x < static_cast<size_t>(Rainfall::kWidth); x++) {
 			expect(lit[x]).to_be_true();
+		}
+	});
+
+	it("lights every row, so a place() regression can't leave the bottom dark", _ {
+		// Mirrors "lights every column" above, but for rows. A regression in place()'s handling of
+		// + kTopmost could leave the bottom rows permanently dark while every drop still spawns,
+		// travels, and respawns normally -- drop counts and column coverage would stay healthy and
+		// every other spec would still pass, so this is the only test that would catch it.
+		Rainfall field;
+		std::array<bool, Rainfall::kVisibleHeight> lit{};
+		for (int32_t frame = 0; frame < 4000; frame++) {
+			field.advance();
+			for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
+				for (const auto& [x, y] : painted(field, drop)) {
+					lit[static_cast<size_t>(y - Rainfall::kTopmost)] = true;
+				}
+			}
+		}
+		for (size_t y = 0; y < static_cast<size_t>(Rainfall::kVisibleHeight); y++) {
+			expect(lit[y]).to_be_true();
 		}
 	});
 
