@@ -17,6 +17,7 @@
 
 #include "hid/display/rainfall.h"
 #include <algorithm>
+#include <limits>
 
 namespace deluge::hid::display {
 
@@ -47,6 +48,115 @@ float Rainfall::separationSquared(const Streak& a, const Streak& b) {
 
 	// Both axes are sqrt(2) times the true distances, so the true squared distance is halved.
 	return 0.5f * (across * across + along * along);
+}
+
+uint32_t Rainfall::nextRandom() {
+	rngState_ = rngState_ * 1664525u + 1013904223u;
+	return rngState_;
+}
+
+float Rainfall::nextRandomFloat() {
+	return static_cast<float>(nextRandom()) * (1.0f / 4294967296.0f);
+}
+
+void Rainfall::roll(Drop& drop) {
+	// Depth drives both size and speed. The panel is 1-bit, so only three block sizes exist and
+	// depth is quantised for size -- but it stays continuous for speed, which is what stops the
+	// field reading as three sheets sliding in lockstep.
+	const float depth = nextRandomFloat();
+	drop.size = (depth > 0.66f) ? 3 : ((depth > 0.33f) ? 2 : 1);
+	drop.speed = kSpeedFar + (kSpeedNear - kSpeedFar) * depth;
+	// Three or four cells, the streak lengths used in the bootloader's logo.
+	drop.length = (nextRandomFloat() < 0.5f) ? 3 : 4;
+}
+
+void Rainfall::place(Drop& drop, bool seeded) {
+	const float reach = reachOf(drop.size, drop.length);
+
+	if (seeded) {
+		// Scattering: anywhere on the panel, so the first frame after activation is already full.
+		drop.x = nextRandomFloat() * (kWidth + reach) - reach;
+		drop.y = nextRandomFloat() * (kVisibleHeight + reach) + kTopmost - reach;
+	}
+	else if (nextRandomFloat() < kSpawnFromTop) {
+		drop.x = nextRandomFloat() * (kWidth + reach) - reach;
+		drop.y = kTopmost - reach - 1.0f;
+	}
+	else {
+		// Through the left edge, so drops keep arriving in the region the rightward drift empties.
+		drop.x = -reach - 1.0f;
+		drop.y = nextRandomFloat() * kVisibleHeight + kTopmost;
+	}
+}
+
+void Rainfall::spawn(size_t index, bool seeded) {
+	Drop best{};
+	float bestClearance = -1.0f;
+
+	for (int32_t attempt = 0; attempt < kSpawnAttempts; attempt++) {
+		Drop candidate{};
+		roll(candidate);
+		place(candidate, seeded);
+
+		// Only same-size drops are checked: cross-size overlap is the parallax reading correctly.
+		// Slots still at size zero have not been placed yet, and never match.
+		float clearance = std::numeric_limits<float>::max();
+		for (size_t other = 0; other < kNumDrops; other++) {
+			if (other == index || drops_[other].size != candidate.size) {
+				continue;
+			}
+			clearance = std::min(clearance, separationSquared(streakOf(candidate), streakOf(drops_[other])));
+		}
+
+		const float minGap = minGapFor(candidate.size);
+		if (clearance >= minGap * minGap) {
+			drops_[index] = candidate;
+			return;
+		}
+		if (clearance > bestClearance) {
+			best = candidate;
+			bestClearance = clearance;
+		}
+	}
+
+	// Nothing cleared the bar. Take the roomiest candidate rather than looping: bounded work
+	// matters more here than a perfect placement, and same-size drops differ in speed, so a tight
+	// pair drifts apart on its own.
+	drops_[index] = best;
+}
+
+void Rainfall::scatter() {
+	// Zeroed slots have size zero, which spawn() treats as "not yet placed" -- so each drop is
+	// only spaced against the ones already down.
+	drops_.fill(Drop{});
+	for (size_t index = 0; index < kNumDrops; index++) {
+		spawn(index, true);
+	}
+}
+
+void Rainfall::advance() {
+	for (size_t index = 0; index < kNumDrops; index++) {
+		Drop& drop = drops_[index];
+		// Equal on both axes: every drop travels along its own 45 degree axis, so the streak never
+		// slides sideways underneath itself.
+		drop.x += drop.speed;
+		drop.y += drop.speed;
+
+		const float reach = reachOf(drop.size, drop.length);
+		if (drop.y - reach > kHeight || drop.x - reach > kWidth) {
+			spawn(index, false);
+		}
+	}
+}
+
+Rainfall::Block Rainfall::cellAt(size_t drop, size_t cell) const {
+	const Drop& d = drops_[drop];
+	const int32_t step = static_cast<int32_t>(cell) * d.size;
+	return {
+	    .x = static_cast<int32_t>(d.x) - step,
+	    .y = static_cast<int32_t>(d.y) - step,
+	    .size = d.size,
+	};
 }
 
 } // namespace deluge::hid::display

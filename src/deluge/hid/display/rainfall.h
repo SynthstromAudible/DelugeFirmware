@@ -102,11 +102,64 @@ public:
 	/// @note Squared, so the caller compares against a squared minimum and no sqrt is needed.
 	[[nodiscard]] static float separationSquared(const Streak& a, const Streak& b);
 
+	/// @brief Construct a field that is already populated, so the first rendered frame is not
+	///        empty.
+	Rainfall() { scatter(); }
+
+	/// @brief Re-seed every drop across the panel.
+	///
+	/// @note Does *not* reseed the LCG, so successive calls produce different fields.
+	void scatter();
+
+	/// @brief Advance every drop one frame, respawning any whose tail has left the panel.
+	void advance();
+
+	/// @brief Cells in a drop's streak.
+	///
+	/// @param drop Drop index, less than kNumDrops.
+	/// @return 3 or 4, matching the streak lengths in the bootloader's logo.
+	[[nodiscard]] size_t lengthOf(size_t drop) const { return drops_[drop].length; }
+
+	/// @brief One block of a drop's streak.
+	///
+	/// @param drop Drop index, less than kNumDrops.
+	/// @param cell Cell index, less than lengthOf(drop). Cell 0 leads, at the bottom-right.
+	/// @return The block's unclipped position and pixel size.
+	[[nodiscard]] Block cellAt(size_t drop, size_t cell) const;
+
 private:
+	struct Drop {
+		float x{};        ///< leading cell, left edge
+		float y{};        ///< leading cell, top edge
+		float speed{};    ///< px per frame, applied to both axes
+		uint8_t size{};   ///< 1, 2 or 3; zero marks a slot not yet placed
+		uint8_t length{}; ///< 3 or 4 cells
+	};
+
 	/// @brief Distance a streak's tail trails behind its head, on each axis, in pixels.
 	[[nodiscard]] static constexpr float reachOf(int32_t size, int32_t length) {
 		return static_cast<float>((length - 1) * size);
 	}
+
+	[[nodiscard]] static Streak streakOf(const Drop& drop) {
+		return {.x = drop.x, .y = drop.y, .size = drop.size, .length = drop.length};
+	}
+
+	/// @brief Step the linear congruential generator.
+	uint32_t nextRandom();
+	/// @return The next LCG output, mapped to [0, 1).
+	float nextRandomFloat();
+
+	/// @brief Give a drop a fresh depth, and the size, speed and length that follow from it.
+	void roll(Drop& drop);
+	/// @brief Position a drop, either scattered across the panel or entering an edge.
+	/// @param seeded True to place it anywhere on the panel, false to enter the top or left edge.
+	void place(Drop& drop, bool seeded);
+	/// @brief Replace drops_[index], honouring the minimum-spacing rule.
+	void spawn(size_t index, bool seeded);
+
+	std::array<Drop, kNumDrops> drops_{};
+	uint32_t rngState_{0x1EAF7A11};
 };
 
 } // namespace deluge::hid::display
