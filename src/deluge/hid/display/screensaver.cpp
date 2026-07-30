@@ -31,9 +31,9 @@ oled_canvas::Canvas Screensaver::canvas_;
 Starfield Screensaver::starfield_;
 Rainfall Screensaver::rainfall_;
 
-// Rainfall and Starfield each repeat the panel dimensions rather than including cpu_specific.h,
-// which is target-only and would break the host specs. This file does see the real macros, so it
-// is where the two are held together.
+// Rainfall repeats the panel dimensions, and Starfield derives its projection centre from them,
+// rather than including cpu_specific.h -- it is target-only and would break the host specs. This
+// file does see the real macros, so it is where the two are held to them.
 static_assert(Rainfall::kWidth == OLED_MAIN_WIDTH_PIXELS);
 static_assert(Rainfall::kHeight == OLED_MAIN_HEIGHT_PIXELS);
 static_assert(Rainfall::kTopmost == OLED_MAIN_TOPMOST_PIXEL);
@@ -43,8 +43,8 @@ static_assert(Rainfall::kTopmost == OLED_MAIN_TOPMOST_PIXEL);
 static_assert(Starfield::kCentreX == OLED_MAIN_WIDTH_PIXELS / 2.0f);
 static_assert(Starfield::kCentreY == (OLED_MAIN_TOPMOST_PIXEL + OLED_MAIN_HEIGHT_PIXELS) / 2);
 
-/// Starscape frame interval. For comparison, scrolling text re-arms at 15ms and
-/// 5ms (see OLED::scrollingAndBlinkingTimerEvent), so this is the lighter load.
+/// Frame interval for the animated modes (STARSCAPE, DELUGE). For comparison, scrolling text
+/// re-arms at 15ms and 5ms (see OLED::scrollingAndBlinkingTimerEvent), so this is the lighter load.
 constexpr int32_t kFrameIntervalMS = 50;
 
 /// Blank re-check interval while already showing. Blank has no per-frame animation

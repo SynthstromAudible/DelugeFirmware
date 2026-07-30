@@ -100,6 +100,9 @@ public:
 	/// if the two overlap along travel, otherwise the hypotenuse of the across- and along-gaps.
 	///
 	/// @note Squared, so the caller compares against a squared minimum and no sqrt is needed.
+	/// @param a One streak.
+	/// @param b The other streak.
+	/// @return The squared distance between them, in pixels squared.
 	[[nodiscard]] static float separationSquared(const Streak& a, const Streak& b);
 
 	/// @brief Construct a field that is already populated, so the first rendered frame is not
@@ -137,25 +140,47 @@ private:
 	};
 
 	/// @brief Distance a streak's tail trails behind its head, on each axis, in pixels.
+	///
+	/// @param size   Block size in pixels: 1, 2 or 3.
+	/// @param length Streak length in cells: 3 or 4.
+	/// @return The tail's trailing distance, in pixels.
 	[[nodiscard]] static constexpr float reachOf(int32_t size, int32_t length) {
 		return static_cast<float>((length - 1) * size);
 	}
 
+	/// @brief Extract a drop's shape and position as a Streak, for spacing checks.
+	///
+	/// @param drop The drop to convert.
+	/// @return The equivalent Streak.
 	[[nodiscard]] static Streak streakOf(const Drop& drop) {
 		return {.x = drop.x, .y = drop.y, .size = drop.size, .length = drop.length};
 	}
 
 	/// @brief Step the linear congruential generator.
+	///
+	/// @return The new RNG state.
 	uint32_t nextRandom();
+
+	/// @brief Step the linear congruential generator, mapped to [0, 1).
+	///
 	/// @return The next LCG output, mapped to [0, 1).
 	float nextRandomFloat();
 
 	/// @brief Give a drop a fresh depth, and the size, speed and length that follow from it.
+	///
+	/// @param drop The drop to roll and populate in place.
 	void roll(Drop& drop);
+
 	/// @brief Position a drop, either scattered across the panel or entering an edge.
+	///
+	/// @param drop   The drop to position in place.
 	/// @param seeded True to place it anywhere on the panel, false to enter the top or left edge.
 	void place(Drop& drop, bool seeded);
+
 	/// @brief Replace drops_[index], honouring the minimum-spacing rule.
+	///
+	/// @param index  Slot in drops_ to replace.
+	/// @param seeded Forwarded to place(): true to scatter anywhere, false to enter an edge.
 	void spawn(size_t index, bool seeded);
 
 	std::array<Drop, kNumDrops> drops_{};

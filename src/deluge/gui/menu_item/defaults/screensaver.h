@@ -39,6 +39,8 @@ public:
 		FlashStorage::screensaverMode = this->getValue<::ScreensaverMode>();
 		hid::display::Screensaver::settingsChanged();
 	}
+	/// @warning The returned strings must stay in ScreensaverMode enum order (OFF, BLANK, STARSCAPE, DELUGE):
+	///          Selection maps the chosen option's index directly onto the enum value.
 	deluge::vector<std::string_view> getOptions(OptType optType) override {
 		(void)optType;
 		return {l10n::getView(l10n::String::STRING_FOR_OFF),

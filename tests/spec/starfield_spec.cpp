@@ -5,9 +5,9 @@
 
 using deluge::hid::display::Starfield;
 
-// Upper depth bound is kMaxDepth + 0.2, not kMaxDepth: scatter() spawns in
-// [0.1, kMaxDepth + 0.1), matching the reference implementation's
-// `lcg_f32(rng) * MAX_DEPTH + 0.1`.
+// Upper depth bound is kMaxDepth + 0.2, not kMaxDepth: scatter() spawns stars in
+// [0.1, kMaxDepth + 0.1) via its `nextRandomFloat() * kMaxDepth + 0.1f` expression,
+// so the ceiling needs headroom above kMaxDepth alone.
 static constexpr float kDepthCeiling = Starfield::kMaxDepth + 0.2f;
 
 // clang-format off

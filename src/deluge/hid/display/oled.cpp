@@ -378,17 +378,23 @@ void OLED::sendMainImage() {
 	oledCurrentImage = &main.hackGetImageStore()[0];
 
 	if (Screensaver::isActive()) {
-		// Point at the screensaver canvas before the dirty guard below. This global is
-		// also read by the sysex display path (HIDSysex::sendOLEDData/Delta), which runs
-		// independently of this function -- leaving it pointed at `main` would make the
-		// virtual screen show the live UI while the panel is blank.
+		// Point at the screensaver canvas before the dirty guard below, not after. This
+		// global is also read independently by the sysex display mirror
+		// (HIDSysex::sendOLEDData / sendOLEDDataDelta), which runs on its own schedule --
+		// if it were still pointed at `main` here, that mirror would show the live UI while
+		// the panel itself is showing the screensaver.
 		oledCurrentImage = &Screensaver::getCanvas().hackGetImageStore()[0];
 
 		if (!Screensaver::consumeFrameDirty()) {
 			// Some other timer marked the display dirty while we're showing. Nothing
 			// about our frame changed, so swallow it rather than re-pushing an
-			// identical frame -- scrolling text re-arms every 5-15ms forever, which
-			// would otherwise flood the SPI bus we share with CV output.
+			// identical frame.
+			//
+			// This guard is load-bearing, not an optimization: scrolling text re-arms
+			// itself every 5-15ms and calls sendMainImage() directly, forever, while
+			// idle. Without this check, an idle Deluge sitting on a side-scrolling menu
+			// label would push a full unchanged frame at that rate over the SPI bus we
+			// share with CV output.
 			needsSending = false;
 			return;
 		}

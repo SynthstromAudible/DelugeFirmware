@@ -59,15 +59,20 @@ public:
 	/// @name Display integration
 	/// @{
 
+	/// @brief Whether the screensaver is currently overriding the panel contents.
+	///
 	/// @return True while the screensaver is overriding the panel contents.
 	[[nodiscard]] static bool isActive() { return active_; }
 
 	/// @brief Test and clear the "our canvas changed" flag.
 	///
 	/// Lets sendMainImage() tell "our frame actually changed" apart from "some unrelated timer
-	/// (scrolling text, working animation) marked the display dirty while we are showing" -- the
-	/// latter must not re-enqueue an unchanged frame indefinitely.
+	/// (scrolling text, working animation) marked the display dirty while we are showing".
 	///
+	/// @warning Test-and-clear: each call consumes the flag. A caller that ignores a false return and
+	///          resends anyway reintroduces the SPI-bus flood this protocol was added to fix --
+	///          the side-scroller re-arms every 5-15ms, so an unconditional resend would run
+	///          continuously for as long as the screensaver is showing.
 	/// @return True if the canvas changed since the last call.
 	static bool consumeFrameDirty() {
 		bool was = frameDirty_;

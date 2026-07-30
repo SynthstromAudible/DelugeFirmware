@@ -261,8 +261,8 @@ describe rainfall("Rainfall", $ {
 
 	it("keeps same-size drops from merging into blobs", _ {
 		// Same-size drops may differ in speed, so a faster one can catch a slower one after spawn.
-		// The spawn-time spacing rule keeps that to brief glances -- measured at 8.8% of frames
-		// and 2.6 overlapping pixels. These bounds are loose around those figures, so this catches
+		// The spawn-time spacing rule keeps that to brief glances -- measured at 6.3% of frames
+		// and 2.2 overlapping pixels. These bounds are loose around those figures, so this catches
 		// a regression to permanent blobs without tripping every time a constant is retuned.
 		constexpr int32_t kFrames = 2000;
 		Rainfall field;

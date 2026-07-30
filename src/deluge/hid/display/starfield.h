@@ -49,7 +49,8 @@ public:
 	static constexpr float kCentreX = 64.0f;
 	/// Projected screen centre, Y, in pixels: (OLED_MAIN_TOPMOST_PIXEL + OLED_MAIN_HEIGHT_PIXELS) / 2.
 	static constexpr float kCentreY = 26.0f;
-	/// Stars nearer than this draw as 2x2 blocks rather than single pixels.
+	/// Depth threshold: stars nearer than this (same depth units as kMaxDepth) draw as 2x2 blocks
+	/// rather than single pixels.
 	static constexpr float kNearThreshold = kMaxDepth * 0.4f;
 	/// @brief Floor applied to z when projecting.
 	///
@@ -107,6 +108,8 @@ private:
 	/// @return The next raw LCG output.
 	uint32_t nextRandom();
 
+	/// @brief Step the linear congruential generator, mapped to [0, 1).
+	///
 	/// @return The next LCG output, mapped to [0, 1).
 	float nextRandomFloat();
 

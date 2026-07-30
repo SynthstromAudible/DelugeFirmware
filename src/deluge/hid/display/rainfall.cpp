@@ -22,9 +22,8 @@
 namespace deluge::hid::display {
 
 namespace {
-/// @brief Extent a streak occupies along its direction of travel, in the doubled u = x + y axis.
-///
-/// Cell i sits at (x - i*size, y - i*size), so each cell costs 2*size of u.
+// Extent a streak occupies along its direction of travel, in the doubled u = x + y axis. Cell i
+// sits at (x - i*size, y - i*size), so each cell costs 2*size of u.
 constexpr float spanAlongTravel(int32_t size, int32_t length) {
 	return 2.0f * static_cast<float>((length - 1) * size);
 }

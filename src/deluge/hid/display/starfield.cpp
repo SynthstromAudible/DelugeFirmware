@@ -30,8 +30,8 @@ float Starfield::nextRandomFloat() {
 }
 
 void Starfield::respawn(Star& star, float z) {
-	// Wide 3D range, so that even at kMaxDepth (factor ~= 0.098) the field still
-	// spans the whole panel: x=+/-256 reaches +/-25px, y=+/-100 reaches +/-10px.
+	// Wide 3D range so the projected field still spans the whole panel even at kMaxDepth
+	// (factor ~= 0.098): x=+/-256 -> +/-25px, y=+/-100 -> +/-10px.
 	star.x = nextRandomFloat() * 512.0f - 256.0f;
 	star.y = nextRandomFloat() * 200.0f - 100.0f;
 	star.z = z;
@@ -39,7 +39,8 @@ void Starfield::respawn(Star& star, float z) {
 
 void Starfield::scatter() {
 	for (Star& star : stars_) {
-		// Spread across the depth range so the field is populated immediately.
+		// Spread across the full depth range rather than all starting at kMaxDepth (as advance()'s
+		// respawn does), so the field already looks populated and in motion on the first frame.
 		respawn(star, nextRandomFloat() * kMaxDepth + 0.1f);
 	}
 }
@@ -58,7 +59,8 @@ Starfield::Projected Starfield::project(size_t i) const {
 	const float factor = kFov / std::max(star.z, kMinDepth);
 	return {
 	    .x = static_cast<int32_t>(star.x * factor + kCentreX),
-	    // Negate y so that positive-y is up on screen, matching the reference.
+	    // Screen y increases downward, but the star's 3D y is defined with positive-y up (matching
+	    // the reference implementation) -- negate to convert between the two conventions.
 	    .y = static_cast<int32_t>(-star.y * factor + kCentreY),
 	    .size = (star.z < kNearThreshold) ? 2 : 1,
 	};

@@ -1,5 +1,10 @@
 /// Renders the Starfield to stdout as ASCII, so the ported animation can be eyeballed
-/// without flashing hardware. Not a spec: it asserts nothing and is not run by ctest.
+/// without flashing hardware.
+///
+/// Not a spec, deliberately: it asserts nothing, and its filename avoids the `*_spec.cpp` glob
+/// (see tests/spec/CMakeLists.txt) so ctest never picks it up. Judging whether the animation looks right means
+/// watching frames scroll by, which nothing here can assert automatically — this is a look-and-tell
+/// tool, not a target for `ctest`. Do not wire it into ctest or bolt on assertions to "fix" that.
 ///
 /// Usage: ./tests/build/spec/StarfieldPreview [numFrames]
 
@@ -9,8 +14,9 @@
 
 using deluge::hid::display::Starfield;
 
-// Matches the real panel: OLED_MAIN_WIDTH_PIXELS / HEIGHT_PIXELS / TOPMOST_PIXEL.
-// Hardcoded rather than included, because cpu_specific.h is target-only.
+// Mirrors OLED_MAIN_WIDTH_PIXELS / OLED_MAIN_HEIGHT_PIXELS / OLED_MAIN_TOPMOST_PIXEL from
+// src/RZA1/cpu_specific.h (128 / 48 / 5). Hardcoded rather than included, because that header
+// lives under the target-only RZA1 tree and isn't on the host build's include path.
 constexpr int32_t kWidth = 128;
 constexpr int32_t kHeight = 48;
 constexpr int32_t kTopmost = 5;

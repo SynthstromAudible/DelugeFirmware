@@ -1,6 +1,9 @@
 /// Renders the Rainfall field to stdout as ASCII, so the animation can be eyeballed and its
-/// constants tuned without flashing hardware. Not a spec: it asserts nothing and is not run by
-/// ctest.
+/// constants tuned without flashing hardware.
+///
+/// Deliberately not a spec: it asserts nothing, and its filename avoids the `*_spec.cpp` glob
+/// so ctest never picks it up. Keep it that way -- this is a visual tuning aid, not a
+/// correctness test, and there is nothing meaningful to assert about ASCII art.
 ///
 /// Usage: ./tests/build/spec/RainfallPreview [numFrames]
 
