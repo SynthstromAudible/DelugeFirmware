@@ -61,11 +61,20 @@ float Rainfall::nextRandomFloat() {
 
 void Rainfall::roll(Drop& drop) {
 	// Depth drives both size and speed. The panel is 1-bit, so only three block sizes exist and
-	// depth is quantised for size -- but it stays continuous for speed, which is what stops the
+	// depth is quantised for size -- but several speeds share each size, which is what stops the
 	// field reading as three sheets sliding in lockstep.
 	const float depth = nextRandomFloat();
 	drop.size = (depth > 0.66f) ? 3 : ((depth > 0.33f) ? 2 : 1);
-	drop.speed = kSpeedFar + (kSpeedNear - kSpeedFar) * depth;
+
+	// Quantised to kSpeedStep, and that granularity is the whole point rather than an economy.
+	// A drop only moves when its accumulated position crosses a pixel boundary, so a speed with a
+	// small denominator crosses on a short repeating cycle: 1.25 px/frame advances 1, 1, 1, 2 for
+	// ever. An arbitrary real speed crosses on a quasi-periodic schedule instead, so a drop that
+	// mostly moves every frame stalls for one at unpredictable moments -- which reads as judder,
+	// not as slower motion. Every multiple of a quarter is also exactly representable, so the
+	// cadence never drifts however long the screensaver runs.
+	const float raw = kSpeedFar + (kSpeedNear - kSpeedFar) * depth;
+	drop.speed = std::round(raw / kSpeedStep) * kSpeedStep;
 	// Three or four cells, the streak lengths used in the bootloader's logo.
 	drop.length = (nextRandomFloat() < 0.5f) ? 3 : 4;
 }

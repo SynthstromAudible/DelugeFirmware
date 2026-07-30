@@ -49,10 +49,17 @@ public:
 
 	/// Drops in the field at once.
 	static constexpr size_t kNumDrops = 34;
-	/// Speed of the most distant drops, px per frame, applied to both axes.
-	static constexpr float kSpeedFar = 0.45f;
-	/// Speed of the nearest drops, px per frame, applied to both axes.
-	static constexpr float kSpeedNear = 1.4f;
+	/// Speed of the most distant drops, px per frame, applied to both axes. On the kSpeedStep grid.
+	static constexpr float kSpeedFar = 0.5f;
+	/// Speed of the nearest drops, px per frame, applied to both axes. On the kSpeedStep grid.
+	static constexpr float kSpeedNear = 1.5f;
+
+	/// @brief Granularity every drop's speed is snapped to, px per frame.
+	///
+	/// @note Must stay a negative power of two, so that speeds and positions are exactly
+	///       representable and a drop's step cadence cannot drift. See roll() for why a coarse,
+	///       small-denominator speed is what keeps the motion smooth rather than juddery.
+	static constexpr float kSpeedStep = 0.25f;
 
 	/// @brief Chance that a respawning drop enters through the top edge rather than the left.
 	///
@@ -129,6 +136,12 @@ public:
 	/// @param cell Cell index, less than lengthOf(drop). Cell 0 leads, at the bottom-right.
 	/// @return The block's unclipped position and pixel size.
 	[[nodiscard]] Block cellAt(size_t drop, size_t cell) const;
+
+	/// @brief Speed of a drop, px per frame. Exposed for tests.
+	///
+	/// @param drop Drop index, less than kNumDrops.
+	/// @return The drop's speed, always a multiple of kSpeedStep.
+	[[nodiscard]] float speedOf(size_t drop) const { return drops_[drop].speed; }
 
 private:
 	struct Drop {

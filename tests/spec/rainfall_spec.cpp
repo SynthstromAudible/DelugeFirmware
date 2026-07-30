@@ -147,6 +147,28 @@ describe rainfall("Rainfall", $ {
 		expect(windowsMeasured).to_be_greater_than(100);
 	});
 
+	it("steps on a repeating cadence, so slow drops move rather than stutter", _ {
+		// A drop advances only when its accumulated position crosses a pixel boundary, so what the
+		// eye reads as smooth is a REGULAR crossing schedule, not a fast one -- sub-pixel motion is
+		// impossible on a 1-bit panel either way. Snapping every speed to a multiple of kSpeedStep
+		// makes that schedule a short repeating cycle. An arbitrary real speed instead stalls a
+		// drop for one frame at unpredictable moments, which reads as judder.
+		//
+		// kSpeedStep is a negative power of two, so the snapped speeds and the positions they
+		// accumulate into are exactly representable: the cadence cannot drift however long the
+		// screensaver runs.
+		Rainfall field;
+		for (int32_t frame = 0; frame < 3000; frame++) {
+			for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
+				const float speed = field.speedOf(drop);
+				const float steps = speed / Rainfall::kSpeedStep;
+				expect(steps == std::floor(steps)).to_be_true();
+				expect(speed).to_be_greater_than(0.0f);
+			}
+			field.advance();
+		}
+	});
+
 	it("crosses pixel boundaries on both axes together, so drops never wiggle", _ {
 		// The window test above measures net travel; this one measures every single step, which is
 		// where the artefact it cannot see would live. If x and y cross pixel boundaries on
