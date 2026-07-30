@@ -3495,7 +3495,13 @@ void InstrumentClip::shiftOnlyOneNoteRowHorizontally(ModelStackWithNoteRow* mode
 	}
 }
 
+// used with midi clips to send out the midi program change and bank change messages when a clip is activated
+// so that the receiving instrument is in the correct state
 void InstrumentClip::sendMIDIPGM() {
+	if (output->type != OutputType::MIDI_OUT) {
+		return;
+	}
+
 	MIDIInstrument* midiInstrument = (MIDIInstrument*)output;
 
 	int32_t outputFilter = midiInstrument->getChannel();
@@ -3513,6 +3519,8 @@ void InstrumentClip::sendMIDIPGM() {
 	}
 }
 
+// used with midi clips to send out the current automated midi cc values when a clip is activated,
+// so that the receiving instrument is in the correct state
 void InstrumentClip::sendMIDICC() {
 	if (output->type != OutputType::MIDI_OUT) {
 		return;
