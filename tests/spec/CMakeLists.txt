@@ -58,3 +58,11 @@ set_target_properties(StarfieldPreview PROPERTIES
   CXX_STANDARD 23
   CXX_STANDARD_REQUIRED YES
 )
+
+# Visual harness for the OLED rain screensaver, on the same terms as StarfieldPreview above.
+add_executable(RainfallPreview rainfall_preview.cpp)
+target_link_libraries(RainfallPreview PRIVATE deluge_spec)
+set_target_properties(RainfallPreview PROPERTIES
+  CXX_STANDARD 23
+  CXX_STANDARD_REQUIRED YES
+)
