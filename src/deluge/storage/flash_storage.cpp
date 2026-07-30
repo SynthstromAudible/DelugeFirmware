@@ -781,13 +781,18 @@ void readSettings() {
 		defaultPatchCablePolarity = static_cast<Polarity>(buffer[189]);
 	}
 
-	// Bytes 196-197 hold the screensaver settings. Byte 196 alone can't say whether they were ever
-	// saved: a unit upgrading from a firmware that predates the screensaver has both zeroed, because
+	// Bytes 196-197 hold the screensaver settings, and take the shipped defaults on any unit that
+	// has never saved them -- which is how an upgrading unit picks the screensaver up.
+	//
+	// Byte 196 can't detect that case by itself: such a unit has both bytes zeroed, because
 	// writeSettings() clears the whole buffer first, and a zeroed mode byte is indistinguishable
-	// from a deliberate OFF. The timeout settles it -- zero is outside the range this firmware ever
-	// writes, so it only occurs on a unit that has never saved these settings. That case takes the
-	// shipped defaults, which is how an upgrading unit picks up the screensaver.
-	if (buffer[197] < kMinScreensaverTimeoutMinutes || buffer[197] > kMaxScreensaverTimeoutMinutes) {
+	// from a deliberate OFF. Two signals cover it between them. The version says whether the last
+	// firmware to save predates the setting, which catches anything released, official firmware
+	// included. It can't catch a 1.3.0 nightly from before the setting landed, though, since every
+	// build off this tree stamps the same 1.3.0 -- so the timeout covers that: zero is outside the
+	// range this firmware ever writes, so it too only occurs on a unit that has never saved here.
+	if (savedVersion < FirmwareVersion::community({1, 3, 0}) || buffer[197] < kMinScreensaverTimeoutMinutes
+	    || buffer[197] > kMaxScreensaverTimeoutMinutes) {
 		screensaverMode = kDefaultScreensaverMode;
 		screensaverTimeoutMinutes = kDefaultScreensaverTimeoutMinutes;
 	}
