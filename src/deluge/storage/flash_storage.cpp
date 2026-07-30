@@ -781,10 +781,9 @@ void readSettings() {
 		defaultPatchCablePolarity = static_cast<Polarity>(buffer[189]);
 	}
 
-	// Bytes 196-197 were unused before this feature, so an upgrading unit reads
-	// whatever was there. Anything out of range -- including erased 0xFF and a
-	// zeroed byte -- falls back to the shipped defaults, so nobody upgrading
-	// gets a surprise behaviour change.
+	// Bytes 196-197 carry no screensaver settings on a unit upgrading from a firmware that didn't
+	// have them, so they can hold anything. Every out-of-range value -- including erased 0xFF and a
+	// zeroed byte -- falls back to the shipped defaults, so an upgrade never changes behaviour.
 	if (buffer[196] >= kNumScreensaverModes) {
 		screensaverMode = ScreensaverMode::OFF;
 	}

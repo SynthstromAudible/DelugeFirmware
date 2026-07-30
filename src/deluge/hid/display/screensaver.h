@@ -22,50 +22,70 @@
 
 namespace deluge::hid::display {
 
-/// Blanks the OLED, or replaces it with a starfield, after a configurable period
-/// without physical input. OLED only: 7SEG units never activate it.
+/// @brief Blanks the OLED, or replaces it with a starfield, after a configurable period without
+///        physical input.
 ///
-/// Renders into its own canvas rather than the main one, so the screensaver never
-/// writes to `main`: waking up is just "stop overriding and mark dirty". Other UI
-/// timers (side-scrollers, the working animation, etc.) can and do keep writing to
-/// `main` while we're showing, so whatever they've left there is already current.
+/// OLED only: 7SEG units never activate it. All state is static -- there is exactly one screensaver.
+///
+/// @note It renders into its own canvas rather than the main one, and so never writes to `main`:
+///       waking up is just "stop overriding and mark dirty". Other UI timers (side-scrollers, the
+///       working animation) can and do keep writing to `main` while the screensaver is showing, so
+///       whatever they have left there is already current when it wakes.
 class Screensaver {
 public:
-	/// Called from the input path whenever a physical control is touched. Wakes the
-	/// screensaver if it is showing, and re-arms the idle timer either way.
+	/// @name Event entry points
+	/// @{
+
+	/// @brief Register that a physical control was touched: wake the screensaver if it is showing,
+	///        and re-arm the idle timer either way.
 	///
-	/// Sits on the input hot path: the wake check runs first, before the
-	/// mode-is-off check, so a mode that somehow reached OFF without going through
-	/// settingsChanged() can never strand the panel permanently blank.
+	/// @warning This sits on the input hot path. The wake check runs first, before the mode-is-off
+	///          check, so a mode that somehow reached OFF without going through settingsChanged()
+	///          can never strand the panel permanently blank.
 	static void noteActivity();
 
-	/// Dispatched from UITimerManager when TimerName::SCREENSAVER fires. Either
-	/// activates the screensaver or advances it one animation frame.
+	/// @brief Activate the screensaver, or advance it one animation frame.
+	///
+	/// Dispatched from UITimerManager when TimerName::SCREENSAVER fires.
 	static void timerEvent();
 
-	/// Called after the mode or timeout setting changes: wakes if showing, then
-	/// re-arms or cancels the timer for the new settings.
+	/// @brief Apply a change to the mode or timeout setting: wake if showing, then re-arm or cancel
+	///        the timer for the new settings.
 	static void settingsChanged();
 
+	/// @}
+
+	/// @name Display integration
+	/// @{
+
+	/// @return True while the screensaver is overriding the panel contents.
 	[[nodiscard]] static bool isActive() { return active_; }
 
-	/// True if our canvas changed since the last call, and clears the flag. Lets
-	/// sendMainImage() tell "our frame actually changed" apart from "some unrelated
-	/// timer (scrolling text, working animation) marked the display dirty while we're
-	/// showing" -- the latter must not re-enqueue an unchanged frame indefinitely.
+	/// @brief Test and clear the "our canvas changed" flag.
+	///
+	/// Lets sendMainImage() tell "our frame actually changed" apart from "some unrelated timer
+	/// (scrolling text, working animation) marked the display dirty while we are showing" -- the
+	/// latter must not re-enqueue an unchanged frame indefinitely.
+	///
+	/// @return True if the canvas changed since the last call.
 	static bool consumeFrameDirty() {
 		bool was = frameDirty_;
 		frameDirty_ = false;
 		return was;
 	}
 
-	/// XXX: DO NOT USE THIS OUTSIDE OF OLED::sendMainImage().
+	/// @brief The canvas the screensaver draws into, which sendMainImage() sends in place of `main`.
+	///
+	/// @warning DO NOT USE THIS OUTSIDE OF OLED::sendMainImage().
+	/// @return The screensaver's own canvas.
 	static oled_canvas::Canvas& getCanvas() { return canvas_; }
 
+	/// @}
+
 private:
-	/// Set the idle timer from the configured timeout.
+	/// @brief Set the idle timer from the configured timeout.
 	static void arm();
-	/// Draw the current frame into canvas_ and mark it dirty.
+	/// @brief Draw the current frame into canvas_ and mark it dirty.
 	static void render();
 
 	static bool active_;

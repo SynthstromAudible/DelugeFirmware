@@ -28,8 +28,9 @@
 
 namespace deluge::gui::menu_item::defaults {
 
-/// What the screensaver shows. Named ...Menu to avoid colliding with the
-/// global ScreensaverMode enum.
+/// @brief Picks what the screensaver shows: off, blank, or the starscape.
+///
+/// @note Suffixed ...Menu to avoid colliding with the global ScreensaverMode enum.
 class ScreensaverModeMenu final : public Selection {
 public:
 	using Selection::Selection;
@@ -47,7 +48,7 @@ public:
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override { return display->haveOLED(); }
 };
 
-/// Minutes without physical input before the screensaver appears.
+/// @brief Sets the number of minutes without physical input before the screensaver appears.
 class ScreensaverTimeout final : public Integer {
 public:
 	using Integer::Integer;
@@ -62,7 +63,8 @@ public:
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override { return display->haveOLED(); }
 };
 
-/// Hides the whole submenu on 7SEG units, rather than showing an empty one.
+/// @brief Holds the screensaver settings, and hides the whole submenu on 7SEG units rather than
+///        showing an empty one.
 class ScreensaverSubmenu final : public Submenu {
 public:
 	using Submenu::Submenu;
