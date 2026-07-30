@@ -91,21 +91,13 @@ describe rainfall("Rainfall", $ {
 		// different increments to x and y. This checks the thing that test cannot: that a drop's
 		// head actually travels the same distance on both axes, across time.
 		//
-		// Exact equality per window will not do, even over a long span: cellAt() truncates float
-		// positions to int32_t, and a drop's x and y generally start with different fractional
-		// parts (they come from independent random draws), so the two axes cross pixel boundaries
-		// at different frames. That truncation offset is bounded to one pixel -- structurally
-		// guaranteed for a window that starts at a respawn, since place() pins one axis to an exact
-		// integer there; only the very first window after scatter() is probabilistic, since scatter()
-		// draws both axes continuously. It does not shrink with a longer window either way, so a
-		// tolerance of one pixel is required and sufficient. A real per-axis
-		// speed asymmetry instead grows with the window: over 50 frames it is already several
-		// pixels, well outside that tolerance, so it cannot hide behind the truncation noise.
+		// Exact equality, not a tolerance: cellAt() derives both axes from the same floored x, so a
+		// drop cannot accumulate any offset between them however long it runs. A per-axis speed
+		// asymmetry would grow with the window and show up here immediately.
 		//
 		// Measured per drop over many 50-frame windows rather than one long one, because most
-		// drops respawn well before 50*kNumDrops frames have passed; a single window per drop
-		// starting at the first frame would mostly get discarded as a mid-window respawn, leaving
-		// nothing measured.
+		// drops respawn well before a single long window could close, which would leave nothing
+		// measured at all.
 		constexpr int32_t kFrames = 5000;
 		constexpr int32_t kWindow = 50;
 		Rainfall field;
@@ -140,7 +132,7 @@ describe rainfall("Rainfall", $ {
 						const int32_t dx = head.x - baseX[drop];
 						const int32_t dy = head.y - baseY[drop];
 						const int32_t diff = (dx > dy) ? (dx - dy) : (dy - dx);
-						expect(diff).to_be_less_than(2);
+						expect(diff).to_equal(0);
 						windowsMeasured++;
 						baseX[drop] = head.x;
 						baseY[drop] = head.y;
@@ -153,6 +145,53 @@ describe rainfall("Rainfall", $ {
 		}
 		// Guards against the assertion above passing vacuously because nothing was ever measured.
 		expect(windowsMeasured).to_be_greater_than(100);
+	});
+
+	it("crosses pixel boundaries on both axes together, so drops never wiggle", _ {
+		// The window test above measures net travel; this one measures every single step, which is
+		// where the artefact it cannot see would live. If x and y cross pixel boundaries on
+		// different frames, a drop advances right-only on one frame and down-only on the next,
+		// oscillating about its 45 degree axis rather than travelling along it -- net travel still
+		// comes out equal, but on a 3x3 block the motion reads as a wiggle.
+		//
+		// cellAt() derives both axes from the same floored x, so they cannot cross on different
+		// frames whatever the float arithmetic does. The requirement is therefore absolute, not
+		// statistical: every frame a drop moves at all, it moves equally on both axes.
+		constexpr int32_t kFrames = 4000;
+		Rainfall field;
+		std::array<int32_t, Rainfall::kNumDrops> prevX{};
+		std::array<int32_t, Rainfall::kNumDrops> prevY{};
+		for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
+			prevX[drop] = field.cellAt(drop, 0).x;
+			prevY[drop] = field.cellAt(drop, 0).y;
+		}
+
+		int32_t moved = 0;
+		int32_t skewed = 0;
+		for (int32_t frame = 0; frame < kFrames; frame++) {
+			field.advance();
+			for (size_t drop = 0; drop < Rainfall::kNumDrops; drop++) {
+				const Rainfall::Block head = field.cellAt(drop, 0);
+				const int32_t dx = head.x - prevX[drop];
+				const int32_t dy = head.y - prevY[drop];
+				prevX[drop] = head.x;
+				prevY[drop] = head.y;
+				// A respawn teleports the drop backwards; it is not a step.
+				if (dx < 0 || dy < 0) {
+					continue;
+				}
+				if (dx != 0 || dy != 0) {
+					moved++;
+					if (dx != dy) {
+						skewed++;
+					}
+				}
+			}
+		}
+
+		expect(skewed).to_equal(0);
+		// Guards against the assertion above passing vacuously because nothing ever moved.
+		expect(moved).to_be_greater_than(10000);
 	});
 
 	it("respawns drops that leave the panel, so none run away", _ {

@@ -17,6 +17,7 @@
 
 #include "hid/display/rainfall.h"
 #include <algorithm>
+#include <cmath>
 #include <limits>
 
 namespace deluge::hid::display {
@@ -86,6 +87,17 @@ void Rainfall::place(Drop& drop, bool seeded) {
 		drop.x = -reach - 1.0f;
 		drop.y = nextRandomFloat() * kVisibleHeight + kTopmost;
 	}
+
+	// Pin y to x by a whole-pixel offset, and keep it there: advance() derives y rather than
+	// integrating it. Two things depend on this, and both are required to stop the streak
+	// wiggling. The axes must share a fractional phase, so cellAt() crosses both pixel boundaries
+	// on the same frame and every step is a clean diagonal. And y must not drift from x through
+	// float rounding, which it does if both are accumulated independently -- the two sit at
+	// different magnitudes, so the same += speed rounds differently and they slip a frame apart.
+	// Either failure makes a drop step right on one frame and down on the next, oscillating about
+	// its own axis: on a 3x3 block, a visible wiggle.
+	drop.axisOffset = static_cast<int32_t>(std::lround(drop.x - drop.y));
+	drop.y = drop.x - static_cast<float>(drop.axisOffset);
 }
 
 void Rainfall::spawn(size_t index, bool seeded) {
@@ -136,10 +148,11 @@ void Rainfall::scatter() {
 void Rainfall::advance() {
 	for (size_t index = 0; index < kNumDrops; index++) {
 		Drop& drop = drops_[index];
-		// Equal on both axes: every drop travels along its own 45 degree axis, so the streak never
-		// slides sideways underneath itself.
+		// Only x is integrated; y follows it exactly, so the drop travels along its own 45 degree
+		// axis and the streak never slides sideways underneath itself. See place() for why y is
+		// derived rather than accumulated.
 		drop.x += drop.speed;
-		drop.y += drop.speed;
+		drop.y = drop.x - static_cast<float>(drop.axisOffset);
 
 		const float reach = reachOf(drop.size, drop.length);
 		if (drop.y - reach > kHeight || drop.x - reach > kWidth) {
@@ -151,9 +164,16 @@ void Rainfall::advance() {
 Rainfall::Block Rainfall::cellAt(size_t drop, size_t cell) const {
 	const Drop& d = drops_[drop];
 	const int32_t step = static_cast<int32_t>(cell) * d.size;
+	// Both axes come from the same floored x, so they cross pixel boundaries on the same frame no
+	// matter what the float arithmetic does. Flooring x and y independently would not: a cast
+	// truncates toward zero, so a drop still left of the panel (x negative, y not) converts its two
+	// axes by different rules, and even flooring both leaves y's value exposed to rounding at a
+	// different magnitude than x. Either way the drop steps right on one frame and down on the
+	// next, oscillating about its own axis -- on a 3x3 block, a visible wiggle.
+	const int32_t x = static_cast<int32_t>(std::floor(d.x));
 	return {
-	    .x = static_cast<int32_t>(d.x) - step,
-	    .y = static_cast<int32_t>(d.y) - step,
+	    .x = x - step,
+	    .y = x - d.axisOffset - step,
 	    .size = d.size,
 	};
 }

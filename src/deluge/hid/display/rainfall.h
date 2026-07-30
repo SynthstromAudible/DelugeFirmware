@@ -132,11 +132,12 @@ public:
 
 private:
 	struct Drop {
-		float x{};        ///< leading cell, left edge
-		float y{};        ///< leading cell, top edge
-		float speed{};    ///< px per frame, applied to both axes
-		uint8_t size{};   ///< 1, 2 or 3; zero marks a slot not yet placed
-		uint8_t length{}; ///< 3 or 4 cells
+		float x{};            ///< leading cell, left edge; the only axis that is integrated
+		float y{};            ///< leading cell, top edge; derived as x - axisOffset
+		int32_t axisOffset{}; ///< whole pixels, x - y; fixed for the drop's life
+		float speed{};        ///< px per frame, applied to both axes
+		uint8_t size{};       ///< 1, 2 or 3; zero marks a slot not yet placed
+		uint8_t length{};     ///< 3 or 4 cells
 	};
 
 	/// @brief Distance a streak's tail trails behind its head, on each axis, in pixels.
