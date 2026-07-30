@@ -1099,8 +1099,8 @@ constexpr auto kNumStartupSongMode = util::to_underlying(StartupSongMode::LASTSA
 /// @brief What the screensaver shows once the idle timeout expires. OLED only.
 ///
 /// @note Persisted to flash by value, so the order is fixed.
-enum class ScreensaverMode : uint8_t { OFF, BLANK, STARSCAPE };
-constexpr auto kNumScreensaverModes = util::to_underlying(ScreensaverMode::STARSCAPE) + 1;
+enum class ScreensaverMode : uint8_t { OFF, BLANK, STARSCAPE, DELUGE };
+constexpr auto kNumScreensaverModes = util::to_underlying(ScreensaverMode::DELUGE) + 1;
 
 constexpr uint8_t kHorizontalMenuSlotYOffset = 2;
 constexpr uint8_t kScreenTitleSeparatorY = 12 + OLED_MAIN_TOPMOST_PIXEL;

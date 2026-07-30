@@ -28,7 +28,7 @@
 
 namespace deluge::gui::menu_item::defaults {
 
-/// @brief Picks what the screensaver shows: off, blank, or the starscape.
+/// @brief Picks what the screensaver shows: off, blank, the starscape, or the rain.
 ///
 /// @note Suffixed ...Menu to avoid colliding with the global ScreensaverMode enum.
 class ScreensaverModeMenu final : public Selection {
@@ -43,7 +43,8 @@ public:
 		(void)optType;
 		return {l10n::getView(l10n::String::STRING_FOR_OFF),
 		        l10n::getView(l10n::String::STRING_FOR_SCREENSAVER_MODE_BLANK),
-		        l10n::getView(l10n::String::STRING_FOR_SCREENSAVER_MODE_STARSCAPE)};
+		        l10n::getView(l10n::String::STRING_FOR_SCREENSAVER_MODE_STARSCAPE),
+		        l10n::getView(l10n::String::STRING_FOR_SCREENSAVER_MODE_DELUGE)};
 	}
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override { return display->haveOLED(); }
 };

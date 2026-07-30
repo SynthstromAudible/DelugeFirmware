@@ -471,6 +471,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_SCREENSAVER_MODE, "Mode"},
         {STRING_FOR_SCREENSAVER_MODE_BLANK, "Blank"},
         {STRING_FOR_SCREENSAVER_MODE_STARSCAPE, "Starscape"},
+        {STRING_FOR_SCREENSAVER_MODE_DELUGE, "Deluge"},
         {STRING_FOR_SCREENSAVER_TIMEOUT, "Timeout"},
         {STRING_FOR_TEMPO_MAGNITUDE_MATCHING, "Tempo magnitude matching"},
         {STRING_FOR_TRIGGER_CLOCK, "Trigger clock"},
