@@ -3513,6 +3513,27 @@ void InstrumentClip::sendMIDIPGM() {
 	}
 }
 
+void InstrumentClip::sendMIDICC() {
+	if (output->type != OutputType::MIDI_OUT) {
+		return;
+	}
+
+	MIDIInstrument* midiInstrument = (MIDIInstrument*)output;
+	MIDIParamCollection* midiParamCollection = paramManager.getMIDIParamCollection();
+
+	int32_t outputFilter = midiInstrument->getChannel();
+	int32_t masterChannel = midiInstrument->getOutputMasterChannel();
+
+	for (int32_t i = 0; i < midiParamCollection->params.getNumElements(); i++) {
+		MIDIParam* midiParam = midiParamCollection->params.getElement(i);
+
+		if (midiParam->param.isAutomated()) {
+			midiParamCollection->sendMIDI(midiInstrument, masterChannel, midiParam->cc,
+			                              midiParam->param.getCurrentValue(), outputFilter);
+		}
+	}
+}
+
 void InstrumentClip::clear(Action* action, ModelStackWithTimelineCounter* modelStack, bool clearAutomation,
                            bool clearSequenceAndMPE) {
 	// this clears automations when "affectEntire" is enabled
