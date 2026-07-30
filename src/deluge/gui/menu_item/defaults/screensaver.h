@@ -55,8 +55,8 @@ public:
 class ScreensaverTimeout final : public Integer {
 public:
 	using Integer::Integer;
-	[[nodiscard]] int32_t getMinValue() const override { return 1; }
-	[[nodiscard]] int32_t getMaxValue() const override { return 60; }
+	[[nodiscard]] int32_t getMinValue() const override { return kMinScreensaverTimeoutMinutes; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kMaxScreensaverTimeoutMinutes; }
 	void readCurrentValue() override { this->setValue(FlashStorage::screensaverTimeoutMinutes); }
 	void writeCurrentValue() override {
 		FlashStorage::screensaverTimeoutMinutes = this->getValue();

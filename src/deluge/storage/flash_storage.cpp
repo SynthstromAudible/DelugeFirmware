@@ -350,8 +350,8 @@ void resetSettings() {
 	defaultHoldTime = 2;
 	holdTime = (defaultHoldTime * kSampleRate) / 20;
 
-	screensaverMode = ScreensaverMode::OFF;
-	screensaverTimeoutMinutes = 5;
+	screensaverMode = kDefaultScreensaverMode;
+	screensaverTimeoutMinutes = kDefaultScreensaverTimeoutMinutes;
 
 	defaultSwingInterval = 8 - defaultMagnitude; // 16th notes
 
@@ -781,19 +781,22 @@ void readSettings() {
 		defaultPatchCablePolarity = static_cast<Polarity>(buffer[189]);
 	}
 
-	// Bytes 196-197 carry no screensaver settings on a unit upgrading from a firmware that didn't
-	// have them, so they can hold anything. Every out-of-range value -- including erased 0xFF and a
-	// zeroed byte -- falls back to the shipped defaults, so an upgrade never changes behaviour.
-	if (buffer[196] >= kNumScreensaverModes) {
-		screensaverMode = ScreensaverMode::OFF;
+	// Bytes 196-197 hold the screensaver settings. Byte 196 alone can't say whether they were ever
+	// saved: a unit upgrading from a firmware that predates the screensaver has both zeroed, because
+	// writeSettings() clears the whole buffer first, and a zeroed mode byte is indistinguishable
+	// from a deliberate OFF. The timeout settles it -- zero is outside the range this firmware ever
+	// writes, so it only occurs on a unit that has never saved these settings. That case takes the
+	// shipped defaults, which is how an upgrading unit picks up the screensaver.
+	if (buffer[197] < kMinScreensaverTimeoutMinutes || buffer[197] > kMaxScreensaverTimeoutMinutes) {
+		screensaverMode = kDefaultScreensaverMode;
+		screensaverTimeoutMinutes = kDefaultScreensaverTimeoutMinutes;
 	}
 	else {
-		screensaverMode = static_cast<ScreensaverMode>(buffer[196]);
-	}
-
-	screensaverTimeoutMinutes = buffer[197];
-	if (screensaverTimeoutMinutes < 1 || screensaverTimeoutMinutes > 60) {
-		screensaverTimeoutMinutes = 5;
+		screensaverTimeoutMinutes = buffer[197];
+		// The block has been written, so an OFF here is the user's choice and is honoured. Only a
+		// corrupt out-of-range mode falls back.
+		screensaverMode =
+		    (buffer[196] < kNumScreensaverModes) ? static_cast<ScreensaverMode>(buffer[196]) : kDefaultScreensaverMode;
 	}
 }
 
