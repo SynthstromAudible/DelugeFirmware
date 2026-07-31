@@ -408,6 +408,9 @@ A `Favourites` feature has been added to the browser for most file types. The `F
   - Track 1 corresponds to bottom track in `ARRANGER VIEW` or left track in `GRID VIEW`.
   - You can also now configure the Channel `TRACK` for MIDI Follow Feedback. If a specific track is selected and has been configured
     for MIDI Follow control, the Deluge will send feedback of the CC values for that specific track.
+  - MIDI Follow Feedback can now be sent to both the selected track channel and a regular follow channel by selecting `TRACK + A`, `TRACK + B`, or `TRACK + C`.
+    - Combined feedback modes send to the configured track channel first, then to the configured regular channel.
+    - If both targets resolve to the same MIDI channel, feedback is sent only once.
 - Added new default CC 89 to toggle the mute of the active clip in a specific track.
   - Toggle mute: CC Value > 0 (Send a CC value greater than 0 to toggle mute for the active clip in a specific track)
     - If used together with `SHIFT`, it will trigger instant mute.
