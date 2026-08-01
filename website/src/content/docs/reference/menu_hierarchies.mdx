@@ -117,15 +117,15 @@ The Settings menu contains the following menu hierarchy:
     	- Display Param (DISP)
     		- Disabled (OFF)
     		- Enabled (ON)
-    	- Control Song Param (SONG)
-    		- Disabled (OFF)
-    		- Enabled (ON)
     - Select Kit Row (KROW)
     	- Disabled (OFF)
     	- Enabled (ON)
     - MIDI-Thru (THRU)
     	- Disabled (OFF)
     	- Enabled (ON)
+    - Transpose (TRAN)
+        - In Key (IN-K)
+        - Chromatic (CHRM)
     - Takeover (TOVR)
     	- Jump
     	- Pickup (PICK)
@@ -143,6 +143,7 @@ The Settings menu contains the following menu hierarchy:
     	- Fill
     	- Transpose (TRAN)
     	- Load Next Song (SONG)
+        - SHIFT (SHFT)
     - Differentiate Inputs (DIFF)
     	- Disabled (OFF)
     	- Enabled (ON)
@@ -175,6 +176,14 @@ The Settings menu contains the following menu hierarchy:
 <details>
 <summary>Defaults (DEFA)</summary>
     - UI
+        - Accessibility (ACCE)
+            - Shortcuts (SHOR)
+                - Disabled (OFF)
+                - Enabled (ON)
+            - Menu Highlighting (HIGH)
+                - Full inversion
+                - Partial inversion
+                - No inversion
     	- Song
     		- Layout (LAYT)
     			- Rows
@@ -216,10 +225,9 @@ The Settings menu contains the following menu hierarchy:
     		- Use Last Clip Type (LAST)
     			- Disabled (OFF)
     			- Enabled (ON)
-    	- Horizontal Menu (HORZ)
-    		- Alternative Select Behaviour (SELE)
-    			- Disabled (OFF)
-    			- Enabled (ON)
+        - Use Sharps (#) (SHRP)
+            - Disabled (OFF)
+            - Enabled (ON)
     - Automation (AUTO)
     	- Interpolation (INTE)
     		- Disabled (OFF)
@@ -275,6 +283,9 @@ The Settings menu contains the following menu hierarchy:
     - Resolution (RESO)
     - Bend Range (BEND)
     - Metronome (METR)
+    - Patch cable polarity (POLA)
+        - unipolar
+        - bipolar
     - Startup Song (SONG)
     	- New Song (NEW)
     	- Template Song (Default.XML) (TMPL)
@@ -354,6 +365,26 @@ NOTE: These options can change depending on how your default resolution is set
     		- Amber (AMBE)
     		- White (WHIT)
     		- Pink
+        - Fill
+            - Red
+            - Green (GREE)
+            - Blue
+            - Yellow (YELL)
+            - Cyan
+            - Purple (PURP)
+            - Amber (AMBE)
+            - White (WHIT)
+            - Pink
+        - ONCE
+            - Red
+            - Green (GREE)
+            - Blue
+            - Yellow (YELL)
+            - Cyan
+            - Purple (PURP)
+            - Amber (AMBE)
+            - White (WHIT)
+            - Pink
 </details>
 <details>
 <summary>Sample Preview (PREV)</summary>
@@ -403,15 +434,12 @@ NOTE: These options can change depending on how your default resolution is set
 <details>
 <summary>Community Features (FEAT)</summary>
     - Drum Randomizer (DRUM)
-    	- OFF
-    	- ON
-    - Fine Tempo Knob (TEMP)
-    	- OFF
-    	- ON
+        - OFF
+        - ON
     - Quantize (QUAN)
-    	- OFF
-    	- ON
-    - Mod. Depth Decimals (MOD.)
+        - OFF
+        - ON
+    - Fine Tempo Knob (TEMP)
     	- OFF
     	- ON
     - Catch Notes (CATC)
@@ -421,12 +449,6 @@ NOTE: These options can change depending on how your default resolution is set
     	- OFF
     	- ON
     - Alternative Golden Knob Delay Params (DELA)
-    	- OFF
-    	- ON
-    - Stutter Rate Quantize (STUT)
-    	- OFF
-    	- ON
-    - Reverse Stutter Rate (RSTUT)
     	- OFF
     	- ON
     - Allow Insecure Develop Sysex Messages (SYSX)
@@ -445,9 +467,6 @@ NOTE: These options can change depending on how your default resolution is set
     	- OFF
     	- ON
     - Light Shift (LIGH)
-    	- OFF
-    	- ON
-    - Grain FX (GRFX)
     	- OFF
     	- ON
     - DX7 ENGINE (DX7)
@@ -469,15 +488,24 @@ NOTE: These options can change depending on how your default resolution is set
     - Alternative Playback Start Behaviour (STAR)
     	- OFF
     	- ON
-    - Accessibility Shortcuts (ACCE)
+    - Grid View Loop Pads (LOOP)
     	- OFF
     	- ON
-    - Grid View Loop Pads (LOOP)
+    - Alternative Tap Tempo Behaviour (TAPT)
+        - OFF
+        - ON
+    - Horizontal Menus
     	- OFF
     	- ON
     - Trim from start of audio clips (TRIM)
     	- OFF
     	- ON
+    - Show Battery Level (BATT)
+        - OFF
+        - ON
+</details>
+<details>
+<summary>Battery level (BATT)</summary>
 </details>
 <details>
 <summary>Firmware Version (FIRM)</summary>
@@ -581,6 +609,10 @@ The Song menu contains the following menu hierarchy:
 		- Pan
 		- Reverb Sidechain (SIDE)
   			- Volume Ducking (VOLU)
+            - Shape (TYPE)
+            - Attack (ATTA)
+            - Release (RELE)
+            - Sync
 	- Stutter (STUT)
 		- Quantize (QTZ)
 		- Reverse (REVE)
@@ -755,13 +787,13 @@ The Audio Clip menu contains the following menu hierarchy:
 <details>
 <summary>Master (MSTR)</summary>
     - Volume (VOLU)
-    - Transpose (TRAN)
     - Pan
 </details>
 <details>
 <summary>Compressor (COMP)</summary>
     - Threshold (THRE)
     - Ratio (RATI)
+    - Blend
     - Attack (ATTA)
     - Release (RELE)
     - HPF
@@ -849,7 +881,11 @@ The Audio Clip menu contains the following menu hierarchy:
 		- LPF (if Mutable is Selected)
 		- Pan
 		- Reverb Sidechain (SIDE)
-		- Volume Ducking (VOLU)
+			- Volume Ducking (VOLU)
+			- Shape (TYPE)
+			- Attack (ATTA)
+			- Release (RELE)
+			- Sync
 	- Stutter (STUT)
 		- Use Song Settings (SONG)
 		- Quantize (QTZ)
@@ -916,6 +952,7 @@ The Audio Clip menu contains the following menu hierarchy:
 <details>
 <summary>Sample (SAMP)</summary>
 	- File Browser (FILE)
+	- Transpose (TRAN)
 	- Reverse (REVE)
 		- Disabled (OFF)
 		- Enabled (ON)
@@ -923,6 +960,9 @@ The Audio Clip menu contains the following menu hierarchy:
 		- Linked
 		- Independent
 	- Waveform (WAVE)
+	- INTERPOLATION
+		- Linear
+		- Sinc
 </details>
 <details>
 <summary>Attack (ATTA)</summary>
@@ -946,9 +986,9 @@ The Sound menu contains the following menu hierarchy:
 <details>
 <summary>Actions (ACT)<Badge text="c1.3" variant="tip" /></summary>
     - Edit Name (NAME)
-	    - Edit Track Name (TRAK) // synth clips
-    	- Edit Clip Name (CLIP) // synth clips
-		- Edit Drum Name (DRUM) // kit clip
+        - Edit Track Name (TRAK) (Synth clips)
+        - Edit Clip Name (CLIP) (Synth clips)
+        - Rename drum (DRUM) (Kit rows)
     - Record to sample 1 (REC1)
     - Record to sample 2 (REC2)
 </details>
@@ -1049,6 +1089,7 @@ The Sound menu contains the following menu hierarchy:
 <summary>Compressor (COMP)</summary>
     - Threshold (THRE)
     - Ratio (RATI)
+    - Blend
     - Attack (ATTA)
     - Release (RELE)
     - HPF
@@ -1137,6 +1178,10 @@ The Sound menu contains the following menu hierarchy:
 		- Pan
 		- Reverb Sidechain (SIDE)
 			- Volume Ducking (VOLU)
+			- Shape (TYPE)
+			- Attack (ATTA)
+			- Release (RELE)
+			- Sync
 	- Stutter (STUT)
 		- Use Song Settings (SONG)
 		- Quantize (QTZ)
@@ -1519,8 +1564,8 @@ The Kit FX menu contains the following menu hierarchy:
 <details>
 <summary>Actions (ACT)<Badge text="c1.3" variant="tip" /></summary>
     - Edit Name (NAME)
-	    - Edit Track Name (TRAK)
-    	- Edit Clip Name (CLIP)
+        - Edit Track Name (TRAK)
+        - Edit Clip Name (CLIP)
 	- Audio Export (EXPO)
 		- Start Export (EXPO)
 		- Configure Export (CONF)
@@ -1608,6 +1653,7 @@ The Kit FX menu contains the following menu hierarchy:
 <summary>Compressor (COMP)</summary>
     - Threshold (THRE)
     - Ratio (RATI)
+    - Blend
     - Attack (ATTA)
     - Release (RELE)
     - HPF
@@ -1696,6 +1742,10 @@ The Kit FX menu contains the following menu hierarchy:
     	- LPF (if Mutable is Selected)
     	- Reverb Sidechain (SIDE)
     		- Volume Ducking (VOLU)
+            - Shape (TYPE)
+            - Attack (ATTA)
+            - Release (RELE)
+            - Sync
     - Stutter (STUT)
     	- Use Song Settings (SONG)
     	- Quantize (QTZ)
@@ -1886,6 +1936,11 @@ The MIDI menu contains the following menu hierarchy:
 <summary>Bend Range (BEND)</summary>
     - Normal (NORM)
     - Poly / Finger / MPE (MPE)
+</details>
+<details>
+<summary>Send Y as CC1 (Y->M)</summary>
+    - Disabled (OFF)
+    - Enabled (ON)
 </details>
 <details>
 <summary>Poly Expression to Mono (POLY)</summary>
