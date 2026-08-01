@@ -120,19 +120,15 @@
   vertical-align: baseline;
 }
 
-.menu-hierarchy-page[data-hide-seven-segment="true"] .menu-hierarchy-7seg-value {
+.menu-hierarchy-page[data-hide-seven-segment="true"]
+  .menu-hierarchy-7seg-value {
   display: none;
 }
 
 .menu-hierarchy-page .menu-hierarchy-7seg {
   color: #ff4f55;
   font-family:
-    "Deluge LED",
-    ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    Consolas,
-    monospace;
+    "Deluge LED", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 1.1em;
   font-synthesis: none;
   letter-spacing: 0;

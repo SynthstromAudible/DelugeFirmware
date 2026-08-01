@@ -35,9 +35,9 @@
 
   function getSingleDisplayParts(text) {
     const matches = [...text.matchAll(DISPLAY_CODE_PATTERN)]
-    const displayMatch = matches.reverse().find((match) =>
-      isDisplayCode(match[1]),
-    )
+    const displayMatch = matches
+      .reverse()
+      .find((match) => isDisplayCode(match[1]))
 
     if (!displayMatch || displayMatch.index === undefined) {
       return undefined
@@ -120,7 +120,9 @@
   }
 
   function setupHide7SegSwitch(content) {
-    const switchInput = document.querySelector("[data-menu-hierarchy-hide-7seg]")
+    const switchInput = document.querySelector(
+      "[data-menu-hierarchy-hide-7seg]",
+    )
 
     if (!switchInput) {
       return
