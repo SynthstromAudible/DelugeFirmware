@@ -8,13 +8,27 @@
   />
 </label>
 
-<script>
+<script is:inline>
+  /**
+   * @typedef {object} SingleDisplayPart
+   * @property {string} leadingWhitespace
+   * @property {string} oled
+   * @property {string} displayCode
+   * @property {string} after
+   *
+   * @typedef {object} SeparatorDisplayPart
+   * @property {string} text
+   *
+   * @typedef {SingleDisplayPart | SeparatorDisplayPart} DisplayPart
+   */
+
   const DISPLAY_CODE_PATTERN = /\(([^()]+)\)/g
   const MENU_HIERARCHY_PATH = /\/reference\/menu_hierarchies\/?$/i
   const MAX_DISPLAY_CODE_LENGTH = 32
   const NON_DISPLAY_PARENTHETICAL_PATTERN =
     /^(if |note:|only |or |e\.g\.|can |each |synth clips$|kit rows$|no fx$|default\.xml$|synth \/ kit \/ midi \/ cv$)/i
 
+  /** @param {string} value */
   function isDisplayCode(value) {
     const code = value.trim()
 
@@ -33,6 +47,10 @@
     return true
   }
 
+  /**
+   * @param {string} text
+   * @returns {SingleDisplayPart | undefined}
+   */
   function getSingleDisplayParts(text) {
     const matches = [...text.matchAll(DISPLAY_CODE_PATTERN)]
     const displayMatch = matches
@@ -60,8 +78,13 @@
     }
   }
 
+  /**
+   * @param {string} text
+   * @returns {DisplayPart[] | undefined}
+   */
   function getSlashSeparatedDisplayParts(text) {
     const pieces = text.split(/(\s+\/\s+)/)
+    /** @type {(DisplayPart | undefined)[]} */
     const transformedPieces = pieces.map((piece) => {
       if (/^\s+\/\s+$/.test(piece)) {
         return { text: piece }
@@ -80,9 +103,13 @@
       return undefined
     }
 
-    return transformedPieces
+    return /** @type {DisplayPart[]} */ (transformedPieces.filter(Boolean))
   }
 
+  /**
+   * @param {string} text
+   * @returns {DisplayPart[] | undefined}
+   */
   function getDisplayParts(text) {
     const slashSeparatedParts = getSlashSeparatedDisplayParts(text)
 
@@ -95,6 +122,7 @@
     return displayParts ? [displayParts] : undefined
   }
 
+  /** @param {SingleDisplayPart} part */
   function createDisplayLabel({ oled, displayCode }) {
     const label = document.createElement("span")
     label.className = "menu-hierarchy-display-label"
@@ -119,9 +147,10 @@
     return label
   }
 
+  /** @param {HTMLElement} content */
   function setupHide7SegSwitch(content) {
-    const switchInput = document.querySelector(
-      "[data-menu-hierarchy-hide-7seg]",
+    const switchInput = /** @type {HTMLInputElement | null} */ (
+      document.querySelector("[data-menu-hierarchy-hide-7seg]")
     )
 
     if (!switchInput) {
@@ -140,6 +169,7 @@
     updateVisibility()
   }
 
+  /** @param {HTMLElement} node */
   function enhanceNode(node) {
     if (node.dataset.menuHierarchyDisplayLabel === "true") {
       return
@@ -147,7 +177,8 @@
 
     const textNode = Array.from(node.childNodes).find(
       (childNode) =>
-        childNode.nodeType === Node.TEXT_NODE && childNode.textContent?.trim(),
+        childNode.nodeType === Node.TEXT_NODE &&
+        Boolean(childNode.textContent?.trim()),
     )
 
     if (!textNode?.textContent) {
@@ -182,7 +213,9 @@
       return
     }
 
-    const content = document.querySelector(".sl-markdown-content")
+    const content = /** @type {HTMLElement | null} */ (
+      document.querySelector(".sl-markdown-content")
+    )
 
     if (!content) {
       return
@@ -190,7 +223,11 @@
 
     content.classList.add("menu-hierarchy-page")
     setupHide7SegSwitch(content)
-    content.querySelectorAll("li, summary").forEach(enhanceNode)
+    content.querySelectorAll("li, summary").forEach((node) => {
+      if (node instanceof HTMLElement) {
+        enhanceNode(node)
+      }
+    })
   }
 
   document.addEventListener("astro:page-load", enhanceMenuHierarchyLabels)
