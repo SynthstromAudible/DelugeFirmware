@@ -5,10 +5,13 @@ sidebar:
 ---
 
 import { Badge } from "@astrojs/starlight/components"
+import MenuHierarchyDisplayLabels from "../../../components/MenuHierarchyDisplayLabels.astro"
 
 This document will document the menu structure hierarchy currently in place in the deluge in order to help users understand what exists in the menu structure and how the hierarchy strings are defined for OLED and 7SEG users.
 
-The hierarchy's illustrated below will follow the format of OLED (7SEG) in order to show the Menu name on OLED and the Menu name on 7SEG in brackets.
+By default, the hierarchies below show the OLED display text first, followed by the 7SEG display text.
+
+<MenuHierarchyDisplayLabels />
 
 ## Settings
 
@@ -37,48 +40,48 @@ The Settings menu contains the following menu hierarchy:
     - Transpose (TRAN)
 </details>
 <details>
-<summary>Gate</summary>
+<summary>Gate (GATE)</summary>
     - Gate Output 1 (OUT1)
-    	- V-Trig (VTRI)
-    	- S-Trig (STRI)
+        - V-Trig (VTRI)
+        - S-Trig (STRI)
     - Gate Output 2 (OUT2)
-    	- V-Trig (VTRI)
-    	- S-Trig (STRI)
+        - V-Trig (VTRI)
+        - S-Trig (STRI)
     - Gate Output 3 (OUT3)
-    	- V-Trig (VTRI)
-    	- S-Trig (STRI)
+        - V-Trig (VTRI)
+        - S-Trig (STRI)
     - Gate Output 4 (OUT4)
-    	- V-Trig (VTRI)
-    	- S-Trig (STRI)
+        - V-Trig (VTRI)
+        - S-Trig (STRI)
     - Minimum Off-Time (OFFT)
 </details>
 <details>
 <summary>Trigger Clock (TCLO)</summary>
     - Input (IN)
-    	- PPQN
-    	- Auto-Start (AUTO)
-    		- Disabled (ON)
-    		- Enabled (OFF)
+        - PPQN (PPQN)
+        - Auto-Start (AUTO)
+            - Disabled (ON)
+            - Enabled (OFF)
     - Output (OUT)
-    	- PPQN
+        - PPQN (PPQN)
 </details>
 <details>
-<summary>MIDI</summary>
+<summary>MIDI (MIDI)</summary>
     - Clock (CLK)
-    	- Input (IN)
-    		- Disabled (ON)
-    		- Enabled (OFF)
-    	- Output (OUT)
-    		- Disabled (ON)
-    		- Enabled (OFF)
-    	- Tempo Magnitude Matching (MAGN)
-    		- Disabled
-    		- Enabled
+        - Input (IN)
+            - Disabled (ON)
+            - Enabled (OFF)
+        - Output (OUT)
+            - Disabled (ON)
+            - Enabled (OFF)
+        - Tempo Magnitude Matching (MAGN)
+            - Disabled (OFF)
+            - Enabled (ON)
     - MIDI-Follow (FOLO)
-    	- Channel (CHAN)
-    		- Channel A (A)
-    		- Channel B (B)
-    		- Channel C (C)
+        - Channel (CHAN)
+            - Channel A (A)
+            - Channel B (B)
+            - Channel C (C)
             - Channel Track01 (TR01)
             - Channel Track02 (TR02)
             - Channel Track03 (TR03)
@@ -95,9 +98,9 @@ The Settings menu contains the following menu hierarchy:
             - Channel Track14 (TR14)
             - Channel Track15 (TR15)
             - Channel Track16 (TR16)
-    	- Kit Root Note (KIT)
-    	- Feedback (FEED)
-    		- Channel (CHAN)
+        - Kit Root Note (KIT)
+        - Feedback (FEED)
+            - Channel (CHAN)
                 - None (NONE)
                 - Channel A (A)
                 - Channel B (B)
@@ -106,285 +109,285 @@ The Settings menu contains the following menu hierarchy:
                 - Channel Track + Channel A (TR+A)
                 - Channel Track + Channel B (TR+B)
                 - Channel Track + Channel C (TR+C)
-    		- Automation Feedback (AUTO)
-    			- Disabled (OFF)
-    			- Low
-    			- Medium (MEDI)
-    			- High
-    		- Filter Responses (FLTR)
-    			- Disabled (OFF)
-    			- Enabled (ON)
-    	- Display Param (DISP)
-    		- Disabled (OFF)
-    		- Enabled (ON)
+            - Automation Feedback (AUTO)
+                - Disabled (OFF)
+                - Low (LOW)
+                - Medium (MEDI)
+                - High (HIGH)
+            - Filter Responses (FLTR)
+                - Disabled (OFF)
+                - Enabled (ON)
+        - Display Param (DISP)
+            - Disabled (OFF)
+            - Enabled (ON)
     - Select Kit Row (KROW)
-    	- Disabled (OFF)
-    	- Enabled (ON)
+        - Disabled (OFF)
+        - Enabled (ON)
     - MIDI-Thru (THRU)
-    	- Disabled (OFF)
-    	- Enabled (ON)
+        - Disabled (OFF)
+        - Enabled (ON)
     - Transpose (TRAN)
         - In Key (IN-K)
         - Chromatic (CHRM)
     - Takeover (TOVR)
-    	- Jump
-    	- Pickup (PICK)
-    	- Scale (SCAL)
-    	- Relative (RELA)
+        - Jump (JUMP)
+        - Pickup (PICK)
+        - Scale (SCAL)
+        - Relative (RELA)
     - Commands (CMD)
-    	- Play
-    	- Restart (REST)
-    	- Record (REC)
-    	- Tap Tempo (TAP)
-    	- Undo
-    	- Redo
-    	- Loop
-    	- Layering Loop (LAYE)
-    	- Fill
-    	- Transpose (TRAN)
-    	- Load Next Song (SONG)
+        - Play (PLAY)
+        - Restart (REST)
+        - Record (REC)
+        - Tap Tempo (TAP)
+        - Undo (UNDO)
+        - Redo (REDO)
+        - Loop (LOOP)
+        - Layering Loop (LAYE)
+        - Fill (FILL)
+        - Transpose (TRAN)
+        - Load Next Song (SONG)
         - SHIFT (SHFT)
     - Differentiate Inputs (DIFF)
-    	- Disabled (OFF)
-    	- Enabled (ON)
+        - Disabled (OFF)
+        - Enabled (ON)
     - Devices (DEVI)
-    	- DIN Ports (DIN)
-    		- MPE
-    			- In
-    				- Lower Zone (LOWE)
-    				- Upper Zone (UPPE)
-    			- Out
-    				- Lower Zone (LOWE)
-    				- Upper Zone (UPPE)
-    		- Velocity (VELO)
-    		- Clock (CLK)
-    			- Disabled (OFF)
-    			- Enabled (ON)
-    	- Loopback
-    		- MPE
-    			- In
-    				- Lower Zone (LOWE)
-    				- Upper Zone (UPPE)
-    			- Out
-    				- Lower Zone (LOWE)
-    				- Upper Zone (UPPE)
-    		- Velocity (VELO)
-    		- Clock (CLK)
-    			- Disabled (OFF)
-    			- Enabled (ON)
+        - DIN Ports (DIN)
+            - MPE (MPE)
+                - In (In)
+                    - Lower Zone (LOWE)
+                    - Upper Zone (UPPE)
+                - Out (Out)
+                    - Lower Zone (LOWE)
+                    - Upper Zone (UPPE)
+            - Velocity (VELO)
+            - Clock (CLK)
+                - Disabled (OFF)
+                - Enabled (ON)
+        - Loopback (Loopback)
+            - MPE (MPE)
+                - In (In)
+                    - Lower Zone (LOWE)
+                    - Upper Zone (UPPE)
+                - Out (Out)
+                    - Lower Zone (LOWE)
+                    - Upper Zone (UPPE)
+            - Velocity (VELO)
+            - Clock (CLK)
+                - Disabled (OFF)
+                - Enabled (ON)
 </details>
 <details>
 <summary>Defaults (DEFA)</summary>
-    - UI
+    - UI (UI)
         - Accessibility (ACCE)
             - Shortcuts (SHOR)
                 - Disabled (OFF)
                 - Enabled (ON)
             - Menu Highlighting (HIGH)
-                - Full inversion
-                - Partial inversion
-                - No inversion
-    	- Song
-    		- Layout (LAYT)
-    			- Rows
-    			- Grid
-    		- Grid
-    			- Default Active Mode (DEFM)
-    				- Selection (SELE)
-    				- Green (GREE)
-    				- Blue
-    			- Select In Green Mode (GREE)
-    				- Disabled (OFF)
-    				- Enabled (ON)
-    			- Empty Pads (EMPT)
-    				- Unarm (UNAR)
-    				- Create + Record (CREA)
-    	- Keyboard (KEY)
-    		- Layout (LAYT)
-    			- Isomorphic (ISO)
-    			- In-Key (INKY)
-    			- Piano (PIAN)
-    		- Sidebar Controls (CTRL)
-    			- Momentary Velocity (MVEL)
-    				- Disabled (OFF)
-    				- Enabled (ON)
-    			- Momentary Modwheel (MMOD)
-    				- Disabled (OFF)
-    				- Enabled (ON)
-    		- Favourites (FAV)
-    			- Favourites Only (16)
-    			- Favourites and Banks (256)
-    			- Off (OFF)
-    	- Clip Type (CLIP)
-    		- New Clip Type (TYPE)
-    			- Synth
-    			- Kit
-    			- Midi
-    			- CV
-    			- Audio
-    		- Use Last Clip Type (LAST)
-    			- Disabled (OFF)
-    			- Enabled (ON)
+                - Full inversion (Full inversion)
+                - Partial inversion (Partial inversion)
+                - No inversion (No inversion)
+        - Song (SONG)
+            - Layout (LAYT)
+                - Rows (ROWS)
+                - Grid (GRID)
+            - Grid (GRID)
+                - Default Active Mode (DEFM)
+                    - Selection (SELE)
+                    - Green (GREE)
+                    - Blue (BLUE)
+                - Select In Green Mode (GREE)
+                    - Disabled (OFF)
+                    - Enabled (ON)
+                - Empty Pads (EMPT)
+                    - Unarm (UNAR)
+                    - Create + Record (CREA)
+        - Keyboard (KEY)
+            - Layout (LAYT)
+                - Isomorphic (ISO)
+                - In-Key (INKY)
+                - Piano (PIAN)
+            - Sidebar Controls (CTRL)
+                - Momentary Velocity (MVEL)
+                    - Disabled (OFF)
+                    - Enabled (ON)
+                - Momentary Modwheel (MMOD)
+                    - Disabled (OFF)
+                    - Enabled (ON)
+            - Favourites (FAV)
+                - Favourites Only (16)
+                - Favourites and Banks (256)
+                - Off (OFF)
+        - Clip Type (CLIP)
+            - New Clip Type (TYPE)
+                - Synth (Synth)
+                - Kit (Kit)
+                - Midi (MIDI)
+                - CV (CV)
+                - Audio (Audio)
+            - Use Last Clip Type (LAST)
+                - Disabled (OFF)
+                - Enabled (ON)
         - Use Sharps (#) (SHRP)
             - Disabled (OFF)
             - Enabled (ON)
     - Automation (AUTO)
-    	- Interpolation (INTE)
-    		- Disabled (OFF)
-    		- Enabled (ON)
-    	- Clear (CLEA)
-    		- Disabled (OFF)
-    		- Enabled (ON)
-    	- Shift (SHIF)
-    		- Disabled (Off)
-    		- Enabled (ON)
-    	- Nudge Note (NUDG)
-    		- Disabled (OFF)
-    		- Enabled (ON)
-    	- Disable Audition Pad Shortcuts (SCUT)
-    		- Disabled (OFF)
-    		- Enabled (ON)
+        - Interpolation (INTE)
+            - Disabled (OFF)
+            - Enabled (ON)
+        - Clear (CLEA)
+            - Disabled (OFF)
+            - Enabled (ON)
+        - Shift (SHIF)
+            - Disabled (Off)
+            - Enabled (ON)
+        - Nudge Note (NUDG)
+            - Disabled (OFF)
+            - Enabled (ON)
+        - Disable Audition Pad Shortcuts (SCUT)
+            - Disabled (OFF)
+            - Enabled (ON)
     - Tempo (TEMP)
     - Swing Amount (SWIA)
     - Swing Interval (SWII)
-	NOTE: These options can change depending on how your default resolution is set
-		- 2-Bar
-		- 1-Bar
-		- 2nd-Notes
-		- 4th-Notes
-		- 8th-Notes
-		- 16th-Notes
-		- 32nd-Notes
-		- 64th-Notes
-		- 128th-Notes
-    - Key
+    NOTE: These options can change depending on how your default resolution is set
+        - 2-Bar (2BAR)
+        - 1-Bar (1BAR)
+        - 2nd-Notes (2ND)
+        - 4th-Notes (4TH)
+        - 8th-Notes (8TH)
+        - 16th-Notes (16TH)
+        - 32nd-Notes (32ND)
+        - 64th-Notes (64TH)
+        - 128th-Notes (128T)
+    - Key (KEY)
     - Scale (SCAL)
-    	- Init Scale
-    	- Active Scales
-    		- Major (MAJO)
-    		- Minor (MINO)
-    		- Dorian (DORI)
-    		- Phrygian (PHRY)
-    		- Lydian (LYDI)
-    		- Mixolydian (MIXO)
-    		- Locrian (LOCR)
-    		- Melodic Minor (MELO)
-    		- Harmonic Minor (HARM)
-    		- Hungarian Minor (HUNG)
-    		- Marva (MARV)
-    		- Arabian (ARAB)
-    		- Whole Tone (WHOL)
-    		- Blues (BLUE)
-    		- Pentatonic Minor (PENT)
-    		- Hirajoshi (HIRA)
-    		- Random (RAND)
-    		- None
+        - Init Scale (Init scale)
+        - Active Scales (Active scales)
+            - Major (MAJO)
+            - Minor (MINO)
+            - Dorian (DORI)
+            - Phrygian (PHRY)
+            - Lydian (LYDI)
+            - Mixolydian (MIXO)
+            - Locrian (LOCR)
+            - Melodic Minor (MELO)
+            - Harmonic Minor (HARM)
+            - Hungarian Minor (HUNG)
+            - Marva (MARV)
+            - Arabian (ARAB)
+            - Whole Tone (WHOL)
+            - Blues (BLUE)
+            - Pentatonic Minor (PENT)
+            - Hirajoshi (HIRA)
+            - Random (RAND)
+            - None (NONE)
     - Velocity (VELO)
     - Resolution (RESO)
     - Bend Range (BEND)
     - Metronome (METR)
     - Patch cable polarity (POLA)
-        - unipolar
-        - bipolar
+        - unipolar (unipolar)
+        - bipolar (bipolar)
     - Startup Song (SONG)
-    	- New Song (NEW)
-    	- Template Song (Default.XML) (TMPL)
-    	- Last Opened Song (OPEN)
-    	- Last Saved Song (SAVE)
-    - Pad Brightness
-    - Sample Slice Mode
-    	- Cut
-    	- Once
-    	- Loop
-    	- Stretch
+        - New Song (NEW)
+        - Template Song (Default.XML) (TMPL)
+        - Last Opened Song (OPEN)
+        - Last Saved Song (SAVE)
+    - Pad Brightness (BRIG)
+    - Sample Slice Mode (SLIM)
+        - Cut (CUT)
+        - Once (ONCE)
+        - Loop (LOOP)
+        - Stretch (STRETCH)
     - High CPU Indicator (CPU)
-    	- Disabled (OFF)
-    	- Enabled (ON)
+        - Disabled (OFF)
+        - Enabled (ON)
     - Hold Press Time (HOLD)
 </details>
 <details>
 <summary>Swing Interval (SWII)</summary>
 NOTE: These options can change depending on how your default resolution is set
-    - 2-Bar
-    - 1-Bar
-    - 2nd-Notes
-    - 4th-Notes
-    - 8th-Notes
-    - 16th-Notes
-    - 32nd-Notes
-    - 64th-Notes
-    - 128th-Notes
+    - 2-Bar (2BAR)
+    - 1-Bar (1BAR)
+    - 2nd-Notes (2ND)
+    - 4th-Notes (4TH)
+    - 8th-Notes (8TH)
+    - 16th-Notes (16TH)
+    - 32nd-Notes (32ND)
+    - 64th-Notes (64TH)
+    - 128th-Notes (128T)
 </details>
 <details>
-<summary>Pads</summary>
+<summary>Pads (PADS)</summary>
     - Shortcut Version (SHOR)
-    	- 1.0
-    	- 3.0
+        - 1.0 (1.0)
+        - 3.0 (3.0)
     - Keyboard for Text (KEYB)
-    	- QWERTY (QWER)
-    	- AZERTY (AZER)
-    	- QWERTZ (QRTZ)
+        - QWERTY (QWER)
+        - AZERTY (AZER)
+        - QWERTZ (QRTZ)
     - Colours (COLO)
-    	- Active (ACTI)
-    		- Red
-    		- Green (GREEN)
-    		- Blue
-    		- Yellow (YELL)
-    		- Cyan
-    		- Purple (PURP)
-    		- Amber (AMBE)
-    		- White (WHIT)
-    		- Pink
-    	- Stopped (STOP)
-    		- Red
-    		- Green (GREE)
-    		- Blue
-    		- Yellow (YELL)
-    		- Cyan
-    		- Purple (PURP)
-    		- Amber (AMBE)
-    		- White (WHIT)
-    		- Pink
-    	- Muted (MUTE)
-    		- Red
-    		- Green (GREE)
-    		- Blue
-    		- Yellow (YELL)
-    		- Cyan
-    		- Purple (PURP)
-    		- Amber (AMBE)
-    		- White (WHIT)
-    		- Pink
-    	- Soloed
-    		- Red
-    		- Green (GREE)
-    		- Blue
-    		- Yellow (YELL)
-    		- Cyan
-    		- Purple (PURP)
-    		- Amber (AMBE)
-    		- White (WHIT)
-    		- Pink
-        - Fill
-            - Red
-            - Green (GREE)
-            - Blue
+        - Active (ACTI)
+            - Red (RED)
+            - Green (GREEN)
+            - Blue (BLUE)
             - Yellow (YELL)
-            - Cyan
+            - Cyan (CYAN)
             - Purple (PURP)
             - Amber (AMBE)
             - White (WHIT)
-            - Pink
-        - ONCE
-            - Red
+            - Pink (PINK)
+        - Stopped (STOP)
+            - Red (RED)
             - Green (GREE)
-            - Blue
+            - Blue (BLUE)
             - Yellow (YELL)
-            - Cyan
+            - Cyan (CYAN)
             - Purple (PURP)
             - Amber (AMBE)
             - White (WHIT)
-            - Pink
+            - Pink (PINK)
+        - Muted (MUTE)
+            - Red (RED)
+            - Green (GREE)
+            - Blue (BLUE)
+            - Yellow (YELL)
+            - Cyan (CYAN)
+            - Purple (PURP)
+            - Amber (AMBE)
+            - White (WHIT)
+            - Pink (PINK)
+        - Soloed (SOLOED)
+            - Red (RED)
+            - Green (GREE)
+            - Blue (BLUE)
+            - Yellow (YELL)
+            - Cyan (CYAN)
+            - Purple (PURP)
+            - Amber (AMBE)
+            - White (WHIT)
+            - Pink (PINK)
+        - Fill (FILL)
+            - Red (RED)
+            - Green (GREE)
+            - Blue (BLUE)
+            - Yellow (YELL)
+            - Cyan (CYAN)
+            - Purple (PURP)
+            - Amber (AMBE)
+            - White (WHIT)
+            - Pink (PINK)
+        - ONCE (ONCE)
+            - Red (RED)
+            - Green (GREE)
+            - Blue (BLUE)
+            - Yellow (YELL)
+            - Cyan (CYAN)
+            - Purple (PURP)
+            - Amber (AMBE)
+            - White (WHIT)
+            - Pink (PINK)
 </details>
 <details>
 <summary>Sample Preview (PREV)</summary>
@@ -394,115 +397,115 @@ NOTE: These options can change depending on how your default resolution is set
 </details>
 <details>
 <summary>Play-Cursor (CURS)</summary>
-    - Fast
+    - Fast (FAST)
     - Disabled (OFF)
-    - Slow
+    - Slow (SLOW)
 </details>
 <details>
 <summary>Recording (RECO)</summary>
     - Count-in (COUN)
-    	- Disabled (OFF)
-    	- Enabled (ON)
+        - Disabled (OFF)
+        - Enabled (ON)
     - Quantization (QUAN)
-    	- Off
-    	- 4-Bar (4BAR)
-    	- 2-Bar (2BAR)
-    	- 1-Bar (1BAR)
-    	- 2nd-Notes (2ND)
-    	- 4th-Notes (4TH)
-    	- 8th-Notes (8TH)
-    	- 16th-Notes (16TH)
-    	- 32nd-Notes (32ND)
-    	- 64th-Notes (64TH)
+        - Off (Off)
+        - 4-Bar (4BAR)
+        - 2-Bar (2BAR)
+        - 1-Bar (1BAR)
+        - 2nd-Notes (2ND)
+        - 4th-Notes (4TH)
+        - 8th-Notes (8TH)
+        - 16th-Notes (16TH)
+        - 32nd-Notes (32ND)
+        - 64th-Notes (64TH)
     - Loop Margins (MARG)
-    	- Disabled (OFF)
-    	- Enabled (ON)
+        - Disabled (OFF)
+        - Enabled (ON)
     - Sampling Monitoring (MONI)
-    	- Conditional (COND)
-    	- Enabled (ON)
-    	- Disabled (OFF)
+        - Conditional (COND)
+        - Enabled (ON)
+        - Disabled (OFF)
     - Threshold Recording (THRE)
-    	- Mode
-    		- Disabled (OFF)
-    		- Low
-    		- Medium
-    		- High
+        - Mode (MODE)
+            - Disabled (OFF)
+            - Low (LOW)
+            - Medium (MEDIUM)
+            - High (HIGH)
     - Loop Command (LOOP)
-    	- Loop
-    	- Layering Loop
+        - Loop (LOOP)
+        - Layering Loop (LAYERING loop)
 </details>
 <details>
 <summary>Community Features (FEAT)</summary>
     - Drum Randomizer (DRUM)
-        - OFF
-        - ON
+        - OFF (OFF)
+        - ON (ON)
     - Quantize (QUAN)
-        - OFF
-        - ON
+        - OFF (OFF)
+        - ON (ON)
     - Fine Tempo Knob (TEMP)
-    	- OFF
-    	- ON
+        - OFF (OFF)
+        - ON (ON)
     - Catch Notes (CATC)
-    	- OFF
-    	- ON
+        - OFF (OFF)
+        - ON (ON)
     - Delete Unused Kit Rows (UNUS)
-    	- OFF
-    	- ON
+        - OFF (OFF)
+        - ON (ON)
     - Alternative Golden Knob Delay Params (DELA)
-    	- OFF
-    	- ON
+        - OFF (OFF)
+        - ON (ON)
     - Allow Insecure Develop Sysex Messages (SYSX)
-    	- OFF
-    	- ON
+        - OFF (OFF)
+        - ON (ON)
     - Sync Scaling Action (SCAL)
-    	- Sync Scaling (SCAL)
-    	- Fill Mode (FILL)
+        - Sync Scaling (SCAL)
+        - Fill Mode (FILL)
     - Highlight Incoming Notes (HIGH)
-    	- OFF
-    	- ON
+        - OFF (OFF)
+        - ON (ON)
     - Display Norns Layout (NORN)
-    	- OFF
-    	- ON
+        - OFF (OFF)
+        - ON (ON)
     - Sticky Shift (STIC)
-    	- OFF
-    	- ON
+        - OFF (OFF)
+        - ON (ON)
     - Light Shift (LIGH)
-    	- OFF
-    	- ON
+        - OFF (OFF)
+        - ON (ON)
     - DX7 ENGINE (DX7)
-    	- OFF
-    	- ON
+        - OFF (OFF)
+        - ON (ON)
     - Emulated Display (EMUL)
-    	- OLED (OLED)
-    	- Toggle (TOGL)
-    	- 7SEG (7SEG)
+        - OLED (OLED)
+        - Toggle (TOGL)
+        - 7SEG (7SEG)
     - KB View Sidebar Menu Exit (EXIT)
-    	- OFF
-    	- ON
+        - OFF (OFF)
+        - ON (ON)
     - Launch Event Playhead (PLAY)
-    	- OFF
-    	- ON
+        - OFF (OFF)
+        - ON (ON)
     - Chord Keyboards (CHRD)
-    	- OFF
-    	- ON
+        - OFF (OFF)
+        - ON (ON)
     - Alternative Playback Start Behaviour (STAR)
-    	- OFF
-    	- ON
+        - OFF (OFF)
+        - ON (ON)
     - Grid View Loop Pads (LOOP)
-    	- OFF
-    	- ON
+        - OFF (OFF)
+        - ON (ON)
     - Alternative Tap Tempo Behaviour (TAPT)
-        - OFF
-        - ON
-    - Horizontal Menus
-    	- OFF
-    	- ON
+        - OFF (OFF)
+        - ON (ON)
+    - Horizontal Menus (Horizontal Menus)
+        - OFF (OFF)
+        - ON (ON)
     - Trim from start of audio clips (TRIM)
-    	- OFF
-    	- ON
+        - OFF (OFF)
+        - ON (ON)
     - Show Battery Level (BATT)
-        - OFF
-        - ON
+        - OFF (OFF)
+        - ON (ON)
 </details>
 <details>
 <summary>Battery level (BATT)</summary>
@@ -523,162 +526,162 @@ The Song menu contains the following menu hierarchy:
 <details>
 <summary>Master (MSTR)</summary>
     - Volume (VOLU)
-    - Pan
+    - Pan (PAN)
 </details>
 <details>
 <summary>Filters (FLTR)</summary>
-    - LPF
-    	- Frequency (FREQ)
-    	- Resonance (RESO)
-    	- Morph (MORP)
-    	- Mode (MODE)
-    		- 12DB Ladder (LA12)
-    		- 24DB Ladder (LA24)
-    		- Drive (DRIV)
-    		- SVF Bandpass (SV_B)
-    		- SVF Notch (SV_N)
-    - HPF
-    	- Frequency (FREQ)
-    	- Resonance (RESO)
-    	- Morph (MORP)
-    	- Mode (MODE)
-    		- SVF Bandpass (SV_B)
-    		- SVF Notch (SV_N)
-    		- HP Ladder (HP_L)
+    - LPF (LPF)
+        - Frequency (FREQ)
+        - Resonance (RESO)
+        - Morph (MORP)
+        - Mode (MODE)
+            - 12DB Ladder (LA12)
+            - 24DB Ladder (LA24)
+            - Drive (DRIV)
+            - SVF Bandpass (SV_B)
+            - SVF Notch (SV_N)
+    - HPF (HPF)
+        - Frequency (FREQ)
+        - Resonance (RESO)
+        - Morph (MORP)
+        - Mode (MODE)
+            - SVF Bandpass (SV_B)
+            - SVF Notch (SV_N)
+            - HP Ladder (HP_L)
     - Filter Route (ROUT)
-    	- HPF2LPF (HPF2)
-    	- LPF2HPF (LPF2)
-    	- PARALLEL (PARA)
+        - HPF2LPF (HPF2)
+        - LPF2HPF (LPF2)
+        - PARALLEL (PARA)
 </details>
 <details>
-<summary>FX</summary>
-    - EQ
-    	- Bass
-    	- Treble (TREB)
-    	- Bass Frequency (BAFR)
-    	- Treble Frequency (TRFR)
-	- Delay (DELA)
-		- Amount (AMOU)
-		- Rate
-		- Pingpong (PING)
-			- Disabled (OFF)
-			- Enabled (ON)
-		- Type
-			- Digital (DIGI)
-			- Analog (ANA)
-		- Sync
-		NOTE: These options can change depending on how your default resolution is set
- 			- Off
-    		- 2-Bar
-    		- 1-Bar
-    		- 2nd-Notes
-    		- 4th-Notes
-    		- 8th-Notes
-    		- 16th-Notes
-    		- 32nd-Notes
-    		- 64th-Notes
-    		- 128th-Notes
-    		- 2-Bar-TPLTS
-    		- 1-Bar-TPLTS
-    		- 2nd-TPLTS
-    		- 4th-TPLTS
-    		- 8th-TPLTS
-    		- 16th-TPLTS
-    		- 32nd-TPLTS
-    		- 64th-TPLTS
-    		- 128th-TPLTS
-    		- 2-Bar-DTTED
-    		- 1-Bar-DTTED
-    		- 2nd-DTTED
-    		- 4th-DTTED
-    		- 8th-DTTED
-    		- 16th-DTTED
-    		- 32nd-DTTED
-    		- 64th-DTTED
-    		- 128th-DTTED
+<summary>FX (FX)</summary>
+    - EQ (EQ)
+        - Bass (BASS)
+        - Treble (TREB)
+        - Bass Frequency (BAFR)
+        - Treble Frequency (TRFR)
+    - Delay (DELA)
+        - Amount (AMOU)
+        - Rate (RATE)
+        - Pingpong (PING)
+            - Disabled (OFF)
+            - Enabled (ON)
+        - Type (TYPE)
+            - Digital (DIGI)
+            - Analog (ANA)
+        - Sync (SYNC)
+        NOTE: These options can change depending on how your default resolution is set
+            - Off (Off)
+            - 2-Bar (2BAR)
+            - 1-Bar (1BAR)
+            - 2nd-Notes (2ND)
+            - 4th-Notes (4TH)
+            - 8th-Notes (8TH)
+            - 16th-Notes (16TH)
+            - 32nd-Notes (32ND)
+            - 64th-Notes (64TH)
+            - 128th-Notes (128T)
+            - 2-Bar-TPLTS (2BAR-TPLTS)
+            - 1-Bar-TPLTS (1BAR-TPLTS)
+            - 2nd-TPLTS (2ND-TPLTS)
+            - 4th-TPLTS (4TH-TPLTS)
+            - 8th-TPLTS (8TH-TPLTS)
+            - 16th-TPLTS (16TH-TPLTS)
+            - 32nd-TPLTS (32ND-TPLTS)
+            - 64th-TPLTS (64TH-TPLTS)
+            - 128th-TPLTS (128T-TPLTS)
+            - 2-Bar-DTTED (2BAR-DTTED)
+            - 1-Bar-DTTED (1BAR-DTTED)
+            - 2nd-DTTED (2ND-DTTED)
+            - 4th-DTTED (4TH-DTTED)
+            - 8th-DTTED (8TH-DTTED)
+            - 16th-DTTED (16TH-DTTED)
+            - 32nd-DTTED (32ND-DTTED)
+            - 64th-DTTED (64TH-DTTED)
+            - 128th-DTTED (128T-DTTED)
     - Reverb (REVE)
-    	- Amount (AMOU)
-		- Model (MODE)
-			- Freeverb (FVRB)
-  			- Mutable (MTBL)
-		- Room Size (SIZE) (if Freeverb is Selected) or Time (if Mutable is Selected)
-		- Damping (DAMP)
-		- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
-		- HPF (if Mutable is Selected)
-		- LPF (if Mutable is Selected)
-		- Pan
-		- Reverb Sidechain (SIDE)
-  			- Volume Ducking (VOLU)
+        - Amount (AMOU)
+        - Model (MODE)
+            - Freeverb (FVRB)
+              - Mutable (MTBL)
+        - Room Size (SIZE) (if Freeverb is Selected) or Time (if Mutable is Selected)
+        - Damping (DAMP)
+        - Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
+        - HPF (HPF) (if Mutable is Selected)
+        - LPF (LPF) (if Mutable is Selected)
+        - Pan (PAN)
+        - Reverb Sidechain (SIDE)
+              - Volume Ducking (VOLU)
             - Shape (TYPE)
             - Attack (ATTA)
             - Release (RELE)
-            - Sync
-	- Stutter (STUT)
-		- Quantize (QTZ)
-		- Reverse (REVE)
-		- Ping-Pong (PING)
-	- Mod-FX (MODU)
-		- Type
-			- Disabled (OFF)
-			- Flanger (FLAN)
-			- Chorus (CHOR)
-			- Phaser (PHAS)
-			- Stereo Chorus (S.CHO)
-			- Warble (WARB)
-			- Grain (GRAI)
-		- Rate
-		- Depth (DEPT) (if Chorus, Phaser, Warble or Grain is selected)
-			- Displayed as Grain Amount (Amnt) if Grain is selected
-		- Feedback (FEED) (if Flanger, Phaser, Warble or Grain is selected)
-			- Displayed as Grain Type (GRTY) if Grain is selected
-		- Offset (OFFS) (if Chorus, Warble or Grain is selected)
-			- Displayed as Grain Size (SIZE) if Grain is selected
-	- Distortion (DIST)
-		- Decimation (DECI)
-		- Bitcrush (CRUS)
+            - Sync (SYNC)
+    - Stutter (STUT)
+        - Quantize (QTZ)
+        - Reverse (REVE)
+        - Ping-Pong (PING)
+    - Mod-FX (MODU)
+        - Type (TYPE)
+            - Disabled (OFF)
+            - Flanger (FLAN)
+            - Chorus (CHOR)
+            - Phaser (PHAS)
+            - Stereo Chorus (S.CHO)
+            - Warble (WARB)
+            - Grain (GRAI)
+        - Rate (RATE)
+        - Depth (DEPT) (if Chorus, Phaser, Warble or Grain is selected)
+            - Displayed as Grain Amount (Amnt) if Grain is selected
+        - Feedback (FEED) (if Flanger, Phaser, Warble or Grain is selected)
+            - Displayed as Grain Type (GRTY) if Grain is selected
+        - Offset (OFFS) (if Chorus, Warble or Grain is selected)
+            - Displayed as Grain Size (SIZE) if Grain is selected
+    - Distortion (DIST)
+        - Decimation (DECI)
+        - Bitcrush (CRUS)
 </details>
 <details>
 <summary>Swing Interval (SWII)</summary>
 NOTE: These options can change depending on how your default resolution is set
-    - 2-Bar
-    - 1-Bar
-    - 2nd-Notes
-    - 4th-Notes
-    - 8th-Notes
-    - 16th-Notes
-    - 32nd-Notes
-    - 64th-Notes
-    - 128th-Notes
+    - 2-Bar (2BAR)
+    - 1-Bar (1BAR)
+    - 2nd-Notes (2ND)
+    - 4th-Notes (4TH)
+    - 8th-Notes (8TH)
+    - 16th-Notes (16TH)
+    - 32nd-Notes (32ND)
+    - 64th-Notes (64TH)
+    - 128th-Notes (128T)
 </details>
 <details>
-<summary>Active Scales</summary>
-	- Major (MAJO)
-	- Minor (MINO)
-	- Dorian (DORI)
-	- Phrygian (PHRY)
-	- Lydian (LYDI)
-	- Mixolydian (MIXO)
-	- Locrian (LOCR)
-	- Melodic Minor (MELO)
-	- Harmonic Minor (HARM)
-	- Hungarian Minor (HUNG)
-	- Marva (MARV)
-	- Arabian (ARAB)
-	- Whole Tone (WHOL)
-	- Blues (BLUE)
-	- Pentatonic Minor (PENT)
-	- Hirajoshi (HIRA)
-	- Random (RAND)
-	- None
+<summary>Active Scales (Active scales)</summary>
+    - Major (MAJO)
+    - Minor (MINO)
+    - Dorian (DORI)
+    - Phrygian (PHRY)
+    - Lydian (LYDI)
+    - Mixolydian (MIXO)
+    - Locrian (LOCR)
+    - Melodic Minor (MELO)
+    - Harmonic Minor (HARM)
+    - Hungarian Minor (HUNG)
+    - Marva (MARV)
+    - Arabian (ARAB)
+    - Whole Tone (WHOL)
+    - Blues (BLUE)
+    - Pentatonic Minor (PENT)
+    - Hirajoshi (HIRA)
+    - Random (RAND)
+    - None (NONE)
 </details>
 <details>
 <summary>Threshold Recording (THRE)</summary>
-	- Mode
-		- Disabled (OFF)
-		- Conditional (COND)
-			- Low
-			- Medium
-			- High
+    - Mode (MODE)
+        - Disabled (OFF)
+        - Conditional (COND)
+            - Low (LOW)
+            - Medium (MEDIUM)
+            - High (HIGH)
 </details>
 <details>
 <summary>Configure Macros (MACR)</summary>
@@ -688,23 +691,23 @@ NOTE: These options can change depending on how your default resolution is set
 </details>
 <details>
 <summary>Audio Export (EXPO)</summary>
-	- Start Export (EXPO)
-	- Configure Export (CONF)
-		- Normalization (NORM)
-			- Disabled (OFF)
-			- Enabled (ON)
-		- Export to Silence (SILE)
-			- Disabled (OFF)
-			- Enabled (ON)
-		- Song FX (SONG)
-			- Disabled (OFF)
-			- Enabled (ON)
-		- Offline Rendering (OFFR)
-			- Disabled (OFF)
-			- Enabled (ON)
-		- Export Mixdown (MIXD) <Badge text="c1.3" variant="tip" />
-			- Disabled (OFF)
-			- Enabled (ON)
+    - Start Export (EXPO)
+    - Configure Export (CONF)
+        - Normalization (NORM)
+            - Disabled (OFF)
+            - Enabled (ON)
+        - Export to Silence (SILE)
+            - Disabled (OFF)
+            - Enabled (ON)
+        - Song FX (SONG)
+            - Disabled (OFF)
+            - Enabled (ON)
+        - Offline Rendering (OFFR)
+            - Disabled (OFF)
+            - Enabled (ON)
+        - Export Mixdown (MIXD) <Badge text="c1.3" variant="tip" />
+            - Disabled (OFF)
+            - Enabled (ON)
 </details>
 </details>
 
@@ -722,8 +725,8 @@ The Clip settings menu contains the following menu hierarchy:
 <details>
 <summary>Clip Mode (MODE)</summary>
     - INFINITE (INF)
-    - FILL
-    - ONCE
+    - FILL (FILL)
+    - ONCE (ONCE)
 </details>
 <details>
 <summary>Clip Name (NAME)</summary>
@@ -739,15 +742,15 @@ The Perform FX menu contains the following menu hierarchy:
 <details>
 <summary>Editing Mode (EDIT)</summary>
     - Disabled (OFF)
-    - Value
-    - Param
+    - Value (Value)
+    - Param (Param)
 </details>
 <details>
 <summary>Filters (FLTR)</summary>
     - See Song menu hierarchy above for break-down of Filters menu
 </details>
 <details>
-<summary>FX</summary>
+<summary>FX (FX)</summary>
     - See Song menu hierarchy above for break-down of FX menu
 </details>
 </details>
@@ -787,191 +790,191 @@ The Audio Clip menu contains the following menu hierarchy:
 <details>
 <summary>Master (MSTR)</summary>
     - Volume (VOLU)
-    - Pan
+    - Pan (PAN)
 </details>
 <details>
 <summary>Compressor (COMP)</summary>
     - Threshold (THRE)
     - Ratio (RATI)
-    - Blend
+    - Blend (Blend)
     - Attack (ATTA)
     - Release (RELE)
-    - HPF
+    - HPF (HPF)
 </details>
 <details>
 <summary>Filters (FLTR)</summary>
-    - LPF
-    	- Frequency (FREQ)
-    	- Resonance (RESO)
-    	- Morph (MORP)
-    	- Mode (MODE)
-    		- 12DB Ladder (LA12)
-    		- 24DB Ladder (LA24)
-    		- Drive (DRIV)
-    		- SVF Bandpass (SV_B)
-    		- SVF Notch (SV_N)
-    - HPF
-    	- Frequency (FREQ)
-    	- Resonance (RESO)
-    	- Morph (MORP)
-    	- Mode (MODE)
-    		- SVF Bandpass (SV_B)
-    		- SVF Notch (SV_N)
-    		- HP Ladder (HP_L)
+    - LPF (LPF)
+        - Frequency (FREQ)
+        - Resonance (RESO)
+        - Morph (MORP)
+        - Mode (MODE)
+            - 12DB Ladder (LA12)
+            - 24DB Ladder (LA24)
+            - Drive (DRIV)
+            - SVF Bandpass (SV_B)
+            - SVF Notch (SV_N)
+    - HPF (HPF)
+        - Frequency (FREQ)
+        - Resonance (RESO)
+        - Morph (MORP)
+        - Mode (MODE)
+            - SVF Bandpass (SV_B)
+            - SVF Notch (SV_N)
+            - HP Ladder (HP_L)
     - Filter Route (ROUT)
-    	- HPF2LPF (HPF2)
-    	- LPF2HPF (LPF2)
-    	- PARALLEL (PARA)
+        - HPF2LPF (HPF2)
+        - LPF2HPF (LPF2)
+        - PARALLEL (PARA)
 </details>
 <details>
-<summary>FX</summary>
-    - EQ
-    	- Bass
-    	- Treble (TREB)
-    	- Bass Frequency (BAFR)
-    	- Treble Frequency (TRFR)
+<summary>FX (FX)</summary>
+    - EQ (EQ)
+        - Bass (BASS)
+        - Treble (TREB)
+        - Bass Frequency (BAFR)
+        - Treble Frequency (TRFR)
     - Delay (DELA)
-    	- Amount (AMOU)
-    	- Rate
-    	- Pingpong (PING)
-    		- Disabled (OFF)
-    		- Enabled (ON)
-    	- Type
-    		- Digital (DIGI)
-    		- Analog (ANA)
-    	- Sync
-    	NOTE: These options can change depending on how your default resolution is set
-    		- Off
-    		- 2-Bar
-    		- 1-Bar
-    		- 2nd-Notes
-    		- 4th-Notes
-    		- 8th-Notes
-    		- 16th-Notes
-    		- 32nd-Notes
-    		- 64th-Notes
-    		- 128th-Notes
-    		- 2-Bar-TPLTS
-    		- 1-Bar-TPLTS
-    		- 2nd-TPLTS
-    		- 4th-TPLTS
-    		- 8th-TPLTS
-    		- 16th-TPLTS
-    		- 32nd-TPLTS
-    		- 64th-TPLTS
-    		- 128th-TPLTS
-    		- 2-Bar-DTTED
-    		- 1-Bar-DTTED
-    		- 2nd-DTTED
-    		- 4th-DTTED
-    		- 8th-DTTED
-    		- 16th-DTTED
-    		- 32nd-DTTED
-    		- 64th-DTTED
-    		- 128th-DTTED
+        - Amount (AMOU)
+        - Rate (RATE)
+        - Pingpong (PING)
+            - Disabled (OFF)
+            - Enabled (ON)
+        - Type (TYPE)
+            - Digital (DIGI)
+            - Analog (ANA)
+        - Sync (SYNC)
+        NOTE: These options can change depending on how your default resolution is set
+            - Off (Off)
+            - 2-Bar (2BAR)
+            - 1-Bar (1BAR)
+            - 2nd-Notes (2ND)
+            - 4th-Notes (4TH)
+            - 8th-Notes (8TH)
+            - 16th-Notes (16TH)
+            - 32nd-Notes (32ND)
+            - 64th-Notes (64TH)
+            - 128th-Notes (128T)
+            - 2-Bar-TPLTS (2BAR-TPLTS)
+            - 1-Bar-TPLTS (1BAR-TPLTS)
+            - 2nd-TPLTS (2ND-TPLTS)
+            - 4th-TPLTS (4TH-TPLTS)
+            - 8th-TPLTS (8TH-TPLTS)
+            - 16th-TPLTS (16TH-TPLTS)
+            - 32nd-TPLTS (32ND-TPLTS)
+            - 64th-TPLTS (64TH-TPLTS)
+            - 128th-TPLTS (128T-TPLTS)
+            - 2-Bar-DTTED (2BAR-DTTED)
+            - 1-Bar-DTTED (1BAR-DTTED)
+            - 2nd-DTTED (2ND-DTTED)
+            - 4th-DTTED (4TH-DTTED)
+            - 8th-DTTED (8TH-DTTED)
+            - 16th-DTTED (16TH-DTTED)
+            - 32nd-DTTED (32ND-DTTED)
+            - 64th-DTTED (64TH-DTTED)
+            - 128th-DTTED (128T-DTTED)
     - Reverb (REVE)
-    	- Amount (AMOU)
-		- Model (MODE)
-			- Freeverb (FVRB)
-  			- Mutable (MTBL)
-		- Room Size (SIZE) (if Freeverb is Selected) or Time (if Mutable is Selected)
-		- Damping (DAMP)
-		- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
-		- HPF (if Mutable is Selected)
-		- LPF (if Mutable is Selected)
-		- Pan
-		- Reverb Sidechain (SIDE)
-			- Volume Ducking (VOLU)
-			- Shape (TYPE)
-			- Attack (ATTA)
-			- Release (RELE)
-			- Sync
-	- Stutter (STUT)
-		- Use Song Settings (SONG)
-		- Quantize (QTZ)
-		- Reverse (REVE)
-		- Ping-Pong (PING)
-	- Mod-FX (MODU)
-		- Type
-			- Disabled (OFF)
-			- Flanger (FLAN)
-			- Chorus (CHOR)
-			- Phaser (PHAS)
-			- Stereo Chorus (S.CHO)
-			- Warble (WARB)
-			- Grain (GRAI)
-		- Rate
-		- Depth (DEPT) (if Chorus, Phaser, Warble or Grain is selected)
-			- Displayed as Grain Amount (Amnt) if Grain is selected
-		- Feedback (FEED) (if Flanger, Phaser, Warble or Grain is selected)
-			- Displayed as Grain Type (GRTY) if Grain is selected
-		- Offset (OFFS) (if Chorus, Warble or Grain is selected)
-			- Displayed as Grain Size (SIZE) if Grain is selected
-	- Distortion (DIST)
-		- Saturation (SATU)
-		- Decimation (DECI)
-		- Bitcrush (CRUS)
+        - Amount (AMOU)
+        - Model (MODE)
+            - Freeverb (FVRB)
+              - Mutable (MTBL)
+        - Room Size (SIZE) (if Freeverb is Selected) or Time (if Mutable is Selected)
+        - Damping (DAMP)
+        - Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
+        - HPF (HPF) (if Mutable is Selected)
+        - LPF (LPF) (if Mutable is Selected)
+        - Pan (PAN)
+        - Reverb Sidechain (SIDE)
+            - Volume Ducking (VOLU)
+            - Shape (TYPE)
+            - Attack (ATTA)
+            - Release (RELE)
+            - Sync (SYNC)
+    - Stutter (STUT)
+        - Use Song Settings (SONG)
+        - Quantize (QTZ)
+        - Reverse (REVE)
+        - Ping-Pong (PING)
+    - Mod-FX (MODU)
+        - Type (TYPE)
+            - Disabled (OFF)
+            - Flanger (FLAN)
+            - Chorus (CHOR)
+            - Phaser (PHAS)
+            - Stereo Chorus (S.CHO)
+            - Warble (WARB)
+            - Grain (GRAI)
+        - Rate (RATE)
+        - Depth (DEPT) (if Chorus, Phaser, Warble or Grain is selected)
+            - Displayed as Grain Amount (Amnt) if Grain is selected
+        - Feedback (FEED) (if Flanger, Phaser, Warble or Grain is selected)
+            - Displayed as Grain Type (GRTY) if Grain is selected
+        - Offset (OFFS) (if Chorus, Warble or Grain is selected)
+            - Displayed as Grain Size (SIZE) if Grain is selected
+    - Distortion (DIST)
+        - Saturation (SATU)
+        - Decimation (DECI)
+        - Bitcrush (CRUS)
 </details>
 <details>
 <summary>Sidechain (SIDE)</summary>
-	- Volume Ducking (VOLU)
-	- Sync
-		NOTE: These options can change depending on how your default resolution is set
-		- Off
-		- 2-Bar
-		- 1-Bar
-		- 2nd-Notes
-		- 4th-Notes
-		- 8th-Notes
-		- 16th-Notes
-		- 32nd-Notes
-		- 64th-Notes
-		- 128th-Notes
-		- 2-Bar-TPLTS
-		- 1-Bar-TPLTS
-		- 2nd-TPLTS
-		- 4th-TPLTS
-		- 8th-TPLTS
-		- 16th-TPLTS
-		- 32nd-TPLTS
-		- 64th-TPLTS
-		- 128th-TPLTS
-		- 2-Bar-DTTED
-		- 1-Bar-DTTED
-		- 2nd-DTTED
-		- 4th-DTTED
-		- 8th-DTTED
-		- 16th-DTTED
-		- 32nd-DTTED
-		- 64th-DTTED
-		- 128th-DTTED
-	- Attack (ATTA)
-	- Release (RELE)
-	- Shape (TYPE)
+    - Volume Ducking (VOLU)
+    - Sync (SYNC)
+        NOTE: These options can change depending on how your default resolution is set
+        - Off (Off)
+        - 2-Bar (2BAR)
+        - 1-Bar (1BAR)
+        - 2nd-Notes (2ND)
+        - 4th-Notes (4TH)
+        - 8th-Notes (8TH)
+        - 16th-Notes (16TH)
+        - 32nd-Notes (32ND)
+        - 64th-Notes (64TH)
+        - 128th-Notes (128T)
+        - 2-Bar-TPLTS (2BAR-TPLTS)
+        - 1-Bar-TPLTS (1BAR-TPLTS)
+        - 2nd-TPLTS (2ND-TPLTS)
+        - 4th-TPLTS (4TH-TPLTS)
+        - 8th-TPLTS (8TH-TPLTS)
+        - 16th-TPLTS (16TH-TPLTS)
+        - 32nd-TPLTS (32ND-TPLTS)
+        - 64th-TPLTS (64TH-TPLTS)
+        - 128th-TPLTS (128T-TPLTS)
+        - 2-Bar-DTTED (2BAR-DTTED)
+        - 1-Bar-DTTED (1BAR-DTTED)
+        - 2nd-DTTED (2ND-DTTED)
+        - 4th-DTTED (4TH-DTTED)
+        - 8th-DTTED (8TH-DTTED)
+        - 16th-DTTED (16TH-DTTED)
+        - 32nd-DTTED (32ND-DTTED)
+        - 64th-DTTED (64TH-DTTED)
+        - 128th-DTTED (128T-DTTED)
+    - Attack (ATTA)
+    - Release (RELE)
+    - Shape (TYPE)
 </details>
 <details>
 <summary>Sample (SAMP)</summary>
-	- File Browser (FILE)
-	- Transpose (TRAN)
-	- Reverse (REVE)
-		- Disabled (OFF)
-		- Enabled (ON)
-	- Pitch/Speed (PISP)
-		- Linked
-		- Independent
-	- Waveform (WAVE)
-	- INTERPOLATION
-		- Linear
-		- Sinc
+    - File Browser (FILE)
+    - Transpose (TRAN)
+    - Reverse (REVE)
+        - Disabled (OFF)
+        - Enabled (ON)
+    - Pitch/Speed (PISP)
+        - Linked (Linked)
+        - Independent (Independent)
+    - Waveform (WAVE)
+    - INTERPOLATION (INTE)
+        - Linear (Linear)
+        - Sinc (Sinc)
 </details>
 <details>
 <summary>Attack (ATTA)</summary>
 </details>
 <details>
 <summary>Priority (PRIO)</summary>
-	- Low
-	- Medium
-	- High
+    - Low (LOW)
+    - Medium (MEDIUM)
+    - High (HIGH)
 </details>
 </details>
 
@@ -995,92 +998,92 @@ The Sound menu contains the following menu hierarchy:
 <details>
 <summary>Master (MSTR)</summary>
     - Volume (VOLU)
-    - Pan
+    - Pan (PAN)
     - Master Transpose (TRAN)
     - Synth Mode (MODE) - in Synth's and Kit row's that have loaded a Synth preset
-    	- Subtractive
-    	- FM
-    	- Ringmod
+        - Subtractive (Subtractive)
+        - FM (FM)
+        - Ringmod (Ringmod)
     - Vibrato (VIBR)
 </details>
 <details>
 <summary>Arpeggiator (ARPE)</summary>
-    - Enabled (ON)
+    - Enabled (ON) / Disabled (OFF)
     - Basic (BASI)
-    	- Gate
-    	- Sync
-    	NOTE: These options can change depending on how your default resolution is set
-    		- Off
-    		- 2-Bar
-    		- 1-Bar
-    		- 2nd-Notes
-    		- 4th-Notes
-    		- 8th-Notes
-    		- 16th-Notes
-    		- 32nd-Notes
-    		- 64th-Notes
-    		- 128th-Notes
-    		- 2-Bar-TPLTS
-    		- 1-Bar-TPLTS
-    		- 2nd-TPLTS
-    		- 4th-TPLTS
-    		- 8th-TPLTS
-    		- 16th-TPLTS
-    		- 32nd-TPLTS
-    		- 64th-TPLTS
-    		- 128th-TPLTS
-    		- 2-Bar-DTTED
-    		- 1-Bar-DTTED
-    		- 2nd-DTTED
-    		- 4th-DTTED
-    		- 8th-DTTED
-    		- 16th-DTTED
-    		- 32nd-DTTED
-    		- 64th-DTTED
-    		- 128th-DTTED
-    	- Rate
+        - Gate (GATE)
+        - Sync (SYNC)
+        NOTE: These options can change depending on how your default resolution is set
+            - Off (Off)
+            - 2-Bar (2BAR)
+            - 1-Bar (1BAR)
+            - 2nd-Notes (2ND)
+            - 4th-Notes (4TH)
+            - 8th-Notes (8TH)
+            - 16th-Notes (16TH)
+            - 32nd-Notes (32ND)
+            - 64th-Notes (64TH)
+            - 128th-Notes (128T)
+            - 2-Bar-TPLTS (2BAR-TPLTS)
+            - 1-Bar-TPLTS (1BAR-TPLTS)
+            - 2nd-TPLTS (2ND-TPLTS)
+            - 4th-TPLTS (4TH-TPLTS)
+            - 8th-TPLTS (8TH-TPLTS)
+            - 16th-TPLTS (16TH-TPLTS)
+            - 32nd-TPLTS (32ND-TPLTS)
+            - 64th-TPLTS (64TH-TPLTS)
+            - 128th-TPLTS (128T-TPLTS)
+            - 2-Bar-DTTED (2BAR-DTTED)
+            - 1-Bar-DTTED (1BAR-DTTED)
+            - 2nd-DTTED (2ND-DTTED)
+            - 4th-DTTED (4TH-DTTED)
+            - 8th-DTTED (8TH-DTTED)
+            - 16th-DTTED (16TH-DTTED)
+            - 32nd-DTTED (32ND-DTTED)
+            - 64th-DTTED (64TH-DTTED)
+            - 128th-DTTED (128T-DTTED)
+        - Rate (RATE)
     - Pattern (PATT)
-    	- Octaves (OCTA)
-    	- Octave Mode (OMOD)
-    		- Up
-    		- Down
-    		- Up & Down (UPDN)
-    		- Alternate (ALT)
-    		- Random (RAND)
-    	- Chord Simulator (CSIM) (NOTE: Available only in Kit Rows)
-    	- Note Mode (NMOD)
-    		- Up
-    		- Down
-    		- Up & Down (UPDN)
-    		- Played Order (PLAY)
-    		- Random (RAND)
-    	- Step Repeat (REPE)
-    	- Rhythm (RHYT)
-    	- Sequence Length (LENG)
+        - Octaves (OCTA)
+        - Octave Mode (OMOD)
+            - Up (UP)
+            - Down (DOWN)
+            - Up & Down (UPDN)
+            - Alternate (ALT)
+            - Random (RAND)
+        - Chord Simulator (CSIM) (NOTE: Available only in Kit Rows)
+        - Note Mode (NMOD)
+            - Up (UP)
+            - Down (DOWN)
+            - Up & Down (UPDN)
+            - Played Order (PLAY)
+            - Random (RAND)
+        - Step Repeat (REPE)
+        - Rhythm (RHYT)
+        - Sequence Length (LENG)
     - Randomizer (RAND)
-    	- Lock Randomizer (LOCK)
-    	- Octave Spread (OCTA)
-    	- Gate Spread (GATE)
-    	- Velocity Spread (VELO)
-    	- Ratchet Amount (RATC)
-    	- Ratchet Probability (RPRO)
-    	- Chord Polyphony (CHRD) (NOTE: NOT available for Sound Kit Rows)
-    	- Chord Probability (CPRO) (NOTE: NOT available for Sound Kit Rows)
-    	- Note Probability (NOTE)
-    	- Swap Probability (SWAP)
-    	- Bass Probability (BASS)
-    	- Glide Probability (GLID)
-    	- Reverse Probability (RVRS)
-    - MPE
-    	- Velocity (VELO)
-    		- Disabled (OFF)
-    		- Aftertouch
-    		- MPE Y (Y)
+        - Lock Randomizer (LOCK)
+        - Octave Spread (OCTA)
+        - Gate Spread (GATE)
+        - Velocity Spread (VELO)
+        - Ratchet Amount (RATC)
+        - Ratchet Probability (RPRO)
+        - Chord Polyphony (CHRD) (NOTE: NOT available for Sound Kit Rows)
+        - Chord Probability (CPRO) (NOTE: NOT available for Sound Kit Rows)
+        - Note Probability (NOTE)
+        - Swap Probability (SWAP)
+        - Bass Probability (BASS)
+        - Glide Probability (GLID)
+        - Reverse Probability (RVRS)
+    - MPE (MPE)
+        - Velocity (VELO)
+            - Disabled (OFF)
+            - Aftertouch (AFTERTOUCH)
+            - MPE Y (Y)
     - Include in Kit Arp (KARP) (NOTE: available only for Kit Rows)
 </details>
 <details>
 <summary>Note Randomizer (NOTE)</summary>
-	- Lock Randomizer (LOCK)
+    - Lock Randomizer (LOCK)
     - Velocity Spread (VELO)
     - Note Probability (NOTE)
     - Reverse Probability (RVRS)
@@ -1089,233 +1092,233 @@ The Sound menu contains the following menu hierarchy:
 <summary>Compressor (COMP)</summary>
     - Threshold (THRE)
     - Ratio (RATI)
-    - Blend
+    - Blend (Blend)
     - Attack (ATTA)
     - Release (RELE)
-    - HPF
+    - HPF (HPF)
 </details>
 <details>
 <summary>Filters (FLTR)</summary>
-    - LPF
-    	- Frequency (FREQ)
-    	- Resonance (RESO)
-    	- Mode (MODE)
-    		- 12DB Ladder (LA12)
-    		- 24DB Ladder (LA24)
-    		- Drive (DRIV)
-    		- SVF Bandpass (SV_B)
-    		- SVF Notch (SV_N)
-    	- Drive (DRIV) (if 12DB/24DB/Drive mode is selected) or Morph (MORP) (if SVF mode is selected)
-    - HPF
-    	- Frequency (FREQ)
-    	- Resonance (RESO)
-    	- Mode (MODE)
-    		- SVF Bandpass (SV_B)
-    		- SVF Notch (SV_N)
-    		- HP Ladder (HP_L)
-    	- Morph (MORP) (if SVF mode is selected) or FM (if HP Ladder mode is selected)
+    - LPF (LPF)
+        - Frequency (FREQ)
+        - Resonance (RESO)
+        - Mode (MODE)
+            - 12DB Ladder (LA12)
+            - 24DB Ladder (LA24)
+            - Drive (DRIV)
+            - SVF Bandpass (SV_B)
+            - SVF Notch (SV_N)
+        - Drive (DRIV) (if 12DB/24DB/Drive mode is selected) or Morph (MORP) (if SVF mode is selected)
+    - HPF (HPF)
+        - Frequency (FREQ)
+        - Resonance (RESO)
+        - Mode (MODE)
+            - SVF Bandpass (SV_B)
+            - SVF Notch (SV_N)
+            - HP Ladder (HP_L)
+        - Morph (MORP) (if SVF mode is selected) or FM (if HP Ladder mode is selected)
     - Filter Route (ROUT)
-    	- HPF2LPF (HPF2)
-    	- LPF2HPF (LPF2)
-    	- PARALLEL (PARA)
+        - HPF2LPF (HPF2)
+        - LPF2HPF (LPF2)
+        - PARALLEL (PARA)
 </details>
 <details>
-<summary>FX</summary>
-    - EQ
-    	- Bass
-    	- Treble (TREB)
-    	- Bass Frequency (BAFR)
-    	- Treble Frequency (TRFR)
-	- Delay (DELA)
-		- Amount (AMOU)
-		- Rate
-		- Pingpong (PING)
-			- Disabled (OFF)
-			- Enabled (ON)
-		- Type
-			- Digital (DIGI)
-			- Analog (ANA)
-		- Sync
-		NOTE: These options can change depending on how your default resolution is set
- 			- Off
-    		- 2-Bar
-    		- 1-Bar
-    		- 2nd-Notes
-    		- 4th-Notes
-    		- 8th-Notes
-    		- 16th-Notes
-    		- 32nd-Notes
-    		- 64th-Notes
-    		- 128th-Notes
-    		- 2-Bar-TPLTS
-    		- 1-Bar-TPLTS
-    		- 2nd-TPLTS
-    		- 4th-TPLTS
-    		- 8th-TPLTS
-    		- 16th-TPLTS
-    		- 32nd-TPLTS
-    		- 64th-TPLTS
-    		- 128th-TPLTS
-    		- 2-Bar-DTTED
-    		- 1-Bar-DTTED
-    		- 2nd-DTTED
-    		- 4th-DTTED
-    		- 8th-DTTED
-    		- 16th-DTTED
-    		- 32nd-DTTED
-    		- 64th-DTTED
-    		- 128th-DTTED
+<summary>FX (FX)</summary>
+    - EQ (EQ)
+        - Bass (BASS)
+        - Treble (TREB)
+        - Bass Frequency (BAFR)
+        - Treble Frequency (TRFR)
+    - Delay (DELA)
+        - Amount (AMOU)
+        - Rate (RATE)
+        - Pingpong (PING)
+            - Disabled (OFF)
+            - Enabled (ON)
+        - Type (TYPE)
+            - Digital (DIGI)
+            - Analog (ANA)
+        - Sync (SYNC)
+        NOTE: These options can change depending on how your default resolution is set
+            - Off (Off)
+            - 2-Bar (2BAR)
+            - 1-Bar (1BAR)
+            - 2nd-Notes (2ND)
+            - 4th-Notes (4TH)
+            - 8th-Notes (8TH)
+            - 16th-Notes (16TH)
+            - 32nd-Notes (32ND)
+            - 64th-Notes (64TH)
+            - 128th-Notes (128T)
+            - 2-Bar-TPLTS (2BAR-TPLTS)
+            - 1-Bar-TPLTS (1BAR-TPLTS)
+            - 2nd-TPLTS (2ND-TPLTS)
+            - 4th-TPLTS (4TH-TPLTS)
+            - 8th-TPLTS (8TH-TPLTS)
+            - 16th-TPLTS (16TH-TPLTS)
+            - 32nd-TPLTS (32ND-TPLTS)
+            - 64th-TPLTS (64TH-TPLTS)
+            - 128th-TPLTS (128T-TPLTS)
+            - 2-Bar-DTTED (2BAR-DTTED)
+            - 1-Bar-DTTED (1BAR-DTTED)
+            - 2nd-DTTED (2ND-DTTED)
+            - 4th-DTTED (4TH-DTTED)
+            - 8th-DTTED (8TH-DTTED)
+            - 16th-DTTED (16TH-DTTED)
+            - 32nd-DTTED (32ND-DTTED)
+            - 64th-DTTED (64TH-DTTED)
+            - 128th-DTTED (128T-DTTED)
     - Reverb (REVE)
-    	- Amount (AMOU)
-		- Model (MODE)
-			- Freeverb (FVRB)
-  			- Mutable (MTBL)
-		- Room Size (SIZE) (if Freeverb is Selected) or Time (if Mutable is Selected)
-		- Damping (DAMP)
-		- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
-		- HPF (if Mutable is Selected)
-		- LPF (if Mutable is Selected)
-		- Pan
-		- Reverb Sidechain (SIDE)
-			- Volume Ducking (VOLU)
-			- Shape (TYPE)
-			- Attack (ATTA)
-			- Release (RELE)
-			- Sync
-	- Stutter (STUT)
-		- Use Song Settings (SONG)
-		- Quantize (QTZ)
-		- Reverse (REVE)
-		- Ping-Pong (PING)
-	- Mod-FX (MODU)
-		- Type
-			- Disabled (OFF)
-			- Flanger (FLAN)
-			- Chorus (CHOR)
-			- Phaser (PHAS)
-			- Stereo Chorus (S.CHO)
-			- Warble (WARB)
-			- Grain (GRAI)
-		- Rate
-		- Depth (DEPT) (if Chorus, Phaser, Warble or Grain is selected)
-			- Displayed as Grain Amount (Amnt) if Grain is selected
-		- Feedback (FEED) (if Flanger, Phaser, Warble or Grain is selected)
-			- Displayed as Grain Type (GRTY) if Grain is selected
-		- Offset (OFFS) (if Chorus, Warble or Grain is selected)
-			- Displayed as Grain Size (SIZE) if Grain is selected
-	- Distortion (DIST)
-		- Saturation (SATU)
-		- Decimation (DECI)
-		- Bitcrush (CRUS)
-		- Wavefold (FOLD)
-		- Noise Level (NOIS)
+        - Amount (AMOU)
+        - Model (MODE)
+            - Freeverb (FVRB)
+              - Mutable (MTBL)
+        - Room Size (SIZE) (if Freeverb is Selected) or Time (if Mutable is Selected)
+        - Damping (DAMP)
+        - Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
+        - HPF (HPF) (if Mutable is Selected)
+        - LPF (LPF) (if Mutable is Selected)
+        - Pan (PAN)
+        - Reverb Sidechain (SIDE)
+            - Volume Ducking (VOLU)
+            - Shape (TYPE)
+            - Attack (ATTA)
+            - Release (RELE)
+            - Sync (SYNC)
+    - Stutter (STUT)
+        - Use Song Settings (SONG)
+        - Quantize (QTZ)
+        - Reverse (REVE)
+        - Ping-Pong (PING)
+    - Mod-FX (MODU)
+        - Type (TYPE)
+            - Disabled (OFF)
+            - Flanger (FLAN)
+            - Chorus (CHOR)
+            - Phaser (PHAS)
+            - Stereo Chorus (S.CHO)
+            - Warble (WARB)
+            - Grain (GRAI)
+        - Rate (RATE)
+        - Depth (DEPT) (if Chorus, Phaser, Warble or Grain is selected)
+            - Displayed as Grain Amount (Amnt) if Grain is selected
+        - Feedback (FEED) (if Flanger, Phaser, Warble or Grain is selected)
+            - Displayed as Grain Type (GRTY) if Grain is selected
+        - Offset (OFFS) (if Chorus, Warble or Grain is selected)
+            - Displayed as Grain Size (SIZE) if Grain is selected
+    - Distortion (DIST)
+        - Saturation (SATU)
+        - Decimation (DECI)
+        - Bitcrush (CRUS)
+        - Wavefold (FOLD)
+        - Noise Level (NOIS)
 </details>
 <details>
 <summary>Sidechain (SIDE)</summary>
-	- Volume Ducking (VOLU)
-	- Sync
-	NOTE: These options can change depending on how your default resolution is set
-		- Off
-    	- 2-Bar
-    	- 1-Bar
-    	- 2nd-Notes
-    	- 4th-Notes
-    	- 8th-Notes
-    	- 16th-Notes
-    	- 32nd-Notes
-    	- 64th-Notes
-    	- 128th-Notes
-    	- 2-Bar-TPLTS
-    	- 1-Bar-TPLTS
-    	- 2nd-TPLTS
-    	- 4th-TPLTS
-    	- 8th-TPLTS
-    	- 16th-TPLTS
-    	- 32nd-TPLTS
-    	- 64th-TPLTS
-    	- 128th-TPLTS
-    	- 2-Bar-DTTED
-    	- 1-Bar-DTTED
-    	- 2nd-DTTED
-    	- 4th-DTTED
-    	- 8th-DTTED
-    	- 16th-DTTED
-    	- 32nd-DTTED
-    	- 64th-DTTED
-    	- 128th-DTTED
-	- Attack (ATTA)
-	- Release (RELE)
-	- Shape (TYPE)
+    - Volume Ducking (VOLU)
+    - Sync (SYNC)
+    NOTE: These options can change depending on how your default resolution is set
+        - Off (Off)
+        - 2-Bar (2BAR)
+        - 1-Bar (1BAR)
+        - 2nd-Notes (2ND)
+        - 4th-Notes (4TH)
+        - 8th-Notes (8TH)
+        - 16th-Notes (16TH)
+        - 32nd-Notes (32ND)
+        - 64th-Notes (64TH)
+        - 128th-Notes (128T)
+        - 2-Bar-TPLTS (2BAR-TPLTS)
+        - 1-Bar-TPLTS (1BAR-TPLTS)
+        - 2nd-TPLTS (2ND-TPLTS)
+        - 4th-TPLTS (4TH-TPLTS)
+        - 8th-TPLTS (8TH-TPLTS)
+        - 16th-TPLTS (16TH-TPLTS)
+        - 32nd-TPLTS (32ND-TPLTS)
+        - 64th-TPLTS (64TH-TPLTS)
+        - 128th-TPLTS (128T-TPLTS)
+        - 2-Bar-DTTED (2BAR-DTTED)
+        - 1-Bar-DTTED (1BAR-DTTED)
+        - 2nd-DTTED (2ND-DTTED)
+        - 4th-DTTED (4TH-DTTED)
+        - 8th-DTTED (8TH-DTTED)
+        - 16th-DTTED (16TH-DTTED)
+        - 32nd-DTTED (32ND-DTTED)
+        - 64th-DTTED (64TH-DTTED)
+        - 128th-DTTED (128T-DTTED)
+    - Attack (ATTA)
+    - Release (RELE)
+    - Shape (TYPE)
 </details>
 <details>
 <summary>Oscillator 1 (OSC1)</summary>
-	- Type
-		- Sine
-		- Triangle (TRIA)
-		- Square (SQUA)
-		- Analog Square (ASQUARE)
-		- Saw
-		- Analog Saw (ASAW)
-		- Wavetable
-		- Sample (SAMP)
-		- Input (IN)
-    - File Browser (FILE) - if Wavetable or Sample type is selected
-    - Transpose (TRAN)
-	- Wave-Index (WAVE) - if Wavetable type is selected
-    - Pulse Width (PULS) - if any type except Sample or Input is selected
-    - Retrigger Phase (RETR) - if any type except Sample is selected
-	- Reverse (REVE) - if Sample type is selected
-		- Disabled (OFF)
-		- Enabled (ON)
-	- Repeat Mode (MODE)
-		- Cut
-		- Once
-		- Loop
-		- Stretch
-    - Speed (SPEE) - if Sample type selected
-    - Pitch/Speed (PISP)
-        - Linked
-        - Independent
-    - Interpolation (INTE) - if Input type is selected
-        - Linear
-        - Sync
-	- Start-Point (STAR) - if Sample type is selected
-	- End-Point (END-) - if Sample type is selected
-</details>
-<details>
-<summary>Oscillator 2 (OSC2)</summary>
-	- Type
-		- Sine
-		- Triangle (TRIA)
-		- Square (SQUA)
-		- Analog Square (ASQUARE)
-		- Saw
-		- Analog Saw (ASAW)
-		- Wavetable
-		- Sample (SAMP)
-		- Input (IN)
+    - Type (TYPE)
+        - Sine (SINE)
+        - Triangle (TRIA)
+        - Square (SQUA)
+        - Analog Square (ASQUARE)
+        - Saw (SAW)
+        - Analog Saw (ASAW)
+        - Wavetable (WAVETABLE)
+        - Sample (SAMP)
+        - Input (IN)
     - File Browser (FILE) - if Wavetable or Sample type is selected
     - Transpose (TRAN)
     - Wave-Index (WAVE) - if Wavetable type is selected
     - Pulse Width (PULS) - if any type except Sample or Input is selected
     - Retrigger Phase (RETR) - if any type except Sample is selected
-	- Reverse (REVE) - if Sample type is selected
-		- Disabled (OFF)
-		- Enabled (ON)
-	- Repeat Mode (MODE)
-		- Cut
-		- Once
-		- Loop
-		- Stretch
+    - Reverse (REVE) - if Sample type is selected
+        - Disabled (OFF)
+        - Enabled (ON)
+    - Repeat Mode (MODE)
+        - Cut (CUT)
+        - Once (ONCE)
+        - Loop (LOOP)
+        - Stretch (STRETCH)
     - Speed (SPEE) - if Sample type selected
     - Pitch/Speed (PISP)
-        - Linked
-        - Independent
+        - Linked (Linked)
+        - Independent (Independent)
     - Interpolation (INTE) - if Input type is selected
-        - Linear
-        - Sync
-	- Start-Point (STAR) - if Sample type is selected
-	- End-Point (END-) - if Sample type is selected
+        - Linear (Linear)
+        - Sync (SYNC)
+    - Start-Point (STAR) - if Sample type is selected
+    - End-Point (END-) - if Sample type is selected
+</details>
+<details>
+<summary>Oscillator 2 (OSC2)</summary>
+    - Type (TYPE)
+        - Sine (SINE)
+        - Triangle (TRIA)
+        - Square (SQUA)
+        - Analog Square (ASQUARE)
+        - Saw (SAW)
+        - Analog Saw (ASAW)
+        - Wavetable (WAVETABLE)
+        - Sample (SAMP)
+        - Input (IN)
+    - File Browser (FILE) - if Wavetable or Sample type is selected
+    - Transpose (TRAN)
+    - Wave-Index (WAVE) - if Wavetable type is selected
+    - Pulse Width (PULS) - if any type except Sample or Input is selected
+    - Retrigger Phase (RETR) - if any type except Sample is selected
+    - Reverse (REVE) - if Sample type is selected
+        - Disabled (OFF)
+        - Enabled (ON)
+    - Repeat Mode (MODE)
+        - Cut (CUT)
+        - Once (ONCE)
+        - Loop (LOOP)
+        - Stretch (STRETCH)
+    - Speed (SPEE) - if Sample type selected
+    - Pitch/Speed (PISP)
+        - Linked (Linked)
+        - Independent (Independent)
+    - Interpolation (INTE) - if Input type is selected
+        - Linear (Linear)
+        - Sync (SYNC)
+    - Start-Point (STAR) - if Sample type is selected
+    - End-Point (END-) - if Sample type is selected
 </details>
 <details>
 <summary>Osc mixer (OMIX)<Badge text="c1.3" variant="tip" /></summary>
@@ -1326,232 +1329,232 @@ The Sound menu contains the following menu hierarchy:
 </details>
 <details>
 <summary>Envelope 1 (ENV1)</summary>
-	- Attack (ATTA)
-	- Decay (DECA)
-	- Sustain (SUST)
-	- Release (RELE)
+    - Attack (ATTA)
+    - Decay (DECA)
+    - Sustain (SUST)
+    - Release (RELE)
 </details>
 <details>
 <summary>Envelope 2 (ENV2)</summary>
-	- Attack (ATTA)
-	- Decay (DECA)
-	- Sustain (SUST)
-	- Release (RELE)
+    - Attack (ATTA)
+    - Decay (DECA)
+    - Sustain (SUST)
+    - Release (RELE)
 </details>
 <details>
 <summary>Envelope 3 (ENV3)</summary>
-	- Attack (ATTA)
-	- Decay (DECA)
-	- Sustain (SUST)
-	- Release (RELE)
+    - Attack (ATTA)
+    - Decay (DECA)
+    - Sustain (SUST)
+    - Release (RELE)
 </details>
 <details>
 <summary>Envelope 4 (ENV4)</summary>
-	- Attack (ATTA)
-	- Decay (DECA)
-	- Sustain (SUST)
-	- Release (RELE)
+    - Attack (ATTA)
+    - Decay (DECA)
+    - Sustain (SUST)
+    - Release (RELE)
 </details>
 <details>
-<summary>LFO1</summary>
-	- Shape (TYPE)
-		- Sine
-		- Triangle (TRIA)
-		- Square (SQUA)
-		- Saw
-		- S&H (S H)
-		- Random Walk (RWLK)
-	- Sync
-		NOTE: These options can change depending on how your default resolution is set
-		- Off
-		- 2-Bar
-		- 1-Bar
-		- 2nd-Notes
-		- 4th-Notes
-		- 8th-Notes
-		- 16th-Notes
-		- 32nd-Notes
-		- 64th-Notes
-		- 128th-Notes
-		- 2-Bar-TPLTS
-		- 1-Bar-TPLTS
-		- 2nd-TPLTS
-		- 4th-TPLTS
-		- 8th-TPLTS
-		- 16th-TPLTS
-		- 32nd-TPLTS
-		- 64th-TPLTS
-		- 128th-TPLTS
-		- 2-Bar-DTTED
-		- 1-Bar-DTTED
-		- 2nd-DTTED
-		- 4th-DTTED
-		- 8th-DTTED
-		- 16th-DTTED
-		- 32nd-DTTED
-		- 64th-DTTED
-		- 128th-DTTED
-	- Rate
+<summary>LFO1 (LFO1)</summary>
+    - Shape (TYPE)
+        - Sine (SINE)
+        - Triangle (TRIA)
+        - Square (SQUA)
+        - Saw (SAW)
+        - S&H (S H)
+        - Random Walk (RWLK)
+    - Sync (SYNC)
+        NOTE: These options can change depending on how your default resolution is set
+        - Off (Off)
+        - 2-Bar (2BAR)
+        - 1-Bar (1BAR)
+        - 2nd-Notes (2ND)
+        - 4th-Notes (4TH)
+        - 8th-Notes (8TH)
+        - 16th-Notes (16TH)
+        - 32nd-Notes (32ND)
+        - 64th-Notes (64TH)
+        - 128th-Notes (128T)
+        - 2-Bar-TPLTS (2BAR-TPLTS)
+        - 1-Bar-TPLTS (1BAR-TPLTS)
+        - 2nd-TPLTS (2ND-TPLTS)
+        - 4th-TPLTS (4TH-TPLTS)
+        - 8th-TPLTS (8TH-TPLTS)
+        - 16th-TPLTS (16TH-TPLTS)
+        - 32nd-TPLTS (32ND-TPLTS)
+        - 64th-TPLTS (64TH-TPLTS)
+        - 128th-TPLTS (128T-TPLTS)
+        - 2-Bar-DTTED (2BAR-DTTED)
+        - 1-Bar-DTTED (1BAR-DTTED)
+        - 2nd-DTTED (2ND-DTTED)
+        - 4th-DTTED (4TH-DTTED)
+        - 8th-DTTED (8TH-DTTED)
+        - 16th-DTTED (16TH-DTTED)
+        - 32nd-DTTED (32ND-DTTED)
+        - 64th-DTTED (64TH-DTTED)
+        - 128th-DTTED (128T-DTTED)
+    - Rate (RATE)
 </details>
 <details>
-<summary>LFO2</summary>
-	- Shape (TYPE)
-		- Sine
-		- Triangle (TRIA)
-		- Square (SQUA)
-		- Saw
-		- S&H (S H)
-		- Random Walk (RWLK)
-	- Sync
-		NOTE: These options can change depending on how your default resolution is set
-		- Off
-		- 2-Bar
-		- 1-Bar
-		- 2nd-Notes
-		- 4th-Notes
-		- 8th-Notes
-		- 16th-Notes
-		- 32nd-Notes
-		- 64th-Notes
-		- 128th-Notes
-		- 2-Bar-TPLTS
-		- 1-Bar-TPLTS
-		- 2nd-TPLTS
-		- 4th-TPLTS
-		- 8th-TPLTS
-		- 16th-TPLTS
-		- 32nd-TPLTS
-		- 64th-TPLTS
-		- 128th-TPLTS
-		- 2-Bar-DTTED
-		- 1-Bar-DTTED
-		- 2nd-DTTED
-		- 4th-DTTED
-		- 8th-DTTED
-		- 16th-DTTED
-		- 32nd-DTTED
-		- 64th-DTTED
-		- 128th-DTTED
-	- Rate
+<summary>LFO2 (LFO2)</summary>
+    - Shape (TYPE)
+        - Sine (SINE)
+        - Triangle (TRIA)
+        - Square (SQUA)
+        - Saw (SAW)
+        - S&H (S H)
+        - Random Walk (RWLK)
+    - Sync (SYNC)
+        NOTE: These options can change depending on how your default resolution is set
+        - Off (Off)
+        - 2-Bar (2BAR)
+        - 1-Bar (1BAR)
+        - 2nd-Notes (2ND)
+        - 4th-Notes (4TH)
+        - 8th-Notes (8TH)
+        - 16th-Notes (16TH)
+        - 32nd-Notes (32ND)
+        - 64th-Notes (64TH)
+        - 128th-Notes (128T)
+        - 2-Bar-TPLTS (2BAR-TPLTS)
+        - 1-Bar-TPLTS (1BAR-TPLTS)
+        - 2nd-TPLTS (2ND-TPLTS)
+        - 4th-TPLTS (4TH-TPLTS)
+        - 8th-TPLTS (8TH-TPLTS)
+        - 16th-TPLTS (16TH-TPLTS)
+        - 32nd-TPLTS (32ND-TPLTS)
+        - 64th-TPLTS (64TH-TPLTS)
+        - 128th-TPLTS (128T-TPLTS)
+        - 2-Bar-DTTED (2BAR-DTTED)
+        - 1-Bar-DTTED (1BAR-DTTED)
+        - 2nd-DTTED (2ND-DTTED)
+        - 4th-DTTED (4TH-DTTED)
+        - 8th-DTTED (8TH-DTTED)
+        - 16th-DTTED (16TH-DTTED)
+        - 32nd-DTTED (32ND-DTTED)
+        - 64th-DTTED (64TH-DTTED)
+        - 128th-DTTED (128T-DTTED)
+    - Rate (RATE)
 </details>
 <details>
-<summary>LFO3</summary>
-	- Shape (TYPE)
-		- Sine
-		- Triangle (TRIA)
-		- Square (SQUA)
-		- Saw
-		- S&H (S H)
-		- Random Walk (RWLK)
-	- Sync
-		NOTE: These options can change depending on how your default resolution is set
-		- Off
-		- 2-Bar
-		- 1-Bar
-		- 2nd-Notes
-		- 4th-Notes
-		- 8th-Notes
-		- 16th-Notes
-		- 32nd-Notes
-		- 64th-Notes
-		- 128th-Notes
-		- 2-Bar-TPLTS
-		- 1-Bar-TPLTS
-		- 2nd-TPLTS
-		- 4th-TPLTS
-		- 8th-TPLTS
-		- 16th-TPLTS
-		- 32nd-TPLTS
-		- 64th-TPLTS
-		- 128th-TPLTS
-		- 2-Bar-DTTED
-		- 1-Bar-DTTED
-		- 2nd-DTTED
-		- 4th-DTTED
-		- 8th-DTTED
-		- 16th-DTTED
-		- 32nd-DTTED
-		- 64th-DTTED
-		- 128th-DTTED
-	- Rate
+<summary>LFO3 (LFO3)</summary>
+    - Shape (TYPE)
+        - Sine (SINE)
+        - Triangle (TRIA)
+        - Square (SQUA)
+        - Saw (SAW)
+        - S&H (S H)
+        - Random Walk (RWLK)
+    - Sync (SYNC)
+        NOTE: These options can change depending on how your default resolution is set
+        - Off (Off)
+        - 2-Bar (2BAR)
+        - 1-Bar (1BAR)
+        - 2nd-Notes (2ND)
+        - 4th-Notes (4TH)
+        - 8th-Notes (8TH)
+        - 16th-Notes (16TH)
+        - 32nd-Notes (32ND)
+        - 64th-Notes (64TH)
+        - 128th-Notes (128T)
+        - 2-Bar-TPLTS (2BAR-TPLTS)
+        - 1-Bar-TPLTS (1BAR-TPLTS)
+        - 2nd-TPLTS (2ND-TPLTS)
+        - 4th-TPLTS (4TH-TPLTS)
+        - 8th-TPLTS (8TH-TPLTS)
+        - 16th-TPLTS (16TH-TPLTS)
+        - 32nd-TPLTS (32ND-TPLTS)
+        - 64th-TPLTS (64TH-TPLTS)
+        - 128th-TPLTS (128T-TPLTS)
+        - 2-Bar-DTTED (2BAR-DTTED)
+        - 1-Bar-DTTED (1BAR-DTTED)
+        - 2nd-DTTED (2ND-DTTED)
+        - 4th-DTTED (4TH-DTTED)
+        - 8th-DTTED (8TH-DTTED)
+        - 16th-DTTED (16TH-DTTED)
+        - 32nd-DTTED (32ND-DTTED)
+        - 64th-DTTED (64TH-DTTED)
+        - 128th-DTTED (128T-DTTED)
+    - Rate (RATE)
 </details>
 <details>
-<summary>LFO4</summary>
-	- Shape (TYPE)
-		- Sine
-		- Triangle (TRIA)
-		- Square (SQUA)
-		- Saw
-		- S&H (S H)
-		- Random Walk (RWLK)
-	- Sync
-		NOTE: These options can change depending on how your default resolution is set
-		- Off
-		- 2-Bar
-		- 1-Bar
-		- 2nd-Notes
-		- 4th-Notes
-		- 8th-Notes
-		- 16th-Notes
-		- 32nd-Notes
-		- 64th-Notes
-		- 128th-Notes
-		- 2-Bar-TPLTS
-		- 1-Bar-TPLTS
-		- 2nd-TPLTS
-		- 4th-TPLTS
-		- 8th-TPLTS
-		- 16th-TPLTS
-		- 32nd-TPLTS
-		- 64th-TPLTS
-		- 128th-TPLTS
-		- 2-Bar-DTTED
-		- 1-Bar-DTTED
-		- 2nd-DTTED
-		- 4th-DTTED
-		- 8th-DTTED
-		- 16th-DTTED
-		- 32nd-DTTED
-		- 64th-DTTED
-		- 128th-DTTED
-	- Rate
+<summary>LFO4 (LFO4)</summary>
+    - Shape (TYPE)
+        - Sine (SINE)
+        - Triangle (TRIA)
+        - Square (SQUA)
+        - Saw (SAW)
+        - S&H (S H)
+        - Random Walk (RWLK)
+    - Sync (SYNC)
+        NOTE: These options can change depending on how your default resolution is set
+        - Off (Off)
+        - 2-Bar (2BAR)
+        - 1-Bar (1BAR)
+        - 2nd-Notes (2ND)
+        - 4th-Notes (4TH)
+        - 8th-Notes (8TH)
+        - 16th-Notes (16TH)
+        - 32nd-Notes (32ND)
+        - 64th-Notes (64TH)
+        - 128th-Notes (128T)
+        - 2-Bar-TPLTS (2BAR-TPLTS)
+        - 1-Bar-TPLTS (1BAR-TPLTS)
+        - 2nd-TPLTS (2ND-TPLTS)
+        - 4th-TPLTS (4TH-TPLTS)
+        - 8th-TPLTS (8TH-TPLTS)
+        - 16th-TPLTS (16TH-TPLTS)
+        - 32nd-TPLTS (32ND-TPLTS)
+        - 64th-TPLTS (64TH-TPLTS)
+        - 128th-TPLTS (128T-TPLTS)
+        - 2-Bar-DTTED (2BAR-DTTED)
+        - 1-Bar-DTTED (1BAR-DTTED)
+        - 2nd-DTTED (2ND-DTTED)
+        - 4th-DTTED (4TH-DTTED)
+        - 8th-DTTED (8TH-DTTED)
+        - 16th-DTTED (16TH-DTTED)
+        - 32nd-DTTED (32ND-DTTED)
+        - 64th-DTTED (64TH-DTTED)
+        - 128th-DTTED (128T-DTTED)
+    - Rate (RATE)
 </details>
 <details>
 <summary>Voice (VOIC)</summary>
-	- Priority (PRIO)
-		- Low
-		- Medium
-		- High
-	- Polyphony Type (POLY)
-		- Auto (Can play chords, but starting a new note ends any releasing ones)
-		- Polyphonic (Can play up to MAX VOICES notes. Click for MAX VOICES sub menu to set number of voices)
-		- Monophonic (Each note stops all other notes, retriggers envelope)
-		- Legato (Each note stops all other notes, does not retrigger envelope)
-	- Max Voices (VCNT)
-	- Portamento (PORT)
-	- Unison (UNIS)
-		- Unison Number (NUM)
-		- Unison Detune (DETU)
-		- Unison Stereo Spread (SPRE)
+    - Priority (PRIO)
+        - Low (LOW)
+        - Medium (MEDIUM)
+        - High (HIGH)
+    - Polyphony Type (POLY)
+        - Auto (Auto) (Can play chords, but starting a new note ends any releasing ones)
+        - Polyphonic (Polyphonic) (Can play up to MAX VOICES notes. Click for MAX VOICES sub menu to set number of voices)
+        - Monophonic (Monophonic) (Each note stops all other notes, retriggers envelope)
+        - Legato (Legato) (Each note stops all other notes, does not retrigger envelope)
+    - Max Voices (VCNT)
+    - Portamento (PORT)
+    - Unison (UNIS)
+        - Unison Number (NUM)
+        - Unison Detune (DETU)
+        - Unison Stereo Spread (SPRE)
 </details>
 <details>
 <summary>Bend Range (BEND)</summary>
-	- Normal (NORM)
-	- Poly / Finger / MPE (MPE)
+    - Normal (NORM)
+    - Poly / Finger / MPE (MPE)
 </details>
 <details>
 <summary>Mod Matrix (MMTR)</summary>
 </details>
 <details>
 <summary>Play Direction (DIRE)</summary>
-	- Forward
-	- Reversed
-	- Ping-Pong
+    - Forward (FORWARD)
+    - Reversed (REVERSED)
+    - Ping-Pong (PING-PONG)
 </details>
 <details>
-<summary>MIDI</summary>
-	- Channel
-	- Note (only available for Kits)
+<summary>MIDI (MIDI)</summary>
+    - Channel (CHAN)
+    - Note (NOTE) (only available for Kits)
 </details>
 </details>
 
@@ -1566,249 +1569,249 @@ The Kit FX menu contains the following menu hierarchy:
     - Edit Name (NAME)
         - Edit Track Name (TRAK)
         - Edit Clip Name (CLIP)
-	- Audio Export (EXPO)
-		- Start Export (EXPO)
-		- Configure Export (CONF)
-			- Kit FX (KIT)
-				- Disabled (OFF)
-				- Enabled (ON)
-			- Normalization (NORM)
-				- Disabled (OFF)
-				- Enabled (ON)
-			- Export to Silence (SILE)
-				- Disabled (OFF)
-				- Enabled (ON)
-			- Song FX (SONG)
-				- Disabled (OFF)
-				- Enabled (ON)
-			- Offline Rendering (OFFR)
-				- Disabled (OFF)
-				- Enabled (ON)
+    - Audio Export (EXPO)
+        - Start Export (EXPO)
+        - Configure Export (CONF)
+            - Kit FX (KIT)
+                - Disabled (OFF)
+                - Enabled (ON)
+            - Normalization (NORM)
+                - Disabled (OFF)
+                - Enabled (ON)
+            - Export to Silence (SILE)
+                - Disabled (OFF)
+                - Enabled (ON)
+            - Song FX (SONG)
+                - Disabled (OFF)
+                - Enabled (ON)
+            - Offline Rendering (OFFR)
+                - Disabled (OFF)
+                - Enabled (ON)
 </details>
 <details>
 <summary>Master (MSTR)</summary>
     - Volume (VOLU)
     - Pitch (PITC)
-    - Pan
+    - Pan (PAN)
 </details>
 <details>
 <summary>Kit Arpeggiator (KARP)</summary>
-    - Enabled (ON)
+    - Enabled (ON) / Disabled (OFF)
     - Basic (BASI)
-    	- Gate
-    	- Sync
-    	NOTE: These options can change depending on how your default resolution is set
-    		- Off
-    		- 2-Bar
-    		- 1-Bar
-    		- 2nd-Notes
-    		- 4th-Notes
-    		- 8th-Notes
-    		- 16th-Notes
-    		- 32nd-Notes
-    		- 64th-Notes
-    		- 128th-Notes
-    		- 2-Bar-TPLTS
-    		- 1-Bar-TPLTS
-    		- 2nd-TPLTS
-    		- 4th-TPLTS
-    		- 8th-TPLTS
-    		- 16th-TPLTS
-    		- 32nd-TPLTS
-    		- 64th-TPLTS
-    		- 128th-TPLTS
-    		- 2-Bar-DTTED
-    		- 1-Bar-DTTED
-    		- 2nd-DTTED
-    		- 4th-DTTED
-    		- 8th-DTTED
-    		- 16th-DTTED
-    		- 32nd-DTTED
-    		- 64th-DTTED
-    		- 128th-DTTED
-    	- Rate
+        - Gate (GATE)
+        - Sync (SYNC)
+        NOTE: These options can change depending on how your default resolution is set
+            - Off (Off)
+            - 2-Bar (2BAR)
+            - 1-Bar (1BAR)
+            - 2nd-Notes (2ND)
+            - 4th-Notes (4TH)
+            - 8th-Notes (8TH)
+            - 16th-Notes (16TH)
+            - 32nd-Notes (32ND)
+            - 64th-Notes (64TH)
+            - 128th-Notes (128T)
+            - 2-Bar-TPLTS (2BAR-TPLTS)
+            - 1-Bar-TPLTS (1BAR-TPLTS)
+            - 2nd-TPLTS (2ND-TPLTS)
+            - 4th-TPLTS (4TH-TPLTS)
+            - 8th-TPLTS (8TH-TPLTS)
+            - 16th-TPLTS (16TH-TPLTS)
+            - 32nd-TPLTS (32ND-TPLTS)
+            - 64th-TPLTS (64TH-TPLTS)
+            - 128th-TPLTS (128T-TPLTS)
+            - 2-Bar-DTTED (2BAR-DTTED)
+            - 1-Bar-DTTED (1BAR-DTTED)
+            - 2nd-DTTED (2ND-DTTED)
+            - 4th-DTTED (4TH-DTTED)
+            - 8th-DTTED (8TH-DTTED)
+            - 16th-DTTED (16TH-DTTED)
+            - 32nd-DTTED (32ND-DTTED)
+            - 64th-DTTED (64TH-DTTED)
+            - 128th-DTTED (128T-DTTED)
+        - Rate (RATE)
     - Pattern (PATT)
-    	- Note Mode (NMOD)
-    		- Up
-    		- Down
-    		- Up & Down (UPDN)
-    		- Played Order (PLAY)
-    		- Random (RAND)
-    	- Step Repeat (REPE)
-    	- Rhythm (RHYT)
-    	- Sequence Length (LENG)
+        - Note Mode (NMOD)
+            - Up (UP)
+            - Down (DOWN)
+            - Up & Down (UPDN)
+            - Played Order (PLAY)
+            - Random (RAND)
+        - Step Repeat (REPE)
+        - Rhythm (RHYT)
+        - Sequence Length (LENG)
     - Randomizer (RAND)
-    	- Lock Randomizer (LOCK)
-    	- Gate Spread (GATE)
-    	- Velocity Spread (VELO)
-    	- Ratchet Amount (RATC)
-    	- Ratchet Probability (RPRO)
-    	- Note Probability (NOTE)
-    	- Swap Probability (SWAP)
-    	- Bass Probability (BASS)
-    	- Glide Probability (GLID)
-    	- Reverse Probability (RVRS)
+        - Lock Randomizer (LOCK)
+        - Gate Spread (GATE)
+        - Velocity Spread (VELO)
+        - Ratchet Amount (RATC)
+        - Ratchet Probability (RPRO)
+        - Note Probability (NOTE)
+        - Swap Probability (SWAP)
+        - Bass Probability (BASS)
+        - Glide Probability (GLID)
+        - Reverse Probability (RVRS)
 </details>
 <details>
 <summary>Compressor (COMP)</summary>
     - Threshold (THRE)
     - Ratio (RATI)
-    - Blend
+    - Blend (Blend)
     - Attack (ATTA)
     - Release (RELE)
-    - HPF
+    - HPF (HPF)
 </details>
 <details>
 <summary>Filters (FLTR)</summary>
-    - LPF
-    	- Frequency (FREQ)
-    	- Resonance (RESO)
-    	- Morph (MORP)
-    	- Mode (MODE)
-    		- 12DB Ladder (LA12)
-    		- 24DB Ladder (LA24)
-    		- Drive (DRIV)
-    		- SVF Bandpass (SV_B)
-    		- SVF Notch (SV_N)
-    - HPF
-    	- Frequency (FREQ)
-    	- Resonance (RESO)
-    	- Morph (MORP)
-    	- Mode (MODE)
-    		- SVF Bandpass (SV_B)
-    		- SVF Notch (SV_N)
-    		- HP Ladder (HP_L)
+    - LPF (LPF)
+        - Frequency (FREQ)
+        - Resonance (RESO)
+        - Morph (MORP)
+        - Mode (MODE)
+            - 12DB Ladder (LA12)
+            - 24DB Ladder (LA24)
+            - Drive (DRIV)
+            - SVF Bandpass (SV_B)
+            - SVF Notch (SV_N)
+    - HPF (HPF)
+        - Frequency (FREQ)
+        - Resonance (RESO)
+        - Morph (MORP)
+        - Mode (MODE)
+            - SVF Bandpass (SV_B)
+            - SVF Notch (SV_N)
+            - HP Ladder (HP_L)
     - Filter Route (ROUT)
-    	- HPF2LPF (HPF2)
-    	- LPF2HPF (LPF2)
-    	- PARALLEL (PARA)
+        - HPF2LPF (HPF2)
+        - LPF2HPF (LPF2)
+        - PARALLEL (PARA)
 </details>
 <details>
-<summary>FX</summary>
-    - EQ
-    	- Bass
-    	- Treble (TREB)
-    	- Bass Frequency (BAFR)
-    	- Treble Frequency (TRFR)
+<summary>FX (FX)</summary>
+    - EQ (EQ)
+        - Bass (BASS)
+        - Treble (TREB)
+        - Bass Frequency (BAFR)
+        - Treble Frequency (TRFR)
     - Delay (DELA)
-    	- Pingpong (PING)
-    		- Disabled (OFF)
-    		- Enabled (ON)
-    	- Sync
-    	NOTE: These options can change depending on how your default resolution is set
-    		- Off
-    		- 2-Bar
-    		- 1-Bar
-    		- 2nd-Notes
-    		- 4th-Notes
-    		- 8th-Notes
-    		- 16th-Notes
-    		- 32nd-Notes
-    		- 64th-Notes
-    		- 128th-Notes
-    		- 2-Bar-TPLTS
-    		- 1-Bar-TPLTS
-    		- 2nd-TPLTS
-    		- 4th-TPLTS
-    		- 8th-TPLTS
-    		- 16th-TPLTS
-    		- 32nd-TPLTS
-    		- 64th-TPLTS
-    		- 128th-TPLTS
-    		- 2-Bar-DTTED
-    		- 1-Bar-DTTED
-    		- 2nd-DTTED
-    		- 4th-DTTED
-    		- 8th-DTTED
-    		- 16th-DTTED
-    		- 32nd-DTTED
-    		- 64th-DTTED
-    		- 128th-DTTED
-    	- Rate
-    	- Amount (AMOU)
-    	- Type
-    		- Digital (DIGI)
-    		- Analog (ANA)
+        - Pingpong (PING)
+            - Disabled (OFF)
+            - Enabled (ON)
+        - Sync (SYNC)
+        NOTE: These options can change depending on how your default resolution is set
+            - Off (Off)
+            - 2-Bar (2BAR)
+            - 1-Bar (1BAR)
+            - 2nd-Notes (2ND)
+            - 4th-Notes (4TH)
+            - 8th-Notes (8TH)
+            - 16th-Notes (16TH)
+            - 32nd-Notes (32ND)
+            - 64th-Notes (64TH)
+            - 128th-Notes (128T)
+            - 2-Bar-TPLTS (2BAR-TPLTS)
+            - 1-Bar-TPLTS (1BAR-TPLTS)
+            - 2nd-TPLTS (2ND-TPLTS)
+            - 4th-TPLTS (4TH-TPLTS)
+            - 8th-TPLTS (8TH-TPLTS)
+            - 16th-TPLTS (16TH-TPLTS)
+            - 32nd-TPLTS (32ND-TPLTS)
+            - 64th-TPLTS (64TH-TPLTS)
+            - 128th-TPLTS (128T-TPLTS)
+            - 2-Bar-DTTED (2BAR-DTTED)
+            - 1-Bar-DTTED (1BAR-DTTED)
+            - 2nd-DTTED (2ND-DTTED)
+            - 4th-DTTED (4TH-DTTED)
+            - 8th-DTTED (8TH-DTTED)
+            - 16th-DTTED (16TH-DTTED)
+            - 32nd-DTTED (32ND-DTTED)
+            - 64th-DTTED (64TH-DTTED)
+            - 128th-DTTED (128T-DTTED)
+        - Rate (RATE)
+        - Amount (AMOU)
+        - Type (TYPE)
+            - Digital (DIGI)
+            - Analog (ANA)
     - Reverb (REVE)
-    	- Model (MODE)
-    		- Freeverb (FVRB)
-    		- Mutable (MTBL)
-    	- Room Size (SIZE) (if Freeverb is Selected) or Time (if Mutable is Selected)
-    	- Damping (DAMP)
-    	- Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
-    	- Amount (AMOU)
-    	- Pan
-    	- HPF (if Mutable is Selected)
-    	- LPF (if Mutable is Selected)
-    	- Reverb Sidechain (SIDE)
-    		- Volume Ducking (VOLU)
+        - Model (MODE)
+            - Freeverb (FVRB)
+            - Mutable (MTBL)
+        - Room Size (SIZE) (if Freeverb is Selected) or Time (if Mutable is Selected)
+        - Damping (DAMP)
+        - Width (WIDT) (if Freeverb is Selected) or Diffusion (DIFF) (if Mutable is Selected)
+        - Amount (AMOU)
+        - Pan (PAN)
+        - HPF (HPF) (if Mutable is Selected)
+        - LPF (LPF) (if Mutable is Selected)
+        - Reverb Sidechain (SIDE)
+            - Volume Ducking (VOLU)
             - Shape (TYPE)
             - Attack (ATTA)
             - Release (RELE)
-            - Sync
+            - Sync (SYNC)
     - Stutter (STUT)
-    	- Use Song Settings (SONG)
-    	- Quantize (QTZ)
-    	- Reverse (REVE)
-    	- Ping-Pong (PING)
+        - Use Song Settings (SONG)
+        - Quantize (QTZ)
+        - Reverse (REVE)
+        - Ping-Pong (PING)
     - Mod-FX (MODU)
-		- Type
-			- Disabled (OFF)
-			- Flanger (FLAN)
-			- Chorus (CHOR)
-			- Phaser (PHAS)
-			- Stereo Chorus (S.CHO)
-			- Warble (WARB)
-			- Grain (GRAI)
-		- Rate
-		- Depth (DEPT) (if Chorus, Phaser, Warble or Grain is selected)
-			- Displayed as Grain Amount (Amnt) if Grain is selected
-		- Feedback (FEED) (if Flanger, Phaser, Warble or Grain is selected)
-			- Displayed as Grain Type (GRTY) if Grain is selected
-		- Offset (OFFS) (if Chorus, Warble or Grain is selected)
-			- Displayed as Grain Size (SIZE) if Grain is selected
+        - Type (TYPE)
+            - Disabled (OFF)
+            - Flanger (FLAN)
+            - Chorus (CHOR)
+            - Phaser (PHAS)
+            - Stereo Chorus (S.CHO)
+            - Warble (WARB)
+            - Grain (GRAI)
+        - Rate (RATE)
+        - Depth (DEPT) (if Chorus, Phaser, Warble or Grain is selected)
+            - Displayed as Grain Amount (Amnt) if Grain is selected
+        - Feedback (FEED) (if Flanger, Phaser, Warble or Grain is selected)
+            - Displayed as Grain Type (GRTY) if Grain is selected
+        - Offset (OFFS) (if Chorus, Warble or Grain is selected)
+            - Displayed as Grain Size (SIZE) if Grain is selected
     - Distortion (DIST)
-    	- Saturation (SATU)
-    	- Bitcrush (CRUS)
-    	- Decimation (DECI)
-    	- Wavefold (WAVE)
+        - Saturation (SATU)
+        - Bitcrush (CRUS)
+        - Decimation (DECI)
+        - Wavefold (WAVE)
 </details>
 <details>
 <summary>Sidechain (SIDE)</summary>
-	- Volume Ducking (VOLU)
-	- Sync
-	NOTE: These options can change depending on how your default resolution is set
-		- Off
-		- 2-Bar
-		- 1-Bar
-		- 2nd-Notes
-		- 4th-Notes
-		- 8th-Notes
-		- 16th-Notes
-		- 32nd-Notes
-		- 64th-Notes
-		- 128th-Notes
-		- 2-Bar-TPLTS
-		- 1-Bar-TPLTS
-		- 2nd-TPLTS
-		- 4th-TPLTS
-		- 8th-TPLTS
-		- 16th-TPLTS
-		- 32nd-TPLTS
-		- 64th-TPLTS
-		- 128th-TPLTS
-		- 2-Bar-DTTED
-		- 1-Bar-DTTED
-		- 2nd-DTTED
-		- 4th-DTTED
-		- 8th-DTTED
-		- 16th-DTTED
-		- 32nd-DTTED
-		- 64th-DTTED
-		- 128th-DTTED
-	- Attack (ATTA)
-	- Release (RELE)
-	- Shape (TYPE)
+    - Volume Ducking (VOLU)
+    - Sync (SYNC)
+    NOTE: These options can change depending on how your default resolution is set
+        - Off (Off)
+        - 2-Bar (2BAR)
+        - 1-Bar (1BAR)
+        - 2nd-Notes (2ND)
+        - 4th-Notes (4TH)
+        - 8th-Notes (8TH)
+        - 16th-Notes (16TH)
+        - 32nd-Notes (32ND)
+        - 64th-Notes (64TH)
+        - 128th-Notes (128T)
+        - 2-Bar-TPLTS (2BAR-TPLTS)
+        - 1-Bar-TPLTS (1BAR-TPLTS)
+        - 2nd-TPLTS (2ND-TPLTS)
+        - 4th-TPLTS (4TH-TPLTS)
+        - 8th-TPLTS (8TH-TPLTS)
+        - 16th-TPLTS (16TH-TPLTS)
+        - 32nd-TPLTS (32ND-TPLTS)
+        - 64th-TPLTS (64TH-TPLTS)
+        - 128th-TPLTS (128T-TPLTS)
+        - 2-Bar-DTTED (2BAR-DTTED)
+        - 1-Bar-DTTED (1BAR-DTTED)
+        - 2nd-DTTED (2ND-DTTED)
+        - 4th-DTTED (4TH-DTTED)
+        - 8th-DTTED (8TH-DTTED)
+        - 16th-DTTED (16TH-DTTED)
+        - 32nd-DTTED (32ND-DTTED)
+        - 64th-DTTED (64TH-DTTED)
+        - 128th-DTTED (128T-DTTED)
+    - Attack (ATTA)
+    - Release (RELE)
+    - Shape (TYPE)
 </details>
 </details>
 
@@ -1836,15 +1839,14 @@ The MIDI menu contains the following menu hierarchy:
     	- Unhidden
     	- Hidden
     - File Name of Linked File
-
 </details>
 <details>
 <summary>MIDI Program (MIDI)</summary>
 <details>
-<summary>PGM</summary>
+<summary>PGM (PGM)</summary>
 </details>
 <details>
-<summary>Bank</summary>
+<summary>Bank (BANK)</summary>
 </details>
 <details>
 <summary>Sub-Bank (SUB)</summary>
@@ -1852,83 +1854,83 @@ The MIDI menu contains the following menu hierarchy:
 </details>
 <details>
 <summary>Arpeggiator (ARPE)</summary>
-	- Enabled (ON)
-	- Basic (BASI)
-		- Gate
-		- Sync
-		NOTE: These options can change depending on how your default resolution is set
-    		- Off
-    		- 2-Bar
-    		- 1-Bar
-    		- 2nd-Notes
-    		- 4th-Notes
-    		- 8th-Notes
-    		- 16th-Notes
-    		- 32nd-Notes
-    		- 64th-Notes
-    		- 128th-Notes
-    		- 2-Bar-TPLTS
-    		- 1-Bar-TPLTS
-    		- 2nd-TPLTS
-    		- 4th-TPLTS
-    		- 8th-TPLTS
-    		- 16th-TPLTS
-    		- 32nd-TPLTS
-    		- 64th-TPLTS
-    		- 128th-TPLTS
-    		- 2-Bar-DTTED
-    		- 1-Bar-DTTED
-    		- 2nd-DTTED
-    		- 4th-DTTED
-    		- 8th-DTTED
-    		- 16th-DTTED
-    		- 32nd-DTTED
-    		- 64th-DTTED
-    		- 128th-DTTED
-		- Rate
-		- Pattern (PATT)
-    	- Octaves (OCTA)
-    	- Octave Mode (OMOD)
-    		- Up
-    		- Down
-    		- Up & Down (UPDN)
-    		- Alternate (ALT)
-    		- Random (RAND)
-    	- Chord Simulator (CSIM) (NOTE: Available only in Kit Rows)
-    	- Note Mode (NMOD)
-    		- Up
-    		- Down
-    		- Up & Down (UPDN)
-    		- Played Order (PLAY)
-    		- Random (RAND)
-    	- Step Repeat (REPE)
-    	- Rhythm (RHYT)
-    	- Sequence Length (LENG)
+    - Enabled (ON)
+    - Basic (BASI)
+        - Gate (GATE)
+        - Sync (SYNC)
+        NOTE: These options can change depending on how your default resolution is set
+            - Off (Off)
+            - 2-Bar (2BAR)
+            - 1-Bar (1BAR)
+            - 2nd-Notes (2ND)
+            - 4th-Notes (4TH)
+            - 8th-Notes (8TH)
+            - 16th-Notes (16TH)
+            - 32nd-Notes (32ND)
+            - 64th-Notes (64TH)
+            - 128th-Notes (128T)
+            - 2-Bar-TPLTS (2BAR-TPLTS)
+            - 1-Bar-TPLTS (1BAR-TPLTS)
+            - 2nd-TPLTS (2ND-TPLTS)
+            - 4th-TPLTS (4TH-TPLTS)
+            - 8th-TPLTS (8TH-TPLTS)
+            - 16th-TPLTS (16TH-TPLTS)
+            - 32nd-TPLTS (32ND-TPLTS)
+            - 64th-TPLTS (64TH-TPLTS)
+            - 128th-TPLTS (128T-TPLTS)
+            - 2-Bar-DTTED (2BAR-DTTED)
+            - 1-Bar-DTTED (1BAR-DTTED)
+            - 2nd-DTTED (2ND-DTTED)
+            - 4th-DTTED (4TH-DTTED)
+            - 8th-DTTED (8TH-DTTED)
+            - 16th-DTTED (16TH-DTTED)
+            - 32nd-DTTED (32ND-DTTED)
+            - 64th-DTTED (64TH-DTTED)
+            - 128th-DTTED (128T-DTTED)
+        - Rate (RATE)
+        - Pattern (PATT)
+        - Octaves (OCTA)
+        - Octave Mode (OMOD)
+            - Up (UP)
+            - Down (DOWN)
+            - Up & Down (UPDN)
+            - Alternate (ALT)
+            - Random (RAND)
+        - Chord Simulator (CSIM) (NOTE: Available only in Kit Rows)
+        - Note Mode (NMOD)
+            - Up (UP)
+            - Down (DOWN)
+            - Up & Down (UPDN)
+            - Played Order (PLAY)
+            - Random (RAND)
+        - Step Repeat (REPE)
+        - Rhythm (RHYT)
+        - Sequence Length (LENG)
     - Randomizer (RAND)
-    	- Lock Randomizer (LOCK)
-    	- Octave Spread (OCTA)
-    	- Gate Spread (GATE)
-    	- Velocity Spread (VELO)
-    	- Ratchet Amount (RATC)
-    	- Ratchet Probability (RPRO)
-    	- Chord Polyphony (CHRD) (NOTE: NOT available for Midi Kit Rows)
-    	- Chord Probability (CPRO) (NOTE: NOT available for Midi Kit Rows)
-    	- Note Probability (NOTE)
-    	- Swap Probability (SWAP)
-    	- Bass Probability (BASS)
-    	- Glide Probability (GLID)
-    - MPE
-    	- Velocity (VELO)
-    		- Disabled (OFF)
-    		- Aftertouch
-    		- MPE Y (Y)
+        - Lock Randomizer (LOCK)
+        - Octave Spread (OCTA)
+        - Gate Spread (GATE)
+        - Velocity Spread (VELO)
+        - Ratchet Amount (RATC)
+        - Ratchet Probability (RPRO)
+        - Chord Polyphony (CHRD) (NOTE: NOT available for Midi Kit Rows)
+        - Chord Probability (CPRO) (NOTE: NOT available for Midi Kit Rows)
+        - Note Probability (NOTE)
+        - Swap Probability (SWAP)
+        - Bass Probability (BASS)
+        - Glide Probability (GLID)
+    - MPE (MPE)
+        - Velocity (VELO)
+            - Disabled (OFF)
+            - Aftertouch (AFTERTOUCH)
+            - MPE Y (Y)
     - Include in Kit Arp (KARP) (NOTE: available only for Kit Rows)
 </details>
 <details>
 <summary>Note Randomizer (NOTE)</summary>
-	- Lock Randomizer (LOCK)
-    	- Disabled (OFF)
-    	- Enabled (ON)
+    - Lock Randomizer (LOCK)
+        - Disabled (OFF)
+        - Enabled (ON)
     - Velocity Spread (VELO)
     - Note Probability (NOTE)
 </details>
@@ -1945,17 +1947,17 @@ The MIDI menu contains the following menu hierarchy:
 <details>
 <summary>Poly Expression to Mono (POLY)</summary>
     - Aftertouch (AFTE)
-    	- Disabled (OFF)
-    	- Enabled (ON)
-    - MPE
-    	- Disabled (OFF)
-    	- Enabled (ON)
+        - Disabled (OFF)
+        - Enabled (ON)
+    - MPE (MPE)
+        - Disabled (OFF)
+        - Enabled (ON)
 </details>
 <details>
 <summary>Play Direction (DIRE)</summary>
-    - Forward
-    - Reversed
-    - Ping-Pong
+    - Forward (FORWARD)
+    - Reversed (REVERSED)
+    - Ping-Pong (PING-PONG)
 </details>
 </details>
 
@@ -1973,104 +1975,104 @@ The CV menu contains the following menu hierarchy:
 </details>
 <details>
 <summary>Arpeggiator (ARPE)</summary>
-	- Enabled (ON)
-	- Basic (BASI)
-		- Gate
-		- Sync
-		NOTE: These options can change depending on how your default resolution is set
-    		- Off
-    		- 2-Bar
-    		- 1-Bar
-    		- 2nd-Notes
-    		- 4th-Notes
-    		- 8th-Notes
-    		- 16th-Notes
-    		- 32nd-Notes
-    		- 64th-Notes
-    		- 128th-Notes
-    		- 2-Bar-TPLTS
-    		- 1-Bar-TPLTS
-    		- 2nd-TPLTS
-    		- 4th-TPLTS
-    		- 8th-TPLTS
-    		- 16th-TPLTS
-    		- 32nd-TPLTS
-    		- 64th-TPLTS
-    		- 128th-TPLTS
-    		- 2-Bar-DTTED
-    		- 1-Bar-DTTED
-    		- 2nd-DTTED
-    		- 4th-DTTED
-    		- 8th-DTTED
-    		- 16th-DTTED
-    		- 32nd-DTTED
-    		- 64th-DTTED
-    		- 128th-DTTED
-		- Rate
-		- Pattern (PATT)
-		- Octaves (OCTA) (NOTE: NOT available for Gate Kit Rows)
-		- Octave Mode (OMOD) (NOTE: NOT available for Gate Kit Rows)
-			- Up
-			- Down
-			- Up & Down (UPDN)
-			- Alternate (ALT)
-			- Random (RAND)
-		- Chord Simulator (CSIM) (NOTE: NOT available for Gate Kit Rows)
-		- Note Mode (NMOD) (NOTE: NOT available for Gate Kit Rows)
-			- Up
-			- Down
-			- Up & Down (UPDN)
-			- Played Order (PLAY)
-			- Random (RAND)
-		- Step Repeat (REPE) (NOTE: NOT available for Gate Kit Rows)
-		- Rhythm (RHYT)
-		- Sequence Length (LENG)
-	- Randomizer (RAND)
-		- Lock Randomizer (LOCK)
-		- Octave Spread (OCTA) (NOTE: NOT available for Gate Kit Rows)
-		- Gate Spread (GATE)
-		- Velocity Spread (VELO) (NOTE: NOT available for Gate Kit Rows)
-		- Ratchet Amount (RATC)
-		- Ratchet Probability (RPRO)
-		- Chord Polyphony (CHRD) (NOTE: NOT available for Gate Kit Rows)
-		- Chord Probability (CPRO) (NOTE: NOT available for Gate Kit Rows)
-		- Note Probability (NOTE)
+    - Enabled (ON)
+    - Basic (BASI)
+        - Gate (GATE)
+        - Sync (SYNC)
+        NOTE: These options can change depending on how your default resolution is set
+            - Off (Off)
+            - 2-Bar (2BAR)
+            - 1-Bar (1BAR)
+            - 2nd-Notes (2ND)
+            - 4th-Notes (4TH)
+            - 8th-Notes (8TH)
+            - 16th-Notes (16TH)
+            - 32nd-Notes (32ND)
+            - 64th-Notes (64TH)
+            - 128th-Notes (128T)
+            - 2-Bar-TPLTS (2BAR-TPLTS)
+            - 1-Bar-TPLTS (1BAR-TPLTS)
+            - 2nd-TPLTS (2ND-TPLTS)
+            - 4th-TPLTS (4TH-TPLTS)
+            - 8th-TPLTS (8TH-TPLTS)
+            - 16th-TPLTS (16TH-TPLTS)
+            - 32nd-TPLTS (32ND-TPLTS)
+            - 64th-TPLTS (64TH-TPLTS)
+            - 128th-TPLTS (128T-TPLTS)
+            - 2-Bar-DTTED (2BAR-DTTED)
+            - 1-Bar-DTTED (1BAR-DTTED)
+            - 2nd-DTTED (2ND-DTTED)
+            - 4th-DTTED (4TH-DTTED)
+            - 8th-DTTED (8TH-DTTED)
+            - 16th-DTTED (16TH-DTTED)
+            - 32nd-DTTED (32ND-DTTED)
+            - 64th-DTTED (64TH-DTTED)
+            - 128th-DTTED (128T-DTTED)
+        - Rate (RATE)
+        - Pattern (PATT)
+        - Octaves (OCTA) (NOTE: NOT available for Gate Kit Rows)
+        - Octave Mode (OMOD) (NOTE: NOT available for Gate Kit Rows)
+            - Up (UP)
+            - Down (DOWN)
+            - Up & Down (UPDN)
+            - Alternate (ALT)
+            - Random (RAND)
+        - Chord Simulator (CSIM) (NOTE: NOT available for Gate Kit Rows)
+        - Note Mode (NMOD) (NOTE: NOT available for Gate Kit Rows)
+            - Up (UP)
+            - Down (DOWN)
+            - Up & Down (UPDN)
+            - Played Order (PLAY)
+            - Random (RAND)
+        - Step Repeat (REPE) (NOTE: NOT available for Gate Kit Rows)
+        - Rhythm (RHYT)
+        - Sequence Length (LENG)
+    - Randomizer (RAND)
+        - Lock Randomizer (LOCK)
+        - Octave Spread (OCTA) (NOTE: NOT available for Gate Kit Rows)
+        - Gate Spread (GATE)
+        - Velocity Spread (VELO) (NOTE: NOT available for Gate Kit Rows)
+        - Ratchet Amount (RATC)
+        - Ratchet Probability (RPRO)
+        - Chord Polyphony (CHRD) (NOTE: NOT available for Gate Kit Rows)
+        - Chord Probability (CPRO) (NOTE: NOT available for Gate Kit Rows)
+        - Note Probability (NOTE)
     - Swap Probability (SWAP) (NOTE: NOT available for Gate Kit Rows)
-		- Bass Probability (BASS) (NOTE: NOT available for Gate Kit Rows)
-		- Glide Probability (GLID) (NOTE: NOT available for Gate Kit Rows)
-	- MPE (NOTE: NOT available for Gate Kit Rows)
-		- Velocity (VELO)
-			- Disabled (OFF)
-			- Aftertouch
-			- MPE Y (Y)
-	- Include in Kit Arp (KARP) (NOTE: available only for Kit Rows)
+        - Bass Probability (BASS) (NOTE: NOT available for Gate Kit Rows)
+        - Glide Probability (GLID) (NOTE: NOT available for Gate Kit Rows)
+    - MPE (MPE) (NOTE: NOT available for Gate Kit Rows)
+        - Velocity (VELO)
+            - Disabled (OFF)
+            - Aftertouch (AFTERTOUCH)
+            - MPE Y (Y)
+    - Include in Kit Arp (KARP) (NOTE: available only for Kit Rows)
 </details>
 <details>
 <summary>Note Randomizer (NOTE)</summary>
-	- Lock Randomizer (LOCK)
-		- Disabled (OFF)
-		- Enabled (ON)
-	- Velocity Spread (VELO)
-	- Note Probability (NOTE)
+    - Lock Randomizer (LOCK)
+        - Disabled (OFF)
+        - Enabled (ON)
+    - Velocity Spread (VELO)
+    - Note Probability (NOTE)
 </details>
 <details>
 <summary>Bend Range (BEND)</summary>
-	- Normal (NORM)
-	- Poly / Finger / MPE (MPE)
+    - Normal (NORM)
+    - Poly / Finger / MPE (MPE)
 </details>
 <details>
 <summary>CV 2 Source (CV2)</summary>
-	NOTE: This menu only becomes available if you set the CV / Gate channel to `1 AND 2 (BOTH)`
-	- OFF
-	- Y
-	- Aftertouch
-	- Velocity
+    NOTE: This menu only becomes available if you set the CV / Gate channel to `1 AND 2 (BOTH)`
+    - OFF (OFF)
+    - Y (Y)
+    - Aftertouch (AFTERTOUCH)
+    - Velocity (VELOCITY)
 </details>
 <details>
 <summary>Play Direction (DIRE)</summary>
-    - Forward
-    - Reversed
-    - Ping-Pong
+    - Forward (FORWARD)
+    - Reversed (REVERSED)
+    - Ping-Pong (PING-PONG)
 </details>
 </details>
 
@@ -2125,22 +2127,22 @@ The Note Editor menu contains the following menu hierarchy:
     - 6 OF 8 (6OF8)
     - 7 OF 8 (7OF8)
     - 8 OF 8 (8OF8)
-    - CUSTOM
-    	- Divisor (DIV)
-    	- Iteration 1 (IT 1)
-    	- Iteration 2 (IT 2)
-    	- Iteration 3 (IT 3)
-    	- Iteration 4 (IT 4)
-    	- Iteration 5 (IT 5)
-    	- Iteration 6 (IT 6)
-    	- Iteration 7 (IT 7)
-    	- Iteration 8 (IT 1)
+    - CUSTOM (CUST)
+        - Divisor (DIV)
+        - Iteration 1 (IT 1)
+        - Iteration 2 (IT 2)
+        - Iteration 3 (IT 3)
+        - Iteration 4 (IT 4)
+        - Iteration 5 (IT 5)
+        - Iteration 6 (IT 6)
+        - Iteration 7 (IT 7)
+        - Iteration 8 (IT 1)
 </details>
 <details>
 <summary>Note Fill (FILL)</summary>
-    - OFF
-    - NOT FILL
-    - FILL
+    - OFF (OFF)
+    - NOT FILL (NOT FILL)
+    - FILL (FILL)
 </details>
 </details>
 
@@ -2192,27 +2194,27 @@ The Note Row Editor menu contains the following menu hierarchy:
     - 6 OF 8 (6OF8)
     - 7 OF 8 (7OF8)
     - 8 OF 8 (8OF8)
-    - CUSTOM
-    	- Divisor (DIV)
-    	- Iteration 1 (IT 1)
-    	- Iteration 2 (IT 2)
-    	- Iteration 3 (IT 3)
-    	- Iteration 4 (IT 4)
-    	- Iteration 5 (IT 5)
-    	- Iteration 6 (IT 6)
-    	- Iteration 7 (IT 7)
-    	- Iteration 8 (IT 1)
+    - CUSTOM (CUST)
+        - Divisor (DIV)
+        - Iteration 1 (IT 1)
+        - Iteration 2 (IT 2)
+        - Iteration 3 (IT 3)
+        - Iteration 4 (IT 4)
+        - Iteration 5 (IT 5)
+        - Iteration 6 (IT 6)
+        - Iteration 7 (IT 7)
+        - Iteration 8 (IT 1)
 </details>
 <details>
 <summary>Row Fill (FILL)</summary>
-    - OFF
-    - NOT FILL
-    - FILL
+    - OFF (OFF)
+    - NOT FILL (NOT FILL)
+    - FILL (FILL)
 </details>
 <details>
 <summary>Play Direction (DIRE)</summary>
-    - Forward
-    - Reversed
-    - Ping-Pong
+    - Forward (FORWARD)
+    - Reversed (REVERSED)
+    - Ping-Pong (PING-PONG)
 </details>
 </details>
