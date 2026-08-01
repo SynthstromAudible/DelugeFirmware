@@ -7,7 +7,6 @@
   } from "../stores/search_store.js";
 
   export let autoFocus = true;
-  export let enableGlobalFocusShortcut = true;
   export let variant: "default" | "toolbar" = "default";
 
   let inputEl: HTMLInputElement;
@@ -115,15 +114,6 @@
     }
   }
 
-  // Global focus shortcut for search input.
-  // Returns void.
-  function handleGlobalKeyDown(ev: KeyboardEvent) {
-    if (enableGlobalFocusShortcut && ["f", "F"].includes(ev.key)) {
-      ev.preventDefault();
-      inputEl.focus();
-    }
-  }
-
   // Handles custom event dispatched by filter UI when clearing all state.
   // Returns void.
   function handleExternalClearSearch() {
@@ -135,7 +125,7 @@
 <div class:toolbar-search={variant === "toolbar"} class="search-field relative block">
   <input
     type="search"
-    placeholder="Search... (⌨&#xFE0E; F)"
+    placeholder="Search..."
     class:toolbar-search-input={variant === "toolbar"}
     class="w-full rounded-full bg-[var(--sl-color-bg)] pl-6 pr-16 py-2 text-[var(--sl-color-text)] leading-6 outline outline-1 outline-[var(--sl-color-gray-5)] focus:outline-none"
     bind:value={localQuery}
@@ -164,10 +154,7 @@
 </div>
 
 <!-- Global keyboard/event bindings scoped to this component lifecycle. -->
-<svelte:window
-  on:keydown={handleGlobalKeyDown}
-  on:deluge-companion-clear-search={handleExternalClearSearch}
-/>
+<svelte:window on:deluge-companion-clear-search={handleExternalClearSearch} />
 
 <style lang="postcss">
   input[type="search"] {
