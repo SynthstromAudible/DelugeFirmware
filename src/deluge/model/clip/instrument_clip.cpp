@@ -42,6 +42,7 @@
 #include "model/scale/preset_scales.h"
 #include "model/scale/scale_change.h"
 #include "model/scale/utils.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/midi/midi_param.h"
@@ -3522,6 +3523,10 @@ void InstrumentClip::sendMIDIPGM() {
 // used with midi clips to send out the current automated midi cc values when a clip is activated,
 // so that the receiving instrument is in the correct state
 void InstrumentClip::sendMIDICC() {
+	if (!runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::SendMIDICCOnClipSectionLaunch)) {
+		return;
+	}
+
 	if (output->type != OutputType::MIDI_OUT) {
 		return;
 	}

@@ -200,6 +200,11 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShowBatteryLevel],
 	                  STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL, "showBatteryLevel",
 	                  RuntimeFeatureStateToggle::On);
+
+	// SendMIDICCOnClipSectionLaunch
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::SendMIDICCOnClipSectionLaunch],
+	                  STRING_FOR_COMMUNITY_FEATURE_SEND_MIDI_CC_ON_CLIP_SECTION_LAUNCH, "sendMIDICCOnClipSectionLaunch",
+	                  RuntimeFeatureStateToggle::Off);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

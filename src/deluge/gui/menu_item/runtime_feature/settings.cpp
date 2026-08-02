@@ -43,6 +43,7 @@ SettingToggle menuEnableDX7Engine(RuntimeFeatureSettingType::EnableDX7Engine);
 EmulatedDisplay menuEmulatedDisplay{};
 SettingToggle menuEnableKeyboardViewSidebarMenuExit(RuntimeFeatureSettingType::EnableKeyboardViewSidebarMenuExit);
 SettingToggle menuEnableLaunchEventPlayhead(RuntimeFeatureSettingType::EnableLaunchEventPlayhead);
+SettingToggle menuSendMIDICCOnClipSectionLaunch(RuntimeFeatureSettingType::SendMIDICCOnClipSectionLaunch);
 SettingToggle menuDisplayChordLayout(RuntimeFeatureSettingType::DisplayChordKeyboard);
 SettingToggle menuAlternativePlaybackStartBehaviour(RuntimeFeatureSettingType::AlternativePlaybackStartBehaviour);
 SettingToggle menuEnableGridViewLoopPads(RuntimeFeatureSettingType::EnableGridViewLoopPads);
@@ -68,6 +69,7 @@ std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettin
     &menuEmulatedDisplay,
     &menuEnableKeyboardViewSidebarMenuExit,
     &menuEnableLaunchEventPlayhead,
+    &menuSendMIDICCOnClipSectionLaunch,
     &menuDisplayChordLayout,
     &menuAlternativePlaybackStartBehaviour,
     &menuEnableGridViewLoopPads,
