@@ -1,27 +1,29 @@
 # Executing code from SDRAM (`.sdram_text`): prototype, history, and measurements
 
-Status: hardware-validated and landed on `dev` (2026-07/08). The mechanism is proven, the first
-production migration (menu/browser/settings UI code, +265KB fast heap) is in, and an on-device A/B
-benchmark ships with it so further placement decisions can be made from data. This document
-explains the mechanism, what kept the 2023 groundwork from being enabled, and the measurements.
+Status: hardware-validated (2026-07, Deluge OLED, release builds). The mechanism is proven, the
+first production migration (menu/browser/settings UI code, +265KB fast heap) is included, and an
+on-device A/B benchmark ships with it so further placement decisions can be made from data. This
+document explains the mechanism, what kept the 2023 groundwork from being enabled, and the
+measurements.
 
 ## Why: internal RAM pressure (the justification)
 
 Everything on the Deluge — code, constants, globals, the fast heap, the stack — shares the RZ/A1L's
 3MB on-chip SRAM (`0x20020000–0x20300000` usable). The general allocator's "internal" (fast) region
-is simply whatever is left between the end of the image and the stack. Comparing release builds of
-upstream `main` and owlet `dev` (2026-07-27, same toolchain, `arm-none-eabi-size -A` and linker
-symbols):
+is simply whatever is left between the end of the image and the stack. The pressure is easiest to
+see on a feature-heavy downstream fork — comparing release builds of upstream `main` and the
+owlet-labs fork's `dev` (2026-07-27, same toolchain, `arm-none-eabi-size -A` and linker symbols):
 
-| In internal SRAM      | upstream | owlet dev | delta        |
+| In internal SRAM      | upstream | owlet fork | delta       |
 |-----------------------|----------|-----------|--------------|
 | `.text`               | 1,087 KB | 1,437 KB  | +350 KB      |
 | `.rodata`             |   407 KB |   441 KB  | +34 KB       |
 | `.bss` + `.data`      |   199 KB |   216 KB  | +17 KB       |
 | **fast heap left**    | **1,154 KB** | **752 KB** | **−402 KB (−35%)** |
 
-(Heap = `program_stack_start` − `__heap_start`: upstream `0x202f8000 − 0x201d7994`, dev
-`0x202f8000 − 0x2023bc14`.)
+(Heap = `program_stack_start` − `__heap_start`: upstream `0x202f8000 − 0x201d7994`, fork
+`0x202f8000 − 0x2023bc14`.) The same arithmetic applies to upstream directly: its image also grows
+release over release, and every KB of cold code moved to SDRAM is a KB returned to the fast heap.
 
 The fork's large FX *buffers* are not the problem — the looper (~350KB), disperser delay lines and
 retrospective buffer all allocate from SDRAM. The internal loss is almost entirely code and lookup
@@ -98,7 +100,7 @@ followed by `L1_I_CacheFlushAll()` and `dsb; isb`. Data/rodata relocations are l
 To **reproduce the 2023 instability** (historical evidence): build with
 `SDRAM_TEXT_SKIP_CACHE_FIX` defined. The benchmark prints
 `"calling sdram-placed code next"` before its first SDRAM call; a crash between that line and the
-next (with a breadcrumb CRASH.LOG on builds ≥ `4f115cf3e`) — or garbage results — while the fixed
+next — or garbage results — while the fixed
 build runs clean, confirms stale-cache execution as the root cause. Note the instability is by nature
 non-deterministic; a clean run on one boot does not falsify the diagnosis, but repeated clean runs
 under load make it unlikely.
@@ -120,8 +122,8 @@ runs; min and median reported (min suppresses interrupt interference; median sho
 dependence in the kernels prevents compiler folding; `noinline` + `volatile` sink prevent
 elision. Placements are interleaved so system drift cancels rather than biasing one side.
 
-Running it: flash the build, attach the sysex debug console (same attach as the crash-breadcrumb
-dump); results print once as JSON lines, starting with a `layout` line whose addresses prove where
+Running it: flash the build, re-enable the `sdramTextBenchRequest()` call in `sysex.cpp` and
+attach the sysex debug console; results print once as JSON lines, starting with a `layout` line whose addresses prove where
 each copy executes from (`0x0C……` = SDRAM, `0x20……` = internal).
 
 Interpretation guide:
@@ -160,7 +162,7 @@ Hardware lessons encoded in this branch, found the hard way:
    every relocated SDRAM byte and garbled all OLED strings (fixed: ALIGN(32) section ends; the
    SDRAM sections now form one contiguous LOAD segment whose LMA is __heap_start).
 2. Never send multiple sysex replies from inside the sysex RX handler (USB tx deadlock — device
-   freeze, no fault, no breadcrumb). The report runs from a scheduler task instead.
+   freeze, no fault recorded). The report runs from a scheduler task instead.
 3. `sysexDebugPrint` shares one format buffer; rapid consecutive sends clobber in-flight lines.
    The report emits one line per task tick.
 4. `Debug::print` is compiled out of release builds (ENABLE_TEXT_OUTPUT); anything that must

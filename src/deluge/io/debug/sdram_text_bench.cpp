@@ -129,8 +129,8 @@ Stats measure(Fn fn, bool cold) {
 }
 
 // Debug::print/println are compiled out unless ENABLE_TEXT_OUTPUT (debug/relwithdebinfo only), so
-// this report emits through sysexDebugPrint directly, like the crash-breadcrumb dump - it must work
-// on release builds, which are what actually gets benchmarked.
+// this report emits through sysexDebugPrint directly - it must work on release builds, which are
+// what actually gets benchmarked.
 char lineBuf[256];
 uint32_t linePos;
 
