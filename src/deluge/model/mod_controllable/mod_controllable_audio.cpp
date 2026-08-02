@@ -67,6 +67,9 @@ ModControllableAudio::ModControllableAudio() {
 
 	// Saturation
 	clippingAmount = 0;
+	clippingTweak = 25;
+	clippingMix = 50;
+	clippingTone = 0;
 
 	SyncLevel syncLevel;
 	Song* song = preLoadedSong;
@@ -91,6 +94,9 @@ void ModControllableAudio::cloneFrom(ModControllableAudio* other) {
 	lpfMode = other->lpfMode;
 	hpfMode = other->hpfMode;
 	clippingAmount = other->clippingAmount;
+	clippingTweak = other->clippingTweak;
+	clippingMix = other->clippingMix;
+	clippingTone = other->clippingTone;
 	modFXType_ = other->modFXType_;
 	bassFreq = other->bassFreq; // Eventually, these shouldn't be variables like this
 	trebleFreq = other->trebleFreq;
@@ -411,6 +417,9 @@ void ModControllableAudio::writeAttributesToFile(Serializer& writer) {
 	writer.writeAttribute("filterRoute", (char*)filterRouteToString(filterRoute));
 	if (clippingAmount) {
 		writer.writeAttribute("clippingAmount", clippingAmount);
+		writer.writeAttribute("clippingTweak", clippingTweak);
+		writer.writeAttribute("clippingMix", clippingMix);
+		writer.writeAttribute("clippingTone", clippingTone);
 	}
 }
 
@@ -736,6 +745,18 @@ Error ModControllableAudio::readTagFromFile(Deserializer& reader, char const* ta
 	else if (!strcmp(tagName, "clippingAmount")) {
 		clippingAmount = reader.readTagOrAttributeValueInt();
 		reader.exitTag("clippingAmount");
+	}
+	else if (!strcmp(tagName, "clippingTweak")) {
+		clippingTweak = reader.readTagOrAttributeValueInt();
+		reader.exitTag("clippingTweak");
+	}
+	else if (!strcmp(tagName, "clippingMix")) {
+		clippingMix = reader.readTagOrAttributeValueInt();
+		reader.exitTag("clippingMix");
+	}
+	else if (!strcmp(tagName, "clippingTone")) {
+		clippingTone = reader.readTagOrAttributeValueInt();
+		reader.exitTag("clippingTone");
 	}
 
 	// Arpeggiator

@@ -104,7 +104,10 @@ public:
 	StutterConfig stutterConfig;
 
 	bool sampleRateReductionOnLastTime;
-	uint8_t clippingAmount; // Song probably doesn't currently use this?
+	uint8_t clippingAmount;     // Song probably doesn't currently use this? 0-50, drive/amount
+	uint8_t clippingTweak = 25; // 0-50, Tanh Asymmetry amount
+	uint8_t clippingMix = 50;   // 0-50 dry/wet, 50 = fully wet (matches pre-existing behaviour)
+	uint8_t clippingTone = 0;   // 0-50, post-saturation highpass "Tone" amount, 0 = bypassed
 	FilterMode lpfMode;
 	FilterMode hpfMode;
 	FilterRoute filterRoute;
