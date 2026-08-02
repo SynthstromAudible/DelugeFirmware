@@ -166,6 +166,7 @@
 #include "gui/menu_item/record/loop_command.h"
 #include "gui/menu_item/record/quantize.h"
 #include "gui/menu_item/record/threshold_mode.h"
+#include "gui/menu_item/reset_settings/reset.h"
 #include "gui/menu_item/reverb/amount.h"
 #include "gui/menu_item/reverb/amount_unpatched.h"
 #include "gui/menu_item/reverb/damping.h"
@@ -1714,6 +1715,33 @@ menu_item::Submenu kitGlobalFXActionsMenu{
     },
 };
 
+reset_settings::Reset resetFlashSettingsMenu{STRING_FOR_RESET_FLASH, context_menu::ResetSettingsAction::Flash};
+reset_settings::Reset resetCommunityFeaturesSettingsMenu{STRING_FOR_RESET_COMMUNITY_FEATURES,
+                                                         context_menu::ResetSettingsAction::CommunityFeatures};
+reset_settings::Reset resetMidiFollowSettingsMenu{STRING_FOR_RESET_MIDI_FOLLOW,
+                                                  context_menu::ResetSettingsAction::MidiFollow};
+reset_settings::Reset resetMidiDevicesSettingsMenu{STRING_FOR_RESET_MIDI_DEVICES,
+                                                   context_menu::ResetSettingsAction::MidiDevices};
+reset_settings::Reset resetAllSettingsMenu{STRING_FOR_FACTORY_RESET, context_menu::ResetSettingsAction::All};
+
+Submenu resetSettingsSubmenu{
+    STRING_FOR_RESET_SETTINGS,
+    {
+        &resetFlashSettingsMenu,
+        &resetCommunityFeaturesSettingsMenu,
+        &resetMidiFollowSettingsMenu,
+        &resetMidiDevicesSettingsMenu,
+        &resetAllSettingsMenu,
+    },
+};
+
+Submenu settingsActionsSubmenu{
+    STRING_FOR_ACTIONS,
+    {
+        &resetSettingsSubmenu,
+    },
+};
+
 // Root menu for Kit Global FX
 menu_item::Submenu soundEditorRootMenuKitGlobalFX{
     STRING_FOR_KIT_GLOBAL_FX,
@@ -1732,6 +1760,7 @@ menu_item::Submenu soundEditorRootMenuKitGlobalFX{
 Submenu settingsRootMenu{
     STRING_FOR_SETTINGS,
     {
+        &settingsActionsSubmenu,
         &cvSelectionMenu,
         &gateSelectionMenu,
         &triggerClockMenu,

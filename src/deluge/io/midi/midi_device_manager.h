@@ -108,6 +108,7 @@ void recountSmallestMPEZones();
 void writeDevicesToFile();
 void readAHostedDeviceFromFile(Deserializer& reader);
 void readDevicesFromFile();
+void factoryReset(bool showPopup = true);
 
 extern MIDICableUSBUpstream upstreamUSBMIDICable1;
 extern MIDICableUSBUpstream upstreamUSBMIDICable2;

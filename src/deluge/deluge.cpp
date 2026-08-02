@@ -231,6 +231,16 @@ extern "C" void closeUSBPeripheral(void);
 uint32_t picFirmwareVersion = 0;
 bool picSaysOLEDPresent = false;
 
+namespace Deluge {
+void factoryReset() {
+	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FACTORY_RESET));
+	FlashStorage::factoryReset(false);
+	runtimeFeatureSettings.factoryReset(false);
+	midiFollow.factoryReset(false);
+	MIDIDeviceManager::factoryReset(false);
+}
+} // namespace Deluge
+
 bool isShortPress(uint32_t pressTime) {
 	return ((int32_t)(AudioEngine::audioSampleTimer - pressTime) < FlashStorage::holdTime);
 }
@@ -769,9 +779,7 @@ extern "C" int32_t deluge_main(void) {
 
 		case RESET_SETTINGS:
 			if (!otherButtonsOrEvents) {
-				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FACTORY_RESET));
-				FlashStorage::resetSettings();
-				FlashStorage::writeSettings();
+				Deluge::factoryReset();
 			}
 			return 0;
 
