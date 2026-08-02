@@ -83,6 +83,8 @@ public:
 	void flushMIDI();
 	void sendUsbMidi(MIDIMessage message, int32_t filter);
 	void sendSerialMidi(MIDIMessage message);
+	void sendSerialSysex(uint8_t const* data, int32_t len);
+	[[nodiscard]] size_t serialSendBufferSpace() const;
 
 	void sendPGMChange(MIDISource source, int32_t channel, int32_t pgm, int32_t filter);
 	void sendAllNotesOff(MIDISource source, int32_t channel, int32_t filter);

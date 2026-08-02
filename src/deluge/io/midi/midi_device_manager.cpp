@@ -26,6 +26,7 @@
 #include "io/midi/device_specific/specific_midi_device.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_queue_manager.h"
 #include "mem_functions.h"
 #include "memory/general_memory_allocator.h"
 #include "storage/storage_manager.h"
@@ -34,6 +35,7 @@
 #include <new>
 
 extern "C" {
+#include "RZA1/uart/sio_char.h"
 #include "RZA1/usb/r_usb_basic/src/driver/inc/r_usb_basic_define.h"
 #include "drivers/uart/uart.h"
 
@@ -47,6 +49,7 @@ extern uint8_t anyUSBSendingStillHappening[];
 #define MIDI_DEVICES_XML "SETTINGS/MIDIDevices.XML"
 
 PLACE_SDRAM_BSS ConnectedUSBMIDIDevice connectedUSBMIDIDevices[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES];
+PLACE_SDRAM_BSS ConnectedDINMIDIDevice connectedDINMIDIDevice{};
 
 namespace MIDIDeviceManager {
 
@@ -658,69 +661,28 @@ checkDevice:
 
 } // namespace MIDIDeviceManager
 
-void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage) {
-	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
-	if (queued > 16) {
-		if (!anyUSBSendingStillHappening[0]) {
-			midiEngine.flushUSBMIDIOutput();
-		}
-		queued = ringBufWriteIdx - ringBufReadIdx;
-	}
-	if (queued > MIDI_SEND_BUFFER_LEN_RING) {
-		// TODO: show some error message
-		return;
-	}
-
-	sendDataRingBuf[ringBufWriteIdx & MIDI_SEND_RING_MASK] = fullMessage;
-	ringBufWriteIdx++;
-
-	anythingInUSBOutputBuffer = true;
+/// Queues one USB-MIDI message, flushing or dropping if the queue cannot accept it.
+void ConnectedUSBMIDIDevice::enqueue_message(uint32_t fullMessage) {
+	queue_manager_.enqueue_message(fullMessage);
 }
 
+/// Returns whether this device has at least one queued USB-MIDI message to send.
 bool ConnectedUSBMIDIDevice::hasBufferedSendData() {
-	// must be the same unsigned type as ringBufWriteIdx/ringBufReadIdx
-	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
-	return queued > 0;
+	// True when at least one queued USB-MIDI message exists across any priority lane.
+	return queue_manager_.has_buffered_send_data();
 }
 
+/// Reports remaining USB queue capacity as MIDI payload bytes across all priority lanes.
 int ConnectedUSBMIDIDevice::sendBufferSpace() {
-	// must be the same unsigned type as ringBufWriteIdx/ringBufReadIdx
-	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
-	// each 4-byte MIDI-USB message contains 3 bytes of serial MIDI data
-	return (MIDI_SEND_BUFFER_LEN_RING - queued) * 3;
+	return queue_manager_.send_buffer_space();
 }
 
-// This tries to read data from the ring buffer, and
-// moves data into the smaller "dataSendingNow" buffer where
-// it is ready to be used by the hardware driver.
-bool ConnectedUSBMIDIDevice::consumeSendData() {
-	uint32_t queued = ringBufWriteIdx - ringBufReadIdx;
-	if (queued == 0) {
-		return false;
-	}
-
-	int32_t i = 0;
-	uint32_t max_size = MIDI_SEND_BUFFER_LEN_INNER;
-	if (g_usb_usbmode == USB_HOST) {
-		// many devices do not accept more than 64 bytes of data at a time
-		// likely this can be inferred from the device metadata somehow?
-
-		// some seem to take even less, especially with hubs involved. The hydrasynth seems to only respond to a max of
-		// 2 messages per transfer, the third gets blocked. For MPE this leads to ignoring note ons as the x and y
-		// resets are sent before the note on
-		max_size = MIDI_SEND_BUFFER_LEN_INNER_HOST;
-	}
-
-	int32_t to_send = std::min(queued, max_size);
-	for (i = 0; i < to_send; i++) {
-		memcpy(dataSendingNow + (i * 4), &sendDataRingBuf[ringBufReadIdx & MIDI_SEND_RING_MASK], 4);
-		ringBufReadIdx++;
-	}
-
-	numBytesSendingNow = to_send * 4;
-	return true;
+/// Moves queued USB messages into the contiguous transfer buffer used by the hardware driver.
+bool ConnectedUSBMIDIDevice::consume_queued_messages() {
+	return queue_manager_.consume_queued_messages(dataSendingNow, numBytesSendingNow, g_usb_usbmode == USB_HOST);
 }
 
+/// Resets volatile USB transfer state for a newly connected/initialized device.
 void ConnectedUSBMIDIDevice::setup() {
 	numBytesSendingNow = 0;
 	currentlyWaitingToReceive = false;
@@ -729,25 +691,50 @@ void ConnectedUSBMIDIDevice::setup() {
 	// default to only a single port
 	maxPortConnected = 0;
 }
+
+/// Initializes all USB device send/receive buffers and per-priority queue state.
 ConnectedUSBMIDIDevice::ConnectedUSBMIDIDevice() {
-	currentlyWaitingToReceive = 0;
 	sq = 0;
-	canHaveMIDISent = 0;
-	numBytesReceived = 0;
+	canHaveMIDISent = false;
+	setup();
 	memset(receiveData, 0, sizeof(receiveData));
 	memset(dataSendingNow, 0, MIDI_SEND_BUFFER_LEN_INNER * 4);
-	numBytesSendingNow = 0;
-	memset(sendDataRingBuf, 0, MIDI_SEND_BUFFER_LEN_RING);
-	ringBufWriteIdx = 0;
-	ringBufReadIdx = 0;
-
-	maxPortConnected = 0;
+	queue_manager_.reset_queue_storage();
 }
 
-/*
-    for (int32_t d = 0; d < hostedMIDIDevices.getNumElements(); d++) {
-        MIDIDeviceUSBHosted* device = (MIDIDeviceUSBHosted*)hostedMIDIDevices.getElement(d);
+/// Initializes DIN per-priority queue state.
+ConnectedDINMIDIDevice::ConnectedDINMIDIDevice() {
+	queue_manager_.reset_queue_storage();
+}
 
-    }
- */
+/// Resets serial pacing state so the next flush starts from a known baseline.
+void ConnectedDINMIDIDevice::reset_serial_state(uint32_t now_sample_timer) {
+	queue_manager_.reset_serial_state(now_sample_timer);
+}
+
+/// Returns whether any serial-priority lane currently has data pending.
+bool ConnectedDINMIDIDevice::has_serial_data() const {
+	return queue_manager_.has_serial_data();
+}
+
+/// Reports remaining DIN queue capacity for raw SysEx bytes.
+size_t ConnectedDINMIDIDevice::send_buffer_space() const {
+	return queue_manager_.send_buffer_space();
+}
+
+/// Encodes and enqueues one channel/system MIDI message into serial-priority lanes.
+void ConnectedDINMIDIDevice::enqueue_message(MIDIMessage message) {
+	queue_manager_.enqueue_message(message);
+}
+
+/// Queues one complete SysEx byte stream into serial-priority lanes.
+bool ConnectedDINMIDIDevice::enqueue_sysex(uint8_t const* data, int32_t len) {
+	return queue_manager_.enqueue_sysex(data, len);
+}
+
+/// Drains serial-priority queues into UART while enforcing DIN pacing and strict priority gates.
+void ConnectedDINMIDIDevice::consume_queued_messages(uint32_t now_sample_timer) {
+	queue_manager_.consume_queued_messages(now_sample_timer);
+}
+
 #pragma GCC diagnostic pop
