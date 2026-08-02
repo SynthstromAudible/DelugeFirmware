@@ -50,11 +50,11 @@ void MIDICableDINPorts::sendSysex(const uint8_t* data, int32_t len) {
 	if (len < 3 || data[0] != 0xf0 || data[len - 1] != 0xf7) {
 		return;
 	}
-
+	// Route DIN SysEx through MidiEngine so serial output shares the unified
+	// MidiQueueManager lane scheduler, pacing budget, and backpressure behavior
+	// used by all other serial MIDI traffic.
 	// NB: beware of MIDI_TX_BUFFER_SIZE
-	for (int32_t i = 0; i < len; i++) {
-		bufferMIDIUart(data[i]);
-	}
+	midiEngine.sendSerialSysex(data, len);
 }
 
 bool MIDICableDINPorts::wantsToOutputMIDIOnChannel(MIDIMessage message, int32_t filter) const {

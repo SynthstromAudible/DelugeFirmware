@@ -22,6 +22,7 @@
 #include "OSLikeStuff/scheduler_api.h"
 #include "definitions_cxx.hpp"
 #include "io/midi/learned_midi.h"
+#include "io/midi/midi_queue_manager.h"
 #include "playback/playback_handler.h"
 
 class MIDICable;
@@ -83,6 +84,7 @@ public:
 	void flushMIDI();
 	void sendUsbMidi(MIDIMessage message, int32_t filter);
 	void sendSerialMidi(MIDIMessage message);
+	void sendSerialSysex(const uint8_t* data, int32_t len);
 
 	void sendPGMChange(MIDISource source, int32_t channel, int32_t pgm, int32_t filter);
 	void sendAllNotesOff(MIDISource source, int32_t channel, int32_t filter);
