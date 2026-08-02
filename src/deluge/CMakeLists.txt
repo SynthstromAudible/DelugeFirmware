@@ -3,6 +3,7 @@ add_subdirectory(dsp)
 add_subdirectory(gui/l10n)
 add_subdirectory(gui/menu_item/generate)
 add_subdirectory(version)
+add_subdirectory(gui/menu_item)
 
 # Add the sources to the target
 file(GLOB_RECURSE deluge_SOURCES CONFIGURE_DEPENDS
@@ -15,6 +16,10 @@ add_dependencies(deluge deluge_strings deluge_version)
 
 # Filter out DSP sources as those are built as part of the deluge_dsp library
 list(FILTER deluge_SOURCES EXCLUDE REGEX .*/dsp/.*)
+
+# Filter out menu item sources as those are built as part of the
+# deluge_menu_items library (built without LTO)
+list(FILTER deluge_SOURCES EXCLUDE REGEX .*/gui/menu_item/.*)
 
 # Ensure the menu sources are built prior to building the main target
 add_dependencies(deluge deluge_menus)
@@ -40,6 +45,7 @@ target_link_libraries(deluge PUBLIC
     RZA1
     eyalroz_printf
     deluge_dsp
+    deluge_menu_items
 )
 
 target_compile_definitions(deluge PUBLIC
