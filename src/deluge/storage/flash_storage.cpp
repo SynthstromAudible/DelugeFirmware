@@ -18,8 +18,10 @@
 #include "storage/flash_storage.h"
 #include "RZA1/cpu_specific.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/menu_item/colour.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_transpose.h"
@@ -368,6 +370,15 @@ void resetSettings() {
 	defaultLoopRecordingCommand = GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING;
 
 	defaultUseSharps = true;
+}
+
+void factoryReset(bool showPopup) {
+	if (showPopup) {
+		display->displayPopup(display->haveOLED() ? deluge::l10n::get(deluge::l10n::String::STRING_FOR_RESET_FLASH)
+		                                          : deluge::l10n::get(deluge::l10n::String::STRING_FOR_FACTORY_RESET));
+	}
+	resetSettings();
+	writeSettings();
 }
 
 void resetAutomationSettings() {

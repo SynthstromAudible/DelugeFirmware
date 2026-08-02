@@ -95,6 +95,7 @@ extern bool defaultUseSharps;
 void readSettings();
 void writeSettings();
 void resetSettings();
+void factoryReset(bool showPopup = true);
 void resetMidiFollowSettings();
 void resetAutomationSettings();
 
