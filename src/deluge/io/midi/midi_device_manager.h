@@ -88,7 +88,9 @@ struct ConnectedUSBMIDIDevice {
 	// When we are ready to send data on this device, we consume data on the reading side and move it into the
 	// smaller dataSendingNow buffer above.
 	// Messages are queued in priority-specific rings and consumed in priority order.
-	USBMidiSendQueueStorage sendQueueStorage;
+	uint32_t sendDataRingBuf[QUEUE_PRIORITY_COUNT][MIDI_SEND_BUFFER_LEN_RING];
+	uint16_t ringBufWriteIdx[QUEUE_PRIORITY_COUNT];
+	uint16_t ringBufReadIdx[QUEUE_PRIORITY_COUNT];
 
 	uint8_t maxPortConnected;
 };

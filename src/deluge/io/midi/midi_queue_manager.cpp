@@ -16,6 +16,7 @@
  */
 
 #include "io/midi/midi_queue_manager.h"
+#include "io/midi/midi_device_manager.h"
 #include "processing/engines/audio_engine.h"
 #include <algorithm>
 #include <cstring>
@@ -70,27 +71,27 @@ QueuePriority MidiQueueManager::classifyMessage(MIDIMessage message) {
 }
 
 /// Returns queued USB packet count for one lane via monotonic write/read counters.
-uint16_t MidiQueueManager::usbQueueCount(USBMidiSendQueueStorage const* storage, QueuePriority priority) {
+uint16_t MidiQueueManager::usbQueueCount(ConnectedUSBMIDIDevice const* device, QueuePriority priority) {
 	// Monotonic write/read counters: occupancy is their difference for each lane.
 	uint8_t p = static_cast<uint8_t>(priority);
-	return static_cast<uint16_t>(storage->ringBufWriteIdx[p] - storage->ringBufReadIdx[p]);
+	return static_cast<uint16_t>(device->ringBufWriteIdx[p] - device->ringBufReadIdx[p]);
 }
 
 /// Returns total queued USB packet count across all priority lanes.
-uint32_t MidiQueueManager::usbTotalQueuedMessages(USBMidiSendQueueStorage const* storage) {
+uint32_t MidiQueueManager::usbTotalQueuedMessages(ConnectedUSBMIDIDevice const* device) {
 	// Aggregate backlog across all USB priority lanes.
 	uint32_t queued = 0;
 	for (uint8_t p = 0; p < QUEUE_PRIORITY_COUNT; p++) {
-		queued += usbQueueCount(storage, static_cast<QueuePriority>(p));
+		queued += usbQueueCount(device, static_cast<QueuePriority>(p));
 	}
 	return queued;
 }
 
 /// Returns true if any USB lane above `priority` currently has queued packets.
-bool MidiQueueManager::usbAnyHigherPriorityHasData(USBMidiSendQueueStorage const* storage, QueuePriority priority) {
+bool MidiQueueManager::usbAnyHigherPriorityHasData(ConnectedUSBMIDIDevice const* device, QueuePriority priority) {
 	// Lower numeric value means higher queue priority.
 	for (uint8_t p = 0; p < static_cast<uint8_t>(priority); p++) {
-		if (usbQueueCount(storage, static_cast<QueuePriority>(p))) {
+		if (usbQueueCount(device, static_cast<QueuePriority>(p))) {
 			return true;
 		}
 	}
@@ -98,32 +99,31 @@ bool MidiQueueManager::usbAnyHigherPriorityHasData(USBMidiSendQueueStorage const
 }
 
 /// Pops one USB packet using strict priority ordering: clock > notes > expression > CC > SysEx.
-bool MidiQueueManager::usbPopPriorityMessage(USBMidiSendQueueStorage* storage, uint32_t& messageOut) {
+bool MidiQueueManager::usbPopPriorityMessage(ConnectedUSBMIDIDevice* device, uint32_t& messageOut) {
 	// Strict ordering: clock/realtime first, then notes, then expression.
 	for (uint8_t p = QUEUE_PRIORITY_CLOCK; p <= QUEUE_PRIORITY_EXPRESSION; p++) {
 		QueuePriority priority = static_cast<QueuePriority>(p);
-		if (usbQueueCount(storage, priority)) {
+		if (usbQueueCount(device, priority)) {
 			// Power-of-two mask wraps index without modulo cost.
-			messageOut = storage->sendDataRingBuf[p][storage->ringBufReadIdx[p] & MIDI_SEND_RING_MASK];
-			storage->ringBufReadIdx[p]++;
+			messageOut = device->sendDataRingBuf[p][device->ringBufReadIdx[p] & MIDI_SEND_RING_MASK];
+			device->ringBufReadIdx[p]++;
 			return true;
 		}
 	}
 
 	// CC is allowed only when all higher lanes are empty.
-	if (!usbAnyHigherPriorityHasData(storage, QUEUE_PRIORITY_CC) && usbQueueCount(storage, QUEUE_PRIORITY_CC)) {
+	if (!usbAnyHigherPriorityHasData(device, QUEUE_PRIORITY_CC) && usbQueueCount(device, QUEUE_PRIORITY_CC)) {
 		messageOut =
-		    storage
-		        ->sendDataRingBuf[QUEUE_PRIORITY_CC][storage->ringBufReadIdx[QUEUE_PRIORITY_CC] & MIDI_SEND_RING_MASK];
-		storage->ringBufReadIdx[QUEUE_PRIORITY_CC]++;
+		    device->sendDataRingBuf[QUEUE_PRIORITY_CC][device->ringBufReadIdx[QUEUE_PRIORITY_CC] & MIDI_SEND_RING_MASK];
+		device->ringBufReadIdx[QUEUE_PRIORITY_CC]++;
 		return true;
 	}
 
 	// SysEx is always last and only dequeued when all higher lanes are clear.
-	if (!usbAnyHigherPriorityHasData(storage, QUEUE_PRIORITY_SYSEX) && usbQueueCount(storage, QUEUE_PRIORITY_SYSEX)) {
-		messageOut = storage->sendDataRingBuf[QUEUE_PRIORITY_SYSEX]
-		                                     [storage->ringBufReadIdx[QUEUE_PRIORITY_SYSEX] & MIDI_SEND_RING_MASK];
-		storage->ringBufReadIdx[QUEUE_PRIORITY_SYSEX]++;
+	if (!usbAnyHigherPriorityHasData(device, QUEUE_PRIORITY_SYSEX) && usbQueueCount(device, QUEUE_PRIORITY_SYSEX)) {
+		messageOut = device->sendDataRingBuf[QUEUE_PRIORITY_SYSEX]
+		                                    [device->ringBufReadIdx[QUEUE_PRIORITY_SYSEX] & MIDI_SEND_RING_MASK];
+		device->ringBufReadIdx[QUEUE_PRIORITY_SYSEX]++;
 		return true;
 	}
 
@@ -131,20 +131,20 @@ bool MidiQueueManager::usbPopPriorityMessage(USBMidiSendQueueStorage* storage, u
 }
 
 /// Pushes one USB packet onto a selected priority lane.
-void MidiQueueManager::usbPushPriorityMessage(USBMidiSendQueueStorage* storage, QueuePriority priority,
+void MidiQueueManager::usbPushPriorityMessage(ConnectedUSBMIDIDevice* device, QueuePriority priority,
                                               uint32_t message) {
 	// Power-of-two mask wraps index without modulo cost.
 	uint8_t p = static_cast<uint8_t>(priority);
-	storage->sendDataRingBuf[p][storage->ringBufWriteIdx[p] & MIDI_SEND_RING_MASK] = message;
-	storage->ringBufWriteIdx[p]++;
+	device->sendDataRingBuf[p][device->ringBufWriteIdx[p] & MIDI_SEND_RING_MASK] = message;
+	device->ringBufWriteIdx[p]++;
 }
 
 /// Resets all USB per-priority queues and read/write cursors.
-void MidiQueueManager::resetUsbQueueStorage(USBMidiSendQueueStorage* storage) {
+void MidiQueueManager::resetUsbQueueStorage(ConnectedUSBMIDIDevice* device) {
 	// storage cleared for deterministic startup, and read/write cursors reset to zero.
-	memset(storage->sendDataRingBuf, 0, sizeof(storage->sendDataRingBuf));
-	memset(storage->ringBufWriteIdx, 0, sizeof(storage->ringBufWriteIdx));
-	memset(storage->ringBufReadIdx, 0, sizeof(storage->ringBufReadIdx));
+	memset(device->sendDataRingBuf, 0, sizeof(device->sendDataRingBuf));
+	memset(device->ringBufWriteIdx, 0, sizeof(device->ringBufWriteIdx));
+	memset(device->ringBufReadIdx, 0, sizeof(device->ringBufReadIdx));
 }
 
 /// Resets serial pacing state so the next flush starts from a known baseline.

@@ -22,6 +22,8 @@
 #include "model/midi/message.h"
 #include <array>
 
+class ConnectedUSBMIDIDevice;
+
 /// Shared MIDI queue policy and queue-lane helpers used by engine/device manager.
 class MidiQueueManager {
 public:
@@ -31,17 +33,17 @@ public:
 	static QueuePriority classifyMessage(MIDIMessage message);
 
 	/// Returns queued packet count for one USB priority lane.
-	static uint16_t usbQueueCount(USBMidiSendQueueStorage const* storage, QueuePriority priority);
+	static uint16_t usbQueueCount(ConnectedUSBMIDIDevice const* device, QueuePriority priority);
 	/// Returns total queued packet count across all USB priority lanes.
-	static uint32_t usbTotalQueuedMessages(USBMidiSendQueueStorage const* storage);
+	static uint32_t usbTotalQueuedMessages(ConnectedUSBMIDIDevice const* device);
 	/// Returns true when any higher-priority USB lane has pending packets.
-	static bool usbAnyHigherPriorityHasData(USBMidiSendQueueStorage const* storage, QueuePriority priority);
+	static bool usbAnyHigherPriorityHasData(ConnectedUSBMIDIDevice const* device, QueuePriority priority);
 	/// Pops one queued packet according to strict USB priority ordering.
-	static bool usbPopPriorityMessage(USBMidiSendQueueStorage* storage, uint32_t& messageOut);
+	static bool usbPopPriorityMessage(ConnectedUSBMIDIDevice* device, uint32_t& messageOut);
 	/// Pushes one packet into the given USB priority lane.
-	static void usbPushPriorityMessage(USBMidiSendQueueStorage* storage, QueuePriority priority, uint32_t message);
+	static void usbPushPriorityMessage(ConnectedUSBMIDIDevice* device, QueuePriority priority, uint32_t message);
 	/// Clears all USB queue lanes/read-write cursors in `storage`.
-	static void resetUsbQueueStorage(USBMidiSendQueueStorage* storage);
+	static void resetUsbQueueStorage(ConnectedUSBMIDIDevice* device);
 
 	/// Resets serial queue pacing state to a known baseline.
 	void resetSerialState(uint32_t nowSampleTimer);

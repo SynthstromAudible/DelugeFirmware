@@ -33,9 +33,3 @@ typedef enum QueuePriority {
 	QUEUE_PRIORITY_SYSEX = 4,
 	QUEUE_PRIORITY_COUNT = 5,
 } QueuePriority;
-
-typedef struct USBMidiSendQueueStorage {
-	uint32_t sendDataRingBuf[QUEUE_PRIORITY_COUNT][MIDI_SEND_BUFFER_LEN_RING];
-	uint16_t ringBufWriteIdx[QUEUE_PRIORITY_COUNT];
-	uint16_t ringBufReadIdx[QUEUE_PRIORITY_COUNT];
-} USBMidiSendQueueStorage;
