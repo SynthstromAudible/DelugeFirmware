@@ -257,7 +257,6 @@ int32_t MidiQueueManager::popNextPrioritizedBytes(uint8_t* outBytes, int32_t max
 	constexpr size_t kNotesIdx = QUEUE_PRIORITY_NOTES;
 	constexpr size_t kExpressionIdx = QUEUE_PRIORITY_EXPRESSION;
 	constexpr size_t kCcIdx = QUEUE_PRIORITY_CC;
-	constexpr size_t kSysexIdx = QUEUE_PRIORITY_SYSEX;
 
 	// Realtime lane can preempt and send a single byte immediately.
 	if (!serialPriorityQueues_[kClockIdx].empty()) {
@@ -311,21 +310,6 @@ int32_t MidiQueueManager::popNextPrioritizedBytes(uint8_t* outBytes, int32_t max
 		}
 	}
 
-	// SysEx is strict lowest priority and only drains when all other lanes are clear.
-	if (!hasHigherPriorityDataThan(QUEUE_PRIORITY_SYSEX)) {
-		SerialByteQueue& sysexQueue = serialPriorityQueues_[kSysexIdx];
-		if (sysexQueue.empty()) {
-			return 0;
-		}
-
-		// SysEx can be long; stream it in bounded chunks between higher-priority opportunities.
-		int32_t sysexBytes = std::min({maxLen, budgetBytes, uartSpace, static_cast<int32_t>(sysexQueue.size())});
-		for (int32_t i = 0; i < sysexBytes; i++) {
-			sysexQueue.pop(outBytes[i]);
-		}
-		return sysexBytes;
-	}
-
 	return 0;
 }
 
@@ -336,16 +320,6 @@ void MidiQueueManager::enqueueSerialMidiMessage(MIDIMessage message) {
 	uint8_t rawBytes[3] = {statusByte, message.data1, message.data2};
 	int32_t messageLength = bytesPerStatusMessage(statusByte);
 	enqueueSerialBytes(classifyMessage(message), rawBytes, messageLength);
-}
-
-/// Enqueues a validated SysEx byte sequence into the serial SysEx priority lane.
-void MidiQueueManager::enqueueSerialSysex(uint8_t const* data, int32_t len) {
-	if (len < 3 || data[0] != 0xF0 || data[len - 1] != 0xF7) {
-		// Ignore malformed SysEx so queue state remains sane.
-		return;
-	}
-
-	enqueueSerialBytes(QUEUE_PRIORITY_SYSEX, data, len);
 }
 
 /// Drains serial-priority queues into UART while enforcing DIN pacing and strict priority gates.

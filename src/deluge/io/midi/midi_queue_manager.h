@@ -51,8 +51,6 @@ public:
 	[[nodiscard]] bool hasSerialData() const;
 	/// Queues one channel/system MIDI message into the serial-priority queues.
 	void enqueueSerialMidiMessage(MIDIMessage message);
-	/// Queues one SysEx block into the serial-priority queues.
-	void enqueueSerialSysex(uint8_t const* data, int32_t len);
 	/// Drains serial-priority queues into UART under pacing and priority rules.
 	void flushSerialOutput(uint32_t nowSampleTimer);
 
@@ -74,8 +72,9 @@ private:
 		bool popMany(uint8_t* out, uint16_t count);
 	};
 
-	/// Per-priority serial queues in strict order: clock > notes > expression > CC > SysEx.
-	std::array<SerialByteQueue, QUEUE_PRIORITY_COUNT> serialPriorityQueues_{};
+	/// Serial queuing uses only clock > notes > expression > CC (SysEx bypasses this manager).
+	static constexpr size_t kSerialPriorityCount = QUEUE_PRIORITY_CC + 1;
+	std::array<SerialByteQueue, kSerialPriorityCount> serialPriorityQueues_{};
 	/// Last sample-timer timestamp used for DIN pacing token updates.
 	uint32_t serialBudgetLastUpdate_{0};
 	/// Q8 fixed-point token bucket of currently permitted DIN bytes.

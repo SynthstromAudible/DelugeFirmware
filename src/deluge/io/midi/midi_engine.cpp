@@ -600,12 +600,6 @@ void MidiEngine::sendSerialMidi(MIDIMessage message) {
 	midiQueueManager.enqueueSerialMidiMessage(message);
 }
 
-void MidiEngine::sendSerialSysex(uint8_t const* data, int32_t len) {
-	// Route SysEx through queue manager so long transfers yield to higher-priority
-	// realtime / note traffic during paced serial draining.
-	midiQueueManager.enqueueSerialSysex(data, len);
-}
-
 bool MidiEngine::checkIncomingSerialMidi() {
 
 	uint8_t thisSerialByte;
