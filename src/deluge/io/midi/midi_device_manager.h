@@ -23,6 +23,7 @@
 #include "io/midi/cable_types/usb_common.h"
 #include "io/midi/cable_types/usb_device_cable.h"
 #include "util/container/vector/named_thing_vector.h"
+#include <array>
 class Serializer;
 class Deserializer;
 
@@ -88,9 +89,15 @@ struct ConnectedUSBMIDIDevice {
 	// When we are ready to send data on this device, we consume data on the reading side and move it into the
 	// smaller dataSendingNow buffer above.
 	// Messages are queued in priority-specific rings and consumed in priority order.
+#ifdef __cplusplus
+	std::array<std::array<uint32_t, MIDI_SEND_BUFFER_LEN_RING>, QUEUE_PRIORITY_COUNT> sendDataRingBuf{};
+	std::array<uint16_t, QUEUE_PRIORITY_COUNT> ringBufWriteIdx{};
+	std::array<uint16_t, QUEUE_PRIORITY_COUNT> ringBufReadIdx{};
+#else
 	uint32_t sendDataRingBuf[QUEUE_PRIORITY_COUNT][MIDI_SEND_BUFFER_LEN_RING];
 	uint16_t ringBufWriteIdx[QUEUE_PRIORITY_COUNT];
 	uint16_t ringBufReadIdx[QUEUE_PRIORITY_COUNT];
+#endif
 
 	uint8_t maxPortConnected;
 };

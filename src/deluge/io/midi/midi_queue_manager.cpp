@@ -19,7 +19,6 @@
 #include "io/midi/midi_device_manager.h"
 #include "processing/engines/audio_engine.h"
 #include <algorithm>
-#include <cstring>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -87,43 +86,17 @@ uint32_t MidiQueueManager::usbTotalQueuedMessages(ConnectedUSBMIDIDevice const* 
 	return queued;
 }
 
-/// Returns true if any USB lane above `priority` currently has queued packets.
-bool MidiQueueManager::usbAnyHigherPriorityHasData(ConnectedUSBMIDIDevice const* device, QueuePriority priority) {
-	// Lower numeric value means higher queue priority.
-	for (uint8_t p = 0; p < static_cast<uint8_t>(priority); p++) {
-		if (usbQueueCount(device, static_cast<QueuePriority>(p))) {
-			return true;
-		}
-	}
-	return false;
-}
-
 /// Pops one USB packet using strict priority ordering: clock > notes > expression > CC > SysEx.
 bool MidiQueueManager::usbPopPriorityMessage(ConnectedUSBMIDIDevice* device, uint32_t& messageOut) {
-	// Strict ordering: clock/realtime first, then notes, then expression.
-	for (uint8_t p = QUEUE_PRIORITY_CLOCK; p <= QUEUE_PRIORITY_EXPRESSION; p++) {
+	for (uint8_t p = QUEUE_PRIORITY_CLOCK; p < QUEUE_PRIORITY_COUNT; p++) {
 		QueuePriority priority = static_cast<QueuePriority>(p);
-		if (usbQueueCount(device, priority)) {
-			// Power-of-two mask wraps index without modulo cost.
-			messageOut = device->sendDataRingBuf[p][device->ringBufReadIdx[p] & MIDI_SEND_RING_MASK];
-			device->ringBufReadIdx[p]++;
-			return true;
+		if (!usbQueueCount(device, priority)) {
+			continue;
 		}
-	}
 
-	// CC is allowed only when all higher lanes are empty.
-	if (!usbAnyHigherPriorityHasData(device, QUEUE_PRIORITY_CC) && usbQueueCount(device, QUEUE_PRIORITY_CC)) {
-		messageOut =
-		    device->sendDataRingBuf[QUEUE_PRIORITY_CC][device->ringBufReadIdx[QUEUE_PRIORITY_CC] & MIDI_SEND_RING_MASK];
-		device->ringBufReadIdx[QUEUE_PRIORITY_CC]++;
-		return true;
-	}
-
-	// SysEx is always last and only dequeued when all higher lanes are clear.
-	if (!usbAnyHigherPriorityHasData(device, QUEUE_PRIORITY_SYSEX) && usbQueueCount(device, QUEUE_PRIORITY_SYSEX)) {
-		messageOut = device->sendDataRingBuf[QUEUE_PRIORITY_SYSEX]
-		                                    [device->ringBufReadIdx[QUEUE_PRIORITY_SYSEX] & MIDI_SEND_RING_MASK];
-		device->ringBufReadIdx[QUEUE_PRIORITY_SYSEX]++;
+		// Power-of-two mask wraps index without modulo cost.
+		messageOut = device->sendDataRingBuf[p][device->ringBufReadIdx[p] & MIDI_SEND_RING_MASK];
+		device->ringBufReadIdx[p]++;
 		return true;
 	}
 
@@ -142,9 +115,11 @@ void MidiQueueManager::usbPushPriorityMessage(ConnectedUSBMIDIDevice* device, Qu
 /// Resets all USB per-priority queues and read/write cursors.
 void MidiQueueManager::resetUsbQueueStorage(ConnectedUSBMIDIDevice* device) {
 	// storage cleared for deterministic startup, and read/write cursors reset to zero.
-	memset(device->sendDataRingBuf, 0, sizeof(device->sendDataRingBuf));
-	memset(device->ringBufWriteIdx, 0, sizeof(device->ringBufWriteIdx));
-	memset(device->ringBufReadIdx, 0, sizeof(device->ringBufReadIdx));
+	for (auto& queue_lane : device->sendDataRingBuf) {
+		queue_lane.fill(0);
+	}
+	device->ringBufWriteIdx.fill(0);
+	device->ringBufReadIdx.fill(0);
 }
 
 /// Resets serial pacing state so the next flush starts from a known baseline.
@@ -235,17 +210,6 @@ bool MidiQueueManager::enqueueSerialBytes(QueuePriority priority, uint8_t const*
 	return true;
 }
 
-/// Returns true if any serial-priority lane above `priority` still has data queued.
-bool MidiQueueManager::hasHigherPriorityDataThan(QueuePriority priority) const {
-	// Lower enum values represent higher priorities.
-	for (size_t i = 0; i < static_cast<uint8_t>(priority); i++) {
-		if (!serialPriorityQueues_[i].empty()) {
-			return true;
-		}
-	}
-	return false;
-}
-
 /// Pops one realtime byte or one full MIDI message under budget and UART-space limits.
 int32_t MidiQueueManager::popNextPrioritizedBytes(uint8_t* outBytes, int32_t maxLen, int32_t budgetBytes,
                                                   int32_t uartSpace) {
@@ -254,26 +218,23 @@ int32_t MidiQueueManager::popNextPrioritizedBytes(uint8_t* outBytes, int32_t max
 	}
 
 	constexpr size_t kClockIdx = QUEUE_PRIORITY_CLOCK;
-	constexpr size_t kNotesIdx = QUEUE_PRIORITY_NOTES;
-	constexpr size_t kExpressionIdx = QUEUE_PRIORITY_EXPRESSION;
 	constexpr size_t kCcIdx = QUEUE_PRIORITY_CC;
 
-	// Realtime lane can preempt and send a single byte immediately.
-	if (!serialPriorityQueues_[kClockIdx].empty()) {
-		if (budgetBytes < 1 || uartSpace < 1 || maxLen < 1) {
-			return 0;
-		}
-		serialPriorityQueues_[kClockIdx].pop(outBytes[0]);
-		return 1;
-	}
-
-	// For channel messages, prefer popping whole messages to avoid fragmentation.
-	auto tryPopWholeMessage = [&](size_t queueIdx) -> int32_t {
-		SerialByteQueue& queue = serialPriorityQueues_[queueIdx];
+	for (size_t idx = kClockIdx; idx <= kCcIdx; idx++) {
+		SerialByteQueue& queue = serialPriorityQueues_[idx];
 		if (queue.empty()) {
-			return 0;
+			continue;
 		}
 
+		if (idx == kClockIdx) {
+			if (budgetBytes < 1 || uartSpace < 1 || maxLen < 1) {
+				return 0;
+			}
+			queue.pop(outBytes[0]);
+			return 1;
+		}
+
+		// For channel messages, prefer popping whole messages to avoid fragmentation.
 		uint8_t status = queue.peek();
 		int32_t messageLen = bytesPerStatusMessage(status);
 		// Unknown status (or malformed queue content) is skipped safely this pass.
@@ -288,26 +249,6 @@ int32_t MidiQueueManager::popNextPrioritizedBytes(uint8_t* outBytes, int32_t max
 			return 0;
 		}
 		return messageLen;
-	};
-
-	int32_t sent = tryPopWholeMessage(kNotesIdx);
-	// After clock/realtime, note events are the next highest priority.
-	if (sent > 0) {
-		return sent;
-	}
-
-	sent = tryPopWholeMessage(kExpressionIdx);
-	// Expression lanes run after notes so gestures stay responsive.
-	if (sent > 0) {
-		return sent;
-	}
-
-	// CC can flow only when no higher-priority lane currently has backlog.
-	if (!hasHigherPriorityDataThan(QUEUE_PRIORITY_CC)) {
-		sent = tryPopWholeMessage(kCcIdx);
-		if (sent > 0) {
-			return sent;
-		}
 	}
 
 	return 0;

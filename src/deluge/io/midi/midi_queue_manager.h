@@ -36,8 +36,6 @@ public:
 	static uint16_t usbQueueCount(ConnectedUSBMIDIDevice const* device, QueuePriority priority);
 	/// Returns total queued packet count across all USB priority lanes.
 	static uint32_t usbTotalQueuedMessages(ConnectedUSBMIDIDevice const* device);
-	/// Returns true when any higher-priority USB lane has pending packets.
-	static bool usbAnyHigherPriorityHasData(ConnectedUSBMIDIDevice const* device, QueuePriority priority);
 	/// Pops one queued packet according to strict USB priority ordering.
 	static bool usbPopPriorityMessage(ConnectedUSBMIDIDevice* device, uint32_t& messageOut);
 	/// Pushes one packet into the given USB priority lane.
@@ -84,8 +82,6 @@ private:
 	void updateSerialDinBudget(uint32_t nowSampleTimer);
 	/// Attempts to enqueue a full byte sequence atomically into one priority lane.
 	bool enqueueSerialBytes(QueuePriority priority, uint8_t const* bytes, int32_t len);
-	/// Returns true when any lane above `priority` still has queued data.
-	[[nodiscard]] bool hasHigherPriorityDataThan(QueuePriority priority) const;
 	/// Pops one realtime byte or one complete MIDI message according to lane priority.
 	int32_t popNextPrioritizedBytes(uint8_t* outBytes, int32_t maxLen, int32_t budgetBytes, int32_t uartSpace);
 };

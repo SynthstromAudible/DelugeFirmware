@@ -649,22 +649,22 @@ void ConnectedUSBMIDIDevice::bufferMessage(uint32_t fullMessage, QueuePriority p
 	// If backlog grows, opportunistically kick a flush to keep latency bounded.
 	if (queued > 16) {
 		// Only trigger a new flush when a send transaction is not already active.
-		if (!anyUSBSendingStillHappening[0]) {
+		if (anyUSBSendingStillHappening[0] == 0) {
 			midiEngine.flushUSBMIDIOutput();
 		}
 	}
 
 	// Occupancy of just the selected priority lane we are about to enqueue into.
-	uint16_t queueSize = MidiQueueManager::usbQueueCount(this, priority);
+	uint16_t queue_size = MidiQueueManager::usbQueueCount(this, priority);
 	// Keep one slot free in a ring buffer so full/empty states stay distinguishable.
-	if (queueSize >= (MIDI_SEND_BUFFER_LEN_RING - 1)) {
+	if (queue_size >= (MIDI_SEND_BUFFER_LEN_RING - 1)) {
 		// If nothing is currently transmitting, try flushing now to free space.
-		if (!anyUSBSendingStillHappening[0]) {
+		if (anyUSBSendingStillHappening[0] == 0) {
 			midiEngine.flushUSBMIDIOutput();
 		}
 		// Re-check after opportunistic flush.
-		queueSize = MidiQueueManager::usbQueueCount(this, priority);
-		if (queueSize >= (MIDI_SEND_BUFFER_LEN_RING - 1)) {
+		queue_size = MidiQueueManager::usbQueueCount(this, priority);
+		if (queue_size >= (MIDI_SEND_BUFFER_LEN_RING - 1)) {
 			// Still full: drop this message rather than overwrite unread queued data.
 			// TODO: show some error message
 			return;

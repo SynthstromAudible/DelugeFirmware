@@ -17,11 +17,11 @@
 
 #pragma once
 
-#include <stdint.h>
-
 // MUST be an exact power of two
-#define MIDI_SEND_BUFFER_LEN_RING 1024
-#define MIDI_SEND_RING_MASK (MIDI_SEND_BUFFER_LEN_RING - 1)
+enum MidiQueueRingConstants {
+	MIDI_SEND_BUFFER_LEN_RING = 1024,
+	MIDI_SEND_RING_MASK = MIDI_SEND_BUFFER_LEN_RING - 1,
+};
 
 // Priority order is aligned with the LinnStrument ls_midi.ino strategy:
 // clock > notes > expression > CC > SysEx.

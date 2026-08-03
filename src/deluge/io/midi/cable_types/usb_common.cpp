@@ -49,14 +49,14 @@ void MIDICableUSB::sendMessage(MIDIMessage message) {
 
 	int32_t ip = 0;
 
-	uint32_t fullMessage = setupUSBMessage(message);
+	uint32_t full_message = setupUSBMessage(message);
 	QueuePriority priority = classifyUSBPriority(message);
 
 	for (int32_t d = 0; d < MAX_NUM_USB_MIDI_DEVICES; d++) {
 		if (connectionFlags & (1 << d)) {
 			ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
 			if (connectedDevice->canHaveMIDISent) {
-				uint32_t channeledMessage = fullMessage | (portNumber << 4);
+				uint32_t channeledMessage = full_message | (portNumber << 4);
 				connectedDevice->bufferMessage(channeledMessage, priority);
 			}
 		}
