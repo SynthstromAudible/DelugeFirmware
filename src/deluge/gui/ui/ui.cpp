@@ -74,7 +74,9 @@ std::pair<uint32_t, uint32_t> getUIGreyoutColsAndRows() {
 	uint32_t cols = 0;
 	uint32_t rows = 0;
 	for (int32_t u = numUIsOpen - 1; u >= 0; u--) {
-		bool useThis = uiNavigationHierarchy[u]->getGreyoutColsAndRows(&cols, &rows);
+		auto ptr = uiNavigationHierarchy[u];
+		check_pointer_and_freeze(ptr);
+		bool useThis = ptr->getGreyoutColsAndRows(&cols, &rows);
 		if (useThis) {
 			return std::make_pair(cols, rows);
 		}

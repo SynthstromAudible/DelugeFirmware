@@ -179,14 +179,6 @@ void resetprg(void) {
 
 	R_INTC_Init(); // Set up interrupt controller
 
-	// branch prediction, data cache, instruction cache
-	R_CACHE_L1Init();
-
-	// must be second or l1 will flush into it. Note this is currently instruction caching only, DMA has
-	// bad interactions with data caching in L2 since it's physically after the DMA controllers
-	L2CacheInit();
-	__enable_irq();
-	__enable_fiq();
 	// Setup SDRAM. Have to do this before we init global objects
 	userdef_bsc_cs2_init(0); // 64MB, hardcoded
 
@@ -198,6 +190,8 @@ void resetprg(void) {
 	relocateSDRAMSection(&__sdram_data_start, &__sdram_data_end);
 	relocateSDRAMSection(&__sdram_rodata_start, &__sdram_rodata_end);
 
+	// branch prediction, data cache, instruction cache
+	R_CACHE_L1Init();
 	// must be second or l1 will flush into it. Note this is currently instruction caching only, DMA has
 	// bad interactions with data caching in L2 since it's physically after the DMA controllers
 	L2CacheInit();

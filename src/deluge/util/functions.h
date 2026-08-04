@@ -49,6 +49,17 @@ void functionsInit();
 char const* getThingName(OutputType outputType);
 char const* getOutputTypeName(OutputType outputType, int32_t channel);
 
+[[gnu::always_inline]] inline void check_pointer_and_freeze(void* ptr) {
+	auto val = (intptr_t)ptr;
+	if (val > INTERNAL_MEMORY_BEGIN && val < INTERNAL_MEMORY_END) {
+		return;
+	}
+	if (val > EXTERNAL_MEMORY_BEGIN && val < EXTERNAL_MEMORY_END) {
+		return;
+	}
+	freezeWithError("BADP");
+}
+
 // bits must be *less* than 32! I.e. 31 or less
 [[gnu::always_inline]] inline int32_t signed_saturate_operand_unknown(int32_t val, int32_t bits) {
 
