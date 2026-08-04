@@ -48,17 +48,17 @@ QueuePriority MIDIQueueManager::classify_message(MIDIMessage message) {
 		return QUEUE_PRIORITY_CLOCK;
 	}
 
-	switch (message.statusType) {
-	case 0x08:
-	case 0x09:
+	switch (static_cast<MIDIStatusType>(message.statusType)) {
+	case MIDIStatusType::NoteOff:
+	case MIDIStatusType::NoteOn:
 		return QUEUE_PRIORITY_NOTES;
 
-	case 0x0A:
-	case 0x0D:
-	case 0x0E:
+	case MIDIStatusType::PolyphonicAftertouch:
+	case MIDIStatusType::ChannelAftertouch:
+	case MIDIStatusType::PitchBend:
 		return QUEUE_PRIORITY_EXPRESSION;
 
-	case 0x0B:
+	case MIDIStatusType::ControlChange:
 		if (message.data1 == 1 || message.data1 == 74) {
 			return QUEUE_PRIORITY_EXPRESSION;
 		}
