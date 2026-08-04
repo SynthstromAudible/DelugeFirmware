@@ -94,10 +94,14 @@ struct ConnectedUSBMIDIDevice {
 	std::array<uint16_t, QUEUE_PRIORITY_COUNT> ringBufWriteIdx{};
 	std::array<uint16_t, QUEUE_PRIORITY_COUNT> ringBufReadIdx{};
 	// USB CC fairness/coalescing state mirrors DIN behavior per connected USB device.
-	std::array<uint32_t, MIDI_SEND_BUFFER_LEN_RING> usbCcReorderScratch{};
-	std::array<uint16_t, 128> usbCcFairFirstOffsets{};
-	std::array<uint8_t, 128> usbCcFairControllerDebt{};
-	uint8_t usbCcFairNextController{0};
+	/// Scratch buffer used when removing a queued CC frame and compacting survivors.
+	std::array<uint32_t, MIDI_SEND_BUFFER_LEN_RING> usb_cc_reorder_scratch{};
+	/// Snapshot of first queued CC offset per controller for fair candidate selection.
+	std::array<uint16_t, kMaxMIDIValue + 1> usb_cc_fair_first_offsets{};
+	/// Saturating per-controller enqueue pressure used by debt-aware fair dequeue.
+	std::array<uint8_t, kMaxMIDIValue + 1> usb_cc_fair_controller_debt{};
+	/// Round-robin controller cursor used as fairness baseline between dequeues.
+	uint8_t usb_cc_fair_next_controller{0};
 #else
 	uint32_t sendDataRingBuf[QUEUE_PRIORITY_COUNT][MIDI_SEND_BUFFER_LEN_RING];
 	uint16_t ringBufWriteIdx[QUEUE_PRIORITY_COUNT];

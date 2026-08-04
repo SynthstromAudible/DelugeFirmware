@@ -24,16 +24,24 @@ class ConnectedUSBMIDIDevice;
 
 class MIDIQueueManagerUSBUpstream {
 public:
+	/// Returns the queued packet count for one upstream USB priority lane.
 	static uint16_t queue_count(ConnectedUSBMIDIDevice const* device, QueuePriority priority);
+	/// Returns the total number of queued upstream USB packets across all priority lanes.
 	static uint32_t total_queued_messages(ConnectedUSBMIDIDevice const* device);
+	/// Pops one highest-priority eligible packet, applying CC fairness and CC budget limits.
 	static bool pop_priority_message(ConnectedUSBMIDIDevice* device, uint32_t& message_out,
 	                                 int32_t& cc_budget_packets_remaining);
+	/// Pushes one packed USB MIDI packet into the selected priority lane with CC coalescing/fairness tracking.
 	static void push_priority_message(ConnectedUSBMIDIDevice* device, QueuePriority priority, uint32_t message);
+	/// Clears all queue storage and fairness bookkeeping for this upstream USB device.
 	static void reset_queue_storage(ConnectedUSBMIDIDevice* device);
 
 private:
+	/// Replaces newest pending matching CC packet value instead of appending another packet.
 	static bool coalesce_queued_cc(ConnectedUSBMIDIDevice* device, uint32_t message);
+	/// Pops one queued CC packet chosen by shared round-robin/debt fairness policy.
 	static bool pop_fair_queued_cc_message(ConnectedUSBMIDIDevice* device, uint32_t& message_out);
+	/// Removes queued CC packet at target offset and compacts remaining packets in-order.
 	static bool remove_queued_cc_message_at_offset(ConnectedUSBMIDIDevice* device, uint16_t target_offset,
 	                                               uint32_t& message_out);
 };

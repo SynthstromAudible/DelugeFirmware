@@ -117,7 +117,7 @@ void MIDIQueueManagerUSBUpstream::push_priority_message(ConnectedUSBMIDIDevice* 
 		uint8_t controller = data_1(message);
 		if (controller <= kMaxMIDIValue) {
 			// Enqueued CC increases this controller's pressure in fair selection.
-			MIDIQueueManager::bump_controller_debt(device->usbCcFairControllerDebt.data(), controller);
+			MIDIQueueManager::bump_controller_debt(device->usb_cc_fair_controller_debt.data(), controller);
 		}
 	}
 }
@@ -165,7 +165,7 @@ bool MIDIQueueManagerUSBUpstream::coalesce_queued_cc(ConnectedUSBMIDIDevice* dev
 	device->sendDataRingBuf[p][target_idx] =
 	    (device->sendDataRingBuf[p][target_idx] & 0x00FFFFFFu) | (static_cast<uint32_t>(data_2(message)) << 24);
 	// Treat this coalesced write as fresh controller pressure for fair dequeue.
-	MIDIQueueManager::bump_controller_debt(device->usbCcFairControllerDebt.data(), wanted_controller);
+	MIDIQueueManager::bump_controller_debt(device->usb_cc_fair_controller_debt.data(), wanted_controller);
 	return true;
 }
 
@@ -196,7 +196,7 @@ bool MIDIQueueManagerUSBUpstream::remove_queued_cc_message_at_offset(ConnectedUS
 			continue;
 		}
 		// Preserve logical queue order while writing survivors into scratch storage.
-		device->usbCcReorderScratch[scratch_size++] =
+		device->usb_cc_reorder_scratch[scratch_size++] =
 		    device->sendDataRingBuf[p][(device->ringBufReadIdx[p] + i) & MIDI_SEND_RING_MASK];
 	}
 
@@ -205,7 +205,8 @@ bool MIDIQueueManagerUSBUpstream::remove_queued_cc_message_at_offset(ConnectedUS
 	device->ringBufWriteIdx[p] = 0;
 	for (uint16_t i = 0; i < scratch_size; i++) {
 		// Replay compacted packets back into the lane in preserved logical order.
-		device->sendDataRingBuf[p][device->ringBufWriteIdx[p] & MIDI_SEND_RING_MASK] = device->usbCcReorderScratch[i];
+		device->sendDataRingBuf[p][device->ringBufWriteIdx[p] & MIDI_SEND_RING_MASK] =
+		    device->usb_cc_reorder_scratch[i];
 		// Advance write cursor after each restored packet.
 		device->ringBufWriteIdx[p]++;
 	}
@@ -229,7 +230,7 @@ bool MIDIQueueManagerUSBUpstream::pop_fair_queued_cc_message(ConnectedUSBMIDIDev
 	}
 
 	// Initialize this scan snapshot to "no queued packet found yet" for each controller.
-	auto& first_offsets = MIDIQueueManager::initialize_first_controller_offsets(device->usbCcFairFirstOffsets);
+	auto& first_offsets = MIDIQueueManager::initialize_first_controller_offsets(device->usb_cc_fair_first_offsets);
 	// Tracks whether this queue snapshot contains any channel-CC packets at all.
 	bool saw_any_cc = false;
 
@@ -256,8 +257,8 @@ bool MIDIQueueManagerUSBUpstream::pop_fair_queued_cc_message(ConnectedUSBMIDIDev
 	// Candidate selection uses shared RR+debt policy logic.
 	uint16_t selected_offset = 0;
 	uint8_t selected_controller = 0;
-	if (!MIDIQueueManager::select_fair_controller_candidate(first_offsets, device->usbCcFairNextController,
-	                                                        device->usbCcFairControllerDebt.data(), selected_offset,
+	if (!MIDIQueueManager::select_fair_controller_candidate(first_offsets, device->usb_cc_fair_next_controller,
+	                                                        device->usb_cc_fair_controller_debt.data(), selected_offset,
 	                                                        selected_controller)) {
 		// No eligible controller was discovered, so fair dequeue has nothing to emit this pass.
 		return false;
@@ -269,8 +270,8 @@ bool MIDIQueueManagerUSBUpstream::pop_fair_queued_cc_message(ConnectedUSBMIDIDev
 	}
 
 	// Commit post-dequeue fairness state for the serviced controller, then rotate RR start.
-	MIDIQueueManager::commit_fair_controller_service(device->usbCcFairControllerDebt, device->usbCcFairNextController,
-	                                                 selected_controller);
+	MIDIQueueManager::commit_fair_controller_service(device->usb_cc_fair_controller_debt,
+	                                                 device->usb_cc_fair_next_controller, selected_controller);
 	// Selection and removal succeeded; caller can emit the selected packet.
 	return true;
 }
