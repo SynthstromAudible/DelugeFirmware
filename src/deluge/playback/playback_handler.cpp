@@ -138,7 +138,10 @@ void PlaybackHandler::midiRoutine() {
 
 // This function will be called repeatedly, at all times, to see if it's time to do a tick, and such
 void PlaybackHandler::routine() {
-
+	if ((stemExport.processStarted && stemExport.renderOffline)) [[unlikely]] {
+		//  todo - should add the ability to block the task in the task manager instead but whatever
+		return;
+	}
 	// Check analog clock input
 	if (triggerClockRisingEdgesProcessed != triggerClockRisingEdgesReceived) {
 		uint32_t time =

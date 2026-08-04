@@ -965,7 +965,14 @@ extern "C" void routineForSD(void) {
 	sdRoutineLock = true;
 	static UIStage step = UIStage::oled;
 	AudioEngine::logAction("from routineForSD()");
+	// process audio
 	AudioEngine::runRoutine();
+#ifdef USE_TASK_MANAGER // if using task manager, midi and analog clock are processed separately from audio
+	// process midi clock
+	playbackHandler.midiRoutine();
+	// process analog clock
+	playbackHandler.routine();
+#endif
 	switch (step) {
 	case UIStage::oled:
 		if (display->haveOLED()) {
