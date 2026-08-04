@@ -32,6 +32,10 @@ constexpr int32_t kMidiDinBytesPerSecondQ8 = 3125 * 256;
 constexpr int32_t kSerialQueueBudgetMaxQ8 = MIDI_TX_BUFFER_SIZE * 256;
 // Reserve some UART TX space so we do not fill the hardware buffer to the edge.
 constexpr int32_t kSerialUartHeadroomBytes = 16;
+// Limit how much lowest-priority CC traffic can be staged ahead in the DIN UART buffer.
+// This keeps dense CC bursts from sitting on the wire ahead of later clock or note bytes
+// even when the software queues themselves are draining cleanly.
+constexpr int32_t kSerialBufferedCCBytesCap = 24;
 } // namespace
 
 MidiQueueManager midiQueueManager{};
@@ -212,7 +216,7 @@ bool MidiQueueManager::enqueueSerialBytes(QueuePriority priority, uint8_t const*
 
 /// Pops one realtime byte or one full MIDI message under budget and UART-space limits.
 int32_t MidiQueueManager::popNextPrioritizedBytes(uint8_t* outBytes, int32_t maxLen, int32_t budgetBytes,
-                                                  int32_t uartSpace) {
+                                                  int32_t uartSpace, QueuePriority& poppedPriority) {
 	if (maxLen <= 0 || budgetBytes <= 0 || uartSpace <= 0) {
 		return 0;
 	}
@@ -231,6 +235,7 @@ int32_t MidiQueueManager::popNextPrioritizedBytes(uint8_t* outBytes, int32_t max
 				return 0;
 			}
 			queue.pop(outBytes[0]);
+			poppedPriority = static_cast<QueuePriority>(idx);
 			return 1;
 		}
 
@@ -248,6 +253,7 @@ int32_t MidiQueueManager::popNextPrioritizedBytes(uint8_t* outBytes, int32_t max
 		if (!queue.popMany(outBytes, messageLen)) {
 			return 0;
 		}
+		poppedPriority = static_cast<QueuePriority>(idx);
 		return messageLen;
 	}
 
@@ -273,11 +279,19 @@ void MidiQueueManager::flushSerialOutput(uint32_t nowSampleTimer) {
 	// Apply DIN pacing before deciding this iteration's send allowance.
 	updateSerialDinBudget(nowSampleTimer);
 
-	int32_t uartSpace = uartGetTxBufferSpace(UART_ITEM_MIDI) - kSerialUartHeadroomBytes;
+	// Track total free MIDI UART capacity separately from the usable space for this flush.
+	// The raw value is also used below to estimate how many non-clock bytes are already
+	// staged in hardware/software UART buffering.
+	int32_t rawUartSpace = uartGetTxBufferSpace(UART_ITEM_MIDI);
+	int32_t uartSpace = rawUartSpace - kSerialUartHeadroomBytes;
 	if (uartSpace <= 0) {
 		// Preserve a little headroom so other UART activity is not starved.
 		return;
 	}
+	// Bound outstanding CC bytes already staged in the UART buffer rather than only
+	// limiting one flush pass. This directly constrains added wire-time latency for
+	// later clock and note messages that arrive after earlier CC-heavy flushes.
+	int32_t ccUartBudget = std::max<int32_t>(0, kSerialBufferedCCBytesCap - (MIDI_TX_BUFFER_SIZE - rawUartSpace));
 
 	// Convert Q8 token budget to whole bytes available for this drain pass.
 	int32_t sendAllowanceBytes = serialDinBudgetQ8_ >> 8;
@@ -296,15 +310,31 @@ void MidiQueueManager::flushSerialOutput(uint32_t nowSampleTimer) {
 	// Keep draining while both UART capacity and token budget remain.
 	while (uartSpace > 0 && sendAllowanceBytes > 0) {
 		uint8_t bytesToSend[3] = {0, 0, 0};
-		int32_t bytesPopped = popNextPrioritizedBytes(bytesToSend, 3, sendAllowanceBytes, uartSpace);
+		QueuePriority poppedPriority = QUEUE_PRIORITY_CC;
+		int32_t bytesPopped = popNextPrioritizedBytes(bytesToSend, 3, sendAllowanceBytes, uartSpace, poppedPriority);
 		if (bytesPopped <= 0) {
 			break;
 		}
+
+		bool isCcMessage = (poppedPriority == QUEUE_PRIORITY_CC);
+		if (isCcMessage && ccUartBudget < bytesPopped) {
+			// Yield until the hardware drains enough queued CC traffic; clock, note, and
+			// expression messages remain eligible so higher-priority output can still preempt
+			// dense automation at the next flush.
+			break;
+		}
+
 		for (int32_t i = 0; i < bytesPopped; i++) {
 			// Push selected bytes into the UART MIDI TX buffer.
 			bufferMIDIUart(bytesToSend[i]);
 		}
 		sent += bytesPopped;
+		if (isCcMessage) {
+			// Only lowest-priority CC traffic consumes this staging cap. Higher-priority lanes
+			// still use queue ordering plus available UART space, but are not blocked by CC-only
+			// occupancy accounting.
+			ccUartBudget -= bytesPopped;
+		}
 		uartSpace -= bytesPopped;
 		sendAllowanceBytes -= bytesPopped;
 	}
