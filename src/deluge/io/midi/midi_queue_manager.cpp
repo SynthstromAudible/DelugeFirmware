@@ -17,14 +17,19 @@
 
 #include "io/midi/midi_queue_manager.h"
 
+#include <limits>
+
 namespace {
+constexpr uint16_t k_no_controller_offset = 0xFFFF;
+constexpr uint8_t k_max_controller_debt = std::numeric_limits<uint8_t>::max();
+
 template <typename DebtContainer>
 inline void commit_fair_controller_service_impl(DebtContainer& controller_debt, uint8_t& next_controller,
                                                 uint8_t selected_controller) {
-	if (selected_controller <= 127) {
+	if (selected_controller <= kMaxMIDIValue) {
 		controller_debt[selected_controller] = 0;
 	}
-	next_controller = static_cast<uint8_t>((selected_controller + 1) & 0x7f);
+	next_controller = static_cast<uint8_t>((selected_controller + 1) & kMaxMIDIValue);
 }
 } // namespace
 
@@ -69,7 +74,7 @@ QueuePriority MIDIQueueManager::classify_message(MIDIMessage message) {
 /// Debt models relative enqueue pressure: controllers that accumulate more
 /// unsent writes become more likely to be selected by fair dequeue.
 void MIDIQueueManager::bump_controller_debt(uint8_t* debt, uint8_t controller) {
-	if (controller <= 127 && debt[controller] < 0xFF) {
+	if (controller <= kMaxMIDIValue && debt[controller] < k_max_controller_debt) {
 		debt[controller]++;
 	}
 }
@@ -79,47 +84,47 @@ void MIDIQueueManager::bump_controller_debt(uint8_t* debt, uint8_t controller) {
 /// - RR baseline: first eligible controller encountered in rotated order.
 /// - Debt override: if any eligible controller has positive debt, pick the
 ///   highest-debt one (rotation order implicitly breaks ties).
-bool MIDIQueueManager::select_fair_controller_candidate(std::array<uint16_t, 128> const& first_offsets,
+bool MIDIQueueManager::select_fair_controller_candidate(std::array<uint16_t, kMaxMIDIValue + 1> const& first_offsets,
                                                         uint8_t next_controller, uint8_t const* controller_debt,
                                                         uint16_t& selected_offset, uint8_t& selected_controller) {
-	uint16_t first_round_robin_offset = 0xFFFF;
+	uint16_t first_round_robin_offset = k_no_controller_offset;
 	uint8_t first_round_robin_controller = 0;
-	uint16_t debt_selected_offset = 0xFFFF;
+	uint16_t debt_selected_offset = k_no_controller_offset;
 	uint8_t debt_selected_controller = 0;
 	uint8_t debt_selected_value = 0;
 
-	for (uint16_t search = 0; search < 128; search++) {
-		// Rotate from the RR start cursor and wrap into MIDI controller domain [0,127].
-		uint8_t controller = static_cast<uint8_t>((next_controller + search) & 0x7f);
+	for (uint16_t search = 0; search < (kMaxMIDIValue + 1); search++) {
+		// Rotate from the RR start cursor and wrap into MIDI controller domain [0,kMaxMIDIValue].
+		uint8_t controller = static_cast<uint8_t>((next_controller + search) & kMaxMIDIValue);
 		// Sentinel means this controller has no queued CC candidate in this snapshot.
 		uint16_t target_offset = first_offsets[controller];
-		if (target_offset == 0xFFFF) {
+		if (target_offset == k_no_controller_offset) {
 			continue;
 		}
 
 		// Latch the first eligible hit in rotated order as the round-robin fallback candidate.
-		if (first_round_robin_offset == 0xFFFF) {
+		if (first_round_robin_offset == k_no_controller_offset) {
 			first_round_robin_offset = target_offset;
 			first_round_robin_controller = controller;
 		}
 
 		// Debt tracks relative enqueue pressure; keep the highest-debt eligible candidate.
 		uint8_t debt = controller_debt[controller];
-		if (debt_selected_offset == 0xFFFF || debt > debt_selected_value) {
+		if (debt_selected_offset == k_no_controller_offset || debt > debt_selected_value) {
 			debt_selected_offset = target_offset;
 			debt_selected_controller = controller;
 			debt_selected_value = debt;
 		}
 	}
 
-	if (first_round_robin_offset == 0xFFFF) {
+	if (first_round_robin_offset == k_no_controller_offset) {
 		return false;
 	}
 
 	// Default to RR baseline; override only when a valid debt candidate has positive pressure.
 	selected_offset = first_round_robin_offset;
 	selected_controller = first_round_robin_controller;
-	if (debt_selected_offset != 0xFFFF && debt_selected_value > 0) {
+	if (debt_selected_offset != k_no_controller_offset && debt_selected_value > 0) {
 		selected_offset = debt_selected_offset;
 		selected_controller = debt_selected_controller;
 	}
@@ -128,30 +133,30 @@ bool MIDIQueueManager::select_fair_controller_candidate(std::array<uint16_t, 128
 }
 
 /// Initializes per-controller first-offset snapshot state to "no offset found" and returns the same array.
-std::array<uint16_t, 128>&
-MIDIQueueManager::initialize_first_controller_offsets(std::array<uint16_t, 128>& first_offsets) {
-	first_offsets.fill(0xFFFF);
+std::array<uint16_t, kMaxMIDIValue + 1>&
+MIDIQueueManager::initialize_first_controller_offsets(std::array<uint16_t, kMaxMIDIValue + 1>& first_offsets) {
+	first_offsets.fill(k_no_controller_offset);
 	return first_offsets;
 }
 
 /// Records a controller's first queued CC offset once per queue snapshot.
-void MIDIQueueManager::record_first_controller_offset(std::array<uint16_t, 128>& first_offsets, uint8_t controller,
-                                                      uint16_t offset) {
+void MIDIQueueManager::record_first_controller_offset(std::array<uint16_t, kMaxMIDIValue + 1>& first_offsets,
+                                                      uint8_t controller, uint16_t offset) {
 	// Accept only valid CC controller numbers and capture the first offset
 	// per controller so selection operates on each controller's queue head.
-	if (controller <= 127 && first_offsets[controller] == 0xFFFF) {
+	if (controller <= kMaxMIDIValue && first_offsets[controller] == k_no_controller_offset) {
 		// Keep first occurrence only; later occurrences remain behind it in-order.
 		first_offsets[controller] = offset;
 	}
 }
 
 /// Commits fair-dequeue service for one controller: clear debt and rotate RR cursor.
-void MIDIQueueManager::commit_fair_controller_service(std::array<uint8_t, 128>& controller_debt,
+void MIDIQueueManager::commit_fair_controller_service(std::array<uint8_t, kMaxMIDIValue + 1>& controller_debt,
                                                       uint8_t& next_controller, uint8_t selected_controller) {
 	commit_fair_controller_service_impl(controller_debt, next_controller, selected_controller);
 }
 
-void MIDIQueueManager::commit_fair_controller_service(uint8_t (&controller_debt)[128], uint8_t& next_controller,
-                                                      uint8_t selected_controller) {
+void MIDIQueueManager::commit_fair_controller_service(uint8_t (&controller_debt)[kMaxMIDIValue + 1],
+                                                      uint8_t& next_controller, uint8_t selected_controller) {
 	commit_fair_controller_service_impl(controller_debt, next_controller, selected_controller);
 }

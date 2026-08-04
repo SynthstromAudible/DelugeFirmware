@@ -405,7 +405,7 @@ void MIDIQueueManagerDINPorts::enqueue_serial_message(MIDIMessage message) {
 		}
 		// Debt tracks relative enqueue/coalesce pressure so dequeue can compensate fairly.
 		uint8_t controller = message.data1;
-		if (controller <= 127) {
+		if (controller <= kMaxMIDIValue) {
 			// Mark this controller as newly backlogged so fair dequeue can compensate.
 			MIDIQueueManager::bump_controller_debt(cc_fair_controller_debt_, controller);
 		}
@@ -470,7 +470,8 @@ void MIDIQueueManagerDINPorts::flush_serial_output(uint32_t now_sample_timer) {
 		}
 		// Only commit fairness state when a full 3-byte channel-CC frame with a
 		// valid controller number has actually been emitted to UART.
-		if (is_cc_message && bytes_popped == 3 && (bytes_to_send[0] >> 4) == 0x0B && bytes_to_send[1] <= 127) {
+		if (is_cc_message && bytes_popped == 3 && (bytes_to_send[0] >> 4) == 0x0B
+		    && bytes_to_send[1] <= kMaxMIDIValue) {
 			uint8_t dequeued_controller = bytes_to_send[1];
 			// Successful transmit repays that controller's pressure.
 			cc_fair_controller_debt_[dequeued_controller] = 0;

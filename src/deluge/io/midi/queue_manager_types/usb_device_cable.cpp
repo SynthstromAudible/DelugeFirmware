@@ -115,7 +115,7 @@ void MIDIQueueManagerUSBUpstream::push_priority_message(ConnectedUSBMIDIDevice* 
 	if (priority == QUEUE_PRIORITY_CC && is_channel_cc(message)) {
 		// Extract controller number from data1 for fairness/debt accounting.
 		uint8_t controller = data_1(message);
-		if (controller <= 127) {
+		if (controller <= kMaxMIDIValue) {
 			// Enqueued CC increases this controller's pressure in fair selection.
 			MIDIQueueManager::bump_controller_debt(device->usbCcFairControllerDebt.data(), controller);
 		}

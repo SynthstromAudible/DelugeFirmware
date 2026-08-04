@@ -53,9 +53,9 @@ private:
 	uint32_t serial_budget_last_update_{0};
 	int32_t serial_budget_Q8_{0};
 	std::array<uint8_t, SerialByteQueue::k_capacity> cc_reorder_scratch_{};
-	std::array<uint16_t, 128> cc_fair_first_offsets_{};
+	std::array<uint16_t, kMaxMIDIValue + 1> cc_fair_first_offsets_{};
 	uint8_t cc_fair_next_controller_{0};
-	uint8_t cc_fair_controller_debt_[128]{};
+	uint8_t cc_fair_controller_debt_[kMaxMIDIValue + 1]{};
 
 	void update_serial_budget(uint32_t now_sample_timer);
 	bool coalesce_queued_cc(MIDIMessage message);

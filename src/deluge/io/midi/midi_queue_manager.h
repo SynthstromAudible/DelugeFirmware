@@ -41,17 +41,18 @@ public:
 	/// Saturating increment helper for per-controller fairness debt.
 	static void bump_controller_debt(uint8_t* debt, uint8_t controller);
 	/// Shared RR+debt candidate selection used by USB and DIN fair dequeue paths.
-	static bool select_fair_controller_candidate(std::array<uint16_t, 128> const& first_offsets,
+	static bool select_fair_controller_candidate(std::array<uint16_t, kMaxMIDIValue + 1> const& first_offsets,
 	                                             uint8_t next_controller, uint8_t const* controller_debt,
 	                                             uint16_t& selected_offset, uint8_t& selected_controller);
 	/// Initializes per-controller first-offset snapshot state to "no offset found" and returns the same array.
-	static std::array<uint16_t, 128>& initialize_first_controller_offsets(std::array<uint16_t, 128>& first_offsets);
+	static std::array<uint16_t, kMaxMIDIValue + 1>&
+	initialize_first_controller_offsets(std::array<uint16_t, kMaxMIDIValue + 1>& first_offsets);
 	/// Records a controller's first queued CC offset once per queue snapshot.
-	static void record_first_controller_offset(std::array<uint16_t, 128>& first_offsets, uint8_t controller,
-	                                           uint16_t offset);
+	static void record_first_controller_offset(std::array<uint16_t, kMaxMIDIValue + 1>& first_offsets,
+	                                           uint8_t controller, uint16_t offset);
 	/// Commits fair-dequeue service for one controller: clear debt and rotate RR cursor.
-	static void commit_fair_controller_service(std::array<uint8_t, 128>& controller_debt, uint8_t& next_controller,
-	                                           uint8_t selected_controller);
-	static void commit_fair_controller_service(uint8_t (&controller_debt)[128], uint8_t& next_controller,
+	static void commit_fair_controller_service(std::array<uint8_t, kMaxMIDIValue + 1>& controller_debt,
+	                                           uint8_t& next_controller, uint8_t selected_controller);
+	static void commit_fair_controller_service(uint8_t (&controller_debt)[kMaxMIDIValue + 1], uint8_t& next_controller,
 	                                           uint8_t selected_controller);
 };
