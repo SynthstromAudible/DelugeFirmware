@@ -128,6 +128,59 @@ inline bool isUsbChannelCc(uint32_t packed) {
 	// Channel-CC status family is 0xBn (high nibble 0x0B).
 	return (usbStatusByte(packed) >> 4) == 0x0B;
 }
+
+/// Selects one controller candidate using RR baseline with debt override.
+///
+/// - RR baseline: first eligible controller encountered in rotated order.
+/// - Debt override: if any eligible controller has positive debt, pick the
+///   highest-debt one (rotation order implicitly breaks ties).
+inline bool selectFairControllerCandidate(std::array<uint16_t, 128> const& firstOffsets, uint8_t nextController,
+                                          uint8_t const* controllerDebt, uint16_t& selectedOffset,
+                                          uint8_t& selectedController) {
+	uint16_t firstRoundRobinOffset = 0xFFFF;
+	uint8_t firstRoundRobinController = 0;
+	uint16_t debtSelectedOffset = 0xFFFF;
+	uint8_t debtSelectedController = 0;
+	uint8_t debtSelectedValue = 0;
+
+	for (uint16_t search = 0; search < 128; search++) {
+		// Rotate from the RR start cursor and wrap into MIDI controller domain [0,127].
+		uint8_t controller = static_cast<uint8_t>((nextController + search) & 0x7f);
+		// Sentinel means this controller has no queued CC candidate in this snapshot.
+		uint16_t targetOffset = firstOffsets[controller];
+		if (targetOffset == 0xFFFF) {
+			continue;
+		}
+
+		// Latch the first eligible hit in rotated order as the round-robin fallback candidate.
+		if (firstRoundRobinOffset == 0xFFFF) {
+			firstRoundRobinOffset = targetOffset;
+			firstRoundRobinController = controller;
+		}
+
+		// Debt tracks relative enqueue pressure; keep the highest-debt eligible candidate.
+		uint8_t debt = controllerDebt[controller];
+		if (debtSelectedOffset == 0xFFFF || debt > debtSelectedValue) {
+			debtSelectedOffset = targetOffset;
+			debtSelectedController = controller;
+			debtSelectedValue = debt;
+		}
+	}
+
+	if (firstRoundRobinOffset == 0xFFFF) {
+		return false;
+	}
+
+	// Default to RR baseline; override only when a valid debt candidate has positive pressure.
+	selectedOffset = firstRoundRobinOffset;
+	selectedController = firstRoundRobinController;
+	if (debtSelectedOffset != 0xFFFF && debtSelectedValue > 0) {
+		selectedOffset = debtSelectedOffset;
+		selectedController = debtSelectedController;
+	}
+
+	return true;
+}
 } // namespace
 
 MidiQueueManager midiQueueManager{};
@@ -241,8 +294,6 @@ void MidiQueueManager::usbPushPriorityMessage(ConnectedUSBMIDIDevice* device, Qu
 		if (controller <= 127) {
 			// Enqueued CC increases this controller's pressure in fair selection.
 			bumpControllerDebt(device->usbCcFairControllerDebt.data(), controller);
-			// Mark controller as currently represented in queued CC traffic.
-			device->usbCcFairControllerPending[controller] = 1;
 		}
 	}
 }
@@ -291,8 +342,6 @@ bool MidiQueueManager::usbCoalesceQueuedCc(ConnectedUSBMIDIDevice* device, uint3
 	    (device->sendDataRingBuf[p][targetIdx] & 0x00FFFFFFu) | (static_cast<uint32_t>(usbData2(message)) << 24);
 	// Treat this coalesced write as fresh controller pressure for fair dequeue.
 	bumpControllerDebt(device->usbCcFairControllerDebt.data(), wantedController);
-	// Ensure this controller remains marked as present in queued CC traffic.
-	device->usbCcFairControllerPending[wantedController] = 1;
 	return true;
 }
 
@@ -383,59 +432,13 @@ bool MidiQueueManager::usbPopFairQueuedCcMessage(ConnectedUSBMIDIDevice* device,
 		return false;
 	}
 
-	// Refresh pending flags so each controller reflects current queued-CC presence in this snapshot.
-	for (uint16_t controller = 0; controller < 128; controller++) {
-		device->usbCcFairControllerPending[controller] = (firstOffsets[controller] != 0xFFFF) ? 1 : 0;
-	}
-
-	// Candidate scratch state:
-	// - firstRoundRobin*: first eligible controller encountered in rotated RR order.
-	// - debtSelected*: highest-debt controller candidate found in the same sweep.
-	// - selectionTick: next monotonic service epoch to commit on successful dequeue.
-	uint16_t firstRoundRobinOffset = 0xFFFF;
-	uint8_t firstRoundRobinController = 0;
-	uint16_t debtSelectedOffset = 0xFFFF;
-	uint8_t debtSelectedController = 0;
-	uint8_t debtSelectedValue = 0;
-	uint32_t selectionTick = device->usbCcFairServiceTick + 1;
-
-	// Sweep all 128 controller slots starting at the rotating cursor to form fairness candidates.
-	for (uint16_t search = 0; search < 128; search++) {
-		// Rotate from the RR start cursor and wrap into MIDI controller domain [0,127].
-		uint8_t controller = static_cast<uint8_t>((device->usbCcFairNextController + search) & 0x7f);
-		// Sentinel means this controller has no queued CC candidate in this snapshot.
-		uint16_t targetOffset = firstOffsets[controller];
-		if (targetOffset == 0xFFFF) {
-			// Skip controllers that are not currently represented in the queued CC lane.
-			continue;
-		}
-
-		// Latch the first eligible hit in rotated order as the round-robin fallback candidate.
-		if (firstRoundRobinOffset == 0xFFFF) {
-			firstRoundRobinOffset = targetOffset;
-			firstRoundRobinController = controller;
-		}
-
-		// Debt tracks relative enqueue pressure; keep the highest-debt eligible candidate.
-		uint8_t debt = device->usbCcFairControllerDebt[controller];
-		if (debtSelectedOffset == 0xFFFF || debt > debtSelectedValue) {
-			debtSelectedOffset = targetOffset;
-			debtSelectedController = controller;
-			debtSelectedValue = debt;
-		}
-	}
-
-	// No eligible controller was discovered, so fair dequeue has nothing to emit this pass.
-	if (firstRoundRobinOffset == 0xFFFF) {
+	// Candidate selection uses shared RR+debt policy logic.
+	uint16_t selectedOffset = 0;
+	uint8_t selectedController = 0;
+	if (!selectFairControllerCandidate(firstOffsets, device->usbCcFairNextController,
+	                                   device->usbCcFairControllerDebt.data(), selectedOffset, selectedController)) {
+		// No eligible controller was discovered, so fair dequeue has nothing to emit this pass.
 		return false;
-	}
-
-	// Default to RR baseline; override only when a valid debt candidate has positive pressure.
-	uint16_t selectedOffset = firstRoundRobinOffset;
-	uint8_t selectedController = firstRoundRobinController;
-	if (debtSelectedOffset != 0xFFFF && debtSelectedValue > 0) {
-		selectedOffset = debtSelectedOffset;
-		selectedController = debtSelectedController;
 	}
 
 	// Do not commit fairness bookkeeping unless the selected packet is removed atomically.
@@ -444,10 +447,7 @@ bool MidiQueueManager::usbPopFairQueuedCcMessage(ConnectedUSBMIDIDevice* device,
 	}
 
 	// Commit post-dequeue fairness state for the serviced controller, then rotate RR start.
-	device->usbCcFairServiceTick = selectionTick;
-	device->usbCcFairLastServedTick[selectedController] = selectionTick;
 	device->usbCcFairControllerDebt[selectedController] = 0;
-	device->usbCcFairControllerPending[selectedController] = 0;
 	device->usbCcFairNextController = static_cast<uint8_t>((selectedController + 1) & 0x7f);
 	// Selection and removal succeeded; caller can emit the selected packet.
 	return true;
@@ -643,75 +643,13 @@ bool MidiQueueManager::popFairQueuedCcMessage(uint8_t* outBytes, int32_t budgetB
 		return false;
 	}
 
-	// Rebuild pending flags from this scan so fairness decisions use current
-	// queue membership for every controller number.
-	for (uint16_t controller = 0; controller < 128; controller++) {
-		ccFairControllerPending_[controller] = (firstOffsets[controller] != 0xFFFF) ? 1 : 0;
-	}
-
-	// Candidate scratch state:
-	// - firstRoundRobin*: first eligible candidate in rotating RR order.
-	// - debtSelected*: highest-debt candidate discovered in the same scan.
-	// - waitedSelectedValue: age metadata kept with debt-selected candidate.
-	// - selectionTick: monotonic dequeue epoch used for waited-time math.
-	uint16_t firstRoundRobinOffset = 0xFFFF;
-	uint8_t firstRoundRobinController = 0;
-	uint16_t debtSelectedOffset = 0xFFFF;
-	uint8_t debtSelectedController = 0;
-	uint8_t debtSelectedValue = 0;
-	uint32_t waitedSelectedValue = 0;
-	uint32_t selectionTick = ccFairServiceTick_ + 1;
-
-	// Sweep the full controller space starting at the rotating cursor to
-	// capture both the first RR candidate and the highest-debt candidate.
-	for (uint16_t search = 0; search < 128; search++) {
-		// Wrap the rotating start position across MIDI controller domain [0,127].
-		uint8_t controller = static_cast<uint8_t>((ccFairNextController_ + search) & 0x7f);
-		uint16_t targetOffset = firstOffsets[controller];
-		if (targetOffset == 0xFFFF) {
-			// No queued CC head for this controller in the current scan.
-			continue;
-		}
-
-		// Latch the first eligible hit in rotated order as the RR baseline;
-		// this is the fallback when no controller has positive debt.
-		if (firstRoundRobinOffset == 0xFFFF) {
-			firstRoundRobinOffset = targetOffset;
-			firstRoundRobinController = controller;
-		}
-
-		// Snapshot this controller's fairness signals: enqueue pressure (debt),
-		// last service epoch, and derived wait age for starvation visibility.
-		uint8_t debt = ccFairControllerDebt_[controller];
-		uint32_t lastServed = ccFairLastServedTick_[controller];
-		uint32_t waited = (lastServed == 0) ? selectionTick : (selectionTick - lastServed);
-		// Debt chooses "most backlogged" first; round-robin order breaks ties.
-		if (debtSelectedOffset == 0xFFFF || debt > debtSelectedValue) {
-			debtSelectedOffset = targetOffset;
-			debtSelectedController = controller;
-			debtSelectedValue = debt;
-			waitedSelectedValue = waited;
-		}
-	}
-
-	if (firstRoundRobinOffset == 0xFFFF) {
+	// Candidate selection uses shared RR+debt policy logic.
+	uint16_t selectedOffset = 0;
+	uint8_t selectedController = 0;
+	if (!selectFairControllerCandidate(firstOffsets, ccFairNextController_, ccFairControllerDebt_, selectedOffset,
+	                                   selectedController)) {
 		// Sweep found no eligible controller candidate to dequeue this pass.
 		return false;
-	}
-
-	// Start from RR baseline, then promote to debt-selected candidate only
-	// when some controller has non-zero backlog pressure.
-	uint16_t selectedOffset = firstRoundRobinOffset;
-	uint8_t selectedController = firstRoundRobinController;
-	uint8_t selectedDebt = ccFairControllerDebt_[selectedController];
-	uint32_t selectedWaited = (ccFairLastServedTick_[selectedController] == 0)
-	                              ? selectionTick
-	                              : (selectionTick - ccFairLastServedTick_[selectedController]);
-	if (debtSelectedOffset != 0xFFFF && debtSelectedValue > 0) {
-		selectedOffset = debtSelectedOffset;
-		selectedController = debtSelectedController;
-		selectedDebt = debtSelectedValue;
-		selectedWaited = waitedSelectedValue;
 	}
 
 	// Commit nothing unless the selected CC can be removed atomically.
@@ -719,12 +657,8 @@ bool MidiQueueManager::popFairQueuedCcMessage(uint8_t* outBytes, int32_t budgetB
 		return false;
 	}
 
-	// Successful dequeue commits fairness bookkeeping: advance service epoch,
-	// mark selected controller as served/cleared, and rotate RR start cursor.
-	ccFairServiceTick_ = selectionTick;
-	ccFairLastServedTick_[selectedController] = selectionTick;
+	// Successful dequeue commits fairness bookkeeping and rotates RR start cursor.
 	ccFairControllerDebt_[selectedController] = 0;
-	ccFairControllerPending_[selectedController] = 0;
 	poppedPriority = QUEUE_PRIORITY_CC;
 	ccFairNextController_ = static_cast<uint8_t>((selectedController + 1) & 0x7f);
 	return true;
@@ -782,7 +716,6 @@ bool MidiQueueManager::coalesceQueuedCc(MIDIMessage message) {
 	queue.data[valueIndex] = message.data2;
 	// Treat coalesce as fresh pressure so fairness can compensate relative enqueue rate.
 	bumpControllerDebt(ccFairControllerDebt_, message.data1);
-	ccFairControllerPending_[message.data1] = 1;
 	return true;
 }
 
@@ -910,10 +843,8 @@ void MidiQueueManager::enqueueSerialMidiMessage(MIDIMessage message) {
 		// Debt tracks relative enqueue/coalesce pressure so dequeue can compensate fairly.
 		uint8_t controller = message.data1;
 		if (controller <= 127) {
-			// Mark this controller as newly backlogged and currently present in the
-			// queued CC set so fair dequeue can prioritize/consider it next pass.
+			// Mark this controller as newly backlogged so fair dequeue can compensate.
 			bumpControllerDebt(ccFairControllerDebt_, controller);
-			ccFairControllerPending_[controller] = 1;
 		}
 	}
 }
@@ -978,9 +909,8 @@ void MidiQueueManager::flushSerialOutput(uint32_t nowSampleTimer) {
 		// valid controller number has actually been emitted to UART.
 		if (isCcMessage && bytesPopped == 3 && (bytesToSend[0] >> 4) == 0x0B && bytesToSend[1] <= 127) {
 			uint8_t dequeuedController = bytesToSend[1];
-			// Successful transmit repays that controller's pressure and clears pending marker.
+			// Successful transmit repays that controller's pressure.
 			ccFairControllerDebt_[dequeuedController] = 0;
-			ccFairControllerPending_[dequeuedController] = 0;
 		}
 		uartSpace -= bytesPopped;
 		sendAllowanceBytes -= bytesPopped;

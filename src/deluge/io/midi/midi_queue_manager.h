@@ -92,12 +92,6 @@ private:
 	uint8_t ccFairNextController_{0};
 	/// Approximate enqueue/coalesce pressure per controller since last dequeue.
 	uint8_t ccFairControllerDebt_[128]{};
-	/// Whether a controller currently has at least one queued CC message.
-	uint8_t ccFairControllerPending_[128]{};
-	/// Monotonic fair-service tick incremented for each dequeued CC message.
-	uint32_t ccFairServiceTick_{0};
-	/// Last fair-service tick when each controller was dequeued.
-	uint32_t ccFairLastServedTick_[128]{};
 
 	/// Refills DIN pacing tokens from elapsed sample time.
 	void updateSerialDinBudget(uint32_t nowSampleTimer);
