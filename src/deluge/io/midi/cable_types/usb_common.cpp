@@ -24,7 +24,7 @@ namespace {
 /// Classifies outgoing USB MIDI messages into strict send-priority lanes.
 QueuePriority classifyUSBPriority(MIDIMessage message) {
 	// Reuse shared queue policy so USB and serial paths classify traffic identically.
-	return MidiQueueManager::classifyMessage(message);
+	return MIDIQueueManager::classify_message(message);
 }
 } // namespace
 
@@ -56,8 +56,8 @@ void MIDICableUSB::sendMessage(MIDIMessage message) {
 		if (connectionFlags & (1 << d)) {
 			ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
 			if (connectedDevice->canHaveMIDISent) {
-				uint32_t channeledMessage = full_message | (portNumber << 4);
-				connectedDevice->bufferMessage(channeledMessage, priority);
+				uint32_t channeled_message = full_message | (portNumber << 4);
+				connectedDevice->bufferMessage(channeled_message, priority);
 			}
 		}
 	}

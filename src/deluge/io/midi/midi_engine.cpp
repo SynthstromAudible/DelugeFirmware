@@ -27,6 +27,7 @@
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
 #include "io/midi/midi_queue_manager.h"
+#include "io/midi/queue_manager_types/din.h"
 #include "io/midi/sysex.h"
 #include "mem_functions.h"
 #include "model/song/song.h"
@@ -260,7 +261,7 @@ MidiEngine::MidiEngine() {
 
 	eventStackTop_ = eventStack_.begin();
 	// Start DIN pacing "now" and with no preloaded token budget.
-	midiQueueManager.resetSerialState(AudioEngine::audioSampleTimer);
+	midiQueueManagerDINPorts.reset_serial_state(AudioEngine::audioSampleTimer);
 }
 
 void flushUSBMIDIToHostedDevice(int32_t ip, int32_t d, bool resume) {
@@ -419,9 +420,9 @@ getOut: {}
 bool MidiEngine::anythingInOutputBuffer() {
 	// Report pending outbound MIDI from all layers:
 	// 1) USB queued packets waiting for transfer scheduling,
-	// 2) MidiQueueManager serial-priority lanes waiting to flush into UART, and
+	// 2) MIDIQueueManager serial-priority lanes waiting to flush into UART, and
 	// 3) bytes already accepted by the UART TX FIFO but not yet transmitted.
-	return anythingInUSBOutputBuffer || midiQueueManager.hasSerialData()
+	return anythingInUSBOutputBuffer || midiQueueManagerDINPorts.has_serial_data()
 	       || (bool)uartGetTxBufferFullnessByItem(UART_ITEM_MIDI);
 }
 
@@ -555,7 +556,7 @@ void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
 	// TODO: Differentiate between ports on usb midi
 	// Reuse the same message classification as DIN so USB and DIN stay behaviorally
 	// aligned with the LinnStrument-inspired priority policy.
-	QueuePriority usb_priority = MidiQueueManager::classifyMessage(message);
+	QueuePriority usb_priority = MIDIQueueManager::classify_message(message);
 
 	// formats message per USB midi spec on virtual cable 0
 	uint32_t fullMessage = setupUSBMessage(message);
@@ -591,13 +592,13 @@ void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
 void MidiEngine::flushMIDI() {
 	flushUSBMIDIOutput();
 	// Drain prioritized DIN queues using the current audio-timer tick as the pacing clock.
-	midiQueueManager.flushSerialOutput(AudioEngine::audioSampleTimer);
+	midiQueueManagerDINPorts.flush_serial_output(AudioEngine::audioSampleTimer);
 	uartFlushIfNotSending(UART_ITEM_MIDI);
 }
 
 void MidiEngine::sendSerialMidi(MIDIMessage message) {
-	// Queue by priority; actual UART transmission is paced in midiQueueManager.flushSerialOutput().
-	midiQueueManager.enqueueSerialMidiMessage(message);
+	// Queue by priority; actual UART transmission is paced in midiQueueManagerDINPorts.flush_serial_output().
+	midiQueueManagerDINPorts.enqueue_serial_message(message);
 }
 
 bool MidiEngine::checkIncomingSerialMidi() {
