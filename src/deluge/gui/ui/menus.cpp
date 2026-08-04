@@ -49,6 +49,7 @@
 #include "gui/menu_item/defaults/pad_brightness.h"
 #include "gui/menu_item/defaults/patch_cable_polarity.h"
 #include "gui/menu_item/defaults/scale.h"
+#include "gui/menu_item/defaults/screensaver.h"
 #include "gui/menu_item/defaults/session_layout.h"
 #include "gui/menu_item/defaults/slice_mode.h"
 #include "gui/menu_item/defaults/startup_song_mode.h"
@@ -1351,6 +1352,16 @@ Submenu defaultScalesSubmenu{STRING_FOR_SCALE,
                                  &defaultActiveScaleMenu,
                              }};
 
+defaults::ScreensaverModeMenu screensaverModeMenu{STRING_FOR_SCREENSAVER_MODE, STRING_FOR_SCREENSAVER_MODE};
+defaults::ScreensaverTimeout screensaverTimeoutMenu{STRING_FOR_SCREENSAVER_TIMEOUT, STRING_FOR_SCREENSAVER_TIMEOUT};
+defaults::ScreensaverSubmenu screensaverSubmenu{
+    STRING_FOR_SCREENSAVER,
+    {
+        &screensaverModeMenu,
+        &screensaverTimeoutMenu,
+    },
+};
+
 Submenu defaultsSubmenu{
     STRING_FOR_DEFAULTS,
     {
@@ -1371,6 +1382,7 @@ Submenu defaultsSubmenu{
         &defaultSliceMode,
         &defaultHighCPUUsageIndicatorMode,
         &defaultHoldTimeMenu,
+        &screensaverSubmenu,
     },
 };
 

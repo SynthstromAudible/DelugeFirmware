@@ -78,6 +78,11 @@ extern MenuHighlighting accessibilityMenuHighlighting;
 
 extern OutputType defaultNewClipType;
 extern bool defaultUseLastClipType;
+/// What the screensaver shows, or OFF to disable it entirely.
+extern ScreensaverMode screensaverMode;
+/// Minutes without physical input before the screensaver appears, kMinScreensaverTimeoutMinutes to
+/// kMaxScreensaverTimeoutMinutes.
+extern uint8_t screensaverTimeoutMinutes;
 
 extern ThresholdRecordingMode defaultThresholdRecordingMode;
 

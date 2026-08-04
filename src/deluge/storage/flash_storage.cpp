@@ -232,6 +232,8 @@ StartupSongMode defaultStartupSongMode;
 bool highCPUUsageIndicator;
 
 uint8_t defaultHoldTime;
+ScreensaverMode screensaverMode;
+uint8_t screensaverTimeoutMinutes;
 int32_t holdTime;
 
 uint8_t defaultSwingInterval;
@@ -347,6 +349,9 @@ void resetSettings() {
 
 	defaultHoldTime = 2;
 	holdTime = (defaultHoldTime * kSampleRate) / 20;
+
+	screensaverMode = kDefaultScreensaverMode;
+	screensaverTimeoutMinutes = kDefaultScreensaverTimeoutMinutes;
 
 	defaultSwingInterval = 8 - defaultMagnitude; // 16th notes
 
@@ -775,6 +780,29 @@ void readSettings() {
 	else {
 		defaultPatchCablePolarity = static_cast<Polarity>(buffer[189]);
 	}
+
+	// Bytes 196-197 hold the screensaver settings, and take the shipped defaults on any unit that
+	// has never saved them -- which is how an upgrading unit picks the screensaver up.
+	//
+	// Byte 196 can't detect that case by itself: such a unit has both bytes zeroed, because
+	// writeSettings() clears the whole buffer first, and a zeroed mode byte is indistinguishable
+	// from a deliberate OFF. Two signals cover it between them. The version says whether the last
+	// firmware to save predates the setting, which catches anything released, official firmware
+	// included. It can't catch a 1.3.0 nightly from before the setting landed, though, since every
+	// build off this tree stamps the same 1.3.0 -- so the timeout covers that: zero is outside the
+	// range this firmware ever writes, so it too only occurs on a unit that has never saved here.
+	if (savedVersion < FirmwareVersion::community({1, 3, 0}) || buffer[197] < kMinScreensaverTimeoutMinutes
+	    || buffer[197] > kMaxScreensaverTimeoutMinutes) {
+		screensaverMode = kDefaultScreensaverMode;
+		screensaverTimeoutMinutes = kDefaultScreensaverTimeoutMinutes;
+	}
+	else {
+		screensaverTimeoutMinutes = buffer[197];
+		// The block has been written, so an OFF here is the user's choice and is honoured. Only a
+		// corrupt out-of-range mode falls back.
+		screensaverMode =
+		    (buffer[196] < kNumScreensaverModes) ? static_cast<ScreensaverMode>(buffer[196]) : kDefaultScreensaverMode;
+	}
 }
 
 static bool areAutomationSettingsValid(std::span<uint8_t> buffer) {
@@ -1008,6 +1036,9 @@ void writeSettings() {
 	buffer[188] = defaultUseSharps;
 
 	buffer[189] = util::to_underlying(defaultPatchCablePolarity);
+
+	buffer[196] = util::to_underlying(screensaverMode);
+	buffer[197] = screensaverTimeoutMinutes;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

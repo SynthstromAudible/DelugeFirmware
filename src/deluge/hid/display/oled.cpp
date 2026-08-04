@@ -23,6 +23,7 @@
 #include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/display/screensaver.h"
 #include "hid/hid_sysex.h"
 #include "io/debug/log.h"
 #include "io/midi/sysex.h"
@@ -307,6 +308,10 @@ bool OLED::isPermanentPopupPresent() {
 	return drawnPermanentPopup;
 }
 
+bool OLED::isWorkingAnimationPresent() {
+	return working_animation_count != 0;
+}
+
 void copyRowWithMask(uint8_t destMask, uint8_t sourceRow[], uint8_t destRow[], int32_t minX, int32_t maxX) {
 	uint8_t sourceMask = ~destMask;
 	uint8_t* __restrict__ source = &sourceRow[minX];
@@ -372,16 +377,40 @@ void OLED::sendMainImage() {
 
 	oledCurrentImage = &main.hackGetImageStore()[0];
 
-	if (hasConsoleItems()) {
-		copyBackgroundAroundForeground(main.hackGetImageStore(), console.hackGetImageStore(), consoleMinX,
-		                               consoleItems[numConsoleItems - 1].minY - 1, consoleMaxX,
-		                               OLED_MAIN_HEIGHT_PIXELS - 1);
-		oledCurrentImage = &console.hackGetImageStore()[0];
+	if (Screensaver::isActive()) {
+		// Point at the screensaver canvas before the dirty guard below, not after. This
+		// global is also read independently by the sysex display mirror
+		// (HIDSysex::sendOLEDData / sendOLEDDataDelta), which runs on its own schedule --
+		// if it were still pointed at `main` here, that mirror would show the live UI while
+		// the panel itself is showing the screensaver.
+		oledCurrentImage = &Screensaver::getCanvas().hackGetImageStore()[0];
+
+		if (!Screensaver::consumeFrameDirty()) {
+			// Some other timer marked the display dirty while we're showing. Nothing
+			// about our frame changed, so swallow it rather than re-pushing an
+			// identical frame.
+			//
+			// This guard is load-bearing, not an optimization: scrolling text re-arms
+			// itself every 5-15ms and calls sendMainImage() directly, forever, while
+			// idle. Without this check, an idle Deluge sitting on a side-scrolling menu
+			// label would push a full unchanged frame at that rate over the SPI bus we
+			// share with CV output.
+			needsSending = false;
+			return;
+		}
 	}
-	if (oledPopupWidth) {
-		copyBackgroundAroundForeground(oledCurrentImage, popup.hackGetImageStore(), popupMinX, popupMinY, popupMaxX,
-		                               popupMaxY);
-		oledCurrentImage = &popup.hackGetImageStore()[0];
+	else {
+		if (hasConsoleItems()) {
+			copyBackgroundAroundForeground(main.hackGetImageStore(), console.hackGetImageStore(), consoleMinX,
+			                               consoleItems[numConsoleItems - 1].minY - 1, consoleMaxX,
+			                               OLED_MAIN_HEIGHT_PIXELS - 1);
+			oledCurrentImage = &console.hackGetImageStore()[0];
+		}
+		if (oledPopupWidth) {
+			copyBackgroundAroundForeground(oledCurrentImage, popup.hackGetImageStore(), popupMinX, popupMinY, popupMaxX,
+			                               popupMaxY);
+			oledCurrentImage = &popup.hackGetImageStore()[0];
+		}
 	}
 
 #if OLED_LOG_TIMING

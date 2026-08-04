@@ -48,6 +48,8 @@ enum class TimerName {
 	NOTE_ROW_BLINK,
 	LOADING_ANIMATION,
 	SELECTED_CLIP_PULSE,
+	/// Idle countdown before the screensaver appears, then its frame clock while it shows
+	SCREENSAVER,
 	/// Total number of timers
 	NUM_TIMERS
 };

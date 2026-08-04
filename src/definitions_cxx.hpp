@@ -1096,5 +1096,32 @@ enum class LaunchStyle { DEFAULT, FILL, ONCE };
 enum class StartupSongMode { BLANK, TEMPLATE, LASTOPENED, LASTSAVED };
 constexpr auto kNumStartupSongMode = util::to_underlying(StartupSongMode::LASTSAVED) + 1;
 
+/// @brief What the screensaver shows once the idle timeout expires. OLED only.
+///
+/// @note Persisted to flash by value, so the order is fixed.
+enum class ScreensaverMode : uint8_t { OFF, BLANK, STARSCAPE, DELUGE };
+constexpr auto kNumScreensaverModes = util::to_underlying(ScreensaverMode::DELUGE) + 1;
+
+/// @brief The shipped screensaver settings.
+///
+/// Applied to a unit with no saved settings, to one upgrading from a firmware that predates the
+/// screensaver, and on a settings reset.
+///
+/// @note FlashStorage::readSettings() and FlashStorage::resetSettings() must agree on these, so
+///       they are single-sourced here.
+/// @{
+constexpr ScreensaverMode kDefaultScreensaverMode = ScreensaverMode::DELUGE;
+constexpr uint8_t kDefaultScreensaverTimeoutMinutes = 5;
+/// @}
+
+/// @brief Range the screensaver idle timeout is settable and storable in, in minutes.
+///
+/// @note The menu limits and the stored-value validation share these, so a value the menu accepts
+///       always survives a reload.
+/// @{
+constexpr uint8_t kMinScreensaverTimeoutMinutes = 1;
+constexpr uint8_t kMaxScreensaverTimeoutMinutes = 60;
+/// @}
+
 constexpr uint8_t kHorizontalMenuSlotYOffset = 2;
 constexpr uint8_t kScreenTitleSeparatorY = 12 + OLED_MAIN_TOPMOST_PIXEL;
