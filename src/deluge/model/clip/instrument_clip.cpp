@@ -1302,10 +1302,47 @@ void InstrumentClip::seeWhatNotesWithinOctaveArePresent(NoteSet& notesWithinOcta
 	}
 }
 
+bool InstrumentClip::stopAllNotesPlayingForTranspose(ModelStackWithTimelineCounter* modelStack) {
+	bool shouldResumePlayingNotes = playbackHandler.isEitherClockActive() && modelStack->song->isClipActive(this);
+
+	// Stop every old pitch first. For active clips, keep sequenced as a temporary marker so only rows that were
+	// actually sounding before the transpose are restarted at their new pitch.
+	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
+		NoteRow* thisNoteRow = noteRows.getElement(i);
+		bool wasSequenced = thisNoteRow->sequenced;
+		ModelStackWithNoteRow* modelStackWithNoteRow =
+		    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
+		thisNoteRow->stopCurrentlyPlayingNote(modelStackWithNoteRow);
+		if (shouldResumePlayingNotes) {
+			thisNoteRow->sequenced = wasSequenced;
+		}
+	}
+
+	return shouldResumePlayingNotes;
+}
+
+void InstrumentClip::resumeNotesPlayingBeforeTranspose(ModelStackWithTimelineCounter* modelStack,
+                                                       bool shouldResumePlayingNotes) {
+	if (!shouldResumePlayingNotes) {
+		return;
+	}
+
+	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
+		NoteRow* thisNoteRow = noteRows.getElement(i);
+		bool wasSequenced = thisNoteRow->sequenced;
+		thisNoteRow->sequenced = false;
+		if (wasSequenced && !thisNoteRow->muted) {
+			ModelStackWithNoteRow* modelStackWithNoteRow =
+			    modelStack->addNoteRow(getNoteRowId(thisNoteRow, i), thisNoteRow);
+			thisNoteRow->resumePlayback(modelStackWithNoteRow, true, true);
+		}
+	}
+	expectEvent();
+}
+
 /* Chromatic tranpose of all notes by fixed semitone amount */
 void InstrumentClip::transpose(int32_t semitones, ModelStackWithTimelineCounter* modelStack) {
-	// Make sure no notes sounding
-	stopAllNotesPlaying(modelStack);
+	bool shouldResumePlayingNotes = stopAllNotesPlayingForTranspose(modelStack);
 
 	// Must also do auditioned notes, since transpose can now be sequenced and change
 	// noterows while we hold an audition pad.
@@ -1317,6 +1354,8 @@ void InstrumentClip::transpose(int32_t semitones, ModelStackWithTimelineCounter*
 		NoteRow* thisNoteRow = noteRows.getElement(i);
 		thisNoteRow->y += semitones;
 	}
+
+	resumeNotesPlayingBeforeTranspose(modelStack, shouldResumePlayingNotes);
 
 	yScroll += semitones;
 	colourOffset -= semitones;
@@ -1344,8 +1383,7 @@ void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 		}
 	}
 
-	// Make sure no notes sounding
-	stopAllNotesPlaying(modelStack);
+	bool shouldResumePlayingNotes = stopAllNotesPlayingForTranspose(modelStack);
 
 	if (!this->isScaleModeClip()) {
 		// Non scale clip, transpose directly by semitone jumps
@@ -1411,6 +1449,7 @@ void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 			}
 		}
 	}
+	resumeNotesPlayingBeforeTranspose(modelStack, shouldResumePlayingNotes);
 	yScroll += change;
 }
 

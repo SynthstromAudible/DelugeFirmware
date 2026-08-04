@@ -109,9 +109,10 @@ public:
 	bool generateRepeats(ModelStackWithNoteRow* modelStack, uint32_t oldLength, uint32_t newLength,
 	                     int32_t numRepeatsRounded, Action* action);
 	void toggleMute(ModelStackWithNoteRow* modelStack, bool clipIsActiveAndPlaybackIsOn);
-	void maybeStartLateNote(ModelStackWithNoteRow* modelStack, int32_t effectiveActualCurrentPos);
+	void maybeStartLateNote(ModelStackWithNoteRow* modelStack, int32_t effectiveActualCurrentPos,
+	                        bool restartCurrentNote = false);
 	bool hasNoNotes();
-	void resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMakeSound);
+	void resumePlayback(ModelStackWithNoteRow* modelStack, bool clipMayMakeSound, bool restartCurrentNote = false);
 	void writeToFile(Serializer& writer, int32_t drumIndex, InstrumentClip* clip);
 	Error readFromFile(Deserializer& reader, int32_t*, InstrumentClip*, Song* song, int32_t readAutomationUpToPos);
 	inline int32_t getNoteCode() { return y; }
