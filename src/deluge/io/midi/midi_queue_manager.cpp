@@ -34,6 +34,8 @@ constexpr int32_t kSerialQueueBudgetMaxQ8 = MIDI_TX_BUFFER_SIZE * 256;
 constexpr int32_t kSerialUartHeadroomBytes = 16;
 // Limit how much lowest-priority CC traffic can be staged ahead in the DIN UART buffer.
 constexpr int32_t kSerialBufferedCCBytesCap = 24;
+// Limit how many USB CC packets can be staged in a single transfer batch.
+constexpr int32_t kUsbBufferedCCPacketsCap = 8;
 
 /*
  * MIDI Queue Manager Information
@@ -73,10 +75,25 @@ constexpr int32_t kSerialBufferedCCBytesCap = 24;
  *
  * USB only:
  * -------------------
+ * - Tested using two Deluges connected via USB, sending clock, notes, and 80+ automated CC's.
+ *   Result: ensured that clock was stable, notes were auditioned in time and cc message
+ *   values were received correctly
  * - USB output uses per-priority ring lanes and strict priority pop order
  *   (clock -> notes -> expression -> CC -> SysEx).
  *   Why: keeps transport/realtime and performance-critical messages from being
  *   delayed by lower-priority backlog on shared USB endpoints.
+ * - USB channel-CC writes are coalesced by status+controller.
+ *   Why: keeps only the newest pending value for each controller, preventing
+ *   stale values from being sent after newer intent.
+ * - USB channel-CC dequeue is fairness-aware (RR baseline + debt preference).
+ *   Why: prevents heavy controllers from monopolizing CC service when many
+ *   controllers are active at once.
+ * - USB channel-CC selection/removal is atomic when selected away from lane
+ *   head (offset-based packet rebuild).
+ *   Why: preserves packet order and avoids malformed dequeue side effects.
+ * - USB transfer assembly applies a per-batch CC packet cap.
+ *   Why: bounds low-priority CC bursts so clock/notes can preempt quickly
+ *   under sustained CC pressure.
  * - USB queue accounting is monotonic-counter based and lane-local.
  *   Why: this provides deterministic occupancy and stable dequeue behavior
  *   across wrap-around without expensive modulo-heavy state.
@@ -90,6 +107,26 @@ inline void bumpControllerDebt(uint8_t* debt, uint8_t controller) {
 	if (controller <= 127 && debt[controller] < 0xFF) {
 		debt[controller]++;
 	}
+}
+
+inline uint8_t usbStatusByte(uint32_t packed) {
+	// USB-MIDI event packets store CIN in byte 0 and status in byte 1.
+	return static_cast<uint8_t>((packed >> 8) & 0xFF);
+}
+
+inline uint8_t usbData1(uint32_t packed) {
+	// Byte 2 is MIDI data1 for channel/system messages.
+	return static_cast<uint8_t>((packed >> 16) & 0xFF);
+}
+
+inline uint8_t usbData2(uint32_t packed) {
+	// Byte 3 is MIDI data2 (for CC this is the value byte).
+	return static_cast<uint8_t>((packed >> 24) & 0xFF);
+}
+
+inline bool isUsbChannelCc(uint32_t packed) {
+	// Channel-CC status family is 0xBn (high nibble 0x0B).
+	return (usbStatusByte(packed) >> 4) == 0x0B;
 }
 } // namespace
 
@@ -145,14 +182,37 @@ uint32_t MidiQueueManager::usbTotalQueuedMessages(ConnectedUSBMIDIDevice const* 
 	return queued;
 }
 
-/// Pops one USB packet using strict priority ordering: clock > notes > expression > CC > SysEx.
-bool MidiQueueManager::usbPopPriorityMessage(ConnectedUSBMIDIDevice* device, uint32_t& messageOut) {
+/// Pops one USB packet using strict priority ordering, with fair CC selection.
+bool MidiQueueManager::usbPopPriorityMessage(ConnectedUSBMIDIDevice* device, uint32_t& messageOut,
+                                             int32_t& ccBudgetPacketsRemaining) {
 	for (uint8_t p = QUEUE_PRIORITY_CLOCK; p < QUEUE_PRIORITY_COUNT; p++) {
 		QueuePriority priority = static_cast<QueuePriority>(p);
 		if (!usbQueueCount(device, priority)) {
 			continue;
 		}
 
+		if (priority == QUEUE_PRIORITY_CC) {
+			// Inspect the CC-lane head packet to decide whether CC fairness rules apply.
+			uint16_t headIdx = device->ringBufReadIdx[p] & MIDI_SEND_RING_MASK;
+			uint32_t headMessage = device->sendDataRingBuf[p][headIdx];
+
+			if (isUsbChannelCc(headMessage)) {
+				// Per-transfer CC cap prevents low-priority bursts from dominating the batch.
+				if (ccBudgetPacketsRemaining <= 0) {
+					// Skip CC for now and keep scanning lower lanes (e.g. SysEx) this pass.
+					continue;
+				}
+				// Pop one fair-selected CC packet (RR baseline + debt preference).
+				if (usbPopFairQueuedCcMessage(device, messageOut)) {
+					// Charge one CC slot so the cap is enforced across this transfer assembly.
+					ccBudgetPacketsRemaining--;
+					return true;
+				}
+				// If fair pop failed, do not dequeue arbitrary CC head data in this call.
+				continue;
+			}
+			// Non-CC packets living in the CC lane are handled by the generic dequeue path below.
+		}
 		// Power-of-two mask wraps index without modulo cost.
 		messageOut = device->sendDataRingBuf[p][device->ringBufReadIdx[p] & MIDI_SEND_RING_MASK];
 		device->ringBufReadIdx[p]++;
@@ -165,10 +225,232 @@ bool MidiQueueManager::usbPopPriorityMessage(ConnectedUSBMIDIDevice* device, uin
 /// Pushes one USB packet onto a selected priority lane.
 void MidiQueueManager::usbPushPriorityMessage(ConnectedUSBMIDIDevice* device, QueuePriority priority,
                                               uint32_t message) {
+	// For channel-CC, prefer updating an already-queued matching controller value over appending another packet.
+	if (priority == QUEUE_PRIORITY_CC && usbCoalesceQueuedCc(device, message)) {
+		return;
+	}
+
 	// Power-of-two mask wraps index without modulo cost.
 	uint8_t p = static_cast<uint8_t>(priority);
 	device->sendDataRingBuf[p][device->ringBufWriteIdx[p] & MIDI_SEND_RING_MASK] = message;
 	device->ringBufWriteIdx[p]++;
+
+	if (priority == QUEUE_PRIORITY_CC && isUsbChannelCc(message)) {
+		// Extract controller number from data1 for fairness/debt accounting.
+		uint8_t controller = usbData1(message);
+		if (controller <= 127) {
+			// Enqueued CC increases this controller's pressure in fair selection.
+			bumpControllerDebt(device->usbCcFairControllerDebt.data(), controller);
+			// Mark controller as currently represented in queued CC traffic.
+			device->usbCcFairControllerPending[controller] = 1;
+		}
+	}
+}
+
+/// Coalesces queued USB channel-CC packets by controller/status.
+///
+/// Searches the USB CC lane for the newest pending packet with the same status
+/// byte and controller number, then updates only that packet's value byte.
+/// Returns `true` when an in-queue replacement was applied.
+bool MidiQueueManager::usbCoalesceQueuedCc(ConnectedUSBMIDIDevice* device, uint32_t message) {
+	// Coalescing is defined only for channel-CC packets; other message types must enqueue normally.
+	if (!isUsbChannelCc(message)) {
+		return false;
+	}
+
+	constexpr uint8_t p = QUEUE_PRIORITY_CC;
+	uint16_t queueSize = usbQueueCount(device, QUEUE_PRIORITY_CC);
+	if (!queueSize) {
+		// No queued CC packets means there is nothing to coalesce in-place.
+		return false;
+	}
+
+	uint8_t wantedStatus = usbStatusByte(message);
+	uint8_t wantedController = usbData1(message);
+	int32_t latestOffset = -1;
+
+	// Walk the queued CC lane and remember the newest matching status/controller.
+	for (uint16_t offset = 0; offset < queueSize; offset++) {
+		// Ring read index + logical offset gives this packet's current queue position.
+		uint32_t queued = device->sendDataRingBuf[p][(device->ringBufReadIdx[p] + offset) & MIDI_SEND_RING_MASK];
+		if (isUsbChannelCc(queued) && usbStatusByte(queued) == wantedStatus && usbData1(queued) == wantedController) {
+			// Keep updating so the final match is the latest pending packet.
+			latestOffset = offset;
+		}
+	}
+
+	if (latestOffset < 0) {
+		// No matching queued status/controller pair was found; caller should enqueue a new packet.
+		return false;
+	}
+
+	// Replace value byte in-place while preserving queue order for all packets.
+	uint16_t targetIdx = (device->ringBufReadIdx[p] + latestOffset) & MIDI_SEND_RING_MASK;
+	// Keep CIN/status/data1 (low 24 bits) and overwrite only data2 (high byte).
+	device->sendDataRingBuf[p][targetIdx] =
+	    (device->sendDataRingBuf[p][targetIdx] & 0x00FFFFFFu) | (static_cast<uint32_t>(usbData2(message)) << 24);
+	// Treat this coalesced write as fresh controller pressure for fair dequeue.
+	bumpControllerDebt(device->usbCcFairControllerDebt.data(), wantedController);
+	// Ensure this controller remains marked as present in queued CC traffic.
+	device->usbCcFairControllerPending[wantedController] = 1;
+	return true;
+}
+
+/// Removes one queued USB CC packet at a logical offset, atomically.
+///
+/// Fair dequeue may target a packet that is not at the lane head. This helper
+/// copies the selected packet out, rebuilds the remaining CC-lane order, and
+/// resets lane cursors to the rebuilt image.
+bool MidiQueueManager::usbRemoveQueuedCcMessageAtOffset(ConnectedUSBMIDIDevice* device, uint16_t targetOffset,
+                                                        uint32_t& messageOut) {
+	constexpr uint8_t p = QUEUE_PRIORITY_CC;
+	uint16_t queueSize = usbQueueCount(device, QUEUE_PRIORITY_CC);
+	if (targetOffset >= queueSize) {
+		// Selected logical offset is outside current queue snapshot; cannot remove safely.
+		return false;
+	}
+
+	// Translate logical queue offset into the wrapped physical ring index.
+	uint16_t targetIdx = (device->ringBufReadIdx[p] + targetOffset) & MIDI_SEND_RING_MASK;
+	// Return the selected packet so caller can emit/process it after atomic removal.
+	messageOut = device->sendDataRingBuf[p][targetIdx];
+
+	uint16_t scratchSize = 0;
+	// Rebuild a compact queue image by copying every packet except the selected one.
+	for (uint16_t i = 0; i < queueSize; i++) {
+		if (i == targetOffset) {
+			// Skip the target packet; it has already been captured in messageOut.
+			continue;
+		}
+		// Preserve logical queue order while writing survivors into scratch storage.
+		device->usbCcReorderScratch[scratchSize++] =
+		    device->sendDataRingBuf[p][(device->ringBufReadIdx[p] + i) & MIDI_SEND_RING_MASK];
+	}
+
+	// Rebuild lane content without the selected packet to keep order deterministic.
+	device->ringBufReadIdx[p] = 0;
+	device->ringBufWriteIdx[p] = 0;
+	for (uint16_t i = 0; i < scratchSize; i++) {
+		// Replay compacted packets back into the lane in preserved logical order.
+		device->sendDataRingBuf[p][device->ringBufWriteIdx[p] & MIDI_SEND_RING_MASK] = device->usbCcReorderScratch[i];
+		// Advance write cursor after each restored packet.
+		device->ringBufWriteIdx[p]++;
+	}
+
+	return true;
+}
+
+/// Pops one queued USB channel-CC packet using controller fairness.
+///
+/// Selection flow:
+/// 1. Capture each controller's first queued CC offset.
+/// 2. Establish RR baseline from rotating controller cursor.
+/// 3. Prefer highest-debt controller when debt is non-zero.
+/// 4. Remove selected packet atomically and commit fairness state.
+bool MidiQueueManager::usbPopFairQueuedCcMessage(ConnectedUSBMIDIDevice* device, uint32_t& messageOut) {
+	constexpr uint8_t p = QUEUE_PRIORITY_CC;
+	uint16_t queueSize = usbQueueCount(device, QUEUE_PRIORITY_CC);
+	if (!queueSize) {
+		// No queued CC packets means there is nothing eligible for fair dequeue.
+		return false;
+	}
+
+	auto& firstOffsets = device->usbCcFairFirstOffsets;
+	// 0xFFFF marks "no queued packet found yet" for each controller.
+	firstOffsets.fill(0xFFFF);
+	// Tracks whether this queue snapshot contains any channel-CC packets at all.
+	bool sawAnyCc = false;
+
+	// Scan the current CC queue snapshot to collect first-seen offsets per controller.
+	for (uint16_t offset = 0; offset < queueSize; offset++) {
+		// Map logical scan offset to wrapped ring index, then inspect that queued packet.
+		uint32_t queued = device->sendDataRingBuf[p][(device->ringBufReadIdx[p] + offset) & MIDI_SEND_RING_MASK];
+		// Fair selection in this pass only considers channel-CC packets.
+		if (!isUsbChannelCc(queued)) {
+			continue;
+		}
+		sawAnyCc = true;
+		// For channel-CC packets, data1 is the controller number used as fairness key.
+		uint8_t controller = usbData1(queued);
+		// Record only the first queued packet offset for each valid controller in this snapshot.
+		if (controller <= 127 && firstOffsets[controller] == 0xFFFF) {
+			firstOffsets[controller] = offset;
+		}
+	}
+
+	// Without any channel-CC candidates in this snapshot, fair dequeue cannot select a packet.
+	if (!sawAnyCc) {
+		return false;
+	}
+
+	// Refresh pending flags so each controller reflects current queued-CC presence in this snapshot.
+	for (uint16_t controller = 0; controller < 128; controller++) {
+		device->usbCcFairControllerPending[controller] = (firstOffsets[controller] != 0xFFFF) ? 1 : 0;
+	}
+
+	// Candidate scratch state:
+	// - firstRoundRobin*: first eligible controller encountered in rotated RR order.
+	// - debtSelected*: highest-debt controller candidate found in the same sweep.
+	// - selectionTick: next monotonic service epoch to commit on successful dequeue.
+	uint16_t firstRoundRobinOffset = 0xFFFF;
+	uint8_t firstRoundRobinController = 0;
+	uint16_t debtSelectedOffset = 0xFFFF;
+	uint8_t debtSelectedController = 0;
+	uint8_t debtSelectedValue = 0;
+	uint32_t selectionTick = device->usbCcFairServiceTick + 1;
+
+	// Sweep all 128 controller slots starting at the rotating cursor to form fairness candidates.
+	for (uint16_t search = 0; search < 128; search++) {
+		// Rotate from the RR start cursor and wrap into MIDI controller domain [0,127].
+		uint8_t controller = static_cast<uint8_t>((device->usbCcFairNextController + search) & 0x7f);
+		// Sentinel means this controller has no queued CC candidate in this snapshot.
+		uint16_t targetOffset = firstOffsets[controller];
+		if (targetOffset == 0xFFFF) {
+			// Skip controllers that are not currently represented in the queued CC lane.
+			continue;
+		}
+
+		// Latch the first eligible hit in rotated order as the round-robin fallback candidate.
+		if (firstRoundRobinOffset == 0xFFFF) {
+			firstRoundRobinOffset = targetOffset;
+			firstRoundRobinController = controller;
+		}
+
+		// Debt tracks relative enqueue pressure; keep the highest-debt eligible candidate.
+		uint8_t debt = device->usbCcFairControllerDebt[controller];
+		if (debtSelectedOffset == 0xFFFF || debt > debtSelectedValue) {
+			debtSelectedOffset = targetOffset;
+			debtSelectedController = controller;
+			debtSelectedValue = debt;
+		}
+	}
+
+	// No eligible controller was discovered, so fair dequeue has nothing to emit this pass.
+	if (firstRoundRobinOffset == 0xFFFF) {
+		return false;
+	}
+
+	// Default to RR baseline; override only when a valid debt candidate has positive pressure.
+	uint16_t selectedOffset = firstRoundRobinOffset;
+	uint8_t selectedController = firstRoundRobinController;
+	if (debtSelectedOffset != 0xFFFF && debtSelectedValue > 0) {
+		selectedOffset = debtSelectedOffset;
+		selectedController = debtSelectedController;
+	}
+
+	// Do not commit fairness bookkeeping unless the selected packet is removed atomically.
+	if (!usbRemoveQueuedCcMessageAtOffset(device, selectedOffset, messageOut)) {
+		return false;
+	}
+
+	// Commit post-dequeue fairness state for the serviced controller, then rotate RR start.
+	device->usbCcFairServiceTick = selectionTick;
+	device->usbCcFairLastServedTick[selectedController] = selectionTick;
+	device->usbCcFairControllerDebt[selectedController] = 0;
+	device->usbCcFairControllerPending[selectedController] = 0;
+	device->usbCcFairNextController = static_cast<uint8_t>((selectedController + 1) & 0x7f);
+	// Selection and removal succeeded; caller can emit the selected packet.
+	return true;
 }
 
 /// Resets all USB per-priority queues and read/write cursors.

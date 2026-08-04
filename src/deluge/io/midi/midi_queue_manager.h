@@ -43,7 +43,8 @@ public:
 	/// Returns total queued packet count across all USB priority lanes.
 	static uint32_t usbTotalQueuedMessages(ConnectedUSBMIDIDevice const* device);
 	/// Pops one queued packet according to strict USB priority ordering.
-	static bool usbPopPriorityMessage(ConnectedUSBMIDIDevice* device, uint32_t& messageOut);
+	static bool usbPopPriorityMessage(ConnectedUSBMIDIDevice* device, uint32_t& messageOut,
+	                                  int32_t& ccBudgetPacketsRemaining);
 	/// Pushes one packet into the given USB priority lane.
 	static void usbPushPriorityMessage(ConnectedUSBMIDIDevice* device, QueuePriority priority, uint32_t message);
 	/// Clears all USB queue lanes/read-write cursors in `storage`.
@@ -112,6 +113,14 @@ private:
 	/// Pops one realtime byte or one complete MIDI message according to lane priority.
 	int32_t popNextPrioritizedBytes(uint8_t* outBytes, int32_t maxLen, int32_t budgetBytes, int32_t uartSpace,
 	                                int32_t ccUartBudget, QueuePriority& poppedPriority);
+
+	/// Replaces newest queued USB channel-CC value for same status/controller when present.
+	static bool usbCoalesceQueuedCc(ConnectedUSBMIDIDevice* device, uint32_t message);
+	/// Removes one queued USB channel-CC packet using controller fairness policy.
+	static bool usbPopFairQueuedCcMessage(ConnectedUSBMIDIDevice* device, uint32_t& messageOut);
+	/// Removes queued USB CC packet at offset by rebuilding remaining CC-lane packet order.
+	static bool usbRemoveQueuedCcMessageAtOffset(ConnectedUSBMIDIDevice* device, uint16_t targetOffset,
+	                                             uint32_t& messageOut);
 };
 
 extern MidiQueueManager midiQueueManager;

@@ -93,6 +93,14 @@ struct ConnectedUSBMIDIDevice {
 	std::array<std::array<uint32_t, MIDI_SEND_BUFFER_LEN_RING>, QUEUE_PRIORITY_COUNT> sendDataRingBuf{};
 	std::array<uint16_t, QUEUE_PRIORITY_COUNT> ringBufWriteIdx{};
 	std::array<uint16_t, QUEUE_PRIORITY_COUNT> ringBufReadIdx{};
+	// USB CC fairness/coalescing state mirrors DIN behavior per connected USB device.
+	std::array<uint32_t, MIDI_SEND_BUFFER_LEN_RING> usbCcReorderScratch{};
+	std::array<uint16_t, 128> usbCcFairFirstOffsets{};
+	std::array<uint8_t, 128> usbCcFairControllerDebt{};
+	std::array<uint8_t, 128> usbCcFairControllerPending{};
+	std::array<uint32_t, 128> usbCcFairLastServedTick{};
+	uint8_t usbCcFairNextController{0};
+	uint32_t usbCcFairServiceTick{0};
 #else
 	uint32_t sendDataRingBuf[QUEUE_PRIORITY_COUNT][MIDI_SEND_BUFFER_LEN_RING];
 	uint16_t ringBufWriteIdx[QUEUE_PRIORITY_COUNT];

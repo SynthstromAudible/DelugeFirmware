@@ -718,11 +718,13 @@ bool ConnectedUSBMIDIDevice::consumeSendData() {
 
 	// Build at most one USB transfer worth of packets: no more than queued, and no more than the mode/device cap.
 	int32_t to_send = std::min<uint32_t>(queued, max_size);
+	// Keep CC bursts bounded per transfer so fresh clock/notes can preempt sooner.
+	int32_t ccBudgetPacketsRemaining = 8;
 	// Serialize `to_send` prioritized 4-byte USB-MIDI packets into dataSendingNow.
 	for (i = 0; i < to_send; i++) {
 		uint32_t message = 0;
 		// Pull one prioritized USB-MIDI packet (4 bytes) from the multi-lane ring queues.
-		if (!MidiQueueManager::usbPopPriorityMessage(this, message)) {
+		if (!MidiQueueManager::usbPopPriorityMessage(this, message, ccBudgetPacketsRemaining)) {
 			// Queue state changed unexpectedly (or became empty); stop assembling this transfer.
 			break;
 		}
