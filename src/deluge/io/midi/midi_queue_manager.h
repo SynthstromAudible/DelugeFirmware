@@ -25,6 +25,12 @@
 class ConnectedUSBMIDIDevice;
 
 /// Shared MIDI queue policy and queue-lane helpers used by engine/device manager.
+///
+/// Recent queue-manager behavior changes are intentionally documented here:
+/// 1. Serial queuing now excludes SysEx and only manages clock/notes/expression/CC lanes.
+/// 2. CC enqueue path coalesces repeated controller writes to reduce stale automation backlog.
+/// 3. CC dequeue uses controller-aware fairness with round-robin tie-breaking.
+/// 4. CC dequeue is gated by staged-UART CC budget before queue mutation to avoid pop-without-send.
 class MidiQueueManager {
 public:
 	MidiQueueManager();
@@ -77,14 +83,35 @@ private:
 	uint32_t serialBudgetLastUpdate_{0};
 	/// Q8 fixed-point token bucket of currently permitted DIN bytes.
 	int32_t serialDinBudgetQ8_{0};
+	/// Scratch storage used when removing a fair-selected CC message from the byte ring.
+	std::array<uint8_t, SerialByteQueue::kCapacity> ccReorderScratch_{};
+	/// Scratch offsets used when selecting the next fair CC message.
+	std::array<uint16_t, 128> ccFairFirstOffsets_{};
+	/// Next controller number to prefer when rotating CC dequeue fairness.
+	uint8_t ccFairNextController_{0};
+	/// Approximate enqueue/coalesce pressure per controller since last dequeue.
+	uint8_t ccFairControllerDebt_[128]{};
+	/// Whether a controller currently has at least one queued CC message.
+	uint8_t ccFairControllerPending_[128]{};
+	/// Monotonic fair-service tick incremented for each dequeued CC message.
+	uint32_t ccFairServiceTick_{0};
+	/// Last fair-service tick when each controller was dequeued.
+	uint32_t ccFairLastServedTick_[128]{};
 
 	/// Refills DIN pacing tokens from elapsed sample time.
 	void updateSerialDinBudget(uint32_t nowSampleTimer);
+	/// Replaces the newest queued CC value for the same status/controller, if present.
+	bool coalesceQueuedCc(MIDIMessage message);
+	/// Removes and returns one queued CC message using controller round-robin fairness.
+	bool popFairQueuedCcMessage(uint8_t* outBytes, int32_t budgetBytes, int32_t uartSpace, int32_t maxLen,
+	                            QueuePriority& poppedPriority);
+	/// Removes a CC message at the given byte offset by rebuilding the ring contents.
+	bool removeQueuedCcMessageAtOffset(uint16_t targetOffset, uint8_t* outBytes);
 	/// Attempts to enqueue a full byte sequence atomically into one priority lane.
 	bool enqueueSerialBytes(QueuePriority priority, uint8_t const* bytes, int32_t len);
 	/// Pops one realtime byte or one complete MIDI message according to lane priority.
 	int32_t popNextPrioritizedBytes(uint8_t* outBytes, int32_t maxLen, int32_t budgetBytes, int32_t uartSpace,
-	                                QueuePriority& poppedPriority);
+	                                int32_t ccUartBudget, QueuePriority& poppedPriority);
 };
 
 extern MidiQueueManager midiQueueManager;

@@ -1,5 +1,5 @@
 /*
- * Copyright © 2026 Synthstrom Audible Limited
+ * Copyright © 2026 Sean Ditny
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
@@ -33,9 +33,64 @@ constexpr int32_t kSerialQueueBudgetMaxQ8 = MIDI_TX_BUFFER_SIZE * 256;
 // Reserve some UART TX space so we do not fill the hardware buffer to the edge.
 constexpr int32_t kSerialUartHeadroomBytes = 16;
 // Limit how much lowest-priority CC traffic can be staged ahead in the DIN UART buffer.
-// This keeps dense CC bursts from sitting on the wire ahead of later clock or note bytes
-// even when the software queues themselves are draining cleanly.
 constexpr int32_t kSerialBufferedCCBytesCap = 24;
+
+/*
+ * MIDI Queue Manager Information
+ *
+ * General (applies to serial and USB):
+ * -----------------------------------
+ * - Traffic is classified into shared priority lanes (clock, notes,
+ *   expression, CC) to preserve musical responsiveness under contention.
+ * - Scheduler behavior is deterministic and message-boundary-safe (a full message must be sent); queue
+ *   mutation should not produce partial MIDI packets.
+ *
+ * Serial (DIN) only:
+ * -------------------
+ * - Tested using two Deluges connected via DIN, sending clock, notes, and 80+ automated CC's.
+ *   Result: ensured that clock was stable, notes were auditioned in time and cc message
+ *   values were received correctly
+ *
+ * - SysEx is excluded from this scheduler.
+ *   Why: sysex transmissions were already managed separately and need to be sent in full.
+ * - CC coalescing keeps only the newest pending value for matching
+ *   channel/controller pairs.
+ *   Why: this addresses observed stale/stuck CC outcomes where obsolete queued
+ *   values were transmitted after newer intent.
+ * - CC dequeue is fairness-aware across controller numbers (RR start + debt).
+ *   Why: this addresses observed starvation where heavy controllers dominated
+ *   service and delayed other controllers.
+ * - CC dequeue is gated before mutation by full-message fit checks (budget,
+ *   UART space, output span).
+ *   Why: this prevents queue-state changes when bytes cannot be emitted,
+ *   avoiding value loss/misalignment under load.
+ * - Fair-selected CC removal is atomic even when selected away from queue head
+ *   (offset-based rebuild of remaining bytes).
+ *   Why: preserves ordering and avoids malformed/partial mutation side effects.
+ * - Staged CC bytes in UART are capped.
+ *   Why: this prevents excessive low-priority buffering that reduced
+ *   responsiveness of higher-priority traffic.
+ *
+ * USB only:
+ * -------------------
+ * - USB output uses per-priority ring lanes and strict priority pop order
+ *   (clock -> notes -> expression -> CC -> SysEx).
+ *   Why: keeps transport/realtime and performance-critical messages from being
+ *   delayed by lower-priority backlog on shared USB endpoints.
+ * - USB queue accounting is monotonic-counter based and lane-local.
+ *   Why: this provides deterministic occupancy and stable dequeue behavior
+ *   across wrap-around without expensive modulo-heavy state.
+ */
+
+/// Saturating increment for per-controller fairness debt.
+///
+/// Debt models relative enqueue pressure: controllers that accumulate more
+/// unsent writes become more likely to be selected by fair dequeue.
+inline void bumpControllerDebt(uint8_t* debt, uint8_t controller) {
+	if (controller <= 127 && debt[controller] < 0xFF) {
+		debt[controller]++;
+	}
+}
 } // namespace
 
 MidiQueueManager midiQueueManager{};
@@ -153,6 +208,7 @@ bool MidiQueueManager::SerialByteQueue::pop(uint8_t& out) {
 		return false;
 	}
 	out = data[readPos];
+	// Consume one byte and wrap cursor within ring capacity.
 	readPos = (readPos + 1) & (kCapacity - 1);
 	return true;
 }
@@ -163,9 +219,11 @@ bool MidiQueueManager::SerialByteQueue::popMany(uint8_t* out, uint16_t count) {
 	if (size() < count) {
 		return false;
 	}
+	// Copy the logical span out of the ring, wrapping with the capacity mask.
 	for (uint16_t i = 0; i < count; i++) {
 		out[i] = data[(readPos + i) & (kCapacity - 1)];
 	}
+	// Consume the copied span and wrap the cursor within ring capacity.
 	readPos = (readPos + count) & (kCapacity - 1);
 	return true;
 }
@@ -174,6 +232,7 @@ bool MidiQueueManager::SerialByteQueue::popMany(uint8_t* out, uint16_t count) {
 void MidiQueueManager::updateSerialDinBudget(uint32_t nowSampleTimer) {
 	uint32_t deltaSamples = nowSampleTimer - serialBudgetLastUpdate_;
 	if (!deltaSamples) {
+		// No elapsed sample time means no new transmit budget to accrue.
 		return;
 	}
 	serialBudgetLastUpdate_ = nowSampleTimer;
@@ -192,22 +251,272 @@ bool MidiQueueManager::hasSerialData() const {
 	// Fast pre-check before attempting a paced drain pass.
 	for (auto const& queue : serialPriorityQueues_) {
 		if (!queue.empty()) {
+			// One populated lane is enough to indicate pending serial output work.
 			return true;
 		}
 	}
 	return false;
 }
 
+/// Removes a 3-byte CC message from an arbitrary byte offset in the CC ring.
+///
+/// Fair dequeue may select a controller whose earliest queued message is not at
+/// the ring head. To preserve message order and atomicity, this function copies
+/// out the selected message, rebuilds the remaining bytes in-order, and resets
+/// ring cursors to the rebuilt layout.
+bool MidiQueueManager::removeQueuedCcMessageAtOffset(uint16_t targetOffset, uint8_t* outBytes) {
+	SerialByteQueue& queue = serialPriorityQueues_[QUEUE_PRIORITY_CC];
+	uint16_t queueSize = queue.size();
+	if (targetOffset + 3 > queueSize) {
+		// Selected CC span must be fully in-bounds of the current queue snapshot.
+		return false;
+	}
+
+	// Fair selection can target a CC message in the middle of the byte ring,
+	// so remove atomically by rebuilding the remaining bytes in-order.
+	for (uint16_t i = 0; i < 3; i++) {
+		outBytes[i] = queue.peek(targetOffset + i);
+	}
+
+	// Repack queue contents minus the selected 3-byte CC span.
+	uint16_t scratchSize = 0;
+	for (uint16_t i = 0; i < queueSize; i++) {
+		if (i >= targetOffset && i < targetOffset + 3) {
+			continue;
+		}
+		// Preserve byte order for all surviving queued messages.
+		ccReorderScratch_[scratchSize++] = queue.peek(i);
+	}
+
+	// Reinitialize ring cursors, then replay compacted bytes as the new queue image.
+	queue.readPos = 0;
+	queue.writePos = 0;
+	for (uint16_t i = 0; i < scratchSize; i++) {
+		queue.push(ccReorderScratch_[i]);
+	}
+
+	return true;
+}
+
+/// Pops one queued CC message using controller-aware fairness.
+///
+/// Selection policy:
+/// 1. Collect each controller's first queued CC offset.
+/// 2. Start from `ccFairNextController_` for round-robin ordering.
+/// 3. Prefer highest controller debt; use RR order as tie-break.
+/// 4. Remove the selected message atomically via offset-based removal.
+///
+/// Returns `false` when budgets/space do not allow a full 3-byte CC message,
+/// when queue data is malformed, or when no eligible CC is present.
+bool MidiQueueManager::popFairQueuedCcMessage(uint8_t* outBytes, int32_t budgetBytes, int32_t uartSpace, int32_t maxLen,
+                                              QueuePriority& poppedPriority) {
+	// Fair CC dequeue is atomic on one full 3-byte message; bail out if any limiter
+	// (DIN budget, UART space, or output span) cannot accommodate that minimum.
+	if (budgetBytes < 3 || uartSpace < 3 || maxLen < 3) {
+		return false;
+	}
+
+	SerialByteQueue& queue = serialPriorityQueues_[QUEUE_PRIORITY_CC];
+	uint16_t queueSize = queue.size();
+	// No possible CC candidate if fewer than 3 bytes are queued.
+	if (queueSize < 3) {
+		return false;
+	}
+
+	auto& firstOffsets = ccFairFirstOffsets_;
+	// Sentinel marks "no queued packet for this controller" before this scan.
+	firstOffsets.fill(0xFFFF);
+	bool sawAnyCc = false;
+
+	// Walk message-by-message so offsets always align to parsed MIDI frames, then
+	// capture the first queued CC packet per controller for fair candidate selection.
+	for (uint16_t offset = 0; offset < queueSize;) {
+		uint8_t status = queue.peek(offset);
+		int32_t messageLen = bytesPerStatusMessage(status);
+		if (messageLen <= 0 || offset + messageLen > queueSize) {
+			// Abort instead of consuming bytes from malformed/partial message boundaries.
+			return false;
+		}
+
+		// Consider only canonical 3-byte channel-CC frames when building per-
+		// controller dequeue candidates for fairness selection.
+		if (messageLen == 3 && (status >> 4) == 0x0B) {
+			sawAnyCc = true;
+			uint8_t controller = queue.peek(offset + 1);
+			// Accept only valid CC controller numbers and capture the first offset
+			// per controller so selection operates on each controller's queue head.
+			if (controller <= 127 && firstOffsets[controller] == 0xFFFF) {
+				// Keep first occurrence only; later occurrences remain behind it in-order.
+				firstOffsets[controller] = offset;
+			}
+		}
+
+		// Step by one parsed MIDI frame to keep subsequent reads aligned.
+		offset += static_cast<uint16_t>(messageLen);
+	}
+
+	if (!sawAnyCc) {
+		// No eligible CC frames were discovered during the scan, so fairness
+		// selection has no candidates to dequeue this pass.
+		return false;
+	}
+
+	// Rebuild pending flags from this scan so fairness decisions use current
+	// queue membership for every controller number.
+	for (uint16_t controller = 0; controller < 128; controller++) {
+		ccFairControllerPending_[controller] = (firstOffsets[controller] != 0xFFFF) ? 1 : 0;
+	}
+
+	// Candidate scratch state:
+	// - firstRoundRobin*: first eligible candidate in rotating RR order.
+	// - debtSelected*: highest-debt candidate discovered in the same scan.
+	// - waitedSelectedValue: age metadata kept with debt-selected candidate.
+	// - selectionTick: monotonic dequeue epoch used for waited-time math.
+	uint16_t firstRoundRobinOffset = 0xFFFF;
+	uint8_t firstRoundRobinController = 0;
+	uint16_t debtSelectedOffset = 0xFFFF;
+	uint8_t debtSelectedController = 0;
+	uint8_t debtSelectedValue = 0;
+	uint32_t waitedSelectedValue = 0;
+	uint32_t selectionTick = ccFairServiceTick_ + 1;
+
+	// Sweep the full controller space starting at the rotating cursor to
+	// capture both the first RR candidate and the highest-debt candidate.
+	for (uint16_t search = 0; search < 128; search++) {
+		// Wrap the rotating start position across MIDI controller domain [0,127].
+		uint8_t controller = static_cast<uint8_t>((ccFairNextController_ + search) & 0x7f);
+		uint16_t targetOffset = firstOffsets[controller];
+		if (targetOffset == 0xFFFF) {
+			// No queued CC head for this controller in the current scan.
+			continue;
+		}
+
+		// Latch the first eligible hit in rotated order as the RR baseline;
+		// this is the fallback when no controller has positive debt.
+		if (firstRoundRobinOffset == 0xFFFF) {
+			firstRoundRobinOffset = targetOffset;
+			firstRoundRobinController = controller;
+		}
+
+		// Snapshot this controller's fairness signals: enqueue pressure (debt),
+		// last service epoch, and derived wait age for starvation visibility.
+		uint8_t debt = ccFairControllerDebt_[controller];
+		uint32_t lastServed = ccFairLastServedTick_[controller];
+		uint32_t waited = (lastServed == 0) ? selectionTick : (selectionTick - lastServed);
+		// Debt chooses "most backlogged" first; round-robin order breaks ties.
+		if (debtSelectedOffset == 0xFFFF || debt > debtSelectedValue) {
+			debtSelectedOffset = targetOffset;
+			debtSelectedController = controller;
+			debtSelectedValue = debt;
+			waitedSelectedValue = waited;
+		}
+	}
+
+	if (firstRoundRobinOffset == 0xFFFF) {
+		// Sweep found no eligible controller candidate to dequeue this pass.
+		return false;
+	}
+
+	// Start from RR baseline, then promote to debt-selected candidate only
+	// when some controller has non-zero backlog pressure.
+	uint16_t selectedOffset = firstRoundRobinOffset;
+	uint8_t selectedController = firstRoundRobinController;
+	uint8_t selectedDebt = ccFairControllerDebt_[selectedController];
+	uint32_t selectedWaited = (ccFairLastServedTick_[selectedController] == 0)
+	                              ? selectionTick
+	                              : (selectionTick - ccFairLastServedTick_[selectedController]);
+	if (debtSelectedOffset != 0xFFFF && debtSelectedValue > 0) {
+		selectedOffset = debtSelectedOffset;
+		selectedController = debtSelectedController;
+		selectedDebt = debtSelectedValue;
+		selectedWaited = waitedSelectedValue;
+	}
+
+	// Commit nothing unless the selected CC can be removed atomically.
+	if (!removeQueuedCcMessageAtOffset(selectedOffset, outBytes)) {
+		return false;
+	}
+
+	// Successful dequeue commits fairness bookkeeping: advance service epoch,
+	// mark selected controller as served/cleared, and rotate RR start cursor.
+	ccFairServiceTick_ = selectionTick;
+	ccFairLastServedTick_[selectedController] = selectionTick;
+	ccFairControllerDebt_[selectedController] = 0;
+	ccFairControllerPending_[selectedController] = 0;
+	poppedPriority = QUEUE_PRIORITY_CC;
+	ccFairNextController_ = static_cast<uint8_t>((selectedController + 1) & 0x7f);
+	return true;
+}
+
+/// Coalesces a queued CC by replacing the newest matching pending value.
+///
+/// For dense automation, multiple writes for the same channel/controller can
+/// become stale before transmission. This function searches queued CC packets
+/// for the latest matching status/controller and updates only its value byte,
+/// reducing backlog without changing wire-order for other messages.
+bool MidiQueueManager::coalesceQueuedCc(MIDIMessage message) {
+	if (message.statusType != 0x0B) {
+		// Only channel CC messages are eligible for in-queue value replacement.
+		return false;
+	}
+
+	SerialByteQueue& queue = serialPriorityQueues_[QUEUE_PRIORITY_CC];
+	uint16_t queueSize = queue.size();
+	if (queueSize < 3) {
+		// A complete CC frame is 3 bytes, so shorter queues cannot contain one.
+		return false;
+	}
+
+	// Match only the same channel+status byte; sentinel -1 means no queued
+	// packet for this controller/channel pair has been found yet.
+	uint8_t wantedStatus = message.channel | (message.statusType << 4);
+	int32_t latestMatchOffset = -1;
+
+	for (uint16_t offset = 0; offset < queueSize;) {
+		uint8_t status = queue.peek(offset);
+		int32_t messageLen = bytesPerStatusMessage(status);
+		if (messageLen <= 0 || offset + messageLen > queueSize) {
+			// Stop coalescing scan on malformed boundary rather than mutating unknown bytes.
+			break;
+		}
+
+		// Match only full 3-byte CC packets for the same status/channel and
+		// controller number; those are eligible for in-place value replacement.
+		if (messageLen == 3 && status == wantedStatus && queue.peek(offset + 1) == message.data1) {
+			// Keep walking to coalesce the newest pending value for this controller.
+			latestMatchOffset = offset;
+		}
+
+		offset += messageLen;
+	}
+
+	if (latestMatchOffset < 0) {
+		// No pending packet for this controller/channel pair; caller may enqueue normally.
+		return false;
+	}
+
+	// Patch only the value byte of the newest matching queued packet.
+	uint16_t valueIndex = (queue.readPos + latestMatchOffset + 2) & (SerialByteQueue::kCapacity - 1);
+	queue.data[valueIndex] = message.data2;
+	// Treat coalesce as fresh pressure so fairness can compensate relative enqueue rate.
+	bumpControllerDebt(ccFairControllerDebt_, message.data1);
+	ccFairControllerPending_[message.data1] = 1;
+	return true;
+}
+
 /// Enqueues a complete byte sequence into one serial-priority lane.
 bool MidiQueueManager::enqueueSerialBytes(QueuePriority priority, uint8_t const* bytes, int32_t len) {
 	SerialByteQueue& queue = serialPriorityQueues_[static_cast<uint8_t>(priority)];
 	if (len <= 0) {
+		// Empty payload is a successful no-op; callers can treat it as enqueued.
 		return true;
 	}
 	if (queue.space() < len) {
 		// Reject atomically if lane is full; never enqueue partial messages.
 		return false;
 	}
+	// Space is guaranteed above, so this loop commits the whole message payload
+	// into the ring in-order with no partial-enqueue path.
 	for (int32_t i = 0; i < len; i++) {
 		queue.push(bytes[i]);
 	}
@@ -216,7 +525,10 @@ bool MidiQueueManager::enqueueSerialBytes(QueuePriority priority, uint8_t const*
 
 /// Pops one realtime byte or one full MIDI message under budget and UART-space limits.
 int32_t MidiQueueManager::popNextPrioritizedBytes(uint8_t* outBytes, int32_t maxLen, int32_t budgetBytes,
-                                                  int32_t uartSpace, QueuePriority& poppedPriority) {
+                                                  int32_t uartSpace, int32_t ccUartBudget,
+                                                  QueuePriority& poppedPriority) {
+	// Nothing can be emitted if caller buffer room, DIN token budget, or UART
+	// space is already exhausted for this scheduling pass.
 	if (maxLen <= 0 || budgetBytes <= 0 || uartSpace <= 0) {
 		return 0;
 	}
@@ -224,19 +536,48 @@ int32_t MidiQueueManager::popNextPrioritizedBytes(uint8_t* outBytes, int32_t max
 	constexpr size_t kClockIdx = QUEUE_PRIORITY_CLOCK;
 	constexpr size_t kCcIdx = QUEUE_PRIORITY_CC;
 
+	// Scan lanes in strict priority order (clock -> notes -> expression -> CC)
+	// and stop at the first lane that can produce a full eligible payload.
 	for (size_t idx = kClockIdx; idx <= kCcIdx; idx++) {
 		SerialByteQueue& queue = serialPriorityQueues_[idx];
 		if (queue.empty()) {
+			// This lane has no work; advance to the next priority lane in-order.
 			continue;
 		}
 
 		if (idx == kClockIdx) {
+			// Realtime/clock lane is byte-oriented: emit at most one byte per call
+			// and only when all output limiters can accept at least one byte.
 			if (budgetBytes < 1 || uartSpace < 1 || maxLen < 1) {
 				return 0;
 			}
 			queue.pop(outBytes[0]);
+			// Report the lane and exact byte count so caller accounting stays correct.
 			poppedPriority = static_cast<QueuePriority>(idx);
 			return 1;
+		}
+
+		if (idx == kCcIdx) {
+			// Parse the queue-head message once so we can gate CC dequeue safely.
+			uint8_t status = queue.peek();
+			int32_t messageLen = bytesPerStatusMessage(status);
+			if (messageLen <= 0) {
+				// Unknown head status: defer and try again on a later scheduler pass.
+				return 0;
+			}
+
+			// Never dequeue a CC message if the staged-CC UART budget is exhausted.
+			if ((status >> 4) == 0x0B && messageLen == 3 && ccUartBudget < 3) {
+				return 0;
+			}
+
+			// The CC-priority lane may contain non-CC channel messages (e.g. program change).
+			// Only run fair dequeue for actual 3-byte CC messages; otherwise use normal popMany below.
+			if ((status >> 4) == 0x0B && messageLen == 3) {
+				if (popFairQueuedCcMessage(outBytes, budgetBytes, uartSpace, maxLen, poppedPriority)) {
+					return 3;
+				}
+			}
 		}
 
 		// For channel messages, prefer popping whole messages to avoid fragmentation.
@@ -250,9 +591,13 @@ int32_t MidiQueueManager::popNextPrioritizedBytes(uint8_t* outBytes, int32_t max
 		if (queue.size() < messageLen || budgetBytes < messageLen || uartSpace < messageLen || maxLen < messageLen) {
 			return 0;
 		}
+		// Keep this final guard even after fit checks: popMany is the atomic boundary
+		// that guarantees we never emit a partial MIDI message if queue state shifts.
 		if (!queue.popMany(outBytes, messageLen)) {
 			return 0;
 		}
+		// Report both the source lane and actual byte count so the caller can
+		// apply CC-specific bookkeeping and debit UART/token budgets correctly.
 		poppedPriority = static_cast<QueuePriority>(idx);
 		return messageLen;
 	}
@@ -266,7 +611,29 @@ void MidiQueueManager::enqueueSerialMidiMessage(MIDIMessage message) {
 	uint8_t statusByte = message.channel | (message.statusType << 4);
 	uint8_t rawBytes[3] = {statusByte, message.data1, message.data2};
 	int32_t messageLength = bytesPerStatusMessage(statusByte);
-	enqueueSerialBytes(classifyMessage(message), rawBytes, messageLength);
+	QueuePriority priority = classifyMessage(message);
+	if (priority == QUEUE_PRIORITY_CC && coalesceQueuedCc(message)) {
+		// For dense CC streams, replace pending controller value instead of appending another packet.
+		return;
+	}
+
+	// Atomic lane enqueue; false means lane full and message is intentionally dropped.
+	bool queuedOk = enqueueSerialBytes(priority, rawBytes, messageLength);
+
+	if (priority == QUEUE_PRIORITY_CC) {
+		if (!queuedOk) {
+			// Do not update fairness state for data that never entered the queue.
+			return;
+		}
+		// Debt tracks relative enqueue/coalesce pressure so dequeue can compensate fairly.
+		uint8_t controller = message.data1;
+		if (controller <= 127) {
+			// Mark this controller as newly backlogged and currently present in the
+			// queued CC set so fair dequeue can prioritize/consider it next pass.
+			bumpControllerDebt(ccFairControllerDebt_, controller);
+			ccFairControllerPending_[controller] = 1;
+		}
+	}
 }
 
 /// Drains serial-priority queues into UART while enforcing DIN pacing and strict priority gates.
@@ -279,18 +646,14 @@ void MidiQueueManager::flushSerialOutput(uint32_t nowSampleTimer) {
 	// Apply DIN pacing before deciding this iteration's send allowance.
 	updateSerialDinBudget(nowSampleTimer);
 
-	// Track total free MIDI UART capacity separately from the usable space for this flush.
-	// The raw value is also used below to estimate how many non-clock bytes are already
-	// staged in hardware/software UART buffering.
 	int32_t rawUartSpace = uartGetTxBufferSpace(UART_ITEM_MIDI);
 	int32_t uartSpace = rawUartSpace - kSerialUartHeadroomBytes;
 	if (uartSpace <= 0) {
 		// Preserve a little headroom so other UART activity is not starved.
 		return;
 	}
-	// Bound outstanding CC bytes already staged in the UART buffer rather than only
-	// limiting one flush pass. This directly constrains added wire-time latency for
-	// later clock and note messages that arrive after earlier CC-heavy flushes.
+	// This counts CC bytes already staged in the UART path and limits additional
+	// queued CC so later clock/notes can still preempt promptly.
 	int32_t ccUartBudget = std::max<int32_t>(0, kSerialBufferedCCBytesCap - (MIDI_TX_BUFFER_SIZE - rawUartSpace));
 
 	// Convert Q8 token budget to whole bytes available for this drain pass.
@@ -311,16 +674,9 @@ void MidiQueueManager::flushSerialOutput(uint32_t nowSampleTimer) {
 	while (uartSpace > 0 && sendAllowanceBytes > 0) {
 		uint8_t bytesToSend[3] = {0, 0, 0};
 		QueuePriority poppedPriority = QUEUE_PRIORITY_CC;
-		int32_t bytesPopped = popNextPrioritizedBytes(bytesToSend, 3, sendAllowanceBytes, uartSpace, poppedPriority);
+		int32_t bytesPopped =
+		    popNextPrioritizedBytes(bytesToSend, 3, sendAllowanceBytes, uartSpace, ccUartBudget, poppedPriority);
 		if (bytesPopped <= 0) {
-			break;
-		}
-
-		bool isCcMessage = (poppedPriority == QUEUE_PRIORITY_CC);
-		if (isCcMessage && ccUartBudget < bytesPopped) {
-			// Yield until the hardware drains enough queued CC traffic; clock, note, and
-			// expression messages remain eligible so higher-priority output can still preempt
-			// dense automation at the next flush.
 			break;
 		}
 
@@ -329,11 +685,20 @@ void MidiQueueManager::flushSerialOutput(uint32_t nowSampleTimer) {
 			bufferMIDIUart(bytesToSend[i]);
 		}
 		sent += bytesPopped;
+
+		bool isCcMessage = (poppedPriority == QUEUE_PRIORITY_CC);
+
 		if (isCcMessage) {
-			// Only lowest-priority CC traffic consumes this staging cap. Higher-priority lanes
-			// still use queue ordering plus available UART space, but are not blocked by CC-only
-			// occupancy accounting.
+			// Decrement staged-CC budget only for actual CC-lane output.
 			ccUartBudget -= bytesPopped;
+		}
+		// Only commit fairness state when a full 3-byte channel-CC frame with a
+		// valid controller number has actually been emitted to UART.
+		if (isCcMessage && bytesPopped == 3 && (bytesToSend[0] >> 4) == 0x0B && bytesToSend[1] <= 127) {
+			uint8_t dequeuedController = bytesToSend[1];
+			// Successful transmit repays that controller's pressure and clears pending marker.
+			ccFairControllerDebt_[dequeuedController] = 0;
+			ccFairControllerPending_[dequeuedController] = 0;
 		}
 		uartSpace -= bytesPopped;
 		sendAllowanceBytes -= bytesPopped;
