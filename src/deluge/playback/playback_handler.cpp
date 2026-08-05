@@ -1095,6 +1095,10 @@ void PlaybackHandler::scheduleSwungTick() {
 // This may be called when there already is one scheduled, to reschedule it, if the tempo has changed
 void PlaybackHandler::scheduleSwungTickFromInternalClock() {
 
+	// Tick-based MIDI/CV interpolation can produce a zero next-event interval via
+	// ParamManagerForTimeline::processCurrentPos. That value can propagate into swungTicksTilNextEvent
+	// during playback scheduling (see Clip::processCurrentPos). Clamp here so we always advance at least one swung
+	// tick instead of re-actioning the current tick forever.
 	if (swungTicksTilNextEvent < 1) {
 		swungTicksTilNextEvent = 1; // Shouldn't ultimately be necessary, but...
 	}
@@ -1752,6 +1756,14 @@ void PlaybackHandler::clockMessageReceived(uint32_t time) {
 }
 
 void PlaybackHandler::scheduleSwungTickFromExternalClock() {
+	// Tick-based MIDI/CV interpolation can produce a zero next-event interval via
+	// ParamManagerForTimeline::processCurrentPos. That value can propagate into swungTicksTilNextEvent
+	// during playback scheduling (see Clip::processCurrentPos). Clamp here so we always advance at least one swung
+	// tick instead of re-actioning the current tick forever.
+	if (swungTicksTilNextEvent < 1) {
+		swungTicksTilNextEvent = 1;
+	}
+
 	uint64_t nextSwungTick = lastSwungTickActioned + swungTicksTilNextEvent;
 	uint64_t internalTickPositionForNextSwungTickTimes50;
 	if (!currentSong->hasAnySwing()) {
