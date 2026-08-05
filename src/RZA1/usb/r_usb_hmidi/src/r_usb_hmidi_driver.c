@@ -60,6 +60,7 @@ static void usb_hhid_class_request_trans_result(usb_utr_t* mess, uint16_t data1,
 static void usb_hmidi_check_result(usb_utr_t* ptr, uint16_t unused, uint16_t status);
 static usb_er_t usb_hhid_data_trans(usb_utr_t* ptr, uint16_t pipe, uint32_t size, uint8_t* table, usb_cb_t complete);
 static void usb_hmidi_enumeration_sequence(usb_utr_t* mess);
+static uint8_t usb_hmidi_count_virtual_cables(uint8_t* table, uint16_t length);
 
 extern uint8_t currentDeviceNumWithSendPipe[];
 
@@ -287,6 +288,55 @@ uint16_t* g_p_usb_hmidi_pipe_table[USB_NUM_USBIP];     /* Pipe Table(DefEP) */
 uint8_t* g_p_usb_hmidi_config_table[USB_NUM_USBIP];    /* Configuration Descriptor Table */
 uint8_t* g_p_usb_hmidi_device_table[USB_NUM_USBIP];    /* Device Descriptor Table */
 uint8_t* g_p_usb_hmidi_interface_table[USB_NUM_USBIP]; /* Interface Descriptor Table */
+uint8_t hostedMIDIPortCountByDevice[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES] = {{1}};
+
+static uint8_t usb_hmidi_count_virtual_cables(uint8_t* table, uint16_t length)
+{
+    // USB-MIDI event packets encode virtual cable number in CN nibble.
+    // We estimate supported cable count from class-specific endpoint descriptors.
+    enum { USB_DT_INTERFACE_STD = 0x04, USB_DT_CS_ENDPOINT = 0x25, USB_MS_GENERAL_SUBTYP = 0x01 };
+
+    uint16_t offset      = 0;
+    uint8_t maxNumJacks  = 1;
+    uint8_t maxPortSlots = 4;
+
+    while ((offset + 1) < length)
+    {
+        uint8_t descriptorLength = table[offset];
+        if (descriptorLength == 0 || (offset + descriptorLength) > length)
+        {
+            break;
+        }
+
+        uint8_t descriptorType = table[offset + 1];
+        if (offset > 0 && descriptorType == USB_DT_INTERFACE_STD)
+        {
+            break; // Stop at the next interface.
+        }
+
+        if (descriptorType == USB_DT_CS_ENDPOINT && descriptorLength >= 4)
+        {
+            uint8_t descriptorSubtype = table[offset + 2];
+            if (descriptorSubtype == USB_MS_GENERAL_SUBTYP)
+            {
+                uint8_t numJacks = table[offset + 3];
+                if (numJacks > maxNumJacks)
+                {
+                    maxNumJacks = numJacks;
+                }
+            }
+        }
+
+        offset += descriptorLength;
+    }
+
+    if (maxNumJacks > maxPortSlots)
+    {
+        maxNumJacks = maxPortSlots;
+    }
+
+    return maxNumJacks;
+}
 
 /******************************************************************************
  Renesas Abstracted USB Driver functions
@@ -443,6 +493,14 @@ static void usb_hmidi_enumeration_sequence(usb_utr_t* mess)
             p_iftable = g_p_usb_hmidi_interface_table[mess->ip];
 
             desc_len = desc_len - (p_iftable - p_desc);
+
+            uint16_t* pipetbl = R_USB_HmidiGetPipetbl(mess, g_usb_hmidi_devaddr[mess->ip]);
+            int midiDeviceNum = (pipetbl - (uint16_t*)g_usb_hmidi_tmp_ep_tbl) / ((USB_EPL * 2) + 1);
+            if (midiDeviceNum >= 0 && midiDeviceNum < MAX_NUM_USB_MIDI_DEVICES)
+            {
+                hostedMIDIPortCountByDevice[mess->ip][midiDeviceNum] =
+                    usb_hmidi_count_virtual_cables(p_iftable, desc_len);
+            }
 
             /* pipe information table set */
             retval = usb_hmidi_pipe_info(mess, p_iftable, g_usb_hmidi_speed[mess->ip], desc_len);
@@ -829,8 +887,9 @@ void hmidi_detach(usb_utr_t* ptr, uint16_t devadr, uint16_t data2)
 
     // Clear endpoint table
     g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d][1] &= (uint16_t)(USB_BFREON | USB_CFG_SHTNAKON); /* PIPECFG */
-    g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d][3] = (uint16_t)(USB_NULL);                       /* PIPEMAXP */
-    g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d][4] = (uint16_t)(USB_NULL);                       /* PIPEPERI */
+    g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d][3]   = (uint16_t)(USB_NULL);                     /* PIPEMAXP */
+    g_usb_hmidi_tmp_ep_tbl[USB_CFG_USE_USBIP][d][4]   = (uint16_t)(USB_NULL);                     /* PIPEPERI */
+    hostedMIDIPortCountByDevice[USB_CFG_USE_USBIP][d] = 1;
 
     hostedDeviceDetached(USB_CFG_USE_USBIP, d);
 } /* End of function hid_detach() */
