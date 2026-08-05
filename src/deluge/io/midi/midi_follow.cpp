@@ -1808,7 +1808,8 @@ void MidiFollow::readSpecificChannelSettingsFromFile(Deserializer& reader, MIDIF
 		}
 		// step into <device> tag
 		else if (!strcmp(tag_name, MIDI_DEFAULTS_SETTINGS_DEVICE_TAG)) {
-			MIDICable* cable = MIDIDeviceManager::readDeviceReferenceFromFile(reader);
+			midiEngine.midiFollowChannelType[util::to_underlying(type)].cable =
+			    MIDIDeviceManager::readDeviceReferenceFromFile(reader);
 		}
 		// exit so we can step into next tag
 		reader.exitTag();
