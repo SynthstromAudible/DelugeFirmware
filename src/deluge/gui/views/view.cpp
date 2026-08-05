@@ -35,8 +35,10 @@
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
+#include "gui/views/audio_clip_view.h"
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
+#include "gui/views/macro_target_assign_overlay.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "hid/buttons.h"
@@ -73,6 +75,7 @@
 #include "model/timeline_counter.h"
 #include "modulation/arpeggiator_rhythms.h"
 #include "modulation/automation/auto_param.h"
+#include "modulation/macros/macros.h"
 #include "modulation/params/param.h"
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_set.h"
@@ -820,6 +823,31 @@ void View::modEncoderAction(int32_t whichModEncoder, int32_t offset) {
 	//  	return;
 	//  }
 
+	// Note-view MACRO mode owns both gold knobs: either knob drives the currently-selected macro.
+	// Checked before tryKnobMacro so the mode takes precedence over any learned gold-knob source.
+	if (inMacroKnobMode()) {
+		// While the target picker is up with a slot selected (tapped, or a pending encoder pick), the
+		// knobs shape THAT target's From/To (with the macro-lane view's readout) instead of driving
+		// the whole macro.
+		if (macroTargetAssignOverlay.editingTarget()) {
+			macroTargetAssignOverlay.handleModEncoder(whichModEncoder, offset);
+		}
+		else {
+			Macros::driveMacro(getCurrentClip()->output->macroKnobSelected, offset);
+		}
+		return;
+	}
+
+	// A gold knob learned as a macro source is dedicated: it drives that macro's targets and its
+	// normal param action is suppressed. tryKnobMacro returns false for every non-source knob.
+	if ((getCurrentOutputType() == OutputType::MIDI_OUT || getCurrentOutputType() == OutputType::SYNTH
+	     || getCurrentOutputType() == OutputType::AUDIO || getCurrentOutputType() == OutputType::KIT)
+	    && Macros::isEnabled()) {
+		if (Macros::tryKnobMacro(whichModEncoder, offset)) {
+			return;
+		}
+	}
+
 	if (activeModControllableModelStack.modControllable) {
 
 		bool noteTailsAllowedBefore;
@@ -1321,6 +1349,12 @@ void View::instrumentBeenEdited() {
 
 void View::modEncoderButtonAction(uint8_t whichModEncoder, bool on) {
 
+	// In note-view MACRO mode the gold knobs drive macros; a knob PRESS does nothing (don't run the
+	// normal secondary action, which would act on a stale param mode).
+	if (inMacroKnobMode()) {
+		return;
+	}
+
 	// If the learn button is pressed, user is trying to copy or paste, and the fact that we've ended up here means they
 	// can't
 	if (Buttons::isButtonPressed(deluge::hid::button::LEARN)) {
@@ -1379,6 +1413,18 @@ void View::setKnobIndicatorLevels() {
 	// don't update knob indicator levels when you're in automation editor
 	if ((getRootUI() == &automationView) && automationView.inAutomationEditor()) {
 		automationView.displayAutomation();
+		return;
+	}
+
+	// In note-view MACRO mode both rings show the selected macro's live position (both knobs drive it).
+	if (inMacroKnobMode()) {
+		Output* instrument = Macros::macroHost(getCurrentClip());
+		if (instrument != nullptr) {
+			uint8_t level = instrument->macros[getCurrentClip()->output->macroKnobSelected].sourceKnobPos;
+			for (int32_t whichKnob = 0; whichKnob < NUM_LEVEL_INDICATORS; whichKnob++) {
+				indicator_leds::setKnobIndicatorLevel(whichKnob, level);
+			}
+		}
 		return;
 	}
 
@@ -1498,6 +1544,54 @@ void View::modButtonAction(uint8_t whichButton, bool on) {
 		if (!(automationView.onArrangerView && whichButton == 0)) {
 			return;
 		}
+	}
+
+	// A macro-button release must ALWAYS tear the target picker down, even when MACRO mode became
+	// unavailable during the hold (e.g. AFFECT ENTIRE toggled off on a kit, or SHIFT+Y_ENC flipped the
+	// mode - neither is blocked while a mod button is held): inMacroKnobMode() is false by then, so
+	// the branch below would never run and the picker would stay stuck owning the pads and encoder.
+	if (!on && !inMacroKnobMode() && macroTargetAssignOverlay.active()
+	    && Macros::macroFromModButton(whichButton) >= 0) {
+		display->cancelPopup();           // drop the persistent hold readout (close() may popup its own)
+		macroTargetAssignOverlay.close(); // commits any pending encoder pick, releases the grid
+		setKnobIndicatorLevels();
+		setModLedStates(); // the mode ended mid-hold - repaint the mod LEDs for wherever we are now
+		return;
+	}
+
+	// Note-view MACRO mode: the mod buttons select/drill into macros instead of param modes. The four
+	// macro buttons map to macros; the other four do nothing (they must not change modKnobMode).
+	if (inMacroKnobMode()) {
+		int32_t macro = Macros::macroFromModButton(whichButton);
+		if (macro >= 0) {
+			if (on) {
+				Clip* clip = getCurrentClip();
+				if (Buttons::isShiftButtonPressed()) {
+					// DRILL IN: jump to this macro's automation lane (the 8 buttons become its target editors)
+					automationView.openMacroLaneEditor(clip, macro);
+				}
+				else {
+					clip->output->macroKnobSelected = macro;
+					setKnobIndicatorLevels();
+					setModLedStates();
+					// announce the assign mode; the first pad tap replaces this with the per-target readout.
+					// Persistent for the whole hold (cancelled on release below).
+					display->popupText("Target Assign");
+					// HOLD-TO-ASSIGN: while the button is held, the main grid becomes this macro's target
+					// picker - tap a param pad to assign it to the next free slot (released below). The picker
+					// overlay renders on whichever clip-minder grid is active (note view, or an audio clip's
+					// waveform); its state lives on instrumentClipView but resolves the current clip's domain.
+					macroTargetAssignOverlay.open(macro);
+				}
+			}
+			else {
+				display->cancelPopup();           // drop the persistent peek readout FIRST: close() may commit an
+				                                  // encoder-dialed destination and confirm it with its own popup
+				macroTargetAssignOverlay.close(); // release: main grid back to notes / waveform
+				setKnobIndicatorLevels(); // restore the macro's sourceKnobPos rings (From/To editing displaced them)
+			}
+		}
+		return; // the four non-macro buttons do nothing; never writes modKnobMode / toggles VU
 	}
 
 	pretendModKnobsUntouchedForAWhile();
@@ -1654,16 +1748,70 @@ void View::setModLedStates() {
 	// Sort out actual "mod" LEDs
 	int32_t modKnobMode = getModKnobMode();
 
+	// Note-view MACRO mode: the four macro buttons are lit; the currently-driven macro blinks; the
+	// other four are dark. Four lit is unmistakably distinct from normal mode's single lit LED.
+	bool macroKnobMode = inMacroKnobMode();
+	int32_t selectedMacro = macroKnobMode ? getCurrentClip()->output->macroKnobSelected : -1;
+
 	for (int32_t i = 0; i < kNumModButtons; i++) {
 		bool on = (i == modKnobMode);
+		if (macroKnobMode) {
+			int32_t macro = Macros::macroFromModButton(i);
+			if (macro < 0) {
+				indicator_leds::setLedState(indicator_leds::modLed[i], false); // non-macro button: dark
+			}
+			else if (macro == selectedMacro) {
+				// selected/driven macro blinks; only start a blink if one isn't already running, so we
+				// don't reset the shared type-0 blink phase (which would pin other blinkers solid)
+				if (indicator_leds::getLedBlinkerIndex(indicator_leds::modLed[i]) == 255) {
+					indicator_leds::blinkLed(indicator_leds::modLed[i]);
+				}
+			}
+			else {
+				indicator_leds::setLedState(indicator_leds::modLed[i], true); // other macros: solid
+			}
+		}
 		// if you're in a song view and volume mod button is selected and VU meter is enabled
 		// blink volume mod led
-		if (itsTheSong && on && modKnobMode == 0 && view.displayVUMeter) {
+		else if (itsTheSong && on && modKnobMode == 0 && view.displayVUMeter) {
 			indicator_leds::blinkLed(indicator_leds::modLed[i]);
 		}
-		// if you're in the Automation View Automation Editor, turn off Mod LED's
+		// if you're in the Automation View Automation Editor, turn off Mod LED's - except on a
+		// macro lane, where the 8 buttons are the target quick-editors. Tri-state: dark = no
+		// destination, solid = assigned and actually driving it, blinking = assigned but
+		// conflicted (shadowed, or its destination held by another active macro) - the ones
+		// needing attention
 		else if ((getRootUI() == &automationView) && automationView.inAutomationEditor()) {
-			indicator_leds::setLedState(indicator_leds::modLed[i], false);
+			bool targetAssigned = false;
+			bool targetConflicted = false;
+			if (!automationView.onArrangerView) {
+				Clip* clip = getCurrentClip();
+				Output* instrument = (Macros::isEnabled() && clip) ? Macros::macroHost(clip) : nullptr;
+				int32_t macroIndex = (instrument != nullptr)
+				                         ? Macros::macroIndexForLaneSelection(clip->output, clip->lastSelectedParamKind,
+				                                                              clip->lastSelectedParamID)
+				                         : -1;
+				if (macroIndex >= 0) {
+					if (instrument->macros[macroIndex].targets[i].destination != Macros::kNoDestination) {
+						// a cable-depth target whose cable was deleted blinks like a shadowed one: it's
+						// assigned but drives nothing (re-patching the cable revives it)
+						targetConflicted = Macros::targetHasConflict(instrument->macros, macroIndex, i)
+						                   || Macros::targetCableMissing(clip, instrument->macros, macroIndex, i);
+						targetAssigned = !targetConflicted;
+					}
+				}
+			}
+			if (targetConflicted) {
+				// only start a blink if one isn't already running: each blinkLed() call resets the
+				// SHARED type-0 blink phase to ON, so re-blinking up to 8 LEDs on every update here
+				// would pin every type-0 blinking LED (session/clip-view etc.) visibly solid
+				if (indicator_leds::getLedBlinkerIndex(indicator_leds::modLed[i]) == 255) {
+					indicator_leds::blinkLed(indicator_leds::modLed[i]);
+				}
+			}
+			else {
+				indicator_leds::setLedState(indicator_leds::modLed[i], targetAssigned);
+			}
 		}
 		// otherwise update mod led's to reflect current mod led selection
 		else {
@@ -1681,6 +1829,49 @@ int32_t View::getModKnobMode() {
 		}
 	}
 	return modKnobMode;
+}
+
+bool View::macroKnobModeAvailable(Clip* clip) {
+	Output* host = Macros::macroHost(clip);
+	if (host == nullptr) {
+		return false;
+	}
+	// Kit macros drive the kit-global (affect-entire) params, so the mode only applies in affect-entire.
+	if (host->type == OutputType::KIT) {
+		return clip->type == ClipType::INSTRUMENT && ((InstrumentClip*)clip)->affectEntire;
+	}
+	return true;
+}
+
+bool View::inMacroKnobMode() {
+	if (!Macros::isEnabled()) {
+		return false;
+	}
+	// Only the two clip-minder grid views drive macros from the gold knobs (audio clips render a
+	// waveform, not a note grid, but the mod-button/knob overlay works the same on both).
+	RootUI* root = getRootUI();
+	if (root != &instrumentClipView && root != &audioClipView) {
+		return false;
+	}
+	Clip* clip = getCurrentClip();
+	return clip != nullptr && clip->output != nullptr && clip->output->macroKnobMode && macroKnobModeAvailable(clip);
+}
+
+void View::toggleMacroKnobMode() {
+	Clip* clip = getCurrentClip();
+	if (!clip || !clip->output) {
+		return;
+	}
+	Output* output = clip->output;
+	// stop any macro-button blink before flipping, so we don't leave a stale blinker behind
+	for (int32_t m = 0; m < Macros::kNumMacros; m++) {
+		indicator_leds::stopLedBlinking(indicator_leds::modLed[Macros::kMacroModButtons[m]]);
+	}
+	output->macroKnobMode = !output->macroKnobMode;
+	display->displayPopup(deluge::l10n::get(output->macroKnobMode ? deluge::l10n::String::STRING_FOR_MACROS
+	                                                              : deluge::l10n::String::STRING_FOR_PARAMETERS));
+	setKnobIndicatorLevels();
+	setModLedStates();
 }
 
 void View::notifyParamAutomationOccurred(ParamManager* paramManager, bool updateModLevels) {

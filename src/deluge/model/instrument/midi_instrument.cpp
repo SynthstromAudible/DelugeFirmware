@@ -138,8 +138,9 @@ int32_t MIDIInstrument::getKnobPosForNonExistentParam(int32_t whichModEncoder, M
 
 ModelStackWithAutoParam*
 MIDIInstrument::getParamToControlFromInputMIDIChannel(int32_t cc, ModelStackWithThreeMainThings* modelStack) {
-	// ensure that we are trying to create a param for a valid cc number
-	bool is_cc_valid = ((cc >= 0) && (cc < kNumCCExpression));
+	// ensure that we are trying to create a param for a valid cc number (or a macro automation lane,
+	// paramID 128-131, which is stored as a pseudo-CC MIDIParam but never emitted as MIDI)
+	bool is_cc_valid = ((cc >= 0) && (cc < kNumCCExpression)) || Macros::isMacroParamID(cc);
 
 	// if cc is not valid or param manager is null (which can happen if the user is holding down an audition pad in
 	// Arranger, and we have no clips)
