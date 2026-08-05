@@ -107,6 +107,10 @@ char const* numberPartOf(char const* name, char const* filePrefix) {
 		return nullptr;
 	}
 	size_t prefixLength = strlen(filePrefix);
+	// Guard against short names before prefix indexing; some call paths probe partial user text.
+	if (strlen(name) < prefixLength) {
+		return nullptr;
+	}
 	for (size_t i = 0; i < prefixLength; i++) {
 		if (upper(name[i]) != upper(filePrefix[i])) {
 			return nullptr;

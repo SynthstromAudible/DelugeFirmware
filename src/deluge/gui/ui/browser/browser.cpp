@@ -708,13 +708,29 @@ everythingFinalized:
 // You must set currentDir before calling this.
 Error Browser::getUnusedSlot(OutputType outputType, String* newName, char const* thingName) {
 
+	// This helper assumes a concrete prefix (e.g. "SONG", "MidiDevice"). Reject null / empty
+	// early so prefix math below cannot walk arbitrary memory.
+	if (!thingName || !thingName[0]) {
+		return Error::BUG;
+	}
+
 	Error error;
 	// Names always carry the prefix now, on both displays, so there is one search key.
-	char filenameToStartAt[6]; // thingName is max 4 chars.
-	strcpy(filenameToStartAt, thingName);
-	strcat(filenameToStartAt, ":"); // Colon is the first character after the digits.
-	error = readFileItemsFromFolderAndMemory(currentSong, outputType, getThingName(outputType), filenameToStartAt, NULL,
-	                                         false, Availability::ANY, CATALOG_SEARCH_LEFT);
+	// Use dynamic storage: older fixed buffers here overflowed for long prefixes (e.g. "MidiDevice").
+	String filenameToStartAt;
+	error = filenameToStartAt.set(thingName);
+	if (error != Error::NONE) {
+		goto doReturn;
+	}
+	error = filenameToStartAt.concatenate(":"); // Colon is the first character after the digits.
+	if (error != Error::NONE) {
+		goto doReturn;
+	}
+
+	// The folder read must use the same prefix passed by the caller; deriving it from outputType can
+	// mismatch non-standard prefixes and break slot discovery.
+	error = readFileItemsFromFolderAndMemory(currentSong, outputType, thingName, filenameToStartAt.get(), NULL, false,
+	                                         Availability::ANY, CATALOG_SEARCH_LEFT);
 
 	if (error != Error::NONE) {
 doReturn:
@@ -726,6 +742,7 @@ doReturn:
 	{
 		int32_t freeSlotNumber = 1;
 		int32_t minNumDigits = 1;
+		size_t thingNameLength = strlen(thingName);
 		if (fileItems.getNumElements()) {
 			FileItem* fileItem = (FileItem*)fileItems.getElementAddress(fileItems.getNumElements() - 1);
 			String filename;
@@ -733,16 +750,22 @@ doReturn:
 			if (error != Error::NONE) {
 				goto emptyFileItemsAndReturn;
 			}
-			char const* readingChar = &filename.get()[strlen(thingName)];
-			freeSlotNumber = 0;
-			minNumDigits = 0;
-			while (*readingChar >= '0' && *readingChar <= '9') {
-				freeSlotNumber *= 10;
-				freeSlotNumber += *readingChar - '0';
-				minNumDigits++;
-				readingChar++;
+
+			char const* filenameChars = filename.get();
+			// Only parse numeric suffixes when the filename actually starts with the expected prefix.
+			// This prevents offsetting into unrelated names.
+			if (!memcasecmp(filenameChars, thingName, thingNameLength)) {
+				char const* readingChar = filenameChars + thingNameLength;
+				freeSlotNumber = 0;
+				minNumDigits = 0;
+				while (*readingChar >= '0' && *readingChar <= '9') {
+					freeSlotNumber *= 10;
+					freeSlotNumber += *readingChar - '0';
+					minNumDigits++;
+					readingChar++;
+				}
+				freeSlotNumber++;
 			}
-			freeSlotNumber++;
 		}
 
 		error = newName->set(thingName);
