@@ -554,7 +554,10 @@ bool calledFromScheduler = false;
 		D_PRINTLN("Audio routine latency high: %.3fms", (current_time - last_call_time) * 1000.);
 	}
 	last_call_time = current_time;
-#ifndef USE_TASK_MANAGER
+#ifndef USE_TASK_MANAGER // if not using task manager, midi and analog clock are processed together with audio
+	// process midi clock
+	playbackHandler.midiRoutine();
+	// process analog clock
 	playbackHandler.routine();
 #endif
 	// At this point, there may be MIDI, including clocks, waiting to be sent.
