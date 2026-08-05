@@ -22,6 +22,7 @@
 #include "modulation/params/param.h"
 #include "storage/storage_manager.h"
 #include "util/containers.h"
+#include <array>
 #include <cstdint>
 
 class AudioClip;
@@ -74,9 +75,10 @@ public:
 	uint32_t timeAutomationFeedbackLastSent;
 
 	// public so it can be called from View::sendMidiFollowFeedback
-	MIDIFollowChannelType getChannelTypeForFeedback();
-	void sendCCWithoutModelStackForMidiFollowFeedback(int32_t channel, bool isAutomation = false);
-	void sendCCForMidiFollowFeedback(int32_t channel, int32_t ccNumber, int32_t knobPos);
+	bool isFeedbackEnabled();
+	void sendCCWithoutModelStackForMidiFollowFeedback(bool isAutomation = false);
+	/// Resolve the configured MIDI Follow feedback targets and send a learned CC value to each one.
+	void sendCCForMidiFollowFeedback(int32_t ccNumber, int32_t knobPos);
 
 	void handleReceivedCC(MIDICable& cable, ModelStackWithTimelineCounter& modelStack, Clip* clip, int32_t ccNumber,
 	                      int32_t ccValue);
@@ -140,7 +142,18 @@ private:
 
 	MIDIMatchType checkMidiFollowMatch(MIDICable& cable, uint8_t channel);
 	MIDIMatchType checkMidiFollowMatchForSpecificTrack(MIDICable& cable, uint8_t channel, int32_t specific_track_index);
-	bool isFeedbackEnabled();
+
+	static constexpr size_t kMaxMIDIFollowFeedbackTargets = 2;
+	using FeedbackChannelTypes = std::array<MIDIFollowChannelType, kMaxMIDIFollowFeedbackTargets>;
+	size_t getChannelTypesForFeedback(FeedbackChannelTypes& feedbackChannelTypes);
+	MIDIFollowChannelType getChannelTypeForTrackFeedback();
+	bool addChannelTypeForFeedback(FeedbackChannelTypes& feedbackChannelTypes, size_t& numChannelTypes,
+	                               MIDIFollowChannelType feedbackChannelType);
+	/// Send a learned CC value to each already-resolved feedback target.
+	void sendCCForMidiFollowFeedback(FeedbackChannelTypes const& feedbackChannelTypes, size_t numChannelTypes,
+	                                 int32_t ccNumber, int32_t knobPos);
+	/// Send a learned CC value to one feedback target channel.
+	void sendCCForMidiFollowFeedback(MIDIFollowChannelType feedbackChannelType, int32_t ccNumber, int32_t knobPos);
 
 	// Saving
 
@@ -172,6 +185,9 @@ private:
 	// string tags / values
 	char const* getNameFromChannelType(MIDIFollowChannelType type);
 	MIDIFollowChannelType getChannelTypeFromName(char const* name);
+
+	char const* getNameFromFeedbackChannelType(MIDIFollowFeedbackChannelType type);
+	MIDIFollowFeedbackChannelType getFeedbackChannelTypeFromName(char const* name);
 
 	char const* getNameFromFeedbackAutomationMode(MIDIFollowFeedbackAutomationMode mode);
 	MIDIFollowFeedbackAutomationMode getFeedbackAutomationModeFromName(char const* name);

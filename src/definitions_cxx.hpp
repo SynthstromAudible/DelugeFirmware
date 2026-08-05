@@ -611,8 +611,6 @@ enum class MIDIFollowChannelType : uint8_t {
 	A,
 	B,
 	C,
-	Track,
-	NONE,
 	Track1,
 	Track2,
 	Track3,
@@ -629,14 +627,33 @@ enum class MIDIFollowChannelType : uint8_t {
 	Track14,
 	Track15,
 	Track16,
+	NONE,
 	INVALID,
 };
-constexpr MIDIFollowChannelType kLastValidMIDIFollowChannelType = MIDIFollowChannelType::Track16; // 20
-constexpr auto kNumMIDIFollowChannelTypes = util::to_underlying(MIDIFollowChannelType::Track1);   // 5
+constexpr MIDIFollowChannelType kLastValidMIDIFollowChannelType = MIDIFollowChannelType::Track16; // 18
+constexpr auto kNumMIDIFollowChannelTypes = util::to_underlying(MIDIFollowChannelType::Track1);   // 3
 constexpr auto kNumMIDIFollowChannelTypesIncludingTracks =
-    util::to_underlying(kLastValidMIDIFollowChannelType) + 1; // 21
+    util::to_underlying(kLastValidMIDIFollowChannelType) + 1; // 19
 constexpr int32_t kNumMIDIFollowChannelTrackTypes =
-    kNumMIDIFollowChannelTypesIncludingTracks - kNumMIDIFollowChannelTypes; // 21 - 5 = 16
+    kNumMIDIFollowChannelTypesIncludingTracks - kNumMIDIFollowChannelTypes; // 19 - 3 = 16
+
+// Midi Follow Mode Feedback Channel Modes
+enum class MIDIFollowFeedbackChannelType : uint8_t {
+	NONE,
+	A,
+	B,
+	C,
+	Track,
+	TrackAndA,
+	TrackAndB,
+	TrackAndC,
+	INVALID,
+};
+
+constexpr MIDIFollowFeedbackChannelType kLastValidMIDIFollowFeedbackChannelType =
+    MIDIFollowFeedbackChannelType::TrackAndC; // 7
+constexpr int32_t kNumMIDIFollowFeedbackChannelTypes =
+    util::to_underlying(kLastValidMIDIFollowFeedbackChannelType) + 1; // 8
 
 // Midi Follow Mode Feedback Automation Modes
 enum class MIDIFollowFeedbackAutomationMode : uint8_t {
