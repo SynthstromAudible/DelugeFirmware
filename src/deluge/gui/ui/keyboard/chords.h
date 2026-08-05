@@ -160,4 +160,23 @@ private:
 	int8_t validateChordNo(int8_t chordNo);
 };
 
+/// @brief A fully-specified chord instance: a root note plus the chosen voicing.
+///
+/// This is the value object that flows through the harmonic-composition system. Chord selection
+/// produces it; audition (keyboard) and commit (clip write) both consume it. It carries intent
+/// (root + interval offsets + velocity), never resolved absolute-note data, so it stays small and
+/// stable across views. See docs/HARMONIC_COMPOSITION_ARCHITECTURE.md.
+struct ChordSelection {
+	int32_t rootNote = 0; // absolute MIDI base note (e.g. 60 = C4)
+	Voicing voicing{};    // chosen voicing (interval offsets from the root)
+	int8_t chordNo = -1;  // index into ChordList, for naming / future re-voicing; -1 = none
+	uint8_t velocity = 64;
+};
+
+/// @brief Resolve a ChordSelection into absolute MIDI note numbers.
+///
+/// Pure: depends only on the selection. Shared by audition and commit so the chord heard is exactly
+/// the chord written. Writes up to @p maxNotes notes into @p notesOut and returns how many.
+uint8_t resolveChordNotes(const ChordSelection& selection, int16_t* notesOut, uint8_t maxNotes);
+
 } // namespace deluge::gui::ui::keyboard

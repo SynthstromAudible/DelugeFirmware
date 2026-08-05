@@ -3,12 +3,70 @@
 #include "gui/ui/keyboard/chords.h"
 
 using deluge::gui::ui::keyboard::ChordList;
+using deluge::gui::ui::keyboard::ChordSelection;
+using deluge::gui::ui::keyboard::MAJ3;
 using deluge::gui::ui::keyboard::NONE;
+using deluge::gui::ui::keyboard::P5;
+using deluge::gui::ui::keyboard::resolveChordNotes;
+using deluge::gui::ui::keyboard::ROOT;
 using deluge::gui::ui::keyboard::Voicing;
 
 TEST_GROUP(ChordTests) {
 	ChordList chordList;
 };
+
+namespace {
+// A C major triad voicing with all unused slots explicitly NONE.
+Voicing majorTriadVoicing() {
+	Voicing v{};
+	v.offsets[0] = ROOT;
+	v.offsets[1] = MAJ3;
+	v.offsets[2] = P5;
+	for (int i = 3; i < kMaxChordKeyboardSize; i++) {
+		v.offsets[i] = NONE;
+	}
+	return v;
+}
+} // namespace
+
+TEST(ChordTests, resolveChordNotesMajorTriad) {
+	ChordSelection sel{.rootNote = 60, .voicing = majorTriadVoicing()};
+	int16_t notes[kMaxChordKeyboardSize];
+	uint8_t n = resolveChordNotes(sel, notes, kMaxChordKeyboardSize);
+
+	CHECK_EQUAL(3, n);
+	CHECK_EQUAL(60, notes[0]); // C
+	CHECK_EQUAL(64, notes[1]); // E
+	CHECK_EQUAL(67, notes[2]); // G
+}
+
+TEST(ChordTests, resolveChordNotesSkipsNoneHoles) {
+	// A NONE in the middle of the offsets array must be skipped, not terminate the chord.
+	Voicing v{};
+	v.offsets[0] = ROOT;
+	v.offsets[1] = NONE;
+	v.offsets[2] = P5;
+	for (int i = 3; i < kMaxChordKeyboardSize; i++) {
+		v.offsets[i] = NONE;
+	}
+	ChordSelection sel{.rootNote = 48, .voicing = v};
+	int16_t notes[kMaxChordKeyboardSize];
+	uint8_t n = resolveChordNotes(sel, notes, kMaxChordKeyboardSize);
+
+	CHECK_EQUAL(2, n);
+	CHECK_EQUAL(48, notes[0]);
+	CHECK_EQUAL(55, notes[1]);
+}
+
+TEST(ChordTests, resolveChordNotesRespectsMaxNotes) {
+	ChordSelection sel{.rootNote = 60, .voicing = majorTriadVoicing()};
+	int16_t notes[kMaxChordKeyboardSize];
+	uint8_t n = resolveChordNotes(sel, notes, 2); // cap below the 3 available
+
+	CHECK_EQUAL(2, n);
+	CHECK_EQUAL(60, notes[0]);
+	CHECK_EQUAL(64, notes[1]);
+}
 
 TEST(ChordTests, getChordBoundsCheck) {
 	// For each chord, iterate through all voicing offsets and then some
