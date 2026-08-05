@@ -426,7 +426,10 @@ ActionResult LoadInstrumentPresetUI::timerCallback() {
 
 		bool fileExists = StorageManager::fileExists(filePath.get(), &currentFileItem->filePointer);
 		if (!fileExists) {
-			display->displayError(Error::FILE_NOT_FOUND);
+			// An unsaved (in-memory only) synth preset cannot be loaded / cloned because
+			// the XML is read from disk to create the instrument. If the preset hasn't
+			// been saved yet, there is no file on the SD card to read from.
+			display->displayError(Error::FILE_NOT_SAVED);
 			return ActionResult::DEALT_WITH;
 		}
 
