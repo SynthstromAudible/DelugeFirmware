@@ -874,100 +874,79 @@ void usbReceiveComplete(int ip, int deviceNum, int tranlen);
 
 void usb_pstd_brdy_pipe_process_rohan_midi(uint16_t bitsts)
 {
-
-    // uint16_t startTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
+    (void)bitsts;
 
     uint16_t pipe = USB_CFG_PMIDI_BULK_IN;
 
-    if (true || (bitsts & USB_BITSET(pipe)) != 0u) // Not really necessary
+    // No receive armed? Then this is a stale BRDY for a packet we already drained below (BRDYSTS is cleared before
+    // this handler is called, so a packet arriving while we drain re-raises it afterwards). Nothing to do.
+    if (!connectedUSBMIDIDevices[0][0].currentlyWaitingToReceive)
     {
-        /* Interrupt check */
-        // hw_usb_clear_status_bemp(USB_NULL, pipe);
+        return;
+    }
 
-        if (true || USB_NULL != g_p_usb_pipe[pipe])
+    // Stop the SIE accepting any more packets before we touch the FIFO. Previously the pipe was left at PID=BUF here,
+    // so when a host sent bulk packets back-to-back, a further packet could be ACKed on the wire after this transfer
+    // completed but before the MIDI poll routine (checkIncomingUsbMidi(), ~1ms interval) armed the next one. That
+    // packet then arrived at this handler with no transfer armed, hit the USB_READOVER branch, and was thrown away by
+    // usb_pstd_forced_termination() (its ACLRM clears the FIFO) - silently, since the host had already seen its packet
+    // ACKed and moved on. That corrupted any fast multi-packet receive, most visibly SysEx firmware loading from hosts
+    // that don't pace their writes (e.g. Linux 6.16+). With the pipe NAKed instead, the host just retries until the
+    // poll routine re-arms: bulk flow control does the rest and nothing is ever lost.
+    usb_cstd_set_nak_fast_rohan(pipe);
+
+    // A packet mid-transaction when NAK was written above still completes and lands in the FIFO - and its BRDY may
+    // already have been cleared on entry here, so it mustn't be left behind. Wait for the SIE to go idle (as the
+    // original usb_cstd_set_nak() did), then drain everything below. Usually PBUSY is already clear and this doesn't
+    // loop at all.
+    for (uint32_t n = 0; n < 0xFFFFu; n++)
+    {
+        if (!(hw_usb_read_pipectr(USB_NULL, pipe) & USB_PBUSY))
         {
-            /* Pipe number to FIFO port select */
-            // useport = USB_CUSE;//usb_pstd_pipe2fport(pipe);
-
-            /* FIFO to Buffer data read */
-            // usb_pstd_fifo_to_buf(pipe, USB_CUSE);
-            {
-                uint16_t end_flag = usb_read_data_fast_rohan(pipe);
-
-                if (end_flag == USB_READEND)
-                { // I condensed USB_READSHRT into this too
-                    // usb_pstd_data_end(pipe, newStatus);
-                    {
-
-                        // Turns out not needed!
-#if 0
-						/* PID = NAK */
-						/* Set NAK */
-						//usb_cstd_select_nak(USB_NULL, pipe);
-						usb_cstd_set_nak_fast_rohan(pipe);
-
-						/* Disable Interrupt */
-						/* Disable Ready Interrupt */
-						hw_usb_clear_brdyenb(USB_NULL,pipe);
-
-						/* Disable Not Ready Interrupt */
-						hw_usb_clear_nrdyenb(USB_NULL,pipe);
-
-						/* Disable Empty Interrupt */
-						hw_usb_clear_bempenb(USB_NULL,pipe);
-
-						/* Disable Transaction count */
-						//usb_cstd_clr_transaction_counter(USB_NULL, pipe);
-						hw_usb_clear_trenb(USB_NULL, pipe);
-						hw_usb_set_trclr(USB_NULL, pipe);
-#endif
-                        /* Call Back */
-                        if (true || USB_NULL != g_p_usb_pipe[pipe])
-                        {
-                            /* Check PIPE TYPE */
-                            if (true
-                                || usb_cstd_get_pipe_type(USB_NULL, pipe)
-                                       != USB_TYPFIELD_ISO) // Corrected by Rohan from USB_ISO
-                            {
-                                /* Transfer information set */
-                                /* I don't actually read any of these...
-                                g_p_usb_pstd_pipe[pipe]->tranlen    = g_usb_pstd_data_cnt[pipe];
-                                g_p_usb_pstd_pipe[pipe]->status     = newStatus;
-                                g_p_usb_pstd_pipe[pipe]->pipectr    = hw_usb_read_pipectr(USB_NULL,pipe);
-                                g_p_usb_pstd_pipe[pipe]->keyword    = pipe;
-                                */
-                                //((usb_cb_t)g_p_usb_pstd_pipe[pipe]->complete)(g_p_usb_pstd_pipe[pipe], USB_NULL,
-                                // USB_NULL); usbReceiveComplete(0, 0, g_usb_pstd_data_cnt[pipe]);
-                                g_p_usb_pipe[pipe] = (usb_utr_t*)USB_NULL; // Is this necessary? Doesn't look like it
-                                // Only sets received bytes for first device
-                                // I've just pasted the relevant contents of usbReceiveComplete() in here
-                                connectedUSBMIDIDevices[0][0].numBytesReceived =
-                                    64 - g_usb_data_cnt[pipe]; // Seems wack, but yet, tranlen is now how many bytes
-                                                               // didn't get received out of the original transfer size
-                                // Warning - sometimes (with a Teensy, e.g. my knob box), length will be 0. Not sure why
-                                // - but we need to cope with that case.
-
-                                connectedUSBMIDIDevices[0][0].currentlyWaitingToReceive =
-                                    0; // Take note that we need to set up another receive
-                            }
-                        }
-                    }
-                }
-                else
-                { // USB_FIFOERROR and formerly USB_READOVER
-                    usb_pstd_forced_termination(pipe, USB_DATA_ERR);
-                }
-            }
+            break;
         }
     }
 
-    /*
-    uint16_t endTime = *TCNT[TIMER_SYSTEM_SUPERFAST];
-    uint16_t duration = endTime - startTime;
-    uint32_t timePassedNS = superfastTimerCountToNS(duration);
-    uartPrint("brdy process duration, nSec: ");
-    uartPrintNumber(timePassedNS);
-    */
+    uint16_t end_flag = usb_read_data_fast_rohan(pipe); // Reads the armed packet into receiveData
+
+    if (USB_READEND != end_flag) // I condensed USB_READSHRT into READEND
+    {
+        // FIFO not ready: a stale BRDY racing the poll routine's re-arm, or a genuine FIFO error. Reopen the pipe and
+        // wait to be interrupted again when data really is available. (The old code called
+        // usb_pstd_forced_termination() here, but that discards the FIFO contents, and its completion callback -
+        // invoked with USB_DATA_ERR - gets ignored as if a device detached, which could leave the armed transfer
+        // permanently stuck.)
+        hw_usb_set_pid_nonzero_pipe_rohan(pipe, USB_PID_BUF);
+        return;
+    }
+
+    // How many bytes the armed 64-byte transfer actually received.
+    // Warning - sometimes (with a Teensy, e.g. my knob box), length will be 0. Not sure why - but we need to cope with
+    // that case.
+    int32_t total = 64 - g_usb_data_cnt[pipe];
+
+    // The pipe is double-buffered (USB_CFG_DBLB), so the FIFO may already hold one more packet, ACKed before the NAK
+    // above took effect. Drain it too, appending into receiveData - the poll routine parses any whole number of 4-byte
+    // USB MIDI events, so it consumes this seamlessly. With NAK set and the SIE idle, what's in the FIFO now is all
+    // there is: this loop can only run a couple of times.
+    while (total + 64 <= (int32_t)sizeof(connectedUSBMIDIDevices[0][0].receiveData))
+    {
+        g_usb_data_cnt[pipe] = 64; // usb_read_data_fast_rohan() left g_p_usb_data[pipe] just past the data it read, so
+                                   // re-priming the count makes the next read append
+        if (USB_READEND != usb_read_data_fast_rohan(pipe))
+        {
+            break; // FIFO empty - the usual case
+        }
+        total += 64 - g_usb_data_cnt[pipe];
+    }
+
+    g_p_usb_pipe[pipe] = (usb_utr_t*)USB_NULL; // Is this necessary? Doesn't look like it
+
+    // Only sets received bytes for first device
+    // I've just pasted the relevant contents of usbReceiveComplete() in here
+    connectedUSBMIDIDevices[0][0].numBytesReceived = total;
+
+    connectedUSBMIDIDevices[0][0].currentlyWaitingToReceive = 0; // Take note that we need to set up another receive
 }
 
 /***********************************************************************************************************************
