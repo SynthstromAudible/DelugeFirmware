@@ -1392,14 +1392,23 @@ bool InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 	// Reject the whole transpose if it would push any note out of the playable range,
 	// matching the limit that vertical scrolling enforces. We scan every row for the
 	// resulting extreme note rather than assuming the top/bottom row stays the extreme,
-	// because rows can shift by differing amounts.
+	// because rows can shift by differing amounts. Ignore empty rows so a deleted
+	// high/low row does not keep blocking future nudges.
 	int32_t extremeNewYNote = 0;
+	bool foundRowWithNotes = false;
 	for (int32_t i = 0; i < numRows; i++) {
 		NoteRow* thisNoteRow = noteRows.getElement(i);
-		int32_t newYNote = thisNoteRow->y + shiftFor(thisNoteRow);
-		if (i == 0 || (change > 0 ? newYNote > extremeNewYNote : newYNote < extremeNewYNote)) {
-			extremeNewYNote = newYNote;
+		if (thisNoteRow->hasNoNotes()) {
+			continue;
 		}
+		int32_t newYNote = thisNoteRow->y + shiftFor(thisNoteRow);
+		if (!foundRowWithNotes || (change > 0 ? newYNote > extremeNewYNote : newYNote < extremeNewYNote)) {
+			extremeNewYNote = newYNote;
+			foundRowWithNotes = true;
+		}
+	}
+	if (!foundRowWithNotes) {
+		return false;
 	}
 	if (!isScrollWithinRange(change, extremeNewYNote)) {
 		return false;
@@ -1414,6 +1423,19 @@ bool InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType t
 	}
 
 	yScroll += change;
+
+	// Keep viewport clamping behaviour aligned with normal vertical scrolling.
+	// Clamp only the boundary in the direction we just nudged.
+	if (change > 0) {
+		while (!isScrollWithinRange(0, getYNoteFromYDisplay(kDisplayHeight - 1, modelStack->song))) {
+			yScroll--;
+		}
+	}
+	else {
+		while (!isScrollWithinRange(0, getYNoteFromYDisplay(0, modelStack->song))) {
+			yScroll++;
+		}
+	}
 	return true;
 }
 
@@ -3289,17 +3311,23 @@ void InstrumentClip::stopAllNotesForMIDIOrCV(ModelStackWithTimelineCounter* mode
 }
 
 int16_t InstrumentClip::getTopYNote() {
-	if (noteRows.getNumElements() == 0) {
-		return 64;
+	for (int32_t i = noteRows.getNumElements() - 1; i >= 0; i--) {
+		NoteRow* noteRow = noteRows.getElement(i);
+		if (!noteRow->hasNoNotes()) {
+			return noteRow->y;
+		}
 	}
-	return noteRows.getElement(noteRows.getNumElements() - 1)->y;
+	return 64;
 }
 
 int16_t InstrumentClip::getBottomYNote() {
-	if (noteRows.getNumElements() == 0) {
-		return 64;
+	for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
+		NoteRow* noteRow = noteRows.getElement(i);
+		if (!noteRow->hasNoNotes()) {
+			return noteRow->y;
+		}
 	}
-	return noteRows.getElement(0)->y;
+	return 64;
 }
 
 uint32_t InstrumentClip::getWrapEditLevel() {
