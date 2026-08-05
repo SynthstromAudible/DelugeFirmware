@@ -611,8 +611,6 @@ enum class MIDIFollowChannelType : uint8_t {
 	A,
 	B,
 	C,
-	Track,
-	NONE,
 	Track1,
 	Track2,
 	Track3,
@@ -629,14 +627,33 @@ enum class MIDIFollowChannelType : uint8_t {
 	Track14,
 	Track15,
 	Track16,
+	NONE,
 	INVALID,
 };
-constexpr MIDIFollowChannelType kLastValidMIDIFollowChannelType = MIDIFollowChannelType::Track16; // 20
-constexpr auto kNumMIDIFollowChannelTypes = util::to_underlying(MIDIFollowChannelType::Track1);   // 5
+constexpr MIDIFollowChannelType kLastValidMIDIFollowChannelType = MIDIFollowChannelType::Track16; // 18
+constexpr auto kNumMIDIFollowChannelTypes = util::to_underlying(MIDIFollowChannelType::Track1);   // 3
 constexpr auto kNumMIDIFollowChannelTypesIncludingTracks =
-    util::to_underlying(kLastValidMIDIFollowChannelType) + 1; // 21
+    util::to_underlying(kLastValidMIDIFollowChannelType) + 1; // 19
 constexpr int32_t kNumMIDIFollowChannelTrackTypes =
-    kNumMIDIFollowChannelTypesIncludingTracks - kNumMIDIFollowChannelTypes; // 21 - 5 = 16
+    kNumMIDIFollowChannelTypesIncludingTracks - kNumMIDIFollowChannelTypes; // 19 - 3 = 16
+
+// Midi Follow Mode Feedback Channel Modes
+enum class MIDIFollowFeedbackChannelType : uint8_t {
+	NONE,
+	A,
+	B,
+	C,
+	Track,
+	TrackAndA,
+	TrackAndB,
+	TrackAndC,
+	INVALID,
+};
+
+constexpr MIDIFollowFeedbackChannelType kLastValidMIDIFollowFeedbackChannelType =
+    MIDIFollowFeedbackChannelType::TrackAndC; // 7
+constexpr int32_t kNumMIDIFollowFeedbackChannelTypes =
+    util::to_underlying(kLastValidMIDIFollowFeedbackChannelType) + 1; // 8
 
 // Midi Follow Mode Feedback Automation Modes
 enum class MIDIFollowFeedbackAutomationMode : uint8_t {
@@ -1095,6 +1112,33 @@ enum class LaunchStyle { DEFAULT, FILL, ONCE };
 
 enum class StartupSongMode { BLANK, TEMPLATE, LASTOPENED, LASTSAVED };
 constexpr auto kNumStartupSongMode = util::to_underlying(StartupSongMode::LASTSAVED) + 1;
+
+/// @brief What the screensaver shows once the idle timeout expires. OLED only.
+///
+/// @note Persisted to flash by value, so the order is fixed.
+enum class ScreensaverMode : uint8_t { OFF, BLANK, STARSCAPE, DELUGE };
+constexpr auto kNumScreensaverModes = util::to_underlying(ScreensaverMode::DELUGE) + 1;
+
+/// @brief The shipped screensaver settings.
+///
+/// Applied to a unit with no saved settings, to one upgrading from a firmware that predates the
+/// screensaver, and on a settings reset.
+///
+/// @note FlashStorage::readSettings() and FlashStorage::resetSettings() must agree on these, so
+///       they are single-sourced here.
+/// @{
+constexpr ScreensaverMode kDefaultScreensaverMode = ScreensaverMode::DELUGE;
+constexpr uint8_t kDefaultScreensaverTimeoutMinutes = 5;
+/// @}
+
+/// @brief Range the screensaver idle timeout is settable and storable in, in minutes.
+///
+/// @note The menu limits and the stored-value validation share these, so a value the menu accepts
+///       always survives a reload.
+/// @{
+constexpr uint8_t kMinScreensaverTimeoutMinutes = 1;
+constexpr uint8_t kMaxScreensaverTimeoutMinutes = 60;
+/// @}
 
 constexpr uint8_t kHorizontalMenuSlotYOffset = 2;
 constexpr uint8_t kScreenTitleSeparatorY = 12 + OLED_MAIN_TOPMOST_PIXEL;

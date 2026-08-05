@@ -79,9 +79,33 @@ The Settings menu contains the following menu hierarchy:
     		- Channel A (A)
     		- Channel B (B)
     		- Channel C (C)
+            - Channel Track01 (TR01)
+            - Channel Track02 (TR02)
+            - Channel Track03 (TR03)
+            - Channel Track04 (TR04)
+            - Channel Track05 (TR05)
+            - Channel Track06 (TR06)
+            - Channel Track07 (TR07)
+            - Channel Track08 (TR08)
+            - Channel Track09 (TR09)
+            - Channel Track10 (TR10)
+            - Channel Track11 (TR11)
+            - Channel Track12 (TR12)
+            - Channel Track13 (TR13)
+            - Channel Track14 (TR14)
+            - Channel Track15 (TR15)
+            - Channel Track16 (TR16)
     	- Kit Root Note (KIT)
     	- Feedback (FEED)
     		- Channel (CHAN)
+                - None (NONE)
+                - Channel A (A)
+                - Channel B (B)
+                - Channel C (C)
+                - Channel Track (TR)
+                - Channel Track + Channel A (TR+A)
+                - Channel Track + Channel B (TR+B)
+                - Channel Track + Channel C (TR+C)
     		- Automation Feedback (AUTO)
     			- Disabled (OFF)
     			- Low
@@ -708,8 +732,11 @@ The Audio Clip menu is accessible from Audio clips by pressing :key[SELECT]
 The Audio Clip menu contains the following menu hierarchy:
 
 <details>
-<summary>Actions (ACT)</summary>
-	- Set Clip Length to Sample Length (LEN)
+<summary>Actions (ACT) <Badge text="c1.2" variant="tip" /></summary>
+    - Edit Name (NAME) <Badge text="c1.3" variant="tip" />
+	    - Edit Track Name (TRAK)
+    	- Edit Clip Name (CLIP)
+	- Set Clip Length to Sample Length (LEN) <Badge text="c1.2" variant="tip" />
 </details>
 <details>
 <summary>Audio Source (AUDI)</summary>
@@ -918,7 +945,10 @@ The Sound menu contains the following menu hierarchy:
 
 <details>
 <summary>Actions (ACT)<Badge text="c1.3" variant="tip" /></summary>
-    - Rename clip/drum (NAME)
+    - Edit Name (NAME)
+	    - Edit Track Name (TRAK) // synth clips
+    	- Edit Clip Name (CLIP) // synth clips
+		- Edit Drum Name (DRUM) // kit clip
     - Record to sample 1 (REC1)
     - Record to sample 2 (REC2)
 </details>
@@ -1487,8 +1517,11 @@ The Kit FX menu is accessible from Kit clips when :key[AffectEntire] is enabled 
 The Kit FX menu contains the following menu hierarchy:
 
 <details>
-<summary>Actions</summary>
-	- Audio Export (EXPO) <Badge text="c1.3" variant="tip" />
+<summary>Actions (ACT)<Badge text="c1.3" variant="tip" /></summary>
+    - Edit Name (NAME)
+	    - Edit Track Name (TRAK)
+    	- Edit Clip Name (CLIP)
+	- Audio Export (EXPO)
 		- Start Export (EXPO)
 		- Configure Export (CONF)
 			- Kit FX (KIT)
@@ -1736,6 +1769,12 @@ The MIDI Instrument menu is accessible from MIDI clips (or Kit Clips with a MIDI
 The MIDI menu contains the following menu hierarchy:
 
 <details>
+<summary>Actions (ACT)<Badge text="c1.3" variant="tip" /></summary>
+    - Edit Name (NAME)
+	    - Edit Track Name (TRAK)
+    	- Edit Clip Name (CLIP)
+</details>
+<details>
 <summary>Device Definition (DEVI)</summary>
     This submenu will indicate whether the current MIDI Instrument in the Song is linked to a MIDI Device Definition file.
 
@@ -1867,6 +1906,12 @@ The CV Instrument menu is accessible from CV clips (or Kit Clips with a Gate Dru
 
 The CV menu contains the following menu hierarchy:
 
+<details>
+<summary>Actions (ACT)<Badge text="c1.3" variant="tip" /></summary>
+    - Edit Name (NAME)
+	    - Edit Track Name (TRAK)
+    	- Edit Clip Name (CLIP)
+</details>
 <details>
 <summary>Arpeggiator (ARPE)</summary>
 	- Enabled (ON)

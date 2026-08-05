@@ -39,6 +39,7 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/display/screensaver.h"
 #include "hid/display/seven_segment.h"
 #include "hid/encoder_input.h"
 #include "hid/encoders.h"
@@ -272,6 +273,9 @@ bool readButtonsAndPads() {
 	if (anything) {
 
 		if (value < PIC::kPadAndButtonMessagesEnd) {
+
+			// Any pad or button edge counts as activity, press or release alike.
+			deluge::hid::display::Screensaver::noteActivity();
 
 			int32_t thisPadPressIsOn = nextPadPressIsOn;
 			nextPadPressIsOn = USE_DEFAULT_VELOCITY;
@@ -902,6 +906,11 @@ extern "C" int32_t deluge_main(void) {
 	L2CacheUnlockData();
 	sdRoutineLock = false; // Allow SD routine to start happening
 
+	// Settings have been read and the UI is up: start the idle countdown.
+	if (hid::display::have_oled_screen) {
+		deluge::hid::display::Screensaver::settingsChanged();
+	}
+
 #ifdef USE_TASK_MANAGER
 	registerTasks();
 	startTaskManager();
@@ -973,7 +982,14 @@ extern "C" void routineForSD(void) {
 	sdRoutineLock = true;
 	static UIStage step = UIStage::oled;
 	AudioEngine::logAction("from routineForSD()");
+	// process audio
 	AudioEngine::runRoutine();
+#ifdef USE_TASK_MANAGER // if using task manager, midi and analog clock are processed separately from audio
+	// process midi clock
+	playbackHandler.midiRoutine();
+	// process analog clock
+	playbackHandler.routine();
+#endif
 	switch (step) {
 	case UIStage::oled:
 		if (display->haveOLED()) {

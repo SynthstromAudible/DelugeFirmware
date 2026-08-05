@@ -26,10 +26,10 @@ public:
 
 	constexpr const char* operator()(Enum a) { return stringList_[static_cast<std::underlying_type_t<Enum>>(a)]; }
 
-	/// Convert string to enum, returning enum variant N on failure
-	constexpr Enum operator()(const char* str) {
-		for (int i = 0; i < N; i++) {
-			if (!strcmp(str, stringList_[i])) {
+	/// Convert string to enum, returning fallback when the string is not mapped.
+	constexpr Enum operator()(const char* str, Enum fallback) {
+		for (std::size_t i = 0; i < N; i++) {
+			if (stringList_[i] != nullptr && !strcmp(str, stringList_[i])) {
 				return static_cast<Enum>(i);
 			}
 		}
@@ -37,8 +37,11 @@ public:
 		char popup[25];
 		D_PRINTLN(popup, "no match for:%s", str);
 
-		return static_cast<Enum>(N - 1);
+		return fallback;
 	}
+
+	/// Convert string to enum, returning the last mapped enum variant on failure.
+	constexpr Enum operator()(const char* str) { return (*this)(str, static_cast<Enum>(N - 1)); }
 
 private:
 	const char* stringList_[N];

@@ -240,7 +240,7 @@
         <SelectedFiltersBar />
         {#if !isCompactControlPanel}
           <div class="dc-panel-search-wrap">
-            <SearchView autoFocus={false} enableGlobalFocusShortcut={true} variant="toolbar" />
+            <SearchView autoFocus={false} variant="toolbar" />
           </div>
         {/if}
         <ViewFilter />

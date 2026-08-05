@@ -68,6 +68,9 @@ public:
 	static bool isPopupPresentOfType(PopupType type = PopupType::GENERAL);
 	static bool isPermanentPopupPresent();
 
+	/// @return True while the working/loading animation is being shown.
+	static bool isWorkingAnimationPresent();
+
 	static void displayWorkingAnimation(char const* word);
 
 	static int32_t setupConsole(int32_t height);
