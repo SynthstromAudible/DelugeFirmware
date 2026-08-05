@@ -59,6 +59,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "model/sync.h"
+#include "modulation/macros/macros.h"
 #include "playback/clock_output_scheduler.h"
 #include "playback/mode/arrangement.h"
 #include "playback/mode/session.h"
@@ -3182,6 +3183,12 @@ void PlaybackHandler::midiCCReceived(MIDICable& cable, uint8_t channel, uint8_t 
 		else if (currentUIMode == UI_MODE_MIDI_LEARN) {
 			view.ccReceivedForMIDILearn(cable, channelOrZone, ccNumber, value);
 			// we don't want this learn to immediately trigger the thing it was learnt to so just return
+			return;
+		}
+		// if learned as a macro source, write its value to the configured destination CCs and
+		// consume the message. To also forward/record the source CC itself, include it as one of its
+		// group's dests - the outgoing CCs never re-enter this handler, so that can't loop
+		else if (Macros::tryMacro(cable, channelOrZone, ccNumber, value)) {
 			return;
 		}
 		// check if it was learned to on/off commands (loop, drums, section launch etc.)

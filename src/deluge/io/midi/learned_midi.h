@@ -18,13 +18,17 @@
 #pragma once
 
 #include "io/midi/midi_device_manager.h"
-#include "storage/storage_manager.h"
 #include <cstdint>
 
 #define MIDI_MESSAGE_NONE 0
 #define MIDI_MESSAGE_NOTE 1
 #define MIDI_MESSAGE_CC 2
 
+// Only reference params are used below, so forward-declare rather than pull the heavy storage_manager.h
+// into this widely-included header (it drags in the generated firmware_version.h, which breaks TUs -
+// e.g. under Output - whose include paths can't reach the build/ generated dir). .cpp users include it.
+class Serializer;
+class Deserializer;
 class MIDICable;
 enum class MIDIMatchType { NO_MATCH, CHANNEL, MPE_MEMBER, MPE_MASTER };
 class LearnedMIDI {

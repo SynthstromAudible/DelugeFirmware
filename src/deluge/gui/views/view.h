@@ -68,6 +68,16 @@ public:
 	void midiLearnFlash();
 	void setModLedStates();
 	int32_t getModKnobMode();
+	// Whether the clip can host gold-knob MACRO mode right now: a macro-capable output, and - for kits,
+	// whose macros drive the kit-global (affect-entire) params - only while affect-entire is on. Gates
+	// both entering the mode (SHIFT+Y_ENC) and staying in it (turning affect-entire off auto-drops it).
+	bool macroKnobModeAvailable(Clip* clip);
+	// Gold-knob MACRO mode gate used by every mod-button/knob/LED site - true only in a clip-minder grid
+	// view (instrument or audio clip), on a clip macroKnobModeAvailable() accepts, with the feature on
+	// and the flag set.
+	bool inMacroKnobMode();
+	// Toggles the current output's MACRO mode and announces it ("Macros"/"Parameters" popup).
+	void toggleMacroKnobMode();
 	void modEncoderAction(int32_t whichModEncoder, int32_t offset);
 	void modEncoderButtonAction(uint8_t whichModEncoder, bool on);
 	void modButtonAction(uint8_t whichButton, bool on);

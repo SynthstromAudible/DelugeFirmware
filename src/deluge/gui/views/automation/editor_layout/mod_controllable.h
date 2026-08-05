@@ -54,14 +54,14 @@ private:
 	                            RGB image[][kDisplayWidth + kSideBarWidth],
 	                            uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t lengthToDisplay,
 	                            int32_t xDisplay, bool isAutomated, int32_t xScroll, int32_t xZoom,
-	                            deluge::modulation::params::Kind kind, bool isBipolar);
+	                            deluge::modulation::params::Kind kind, bool isBipolar, bool dimmed);
 	void renderAutomationBipolarSquare(RGB image[][kDisplayWidth + kSideBarWidth],
 	                                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay,
 	                                   int32_t yDisplay, bool isAutomated, deluge::modulation::params::Kind kind,
-	                                   int32_t knobPos);
+	                                   int32_t knobPos, bool dimmed);
 	void renderAutomationUnipolarSquare(RGB image[][kDisplayWidth + kSideBarWidth],
 	                                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], int32_t xDisplay,
-	                                    int32_t yDisplay, bool isAutomated, int32_t knobPos);
+	                                    int32_t yDisplay, bool isAutomated, int32_t knobPos, bool dimmed);
 
 public:
 	// OLED/7Seg Display
