@@ -102,10 +102,6 @@ struct ConnectedUSBMIDIDevice {
 	std::array<uint8_t, kMaxMIDIValue + 1> usb_cc_fair_controller_debt{};
 	/// Round-robin controller cursor used as fairness baseline between dequeues.
 	uint8_t usb_cc_fair_next_controller{0};
-#else
-	uint32_t sendDataRingBuf[QUEUE_PRIORITY_COUNT][MIDI_SEND_BUFFER_LEN_RING];
-	uint16_t ringBufWriteIdx[QUEUE_PRIORITY_COUNT];
-	uint16_t ringBufReadIdx[QUEUE_PRIORITY_COUNT];
 #endif
 
 	uint8_t maxPortConnected;
