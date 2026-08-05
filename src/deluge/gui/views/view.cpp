@@ -1254,7 +1254,7 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 		}
 
 		// Only update notification if parameter info has changed AND we can take display ownership AND enough time has
-		// elapsed
+		// elapsed.
 		if (has_param_info_changed && can_take_display_ownership && has_min_time_elapsed) {
 			display->displayNotification(parameter_name.c_str(), parameter_value.c_str());
 
@@ -1276,6 +1276,22 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 			}
 			last_display_update_time = current_time;
 			last_actual_display_time = current_time; // Track when we actually updated the display
+			hasPendingModEncoderValuePopup = false;
+			uiTimerManager.unsetTimer(TimerName::MOD_ENCODER_POPUP_FLUSH);
+		}
+		else if (has_param_info_changed && can_take_display_ownership && !has_min_time_elapsed) {
+			// We have a newer value but we're still inside the rate-limit window.
+			// Queue this exact popup payload so the timer callback can display it as soon as throttling allows.
+			hasPendingModEncoderValuePopup = true;
+			pendingPopupKind = kind;
+			pendingPopupParamID = paramID;
+			pendingPopupKnobPos = newKnobPos;
+			pendingPopupSource1 = source1;
+			pendingPopupSource2 = source2;
+
+			uint32_t time_since_last_actual_display = current_time - last_actual_display_time;
+			uint32_t samples_until_flush = MIN_UPDATE_INTERVAL - time_since_last_actual_display;
+			uiTimerManager.setTimerSamples(TimerName::MOD_ENCODER_POPUP_FLUSH, samples_until_flush);
 		}
 		// Even if no display update needed, refresh timer if same parameter is being adjusted
 		else if (current_param_owns_display && display->hasPopupOfType(PopupType::NOTIFICATION)) {
@@ -1286,6 +1302,17 @@ void View::displayModEncoderValuePopup(params::Kind kind, int32_t paramID, int32
 	else {
 		display->displayPopup(parameter_value.c_str());
 	}
+}
+
+void View::flushPendingModEncoderValuePopup() {
+	// Timer callback for deferred popup delivery: if the latest value was throttled,
+	// replay it once the minimum update interval has elapsed.
+	if (!hasPendingModEncoderValuePopup || !display->haveOLED()) {
+		return;
+	}
+
+	displayModEncoderValuePopup(pendingPopupKind, pendingPopupParamID, pendingPopupKnobPos, pendingPopupSource1,
+	                            pendingPopupSource2);
 }
 
 // convert deluge internal knobPos range to same range as used by menu's.

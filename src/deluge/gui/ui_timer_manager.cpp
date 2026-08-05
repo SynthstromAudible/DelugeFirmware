@@ -111,6 +111,10 @@ void UITimerManager::routine() {
 
 					break;
 
+				case TimerName::MOD_ENCODER_POPUP_FLUSH:
+					view.flushPendingModEncoderValuePopup();
+					break;
+
 				case TimerName::LED_BLINK:
 				case TimerName::LED_BLINK_TYPE_1:
 					indicator_leds::ledBlinkTimeout(i - util::to_underlying(TimerName::LED_BLINK));

@@ -47,6 +47,7 @@ enum class TimerName {
 	PAD_SELECTION_SHORTCUT_BLINK,
 	NOTE_ROW_BLINK,
 	LOADING_ANIMATION,
+	MOD_ENCODER_POPUP_FLUSH,
 	SELECTED_CLIP_PULSE,
 	/// Idle countdown before the screensaver appears, then its frame clock while it shows
 	SCREENSAVER,
