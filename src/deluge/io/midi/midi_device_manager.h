@@ -104,6 +104,7 @@ void slowRoutine();
 MIDICable* readDeviceReferenceFromFile(Deserializer& reader);
 void readDeviceReferenceFromFlash(GlobalMIDICommand whichCommand, uint8_t const* memory);
 void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory);
+void readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType whichType, uint8_t const* memory);
 void recountSmallestMPEZones();
 void writeDevicesToFile();
 void readAHostedDeviceFromFile(Deserializer& reader);

@@ -412,6 +412,13 @@ void writeDeviceReferenceToFlash(GlobalMIDICommand whichCommand, uint8_t* memory
 	}
 }
 
+// Read-only counterpart of the MIDI-follow device references that lived in flash before c1.3 moved those settings
+// into MIDIFollow.XML. Only used by the one-time migration in FlashStorage::readSettings() - we never write these
+// bytes again.
+void readMidiFollowDeviceReferenceFromFlash(MIDIFollowChannelType whichType, uint8_t const* memory) {
+	midiEngine.midiFollowChannelType[util::to_underlying(whichType)].cable = readCableFromFlash(memory);
+}
+
 void writeDevicesToFile() {
 	if (!anyChangesToSave) {
 		return;
