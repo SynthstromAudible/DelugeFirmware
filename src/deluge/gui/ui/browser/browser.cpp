@@ -715,10 +715,8 @@ Error Browser::getUnusedSlot(OutputType outputType, String* newName, char const*
 	// it's used for proposing the file name and on 7SEG if you type a # it will prefix it
 	uint8_t buffer_size = 20;
 	char filenameToStartAt[buffer_size];
-	strncpy(filenameToStartAt, thingName,
-	        buffer_size - 2 - strlen(thingName)); // Leave 2 chars for "colon + null terminator"
-	strncat(filenameToStartAt, ":",
-	        buffer_size - 1 - strlen(filenameToStartAt)); // Colon is the first character after the digits.
+	strncpy(filenameToStartAt, thingName, buffer_size - 2); // Leave 2 chars for "colon + null terminator"
+	strcat(filenameToStartAt, ":");                         // Colon is the first character after the digits.
 	error = readFileItemsFromFolderAndMemory(currentSong, outputType, getThingName(outputType), filenameToStartAt, NULL,
 	                                         false, Availability::ANY, CATALOG_SEARCH_LEFT);
 
