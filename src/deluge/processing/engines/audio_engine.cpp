@@ -419,6 +419,9 @@ uint8_t numRoutines = 0;
 void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 
 	bool culled = false;
+	constexpr uint32_t kSoftCullSettleSamples = 128;
+	static uint32_t time_last_soft_cull = 0;
+	static bool have_soft_culled = false;
 	// at high loads voicesStarted is limited to 2. Since starting voices is a heavy load and we know it's temporary
 	// we can be a bit more lenient with the limit
 	auto max_num_samples = numSamplesLimit + (20 * voices_started_this_render);
@@ -452,11 +455,15 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 			culled = true;
 		}
 
-		// Or if it's just a little bit dire, do a soft cull with fade-out, but only cull for sure if numSamples
-		// is increasing
+		// Or if it's just a little bit dire, do a soft cull with fade-out, but only cull if numSamples is still
+		// increasing after the previous soft-cull fade has had time to affect the next runtime measurement.
 		else if (num_samples_over_limit >= 0) {
-			if (last_num_samples_over > 0 && num_samples_over_limit >= last_num_samples_over) {
+			bool cull_fade_settled =
+			    !have_soft_culled || audioSampleTimer - time_last_soft_cull >= kSoftCullSettleSamples;
+			if (last_num_samples_over > 0 && num_samples_over_limit > last_num_samples_over && cull_fade_settled) {
 				forceReleaseOneVoice(numSamples);
+				time_last_soft_cull = audioSampleTimer;
+				have_soft_culled = true;
 				logAction("soft cull");
 				if (numRoutines > 0) {
 					culled = true;
