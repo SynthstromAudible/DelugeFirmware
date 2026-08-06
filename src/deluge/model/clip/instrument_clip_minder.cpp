@@ -131,52 +131,9 @@ void InstrumentClipMinder::drawMIDIControlNumber(int32_t controlNumber, bool aut
 
 	DEF_STACK_STRING_BUF(buffer, 30);
 
-	bool doScroll = false;
-
-	if (controlNumber == CC_NUMBER_NONE) {
-		buffer.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_PARAM));
-	}
-	else if (controlNumber == CC_NUMBER_PITCH_BEND) {
-		buffer.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
-	}
-	else if (controlNumber == CC_NUMBER_AFTERTOUCH) {
-		buffer.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
-	}
-	else if (controlNumber == CC_NUMBER_Y_AXIS) {
-		// in mono expression this is mod wheel, and y-axis is not directly controllable
-		buffer.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
-	}
-	else {
-		MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
-		bool appendedName = false;
-
-		if (controlNumber >= 0 && controlNumber < kNumRealCCNumbers) {
-			std::string_view name = midiInstrument->getNameFromCC(controlNumber);
-			// if we have a name for this midi cc set by the user, display that instead of the cc number
-			if (!name.empty()) {
-				buffer.append(name.data());
-				doScroll = name.size() > 4;
-				appendedName = true;
-			}
-		}
-
-		// if we don't have a midi cc name set, draw CC number instead
-		if (!appendedName) {
-			if (display->haveOLED()) {
-				buffer.append("CC ");
-				buffer.appendInt(controlNumber);
-			}
-			else {
-				if (controlNumber < 100) {
-					buffer.append("CC");
-				}
-				else {
-					buffer.append("C");
-				}
-				buffer.appendInt(controlNumber);
-			}
-		}
-	}
+	MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
+	bool usedCustomName = midiInstrument->appendCCName(buffer, controlNumber);
+	bool doScroll = usedCustomName && buffer.size() > 4;
 
 	if (display->haveOLED()) {
 		if (automationExists) {
