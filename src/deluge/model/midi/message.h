@@ -23,6 +23,18 @@
 /// Get the number of bytes associated with the provided status byte.
 size_t bytesPerStatusMessage(uint8_t status);
 
+/// 4-bit MIDI channel-message status nibble values.
+enum class MIDIStatusType : uint8_t {
+	NoteOff = 0x08,
+	NoteOn = 0x09,
+	PolyphonicAftertouch = 0x0A,
+	ControlChange = 0x0B,
+	ProgramChange = 0x0C,
+	ChannelAftertouch = 0x0D,
+	PitchBend = 0x0E,
+	System = 0x0F,
+};
+
 /// Container for a MIDI status message.
 ///
 /// See https://michd.me/jottings/midi-message-format-reference/ for a reference on the different status types and MIDI
@@ -37,7 +49,9 @@ struct MIDIMessage {
 	/// Optional data byte 2
 	uint8_t data2;
 
-	[[gnu::always_inline]] [[nodiscard]] bool isSystemMessage() const { return statusType == 0x0f; }
+	[[gnu::always_inline]] [[nodiscard]] bool isSystemMessage() const {
+		return statusType == static_cast<uint8_t>(MIDIStatusType::System);
+	}
 
 	/// @name Constructors for certain types of message
 	/// @{

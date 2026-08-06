@@ -16,7 +16,17 @@
  */
 
 #include "usb_common.h"
+#include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
+#include "io/midi/midi_queue_manager.h"
+
+namespace {
+/// Classifies outgoing USB MIDI messages into strict send-priority lanes.
+QueuePriority classifyUSBPriority(MIDIMessage message) {
+	// Reuse shared queue policy so USB and serial paths classify traffic identically.
+	return MIDIQueueManager::classify_message(message);
+}
+} // namespace
 
 void MIDICableUSB::connectedNow(int32_t midiDeviceNum) {
 	connectionFlags |= (1 << midiDeviceNum);
@@ -39,14 +49,15 @@ void MIDICableUSB::sendMessage(MIDIMessage message) {
 
 	int32_t ip = 0;
 
-	uint32_t fullMessage = setupUSBMessage(message);
+	uint32_t full_message = setupUSBMessage(message);
+	QueuePriority priority = classifyUSBPriority(message);
 
 	for (int32_t d = 0; d < MAX_NUM_USB_MIDI_DEVICES; d++) {
 		if (connectionFlags & (1 << d)) {
 			ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][d];
 			if (connectedDevice->canHaveMIDISent) {
-				uint32_t channeledMessage = fullMessage | (portNumber << 4);
-				connectedDevice->bufferMessage(fullMessage);
+				uint32_t channeled_message = full_message | (portNumber << 4);
+				connectedDevice->bufferMessage(channeled_message, priority);
 			}
 		}
 	}
@@ -105,7 +116,7 @@ void MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 		// Since the message ends with 0xF7, we can assume that data[5] does exist.
 		// fake 0xF0, 0x7D, data[5] for first send
 		uint32_t packed = ((uint32_t)data[5] << 24) | 0x007DF004 | (portNumber << 4);
-		connectedDevice->bufferMessage(packed);
+		connectedDevice->bufferMessage(packed, QUEUE_PRIORITY_SYSEX);
 		pos = 6;
 	}
 
@@ -130,7 +141,7 @@ void MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 		}
 		status |= (portNumber << 4);
 		uint32_t packed = ((uint32_t)byte2 << 24) | ((uint32_t)byte1 << 16) | ((uint32_t)byte0 << 8) | status;
-		connectedDevice->bufferMessage(packed);
+		connectedDevice->bufferMessage(packed, QUEUE_PRIORITY_SYSEX);
 	}
 }
 
