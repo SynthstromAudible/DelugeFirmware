@@ -1,8 +1,11 @@
 #! /usr/bin/env python3
 import argparse
+import os
 import re
 import sys
+import zipfile
 from dataclasses import dataclass
+from urllib.request import urlretrieve
 
 import util
 
@@ -67,7 +70,13 @@ def argparser() -> argparse.ArgumentParser:
         "of two ELF files, using `arm-none-eabi-readelf -WS`",
     )
     parser.group = "Development"
-    parser.add_argument("old_elf", help="path of the 'old'/baseline ELF file")
+    parser.add_argument(
+        "-b",
+        "--baseline",
+        help="path of the 'old'/baseline ELF file (default - most recent release)",
+        required=False,
+        default="beta",
+    )
     parser.add_argument("new_elf", help="path of the 'new' ELF file to compare")
     return parser
 
@@ -176,8 +185,20 @@ def print_heap_table(old_heap_sizes: dict, new_heap_sizes: dict):
 
 def main() -> int:
     args = argparser().parse_args()
-
-    old_sections = parse_sections(args.old_elf)
+    print(f"args.baseline {args.baseline}")
+    if args.baseline == "beta":
+        print("downloading")
+        path = "./scratch/beta_zip.zip"
+        url = "https://github.com/SynthstromAudible/DelugeFirmware/releases/download/beta/beta.zip"
+        os.makedirs("./scratch", exist_ok=True)
+        urlretrieve(url, path)
+        with zipfile.ZipFile(path) as zf:
+            for file in zf.namelist():
+                if file.endswith(".elf"):
+                    old_elf = zf.extract(file, "./scratch")
+    else:
+        old_elf = args.baseline
+    old_sections = parse_sections(old_elf)
     new_sections = parse_sections(args.new_elf)
 
     if not old_sections:
@@ -193,7 +214,7 @@ def main() -> int:
     old_heap_sizes = compute_heap_sizes(old_sections)
     new_heap_sizes = compute_heap_sizes(new_sections)
 
-    print(f"Comparing: {args.old_elf}  ->  {args.new_elf}")
+    print(f"Comparing: {old_elf}  ->  {args.new_elf}")
 
     print_table("Internal (RAM, addr 0x20...)", old_totals, new_totals, "internal")
     print_table("External (SDRAM, addr 0x0C...)", old_totals, new_totals, "external")
