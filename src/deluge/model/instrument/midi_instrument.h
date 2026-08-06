@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "model/instrument/non_audio_instrument.h"
 #include "util/containers.h"
+#include "util/d_stringbuf.h"
 #include <array>
 #include <string_view>
 
@@ -121,6 +122,10 @@ public:
 		return sendsToMPE() ? "zone" : sendsToInternal() ? "internalDest" : "channel";
 	}
 	char const* getSubSlotXMLTag() override { return "suffix"; }
+
+	/// Appends a CC name/number to buf for the given CC assignment.
+	/// Returns true if a user-defined custom name was appended (caller may want to enable scrolling on 7SEG).
+	bool appendCCName(StringBuf& buf, int32_t cc);
 
 	ModelStackWithAutoParam* getModelStackWithParam(ModelStackWithTimelineCounter* modelStack, Clip* clip,
 	                                                int32_t paramID, deluge::modulation::params::Kind paramKind,

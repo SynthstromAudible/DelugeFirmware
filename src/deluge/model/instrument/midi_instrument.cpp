@@ -17,9 +17,11 @@
 
 #include "model/instrument/midi_instrument.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
+#include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_transpose.h"
@@ -32,6 +34,7 @@
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_set.h"
 #include "storage/storage_manager.h"
+#include "util/d_stringbuf.h"
 #include <cstring>
 #include <string_view>
 
@@ -97,6 +100,46 @@ bool MIDIInstrument::doesAutomationExistOnMIDIParam(ModelStackWithThreeMainThing
 	return automationExists;
 }
 
+bool MIDIInstrument::appendCCName(StringBuf& buf, int32_t cc) {
+	if (cc == CC_NUMBER_NONE) {
+		buf.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_PARAM));
+	}
+	else if (cc == CC_NUMBER_PITCH_BEND) {
+		buf.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
+	}
+	else if (cc == CC_NUMBER_AFTERTOUCH) {
+		buf.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
+	}
+	else if (cc == CC_EXTERNAL_MOD_WHEEL || cc == CC_NUMBER_Y_AXIS) {
+		buf.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
+	}
+	else {
+		if (cc >= 0 && cc < kNumRealCCNumbers) {
+			std::string_view name = getNameFromCC(cc);
+			// if we have a name for this midi cc set by the user, display that instead of the cc number
+			if (!name.empty()) {
+				buf.append(name.data());
+				return true;
+			}
+		}
+		// if we don't have a midi cc name set, draw CC number instead
+		if (display->haveOLED()) {
+			buf.append("CC ");
+			buf.appendInt(cc);
+		}
+		else {
+			if (cc < 100) {
+				buf.append("CC");
+			}
+			else {
+				buf.append("C");
+			}
+			buf.appendInt(cc);
+		}
+	}
+	return false;
+}
+
 void MIDIInstrument::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {
 	// If we're leaving this mod function or anything else is happening, we want to be sure that stutter has stopped
 	if (currentUIMode == UI_MODE_SELECTING_MIDI_CC) {
@@ -107,6 +150,36 @@ void MIDIInstrument::modButtonAction(uint8_t whichModButton, bool on, ParamManag
 		else {
 			InstrumentClipMinder::redrawNumericDisplay();
 		}
+		return;
+	}
+
+	int32_t ccTop = modKnobCCAssignments[modKnobMode * kNumPhysicalModKnobs + 1];
+	int32_t ccBottom = modKnobCCAssignments[modKnobMode * kNumPhysicalModKnobs + 0];
+
+	DEF_STACK_STRING_BUF(popupMsg, 100);
+
+	// OLED/7SEG pattern: show top knob when pressed, bottom knob when released (7SEG);
+	// show both top and bottom when pressed (OLED).
+	if (display->haveOLED() || on) {
+		appendCCName(popupMsg, ccTop);
+	}
+	if (display->haveOLED()) {
+		popupMsg.append("\n");
+	}
+	if (display->haveOLED() || !on) {
+		appendCCName(popupMsg, ccBottom);
+	}
+
+	if (display->haveOLED()) {
+		if (on) {
+			display->popupText(popupMsg.c_str());
+		}
+		else {
+			display->cancelPopup();
+		}
+	}
+	else {
+		display->displayPopup(popupMsg.c_str());
 	}
 }
 
