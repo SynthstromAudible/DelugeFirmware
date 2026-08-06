@@ -78,7 +78,9 @@ void SampleHolderForVoice::claimClusterReasons(bool reversed, int32_t clusterLoa
 	int32_t playDirection = reversed ? -1 : 1;
 	int32_t bytesPerSample = ((Sample*)audioFile)->numChannels * ((Sample*)audioFile)->byteDepth;
 
-	int32_t loopStartPlaybackAtSample = reversed ? loopEndPos : loopStartPos;
+	// loopEndPos == 0 means no active loop, regardless of loopStartPos (see sampleBeenSet()).
+	bool loopActive = loopStartPos && loopEndPos;
+	int32_t loopStartPlaybackAtSample = loopActive ? (reversed ? loopEndPos : loopStartPos) : 0;
 
 	if (reversed) { // Don't mix this with the above - we want to keep 0s as 0
 		if (loopStartPlaybackAtSample) {

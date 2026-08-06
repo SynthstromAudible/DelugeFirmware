@@ -200,6 +200,11 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShowBatteryLevel],
 	                  STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL, "showBatteryLevel",
 	                  RuntimeFeatureStateToggle::On);
+
+	// Round-robin sample variants
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::RoundRobinSampleVariants],
+	                  STRING_FOR_COMMUNITY_FEATURE_ROUND_ROBIN_VARIANTS, "roundRobinSampleVariants",
+	                  RuntimeFeatureStateToggle::On);
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

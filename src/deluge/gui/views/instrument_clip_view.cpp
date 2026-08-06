@@ -85,9 +85,11 @@
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/stem_export/stem_export.h"
+#include "storage/audio/audio_file.h"
 #include "storage/audio/audio_file_holder.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/multi_range/multi_range.h"
+#include "storage/multi_range/multisample_range.h"
 #include "storage/storage_manager.h"
 #include "util/comparison.h"
 #include "util/functions.h"
@@ -5534,6 +5536,9 @@ doDisplayError:
 		}
 	}
 	else {
+		sampleBrowser.targetRoundRobinSlot =
+		    0; // Reset stale slot index — this path bypasses FileSelector::beginSession()
+
 		success = openUI(&sampleBrowser);
 		if (success) {
 			PadLEDs::skipGreyoutFade(); // Greyout can't be done at same time as horizontal scroll, which is now
@@ -5644,7 +5649,33 @@ void InstrumentClipView::drawNoteCode(uint8_t yDisplay) {
 void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
 	std::string drumName;
 	if (drum != nullptr) {
-		drumName = drum->getDrumName();
+		if (drum->type == DrumType::SOUND
+		    && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants)) {
+			SoundDrum* soundDrum = static_cast<SoundDrum*>(drum);
+			Source& source = soundDrum->sources[0];
+			if (source.getOscType() == OscType::SAMPLE && source.ranges.getNumElements() > 0) {
+				auto* range = static_cast<MultisampleRange*>(source.ranges.getElement(0));
+				if (range->rrCount > 0) {
+					SampleHolderForVoice* holder = range->getVariantHolder(range->lastResolvedSlotIndex);
+					if (holder != nullptr) {
+						char const* path =
+						    holder->audioFile ? holder->audioFile->filePath.get() : holder->filePath.get();
+						char const* variantName = path ? getFileNameFromEndOfPath(path) : nullptr;
+						if (variantName && *variantName) {
+							// e.g. "kick_2.wav (3/4)" - which slot just played, out of how many.
+							char slotIndicator[8];
+							snprintf(slotIndicator, sizeof(slotIndicator), " (%d/%d)", range->lastResolvedSlotIndex + 1,
+							         range->rrCount + 1);
+							drumName = variantName;
+							drumName += slotIndicator;
+						}
+					}
+				}
+			}
+		}
+		if (drumName.empty()) {
+			drumName = drum->getDrumName();
+		}
 	}
 	else {
 		drumName = "NONE";

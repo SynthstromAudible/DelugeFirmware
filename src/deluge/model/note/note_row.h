@@ -78,6 +78,7 @@ struct PendingNoteOn {
 	uint8_t velocity;
 	Iterance iterance;
 	uint8_t fill;
+	bool noteMightBeConstant;
 };
 
 struct PendingNoteOnList {

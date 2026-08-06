@@ -31,6 +31,7 @@
 #include "model/sample/sample.h"
 #include "model/sample/sample_cache.h"
 #include "model/sample/sample_holder_for_voice.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "model/voice/voice_sample.h"
 #include "modulation/params/param_set.h"
@@ -110,7 +111,7 @@ uint32_t lastSoundOrder = 0;
 bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBeforeArpeggiation,
                    int32_t newNoteCodeAfterArpeggiation, uint8_t velocity, uint32_t newSampleSyncLength,
                    int32_t ticksLate, uint32_t samplesLate, bool resetEnvelopes, int32_t newFromMIDIChannel,
-                   const int16_t* mpeValues) {
+                   const int16_t* mpeValues, bool noteMightBeConstant) {
 
 	GeneralMemoryAllocator::get().checkStack("Voice::noteOn");
 
@@ -234,6 +235,23 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 				}
 
 				AudioFileHolder* holder = range->getAudioFileHolder();
+				if (sound.sources[s].oscType == OscType::SAMPLE
+				    && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants)) {
+					MultisampleRange* sampleRange = (MultisampleRange*)range;
+					SampleHolderForVoice* resolvedHolder;
+					if (noteMightBeConstant && sampleRange->rrCount > 0) {
+						// Don't advance the round-robin index for note continuations (drone-note wraps,
+						// resume retriggers). Use whatever slot was last resolved.
+						resolvedHolder = sampleRange->getVariantHolder(sampleRange->lastResolvedSlotIndex);
+						if (resolvedHolder == nullptr) {
+							resolvedHolder = &sampleRange->sampleHolder;
+						}
+					}
+					else {
+						resolvedHolder = sampleRange->resolveVariant();
+					}
+					holder = static_cast<AudioFileHolder*>(resolvedHolder);
+				}
 				// Only actually set the Range as ours if it has an AudioFile - so that we'll always know that any
 				// VoiceSource's range definitely has a sample
 				if (!holder || !holder->audioFile) {

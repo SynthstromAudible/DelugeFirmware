@@ -1,0 +1,54 @@
+---
+title: Round-Robin Sample Variants
+---
+
+Each oscillator sample zone in Synth and Kit sound sources can hold up to 4 sample variants: the primary sample
+plus up to 3 alternates, played in rotation each time the zone is triggered. This is the classic
+multi-sample-per-pad workflow found on MPC-style samplers, and is especially useful for removing the "machine
+gun" effect that repeated hits of the same drum sample can produce.
+
+## Enabling the feature
+
+This feature is On by default and can be turned off via `SETTINGS > COMMUNITY FEATURES > ROUND-ROBIN SAMPLE
+VARIANTS (VARI)`. When off, the `VARIANTS` menu is hidden and playback always uses the primary sample. Turning
+the feature off does not delete any variant data already saved in a song - it simply stops being used until
+the feature is turned back on.
+
+## The Variants menu
+
+With an oscillator in `SAMPLE` mode, a new `VARIANTS` submenu is available under `OSC1`/`OSC2`, alongside the
+existing `FILE` browser item.
+
+- `MODE` - selects how the next variant is chosen each time the zone is triggered. Only shown once at least one
+  alternate is loaded.
+  - `CYCLE` - play the loaded slots in order, wrapping around (classic round-robin).
+  - `RANDOM` - pick any loaded slot at random.
+  - `NO REPEAT` - pick a random slot, but never repeat the slot that just played.
+- `SLOT 1` through `SLOT 4` - each opens a submenu for that slot:
+  - `FILE` - opens the sample browser to load (or replace) that slot's sample. `SLOT 1` is the primary sample and
+    can also be loaded via the regular `FILE` browser item; slots 2-4 are alternates and must be filled in order
+    (the next empty slot is indicated with `Load`).
+  - `MARKERS` - opens the sample marker editor for that slot. Start, end and loop points are all editable from
+    the one screen - pressing near any marker switches focus to it - so this single entry covers everything you'd
+    otherwise need separate Start/End items for.
+  - `TRANSPOSE` and `CENTS` - per-slot pitch offsets, independent of the zone's other pitch settings.
+- Pressing `SHIFT` + `SAVE/DELETE` while an alternate slot (2-4) is selected clears that variant, shifting any
+  later slots down to fill the gap.
+
+## Auditioning a specific variant
+
+While a slot's submenu (or its marker editor) is open, auditioning the drum or note plays that exact slot
+without advancing the round-robin cycle - so you can always hear exactly what you're editing, regardless of
+which mode is selected or where the cycle currently is.
+
+## Kit pad feedback
+
+In Kit clips, auditioning a pad with variants loaded shows a popup with the file name and slot position of the
+variant that just played, for example `kick_2.wav (3/4)`.
+
+## Save format
+
+Variants are saved with the song/preset alongside the zone's existing sample data. Songs that don't use
+variants are unaffected. Songs that do use variants still load correctly on firmware without this feature (or
+with the community feature turned off) - the primary sample loads as normal and the variant data is simply
+not used until the feature is available and enabled again.

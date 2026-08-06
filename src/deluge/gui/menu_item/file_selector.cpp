@@ -17,6 +17,7 @@
 
 #include "file_selector.h"
 #include "definitions_cxx.hpp"
+#include "gui/menu_item/sample/round_robin.h"
 #include "gui/ui/browser/sample_browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/sound_editor.h"
@@ -35,6 +36,7 @@ namespace deluge::gui::menu_item {
 void FileSelector::beginSession(MenuItem* navigatedBackwardFrom) {
 	soundEditor.shouldGoUpOneLevelOnBegin = true;
 	soundEditor.setCurrentSource(sourceId_);
+	sampleBrowser.targetRoundRobinSlot = 0;
 
 	if (getRootUI() == &keyboardScreen && currentUIMode == UI_MODE_AUDITIONING) {
 		keyboardScreen.exitAuditionMode();
@@ -62,7 +64,14 @@ bool FileSelector::isRelevant(ModControllableAudio* modControllable, int32_t whi
 		return sound->getSynthMode() != SynthMode::FM;
 	}
 
-	return sound->getSynthMode() == SynthMode::SUBTRACTIVE && source.oscType == OscType::SAMPLE;
+	if (sound->getSynthMode() != SynthMode::SUBTRACTIVE || source.oscType != OscType::SAMPLE) {
+		return false;
+	}
+
+	// Once an alternate variant is loaded, loading into slot 0 here would be a second path to the
+	// exact same data as the new per-variant File item, so this OSC-level entry steps aside.
+	MultisampleRange* range = sample::getRoundRobinRange(sourceId_);
+	return range == nullptr || range->rrCount == 0;
 }
 MenuPermission FileSelector::checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
                                                            ::MultiRange** currentRange) {

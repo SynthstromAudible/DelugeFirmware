@@ -41,7 +41,7 @@ public:
 	bool isDrum() override { return true; }
 	void noteOn(ModelStackWithThreeMainThings* modelStack, uint8_t velocity, int16_t const* mpeValues,
 	            int32_t fromMIDIChannel = MIDI_CHANNEL_NONE, uint32_t sampleSyncLength = 0, int32_t ticksLate = 0,
-	            uint32_t samplesLate = 0) override;
+	            uint32_t samplesLate = 0, bool noteMightBeConstant = false) override;
 	void noteOff(ModelStackWithThreeMainThings* modelStack, int32_t velocity = kDefaultLiftValue) override;
 
 	void setupPatchingForAllParamManagers(Song* song) override;
