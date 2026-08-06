@@ -40,6 +40,7 @@ namespace params = deluge::modulation::params;
 class MidiFollow final {
 public:
 	MidiFollow();
+	void factoryReset(bool showPopup = true);
 	void writeDefaultsToFile();
 	void readDefaultsFromFile();
 

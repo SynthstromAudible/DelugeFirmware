@@ -122,6 +122,25 @@ void MidiFollow::init() {
 	initDefaultMappings();
 }
 
+void MidiFollow::factoryReset(bool showPopup) {
+	if (showPopup) {
+		display->displayPopup(display->haveOLED() ? l10n::get(l10n::String::STRING_FOR_RESET_MIDI_FOLLOW)
+		                                          : l10n::get(l10n::String::STRING_FOR_FACTORY_RESET));
+	}
+
+	f_unlink(MIDI_FOLLOW_XML);
+	for (auto& midiChannelType : midiEngine.midiFollowChannelType) {
+		midiChannelType.clear();
+	}
+	midiEngine.midiFollowKitRootNote = 36;
+	midiEngine.midiFollowDisplayParam = false;
+	midiEngine.midiFollowFeedbackChannelType = MIDIFollowFeedbackChannelType::NONE;
+	midiEngine.midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
+	midiEngine.midiFollowFeedbackFilter = false;
+	successfullyReadDefaultsFromFile = false;
+	readDefaultsFromFile();
+}
+
 void MidiFollow::initState() {
 	successfullyReadDefaultsFromFile = false;
 	for (int32_t i = 0; i < (kMaxMIDIValue + 1); i++) {

@@ -53,4 +53,8 @@ char const* l10n_get(size_t s);
 
 #ifdef __cplusplus
 }
+
+namespace Deluge {
+void factoryReset();
+}
 #endif
