@@ -79,6 +79,7 @@ char const* getPatchedParamShortName(ParamType type) {
 	    [LOCAL_CARRIER_1_FEEDBACK]       = "Osc2 feed",
 	    [LOCAL_LPF_RESONANCE]            = "LPF reso",
 	    [LOCAL_HPF_RESONANCE]            = "HPF reso",
+	    [LOCAL_HEAT]                     = "Heat",
 	    [LOCAL_ENV_0_SUSTAIN]            = "Env1 sus",
 	    [LOCAL_ENV_1_SUSTAIN]            = "Env2 sus",
 	    [LOCAL_LPF_MORPH]                = "LPF Morph",
@@ -140,6 +141,7 @@ char const* getPatchedParamDisplayName(int32_t p) {
 	    [LOCAL_CARRIER_1_FEEDBACK] = STRING_FOR_PARAM_LOCAL_CARRIER_1_FEEDBACK,
 	    [LOCAL_LPF_RESONANCE] = STRING_FOR_PARAM_LOCAL_LPF_RESONANCE,
 	    [LOCAL_HPF_RESONANCE] = STRING_FOR_PARAM_LOCAL_HPF_RESONANCE,
+	    [LOCAL_HEAT] = STRING_FOR_HEAT,
 	    [LOCAL_ENV_0_SUSTAIN] = STRING_FOR_PARAM_LOCAL_ENV_0_SUSTAIN,
 	    [LOCAL_ENV_1_SUSTAIN] = STRING_FOR_PARAM_LOCAL_ENV_1_SUSTAIN,
 	    [LOCAL_LPF_MORPH] = STRING_FOR_PARAM_LOCAL_LPF_MORPH,
@@ -196,12 +198,15 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		    [UNPATCHED_TREBLE] = STRING_FOR_TREBLE,
 		    [UNPATCHED_BASS_FREQ] = STRING_FOR_BASS_FREQUENCY,
 		    [UNPATCHED_TREBLE_FREQ] = STRING_FOR_TREBLE_FREQUENCY,
+		    [UNPATCHED_MID] = STRING_FOR_MID,
+		    [UNPATCHED_MID_FREQ] = STRING_FOR_MID_FREQUENCY,
 		    [UNPATCHED_SAMPLE_RATE_REDUCTION] = STRING_FOR_DECIMATION,
 		    [UNPATCHED_BITCRUSHING] = STRING_FOR_BITCRUSH,
 		    [UNPATCHED_MOD_FX_OFFSET] = STRING_FOR_MODFX_OFFSET,
 		    [UNPATCHED_MOD_FX_FEEDBACK] = STRING_FOR_MODFX_FEEDBACK,
 		    [UNPATCHED_SIDECHAIN_SHAPE] = STRING_FOR_SIDECHAIN_SHAPE,
-		    [UNPATCHED_COMPRESSOR_THRESHOLD] = STRING_FOR_THRESHOLD};
+		    [UNPATCHED_COMPRESSOR_THRESHOLD] = STRING_FOR_THRESHOLD,
+		    [UNPATCHED_HEAT_TONE] = STRING_FOR_HEAT_TONE};
 		return l10n::get(NAMES[p]);
 	}
 
@@ -374,6 +379,12 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 		case UNPATCHED_TREBLE_FREQ:
 			return "trebleFreq";
 
+		case UNPATCHED_MID:
+			return "mid";
+
+		case UNPATCHED_MID_FREQ:
+			return "midFreq";
+
 		case UNPATCHED_SAMPLE_RATE_REDUCTION:
 			return "sampleRateReduction";
 
@@ -391,6 +402,9 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 
 		case UNPATCHED_COMPRESSOR_THRESHOLD:
 			return "compressorThreshold";
+
+		case UNPATCHED_HEAT_TONE:
+			return "heatTone";
 
 		case UNPATCHED_NUM_SHARED:
 		    // Intentionally not handled
@@ -543,6 +557,9 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 
 		case LOCAL_FOLD:
 			return "waveFold";
+
+		case LOCAL_HEAT:
+			return "heat";
 
 		case LOCAL_LAST:
 		    // Intentionally not handled

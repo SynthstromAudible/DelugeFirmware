@@ -80,6 +80,12 @@ enum Local : ParamType {
 	LOCAL_CARRIER_1_FEEDBACK,
 	LOCAL_LPF_RESONANCE,
 	LOCAL_HPF_RESONANCE,
+	// Heat is deliberately NOT in the volume block above. Volume params get a parabola applied in
+	// getFinalParameterValueVolume(), which squashed the bottom half of the knob flat — Heat did
+	// nothing until 26/50. Here it uses getFinalParameterValueLinear() instead, so the final value
+	// rises linearly with knob position and heatBuffer()'s exponential taper spreads evenly.
+	// Its neutral value (25 * 10737418) is shared with the resonance/morph params either side.
+	LOCAL_HEAT,
 	LOCAL_ENV_0_SUSTAIN,
 	LOCAL_ENV_1_SUSTAIN,
 	LOCAL_LPF_MORPH,
@@ -167,12 +173,15 @@ enum UnpatchedShared : ParamType {
 	UNPATCHED_TREBLE,
 	UNPATCHED_BASS_FREQ,
 	UNPATCHED_TREBLE_FREQ,
+	UNPATCHED_MID,
+	UNPATCHED_MID_FREQ,
 	UNPATCHED_SAMPLE_RATE_REDUCTION,
 	UNPATCHED_BITCRUSHING,
 	UNPATCHED_MOD_FX_OFFSET,
 	UNPATCHED_MOD_FX_FEEDBACK,
 	UNPATCHED_SIDECHAIN_SHAPE,
 	UNPATCHED_COMPRESSOR_THRESHOLD,
+	UNPATCHED_HEAT_TONE,
 	/// Special value for chaining the UNPATCHED_* params
 	UNPATCHED_NUM_SHARED,
 };
@@ -275,7 +284,7 @@ const uint32_t patchedParamShortcuts[kDisplayWidth][kDisplayHeight] = {
     {LOCAL_MODULATOR_0_VOLUME, LOCAL_MODULATOR_0_PITCH_ADJUST, kNoParamID                    , kNoParamID             , kNoParamID     , LOCAL_MODULATOR_0_FEEDBACK, kNoParamID            , kNoParamID},
     {LOCAL_MODULATOR_1_VOLUME, LOCAL_MODULATOR_1_PITCH_ADJUST, kNoParamID                    , kNoParamID             , kNoParamID     , LOCAL_MODULATOR_1_FEEDBACK, kNoParamID            , kNoParamID},
     {GLOBAL_VOLUME_POST_FX   , LOCAL_PITCH_ADJUST            , kNoParamID                    , LOCAL_PAN              , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
-    {kNoParamID              , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , LOCAL_FOLD},
+    {kNoParamID              , kNoParamID                    , kNoParamID                    , kNoParamID             , kNoParamID     , kNoParamID                , LOCAL_HEAT            , LOCAL_FOLD},
     {LOCAL_ENV_0_RELEASE     , LOCAL_ENV_0_SUSTAIN           , LOCAL_ENV_0_DECAY             , LOCAL_ENV_0_ATTACK     , LOCAL_LPF_MORPH, kNoParamID                , LOCAL_LPF_RESONANCE   , LOCAL_LPF_FREQ},
     {LOCAL_ENV_1_RELEASE     , LOCAL_ENV_1_SUSTAIN           , LOCAL_ENV_1_DECAY             , LOCAL_ENV_1_ATTACK     , LOCAL_HPF_MORPH, kNoParamID                , LOCAL_HPF_RESONANCE   , LOCAL_HPF_FREQ},
     {kNoParamID              , kNoParamID                    , kNoParamID					 , kNoParamID             , kNoParamID     , kNoParamID                , kNoParamID            , kNoParamID},
@@ -301,8 +310,8 @@ const uint32_t unpatchedNonGlobalParamShortcuts[kDisplayWidth][kDisplayHeight] =
     {UNPATCHED_PORTAMENTO, kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID},
     {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID},
     {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID},
-    {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, UNPATCHED_SIDECHAIN_SHAPE , kNoParamID                     , UNPATCHED_BASS       , UNPATCHED_BASS_FREQ},
-    {kNoParamID          , kNoParamID, UNPATCHED_ARP_GATE, kNoParamID, kNoParamID                , kNoParamID                     , UNPATCHED_TREBLE     , UNPATCHED_TREBLE_FREQ},
+    {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, UNPATCHED_SIDECHAIN_SHAPE , UNPATCHED_MID                  , UNPATCHED_BASS       , UNPATCHED_BASS_FREQ},
+    {kNoParamID          , kNoParamID, UNPATCHED_ARP_GATE, kNoParamID, kNoParamID                , UNPATCHED_MID_FREQ             , UNPATCHED_TREBLE     , UNPATCHED_TREBLE_FREQ},
     {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, UNPATCHED_MOD_FX_OFFSET   , UNPATCHED_MOD_FX_FEEDBACK      , kNoParamID           , kNoParamID},
     {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID},
     {kNoParamID          , kNoParamID, kNoParamID        , kNoParamID, kNoParamID                , kNoParamID                     , kNoParamID           , kNoParamID},
@@ -324,8 +333,8 @@ const uint32_t unpatchedGlobalParamShortcuts[kDisplayWidth][kDisplayHeight] = {
     {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID},
     {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , UNPATCHED_LPF_MORPH	   , kNoParamID						, UNPATCHED_LPF_RES     , UNPATCHED_LPF_FREQ},
     {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , UNPATCHED_HPF_MORPH	   , kNoParamID						, UNPATCHED_HPF_RES     , UNPATCHED_HPF_FREQ},
-    {kNoParamID          , kNoParamID            , UNPATCHED_SIDECHAIN_VOLUME, kNoParamID                  , UNPATCHED_SIDECHAIN_SHAPE , kNoParamID			   			, UNPATCHED_BASS        , UNPATCHED_BASS_FREQ},
-    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , kNoParamID			   		 	, UNPATCHED_TREBLE      , UNPATCHED_TREBLE_FREQ},
+    {kNoParamID          , kNoParamID            , UNPATCHED_SIDECHAIN_VOLUME, kNoParamID                  , UNPATCHED_SIDECHAIN_SHAPE , UNPATCHED_MID			   			, UNPATCHED_BASS        , UNPATCHED_BASS_FREQ},
+    {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , kNoParamID				   , UNPATCHED_MID_FREQ			   		 	, UNPATCHED_TREBLE      , UNPATCHED_TREBLE_FREQ},
     {kNoParamID          , kNoParamID            , kNoParamID                , kNoParamID                  , UNPATCHED_MOD_FX_OFFSET   , UNPATCHED_MOD_FX_FEEDBACK		, UNPATCHED_MOD_FX_DEPTH, UNPATCHED_MOD_FX_RATE},
     {kNoParamID          , kNoParamID            , kNoParamID                , UNPATCHED_REVERB_SEND_AMOUNT, kNoParamID				   , kNoParamID			   		 	, kNoParamID            , kNoParamID},
     {UNPATCHED_DELAY_RATE, kNoParamID            , kNoParamID                , UNPATCHED_DELAY_AMOUNT      , kNoParamID				   , kNoParamID			  		 	, kNoParamID            , kNoParamID},

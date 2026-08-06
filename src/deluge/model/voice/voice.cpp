@@ -20,6 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "dsp/dx/engine.h"
 #include "dsp/filter/filter_set.h"
+#include "dsp/heat.hpp"
 #include "dsp/timestretch/time_stretcher.h"
 #include "dsp/util.hpp"
 #include "gui/waveform/waveform_renderer.h"
@@ -180,6 +181,8 @@ bool Voice::noteOn(ModelStackWithVoice* modelStack, int32_t newNoteCodeBeforeArp
 
 		lastSaturationTanHWorkingValue[0] = 2147483648;
 		lastSaturationTanHWorkingValue[1] = 2147483648;
+		heatToneState[0] = 0;
+		heatToneState[1] = 0;
 	}
 
 	// Porta
@@ -1481,6 +1484,15 @@ skipUnisonPart: {}
 		// Filters
 		filterSet.renderLongStereo(oscBuffer, oscBufferEnd);
 
+		// Heat: drive is patched (per voice), tone is unpatched (per sound).
+		// Placed AFTER the filter so the LPF doubles as an anti-aliasing control.
+		if (paramFinalValues[params::LOCAL_HEAT] > 0) {
+			dsp::heatBuffer(oscBuffer, oscBufferEnd, paramFinalValues[params::LOCAL_HEAT]);
+			q31_t heatTone = dsp::heatToneFromUnpatched(
+			    paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_HEAT_TONE));
+			dsp::heatToneBufferStereo(oscBuffer, oscBufferEnd, heatTone, &heatToneState[0], &heatToneState[1]);
+		}
+
 		// No clipping
 		if (!sound->clippingAmount) {
 
@@ -1563,6 +1575,15 @@ skipUnisonPart: {}
 		}
 
 		filterSet.renderLong(oscBuffer, oscBufferEnd, numSamples);
+
+		// Heat — mono path. Uses the single-state tone filter; see heat.hpp on why the
+		// stereo path must not share it.
+		if (paramFinalValues[params::LOCAL_HEAT] > 0) {
+			dsp::heatBuffer(oscBuffer, oscBufferEnd, paramFinalValues[params::LOCAL_HEAT]);
+			q31_t heatTone = dsp::heatToneFromUnpatched(
+			    paramManager->getUnpatchedParamSet()->getValue(params::UNPATCHED_HEAT_TONE));
+			dsp::heatToneBuffer(oscBuffer, oscBufferEnd, heatTone, &heatToneState[0]);
+		}
 
 		// No clipping
 		if (!sound->clippingAmount) {

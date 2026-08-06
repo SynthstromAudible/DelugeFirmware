@@ -66,6 +66,9 @@ public:
 	int32_t portaEnvelopeMaxAmplitude;
 
 	uint32_t lastSaturationTanHWorkingValue[2];
+	/// One-pole tone-filter memory for Heat, one per channel. Stateful, so it must be
+	/// zeroed on note-on beside lastSaturationTanHWorkingValue.
+	q31_t heatToneState[2];
 
 	int32_t overallOscAmplitudeLastTime;
 	int32_t sourceAmplitudesLastTime[kNumSources];

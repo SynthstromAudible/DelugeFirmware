@@ -310,13 +310,17 @@ UnpatchedParam bassMenu{STRING_FOR_BASS, params::UNPATCHED_BASS};
 UnpatchedParam trebleMenu{STRING_FOR_TREBLE, params::UNPATCHED_TREBLE};
 UnpatchedParam bassFreqMenu{STRING_FOR_BASS_FREQUENCY, params::UNPATCHED_BASS_FREQ};
 UnpatchedParam trebleFreqMenu{STRING_FOR_TREBLE_FREQUENCY, params::UNPATCHED_TREBLE_FREQ};
+UnpatchedParam midMenu{STRING_FOR_MID, params::UNPATCHED_MID};
+UnpatchedParam midFreqMenu{STRING_FOR_MID_FREQUENCY, params::UNPATCHED_MID_FREQ};
 
 Submenu eqMenu{
     STRING_FOR_EQ,
     {
         &bassMenu,
+        &midMenu,
         &trebleMenu,
         &bassFreqMenu,
+        &midFreqMenu,
         &trebleFreqMenu,
     },
 };
@@ -421,6 +425,12 @@ fx::Clipping clippingMenu{STRING_FOR_SATURATION};
 UnpatchedParam srrMenu{STRING_FOR_DECIMATION, params::UNPATCHED_SAMPLE_RATE_REDUCTION};
 UnpatchedParam bitcrushMenu{STRING_FOR_BITCRUSH, params::UNPATCHED_BITCRUSHING};
 patched_param::Integer foldMenu{STRING_FOR_WAVEFOLD, STRING_FOR_WAVEFOLD, params::LOCAL_FOLD};
+// Heat: patched drive (per voice) plus its unpatched tilt tone control.
+// Named HEAT rather than DRIVE or DISTORTION because both of those labels are already taken —
+// STRING_FOR_DRIVE is the ladder filter's morph and STRING_FOR_DISTORTION is this submenu's own
+// heading. HEAT is also exactly four characters, so it fits 7SEG unabbreviated.
+patched_param::Integer heatMenu{STRING_FOR_HEAT, STRING_FOR_HEAT, params::LOCAL_HEAT};
+UnpatchedParam heatToneMenu{STRING_FOR_HEAT_TONE, params::UNPATCHED_HEAT_TONE};
 
 Submenu soundDistortionMenu{
     STRING_FOR_DISTORTION,
@@ -429,6 +439,8 @@ Submenu soundDistortionMenu{
         &srrMenu,
         &bitcrushMenu,
         &foldMenu,
+        &heatMenu,
+        &heatToneMenu,
     },
 };
 
@@ -518,8 +530,10 @@ Submenu globalEQMenu{
     STRING_FOR_EQ,
     {
         &bassMenu,
+        &midMenu,
         &trebleMenu,
         &bassFreqMenu,
+        &midFreqMenu,
         &trebleFreqMenu,
     },
 };

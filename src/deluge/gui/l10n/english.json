@@ -116,6 +116,8 @@
 
         "STRING_FOR_TREBLE": "TREBLE",
         "STRING_FOR_TREBLE_FREQUENCY": "Treble frequency",
+        "STRING_FOR_MID": "MID",
+        "STRING_FOR_MID_FREQUENCY": "Mid frequency",
 
         "STRING_FOR_REVERB_AMOUNT": "Reverb amount",
 
@@ -760,6 +762,8 @@
         "STRING_FOR_LOOP_TOO_LONG": "Loop too long",
         "STRING_FOR_LOOP_DOUBLED": "Loop doubled",
         "STRING_FOR_WAVEFOLD": "Wavefold",
+        "STRING_FOR_HEAT": "Heat",
+        "STRING_FOR_HEAT_TONE": "HTon",
         "STRING_FOR_MOD_MATRIX": "Mod matrix",
 
         "STRING_FOR_CHECKSUM_FAIL": "Checksum fail",

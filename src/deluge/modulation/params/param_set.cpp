@@ -386,6 +386,7 @@ bool UnpatchedParamSet::shouldParamIndicateMiddleValue(ModelStackWithParamId con
 		       || isUIModeActive(UI_MODE_STUTTERING);
 	case params::UNPATCHED_BASS:
 	case params::UNPATCHED_TREBLE:
+	case params::UNPATCHED_MID:
 		return true;
 	}
 	// Global
