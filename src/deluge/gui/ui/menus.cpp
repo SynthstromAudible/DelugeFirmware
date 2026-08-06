@@ -95,6 +95,7 @@
 #include "gui/menu_item/midi/command.h"
 #include "gui/menu_item/midi/default_velocity_to_level.h"
 #include "gui/menu_item/midi/device.h"
+#include "gui/menu_item/midi/device_definition/hide_unlabeled.h"
 #include "gui/menu_item/midi/device_definition/linked.h"
 #include "gui/menu_item/midi/device_definition/submenu.h"
 #include "gui/menu_item/midi/device_is_relative.h"
@@ -630,11 +631,14 @@ Submenu outputMidiSubmenu{STRING_FOR_MIDI, {&outputMidiChannelMenu, &outputMidiN
 // MIDIInstrument menu ----------------------------------------------------------------------
 midi::device_definition::Linked midiDeviceLinkedMenu{STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED,
                                                      STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED};
+midi::device_definition::HideUnlabeled hideUnlabeledCCMenu{STRING_FOR_MIDI_DEVICE_DEFINITION_HIDE,
+                                                           STRING_FOR_MIDI_DEVICE_DEFINITION_HIDE};
 
 midi::device_definition::DeviceDefinitionSubmenu midiDeviceDefinitionMenu{
     STRING_FOR_MIDI_DEVICE_DEFINITION,
     {
         &midiDeviceLinkedMenu,
+        &hideUnlabeledCCMenu,
     },
 };
 

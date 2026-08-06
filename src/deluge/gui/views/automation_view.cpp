@@ -2884,7 +2884,7 @@ void AutomationView::selectMIDICC(int32_t offset, Clip* clip) {
 	if (onAutomationOverview()) {
 		clip->lastSelectedParamID = CC_NUMBER_NONE;
 	}
-	clip->lastSelectedParamID = MIDIInstrument::getNextSelectableCC(clip->lastSelectedParamID, offset);
+	clip->lastSelectedParamID = ((MIDIInstrument*)clip->output)->getNextSelectableCC(clip->lastSelectedParamID, offset);
 	automationParamType = AutomationParamType::PER_SOUND;
 }
 
