@@ -173,8 +173,13 @@ add_compile_options(
 
     # Link time optimizations
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-flto=auto>
-    $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fuse-linker-plugin>
-    $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fdevirtualize-at-ltrans>
+        $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-save-temps=obj>
+
+        $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fuse-linker-plugin>
+    # this makes the optimization better at the cost of linking being REALLY slow
+        $<$<CONFIG:RELEASE>:-flto-partition=none>
+
+        $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fdevirtualize-at-ltrans>
     -ffunction-sections
     -fdata-sections
     -DUSE_TASK_MANAGER
@@ -275,9 +280,14 @@ target_link_options(deluge PUBLIC
     # Link-Time Optimization
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-flto=auto>
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fuse-linker-plugin>
+        # this makes the optimization better at the cost of linking being REALLY slow
+        $<$<CONFIG:RELEASE>:-flto-partition=none>
 
     # Coloring
     $<$<CXX_COMPILER_ID:GNU>:-fdiagnostics-color=always>
+        -save-temps=obj
+        LINKER:-plugin-opt=-save-temps
+
 )
 
 # generate .bin firmware file
