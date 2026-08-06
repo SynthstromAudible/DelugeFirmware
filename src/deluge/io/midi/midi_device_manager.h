@@ -24,6 +24,7 @@
 #include "util/container/vector/named_thing_vector.h"
 class Serializer;
 class Deserializer;
+class MIDICableUSBHosted;
 
 #else
 #include "definitions.h"
@@ -108,6 +109,7 @@ void recountSmallestMPEZones();
 void writeDevicesToFile();
 void readAHostedDeviceFromFile(Deserializer& reader);
 void readDevicesFromFile();
+MIDICableUSBHosted* ensureHostedMIDIPortCable(int32_t ip, int32_t midiDeviceNum, uint8_t hostedPort);
 
 extern MIDICableUSBUpstream upstreamUSBMIDICable1;
 extern MIDICableUSBUpstream upstreamUSBMIDICable2;

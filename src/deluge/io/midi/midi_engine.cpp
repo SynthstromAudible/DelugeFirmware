@@ -716,11 +716,16 @@ uint8_t usbCurrentlyInitialized = false;
 
 void MidiEngine::checkIncomingUsbSysex(uint8_t const* msg, int32_t ip, int32_t d, int32_t cableIdx) {
 	ConnectedUSBMIDIDevice* connected = &connectedUSBMIDIDevices[ip][d];
-	if (cableIdx > connectedUSBMIDIDevices[ip][d].maxPortConnected) {
-		// fallback to cable 0 since we don't support more than one port on hosted devices yet
+	if (cableIdx < 0 || cableIdx >= static_cast<int32_t>(sizeof(connected->cable) / sizeof(connected->cable[0]))) {
 		cableIdx = 0;
 	}
-	MIDICable& cable = *connectedUSBMIDIDevices[ip][d].cable[cableIdx];
+	if (!connected->cable[cableIdx] && g_usb_usbmode == USB_HOST) {
+		MIDIDeviceManager::ensureHostedMIDIPortCable(ip, d, cableIdx);
+	}
+	if (!connected->cable[cableIdx]) {
+		cableIdx = 0;
+	}
+	MIDICable& cable = *connected->cable[cableIdx];
 
 	uint8_t statusType = msg[0] & 15;
 	int32_t to_read = 0;
@@ -903,9 +908,17 @@ void MidiEngine::checkIncomingUsbMidi() {
 							// transmission so just ignore the rest of the frame
 							break;
 						}
-						// select appropriate device based on the cable number
-						if (cable > connectedUSBMIDIDevices[ip][d].maxPortConnected) {
-							// fallback to cable 0 since we don't support more than one port on hosted devices yet
+						// Hosted devices may expose multiple USB MIDI virtual cables.
+						if (cable >= (sizeof(connectedUSBMIDIDevices[ip][d].cable)
+						              / sizeof(connectedUSBMIDIDevices[ip][d].cable[0]))) {
+							cable = 0;
+						}
+						if (g_usb_usbmode == USB_HOST
+						    && (cable > connectedUSBMIDIDevices[ip][d].maxPortConnected
+						        || !connectedUSBMIDIDevices[ip][d].cable[cable])) {
+							MIDIDeviceManager::ensureHostedMIDIPortCable(ip, d, cable);
+						}
+						if (!connectedUSBMIDIDevices[ip][d].cable[cable]) {
 							cable = 0;
 						}
 						midiMessageReceived(*connectedUSBMIDIDevices[ip][d].cable[cable], statusType, channel, data1,

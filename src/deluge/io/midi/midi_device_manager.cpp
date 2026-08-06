@@ -36,6 +36,7 @@ extern "C" {
 #include "drivers/uart/uart.h"
 
 extern uint8_t anyUSBSendingStillHappening[];
+extern uint8_t hostedMIDIPortCountByDevice[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES];
 }
 #pragma GCC diagnostic push
 // This is supported by GCC and other compilers should error (not warn), so turn off for this file
@@ -58,6 +59,56 @@ struct USBDev {
 	uint16_t productId;
 };
 std::array<USBDev, USB_NUM_USBIP> usbDeviceCurrentlyBeingSetUp{};
+
+char constexpr kHostedUSBPrefix[] = "Hosted USB: ";
+
+void buildHostedUSBDisplayName(char const* sourceName, uint8_t portNumber, String& outName) {
+	char const* baseName = sourceName;
+	if (!baseName || !*baseName) {
+		baseName = "Unknown Device";
+	}
+
+	// Strip the Hosted USB: prefix if already present.
+	size_t prefixLen = strlen(kHostedUSBPrefix);
+	if (strncmp(baseName, kHostedUSBPrefix, prefixLen) == 0) {
+		baseName += prefixLen;
+	}
+
+	// Strip any trailing " (Port N)" suffix so we can rebuild the canonical form.
+	size_t baseLen = strlen(baseName);
+	if (baseLen >= 9 && baseName[baseLen - 1] == ')') {
+		char const* portTag = strstr(baseName, " (Port ");
+		if (portTag) {
+			size_t tagPos = portTag - baseName;
+			bool allDigits = true;
+			for (size_t i = tagPos + 7; i + 1 < baseLen; i++) {
+				if (baseName[i] < '0' || baseName[i] > '9') {
+					allDigits = false;
+					break;
+				}
+			}
+			if (allDigits && (tagPos + 8) < baseLen) {
+				baseLen = tagPos;
+			}
+		}
+	}
+
+	outName.set(kHostedUSBPrefix);
+	outName.concatenateAtPos(baseName, outName.getLength(), baseLen);
+	outName.concatenate(" (Port ");
+	outName.concatenateInt(portNumber + 1);
+	outName.concatenate(")");
+}
+
+void renameHostedDeviceByPointer(MIDICableUSBHosted* device, String const& newName) {
+	for (int32_t i = 0; i < hostedMIDIDevices.getNumElements(); i++) {
+		if (hostedMIDIDevices.getElement(i) == device) {
+			String mutableName = newName;
+			hostedMIDIDevices.renameMember(i, &mutableName);
+			return;
+		}
+	}
+}
 
 // This class represents a thing you can send midi too,
 // the virtual cable is an implementation detail
@@ -104,7 +155,8 @@ extern "C" void giveDetailsOfDeviceBeingSetUp(int32_t ip, char const* name, uint
 }
 
 // name can be NULL, or an empty String
-MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16_t vendorId, uint16_t productId) {
+MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16_t vendorId, uint16_t productId,
+                                                           bool matchByVendorProduct = true) {
 
 	// Do we know any details about this device already?
 
@@ -130,16 +182,18 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16_
 		}
 	}
 
-	// Ok, try searching by vendor / product id
-	for (int32_t i = 0; i < hostedMIDIDevices.getNumElements(); i++) {
-		auto* candidate = static_cast<MIDICableUSBHosted*>(hostedMIDIDevices.getElement(i));
+	if (matchByVendorProduct) {
+		// Ok, try searching by vendor / product id
+		for (int32_t i = 0; i < hostedMIDIDevices.getNumElements(); i++) {
+			auto* candidate = static_cast<MIDICableUSBHosted*>(hostedMIDIDevices.getElement(i));
 
-		if (candidate->vendorId == vendorId && candidate->productId == productId) {
-			// Update its name - if we got one and it's different
-			if (gotAName && !candidate->name.equals(name)) {
-				hostedMIDIDevices.renameMember(i, name);
+			if (candidate->vendorId == vendorId && candidate->productId == productId) {
+				// Update its name - if we got one and it's different
+				if (gotAName && !candidate->name.equals(name)) {
+					hostedMIDIDevices.renameMember(i, name);
+				}
+				return candidate;
 			}
-			return candidate;
 		}
 	}
 
@@ -185,6 +239,59 @@ MIDICableUSBHosted* getOrCreateHostedMIDIDeviceFromDetails(String* name, uint16_
 #endif
 
 	return device;
+}
+
+MIDICableUSBHosted* ensureHostedMIDIPortCable(int32_t ip, int32_t midiDeviceNum, uint8_t hostedPort) {
+	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNum];
+	if (hostedPort >= (sizeof(connectedDevice->cable) / sizeof(connectedDevice->cable[0]))) {
+		return nullptr;
+	}
+
+	if (!connectedDevice->cable[0]) {
+		return nullptr;
+	}
+
+	if (connectedDevice->cable[hostedPort]) {
+		connectedDevice->maxPortConnected = std::max<uint8_t>(connectedDevice->maxPortConnected, hostedPort);
+		return static_cast<MIDICableUSBHosted*>(connectedDevice->cable[hostedPort]);
+	}
+
+	auto* primaryCable = static_cast<MIDICableUSBHosted*>(connectedDevice->cable[0]);
+	if (hostedPort == 0) {
+		return primaryCable;
+	}
+
+	String portName;
+	buildHostedUSBDisplayName(primaryCable->name.get(), hostedPort, portName);
+
+	MIDICableUSBHosted* portCable =
+	    getOrCreateHostedMIDIDeviceFromDetails(&portName, primaryCable->vendorId, primaryCable->productId, false);
+	if (!portCable) {
+		return nullptr;
+	}
+
+	portCable->portNumber = hostedPort;
+	portCable->vendorId = primaryCable->vendorId;
+	portCable->productId = primaryCable->productId;
+	portCable->ports[MIDI_DIRECTION_INPUT_TO_DELUGE] = primaryCable->ports[MIDI_DIRECTION_INPUT_TO_DELUGE];
+	portCable->ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE] = primaryCable->ports[MIDI_DIRECTION_OUTPUT_FROM_DELUGE];
+	memcpy(portCable->mpeZoneBendRanges, primaryCable->mpeZoneBendRanges, sizeof(portCable->mpeZoneBendRanges));
+	memcpy(portCable->inputChannels, primaryCable->inputChannels, sizeof(portCable->inputChannels));
+	portCable->defaultVelocityToLevel = primaryCable->defaultVelocityToLevel;
+	portCable->sendClock = primaryCable->sendClock;
+	portCable->receiveClock = primaryCable->receiveClock;
+	portCable->is_relative = primaryCable->is_relative;
+	portCable->freshly_connected = false;
+
+	connectedDevice->cable[hostedPort] = portCable;
+	connectedDevice->maxPortConnected = std::max<uint8_t>(connectedDevice->maxPortConnected, hostedPort);
+
+	if (!(portCable->connectionFlags & (1 << midiDeviceNum))) {
+		portCable->connectedNow(midiDeviceNum);
+		recountSmallestMPEZones();
+	}
+
+	return portCable;
 }
 
 void recountSmallestMPEZonesForCable(MIDICable& cable) {
@@ -235,20 +342,36 @@ extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 		return; // Only if ran out of RAM - i.e. very unlikely.
 	}
 
+	String port1Name;
+	buildHostedUSBDisplayName(device->name.get(), 0, port1Name);
+	renameHostedDeviceByPointer(device, port1Name);
+
 	// Associate with USB port
 	ConnectedUSBMIDIDevice* connectedDevice = &connectedUSBMIDIDevices[ip][midiDeviceNum];
 
 	connectedDevice->setup();
-	int32_t ports = connectedDevice->maxPortConnected;
-	for (int32_t i = 0; i <= ports; i++) {
-		connectedDevice->cable[i] = device;
-	}
+	connectedDevice->cable[0] = device;
+	connectedDevice->maxPortConnected = 0;
+	device->portNumber = 0;
 
 	connectedDevice->sq = 0;
-	connectedDevice->canHaveMIDISent = (bool)strcmp(device->name.get(), "Synthstrom MIDI Foot Controller");
-	connectedDevice->canHaveMIDISent = (bool)strcmp(device->name.get(), "LUMI Keys BLOCK");
+	char const* rawDeviceName = usbDeviceCurrentlyBeingSetUp[ip].name.get();
+	connectedDevice->canHaveMIDISent =
+	    strcmp(rawDeviceName, "Synthstrom MIDI Foot Controller") && strcmp(rawDeviceName, "LUMI Keys BLOCK");
 
 	device->connectedNow(midiDeviceNum);
+
+	uint8_t numHostedPorts = hostedMIDIPortCountByDevice[ip][midiDeviceNum];
+	if (numHostedPorts == 0) {
+		numHostedPorts = 1;
+	}
+	numHostedPorts =
+	    std::min<uint8_t>(numHostedPorts, sizeof(connectedDevice->cable) / sizeof(connectedDevice->cable[0]));
+
+	for (uint8_t hostedPort = 1; hostedPort < numHostedPorts; hostedPort++) {
+		ensureHostedMIDIPortCable(ip, midiDeviceNum, hostedPort);
+	}
+
 	recountSmallestMPEZones(); // Must be called after setting device->connectionFlags
 
 	device->freshly_connected = true; // Used to trigger hookOnConnected from the input loop
@@ -703,11 +826,17 @@ void ConnectedUSBMIDIDevice::setup() {
 	numBytesSendingNow = 0;
 	currentlyWaitingToReceive = false;
 	numBytesReceived = 0;
+	for (auto& thisCable : cable) {
+		thisCable = nullptr;
+	}
 
 	// default to only a single port
 	maxPortConnected = 0;
 }
 ConnectedUSBMIDIDevice::ConnectedUSBMIDIDevice() {
+	for (auto& thisCable : cable) {
+		thisCable = nullptr;
+	}
 	currentlyWaitingToReceive = 0;
 	sq = 0;
 	canHaveMIDISent = 0;
