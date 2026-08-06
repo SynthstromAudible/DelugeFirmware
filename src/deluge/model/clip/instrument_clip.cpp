@@ -42,6 +42,7 @@
 #include "model/scale/preset_scales.h"
 #include "model/scale/scale_change.h"
 #include "model/scale/utils.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/midi/midi_param.h"
@@ -3498,7 +3499,13 @@ void InstrumentClip::shiftOnlyOneNoteRowHorizontally(ModelStackWithNoteRow* mode
 	}
 }
 
+// used with midi clips to send out the midi program change and bank change messages when a clip is activated
+// so that the receiving instrument is in the correct state
 void InstrumentClip::sendMIDIPGM() {
+	if (output->type != OutputType::MIDI_OUT) {
+		return;
+	}
+
 	MIDIInstrument* midiInstrument = (MIDIInstrument*)output;
 
 	int32_t outputFilter = midiInstrument->getChannel();
@@ -3513,6 +3520,33 @@ void InstrumentClip::sendMIDIPGM() {
 	}
 	if (midiPGM != 128) {
 		midiEngine.sendPGMChange(midiInstrument, masterChannel, midiPGM, outputFilter);
+	}
+}
+
+// used with midi clips to send out the current automated midi cc values when a clip is activated,
+// so that the receiving instrument is in the correct state
+void InstrumentClip::sendMIDICC() {
+	if (!runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::SendMIDICCOnClipSectionLaunch)) {
+		return;
+	}
+
+	if (output->type != OutputType::MIDI_OUT) {
+		return;
+	}
+
+	MIDIInstrument* midiInstrument = (MIDIInstrument*)output;
+	MIDIParamCollection* midiParamCollection = paramManager.getMIDIParamCollection();
+
+	int32_t outputFilter = midiInstrument->getChannel();
+	int32_t masterChannel = midiInstrument->getOutputMasterChannel();
+
+	for (int32_t i = 0; i < midiParamCollection->params.getNumElements(); i++) {
+		MIDIParam* midiParam = midiParamCollection->params.getElement(i);
+
+		if (midiParam->param.isAutomated()) {
+			midiParamCollection->sendMIDI(midiInstrument, masterChannel, midiParam->cc,
+			                              midiParam->param.getCurrentValue(), outputFilter);
+		}
 	}
 }
 

@@ -66,6 +66,7 @@ public:
 	bool loadDeviceDefinitionFile = false;
 
 	void sendMIDIPGM() override;
+	void sendMIDICC();
 
 	void sendNoteToInternal(bool on, int32_t note, uint8_t velocity, uint8_t channel);
 

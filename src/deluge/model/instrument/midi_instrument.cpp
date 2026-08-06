@@ -342,6 +342,10 @@ bool MIDIInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, Pg
 	}
 	if (clipChanged) {
 		if (modelStack) {
+			if (maySendMIDIPGMs != PgmChangeSend::NEVER) {
+				sendMIDICC();
+			}
+
 			ParamManager* paramManager = &modelStack->getTimelineCounter()->paramManager;
 			ExpressionParamSet* expressionParams = paramManager->getExpressionParamSet();
 			if (expressionParams) {
@@ -365,6 +369,12 @@ bool MIDIInstrument::setActiveClip(ModelStackWithTimelineCounter* modelStack, Pg
 void MIDIInstrument::sendMIDIPGM() {
 	if (activeClip) {
 		((InstrumentClip*)activeClip)->sendMIDIPGM();
+	}
+}
+
+void MIDIInstrument::sendMIDICC() {
+	if (activeClip) {
+		((InstrumentClip*)activeClip)->sendMIDICC();
 	}
 }
 

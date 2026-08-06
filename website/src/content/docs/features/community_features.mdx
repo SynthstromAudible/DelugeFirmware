@@ -245,6 +245,10 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 - (#2810) <Badge text="c1.3" variant="tip" /> Added new learnable global command `LOAD NEXT SONG` (which can be quickly learned holding `LEARN` and `LOAD` and sending a MIDI note or CC message). When the Deluge receives this command while it is playing, it will queue to load the next song within the folder of the current song (wraps around when reaching the end of the folder).
 
+- <Badge text="c1.3" variant="tip" /> Added Community Feature toggle `Send MIDI CC on Clip / Section Launch (CCLN)` in `SETTINGS > COMMUNITY FEATURES`.
+- Default is `OFF`.
+- When `OFF`, MIDI clips do not send automated MIDI CC values when a clip or section is launched.
+
 ### 3.4 - Tempo & Swing
 
 - (#178) <Badge text="c1.0" variant="tip" /> New option (`FINE TEMPO` in the `COMMUNITY FEATURES` menu). Inverts the push+turn behavior of the `TEMPO`
@@ -1387,6 +1391,9 @@ Note: these settings are saved to `SETTINGS/CommunityFeatures.XML` on your SD ca
 
 - `Show Battery Level (BATT)` <Badge text="c1.3" variant="tip" />
   - When On, displays battery level information in the System menu. Shows voltage and percentage on OLED displays, percentage on 7-segment displays.
+- `Send MIDI CC on Clip / Section Launch (CCLN)` <Badge text="c1.3" variant="tip" />
+  - When On, MIDI clips send their current automated MIDI CC values when a clip or section is launched.
+  - When Off (default), this launch-time MIDI CC send is disabled.
 
 ## 6. Sysex Handling
 
