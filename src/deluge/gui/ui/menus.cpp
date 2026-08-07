@@ -946,7 +946,7 @@ PLACE_SDRAM_BSS HorizontalMenu audioClipSampleMenu{
 
 PLACE_SDRAM_BSS audio_clip::Attack audioClipAttackMenu{STRING_FOR_ATTACK};
 
-PLACE_SDRAM_BSS const MenuItem* midiOrCVParamShortcuts[kDisplayHeight] = {
+PLACE_SDRAM_DATA const MenuItem* midiOrCVParamShortcuts[kDisplayHeight] = {
     &arpRateMenuMIDIOrCV,
     &arpSyncMenu,
     &arpGateMenuMIDIOrCV,
@@ -957,7 +957,7 @@ PLACE_SDRAM_BSS const MenuItem* midiOrCVParamShortcuts[kDisplayHeight] = {
     nullptr,
 };
 
-PLACE_SDRAM_BSS const MenuItem* gateDrumParamShortcuts[kDisplayHeight] = {
+PLACE_SDRAM_DATA const MenuItem* gateDrumParamShortcuts[kDisplayHeight] = {
     &arpRateMenuMIDIOrCV,
     &arpSyncMenu,
     &arpGateMenuMIDIOrCV,
@@ -1461,7 +1461,7 @@ PLACE_SDRAM_BSS Submenu defaultsSubmenu{
 // Sound editor menu -----------------------------------------------------------------------------
 
 // FM only
-PLACE_SDRAM_BSS std::array<MenuItem*, 3> dxMenuItems = {
+PLACE_SDRAM_DATA std::array<MenuItem*, 3> dxMenuItems = {
     &dxBrowseMenu,
     &dxGlobalParams,
     &dxEngineSelect,
@@ -1852,16 +1852,18 @@ PLACE_SDRAM_BSS menu_item::Submenu kitGlobalFXActionsMenu{
     },
 };
 
-reset_settings::Reset resetFlashSettingsMenu{STRING_FOR_RESET_FLASH, context_menu::ResetSettingsAction::Flash};
-reset_settings::Reset resetCommunityFeaturesSettingsMenu{STRING_FOR_RESET_COMMUNITY_FEATURES,
-                                                         context_menu::ResetSettingsAction::CommunityFeatures};
-reset_settings::Reset resetMidiFollowSettingsMenu{STRING_FOR_RESET_MIDI_FOLLOW,
-                                                  context_menu::ResetSettingsAction::MidiFollow};
-reset_settings::Reset resetMidiDevicesSettingsMenu{STRING_FOR_RESET_MIDI_DEVICES,
-                                                   context_menu::ResetSettingsAction::MidiDevices};
-reset_settings::Reset resetAllSettingsMenu{STRING_FOR_FACTORY_RESET, context_menu::ResetSettingsAction::All};
+PLACE_SDRAM_BSS reset_settings::Reset resetFlashSettingsMenu{STRING_FOR_RESET_FLASH,
+                                                             context_menu::ResetSettingsAction::Flash};
+PLACE_SDRAM_BSS reset_settings::Reset resetCommunityFeaturesSettingsMenu{
+    STRING_FOR_RESET_COMMUNITY_FEATURES, context_menu::ResetSettingsAction::CommunityFeatures};
+PLACE_SDRAM_BSS reset_settings::Reset resetMidiFollowSettingsMenu{STRING_FOR_RESET_MIDI_FOLLOW,
+                                                                  context_menu::ResetSettingsAction::MidiFollow};
+PLACE_SDRAM_BSS reset_settings::Reset resetMidiDevicesSettingsMenu{STRING_FOR_RESET_MIDI_DEVICES,
+                                                                   context_menu::ResetSettingsAction::MidiDevices};
+PLACE_SDRAM_BSS reset_settings::Reset resetAllSettingsMenu{STRING_FOR_FACTORY_RESET,
+                                                           context_menu::ResetSettingsAction::All};
 
-Submenu resetSettingsSubmenu{
+PLACE_SDRAM_BSS Submenu resetSettingsSubmenu{
     STRING_FOR_RESET_SETTINGS,
     {
         &resetFlashSettingsMenu,
@@ -1872,7 +1874,7 @@ Submenu resetSettingsSubmenu{
     },
 };
 
-Submenu settingsActionsSubmenu{
+PLACE_SDRAM_BSS Submenu settingsActionsSubmenu{
     STRING_FOR_ACTIONS,
     {
         &resetSettingsSubmenu,
@@ -2012,7 +2014,7 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForKitGlobalFX[][kDisplayHeight] = {
     {nullptr,          	     &spreadVelocityMenu,	  &randomizerLockMenu,            &randomizerNoteProbabilityMenu,        nullptr,                     nullptr,                nullptr,                  nullptr                            },
 };
 
-PLACE_SDRAM_DATA deluge::vector<HorizontalMenu*> horizontalMenusChainForSound = {
+PLACE_SDRAM_BSS deluge::vector<HorizontalMenu*> horizontalMenusChainForSound = {
 	&recorderMenu, &soundMasterMenuWithoutVibrato,
 	&sourceMenuGroup, &voiceMenuGroup, &envMenuGroup, &lfoMenuGroup,
 	&filtersMenuGroup, &eqMenu, &modFXMenu,
@@ -2021,7 +2023,7 @@ PLACE_SDRAM_DATA deluge::vector<HorizontalMenu*> horizontalMenusChainForSound = 
 	&arpMenuGroup, &randomizerMenu
 };
 
-PLACE_SDRAM_DATA deluge::vector<HorizontalMenu*> horizontalMenusChainForKit = {
+PLACE_SDRAM_BSS deluge::vector<HorizontalMenu*> horizontalMenusChainForKit = {
 	&kitClipMasterMenu,
 	&globalFiltersMenuGroup, &globalEQMenu, &globalModFXMenu,
 	&globalReverbMenuGroup, &globalDelayMenu, &globalDistortionMenu,
@@ -2029,21 +2031,21 @@ PLACE_SDRAM_DATA deluge::vector<HorizontalMenu*> horizontalMenusChainForKit = {
 	&arpMenuGroupKit, &randomizerMenu
 };
 
-PLACE_SDRAM_DATA deluge::vector<HorizontalMenu*> horizontalMenusChainForSong = {
+PLACE_SDRAM_BSS deluge::vector<HorizontalMenu*> horizontalMenusChainForSong = {
 	&songMasterMenu,
 	&globalFiltersMenuGroup, &globalEQMenu, &globalModFXMenu,
 	&globalReverbMenuGroup, &globalDelayMenu, &globalDistortionMenu,
 	&audioCompMenu, &stutterMenu
 };
 
-PLACE_SDRAM_DATA deluge::vector<HorizontalMenu*> horizontalMenusChainForAudioClip = {
+PLACE_SDRAM_BSS deluge::vector<HorizontalMenu*> horizontalMenusChainForAudioClip = {
 	&audioClipMasterMenu, &audioClipSampleMenu,
 	&globalFiltersMenuGroup, &eqMenu, &globalModFXMenu,
 	&globalReverbMenuGroup, &globalDelayMenu, &audioClipDistortionMenu,
 	&globalSidechainMenu, &audioCompMenu, &stutterMenu
 };
 
-PLACE_SDRAM_DATA deluge::vector<HorizontalMenu*> horizontalMenusChainForMidiOrCv = {
+PLACE_SDRAM_BSS deluge::vector<HorizontalMenu*> horizontalMenusChainForMidiOrCv = {
 	&arpMenuGroupMIDIOrCV, &randomizerMenu
 };
 

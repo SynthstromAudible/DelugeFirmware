@@ -71,6 +71,23 @@ _DECL_RE = re.compile(
 # it, e.g. "/* comment */ Submenu fooMenu{...};".
 _LEADING_BLOCK_COMMENT_RE = re.compile(r"^(/\*.*?\*/\s*)+")
 
+# Matches an existing PLACE_SDRAM_BSS/PLACE_SDRAM_DATA annotation prefix, so
+# that already-annotated declarations can be inspected (and, for
+# PLACE_SDRAM_BSS array declarations, corrected) instead of being blindly
+# skipped.
+_EXISTING_MACRO_RE = re.compile(r"^(PLACE_SDRAM_BSS|PLACE_SDRAM_DATA)\s+")
+
+
+def _is_array_decl(decl_text: str) -> bool:
+    """Return True if *decl_text* (a string matched by _DECL_RE) declares an
+    array, i.e. a std::array<...> or a plain C array with [dim] following
+    the variable name. Array declarations must live in PLACE_SDRAM_DATA
+    (not PLACE_SDRAM_BSS) since, unlike class-typed objects whose
+    constructors run at startup regardless of section, a plain aggregate
+    array's initializer data is only copied into RAM at startup for the
+    .data section; placing it in .bss would silently zero it out."""
+    return "std::array<" in decl_text or "[" in decl_text
+
 
 def _first_code_line_index(chunk_lines: list[str]) -> int | None:
     """Return the index of the first line in *chunk_lines* that is not blank
@@ -210,6 +227,24 @@ def annotate_text(text: str) -> tuple[str, int]:
         comment_prefix = comment_match.group(0) if comment_match else ""
         code_after_comment = stripped[len(comment_prefix) :]
 
+        # Declarations that are already annotated are inspected instead of
+        # being blindly skipped: a PLACE_SDRAM_BSS array declaration is
+        # incorrect (see _is_array_decl) and gets upgraded to
+        # PLACE_SDRAM_DATA, everything else already-annotated is left as-is.
+        existing_macro_match = _EXISTING_MACRO_RE.match(code_after_comment)
+        if existing_macro_match:
+            existing_macro = existing_macro_match.group(1)
+            rest = code_after_comment[existing_macro_match.end() :]
+            if (
+                existing_macro == "PLACE_SDRAM_BSS"
+                and _DECL_RE.match(rest)
+                and _is_array_decl(_DECL_RE.match(rest).group(0))
+            ):
+                lines[idx] = f"{leading_ws}{comment_prefix}PLACE_SDRAM_DATA {rest}"
+                annotated_count += 1
+            result.append("".join(lines))
+            continue
+
         first_word_match = re.match(r"[A-Za-z_][A-Za-z0-9_]*", code_after_comment)
         first_word = first_word_match.group(0) if first_word_match else ""
 
@@ -219,10 +254,14 @@ def annotate_text(text: str) -> tuple[str, int]:
             result.append(chunk)
             continue
 
-        if _DECL_RE.match(code_after_comment):
-            lines[idx] = (
-                f"{leading_ws}{comment_prefix}PLACE_SDRAM_DATA {code_after_comment}"
+        decl_match = _DECL_RE.match(code_after_comment)
+        if decl_match:
+            macro = (
+                "PLACE_SDRAM_DATA"
+                if _is_array_decl(decl_match.group(0))
+                else "PLACE_SDRAM_BSS"
             )
+            lines[idx] = f"{leading_ws}{comment_prefix}{macro} {code_after_comment}"
             annotated_count += 1
 
         result.append("".join(lines))
