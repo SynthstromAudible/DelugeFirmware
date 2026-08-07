@@ -16,7 +16,6 @@
  */
 
 #include "power_manager.h"
-#include "OSLikeStuff/scheduler_api.h"
 #include "RZA1/system/iodefine.h"
 #include "definitions.h"
 #include "definitions_cxx.hpp"
@@ -64,7 +63,7 @@ extern "C" {
 namespace deluge::system {
 
 // Global instance
-PowerManager powerManager;
+PowerManager power_manager;
 
 PowerManager::PowerManager() {
 
@@ -76,16 +75,7 @@ PowerManager::PowerManager() {
 }
 
 void PowerManager::update() {
-	static uint32_t lastUpdateTime = 0;
-	double currentTime = getSystemTime();
-
-	// Remove the 10-second delay for testing
-	// if (currentTime - lastUpdateTime < 10000) {
-	//     return;
-	// }
-	lastUpdateTime = currentTime;
-
-	batteryMV = getVoltageReading();
+	battery_mv_ = getVoltageReading();
 
 	// Update battery LED based on power status
 	if (isExternalPowerConnected()) {
@@ -95,7 +85,7 @@ void PowerManager::update() {
 	}
 	else {
 		// On battery, LED behavior depends on battery level
-		BatteryStatus status = getBatteryStatus();
+		const BatteryStatus status = getBatteryStatus();
 		switch (status) {
 		case BatteryStatus::FULL:
 		case BatteryStatus::HEALTHY:
@@ -111,7 +101,7 @@ void PowerManager::update() {
 		case BatteryStatus::CRITICAL:
 			// Blinking RED LED for critical battery
 			if (!uiTimerManager.isTimerSet(TimerName::BATT_LED_BLINK)) {
-				batteryLEDBlink();
+				batteryLedBlink();
 			}
 			break;
 		}
@@ -123,47 +113,45 @@ void PowerManager::update() {
 
 int32_t PowerManager::getVoltageReading() const {
 	if (ADC.ADCSR & (1 << 15)) {
-		int batteryMV;
-		int32_t numericReading = ADC.ADDRF;
+		const int32_t numeric_reading = ADC.ADDRF;
 		// Apply LPF
-		int32_t voltageReading = numericReading * 3300;
-		int32_t distanceToGo = voltageReading - voltageReadingLastTime;
-		voltageReadingLastTime += distanceToGo >> 4;
+		const int32_t voltage_reading = numeric_reading * 3300;
+		const int32_t distance_to_go = voltage_reading - voltage_reading_last_time_;
+		voltage_reading_last_time_ += distance_to_go >> 4;
 
 		// We only >> by 15 so that we intentionally double the value, because the incoming voltage is halved by a
 		// resistive divider already
-		batteryMV = (voltageReadingLastTime) >> 15;
 		// D_PRINT("batt mV: ");
-		// D_PRINTLN(batteryMV);
-		return batteryMV;
+		// D_PRINTLN(voltage_reading_last_time_ >> 15);
+		return voltage_reading_last_time_ >> 15;
 	}
 
 	return 0;
 }
 
 int32_t PowerManager::getStableVoltage() const {
-	return batteryMV;
+	return battery_mv_;
 }
 
 PowerSource PowerManager::getPowerSource() const {
-	return currentPowerSource;
+	return current_power_source_;
 }
 
 bool PowerManager::isExternalPowerConnected() const {
-	return currentPowerSource == PowerSource::USB;
+	return current_power_source_ == PowerSource::USB;
 }
 
 BatteryStatus PowerManager::getBatteryStatus() const {
-	if (batteryMV <= VOLTAGE_CRITICAL) {
+	if (battery_mv_ <= voltage_critical_) {
 		return BatteryStatus::CRITICAL;
 	}
-	else if (batteryMV <= VOLTAGE_LOW) {
+	else if (battery_mv_ <= voltage_low_) {
 		return BatteryStatus::WARNING;
 	}
-	else if (batteryMV > VOLTAGE_LOW && batteryMV <= VOLTAGE_FULL) {
+	else if (battery_mv_ > voltage_low_ && battery_mv_ <= voltage_full_) {
 		return BatteryStatus::HEALTHY;
 	}
-	else if (batteryMV > VOLTAGE_FULL) {
+	else if (battery_mv_ > voltage_full_) {
 		return BatteryStatus::FULL;
 	}
 
@@ -171,48 +159,51 @@ BatteryStatus PowerManager::getBatteryStatus() const {
 }
 
 int8_t PowerManager::getBatteryChargePercentage() const {
-	if (batteryMV >= VOLTAGE_FULL)
+	if (battery_mv_ >= voltage_full_) {
 		return 100;
-	if (batteryMV <= VOLTAGE_CRITICAL)
+	}
+	if (battery_mv_ <= voltage_critical_) {
 		return 0;
+	}
 
 	// Non-linear mapping that better represents Li-ion discharge curve
 	// Gives more resolution in the middle range where voltage drops fastest
-	const float normalized = (batteryMV - VOLTAGE_CRITICAL) / static_cast<float>(VOLTAGE_FULL - VOLTAGE_CRITICAL);
-	return static_cast<int8_t>(normalized * normalized * 100);
+	const float normalized =
+	    static_cast<float>(battery_mv_ - voltage_critical_) / static_cast<float>(voltage_full_ - voltage_critical_);
+	const int32_t percentage = static_cast<int32_t>(normalized * normalized * 100.0F);
+	return static_cast<int8_t>(std::clamp(percentage, int32_t{0}, int32_t{100}));
 }
 
 void PowerManager::displayPowerStatus() {
-	auto& powerManager = deluge::system::powerManager;
+	auto& power_manager_instance = deluge::system::power_manager;
 
 	// Get fresh reading
-	powerManager.update();
+	power_manager_instance.update();
 
 	// Format the battery status text
 	char text[32];
-	if (powerManager.isExternalPowerConnected()) {
+	if (power_manager_instance.isExternalPowerConnected()) {
 		strcpy(text, "USB (");
-		intToString(powerManager.getStableVoltage(), text + strlen(text));
+		intToString(power_manager_instance.getStableVoltage(), text + strlen(text));
 		strcat(text, "mV)");
 	}
 	else {
-		intToString(powerManager.getBatteryChargePercentage(), text);
+		intToString(power_manager_instance.getBatteryChargePercentage(), text);
 		strcat(text, "% (");
-		intToString(powerManager.getStableVoltage(), text + strlen(text));
+		intToString(power_manager_instance.getStableVoltage(), text + strlen(text));
 		strcat(text, "mV)");
 	}
 
 	display->displayPopup(text);
 }
 
-void PowerManager::batteryLEDBlink() {
-	bool batteryLEDState = false; // Start with LED ON (LOW for open-drain)
-	setOutputState(BATTERY_LED.port, BATTERY_LED.pin, batteryLEDState);
-	int32_t blinkPeriod = ((int32_t)batteryMV - 2630) * 3;
-	blinkPeriod = std::min(blinkPeriod, 500_i32);
-	blinkPeriod = std::max(blinkPeriod, 60_i32);
-	uiTimerManager.setTimer(TimerName::BATT_LED_BLINK, blinkPeriod);
-	batteryLEDState = !batteryLEDState;
+void PowerManager::batteryLedBlink() {
+	setOutputState(BATTERY_LED.port, BATTERY_LED.pin, battery_led_state_);
+	int32_t blink_period = (battery_mv_ - 2630) * 3;
+	blink_period = std::min(blink_period, 500_i32);
+	blink_period = std::max(blink_period, 60_i32);
+	uiTimerManager.setTimer(TimerName::BATT_LED_BLINK, blink_period);
+	battery_led_state_ = !battery_led_state_;
 }
 
 } // namespace deluge::system

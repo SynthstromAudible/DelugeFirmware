@@ -198,7 +198,7 @@ void UITimerManager::routine() {
 					break;
 
 				case TimerName::BATT_LED_BLINK:
-					deluge::system::powerManager.batteryLEDBlink();
+					deluge::system::power_manager.batteryLedBlink();
 					break;
 
 				case TimerName::GRAPHICS_ROUTINE:

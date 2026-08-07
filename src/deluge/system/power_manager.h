@@ -41,31 +41,24 @@ public:
 	bool isExternalPowerConnected() const;
 	int8_t getBatteryChargePercentage() const;
 	bool isCharging() const;
-	void batteryLEDBlink();
+	void batteryLedBlink();
 	BatteryStatus getBatteryStatus() const;
 	int32_t getVoltageReading() const;
-	int8_t batteryChargePercentage() const;
 
 private:
-	static constexpr int32_t VOLTAGE_BUFFER_SIZE = 32;
-	int32_t voltageReadings[VOLTAGE_BUFFER_SIZE];
-	int32_t voltageBufferIndex = 0;
-	int32_t numReadings = 0;
-
 	// Voltage thresholds (these really should be calibrated somehow)
-	static constexpr int32_t VOLTAGE_CHARGING = 4900;
-	static constexpr int32_t VOLTAGE_FULL = 4200;
-	static constexpr int32_t VOLTAGE_NOMINAL = 3700;
-	static constexpr int32_t VOLTAGE_LOW = 3300;
-	static constexpr int32_t VOLTAGE_CRITICAL = 2900;
+	static constexpr int32_t voltage_charging_ = 4900;
+	static constexpr int32_t voltage_full_ = 4200;
+	static constexpr int32_t voltage_low_ = 3300;
+	static constexpr int32_t voltage_critical_ = 2900;
 
-	mutable int32_t voltageReadingLastTime = 65535 * 3300;
-	uint16_t batteryMV;
-	bool batteryLEDState = false;
+	mutable int32_t voltage_reading_last_time_ = 65535 * 3300;
+	int32_t battery_mv_ = 0;
+	bool battery_led_state_ = false;
 
-	PowerSource currentPowerSource;
+	PowerSource current_power_source_ = PowerSource::UNKNOWN;
 };
 // Global instance
-extern PowerManager powerManager;
+extern PowerManager power_manager;
 
 } // namespace deluge::system

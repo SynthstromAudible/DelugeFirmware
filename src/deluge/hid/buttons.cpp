@@ -146,7 +146,7 @@ ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) {
 
 			// Show battery status when shift + cross-screen is pressed
 			if (isShiftButtonPressed() && display->haveOLED()) {
-				deluge::system::powerManager.displayPowerStatus();
+				deluge::system::power_manager.displayPowerStatus();
 			}
 		}
 	}
