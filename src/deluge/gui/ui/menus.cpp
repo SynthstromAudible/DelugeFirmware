@@ -652,10 +652,14 @@ PLACE_SDRAM_BSS midi::sound::OutputMidiNoteForDrum outputMidiNoteForDrumMenu{STR
 PLACE_SDRAM_BSS Submenu outputMidiSubmenu{STRING_FOR_MIDI, {&outputMidiChannelMenu, &outputMidiNoteForDrumMenu}};
 
 // MIDIInstrument menu ----------------------------------------------------------------------
-PLACE_SDRAM_BSS midi::device_definition::Linked midiDeviceLinkedMenu{STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED,
-                                                     STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED};
-PLACE_SDRAM_BSS midi::device_definition::HideUnlabeled hideUnlabeledCCMenu{STRING_FOR_MIDI_DEVICE_DEFINITION_HIDE,
-                                                           STRING_FOR_MIDI_DEVICE_DEFINITION_HIDE};
+PLACE_SDRAM_BSS midi::device_definition::Linked midiDeviceLinkedMenu{
+    STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED,
+    STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED,
+};
+PLACE_SDRAM_BSS midi::device_definition::HideUnlabeled hideUnlabeledCCMenu{
+    STRING_FOR_MIDI_DEVICE_DEFINITION_HIDE,
+    STRING_FOR_MIDI_DEVICE_DEFINITION_HIDE,
+};
 
 PLACE_SDRAM_BSS midi::device_definition::DeviceDefinitionSubmenu midiDeviceDefinitionMenu{
     STRING_FOR_MIDI_DEVICE_DEFINITION,
