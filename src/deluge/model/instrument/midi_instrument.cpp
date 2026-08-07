@@ -429,6 +429,10 @@ void MIDIInstrument::writeDeviceDefinitionFile(Serializer& writer, bool writeFil
 
 	writeCCLabelsToFile(writer);
 
+	writer.writeOpeningTagBeginning("hideUnlabeledCC");
+	writer.writeAttribute("value", (int32_t)hideUnlabeledCC);
+	writer.closeTag();
+
 	writer.writeClosingTag("midiDevice");
 }
 
@@ -577,6 +581,9 @@ Error MIDIInstrument::readDeviceDefinitionFile(Deserializer& reader, bool readFr
 			if (!strcmp(tagName, "ccLabels")) {
 				error = readCCLabelsFromFile(reader);
 			}
+			else if (!strcmp(tagName, "hideUnlabeledCC")) {
+				error = readHideUnlabeledCCFromFile(reader);
+			}
 		}
 		reader.exitTag();
 	}
@@ -614,6 +621,21 @@ Error MIDIInstrument::readCCLabelsFromFile(Deserializer& reader) {
 
 		error = Error::NONE;
 
+		reader.exitTag();
+	}
+
+	return error;
+}
+
+Error MIDIInstrument::readHideUnlabeledCCFromFile(Deserializer& reader) {
+	Error error = Error::FILE_UNREADABLE;
+
+	char const* tagName;
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "value")) {
+			hideUnlabeledCC = (bool)reader.readTagOrAttributeValueInt();
+			error = Error::NONE;
+		}
 		reader.exitTag();
 	}
 
@@ -679,23 +701,53 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 	return Error::NONE;
 }
 
+/// This function is used when you scroll you CC's in a midi clip to assign to gold knob or when you scroll through CC's
+/// in automation view If you are using midi CC labels and have "Hide Unlabeled CC" enabled in the MIDI Device
+/// Definition menu, then this function will skip over any CC's that do not have a label assigned to them. By default,
+/// if you haven't labeled anything and you hide unlabeled CC's, then this function will restrict you to select "NONE"
+/// or the "EXPRESSION" CC's.
 int32_t MIDIInstrument::getNextSelectableCC(int32_t cc, int32_t offset, bool includeNoCC) {
 	int32_t newCC = cc;
 	int32_t direction = (offset < 0) ? -1 : 1;
 	int32_t steps = (offset < 0) ? -offset : offset;
 	int32_t numSelectableCCs = includeNoCC ? kNumCCNumbersIncludingFake : kNumCCExpression;
 
-	for (int32_t i = 0; i < steps; i++) {
-		newCC += direction;
-		if (newCC < 0) {
-			newCC += numSelectableCCs;
-		}
-		else if (newCC >= numSelectableCCs) {
-			newCC -= numSelectableCCs;
-		}
-		if (newCC == CC_EXTERNAL_MOD_WHEEL) {
-			// Mod wheel is represented by CC_NUMBER_Y_AXIS internally.
+	// loop until we have found a CC
+	while (true) {
+		// get the next CC in the direction specified by the offset
+		for (int32_t i = 0; i < steps; i++) {
 			newCC += direction;
+			if (newCC < 0) {
+				newCC += numSelectableCCs;
+			}
+			else if (newCC >= numSelectableCCs) {
+				newCC -= numSelectableCCs;
+			}
+			if (newCC == CC_EXTERNAL_MOD_WHEEL) {
+				// Mod wheel is represented by CC_NUMBER_Y_AXIS internally.
+				newCC += direction;
+			}
+		}
+		// do we want to hide CC's without labels?
+		if (hideUnlabeledCC) {
+			// these CC's do not have a label, so they are always selectable
+			if (newCC == CC_NUMBER_NONE || newCC == CC_NUMBER_Y_AXIS || newCC == CC_NUMBER_PITCH_BEND
+			    || newCC == CC_NUMBER_AFTERTOUCH) {
+				break;
+			}
+			// if this cc doesn't have a label, continue searching in the same direction
+			else if (getNameFromCC(newCC).empty()) {
+				// If the new CC is unlabeled, continue searching in the same direction
+				continue;
+			}
+			// If the new CC is labeled, then it is selectable
+			else {
+				break;
+			}
+		}
+		// if we don't want to hide unlabeled CC's, then the new CC is selectable
+		else {
+			break;
 		}
 	}
 

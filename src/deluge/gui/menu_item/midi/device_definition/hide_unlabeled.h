@@ -18,7 +18,6 @@
 #pragma once
 
 #include "gui/menu_item/toggle.h"
-#include "gui/ui/load/load_midi_device_definition_ui.h"
 #include "gui/ui/sound_editor.h"
 #include "model/instrument/midi_instrument.h"
 #include "model/output.h"
@@ -26,26 +25,19 @@
 
 namespace deluge::gui::menu_item::midi::device_definition {
 
-class Linked : public Toggle {
+class HideUnlabeled : public Toggle {
 public:
 	using Toggle::Toggle;
 
 	void readCurrentValue() override {
 		MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
-		this->setValue(!midiInstrument->deviceDefinitionFileName.isEmpty());
+		this->setValue(midiInstrument->hideUnlabeledCC);
 	}
 	void writeCurrentValue() override {
 		t = this->getValue();
 
-		// if you want to link a definition file, open the load definition file UI
-		if (t) {
-			openUI(&loadMidiDeviceDefinitionUI);
-		}
-		// if you want to unlink a definition file, just clear the definition file name
-		else {
-			MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
-			midiInstrument->deviceDefinitionFileName.clear();
-		}
+		MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
+		midiInstrument->hideUnlabeledCC = t;
 	}
 
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) {
@@ -61,15 +53,6 @@ public:
 		if (getToggleValue()) {
 			image.drawGraphicMultiLine(deluge::hid::display::OLED::checkedBoxIcon, startX, yPixel,
 			                           kSubmenuIconSpacingX);
-
-			MIDIInstrument* midiInstrument = (MIDIInstrument*)getCurrentOutput();
-
-			char const* fullPath = midiInstrument->deviceDefinitionFileName.get();
-
-			// locate last occurence of "/" in string
-			char* fileName = strrchr((char*)fullPath, '/');
-
-			image.drawString(++fileName, kTextSpacingX, yPixel + (kTextSpacingY * 2), kTextSpacingX, kTextSpacingY);
 		}
 		else {
 			image.drawGraphicMultiLine(deluge::hid::display::OLED::uncheckedBoxIcon, startX, yPixel,
