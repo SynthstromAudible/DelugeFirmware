@@ -160,7 +160,10 @@ void QwertyUI::drawTextForOLEDEditing(int32_t xPixel, int32_t xPixelMax, int32_t
 			highlightStartX = 0;
 		}
 		else {
-			highlightStartX = xPixel + kTextSpacingX * scrollAmount - 2;
+			// Start the highlight in the 1px gap that follows the previous character, rather than on top of that
+			// character's last column - otherwise the inversion eats a pixel column out of the letter before the
+			// cursor.
+			highlightStartX = xPixel + kTextSpacingX * scrollAmount - 1;
 		}
 		canvas.invertLeftEdgeForMenuHighlighting(highlightStartX, xPixelMax - highlightStartX, yPixel,
 		                                         yPixel + kTextSpacingY - 1);
