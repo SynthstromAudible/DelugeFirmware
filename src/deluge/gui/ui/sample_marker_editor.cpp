@@ -49,9 +49,9 @@
 
 using namespace deluge::gui;
 
-const uint8_t zeroes[] = {0, 0, 0, 0, 0, 0, 0, 0};
+PLACE_SDRAM_RODATA const uint8_t zeroes[] = {0, 0, 0, 0, 0, 0, 0, 0};
 
-SampleMarkerEditor sampleMarkerEditor{};
+PLACE_SDRAM_BSS SampleMarkerEditor sampleMarkerEditor{};
 
 MultisampleRange& getCurrentMultisampleRange() {
 	return *static_cast<MultisampleRange*>(soundEditor.currentMultiRange);
@@ -694,7 +694,8 @@ ActionResult SampleMarkerEditor::exitUI() {
 	return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 }
 
-static const uint32_t zoomUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, UI_MODE_AUDITIONING, 0};
+PLACE_SDRAM_RODATA static const uint32_t zoomUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON,
+                                                          UI_MODE_AUDITIONING, 0};
 
 ActionResult SampleMarkerEditor::horizontalEncoderAction(int32_t offset) {
 	if (isLoopLocked() && Buttons::isShiftButtonPressed()) {

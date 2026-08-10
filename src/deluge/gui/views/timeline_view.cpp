@@ -129,7 +129,7 @@ void TimelineView::displayZoomLevel(bool justPopup) {
 	display->displayPopup(text.data(), justPopup ? 3 : 0, true);
 }
 
-bool horizontalEncoderActionLock = false;
+PLACE_SDRAM_BSS bool horizontalEncoderActionLock = false;
 
 ActionResult TimelineView::horizontalEncoderAction(int32_t offset) {
 

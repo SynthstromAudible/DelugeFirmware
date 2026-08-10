@@ -35,7 +35,7 @@ extern "C" {
 extern uint8_t currentlyAccessingCard;
 }
 
-WaveformRenderer waveformRenderer{};
+PLACE_SDRAM_BSS WaveformRenderer waveformRenderer{};
 
 WaveformRenderer::WaveformRenderer() {
 }

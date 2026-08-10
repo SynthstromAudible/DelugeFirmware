@@ -30,7 +30,7 @@ class Instrument;
 
 namespace deluge::gui::ui::keyboard {
 
-constexpr int32_t kMaxNumKeyboardPadPresses = 10;
+PLACE_SDRAM_RODATA constexpr int32_t kMaxNumKeyboardPadPresses = 10;
 
 class KeyboardScreen final : public RootUI, public InstrumentClipMinder {
 public:

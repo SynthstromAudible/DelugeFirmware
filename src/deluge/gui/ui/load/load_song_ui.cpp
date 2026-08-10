@@ -176,7 +176,7 @@ void LoadSongUI::displayArmedPopup() {
 	display->popupText("Song will begin...", PopupType::LOADING);
 }
 
-char loopsRemainingText[] = "Loops remaining: xxxxxxxxxxx";
+PLACE_SDRAM_DATA char loopsRemainingText[] = "Loops remaining: xxxxxxxxxxx";
 
 void LoadSongUI::displayLoopsRemainingPopup() {
 	if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED) {

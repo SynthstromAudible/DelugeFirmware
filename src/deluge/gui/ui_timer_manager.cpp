@@ -42,7 +42,7 @@ extern "C" {
 #include "RZA1/oled/oled_low_level.h"
 }
 
-UITimerManager uiTimerManager{};
+PLACE_SDRAM_BSS UITimerManager uiTimerManager{};
 extern void inputRoutine();
 extern void batteryLEDBlink();
 

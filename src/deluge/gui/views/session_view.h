@@ -39,7 +39,7 @@ enum SessionGridMode : uint8_t {
 
 extern float getTransitionProgress();
 
-constexpr uint32_t kGridHeight = kDisplayHeight;
+PLACE_SDRAM_RODATA constexpr uint32_t kGridHeight = kDisplayHeight;
 
 class SessionView final : public ClipNavigationTimelineView {
 public:

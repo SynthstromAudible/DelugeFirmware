@@ -57,13 +57,13 @@ PLACE_SDRAM_BSS deluge::gui::ui::keyboard::KeyboardScreen keyboardScreen{};
 
 namespace deluge::gui::ui::keyboard {
 
-PLACE_SDRAM_DATA layout::KeyboardLayoutIsomorphic keyboard_layout_isomorphic{};
-PLACE_SDRAM_DATA layout::KeyboardLayoutVelocityDrums keyboard_layout_velocity_drums{};
-PLACE_SDRAM_DATA layout::KeyboardLayoutInKey keyboard_layout_in_key{};
-PLACE_SDRAM_DATA layout::KeyboardLayoutPiano keyboard_layout_piano{};
-PLACE_SDRAM_DATA layout::KeyboardLayoutChord keyboard_layout_chord{};
-PLACE_SDRAM_DATA layout::KeyboardLayoutChordLibrary keyboard_layout_chord_library{};
-PLACE_SDRAM_DATA layout::KeyboardLayoutNorns keyboard_layout_norns{};
+PLACE_SDRAM_BSS layout::KeyboardLayoutIsomorphic keyboard_layout_isomorphic{};
+PLACE_SDRAM_BSS layout::KeyboardLayoutVelocityDrums keyboard_layout_velocity_drums{};
+PLACE_SDRAM_BSS layout::KeyboardLayoutInKey keyboard_layout_in_key{};
+PLACE_SDRAM_BSS layout::KeyboardLayoutPiano keyboard_layout_piano{};
+PLACE_SDRAM_BSS layout::KeyboardLayoutChord keyboard_layout_chord{};
+PLACE_SDRAM_BSS layout::KeyboardLayoutChordLibrary keyboard_layout_chord_library{};
+PLACE_SDRAM_BSS layout::KeyboardLayoutNorns keyboard_layout_norns{};
 PLACE_SDRAM_DATA std::array<KeyboardLayout*, KeyboardLayoutType::KeyboardLayoutTypeMaxElement> layout_list = {nullptr};
 
 KeyboardScreen::KeyboardScreen() {
@@ -80,8 +80,9 @@ KeyboardScreen::KeyboardScreen() {
 	lastNotesState = {0};
 }
 
-static const uint32_t padActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN,
-                                            0}; // Careful - this is referenced in two places // I'm always careful ;)
+PLACE_SDRAM_RODATA static const uint32_t padActionUIModes[] = {
+    UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN,
+    0}; // Careful - this is referenced in two places // I'm always careful ;)
 
 void KeyboardScreen::killColumnSwitchKey(int32_t column) {
 	if (column != kDisplayWidth && column != kDisplayWidth + 1) {
@@ -922,9 +923,9 @@ void KeyboardScreen::unscrolledPadAudition(int32_t velocity, int32_t note, bool 
 	getCurrentInstrumentClip()->yScroll = yScrollBackup;
 }
 
-uint8_t keyboardTickSquares[kDisplayHeight] = {255, 255, 255, 255, 255, 255, 255, 255};
-const uint8_t keyboardTickColoursBasicRecording[kDisplayHeight] = {0, 0, 0, 0, 0, 0, 0, 0};
-const uint8_t keyboardTickColoursLinearRecording[kDisplayHeight] = {0, 0, 0, 0, 0, 0, 0, 2};
+PLACE_SDRAM_DATA uint8_t keyboardTickSquares[kDisplayHeight] = {255, 255, 255, 255, 255, 255, 255, 255};
+PLACE_SDRAM_RODATA const uint8_t keyboardTickColoursBasicRecording[kDisplayHeight] = {0, 0, 0, 0, 0, 0, 0, 0};
+PLACE_SDRAM_RODATA const uint8_t keyboardTickColoursLinearRecording[kDisplayHeight] = {0, 0, 0, 0, 0, 0, 0, 2};
 
 void KeyboardScreen::graphicsRoutine() {
 	int32_t newTickSquare;

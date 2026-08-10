@@ -37,11 +37,11 @@
 
 using namespace deluge;
 
-static constexpr const char* PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER = "PATTERNS/RHYTHMIC/KIT";
-static constexpr const char* PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER = "PATTERNS/RHYTHMIC/DRUM";
-static constexpr const char* PATTERN_MELODIC_DEFAULT_FOLDER = "PATTERNS/MELODIC";
+PLACE_SDRAM_BSS static constexpr const char* PATTERN_RHYTHMIC_KIT_DEFAULT_FOLDER = "PATTERNS/RHYTHMIC/KIT";
+PLACE_SDRAM_BSS static constexpr const char* PATTERN_RHYTHMIC_DRUM_DEFAULT_FOLDER = "PATTERNS/RHYTHMIC/DRUM";
+PLACE_SDRAM_BSS static constexpr const char* PATTERN_MELODIC_DEFAULT_FOLDER = "PATTERNS/MELODIC";
 
-SavePatternUI savePatternUI{};
+PLACE_SDRAM_BSS SavePatternUI savePatternUI{};
 
 SavePatternUI::SavePatternUI() {
 	filePrefix = "PATTERN";

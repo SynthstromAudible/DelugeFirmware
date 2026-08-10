@@ -43,26 +43,26 @@
 
 using namespace deluge;
 
-String Browser::currentDir{};
-bool Browser::qwertyVisible;
+PLACE_SDRAM_BSS String Browser::currentDir{};
+PLACE_SDRAM_BSS bool Browser::qwertyVisible;
 
-CStringArray Browser::fileItems{sizeof(FileItem)};
-int32_t Browser::scrollPosVertical;
-int32_t Browser::fileIndexSelected;
-int32_t Browser::numCharsInPrefix;
-bool Browser::arrivedAtFileByTyping;
-int32_t Browser::numFileItemsDeletedAtStart;
-int32_t Browser::numFileItemsDeletedAtEnd;
-String Browser::firstFileItemRemaining{};
-String Browser::lastFileItemRemaining{};
-OutputType Browser::outputTypeToLoad;
+PLACE_SDRAM_BSS CStringArray Browser::fileItems{sizeof(FileItem)};
+PLACE_SDRAM_BSS int32_t Browser::scrollPosVertical;
+PLACE_SDRAM_BSS int32_t Browser::fileIndexSelected;
+PLACE_SDRAM_BSS int32_t Browser::numCharsInPrefix;
+PLACE_SDRAM_BSS bool Browser::arrivedAtFileByTyping;
+PLACE_SDRAM_BSS int32_t Browser::numFileItemsDeletedAtStart;
+PLACE_SDRAM_BSS int32_t Browser::numFileItemsDeletedAtEnd;
+PLACE_SDRAM_BSS String Browser::firstFileItemRemaining{};
+PLACE_SDRAM_BSS String Browser::lastFileItemRemaining{};
+PLACE_SDRAM_BSS OutputType Browser::outputTypeToLoad;
 char const** Browser::allowedFileExtensions;
-bool Browser::allowFoldersSharingNameWithFile;
+PLACE_SDRAM_BSS bool Browser::allowFoldersSharingNameWithFile;
 char const* Browser::filenameToStartSearchAt;
 
 // 7SEG ONLY
-int8_t Browser::numberEditPos;
-NumericLayerScrollingText* Browser::scrollingText;
+PLACE_SDRAM_BSS int8_t Browser::numberEditPos;
+PLACE_SDRAM_BSS NumericLayerScrollingText* Browser::scrollingText;
 
 char const* allowedFileExtensionsXML[] = {"XML", "Json", NULL};
 
@@ -162,9 +162,9 @@ void Browser::deleteSomeFileItems(int32_t startAt, int32_t stopAt) {
 	fileItems.deleteAtIndex(startAt, stopAt - startAt);
 }
 
-int32_t maxNumFileItemsNow;
+PLACE_SDRAM_BSS int32_t maxNumFileItemsNow;
 
-int32_t catalogSearchDirection;
+PLACE_SDRAM_BSS int32_t catalogSearchDirection;
 
 FileItem* Browser::getNewFileItem() {
 	bool alreadyCulled = false;

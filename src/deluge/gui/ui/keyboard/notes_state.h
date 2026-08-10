@@ -51,8 +51,8 @@ struct NoteState {
 };
 
 // Always needs to be 0 currently for the math to math
-constexpr uint8_t kLowestKeyboardNote = 0;
-constexpr uint8_t kHighestKeyboardNote = kOctaveSize * 12;
+PLACE_SDRAM_RODATA constexpr uint8_t kLowestKeyboardNote = 0;
+PLACE_SDRAM_RODATA constexpr uint8_t kHighestKeyboardNote = kOctaveSize * 12;
 struct NotesState {
 	using NoteArray = std::array<NoteState, kMaxNumActiveNotes>;
 

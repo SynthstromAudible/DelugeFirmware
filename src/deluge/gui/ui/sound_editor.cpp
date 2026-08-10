@@ -84,7 +84,7 @@ PatchSource modSourceShortcuts[2][8] = {
     },
 };
 
-PatchSource modSourceShortcutsSecondLayer[2][8] = {
+PLACE_SDRAM_DATA PatchSource modSourceShortcutsSecondLayer[2][8] = {
     {
         PatchSource::NOT_AVAILABLE,
         PatchSource::NOT_AVAILABLE,
@@ -141,7 +141,7 @@ void SoundEditor::setShortcutsVersion(int32_t newVersion) {
 	}
 }
 
-SoundEditor soundEditor{};
+PLACE_SDRAM_BSS SoundEditor soundEditor{};
 
 SoundEditor::SoundEditor() {
 	currentParamShortcutX = kNoSelection;
@@ -1033,8 +1033,8 @@ void SoundEditor::scrollFinished() {
 	uiNeedsRendering(getRootUI(), 0xFFFFFFFF, 0);
 }
 
-const uint32_t selectEncoderUIModes[] = {UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR, UI_MODE_NOTES_PRESSED,
-                                         UI_MODE_AUDITIONING, UI_MODE_STUTTERING, 0};
+PLACE_SDRAM_RODATA const uint32_t selectEncoderUIModes[] = {
+    UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR, UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_STUTTERING, 0};
 
 void SoundEditor::selectEncoderAction(int8_t offset) {
 	int8_t scaledOffset = offset;
@@ -1111,7 +1111,8 @@ void SoundEditor::markInstrumentAsEdited() {
 	}
 }
 
-static const uint32_t shortcutPadUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR, 0};
+PLACE_SDRAM_RODATA static const uint32_t shortcutPadUIModes[] = {UI_MODE_AUDITIONING,
+                                                                 UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR, 0};
 
 ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
 	bool ignoreAction = false;

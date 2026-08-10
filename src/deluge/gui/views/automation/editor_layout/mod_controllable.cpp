@@ -34,36 +34,39 @@ namespace params = deluge::modulation::params;
 
 using namespace deluge::gui;
 
-constexpr int32_t kParamNodeWidth = 3;
+PLACE_SDRAM_RODATA constexpr int32_t kParamNodeWidth = 3;
 
 // VU meter style colours for the automation editor
 
-const RGB rowColour[kDisplayHeight] = {{0, 255, 0},   {36, 219, 0}, {73, 182, 0}, {109, 146, 0},
-                                       {146, 109, 0}, {182, 73, 0}, {219, 36, 0}, {255, 0, 0}};
+PLACE_SDRAM_RODATA const RGB rowColour[kDisplayHeight] = {{0, 255, 0},   {36, 219, 0}, {73, 182, 0}, {109, 146, 0},
+                                                          {146, 109, 0}, {182, 73, 0}, {219, 36, 0}, {255, 0, 0}};
 
-const RGB rowTailColour[kDisplayHeight] = {{2, 53, 2},  {9, 46, 2},  {17, 38, 2}, {24, 31, 2},
-                                           {31, 24, 2}, {38, 17, 2}, {46, 9, 2},  {53, 2, 2}};
+PLACE_SDRAM_RODATA const RGB rowTailColour[kDisplayHeight] = {{2, 53, 2},  {9, 46, 2},  {17, 38, 2}, {24, 31, 2},
+                                                              {31, 24, 2}, {38, 17, 2}, {46, 9, 2},  {53, 2, 2}};
 
-const RGB rowBlurColour[kDisplayHeight] = {{71, 111, 71}, {72, 101, 66}, {73, 90, 62}, {74, 80, 57},
-                                           {76, 70, 53},  {77, 60, 48},  {78, 49, 44}, {79, 39, 39}};
+PLACE_SDRAM_RODATA const RGB rowBlurColour[kDisplayHeight] = {{71, 111, 71}, {72, 101, 66}, {73, 90, 62}, {74, 80, 57},
+                                                              {76, 70, 53},  {77, 60, 48},  {78, 49, 44}, {79, 39, 39}};
 
-const RGB rowBipolarDownColour[kDisplayHeight / 2] = {{255, 0, 0}, {182, 73, 0}, {73, 182, 0}, {0, 255, 0}};
+PLACE_SDRAM_RODATA const RGB rowBipolarDownColour[kDisplayHeight / 2] = {
+    {255, 0, 0}, {182, 73, 0}, {73, 182, 0}, {0, 255, 0}};
 
-const RGB rowBipolarDownTailColour[kDisplayHeight / 2] = {{53, 2, 2}, {38, 17, 2}, {17, 38, 2}, {2, 53, 2}};
+PLACE_SDRAM_RODATA const RGB rowBipolarDownTailColour[kDisplayHeight / 2] = {
+    {53, 2, 2}, {38, 17, 2}, {17, 38, 2}, {2, 53, 2}};
 
-const RGB rowBipolarDownBlurColour[kDisplayHeight / 2] = {{79, 39, 39}, {77, 60, 48}, {73, 90, 62}, {71, 111, 71}};
+PLACE_SDRAM_RODATA const RGB rowBipolarDownBlurColour[kDisplayHeight / 2] = {
+    {79, 39, 39}, {77, 60, 48}, {73, 90, 62}, {71, 111, 71}};
 
 // lookup tables for the values that are set when you press the pads in each row of the grid
-const int32_t nonPatchCablePadPressValues[kDisplayHeight] = {0, 18, 37, 55, 73, 91, 110, 128};
-const int32_t patchCablePadPressValues[kDisplayHeight] = {-128, -90, -60, -30, 30, 60, 90, 128};
+PLACE_SDRAM_RODATA const int32_t nonPatchCablePadPressValues[kDisplayHeight] = {0, 18, 37, 55, 73, 91, 110, 128};
+PLACE_SDRAM_RODATA const int32_t patchCablePadPressValues[kDisplayHeight] = {-128, -90, -60, -30, 30, 60, 90, 128};
 
 // lookup tables for the min value of each pad's value range used to display automation on each row of the grid
-const int32_t nonPatchCableMinPadDisplayValues[kDisplayHeight] = {0, 17, 33, 49, 65, 81, 97, 113};
-const int32_t patchCableMinPadDisplayValues[kDisplayHeight] = {-128, -96, -64, -32, 1, 33, 65, 97};
+PLACE_SDRAM_RODATA const int32_t nonPatchCableMinPadDisplayValues[kDisplayHeight] = {0, 17, 33, 49, 65, 81, 97, 113};
+PLACE_SDRAM_RODATA const int32_t patchCableMinPadDisplayValues[kDisplayHeight] = {-128, -96, -64, -32, 1, 33, 65, 97};
 
 // lookup tables for the max value of each pad's value range used to display automation on each row of the grid
-const int32_t nonPatchCableMaxPadDisplayValues[kDisplayHeight] = {16, 32, 48, 64, 80, 96, 112, 128};
-const int32_t patchCableMaxPadDisplayValues[kDisplayHeight] = {-97, -65, -33, -1, 32, 64, 96, 128};
+PLACE_SDRAM_RODATA const int32_t nonPatchCableMaxPadDisplayValues[kDisplayHeight] = {16, 32, 48, 64, 80, 96, 112, 128};
+PLACE_SDRAM_RODATA const int32_t patchCableMaxPadDisplayValues[kDisplayHeight] = {-97, -65, -33, -1, 32, 64, 96, 128};
 
 // summary of pad ranges and press values (format: MIN < PRESS < MAX)
 // patch cable:

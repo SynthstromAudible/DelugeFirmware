@@ -37,7 +37,7 @@ using namespace deluge::gui::ui::keyboard::controls;
 
 namespace deluge::gui::ui::keyboard::layout {
 
-l10n::String functionNames[] = {
+PLACE_SDRAM_DATA l10n::String functionNames[] = {
     l10n::String::STRING_FOR_COLUMN_VELOCITY, //<
     l10n::String::STRING_FOR_COLUMN_MOD,
     l10n::String::STRING_FOR_COLUMN_CHORD,

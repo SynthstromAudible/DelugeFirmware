@@ -28,7 +28,7 @@
 
 using namespace deluge;
 
-bool SaveUI::currentFolderIsEmpty;
+PLACE_SDRAM_BSS bool SaveUI::currentFolderIsEmpty;
 
 SaveUI::SaveUI() {
 	mayDefaultToBrandNewNameOnEntry = true;

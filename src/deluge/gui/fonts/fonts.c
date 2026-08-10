@@ -19,6 +19,8 @@
 
 #include "gui/fonts/fonts.h"
 
+#include "definitions.h"
+
 
 // Fonts in this file were generated with https://lvgl.io/tools/font_conv_v5_3
 
@@ -33,7 +35,7 @@
 
 /*Store the image of the letters (glyph)*/
 // Height 5, scale 160, base line offset 0.
-const uint8_t font_5px[] = {
+PLACE_SDRAM_RODATA const uint8_t font_5px[] = {
         0b00000,		// spacebar
         0b00000,
 
@@ -302,7 +304,7 @@ const uint8_t font_5px[] = {
         0b01100,
 };
 
-const lv_font_glyph_dsc_t font_5px_desc[] = {
+PLACE_SDRAM_RODATA const lv_font_glyph_dsc_t font_5px_desc[] = {
         {.w_px = 2,     .glyph_index = 0},		// spacebar
         {.w_px = 1,     .glyph_index = 2},		// !
         {.w_px = 3,     .glyph_index = 3},		// “
@@ -382,7 +384,7 @@ const lv_font_glyph_dsc_t font_5px_desc[] = {
 
 /*Store the image of the letters (glyph)*/
 // Height 7, scale 160, base line offset 1.
-const uint8_t font_apple[] = {
+PLACE_SDRAM_RODATA const uint8_t font_apple[] = {
         0b00000000,		// spacebar
         0b00000000,
 
@@ -763,7 +765,7 @@ const uint8_t font_apple[] = {
         0b00110000,
 };
 
-const lv_font_glyph_dsc_t font_apple_desc[] = {
+PLACE_SDRAM_RODATA const lv_font_glyph_dsc_t font_apple_desc[] = {
         {.w_px = 2,     .glyph_index = 0},		// spacebar
         {.w_px = 1,     .glyph_index = 2},		// !
         {.w_px = 3,     .glyph_index = 3},		// “

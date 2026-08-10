@@ -47,7 +47,7 @@
 using namespace deluge;
 namespace encoders = deluge::hid::encoders;
 
-LoadInstrumentPresetUI loadInstrumentPresetUI{};
+PLACE_SDRAM_BSS LoadInstrumentPresetUI loadInstrumentPresetUI{};
 
 bool LoadInstrumentPresetUI::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	// grey out the mute pads, not the audition pads or main pads

@@ -27,7 +27,7 @@ class KeyboardLayout;
 
 namespace deluge::gui::ui::keyboard::controls {
 
-constexpr uint32_t kVelModShift = 24;
+PLACE_SDRAM_RODATA constexpr uint32_t kVelModShift = 24;
 
 class ControlColumn {
 public:

@@ -2712,7 +2712,7 @@ cant:
 	view.setActiveModControllableTimelineCounter(newClip);
 }
 
-static const uint32_t horizontalEncoderScrollUIModes[] = {UI_MODE_HOLDING_ARRANGEMENT_ROW, 0};
+PLACE_SDRAM_RODATA static const uint32_t horizontalEncoderScrollUIModes[] = {UI_MODE_HOLDING_ARRANGEMENT_ROW, 0};
 
 ActionResult ArrangerView::horizontalEncoderAction(int32_t offset) {
 
@@ -3074,8 +3074,8 @@ ActionResult ArrangerView::verticalScrollOneSquare(int32_t direction) {
 	return ActionResult::DEALT_WITH;
 }
 
-static const uint32_t verticalEncoderUIModes[] = {UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION,
-                                                  UI_MODE_HOLDING_ARRANGEMENT_ROW, UI_MODE_VIEWING_RECORD_ARMING, 0};
+PLACE_SDRAM_RODATA static const uint32_t verticalEncoderUIModes[] = {
+    UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION, UI_MODE_HOLDING_ARRANGEMENT_ROW, UI_MODE_VIEWING_RECORD_ARMING, 0};
 
 ActionResult ArrangerView::verticalEncoderAction(int32_t offset, bool inCardRoutine) {
 
@@ -3109,9 +3109,9 @@ void ArrangerView::setNoSubMode() {
 	setLedStates();
 }
 
-static const uint32_t autoScrollUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON,
-                                             UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION, UI_MODE_HORIZONTAL_ZOOM,
-                                             UI_MODE_STEM_EXPORT, 0};
+PLACE_SDRAM_RODATA static const uint32_t autoScrollUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON,
+                                                                UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION,
+                                                                UI_MODE_HORIZONTAL_ZOOM, UI_MODE_STEM_EXPORT, 0};
 
 void ArrangerView::graphicsRoutine() {
 	UI* ui = getCurrentUI();
@@ -3213,8 +3213,8 @@ void ArrangerView::notifyActiveClipChangedOnOutput(Output* output) {
 	}
 }
 
-static const uint32_t autoScrollPlaybackEndUIModes[] = {UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION,
-                                                        UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
+PLACE_SDRAM_RODATA static const uint32_t autoScrollPlaybackEndUIModes[] = {
+    UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION, UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
 
 void ArrangerView::autoScrollOnPlaybackEnd() {
 

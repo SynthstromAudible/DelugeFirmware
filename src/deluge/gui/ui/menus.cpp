@@ -2049,11 +2049,11 @@ PLACE_SDRAM_BSS deluge::vector<HorizontalMenu*> horizontalMenusChainForMidiOrCv 
 	&arpMenuGroupMIDIOrCV, &randomizerMenu
 };
 
-PLACE_SDRAM_DATA filter::FilterContainer lpfContainer{{&lpfFreqMenu, &lpfResMenu}, &lpfMorphMenu};
-PLACE_SDRAM_DATA filter::FilterContainer hpfContainer{{&hpfFreqMenu, &hpfResMenu}, &hpfMorphMenu};
-PLACE_SDRAM_DATA filter::FilterContainer globalLpfContainer{{&globalLPFFreqMenu, &globalLPFResMenu}, &globalLPFMorphMenu};
-PLACE_SDRAM_DATA filter::FilterContainer globalHpfContainer{{&globalHPFFreqMenu, &globalHPFResMenu}, &globalHPFMorphMenu};
-PLACE_SDRAM_DATA deluge::vector<HorizontalMenuContainer*> horizontalMenuContainers{&lpfContainer, &hpfContainer, &globalLpfContainer, &globalHpfContainer};
+PLACE_SDRAM_BSS filter::FilterContainer lpfContainer{{&lpfFreqMenu, &lpfResMenu}, &lpfMorphMenu};
+PLACE_SDRAM_BSS filter::FilterContainer hpfContainer{{&hpfFreqMenu, &hpfResMenu}, &hpfMorphMenu};
+PLACE_SDRAM_BSS filter::FilterContainer globalLpfContainer{{&globalLPFFreqMenu, &globalLPFResMenu}, &globalLPFMorphMenu};
+PLACE_SDRAM_BSS filter::FilterContainer globalHpfContainer{{&globalHPFFreqMenu, &globalHPFResMenu}, &globalHPFMorphMenu};
+PLACE_SDRAM_BSS deluge::vector<HorizontalMenuContainer*> horizontalMenuContainers{&lpfContainer, &hpfContainer, &globalLpfContainer, &globalHpfContainer};
 
 //clang-format on
 

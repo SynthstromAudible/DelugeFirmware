@@ -50,7 +50,7 @@
 
 using namespace deluge::gui;
 
-Slicer slicer{};
+PLACE_SDRAM_BSS Slicer slicer{};
 
 namespace params = deluge::modulation::params;
 
@@ -154,7 +154,7 @@ bool Slicer::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSid
 	return true;
 }
 
-const uint8_t zeroes[] = {0, 0, 0, 0, 0, 0, 0, 0};
+PLACE_SDRAM_RODATA const uint8_t zeroes[] = {0, 0, 0, 0, 0, 0, 0, 0};
 
 void Slicer::graphicsRoutine() {
 

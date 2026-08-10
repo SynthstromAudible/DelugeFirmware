@@ -34,19 +34,20 @@
 
 using namespace deluge::gui;
 
-bool QwertyUI::predictionInterrupted;
-String QwertyUI::enteredText{};
+PLACE_SDRAM_BSS bool QwertyUI::predictionInterrupted;
+PLACE_SDRAM_BSS String QwertyUI::enteredText{};
 // entered text edit position is the first difference from
 // the previously seen name while browsing/editing
-int16_t QwertyUI::enteredTextEditPos;
-int32_t QwertyUI::scrollPosHorizontal;
+PLACE_SDRAM_BSS int16_t QwertyUI::enteredTextEditPos;
+PLACE_SDRAM_BSS int32_t QwertyUI::scrollPosHorizontal;
 
-uint8_t QwertyUI::currentBank = 0;
-std::optional<uint8_t> QwertyUI::currentFavourite = std::nullopt;
-uint8_t QwertyUI::favouriteRow = 6;
-FavouritesDefaultLayout QwertyUI::favouritesLayoutSelected = FavouritesDefaultLayout::FavouritesDefaultLayoutFavourites;
+PLACE_SDRAM_BSS uint8_t QwertyUI::currentBank = 0;
+PLACE_SDRAM_BSS std::optional<uint8_t> QwertyUI::currentFavourite = std::nullopt;
+PLACE_SDRAM_BSS uint8_t QwertyUI::favouriteRow = 6;
+PLACE_SDRAM_BSS FavouritesDefaultLayout QwertyUI::favouritesLayoutSelected =
+    FavouritesDefaultLayout::FavouritesDefaultLayoutFavourites;
 
-static constexpr float colourStep = 192 / kNumFavourites;
+PLACE_SDRAM_RODATA static constexpr float colourStep = 192 / kNumFavourites;
 
 bool QwertyUI::opened() {
 
@@ -223,27 +224,28 @@ void QwertyUI::displayText(bool blinkImmediately) {
 	display->setText(enteredText.get(), false, 255, true, blinkMask, false, false, scrollPos, encodedAddition, false);
 }
 
-const char keyboardChars[][5][11] = {{
-                                         {'1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-'},
-                                         {'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 0},
-                                         {'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 0, '\''},
-                                         {'Z', 'X', 'C', 'V', 'B', 'N', 'M', ',', '.', 0, 0},
-                                         {0, 0, ' ', ' ', ' ', ' ', ' ', ' ', 0, 0, 0},
-                                     },
-                                     {
-                                         {'1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-'},
-                                         {'A', 'Z', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 0},
-                                         {'Q', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'M', '\''},
-                                         {'W', 'X', 'C', 'V', 'B', 'N', ',', '.', 0, 0, 0},
-                                         {0, 0, ' ', ' ', ' ', ' ', ' ', ' ', 0, 0, 0},
-                                     },
-                                     {
-                                         {'1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-'},
-                                         {'Q', 'W', 'E', 'R', 'T', 'Z', 'U', 'I', 'O', 'P', 'U'},
-                                         {'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'O', 'A'},
-                                         {'Y', 'X', 'C', 'V', 'B', 'N', 'M', ',', '.', '\'', 0},
-                                         {0, 0, ' ', ' ', ' ', ' ', ' ', ' ', 0, 0, 0},
-                                     }};
+PLACE_SDRAM_RODATA constexpr char keyboardChars[][5][11] = {
+    {
+        {'1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-'},
+        {'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 0},
+        {'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 0, '\''},
+        {'Z', 'X', 'C', 'V', 'B', 'N', 'M', ',', '.', 0, 0},
+        {0, 0, ' ', ' ', ' ', ' ', ' ', ' ', 0, 0, 0},
+    },
+    {
+        {'1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-'},
+        {'A', 'Z', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 0},
+        {'Q', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'M', '\''},
+        {'W', 'X', 'C', 'V', 'B', 'N', ',', '.', 0, 0, 0},
+        {0, 0, ' ', ' ', ' ', ' ', ' ', ' ', 0, 0, 0},
+    },
+    {
+        {'1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-'},
+        {'Q', 'W', 'E', 'R', 'T', 'Z', 'U', 'I', 'O', 'P', 'U'},
+        {'A', 'S', 'D', 'F', 'G', 'H', 'J', 'K', 'L', 'O', 'A'},
+        {'Y', 'X', 'C', 'V', 'B', 'N', 'M', ',', '.', '\'', 0},
+        {0, 0, ' ', ' ', ' ', ' ', ' ', ' ', 0, 0, 0},
+    }};
 
 ActionResult QwertyUI::padAction(int32_t x, int32_t y, int32_t on) {
 

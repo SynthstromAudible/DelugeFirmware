@@ -37,9 +37,9 @@ enum class AudioInputSelector::Value {
 	OUTPUT,
 	TRACK,
 };
-constexpr size_t kNumValues = 8;
+PLACE_SDRAM_RODATA constexpr size_t kNumValues = 8;
 
-AudioInputSelector audioInputSelector{};
+PLACE_SDRAM_BSS AudioInputSelector audioInputSelector{};
 
 namespace {
 // A saved source pointer can become stale if its instrument leaves the active song list, e.g. by being hibernated.

@@ -122,4 +122,4 @@ void DxSyxBrowser::enterKeyPress() {
 	}
 }
 
-DxSyxBrowser dxBrowser{};
+PLACE_SDRAM_BSS DxSyxBrowser dxBrowser{};

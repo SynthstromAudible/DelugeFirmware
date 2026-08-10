@@ -33,7 +33,7 @@ extern deluge::gui::menu_item::midi::Device midiDeviceMenu;
 
 namespace deluge::gui::menu_item::midi {
 
-static constexpr int32_t lowestDeviceNum = -3;
+PLACE_SDRAM_RODATA static constexpr int32_t lowestDeviceNum = -3;
 
 void Devices::beginSession(MenuItem* navigatedBackwardFrom) {
 	bool found = false;

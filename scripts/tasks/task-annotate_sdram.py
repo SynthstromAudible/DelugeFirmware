@@ -1,20 +1,32 @@
 #! /usr/bin/env python3
-"""Annotate every top level class declaration in a source file with PLACE_SDRAM_DATA.
+"""Annotate every top level variable declaration in a source file with the
+appropriate PLACE_SDRAM_BSS/PLACE_SDRAM_DATA/PLACE_SDRAM_RODATA macro.
 
 This task was written specifically to annotate src/deluge/gui/ui/menus.cpp,
 where the vast majority of top level statements are declarations of global
 menu objects (instances of classes such as Submenu, HorizontalMenu,
 arpeggiator::Mode, etc). Those objects are currently placed in the default
-data section, but since they are read-only-ish and rarely change once
-constructed, they are good candidates for being placed in external SDRAM via
-the PLACE_SDRAM_DATA macro (see src/definitions.h) to save precious internal
-RAM.
+data/bss sections, but since they are read-only-ish and rarely change once
+constructed, they are good candidates for being placed in external SDRAM
+(see src/definitions.h) to save precious internal RAM.
 
 The script performs a purely mechanical, syntax based transformation: it does
-NOT change any existing code, it only *prepends* the PLACE_SDRAM_DATA macro to
-statements which look like a top level variable declaration whose type is a
-class (i.e. "Type[::Type...] name[::name] {...};" or "Type name;"), and which
-is not already annotated with PLACE_SDRAM_DATA.
+NOT change any existing code, it only *prepends* the appropriate PLACE_SDRAM_*
+macro to statements which look like a top level variable declaration whose
+type is a class (i.e. "Type[::Type...] name[::name] {...};" or "Type name;"),
+using this rule to pick the macro:
+  - const/constexpr/constinit-qualified objects (not counting pointers/
+    references, since e.g. "const MenuItem*" only const-qualifies the
+    pointee) go to PLACE_SDRAM_RODATA, since they are genuinely read-only.
+  - array declarations (std::array<...> or a plain C array) go to
+    PLACE_SDRAM_DATA, since a plain aggregate array's initializer data is
+    only copied into RAM at startup for the .data section; placing it in
+    .bss would silently zero it out.
+  - everything else defaults to PLACE_SDRAM_BSS.
+Declarations already annotated with the wrong macro get corrected; already
+correctly annotated declarations are left untouched. Declarations nested
+inside a namespace block are still annotated; only the "namespace ... {"
+line itself (and namespace alias declarations) are left untouched.
 
 Usage: ./dbt annotate_sdram <path/to/file.cpp> [more files...]
 """
@@ -42,6 +54,7 @@ _SKIP_KEYWORDS = {
     "static_assert",
     "return",
     "PLACE_SDRAM_DATA",
+    "PLACE_SDRAM_RODATA",
     "public",
     "private",
     "protected",
@@ -57,10 +70,10 @@ _SKIP_KEYWORDS = {
 #   [const] Type[::Type...][<Targs>][*|&...] name[::name...][[dim]...] =  -> copy init
 #   [const] Type[::Type...][<Targs>][*|&...] name[::name...][[dim]...];   -> default init
 _DECL_RE = re.compile(
-    r"^(?:const\s+|constexpr\s+|static\s+|inline\s+)*"  # optional qualifiers
+    r"^((?:const\s+|constexpr\s+|constinit\s+|static\s+|inline\s+)*)"  # optional qualifiers
     r"[A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)*"  # type name
     r"(?:<[^;{}]*>)?"  # optional template args, e.g. std::array<MenuItem*, 3>
-    r"(?:\s*[*&])*"  # optional pointer/reference sigils, e.g. "const MenuItem*"
+    r"((?:\s*[*&])*)"  # optional pointer/reference sigils, e.g. "const MenuItem*"
     r"\s+"
     r"[A-Za-z_][A-Za-z0-9_]*(?:::[A-Za-z_][A-Za-z0-9_]*)*"  # variable name
     r"(?:\s*\[[^\]]*\])*"  # optional array dimensions, e.g. "[kDisplayHeight]"
@@ -71,11 +84,13 @@ _DECL_RE = re.compile(
 # it, e.g. "/* comment */ Submenu fooMenu{...};".
 _LEADING_BLOCK_COMMENT_RE = re.compile(r"^(/\*.*?\*/\s*)+")
 
-# Matches an existing PLACE_SDRAM_BSS/PLACE_SDRAM_DATA annotation prefix, so
-# that already-annotated declarations can be inspected (and, for
-# PLACE_SDRAM_BSS array declarations, corrected) instead of being blindly
+# Matches an existing PLACE_SDRAM_BSS/PLACE_SDRAM_DATA/PLACE_SDRAM_RODATA
+# annotation prefix, so that already-annotated declarations can be inspected
+# (and corrected if the wrong macro was used) instead of being blindly
 # skipped.
-_EXISTING_MACRO_RE = re.compile(r"^(PLACE_SDRAM_BSS|PLACE_SDRAM_DATA)\s+")
+_EXISTING_MACRO_RE = re.compile(
+    r"^(PLACE_SDRAM_BSS|PLACE_SDRAM_DATA|PLACE_SDRAM_RODATA)\s+"
+)
 
 
 def _is_array_decl(decl_text: str) -> bool:
@@ -87,6 +102,31 @@ def _is_array_decl(decl_text: str) -> bool:
     array's initializer data is only copied into RAM at startup for the
     .data section; placing it in .bss would silently zero it out."""
     return "std::array<" in decl_text or "[" in decl_text
+
+
+def _is_const_qualified_object(decl_match: "re.Match") -> bool:
+    """Return True if *decl_match* (a match of _DECL_RE) declares an object
+    that is itself const/constexpr/constinit (as opposed to e.g. a mutable
+    pointer to const data, such as "const MenuItem* foo"). Such objects are
+    genuinely read-only and must live in PLACE_SDRAM_RODATA rather than
+    PLACE_SDRAM_DATA/PLACE_SDRAM_BSS."""
+    qualifiers = decl_match.group(1) or ""
+    pointer_sigils = decl_match.group(2) or ""
+    if pointer_sigils.strip():
+        # A qualifier before the type only const-qualifies the pointee, not
+        # the pointer/reference variable itself.
+        return False
+    return bool(re.search(r"\b(?:const|constexpr|constinit)\b", qualifiers))
+
+
+def _determine_macro(decl_match: "re.Match") -> str:
+    """Return the PLACE_SDRAM_* macro that should annotate the declaration
+    matched by *decl_match*."""
+    if _is_const_qualified_object(decl_match):
+        return "PLACE_SDRAM_RODATA"
+    if _is_array_decl(decl_match.group(0)):
+        return "PLACE_SDRAM_DATA"
+    return "PLACE_SDRAM_BSS"
 
 
 def _first_code_line_index(chunk_lines: list[str]) -> int | None:
@@ -228,25 +268,40 @@ def annotate_text(text: str) -> tuple[str, int]:
         code_after_comment = stripped[len(comment_prefix) :]
 
         # Declarations that are already annotated are inspected instead of
-        # being blindly skipped: a PLACE_SDRAM_BSS array declaration is
-        # incorrect (see _is_array_decl) and gets upgraded to
-        # PLACE_SDRAM_DATA, everything else already-annotated is left as-is.
+        # being blindly skipped: if the wrong macro was used (e.g. a
+        # PLACE_SDRAM_BSS array, or a const/constexpr/constinit object that
+        # should live in PLACE_SDRAM_RODATA), the annotation is corrected;
+        # everything else already-annotated is left as-is.
         existing_macro_match = _EXISTING_MACRO_RE.match(code_after_comment)
         if existing_macro_match:
             existing_macro = existing_macro_match.group(1)
             rest = code_after_comment[existing_macro_match.end() :]
-            if (
-                existing_macro == "PLACE_SDRAM_BSS"
-                and _DECL_RE.match(rest)
-                and _is_array_decl(_DECL_RE.match(rest).group(0))
-            ):
-                lines[idx] = f"{leading_ws}{comment_prefix}PLACE_SDRAM_DATA {rest}"
-                annotated_count += 1
+            rest_decl_match = _DECL_RE.match(rest)
+            if rest_decl_match:
+                correct_macro = _determine_macro(rest_decl_match)
+                if correct_macro != existing_macro:
+                    lines[idx] = f"{leading_ws}{comment_prefix}{correct_macro} {rest}"
+                    annotated_count += 1
             result.append("".join(lines))
             continue
 
         first_word_match = re.match(r"[A-Za-z_][A-Za-z0-9_]*", code_after_comment)
         first_word = first_word_match.group(0) if first_word_match else ""
+
+        # A namespace block (as opposed to a namespace alias declaration
+        # like "namespace foo = bar;", which has no '{') only has its
+        # opening "namespace ... {" line skipped; everything declared
+        # inside the braces is still a top level declaration from the
+        # annotation script's point of view and must be recursed into.
+        if first_word == "namespace" and "{" in chunk:
+            brace_start = chunk.index("{")
+            brace_end = chunk.rfind("}")
+            if brace_end > brace_start:
+                inner = chunk[brace_start + 1 : brace_end]
+                new_inner, inner_count = annotate_text(inner)
+                annotated_count += inner_count
+                result.append(chunk[: brace_start + 1] + new_inner + chunk[brace_end:])
+                continue
 
         # Preprocessor lines, or lines starting with a skip keyword, are left
         # untouched.
@@ -256,11 +311,7 @@ def annotate_text(text: str) -> tuple[str, int]:
 
         decl_match = _DECL_RE.match(code_after_comment)
         if decl_match:
-            macro = (
-                "PLACE_SDRAM_DATA"
-                if _is_array_decl(decl_match.group(0))
-                else "PLACE_SDRAM_BSS"
-            )
+            macro = _determine_macro(decl_match)
             lines[idx] = f"{leading_ws}{comment_prefix}{macro} {code_after_comment}"
             annotated_count += 1
 

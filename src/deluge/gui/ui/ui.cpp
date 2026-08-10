@@ -58,12 +58,12 @@ void UI::close() {
 	closeUI(this);
 }
 
-constexpr size_t kUiNavigationHistoryLength = 16;
-static std::array<UI*, kUiNavigationHistoryLength> uiNavigationHierarchy;
+PLACE_SDRAM_RODATA constexpr size_t kUiNavigationHistoryLength = 16;
+PLACE_SDRAM_DATA static std::array<UI*, kUiNavigationHistoryLength> uiNavigationHierarchy;
 
-int32_t numUIsOpen = 0; // Will be 0 again during song load / swap
+PLACE_SDRAM_BSS int32_t numUIsOpen = 0; // Will be 0 again during song load / swap
 
-UI* lastUIBeforeNullifying = nullptr;
+PLACE_SDRAM_BSS UI* lastUIBeforeNullifying = nullptr;
 
 /**
  * @brief Get the greyout rows and columns for the current UI
@@ -260,7 +260,7 @@ bool isUIOpen(UI* ui) {
 	}
 	return false;
 }
-bool doesOLEDNeedRendering = false;
+PLACE_SDRAM_BSS bool doesOLEDNeedRendering = false;
 
 void nullifyUIs() {
 	lastUIBeforeNullifying = getCurrentUI();
@@ -272,8 +272,8 @@ void renderUIsForOled() {
 	doesOLEDNeedRendering = true;
 }
 
-uint32_t whichMainRowsNeedRendering = 0;
-uint32_t whichSideRowsNeedRendering = 0;
+PLACE_SDRAM_BSS uint32_t whichMainRowsNeedRendering = 0;
+PLACE_SDRAM_BSS uint32_t whichSideRowsNeedRendering = 0;
 
 void clearPendingUIRendering() {
 	whichMainRowsNeedRendering = whichSideRowsNeedRendering = 0;
@@ -378,7 +378,7 @@ void doAnyPendingOLEDRendering() {
 	OLED::sendMainImage();
 }
 
-bool pendingUIRenderingLock = false;
+PLACE_SDRAM_BSS bool pendingUIRenderingLock = false;
 
 void doAnyPendingUIRendering() {
 	if (pendingUIRenderingLock) {
@@ -397,7 +397,7 @@ void doAnyPendingUIRendering() {
 	pendingUIRenderingLock = false;
 }
 
-uint32_t currentUIMode = 0;
+PLACE_SDRAM_BSS uint32_t currentUIMode = 0;
 
 bool isUIModeActive(uint32_t uiMode) {
 	if (uiMode > EXCLUSIVE_UI_MODES_MASK) {

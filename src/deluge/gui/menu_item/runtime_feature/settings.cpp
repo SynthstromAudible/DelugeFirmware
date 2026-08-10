@@ -59,10 +59,10 @@ Setting menuSyncScalingAction(RuntimeFeatureSettingType::SyncScalingAction);
 DevSysexSetting menuDevSysexAllowed(RuntimeFeatureSettingType::DevSysexAllowed);
 SettingToggle menuHighlightIncomingNotes(RuntimeFeatureSettingType::HighlightIncomingNotes);
 SettingToggle menuDisplayNornsLayout(RuntimeFeatureSettingType::DisplayNornsLayout);
-ShiftIsSticky menuShiftIsSticky{};
+PLACE_SDRAM_BSS ShiftIsSticky menuShiftIsSticky{};
 SettingToggle menuLightShiftLed(RuntimeFeatureSettingType::LightShiftLed);
 SettingToggle menuEnableDX7Engine(RuntimeFeatureSettingType::EnableDX7Engine);
-EmulatedDisplay menuEmulatedDisplay{};
+PLACE_SDRAM_BSS EmulatedDisplay menuEmulatedDisplay{};
 SettingToggle menuEnableKeyboardViewSidebarMenuExit(RuntimeFeatureSettingType::EnableKeyboardViewSidebarMenuExit);
 SettingToggle menuEnableLaunchEventPlayhead(RuntimeFeatureSettingType::EnableLaunchEventPlayhead);
 SettingToggle menuDisplayChordLayout(RuntimeFeatureSettingType::DisplayChordKeyboard);
@@ -74,7 +74,7 @@ SettingToggle menuTrimFromStartOfAudioClip(RuntimeFeatureSettingType::TrimFromSt
 SettingToggle menuShowBatteryLevel(RuntimeFeatureSettingType::ShowBatteryLevel);
 RoundedCornersSettingToggle menuRoundedCorners(RuntimeFeatureSettingType::RoundedCorners);
 
-std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
+PLACE_SDRAM_DATA std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
     &menuDrumRandomizer,
     &menuFineTempo,
     &menuQuantize,

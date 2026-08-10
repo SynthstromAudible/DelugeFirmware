@@ -101,7 +101,7 @@ extern "C" {}
 
 using namespace deluge::gui;
 
-PLACE_SDRAM_DATA InstrumentClipView instrumentClipView{};
+PLACE_SDRAM_BSS InstrumentClipView instrumentClipView{};
 
 InstrumentClipView::InstrumentClipView() : numEditPadPresses(0) {
 
@@ -1844,17 +1844,18 @@ void InstrumentClipView::handleProbabilityOrIteranceEditing(int8_t offset, bool 
 	}
 }
 
-const uint32_t editPadActionUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
+PLACE_SDRAM_RODATA const uint32_t editPadActionUIModes[] = {UI_MODE_NOTES_PRESSED,
+                                                            UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
 
-const uint32_t mutePadActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_STUTTERING, 0};
+PLACE_SDRAM_RODATA const uint32_t mutePadActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_STUTTERING, 0};
 
-const uint32_t auditionPadActionUIModes[] = {UI_MODE_AUDITIONING,
-                                             UI_MODE_ADDING_DRUM_NOTEROW,
-                                             UI_MODE_HORIZONTAL_SCROLL,
-                                             UI_MODE_RECORD_COUNT_IN,
-                                             UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON,
-                                             UI_MODE_HOLDING_LOAD_BUTTON,
-                                             0};
+PLACE_SDRAM_RODATA const uint32_t auditionPadActionUIModes[] = {UI_MODE_AUDITIONING,
+                                                                UI_MODE_ADDING_DRUM_NOTEROW,
+                                                                UI_MODE_HORIZONTAL_SCROLL,
+                                                                UI_MODE_RECORD_COUNT_IN,
+                                                                UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON,
+                                                                UI_MODE_HOLDING_LOAD_BUTTON,
+                                                                0};
 
 ActionResult InstrumentClipView::padAction(int32_t x, int32_t y, int32_t velocity) {
 
@@ -6146,7 +6147,7 @@ void InstrumentClipView::cutAuditionedNotesToOne() {
 	}
 }
 
-static const uint32_t verticalScrollUIModes[] = {
+PLACE_SDRAM_RODATA static const uint32_t verticalScrollUIModes[] = {
     UI_MODE_NOTES_PRESSED, UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN, UI_MODE_DRAGGING_KIT_NOTEROW, 0,
 };
 
@@ -6431,7 +6432,8 @@ shiftAllColour:
 	}
 }
 
-static const uint32_t noteNudgeUIModes[] = {UI_MODE_NOTES_PRESSED, UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
+PLACE_SDRAM_RODATA static const uint32_t noteNudgeUIModes[] = {UI_MODE_NOTES_PRESSED,
+                                                               UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, 0};
 
 ActionResult InstrumentClipView::horizontalEncoderAction(int32_t offset) {
 	if (sdRoutineLock) {

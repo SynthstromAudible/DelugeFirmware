@@ -77,7 +77,7 @@ namespace params = deluge::modulation::params;
 using namespace deluge;
 using namespace gui;
 
-SampleBrowser sampleBrowser{};
+PLACE_SDRAM_BSS SampleBrowser sampleBrowser{};
 
 char const* allowedFileExtensionsAudio[] = {"WAV", "AIFF", "AIF", NULL};
 
@@ -2043,7 +2043,8 @@ skipNameStuff:
 	return true;
 }
 
-static const uint32_t zoomUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON, UI_MODE_AUDITIONING, 0};
+PLACE_SDRAM_RODATA static const uint32_t zoomUIModes[] = {UI_MODE_HOLDING_HORIZONTAL_ENCODER_BUTTON,
+                                                          UI_MODE_AUDITIONING, 0};
 
 ActionResult SampleBrowser::horizontalEncoderAction(int32_t offset) {
 	// Or, maybe we want to scroll or zoom around the waveform...

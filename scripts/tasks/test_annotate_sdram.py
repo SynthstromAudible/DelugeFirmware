@@ -35,6 +35,11 @@ class AnnotateTextTests(unittest.TestCase):
             "PLACE_SDRAM_BSS Submenu fooMenu{STRING_FOR_FOO};\n",
         )
 
+    def test_simple_brace_init_fail_case(self):
+        self.assertAnnotated(
+            "DeleteFile deleteFile{};\n", "PLACE_SDRAM_BSS DeleteFile deleteFile{};\n"
+        )
+
     def test_simple_semicolon_declaration(self):
         self.assertAnnotated(
             "gate::Mode gateModeMenu;\n",
@@ -60,11 +65,12 @@ class AnnotateTextTests(unittest.TestCase):
         )
         self.assertAnnotated(source, expected)
 
-    def test_already_annotated_is_left_untouched(self):
+    def test_data_annotated_non_array_is_downgraded_to_bss(self):
+        # A non-array, non-const declaration incorrectly annotated with
+        # PLACE_SDRAM_DATA is corrected to PLACE_SDRAM_BSS.
         source = "PLACE_SDRAM_DATA Submenu fooMenu{STRING_FOR_FOO};\n"
-        new_text, count = annotate_sdram.annotate_text(source)
-        self.assertEqual(new_text, source)
-        self.assertEqual(count, 0)
+        expected = "PLACE_SDRAM_BSS Submenu fooMenu{STRING_FOR_FOO};\n"
+        self.assertAnnotated(source, expected)
 
     def test_already_bss_annotated_non_array_is_left_untouched(self):
         source = "PLACE_SDRAM_BSS Submenu fooMenu{STRING_FOR_FOO};\n"
@@ -213,6 +219,120 @@ class AnnotateTextTests(unittest.TestCase):
         new_text, count = annotate_sdram.annotate_text(source)
         self.assertEqual(new_text, source)
         self.assertEqual(count, 0)
+
+    def test_const_declaration_uses_rodata(self):
+        self.assertAnnotated(
+            "const int32_t kFoo = 42;\n",
+            "PLACE_SDRAM_RODATA const int32_t kFoo = 42;\n",
+        )
+
+    def test_constexpr_declaration_uses_rodata(self):
+        self.assertAnnotated(
+            "constexpr int32_t kFoo = 42;\n",
+            "PLACE_SDRAM_RODATA constexpr int32_t kFoo = 42;\n",
+        )
+
+    def test_constinit_declaration_uses_rodata(self):
+        self.assertAnnotated(
+            "constinit int32_t kFoo = 42;\n",
+            "PLACE_SDRAM_RODATA constinit int32_t kFoo = 42;\n",
+        )
+
+    def test_const_array_declaration_uses_rodata(self):
+        self.assertAnnotated(
+            "const uint32_t editPadActionUIModes[] = {A, B, 0};\n",
+            "PLACE_SDRAM_RODATA const uint32_t editPadActionUIModes[] = {A, B, 0};\n",
+        )
+
+    def test_const_std_array_declaration_uses_rodata(self):
+        self.assertAnnotated(
+            "const std::array<int32_t, 3> kFoo{1, 2, 3};\n",
+            "PLACE_SDRAM_RODATA const std::array<int32_t, 3> kFoo{1, 2, 3};\n",
+        )
+
+    def test_pointer_to_const_is_not_rodata(self):
+        # "const MenuItem*" const-qualifies the pointee, not the pointer
+        # variable itself, so this is a mutable pointer and must not be
+        # placed in PLACE_SDRAM_RODATA.
+        self.assertAnnotated(
+            "const MenuItem* fooPtr;\n",
+            "PLACE_SDRAM_BSS const MenuItem* fooPtr;\n",
+        )
+
+    def test_static_const_declaration_uses_rodata(self):
+        self.assertAnnotated(
+            "static const int32_t kFoo = 42;\n",
+            "PLACE_SDRAM_RODATA static const int32_t kFoo = 42;\n",
+        )
+
+    def test_bss_annotated_const_is_upgraded_to_rodata(self):
+        source = "PLACE_SDRAM_BSS const int32_t kFoo = 42;\n"
+        expected = "PLACE_SDRAM_RODATA const int32_t kFoo = 42;\n"
+        self.assertAnnotated(source, expected)
+
+    def test_data_annotated_const_array_is_upgraded_to_rodata(self):
+        source = "PLACE_SDRAM_DATA const uint32_t editPadActionUIModes[] = {A, B, 0};\n"
+        expected = (
+            "PLACE_SDRAM_RODATA const uint32_t editPadActionUIModes[] = {A, B, 0};\n"
+        )
+        self.assertAnnotated(source, expected)
+
+    def test_already_rodata_annotated_is_left_untouched(self):
+        source = "PLACE_SDRAM_RODATA const int32_t kFoo = 42;\n"
+        new_text, count = annotate_sdram.annotate_text(source)
+        self.assertEqual(new_text, source)
+        self.assertEqual(count, 0)
+
+    def test_rodata_annotated_pointer_downgraded_to_bss(self):
+        # If a pointer-to-const was incorrectly annotated as RODATA, it must
+        # be corrected back since the pointer variable itself is mutable.
+        source = "PLACE_SDRAM_RODATA const MenuItem* fooPtr;\n"
+        expected = "PLACE_SDRAM_BSS const MenuItem* fooPtr;\n"
+        self.assertAnnotated(source, expected)
+
+    def test_declarations_inside_anonymous_namespace_are_annotated(self):
+        source = "namespace {\nSubmenu fooMenu{A};\n}\n"
+        expected = "namespace {\nPLACE_SDRAM_BSS Submenu fooMenu{A};\n}\n"
+        self.assertAnnotated(source, expected)
+
+    def test_declarations_inside_named_namespace_are_annotated(self):
+        source = (
+            "namespace foo::bar {\nSubmenu fooMenu{A};\nconst int32_t kFoo = 42;\n}\n"
+        )
+        expected = (
+            "namespace foo::bar {\n"
+            "PLACE_SDRAM_BSS Submenu fooMenu{A};\n"
+            "PLACE_SDRAM_RODATA const int32_t kFoo = 42;\n"
+            "}\n"
+        )
+        self.assertAnnotated(source, expected, expected_count=2)
+
+    def test_namespace_alias_declaration_still_untouched(self):
+        source = "namespace params = deluge::modulation::params;\n"
+        new_text, count = annotate_sdram.annotate_text(source)
+        self.assertEqual(new_text, source)
+        self.assertEqual(count, 0)
+
+    def test_function_inside_namespace_untouched_but_sibling_declaration_annotated(
+        self,
+    ):
+        source = (
+            "namespace {\n"
+            "Output* getFirstRecordableOutput(AudioOutput* audioOutput) {\n"
+            "    return nullptr;\n"
+            "}\n"
+            "Submenu fooMenu{A};\n"
+            "}\n"
+        )
+        expected = (
+            "namespace {\n"
+            "Output* getFirstRecordableOutput(AudioOutput* audioOutput) {\n"
+            "    return nullptr;\n"
+            "}\n"
+            "PLACE_SDRAM_BSS Submenu fooMenu{A};\n"
+            "}\n"
+        )
+        self.assertAnnotated(source, expected)
 
 
 if __name__ == "__main__":

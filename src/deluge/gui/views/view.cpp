@@ -93,7 +93,7 @@ namespace encoders = deluge::hid::encoders;
 using namespace deluge;
 using namespace gui;
 
-View view{};
+PLACE_SDRAM_BSS View view{};
 
 extern GlobalMIDICommand pendingGlobalMIDICommand;
 
@@ -1506,15 +1506,15 @@ int32_t View::convertPatchCableKnobPosToIndicatorLevel(int32_t knobPos) {
 	return newKnobPos;
 }
 
-static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,
-                                            UI_MODE_CLIP_PRESSED_IN_SONG_VIEW,
-                                            UI_MODE_NOTES_PRESSED,
-                                            UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION,
-                                            UI_MODE_HOLDING_ARRANGEMENT_ROW,
-                                            UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES,
-                                            UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED,
-                                            UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED,
-                                            0};
+PLACE_SDRAM_RODATA static const uint32_t modButtonUIModes[] = {UI_MODE_AUDITIONING,
+                                                               UI_MODE_CLIP_PRESSED_IN_SONG_VIEW,
+                                                               UI_MODE_NOTES_PRESSED,
+                                                               UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION,
+                                                               UI_MODE_HOLDING_ARRANGEMENT_ROW,
+                                                               UI_MODE_LOADING_SONG_ESSENTIAL_SAMPLES,
+                                                               UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED,
+                                                               UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED,
+                                                               0};
 
 void View::modButtonAction(uint8_t whichButton, bool on) {
 	RootUI* rootUI = getRootUI();
@@ -1832,7 +1832,7 @@ bool View::potentiallyRenderVUMeter(RGB image[][kDisplayWidth + kSideBarWidth]) 
 }
 
 // lookup table for the min value of each pad's value range used to display vu meter on the grid
-const float dBFSForYDisplay[kDisplayHeight] = {-30.8, -26.4, -22.0, -17.6, -13.2, -8.8, -4.4, -0.2};
+PLACE_SDRAM_RODATA const float dBFSForYDisplay[kDisplayHeight] = {-30.8, -26.4, -22.0, -17.6, -13.2, -8.8, -4.4, -0.2};
 
 int32_t View::getMaxYDisplayForVUMeter(float level) {
 	// dBFS (dB below clipping) calculation

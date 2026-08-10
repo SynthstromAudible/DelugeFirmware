@@ -31,7 +31,7 @@ RGB RGB::fromHue(int32_t hue) {
 	return rgb;
 }
 
-constexpr int32_t kMaxPastel = 230;
+PLACE_SDRAM_RODATA constexpr int32_t kMaxPastel = 230;
 
 RGB RGB::fromHuePastel(int32_t hue) {
 	RGB rgb{};

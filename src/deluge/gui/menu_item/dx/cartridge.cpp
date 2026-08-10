@@ -82,7 +82,7 @@ static bool openFile(std::string_view path, DX7Cartridge* data) {
 }
 namespace deluge::gui::menu_item {
 
-DxCartridge dxCartridge{l10n::String::STRING_FOR_DX_CARTRIDGE};
+PLACE_SDRAM_BSS DxCartridge dxCartridge{l10n::String::STRING_FOR_DX_CARTRIDGE};
 
 void DxCartridge::beginSession(MenuItem* navigatedBackwardFrom) {
 	loadPatch();
