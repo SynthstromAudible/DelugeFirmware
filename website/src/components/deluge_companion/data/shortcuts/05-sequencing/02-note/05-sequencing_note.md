@@ -23,7 +23,17 @@ press(GRID), turn(X), hold(X) + press(GRID_UNLIT)
 
 Move to the next screen, then select the two grid buttons on the same row.
 
-# Adjust note velocity
+# Edit Note Repeat
+
+#OFFICIAL #SYNTH #KIT #MIDI #CV #AUTOMATION #AUTOMATION_VELOCITY
+
+```shortcut
+hold(GRID) + press(Y) + turn(Y)
+```
+
+Adjusts selected note's repeats.
+
+# Edit note velocity
 
 #OFFICIAL #SYNTH #KIT #MIDI #CV
 
@@ -33,25 +43,44 @@ hold(GRID) + turn(X)
 
 Multiple notes can be selected. New notes default to the last velocity setting. Default velocity is 64, with a range of 0-127.
 
-# Note probability; clockwise is iteration and counter is probability
+# Edit Note Probability or Iterance
 
-#OFFICIAL #SYNTH #KIT #MIDI #CV
-
-```shortcut
-hold(GRID) + turn(SELECT)
-```
-
-Turn counter-clockwise to adjust probability. Turn clockwise to adjust iteration.
-
-# Note probability group
-
-#OFFICIAL #SYNTH #KIT #MIDI #CV
+#OFFICIAL #COMMUNITY #SYNTH #KIT #MIDI #CV
 
 ```shortcut
 hold(GRID) + turn(SELECT)
 ```
 
-When probability is the same, all notes follow the action of the first note in the sequence. A '.' signifies that a probability group exists.
+```community
+Official: Turn counter-clockwise to adjust probability. Turn clockwise to adjust iterance. In Official you can set a note to have probabilty or iterance but not both.
+
+Community: A note can have both note probability and note iterance set.
+- Hold a note and turn the select encoder left to enter note probability editing mode.
+- Hold a note and turn the select encoder right to enter note iterance editing mode.
+```
+
+# Edit Note Probability or Iterance for group of notes
+
+#OFFICIAL #COMMUNITY #SYNTH #KIT #MIDI #CV
+
+```shortcut
+hold(GRID) + turn(SELECT)
+```
+
+Multiple notes can be selected.
+
+When probability is the same, all notes follow the action of the first note in the sequence.
+
+- On 7SEG: A '.' signifies that a probability group exists.
+- On OLED: The word "latching"signifies that a probability group exists.
+
+```community
+Official: Turn counter-clockwise to adjust probability. Turn clockwise to adjust iterance. In Official you can set a note to have probabilty or iterance but not both.
+
+Community: A note can have both note probability and note iterance set.
+- Hold a note and turn the select encoder left to enter note probability editing mode.
+- Hold a note and turn the select encoder right to enter note iterance editing mode.
+```
 
 # Copy notes
 
@@ -135,7 +164,7 @@ hold(SHIFT) + hold(AUDITION) + turn(Y)
 hold(AUDITION) + hold(LAUNCH) + turn(Y)
 ```
 
-# Note nudge individual note
+# Nudge individual note horizontally
 
 #OFFICIAL #SYNTH #KIT #MIDI #CV
 
@@ -193,7 +222,7 @@ hold(AUDITION) + turn(TEMPO)
 
 Turn clockwise to quantize or counter-clockwise to humanize. Applies to one row or all rows depending on context.
 
-# Enter Velocity View
+# Enter Note Velocity Automation View
 
 #COMMUNITY #SYNTH #KIT #MIDI #CV #AUTOMATION #AUTOMATION_VELOCITY
 
@@ -201,9 +230,9 @@ Turn clockwise to quantize or counter-clockwise to humanize. Applies to one row 
 hold(AUDITION) + press(VELOCITY_PATCH_SOURCE)
 ```
 
-Opens the note velocity editor from Instrument Clip View or Automation View.
+Opens the note velocity automation view from Instrument Clip View or Automation View.
 
-# Select Note Row in Velocity Editor
+# Select Note Row in Note Velocity Automation View
 
 #COMMUNITY #SYNTH #KIT #MIDI #CV #AUTOMATION #AUTOMATION_VELOCITY
 
@@ -211,9 +240,9 @@ Opens the note velocity editor from Instrument Clip View or Automation View.
 press(AUDITION)
 ```
 
-Selects the current note row in the velocity editor.
+Selects the current note row in the note velocity automation view.
 
-# Select Note Row in Velocity Editor with Vertical Encoder
+# Select Note Row in Note Velocity Automation View with Vertical Encoder
 
 #COMMUNITY #SYNTH #KIT #MIDI #CV #AUTOMATION #AUTOMATION_VELOCITY
 
@@ -221,19 +250,9 @@ Selects the current note row in the velocity editor.
 turn(Y)
 ```
 
-Alternative way to select a different note row in the velocity editor.
+Alternative way to select a different note row in the note velocity automation view.
 
-# Note Row Probability
-
-#COMMUNITY #SYNTH #KIT #MIDI #CV #AUTOMATION #AUTOMATION_VELOCITY
-
-```shortcut
-hold(AUDITION) + turn(SELECT)
-```
-
-Adjusts the selected note row's probability in the velocity editor.
-
-# Note Row Iterance
+# Edit Note Row Probability or Iterance
 
 #COMMUNITY #SYNTH #KIT #MIDI #CV #AUTOMATION #AUTOMATION_VELOCITY
 
@@ -241,7 +260,15 @@ Adjusts the selected note row's probability in the velocity editor.
 hold(AUDITION) + turn(SELECT)
 ```
 
-Adjusts the selected note row's iterance in the velocity editor.
+Adjusts the selected note row's probability and/or iterance. All note's in the note row will be set with the same value.
+
+```community
+Official: Turn counter-clockwise to adjust probability. Turn clockwise to adjust iterance. In Official you can set a note row to have probabilty or iterance but not both.
+
+Community: A note row can have both note probability and note iterance set.
+- Hold audition pad and turn the select encoder left to enter note probability editing mode.
+- Hold audition pad and turn the select encoder right to enter note iterance editing mode.
+```
 
 # Note Row Velocity
 
@@ -251,9 +278,9 @@ Adjusts the selected note row's iterance in the velocity editor.
 hold(GRID) + turn(X)
 ```
 
-Adjusts the selected note's velocity in the velocity editor.
+Adjusts the selected note row's velocity. All note's in the note row will be set with the same value.
 
-# Note Row Fill
+# Edit Note Row Fill
 
 #COMMUNITY #SYNTH #KIT #MIDI #CV #AUTOMATION #AUTOMATION_VELOCITY
 
@@ -261,17 +288,7 @@ Adjusts the selected note's velocity in the velocity editor.
 hold(AUDITION) + press(SYNC)
 ```
 
-Adjusts the selected note row's fill setting when the Community Feature is enabled.
-
-# Note Repeat
-
-#COMMUNITY #SYNTH #KIT #MIDI #CV #AUTOMATION #AUTOMATION_VELOCITY
-
-```shortcut
-hold(GRID) + press(Y)
-```
-
-Adjusts note repeat for the selected note in the velocity editor.
+Adjusts the selected note row's fill setting when the Community Feature is enabled. All note's in the note will row will be set with the same value.
 
 # Enter Note Editor
 
@@ -439,15 +456,7 @@ hold(SHIFT) + press(CROSS) + press(X)
 
 Gentle-pastes a loaded pattern from the clipboard.
 
-# Note Probability
-
-#COMMUNITY #SYNTH #KIT #MIDI #CV
-
-```shortcut
-hold(SHIFT) + press(NOTE_PATCH_SOURCE)
-```
-
-# Randomizer Lock
+# Toggle Randomizer Lock
 
 #COMMUNITY #SYNTH #KIT #MIDI #CV
 
@@ -455,7 +464,15 @@ hold(SHIFT) + press(NOTE_PATCH_SOURCE)
 hold(SHIFT) + press(RANDOM_PATCH_SOURCE)
 ```
 
-# Velocity Probability
+# Edit Randomizer Note Probability
+
+#COMMUNITY #SYNTH #KIT #MIDI #CV
+
+```shortcut
+hold(SHIFT) + press(NOTE_PATCH_SOURCE)
+```
+
+# Edit Randomizer Velocity Probability
 
 #COMMUNITY #SYNTH #KIT #MIDI #CV
 

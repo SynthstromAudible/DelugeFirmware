@@ -125,17 +125,9 @@ hold(SHIFT) + hold(X) + press(LAUNCH)
 
 Immediately solos the clip. You can solo more than one clip.
 
-# Clip parameter change (per clip)
-
-#OFFICIAL #SESSION
-
-```shortcut
-hold(GRID) + turn(PARAMETER)
-```
-
 # Clip parameter change (per song)
 
-#OFFICIAL #SESSION
+#OFFICIAL #ARRANGER #SESSION
 
 ```shortcut
 press(ENTIRE), turn(PARAMETER)

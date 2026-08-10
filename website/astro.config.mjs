@@ -1,5 +1,5 @@
 // @ts-check
-import { defineConfig } from "astro/config"
+import { defineConfig, passthroughImageService } from "astro/config"
 import starlight from "@astrojs/starlight"
 import svelte from "@astrojs/svelte"
 import rehypeMermaid from "rehype-mermaid"
@@ -15,12 +15,16 @@ import remarkDirective from "remark-directive"
 import starlightSidebarTopics from "starlight-sidebar-topics"
 
 const siteBasePath = process.env.SITE_BASE_PATH || ""
+const isCI = process.env.CI === "true"
 
 // https://astro.build/config
 const config = defineConfig({
   site: process.env.SITE_URL,
   base: siteBasePath,
   trailingSlash: "never",
+  // CI runners occasionally miss Sharp native bindings during image generation.
+  // Use passthrough in CI to keep builds deterministic.
+  image: isCI ? { service: passthroughImageService() } : undefined,
   integrations: [
     svelte(),
     starlight({

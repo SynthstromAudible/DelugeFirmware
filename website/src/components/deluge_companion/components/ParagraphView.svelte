@@ -12,19 +12,21 @@
   // Community paragraphs use custom block rendering for list + line formatting.
   $: paragraphClass = paragraph.type === "community"
     ? "mt-4 leading-8 paragraph-community"
+    : paragraph.type === "list"
+      ? "mt-4 leading-8 paragraph-list"
     : "mt-4 leading-8";
 
-  $: communityText = paragraph.spans
+  $: paragraphText = paragraph.spans
     .map((span) => ("text" in span ? span.text : ""))
     .join("");
 
-  $: communityBlocks = paragraph.type === "community"
-    ? parseCommunityBlocks(communityText)
+  $: paragraphBlocks = paragraph.type === "community" || paragraph.type === "list"
+    ? parseBlocks(paragraphText)
     : [];
 
   // Converts plain text into list/text blocks for readable community formatting.
   // Returns ordered render blocks preserving text and bullet sections.
-  function parseCommunityBlocks(source: string): CommunityBlock[] {
+  function parseBlocks(source: string): CommunityBlock[] {
     const blocks: CommunityBlock[] = [];
     const textLines: string[] = [];
     const listItems: string[] = [];
@@ -76,10 +78,10 @@
   }
 </script>
 
-<!-- Community paragraphs use list/text block rendering. -->
-{#if paragraph.type === "community"}
+<!-- Community and list paragraphs use list/text block rendering. -->
+{#if paragraph.type === "community" || paragraph.type === "list"}
   <div class={paragraphClass}>
-    {#each communityBlocks as block}
+    {#each paragraphBlocks as block}
       {#if block.type === "list"}
         <ul class="community-list">
           {#each block.items as item}
@@ -104,6 +106,11 @@
 
 <style>
   .paragraph-community {
+    display: grid;
+    gap: 0.35rem;
+  }
+
+  .paragraph-list {
     display: grid;
     gap: 0.35rem;
   }

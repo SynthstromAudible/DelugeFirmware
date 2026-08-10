@@ -355,6 +355,14 @@ export const parseMd = (
       return
     }
 
+    if (t.type === "list" && current) {
+      current.paragraphs.push({
+        type: "list",
+        spans: [{ text: t.raw }],
+      })
+      return
+    }
+
     if (t.type === "space") {
       // ignore whitespace
       return
