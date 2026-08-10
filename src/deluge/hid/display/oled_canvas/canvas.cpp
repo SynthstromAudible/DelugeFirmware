@@ -234,6 +234,11 @@ void Canvas::drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t max
 }
 
 void Canvas::drawRectangleRounded(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, BorderRadius radius) {
+	if (!roundedCornersEnabled) {
+		drawRectangle(minX, minY, maxX, maxY);
+		return;
+	}
+
 	const int32_t radiusPixels = radius == SMALL ? 1 : 2;
 
 	drawVerticalLine(minX, minY + radiusPixels, maxY - radiusPixels);
@@ -758,9 +763,13 @@ void Canvas::invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t end
 }
 
 void Canvas::invertAreaRounded(int32_t xMin, int32_t width, int32_t startY, int32_t endY, BorderRadius radius) {
-	const int32_t radiusPixels = radius == SMALL ? 1 : 2;
-
 	invertArea(xMin, width, startY, endY);
+
+	if (!roundedCornersEnabled) {
+		return;
+	}
+
+	const int32_t radiusPixels = radius == SMALL ? 1 : 2;
 
 	// restore corners back
 	const int32_t xMax = xMin + width - 1;
