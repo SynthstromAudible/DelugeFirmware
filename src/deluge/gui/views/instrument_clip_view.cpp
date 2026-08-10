@@ -6242,6 +6242,40 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 	int32_t screenStartPos = xScroll;
 	int32_t screenEndPos = xScroll + (xZoom * kDisplayWidth);
 
+	auto num_note_rows = clip->getNumNoteRows();
+
+	// A row only moves if it has at least one note on the current screen.
+	auto rowHasNoteOnScreen = [&](NoteRow* noteRow) {
+		for (int32_t i = 0; i < noteRow->notes.getNumElements(); i++) {
+			Note* note = noteRow->notes.getElement(i);
+			if (note->pos >= screenStartPos && note->pos < screenEndPos) {
+				return true;
+			}
+		}
+		return false;
+	};
+
+	// Reject the whole transpose if it would push any note out of the playable range, matching the
+	// limit that vertical scrolling and key transposition enforce. It's all-or-nothing so that the
+	// intervals between the moved notes are preserved. Do this before touching anything, since the
+	// collection pass below already steals MPE data.
+	for (int32_t index = 0; index < num_note_rows; index++) {
+		NoteRow* noteRow = clip->noteRows.getElement(index);
+		if (!noteRow || noteRow->hasNoNotes()) {
+			continue;
+		}
+		int32_t currentYNote = noteRow->y;
+		int32_t destYNote = currentSong->incrementYNoteInKey(currentYNote, offset, inOctave, clip->inScaleMode);
+		if (destYNote == currentYNote) {
+			continue;
+		}
+		// Rows can move in either direction regardless of `offset` - keeping within the octave wraps
+		// some of them the other way - so ask about the direction this row is actually travelling.
+		if (rowHasNoteOnScreen(noteRow) && !clip->isScrollWithinRange(destYNote - currentYNote, destYNote)) {
+			return;
+		}
+	}
+
 	// Collect all notes from visible rows that need to be moved
 	struct NoteToMove {
 		int32_t sourceYNote;
@@ -6262,7 +6296,6 @@ void InstrumentClipView::commandTransposeScreen(int32_t offset, bool inOctave) {
 	// First pass: collect all notes from visible rows within screen bounds
 	Action* action = actionLogger.getNewAction(ActionType::NOTE_EDIT, ActionAddition::ALLOWED);
 
-	auto num_note_rows = clip->getNumNoteRows();
 	for (int32_t index = 0; index < num_note_rows; index++) {
 		NoteRow* noteRow = clip->noteRows.getElement(index);
 		ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(noteRow->y, noteRow);
