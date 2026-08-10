@@ -874,9 +874,12 @@ void usbReceiveComplete(int ip, int deviceNum, int tranlen);
 
 void usb_pstd_brdy_pipe_process_rohan_midi(uint16_t bitsts)
 {
+
     (void)bitsts;
 
     uint16_t pipe = USB_CFG_PMIDI_BULK_IN;
+
+    // because this is polled theres no synchronization with the state of the bus so we have to handle some edge cases
 
     // No receive armed? Then this is a stale BRDY for a packet we already drained below (BRDYSTS is cleared before
     // this handler is called, so a packet arriving while we drain re-raises it afterwards). Nothing to do.
@@ -885,20 +888,13 @@ void usb_pstd_brdy_pipe_process_rohan_midi(uint16_t bitsts)
         return;
     }
 
-    // Stop the SIE accepting any more packets before we touch the FIFO. Previously the pipe was left at PID=BUF here,
-    // so when a host sent bulk packets back-to-back, a further packet could be ACKed on the wire after this transfer
-    // completed but before the MIDI poll routine (checkIncomingUsbMidi(), ~1ms interval) armed the next one. That
-    // packet then arrived at this handler with no transfer armed, hit the USB_READOVER branch, and was thrown away by
-    // usb_pstd_forced_termination() (its ACLRM clears the FIFO) - silently, since the host had already seen its packet
-    // ACKed and moved on. That corrupted any fast multi-packet receive, most visibly SysEx firmware loading from hosts
-    // that don't pace their writes (e.g. Linux 6.16+). With the pipe NAKed instead, the host just retries until the
-    // poll routine re-arms: bulk flow control does the rest and nothing is ever lost.
+    // Rohan originally removed this as "not needed", but if midi is coming faster than
+    // we can handle it this is required to tell the host to retry.
+    // With the pipe NAKed the host just retries until the poll routine re-arms
     usb_cstd_set_nak_fast_rohan(pipe);
 
-    // A packet mid-transaction when NAK was written above still completes and lands in the FIFO - and its BRDY may
-    // already have been cleared on entry here, so it mustn't be left behind. Wait for the SIE to go idle (as the
-    // original usb_cstd_set_nak() did), then drain everything below. Usually PBUSY is already clear and this doesn't
-    // loop at all.
+    // A packet mid-transaction when NAK was written above still completes and lands in the FIFO. In case that's
+    // happening let's read until the pipes empty
     for (uint32_t n = 0; n < 0xFFFFu; n++)
     {
         if (!(hw_usb_read_pipectr(USB_NULL, pipe) & USB_PBUSY))
@@ -921,18 +917,15 @@ void usb_pstd_brdy_pipe_process_rohan_midi(uint16_t bitsts)
     }
 
     // How many bytes the armed 64-byte transfer actually received.
-    // Warning - sometimes (with a Teensy, e.g. my knob box), length will be 0. Not sure why - but we need to cope with
-    // that case.
     int32_t total = 64 - g_usb_data_cnt[pipe];
 
-    // The pipe is double-buffered (USB_CFG_DBLB), so the FIFO may already hold one more packet, ACKed before the NAK
-    // above took effect. Drain it too, appending into receiveData - the poll routine parses any whole number of 4-byte
-    // USB MIDI events, so it consumes this seamlessly. With NAK set and the SIE idle, what's in the FIFO now is all
-    // there is: this loop can only run a couple of times.
+    // Handle edge case where a packet was arriving when we set the NAK back
     while (total + 64 <= (int32_t)sizeof(connectedUSBMIDIDevices[0][0].receiveData))
     {
-        g_usb_data_cnt[pipe] = 64; // usb_read_data_fast_rohan() left g_p_usb_data[pipe] just past the data it read, so
-                                   // re-priming the count makes the next read append
+        // pretend there's at least 64 more available. The code in read_data_fast notes that
+        // reading in this case is still ok and this handles the edge case of a transmission finishing while the
+        // copy is occuring. That's happening in DMA so a critical section wouldn't help
+        g_usb_data_cnt[pipe] = 64;
         if (USB_READEND != usb_read_data_fast_rohan(pipe))
         {
             break; // FIFO empty - the usual case
