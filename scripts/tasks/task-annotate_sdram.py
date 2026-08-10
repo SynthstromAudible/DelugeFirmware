@@ -153,6 +153,7 @@ def _split_top_level_statements(text: str) -> list[str]:
     i = 0
     n = len(text)
     start = 0
+    line_start = 0
     in_line_comment = False
     in_block_comment = False
     in_string = False
@@ -161,6 +162,22 @@ def _split_top_level_statements(text: str) -> list[str]:
     while i < n:
         c = text[i]
         nxt = text[i + 1] if i + 1 < n else ""
+
+        if c == "\n" and not (
+            in_line_comment or in_block_comment or in_string or in_char
+        ):
+            # A preprocessor line (e.g. "#include ...") does not end with a
+            # ';' or a brace, so without this it would stay glued to
+            # whatever top level construct follows it (e.g. a namespace
+            # block), preventing that construct from ever being recognized.
+            if depth == 0:
+                current_line = text[line_start:i]
+                if current_line.strip().startswith("#"):
+                    chunks.append(text[start : i + 1])
+                    start = i + 1
+            line_start = i + 1
+            i += 1
+            continue
 
         if in_line_comment:
             if c == "\n":
