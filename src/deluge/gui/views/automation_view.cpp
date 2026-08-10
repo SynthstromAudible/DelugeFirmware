@@ -476,6 +476,12 @@ void AutomationView::focusRegained() {
 		currentSong->affectEntire = true;
 		view.focusRegained();
 		view.setActiveModControllableTimelineCounter(currentSong);
+
+		// On 7SEG, automation display text is not updated by LED/grid rendering.
+		// Refresh it whenever automation regains focus (e.g. exiting a menu).
+		if (display->have7SEG()) {
+			renderDisplay();
+		}
 	}
 	else {
 		ClipView::focusRegained();
@@ -926,6 +932,13 @@ bool AutomationView::renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth
 	}
 	else {
 		return getCurrentClip()->renderSidebar(whichRows, image, occupancyMask);
+	}
+}
+
+void AutomationView::clipNeedsReRendering(Clip* clip) {
+	// When on the arranger's automation, we're not displaying a Clip at all.
+	if (!onArrangerView && clip == getCurrentClip()) {
+		uiNeedsRendering(this);
 	}
 }
 
@@ -2871,19 +2884,7 @@ void AutomationView::selectMIDICC(int32_t offset, Clip* clip) {
 	if (onAutomationOverview()) {
 		clip->lastSelectedParamID = CC_NUMBER_NONE;
 	}
-	auto newCC = clip->lastSelectedParamID;
-	newCC += offset;
-	if (newCC < 0) {
-		newCC = CC_NUMBER_Y_AXIS;
-	}
-	else if (newCC >= kNumCCExpression) {
-		newCC = 0;
-	}
-	if (newCC == CC_EXTERNAL_MOD_WHEEL) {
-		// mod wheel is actually CC_NUMBER_Y_AXIS (122) internally
-		newCC += offset;
-	}
-	clip->lastSelectedParamID = newCC;
+	clip->lastSelectedParamID = ((MIDIInstrument*)clip->output)->getNextSelectableCC(clip->lastSelectedParamID, offset);
 	automationParamType = AutomationParamType::PER_SOUND;
 }
 

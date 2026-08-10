@@ -136,9 +136,6 @@ Song::Song() : backedUpParamManagers(sizeof(BackedUpParamManager)) {
 	insideWorldTickMagnitudeOffsetFromBPM = 0;
 	syncScalingClip = nullptr;
 	currentClip = nullptr;
-	slot = 32767;
-	subSlot = -1;
-
 	xScroll[NAVIGATION_CLIP] = 0;
 	xScroll[NAVIGATION_ARRANGEMENT] = 0;
 	xScrollForReturnToSongView = 0;
@@ -297,6 +294,9 @@ void Song::deleteAllOutputs(Output** prevPointer) {
 		Output* toDelete = *prevPointer;
 		*prevPointer = toDelete->next;
 
+		// toDelete is already unlinked, so this only visits outputs that are still alive
+		clearRecordingFromReferencesTo(toDelete);
+
 		void* toDealloc = dynamic_cast<void*>(toDelete);
 		toDelete->~Output();
 		delugeDealloc(toDealloc);
@@ -407,7 +407,7 @@ bool Song::ensureAtLeastOneSessionClip() {
 	                                                                                Availability::ANY);
 	if (result) {
 		String newPresetName;
-		result.value()->getDisplayNameWithoutExtension(&newPresetName);
+		result.value()->getFilenameWithoutExtension(&newPresetName);
 		error =
 		    StorageManager::loadInstrumentFromFile(this, firstClip, OutputType::SYNTH, false, &newInstrument,
 		                                           &result.value()->filePointer, &newPresetName, &Browser::currentDir);
@@ -1952,7 +1952,9 @@ unknownTag:
 						}
 
 						if (id < kMaxNumSections) {
-							if (channel < 16 && note < 128) {
+							// channel may be a plain channel (0-15), an MPE zone (16-17), or CC-encoded
+							// (channel + IS_A_CC) — see LearnedMIDI::channelOrZone.
+							if (channel < IS_A_PC && note < 128) {
 								sections[id].launchMIDICommand.cable = cable;
 								sections[id].launchMIDICommand.channelOrZone = channel;
 								sections[id].launchMIDICommand.noteOrCC = note;
@@ -3548,7 +3550,19 @@ deleteIt:
 	}
 }
 
+// Call before an Output is destructed. Output only remembers the one AudioOutput that monitors it, but any number of
+// AudioOutputs can be recording from it (a cloned overdub copies the pointer without taking over the monitoring), and
+// each of those would be left pointing at freed memory.
+void Song::clearRecordingFromReferencesTo(Output* output) {
+	for (Output* other = firstOutput; other; other = other->next) {
+		if (other != output && other->getOutputRecordingFrom() == output) {
+			other->clearRecordingFrom();
+		}
+	}
+}
+
 void Song::deleteOutput(Output* output) {
+	clearRecordingFromReferencesTo(output);
 	for (int y = 0; y < 8; y++) {
 		auto& m = sessionMacros[y];
 		if (m.kind == OUTPUT_CYCLE && m.output == output) {
@@ -3563,6 +3577,9 @@ void Song::deleteOutput(Output* output) {
 }
 
 void Song::moveInstrumentToHibernationList(Instrument* instrument) {
+
+	// Hibernated instruments stay allocated but leave the active output list, so audio tracks must stop targeting them.
+	clearRecordingFromReferencesTo(instrument);
 
 	removeOutputFromMainList(instrument);
 
@@ -5016,7 +5033,7 @@ gotAnInstrument: {}
 
 		if (!newInstrument) {
 			String newPresetName;
-			fileItem->getDisplayNameWithoutExtension(&newPresetName);
+			fileItem->getFilenameWithoutExtension(&newPresetName);
 			error =
 			    StorageManager::loadInstrumentFromFile(this, nullptr, newOutputType, false, &newInstrument,
 			                                           &fileItem->filePointer, &newPresetName, &Browser::currentDir);

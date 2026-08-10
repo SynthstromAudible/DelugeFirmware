@@ -200,6 +200,23 @@ void RuntimeFeatureSettings::init() {
 	SetupOnOffSetting(settings[RuntimeFeatureSettingType::ShowBatteryLevel],
 	                  STRING_FOR_COMMUNITY_FEATURE_SHOW_BATTERY_LEVEL, "showBatteryLevel",
 	                  RuntimeFeatureStateToggle::On);
+
+	// Rounded Corners
+	SetupOnOffSetting(settings[RuntimeFeatureSettingType::RoundedCorners], STRING_FOR_COMMUNITY_FEATURE_ROUNDED_CORNERS,
+	                  "roundedCorners", RuntimeFeatureStateToggle::On);
+}
+
+void RuntimeFeatureSettings::factoryReset(bool showPopup) {
+	if (showPopup) {
+		display->displayPopup(display->haveOLED() ? l10n::get(l10n::String::STRING_FOR_RESET_COMMUNITY_FEATURES)
+		                                          : l10n::get(l10n::String::STRING_FOR_FACTORY_RESET));
+	}
+
+	f_unlink(RUNTIME_FEATURE_SETTINGS_FILE);
+	unknownSettings.empty();
+	startupSong.clear();
+	init();
+	readSettingsFromFile();
 }
 
 void RuntimeFeatureSettings::readSettingsFromFile() {

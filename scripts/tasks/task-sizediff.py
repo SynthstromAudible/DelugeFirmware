@@ -1,10 +1,11 @@
 #! /usr/bin/env python3
 import argparse
 import importlib
+import os
 import shutil
 import subprocess
+
 import util
-import os
 
 
 def argparser() -> argparse.ArgumentParser:
@@ -17,7 +18,7 @@ def argparser() -> argparse.ArgumentParser:
 
 
 def main() -> int:
-    (args, unknown_args) = argparser().parse_known_args()
+    (_args, _unknown_args) = argparser().parse_known_args()
 
     os.chdir(util.get_git_root())
     os.makedirs(".cache/sizediff", exist_ok=True)
@@ -30,7 +31,10 @@ def main() -> int:
 
     # get if git is dirty
     git_dirty = (
-        subprocess.run(["git", "diff", "--quiet"], capture_output=True).returncode != 0
+        subprocess.run(
+            ["git", "diff", "--quiet"], capture_output=True, check=False
+        ).returncode
+        != 0
     )
 
     # Read the current commit hash in .cache/sizediff/old-commit
@@ -65,12 +69,12 @@ def main() -> int:
         shutil.copy("build/Release/deluge.elf", ".cache/sizediff/deluge_new.elf")
 
     if needs_old_rebuild:
-        subprocess.run(["git", "checkout", old_hash])
+        subprocess.run(["git", "checkout", old_hash], check=False)
         importlib.import_module("task-build").main(["Release"])
         with open(".cache/sizediff/old-commit", "w") as f:
             f.write(old_hash)
         shutil.copy("build/Release/deluge.elf", ".cache/sizediff/deluge_old.elf")
-        subprocess.run(["git", "checkout", new_hash])
+        subprocess.run(["git", "checkout", new_hash], check=False)
 
     # Get the size of the old and new binaries using the size command
     old_size = (

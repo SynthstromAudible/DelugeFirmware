@@ -17,8 +17,9 @@
 
 #include "model/clip/clip.h"
 #include "definitions_cxx.hpp"
+#include "gui/ui/root_ui.h"
+#include "gui/ui/ui.h"
 #include "gui/views/automation_view.h"
-#include "gui/views/session_view.h"
 #include "gui/views/view.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
@@ -819,7 +820,12 @@ void Clip::posReachedEnd(ModelStackWithTimelineCounter* modelStack) {
 
 			loopLength += originalLength;
 
-			sessionView.clipNeedsReRendering(this);
+			// Whichever view is showing this Clip needs to re-render, not just SessionView - e.g. in a clip view, the
+			// area drawn as being past the end of the Clip just shrank.
+			RootUI* rootUI = getRootUI();
+			if (rootUI) {
+				rootUI->clipNeedsReRendering(this);
+			}
 
 			// For InstrumentClips only, we record and make undoable the length-change here. For AudioClips, on the
 			// other hand, it happens in one go at the end of the recording - because for those, if recording is aborted

@@ -3,13 +3,14 @@
 # Copyright 2023 Kate Whitlock
 import argparse
 import errno
-import os
-import io
-from itertools import groupby
 import fnmatch
-from pathlib import Path
-import util
+import os
+import shutil
 from functools import partial
+from itertools import groupby
+from pathlib import Path
+
+import util
 
 EXEC_EXT = ".exe" if os.name == "nt" else ""
 
@@ -19,7 +20,7 @@ DBT_VERSION = util.get_dbt_version()
 def excludes_from_file(ignore_file):
     excludes = []
     try:
-        with io.open(ignore_file, "r", encoding="utf-8") as f:
+        with open(ignore_file, "r", encoding="utf-8") as f:
             for line in f:
                 if line.startswith("#"):
                     # ignore comments
@@ -29,7 +30,7 @@ def excludes_from_file(ignore_file):
                     # allow empty lines
                     continue
                 excludes.append(pattern)
-    except EnvironmentError as e:
+    except OSError as e:
         if e.errno != errno.ENOENT:
             raise
     return excludes
@@ -94,6 +95,50 @@ def format_file(clang_format: str, verbose: bool, check: bool, path: Path):
 def format_stdio(filename: str):
     command = [get_clang_format_cmd(), "--style=file", "--assume-filename", filename]
     return util.run(command)
+
+
+# ruff lints and formats Python; it is version-pinned in .pre-commit-config.yaml,
+# so we drive it through pre-commit to guarantee the same ruff CI uses.
+RUFF_HOOKS = ("ruff-check", "ruff-format")
+
+
+def ruff_scope(args) -> list[str] | None:
+    """pre-commit file-scope args for the ruff hooks, or None if there's nothing to do."""
+    if args.changed:
+        # pre-commit defaults to the staged files, matching --changed above.
+        return []
+    if args.files_and_directories:
+        targets = []
+        for entry in args.files_and_directories:
+            path = Path(entry)
+            if path.is_dir():
+                glob = path.glob if args.no_recursive else path.rglob
+                targets += [str(p) for p in glob("*.py")]
+            elif path.suffix == ".py":
+                targets.append(str(path))
+        if not targets:
+            return None
+        return ["--files", *targets]
+    return ["--all-files"]
+
+
+def format_python(args) -> int:
+    """Lint-fix and format Python via the ruff pre-commit hooks.
+
+    The hooks fix in place; in --check mode they still report a non-zero exit
+    when a file needed changes (pre-commit cannot check without applying fixes).
+    """
+    scope = ruff_scope(args)
+    if scope is None:
+        return 0
+    pre_commit = shutil.which("pre-commit")
+    if pre_commit is None:
+        print("Warning: pre-commit not found, skipping Python (ruff) formatting")
+        return 0
+    result = 0
+    for hook in RUFF_HOOKS:
+        result |= util.run([pre_commit, "run", hook, *scope])
+    return result
 
 
 def argparser() -> argparse.ArgumentParser:
@@ -167,23 +212,24 @@ def main() -> int:
         for thing in group:
             temp[is_file].append(thing)
 
-    found_files = set(
+    found_files = {
         file
         for dir in directories
         for file in get_header_and_source_files(dir, not args.no_recursive)
-    )
+    }
     remaining_files = set(files).difference(found_files)
     valid_files = get_valid_header_and_source_files(remaining_files)
     files = found_files.union(valid_files)
 
     excludes = excludes_from_file(".clang-format-ignore")
     files = exclude(files, excludes)
-    if len(files) == 0:
-        return 0
 
     check = args.check
 
-    if args.quiet:
+    # Format C/C++ sources with clang-format.
+    if not files:
+        result = []
+    elif args.quiet:
         result = util.do_parallel(
             partial(format_file, get_clang_format_cmd(), False, check), files
         )
@@ -201,7 +247,10 @@ def main() -> int:
             "Formatting: ",
         )
 
-    if any(map(lambda x: x != 0, result)):
+    # Lint-fix and format Python sources with ruff (via the pinned pre-commit hooks).
+    ruff_result = format_python(args)
+
+    if any(x != 0 for x in result) or ruff_result != 0:
         print("Done, formatting mismatch detected")
         return 1
 

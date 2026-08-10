@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import xml.etree.ElementTree as ET
+from typing import ClassVar
 
 
 class Pin:
@@ -105,7 +106,7 @@ class Pin:
     def __repr__(self):
         return f'Pin("{self.name}")'
 
-    PIN_RENDER_FUNCTIONS = {
+    PIN_RENDER_FUNCTIONS: ClassVar = {
         "bus": render_as_bus,
         "i": render_as_input,
         "o": render_as_output,
@@ -113,7 +114,7 @@ class Pin:
         "indirect_o": render_as_output,
     }
 
-    VIEW_CLASS = {
+    VIEW_CLASS: ClassVar = {
         "bus": "bus-flag",
         "i": "input-flag",
         "o": "output-flag",
@@ -202,7 +203,7 @@ class Module:
         self.chip_name = chip_name
 
         if indirect_pins is not None:
-            self.indirect_pins = dict()
+            self.indirect_pins = {}
             for pin in indirect_pins:
                 self.indirect_pins[pin.name] = pin
                 pin.module = self
@@ -740,7 +741,7 @@ PHYSICAL_PINS_TO_PINS = {}
 
 # Build mapping of physical pins to rendered pins, making sure we don't have
 # any duplicates
-for port, pins in PINS.items():
+for pins in PINS.values():
     for (port_pin, physical_pin), virtual_pin in pins.items():
         if physical_pin in PHYSICAL_PINS_TO_PINS:
             raise ValueError(f"Duplicate physical pin {physical_pin}")
@@ -807,8 +808,7 @@ def iter_pins(pins):
     if isinstance(pins, str):
         yield pins
     try:
-        for pin in pins:
-            yield pin
+        yield from pins
     except TypeError:
         yield pins
 
@@ -884,7 +884,7 @@ def render_cpu_port(parent, top, left, port, facing_left, cpu_pins):
         pin_left = left
     else:
         pin_left = left + width - CPU_PIN_WIDTH
-    for (port_pin, package_pin), pins in port_data.items():
+    for port_pin, package_pin in port_data:
         cpu_pin = cpu_pins[package_pin]
         cpu_pin.render(parent, pin_top, pin_left, facing_left)
 
@@ -1036,7 +1036,7 @@ def render_cpu(parent, top, left, cpu_pins):
     base.attrib["ry"] = "5"
     base.attrib["class"] = "cpu"
 
-    port_tops = dict()
+    port_tops = {}
 
     # left hand ports
     port_top = top + PADDING
@@ -1057,8 +1057,7 @@ def render_cpu(parent, top, left, cpu_pins):
         port_top += render_cpu_port(parent, port_top, port_left, port, False, cpu_pins)
         port_top += UNIT_HEIGHT
     port_top += PADDING - (UNIT_HEIGHT + top)
-    if port_top > height:
-        height = port_top
+    height = max(height, port_top)
 
     base.attrib["height"] = str(height)
 
@@ -1132,9 +1131,9 @@ def main():
     ############################################################################
     # Construct wires
     ############################################################################
-    cpu_pins = dict()
+    cpu_pins = {}
     for port, port_data in PINS.items():
-        for (port_pin, package_pin), virtual_pin in port_data.items():
+        for port_pin, package_pin in port_data:
             cpu_pins[package_pin] = CpuPin(port_pin, package_pin)
 
     ############################################################################
@@ -1146,9 +1145,9 @@ def main():
     # Connections
     ############################################################################
     wires = []
-    wires_by_cpu_port = dict()
+    wires_by_cpu_port = {}
     for port, port_data in PINS.items():
-        wires_by_cpu_port[port] = dict()
+        wires_by_cpu_port[port] = {}
         for (port_pin, package_pin), virtual_pins in port_data.items():
             if isinstance(virtual_pins, str):
                 continue

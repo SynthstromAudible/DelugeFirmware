@@ -31,7 +31,11 @@ __pycache__
 .*.swo
 .session.vim
 
+# script scratch area
+/scratch*
+
 .idea
+.junie
 *.srctrl*
 
 .deluge_hex_key

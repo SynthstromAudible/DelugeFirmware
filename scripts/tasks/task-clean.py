@@ -1,8 +1,10 @@
 #! /usr/bin/env python3
 import argparse
-import subprocess
-import util
 import os
+import subprocess
+import sys
+
+import util
 
 
 def argparser() -> argparse.ArgumentParser:
@@ -19,7 +21,7 @@ def main() -> int:
 
     if not os.path.exists("build"):
         print("Already clean!")
-        exit()
+        sys.exit()
 
     cmake_args = [
         "--build",
@@ -27,7 +29,7 @@ def main() -> int:
         "--target",
         "clean",
     ]
-    result = subprocess.run(["cmake"] + cmake_args, env=os.environ)
+    result = subprocess.run(["cmake"] + cmake_args, env=os.environ, check=False)
     return result.returncode
 
 

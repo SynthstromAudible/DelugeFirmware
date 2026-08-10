@@ -280,16 +280,13 @@ void AutomationEditorLayoutModControllable::renderAutomationEditorDisplayOLED(
 		modelStackWithParam = getModelStackWithParamForClip(modelStack, clip);
 	}
 
-	char const* isAutomated;
+	char const* isAutomated = l10n::get(l10n::String::STRING_FOR_AUTOMATION_OFF);
 
 	// check if Parameter is currently automated so that the automation status can be drawn on
 	// the screen with the Parameter Name
 	if (modelStackWithParam && modelStackWithParam->autoParam) {
 		if (modelStackWithParam->autoParam->isAutomated()) {
 			isAutomated = l10n::get(l10n::String::STRING_FOR_AUTOMATION_ON);
-		}
-		else {
-			isAutomated = l10n::get(l10n::String::STRING_FOR_AUTOMATION_OFF);
 		}
 	}
 
@@ -436,55 +433,17 @@ void AutomationEditorLayoutModControllable::getAutomationParameterName(Clip* cli
 				parameterName.append(display->haveOLED() ? " -> " : " - ");
 			}
 
-			parameterName.append(params::getPatchedParamShortName(lastSelectedParamID));
+			parameterName.append(params::getPatchedParamShortName(
+			    lastSelectedParamID, (ModControllableAudio*)view.activeModControllableModelStack.modControllable));
 		}
 		else {
-			parameterName.append(getParamDisplayName(lastSelectedParamKind, lastSelectedParamID));
+			parameterName.append(
+			    getParamDisplayName(lastSelectedParamKind, lastSelectedParamID,
+			                        (ModControllableAudio*)view.activeModControllableModelStack.modControllable));
 		}
 	}
 	else {
-		if (clip->lastSelectedParamID == CC_NUMBER_NONE) {
-			parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_PARAM));
-		}
-		else if (clip->lastSelectedParamID == CC_NUMBER_PITCH_BEND) {
-			parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
-		}
-		else if (clip->lastSelectedParamID == CC_NUMBER_AFTERTOUCH) {
-			parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
-		}
-		else if (clip->lastSelectedParamID == CC_EXTERNAL_MOD_WHEEL || clip->lastSelectedParamID == CC_NUMBER_Y_AXIS) {
-			parameterName.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
-		}
-		else {
-			MIDIInstrument* midiInstrument = (MIDIInstrument*)clip->output;
-			bool appendedName = false;
-
-			if (clip->lastSelectedParamID >= 0 && clip->lastSelectedParamID < kNumRealCCNumbers) {
-				std::string_view name = midiInstrument->getNameFromCC(clip->lastSelectedParamID);
-				// if we have a name for this midi cc set by the user, display that instead of the cc number
-				if (!name.empty()) {
-					parameterName.append(name.data());
-					appendedName = true;
-				}
-			}
-
-			// if we don't have a midi cc name set, draw CC number instead
-			if (!appendedName) {
-				if (display->haveOLED()) {
-					parameterName.append("CC ");
-					parameterName.appendInt(clip->lastSelectedParamID);
-				}
-				else {
-					if (clip->lastSelectedParamID < 100) {
-						parameterName.append("CC");
-					}
-					else {
-						parameterName.append("C");
-					}
-					parameterName.appendInt(clip->lastSelectedParamID);
-				}
-			}
-		}
+		((MIDIInstrument*)clip->output)->appendCCName(parameterName, clip->lastSelectedParamID);
 	}
 }
 

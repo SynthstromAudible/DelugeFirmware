@@ -35,7 +35,6 @@ public:
 	bool renderSidebar(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
 	                   uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth]) override;
 	bool setupScroll(uint32_t oldScroll) override;
-	void tellMatrixDriverWhichRowsContainSomethingZoomable() override;
 	[[nodiscard]] bool supportsTriplets() const override { return false; }
 	ClipMinder* toClipMinder() override { return this; }
 

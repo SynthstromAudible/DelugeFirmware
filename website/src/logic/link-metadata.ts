@@ -1,4 +1,4 @@
-import { chromium, type Page } from "playwright"
+import { chromium, type Browser, type Page } from "playwright"
 import { getPreviewFromContent } from "link-preview-js"
 import { backOff } from "exponential-backoff"
 import { readFile, writeFile } from "node:fs/promises"
@@ -23,11 +23,20 @@ const metadataCache: Record<string, LinkMetadata | undefined> = existsSync(
 
 const getFromMetadataCache = (key: string) => metadataCache[key]
 
+const getFallbackMetadata = (href: string): LinkMetadata => {
+  const url = new URL(href)
+  return {
+    url: href,
+    title: `${url.hostname}${url.pathname}`,
+    siteName: url.hostname,
+  }
+}
+
 const screenshot = async (page: Page) =>
   `\n\ndata:image/jpeg;base64,${(await page.screenshot({ type: "jpeg", quality: 30 })).toString("base64")}\n\n`
 
-// Shared global browser instance
-const browser = await chromium.launch()
+const launchBrowser = async (): Promise<Browser> =>
+  chromium.launch({ channel: "chromium" })
 
 export const getLinkMetadata = async (href: string): Promise<LinkMetadata> => {
   const cached = getFromMetadataCache(href)
@@ -42,17 +51,22 @@ export const getLinkMetadata = async (href: string): Promise<LinkMetadata> => {
 
   const url = new URL(href)
 
-  const page = await browser.newPage({
-    extraHTTPHeaders: {
-      "user-agent": "googlebot",
-      "Accept-Language": "en-US",
-    },
-  })
+  let browser: Browser | undefined
+  let page: Page | undefined
 
   try {
+    browser = await launchBrowser()
+    page = await browser.newPage({
+      extraHTTPHeaders: {
+        "user-agent": "googlebot",
+        "Accept-Language": "en-US",
+      },
+    })
+    const activePage = page
+
     return await backOff(
       async () => {
-        let response = await page.goto(href)
+        let response = await activePage.goto(href)
 
         if (!response) throw new Error("No response")
 
@@ -64,11 +78,11 @@ export const getLinkMetadata = async (href: string): Promise<LinkMetadata> => {
         // Special case for youtube cookie prompt on playlists page
         if (new URL(response.url()).hostname === "consent.youtube.com") {
           const targetPath = new URL(href).pathname
-          const responsePromise = page.waitForResponse((res) => {
+          const responsePromise = activePage.waitForResponse((res) => {
             return new URL(res.url()).pathname === targetPath
           })
 
-          await page.click('button[aria-label="Reject all"]')
+          await activePage.click('button[aria-label="Reject all"]')
 
           response = await responsePromise
         }
@@ -89,7 +103,7 @@ export const getLinkMetadata = async (href: string): Promise<LinkMetadata> => {
           throw new Error("Received sign-in page")
         }
 
-        await page.close()
+        await activePage.close()
 
         const fetchedMetadata = {
           url: metadata.url,
@@ -131,10 +145,17 @@ export const getLinkMetadata = async (href: string): Promise<LinkMetadata> => {
       },
     )
   } catch (e) {
-    if (!page.isClosed) {
-      console.log(await screenshot(page))
+    if (page && !page.isClosed()) {
+      try {
+        console.log(await screenshot(page))
+      } catch (screenshotError) {
+        console.warn(`Failed to capture error screenshot.\n${screenshotError}`)
+      }
       await page.close()
     }
-    throw new Error(`Failed to get metadata for ${href}.\n${e}`)
+    console.warn(`Failed to get metadata for ${href}.\n${e}`)
+    return getFallbackMetadata(href)
+  } finally {
+    await browser?.close()
   }
 }

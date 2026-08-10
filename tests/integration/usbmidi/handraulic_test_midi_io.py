@@ -1,7 +1,7 @@
-import rtmidi
-
 import time
-from rtmidi.midiconstants import NOTE_ON, NOTE_OFF
+
+import rtmidi
+from rtmidi.midiconstants import NOTE_OFF, NOTE_ON
 
 # helper functions to send some midi via command line
 
@@ -41,11 +41,11 @@ def receive_note(port):
                 if msg:
                     message, deltatime = msg
                     timer += deltatime
-                    print("[%s] @%0.6f %r" % (port, timer, message))
+                    print(f"[{port}] @{timer:0.6f} {message!r}")
 
                 time.sleep(0.01)
         except KeyboardInterrupt:
-            print("")
+            print()
         finally:
             print("Exit.")
             midiin.close_port()

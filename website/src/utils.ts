@@ -1,7 +1,20 @@
-import config from "../astro.config.mjs"
+type ImportMetaWithEnv = ImportMeta & {
+  env?: {
+    BASE_URL?: string
+  }
+}
+
+const getBasePath = () => {
+  const basePath =
+    (import.meta as ImportMetaWithEnv).env?.BASE_URL ||
+    process.env.SITE_BASE_PATH ||
+    ""
+
+  return basePath === "/" ? "" : basePath.replace(/\/$/, "")
+}
 
 export const withBase = (path: string) => {
-  return path.startsWith("/") ? `${config.base}${path}` : path
+  return path.startsWith("/") ? `${getBasePath()}${path}` : path
 }
 
 export const sortKeysReplacer = (_: string, value: unknown) =>

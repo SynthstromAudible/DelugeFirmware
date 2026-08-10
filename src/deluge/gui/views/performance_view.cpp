@@ -552,7 +552,10 @@ void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, i
 	if (editingParam) {
 		// display parameter name
 		char parameterName[30];
-		strncpy(parameterName, getParamDisplayName(paramKind, paramID), 29);
+		strncpy(parameterName,
+		        getParamDisplayName(paramKind, paramID,
+		                            (ModControllableAudio*)view.activeModControllableModelStack.modControllable),
+		        29);
 		if (display->haveOLED()) {
 			deluge::hid::display::oled_canvas::Canvas& image = deluge::hid::display::OLED::main;
 			deluge::hid::display::OLED::clearMainImage();
@@ -579,7 +582,10 @@ void PerformanceView::renderFXDisplay(params::Kind paramKind, int32_t paramID, i
 
 			// display parameter name
 			char parameterName[30];
-			strncpy(parameterName, getParamDisplayName(paramKind, paramID), 29);
+			strncpy(parameterName,
+			        getParamDisplayName(paramKind, paramID,
+			                            (ModControllableAudio*)view.activeModControllableModelStack.modControllable),
+			        29);
 
 #if OLED_MAIN_HEIGHT_PIXELS == 64
 			int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 12;

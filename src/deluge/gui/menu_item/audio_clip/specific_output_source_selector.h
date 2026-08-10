@@ -29,13 +29,20 @@ public:
 
 	void beginSession(MenuItem* navigatedBackwardFrom) override {
 		audioOutputBeingEdited = (AudioOutput*)getCurrentOutput();
-		if (audioOutputBeingEdited->getOutputRecordingFrom()) {
-			outputIndex = currentSong->getOutputIndex(audioOutputBeingEdited->getOutputRecordingFrom());
+		numOutputs = currentSong->getNumOutputs();
+
+		Output* selectedOutput = audioOutputBeingEdited->getOutputRecordingFrom();
+		outputIndex = getRecordableOutputIndex(selectedOutput);
+		if (outputIndex < 0) {
+			// If the stored source was removed or became invalid, land on the first valid target instead.
+			outputIndex = getNextRecordableOutputIndex(-1, 1);
+			selectedOutput = getOutputFromSelectedIndex();
+			audioOutputBeingEdited->setOutputRecordingFrom(selectedOutput);
 		}
-		else {
+
+		if (outputIndex < 0) {
 			outputIndex = 0;
 		}
-		numOutputs = currentSong->getNumOutputs();
 		if (display->haveOLED()) {
 			renderUIsForOled();
 		}
@@ -45,9 +52,12 @@ public:
 	}
 
 	void selectEncoderAction(int32_t offset) override {
-		outputIndex += offset;
-		outputIndex = std::clamp<int32_t>(outputIndex, 0, numOutputs - 1);
-		auto newRecordingFrom = currentSong->getOutputFromIndex(outputIndex);
+		int32_t newOutputIndex = getNextRecordableOutputIndex(outputIndex, offset);
+		if (newOutputIndex < 0) {
+			return;
+		}
+		outputIndex = newOutputIndex;
+		auto newRecordingFrom = getOutputFromSelectedIndex();
 		audioOutputBeingEdited->setOutputRecordingFrom(newRecordingFrom);
 		if (display->haveOLED()) {
 			renderUIsForOled();
@@ -60,13 +70,17 @@ public:
 		deluge::hid::display::oled_canvas::Canvas& canvas = hid::display::OLED::main;
 
 		// track
-		Output* output = currentSong->getOutputFromIndex(outputIndex);
+		Output* output = getOutputFromSelectedIndex();
+		if (!output) {
+			canvas.drawStringCentred("No track", OLED_MAIN_TOPMOST_PIXEL + 21, kTextSpacingX, kTextSpacingY);
+			return;
+		}
 
 		// track type
 		OutputType outputType = output->type;
 
 		// for midi instruments, get the channel
-		int32_t channel;
+		int32_t channel = 0;
 		if (outputType == OutputType::MIDI_OUT) {
 			Instrument* instrument = (Instrument*)output;
 			channel = ((NonAudioInstrument*)instrument)->getChannel();
@@ -80,7 +94,7 @@ public:
 		int32_t yPos = OLED_MAIN_TOPMOST_PIXEL + 28;
 
 		// draw the track name
-		char const* name = audioOutputBeingEdited->getOutputRecordingFrom()->name.get();
+		char const* name = output->name.get();
 
 		int32_t stringLengthPixels = canvas.getStringWidthInPixels(name, kTextTitleSizeY);
 
@@ -96,7 +110,8 @@ public:
 	}
 
 	void drawFor7seg() {
-		char const* text = audioOutputBeingEdited->getOutputRecordingFrom()->name.get();
+		Output* output = getOutputFromSelectedIndex();
+		char const* text = output ? output->name.get() : "No track";
 		display->setScrollingText(text, 0);
 	}
 
@@ -111,5 +126,61 @@ public:
 	// this is the index that the output is recording from
 	int32_t outputIndex{0};
 	int32_t numOutputs{0};
+
+private:
+	bool canRecordFromOutput(Output* output) const { return audioOutputBeingEdited->canRecordFrom(output); }
+
+	int32_t getRecordableOutputIndex(Output* output) const {
+		if (!canRecordFromOutput(output)) {
+			return -1;
+		}
+
+		// Only outputs still in the main song list are selectable; hibernated instruments should not display here.
+		int32_t index = 0;
+		for (Output* candidate = currentSong->firstOutput; candidate; candidate = candidate->next) {
+			if (candidate == output) {
+				return index;
+			}
+			index++;
+		}
+
+		return -1;
+	}
+
+	Output* getOutputFromSelectedIndex() const {
+		Output* output = currentSong->getOutputFromIndex(outputIndex);
+		return canRecordFromOutput(output) ? output : nullptr;
+	}
+
+	int32_t getNextRecordableOutputIndex(int32_t startIndex, int32_t offset) const {
+		if (offset == 0) {
+			return getOutputFromSelectedIndex()
+			           ? outputIndex
+			           : getRecordableOutputIndex(audioOutputBeingEdited->getOutputRecordingFrom());
+		}
+
+		int32_t direction = offset > 0 ? 1 : -1;
+		int32_t steps = offset > 0 ? offset : -offset;
+		int32_t selectedIndex = startIndex;
+
+		for (int32_t step = 0; step < steps; step++) {
+			int32_t candidateIndex = selectedIndex;
+			// Walk the raw song indices, but stop only on rows the audio track can actually record from.
+			while (true) {
+				candidateIndex += direction;
+				if (candidateIndex < 0 || candidateIndex >= numOutputs) {
+					return selectedIndex;
+				}
+
+				Output* candidate = currentSong->getOutputFromIndex(candidateIndex);
+				if (canRecordFromOutput(candidate)) {
+					selectedIndex = candidateIndex;
+					break;
+				}
+			}
+		}
+
+		return selectedIndex;
+	}
 };
 } // namespace deluge::gui::menu_item::audio_clip

@@ -85,8 +85,6 @@ Sample::Sample()
 	beginningOffsetForPitchDetection = 0;
 	beginningOffsetForPitchDetectionFound = false;
 
-	audioStartDetected = false;
-
 #if SAMPLE_DO_LOCKS
 	lock = false;
 #endif

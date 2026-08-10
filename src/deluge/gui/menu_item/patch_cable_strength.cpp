@@ -119,7 +119,8 @@ void PatchCableStrength::renderOLED() {
 		}
 
 		// Draw the destination name
-		image.drawString(modulation::params::getPatchedParamShortName(destinationDescriptor.getJustTheParam()),
+		image.drawString(modulation::params::getPatchedParamShortName(destinationDescriptor.getJustTheParam(),
+		                                                              soundEditor.currentModControllable),
 		                 leftPadding, y, kTextSpacingX, kTextSizeYUpdated);
 	}
 

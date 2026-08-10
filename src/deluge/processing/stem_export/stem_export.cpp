@@ -18,6 +18,7 @@
 #include "processing/stem_export/stem_export.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
+#include "fatfs/ff.h"
 #include "gui/context_menu/stem_export/cancel_stem_export.h"
 #include "gui/context_menu/stem_export/done_stem_export.h"
 #include "gui/l10n/l10n.h"
@@ -149,10 +150,15 @@ void StemExport::startStemExportProcess(StemExportType stemExportType) {
 
 /// Stop stem export process
 void StemExport::stopStemExportProcess() {
+	abortStemExportProcess(deluge::l10n::String::STRING_FOR_STOP_EXPORT_STEMS);
+}
+
+/// Stop stem export process, telling the user why it couldn't continue
+void StemExport::abortStemExportProcess(deluge::l10n::String reason) {
 	exitUIMode(UI_MODE_STEM_EXPORT);
 	stopPlayback();
 	highestUsedStemFolderNumber++;
-	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_STOP_EXPORT_STEMS), 6);
+	display->displayPopup(deluge::l10n::get(reason), 6);
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
 }
 
@@ -346,6 +352,10 @@ int32_t StemExport::exportInstrumentStems(StemExportType stemExportType) {
 				                                      output->exportStem);
 
 				if (!started) {
+					// the export may have been aborted rather than this stem simply being skipped
+					if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
+						break;
+					}
 					// skip this stem and move to the next one
 					continue;
 				}
@@ -386,7 +396,10 @@ int32_t StemExport::exportMixdownStem(StemExportType stemExportType) {
 
 	if (totalNumOutputs != 0 && totalNumStemsToExport != 0) {
 		// set wav file name for stem to be exported
-		setWavFileNameForStemExport(stemExportType, nullptr, 0);
+		if (!setWavFileNameForStemExport(stemExportType, nullptr, 0)) {
+			abortStemExportProcess(deluge::l10n::String::STRING_FOR_STEM_NAME_TOO_LONG);
+			return totalNumOutputs;
+		}
 
 		// start resampling which ends when end of arrangement is reached and audio is silent
 		startOutputRecordingUntilLoopEndAndSilence();
@@ -519,6 +532,10 @@ int32_t StemExport::exportClipStems(StemExportType stemExportType) {
 				                                      clip->exportStem);
 
 				if (!started) {
+					// the export may have been aborted rather than this stem simply being skipped
+					if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
+						break;
+					}
 					// skip this stem and move to the next one
 					continue;
 				}
@@ -637,6 +654,10 @@ int32_t StemExport::exportDrumStems(StemExportType stemExportType) {
 				                                      thisNoteRow->exportStem, (SoundDrum*)thisNoteRow->drum);
 
 				if (!started) {
+					// the export may have been aborted rather than this stem simply being skipped
+					if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
+						break;
+					}
 					// skip this stem and move to the next one
 					continue;
 				}
@@ -693,7 +714,10 @@ bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* o
 	uiNeedsRendering(getCurrentUI());
 
 	// set wav file name for stem to be exported
-	setWavFileNameForStemExport(stemExportType, output, indexNumber, drum);
+	if (!setWavFileNameForStemExport(stemExportType, output, indexNumber, drum)) {
+		abortStemExportProcess(deluge::l10n::String::STRING_FOR_STEM_NAME_TOO_LONG);
+		return false;
+	}
 
 	// start resampling which ends when end of track / clip is reached and audio is silent
 	startOutputRecordingUntilLoopEndAndSilence();
@@ -1053,6 +1077,10 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 	return Error::NONE;
 }
 
+/// FatFS rejects any path component longer than FF_MAX_LFN, so a stem file name can never be longer
+/// than that no matter how big a buffer we format it into.
+constexpr int32_t kMaxStemFileNameChars = FF_MAX_LFN;
+
 /// based on Stem Export Type, will set a WAV file name in the format of:
 /// /OutputType_StemExportType_OutputName_IndexNumber.WAV
 /// example: /SYNTH_CLIP_BASS SYNTH_TEMPO_ROOT NOTE-SCALE_00000.WAV
@@ -1060,12 +1088,12 @@ Error StemExport::getUnusedStemRecordingFolderPath(String* filePath, AudioRecord
 /// example: /MIXDOWN_TEMPO_ROOT NOTE-SCALE.WAV
 /// example: /KIT_DRUM_808 KIT_SNARE_ROOT NOTE_SCALE_00000.WAV
 /// this wavFileName is then concatenate to the filePath name to export the WAV file
-void StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Output* output, int32_t fileNumber,
+bool StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Output* output, int32_t fileNumber,
                                              SoundDrum* drum) {
 	// wavFileNameForStemExport = "/"
 	Error error = wavFileNameForStemExport.set("/");
 	if (error != Error::NONE) {
-		return;
+		return false;
 	}
 
 	const char* outputType;
@@ -1121,30 +1149,39 @@ void StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Outp
 	// get song scale
 	const char* scaleName = getScaleName(currentSong->getCurrentScale());
 
-	char fileName[300];
+	char fileName[kMaxStemFileNameChars + 1];
+	int32_t length;
 
 	// wavFileNameForStemExport = /StemExportType_tempo_noteName-scaleName.WAV
 	if (stemExportType == StemExportType::MIXDOWN) {
-		sprintf(fileName, "%s_%dBPM_%s-%s.WAV", exportType, tempo, noteName, scaleName);
+		length = snprintf(fileName, sizeof(fileName), "%s_%dBPM_%s-%s.WAV", exportType, tempo, noteName, scaleName);
 	}
 	// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_DrumName_tempo_noteName-scaleName_###.WAV
 	else if (stemExportType == StemExportType::DRUM) {
-		sprintf(fileName, "%s_%s_%s_%s_%dBPM_%s-%s_%03d.WAV", outputType, exportType, outputName,
-		        drum->drumName.c_str(), tempo, noteName, scaleName, fileNumber);
+		length = snprintf(fileName, sizeof(fileName), "%s_%s_%s_%s_%dBPM_%s-%s_%03d.WAV", outputType, exportType,
+		                  outputName, drum->drumName.c_str(), tempo, noteName, scaleName, fileNumber);
 	}
 	// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_tempo_noteName-scaleName_###.WAV
 	else {
-		sprintf(fileName, "%s_%s_%s_%dBPM_%s-%s_%03d.WAV", outputType, exportType, outputName, tempo, noteName,
-		        scaleName, fileNumber);
+		length = snprintf(fileName, sizeof(fileName), "%s_%s_%s_%dBPM_%s-%s_%03d.WAV", outputType, exportType,
+		                  outputName, tempo, noteName, scaleName, fileNumber);
+	}
+
+	// snprintf returns the length it would have written, so this catches a name we had to truncate.
+	// Refuse it rather than silently exporting the stem under a different name.
+	if (length < 0 || length > kMaxStemFileNameChars) {
+		return false;
 	}
 
 	error = wavFileNameForStemExport.concatenate(fileName);
 	if (error != Error::NONE) {
-		return;
+		return false;
 	}
 
 	// set this flag to true so that the wavFileName set above is used when exporting
 	wavFileNameForStemExportSet = true;
+
+	return true;
 }
 
 /// used to check if we should exit out of context menu when recording ends

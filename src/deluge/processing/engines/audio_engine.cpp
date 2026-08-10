@@ -306,14 +306,20 @@ void terminateOneVoice(size_t numSamples) {
 		return;
 	}
 
-	const Sound::ActiveVoice* best = &all_voices.front();
-	for (const auto& voice : all_voices | std::views::drop(1)) {
-		// if we're not skipping releasing voices, or if we are and this one isn't in fast release
-		if (voice->envelopes[0].state >= EnvelopeStage::FAST_RELEASE
-		    && voice->envelopes[0].fastReleaseIncrement >= SOFT_CULL_INCREMENT) {
+	// The skip filter must apply to the first voice too (see Sound::terminateOneActiveVoice / issue #4721):
+	// seeding `best` unfiltered let an already-fast-releasing front voice absorb every cull in the window.
+	const Sound::ActiveVoice* best = nullptr;
+	for (const auto& voice : all_voices) {
+		if (voice->isCullFading()) {
 			continue;
 		}
-		best = (*best)->getPriorityRating() < voice->getPriorityRating() ? &voice : best;
+		if (best == nullptr || (*best)->getPriorityRating() < voice->getPriorityRating()) {
+			best = &voice;
+		}
+	}
+
+	if (best == nullptr) {
+		return;
 	}
 
 	const Sound::ActiveVoice& voice = *best;
@@ -333,14 +339,21 @@ void forceReleaseOneVoice(size_t num_samples) {
 		return;
 	}
 
-	const Sound::ActiveVoice* best = &all_voices.front();
-	for (const auto& voice : all_voices | std::views::drop(1)) {
-		// if a voice is already fast releasing just speed it up
-		if (voice->envelopes[0].state == EnvelopeStage::FAST_RELEASE) {
-			voice->speedUpRelease();
-			return;
+	// Don't spend another soft cull on a voice that's already disappearing at the cull fade rate. FAST_RELEASE has a
+	// high priority rating, so without this filter repeated soft culls can chase the same fading voice while long
+	// musical-release tails keep stacking up.
+	const Sound::ActiveVoice* best = nullptr;
+	for (const auto& voice : all_voices) {
+		if (voice->isCullFading()) {
+			continue;
 		}
-		best = (*best)->getPriorityRating() < voice->getPriorityRating() ? &voice : best;
+		if (best == nullptr || (*best)->getPriorityRating() < voice->getPriorityRating()) {
+			best = &voice;
+		}
+	}
+
+	if (best == nullptr) {
+		return;
 	}
 
 	const Sound::ActiveVoice& voice = *best;
@@ -541,7 +554,10 @@ bool calledFromScheduler = false;
 		D_PRINTLN("Audio routine latency high: %.3fms", (current_time - last_call_time) * 1000.);
 	}
 	last_call_time = current_time;
-#ifndef USE_TASK_MANAGER
+#ifndef USE_TASK_MANAGER // if not using task manager, midi and analog clock are processed together with audio
+	// process midi clock
+	playbackHandler.midiRoutine();
+	// process analog clock
 	playbackHandler.routine();
 #endif
 	// At this point, there may be MIDI, including clocks, waiting to be sent.
@@ -1051,10 +1067,32 @@ void routine() {
 				sideChainHitPending = 0;
 				audioSampleTimer += numSamples;
 				doSomeOutputting();
-				// gross and hacky way to make sure the audio recorder writes all of its data so it can't be stolen
-				while (audioRecorder.recorder->firstUnwrittenClusterIndex
-				       < audioRecorder.recorder->currentRecordClusterIndex) {
-					doRecorderCardRoutines();
+
+				// Write out the recorder's completed clusters so they can't be stolen. There's no recorder at all
+				// between stems, and one that has hit a card error or been aborted (RAM exhaustion) will never
+				// advance firstUnwrittenClusterIndex again, because cardRoutine() early-returns in both cases -
+				// so bail on those, and bound the loop regardless rather than trusting that list to be complete.
+				SampleRecorder* recorder = audioRecorder.recorder;
+				if (recorder != nullptr) {
+					// Each call writes at most one cluster, and we don't render (so can't produce new ones) until
+					// the drain finishes. The slack covers calls that return without reaching this recorder at all:
+					// doRecorderCardRoutines() abandons its traversal whenever a recorder was recently created.
+					int32_t callsRemaining =
+					    recorder->currentRecordClusterIndex - recorder->firstUnwrittenClusterIndex + 8;
+
+					while (callsRemaining-- > 0) {
+						if (recorder->hadCardError || recorder->status >= RecorderStatus::COMPLETE
+						    || recorder->firstUnwrittenClusterIndex >= recorder->currentRecordClusterIndex) {
+							break;
+						}
+
+						doRecorderCardRoutines();
+
+						// doRecorderCardRoutines() can finish and free recorders - don't trust the pointer after it
+						if (audioRecorder.recorder != recorder) {
+							break;
+						}
+					}
 				}
 
 				audioFileManager.loadAnyEnqueuedClusters(128, false);
@@ -1513,9 +1551,10 @@ void slowRoutine() {
 	doRecorderCardRoutines();
 }
 
+// will need to take in the config argument
 SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderID, AudioInputChannel mode,
                                bool keepFirstReasons, bool writeLoopPoints, int32_t buttonPressLatency,
-                               bool shouldNormalize, Output* outputRecordingFrom) {
+                               bool shouldNormalize, Output* outputRecordingFrom, RecorderConfig config) {
 	Error error;
 
 	void* recorderMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(SampleRecorder));
@@ -1524,9 +1563,8 @@ SampleRecorder* getNewRecorder(int32_t numChannels, AudioRecordingFolder folderI
 	}
 
 	SampleRecorder* newRecorder = new (recorderMemory) SampleRecorder();
-
 	error = newRecorder->setup(numChannels, mode, keepFirstReasons, writeLoopPoints, folderID, buttonPressLatency,
-	                           outputRecordingFrom);
+	                           outputRecordingFrom, config);
 	if (error != Error::NONE) {
 errorAfterAllocation:
 		newRecorder->~SampleRecorder();
@@ -1560,7 +1598,15 @@ errorAfterAllocation:
 }
 
 // PLEASE don't call this if there's any chance you might be in the SD card routine...
+// ...because the recorder may be suspended part-way through its own cardRoutine(), and freeing it there leaves that
+// cardRoutine() operating on freed memory before handing it back to doRecorderCardRoutines() to be freed a second
+// time. That's a double free, and it surfaces as M123 from the allocator, a long way from here - so rather than
+// leaving the rule as a comment for each caller to honour, enforce it.
 void discardRecorder(SampleRecorder* recorder) {
+	if (ALPHA_OR_BETA_VERSION && (sdRoutineLock || currentlyAccessingCard)) {
+		FREEZE_WITH_ERROR("E251");
+	}
+
 	int32_t count = 0;
 	SampleRecorder** prevPointer = &firstRecorder;
 	while (*prevPointer) {

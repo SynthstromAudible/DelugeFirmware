@@ -27,12 +27,8 @@
 #include "util/functions.h"
 #include <string.h>
 
-bool SlotBrowser::currentFileHasSuffixFormatNameImplied;
-
 // Todo: turn this into the open() function - which will need to also be able to return error codes?
 Error SlotBrowser::beginSlotSession(bool shouldDrawKeys, bool allowIfNoFolder) {
-
-	currentFileHasSuffixFormatNameImplied = false;
 
 	// We want to check the SD card is generally working here, so that if not, we can exit out before drawing the QWERTY
 	// keyboard.
@@ -68,9 +64,13 @@ ActionResult SlotBrowser::horizontalEncoderAction(int32_t offset) {
 	if (display->have7SEG()) {
 		FileItem* currentFileItem = getCurrentFileItem();
 		if (currentFileItem) {
-			// See if it's numeric. Here, filename has already had prefix removed if it's numeric.
+			// See if it's numeric. enteredText carries the prefix ("SONG185"), so step past it first.
+			char const* numberPart = nameAfterPrefix(enteredText.get());
+			if (!numberPart) {
+				goto nonNumeric;
+			}
 
-			Slot thisSlot = getSlot(enteredText.get());
+			Slot thisSlot = getSlot(numberPart);
 			if (thisSlot.slot < 0) {
 				goto nonNumeric;
 			}
@@ -103,90 +103,6 @@ void SlotBrowser::processBackspace() {
 			predictExtendedText();
 		}
 	}
-	else {
-		// currentFileExists = false;
-		currentFileHasSuffixFormatNameImplied = false;
-	}
-}
-
-void SlotBrowser::enterKeyPress() {
-	convertToPrefixFormatIfPossible();
-}
-
-/*
-void SlotBrowser::selectEncoderAction(int8_t offset) {
-    convertToPrefixFormatIfPossible();
-}
-*/
-// This gets called if you're gonna load the thing, or have turned the select knob to navigate, so these functions can
-// treat it as a numeric format name
-void SlotBrowser::convertToPrefixFormatIfPossible() {
-
-	FileItem* currentFileItem = getCurrentFileItem();
-
-	if (currentFileItem && currentFileHasSuffixFormatNameImplied && !enteredText.isEmpty()
-	    && !currentFileItem->isFolder) {
-
-		int32_t enteredTextLength = enteredText.getLength();
-
-		char const* enteredTextChars = enteredText.get();
-
-		int32_t newSubSlot = -1;
-		int32_t newSlot = 0;
-
-		int32_t multiplier = 1;
-
-		for (int32_t i = enteredTextLength - 1; i >= 0; i--) {
-
-			if (i == enteredTextLength - 1) {
-				if (enteredTextChars[i] >= 'a' && enteredTextChars[i] <= 'z') {
-					newSubSlot = enteredTextChars[i] - 'a';
-					continue;
-				}
-				else if (enteredTextChars[i] >= 'A' && enteredTextChars[i] <= 'Z') {
-					newSubSlot = enteredTextChars[i] - 'A';
-					continue;
-				}
-			}
-
-			if (enteredTextChars[i] >= '0' && enteredTextChars[i] <= '9') {
-				newSlot += (enteredTextChars[i] - '0') * multiplier;
-				multiplier *= 10;
-			}
-
-			else {
-				return;
-			}
-		}
-
-		if (multiplier == 1) {
-			return;
-		}
-
-		enteredText.clear();
-		enteredTextEditPos = 0;
-
-		currentFileHasSuffixFormatNameImplied = false;
-	}
-}
-
-std::string SlotBrowser::getCurrentFilenameWithoutExtension() {
-	if (display->have7SEG()) {
-		// If numeric...
-		Slot slot = getSlot(enteredText.get());
-		if (slot.slot != -1) {
-			std::string filenameWithoutExtension{filePrefix};
-			filenameWithoutExtension.append(deluge::string::fromInt(slot.slot, 3));
-			if (slot.subSlot != -1) {
-				char buffer[2];
-				buffer[0] = 'A' + slot.subSlot;
-				buffer[1] = 0;
-				filenameWithoutExtension.append(buffer);
-			}
-			return filenameWithoutExtension;
-		}
-	}
-	return enteredText.get();
 }
 
 Error SlotBrowser::getCurrentFilePath(String* path) {
@@ -197,9 +113,8 @@ Error SlotBrowser::getCurrentFilePath(String* path) {
 		return error;
 	}
 
-	std::string filenameWithoutExtension = getCurrentFilenameWithoutExtension();
-
-	error = path->concatenate(filenameWithoutExtension);
+	// enteredText is the real on-card name now, so it needs no reassembling.
+	error = path->concatenate(&enteredText);
 	if (error != Error::NONE) {
 		return error;
 	}

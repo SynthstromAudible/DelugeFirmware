@@ -1,0 +1,44 @@
+name: Beta Build
+
+on:
+  workflow_dispatch: # allows manual triggering
+# To enable scheduled beta builds, uncomment the schedule below:
+  schedule:
+    - cron: "14 0 * * *" # runs daily at 00:14
+
+jobs:
+  beta-detect:
+    runs-on: ubuntu-latest
+    outputs:
+      new-commits: ${{ steps.count-commits.outputs.count }}
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: "main"
+          fetch-depth: 0
+      - name: Get new commits
+        id: count-commits
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "Manual dispatch, forcing build"
+            echo "count=1" >> $GITHUB_OUTPUT
+          else
+            count=$(git log --oneline --since '24 hours ago' | wc -l)
+            echo "Saw $count commits"
+            echo "count=$count" >> $GITHUB_OUTPUT
+          fi
+  beta-build:
+    uses: ./.github/workflows/build.yml
+    needs: beta-detect
+    if: needs.beta-detect.outputs.new-commits > 0
+    with:
+      firmware-retention-days: 30
+      build-type: "Release"
+      build-tag: "beta"
+      branch: "main"
+  beta-publish:
+    uses: ./.github/workflows/publish.yml
+    needs: beta-build
+    with:
+      tag: "beta"
+      branch: "main"

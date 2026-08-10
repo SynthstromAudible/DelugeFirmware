@@ -1,8 +1,8 @@
 #!/usr/bin/python3
 # This script converts a CSV file from https://midi.guide with MIDI device definitions
 # into Deluge's XML file for the sd_card/MIDI_DEVICES/DEFINITION directory.
-import sys
 import csv
+import sys
 
 # .csv column names. You can redefine them if needed (see your input .csv file headers)
 csv_col_midiName = "parameter_name"
@@ -18,7 +18,8 @@ file_name_out = file_name_in.replace(".csv", ".xml")
 
 # read csv as a dict
 try:
-    csv_data = csv.DictReader(open(file_name_in))
+    with open(file_name_in) as csv_file:
+        csv_data = list(csv.DictReader(csv_file))
 except OSError:
     print(f"ERROR: Could not read {file_name_in} file")
     sys.exit()

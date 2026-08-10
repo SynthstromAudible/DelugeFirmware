@@ -1,7 +1,6 @@
 from dmui.dsl import Menu, Submenu
 
-from . import hpf
-from . import lpf
+from . import hpf, lpf
 
 routing = Menu(
     "FilterRouting",

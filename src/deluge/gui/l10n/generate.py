@@ -1,5 +1,5 @@
-import json
 import argparse
+import json
 
 
 def process(input, output):
@@ -49,9 +49,8 @@ def main():
 
     args = parser.parse_args()
 
-    with open(args.input) as inf:
-        with open(args.output, "w", newline="\n") as outf:
-            process(inf, outf)
+    with open(args.input) as inf, open(args.output, "w", newline="\n") as outf:
+        process(inf, outf)
 
 
 if __name__ == "__main__":

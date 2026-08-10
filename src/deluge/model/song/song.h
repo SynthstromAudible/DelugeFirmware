@@ -225,8 +225,6 @@ public:
 	MusicalKey key;
 	std::bitset<NUM_PRESET_SCALES> disabledPresetScales;
 
-	uint16_t slot;
-	int8_t subSlot;
 	String name;
 
 	bool affectEntire;
@@ -366,6 +364,7 @@ public:
 	bool hasAnyPendingNextOverdubs();
 	Output* getNextAudioOutput(int32_t offset, Output* oldOutput, Availability availabilityRequirement);
 	void deleteOutput(Output* output);
+	void clearRecordingFromReferencesTo(Output* output);
 	void cullAudioClipVoice();
 	int32_t getYScrollSongViewWithoutPendingOverdubs();
 	int32_t removeOutputFromMainList(Output* output, bool stopAnyAuditioningFirst = true);

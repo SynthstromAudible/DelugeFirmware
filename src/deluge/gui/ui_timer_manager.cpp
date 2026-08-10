@@ -26,6 +26,7 @@
 #include "gui/views/view.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/display/screensaver.h"
 #include "hid/hid_sysex.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
@@ -108,6 +109,10 @@ void UITimerManager::routine() {
 						display->timerRoutine();
 					}
 
+					break;
+
+				case TimerName::MOD_ENCODER_POPUP_FLUSH:
+					view.flushPendingModEncoderValuePopup();
 					break;
 
 				case TimerName::LED_BLINK:
@@ -237,6 +242,12 @@ void UITimerManager::routine() {
 				case TimerName::OLED_SCROLLING_AND_BLINKING:
 					if (display->haveOLED()) {
 						deluge::hid::display::OLED::scrollingAndBlinkingTimerEvent();
+					}
+					break;
+
+				case TimerName::SCREENSAVER:
+					if (display->haveOLED()) {
+						deluge::hid::display::Screensaver::timerEvent();
 					}
 					break;
 

@@ -75,7 +75,12 @@ To use MIDI follow mode, you will need to configure the various MIDI Follow Mode
 - In the `MIDI-Follow > Kit Root Note` submenu, set the root note for kits between 1 and 127 in order to map MIDI Notes received to Kit rows. The root note corresponds to the bottom row in a Kit.
 - In the `MIDI-Follow > Display Param` submenu, enable or disable param pop-ups
 - In the `MIDI-Follow > Feedback > Channel` submenu, Enable or Disable MIDI follow feedback by setting a MIDI Follow Feedback Channel.
-  - You can choose MIDI Follow Channel A/B/C or NONE. Thus, when you update MIDI Follow Channel A/B/C it will automatically update the channel used for MIDI Feedback.
+  - You can choose MIDI Follow Channel A/B/C, Track, Track + A/B/C, or NONE.
+    Thus, when you update MIDI Follow Channel A/B/C or a configured Track
+    channel it will automatically update the channel used for MIDI Feedback.
+  - Track + A/B/C feedback modes send Track feedback first when the
+    selected clip belongs to a configured track, then send the selected A/B/C
+    feedback channel if it is configured and is not the same MIDI channel.
     - Note: if no Channel has been set, MIDI Feedback will be Disabled
 - In the `MIDI-Follow > Feedback > Automation Feedback` submenu, Enable or Disable MIDI follow feedback for automated parameters and set the rate at which feedback for automated parameters is sent
   - With Automation Feedback enabled, the Deluge will also send feedback while you are holding a note (e.g. step editing automation). This will override the sending of automation feedback until you release the note.
@@ -135,6 +140,10 @@ In <Badge text="c1.3" variant="tip" /> the above functionality has been expanded
   - Track 1 corresponds to bottom track in `ARRANGER VIEW` or left track in `GRID VIEW`.
   - You can also now configure the Channel `TRACK` for MIDI Follow Feedback. If a specific track is selected and has been configured
     for MIDI Follow control, the Deluge will send feedback of the CC values for that specific track.
+  - You can choose `TRACK + A`, `TRACK + B`, or `TRACK + C` to send feedback
+    to both the selected clip's configured Track channel and the configured
+    A/B/C channel. If both resolve to the same MIDI channel, feedback is only
+    sent once.
 
 #### Default MIDI CC Mappings
 
@@ -215,7 +224,8 @@ Note: if the MIDI CC being received is for a Parameter that cannot be controlled
 - Set up to sixteen MIDI Follow Channels and Devices for controlling up to 16 Specific Tracks <Badge text="c1.3" variant="tip" />
 - Set the MIDI Follow Root Note for Kits
 - Enable or Disable MIDI Follow Param Pop-up's
-- Enable or Disable MIDI Follow Feedback by setting/unsetting the MIDI Follow Feedback Channel
+- Enable or Disable MIDI Follow Feedback by setting/unsetting the MIDI Follow
+  Feedback Channel, including paired Track + A/B/C feedback modes
 - Enable or Disable MIDI Follow Feedback for Automated Parameters and set the MIDI Feedback Update Rate
 - Enable or Disable MIDI Follow Feedback Filtering of MIDI CC responses received within 1 second of sending feedback
 
@@ -228,6 +238,12 @@ Note: if the MIDI CC being received is for a Parameter that cannot be controlled
    - Note: To control the deluge with midi follow while receiving midi automation feedback, MIDI Feedback Filter Responses needs to be disabled. If your device requires filter responses to be enabled to avoid a feedback loop, you cannot use that same device to control the deluge while automation feedback is being received - you will only be able to display the automation on your device.
 
 ## Troubleshooting
+
+### MIDI Follow is unresponsive to MIDI controller input
+
+As of <Badge text="c1.3" variant="tip" /> MIDI Follow settings are no longer stored in Flash Memory. They are now saved in the MIDIFollow.XML file found in SD CARD/Settings/MIDIFollow.XML
+
+If you are updating to <Badge text="c1.3" variant="tip" /> from an earlier firmware, please delete all existing MIDIFollow.XML files from your SD card so that the file can be re-generated with the new file format.
 
 ### When using MIDI Follow, you experience MIDI stutter (lag)
 
@@ -281,7 +297,7 @@ For users of Touch OSC, you will find a MIDI Follow template in this folder: [MI
 <img
   width="560"
   alt="image"
-  src="https://github.com/SynthstromAudible/DelugeFirmware/blob/4cc496a5ca06616e9c75a334f08deead837cbf29/contrib/midi_follow/touch_osc/touch_osc.png"
+  src="https://raw.githubusercontent.com/SynthstromAudible/DelugeFirmware/refs/heads/main/contrib/midi_follow/touch_osc/touch_osc.png"
 />
 
 ## Appendix D - Electra One Template for Deluge MIDI Follow Mode
@@ -306,7 +322,22 @@ For users of the Electra One, you will find a MIDI Follow template in the Electr
 
 For users of Melbourne Instruments' Roto-Control, you will find MIDI Follow templates in this folder: [MIDI Follow Mode Roto-Control Templates]
 
+## Appendix F - Neuzeit Instruments' Drop Templates for Deluge MIDI Follow Mode
+
+For users of Neuzeit Instruments' [Drop MIDI Control Center](https://www.neuzeit-instruments.com/Drop), you will find a MIDI Follow project file in this folder: [MIDI Follow Mode Neuzeit Instruments Drop Project Template]
+
+This project assumes each track has been set to the came channel number. (e.g. Track 6 is MIDI channel 6)
+This project also assumes the Drop is running firmware version 2.01 or later (in order to use eight layers)
+
+- Layer 1 is a mixer layer controlling the first eight tracks of the song
+- Layers 2-8 are details controls for each track
+- Layer 2 controlling track one is configured for a kit track
+- Layers 3-8 controlling tracks 2-7 are conifgured for synths
+
+Thanks to James Macaulay for the [Drop Editor](https://jamesmacaulay.github.io/dropedit/) to allow easy copying parameters and settings between layers.
+
 [MIDI Follow Mode Loopy Pro Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/main/contrib/midi_follow/loopy_pro
 [MIDI Follow Mode Touch OSC Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/main/contrib/midi_follow/touch_osc
 [MIDI Follow Mode Electra One Preset]: https://app.electra.one/preset/vZ6WBYb4xDpMGcpChejY
 [MIDI Follow Mode Roto-Control Templates]: https://github.com/SynthstromAudible/DelugeFirmware/tree/main/contrib/midi_follow/roto_control
+[MIDI Follow Mode Neuzeit Instruments Drop Project Template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/main/contrib/midi_follow/neuzeit_drop

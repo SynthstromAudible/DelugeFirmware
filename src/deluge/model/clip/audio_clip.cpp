@@ -172,9 +172,14 @@ Error AudioClip::beginLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	}
 	bool shouldRecordMarginsNow =
 	    FlashStorage::audioClipRecordMargins && inputChannel < AUDIO_INPUT_CHANNEL_FIRST_INTERNAL_OPTION;
+	// unless we're doing a tempoless recording we want to ignore the threshold setting
+	bool tempoless_recording =
+	    currentPlaybackMode->wantsToDoTempolessRecord(modelStack->getTimelineCounter()->getLastProcessedPos());
 
+	// recorder needs more config settings
 	recorder = AudioEngine::getNewRecorder(numChannels, AudioRecordingFolder::CLIPS, inputChannel, true,
-	                                       shouldRecordMarginsNow, buttonPressLatency, false, outputRecordingFrom);
+	                                       shouldRecordMarginsNow, buttonPressLatency, false, outputRecordingFrom,
+	                                       {.neverUseThreshold = not tempoless_recording});
 	if (!recorder) {
 		return Error::INSUFFICIENT_RAM;
 	}
@@ -722,12 +727,11 @@ justDontTimeStretch:
 
 		// We want to do a fast release *before* the end, to finish right as the end is reached. So that any waveform
 		// after the end isn't heard.
-		// TODO: in an ideal world, would we only do this if there actually is some waveform "margin" after the end that
-		// we want to avoid hearing, and otherwise just do the release right at the end (does that already happen, I
-		// forgot?) It's perhaps a little bit surprising, but this even works and sounds perfect (you never hear any of
-		// the margin) when time-stretching is happening! Down to about half speed. Below that, you hear some of the
-		// margin.
-		if (static_cast<AudioOutput*>(this->output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
+		// NOTE: only do this if there actually is some waveform "margin" after the end or before the beginning (if
+		// reversed) that we want to avoid hearing. Otherwise just do the release right at the start/end
+		if (static_cast<AudioOutput*>(this->output)->envelope.state < EnvelopeStage::FAST_RELEASE
+		    && ((guide.playDirection == 1) ? (sampleHolder.endPos < sample->lengthInSamples)
+		                                   : (sampleHolder.startPos != 0))) {
 
 			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, nullptr);
 

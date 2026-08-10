@@ -2,11 +2,11 @@
 
 # Copyright 2023 Kate Whitlock
 import argparse
-from pathlib import Path
-import util
-from functools import partial
 import mmap
+from functools import partial
+from pathlib import Path
 
+import util
 
 LICENSE_TEMPLATE = """/*
  * Copyright (c) 2014-2023 Synthstrom Audible Limited

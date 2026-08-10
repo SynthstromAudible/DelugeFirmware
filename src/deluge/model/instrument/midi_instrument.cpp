@@ -17,9 +17,11 @@
 
 #include "model/instrument/midi_instrument.h"
 #include "definitions_cxx.hpp"
+#include "gui/l10n/l10n.h"
 #include "gui/ui/ui.h"
 #include "gui/views/view.h"
 #include "hid/buttons.h"
+#include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_transpose.h"
@@ -32,6 +34,7 @@
 #include "modulation/midi/midi_param_collection.h"
 #include "modulation/params/param_set.h"
 #include "storage/storage_manager.h"
+#include "util/d_stringbuf.h"
 #include <cstring>
 #include <string_view>
 
@@ -97,6 +100,46 @@ bool MIDIInstrument::doesAutomationExistOnMIDIParam(ModelStackWithThreeMainThing
 	return automationExists;
 }
 
+bool MIDIInstrument::appendCCName(StringBuf& buf, int32_t cc) {
+	if (cc == CC_NUMBER_NONE) {
+		buf.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_PARAM));
+	}
+	else if (cc == CC_NUMBER_PITCH_BEND) {
+		buf.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_PITCH_BEND));
+	}
+	else if (cc == CC_NUMBER_AFTERTOUCH) {
+		buf.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHANNEL_PRESSURE));
+	}
+	else if (cc == CC_EXTERNAL_MOD_WHEEL || cc == CC_NUMBER_Y_AXIS) {
+		buf.append(deluge::l10n::get(deluge::l10n::String::STRING_FOR_MOD_WHEEL));
+	}
+	else {
+		if (cc >= 0 && cc < kNumRealCCNumbers) {
+			std::string_view name = getNameFromCC(cc);
+			// if we have a name for this midi cc set by the user, display that instead of the cc number
+			if (!name.empty()) {
+				buf.append(name.data());
+				return true;
+			}
+		}
+		// if we don't have a midi cc name set, draw CC number instead
+		if (display->haveOLED()) {
+			buf.append("CC ");
+			buf.appendInt(cc);
+		}
+		else {
+			if (cc < 100) {
+				buf.append("CC");
+			}
+			else {
+				buf.append("C");
+			}
+			buf.appendInt(cc);
+		}
+	}
+	return false;
+}
+
 void MIDIInstrument::modButtonAction(uint8_t whichModButton, bool on, ParamManagerForTimeline* paramManager) {
 	// If we're leaving this mod function or anything else is happening, we want to be sure that stutter has stopped
 	if (currentUIMode == UI_MODE_SELECTING_MIDI_CC) {
@@ -107,6 +150,36 @@ void MIDIInstrument::modButtonAction(uint8_t whichModButton, bool on, ParamManag
 		else {
 			InstrumentClipMinder::redrawNumericDisplay();
 		}
+		return;
+	}
+
+	int32_t ccTop = modKnobCCAssignments[modKnobMode * kNumPhysicalModKnobs + 1];
+	int32_t ccBottom = modKnobCCAssignments[modKnobMode * kNumPhysicalModKnobs + 0];
+
+	DEF_STACK_STRING_BUF(popupMsg, 100);
+
+	// OLED/7SEG pattern: show top knob when pressed, bottom knob when released (7SEG);
+	// show both top and bottom when pressed (OLED).
+	if (display->haveOLED() || on) {
+		appendCCName(popupMsg, ccTop);
+	}
+	if (display->haveOLED()) {
+		popupMsg.append("\n");
+	}
+	if (display->haveOLED() || !on) {
+		appendCCName(popupMsg, ccBottom);
+	}
+
+	if (display->haveOLED()) {
+		if (on) {
+			display->popupText(popupMsg.c_str());
+		}
+		else {
+			display->cancelPopup();
+		}
+	}
+	else {
+		display->displayPopup(popupMsg.c_str());
 	}
 }
 
@@ -356,6 +429,10 @@ void MIDIInstrument::writeDeviceDefinitionFile(Serializer& writer, bool writeFil
 
 	writeCCLabelsToFile(writer);
 
+	writer.writeOpeningTagBeginning("hideUnlabeledCC");
+	writer.writeAttribute("value", (int32_t)hideUnlabeledCC);
+	writer.closeTag();
+
 	writer.writeClosingTag("midiDevice");
 }
 
@@ -504,6 +581,9 @@ Error MIDIInstrument::readDeviceDefinitionFile(Deserializer& reader, bool readFr
 			if (!strcmp(tagName, "ccLabels")) {
 				error = readCCLabelsFromFile(reader);
 			}
+			else if (!strcmp(tagName, "hideUnlabeledCC")) {
+				error = readHideUnlabeledCCFromFile(reader);
+			}
 		}
 		reader.exitTag();
 	}
@@ -541,6 +621,21 @@ Error MIDIInstrument::readCCLabelsFromFile(Deserializer& reader) {
 
 		error = Error::NONE;
 
+		reader.exitTag();
+	}
+
+	return error;
+}
+
+Error MIDIInstrument::readHideUnlabeledCCFromFile(Deserializer& reader) {
+	Error error = Error::FILE_UNREADABLE;
+
+	char const* tagName;
+	while (*(tagName = reader.readNextTagOrAttributeName())) {
+		if (!strcmp(tagName, "value")) {
+			hideUnlabeledCC = (bool)reader.readTagOrAttributeValueInt();
+			error = Error::NONE;
+		}
 		reader.exitTag();
 	}
 
@@ -606,22 +701,63 @@ Error MIDIInstrument::readMIDIParamFromFile(Deserializer& reader, int32_t readAu
 	return Error::NONE;
 }
 
+/// This function is used when you scroll you CC's in a midi clip to assign to gold knob or when you scroll through CC's
+/// in automation view If you are using midi CC labels and have "Hide Unlabeled CC" enabled in the MIDI Device
+/// Definition menu, then this function will skip over any CC's that do not have a label assigned to them. By default,
+/// if you haven't labeled anything and you hide unlabeled CC's, then this function will restrict you to select "NONE"
+/// or the "EXPRESSION" CC's.
+int32_t MIDIInstrument::getNextSelectableCC(int32_t cc, int32_t offset, bool includeNoCC) {
+	int32_t newCC = cc;
+	int32_t direction = (offset < 0) ? -1 : 1;
+	int32_t steps = (offset < 0) ? -offset : offset;
+	int32_t numSelectableCCs = includeNoCC ? kNumCCNumbersIncludingFake : kNumCCExpression;
+
+	// loop until we have found a CC
+	while (true) {
+		// get the next CC in the direction specified by the offset
+		for (int32_t i = 0; i < steps; i++) {
+			newCC += direction;
+			if (newCC < 0) {
+				newCC += numSelectableCCs;
+			}
+			else if (newCC >= numSelectableCCs) {
+				newCC -= numSelectableCCs;
+			}
+			if (newCC == CC_EXTERNAL_MOD_WHEEL) {
+				// Mod wheel is represented by CC_NUMBER_Y_AXIS internally.
+				newCC += direction;
+			}
+		}
+		// do we want to hide CC's without labels?
+		if (hideUnlabeledCC) {
+			// these CC's do not have a label, so they are always selectable
+			if (newCC == CC_NUMBER_NONE || newCC == CC_NUMBER_Y_AXIS || newCC == CC_NUMBER_PITCH_BEND
+			    || newCC == CC_NUMBER_AFTERTOUCH) {
+				break;
+			}
+			// if this cc doesn't have a label, continue searching in the same direction
+			else if (getNameFromCC(newCC).empty()) {
+				// If the new CC is unlabeled, continue searching in the same direction
+				continue;
+			}
+			// If the new CC is labeled, then it is selectable
+			else {
+				break;
+			}
+		}
+		// if we don't want to hide unlabeled CC's, then the new CC is selectable
+		else {
+			break;
+		}
+	}
+
+	return newCC;
+}
+
 int32_t MIDIInstrument::changeControlNumberForModKnob(int32_t offset, int32_t whichModEncoder, int32_t modKnobMode) {
 	int8_t* cc = &modKnobCCAssignments[modKnobMode * kNumPhysicalModKnobs + whichModEncoder];
 
-	int32_t newCC = *cc;
-
-	newCC += offset;
-	if (newCC < 0) {
-		newCC += kNumCCNumbersIncludingFake;
-	}
-	else if (newCC >= kNumCCNumbersIncludingFake) {
-		newCC -= kNumCCNumbersIncludingFake;
-	}
-	if (newCC == 1) {
-		// mod wheel is actually CC_NUMBER_Y_AXIS (122) internally
-		newCC += offset;
-	}
+	int32_t newCC = getNextSelectableCC(*cc, offset, true);
 
 	*cc = newCC;
 
@@ -641,14 +777,7 @@ int32_t MIDIInstrument::getFirstUnusedCC(ModelStackWithThreeMainThings* modelSta
 			return proposedCC;
 		}
 
-		proposedCC += direction;
-
-		if (proposedCC < 0) {
-			proposedCC += CC_NUMBER_NONE;
-		}
-		else if (proposedCC >= CC_NUMBER_NONE) {
-			proposedCC -= CC_NUMBER_NONE;
-		}
+		proposedCC = getNextSelectableCC(proposedCC, direction);
 
 		if (proposedCC == stopAt) {
 			return -1;
@@ -714,13 +843,7 @@ int32_t MIDIInstrument::moveAutomationToDifferentCC(int32_t offset, int32_t whic
 		return *cc;
 	}
 
-	int32_t newCC = *cc + offset;
-	if (newCC < 0) {
-		newCC += CC_NUMBER_NONE;
-	}
-	else if (newCC >= CC_NUMBER_NONE) {
-		newCC -= CC_NUMBER_NONE;
-	}
+	int32_t newCC = getNextSelectableCC(*cc, offset);
 
 	// Need to pick a new cc which is blank on all Clips' ParamManagers with this Instrument
 	// For each Clip in session and arranger for specific Output (that Output is "this")

@@ -2,8 +2,8 @@
 
 # Copyright 2023 Kate Whitlock
 import argparse
-from pathlib import Path
 import shutil
+from pathlib import Path
 
 VERSION = Path("./toolchain/REQUIRED_VERSION").read_text().strip()
 

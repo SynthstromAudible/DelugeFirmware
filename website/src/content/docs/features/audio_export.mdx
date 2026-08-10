@@ -4,6 +4,20 @@ title: Audio Export
 
 import LinkPreviewCard from "../../../components/LinkPreviewCard.astro"
 import { Badge } from "@astrojs/starlight/components"
+import audioExportDemo1Video from "./assets/audio_export/Audio_Export_Demo_1.mov?url"
+import audioExportDemo2Video from "./assets/audio_export/Audio_Export_Demo_2.mov?url"
+import audioExportDemo3Video from "./assets/audio_export/Audio_Export_Demo_3.mov?url"
+import multisampleDemo1Video from "./assets/audio_export/Multisample_Demo_1.mov?url"
+import multisampleDemo2Video from "./assets/audio_export/Multisample_Demo_2.mov?url"
+import multisampleDemo3Video from "./assets/audio_export/Multisample_Demo_3.mov?url"
+import multisampleDemo4Video from "./assets/audio_export/Multisample_Demo_4.mov?url"
+import audioExportDemo1Poster from "./assets/audio_export/posters/Audio_Export_Demo_1.jpg?url"
+import audioExportDemo2Poster from "./assets/audio_export/posters/Audio_Export_Demo_2.jpg?url"
+import audioExportDemo3Poster from "./assets/audio_export/posters/Audio_Export_Demo_3.jpg?url"
+import multisampleDemo1Poster from "./assets/audio_export/posters/Multisample_Demo_1.jpg?url"
+import multisampleDemo2Poster from "./assets/audio_export/posters/Multisample_Demo_2.jpg?url"
+import multisampleDemo3Poster from "./assets/audio_export/posters/Multisample_Demo_3.jpg?url"
+import multisampleDemo4Poster from "./assets/audio_export/posters/Multisample_Demo_4.jpg?url"
 
 <Badge text="c1.2 Feature" variant="tip" />
 
@@ -145,6 +159,29 @@ This menu allows you to start an export and configure various settings related t
     - `OFFLINE RENDERING`: Exports are rendered offline. You will not hear any audio playback, as exports are rendered at a faster than real-time basis.
     - `EXPORT MIXDOWN`: A single master mixdown track is exported for all unmuted tracks in Arranger View.
 
+## Multi-Sampling using Kit Audio Export <Badge text="c1.3" variant="tip" />
+
+The <Badge text="c1.3" variant="tip" /> firmware provides a way to sample and multi-sample external audio instruments by leveraging two features:
+
+- Kit Drum Export
+- MIDI note out from Kit Rows
+
+Attached are 3 multi sample template songs with a kit preconfigured with 128 rows outputting notes 0-127 on Channel 7. The only difference between the songs is the note length sampled (1 bar, 1/2 bar, 1/4 bar).
+
+- [1 bar template]
+- [1/2 bar template]
+- [1/4 bar template]
+
+If you need to change the output Channel I’d recommend opening the XML’s on a computer and doing a mass find replace.
+
+In addition to the preconfigured kit, there is also an audio clip configured to sampler mode so that incoming audio is monitored.
+
+Each kit row is also configured for live oscillator input, however I have muted the kit volume at the Kit FX level because I think live oscillator input degrades the audio quality (but I’m not 100% on that). But the option is there in case you want to delete the audio clip and multi sample using the live oscillators instead. Or you could stack both the audio clip and the live oscillator sound together for some cool effects!
+
+Another advantage of using the audio clip is that you could sample with the same Audio Clip FX applied to all notes sampled.
+
+Attached below are some videos as well showing the workflow. It’s quite nifty!
+
 ## Troubleshooting
 
 ### I have a track that won't export
@@ -191,8 +228,87 @@ Other than using the `EXPORT TO SILENCE` feature, we do not have a solution for 
 
 ## Videos
 
-https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/77bb8dfc-8b39-408d-8688-fc43eb7be593
+### Audio Export Demos
 
-https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/c48d0ab8-656f-427a-99c0-f7c4076b06ca
+<video
+  controls
+  preload="metadata"
+  width="720"
+  aria-label="Audio export demo 1"
+  poster={audioExportDemo1Poster}
+  src={audioExportDemo1Video}
+>
+  <a href={audioExportDemo1Video}>Open audio export demo 1</a>
+</video>
 
-https://github.com/SynthstromAudible/DelugeFirmware/assets/138174805/c00e69c6-96a6-4b25-94ed-abcf1a0088f4
+<video
+  controls
+  preload="metadata"
+  width="720"
+  aria-label="Audio export demo 2"
+  poster={audioExportDemo2Poster}
+  src={audioExportDemo2Video}
+>
+  <a href={audioExportDemo2Video}>Open audio export demo 2</a>
+</video>
+
+<video
+  controls
+  preload="metadata"
+  width="720"
+  aria-label="Audio export demo 3"
+  poster={audioExportDemo3Poster}
+  src={audioExportDemo3Video}
+>
+  <a href={audioExportDemo3Video}>Open audio export demo 3</a>
+</video>
+
+### Multi-sampling with Kit Drum Export Demos
+
+<video
+  controls
+  preload="metadata"
+  width="720"
+  aria-label="Multi-sampling demo 1"
+  poster={multisampleDemo1Poster}
+  src={multisampleDemo1Video}
+>
+  <a href={multisampleDemo1Video}>Open multi-sampling demo 1</a>
+</video>
+
+<video
+  controls
+  preload="metadata"
+  width="720"
+  aria-label="Multi-sampling demo 2"
+  poster={multisampleDemo2Poster}
+  src={multisampleDemo2Video}
+>
+  <a href={multisampleDemo2Video}>Open multi-sampling demo 2</a>
+</video>
+
+<video
+  controls
+  preload="metadata"
+  width="720"
+  aria-label="Multi-sampling demo 3"
+  poster={multisampleDemo3Poster}
+  src={multisampleDemo3Video}
+>
+  <a href={multisampleDemo3Video}>Open multi-sampling demo 3</a>
+</video>
+
+<video
+  controls
+  preload="metadata"
+  width="720"
+  aria-label="Multi-sampling demo 4"
+  poster={multisampleDemo4Poster}
+  src={multisampleDemo4Video}
+>
+  <a href={multisampleDemo4Video}>Open multi-sampling demo 4</a>
+</video>
+
+[1 bar template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/main/contrib/audio_export/multi_sample/Multisample_Template_Full_Bar.XML
+[1/2 bar template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/main/contrib/audio_export/multi_sample/Multisample_Template_Half_Bar.XML
+[1/4 bar template]: https://github.com/SynthstromAudible/DelugeFirmware/tree/main/contrib/audio_export/multi_sample/Multisample_Template_Quarter_Bar.XML

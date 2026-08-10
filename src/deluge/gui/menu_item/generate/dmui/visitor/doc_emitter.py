@@ -1,7 +1,8 @@
-from .visitor import Visitor
-from .. import dsl
+from os import path
 from pathlib import Path
-import os.path as path
+
+from .. import dsl
+from .visitor import Visitor
 
 BASE_PATH = Path(path.abspath(__file__)).parent
 DOC_ROOT = BASE_PATH.joinpath(*([".."] * 7 + ["docs", "menus"])).resolve()

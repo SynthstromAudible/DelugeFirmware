@@ -65,7 +65,8 @@ void PatchCables::renderOptions() {
 		char* buf = bufs[i];
 
 		const char* src_name = sourceToStringShort(src); // exactly 4 chars
-		const char* dest_name = deluge::modulation::params::getPatchedParamShortName(dest);
+		const char* dest_name =
+		    deluge::modulation::params::getPatchedParamShortName(dest, soundEditor.currentModControllable);
 
 		memcpy(buf, src_name, 4);
 		buf[4] = ' ';

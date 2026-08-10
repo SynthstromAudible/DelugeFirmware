@@ -66,7 +66,7 @@ struct NotesState {
 
 	[[nodiscard]] NoteArray::const_iterator begin() const { return notes.begin(); }
 
-	[[nodiscard]] NoteArray::const_iterator end() const { return notes.end() + count; }
+	[[nodiscard]] NoteArray::const_iterator end() const { return notes.begin() + count; }
 
 	NoteArray::size_type enableNote(uint8_t note, uint8_t velocity, bool generatedNote = false,
 	                                int16_t* mpeValues = nullptr) {

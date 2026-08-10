@@ -1,4 +1,5 @@
 from dmui.dsl import Submenu
+
 from . import envelope
 
 menus = []

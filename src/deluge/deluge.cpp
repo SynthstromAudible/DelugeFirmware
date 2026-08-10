@@ -39,6 +39,7 @@
 #include "hid/buttons.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
+#include "hid/display/screensaver.h"
 #include "hid/display/seven_segment.h"
 #include "hid/encoder_input.h"
 #include "hid/encoders.h"
@@ -231,6 +232,16 @@ extern "C" void closeUSBPeripheral(void);
 uint32_t picFirmwareVersion = 0;
 bool picSaysOLEDPresent = false;
 
+namespace Deluge {
+void factoryReset() {
+	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FACTORY_RESET));
+	FlashStorage::factoryReset(false);
+	runtimeFeatureSettings.factoryReset(false);
+	midiFollow.factoryReset(false);
+	MIDIDeviceManager::factoryReset(false);
+}
+} // namespace Deluge
+
 bool isShortPress(uint32_t pressTime) {
 	return ((int32_t)(AudioEngine::audioSampleTimer - pressTime) < FlashStorage::holdTime);
 }
@@ -262,6 +273,9 @@ bool readButtonsAndPads() {
 	if (anything) {
 
 		if (value < PIC::kPadAndButtonMessagesEnd) {
+
+			// Any pad or button edge counts as activity, press or release alike.
+			deluge::hid::display::Screensaver::noteActivity();
 
 			int32_t thisPadPressIsOn = nextPadPressIsOn;
 			nextPadPressIsOn = USE_DEFAULT_VELOCITY;
@@ -296,10 +310,17 @@ bool readButtonsAndPads() {
 
 		// "No presses happening" message
 		else if (value == PIC::Response::NO_PRESSES_HAPPENING) {
-			if (!sdRoutineLock) {
-				matrixDriver.noPressesHappening(sdRoutineLock);
-				Buttons::noPressesHappening(sdRoutineLock);
+			// This is the safety net that releases any pad the firmware still thinks is held (e.g. because a
+			// release event was lost under load). It must not be dropped while the SD routine holds the lock -
+			// otherwise stuck notes persist until the pad is pressed again (see issue #3168). Defer it, exactly
+			// like pad/button events above, so it runs once the routine ends.
+			if (sdRoutineLock) {
+				uartPutCharBack(UART_ITEM_PIC);
+				waitingForSDRoutineToEnd = true;
+				return false;
 			}
+			matrixDriver.noPressesHappening(sdRoutineLock);
+			Buttons::noPressesHappening(sdRoutineLock);
 		}
 		else if (util::to_underlying(value) == oledWaitingForMessage && deluge::hid::display::have_oled_screen) {
 			uiTimerManager.setTimer(TimerName::OLED_LOW_LEVEL, 3);
@@ -561,7 +582,10 @@ void registerTasks() {
 	// these ones are actually "slow" -> file manager just checks if an sd card has been inserted, audio recorder checks
 	// if recordings are finished
 	addRepeatingTask([]() { audioFileManager.slowRoutine(); }, p++, 0.1, 0.1, 0.2, "audio file slow", RESOURCE_SD);
-	addRepeatingTask([]() { audioRecorder.slowRoutine(); }, p++, 0.01, 0.09, 0.1, "audio recorder slow", RESOURCE_NONE);
+	// Needs the SD resources: it can call finishRecording(), which frees the SampleRecorder, and that must not happen
+	// while the card routine is part-way through using it.
+	addRepeatingTask([]() { audioRecorder.slowRoutine(); }, p++, 0.01, 0.09, 0.1, "audio recorder slow",
+	                 RESOURCE_SD | RESOURCE_SD_ROUTINE);
 	// formerly part of cluster loading (why? no idea), actions undo/redo midi commands
 	addRepeatingTask([]() { playbackHandler.slowRoutine(); }, p++, 0.01, 0.09, 0.1, "playback slow routine",
 	                 RESOURCE_SD);
@@ -759,9 +783,7 @@ extern "C" int32_t deluge_main(void) {
 
 		case RESET_SETTINGS:
 			if (!otherButtonsOrEvents) {
-				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FACTORY_RESET));
-				FlashStorage::resetSettings();
-				FlashStorage::writeSettings();
+				Deluge::factoryReset();
 			}
 			return 0;
 
@@ -808,6 +830,8 @@ extern "C" int32_t deluge_main(void) {
 
 	// Hopefully we can read these files now
 	runtimeFeatureSettings.readSettingsFromFile();
+	deluge::hid::display::oled_canvas::Canvas::roundedCornersEnabled =
+	    runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundedCorners);
 	MIDIDeviceManager::readDevicesFromFile();
 	midiFollow.readDefaultsFromFile();
 	PadLEDs::setBrightnessLevel(FlashStorage::defaultPadBrightness);
@@ -884,6 +908,11 @@ extern "C" int32_t deluge_main(void) {
 	L2CacheUnlockData();
 	sdRoutineLock = false; // Allow SD routine to start happening
 
+	// Settings have been read and the UI is up: start the idle countdown.
+	if (hid::display::have_oled_screen) {
+		deluge::hid::display::Screensaver::settingsChanged();
+	}
+
 #ifdef USE_TASK_MANAGER
 	registerTasks();
 	startTaskManager();
@@ -955,7 +984,14 @@ extern "C" void routineForSD(void) {
 	sdRoutineLock = true;
 	static UIStage step = UIStage::oled;
 	AudioEngine::logAction("from routineForSD()");
+	// process audio
 	AudioEngine::runRoutine();
+#ifdef USE_TASK_MANAGER // if using task manager, midi and analog clock are processed separately from audio
+	// process midi clock
+	playbackHandler.midiRoutine();
+	// process analog clock
+	playbackHandler.routine();
+#endif
 	switch (step) {
 	case UIStage::oled:
 		if (display->haveOLED()) {

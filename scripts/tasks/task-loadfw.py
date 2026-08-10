@@ -1,9 +1,11 @@
-import time
-import binascii
 import argparse
-import util
+import binascii
 import itertools
 import os
+import sys
+import time
+
+import util
 
 advisory = """
 NOTE: Firmware might behave slightly differently when using loadfw than when flashed from SD card.
@@ -146,8 +148,7 @@ def load_fw(output, handshake, file, delay_ms=2, output_to_file=False):
     if output_to_file:
         with open(output, "wb") as f:
             text = f"Writing SysEx File '{f.name}': "
-            for msg in util.progressbar(sysex_data, text):
-                f.write(msg)
+            f.writelines(util.progressbar(sysex_data, text))
 
     else:
         with output:
@@ -215,12 +216,12 @@ def main():
             output.open_port(port)
         delay = args.delay
         ok = True
-    except Exception as e:
+    except Exception as e:  # noqa: BLE001 - report any setup failure, then exit in finally
         util.note(f"ERROR: {e}")
     finally:
         if not ok:
             util.report_available_midi_ports("output", rtmidi.MidiOut())
-            exit(1)
+            sys.exit(1)
 
     load_fw(output, int(hex_key, 16), binary, delay, output_to_file)
 

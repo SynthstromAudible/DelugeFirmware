@@ -1,6 +1,6 @@
 import sys
+from collections.abc import Iterable
 from pathlib import Path
-from typing import Optional, Iterable
 
 __all__ = [
     "Menu",
@@ -99,10 +99,10 @@ class Menu:
         clazz: str,
         cpp_name: str,
         arg_template: list[str],
-        description: Optional[str],
-        name: Optional[str] = None,
-        title: Optional[str] = None,
-        available_when: Optional[str] = None,
+        description: str | None,
+        name: str | None = None,
+        title: str | None = None,
+        available_when: str | None = None,
     ):
         if description is not None:
             ensure_doc_path_exists(description)
@@ -188,8 +188,8 @@ class MultiContextMenu(Menu):
         clazz: str,
         cpp_name: str,
         arg_template: list[str],
-        title: Optional[str] = None,
-        name: Optional[str] = None,
+        title: str | None = None,
+        name: str | None = None,
     ):
         Menu.__init__(self, clazz, cpp_name, arg_template, None, title=title, name=name)
 
@@ -240,9 +240,9 @@ class Submenu(Menu):
         arg_template: list[str],
         description: str,
         children: list[Menu],
-        title: Optional[str] = None,
-        name: Optional[str] = None,
-        available_when: Optional[str] = None,
+        title: str | None = None,
+        name: str | None = None,
+        available_when: str | None = None,
     ):
         Menu.__init__(
             self,
@@ -288,7 +288,7 @@ class MultiModeMenuMode:
         title: str,
         available_when: str,
         description: str,
-        name: Optional[str] = None,
+        name: str | None = None,
     ):
         self.title = title
         self.available_when = trim(available_when)
@@ -323,8 +323,8 @@ class MultiModeMenu(Menu):
         cpp_name: str,
         arg_template: list[str],
         modes: Iterable[MultiModeMenuMode],
-        name: Optional[str] = None,
-        title: Optional[str] = None,
+        name: str | None = None,
+        title: str | None = None,
     ):
         Menu.__init__(self, clazz, cpp_name, arg_template, None, title=title, name=name)
 

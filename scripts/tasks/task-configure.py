@@ -1,10 +1,11 @@
 #! /usr/bin/env python3
 import argparse
 import importlib
-import subprocess
-from typing import Sequence
-import util
 import os
+import subprocess
+from collections.abc import Sequence
+
+import util
 
 
 class CondensedChoiceFormatter(argparse.ArgumentDefaultsHelpFormatter):
@@ -45,7 +46,7 @@ def argparser() -> argparse.ArgumentParser:
     return parser
 
 
-def main(argv: Sequence[str] = None) -> int:
+def main(argv: Sequence[str] | None = None) -> int:
     (args, unknown_args) = argparser().parse_known_args(argv)
 
     project_root = util.get_git_root()
@@ -78,7 +79,7 @@ def main(argv: Sequence[str] = None) -> int:
             f"-DRELEASE_TYPE:STRING={args.type.lower()}",
         ]
 
-    result = subprocess.run(["cmake"] + configure_args, env=os.environ)
+    result = subprocess.run(["cmake"] + configure_args, env=os.environ, check=False)
     return result.returncode
 
 

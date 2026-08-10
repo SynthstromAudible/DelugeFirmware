@@ -1,9 +1,10 @@
 #! /usr/bin/env python3
 import argparse
-import shutil
-import util
 import os
+import shutil
 import stat
+
+import util
 
 
 def argparser() -> argparse.ArgumentParser:
@@ -29,7 +30,7 @@ def main() -> int:
         try:
             shutil.rmtree(dir, onerror=readonly_handler)
             print(" - ok!")
-        except Exception:
+        except Exception:  # noqa: BLE001 - best-effort delete; report and continue
             print(" - failed!")
     return 0
 
