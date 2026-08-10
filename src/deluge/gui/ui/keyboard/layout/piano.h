@@ -39,8 +39,9 @@ const int32_t pianoIntervals[2][7] = {
 
 class KeyboardLayoutPiano : public ColumnControlsKeyboard {
 public:
-	KeyboardLayoutPiano() {}
-	~KeyboardLayoutPiano() override {}
+	constexpr KeyboardLayoutPiano() {}
+
+	constexpr ~KeyboardLayoutPiano() override {}
 
 	void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) override;
 	void handleVerticalEncoder(int32_t offset) override;

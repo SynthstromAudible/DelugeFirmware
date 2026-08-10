@@ -42,8 +42,9 @@ const int32_t kChordKeyboardColumns = 14;
 /// @brief Represents a keyboard layout for chord-based input.
 class KeyboardLayoutChord : public ColumnControlsKeyboard {
 public:
-	KeyboardLayoutChord() = default;
-	~KeyboardLayoutChord() override = default;
+	constexpr KeyboardLayoutChord() {};
+
+	constexpr ~KeyboardLayoutChord() override {};
 
 	void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) override;
 	void handleVerticalEncoder(int32_t offset) override;
@@ -57,7 +58,9 @@ public:
 	bool supportsInstrument() override { return true; }
 	bool supportsKit() override { return false; }
 	RequiredScaleMode requiredScaleMode() override { return RequiredScaleMode::Disabled; }
-	bool supportsScale(Scale scale) override { return acceptedScales.find(scale) != acceptedScales.end(); }
+	bool supportsScale(Scale scale) override {
+		return std::ranges::find(acceptedScales, scale) != acceptedScales.end();
+	}
 
 	ChordKeyboardMode mode = ChordKeyboardMode::COLUMN;
 
@@ -104,9 +107,9 @@ private:
 	std::array<const std::array<const Chord, majorChords.size()>*, 6> chordColumns = {
 	    &majorChords, &minorChords, &diminishedChords, &augmentedChords, &dominantChords, &otherChords};
 
-	std::set<Scale> acceptedScales = {Scale::MAJOR_SCALE,    Scale::MINOR_SCALE,  Scale::DORIAN_SCALE,
-	                                  Scale::PHRYGIAN_SCALE, Scale::LYDIAN_SCALE, Scale::MIXOLYDIAN_SCALE,
-	                                  Scale::LOCRIAN_SCALE};
+	std::array<Scale, 7> acceptedScales = {Scale::MAJOR_SCALE,    Scale::MINOR_SCALE,  Scale::DORIAN_SCALE,
+	                                       Scale::PHRYGIAN_SCALE, Scale::LYDIAN_SCALE, Scale::MIXOLYDIAN_SCALE,
+	                                       Scale::LOCRIAN_SCALE};
 };
 
 }; // namespace deluge::gui::ui::keyboard::layout

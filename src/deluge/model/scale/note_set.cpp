@@ -1,12 +1,6 @@
 #include "model/scale/note_set.h"
 #include "model/scale/preset_scales.h"
 
-NoteSet::NoteSet(std::initializer_list<uint8_t> notes) : bits{0} {
-	for (uint8_t note : notes) {
-		add(note);
-	}
-}
-
 void NoteSet::addUntrusted(uint8_t note) {
 	// Constrain added note to be strictly increasing, and < 12.
 	//

@@ -41,8 +41,9 @@ typedef uint8_t NoteHighlightIntensity[kHighestKeyboardNote];
 
 class KeyboardLayout {
 public:
-	KeyboardLayout() = default;
-	virtual ~KeyboardLayout() {}
+	constexpr KeyboardLayout() = default;
+
+	constexpr virtual ~KeyboardLayout() {}
 
 	/// Handle input pad presses
 	virtual void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) = 0;

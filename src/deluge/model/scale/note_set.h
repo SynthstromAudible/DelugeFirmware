@@ -20,15 +20,19 @@
 class NoteSet {
 public:
 	/** Default constructor for an empty NoteSet. */
-	NoteSet() : bits(0) {}
+	constexpr NoteSet() : bits(0) {}
 	/** Construct NoteSet from uint16_t bitfield returned by toBits(). */
-	NoteSet(uint16_t bits_) : bits(bits_) {}
+	explicit constexpr NoteSet(uint16_t bits_) : bits(bits_) {}
 	/** Constructs a NoteSet from notes.
 	 */
-	NoteSet(std::initializer_list<uint8_t> notes);
+	constexpr NoteSet(std::initializer_list<uint8_t> notes) : bits{0} {
+		for (uint8_t note : notes) {
+			add(note);
+		}
+	}
 	/** Add a note to NoteSet.
 	 */
-	void add(int8_t note) { bits = 0xfff & (bits | (1 << note)); }
+	constexpr void add(int8_t note) { bits = 0xfff & (bits | (1 << note)); }
 	/** Remove a note to NoteSet.
 	 */
 	void remove(int8_t note) { bits = 0xfff & (bits & ~(1 << note)); }

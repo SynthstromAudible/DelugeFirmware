@@ -10,9 +10,9 @@
 
 namespace deluge::gui::context_menu::clip_settings {
 
-constexpr size_t kNumValues = 3;
+PLACE_SDRAM_RODATA constexpr size_t kNumValues = 3;
 
-LaunchStyleMenu launchStyle{};
+PLACE_SDRAM_BSS LaunchStyleMenu launchStyle{};
 
 char const* LaunchStyleMenu::getTitle() {
 	static char const* title = "Clip Mode";

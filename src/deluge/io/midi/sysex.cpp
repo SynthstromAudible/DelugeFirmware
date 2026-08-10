@@ -114,9 +114,11 @@ static void firstPacket(uint8_t* data, int32_t len) {
 
 		load_buf = (uint8_t*)GeneralMemoryAllocator::get().allocMaxSpeed(load_bufsize);
 		if (load_buf == nullptr) {
+			FREEZE_WITH_ERROR("OHNO");
 			// fail :(
 			return;
 		}
+		display->popupText("STAR");
 	}
 
 	// Pad LED Progress Bar Init
@@ -132,6 +134,7 @@ static void firstPacket(uint8_t* data, int32_t len) {
 void Debug::loadPacketReceived(uint8_t* data, int32_t len) {
 	uint32_t handshake = runtimeFeatureSettings.get(RuntimeFeatureSettingType::DevSysexAllowed);
 	if (handshake == 0) {
+		FREEZE_WITH_ERROR("unknown");
 		return; // not allowed
 	}
 
@@ -144,6 +147,7 @@ void Debug::loadPacketReceived(uint8_t* data, int32_t len) {
 	uint32_t handshake_received;
 	unpack_7bit_to_8bit((uint8_t*)&handshake_received, 4, data + 2, 5);
 	if (handshake != handshake_received) {
+		FREEZE_WITH_ERROR("MTCH");
 		return;
 	}
 

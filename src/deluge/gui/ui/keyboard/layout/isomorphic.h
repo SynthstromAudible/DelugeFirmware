@@ -23,8 +23,9 @@ namespace deluge::gui::ui::keyboard::layout {
 
 class KeyboardLayoutIsomorphic : public ColumnControlsKeyboard {
 public:
-	KeyboardLayoutIsomorphic() {}
-	~KeyboardLayoutIsomorphic() override {}
+	constexpr KeyboardLayoutIsomorphic() {}
+
+	constexpr ~KeyboardLayoutIsomorphic() override {}
 
 	void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) override;
 	void handleVerticalEncoder(int32_t offset) override;

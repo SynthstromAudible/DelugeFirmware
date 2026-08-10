@@ -57,23 +57,26 @@ PLACE_SDRAM_BSS deluge::gui::ui::keyboard::KeyboardScreen keyboardScreen{};
 
 namespace deluge::gui::ui::keyboard {
 
-PLACE_SDRAM_BSS layout::KeyboardLayoutIsomorphic keyboard_layout_isomorphic{};
-PLACE_SDRAM_BSS layout::KeyboardLayoutVelocityDrums keyboard_layout_velocity_drums{};
-PLACE_SDRAM_BSS layout::KeyboardLayoutInKey keyboard_layout_in_key{};
-PLACE_SDRAM_BSS layout::KeyboardLayoutPiano keyboard_layout_piano{};
-PLACE_SDRAM_BSS layout::KeyboardLayoutChord keyboard_layout_chord{};
-PLACE_SDRAM_BSS layout::KeyboardLayoutChordLibrary keyboard_layout_chord_library{};
-PLACE_SDRAM_BSS layout::KeyboardLayoutNorns keyboard_layout_norns{};
-PLACE_SDRAM_DATA std::array<KeyboardLayout*, KeyboardLayoutType::KeyboardLayoutTypeMaxElement> layout_list = {nullptr};
+PLACE_SDRAM_DATA constinit layout::KeyboardLayoutIsomorphic keyboard_layout_isomorphic{};
+PLACE_SDRAM_DATA constinit layout::KeyboardLayoutVelocityDrums keyboard_layout_velocity_drums{};
+PLACE_SDRAM_DATA constinit layout::KeyboardLayoutInKey keyboard_layout_in_key{};
+PLACE_SDRAM_DATA constinit layout::KeyboardLayoutPiano keyboard_layout_piano{};
+PLACE_SDRAM_DATA constinit layout::KeyboardLayoutChord keyboard_layout_chord{};
+PLACE_SDRAM_DATA constinit layout::KeyboardLayoutChordLibrary keyboard_layout_chord_library{};
+PLACE_SDRAM_DATA constinit layout::KeyboardLayoutNorns keyboard_layout_norns{};
+PLACE_SDRAM_DATA constinit std::array<KeyboardLayout*, KeyboardLayoutType::KeyboardLayoutTypeMaxElement> layout_list = {
+    &keyboard_layout_isomorphic,    &keyboard_layout_in_key,         &keyboard_layout_piano, &keyboard_layout_chord,
+    &keyboard_layout_chord_library, &keyboard_layout_velocity_drums, &keyboard_layout_norns,
+};
 
 KeyboardScreen::KeyboardScreen() {
-	layout_list[KeyboardLayoutType::KeyboardLayoutTypeIsomorphic] = &keyboard_layout_isomorphic;
-	layout_list[KeyboardLayoutType::KeyboardLayoutTypeInKey] = &keyboard_layout_in_key;
-	layout_list[KeyboardLayoutType::KeyboardLayoutTypePiano] = &keyboard_layout_piano;
-	layout_list[KeyboardLayoutType::KeyboardLayoutTypeChord] = &keyboard_layout_chord;
-	layout_list[KeyboardLayoutType::KeyboardLayoutTypeChordLibrary] = &keyboard_layout_chord_library;
-	layout_list[KeyboardLayoutType::KeyboardLayoutTypeDrums] = &keyboard_layout_velocity_drums;
-	layout_list[KeyboardLayoutType::KeyboardLayoutTypeNorns] = &keyboard_layout_norns;
+	// layout_list[KeyboardLayoutType::KeyboardLayoutTypeIsomorphic] = &keyboard_layout_isomorphic;
+	// layout_list[KeyboardLayoutType::KeyboardLayoutTypeInKey] = &keyboard_layout_in_key;
+	// layout_list[KeyboardLayoutType::KeyboardLayoutTypePiano] = &keyboard_layout_piano;
+	// layout_list[KeyboardLayoutType::KeyboardLayoutTypeChord] = &keyboard_layout_chord;
+	// layout_list[KeyboardLayoutType::KeyboardLayoutTypeChordLibrary] = &keyboard_layout_chord_library;
+	// layout_list[KeyboardLayoutType::KeyboardLayoutTypeDrums] = &keyboard_layout_velocity_drums;
+	// layout_list[KeyboardLayoutType::KeyboardLayoutTypeNorns] = &keyboard_layout_norns;
 
 	memset(&pressedPads, 0, sizeof(pressedPads));
 	currentNotesState = {0};

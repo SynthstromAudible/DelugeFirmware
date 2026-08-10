@@ -27,9 +27,9 @@
 
 namespace deluge::gui::context_menu::clip_settings {
 
-constexpr size_t kNumValues = 5;
+PLACE_SDRAM_RODATA constexpr size_t kNumValues = 5;
 
-NewClipType newClipType{};
+PLACE_SDRAM_BSS NewClipType newClipType{};
 
 bool NewClipType::getGreyoutColsAndRows(uint32_t* cols, uint32_t* rows) {
 	return false; // don't greyout

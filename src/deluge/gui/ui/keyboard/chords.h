@@ -44,36 +44,36 @@ enum class ChordQuality {
 ChordQuality getChordQuality(NoteSet& notes);
 
 // Interval offsets for convenience
-PLACE_SDRAM_RODATA const int8_t NONE = INT8_MAX;
-PLACE_SDRAM_RODATA const int8_t ROOT = 0;
-PLACE_SDRAM_RODATA const int8_t MIN2 = 1;
-PLACE_SDRAM_RODATA const int8_t MAJ2 = 2;
-PLACE_SDRAM_RODATA const int8_t MIN3 = 3;
-PLACE_SDRAM_RODATA const int8_t MAJ3 = 4;
-PLACE_SDRAM_RODATA const int8_t P4 = 5;
-PLACE_SDRAM_RODATA const int8_t AUG4 = 6;
-PLACE_SDRAM_RODATA const int8_t DIM5 = 6;
-PLACE_SDRAM_RODATA const int8_t P5 = 7;
-PLACE_SDRAM_RODATA const int8_t AUG5 = 8;
-PLACE_SDRAM_RODATA const int8_t MIN6 = 8;
-PLACE_SDRAM_RODATA const int8_t MAJ6 = 9;
-PLACE_SDRAM_RODATA const int8_t DIM7 = 9;
-PLACE_SDRAM_RODATA const int8_t MIN7 = 10;
-PLACE_SDRAM_RODATA const int8_t DOM7 = 10;
-PLACE_SDRAM_RODATA const int8_t MAJ7 = 11;
-PLACE_SDRAM_RODATA const int8_t OCT = kOctaveSize;
-PLACE_SDRAM_RODATA const int8_t MIN9 = MIN2 + OCT;
-PLACE_SDRAM_RODATA const int8_t MAJ9 = MAJ2 + OCT;
-PLACE_SDRAM_RODATA const int8_t MIN10 = MIN3 + OCT;
-PLACE_SDRAM_RODATA const int8_t MAJ10 = MAJ3 + OCT;
-PLACE_SDRAM_RODATA const int8_t P11 = P4 + OCT;
-PLACE_SDRAM_RODATA const int8_t AUG11 = AUG4 + OCT;
-PLACE_SDRAM_RODATA const int8_t DIM12 = DIM5 + OCT;
-PLACE_SDRAM_RODATA const int8_t P12 = P5 + OCT;
-PLACE_SDRAM_RODATA const int8_t MIN13 = MIN6 + OCT;
-PLACE_SDRAM_RODATA const int8_t MAJ13 = MAJ6 + OCT;
-PLACE_SDRAM_RODATA const int8_t MIN14 = MIN7 + OCT;
-PLACE_SDRAM_RODATA const int8_t MAJ14 = MAJ7 + OCT;
+PLACE_SDRAM_RODATA constexpr int8_t NONE = INT8_MAX;
+PLACE_SDRAM_RODATA constexpr int8_t ROOT = 0;
+PLACE_SDRAM_RODATA constexpr int8_t MIN2 = 1;
+PLACE_SDRAM_RODATA constexpr int8_t MAJ2 = 2;
+PLACE_SDRAM_RODATA constexpr int8_t MIN3 = 3;
+PLACE_SDRAM_RODATA constexpr int8_t MAJ3 = 4;
+PLACE_SDRAM_RODATA constexpr int8_t P4 = 5;
+PLACE_SDRAM_RODATA constexpr int8_t AUG4 = 6;
+PLACE_SDRAM_RODATA constexpr int8_t DIM5 = 6;
+PLACE_SDRAM_RODATA constexpr int8_t P5 = 7;
+PLACE_SDRAM_RODATA constexpr int8_t AUG5 = 8;
+PLACE_SDRAM_RODATA constexpr int8_t MIN6 = 8;
+PLACE_SDRAM_RODATA constexpr int8_t MAJ6 = 9;
+PLACE_SDRAM_RODATA constexpr int8_t DIM7 = 9;
+PLACE_SDRAM_RODATA constexpr int8_t MIN7 = 10;
+PLACE_SDRAM_RODATA constexpr int8_t DOM7 = 10;
+PLACE_SDRAM_RODATA constexpr int8_t MAJ7 = 11;
+PLACE_SDRAM_RODATA constexpr int8_t OCT = kOctaveSize;
+PLACE_SDRAM_RODATA constexpr int8_t MIN9 = MIN2 + OCT;
+PLACE_SDRAM_RODATA constexpr int8_t MAJ9 = MAJ2 + OCT;
+PLACE_SDRAM_RODATA constexpr int8_t MIN10 = MIN3 + OCT;
+PLACE_SDRAM_RODATA constexpr int8_t MAJ10 = MAJ3 + OCT;
+PLACE_SDRAM_RODATA constexpr int8_t P11 = P4 + OCT;
+PLACE_SDRAM_RODATA constexpr int8_t AUG11 = AUG4 + OCT;
+PLACE_SDRAM_RODATA constexpr int8_t DIM12 = DIM5 + OCT;
+PLACE_SDRAM_RODATA constexpr int8_t P12 = P5 + OCT;
+PLACE_SDRAM_RODATA constexpr int8_t MIN13 = MIN6 + OCT;
+PLACE_SDRAM_RODATA constexpr int8_t MAJ13 = MAJ6 + OCT;
+PLACE_SDRAM_RODATA constexpr int8_t MIN14 = MIN7 + OCT;
+PLACE_SDRAM_RODATA constexpr int8_t MAJ14 = MAJ7 + OCT;
 
 /// @brief A voicing is a set of offsets from the root note of a chord
 struct Voicing {
@@ -138,7 +138,13 @@ extern const std::array<const Chord, 10> otherChords;
 /// @brief A collection of chords
 class ChordList {
 public:
-	ChordList();
+	constexpr ChordList()
+	    : chords{
+	          kEmptyChord, kMajor,     kMinor,    k6,        k2,          k69,      kSus2, kSus4,    k7,
+	          k7Sus4,      k7Sus2,     kM7,       kMinor7,   kMinor2,     kMinor4,  kDim,  kFullDim, kAug,
+	          kMinor6,     kMinorMaj7, kMinor7b5, kMinor9b5, kMinor7b5b9, k9,       kM9,   kMinor9,  k11,
+	          kM11,        kMinor11,   k13,       kM13,      kM13Sharp11, kMinor13,
+	      } {}
 
 	/**
 	 * @brief Get a voicing for a chord with a given index. If the voicingOffset for that Chord is out of bounds,

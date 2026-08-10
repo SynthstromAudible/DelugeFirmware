@@ -27,8 +27,9 @@ constexpr int32_t kMaxInKeyRowInterval = 16;
 
 class KeyboardLayoutInKey : public ColumnControlsKeyboard {
 public:
-	KeyboardLayoutInKey() {}
-	~KeyboardLayoutInKey() override {}
+	constexpr KeyboardLayoutInKey() {}
+
+	constexpr ~KeyboardLayoutInKey() override {}
 
 	void evaluatePads(PressedPad presses[kMaxNumKeyboardPadPresses]) override;
 	void handleVerticalEncoder(int32_t offset) override;

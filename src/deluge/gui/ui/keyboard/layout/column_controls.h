@@ -45,8 +45,7 @@ enum BeatRepeat {
 // keyboard classes
 class ColumnControlsKeyboard : public KeyboardLayout {
 public:
-	ColumnControlsKeyboard() = default;
-
+	constexpr ColumnControlsKeyboard() = default;
 	// call this instead of on notestate directly as chord and beat repeat helper
 	void enableNote(uint8_t note, uint8_t velocity);
 

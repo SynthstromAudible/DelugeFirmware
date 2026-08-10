@@ -155,7 +155,7 @@ void KeyboardLayoutChord::precalculate() {
 	Scale currentScale = currentSong->getCurrentScale();
 	D_PRINTLN("Current scale: %d", currentScale);
 
-	if (!(acceptedScales.find(currentScale) != acceptedScales.end())) {
+	if (std::ranges::find(acceptedScales, currentScale) == acceptedScales.end()) {
 		if (lastScale == NO_SCALE) {
 			keyboardScreen.setScale(MAJOR_SCALE);
 		}
