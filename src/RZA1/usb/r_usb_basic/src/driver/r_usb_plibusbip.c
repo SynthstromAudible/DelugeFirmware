@@ -907,11 +907,8 @@ void usb_pstd_brdy_pipe_process_rohan_midi(uint16_t bitsts)
 
     if (USB_READEND != end_flag) // I condensed USB_READSHRT into READEND
     {
-        // FIFO not ready: a stale BRDY racing the poll routine's re-arm, or a genuine FIFO error. Reopen the pipe and
-        // wait to be interrupted again when data really is available. (The old code called
-        // usb_pstd_forced_termination() here, but that discards the FIFO contents, and its completion callback -
-        // invoked with USB_DATA_ERR - gets ignored as if a device detached, which could leave the armed transfer
-        // permanently stuck.)
+        // FIFO error, which seems to be bubbled up by the buffer not being ready
+        // Set the pipe up again and we'll read it next time
         hw_usb_set_pid_nonzero_pipe_rohan(pipe, USB_PID_BUF);
         return;
     }
