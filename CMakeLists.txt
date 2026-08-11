@@ -173,7 +173,7 @@ add_compile_options(
 
     # Link time optimizations
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-flto=auto>
-        $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-save-temps=obj>
+#        $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-save-temps=obj>
 
         $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fuse-linker-plugin>
     # this makes the optimization better at the cost of linking being REALLY slow
@@ -285,8 +285,8 @@ target_link_options(deluge PUBLIC
 
     # Coloring
     $<$<CXX_COMPILER_ID:GNU>:-fdiagnostics-color=always>
-        -save-temps=obj
-        LINKER:-plugin-opt=-save-temps
+#        -save-temps=obj
+#        LINKER:-plugin-opt=-save-temps
 
 )
 
