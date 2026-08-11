@@ -246,7 +246,7 @@ void AudioRecorder::process() {
 					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIPPING_OCCURRED));
 				}
 			}
-			else if (!updatedRecordingStatus && recorder->numSamplesCaptured) {
+			else if (!updatedRecordingStatus && (recorder->numSamplesCaptured > recorder->minThresholdMargin)) {
 				if (display->have7SEG()) {
 					display->setText("REC", false, 255, true);
 				}
