@@ -336,7 +336,7 @@ void SampleRecorder::setRecordingThreshold(RecorderConfig config) {
 		}
 
 		thresholdRecording = true;
-		minThresholdMargin = std::min<uint32_t>(sample->fileLoopStartSamples, 256);
+		minThresholdMargin = std::max<uint32_t>(sample->fileLoopStartSamples, 256);
 	}
 }
 
