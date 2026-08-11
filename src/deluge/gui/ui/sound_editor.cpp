@@ -118,11 +118,13 @@ constexpr RGB lfo_colour = colours::pastel::green;
 constexpr RGB arp_colour = colours::pastel::blue;
 constexpr RGB sidechain_colour = colours::yellow_orange;
 constexpr RGB filter_colour = colours::red_orange;
+constexpr RGB eq_colour = colours::magenta;
 constexpr RGB fx_colour = colours::orange;
-constexpr RGB reverb_colour = colours::magenta;
+constexpr RGB reverb_colour = colours::red;
 constexpr RGB delay_colour = colours::cyan;
 constexpr RGB mod_source_colour = colours::blue;
 constexpr RGB none_colour = colours::black;
+constexpr RGB meta_colour = colours::white;
 // clang-format off
 PLACE_SDRAM_RODATA constexpr RGB shortcut_colours [][kDisplayHeight] = {
   // Post V3
@@ -130,23 +132,24 @@ PLACE_SDRAM_RODATA constexpr RGB shortcut_colours [][kDisplayHeight] = {
 	{sample_colour,			sample_colour,			sample_colour,			sample_colour,			sample_colour,			sample_colour,		sample_colour,		sample_colour		},
 	{main_osc_colour,		main_osc_colour,		main_osc_colour,		main_osc_colour,		main_osc_colour,		main_osc_colour,	main_osc_colour,	noise_colour		},
 	{main_osc_colour,		main_osc_colour,		main_osc_colour,		main_osc_colour,		main_osc_colour,		main_osc_colour,	main_osc_colour,	main_osc_colour		},
-    {fm_osc_colour,			fm_osc_colour,			colours::black,			colours::black,			fm_osc_colour,			fm_osc_colour,		colours::black,		synth_global_colour },
-    {fm_osc_colour,			fm_osc_colour,			colours::black,			colours::black,			fm_osc_colour,			fm_osc_colour,		colours::black,		synth_global_colour },
+    {fm_osc_colour,			fm_osc_colour,			none_colour,			none_colour,			fm_osc_colour,			fm_osc_colour,		none_colour,		meta_colour },
+    {fm_osc_colour,			fm_osc_colour,			none_colour,			none_colour,			fm_osc_colour,			fm_osc_colour,		fm_osc_colour,		synth_global_colour },
     {synth_global_colour,	synth_global_colour,	synth_global_colour,    synth_global_colour,     synth_global_colour,	waveshape_colour,	waveshape_colour,	waveshape_colour    },
     {synth_global_colour,	synth_global_colour,	synth_global_colour,    synth_global_colour,     synth_global_colour,	waveshape_colour,	waveshape_colour,	waveshape_colour    },
     {env_colour,				env_colour,				env_colour,				env_colour,				filter_colour,			filter_colour,		filter_colour,		filter_colour       },
     {env_colour,				env_colour,				env_colour,				env_colour,				filter_colour,			filter_colour,		filter_colour,		filter_colour       },
-    {sidechain_colour,		sidechain_colour,		sidechain_colour,		sidechain_colour,       sidechain_colour,		sidechain_colour,	filter_colour,		filter_colour       },
-	{arp_colour,				arp_colour,				arp_colour,             arp_colour,             arp_colour,				synth_global_colour,filter_colour,		filter_colour       },
+    {sidechain_colour,		sidechain_colour,		sidechain_colour,		sidechain_colour,       sidechain_colour,		sidechain_colour,	eq_colour,			eq_colour			},
+	{arp_colour,				arp_colour,				arp_colour,             arp_colour,             arp_colour,				meta_colour,		eq_colour,			eq_colour			},
     {lfo_colour,				lfo_colour,				lfo_colour,             fx_colour,              fx_colour,				fx_colour,			fx_colour,			fx_colour           },
     {lfo_colour,				lfo_colour,				lfo_colour,             reverb_colour,          reverb_colour,			reverb_colour,		reverb_colour,		reverb_colour       },
 	{delay_colour,			delay_colour,			delay_colour,           delay_colour,           delay_colour,			mod_source_colour,	mod_source_colour,	mod_source_colour   },
 	{mod_source_colour,		synth_global_colour,	synth_global_colour,    synth_global_colour,    mod_source_colour,		mod_source_colour,	mod_source_colour,	mod_source_colour   },
 };
+//clang-format on
 
 bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
-                                  uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea) {
-
+                                 uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth], bool drawUndefinedArea)
+{
 	if (not Buttons::isShiftButtonPressed())
 	{
 		D_PRINTLN("shift not pressed");
@@ -1183,6 +1186,103 @@ void SoundEditor::markInstrumentAsEdited() {
 
 static const uint32_t shortcutPadUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR, 0};
 
+ActionResult SoundEditor::handle_menu_item_action(int32_t x, bool on, const MenuItem*& item)
+{
+	if (item == comingSoonMenu) {
+		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
+		return ActionResult::DEALT_WITH;
+	}
+
+	// if we're in the menu and automation view is the root (background) UI
+	// and you're using a grid shortcut, only allow use of shortcuts for parameters / patch cables
+	MenuItem* newItem;
+	newItem = (MenuItem*)item;
+	// need to make sure we're already in the menu
+	// because at this point menu may not have been setup yet
+	// menu needs to be setup before menu items can call soundEditor.getCurrentModelStack()
+	if (getCurrentUI() == &soundEditor) {
+		deluge::modulation::params::Kind kind = newItem->getParamKind();
+		if ((newItem->getParamKind() == deluge::modulation::params::Kind::NONE)
+			&& getRootUI() == &automationView) {
+			return ActionResult::DEALT_WITH;
+		}
+	}
+
+	// Special shortcut for Note Row Editor menu: [audition pad] + [sequence direction pad]
+	Clip* currentClip = getCurrentClip();
+	if (currentClip->type == ClipType::INSTRUMENT && item == &sequenceDirectionMenu
+		&& display->haveOLED() && runtimeFeatureSettings.get(HorizontalMenus) == On
+		&& instrumentClipView.getNumNoteRowsAuditioning() == 1) {
+
+		noteRowEditorRootMenu.focusChild(&sequenceDirectionMenu);
+		instrumentClipView.enterNoteRowEditor();
+		return ActionResult::DEALT_WITH;
+	}
+
+	const int32_t thingIndex = x & 1;
+
+	bool setupSuccess = setup(currentClip, item, thingIndex);
+
+	if (!setupSuccess && item == &modulator0Volume && currentSource->oscType == OscType::DX7) {
+		item = &dxParam;
+		setupSuccess = setup(currentClip, item, thingIndex);
+	}
+
+	if (!setupSuccess) {
+		return ActionResult::DEALT_WITH;
+	}
+
+	enterOrUpdateSoundEditor(on);
+	return ActionResult::DEALT_WITH;
+}
+
+bool SoundEditor::check_for_active_previous_press(int32_t x, int32_t y)
+{
+	bool previousPressStillActive = false;
+	for (int32_t h = 0; h < 2; h++) {
+		for (int32_t i = 0; i < kDisplayHeight; i++) {
+			if (h == 0 && i < 5) {
+				continue;
+			}
+
+			if ((h + 14 != x || i != y) && matrixDriver.isPadPressed(14 + h, i)) {
+				previousPressStillActive = true;
+				return previousPressStillActive;
+			}
+		}
+	}
+	return previousPressStillActive;
+}
+
+const MenuItem* SoundEditor::check_basic_shortcut_for_press(int32_t x, int32_t y) const
+{
+	const MenuItem* item = nullptr;
+
+	// session views (arranger, song, performance)
+	if (!rootUIIsClipMinderScreen()) {
+		if (x <= (kDisplayWidth - 2)) {
+			item = paramShortcutsForSongView[x][y];
+		}
+	}
+
+	// For Kit Instrument Clip with Affect Entire Enabled
+	else if (setupKitGlobalFXMenu) {
+		// only handle the shortcut for velocity in the mod sources column
+		if ((x <= (kDisplayWidth - 2)) || (x == 15 && y == 1)) {
+			item = paramShortcutsForKitGlobalFX[x][y];
+		}
+	}
+
+	// AudioClips - there are just a few shortcuts
+	else if (getCurrentClip()->type == ClipType::AUDIO) {
+
+		if (x <= 14) {
+			item = paramShortcutsForAudioClips[x][y];
+		}
+	}
+	return item;
+}
+
 ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
 	bool ignoreAction = false;
 	bool modulationItemFound = false;
@@ -1204,45 +1304,17 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 	if (!on || x >= kDisplayWidth || ignoreAction) {
 		return ActionResult::NOT_DEALT_WITH;
 	}
-
+	const MenuItem* item = nullptr;
+	
 	if (on && isUIModeWithinRange(shortcutPadUIModes)) {
 
 		if (sdRoutineLock) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
 
-		const MenuItem* item = nullptr;
+		item = check_basic_shortcut_for_press(x, y);
 
-		// session views (arranger, song, performance)
-		if (!rootUIIsClipMinderScreen()) {
-			if (x <= (kDisplayWidth - 2)) {
-				item = paramShortcutsForSongView[x][y];
-			}
-
-			goto doSetup;
-		}
-
-		// For Kit Instrument Clip with Affect Entire Enabled
-		else if (setupKitGlobalFXMenu) {
-			// only handle the shortcut for velocity in the mod sources column
-			if ((x <= (kDisplayWidth - 2)) || (x == 15 && y == 1)) {
-				item = paramShortcutsForKitGlobalFX[x][y];
-			}
-
-			goto doSetup;
-		}
-
-		// AudioClips - there are just a few shortcuts
-		else if (getCurrentClip()->type == ClipType::AUDIO) {
-
-			if (x <= 14) {
-				item = paramShortcutsForAudioClips[x][y];
-			}
-
-			goto doSetup;
-		}
-
-		else {
+		if (item == nullptr) {
 			if (getCurrentUI() == &soundEditor && getCurrentMenuItem() == &dxParam
 			    && runtimeFeatureSettings.get(RuntimeFeatureSettingType::EnableDX7Engine)
 			           == RuntimeFeatureStateToggle::On) {
@@ -1279,21 +1351,8 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 					return ActionResult::DEALT_WITH;
 				}
 
-				bool previousPressStillActive = false;
-				for (int32_t h = 0; h < 2; h++) {
-					for (int32_t i = 0; i < kDisplayHeight; i++) {
-						if (h == 0 && i < 5) {
-							continue;
-						}
+				bool previousPressStillActive = check_for_active_previous_press(x, y);
 
-						if ((h + 14 != x || i != y) && matrixDriver.isPadPressed(14 + h, i)) {
-							previousPressStillActive = true;
-							goto getOut;
-						}
-					}
-				}
-
-getOut:
 				bool wentBack = false;
 
 				int32_t newNavigationDepth = navigationDepth;
@@ -1399,56 +1458,14 @@ getOut:
 						}
 					}
 				}
-doSetup:
-				if (item) {
-					if (item == comingSoonMenu) {
-						display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_UNIMPLEMENTED));
-						return ActionResult::DEALT_WITH;
-					}
 
-					// if we're in the menu and automation view is the root (background) UI
-					// and you're using a grid shortcut, only allow use of shortcuts for parameters / patch cables
-					MenuItem* newItem;
-					newItem = (MenuItem*)item;
-					// need to make sure we're already in the menu
-					// because at this point menu may not have been setup yet
-					// menu needs to be setup before menu items can call soundEditor.getCurrentModelStack()
-					if (getCurrentUI() == &soundEditor) {
-						deluge::modulation::params::Kind kind = newItem->getParamKind();
-						if ((newItem->getParamKind() == deluge::modulation::params::Kind::NONE)
-						    && getRootUI() == &automationView) {
-							return ActionResult::DEALT_WITH;
-						}
-					}
-
-					// Special shortcut for Note Row Editor menu: [audition pad] + [sequence direction pad]
-					Clip* currentClip = getCurrentClip();
-					if (currentClip->type == ClipType::INSTRUMENT && item == &sequenceDirectionMenu
-					    && display->haveOLED() && runtimeFeatureSettings.get(HorizontalMenus) == On
-					    && instrumentClipView.getNumNoteRowsAuditioning() == 1) {
-
-						noteRowEditorRootMenu.focusChild(&sequenceDirectionMenu);
-						instrumentClipView.enterNoteRowEditor();
-						return ActionResult::DEALT_WITH;
-					}
-
-					const int32_t thingIndex = x & 1;
-
-					bool setupSuccess = setup(currentClip, item, thingIndex);
-
-					if (!setupSuccess && item == &modulator0Volume && currentSource->oscType == OscType::DX7) {
-						item = &dxParam;
-						setupSuccess = setup(currentClip, item, thingIndex);
-					}
-
-					if (!setupSuccess) {
-						return ActionResult::DEALT_WITH;
-					}
-
-					enterOrUpdateSoundEditor(on);
-				}
 			}
 		}
+	}
+doSetup:
+	if (item) {
+		return handle_menu_item_action(x, on, item);
+
 	}
 
 	return ActionResult::DEALT_WITH;

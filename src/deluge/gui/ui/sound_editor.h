@@ -125,6 +125,9 @@ public:
 	bool setup(Clip* clip = nullptr, const MenuItem* item = nullptr, int32_t sourceIndex = 0);
 	void enterOrUpdateSoundEditor(bool on);
 	void blinkShortcut();
+	ActionResult handle_menu_item_action(int32_t x, bool on, const MenuItem*& item);
+	bool check_for_active_previous_press(int32_t x, int32_t y);
+	const MenuItem* check_basic_shortcut_for_press(int32_t x, int32_t y) const;
 	ActionResult potentialShortcutPadAction(int32_t x, int32_t y, bool on);
 	bool editingReverbSidechain();
 	MenuItem* getCurrentMenuItem();
