@@ -86,6 +86,9 @@ public:
 	bool editingKitRow();
 	void setCurrentSource(int32_t sourceIndex);
 
+	bool renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
+	                    uint8_t occupancyMask[][kDisplayWidth + kSideBarWidth],
+	                    bool drawUndefinedArea = false) override;
 	ActionResult timerCallback() override;
 	void setupShortcutBlink(int32_t x, int32_t y, int32_t frequency, int32_t colour = 0L);
 	bool findPatchedParam(int32_t paramLookingFor, int32_t* xout, int32_t* yout, bool* isSecondLayerParamOut);
