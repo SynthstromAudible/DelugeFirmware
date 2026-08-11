@@ -144,6 +144,7 @@ void Debug::loadPacketReceived(uint8_t* data, int32_t len) {
 	uint32_t handshake_received;
 	unpack_7bit_to_8bit((uint8_t*)&handshake_received, 4, data + 2, 5);
 	if (handshake != handshake_received) {
+		FREEZE_WITH_ERROR("E997");
 		return;
 	}
 
@@ -154,6 +155,7 @@ void Debug::loadPacketReceived(uint8_t* data, int32_t len) {
 	}
 
 	if (load_buf == nullptr || pos + 512 > load_bufsize) {
+		FREEZE_WITH_ERROR("E999");
 		return;
 	}
 
@@ -173,10 +175,12 @@ void Debug::loadPacketReceived(uint8_t* data, int32_t len) {
 void Debug::loadCheckAndRun(uint8_t* data, int32_t len) {
 	uint32_t handshake = runtimeFeatureSettings.get(RuntimeFeatureSettingType::DevSysexAllowed);
 	if (handshake == 0) {
+		FREEZE_WITH_ERROR("E996");
 		return; // not allowed
 	}
 
 	if (len < 17 || load_buf == nullptr) {
+		FREEZE_WITH_ERROR("E995");
 		return; // cannot do that
 	}
 

@@ -34,6 +34,7 @@ void chainload_from_buf(uint8_t* buffer, int buf_size) {
 
 	int32_t code_size = (int32_t)(user_code_end - user_code_start);
 	if (code_size > buf_size) {
+		FREEZE_WITH_ERROR("E994");
 		return;
 	}
 

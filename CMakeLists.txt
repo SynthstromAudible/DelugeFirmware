@@ -177,7 +177,7 @@ add_compile_options(
 
         $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fuse-linker-plugin>
     # this makes the optimization better at the cost of linking being REALLY slow
-        $<$<CONFIG:RELEASE>:-flto-partition=none>
+        $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-flto-partition=none>
 
         $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fdevirtualize-at-ltrans>
     -ffunction-sections
