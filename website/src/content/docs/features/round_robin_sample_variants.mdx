@@ -19,6 +19,12 @@ the feature is turned back on.
 With an oscillator in `SAMPLE` mode, a new `VARIANTS` submenu is available under `OSC1`/`OSC2`, alongside the
 existing `FILE` browser item.
 
+Variants are stored per keyboard zone. On an oscillator split into several keyboard zones (a typical
+keyboard-spanning multisample instrument), entering `VARIANTS` first opens the familiar note-range picker to
+choose which zone to edit - the same zone-selection step used by the `FILE`/`START`/`END`/`TRANSPOSE` items -
+and everything inside the menu then applies to that zone. Each zone rotates through its own variants
+independently during playback.
+
 - `MODE` - selects how the next variant is chosen each time the zone is triggered. Only shown once at least one
   alternate is loaded.
   - `CYCLE` - play the loaded slots in order, wrapping around (classic round-robin).

@@ -144,10 +144,15 @@ public:
 			if (!source.hasAtLeastOneAudioFileLoaded()) {
 				return false;
 			}
-			// Once an alternate variant is loaded, this OSC-level entry would edit the exact same
-			// transpose/cents fields as the new per-variant Transpose item for slot 0, so it steps aside.
-			MultisampleRange* range = getRoundRobinRange(source_id_);
-			return range == nullptr || range->rrCount == 0;
+			// Once an alternate variant is loaded on a sole-zone source, this OSC-level entry would edit
+			// the exact same transpose/cents fields as the per-variant Transpose item for slot 0, so it
+			// steps aside. On a multi-zone source it always stays: it's the zone flow's transpose editor
+			// for every zone, including zones that have no variants at all.
+			if (source.ranges.getNumElements() == 1) {
+				MultisampleRange* range = getRoundRobinRange(source_id_);
+				return range == nullptr || range->rrCount == 0;
+			}
+			return true;
 		}
 		if (source.oscType == OscType::WAVETABLE) {
 			return source.hasAtLeastOneAudioFileLoaded();

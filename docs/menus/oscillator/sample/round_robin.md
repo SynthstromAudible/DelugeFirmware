@@ -1,4 +1,6 @@
-Manages round-robin sample variants for the oscillator's current sample zone.
+Manages round-robin sample variants for the oscillator's current sample zone. On an oscillator with
+several keyboard zones, entering this menu first opens the note-range picker to choose which zone's
+variants to edit - the same zone-selection step the flat FILE/START/END/TRANSPOSE items use.
 
 Each zone can hold up to 4 samples: the primary sample (slot 1, also loadable through the regular
 <string-for name="STRING_FOR_FILE_BROWSER">FILE</string-for> browser) plus up to 3 alternates. When more than one
