@@ -303,9 +303,10 @@ void Canvas::drawCircle(int32_t centerX, int32_t centerY, int32_t radius, bool f
 
 void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY, int32_t textWidth, int32_t textHeight,
                         int32_t scrollPos, int32_t endX, bool useTextWidth) {
-	int32_t lastIndex = string.length() - 1;
+	int32_t lastIndex = static_cast<int32_t>(string.length()) - 1;
 	int32_t charIdx = 0;
-	int32_t charWidth = textWidth;
+	int32_t advanceWidth = textWidth;
+	int32_t drawWidth = textWidth;
 	// if the string is currently scrolling we want to identify the number of characters
 	// that should be visible on the screen based on the current scroll position
 	// to do iterate through each character in the string, based on its size in pixels
@@ -318,9 +319,13 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 		for (char const c : string) {
 			if (!useTextWidth) {
 				int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == lastIndex);
-				charWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
+				// calculate the width of the current character in pixels, including any spacing adjustments
+				advanceWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
 			}
-			charStartX += charWidth;
+
+			// calculate the X coordinate to draw the next character
+			charStartX += advanceWidth;
+
 			// are we past the scroll position?
 			// if so no more characters to chop off
 			if (scrollPos < charStartX) {
@@ -329,7 +334,9 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 			// we haven't reached scroll position yet, so chop off these characters
 			else {
 				numCharsToChopOff++;
-				widthOfCharsToChopOff += charWidth;
+				// we need to keep track of the width of the characters that are being chopped off, so we can adjust the
+				// scroll position accordingly
+				widthOfCharsToChopOff += advanceWidth;
 			}
 			charIdx++;
 		}
@@ -338,8 +345,8 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 		string = string.substr(numCharsToChopOff);
 		// adjust scroll position to indicate how far we've scrolled
 		scrollPos -= widthOfCharsToChopOff;
-		// calculate new last index
-		lastIndex = string.length() - 1;
+		// update the last index to reflect the new string length
+		lastIndex = static_cast<int32_t>(string.length()) - 1;
 		// reset index
 		charIdx = 0;
 	}
@@ -348,13 +355,19 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 	// here we're going to draw the remaining characters in the string
 	for (char const c : string) {
 		if (!useTextWidth) {
-			int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == lastIndex);
-			charWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
+			const int32_t charWidth = getCharWidthInPixels(c, textHeight);
+			// drawChar centres the glyph inside this width. Keep that draw box independent of final-character
+			// spacing, so the same glyph pixels do not shift when a word is drawn alone vs. as a prefix.
+			const int32_t advanceSpacing = getCharSpacingInPixels(c, textHeight, charIdx == lastIndex);
+			const int32_t drawSpacing = getCharSpacingInPixels(c, textHeight, false);
+			advanceWidth = charWidth + advanceSpacing;
+			drawWidth = charWidth + drawSpacing;
 		}
-		drawChar(c, pixelX, pixelY, charWidth, textHeight, scrollPos, endX);
+
+		drawChar(c, pixelX, pixelY, drawWidth, textHeight, scrollPos, endX);
 
 		// calculate the X coordinate to draw the next character
-		pixelX += (charWidth - scrollPos);
+		pixelX += (advanceWidth - scrollPos);
 
 		// if we've reached the endX coordinate then we won't draw anymore characters
 		if (pixelX >= endX) {
@@ -618,18 +631,45 @@ int32_t Canvas::getCharSpacingInPixels(uint8_t theChar, int32_t textHeight, bool
 	}
 }
 
+// Calculate the width of a string in pixels, taking into account character widths and spacing
 int32_t Canvas::getStringWidthInPixels(char const* string, int32_t textHeight) {
 	std::string_view str{string};
-	int32_t stringLength = str.length();
-	int32_t stringWidth = 0;
+	// Get the index of the last character in the string
+	int32_t lastIndex = static_cast<int32_t>(str.length()) - 1;
 	int32_t charIdx = 0;
+	// Initialize variables to track the total advance width and the maximum glyph end position
+	int32_t advanceX = 0;
+	int32_t maxGlyphEndX = 0;
+
+	// Loop through each character in the string
 	for (char const c : str) {
-		int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == stringLength);
-		int32_t charWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
-		stringWidth += charWidth;
+		// Calculate the width of the current character in pixels
+		const int32_t charWidth = getCharWidthInPixels(c, textHeight);
+		// Calculate the spacing for the current character based on whether it's the last character in the string
+		const int32_t advanceSpacing = getCharSpacingInPixels(c, textHeight, charIdx == lastIndex);
+		// Calculate the spacing for drawing the current character (not considering last character)
+		const int32_t drawSpacing = getCharSpacingInPixels(c, textHeight, false);
+		// Calculate the total width for drawing and advancing the cursor for the current character
+		const int32_t drawWidth = charWidth + drawSpacing;
+		// Calculate the total width for advancing the cursor after drawing the current character
+		const int32_t advanceWidth = charWidth + advanceSpacing;
+
+		// Match drawString(): final-character spacing affects cursor advance, while glyph extents are measured
+		// from the stable draw box used when the bitmap is centred.
+		if (charWidth > 0) {
+			// Calculate the starting X position for the glyph, centering it within the draw width
+			const int32_t glyphStartX = advanceX + ((drawWidth - charWidth) >> 1);
+			// Update the maximum glyph end position based on the current glyph's end position
+			maxGlyphEndX = std::max(maxGlyphEndX, glyphStartX + charWidth);
+		}
+
+		// Update the advanceX position for the next character
+		advanceX += advanceWidth;
 		charIdx++;
 	}
-	return stringWidth;
+	// Return the maximum of the total advance width and the maximum glyph end position to ensure the string width
+	// accounts for both cursor advancement and glyph size
+	return std::max(advanceX, maxGlyphEndX);
 }
 
 void Canvas::drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY, int32_t width, int32_t height,
