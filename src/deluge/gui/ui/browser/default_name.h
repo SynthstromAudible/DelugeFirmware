@@ -17,6 +17,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <string>
 #include <string_view>
 
@@ -28,23 +29,23 @@ class FileListView {
 public:
 	virtual ~FileListView() = default;
 
-	/// True if the list holds this exact name. The name includes its extension, matching FileItem::displayName (the
-	/// CStringArray sort key).
+	/// Both queries ask about a whole family of names at once, and both must answer for the *entire* folder.
 	///
-	/// WINDOWED - only ask about names that sort *close* to the file being saved. Browser::fileItems holds at most
-	/// FILE_ITEMS_MAX_NUM_ELEMENTS entries around that file and is culled to about half of that as a folder is read,
-	/// so a name any real distance away is reported missing whether it exists or not. Probing a family of candidates
-	/// from one end is exactly the mistake that made "MYSONG 11" propose "MYSONG 2" and offer to overwrite it; use
-	/// highestNumberedName() for that.
-	virtual bool contains(char const* nameWithExtension) const = 0;
+	/// That shape is deliberate. There used to be a contains() here, answered out of Browser::fileItems, and names
+	/// were derived by testing candidates against it one at a time. fileItems holds at most
+	/// FILE_ITEMS_MAX_NUM_ELEMENTS entries around the file being saved and is culled to about half of that as a
+	/// folder is read, so a candidate any real distance away came back missing whether it existed or not - which is
+	/// how "MYSONG 11" came to propose "MYSONG 2" and offer to overwrite it. A question about the family as a whole
+	/// cannot be answered from a window by accident: the implementation has to go and look.
 
-	/// The greatest name of the form "<prefix><digits>..." on the card (extension included), or empty when there is
+	/// The greatest name of the form "<prefix><digits>" on the card (extension included), or empty when there is
 	/// none. "Greatest" is by the browser's ordering, in which digit runs compare numerically, so this is the
 	/// highest-numbered sibling: "MYTRACK 11.XML" beats "MYTRACK 9.XML".
-	///
-	/// EXACT - unlike contains(), this sees the whole folder however large, because the implementation scans it
-	/// rather than consulting the windowed file list.
 	virtual std::string highestNumberedName(char const* prefix) const = 0;
+
+	/// Which of "<stem>A" .. "<stem>Z" already exist, as a bitmask with bit 0 meaning 'A'. Names differing only in
+	/// case or in extension (.XML / .Json) count as the same letter.
+	virtual uint32_t takenLetterSuffixes(char const* stem) const = 0;
 };
 
 /// The delimiter used when giving a name its first numeric suffix ("MYTRACK" -> "MYTRACK 2").

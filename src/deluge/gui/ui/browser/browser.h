@@ -84,13 +84,20 @@ public:
 	static void deleteSomeFileItems(int32_t startAt, int32_t stopAt);
 	static void deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement = Availability::ANY);
 	Error getUnusedSlot(OutputType outputType, String* newName, char const* thingName);
-	/// Finds the greatest name in currentDir of the form "<prefix><digits>..." - the highest-numbered member of a
-	/// name family - or leaves `result` empty when the folder holds none. You must set currentDir first.
+	/// Surveys currentDir for the existing variations of `stem`, in one pass. Either output may be null:
+	///   `highestNumbered` receives the greatest name of the form "<stem><digits>", or stays empty if there is none;
+	///   `takenLetters` receives a bit per existing "<stem><letter>", bit 0 meaning 'A'.
+	/// You must set currentDir first.
 	///
-	/// Scans the folder directly instead of reading fileItems, and holds only a running maximum. That is the point:
-	/// fileItems is a window around whichever file the browser is sitting on (FILE_ITEMS_MAX_NUM_ELEMENTS), and the
-	/// highest-numbered member of a family can be any distance from that in sort order.
-	static Error highestNumberedFileName(char const* prefix, String* result);
+	/// Reads the folder directly rather than fileItems, and keeps only those two summaries. That is the point:
+	/// fileItems is a window around whichever file the browser is sitting on (FILE_ITEMS_MAX_NUM_ELEMENTS), and a
+	/// member of a name family can be any distance from that in sort order. See fileItemsAreComplete(), which says
+	/// when the window is the whole folder and this pass can be skipped.
+	static Error surveyNameVariations(char const* stem, String* highestNumbered, uint32_t* takenLetters);
+
+	/// Whether fileItems currently holds every file the folder listed, rather than a culled window of them. When it
+	/// does, questions about the whole folder can be answered from memory without touching the card again.
+	static bool fileItemsAreComplete() { return !numFileItemsDeletedAtStart && !numFileItemsDeletedAtEnd; }
 	bool opened() override;
 	void cullSomeFileItems();
 	bool checkFP();

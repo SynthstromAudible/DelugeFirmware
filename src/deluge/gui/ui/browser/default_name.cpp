@@ -28,13 +28,6 @@ namespace {
 constexpr size_t kMaxSlotDigits = 3;
 constexpr int32_t kMaxNumericSuffix = 9999;
 
-bool exists(FileListView const& files, std::string const& nameWithoutExtension) {
-	// The browser lists both extensions (allowedFileExtensionsXML), and saving picks between them via writeJsonFlag, so
-	// a name is taken if *either* form is on the card. Probing only .XML would hand back a name that already exists.
-	return files.contains((nameWithoutExtension + ".XML").c_str())
-	       || files.contains((nameWithoutExtension + ".Json").c_str());
-}
-
 char upper(char c) {
 	return static_cast<char>(std::toupper(static_cast<unsigned char>(c)));
 }
@@ -157,13 +150,15 @@ std::string nextDefaultName(std::string_view currentName, std::string_view slotP
 	char letter = 0;
 	std::string stem = slotStem(currentName, slotPrefix, &letter);
 
-	// Slot-form name ("SONG185" / "SONG185A"): advance the letter suffix.
+	// Slot-form name ("SONG185" / "SONG185A"): take the first free letter at or above the one we are on. Asking for
+	// the whole family at once, rather than testing candidates one at a time against the file list, is what makes
+	// this hold on a folder too big to fit in that list - the same trap the numeric path fell into.
 	if (!stem.empty()) {
+		uint32_t taken = files.takenLetterSuffixes(stem.c_str());
 		char from = (letter == 0) ? 'A' : static_cast<char>(letter + 1);
 		for (char c = from; c <= 'Z'; c++) {
-			std::string candidate = stem + c;
-			if (!exists(files, candidate)) {
-				return candidate;
+			if (!(taken & (1U << (c - 'A')))) {
+				return stem + c;
 			}
 		}
 		return std::string{currentName}; // Letters exhausted.

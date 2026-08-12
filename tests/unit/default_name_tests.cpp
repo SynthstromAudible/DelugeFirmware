@@ -12,68 +12,60 @@ using deluge::gui::browser::FileListView;
 using deluge::gui::browser::nextDefaultName;
 
 namespace {
-/// Stands in for the card. contains() can be narrowed to a window, the way Browser::fileItems is; highestNumberedName()
-/// always sees the whole folder, the way the firmware's directory scan does.
+/// Stands in for a folder on the card. Both queries mirror Browser::surveyNameVariations: a name only counts when its
+/// suffix runs to the extension, and only when that extension is one the browser lists. Diverging here would let a
+/// test pass on a name the firmware would skip.
 class FakeFileList : public FileListView {
 public:
 	explicit FakeFileList(std::vector<std::string> names) : names_{std::move(names)} {}
 
-	/// A folder whose file list, as contains() sees it, holds only the entries within `radius` sort positions of
-	/// `centre` - what the browser's 20-entry window leaves behind on a card with plenty of songs on it.
-	static FakeFileList windowed(std::vector<std::string> names, std::string const& centre, size_t radius) {
-		FakeFileList list{std::move(names)};
-		std::vector<std::string> sorted = list.names_;
-		std::sort(sorted.begin(), sorted.end(),
-		          [](std::string const& a, std::string const& b) { return strcmpspecial(a.c_str(), b.c_str()) < 0; });
-		auto at = std::find(sorted.begin(), sorted.end(), centre);
-		CHECK(at != sorted.end());
-		size_t centreIndex = at - sorted.begin();
-		for (size_t i = 0; i < sorted.size(); i++) {
-			size_t distance = i > centreIndex ? i - centreIndex : centreIndex - i;
-			if (distance <= radius) {
-				list.window_.push_back(sorted[i]);
-			}
-		}
-		list.windowed_ = true;
-		return list;
-	}
-
-	bool contains(char const* nameWithExtension) const override {
-		for (auto const& n : (windowed_ ? window_ : names_)) {
-			if (strcmpspecial(n.c_str(), nameWithExtension) == 0) {
-				return true;
-			}
-		}
-		return false;
-	}
-
 	std::string highestNumberedName(char const* prefix) const override {
 		std::string highest;
-		size_t prefixLength = strlen(prefix);
-		for (auto const& n : names_) {
-			if (n.size() <= prefixLength || strncasecmp(n.c_str(), prefix, prefixLength) != 0) {
-				continue;
+		forEachVariationOf(prefix, [&](std::string const& name, size_t suffixAt, size_t suffixEnd) {
+			for (size_t i = suffixAt; i < suffixEnd; i++) {
+				if (!std::isdigit(static_cast<unsigned char>(name[i]))) {
+					return;
+				}
 			}
-			// Mirrors Browser::highestNumberedFileName: digits must reach the extension, and the extension must be
-			// one the browser lists. Diverging here would let a test pass on a name the firmware would skip.
-			size_t pos = prefixLength;
-			while (pos < n.size() && std::isdigit(static_cast<unsigned char>(n[pos]))) {
-				pos++;
+			if (highest.empty() || strcmpspecial(name.c_str(), highest.c_str()) > 0) {
+				highest = name;
 			}
-			if (pos == prefixLength || (pos != n.size() && n[pos] != '.')) {
-				continue;
-			}
-			if (!hasListedExtension(n)) {
-				continue;
-			}
-			if (highest.empty() || strcmpspecial(n.c_str(), highest.c_str()) > 0) {
-				highest = n;
-			}
-		}
+		});
 		return highest;
 	}
 
+	uint32_t takenLetterSuffixes(char const* stem) const override {
+		uint32_t taken = 0;
+		forEachVariationOf(stem, [&](std::string const& name, size_t suffixAt, size_t suffixEnd) {
+			if (suffixEnd - suffixAt != 1) {
+				return;
+			}
+			char letter = std::toupper(static_cast<unsigned char>(name[suffixAt]));
+			if (letter >= 'A' && letter <= 'Z') {
+				taken |= 1U << (letter - 'A');
+			}
+		});
+		return taken;
+	}
+
 private:
+	/// Calls `consider(name, suffixAt, suffixEnd)` for every listed file whose name is `stem` plus a non-empty
+	/// suffix running to the extension.
+	template <typename Fn>
+	void forEachVariationOf(char const* stem, Fn&& consider) const {
+		size_t stemLength = strlen(stem);
+		for (auto const& name : names_) {
+			size_t dot = name.rfind('.');
+			if (dot == std::string::npos || dot <= stemLength || !hasListedExtension(name)) {
+				continue;
+			}
+			if (strncasecmp(name.c_str(), stem, stemLength) != 0) {
+				continue;
+			}
+			consider(name, stemLength, dot);
+		}
+	}
+
 	/// allowedFileExtensionsXML, as the song and preset browsers set it.
 	static bool hasListedExtension(std::string const& name) {
 		size_t dot = name.rfind('.');
@@ -85,8 +77,6 @@ private:
 	}
 
 	std::vector<std::string> names_;
-	std::vector<std::string> window_;
-	bool windowed_ = false;
 };
 
 /// A card holding SONG001.XML .. SONGnnn.XML, as a vanilla card looks.
@@ -154,28 +144,50 @@ TEST(DefaultNameTests, numericSuffixAdvances) {
 	CHECK_EQUAL(std::string{"MYTRACK 4"}, nextDefaultName("MYTRACK", "SONG", files));
 }
 
-// --- The file list is a window, so candidates must not be probed from one end -------------
+// --- Names are derived from the whole family, never by probing candidates one at a time ---
 
-TEST(DefaultNameTests, numericSuffixAdvancesEvenWhenLowSiblingsAreOutsideTheFileListWindow) {
+TEST(DefaultNameTests, numericSuffixAdvancesPastEleven) {
 	// The reported bug: a song saved as "<name> 11" proposed "<name> 2" and offered to overwrite the real second
-	// file. Nothing is wrong with the folder - it is contains() that cannot see that far. Browser::fileItems keeps
-	// only ~8 entries either side of the file being saved, and by 11 the "2" has dropped out of it, so probing
-	// upwards from 2 believed it was free. The break lands at exactly 11 on any card with more than 20 songs.
+	// file. Names were derived by testing "<name> 2", "<name> 3", ... against a windowed view of the folder, and by
+	// 11 the "2" had fallen outside that window and was reported free. Asking for the family's highest member
+	// instead leaves nothing for a window to hide.
 	std::vector<std::string> folder;
 	for (int32_t i = 1; i <= 11; i++) {
 		folder.push_back("MY PROJECT " + std::to_string(i) + ".XML");
 	}
-	auto files = FakeFileList::windowed(folder, "MY PROJECT 11.XML", 8);
-	CHECK(!files.contains("MY PROJECT 2.XML")); // The window really does hide it.
+	FakeFileList files{folder};
 	CHECK_EQUAL(std::string{"MY PROJECT 12"}, nextDefaultName("MY PROJECT 11", "SONG", files));
 }
 
+TEST(DefaultNameTests, letterSuffixAdvancesPastAWholeAlphabetOfVariations) {
+	// The same trap on the letter path: A, B, C ... were tested one at a time against that same windowed view, so
+	// with a dozen variations saved the later ones read as free and the UI offered to overwrite a real song.
+	std::vector<std::string> folder{"SONG185.XML"};
+	for (char c = 'A'; c <= 'L'; c++) {
+		folder.push_back(std::string{"SONG185"} + c + ".XML");
+	}
+	FakeFileList files{std::move(folder)};
+	CHECK_EQUAL(std::string{"SONG185M"}, nextDefaultName("SONG185", "SONG", files));
+}
+
+TEST(DefaultNameTests, letterSuffixesAreCaseInsensitive) {
+	// The card may hold either case; they are the same file to FatFS and must be the same variation here.
+	FakeFileList files{{"SONG185.XML", "song185a.xml"}};
+	CHECK_EQUAL(std::string{"SONG185B"}, nextDefaultName("SONG185", "SONG", files));
+}
+
+TEST(DefaultNameTests, aLongerSuffixIsNotALetterVariation) {
+	// "SONG185AB" is its own name, not the "A" variation of SONG185, so it must not make A look taken.
+	FakeFileList files{{"SONG185.XML", "SONG185AB.XML"}};
+	CHECK_EQUAL(std::string{"SONG185A"}, nextDefaultName("SONG185", "SONG", files));
+}
+
 TEST(DefaultNameTests, numericSuffixNeverGoesBelowTheNameBeingSavedOver) {
-	// If the folder scan cannot answer - a card error, say - the name we are saving over is still known to exist, so
-	// its own number floors the result. Without this floor an unanswered scan would send "MY PROJECT 11" back to 2.
+	// If the folder survey cannot answer - a card error, say - the name we are saving over is still known to exist,
+	// so its own number floors the result. Without this floor an unanswered survey would send "MY PROJECT 11" to 2.
 	class SilentFileList : public FileListView {
-		bool contains(char const*) const override { return false; }
 		std::string highestNumberedName(char const*) const override { return {}; }
+		uint32_t takenLetterSuffixes(char const*) const override { return 0; }
 	} files;
 	CHECK_EQUAL(std::string{"MY PROJECT 12"}, nextDefaultName("MY PROJECT 11", "SONG", files));
 }

@@ -570,6 +570,23 @@ bool isNumberedFamilyMember(char const* fileName, char const* prefix, int32_t pr
 	return *pos == '.' || *pos == 0;
 }
 
+/// If `fileName` is "<stem><letter>" plus an extension, returns 0-25 for that letter; -1 otherwise. Case does not
+/// matter, so "SONG185a.XML" and "SONG185A.Json" are the same variation.
+int32_t letterVariationOf(char const* fileName, char const* stem, int32_t stemLength) {
+	if (memcasecmp(fileName, stem, stemLength)) {
+		return -1;
+	}
+	char letter = fileName[stemLength];
+	if (letter >= 'a' && letter <= 'z') {
+		letter -= 32;
+	}
+	if (letter < 'A' || letter > 'Z') {
+		return -1;
+	}
+	char after = fileName[stemLength + 1];
+	return (after == '.' || after == 0) ? letter - 'A' : -1;
+}
+
 bool isAllowedFileExtension(char const* fileName, char const** allowedExtensions) {
 	char const* dotPos = strrchr(fileName, '.');
 	if (!dotPos) {
@@ -583,39 +600,64 @@ bool isAllowedFileExtension(char const* fileName, char const** allowedExtensions
 	return false;
 }
 
-/// Adapts the browser to the FileListView seam used by nextDefaultName(). The two halves are answered differently on
-/// purpose - see the contracts on FileListView.
+/// Adapts the browser to the FileListView seam used by nextDefaultName().
+///
+/// Each query combines two sources. The card is surveyed directly, because fileItems may be a window; and fileItems
+/// is then folded in, because it carries Instruments held in memory that are not on the card yet (see
+/// Song::addInstrumentsToFileItems - "in case the next one in line isn't saved"), whose names are equally taken.
+/// Folding in a window is safe here: it can only ever add variations, never hide one.
 class BrowserFileListView final : public deluge::gui::browser::FileListView {
 public:
-	bool contains(char const* nameWithExtension) const override {
-		bool foundExact = false;
-		Browser::fileItems.search(nameWithExtension, &foundExact);
-		return foundExact;
-	}
-
 	std::string highestNumberedName(char const* prefix) const override {
 		String highest;
-		// A scan that errors part-way still leaves the maximum it had reached, and that is never *above* the true
-		// answer, so keep it rather than throwing it away and falling all the way back to the floor.
-		(void)Browser::highestNumberedFileName(prefix, &highest);
+		surveyCard(prefix, &highest, nullptr);
 
-		// fileItems also carries Instruments held in memory that are not on the card yet (see
-		// Song::addInstrumentsToFileItems - "in case the next one in line isn't saved"), and those names are taken
-		// too. Being a window only means it can fail to raise this, never lower it, so it is safe to fold in.
 		int32_t prefixLength = strlen(prefix);
-		for (int32_t i = 0; i < Browser::fileItems.getNumElements(); i++) {
-			char const* name = ((FileItem*)Browser::fileItems.getElementAddress(i))->displayName;
+		forEachFileItem([&](char const* name) {
 			if (!isNumberedFamilyMember(name, prefix, prefixLength)) {
-				continue;
+				return;
 			}
 			if (highest.isEmpty() || strcmpspecial(name, highest.get()) > 0) {
-				if (highest.set(name) != Error::NONE) {
-					break;
-				}
+				highest.set(name); // On failure we keep the previous maximum, which is still a valid floor.
 			}
-		}
+		});
 
 		return highest.isEmpty() ? std::string{} : std::string{highest.get()};
+	}
+
+	uint32_t takenLetterSuffixes(char const* stem) const override {
+		uint32_t taken = 0;
+		surveyCard(stem, nullptr, &taken);
+
+		int32_t stemLength = strlen(stem);
+		forEachFileItem([&](char const* name) {
+			int32_t letter = letterVariationOf(name, stem, stemLength);
+			if (letter >= 0) {
+				taken |= 1U << letter;
+			}
+		});
+
+		return taken;
+	}
+
+private:
+	static void surveyCard(char const* stem, String* highestNumbered, uint32_t* takenLetters) {
+		if (Browser::fileItemsAreComplete()) {
+			return; // The folder is already in memory in full - no reason to go back to the card for it.
+		}
+		// A survey that errors part-way still reports what it had found, and neither summary can overstate the
+		// truth, so it is worth more than nothing.
+		(void)Browser::surveyNameVariations(stem, highestNumbered, takenLetters);
+	}
+
+	template <typename Fn>
+	static void forEachFileItem(Fn&& consider) {
+		for (int32_t i = 0; i < Browser::fileItems.getNumElements(); i++) {
+			FileItem* item = (FileItem*)Browser::fileItems.getElementAddress(i);
+			if (!item->isFolder) {
+				consider(item->displayName);
+			}
+		}
 	}
 };
 } // namespace
@@ -817,8 +859,13 @@ emptyFileItemsAndReturn:
 	goto doReturn;
 }
 
-Error Browser::highestNumberedFileName(char const* prefix, String* result) {
-	result->clear();
+Error Browser::surveyNameVariations(char const* stem, String* highestNumbered, uint32_t* takenLetters) {
+	if (highestNumbered) {
+		highestNumbered->clear();
+	}
+	if (takenLetters) {
+		*takenLetters = 0;
+	}
 
 	Error error = StorageManager::initSD();
 	if (error != Error::NONE) {
@@ -828,7 +875,7 @@ Error Browser::highestNumberedFileName(char const* prefix, String* result) {
 	staticDIR =
 	    D_TRY_CATCH(FatFS::Directory::open(currentDir.get()), fatError, { return fatfsErrorToDelugeError(fatError); });
 
-	int32_t prefixLength = strlen(prefix);
+	int32_t stemLength = strlen(stem);
 
 	while (true) {
 		audioFileManager.loadAnyEnqueuedClusters();
@@ -844,19 +891,25 @@ Error Browser::highestNumberedFileName(char const* prefix, String* result) {
 		if (staticFNO.fname[0] == '.' || (staticFNO.fattrib & AM_DIR)) {
 			continue; // Dot entry, or a folder - only files carry these names.
 		}
-		if (!isNumberedFamilyMember(staticFNO.fname, prefix, prefixLength)) {
-			continue;
-		}
 		if (!isAllowedFileExtension(staticFNO.fname, allowedFileExtensions)) {
 			continue;
 		}
 
-		// strcmpspecial compares digit runs numerically, so this finds the highest *number*, not the longest name:
-		// "MYTRACK 11.XML" beats "MYTRACK 9.XML".
-		if (result->isEmpty() || strcmpspecial(staticFNO.fname, result->get()) > 0) {
-			error = result->set(staticFNO.fname);
-			if (error != Error::NONE) {
-				break;
+		if (highestNumbered && isNumberedFamilyMember(staticFNO.fname, stem, stemLength)) {
+			// strcmpspecial compares digit runs numerically, so this finds the highest *number*, not the longest
+			// name: "MYTRACK 11.XML" beats "MYTRACK 9.XML".
+			if (highestNumbered->isEmpty() || strcmpspecial(staticFNO.fname, highestNumbered->get()) > 0) {
+				error = highestNumbered->set(staticFNO.fname);
+				if (error != Error::NONE) {
+					break;
+				}
+			}
+		}
+
+		if (takenLetters) {
+			int32_t letter = letterVariationOf(staticFNO.fname, stem, stemLength);
+			if (letter >= 0) {
+				*takenLetters |= 1U << letter;
 			}
 		}
 	}
