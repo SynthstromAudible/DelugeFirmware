@@ -147,10 +147,9 @@ TEST(DefaultNameTests, numericSuffixAdvances) {
 // --- Names are derived from the whole family, never by probing candidates one at a time ---
 
 TEST(DefaultNameTests, numericSuffixAdvancesPastEleven) {
-	// The reported bug: a song saved as "<name> 11" proposed "<name> 2" and offered to overwrite the real second
-	// file. Names were derived by testing "<name> 2", "<name> 3", ... against a windowed view of the folder, and by
-	// 11 the "2" had fallen outside that window and was reported free. Asking for the family's highest member
-	// instead leaves nothing for a window to hide.
+	// Guards the reported symptom: saving over "<name> 11" must offer 12, not 2. A caller that tests "<name> 2",
+	// "<name> 3", ... in turn gets this wrong the moment the low members fall outside the file list's window; the
+	// family's highest member is asked for directly so that there is nothing for a window to hide.
 	std::vector<std::string> folder;
 	for (int32_t i = 1; i <= 11; i++) {
 		folder.push_back("MY PROJECT " + std::to_string(i) + ".XML");
@@ -160,8 +159,8 @@ TEST(DefaultNameTests, numericSuffixAdvancesPastEleven) {
 }
 
 TEST(DefaultNameTests, letterSuffixAdvancesPastAWholeAlphabetOfVariations) {
-	// The same trap on the letter path: A, B, C ... were tested one at a time against that same windowed view, so
-	// with a dozen variations saved the later ones read as free and the UI offered to overwrite a real song.
+	// The same property on the letter path. Testing A, B, C ... one at a time against a windowed view goes wrong
+	// once a family runs past the window: a taken letter reads as free and the UI offers to overwrite a real song.
 	std::vector<std::string> folder{"SONG185.XML"};
 	for (char c = 'A'; c <= 'L'; c++) {
 		folder.push_back(std::string{"SONG185"} + c + ".XML");

@@ -84,19 +84,26 @@ public:
 	static void deleteSomeFileItems(int32_t startAt, int32_t stopAt);
 	static void deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement = Availability::ANY);
 	Error getUnusedSlot(OutputType outputType, String* newName, char const* thingName);
-	/// Surveys currentDir for the existing variations of `stem`, in one pass. Either output may be null:
-	///   `highestNumbered` receives the greatest name of the form "<stem><digits>", or stays empty if there is none;
-	///   `takenLetters` receives a bit per existing "<stem><letter>", bit 0 meaning 'A'.
-	/// You must set currentDir first.
+	/// @brief Surveys currentDir in one pass for the existing variations of a name.
 	///
-	/// Reads the folder directly rather than fileItems, and keeps only those two summaries. That is the point:
-	/// fileItems is a window around whichever file the browser is sitting on (FILE_ITEMS_MAX_NUM_ELEMENTS), and a
-	/// member of a name family can be any distance from that in sort order. See fileItemsAreComplete(), which says
-	/// when the window is the whole folder and this pass can be skipped.
+	/// Reads the folder directly rather than fileItems, keeping only the two summaries. fileItems is a window around
+	/// whichever file the browser is sitting on (FILE_ITEMS_MAX_NUM_ELEMENTS), and a member of a name family can be
+	/// any distance from that in sort order, so it cannot answer this.
+	///
+	/// @pre currentDir names the folder to survey.
+	/// @param stem            The name the variations extend.
+	/// @param highestNumbered If non-null, receives the greatest name of the form "<stem><digits>", or is left empty
+	///                        when the folder holds none.
+	/// @param takenLetters    If non-null, receives a bit per existing "<stem><letter>", bit 0 meaning 'A'.
+	/// @return Error::NONE, or the card error that cut the pass short - in which case both outputs still hold what
+	///         had been found so far, neither of which can overstate the truth.
+	/// @see fileItemsAreComplete(), which says when this pass can be skipped entirely.
 	static Error surveyNameVariations(char const* stem, String* highestNumbered, uint32_t* takenLetters);
 
-	/// Whether fileItems currently holds every file the folder listed, rather than a culled window of them. When it
-	/// does, questions about the whole folder can be answered from memory without touching the card again.
+	/// @brief Whether fileItems holds every file the folder listed, rather than a culled window of them.
+	///
+	/// @return True when questions about the whole folder can be answered from fileItems alone, without going back
+	///         to the card.
 	static bool fileItemsAreComplete() { return !numFileItemsDeletedAtStart && !numFileItemsDeletedAtEnd; }
 	bool opened() override;
 	void cullSomeFileItems();

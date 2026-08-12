@@ -587,6 +587,7 @@ int32_t letterVariationOf(char const* fileName, char const* stem, int32_t stemLe
 	return (after == '.' || after == 0) ? letter - 'A' : -1;
 }
 
+/// Whether `fileName` carries one of the extensions the browser lists, and so names a file a save could collide with.
 bool isAllowedFileExtension(char const* fileName, char const** allowedExtensions) {
 	char const* dotPos = strrchr(fileName, '.');
 	if (!dotPos) {

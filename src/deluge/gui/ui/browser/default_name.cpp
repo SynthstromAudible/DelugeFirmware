@@ -150,9 +150,8 @@ std::string nextDefaultName(std::string_view currentName, std::string_view slotP
 	char letter = 0;
 	std::string stem = slotStem(currentName, slotPrefix, &letter);
 
-	// Slot-form name ("SONG185" / "SONG185A"): take the first free letter at or above the one we are on. Asking for
-	// the whole family at once, rather than testing candidates one at a time against the file list, is what makes
-	// this hold on a folder too big to fit in that list - the same trap the numeric path fell into.
+	// Slot-form name ("SONG185" / "SONG185A"): the first free letter at or above the one we are on. The whole family
+	// is fetched at once rather than tested a candidate at a time, so the answer holds however big the folder is.
 	if (!stem.empty()) {
 		uint32_t taken = files.takenLetterSuffixes(stem.c_str());
 		char from = (letter == 0) ? 'A' : static_cast<char>(letter + 1);
@@ -164,11 +163,10 @@ std::string nextDefaultName(std::string_view currentName, std::string_view slotP
 		return std::string{currentName}; // Letters exhausted.
 	}
 
-	// Anything else: one past the highest-numbered sibling.
-	//
-	// This asks for that one name rather than probing "<base> 2", "<base> 3", ... upwards, because contains() only
-	// sees a window around the file being saved: by "<base> 11" the "2" has fallen out of it and would be handed
-	// back as free. Numbering from the top also leaves gaps alone, so a deleted "<base> 3" is not silently reused.
+	// Anything else: one past the highest-numbered member of the family. Asking for that single name, rather than
+	// testing "<base> 2", "<base> 3", ... in turn, is again what makes the answer independent of how much of the
+	// folder the caller can see. Numbering from the top also leaves gaps alone, so a deleted "<base> 3" is not
+	// silently reused.
 	char delimiter = kNumericSuffixDelimiter;
 	std::string base = numericStem(currentName, &delimiter);
 	std::string prefix = base + delimiter;
