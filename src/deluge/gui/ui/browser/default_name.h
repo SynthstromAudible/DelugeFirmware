@@ -22,14 +22,29 @@
 
 namespace deluge::gui::browser {
 
-/// Read-only view over the browser's file list, so name derivation can be tested without a card, a display, or the
-/// browser's static state. Implemented over Browser::fileItems in the firmware, and over a vector in tests.
+/// Read-only view over the files on the card, so name derivation can be tested without a card, a display, or the
+/// browser's static state. Implemented over the Browser in the firmware, and over a vector in tests.
 class FileListView {
 public:
 	virtual ~FileListView() = default;
+
 	/// True if the list holds this exact name. The name includes its extension, matching FileItem::displayName (the
 	/// CStringArray sort key).
+	///
+	/// WINDOWED - only ask about names that sort *close* to the file being saved. Browser::fileItems holds at most
+	/// FILE_ITEMS_MAX_NUM_ELEMENTS entries around that file and is culled to about half of that as a folder is read,
+	/// so a name any real distance away is reported missing whether it exists or not. Probing a family of candidates
+	/// from one end is exactly the mistake that made "MYSONG 11" propose "MYSONG 2" and offer to overwrite it; use
+	/// highestNumberedName() for that.
 	virtual bool contains(char const* nameWithExtension) const = 0;
+
+	/// The greatest name of the form "<prefix><digits>..." on the card (extension included), or empty when there is
+	/// none. "Greatest" is by the browser's ordering, in which digit runs compare numerically, so this is the
+	/// highest-numbered sibling: "MYTRACK 11.XML" beats "MYTRACK 9.XML".
+	///
+	/// EXACT - unlike contains(), this sees the whole folder however large, because the implementation scans it
+	/// rather than consulting the windowed file list.
+	virtual std::string highestNumberedName(char const* prefix) const = 0;
 };
 
 /// The delimiter used when giving a name its first numeric suffix ("MYTRACK" -> "MYTRACK 2").
@@ -56,11 +71,15 @@ char const* numberPartOf(char const* name, char const* filePrefix);
 /// take the numeric path.
 ///
 /// Two forms:
-///   <slotPrefix><digits>[letter]  -> next unused letter:  SONG185 -> SONG185A -> SONG185B
-///   anything else                 -> next unused number:  MYTRACK -> "MYTRACK 2"
-///                                                         TRACK_1 -> TRACK_2 (an existing delimiter is reused)
+///   <slotPrefix><digits>[letter]  -> next unused letter:   SONG185 -> SONG185A -> SONG185B
+///   anything else                 -> highest number plus 1: MYTRACK -> "MYTRACK 2"
+///                                                          TRACK_1 -> TRACK_2 (an existing delimiter is reused)
 ///
-/// Returns `currentName` unchanged when no free variation exists (letters exhausted past Z).
+/// The numeric form counts up from the highest-numbered sibling rather than filling the lowest gap, so deleting
+/// "MYTRACK 3" does not make the next save reuse that name.
+///
+/// Returns `currentName` unchanged when no free variation exists (letters exhausted past Z, or the number would run
+/// past kMaxNumericSuffix).
 std::string nextDefaultName(std::string_view currentName, std::string_view slotPrefix, FileListView const& files);
 
 } // namespace deluge::gui::browser

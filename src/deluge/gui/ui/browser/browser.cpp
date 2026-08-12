@@ -553,13 +553,69 @@ tryReadingItems:
 }
 
 namespace {
-/// Adapts Browser::fileItems to the FileListView seam used by nextDefaultName().
+/// Whether `fileName` belongs to the "<prefix><digits>" family. The digits must run all the way to the extension:
+/// without that, a neighbour like "JAM 2024-01-05.XML" joins the "JAM " family, reads as number 2024, and sends the
+/// next save to "JAM 2025". Date-suffixed names are common on real cards.
+bool isNumberedFamilyMember(char const* fileName, char const* prefix, int32_t prefixLength) {
+	if (memcasecmp(fileName, prefix, prefixLength)) {
+		return false;
+	}
+	char const* pos = &fileName[prefixLength];
+	if (*pos < '0' || *pos > '9') {
+		return false;
+	}
+	while (*pos >= '0' && *pos <= '9') {
+		pos++;
+	}
+	return *pos == '.' || *pos == 0;
+}
+
+bool isAllowedFileExtension(char const* fileName, char const** allowedExtensions) {
+	char const* dotPos = strrchr(fileName, '.');
+	if (!dotPos) {
+		return false;
+	}
+	for (char const** thisExtension = allowedExtensions; *thisExtension; thisExtension++) {
+		if (!strcasecmp(dotPos + 1, *thisExtension)) {
+			return true;
+		}
+	}
+	return false;
+}
+
+/// Adapts the browser to the FileListView seam used by nextDefaultName(). The two halves are answered differently on
+/// purpose - see the contracts on FileListView.
 class BrowserFileListView final : public deluge::gui::browser::FileListView {
 public:
 	bool contains(char const* nameWithExtension) const override {
 		bool foundExact = false;
 		Browser::fileItems.search(nameWithExtension, &foundExact);
 		return foundExact;
+	}
+
+	std::string highestNumberedName(char const* prefix) const override {
+		String highest;
+		// A scan that errors part-way still leaves the maximum it had reached, and that is never *above* the true
+		// answer, so keep it rather than throwing it away and falling all the way back to the floor.
+		(void)Browser::highestNumberedFileName(prefix, &highest);
+
+		// fileItems also carries Instruments held in memory that are not on the card yet (see
+		// Song::addInstrumentsToFileItems - "in case the next one in line isn't saved"), and those names are taken
+		// too. Being a window only means it can fail to raise this, never lower it, so it is safe to fold in.
+		int32_t prefixLength = strlen(prefix);
+		for (int32_t i = 0; i < Browser::fileItems.getNumElements(); i++) {
+			char const* name = ((FileItem*)Browser::fileItems.getElementAddress(i))->displayName;
+			if (!isNumberedFamilyMember(name, prefix, prefixLength)) {
+				continue;
+			}
+			if (highest.isEmpty() || strcmpspecial(name, highest.get()) > 0) {
+				if (highest.set(name) != Error::NONE) {
+					break;
+				}
+			}
+		}
+
+		return highest.isEmpty() ? std::string{} : std::string{highest.get()};
 	}
 };
 } // namespace
@@ -759,6 +815,54 @@ doReturn:
 emptyFileItemsAndReturn:
 	emptyFileItems();
 	goto doReturn;
+}
+
+Error Browser::highestNumberedFileName(char const* prefix, String* result) {
+	result->clear();
+
+	Error error = StorageManager::initSD();
+	if (error != Error::NONE) {
+		return error;
+	}
+
+	staticDIR =
+	    D_TRY_CATCH(FatFS::Directory::open(currentDir.get()), fatError, { return fatfsErrorToDelugeError(fatError); });
+
+	int32_t prefixLength = strlen(prefix);
+
+	while (true) {
+		audioFileManager.loadAnyEnqueuedClusters();
+
+		staticFNO = D_TRY_CATCH(staticDIR.read(), fatError, {
+			error = fatfsErrorToDelugeError(fatError);
+			break;
+		});
+
+		if (staticFNO.fname[0] == 0) {
+			break; /* End of dir */
+		}
+		if (staticFNO.fname[0] == '.' || (staticFNO.fattrib & AM_DIR)) {
+			continue; // Dot entry, or a folder - only files carry these names.
+		}
+		if (!isNumberedFamilyMember(staticFNO.fname, prefix, prefixLength)) {
+			continue;
+		}
+		if (!isAllowedFileExtension(staticFNO.fname, allowedFileExtensions)) {
+			continue;
+		}
+
+		// strcmpspecial compares digit runs numerically, so this finds the highest *number*, not the longest name:
+		// "MYTRACK 11.XML" beats "MYTRACK 9.XML".
+		if (result->isEmpty() || strcmpspecial(staticFNO.fname, result->get()) > 0) {
+			error = result->set(staticFNO.fname);
+			if (error != Error::NONE) {
+				break;
+			}
+		}
+	}
+
+	staticDIR.close();
+	return error;
 }
 
 void Browser::selectEncoderAction(int8_t offset) {

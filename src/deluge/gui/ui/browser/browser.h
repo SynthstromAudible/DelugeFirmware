@@ -84,6 +84,13 @@ public:
 	static void deleteSomeFileItems(int32_t startAt, int32_t stopAt);
 	static void deleteFolderAndDuplicateItems(Availability instrumentAvailabilityRequirement = Availability::ANY);
 	Error getUnusedSlot(OutputType outputType, String* newName, char const* thingName);
+	/// Finds the greatest name in currentDir of the form "<prefix><digits>..." - the highest-numbered member of a
+	/// name family - or leaves `result` empty when the folder holds none. You must set currentDir first.
+	///
+	/// Scans the folder directly instead of reading fileItems, and holds only a running maximum. That is the point:
+	/// fileItems is a window around whichever file the browser is sitting on (FILE_ITEMS_MAX_NUM_ELEMENTS), and the
+	/// highest-numbered member of a family can be any distance from that in sort order.
+	static Error highestNumberedFileName(char const* prefix, String* result);
 	bool opened() override;
 	void cullSomeFileItems();
 	bool checkFP();

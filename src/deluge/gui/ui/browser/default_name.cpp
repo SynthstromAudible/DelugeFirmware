@@ -16,6 +16,7 @@
  */
 
 #include "gui/ui/browser/default_name.h"
+#include <algorithm>
 #include <cctype>
 #include <cstdint>
 #include <cstring>
@@ -100,6 +101,37 @@ std::string numericStem(std::string_view name, char* delimiter) {
 	return std::string{name};
 }
 
+/// Reads the number a family member carries: the digit run straight after `prefix`, which must then run to the
+/// extension or to the end of the name. Returns 0 when `name` is not of that form, and kMaxNumericSuffix when the
+/// digits run past what we are willing to count to (so the caller stops rather than wrapping).
+///
+/// The "digits must reach the extension" rule is what keeps a neighbour like "JAM 2024-01-05.XML" out of the "JAM "
+/// family. Read as a member it would say the family had reached 2024, and the next save would land on "JAM 2025".
+int32_t numberOfSibling(std::string const& name, std::string_view prefix) {
+	if (name.size() <= prefix.size()) {
+		return 0;
+	}
+	for (size_t i = 0; i < prefix.size(); i++) {
+		if (upper(name[i]) != upper(prefix[i])) {
+			return 0;
+		}
+	}
+
+	int32_t number = 0;
+	size_t pos = prefix.size();
+	if (!std::isdigit(static_cast<unsigned char>(name[pos]))) {
+		return 0;
+	}
+	while (pos < name.size() && std::isdigit(static_cast<unsigned char>(name[pos]))) {
+		number = number * 10 + (name[pos] - '0');
+		if (number > kMaxNumericSuffix) {
+			return kMaxNumericSuffix;
+		}
+		pos++;
+	}
+	return (pos == name.size() || name[pos] == '.') ? number : 0;
+}
+
 } // namespace
 
 char const* numberPartOf(char const* name, char const* filePrefix) {
@@ -137,16 +169,24 @@ std::string nextDefaultName(std::string_view currentName, std::string_view slotP
 		return std::string{currentName}; // Letters exhausted.
 	}
 
-	// Anything else: advance the numeric suffix.
+	// Anything else: one past the highest-numbered sibling.
+	//
+	// This asks for that one name rather than probing "<base> 2", "<base> 3", ... upwards, because contains() only
+	// sees a window around the file being saved: by "<base> 11" the "2" has fallen out of it and would be handed
+	// back as free. Numbering from the top also leaves gaps alone, so a deleted "<base> 3" is not silently reused.
 	char delimiter = kNumericSuffixDelimiter;
 	std::string base = numericStem(currentName, &delimiter);
-	for (int32_t n = 2; n <= kMaxNumericSuffix; n++) {
-		std::string candidate = base + delimiter + std::to_string(n);
-		if (!exists(files, candidate)) {
-			return candidate;
-		}
+	std::string prefix = base + delimiter;
+
+	// The name we are saving over is itself on the card, so its own number is a floor the answer can never go below -
+	// which keeps this right even if the folder scan comes back empty because the card would not answer.
+	int32_t highest = std::max(numberOfSibling(files.highestNumberedName(prefix.c_str()), prefix),
+	                           numberOfSibling(std::string{currentName}, prefix));
+	if (highest >= kMaxNumericSuffix) {
+		return std::string{currentName}; // Numbers exhausted - the user will have to name this one.
 	}
-	return std::string{currentName};
+	// An unnumbered original ("MYTRACK.XML" alone) counts as 1, so the first variation is "MYTRACK 2".
+	return prefix + std::to_string(std::max<int32_t>(highest, 1) + 1);
 }
 
 } // namespace deluge::gui::browser
