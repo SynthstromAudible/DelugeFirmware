@@ -22,6 +22,7 @@
 #include "storage/flash_storage.h"
 
 #include <algorithm>
+#include <array>
 #include <hid/display/oled.h>
 #include <math.h>
 #include <vector>
@@ -43,6 +44,8 @@ bool clipRect(int32_t& minX, int32_t& minY, int32_t& maxX, int32_t& maxY) {
 	maxY = std::clamp<int32_t>(maxY, 0, kMaxY);
 	return true;
 }
+
+int32_t getPreviousCharSpacingAdjustmentInPixels(uint8_t previous_char, uint8_t current_char, int32_t text_height);
 } // namespace
 
 void Canvas::clearAreaExact(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY) {
@@ -303,71 +306,88 @@ void Canvas::drawCircle(int32_t centerX, int32_t centerY, int32_t radius, bool f
 
 void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY, int32_t textWidth, int32_t textHeight,
                         int32_t scrollPos, int32_t endX, bool useTextWidth) {
-	int32_t lastIndex = static_cast<int32_t>(string.length()) - 1;
-	int32_t charIdx = 0;
-	int32_t advanceWidth = textWidth;
-	int32_t drawWidth = textWidth;
+	int32_t advance_width = textWidth;
+	int32_t draw_width = textWidth;
 	// if the string is currently scrolling we want to identify the number of characters
 	// that should be visible on the screen based on the current scroll position
 	// to do iterate through each character in the string, based on its size in pixels
 	// and compare that to the scroll position (which is also in pixels)
 	// any characters before the scroll position are chopped off;
-	if (scrollPos) {
-		int32_t numCharsToChopOff = 0;
-		int32_t widthOfCharsToChopOff = 0;
-		int32_t charStartX = 0;
+	if (scrollPos != 0) {
+		int32_t num_chars_to_chop_off = 0;
+		int32_t width_of_chars_to_chop_off = 0;
+		int32_t char_start_x = 0;
+		auto chars_remaining = string.size();
+		bool has_previous_char = false;
+		uint8_t previous_char = 0;
 		for (char const c : string) {
+			auto const current_char = static_cast<uint8_t>(c);
+			--chars_remaining;
 			if (!useTextWidth) {
-				int32_t charSpacing = getCharSpacingInPixels(c, textHeight, charIdx == lastIndex);
+				int32_t char_spacing = getCharSpacingInPixels(current_char, textHeight, chars_remaining == 0);
 				// calculate the width of the current character in pixels, including any spacing adjustments
-				advanceWidth = getCharWidthInPixels(c, textHeight) + charSpacing;
+				advance_width = getCharWidthInPixels(current_char, textHeight) + char_spacing;
+			}
+
+			// if we're not on the first character
+			if (has_previous_char) {
+				// calculate the starting X position for the current character, taking into account any spacing
+				// adjustments based on the previous character
+				char_start_x += getPreviousCharSpacingAdjustmentInPixels(previous_char, current_char, textHeight);
 			}
 
 			// calculate the X coordinate to draw the next character
-			charStartX += advanceWidth;
+			char_start_x += advance_width;
 
 			// are we past the scroll position?
 			// if so no more characters to chop off
-			if (scrollPos < charStartX) {
+			if (scrollPos < char_start_x) {
 				break;
 			}
 			// we haven't reached scroll position yet, so chop off these characters
-			else {
-				numCharsToChopOff++;
-				// we need to keep track of the width of the characters that are being chopped off, so we can adjust the
-				// scroll position accordingly
-				widthOfCharsToChopOff += advanceWidth;
-			}
-			charIdx++;
+			num_chars_to_chop_off++;
+			// we need to keep track of the width of the characters that are being chopped off, so we can adjust the
+			// scroll position accordingly
+			width_of_chars_to_chop_off += advance_width;
+			previous_char = current_char;
+			has_previous_char = true;
 		}
 
 		// chop off the characters before the scroll position
-		string = string.substr(numCharsToChopOff);
+		string = string.substr(num_chars_to_chop_off);
 		// adjust scroll position to indicate how far we've scrolled
-		scrollPos -= widthOfCharsToChopOff;
-		// update the last index to reflect the new string length
-		lastIndex = static_cast<int32_t>(string.length()) - 1;
-		// reset index
-		charIdx = 0;
+		scrollPos -= width_of_chars_to_chop_off;
 	}
 
 	// if we scrolled above, then the string, ScrollPos, stringLength will have been adjusted
 	// here we're going to draw the remaining characters in the string
+	auto chars_remaining = string.size();
+	bool has_previous_char = false;
+	uint8_t previous_char = 0;
 	for (char const c : string) {
+		auto const current_char = static_cast<uint8_t>(c);
+		--chars_remaining;
 		if (!useTextWidth) {
-			const int32_t charWidth = getCharWidthInPixels(c, textHeight);
+			const int32_t char_width = getCharWidthInPixels(current_char, textHeight);
 			// drawChar centres the glyph inside this width. Keep that draw box independent of final-character
 			// spacing, so the same glyph pixels do not shift when a word is drawn alone vs. as a prefix.
-			const int32_t advanceSpacing = getCharSpacingInPixels(c, textHeight, charIdx == lastIndex);
-			const int32_t drawSpacing = getCharSpacingInPixels(c, textHeight, false);
-			advanceWidth = charWidth + advanceSpacing;
-			drawWidth = charWidth + drawSpacing;
+			const int32_t advance_spacing = getCharSpacingInPixels(current_char, textHeight, chars_remaining == 0);
+			const int32_t draw_spacing = getCharSpacingInPixels(current_char, textHeight, false);
+			advance_width = char_width + advance_spacing;
+			draw_width = char_width + draw_spacing;
 		}
 
-		drawChar(c, pixelX, pixelY, drawWidth, textHeight, scrollPos, endX);
+		// if we're not on the first character
+		if (has_previous_char) {
+			// calculate the starting X position for the current character, taking into account any spacing adjustments
+			// based on the previous character
+			pixelX += getPreviousCharSpacingAdjustmentInPixels(previous_char, current_char, textHeight);
+		}
+
+		drawChar(current_char, pixelX, pixelY, draw_width, textHeight, scrollPos, endX);
 
 		// calculate the X coordinate to draw the next character
-		pixelX += (advanceWidth - scrollPos);
+		pixelX += (advance_width - scrollPos);
 
 		// if we've reached the endX coordinate then we won't draw anymore characters
 		if (pixelX >= endX) {
@@ -376,7 +396,8 @@ void Canvas::drawString(std::string_view string, int32_t pixelX, int32_t pixelY,
 
 		// no more scrolling
 		scrollPos = 0;
-		charIdx++;
+		previous_char = current_char;
+		has_previous_char = true;
 	}
 }
 
@@ -631,45 +652,157 @@ int32_t Canvas::getCharSpacingInPixels(uint8_t theChar, int32_t textHeight, bool
 	}
 }
 
-// Calculate the width of a string in pixels, taking into account character widths and spacing
+namespace {
+struct KerningRule {
+	uint8_t text_height;
+	uint8_t previous_char;
+	uint8_t current_char;
+	int8_t adjustment;
+};
+
+// Store letter kerning rules once using uppercase chars; lowercase input should use the same spacing.
+constexpr uint8_t normaliseKerningChar(uint8_t the_char) {
+	if (the_char >= 'a' && the_char <= 'z') {
+		return static_cast<uint8_t>(the_char - ('a' - 'A'));
+	}
+	return the_char;
+}
+
+// Kerning rules for specific character pairs at different text heights
+// Format: {textHeight, previousChar, currentChar, adjustment}
+constexpr std::array<KerningRule, 41> kKerningRules{{
+    // Title/menu font (textHeight 10): exact pairs
+    {.text_height = 10, .previous_char = 'P', .current_char = 'A', .adjustment = -1},
+    {.text_height = 10, .previous_char = 'W', .current_char = 'A', .adjustment = -2},
+    {.text_height = 10, .previous_char = 'Y', .current_char = 'A', .adjustment = -2},
+    {.text_height = 10, .previous_char = '7', .current_char = 'J', .adjustment = -1},
+    {.text_height = 10, .previous_char = 'A', .current_char = 'O', .adjustment = -1},
+    {.text_height = 10, .previous_char = 'W', .current_char = 'O', .adjustment = -1},
+    {.text_height = 10, .previous_char = 'Y', .current_char = 'O', .adjustment = -1},
+    {.text_height = 10, .previous_char = 'N', .current_char = 'R', .adjustment = 1},
+    {.text_height = 10, .previous_char = 'Y', .current_char = 'S', .adjustment = -1},
+    {.text_height = 10, .previous_char = 'A', .current_char = 'T', .adjustment = -1},
+    {.text_height = 10, .previous_char = 'L', .current_char = 'T', .adjustment = -1},
+    {.text_height = 10, .previous_char = '\'', .current_char = 'T', .adjustment = -1},
+    {.text_height = 10, .previous_char = '"', .current_char = 'T', .adjustment = -1},
+    {.text_height = 10, .previous_char = '4', .current_char = 'T', .adjustment = -1},
+    {.text_height = 10, .previous_char = '6', .current_char = 'T', .adjustment = -1},
+    {.text_height = 10, .previous_char = 'A', .current_char = 'V', .adjustment = -1},
+    {.text_height = 10, .previous_char = 'A', .current_char = 'W', .adjustment = -4},
+    {.text_height = 10, .previous_char = 'D', .current_char = 'W', .adjustment = -1},
+    {.text_height = 10, .previous_char = 'A', .current_char = 'Y', .adjustment = -2},
+    {.text_height = 10, .previous_char = 'W', .current_char = '.', .adjustment = -2},
+    {.text_height = 10, .previous_char = 'F', .current_char = '.', .adjustment = -2},
+    {.text_height = 10, .previous_char = 'A', .current_char = '"', .adjustment = -1},
+    {.text_height = 10, .previous_char = 'L', .current_char = '"', .adjustment = -2},
+    {.text_height = 10, .previous_char = 'V', .current_char = '/', .adjustment = -1},
+    {.text_height = 10, .previous_char = '7', .current_char = '4', .adjustment = -1},
+
+    // 13px font: exact pairs.
+    {.text_height = 13, .previous_char = 'B', .current_char = 'A', .adjustment = -1},
+    {.text_height = 13, .previous_char = 'W', .current_char = 'A', .adjustment = -4},
+    {.text_height = 13, .previous_char = '-', .current_char = 'N', .adjustment = 2},
+    {.text_height = 13, .previous_char = 'E', .current_char = 'S', .adjustment = 1},
+    {.text_height = 13, .previous_char = 'L', .current_char = 'T', .adjustment = -1},
+    {.text_height = 13, .previous_char = '4', .current_char = 'T', .adjustment = -1},
+    {.text_height = 13, .previous_char = '6', .current_char = 'T', .adjustment = -1},
+    {.text_height = 13, .previous_char = '1', .current_char = '4', .adjustment = -1},
+    {.text_height = 13, .previous_char = '6', .current_char = '4', .adjustment = -1},
+    {.text_height = 13, .previous_char = '7', .current_char = '4', .adjustment = -2},
+    {.text_height = 13, .previous_char = '7', .current_char = '6', .adjustment = -1},
+    {.text_height = 13, .previous_char = '7', .current_char = '8', .adjustment = -1},
+    {.text_height = 13, .previous_char = '2', .current_char = '9', .adjustment = -1},
+    {.text_height = 13, .previous_char = '7', .current_char = '9', .adjustment = -1},
+
+    // 20px font: exact pairs.
+    {.text_height = 20, .previous_char = '2', .current_char = '1', .adjustment = -1},
+    {.text_height = 20, .previous_char = '2', .current_char = '7', .adjustment = -1},
+}};
+
+int32_t getPreviousCharSpacingAdjustmentInPixels(uint8_t previous_char, uint8_t current_char, int32_t text_height) {
+	// don't adjust spacing around a space character
+	if (previous_char == ' ' || current_char == ' ') {
+		return 0;
+	}
+
+	// normalise the characters to uppercase for kerning rules, since lowercase letters use the same spacing
+	// e.g. a becomes A
+	// if in the future we treat lowercase letters differently,
+	// we can remove this normalisation and add specific kerning rules for lowercase letters
+	previous_char = normaliseKerningChar(previous_char);
+	current_char = normaliseKerningChar(current_char);
+
+	constexpr int32_t max_text_height = 255;
+	if (text_height < 0 || text_height > max_text_height) {
+		return 0;
+	}
+	auto const rule_text_height = static_cast<uint8_t>(text_height);
+
+	// loop through all configured kerning adjustment rules
+	for (const KerningRule& rule : kKerningRules) {
+		// check for a kerning rule that matches the previous and current characters at the given text height
+		if (rule.text_height == rule_text_height && rule.previous_char == previous_char
+		    && rule.current_char == current_char) {
+			// rule found, return kerning adjustment
+			return rule.adjustment;
+		}
+	}
+
+	// if no matching kerning rule is found, return 0 (no adjustment)
+	return 0;
+}
+
+} // namespace
+
+// Calculate the width of a string in pixels, taking into account character widths, spacing, and kerning adjustments
 int32_t Canvas::getStringWidthInPixels(char const* string, int32_t textHeight) {
 	std::string_view str{string};
-	// Get the index of the last character in the string
-	int32_t lastIndex = static_cast<int32_t>(str.length()) - 1;
-	int32_t charIdx = 0;
 	// Initialize variables to track the total advance width and the maximum glyph end position
-	int32_t advanceX = 0;
-	int32_t maxGlyphEndX = 0;
+	int32_t advance_x = 0;
+	int32_t max_glyph_end_x = 0;
 
 	// Loop through each character in the string
+	auto chars_remaining = str.size();
+	bool has_previous_char = false;
+	uint8_t previous_char = 0;
 	for (char const c : str) {
+		auto const current_char = static_cast<uint8_t>(c);
+		--chars_remaining;
 		// Calculate the width of the current character in pixels
-		const int32_t charWidth = getCharWidthInPixels(c, textHeight);
+		const int32_t char_width = getCharWidthInPixels(current_char, textHeight);
 		// Calculate the spacing for the current character based on whether it's the last character in the string
-		const int32_t advanceSpacing = getCharSpacingInPixels(c, textHeight, charIdx == lastIndex);
+		const int32_t advance_spacing = getCharSpacingInPixels(current_char, textHeight, chars_remaining == 0);
 		// Calculate the spacing for drawing the current character (not considering last character)
-		const int32_t drawSpacing = getCharSpacingInPixels(c, textHeight, false);
+		const int32_t draw_spacing = getCharSpacingInPixels(current_char, textHeight, false);
 		// Calculate the total width for drawing and advancing the cursor for the current character
-		const int32_t drawWidth = charWidth + drawSpacing;
+		const int32_t draw_width = char_width + draw_spacing;
 		// Calculate the total width for advancing the cursor after drawing the current character
-		const int32_t advanceWidth = charWidth + advanceSpacing;
+		const int32_t advance_width = char_width + advance_spacing;
+
+		// if we're not on the first character
+		if (has_previous_char) {
+			// Adjust the advance_x position based on any kerning adjustments between the previous and current
+			// characters
+			advance_x += getPreviousCharSpacingAdjustmentInPixels(previous_char, current_char, textHeight);
+		}
 
 		// Match drawString(): final-character spacing affects cursor advance, while glyph extents are measured
 		// from the stable draw box used when the bitmap is centred.
-		if (charWidth > 0) {
+		if (char_width > 0) {
 			// Calculate the starting X position for the glyph, centering it within the draw width
-			const int32_t glyphStartX = advanceX + ((drawWidth - charWidth) >> 1);
+			const int32_t glyph_start_x = advance_x + ((draw_width - char_width) >> 1);
 			// Update the maximum glyph end position based on the current glyph's end position
-			maxGlyphEndX = std::max(maxGlyphEndX, glyphStartX + charWidth);
+			max_glyph_end_x = std::max(max_glyph_end_x, glyph_start_x + char_width);
 		}
 
-		// Update the advanceX position for the next character
-		advanceX += advanceWidth;
-		charIdx++;
+		// Update the advance_x position for the next character
+		advance_x += advance_width;
+		previous_char = current_char;
+		has_previous_char = true;
 	}
 	// Return the maximum of the total advance width and the maximum glyph end position to ensure the string width
 	// accounts for both cursor advancement and glyph size
-	return std::max(advanceX, maxGlyphEndX);
+	return std::max(advance_x, max_glyph_end_x);
 }
 
 void Canvas::drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY, int32_t width, int32_t height,
