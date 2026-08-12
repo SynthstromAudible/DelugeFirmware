@@ -42,7 +42,11 @@ namespace deluge::gui::menu_item::sample {
 inline constexpr int32_t kVariantFileNameRenderLength = 60;
 
 /// Returns the MultisampleRange currently targeted by the variants menus for the given source,
-/// or nullptr when it doesn't apply (audio clip, non-sample source, no ranges).
+/// or nullptr when it doesn't apply (audio clip, non-sample source, no ranges). On a multi-zone
+/// source, this is the zone previously selected through the note-range picker; if no zone has been
+/// selected yet, returns nullptr rather than guessing - the menus below all sit behind the picker
+/// (checkPermissionToBeginSessionForRangeSpecificParam returns MUST_SELECT_RANGE), so by the time
+/// any of them needs a range, one has been chosen.
 inline MultisampleRange* getRoundRobinRange(uint8_t sourceId) {
 	if (getCurrentClip()->type == ClipType::AUDIO) {
 		return nullptr;
@@ -58,7 +62,10 @@ inline MultisampleRange* getRoundRobinRange(uint8_t sourceId) {
 	if (soundEditor.currentSourceIndex == sourceId && soundEditor.currentMultiRange != nullptr) {
 		return static_cast<MultisampleRange*>(soundEditor.currentMultiRange);
 	}
-	return static_cast<MultisampleRange*>(source.ranges.getElement(0));
+	if (source.ranges.getNumElements() == 1) {
+		return static_cast<MultisampleRange*>(source.ranges.getElement(0));
+	}
+	return nullptr;
 }
 
 /// Draws the file name of the given variant slot, right-aligned in a submenu row.
@@ -151,15 +158,21 @@ public:
 		    || !isSampleModeSample(modControllable, sourceId_)) {
 			return false;
 		}
-		// Variants are scoped to a single sample zone. On a multi-zone (key-split) instrument the
-		// zone-selection flow (note-range menu) is built for flat, single-hop params like FILE/START/
-		// END/TRANSPOSE, not for a nested submenu like this one, so round-robin steps aside there
-		// rather than trying to compose with it.
+		// Variants are per-zone. On a multi-zone (key-split) instrument, entering this submenu first
+		// routes through the note-range picker (checkPermissionToBeginSession below returns
+		// MUST_SELECT_RANGE), and everything inside then edits the picked zone's variants - same as
+		// the zone flow the flat FILE/START/END/TRANSPOSE items use.
 		auto* sound = static_cast<Sound*>(modControllable);
-		return sound->sources[sourceId_].ranges.getNumElements() == 1;
+		return sound->sources[sourceId_].ranges.getNumElements() > 0;
 	}
 
 	void beginSession(MenuItem* navigatedBackwardFrom = nullptr) override {
+		// Pin the editor to this oscillator before the child items run - everything below resolves
+		// the target zone via (currentSourceIndex, currentMultiRange), the same way the flat
+		// FILE/START/END items' own beginSession does. On a multi-zone source the note-range picker
+		// has already set currentMultiRange by the time we get here (see
+		// checkPermissionToBeginSession below), and setCurrentSource() preserves a non-null range.
+		soundEditor.setCurrentSource(sourceId_);
 		Submenu::beginSession(navigatedBackwardFrom);
 		// At the Variants list level no specific slot is being edited, so auditioning follows the
 		// normal round-robin again.
