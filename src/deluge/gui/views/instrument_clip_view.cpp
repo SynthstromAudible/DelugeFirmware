@@ -4706,6 +4706,38 @@ void InstrumentClipView::reassessAuditionStatus(uint8_t yDisplay) {
 }
 
 // This may send it on a different Clip, if a different one is the activeClip
+// Shows which round-robin variant a just-auditioned kit pad resolved to, e.g. "kick_2.wav (3/4)".
+// Called immediately after the drum's note-on, so lastResolvedSlotIndex is exactly the slot that
+// fired - this popup only ever appears from an actual trigger, never from row selection or
+// scrolling (those show the drum's own name via drawDrumName() as always).
+static void displayVariantPopupForAuditionedDrum(Drum* drum) {
+	if (drum == nullptr || drum->type != DrumType::SOUND
+	    || !runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants)) {
+		return;
+	}
+	auto* soundDrum = static_cast<SoundDrum*>(drum);
+	Source& source = soundDrum->sources[0];
+	if (source.getOscType() != OscType::SAMPLE || source.ranges.getNumElements() == 0) {
+		return;
+	}
+	auto* range = static_cast<MultisampleRange*>(source.ranges.getElement(0));
+	if (range->rrCount == 0) {
+		return;
+	}
+	SampleHolderForVoice* holder = range->getVariantHolder(range->lastResolvedSlotIndex);
+	if (holder == nullptr) {
+		return;
+	}
+	char const* path = holder->audioFile ? holder->audioFile->filePath.get() : holder->filePath.get();
+	char const* variantName = path ? getFileNameFromEndOfPath(path) : nullptr;
+	if (variantName == nullptr || *variantName == '\0') {
+		return;
+	}
+	char buffer[64];
+	snprintf(buffer, sizeof(buffer), "%s (%d/%d)", variantName, range->lastResolvedSlotIndex + 1, range->rrCount + 1);
+	display->displayPopup(buffer);
+}
+
 void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t velocity, uint32_t sampleSyncLength) {
 	Instrument* instrument = getCurrentInstrument();
 
@@ -4744,6 +4776,8 @@ void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t vel
 						FREEZE_WITH_ERROR("E325"); // Trying to catch an E313 that Vinz got
 					}
 					((Kit*)instrument)->beginAuditioningforDrum(modelStackWithNoteRow, drum, velocity, zeroMPEValues);
+					// The note-on above resolved which variant plays, so this reports that exact slot.
+					displayVariantPopupForAuditionedDrum(drum);
 				}
 				else {
 					((Kit*)instrument)->endAuditioningForDrum(modelStackWithNoteRow, drum);
@@ -5649,33 +5683,7 @@ void InstrumentClipView::drawNoteCode(uint8_t yDisplay) {
 void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
 	std::string drumName;
 	if (drum != nullptr) {
-		if (drum->type == DrumType::SOUND
-		    && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants)) {
-			SoundDrum* soundDrum = static_cast<SoundDrum*>(drum);
-			Source& source = soundDrum->sources[0];
-			if (source.getOscType() == OscType::SAMPLE && source.ranges.getNumElements() > 0) {
-				auto* range = static_cast<MultisampleRange*>(source.ranges.getElement(0));
-				if (range->rrCount > 0) {
-					SampleHolderForVoice* holder = range->getVariantHolder(range->lastResolvedSlotIndex);
-					if (holder != nullptr) {
-						char const* path =
-						    holder->audioFile ? holder->audioFile->filePath.get() : holder->filePath.get();
-						char const* variantName = path ? getFileNameFromEndOfPath(path) : nullptr;
-						if (variantName && *variantName) {
-							// e.g. "kick_2.wav (3/4)" - which slot just played, out of how many.
-							char slotIndicator[8];
-							snprintf(slotIndicator, sizeof(slotIndicator), " (%d/%d)", range->lastResolvedSlotIndex + 1,
-							         range->rrCount + 1);
-							drumName = variantName;
-							drumName += slotIndicator;
-						}
-					}
-				}
-			}
-		}
-		if (drumName.empty()) {
-			drumName = drum->getDrumName();
-		}
+		drumName = drum->getDrumName();
 	}
 	else {
 		drumName = "NONE";
