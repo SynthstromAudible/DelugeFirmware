@@ -10,9 +10,26 @@ gun" effect that repeated hits of the same drum sample can produce.
 ## Enabling the feature
 
 This feature is On by default and can be turned off via `SETTINGS > COMMUNITY FEATURES > ROUND-ROBIN SAMPLE
-VARIANTS (VARI)`. When off, the `VARIANTS` menu is hidden and playback always uses the primary sample. Turning
-the feature off does not delete any variant data already saved in a song - it simply stops being used until
-the feature is turned back on.
+VARIANTS (VARI)`. When off, the `VARIANTS` menu is hidden, playback always uses the primary sample, and bulk
+folder imports behave exactly as they did before this feature existed (extra same-note samples are skipped,
+not stored - see below). Turning the feature off does not delete any variant data already saved in a song -
+it simply stops being used until the feature is turned back on.
+
+## Importing folders
+
+When importing a whole folder as a multisample synth, samples that land on the same note become round-robin
+variants of one zone (up to 4 per note: one primary plus 3 alternates), instead of the extras being silently
+dropped as before. Each sample's note comes from the root-note tag embedded in its WAV/AIFF header when
+present, or from pitch detection otherwise.
+
+A folder of at most 4 files that all carry the *same* embedded root note is treated as a deliberately
+prepared round-robin set - for example four takes of one kick, all tagged C3 - and imports as a single
+full-keyboard zone with the takes as variants. (Larger folders where every file claims the same root note are
+still assumed to be mis-tagged by the exporting software, and fall back to pitch detection, as they always
+have.)
+
+With the community feature turned off, none of this happens: folder import keeps its original behaviour, one
+sample per note with duplicates skipped, and no variant data is created or saved.
 
 ## The Variants menu
 
