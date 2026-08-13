@@ -101,6 +101,13 @@ public:
 		auditionRange_ = range;
 	}
 	static void clearAuditionSlot() { auditionRange_ = nullptr; }
+	/// Returns the audition-override slot index (0-3) if a slot menu session is currently targeting
+	/// `range`, or -1 otherwise. This doubles as "which slot is being edited right now" for display
+	/// purposes (see the sound editor's zone/slot indicator), since the override is set exactly while
+	/// a slot's own menu or marker editor is open. Comparison only - `range` is never dereferenced.
+	static int32_t getAuditionSlotFor(MultiRange const* range) {
+		return (range != nullptr && range == auditionRange_) ? auditionSlotIndex_ : -1;
+	}
 
 	/// Resolve the next variant to play using read-then-advance round robin.
 	/// If there is only one active slot, this returns &sampleHolder immediately.
