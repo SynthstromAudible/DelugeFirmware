@@ -97,6 +97,18 @@ TEST(ChokeGroup, xmlRoundTripAcrossAllValidGroups) {
 	}
 }
 
+TEST(ChokeGroup, xmlOutOfRangeValuesFallBackToDefaultGroup) {
+	// Out-of-range values can only come from hand-edited or corrupted song files. They fall back to
+	// group 1 - the same group every pre-feature CHOKE drum lands in - so untrusted data behaves
+	// like legacy data. 257 in particular guards the truncation trap: naively read into a uint8_t
+	// it would wrap to a "valid" 1 before any validation could see it.
+	for (int32_t invalid : {0, -1, 9, 100, 256, 257}) {
+		MockReader reader;
+		reader.valueToReturn = invalid;
+		CHECK_EQUAL(1, readChokeGroupFromFile(reader));
+	}
+}
+
 // countDistinctChokeGroups() backs choke-group stem export: it's what turns "these drums have these
 // effective choke groups" into "this many WAV files get produced." Tested here against a fake
 // predicate (a lookup into a plain std::vector standing in for a kit's eligible drums) rather than

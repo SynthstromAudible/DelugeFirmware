@@ -46,9 +46,18 @@ void writeChokeGroupToFile(SerializerT& writer, uint8_t chokeGroup) {
 
 template <typename DeserializerT>
 uint8_t readChokeGroupFromFile(DeserializerT& reader) {
-	uint8_t chokeGroup = reader.readTagOrAttributeValueInt();
+	// Read into a full int before validating - assigning straight to uint8_t would truncate first
+	// (e.g. 257 -> 1) and make an invalid value look like a valid one.
+	int32_t chokeGroup = reader.readTagOrAttributeValueInt();
 	reader.exitTag("chokeGroup");
-	return chokeGroup;
+	// An out-of-range value can only come from a hand-edited or corrupted file. Fall back to group
+	// 1 - the same group every pre-feature CHOKE drum lands in on load - so untrusted data behaves
+	// like legacy data. An unvalidated group would choke like a private group but silently vanish
+	// from choke-group stem export, whose arming loop only scans groups 1-8.
+	if (chokeGroup < kMinChokeGroup || chokeGroup > kMaxChokeGroup) {
+		return 1;
+	}
+	return (uint8_t)chokeGroup;
 }
 
 /// Counts how many of the 8 possible choke groups have at least one eligible drum in them - i.e.
