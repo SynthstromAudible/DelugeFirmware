@@ -74,31 +74,29 @@ SettingToggle menuTrimFromStartOfAudioClip(RuntimeFeatureSettingType::TrimFromSt
 SettingToggle menuShowBatteryLevel(RuntimeFeatureSettingType::ShowBatteryLevel);
 RoundedCornersSettingToggle menuRoundedCorners(RuntimeFeatureSettingType::RoundedCorners);
 
-std::array<MenuItem*, RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings> subMenuEntries{
-    &menuDrumRandomizer,
-    &menuFineTempo,
-    &menuQuantize,
-    &menuCatchNotes,
-    &menuDeleteUnusedKitRows,
-    &menuAltGoldenKnobDelayParams,
-    &menuDevSysexAllowed,
-    &menuSyncScalingAction,
-    &menuHighlightIncomingNotes,
-    &menuDisplayNornsLayout,
-    &menuShiftIsSticky,
-    &menuLightShiftLed,
-    &menuEnableDX7Engine,
-    &menuEmulatedDisplay,
-    &menuEnableKeyboardViewSidebarMenuExit,
-    &menuEnableLaunchEventPlayhead,
-    &menuDisplayChordLayout,
-    &menuAlternativePlaybackStartBehaviour,
-    &menuEnableGridViewLoopPads,
-    &menuAlternativeTapTempoBehaviour,
-    &menuHorizontalMenus,
-    &menuRoundedCorners,
-    &menuTrimFromStartOfAudioClip,
-    &menuShowBatteryLevel};
+std::array<MenuItem*, 3> experimentalEntries{&menuHorizontalMenus, &menuDisplayChordLayout, &menuDrumRandomizer};
+Submenu menuExperimental(l10n::String::STRING_FOR_EXPERIMENTAL, experimentalEntries);
+
+std::array<MenuItem*, 2> utilitiesEntries{&menuEmulatedDisplay, &menuDevSysexAllowed};
+Submenu menuUtilities(l10n::String::STRING_FOR_UTILITIES, utilitiesEntries);
+
+std::array<MenuItem*, 17> subMenuEntries{&menuFineTempo,
+                                         &menuQuantize,
+                                         &menuCatchNotes,
+                                         &menuDeleteUnusedKitRows,
+                                         &menuAltGoldenKnobDelayParams,
+                                         &menuSyncScalingAction,
+                                         &menuHighlightIncomingNotes,
+                                         &menuDisplayNornsLayout,
+                                         &menuLightShiftLed,
+                                         &menuEnableKeyboardViewSidebarMenuExit,
+                                         &menuEnableLaunchEventPlayhead,
+                                         &menuAlternativePlaybackStartBehaviour,
+                                         &menuEnableGridViewLoopPads,
+                                         &menuAlternativeTapTempoBehaviour,
+                                         &menuRoundedCorners,
+                                         &menuTrimFromStartOfAudioClip,
+                                         &menuShowBatteryLevel};
 
 Settings::Settings(l10n::String name, l10n::String title) : menu_item::Submenu(name, title, subMenuEntries) {
 }

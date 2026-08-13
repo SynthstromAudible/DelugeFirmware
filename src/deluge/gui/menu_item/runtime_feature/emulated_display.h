@@ -26,6 +26,7 @@ public:
 	EmulatedDisplay() : Setting(RuntimeFeatureSettingType::EmulatedDisplay) {}
 
 	void writeCurrentValue() override;
+	bool isRelevant(ModControllableAudio*, int32_t) override;
 };
 
 } // namespace deluge::gui::menu_item::runtime_feature

@@ -17,6 +17,8 @@
 
 #pragma once
 
+#include "gui/menu_item/runtime_feature/setting.h"
+#include "gui/menu_item/runtime_feature/shift_is_sticky.h"
 #include "gui/menu_item/submenu.h"
 
 namespace deluge::gui::menu_item::runtime_feature {
@@ -24,6 +26,12 @@ namespace deluge::gui::menu_item::runtime_feature {
 /// Some runtime feature settings are squirrled away in submenus.
 constexpr size_t kNonTopLevelSettings = 0;
 // RuntimeFeatureSettingType::MaxElement - kNonTopLevelSettings
+
+extern ShiftIsSticky menuShiftIsSticky;
+extern SettingToggle menuEnableDX7Engine;
+extern Submenu menuExperimental;
+extern Submenu menuUtilities;
+
 class Settings final : public Submenu {
 public:
 	Settings(l10n::String name, l10n::String title);

@@ -1134,33 +1134,6 @@ PLACE_SDRAM_BSS Submenu midiFollowFeedbackSubmenu{
     },
 };
 
-PLACE_SDRAM_BSS Submenu midiFollowSubmenu{
-    STRING_FOR_FOLLOW_TITLE,
-    STRING_FOR_FOLLOW_TITLE,
-    {
-        &midiFollowChannelSubmenu,
-        &midiFollowKitRootNoteMenu,
-        &midiFollowFeedbackSubmenu,
-        &midiFollowDisplayParamMenu,
-    },
-};
-
-// MIDI select kit row
-PLACE_SDRAM_BSS ToggleBool midiSelectKitRowMenu{STRING_FOR_SELECT_KIT_ROW, STRING_FOR_SELECT_KIT_ROW,
-                                                midiEngine.midiSelectKitRow};
-
-// MIDI transpose menu
-
-PLACE_SDRAM_BSS midi::Transpose midiTransposeMenu{STRING_FOR_TRANSPOSE};
-
-PLACE_SDRAM_BSS Submenu midiTransposeSubmenu{
-    STRING_FOR_TRANSPOSE,
-    STRING_FOR_TRANSPOSE,
-    {
-        &midiTransposeMenu,
-    },
-};
-
 // MIDI commands submenu
 PLACE_SDRAM_BSS midi::Command playbackRestartMidiCommand{STRING_FOR_RESTART, GlobalMIDICommand::PLAYBACK_RESTART};
 PLACE_SDRAM_BSS midi::Command playMidiCommand{STRING_FOR_PLAY, GlobalMIDICommand::PLAY};
@@ -1182,6 +1155,34 @@ PLACE_SDRAM_BSS Submenu midiCommandsMenu{
     {&playMidiCommand, &playbackRestartMidiCommand, &recordMidiCommand, &tapMidiCommand, &undoMidiCommand,
      &redoMidiCommand, &loopMidiCommand, &loopContinuousLayeringMidiCommand, &fillMidiCommand, &transposeMidiCommand,
      &nextSongMidiCommand, &shiftMidiCommand},
+};
+
+PLACE_SDRAM_BSS Submenu midiFollowSubmenu{
+    STRING_FOR_FOLLOW_TITLE,
+    STRING_FOR_FOLLOW_TITLE,
+    {
+        &midiFollowChannelSubmenu,
+        &midiFollowKitRootNoteMenu,
+        &midiFollowFeedbackSubmenu,
+        &midiFollowDisplayParamMenu,
+        &midiCommandsMenu,
+    },
+};
+
+// MIDI select kit row
+PLACE_SDRAM_BSS ToggleBool midiSelectKitRowMenu{STRING_FOR_SELECT_KIT_ROW, STRING_FOR_SELECT_KIT_ROW,
+                                                midiEngine.midiSelectKitRow};
+
+// MIDI transpose menu
+
+PLACE_SDRAM_BSS midi::Transpose midiTransposeMenu{STRING_FOR_TRANSPOSE};
+
+PLACE_SDRAM_BSS Submenu midiTransposeSubmenu{
+    STRING_FOR_TRANSPOSE,
+    STRING_FOR_TRANSPOSE,
+    {
+        &midiTransposeMenu,
+    },
 };
 
 // MIDI device submenu - for after we've selected which device we want it for
@@ -1237,7 +1238,6 @@ PLACE_SDRAM_BSS Submenu midiMenu{
         &midiThruMenu,
         &midiTransposeMenu,
         &midiTakeoverMenu,
-        &midiCommandsMenu,
         &midiInputDifferentiationMenu,
         &midi::devicesMenu,
     },
@@ -1359,7 +1359,17 @@ PLACE_SDRAM_BSS ToggleBool defaultUseSharps{STRING_FOR_DEFAULT_UI_SHARPS, STRING
 
 PLACE_SDRAM_BSS Submenu defaultUI{
     STRING_FOR_DEFAULT_UI,
-    {&defaultAccessibilityMenu, &defaultUISession, &defaultUIKeyboard, &defaultClipTypeMenu, &defaultUseSharps},
+    {
+        &defaultAccessibilityMenu,
+        &defaultUISession,
+        &defaultUIKeyboard,
+        &defaultClipTypeMenu,
+        &defaultUseSharps,
+        &runtime_feature::menuShiftIsSticky,
+        &runtime_feature::menuEnableDX7Engine,
+        &runtime_feature::menuExperimental,
+        &runtime_feature::menuUtilities,
+    },
 };
 
 PLACE_SDRAM_BSS ToggleBool defaultAutomationInterpolateMenu{STRING_FOR_DEFAULT_AUTOMATION_INTERPOLATION,

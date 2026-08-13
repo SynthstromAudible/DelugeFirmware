@@ -14,6 +14,7 @@
  */
 
 #include "emulated_display.h"
+#include "hid/display/display.h"
 #include "model/settings/runtime_feature_settings.h"
 
 namespace deluge::gui::menu_item::runtime_feature {
@@ -36,6 +37,10 @@ void EmulatedDisplay::writeCurrentValue() {
 			hid::display::swapDisplayType();
 		}
 	}
+}
+
+bool EmulatedDisplay::isRelevant(ModControllableAudio*, int32_t) {
+	return hid::display::have_oled_screen;
 }
 
 } // namespace deluge::gui::menu_item::runtime_feature
