@@ -58,6 +58,7 @@
 #include "model/instrument/kit.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
+#include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/automation/auto_param.h"
 #include "modulation/params/param_manager.h"
@@ -1541,8 +1542,17 @@ removeReasonsFromSamplesAndGetOut:
 
 	D_PRINT("loaded from folder: %d", numSamples);
 
-	// If all samples were tagged with the same MIDI note, we get suspicious and delete them.
-	bool discardingMIDINoteFromFile = (numSamples > 1 && commonMIDINote >= 0);
+	// If all samples were tagged with the same MIDI note, we get suspicious and delete them - a
+	// keyboard-spanning library where every file claims the same root note means a broken exporter
+	// stamped them all identically. Exception: with round-robin variants available, a folder of at
+	// most kMaxRoundRobinSlots files all tagged with the same note is exactly the shape of a
+	// deliberately prepared round-robin set (up to 4 takes of one sound), so trust the tags - the
+	// grouping below then stacks them into one zone deterministically, without relying on DSP pitch
+	// detection of e.g. drum transients to land every take on the same note.
+	bool allTaggedWithSameNote = (numSamples > 1 && commonMIDINote >= 0);
+	bool keepingTagsForRoundRobin = allTaggedWithSameNote && numSamples <= kMaxRoundRobinSlots
+	                                && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants);
+	bool discardingMIDINoteFromFile = allTaggedWithSameNote && !keepingTagsForRoundRobin;
 
 	Sample** sortArea = (Sample**)GeneralMemoryAllocator::get().allocMaxSpeed(numSamples * sizeof(Sample*) * 2);
 	if (!sortArea) {
@@ -1964,6 +1974,13 @@ skipOctaveCorrection:
 	// kMaxRoundRobinAlternates + 1 samples (one primary + up to 3 alternates); any further same-note
 	// sample is dropped, the same as every duplicate used to be before this existed.
 	constexpr int32_t kMaxGroupMembers = kMaxRoundRobinAlternates + 1;
+	// With the ROUND-ROBIN SAMPLE VARIANTS community feature off, a "group" holds just one sample:
+	// every additional same-note file is dropped exactly as before the feature existed, so no
+	// alternate data gets created here - and none gets persisted on save - that couldn't be seen,
+	// edited or heard while the feature is off. (Playback and the VARIANTS menu gate on this same
+	// setting; this closes the one remaining path that could create variant data while it's off.)
+	const int32_t maxGroupMembers =
+	    runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants) ? kMaxGroupMembers : 1;
 	Sample* groupMembers[kMaxGroupMembers];
 	uint8_t groupVelocities[kMaxGroupMembers];
 	bool groupHasVelocity[kMaxGroupMembers];
@@ -2095,14 +2112,14 @@ skipOctaveCorrection:
 			groupHasVelocity[0] = tryParseVelocityFromFilename(fileNameOnly, &groupVelocities[0]);
 			groupMemberCount = 1;
 		}
-		else if (groupMemberCount < kMaxGroupMembers) {
+		else if (groupMemberCount < maxGroupMembers) {
 			groupMembers[groupMemberCount] = thisSample;
 			groupHasVelocity[groupMemberCount] =
 			    tryParseVelocityFromFilename(fileNameOnly, &groupVelocities[groupMemberCount]);
 			groupMemberCount++;
 		}
 		else {
-			D_PRINTLN("dropping sample beyond the %d-deep round-robin slot limit for this note", kMaxGroupMembers);
+			D_PRINTLN("dropping sample beyond the %d-deep round-robin slot limit for this note", maxGroupMembers);
 			thisSample->removeReason("E394");
 		}
 	}
