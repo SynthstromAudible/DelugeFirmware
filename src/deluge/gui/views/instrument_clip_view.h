@@ -361,6 +361,11 @@ private:
 	Drum* drumForNewNoteRow{};
 	uint8_t yDisplayOfNewNoteRow{};
 
+	/// Drum currently sounding from an audition pad, so drawDrumName() can tell an actual trigger
+	/// apart from a row selection or scroll and only then report the round-robin slot. Set at
+	/// note-on, cleared at note-off; only ever compared, never dereferenced.
+	Drum* drumJustAuditioned{};
+
 	int32_t quantizeAmount{};
 	uint32_t timeSongButtonPressed{};
 	// Set once a held Session button passes the long-press threshold, so short presses never flash macro colours into

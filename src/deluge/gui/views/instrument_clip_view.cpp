@@ -4706,36 +4706,42 @@ void InstrumentClipView::reassessAuditionStatus(uint8_t yDisplay) {
 }
 
 // This may send it on a different Clip, if a different one is the activeClip
-// Shows which round-robin variant a just-auditioned kit pad resolved to, e.g. "kick_2.wav (3/4)".
-// Called immediately after the drum's note-on, so lastResolvedSlotIndex is exactly the slot that
-// fired - this popup only ever appears from an actual trigger, never from row selection or
-// scrolling (those show the drum's own name via drawDrumName() as always).
-static void displayVariantPopupForAuditionedDrum(Drum* drum) {
-	if (drum == nullptr || drum->type != DrumType::SOUND
+// Appends the round-robin slot counter for a drum that was just triggered - " (3/4)" when one
+// oscillator has variants, " (3/4|2/2)" when both do (OSC1 first). Reports the zone that actually
+// sounds for a drum's note, matching Voice's own range lookup, rather than assuming zone 0.
+static void appendVariantCountersForTriggeredDrum(Drum* drum, std::string& drumName) {
+	if (drum->type != DrumType::SOUND
 	    || !runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants)) {
 		return;
 	}
 	auto* soundDrum = static_cast<SoundDrum*>(drum);
-	Source& source = soundDrum->sources[0];
-	if (source.getOscType() != OscType::SAMPLE || source.ranges.getNumElements() == 0) {
-		return;
+
+	std::string counters;
+	for (int32_t s = 0; s < kNumSources; s++) {
+		Source& source = soundDrum->sources[s];
+		if (source.getOscType() != OscType::SAMPLE || source.ranges.getNumElements() == 0) {
+			continue;
+		}
+		// getRangeIndex() rather than getRange(): same lookup, but without getRange()'s side effect
+		// of writing defaultRangeI, which belongs to the sound editor's zone selection.
+		int32_t rangeIndex = source.getRangeIndex(kNoteForDrum + soundDrum->transpose);
+		auto* range = static_cast<MultisampleRange*>(source.ranges.getElement(rangeIndex));
+		if (range->rrCount == 0) {
+			continue;
+		}
+		char buffer[8];
+		snprintf(buffer, sizeof(buffer), "%d/%d", range->lastResolvedSlotIndex + 1, range->rrCount + 1);
+		if (!counters.empty()) {
+			counters += "|";
+		}
+		counters += buffer;
 	}
-	auto* range = static_cast<MultisampleRange*>(source.ranges.getElement(0));
-	if (range->rrCount == 0) {
-		return;
+
+	if (!counters.empty()) {
+		drumName += " (";
+		drumName += counters;
+		drumName += ")";
 	}
-	SampleHolderForVoice* holder = range->getVariantHolder(range->lastResolvedSlotIndex);
-	if (holder == nullptr) {
-		return;
-	}
-	char const* path = holder->audioFile ? holder->audioFile->filePath.get() : holder->filePath.get();
-	char const* variantName = path ? getFileNameFromEndOfPath(path) : nullptr;
-	if (variantName == nullptr || *variantName == '\0') {
-		return;
-	}
-	char buffer[64];
-	snprintf(buffer, sizeof(buffer), "%s (%d/%d)", variantName, range->lastResolvedSlotIndex + 1, range->rrCount + 1);
-	display->displayPopup(buffer);
 }
 
 void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t velocity, uint32_t sampleSyncLength) {
@@ -4776,11 +4782,16 @@ void InstrumentClipView::sendAuditionNote(bool on, uint8_t yDisplay, uint8_t vel
 						FREEZE_WITH_ERROR("E325"); // Trying to catch an E313 that Vinz got
 					}
 					((Kit*)instrument)->beginAuditioningforDrum(modelStackWithNoteRow, drum, velocity, zeroMPEValues);
-					// The note-on above resolved which variant plays, so this reports that exact slot.
-					displayVariantPopupForAuditionedDrum(drum);
+					// The note-on above resolved which variant each oscillator plays, so the drum-name
+					// display that follows can report it. Marks this drum as the one currently sounding
+					// from a pad; only ever compared, never dereferenced.
+					drumJustAuditioned = drum;
 				}
 				else {
 					((Kit*)instrument)->endAuditioningForDrum(modelStackWithNoteRow, drum);
+					if (drumJustAuditioned == drum) {
+						drumJustAuditioned = nullptr;
+					}
 				}
 			}
 		}
@@ -5690,6 +5701,12 @@ void InstrumentClipView::drawDrumName(Drum* drum, bool justPopUp) {
 	}
 
 	if (display->haveOLED()) {
+		// Only when this drum is the one a pad just triggered - selecting or scrolling rows shows the
+		// drum's name alone, as it did before variants existed. 7SEG is left alone entirely: four
+		// digits have no room to spare, and individual slots can be auditioned from the VARIANTS menu.
+		if (drum != nullptr && drum == drumJustAuditioned) {
+			appendVariantCountersForTriggeredDrum(drum, drumName);
+		}
 		display->popupText(drumName.c_str());
 	}
 	else {
