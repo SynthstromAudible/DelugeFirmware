@@ -137,6 +137,8 @@ public:
 
 	bool isRangeDependent() override { return true; }
 
+	[[nodiscard]] int32_t getSourceIndexForRangeSelection() const override { return source_id_; }
+
 	bool isRelevant(ModControllableAudio* modControllable, int32_t) override {
 		const auto sound = static_cast<Sound*>(modControllable);
 		Source& source = sound->sources[source_id_];

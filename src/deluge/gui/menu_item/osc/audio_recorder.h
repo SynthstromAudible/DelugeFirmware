@@ -77,6 +77,7 @@ public:
 	[[nodiscard]] int32_t getOccupiedSlots() const override { return 2; }
 	[[nodiscard]] bool showColumnLabel() const override { return false; }
 	[[nodiscard]] bool showNotification() const override { return false; }
+	[[nodiscard]] int32_t getSourceIndexForRangeSelection() const override { return source_id_; }
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
 		using namespace hid::display;

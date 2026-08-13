@@ -33,6 +33,7 @@ public:
 	                                             ::MultiRange** currentRange) override;
 	void renderInHorizontalMenu(const SlotPosition& slot) override;
 	void getColumnLabel(StringBuf& label) override;
+	[[nodiscard]] int32_t getSourceIndexForRangeSelection() const override { return sourceId_; }
 
 	int32_t xZoom{0};
 	int32_t xScroll{0};

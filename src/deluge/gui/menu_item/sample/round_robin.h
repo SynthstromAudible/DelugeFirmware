@@ -153,6 +153,11 @@ public:
 		}
 	}
 
+	// Everything in here edits one zone's data: report range-dependence (drives the keyboard-pad
+	// zone highlight and the title-row zone indicator) and the source for the note-range picker.
+	bool isRangeDependent() override { return true; }
+	[[nodiscard]] int32_t getSourceIndexForRangeSelection() const override { return sourceId_; }
+
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		if (!runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants)
 		    || !isSampleModeSample(modControllable, sourceId_)) {
@@ -361,6 +366,10 @@ public:
 		return isSampleModeSample(modControllable, sourceId_);
 	}
 
+	// See RoundRobinSubmenu: slot pages edit one zone's data.
+	bool isRangeDependent() override { return true; }
+	[[nodiscard]] int32_t getSourceIndexForRangeSelection() const override { return sourceId_; }
+
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
 	                                             MultiRange** currentRange) override {
 		auto* sound = static_cast<Sound*>(modControllable);
@@ -432,6 +441,9 @@ public:
 		MultisampleRange* range = getRoundRobinRange(sourceId_);
 		return range != nullptr && range->rrCount > 0;
 	}
+
+	// See RoundRobinSubmenu: the mode is stored per zone.
+	bool isRangeDependent() override { return true; }
 
 	void readCurrentValue() override {
 		MultisampleRange* range = getRoundRobinRange(sourceId_);
