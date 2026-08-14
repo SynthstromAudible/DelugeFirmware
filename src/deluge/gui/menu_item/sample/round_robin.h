@@ -239,21 +239,15 @@ public:
 			return;
 		}
 
-		int32_t slotsInUse;
-		if (MultisampleRange* range = getRoundRobinRange(sourceId_); range != nullptr) {
-			// A current zone exists - always so on a single-zone source, and on a multi-zone one from
-			// the moment a zone is picked or a note is played. Report its own slots, matching the zone
-			// the title names.
-			slotsInUse = range->rrCount + 1;
-		}
-		else {
-			// Multi-zone source with no zone established yet. Nothing single to report, so total the
-			// slots across all of them - otherwise this reads blank on exactly the instruments most
-			// likely to be carrying variants.
-			slotsInUse = 0;
-			for (int32_t e = 0; e < source.ranges.getNumElements(); e++) {
-				slotsInUse += static_cast<MultisampleRange*>(source.ranges.getElement(e))->rrCount + 1;
-			}
+		// Every sample loaded on this oscillator, summed across its keyboard zones. The oscillator page
+		// makes no claim about any one zone - its title names none, and entering VARIANTS asks which zone
+		// you want - so the number sitting on it shouldn't either. Reporting the current zone's count
+		// instead made it swing between a total and a per-zone count depending on whether a zone happened
+		// to be established, so backing out of VARIANTS turned a keyboard-wide total into a bare 4.
+		// On a single zone, and so on a kit drum, this is that zone's own slot count exactly as before.
+		int32_t slotsInUse = 0;
+		for (int32_t e = 0; e < source.ranges.getNumElements(); e++) {
+			slotsInUse += static_cast<MultisampleRange*>(source.ranges.getElement(e))->rrCount + 1;
 		}
 
 		char buf[12];
