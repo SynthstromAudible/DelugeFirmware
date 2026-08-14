@@ -51,10 +51,11 @@ the same shape wherever you are, and is the same rule a Kit drum has always foll
   - `FILE` - opens the sample browser to load (or replace) that slot's sample. `SLOT 1` is the primary sample and
     can also be loaded via the regular `FILE` browser item; slots 2-4 are alternates and must be filled in order
     (the next empty slot is indicated with `Load`).
-  - `MARKERS` - opens the sample marker editor for that slot. Start, end and loop points are all editable from
-    the one screen - pressing near any marker switches focus to it - so this single entry covers everything you'd
-    otherwise need separate Start/End items for.
-  - `TRANSPOSE` and `CENTS` - per-slot pitch offsets, independent of the zone's other pitch settings.
+  - `STRT` and `END` - each opens the sample marker editor for that slot, focused on that marker. Loop points are
+    editable from the same screen: pressing near any marker switches focus to it, so these two entries cover
+    everything you'd otherwise need separate loop-point items for.
+  - `TRANSPOSE` - a per-slot pitch offset in semitones and cents, independent of the zone's other pitch settings.
+    It is one combined value, mirroring how the oscillator's own pitch is one entry rather than two.
 - Pressing `SHIFT` + `SAVE/DELETE` while an alternate slot (2-4) is selected clears that variant, shifting any
   later slots down to fill the gap.
 
