@@ -150,6 +150,11 @@ public:
 	/// and top zones), so a menu title can say which zone its edits apply to. Does nothing unless the
 	/// given source has more than one zone, so single-zone sources keep their plain titles.
 	void appendCurrentZoneDescription(std::string& out, int32_t sourceId);
+	/// True while the note-range picker is the screen we're on. A menu item's
+	/// checkPermissionToBeginSession() runs before the new screen is pushed, so an item that asks for
+	/// the picker can use this to tell "the user just picked a zone for me" from "the user is opening
+	/// me afresh and needs the picker".
+	bool inNoteRangePicker();
 	MenuPermission checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound, int32_t whichThing,
 	                                                                  ::MultiRange** previouslySelectedRange);
 	void setupExclusiveShortcutBlink(int32_t x, int32_t y);

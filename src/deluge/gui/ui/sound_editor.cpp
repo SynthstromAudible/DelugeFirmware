@@ -2170,6 +2170,10 @@ void SoundEditor::appendCurrentZoneDescription(std::string& out, int32_t sourceI
 	out += zoneText;
 }
 
+bool SoundEditor::inNoteRangePicker() {
+	return getCurrentMenuItem() == &menu_item::multiRangeMenu;
+}
+
 /*
 char modelStackMemory[MODEL_STACK_MAX_SIZE];
 ModelStackWithThreeMainThings* modelStack = soundEditor.getCurrentModelStack(modelStackMemory);
