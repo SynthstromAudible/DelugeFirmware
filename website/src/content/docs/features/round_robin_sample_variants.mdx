@@ -32,8 +32,10 @@ down applies to that one zone. The oscillator page itself keeps its plain title:
 everything left on it is a setting for the whole oscillator. The keyboard pads covering the current zone are
 lit brighter. Single-zone sources are unchanged, with no zone shown anywhere.
 
-The `VARIANTS` entry on the oscillator page shows how many sample slots are loaded: the current zone's own
-count, or the total across every zone if no zone has been picked or played yet.
+The `VARIANTS` entry on the oscillator page shows how many samples are loaded on that oscillator in total,
+counting every zone across the keyboard. It stays put as you play and as you move in and out of the menu - like
+the rest of the oscillator page, it describes the whole oscillator rather than any one zone. On a single-zone
+source it is simply that zone's own slot count.
 
 Once any zone on an oscillator has variants loaded, that oscillator's own `FILE`, `START`, `END` and
 `TRANSPOSE` items step aside, and every zone's sample is edited through `VARIANTS` instead - including zones
