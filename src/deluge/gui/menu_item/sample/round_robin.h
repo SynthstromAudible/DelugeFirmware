@@ -59,13 +59,34 @@ inline MultisampleRange* getRoundRobinRange(uint8_t sourceId) {
 	if (source.getOscType() != OscType::SAMPLE || source.ranges.getNumElements() == 0) {
 		return nullptr;
 	}
-	if (soundEditor.currentSourceIndex == sourceId && soundEditor.currentMultiRange != nullptr) {
-		return static_cast<MultisampleRange*>(soundEditor.currentMultiRange);
+	int32_t zoneIndex = soundEditor.getCurrentZoneIndex(sourceId);
+	if (zoneIndex < 0) {
+		return nullptr;
 	}
-	if (source.ranges.getNumElements() == 1) {
-		return static_cast<MultisampleRange*>(source.ranges.getElement(0));
+	return static_cast<MultisampleRange*>(source.ranges.getElement(zoneIndex));
+}
+
+/// True when any zone on this source has alternates loaded.
+///
+/// The OSC-level FILE/START/END/TRANSPOSE items step aside for the whole oscillator when this holds,
+/// rather than zone by zone: a menu that changed shape as you moved between zones would be harder to
+/// learn than one that doesn't, and this keeps every zone reached the same way - through VARIANTS.
+/// On a single-zone source (and so on a kit drum) it reduces to exactly the original rule, "does
+/// this zone have alternates", so there is one rule everywhere.
+///
+/// Gated on the community feature: with it off the VARIANTS menu is hidden, and these items are then
+/// the only way to reach a zone's sample at all.
+inline bool sourceUsesVariants(Source& source) {
+	if (!runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants)
+	    || source.getOscType() != OscType::SAMPLE) {
+		return false;
 	}
-	return nullptr;
+	for (int32_t e = 0; e < source.ranges.getNumElements(); e++) {
+		if (static_cast<MultisampleRange*>(source.ranges.getElement(e))->rrCount > 0) {
+			return true;
+		}
+	}
+	return false;
 }
 
 /// Draws the file name of the given variant slot, right-aligned in a submenu row.
@@ -206,13 +227,15 @@ public:
 
 		int32_t slotsInUse;
 		if (MultisampleRange* range = getRoundRobinRange(sourceId_); range != nullptr) {
-			// A zone is selected (always the case on a single-zone source): its own slots, 1-4.
+			// A current zone exists - always so on a single-zone source, and on a multi-zone one from
+			// the moment a zone is picked or a note is played. Report its own slots, matching the zone
+			// the title names.
 			slotsInUse = range->rrCount + 1;
 		}
 		else {
-			// Oscillator level on a multi-zone source, before a zone has been picked. No single zone
-			// to report, so total the slots loaded across all of them - otherwise this reads blank on
-			// exactly the instruments most likely to be carrying variants.
+			// Multi-zone source with no zone established yet. Nothing single to report, so total the
+			// slots across all of them - otherwise this reads blank on exactly the instruments most
+			// likely to be carrying variants.
 			slotsInUse = 0;
 			for (int32_t e = 0; e < source.ranges.getNumElements(); e++) {
 				slotsInUse += static_cast<MultisampleRange*>(source.ranges.getElement(e))->rrCount + 1;
@@ -400,12 +423,19 @@ public:
 	bool isRangeDependent() override { return true; }
 	[[nodiscard]] int32_t getSourceIndexForRangeSelection() const override { return sourceId_; }
 
-	// "SLOT 2 C3-F#4" - the slot page is two levels below the zone picker, so without this the zone
-	// its edits land on is invisible. OLED only: on 7SEG a submenu shows its focused child's name
-	// rather than a title of its own, so there is no header here to extend.
+	// "S2 C3-F#4" - the slot page is two levels below the zone picker, so without this the zone its
+	// edits land on is invisible. Abbreviated because the full "Slot 2 C3-F#4" doesn't fit beside the
+	// page counter, which every slot page has. OLED only: on 7SEG a submenu shows its focused child's
+	// name rather than a title of its own, so there is no header here to extend.
 	[[nodiscard]] std::string_view getTitle() const override {
-		title_buf_ = l10n::get(name);
-		soundEditor.appendCurrentZoneDescription(title_buf_, sourceId_);
+		std::string zone;
+		soundEditor.appendCurrentZoneDescription(zone, sourceId_);
+		if (zone.empty()) {
+			return l10n::getView(name);
+		}
+		title_buf_ = "S";
+		title_buf_ += static_cast<char>('1' + slotIndex_);
+		title_buf_ += zone;
 		return title_buf_;
 	}
 

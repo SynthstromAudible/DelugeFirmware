@@ -25,14 +25,19 @@ choose which zone to edit - the same zone-selection step used by the `FILE`/`STA
 and everything inside the menu then applies to that zone. Each zone rotates through its own variants
 independently during playback.
 
-Once a zone is picked, it stays picked for everything you edit on that oscillator until you leave it - the same
-way the zone selection has always worked for `START`, `END` and the rest. The OLED title says which zone you're
-in: the oscillator page reads `Oscillator 1 C3-F#4`, and a variant slot page reads `Slot 2 C3-F#4`. The
-keyboard pads covering that zone are lit brighter as well. Single-zone sources are unchanged, with no zone
-shown anywhere.
+Once a zone is picked, it stays picked for everything you edit on that oscillator - the same way the zone
+selection has always worked for `START`, `END` and the rest, and playing a note moves it to that note's zone.
+The OLED title names it: the oscillator page reads `O1 C3-F#4` and a variant slot page reads `S2 C3-F#4`,
+abbreviated because a full name plus a note range doesn't fit beside the page number. The keyboard pads
+covering that zone are lit brighter as well. Single-zone sources are unchanged, with no zone shown anywhere.
 
-The `VARIANTS` entry on the oscillator page shows how many sample slots are loaded: the picked zone's own count
-once you're working in a zone, or the total across every zone before one is picked.
+The `VARIANTS` entry on the oscillator page shows how many sample slots are loaded: the current zone's own
+count, or the total across every zone if no zone has been picked or played yet.
+
+Once any zone on an oscillator has variants loaded, that oscillator's own `FILE`, `START`, `END` and
+`TRANSPOSE` items step aside, and every zone's sample is edited through `VARIANTS` instead - including zones
+that only have a single sample. Hiding them for the whole oscillator rather than zone by zone keeps the menu
+the same shape wherever you are, and is the same rule a Kit drum has always followed.
 
 - `MODE` - selects how the next variant is chosen each time the zone is triggered. Only shown once at least one
   alternate is loaded.
