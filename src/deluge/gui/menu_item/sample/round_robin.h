@@ -179,6 +179,20 @@ public:
 	bool isRangeDependent() override { return true; }
 	[[nodiscard]] int32_t getSourceIndexForRangeSelection() const override { return sourceId_; }
 
+	// "Var C3-F#4" - unlike the oscillator page, everything from here down really is confined to one
+	// keyboard zone, so this is where naming it is truthful. Abbreviated to leave room for the widest
+	// note range; this screen is a plain list with no title shortening of its own to fall back on.
+	[[nodiscard]] std::string_view getTitle() const override {
+		std::string zone;
+		soundEditor.appendCurrentZoneDescription(zone, sourceId_);
+		if (zone.empty()) {
+			return l10n::getView(title);
+		}
+		title_buf_ = "Var";
+		title_buf_ += zone;
+		return title_buf_;
+	}
+
 	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
 		if (!runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants)
 		    || !isSampleModeSample(modControllable, sourceId_)) {
@@ -260,6 +274,7 @@ public:
 
 private:
 	uint8_t sourceId_;
+	mutable std::string title_buf_;
 };
 
 // Opens the sample browser for a specific slot (slotIndex 0 = primary, 1-3 = alternates).

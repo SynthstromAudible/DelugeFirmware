@@ -380,7 +380,13 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 									newItem = &menu_item::multiRangeMenu;
 								}
 								else {
-									HorizontalMenu* parent = maybeGetParentMenu(newItem);
+									// Coming back from the note-range picker, a value item wants to land on its
+									// horizontal menu page with itself highlighted, ready for the encoder. A
+									// submenu wants opening instead - redirecting it to the parent page means it
+									// never opens at all, and pushes that page onto the stack a second time, so
+									// Back then goes from the page to the same page.
+									HorizontalMenu* parent =
+									    newItem->isSubmenu() ? nullptr : maybeGetParentMenu(newItem);
 									if (parent != nullptr && parent->focusChild(newItem)) {
 										navigatedBackwardFrom = newItem;
 										newItem = parent;
