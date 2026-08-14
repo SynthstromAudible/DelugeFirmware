@@ -191,7 +191,7 @@ SampleHolderForVoice* MultisampleRange::resolveVariant(uint8_t velocity, uint8_t
 			                                     rrCount > 1 ? (uint8_t)random(rrCount - 1) : 0);
 			break;
 		case RRMode::Velocity:
-			slotIndex = resolveVelocitySlotIndex(rrCount, velocity, alternates);
+			slotIndex = resolveVelocitySlotIndex(rrCount, velocity, alternates, rrIndex);
 			break;
 		default: // RRMode::Cycle
 			slotIndex = resolveNextSlotIndex(rrCount, rrIndex);
