@@ -2098,52 +2098,37 @@ void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 	}
 
 	currentMenuItem->renderOLED();
+}
 
-	// While a zone-scoped item is open on a multi-zone source, show which zone is being edited,
-	// right-aligned on the title row - the zone picked through the note-range picker is otherwise
-	// invisible once inside the item. (The picker itself already displays the ranges, so it's
-	// excluded.) Rendered like the picker's own text: "-C4" for the bottom zone, "C#4-" for the
-	// top one, "C3-F#4" in between. While one of the zone's variant slots is being edited, the
-	// slot number is prefixed too ("S2 C3-F#4"); if the title is too long for that, the prefix is
-	// dropped first, then the whole indicator. Single-zone sources show nothing - there the zone
-	// is unambiguous and the slot is already named by the slot page's own title.
-	if (currentMenuItem != &menu_item::multiRangeMenu && currentMenuItem->isRangeDependent() && currentSound != nullptr
-	    && currentSource != nullptr && currentMultiRange != nullptr && currentSource->ranges.getNumElements() > 1
-	    && currentMultiRangeIndex >= 0 && currentMultiRangeIndex < currentSource->ranges.getNumElements()) {
-		char zoneText[12];
-		char* pos = zoneText;
-		if (currentMultiRangeIndex > 0) {
-			noteCodeToString(currentSource->ranges.getElement(currentMultiRangeIndex - 1)->topNote + 1, pos);
-			pos = zoneText + strlen(zoneText);
-		}
-		*(pos++) = '-';
-		*pos = 0;
-		if (currentMultiRangeIndex < currentSource->ranges.getNumElements() - 1) {
-			noteCodeToString(currentSource->ranges.getElement(currentMultiRangeIndex)->topNote, pos);
-		}
-
-		char slotAndZoneText[16];
-		char const* indicator = zoneText;
-		int32_t auditionSlot = MultisampleRange::getAuditionSlotFor(currentMultiRange);
-		if (auditionSlot >= 0) {
-			snprintf(slotAndZoneText, sizeof(slotAndZoneText), "S%d %s", (int)(auditionSlot + 1), zoneText);
-			indicator = slotAndZoneText;
-		}
-
-		int32_t titleWidth = (int32_t)currentMenuItem->getTitle().size() * kTextTitleSpacingX;
-		auto fitsNextToTitle = [&](char const* text) {
-			return OLED_MAIN_WIDTH_PIXELS - (int32_t)strlen(text) * kTextSpacingX > titleWidth + kTextSpacingX;
-		};
-
-		// Degrade gracefully next to a long title: full "S2 C3-F#4" first, zone-only next, nothing last.
-		if (!fitsNextToTitle(indicator)) {
-			indicator = zoneText;
-		}
-		if (fitsNextToTitle(indicator)) {
-			int32_t startX = OLED_MAIN_WIDTH_PIXELS - (int32_t)strlen(indicator) * kTextSpacingX;
-			canvas.drawString(indicator, startX, OLED_MAIN_TOPMOST_PIXEL + 2, kTextSpacingX, kTextSpacingY);
-		}
+// Zone-scoped menus carry the picked zone in their own title (see submenu::ActualSource and
+// sample::RoundRobinSlot) rather than drawing it separately - the top-right corner of the title row
+// is already taken by the horizontal menu's page counter.
+void SoundEditor::appendCurrentZoneDescription(std::string& out, int32_t sourceId) {
+	if (currentSound == nullptr || currentSource == nullptr || currentSourceIndex != sourceId
+	    || currentMultiRange == nullptr) {
+		return;
 	}
+	int32_t numRanges = currentSource->ranges.getNumElements();
+	if (numRanges <= 1 || currentMultiRangeIndex < 0 || currentMultiRangeIndex >= numRanges) {
+		return;
+	}
+
+	// Same vocabulary the note-range picker itself uses: "-C4" for the bottom zone, "C#4-" for the
+	// top one, "C3-F#4" in between.
+	char zoneText[12];
+	char* pos = zoneText;
+	if (currentMultiRangeIndex > 0) {
+		noteCodeToString(currentSource->ranges.getElement(currentMultiRangeIndex - 1)->topNote + 1, pos);
+		pos = zoneText + strlen(zoneText);
+	}
+	*(pos++) = '-';
+	*pos = 0;
+	if (currentMultiRangeIndex < numRanges - 1) {
+		noteCodeToString(currentSource->ranges.getElement(currentMultiRangeIndex)->topNote, pos);
+	}
+
+	out += " ";
+	out += zoneText;
 }
 
 /*

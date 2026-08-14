@@ -178,19 +178,49 @@ public:
 		// has already set currentMultiRange by the time we get here (see
 		// checkPermissionToBeginSession below), and setCurrentSource() preserves a non-null range.
 		soundEditor.setCurrentSource(sourceId_);
+
+		// Submenu::beginSession() clears currentMultiRange before it filters the children, which
+		// would throw away the zone the picker just selected: Mode would then see no zone and filter
+		// itself out, and entering a slot would send you back through the picker. Carry it across the
+		// call, exactly as HorizontalMenu::beginSession() already does for its own children.
+		::MultiRange* selectedRange = soundEditor.currentMultiRange;
+		int16_t selectedRangeIndex = soundEditor.currentMultiRangeIndex;
 		Submenu::beginSession(navigatedBackwardFrom);
+		soundEditor.currentMultiRange = selectedRange;
+		soundEditor.currentMultiRangeIndex = selectedRangeIndex;
+
 		// At the Variants list level no specific slot is being edited, so auditioning follows the
 		// normal round-robin again.
 		MultisampleRange::clearAuditionSlot();
 	}
 
 	void renderInHorizontalMenu(const SlotPosition& slot) override {
-		MultisampleRange* range = getRoundRobinRange(sourceId_);
-		if (range == nullptr) {
+		auto* sound = soundEditor.currentSound;
+		if (sound == nullptr) {
 			return;
 		}
-		// Show how many variant slots are in use (1-4).
-		char buf[2] = {static_cast<char>('1' + range->rrCount), '\0'};
+		Source& source = sound->sources[sourceId_];
+		if (source.getOscType() != OscType::SAMPLE || source.ranges.getNumElements() == 0) {
+			return;
+		}
+
+		int32_t slotsInUse;
+		if (MultisampleRange* range = getRoundRobinRange(sourceId_); range != nullptr) {
+			// A zone is selected (always the case on a single-zone source): its own slots, 1-4.
+			slotsInUse = range->rrCount + 1;
+		}
+		else {
+			// Oscillator level on a multi-zone source, before a zone has been picked. No single zone
+			// to report, so total the slots loaded across all of them - otherwise this reads blank on
+			// exactly the instruments most likely to be carrying variants.
+			slotsInUse = 0;
+			for (int32_t e = 0; e < source.ranges.getNumElements(); e++) {
+				slotsInUse += static_cast<MultisampleRange*>(source.ranges.getElement(e))->rrCount + 1;
+			}
+		}
+
+		char buf[12];
+		intToString(slotsInUse, buf);
 		deluge::hid::display::OLED::main.drawStringCentered(buf, slot.start_x,
 		                                                    slot.start_y + kHorizontalMenuSlotYOffset,
 		                                                    kTextTitleSpacingX, kTextTitleSizeY, slot.width);
@@ -370,6 +400,15 @@ public:
 	bool isRangeDependent() override { return true; }
 	[[nodiscard]] int32_t getSourceIndexForRangeSelection() const override { return sourceId_; }
 
+	// "SLOT 2 C3-F#4" - the slot page is two levels below the zone picker, so without this the zone
+	// its edits land on is invisible. OLED only: on 7SEG a submenu shows its focused child's name
+	// rather than a title of its own, so there is no header here to extend.
+	[[nodiscard]] std::string_view getTitle() const override {
+		title_buf_ = l10n::get(name);
+		soundEditor.appendCurrentZoneDescription(title_buf_, sourceId_);
+		return title_buf_;
+	}
+
 	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
 	                                             MultiRange** currentRange) override {
 		auto* sound = static_cast<Sound*>(modControllable);
@@ -423,6 +462,7 @@ public:
 private:
 	uint8_t sourceId_;
 	uint8_t slotIndex_;
+	mutable std::string title_buf_;
 };
 
 class RoundRobinMode final : public menu_item::Selection {

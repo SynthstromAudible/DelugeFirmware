@@ -22,6 +22,7 @@
 #include "gui/ui/ui.h"
 #include "hid/button.h"
 #include "modulation/arpeggiator.h"
+#include <string>
 
 #define SHORTCUTS_VERSION_1 0
 #define SHORTCUTS_VERSION_3 1
@@ -141,6 +142,11 @@ public:
 	bool isUntransposedNoteWithinRange(int32_t noteCode);
 	void setCurrentMultiRange(int32_t i);
 	void possibleChangeToCurrentRangeDisplay();
+	/// Appends the currently selected keyboard zone to `out` as " C3-F#4" (or " -C4" / " C#4-" for the
+	/// bottom and top zones), so a menu title can say which zone its edits apply to. Does nothing
+	/// unless the given source has more than one zone and one of them is currently selected, so
+	/// single-zone sources keep their plain titles.
+	void appendCurrentZoneDescription(std::string& out, int32_t sourceId);
 	MenuPermission checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound, int32_t whichThing,
 	                                                                  ::MultiRange** previouslySelectedRange);
 	void setupExclusiveShortcutBlink(int32_t x, int32_t y);

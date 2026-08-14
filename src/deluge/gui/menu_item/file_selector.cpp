@@ -68,15 +68,13 @@ bool FileSelector::isRelevant(ModControllableAudio* modControllable, int32_t whi
 		return false;
 	}
 
-	// Once an alternate variant is loaded on a sole-zone source, loading into slot 0 here would be a
-	// second path to the exact same data as the per-variant File item, so this OSC-level entry steps
-	// aside. On a multi-zone source it always stays: it's the zone flow's file entry for every zone,
-	// including zones that have no variants at all.
-	if (sound->sources[sourceId_].ranges.getNumElements() == 1) {
-		MultisampleRange* range = sample::getRoundRobinRange(sourceId_);
-		return range == nullptr || range->rrCount == 0;
-	}
-	return true;
+	// Once an alternate variant is loaded, loading into slot 0 here would be a second path to the
+	// exact same data as the per-variant File item, so this OSC-level entry steps aside. On a
+	// multi-zone source that applies per zone: getRoundRobinRange() reports the picked zone, or
+	// nothing at all until one is picked - so the entry stays available for reaching the picker, and
+	// for zones that have no variants of their own.
+	MultisampleRange* range = sample::getRoundRobinRange(sourceId_);
+	return range == nullptr || range->rrCount == 0;
 }
 MenuPermission FileSelector::checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
                                                            ::MultiRange** currentRange) {
