@@ -3360,6 +3360,14 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 			source->cents = reader.readTagOrAttributeValueInt();
 			reader.exitTag("cents");
 		}
+		// Deliberately not called "volume": at this level that name is already the oscillator's own
+		// LOCAL_OSC_x_VOLUME param, read a few branches above.
+		else if (!strcmp(tagName, "variantVolume")) {
+			if (MultiRange* range = source->getOrCreateFirstRange(); range != nullptr) {
+				((SampleHolderForVoice*)range->getAudioFileHolder())->volume = reader.readTagOrAttributeValueInt();
+			}
+			reader.exitTag("variantVolume");
+		}
 		else if (!strcmp(tagName, "loopMode")) {
 			source->repeatMode = static_cast<SampleRepeatMode>(reader.readTagOrAttributeValueInt());
 			source->repeatMode = std::min(source->repeatMode, static_cast<SampleRepeatMode>(kNumRepeatModes - 1));
@@ -3565,6 +3573,10 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 								((SampleHolderForVoice*)holder)->setCents(reader.readTagOrAttributeValueInt());
 								reader.exitTag("cents");
 							}
+							else if (!strcmp(tagName, "variantVolume")) {
+								((SampleHolderForVoice*)holder)->volume = reader.readTagOrAttributeValueInt();
+								reader.exitTag("variantVolume");
+							}
 							else if (!strcmp(tagName, "roundRobinAlternates")) {
 								Error error = readRoundRobinAlternates(reader, (MultisampleRange*)tempRange);
 								if (error != Error::NONE) {
@@ -3676,6 +3688,9 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 			if (range->sampleHolder.cents) {
 				writer.writeAttribute("cents", range->sampleHolder.cents);
 			}
+			if (range->sampleHolder.volume != kVariantVolumeUnity) {
+				writer.writeAttribute("variantVolume", range->sampleHolder.volume);
+			}
 
 			writer.writeOpeningTagEnd();
 
@@ -3711,6 +3726,9 @@ void Sound::writeSourceToFile(Serializer& writer, int32_t s, char const* tagName
 					}
 					if (alternateHolder->cents) {
 						writer.writeAttribute("cents", alternateHolder->cents);
+					}
+					if (alternateHolder->volume != kVariantVolumeUnity) {
+						writer.writeAttribute("variantVolume", alternateHolder->volume);
 					}
 					writer.writeOpeningTagEnd();
 

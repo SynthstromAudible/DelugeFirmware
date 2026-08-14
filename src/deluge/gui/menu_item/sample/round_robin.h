@@ -19,6 +19,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/menu_item/decimal.h"
 #include "gui/menu_item/horizontal_menu.h"
+#include "gui/menu_item/integer.h"
 #include "gui/menu_item/sample/loop_point.h"
 #include "gui/menu_item/sample/utils.h"
 #include "gui/menu_item/selection.h"
@@ -417,6 +418,57 @@ public:
 			computeFinalValuesForTranspose(this->getValue(), &transpose, &cents);
 			holder->transpose = transpose;
 			holder->setCents(cents);
+			getCurrentInstrument()->beenEdited();
+		}
+	}
+
+private:
+	SampleHolderForVoice* getHolder() const {
+		MultisampleRange* range = getRoundRobinRange(sourceId_);
+		return range != nullptr ? range->getVariantHolder(slotIndex_) : nullptr;
+	}
+
+	uint8_t sourceId_;
+	uint8_t slotIndex_;
+};
+
+// Per-slot level trim, 0-50 with 50 as unity, stored on the slot's own holder right beside the
+// transpose/cents that VariantTranspose edits. Attenuation only: round-robin takes usually need the
+// loud one pulled down, and a boost would have to fight the amplitude headroom limits in
+// Voice::render(). Edited in place with the select encoder, like the rest of the slot page.
+class VariantVolume final : public Integer {
+public:
+	VariantVolume(l10n::String newName, uint8_t sourceId, uint8_t slotIndex)
+	    : Integer(newName), sourceId_(sourceId), slotIndex_(slotIndex) {}
+
+	bool isRangeDependent() override { return true; }
+
+	bool isRelevant(ModControllableAudio* modControllable, int32_t whichThing) override {
+		return isSampleModeSample(modControllable, sourceId_) && variantHolderIsLoaded(sourceId_, slotIndex_);
+	}
+
+	MenuPermission checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t whichThing,
+	                                             MultiRange** currentRange) override {
+		return checkVariantHolderPermission(modControllable, sourceId_, slotIndex_, currentRange);
+	}
+
+	[[nodiscard]] int32_t getMinValue() const override { return 0; }
+	[[nodiscard]] int32_t getMaxValue() const override { return kVariantVolumeUnity; }
+
+	// A knob says less than the number here, and two digits fit a column comfortably.
+	[[nodiscard]] RenderingStyle getRenderingStyle() const override { return NUMBER; }
+
+	void getColumnLabel(StringBuf& label) override { label.append(l10n::get(l10n::String::STRING_FOR_VOLUME_SHORT)); }
+
+	void readCurrentValue() override {
+		if (SampleHolderForVoice* holder = getHolder(); holder != nullptr) {
+			this->setValue(holder->volume);
+		}
+	}
+
+	void writeCurrentValue() override {
+		if (SampleHolderForVoice* holder = getHolder(); holder != nullptr) {
+			holder->volume = (uint8_t)this->getValue();
 			getCurrentInstrument()->beenEdited();
 		}
 	}

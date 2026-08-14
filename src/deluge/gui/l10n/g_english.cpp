@@ -1000,6 +1000,8 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_CYCLE, "Cycle"},
         {STRING_FOR_NO_REPEAT, "No Repeat"},
         {STRING_FOR_LOAD, "Load"},
+        {STRING_FOR_VARIANT_VOLUME, "Volume"},
+        {STRING_FOR_VOLUME_SHORT, "VOL"},
     },
 };
 } // namespace deluge::l10n::built_in

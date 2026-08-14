@@ -1070,6 +1070,21 @@ skipAutoRelease: {}
 			}
 		}
 
+		// Apply each sample's own level trim, so round-robin takes recorded at different levels can be
+		// balanced against each other. The variant is resolved once at note-on and fixed for the note,
+		// so this is a constant scale folded in here - once per source per render block - rather than
+		// anything per-sample. Attenuation only, so it can't push the amplitude past the headroom the
+		// limits above are protecting.
+		for (int32_t s = 0; s < kNumSources; s++) {
+			if (sound.sources[s].oscType != OscType::SAMPLE || guides[s].audioFileHolder == nullptr) {
+				continue;
+			}
+			uint8_t trim = static_cast<SampleHolderForVoice*>(guides[s].audioFileHolder)->volume;
+			if (trim < kVariantVolumeUnity) {
+				sourceAmplitudes[s] = (int32_t)(((int64_t)sourceAmplitudes[s] * trim) / kVariantVolumeUnity);
+			}
+		}
+
 		bool shouldAvoidIncrementing = doneFirstRender ? (filterGainLastTime != filterGain)
 		                                               : (paramFinalValues[params::LOCAL_ENV_0_ATTACK] > 245632);
 

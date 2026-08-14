@@ -556,6 +556,7 @@ PLACE_SDRAM_DATA Language seven_segment{
         {STRING_FOR_CENTS, "CENT"},
         {STRING_FOR_CYCLE, "CYCL"},
         {STRING_FOR_NO_REPEAT, "NREP"},
+        {STRING_FOR_VARIANT_VOLUME, "VOL"},
     },
     &built_in::english,
 };

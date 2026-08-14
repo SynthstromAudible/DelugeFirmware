@@ -56,6 +56,9 @@ the same shape wherever you are, and is the same rule a Kit drum has always foll
     everything you'd otherwise need separate loop-point items for.
   - `TRANSPOSE` - a per-slot pitch offset in semitones and cents, independent of the zone's other pitch settings.
     It is one combined value, mirroring how the oscillator's own pitch is one entry rather than two.
+  - `VOL` - a per-slot level trim on the familiar 0-50 scale, where 50 is unity and 0 is silence. Takes recorded
+    at different levels rarely match, and this pulls the loud ones into line without touching the oscillator's
+    own volume. It only attenuates - there is no boost - so it can never push a variant into clipping.
 - Pressing `SHIFT` + `SAVE/DELETE` while an alternate slot (2-4) is selected clears that variant, shifting any
   later slots down to fill the gap.
 
