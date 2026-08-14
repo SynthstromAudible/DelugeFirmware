@@ -36,7 +36,12 @@ public:
 			l10nString = l10n::String::STRING_FOR_OSC_SAMPLE_MENU_TITLE;
 		}
 
-		return getNameOrTitle(l10nString);
+		getNameOrTitle(l10nString);
+		// Once a keyboard zone has been picked on a multi-zone source, everything this page edits
+		// applies to that zone - so name it here, where the title otherwise says only which
+		// oscillator you're on. Appends nothing on single-zone sources.
+		soundEditor.appendCurrentZoneDescription(name_or_title_, source_id_);
+		return name_or_title_;
 	}
 
 	// 7seg Only
