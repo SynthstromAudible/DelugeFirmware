@@ -142,10 +142,13 @@ public:
 	bool isUntransposedNoteWithinRange(int32_t noteCode);
 	void setCurrentMultiRange(int32_t i);
 	void possibleChangeToCurrentRangeDisplay();
-	/// Appends the currently selected keyboard zone to `out` as " C3-F#4" (or " -C4" / " C#4-" for the
-	/// bottom and top zones), so a menu title can say which zone its edits apply to. Does nothing
-	/// unless the given source has more than one zone and one of them is currently selected, so
-	/// single-zone sources keep their plain titles.
+	/// The keyboard zone the menus are currently working on for the given source, or -1 if there
+	/// isn't one. Prefers the zone picked for this editing session; falls back to the source's own
+	/// defaultRangeI, which survives the menu navigation that clears currentMultiRange.
+	int32_t getCurrentZoneIndex(int32_t sourceId);
+	/// Appends the current keyboard zone to `out` as " C3-F#4" (or " -C4" / " C#4-" for the bottom
+	/// and top zones), so a menu title can say which zone its edits apply to. Does nothing unless the
+	/// given source has more than one zone, so single-zone sources keep their plain titles.
 	void appendCurrentZoneDescription(std::string& out, int32_t sourceId);
 	MenuPermission checkPermissionToBeginSessionForRangeSpecificParam(Sound* sound, int32_t whichThing,
 	                                                                  ::MultiRange** previouslySelectedRange);

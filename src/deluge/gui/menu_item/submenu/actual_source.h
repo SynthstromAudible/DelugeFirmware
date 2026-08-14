@@ -27,6 +27,21 @@ public:
 
 	[[nodiscard]] std::string_view getName() const override { return getNameOrTitle(title); }
 	[[nodiscard]] std::string_view getTitle() const override {
+		// On a multi-zone source everything this page edits applies to one keyboard zone, which the
+		// title otherwise never named. There is only room for about eleven characters beside the page
+		// counter, so the oscillator's name gives way to "O1" - "Oscillator 1 C3-F#4" would be drawn
+		// straight over the counter. Held across every page too: the usual switch to "Osc1 sample" on
+		// page 2 made the title move about while scrolling, right when it is being relied on for
+		// context.
+		std::string zone;
+		soundEditor.appendCurrentZoneDescription(zone, source_id_);
+		if (!zone.empty()) {
+			name_or_title_ = "O";
+			name_or_title_ += static_cast<char>('1' + source_id_);
+			name_or_title_ += zone;
+			return name_or_title_;
+		}
+
 		auto l10nString = title;
 
 		// If we are in the sample oscillator menu and not on the first page,
@@ -36,12 +51,7 @@ public:
 			l10nString = l10n::String::STRING_FOR_OSC_SAMPLE_MENU_TITLE;
 		}
 
-		getNameOrTitle(l10nString);
-		// Once a keyboard zone has been picked on a multi-zone source, everything this page edits
-		// applies to that zone - so name it here, where the title otherwise says only which
-		// oscillator you're on. Appends nothing on single-zone sources.
-		soundEditor.appendCurrentZoneDescription(name_or_title_, source_id_);
-		return name_or_title_;
+		return getNameOrTitle(l10nString);
 	}
 
 	// 7seg Only

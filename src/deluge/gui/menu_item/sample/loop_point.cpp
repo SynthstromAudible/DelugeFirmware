@@ -36,11 +36,11 @@ bool LoopPoint::isRelevant(ModControllableAudio* modControllable, int32_t) {
 	if (!isSampleModeSample(modControllable, sourceId_)) {
 		return false;
 	}
-	// Once an alternate variant is loaded, editing slot 0's markers here would be a second path to
-	// the exact same data as the per-variant Strt/End items, so this OSC-level entry steps aside. On
-	// a multi-zone source that applies per zone - see FileSelector::isRelevant() for the detail.
-	MultisampleRange* range = getRoundRobinRange(sourceId_);
-	return range == nullptr || range->rrCount == 0;
+	// Once any zone on this oscillator has alternates loaded, editing slot 1's markers here would be
+	// a second path to the exact same data as the per-variant Strt/End items, so this OSC-level entry
+	// steps aside for every zone alike - see sample::sourceUsesVariants().
+	auto* sound = static_cast<Sound*>(modControllable);
+	return !sourceUsesVariants(sound->sources[sourceId_]);
 }
 
 MenuPermission LoopPoint::checkPermissionToBeginSession(ModControllableAudio* modControllable, int32_t,

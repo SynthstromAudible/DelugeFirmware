@@ -2103,13 +2103,46 @@ void SoundEditor::renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) 
 // Zone-scoped menus carry the picked zone in their own title (see submenu::ActualSource and
 // sample::RoundRobinSlot) rather than drawing it separately - the top-right corner of the title row
 // is already taken by the horizontal menu's page counter.
+int32_t SoundEditor::getCurrentZoneIndex(int32_t sourceId) {
+	if (currentSound == nullptr) {
+		return -1;
+	}
+	Source& source = currentSound->sources[sourceId];
+	int32_t numRanges = source.ranges.getNumElements();
+	if (numRanges == 0) {
+		return -1;
+	}
+	if (numRanges == 1) {
+		return 0;
+	}
+
+	// The zone picked for this editing session, while the editor still holds it.
+	if (currentSourceIndex == sourceId && currentMultiRange != nullptr && currentMultiRangeIndex >= 0
+	    && currentMultiRangeIndex < numRanges) {
+		return currentMultiRangeIndex;
+	}
+
+	// Otherwise the source's own record of its current zone. currentMultiRange is transient - several
+	// navigation paths clear it (Submenu::beginSession, switching between chained horizontal menus,
+	// selecting an item by instrument button) and only some put it back, which used to leave the
+	// menus behaving as though no zone had ever been picked. defaultRangeI outlives all of that; the
+	// note-range picker writes it when a zone is chosen, and playback keeps it pointed at the zone
+	// the last note landed in.
+	if (source.defaultRangeI >= 0 && source.defaultRangeI < numRanges) {
+		return source.defaultRangeI;
+	}
+	return -1;
+}
+
 void SoundEditor::appendCurrentZoneDescription(std::string& out, int32_t sourceId) {
-	if (currentSound == nullptr || currentSource == nullptr || currentSourceIndex != sourceId
-	    || currentMultiRange == nullptr) {
+	if (currentSound == nullptr) {
 		return;
 	}
-	int32_t numRanges = currentSource->ranges.getNumElements();
-	if (numRanges <= 1 || currentMultiRangeIndex < 0 || currentMultiRangeIndex >= numRanges) {
+	Source& source = currentSound->sources[sourceId];
+	int32_t numRanges = source.ranges.getNumElements();
+	int32_t zoneIndex = getCurrentZoneIndex(sourceId);
+	// Nothing to say on a single-zone source: there is no other zone to distinguish it from.
+	if (numRanges <= 1 || zoneIndex < 0) {
 		return;
 	}
 
@@ -2117,14 +2150,14 @@ void SoundEditor::appendCurrentZoneDescription(std::string& out, int32_t sourceI
 	// top one, "C3-F#4" in between.
 	char zoneText[12];
 	char* pos = zoneText;
-	if (currentMultiRangeIndex > 0) {
-		noteCodeToString(currentSource->ranges.getElement(currentMultiRangeIndex - 1)->topNote + 1, pos);
+	if (zoneIndex > 0) {
+		noteCodeToString(source.ranges.getElement(zoneIndex - 1)->topNote + 1, pos);
 		pos = zoneText + strlen(zoneText);
 	}
 	*(pos++) = '-';
 	*pos = 0;
-	if (currentMultiRangeIndex < numRanges - 1) {
-		noteCodeToString(currentSource->ranges.getElement(currentMultiRangeIndex)->topNote, pos);
+	if (zoneIndex < numRanges - 1) {
+		noteCodeToString(source.ranges.getElement(zoneIndex)->topNote, pos);
 	}
 
 	out += " ";
