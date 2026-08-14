@@ -47,8 +47,8 @@ the same shape wherever you are, and is the same rule a Kit drum has always foll
   - `CYCLE` - play the loaded slots in order, wrapping around (classic round-robin).
   - `RANDOM` - pick any loaded slot at random.
   - `NO REPEAT` - pick a random slot, but never repeat the slot that just played.
-  - `VELOCITY` - pick the slot whose velocity range covers the incoming note's velocity, so the slots become
-    velocity layers rather than a rotation.
+  - `VELOCITY` - pick a slot whose velocity range covers the incoming note's velocity, so the slots become
+    velocity layers rather than a rotation. See below for what happens where ranges overlap.
 - `SLOT 1` through `SLOT 4` - each opens a submenu for that slot:
   - `FILE` - opens the sample browser to load (or replace) that slot's sample. `SLOT 1` is the primary sample and
     can also be loaded via the regular `FILE` browser item; slots 2-4 are alternates and must be filled in order
@@ -76,6 +76,21 @@ the same shape wherever you are, and is the same rule a Kit drum has always foll
 - A slot whose sample can't be found on the card is passed over when the zone plays, rather than sounding as a
   silent note, until a sample is loaded into it again.
 - Slicing a sample into a kit, or importing a folder as a kit, clears the variants of the drum it starts from.
+
+### Overlapping velocity ranges
+
+Velocity ranges may overlap, and by default they all do - every slot starts at the full 1-127. Where several
+slots cover the incoming velocity, they are round-robined between: **velocity picks the band, and the cycle
+picks the take within it.** Put slots 1 and 2 on 1-64 and slots 3 and 4 on 65-127 and you get two velocity
+layers of two alternating takes each, which is more than a plain velocity switch can do. Where nothing overlaps,
+exactly one slot ever matches and this is the straightforward velocity switch it appears to be.
+
+Velocities that fall in a gap between configured ranges play slot 1, so a zone always makes a sound.
+
+This differs from an MPC, where overlapping layers sound *together* - a Deluge voice plays one sample per
+oscillator, so the overlap alternates instead of stacking. The cycle position is carried across bands rather
+than kept per band, so alternating hard and soft hits keeps working through each band's takes instead of
+sticking on the first one.
 
 ## Shortcuts
 

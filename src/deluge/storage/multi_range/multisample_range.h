@@ -191,26 +191,56 @@ public:
 		return pick;
 	}
 
-	/// Picks the slot whose configured [min, max] velocity range contains `velocity`, the same way
-	/// MPC's Velocity layer-play mode works. Scans slots 0..rrCount in order and returns the first
-	/// match; if none match (gaps between configured ranges are allowed, not an error), falls back
-	/// to slot 0. `alts` may be nullptr (e.g. a hand-edited song claiming RRMode::Velocity with no
-	/// alternates ever loaded) - defaults apply just as if every slot's range were unset.
+	/// Picks the slot to play from those whose configured [min, max] velocity range contains
+	/// `velocity`, the way MPC's Velocity layer-play mode works. If none match (gaps between
+	/// configured ranges are allowed, not an error), falls back to slot 0. `alts` may be nullptr
+	/// (e.g. a hand-edited song claiming RRMode::Velocity with no alternates ever loaded) - defaults
+	/// apply just as if every slot's range were unset.
+	///
+	/// Ranges are free to overlap, and on an MPC they usually do: every layer starts at the full
+	/// range, and overlapping a little (1-45 against 40-85) is the normal way to soften the step
+	/// between layers. There a shared band plays both layers stacked; a Deluge voice has one sample
+	/// per oscillator, so instead the band's slots are round-robined between - velocity picks the
+	/// band, and the cycle picks the take within it. Two slots on 1-64 and two on 65-127 gives two
+	/// velocity layers of two alternating takes each. Where nothing overlaps exactly one slot ever
+	/// matches, so this is the plain velocity switch it has always been.
+	///
+	/// `rrIndex` is a position within the matching band rather than a slot number, and is shared
+	/// with Cycle mode's own index. Moving to a band with fewer slots in it simply wraps, the same
+	/// way resolveNextSlotIndex() wraps when rrCount shrinks.
 	///
 	/// velocity == 128 is an internal "max" sentinel Voice::noteOn uses for the VELOCITY patch
 	/// source (see voice.cpp) - never a genuine pad-hit or MIDI velocity - so it's clamped to 127
 	/// before matching; otherwise it would fail to fall inside any slot's range, since ranges are
 	/// capped at 127.
-	static uint8_t resolveVelocitySlotIndex(uint8_t rrCount, uint8_t velocity, const RoundRobinAlternates* alts) {
+	static uint8_t resolveVelocitySlotIndex(uint8_t rrCount, uint8_t velocity, const RoundRobinAlternates* alts,
+	                                        uint8_t& rrIndex) {
 		uint8_t clampedVelocity = (velocity > kDefaultVelocityMax) ? kDefaultVelocityMax : velocity;
-		for (uint8_t slotIndex = 0; slotIndex <= rrCount; slotIndex++) {
+
+		uint8_t matches[kMaxRoundRobinSlots];
+		uint8_t numMatches = 0;
+		for (uint8_t slotIndex = 0; slotIndex <= rrCount && slotIndex < kMaxRoundRobinSlots; slotIndex++) {
 			uint8_t min = (alts != nullptr) ? alts->velocityRangeMin[slotIndex] : kDefaultVelocityMin;
 			uint8_t max = (alts != nullptr) ? alts->velocityRangeMax[slotIndex] : kDefaultVelocityMax;
 			if (clampedVelocity >= min && clampedVelocity <= max) {
-				return slotIndex;
+				matches[numMatches++] = slotIndex;
 			}
 		}
-		return 0;
+
+		if (numMatches == 0) {
+			return 0;
+		}
+
+		// Read-then-advance over the matching slots, same shape as resolveNextSlotIndex().
+		if (rrIndex >= numMatches) {
+			rrIndex = 0;
+		}
+		uint8_t slotIndex = matches[rrIndex];
+		rrIndex++;
+		if (rrIndex >= numMatches) {
+			rrIndex = 0;
+		}
+		return slotIndex;
 	}
 
 	/// Returns slotIndex's configured velocity range, or the full 1-127 default if that slot's
