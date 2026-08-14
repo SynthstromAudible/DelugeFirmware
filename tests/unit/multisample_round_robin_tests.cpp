@@ -197,12 +197,17 @@ TEST(MultisampleRoundRobinStaleState, cycleAfterRandomModeStaysInPool) {
 
 TEST_GROUP(MultisampleRoundRobinVelocityMode){};
 
-TEST(MultisampleRoundRobinVelocityMode, allDefaultFullRangeAlwaysMatchesSlotZero) {
-	// Every slot defaults to the full 1-127 range, so slot 0 (scanned first) always wins.
+TEST(MultisampleRoundRobinVelocityMode, allDefaultFullRangeCyclesEverySlot) {
+	// Every slot defaults to the full 1-127 range, so every slot matches at any velocity and the
+	// whole pool round-robins - the same thing an MPC pad does before you narrow any layer, except
+	// it stacks them where we alternate.
 	RoundRobinAlternates alts{};
-	CHECK_EQUAL(0, MultisampleRange::resolveVelocitySlotIndex(3, 1, &alts));
-	CHECK_EQUAL(0, MultisampleRange::resolveVelocitySlotIndex(3, 64, &alts));
-	CHECK_EQUAL(0, MultisampleRange::resolveVelocitySlotIndex(3, 127, &alts));
+	uint8_t rrIndex = 0;
+	CHECK_EQUAL(0, MultisampleRange::resolveVelocitySlotIndex(3, 1, &alts, rrIndex));
+	CHECK_EQUAL(1, MultisampleRange::resolveVelocitySlotIndex(3, 64, &alts, rrIndex));
+	CHECK_EQUAL(2, MultisampleRange::resolveVelocitySlotIndex(3, 127, &alts, rrIndex));
+	CHECK_EQUAL(3, MultisampleRange::resolveVelocitySlotIndex(3, 100, &alts, rrIndex));
+	CHECK_EQUAL(0, MultisampleRange::resolveVelocitySlotIndex(3, 100, &alts, rrIndex)); // wrapped
 }
 
 TEST(MultisampleRoundRobinVelocityMode, velocityInsideExactlyOneSlotRangeMatchesThatSlot) {
@@ -214,9 +219,13 @@ TEST(MultisampleRoundRobinVelocityMode, velocityInsideExactlyOneSlotRangeMatches
 	alts.velocityRangeMin[2] = 81;
 	alts.velocityRangeMax[2] = 127;
 
-	CHECK_EQUAL(0, MultisampleRange::resolveVelocitySlotIndex(2, 20, &alts));
-	CHECK_EQUAL(1, MultisampleRange::resolveVelocitySlotIndex(2, 60, &alts));
-	CHECK_EQUAL(2, MultisampleRange::resolveVelocitySlotIndex(2, 100, &alts));
+	uint8_t rrIndex = 0;
+	CHECK_EQUAL(0, MultisampleRange::resolveVelocitySlotIndex(2, 20, &alts, rrIndex));
+	CHECK_EQUAL(1, MultisampleRange::resolveVelocitySlotIndex(2, 60, &alts, rrIndex));
+	CHECK_EQUAL(2, MultisampleRange::resolveVelocitySlotIndex(2, 100, &alts, rrIndex));
+	// Non-overlapping bands hold exactly one slot each, so repeats stay put rather than cycling.
+	CHECK_EQUAL(1, MultisampleRange::resolveVelocitySlotIndex(2, 60, &alts, rrIndex));
+	CHECK_EQUAL(1, MultisampleRange::resolveVelocitySlotIndex(2, 60, &alts, rrIndex));
 }
 
 TEST(MultisampleRoundRobinVelocityMode, velocityInGapFallsBackToSlotZero) {
@@ -227,20 +236,63 @@ TEST(MultisampleRoundRobinVelocityMode, velocityInGapFallsBackToSlotZero) {
 	alts.velocityRangeMin[1] = 61;
 	alts.velocityRangeMax[1] = 127;
 
-	CHECK_EQUAL(0, MultisampleRange::resolveVelocitySlotIndex(1, 50, &alts));
+	uint8_t rrIndex = 0;
+	CHECK_EQUAL(0, MultisampleRange::resolveVelocitySlotIndex(1, 50, &alts, rrIndex));
 }
 
-TEST(MultisampleRoundRobinVelocityMode, overlappingRangesFirstSlotInScanOrderWins) {
+TEST(MultisampleRoundRobinVelocityMode, overlappingRangesCycleBetweenTheMatchingSlots) {
 	RoundRobinAlternates alts{};
 	alts.velocityRangeMin[0] = 1;
 	alts.velocityRangeMax[0] = 100;
 	alts.velocityRangeMin[1] = 50;
 	alts.velocityRangeMax[1] = 127;
 
-	// Velocity 70 falls inside both slot 0's and slot 1's range - slot 0 wins since it's scanned first.
-	CHECK_EQUAL(0, MultisampleRange::resolveVelocitySlotIndex(1, 70, &alts));
-	// Velocity 120 only falls inside slot 1's range.
-	CHECK_EQUAL(1, MultisampleRange::resolveVelocitySlotIndex(1, 120, &alts));
+	// Velocity 70 is inside both slots' ranges, so repeated hits alternate between them rather
+	// than one silently shadowing the other.
+	uint8_t rrIndex = 0;
+	CHECK_EQUAL(0, MultisampleRange::resolveVelocitySlotIndex(1, 70, &alts, rrIndex));
+	CHECK_EQUAL(1, MultisampleRange::resolveVelocitySlotIndex(1, 70, &alts, rrIndex));
+	CHECK_EQUAL(0, MultisampleRange::resolveVelocitySlotIndex(1, 70, &alts, rrIndex));
+
+	// Velocity 120 is inside slot 1's range only, whatever the cycle position was.
+	CHECK_EQUAL(1, MultisampleRange::resolveVelocitySlotIndex(1, 120, &alts, rrIndex));
+	CHECK_EQUAL(1, MultisampleRange::resolveVelocitySlotIndex(1, 120, &alts, rrIndex));
+}
+
+TEST(MultisampleRoundRobinVelocityMode, velocityLayersEachRoundRobinTheirOwnTakes) {
+	// The combination this buys us over a plain velocity switch: two layers of two takes each.
+	// Slots 0-1 cover soft, slots 2-3 cover hard.
+	RoundRobinAlternates alts{};
+	alts.velocityRangeMin[0] = 1;
+	alts.velocityRangeMax[0] = 64;
+	alts.velocityRangeMin[1] = 1;
+	alts.velocityRangeMax[1] = 64;
+	alts.velocityRangeMin[2] = 65;
+	alts.velocityRangeMax[2] = 127;
+	alts.velocityRangeMin[3] = 65;
+	alts.velocityRangeMax[3] = 127;
+
+	uint8_t rrIndex = 0;
+
+	// Soft hits alternate between the two soft takes...
+	uint8_t soft1 = MultisampleRange::resolveVelocitySlotIndex(3, 30, &alts, rrIndex);
+	uint8_t soft2 = MultisampleRange::resolveVelocitySlotIndex(3, 30, &alts, rrIndex);
+	uint8_t soft3 = MultisampleRange::resolveVelocitySlotIndex(3, 30, &alts, rrIndex);
+	CHECK_EQUAL(0, soft1);
+	CHECK_EQUAL(1, soft2);
+	CHECK_EQUAL(0, soft3);
+
+	// ...and hard hits stay inside the hard pair, which is the guarantee that matters. Which of the
+	// two you land on first depends on where the cycle had got to, since rrIndex is a position
+	// carried across bands rather than per-band state. That is the useful way round: alternating
+	// soft and hard hits keeps walking through each band's takes, where resetting per band would
+	// pin you to the first take of each forever.
+	uint8_t hard1 = MultisampleRange::resolveVelocitySlotIndex(3, 100, &alts, rrIndex);
+	uint8_t hard2 = MultisampleRange::resolveVelocitySlotIndex(3, 100, &alts, rrIndex);
+	uint8_t hard3 = MultisampleRange::resolveVelocitySlotIndex(3, 100, &alts, rrIndex);
+	CHECK_EQUAL(3, hard1);
+	CHECK_EQUAL(2, hard2);
+	CHECK_EQUAL(3, hard3);
 }
 
 TEST(MultisampleRoundRobinVelocityMode, sentinel128ClampsToMaxVelocity) {
@@ -252,14 +304,19 @@ TEST(MultisampleRoundRobinVelocityMode, sentinel128ClampsToMaxVelocity) {
 	alts.velocityRangeMin[1] = 101;
 	alts.velocityRangeMax[1] = 127;
 
-	CHECK_EQUAL(1, MultisampleRange::resolveVelocitySlotIndex(1, 128, &alts));
+	uint8_t rrIndex = 0;
+	CHECK_EQUAL(1, MultisampleRange::resolveVelocitySlotIndex(1, 128, &alts, rrIndex));
 }
 
 TEST(MultisampleRoundRobinVelocityMode, nullAlternatesFallsBackToDefaultFullRange) {
 	// Defensive case: a hand-edited or corrupted song could claim RRMode::Velocity with rrCount > 0
-	// but no alternates ever allocated. Every slot behaves as if its range is the 1-127 default.
-	CHECK_EQUAL(0, MultisampleRange::resolveVelocitySlotIndex(2, 1, nullptr));
-	CHECK_EQUAL(0, MultisampleRange::resolveVelocitySlotIndex(2, 127, nullptr));
+	// but no alternates ever allocated. Every slot behaves as if its range is the 1-127 default, so
+	// every slot matches and the pool round-robins.
+	uint8_t rrIndex = 0;
+	CHECK_EQUAL(0, MultisampleRange::resolveVelocitySlotIndex(2, 1, nullptr, rrIndex));
+	CHECK_EQUAL(1, MultisampleRange::resolveVelocitySlotIndex(2, 127, nullptr, rrIndex));
+	CHECK_EQUAL(2, MultisampleRange::resolveVelocitySlotIndex(2, 64, nullptr, rrIndex));
+	CHECK_EQUAL(0, MultisampleRange::resolveVelocitySlotIndex(2, 64, nullptr, rrIndex)); // wrapped
 }
 
 TEST_GROUP(MultisampleRoundRobinUnloadedSlots){};
