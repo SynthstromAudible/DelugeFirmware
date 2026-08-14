@@ -25,11 +25,12 @@ choose which zone to edit - the same zone-selection step used by the `FILE`/`STA
 and everything inside the menu then applies to that zone. Each zone rotates through its own variants
 independently during playback.
 
-Once a zone is picked, it stays picked for everything you edit on that oscillator - the same way the zone
-selection has always worked for `START`, `END` and the rest, and playing a note moves it to that note's zone.
-The OLED title names it: the oscillator page reads `O1 C3-F#4` and a variant slot page reads `S2 C3-F#4`,
-abbreviated because a full name plus a note range doesn't fit beside the page number. The keyboard pads
-covering that zone are lit brighter as well. Single-zone sources are unchanged, with no zone shown anywhere.
+Opening `VARIANTS` takes you through the note-range picker first, exactly as `START` and `END` always have,
+with your last-used zone already selected so you can simply confirm it. From there the Variants screen and its
+slot pages name the zone in their titles - `Var C3-F#4` and `S2 C3-F#4` - since everything from that point
+down applies to that one zone. The oscillator page itself keeps its plain title: once any zone has variants,
+everything left on it is a setting for the whole oscillator. The keyboard pads covering the current zone are
+lit brighter. Single-zone sources are unchanged, with no zone shown anywhere.
 
 The `VARIANTS` entry on the oscillator page shows how many sample slots are loaded: the current zone's own
 count, or the total across every zone if no zone has been picked or played yet.
