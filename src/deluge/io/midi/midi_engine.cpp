@@ -852,11 +852,7 @@ void MidiEngine::check_incoming_usb() {
 
 void MidiEngine::checkIncomingUsbMidi() {
 
-	if (!usbCurrentlyInitialized
-	    || currentlyAccessingCard != 0) { // hack to avoid SysEx handlers clashing with other sd-card activity.
-		if (currentlyAccessingCard != 0) {
-			// D_PRINTLN("checkIncomingUsbMidi seeing currentlyAccessingCard non-zero");
-		}
+	if (!usbCurrentlyInitialized) {
 		return;
 	}
 	bool usbLockNow = usbLock;
