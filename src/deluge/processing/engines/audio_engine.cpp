@@ -273,18 +273,19 @@ int32_t numAudioLogItems = 0;
 #endif
 
 /// Force a voice to stop within this render window. Will click slightly, especially if multiple are stopped in the
-/// same render
+/// same render. Will stop an audio clip if there are no voices to  kill
 void killOneVoice(size_t num_samples) {
-	// Only include audio if doing a hard cull and not saving the voice
+	logAction("kill");
 	auto lowest_priority_voices = sounds //<
 	                              | std::views::filter(&Sound::hasActiveVoices)
 	                              | std::views::transform(&Sound::getLowestPriorityVoice);
-	// Compare by Voice priority, not by the ActiveVoice (unique_ptr) pointer value — a bare max_element
-	// orders by address, picking a heap-layout-dependent (and semantically arbitrary) voice to cull. See
-	// Sound::getLowestPriorityVoice and docs/dev/overread_hunt.md.
-	auto it = std::ranges::max_element(lowest_priority_voices, [](const auto& a, const auto& b) { return *a < *b; });
+	auto it = std::ranges::max_element(lowest_priority_voices, [](const auto& a, const auto& b) {
+		return a->getPriorityRating() < b->getPriorityRating();
+	});
 	if (it == lowest_priority_voices.end()) {
-		return;
+		if (currentSong) {
+			currentSong->cullAudioClipVoice();
+		}
 	}
 
 	const Sound::ActiveVoice& voice = *it;
@@ -300,6 +301,8 @@ void killOneVoice(size_t num_samples) {
 
 /// Force a voice to release very quickly - will be almost instant but not click
 void terminateOneVoice(size_t numSamples) {
+	logAction("terminate");
+
 	auto all_voices = sounds | std::views::transform(&Sound::voices) | std::views::join;
 
 	if (all_voices.empty()) {
@@ -323,17 +326,18 @@ void terminateOneVoice(size_t numSamples) {
 	}
 
 	const Sound::ActiveVoice& voice = *best;
-	bool still_rendering = voice->doFastRelease(SOFT_CULL_INCREMENT);
+	bool still_rendering = voice->doFastRelease(2 * SOFT_CULL_INCREMENT);
 	if (!still_rendering) {
 		voice->sound.freeActiveVoice(voice);
 	}
 
-	D_PRINTLN("force-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples,
-	          getNumVoices(), getNumAudio());
+	D_PRINTLN("terminated 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", numSamples, getNumVoices(),
+	          getNumAudio());
 }
 
 /// Force a voice to release, or speed up its release if the oldest voice is already releasing
 void forceReleaseOneVoice(size_t num_samples) {
+	logAction("force release");
 	auto all_voices = sounds | std::views::transform(&Sound::voices) | std::views::join;
 	if (all_voices.empty()) {
 		return;
@@ -360,7 +364,11 @@ void forceReleaseOneVoice(size_t num_samples) {
 
 	auto stage = voice->envelopes[0].state;
 	if (stage < EnvelopeStage::FAST_RELEASE) {
-		D_PRINTLN("soft-culled 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
+		D_PRINTLN("force released 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
+		          getNumVoices(), getNumAudio());
+	}
+	else {
+		D_PRINTLN("sped up release for 1 voice.  numSamples:  %d. Voices left: %d. Audio clips left: %d", num_samples,
 		          getNumVoices(), getNumAudio());
 	}
 
@@ -422,27 +430,35 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 	// at high loads voicesStarted is limited to 2. Since starting voices is a heavy load and we know it's temporary
 	// we can be a bit more lenient with the limit
 	auto max_num_samples = numSamplesLimit + (20 * voices_started_this_render);
-	if (numAudio + numVoice > MIN_VOICES) {
-		static int32_t last_num_samples_over = 0;
+	static int32_t last_num_samples_over = 0;
+	int32_t num_samples_over_limit = numSamples - max_num_samples;
 
-		int32_t num_samples_over_limit = numSamples - max_num_samples;
+	if (numAudio + numVoice > MIN_VOICES) {
+
 		// If it's real dire, do a proper immediate cull
 		if (num_samples_over_limit >= 32) {
-			int32_t num_to_cull = (num_samples_over_limit >> 4);
 
+			int32_t num_to_cull = (num_samples_over_limit >> 4);
 			// leave at least 7 - below this point culling won't save us
 			// if they can't load their sample in time they'll stop the same way anyway
 			num_to_cull = std::min(num_to_cull, numAudio + numVoice - MIN_VOICES);
-			D_PRINTLN("Culling %d voices", num_to_cull);
 
-			for (int32_t i = num_to_cull / 2; i < num_to_cull; i++) {
-				// cull with fast release
-				terminateOneVoice(numSamples);
-			}
-			for (int32_t i = 1; i < num_to_cull / 2; i++) {
+			// soft cull one voice, then terminate half the remainder and kill the other half
+			auto num_to_hard_cull = num_to_cull - 1;
+			auto num_to_kill = num_to_hard_cull / 2;
+			auto num_to_terminate = num_to_hard_cull - num_to_kill;
+
+			D_PRINTLN("Culling %d voices - 1 force, %d  terminate, %d kill", num_to_cull, num_to_terminate,
+			          num_to_kill);
+			for (int32_t i = 0; i < num_to_kill; i++) {
 				// cull with immediate release
 				killOneVoice(numSamples);
 			}
+			for (int32_t i = 0; i < num_to_terminate; i++) {
+				// cull with fast release
+				terminateOneVoice(numSamples);
+			}
+			// soft cull
 			forceReleaseOneVoice(numSamples);
 
 #if ALPHA_OR_BETA_VERSION
@@ -457,30 +473,28 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 		else if (num_samples_over_limit >= 0) {
 			if (last_num_samples_over > 0 && num_samples_over_limit >= last_num_samples_over) {
 				forceReleaseOneVoice(numSamples);
-				logAction("soft cull");
 				if (numRoutines > 0) {
 					culled = true;
 					D_PRINTLN("culling in second routine");
 				}
 			}
 		}
-		last_num_samples_over = num_samples_over_limit;
 	}
 	else {
-		int32_t numSamplesOverLimit = numSamples - numSamplesLimit;
 		// Cull anyway if things are bad
-		if (numSamplesOverLimit >= 40) {
+		if (num_samples_over_limit >= 40) {
 			D_PRINTLN("under min voices but culling anyway");
 			terminateOneVoice(numSamples);
 			culled = true;
 		}
 	}
+	last_num_samples_over = num_samples_over_limit;
+
 	// blink LED to alert the user
 	if (culled && FlashStorage::highCPUUsageIndicator) {
 		if (indicator_leds::getLedBlinkerIndex(IndicatorLED::PLAY) == 255) {
 			indicator_leds::indicateAlertOnLed(IndicatorLED::PLAY);
 		}
-		D_PRINTLN("started %i voices this render cycle", voices_started_this_render);
 	}
 }
 
