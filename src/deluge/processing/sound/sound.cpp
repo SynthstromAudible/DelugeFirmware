@@ -3580,21 +3580,35 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 				range->rrMode = (MultisampleRange::RRMode)readRRModeFromFile(reader, tagName);
 			}
 		}
+		// Velocity ranges live in the round-robin alternates table, which overlaps the wavetable holder.
+		// A file carrying them on a wavetable oscillator would have setVelocityRange() allocate that
+		// table and write over the holder, so skip them like any unrecognised tag. See
+		// Source::hasMultisampleRanges().
 		else if (!strcmp(tagName, "velocityRangeMin")) {
-			MultisampleRange* range = (MultisampleRange*)source->getOrCreateFirstRange();
-			if (!range) {
-				return Error::INSUFFICIENT_RAM;
+			if (!source->hasMultisampleRanges()) {
+				reader.exitTag(tagName);
 			}
-			range->setVelocityRange(0, (uint8_t)reader.readTagOrAttributeValueInt(), range->getVelocityRangeMax(0));
-			reader.exitTag("velocityRangeMin");
+			else {
+				MultisampleRange* range = (MultisampleRange*)source->getOrCreateFirstRange();
+				if (!range) {
+					return Error::INSUFFICIENT_RAM;
+				}
+				range->setVelocityRange(0, (uint8_t)reader.readTagOrAttributeValueInt(), range->getVelocityRangeMax(0));
+				reader.exitTag("velocityRangeMin");
+			}
 		}
 		else if (!strcmp(tagName, "velocityRangeMax")) {
-			MultisampleRange* range = (MultisampleRange*)source->getOrCreateFirstRange();
-			if (!range) {
-				return Error::INSUFFICIENT_RAM;
+			if (!source->hasMultisampleRanges()) {
+				reader.exitTag(tagName);
 			}
-			range->setVelocityRange(0, range->getVelocityRangeMin(0), (uint8_t)reader.readTagOrAttributeValueInt());
-			reader.exitTag("velocityRangeMax");
+			else {
+				MultisampleRange* range = (MultisampleRange*)source->getOrCreateFirstRange();
+				if (!range) {
+					return Error::INSUFFICIENT_RAM;
+				}
+				range->setVelocityRange(0, range->getVelocityRangeMin(0), (uint8_t)reader.readTagOrAttributeValueInt());
+				reader.exitTag("velocityRangeMax");
+			}
 		}
 		else if (!strcmp(tagName, "sampleRanges") || !strcmp(tagName, "wavetableRanges")) {
 			reader.match('[');
