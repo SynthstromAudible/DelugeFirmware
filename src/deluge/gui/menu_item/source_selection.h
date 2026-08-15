@@ -40,5 +40,17 @@ public:
 protected:
 	bool sourceIsAllowed(PatchSource source);
 	uint8_t shouldDrawDotOnValue();
+
+	// ── Macro rows ──
+	// On synth clips (with the macro feature on), the four macros appear after the real patch
+	// sources. They are NOT patch sources: selecting one toggles this menu's destination as a target
+	// of that macro - "Modulate with" assigns the param itself, "Modulate depth" the cable's depth -
+	// so a macro can be attached right where the routing is on screen, instead of walking back to the
+	// macro's own target picker. The subclasses' selectButtonPress routes macro rows here.
+	bool macroRowsEligible() const;
+	int32_t numItems() const; // kNumPatchSources plus the macro rows when eligible
+	static bool isMacroRow(int32_t value) { return value >= kNumPatchSources; }
+	static int32_t macroForRow(int32_t value) { return value - kNumPatchSources; }
+	void toggleMacroRow(int32_t macroIndex); // toggle + popup feedback; stays in the menu
 };
 } // namespace deluge::gui::menu_item
