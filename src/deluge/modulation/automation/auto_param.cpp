@@ -39,6 +39,8 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 #include "util/functions.h"
+#include <algorithm>
+#include <cstdint>
 #include <math.h>
 
 #define SAMPLES_TO_CLEAR_AFTER_RECORD 8820          // 200ms
@@ -929,6 +931,14 @@ bool AutoParam::applyValueIncrement(int32_t value_increment) {
 	return (currentValue != oldValue);
 }
 
+/// multiplies a per-half-tick increment by a number of half ticks, clamping to the int32 range rather than wrapping.
+/// A steep increment (a short segment covering a big value change) times a large number of skipped ticks overflows an
+/// int32 easily, and a wrapped increment sends currentValue in the wrong direction entirely.
+static int32_t saturatingIncrement(int32_t incrementPerHalfTick, int64_t halfTicks) {
+	int64_t increment = (int64_t)incrementPerHalfTick * halfTicks;
+	return (int32_t)std::clamp<int64_t>(increment, INT32_MIN, INT32_MAX);
+}
+
 bool AutoParam::tickSamples(int32_t numSamples) {
 	// if we don't have any interpolation to apply, return false
 	if (!hasInterpolationIncrement()) {
@@ -939,9 +949,9 @@ bool AutoParam::tickSamples(int32_t numSamples) {
 
 	// non-float interpolation
 	if (valueIncrementPerHalfTick != 0) [[likely]] {
-		value_increment =
-		    multiply_32x32_rshift32_rounded(valueIncrementPerHalfTick, playbackHandler.getTimePerInternalTickInverse())
-		    * 6 * numSamples;
+		value_increment = saturatingIncrement(
+		    multiply_32x32_rshift32_rounded(valueIncrementPerHalfTick, playbackHandler.getTimePerInternalTickInverse()),
+		    (int64_t)6 * numSamples);
 	}
 	// float interpolation
 	else {
@@ -962,11 +972,11 @@ bool AutoParam::tickTicks(int32_t numTicks) {
 	}
 
 	int32_t value_increment = 0;
-	int32_t half_ticks = numTicks * 2;
+	int64_t half_ticks = (int64_t)numTicks * 2;
 
 	// non-float interpolation
 	if (valueIncrementPerHalfTick != 0) [[likely]] {
-		value_increment = valueIncrementPerHalfTick * half_ticks;
+		value_increment = saturatingIncrement(valueIncrementPerHalfTick, half_ticks);
 	}
 	// float interpolation
 	else {
