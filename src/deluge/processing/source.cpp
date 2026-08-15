@@ -75,7 +75,11 @@ int32_t Source::getLengthInSamplesAtSystemSampleRate(int32_t note, bool forTimeS
 	// A round-robin zone's alternates may be longer than the primary sample. Use the longest of all
 	// of them, so a note auto-sized to sample length (e.g. when creating a note in the sequencer)
 	// isn't cut short just because a shorter variant happens to be the primary.
-	if (runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants)) {
+	//
+	// hasMultisampleRanges() rather than trusting the "only call this for SAMPLE" comment above:
+	// both callers do check oscType today, but rrCount overlaps the wavetable holder, so a range
+	// of the wrong type would give a garbage count and an `alternates` pointer to match.
+	if (runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants) && hasMultisampleRanges()) {
 		auto* multisampleRange = static_cast<MultisampleRange*>(range);
 		for (uint8_t slotIndex = 1; slotIndex <= multisampleRange->rrCount; slotIndex++) {
 			SampleHolderForVoice* variantHolder = multisampleRange->getVariantHolder(slotIndex);
