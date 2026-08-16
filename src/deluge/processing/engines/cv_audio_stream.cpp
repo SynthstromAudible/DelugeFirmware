@@ -24,6 +24,7 @@
 #include <cstring>
 
 extern "C" {
+#include "RZA1/cache/cache.h"
 #include "RZA1/system/iodefine.h"
 #include "RZA1/system/iodefines/rspi_iodefine.h"
 #include "drivers/dmac/dmac.h"
@@ -48,8 +49,6 @@ constexpr float kCvEqPole = 0.9049f;
 // 700 Hz, so each channel gets the inverse applied before it leaves.
 // ============================================================================
 
-extern "C" void v7_dma_flush_range(uint32_t start, uint32_t end);
-
 #define CV_STREAM_DMA_CHANNEL 5 // unassigned on every model
 
 void cvStreamStart();
@@ -67,6 +66,8 @@ namespace {
 constexpr uint32_t kCvStreamWords = 4096;
 constexpr uint32_t kCvFramesPerChannel = kCvStreamWords / 2;
 constexpr uint32_t kCvMaxWindow = 256;
+/// Bytes per frame in the ring: one word per socket.
+constexpr uint32_t kCvFrameBytes = 2 * sizeof(uint32_t);
 
 /// How far ahead of the DMA read pointer the pump tries to stay, in frames. This *is* the
 /// CV output's latency behind the main outputs, and it is also how late the engine may be
@@ -85,6 +86,8 @@ constexpr uint32_t kCvMaxWindow = 256;
 constexpr int32_t kCvTargetLead = 768;
 
 PLACE_SDRAM_DATA uint32_t cvStreamBuffer[kCvStreamWords] __attribute__((aligned(CACHE_LINE_SIZE)));
+static_assert(kCvFramesPerChannel * kCvFrameBytes == sizeof(cvStreamBuffer),
+              "ring flush arithmetic must cover exactly the whole buffer");
 PLACE_SDRAM_DATA int32_t cvSourceMono[2][kCvMaxWindow] __attribute__((aligned(CACHE_LINE_SIZE)));
 PLACE_SDRAM_DATA int32_t cvCaptureScratch[kCvMaxWindow * 2] __attribute__((aligned(CACHE_LINE_SIZE)));
 
@@ -602,10 +605,26 @@ void cvStreamPump(uint32_t numSamples) {
 		cvPrevSample[socket] = valid ? source[numSamples - 1] : 0;
 	}
 
+	const uint32_t writtenFrom = cvStreamWriteFrame;
 	cvStreamWriteFrame = (cvStreamWriteFrame + (uint32_t)toEmit) & (kCvFramesPerChannel - 1);
 	cvSourceValid[0] = cvSourceValid[1] = false;
 
-	v7_dma_flush_range((uint32_t)cvStreamBuffer, (uint32_t)cvStreamBuffer + sizeof(cvStreamBuffer));
+	// All caches, not just L1: this firmware enables the L2 data cache (L2CacheUnlockData at
+	// boot), so an L1-only flush leaves the words the DMA is about to read sitting in L2 and
+	// the converter is fed whatever RAM happened to hold. Every other DMA user here does the
+	// same -- see the OLED and SD paths.
+	//
+	// Only the frames just written, not the whole ring. The ring is 16 KB, which is 512 L2
+	// line operations each with a spin-wait, and this runs every window on a machine already
+	// at its CPU limit; the written run is nearer 136 frames, about 34 lines. Split in two
+	// when the run wraps.
+	const uintptr_t base = (uintptr_t)cvStreamBuffer;
+	const uint32_t untilEnd = kCvFramesPerChannel - writtenFrom;
+	const uint32_t firstRun = ((uint32_t)toEmit < untilEnd) ? (uint32_t)toEmit : untilEnd;
+	invalidate_range_all_caches(base + writtenFrom * kCvFrameBytes, base + (writtenFrom + firstRun) * kCvFrameBytes);
+	if ((uint32_t)toEmit > firstRun) {
+		invalidate_range_all_caches(base, base + ((uint32_t)toEmit - firstRun) * kCvFrameBytes);
+	}
 }
 
 void cvStreamStart() {
@@ -620,7 +639,10 @@ void cvStreamStart() {
 		cvStreamBuffer[frame * 2] = cvWord(0, 0);
 		cvStreamBuffer[frame * 2 + 1] = cvWord(1, 0);
 	}
-	v7_dma_flush_range((uint32_t)cvStreamBuffer, (uint32_t)cvStreamBuffer + sizeof(cvStreamBuffer));
+	// All caches, not just L1: main enables the L2 data cache (L2CacheUnlockData at boot),
+	// so an L1-only flush leaves the words the DMA is about to read sitting in L2 and the
+	// converter is fed whatever RAM happened to hold. Every other DMA user here does the same.
+	invalidate_range_all_caches((uintptr_t)cvStreamBuffer, (uintptr_t)cvStreamBuffer + sizeof(cvStreamBuffer));
 
 	// Boot already sets 32-bit frames, master mode, transmit requests and the
 	// hardware chip-select. Change only the clock -- twice as fast as for one
