@@ -43,6 +43,19 @@ class ModelStackWithTimelineCounter;
 class Serializer;
 class Deserializer;
 
+/// Where a Clip's audio is sent. A bitmask, so a Clip can go to any combination.
+/// STEREO_SPLIT is a mode rather than a destination: with it off both sockets
+/// carry the mono sum, with it on CV1 carries left and CV2 carries right.
+namespace ClipRoute {
+constexpr uint8_t MAIN = 1;
+constexpr uint8_t CV1 = 2;
+constexpr uint8_t CV2 = 4;
+constexpr uint8_t STEREO_SPLIT = 8;
+constexpr uint8_t ANY_CV = CV1 | CV2;
+constexpr uint8_t ALL = MAIN | CV1 | CV2 | STEREO_SPLIT;
+constexpr uint8_t DEFAULT = MAIN;
+} // namespace ClipRoute
+
 class Clip : public TimelineCounter {
 
 public:
@@ -195,6 +208,24 @@ public:
 	uint32_t indexForSaving; // For use only while saving song
 
 	LaunchStyle launchStyle;
+
+	/// Where this Clip's audio goes -- a mask of ClipRoute bits. Defaults to MAIN
+	/// alone, which is how every Clip behaved before CV audio outputs existed.
+	uint8_t cvRouting;
+
+	/// Send gain actually applied to each socket last render window, Q16. Render state, not
+	/// a setting: never saved and never cloned. It exists so a send being ridden ramps
+	/// across the window boundary instead of stepping at it, and it lives on the Clip
+	/// because several Clips can feed one socket at different amounts.
+	int32_t cvSendGainLast[2];
+
+	/// Set when a song written before the sends existed is read: that file carries CV1/CV2
+	/// routing bits and no send values, and those bits used to mean "full". The sends live in
+	/// the param manager, whose setup is not ordered against this attribute during load, so
+	/// the conversion is deferred to the first render -- by which point the params certainly
+	/// exist. Cleared once applied.
+	uint8_t cvRoutingLegacyBits;
+
 	int64_t fillEventAtTickCount;
 	bool overdubsShouldCloneOutput;
 
