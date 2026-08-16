@@ -92,8 +92,10 @@ public:
 	///
 	/// @param bend Bend amount. Only the lower 14 bits are used
 	void sendPitchBend(MIDISource source, int32_t channel, uint16_t bend, int32_t filter);
-	void sendChannelAftertouch(MIDISource source, int32_t channel, uint8_t value, int32_t filter);
-	void sendPolyphonicAftertouch(MIDISource source, int32_t channel, uint8_t value, uint8_t noteCode, int32_t filter);
+	/// @param value Pressure amount. Saturated into 0-127
+	void sendChannelAftertouch(MIDISource source, int32_t channel, int32_t value, int32_t filter);
+	/// @param value Pressure amount. Saturated into 0-127
+	void sendPolyphonicAftertouch(MIDISource source, int32_t channel, int32_t value, uint8_t noteCode, int32_t filter);
 	bool anythingInOutputBuffer();
 	void setupUSBHostReceiveTransfer(int32_t ip, int32_t midiDeviceNum);
 	void flushUSBMIDIOutput();
