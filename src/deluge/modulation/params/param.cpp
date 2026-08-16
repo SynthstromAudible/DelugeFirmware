@@ -287,6 +287,8 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		    [UNPATCHED_MOD_FX_FEEDBACK] = STRING_FOR_MODFX_FEEDBACK,
 		    [UNPATCHED_SIDECHAIN_SHAPE] = STRING_FOR_SIDECHAIN_SHAPE,
 		    [UNPATCHED_COMPRESSOR_THRESHOLD] = STRING_FOR_THRESHOLD,
+		    [UNPATCHED_CV1_SEND] = STRING_FOR_CV1_SEND,
+		    [UNPATCHED_CV2_SEND] = STRING_FOR_CV2_SEND,
 		    [UNPATCHED_ARP_GATE] = STRING_FOR_ARP_GATE_MENU_TITLE,
 		    [UNPATCHED_ARP_RHYTHM] = STRING_FOR_ARP_RHYTHM_MENU_TITLE,
 		    [UNPATCHED_ARP_SEQUENCE_LENGTH] = STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE,
@@ -346,6 +348,8 @@ char const* getParamDisplayName(Kind kind, int32_t p) {
 		    [UNPATCHED_SIDECHAIN_VOLUME - unc] = STRING_FOR_SIDECHAIN_LEVEL,
 		    [UNPATCHED_PITCH_ADJUST - unc] = STRING_FOR_MASTER_PITCH,
 		    [UNPATCHED_TEMPO - unc] = STRING_FOR_TEMPO,
+		    [UNPATCHED_CV1_MASTER - unc] = STRING_FOR_OUTPUT_LEVEL_CV1,
+		    [UNPATCHED_CV2_MASTER - unc] = STRING_FOR_OUTPUT_LEVEL_CV2,
 		};
 		return l10n::get(NAMES[p - unc]);
 	}
@@ -481,6 +485,12 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 			}
 			return "pitchAdjust";
 
+		case UNPATCHED_CV1_MASTER:
+			return "cv1Master";
+
+		case UNPATCHED_CV2_MASTER:
+			return "cv2Master";
+
 		// explicit fallthrough cases
 		case UNPATCHED_TEMPO: // nothing, really?
 		case UNPATCHED_GLOBAL_MAX_NUM:;
@@ -566,6 +576,12 @@ constexpr char const* paramNameForFileConst(Kind const kind, ParamType const par
 
 		case UNPATCHED_SPREAD_VELOCITY:
 			return "spreadVelocity";
+
+		case UNPATCHED_CV1_SEND:
+			return "cv1Send";
+
+		case UNPATCHED_CV2_SEND:
+			return "cv2Send";
 
 		case UNPATCHED_NUM_SHARED:
 		    // Intentionally not handled

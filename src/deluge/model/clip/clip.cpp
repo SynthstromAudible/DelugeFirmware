@@ -58,6 +58,10 @@ Clip::Clip(ClipType newType) : type(newType) {
 	originalLength = 0;
 	armedForRecording = true;
 	launchStyle = LaunchStyle::DEFAULT;
+	cvRouting = ClipRoute::DEFAULT;
+	cvSendGainLast[0] = 0;
+	cvSendGainLast[1] = 0;
+	cvRoutingLegacyBits = 0;
 	fillEventAtTickCount = 0;
 
 	// initialize automation clip view variables
@@ -95,6 +99,7 @@ void Clip::cloneFrom(Clip const* otherClip) {
 	repeatCount = otherClip->repeatCount;
 	armedForRecording = otherClip->armedForRecording;
 	launchStyle = otherClip->launchStyle;
+	cvRouting = otherClip->cvRouting;
 }
 
 void Clip::copyBasicsFrom(Clip const* otherClip) {
@@ -103,6 +108,7 @@ void Clip::copyBasicsFrom(Clip const* otherClip) {
 	// modKnobMode = otherClip->modKnobMode;
 	section = otherClip->section;
 	launchStyle = otherClip->launchStyle;
+	cvRouting = otherClip->cvRouting;
 	onAutomationClipView = otherClip->onAutomationClipView;
 }
 
@@ -687,6 +693,17 @@ void Clip::writeDataToFile(Serializer& writer, Song* song) {
 	if (launchStyle != LaunchStyle::DEFAULT) {
 		writer.writeAttribute("launchStyle", launchStyleToString(launchStyle));
 	}
+	// Only written when it differs from the default, so songs which never touch
+	// CV output are byte-for-byte as before. Firmware which doesn't know this
+	// attribute skips it, same as any other unrecognised one.
+	// Only MAIN is still a routing bit. The CV1/CV2 bits are read for old songs and turned
+	// into sends, and the split is global now -- so writing either back would be a lie, and
+	// worse, the CV bits would re-trigger the legacy conversion on the next load and stamp
+	// over whatever sends had been saved.
+	const uint8_t storedRouting = cvRouting & ClipRoute::MAIN;
+	if (storedRouting != ClipRoute::DEFAULT) {
+		writer.writeAttribute("cvRouting", storedRouting);
+	}
 }
 
 void Clip::writeMidiCommandsToFile(Serializer& writer, Song* song) {
@@ -763,6 +780,15 @@ void Clip::readTagFromFile(Deserializer& reader, char const* tagName, Song* song
 
 	else if (!strcmp(tagName, "launchStyle")) {
 		launchStyle = stringToLaunchStyle(reader.readTagOrAttributeValue());
+	}
+
+	else if (!strcmp(tagName, "cvRouting")) {
+		// Masked, so a file written by a later firmware with more bits can't put
+		// this Clip into a state the render path doesn't understand.
+		cvRouting = (uint8_t)reader.readTagOrAttributeValueInt() & ClipRoute::ALL;
+		// The CV1/CV2 bits are how routing was expressed before sends existed. Remember them
+		// so the first render can turn them into sends at full; MAIN keeps its meaning.
+		cvRoutingLegacyBits = cvRouting & ClipRoute::ANY_CV;
 	}
 
 	/*

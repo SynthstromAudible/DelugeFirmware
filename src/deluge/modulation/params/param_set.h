@@ -46,8 +46,12 @@ public:
 	int32_t getValueAtPos(int32_t p, uint32_t pos, TimelineCounter* playPositionCounter);
 	void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped, bool reversed,
 	                       bool didPingpong, bool mayInterpolate) final;
+	/// `neutralValue` is what counts as "not set" for the onlyIfContainsSomething test. It
+	/// defaults to 0, which is what every caller assumed before it existed -- params whose
+	/// off position is the bottom of the range must pass their own.
 	void writeParamAsAttribute(Serializer& writer, char const* name, int32_t p, bool writeAutomation,
-	                           bool onlyIfContainsSomething = false, int32_t* valuesForOverride = nullptr);
+	                           bool onlyIfContainsSomething = false, int32_t* valuesForOverride = nullptr,
+	                           int32_t neutralValue = 0);
 	void readParam(Deserializer& reader, ParamCollectionSummary* summary, int32_t p, int32_t readAutomationUpToPos);
 	void tickSamples(int32_t numSamples, ModelStackWithParamCollection* modelStack) final;
 	void tickTicks(int32_t numTicks, ModelStackWithParamCollection* modelStack) final;

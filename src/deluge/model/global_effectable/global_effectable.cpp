@@ -32,6 +32,7 @@
 #include "modulation/params/param_collection.h"
 #include "modulation/params/param_set.h"
 #include "playback/playback_handler.h"
+#include "processing/engines/cv_audio_stream.h"
 #include "storage/storage_manager.h"
 #include "util/comparison.h"
 #include "util/firmware_version.h"
@@ -90,6 +91,12 @@ void GlobalEffectable::initParams(ParamManager* paramManager) {
 
 	unpatchedParams->params[params::UNPATCHED_LPF_MORPH].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
 	unpatchedParams->params[params::UNPATCHED_HPF_MORPH].setCurrentValueBasicForSetup(NEGATIVE_ONE_Q31);
+
+	// AUX MASTER. Set on every GlobalEffectable rather than only the song's, because they all
+	// share one initParams -- the copies on Kits and audio clips are inert, since only the
+	// song's pair is ever read and only the song's pair is reachable from a knob.
+	unpatchedParams->params[params::UNPATCHED_CV1_MASTER].setCurrentValueBasicForSetup(params::kCvMasterDefault);
+	unpatchedParams->params[params::UNPATCHED_CV2_MASTER].setCurrentValueBasicForSetup(params::kCvMasterDefault);
 }
 
 void GlobalEffectable::initParamsForAudioClip(ParamManagerForTimeline* paramManager) {
@@ -223,6 +230,26 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
                                               ModelStackWithThreeMainThings* modelStack) {
 	using enum l10n::String;
 	int32_t modKnobMode = *getModKnobMode();
+
+	// AUX MASTER: the bottom encoder of the stutter button switches which socket it edits.
+	// One knob for two sockets means the socket it is on is otherwise invisible, so this
+	// pops it up -- the same thing mode 5 does when its bottom encoder switches mod-FX param.
+	//
+	// Nothing to switch when the two cables are one stereo destination: there is a single
+	// master then, so the press is deliberately inert rather than toggling a hidden value that
+	// would surprise you the next time you unsplit.
+	if (modKnobMode == 6 && whichModEncoder == 0 && currentSong != nullptr && this == &currentSong->globalEffectable) {
+		if (on && cvOutputsAvailable() && !cvGetStereoSplit()) {
+			cvMasterKnobSocket ^= 1;
+			display->displayPopup(
+			    l10n::get(cvMasterKnobSocket == 0 ? STRING_FOR_OUTPUT_LEVEL_CV1 : STRING_FOR_OUTPUT_LEVEL_CV2));
+			// The knob now points at the other socket's param, which is almost certainly at a
+			// different level, so redraw the ring rather than leave it showing the old socket.
+			view.setKnobIndicatorLevels();
+			return true;
+		}
+		return false;
+	}
 
 	// Stutter section
 	if (modKnobMode == 6 && whichModEncoder == 1) {
@@ -689,6 +716,20 @@ int32_t GlobalEffectable::getParameterFromKnob(int32_t whichModEncoder) {
 		if (whichModEncoder != 0) {
 			return params::UNPATCHED_STUTTER_RATE;
 		}
+		// AUX MASTER on the bottom encoder. In stock firmware mode 6's bottom encoder returns
+		// 255 -- stutter rate is on the top encoder, and so is the stutter trigger -- so this
+		// displaces nothing and needs no opt-in toggle.
+		//
+		// Song only. This function also serves Kits and audio clips, whose GlobalEffectables
+		// carry their own inert copies of these params; without the guard the knob would light
+		// up there and silently edit a value nothing ever reads.
+		if (currentSong != nullptr && this == &currentSong->globalEffectable) {
+			// Split on means one destination and therefore one master, so both the knob and the
+			// menu drive CV1's param while CV2's sits idle. That is also why the push does
+			// nothing in that mode: there is nothing to switch to.
+			return (cvGetStereoSplit() || cvMasterKnobSocket == 0) ? params::UNPATCHED_CV1_MASTER
+			                                                       : params::UNPATCHED_CV2_MASTER;
+		}
 	}
 	else if (modKnobMode == 7) {
 		if (whichModEncoder != 0) {
@@ -819,6 +860,18 @@ void GlobalEffectable::writeParamAttributesToFile(Serializer& writer, ParamManag
 	                                       valuesForOverride);
 	unpatchedParams->writeParamAsAttribute(writer, "pan", params::UNPATCHED_PAN, writeAutomation, false,
 	                                       valuesForOverride);
+
+	// Written only when moved off the default, the same opt-in pitchAdjust uses below. A song
+	// that never touches its aux master stays byte-identical to one saved before this existed,
+	// and stock 1.2.1 skips the unknown attribute on read either way.
+	if (unpatchedParams->params[params::UNPATCHED_CV1_MASTER].containsSomething(params::kCvMasterDefault)) {
+		unpatchedParams->writeParamAsAttribute(writer, "cv1Master", params::UNPATCHED_CV1_MASTER, writeAutomation,
+		                                       false, valuesForOverride);
+	}
+	if (unpatchedParams->params[params::UNPATCHED_CV2_MASTER].containsSomething(params::kCvMasterDefault)) {
+		unpatchedParams->writeParamAsAttribute(writer, "cv2Master", params::UNPATCHED_CV2_MASTER, writeAutomation,
+		                                       false, valuesForOverride);
+	}
 
 	if (unpatchedParams->params[params::UNPATCHED_PITCH_ADJUST].containsSomething(0)) {
 		unpatchedParams->writeParamAsAttribute(writer, "pitchAdjust", params::UNPATCHED_PITCH_ADJUST, writeAutomation,
@@ -1002,6 +1055,16 @@ bool GlobalEffectable::readParamTagFromFile(Deserializer& reader, char const* ta
 	else if (!strcmp(tagName, "pan")) {
 		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_PAN, readAutomationUpToPos);
 		reader.exitTag("pan");
+	}
+
+	else if (!strcmp(tagName, "cv1Master")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_CV1_MASTER, readAutomationUpToPos);
+		reader.exitTag("cv1Master");
+	}
+
+	else if (!strcmp(tagName, "cv2Master")) {
+		unpatchedParams->readParam(reader, unpatchedParamsSummary, params::UNPATCHED_CV2_MASTER, readAutomationUpToPos);
+		reader.exitTag("cv2Master");
 	}
 
 	else if (!strcmp(tagName, "pitchAdjust")) {
