@@ -304,8 +304,9 @@ Error AudioFileManager::getUnusedAudioRecordingFilePath(std::string& filePath, s
 	// recordings will be much smaller
 	if (highestUsedAudioRecordingNumberNeedsReChecking[folderID]) {
 
-		// Local RAII handle (not a shared FatFS::Directory global) -- the port selector picks efatfs or
-		// C-FatFS underneath; the destructor closes it on every return path below.
+		// Local RAII handle: the destructor closes it on every return path below. (Historically this
+		// contrasted with a shared FatFS::Directory global behind a port selector — both are gone:
+		// the global went with C-FatFS, and efatfs is the sole filesystem.)
 		//
 		// TODO(conflation-batch-5): unknown is being treated as absent here -- a non-NOT_FOUND refusal
 		// silently skips the REC-number scan below, yet the

@@ -29,9 +29,8 @@
 //! `executor-thread` embassy-executor feature is enabled (see `Cargo.toml`),
 //! so there is exactly one `__pender` in this binary and it is ours.
 //!
-//! # The boot livelock (see `sd.rs`'s `sim_latency::off_fiber_instant` doc
-//! comment for the full mechanism, and `../lens1_vt_sim/src/main.rs`'s
-//! identical module-doc section for the original write-up)
+//! # The boot livelock (see `../lens1_vt_sim/src/main.rs`'s module-doc section
+//! for the full mechanism and its history)
 //!
 //! `deluge_app_init` calls the boot-time FatFS mount SYNCHRONOUSLY, off the
 //! worker fiber, via `embassy_futures::block_on` — a tight busy-spin poll loop
@@ -40,10 +39,10 @@
 //! spawned `pump()` task's `Timer::after(latency).await` being POLLED by the
 //! executor — but the executor's own `poll()` call is already on the stack, so
 //! nothing else can be polled until that whole call stack unwinds.
-//! `sd::sim_latency::set_off_fiber_instant` (called once in `main`, before
-//! anything spawns) sidesteps this: an off-fiber modeled transfer skips the
-//! modeled delay entirely and goes straight to the real (synchronous) read, so
-//! there is nothing for the busy-spin to wait on.
+//! This package sidesteps the whole question by not enabling `sim_latency` at all (see
+//! `Cargo.toml`: a golden renderer wants bit-exact output, not latency realism), so its host SD
+//! reads resolve synchronously and there is no modeled `Timer` to wait on. In `lens1_vt_sim`,
+//! which does model latency, the answer is the `sim_block::block_on` progress hook.
 //!
 //! # SD-image packing happens BEFORE any task is spawned
 //!
@@ -240,14 +239,10 @@ async fn boot_task() {
     deluge_bsp::pic::wait_ready().await;
     crate::sd::boot_init().await;
 
-    // Mirrors `deluge-bsp-rust`'s `host_app_task` efatfs mount (see its
-    // comment). `main`'s `sd::sim_latency::set_off_fiber_instant(true)`
-    // (already set once before anything is spawned) covers this mount exactly
-    // like it covers the C-FatFS mount inside `deluge_app_init` below: this
-    // mount's block device goes through the same `deluge_block_read` off-fiber
-    // dispatch (see `efatfs_host_shim.rs`'s module doc), so it inherits the
-    // flag with no extra wrap/restore needed here. A failed mount must NOT
-    // abort boot — see the device/host_app_task comments this mirrors.
+    // Mirrors `deluge-bsp-rust`'s `host_app_task` efatfs mount (see its comment). This mount
+    // runs off-fiber; with `sim_latency` off for this package its transfers are plain
+    // synchronous reads, so there is no modeled delay for an off-fiber caller to get stuck on.
+    // A failed mount must NOT abort boot — see the device/host_app_task comments this mirrors.
     #[cfg(feature = "efatfs_streaming")]
     match crate::efatfs_host_shim::mount().await {
         Ok(()) => log::info!("golden_vt_render: efatfs mounted"),
@@ -606,15 +601,6 @@ fn main() {
     // SAFETY: single-threaded at this point (before any task/executor exists).
     unsafe { std::env::set_var("DELUGE_RENDER", "1") };
 
-    // See this file's module doc: sidesteps the boot-time off-fiber block_on
-    // livelock. Set once, before anything spawns. Only needed (and only
-    // exists) under `sim_latency` — this package's default feature set
-    // dropped it (see Cargo.toml's `default`/`sim_latency` doc): without
-    // `sim_latency`, `sd.rs`'s plain (non-modeled) block-device path is used
-    // directly and the livelock this sidesteps cannot occur.
-    #[cfg(feature = "sim_latency")]
-    sd::sim_latency::set_off_fiber_instant(true);
-
     // SAFETY: `raw::Executor` needs `&'static`; leaking a Box is the standard
     // pattern for a `fn main` that doesn't itself run forever
     // (`embassy_executor::Executor::run`'s own doc uses the same pattern).
@@ -632,9 +618,8 @@ fn main() {
     spawner.spawn(control::pad_render().unwrap());
     spawner.spawn(control::encoder_wake_pump().unwrap());
     spawner.spawn(display::oled_render().unwrap());
-    // Only spawned under `sim_latency` (see Cargo.toml's `default` doc and
-    // the `set_off_fiber_instant` call above): with the feature off there is
-    // no modeled-latency queue for this task to pump.
+    // Only spawned under `sim_latency` (see Cargo.toml's `default` doc): with the feature off
+    // there is no modeled-latency queue for this task to pump.
     #[cfg(feature = "sim_latency")]
     spawner.spawn(sd::sim_latency::pump().unwrap());
     spawner.spawn(boot_task().unwrap());

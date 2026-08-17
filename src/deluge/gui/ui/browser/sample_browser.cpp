@@ -1216,10 +1216,11 @@ bool SampleBrowser::loadAllSamplesInFolder(bool detectPitch, int32_t* getNumSamp
 		previouslyViewedFilename = currentFileItem->filename.c_str();
 	}
 
-	// Local RAII handle (not the shared FatFS::Directory staticDIR global) - the port selector picks
-	// efatfs or C-FatFS underneath; the destructor closes it on every return path below (including via
-	// the removeReasonsFromSamplesAndGetOut goto target further down), so there's no manual close() to
-	// forget or double up on.
+	// Local RAII handle: the destructor closes it on every return path below (including via the
+	// removeReasonsFromSamplesAndGetOut goto target further down), so there's no manual close() to
+	// forget or double up on. (Historically this contrasted with a shared FatFS::Directory staticDIR
+	// global behind a port selector — both are gone: staticDIR was deleted with C-FatFS, and efatfs
+	// is the sole filesystem.)
 	auto dir = D_TRY_CATCH_MOVE(deluge::io::Directory::open(dirToLoad), error, {
 		display->displayError(Error::SD_CARD);
 		return false;

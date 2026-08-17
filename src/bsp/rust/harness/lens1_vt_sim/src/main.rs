@@ -17,8 +17,8 @@
 //! embassy-executor feature is enabled (see `Cargo.toml`), so there is no executor-supplied
 //! `__pender` in this binary — both instances share the one below, and it is ours.
 //!
-//! # The boot livelock (see `sd.rs`'s `sim_latency::off_fiber_instant` doc
-//! comment for the full mechanism)
+//! # The boot livelock (see `sd.rs`'s `locked_read_sectors` doc comment for the
+//! full mechanism and its history)
 //!
 //! `deluge_app_init` calls the boot-time FatFS mount SYNCHRONOUSLY, off the
 //! worker fiber, via `embassy_futures::block_on` — a tight busy-spin poll loop
@@ -44,24 +44,19 @@
 //! `STREAM_EXEC`: it holds the FS mutex across its SD await, so a MAIN-resident
 //! spin has to be able to drive it to release.
 //!
-//! Fix: `sd.rs`'s `sim_latency::set_off_fiber_instant` (a small, additive,
-//! off-by-default change to that SHARED file) makes an off-fiber modeled
-//! transfer skip the modeled delay entirely and go straight to the real
-//! (synchronous) read — no `Timer`/`pump` involved at all, so there is nothing
-//! for the busy-spin to wait ON. Safe/faithful because the only off-fiber
-//! transfers that can ever occur here are the boot-time FatFS mount plus
-//! whatever essential-sample reads `deluge_app_init` issues synchronously
-//! before the fiber exists — load's own essential-sample reads have no
-//! real-time deadline the underrun counters care about, and this extends that
-//! reasoning one step earlier, to the mount itself.
-//! Every transfer AFTER the fiber exists (song load's essential-sample fetches,
-//! sustained streaming, recording) is genuinely ON-fiber (`block_on_fiber`, a
-//! coroutine YIELD — not a busy spin: it suspends the fiber and returns control
-//! to whoever called `fiber::worker_poll()`, which `.await`s normally
-//! afterwards) — modeled latency applies there exactly as it does for Lens 2,
-//! driven correctly by the SAME `sim_latency::pump` task, spawned once at
-//! boot — now on `HP_EXEC`, not MAIN (Task 2; see `preempt`'s module doc for
-//! why moving it there, rather than off-thread, keeps this deterministic).
+//! **Fix (current): the progress hook, and modeled latency now reaches EVERY transfer.**
+//! Off-fiber storage no longer spins hooklessly — it goes through
+//! `sim_block::block_on`, whose hook pumps `HP_EXEC` (where `sim_latency::pump` lives) and
+//! advances the virtual clock on each `Pending`. So the `Timer` the boot mount waits on is
+//! exactly what the hook completes, and the busy-spin has something to wait on after all.
+//!
+//! This replaced an earlier fix: `sd.rs` used to carry an `off_fiber_instant` escape hatch that
+//! made off-fiber transfers skip modeling and take the real synchronous read. That was removed
+//! once the hook made it unnecessary — verified, not assumed, by running this harness's four
+//! spin selftests and a full sweep with modeled latency reaching off-fiber reads for the first
+//! time, with no livelock. The gain is fidelity: task-context reads are now modeled here, where
+//! they previously escaped modeling entirely. It does NOT make the margin arm any less vacuous —
+//! that is the render-path issue in the charter note below, not a latency-modeling one.
 //!
 //! # Reused shared substrate
 //!
@@ -72,10 +67,9 @@
 //! configured COMPILATION of the same source (this package's own `mod
 //! sys`/Cargo features), not a fork: a change to any of these files is picked
 //! up by both packages. The shared-file BEHAVIOR changes this file makes are
-//! the two small, additive, off-by-default hooks called below
-//! (`sd::sim_latency::set_off_fiber_instant`,
-//! `scheduler::set_audio_period_override_us` — both documented at their
-//! definitions in `sd.rs`/`scheduler.rs`), plus a third as of Task 2:
+//! the small, additive, off-by-default hook called below
+//! (`scheduler::set_audio_period_override_us`, documented at its definition in
+//! `scheduler.rs`), plus:
 //! `preempt::init` calls `sim_block::set_progress_hook` and
 //! `sim_block::set_spin_budget(10_000)` (overriding that shared file's own
 //! `100_000` default) — see `sim_block.rs`'s and `preempt.rs`'s module docs.
@@ -205,14 +199,11 @@ async fn boot_task() {
     deluge_bsp::pic::wait_ready().await;
     crate::sd::boot_init().await;
 
-    // Mirrors `deluge-bsp-rust`'s `host_app_task` efatfs mount (see its
-    // comment). `main`'s `sd::sim_latency::set_off_fiber_instant(true)` (above,
-    // set once before anything is spawned) already covers this mount exactly
-    // like it covers the C-FatFS mount inside `deluge_app_init` below: this
-    // mount's block device goes through the same `deluge_block_read` off-fiber
-    // dispatch (see `efatfs_host_shim.rs`'s module doc), so it inherits the
-    // flag with no extra wrap/restore needed here. A failed mount must NOT
-    // abort boot — see the device/host_app_task comments this mirrors.
+    // Mirrors `deluge-bsp-rust`'s `host_app_task` efatfs mount (see its comment). This mount
+    // runs off-fiber and its transfers ARE modeled — the `off_fiber_instant` escape hatch that
+    // used to exempt them is gone, because off-fiber storage now spins through
+    // `sim_block::block_on` and the progress hook completes the modeled `Timer`. A failed mount
+    // must NOT abort boot — see the device/host_app_task comments this mirrors.
     #[cfg(feature = "efatfs_streaming")]
     match crate::efatfs_host_shim::mount().await {
         Ok(()) => log::info!("lens1-vt-sim: efatfs mounted"),
@@ -488,7 +479,6 @@ fn main() {
 
     // See this file's module doc: sidesteps the boot-time off-fiber block_on
     // livelock. Set once, before anything spawns.
-    sd::sim_latency::set_off_fiber_instant(true);
     // `post_load_sim_latency`'s design applies the modeled latency ONLY after
     // load completes, deliberately sparing the essential-sample preload (load
     // has no real-time deadline). That's also WHY it can never produce a
@@ -550,11 +540,12 @@ fn main() {
     // The decisive reason to skip `boot_task` here, not just a "cleaner measurement"
     // preference: its mount reaches SD through the HOOKLESS `embassy_futures::block_on`
     // (`sd.rs:47`'s import, used by `deluge_block_read`'s host body at `sd.rs:616`) rather
-    // than `sim_block::block_on` — with `off_fiber_instant(false)` (set below, required for
-    // this selftest to mean anything), nothing could ever pump `sim_latency::pump`'s
-    // `Timer` for THAT call path, so spawning `boot_task` here would not merely perturb the
-    // measurement, it would reproduce the original boot livelock outright (100% CPU,
-    // virtual clock frozen) and this mode would never reach its assertion at all. A lesser,
+    // than `sim_block::block_on`, so nothing can pump `sim_latency::pump`'s `Timer` for THAT
+    // call path: spawning `boot_task` here would not merely perturb the measurement, it would
+    // reproduce the original boot livelock outright (100% CPU, virtual clock frozen) and this
+    // mode would never reach its assertion at all. Note this hazard is about the HOOKLESS
+    // import specifically — the hooked spin is exactly what makes the rest of this harness
+    // work. A lesser,
     // secondary reason: even if that livelock didn't exist, `boot_task`'s own SD activity
     // would race the selftest's single sector-0 read on the same `SD_BUS` lock (`sd.rs`'s
     // `locked_read_sectors`) and could perturb its exact-latency assertion for a reason
@@ -730,8 +721,7 @@ fn main() {
 
     // The MUTEX-class proofs. Both are placed here, after `BUDGET_TICKS` and the wall-clock
     // watchdog are published, so neither can spin unguarded — same discipline as the
-    // timer-class modes below. Neither issues an SD transfer, so neither touches
-    // `off_fiber_instant`.
+    // timer-class modes below. Neither issues an SD transfer.
     //
     // The positive case must complete; the control must wedge. Running only the positive one
     // proves little, because a pass is also what an uncontended lock produces — see
@@ -774,21 +764,13 @@ fn main() {
     // the scenario spawn (and before the driver loop below, which never gets a chance to
     // run in this mode).
     if std::env::args().any(|a| a == "--selftest-block") {
-        // Undo the boot-livelock escape hatch set above (`set_off_fiber_instant(true)`)
-        // for THIS call only: the selftest calls `sd::locked_read_sectors` directly from
-        // `main`, i.e. off-fiber (no fiber exists yet — `boot_task` hasn't even been
-        // polled), which is exactly the condition that escape hatch exempts from
-        // modeling. Left at `true` here, the read would take the synchronous real-read
-        // branch and complete in zero virtual time on the FIRST poll — vacuously
-        // "passing" without ever exercising `sim_block::block_on`'s hook-driven spin at
-        // all. `false` routes the read through `sim_latency::modeled_read`, which is the
-        // actual mechanism this selftest exists to prove. No restore needed: every path
-        // out of this block is a `hard_exit`. Unconditional, matching the sibling call
-        // above (`set_off_fiber_instant(true)`) rather than `#[cfg]`-gating this one: the
-        // whole package already requires `sim_latency` to build (that sibling call has
-        // never been gated either), so a feature gate here would be redundant, not
-        // defensive.
-        sd::sim_latency::set_off_fiber_instant(false);
+        // This selftest calls `sd::locked_read_sectors` directly from `main`, i.e. off-fiber
+        // (no fiber exists yet — `boot_task` hasn't even been polled). That used to need an
+        // explicit `set_off_fiber_instant(false)` here, because the harness otherwise exempted
+        // off-fiber transfers from modeling and the read would have completed in zero virtual
+        // time on the FIRST poll — vacuously "passing" without exercising the hook-driven spin
+        // at all. The exemption no longer exists, so the read is modeled unconditionally and
+        // this mode is non-vacuous by construction.
         // Let `sim_latency::pump` reach its `REQUEST.wait()` before we issue a transfer —
         // see `selftest`'s module doc ("Why `main` pumps `HP_EXEC` once before issuing the
         // transfer") for why this is good discipline even though `Signal`'s latching
@@ -812,8 +794,8 @@ fn main() {
     // a task while MAIN's own `executor.poll()` is already on the stack — the shape every
     // Phase 2 production call site actually uses, and also the shape of the original boot
     // livelock (see `selftest.rs`'s module doc). The ONLY difference from `--selftest-block`
-    // is this nesting: same read, same exact-latency assertion, same
-    // `off_fiber_instant(false)`/pre-`pump_hp()` discipline.
+    // is this nesting: same read, same exact-latency assertion, same pre-`pump_hp()`
+    // discipline.
     //
     // Unlike `--selftest-block`, this mode DOES have to poll MAIN's `executor` (that is the
     // whole point), so it runs its own minimal driver loop below rather than falling through
@@ -823,12 +805,6 @@ fn main() {
     // pump HP_EXEC, check a `DONE` flag, else advance to the next deadline) — not a new
     // mechanism, just the same shape scoped to this mode's own task/result statics.
     if nested_selftest {
-        // See the sibling call in the `--selftest-block` branch above for why this must be
-        // `false`: with `off_fiber_instant(true)` (this file's default, set above) the read
-        // would take the synchronous branch and complete on the very first poll — no
-        // `sim_block::block_on` spin at all, and the nested shape this mode exists to prove
-        // would never be exercised.
-        sd::sim_latency::set_off_fiber_instant(false);
         // Same pre-pump discipline as the non-nested mode, and for the same reason — see
         // `selftest.rs`'s module doc ("Why `main` pumps `HP_EXEC` once before issuing the
         // transfer").

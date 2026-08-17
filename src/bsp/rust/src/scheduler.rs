@@ -58,8 +58,10 @@ type TaskID = i8;
 type ResourceID = u32;
 
 const RESOURCE_NONE: ResourceID = 0;
-/// Slow-storage (SD/MMC, SPI flash) — `scheduler_api.h` RESOURCE_SD.
-const RESOURCE_SD: ResourceID = 1;
+// No `RESOURCE_SD` constant (`scheduler_api.h` value 1): this side never gates on it, and that
+// absence is deliberate rather than an omission — see `claim`'s doc below, which records that the
+// serialization RESOURCE_SD would have provided comes from the FS mutex instead. Declaring an
+// unused ABI mirror only produced a `-Wunused` warning.
 /// USB transport — `scheduler_api.h` RESOURCE_USB.
 const RESOURCE_USB: ResourceID = 2;
 /// "Must not run inside an SD routine" — `scheduler_api.h` RESOURCE_SD_ROUTINE.

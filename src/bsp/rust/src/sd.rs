@@ -104,12 +104,13 @@ const CARD_EJECTED: DelugeCardEvent = 2;
 
 // FatFs diskio status/result codes (ChaN's FatFs `diskio.h` convention; no longer
 // vendored in this tree, but these numeric values are the de-facto standard).
+// Only the codes these shims actually return are declared — `RES_ERROR` (1) and
+// `RES_WRPRT` (2) were carried over with the set and never used, and with C-FatFS deleted
+// nothing is going to start using them, so they are gone rather than `#[allow]`ed.
 const STA_NOINIT: u8 = 0x01;
 const STA_NODISK: u8 = 0x02;
 const STA_PROTECT: u8 = 0x04;
 const RES_OK: i32 = 0;
-const RES_ERROR: i32 = 1;
-const RES_WRPRT: i32 = 2;
 const RES_NOTRDY: i32 = 3;
 const RES_PARERR: i32 = 4;
 const CTRL_SYNC: u8 = 0;
@@ -267,32 +268,19 @@ pub async fn locked_read_sectors(lba: u32, count: u32, buf: &mut [u8]) -> Result
     stats::note_read(crate::fiber::on_fiber());
     #[cfg(all(not(target_os = "none"), feature = "sim_latency"))]
     {
-        // Mirrors `deluge_block_read`'s identical off-fiber branch (see its doc
-        // comment and `sim_latency::off_fiber_instant`'s): an off-fiber caller
-        // reaching this function is NOT necessarily suspend-safe — unlike
-        // `deluge_block_read`, whose only callers are C FatFS's own diskio
-        // shims, this one is also `HostSdBlockDevice::read`'s backing, reached
-        // (via `efatfs_host_shim::deluge_efatfs_file_open`'s off-fiber branch)
-        // through a NON-yielding `embassy_futures::block_on` when the C++ app
-        // opens an efatfs task-context file before the worker fiber exists
-        // (e.g. during `deluge_app_init`'s early boot). Awaiting
-        // `modeled_read`'s `Timer` there would livelock exactly like the
-        // original boot-time C-FatFS mount did before `off_fiber_instant` was
-        // introduced — nothing can poll `sim_latency::pump` while that
-        // `block_on` never returns (confirmed empirically: 100% CPU virtual-
-        // clock-frozen spin in `embassy_futures::block_on::<task_file_open>`
-        // when standing up the `golden_vt_render` harness with
-        // `efatfs_streaming` + `async_streaming_loader` + `sim_latency` all
-        // on). Skip modeling and go straight to the real (synchronous,
-        // always-ready-on-host) read whenever off-fiber AND the flag is set —
-        // the same conservative "off-fiber transfers don't get modeled
-        // latency" tradeoff `deluge_block_read` already makes, just extended
-        // to this newer call path.
-        if !crate::fiber::on_fiber() && sim_latency::off_fiber_instant() {
-            sd::read_sectors(lba, count, buf).await
-        } else {
-            sim_latency::modeled_read(lba, count, buf).await
-        }
+        // Model EVERY transfer, on-fiber or not. This used to have an off-fiber escape hatch
+        // (`sim_latency::off_fiber_instant`) that skipped modeling and took the real
+        // synchronous read, because an off-fiber caller arrived through a NON-yielding
+        // `embassy_futures::block_on` — and awaiting `modeled_read`'s `Timer` under a hookless
+        // spin livelocks, since nothing can poll `sim_latency::pump` while the spin never
+        // returns. That was confirmed empirically at the time (100% CPU, virtual clock frozen).
+        //
+        // The escape hatch is gone because its premise is: off-fiber storage now spins through
+        // `crate::sim_block::block_on`, whose progress hook pumps the executor hosting `pump`
+        // and advances the virtual clock on every `Pending`. So the `Timer` the hatch existed to
+        // avoid is exactly what the hook completes. Consequence, and the point of removing it:
+        // task-context reads get modeled latency for the first time, so Lens 1 sees them.
+        sim_latency::modeled_read(lba, count, buf).await
     }
     #[cfg(not(all(not(target_os = "none"), feature = "sim_latency")))]
     {
@@ -310,11 +298,7 @@ pub async fn locked_write_sectors(lba: u32, count: u32, buf: &[u8]) -> Result<()
     stats::note_write(crate::fiber::on_fiber());
     #[cfg(all(not(target_os = "none"), feature = "sim_latency"))]
     {
-        if !crate::fiber::on_fiber() && sim_latency::off_fiber_instant() {
-            sd::write_sectors(lba, count, buf).await
-        } else {
-            sim_latency::modeled_write(lba, count, buf).await
-        }
+        sim_latency::modeled_write(lba, count, buf).await
     }
     #[cfg(not(all(not(target_os = "none"), feature = "sim_latency")))]
     {
@@ -464,6 +448,17 @@ pub extern "C" fn disk_ioctl(pdrv: u8, cmd: u8, buff: *mut core::ffi::c_void) ->
 
 /// libdeluge/storage_owner.h — Embassy: the storage owner IS the worker fiber.
 #[unsafe(no_mangle)]
+/// Is the caller already the storage owner (the worker fiber on this BSP)?
+///
+/// Its consumers (`audio_engine.cpp:1662`, `audio_file_manager.cpp:970`) use it for one purpose:
+/// "am I already on the owner, so run the work inline instead of re-dispatching onto the context
+/// I am already running on". That meaning is unaffected by storage becoming callable from
+/// anywhere — `on_fiber()` still truthfully answers it, and self-dispatch is still pointless.
+///
+/// What DID change is the `else` branch at those sites. Coalescing onto the fiber used to be
+/// mandatory, because an off-fiber caller could not perform the I/O at all; now it is a policy
+/// choice that still earns its keep by bounding how many card-init / recorder drains are in
+/// flight. Revisiting that policy belongs to `Owner`'s redesign, not here.
 pub extern "C" fn deluge_storage_on_owner() -> bool {
     crate::fiber::on_fiber()
 }
@@ -588,6 +583,25 @@ pub extern "C" fn deluge_block_write(
 /// `fiber::worker_poll()`, not just that the dispatch was attempted. Compiled for every
 /// host build (not gated on `host_app`/`sim_latency`) — the counters sit idle (never
 /// read) unless something calls the `on_fiber_*` getters below.
+///
+/// ## What these counters mean now that off-fiber I/O is legal
+///
+/// They count transfers observed while `fiber::on_fiber()` is true — which used to be *every*
+/// filesystem transfer, because the synchronous FS C-ABI rejected off-fiber callers outright.
+/// That is no longer so: the rejection gates are gone, storage works from any context, and the
+/// worker fiber is one caller among several. So:
+///
+/// - As a "did fiber-context I/O actually drain through `worker_poll`" probe, these are still
+///   exactly right, and that is what they were built for.
+/// - As a proxy for TOTAL SD traffic they are now an **under-count**, silently. A transfer issued
+///   from a newly-permitted off-fiber context (`deluge_boot`'s settings read, an off-owner save)
+///   is real I/O that increments nothing here.
+///
+/// That matters for `scenario.rs`, which reports these as `cluster_reads`/`recorder_writes`: if
+/// work it means to count migrates off the fiber, the figure drops without the scenario failing.
+/// Deliberately not "fixed" by adding off-fiber counters — nothing consumes them today, and an
+/// unused counter is worse than a documented limitation. Whoever needs total traffic should add
+/// the off-fiber pair then, and make the getter names say which is which.
 ///
 /// The `note_read`/`note_write` call sites live at [`locked_read_sectors`]/
 /// [`locked_write_sectors`] — the chokepoint both the plain-host `deluge_block_*`
@@ -786,19 +800,12 @@ pub extern "C" fn deluge_block_read(
             sim_latency::modeled_read(sector, count, out).await
         };
         block_on_fiber(fut)
-    } else if sim_latency::off_fiber_instant() {
-        // See `sim_latency::off_fiber_instant`'s doc comment.
-        let fut = async {
-            let _guard = SD_BUS.lock().await;
-            sd::read_sectors(sector, count, out).await
-        };
-        block_on(fut)
     } else {
         let fut = async {
             let _guard = SD_BUS.lock().await;
             sim_latency::modeled_read(sector, count, out).await
         };
-        block_on(fut)
+        crate::sim_block::block_on(fut)
     };
     match result {
         Ok(()) => DELUGE_OK,
@@ -847,19 +854,12 @@ pub extern "C" fn deluge_block_write(
             sim_latency::modeled_write(sector, count, data).await
         };
         block_on_fiber(fut)
-    } else if sim_latency::off_fiber_instant() {
-        // See `sim_latency::off_fiber_instant`'s doc comment.
-        let fut = async {
-            let _guard = SD_BUS.lock().await;
-            sd::write_sectors(sector, count, data).await
-        };
-        block_on(fut)
     } else {
         let fut = async {
             let _guard = SD_BUS.lock().await;
             sim_latency::modeled_write(sector, count, data).await
         };
-        block_on(fut)
+        crate::sim_block::block_on(fut)
     };
     match result {
         Ok(()) => DELUGE_OK,
@@ -940,44 +940,6 @@ pub mod sim_latency {
     /// Override the modeled fixed command overhead (microseconds).
     pub fn set_command_overhead_us(us: u32) {
         COMMAND_OVERHEAD_US.store(us, Ordering::Relaxed);
-    }
-
-    /// Escape hatch for single-threaded deterministic-clock harnesses: when true,
-    /// a modeled read/write issued OFF the storage-owner fiber
-    /// (`deluge_block_read`/`_write`'s `on_fiber` branch above) skips
-    /// [`delay`]/[`pump`] entirely and goes straight to the real transfer. Off
-    /// (`false`) by default, preserving today's behavior for every existing
-    /// consumer — manual `cargo run --features host_app,sim_latency` testing, and
-    /// any multi-threaded harness, which can instead resolve the same off-fiber
-    /// livelock by running [`pump`] on a separate OS thread.
-    ///
-    /// A single-threaded executor has no second thread available for that
-    /// thread-based fix, and needs this flag instead: `deluge_app_init` calls the
-    /// boot-time FatFS mount SYNCHRONOUSLY, and `embassy_futures::block_on`'s
-    /// tight poll loop never yields back to the executor, so `pump`'s `Timer`
-    /// could never be polled — the mount would livelock waiting on a delay
-    /// nothing can ever complete. The only off-fiber `sim_latency` transfers on
-    /// such a harness are that boot-time mount (before the worker/owner exists,
-    /// so nothing else could usefully run concurrently with it anyway — see
-    /// `deluge_block_read`'s own `worker_started()` doc comment) plus a handful
-    /// of essential-sample reads `deluge_app_init` may issue synchronously during
-    /// the same call — none of which have a real-time deadline the underrun
-    /// counters care about (matches `ScenarioConfig::post_load_sim_latency`'s
-    /// existing "load's own reads don't need modeling" rationale). Set this once
-    /// at startup, before any transfer; ON-fiber reads (the actual streaming
-    /// path, post-boot) are UNAFFECTED and keep modeling latency normally —
-    /// those suspend via [`crate::fiber::block_on_fiber`]'s genuine coroutine
-    /// yield, which the normal quiescence-loop-driven executor handles without
-    /// any special-casing.
-    static OFF_FIBER_INSTANT: AtomicBool = AtomicBool::new(false);
-
-    /// See [`OFF_FIBER_INSTANT`]'s doc comment.
-    pub fn set_off_fiber_instant(instant: bool) {
-        OFF_FIBER_INSTANT.store(instant, Ordering::Relaxed);
-    }
-
-    pub(super) fn off_fiber_instant() -> bool {
-        OFF_FIBER_INSTANT.load(Ordering::Relaxed)
     }
 
     /// Modeled latency for a `bytes`-byte transfer: fixed command overhead

@@ -171,23 +171,16 @@ public:
 
 	int32_t* sourcePos{};
 
-	// NOTE (Kate, deluge-stream boundary migration): this used to be an inline
-	// std::optional<FatFS::File> member, then briefly a heap-allocated DelugeStream*
-	// handle behind stream_io.h (Task 8), and is now back to an inline
-	// std::optional<deluge::io::Stream> RAII wrapper over that same handle (Task 10).
-	// The write-dispatch logic itself was confirmed structurally identical
-	// pre/post-Task-8-migration (same buffer, same underlying FatFS calls, just
-	// relocated behind the boundary), but that type change (inline optional -> heap
-	// pointer) altered SampleRecorder's object size and allocation timing. One
-	// `highsiderr` TRACK-mode golden-master fixture (of 5 in that session) showed
-	// small-magnitude PCM sample differences against a pre-migration A/B (same file
-	// size/WAV structure, converging back to identical near the end) -- suspected to
-	// be this layout/allocation-timing shift interacting with this fixture's
-	// documented prior history of repitch/time-stretch fragility under unrelated
-	// code-shape changes, not a genuine regression. Reviewed and knowingly accepted
-	// rather than further bisected (a proposed isolation test -- padding
-	// SampleRecorder back to its old size -- was not run). If you're chasing a
-	// highsiderr-adjacent audio bug, start here.
+	/// @warning A start-here for `highsiderr`-adjacent audio bugs. When this member's type last
+	/// changed, SampleRecorder's object size and allocation timing changed with it, and one
+	/// `highsiderr` TRACK-mode golden fixture showed small-magnitude PCM differences against an
+	/// A/B (same file size and WAV structure, converging back to identical near the end). The
+	/// write-dispatch logic was confirmed structurally identical across that change, so the
+	/// differences were attributed to the layout/allocation-timing shift interacting with this
+	/// fixture's documented fragility under unrelated code-shape changes, and knowingly accepted
+	/// rather than bisected further -- the proposed isolation test (padding SampleRecorder back to
+	/// its old size) was never run. `highsiderr` is separately known to flip on ANY codegen change,
+	/// which is consistent with that reading but does not confirm it.
 	std::optional<deluge::io::Stream> file;
 
 private:

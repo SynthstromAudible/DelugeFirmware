@@ -406,17 +406,17 @@ aborted:
 		// Delete the file if one was created
 		if (!filePathCreated.empty()) {
 
-			// Flush and close any persistent write context BEFORE deleting the file. On the efatfs
-			// backend `file` is write-through for cluster data but defers the directory-entry
+			// Flush and close the persistent write context BEFORE deleting the file. `file` is
+			// write-through for cluster data but defers the directory-entry
 			// (size/first_cluster/mtime) update to close()/flush_context -- if we deleted the file
-			// first, f_unlink() below would see a stale (near-empty) directory entry with
+			// first, the unlink below would see a stale (near-empty) directory entry with
 			// first_cluster still ~0 and free no clusters (an orphaned-cluster leak), and a same-name
 			// file that later recycles this freed short-name slot (see the counter tick-back below)
 			// could have this now-dangling handle's deferred flush land on ITS entry instead. reset()
 			// here first makes the flush observe the file still on disk, so it writes a CONSISTENT
-			// entry; f_unlink then frees the real chain and no dirty handle survives into the next
-			// recording. reset() on an already-disengaged optional (C-FatFS backend, or abort before
-			// the file was ever opened) is a safe no-op.
+			// entry; the unlink then frees the real chain and no dirty handle survives into the next
+			// recording. reset() on an already-disengaged optional (an abort before the file was ever
+			// opened) is a safe no-op.
 			this->file.reset();
 
 			deluge_file_invalidate_cache();
