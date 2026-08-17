@@ -369,10 +369,20 @@ fn advance_to(driver: &clock::PeekableMockDriver, next: u64) {
     NEXT_DEADLINE_US.store(next, Ordering::Relaxed);
     let budget_ticks = BUDGET_TICKS.load(Ordering::Relaxed);
     if next > budget_ticks {
-        log::error!(
-            "lens1-vt-sim: virtual-time budget ({budget_ticks}us) exhausted before the \
-             scenario completed (next deadline at {next}us) — scenario wedged"
-        );
+        if crate::preempt::in_spin() {
+            log::error!(
+                "lens1-vt-sim: virtual-time budget ({budget_ticks}us) exhausted from INSIDE a \
+                 non-yielding sim_block::block_on spin (next deadline at {next}us). The spin's \
+                 future never became ready and the clock ran out chasing it — this is a wedged \
+                 spin, not a slow scenario. Check what that future is waiting on and which \
+                 executor can satisfy it."
+            );
+        } else {
+            log::error!(
+                "lens1-vt-sim: virtual-time budget ({budget_ticks}us) exhausted before the \
+                 scenario completed (next deadline at {next}us) — scenario wedged"
+            );
+        }
         hard_exit(2);
     }
     let now = driver.now();

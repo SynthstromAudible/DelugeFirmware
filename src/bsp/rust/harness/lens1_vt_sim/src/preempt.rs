@@ -56,6 +56,26 @@ pub fn hook_invocations() -> u64 {
     HOOK_INVOCATIONS.load(Ordering::Relaxed)
 }
 
+/// Non-zero while a [`progress_hook`] call is on the stack — i.e. while a non-yielding
+/// `sim_block::block_on` spin is what is driving the clock. Read by [`crate::advance_to`] so a
+/// budget exhaustion reached from inside a spin says so, instead of blaming the scenario for
+/// running long.
+///
+/// Why this is needed at all: a spin that can never be satisfied does NOT report as a spin.
+/// [`progress_hook`] returns [`Progress::Advanced`] on every clock advance, and
+/// `sim_block::block_on` resets its stalled-poll counter on `Advanced`, so its wedge budget is
+/// unreachable in any scenario where something keeps arming timers (audio arms one every
+/// 2902us). The run instead dies in `advance_to` — pointing at the wrong thing.
+///
+/// A counter rather than a bool: the hook advances the clock and then pumps HP again, and a
+/// future edit could nest hook calls.
+static IN_SPIN: AtomicU64 = AtomicU64::new(0);
+
+/// True while a non-yielding spin's progress hook is on the stack. See [`IN_SPIN`].
+pub fn in_spin() -> bool {
+    IN_SPIN.load(Ordering::Relaxed) != 0
+}
+
 /// Record a pend against the executor identified by `context`.
 pub fn note_pend(context: *mut ()) {
     if context as usize == HP_TAG {
@@ -137,7 +157,17 @@ pub fn pump_hp() -> bool {
 /// loop's own advance step uses — so the watchdog mirrors, the virtual-time budget check,
 /// and the timeline checksum stay correct regardless of which of the two call sites moved
 /// the clock. Never advance the clock directly here.
+///
+/// Marks [`IN_SPIN`] for its whole duration — including the [`crate::advance_to`] call it
+/// makes — so a budget exhaustion reached from within a spin is attributable to the spin.
 pub fn progress_hook() -> Progress {
+    IN_SPIN.fetch_add(1, Ordering::Relaxed);
+    let r = progress_hook_inner();
+    IN_SPIN.fetch_sub(1, Ordering::Relaxed);
+    r
+}
+
+fn progress_hook_inner() -> Progress {
     // Counts the call, not just a successful outcome: `HOOK_INVOCATIONS`'s job is to prove
     // the hook mechanism itself ran, and it is invoked whether or not this particular call
     // found anything to do (see `Progress::Stalled` below) — a caller asserting it advanced
