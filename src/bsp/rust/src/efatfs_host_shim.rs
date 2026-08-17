@@ -18,7 +18,8 @@
 //!
 //! `deluge_block_read`/`_write` are *synchronous* C-ABI functions: internally
 //! they drive the transfer with `block_on_fiber` (on the worker fiber) or
-//! `embassy_futures::block_on` (off it). The streaming READ path runs on the
+//! `embassy_futures::block_on` (off it) — `sd.rs` keeps that dispatch, which is why this
+//! section still describes it. The streaming READ path runs on the
 //! async fill task (`streaming_loader::streaming_fill_task`), which is OFF the
 //! worker fiber — so a shim read reached that way took the off-fiber
 //! `block_on` branch: a NON-yielding busy spin. When a recorder card-write on
@@ -51,15 +52,24 @@
 //!   single-threaded (one `block_on`/one executor thread), so contention never
 //!   actually happens — the `Mutex` is here for shape-fidelity, not for a real
 //!   concurrency need.
-//! - The FFI bridge ([`deluge_efatfs_open`]/[`deluge_efatfs_close`]) uses the
-//!   same `on_fiber()`-gated `block_on_fiber`/`block_on` dispatch as the device
-//!   bridge. On host there IS a worker fiber (the C++ app's), and
-//!   `SampleStream::open_read_stream` calls these from it — so the on-fiber
-//!   `block_on_fiber` (a coroutine yield) is the live path, letting an
-//!   open-path SD read pend without livelocking the single-threaded harness.
-//!   Always falling back to `embassy_futures::block_on` (a non-yielding spin)
-//!   would be unsafe once the block device awaits modeled latency — see the
-//!   block-device section above.
+//! - The FFI bridge below uses ONE unconditional `crate::sim_block::block_on` — no
+//!   `on_fiber()` dispatch — exactly matching `efatfs_fs.rs` after the I/O-class collapse.
+//!   The symmetry is the point: `efatfs_fs.rs` is `#![cfg(target_os = "none")]`, so no host
+//!   build compiles a line of it, and if this mirror kept the old branch then every host gate
+//!   (Lens 1's wedge detector, Lens 2 TSan, the goldens) would be exercising a shape the
+//!   device no longer runs.
+//!
+//!   An earlier version of this doc warned that "always falling back to
+//!   `embassy_futures::block_on` (a non-yielding spin) would be unsafe once the block device
+//!   awaits modeled latency". That warning was correct and still is — but it is about the
+//!   HOOKLESS spin. `sim_block::block_on` is not that: on host it invokes a registered
+//!   progress hook on every `Pending`, which in `lens1_vt_sim` pumps the higher-priority
+//!   executor (where `sim_latency::pump` lives) and advances the virtual clock. That is the
+//!   whole reason `sim_block` exists, and the case is proven, not assumed —
+//!   `--selftest-block-nested` drives exactly this shape (a spin inside a task with MAIN's
+//!   `executor.poll()` already on the stack) and completes at the modeled latency. On a
+//!   threaded host the hook yields instead, since there a `Pending` is satisfied by another
+//!   thread. See `sim_block`'s module doc and `use_threaded_host_hook`.
 //!
 //! Test infrastructure only (host_app-gated) — no device path touched.
 #![cfg(feature = "host_app")]
@@ -277,10 +287,11 @@ pub async fn close(handle: u32) {
 
 // --- FFI bridge --------------------------------------------------------------
 //
-// Host sibling of `efatfs_fs.rs`'s FFI bridge. No worker fiber exists on
-// host, so unlike the device bridge (which requires `crate::fiber::on_fiber()`
-// and routes through `block_on_fiber`), this just `embassy_futures::block_on`s
-// the async work directly.
+// Host sibling of `efatfs_fs.rs`'s FFI bridge, and now shape-identical to it: one
+// unconditional `crate::sim_block::block_on`, callable from any context, no `on_fiber()`
+// dispatch and no rejection. See this module's doc for why the symmetry is load-bearing (the
+// device file is device-only, so this mirror is what every host gate actually runs) and why a
+// hook-driven spin is safe here where a hookless one would not be.
 
 use core::ffi::{CStr, c_char};
 
@@ -304,21 +315,15 @@ pub extern "C" fn deluge_efatfs_open(
         Ok(p) => p,
         Err(_) => return false,
     };
-    // Drive the async open the SAME way the device bridge (`efatfs_fs.rs`) does:
-    // when this C-ABI is called from the worker fiber (the real case — C++'s
-    // `SampleStream::open_read_stream` runs on the fiber), use `block_on_fiber`,
-    // a coroutine YIELD that lets the executor keep running while an SD read
-    // pends. A plain `embassy_futures::block_on` here is a non-yielding busy
-    // spin: on a single-threaded harness (Lens 1) it would livelock the moment
-    // an open-path read needs the executor to advance (pump `Timer` / release
-    // `SD_BUS`), exactly the deadlock this module's `read` fix addresses. Off
-    // fiber (no coroutine to yield — only pre-fiber/boot contexts), fall back to
-    // `embassy_futures::block_on`; there the reads have nothing to contend with.
-    let opened = if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(open(path))
-    } else {
-        embassy_futures::block_on(open(path))
-    };
+    // Drive the async open the SAME way the device bridge (`efatfs_fs.rs`) does: one
+    // non-yielding spin, whatever the calling context. What makes that safe on a
+    // single-threaded harness is that this is `sim_block::block_on`, not
+    // `embassy_futures::block_on` — the registered progress hook pumps the higher-priority
+    // executor and advances the virtual clock on every `Pending`, so an open-path read that
+    // needs the executor to advance (pump `Timer`, release `SD_BUS`) still completes. A
+    // HOOKLESS spin here would livelock, which is the deadlock this module's `read` fix
+    // addresses; see this module's doc.
+    let opened = crate::sim_block::block_on(open(path));
     match opened {
         OpenOutcome::Handle(h) => {
             // SAFETY: `out_handle`/`out_table_full` are non-null (checked above) and point at
@@ -346,22 +351,17 @@ pub extern "C" fn deluge_efatfs_open(
     }
 }
 
-/// C-ABI: close a streaming file handle. Uses the same `on_fiber`-gated
-/// `block_on_fiber`/`block_on` dispatch as [`deluge_efatfs_open`] — though
-/// `close` issues no SD reads (it only frees a [`HANDLES`] slot), so neither
-/// driver can pend here.
+/// C-ABI: close a streaming file handle. Same unconditional spin as
+/// [`deluge_efatfs_open`] — though `close` issues no SD reads (it only frees a [`HANDLES`]
+/// slot), so it can barely pend at all.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_close(handle: u32) {
-    if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(close(handle));
-    } else {
-        embassy_futures::block_on(close(handle));
-    }
+    crate::sim_block::block_on(close(handle));
 }
 
-/// C-ABI: host sibling of `efatfs_fs::deluge_efatfs_read_at`. Uses the same `on_fiber`-gated
-/// `block_on_fiber`/`block_on` dispatch as [`deluge_efatfs_open`] — on-fiber it yields so an SD read
-/// can pend without livelocking the single-threaded harness (see this module's `read` doc).
+/// C-ABI: host sibling of `efatfs_fs::deluge_efatfs_read_at`. Same unconditional
+/// `sim_block::block_on` spin as [`deluge_efatfs_open`] — the progress hook is what lets an SD
+/// read pend without livelocking the single-threaded harness (see this module's doc).
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_read_at(
     handle: u32,
@@ -375,11 +375,7 @@ pub extern "C" fn deluge_efatfs_read_at(
     }
     // SAFETY: `dst` points at `count` writable bytes owned by the caller for this call.
     let buf = unsafe { core::slice::from_raw_parts_mut(dst, count as usize) };
-    let filled = if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(read_at(handle, byte_offset, buf))
-    } else {
-        embassy_futures::block_on(read_at(handle, byte_offset, buf))
-    };
+    let filled = crate::sim_block::block_on(read_at(handle, byte_offset, buf));
     if filled {
         // SAFETY: `out_read` is non-null (checked above), a `u32` the caller owns.
         unsafe {
@@ -395,8 +391,8 @@ pub extern "C" fn deluge_efatfs_read_at(
 //
 // Host sibling of `efatfs_fs.rs`'s task-context tables/bridge -- same split
 // rationale (a separate position-carrying [`TaskFileTable`], distinct from the
-// streaming [`HANDLES`]) and the same `on_fiber`-gated `block_on_fiber`/
-// `block_on` dispatch every function in this module already uses. See that
+// streaming [`HANDLES`]) and the same unconditional `sim_block::block_on` spin every function
+// in this module now uses. See that
 // file's doc comments for the design; comments here focus on host-specific
 // differences only.
 
@@ -583,9 +579,8 @@ async fn task_dir_close(handle: u32) {
 
 // --- Task-context FFI bridge --------------------------------------------------
 //
-// Same `on_fiber`-gated `block_on_fiber`/`block_on` dispatch as
-// [`deluge_efatfs_open`] above. See `include/libdeluge/file_io.h` for the
-// C-side contract of every function below.
+// Same unconditional `sim_block::block_on` spin as [`deluge_efatfs_open`] above. See
+// `include/libdeluge/file_io.h` for the C-side contract of every function below.
 
 /// C-ABI: open a task-context file. `mode` matches `DelugeFileOpenMode`'s
 /// declaration-order values (0=READ, 1=WRITE_CREATE, 2=WRITE_CREATE_NEW).
@@ -603,11 +598,7 @@ pub extern "C" fn deluge_efatfs_file_open(
         Ok(p) => p,
         Err(_) => return DELUGE_ERR_PARAM,
     };
-    let opened = if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(task_file_open(path, mode))
-    } else {
-        embassy_futures::block_on(task_file_open(path, mode))
-    };
+    let opened = crate::sim_block::block_on(task_file_open(path, mode));
     match opened {
         Ok(h) => {
             // SAFETY: `out_handle` is non-null (checked above), owned by the caller.
@@ -634,11 +625,7 @@ pub extern "C" fn deluge_efatfs_file_read(
     }
     // SAFETY: `dst` points at `count` writable bytes owned by the caller for this call.
     let buf = unsafe { core::slice::from_raw_parts_mut(dst, count as usize) };
-    let result = if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(task_file_read(handle, buf))
-    } else {
-        embassy_futures::block_on(task_file_read(handle, buf))
-    };
+    let result = crate::sim_block::block_on(task_file_read(handle, buf));
     match result {
         Ok(()) => {
             // SAFETY: `out_read` is non-null (checked above).
@@ -665,11 +652,7 @@ pub extern "C" fn deluge_efatfs_file_read_exact(
     }
     // SAFETY: `dst` points at `count` writable bytes owned by the caller for this call.
     let buf = unsafe { core::slice::from_raw_parts_mut(dst, count as usize) };
-    let result = if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(task_file_read_exact(handle, buf))
-    } else {
-        embassy_futures::block_on(task_file_read_exact(handle, buf))
-    };
+    let result = crate::sim_block::block_on(task_file_read_exact(handle, buf));
     match result {
         Ok(n) => {
             // SAFETY: `out_read` is non-null (checked above).
@@ -696,11 +679,7 @@ pub extern "C" fn deluge_efatfs_file_write(
     }
     // SAFETY: `src` points at `count` readable bytes owned by the caller for this call.
     let buf = unsafe { core::slice::from_raw_parts(src, count as usize) };
-    let result = if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(task_file_write(handle, buf))
-    } else {
-        embassy_futures::block_on(task_file_write(handle, buf))
-    };
+    let result = crate::sim_block::block_on(task_file_write(handle, buf));
     match result {
         Ok(n) => {
             // SAFETY: `out_written` is non-null (checked above).
@@ -716,11 +695,7 @@ pub extern "C" fn deluge_efatfs_file_write(
 /// C-ABI: move the handle's cursor to an absolute byte offset.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_file_seek(handle: u32, offset: u32) -> DelugeStatus {
-    let result = if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(task_file_seek(handle, offset))
-    } else {
-        embassy_futures::block_on(task_file_seek(handle, offset))
-    };
+    let result = crate::sim_block::block_on(task_file_seek(handle, offset));
     match result {
         Ok(()) => DELUGE_OK,
         Err(st) => st,
@@ -733,11 +708,7 @@ pub extern "C" fn deluge_efatfs_file_size(handle: u32, out_size: *mut u32) -> De
     if out_size.is_null() {
         return DELUGE_ERR_PARAM;
     }
-    let result = if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(task_file_size(handle))
-    } else {
-        embassy_futures::block_on(task_file_size(handle))
-    };
+    let result = crate::sim_block::block_on(task_file_size(handle));
     match result {
         Ok(sz) => {
             // SAFETY: `out_size` is non-null (checked above).
@@ -753,11 +724,7 @@ pub extern "C" fn deluge_efatfs_file_size(handle: u32, out_size: *mut u32) -> De
 /// C-ABI: truncate to `new_len` bytes.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_file_truncate(handle: u32, new_len: u32) -> DelugeStatus {
-    let result = if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(task_file_truncate(handle, new_len))
-    } else {
-        embassy_futures::block_on(task_file_truncate(handle, new_len))
-    };
+    let result = crate::sim_block::block_on(task_file_truncate(handle, new_len));
     match result {
         Ok(()) => DELUGE_OK,
         Err(st) => st,
@@ -767,11 +734,7 @@ pub extern "C" fn deluge_efatfs_file_truncate(handle: u32, new_len: u32) -> Delu
 /// C-ABI: close a task-context file handle.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_file_close(handle: u32) {
-    if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(task_file_close(handle));
-    } else {
-        embassy_futures::block_on(task_file_close(handle));
-    }
+    crate::sim_block::block_on(task_file_close(handle));
 }
 
 /// C-ABI: open `path` as a directory for iteration.
@@ -788,11 +751,7 @@ pub extern "C" fn deluge_efatfs_dir_open(
         Ok(p) => p,
         Err(_) => return DELUGE_ERR_PARAM,
     };
-    let opened = if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(task_dir_open(path))
-    } else {
-        embassy_futures::block_on(task_dir_open(path))
-    };
+    let opened = crate::sim_block::block_on(task_dir_open(path));
     match opened {
         Ok(h) => {
             // SAFETY: `out_handle` is non-null (checked above), owned by the caller.
@@ -828,11 +787,7 @@ pub extern "C" fn deluge_efatfs_dir_read(
     {
         return DELUGE_ERR_PARAM;
     }
-    let result = if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(task_dir_read(handle, out_name_cap as usize))
-    } else {
-        embassy_futures::block_on(task_dir_read(handle, out_name_cap as usize))
-    };
+    let result = crate::sim_block::block_on(task_dir_read(handle, out_name_cap as usize));
     match result {
         Ok(None) => {
             // SAFETY: `out_has` is non-null (checked above).
@@ -867,11 +822,7 @@ pub extern "C" fn deluge_efatfs_dir_read(
 /// C-ABI: close a directory handle.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_dir_close(handle: u32) {
-    if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(task_dir_close(handle));
-    } else {
-        embassy_futures::block_on(task_dir_close(handle));
-    }
+    crate::sim_block::block_on(task_dir_close(handle));
 }
 
 /// C-ABI: free + total cluster counts of the mounted volume.
@@ -884,12 +835,7 @@ pub extern "C" fn deluge_efatfs_stats(
         return false;
     }
     let fut = with_fs(async |fs| efatfs_core::fs_stats(fs).await);
-    let result = if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(fut)
-    } else {
-        embassy_futures::block_on(fut)
-    }
-    .flatten();
+    let result = crate::sim_block::block_on(fut).flatten();
     match result {
         Some((free, total)) => {
             // SAFETY: both out-params non-null (checked above), owned by the caller for this call.
@@ -908,12 +854,7 @@ pub extern "C" fn deluge_efatfs_stats(
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_mount() -> bool {
     let fut = mount();
-    if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(fut)
-    } else {
-        embassy_futures::block_on(fut)
-    }
-    .is_ok()
+    crate::sim_block::block_on(fut).is_ok()
 }
 
 /// C-ABI: whether the FS is currently mounted (pure state check, no I/O). Lets a caller distinguish
@@ -922,12 +863,7 @@ pub extern "C" fn deluge_efatfs_mount() -> bool {
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_is_mounted() -> bool {
     let fut = with_fs(async |_fs| ());
-    if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(fut)
-    } else {
-        embassy_futures::block_on(fut)
-    }
-    .is_some()
+    crate::sim_block::block_on(fut).is_some()
 }
 
 /// C-ABI (libdeluge/storage_owner.h): is a filesystem operation in flight? Host mirror of the
@@ -945,12 +881,7 @@ pub extern "C" fn deluge_storage_fs_busy() -> bool {
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_remount() -> bool {
     let fut = remount();
-    if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(fut)
-    } else {
-        embassy_futures::block_on(fut)
-    }
-    .is_ok()
+    crate::sim_block::block_on(fut).is_ok()
 }
 
 /// C-ABI: the mounted volume's cluster (allocation-unit) size, in bytes.
@@ -960,12 +891,7 @@ pub extern "C" fn deluge_efatfs_cluster_size(out_bytes: *mut u32) -> bool {
         return false;
     }
     let fut = with_fs(async |fs| efatfs_core::fs_cluster_size(fs).await);
-    let result = if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(fut)
-    } else {
-        embassy_futures::block_on(fut)
-    }
-    .flatten();
+    let result = crate::sim_block::block_on(fut).flatten();
     match result {
         Some(bytes) => {
             // SAFETY: `out_bytes` is non-null (checked above), owned by the caller for this call.
@@ -989,11 +915,7 @@ pub extern "C" fn deluge_efatfs_mkdir(path: *const c_char) -> DelugeStatus {
         Err(_) => return DELUGE_ERR_PARAM,
     };
     let fut = with_fs(async |fs| efatfs_core::mkdir(fs, path).await);
-    let result = if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(fut)
-    } else {
-        embassy_futures::block_on(fut)
-    };
+    let result = crate::sim_block::block_on(fut);
     match result {
         Some(Ok(())) => DELUGE_OK,
         Some(Err(st)) => st,
@@ -1012,11 +934,7 @@ pub extern "C" fn deluge_efatfs_unlink(path: *const c_char) -> DelugeStatus {
         Err(_) => return DELUGE_ERR_PARAM,
     };
     let fut = with_fs(async |fs| efatfs_core::unlink(fs, path).await);
-    let result = if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(fut)
-    } else {
-        embassy_futures::block_on(fut)
-    };
+    let result = crate::sim_block::block_on(fut);
     match result {
         Some(Ok(())) => DELUGE_OK,
         Some(Err(st)) => st,
@@ -1042,11 +960,7 @@ pub extern "C" fn deluge_efatfs_rename(
         Err(_) => return DELUGE_ERR_PARAM,
     };
     let fut = with_fs(async |fs| efatfs_core::rename(fs, old, new).await);
-    let result = if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(fut)
-    } else {
-        embassy_futures::block_on(fut)
-    };
+    let result = crate::sim_block::block_on(fut);
     match result {
         Some(Ok(())) => DELUGE_OK,
         Some(Err(st)) => st,
@@ -1075,11 +989,7 @@ pub extern "C" fn deluge_efatfs_set_time(
     };
     let packed = efatfs_core::pack_timestamp(year, month, day, hour, minute, second);
     let fut = with_fs(async |fs| efatfs_core::set_time(fs, path, packed).await);
-    let result = if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(fut)
-    } else {
-        embassy_futures::block_on(fut)
-    };
+    let result = crate::sim_block::block_on(fut);
     match result {
         Some(Ok(())) => DELUGE_OK,
         Some(Err(st)) => st,
@@ -1091,8 +1001,8 @@ pub extern "C" fn deluge_efatfs_set_time(
 //
 // Host sibling of `efatfs_fs.rs`'s persistent stream-write table/bridge -- same rationale (a
 // single `FileContext` held across an entire recording, advanced via `write_context_noflush` and
-// only persisted to the on-disk directory entry on flush/close) and the same `on_fiber`-gated
-// `block_on_fiber`/`block_on` dispatch every function in this module already uses. See that
+// only persisted to the on-disk directory entry on flush/close) and the same unconditional
+// `sim_block::block_on` spin every function in this module now uses. See that
 // file's doc comments for the design; comments here focus on host-specific differences only.
 
 static STREAM_WRITE_CTX: Mutex<
@@ -1207,7 +1117,7 @@ async fn stream_close(handle: u32) -> bool {
 
 // --- Persistent stream-write FFI bridge ---------------------------------------
 //
-// Same `on_fiber`-gated `block_on_fiber`/`block_on` dispatch as [`deluge_efatfs_open`] above. See
+// Same unconditional `sim_block::block_on` spin as [`deluge_efatfs_open`] above. See
 // `include/libdeluge/stream_io.h` for the C-side contract of every function below.
 
 /// C-ABI: open a persistent stream-write handle. `mode` matches `DelugeStreamMode`'s
@@ -1226,11 +1136,7 @@ pub extern "C" fn deluge_efatfs_stream_open(
         Ok(p) => p,
         Err(_) => return false,
     };
-    let opened = if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(stream_open(path, mode))
-    } else {
-        embassy_futures::block_on(stream_open(path, mode))
-    };
+    let opened = crate::sim_block::block_on(stream_open(path, mode));
     match opened {
         Some(h) => {
             // SAFETY: `out_handle` is non-null (checked above), owned by the caller.
@@ -1258,11 +1164,7 @@ pub extern "C" fn deluge_efatfs_stream_write_at(
     }
     // SAFETY: `src` points at `count` readable bytes owned by the caller for this call.
     let buf = unsafe { core::slice::from_raw_parts(src, count as usize) };
-    let result = if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(stream_write_at(handle, byte_offset, buf))
-    } else {
-        embassy_futures::block_on(stream_write_at(handle, byte_offset, buf))
-    };
+    let result = crate::sim_block::block_on(stream_write_at(handle, byte_offset, buf));
     match result {
         Some(n) => {
             // SAFETY: `out_written` is non-null (checked above).
@@ -1290,11 +1192,7 @@ pub extern "C" fn deluge_efatfs_stream_read_at_via(
     }
     // SAFETY: `dst` points at `count` writable bytes owned by the caller for this call.
     let buf = unsafe { core::slice::from_raw_parts_mut(dst, count as usize) };
-    let result = if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(stream_read_at_via(handle, byte_offset, buf))
-    } else {
-        embassy_futures::block_on(stream_read_at_via(handle, byte_offset, buf))
-    };
+    let result = crate::sim_block::block_on(stream_read_at_via(handle, byte_offset, buf));
     match result {
         Some(n) => {
             // SAFETY: `out_read` is non-null (checked above).
@@ -1310,21 +1208,13 @@ pub extern "C" fn deluge_efatfs_stream_read_at_via(
 /// C-ABI: persist the handle's accumulated size/mtime edit to disk.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_stream_flush(handle: u32) -> bool {
-    if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(stream_flush(handle))
-    } else {
-        embassy_futures::block_on(stream_flush(handle))
-    }
+    crate::sim_block::block_on(stream_flush(handle))
 }
 
 /// C-ABI: truncate to `new_len` bytes.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_stream_truncate(handle: u32, new_len: u32) -> bool {
-    if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(stream_truncate(handle, new_len))
-    } else {
-        embassy_futures::block_on(stream_truncate(handle, new_len))
-    }
+    crate::sim_block::block_on(stream_truncate(handle, new_len))
 }
 
 /// C-ABI: total size in bytes.
@@ -1333,11 +1223,7 @@ pub extern "C" fn deluge_efatfs_stream_size(handle: u32, out_size: *mut u32) -> 
     if out_size.is_null() {
         return false;
     }
-    let result = if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(stream_size(handle))
-    } else {
-        embassy_futures::block_on(stream_size(handle))
-    };
+    let result = crate::sim_block::block_on(stream_size(handle));
     match result {
         Some(sz) => {
             // SAFETY: `out_size` is non-null (checked above).
@@ -1353,9 +1239,5 @@ pub extern "C" fn deluge_efatfs_stream_size(handle: u32, out_size: *mut u32) -> 
 /// C-ABI: flush and close a persistent stream-write handle, freeing its slot.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_stream_close(handle: u32) -> bool {
-    if crate::fiber::on_fiber() {
-        crate::fiber::block_on_fiber(stream_close(handle))
-    } else {
-        embassy_futures::block_on(stream_close(handle))
-    }
+    crate::sim_block::block_on(stream_close(handle))
 }

@@ -164,6 +164,20 @@ mod sd;
 mod sd_image;
 #[path = "../../../src/services.rs"]
 mod services;
+/// The storage spin seam. Needed here because `efatfs_host_shim.rs` now drives every FS
+/// operation through `sim_block::block_on` unconditionally, matching the device bridge.
+///
+/// This package registers **no progress hook**, deliberately, and that is the right choice
+/// rather than an omission: it is single-threaded (one executor, one discrete-event driver
+/// loop), so no other thread exists to satisfy a `Pending`, and
+/// `sim_block::use_threaded_host_hook` would only disarm wedge detection. With no hook a
+/// `Pending` is reported as a wedge — which for this harness is the desired outcome, since a
+/// storage future that cannot complete here should fail the byte-identity gate loudly rather
+/// than silently. In practice nothing pends: this package does not enable `sim_latency`, so its
+/// host SD reads resolve synchronously (see `Cargo.toml`'s `[features]` note on why latency
+/// realism is deliberately off for a golden renderer).
+#[path = "../../../src/sim_block.rs"]
+mod sim_block;
 /// The async cluster-fill task + its selector/wakeup C ABI. The
 /// selector/wakeup symbols (`deluge_streaming_async_active`/
 /// `deluge_streaming_signal_fill`) are always compiled so their call
