@@ -39,9 +39,10 @@ pub struct SdBlockDevice;
 
 // B7 REGRESSION GUARD: every transfer in this impl MUST go through
 // `crate::sd::locked_*`, never `deluge_bsp::sd::read_sectors`/`write_sectors`
-// directly. The raw calls bypass SD_BUS and let an efatfs transfer interleave
-// with a fiber-side C-FatFS transfer on the single SDHI controller. This
-// shipped bypassed until 2026-07-21 (see docs/dev/known-concurrency-bugs.md B7).
+// directly. The raw calls bypass SD_BUS, which is what keeps a transfer off the single SDHI
+// controller while `sd::card_service` is re-identifying the card (see `read`'s comment below —
+// the original C-FatFS rationale is dead, the lock is not). This shipped bypassed until
+// 2026-07-21 (see docs/dev/known-concurrency-bugs.md B7).
 impl BlockDevice<BLOCK_SIZE> for SdBlockDevice {
     type Error = SdError;
     type Align = A4;
@@ -66,11 +67,15 @@ impl BlockDevice<BLOCK_SIZE> for SdBlockDevice {
         let flat = unsafe {
             core::slice::from_raw_parts_mut(data.as_mut_ptr().cast::<u8>(), data.len() * BLOCK_SIZE)
         };
-        // B7: route through the SD_BUS-guarded helper, NOT the raw driver call.
-        // `block_on_fiber` yields the executor mid-DMA, so without this lock an
-        // efatfs transfer and a fiber-side C-FatFS transfer can interleave on the
-        // one SDHI controller. The C-FatFS path holds SD_BUS across its awaits
-        // (`sd.rs:397`); this path must too, for as long as both filesystems coexist.
+        // Route through the SD_BUS-guarded helper, NOT the raw driver call.
+        //
+        // The original reason was to stop an efatfs transfer interleaving with a fiber-side
+        // C-FatFS transfer on the one SDHI controller. C-FatFS is gone, but the lock is NOT
+        // redundant and must not be removed: `sd::card_service` holds SD_BUS across
+        // `sd::init().await` — the ~1.3 s card-identification sequence — with no FS mutex
+        // involved, so SD_BUS is the only thing keeping a transfer and a card bring-up off the
+        // controller at the same time. That ordering matters MORE since streaming moved to its own
+        // interrupt executor, which preempts the thread mode `card_service` runs on.
         //
         // Lock order: this is reached under the efatfs FS mutex, so the order is
         // FS -> SD_BUS. Nothing takes SD_BUS and then FS, so there is no inversion.
