@@ -24,7 +24,9 @@
 #
 # Usage:
 #   sweep.sh                 # build (unless NO_BUILD=1); selftest precondition, then margin sweep + control A
-#   sweep.sh selftest          # --selftest-block + --selftest-block-nested only
+#   sweep.sh selftest          # the 4 spin selftests only: timer class (--selftest-block,
+#                              #   --selftest-block-nested) + mutex class
+#                              #   (--selftest-block-mutex and its -control)
 #   sweep.sh margin           # margin sweep only
 #   sweep.sh control-a        # negative control A only
 #
@@ -104,11 +106,13 @@ pack_selftest_image() {
 }
 
 run_selftest() {
-    echo "=== Selftest: non-yielding block_on over a modeled SD read (both modes) ===" >&2
+    echo "=== Selftest: non-yielding block_on, timer class (2 modes) + mutex class (2 modes) ===" >&2
     pack_selftest_image
-    local ok=1 rc log_block log_nested
+    local ok=1 rc log_block log_nested log_mutex log_mutex_ctl
     log_block="$(mktemp)"
     log_nested="$(mktemp)"
+    log_mutex="$(mktemp)"
+    log_mutex_ctl="$(mktemp)"
 
     if DELUGE_SD_IMAGE="$SELFTEST_IMAGE" timeout 60 "$BIN" --selftest-block \
         >"$log_block" 2>&1; then
@@ -130,9 +134,35 @@ run_selftest() {
         ok=0
     fi
 
+    # Mutex class: a MAIN-resident spin on a guard held across an await by an HP_EXEC task.
+    # Distinct from the two above, which complete because the virtual CLOCK moved; this one
+    # completes only because another task ran and dropped a guard.
+    if DELUGE_SD_IMAGE="$SELFTEST_IMAGE" timeout 60 "$BIN" --selftest-block-mutex \
+        >"$log_mutex" 2>&1; then
+        echo "  --selftest-block-mutex:  PASS" >&2
+    else
+        rc=$?
+        echo "  --selftest-block-mutex:  FAIL (exit $rc) — see $log_mutex" >&2
+        tail -n 20 "$log_mutex" >&2
+        ok=0
+    fi
+
+    # ...and its NEGATIVE CONTROL: the same spin with the holder back on MAIN, which the hook
+    # cannot poll, so it MUST wedge. This is what stops the positive case above from passing
+    # vacuously on an uncontended lock — do not drop it because it "always passes".
+    if DELUGE_SD_IMAGE="$SELFTEST_IMAGE" timeout 60 "$BIN" --selftest-block-mutex-control \
+        >"$log_mutex_ctl" 2>&1; then
+        echo "  --selftest-block-mutex-control: PASS (spin correctly wedged)" >&2
+    else
+        rc=$?
+        echo "  --selftest-block-mutex-control: FAIL (exit $rc) — see $log_mutex_ctl" >&2
+        tail -n 20 "$log_mutex_ctl" >&2
+        ok=0
+    fi
+
     if [[ "$ok" -eq 1 ]]; then
         echo "SELFTEST: PASS" >&2
-        rm -f "$log_block" "$log_nested"
+        rm -f "$log_block" "$log_nested" "$log_mutex" "$log_mutex_ctl"
     else
         echo "SELFTEST: FAIL — the sim_block/preempt seam this whole harness depends on is broken" >&2
         exit 1

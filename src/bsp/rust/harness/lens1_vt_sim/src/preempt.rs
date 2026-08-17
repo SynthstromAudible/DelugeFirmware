@@ -95,6 +95,11 @@ pub fn clear_main_pended() {
 
 /// Stash `HP_EXEC` and install the `sim_block` progress hook. Call once at start-up,
 /// before any task is spawned.
+///
+/// What ends up on `HP_EXEC` is everything a non-yielding spin must be able to drive:
+/// `sim_latency::pump` (so a modeled transfer completes — the timer class) and
+/// `streaming_fill_task` (so a guard held across its SD await gets released — the mutex class,
+/// mirroring the device's `STREAM_EXEC`).
 pub fn init(hp: &'static raw::Executor) {
     // SAFETY: single-threaded; called once at start-up before anything is spawned or polled.
     unsafe { *core::ptr::addr_of_mut!(HP) = Some(hp) };
@@ -114,11 +119,14 @@ pub fn init(hp: &'static raw::Executor) {
 /// (the run queue is mutated non-reentrantly, and a task whose future is already
 /// `&mut`-borrowed by the outer poll could be re-polled). The only way to hit this today
 /// would be an `HP_EXEC`-resident task itself calling `sim_block::block_on` — which installs
-/// this same `progress_hook` — while ITS OWN `hp.poll()` is already on the stack; not
-/// reachable yet (Phase 0 hosts only `sim_latency::pump`, which never calls `block_on`), but
-/// exactly the failure mode R5a Phase 1 introduces once `streaming_fill_task` (storage I/O,
-/// the prime candidate for `block_on`) moves onto `HP_EXEC` too. A panic is more honest than
-/// a silent `false`: silently returning would hide the bug this guard exists to catch.
+/// this same `progress_hook` — while ITS OWN `hp.poll()` is already on the stack.
+///
+/// `streaming_fill_task` now lives on `HP_EXEC` (it is the task a MAIN-resident spin must be
+/// able to drive to release the FS mutex), and it does NOT trigger this: it reaches storage
+/// through `efatfs_host_shim::read_at(...).await`, a plain await, so it never installs this
+/// hook. So the guard stays unreached — and stays the thing that will catch it if that ever
+/// changes. A panic is more honest than a silent `false`: silently returning would hide the
+/// bug this guard exists to catch.
 pub fn pump_hp() -> bool {
     // SAFETY: see `init` — set once before use, read only on the single thread.
     let Some(hp) = (unsafe { *core::ptr::addr_of!(HP) }) else {

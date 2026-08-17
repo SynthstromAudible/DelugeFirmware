@@ -40,8 +40,9 @@
 //! (`preempt`) is: it never waits on anything wall-clock, and the driver loop
 //! still polls it to quiescence every pass, so determinism is preserved. This
 //! is why `sim_block`/`preempt` exist — see their module docs for the fuller
-//! mechanism (Task 2, R5a Phase 0), and R5a Phase 1's plan to move
-//! `streaming_fill_task` there too.
+//! mechanism. `streaming_fill_task` lives there too, mirroring the device's
+//! `STREAM_EXEC`: it holds the FS mutex across its SD await, so a MAIN-resident
+//! spin has to be able to drive it to release.
 //!
 //! Fix: `sd.rs`'s `sim_latency::set_off_fiber_instant` (a small, additive,
 //! off-by-default change to that SHARED file) makes an off-fiber modeled
@@ -532,9 +533,9 @@ fn main() {
     // uses the same pattern).
     let executor: &'static raw::Executor =
         Box::leak(Box::new(raw::Executor::new(preempt::MAIN_TAG as *mut ())));
-    // HP_EXEC: the host emulation of the device's preemptive interrupt executor. Phase 0
-    // hosts only `sim_latency::pump` here — the task a non-yielding spin must be able to
-    // drive. R5a Phase 1 additionally moves `streaming_fill_task` onto it.
+    // HP_EXEC: the host emulation of the device's preemptive interrupt executor. Hosts the
+    // tasks a non-yielding spin must be able to drive — `sim_latency::pump` (timer-class) and
+    // `streaming_fill_task` (mutex-class: it holds the FS mutex across its SD await).
     let hp_executor: &'static raw::Executor =
         Box::leak(Box::new(raw::Executor::new(preempt::HP_TAG as *mut ())));
     preempt::init(hp_executor);
@@ -560,13 +561,22 @@ fn main() {
     // that has nothing to do with nesting. Do NOT "restore realism" by re-adding these
     // spawns without addressing the hookless-`block_on` livelock first.
     let nested_selftest = std::env::args().any(|a| a == "--selftest-block-nested");
+    // The two mutex-class modes (see `selftest`'s "The MUTEX class" section). The positive one
+    // contends against an HP_EXEC-resident holder it spawns itself; the control contends
+    // against a MAIN-resident one and REQUIRES that no other timer source be live, or its
+    // expected wedge turns into an uncatchable `hard_exit(2)` from `advance_to` — see
+    // `selftest::block_on_main_held_mutex_control`'s doc, mechanic 2.
+    let mutex_selftest = std::env::args().any(|a| a == "--selftest-block-mutex");
+    let mutex_control_selftest = std::env::args().any(|a| a == "--selftest-block-mutex-control");
+    // Modes that must run with the app's task graph suppressed, for the reasons each documents.
+    let isolate_selftest = nested_selftest || mutex_selftest || mutex_control_selftest;
 
     // Same BSP task set `deluge-bsp-rust`'s host_app boot block spawns (minus
     // the audio-thread split — see module doc: with `scheduler::set_audio_spawner`
     // never called, the priority-0 audio task falls back to this single spawner
     // automatically, the documented fallback path in `scheduler.rs`'s `claim`).
-    // Skipped for `--selftest-block-nested` — see `nested_selftest`'s doc comment above.
-    if !nested_selftest {
+    // Skipped for the isolating selftest modes — see `nested_selftest`'s doc comment above.
+    if !isolate_selftest {
         spawner.spawn(control::pic_pump().unwrap());
         spawner.spawn(control::pad_render().unwrap());
         spawner.spawn(control::encoder_wake_pump().unwrap());
@@ -574,20 +584,34 @@ fn main() {
     }
     // On HP_EXEC, not the main executor: a non-yielding `sim_block::block_on` must be able
     // to drive this task to completion, and it cannot re-enter the executor it is running
-    // on. See `preempt`'s module doc. Needed by the real run AND both selftest modes
-    // (`--selftest-block` and `--selftest-block-nested`), so this stays unconditional.
-    hp_spawner.spawn(sd::sim_latency::pump().unwrap());
-    if !nested_selftest {
+    // on. See `preempt`'s module doc. Needed by the real run and by the timer-class selftest
+    // modes (`--selftest-block` and `--selftest-block-nested`).
+    //
+    // EXCEPTION — `--selftest-block-mutex-control`: `pump` re-arms a `Timer` on every request,
+    // and this control's whole premise is that once the MAIN holder's single timer is consumed
+    // there is NO deadline left, so `progress_hook` reports `Stalled` and `sim_block`'s wedge
+    // assertion fires. With `pump` live the hook would keep returning `Advanced`, the stalled
+    // counter would never accumulate, and the run would die in `advance_to`'s `hard_exit(2)`
+    // instead — a raw exit_group the control cannot catch, turning a correct detection into an
+    // opaque failure. The control issues no SD transfer, so it needs nothing `pump` provides.
+    if !mutex_control_selftest {
+        hp_spawner.spawn(sd::sim_latency::pump().unwrap());
+    }
+    if !isolate_selftest {
         spawner.spawn(boot_task().unwrap());
-        // On `spawner` (MAIN), the SAME executor `boot_task`'s worker-fiber pump
-        // loop and the C++ enqueue path run on — NOT `HP_EXEC` (see the module
-        // doc's "Executor + clock"); R5a Phase 1 is what moves this task there,
-        // per `preempt::init`'s doc comment above.
-        // Mirrors `../../../src/main.rs`'s `host_app` spawn of the same task. Owns the
-        // loader queue only once `deluge_streaming_async_active()` reports true
+        // On HP_EXEC, not MAIN: this task holds the FS mutex across its SD await
+        // (`efatfs_host_shim::read_at` -> `with_fs`), so a non-yielding
+        // `sim_block::block_on` in a MAIN-resident context must be able to drive it to
+        // release. The hook pumps HP_EXEC and cannot poll MAIN from inside MAIN's own
+        // `poll()`, so while this task sat on MAIN it was unreachable from a spin — the
+        // mutex-class case `selftest::block_on_hp_held_mutex` now covers, with
+        // `block_on_main_held_mutex_control` proving the MAIN placement really was
+        // unsatisfiable. Mirrors the device's `STREAM_EXEC`.
+        //
+        // Owns the loader queue only once `deluge_streaming_async_active()` reports true
         // (i.e. only under this feature); inert otherwise.
         #[cfg(feature = "async_streaming_loader")]
-        spawner.spawn(streaming_loader::streaming_fill_task().unwrap());
+        hp_spawner.spawn(streaming_loader::streaming_fill_task().unwrap());
     }
 
     // Published here — before the `--selftest-block` branch below, which can reach
@@ -703,6 +727,43 @@ fn main() {
         let _ = std::io::Write::flush(&mut std::io::stdout());
         hard_exit(2);
     });
+
+    // The MUTEX-class proofs. Both are placed here, after `BUDGET_TICKS` and the wall-clock
+    // watchdog are published, so neither can spin unguarded — same discipline as the
+    // timer-class modes below. Neither issues an SD transfer, so neither touches
+    // `off_fiber_instant`.
+    //
+    // The positive case must complete; the control must wedge. Running only the positive one
+    // proves little, because a pass is also what an uncontended lock produces — see
+    // `selftest`'s "The MUTEX class" section.
+    if mutex_selftest {
+        match selftest::block_on_hp_held_mutex(hp_spawner) {
+            Ok(()) => {
+                log::info!("selftest: PASSED");
+                println!("lens1-vt-sim: SELFTEST-BLOCK-MUTEX PASS");
+                hard_exit(0);
+            }
+            Err(e) => {
+                log::error!("selftest: FAILED — {e}");
+                println!("lens1-vt-sim: SELFTEST-BLOCK-MUTEX FAIL — {e}");
+                hard_exit(2);
+            }
+        }
+    }
+    if mutex_control_selftest {
+        match selftest::block_on_main_held_mutex_control(spawner, executor) {
+            Ok(()) => {
+                log::info!("selftest: PASSED");
+                println!("lens1-vt-sim: SELFTEST-BLOCK-MUTEX-CONTROL PASS (spin correctly wedged)");
+                hard_exit(0);
+            }
+            Err(e) => {
+                log::error!("selftest: FAILED — {e}");
+                println!("lens1-vt-sim: SELFTEST-BLOCK-MUTEX-CONTROL FAIL — {e}");
+                hard_exit(2);
+            }
+        }
+    }
 
     // Phase 0's load-bearing proof (Task 3): a modeled SD read driven by a NON-YIELDING
     // `sim_block::block_on`, completing because `preempt::progress_hook` pumps `HP_EXEC`
