@@ -96,16 +96,12 @@ public:
 
 	char* getBufferPtr() { return writeClusterBuffer; }
 	int32_t bytesWritten();
-	void setMemoryBased() {
-		memoryBased = true;
-		callRoutines = false;
-	}
+	void setMemoryBased() { memoryBased = true; }
 
 protected:
 	void resetWriter();
 	Error writeBufferToFile();
 	bool memoryBased = false;
-	bool callRoutines = true;
 	uint8_t indentAmount{};
 	char* writeClusterBuffer;
 	uint32_t bufferSize;

@@ -935,13 +935,6 @@ void FileWriter::writeByte(int8_t b) {
 
 	writeClusterBuffer[fileWriteBufferCurrentPos] = b;
 	fileWriteBufferCurrentPos++;
-
-	// Ensure we do some of the audio routine once in a while: let the scheduler run a
-	// slice of registered audio/UI work while we fill the write buffer (pure-CPU work
-	// with no SD wait to yield at otherwise).
-	if (callRoutines && !(fileWriteBufferCurrentPos & 0b11111111)) {
-		yieldToIdle([]() { return true; });
-	}
 }
 void FileWriter::writeChars(char const* output) {
 	while (*output) {
