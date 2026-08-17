@@ -52,10 +52,22 @@ worth checking rather than assuming:
 
 > **`yield_until` must never be reached while the FS mutex is held.**
 
-Its three call sites are UI-level waits (`load_song_ui.cpp:517`, `session_view.cpp:3575`,
-`stem_export.cpp:229`), none of which is inside an FS operation — so the property holds today. It
-should be an explicit review item for Phase 2 and an assertion where cheap, because it is the single
-thing that would reintroduce the deadlock class.
+**CHECKED at Phase 2 (2026-08-16), as this section asked — and the collapse strengthens it.**
+There are now five C++ yield sites, not three: `load_song_ui.cpp:482` (`yieldWithTimeout`, the
+loader-queue wait) and `:519`, `session_view.cpp:3575`, `stem_export.cpp:230`, and
+`storage_manager.cpp:943`. The last one looks alarming — it is in `storage_manager.cpp` — but it
+is `FileWriter::writeByte` yielding between *buffered bytes*, pure-CPU work with no FS call in
+flight, as its own comment says. None of the five is inside an FS operation, and none can be: each
+`deluge_efatfs_*` wrapper acquires and releases the FS mutex entirely within one synchronous
+C-ABI call, so C++ never executes while this context holds it.
+
+Phase 2 did more than preserve the property — it **closed the window that made it fragile**.
+Before the collapse, `block_on_fiber` suspended the fiber *while holding the FS mutex*, and during
+that suspension another thread-mode task could reach `yield()`. A non-yielding spin cannot
+suspend, so no thread-mode code runs while an I/O-class site holds the lock. The only remaining
+holder that gives up the CPU is the streaming fill task, which `await`s (parking its own interrupt
+executor) rather than yielding into thread mode. The §1 corollary is therefore satisfied by
+construction for every I/O-class site, not merely by inspection of call sites.
 
 **What this means for `Owner`.** The peer-wait argument is *not* strong enough to make serialisation a
 safety requirement — the corollary above does that work instead. `Owner` survives for two narrower
@@ -77,8 +89,8 @@ Unavailable immediately; and `ManagerResidency::acquire` (`manager_residency.rs:
 or reserve+enqueue+signal that hands work to `streaming_fill_task` and returns.
 
 **Render never touches the storage C-ABI at all.** It terminates at the resource-manager facade — it does
-not reach `efatfs_fs.rs`, `sd.rs`, any of the 69 `block_on_fiber` sites, or any of the 29 `on_fiber()`
-gates. `deluge_streaming_fill_chunk_blocking` / `_drain_queue_blocking` are reached ONLY by
+not reach `efatfs_fs.rs`, `sd.rs`, any of the `block_on_fiber` sites, or any of the (then 27)
+`on_fiber()` rejection gates — all of which Phase 2 has since deleted. `deluge_streaming_fill_chunk_blocking` / `_drain_queue_blocking` are reached ONLY by
 `stem_export.cpp:224` (offline, deliberately on-fiber), the recorder read-back probe, and test harnesses
 — none in the real-time graph.
 
@@ -186,10 +198,18 @@ now a residual inefficiency rather than a failure.
 
 | Symptom | Mechanism |
 |---|---|
-| **Saving cannot succeed off-owner on the Rust BSP.** `performSave` runs from plain UI handlers (no `Owner::run` under `gui/ui/save/`); every write entry point rejects off-fiber, so the save fails at its first write. The skipped overwrite prompt is a symptom of the same cause, not a second bug. | the 29 gates |
+| **Saving cannot succeed off-owner on the Rust BSP.** `performSave` runs from plain UI handlers (no `Owner::run` under `gui/ui/save/`); every write entry point rejects off-fiber, so the save fails at its first write. The skipped overwrite prompt is a symptom of the same cause, not a second bug. | the 27 rejection gates |
+| **Runtime feature settings are silently lost at boot.** `deluge.cpp:741 runtimeFeatureSettings.readSettingsFromFile()` runs inside `deluge_boot`, which `deluge_app_init` calls synchronously **before the worker-fiber pump exists** — so the read is off-fiber by construction and was refused rather than performed. This is `boot-settings-silently-lost-on-embassy`, which earlier drafts did not connect to this arc. | the same 27 gates |
+| **Off-fiber closes leaked handle-table slots.** The three void-returning close entry points had no rejection gate (nothing to reject with) but a *positive* `on_fiber()` wrapper, so off-fiber they skipped the close and leaked the slot — near-unreachable only because off-fiber callers were rejected elsewhere. Allowing them would have made it live, and a full handle table drops samples silently. | a consequence of the gates, fixed with them |
 | **The #4460 waveform pre-scan cannot fill a cold cluster *synchronously*.** `deluge_streaming_fill_chunk_blocking`'s off-fiber branch cannot suspend a stack, so it always reports not-ready. | the same gates, one layer down |
 
 The save case needs Phase 2. The pre-scan case no longer does.
+
+**Correction (2026-08-16): "the 29 gates" over-counted by two.** The 29 `!on_fiber()` matches
+were **27** rejection gates in `efatfs_fs.rs` plus **2** in `sd.rs` that are a different
+mechanism — `!on_fiber() && sim_latency::off_fiber_instant()`, a host-sim latency exemption, not
+a rejection. Phase 2 deleted the 27; the other two belong to Phase 3 along with
+`off_fiber_instant` itself. Do not "correct" the figure back to 29.
 
 **Correction (2026-08-16): the pre-scan row was overstated and is now stale.** It previously read
 "can never fill a cold cluster … the scan round-robins forever and churns priority-0 enqueues every
@@ -235,7 +255,7 @@ The failure is visible and loud, not silent.
 |---|---|---|
 | **R5a Phase 0 residue** | Tasks 4/5/6 — the load-while-streaming contention scenario, the baseline margin sweep with Control A re-proven, the 0d deadlock-evidence spike. Newly possible: Lens 1 completes at all only since the `sd_busy()` seam fix. | the gate itself |
 | **R5a Phase 1 — `STREAM_EXEC`** — **DONE 2026-08-16** (`feat/r5a-stream-exec`) | Device: a second `InterruptExecutor` on SGI 9 at GIC priority 24, between `AUDIO_SGI_PRIORITY` (20) and thread mode, so audio preempts streaming and streaming preempts the interaction tier. Lens 1: the fill task onto `HP_EXEC`. Threaded host BSP: a third `"deluge-stream"` thread. **Prerequisite the design did not have:** the manager's mask-skip predicate asked "am I in an interrupt" when the invariant is "am I the context that preempts all the others", so a third interrupt context would have deleted its own critical sections — fixed with `deluge_in_audio_context()`. The mutex-class test Phase 0 did not prove is delivered as `--selftest-block-mutex` with `--selftest-block-mutex-control` (holder on MAIN, must wedge) keeping it non-vacuous; the self-identifying wedge diagnosis as `preempt::in_spin()`. Owed to hardware: SGI priority ordering, nested IRQ-stack depth. | Phase 2's correctness |
-| **R5a Phase 2 — collapse I/O-class** | Classify all 69 sites; collapse I/O-class to `embassy_futures::block_on`; leave the 2 progress-class on the fiber as R5b's inheritance. **Delete the 29 gates** — this is the rung where the sync→async bridge stops requiring the fiber. | **save off-owner** (§3); the pre-scan's wasted-tick shape follows, but it is no longer broken |
+| **R5a Phase 2 — collapse I/O-class** — **DONE 2026-08-16** (`feat/r5a-phase2-collapse`) | Classification changed the shape: of the 66 sites, **36 needed no production change** — `sd.rs` (4) and `efatfs_host_shim.rs` (30) already did `on_fiber()`-gated dispatch, and the 2 `streaming_loader.rs` waits are progress-class (R5b's). The rung is the **27** device wrappers in `efatfs_fs.rs`: gates deleted, `block_on_fiber` → `sim_block::block_on`. The host shim was collapsed symmetrically **because it had to be** — `efatfs_fs.rs` is `#![cfg(target_os = "none")]`, so without it every host gate would test the shape the device no longer runs. Plus a threaded-host progress hook (`sim_block::use_threaded_host_hook`), deliberately NOT installed in the single-threaded `golden_vt_render`. **Accepted cost:** thread mode is held for each transfer, so UI/OLED stall during save/load/browse; the answer is R5b's `Owner::await`, not reinstating the yield. | **save off-owner · boot settings · the close leak** (§3); the pre-scan's wasted-tick shape follows |
 | **R5a Phase 3 — cleanups** | Delete `SD_BUS` (redundant since C-FatFS: every block transfer already serialises on the FS mutex) · `off_fiber_instant` if Phase 0a made it unnecessary · `RESOURCE_SD`, `RES_ERROR`, `RES_WRPRT` (live `-Wunused` warnings) · four stale C++ comments citing deleted C-FatFS globals · re-examine `deluge_storage_on_owner` and `stats::note_read(on_fiber())`. | warning-clean device build |
 | **R5b — commands** | `Owner::await`; the three `yield_until` sites become commands with dirty-set progress; **delete the fiber**. Needs its own brainstorm → spec → plan. | interaction-class gone |
 | **Optional tail** | SP5 (derive prefetch from published play-cursors, retire the C++ enqueue API) and SP6 (convert/stitch → Rust, zero FFI in the fill task). **Both YAGNI-gated**; the architecture is complete without either. SP6 additionally requires a dual-arch bit-exact spec. | zero-FFI fill task |
@@ -251,7 +271,9 @@ The failure is visible and loud, not silent.
 The arc is done when all of these hold:
 
 - [ ] `src/bsp/rust/src/fiber.rs` deleted; zero `block_on_fiber`, `yield_until`, `deluge_worker_*`
-- [ ] zero `on_fiber()` rejection gates
+- [x] zero `on_fiber()` rejection gates — **DONE 2026-08-16.** `efatfs_fs.rs` has none. The
+      surviving `on_fiber()` uses are `sd.rs`'s block-transfer dispatch (below the FS layer, and
+      correct as it stands) and the two progress-class waits in `streaming_loader.rs` (R5b's)
 - [ ] `Owner::await` exists; no interaction-tier code touches the FS outside `Owner`
 - [ ] save / load / browse work on device on the Rust BSP
 - [ ] the #4460 pre-scan fills cold clusters on device (already works asynchronously since
