@@ -234,7 +234,7 @@ The failure is visible and loud, not silent.
 | Rung | Content | Unblocks |
 |---|---|---|
 | **R5a Phase 0 residue** | Tasks 4/5/6 — the load-while-streaming contention scenario, the baseline margin sweep with Control A re-proven, the 0d deadlock-evidence spike. Newly possible: Lens 1 completes at all only since the `sd_busy()` seam fix. | the gate itself |
-| **R5a Phase 1 — `STREAM_EXEC`** | Device: a second `InterruptExecutor` on SGI 9 at a GIC priority between `AUDIO_SGI_PRIORITY` (20) and thread mode, so audio preempts streaming and streaming preempts the interaction tier. Host: the Phase-0a emulation. **Must carry the mutex-class test Phase 0 explicitly did not prove** (a spin waiting on a lock held by an `HP_EXEC`-resident task) and the self-identifying wedge diagnosis from R5a §3. | Phase 2's correctness |
+| **R5a Phase 1 — `STREAM_EXEC`** — **DONE 2026-08-16** (`feat/r5a-stream-exec`) | Device: a second `InterruptExecutor` on SGI 9 at GIC priority 24, between `AUDIO_SGI_PRIORITY` (20) and thread mode, so audio preempts streaming and streaming preempts the interaction tier. Lens 1: the fill task onto `HP_EXEC`. Threaded host BSP: a third `"deluge-stream"` thread. **Prerequisite the design did not have:** the manager's mask-skip predicate asked "am I in an interrupt" when the invariant is "am I the context that preempts all the others", so a third interrupt context would have deleted its own critical sections — fixed with `deluge_in_audio_context()`. The mutex-class test Phase 0 did not prove is delivered as `--selftest-block-mutex` with `--selftest-block-mutex-control` (holder on MAIN, must wedge) keeping it non-vacuous; the self-identifying wedge diagnosis as `preempt::in_spin()`. Owed to hardware: SGI priority ordering, nested IRQ-stack depth. | Phase 2's correctness |
 | **R5a Phase 2 — collapse I/O-class** | Classify all 69 sites; collapse I/O-class to `embassy_futures::block_on`; leave the 2 progress-class on the fiber as R5b's inheritance. **Delete the 29 gates** — this is the rung where the sync→async bridge stops requiring the fiber. | **save off-owner** (§3); the pre-scan's wasted-tick shape follows, but it is no longer broken |
 | **R5a Phase 3 — cleanups** | Delete `SD_BUS` (redundant since C-FatFS: every block transfer already serialises on the FS mutex) · `off_fiber_instant` if Phase 0a made it unnecessary · `RESOURCE_SD`, `RES_ERROR`, `RES_WRPRT` (live `-Wunused` warnings) · four stale C++ comments citing deleted C-FatFS globals · re-examine `deluge_storage_on_owner` and `stats::note_read(on_fiber())`. | warning-clean device build |
 | **R5b — commands** | `Owner::await`; the three `yield_until` sites become commands with dirty-set progress; **delete the fiber**. Needs its own brainstorm → spec → plan. | interaction-class gone |
@@ -303,12 +303,34 @@ Gaps, not risks. Named here so they are not rediscovered as surprises.
   shapes Lens 1's only output through a mechanism no test covers — **a Phase 2 margin *improvement*
   could be an artifact of the audio task's virtual cadence slipping rather than streaming improving.**
   Do not trust a margin delta without accounting for this.
-- **Mutex-class spins are unproven on host.** Phase 0 proved the Timer-class case only, and mutex-class
-  spins are unsatisfiable on today's host code. Phase 1 must carry the test.
+- ~~**Mutex-class spins are unproven on host.**~~ **CLOSED by Phase 1 (2026-08-16).** Phase 0
+  proved the Timer-class case only, and mutex-class spins were unsatisfiable while the fill
+  task sat on MAIN. Phase 1 moved it to `HP_EXEC` and carried the test:
+  `--selftest-block-mutex` (must complete) plus `--selftest-block-mutex-control` (holder back
+  on MAIN, must wedge) — both in `sweep.sh`'s `selftest` verb, both passing. The control is
+  what keeps the positive case from passing on an uncontended lock; do not drop it because it
+  "always passes".
+- **A third preemptive context invalidated the manager's mask-skip predicate**, and nothing
+  named this before Phase 1 hit it. Worth carrying forward as a shape, not just a fixed bug:
+  every time a new context is added that touches shared audio/resource state, re-ask which
+  context preempts which. The invariant is "only the highest-priority toucher may skip";
+  `deluge_in_interrupt()` is not that question.
 - **`golden_vt_render/build.rs:73-74`** does an unfiltered `collect_objs`. Schedule before Phase 2.
 - **`sd_image.rs` leaks tmpfs** — roughly 573 MB per PID, never removed.
 - **On-device debt is the largest single gap.** The R4 arc plus roughly 115 M-ladder commits have
   never run on hardware, and Phase 1's SGI priority ordering is confirmable *only* on hardware.
+  Phase 1 adds a second hardware-only item: **nested IRQ-stack depth.** Audio can now nest on
+  top of a streaming SGI frame where it previously had the 8 KB IRQ stack to itself. The
+  streaming side measures at order 1 KB off the release ELF (largest single frame on the fill
+  path is `efatfs_fs::read_at` at 244 bytes), but the audio render's own peak is not measurable
+  off-hardware, so the nested total is unverified rather than known-safe.
+- **The device image does not build from a clean checkout on `next`.** `src/bsp/rust/Cargo.toml`
+  pins `deluge-bsp` to a git rev that predates the pad-scroll opcodes `control.rs` calls, so
+  `cargo device --release` fails to compile until the pin is resolved. Phase 1 worked around it
+  with a clearly-marked local `[patch]` to the sibling checkout (which also has to patch
+  `rza1l-hal`, or two copies of it collide on `_embassy_time_now` at the LTO link). Separately,
+  `./dbt build Debug` fails its device link on a pre-existing `.ARM.exidx` / `.rtt_cached_reserve`
+  overlap. Neither is caused by this arc, and both block device verification for it.
 
 ## 9. Risks
 
