@@ -342,6 +342,57 @@ fn audio_sgi_handler() {
     crate::services::audio_context_exit(prev);
 }
 
+/// Preemptive Embassy executor for the storage streaming fill task. A second interrupt
+/// executor at a priority *between* audio and thread mode, so audio still preempts the fill
+/// and the fill preempts thread mode.
+///
+/// That ordering is the whole point: once the worker fiber's storage waits become
+/// non-yielding spins, a spin in thread mode must not be able to monopolise the context that
+/// releases the filesystem mutex — which is this task, since it holds that mutex across its
+/// SD await (`efatfs_fs::read_at` -> `with_fs`).
+#[cfg(target_os = "none")]
+static STREAM_EXEC: InterruptExecutor = InterruptExecutor::new();
+
+/// GIC Software-Generated Interrupt id driving [`STREAM_EXEC`]. [`AUDIO_SGI`] is 8; 9 is the
+/// next free one (SMP-free board, so SGIs are otherwise unused).
+#[cfg(target_os = "none")]
+const STREAM_SGI: u8 = 9;
+/// Streaming SGI GIC priority. Numerically BELOW [`AUDIO_SGI_PRIORITY`] (20) so audio
+/// preempts the fill, above thread mode so the fill preempts the fiber, and below PMR (31) so
+/// it is forwarded at all. (Lower number = more urgent.)
+#[cfg(target_os = "none")]
+const STREAM_SGI_PRIORITY: u8 = 24;
+
+/// GIC handler for [`STREAM_SGI`]: drive the streaming interrupt executor. Registered in the
+/// HAL dispatch (`gic::register`), which already acks (GICC_IAR) before and EOIs (GICC_EOIR)
+/// after, with IRQs re-enabled for nesting.
+///
+/// Deliberately does NOT mark the audio context (unlike [`audio_sgi_handler`]): this context
+/// is preempted by audio, so its resource-manager accesses must keep masking. See
+/// `deluge_resource::sync`'s module doc.
+#[cfg(target_os = "none")]
+fn stream_sgi_handler() {
+    // SAFETY: only called from the SGI handler, after STREAM_EXEC.start().
+    unsafe { STREAM_EXEC.on_interrupt() };
+}
+
+/// Bootstrap for [`STREAM_EXEC`]: obtain that executor's own `Spawner` from a task already
+/// running on it, then spawn the (non-`Send`) streaming fill task locally.
+///
+/// The indirection exists because `InterruptExecutor::start` hands out a `SendSpawner`, while
+/// the fill task's future holds a raw `DelugeResource*` and so is not `Send`. This task is
+/// `Send` (it owns nothing across its single await), and once it is running ON `STREAM_EXEC`
+/// it can spawn onto that executor directly.
+#[cfg(all(target_os = "none", feature = "async_streaming_loader"))]
+#[embassy_executor::task]
+async fn stream_bootstrap() {
+    // SAFETY: this task only ever runs on STREAM_EXEC (it is spawned onto it and nowhere
+    // else), so the Spawner yielded here belongs to STREAM_EXEC, and the non-Send task
+    // spawned with it never leaves the executor it was created on.
+    let spawner = unsafe { Spawner::for_current_executor() }.await;
+    spawner.spawn(streaming_loader::streaming_fill_task().unwrap());
+}
+
 /// Firmware entry. The HAL reset handler (`_reset_handler` in rza1l-hal) ends in
 /// `bl main`; control lands here with caches/MMU off and stacks set up.
 #[cfg(target_os = "none")]
@@ -422,6 +473,8 @@ pub extern "C" fn main() -> ! {
     unsafe {
         rza1l_hal::gic::register(AUDIO_SGI as u16, audio_sgi_handler);
         rza1l_hal::gic::set_priority(AUDIO_SGI as u16, AUDIO_SGI_PRIORITY);
+        rza1l_hal::gic::register(STREAM_SGI as u16, stream_sgi_handler);
+        rza1l_hal::gic::set_priority(STREAM_SGI as u16, STREAM_SGI_PRIORITY);
     }
 
     // Verify the worker-fiber context switch in isolation before it drives real
@@ -445,6 +498,18 @@ pub extern "C" fn main() -> ! {
     // Enable the SGI in the GIC only now that the executor is initialised.
     scheduler::set_audio_spawner(AUDIO_EXEC.start(AUDIO_SGI));
     unsafe { rza1l_hal::gic::enable(AUDIO_SGI as u16) };
+
+    // Streaming fill executor, started here for the same reason audio is: the GIC line must
+    // not be enabled before the executor its handler drives exists. Spawned via
+    // `stream_bootstrap` — see that task's doc for why a SendSpawner cannot take the fill task
+    // directly.
+    #[cfg(feature = "async_streaming_loader")]
+    STREAM_EXEC
+        .start(STREAM_SGI)
+        .spawn(stream_bootstrap().unwrap());
+    #[cfg(not(feature = "async_streaming_loader"))]
+    let _ = STREAM_EXEC.start(STREAM_SGI);
+    unsafe { rza1l_hal::gic::enable(STREAM_SGI as u16) };
 
     let executor: &'static mut Executor = unsafe {
         let p = core::ptr::addr_of_mut!(EXECUTOR);
@@ -481,12 +546,9 @@ pub extern "C" fn main() -> ! {
         // (see `sd::card_service`), and parking `app_task` on a ~1.3 s card
         // bring-up would stall the worker-fiber pump it owns.
         spawner.spawn(sd::card_service().unwrap());
-        // R2.1: the async cluster-fill task, selectable via `async_streaming_loader`.
-        // Owns the streaming loader queue when active (feature `async_streaming_loader`);
-        // inert (never polled beyond its idle wait) unless the C++ enqueue path
-        // signals `FILL_WAKE`.
-        #[cfg(feature = "async_streaming_loader")]
-        spawner.spawn(streaming_loader::streaming_fill_task().unwrap());
+        // The async cluster-fill task is NOT spawned here any more: it runs on STREAM_EXEC,
+        // its own preemptive interrupt executor (see `STREAM_EXEC` and `stream_bootstrap`).
+        // A non-yielding storage spin in thread mode must not be able to starve it.
     });
 }
 
