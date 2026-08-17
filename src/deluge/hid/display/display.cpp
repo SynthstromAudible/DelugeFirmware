@@ -1,5 +1,6 @@
 #include "display.h"
 #include "gui/l10n/l10n.h"
+#include "io/debug/log.h" // D_PRINTLN — freezeWithError logs the code before it stops the world
 
 deluge::hid::Display* display = nullptr;
 namespace deluge::hid::display {
@@ -87,6 +88,12 @@ std::string_view getErrorMessage(Error error) {
 } // namespace deluge::hid::display
 
 extern "C" void freezeWithError(char const* error) {
+	// Log the code BEFORE freezing. Without this the error string only ever reaches the panel, so a
+	// freeze captured over RTT shows the crash reporter's stack (fault_pattern.c) with no indication
+	// of WHICH assertion fired — and the codes are the whole diagnostic (E380, "periodic walk", ...).
+	// Cheap, and it makes an RTT capture self-describing instead of needing someone to read the
+	// screen. Deliberately first: `display->freezeWithError` does not return.
+	D_PRINTLN("FREEZE_WITH_ERROR: %s", error);
 	display->freezeWithError(error);
 }
 

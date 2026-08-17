@@ -4893,9 +4893,28 @@ const Sound::ActiveVoice& Sound::acquireVoice() noexcept(false) {
 // **** This is the main function that enacts the unassigning of the Voice
 // modelStack can be NULL if you really insist
 void Sound::freeActiveVoice(const ActiveVoice& voice, ModelStackWithSoundFlags* modelStack, bool erase) {
+	// Capture the identity BEFORE any mutation, and erase by that value rather than by `voice`.
+	//
+	// `voice` aliases an element of `voices_` at every call site: `acquireVoice` returns
+	// `&voices_.back()`, and `AudioEngine::terminateOneVoice` takes `&voice` out of its joined
+	// view. `std::erase(c, value)` is specified as `erase_if(c, [&](auto& e){ return e == value; })`
+	// — it compares each element against `value` while `std::remove` shifts elements within the
+	// container. When `value` aliases one of those elements, its storage is overwritten part-way
+	// through the algorithm and the remaining comparisons run against a moved-from value.
+	//
+	// `ActiveVoice` is a `unique_ptr`, so "overwritten" means MOVED: that path can recycle a
+	// `Voice` twice or drop one, which corrupts the ObjectPool free-list and, through it, the heap
+	// that `GeneralMemoryAllocator::checkEverythingOk` walks. Comparing against a plain `Voice*`
+	// copied out first removes the aliasing entirely, so the predicate is stable no matter how
+	// `remove` rearranges the container.
+	//
+	// Single-threaded UB, not a race — it needs only repeated culling, which is why it surfaces
+	// under a cull storm rather than under concurrency. Distinct from the cross-tier race in
+	// docs/superpowers/specs/2026-08-16-voices-cross-tier-race.md, which remains open.
+	Voice* const target = voice.get();
 	voice->setAsUnassigned(modelStack);
 	if (erase) {
-		std::erase(voices_, voice);
+		std::erase_if(voices_, [target](const ActiveVoice& v) { return v.get() == target; });
 	}
 }
 
