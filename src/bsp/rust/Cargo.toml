@@ -282,6 +282,27 @@ embassy-executor = { git = "https://github.com/stellar-aria/embassy", branch = "
 embassy-executor-timer-queue = { git = "https://github.com/stellar-aria/embassy", branch = "feat/executor-interrupt-a9" }
 embassy-time-queue-utils = { git = "https://github.com/stellar-aria/embassy", branch = "feat/executor-interrupt-a9" }
 
+# LOCAL-ONLY OVERRIDE — not for merge as-is.
+#
+# `control.rs`'s pad-scroll drain calls `pic::setup_horizontal_scroll`/`send_scroll_row`/
+# `vertical_scroll`, which live in the sibling deluge-sdk checkout but NOT in the
+# `deluge-bsp` git rev pinned above — that rev is an ancestor of the commit adding them. So a
+# clean resolve cannot build the device image at all, which blocks every device-link gate.
+#
+# This redirects `deluge-bsp` to the side-by-side working clone so the device target links
+# against the live SDK branch. It deliberately undoes what the git pin was introduced for
+# ("so any checkout can build"), and only works on a machine that has the sibling clone at
+# ../../../../deluge-sdk — so it must be resolved properly (a reachable rev to repin to)
+# before this lands anywhere shared.
+# `rza1l-hal` is patched alongside `deluge-bsp`, not left on the git rev: the sibling
+# `deluge-bsp` depends on it by PATH (`../rza1l-hal`), so patching only `deluge-bsp` puts two
+# distinct `rza1l-hal` crates in the graph — one path, one git — and both define
+# `_embassy_time_now`/`_embassy_time_schedule_wake`, giving "symbol multiply defined" at the
+# LTO link. One source for both keeps a single time driver.
+[patch.'https://github.com/FirestormAudio/deluge-embassy.git']
+deluge-bsp = { path = "../../../../deluge-sdk/crates/deluge-bsp" }
+rza1l-hal = { path = "../../../../deluge-sdk/crates/rza1l-hal" }
+
 [profile.release]
 opt-level = "s"
 lto = true
