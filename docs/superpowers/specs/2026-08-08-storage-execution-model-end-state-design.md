@@ -310,6 +310,26 @@ Gaps, not risks. Named here so they are not rediscovered as surprises.
   on MAIN, must wedge) — both in `sweep.sh`'s `selftest` verb, both passing. The control is
   what keeps the positive case from passing on an uncontended lock; do not drop it because it
   "always passes".
+- **The third host thread immediately earned its keep: TSan found a real ordering bug in the
+  promotion itself.** `ProdOps::new()` (the fill task's first act) reaches
+  `GeneralMemoryAllocator::ensureClusterSystem()`, which reads the global `Cluster::size` that
+  `deluge_app_init` writes via `AudioFileManager::init()`. While the fill task shared a context
+  with `deluge_app_init` that could not interleave; on `STREAM_EXEC` (SGI live before
+  `app_task` runs) and on the `"deluge-stream"` thread it can. Device consequence was worse
+  than the host race: the cluster system could be built from the 32768 default instead of the
+  card's real size, silently wrong on any non-32KB card. Fixed by waiting on `FILL_WAKE` before
+  constructing — complete rather than narrowing, since nothing signals it until the C++ enqueue
+  path runs, and the `Signal` latches. **This is the argument for the host thread: without it
+  the bug would have been device-only and invisible to every host gate.**
+- **One uncatalogued TSan site survives, pre-existing and diagnostic-only.**
+  `deluge_debug_now_frames` (`resource_clock.cpp:31`) reads `AudioEngine::audioSampleTimer`
+  unsynchronised while `deluge_app_render` writes it. Reached from the loader-latency
+  instrumentation in `Manager::mark_ready`. It raced the same way before Phase 1 — the reader was
+  simply on the app thread rather than the streaming one — and is benign on device (aligned
+  32-bit read of a wrapping diagnostic timestamp, as `resource_clock.cpp:29` already states).
+  Not suppressed and not catalogued: cataloguing it would suppress future detection of the same
+  signature. It makes `preemptive-race-tsan` exit non-zero, so it needs a disposition (relaxed
+  atomic on both sides, or an explicit catalog entry) before that gate can be clean.
 - **A third preemptive context invalidated the manager's mask-skip predicate**, and nothing
   named this before Phase 1 hit it. Worth carrying forward as a shape, not just a fixed bug:
   every time a new context is added that touches shared audio/resource state, re-ask which
