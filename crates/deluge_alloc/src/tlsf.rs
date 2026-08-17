@@ -393,7 +393,26 @@ impl Tlsf {
             return;
         }
         let block = mem as *mut BlockHeader;
-        let block_size = (size - pool_overhead) & SIZE_MASK;
+        // Round DOWN to ALIGN, not merely to the flag granularity.
+        //
+        // `SIZE_MASK` is `!FLAG_MASK` (`!3`), so it only guarantees a multiple of 4 — but every
+        // block payload in this allocator must be ALIGN(16)-aligned, and `check()` enforces exactly
+        // that ("payloads are 16-aligned by construction"). The sentinel sits at
+        // `block + HEADER_SIZE + block_size`, so a `block_size` that is 4 (mod 16) puts the
+        // sentinel — and its header writes below — on a misaligned address. That is undefined
+        // behaviour, and on a freshly built pool it made the heap fail its own integrity walk
+        // immediately.
+        //
+        // It only bites a pool whose SIZE is not a multiple of ALIGN. `deluge_heap_create` aligns
+        // the base but derives the size from the region's end, so a region whose end is unaligned
+        // produces exactly that. The firmware's "frunk" heap is one: its bounds are the linker
+        // symbols `__frunk_bss_end`/`__frunk_slack_end`, which carry no 16-byte guarantee, and were
+        // observed at `0x200a8b84 .. 0x200b0b84` — both 4 (mod 16). Every previous test passed a
+        // `words * 16` size, which is why this went unseen.
+        //
+        // Rounding down only ever discards up to ALIGN-1 bytes at the very top of the pool, which
+        // were unusable anyway: a block must be ALIGN-aligned to be handed out.
+        let block_size = (size - pool_overhead) & !(ALIGN - 1);
         (*block).prev_phys = Self::null();
         (*block).size_and_flags = block_size;
         (*block).set_free();

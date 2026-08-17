@@ -239,6 +239,60 @@ mod tests {
         (buf, h)
     }
 
+    /// A heap must pass its own integrity check the instant it is created, even when the region's
+    /// end is not ALIGN-aligned.
+    ///
+    /// This reproduces the firmware's "frunk" heap, whose bounds come from linker symbols
+    /// (`__frunk_bss_end` / `__frunk_slack_end`) with no 16-byte guarantee — observed on device at
+    /// `0x200a8b84 .. 0x200b0b84`, i.e. base and end both ≡ 4 (mod 16). `deluge_heap_create`
+    /// aligns the BASE up, so the pool start is fine, but the pool SIZE inherits the unaligned
+    /// end. `add_pool` then rounded the first block's size with `SIZE_MASK` (`!3`, a multiple of
+    /// 4) rather than `ALIGN` (16), so the trailing sentinel landed misaligned and `check()`'s
+    /// "payloads are 16-aligned by construction" rule rejected the freshly built heap.
+    ///
+    /// On device that surfaced as `FREEZE_WITH_ERROR: periodic walk` — the periodic heap walk
+    /// reporting corruption that had never happened, before the app had allocated anything.
+    ///
+    /// Every pre-existing test passed a `words * 16` size, which is why this went unnoticed.
+    #[test]
+    fn a_heap_whose_region_end_is_unaligned_still_passes_its_own_check() {
+        // Keep the arena itself 16-aligned (see `aligned_arena`'s note on miri), then offset the
+        // base by 4 so both base and end sit at 4 (mod 16), exactly like the device's frunk region.
+        let mut buf = vec![0u128; 4096];
+        let base = unsafe { (buf.as_mut_ptr() as *mut u8).add(4) };
+        let size = 32768usize; // multiple of 16, so an unaligned base gives an unaligned end
+        assert_eq!(
+            base as usize % 16,
+            4,
+            "test must reproduce the unaligned-base case"
+        );
+        assert_eq!(
+            (base as usize + size) % 16,
+            4,
+            "and the unaligned END, which is the bug"
+        );
+
+        let h = unsafe { deluge_heap_create(base, size) };
+        assert!(!h.is_null(), "creation itself must succeed");
+        assert!(
+            unsafe { deluge_heap_check(h) },
+            "a freshly created heap must pass its own integrity walk"
+        );
+
+        // And it must actually work, not merely validate.
+        let p = unsafe { deluge_alloc(h, 100, 16) };
+        assert!(
+            !p.is_null(),
+            "allocation from the unaligned-end heap failed"
+        );
+        unsafe { deluge_free(h, p) };
+        assert!(
+            unsafe { deluge_heap_check(h) },
+            "check must still pass after alloc/free"
+        );
+        drop(buf);
+    }
+
     #[test]
     fn basic_alignment_and_usable() {
         let (buf, h) = aligned_arena(1 << 20);
