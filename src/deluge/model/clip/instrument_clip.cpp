@@ -958,7 +958,13 @@ void InstrumentClip::toggleNoteRowMute(ModelStackWithNoteRow* modelStack) {
 ModelStackWithNoteRow* InstrumentClip::getNoteRowOnScreen(int32_t yDisplay, ModelStackWithTimelineCounter* modelStack) {
 	int32_t noteRowIndex;
 	NoteRow* noteRow = getNoteRowOnScreen(yDisplay, modelStack->song, &noteRowIndex);
-	int32_t noteRowId;
+	// Initialised, not left indeterminate. `ModelStackWithNoteRow::noteRowId` is documented
+	// "valid and mandatory, iff noteRow is set" (model_stack.h), so on the null path below no
+	// conforming consumer reads this value — but passing an uninitialised local is still UB, and
+	// UB is exactly what a codegen change converts from "harmless garbage nobody looked at" into
+	// an observable fault. 0 is arbitrary and deliberately so: any defined value satisfies the
+	// contract, and picking one costs nothing.
+	int32_t noteRowId = 0;
 	if (noteRow) {
 		noteRowId = getNoteRowId(noteRow, noteRowIndex);
 	}
