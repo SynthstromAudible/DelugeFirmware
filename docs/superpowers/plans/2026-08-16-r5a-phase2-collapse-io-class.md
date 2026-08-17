@@ -87,7 +87,6 @@ change is narrower and the split is not what the site count suggests:
 | `src/bsp/rust/src/sim_block.rs` | A named threaded-host progress hook, plus its doc rationale | 2 |
 | `src/bsp/rust/tests/sim_block_host.rs` | Test that the threaded-host hook makes a cross-thread-satisfied spin complete | 2 |
 | `src/bsp/rust/src/main.rs` (host block) | Register the threaded-host hook | 2 |
-| `src/bsp/rust/harness/golden_vt_render/src/main.rs` | Register the threaded-host hook | 2 |
 | `src/bsp/rust/src/efatfs_fs.rs` | 27 gates deleted; 30 `block_on_fiber` → `sim_block::block_on` | 3 |
 | `src/bsp/rust/src/efatfs_host_shim.rs` | 30 sites collapsed to match the device shape | 4 |
 | `src/bsp/rust/harness/lens1_vt_sim/sweep.sh` + the two specs + memory | The rung's evidence and the two corrections | 5, 6 |
@@ -201,7 +200,6 @@ would trip the budget spuriously.
 - Modify: `src/bsp/rust/src/sim_block.rs` (add the hook + doc)
 - Modify: `src/bsp/rust/tests/sim_block_host.rs` (the test)
 - Modify: `src/bsp/rust/src/main.rs` (host block — register it)
-- Modify: `src/bsp/rust/harness/golden_vt_render/src/main.rs` (register it)
 
 **Interfaces:**
 - Consumes: `sim_block::set_progress_hook(hook: fn() -> Progress)` and
@@ -307,11 +305,27 @@ spawned (so it is in place before any thread can issue a transfer):
         crate::sim_block::use_threaded_host_hook();
 ```
 
-In `harness/golden_vt_render/src/main.rs`, add the same call at start-up, before any task is
-spawned. This harness has one executor and does **not** enable `sim_latency`, so its host SD
-reads resolve synchronously and rarely pend at all — but `SD_BUS` can still be contended now
-that the fill task runs on its own thread in the BSP it links, and a spurious wedge here would
-fail the byte-identity gate for a reason unrelated to audio. Add a comment saying exactly that.
+**CORRECTION (made during execution, 2026-08-16): do NOT install the hook in
+`harness/golden_vt_render/src/main.rs`.** The plan originally called for it on the grounds that
+`SD_BUS` could be contended by the fill task "on its own thread in the BSP it links". That is
+wrong: `golden_vt_render` has its own `main` and does **not** use the BSP's threaded host
+start-up — it spawns `boot_task`, `sim_latency::pump` and `streaming_fill_task` on a single
+executor driven by its own discrete-event loop. It is genuinely single-threaded, so no other
+thread exists to satisfy a `Pending`, and yielding would accomplish nothing. Installing the hook
+there would do exactly what `use_threaded_host_hook`'s own doc forbids — silently disarm wedge
+detection in a single-threaded sim.
+
+So `golden_vt_render` keeps the **no-hook default**, which is the case that default was designed
+for: if its FS path ever does hit an unsatisfiable spin, it should fail loudly with
+`sim_block`'s wedge message rather than hide it. That is a visible gate failure, which is the
+outcome we want.
+
+The residual risk this leaves is real and is checked, not assumed: `golden_vt_render` today
+reaches storage through the shim's off-fiber `embassy_futures::block_on`, which never wedges
+however long it spins. Task 4 routes that through `sim_block::block_on`, which does wedge. If any
+of its FS futures pend even once, Task 4 turns a working spin into a panic. Task 4 Step 4 runs
+both goldens precisely to find out; a wedge there is a finding to report and reconsider, not to
+paper over with a hook.
 
 - [ ] **Step 6: Verify every host build still passes**
 
@@ -325,7 +339,7 @@ Expected: no failures; cordae still `PASS … db63b128be9748ed…`.
 
 ```bash
 git add src/bsp/rust/src/sim_block.rs src/bsp/rust/tests/sim_block_host.rs \
-        src/bsp/rust/src/main.rs src/bsp/rust/harness/golden_vt_render/src/main.rs
+        src/bsp/rust/src/main.rs
 git commit -m "feat(bsp): give threaded hosts a yielding progress hook for storage spins
 
 sim_block's no-hook default calls any Pending future a wedge. That is right for a
@@ -334,8 +348,9 @@ with three real OS threads — where the streaming fill task holds the FS mutex
 across its SD await, so cross-thread contention is the normal case and the
 100k-poll budget is under a millisecond of spinning.
 
-Add an explicit yielding hook for threaded hosts and install it in the two such
-entry points. It reports progress unconditionally and so does not detect a truly
+Add an explicit yielding hook for threaded hosts and install it in the one such
+entry point (the threaded host BSP). golden_vt_render is single-threaded and keeps the
+no-hook default deliberately. It reports progress unconditionally and so does not detect a truly
 unsatisfiable spin; that is the intended trade, because wedge detection there
 belongs to the wall-clock timeouts and TSan, while lens1 keeps the strict
 budget-based detector its charter assigns it."

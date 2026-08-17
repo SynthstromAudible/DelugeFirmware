@@ -66,6 +66,51 @@ fn block_on_completes_when_hook_makes_progress() {
     );
 }
 
+/// Pending until another OS thread sets `CROSS_THREAD_DONE` — the shape every host-shim
+/// storage spin has once the I/O-class waits collapse. Unlike [`NeedsTicks`], nothing the
+/// spinning thread itself does can make this ready.
+struct NeedsOtherThread;
+static CROSS_THREAD_DONE: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+impl Future for NeedsOtherThread {
+    type Output = ();
+    fn poll(self: Pin<&mut Self>, _cx: &mut Context<'_>) -> Poll<()> {
+        if CROSS_THREAD_DONE.load(Ordering::SeqCst) {
+            Poll::Ready(())
+        } else {
+            Poll::Pending
+        }
+    }
+}
+
+#[test]
+fn threaded_host_hook_completes_a_spin_another_thread_satisfies() {
+    // The threaded host's real case: this thread spins on state only ANOTHER OS thread can
+    // set. With no hook (or a Stalled one) `block_on` calls that a wedge and trips its budget;
+    // on a threaded host yielding IS progress, which is what the threaded-host hook encodes.
+    let _lock = TEST_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    CROSS_THREAD_DONE.store(false, Ordering::SeqCst);
+
+    sim_block::use_threaded_host_hook();
+    // Deliberately small. If yielding did NOT count as progress, this budget would trip long
+    // before the sleeping thread lands — so a pass means the hook is what carried the spin,
+    // not that the spin happened to be short.
+    sim_block::set_spin_budget(50);
+
+    let h = std::thread::spawn(|| {
+        std::thread::sleep(std::time::Duration::from_millis(50));
+        CROSS_THREAD_DONE.store(true, Ordering::SeqCst);
+    });
+
+    sim_block::block_on(NeedsOtherThread);
+
+    h.join().unwrap();
+    assert!(
+        CROSS_THREAD_DONE.load(Ordering::SeqCst),
+        "the spin returned before the other thread set the flag — it did not actually wait"
+    );
+}
+
 fn stalled_hook() -> Progress {
     Progress::Stalled
 }

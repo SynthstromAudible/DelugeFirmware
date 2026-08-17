@@ -1041,6 +1041,15 @@ fn main() {
         // synchronous: the audio thread reaches its side immediately after
         // `set_audio_spawner`, the main thread reaches its side immediately
         // before spawning the host-app executor thread below.
+        // This host runs audio, streaming and the app on three real OS threads, so a `Pending`
+        // storage future here is satisfied by ANOTHER THREAD rather than by nothing —
+        // `streaming_fill_task` holds the FS mutex across its SD await on its own thread, so
+        // cross-thread contention is the normal case. Install the yielding hook before any
+        // thread can issue a transfer, or `sim_block::block_on`'s default no-hook verdict would
+        // call a normally-contended read a wedge (its budget is under a millisecond of
+        // spinning). See `sim_block::use_threaded_host_hook` for the trade this accepts.
+        crate::sim_block::use_threaded_host_hook();
+
         let audio_spawner_ready = Arc::new(Barrier::new(2));
         let audio_thread_barrier = Arc::clone(&audio_spawner_ready);
         std::thread::Builder::new()

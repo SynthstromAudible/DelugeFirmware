@@ -61,6 +61,31 @@ pub fn set_spin_budget(polls: u32) {
     host::BUDGET.store(polls, core::sync::atomic::Ordering::SeqCst);
 }
 
+/// Register the progress hook appropriate to a **threaded** host: yield the OS thread and
+/// report progress. Call once at start-up, before any `block_on`. No-op on device.
+///
+/// The default no-hook behaviour treats a `Pending` future as an immediate wedge. That is right
+/// for a single-threaded cooperative sim — nothing else can run, so nothing can satisfy it — and
+/// wrong for a threaded host, where a `Pending` is routinely satisfied by another thread. The
+/// streaming fill task holds the FS mutex across its SD await on its own thread, so cross-thread
+/// contention is the normal case, and a spin iteration is nanoseconds: the 100_000-poll default
+/// budget is well under a millisecond, so a contended read would trip it spuriously.
+///
+/// The trade is deliberate and worth knowing: because this hook always reports
+/// [`Progress::Advanced`], it does **not** detect a genuinely unsatisfiable spin. That is
+/// acceptable here — wedge detection on a threaded host belongs to the wall-clock timeouts and
+/// TSan, while `lens1_vt_sim` keeps the strict budget-based detector its charter assigns it (R5a
+/// spec §3). **Do not install this hook in a single-threaded sim:** it would silently disarm the
+/// detector there, which is the one place the detector is load-bearing.
+#[cfg(not(target_os = "none"))]
+pub fn use_threaded_host_hook() {
+    fn hook() -> Progress {
+        std::thread::yield_now();
+        Progress::Advanced
+    }
+    host::set_hook(hook);
+}
+
 /// Device: a plain non-yielding block. Transfers complete by interrupt.
 #[cfg(target_os = "none")]
 pub fn block_on<F: Future>(fut: F) -> F::Output {
