@@ -996,7 +996,11 @@ NoteRow* InstrumentClip::getNoteRowOnScreen(int32_t yDisplay, Song* song, int32_
 ModelStackWithNoteRow* InstrumentClip::getNoteRowForYNote(int32_t yNote, ModelStackWithTimelineCounter* modelStack) {
 	int32_t noteRowIndex;
 	NoteRow* noteRow = getNoteRowForYNote(yNote, &noteRowIndex);
-	int32_t noteRowId;
+	// Initialised, not left indeterminate — same reasoning as `getNoteRowOnScreen`'s sibling fix:
+	// this function's own comment advertises a null `noteRow`, `ModelStackWithNoteRow::noteRowId` is
+	// documented "valid and mandatory, iff noteRow is set", and passing an uninitialised local is UB
+	// regardless of whether a conforming consumer reads it.
+	int32_t noteRowId = 0;
 	if (noteRow) {
 		noteRowId = getNoteRowId(noteRow, noteRowIndex);
 	}
