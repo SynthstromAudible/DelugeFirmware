@@ -105,6 +105,22 @@ set(CMAKE_CXX_FLAGS_RELEASE "-DNDEBUG" CACHE STRING "" FORCE)
 # -mfpu=auto for -mcpu=cortex-a9 reports __ARM_FP=14 (half+single+double) where
 # the explicit -mfpu=neon reports 12. So -mfpu=neon is subtracting a capability
 # the CPU has, and neon-fp16 restores it.
+# -mno-unaligned-access: REQUIRED, and it must stay in lockstep with the Rust side.
+#
+# Without it the optimiser merges byte accesses into one wide load/store — e.g. a `char*`
+# memcpy of 4 bytes becomes a single `ldr`. That is only valid where unaligned access is
+# permitted, and on this part it is not: an unaligned `ldr` faults when SCTLR.A is set, and an
+# unaligned `ldrd`/`ldm` faults regardless of SCTLR.A. The observed symptom was a boot-time DABT
+# with DFSR=0x1 (alignment fault) inside `core::fmt::write`, reached from the RTT writer, on a
+# perfectly legal `&str` that happened to sit at an odd address — string data is align-1, so
+# there was no bug at the call site at all, only codegen assuming a capability the hardware does
+# not offer here.
+#
+# Keep this identical to `src/bsp/rust/armv7a-deluge-eabihf.json`'s `+strict-align`. The custom
+# Rust target exists to make the two feature sets MATCH (LLVM only inlines across languages when
+# the callee's features are a subset of the caller's), so adding strict-align to one side alone
+# silently switches cross-language inlining back off — which is the whole reason that target
+# exists. Change both or neither.
 set(ARCH_FLAGS
   --target=armv7a-none-eabihf
   -mcpu=cortex-a9
@@ -112,6 +128,7 @@ set(ARCH_FLAGS
   -mfloat-abi=hard
   -mthumb
   -mlittle-endian
+  -mno-unaligned-access
 )
 
 # The GCC sysroot, named explicitly because clang will not infer any of it.
@@ -124,6 +141,8 @@ set(SYSROOT_FLAGS
 # GCC spelling of the same architecture, for the assembler. No --target, no
 # --sysroot/--gcc-toolchain/-stdlib: those are clang driver options and
 # arm-none-eabi-gcc rejects them.
+# No -mno-unaligned-access here: hand-written assembly chooses its own access widths, so the
+# flag has nothing to constrain, and arm-none-eabi-gcc is only being used as the assembler.
 set(ASM_ARCH_FLAGS
   -mcpu=cortex-a9
   -mfpu=neon-fp16
