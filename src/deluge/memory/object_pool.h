@@ -15,17 +15,18 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 #pragma once
+#include "libdeluge/system.h"
 #include <cstring>
 #include <gsl/gsl>
 #include <memory>
-#include <stack>
 #include <vector>
 
 namespace deluge::memory {
 /// @brief A simple object pool implementation
 /// @tparam T The type of object to pool
 /// @tparam Alloc The allocator to use for the pool
-/// @note ObjectPool instances are thread-local singletons
+/// @note One global pool per object type, shared across execution tiers; the free-list
+/// operations are guarded accordingly. See get() for why this is not thread_local.
 template <typename T, template <typename> typename Alloc = std::allocator>
 class ObjectPool {
 	static constexpr size_t kDefaultSize = 48;
@@ -59,8 +60,8 @@ public:
 		if (capacity_ < objects_.size()) {
 			// We need to shrink the pool
 			while (objects_.size() > capacity_) {
-				alloc_.deallocate(objects_.top(), 1);
-				objects_.pop();
+				alloc_.deallocate(objects_.back(), 1);
+				objects_.pop_back();
 			}
 		}
 	}
@@ -78,11 +79,8 @@ public:
 	static void recycle(gsl::owner<T*> obj) {
 		obj->~T();
 
-		ObjectPool& op = get();
-		if (op.objects_.size() < op.capacity_) {
-			op.objects_.push(obj);
-		}
-		else {
+		// Destruction and any deallocation stay outside the guard; only the list touch is protected.
+		if (!get().try_push(obj)) {
 			Alloc<T>().deallocate(obj, 1);
 		}
 	}
@@ -90,8 +88,11 @@ public:
 	/// @brief Repopulates the pool to its original size
 	/// @throws deluge::exception::BAD_ALLOC if memory allocation fails
 	void repopulate() noexcept(false) {
+		// Reserve before filling: this is what lets try_push() run inside a critical section without
+		// ever reaching the heap, since the free list never exceeds `capacity_` entries.
+		objects_.reserve(capacity_);
 		for (size_t i = objects_.size(); i < capacity_; ++i) {
-			objects_.push(alloc_.allocate(1));
+			objects_.push_back(alloc_.allocate(1));
 		}
 	}
 
@@ -105,13 +106,10 @@ public:
 	/// @returns A managed pointer to the acquired object
 	template <typename... Args>
 	[[nodiscard]] pointer_type acquire(Args&&... args) noexcept(false) {
-		T* obj = nullptr;
-		if (objects_.empty()) {
+		T* obj = try_pop();
+		if (obj == nullptr) {
+			// The pool is empty, so fall back to the heap -- deliberately outside the guard.
 			obj = alloc_.allocate(1);
-		}
-		else {
-			obj = objects_.top();
-			objects_.pop();
 		}
 #ifdef DELUGE_DETERMINISTIC_ALLOC
 		// A recycled slot still holds the previous occupant's bytes (recycle() runs the destructor but doesn't
@@ -126,8 +124,8 @@ public:
 	/// @brief Clears the pool
 	void clear() {
 		while (!objects_.empty()) {
-			alloc_.deallocate(objects_.top(), 1);
-			objects_.pop();
+			alloc_.deallocate(objects_.back(), 1);
+			objects_.pop_back();
 		}
 	}
 
@@ -136,8 +134,42 @@ public:
 	[[nodiscard]] constexpr bool empty() const { return objects_.empty(); }
 
 private:
+	/// @brief Takes a slot off the free list, or nullptr if it is empty
+	///
+	/// The free list is shared across execution tiers, and since audio renders from a preemptive
+	/// interrupt executor it can interrupt a caller mid-update. `back()` followed by `pop_back()` is a
+	/// read-then-mutate, so without this guard two racing acquirers could both read the same slot and
+	/// hand one object to two owners -- observed on device as a note-on reaching assignClusters with a
+	/// region still held (`i024`). A push arriving mid-read could also reallocate the vector underneath
+	/// it.
+	///
+	/// Only the list operation is guarded. Allocation, deallocation and construction all stay outside,
+	/// so the critical section is a couple of vector operations and never reaches the heap -- see
+	/// repopulate(), which reserves `capacity_` so a push cannot grow the vector.
+	T* try_pop() {
+		CriticalSectionGuard guard;
+		if (objects_.empty()) {
+			return nullptr;
+		}
+		T* obj = objects_.back();
+		objects_.pop_back();
+		return obj;
+	}
+
+	/// @brief Returns a slot to the free list
+	/// @returns false if the pool is already at capacity, so the caller must free the slot instead
+	/// @note Guarded for the same reason as try_pop(), and likewise allocation-free.
+	bool try_push(T* obj) {
+		CriticalSectionGuard guard;
+		if (objects_.size() >= capacity_) {
+			return false;
+		}
+		objects_.push_back(obj);
+		return true;
+	}
+
 	size_t capacity_ = kDefaultSize;
-	std::stack<T*, std::vector<T*, Alloc<T*>>> objects_;
+	std::vector<T*, Alloc<T*>> objects_;
 	Alloc<T> alloc_;
 };
 } // namespace deluge::memory
