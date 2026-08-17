@@ -88,6 +88,13 @@ mod host_critical_section_stubs {
     extern "C" fn deluge_in_interrupt() -> bool {
         false
     }
+
+    // Same reasoning as `deluge_in_interrupt` above: never the audio context here, so
+    // `deluge_resource`'s mask is always taken under this crate's tests.
+    #[unsafe(no_mangle)]
+    extern "C" fn deluge_in_audio_context() -> bool {
+        false
+    }
 }
 
 // `reader.rs`'s `fill_now`/`window()` reach the synchronous card read through an

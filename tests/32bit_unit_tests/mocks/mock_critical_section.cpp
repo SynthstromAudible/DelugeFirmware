@@ -40,6 +40,13 @@ bool deluge_in_interrupt() {
 	return false;
 }
 
+/// Mirrors deluge_in_interrupt above: these drivers never run from an ISR, so they are never
+/// the audio context either. Consequence: the resource manager always masks under the specs,
+/// which is what the masked-path assertions expect.
+bool deluge_in_audio_context() {
+	return false;
+}
+
 /// The clock deluge_resource measures loader service latency with — in the firmware it is
 /// `AudioEngine::audioSampleTimer` (see src/deluge/io/debug/resource_clock.cpp), which these drivers
 /// do not link. A monotonic counter satisfies the manager's only requirement (that successive reads

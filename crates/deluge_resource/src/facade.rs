@@ -532,7 +532,7 @@ mod tests {
     /// (`sync::Masked`) exactly right in each context — it decrements exactly once
     /// either way, and only the main path takes the critical section (the ISR path
     /// is lock-free by the manager's own atomic-vs-fiber guarantee). Uses the same
-    /// `sync::stubs` two-context model (`deluge_in_interrupt_set`) + critical-section
+    /// `sync::stubs` two-context model (`audio_isr_context_set`) + critical-section
     /// counters that `sync.rs`'s own `fiber_masks_rmw` / `audio_skips_mask` tests use.
     ///
     /// `cargo test`'s critical-section counters are thread-local (see `sync::stubs`),
@@ -552,7 +552,7 @@ mod tests {
 
         // (a) MAIN context: dropping a Lease enters the masked critical section
         // (release goes through `rmw_by_ptr` -> `Masked::enter`) and decrements once.
-        stubs::deluge_in_interrupt_set(false);
+        stubs::audio_isr_context_set(false);
         let l = rsrc.lease(c);
         assert_eq!(rsrc.lease_count_by_slot(slot), base + 1, "lease took one");
         stubs::cs_reset_counts();
@@ -576,7 +576,7 @@ mod tests {
         // (b) AUDIO-ISR context: dropping a Lease must NOT mask (the audio path is
         // already atomic w.r.t. the fiber, so the manager skips the lock) yet must
         // still decrement exactly once.
-        stubs::deluge_in_interrupt_set(true);
+        stubs::audio_isr_context_set(true);
         let l = rsrc.lease(c); // add_lease here is itself lock-free (ISR context)
         stubs::cs_reset_counts();
         drop(l); // Lease::drop -> Manager::release, lock-free on the ISR path
@@ -593,7 +593,7 @@ mod tests {
             "lock-free ISR release decremented exactly one lease"
         );
 
-        stubs::deluge_in_interrupt_set(false); // restore for other tests on this thread
+        stubs::audio_isr_context_set(false); // restore for other tests on this thread
     }
 
     /// The cross-slot non-corruption fact: the RAII cursor drops leases from the main
@@ -622,16 +622,16 @@ mod tests {
         let base1 = rsrc.lease_count_by_slot(s1);
 
         // Take a main-context lease on slot0 and an ISR-context lease on slot1.
-        stubs::deluge_in_interrupt_set(false);
+        stubs::audio_isr_context_set(false);
         let lm = rsrc.lease(c0); // main, slot0
-        stubs::deluge_in_interrupt_set(true);
+        stubs::audio_isr_context_set(true);
         let li = rsrc.lease(c1); // ISR, slot1
         assert_eq!(rsrc.lease_count_by_slot(s0), base0 + 1);
         assert_eq!(rsrc.lease_count_by_slot(s1), base1 + 1);
 
         // Interleave the drops: ISR release (lock-free) first, then main release (masked).
         drop(li); // still in ISR context
-        stubs::deluge_in_interrupt_set(false);
+        stubs::audio_isr_context_set(false);
         drop(lm); // main context
 
         // Each slot decremented exactly its own lease; no cross-slot leakage either way.

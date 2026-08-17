@@ -332,8 +332,14 @@ const AUDIO_SGI_PRIORITY: u8 = 20;
 /// EOIs (GICC_EOIR) after, with IRQs re-enabled for nesting.
 #[cfg(target_os = "none")]
 fn audio_sgi_handler() {
+    // Mark the audio context for `deluge_in_audio_context()` — the predicate the resource
+    // manager's asymmetric critical section keys off. Must wrap the whole poll: every manager
+    // access the audio task makes has to be inside it, or the manager will mask on the one
+    // path that must not.
+    let prev = crate::services::audio_context_enter();
     // SAFETY: only called from the SGI handler, after AUDIO_EXEC.start().
     unsafe { AUDIO_EXEC.on_interrupt() };
+    crate::services::audio_context_exit(prev);
 }
 
 /// Firmware entry. The HAL reset handler (`_reset_handler` in rza1l-hal) ends in

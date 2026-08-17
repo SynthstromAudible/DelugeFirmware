@@ -34,6 +34,15 @@ bool deluge_in_interrupt(void) {
 	return intc_func_active != 0;
 }
 
+// On the legacy RZA1 BSP the audio render is the only interrupt context that reaches the
+// resource manager, so "the audio context" and "in an interrupt" coincide here. Kept as an
+// alias rather than a second mechanism: this BSP is committed for retirement, and the point
+// of the separate predicate is a distinction only the Rust BSP draws (its streaming fill task
+// runs in an interrupt that audio preempts, so it must still mask).
+bool deluge_in_audio_context(void) {
+	return deluge_in_interrupt();
+}
+
 void deluge_system_quiesce(void) {
 	// Disable all MTU system timers, as the chainload teardown previously did
 	// inline. Behaviour is unchanged; only the layer moved.

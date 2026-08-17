@@ -10,3 +10,8 @@ volatile uint32_t intc_func_active = 0;
 extern "C" bool deluge_in_interrupt(void) {
 	return false;
 }
+
+// Mirrors deluge_in_interrupt above: never in an ISR, so never the audio context.
+extern "C" bool deluge_in_audio_context(void) {
+	return false;
+}

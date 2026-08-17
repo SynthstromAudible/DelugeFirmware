@@ -121,6 +121,50 @@ pub extern "C" fn deluge_in_interrupt() -> bool {
     false
 }
 
+/// Nesting depth of the audio render context: non-zero while the audio SGI handler is on the
+/// stack. Not an `AtomicBool`, because audio can nest on top of the lower-priority streaming
+/// SGI handler — on exit the marker must revert to the *enclosing* context rather than clear
+/// unconditionally.
+#[cfg(target_os = "none")]
+static AUDIO_CONTEXT: AtomicU32 = AtomicU32::new(0);
+
+/// Mark entry into the audio render context. Returns the previous marker state, so a call
+/// site reads as a balanced pair with [`audio_context_exit`]. Call ONLY from the audio SGI
+/// handler. [isr]
+#[cfg(target_os = "none")]
+pub fn audio_context_enter() -> bool {
+    AUDIO_CONTEXT.fetch_add(1, Ordering::Relaxed) != 0
+}
+
+/// Undo one [`audio_context_enter`]. `_prev` is accepted and ignored — the counter itself
+/// carries the nesting; the parameter exists so the pairing is visible at the call site. [isr]
+#[cfg(target_os = "none")]
+pub fn audio_context_exit(_prev: bool) {
+    AUDIO_CONTEXT.fetch_sub(1, Ordering::Relaxed);
+}
+
+/// True iff the audio SGI handler is on the stack — the one context permitted to skip the
+/// resource manager's mask, because it preempts every other context that touches it. See
+/// `libdeluge/system.h` and `deluge_resource::sync`'s module doc.
+///
+/// Deliberately NOT `deluge_in_interrupt()`: that is a CPSR mode test, true in the streaming
+/// fill executor's SGI handler too — which audio preempts, so it must keep masking.
+#[cfg(target_os = "none")]
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_in_audio_context() -> bool {
+    AUDIO_CONTEXT.load(Ordering::Relaxed) != 0
+}
+
+/// Host stand-in: host runs audio on a real OS thread with no interrupt context, and the
+/// asymmetric mask skip is deliberately NOT taken there — every thread masks, so the global
+/// critical-section mutex serializes them (see `deluge_resource::sync`'s module doc).
+/// [task] [isr]
+#[cfg(not(target_os = "none"))]
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_in_audio_context() -> bool {
+    false
+}
+
 /// Platform is already brought up by the Rust `main` before the app runs, so
 /// this is a no-op that just reports success. [task]
 #[unsafe(no_mangle)]

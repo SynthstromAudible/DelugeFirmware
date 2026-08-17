@@ -51,6 +51,14 @@ void deluge_log(const char* text);
 /// [task] [isr]
 bool deluge_in_interrupt(void);
 
+/// True iff the caller is executing in the audio render context — the one context that
+/// preempts every other context touching shared audio/resource state, and therefore the one
+/// context permitted to skip a mask that exists to exclude it. Distinct from
+/// deluge_in_interrupt(): a lower-priority interrupt (the streaming fill executor) is "in an
+/// interrupt" but is NOT the audio context, and must still mask.
+/// [task] [isr]
+bool deluge_in_audio_context(void);
+
 /// Enter a critical section: mask interrupts so the following code runs without
 /// preemption. Nestable — each ENTER must be paired with one EXIT, and only the
 /// outermost pair actually toggles interrupts (a shared depth counter tracks the
