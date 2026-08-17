@@ -1084,6 +1084,43 @@ fn main() {
         // spawner.
         audio_spawner_ready.wait();
 
+        // --- Third host executor thread for the streaming fill task ------------
+        // Device runs the fill task on `STREAM_EXEC`, a preemptive interrupt executor at a
+        // priority between audio and thread mode. Host has no interrupt context, so a
+        // dedicated `std::thread` with its own executor is the analogue — real OS-thread
+        // preemption instead of an SGI, with the property that matters preserved: a
+        // non-yielding storage spin on the app thread cannot starve the fill task, which
+        // holds the FS mutex across its SD await.
+        //
+        // Mutual exclusion needs nothing new. `deluge_in_audio_context()` is always false on
+        // host, so every thread — this one included — masks, and the global
+        // critical-section mutex serializes all three (see `deluge_resource::sync`'s module
+        // doc).
+        //
+        // Same barrier rationale as the audio thread above: the loader queue must have an
+        // owner before `host_app_task` reaches `deluge_app_init`, or the enqueues its boot
+        // performs sit undrained until some later `FILL_WAKE` happens to arrive.
+        #[cfg(feature = "async_streaming_loader")]
+        {
+            let stream_ready = Arc::new(Barrier::new(2));
+            let stream_barrier = Arc::clone(&stream_ready);
+            std::thread::Builder::new()
+                .name("deluge-stream".into())
+                .spawn(move || {
+                    let executor: &'static mut Executor = Box::leak(Box::new(Executor::new()));
+                    executor.run(|spawner: Spawner| {
+                        spawner.spawn(streaming_loader::streaming_fill_task().unwrap());
+                        log::info!(
+                            "deluge-bsp-rust: host streaming executor up on thread {:?}",
+                            std::thread::current().name()
+                        );
+                        stream_barrier.wait();
+                    });
+                })
+                .expect("spawning the host streaming executor thread");
+            stream_ready.wait();
+        }
+
         std::thread::Builder::new()
             .name("deluge-bsp-host-app".into())
             .spawn(move || {
@@ -1101,13 +1138,11 @@ fn main() {
                     // `block_on`'d sim_latency transfer and would starve a
                     // same-thread `pump`).
                     spawner.spawn(host_app_task().unwrap());
-                    // R2.1: same async cluster-fill task as the device `main` above,
-                    // spawned on this executor (the one `host_app_task`'s worker-fiber
-                    // pump loop and the C++ enqueue path also run on) — required for
-                    // `host_app async_streaming_loader` to actually own the loader
-                    // queue rather than just link the symbol.
-                    #[cfg(feature = "async_streaming_loader")]
-                    spawner.spawn(streaming_loader::streaming_fill_task().unwrap());
+                    // The async cluster-fill task is NOT spawned here any more: it owns the
+                    // `"deluge-stream"` thread above, mirroring the device's STREAM_EXEC. A
+                    // non-yielding storage spin on THIS thread — the one `host_app_task`'s
+                    // worker-fiber pump loop and the C++ enqueue path run on — must not be
+                    // able to starve it.
                     // Streaming-underrun harness: spawned on THIS executor —
                     // the same one `host_app_task`'s worker-fiber pump loop runs on —
                     // so `scenario::run`'s C-ABI calls interleave cooperatively with
