@@ -81,6 +81,30 @@ constexpr Patcher::Config kPatcherConfigForSound = {
 Sound::Sound() : patcher(kPatcherConfigForSound, globalSourceValues, paramFinalValues) {
 	unpatchedParamKind_ = params::Kind::UNPATCHED_SOUND;
 
+	// CONTAINMENT for the voices_ cross-tier race (see
+	// docs/superpowers/specs/2026-08-16-voices-cross-tier-race.md). The audio render runs on a
+	// preemptive interrupt executor and iterates every Sound's voices_ while culling; an
+	// interaction-tier note-on can push_back into that same vector at any instruction. If the
+	// push_back reallocates, the audio tier's in-flight traversal walks freed memory.
+	//
+	// Reserving the whole pool up front makes voices_'s buffer address IMMUTABLE for this Sound's
+	// lifetime, so no push_back can ever move it. Bound is the pool's capacity rather than
+	// maxVoiceCount, deliberately: acquireVoice() only counts !isCullFading() voices toward
+	// maxVoiceCount, so cull-fading voices occupy slots without counting and size() can legally
+	// exceed it. Nothing reduces capacity afterwards — there is no shrink_to_fit, no voices_
+	// assignment and no Sound::operator= — so the guarantee holds for good.
+	//
+	// Done HERE and nowhere else because this is the one provably safe point: a Sound under
+	// construction is not yet reachable from the audio tier, so this reservation's own allocation
+	// cannot race a traversal. Reserving lazily on first acquireVoice() would reallocate at
+	// exactly the moment the hazard exists.
+	//
+	// This is containment, not a fix. It closes the memory-corruption path only; a raw
+	// ActiveVoice& held across voice->noteOn() can still be erased mid-call (that is what fires
+	// E199), and pool-recycled Voice addresses still ABA. Both need the voice-identity model the
+	// audio-engine overhaul introduces, and that work is expected to delete this reserve.
+	voices_.reserve(AudioEngine::VoicePool::get().capacity());
+
 	oscRetriggerPhase.fill(0xFFFFFFFF);
 
 	modFXType_ = ModFXType::NONE;
