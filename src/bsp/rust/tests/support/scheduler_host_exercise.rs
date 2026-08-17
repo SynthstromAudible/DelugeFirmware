@@ -387,4 +387,47 @@ pub fn run() {
         !crate::scheduler::isSDRoutineActive(),
         "isSDRoutineActive() should always be false on this BSP"
     );
+
+    await_progress_phase();
+}
+
+/// `deluge_storage_await_progress` replaced `yieldWithTimeout` at the loader-settle site, so it must
+/// do both halves of that contract: report success without waiting when the predicate already holds,
+/// and -- the half that matters -- actually give up and report failure at the deadline instead of
+/// spinning forever. A wait that never terminates would hang a song load.
+fn await_progress_phase() {
+    // Without a progress hook, sim_block treats any `Pending` as an immediate wedge -- correct for a
+    // single-threaded sim, where nothing can satisfy the predicate. This exercise is a threaded host,
+    // and the threaded hook is what models the device: there, the fill task on STREAM_EXEC keeps
+    // making progress while an interaction-tier caller spins.
+    crate::sim_block::use_threaded_host_hook();
+
+    unsafe extern "C" fn always_true() -> bool {
+        true
+    }
+    unsafe extern "C" fn never_true() -> bool {
+        false
+    }
+
+    assert!(
+        crate::scheduler::deluge_storage_await_progress(Some(always_true), 5.0),
+        "a predicate that already holds must report success"
+    );
+
+    // A null predicate reads as ready, matching how `off_fiber_yield` treats the same C ABI.
+    assert!(
+        crate::scheduler::deluge_storage_await_progress(None, 5.0),
+        "a null predicate must read as satisfied"
+    );
+
+    let start = crate::fiber::now_us();
+    assert!(
+        !crate::scheduler::deluge_storage_await_progress(Some(never_true), 0.05),
+        "an unsatisfiable predicate must report timeout, not success"
+    );
+    let waited_us = crate::fiber::now_us() - start;
+    assert!(
+        waited_us >= 50_000,
+        "must wait out the deadline before giving up (waited {waited_us} us, expected >= 50000)"
+    );
 }

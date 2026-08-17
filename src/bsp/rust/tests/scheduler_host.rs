@@ -15,6 +15,9 @@ mod exercise;
 mod fiber;
 #[path = "../src/scheduler.rs"]
 mod scheduler;
+// scheduler.rs reaches sim_block for the bounded progress wait; declare it the same way.
+#[path = "../src/sim_block.rs"]
+mod sim_block;
 
 #[test]
 fn scheduler_host_exercise() {

@@ -479,6 +479,9 @@ gotErrorAfterCreatingSong:
 
 	// Ensure all AudioFile Clusters needed for new song are loaded: wait until the loader queue holds
 	// no lowest-priority (failed-and-requeued) items, i.e. the async fill task has settled.
+	// NOT YET deluge_storage_await_progress(): that spins, and in a single-threaded host the only thing
+	// that makes the fill task progress is a pump. Today the fiber's yield provides it. See the R5b spec
+	// for the blocker -- golden_vt_render deliberately registers no sim_block progress hook.
 	yieldWithTimeout(
 	    []() { return !deluge_resource_loader_has_lowest(GeneralMemoryAllocator::get().resourceManager()); }, 5);
 

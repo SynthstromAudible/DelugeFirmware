@@ -519,7 +519,12 @@ static mut WAIT_PRED: usize = 0;
 static mut WAIT_DEADLINE_US: u64 = 0; // 0 = wait forever
 static mut WAIT_MET: bool = false;
 
-fn now_us() -> u64 {
+/// Monotonic microseconds since boot.
+///
+/// `pub(crate)` because `scheduler.rs`'s timeout-bearing wrappers read it too. When this file is
+/// retired the clock needs a new home that is not a fiber concern -- note that the golden/lens
+/// harnesses already own the module name `clock`, so it cannot simply move there.
+pub(crate) fn now_us() -> u64 {
     embassy_time::Instant::now().as_micros()
 }
 
