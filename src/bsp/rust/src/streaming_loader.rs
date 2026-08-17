@@ -534,15 +534,34 @@ pub use prod::ProdOps;
 /// [`ProdOps`], then goes back to sleep. Spawned in `main.rs` (device `main` +
 /// host `host_app`) under `async_streaming_loader`; the C++ enqueue path
 /// (`sample_stream.cpp`) wakes it via `deluge_streaming_signal_fill`.
+///
+/// # Why `ProdOps` is constructed AFTER the first wake, never before
+///
+/// [`ProdOps::new`] reaches into the C++ resource manager, and
+/// `GeneralMemoryAllocator::ensureClusterSystem()` on that path READS the global
+/// `Cluster::size` — which `deluge_app_init` writes during boot
+/// (`AudioFileManager::init()` -> `Cluster::set_size`). This task no longer shares an
+/// execution context with `deluge_app_init`: on device it runs on `STREAM_EXEC`, whose SGI is
+/// enabled before the thread executor ever reaches `app_task`, and on host it owns the
+/// `"deluge-stream"` thread. Constructing at the top of the task therefore raced that boot
+/// write — caught by TSan as `Cluster::set_size` vs `ProdOps::new` across two threads — and on
+/// device could have built the cluster system from the 32768 default instead of the card's real
+/// cluster size, silently wrong on any non-32KB card.
+///
+/// Waiting first is a complete fix rather than a narrowing, because nothing can signal
+/// [`FILL_WAKE`] until the C++ enqueue path runs, which is necessarily after init. `FILL_WAKE`
+/// is a latching `Signal`, so a wake that arrives before this task is first polled is stored
+/// and returned immediately — no wake is lost by waiting.
 #[cfg(all(
     feature = "async_streaming_loader",
     any(target_os = "none", feature = "host_app")
 ))]
 #[embassy_executor::task]
 pub async fn streaming_fill_task() {
+    FILL_WAKE.wait().await;
     let ops = ProdOps::new();
     loop {
-        FILL_WAKE.wait().await;
         fill_once(&ops).await;
+        FILL_WAKE.wait().await;
     }
 }

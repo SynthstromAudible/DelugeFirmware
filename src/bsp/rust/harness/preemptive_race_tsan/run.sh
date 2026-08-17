@@ -63,6 +63,11 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 RUST_DIR="$(cd "$SCRIPT_DIR/../.." && pwd)"       # src/bsp/rust
+# Honour CARGO_TARGET_DIR rather than assuming the crate-local `target/`. `dbt harness run`
+# sets it (task-harness.py points every harness at one shared `target/harness` root), so a
+# hard-coded path looks in the wrong place: the run dies with "missing … — build failed?"
+# immediately after cargo reports success. Same defect `golden_embassy_diff.sh` had.
+TARGET_ROOT="${CARGO_TARGET_DIR:-$RUST_DIR/target}"
 REPO_ROOT="$(cd "$RUST_DIR/../../.." && pwd)"
 TSAN_BUILD_DIR="${TSAN_BUILD_DIR:-$REPO_ROOT/build-embassy-hostapp-tsan}"
 
@@ -219,8 +224,9 @@ if [[ -z "${SKIP_BUILD:-}" ]]; then
     echo "== [2/3] Building the Rust TSan binary (host_app) =="
     cd "$RUST_DIR"
     # Belt-and-braces staleness workaround (HOST_HARNESS.md): always wipe the tsan target
-    # dir before relinking against a freshly (re)built CMake tree.
-    rm -rf target/x86_64-unknown-linux-gnu-tsan
+    # dir before relinking against a freshly (re)built CMake tree. Uses TARGET_ROOT, not a
+    # hard-coded `target/`, for the same reason `BIN` does — see its comment below.
+    rm -rf "$TARGET_ROOT/x86_64-unknown-linux-gnu-tsan"
     DELUGE_HOSTAPP_BUILD_DIR="$TSAN_BUILD_DIR" \
     RUSTFLAGS="-Zsanitizer=thread" TSAN_OPTIONS="halt_on_error=0" \
     cargo +nightly build --features host_app,async_streaming_loader,efatfs_streaming \
@@ -231,7 +237,7 @@ else
     echo "== [1-2/3] SKIP_BUILD set — reusing existing TSan tree + binary =="
 fi
 
-BIN="$RUST_DIR/target/x86_64-unknown-linux-gnu-tsan/debug/deluge-rust"
+BIN="$TARGET_ROOT/x86_64-unknown-linux-gnu-tsan/debug/deluge-rust"
 [[ -x "$BIN" ]] || { echo "missing $BIN — build failed?"; exit 1; }
 
 # One TSan runtime / no undefined tsan symbols sanity check.

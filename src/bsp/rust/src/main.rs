@@ -1100,6 +1100,12 @@ fn main() {
         // Same barrier rationale as the audio thread above: the loader queue must have an
         // owner before `host_app_task` reaches `deluge_app_init`, or the enqueues its boot
         // performs sit undrained until some later `FILL_WAKE` happens to arrive.
+        //
+        // "Owner exists" is all the barrier buys, and all it should: the fill task's first act
+        // is to wait on `FILL_WAKE`, deliberately BEFORE constructing `ProdOps`, because that
+        // constructor reads app state `deluge_app_init` is still writing. See
+        // `streaming_fill_task`'s doc — an earlier version of this thread raced
+        // `Cluster::set_size` exactly that way, which is what TSan caught.
         #[cfg(feature = "async_streaming_loader")]
         {
             let stream_ready = Arc::new(Barrier::new(2));
