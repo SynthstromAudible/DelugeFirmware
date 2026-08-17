@@ -133,6 +133,102 @@ playing so voices exist throughout.
 - The periodic loader dump immediately before the fault showed `loader wait: n 0` — no fills completed
   in the preceding 2 s — so the card was idle at the moment of the abort.
 
+## DECISION (Kate, 2026-08-17): contain now, fix in the audio-engine overhaul
+
+An audio-engine overhaul is already in flight on another branch, targeting an **allocation-less,
+lock-free** design. That overhaul necessarily introduces a voice-identity model, which is exactly
+what defects 2 and 3 need. Three facts made "design the real fix here" the wrong call:
+
+1. **Upstream is actively churning the two files this touches.** `Audio-Engine-culling-changes`,
+   `Audio-Engine-Culling-Tweaks` and `Re-add-RWCL-Bypass-Culling-Flag` each rework 50-70 lines of
+   `audio_engine.cpp`'s cull loop and `sound.cpp`'s voice mutation. A structural fix there is a
+   merge-conflict generator.
+2. **Upstream does not have this bug.** Their audio is cooperative, so nothing can preempt a
+   note-on. This race is a consequence of *this fork's* preemptive-audio migration, so it will
+   never be fixed upstream and belongs with the overhaul.
+3. An interim identity model would be thrown away by the overhaul's own.
+
+So: contain the memory-unsafety now, and hand the rest over as a written requirement.
+
+### What landed (`1b03bf038`)
+
+`Sound::Sound()` reserves `voices_` to `AudioEngine::VoicePool::get().capacity()`, making the
+buffer address **immutable** for the Sound's lifetime. A concurrent `push_back` can therefore never
+move storage out from under an in-flight audio-tier traversal. That closes defect 1's
+reallocation half — the memory-corruption path.
+
+Three things about it that are easy to get wrong:
+
+- **The bound is the pool capacity, NOT `maxVoiceCount`.** `acquireVoice` only counts
+  `!isCullFading()` voices toward `maxVoiceCount`, so cull-fading voices hold slots without
+  counting and `size()` can legally exceed it. `reserve(maxVoiceCount)` would look like a fix and
+  be none.
+- **It must happen in the constructor.** That is the one provably safe point: a Sound under
+  construction is not yet reachable from the audio tier, so the reservation's own allocation cannot
+  race a traversal. Reserving lazily on first `acquireVoice` would reallocate at exactly the moment
+  the hazard exists.
+- **It holds permanently** because nothing reduces capacity: there is no `shrink_to_fit`, no
+  `voices_` assignment and no `Sound::operator=`.
+
+Cost: capacity x `sizeof(ActiveVoice)` per Sound. `ActiveVoice` carries a function-pointer deleter,
+so that is 8 bytes, not 4 — roughly 384 bytes per Sound at the default capacity of 48.
+
+### THE INVARIANT the overhaul must satisfy
+
+> **No context may structurally modify `Sound::voices_` while another tier iterates it, and no
+> identity handed out by `voices_` may be reused for a different voice while a caller still holds
+> it.**
+
+The first clause covers defects 1 and 2; the second covers defect 3. The reserve above is one
+cheap way to satisfy part of the first clause and is **expected to be deleted** by the overhaul —
+it is scaffolding, not architecture. What must survive is the invariant.
+
+### Still unfixed, deliberately
+
+Defect 2 (a raw `const ActiveVoice&` held across `voice->noteOn()`, erasable mid-call — this is what
+fires E199) and defect 3 (ABA on pool-recycled `Voice` addresses). Both need the identity model.
+
+### A related contradiction found and fixed on the way (`c6c56d093`, `1b03bf038`)
+
+`ObjectPool::get()` returned a `static thread_local` instance while `recycle` is `static` and calls
+`get()` — so an object returns to the pool of whichever context DESTROYS it. Per-context pools
+therefore let objects migrate between pools, break each pool's capacity accounting, and make
+`recycle` fall through to `Alloc<T>().deallocate` once a pool fills, silently turning the pool into
+a heap allocator. It also multiplied the global object ceiling by the number of contexts — and the
+single global bound is what this document's own reasoning relies on. On the firmware it was worse
+than per-context: nothing initialises ARM `TPIDRURO`, so `thread_local` resolved through an
+uninitialised register and returned a wild pointer, which aborted in `AudioEngine::init()`.
+
+`thread_local` is now gone and `object_pool_spec` asserts one shared pool per type, which is the
+contract `recycle` already implemented. Relevant to the overhaul's allocation-less goal: that
+`deallocate` fall-through was a live path by which the pool stopped being a pool.
+
+## The gate this needs, and why the current TSan run is blind to the race
+
+**`preemptive-race-tsan` cannot see this race today, for two independent reasons.** Both must be
+fixed or a green gate means nothing.
+
+1. **The race is never exercised.** The audio tier only erases from `voices_` via
+   `cullVoices` -> `terminateOneVoice`, and culling only fires when the engine is **over its sample
+   budget** (`audio_engine.cpp:488`, `numSamplesOverLimit >= 40`). The host harness has abundant
+   CPU and is never over budget, so the audio tier never erases and there is no cross-tier
+   mutation to detect. The device hit this precisely *because* it is running 3-6x over budget
+   (`Audio routine latency high: 9.6-18.7ms` for 128 frames against a ~2.9ms budget). Confirmed
+   empirically: across five TSan runs, zero reported races name `sound.cpp` or `voices_` — the
+   reports are reverb, `printf`, `renderAudio`, and UI state.
+   **The knob for this already exists:** `scheduler::set_audio_period_override_us`, the
+   compute-budget override `lens1_vt_sim` uses.
+2. **Even if it were exercised, it would be classified `known`.** `known_patterns.txt:45` is a
+   deliberately file-wide pattern for `src/deluge/processing/engines/audio_engine\.cpp`, covering
+   the whole "app written for cooperative scheduling, audio moved preemptive" debt class — and the
+   race's audio side is in that file. `run.sh:140-144` checks `open_findings_races.txt` FIRST, so
+   the fix is a narrow SITE entry there, which by that file's own design "never silently hides
+   behind the known noise".
+
+**Write the pattern from an observed report, not from a guess.** Force the culling, run it, read
+the actual SUMMARY site, then catalogue that. A pattern invented in advance may match nothing and
+would leave the gate green and blind — the exact failure mode this section exists to prevent.
+
 ## Options not yet evaluated
 
 1. **Critical sections around every `voices_` structural change and every cross-tier iteration** —
