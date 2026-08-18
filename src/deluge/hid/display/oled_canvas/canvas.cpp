@@ -670,11 +670,16 @@ constexpr uint8_t normaliseKerningChar(uint8_t the_char) {
 
 // Kerning rules for specific character pairs at different text heights
 // Format: {textHeight, previousChar, currentChar, adjustment}
-constexpr std::array<KerningRule, 41> kKerningRules{{
+constexpr std::array<KerningRule, 48> kKerningRules{{
     // Title/menu font (textHeight 10): exact pairs
+    {.text_height = 10, .previous_char = 'D', .current_char = 'A', .adjustment = -1},
+    {.text_height = 10, .previous_char = 'F', .current_char = 'A', .adjustment = -1},
     {.text_height = 10, .previous_char = 'P', .current_char = 'A', .adjustment = -1},
-    {.text_height = 10, .previous_char = 'W', .current_char = 'A', .adjustment = -2},
+    {.text_height = 10, .previous_char = 'T', .current_char = 'A', .adjustment = -1},
+    {.text_height = 10, .previous_char = 'W', .current_char = 'A', .adjustment = -1},
     {.text_height = 10, .previous_char = 'Y', .current_char = 'A', .adjustment = -2},
+    {.text_height = 10, .previous_char = '7', .current_char = 'A', .adjustment = -1},
+    {.text_height = 10, .previous_char = '9', .current_char = 'A', .adjustment = -1},
     {.text_height = 10, .previous_char = '7', .current_char = 'J', .adjustment = -1},
     {.text_height = 10, .previous_char = 'A', .current_char = 'O', .adjustment = -1},
     {.text_height = 10, .previous_char = 'W', .current_char = 'O', .adjustment = -1},
@@ -688,9 +693,9 @@ constexpr std::array<KerningRule, 41> kKerningRules{{
     {.text_height = 10, .previous_char = '4', .current_char = 'T', .adjustment = -1},
     {.text_height = 10, .previous_char = '6', .current_char = 'T', .adjustment = -1},
     {.text_height = 10, .previous_char = 'A', .current_char = 'V', .adjustment = -1},
-    {.text_height = 10, .previous_char = 'A', .current_char = 'W', .adjustment = -4},
-    {.text_height = 10, .previous_char = 'D', .current_char = 'W', .adjustment = -1},
+    {.text_height = 10, .previous_char = 'A', .current_char = 'W', .adjustment = -2},
     {.text_height = 10, .previous_char = 'A', .current_char = 'Y', .adjustment = -2},
+    {.text_height = 10, .previous_char = 'L', .current_char = 'Y', .adjustment = -1},
     {.text_height = 10, .previous_char = 'W', .current_char = '.', .adjustment = -2},
     {.text_height = 10, .previous_char = 'F', .current_char = '.', .adjustment = -2},
     {.text_height = 10, .previous_char = 'A', .current_char = '"', .adjustment = -1},
