@@ -127,6 +127,28 @@ __attribute__((weak)) bool deluge_streaming_drain_queue_blocking(void) {
 	return false;
 }
 
+// Weak fallbacks for the non-blocking request/poll pairs, matching the two blocking routines above:
+// the Rust Embassy BSP provides the real definitions (streaming_loader.rs), every other BSP/config
+// resolves these. The request halves are no-ops. The two poll halves answer differently, and
+// deliberately: chunk_ready reports NOT ready, degrading a stray call to a not-ready read rather than
+// silently claiming a fill succeeded (the same choice deluge_streaming_fill_chunk_blocking's fallback
+// makes, and unreachable for the same reason -- these BSPs report async_active false, so the reader
+// takes its synchronous fill_now branch). queue_drained reports drained, because there is no queue on
+// such a BSP and answering otherwise would loop a poller forever.
+__attribute__((weak)) void deluge_streaming_request_chunk(void* /*chunk_backing*/) {
+}
+
+__attribute__((weak)) bool deluge_streaming_chunk_ready(void* /*chunk_backing*/) {
+	return false;
+}
+
+__attribute__((weak)) void deluge_streaming_request_drain(void) {
+}
+
+__attribute__((weak)) bool deluge_streaming_queue_drained(void) {
+	return true;
+}
+
 // Weak fallbacks for the embedded-fatfs streaming READ symbols. The Rust Embassy BSP provides the
 // real definitions (efatfs_fs.rs / streaming_loader.rs) whenever it links this crate with the
 // `efatfs_streaming` feature; every other BSP/config resolves these instead: "no efatfs backing" —

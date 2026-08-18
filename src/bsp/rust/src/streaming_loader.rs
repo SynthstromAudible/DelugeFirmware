@@ -116,6 +116,44 @@ unsafe extern "C" {
     fn deluge_resource_loader_has_any(mgr: *mut c_void) -> bool;
 }
 
+/// True once `chunk_backing`'s fill has landed.
+///
+/// The single definition of chunk readiness: both [`WaitChunkLoaded`] and the non-blocking
+/// [`deluge_streaming_chunk_ready`] call it, so a poller and a waiter cannot disagree about what
+/// "ready" means.
+fn chunk_is_loaded(chunk_backing: *mut c_void) -> bool {
+    // SAFETY: the caller holds a lease on `chunk_backing` for the duration, so it stays resident
+    // while we read its `loaded` flag.
+    unsafe { deluge_sample_fill::chunk::loaded(chunk_backing) }
+}
+
+/// True when the loader queue holds nothing outstanding.
+///
+/// The single definition of drained-ness, shared by [`WaitQueueDrained`] and the non-blocking
+/// [`deluge_streaming_queue_drained`].
+fn queue_is_drained(mgr: *mut c_void) -> bool {
+    // SAFETY: `mgr` is the boot-singleton manager; the predicate only reads per-slot queue state,
+    // popping and mutating nothing.
+    !unsafe { deluge_resource_loader_has_any(mgr) }
+}
+
+/// Enqueues `chunk_backing` for the fill task under a queue-owned lease and wakes the drain.
+///
+/// Shared by the blocking and non-blocking request paths so both hand the drain the same protocol.
+/// The owned enqueue is what lets a fire-and-forget request survive the requester walking away --
+/// see [`deluge_streaming_fill_chunk_blocking`]'s doc for why the un-owned form silently discarded
+/// the overview pre-scan's work.
+fn enqueue_chunk_for_fill(chunk_backing: *mut c_void) {
+    // SAFETY: `deluge_streaming_resource_manager` returns the boot-singleton manager;
+    // `chunk_backing` is a resident, leased `StreamedChunk*`.
+    let mgr = unsafe { deluge_streaming_resource_manager() };
+    if !mgr.is_null() {
+        let slot = unsafe { deluge_resource_slot_of(mgr, chunk_backing) };
+        unsafe { deluge_resource_loader_enqueue_owned(mgr, slot, BLOCKING_FILL_PRIORITY) };
+    }
+    FILL_WAKE.signal(());
+}
+
 /// Poll-until-`loaded` future the on-fiber wait in [`deluge_streaming_fill_chunk_blocking`] drives
 /// through `block_on_fiber`. Each `Pending` suspends the fiber (via `block_on_fiber`'s own
 /// `yield_now`), letting the executor run [`streaming_fill_task`] to drain the queue; the fiber is
@@ -133,9 +171,7 @@ impl core::future::Future for WaitChunkLoaded {
         mut self: core::pin::Pin<&mut Self>,
         _cx: &mut core::task::Context<'_>,
     ) -> core::task::Poll<bool> {
-        // SAFETY: `chunk` is the leased backing the caller passed and holds a lease on for this
-        // whole call, so it stays resident while we poll its `loaded` flag.
-        if unsafe { deluge_sample_fill::chunk::loaded(self.chunk) } {
+        if chunk_is_loaded(self.chunk) {
             return core::task::Poll::Ready(true);
         }
         if self.remaining == 0 {
@@ -175,15 +211,7 @@ pub extern "C" fn deluge_streaming_fill_chunk_blocking(chunk_backing: *mut c_voi
     if chunk_backing.is_null() {
         return false;
     }
-    // SAFETY: `chunk_backing` is a resident, still-leased `StreamedChunk*` the caller just
-    // `request`ed (it holds the lease across this call); `deluge_streaming_resource_manager` returns
-    // the boot-singleton manager. Enqueue the chunk + wake the drain.
-    let mgr = unsafe { deluge_streaming_resource_manager() };
-    if !mgr.is_null() {
-        let slot = unsafe { deluge_resource_slot_of(mgr, chunk_backing) };
-        unsafe { deluge_resource_loader_enqueue_owned(mgr, slot, BLOCKING_FILL_PRIORITY) };
-    }
-    FILL_WAKE.signal(());
+    enqueue_chunk_for_fill(chunk_backing);
 
     if crate::fiber::on_fiber() {
         crate::fiber::block_on_fiber(WaitChunkLoaded {
@@ -217,9 +245,7 @@ impl core::future::Future for WaitQueueDrained {
         mut self: core::pin::Pin<&mut Self>,
         _cx: &mut core::task::Context<'_>,
     ) -> core::task::Poll<bool> {
-        // SAFETY: `mgr` is the process-wide resource-manager singleton captured at construction; the
-        // predicate only reads per-slot queue state, popping/mutating nothing.
-        if !unsafe { deluge_resource_loader_has_any(self.mgr) } {
+        if queue_is_drained(self.mgr) {
             return core::task::Poll::Ready(true); // Queue drained — nothing left to load.
         }
         if self.remaining == 0 {
@@ -260,6 +286,55 @@ pub extern "C" fn deluge_streaming_drain_queue_blocking() -> bool {
         // a safety net only.
         false
     }
+}
+
+// ── Non-blocking request/poll pairs ─────────────────────────────────────────
+//
+// The return-to-loop form of the two blocking waits above. A caller that cannot block -- because its
+// predicate needs another task to be polled, and it is itself inside the executor's poll -- requests
+// the work, returns to its own loop, and asks again next tick. Neither function ever waits.
+
+/// Enqueues `chunk_backing` for filling and returns immediately.
+///
+/// Pair with [`deluge_streaming_chunk_ready`]. The chunk is enqueued under a queue-owned lease, so
+/// the fill survives the requester returning to its loop.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_streaming_request_chunk(chunk_backing: *mut c_void) {
+    if chunk_backing.is_null() {
+        return;
+    }
+    enqueue_chunk_for_fill(chunk_backing);
+}
+
+/// True once a chunk requested via [`deluge_streaming_request_chunk`] has landed. Never waits.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_streaming_chunk_ready(chunk_backing: *mut c_void) -> bool {
+    if chunk_backing.is_null() {
+        return false;
+    }
+    chunk_is_loaded(chunk_backing)
+}
+
+/// Wakes the fill task so it drains the loader queue, and returns immediately.
+///
+/// Pair with [`deluge_streaming_queue_drained`].
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_streaming_request_drain() {
+    FILL_WAKE.signal(());
+}
+
+/// True when the loader queue holds nothing outstanding. Never waits.
+///
+/// A null manager reports drained: there is no queue, so there is nothing for a caller to wait on,
+/// and reporting otherwise would loop a poller forever.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_streaming_queue_drained() -> bool {
+    // SAFETY: returns the boot-singleton manager.
+    let mgr = unsafe { deluge_streaming_resource_manager() };
+    if mgr.is_null() {
+        return true;
+    }
+    queue_is_drained(mgr)
 }
 
 // ── Always-compiled C ABI: per-asset fill-context table ─────────────────────

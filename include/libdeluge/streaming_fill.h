@@ -139,6 +139,31 @@ bool deluge_streaming_fill_chunk_blocking(void* chunk_backing);
 /// @return true once the queue is fully drained; false on the off-fiber degrade or a hit cycle cap.
 bool deluge_streaming_drain_queue_blocking(void);
 
+/// @brief Enqueues a chunk for filling and returns immediately
+///
+/// The return-to-loop form of deluge_streaming_fill_chunk_blocking: a caller that cannot block --
+/// because its predicate needs another task to be polled, and it is itself inside the executor's poll
+/// -- requests the fill, returns to its own loop, and asks deluge_streaming_chunk_ready() next tick.
+/// The chunk is enqueued under a queue-owned lease, so the fill survives the requester walking away.
+/// @param chunk_backing the resident StreamedChunk to fill. Null is ignored.
+void deluge_streaming_request_chunk(void* chunk_backing);
+
+/// @brief Reports whether a requested chunk has landed. Never waits.
+/// @param chunk_backing the chunk previously passed to deluge_streaming_request_chunk().
+/// @return true once the fill has completed.
+bool deluge_streaming_chunk_ready(void* chunk_backing);
+
+/// @brief Wakes the fill task to drain the loader queue and returns immediately
+///
+/// The return-to-loop form of deluge_streaming_drain_queue_blocking; pair with
+/// deluge_streaming_queue_drained().
+void deluge_streaming_request_drain(void);
+
+/// @brief Reports whether the loader queue holds nothing outstanding. Never waits.
+/// @return true when drained. Also true when there is no resource manager, since then there is
+///         nothing to wait for and reporting otherwise would loop a poller forever.
+bool deluge_streaming_queue_drained(void);
+
 /// @brief Open a sample file for streaming reads through embedded-fatfs, writing its handle out.
 ///
 /// The sync→async bridge for the streaming READ path: C++ calls this synchronously at sample-load,
