@@ -94,6 +94,7 @@ uint32_t disableInterrupts[] = {INTC_ID_SPRI0,
                                 INTC_ID_SDHI1_1};
 
 using namespace deluge;
+using namespace deluge::processing::engines;
 
 extern int32_t spareRenderingBuffer[][SSI_TX_BUFFER_NUM_SAMPLES];
 
@@ -1130,14 +1131,12 @@ int32_t getNumSamplesLeftToOutputFromPreviousRender() {
 // Returns whether we got to the end
 bool doSomeOutputting() {
 
-	// The CV pump used to be called from here, and that was wrong. This function runs up to
-	// three times per rendered window (see the while loop in routine()), and it was handed
-	// "samples still waiting to be output" rather than "samples just rendered". A window
-	// that could not be output in one pass got pumped a second time with no fresh captured
-	// audio -- streaming silence into the ring and advancing the write pointer anyway, so
-	// the rate loop integrated frames that carried nothing and walked toward its clamp.
-	// It now runs exactly once per render, from routine_(). The CV tap itself is unaffected:
-	// that happens inside Song::renderAudio, before master volume and master FX.
+	// The CV pump does not belong here. This function runs up to three times per rendered
+	// window (see the while loop in routine()), fed "samples still waiting to be output"
+	// rather than "samples just rendered" -- pumping on a second pass would stream silence
+	// into the ring and still advance the write pointer, feeding the rate loop frames that
+	// carried nothing. The pump runs exactly once per render, from routine_(), paired with
+	// the capture inside Song::renderAudio (before master volume and master FX).
 
 	// Copy to actual output buffer, and apply heaps of gain too, with clipping
 	int32_t numSamplesOutputted = 0;

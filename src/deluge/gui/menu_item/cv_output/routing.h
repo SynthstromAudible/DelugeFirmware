@@ -25,6 +25,8 @@
 #include "modulation/params/param_set.h"
 #include "processing/engines/cv_audio_stream.h"
 
+using namespace deluge::processing::engines;
+
 namespace deluge::gui::menu_item::cv_output {
 
 /// SETTINGS > OUTPUT LEVEL. Absent on models where the CV sockets cannot carry audio.
@@ -160,8 +162,7 @@ public:
 /// This edits the song's master *param* -- the same one the gold knob on the stutter button's
 /// bottom encoder drives. There is one value with two editors, not two values kept in step:
 /// turn the knob and this menu shows the new number, set it here and the knob picks up from
-/// there. The alternative, keeping the old flash byte alongside the param, would have been two
-/// pieces of state both claiming to set one output gain, with nothing to say which one won.
+/// there.
 ///
 /// Writes go through setCurrentValueBasicForSetup rather than the automation-aware path,
 /// because a settings menu has no ModelStack to write through. Consequence: setting a master

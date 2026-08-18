@@ -45,6 +45,7 @@ extern "C" {
 #include "gui/menu_item/key_range.h"
 
 using namespace deluge;
+using namespace deluge::processing::engines;
 
 extern gui::menu_item::IntegerRange defaultTempoMenu;
 extern gui::menu_item::IntegerRange defaultSwingAmountMenu;

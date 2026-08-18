@@ -30,6 +30,8 @@ extern "C" {
 #include "drivers/dmac/dmac.h"
 }
 
+namespace deluge::processing::engines {
+
 /// Inverse of the measured output filter, as a one-pole/one-zero shelf. The pole comes from
 /// the socket's measured ~700 Hz corner.
 constexpr float kCvEqPole = 0.9049f;
@@ -56,33 +58,28 @@ void cvStreamStop();
 
 namespace {
 
-/// Words in the streamed buffer. Alternating, so half belong to each socket.
-/// The ring has to hold the target lead *plus* one whole burst, because the pump writes a
-/// window's worth of frames in one go. At 512 words that was 256 frames against a 128-frame
-/// lead and bursts of up to ~136 -- no margin at all, and a full-size engine window could
-/// lap the reader. The engine doubles its window size under load, so the bursts get bigger
-/// exactly when the machine is busiest. 2048 words is 1024 frames, which leaves the burst
-/// six times the room it needs. Costs 8 KB of SDRAM and no latency: see kCvTargetLead.
+/// Words in the streamed buffer; alternating, so half belong to each socket. Must hold the
+/// target lead plus one whole burst -- the pump writes a window's worth of frames in one
+/// go, and the engine's window doubles under load, so the burst is biggest exactly when the
+/// ring is fullest. 4096 words (2048 frames/socket) gives a worst-case ~136-frame burst
+/// about 6x the margin it needs. Costs 8 KB of SDRAM, no latency cost -- see kCvTargetLead.
 constexpr uint32_t kCvStreamWords = 4096;
 constexpr uint32_t kCvFramesPerChannel = kCvStreamWords / 2;
 constexpr uint32_t kCvMaxWindow = 256;
 /// Bytes per frame in the ring: one word per socket.
 constexpr uint32_t kCvFrameBytes = 2 * sizeof(uint32_t);
 
-/// How far ahead of the DMA read pointer the pump tries to stay, in frames. This *is* the
-/// CV output's latency behind the main outputs, and it is also how late the engine may be
-/// before the buffer runs dry.
+/// How far ahead of the DMA read pointer the pump tries to stay, in frames. This is the CV
+/// output's latency behind the main outputs, and how late the engine may run before the
+/// buffer runs dry.
 ///
-/// This has to exceed the worst phase excursion the engine produces, or the buffer runs dry
-/// and the DMA reads frames that were never written. Measured 2026-08-13: idle the lead
-/// swings ~57 frames, loaded it swings ~650. Simulation against that jitter puts the
-/// minimum lead near 100 frames with a 768-frame target, and underruns with 512.
+/// Must exceed the worst phase excursion the engine produces: idle jitter is ~57 frames,
+/// loaded ~650. 768 gives headroom over that; 512 underruns under load.
 ///
-/// **This is the CV output's latency behind the main outputs: 768 frames is ~16.4 ms.**
-/// Fine for a send into a pedal, a mixer channel or a modular case, which is what these
-/// sockets are for; summing a send back against the same source in the mains will
-/// comb-filter. Lower it if the resync count stays at zero on real songs -- it is the one
-/// constant here with a cost the player can hear.
+/// 768 frames is ~16.4 ms -- fine for a send into a pedal, mixer channel or modular case,
+/// but summing it back against the same source in the mains will comb-filter. Lower it only
+/// if the resync count stays at zero on real songs; it is the one constant here with an
+/// audible cost.
 constexpr int32_t kCvTargetLead = 768;
 
 PLACE_SDRAM_DATA uint32_t cvStreamBuffer[kCvStreamWords] __attribute__((aligned(CACHE_LINE_SIZE)));
@@ -118,35 +115,25 @@ bool cvAnyRoutedAccum = false;
 bool cvSplitAccum = false;
 bool cvSplitLive = false;
 
-/// Treble correction, expressed as the one number that actually decides it: how hard we
-/// invert the socket's own 700 Hz low-pass.
+/// Treble correction, as the one number that decides it: how hard the filter inverts the
+/// socket's own 700 Hz low-pass.
 ///
-/// The shelf is  out = scale*(in - pole*lastIn) + limit*lastOut.  At DC (z=1) its gain is
+/// The shelf is out = scale*(in - pole*lastIn) + limit*lastOut. At DC (z=1) its gain is
 /// scale*(1-pole)/(1-limit); at Nyquist (z=-1) it is scale*(1+pole)/(1+limit). Their ratio
 /// is the boost, and it depends on `limit` alone:
 ///
 ///     boost = K * (1-limit)/(1+limit),   K = (1+pole)/(1-pole)
 ///
-/// so  limit = (K-boost)/(K+boost), and `scale` is then fixed by requiring unity gain at DC.
-/// That unity-at-DC constraint is what makes this a tone control rather than a volume one:
-/// the bass sits exactly where it would with no correction at all, and only the treble moves.
+/// so limit = (K-boost)/(K+boost), and `scale` is fixed by requiring unity gain at DC --
+/// which is what keeps this a tone control rather than a volume one: the bass sits where it
+/// would with no correction, and only the treble moves.
 ///
-/// K itself is full inversion -- flat to 20 kHz -- and is unreachable, because the output
-/// stage compresses above about a third of its swing and every dB of boost is a dB of
-/// headroom spent. The chosen value is therefore a listening call, not a calculation.
-///
-/// **x6.87, chosen by ear 2026-08-15**, flat to roughly 4.8 kHz. It was picked from a 1-9
-/// menu control built for that one session and removed again afterwards: a tone knob is a
-/// question asked of a user who has no way to answer it, and the whole point of correcting
-/// a known filter is that there is a right answer. If user feedback ever disagrees, the
-/// control is a small revert away and this comment is the reason it went.
-///
-/// Supersedes the x3.125 tuned by ear on 2026-08-04. That earlier session tried x6 and
-/// rejected it as harsh -- correctly at the time, because the resampler then in use put
-/// frequency-modulation sidebands right where the boost lands (-25 dB by 5 kHz against
-/// -51 dB at 260 Hz). The resampler rewrite dropped that floor by roughly 24 dB, and the
-/// setting that had been unusable became the preferred one. **The verdict changed because
-/// the signal path changed, not because the ear did.**
+/// K is full inversion, flat to 20 kHz, and is unreachable -- the output stage compresses
+/// above about a third of its swing, and every dB of boost spends a dB of headroom. The
+/// chosen boost is therefore a listening call, not a calculation: x6.87, flat to roughly
+/// 4.8 kHz. Revisit by ear if the correction sounds wrong on real material; the resampler
+/// upstream of this shapes where the sidebands fall, so a verdict here can go stale if that
+/// changes.
 constexpr float kCvEqK = (1.0f + kCvEqPole) / (1.0f - kCvEqPole); // 20.03
 constexpr float kCvEqBoost = 6.866f;
 constexpr float kCvStreamEqLimit = (kCvEqK - kCvEqBoost) / (kCvEqK + kCvEqBoost);
@@ -157,10 +144,8 @@ constexpr float kCvFeedBaseScale = 0.098f;
 /// multiplier, so the steps sound evenly spaced the whole way down and reach roughly 59 dB
 /// down by 1. Display 0 is a true mute rather than the bottom of the taper.
 ///
-/// The scale moved from 1-100 at 0.6 dB to 0-50 at 1.2 dB when this became a param. Coarser by
-/// a factor of two, and taken deliberately: 0-50 is what every other param on the machine
-/// displays, so a master recorded into an automation lane now reads the same numbers the menu
-/// shows. The alternative kept the finer steps and made the two disagree.
+/// 0-50 at 1.2 dB/step, matching every other param's display range -- so a master recorded
+/// into an automation lane reads the same numbers the menu shows.
 constexpr float kCvLevelTopGain = 256.0f;
 constexpr float kCvLevelDbPerStep = 1.2f;
 
@@ -178,25 +163,20 @@ float cvLevelToScale(int32_t display) {
 float cvFeedScale[2] = {cvLevelToScale(40), cvLevelToScale(40)};
 int32_t cvPrevSample[2] = {0, 0};
 
-/// Output samples per input sample. SPBR=9 gives a 3.333 MHz bit clock, and the
-/// note's measurement of ~35.5 bit-times per frame puts the stream at ~46.95 kHz
-/// per socket against the engine's 44.1 kHz. That is only the starting estimate --
-/// the loop below trims it to whatever the hardware actually does.
+/// Output samples per input sample. SPBR=9 gives a 3.333 MHz bit clock; at ~35.5 bit-times
+/// per frame that puts the stream at ~46.95 kHz per socket against the engine's 44.1 kHz.
+/// Only a starting estimate -- the loop below trims it to whatever the hardware actually does.
 constexpr float kCvNominalRate = 46948.0f / 44100.0f;
 
 /// How far the ratio may stray from nominal. Both clocks come off the same crystal, so the
 /// true ratio is fixed and the only slack needed is for the estimate above being slightly
 /// wrong -- the loop finds the real value within this band and holds it.
 ///
-/// This used to be 0.90 to 1.25, which let a control loop transpose the audio by roughly a
-/// musical third. Measured 2026-08-13: under load it sat *on* both of those clamps, which
-/// was the "transposing" symptom. Nothing legitimate ever needs that range. If the resync
-/// counter climbs steadily on a quiet song, this band is too narrow rather than too wide --
-/// the true rate is then outside it and the loop cannot reach it.
-/// Measured 2026-08-13 on an idle machine: the loop settles around 1064, which is the
-/// nominal above -- so the estimate is good and the band only has to cover the residual.
-/// +-0.3% is about 10 cents worst case, at the very edge of audible on a sustained tone,
-/// against roughly 70 cents at the old +-2%.
+/// On an idle machine the loop settles around the nominal above, so the estimate is good
+/// and the band only has to cover the residual: +-0.3% is about 10 cents worst case, at the
+/// edge of audible on a sustained tone. If the resync counter climbs steadily on a quiet
+/// song, this band is too narrow rather than too wide -- the true rate is outside it and
+/// the loop cannot reach it.
 constexpr float kCvRateSpan = 0.003f;
 constexpr float kCvRateMin = kCvNominalRate * (1.0f - kCvRateSpan);
 constexpr float kCvRateMax = kCvNominalRate * (1.0f + kCvRateSpan);
@@ -205,48 +185,39 @@ constexpr float kCvRateMax = kCvNominalRate * (1.0f + kCvRateSpan);
 /// overfull because the engine arrived late -- can only be nursed back over thousands of
 /// windows, during which the integrator winds up and hits a clamp. Past this much error,
 /// snap the write pointer back instead: one discontinuity, instantly recovered, rather than
-/// continuous pitch movement. Measured 2026-08-13: without this the lead swung across the
-/// entire ring, 0 to 1023.
-/// Sized so that ordinary jitter never reaches it and only a real stall does: the lead may
+/// continuous pitch movement.
+///
+/// Sized so ordinary jitter never reaches it and only a real stall does: the lead may
 /// wander between 128 and 1408 frames before this fires, inside a 2048-frame ring.
 constexpr int32_t kCvResyncThreshold = 640;
 
 /// The lead error is smoothed before it reaches the integrator, with a time constant of
 /// roughly three seconds at the ~345 Hz window rate.
 ///
-/// This is the fix. The engine renders in irregular windows, so the lead jitters by
-/// hundreds of frames under load -- and that is *phase* jitter, which a rate trim cannot
-/// correct and must not chase. Feeding the raw per-window error to the integrator made the
-/// loop bang-bang between its clamps, measured 2026-08-13. Averaging leaves only genuine
-/// rate drift, which is what a rate trim is actually for.
+/// The engine renders in irregular windows, so the raw lead jitters by hundreds of frames
+/// under load -- phase jitter, which a rate trim cannot correct and must not chase. Feeding
+/// the raw per-window error to the integrator makes the loop bang-bang between its clamps.
+/// Averaging leaves only genuine rate drift, which is what a rate trim is for.
 constexpr float kCvLeadAvgAlpha = 0.001f;
 float cvLeadAvg = 0.0f;
 
-/// Integrator, applied to the *averaged* error. Small enough that a full band traverse takes
-/// seconds rather than the ten windows the old gain took. Measured 2026-08-13: at 1e-7 the
-/// ratio swept the whole band in about a second, which is audible as a slow warble even
-/// though the depth was only ~10 cents. Depth was fixed by the clamps; this fixes the speed.
+/// Integrator, applied to the *averaged* error. Small enough that a full band traverse
+/// takes seconds -- a gain around 1e-7 sweeps the whole band in about a second, which is
+/// audible as a slow warble even at only ~10 cents depth. Depth is bounded by the clamps;
+/// this constant controls the speed.
 constexpr float kCvRateTrackGain = 0.000000003f;
 
 /// Proportional gain, on the SMOOTHED error.
 ///
 /// A rate error integrates into lead, and this loop integrates lead error into rate: two
-/// integrators in series, which is 180 degrees of phase lag and oscillates however small the
-/// gain is made. Lowering the gain and adding a deadband only changed the period, which is
-/// what every build on 2026-08-13 did. A double integrator needs damping, and that is what a
-/// proportional term is.
-///
-/// There *was* a proportional term originally, fed the raw per-window error, which injected
-/// jitter straight into the ratio -- so removing it was right, and putting it back on the
-/// smoothed error is what it should always have been.
+/// integrators in series, 180 degrees of phase lag, which oscillates however small the gain
+/// is made. A double integrator needs damping, not a smaller gain -- this term provides it,
+/// fed the smoothed error rather than the raw per-window one so it damps drift without
+/// injecting jitter into the ratio.
 ///
 /// Sized so a 100-frame averaged error moves the ratio by ~0.03%, correcting that much lead
 /// in about a second.
 constexpr float kCvRateDampGain = 0.000003f;
-
-// There is deliberately no proportional term any more. It applied the raw per-window error
-// straight to the emitted rate, so a few hundred frames of jitter moved the ratio by ~0.8%
-// -- about 14 cents -- injected from exactly the noise this loop is supposed to reject.
 
 float cvRate = kCvNominalRate;
 /// Resampling phase, carried across windows. See cvStreamPump.
@@ -312,9 +283,8 @@ void cvAccumulateInto(uint32_t socket, uint32_t channel, const int32_t* post, co
 	for (uint32_t i = 0; i < numSamples; i++) {
 		int32_t sample;
 		if (channel == 2) {
-			// Shift each side before adding, exactly as the two-pass version did: the
-			// difference was taken at full width and only halved here, so halving the two
-			// differences separately keeps every rounding step where it already was.
+			// Halved per side before summing rather than after, so rounding lands the
+			// same way regardless of how the two channels are combined.
 			const int32_t diffL = post[i * 2] - pre[i * 2];
 			const int32_t diffR = post[i * 2 + 1] - pre[i * 2 + 1];
 			sample = (diffL >> 1) + (diffR >> 1);
@@ -338,9 +308,6 @@ void cvAccumulateInto(uint32_t socket, uint32_t channel, const int32_t* post, co
 
 } // namespace
 
-/// Called from the per-output render loop with one Clip's isolated contribution.
-/// With STEREO SPLIT off both sockets get the mono sum, so the same signal can go
-/// to both; with it on CV1 gets left and CV2 gets right.
 int32_t cvSendParamToGain(int32_t paramValue) {
 	// Param space is the full signed range; the bottom is silence and the top is unity.
 	const uint32_t position = (uint32_t)paramValue ^ 0x80000000u;
@@ -362,10 +329,10 @@ void cvStreamCapture(uint32_t sourceId, const int32_t* post, const int32_t* pre,
 		return;
 	}
 
-	// Global now, not a Clip bit. The old per-Clip bit is still parsed from song files so
-	// that a song saved before this change loads without complaint -- it just no longer
-	// decides anything, because two cables cannot be a stereo pair for one clip and two
-	// mono outs for another at the same time.
+	// Global, not a per-Clip bit. The old per-Clip bit is still parsed from song files so a
+	// song saved before this existed loads without complaint -- it no longer decides
+	// anything, since two cables cannot be a stereo pair for one Clip and two mono outs for
+	// another at the same time.
 	const bool split = cvStereoSplitGlobal;
 	// Mixed in rather than summed raw so that two Clips swapping sockets, or one
 	// Clip changing its split mode, both register as a change.
@@ -480,8 +447,8 @@ void cvStreamPump(uint32_t numSamples) {
 	    ((DMACn(CV_STREAM_DMA_CHANNEL).CRSA_n - (uint32_t)cvStreamBuffer) >> 3) & (kCvFramesPerChannel - 1);
 	const uint32_t lead = (cvStreamWriteFrame - readFrame) & (kCvFramesPerChannel - 1);
 	// Deliberately NOT half the ring: the lead sets latency, while the ring only has to be
-	// big enough that a burst cannot lap the reader. Tying the two together would have made
-	// every buffer enlargement cost delay for no reason.
+	// big enough that a burst cannot lap the reader. Tying the two together would make every
+	// buffer enlargement cost delay for no reason.
 	constexpr int32_t targetLead = kCvTargetLead;
 	int32_t leadError = targetLead - (int32_t)lead;
 
@@ -526,18 +493,17 @@ void cvStreamPump(uint32_t numSamples) {
 		rateNow = kCvRateMax;
 	}
 
-	// Input samples consumed per output sample. Held constant and the phase carried
-	// across windows, rather than restarting at zero each window and stretching that
-	// window's input to fit a whole number of outputs.
+	// Input samples consumed per output sample. Held constant, with the phase carried
+	// across windows rather than restarted at zero each window and the window's input
+	// stretched to fit a whole number of outputs.
 	//
-	// That difference is the whole point. Emitting a whole number of samples per
-	// window forces the ratio to alternate between neighbouring integers -- about
-	// 0.73% either way -- and a resampling ratio that alternates is frequency
-	// modulation at the window rate. The sidebands it produces grow with frequency:
-	// about -51 dB at 260 Hz, but only -25 dB by 5 kHz. That is why a sine sounded
-	// clean while anything with strong harmonics sounded grainy. Carrying the phase
-	// keeps the instantaneous ratio fixed and lets the sample count per window vary
-	// instead, which costs nothing and takes the jitter to about 0.07%.
+	// Emitting a whole number of samples per window forces the ratio to alternate
+	// between neighbouring integers -- about 0.73% either way -- and an alternating
+	// resampling ratio is frequency modulation at the window rate. The sidebands grow
+	// with frequency, from about -51 dB at 260 Hz to -25 dB by 5 kHz, audible as grain
+	// on anything with strong harmonics even when a plain sine sounds clean. Carrying
+	// the phase keeps the instantaneous ratio fixed and lets the sample count per
+	// window vary instead, which costs nothing and holds the jitter to about 0.07%.
 	const float step = 1.0f / rateNow;
 
 	const float startPos = cvResamplePos;
@@ -656,13 +622,13 @@ void cvStreamStart() {
 	dmaChannelStart(CV_STREAM_DMA_CHANNEL);
 
 	// Start already at the target lead rather than at zero. The buffer was just filled with
-	// the centre value, so the DMA reads silence until the writer catches up -- and the loop
+	// the centre value, so the DMA reads silence until the writer catches up, and the loop
 	// begins with no error to correct instead of a full-scale one.
 	//
-	// Starting at zero meant every stream start was an acquisition transient that drove the
-	// ratio hard onto one clamp and overshot onto the other. That is inaudible in itself,
-	// but it is also what made two rounds of diagnostic readings meaningless, because the
-	// extremes recorded the transient rather than the running state.
+	// Starting at zero makes every stream start an acquisition transient that drives the
+	// ratio hard onto one clamp and overshoots onto the other -- inaudible in itself, but it
+	// also contaminates any diagnostic reading taken near a start, since the extremes then
+	// reflect the transient rather than the running state.
 	cvStreamWriteFrame = (uint32_t)kCvTargetLead & (kCvFramesPerChannel - 1);
 	cvFeedLastIn[0] = cvFeedLastIn[1] = 0.0f;
 	cvFeedLastOut[0] = cvFeedLastOut[1] = 0.0f;
@@ -688,3 +654,5 @@ void cvStreamStop() {
 
 	cvStreamRunning = false;
 }
+
+} // namespace deluge::processing::engines
