@@ -253,12 +253,46 @@ private:
 	AudioClip* gridCreateAudioClipWithNewTrack();
 	InstrumentClip* gridCreateInstrumentClipWithNewTrack(OutputType type);
 	Clip* gridCreateClip(uint32_t targetSection, Output* targetOutput = nullptr, Clip* sourceClip = nullptr);
+	/// @brief Places a freshly created clip into the song and returns it, or nullptr on failure
+	///
+	/// Section assignment, insertion into the session list, source-clip track handling, play-pos resync
+	/// and selection. Split out of gridCreateClip() because the new-track path cannot reach it until the
+	/// user has chosen a clip type, which happens on a later tick.
+	Clip* gridPlaceNewClip(Clip* newClip, uint32_t targetSection, Output* targetOutput, Clip* sourceClip);
 	// Worker-fiber jobs for the new-track grid gesture: gridCreateClip() yields for the
 	// interactive clip-type picker, which can't run synchronously on this BSP, so the
 	// create + the call site's post-logic run on the fiber. Press x/y are packed into
 	// the single arg (y<<16 | x). One per call site (their post-logic differs).
-	void gridNewTrackClipAndEnter(uint32_t packedXY);  // from gridHandlePads
-	void gridNewTrackClipAndSelect(uint32_t packedXY); // from the UI_MODE_NONE empty-pad press
+	/// @brief Which post-create continuation a deferred new-track gesture asked for
+	enum class PendingGridClip : uint8_t {
+		NONE,   ///< no gesture in flight
+		ENTER,  ///< from gridHandlePads: create, play, and transition into the clip
+		SELECT, ///< from the UI_MODE_NONE empty-pad press: create and select
+	};
+
+	/// @brief Opens the clip-type picker for a new-track gesture and returns immediately
+	///
+	/// The clip cannot be created until the user picks a type, so nothing waits here: the pad handler
+	/// returns to its loop and finishGridNewTrackClip() completes the gesture once the choice arrives.
+	/// @param which    the continuation to run once the clip exists.
+	/// @param packedXY the press coordinates, y<<16 | x, carried across the wait.
+	void beginGridNewTrackClip(PendingGridClip which, uint32_t packedXY);
+
+	/// @brief Completes a deferred new-track gesture, if one is in flight
+	///
+	/// Called from exitTrackCreation(), the single funnel out of the picker. Does nothing when no
+	/// gesture is pending or when the user backed out (which clears @ref createClip).
+	void finishGridNewTrackClip();
+
+	void gridNewTrackClipEntered(Clip* clip, uint32_t packedXY);  ///< ENTER continuation
+	void gridNewTrackClipSelected(Clip* clip, uint32_t packedXY); ///< SELECT continuation
+
+	/// @name Deferred new-track gesture state
+	/// Carried across the picker wait, since no stack spans it.
+	/// @{
+	PendingGridClip pendingGridClip = PendingGridClip::NONE;
+	uint32_t pendingGridClipXY = 0;
+	/// @}
 	void gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targetX, uint32_t targetY);
 	void setupNewClip(Clip* newClip);
 

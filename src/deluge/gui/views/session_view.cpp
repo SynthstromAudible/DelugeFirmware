@@ -75,7 +75,6 @@
 #include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
-#include "storage/owner.h" // deluge::storage::Owner::run — run the yielding new-track clip create on the worker fiber
 #include "storage/storage_manager.h"
 #include "sync/storage_op.h"
 #include "util/c_string.h"
@@ -3561,36 +3560,18 @@ Clip* SessionView::gridCreateClip(uint32_t targetSection, Output* targetOutput, 
 		newClip = gridCreateClipInTrack(targetOutput);
 	}
 
-	// Create new clip in new track
+	// Create new clip in new track -- not reachable here. That path has to wait for the user to pick a
+	// clip type, which is a later tick, so it is split across beginGridNewTrackClip() and
+	// finishGridNewTrackClip() instead. Callers go to the former; this function only ever completes the
+	// paths that can finish synchronously.
 	else {
-		// only create track and clip if you're pressing in an empty track column immediately to
-		// to the right of another not-empty track column
-		auto maxTrack = gridTrackCount();
-		if ((gridFirstPressedX > 0) && (gridTrackFromX(gridFirstPressedX - 1, maxTrack))) {
-			// This is the right position to add immediate type creation
-			setupTrackCreation();
-			createClip = true;
-
-			// wait until you've chosen a type, by pressing a type button or releasing the pad
-			yield([]() { return (currentUIMode != UI_MODE_CREATING_CLIP); });
-			if (createClip) {
-				OutputType toCreate = context_menu::clip_settings::newClipType.toCreate;
-				newClip = createNewClip(toCreate, -1);
-				if (newClip == nullptr) {
-					clipPressEnded();
-				}
-				// if we made a clip, update last type created
-				else {
-					lastTypeCreated = toCreate;
-				}
-				createClip = false;
-			}
-		}
-		else {
-			clipPressEnded();
-		}
+		return nullptr;
 	}
 
+	return gridPlaceNewClip(newClip, targetSection, targetOutput, sourceClip);
+}
+
+Clip* SessionView::gridPlaceNewClip(Clip* newClip, uint32_t targetSection, Output* targetOutput, Clip* sourceClip) {
 	if (newClip == nullptr) {
 		return nullptr;
 	}
@@ -3698,19 +3679,67 @@ void SessionView::gridClonePad(uint32_t sourceX, uint32_t sourceY, uint32_t targ
 	display->popupTextTemporary("COPIED");
 }
 
-// Worker-fiber jobs for the new-track grid gesture. gridCreateClip() opens the
-// clip-type picker and yields until the user chooses; on the decomposed BSP that
-// yield runs cooperatively only on the worker fiber, so these run there (dispatched
-// from the pad handlers via deluge::storage::Owner::run). Each mirrors its call site's
-// post-create logic; press x/y are unpacked from the packed arg (y<<16 | x).
+// The new-track grid gesture, split in two because it has to wait for the user to choose a clip type.
+//
+// beginGridNewTrackClip() opens the picker and returns; the pad handler goes back to its loop. When the
+// choice arrives, exitTrackCreation() calls finishGridNewTrackClip(), which creates the clip and hands it
+// to whichever of the two post-create halves below the gesture asked for. Press x/y are unpacked from the
+// packed arg (y<<16 | x), which is carried across the wait rather than a stack.
 
-void SessionView::gridNewTrackClipAndEnter(uint32_t packedXY) {
-	int32_t x = static_cast<int32_t>(packedXY & 0xFFFF);
-	int32_t y = static_cast<int32_t>((packedXY >> 16) & 0xFFFF);
-	Clip* clip = gridCreateClip(gridSectionFromY(y), nullptr, nullptr); // yields for the picker
+void SessionView::beginGridNewTrackClip(PendingGridClip which, uint32_t packedXY) {
+	// only create track and clip if you're pressing in an empty track column immediately to
+	// to the right of another not-empty track column
+	auto maxTrack = gridTrackCount();
+	if (!((gridFirstPressedX > 0) && (gridTrackFromX(gridFirstPressedX - 1, maxTrack)))) {
+		clipPressEnded();
+		return;
+	}
+	pendingGridClip = which;
+	pendingGridClipXY = packedXY;
+	setupTrackCreation();
+	createClip = true;
+}
+
+void SessionView::finishGridNewTrackClip() {
+	if (pendingGridClip == PendingGridClip::NONE) {
+		return;
+	}
+	const PendingGridClip which = pendingGridClip;
+	const uint32_t packedXY = pendingGridClipXY;
+	pendingGridClip = PendingGridClip::NONE;
+
+	// createClip is the accept/cancel signal: backing out of the picker clears it.
+	if (!createClip) {
+		return;
+	}
+	createClip = false;
+
+	const OutputType toCreate = context_menu::clip_settings::newClipType.toCreate;
+	Clip* newClip = createNewClip(toCreate, -1);
+	if (newClip == nullptr) {
+		clipPressEnded();
+		return;
+	}
+	// if we made a clip, update last type created
+	lastTypeCreated = toCreate;
+
+	const int32_t y = static_cast<int32_t>((packedXY >> 16) & 0xFFFF);
+	Clip* clip = gridPlaceNewClip(newClip, gridSectionFromY(y), nullptr, nullptr);
 	if (clip == nullptr) {
 		return;
 	}
+
+	if (which == PendingGridClip::ENTER) {
+		gridNewTrackClipEntered(clip, packedXY);
+	}
+	else {
+		gridNewTrackClipSelected(clip, packedXY);
+	}
+}
+
+void SessionView::gridNewTrackClipEntered(Clip* clip, uint32_t packedXY) {
+	int32_t x = static_cast<int32_t>(packedXY & 0xFFFF);
+	int32_t y = static_cast<int32_t>((packedXY >> 16) & 0xFFFF);
 	// New track: start it playing immediately.
 	gridToggleClipPlay(clip, true);
 	// If the pad was released during selection (press coords no longer current), just
@@ -3731,13 +3760,9 @@ void SessionView::gridNewTrackClipAndEnter(uint32_t packedXY) {
 	view.setActiveModControllableTimelineCounter(clip);
 }
 
-void SessionView::gridNewTrackClipAndSelect(uint32_t packedXY) {
+void SessionView::gridNewTrackClipSelected(Clip* clip, uint32_t packedXY) {
 	int32_t x = static_cast<int32_t>(packedXY & 0xFFFF);
 	int32_t y = static_cast<int32_t>((packedXY >> 16) & 0xFFFF);
-	Clip* clip = gridCreateClip(gridSectionFromY(y), nullptr, nullptr); // yields for the picker
-	if (clip == nullptr) {
-		return;
-	}
 	// If playing and Rec enabled, an empty-pad create can start it playing.
 	if (playbackHandler.playbackState && playbackHandler.recording == RecordingMode::NORMAL
 	    && FlashStorage::gridEmptyPadsCreateRec) {
@@ -3921,18 +3946,11 @@ ActionResult SessionView::gridHandlePadsEdit(int32_t x, int32_t y, int32_t on, C
 				if ((x + currentSong->songGridScrollX) <= trackCount) {
 					Output* track = gridTrackFromX(x, trackCount);
 					if (track == nullptr) {
-						// New track: gridCreateClip() opens the clip-type picker and yields
-						// until the user chooses (type button / pad release). A synchronous
-						// yield can't run on this BSP, so run the create + this site's
-						// post-logic on the worker fiber (gridNewTrackClipAndEnter) and
-						// return a provisional result; the work finishes after the choice.
-						deluge::storage::Owner::run(
-						    [](void* p) {
-							    sessionView.gridNewTrackClipAndEnter(
-							        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(p)));
-						    },
-						    reinterpret_cast<void*>(static_cast<uintptr_t>((static_cast<uint32_t>(y) << 16)
-						                                                   | (static_cast<uint32_t>(x) & 0xFFFF))));
+						// New track: opening the clip-type picker cannot finish here, since it
+						// waits on the user. Start the gesture and return a provisional result;
+						// finishGridNewTrackClip() completes it once the choice arrives.
+						beginGridNewTrackClip(PendingGridClip::ENTER,
+						                      (static_cast<uint32_t>(y) << 16) | (static_cast<uint32_t>(x) & 0xFFFF));
 						return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 					}
 					// Existing track: gridCreateClip() does not yield here.
@@ -4038,6 +4056,8 @@ void SessionView::exitTrackCreation() {
 	indicator_leds::setLedState(IndicatorLED::CV, false, false);
 	indicator_leds::setLedState(IndicatorLED::BACK, false, false);
 	exitUIMode(UI_MODE_CREATING_CLIP);
+	// The single funnel out of the picker, so it is where the deferred gesture resumes.
+	finishGridNewTrackClip();
 }
 
 ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on, Clip* clip) {
@@ -4136,16 +4156,10 @@ ActionResult SessionView::gridHandlePadsLaunch(int32_t x, int32_t y, int32_t on,
 				gridFirstPressedX = x;
 				gridFirstPressedY = y;
 				if (track == nullptr) {
-					// New track: gridCreateClip() yields for the clip-type picker — run the
-					// create + this site's post-logic on the worker fiber (see gridHandlePads),
-					// returning a provisional result; it finishes after the choice.
-					deluge::storage::Owner::run(
-					    [](void* p) {
-						    sessionView.gridNewTrackClipAndSelect(
-						        static_cast<uint32_t>(reinterpret_cast<uintptr_t>(p)));
-					    },
-					    reinterpret_cast<void*>(static_cast<uintptr_t>((static_cast<uint32_t>(y) << 16)
-					                                                   | (static_cast<uint32_t>(x) & 0xFFFF))));
+					// New track: the clip-type picker waits on the user, so start the gesture and
+					// return a provisional result (see gridHandlePads).
+					beginGridNewTrackClip(PendingGridClip::SELECT,
+					                      (static_cast<uint32_t>(y) << 16) | (static_cast<uint32_t>(x) & 0xFFFF));
 					return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 				}
 				// Existing track: gridCreateClip() does not yield here.
