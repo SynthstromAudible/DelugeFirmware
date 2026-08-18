@@ -110,6 +110,7 @@ using deluge::modulation::params::unpatchedGlobalParamShortcuts;
 using deluge::modulation::params::unpatchedNonGlobalParamShortcuts;
 
 using namespace deluge::gui;
+using namespace deluge::processing::engines;
 
 const uint32_t auditionPadActionUIModes[] = {UI_MODE_NOTES_PRESSED,
                                              UI_MODE_AUDITIONING,
@@ -243,11 +244,9 @@ const std::array<std::pair<params::Kind, ParamType>, kNumNonGlobalParamsForAutom
     {params::Kind::EXPRESSION, Expression::Y_SLIDE_TIMBRE},
     // Mono Expression: Z - Channel Pressure
     {params::Kind::EXPRESSION, Expression::Z_PRESSURE},
-    // CV sends. These have been in the shortcut grid since they were built, but were never
-    // added here -- and a param missing from this list cannot be found by
-    // getLastSelectedNonGlobalParamArrayPosition, which then leaves the scroll position on
-    // whatever was selected before. Selecting a send by pad worked; scrolling away from it
-    // jumped somewhere unrelated.
+    // CV sends. Every param reachable by pad must also be in this list, or
+    // getLastSelectedNonGlobalParamArrayPosition can't find it -- selectable by pad, but not
+    // reachable by scrolling.
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_CV1_SEND},
     {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_CV2_SEND},
 }};
@@ -308,7 +307,7 @@ const std::array<std::pair<params::Kind, ParamType>, kNumGlobalParamsForAutomati
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_REVERSE_PROBABILITY},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_RHYTHM},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_ARP_SEQUENCE_LENGTH},
-    // CV sends, for audio clips and kit affect-entire. Same omission as the non-global list.
+    // CV sends, for audio clips and kit affect-entire -- same list-membership rule as above.
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_CV1_SEND},
     {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_CV2_SEND},
     // AUX MASTERs. Reachable on the arranger only -- selectGlobalParam skips them everywhere
@@ -324,8 +323,8 @@ constexpr uint8_t kPadSelectionShortcutX = 0;
 constexpr uint8_t kPadSelectionShortcutY = 7;
 /// Which of the CV params a given automation context is allowed to reach.
 ///
-/// Four rules in one place, because they were repeated across six sites and each repetition
-/// was somewhere a rule could be forgotten -- two of them already had been.
+/// Centralised because each of the four rules below needs enforcing at several call sites,
+/// and a rule spelled out at each site is a rule that can be forgotten at one of them.
 ///
 ///  - Sends belong to a Clip. The render reads them from the playing Clip's param manager and
 ///    never from the song's, so on the arranger they would edit an inert copy.

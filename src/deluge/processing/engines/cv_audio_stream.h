@@ -19,6 +19,8 @@
 
 #include <cstdint>
 
+namespace deluge::processing::engines {
+
 /// An assignable auxiliary audio send bus on the two CV sockets.
 ///
 /// The DAC feeding the CV sockets is a real 16-bit converter on a fast SPI bus, and its
@@ -100,3 +102,5 @@ constexpr int32_t kCvSendGainUnity = 65536;
 /// how the Deluge treats every other volume-ish param -- a linear send feels dead until the
 /// top of its travel.
 int32_t cvSendParamToGain(int32_t paramValue);
+
+} // namespace deluge::processing::engines
