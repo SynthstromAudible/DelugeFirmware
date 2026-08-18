@@ -255,19 +255,18 @@ enum UnpatchedGlobal : ParamType {
 	/// carrying one. Appended at the end of the range deliberately: file serialization is by
 	/// name, so nothing that already exists shifts.
 	///
-	/// These are params rather than the flash bytes they replace, and that is the whole point:
-	/// only a param can be put on a gold knob, learned to a MIDI CC, or automated. The cost is
-	/// that params live in songs, so the socket level now saves with the song instead of the
-	/// machine. That was taken knowingly -- see [[CV send levels]].
+	/// These are params rather than flash bytes, and that is the whole point: only a param
+	/// can be put on a gold knob, learned to a MIDI CC, or automated. The cost is that the
+	/// socket level now saves with the song rather than the machine -- taken knowingly, since
+	/// per-song recall is worth more here than one machine-wide default.
 	UNPATCHED_CV1_MASTER,
 	UNPATCHED_CV2_MASTER,
 	UNPATCHED_GLOBAL_MAX_NUM,
 };
 
-/// AUX MASTER default: the param value that reproduces the old flash level 80, which was the
-/// x64 tuned by ear on 2026-08-04. Displayed as 40 of 50. Derived in the note rather than
-/// guessed: 0.8 of the way up param space, since 40/50 of a 1.2 dB-per-step taper whose top
-/// is x256 lands exactly on x64.
+/// AUX MASTER default: reproduces the previous fixed output level (x64), displayed as 40 of
+/// 50. 0.8 of the way up param space, since 40/50 of a 1.2 dB-per-step taper whose top is
+/// x256 lands exactly on x64.
 constexpr int32_t kCvMasterDefault = 1288490189;
 
 constexpr ParamType STATIC_START = 162;

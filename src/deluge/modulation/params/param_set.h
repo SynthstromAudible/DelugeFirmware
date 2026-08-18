@@ -46,9 +46,9 @@ public:
 	int32_t getValueAtPos(int32_t p, uint32_t pos, TimelineCounter* playPositionCounter);
 	void processCurrentPos(ModelStackWithParamCollection* modelStack, int32_t ticksSkipped, bool reversed,
 	                       bool didPingpong, bool mayInterpolate) final;
-	/// `neutralValue` is what counts as "not set" for the onlyIfContainsSomething test. It
-	/// defaults to 0, which is what every caller assumed before it existed -- params whose
-	/// off position is the bottom of the range must pass their own.
+	/// `neutralValue` is what counts as "not set" for the onlyIfContainsSomething test.
+	/// Defaults to 0; a param whose off position is the bottom of the range (like the CV
+	/// sends) must pass its own.
 	void writeParamAsAttribute(Serializer& writer, char const* name, int32_t p, bool writeAutomation,
 	                           bool onlyIfContainsSomething = false, int32_t* valuesForOverride = nullptr,
 	                           int32_t neutralValue = 0);
