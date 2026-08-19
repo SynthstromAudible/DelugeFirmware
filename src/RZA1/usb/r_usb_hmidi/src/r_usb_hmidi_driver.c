@@ -724,11 +724,7 @@ uint16_t usb_hmidi_get_string_desc(usb_utr_t* ptr, uint16_t addr, uint16_t strin
         usb_shmidi_class_request_setup[ptr->ip][2] = (uint16_t)(g_usb_hmidi_str_desc_data[ptr->ip][2]);
         usb_shmidi_class_request_setup[ptr->ip][2] |=
             (uint16_t)((uint16_t)(g_usb_hmidi_str_desc_data[ptr->ip][3]) << 8);
-        /* Request at most 255 bytes, not USB_HMIDI_CLSDATASIZE (512). String descriptors can't
-         * exceed 255 bytes anyway (bLength is one byte), only the first 32 characters get used,
-         * and some device stacks (e.g. Disaster Area gen3 pedals) hang the control transfer
-         * when wLength exceeds 255 - leaving the device permanently stuck mid-enumeration. */
-        usb_shmidi_class_request_setup[ptr->ip][3] = (uint16_t)255;
+        usb_shmidi_class_request_setup[ptr->ip][3] = (uint16_t)USB_HMIDI_STRDESC_MAX_REQ;
     }
     usb_shmidi_class_request_setup[ptr->ip][0] = (USB_GET_DESCRIPTOR | USB_DEV_TO_HOST | USB_STANDARD | USB_DEVICE);
     usb_shmidi_class_request_setup[ptr->ip][1] = (uint16_t)(USB_STRING_DESCRIPTOR + string);
