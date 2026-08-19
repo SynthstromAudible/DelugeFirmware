@@ -161,6 +161,11 @@ mod scheduler;
 mod sd;
 #[path = "../../../src/sd_image.rs"]
 mod sd_image;
+/// `sd_image`'s content-addressed image naming/reuse policy (same module the parent crate
+/// registers) — `sd_image.rs` reaches it as `crate::sd_image_path`, so every crate that
+/// `#[path]`-includes `sd_image.rs` must include this alongside it.
+#[path = "../../../src/sd_image_path.rs"]
+mod sd_image_path;
 #[path = "../../../src/services.rs"]
 mod services;
 /// The storage spin seam. Needed here because `efatfs_host_shim.rs` now drives every FS

@@ -214,6 +214,10 @@ mod sd;
 /// harness's song/sample corpus for [`scenario`] to load. `host_app`-only.
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 mod sd_image;
+/// Content-addressed naming/reuse policy for [`sd_image`]'s temp FAT images. Split out so it
+/// stays plain-host testable without the `host_app` CMake build (tests/sd_image_path_host.rs).
+#[cfg(not(target_os = "none"))]
+mod sd_image_path;
 /// Real impls of the simplest services (system.h, clock.h, memory.h).
 mod services;
 /// signals.h — board GPIO signals, battery, MIDI/gate timer.

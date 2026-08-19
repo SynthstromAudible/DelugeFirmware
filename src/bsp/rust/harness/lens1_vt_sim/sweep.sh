@@ -88,14 +88,15 @@ field() { # field <LENS1_RESULT line> <name>
 # only need a backing FILE at DELUGE_SD_IMAGE for deluge-bsp's host `sd.rs` to open;
 # content is irrelevant, and it auto-extends anything smaller than its own 8 MiB
 # default. So `pack_selftest_image` below packs a tiny, plain (non-FAT) file ONCE at a
-# predictable, non-per-PID path — not `sd_image::pack_image`'s
-# `deluge-streaming-scenario-<pid>.img` naming under `temp_dir()`, which is never
-# cleaned up (see that function's doc comment) and is exactly the leak that caused an
-# 11GiB /tmp incident during this branch's own development (17 sweep processes x
-# ~573MB each). Pointing DELUGE_SD_IMAGE at the SAME shared file for both selftest
-# invocations below means this precondition adds ONE small file to /tmp, reused on
-# every future `sweep.sh` run, instead of leaking a fresh multi-hundred-MB image per
-# invocation.
+# predictable, non-per-PID path. `sd_image::pack_image` used to name its images
+# `deluge-streaming-scenario-<pid>.img` under `temp_dir()` and never clean them up, which
+# is what caused an 11GiB /tmp incident during this branch's own development (17 sweep
+# processes x ~573MB each) and a later ~12GiB recurrence; it is now content-addressed and
+# reused across runs (see `sd_image_path.rs`), so that particular leak is fixed at source.
+# This tiny local image is still the better fit here regardless: these two selftest modes
+# read only raw sector 0, so they need no golden corpus at all — pointing DELUGE_SD_IMAGE
+# at the SAME shared 8 MiB file keeps the precondition to one small file rather than
+# pulling in (or packing) a multi-hundred-MB FAT image they would never read.
 pack_selftest_image() {
     if [[ -f "$SELFTEST_IMAGE" ]]; then
         echo "sweep.sh: reusing shared selftest image at $SELFTEST_IMAGE" >&2

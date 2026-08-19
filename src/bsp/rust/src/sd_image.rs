@@ -15,6 +15,7 @@
 //! Host-only (`host_app`); never compiled for device.
 #![cfg(all(not(target_os = "none"), feature = "host_app"))]
 
+use crate::sd_image_path::Plan;
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
@@ -69,10 +70,22 @@ pub fn pack_golden_fixture(repo_root: &Path, fixture: &str) -> PathBuf {
 /// makes the firmware stream in far smaller clusters than on-device), then `mcopy -s` the
 /// whole project tree onto the image root.
 pub(crate) fn pack_image(project_dir: &Path) -> PathBuf {
-    let img = std::env::temp_dir().join(format!(
-        "deluge-streaming-scenario-{}.img",
-        std::process::id()
-    ));
+    let fingerprint = crate::sd_image_path::fingerprint_dir(project_dir);
+    let (staging, img) =
+        match crate::sd_image_path::scenario_plan(&std::env::temp_dir(), &fingerprint) {
+            Plan::Reuse(img) => {
+                log::info!(
+                    "streaming-scenario: reusing cached image for '{}' -> {}",
+                    project_dir.display(),
+                    img.display()
+                );
+                return img;
+            }
+            Plan::Pack {
+                staging,
+                final_path,
+            } => (staging, final_path),
+        };
 
     let dir_bytes = dir_size_bytes(project_dir);
     let mut bytes = dir_bytes.saturating_mul(2) + (64u64 << 20);
@@ -85,10 +98,10 @@ pub(crate) fn pack_image(project_dir: &Path) -> PathBuf {
     // Shelled out (not separate `Command`s with Rust-side globbing) so `mcopy`'s `*` gets
     // the same shell glob expansion `host_render_main.cpp`'s `system()` calls rely on.
     let script = format!(
-        "set -e; truncate -s {bytes} '{img}'; mformat -i '{img}' -F -c 64 ::; \
-         mcopy -s -Q -i '{img}' '{proj}'/* ::/",
+        "set -e; truncate -s {bytes} '{staging}'; mformat -i '{staging}' -F -c 64 ::; \
+         mcopy -s -Q -i '{staging}' '{proj}'/* ::/",
         bytes = bytes,
-        img = img.display(),
+        staging = staging.display(),
         proj = project_dir.display(),
     );
     let status = Command::new("sh")
@@ -96,14 +109,30 @@ pub(crate) fn pack_image(project_dir: &Path) -> PathBuf {
         .arg(&script)
         .status()
         .expect("run the mtools pack script (sh)");
-    assert!(
-        status.success(),
-        "packing '{}' into a FAT image failed — is mtools (mformat/mcopy) installed? script: {script}",
-        project_dir.display()
-    );
+    if !status.success() {
+        // Don't leave a half-packed staging file behind — that would be the very leak this
+        // module's naming scheme exists to prevent, just with a `.part` suffix.
+        let _ = std::fs::remove_file(&staging);
+        panic!(
+            "packing '{}' into a FAT image failed — is mtools (mformat/mcopy) installed? script: {script}",
+            project_dir.display()
+        );
+    }
+
+    // Atomic publish: until this rename, no other process can observe a partial image at the
+    // shared path. A concurrent pack of the same corpus simply renames its own equivalent
+    // staging file over ours, which is harmless.
+    std::fs::rename(&staging, &img).unwrap_or_else(|e| {
+        let _ = std::fs::remove_file(&staging);
+        panic!(
+            "installing packed image {} -> {} failed: {e}",
+            staging.display(),
+            img.display()
+        )
+    });
 
     log::info!(
-        "streaming-scenario: packed '{}' -> {} ({bytes} bytes)",
+        "streaming-scenario: packed '{}' -> {} ({bytes} bytes, fingerprint {fingerprint})",
         project_dir.display(),
         img.display()
     );
@@ -117,10 +146,7 @@ pub(crate) fn pack_image(project_dir: &Path) -> PathBuf {
 /// the image path; the caller points `DELUGE_SD_IMAGE` at it before any SD access. Panics with a
 /// clear message on failure (one-time harness setup, not something to silently degrade under).
 pub fn format_empty_image() -> PathBuf {
-    let img = std::env::temp_dir().join(format!(
-        "deluge-recorder-roundtrip-{}.img",
-        std::process::id()
-    ));
+    let img = crate::sd_image_path::recorder_image_path(&std::env::temp_dir());
     let bytes = 2560u64 << 20; // 2.5 GB -> comfortably >= 65525 32 KB clusters (valid FAT32)
     let script = format!(
         "set -e; truncate -s {bytes} '{img}'; mformat -i '{img}' -F -c 64 ::",

@@ -49,16 +49,17 @@
 #     x86_64-unknown-linux-gnu-tsan target (HOST_HARNESS.md, "One-time environment setup").
 #   - mtools (mformat/mcopy) if DELUGE_SD_IMAGE isn't pre-set and no cached fixture exists.
 #
-# Known gotcha: each unset-DELUGE_SD_IMAGE
-# invocation packs a fresh ~2.5GB /tmp/deluge-streaming-scenario-*.img and leaves it behind.
-# Repeated invocations without cleanup can exhaust a tmpfs /tmp; separately (independent of
-# free space), packing an image and consuming it as the SD backing store WITHIN THE SAME
+# Known gotcha: packing an image and consuming it as the SD backing store WITHIN THE SAME
 # process was observed to be unreliable on this host — the scenario would report
 # `load_dispatched=false` (currentSong never got set during boot) on every run. Reusing an
 # already-packed image via `DELUGE_SD_IMAGE=...` (packed by a PRIOR, separate process) was
 # 100% reliable across dozens of runs. If a run reports `load_dispatched=false` with
-# `boot_ready=true`, prefer the cached-image form over debugging boot ordering — and
-# periodically `rm -f /tmp/deluge-streaming-scenario-*.img` between sessions.
+# `boot_ready=true`, prefer the cached-image form over debugging boot ordering.
+#
+# The /tmp images are no longer per-invocation: `sd_image::pack_image` names them by a
+# fingerprint of the packed corpus, so the FIRST unset-DELUGE_SD_IMAGE run packs one
+# ~2.5GB-sparse image and every later run with the same corpus reuses it (and skips mtools
+# entirely). One image per distinct corpus, not one per run — no periodic `rm -f` needed.
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
