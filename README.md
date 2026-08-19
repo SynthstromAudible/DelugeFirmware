@@ -69,9 +69,9 @@ Build instructions are in the upstream repository (this fork uses the same build
 - Kit and sample tracks read slightly quieter at the CV sockets than synth tracks at the same send value
 - Reverb tail on tracks with MAIN toggled off still reaches main outputs
 
-## Bugs and Suggestions
+## Bugs
 
-Please open an Issue or Discussion to report any bugs, request features or suggest further development
+This is an experimental feature in development by one person with a limited testing environment. [Please report any bugs!](https://github.com/sticknobills/DelugeFirmware/issues/new/choose)
 
 
 ## License
