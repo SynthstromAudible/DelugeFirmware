@@ -69,6 +69,11 @@ Build instructions are in the upstream repository (this fork uses the same build
 - Kit and sample tracks read slightly quieter at the CV sockets than synth tracks at the same send value
 - Reverb tail on tracks with MAIN toggled off still reaches main outputs
 
+## Bugs and Suggestions
+
+Please open an Issue or Discussion to report any bugs, request features or suggest further development
+
+
 ## License
 
 GPL-3.0 (inherited from Deluge community firmware)
