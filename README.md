@@ -63,11 +63,13 @@ Build instructions are in the upstream repository (this fork uses the same build
 - **Implementation:** real 16-bit DAC on a dedicated hardware chip-select pin on the processor
 - **No soldering or hardware mods needed** — uses existing CV sockets
 
-## Known limitations
+## Known limitations / Pending fixes
 
 - Gold-knob assignment only works on synth tracks (base firmware constraint, not this feature's limitation)
-- Kit and sample tracks read slightly quieter at the CV sockets than synth tracks at the same send value
-- Reverb tail on tracks with MAIN toggled off still reaches main outputs
+- Kit and sample tracks are slightly quieter at the CV sockets than synth tracks at the same send value
+- Reverb tail on tracks with MAIN toggled off still reaches main outputs (acceptable behaviour)
+- MIDI CC-learn on per-clip sends should work but hasn’t been tested.
+- Classic CV/Gate note output hasn’t been tested simultaneous with AUX sends functionality. As of 1.0.1, note output is disabled on both CV sockets whenever either has an active send.
 
 ## Bugs
 
@@ -76,6 +78,6 @@ This is an experimental feature in development by one person with a limited test
 
 ## License
 
-GPL-3.0 (inherited from Deluge community firmware)
+GPL-3.0 (from Deluge community firmware)
 
 ---
