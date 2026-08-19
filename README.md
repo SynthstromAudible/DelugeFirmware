@@ -1,4 +1,4 @@
-# Deluge AUX Sends Firmware
+# Deluge AUX Sends Firmware (7-segment only)
 
 An assignable AUX send bus on the Deluge's two CV sockets. Send a copy of any clip to CV1/CV2 independently of the main mix. Send levels and AUX master level send are adjustable like on a typical mixing board. No soldering or hardware mods needed.
 
