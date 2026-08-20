@@ -476,7 +476,6 @@ void setupStartupSong() {
 			}
 		}
 		// Load song, if we got this far!
-		void* songMemory = GeneralMemoryAllocator::get().allocMaxSpeed(sizeof(Song));
 		currentSong->setSongFullPath(filename);
 		if (openUI(&loadSongUI)) {
 			loadSongUI.performLoad();
