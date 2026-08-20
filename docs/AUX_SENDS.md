@@ -1,6 +1,6 @@
 # AUX Sends Feature Guide
 
-An assignable AUX send bus on the Deluge's two CV sockets. Send a copy of any clip to CV1/CV2 independently of the main mix.
+An assignable AUX send bus on the Deluge's two CV sockets. Send a copy of any clip to CV1/CV2 independently of the main mix. 7-Segment Deluge only.
 
 ## Controls
 
@@ -45,12 +45,13 @@ While AFFECT ENTIRE is pressed in Song view, press mod button 7's bottom encoder
 
 ## Audio quality
 
-- Measured flat within ±3 dB up to 4.7 kHz
-- −3 dB point at approximately 6 kHz
-- −6 dB point at 10 kHz
-- Worst-case non-harmonic spur: −60 dB
-- Typical noise floor: −86 dB
-- Added distortion: −50 to −53 dB (main outputs for reference: −80 to −91 dB)
+- Bitrate: 16-bit (constrained by DAC on SPI chip-select pin)
+- Streaming rate: ~47 kHz per channel (two channels interleaved over one SPI bus, SPBR=9)
+- Frequency response: flat within ±3 dB to 4.7 kHz, −3 dB at ~6 kHz, −6 dB at 10 kHz (single-pole rolloff, 700 Hz filter corner, fixed ×6.87 correction applied)
+- Noise floor: worst-case non-harmonic spur −60 dB, median −86 dB (main outs for reference: −79/−92)
+- Distortion: −50 to −53 dB (main outs: −80 to −91)
+- Working headroom: ~10,000 counts either side of centre before compression (about a third of the converter's swing)
+- Latency: ~16.4 ms behind the main outputs (768 frames), i.e. the deliberate cost of the sync fix
 - Subjectively: sounds like cassette quality or better
 
 The implementation uses a real 16-bit DAC on a dedicated hardware chip-select pin on the processor (no software emulation).
@@ -59,7 +60,7 @@ The implementation uses a real 16-bit DAC on a dedicated hardware chip-select pi
 
 ### Hardware-level
 
-- **7SEG only** — OLED shares the SPI bus with the CV DAC, making OLED support technically impossible. This is a hardware constraint, not a software limitation.
+- **7SEG only** — OLED shares the SPI bus with the CV DAC, making OLED support technically impossible. This is a hardware constraint, not a software limitation. The only potential compromises would be either 1.) freezing the screen while the CV sockets are being used to send audio, or 2.) forcing normal screen functioning and instead accepting 17-25ms audio dropouts on the CV audio. Both options are obviously unacceptable. [Here is a brief report of my findings](https://github.com/user-attachments/files/31203852/Deluge-CV-sends-OLED-compatibility-investigation-2026-08-19.md). This has also been separately discussed earlier by the devs on the Discord — independently confirming the same.
 
 ### Firmware-level
 
@@ -76,3 +77,7 @@ The implementation uses a real 16-bit DAC on a dedicated hardware chip-select pi
 ## No hardware mods
 
 The feature uses the existing CV sockets. No soldering or hardware modifications are needed.
+
+---
+
+**⚠️ Experimental feature! Please install and use this at your own risk.**
