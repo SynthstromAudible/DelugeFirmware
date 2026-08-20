@@ -1,4 +1,4 @@
-# AUX Sends Feature Guide
+# Deluge AUX Sends Feature Guide
 
 An assignable AUX send bus on the Deluge's two CV sockets. Send a copy of any clip to CV1/CV2 independently of the main mix. 7-Segment Deluge only.
 
