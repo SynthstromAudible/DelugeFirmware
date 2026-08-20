@@ -13,13 +13,13 @@ An assignable AUX send bus on the Deluge's two CV sockets. Send a copy of any cl
   
 ## Documentation
 
-See [AUX Sends Feature Guide](docs/AUX_SENDS.md) for detailed controls, workflow, and known limitations.
+📖 See [AUX Sends Feature Guide](docs/AUX_SENDS.md) for detailed controls, workflow, audio quality details and known limitations.
 
 
 ## Compatibility
 
 **⚠️ 7-segment Deluge only.** 
-Compatibility with OLED devices seems impossible because CV DAC and OLED screen use the same SPI bus. Initial research is accessible at [#4830](https://github.com/SynthstromAudible/DelugeFirmware/discussions/4830). This feature was offered as [PR #4829](https://github.com/SynthstromAudible/DelugeFirmware/pull/4829) but remains experimental until it can be ported for OLED users. This fork exists to ship and maintain this feature independently for users who want it, while allowing upstream to evolve.
+Compatibility with OLED devices is impossible because CV DAC and OLED screen use the same SPI bus. This feature was offered as [PR #4829](https://github.com/SynthstromAudible/DelugeFirmware/pull/4829) but remains experimental due to non-portability for OLED users. This fork exists to ship and maintain this feature independently for users who want it anyway. See [AUX Sends Feature Guide](docs/AUX_SENDS.md) for more about compatibility roadblocks.
 
 ## Installation
 ⚠️ Experimental feature! Install at your own risk.
@@ -49,21 +49,10 @@ git checkout feature/aux-sends
 
 ## About this fork
 
-This is a downstream fork of [SynthstromAudible/DelugeFirmware](https://github.com/SynthstromAudible/DelugeFirmware). The AUX Sends feature is independent and maintained separately on `feature/aux-sends`, rebasing regularly onto upstream `main` to stay current with upstream development.
+This repo is a downstream fork of [SynthstromAudible/DelugeFirmware](https://github.com/SynthstromAudible/DelugeFirmware). The AUX Sends feature is independent and maintained separately on `feature/aux-sends`, rebasing regularly onto upstream `main` to stay current with upstream development.
 
 
-### Building
-
-Build instructions are in the upstream repository (this fork uses the same build system). The AUX Sends feature adds minimal overhead: +28.7 KB binary, ~1.7% increase from a stock build.
-
-
-## Technical details
-
-- **Audio quality:** flat within ±3 dB to 4.7 kHz; distortion floor −50 to −53 dB (main outputs for reference: −80 to −91 dB)
-- **Implementation:** real 16-bit DAC on a dedicated hardware chip-select pin on the processor
-- **No soldering or hardware mods needed** — uses existing CV sockets
-
-## Known limitations / Pending fixes
+## Known limitations / Pending fixes (as of 1.01)
 
 - Gold-knob assignment only works on synth tracks (base firmware constraint, not this feature's limitation)
 - Kit and sample tracks are slightly quieter at the CV sockets than synth tracks at the same send value
