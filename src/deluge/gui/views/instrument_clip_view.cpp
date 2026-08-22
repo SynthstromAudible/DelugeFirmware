@@ -3473,6 +3473,12 @@ void InstrumentClipView::displayIterance(Iterance iterance) {
 	else if (iterancePreset == kCustomIterancePreset) {
 		strcpy(buffer, display->haveOLED() ? "Iterance: CUSTOM" : "CUSTOM");
 	}
+	else if (iterancePreset == kFirstIterancePreset) {
+		strcpy(buffer, display->haveOLED() ? "Iterance: FIRST" : "1 ST");
+	}
+	else if (iterancePreset == kLastIterancePreset) {
+		strcpy(buffer, display->haveOLED() ? "Iterance: LAST" : "LAST");
+	}
 	else {
 		Iterance iterance = iterancePresets[iterancePreset - 1];
 		int32_t i = iterance.divisor;
@@ -3494,9 +3500,10 @@ void InstrumentClipView::displayIterance(Iterance iterance) {
 }
 
 void InstrumentClipView::displayFill(uint8_t mode) {
-	char buffer[(display->haveOLED()) ? 29 : 5];
+	auto buffer_length = display->haveOLED() ? 29 : 5;
+	char buffer[buffer_length];
 
-	strcpy(buffer, getFillString(mode));
+	strncpy(buffer, getFillString(mode), buffer_length);
 
 	if (display->haveOLED()) {
 		display->popupText(buffer, PopupType::FILL);

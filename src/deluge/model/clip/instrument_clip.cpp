@@ -59,6 +59,8 @@
 #include <new>
 #include <ranges>
 
+#include "playback/mode/playback_mode.h"
+
 namespace params = deluge::modulation::params;
 
 // Supplying song is optional, and basically only for the purpose of setting yScroll according to root note
@@ -713,6 +715,8 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 			ticksTilNextNoteRowEvent = loopLength - lastProcessedPos;
 		}
 
+		// see if it's starting or ending - might be needed for iterance
+		bool ending = not currentPlaybackMode->willClipContinuePlayingAtEnd(modelStack);
 		static PendingNoteOnList pendingNoteOnList; // Making this static, which it really should have always been,
 		                                            // actually didn't help max stack usage at all somehow...
 		pendingNoteOnList.count = 0;
@@ -871,7 +875,7 @@ doNewProbability:
 					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(
 					    pendingNoteOnList.pendingNoteOns[i].noteRowId, pendingNoteOnList.pendingNoteOns[i].noteRow);
 
-					conditionPassed = iterance.passesCheck(modelStackWithNoteRow->getRepeatCount());
+					conditionPassed = iterance.passesCheck(modelStackWithNoteRow->getRepeatCount(), ending);
 				}
 
 				// lastly, if after checking iteration we still have a note on
