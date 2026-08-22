@@ -4,6 +4,110 @@ sidebar:
   order: 3
 ---
 
-This page provides an overview Deluge CV / Gate Engine.
+import { Card } from "@astrojs/starlight/components"
+import { Steps } from "@astrojs/starlight/components"
+import { Badge } from "@astrojs/starlight/components"
 
-CV / Gate can be used to control external gear via Commands sent from CV clips or Gate drums within Kit clips.
+This page provides an overview of the Deluge CV / Gate Engine, which converts notes from the sequencer into analog voltages on the Deluge’s two CV outputs and four gate outputs.
+
+For information on the physical connectors, the CV and gate standards supported, and the related safety notes, see [Ports](/manual/device_overview/ports#cv-gate-and-trigger-clock-clk-in-connectors). For the full list of CV and gate settings, see [Menu Hierarchies](/reference/menu_hierarchies).
+
+## Outputs
+
+The Deluge has two CV outputs and four gate outputs. CV outputs 1 and 2 are paired with gate outputs 1 and 2 respectively, and are driven by CV clips. Gate outputs 3 and 4 have no corresponding CV output and are driven by gate kit rows, or may be assigned to output a [“run” signal](#run-signal-and-trigger-clock) (gate 3) or a [trigger clock](#run-signal-and-trigger-clock) (gate 4).
+
+| Output | Driven by                                                             |
+| ------ | --------------------------------------------------------------------- |
+| CV 1   | Pitch of a CV clip on channel 1 (or “1 and 2”)                        |
+| CV 2   | Pitch of a CV clip on channel 2, or a second signal in “1 and 2” mode |
+| Gate 1 | Notes of a CV clip on channel 1 (or “1 and 2”), or a gate kit row     |
+| Gate 2 | Notes of a CV clip on channel 2, or a gate kit row                    |
+| Gate 3 | A gate kit row, or the “run” signal                                   |
+| Gate 4 | A gate kit row, or the trigger clock                                  |
+
+<Card title="Run and clock take priority" icon="information">
+
+Once a gate output has been assigned to the run signal or the trigger clock in the settings menu, any notes sent to it by a kit row are ignored, so that the clock is never interrupted.
+
+</Card>
+
+## CV clips
+
+To output CV / gate from a clip:
+
+<Steps>
+
+1. Enter clip view for the selected clip.
+1. Press :key[CV].
+1. Turn :key[Select] to choose the channel: 1, 2, or “1 and 2”.
+
+</Steps>
+
+Only outputs 1 and 2 are offered here, as they are the only outputs with a CV voltage to carry the pitch.
+
+<Card title="Gates from kit clips" icon="information">
+
+CV clips are not the only way to drive the gate outputs. Any row in a regular kit clip can be set to fire a gate output (1 to 4) instead of playing a sound, which is the only way to use gate outputs 3 and 4 for notes. See [Gate kit rows](#gate-kit-rows) below.
+
+</Card>
+
+The channel can also be changed from song view: hold the clip’s pad and turn :key[Select]. The CV button flashes and the display shows the current channel while the pad is held.
+
+A CV clip has no sound parameters, but pressing :key[Select] in clip view opens its menu, which includes the arpeggiator, play direction and (in “1 and 2” mode) the CV 2 Source setting. See the CV Instrument Menu on [Menu Hierarchies](/reference/menu_hierarchies) for the full list.
+
+When a note plays, the Deluge first sets the pitch voltage on the clip’s CV output and then raises the matching gate output. The gate is only raised once the new voltage has been sent, so a connected synthesizer will not sound the previous pitch for a moment at the start of each note.
+
+Each CV channel is monophonic. A new note replaces the note currently playing, and the gate stays high until the new note ends.
+
+### “1 and 2” mode
+
+<Badge text="c1.3 Feature" variant="tip" />
+
+With the channel set to “1 and 2”, pitch goes to CV output 1 and notes to gate output 1 as usual, and CV output 2 carries a second signal for the playing note. Press :key[Select] to open the clip’s menu and choose the signal under **CV 2 Source**:
+
+- **Off** - CV 2 is not used.
+- **Y** - MPE Y (slide / timbre). Negative values are output as 0V.
+- **Aftertouch** - channel or polyphonic aftertouch. This is the default.
+- **Velocity** - the velocity of each note, set as the note begins.
+
+Gate output 2 is not used by the clip in this mode, and remains available to gate kit rows.
+
+### MIDI-to-CV/gate converter
+
+A CV clip which has had a MIDI channel learned to it will output the incoming notes as CV / gate. To learn a channel, hold :key[Learn], hold any audition pad in the CV clip, and play a key on the MIDI keyboard. See [MIDI](/manual/device_overview/ports#midi) on the Ports page for the full MIDI learn process.
+
+## Pitch to voltage
+
+Each CV output has its own **Volts per Octave** and **Transpose** settings, found under Settings > CV > CV Output 1 / 2.
+
+Volts per Octave may be set between 0.01V and 2.00V in 0.01V steps, and defaults to 1.00V. In this mode the output voltage rises by a fixed amount for each octave: MIDI note 24 (C1) is output as 0V and each octave above it adds the configured voltage, so at 1V per octave middle C (note 60) is 3V. This is the standard used by most analog synthesizers (1V per octave on Moog, Roland, ARP and Eurorack equipment; see [Ports](/manual/device_overview/ports#cv--gate-compatibility-and-settings) for others). Set it to match the connected synthesizer: for example, Buchla and EML instruments expect 1.2V per octave, so setting Volts per Octave to 1.20 gives 0.1V per semitone and puts middle C at 3.6V.
+
+Turning Volts per Octave all the way down to 0 selects **Hz per volt** instead; the display changes from a voltage to “Hz/V” (“HZPV” on the 7-segment display). Hz per volt is the older standard used by Yamaha and Korg, in which the voltage is proportional to the frequency of the note rather than to its pitch, so the voltage doubles with each octave instead of rising by a fixed step. The Deluge outputs middle C as 1V, one octave above as 2V, two octaves above as 4V, and so on. Because the voltage doubles per octave, only a few octaves fit in the 0V to 10V range; notes below middle C are output as fractions of a volt. Turn :key[Select] back up to return to volts per octave.
+
+The **Transpose** setting for each CV output (Settings > CV > CV Output 1 / 2 > Transpose) shifts every note sent to that output by up to ±96 semitones, with cents available in the decimal places. It is intended for matching the tuning of the connected synthesizer, and is separate from transposing the notes in a clip. Pitch bend, including MPE per-note pitch bend, is also applied to the pitch before it is converted. The resulting voltage is clamped to the 0V to 10V range of the outputs.
+
+## Gate timing
+
+Each gate output may be set to V-Trig or S-Trig under Settings > Gate > Gate Output 1-4. V-Trig outputs a positive voltage while a note is on, and S-Trig shorts the output to ground while a note is on. See [Ports](/manual/device_overview/ports#cv--gate-compatibility-and-settings) for which synthesizers expect which.
+
+The **Minimum Off-Time** setting, also under Settings > Gate, sets the shortest time a gate will stay low between one note ending and the next beginning. This ensures that back-to-back notes are heard as separate triggers by the connected hardware rather than as a single held gate. It may be set between 0.1ms and 10.0ms and defaults to 1.0ms. A note which begins sooner than this after the previous note ended is delayed until the off-time has elapsed.
+
+## Run signal and trigger clock
+
+Under Settings > Gate, gate output 3 has a “Run signal” (RUN) option alongside V-Trig and S-Trig. This sets gate output 3 high as soon as playback starts (after any count-in) and low again when playback stops, so connected hardware can start and stop with the Deluge.
+
+Gate output 4 has a “Clock” (CLK) option. This sends a trigger clock pulse on gate output 4 at the rate set in Settings > Trigger Clock > Output > PPQN, which may be set between 1 and 192 and defaults to 24. Switching the clock on while the Deluge is playing from its internal clock re-aligns the output to the current playback position.
+
+## Gate kit rows
+
+A row in a kit clip normally holds a sound, but it may instead be a **gate drum**: a row which, when triggered, fires one of the Deluge’s four gate outputs rather than producing audio. Each hit on the row sends a single gate pulse to the chosen output, the same way a trigger out on a drum machine would; the CV outputs are not touched, and the row has no pitch. This is the way to trigger external drum modules and other gate-driven hardware, and the only way to reach gate outputs 3 and 4, which have no CV output of their own.
+
+To make a kit clip row control a gate output instead of outputting audio, enter clip view, hold the row’s audition pad and press :key[CV]. The row defaults to gate output 3. To change the output, hold the row’s audition pad and turn :key[LOWER GOLD]; the display shows the current output as GATE 1 to GATE 4 (GAT1 to GAT4 on the 7-segment display), and the CV button LED blinks while a gate drum’s row is held. See [Gate kit drum](/manual/device_overview/ports#gate-kit-drum) on the Ports page for the full steps.
+
+Gate drums follow the same V-Trig / S-Trig and Minimum Off-Time settings as CV clips. A gate drum set to output 3 or 4 will be silent while that output is assigned to the run signal or the trigger clock.
+
+<Card title="Take care when sharing gate outputs between a gate drum and a CV clip" icon="warning">
+
+The engine does not arbitrate between them, so the gate will trigger from both, a note-off from one may be ignored while the other’s note is playing, and on outputs 1 and 2 each drum hit also resets the CV pitch to middle C.
+
+</Card>
