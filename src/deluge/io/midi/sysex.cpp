@@ -18,9 +18,11 @@
  */
 
 #include "io/midi/sysex.h"
+#include "hid/display/screensaver.h"
 #include "io/debug/print.h"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
+#include "storage/flash_storage.h"
 #include "util/chainload.h"
 
 #include "util/pack.h"
@@ -125,6 +127,11 @@ static void firstPacket(uint8_t* data, int32_t len) {
 	PadLEDs::sendOutSidebarColours();
 	deluge::hid::display::OLED::clearMainImage();
 	deluge::hid::display::OLED::sendMainImage();
+
+	// Show the configured screensaver while the firmware payload is streaming in.
+	if (FlashStorage::screensaverMode != ScreensaverMode::OFF && ::display->haveOLED()) {
+		deluge::hid::display::Screensaver::timerEvent();
+	}
 
 	boostTask(midiEngine.routine_task_id);
 }
