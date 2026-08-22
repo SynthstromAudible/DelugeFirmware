@@ -1,5 +1,6 @@
 certifi==2026.7.22
 setuptools==84.0.0
 pyserial==3.5
+python-rtmidi==1.5.8
 ansi==0.3.7
 pre-commit==4.6.2

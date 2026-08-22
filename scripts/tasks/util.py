@@ -2,6 +2,7 @@ import fileinput
 import multiprocessing
 import os
 import shutil
+import site
 import subprocess
 import sys
 import sysconfig
@@ -11,8 +12,45 @@ from pathlib import Path
 
 
 def install_rtmidi():
+    for base in site.getsitepackages():
+        stale = Path(base) / "rtmidi"
+        if stale.exists():
+            if stale.is_dir():
+                shutil.rmtree(stale, ignore_errors=True)
+            else:
+                stale.unlink(missing_ok=True)
+
+    env = os.environ.copy()
+    cert = None
+    try:
+        import certifi
+
+        cert = certifi.where()
+    except (ImportError, AttributeError):
+        for candidate in (
+            "/etc/ssl/cert.pem",
+            "/etc/ssl/certs/ca-certificates.crt",
+            "/etc/pki/tls/certs/ca-bundle.crt",
+            "/private/etc/ssl/cert.pem",
+        ):
+            if os.path.exists(candidate):
+                cert = candidate
+                break
+    if cert:
+        env["SSL_CERT_FILE"] = cert
+        env["REQUESTS_CA_BUNDLE"] = cert
+
     subprocess.check_call(
-        [sys.executable, "-m", "pip", "install", "python-rtmidi==1.5.8"]
+        [
+            sys.executable,
+            "-m",
+            "pip",
+            "install",
+            "--no-cache-dir",
+            "--force-reinstall",
+            "python-rtmidi==1.5.8",
+        ],
+        env=env,
     )
 
 
