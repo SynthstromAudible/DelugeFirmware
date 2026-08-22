@@ -294,9 +294,111 @@ DRESULT disk_ioctl(BYTE pdrv, /* Physical drive nmuber (0..) */
     }
 }
 
+/* ---- Recency clock -------------------------------------------------------
+ * The Deluge has no real-time clock, so it used to stamp every saved file with
+ * time 0. Instead we COUNT: each save gets a packed FAT datetime later than the
+ * last, so sorting by date == sorting by save order. The counter is seeded at
+ * card mount from the newest date already on the card (fatClockSeedFromPacked,
+ * called from storage_manager) so it never goes backwards across power cycles.
+ * The resulting "dates" are synthetic (they look odd on a computer) but give
+ * true recency on the device. */
+static uint32_t fatClockSecs2               = 0;  /* 2-second units since 1980-01-01 */
+static const uint32_t fatClockStep          = 30; /* advance 60s per save (lots of headroom) */
+static const unsigned char fatMonthDays[12] = {31, 28, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31};
+
+static int fatIsLeap(uint32_t y)
+{
+    return ((y % 4 == 0 && y % 100 != 0) || y % 400 == 0);
+}
+
+/* 2-second-units-since-1980 -> packed FAT datetime */
+static DWORD fatPack(uint32_t s2)
+{
+    uint32_t secs = s2 * 2u;
+    uint32_t days = secs / 86400u;
+    uint32_t rem  = secs % 86400u;
+    uint32_t hour = rem / 3600u;
+    rem %= 3600u;
+    uint32_t minute = rem / 60u;
+    uint32_t sec    = rem % 60u;
+    uint32_t year   = 1980u;
+    while (1)
+    {
+        uint32_t diy = 365u + (uint32_t)fatIsLeap(year);
+        if (days >= diy)
+        {
+            days -= diy;
+            year++;
+        }
+        else
+            break;
+    }
+    uint32_t month = 1u;
+    while (1)
+    {
+        uint32_t dim = fatMonthDays[month - 1] + ((month == 2u) ? (uint32_t)fatIsLeap(year) : 0u);
+        if (days >= dim)
+        {
+            days -= dim;
+            month++;
+        }
+        else
+            break;
+    }
+    uint32_t day = days + 1u;
+    return ((DWORD)(year - 1980u) << 25) | ((DWORD)month << 21) | ((DWORD)day << 16) | ((DWORD)hour << 11)
+           | ((DWORD)minute << 5) | ((DWORD)(sec / 2u));
+}
+
+/* Bump the clock so it sits just after a packed FAT datetime seen on the card. */
+void fatClockSeedFromPacked(DWORD packed)
+{
+    uint32_t year = 1980u + ((packed >> 25) & 0x7Fu);
+    /* Don't seed off an implausible far-future date. A corrupt entry can decode to a year up near the FAT
+     * ceiling, and seeding there pins every later save at ~2106, which a computer renders as a 1970 garbage
+     * date. Skip anything from 2100 on. */
+    if (year >= 2100u)
+    {
+        return;
+    }
+    uint32_t month  = (packed >> 21) & 0x0Fu;
+    uint32_t day    = (packed >> 16) & 0x1Fu;
+    uint32_t hour   = (packed >> 11) & 0x1Fu;
+    uint32_t minute = (packed >> 5) & 0x3Fu;
+    uint32_t sec    = (packed & 0x1Fu) * 2u;
+    if (month < 1u)
+        month = 1u;
+    if (month > 12u)
+        month = 12u;
+    if (day < 1u)
+        day = 1u;
+    uint32_t days = 0u, y, m;
+    for (y = 1980u; y < year; y++)
+    {
+        days += 365u + (uint32_t)fatIsLeap(y);
+    }
+    for (m = 1u; m < month; m++)
+    {
+        days += fatMonthDays[m - 1] + ((m == 2u) ? (uint32_t)fatIsLeap(year) : 0u);
+    }
+    days += (day - 1u);
+    uint32_t s2 = (days * 86400u + hour * 3600u + minute * 60u + sec) / 2u;
+    if (s2 + fatClockStep > fatClockSecs2)
+    {
+        fatClockSecs2 = s2 + fatClockStep;
+    }
+}
+
 DWORD get_fattime(void)
 {
-    return 0;
+    if (fatClockSecs2 == 0u)
+    {
+        /* Not seeded (empty card, or all-zero dates): start at 2024-01-01 so dates look sane. */
+        fatClockSeedFromPacked(((DWORD)(2024u - 1980u) << 25) | ((DWORD)1u << 21) | ((DWORD)1u << 16));
+    }
+    DWORD t = fatPack(fatClockSecs2);
+    fatClockSecs2 += fatClockStep;
+    return t;
 }
 
 void disk_timerproc(UINT msPassed)
