@@ -503,7 +503,9 @@ const bool noteCodeIsSharp[12] = {0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 1, 0};
  *   This iterance is Custom and will read as "5 and 6, of 6". Iterance value is 0x0630
  */
 
-const std::array<Iterance, 35> iterancePresets = {
+const std::array<Iterance, kNumIterancePresets> iterancePresets = {
+	Iterance{0, 1}, // first
+	Iterance{0, 2}, // last
 	Iterance{2, 0b1}, Iterance{2, 0b10},
 	Iterance{3, 0b1}, Iterance{3, 0b10}, Iterance{3, 0b100},
 	Iterance{4, 0b1}, Iterance{4, 0b10}, Iterance{4, 0b100}, Iterance{4, 0b1000},
