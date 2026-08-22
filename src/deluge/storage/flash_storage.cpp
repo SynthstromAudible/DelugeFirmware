@@ -27,6 +27,7 @@
 #include "io/midi/midi_transpose.h"
 #include "model/scale/preset_scales.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/engines/cv_audio_stream.h"
 #include "processing/engines/cv_engine.h"
 #include "processing/metronome/metronome.h"
 #include "util/firmware_version.h"
@@ -44,6 +45,7 @@ extern "C" {
 #include "gui/menu_item/key_range.h"
 
 using namespace deluge;
+using namespace deluge::processing::engines;
 
 extern gui::menu_item::IntegerRange defaultTempoMenu;
 extern gui::menu_item::IntegerRange defaultSwingAmountMenu;
@@ -190,6 +192,7 @@ enum Entries {
 190: GlobalMIDICommand::SHIFT channel + 1
 191: GlobalMIDICommand::SHIFT noteCode + 1
 192-195: GlobalMIDICommand::SHIFT product / vendor ids
+198: CV stereo split -- 0 unwritten/default-on, 1 off, 2 on
 */
 
 uint8_t defaultScale;
@@ -370,6 +373,8 @@ void resetSettings() {
 	defaultLoopRecordingCommand = GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING;
 
 	defaultUseSharps = true;
+
+	cvSetStereoSplit(true);
 }
 
 void factoryReset(bool showPopup) {
@@ -755,6 +760,12 @@ void readSettings() {
 		defaultUseLastClipType = buffer[177];
 	}
 
+	// Stereo split, global. Tri-state rather than a plain bool, because the default is now ON
+	// and a never-written slot reads as 0 -- a bool would force every existing Deluge to the
+	// wrong default. 0 means "never written, use the default", 1 is explicitly off, 2 is
+	// explicitly on.
+	cvSetStereoSplit(buffer[198] != 1);
+
 	if (buffer[178] >= kNumThresholdRecordingModes) {
 		defaultThresholdRecordingMode = ThresholdRecordingMode::OFF;
 	}
@@ -1050,6 +1061,8 @@ void writeSettings() {
 
 	buffer[196] = util::to_underlying(screensaverMode);
 	buffer[197] = screensaverTimeoutMinutes;
+
+	buffer[198] = cvGetStereoSplit() ? 2 : 1;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,

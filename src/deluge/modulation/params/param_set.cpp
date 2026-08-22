@@ -182,8 +182,8 @@ void ParamSet::setPlayPos(uint32_t pos, ModelStackWithParamCollection* modelStac
 }
 
 void ParamSet::writeParamAsAttribute(Serializer& writer, char const* name, int32_t p, bool writeAutomation,
-                                     bool onlyIfContainsSomething, int32_t* valuesForOverride) {
-	if (onlyIfContainsSomething && !params[p].containsSomething()) {
+                                     bool onlyIfContainsSomething, int32_t* valuesForOverride, int32_t neutralValue) {
+	if (onlyIfContainsSomething && !params[p].containsSomething((uint32_t)neutralValue)) {
 		return;
 	}
 
