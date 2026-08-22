@@ -23,9 +23,12 @@
 class Output;
 class Clip;
 
+// Names the selected automation lane on a MIDI clip: a real CC's label, or a macro lane's user
+// label (shown as "Macro N: <name>"; an empty entry clears it back to plain "Macro N").
 class RenameMidiCCUI final : public RenameUI {
 public:
 	RenameMidiCCUI(const char* title_) : RenameUI(title_) {}
+	bool opened() override;
 
 protected:
 	bool trySetName(std::string_view) override;
