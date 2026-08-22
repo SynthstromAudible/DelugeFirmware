@@ -154,7 +154,7 @@ endif(DOXYGEN_FOUND)
 
 # Global compilation options
 add_compile_options(
-
+    -ffast-math
     # Feature flags
     -fdiagnostics-parseable-fixits
     -fsigned-char
@@ -166,8 +166,10 @@ add_compile_options(
     # Optimization level
     $<$<CONFIG:DEBUG>:-Og>
     $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-O2>
+        $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-fsplit-loops>
+        $<$<CONFIG:RELEASE,RELWITHDEBINFO>:-funswitch-loops>
 
-    # does not block inlining, just blocks considering all functions for inlining
+        # does not block inlining, just blocks considering all functions for inlining
     # https://developer.arm.com/documentation/100067/0600/Compiler-Command-line-Options/-finline-functions---fno-inline-functions?lang=en
     -fno-inline-functions
 
