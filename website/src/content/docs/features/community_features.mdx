@@ -179,7 +179,7 @@ Here is a list of general improvements that have been made, ordered from newest 
       - MIDI clips routed to 'Transpose' cannot be in scale mode. Existing clips of this type will drop back to
         chromatic mode, and pressing the Scale button will display 'CANT'.
   - Choice of octave is determined by the first note received by each song (this is reset on each song load). The
-    first transpostino will move the root note by at most a fifth, to the closest matching note. Subsequent transpose
+    first transpostion will move the root note by at most a fifth, to the closest matching note. Subsequent transpose
     events will respect the octave as normal.
     - Eg. Song is in C major. Transpose receives a D3. Regardless of whether the song is just a bassline, or pads,
       or a high synth part, it all goes up to D Dorian or D Major depending on the inkey/chromatic setting. After
@@ -779,6 +779,7 @@ Here is a list of features that have been added to the firmware as a list, group
   it as smaller numbers. This change also fixes an issue with reverb values displaying differently than how they were
   set.
 - (#2788) <Badge text="c1.3" variant="tip" /> Added LPF to Mutable Instruments Model. 50 (default) corresponds to 20khz and 0 corresponds to 0hz.
+- (#3277) <Badge text="c1.3" variant="tip" /> Added new Digital reverb model.
 
 ### 4.2.10 - Launch Exclusively
 
