@@ -1360,7 +1360,6 @@ void Browser::displayText(bool blinkImmediately) {
 				display->setText("----");
 			}
 			else {
-
 				// A name is always the full on-card name ("SONG185"). On 7SEG we render the numeric part alone
 				// ("185") so it fits the four-character display.
 				char const* numberPart = nameAfterPrefix(enteredText.get());
@@ -1383,8 +1382,10 @@ void Browser::displayText(bool blinkImmediately) {
 					// provide some context in case the post-fix is long
 					scrollStart = enteredTextEditPos - 2;
 				}
-
-				scrollingText = display->setScrollingText(enteredText.get(), scrollStart);
+				FileItem* currentFileItem = getCurrentFileItem();
+				bool currentItemIsFolder = currentFileItem && currentFileItem->isFolder;
+				auto dotPos = currentItemIsFolder ? 3 : 255;
+				scrollingText = display->setScrollingText(enteredText.get(), scrollStart, 600, -1, dotPos);
 			}
 		}
 	}
