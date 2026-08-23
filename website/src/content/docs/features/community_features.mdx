@@ -39,7 +39,7 @@ back up your SD card!
 
 ### 2.2 - Horizontal Menus <Badge text="c1.3" variant="tip" />
 
-- The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES`.
+- The menus for the following items have been updated on OLED, with multiple values visible and editable at the same time. This feature is on by default, and can be disabled via `SETTINGS > COMMUNITY FEATURES > HORIZONTAL MENUS`.
   - Oscillator 1-2.
   - Oscillator mixer.
   - Sample 1-2.
@@ -114,7 +114,6 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 - (#17) <Badge text="c1.0" variant="tip" /> Increase the resolution of "patch cables" between mod sources and destinations. This adds two decimal points
   when modulating parameters.
-  - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
 
 ### 3.2 - MPE
 
@@ -247,10 +246,10 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 ### 3.4 - Tempo & Swing
 
-- (#178) <Badge text="c1.0" variant="tip" /> New option (`FINE TEMPO` in the `COMMUNITY FEATURES` menu). Inverts the push+turn behavior of the `TEMPO`
+- (#178) <Badge text="c1.0" variant="tip" /> New option (`FINE TEMPO KNOB` in the `COMMUNITY FEATURES` menu). Inverts the push+turn behavior of the `TEMPO`
   encoder. With this option enabled the tempo changes by 1 when unpushed and ~4 when pushed (vs ~4 unpushed and 1 pushed
   in the official firmware).
-  - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+  - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES > FINE TEMPO KNOB`.
 
 - (#2264) <Badge text="c1.2" variant="tip" /> Swing interval can now be changed by holding `TAP TEMPO` button while turning the `TEMPO` encoder. To view current
   swing interval hold `TAP TEMPO` and press `TEMPO`. The menu for setting the swing interval has been moved from
@@ -265,7 +264,7 @@ Here is a list of general improvements that have been made, ordered from newest 
   -related golden encoders. The default (for upper and lower encoders) is `PINGPONG` (`ON/OFF`)
   and `TYPE` (`DIGITAL`/`ANALOG`), and you can modify it so the encoder clicks change
   the `SYNC TYPE` (`EVEN, TRIPLETS, DOTTED`) and `SYNC RATE` (`OFF, WHOLE, 2ND, 4TH, ETC`) respectively.
-  - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+  - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES > ALTERNATIVE GOLDEN KNOB DELAY PARAMS`.
 
 ### 3.6 - Kits
 
@@ -282,10 +281,10 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 - (#118) <Badge text="c1.0" variant="tip" /> Sticky Shift - When enabled, tapping :key[Shift] will lock shift `ON` unless another button is also pressed
   during the short press duration.
-  - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+  - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES > STICKY SHIFT`.
 - (#118) <Badge text="c1.0" variant="tip" /> Shift LED feedback can now be toggled manually, however it will turn ON or OFF in conjunction with Sticky
   Shift (adjust SHIFT LED FEEDBACK afterwards).
-  - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+  - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES > LIGHT SHIFT`.
 - (#1305) <Badge text="c1.1" variant="tip" /> Number of count-in bars is now configurable under `SETTINGS > RECORDING > COUNT-IN BARS`.
 
 ### 3.8 - Mod Wheel
@@ -392,7 +391,7 @@ Here is a list of general improvements that have been made, ordered from newest 
 
 ### 3.21 - Eased Timeline Zoom Level Restrictions
 
-- (#1962) <Badge text="c1.2" variant="tip" /> The maximum zoom level has been increased. Now, the maximum zoom is the point the point where the entire timeline is represented by a single grid cell.
+- (#1962) <Badge text="c1.2" variant="tip" /> The maximum zoom level has been increased. Now, the maximum zoom is the point where the entire timeline is represented by a single grid cell.
   - This allows for more flexibility when entering long notes and chord progressions.
   - While changing the zoom level, the horizontal encoder will briefly pause while passing the zoom level which represents the entire sequence. This is to prevent frustration from users who are used to the prior limitations.
 
@@ -512,7 +511,7 @@ Here is a list of general improvements that have been made, ordered from newest 
   - On OLED displays: Shows "Battery Level: X.XXV (XX%)"
   - On 7-segment displays: Shows battery percentage
   - The battery level menu item can be toggled on/off via the Community Features menu
-  - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`
+  - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES > SHOW BATTERY LEVEL`
 
 ## 4. New Features Added
 
@@ -576,7 +575,7 @@ Here is a list of features that have been added to the firmware as a list, group
   between clips by playing them late. However this leads to glitches with drum clips and other percussive sounds.
   Changing this setting to OFF will prevent this behavior and _not_ try to keep up with those notes, leading to smoother
   instant switching between clips.
-  - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+  - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES > CATCH NOTES`.
 
 ### 4.1.5 - Grid View
 
@@ -812,7 +811,7 @@ Additional synchronization modes accessible through `SYNC` shortcuts for `ARP`, 
   - The amount of quantization/humanization is shown in the display by 10% increments: 0%-100%
   - This is destructive (your original note positions are not saved) The implementation of this feature is likely to
     change in the future
-  - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+  - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES > QUANTIZE`.
 
 ### 4.3.4 - Fill / Not Fill Modes
 
@@ -838,7 +837,7 @@ Additional synchronization modes accessible through `SYNC` shortcuts for `ARP`, 
     Automation View).
   - You can edit Non-MPE Parameter Automation for Synth, Kit, MIDI, and Audio clips on a per step basis at any zoom
     level.
-  - A `COMMUNITY FEATURES` sub-menu titled `AUTOMATION` was created to access a number of configurable settings for
+  - A `DEFAULTS` sub-menu titled `AUTOMATION` was created to access a number of configurable settings for
     changes to existing behaviour.
   - The three changes to existing behaviour included in this feature are: Clearing Clips, Nudging Notes and Shifting a
     Clip Horizontally.
@@ -1025,14 +1024,14 @@ For a detailed description of this feature, please refer to the feature document
 
 - (#250) <Badge text="c1.0" variant="tip" /> New community feature makes In-Key and Isometric layout display incoming MIDI notes with their velocity.
   - This feature is `ON` by default and can be set to `ON` or `OFF` in the `COMMUNITY FEATURES` menu (
-    via `SETTINGS > COMMUNITY FEATURES`).
+    via `SETTINGS > COMMUNITY FEATURES > HIGHLIGHT INCOMING NOTES`).
 
 #### 4.4.1.4 - Display Norns Layout
 
 - (#250) <Badge text="c1.0" variant="tip" /> Enables keyboard layout which emulates a monome grid for monome norns using Midigrid mod on norns by
   rendering incoming MIDI notes on channel 16 as white pads using velocity for pad brightness.
   - This feature is `OFF` by default and can be set to `ON` or `OFF` in the `COMMUNITY FEATURES` menu (
-    via `SETTINGS > COMMUNITY FEATURES`).
+    via `SETTINGS > COMMUNITY FEATURES > DISPLAY NORNS LAYOUT`).
   - Deluge has multiple USB ports, 3 as of this writing. Use Deluge 1 as the device on norns.
   - The Midigrid mod translates MIDI notes between norns and Deluge to use the grid as a controller for a norns
     script. Midigrid sends MIDI notes on channel 16 from norns to Deluge to light up grid LEDs. When a pad is pressed
@@ -1224,7 +1223,7 @@ For a detailed description of this feature, please refer to the feature document
 - (#122) <Badge text="c1.0" variant="tip" />: Add drum randomizer feature to load a random sample into one or more drum kit rows.
 - (#955) <Badge text="c1.1" variant="tip" />: Drum randomization limits were removed.
 - (#3546) <Badge text="c1.1" variant="tip" />: Shortcuts for this feature were changed.
-- This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+- This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES > DRUM RANDOMIZER`.
 - Commands are:
   - When no audition pads are pressed, randomize just the selected drum by: Pressing :key[Load + Random Pad]
   - To randomize more than one selected drum at a time: Press :key[Load + Audition Pad + Random Pad]
@@ -1250,7 +1249,7 @@ For a detailed description of this feature, please refer to the feature document
   kits from unused sounds (which take some precious RAM). While inside a Kit, press :key[Kit + Shift + Save]. A
   confirmation message will appear: "DELETE UNUSED ROWS". This command is not executed if there are no notes at all in
   the kit.
-  - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+  - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES > DELETE UNUSED KIT ROWS`.
 
 ## 4.7 Instrument Clip View - Midi Clip Features
 
@@ -1295,7 +1294,7 @@ For a detailed description of this feature, please refer to the feature document
   - Pressing a pad in the first column of an audio clip now makes it flash green allowing you to move the start position. Once trimmed, new start position snaps to column one.
   - You can revert by pressing :key[Undo] (or reverse the clip and altering as before).
   - Previously, this was only possible by reversing the audio clip and trimming the start as if it were the end.
-  - This feature is `OFF` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES`.
+  - This feature is `ON` by default and can be set to `ON` or `OFF` via `SETTINGS > COMMUNITY FEATURES > TRIM FROM START OF AUDIO CLIPS`.
 
 See this demo for more details:
 [Audio Clip View - Trimming Tips](https://www.youtube.com/watch?v=iWhVUsx40Mg&t=45s&ab_channel=RonCavagnaro).
