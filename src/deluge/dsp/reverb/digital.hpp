@@ -121,8 +121,8 @@ public:
 			right_sum -= 0.6f * del2a.at(2111 * kRatio);
 			right_sum -= 0.6f * dap2b.at(335 * kRatio);
 			right_sum -= 0.6f * del2b.at(121 * kRatio);
-			right_sum = right_sum - dsp::OnePole(hp_l_, right_sum, hp_cutoff_);
-			right_sum = dsp::OnePole(lp_l_, right_sum, lp_cutoff_);
+			right_sum = right_sum - dsp::OnePole(hp_r_, right_sum, hp_cutoff_);
+			right_sum = dsp::OnePole(lp_r_, right_sum, lp_cutoff_);
 
 			q31_t output_left =
 			    static_cast<int32_t>(left_sum * static_cast<float>(std::numeric_limits<uint32_t>::max()) * 0xF);
