@@ -959,7 +959,7 @@ bool lastWasNoteOn = false;
 void MidiEngine::midiMessageReceived(MIDICable& cable, uint8_t statusType, uint8_t channel, uint8_t data1,
                                      uint8_t data2, uint32_t* timer) {
 
-	bool shouldDoMidiThruNow = midiThru;
+	bool shouldDoMidiThruNow = cable.midi_thru;
 
 	// Make copies of these, cos we might modify the variables, and we need the originals to do MIDI thru at the end.
 	uint8_t originalStatusType = statusType;
