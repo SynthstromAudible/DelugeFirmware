@@ -20,6 +20,8 @@
 #include <bitset>
 #include <cstdint>
 
+/// Represents first, last, or an x of y iteration
+/// If divisor is zero then instead represents either first or last
 struct Iterance {
 	uint8_t divisor;
 	std::bitset<8> iteranceStep;
@@ -28,7 +30,18 @@ struct Iterance {
 		return other.divisor == divisor && other.iteranceStep == iteranceStep;
 	}
 
-	[[nodiscard]] bool passesCheck(int32_t repeatCount) const { return iteranceStep[repeatCount % divisor]; }
+	[[nodiscard]] bool passesCheck(int32_t repeatCount, bool ending) const {
+		// these aren't valid divisors so overloaded to be first/last instead
+		if (divisor == 0) {
+			if (iteranceStep == 1) {
+				return repeatCount == 0;
+			}
+			else {
+				return ending;
+			}
+		}
+		return iteranceStep[repeatCount % divisor];
+	}
 
 	[[nodiscard]] uint16_t toInt();
 	static Iterance fromInt(int32_t value);

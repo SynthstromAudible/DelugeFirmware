@@ -370,7 +370,7 @@ ActionResult SoundEditor::buttonAction(deluge::hid::Button b, bool on, bool inCa
 								}
 								else {
 									HorizontalMenu* parent = maybeGetParentMenu(newItem);
-									if (parent != nullptr && parent->focusChild(newItem)) {
+									if (parent != nullptr && parent != currentMenuItem && parent->focusChild(newItem)) {
 										navigatedBackwardFrom = newItem;
 										newItem = parent;
 									}

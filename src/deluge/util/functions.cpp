@@ -1205,7 +1205,7 @@ ArpOctaveMode stringToArpOctaveMode(char const* string) {
 		return ArpOctaveMode::DOWN;
 	}
 	else if (!strcmp(string, "upDown")) {
-		return ArpOctaveMode::RANDOM;
+		return ArpOctaveMode::UP_DOWN;
 	}
 	else if (!strcmp(string, "alt")) {
 		return ArpOctaveMode::ALTERNATE;

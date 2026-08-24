@@ -98,6 +98,12 @@ private:
 		else if (iterancePreset == kCustomIterancePreset) {
 			strcpy(buffer, "CUSTOM");
 		}
+		else if (iterancePreset == kFirstIterancePreset) {
+			strcpy(buffer, "1 ST");
+		}
+		else if (iterancePreset == kLastIterancePreset) {
+			strcpy(buffer, "LAST");
+		}
 		else {
 			Iterance iterance = iterancePresets[iterancePreset - 1];
 			int32_t i = iterance.divisor;

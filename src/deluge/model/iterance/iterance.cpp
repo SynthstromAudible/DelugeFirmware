@@ -27,12 +27,13 @@ uint16_t Iterance::toInt() {
 }
 
 Iterance Iterance::fromInt(int32_t value) {
-	Iterance iterance = Iterance{(uint8_t)(value >> 8), (uint8_t)(value & 0xFF)};
-	if (iterance.divisor < 1 || iterance.divisor > 8) {
-		// If divisor out of bounds, fall back to default value
-		iterance = kDefaultIteranceValue;
+	auto divisor = (uint8_t)(value >> 8);
+	auto step = (uint8_t)(value & 0xFF);
+	// guard against garbage
+	if ((divisor == 0 and step != 1 and step != 2) or divisor > 8) {
+		return kDefaultIteranceValue;
 	}
-	return iterance;
+	return Iterance{.divisor = divisor, .iteranceStep = step};
 }
 
 // To/from preset index
