@@ -15,8 +15,10 @@ import {
 } from "./capability_store"
 import { activeControl } from "./control_store"
 import { Firmwares } from "../data/firmware"
+import { Action } from "../data/actions"
 import { Control } from "../data/targets"
 import { Views } from "../data/views"
+import type { MenuRenderMethod } from "../data/menu_contexts"
 import type {
   Shortcut,
   StepOrSubstep,
@@ -30,8 +32,28 @@ import type {
 
 // Raw JSON steps can be single actions or substep containers.
 type RawStep =
-  | { action: number; control: number }
-  | { substeps: { action: number; control: number }[] }
+  | {
+      action: number
+      control: number
+      label?: string
+      menuContext?: string
+      menuTitle?: string
+      menuOptions?: string[]
+      menuSelectedIndex?: number
+      menuRenderMethod?: MenuRenderMethod
+    }
+  | {
+      substeps: {
+        action: number
+        control: number
+        label?: string
+        menuContext?: string
+        menuTitle?: string
+        menuOptions?: string[]
+        menuSelectedIndex?: number
+        menuRenderMethod?: MenuRenderMethod
+      }[]
+    }
 
 // Raw shortcut shape from generated JSON before runtime normalization.
 type RawShortcut = Omit<Shortcut, "steps" | "firmware"> & {
@@ -146,6 +168,11 @@ const collectControlsFromStep = (step: StepOrSubstep, ids: Set<Control>) => {
 
   // Branch: direct step control.
   ids.add(step.control)
+
+  // MENU uses Control.NONE in source data; add a dedicated pseudo-control for filtering.
+  if (step.action === Action.MENU) {
+    ids.add(Control.CONTEXT_MENU)
+  }
 }
 
 // Computes unique control ids used by one shortcut.

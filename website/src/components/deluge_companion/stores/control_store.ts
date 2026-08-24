@@ -28,6 +28,7 @@ export const shortcutControlGroups: ShortcutControlGroup[] = [
       { id: Control.SYNC, title: "Sync-Scaling" },
       { id: Control.LEARN, title: "Learn / Input" },
       { id: Control.ENTIRE, title: "Affect Entire" },
+      { id: Control.CONTEXT_MENU, title: "Context Menu" },
     ],
   },
   {
@@ -90,6 +91,8 @@ export const shortcutControlGroups: ShortcutControlGroup[] = [
       { id: Control.RANDOM_PATCH_SOURCE, title: "Random Patch Source Pad" },
       { id: Control.VELOCITY_PATCH_SOURCE, title: "Velocity Patch Source Pad" },
       { id: Control.NAME, title: "Name Grid Pad" },
+      { id: Control.OSC_TYPE, title: "Oscillator Type Grid Pads" },
+      { id: Control.VOICE_POLYPHONY, title: "Voice Polyphony Grid Pad" },
     ],
   },
 ]
