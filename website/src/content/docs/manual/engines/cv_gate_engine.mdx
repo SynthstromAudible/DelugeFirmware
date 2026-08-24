@@ -55,8 +55,6 @@ The channel can also be changed from song view: hold the clip’s pad and turn :
 
 A CV clip has no sound parameters, but pressing :key[Select] in clip view opens its menu, which includes the arpeggiator, play direction and (in “1 and 2” mode) the CV 2 Source setting. See the CV Instrument Menu on [Menu Hierarchies](/reference/menu_hierarchies) for the full list.
 
-When a note plays, the Deluge first sets the pitch voltage on the clip’s CV output and then raises the matching gate output. The gate is only raised once the new voltage has been sent, so a connected synthesizer will not sound the previous pitch for a moment at the start of each note.
-
 Each CV channel is monophonic. A new note replaces the note currently playing, and the gate stays high until the new note ends.
 
 ### “1 and 2” mode
@@ -69,6 +67,8 @@ With the channel set to “1 and 2”, pitch goes to CV output 1 and notes to ga
 - **Y** - MPE Y (slide / timbre). Negative values are output as 0V.
 - **Aftertouch** - channel or polyphonic aftertouch. This is the default.
 - **Velocity** - the velocity of each note, set as the note begins.
+
+Both Y and Aftertouch are accesible in automation view for CV clips so they can be used to send a modulation signal out to your connected synth
 
 Gate output 2 is not used by the clip in this mode, and remains available to gate kit rows.
 
