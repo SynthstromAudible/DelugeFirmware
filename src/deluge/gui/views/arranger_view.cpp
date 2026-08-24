@@ -1838,6 +1838,12 @@ void ArrangerView::transitionToClipView(ClipInstance* clipInstance) {
 	if (clip->onAutomationClipView && !onKeyboardScreen) {
 		PadLEDs::explodeAnimationYOriginBig = yPressedEffective << 16;
 
+		// Transition pre-render can happen before AutomationView::opened(). Force clip context so we don't
+		// accidentally render stale arranger automation state into the animation store.
+		automationView.onArrangerView = false;
+		automationView.navSysId = automationView.getNavSysId();
+		automationView.setAutomationParamType();
+
 		if (clip->type == ClipType::INSTRUMENT) {
 			instrumentClipView.recalculateColours();
 			// Automation view reuses instrument clip offscreen rows during explode animations.
