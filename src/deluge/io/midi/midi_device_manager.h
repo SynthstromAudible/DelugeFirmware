@@ -90,7 +90,14 @@ struct ConnectedUSBMIDIDevice {
 #ifdef __cplusplus
 
 private:
-	MIDIQueueManagerUSB queue_manager_{};
+	/// Outgoing priority-queue state for this device.
+	///
+	/// The storage deliberately lives outside this struct, in a parallel array in midi_device_manager.cpp.
+	/// The USB driver compiles this type as the plain C struct above and indexes connectedUSBMIDIDevices[][]
+	/// directly, so a C++-only data member would make sizeof() - and therefore the array stride - differ
+	/// between the C and C++ views, sending C-side accesses to device N to the wrong address.
+	/// Member functions are fine here; only data members affect layout.
+	MIDIQueueManagerUSB& queue_manager();
 #endif
 };
 

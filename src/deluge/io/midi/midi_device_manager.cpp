@@ -48,8 +48,41 @@ extern uint8_t anyUSBSendingStillHappening[];
 #define SETTINGS_FOLDER "SETTINGS"
 #define MIDI_DEVICES_XML "SETTINGS/MIDIDevices.XML"
 
+namespace {
+/// Outgoing queue storage for each entry of connectedUSBMIDIDevices, held in a parallel array.
+///
+/// ConnectedUSBMIDIDevice is also compiled as a plain C struct by the USB driver (see the warning in
+/// midi_device_manager.h), and that driver indexes connectedUSBMIDIDevices[][] itself - see
+/// r_usb_hlibusbip.c, which writes connectedUSBMIDIDevices[0][deviceNum] for deviceNum up to
+/// MAX_NUM_USB_MIDI_DEVICES - 1. Keeping this ~25KB of queue state as a C++-only member would make the
+/// C view of sizeof(ConnectedUSBMIDIDevice) much smaller than the C++ view that actually allocated the
+/// array, so every C-side access with deviceNum >= 1 would compute the wrong address and corrupt memory.
+///
+/// Defined before connectedUSBMIDIDevices so it is constructed first: ConnectedUSBMIDIDevice's
+/// constructor resets its queue storage through queue_manager().
+PLACE_SDRAM_BSS MIDIQueueManagerUSB usbQueueManagers[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES];
+} // namespace
+
 PLACE_SDRAM_BSS ConnectedUSBMIDIDevice connectedUSBMIDIDevices[USB_NUM_USBIP][MAX_NUM_USB_MIDI_DEVICES];
 PLACE_SDRAM_BSS ConnectedDINMIDIDevice connectedDINMIDIDevice{};
+
+// The USB driver's C view of this struct must keep the same stride as the C++ view that allocates the array
+// above. maxPortConnected is the last shared member, and the struct's alignment is 8, so any C++-only data
+// member added after it will push sizeof() past this bound and trip here rather than corrupting memory at
+// runtime.
+static_assert(sizeof(ConnectedUSBMIDIDevice) <= __builtin_offsetof(ConnectedUSBMIDIDevice, maxPortConnected) + 8,
+              "ConnectedUSBMIDIDevice must not gain C++-only data members: the USB driver compiles it as a C "
+              "struct and indexes connectedUSBMIDIDevices[][] directly, so C and C++ must agree on sizeof(). "
+              "Put per-device C++ state in a parallel array (see usbQueueManagers) instead.");
+
+/// Resolves this device's queue storage from the parallel usbQueueManagers array.
+///
+/// Every ConnectedUSBMIDIDevice lives in connectedUSBMIDIDevices, so its position there is the index into
+/// the identically-shaped usbQueueManagers array.
+MIDIQueueManagerUSB& ConnectedUSBMIDIDevice::queue_manager() {
+	ptrdiff_t flat_index = this - &connectedUSBMIDIDevices[0][0];
+	return (&usbQueueManagers[0][0])[flat_index];
+}
 
 namespace MIDIDeviceManager {
 
@@ -663,23 +696,23 @@ checkDevice:
 
 /// Queues one USB-MIDI message, flushing or dropping if the queue cannot accept it.
 void ConnectedUSBMIDIDevice::enqueue_message(uint32_t fullMessage) {
-	queue_manager_.enqueue_message(fullMessage);
+	queue_manager().enqueue_message(fullMessage);
 }
 
 /// Returns whether this device has at least one queued USB-MIDI message to send.
 bool ConnectedUSBMIDIDevice::hasBufferedSendData() {
 	// True when at least one queued USB-MIDI message exists across any priority lane.
-	return queue_manager_.has_buffered_send_data();
+	return queue_manager().has_buffered_send_data();
 }
 
 /// Reports remaining USB queue capacity as MIDI payload bytes across all priority lanes.
 int ConnectedUSBMIDIDevice::sendBufferSpace() {
-	return queue_manager_.send_buffer_space();
+	return queue_manager().send_buffer_space();
 }
 
 /// Moves queued USB messages into the contiguous transfer buffer used by the hardware driver.
 bool ConnectedUSBMIDIDevice::consume_queued_messages() {
-	return queue_manager_.consume_queued_messages(dataSendingNow, numBytesSendingNow, g_usb_usbmode == USB_HOST);
+	return queue_manager().consume_queued_messages(dataSendingNow, numBytesSendingNow, g_usb_usbmode == USB_HOST);
 }
 
 /// Resets volatile USB transfer state for a newly connected/initialized device.
@@ -699,7 +732,7 @@ ConnectedUSBMIDIDevice::ConnectedUSBMIDIDevice() {
 	setup();
 	memset(receiveData, 0, sizeof(receiveData));
 	memset(dataSendingNow, 0, MIDI_SEND_BUFFER_LEN_INNER * 4);
-	queue_manager_.reset_queue_storage();
+	queue_manager().reset_queue_storage();
 }
 
 /// Initializes DIN per-priority queue state.
