@@ -19,7 +19,8 @@
 - Critical sections may cover only O(1) slot writes shared between producer and consumer — never a scan or a loop over lane contents.
 - Do not change observable MIDI behaviour. Every task is a refactor; the existing 176 tests must keep passing unmodified except where a task explicitly says otherwise.
 - Run the full unit suite (`./unit/UnitTests` from `tests/build`), not just the MIDI groups.
-- Work on a new branch off `main` (see Task 1, Step 1). Do not commit to `MIDI-Queue-Manager-v5`.
+- Work on `midi-queue-manager-v6`, branched from the current tip (see Task 1, Step 1). Do not commit to `MIDI-Queue-Manager-v5`.
+- Stage explicit paths in every commit. Never `git add -A`: `release-blockers.md` is untracked, unrelated, and must not be swept into a commit.
 
 ## File Structure
 
@@ -55,16 +56,24 @@ The queue manager should *report* pressure and let the caller decide.
 
 - [ ] **Step 1: Create the branch**
 
+Branch from where the work already is, keeping every existing commit. No squash: the history stays
+intact, so Sean's authorship on the original feature commit is preserved as-is rather than reconstructed
+with a trailer.
+
 ```bash
 cd /home/kate/GitHub/DelugeFirmware-clean
-git checkout -b midi-queue-manager-v6 main
-git checkout MIDI-Queue-Manager-v5 -- src tests docs
-git add -A && git commit -m "MIDI queue manager: priority-scheduled outgoing MIDI
-
-Squashed from MIDI-Queue-Manager-v5. Co-authored-by: Sean Ditny <seangoodvibes@users.noreply.github.com>"
+git checkout -b midi-queue-manager-v6
 ```
 
-Confirm with `./dbt build Debug` and `./tests/build/unit/UnitTests` that this starting point builds and passes 176 tests before changing anything.
+Confirm the starting point is sound before changing anything:
+
+```bash
+./dbt build Debug
+cd tests/build && ./unit/UnitTests   # expect 176 tests, 0 failures
+```
+
+Note `release-blockers.md` is untracked and unrelated to this work. Leave it alone: stage explicit paths
+in every commit below, never `git add -A`.
 
 - [ ] **Step 2: Write the failing test**
 
@@ -1050,7 +1059,24 @@ git add docs/dev/systems/midi_queue_manager.md
 git commit -m "update MIDI queue manager design notes for the restructure"
 ```
 
-- [ ] **Step 4: Open the PR**
+- [ ] **Step 4: Remove this plan from the branch**
+
+The branch inherits `docs/superpowers/plans/` because it was committed before branching. Process
+artifacts do not belong in the PR — the spec and the previous plan were stripped for the same reason.
+Keep a copy outside the tree if you still want it.
+
+```bash
+cp docs/superpowers/plans/2026-08-25-midi-queue-restructure.md /tmp/midi-restructure-plan.md
+git rm -r --quiet docs/superpowers
+git commit -m "remove the implementation plan from the branch
+
+Process artifact, not something the firmware repo carries. The durable design notes live in
+docs/dev/systems/midi_queue_manager.md."
+```
+
+Verify nothing references it: `git grep -n "superpowers" -- . || echo clean`
+
+- [ ] **Step 5: Open the PR**
 
 ```bash
 git push -u origin midi-queue-manager-v6
