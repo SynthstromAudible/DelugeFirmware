@@ -7,6 +7,12 @@ import type {
   SubstepContainer,
 } from "../types/shortcut.js"
 import { Action } from "../data/actions.js"
+import {
+  getMenuContextLabel,
+  isMenuRenderMethod,
+  normalizeMenuRenderMethod,
+  normalizeMenuContext,
+} from "../data/menu_contexts.js"
 import { Control } from "../data/targets.js"
 import { Views } from "../data/views.js"
 import { Firmwares } from "../data/firmware.js"
@@ -17,23 +23,213 @@ import { describeShortcutSteps } from "../data/shortcut_descriptions.js"
  * Returns a normalized Step record.
  */
 const parseActionAndControl = (str: string): Step => {
-  const matches = str.match(/^(\w+)\(([^)]+)\)$/)
-  if (!matches) {
+  const openParenIndex = str.indexOf("(")
+  const closeParenIndex = str.lastIndexOf(")")
+
+  if (
+    openParenIndex <= 0 ||
+    closeParenIndex <= openParenIndex ||
+    closeParenIndex !== str.length - 1
+  ) {
     throw new Error(
       `Shortcut code not in format "action(Control)" in action "${str}"`,
     )
   }
-  const [, actionStr, controlStr] = matches
+
+  const actionStr = str.slice(0, openParenIndex)
+  const rawTarget = str.slice(openParenIndex + 1, closeParenIndex)
   const action = Action[actionStr.toUpperCase() as keyof typeof Action]
-  const control = Control[controlStr.toUpperCase() as keyof typeof Control]
+
   if (action === undefined) {
     throw new Error(
       `Shortcut action "${actionStr}" not recognized in shortcut "${str}"`,
     )
   }
+
+  const parseQuotedMenuPayload = (rawPayload: string) => {
+    const payload = rawPayload.trim()
+    let cursor = 0
+    let inQuotes = false
+    let escaping = false
+    let current = ""
+    const parts: string[] = []
+
+    while (cursor < payload.length) {
+      const char = payload[cursor]
+
+      if (escaping) {
+        current += char
+        escaping = false
+        cursor += 1
+        continue
+      }
+
+      if (char === "\\") {
+        current += char
+        escaping = true
+        cursor += 1
+        continue
+      }
+
+      if (char === '"') {
+        inQuotes = !inQuotes
+        current += char
+        cursor += 1
+        continue
+      }
+
+      if (char === "|" && !inQuotes) {
+        parts.push(current.trim())
+        current = ""
+        cursor += 1
+        continue
+      }
+
+      current += char
+      cursor += 1
+    }
+
+    if (inQuotes) {
+      throw new Error(
+        `MENU payload has unclosed quotes in shortcut "${str}". Use MENU("label"|"title"|"opt1;opt2"|0).`,
+      )
+    }
+
+    parts.push(current.trim())
+
+    if (parts.length === 0 || parts.length > 5) {
+      throw new Error(
+        `MENU payload supports 1 to 5 fields in shortcut "${str}". Use MENU("label"|"title"|"opt1;opt2"|0|NO_INVERSION).`,
+      )
+    }
+
+    const parseStringPart = (part: string, name: string) => {
+      if (!part.startsWith('"') || !part.endsWith('"')) {
+        throw new Error(
+          `MENU ${name} must be a double-quoted string in shortcut "${str}".`,
+        )
+      }
+
+      try {
+        const value = JSON.parse(part)
+        if (typeof value !== "string") {
+          throw new Error("not-string")
+        }
+        return value
+      } catch {
+        throw new Error(
+          `MENU ${name} has invalid quoting in shortcut "${str}".`,
+        )
+      }
+    }
+
+    const label = parseStringPart(parts[0], "label")
+    const title =
+      parts.length >= 2 ? parseStringPart(parts[1], "title") : undefined
+
+    const options =
+      parts.length >= 3
+        ? parseStringPart(parts[2], "options")
+            .split(";")
+            .map((option) => option.trim())
+            .filter(Boolean)
+        : undefined
+
+    const selectedIndex =
+      parts.length >= 4 ? Number.parseInt(parts[3], 10) : undefined
+
+    if (parts.length >= 4 && !Number.isInteger(selectedIndex)) {
+      throw new Error(
+        `MENU selected index must be an integer in shortcut "${str}".`,
+      )
+    }
+
+    const renderMethodToken =
+      parts.length >= 5
+        ? (() => {
+            const raw = parts[4].trim()
+            if (raw.startsWith('"') && raw.endsWith('"')) {
+              try {
+                const parsed = JSON.parse(raw)
+                if (typeof parsed !== "string") {
+                  throw new Error("not-string")
+                }
+                return parsed
+              } catch {
+                throw new Error(
+                  `MENU render method has invalid quoting in shortcut "${str}".`,
+                )
+              }
+            }
+            return raw
+          })()
+        : undefined
+
+    if (
+      renderMethodToken &&
+      !isMenuRenderMethod(renderMethodToken.toUpperCase())
+    ) {
+      throw new Error(
+        `MENU render method "${renderMethodToken}" not recognized in shortcut "${str}". Use NO_ROUNDING, ROUNDED_INVERSION, or NO_INVERSION.`,
+      )
+    }
+
+    return {
+      label,
+      title,
+      options,
+      selectedIndex,
+      renderMethod: renderMethodToken
+        ? normalizeMenuRenderMethod(renderMethodToken)
+        : undefined,
+    }
+  }
+
+  // MENU accepts semantic context keys (e.g. CLONE) and quoted payloads.
+  if (action === Action.MENU) {
+    const payload = rawTarget.trim()
+
+    if (payload.startsWith('"')) {
+      const parsed = parseQuotedMenuPayload(payload)
+      return {
+        action,
+        control: Control.NONE,
+        label: parsed.label,
+        menuContext: normalizeMenuContext(undefined),
+        menuTitle: parsed.title,
+        menuOptions: parsed.options,
+        menuSelectedIndex: parsed.selectedIndex,
+        menuRenderMethod: parsed.renderMethod,
+      }
+    }
+
+    const [contextPartRaw, renderPartRaw] = payload.split(":", 2)
+    const contextPart = contextPartRaw?.trim() ?? ""
+    const renderPart = renderPartRaw?.trim()
+
+    if (renderPart && !isMenuRenderMethod(renderPart.toUpperCase())) {
+      throw new Error(
+        `MENU render method "${renderPart}" not recognized in shortcut "${str}". Use NO_ROUNDING, ROUNDED_INVERSION, or NO_INVERSION.`,
+      )
+    }
+
+    const menuContext = normalizeMenuContext(contextPart)
+    return {
+      action,
+      control: Control.NONE,
+      label: getMenuContextLabel(menuContext),
+      menuContext,
+      menuRenderMethod: renderPart
+        ? normalizeMenuRenderMethod(renderPart)
+        : undefined,
+    }
+  }
+
+  const control = Control[rawTarget.toUpperCase() as keyof typeof Control]
+
   if (control === undefined) {
     throw new Error(
-      `Shortcut control "${controlStr}" not recognized in shortcut "${str}"`,
+      `Shortcut control "${rawTarget}" not recognized in shortcut "${str}"`,
     )
   }
   return {

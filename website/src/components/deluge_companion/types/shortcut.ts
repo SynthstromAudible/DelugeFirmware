@@ -1,4 +1,5 @@
 import { ControlType, Control } from "../data/targets.js"
+import type { MenuRenderMethod } from "../data/menu_contexts.js"
 import type { Views } from "../data/views.js"
 import type { Firmwares } from "../data/firmware.js"
 import type { Action } from "../data/actions.js"
@@ -34,6 +35,11 @@ export type Step = {
   action: Action
   control: Control
   label?: string
+  menuContext?: string
+  menuTitle?: string
+  menuOptions?: string[]
+  menuSelectedIndex?: number
+  menuRenderMethod?: MenuRenderMethod
 }
 
 export type SubstepContainer = {
