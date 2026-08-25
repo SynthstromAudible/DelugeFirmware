@@ -146,6 +146,12 @@
     });
   }
 
+  function clearDisplayFrameOverlay() {
+    svgElement?.querySelectorAll(".dc-display-frame-overlay").forEach((el) => {
+      el.remove();
+    });
+  }
+
   function getFirmwareGlyphForChar(char: string): FirmwareGlyph {
     const upper = char.toUpperCase();
     return FIRMWARE_MENU_GLYPHS[upper] ?? FIRMWARE_MENU_GLYPHS["?"];
@@ -450,6 +456,47 @@
     }
   }
 
+  function renderDisplayFrameOverlay() {
+    if (!svgElement) {
+      return;
+    }
+
+    const displayAnchor = getDisplayAnchor();
+    if (!displayAnchor.host) {
+      return;
+    }
+
+    const { x, y, width, height } = displayAnchor.rect;
+    const frameMaskPadding = 1.2;
+
+    const overlayGroup = createSvgElement("g");
+    overlayGroup.setAttribute("class", "dc-display-frame-overlay");
+
+    // Mask the baked-in frame first, then redraw one uniform thin white border.
+    const maskRect = createSvgElement("rect");
+    maskRect.setAttribute("x", `${x - frameMaskPadding}`);
+    maskRect.setAttribute("y", `${y - frameMaskPadding}`);
+    maskRect.setAttribute("width", `${width + frameMaskPadding * 2}`);
+    maskRect.setAttribute("height", `${height + frameMaskPadding * 2}`);
+    maskRect.setAttribute("fill", "rgb(0,0,0)");
+    maskRect.setAttribute("stroke", "none");
+    overlayGroup.appendChild(maskRect);
+
+    const frameRect = createSvgElement("rect");
+    frameRect.setAttribute("x", `${x}`);
+    frameRect.setAttribute("y", `${y}`);
+    frameRect.setAttribute("width", `${width}`);
+    frameRect.setAttribute("height", `${height}`);
+    frameRect.setAttribute("fill", "none");
+    frameRect.setAttribute("stroke", "rgb(231,232,233)");
+    frameRect.setAttribute("stroke-opacity", "0.72");
+    frameRect.setAttribute("stroke-width", "0.45");
+    frameRect.setAttribute("shape-rendering", "geometricPrecision");
+    overlayGroup.appendChild(frameRect);
+
+    displayAnchor.host.appendChild(overlayGroup);
+  }
+
   function appendDemoOverlay(target: Element, fill: string, stroke: string) {
     if (!svgElement || !(target instanceof SVGGraphicsElement)) return;
 
@@ -674,6 +721,7 @@
     clearTurnIndicators(svgElement);
     clearDemoOverlays();
     clearMenuOverlay();
+    clearDisplayFrameOverlay();
 
     // Add highlights to matched elements
     highlightedIds.forEach((id) => {
@@ -724,6 +772,7 @@
       }
     });
 
+    renderDisplayFrameOverlay();
     renderMenuOverlay();
   }
 </script>
@@ -794,6 +843,10 @@
   }
 
   :global(.dc-context-menu-overlay) {
+    pointer-events: none;
+  }
+
+  :global(.dc-display-frame-overlay) {
     pointer-events: none;
   }
 
