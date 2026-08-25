@@ -2769,6 +2769,12 @@ void SessionView::transitionToViewForClip(Clip* clip) {
 	if (clip->onAutomationClipView && !onKeyboardScreen) {
 		currentUIMode = UI_MODE_INSTRUMENT_CLIP_EXPANDING;
 
+		// Transition pre-render can happen before AutomationView::opened(). Force clip context so we don't
+		// accidentally render stale arranger automation state into the animation store.
+		automationView.onArrangerView = false;
+		automationView.navSysId = automationView.getNavSysId();
+		automationView.setAutomationParamType();
+
 		// Store rows 1..kDisplayHeight hold the visible clip rows; rows 0 and kDisplayHeight + 1 are reserved for
 		// offscreen rows so sidebar pads can animate the full height.
 		automationView.renderMainPads(0xFFFFFFFF, &PadLEDs::imageStore[1], &PadLEDs::occupancyMaskStore[1], false);
@@ -4582,6 +4588,12 @@ void SessionView::gridTransitionToViewForClip(Clip* clip) {
 	// over automation and instrument clip views.
 	if (clip->onAutomationClipView && !onKeyboardScreen) {
 		PadLEDs::explodeAnimationYOriginBig = clipY << 16;
+
+		// Transition pre-render can happen before AutomationView::opened(). Force clip context so we don't
+		// accidentally render stale arranger automation state into the animation store.
+		automationView.onArrangerView = false;
+		automationView.navSysId = automationView.getNavSysId();
+		automationView.setAutomationParamType();
 
 		if (clip->type == ClipType::INSTRUMENT) {
 			instrumentClipView.recalculateColours();

@@ -423,11 +423,11 @@ void AutomationView::initializeView() {
 	// let the view know if we're dealing with an automation parameter or a note parameter
 	setAutomationParamType();
 
-	InstrumentClip* clip = getCurrentInstrumentClip();
-	Output* output = clip->output;
-	OutputType outputType = output->type;
-
 	if (!onArrangerView) {
+		InstrumentClip* clip = getCurrentInstrumentClip();
+		Output* output = clip->output;
+		OutputType outputType = output->type;
+
 		// only applies to instrument clips (not audio)
 		if (clip) {
 			// check if we for some reason, left the automation view, then switched clip types, then came back in
@@ -457,13 +457,13 @@ void AutomationView::initializeView() {
 				indicator_leds::setLedState(IndicatorLED::CROSS_SCREEN_EDIT, inNoteEditor());
 			}
 		}
-	}
 
-	// if we're in the note editor and we're in a kit,
-	// check that the lastAuditionedYDisplay is in sync with the selected drum
-	if (inNoteEditor()) {
-		if (outputType == OutputType::KIT) {
-			potentiallyVerticalScrollToSelectedDrum(clip, output);
+		// if we're in the note editor and we're in a kit,
+		// check that the lastAuditionedYDisplay is in sync with the selected drum
+		if (inNoteEditor()) {
+			if (outputType == OutputType::KIT) {
+				potentiallyVerticalScrollToSelectedDrum(clip, output);
+			}
 		}
 	}
 }
@@ -3199,7 +3199,7 @@ bool AutomationView::inAutomationEditor() {
 
 void AutomationView::setAutomationParamType() {
 	automationParamType = AutomationParamType::PER_SOUND;
-	if (!inAutomationEditor()) {
+	if (!onArrangerView && !inAutomationEditor()) {
 		Clip* clip = getCurrentClip();
 		if (isNoteVelocityEditorShortcut(clip->lastSelectedParamShortcutX, clip->lastSelectedParamShortcutY)) {
 			automationParamType = AutomationParamType::NOTE_VELOCITY;
