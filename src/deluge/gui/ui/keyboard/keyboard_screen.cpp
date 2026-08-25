@@ -241,6 +241,11 @@ void captureNoteOff(int32_t note) {
 void captureClear() {
 	g_captureCount = 0;
 }
+// Is there anything worth dumping? Decides whether SHIFT+RECORD is ours or belongs to the stock
+// resampling binding, so it is deliberately the cheapest possible question.
+bool captureHasNotes() {
+	return g_captureCount > 0;
+}
 } // namespace
 
 // Dump the captured noodle into the current clip (melodic only). Mirrors the live-record path
@@ -740,7 +745,17 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 	}
 
 	// Retrospective MIDI capture: SHIFT + RECORD dumps the background noodle buffer into this clip.
-	else if (b == RECORD && on && Buttons::isShiftButtonPressed()
+	//
+	// SHIFT+RECORD already means something in stock firmware: it starts output recording
+	// (resampling) via buttons.cpp. Claiming the combo unconditionally would take resampling away
+	// from anyone standing in a keyboard layout, because a UI handler returning DEALT_WITH stops
+	// buttons.cpp from ever seeing the press.
+	//
+	// So only claim it when there is actually a noodle to dump. An empty buffer falls through
+	// untouched and resampling behaves exactly as it always has. In other words the combo is only
+	// borrowed in the one situation where the user demonstrably played something, which is the only
+	// situation where they could have meant "capture that".
+	else if (b == RECORD && on && Buttons::isShiftButtonPressed() && captureHasNotes()
 	         && runtimeFeatureSettings.get(RuntimeFeatureSettingType::RetrospectiveCapture)
 	                == RuntimeFeatureStateToggle::On) {
 		if (inCardRoutine) {
