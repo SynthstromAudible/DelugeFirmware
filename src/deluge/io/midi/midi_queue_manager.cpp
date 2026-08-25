@@ -127,70 +127,7 @@ constexpr int32_t k_serial_buffered_cc_bytes_cap = 24;
 
 } // namespace
 
-/// Classifies an outgoing MIDI message into shared queue priorities.
-
-/* MIDI Queue Manager USB Transport
- *
- * This class manages a per-device USB-MIDI queue with multiple priority lanes.
- * It is used by ConnectedUSBMIDIDevice to stage outgoing messages for USB transfer.
- *
- * When a USB send transaction starts, the ConnectedUSBMIDIDevice calls into this queue manager
- * to consume queued messages and fill the transfer buffer. The transfer buffer is then sent
- * to the device via the USB driver.
- *
- * After a USB send transaction completes, the ConnectedUSBMIDIDevice may call into this
- * queue manager again to consume more queued messages if any remain.
- *
- * Priority lanes are drained in strict order: clock > notes > expression > CC > SysEx.
- *
- * CC messages may be coalesced into an existing queued entry instead of appended,
- * to avoid sending stale values when a later message has already superseded it.
- *
- * The queue manager also tracks whether a SysEx stream is active, and keeps draining
- * only SysEx events until the terminating event is sent. This prevents interleaving
- * other MIDI traffic into a SysEx stream that may be split across multiple transfers.
- *
- * The queue manager does not handle USB transfer logic or callbacks; it only manages
- * the queued messages and their priorities. The ConnectedUSBMIDIDevice class handles
- * the actual USB send transactions and calls into this queue manager to get the next
- * messages to send.
- *
- * Message queueing flow (Normal messages):
- * Source
- *  -> MIDIMessage
- *  -> MIDICableUSB::sendMessage or MidiEngine::sendUsbMidi
- *  -> setupUSBMessage
- *  -> add virtual cable number
- *  -> ConnectedUSBMIDIDevice::enqueue_message
- *  -> MIDIQueueManagerUSB::enqueue_message
- *  -> classify_packed_usb_priority
- *  -> message is queued into correct priority lane
- *
- * Message queuing flow (SysEx messages):
- * Source
- *  -> SysEx bytes
- *  -> MIDICableUSB::sendSysex
- *  -> USB-MIDI event chunks
- *  -> ConnectedUSBMIDIDevice::enqueue_message
- *  -> MIDIQueueManagerUSB::enqueue_message
- *  -> message is queued into QUEUE_PRIORITY_SYSEX priority lane
- *
- * Message sending flow:
- * MidiEngine::flushMIDI
- *   -> MidiEngine::flushUSBMIDIOutput
- *   -> ConnectedUSBMIDIDevice::consume_queued_messages
- *   -> MIDIQueueManagerUSB::consume_queued_messages
- *   -> message is drained into dataSendingNow buffer in priority order
- *   -> usb_send_start_rohan sends the dataSendingNow buffer to the connected USB device
-
- * usbSendCompleteAsHost / usbSendCompleteAsPeripheral
- *   -> ConnectedUSBMIDIDevice::consume_queued_messages
- *   -> MIDIQueueManagerUSB::consume_queued_messages
- *   -> any remaining queued messages are drained into dataSendingNow buffer in priority order
- *   -> usb_send_start_rohan sends the dataSendingNow buffer to the connected USB device
- */
-
-/// Resets all USB per-priority queues and CC scheduling bookkeeping.
+// Resets all USB per-priority queues and CC scheduling bookkeeping.
 void MIDIQueueManagerUSB::reset_queue_storage() {
 	queue_manager_.clear_all();
 	sysex_drain_active_ = false;
@@ -273,7 +210,7 @@ void MIDIQueueManagerUSB::enqueue_message(uint32_t full_message, MIDIIntent inte
 	}
 }
 
-/// Drains queued USB messages into the smaller `dataSendingNow` transfer buffer.
+// Drains queued USB messages into the smaller `dataSendingNow` transfer buffer.
 bool MIDIQueueManagerUSB::consume_queued_messages(uint8_t* data_sending_now, uint8_t& num_bytes_sending_now,
                                                   bool usb_host_mode) {
 	// Snapshot total queued messages across all priority lanes.
@@ -284,14 +221,11 @@ bool MIDIQueueManagerUSB::consume_queued_messages(uint8_t* data_sending_now, uin
 	}
 
 	int32_t i = 0;
-	// bfredl:
-	// many devices do not accept more than 64 bytes of data at a time
-	// likely this can be inferred from the device metadata somehow?
-
-	// Mark Adams:
-	// some seem to take even less, especially with hubs involved. The hydrasynth seems to only respond to a max of
-	// 2 messages per transfer, the third gets blocked. For MPE this leads to ignoring note ons as the x and y
-	// resets are sent before the note on
+	// Many devices do not accept more than 64 bytes of data at a time (this may be
+	// inferable from device metadata). Some accept even less, especially through hubs:
+	// the Hydrasynth only responds to a max of 2 messages per transfer, and the third
+	// gets blocked. For MPE this leads to note-ons being ignored, since the X/Y resets
+	// are sent before the note-on.
 	uint32_t max_size = usb_host_mode ? MIDI_SEND_BUFFER_LEN_INNER_HOST : MIDI_SEND_BUFFER_LEN_INNER;
 	// Build at most one USB transfer worth of messages: no more than queued, and no more than the mode/device cap.
 	int32_t to_send = std::min<uint32_t>(queued, max_size);
@@ -560,79 +494,13 @@ bool MIDIQueueManagerUSB::remove_cc_message_at(uint16_t target_offset, uint32_t&
 	return true;
 }
 
-/* MIDI Queue Manager DIN Transport
- *
- * This class manages the per-device DIN/serial MIDI queue with multiple priority lanes.
- * It is used by ConnectedDINMIDIDevice to stage outgoing MIDI before bytes are accepted
- * by the UART transmit buffer.
- *
- * Normal channel/system messages are encoded into raw serial MIDI bytes when queued.
- * SysEx is queued as one complete raw byte stream, all-or-nothing, in the SysEx lane.
- *
- * During MidiEngine::flushMIDI, when a DIN send transaction starts, the ConnectedDINMIDIDevice calls into this queue
- * manager to consume queued messages. The queue manager chooses complete MIDI messages or SysEx bytes according to
- * priority, DIN send allowance, and available UART space, then writes the selected bytes with bufferMIDIUart().
- *
- * After bytes are staged in the UART transmit buffer, MidiEngine calls
- * uartFlushIfNotSending() so the UART can continue sending them on the DIN port.
- *
- * After the DIN send transaction completes, future flushes call back into this queue manager to move more queued bytes
- * when pacing and UART space allow it.
- *
- * Priority lanes are drained in strict order: clock > notes > expression > CC > SysEx.
- *
- * CC messages may be coalesced into an existing queued entry instead of appended,
- * to avoid sending stale values when a later message has already superseded it.
- *
- * The queue manager also tracks whether a SysEx stream is active, and keeps draining
- * only SysEx bytes until 0xF7 is sent. This prevents interleaving other MIDI traffic
- * into a SysEx stream.
- *
- * DIN has much less bandwidth than USB, so the queue manager paces how many bytes can
- * move into the UART on each flush and limits how much low-priority CC traffic can be
- * staged ahead of later clock/note traffic.
- *
- * The queue manager does not handle UART flush state or hardware callbacks; it only
- * manages queued bytes and their priorities. MidiEngine drives the flush cadence and
- * the UART layer sends bytes after they are accepted by bufferMIDIUart().
- *
- * Message queueing flow (Normal messages):
- * Source
- *  -> MIDIMessage
- *  -> MIDICableDINPorts::sendMessage or MidiEngine::sendMidi
- *  -> MidiEngine::sendSerialMidi
- *  -> ConnectedDINMIDIDevice::enqueue_message
- *  -> MIDIQueueManagerDIN::enqueue_message
- *  -> classify_message
- *  -> message is queued into correct priority lane
- *
- * Message queueing flow (SysEx messages):
- * Source
- *  -> SysEx bytes
- *  -> MIDICableDINPorts::sendSysex
- *  -> MidiEngine::sendSerialSysex
- *  -> ConnectedDINMIDIDevice::enqueue_sysex
- *  -> MIDIQueueManagerDIN::enqueue_sysex
- *  -> message is queued into QUEUE_PRIORITY_SYSEX priority lane
- *
- * Message sending flow:
- * MidiEngine::flushMIDI
- *   -> ConnectedDINMIDIDevice::consume_queued_messages
- *   -> MIDIQueueManagerDIN::consume_queued_messages
- *   -> bufferMIDIUart
- *   -> uartFlushIfNotSending
- *   -> UART TX buffer
- *   -> UART driver
- *   -> DIN serial output sends the UART TX buffer to the connected DIN device
- */
-
-/// Resets all DIN per-priority queues and CC scheduling bookkeeping.
+// Resets all DIN per-priority queues and CC scheduling bookkeeping.
 void MIDIQueueManagerDIN::reset_queue_storage() {
 	queue_manager_.clear_all();
 	sysex_drain_active_ = false;
 }
 
-/// Resets serial pacing state so the next flush starts from a known baseline.
+// Resets serial pacing state so the next flush starts from a known baseline.
 void MIDIQueueManagerDIN::reset_serial_state(uint32_t now_sample_timer) {
 	// Start allowance accrual from the caller's current audio sample timestamp.
 	serial_allowance_last_update_ = now_sample_timer;
@@ -640,24 +508,24 @@ void MIDIQueueManagerDIN::reset_serial_state(uint32_t now_sample_timer) {
 	serial_allowance_Q8_ = 0;
 }
 
-/// Returns whether any serial-priority lane currently has data pending.
+// Returns whether any serial-priority lane currently has data pending.
 bool MIDIQueueManagerDIN::has_serial_data() const {
 	return queue_manager_.has_any_data();
 }
 
-/// Reports remaining capacity in the raw-byte SysEx queue lane.
+// Reports remaining capacity in the raw-byte SysEx queue lane.
 size_t MIDIQueueManagerDIN::send_buffer_space() const {
 	return queue_manager_.space(static_cast<uint8_t>(QUEUE_PRIORITY_SYSEX));
 }
 
-/// Encodes and enqueues one channel/system MIDI message into serial-priority lanes.
+// Encodes and enqueues one channel/system MIDI message into serial-priority lanes.
 void MIDIQueueManagerDIN::enqueue_message(MIDIMessage message) {
 	// Classify once, then let the enqueue policy decide whether to coalesce or append.
 	QueuePriority priority = MIDIQueueManager::classify_message(message);
 	(void)enqueue_message_with_cc_policy(priority, message);
 }
 
-/// Queues one complete SysEx byte stream into the lowest-priority DIN lane.
+// Queues one complete SysEx byte stream into the lowest-priority DIN lane.
 bool MIDIQueueManagerDIN::enqueue_sysex(uint8_t const* data, int32_t len) {
 	if (data == nullptr || len < 3 || data[0] != k_midi_sysex_start_byte || data[len - 1] != k_midi_sysex_end_byte) {
 		// The drain lock depends on receiving one complete SysEx stream: start byte,
@@ -682,7 +550,7 @@ bool MIDIQueueManagerDIN::enqueue_sysex(uint8_t const* data, int32_t len) {
 	return true;
 }
 
-/// Drains serial-priority queues into UART while enforcing DIN pacing and strict priority gates.
+// Drains serial-priority queues into UART while enforcing DIN pacing and strict priority gates.
 void MIDIQueueManagerDIN::consume_queued_messages(uint32_t now_sample_timer) {
 	if (!has_serial_data()) {
 		// Fast exit when all lanes are empty; avoids pacing/space calculations.

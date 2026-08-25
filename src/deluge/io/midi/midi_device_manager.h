@@ -34,37 +34,39 @@ struct MIDICableUSB;
 #endif
 
 #ifdef __cplusplus
-/*
- * A ConnectedUSBMIDIDevice is used directly to interface with the USB driver
- * ConnectedUSBMIDIDevice holds per-device USB MIDI transfer state.
- *
- * Outgoing MIDI is queued in a private MIDIQueueManagerUSB, drained into
- * dataSendingNow when a USB transfer starts, and sent with dataSendingNow as the
- * USB pipe transfer buffer. Sends can also be triggered by the midiAndGateOutput
- * interrupt.
- *
- * Reads are more complicated.
- * Actual reads are done by usb_cstd_usb_task, which has a commented out interrupt associated
- * The function is instead called in the midiengine::checkincomingUSBmidi function, which is called
- * in the audio engine loop
- *
- * The USB read function is configured by setupUSBHostReceiveTransfer, which is called to
- * setup the next device after each successful read. Data is written directly into the receiveData
- * array from the USB device, it's set as the USB pipe address during midi engine setup
- */
+/// @brief Per-device USB MIDI transfer state, used directly by the USB driver.
+///
+/// Outgoing MIDI is queued in a private MIDIQueueManagerUSB, drained into dataSendingNow
+/// when a USB transfer starts, and sent with dataSendingNow as the USB pipe transfer
+/// buffer. Sends can also be triggered by the midiAndGateOutput interrupt.
+///
+/// Reads are more complicated. Actual reads are done by usb_cstd_usb_task, which has a
+/// commented-out interrupt associated; the function is instead called from
+/// MidiEngine::checkIncomingUsbMidi(), which runs in the audio engine loop.
+///
+/// The USB read function is configured by setupUSBHostReceiveTransfer(), which is called
+/// to set up the next device after each successful read. Data is written directly into
+/// the receiveData array from the USB device; it's set as the USB pipe address during
+/// MIDI engine setup.
 class ConnectedUSBMIDIDevice {
 public:
 	MIDICableUSB* cable[4]; // If NULL, then no cable is connected here
 	ConnectedUSBMIDIDevice();
-	/// Classifies, optionally coalesces, and enqueues one outgoing MIDI message into USB priority lanes.
+	/// @brief Classify, optionally coalesce, and enqueue one outgoing MIDI message into USB priority lanes.
+	/// @param fullMessage Packed MIDI message word to send.
+	/// @param intent      Classification hint used to select the queue lane and coalescing behavior.
 	void enqueue_message(uint32_t fullMessage, MIDIIntent intent);
 	void setup();
-	/// Drains queued USB messages into the hardware-send buffer.
+	/// @brief Drain queued USB messages into dataSendingNow, the hardware-send buffer.
+	/// @return True if messages were drained and a transfer should be started; false if nothing was queued.
 	bool consume_queued_messages();
-	/// Queue occupancy check (boolean form): true when any USB lane has queued output.
+	/// @brief Queue occupancy check (boolean form): true when any USB lane has queued output.
+	///
 	/// Conceptually matches DIN `has_serial_data()`.
+	/// @return True if at least one USB priority lane holds queued output.
 	bool hasBufferedSendData();
-	/// Remaining USB queue capacity reported as MIDI payload bytes.
+	/// @brief Remaining USB queue capacity.
+	/// @return Free queue space, reported as MIDI payload bytes across all priority lanes.
 	int sendBufferSpace();
 #else
 // warning - accessed as a C struct from usb driver
@@ -90,35 +92,49 @@ struct ConnectedUSBMIDIDevice {
 #ifdef __cplusplus
 
 private:
-	/// Outgoing priority-queue state for this device.
+	/// @brief Accessor for this device's outgoing priority-queue state.
 	///
-	/// The storage deliberately lives outside this struct, in a parallel array in midi_device_manager.cpp.
-	/// The USB driver compiles this type as the plain C struct above and indexes connectedUSBMIDIDevices[][]
-	/// directly, so a C++-only data member would make sizeof() - and therefore the array stride - differ
-	/// between the C and C++ views, sending C-side accesses to device N to the wrong address.
-	/// Member functions are fine here; only data members affect layout.
+	/// @warning The queue storage deliberately lives outside this struct, in a parallel array in
+	///          midi_device_manager.cpp - it must not become a data member here. The USB driver compiles
+	///          this type as the plain C struct above and indexes connectedUSBMIDIDevices[][] directly, so
+	///          C and C++ must agree on sizeof(ConnectedUSBMIDIDevice). A C++-only data member would make
+	///          sizeof() - and therefore the array stride - differ between the C and C++ views, sending
+	///          C-side accesses to device N to the wrong address. Member functions are fine here; only
+	///          data members affect layout.
+	/// @return Reference to this device's MIDIQueueManagerUSB.
 	MIDIQueueManagerUSB& queue_manager();
 #endif
 };
 
 #ifdef __cplusplus
+/// @brief Per-DIN-port outgoing MIDI state: priority queues plus send pacing/allowance.
 class ConnectedDINMIDIDevice {
 public:
 	ConnectedDINMIDIDevice();
 
-	/// Resets DIN pacing/allowance state to a known baseline at the provided sample timestamp.
-	/// Note: this does not clear queued DIN bytes.
+	/// @brief Reset DIN pacing/allowance state to a known baseline at the given sample timestamp.
+	///
+	/// @note Does not clear already-queued DIN bytes.
+	/// @param now_sample_timer Current audio sample timer value.
 	void reset_serial_state(uint32_t now_sample_timer);
-	/// Queue occupancy check (boolean form): true when any DIN lane has queued output.
+	/// @brief Queue occupancy check (boolean form): true when any DIN lane has queued output.
+	///
 	/// Conceptually matches USB `hasBufferedSendData()`.
+	/// @return True if at least one DIN priority lane holds queued output.
 	[[nodiscard]] bool has_serial_data() const;
-	/// Remaining DIN queue capacity for raw SysEx bytes.
+	/// @brief Remaining DIN queue capacity for raw SysEx bytes.
+	/// @return Free space, in bytes.
 	[[nodiscard]] size_t send_buffer_space() const;
-	/// Classifies, optionally coalesces, and enqueues one outgoing MIDI message into DIN priority lanes.
+	/// @brief Classify, optionally coalesce, and enqueue one outgoing MIDI message into DIN priority lanes.
+	/// @param message MIDI message to send.
 	void enqueue_message(MIDIMessage message);
-	/// Queues one complete SysEx byte stream into DIN priority lanes.
+	/// @brief Queue one complete SysEx byte stream into DIN priority lanes.
+	/// @param data Pointer to the SysEx byte stream, including the leading 0xF0 and trailing 0xF7.
+	/// @param len  Length of @p data in bytes.
+	/// @return True if the stream was queued; false if it was malformed or there was insufficient space.
 	bool enqueue_sysex(uint8_t const* data, int32_t len);
-	/// Drains queued DIN bytes into UART using send allowance, lane priorities, and CC gating.
+	/// @brief Drain queued DIN bytes into UART using send allowance, lane priorities, and CC gating.
+	/// @param now_sample_timer Current audio sample timer value, used for pacing.
 	void consume_queued_messages(uint32_t now_sample_timer);
 
 private:
@@ -157,5 +173,6 @@ extern bool anyChangesToSave;
 
 extern struct ConnectedUSBMIDIDevice connectedUSBMIDIDevices[][MAX_NUM_USB_MIDI_DEVICES];
 #ifdef __cplusplus
+/// The single DIN MIDI port's outgoing queue/pacing state.
 extern ConnectedDINMIDIDevice connectedDINMIDIDevice;
 #endif

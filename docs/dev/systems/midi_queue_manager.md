@@ -1,9 +1,8 @@
 # MIDI Queue Manager
 
-This document explains how the MIDI Queue Manager works. It describes the
-outgoing MIDI flow before and after the queue manager changes, the priority
-lanes used for scheduling, and the special handling used for dense MIDI CC
-traffic.
+This document explains how the MIDI Queue Manager works: how outgoing MIDI is classified into
+priority lanes, how those lanes are drained for each transport, and the special handling that keeps
+dense CC traffic from delaying clock and notes.
 
 ## Solution description
 
@@ -40,7 +39,7 @@ low-priority traffic than the MIDI link can drain, especially over DIN where
 serial bandwidth is much lower than USB. Without special handling, a burst of
 ordinary CCs can sit ahead of later clock or note messages and cause jitter.
 
-For ordinary CCs, the queue manager combines two strategies. First, it coalesces
+For CCs a sender has marked `Continuous`, the queue manager combines two strategies. First, it coalesces
 stale queued values: if a new CC arrives for the same status/channel and CC
 number as one already waiting in the CC lane, the queued value byte is replaced
 with the latest value instead of appending another message. Second, it schedules
@@ -54,9 +53,8 @@ for higher-priority MIDI.
 
 Outgoing MIDI can contain a mix of very time-sensitive messages, such as clock
 and notes, and less time-sensitive messages, such as CC's and SysEx. If
-all messages are sent strictly in arrival order, as was done previously, a burst
-of low-priority data can sit ahead of later clock or note messages and cause
-timing jitter.
+all messages are sent strictly in arrival order, a burst of low-priority data can
+sit ahead of later clock or note messages and cause timing jitter.
 
 The MIDI Queue Manager adds per-priority queues between "a message was produced"
 and "the transport is ready to send bytes". USB and DIN keep their
@@ -66,23 +64,6 @@ transport-specific details, but they share the same policy for:
 - coalescing stale queued CC values,
 - choosing which CC should be scheduled next, and
 - avoiding partial channel messages.
-
-### Previous First-in, First-out (FIFO) behavior
-
-The previous implementation did not classify outgoing MIDI by priority. Once a
-message reached the transport, ordering was effectively FIFO within that
-transport path.
-
-For USB, messages were appended to the per-device `sendDataRingBuf` by
-`ConnectedUSBMIDIDevice::bufferMessage()`. `consumeSendData()` later copied
-entries out of that ring in the same order into `dataSendingNow` for the USB
-driver. For DIN, messages and SysEx bytes were written into the UART TX buffer
-with `bufferMIDIUart()`, and the UART drained accepted bytes in FIFO order.
-
-That FIFO behavior preserved arrival order, but it also meant ordinary CC or
-SysEx traffic already in the buffer could sit ahead of later clock, note, or
-expression messages. The queue manager changes that by inserting priority lanes
-before the transport drain.
 
 ## Terms
 
@@ -104,264 +85,53 @@ The shared priority order is:
 | --- | --- | --- |
 | `QUEUE_PRIORITY_CLOCK` | System/realtime messages | Highest priority. DIN drains these one byte at a time. |
 | `QUEUE_PRIORITY_NOTES` | Note on/off | Timing-sensitive channel voice messages. |
-| `QUEUE_PRIORITY_EXPRESSION` | Poly aftertouch, channel aftertouch, pitch bend, mod wheel CC, MPE Y CC | Expressive performance data that should sit ahead of ordinary CC's |
-| `QUEUE_PRIORITY_CC` | Other CC messages and fallback channel messages | Lowest-priority channel voice lane. Uses CC coalescing and scheduled dequeue. |
+| `QUEUE_PRIORITY_EXPRESSION` | Poly aftertouch, channel aftertouch, pitch bend, mod wheel CC, MPE Y CC, and every discrete `Event` CC or program change | Expressive performance data, plus anything that must keep its order and its duplicate values. Strictly FIFO; never coalesced. |
+| `QUEUE_PRIORITY_CC` | `Continuous` CC messages only | Lowest-priority channel voice lane, and the only lane that coalesces and reorders. See [Message intent](#message-intent). |
 | `QUEUE_PRIORITY_SYSEX` | USB SysEx event chunks and DIN SysEx bytes | Lowest priority until a SysEx stream starts draining. Once started, transport units are sent contiguously until the ending USB event or DIN `0xF7` byte. |
 
-## Before / after flow diagram
+## Architecture
 
-This diagram shows the main architectural change. The MIDI Queue Manager flow is
-shown first, and the previous flow is shown below it. Each row flows left to
-right from message source to transport output. Solid arrows show message flow;
-dotted lines show shared policy used by both queue managers. The source box is
-repeated per transport row for readability; it represents the same outgoing MIDI
-sources. Green boxes are new queue-manager components; the red box is the
-previous queued-send buffer that was removed.
+Each row flows left to right from message source to transport output. Solid arrows show message flow;
+dotted lines show the shared policy both queue managers use.
 
 ```mermaid
 flowchart TB
-  subgraph AFTER["MIDI Queue Manager flow"]
+  subgraph FLOW["MIDI Queue Manager flow"]
     direction TB
 
-    subgraph A_USB_ROW[" "]
+    subgraph USB_ROW[" "]
       direction LR
-      A_USB_SRC["Outgoing MIDI sources"]
-      A_USB_FORMAT["USB: setupUSBMessage or SysEx chunking"]
-      A_USB_QUEUE["MIDIQueueManagerUSB priority lanes"]
-      A_USB_DRAIN["USB scheduled drain"]
-      A_USB_TRANSFER["dataSendingNow -> USB driver"]
+      USB_SRC["Outgoing MIDI sources"]
+      USB_FORMAT["USB: setupUSBMessage or SysEx chunking"]
+      USB_QUEUE["MIDIQueueManagerUSB priority lanes"]
+      USB_DRAIN["USB scheduled drain"]
+      USB_TRANSFER["dataSendingNow -> USB driver"]
 
-      A_USB_SRC --> A_USB_FORMAT --> A_USB_QUEUE --> A_USB_DRAIN --> A_USB_TRANSFER
+      USB_SRC --> USB_FORMAT --> USB_QUEUE --> USB_DRAIN --> USB_TRANSFER
     end
 
-    A_POLICY["Shared policy: classify messages, coalesce CC values, schedule CCs"]
+    POLICY["Shared policy: classify messages, coalesce CC values, schedule CCs"]
 
-    subgraph A_DIN_ROW[" "]
+    subgraph DIN_ROW[" "]
       direction LR
-      A_DIN_SRC["Outgoing MIDI sources"]
-      A_DIN_FORMAT["DIN: sendSerialMidi or sendSerialSysex"]
-      A_DIN_QUEUE["MIDIQueueManagerDIN priority lanes"]
-      A_DIN_DRAIN["DIN paced scheduled drain"]
-      A_DIN_UART["UART TX buffer"]
-      A_DIN_WIRE["DIN serial output"]
+      DIN_SRC["Outgoing MIDI sources"]
+      DIN_FORMAT["DIN: sendSerialMidi or sendSerialSysex"]
+      DIN_QUEUE["MIDIQueueManagerDIN priority lanes"]
+      DIN_DRAIN["DIN paced scheduled drain"]
+      DIN_UART["UART TX buffer"]
+      DIN_WIRE["DIN serial output"]
 
-      A_DIN_SRC --> A_DIN_FORMAT --> A_DIN_QUEUE --> A_DIN_DRAIN --> A_DIN_UART --> A_DIN_WIRE
+      DIN_SRC --> DIN_FORMAT --> DIN_QUEUE --> DIN_DRAIN --> DIN_UART --> DIN_WIRE
     end
 
-    A_USB_QUEUE -.- A_POLICY
-    A_POLICY -.- A_DIN_QUEUE
+    USB_QUEUE -.- POLICY
+    POLICY -.- DIN_QUEUE
   end
 
-  subgraph BEFORE["Previous flow"]
-    direction TB
-
-    subgraph B_USB_ROW[" "]
-      direction LR
-      B_USB_SRC["Outgoing MIDI sources"]
-      B_USB_FORMAT["USB: setupUSBMessage or SysEx chunking"]
-      B_USB_BUFFER["sendDataRingBuf queued USB ring"]
-      B_USB_TRANSFER["dataSendingNow -> USB driver"]
-
-      B_USB_SRC --> B_USB_FORMAT --> B_USB_BUFFER --> B_USB_TRANSFER
-    end
-
-    subgraph B_DIN_ROW[" "]
-      direction LR
-      B_DIN_SRC["Outgoing MIDI sources"]
-      B_DIN_BYTES["DIN: sendSerialMidi or sendSysex"]
-      B_DIN_UART["UART TX buffer"]
-      B_DIN_WIRE["DIN serial output"]
-
-      B_DIN_SRC --> B_DIN_BYTES --> B_DIN_UART --> B_DIN_WIRE
-    end
-
-    B_USB_SRC ~~~ B_DIN_SRC
-  end
-
-  A_DIN_SRC ~~~ B_USB_SRC
-
-  style AFTER fill:transparent,stroke:transparent
-  style BEFORE fill:transparent,stroke:transparent
-  style A_USB_ROW fill:transparent,stroke:transparent
-  style A_DIN_ROW fill:transparent,stroke:transparent
-  style B_USB_ROW fill:transparent,stroke:transparent
-  style B_DIN_ROW fill:transparent,stroke:transparent
-  classDef addedComponent fill:#183d2a,stroke:#3fb950,stroke-width:2px,color:#ffffff
-  classDef removedComponent fill:#4a1f24,stroke:#f85149,stroke-width:2px,color:#ffffff
-  class A_USB_QUEUE,A_USB_DRAIN,A_POLICY,A_DIN_QUEUE,A_DIN_DRAIN addedComponent
-  class B_USB_BUFFER removedComponent
+  style FLOW fill:transparent,stroke:transparent
+  style USB_ROW fill:transparent,stroke:transparent
+  style DIN_ROW fill:transparent,stroke:transparent
 ```
-
-## High-level data flow comparison
-
-These tables compare the previous path with the queue-manager path. Function
-names in the "Before" columns refer to the previous implementation.
-<mark>Highlighted</mark> steps are the parts that changed.
-
-### USB before / after
-
-<table>
-<thead>
-<tr>
-<th>Flow</th>
-<th>Before MIDI Queue Manager</th>
-<th>After MIDI Queue Manager</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Normal MIDI messages</td>
-<td><pre><code>Source
-  -> MIDIMessage
-  -> MIDICableUSB::sendMessage or MidiEngine::sendUsbMidi
-  -> setupUSBMessage
-  -> <mark>ConnectedUSBMIDIDevice::bufferMessage</mark>
-  -> <mark>sendDataRingBuf queued USB ring</mark></code></pre></td>
-<td><pre><code>Source
-  -> MIDIMessage
-  -> MIDICableUSB::sendMessage or MidiEngine::sendUsbMidi
-  -> setupUSBMessage
-  -> <mark>add virtual cable number</mark>
-  -> <mark>ConnectedUSBMIDIDevice::enqueue_message</mark>
-  -> <mark>MIDIQueueManagerUSB::enqueue_message</mark>
-  -> <mark>classify_packed_usb_priority</mark>
-  -> <mark>message is queued into correct priority lane</mark></code></pre></td>
-</tr>
-<tr>
-<td>SysEx</td>
-<td><pre><code>Source
-  -> SysEx bytes
-  -> MIDICableUSB::sendSysex
-  -> USB-MIDI event chunks
-  -> <mark>ConnectedUSBMIDIDevice::bufferMessage</mark>
-  -> <mark>sendDataRingBuf queued USB ring</mark></code></pre></td>
-<td><pre><code>Source
-  -> SysEx bytes
-  -> MIDICableUSB::sendSysex
-  -> USB-MIDI event chunks
-  -> <mark>ConnectedUSBMIDIDevice::enqueue_message</mark>
-  -> <mark>MIDIQueueManagerUSB::enqueue_message</mark>
-  -> <mark>message is queued into QUEUE_PRIORITY_SYSEX priority lane</mark></code></pre></td>
-</tr>
-<tr>
-<td>Flush / transfer start</td>
-<td><pre><code>MidiEngine::flushMIDI
-  -> MidiEngine::flushUSBMIDIOutput
-  -> <mark>ConnectedUSBMIDIDevice::consumeSendData</mark>
-  -> dataSendingNow
-  -> usb_send_start_rohan</code></pre></td>
-<td><pre><code>MidiEngine::flushMIDI
-  -> MidiEngine::flushUSBMIDIOutput
-  -> <mark>ConnectedUSBMIDIDevice::consume_queued_messages</mark>
-  -> <mark>MIDIQueueManagerUSB::consume_queued_messages</mark>
-  -> dataSendingNow
-  -> usb_send_start_rohan sends the dataSendingNow buffer to the connected USB device</code></pre></td>
-</tr>
-<tr>
-<td>Transfer completion</td>
-<td><pre><code>usbSendCompleteAsHost / usbSendCompleteAsPeripheral
-  -> <mark>consume more buffered data for the same device</mark>
-  -> start the next USB transfer</code></pre></td>
-<td><pre><code>usbSendCompleteAsHost / usbSendCompleteAsPeripheral
-  -> <mark>ConnectedUSBMIDIDevice::consume_queued_messages</mark>
-  -> <mark>MIDIQueueManagerUSB::consume_queued_messages</mark>
-  -> <mark>any remaining queued messages are drained into dataSendingNow buffer in priority order</mark>
-  -> <mark>usb_send_start_rohan sends the dataSendingNow buffer to the connected USB device</mark></code></pre></td>
-</tr>
-</tbody>
-</table>
-
-### DIN before / after
-
-<table>
-<thead>
-<tr>
-<th>Flow</th>
-<th>Before MIDI Queue Manager</th>
-<th>After MIDI Queue Manager</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td>Channel/system messages</td>
-<td><pre><code>Source
-  -> MIDIMessage
-  -> MIDICableDINPorts::sendMessage or MidiEngine::sendMidi
-  -> MidiEngine::sendSerialMidi
-  -> <mark>bufferMIDIUart</mark>
-  -> <mark>UART TX buffer</mark></code></pre></td>
-<td><pre><code>Source
-  -> MIDIMessage
-  -> MIDICableDINPorts::sendMessage or MidiEngine::sendMidi
-  -> MidiEngine::sendSerialMidi
-  -> <mark>ConnectedDINMIDIDevice::enqueue_message</mark>
-  -> <mark>MIDIQueueManagerDIN::enqueue_message</mark>
-  -> <mark>classify_message</mark>
-  -> <mark>priority lane</mark></code></pre></td>
-</tr>
-<tr>
-<td>Flush / UART staging</td>
-<td><pre><code>MidiEngine::flushMIDI
-  -> uartFlushIfNotSending
-  -> UART TX buffer
-  -> UART driver
-  -> DIN serial output</code></pre></td>
-<td><pre><code>MidiEngine::flushMIDI
-  -> <mark>ConnectedDINMIDIDevice::consume_queued_messages</mark>
-  -> <mark>MIDIQueueManagerDIN::consume_queued_messages</mark>
-  -> bufferMIDIUart
-  -> uartFlushIfNotSending
-  -> UART TX buffer
-  -> UART driver
-  -> DIN serial output</code></pre></td>
-</tr>
-<tr>
-<td>SysEx</td>
-<td><pre><code>Source
-  -> SysEx bytes
-  -> MIDICableDINPorts::sendSysex
-  -> bufferMIDIUart
-  -> UART TX buffer</code></pre></td>
-<td><pre><code>Source
-  -> SysEx bytes
-  -> MIDICableDINPorts::sendSysex
-  -> <mark>MidiEngine::sendSerialSysex</mark>
-  -> <mark>ConnectedDINMIDIDevice::enqueue_sysex</mark>
-  -> <mark>MIDIQueueManagerDIN::enqueue_sysex</mark>
-  -> <mark>QUEUE_PRIORITY_SYSEX</mark></code></pre></td>
-</tr>
-</tbody>
-</table>
-
-DIN SysEx now enters `MIDIQueueManagerDIN` instead of writing directly to
-`bufferMIDIUart`. It is queued all-or-nothing in the SysEx lane; once the DIN
-drain starts sending it, the drain stays locked to SysEx until the terminating
-`0xF7` byte has been accepted by the UART buffer.
-
-### Previous SysEx continuity
-
-The previous implementation kept SysEx streams continuous through FIFO ordering
-rather than through an explicit SysEx drain lock.
-
-For USB, `MIDICableUSB::sendSysex()` split one logical SysEx message into
-USB-MIDI event chunks and appended each chunk to `sendDataRingBuf` with
-`ConnectedUSBMIDIDevice::bufferMessage()`. `consumeSendData()` then copied those
-queued USB-MIDI events into `dataSendingNow` in the same FIFO order. Because one
-`sendSysex()` call appended all of its chunks consecutively, the USB drain sent
-those chunks consecutively too, even when the USB transfer size split the stream
-across multiple transfers.
-
-For DIN, `MIDICableDINPorts::sendSysex()` wrote the validated SysEx byte stream
-directly to the UART TX buffer by calling `bufferMIDIUart()` once per byte in a
-tight loop. The UART buffer then drained those accepted bytes in FIFO order, so
-the DIN SysEx bytes stayed contiguous on the serial output. The previous DIN
-path did not reserve space for the whole SysEx; it relied on this direct write
-loop and the existing `MIDI_TX_BUFFER_SIZE` limit.
-
-The queue manager keeps that intended behavior, but makes it explicit: SysEx is
-queued in the SysEx lane, and once a transport starts draining a SysEx stream it
-stays on that lane until the terminating USB-MIDI event or DIN `0xF7` byte has
-been sent.
 
 ## Example flow scenarios
 
@@ -502,6 +272,31 @@ stream across multiple USB transfers, and DIN may still split it across multiple
 `flushMIDI()` calls because of serial pacing, but neither transport interleaves
 other MIDI inside the active SysEx stream.
 
+## Message intent
+
+Coalescing and reordering are opt-in. A sender declares what a message is via `MIDIIntent` on
+`MIDIMessage`, and `classify_message()` routes on it:
+
+- `Event` (the default) - a discrete event. Routed to the expression lane, which is strictly FIFO and
+  never coalesced, so its order and its duplicate values survive. RPN sequences, bank selects, program
+  changes and momentary CCs rely on this.
+- `Continuous` - the current value of a parameter, where a later value supersedes an earlier one. Routed
+  to the CC lane, where it may be coalesced and reordered by CC debt.
+- `NoteBound` - must stay ordered with the note stream. Routed to the notes lane. Used by the MPE
+  expression that initialises a note, and by All Notes Off.
+
+Intent is consumed only by classification. It is not stored per queue entry and cannot be - a USB entry
+is a fully packed `uint32_t` and a DIN entry is a raw byte - so the dequeue path never sees it. Keeping
+`Event` traffic out of the CC lane is what makes the coalescing and debt reordering there
+unconditionally correct.
+
+Because lanes are FIFO, the rule for any ordered sequence is: **messages that must stay ordered relative
+to each other must share a lane.** That is why `NoteBound` exists rather than a separate grouping
+mechanism.
+
+The default is deliberately the conservative one, so that a sender which is never annotated loses
+coalescing (a latency cost) rather than ordering (a correctness cost).
+
 ## CC coalescing and scheduling
 
 The CC lane has extra logic because ordinary CC automation can generate many
@@ -509,8 +304,8 @@ messages faster than MIDI can send them, especially over DIN.
 
 ### Enqueue-time coalescing
 
-When a new ordinary CC is queued, the queue manager first scans the CC lane for
-the latest queued message with the same status byte and CC number.
+Only `Continuous` CCs reach the CC lane, so only they are eligible. When one is queued, the queue
+manager first scans the lane for the latest queued message with the same status byte and CC number.
 
 - Same status byte means the same MIDI status type and channel.
 - Same CC number means the same value in `data1`.
@@ -531,24 +326,30 @@ knows that CC has unsent work.
 
 ### Scheduled CC dequeue
 
-When the CC lane is eligible to send, the scheduler does not blindly pop the
-lane head. Instead, it:
+When the CC lane is eligible to send, the scheduler does not blindly pop the lane head. A single pass
+over the lane both scans and selects:
 
-1. Scans the CC lane.
-2. Records the first queued offset for each CC number into a scratch map.
-3. Selects the CC number with the highest debt.
-4. Falls back to round-robin order when no candidate has debt.
-5. Removes the selected message from the lane.
-6. Rebuilds the lane around the removed message so all other queued data keeps
-   its relative order.
+1. Walk the lane once. For each CC number, only its first entry is a candidate; a four-word bitmask
+   tracks which numbers have already been seen, so clearing per pass costs four stores rather than 128.
+2. Track the highest-debt candidate and, separately, the first candidate in round-robin order from
+   `next_cc_number`.
+3. Prefer the highest-debt candidate; fall back to round-robin when nothing has debt.
+4. Remove the selected message by exchanging it with the lane head and dropping the head.
 
-This lets hot CCs catch up to their latest value without allowing one CC number
-to dominate the lane indefinitely.
+This lets hot CCs catch up to their latest value without allowing one CC number to dominate the lane
+indefinitely.
 
-The `cc_reorder_scratch_` buffers exist for step 6. A scheduled CC can be pulled
-from the middle of the CC lane, so the ring buffer cannot simply advance its
-read position. The selected message is copied out, all remaining entries are
-copied into scratch storage, and the lane is rebuilt from those survivors.
+Step 4 matters more than it looks. A scheduled CC can be pulled from the middle of the lane, so the ring
+cannot simply advance its read position. Swapping the selected span with the head and then dropping the
+head is O(1), frees the slot immediately, and — critically — never writes `write_pos`, which the producer
+owns. Scheduled removal only runs when the head is itself a three-byte channel CC, so the two spans are
+always the same width. The entry displaced from the head takes the selected entry's position; CC entries
+are independent of one another and this lane reorders them by design, so that is within the ordering the
+scheduler is allowed to produce.
+
+Marking the removed span dead in place would be simpler, but it leaks a slot per out-of-order removal
+until that slot reaches the head. With a cold CC parked at the head and a hot one repeatedly sent and
+re-queued, the lane grows until it fills and starts dropping MIDI.
 
 ## Transport-specific scheduling
 
@@ -563,8 +364,7 @@ USB SysEx is the exception to normal lane traversal. A logical SysEx message may
 span multiple USB-MIDI events: CIN `0x4` starts or continues the SysEx, and CIN
 `0x5`..`0x7` ends it. Once a SysEx event with CIN `0x4` has been popped, USB
 drain stays locked to the SysEx lane across transfer boundaries until an ending
-CIN is sent. This preserves the previous FIFO behavior that kept a SysEx message
-contiguous.
+CIN is sent, which is what keeps one logical SysEx message contiguous.
 
 Important USB limits:
 
@@ -630,53 +430,47 @@ from filling the UART ahead of later higher-priority messages.
   distinguishable.
 - Logical offsets used while scanning are relative to the lane read position, not
   physical array indices.
+- `write_pos` belongs to the producer and `read_pos` to the consumer. `consume_queued_messages()` runs
+  in an ISR while senders enqueue from mainline code, so the consumer must never write `write_pos`.
+  This is why out-of-order removal swaps with the head instead of rebuilding the ring.
+- Out-of-order removal frees its slot immediately. A lane must not accumulate dead entries.
+- Critical sections cover only the O(1) slot writes that producer and consumer share, never the
+  surrounding scan.
+- Because the scan runs unguarded, a coalescing write re-validates the entry's identity under the guard
+  before overwriting it; a concurrent removal can shift logical offsets, so a captured offset may name a
+  different message by the time it is used. On a mismatch the caller appends instead.
+- Messages that must stay ordered relative to each other must share a lane, because lanes are FIFO and
+  the drain reorders freely across them.
 
 ## Main classes
 
 | Class | Role |
 | --- | --- |
 | `MIDIQueueManager` | Shared policy helpers for message classification, CC detection, scan result adaptation, and complete-message validation. |
-| `MIDICCQueuePolicy` | Per-device CC policy state. It owns the first-offset scratch map, CC debt, and round-robin CC selection point. |
+| `MIDICCQueuePolicy` | Per-device CC policy state: CC debt, the round-robin selection point, and the seen-bitmask used by one selection pass. |
 | `MIDIQueueLane` | Power-of-two ring buffer for one priority lane. |
 | `MIDIQueueStorage` | Fixed set of priority lanes. |
 | `MIDIQueueManagerDeviceState` | Combines queue storage with the per-device CC policy. |
 | `MIDIQueueManagerUSB` | USB-specific queue manager. Stores packed 32-bit USB-MIDI events and drains them into `dataSendingNow`. |
 | `MIDIQueueManagerDIN` | DIN-specific queue manager. Stores raw serial bytes, enforces serial pacing, keeps SysEx streams contiguous, and drains selected bytes into the MIDI UART buffer. |
 
-## Tests Performed
+## Testing
 
-- [x] Confirm that ./dbt loadfw release still works
-- [x] Confirm that ./dbt sysex-logging still works
-- [x] Confirm that https://bfredl.github.io/delugeclient/app.html still works for display emulation
-- [x] Confirm that https://bfredl.github.io/delugeclient/app.html still works for debug logs
-- [x] Confirm that you can automate all midi cc's and send out a stable midi clock and midi notes to another device (no clock or note jitter)
-- [x] Confirm that you can automate all midi cc's and send out all midi cc changes to another device (e.g. if you automate a sweep of all 120 cc's from 0-127, you see all 120 cc's sweeping from 0-127 on the other device)
+`tests/unit/midi_queue_manager_tests.cpp` covers the transport-neutral pieces on the host: ring-lane
+mechanics, out-of-order removal, CC selection and coalescing, and one regression test per ordering
+defect (RPN sequences, MPE note initialisation, bank select before program change, All Notes Off, and
+momentary CCs). Build and run with:
 
-## Tests Not Performed
+```bash
+cmake -S tests -B tests/build && ninja -C tests/build UnitTests && ./tests/build/unit/UnitTests
+```
 
-- [ ] Confirm that sending out midi expression works as expected
+The transport wiring itself is not unit tested — it needs the USB and UART layers — so the following
+still want checking on hardware:
 
-## Message intent
-
-Coalescing and reordering are opt-in. A sender declares what a message is via `MIDIIntent` on
-`MIDIMessage`, and `classify_message()` routes on it:
-
-- `Event` (the default) - a discrete event. Routed to the expression lane, which is strictly FIFO and
-  never coalesced, so its order and its duplicate values survive. RPN sequences, bank selects, program
-  changes and momentary CCs rely on this.
-- `Continuous` - the current value of a parameter, where a later value supersedes an earlier one. Routed
-  to the CC lane, where it may be coalesced and reordered by CC debt.
-- `NoteBound` - must stay ordered with the note stream. Routed to the notes lane. Used by the MPE
-  expression that initialises a note, and by All Notes Off.
-
-Intent is consumed only by classification. It is not stored per queue entry and cannot be - a USB entry
-is a fully packed `uint32_t` and a DIN entry is a raw byte - so the dequeue path never sees it. Keeping
-`Event` traffic out of the CC lane is what makes the coalescing and debt reordering there
-unconditionally correct.
-
-Because lanes are FIFO, the rule for any ordered sequence is: **messages that must stay ordered relative
-to each other must share a lane.** That is why `NoteBound` exists rather than a separate grouping
-mechanism.
-
-The default is deliberately the conservative one, so that a sender which is never annotated loses
-coalescing (a latency cost) rather than ordering (a correctness cost).
+- MIDI expression output, particularly that an MPE note-on no longer overtakes the expression that
+  initialises it.
+- MPE zone configuration actually applying (the RPN path).
+- DIN behaviour under dense CC automation. At 31250 baud, congestion is far likelier there than on USB.
+- Throughput after a change to which senders are marked `Continuous`. A sender that should be
+  `Continuous` but isn't will simply stop coalescing, which shows up as CC backlog rather than an error.

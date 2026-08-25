@@ -66,6 +66,19 @@ public:
 	MidiEngine();
 
 	void sendNote(MIDISource source, bool on, int32_t note, uint8_t velocity, uint8_t channel, int32_t filter);
+	/// @brief Send a Control Change message.
+	///
+	/// @param source Source of the message, used for loop detection.
+	/// @param channel MIDI channel to send on.
+	/// @param cc Controller number.
+	/// @param value Controller value, saturated into 0-127.
+	/// @param filter Output filter (e.g. MPE member/master restriction).
+	/// @param intent What kind of message this is, which decides whether the output scheduler may
+	///        coalesce or reorder it. `Event` (the default) is queued verbatim and kept in order;
+	///        use it for anything whose exact sequence or duplicate values matter. `Continuous`
+	///        marks the current value of a parameter, where a later value supersedes an earlier
+	///        one, so it may be coalesced and reordered relative to other Continuous messages.
+	///        `NoteBound` must stay ordered with the note stream.
 	void sendCC(MIDISource source, int32_t channel, int32_t cc, int32_t value, int32_t filter,
 	            MIDIIntent intent = MIDIIntent::Event);
 	bool checkIncomingSerialMidi();
@@ -84,22 +97,59 @@ public:
 	void flushMIDI();
 	void sendUsbMidi(MIDIMessage message, int32_t filter);
 	void sendSerialMidi(MIDIMessage message);
+	/// @brief Queue a complete SysEx byte stream for serial (DIN) output.
+	///
+	/// Silently drops the stream if it is malformed (missing 0xF0/0xF7 framing, or fewer than three
+	/// bytes) or if it does not fit in the serial send queue. SysEx is queued all-or-nothing so a
+	/// partial stream cannot strand the drain lock.
+	///
+	/// @param data SysEx data block, including the leading 0xF0 and trailing 0xF7.
+	/// @param len Number of bytes in @p data.
 	void sendSerialSysex(uint8_t const* data, int32_t len);
+	/// @brief Bytes of free space remaining in the serial (DIN) send queue.
+	///
+	/// @return Free space, in bytes.
 	[[nodiscard]] size_t serialSendBufferSpace() const;
 
 	void sendPGMChange(MIDISource source, int32_t channel, int32_t pgm, int32_t filter);
 	void sendAllNotesOff(MIDISource source, int32_t channel, int32_t filter);
 	void sendBank(MIDISource source, int32_t channel, int32_t num, int32_t filter);
 	void sendSubBank(MIDISource source, int32_t channel, int32_t num, int32_t filter);
-	/// Send pitch bend
+	/// @brief Send Pitch Bend.
 	///
-	/// @param bend Bend amount. Only the lower 14 bits are used
+	/// @param source Source of the message, used for loop detection.
+	/// @param channel MIDI channel to send on.
+	/// @param bend Bend amount. Only the lower 14 bits are used.
+	/// @param filter Output filter (e.g. MPE member/master restriction).
+	/// @param intent What kind of message this is, which decides whether the output scheduler may
+	///        coalesce or reorder it. `Event` (the default) is queued verbatim and kept in order;
+	///        use it for anything whose exact sequence or duplicate values matter. `Continuous`
+	///        marks the current value of a parameter, where a later value supersedes an earlier
+	///        one, so it may be coalesced and reordered relative to other Continuous messages.
+	///        `NoteBound` must stay ordered with the note stream.
 	void sendPitchBend(MIDISource source, int32_t channel, uint16_t bend, int32_t filter,
 	                   MIDIIntent intent = MIDIIntent::Event);
-	/// @param value Pressure amount. Saturated into 0-127
+	/// @brief Send Channel (monophonic) Aftertouch.
+	///
+	/// @param source Source of the message, used for loop detection.
+	/// @param channel MIDI channel to send on.
+	/// @param value Pressure amount. Saturated into 0-127.
+	/// @param filter Output filter (e.g. MPE member/master restriction).
+	/// @param intent What kind of message this is, which decides whether the output scheduler may
+	///        coalesce or reorder it. `Event` (the default) is queued verbatim and kept in order;
+	///        use it for anything whose exact sequence or duplicate values matter. `Continuous`
+	///        marks the current value of a parameter, where a later value supersedes an earlier
+	///        one, so it may be coalesced and reordered relative to other Continuous messages.
+	///        `NoteBound` must stay ordered with the note stream.
 	void sendChannelAftertouch(MIDISource source, int32_t channel, int32_t value, int32_t filter,
 	                           MIDIIntent intent = MIDIIntent::Event);
-	/// @param value Pressure amount. Saturated into 0-127
+	/// @brief Send Polyphonic (per-note) Aftertouch.
+	///
+	/// @param source Source of the message, used for loop detection.
+	/// @param channel MIDI channel to send on.
+	/// @param value Pressure amount. Saturated into 0-127.
+	/// @param noteCode Note number the pressure applies to.
+	/// @param filter Output filter (e.g. MPE member/master restriction).
 	void sendPolyphonicAftertouch(MIDISource source, int32_t channel, int32_t value, uint8_t noteCode, int32_t filter);
 	bool anythingInOutputBuffer();
 	void setupUSBHostReceiveTransfer(int32_t ip, int32_t midiDeviceNum);

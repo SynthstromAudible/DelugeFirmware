@@ -451,9 +451,13 @@ void MidiEngine::sendAllNotesOff(MIDISource source, int32_t channel, int32_t fil
 	sendMidi(source, message, filter);
 }
 
-/// Saturate a value into the 7 bits a MIDI data byte gets. Callers derive these from internal 32-bit parameter values,
-/// which can land outside 0-127; letting one through sets bit 7 and the receiver reads it as a status byte instead - if
-/// it falls in 0xF8-0xFF that's a spurious System Real-Time message (see #4821).
+/// @brief Saturate a value into the 7 bits a MIDI data byte can carry.
+///
+/// Callers derive these from internal 32-bit parameter values, which can land outside 0-127. Letting
+/// one through sets bit 7, so the receiver reads it as a status byte instead of data; a value landing
+/// in 0xF8-0xFF would show up as a spurious System Real-Time message.
+/// @param value Value to clamp; expected range is 0-127, but any int32_t is accepted.
+/// @return @p value clamped to [0, 127] and narrowed to a MIDI data byte.
 static uint8_t toDataByte(int32_t value) {
 	return static_cast<uint8_t>(std::clamp<int32_t>(value, 0, 127));
 }

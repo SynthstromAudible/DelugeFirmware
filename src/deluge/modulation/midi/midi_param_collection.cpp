@@ -223,8 +223,8 @@ void MIDIParamCollection::sendMIDI(MIDISource source, int32_t masterChannel, int
                                    int32_t midiOutputFilter) {
 	int32_t newValueSmall = autoparamValueToCC(newValue);
 
-	// Automation output: the burst source the queue manager's coalescing exists for. A later value for
-	// the same CC supersedes an earlier one, so merging them is correct and keeps the queue short.
+	// Automation output is the burst source the queue manager's coalescing exists for: a later value for
+	// the same CC supersedes an earlier one, so merging them here is correct and keeps the queue short.
 	midiEngine.sendCC(source, masterChannel, cc, newValueSmall + 64, midiOutputFilter,
 	                  MIDIIntent::Continuous); // TODO: get master channel
 }

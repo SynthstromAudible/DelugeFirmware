@@ -75,10 +75,9 @@ static_assert(sizeof(ConnectedUSBMIDIDevice) <= __builtin_offsetof(ConnectedUSBM
               "struct and indexes connectedUSBMIDIDevices[][] directly, so C and C++ must agree on sizeof(). "
               "Put per-device C++ state in a parallel array (see usbQueueManagers) instead.");
 
-/// Resolves this device's queue storage from the parallel usbQueueManagers array.
-///
-/// Every ConnectedUSBMIDIDevice lives in connectedUSBMIDIDevices, so its position there is the index into
-/// the identically-shaped usbQueueManagers array.
+// Resolves this device's queue storage from the parallel usbQueueManagers array: every
+// ConnectedUSBMIDIDevice lives in connectedUSBMIDIDevices, so its position there is the index into the
+// identically-shaped usbQueueManagers array.
 MIDIQueueManagerUSB& ConnectedUSBMIDIDevice::queue_manager() {
 	ptrdiff_t flat_index = this - &connectedUSBMIDIDevices[0][0];
 	return (&usbQueueManagers[0][0])[flat_index];
@@ -694,28 +693,27 @@ checkDevice:
 
 } // namespace MIDIDeviceManager
 
-/// Queues one USB-MIDI message, flushing or dropping if the queue cannot accept it.
+// Forwards to this device's queue manager, which flushes opportunistically (or drops the message) if the
+// target lane is still full afterward.
 void ConnectedUSBMIDIDevice::enqueue_message(uint32_t fullMessage, MIDIIntent intent) {
 	queue_manager().enqueue_message(fullMessage, intent);
 }
 
-/// Returns whether this device has at least one queued USB-MIDI message to send.
 bool ConnectedUSBMIDIDevice::hasBufferedSendData() {
 	// True when at least one queued USB-MIDI message exists across any priority lane.
 	return queue_manager().has_buffered_send_data();
 }
 
-/// Reports remaining USB queue capacity as MIDI payload bytes across all priority lanes.
+// Reports capacity across all priority lanes, in MIDI payload bytes rather than raw USB event slots.
 int ConnectedUSBMIDIDevice::sendBufferSpace() {
 	return queue_manager().send_buffer_space();
 }
 
-/// Moves queued USB messages into the contiguous transfer buffer used by the hardware driver.
+// Moves queued USB messages into the contiguous dataSendingNow buffer handed to the hardware driver.
 bool ConnectedUSBMIDIDevice::consume_queued_messages() {
 	return queue_manager().consume_queued_messages(dataSendingNow, numBytesSendingNow, g_usb_usbmode == USB_HOST);
 }
 
-/// Resets volatile USB transfer state for a newly connected/initialized device.
 void ConnectedUSBMIDIDevice::setup() {
 	numBytesSendingNow = 0;
 	currentlyWaitingToReceive = false;
@@ -725,7 +723,6 @@ void ConnectedUSBMIDIDevice::setup() {
 	maxPortConnected = 0;
 }
 
-/// Initializes all USB device send/receive buffers and per-priority queue state.
 ConnectedUSBMIDIDevice::ConnectedUSBMIDIDevice() {
 	sq = 0;
 	canHaveMIDISent = false;
@@ -735,37 +732,30 @@ ConnectedUSBMIDIDevice::ConnectedUSBMIDIDevice() {
 	queue_manager().reset_queue_storage();
 }
 
-/// Initializes DIN per-priority queue state.
 ConnectedDINMIDIDevice::ConnectedDINMIDIDevice() {
 	queue_manager_.reset_queue_storage();
 }
 
-/// Resets serial pacing state so the next flush starts from a known baseline.
 void ConnectedDINMIDIDevice::reset_serial_state(uint32_t now_sample_timer) {
 	queue_manager_.reset_serial_state(now_sample_timer);
 }
 
-/// Returns whether any serial-priority lane currently has data pending.
 bool ConnectedDINMIDIDevice::has_serial_data() const {
 	return queue_manager_.has_serial_data();
 }
 
-/// Reports remaining DIN queue capacity for raw SysEx bytes.
 size_t ConnectedDINMIDIDevice::send_buffer_space() const {
 	return queue_manager_.send_buffer_space();
 }
 
-/// Encodes and enqueues one channel/system MIDI message into serial-priority lanes.
 void ConnectedDINMIDIDevice::enqueue_message(MIDIMessage message) {
 	queue_manager_.enqueue_message(message);
 }
 
-/// Queues one complete SysEx byte stream into serial-priority lanes.
 bool ConnectedDINMIDIDevice::enqueue_sysex(uint8_t const* data, int32_t len) {
 	return queue_manager_.enqueue_sysex(data, len);
 }
 
-/// Drains serial-priority queues into UART while enforcing DIN pacing and strict priority gates.
 void ConnectedDINMIDIDevice::consume_queued_messages(uint32_t now_sample_timer) {
 	queue_manager_.consume_queued_messages(now_sample_timer);
 }

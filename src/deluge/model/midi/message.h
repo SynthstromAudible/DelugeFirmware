@@ -35,20 +35,21 @@ enum class MIDIStatusType : uint8_t {
 	System = 0x0F,
 };
 
-/// What a queued MIDI message is, which decides whether the output scheduler may merge or reorder it.
+/// @brief What kind of MIDI message this is, which decides whether the output scheduler may coalesce
+///        or reorder it.
 ///
-/// The default is the conservative one: a sender that says nothing gets verbatim, in-order delivery.
-/// Only a sender that knows its messages are redundant opts into merging. That way a missed annotation
-/// costs latency, never correctness.
+/// @note The default (Event) is deliberately conservative: a sender that says nothing gets verbatim,
+///       in-order delivery. Only a sender that knows its messages are redundant opts into merging, so a
+///       missed annotation costs latency, never correctness.
 enum class MIDIIntent : uint8_t {
-	/// A discrete event. Queued verbatim and kept in order relative to other events; never coalesced,
-	/// never reordered. RPN sequences, bank selects and program changes depend on this.
+	/// A discrete event. Queued verbatim and kept in order relative to other events; never coalesced or
+	/// reordered. RPN sequences, bank selects, program changes and momentary CCs all depend on this.
 	Event,
 	/// The current value of a continuous parameter, where a later value supersedes an earlier one.
 	/// Eligible for coalescing and debt-based reordering. Automation and knob feedback use this.
 	Continuous,
-	/// A message that must stay ordered with the note stream: expression that initialises a note and
-	/// must not be overtaken by it, or All Notes Off, which the notes queued after it must not overtake.
+	/// Must stay ordered with the note stream: MPE expression that initialises a note and must not be
+	/// overtaken by it, or All Notes Off, which notes queued after it must not overtake.
 	NoteBound,
 };
 
@@ -65,8 +66,8 @@ struct MIDIMessage {
 	uint8_t data1;
 	/// Optional data byte 2
 	uint8_t data2;
-	/// How the output scheduler may treat this message. Defaults to the conservative Event, so the
-	/// existing designated-initialiser constructors below need no changes.
+	/// How the output scheduler may treat this message; see MIDIIntent. Defaults to the conservative
+	/// Event, so the existing designated-initialiser constructors below need no changes.
 	MIDIIntent intent = MIDIIntent::Event;
 
 	[[gnu::always_inline]] [[nodiscard]] bool isSystemMessage() const {
@@ -138,6 +139,6 @@ struct MIDIMessage {
 
 // Kept compact deliberately: MIDIMessage is passed by value along the whole send path. It is never
 // stored in bulk - USB packs it to a uint32 and DIN converts it to raw bytes before queueing - so this
-// bounds register pressure rather than any layout or interop requirement. Grew from 4 to 5 when `intent`
-// was added; every field is a uint8_t, so alignment is 1 and there is no padding.
+// bounds register pressure rather than any layout or interop requirement. Every field is a uint8_t, so
+// alignment is 1 and there is no padding.
 static_assert(sizeof(MIDIMessage) == 5);

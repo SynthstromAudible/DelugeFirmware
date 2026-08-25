@@ -17,26 +17,35 @@
 
 #pragma once
 
+/// @brief Sizing constants for the MIDI send queue's inner buffers and outer ring buffer.
 enum QueueSendConstants {
-	// bfredl:
-	// size in 32-bit messages
-	// NOTE: increasing this even more doesn't work.
-	// Looks like a hardware limitation (maybe we more in FS mode)?
+	/// Inner send-buffer size, in 32-bit messages.
+	///
+	/// @note Increasing this further doesn't work in practice -- appears to be a hardware
+	///       limitation (possibly related to USB full-speed mode).
 	MIDI_SEND_BUFFER_LEN_INNER = 32,
-	// Mark Adams:
-	// Seems to be the max for a hydrasynth on a usb hub? We should figure out how to find this from the device config
-	// but I
-	// haven't seen anything below this yet. Widi bud's can do 3, both do fine at 16 without a hub involved
+	/// Inner send-buffer size for a host-mode MIDI connection, in 32-bit messages.
+	///
+	/// @note Sized to what a Hydrasynth behind a USB hub tolerates; we don't yet have a way to
+	///       derive this from the device's own configuration, and haven't seen anything lower
+	///       needed so far. Other devices handle more headroom (e.g. a WIDI Bud is fine at 3,
+	///       and both are fine at 16 without a hub involved).
 	MIDI_SEND_BUFFER_LEN_INNER_HOST = 2,
-	// MUST be an exact power of two
+	/// Outer send ring-buffer size, in messages.
+	///
+	/// @note MUST be an exact power of two -- MIDI_SEND_RING_MASK's wraparound masking depends
+	///       on it.
 	MIDI_SEND_BUFFER_LEN_RING = 1024,
+	/// Bitmask for wrapping an index into MIDI_SEND_BUFFER_LEN_RING.
 	MIDI_SEND_RING_MASK = MIDI_SEND_BUFFER_LEN_RING - 1,
 };
 
-// Priority order is aligned with the LinnStrument ls_midi.ino strategy:
-// clock > notes > expression > CC > SysEx.
-// SysEx is lowest priority until it starts draining; once started, its transport
-// units remain contiguous until the terminating USB-MIDI event or DIN 0xF7 byte is sent.
+/// @brief Relative send priority for a queued MIDI message.
+///
+/// Ordering follows the LinnStrument ls_midi.ino strategy: clock > notes > expression > CC >
+/// SysEx. SysEx stays lowest priority until it starts draining; once a SysEx message has started
+/// sending, its transport units stay contiguous until the terminating USB-MIDI event or DIN 0xF7
+/// byte is sent.
 typedef enum QueuePriority {
 	QUEUE_PRIORITY_CLOCK = 0,
 	QUEUE_PRIORITY_NOTES = 1,

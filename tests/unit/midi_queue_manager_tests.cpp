@@ -405,9 +405,9 @@ TEST(MIDICCCoalescing, MissedCoalesceDoesNotAwardDebt) {
 }
 
 TEST(MIDICCScheduling, SelectionVisitsEachEntryExactlyOncePerPop) {
-	// Selection used to fill a 128-entry map, scan the lane, then walk all 128 CC numbers - per pop, and up
-	// to eight times per transfer, with interrupts masked. It is now a single pass, so the scan callback
-	// should fire once per entry (plus the terminating NoMore).
+	// Selection must complete in a single pass over the lane, not scan it and then separately walk all 128
+	// CC numbers (which could run up to eight times per transfer with interrupts masked). The scan callback
+	// should fire once per entry, plus the terminating NoMore.
 	MIDICCQueuePolicy policy;
 	FakeCCLane lane;
 	for (uint8_t cc = 0; cc < 12; cc++) {
@@ -488,15 +488,14 @@ TEST(MIDIMessageClassification, UnchangedClassificationsStillHold) {
 
 // --- Regression tests for MIDI output ordering ---
 //
-// MIDI uses stateful prefixes: sequences where earlier messages establish context for later ones. Each
-// sequence below was scrambled when CC coalescing and debt reordering treated its messages as
-// independent - the RPN address destroyed by merging its terminator, a note-on overtaking the MPE
-// expression that initialises it, a CC pulled ahead of the program change it belongs after, and All
-// Notes Off overtaken by the notes it was meant to stop.
+// MIDI uses stateful prefixes: sequences where earlier messages establish context for later ones. CC
+// coalescing and debt reordering treat lane entries as independent, so each sequence below must be kept
+// off that lane entirely - otherwise the RPN address could be destroyed by merging its terminator, a
+// note-on could overtake the MPE expression that initialises it, a CC could be pulled ahead of the
+// program change it belongs after, or All Notes Off could be overtaken by the notes it was meant to stop.
 //
-// They are asserted at the classification level because that is where the fix lives: lanes are FIFO, so
-// co-locating an ordered sequence on one lane is what preserves it. See "Message intent" in
-// src/deluge/io/midi/midi_queue_manager.md.
+// These are asserted at the classification level because lanes are FIFO: co-locating an ordered sequence
+// on one lane is what keeps it ordered. See "Message intent" in docs/dev/systems/midi_queue_manager.md.
 
 namespace {
 /// Builds the CC an ordered protocol sequence sends: default Event intent.
@@ -508,9 +507,9 @@ MIDIMessage eventCC(uint8_t channel, uint8_t cc, uint8_t value) {
 TEST_GROUP(MIDIOrderingRegressions){};
 
 TEST(MIDIOrderingRegressions, RPNSequenceStaysOnOneOrderedLane) {
-	// sendRPN() emits CC100, CC101, CC6, then CC100=127 and CC101=127 as a terminator. Coalescing used
-	// to merge the terminator into the opening selection and reordering emitted it first, so the MPE
-	// configuration address was destroyed and the data entry landed on the null parameter.
+	// sendRPN() emits CC100, CC101, CC6, then CC100=127 and CC101=127 as a terminator. Coalescing must not
+	// merge the terminator into the opening selection, and reordering must not emit it first: either
+	// would destroy the MPE configuration address and land the data entry on the null parameter.
 	MIDIMessage sequence[] = {
 	    eventCC(0, 100, 6), eventCC(0, 101, 0), eventCC(0, 6, 4), eventCC(0, 100, 127), eventCC(0, 101, 127),
 	};
@@ -538,8 +537,8 @@ TEST(MIDIOrderingRegressions, MPENoteInitialisationSharesTheNoteLane) {
 }
 
 TEST(MIDIOrderingRegressions, BankSelectAndProgramChangeShareAnOrderedLane) {
-	// instrument_clip.cpp sends bank MSB, bank LSB, then the program change. A reordered CC could
-	// previously be pulled ahead of the program change and land on the old patch.
+	// instrument_clip.cpp sends bank MSB, bank LSB, then the program change. These must stay ordered: a
+	// reordered CC could otherwise be pulled ahead of the program change and land on the old patch.
 	QueuePriority bankMSB = MIDIQueueManager::classify_message(eventCC(0, 0, 3));
 	QueuePriority bankLSB = MIDIQueueManager::classify_message(eventCC(0, 32, 1));
 	QueuePriority pgm = MIDIQueueManager::classify_message(MIDIMessage::programChange(0, 5));
@@ -550,7 +549,8 @@ TEST(MIDIOrderingRegressions, BankSelectAndProgramChangeShareAnOrderedLane) {
 }
 
 TEST(MIDIOrderingRegressions, AllNotesOffSharesTheNoteLane) {
-	// Queued on a lower-priority lane, notes sent after it drained first and were then silenced by it.
+	// All Notes Off must share the notes lane: on a lower-priority lane it would drain after notes sent
+	// afterward, silencing them instead of the notes it was meant to stop.
 	MIDIMessage allNotesOff = MIDIMessage::cc(0, 123, 0);
 	allNotesOff.intent = MIDIIntent::NoteBound;
 	CHECK(MIDIQueueManager::classify_message(allNotesOff)
