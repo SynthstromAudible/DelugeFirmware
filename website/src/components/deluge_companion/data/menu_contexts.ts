@@ -80,12 +80,7 @@ const verticalMenuDefinitions: Record<string, ContextMenuDefinition> = {
   OSCILLATOR_INPUT: {
     label: "Sound > Oscillator > Type > Input",
     title: "Oscillator Type",
-    options: [
-      "Input",
-      "Input Left",
-      "Input Right",
-      "Input Stereo",
-    ],
+    options: ["Input", "Input Left", "Input Right", "Input Stereo"],
     selectedIndex: 0,
     renderMethod: DEFAULT_MENU_RENDER_METHOD,
   },
