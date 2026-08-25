@@ -75,7 +75,14 @@ cd tests/build && ./unit/UnitTests   # expect 176 tests, 0 failures
 Note `release-blockers.md` is untracked and unrelated to this work. Leave it alone: stage explicit paths
 in every commit below, never `git add -A`.
 
-- [ ] **Step 2: Write the failing test**
+**Execution note.** The backpressure test below cannot run until Task 2 puts `midi_queue_manager.cpp` in
+the host build - `MIDIQueueManagerUSB`'s methods live there, so the test fails to link, not to assert.
+Task 1 was therefore verified by firmware build plus the existing 176 tests, and this test moved to
+Task 2. Two further declarations surfaced when `midi_engine.h` was dropped: `anythingInUSBOutputBuffer`
+is now declared locally in `midi_queue_manager.cpp`, and `anyUSBSendingStillHappening` moved into
+`midi_engine.h` from an ad-hoc extern inside a C driver file.
+
+- [ ] ~~**Step 2: Write the failing test**~~ *(moved to Task 2)*
 
 Append to `tests/unit/midi_queue_manager_tests.cpp`:
 
@@ -232,9 +239,43 @@ transport drain path host-testable."
 
 ### Task 2: Link-time test doubles for the transport path
 
-After Task 1, `midi_queue_manager.cpp` depends on exactly three external symbols: `uartGetTxBufferSpace`, `bufferMIDIUart`, and the `anyUSBSendingStillHappening` array. Providing those in a test-only translation unit puts the whole DIN drain path — pacing, allowance, SysEx locking, ordering — under host test with no production code change.
+**This task needs a decision before it can start. The approach originally written here does not work.**
 
-This is the highest-leverage task in the plan. Three of the four serious defects found in review lived in the drain path and were invisible to inspection.
+`bufferMIDIUart` is a macro, not a function (`src/RZA1/uart/sio_char.h:87`). It expands inline to a write
+through `UNCACHED_MIRROR_OFFSET` (`0x40000000`, a hardware uncached-memory mirror), so on the host it
+would compute `&midiTxBuffer[0] + 0x40000000` and segfault. A macro cannot be doubled at link time. Only
+`uartGetTxBufferSpace` (`src/deluge/drivers/uart/uart.c:195`) is a real function.
+
+Two workable options:
+
+- **Header shadowing.** `tests/unit/CMakeLists.txt:90-94` already puts `mocks` first on the include path,
+  so `tests/unit/mocks/RZA1/uart/sio_char.h` shadows the real header and can redefine `bufferMIDIUart`
+  as a call into a capture buffer. Still no production change, but the shim must mirror everything else
+  that header declares.
+- **Inject a sink interface.** The queue manager writes through an explicit interface with a real and a
+  test implementation. No macro games and no shadowing, and it removes DIN's direct hardware coupling
+  the same way Task 1 removed the USB side's call cycle. Costs a production change and an indirection on
+  the drain path.
+
+Whichever is chosen, this stays the highest-leverage task: three of the four serious defects found in
+review lived in the drain path and were invisible to inspection.
+
+It also carries the backpressure test deferred from Task 1:
+
+```cpp
+TEST_GROUP(MIDIQueueBackpressure){};
+
+TEST(MIDIQueueBackpressure, EnqueueRequestsFlushOnlyOnceBacklogIsHigh) {
+	MIDIQueueManagerUSB queue;
+	queue.reset_queue_storage();
+	CHECK_FALSE(queue.enqueue_message(0x09903C64, MIDIIntent::Event));
+	bool asked = false;
+	for (int i = 0; i < 32; i++) {
+		asked = queue.enqueue_message(0x09903C64, MIDIIntent::Event) || asked;
+	}
+	CHECK_TRUE(asked);
+}
+```
 
 **Files:**
 - Create: `tests/unit/mocks/midi_transport_mock.h`, `tests/unit/mocks/midi_transport_mock.cpp`
