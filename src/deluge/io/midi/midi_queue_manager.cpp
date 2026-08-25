@@ -17,6 +17,7 @@
 
 #include "io/midi/midi_queue_manager.h"
 #include "io/midi/midi_engine.h"
+#include "timers_interrupts/timers_interrupts.h"
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -462,11 +463,25 @@ bool MIDIQueueManagerUSB::coalesce_cc_message(uint32_t queued_message) {
 		return MIDIQueueManager::adapt_cc_coalesce_scan_result(next_cc_message(scan_position, limit, message), message,
 		                                                       candidate_offset, status, cc_number);
 	};
-	auto update_matched = [this, queued_message](uint16_t latest_offset) {
-		// Replace only the queued value byte at the matching offset.
+	auto update_matched = [this, queued_message, wanted_status, wanted_cc_number](uint16_t latest_offset) {
+		// The scan above runs unguarded, so between finding this offset and writing it the consumer may have
+		// removed an entry, which advances read_pos and moves the displaced head into another slot - either
+		// way this offset can now name a different message. Re-check the identity under the guard rather
+		// than trusting the offset: if it no longer names this CC, report a miss so the caller appends a
+		// fresh entry instead of overwriting an unrelated one.
+		CriticalSectionGuard guard;
+		if (latest_offset >= queue_manager_.queue_count(static_cast<uint8_t>(QUEUE_PRIORITY_CC))) {
+			return false;
+		}
 		uint32_t current = queue_manager_.read_at(static_cast<uint8_t>(QUEUE_PRIORITY_CC), latest_offset);
+		if (!is_packed_channel_cc(current) || status_byte(current) != wanted_status
+		    || data_1(current) != wanted_cc_number) {
+			return false;
+		}
+		// Replace only the queued value byte at the matching offset.
 		queue_manager_.overwrite_at(static_cast<uint8_t>(QUEUE_PRIORITY_CC), latest_offset,
 		                            replace_data_2(current, data_2(queued_message)));
+		return true;
 	};
 
 	// The shared policy scans for the latest matching CC and calls update_matched if found.
@@ -558,10 +573,16 @@ MIDIQueueManagerUSB::next_cc_message(uint16_t& scan_position, uint16_t limit,
 bool MIDIQueueManagerUSB::remove_cc_message_at(uint16_t target_offset, uint32_t& popped_out) {
 	// USB removes one packed event from the selected logical offset.
 	uint32_t removed_message[1] = {0};
-	if (!queue_manager_.remove_span_and_repack(static_cast<uint8_t>(QUEUE_PRIORITY_CC), target_offset, 1,
-	                                           removed_message, cc_reorder_scratch_.data())) {
-		// Invalid offset or repack failure: leave the caller without a message to send.
-		return false;
+	{
+		// The producer's coalesce overwrite and this exchange are the only places both sides write the same
+		// slot. Guarding just these few instructions closes that race; the surrounding scan deliberately
+		// stays outside the guard, which is what the old clear-and-repack got wrong.
+		CriticalSectionGuard guard;
+		if (!queue_manager_.remove_span_via_head_swap(static_cast<uint8_t>(QUEUE_PRIORITY_CC), target_offset, 1,
+		                                              removed_message)) {
+			// Invalid offset: leave the caller without a message to send.
+			return false;
+		}
 	}
 
 	// Hand the removed event back to the transfer builder.
@@ -945,10 +966,24 @@ bool MIDIQueueManagerDIN::coalesce_cc_message(MIDIMessage queued_message) {
 		return MIDIQueueManager::adapt_cc_coalesce_scan_result(next_cc_message(scan_position, limit, message), message,
 		                                                       candidate_offset, status, cc_number);
 	};
-	auto update_matched = [this, queued_message](uint16_t latest_offset) {
+	auto update_matched = [this, queued_message, wanted_status](uint16_t latest_offset) {
+		// See the USB path: re-validate identity under the guard, because a concurrent removal may have
+		// shifted logical offsets since the scan found this message.
+		CriticalSectionGuard guard;
+		uint16_t queued = queue_manager_.queue_count(static_cast<uint8_t>(QUEUE_PRIORITY_CC));
+		if (static_cast<int32_t>(latest_offset) + MIDIQueueManager::k_channel_cc_message_length > queued) {
+			return false;
+		}
+		uint8_t status = queue_manager_.read_at(static_cast<uint8_t>(QUEUE_PRIORITY_CC), latest_offset);
+		uint8_t cc_number =
+		    queue_manager_.read_at(static_cast<uint8_t>(QUEUE_PRIORITY_CC), static_cast<uint16_t>(latest_offset + 1));
+		if (status != wanted_status || cc_number != queued_message.data1) {
+			return false;
+		}
 		// DIN stores bytes, so the value byte is two bytes after the message status.
 		queue_manager_.overwrite_at(static_cast<uint8_t>(QUEUE_PRIORITY_CC), static_cast<uint16_t>(latest_offset + 2),
 		                            queued_message.data2);
+		return true;
 	};
 
 	// The shared policy scans for the latest matching CC and calls update_matched if found.
@@ -1101,7 +1136,8 @@ MIDIQueueManagerDIN::next_cc_message(uint16_t& scan_position, uint16_t limit,
 
 bool MIDIQueueManagerDIN::remove_cc_message_at(uint16_t target_offset, uint8_t* out) {
 	// DIN removes a three-byte CC span starting at the selected byte offset.
-	return queue_manager_.remove_span_and_repack(static_cast<uint8_t>(QUEUE_PRIORITY_CC), target_offset,
-	                                             MIDIQueueManager::k_channel_cc_message_length, out,
-	                                             cc_reorder_scratch_.data());
+	// See the USB path: narrow guard around the only slot writes shared with the producer.
+	CriticalSectionGuard guard;
+	return queue_manager_.remove_span_via_head_swap(static_cast<uint8_t>(QUEUE_PRIORITY_CC), target_offset,
+	                                                MIDIQueueManager::k_channel_cc_message_length, out);
 }

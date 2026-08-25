@@ -82,6 +82,7 @@ add_executable(UnitTests
         default_name_tests.cpp
         rgb_tests.cpp
         notes_state_tests.cpp
+        midi_queue_manager_tests.cpp
 )
 add_test(NAME UnitTests
         COMMAND UnitTests)

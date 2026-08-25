@@ -220,26 +220,25 @@ public:
 
 	/// Clears scan scratch state, CC debt, and CC-number selection history.
 	void reset() {
-		// Mark every CC number as absent for the next scan.
-		first_offsets.fill(k_no_cc_offset);
 		// Drop any pending preference accumulated by queued/coalesced CC updates.
 		cc_debt.fill(0);
 		// Restart round-robin selection from CC 0.
 		next_cc_number = 0;
 	}
 
-	/// Scans one CC lane and records the first queued offset for each CC number.
+	/// Chooses the next CC to emit in a single pass over the lane.
 	///
-	/// Exact status/CC number duplicates are coalesced at enqueue time, so a
-	/// later value normally updates an existing queued entry instead of creating
-	/// a second candidate. Scheduled dequeue only needs the first remaining candidate
-	/// per CC number bucket so it does not pull a later distinct CC ahead of an
-	/// earlier one in the same bucket.
+	/// Selection follows the queued order for each CC number (the first entry for a CC number wins) and
+	/// then prefers the CC with the most debt, falling back to round-robin from `next_cc_number`.
+	///
+	/// This deliberately does the whole job in one traversal. The previous shape filled a 128-entry offset
+	/// map, scanned the lane, then walked all 128 CC numbers to pick a winner - per pop, up to eight times
+	/// per transfer, inside the interrupt-masked section of flushUSBMIDIOutput(). Folding selection into
+	/// the scan drops that to O(lane occupancy) with a four-word bitmask clear, and costs nothing extra
+	/// when the lane is short, which is the common case once coalescing has collapsed repeated CC updates.
 	template <typename BeginScanFn, typename NextScanFn>
-	bool collect_first_cc_offsets_from_scan(BeginScanFn&& begin_scan, NextScanFn&& next_scan) {
-		// Rebuild the scratch map fresh for this scheduled-pop attempt.
-		first_offsets.fill(k_no_cc_offset);
-
+	bool select_scheduled_cc(BeginScanFn&& begin_scan, NextScanFn&& next_scan, uint16_t& selected_offset,
+	                         uint8_t& selected_cc_number) {
 		uint16_t scan_position = 0;
 		uint16_t limit = 0;
 		if (!begin_scan(scan_position, limit)) {
@@ -247,31 +246,72 @@ public:
 			return false;
 		}
 
-		bool saw_any_cc = false;
+		// Tracks which CC numbers already contributed a candidate, so only the first entry per CC number
+		// is eligible and a later distinct CC cannot jump ahead of an earlier one in the same bucket.
+		seen_mask.fill(0);
+
+		// Best candidate in round-robin order, used when nothing has debt.
+		uint16_t rr_offset = k_no_cc_offset;
+		uint8_t rr_cc_number = 0;
+		uint8_t rr_rank = 0;
+		// Best candidate by debt, which wins whenever any candidate has debt.
+		uint16_t debt_offset = k_no_cc_offset;
+		uint8_t debt_cc_number = 0;
+		uint8_t debt_value = 0;
+		uint8_t debt_rank = 0;
+
 		while (true) {
-			// Ask the transport for the next scan step. USB advances by one event;
-			// DIN advances by one complete MIDI message.
 			uint16_t candidate_offset = 0;
 			uint8_t cc_number = 0;
 			MIDIQueueManager::CandidateScanResult step = next_scan(scan_position, limit, candidate_offset, cc_number);
 			if (step == MIDIQueueManager::CandidateScanResult::NoMore) {
-				// We reached the scan limit; the scratch map now contains this pass's candidates.
 				break;
 			}
 			if (step == MIDIQueueManager::CandidateScanResult::Invalid) {
 				// A malformed lane cannot be safely reordered.
 				return false;
 			}
-			if (step == MIDIQueueManager::CandidateScanResult::Candidate) {
-				saw_any_cc = true;
-				if (cc_number <= kMaxMIDIValue && first_offsets[cc_number] == k_no_cc_offset) {
-					// Keep only the first remaining candidate for each CC number.
-					first_offsets[cc_number] = candidate_offset;
-				}
+			if (step != MIDIQueueManager::CandidateScanResult::Candidate || cc_number > kMaxMIDIValue) {
+				continue;
+			}
+			if (test_and_set_seen(cc_number)) {
+				// A later entry for a CC number already represented by an earlier one.
+				continue;
+			}
+
+			// Rank orders CC numbers starting at next_cc_number and wrapping, so ties resolve the same way
+			// the previous round-robin walk did.
+			uint8_t rank = static_cast<uint8_t>((cc_number - next_cc_number) & kMaxMIDIValue);
+			if (rr_offset == k_no_cc_offset || rank < rr_rank) {
+				rr_offset = candidate_offset;
+				rr_cc_number = cc_number;
+				rr_rank = rank;
+			}
+
+			uint8_t debt = cc_debt[cc_number];
+			if (debt_offset == k_no_cc_offset || debt > debt_value || (debt == debt_value && rank < debt_rank)) {
+				debt_offset = candidate_offset;
+				debt_cc_number = cc_number;
+				debt_value = debt;
+				debt_rank = rank;
 			}
 		}
 
-		return saw_any_cc;
+		if (rr_offset == k_no_cc_offset) {
+			// The scan found no CC candidates at all.
+			return false;
+		}
+
+		// Debt overrides round-robin so a control being actively moved is emitted promptly.
+		if (debt_offset != k_no_cc_offset && debt_value > 0) {
+			selected_offset = debt_offset;
+			selected_cc_number = debt_cc_number;
+		}
+		else {
+			selected_offset = rr_offset;
+			selected_cc_number = rr_cc_number;
+		}
+		return true;
 	}
 
 	/// Finds the newest queued CC matching a status/CC number pair.
@@ -332,8 +372,12 @@ public:
 			return false;
 		}
 
-		// Let the transport rewrite the value byte in its own storage format.
-		update_matched(static_cast<uint16_t>(latest_offset));
+		// Let the transport rewrite the value byte in its own storage format. It re-validates the offset
+		// under a critical section and reports a miss if the consumer removed the entry in the meantime,
+		// in which case the caller must append a fresh message rather than dropping this update.
+		if (!update_matched(static_cast<uint16_t>(latest_offset))) {
+			return false;
+		}
 		// Record that this CC changed while queued, so scheduled dequeue prefers it.
 		bump_cc_debt(wanted_cc_number);
 		return true;
@@ -346,15 +390,10 @@ public:
 	template <typename BeginScanFn, typename NextScanFn, typename RemoveSelectedFn, typename CallArg>
 	bool pop_next_scheduled_cc_candidate(BeginScanFn&& begin_scan, NextScanFn&& next_scan,
 	                                     RemoveSelectedFn&& remove_selected, CallArg&& out_arg) {
-		if (!collect_first_cc_offsets_from_scan(begin_scan, next_scan)) {
-			// No valid CC candidates were available to schedule.
-			return false;
-		}
-
 		uint16_t selected_offset = 0;
 		uint8_t selected_cc_number = 0;
-		if (!select_next_scheduled_cc(selected_offset, selected_cc_number)) {
-			// The scan produced no selectable CC number.
+		if (!select_scheduled_cc(begin_scan, next_scan, selected_offset, selected_cc_number)) {
+			// No valid CC candidates were available to schedule.
 			return false;
 		}
 
@@ -388,63 +427,22 @@ private:
 	static constexpr uint16_t k_no_cc_offset = 0xFFFF;
 	static constexpr uint8_t k_max_cc_debt = std::numeric_limits<uint8_t>::max();
 
-	/// Scratch map built during one scheduled-pop scan: CC number -> first queued offset.
-	std::array<uint16_t, kMaxMIDIValue + 1> first_offsets{};
+	/// Marks CC numbers already represented by an earlier candidate during one selection pass.
+	/// A bitmask rather than a 128-entry map so clearing it per pass is four stores, not 128.
+	std::array<uint32_t, ((kMaxMIDIValue + 1) + 31) / 32> seen_mask{};
+
+	/// Returns whether this CC number was already seen this pass, and marks it seen.
+	bool test_and_set_seen(uint8_t cc_number) {
+		uint32_t& word = seen_mask[cc_number >> 5];
+		uint32_t bit = 1u << (cc_number & 31);
+		bool already = (word & bit) != 0;
+		word |= bit;
+		return already;
+	}
 	/// Saturating score used to prioritize CC numbers whose queued value changed.
 	std::array<uint8_t, kMaxMIDIValue + 1> cc_debt{};
 	/// Round-robin starting point so equal-debt CC numbers share service.
 	uint8_t next_cc_number{0};
-
-	/// Chooses a CC number using debt first, round-robin order as the fallback.
-	bool select_next_scheduled_cc(uint16_t& selected_offset, uint8_t& selected_cc_number) const {
-		// Track the first candidate in round-robin order as the fallback choice.
-		uint16_t first_round_robin_offset = k_no_cc_offset;
-		uint8_t first_round_robin_cc_number = 0;
-		// Track the highest-debt candidate as the preferred choice when debt exists.
-		uint16_t debt_selected_offset = k_no_cc_offset;
-		uint8_t debt_selected_cc_number = 0;
-		uint8_t debt_selected_value = 0;
-
-		for (uint16_t search = 0; search < (kMaxMIDIValue + 1); search++) {
-			// Start from next_cc_number and wrap through the 7-bit CC number range.
-			uint8_t cc_number = static_cast<uint8_t>((next_cc_number + search) & kMaxMIDIValue);
-			uint16_t target_offset = first_offsets[cc_number];
-			if (target_offset == k_no_cc_offset) {
-				// This CC number had no queued candidate in the current scan.
-				continue;
-			}
-
-			if (first_round_robin_offset == k_no_cc_offset) {
-				// First available candidate in round-robin order becomes the no-debt fallback.
-				first_round_robin_offset = target_offset;
-				first_round_robin_cc_number = cc_number;
-			}
-
-			uint8_t debt = cc_debt[cc_number];
-			if (debt_selected_offset == k_no_cc_offset || debt > debt_selected_value) {
-				// Prefer the CC number that accumulated the most queued/coalesced updates.
-				debt_selected_offset = target_offset;
-				debt_selected_cc_number = cc_number;
-				debt_selected_value = debt;
-			}
-		}
-
-		if (first_round_robin_offset == k_no_cc_offset) {
-			// The scan found no CC candidates at all.
-			return false;
-		}
-
-		// Use round-robin when no candidate has debt.
-		selected_offset = first_round_robin_offset;
-		selected_cc_number = first_round_robin_cc_number;
-		if (debt_selected_offset != k_no_cc_offset && debt_selected_value > 0) {
-			// Debt overrides round-robin so changed CC values are emitted promptly.
-			selected_offset = debt_selected_offset;
-			selected_cc_number = debt_selected_cc_number;
-		}
-
-		return true;
-	}
 
 	/// Advances the round-robin starting point and clears the serviced CC number's debt.
 	void commit_scheduled_cc_pop(uint8_t selected_cc_number) {
@@ -515,43 +513,40 @@ public:
 		return true;
 	}
 
-	/// Removes a logical span while preserving the order of all other entries.
+	/// Removes a logical span by exchanging it with the head, then dropping the head.
 	///
-	/// Scheduled CC dequeue can select an item that is not at the lane head. This
-	/// helper copies survivors into caller-owned scratch storage, resets the
-	/// ring indices, then pushes the survivors back contiguously.
-	bool remove_span_and_repack(uint16_t target_offset, uint16_t remove_count, T* removed_out, T* scratch_buffer) {
+	/// Scheduled CC dequeue can select an entry that is not at the lane head. Two properties matter here:
+	///
+	///  - `write_pos` is owned by the producer. `consume_queued_messages()` runs in an ISR (see the
+	///    warnings in midi_engine.cpp), so a consumer that cleared and rebuilt the ring - as the earlier
+	///    repack did - would race a mainline `push()` and could lose or reorder queued MIDI. This touches
+	///    only `read_pos` and the two spans being exchanged.
+	///  - The freed slot is reclaimed immediately. Marking the span dead in place instead would leak one
+	///    slot per out-of-order removal until it reached the head, which under sustained CC automation
+	///    fills the lane and starts dropping messages.
+	///
+	/// Scheduled removal only runs when the head is itself a three-byte channel CC, so the head span and
+	/// the selected span are always the same width. The entry displaced from the head moves to the
+	/// selected position; CC entries are independent of one another, and this feature already reorders
+	/// them by design, so that is within the ordering the scheduler is allowed to produce.
+	bool remove_span_via_head_swap(uint16_t target_offset, uint16_t span, T* removed_out) {
 		uint16_t queue_size = size();
-		if (remove_count > queue_size || target_offset > static_cast<uint16_t>(queue_size - remove_count)) {
+		if (span > queue_size || target_offset > static_cast<uint16_t>(queue_size - span)) {
 			// The requested span is outside the current logical queue contents.
 			return false;
 		}
 
-		// Copy the selected span out first; this is the message the caller will emit.
-		for (uint16_t i = 0; i < remove_count; i++) {
-			removed_out[i] = peek(static_cast<uint16_t>(target_offset + i));
+		for (uint16_t i = 0; i < span; i++) {
+			uint16_t head_index = static_cast<uint16_t>((read_pos + i) & (Capacity - 1));
+			uint16_t selected_index = static_cast<uint16_t>((read_pos + target_offset + i) & (Capacity - 1));
+			// Copy the selected entry out, then move the head entry into the slot it vacated.
+			removed_out[i] = data[selected_index];
+			data[selected_index] = data[head_index];
 		}
 
-		// Copy every entry except the selected span into scratch storage.
-		uint16_t scratch_size = 0;
-		uint16_t remove_end = static_cast<uint16_t>(target_offset + remove_count);
-		for (uint16_t i = 0; i < queue_size; i++) {
-			if (i >= target_offset && i < remove_end) {
-				// Skip the selected span so it is removed from the rebuilt queue.
-				continue;
-			}
-			scratch_buffer[scratch_size] = peek(i);
-			scratch_size++;
-		}
-
-		// Reset the ring, then rebuild it from the survivors so read/write positions stay simple.
-		clear();
-		for (uint16_t i = 0; i < scratch_size; i++) {
-			if (!push(scratch_buffer[i])) {
-				// Should not happen because survivors came from the same lane capacity.
-				return false;
-			}
-		}
+		// Dropping the head is what actually frees the slot. When target_offset is 0 this degenerates to a
+		// plain pop, which is exactly right.
+		read_pos = static_cast<uint16_t>((read_pos + span) & (Capacity - 1));
 		return true;
 	}
 
@@ -588,9 +583,8 @@ public:
 	void overwrite_at(uint8_t lane, uint16_t logical_offset, T value) {
 		lanes[lane].overwrite_at(logical_offset, value);
 	}
-	bool remove_span_and_repack(uint8_t lane, uint16_t target_offset, uint16_t remove_count, T* removed_out,
-	                            T* scratch_buffer) {
-		return lanes[lane].remove_span_and_repack(target_offset, remove_count, removed_out, scratch_buffer);
+	bool remove_span_via_head_swap(uint8_t lane, uint16_t target_offset, uint16_t span, T* removed_out) {
+		return lanes[lane].remove_span_via_head_swap(target_offset, span, removed_out);
 	}
 	[[nodiscard]] bool empty(uint8_t lane) const { return lanes[lane].empty(); }
 	[[nodiscard]] uint16_t space(uint8_t lane) const { return lanes[lane].space(); }
@@ -610,9 +604,8 @@ public:
 	void overwrite_at(uint8_t lane, uint16_t logical_offset, T value) {
 		queue_storage.overwrite_at(lane, logical_offset, value);
 	}
-	bool remove_span_and_repack(uint8_t lane, uint16_t target_offset, uint16_t remove_count, T* removed_out,
-	                            T* scratch_buffer) {
-		return queue_storage.remove_span_and_repack(lane, target_offset, remove_count, removed_out, scratch_buffer);
+	bool remove_span_via_head_swap(uint8_t lane, uint16_t target_offset, uint16_t span, T* removed_out) {
+		return queue_storage.remove_span_via_head_swap(lane, target_offset, span, removed_out);
 	}
 	[[nodiscard]] bool empty(uint8_t lane) const { return queue_storage.empty(lane); }
 	[[nodiscard]] uint16_t space(uint8_t lane) const { return queue_storage.space(lane); }
@@ -696,10 +689,6 @@ private:
 	                                                                           USBSendContext& context);
 	/// Pops one queued SysEx event and keeps USB drain locked to SysEx until the ending event is sent.
 	[[nodiscard]] bool pop_sysex_message(USBSendContext& context);
-	/// Temporary lane-sized storage used when scheduled CC dequeue removes a selected message from the middle of the CC
-	/// ring. Survivors are copied here, the ring is reset, and then the survivors are pushed back in their original
-	/// order.
-	std::array<uint32_t, MIDI_SEND_BUFFER_LEN_RING> cc_reorder_scratch_{};
 	/// True after a USB SysEx start/continue event has been popped but before its terminating event has been sent.
 	bool sysex_drain_active_{false};
 };
@@ -768,8 +757,4 @@ private:
 	[[nodiscard]] bool enqueue_message_with_cc_policy(QueuePriority priority, MIDIMessage queued_message);
 	[[nodiscard]] MIDIQueueManager::PriorityLaneTraversalResult handle_cc_lane(QueuePriority priority,
 	                                                                           DINSendContext& context);
-	/// Temporary lane-sized storage used when scheduled CC dequeue removes a selected three-byte message from the
-	/// middle of the CC byte ring. Survivors are copied here, the ring is reset, and then the survivors are pushed back
-	/// in order.
-	std::array<uint8_t, k_serial_queue_capacity> cc_reorder_scratch_{};
 };
