@@ -550,7 +550,8 @@ for `bufferMIDIUart`. Split it:
 
 ```c
 // Not thread safe! Do not call in ISRs.
-#define bufferPICUart(charToSend) ```
+#define bufferPICUart(charToSend)
+```
 
 and on the MIDI declaration, replace the trailing `/// Not thread safe. See the warning above
 bufferPICUart.` with:
