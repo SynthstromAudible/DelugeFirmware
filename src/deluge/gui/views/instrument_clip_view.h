@@ -282,6 +282,9 @@ public:
 	SquareInfo gridSquareInfo[kDisplayHeight][kDisplayWidth]{};
 	int32_t lastSelectedNoteXDisplay;
 	int32_t lastSelectedNoteYDisplay;
+	// True while the currently-selected Note Editor note has had its audition explicitly silenced by
+	// pressing its pad a second time.
+	bool noteEditorAuditionMuted = false;
 
 	// adjust note parameters
 	void adjustVelocity(int32_t velocityChange);

@@ -3559,6 +3559,7 @@ bool InstrumentClipView::enterNoteEditor() {
 }
 
 void InstrumentClipView::exitNoteEditor() {
+	noteEditorAuditionMuted = false;
 	if (lastSelectedNoteXDisplay != kNoSelection && lastSelectedNoteYDisplay != kNoSelection) {
 		if (isUIModeActive(UI_MODE_NOTES_PRESSED)) {
 			editPadAction(0, lastSelectedNoteYDisplay, lastSelectedNoteXDisplay, currentSong->xZoom[NAVIGATION_CLIP]);
@@ -3613,20 +3614,13 @@ void InstrumentClipView::handleNoteEditorEditPadAction(int32_t x, int32_t y, int
 			if (lastAuditionedVelocityOnScreen[y] != 255) {
 				sendAuditionNote(false, y, 127, 0);
 				lastAuditionedVelocityOnScreen[y] = 255;
-				// set the intendedVelocity to 255 as well so that if reassessAuditionStatus gets called elsewhere
-				// it won't send another note on
-				editPadPresses[0].intendedVelocity = 255;
+				// Remember that we've deliberately silenced this note, so that if reassessAuditionStatus()
+				// gets called elsewhere it won't send another note on for it.
+				noteEditorAuditionMuted = true;
 			}
 			// Switch note on if it was off
 			else {
-				// intendedVelocity is used by reassessAuditionStatus so if we turned the note off previously
-				// then we need to reset intendedVelocity to the velocity of the left most note in the pad we selected
-				if (editPadPresses[0].intendedVelocity == 255) {
-					Note* leftMostNotePressed = getLeftMostNotePressed();
-					if (leftMostNotePressed) {
-						editPadPresses[0].intendedVelocity = leftMostNotePressed->getVelocity();
-					}
-				}
+				noteEditorAuditionMuted = false;
 				reassessAuditionStatus(y);
 			}
 		}
@@ -4785,11 +4779,17 @@ uint8_t InstrumentClipView::getVelocityForAudition(uint8_t yDisplay, uint32_t* s
 
 		if (makeCurrentClipActiveOnInstrumentIfPossible(modelStack)) { // Should always be true, cos playback is stopped
 
-			for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
-				if (editPadPresses[i].isActive && editPadPresses[i].yDisplay == yDisplay) {
-					sum += editPadPresses[i].intendedVelocity;
-					numInstances++;
-					*sampleSyncLength = editPadPresses[i].intendedLength;
+			// While the Note Editor has this row's note deliberately muted, don't let it contribute
+			// a velocity here - that's what tells reassessAuditionStatus() to keep it switched off.
+			bool rowMutedByNoteEditor = noteEditorAuditionMuted && yDisplay == lastSelectedNoteYDisplay;
+
+			if (!rowMutedByNoteEditor) {
+				for (int32_t i = 0; i < kEditPadPressBufferSize; i++) {
+					if (editPadPresses[i].isActive && editPadPresses[i].yDisplay == yDisplay) {
+						sum += editPadPresses[i].intendedVelocity;
+						numInstances++;
+						*sampleSyncLength = editPadPresses[i].intendedLength;
+					}
 				}
 			}
 		}
