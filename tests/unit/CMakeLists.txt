@@ -61,6 +61,9 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/gui/ui/keyboard/chords.cpp
         # For clock output scheduler tests
         ../../src/deluge/playback/clock_output_scheduler.cpp
+        # For MIDI queue manager drain tests
+        ../../src/deluge/io/midi/midi_queue_manager.cpp
+        ../../src/deluge/model/midi/message.cpp
         # For name comparison / default naming tests
         ../../src/deluge/util/name_compare.cpp
         ../../src/deluge/gui/ui/browser/default_name.cpp
@@ -83,6 +86,7 @@ add_executable(UnitTests
         rgb_tests.cpp
         notes_state_tests.cpp
         midi_queue_manager_tests.cpp
+        midi_din_drain_tests.cpp
 )
 add_test(NAME UnitTests
         COMMAND UnitTests)
@@ -92,6 +96,7 @@ target_include_directories(UnitTests PRIVATE
         mocks
         ../../src
         ../../src/deluge
+        ../../src/OSLikeStuff
 )
 
 set_target_properties(UnitTests

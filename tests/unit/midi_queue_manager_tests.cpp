@@ -563,3 +563,26 @@ TEST(MIDIOrderingRegressions, MomentaryCCKeepsBothOfItsValues) {
 	CHECK(MIDIQueueManager::classify_message(eventCC(0, 64, 127)) != QUEUE_PRIORITY_CC);
 	CHECK(MIDIQueueManager::classify_message(eventCC(0, 64, 0)) != QUEUE_PRIORITY_CC);
 }
+
+// --- Enqueue reports backpressure instead of flushing ---
+//
+// The queue manager must not call back into MidiEngine: that made the call graph a cycle and let a
+// mainline enqueue synchronously trigger the interrupt-masked drain. Enqueue reports that a flush is
+// wanted and the caller decides.
+
+TEST_GROUP(MIDIQueueBackpressure){};
+
+TEST(MIDIQueueBackpressure, EnqueueRequestsFlushOnlyOnceBacklogIsHigh) {
+	MIDIQueueManagerUSB queue;
+	queue.reset_queue_storage();
+
+	// A single message is not backlog.
+	CHECK_FALSE(queue.enqueue_message(0x09903C64, MIDIIntent::Event));
+
+	// Past k_usb_flush_backlog_message_threshold (16) it should ask for a flush.
+	bool asked = false;
+	for (int i = 0; i < 32; i++) {
+		asked = queue.enqueue_message(0x09903C64, MIDIIntent::Event) || asked;
+	}
+	CHECK_TRUE(asked);
+}
