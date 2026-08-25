@@ -93,8 +93,9 @@ enum class MIDIIntent : uint8_t {
 	/// The current value of a continuous parameter, where a later value supersedes an earlier one.
 	/// Eligible for coalescing and for debt-based reordering.
 	Continuous,
-	/// Expression that initialises a note and must not be overtaken by it. Queued on the notes lane
-	/// so it stays ordered with the note event it accompanies.
+	/// A message that must stay ordered with the note stream: expression that initialises a note and
+	/// must not be overtaken by it, or a channel-mode message like All Notes Off that must not be
+	/// overtaken by the notes queued after it. Queued on the notes lane so that ordering holds.
 	NoteBound,
 };
 ```
@@ -113,24 +114,43 @@ void sendCC(MIDISource source, int32_t channel, int32_t cc, int32_t value, int32
 
 ### Queue rules
 
-`classify_message` gains one rule: `NoteBound` messages classify to `QUEUE_PRIORITY_NOTES` regardless of
-status type. Everything else classifies as it does today.
+**Intent affects classification only.** Nothing in the dequeue path changes.
 
-`enqueue_message_with_cc_policy` coalesces only when `intent == Continuous`. `handle_cc_lane` runs
-scheduled selection only when the lane head is a `Continuous` CC; an `Event` CC at the head takes the
-normal FIFO `PopLane` path. `select_scheduled_cc` only ever considers `Continuous` entries as candidates.
+This matters because intent is not stored in the lane and cannot be: a USB entry is a fully-packed
+`uint32_t` and a DIN entry is a raw byte, so the consumer has no room to record it. Gating the dequeue on
+intent would require widening every queue entry. Instead, routing by intent at enqueue time means the CC
+lane contains *only* `Continuous` entries, so coalescing and debt reordering there are unconditionally
+correct and `handle_cc_lane`, `select_scheduled_cc` and `enqueue_message_with_cc_policy` are untouched.
 
-This keeps five lanes. Adding a sixth strictly-ordered CC lane was considered and rejected: each lane is
-a full-capacity ring (`std::array<MIDIQueueLane<T, Capacity>, LaneCount>`), so a sixth costs 4KB per USB
+```
+classify_message(message):
+  system                                  -> CLOCK
+  NoteOn / NoteOff                        -> NOTES
+  NoteBound (any status)                  -> NOTES        // ordered with the note stream
+  PolyAftertouch / ChannelAftertouch / PitchBend -> EXPRESSION
+  ControlChange:
+      mod wheel or MPE Y                  -> EXPRESSION   // as today
+      Continuous                          -> CC           // coalesced + reordered
+      otherwise (Event)                   -> EXPRESSION   // ordered, never merged
+  default (Program Change, unknown)       -> EXPRESSION   // ordered
+```
+
+`Event` CCs and Program Changes move from the CC lane to the expression lane, which is already strictly
+FIFO and never coalesced. That lane is a slight misnomer once it carries bank selects and RPNs, but it is
+the correct *behaviour* — ordered, unmerged — and reusing it costs nothing.
+
+This keeps five lanes. Adding a sixth strictly-ordered lane was considered and rejected: each lane is a
+full-capacity ring (`std::array<MIDIQueueLane<T, Capacity>, LaneCount>`), so a sixth costs 4KB per USB
 device, 24KB across the six devices.
 
 ### Ordering guarantees this produces
 
 - Lanes are FIFO, so **messages that must stay ordered relative to each other must share a lane**. This
   is the whole of the ordered-group concept; no new queue primitive is needed.
-- `Event` CCs keep strict relative order with each other. Head-swap removal moves only the head, and the
-  head is only swapped when it is `Continuous`, so no `Event` message is ever displaced.
-- `Continuous` CCs may be merged and reordered relative to anything.
+- `Event` CCs keep strict relative order with each other, and with Program Changes, because they share
+  the strictly-FIFO expression lane and never enter the reorderable CC lane.
+- `Continuous` CCs may be merged and reordered relative to anything. They are the only occupants of the
+  CC lane, which is what makes the existing dequeue logic correct without modification.
 - `NoteBound` expression stays ordered with its note-on because they share the notes lane.
 - SysEx contiguity is unchanged; `sysex_drain_active_` already handles it.
 
@@ -147,7 +167,7 @@ Thirteen CC call sites, plus the note path:
 | `outputAllMPEValuesOnMemberChannel` (`:1089`, `:1095`, `:1101`; callers `:1070`, `:1162`) | `NoteBound` | Must precede the note-on it initialises. |
 | `sendRPN` (5 sends) | `Event` (default) | Stateful sequence; order and duplicates are load-bearing. |
 | `sendBank`, `sendSubBank` | `Event` (default) | Prefix for a Program Change. |
-| `sendAllNotesOff` | `Event` (default) | Channel-mode event; must not be merged or delayed. |
+| `sendAllNotesOff` | `NoteBound` | Must stay ordered with the notes queued after it, or it kills them. |
 
 Only the `Continuous` and `NoteBound` rows change. Everything else gets correct behaviour by doing
 nothing, which is the point.
@@ -177,10 +197,9 @@ which messages are eligible for the scheduler, not how the scheduler treats elig
 - **`NoteBound` on the notes lane.** This puts three expression messages per note-on into the notes
   lane. At high note rates that competes with note traffic in a lane that was previously notes-only.
   Worth measuring before merge. Ongoing expression is unaffected — it stays on the expression lane.
-- **Program Change is still `default:`-classified into the CC lane.** With `Event` intent it will no
-  longer be overtaken by other `Event` CCs, but a `Continuous` CC can still be selected ahead of it.
-  Whether bank/PC needs to also be `NoteBound`-style pinned to a higher lane is left open; finding 3 is
-  the least severe of the four and the CC-lane fix addresses most of it.
+- **Expression lane load.** `Event` CCs and Program Changes now share the expression lane with pitch
+  bend and channel aftertouch. All are low-rate, so contention is not expected, but the lane's capacity
+  is now serving two purposes.
 - **Naming.** `MIDIIntent` rather than `CCIntent` because pitch bend and channel aftertouch are equally
   continuous and may want the same treatment later. Nothing in this spec depends on that extension.
 - **Scope.** This changes the coalescing contract, which is the design premise of PR #4840. It should be
