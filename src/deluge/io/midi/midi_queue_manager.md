@@ -655,3 +655,28 @@ from filling the UART ahead of later higher-priority messages.
 ## Tests Not Performed
 
 - [ ] Confirm that sending out midi expression works as expected
+
+## Message intent
+
+Coalescing and reordering are opt-in. A sender declares what a message is via `MIDIIntent` on
+`MIDIMessage`, and `classify_message()` routes on it:
+
+- `Event` (the default) - a discrete event. Routed to the expression lane, which is strictly FIFO and
+  never coalesced, so its order and its duplicate values survive. RPN sequences, bank selects, program
+  changes and momentary CCs rely on this.
+- `Continuous` - the current value of a parameter, where a later value supersedes an earlier one. Routed
+  to the CC lane, where it may be coalesced and reordered by CC debt.
+- `NoteBound` - must stay ordered with the note stream. Routed to the notes lane. Used by the MPE
+  expression that initialises a note, and by All Notes Off.
+
+Intent is consumed only by classification. It is not stored per queue entry and cannot be - a USB entry
+is a fully packed `uint32_t` and a DIN entry is a raw byte - so the dequeue path never sees it. Keeping
+`Event` traffic out of the CC lane is what makes the coalescing and debt reordering there
+unconditionally correct.
+
+Because lanes are FIFO, the rule for any ordered sequence is: **messages that must stay ordered relative
+to each other must share a lane.** That is why `NoteBound` exists rather than a separate grouping
+mechanism.
+
+The default is deliberately the conservative one, so that a sender which is never annotated loses
+coalescing (a latency cost) rather than ordering (a correctness cost).

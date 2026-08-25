@@ -485,3 +485,75 @@ TEST(MIDIMessageClassification, UnchangedClassificationsStillHold) {
 	mpeY.intent = MIDIIntent::Continuous;
 	CHECK(MIDIQueueManager::classify_message(mpeY) == QUEUE_PRIORITY_EXPRESSION);
 }
+
+// --- Regression tests for the ordering defects in docs/superpowers/specs/2026-08-25-midi-intent-opt-in-design.md
+//
+// Each of these sequences was scrambled by coalescing or reordering. They are asserted at the
+// classification level because that is where the fix lives: a lane is FIFO, so co-locating an ordered
+// sequence on one lane is what preserves it.
+
+namespace {
+/// Builds the CC an ordered protocol sequence sends: default Event intent.
+MIDIMessage eventCC(uint8_t channel, uint8_t cc, uint8_t value) {
+	return MIDIMessage::cc(channel, cc, value);
+}
+} // namespace
+
+TEST_GROUP(MIDIOrderingRegressions){};
+
+TEST(MIDIOrderingRegressions, RPNSequenceStaysOnOneOrderedLane) {
+	// sendRPN() emits CC100, CC101, CC6, then CC100=127 and CC101=127 as a terminator. Coalescing used
+	// to merge the terminator into the opening selection and reordering emitted it first, so the MPE
+	// configuration address was destroyed and the data entry landed on the null parameter.
+	MIDIMessage sequence[] = {
+	    eventCC(0, 100, 6), eventCC(0, 101, 0), eventCC(0, 6, 4), eventCC(0, 100, 127), eventCC(0, 101, 127),
+	};
+	for (MIDIMessage m : sequence) {
+		QueuePriority lane = MIDIQueueManager::classify_message(m);
+		CHECK(lane != QUEUE_PRIORITY_CC); // never the coalescing/reordering lane
+		CHECK(lane == QUEUE_PRIORITY_EXPRESSION);
+	}
+}
+
+TEST(MIDIOrderingRegressions, MPENoteInitialisationSharesTheNoteLane) {
+	// outputAllMPEValuesOnMemberChannel() sends these immediately before a note-on. The notes lane
+	// outranks the expression lane, so without NoteBound the note-on overtook them.
+	MIDIMessage x = MIDIMessage::pitchBend(1, 8192);
+	MIDIMessage y = MIDIMessage::cc(1, CC_EXTERNAL_MPE_Y, 64);
+	MIDIMessage z = MIDIMessage::channelAftertouch(1, 0);
+	x.intent = MIDIIntent::NoteBound;
+	y.intent = MIDIIntent::NoteBound;
+	z.intent = MIDIIntent::NoteBound;
+
+	QueuePriority noteLane = MIDIQueueManager::classify_message(MIDIMessage::noteOn(1, 60, 100));
+	CHECK(MIDIQueueManager::classify_message(x) == noteLane);
+	CHECK(MIDIQueueManager::classify_message(y) == noteLane);
+	CHECK(MIDIQueueManager::classify_message(z) == noteLane);
+}
+
+TEST(MIDIOrderingRegressions, BankSelectAndProgramChangeShareAnOrderedLane) {
+	// instrument_clip.cpp sends bank MSB, bank LSB, then the program change. A reordered CC could
+	// previously be pulled ahead of the program change and land on the old patch.
+	QueuePriority bankMSB = MIDIQueueManager::classify_message(eventCC(0, 0, 3));
+	QueuePriority bankLSB = MIDIQueueManager::classify_message(eventCC(0, 32, 1));
+	QueuePriority pgm = MIDIQueueManager::classify_message(MIDIMessage::programChange(0, 5));
+
+	CHECK(bankMSB == bankLSB);
+	CHECK(bankLSB == pgm);
+	CHECK(pgm != QUEUE_PRIORITY_CC);
+}
+
+TEST(MIDIOrderingRegressions, AllNotesOffSharesTheNoteLane) {
+	// Queued on a lower-priority lane, notes sent after it drained first and were then silenced by it.
+	MIDIMessage allNotesOff = MIDIMessage::cc(0, 123, 0);
+	allNotesOff.intent = MIDIIntent::NoteBound;
+	CHECK(MIDIQueueManager::classify_message(allNotesOff)
+	      == MIDIQueueManager::classify_message(MIDIMessage::noteOn(0, 60, 100)));
+}
+
+TEST(MIDIOrderingRegressions, MomentaryCCKeepsBothOfItsValues) {
+	// A CC used as a trigger sends 127 then 0. Coalescing would merge them and the trigger would never
+	// fire. Event intent keeps it off the coalescing lane entirely.
+	CHECK(MIDIQueueManager::classify_message(eventCC(0, 64, 127)) != QUEUE_PRIORITY_CC);
+	CHECK(MIDIQueueManager::classify_message(eventCC(0, 64, 0)) != QUEUE_PRIORITY_CC);
+}
