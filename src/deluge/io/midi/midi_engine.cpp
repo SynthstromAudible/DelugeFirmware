@@ -444,7 +444,11 @@ void MidiEngine::sendNote(MIDISource source, bool on, int32_t note, uint8_t velo
 }
 
 void MidiEngine::sendAllNotesOff(MIDISource source, int32_t channel, int32_t filter) {
-	sendMidi(source, MIDIMessage::cc(channel, 123, 0), filter);
+	// Must not be overtaken by the notes queued after it, or it silences them instead of the notes it
+	// was meant to stop. NoteBound puts it on the notes lane, which is FIFO.
+	MIDIMessage message = MIDIMessage::cc(channel, 123, 0);
+	message.intent = MIDIIntent::NoteBound;
+	sendMidi(source, message, filter);
 }
 
 /// Saturate a value into the 7 bits a MIDI data byte gets. Callers derive these from internal 32-bit parameter values,
@@ -454,8 +458,11 @@ static uint8_t toDataByte(int32_t value) {
 	return static_cast<uint8_t>(std::clamp<int32_t>(value, 0, 127));
 }
 
-void MidiEngine::sendCC(MIDISource source, int32_t channel, int32_t cc, int32_t value, int32_t filter) {
-	sendMidi(source, MIDIMessage::cc(channel, cc, toDataByte(value)), filter);
+void MidiEngine::sendCC(MIDISource source, int32_t channel, int32_t cc, int32_t value, int32_t filter,
+                        MIDIIntent intent) {
+	MIDIMessage message = MIDIMessage::cc(channel, cc, toDataByte(value));
+	message.intent = intent;
+	sendMidi(source, message, filter);
 }
 
 void MidiEngine::sendClock(MIDISource source, bool sendUSB, int32_t howMany) {
@@ -494,12 +501,17 @@ void MidiEngine::sendPGMChange(MIDISource source, int32_t channel, int32_t pgm, 
 	sendMidi(source, MIDIMessage::programChange(channel, pgm), filter);
 }
 
-void MidiEngine::sendPitchBend(MIDISource source, int32_t channel, uint16_t bend, int32_t filter) {
-	sendMidi(source, MIDIMessage::pitchBend(channel, bend), filter);
+void MidiEngine::sendPitchBend(MIDISource source, int32_t channel, uint16_t bend, int32_t filter, MIDIIntent intent) {
+	MIDIMessage message = MIDIMessage::pitchBend(channel, bend);
+	message.intent = intent;
+	sendMidi(source, message, filter);
 }
 
-void MidiEngine::sendChannelAftertouch(MIDISource source, int32_t channel, int32_t value, int32_t filter) {
-	sendMidi(source, MIDIMessage::channelAftertouch(channel, toDataByte(value)), filter);
+void MidiEngine::sendChannelAftertouch(MIDISource source, int32_t channel, int32_t value, int32_t filter,
+                                       MIDIIntent intent) {
+	MIDIMessage message = MIDIMessage::channelAftertouch(channel, toDataByte(value));
+	message.intent = intent;
+	sendMidi(source, message, filter);
 }
 
 void MidiEngine::sendPolyphonicAftertouch(MIDISource source, int32_t channel, int32_t value, uint8_t noteCode,

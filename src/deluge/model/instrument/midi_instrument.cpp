@@ -1082,23 +1082,27 @@ void MIDIInstrument::noteOnPostArp(int32_t noteCodePostArp, ArpNote* arpNote, in
 // And obviously you can't call this unless you know that this Instrument sendsToMPE().
 void MIDIInstrument::outputAllMPEValuesOnMemberChannel(int16_t const* mpeValuesToUse, int32_t outputMemberChannel) {
 	int32_t channel = getChannel();
+	// These initialise the note that the caller sends immediately afterwards. The notes lane has higher
+	// priority than the expression lane, so without NoteBound the note-on overtakes them and the note
+	// starts on the previous member-channel values before snapping. NoteBound puts them on the notes
+	// lane, which is FIFO, so the order the caller wrote is the order that goes out.
 	{ // X
 		int32_t outputValue14 = mpeValuesToUse[0] >> 2;
 		mpeOutputMemberChannels[outputMemberChannel].lastXValueSent = outputValue14;
 		int32_t outputValue14Unsigned = outputValue14 + 8192;
-		midiEngine.sendPitchBend(this, outputMemberChannel, outputValue14Unsigned, channel);
+		midiEngine.sendPitchBend(this, outputMemberChannel, outputValue14Unsigned, channel, MIDIIntent::NoteBound);
 	}
 
 	{ // Y
 		int32_t outputValue7 = mpeValuesToUse[1] >> 9;
 		mpeOutputMemberChannels[outputMemberChannel].lastYAndZValuesSent[0] = outputValue7;
-		midiEngine.sendCC(this, outputMemberChannel, outputMPEY, outputValue7 + 64, channel);
+		midiEngine.sendCC(this, outputMemberChannel, outputMPEY, outputValue7 + 64, channel, MIDIIntent::NoteBound);
 	}
 
 	{ // Z
 		int32_t outputValue7 = mpeValuesToUse[2] >> 8;
 		mpeOutputMemberChannels[outputMemberChannel].lastYAndZValuesSent[1] = outputValue7;
-		midiEngine.sendChannelAftertouch(this, outputMemberChannel, outputValue7, channel);
+		midiEngine.sendChannelAftertouch(this, outputMemberChannel, outputValue7, channel, MIDIIntent::NoteBound);
 	}
 }
 
@@ -1273,7 +1277,8 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 		case 1: { // Y
 			int32_t value7 = value32 >> 25;
 			mpeOutputMemberChannels[memberChannel].lastYAndZValuesSent[0] = value7;
-			midiEngine.sendCC(this, memberChannel, outputMPEY, value7 + 64, channel);
+			// Ongoing per-note expression during a sounding note: latest value wins.
+			midiEngine.sendCC(this, memberChannel, outputMPEY, value7 + 64, channel, MIDIIntent::Continuous);
 			break;
 		}
 

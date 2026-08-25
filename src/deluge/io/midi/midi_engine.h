@@ -66,7 +66,8 @@ public:
 	MidiEngine();
 
 	void sendNote(MIDISource source, bool on, int32_t note, uint8_t velocity, uint8_t channel, int32_t filter);
-	void sendCC(MIDISource source, int32_t channel, int32_t cc, int32_t value, int32_t filter);
+	void sendCC(MIDISource source, int32_t channel, int32_t cc, int32_t value, int32_t filter,
+	            MIDIIntent intent = MIDIIntent::Event);
 	bool checkIncomingSerialMidi();
 	static void check_incoming_usb();
 	void checkIncomingUsbMidi();
@@ -93,9 +94,11 @@ public:
 	/// Send pitch bend
 	///
 	/// @param bend Bend amount. Only the lower 14 bits are used
-	void sendPitchBend(MIDISource source, int32_t channel, uint16_t bend, int32_t filter);
+	void sendPitchBend(MIDISource source, int32_t channel, uint16_t bend, int32_t filter,
+	                   MIDIIntent intent = MIDIIntent::Event);
 	/// @param value Pressure amount. Saturated into 0-127
-	void sendChannelAftertouch(MIDISource source, int32_t channel, int32_t value, int32_t filter);
+	void sendChannelAftertouch(MIDISource source, int32_t channel, int32_t value, int32_t filter,
+	                           MIDIIntent intent = MIDIIntent::Event);
 	/// @param value Pressure amount. Saturated into 0-127
 	void sendPolyphonicAftertouch(MIDISource source, int32_t channel, int32_t value, uint8_t noteCode, int32_t filter);
 	bool anythingInOutputBuffer();
