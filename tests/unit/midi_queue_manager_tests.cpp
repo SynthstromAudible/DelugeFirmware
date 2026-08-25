@@ -1,5 +1,6 @@
 #include "CppUTest/TestHarness.h"
 #include "io/midi/midi_queue_manager.h"
+#include <array>
 #include <vector>
 
 // These tests cover the transport-neutral pieces of the MIDI queue manager: the ring lane and the CC
@@ -25,6 +26,24 @@ constexpr uint8_t cc_of(uint32_t e) {
 constexpr uint8_t value_of(uint32_t e) {
 	return static_cast<uint8_t>(e);
 }
+
+/// A lane plus the storage it views, so tests can build one without a MIDIQueueStorage.
+///
+/// MIDIQueueLane is a view: the owning storage hands it a pointer and a wrap mask. This mirrors that
+/// for the lane's own unit tests.
+template <typename T, uint16_t Capacity>
+struct OwnedLane {
+	static_assert(Capacity != 0 && (Capacity & (Capacity - 1)) == 0, "capacity must be a power of two");
+	std::array<T, Capacity> storage{};
+	MIDIQueueLane<T> lane{};
+
+	OwnedLane() {
+		lane.data = storage.data();
+		lane.mask = Capacity - 1;
+	}
+	MIDIQueueLane<T>* operator->() { return &lane; }
+	MIDIQueueLane<T>& operator*() { return lane; }
+};
 
 /// Minimal stand-in for a transport's CC lane, in queued order.
 struct FakeCCLane {
@@ -104,60 +123,60 @@ bool coalesce(MIDICCQueuePolicy& policy, FakeCCLane& lane, uint8_t status, uint8
 TEST_GROUP(MIDIQueueLaneBasics){};
 
 TEST(MIDIQueueLaneBasics, PushPopRoundTrip) {
-	MIDIQueueLane<uint32_t, 8> lane;
-	CHECK_TRUE(lane.empty());
-	CHECK_TRUE(lane.push(11));
-	CHECK_TRUE(lane.push(22));
-	CHECK_EQUAL(2, lane.size());
+	OwnedLane<uint32_t, 8> lane;
+	CHECK_TRUE(lane->empty());
+	CHECK_TRUE(lane->push(11));
+	CHECK_TRUE(lane->push(22));
+	CHECK_EQUAL(2, lane->size());
 
 	uint32_t out = 0;
-	CHECK_TRUE(lane.pop(out));
+	CHECK_TRUE(lane->pop(out));
 	CHECK_EQUAL(11, out);
-	CHECK_TRUE(lane.pop(out));
+	CHECK_TRUE(lane->pop(out));
 	CHECK_EQUAL(22, out);
-	CHECK_TRUE(lane.empty());
+	CHECK_TRUE(lane->empty());
 }
 
 TEST(MIDIQueueLaneBasics, KeepsOneSlotFreeSoFullIsDistinctFromEmpty) {
-	MIDIQueueLane<uint32_t, 8> lane;
+	OwnedLane<uint32_t, 8> lane;
 	for (uint32_t i = 0; i < 7; i++) {
-		CHECK_TRUE(lane.push(i));
+		CHECK_TRUE(lane->push(i));
 	}
-	CHECK_EQUAL(7, lane.size());
-	CHECK_EQUAL(0, lane.space());
-	CHECK_FALSE(lane.push(99)); // capacity is Capacity-1
-	CHECK_FALSE(lane.empty());
+	CHECK_EQUAL(7, lane->size());
+	CHECK_EQUAL(0, lane->space());
+	CHECK_FALSE(lane->push(99)); // capacity is Capacity-1
+	CHECK_FALSE(lane->empty());
 }
 
 TEST(MIDIQueueLaneBasics, PeekIsRelativeToHeadAcrossWrap) {
-	MIDIQueueLane<uint32_t, 8> lane;
+	OwnedLane<uint32_t, 8> lane;
 	// Drive read_pos forward so the logical span wraps the physical ring.
 	for (uint32_t i = 0; i < 6; i++) {
-		lane.push(i);
+		lane->push(i);
 	}
 	uint32_t sink = 0;
 	for (int i = 0; i < 5; i++) {
-		lane.pop(sink);
+		lane->pop(sink);
 	}
-	lane.push(100);
-	lane.push(200);
-	CHECK_EQUAL(3, lane.size());
-	CHECK_EQUAL(5, lane.peek(0));
-	CHECK_EQUAL(100, lane.peek(1));
-	CHECK_EQUAL(200, lane.peek(2));
+	lane->push(100);
+	lane->push(200);
+	CHECK_EQUAL(3, lane->size());
+	CHECK_EQUAL(5, lane->peek(0));
+	CHECK_EQUAL(100, lane->peek(1));
+	CHECK_EQUAL(200, lane->peek(2));
 }
 
 TEST(MIDIQueueLaneBasics, PopManyIsAllOrNothing) {
-	MIDIQueueLane<uint32_t, 8> lane;
-	lane.push(1);
-	lane.push(2);
+	OwnedLane<uint32_t, 8> lane;
+	lane->push(1);
+	lane->push(2);
 	uint32_t out[3] = {0, 0, 0};
-	CHECK_FALSE(lane.pop_many(out, 3)); // more than queued: must not partially consume
-	CHECK_EQUAL(2, lane.size());
-	CHECK_TRUE(lane.pop_many(out, 2));
+	CHECK_FALSE(lane->pop_many(out, 3)); // more than queued: must not partially consume
+	CHECK_EQUAL(2, lane->size());
+	CHECK_TRUE(lane->pop_many(out, 2));
 	CHECK_EQUAL(1, out[0]);
 	CHECK_EQUAL(2, out[1]);
-	CHECK_TRUE(lane.empty());
+	CHECK_TRUE(lane->empty());
 }
 
 // --- CC scheduling policy ---
@@ -268,89 +287,89 @@ TEST(MIDICCCoalescing, CoalescedCCIsPreferredOnNextPop) {
 TEST_GROUP(MIDIQueueLaneOutOfOrderRemoval){};
 
 TEST(MIDIQueueLaneOutOfOrderRemoval, RemovalLeavesWritePosUntouched) {
-	MIDIQueueLane<uint32_t, 16> lane;
+	OwnedLane<uint32_t, 16> lane;
 	for (uint32_t i = 1; i <= 5; i++) {
-		lane.push(i);
+		lane->push(i);
 	}
-	uint16_t write_pos_before = lane.write_pos;
+	uint16_t write_pos_before = lane->write_pos;
 
 	uint32_t removed[1] = {0};
-	CHECK_TRUE(lane.remove_span_via_head_swap(2, 1, removed));
+	CHECK_TRUE(lane->remove_span_via_head_swap(2, 1, removed));
 	CHECK_EQUAL(3, removed[0]);
-	CHECK_EQUAL(write_pos_before, lane.write_pos); // the producer's index must not move
+	CHECK_EQUAL(write_pos_before, lane->write_pos); // the producer's index must not move
 }
 
 TEST(MIDIQueueLaneOutOfOrderRemoval, RemovalFreesTheSlotImmediately) {
-	MIDIQueueLane<uint32_t, 16> lane;
+	OwnedLane<uint32_t, 16> lane;
 	for (uint32_t i = 1; i <= 5; i++) {
-		lane.push(i);
+		lane->push(i);
 	}
-	uint16_t space_before = lane.space();
+	uint16_t space_before = lane->space();
 	uint32_t removed[1] = {0};
-	CHECK_TRUE(lane.remove_span_via_head_swap(2, 1, removed));
-	CHECK_EQUAL(4, lane.size());
-	CHECK_EQUAL(space_before + 1, lane.space()); // capacity is reclaimed, not leaked
+	CHECK_TRUE(lane->remove_span_via_head_swap(2, 1, removed));
+	CHECK_EQUAL(4, lane->size());
+	CHECK_EQUAL(space_before + 1, lane->space()); // capacity is reclaimed, not leaked
 }
 
 TEST(MIDIQueueLaneOutOfOrderRemoval, RepeatedRemovalDoesNotGrowTheLane) {
 	// The pathological pattern: one cold entry parked at the head while a hot entry is repeatedly removed
 	// and re-queued. Leaving removed slots dead in place would leak one slot per cycle and eventually
 	// fill the lane, dropping MIDI while only two entries were ever live.
-	MIDIQueueLane<uint32_t, 16> lane;
-	lane.push(0xC01D);
-	lane.push(0x0BEEF);
+	OwnedLane<uint32_t, 16> lane;
+	lane->push(0xC01D);
+	lane->push(0x0BEEF);
 	for (int cycle = 0; cycle < 50; cycle++) {
-		uint16_t offset = static_cast<uint16_t>(lane.size() - 1);
+		uint16_t offset = static_cast<uint16_t>(lane->size() - 1);
 		uint32_t removed[1] = {0};
-		CHECK_TRUE(lane.remove_span_via_head_swap(offset, 1, removed));
-		CHECK_TRUE(lane.push(0x0BEEF));
-		CHECK_EQUAL(2, lane.size()); // bounded, every cycle
+		CHECK_TRUE(lane->remove_span_via_head_swap(offset, 1, removed));
+		CHECK_TRUE(lane->push(0x0BEEF));
+		CHECK_EQUAL(2, lane->size()); // bounded, every cycle
 	}
 }
 
 TEST(MIDIQueueLaneOutOfOrderRemoval, RemovingTheHeadIsAPlainPop) {
-	MIDIQueueLane<uint32_t, 16> lane;
-	lane.push(1);
-	lane.push(2);
-	lane.push(3);
+	OwnedLane<uint32_t, 16> lane;
+	lane->push(1);
+	lane->push(2);
+	lane->push(3);
 	uint32_t removed[1] = {0};
-	CHECK_TRUE(lane.remove_span_via_head_swap(0, 1, removed));
+	CHECK_TRUE(lane->remove_span_via_head_swap(0, 1, removed));
 	CHECK_EQUAL(1, removed[0]);
-	CHECK_EQUAL(2, lane.size());
-	CHECK_EQUAL(2, lane.peek(0));
-	CHECK_EQUAL(3, lane.peek(1));
+	CHECK_EQUAL(2, lane->size());
+	CHECK_EQUAL(2, lane->peek(0));
+	CHECK_EQUAL(3, lane->peek(1));
 }
 
 TEST(MIDIQueueLaneOutOfOrderRemoval, RemovesAMultiEntrySpanAsAUnit) {
 	// DIN removes a whole three-byte CC message at once.
-	MIDIQueueLane<uint8_t, 16> lane;
+	OwnedLane<uint8_t, 16> lane;
 	uint8_t bytes[] = {0xB0, 10, 1, 0xB0, 20, 2, 0xB0, 30, 3};
 	for (uint8_t b : bytes) {
-		lane.push(b);
+		lane->push(b);
 	}
 	uint8_t removed[3] = {0, 0, 0};
-	CHECK_TRUE(lane.remove_span_via_head_swap(3, 3, removed));
+	CHECK_TRUE(lane->remove_span_via_head_swap(3, 3, removed));
 	CHECK_EQUAL(0xB0, removed[0]);
 	CHECK_EQUAL(20, removed[1]);
 	CHECK_EQUAL(2, removed[2]);
-	CHECK_EQUAL(6, lane.size()); // all three bytes freed together
+	CHECK_EQUAL(6, lane->size()); // all three bytes freed together
 }
 
 TEST(MIDIQueueLaneOutOfOrderRemoval, SurvivingEntriesAreAllStillPresent) {
-	MIDIQueueLane<uint32_t, 16> lane;
+	OwnedLane<uint32_t, 16> lane;
 	for (uint32_t i = 1; i <= 5; i++) {
-		lane.push(i);
+		lane->push(i);
 	}
 	uint32_t removed[1] = {0};
-	lane.remove_span_via_head_swap(3, 1, removed); // removes "4"
+	lane->remove_span_via_head_swap(3, 1, removed); // removes "4"
 	CHECK_EQUAL(4, removed[0]);
 
 	// The displaced head moves into the vacated slot, so position shifts, but nothing is lost or
 	// duplicated - which is the property that actually matters for queued MIDI.
 	bool seen[6] = {false, false, false, false, false, false};
-	CHECK_EQUAL(4, lane.size());
-	for (uint16_t i = 0; i < lane.size(); i++) {
-		uint32_t v = lane.peek(i);
+	CHECK_EQUAL(4, lane->size());
+	for (uint16_t i = 0; i < lane->size(); i++) {
+		uint32_t v = lane->peek(i);
 		CHECK(v >= 1 && v <= 5);
 		CHECK_FALSE(seen[v]);
 		seen[v] = true;
@@ -359,13 +378,13 @@ TEST(MIDIQueueLaneOutOfOrderRemoval, SurvivingEntriesAreAllStillPresent) {
 }
 
 TEST(MIDIQueueLaneOutOfOrderRemoval, RejectsOutOfRangeSpans) {
-	MIDIQueueLane<uint32_t, 16> lane;
-	lane.push(1);
-	lane.push(2);
+	OwnedLane<uint32_t, 16> lane;
+	lane->push(1);
+	lane->push(2);
 	uint32_t removed[3] = {0, 0, 0};
-	CHECK_FALSE(lane.remove_span_via_head_swap(0, 3, removed)); // wider than the queue
-	CHECK_FALSE(lane.remove_span_via_head_swap(2, 1, removed)); // past the end
-	CHECK_EQUAL(2, lane.size());
+	CHECK_FALSE(lane->remove_span_via_head_swap(0, 3, removed)); // wider than the queue
+	CHECK_FALSE(lane->remove_span_via_head_swap(2, 1, removed)); // past the end
+	CHECK_EQUAL(2, lane->size());
 }
 
 // --- Coalescing races the consumer ---
@@ -585,4 +604,24 @@ TEST(MIDIQueueBackpressure, EnqueueRequestsFlushOnlyOnceBacklogIsHigh) {
 		asked = queue.enqueue_message(0x09903C64, MIDIIntent::Event) || asked;
 	}
 	CHECK_TRUE(asked);
+}
+
+// --- Per-lane capacity ---
+
+TEST_GROUP(MIDIQueueLaneCapacity){};
+
+TEST(MIDIQueueLaneCapacity, EveryCapacityIsAPowerOfTwo) {
+	// The ring masks positions instead of taking a modulo, so this is a correctness requirement.
+	for (int i = 0; i < QUEUE_PRIORITY_COUNT; i++) {
+		uint16_t usb = k_usb_lane_capacity[i];
+		uint16_t din = k_din_lane_capacity[i];
+		CHECK(usb != 0 && (usb & (usb - 1)) == 0);
+		CHECK(din != 0 && (din & (din - 1)) == 0);
+	}
+}
+
+TEST(MIDIQueueLaneCapacity, SysExLaneHoldsACompleteMaximumStream) {
+	// enqueue_sysex is all-or-nothing, so a lane that cannot hold the largest stream the firmware
+	// stages would silently drop it. One slot is always reserved, hence the strict comparison.
+	CHECK(k_din_lane_capacity[QUEUE_PRIORITY_SYSEX] > 1024);
 }

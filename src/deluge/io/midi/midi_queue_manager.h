@@ -24,7 +24,7 @@
 #include <limits>
 #include <utility>
 
-template <typename T, uint16_t Capacity, size_t LaneCount>
+template <typename T, size_t LaneCount, uint16_t const (&Capacities)[LaneCount]>
 class MIDIQueueManagerDeviceState;
 
 /// @brief Shared MIDI queue policy helpers used across transport-specific queue managers.
@@ -616,21 +616,25 @@ private:
 
 /// @brief Power-of-two ring buffer lane shared by transport-specific queue managers.
 ///
-/// @warning Capacity MUST be a power of two (enforced by static_assert below): positions wrap with a
+/// @warning Capacity MUST be a power of two (checked by MIDIQueueStorage): positions wrap with a
 ///          bitmask, not a modulo by an arbitrary size.
 /// @note The lane always keeps one slot unused so `read_pos == write_pos` can unambiguously mean
-///       empty. Usable capacity is therefore `Capacity - 1`. All logical offsets passed to and
+///       empty. Usable capacity is therefore `capacity() - 1`. All logical offsets passed to and
 ///       returned from this class are relative to `read_pos`, which lets callers scan or overwrite
 ///       queued messages without exposing wrapped physical indices.
-template <typename T, uint16_t Capacity>
+/// @note A view, not an owner. MIDIQueueStorage owns one flat pool and hands each lane its slice, so
+///       lanes can have different capacities without becoming different types.
+template <typename T>
 class MIDIQueueLane {
 public:
-	static_assert(Capacity != 0);
-	static_assert((Capacity & (Capacity - 1)) == 0);
-	static constexpr uint16_t k_capacity = Capacity;
+	/// @brief Backing storage for this lane, owned by MIDIQueueStorage.
+	T* data{nullptr};
+	/// @brief `capacity() - 1`. Positions wrap with this mask, so capacity must be a power of two.
+	uint16_t mask{0};
 
-	/// @brief Backing storage for the ring.
-	std::array<T, Capacity> data{};
+	/// @brief Total slots in this lane, one of which is always kept unused.
+	[[nodiscard]] uint16_t capacity() const { return static_cast<uint16_t>(mask + 1); }
+
 	/// @brief Physical index of the oldest queued entry.
 	uint16_t read_pos{0};
 	/// @brief Physical index of the next slot to write.
@@ -642,20 +646,20 @@ public:
 	/// @brief Returns whether the lane holds no queued entries.
 	[[nodiscard]] bool empty() const { return read_pos == write_pos; }
 	/// @brief Returns the number of queued entries.
-	[[nodiscard]] uint16_t size() const { return static_cast<uint16_t>((write_pos - read_pos) & (Capacity - 1)); }
+	[[nodiscard]] uint16_t size() const { return static_cast<uint16_t>((write_pos - read_pos) & mask); }
 	/// @brief Returns the number of additional entries that can be pushed before the lane is full.
-	[[nodiscard]] uint16_t space() const { return static_cast<uint16_t>((Capacity - 1) - size()); }
+	[[nodiscard]] uint16_t space() const { return static_cast<uint16_t>(mask - size()); }
 	/// @brief Reads a queued entry without removing it.
 	/// @param offset Logical offset from `read_pos`; 0 is the lane head.
 	/// @return The entry at @p offset.
-	[[nodiscard]] T peek(uint16_t offset = 0) const { return data[(read_pos + offset) & (Capacity - 1)]; }
+	[[nodiscard]] T peek(uint16_t offset = 0) const { return data[(read_pos + offset) & mask]; }
 
 	/// @brief Appends one entry to the tail of the lane.
 	/// @param value Entry to enqueue.
-	/// @return True if the entry was stored; false if the lane is full (usable capacity is `Capacity - 1`).
+	/// @return True if the entry was stored; false if the lane is full (usable capacity is `capacity() - 1`).
 	bool push(T value) {
 		// Advance write position first so we can detect the one-unused-slot full case.
-		uint16_t next = static_cast<uint16_t>((write_pos + 1) & (Capacity - 1));
+		uint16_t next = static_cast<uint16_t>((write_pos + 1) & mask);
 		if (next == read_pos) {
 			return false;
 		}
@@ -674,7 +678,7 @@ public:
 		}
 		// Copy the oldest queued entry before advancing the read position.
 		out = data[read_pos];
-		read_pos = static_cast<uint16_t>((read_pos + 1) & (Capacity - 1));
+		read_pos = static_cast<uint16_t>((read_pos + 1) & mask);
 		return true;
 	}
 
@@ -689,10 +693,10 @@ public:
 		}
 		// Copy the contiguous logical span, even if the physical ring wraps.
 		for (uint16_t i = 0; i < count; i++) {
-			out[i] = data[(read_pos + i) & (Capacity - 1)];
+			out[i] = data[(read_pos + i) & mask];
 		}
 		// Commit the pop only after all requested entries were copied.
-		read_pos = static_cast<uint16_t>((read_pos + count) & (Capacity - 1));
+		read_pos = static_cast<uint16_t>((read_pos + count) & mask);
 		return true;
 	}
 
@@ -726,8 +730,8 @@ public:
 		}
 
 		for (uint16_t i = 0; i < span; i++) {
-			uint16_t head_index = static_cast<uint16_t>((read_pos + i) & (Capacity - 1));
-			uint16_t selected_index = static_cast<uint16_t>((read_pos + target_offset + i) & (Capacity - 1));
+			uint16_t head_index = static_cast<uint16_t>((read_pos + i) & mask);
+			uint16_t selected_index = static_cast<uint16_t>((read_pos + target_offset + i) & mask);
 			// Copy the selected entry out, then move the head entry into the slot it vacated.
 			removed_out[i] = data[selected_index];
 			data[selected_index] = data[head_index];
@@ -735,7 +739,7 @@ public:
 
 		// Dropping the head is what actually frees the slot. When target_offset is 0 this degenerates to a
 		// plain pop, which is exactly right.
-		read_pos = static_cast<uint16_t>((read_pos + span) & (Capacity - 1));
+		read_pos = static_cast<uint16_t>((read_pos + span) & mask);
 		return true;
 	}
 
@@ -749,15 +753,30 @@ public:
 	/// @brief Overwrites a queued entry in place without changing queue occupancy.
 	/// @param logical_offset Logical offset from `read_pos` of the entry to overwrite.
 	/// @param value          New value for that entry.
-	void overwrite_at(uint16_t logical_offset, T value) { data[(read_pos + logical_offset) & (Capacity - 1)] = value; }
+	void overwrite_at(uint16_t logical_offset, T value) { data[(read_pos + logical_offset) & mask] = value; }
 };
 
 /// @brief Fixed set of power-of-two queue lanes shared by a transport-specific manager.
-template <typename T, uint16_t Capacity, size_t LaneCount>
+template <typename T, size_t LaneCount, uint16_t const (&Capacities)[LaneCount]>
 class MIDIQueueStorage {
 public:
 	/// @brief The priority lanes, indexed by QueuePriority.
-	std::array<MIDIQueueLane<T, Capacity>, LaneCount> lanes{};
+	std::array<MIDIQueueLane<T>, LaneCount> lanes{};
+
+	/// @brief Points each lane at its slice of the pool and sets its wrap mask.
+	MIDIQueueStorage() {
+		uint32_t offset = 0;
+		for (size_t i = 0; i < LaneCount; i++) {
+			lanes[i].data = pool.data() + offset;
+			lanes[i].mask = static_cast<uint16_t>(Capacities[i] - 1);
+			offset += Capacities[i];
+		}
+	}
+
+	/// @brief Total slots in one lane, one of which is always kept unused.
+	/// @param lane Priority lane index.
+	/// @return That lane's capacity.
+	[[nodiscard]] uint16_t lane_capacity(uint8_t lane) const { return lanes[lane].capacity(); }
 
 	/// @name Per-lane accessors
 	/// @{
@@ -823,13 +842,37 @@ public:
 	[[nodiscard]] uint16_t space(uint8_t lane) const { return lanes[lane].space(); }
 
 	/// @}
+
+private:
+	/// @brief Sum of every lane's capacity: the size of the flat pool the lanes are carved from.
+	static constexpr uint32_t total_capacity() {
+		uint32_t total = 0;
+		for (size_t i = 0; i < LaneCount; i++) {
+			total += Capacities[i];
+		}
+		return total;
+	}
+
+	static_assert(([] {
+		              for (size_t i = 0; i < LaneCount; i++) {
+			              if (Capacities[i] == 0 || (Capacities[i] & (Capacities[i] - 1)) != 0) {
+				              return false;
+			              }
+		              }
+		              return true;
+	              })(),
+	              "every lane capacity must be an exact power of two: positions wrap with a bitmask");
+
+	/// @brief One flat allocation the lanes carve slices from, so lanes can differ in capacity without
+	///        becoming different types.
+	std::array<T, total_capacity()> pool{};
 };
 
 /// @brief Per-device queue storage plus CC coalescing/scheduling policy for one transport device.
 ///
 /// Combines a MIDIQueueStorage of priority lanes with a MIDICCQueuePolicy layered on top. Most
 /// methods here simply forward to one or the other; see those classes for full documentation.
-template <typename T, uint16_t Capacity, size_t LaneCount>
+template <typename T, size_t LaneCount, uint16_t const (&Capacities)[LaneCount]>
 class MIDIQueueManagerDeviceState {
 public:
 	/// @copydoc MIDIQueueStorage::queue_count
@@ -858,6 +901,8 @@ public:
 	[[nodiscard]] bool empty(uint8_t lane) const { return queue_storage.empty(lane); }
 	/// @copydoc MIDIQueueStorage::space
 	[[nodiscard]] uint16_t space(uint8_t lane) const { return queue_storage.space(lane); }
+	/// @copydoc MIDIQueueStorage::lane_capacity
+	[[nodiscard]] uint16_t lane_capacity(uint8_t lane) const { return queue_storage.lane_capacity(lane); }
 	/// @brief Returns whether any lane on this device has queued entries.
 	/// @return True if at least one lane has a queued entry.
 	[[nodiscard]] bool has_any_data() const { return queue_storage.total_queued_messages() > 0; }
@@ -897,7 +942,7 @@ public:
 	void clear_cc_debt(uint8_t cc_number) { cc_queue_policy.clear_cc_debt(cc_number); }
 
 private:
-	MIDIQueueStorage<T, Capacity, LaneCount> queue_storage{};
+	MIDIQueueStorage<T, LaneCount, Capacities> queue_storage{};
 	/// @brief Per-device CC coalescing/scheduling policy layered on top of transport queue storage.
 	MIDICCQueuePolicy cc_queue_policy{};
 };
@@ -947,7 +992,7 @@ private:
 	///
 	/// Each lane is a ring of packed USB-MIDI events; consume_queued_messages() drains them into
 	/// dataSendingNow in priority order.
-	MIDIQueueManagerDeviceState<uint32_t, MIDI_SEND_BUFFER_LEN_RING, QUEUE_PRIORITY_COUNT> queue_manager_{};
+	MIDIQueueManagerDeviceState<uint32_t, QUEUE_PRIORITY_COUNT, k_usb_lane_capacity> queue_manager_{};
 
 	/// @brief Classifies a packed outgoing USB-MIDI message into a priority lane.
 	/// @param packed Packed USB-MIDI event.
@@ -1066,13 +1111,12 @@ public:
 private:
 	/// @brief Number of active serial-priority lanes [clock..SysEx] scanned during dequeue.
 	static constexpr size_t k_serial_priority_count = QUEUE_PRIORITY_COUNT;
-	/// @brief Power-of-two lane capacity.
-	///
-	/// Larger than MIDI_TX_BUFFER_SIZE so a full 1024-byte SysEx can fit despite the ring's
-	/// one-unused-slot invariant.
-	static constexpr uint16_t k_serial_queue_capacity = MIDI_TX_BUFFER_SIZE * 2;
 	/// @brief Per-priority byte rings holding pending DIN output grouped by queue policy.
-	MIDIQueueManagerDeviceState<uint8_t, k_serial_queue_capacity, k_serial_priority_count> queue_manager_{};
+	///
+	/// Capacities come from k_din_lane_capacity, sized per lane rather than uniformly. The SysEx lane is
+	/// larger than MIDI_TX_BUFFER_SIZE so a full 1024-byte stream fits despite the one-unused-slot
+	/// invariant.
+	MIDIQueueManagerDeviceState<uint8_t, k_serial_priority_count, k_din_lane_capacity> queue_manager_{};
 	/// @brief Last sample-timer tick used to accrue DIN send allowance.
 	uint32_t serial_allowance_last_update_{0};
 	/// @brief Accumulated DIN send allowance in Q8 bytes (8 fractional bits).

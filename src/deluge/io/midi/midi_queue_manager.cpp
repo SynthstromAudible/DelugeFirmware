@@ -146,7 +146,11 @@ int MIDIQueueManagerUSB::send_buffer_space() const {
 	// Total queued USB messages currently buffered across all priority lanes.
 	uint32_t queued = queue_manager_.total_queued_messages();
 	// Maximum messages we can queue: usable slots per lane (ring-1) times number of lanes.
-	uint32_t total_capacity_messages = (MIDI_SEND_BUFFER_LEN_RING - 1) * QUEUE_PRIORITY_COUNT;
+	uint32_t total_capacity_messages = 0;
+	for (uint8_t lane = 0; lane < QUEUE_PRIORITY_COUNT; lane++) {
+		// Each lane keeps one slot unused, and lanes no longer share a capacity.
+		total_capacity_messages += queue_manager_.lane_capacity(lane) - 1;
+	}
 	// Can't queue anymore: return 0 bytes of remaining capacity.
 	if (queued >= total_capacity_messages) {
 		return 0;
@@ -187,7 +191,7 @@ bool MIDIQueueManagerUSB::enqueue_message(uint32_t full_message, MIDIIntent inte
 	// Occupancy of just the selected priority lane we are about to enqueue into.
 	uint16_t queue_size = queue_manager_.queue_count(static_cast<uint8_t>(priority));
 	// Keep one slot free in each ring so full/empty states stay distinguishable.
-	if (queue_size >= (MIDI_SEND_BUFFER_LEN_RING - 1)) {
+	if (queue_size >= queue_manager_.lane_capacity(static_cast<uint8_t>(priority)) - 1) {
 		// Full: drop this message rather than overwrite unread queued data, and ask the caller to flush
 		// so the next one finds space.
 		// TODO: show some error message

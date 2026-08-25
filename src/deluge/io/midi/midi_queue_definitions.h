@@ -17,6 +17,10 @@
 
 #pragma once
 
+#ifdef __cplusplus
+#include <cstdint>
+#endif
+
 /// @brief Sizing constants for the MIDI send queue's inner buffers and outer ring buffer.
 enum QueueSendConstants {
 	/// Inner send-buffer size, in 32-bit messages.
@@ -54,3 +58,34 @@ typedef enum QueuePriority {
 	QUEUE_PRIORITY_SYSEX = 4,
 	QUEUE_PRIORITY_COUNT = 5,
 } QueuePriority;
+
+/// Per-lane ring capacities, indexed by QueuePriority.
+///
+/// Declared `inline constexpr` deliberately: MIDIQueueStorage takes these by reference as a non-type
+/// template parameter, which requires external linkage. A plain `constexpr` array in a header has
+/// internal linkage, so every translation unit would get a distinct entity and the instantiations would
+/// not match.
+///
+/// Each MUST be an exact power of two: MIDIQueueLane masks positions rather than taking a modulo.
+///
+/// Sized to what each lane actually holds rather than uniformly. SysEx is largest because a stream is
+/// queued all-or-nothing and the biggest the firmware stages is MidiEngine::sysex_fmt_buffer[1024]. CC
+/// is next because it holds one entry per distinct pending CC identity. Clock carries single realtime
+/// messages and never backs up.
+#ifdef __cplusplus
+inline constexpr uint16_t k_usb_lane_capacity[QUEUE_PRIORITY_COUNT] = {
+    32,  // QUEUE_PRIORITY_CLOCK: single-event realtime messages
+    128, // QUEUE_PRIORITY_NOTES
+    128, // QUEUE_PRIORITY_EXPRESSION: also carries Event CCs and program changes
+    256, // QUEUE_PRIORITY_CC: one entry per distinct Continuous CC identity
+    512, // QUEUE_PRIORITY_SYSEX: 1024 bytes at up to 3 payload bytes per event
+};
+
+inline constexpr uint16_t k_din_lane_capacity[QUEUE_PRIORITY_COUNT] = {
+    32,   // QUEUE_PRIORITY_CLOCK: one byte per realtime message
+    256,  // QUEUE_PRIORITY_NOTES: 3 bytes per message
+    256,  // QUEUE_PRIORITY_EXPRESSION
+    512,  // QUEUE_PRIORITY_CC: 3 bytes per message
+    2048, // QUEUE_PRIORITY_SYSEX: one complete 1024-byte stream plus headroom
+};
+#endif
