@@ -695,8 +695,8 @@ checkDevice:
 } // namespace MIDIDeviceManager
 
 /// Queues one USB-MIDI message, flushing or dropping if the queue cannot accept it.
-void ConnectedUSBMIDIDevice::enqueue_message(uint32_t fullMessage) {
-	queue_manager().enqueue_message(fullMessage);
+void ConnectedUSBMIDIDevice::enqueue_message(uint32_t fullMessage, MIDIIntent intent) {
+	queue_manager().enqueue_message(fullMessage, intent);
 }
 
 /// Returns whether this device has at least one queued USB-MIDI message to send.

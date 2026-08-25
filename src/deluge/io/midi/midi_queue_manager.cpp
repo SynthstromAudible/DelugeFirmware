@@ -216,7 +216,7 @@ int MIDIQueueManagerUSB::send_buffer_space() const {
 	return (total_capacity_messages - queued) * k_usb_midi_event_payload_bytes;
 }
 
-QueuePriority MIDIQueueManagerUSB::classify_packed_usb_priority(uint32_t packed) {
+QueuePriority MIDIQueueManagerUSB::classify_packed_usb_priority(uint32_t packed, MIDIIntent intent) {
 	if (is_usb_sysex_event(packed)) {
 		// SysEx USB-MIDI events use CIN 0x4..0x7 and are already chunked by the caller.
 		return QUEUE_PRIORITY_SYSEX;
@@ -229,11 +229,12 @@ QueuePriority MIDIQueueManagerUSB::classify_packed_usb_priority(uint32_t packed)
 	    .channel = static_cast<uint8_t>(status & 0x0F),
 	    .data1 = data_1(packed),
 	    .data2 = data_2(packed),
+	    .intent = intent,
 	};
 	return MIDIQueueManager::classify_message(decoded);
 }
 
-void MIDIQueueManagerUSB::enqueue_message(uint32_t full_message) {
+void MIDIQueueManagerUSB::enqueue_message(uint32_t full_message, MIDIIntent intent) {
 	// Total messages currently queued across all priority lanes for this device.
 	uint32_t queued = queue_manager_.total_queued_messages();
 	// If backlog grows, opportunistically kick a flush to keep latency bounded.
@@ -245,7 +246,7 @@ void MIDIQueueManagerUSB::enqueue_message(uint32_t full_message) {
 	}
 
 	// Determine which priority lane this packed USB-MIDI event belongs to.
-	QueuePriority priority = classify_packed_usb_priority(full_message);
+	QueuePriority priority = classify_packed_usb_priority(full_message, intent);
 	// Occupancy of just the selected priority lane we are about to enqueue into.
 	uint16_t queue_size = queue_manager_.queue_count(static_cast<uint8_t>(priority));
 	// Keep one slot free in each ring so full/empty states stay distinguishable.

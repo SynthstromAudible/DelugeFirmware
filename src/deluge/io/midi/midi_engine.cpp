@@ -579,7 +579,7 @@ void MidiEngine::sendUsbMidi(MIDIMessage message, int32_t filter) {
 
 						// Add this port's USB virtual cable number into event byte 0.
 						uint32_t usb_cable_message = fullMessage | (p << 4);
-						connectedDevice->enqueue_message(usb_cable_message);
+						connectedDevice->enqueue_message(usb_cable_message, message.intent);
 					}
 				}
 			}

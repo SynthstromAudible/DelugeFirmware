@@ -700,7 +700,7 @@ public:
 	void reset_queue_storage();
 	[[nodiscard]] bool has_buffered_send_data() const;
 	[[nodiscard]] int send_buffer_space() const;
-	void enqueue_message(uint32_t full_message);
+	void enqueue_message(uint32_t full_message, MIDIIntent intent);
 	bool consume_queued_messages(uint8_t* data_sending_now, uint8_t& num_bytes_sending_now, bool usb_host_mode);
 
 	struct USBSendContext {
@@ -714,7 +714,7 @@ private:
 	MIDIQueueManagerDeviceState<uint32_t, MIDI_SEND_BUFFER_LEN_RING, QUEUE_PRIORITY_COUNT> queue_manager_{};
 
 	/// Classifies an outgoing MIDI message into priority groups.
-	[[nodiscard]] static QueuePriority classify_packed_usb_priority(uint32_t packed);
+	[[nodiscard]] static QueuePriority classify_packed_usb_priority(uint32_t packed, MIDIIntent intent);
 	/// Pops one queued message according to strict USB priority ordering.
 	bool pop_lane(QueuePriority priority, USBSendContext& context);
 

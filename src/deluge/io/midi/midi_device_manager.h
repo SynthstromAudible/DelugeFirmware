@@ -57,7 +57,7 @@ public:
 	MIDICableUSB* cable[4]; // If NULL, then no cable is connected here
 	ConnectedUSBMIDIDevice();
 	/// Classifies, optionally coalesces, and enqueues one outgoing MIDI message into USB priority lanes.
-	void enqueue_message(uint32_t fullMessage);
+	void enqueue_message(uint32_t fullMessage, MIDIIntent intent);
 	void setup();
 	/// Drains queued USB messages into the hardware-send buffer.
 	bool consume_queued_messages();

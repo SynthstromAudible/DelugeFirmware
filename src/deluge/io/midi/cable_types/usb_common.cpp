@@ -50,7 +50,7 @@ void MIDICableUSB::sendMessage(MIDIMessage message) {
 			if (connectedDevice->canHaveMIDISent) {
 				// Add this port's USB virtual cable number into event byte 0.
 				uint32_t usb_cable_message = full_message | (portNumber << 4);
-				connectedDevice->enqueue_message(usb_cable_message);
+				connectedDevice->enqueue_message(usb_cable_message, message.intent);
 			}
 		}
 	}
@@ -109,7 +109,7 @@ void MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 		// Since the message ends with 0xF7, we can assume that data[5] does exist.
 		// fake 0xF0, 0x7D, data[5] for first send
 		uint32_t packed = ((uint32_t)data[5] << 24) | 0x007DF004 | (portNumber << 4);
-		connectedDevice->enqueue_message(packed);
+		connectedDevice->enqueue_message(packed, MIDIIntent::Event);
 		pos = 6;
 	}
 
@@ -134,7 +134,7 @@ void MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 		}
 		status |= (portNumber << 4);
 		uint32_t packed = ((uint32_t)byte2 << 24) | ((uint32_t)byte1 << 16) | ((uint32_t)byte0 << 8) | status;
-		connectedDevice->enqueue_message(packed);
+		connectedDevice->enqueue_message(packed, MIDIIntent::Event);
 	}
 }
 
