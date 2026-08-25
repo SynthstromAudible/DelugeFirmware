@@ -51,6 +51,18 @@ Includes   <System Includes> , "Project Includes"
 uint8_t picTxBuffer[PIC_TX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
 char midiTxBuffer[MIDI_TX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
 
+void bufferMIDIUart(char charToSend)
+{
+    intptr_t writePos = uartItems[UART_ITEM_MIDI].txBufferWritePos + UNCACHED_MIRROR_OFFSET;
+    *(((volatile char*)(&midiTxBuffer[0])) + writePos) = charToSend;
+
+    uartItems[UART_ITEM_MIDI].txBufferWritePos += 1;
+    // Masks with MIDI_TX_BUFFER_SIZE, not PIC_TX_BUFFER_SIZE as the macro this replaced did. Both are
+    // currently 1024, so the old mask was accidentally correct; it would have wrapped at the wrong
+    // boundary the moment either size changed.
+    uartItems[UART_ITEM_MIDI].txBufferWritePos &= (MIDI_TX_BUFFER_SIZE - 1);
+}
+
 char picRxBuffer[PIC_RX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
 char midiRxBuffer[MIDI_RX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
 uint32_t midiRxTimingBuffer[MIDI_RX_TIMING_BUFFER_SIZE] __attribute__((
