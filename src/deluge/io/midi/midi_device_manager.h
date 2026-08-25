@@ -55,7 +55,8 @@ public:
 	/// @brief Classify, optionally coalesce, and enqueue one outgoing MIDI message into USB priority lanes.
 	/// @param fullMessage Packed MIDI message word to send.
 	/// @param intent      Classification hint used to select the queue lane and coalescing behavior.
-	void enqueue_message(uint32_t fullMessage, MIDIIntent intent);
+	/// @return True when the caller should flush USB output.
+	[[nodiscard]] bool enqueue_message(uint32_t fullMessage, MIDIIntent intent);
 	void setup();
 	/// @brief Drain queued USB messages into dataSendingNow, the hardware-send buffer.
 	/// @return True if messages were drained and a transfer should be started; false if nothing was queued.

@@ -923,7 +923,10 @@ public:
 	/// @brief Queues one packed USB-MIDI event, classifying it into the correct priority lane.
 	/// @param full_message Packed USB-MIDI event.
 	/// @param intent       Sender intent used to route Event vs. Continuous CCs into the correct lane.
-	void enqueue_message(uint32_t full_message, MIDIIntent intent);
+	/// @return True when the queued backlog has grown past the flush threshold and the caller should
+	///         flush. The queue manager deliberately does not flush itself: it is owned by the engine
+	///         it would have to call, and a mainline enqueue must not trigger the interrupt-masked drain.
+	[[nodiscard]] bool enqueue_message(uint32_t full_message, MIDIIntent intent);
 	/// @brief Drains queued USB-MIDI events into the USB send buffer in priority order.
 	/// @param data_sending_now      Destination buffer for packed events to send.
 	/// @param num_bytes_sending_now Out: number of bytes written to @p data_sending_now.

@@ -16,8 +16,12 @@
  */
 
 #include "io/midi/midi_queue_manager.h"
-#include "io/midi/midi_engine.h"
 #include "timers_interrupts/timers_interrupts.h"
+
+/// Set when this queue has data waiting so the engine's flush logic knows to schedule a transfer.
+/// Declared here rather than including midi_engine.h: this is a shared flag, and the queue manager no
+/// longer calls into the engine.
+extern bool anythingInUSBOutputBuffer;
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -171,16 +175,12 @@ QueuePriority MIDIQueueManagerUSB::classify_packed_usb_priority(uint32_t packed,
 	return MIDIQueueManager::classify_message(decoded);
 }
 
-void MIDIQueueManagerUSB::enqueue_message(uint32_t full_message, MIDIIntent intent) {
+bool MIDIQueueManagerUSB::enqueue_message(uint32_t full_message, MIDIIntent intent) {
 	// Total messages currently queued across all priority lanes for this device.
 	uint32_t queued = queue_manager_.total_queued_messages();
-	// If backlog grows, opportunistically kick a flush to keep latency bounded.
-	if (queued > k_usb_flush_backlog_message_threshold) {
-		// Only trigger a new flush when a send transaction is not already active.
-		if (anyUSBSendingStillHappening[0] == 0) {
-			midiEngine.flushUSBMIDIOutput();
-		}
-	}
+	// Report backlog rather than acting on it. Flushing from here would call back into the engine that
+	// owns this queue, and would let a mainline enqueue trigger the interrupt-masked drain.
+	bool wants_flush = queued > k_usb_flush_backlog_message_threshold;
 
 	// Determine which priority lane this packed USB-MIDI event belongs to.
 	QueuePriority priority = classify_packed_usb_priority(full_message, intent);
@@ -188,17 +188,10 @@ void MIDIQueueManagerUSB::enqueue_message(uint32_t full_message, MIDIIntent inte
 	uint16_t queue_size = queue_manager_.queue_count(static_cast<uint8_t>(priority));
 	// Keep one slot free in each ring so full/empty states stay distinguishable.
 	if (queue_size >= (MIDI_SEND_BUFFER_LEN_RING - 1)) {
-		// If nothing is currently transmitting, try flushing now to free space.
-		if (anyUSBSendingStillHappening[0] == 0) {
-			midiEngine.flushUSBMIDIOutput();
-		}
-		// Re-check after opportunistic flush.
-		queue_size = queue_manager_.queue_count(static_cast<uint8_t>(priority));
-		if (queue_size >= (MIDI_SEND_BUFFER_LEN_RING - 1)) {
-			// Still full: drop this message rather than overwrite unread queued data.
-			// TODO: show some error message
-			return;
-		}
+		// Full: drop this message rather than overwrite unread queued data, and ask the caller to flush
+		// so the next one finds space.
+		// TODO: show some error message
+		return true;
 	}
 
 	// CC messages may be coalesced into an existing queued entry instead of appended.
@@ -208,6 +201,7 @@ void MIDIQueueManagerUSB::enqueue_message(uint32_t full_message, MIDIIntent inte
 	if (queued_ok) {
 		anythingInUSBOutputBuffer = true;
 	}
+	return wants_flush;
 }
 
 // Drains queued USB messages into the smaller `dataSendingNow` transfer buffer.

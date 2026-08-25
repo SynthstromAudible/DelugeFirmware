@@ -695,8 +695,8 @@ checkDevice:
 
 // Forwards to this device's queue manager, which flushes opportunistically (or drops the message) if the
 // target lane is still full afterward.
-void ConnectedUSBMIDIDevice::enqueue_message(uint32_t fullMessage, MIDIIntent intent) {
-	queue_manager().enqueue_message(fullMessage, intent);
+bool ConnectedUSBMIDIDevice::enqueue_message(uint32_t fullMessage, MIDIIntent intent) {
+	return queue_manager().enqueue_message(fullMessage, intent);
 }
 
 bool ConnectedUSBMIDIDevice::hasBufferedSendData() {

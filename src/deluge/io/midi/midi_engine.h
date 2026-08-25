@@ -212,6 +212,10 @@ uint32_t setupUSBMessage(MIDIMessage message);
 
 extern MidiEngine midiEngine;
 extern bool anythingInUSBOutputBuffer;
+/// Per-USB-IP flag set by the USB driver while a send transaction is in flight. Callers check it before
+/// asking for a flush so they do not start one on top of an active transfer. Defined in midi_engine.cpp;
+/// previously only declared ad-hoc inside the C driver that also touches it.
+extern "C" uint8_t anyUSBSendingStillHappening[];
 
 extern "C" {
 #endif
