@@ -128,37 +128,6 @@ constexpr int32_t k_serial_buffered_cc_bytes_cap = 24;
 } // namespace
 
 /// Classifies an outgoing MIDI message into shared queue priorities.
-QueuePriority MIDIQueueManager::classify_message(MIDIMessage message) {
-	if (message.isSystemMessage()) {
-		// Keep system/realtime messages in the highest-priority lane.
-		return QUEUE_PRIORITY_CLOCK;
-	}
-
-	switch (static_cast<MIDIStatusType>(message.statusType)) {
-	case MIDIStatusType::NoteOff:
-	case MIDIStatusType::NoteOn:
-		// Note on/off events are timing-sensitive, but below clock/system messages.
-		return QUEUE_PRIORITY_NOTES;
-
-	case MIDIStatusType::PolyphonicAftertouch:
-	case MIDIStatusType::ChannelAftertouch:
-	case MIDIStatusType::PitchBend:
-		// Expression data is important for feel, but can sit behind notes.
-		return QUEUE_PRIORITY_EXPRESSION;
-
-	case MIDIStatusType::ControlChange:
-		if (message.data1 == CC_EXTERNAL_MOD_WHEEL || message.data1 == CC_EXTERNAL_MPE_Y) {
-			// Mod wheel and MPE Y-axis are expressive CCs that should be prioritized above other CCs.
-			return QUEUE_PRIORITY_EXPRESSION;
-		}
-		// Other CC traffic is the lowest-priority channel voice traffic.
-		return QUEUE_PRIORITY_CC;
-
-	default:
-		// Unknown/non-note channel messages are safest in the lowest channel lane.
-		return QUEUE_PRIORITY_CC;
-	}
-}
 
 /* MIDI Queue Manager USB Transport
  *

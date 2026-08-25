@@ -427,3 +427,61 @@ TEST(MIDICCScheduling, SelectionVisitsEachEntryExactlyOncePerPop) {
 	CHECK_TRUE(ok);
 	CHECK_EQUAL(13, scan_calls); // 12 entries + one NoMore, i.e. exactly one traversal
 }
+
+// --- Message intent and lane classification ---
+//
+// Intent decides which lane a message lands in, and lanes are FIFO, so "must stay ordered" is
+// expressed as "must share a lane". Only Continuous messages reach the reorderable CC lane.
+
+TEST_GROUP(MIDIMessageClassification){};
+
+TEST(MIDIMessageClassification, DefaultIntentIsEvent) {
+	// A sender that says nothing must get the conservative behaviour.
+	MIDIMessage m = MIDIMessage::cc(0, 74, 100);
+	CHECK(m.intent == MIDIIntent::Event);
+}
+
+TEST(MIDIMessageClassification, ContinuousCCGoesToTheScheduledLane) {
+	MIDIMessage m = MIDIMessage::cc(0, 20, 64);
+	m.intent = MIDIIntent::Continuous;
+	CHECK(MIDIQueueManager::classify_message(m) == QUEUE_PRIORITY_CC);
+}
+
+TEST(MIDIMessageClassification, EventCCAvoidsTheScheduledLane) {
+	// Bank select, RPN and friends must never be coalesced or reordered.
+	MIDIMessage m = MIDIMessage::cc(0, 100, 6);
+	CHECK(MIDIQueueManager::classify_message(m) == QUEUE_PRIORITY_EXPRESSION);
+}
+
+TEST(MIDIMessageClassification, NoteBoundSharesTheNotesLane) {
+	// Expression that initialises a note, and All Notes Off, must not be overtaken by note traffic.
+	MIDIMessage pitch = MIDIMessage::pitchBend(0, 8192);
+	pitch.intent = MIDIIntent::NoteBound;
+	CHECK(MIDIQueueManager::classify_message(pitch) == QUEUE_PRIORITY_NOTES);
+
+	MIDIMessage allNotesOff = MIDIMessage::cc(0, 123, 0);
+	allNotesOff.intent = MIDIIntent::NoteBound;
+	CHECK(MIDIQueueManager::classify_message(allNotesOff) == QUEUE_PRIORITY_NOTES);
+}
+
+TEST(MIDIMessageClassification, ProgramChangeIsOrdered) {
+	// Program change follows bank select, so it must not sit in the reorderable lane.
+	MIDIMessage m = MIDIMessage::programChange(0, 5);
+	CHECK(MIDIQueueManager::classify_message(m) == QUEUE_PRIORITY_EXPRESSION);
+}
+
+TEST(MIDIMessageClassification, UnchangedClassificationsStillHold) {
+	CHECK(MIDIQueueManager::classify_message(MIDIMessage::noteOn(0, 60, 100)) == QUEUE_PRIORITY_NOTES);
+	CHECK(MIDIQueueManager::classify_message(MIDIMessage::noteOff(0, 60, 0)) == QUEUE_PRIORITY_NOTES);
+	CHECK(MIDIQueueManager::classify_message(MIDIMessage::pitchBend(0, 8192)) == QUEUE_PRIORITY_EXPRESSION);
+	CHECK(MIDIQueueManager::classify_message(MIDIMessage::channelAftertouch(0, 64)) == QUEUE_PRIORITY_EXPRESSION);
+
+	// Mod wheel and MPE Y stay on the expression lane whatever their intent.
+	MIDIMessage modWheel = MIDIMessage::cc(0, CC_EXTERNAL_MOD_WHEEL, 64);
+	modWheel.intent = MIDIIntent::Continuous;
+	CHECK(MIDIQueueManager::classify_message(modWheel) == QUEUE_PRIORITY_EXPRESSION);
+
+	MIDIMessage mpeY = MIDIMessage::cc(0, CC_EXTERNAL_MPE_Y, 64);
+	mpeY.intent = MIDIIntent::Continuous;
+	CHECK(MIDIQueueManager::classify_message(mpeY) == QUEUE_PRIORITY_EXPRESSION);
+}

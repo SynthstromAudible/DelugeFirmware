@@ -101,7 +101,55 @@ public:
 	};
 
 	/// Classifies an outgoing MIDI message into priority groups.
-	static QueuePriority classify_message(MIDIMessage message);
+	///
+	/// Defined inline rather than in the .cpp so it can be unit tested without the UART and USB layers.
+	/// Intent is consumed here and nowhere else: routing Event CCs away from the CC lane leaves that
+	/// lane holding only Continuous entries, which is what lets the dequeue path coalesce and reorder
+	/// unconditionally without needing to know any entry's intent (there is nowhere to store it - a USB
+	/// entry is a fully packed uint32 and a DIN entry is a raw byte).
+	static QueuePriority classify_message(MIDIMessage message) {
+		if (message.isSystemMessage()) {
+			// Keep system/realtime messages in the highest-priority lane.
+			return QUEUE_PRIORITY_CLOCK;
+		}
+
+		if (message.intent == MIDIIntent::NoteBound) {
+			// Must stay ordered with the note stream, and lanes are FIFO, so it has to share the notes
+			// lane. Covers MPE expression that initialises a note, and All Notes Off.
+			return QUEUE_PRIORITY_NOTES;
+		}
+
+		switch (static_cast<MIDIStatusType>(message.statusType)) {
+		case MIDIStatusType::NoteOff:
+		case MIDIStatusType::NoteOn:
+			// Note on/off events are timing-sensitive, but below clock/system messages.
+			return QUEUE_PRIORITY_NOTES;
+
+		case MIDIStatusType::PolyphonicAftertouch:
+		case MIDIStatusType::ChannelAftertouch:
+		case MIDIStatusType::PitchBend:
+			// Expression data is important for feel, but can sit behind notes.
+			return QUEUE_PRIORITY_EXPRESSION;
+
+		case MIDIStatusType::ControlChange:
+			if (message.data1 == CC_EXTERNAL_MOD_WHEEL || message.data1 == CC_EXTERNAL_MPE_Y) {
+				// Mod wheel and MPE Y-axis are expressive CCs that should be prioritized above other CCs.
+				return QUEUE_PRIORITY_EXPRESSION;
+			}
+			if (message.intent == MIDIIntent::Continuous) {
+				// Only continuous parameter updates may be merged and reordered, so only they belong in
+				// the scheduled CC lane.
+				return QUEUE_PRIORITY_CC;
+			}
+			// Discrete CC events keep their order and their duplicate values. The expression lane is
+			// strictly FIFO and never coalesced, which is exactly the behaviour they need.
+			return QUEUE_PRIORITY_EXPRESSION;
+
+		default:
+			// Program change and unknown channel messages are discrete events that follow a prefix.
+			return QUEUE_PRIORITY_EXPRESSION;
+		}
+	}
 
 	/// Converts a transport CC scan entry into the candidate shape used by scheduled dequeue.
 	static CandidateScanResult adapt_cc_candidate_scan_result(CCMessageScanResult scan_result,
