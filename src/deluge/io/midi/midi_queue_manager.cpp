@@ -62,17 +62,6 @@ inline uint8_t usb_cin(uint32_t packed) {
 	return static_cast<uint8_t>(packed & 0x0F);
 }
 
-inline uint32_t replace_data_2(uint32_t packed, uint8_t value) {
-	// Packed USB-MIDI event byte layout:
-	// byte 0 = cable/CIN
-	// byte 1 = MIDI status
-	// byte 2 = data1/CC number
-	// byte 3 = data2/value
-	//
-	// Preserve bytes 0-2 and replace only byte 3.
-	return (packed & 0x00FFFFFFu) | (static_cast<uint32_t>(value) << 24);
-}
-
 inline bool is_packed_channel_cc(uint32_t packed) {
 	// USB CC detection is based on the MIDI status byte inside the packed event.
 	return MIDIQueueManager::is_channel_cc_status_byte(status_byte(packed));
@@ -130,12 +119,6 @@ constexpr int32_t k_serial_uart_headroom_bytes = 16;
 constexpr int32_t k_serial_buffered_cc_bytes_cap = 24;
 
 } // namespace
-
-// Resets all USB per-priority queues and CC scheduling bookkeeping.
-void MIDIQueueManagerUSB::reset_queue_storage() {
-	queue_manager_.clear_all();
-	sysex_drain_active_ = false;
-}
 
 bool MIDIQueueManagerUSB::has_buffered_send_data() const {
 	// True when at least one queued USB message exists across any priority lane.
@@ -198,8 +181,13 @@ bool MIDIQueueManagerUSB::enqueue_message(uint32_t full_message, MIDIIntent inte
 		return true;
 	}
 
-	// CC messages may be coalesced into an existing queued entry instead of appended.
-	bool queued_ok = enqueue_message_with_cc_policy(priority, full_message);
+	// CC messages may be coalesced into an existing queued entry instead of appended. The policy is
+	// shared with DIN; UsbTransport supplies everything about this transport's storage format.
+	bool queued_ok = cc_lane_.enqueue_with_cc_policy(
+	    queue_manager_.lane(static_cast<uint8_t>(QUEUE_PRIORITY_CC)), queue_manager_.cc_policy(),
+	    priority == QUEUE_PRIORITY_CC, is_packed_channel_cc(full_message), status_byte(full_message),
+	    data_1(full_message), data_2(full_message),
+	    [this, priority, full_message] { return enqueue_priority_message(priority, full_message); });
 
 	// Signal that at least one USB message is waiting so flush logic can schedule transmission.
 	if (queued_ok) {
@@ -328,69 +316,6 @@ bool MIDIQueueManagerUSB::pop_sysex_message(USBSendContext& context) {
 /* USB MIDI CC specific queuing and scheduling functions start here */
 /* **************************************************************** */
 
-bool MIDIQueueManagerUSB::enqueue_message_with_cc_policy(QueuePriority priority, uint32_t queued_message) {
-	// For CC messages, first try to update an already-queued message for the same
-	// status/CC number. If this succeeds, no new queue entry is needed.
-	if (priority == QUEUE_PRIORITY_CC && coalesce_cc_message(queued_message)) {
-		return true;
-	}
-
-	// Otherwise append the message to its priority lane as normal.
-	bool queued_ok = enqueue_priority_message(priority, queued_message);
-	if (queued_ok && priority == QUEUE_PRIORITY_CC && is_packed_channel_cc(queued_message)) {
-		// Record that this CC number has unsent work so scheduled dequeue can prefer it.
-		queue_manager_.bump_cc_debt(data_1(queued_message));
-	}
-	return queued_ok;
-}
-
-bool MIDIQueueManagerUSB::coalesce_cc_message(uint32_t queued_message) {
-	if (!is_packed_channel_cc(queued_message)) {
-		// Only channel CC messages participate in value coalescing.
-		return false;
-	}
-
-	// Coalescing only updates the value byte. Cable/CIN, status, channel, and
-	// CC number stay in the original queue position.
-	uint8_t wanted_status = status_byte(queued_message);
-	uint8_t wanted_cc_number = data_1(queued_message);
-	auto begin_scan = [this](uint16_t& scan_position, uint16_t& limit) {
-		// Initialize a USB CC-lane scan and report how many queued events it can inspect.
-		return begin_cc_message_scan(scan_position, limit);
-	};
-	auto next_scan = [this](uint16_t& scan_position, uint16_t limit, uint16_t& candidate_offset, uint8_t& status,
-	                        uint8_t& cc_number) {
-		// Read the next USB event and adapt it into the generic coalescing result shape.
-		MIDIQueueManager::CCMessageScanEntry message{};
-		return MIDIQueueManager::adapt_cc_coalesce_scan_result(next_cc_message(scan_position, limit, message), message,
-		                                                       candidate_offset, status, cc_number);
-	};
-	auto update_matched = [this, queued_message, wanted_status, wanted_cc_number](uint16_t latest_offset) {
-		// The scan above runs unguarded, so between finding this offset and writing it the consumer may have
-		// removed an entry, which advances read_pos and moves the displaced head into another slot - either
-		// way this offset can now name a different message. Re-check the identity under the guard rather
-		// than trusting the offset: if it no longer names this CC, report a miss so the caller appends a
-		// fresh entry instead of overwriting an unrelated one.
-		CriticalSectionGuard guard;
-		if (latest_offset >= queue_manager_.queue_count(static_cast<uint8_t>(QUEUE_PRIORITY_CC))) {
-			return false;
-		}
-		uint32_t current = queue_manager_.read_at(static_cast<uint8_t>(QUEUE_PRIORITY_CC), latest_offset);
-		if (!is_packed_channel_cc(current) || status_byte(current) != wanted_status
-		    || data_1(current) != wanted_cc_number) {
-			return false;
-		}
-		// Replace only the queued value byte at the matching offset.
-		queue_manager_.overwrite_at(static_cast<uint8_t>(QUEUE_PRIORITY_CC), latest_offset,
-		                            replace_data_2(current, data_2(queued_message)));
-		return true;
-	};
-
-	// The shared policy scans for the latest matching CC and calls update_matched if found.
-	return queue_manager_.coalesce_latest_matching_cc(wanted_status, wanted_cc_number, begin_scan, next_scan,
-	                                                  update_matched);
-}
-
 bool MIDIQueueManagerUSB::enqueue_priority_message(QueuePriority priority, uint32_t queued_message) {
 	// Append the packed event to the selected priority lane.
 	return queue_manager_.push(static_cast<uint8_t>(priority), queued_message);
@@ -400,7 +325,11 @@ MIDIQueueManager::PriorityLaneTraversalResult MIDIQueueManagerUSB::handle_cc_lan
                                                                                   USBSendContext& context) {
 	// Decide whether the CC lane head needs scheduler handling.
 	uint32_t head_message = queue_manager_.head(static_cast<uint8_t>(priority));
-	auto pop_scheduled_cc = [this](uint32_t& message_out) { return pop_next_scheduled_cc_message(message_out); };
+	auto pop_scheduled_cc = [this](uint32_t& message_out) {
+		// The shared policy owns selection order and the guarded removal; USB adds nothing here.
+		return cc_lane_.pop_scheduled(queue_manager_.lane(static_cast<uint8_t>(QUEUE_PRIORITY_CC)),
+		                              queue_manager_.cc_policy(), &message_out);
+	};
 	auto cc_result = MIDIQueueManager::try_pop_scheduled_cc(is_packed_channel_cc(head_message),
 	                                                        context.cc_allowance_messages_remaining > 0,
 	                                                        pop_scheduled_cc, context.message_out);
@@ -415,87 +344,6 @@ MIDIQueueManager::PriorityLaneTraversalResult MIDIQueueManagerUSB::handle_cc_lan
 	}
 	// Allowance exhaustion or pop failure means this lane should not emit now.
 	return MIDIQueueManager::PriorityLaneTraversalResult::SkipLane;
-}
-
-bool MIDIQueueManagerUSB::pop_next_scheduled_cc_message(uint32_t& message_out) {
-	// The generic CC policy owns selection order; USB supplies message-level scan
-	// and removal callbacks so this mirrors the DIN scheduled-pop path.
-	auto begin_scan = [this](uint16_t& scan_position, uint16_t& limit) {
-		// Initialize a USB CC-lane scan and report how many queued events it can inspect.
-		return begin_cc_message_scan(scan_position, limit);
-	};
-	auto next_scan = [this](uint16_t& scan_position, uint16_t limit, uint16_t& candidate_offset, uint8_t& cc_number) {
-		// Read the next USB event and adapt it into the generic scheduler result shape.
-		MIDIQueueManager::CCMessageScanEntry message{};
-		return MIDIQueueManager::adapt_cc_candidate_scan_result(next_cc_message(scan_position, limit, message), message,
-		                                                        candidate_offset, cc_number);
-	};
-	auto remove_selected = [this](uint16_t target_offset, uint32_t& popped_out) {
-		// Remove the selected USB event and return it as the message to send.
-		return remove_cc_message_at(target_offset, popped_out);
-	};
-
-	// Let the shared CC policy choose which CC number should be emitted next.
-	return queue_manager_.pop_next_scheduled_cc_candidate(begin_scan, next_scan, remove_selected, message_out);
-}
-
-bool MIDIQueueManagerUSB::begin_cc_message_scan(uint16_t& scan_position, uint16_t& limit) const {
-	// USB CC scan offsets are one queued event each, starting at the lane head.
-	scan_position = 0;
-	limit = queue_manager_.queue_count(static_cast<uint8_t>(QUEUE_PRIORITY_CC));
-	return limit > 0;
-}
-
-MIDIQueueManager::CCMessageScanResult
-MIDIQueueManagerUSB::next_cc_message(uint16_t& scan_position, uint16_t limit,
-                                     MIDIQueueManager::CCMessageScanEntry& message) const {
-	if (scan_position >= limit) {
-		// The scan has consumed every logical USB event in the CC lane.
-		return MIDIQueueManager::CCMessageScanResult::NoMore;
-	}
-
-	// Capture this logical offset before advancing to the next queued event.
-	uint16_t offset = scan_position;
-	scan_position++;
-	uint32_t queued = queue_manager_.read_at(static_cast<uint8_t>(QUEUE_PRIORITY_CC), offset);
-	if (!is_packed_channel_cc(queued)) {
-		// Valid queued event, but not a channel CC.
-		return MIDIQueueManager::CCMessageScanResult::Skip;
-	}
-
-	// Return the transport-neutral identity fields needed by the shared CC policy.
-	message = {
-	    .offset = offset,
-	    .status = status_byte(queued),
-	    .cc_number = data_1(queued),
-	};
-	return MIDIQueueManager::CCMessageScanResult::Found;
-}
-
-bool MIDIQueueManagerUSB::remove_cc_message_at(uint16_t target_offset, uint32_t& popped_out) {
-	// USB removes one packed event from the selected logical offset.
-	uint32_t removed_message[1] = {0};
-	{
-		// The producer's coalesce overwrite and this exchange are the only places both sides write the same
-		// slot. Guarding just these few instructions closes that race; the surrounding scan deliberately
-		// stays outside the guard, which is what the old clear-and-repack got wrong.
-		CriticalSectionGuard guard;
-		if (!queue_manager_.remove_span_via_head_swap(static_cast<uint8_t>(QUEUE_PRIORITY_CC), target_offset, 1,
-		                                              removed_message)) {
-			// Invalid offset: leave the caller without a message to send.
-			return false;
-		}
-	}
-
-	// Hand the removed event back to the transfer builder.
-	popped_out = removed_message[0];
-	return true;
-}
-
-// Resets all DIN per-priority queues and CC scheduling bookkeeping.
-void MIDIQueueManagerDIN::reset_queue_storage() {
-	queue_manager_.clear_all();
-	sysex_drain_active_ = false;
 }
 
 // Resets serial pacing state so the next flush starts from a known baseline.
@@ -518,9 +366,15 @@ size_t MIDIQueueManagerDIN::send_buffer_space() const {
 
 // Encodes and enqueues one channel/system MIDI message into serial-priority lanes.
 void MIDIQueueManagerDIN::enqueue_message(MIDIMessage message) {
-	// Classify once, then let the enqueue policy decide whether to coalesce or append.
+	// Classify once, then let the enqueue policy decide whether to coalesce or append. The policy is
+	// shared with USB; DinTransport supplies everything about this transport's storage format.
 	QueuePriority priority = MIDIQueueManager::classify_message(message);
-	(void)enqueue_message_with_cc_policy(priority, message);
+	uint8_t status = static_cast<uint8_t>(message.channel | (message.statusType << 4));
+	(void)cc_lane_.enqueue_with_cc_policy(
+	    queue_manager_.lane(static_cast<uint8_t>(QUEUE_PRIORITY_CC)), queue_manager_.cc_policy(),
+	    priority == QUEUE_PRIORITY_CC, MIDIQueueManager::is_channel_cc_status_type(message.statusType), status,
+	    message.data1, message.data2,
+	    [this, priority, message] { return enqueue_priority_message(priority, message); });
 }
 
 // Queues one complete SysEx byte stream into the lowest-priority DIN lane.
@@ -766,67 +620,6 @@ bool MIDIQueueManagerDIN::pop_sysex_byte(DINSendContext& context) {
 /* DIN MIDI CC specific queuing and scheduling functions start here */
 /* **************************************************************** */
 
-bool MIDIQueueManagerDIN::enqueue_message_with_cc_policy(QueuePriority priority, MIDIMessage queued_message) {
-	// For CC messages, first try to update an already-queued message for the same
-	// status/CC number. If this succeeds, no new serial bytes are appended.
-	if (priority == QUEUE_PRIORITY_CC && coalesce_cc_message(queued_message)) {
-		return true;
-	}
-
-	// Otherwise encode and append the message bytes to the selected priority lane.
-	bool queued_ok = enqueue_priority_message(priority, queued_message);
-	if (queued_ok && priority == QUEUE_PRIORITY_CC && queued_message.data1 <= kMaxMIDIValue) {
-		// Record that this CC number has unsent work so scheduled dequeue can prefer it.
-		queue_manager_.bump_cc_debt(queued_message.data1);
-	}
-	return queued_ok;
-}
-
-bool MIDIQueueManagerDIN::coalesce_cc_message(MIDIMessage queued_message) {
-	if (!MIDIQueueManager::is_channel_cc_status_type(queued_message.statusType)) {
-		// Only channel CC messages participate in value coalescing.
-		return false;
-	}
-
-	// DIN coalescing overwrites only the queued value byte. Status/CC number
-	// bytes stay where they are so ordering remains stable.
-	uint8_t wanted_status = queued_message.channel | (queued_message.statusType << 4);
-	auto begin_scan = [this](uint16_t& scan_position, uint16_t& limit) {
-		// Initialize a DIN CC-lane scan and report how many raw bytes it can inspect.
-		return begin_cc_message_scan(scan_position, limit);
-	};
-	auto next_scan = [this](uint16_t& scan_position, uint16_t limit, uint16_t& candidate_offset, uint8_t& status,
-	                        uint8_t& cc_number) {
-		// Read the next complete DIN message and adapt it into the generic coalescing result shape.
-		MIDIQueueManager::CCMessageScanEntry message{};
-		return MIDIQueueManager::adapt_cc_coalesce_scan_result(next_cc_message(scan_position, limit, message), message,
-		                                                       candidate_offset, status, cc_number);
-	};
-	auto update_matched = [this, queued_message, wanted_status](uint16_t latest_offset) {
-		// See the USB path: re-validate identity under the guard, because a concurrent removal may have
-		// shifted logical offsets since the scan found this message.
-		CriticalSectionGuard guard;
-		uint16_t queued = queue_manager_.queue_count(static_cast<uint8_t>(QUEUE_PRIORITY_CC));
-		if (static_cast<int32_t>(latest_offset) + MIDIQueueManager::k_channel_cc_message_length > queued) {
-			return false;
-		}
-		uint8_t status = queue_manager_.read_at(static_cast<uint8_t>(QUEUE_PRIORITY_CC), latest_offset);
-		uint8_t cc_number =
-		    queue_manager_.read_at(static_cast<uint8_t>(QUEUE_PRIORITY_CC), static_cast<uint16_t>(latest_offset + 1));
-		if (status != wanted_status || cc_number != queued_message.data1) {
-			return false;
-		}
-		// DIN stores bytes, so the value byte is two bytes after the message status.
-		queue_manager_.overwrite_at(static_cast<uint8_t>(QUEUE_PRIORITY_CC), static_cast<uint16_t>(latest_offset + 2),
-		                            queued_message.data2);
-		return true;
-	};
-
-	// The shared policy scans for the latest matching CC and calls update_matched if found.
-	return queue_manager_.coalesce_latest_matching_cc(wanted_status, queued_message.data1, begin_scan, next_scan,
-	                                                  update_matched);
-}
-
 bool MIDIQueueManagerDIN::enqueue_priority_message(QueuePriority priority, MIDIMessage queued_message) {
 	// Convert the MIDIMessage container into raw serial MIDI bytes.
 	uint8_t status = queued_message.channel | (queued_message.statusType << 4);
@@ -869,8 +662,22 @@ MIDIQueueManager::PriorityLaneTraversalResult MIDIQueueManagerDIN::handle_cc_lan
 	bool head_is_cc = MIDIQueueManager::is_three_byte_channel_cc(status, message_len);
 	auto pop_scheduled_cc = [this](uint8_t* out_bytes, int32_t allowance_bytes, int32_t uart_space, int32_t max_len,
 	                               QueuePriority& popped_priority) {
-		// Delegate scheduled removal to the DIN-specific complete-message popper.
-		return pop_next_scheduled_cc_message(out_bytes, allowance_bytes, uart_space, max_len, popped_priority);
+		if (allowance_bytes < MIDIQueueManager::k_channel_cc_message_length
+		    || uart_space < MIDIQueueManager::k_channel_cc_message_length
+		    || max_len < MIDIQueueManager::k_channel_cc_message_length) {
+			// A DIN CC is three bytes; all caller limits must fit the complete message. This gate is
+			// DIN's, not the policy's: USB pops whole events and has nothing to check here.
+			return false;
+		}
+		// The shared policy owns selection order and the guarded removal, and its own scan refuses a lane
+		// holding fewer bytes than one complete message.
+		if (!cc_lane_.pop_scheduled(queue_manager_.lane(static_cast<uint8_t>(QUEUE_PRIORITY_CC)),
+		                            queue_manager_.cc_policy(), out_bytes)) {
+			return false;
+		}
+		// Tell the drain loop these bytes came from the CC lane.
+		popped_priority = QUEUE_PRIORITY_CC;
+		return true;
 	};
 	auto cc_result = MIDIQueueManager::try_pop_scheduled_cc(
 	    head_is_cc, context.cc_uart_allowance >= MIDIQueueManager::k_channel_cc_message_length, pop_scheduled_cc,
@@ -886,94 +693,4 @@ MIDIQueueManager::PriorityLaneTraversalResult MIDIQueueManagerDIN::handle_cc_lan
 
 	// Allowance exhaustion or pop failure means the CC lane should not emit now.
 	return MIDIQueueManager::PriorityLaneTraversalResult::Abort;
-}
-
-bool MIDIQueueManagerDIN::pop_next_scheduled_cc_message(uint8_t* out_bytes, int32_t allowance_bytes, int32_t uart_space,
-                                                        int32_t max_len, QueuePriority& popped_priority) {
-	if (allowance_bytes < MIDIQueueManager::k_channel_cc_message_length
-	    || uart_space < MIDIQueueManager::k_channel_cc_message_length
-	    || max_len < MIDIQueueManager::k_channel_cc_message_length) {
-		// A DIN CC is three bytes; all caller limits must fit the complete message.
-		return false;
-	}
-
-	if (queue_manager_.queue_count(static_cast<uint8_t>(QUEUE_PRIORITY_CC))
-	    < MIDIQueueManager::k_channel_cc_message_length) {
-		// Fewer than three queued bytes cannot form a complete channel CC.
-		return false;
-	}
-
-	// DIN stores raw bytes, so scheduled CC popping must scan complete MIDI messages
-	// and remove a three-byte span rather than a single queue entry.
-	auto begin_scan = [this](uint16_t& scan_position, uint16_t& limit) {
-		// Initialize a DIN CC-lane scan and report how many raw bytes it can inspect.
-		return begin_cc_message_scan(scan_position, limit);
-	};
-	auto next_scan = [this](uint16_t& scan_position, uint16_t limit, uint16_t& candidate_offset, uint8_t& cc_number) {
-		// Read the next complete DIN message and adapt it into the generic scheduler result shape.
-		MIDIQueueManager::CCMessageScanEntry message{};
-		return MIDIQueueManager::adapt_cc_candidate_scan_result(next_cc_message(scan_position, limit, message), message,
-		                                                        candidate_offset, cc_number);
-	};
-	auto remove_selected = [this](uint16_t target_offset, uint8_t* out) {
-		// Remove the selected three-byte CC message and copy it into out.
-		return remove_cc_message_at(target_offset, out);
-	};
-
-	// Let the shared CC policy choose which CC number should be emitted next.
-	bool popped = queue_manager_.pop_next_scheduled_cc_candidate(begin_scan, next_scan, remove_selected, out_bytes);
-	if (popped) {
-		// Tell the drain loop these bytes came from the CC lane.
-		popped_priority = QUEUE_PRIORITY_CC;
-	}
-	return popped;
-}
-
-bool MIDIQueueManagerDIN::begin_cc_message_scan(uint16_t& scan_position, uint16_t& limit) const {
-	// DIN CC scan offsets are byte offsets, starting at the lane head.
-	scan_position = 0;
-	limit = queue_manager_.queue_count(static_cast<uint8_t>(QUEUE_PRIORITY_CC));
-	return limit >= MIDIQueueManager::k_channel_cc_message_length;
-}
-
-MIDIQueueManager::CCMessageScanResult
-MIDIQueueManagerDIN::next_cc_message(uint16_t& scan_position, uint16_t limit,
-                                     MIDIQueueManager::CCMessageScanEntry& message) const {
-	if (scan_position >= limit) {
-		// The scan has consumed every raw byte in the CC lane.
-		return MIDIQueueManager::CCMessageScanResult::NoMore;
-	}
-
-	// Decode the message length from the status byte at this logical byte offset.
-	uint8_t message_status = queue_manager_.read_at(static_cast<uint8_t>(QUEUE_PRIORITY_CC), scan_position);
-	int32_t message_len = bytesPerStatusMessage(message_status);
-	if (message_len <= 0 || static_cast<int32_t>(scan_position) + message_len > limit) {
-		// A truncated or unparseable byte stream means the lane cannot safely be
-		// repacked around a selected message.
-		return MIDIQueueManager::CCMessageScanResult::Invalid;
-	}
-
-	// Save the starting byte offset, then advance to the next complete MIDI message.
-	uint16_t offset = scan_position;
-	scan_position = static_cast<uint16_t>(scan_position + message_len);
-	if (!MIDIQueueManager::is_three_byte_channel_cc(message_status, message_len)) {
-		// Valid queued message, but not a three-byte channel CC.
-		return MIDIQueueManager::CCMessageScanResult::Skip;
-	}
-
-	// Return the transport-neutral identity fields needed by the shared CC policy.
-	message = {
-	    .offset = offset,
-	    .status = message_status,
-	    .cc_number = queue_manager_.read_at(static_cast<uint8_t>(QUEUE_PRIORITY_CC), static_cast<uint16_t>(offset + 1)),
-	};
-	return MIDIQueueManager::CCMessageScanResult::Found;
-}
-
-bool MIDIQueueManagerDIN::remove_cc_message_at(uint16_t target_offset, uint8_t* out) {
-	// DIN removes a three-byte CC span starting at the selected byte offset.
-	// See the USB path: narrow guard around the only slot writes shared with the producer.
-	CriticalSectionGuard guard;
-	return queue_manager_.remove_span_via_head_swap(static_cast<uint8_t>(QUEUE_PRIORITY_CC), target_offset,
-	                                                MIDIQueueManager::k_channel_cc_message_length, out);
 }
