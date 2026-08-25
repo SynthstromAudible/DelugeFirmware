@@ -486,11 +486,17 @@ TEST(MIDIMessageClassification, UnchangedClassificationsStillHold) {
 	CHECK(MIDIQueueManager::classify_message(mpeY) == QUEUE_PRIORITY_EXPRESSION);
 }
 
-// --- Regression tests for the ordering defects in docs/superpowers/specs/2026-08-25-midi-intent-opt-in-design.md
+// --- Regression tests for MIDI output ordering ---
 //
-// Each of these sequences was scrambled by coalescing or reordering. They are asserted at the
-// classification level because that is where the fix lives: a lane is FIFO, so co-locating an ordered
-// sequence on one lane is what preserves it.
+// MIDI uses stateful prefixes: sequences where earlier messages establish context for later ones. Each
+// sequence below was scrambled when CC coalescing and debt reordering treated its messages as
+// independent - the RPN address destroyed by merging its terminator, a note-on overtaking the MPE
+// expression that initialises it, a CC pulled ahead of the program change it belongs after, and All
+// Notes Off overtaken by the notes it was meant to stop.
+//
+// They are asserted at the classification level because that is where the fix lives: lanes are FIFO, so
+// co-locating an ordered sequence on one lane is what preserves it. See "Message intent" in
+// src/deluge/io/midi/midi_queue_manager.md.
 
 namespace {
 /// Builds the CC an ordered protocol sequence sends: default Event intent.
