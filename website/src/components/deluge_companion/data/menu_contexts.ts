@@ -53,13 +53,6 @@ const contextMenuDefinitions: Record<string, ContextMenuDefinition> = {
     selectedIndex: 0,
     renderMethod: DEFAULT_MENU_RENDER_METHOD,
   },
-  OSCILLATOR_INPUT: {
-    label: "Sound > Oscillator > Type > Input",
-    title: "Osc. Type",
-    options: ["Input"],
-    selectedIndex: 0,
-    renderMethod: DEFAULT_MENU_RENDER_METHOD,
-  },
   LOAD_ALL: {
     label: "Sample(s) > Load All",
     title: "Sample(s)",
@@ -74,20 +67,44 @@ const contextMenuDefinitions: Record<string, ContextMenuDefinition> = {
     selectedIndex: 1,
     renderMethod: DEFAULT_MENU_RENDER_METHOD,
   },
-  CHOKE: {
-    label: "Sound > Voice > Polyphony > Choke",
-    title: "Polyphony",
-    options: ["Choke"],
-    selectedIndex: 0,
-    renderMethod: DEFAULT_MENU_RENDER_METHOD,
-  },
+}
+
+const verticalMenuDefinitions: Record<string, ContextMenuDefinition> = {
   COUNT_IN: {
     label: "Settings > Recording > Count-In Bars",
     title: "Recording",
-    options: ["Count-In Bars"],
+    options: ["Count-In Bars", "Quantization", "Loop Margins"],
     selectedIndex: 0,
     renderMethod: DEFAULT_MENU_RENDER_METHOD,
   },
+  OSCILLATOR_INPUT: {
+    label: "Sound > Oscillator > Type > Input",
+    title: "Oscillator Type",
+    options: [
+      "Input",
+      "Input Left",
+      "Input Right",
+      "Input Stereo",
+    ],
+    selectedIndex: 0,
+    renderMethod: DEFAULT_MENU_RENDER_METHOD,
+  },
+  CHOKE: {
+    label: "Sound > Voice > Polyphony > Choke",
+    title: "Polyphony",
+    options: ["Auto", "Polyphonic", "Monophonic", "Legato", "Choke"],
+    selectedIndex: 4,
+    renderMethod: DEFAULT_MENU_RENDER_METHOD,
+  },
+}
+
+function getMenuDefinition(
+  normalizedContext: string,
+): ContextMenuDefinition | undefined {
+  return (
+    contextMenuDefinitions[normalizedContext] ??
+    verticalMenuDefinitions[normalizedContext]
+  )
 }
 
 // Returns canonical context-menu key used by markdown parsing and rendering.
@@ -102,9 +119,15 @@ export function getMenuContextDefinition(
 ): ContextMenuDefinition {
   const normalized = normalizeMenuContext(context)
   return (
-    contextMenuDefinitions[normalized] ??
+    getMenuDefinition(normalized) ??
     contextMenuDefinitions[DEFAULT_MENU_CONTEXT]
   )
+}
+
+// Returns true when the context belongs to the vertical menu definition map.
+export function isVerticalMenuContext(context?: string): boolean {
+  const normalized = normalizeMenuContext(context)
+  return verticalMenuDefinitions[normalized] !== undefined
 }
 
 // Returns true when value maps to a known menu render method token.
@@ -124,7 +147,7 @@ export function normalizeMenuRenderMethod(value?: string): MenuRenderMethod {
 // Returns a compact, human-readable menu label for step chips.
 export function getMenuContextLabel(context?: string): string {
   const normalized = normalizeMenuContext(context)
-  const contextDefinition = contextMenuDefinitions[normalized]
+  const contextDefinition = getMenuDefinition(normalized)
 
   if (contextDefinition?.label && contextDefinition.label.trim().length > 0) {
     return contextDefinition.label

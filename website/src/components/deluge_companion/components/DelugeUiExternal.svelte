@@ -3,6 +3,7 @@
   import { Action } from "../data/actions.js";
   import {
     getMenuContextDefinition,
+    isVerticalMenuContext,
     normalizeMenuRenderMethod,
   } from "../data/menu_contexts.js";
   import { Control } from "../data/targets.js";
@@ -60,6 +61,8 @@
   const OLED_TEXT_DRAW_HEIGHT = 7;
   const OLED_TEXT_TOP_OFFSET = 1;
   const OLED_TEXT_PIXEL_GAP_RATIO = 0.12;
+  const OLED_MENU_HORIZONTAL_INSET_RATIO = 0.035;
+  const OLED_MENU_VERTICAL_NUDGE_RATIO = 0.03;
 
   type FirmwareGlyph = {
     width: number;
@@ -211,18 +214,61 @@
           ? menu.options
           : ["..."];
     const displayAnchor = getDisplayAnchor();
-    const displayRect = displayAnchor.rect;
+    const displayRectRaw = displayAnchor.rect;
+    const horizontalInset =
+      displayRectRaw.width * OLED_MENU_HORIZONTAL_INSET_RATIO;
+    const verticalNudge =
+      displayRectRaw.height * OLED_MENU_VERTICAL_NUDGE_RATIO;
+    const displayRect = {
+      x: displayRectRaw.x + horizontalInset,
+      y: displayRectRaw.y + verticalNudge,
+      width: Math.max(displayRectRaw.width - horizontalInset * 2, 1),
+      height: displayRectRaw.height,
+    };
     const selectedIndex = Math.min(
       Math.max(menuStep.menuSelectedIndex ?? menu.selectedIndex ?? 0, 0),
       options.length - 1,
     );
 
-    const maxVisibleOptions = 2;
-    const visibleOptions = options.slice(0, maxVisibleOptions);
+    const isVerticalMenu = isVerticalMenuContext(menuStep.menuContext);
+    const maxVisibleOptions = isVerticalMenu ? 3 : 2;
+    let visibleOptions: string[] = [];
+    let selectedVisibleIndex = 0;
+
+    if (isVerticalMenu) {
+      // Mirror Submenu::drawPixelsForOled windowing: collect relevant items before/after,
+      // then balance the selected row toward the middle where possible.
+      const before = options.slice(0, selectedIndex).slice(-maxVisibleOptions);
+      const after = options.slice(selectedIndex, selectedIndex + maxVisibleOptions);
+
+      let pos = Math.floor((maxVisibleOptions - 1) / 2);
+      let tail = maxVisibleOptions - pos;
+
+      if (before.length < pos) {
+        pos = before.length;
+        tail = Math.min(maxVisibleOptions - pos, after.length);
+      } else if (after.length < tail) {
+        tail = after.length;
+        pos = Math.min(maxVisibleOptions - tail, before.length);
+      }
+
+      visibleOptions = [
+        ...before.slice(before.length - pos),
+        ...after.slice(0, tail),
+      ];
+      selectedVisibleIndex = pos;
+    } else {
+      visibleOptions = options.slice(0, maxVisibleOptions);
+      selectedVisibleIndex = Math.min(selectedIndex, Math.max(visibleOptions.length - 1, 0));
+    }
     // Mirror firmware context_menu.cpp virtual OLED geometry (128x48).
     const OLED_MAIN_WIDTH_PIXELS = 128;
     const OLED_MAIN_HEIGHT_PIXELS = 48;
+    const K_TEXT_SPACING_X = OLED_TEXT_CELL_WIDTH;
     const K_TEXT_SPACING_Y = 9;
+    const SCREEN_TITLE_Y = 1;
+    const SCREEN_TITLE_SEPARATOR_Y = 12;
+    const VERTICAL_BASE_Y = 14;
     const WINDOW_WIDTH = 100;
     const WINDOW_HEIGHT = 40;
     const windowMinX = (OLED_MAIN_WIDTH_PIXELS - WINDOW_WIDTH) / 2;
@@ -334,26 +380,47 @@
       setPixel(xMax, endY, 0);
     };
 
-    drawRectangle(windowMinX, windowMinY, windowMaxX, windowMaxY);
-    drawHorizontalLine(windowMinY + 15, 22, OLED_MAIN_WIDTH_PIXELS - 30);
-    drawMenuText(menuTitle, 22, windowMinY + 6, OLED_MAIN_WIDTH_PIXELS);
+    if (isVerticalMenu) {
+      // Match MenuItem::renderOLED + Canvas::drawScreenTitle behavior for vertical submenus.
+      drawMenuText(menuTitle, 0, SCREEN_TITLE_Y, OLED_MAIN_WIDTH_PIXELS);
+      drawHorizontalLine(SCREEN_TITLE_SEPARATOR_Y, 0, OLED_MAIN_WIDTH_PIXELS - 1);
 
-    visibleOptions.forEach((option, i) => {
-      const textPixelY = windowMinY + 18 + i * K_TEXT_SPACING_Y;
-      const textStartX =
-        menuRenderMethod === "NO_INVERSION" ? 23 + OLED_TEXT_CELL_WIDTH : 23;
-      drawMenuText(option, textStartX, textPixelY, OLED_MAIN_WIDTH_PIXELS - 27);
+      // Match Submenu::drawSubmenuItemsForOled: rows at baseY + o*kTextSpacingY, full-width highlighting.
+      visibleOptions.forEach((option, i) => {
+        const textPixelY = VERTICAL_BASE_Y + i * K_TEXT_SPACING_Y;
+        drawMenuText(option, K_TEXT_SPACING_X, textPixelY, OLED_MAIN_WIDTH_PIXELS);
 
-      if (i === selectedIndex) {
-        if (menuRenderMethod === "ROUNDED_INVERSION") {
-          invertAreaRounded(22, OLED_MAIN_WIDTH_PIXELS - 44, textPixelY, textPixelY + 8);
-        } else if (menuRenderMethod === "NO_INVERSION") {
-          drawVerticalLine(22, textPixelY, textPixelY + 8);
-        } else {
-          invertArea(22, OLED_MAIN_WIDTH_PIXELS - 44, textPixelY, textPixelY + 8);
+        if (i === selectedVisibleIndex) {
+          if (menuRenderMethod === "NO_INVERSION") {
+            drawVerticalLine(0, textPixelY, textPixelY + 8);
+          } else if (menuRenderMethod === "NO_ROUNDING") {
+            invertArea(0, OLED_MAIN_WIDTH_PIXELS, textPixelY, textPixelY + 8);
+          } else {
+            invertAreaRounded(0, OLED_MAIN_WIDTH_PIXELS, textPixelY, textPixelY + 8);
+          }
         }
-      }
-    });
+      });
+    } else {
+      drawRectangle(windowMinX, windowMinY, windowMaxX, windowMaxY);
+      drawHorizontalLine(windowMinY + 15, 22, OLED_MAIN_WIDTH_PIXELS - 30);
+      drawMenuText(menuTitle, 22, windowMinY + 6, OLED_MAIN_WIDTH_PIXELS);
+
+      visibleOptions.forEach((option, i) => {
+        const textPixelY = windowMinY + 18 + i * K_TEXT_SPACING_Y;
+        const textStartX = menuRenderMethod === "NO_INVERSION" ? 23 + OLED_TEXT_CELL_WIDTH : 23;
+        drawMenuText(option, textStartX, textPixelY, OLED_MAIN_WIDTH_PIXELS - 27);
+
+        if (i === selectedVisibleIndex) {
+          if (menuRenderMethod === "ROUNDED_INVERSION") {
+            invertAreaRounded(22, OLED_MAIN_WIDTH_PIXELS - 44, textPixelY, textPixelY + 8);
+          } else if (menuRenderMethod === "NO_INVERSION") {
+            drawVerticalLine(22, textPixelY, textPixelY + 8);
+          } else {
+            invertArea(22, OLED_MAIN_WIDTH_PIXELS - 44, textPixelY, textPixelY + 8);
+          }
+        }
+      });
+    }
 
     const pixelInsetX = (pixelScaleX * OLED_TEXT_PIXEL_GAP_RATIO) / 2;
     const pixelInsetY = (pixelScaleY * OLED_TEXT_PIXEL_GAP_RATIO) / 2;
