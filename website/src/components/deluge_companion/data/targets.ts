@@ -67,7 +67,7 @@ export enum Control {
   OSC_TYPE,
   VOICE_POLYPHONY,
   QWERTY,
-  CONTEXT_MENU,
+  MENU,
 }
 
 export const controlDescriptions: ControlDescriptions = {
@@ -75,8 +75,8 @@ export const controlDescriptions: ControlDescriptions = {
     title: "-",
     type: ControlType.none,
   },
-  [Control.CONTEXT_MENU]: {
-    title: "Context menu",
+  [Control.MENU]: {
+    title: "Menu",
     type: ControlType.none,
   },
   [Control.PLAY]: {

@@ -171,7 +171,7 @@ const collectControlsFromStep = (step: StepOrSubstep, ids: Set<Control>) => {
 
   // MENU uses Control.NONE in source data; add a dedicated pseudo-control for filtering.
   if (step.action === Action.MENU) {
-    ids.add(Control.CONTEXT_MENU)
+    ids.add(Control.MENU)
   }
 }
 

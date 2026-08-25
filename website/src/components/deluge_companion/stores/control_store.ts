@@ -28,7 +28,6 @@ export const shortcutControlGroups: ShortcutControlGroup[] = [
       { id: Control.SYNC, title: "Sync-Scaling" },
       { id: Control.LEARN, title: "Learn / Input" },
       { id: Control.ENTIRE, title: "Affect Entire" },
-      { id: Control.CONTEXT_MENU, title: "Context Menu" },
     ],
   },
   {
@@ -47,6 +46,7 @@ export const shortcutControlGroups: ShortcutControlGroup[] = [
       { id: Control.POWER_SWITCH, title: "Power switch" },
       { id: Control.TRIPLETSVIEW, title: "Triplets View" },
       { id: Control.EXTERNAL, title: "External MIDI Controller" },
+      { id: Control.MENU, title: "Menu" },
     ],
   },
   {

@@ -375,7 +375,7 @@ export const controlCoordinates: Partial<Record<Control, Coordinate[]>> = {
 
   // ========== External/Fallback ==========
   [Control.EXTERNAL]: [],
-  [Control.CONTEXT_MENU]: [],
+  [Control.MENU]: [],
   [Control.NONE]: [],
 }
 

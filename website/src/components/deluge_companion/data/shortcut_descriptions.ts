@@ -34,7 +34,7 @@ export const shortcutActionDescriptions: Record<
 
 export const shortcutControlDescriptions: Record<Control, string> = {
   [Control.NONE]: "control",
-  [Control.CONTEXT_MENU]: "context menu",
+  [Control.MENU]: "Menu",
   [Control.RECORD]: "Record button",
   [Control.PLAY]: "Play button",
   [Control.LOAD]: "Load (New) button",
