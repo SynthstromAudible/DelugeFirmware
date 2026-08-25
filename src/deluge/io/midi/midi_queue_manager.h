@@ -211,12 +211,6 @@ public:
 	/// @param lane Priority lane index.
 	/// @return The entry at the lane head.
 	[[nodiscard]] T head(uint8_t lane) const { return lanes[lane].peek(); }
-	/// @brief Reads a queued entry from one lane without removing it.
-	/// @param lane           Priority lane index.
-	/// @param logical_offset Logical offset from the lane head.
-	/// @return The entry at @p logical_offset.
-	[[nodiscard]] T read_at(uint8_t lane, uint16_t logical_offset) const { return lanes[lane].peek(logical_offset); }
-
 	/// @brief Removes and returns one lane's head entry.
 	/// @param lane Priority lane index.
 	/// @param out  Out: set to the removed entry on success.
@@ -227,22 +221,6 @@ public:
 	/// @param value Entry to enqueue.
 	/// @return True if the entry was stored; false if that lane is full.
 	bool push(uint8_t lane, T value) { return lanes[lane].push(value); }
-	/// @brief Overwrites a queued entry in one lane in place.
-	/// @param lane           Priority lane index.
-	/// @param logical_offset Logical offset from the lane head of the entry to overwrite.
-	/// @param value          New value for that entry.
-	void overwrite_at(uint8_t lane, uint16_t logical_offset, T value) {
-		lanes[lane].overwrite_at(logical_offset, value);
-	}
-	/// @brief Removes a logical span from one lane by exchanging it with that lane's head.
-	/// @param lane          Priority lane index.
-	/// @param target_offset Logical offset of the span to remove, relative to the lane head.
-	/// @param span          Width of the span, in entries.
-	/// @param removed_out   Destination buffer for the removed entries.
-	/// @return True if the span was removed; false if it falls outside the lane's current contents.
-	bool remove_span_via_head_swap(uint8_t lane, uint16_t target_offset, uint16_t span, T* removed_out) {
-		return lanes[lane].remove_span_via_head_swap(target_offset, span, removed_out);
-	}
 	/// @brief Returns whether one lane holds no queued entries.
 	/// @param lane Priority lane index.
 	/// @return True if that lane is empty.

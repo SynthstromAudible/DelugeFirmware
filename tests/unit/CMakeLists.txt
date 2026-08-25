@@ -87,6 +87,7 @@ add_executable(UnitTests
         notes_state_tests.cpp
         midi_queue_manager_tests.cpp
         midi_din_drain_tests.cpp
+        midi_usb_drain_tests.cpp
 )
 add_test(NAME UnitTests
         COMMAND UnitTests)

@@ -17,8 +17,8 @@
 
 #pragma once
 
-#include "io/midi/midi_cc_policy.h"
 #include "io/midi/midi_queue_definitions.h"
+#include "io/midi/midi_queue_policy.h"
 #include "model/midi/message.h"
 #include <cstdint>
 
