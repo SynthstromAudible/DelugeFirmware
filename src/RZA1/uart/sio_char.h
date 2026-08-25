@@ -73,7 +73,7 @@ void Userdef_SCIF_UART_Init(uint8_t channel, uint8_t mode, uint16_t cks, uint32_
 extern uint8_t picTxBuffer[];
 extern char midiTxBuffer[];
 
-// These are not thread safe! Do not call in ISRs.
+// Not thread safe! Do not call in ISRs.
 #define bufferPICUart(charToSend)                                                                                      \
     do                                                                                                                 \
     {                                                                                                                  \
@@ -91,7 +91,8 @@ extern char midiTxBuffer[];
 /// Release builds use -flto=auto, so this still inlines to the same code the macro produced. It is also
 /// far too cold to care - DIN runs at 31250 baud, about 3125 bytes per second.
 ///
-/// Not thread safe. See the warning above bufferPICUart.
+/// Safe to call from either mainline code or an ISR: the write-position update is guarded. flushMIDI()
+/// drains DIN from mainline and from the midiAndGateOutput timer interrupt, so both reach this.
 void bufferMIDIUart(char charToSend);
 
 /* SIO_CHAR_H */

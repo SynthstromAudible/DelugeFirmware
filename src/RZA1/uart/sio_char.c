@@ -37,6 +37,7 @@
 Includes   <System Includes> , "Project Includes"
 ******************************************************************************/
 #include "RZA1/uart/sio_char.h"
+#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"
 #include "RZA1/cpu_specific.h"
 #include "RZA1/system/iobitmasks/gpio_iobitmask.h"
 #include "RZA1/system/iobitmasks/scif_iobitmask.h"
@@ -53,6 +54,13 @@ char midiTxBuffer[MIDI_TX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)))
 
 void bufferMIDIUart(char charToSend)
 {
+    // Reached from both contexts: flushMIDI() drains DIN from mainline (audio_engine, playback_handler)
+    // and from the midiAndGateOutput timer ISR. The write-position update below is a non-atomic
+    // read-modify-write of one word shared between them, so it is guarded.
+    //
+    // Three instructions at roughly 3125 bytes per second - not the kind of work that has any business
+    // being outside a critical section, unlike a scan.
+    ENTER_CRITICAL_SECTION();
     intptr_t writePos = uartItems[UART_ITEM_MIDI].txBufferWritePos + UNCACHED_MIRROR_OFFSET;
     *(((volatile char*)(&midiTxBuffer[0])) + writePos) = charToSend;
 
@@ -61,6 +69,7 @@ void bufferMIDIUart(char charToSend)
     // currently 1024, so the old mask was accidentally correct; it would have wrapped at the wrong
     // boundary the moment either size changed.
     uartItems[UART_ITEM_MIDI].txBufferWritePos &= (MIDI_TX_BUFFER_SIZE - 1);
+    EXIT_CRITICAL_SECTION();
 }
 
 char picRxBuffer[PIC_RX_BUFFER_SIZE] __attribute__((aligned(CACHE_LINE_SIZE)));
