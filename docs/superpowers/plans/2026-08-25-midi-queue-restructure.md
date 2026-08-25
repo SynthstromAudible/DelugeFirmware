@@ -8,7 +8,7 @@
 
 **Tech Stack:** C++23, ARM GCC 14.2 (`./dbt build Debug`), CppUTest host unit tests (`tests/unit`, built with `cmake -S tests -B tests/build && ninja -C tests/build UnitTests`).
 
-**Spec:** None. This plan is self-contained; the design rationale is stated per task. The subsystem's own design notes live in `docs/dev/systems/midi_queue_manager.md` and must be updated by Task 7.
+**Spec:** None. This plan is self-contained; the design rationale is stated per task. The subsystem's own design notes live in `docs/dev/systems/midi_queue_manager.md` and must be updated by Task 8.
 
 ## Global Constraints
 
@@ -480,7 +480,117 @@ the existing header-only tests."
 
 ---
 
-### Task 3: Per-lane capacities
+### Task 3: Stop writing the MIDI UART from an ISR
+
+`sio_char.h:76` warns, directly above these buffers: *"These are not thread safe! Do not call in ISRs."*
+The branch violates it.
+
+`flushMIDI()` is documented "sometimes (not always) be called in an ISR" (`midi_engine.cpp:609`) and now
+calls `connectedDINMIDIDevice.consume_queued_messages()`, which reaches `bufferMIDIUart`. On `main` it did
+not: `flushMIDI` only did `flushUSBMIDIOutput()` and `uartFlushIfNotSending()`, and DIN bytes were staged
+from mainline `sendSerialMidi`.
+
+The hazard is concrete. `bufferMIDIUart` does a non-atomic read-modify-write of
+`uartItems[UART_ITEM_MIDI].txBufferWritePos`. `uart.c`'s debug-print helpers call it from mainline, and
+`ENABLE_TEXT_OUTPUT=1` is in the build flags, so mainline SysEx logging racing the ISR MIDI drain can
+corrupt the write position and produce garbage or dropped bytes.
+
+This is the same class as the SPSC violation already fixed in this subsystem: an ISR touching state that
+is not ISR-safe.
+
+**Files:**
+- Modify: `src/RZA1/uart/sio_char.c` (`bufferMIDIUart`)
+- Test: `tests/unit/midi_din_drain_tests.cpp`
+
+**Interfaces:**
+- Consumes: `bufferMIDIUart(char)` from Task 2's macro-to-function conversion.
+- Produces: no signature change. `bufferMIDIUart` becomes safe to call from either context.
+
+- [ ] **Step 1: Confirm the race is real before fixing it**
+
+```bash
+grep -n "bufferMIDIUart" src/deluge/drivers/uart/uart.c
+grep -rn "ENABLE_TEXT_OUTPUT" CMakeLists.txt | head -2
+```
+Expected: four mainline call sites in `uart.c` (the debug-print helpers) and `ENABLE_TEXT_OUTPUT=1` in the
+build flags. If text output is *not* enabled in the configuration being shipped, the race is latent
+rather than live — record which, and continue either way.
+
+- [ ] **Step 2: Make the write-position update atomic**
+
+The whole update is three instructions on one word. Guarding it costs nothing measurable and is exactly
+what critical sections are for — unlike the O(n) scan the queue manager used to guard.
+
+In `src/RZA1/uart/sio_char.c`:
+
+```c
+void bufferMIDIUart(char charToSend) {
+	// The MIDI drain reaches this from flushMIDI(), which sometimes runs in an ISR, while uart.c's
+	// debug-print helpers reach it from mainline. The write-position update is a non-atomic
+	// read-modify-write of one word shared between those two contexts, so it is guarded. This is three
+	// instructions, not a scan: the cost is a few cycles at roughly 3125 bytes per second.
+	ENTER_CRITICAL_SECTION();
+	intptr_t writePos = uartItems[UART_ITEM_MIDI].txBufferWritePos + UNCACHED_MIRROR_OFFSET;
+	*(((volatile char*)(&midiTxBuffer[0])) + writePos) = charToSend;
+
+	uartItems[UART_ITEM_MIDI].txBufferWritePos += 1;
+	uartItems[UART_ITEM_MIDI].txBufferWritePos &= (MIDI_TX_BUFFER_SIZE - 1);
+	EXIT_CRITICAL_SECTION();
+}
+```
+
+Add `#include "OSLikeStuff/timers_interrupts/timers_interrupts.h"` if `sio_char.c` does not already
+reach `ENTER_CRITICAL_SECTION`. Check first: `grep -n "timers_interrupts\|ENTER_CRITICAL" src/RZA1/uart/sio_char.c`
+
+- [ ] **Step 3: Update the header warning, which is now half wrong**
+
+In `src/RZA1/uart/sio_char.h`, the shared comment above both symbols currently reads
+`// These are not thread safe! Do not call in ISRs.` That still holds for `bufferPICUart` but no longer
+for `bufferMIDIUart`. Split it:
+
+```c
+// Not thread safe! Do not call in ISRs.
+#define bufferPICUart(charToSend) ```
+
+and on the MIDI declaration, replace the trailing `/// Not thread safe. See the warning above
+bufferPICUart.` with:
+
+```c
+/// Safe to call from either mainline code or an ISR: the write-position update is guarded. The MIDI
+/// drain reaches it from flushMIDI(), which sometimes runs in an ISR, while uart.c's debug-print
+/// helpers reach it from mainline.
+```
+
+- [ ] **Step 4: Verify nothing regressed**
+
+```bash
+cd tests/build && ninja UnitTests && ./unit/UnitTests
+cd - && ./dbt build Debug
+```
+Expected: 182 tests pass, firmware links. The host doubles make `ENTER_CRITICAL_SECTION` a no-op, so the
+DIN drain tests exercise the same path as before.
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add src/RZA1/uart/sio_char.c src/RZA1/uart/sio_char.h
+git commit -m "guard the MIDI UART write position against the ISR that now uses it
+
+sio_char.h warns not to call these from an ISR. The queue manager broke that: flushMIDI() sometimes runs
+in an ISR and now drains DIN through bufferMIDIUart, where on main the UART was only written from
+mainline sendSerialMidi.
+
+bufferMIDIUart does a non-atomic read-modify-write of txBufferWritePos, and uart.c's debug-print helpers
+still call it from mainline, so mainline SysEx logging could race the ISR drain and corrupt the position.
+
+Guarding it is three instructions on one word at roughly 3125 bytes per second. bufferPICUart keeps the
+original warning: it is hot, and nothing calls it from an ISR."
+```
+
+---
+
+
+### Task 4: Per-lane capacities
 
 Five lanes at a uniform 1024 entries costs 121KB for USB (`usbQueueManagers`) plus 10KB for DIN — measured from the linked ELF — against roughly 24KB for the single ring this subsystem replaced. The clock lane will never hold 1024 realtime bytes.
 
@@ -673,7 +783,7 @@ firmware stages is 1024 bytes."
 
 ---
 
-### Task 4: Transport traits, replacing the duplicated method pairs
+### Task 5: Transport traits, replacing the duplicated method pairs
 
 Nine method pairs exist once for USB and once for DIN — `enqueue_message_with_cc_policy`, `coalesce_cc_message`, `handle_cc_lane`, `pop_next_scheduled_cc_message`, `begin_cc_message_scan`, `next_cc_message`, `remove_cc_message_at`, `pop_lane`, `reset_queue_storage` — each a near-identical lambda adapter over the shared policy. This is the maintainer's standing feedback from PR #4765 and the largest single simplification available.
 
@@ -915,7 +1025,7 @@ different algorithms, and merging them would cost more than the duplication did.
 
 ---
 
-### Task 5: Drop the pass-through layer and resolve the traversal asymmetry
+### Task 6: Drop the pass-through layer and resolve the traversal asymmetry
 
 `MIDIQueueManagerDeviceState` wraps `MIDIQueueStorage` plus `MIDICCQueuePolicy` and forwards nearly every method verbatim — the documentation pass ended up using `@copydoc` for them because they were identical to what they wrapped. It is a layer with no behaviour.
 
@@ -1017,9 +1127,9 @@ undecodable head data aborts now."
 
 ---
 
-### Task 6: Split the header
+### Task 7: Split the header
 
-`midi_queue_manager.h` holds seven classes. Tasks 3 to 5 have already moved the lane, the CC policy and the traits out; this task finishes the split and checks the result is coherent.
+`midi_queue_manager.h` holds seven classes. Tasks 4 to 6 have already moved the lane, the CC policy and the traits out; this task finishes the split and checks the result is coherent.
 
 **Files:**
 - Modify: `src/deluge/io/midi/midi_queue_manager.h`
@@ -1068,7 +1178,7 @@ two transport managers."
 
 ---
 
-### Task 7: Update the design notes and assemble the PR
+### Task 8: Update the design notes and assemble the PR
 
 **Files:**
 - Modify: `docs/dev/systems/midi_queue_manager.md`
@@ -1123,7 +1233,7 @@ Verify nothing references it: `git grep -n "superpowers" -- . || echo clean`
 git push -u origin midi-queue-manager-v6
 ```
 
-The PR description should carry: what the feature does, the measured memory figures before and after Task 3, the fact that the DIN drain path is now host-tested, and an explicit list of what still needs hardware validation (below).
+The PR description should carry: what the feature does, the measured memory figures before and after Task 4, the fact that the DIN drain path is now host-tested, and an explicit list of what still needs hardware validation (below).
 
 ---
 
@@ -1140,4 +1250,4 @@ cd - && ./dbt build Debug                               # clean link
 
 - **Hardware behaviour.** Everything here is host tests plus a clean build. MPE expression output, MPE zone configuration via RPN, and DIN under dense CC automation all still need a device — DIN especially, where 31250 baud makes congestion far likelier than USB.
 - **That the scheduling earns its complexity.** Simulation showed debt-based CC reordering is a measurable no-op until the pending CC count exceeds the per-drain allowance. Nobody has confirmed on hardware that the reordering half of the design (as opposed to the coalescing half) changes what a player hears.
-- **The lane capacities in Task 3.** They are reasoned from the largest staged SysEx (1024 bytes) and from one entry per distinct CC identity, not measured against real traffic. If a lane overflows in practice it will silently drop messages, so they deserve a sanity check under load before merge.
+- **The lane capacities in Task 4.** They are reasoned from the largest staged SysEx (1024 bytes) and from one entry per distinct CC identity, not measured against real traffic. If a lane overflows in practice it will silently drop messages, so they deserve a sanity check under load before merge.
