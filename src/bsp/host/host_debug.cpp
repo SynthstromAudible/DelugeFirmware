@@ -37,7 +37,6 @@
 #include "gui/ui/ui.h"                // openUI
 #include "gui/views/session_view.h"   // sessionView, reproCreateNewInstrumentClip
 #include "memory/alloc_metadata.h"    // mem_guard (self-guards on MEM_GUARD)
-#include "scheduler_api.h"            // yieldWithTimeout
 
 #include <csignal>
 #include <cstdio>
@@ -151,6 +150,16 @@ int g_songLoadReps = -1; // -1 = not yet read, 0 = disabled
 uint32_t g_songPollCount = 0;
 bool g_songLoadDone = false;
 
+// The walk's cursor. The harness used to run its whole double loop inside one poll call, blocking the
+// app until every song had loaded; a load now completes from the run loop, so the walk has to return
+// to it between songs and pick up where it left off.
+bool g_songWalkStarted = false;
+int g_songRep = 0;
+int g_songIdx = 0;
+int g_songTotalLoads = 0;
+int g_songMaxLoads = 0;
+uint32_t g_songLeakSnapshot = 0;
+
 // `dir` is SD-relative (e.g. "SONGS/problem_songs"), matching the convention host_efatfs_passthrough.cpp's
 // resolve_root_relative() expects. The card is a plain host directory now (DELUGE_SD_ROOT), so walk it with
 // POSIX readdir/stat directly rather than going through the efatfs C-ABI — this is a host-only dev harness.
@@ -193,11 +202,9 @@ void collectXmlPaths(const char* dir, int depth) {
 	closedir(dp);
 }
 
-/// How long loadOneSong() waits for one song. Generous: this harness loads whole corpora under a
-/// sanitizer, where a single load is far slower than anything the device would see.
-constexpr double kSongLoadTimeoutSeconds = 60.;
-
-void loadOneSong(const char* fullPath) {
+/// Starts one song loading. Returns false if the browser would not accept it, in which case no load
+/// is in flight and the caller should move straight on to the next song.
+bool beginOneSong(const char* fullPath) {
 #if defined(__SANITIZE_ADDRESS__)
 	if (currentSong && __asan_address_is_poisoned((void*)currentSong)) {
 		printf("[song-load] BEFORE load: currentSong %p is POISONED (dangling freed Song)\n", (void*)currentSong);
@@ -212,12 +219,10 @@ void loadOneSong(const char* fullPath) {
 	if (e != Error::NONE) {
 		printf("  [song-load] setFileByFullPath failed (%d) for %s\n", (int)e, fullPath);
 		std::fflush(stdout);
-		return;
+		return false;
 	}
 	loadSongUI.beginLoad();
-	// This harness deliberately blocks the app to load every song back-to-back, so it waits here for the
-	// load the run loop is advancing. Yielding is what lets the load's pump task run at all.
-	yieldWithTimeout([]() { return !loadSongUI.isLoadInFlight(); }, kSongLoadTimeoutSeconds);
+	return true;
 }
 
 void runSongLoadHarnessIfDue() {
@@ -228,35 +233,56 @@ void runSongLoadHarnessIfDue() {
 	if (g_songLoadReps <= 0 || g_songLoadDone) {
 		return;
 	}
-	if (++g_songPollCount < 200) { // let the app finish booting
+	if (!g_songWalkStarted && ++g_songPollCount < 200) { // let the app finish booting
 		return;
 	}
-	g_songLoadDone = true;
+	// One song per poll, resuming where the last one left off. A load completes from the run loop, so
+	// this cannot be a nested loop any more - blocking here would stop the very pump it is waiting on.
+	if (!g_songWalkStarted) {
+		g_songWalkStarted = true;
 
-	const char* dir = std::getenv("DELUGE_HOST_SONG_LOAD_DIR");
-	collectXmlPaths(dir, 0);
-	printf("[song-load] found %d .XML files under %s; loading each x%d\n", g_numSongPaths, dir, g_songLoadReps);
-	std::fflush(stdout);
+		const char* dir = std::getenv("DELUGE_HOST_SONG_LOAD_DIR");
+		collectXmlPaths(dir, 0);
+		printf("[song-load] found %d .XML files under %s; loading each x%d\n", g_numSongPaths, dir, g_songLoadReps);
+		std::fflush(stdout);
 
-	// Optional cap on total loads, so we can stop short of memory exhaustion and get a clean LeakSanitizer report.
-	const char* maxEnv = std::getenv("DELUGE_HOST_SONG_LOAD_MAX");
-	int maxLoads = maxEnv ? std::atoi(maxEnv) : 0;
-	int totalLoads = 0;
+		// Optional cap on total loads, so we can stop short of memory exhaustion and get a clean
+		// LeakSanitizer report.
+		const char* maxEnv = std::getenv("DELUGE_HOST_SONG_LOAD_MAX");
+		g_songMaxLoads = maxEnv ? std::atoi(maxEnv) : 0;
+		g_songLeakSnapshot = leakSnapshot();
+	}
 
-	uint32_t snap = leakSnapshot();
-	for (int rep = 0; rep < g_songLoadReps; rep++) {
-		for (int i = 0; i < g_numSongPaths; i++) {
-			if (maxLoads > 0 && totalLoads >= maxLoads) {
-				goto doneLoading;
-			}
-			loadOneSong(g_songPaths[i]);
-			totalLoads++;
-			printf("[song-load] rep %d song %d/%d: %s | live allocations now %u\n", rep, i + 1, g_numSongPaths,
-			       g_songPaths[i], (unsigned)leakLiveCount());
-			std::fflush(stdout);
+	// A load is still running: let it.
+	if (loadSongUI.isLoadInFlight()) {
+		return;
+	}
+
+	// Walk to the next song that actually starts loading, then come back for it.
+	while (g_songRep < g_songLoadReps) {
+		if (g_songMaxLoads > 0 && g_songTotalLoads >= g_songMaxLoads) {
+			break;
+		}
+		if (g_songIdx >= g_numSongPaths) {
+			g_songIdx = 0;
+			g_songRep++;
+			continue;
+		}
+		const char* path = g_songPaths[g_songIdx];
+		int rep = g_songRep;
+		int idx = g_songIdx;
+		g_songIdx++;
+		g_songTotalLoads++;
+		printf("[song-load] rep %d song %d/%d: %s | live allocations now %u\n", rep, idx + 1, g_numSongPaths, path,
+		       (unsigned)leakLiveCount());
+		std::fflush(stdout);
+		if (beginOneSong(path)) {
+			return; // in flight; the next poll picks it up
 		}
 	}
-doneLoading:;
+
+	g_songLoadDone = true;
+	uint32_t snap = g_songLeakSnapshot;
 
 	printf("[song-load] done - allocations still outstanding across the run (leaks):\n");
 	std::fflush(stdout);

@@ -46,11 +46,19 @@ int32_t expected24(uint32_t frameIndex, uint32_t channel) {
 }
 
 // Drive the streaming fill so a pending region-acquire can progress LOADING->READY: yield the worker
-// fiber and drain the whole loader queue via the async fill task (deluge_streaming_drain_queue_blocking).
-// Valid because the probes run ON the storage-owner worker fiber (dispatched by the recorder-roundtrip
-// scenario on the Embassy renderer). Mirrors StemExport::renderWait's drain.
+// fiber and drain the whole loader queue via the async fill task. Valid because the probes run ON the
+// storage-owner worker fiber (dispatched by the recorder-roundtrip scenario on the Embassy renderer),
+// and because the bounded retry loops that call it have no other yield point - the fiber suspending
+// inside the drain is the only thing that lets the fill task run at all.
 void driveFillDrain() {
 	deluge_streaming_drain_queue_blocking();
+}
+
+// The same demand, for the _poll() entry points below. Those are called repeatedly by the Rust harness,
+// which awaits a timer between calls, so its loop is what lets the fill task run - asking is enough,
+// and blocking here would suspend the fiber for a drain the caller is already driving.
+void requestFillDrain() {
+	deluge_streaming_request_drain();
 }
 
 int32_t rampSample(uint32_t frameIndex, uint32_t channel) {
@@ -216,12 +224,10 @@ uint8_t deluge_harness_recorder_probe_poll() {
 	if (g_source == nullptr) {
 		return static_cast<uint8_t>(DELUGE_REGION_UNAVAILABLE);
 	}
-	// Drive the C++ fiber drain (a no-op under async_streaming_loader; see the comment in
-	// deluge_harness_recorder_probe()) and re-acquire (not just deluge_sample_region_state(), which
-	// never itself progresses a fill) so a caller polling this in a loop actually gives EITHER drain
-	// mechanism -- the C++ pump on sim, or (by calling this repeatedly while its own async executor
-	// keeps ticking) the Rust async fill task on host_app -- a real chance to resolve the region.
-	driveFillDrain();
+	// Ask for a drain and re-acquire (not just deluge_sample_region_state(), which never itself
+	// progresses a fill) so a caller polling this in a loop gives EITHER drain mechanism -- the C++ pump
+	// on sim, or the Rust async fill task on host_app -- a real chance to resolve the region.
+	requestFillDrain();
 	DelugeSampleRegion out{};
 	DelugeRegionState state =
 	    deluge_sample_region_acquire_ex(g_source, /*index=*/0, /*direction=*/+1, /*priority=*/0, &out);
@@ -361,7 +367,7 @@ uint8_t deluge_harness_recorder_finalized_multicluster_probe_poll() {
 	if (g_finalizedSource == nullptr) {
 		return static_cast<uint8_t>(DELUGE_REGION_UNAVAILABLE);
 	}
-	driveFillDrain();
+	requestFillDrain();
 	DelugeSampleRegion out{};
 	DelugeRegionState state = deluge_sample_region_acquire_ex(g_finalizedSource, g_finalizedRegionIndex,
 	                                                          /*direction=*/+1, /*priority=*/0, &out);

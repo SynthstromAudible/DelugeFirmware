@@ -87,15 +87,6 @@ bool yieldWithTimeout(RunCondition until, double timeout);
 /// use if you're yielding in a loop such as the sd routine
 bool yieldToIdle(RunCondition until);
 
-/// Block until `until` holds or `timeout_seconds` elapses; returns whether it held.
-///
-/// For **progress-class** waits only: waits whose predicate is satisfied by a task on a
-/// higher-priority tier (the storage tier's fill task, which runs on an interrupt executor and so
-/// makes progress while this blocks). Unlike the yields above, this does not suspend anything, so it
-/// must NEVER be given a predicate that only user input or other thread-mode work can satisfy --
-/// that work cannot run while this blocks, and the timeout would turn a deadlock into a silent
-/// expiry rather than preventing it.
-bool deluge_storage_await_progress(RunCondition until, double timeout_seconds);
 /// True while a slow-storage (SD / SPI-flash / USB) busy-wait is yielding to the scheduler.
 /// The reentrancy guard the yieldingRoutine*ForSD hooks set; the application reads it to gate
 /// user actions that must not run re-entrantly inside a storage routine. Owned by the
