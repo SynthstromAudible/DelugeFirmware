@@ -622,9 +622,19 @@ TEST(MIDIQueueLaneCapacity, EveryCapacityIsAPowerOfTwo) {
 }
 
 TEST(MIDIQueueLaneCapacity, SysExLaneHoldsACompleteMaximumStream) {
-	// enqueue_sysex is all-or-nothing, so a lane that cannot hold the largest stream the firmware
-	// stages would silently drop it. One slot is always reserved, hence the strict comparison.
-	CHECK(k_din_lane_capacity[QUEUE_PRIORITY_SYSEX] > 1024);
+	// The largest stream the firmware stages is MidiEngine::sysex_fmt_buffer[1024].
+	constexpr int kMaxSysExStreamBytes = 1024;
+
+	// DIN queues raw bytes, so one byte per slot. enqueue_sysex is all-or-nothing, so a lane that
+	// cannot hold the largest stream would silently drop it. One slot is always reserved, hence the
+	// strict comparison.
+	CHECK(k_din_lane_capacity[QUEUE_PRIORITY_SYSEX] > kMaxSysExStreamBytes);
+
+	// USB queues packed USB-MIDI events carrying up to three payload bytes each, so the same stream
+	// needs ceil(1024/3) = 342 events. MICableUSB::sendSysex() discards every enqueue result, so a lane
+	// too small to take a whole frame drops events mid-stream and truncates the SysEx on the wire.
+	constexpr int kMaxSysExStreamEvents = (kMaxSysExStreamBytes + 2) / 3;
+	CHECK(k_usb_lane_capacity[QUEUE_PRIORITY_SYSEX] > kMaxSysExStreamEvents);
 }
 
 // --- Transport traits ---

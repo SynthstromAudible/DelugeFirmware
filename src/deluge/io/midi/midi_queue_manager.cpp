@@ -126,22 +126,14 @@ bool MIDIQueueManagerUSB::has_buffered_send_data() const {
 }
 
 int MIDIQueueManagerUSB::send_buffer_space() const {
-	// Total queued USB messages currently buffered across all priority lanes.
-	uint32_t queued = queue_storage_.total_queued_messages();
-	// Maximum messages we can queue: usable slots per lane (ring-1) times number of lanes.
-	uint32_t total_capacity_messages = 0;
-	for (uint8_t lane = 0; lane < QUEUE_PRIORITY_COUNT; lane++) {
-		// Each lane keeps one slot unused, and lanes no longer share a capacity.
-		total_capacity_messages += queue_storage_.lane_capacity(lane) - 1;
-	}
-	// Can't queue anymore: return 0 bytes of remaining capacity.
-	if (queued >= total_capacity_messages) {
-		return 0;
-	}
-
-	// Each 4-byte USB-MIDI event contains up to 3 bytes of MIDI payload.
-	// Report remaining capacity by payload bytes, not by 4-byte USB event slots.
-	return (total_capacity_messages - queued) * k_usb_midi_event_payload_bytes;
+	// The only caller is the SysEx display throttle, and SysEx can only ever occupy the SysEx lane, so
+	// report that lane and nothing else. Summing free space across every lane (as this used to) meant a
+	// completely full SysEx lane still looked like plenty of room, and the throttle never engaged.
+	// DIN's send_buffer_space() reports the same thing for the same reason.
+	//
+	// Each 4-byte USB-MIDI event carries up to 3 bytes of MIDI payload, so report payload bytes rather
+	// than event slots, to stay comparable with a caller that thinks in MIDI bytes.
+	return queue_storage_.space(static_cast<uint8_t>(QUEUE_PRIORITY_SYSEX)) * k_usb_midi_event_payload_bytes;
 }
 
 QueuePriority MIDIQueueManagerUSB::classify_packed_usb_priority(uint32_t packed, MIDIIntent intent) {
@@ -165,8 +157,9 @@ QueuePriority MIDIQueueManagerUSB::classify_packed_usb_priority(uint32_t packed,
 bool MIDIQueueManagerUSB::enqueue_message(uint32_t full_message, MIDIIntent intent) {
 	// Total messages currently queued across all priority lanes for this device.
 	uint32_t queued = queue_storage_.total_queued_messages();
-	// Report backlog rather than acting on it. Flushing from here would call back into the engine that
-	// owns this queue, and would let a mainline enqueue trigger the interrupt-masked drain.
+	// Report backlog rather than acting on it. Flushing from here would close a call cycle back into the
+	// engine that owns this queue. The caller still flushes synchronously when this returns true, so the
+	// drain happens at the same point; only the direction of the call changed.
 	bool wants_flush = queued > k_usb_flush_backlog_message_threshold;
 
 	// Determine which priority lane this packed USB-MIDI event belongs to.
@@ -259,7 +252,9 @@ bool MIDIQueueManagerUSB::consume_queued_messages(uint8_t* data_sending_now, uin
 					break;
 				}
 				if (cc_result == MIDIQueueManager::PriorityLaneTraversalResult::Abort) {
-					// The CC lane cannot safely provide a message right now.
+					// Unreachable on USB: handle_cc_lane() below returns only Popped / PopLane / SkipLane,
+					// because a USB entry is a whole event with nothing to decode or size-check. Kept so
+					// this loop reads the same way as the DIN one, which does produce Abort.
 					break;
 				}
 				if (cc_result == MIDIQueueManager::PriorityLaneTraversalResult::SkipLane) {

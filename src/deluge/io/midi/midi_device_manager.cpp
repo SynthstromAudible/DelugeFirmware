@@ -80,6 +80,13 @@ static_assert(sizeof(ConnectedUSBMIDIDevice) <= __builtin_offsetof(ConnectedUSBM
 // identically-shaped usbQueueManagers array.
 MIDIQueueManagerUSB& ConnectedUSBMIDIDevice::queue_manager() {
 	ptrdiff_t flat_index = this - &connectedUSBMIDIDevices[0][0];
+	if (flat_index < 0 || flat_index >= static_cast<ptrdiff_t>(USB_NUM_USBIP * MAX_NUM_USB_MIDI_DEVICES)) {
+		// The constructor is public, so nothing in the type system stops a ConnectedUSBMIDIDevice being
+		// created outside connectedUSBMIDIDevices. Such an object would index usbQueueManagers out of
+		// bounds and silently corrupt whatever follows it, so trap instead. This codebase has no assert
+		// macro; FREEZE_WITH_ERROR is how it states invariants that must hold at runtime.
+		FREEZE_WITH_ERROR("E403");
+	}
 	return (&usbQueueManagers[0][0])[flat_index];
 }
 
@@ -693,8 +700,9 @@ checkDevice:
 
 } // namespace MIDIDeviceManager
 
-// Forwards to this device's queue manager, which flushes opportunistically (or drops the message) if the
-// target lane is still full afterward.
+// Forwards to this device's queue manager. The queue manager never flushes: it returns whether the queued
+// backlog now warrants one and the caller decides, which is why the result is [[nodiscard]]. A message
+// that finds its target lane full is dropped there rather than flushed out of the way.
 bool ConnectedUSBMIDIDevice::enqueue_message(uint32_t fullMessage, MIDIIntent intent) {
 	return queue_manager().enqueue_message(fullMessage, intent);
 }
@@ -704,7 +712,8 @@ bool ConnectedUSBMIDIDevice::hasBufferedSendData() {
 	return queue_manager().has_buffered_send_data();
 }
 
-// Reports capacity across all priority lanes, in MIDI payload bytes rather than raw USB event slots.
+// Reports free SysEx-lane capacity, in MIDI payload bytes rather than raw USB event slots. SysEx is the
+// only thing this value gates, and it can only occupy that one lane.
 int ConnectedUSBMIDIDevice::sendBufferSpace() {
 	return queue_manager().send_buffer_space();
 }

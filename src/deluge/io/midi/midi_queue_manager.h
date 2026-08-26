@@ -44,16 +44,19 @@ public:
 	/// @brief Returns whether any USB priority lane has data waiting to send.
 	/// @return True if at least one lane is non-empty.
 	[[nodiscard]] bool has_buffered_send_data() const;
-	/// @brief Returns remaining USB send-queue capacity.
-	/// @return Free queue space reported as MIDI payload bytes across all priority lanes, not as
-	///         4-byte USB event slots.
+	/// @brief Returns remaining USB SysEx-lane capacity, for the SysEx display throttle.
+	/// @return Free space in the SysEx lane only, reported as MIDI payload bytes rather than 4-byte
+	///         USB event slots. Not an aggregate across lanes: SysEx cannot occupy any other lane, so
+	///         an aggregate would hide a full SysEx lane from the caller that has to back off.
 	[[nodiscard]] int send_buffer_space() const;
 	/// @brief Queues one packed USB-MIDI event, classifying it into the correct priority lane.
 	/// @param full_message Packed USB-MIDI event.
 	/// @param intent       Sender intent used to route Event vs. Continuous CCs into the correct lane.
 	/// @return True when the queued backlog has grown past the flush threshold and the caller should
-	///         flush. The queue manager deliberately does not flush itself: it is owned by the engine
-	///         it would have to call, and a mainline enqueue must not trigger the interrupt-masked drain.
+	///         flush. The queue manager deliberately does not flush itself: doing so would close a call
+	///         cycle (engine -> device -> queue -> engine) between layers that are otherwise one-way.
+	///         Both callers do flush synchronously on a true return, so this does not change *when* the
+	///         drain runs, only who calls it.
 	[[nodiscard]] bool enqueue_message(uint32_t full_message, MIDIIntent intent);
 	/// @brief Drains queued USB-MIDI events into the USB send buffer in priority order.
 	/// @param data_sending_now      Destination buffer for packed events to send.

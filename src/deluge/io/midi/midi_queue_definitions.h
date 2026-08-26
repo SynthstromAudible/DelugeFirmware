@@ -21,7 +21,10 @@
 #include <cstdint>
 #endif
 
-/// @brief Sizing constants for the MIDI send queue's inner buffers and outer ring buffer.
+/// @brief Sizing constants for the per-transfer USB send buffers.
+///
+/// The outer ring size and its wrap mask used to live here too. The per-lane capacity tables below
+/// replaced them, so the power-of-two requirement now belongs to those tables, not to this enum.
 enum QueueSendConstants {
 	/// Inner send-buffer size, in 32-bit messages.
 	///
@@ -35,13 +38,6 @@ enum QueueSendConstants {
 	///       needed so far. Other devices handle more headroom (e.g. a WIDI Bud is fine at 3,
 	///       and both are fine at 16 without a hub involved).
 	MIDI_SEND_BUFFER_LEN_INNER_HOST = 2,
-	/// Outer send ring-buffer size, in messages.
-	///
-	/// @note MUST be an exact power of two -- MIDI_SEND_RING_MASK's wraparound masking depends
-	///       on it.
-	MIDI_SEND_BUFFER_LEN_RING = 1024,
-	/// Bitmask for wrapping an index into MIDI_SEND_BUFFER_LEN_RING.
-	MIDI_SEND_RING_MASK = MIDI_SEND_BUFFER_LEN_RING - 1,
 };
 
 /// @brief Relative send priority for a queued MIDI message.
@@ -74,11 +70,12 @@ typedef enum QueuePriority {
 /// messages and never backs up.
 #ifdef __cplusplus
 inline constexpr uint16_t k_usb_lane_capacity[QUEUE_PRIORITY_COUNT] = {
-    32,  // QUEUE_PRIORITY_CLOCK: single-event realtime messages
-    128, // QUEUE_PRIORITY_NOTES
-    128, // QUEUE_PRIORITY_EXPRESSION: also carries Event CCs and program changes
-    256, // QUEUE_PRIORITY_CC: one entry per distinct Continuous CC identity
-    512, // QUEUE_PRIORITY_SYSEX: 1024 bytes at up to 3 payload bytes per event
+    32,   // QUEUE_PRIORITY_CLOCK: single-event realtime messages
+    128,  // QUEUE_PRIORITY_NOTES
+    128,  // QUEUE_PRIORITY_EXPRESSION: also carries Event CCs and program changes
+    256,  // QUEUE_PRIORITY_CC: one entry per distinct Continuous CC identity
+    1024, // QUEUE_PRIORITY_SYSEX: 1024 bytes at up to 3 payload bytes per event, with headroom so a
+          // full OLED frame still fits behind whatever the backpressure gate let through
 };
 
 inline constexpr uint16_t k_din_lane_capacity[QUEUE_PRIORITY_COUNT] = {
