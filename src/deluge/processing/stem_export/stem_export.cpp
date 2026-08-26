@@ -68,6 +68,7 @@ StemExport::StemExport() {
 
 	loopLengthToStopStemExport = 0;
 	loopEndPointInSamplesForAudioFile = 0;
+	drumExportTotalNumClips = 0;
 
 	allowNormalization = false;
 	allowNormalizationForDrums = true;
@@ -120,18 +121,7 @@ void StemExport::runStemExportProcess(StemExportType stemExportType) {
 	int32_t elementsProcessed = 0;
 
 	// export stems
-	if (stemExportType == StemExportType::CLIP) {
-		elementsProcessed = exportClipStems(stemExportType);
-	}
-	else if (stemExportType == StemExportType::TRACK) {
-		elementsProcessed = exportInstrumentStems(stemExportType);
-	}
-	else if (stemExportType == StemExportType::DRUM) {
-		elementsProcessed = exportDrumStems(stemExportType);
-	}
-	else if (stemExportType == StemExportType::MIXDOWN) {
-		elementsProcessed = exportMixdownStem(stemExportType);
-	}
+	elementsProcessed = exportStems();
 
 	// if process wasn't cancelled, then we got here because we finished
 	// exporting all the stems, so let's finish up
@@ -380,92 +370,6 @@ void StemExport::restoreAllInstrumentMutes(int32_t totalNumOutputs) {
 /// iterates through all instruments, arming one instrument at a time for recording
 /// simulates the button combo action of pressing record + play twice to enable resample
 /// and stop recording at the end of the arrangement
-int32_t StemExport::exportInstrumentStems(StemExportType stemExportType) {
-	// prepare all the instruments for stem export
-	int32_t totalNumOutputs = disarmAllInstrumentsForStemExport(stemExportType);
-
-	if (totalNumOutputs != 0 && totalNumStemsToExport != 0) {
-		// now we're going to iterate through all instruments to find the ones that should be exported
-		for (int32_t idxOutput = totalNumOutputs - 1; idxOutput >= 0; --idxOutput) {
-			Output* output = currentSong->getOutputFromIndex(idxOutput);
-			if (output != nullptr) {
-				bool started = startCurrentStemExport(stemExportType, output, output->mutedInArrangementMode, idxOutput,
-				                                      output->exportStem);
-
-				if (!started) {
-					// the export may have been aborted rather than this stem simply being skipped
-					if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
-						break;
-					}
-					// skip this stem and move to the next one
-					continue;
-				}
-
-				// wait until recording is done and playback is turned off
-				renderWait([]() {
-					if (stemExport.stopRecording) {
-						stemExport.stopOutputRecording();
-					}
-					return !(playbackHandler.recording != RecordingMode::OFF
-					         || audioRecorder.recordingSource > AudioInputChannel::NONE
-					         || playbackHandler.isEitherClockActive());
-				});
-
-				finishCurrentStemExport(stemExportType, output->mutedInArrangementMode);
-			}
-			// in the event that stem exporting is cancelled while iterating through clips
-			// break out of the loop
-			if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
-				break;
-			}
-		}
-	}
-
-	// set instrument mutes back to their previous state (before exporting stems)
-	restoreAllInstrumentMutes(totalNumOutputs);
-
-	return totalNumOutputs;
-}
-
-/// iterates through all instruments, checking if there's any that should be exported (unmuted)
-/// then exports them all as a single stem
-/// simulates the button combo action of pressing record + play twice to enable resample
-/// and stop recording at the end of the arrangement
-int32_t StemExport::exportMixdownStem(StemExportType stemExportType) {
-	// prepare all the instruments for stem export
-	int32_t totalNumOutputs = disarmAllInstrumentsForStemExport(stemExportType);
-
-	if (totalNumOutputs != 0 && totalNumStemsToExport != 0) {
-		// set wav file name for stem to be exported
-		if (!setWavFileNameForStemExport(stemExportType, nullptr, 0)) {
-			abortStemExportProcess(deluge::l10n::String::STRING_FOR_STEM_NAME_TOO_LONG);
-			return totalNumOutputs;
-		}
-
-		// start resampling which ends when end of arrangement is reached and audio is silent
-		startOutputRecordingUntilLoopEndAndSilence();
-
-		// we haven't exported the arrangement yet
-		// so display progress
-		displayStemExportProgress(stemExportType);
-
-		// wait until recording is done and playback is turned off
-		renderWait([]() {
-			if (stemExport.stopRecording) {
-				stemExport.stopOutputRecording();
-			}
-			return !(playbackHandler.recording != RecordingMode::OFF
-			         || audioRecorder.recordingSource > AudioInputChannel::NONE
-			         || playbackHandler.isEitherClockActive());
-		});
-
-		// update number of stems exported
-		numStemsExported++;
-	}
-
-	return totalNumOutputs;
-}
-
 /// disarms and prepares all the clips so that they can be exported
 int32_t StemExport::disarmAllClipsForStemExport() {
 	// when we begin stem export, we haven't exported any clips yet, so initialize these variables
@@ -557,58 +461,6 @@ bool StemExport::writeLoopEndPos() {
 /// iterates through all clips, arming one clip at a time for recording
 /// simulates the button combo action of pressing record + play twice to enable resample
 /// and stop recording at the end of the clip's loop length
-int32_t StemExport::exportClipStems(StemExportType stemExportType) {
-	// prepare all the clips for stem export
-	int32_t totalNumClips = disarmAllClipsForStemExport();
-
-	if (totalNumClips != 0 && totalNumStemsToExport != 0) {
-		// now we're going to iterate through all clips to find the ones that should be exported
-		for (int32_t idxClip = totalNumClips - 1; idxClip >= 0; --idxClip) {
-			Clip* clip = currentSong->sessionClips[idxClip];
-			if (clip != nullptr) {
-				getLoopLengthOfLongestNotEmptyNoteRow(clip);
-				getLoopEndPointInSamplesForAudioFile(clip->loopLength);
-
-				bool started = startCurrentStemExport(stemExportType, clip->output, clip->activeIfNoSolo, idxClip,
-				                                      clip->exportStem);
-
-				if (!started) {
-					// the export may have been aborted rather than this stem simply being skipped
-					if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
-						break;
-					}
-					// skip this stem and move to the next one
-					continue;
-				}
-
-				// wait until recording is done and playback is turned off
-				renderWait([]() {
-					// if you haven't found silence yet and playback has stopped
-					// check for silence so you can stop recording
-					if (stemExport.stopRecording) {
-						stemExport.stopOutputRecording();
-					}
-					return !(playbackHandler.recording != RecordingMode::OFF
-					         || audioRecorder.recordingSource > AudioInputChannel::NONE
-					         || playbackHandler.isEitherClockActive());
-				});
-
-				finishCurrentStemExport(stemExportType, clip->activeIfNoSolo);
-			}
-			// in the event that stem exporting is cancelled while iterating through clips
-			// break out of the loop
-			if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
-				break;
-			}
-		}
-	}
-
-	// set clip mutes back to their previous state (before exporting stems)
-	restoreAllClipMutes(totalNumClips);
-
-	return totalNumClips;
-}
-
 /// disarms and prepares all the drums so that they can be exported
 int32_t StemExport::disarmAllDrumsForStemExport() {
 	// when we begin stem export, we haven't exported any drums yet, so initialize these variables
@@ -666,74 +518,162 @@ void StemExport::restoreAllDrumMutes(int32_t totalNumNoteRows) {
 /// iterates through all drums, arming one drum at a time for recording
 /// simulates the button combo action of pressing record + play twice to enable resample
 /// and stop recording at the end of the arrangement
-int32_t StemExport::exportDrumStems(StemExportType stemExportType) {
-	// need to disarm all the other clips so that we can export just this kit clip
-	int32_t totalNumClips = disarmAllClipsForStemExport();
-	// prepare all the drums for stem export
-	int32_t totalNumNoteRows = disarmAllDrumsForStemExport();
+/// @brief The wait every export type shares.
+///
+/// Lifted out of the four identical lambdas the per-type drivers each carried. `stopRecording` is set
+/// once the recording has something to stop for; the element is done when nothing is recording, no
+/// source is armed, and playback has stopped.
+bool StemExport::elementFinished() {
+	if (stemExport.stopRecording) {
+		stemExport.stopOutputRecording();
+	}
+	return !(playbackHandler.recording != RecordingMode::OFF || audioRecorder.recordingSource > AudioInputChannel::NONE
+	         || playbackHandler.isEitherClockActive());
+}
 
-	if (totalNumNoteRows != 0) {
-		// now we're going to iterate through all drums to find the ones that should be exported
+int32_t StemExport::prepareElements() {
+	switch (currentStemExportType) {
+	case StemExportType::CLIP:
+		return disarmAllClipsForStemExport();
+
+	case StemExportType::DRUM:
+		// A drum export records one kit clip's rows, so every OTHER clip has to be disarmed first. Its
+		// count is kept for restoreElements(), which has two sets of mutes to undo rather than one.
+		drumExportTotalNumClips = disarmAllClipsForStemExport();
+		return disarmAllDrumsForStemExport();
+
+	case StemExportType::TRACK:
+	case StemExportType::MIXDOWN:
+	default:
+		return disarmAllInstrumentsForStemExport(currentStemExportType);
+	}
+}
+
+void StemExport::restoreElements(int32_t total) {
+	switch (currentStemExportType) {
+	case StemExportType::CLIP:
+		restoreAllClipMutes(total);
+		return;
+
+	case StemExportType::DRUM:
+		restoreAllDrumMutes(total);
+		restoreAllClipMutes(drumExportTotalNumClips);
+		return;
+
+	case StemExportType::TRACK:
+		restoreAllInstrumentMutes(total);
+		return;
+
+	case StemExportType::MIXDOWN:
+	default:
+		// Nothing to restore: a MIXDOWN records every unmuted output together, so its own disarm
+		// deliberately leaves mutedInArrangementMode alone (see disarmAllInstrumentsForStemExport).
+		return;
+	}
+}
+
+bool StemExport::fetchElement(int32_t index, StemElement& element) {
+	switch (currentStemExportType) {
+	case StemExportType::CLIP: {
+		Clip* clip = currentSong->sessionClips[index];
+		if (clip == nullptr) {
+			return false;
+		}
+		getLoopLengthOfLongestNotEmptyNoteRow(clip);
+		getLoopEndPointInSamplesForAudioFile(clip->loopLength);
+		element = {clip->output, &clip->activeIfNoSolo, clip->exportStem, nullptr};
+		return true;
+	}
+
+	case StemExportType::DRUM: {
 		InstrumentClip* clip = getCurrentInstrumentClip();
-		Output* output = clip->output;
-		OutputType outputType = output->type;
-		for (int32_t idxNoteRow = totalNumNoteRows - 1; idxNoteRow >= 0; --idxNoteRow) {
-			NoteRow* thisNoteRow = clip->noteRows.tryGet(idxNoteRow);
-			if (thisNoteRow != nullptr) {
-				clip->activeIfNoSolo = true; // unmute clip
+		NoteRow* noteRow = clip->noteRows.tryGet(index);
+		if (noteRow == nullptr) {
+			return false;
+		}
+		clip->activeIfNoSolo = true; // unmute clip
 
-				// set the loop length that the drum stem export should be stopped at
-				if (thisNoteRow->loopLengthIfIndependent != 0) {
-					loopLengthToStopStemExport = thisNoteRow->loopLengthIfIndependent;
+		// set the loop length that the drum stem export should be stopped at
+		loopLengthToStopStemExport =
+		    (noteRow->loopLengthIfIndependent != 0) ? noteRow->loopLengthIfIndependent : clip->loopLength;
+		getLoopEndPointInSamplesForAudioFile(loopLengthToStopStemExport);
+
+		element = {clip->output, &noteRow->muted, noteRow->exportStem, (SoundDrum*)noteRow->drum};
+		return true;
+	}
+
+	case StemExportType::MIXDOWN:
+		// The single element stands for every unmuted output at once, so it names no output and owns
+		// no mute of its own.
+		element = {nullptr, nullptr, true, nullptr};
+		return true;
+
+	case StemExportType::TRACK:
+	default: {
+		Output* output = currentSong->getOutputFromIndex(index);
+		if (output == nullptr) {
+			return false;
+		}
+		element = {output, &output->mutedInArrangementMode, output->exportStem, nullptr};
+		return true;
+	}
+	}
+}
+
+bool StemExport::startElement(int32_t index, const StemElement& element) {
+	if (currentStemExportType == StemExportType::MIXDOWN) {
+		// No per-element scroll or mute to update, and one file rather than one per element.
+		if (!setWavFileNameForStemExport(currentStemExportType, nullptr, 0)) {
+			abortStemExportProcess(deluge::l10n::String::STRING_FOR_STEM_NAME_TOO_LONG);
+			return false;
+		}
+		// start resampling which ends when end of arrangement is reached and audio is silent
+		startOutputRecordingUntilLoopEndAndSilence();
+		displayStemExportProgress(currentStemExportType);
+		return true;
+	}
+	return startCurrentStemExport(currentStemExportType, element.output, element.muteState, index, element.exportStem,
+	                              element.drum);
+}
+
+void StemExport::finishElement(const StemElement& element) {
+	finishCurrentStemExport(currentStemExportType, element.muteState);
+}
+
+/// @brief Records one stem per element of the current export type.
+///
+/// The four per-type drivers this replaced were the same loop over a different collection, so what
+/// varies now lives in prepareElements()/fetchElement()/startElement()/restoreElements() and the walk
+/// itself is written once.
+int32_t StemExport::exportStems() {
+	int32_t total = prepareElements();
+
+	// MIXDOWN records every unmuted output together, so it walks a single element however many outputs
+	// prepareElements() counted - but that count is still what the caller wants back, for the scroll.
+	int32_t elementCount = (currentStemExportType == StemExportType::MIXDOWN) ? 1 : total;
+
+	if (total != 0 && totalNumStemsToExport != 0) {
+		for (int32_t index = elementCount - 1; index >= 0; --index) {
+			StemElement element;
+			if (fetchElement(index, element)) {
+				if (startElement(index, element)) {
+					// wait until recording is done and playback is turned off
+					renderWait(&elementFinished);
+					finishElement(element);
 				}
-				else {
-					loopLengthToStopStemExport = clip->loopLength;
-				}
-				getLoopEndPointInSamplesForAudioFile(loopLengthToStopStemExport);
-
-				bool started = startCurrentStemExport(stemExportType, output, thisNoteRow->muted, idxNoteRow,
-				                                      thisNoteRow->exportStem, (SoundDrum*)thisNoteRow->drum);
-
-				if (!started) {
-					// the export may have been aborted rather than this stem simply being skipped
-					if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
-						break;
-					}
-					// skip this stem and move to the next one
-					continue;
-				}
-
-				// wait until recording is done and playback is turned off
-				renderWait([]() {
-					// if you haven't found silence yet and playback has stopped
-					// check for silence so you can stop recording
-					if (stemExport.stopRecording) {
-						stemExport.stopOutputRecording();
-					}
-					return !(playbackHandler.recording != RecordingMode::OFF
-					         || audioRecorder.recordingSource > AudioInputChannel::NONE
-					         || playbackHandler.isEitherClockActive());
-				});
-
-				finishCurrentStemExport(stemExportType, thisNoteRow->muted);
 			}
-			// in the event that stem exporting is cancelled while iterating through drums
-			// break out of the loop
+			// in the event that stem exporting is cancelled while iterating, break out of the loop
 			if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
 				break;
 			}
 		}
 	}
 
-	// set drum mutes back to their previous state (before exporting stems)
-	restoreAllDrumMutes(totalNumNoteRows);
-	// set clip mutes back to their previous state (before exporting stems)
-	restoreAllClipMutes(totalNumClips);
-
-	return totalNumNoteRows;
+	restoreElements(total);
+	return total;
 }
 
-bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* output, bool& muteState,
+bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* output, bool* muteState,
                                         int32_t indexNumber, bool exportStem, SoundDrum* drum) {
 	updateScrollPosition(stemExportType, indexNumber + 1);
 
@@ -744,11 +684,11 @@ bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* o
 
 	if (stemExportType == StemExportType::CLIP) {
 		// unmute clip for recording
-		muteState = true; // clip->activeIfNoSolo
+		*muteState = true; // clip->activeIfNoSolo
 	}
 	else if (stemExportType == StemExportType::TRACK || stemExportType == StemExportType::DRUM) {
 		// unmute output / drum for recording
-		muteState = false; // output->mutedInArrangementMode or noteRow->muted
+		*muteState = false; // output->mutedInArrangementMode or noteRow->muted
 	}
 
 	// re-render song view since we scrolled and updated mutes
@@ -773,14 +713,14 @@ bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* o
 /// mute clip or output after recording it so that it's not recorded next time
 /// update recording mode if it needs to be updated
 /// increment number of stems exported so progress can be displayed
-void StemExport::finishCurrentStemExport(StemExportType stemExportType, bool& muteState) {
+void StemExport::finishCurrentStemExport(StemExportType stemExportType, bool* muteState) {
 	if (stemExportType == StemExportType::CLIP) {
 		// mute clip for recording
-		muteState = false; // clip->activeIfNoSolo
+		*muteState = false; // clip->activeIfNoSolo
 	}
 	else if (stemExportType == StemExportType::TRACK || stemExportType == StemExportType::DRUM) {
 		// mute output / drum for recording
-		muteState = true; // output->mutedInArrangementMode or noteRow->muted
+		*muteState = true; // output->mutedInArrangementMode or noteRow->muted
 	}
 
 	// update number of stems exported

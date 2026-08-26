@@ -65,15 +65,55 @@ public:
 	bool renderOffline;
 	bool exportMixdown;
 
+	/// @brief One element of an in-flight export: whichever of output, clip or note row the current
+	///        export type walks.
+	///
+	/// Produced by @ref fetchElement from an index rather than held across the element's recording,
+	/// because the export suspends there and a pointer taken beforehand would have to be revalidated.
+	struct StemElement {
+		Output* output = nullptr;
+		/// @brief The element's own mute flag, written by @ref startElement and @ref finishElement.
+		///
+		/// Which flag it is depends on the export type: the arranger mute, the clip's active state, or
+		/// the note row's mute. Null for MIXDOWN, which records everything together and mutes nothing.
+		bool* muteState = nullptr;
+		bool exportStem = false;
+		SoundDrum* drum = nullptr;
+	};
+
+	/// @brief Walks every element of the current export type, recording one stem each.
+	/// @return The element count, which the caller uses to restore the scroll position.
+	int32_t exportStems();
+
+	/// @brief Counts the elements this export type walks and disarms them for recording.
+	/// @return The element count, as @ref restoreElements and the caller both expect it.
+	int32_t prepareElements();
+
+	/// @brief Fetches element `index`, applying whatever per-type setup it needs (loop lengths, unmutes).
+	/// @return false if that slot is empty, in which case the element is skipped.
+	bool fetchElement(int32_t index, StemElement& element);
+
+	/// @brief Starts recording one element.
+	/// @return false if the element is skipped, or if the export was aborted while starting it - the
+	///         two are told apart by whether UI_MODE_STEM_EXPORT is still active.
+	bool startElement(int32_t index, const StemElement& element);
+
+	/// @brief Mutes the element again and counts it. Runs once its recording has finished.
+	void finishElement(const StemElement& element);
+
+	/// @brief The wait every export type shares: this element's recording has finished and playback
+	///        has stopped. Matches renderWait()'s RunCondition.
+	static bool elementFinished();
+
+	/// @brief Restores whatever mutes @ref prepareElements changed.
+	void restoreElements(int32_t total);
+
 	// export instruments
 	int32_t disarmAllInstrumentsForStemExport(StemExportType stemExportType);
-	int32_t exportInstrumentStems(StemExportType stemExportType);
-	int32_t exportMixdownStem(StemExportType stemExportType);
 	void restoreAllInstrumentMutes(int32_t totalNumOutputs);
 
 	// export clips
 	int32_t disarmAllClipsForStemExport();
-	int32_t exportClipStems(StemExportType stemExportType);
 	void restoreAllClipMutes(int32_t totalNumClips);
 	void getLoopLengthOfLongestNotEmptyNoteRow(Clip* clip);
 	void getLoopEndPointInSamplesForAudioFile(int32_t loopLength);
@@ -83,15 +123,18 @@ public:
 
 	// export drums
 	int32_t disarmAllDrumsForStemExport();
-	int32_t exportDrumStems(StemExportType stemExportType);
 	void restoreAllDrumMutes(int32_t totalNumNoteRows);
 
+	/// @brief Clip count captured by a DRUM export's own clip disarm, so @ref restoreElements can undo
+	///        it as well as the note-row mutes.
+	int32_t drumExportTotalNumClips;
+
 	// start exporting
-	bool startCurrentStemExport(StemExportType stemExportType, Output* output, bool& muteState, int32_t fileNumber,
+	bool startCurrentStemExport(StemExportType stemExportType, Output* output, bool* muteState, int32_t fileNumber,
 	                            bool exportStem, SoundDrum* drum = nullptr);
 
 	// finish exporting
-	void finishCurrentStemExport(StemExportType stemExportType, bool& muteState);
+	void finishCurrentStemExport(StemExportType stemExportType, bool* muteState);
 	void finishStemExportProcess(StemExportType stemExportType, int32_t elementsProcessed);
 	void updateScrollPosition(StemExportType stemExportType, int32_t indexNumber);
 
