@@ -15,6 +15,8 @@
 #[cfg(test)]
 extern crate std;
 
+pub mod wavetable;
+
 /// Which container the file uses. Decides endianness for everything after the
 /// 12-byte top header: RIFF is little-endian, AIFF big-endian.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
