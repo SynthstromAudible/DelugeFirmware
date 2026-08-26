@@ -43,6 +43,10 @@ __pycache__
 /deluge_host_out.wav
 /sim/build/
 /sim/deluge_host_out.wav
+# The audio-header corpus differential runs the deluge_audio_header_dump binary with the crate
+# directory as its working directory, and the app it links writes both of these on startup.
+/crates/deluge_audio_format/deluge_host_out.wav
+/crates/deluge_audio_format/SETTINGS/
 
 # Local Claude Code config / skills (not shared)
 .claude/
