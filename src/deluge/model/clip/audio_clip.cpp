@@ -1053,6 +1053,7 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 
 void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 
+	writer.writeAttribute("clipName", name.get());
 	writer.writeAttribute("trackName", output->name.get());
 
 	writer.writeAttribute("filePath", sampleHolder.audioFile ? sampleHolder.audioFile->filePath.get()
@@ -1122,7 +1123,11 @@ someError:
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		// D_PRINTLN(tagName); delayMS(30);
 
-		if (!strcmp(tagName, "trackName")) {
+		if (!strcmp(tagName, "clipName")) {
+			reader.readTagOrAttributeValueString(&name);
+		}
+
+		else if (!strcmp(tagName, "trackName")) {
 			reader.readTagOrAttributeValueString(&outputNameWhileLoading);
 		}
 
