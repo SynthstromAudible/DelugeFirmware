@@ -106,10 +106,9 @@ public:
 		Popped,
 		/// Stop traversing for this slot without trying lower-priority lanes.
 		///
-		/// @note The transports apply this differently for the same trigger. USB returns SkipLane when
-		///       the CC allowance is exhausted or a scheduled pop fails, falling through to SysEx; DIN
-		///       returns Abort for those same conditions as well as for a head it cannot decode, so a
-		///       blocked DIN CC lane halts the whole pass rather than falling through.
+		/// @note Reserved for lane contents this transport cannot decode, where retrying or falling
+		///       through would not be safe. A lane merely blocked by an allowance returns SkipLane on
+		///       both transports.
 		Abort,
 	};
 

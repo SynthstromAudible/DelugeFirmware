@@ -105,3 +105,28 @@ TEST(MIDIDinDrain, MalformedSysExIsRejectedRatherThanQueued) {
 	CHECK_FALSE(queue.enqueue_sysex(no_end, sizeof(no_end)));
 	CHECK_FALSE(queue.has_serial_data());
 }
+
+TEST(MIDIDinDrain, BlockedCCLaneDoesNotStarveSysEx) {
+	// A CC lane that is merely blocked by its send allowance must not stop the pass: lower-priority
+	// SysEx can still make progress. USB already falls through; DIN used to halt the whole pass.
+	for (int i = 0; i < 40; i++) {
+		MIDIMessage cc = MIDIMessage::cc(0, static_cast<uint8_t>(i), 64);
+		cc.intent = MIDIIntent::Continuous;
+		queue.enqueue_message(cc);
+	}
+	uint8_t const sysex[] = {0xF0, 0x7D, 0x01, 0xF7};
+	CHECK_TRUE(queue.enqueue_sysex(sysex, sizeof(sysex)));
+
+	for (int i = 0; i < 40; i++) {
+		queue.consume_queued_messages(48000 + i * 48000);
+	}
+
+	auto const& sent = MidiTransportMock::sent_bytes();
+	bool saw_sysex_start = false;
+	for (uint8_t b : sent) {
+		if (b == 0xF0) {
+			saw_sysex_start = true;
+		}
+	}
+	CHECK_TRUE(saw_sysex_start);
+}

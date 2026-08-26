@@ -450,7 +450,6 @@ from filling the UART ahead of later higher-priority messages.
 | `MIDICCQueuePolicy` | Per-device CC policy state: CC debt, the round-robin selection point, and the seen-bitmask used by one selection pass. |
 | `MIDIQueueLane` | Power-of-two ring buffer for one priority lane. |
 | `MIDIQueueStorage` | Fixed set of priority lanes. |
-| `MIDIQueueManagerDeviceState` | Combines queue storage with the per-device CC policy. |
 | `MIDIQueueManagerUSB` | USB-specific queue manager. Stores packed 32-bit USB-MIDI events and drains them into `dataSendingNow`. |
 | `MIDIQueueManagerDIN` | DIN-specific queue manager. Stores raw serial bytes, enforces serial pacing, keeps SysEx streams contiguous, and drains selected bytes into the MIDI UART buffer. |
 

@@ -122,17 +122,17 @@ constexpr int32_t k_serial_buffered_cc_bytes_cap = 24;
 
 bool MIDIQueueManagerUSB::has_buffered_send_data() const {
 	// True when at least one queued USB message exists across any priority lane.
-	return queue_manager_.total_queued_messages() > 0;
+	return queue_storage_.total_queued_messages() > 0;
 }
 
 int MIDIQueueManagerUSB::send_buffer_space() const {
 	// Total queued USB messages currently buffered across all priority lanes.
-	uint32_t queued = queue_manager_.total_queued_messages();
+	uint32_t queued = queue_storage_.total_queued_messages();
 	// Maximum messages we can queue: usable slots per lane (ring-1) times number of lanes.
 	uint32_t total_capacity_messages = 0;
 	for (uint8_t lane = 0; lane < QUEUE_PRIORITY_COUNT; lane++) {
 		// Each lane keeps one slot unused, and lanes no longer share a capacity.
-		total_capacity_messages += queue_manager_.lane_capacity(lane) - 1;
+		total_capacity_messages += queue_storage_.lane_capacity(lane) - 1;
 	}
 	// Can't queue anymore: return 0 bytes of remaining capacity.
 	if (queued >= total_capacity_messages) {
@@ -164,7 +164,7 @@ QueuePriority MIDIQueueManagerUSB::classify_packed_usb_priority(uint32_t packed,
 
 bool MIDIQueueManagerUSB::enqueue_message(uint32_t full_message, MIDIIntent intent) {
 	// Total messages currently queued across all priority lanes for this device.
-	uint32_t queued = queue_manager_.total_queued_messages();
+	uint32_t queued = queue_storage_.total_queued_messages();
 	// Report backlog rather than acting on it. Flushing from here would call back into the engine that
 	// owns this queue, and would let a mainline enqueue trigger the interrupt-masked drain.
 	bool wants_flush = queued > k_usb_flush_backlog_message_threshold;
@@ -172,9 +172,9 @@ bool MIDIQueueManagerUSB::enqueue_message(uint32_t full_message, MIDIIntent inte
 	// Determine which priority lane this packed USB-MIDI event belongs to.
 	QueuePriority priority = classify_packed_usb_priority(full_message, intent);
 	// Occupancy of just the selected priority lane we are about to enqueue into.
-	uint16_t queue_size = queue_manager_.queue_count(static_cast<uint8_t>(priority));
+	uint16_t queue_size = queue_storage_.queue_count(static_cast<uint8_t>(priority));
 	// Keep one slot free in each ring so full/empty states stay distinguishable.
-	if (queue_size >= queue_manager_.lane_capacity(static_cast<uint8_t>(priority)) - 1) {
+	if (queue_size >= queue_storage_.lane_capacity(static_cast<uint8_t>(priority)) - 1) {
 		// Full: drop this message rather than overwrite unread queued data, and ask the caller to flush
 		// so the next one finds space.
 		// TODO: show some error message
@@ -184,9 +184,8 @@ bool MIDIQueueManagerUSB::enqueue_message(uint32_t full_message, MIDIIntent inte
 	// CC messages may be coalesced into an existing queued entry instead of appended. The policy is
 	// shared with DIN; UsbTransport supplies everything about this transport's storage format.
 	bool queued_ok = cc_lane_.enqueue_with_cc_policy(
-	    queue_manager_.lane(static_cast<uint8_t>(QUEUE_PRIORITY_CC)), queue_manager_.cc_policy(),
-	    priority == QUEUE_PRIORITY_CC, is_packed_channel_cc(full_message), status_byte(full_message),
-	    data_1(full_message), data_2(full_message),
+	    queue_storage_.lanes[static_cast<uint8_t>(QUEUE_PRIORITY_CC)], cc_policy_, priority == QUEUE_PRIORITY_CC,
+	    is_packed_channel_cc(full_message), status_byte(full_message), data_1(full_message), data_2(full_message),
 	    [this, priority, full_message] { return enqueue_priority_message(priority, full_message); });
 
 	// Signal that at least one USB message is waiting so flush logic can schedule transmission.
@@ -200,7 +199,7 @@ bool MIDIQueueManagerUSB::enqueue_message(uint32_t full_message, MIDIIntent inte
 bool MIDIQueueManagerUSB::consume_queued_messages(uint8_t* data_sending_now, uint8_t& num_bytes_sending_now,
                                                   bool usb_host_mode) {
 	// Snapshot total queued messages across all priority lanes.
-	uint32_t queued = queue_manager_.total_queued_messages();
+	uint32_t queued = queue_storage_.total_queued_messages();
 	if (queued == 0) {
 		// Nothing pending: caller should not start a USB send transfer.
 		return false;
@@ -247,7 +246,7 @@ bool MIDIQueueManagerUSB::consume_queued_messages(uint8_t* data_sending_now, uin
 		for (uint8_t lane = static_cast<uint8_t>(QUEUE_PRIORITY_CLOCK);
 		     lane < static_cast<uint8_t>(QUEUE_PRIORITY_COUNT); lane++) {
 			QueuePriority priority = static_cast<QueuePriority>(lane);
-			if (!queue_manager_.queue_count(static_cast<uint8_t>(priority))) {
+			if (!queue_storage_.queue_count(static_cast<uint8_t>(priority))) {
 				// Empty lanes cannot contribute to this transfer slot.
 				continue;
 			}
@@ -298,7 +297,7 @@ bool MIDIQueueManagerUSB::consume_queued_messages(uint8_t* data_sending_now, uin
 
 bool MIDIQueueManagerUSB::pop_lane(QueuePriority priority, USBSendContext& context) {
 	// USB queue entries are already complete USB-MIDI events, so one pop is one message.
-	return queue_manager_.pop_head(static_cast<uint8_t>(priority), context.message_out);
+	return queue_storage_.pop_head(static_cast<uint8_t>(priority), context.message_out);
 }
 
 bool MIDIQueueManagerUSB::pop_sysex_message(USBSendContext& context) {
@@ -318,17 +317,17 @@ bool MIDIQueueManagerUSB::pop_sysex_message(USBSendContext& context) {
 
 bool MIDIQueueManagerUSB::enqueue_priority_message(QueuePriority priority, uint32_t queued_message) {
 	// Append the packed event to the selected priority lane.
-	return queue_manager_.push(static_cast<uint8_t>(priority), queued_message);
+	return queue_storage_.push(static_cast<uint8_t>(priority), queued_message);
 }
 
 MIDIQueueManager::PriorityLaneTraversalResult MIDIQueueManagerUSB::handle_cc_lane(QueuePriority priority,
                                                                                   USBSendContext& context) {
 	// Decide whether the CC lane head needs scheduler handling.
-	uint32_t head_message = queue_manager_.head(static_cast<uint8_t>(priority));
+	uint32_t head_message = queue_storage_.head(static_cast<uint8_t>(priority));
 	auto pop_scheduled_cc = [this](uint32_t& message_out) {
 		// The shared policy owns selection order and the guarded removal; USB adds nothing here.
-		return cc_lane_.pop_scheduled(queue_manager_.lane(static_cast<uint8_t>(QUEUE_PRIORITY_CC)),
-		                              queue_manager_.cc_policy(), &message_out);
+		return cc_lane_.pop_scheduled(queue_storage_.lanes[static_cast<uint8_t>(QUEUE_PRIORITY_CC)], cc_policy_,
+		                              &message_out);
 	};
 	auto cc_result = MIDIQueueManager::try_pop_scheduled_cc(is_packed_channel_cc(head_message),
 	                                                        context.cc_allowance_messages_remaining > 0,
@@ -356,12 +355,12 @@ void MIDIQueueManagerDIN::reset_serial_state(uint32_t now_sample_timer) {
 
 // Returns whether any serial-priority lane currently has data pending.
 bool MIDIQueueManagerDIN::has_serial_data() const {
-	return queue_manager_.has_any_data();
+	return queue_storage_.total_queued_messages() > 0;
 }
 
 // Reports remaining capacity in the raw-byte SysEx queue lane.
 size_t MIDIQueueManagerDIN::send_buffer_space() const {
-	return queue_manager_.space(static_cast<uint8_t>(QUEUE_PRIORITY_SYSEX));
+	return queue_storage_.space(static_cast<uint8_t>(QUEUE_PRIORITY_SYSEX));
 }
 
 // Encodes and enqueues one channel/system MIDI message into serial-priority lanes.
@@ -371,9 +370,8 @@ void MIDIQueueManagerDIN::enqueue_message(MIDIMessage message) {
 	QueuePriority priority = MIDIQueueManager::classify_message(message);
 	uint8_t status = static_cast<uint8_t>(message.channel | (message.statusType << 4));
 	(void)cc_lane_.enqueue_with_cc_policy(
-	    queue_manager_.lane(static_cast<uint8_t>(QUEUE_PRIORITY_CC)), queue_manager_.cc_policy(),
-	    priority == QUEUE_PRIORITY_CC, MIDIQueueManager::is_channel_cc_status_type(message.statusType), status,
-	    message.data1, message.data2,
+	    queue_storage_.lanes[static_cast<uint8_t>(QUEUE_PRIORITY_CC)], cc_policy_, priority == QUEUE_PRIORITY_CC,
+	    MIDIQueueManager::is_channel_cc_status_type(message.statusType), status, message.data1, message.data2,
 	    [this, priority, message] { return enqueue_priority_message(priority, message); });
 }
 
@@ -386,14 +384,14 @@ bool MIDIQueueManagerDIN::enqueue_sysex(uint8_t const* data, int32_t len) {
 	}
 
 	uint8_t lane = static_cast<uint8_t>(QUEUE_PRIORITY_SYSEX);
-	if (static_cast<uint32_t>(queue_manager_.space(lane)) < static_cast<uint32_t>(len)) {
+	if (static_cast<uint32_t>(queue_storage_.space(lane)) < static_cast<uint32_t>(len)) {
 		// SysEx must be queued all-or-nothing so a partial stream cannot block the drain lock.
 		return false;
 	}
 
 	for (int32_t i = 0; i < len; i++) {
 		// DIN SysEx is already a raw byte stream, so store each byte unchanged.
-		if (!queue_manager_.push(lane, data[i])) {
+		if (!queue_storage_.push(lane, data[i])) {
 			// The space check above should make this unreachable unless queue state changes unexpectedly.
 			return false;
 		}
@@ -440,7 +438,7 @@ void MIDIQueueManagerDIN::consume_queued_messages(uint32_t now_sample_timer) {
 	int32_t send_allowance_bytes = serial_allowance_Q8_ >> k_serial_allowance_fraction_bits;
 	constexpr size_t k_clock_idx = QUEUE_PRIORITY_CLOCK;
 	if (send_allowance_bytes <= 0) {
-		if (sysex_drain_active_ || queue_manager_.empty(static_cast<uint8_t>(k_clock_idx))) {
+		if (sysex_drain_active_ || queue_storage_.empty(static_cast<uint8_t>(k_clock_idx))) {
 			// When the normal send allowance is zero, only realtime/system bytes
 			// may bypass pacing. Active SysEx must wait so clock cannot interleave.
 			return;
@@ -476,7 +474,7 @@ void MIDIQueueManagerDIN::consume_queued_messages(uint32_t now_sample_timer) {
 			// Scan from highest to lowest active DIN priority and pop one eligible message.
 			for (uint8_t lane = static_cast<uint8_t>(k_clock_idx); lane <= static_cast<uint8_t>(k_sysex_idx); lane++) {
 				QueuePriority priority = static_cast<QueuePriority>(lane);
-				if (!queue_manager_.queue_count(static_cast<uint8_t>(priority))) {
+				if (!queue_storage_.queue_count(static_cast<uint8_t>(priority))) {
 					// Empty lanes cannot contribute bytes this pass.
 					continue;
 				}
@@ -489,7 +487,7 @@ void MIDIQueueManagerDIN::consume_queued_messages(uint32_t now_sample_timer) {
 						break;
 					}
 					if (cc_result == MIDIQueueManager::PriorityLaneTraversalResult::Abort) {
-						// The CC lane is blocked, malformed, or over its staging allowance.
+						// The CC lane head is malformed or incomplete, so it cannot safely provide bytes.
 						break;
 					}
 					if (cc_result == MIDIQueueManager::PriorityLaneTraversalResult::SkipLane) {
@@ -552,7 +550,7 @@ void MIDIQueueManagerDIN::consume_queued_messages(uint32_t now_sample_timer) {
 		// valid CC number has actually been emitted to UART.
 		if (is_cc_message && MIDIQueueManager::is_three_byte_channel_cc(bytes_to_send[0], bytes_popped)
 		    && bytes_to_send[1] <= kMaxMIDIValue) {
-			queue_manager_.clear_cc_debt(bytes_to_send[1]);
+			cc_policy_.clear_cc_debt(bytes_to_send[1]);
 		}
 		uart_space -= bytes_popped;
 		send_allowance_bytes -= bytes_popped;
@@ -573,7 +571,7 @@ bool MIDIQueueManagerDIN::pop_lane(QueuePriority priority, DINSendContext& conte
 			return false;
 		}
 		// Pop exactly one byte and mark which priority supplied it.
-		bool popped = queue_manager_.pop_head(static_cast<uint8_t>(priority), context.out_bytes[0]);
+		bool popped = queue_storage_.pop_head(static_cast<uint8_t>(priority), context.out_bytes[0]);
 		if (popped) {
 			context.popped_priority = priority;
 		}
@@ -582,17 +580,17 @@ bool MIDIQueueManagerDIN::pop_lane(QueuePriority priority, DINSendContext& conte
 
 	// Non-clock DIN lanes are byte queues, so first validate that a complete
 	// message is available and fits the current allowance/UART/output limits.
-	uint8_t status = queue_manager_.head(static_cast<uint8_t>(priority));
+	uint8_t status = queue_storage_.head(static_cast<uint8_t>(priority));
 	int32_t message_len = 0;
 	auto head_check = MIDIQueueManager::validate_head_message_pop(
-	    status, queue_manager_.queue_count(static_cast<uint8_t>(priority)), context.allowance_bytes, context.uart_space,
+	    status, queue_storage_.queue_count(static_cast<uint8_t>(priority)), context.allowance_bytes, context.uart_space,
 	    context.max_len, message_len);
 	if (head_check != MIDIQueueManager::HeadMessageCheckResult::Ready) {
 		return false;
 	}
 
 	// Pop the whole message atomically so partial MIDI frames are never emitted.
-	bool popped = queue_manager_.pop_many(static_cast<uint8_t>(priority), context.out_bytes, message_len);
+	bool popped = queue_storage_.pop_many(static_cast<uint8_t>(priority), context.out_bytes, message_len);
 	if (popped) {
 		context.popped_priority = priority;
 	}
@@ -607,7 +605,7 @@ bool MIDIQueueManagerDIN::pop_sysex_byte(DINSendContext& context) {
 	}
 
 	// SysEx is queued as raw DIN bytes, so one pop emits exactly one byte.
-	bool popped = queue_manager_.pop_head(static_cast<uint8_t>(QUEUE_PRIORITY_SYSEX), context.out_bytes[0]);
+	bool popped = queue_storage_.pop_head(static_cast<uint8_t>(QUEUE_PRIORITY_SYSEX), context.out_bytes[0]);
 	if (popped) {
 		context.popped_priority = QUEUE_PRIORITY_SYSEX;
 		// Keep the drain locked until the SysEx terminator itself has been sent.
@@ -631,13 +629,13 @@ bool MIDIQueueManagerDIN::enqueue_priority_message(QueuePriority priority, MIDIM
 	}
 
 	uint8_t lane = static_cast<uint8_t>(priority);
-	if (queue_manager_.space(lane) < message_length) {
+	if (queue_storage_.space(lane) < message_length) {
 		// Do not enqueue a partial serial MIDI message.
 		return false;
 	}
 	for (int32_t i = 0; i < message_length; i++) {
 		// Store the complete message byte-by-byte in the selected priority lane.
-		if (!queue_manager_.push(lane, raw_bytes[i])) {
+		if (!queue_storage_.push(lane, raw_bytes[i])) {
 			return false;
 		}
 	}
@@ -649,10 +647,10 @@ MIDIQueueManager::PriorityLaneTraversalResult MIDIQueueManagerDIN::handle_cc_lan
                                                                                   DINSendContext& context) {
 	// DIN must validate the complete message at the CC-lane head before deciding
 	// whether it should be scheduled or popped normally.
-	uint8_t status = queue_manager_.head(static_cast<uint8_t>(priority));
+	uint8_t status = queue_storage_.head(static_cast<uint8_t>(priority));
 	int32_t message_len = 0;
 	auto head_check = MIDIQueueManager::validate_head_message_pop(
-	    status, queue_manager_.queue_count(static_cast<uint8_t>(priority)), context.allowance_bytes, context.uart_space,
+	    status, queue_storage_.queue_count(static_cast<uint8_t>(priority)), context.allowance_bytes, context.uart_space,
 	    context.max_len, message_len);
 	if (head_check != MIDIQueueManager::HeadMessageCheckResult::Ready) {
 		// Invalid or incomplete head data blocks the CC lane for this pass.
@@ -671,8 +669,8 @@ MIDIQueueManager::PriorityLaneTraversalResult MIDIQueueManagerDIN::handle_cc_lan
 		}
 		// The shared policy owns selection order and the guarded removal, and its own scan refuses a lane
 		// holding fewer bytes than one complete message.
-		if (!cc_lane_.pop_scheduled(queue_manager_.lane(static_cast<uint8_t>(QUEUE_PRIORITY_CC)),
-		                            queue_manager_.cc_policy(), out_bytes)) {
+		if (!cc_lane_.pop_scheduled(queue_storage_.lanes[static_cast<uint8_t>(QUEUE_PRIORITY_CC)], cc_policy_,
+		                            out_bytes)) {
 			return false;
 		}
 		// Tell the drain loop these bytes came from the CC lane.
@@ -691,6 +689,11 @@ MIDIQueueManager::PriorityLaneTraversalResult MIDIQueueManagerDIN::handle_cc_lan
 		return MIDIQueueManager::PriorityLaneTraversalResult::PopLane;
 	}
 
-	// Allowance exhaustion or pop failure means the CC lane should not emit now.
+	if (cc_result == MIDIQueueManager::CCScheduledPopResult::AllowanceBlocked) {
+		// Blocked by the CC send allowance, not by bad data. Fall through to lower-priority lanes, as
+		// USB does for the same condition, instead of halting the whole pass.
+		return MIDIQueueManager::PriorityLaneTraversalResult::SkipLane;
+	}
+	// A scheduled pop that failed on a head this transport could not decode cannot be retried safely.
 	return MIDIQueueManager::PriorityLaneTraversalResult::Abort;
 }

@@ -216,6 +216,12 @@ public:
 	/// @param out  Out: set to the removed entry on success.
 	/// @return True if an entry was popped; false if that lane was empty.
 	bool pop_head(uint8_t lane, T& out) { return lanes[lane].pop(out); }
+	/// @brief Removes @p count entries from one lane as one atomic span, oldest first.
+	/// @param lane  Priority lane index.
+	/// @param out   Destination buffer; must hold at least @p count entries.
+	/// @param count Number of entries to pop.
+	/// @return True if all @p count entries were popped; false (with no state change) if fewer were queued.
+	bool pop_many(uint8_t lane, T* out, uint16_t count) { return lanes[lane].pop_many(out, count); }
 	/// @brief Appends one entry to one lane.
 	/// @param lane  Priority lane index.
 	/// @param value Entry to enqueue.
@@ -231,6 +237,17 @@ public:
 	[[nodiscard]] uint16_t space(uint8_t lane) const { return lanes[lane].space(); }
 
 	/// @}
+
+	/// @brief Empties every lane.
+	///
+	/// @note Storage only. Policy state layered above the lanes (CC debt, scheduling bookkeeping) is
+	///       owned elsewhere and must be reset by its owner.
+	void clear() {
+		for (auto& queue_lane : lanes) {
+			// Drop queued transport data from every priority lane.
+			queue_lane.clear();
+		}
+	}
 
 private:
 	/// @brief Sum of every lane's capacity: the size of the flat pool the lanes are carved from.
@@ -257,63 +274,6 @@ private:
 	std::array<T, total_capacity()> pool{};
 };
 
-/// @brief Per-device queue storage plus CC coalescing/scheduling policy for one transport device.
-///
-/// Combines a MIDIQueueStorage of priority lanes with a MIDICCQueuePolicy layered on top. Most
-/// methods here simply forward to one or the other; see those classes for full documentation.
-template <typename T, size_t LaneCount, uint16_t const (&Capacities)[LaneCount]>
-class MIDIQueueManagerDeviceState {
-public:
-	/// @copydoc MIDIQueueStorage::queue_count
-	[[nodiscard]] uint16_t queue_count(uint8_t lane) const { return queue_storage.queue_count(lane); }
-	/// @copydoc MIDIQueueStorage::total_queued_messages
-	[[nodiscard]] uint32_t total_queued_messages() const { return queue_storage.total_queued_messages(); }
-	/// @copydoc MIDIQueueStorage::head
-	[[nodiscard]] T head(uint8_t lane) const { return queue_storage.head(lane); }
-	/// @copydoc MIDIQueueStorage::pop_head
-	bool pop_head(uint8_t lane, T& out) { return queue_storage.pop_head(lane, out); }
-	/// @copydoc MIDIQueueStorage::push
-	bool push(uint8_t lane, T value) { return queue_storage.push(lane, value); }
-	/// @copydoc MIDIQueueStorage::empty
-	[[nodiscard]] bool empty(uint8_t lane) const { return queue_storage.empty(lane); }
-	/// @copydoc MIDIQueueStorage::space
-	[[nodiscard]] uint16_t space(uint8_t lane) const { return queue_storage.space(lane); }
-	/// @copydoc MIDIQueueStorage::lane_capacity
-	[[nodiscard]] uint16_t lane_capacity(uint8_t lane) const { return queue_storage.lane_capacity(lane); }
-	/// @brief Returns whether any lane on this device has queued entries.
-	/// @return True if at least one lane has a queued entry.
-	[[nodiscard]] bool has_any_data() const { return queue_storage.total_queued_messages() > 0; }
-	/// @brief Clears all lanes plus the CC scheduling/coalescing bookkeeping.
-	void clear_all() {
-		for (auto& queue_lane : queue_storage.lanes) {
-			// Drop queued transport data from every priority lane.
-			queue_lane.clear();
-		}
-		// Reset scheduler state so stale debt/scan data does not survive a device reset.
-		cc_queue_policy.reset();
-	}
-	/// @copydoc MIDIQueueLane::pop_many
-	bool pop_many(uint8_t lane, T* out, uint16_t count) { return queue_storage.lanes[lane].pop_many(out, count); }
-	/// @copydoc MIDICCQueuePolicy::clear_cc_debt
-	void clear_cc_debt(uint8_t cc_number) { cc_queue_policy.clear_cc_debt(cc_number); }
-
-	/// @brief Hands out one lane directly, for code that operates on the lane as a whole.
-	///
-	/// @note Not a forwarder: MIDICCLanePolicy scans, rewrites and removes across a lane in one
-	///       operation, so it takes the lane itself rather than a per-call proxy method here.
-	/// @param index Priority lane index.
-	/// @return Reference to that lane.
-	MIDIQueueLane<T>& lane(uint8_t index) { return queue_storage.lanes[index]; }
-	/// @brief Hands out the CC coalescing/scheduling policy directly, for the same reason as lane().
-	/// @return Reference to this device's CC policy.
-	MIDICCQueuePolicy& cc_policy() { return cc_queue_policy; }
-
-private:
-	MIDIQueueStorage<T, LaneCount, Capacities> queue_storage{};
-	/// @brief Per-device CC coalescing/scheduling policy layered on top of transport queue storage.
-	MIDICCQueuePolicy cc_queue_policy{};
-};
-
 /// @brief USB transport queue manager: packs, prioritizes, and drains outgoing USB-MIDI events.
 ///
 /// Storage unit is one packed USB-MIDI event (uint32_t) per queue entry.
@@ -325,7 +285,10 @@ class MIDIQueueManagerUSB {
 public:
 	/// @brief Clears USB queue contents and CC scheduling bookkeeping for this device.
 	void reset_queue_storage() {
-		queue_manager_.clear_all();
+		// Drop queued transport data from every priority lane.
+		queue_storage_.clear();
+		// Reset scheduler state so stale debt/scan data does not survive a device reset.
+		cc_policy_.reset();
 		sysex_drain_active_ = false;
 	}
 	/// @brief Returns whether any USB priority lane has data waiting to send.
@@ -362,7 +325,9 @@ private:
 	///
 	/// Each lane is a ring of packed USB-MIDI events; consume_queued_messages() drains them into
 	/// dataSendingNow in priority order.
-	MIDIQueueManagerDeviceState<uint32_t, QUEUE_PRIORITY_COUNT, k_usb_lane_capacity> queue_manager_{};
+	MIDIQueueStorage<uint32_t, QUEUE_PRIORITY_COUNT, k_usb_lane_capacity> queue_storage_{};
+	/// @brief Per-device CC coalescing/scheduling bookkeeping layered on top of the queue storage.
+	MIDICCQueuePolicy cc_policy_{};
 	/// @brief The CC-lane policy, shared with DIN and specialised only by the USB transport traits.
 	MIDICCLanePolicy<UsbTransport> cc_lane_{};
 
@@ -413,7 +378,10 @@ class MIDIQueueManagerDIN {
 public:
 	/// @brief Clears DIN queue contents and CC scheduling bookkeeping for this device.
 	void reset_queue_storage() {
-		queue_manager_.clear_all();
+		// Drop queued transport data from every priority lane.
+		queue_storage_.clear();
+		// Reset scheduler state so stale debt/scan data does not survive a device reset.
+		cc_policy_.reset();
 		sysex_drain_active_ = false;
 	}
 	/// @brief Resets serial queue pacing state to a known baseline.
@@ -461,7 +429,9 @@ private:
 	/// Capacities come from k_din_lane_capacity, sized per lane rather than uniformly. The SysEx lane is
 	/// larger than MIDI_TX_BUFFER_SIZE so a full 1024-byte stream fits despite the one-unused-slot
 	/// invariant.
-	MIDIQueueManagerDeviceState<uint8_t, k_serial_priority_count, k_din_lane_capacity> queue_manager_{};
+	MIDIQueueStorage<uint8_t, k_serial_priority_count, k_din_lane_capacity> queue_storage_{};
+	/// @brief Per-device CC coalescing/scheduling bookkeeping layered on top of the queue storage.
+	MIDICCQueuePolicy cc_policy_{};
 	/// @brief The CC-lane policy, shared with USB and specialised only by the DIN transport traits.
 	MIDICCLanePolicy<DinTransport> cc_lane_{};
 	/// @brief Last sample-timer tick used to accrue DIN send allowance.
