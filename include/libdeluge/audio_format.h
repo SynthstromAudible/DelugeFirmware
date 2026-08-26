@@ -201,6 +201,20 @@ uint8_t deluge_audio_header_parser_feed(DelugeAudioHeaderParser* parser, const u
 /// walking it would drag the caller's byte source past the audio it is about to read.
 bool deluge_audio_header_parser_located_audio_data(const DelugeAudioHeaderParser* parser);
 
+/// @brief The container the file declares, once the 12-byte top header has been read.
+///
+/// Known after the very first feed, long before the header is decoded. It is exposed for the one
+/// verdict that depends on the container alone and should not wait for the rest of the walk: a
+/// wavetable load rejects AIFF outright unless the caller insists, and reporting a DECODE failure
+/// instead for a malformed AIFF changes what the caller does with it (`sample_browser.cpp` reads
+/// #DELUGE_WAVETABLE_REJECT_AIFF's error as "not a wavetable, try it as a sample", and any other
+/// error as "give up").
+///
+/// @param out Receives a DelugeAudioContainer.
+/// @return false, leaving @p out untouched, before the top header has been read and on a walk that
+///         failed without identifying a container.
+bool deluge_audio_header_parser_container(const DelugeAudioHeaderParser* parser, uint8_t* out);
+
 /// @brief End the walk here and resolve the header from what has been read so far.
 ///
 /// The same finalisation the end of the file would have run, just earlier: fields the remaining chunks

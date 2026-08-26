@@ -151,21 +151,38 @@ Error decodeError(uint8_t status) {
 	}
 }
 
+/// How far the walk should go, and what it may give up on early. The Sample and WaveTable parses differ
+/// only in these two answers.
+struct WalkOptions {
+	/// Stop as soon as the audio data chunk has been located, rather than walking the whole header. See
+	/// parseWaveTableHeader for why that is not just an optimisation.
+	bool stopAtAudioData = false;
+	/// Give up with FILE_NOT_LOADABLE_AS_WAVETABLE the moment the container turns out to be AIFF, before
+	/// reading a chunk — again see parseWaveTableHeader.
+	bool rejectAiff = false;
+};
+
 /// Drive the decoder over @p src.
-///
-/// @param stopAtAudioData Stop as soon as the audio data chunk has been located, rather than walking the
-///                        whole header. See parseWaveTableHeader for why that is not just an optimisation.
-std::expected<DelugeAudioHeader, Error> decodeHeader(AudioByteSource& src, bool stopAtAudioData) {
+std::expected<DelugeAudioHeader, Error> decodeHeader(AudioByteSource& src, WalkOptions options) {
 	DelugeAudioHeaderParser parser;
 	if (!deluge_audio_header_parser_init(&parser, sizeof(parser), src.size())) {
 		return std::unexpected(Error::BUG); // Storage too small — a build-time mismatch, not a file.
 	}
 
-	WindowFeeder feeder{src, stopAtAudioData ? kNoReadAhead : kSampleReadAheadBytes};
+	WindowFeeder feeder{src, options.stopAtAudioData ? kNoReadAhead : kSampleReadAheadBytes};
 	DelugeAudioHeader header{};
 
 	while (true) {
-		if (stopAtAudioData && deluge_audio_header_parser_located_audio_data(&parser)) {
+		// The container is known after the first window, which is where the AIFF verdict was made before
+		// this file called into Rust — and it has to stay there: it is a verdict about the container, not
+		// about whether the file decodes.
+		uint8_t container = 0;
+		if (options.rejectAiff && deluge_audio_header_parser_container(&parser, &container)
+		    && container == DELUGE_AUDIO_CONTAINER_AIFF) {
+			return std::unexpected(Error::FILE_NOT_LOADABLE_AS_WAVETABLE);
+		}
+
+		if (options.stopAtAudioData && deluge_audio_header_parser_located_audio_data(&parser)) {
 			const uint8_t status = deluge_audio_header_parser_finish_here(&parser, &header);
 			if (status != DELUGE_AUDIO_PARSE_DONE) {
 				return std::unexpected(decodeError(status));
@@ -220,7 +237,7 @@ Error wavetableError(uint8_t verdict) {
 } // namespace
 
 std::expected<SampleHeader, Error> parseSampleHeader(AudioByteSource& src) {
-	const std::expected<DelugeAudioHeader, Error> header = decodeHeader(src, /*stopAtAudioData=*/false);
+	const std::expected<DelugeAudioHeader, Error> header = decodeHeader(src, WalkOptions{});
 	if (!header) {
 		return std::unexpected(header.error());
 	}
@@ -240,12 +257,21 @@ std::expected<SampleHeader, Error> parseSampleHeader(AudioByteSource& src) {
 }
 
 std::expected<WaveTableHeader, Error> parseWaveTableHeader(AudioByteSource& src, bool makeWaveTableWorkAtAllCosts) {
-	// Stop the walk at the audio data chunk. Not an optimisation: the wavetable load hands this SAME byte
-	// source to WaveTable::setup, which seeks back to audioDataStartPosBytes and reads the audio through
-	// the source's own block buffer. Walking on past the audio (to pick up metadata a wavetable does not
-	// use) would leave a sequentially-read source blocks ahead of the audio and make that seek a backwards
-	// one. The parser this replaces stopped here for the same reason.
-	const std::expected<DelugeAudioHeader, Error> header = decodeHeader(src, /*stopAtAudioData=*/true);
+	// Two ways this walk is deliberately shorter than the Sample one, both of them behaviour the parser
+	// this replaces had:
+	//
+	//  - It stops at the audio data chunk. Not an optimisation: the wavetable load hands this SAME byte
+	//    source to WaveTable::setup, which seeks back to audioDataStartPosBytes and reads the audio
+	//    through the source's own block buffer. Walking on past the audio (to pick up metadata a
+	//    wavetable does not use) would leave a sequentially-read source blocks ahead of the audio and
+	//    make that seek a backwards one.
+	//  - It gives up on AIFF as soon as the container is known, unless the user insists. That has to
+	//    happen before the walk, not after: sample_browser.cpp reads FILE_NOT_LOADABLE_AS_WAVETABLE as
+	//    "not a wavetable, load it as a Sample instead" and any other error as "give up and show it", so
+	//    an AIFF whose wavetable decode failed for some other reason would stop being offered as a
+	//    Sample at all.
+	const std::expected<DelugeAudioHeader, Error> header =
+	    decodeHeader(src, WalkOptions{.stopAtAudioData = true, .rejectAiff = !makeWaveTableWorkAtAllCosts});
 	if (!header) {
 		return std::unexpected(header.error());
 	}

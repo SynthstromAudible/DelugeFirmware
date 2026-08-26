@@ -391,6 +391,37 @@ pub unsafe extern "C" fn deluge_audio_header_parser_located_audio_data(
     unsafe { as_parser(parser) }.located_audio_data()
 }
 
+/// The container the file declares, once the 12-byte top header has been read —
+/// which is after the very first `feed`.
+///
+/// Exposed for the one verdict that depends on the container alone and should
+/// not wait for the rest of the walk: a wavetable load rejects AIFF outright
+/// unless the caller insists, and reporting a *decode* failure instead for a
+/// malformed AIFF changes what the caller does with it.
+///
+/// @return false, leaving `out` untouched, before the top header has been read
+/// and on a walk that failed without identifying a container.
+///
+/// # Safety
+/// `parser` must have been initialised by `deluge_audio_header_parser_init`, and
+/// `out` must be non-null and writable.
+#[no_mangle]
+pub unsafe extern "C" fn deluge_audio_header_parser_container(
+    parser: *const DelugeAudioHeaderParser,
+    out: *mut u8,
+) -> bool {
+    if parser.is_null() || out.is_null() {
+        return false;
+    }
+    // SAFETY: initialised by the caller's `init` (see this function's contract).
+    let Some(container) = (unsafe { as_parser(parser) }).container() else {
+        return false;
+    };
+    // SAFETY: non-null and writable per this function's contract.
+    unsafe { out.write(container as u8) };
+    true
+}
+
 /// End the walk here and resolve the header from what has been read so far.
 ///
 /// Meant to be paired with `deluge_audio_header_parser_located_audio_data`.
@@ -654,6 +685,56 @@ mod tests {
         assert_eq!(early.audio_data_length_bytes, whole.audio_data_length_bytes);
         assert_eq!(early.byte_depth, whole.byte_depth);
         assert_eq!(early.num_channels, whole.num_channels);
+    }
+
+    #[test]
+    fn the_container_crosses_as_soon_as_the_top_header_is_read() {
+        let mut storage = DelugeAudioHeaderParser {
+            _storage: [0; DELUGE_AUDIO_HEADER_PARSER_WORDS],
+        };
+        let file = wav(&fmt_chunk(1, 44100, 16));
+        assert!(unsafe {
+            deluge_audio_header_parser_init(
+                &mut storage,
+                size_of::<DelugeAudioHeaderParser>() as u32,
+                file.len() as u32,
+            )
+        });
+
+        let mut container = 0xFFu8;
+        assert!(
+            !unsafe { deluge_audio_header_parser_container(&storage, &mut container) },
+            "nothing has been read yet"
+        );
+
+        let mut want = DelugeAudioWindow { start: 0, len: 0 };
+        assert!(unsafe { deluge_audio_header_parser_pending(&storage, &mut want) });
+        let mut header = DelugeAudioHeader {
+            container: 0xFF,
+            num_channels: 0,
+            byte_depth: 0,
+            raw_data_format: 0,
+            sample_rate: 0,
+            audio_data_start_pos_bytes: 0,
+            audio_data_length_bytes: 0,
+            file_loop_start_samples: 0,
+            file_loop_end_samples: 0,
+            midi_note: DelugeOptionalF32 { has: 0, value: 0.0 },
+            wavetable_cycle_size: 0,
+            wavetable_explicitly_specifies_self: 0,
+        };
+        let window = &file[want.start as usize..(want.start + want.len) as usize];
+        unsafe {
+            deluge_audio_header_parser_feed(
+                &mut storage,
+                window.as_ptr(),
+                window.len() as u32,
+                want.start,
+                &mut header,
+            )
+        };
+        assert!(unsafe { deluge_audio_header_parser_container(&storage, &mut container) });
+        assert_eq!(container, Container::Wav as u8);
     }
 
     #[test]

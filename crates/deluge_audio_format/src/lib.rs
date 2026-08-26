@@ -541,6 +541,38 @@ impl HeaderParser {
         }
     }
 
+    /// The container the file declares, as soon as the 12-byte top header has
+    /// been read — which is after the very first [`HeaderParser::feed`], long
+    /// before the header is decoded.
+    ///
+    /// It is exposed because a caller can have a verdict that depends only on
+    /// the container and should not wait for the rest of the walk: loading a
+    /// file as a wavetable rejects AIFF outright unless the user insists, and
+    /// the C++ parser this replaces made that call straight after detecting the
+    /// container, before reading a single chunk. Deciding it later instead would
+    /// report a *decode* failure for a malformed AIFF, and the browser reads
+    /// that error as "this file cannot be a wavetable, but try it as a sample"
+    /// — so the difference is whether such a file still loads.
+    ///
+    /// `None` before the top header has been read, and on a walk that failed
+    /// without identifying a container.
+    #[must_use]
+    pub fn container(&self) -> Option<Container> {
+        match self.phase {
+            // Not read yet.
+            Phase::Top => None,
+            // `step_top` is the only step that fails without a container in
+            // hand, by way of these two errors. `Truncated` can also come from a
+            // later step, so it is qualified by "no chunk was ever walked" —
+            // conservative in the one case where the container is in fact known
+            // (a file whose FIRST chunk header is truncated), which costs a
+            // caller nothing but a decode error it would have reported anyway.
+            Phase::Failed(HeaderError::NotAudio) => None,
+            Phase::Failed(HeaderError::Truncated { .. }) if !self.saw_a_chunk => None,
+            _ => Some(self.container),
+        }
+    }
+
     /// Whether the walk has located the audio data: a `data`/`SSND` chunk has
     /// been read and [`AudioHeader::audio_data_start_pos_bytes`] /
     /// [`AudioHeader::audio_data_length_bytes`] can no longer change.
@@ -766,6 +798,26 @@ impl HeaderParser {
         }
         let header_start = at.saturating_add(pad);
         if header.len() < CHUNK_HEADER_LEN as usize {
+            // A few bytes that cannot hold a chunk header are the end of the
+            // walk, not a truncated one — when we know where the file ends.
+            //
+            // In size-aware mode the request was clamped to the file, so a short
+            // window means the FILE stops here: there is no chunk at this offset
+            // and no bytes are coming. The C++ parser this replaces reached the
+            // same conclusion by different means — its 8-byte read failed, broke
+            // the walk, and returned the header it had already built — and files
+            // shaped like that load today. Trailing slop is mundane (DAW
+            // padding, an interrupted copy, a card that filled mid-write), so
+            // treating it as corruption would stop such a file loading.
+            //
+            // Prefix mode has no size to reason with: there, running out of
+            // bytes really can mean the caller simply stopped reading, so it
+            // stays "supply more" (see the type docs on [`HeaderError`] vs
+            // [`ParseError`]).
+            if self.file_size.is_some() {
+                let eof = at.saturating_add(win.len() as u32);
+                return self.finish(eof);
+            }
             return Err(HeaderError::Truncated {
                 needs_at_least: header_start.saturating_add(CHUNK_HEADER_LEN),
             });
@@ -1488,6 +1540,85 @@ mod tests {
         assert_eq!(h.file_loop_start_samples, 0);
         assert_eq!(h.file_loop_end_samples, 0);
         assert_eq!(h.midi_note, None);
+    }
+
+    /// Drive a size-aware walk over a whole file, the way a device caller does:
+    /// ask, read exactly what was asked, feed — including the zero-length
+    /// requests, which the parser needs in order to terminate.
+    fn decode_streamed(file: &[u8]) -> Result<AudioHeader, HeaderError> {
+        let mut parser = HeaderParser::new(file.len() as u32);
+        loop {
+            let Some((start, len)) = parser.pending() else {
+                unreachable!("the walk only ever ends inside `feed`")
+            };
+            let from = (start as usize).min(file.len());
+            let to = from.saturating_add(len as usize).min(file.len());
+            match parser.feed(&file[from..to], start)? {
+                FeedResult::Done(header) => return Ok(header),
+                FeedResult::Need { .. } => {}
+            }
+        }
+    }
+
+    #[test]
+    fn a_tail_too_short_for_a_chunk_header_ends_the_walk() {
+        // Trailing slop is mundane — DAW padding, an interrupted copy, a card
+        // that filled mid-write — and the C++ parser this replaces returned the
+        // header it had built when its 8-byte chunk-header read ran off the end.
+        // Such files load today, so every length from 1 to 7 (exactly where that
+        // read gave up) must decode to the same header as the clean file.
+        let clean = riff_fmt_data(2, 44100, 16, 8);
+        let expected = decode_streamed(&clean).expect("the file itself must decode");
+        for tail in 1..CHUNK_HEADER_LEN {
+            let mut slopped = clean.clone();
+            slopped.extend(core::iter::repeat_n(0xAA, tail as usize));
+            assert_eq!(
+                decode_streamed(&slopped),
+                Ok(expected),
+                "{tail} trailing bytes must not change the header"
+            );
+        }
+        // 8 trailing bytes DO hold a chunk header, so they go through the
+        // ordinary walk instead — as a chunk claiming a length that runs off the
+        // end, which the walk also ends on. The two paths agree, which is the
+        // point: the boundary at 8 is not a cliff.
+        let mut chunk_sized = clean.clone();
+        chunk_sized.extend(core::iter::repeat_n(0xAA, CHUNK_HEADER_LEN as usize));
+        assert_eq!(decode_streamed(&chunk_sized), Ok(expected));
+    }
+
+    #[test]
+    fn a_short_tail_still_asks_for_more_in_prefix_mode() {
+        // The other half of the rule above: `parse`'s slice is a prefix, so
+        // running out of bytes there really can mean the caller stopped reading.
+        let clean = riff_fmt_data(2, 44100, 16, 8);
+        let mut slopped = clean.clone();
+        slopped.extend_from_slice(&[0xAA, 0xAA, 0xAA]);
+        assert_eq!(
+            parse(&slopped),
+            Err(ParseError::NeedAtLeast(
+                clean.len() as u32 + CHUNK_HEADER_LEN
+            ))
+        );
+    }
+
+    #[test]
+    fn the_container_is_known_after_the_first_window() {
+        let file = form_empty();
+        let mut parser = HeaderParser::new(file.len() as u32);
+        assert_eq!(parser.container(), None, "nothing has been read yet");
+        let (start, len) = parser
+            .pending()
+            .expect("a fresh parser wants the top header");
+        let window = &file[start as usize..(start + len) as usize];
+        // The walk fails right after (an empty container has no data chunk), but
+        // the container it identified is reportable all the same.
+        let _ = parser.feed(window, start);
+        assert_eq!(parser.container(), Some(Container::Aiff));
+
+        let mut parser = HeaderParser::new(4);
+        let _ = parser.feed(b"junk", 0);
+        assert_eq!(parser.container(), None, "no container was identified");
     }
 
     #[test]

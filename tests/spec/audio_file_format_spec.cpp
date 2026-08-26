@@ -335,6 +335,61 @@ describe audio_file_format("audio file header parser", $ {
 		});
 	});
 
+	// Two shapes that loaded before the parse moved to Rust and must keep loading. Neither is in the
+	// sample corpus the port was differentially tested against, which is exactly why they are pinned
+	// here: "not in one person's library" is not the same as "cannot happen".
+	context("files that must keep loading", _ {
+		// Trailing slop -- DAW padding, an interrupted copy, a card that filled mid-write -- leaves a
+		// few bytes after the last chunk that cannot hold an 8-byte chunk header. The walk must end
+		// there and report the header it found, not call the file corrupt. 1..7 is exactly the range
+		// where the old parser's 8-byte read gave up.
+		it("decodes a file with a tail too short to hold a chunk header", _ {
+			ByteWriter body; body.append(wavFmt(16, 2, 44100)); body.append(wavData(100));
+			const std::vector<std::byte> clean = wrapWav(body);
+			auto reference = parseSample(clean);
+			expect(reference.has_value()).to_equal(true);
+
+			for (int tail = 1; tail <= 7; tail++) {
+				std::vector<std::byte> slopped = clean;
+				for (int i = 0; i < tail; i++) {
+					slopped.push_back(static_cast<std::byte>(0xAA));
+				}
+				auto r = parseSample(slopped);
+				expect(r.has_value()).to_equal(true);
+				expect((int)r->audioDataStartPosBytes).to_equal((int)reference->audioDataStartPosBytes);
+				expect((int)r->audioDataLengthBytes).to_equal((int)reference->audioDataLengthBytes);
+				expect((int)r->sampleRate).to_equal((int)reference->sampleRate);
+				expect(static_cast<int>(r->numChannels)).to_equal(static_cast<int>(reference->numChannels));
+				expect(static_cast<int>(r->byteDepth)).to_equal(static_cast<int>(reference->byteDepth));
+			}
+		});
+
+		// An AIFF is never a wavetable unless the user insists, and that verdict is about the CONTAINER,
+		// not about whether the file decodes: sample_browser.cpp turns FILE_NOT_LOADABLE_AS_WAVETABLE
+		// into "load it as a Sample instead", and any other error into "give up". This file decodes fine
+		// as a Sample but not as a wavetable-shaped walk (its SSND comes before its COMM, so a walk that
+		// stops at the audio data has no bit depth yet) -- so a decode-shaped error here would stop it
+		// being offered as a Sample at all.
+		it("offers an AIFF whose SSND precedes its COMM as a sample, not as a corrupt file", _ {
+			ByteWriter comm; comm.tag("COMM"); comm.be32(18);
+			comm.be16(1); comm.be32(32); comm.be16(16);
+			comm.raw({0x40,0x0E,0xAC,0x44,0x00,0x00,0x00,0x00,0x00,0x00}); // 44100.0
+			ByteWriter ssnd; ssnd.tag("SSND"); ssnd.be32(8 + 4096); ssnd.be32(0); ssnd.be32(0); ssnd.zeros(4096);
+			ByteWriter w; w.tag("FORM"); w.be32(static_cast<uint32_t>(4 + ssnd.bytes.size() + comm.bytes.size()));
+			w.tag("AIFF"); w.append(ssnd); w.append(comm); // SSND first, then COMM.
+
+			auto asWaveTable = parseWaveTable(w.bytes);
+			expect(asWaveTable.has_value()).to_equal(false);
+			expect(static_cast<int>(asWaveTable.error()))
+			    .to_equal(static_cast<int>(Error::FILE_NOT_LOADABLE_AS_WAVETABLE));
+
+			auto asSample = parseSample(w.bytes);
+			expect(asSample.has_value()).to_equal(true);
+			expect((int)asSample->audioDataLengthBytes).to_equal(4096);
+			expect((int)asSample->sampleRate).to_equal(44100);
+		});
+	});
+
 	context("AIFF samples", _ {
 		it("decodes a 16-bit mono COMM/SSND file (80-bit extended sample rate)", _ {
 			ByteWriter comm; comm.tag("COMM"); comm.be32(18);
