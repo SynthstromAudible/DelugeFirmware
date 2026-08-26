@@ -95,6 +95,10 @@ mod clock;
 // (mirrors `../lens1_vt_sim/src/main.rs`'s identical `host_app`-gated
 // declaration).
 extern crate deluge_resource;
+// Link-only, same reasoning as `deluge_resource` above: the archived `deluge_app` object closure's
+// `audio_file_format.cpp` calls straight into this crate's `deluge_audio_header_*` `#[no_mangle]`
+// symbols, whose sole definition it is; nothing here references them from Rust.
+extern crate deluge_audio_format;
 // Link-only, same reasoning as `deluge_resource` above: `sample_source.cpp`/
 // `sample_reader_bridge.cpp` in the archived `deluge_app` object closure call
 // straight into these crates' `deluge_sample_reserve_*`/`deluge_sample_peek`/

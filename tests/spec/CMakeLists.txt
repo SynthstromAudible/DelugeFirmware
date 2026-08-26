@@ -28,6 +28,14 @@ add_library(deluge_spec STATIC
 )
 target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi)
 
+# audio_file_format.cpp's header parse IS the Rust decoder (crates/deluge_audio_format, reached through
+# include/libdeluge/audio_format.h), so these specs need its C ABI on the link line. `deluge_rust_rs` is
+# the i686 umbrella staticlib defined once in tests/CMakeLists.txt -- inside its `UNIX AND NOT APPLE`
+# guard, hence the TARGET check, since this subdirectory is added unconditionally.
+if(TARGET deluge_rust_rs)
+    target_link_libraries(deluge_spec PUBLIC deluge_rust_rs)
+endif()
+
 target_include_directories(deluge_spec PUBLIC ../../src/deluge ../../src ../32bit_unit_test/mocks/ ../../include)
 
 set_target_properties(deluge_spec PROPERTIES

@@ -62,7 +62,8 @@ if (UNIX AND NOT APPLE)
     set(RUST_TARGET i686-unknown-linux-gnu)
     set(RUST_LIB ${RUST_WS}/target/${RUST_TARGET}/release/libdeluge_rust.a)
     file(GLOB_RECURSE RUST_SOURCES CONFIGURE_DEPENDS
-        ${RUST_WS}/deluge_alloc/src/*.rs ${RUST_WS}/deluge_resource/src/*.rs ${RUST_WS}/deluge_rust/src/*.rs)
+        ${RUST_WS}/deluge_alloc/src/*.rs ${RUST_WS}/deluge_resource/src/*.rs
+        ${RUST_WS}/deluge_audio_format/src/*.rs ${RUST_WS}/deluge_rust/src/*.rs)
     add_custom_command(
         OUTPUT ${RUST_LIB}
         COMMAND cargo build -p deluge_rust --release --target ${RUST_TARGET}
@@ -71,6 +72,7 @@ if (UNIX AND NOT APPLE)
             ${RUST_WS}/Cargo.lock
             ${RUST_WS}/Cargo.toml ${RUST_WS}/deluge_alloc/Cargo.toml
             ${RUST_WS}/deluge_resource/Cargo.toml ${RUST_WS}/deluge_rust/Cargo.toml
+            ${RUST_WS}/deluge_audio_format/Cargo.toml
         COMMENT "Building Rust deluge_rust staticlib (${RUST_TARGET})"
         VERBATIM)
     add_custom_target(deluge_rust_rs_build DEPENDS ${RUST_LIB})
@@ -97,6 +99,7 @@ if (UNIX AND NOT APPLE)
     # already-resolved paths to re-glob), mirroring sim/CMakeLists.txt's own SIM_RUST_SOURCES.
     file(GLOB_RECURSE RUST_SOURCES_SIM CONFIGURE_DEPENDS
         ${RUST_WS}/deluge_alloc/src/*.rs ${RUST_WS}/deluge_resource/src/*.rs
+        ${RUST_WS}/deluge_audio_format/src/*.rs
         ${RUST_WS}/deluge_sample_reader/src/*.rs ${RUST_WS}/deluge_sample_fill/src/*.rs
         ${RUST_WS}/deluge_sample_source/src/*.rs ${RUST_WS}/deluge_rust/src/*.rs)
     add_custom_command(
@@ -108,6 +111,7 @@ if (UNIX AND NOT APPLE)
             ${RUST_WS}/Cargo.lock
             ${RUST_WS}/Cargo.toml ${RUST_WS}/deluge_alloc/Cargo.toml
             ${RUST_WS}/deluge_resource/Cargo.toml ${RUST_WS}/deluge_rust/Cargo.toml
+            ${RUST_WS}/deluge_audio_format/Cargo.toml
             ${RUST_WS}/deluge_sample_reader/Cargo.toml ${RUST_WS}/deluge_sample_fill/Cargo.toml
             ${RUST_WS}/deluge_sample_source/Cargo.toml
         COMMENT "Building Rust deluge_rust staticlib with the sim feature (${RUST_TARGET})"

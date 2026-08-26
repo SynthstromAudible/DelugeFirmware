@@ -16,499 +16,252 @@
  */
 
 #include "storage/audio/audio_file_format.h"
-#include "io/debug/log.h"
+#include "libdeluge/audio_format.h" // the Rust WAV/AIFF decoder's C ABI
 #include "storage/audio/audio_byte_source.h"
-#include "util/audio_format_helpers.h" // charsToIntegerConstant, swapEndianness*, memToUIntOrError, ConvertFromIeeeExtended
-#include "util/misc.h"
+#include <algorithm>
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
+#include <expected>
+#include <optional>
+#include <span>
 
-// http://muratnkonar.com/aiff/
-// https://sites.google.com/site/musicgapi/technical-documents/wav-file-format#wavefilechunks
+// The chunk walk itself lives in Rust (`crates/deluge_audio_format`), which is fuzzed and held against
+// the whole sample corpus by a differential test. What is left here is the adapter: it turns
+// AudioByteSource's pull-with-seek surface into the window requests the decoder asks for, and lowers the
+// decoder's plain header value onto SampleHeader / WaveTableHeader.
+//
+// The decoder never asks for the audio payload — it steps over it by arithmetic — so this reads a few
+// dozen bytes per file no matter how big the file is.
 
 namespace {
-constexpr int32_t kMaxNumMarkers = 8;
 
-// The two RIFF/IFF containers we read.
-enum class Container { Wav, Aiff };
+/// How much to hand back when the decoder asks for a window, for the Sample walk.
+///
+/// DELUGE_AUDIO_MAX_WINDOW_BYTES (52) is the FLOOR, not the serving size: the decoder satisfies as many
+/// further requests as one window covers, so serving exact windows costs one round trip per chunk header.
+/// That is fine for a healthy file and pathological for a common kind of damage — a `data` chunk that
+/// under-declares its length (a recorder that never fixed up its header, a card that filled mid-write)
+/// makes the walk read the audio itself as a stream of nonsense chunk headers: 131,075 feeds on a 1 MB
+/// file at exact windows, 2,050 at this size.
+///
+/// Not larger, though, because a read that crosses a cluster boundary costs a real SD read of a whole
+/// cluster: at 512 bytes only ~1.5% of refills can pull in a cluster the walk did not need.
+constexpr uint32_t kSampleReadAheadBytes = 512;
 
-// Whether we're decoding the file as a Sample or a WaveTable — selects which chunks matter and when the scan
-// stops. Internal to the parser; the two public entry points keep it off the API.
-enum class ParseMode { Sample, WaveTable };
+/// The WaveTable walk deliberately reads NOTHING it was not asked for — see parseWaveTableHeader.
+constexpr uint32_t kNoReadAhead = 0;
 
-// Mutable accumulator the chunk walk fills. "Field not yet seen" is an empty optional, not a sentinel; the
-// public entry points lower it into the typed result.
-struct HeaderFields {
-	std::optional<uint8_t> numChannels;
-	std::optional<uint8_t> byteDepth; // empty until a "fmt "/"COMM" chunk is seen (was the 255 sentinel).
-	RawDataFormat rawDataFormat = RawDataFormat::NATIVE;
-	uint32_t sampleRate = 44100;
-	uint32_t audioDataStartPosBytes = 0; // Offset from the start of the file to the first audio byte.
-	uint32_t audioDataLengthBytes = 0;
-	uint32_t fileLoopStartSamples = 0;
-	uint32_t fileLoopEndSamples = 0;
-	std::optional<float> midiNote;
-	uint32_t waveTableCycleSize = 2048;
-	bool fileExplicitlySpecifiesSelfAsWaveTable = false;
-	bool foundDataChunk = false; // Also applies to an AIFF file's SSND chunk.
-	bool foundFmtChunk = false;  // Also applies to an AIFF file's COMM chunk.
+/// Feeds the decoder's window requests off an AudioByteSource.
+///
+/// It keeps one buffer of recently-read bytes, which is what makes a forward-only byte source enough: the
+/// decoder's requests never move backwards, but they can land *inside* bytes already read (a chunk that
+/// declares less payload than the arm reading it looks at, e.g. a `clm ` chunk). Those are served from
+/// the buffer instead of by a seek the source cannot do.
+class WindowFeeder {
+public:
+	/// @param src       Positioned at the start of the file; every offset the decoder names is absolute.
+	/// @param readAhead Extra bytes to pull on a refill, beyond the request. 0 reads exactly what is asked.
+	WindowFeeder(AudioByteSource& src, uint32_t readAhead)
+	    : src_(src), readAhead_(readAhead), bufferStart_(src.pos()) {}
+
+	/// Make the @p len bytes at absolute file offset @p start available.
+	///
+	/// @return Everything the buffer holds from @p start onwards — which is deliberately allowed to be
+	///         MORE than @p len, and is what the decoder wants — or the source's read error.
+	[[nodiscard]] std::expected<std::span<const std::byte>, Error> window(uint32_t start, uint32_t len) {
+		const uint32_t held = bufferStart_ + bufferLength_; // == src_.pos(), maintained below.
+
+		// A zero-length request is a real request (an empty file, or a walk that has reached the end):
+		// it must still be fed, but there is nothing to read for it.
+		if (len == 0) {
+			return (start >= bufferStart_ && start <= held) ? available(start) : std::span<const std::byte>{};
+		}
+		if (len > buffer_.size()) {
+			// Unreachable: every request is at most DELUGE_AUDIO_MAX_WINDOW_BYTES, which the buffer is
+			// sized above. Reported rather than assumed so that a decoder that grew its windows past the
+			// buffer would fail the file rather than overrun.
+			return std::unexpected(Error::BUG);
+		}
+		if (start >= bufferStart_ && start + len <= held) {
+			return available(start); // Already in hand.
+		}
+		if (start < bufferStart_) {
+			// Unreachable: the walk only ever moves forward, which is what lets a forward-only source
+			// serve it at all. Fail the file rather than silently read the wrong bytes.
+			return std::unexpected(Error::BUG);
+		}
+
+		// Keep the part of the buffer that lies ahead of `start` — the source cannot re-read it — and
+		// top it up. Beyond the buffer, seek: the payload between here and there is never read.
+		uint32_t keep = 0;
+		if (start < held) {
+			keep = held - start;
+			std::memmove(buffer_.data(), buffer_.data() + (start - bufferStart_), keep);
+		}
+		else if (start > held) {
+			src_.seekForwardTo(start);
+		}
+		bufferStart_ = start;
+		bufferLength_ = keep;
+
+		// Requests are clamped to the file by the decoder, so `remaining >= len`; clamping again here is
+		// what keeps the read-ahead from asking for bytes past the end (which the source rejects
+		// outright, reading nothing).
+		const uint32_t remaining = src_.size() - start;
+		const uint32_t want = std::min({std::max(len, readAhead_), static_cast<uint32_t>(buffer_.size()), remaining});
+		if (want > keep) {
+			if (const Error error = src_.read({buffer_.data() + keep, want - keep}); error != Error::NONE) {
+				return std::unexpected(error);
+			}
+			bufferLength_ = want;
+		}
+		return available(start);
+	}
+
+private:
+	/// The buffer from @p start onwards. @p start must lie within the buffer.
+	[[nodiscard]] std::span<const std::byte> available(uint32_t start) const {
+		const uint32_t offset = start - bufferStart_;
+		return std::span<const std::byte>{buffer_.data() + offset, bufferLength_ - offset};
+	}
+
+	AudioByteSource& src_;
+	uint32_t readAhead_;
+	uint32_t bufferStart_;      ///< Absolute file offset of buffer_[0].
+	uint32_t bufferLength_ = 0; ///< Valid bytes in buffer_; bufferStart_ + this == src_.pos().
+	std::array<std::byte, kSampleReadAheadBytes> buffer_{};
 };
 
-// Read the 12-byte RIFF/WAVE or FORM/AIFF top header and classify the container.
-std::expected<Container, Error> detectContainer(AudioByteSource& src) {
-	std::array<uint32_t, 3> topHeader{};
-	if (const Error error = src.read({reinterpret_cast<std::byte*>(topHeader.data()), sizeof(topHeader)});
-	    error != Error::NONE) {
-		return std::unexpected(error);
-	}
-	if (topHeader[0] == 0x46464952 && topHeader[2] == 0x45564157) { // "RIFF" / "WAVE"
-		return Container::Wav;
-	}
-	if (topHeader[0] == 0x4D524F46 && topHeader[2] == 0x46464941) { // "FORM" / "AIFF"
-		return Container::Aiff;
-	}
-	return std::unexpected(Error::FILE_UNSUPPORTED);
-}
+static_assert(kSampleReadAheadBytes >= DELUGE_AUDIO_MAX_WINDOW_BYTES,
+              "the buffer must be able to hold the largest window the decoder can ask for");
 
-// Walk every header/metadata chunk after the container header, filling `f`. For a WaveTable it stops once the
-// audio data chunk is located and validated; for a Sample it scans the whole header and resolves AIFF loop
-// markers. Pure decode — no AudioFile is mutated. Returns the first decode error, or NONE.
-Error walkChunks(AudioByteSource& src, Container container, ParseMode mode, bool makeWaveTableWorkAtAllCosts,
-                 HeaderFields& f) {
-	const bool isAiff = (container == Container::Aiff);
-	const bool isSample = (mode == ParseMode::Sample);
-	const bool isWaveTable = (mode == ParseMode::WaveTable);
-
-	// Read `num` bytes into `dest` through the byte source (mirrors the old reader.readBytes shape).
-	const auto readBytes = [&](void* dest, int32_t num) {
-		return src.read({static_cast<std::byte*>(dest), static_cast<size_t>(num)});
-	};
-
-	uint32_t bytePos = src.pos();
-
-	Error error = Error::NONE;
-
-	// AIFF marker bookkeeping — resolved into loop points once the whole header is scanned.
-	int16_t sustainLoopBeginMarkerId = -1;
-	int16_t sustainLoopEndMarkerId = -1;
-	uint16_t numMarkers = 0;
-	std::array<int16_t, kMaxNumMarkers> markerIDs{};
-	std::array<uint32_t, kMaxNumMarkers> markerPositions{};
-
-	// Validate the located audio data as a wavetable and report whether the caller should proceed to
-	// WaveTable::setup. Shared by the WAV "data" and AIFF "SSND" chunks (neither can fall through to the
-	// other, hence a callable rather than the legacy cross-switch goto).
-	const auto finishWaveTable = [&]() -> Error {
-		if (!f.byteDepth.has_value()) {
-			// Haven't found the "fmt " tag yet, so we don't know the bit depth. Shouldn't happen.
-			return Error::FILE_UNSUPPORTED;
-		}
-		if (f.numChannels != 1) {
-			return Error::FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO; // Stereo files are never usable.
-		}
-		// If this isn't actually a wavetable-specifying file (nor a wavetable-looking length), and the
-		// user isn't insisting, opt out.
-		if (!f.fileExplicitlySpecifiesSelfAsWaveTable && !makeWaveTableWorkAtAllCosts) {
-			const int32_t audioDataLengthSamples = f.audioDataLengthBytes / *f.byteDepth;
-			if ((audioDataLengthSamples & 2047) != 0) {
-				return Error::FILE_NOT_LOADABLE_AS_WAVETABLE;
-			}
-		}
-		return Error::NONE;
-	};
-
-	bool stop = false; // A mid-chunk read error abandons the scan and falls to the found-chunk check.
-
-	while (bytePos < src.size() && !stop) {
-
-		struct {
-			uint32_t name;
-			uint32_t length;
-		} thisChunk{};
-
-		error = readBytes(reinterpret_cast<char*>(&thisChunk), 4 * 2);
-		if (error != Error::NONE) {
-			break;
-		}
-
-		if (isAiff) {
-			thisChunk.length = swapEndianness32(thisChunk.length);
-		}
-
-		const uint32_t bytesCurrentChunkNotRoundedUp = thisChunk.length;
-		// If the chunk size is odd, skip the trailing padding byte too (a RIFF requirement).
-		thisChunk.length = (thisChunk.length + 1) & ~static_cast<uint32_t>(1);
-
-		const uint32_t bytePosOfThisChunkData = src.pos();
-		bytePos = bytePosOfThisChunkData + thisChunk.length; // Where the next RIFF chunk begins.
-
-		// ------ WAV ------
-		if (!isAiff) {
-			switch (thisChunk.name) {
-
-			// Data chunk - "data"
-			case charsToIntegerConstant('d', 'a', 't', 'a'): {
-				f.foundDataChunk = true;
-				f.audioDataStartPosBytes = bytePosOfThisChunkData;
-				f.audioDataLengthBytes = bytesCurrentChunkNotRoundedUp;
-				if (isWaveTable) {
-					return finishWaveTable(); // Header done; the caller runs WaveTable::setup.
-				}
-				break;
-			}
-
-			// Format chunk - "fmt "
-			case charsToIntegerConstant('f', 'm', 't', ' '): {
-				f.foundFmtChunk = true;
-
-				std::array<uint32_t, 4> header{};
-				error = readBytes(reinterpret_cast<char*>(header.data()), 4 * 4);
-				if (error != Error::NONE) {
-					return error;
-				}
-
-				// Bit depth.
-				const uint16_t bits = header[3] >> 16;
-				switch (bits) {
-				case 8:
-					f.rawDataFormat = RawDataFormat::UNSIGNED_8;
-					[[fallthrough]];
-				case 16:
-				case 24:
-				case 32:
-					f.byteDepth = bits >> 3;
-					break;
-				case 256 ... 65535:
-					__builtin_unreachable();
-				default:
-					return Error::FILE_UNSUPPORTED;
-				}
-
-				// Format.
-				const uint16_t format = header[0];
-				if (format == WAV_FORMAT_PCM) {}
-				else if (format == WAV_FORMAT_FLOAT && f.byteDepth == 4) {
-					f.rawDataFormat = RawDataFormat::FLOAT;
-				}
-				else {
-					return Error::FILE_UNSUPPORTED;
-				}
-
-				// Num channels.
-				f.numChannels = header[0] >> 16;
-				if (f.numChannels != 1 && f.numChannels != 2) {
-					return Error::FILE_UNSUPPORTED;
-				}
-
-				if (isSample) {
-					f.sampleRate = header[1];
-					if (f.sampleRate < 5000 || f.sampleRate > 96000) {
-						return Error::FILE_UNSUPPORTED;
-					}
-				}
-				break;
-			}
-
-			// Sample chunk - "smpl"
-			case charsToIntegerConstant('s', 'm', 'p', 'l'): {
-				if (isSample) {
-					std::array<uint32_t, 9> data{};
-					error = readBytes(reinterpret_cast<char*>(data.data()), 4 * 9);
-					if (error != Error::NONE) {
-						break;
-					}
-
-					const uint32_t midiNote = data[3];
-					const uint32_t midiPitchFraction = data[4];
-					const uint32_t numLoops = data[7];
-
-					if ((midiNote || midiPitchFraction) && midiNote < 128) {
-						f.midiNote =
-						    static_cast<float>(midiPitchFraction) / (static_cast<uint64_t>(1) << 32) + midiNote;
-					}
-
-					if (numLoops == 1) {
-						for (uint32_t l = 0; l < numLoops; l++) {
-							D_PRINTLN("loop  %d", l);
-
-							std::array<uint32_t, 6> loopData{};
-							error = readBytes(reinterpret_cast<char*>(loopData.data()), 4 * 6);
-							if (error != Error::NONE) {
-								stop = true;
-								break;
-							}
-
-							f.fileLoopStartSamples = loopData[2];
-							f.fileLoopEndSamples = loopData[3];
-						}
-					}
-				}
-				break;
-			}
-
-			// Instrument chunk - "inst"
-			case charsToIntegerConstant('i', 'n', 's', 't'): {
-				if (isSample) {
-					std::array<uint8_t, 7> data{};
-					error = readBytes(reinterpret_cast<char*>(data.data()), 7);
-					if (error != Error::NONE) {
-						break;
-					}
-
-					const uint8_t midiNote = data[0];
-					const int8_t fineTune = data[1];
-					if (midiNote < 128) {
-						f.midiNote = static_cast<float>(midiNote) - static_cast<float>(fineTune) * 0.01;
-					}
-				}
-				break;
-			}
-
-			// Serum wavetable chunk - "clm "
-			case charsToIntegerConstant('c', 'l', 'm', ' '): {
-				std::array<char, 7> data{};
-				error = readBytes(data.data(), 7);
-				if (error != Error::NONE) {
-					break;
-				}
-
-				if ((*reinterpret_cast<uint32_t*>(data.data()) & 0x00FFFFFF)
-				    == charsToIntegerConstant('<', '!', '>', 0)) {
-					f.fileExplicitlySpecifiesSelfAsWaveTable = true;
-					// The cycle-size digits follow the "<!>" marker. Use pointer arithmetic for the past-the-end
-					// bound — &data[7] would index one past a 7-element array (UB; trips bounds-checked operator[]).
-					const int32_t number = memToUIntOrError(data.data() + 3, data.data() + data.size());
-					if (number >= 1) {
-						f.waveTableCycleSize = number;
-						D_PRINTLN("clm tag num samples per cycle:  %d", f.waveTableCycleSize);
-					}
-				}
-				break;
-			}
-			}
-		}
-
-		// ------ AIFF ------
-		else {
-			switch (thisChunk.name) {
-
-			// SSND
-			case charsToIntegerConstant('S', 'S', 'N', 'D'): {
-				f.foundDataChunk = true;
-
-				uint32_t offset = 0;
-				error = readBytes(reinterpret_cast<char*>(&offset), 4);
-				if (error != Error::NONE) {
-					return error;
-				}
-				offset = swapEndianness32(offset);
-				f.audioDataLengthBytes = bytesCurrentChunkNotRoundedUp - offset - 8;
-				f.audioDataStartPosBytes = src.pos() + 4 + offset;
-
-				if (isWaveTable) {
-					return finishWaveTable();
-				}
-				break;
-			}
-
-			// COMM
-			case charsToIntegerConstant('C', 'O', 'M', 'M'): {
-				f.foundFmtChunk = true;
-
-				if (thisChunk.length != 18) {
-					return Error::FILE_UNSUPPORTED;
-				}
-
-				std::array<uint16_t, 9> header{};
-				error = readBytes(reinterpret_cast<char*>(header.data()), 18);
-				if (error != Error::NONE) {
-					return error;
-				}
-
-				// Num channels.
-				f.numChannels = swapEndianness2x16(header[0]);
-				if (f.numChannels != 1 && f.numChannels != 2) {
-					return Error::FILE_UNSUPPORTED;
-				}
-
-				// Bit depth.
-				const uint16_t bits = swapEndianness2x16(header[3]);
-				if (bits != 8 && bits != 16 && bits != 24 && bits != 32) {
-					return Error::FILE_UNSUPPORTED;
-				}
-				f.byteDepth = bits >> 3;
-
-				if (*f.byteDepth > 1) {
-					f.rawDataFormat = static_cast<RawDataFormat>(util::to_underlying(RawDataFormat::ENDIANNESS_WRONG_16)
-					                                             + *f.byteDepth - 2);
-				}
-
-				if (isSample) {
-					const uint32_t sampleRate = ConvertFromIeeeExtended(reinterpret_cast<unsigned char*>(&header[4]));
-					if (sampleRate < 5000 || sampleRate > 96000) {
-						return Error::FILE_UNSUPPORTED;
-					}
-					f.sampleRate = sampleRate;
-				}
-				break;
-			}
-
-			// MARK
-			case charsToIntegerConstant('M', 'A', 'R', 'K'): {
-				error = readBytes(reinterpret_cast<char*>(&numMarkers), 2);
-				if (error != Error::NONE) {
-					break;
-				}
-				numMarkers = swapEndianness2x16(numMarkers);
-				D_PRINTLN("numMarkers:  %d", numMarkers);
-
-				if (numMarkers > kMaxNumMarkers) {
-					numMarkers = kMaxNumMarkers;
-				}
-
-				for (int32_t m = 0; m < numMarkers && !stop; m++) {
-					uint16_t markerId = 0;
-					error = readBytes(reinterpret_cast<char*>(&markerId), 2);
-					if (error != Error::NONE) {
-						stop = true;
-						break;
-					}
-					markerIDs[m] = swapEndianness2x16(markerId);
-
-					uint32_t markerPos = 0;
-					error = readBytes(reinterpret_cast<char*>(&markerPos), 4);
-					if (error != Error::NONE) {
-						stop = true;
-						break;
-					}
-					markerPositions[m] = swapEndianness32(markerPos);
-
-					uint8_t stringLength = 0;
-					error = readBytes(reinterpret_cast<char*>(&stringLength), 1);
-					if (error != Error::NONE) {
-						stop = true;
-						break;
-					}
-
-					const uint32_t stringLengthRoundedUpToBeEven =
-					    (static_cast<uint32_t>(stringLength) + 1) & ~static_cast<uint32_t>(1);
-					// Skip the (even-padded) marker-name string; the next read fetches from here.
-					src.seekForwardTo(src.pos() + stringLengthRoundedUpToBeEven);
-				}
-				break;
-			}
-
-			// INST
-			case charsToIntegerConstant('I', 'N', 'S', 'T'): {
-				if (isSample) {
-					std::array<uint8_t, 8> data{};
-					error = readBytes(reinterpret_cast<char*>(data.data()), 8);
-					if (error != Error::NONE) {
-						break;
-					}
-
-					const uint8_t midiNote = data[0];
-					const int8_t fineTune = data[1];
-					if ((midiNote || fineTune) && midiNote < 128) {
-						f.midiNote = static_cast<float>(midiNote) - static_cast<float>(fineTune) * 0.01;
-						// %d (int) not %f: this printf build has no float support, and the original "%s" with a
-						// float read the float's bits as a char* (UB). The integer note is the useful breadcrumb.
-						D_PRINTLN("unshifted note:  %d", static_cast<int>(*f.midiNote));
-					}
-
-					// Just read the sustain loop, which comes first.
-					std::array<uint16_t, 3> loopData{};
-					error = readBytes(reinterpret_cast<char*>(loopData.data()), 3 * 2);
-					if (error != Error::NONE) {
-						break;
-					}
-
-					sustainLoopBeginMarkerId = swapEndianness2x16(loopData[1]);
-					sustainLoopEndMarkerId = swapEndianness2x16(loopData[2]);
-				}
-				break;
-			}
-			}
-		}
-
-		if (!stop) {
-			src.seekForwardTo(bytePos);
-		}
-	}
-
-	if (!f.foundDataChunk || !f.foundFmtChunk) {
+/// The decoder's terminal status as one of the two error values this file has ever reported.
+Error decodeError(uint8_t status) {
+	switch (status) {
+	case DELUGE_AUDIO_PARSE_NOT_AUDIO:   // Neither RIFF/WAVE nor FORM/AIFF.
+	case DELUGE_AUDIO_PARSE_UNSUPPORTED: // Bit depth, format tag, channel count or sample rate.
+		return Error::FILE_UNSUPPORTED;
+	case DELUGE_AUDIO_PARSE_MALFORMED: // No fmt/COMM or no data/SSND chunk.
+	case DELUGE_AUDIO_PARSE_TRUNCATED: // The file ends inside its own header.
 		return Error::FILE_CORRUPTED;
+	default:
+		return Error::BUG; // A null pointer or undersized storage: our fault, not the file's.
+	}
+}
+
+/// Drive the decoder over @p src.
+///
+/// @param stopAtAudioData Stop as soon as the audio data chunk has been located, rather than walking the
+///                        whole header. See parseWaveTableHeader for why that is not just an optimisation.
+std::expected<DelugeAudioHeader, Error> decodeHeader(AudioByteSource& src, bool stopAtAudioData) {
+	DelugeAudioHeaderParser parser;
+	if (!deluge_audio_header_parser_init(&parser, sizeof(parser), src.size())) {
+		return std::unexpected(Error::BUG); // Storage too small — a build-time mismatch, not a file.
 	}
 
-	// Sample-only finalisation (a wavetable returned from the data/SSND chunk above).
-	if (isSample && isAiff && sustainLoopEndMarkerId != -1) {
-		for (int32_t m = 0; m < numMarkers; m++) {
-			if (markerIDs[m] == sustainLoopBeginMarkerId) {
-				f.fileLoopStartSamples = markerPositions[m];
+	WindowFeeder feeder{src, stopAtAudioData ? kNoReadAhead : kSampleReadAheadBytes};
+	DelugeAudioHeader header{};
+
+	while (true) {
+		if (stopAtAudioData && deluge_audio_header_parser_located_audio_data(&parser)) {
+			const uint8_t status = deluge_audio_header_parser_finish_here(&parser, &header);
+			if (status != DELUGE_AUDIO_PARSE_DONE) {
+				return std::unexpected(decodeError(status));
 			}
-			if (markerIDs[m] == sustainLoopEndMarkerId) {
-				f.fileLoopEndSamples = markerPositions[m];
-			}
+			return header;
+		}
+
+		DelugeAudioWindow want{};
+		if (!deluge_audio_header_parser_pending(&parser, &want)) {
+			// Unreachable: every terminal transition happens inside feed, which reports it below.
+			return std::unexpected(Error::BUG);
+		}
+
+		// `want.len` can legitimately be zero, and the empty window must still be fed: the decoder only
+		// advances inside feed, so skipping the call because there is nothing to read would spin here
+		// forever.
+		const std::expected<std::span<const std::byte>, Error> bytes = feeder.window(want.start, want.len);
+		if (!bytes) {
+			return std::unexpected(bytes.error());
+		}
+
+		const uint8_t status =
+		    deluge_audio_header_parser_feed(&parser, reinterpret_cast<const uint8_t*>(bytes->data()),
+		                                    static_cast<uint32_t>(bytes->size()), want.start, &header);
+		if (status == DELUGE_AUDIO_PARSE_DONE) {
+			return header;
+		}
+		if (status != DELUGE_AUDIO_PARSE_NEED) {
+			return std::unexpected(decodeError(status));
 		}
 	}
-
-	return Error::NONE;
 }
+
+/// The wavetable acceptance verdict as the Error values callers switch on.
+Error wavetableError(uint8_t verdict) {
+	switch (verdict) {
+	case DELUGE_WAVETABLE_REJECT_STEREO:
+		return Error::FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO;
+	case DELUGE_WAVETABLE_REJECT_NOT_A_WAVETABLE:
+	// An AIFF container is rejected as "not a wavetable" rather than "unsupported", matching the check
+	// this replaces (which ran before the walk and returned exactly this).
+	case DELUGE_WAVETABLE_REJECT_AIFF:
+		return Error::FILE_NOT_LOADABLE_AS_WAVETABLE;
+	case DELUGE_WAVETABLE_REJECT_UNKNOWN_BIT_DEPTH:
+		// Unreachable through a successful parse (which always saw a fmt/COMM chunk).
+		return Error::FILE_UNSUPPORTED;
+	default:
+		return Error::BUG; // A null pointer: our fault, not the file's.
+	}
+}
+
 } // namespace
 
 std::expected<SampleHeader, Error> parseSampleHeader(AudioByteSource& src) {
-	const std::expected<Container, Error> container = detectContainer(src);
-	if (!container) {
-		return std::unexpected(container.error());
+	const std::expected<DelugeAudioHeader, Error> header = decodeHeader(src, /*stopAtAudioData=*/false);
+	if (!header) {
+		return std::unexpected(header.error());
 	}
-
-	HeaderFields f;
-	if (const Error error = walkChunks(src, *container, ParseMode::Sample, /*makeWaveTableWorkAtAllCosts=*/false, f);
-	    error != Error::NONE) {
-		return std::unexpected(error);
-	}
-
-	// A successful Sample parse always saw a "fmt "/"COMM" chunk, so byteDepth/numChannels are set.
 	return SampleHeader{
-	    .numChannels = *f.numChannels,
-	    .byteDepth = *f.byteDepth,
-	    .rawDataFormat = f.rawDataFormat,
-	    .sampleRate = f.sampleRate,
-	    .audioDataStartPosBytes = f.audioDataStartPosBytes,
-	    .audioDataLengthBytes = f.audioDataLengthBytes,
-	    .fileLoopStartSamples = f.fileLoopStartSamples,
-	    .fileLoopEndSamples = f.fileLoopEndSamples,
-	    .midiNote = f.midiNote,
-	    .waveTableCycleSize = f.waveTableCycleSize,
-	    .fileExplicitlySpecifiesSelfAsWaveTable = f.fileExplicitlySpecifiesSelfAsWaveTable,
+	    .numChannels = header->num_channels,
+	    .byteDepth = header->byte_depth,
+	    .rawDataFormat = static_cast<RawDataFormat>(header->raw_data_format),
+	    .sampleRate = header->sample_rate,
+	    .audioDataStartPosBytes = header->audio_data_start_pos_bytes,
+	    .audioDataLengthBytes = header->audio_data_length_bytes,
+	    .fileLoopStartSamples = header->file_loop_start_samples,
+	    .fileLoopEndSamples = header->file_loop_end_samples,
+	    .midiNote = header->midi_note.has != 0 ? std::optional<float>{header->midi_note.value} : std::nullopt,
+	    .waveTableCycleSize = header->wavetable_cycle_size,
+	    .fileExplicitlySpecifiesSelfAsWaveTable = header->wavetable_explicitly_specifies_self != 0,
 	};
 }
 
 std::expected<WaveTableHeader, Error> parseWaveTableHeader(AudioByteSource& src, bool makeWaveTableWorkAtAllCosts) {
-	const std::expected<Container, Error> container = detectContainer(src);
-	if (!container) {
-		return std::unexpected(container.error());
-	}
-	// AIFF files will only be used for WaveTables if the user insists.
-	if (*container == Container::Aiff && !makeWaveTableWorkAtAllCosts) {
-		return std::unexpected(Error::FILE_NOT_LOADABLE_AS_WAVETABLE);
-	}
-
-	HeaderFields f;
-	if (const Error error = walkChunks(src, *container, ParseMode::WaveTable, makeWaveTableWorkAtAllCosts, f);
-	    error != Error::NONE) {
-		return std::unexpected(error);
+	// Stop the walk at the audio data chunk. Not an optimisation: the wavetable load hands this SAME byte
+	// source to WaveTable::setup, which seeks back to audioDataStartPosBytes and reads the audio through
+	// the source's own block buffer. Walking on past the audio (to pick up metadata a wavetable does not
+	// use) would leave a sequentially-read source blocks ahead of the audio and make that seek a backwards
+	// one. The parser this replaces stopped here for the same reason.
+	const std::expected<DelugeAudioHeader, Error> header = decodeHeader(src, /*stopAtAudioData=*/true);
+	if (!header) {
+		return std::unexpected(header.error());
 	}
 
-	// walkChunks only returns NONE for a WaveTable once finishWaveTable() has validated the located data, so
-	// byteDepth/numChannels are set.
+	uint32_t cycleSize = 0;
+	const uint8_t verdict = deluge_audio_header_accept_as_wavetable(&*header, makeWaveTableWorkAtAllCosts, &cycleSize);
+	if (verdict != DELUGE_WAVETABLE_ACCEPTED) {
+		return std::unexpected(wavetableError(verdict));
+	}
+
 	return WaveTableHeader{
-	    .numChannels = *f.numChannels,
-	    .byteDepth = *f.byteDepth,
-	    .rawDataFormat = f.rawDataFormat,
-	    .audioDataStartPosBytes = f.audioDataStartPosBytes,
-	    .audioDataLengthBytes = f.audioDataLengthBytes,
-	    .cycleSize = f.waveTableCycleSize,
+	    .numChannels = header->num_channels, // Validated == 1 by the acceptance check above.
+	    .byteDepth = header->byte_depth,
+	    .rawDataFormat = static_cast<RawDataFormat>(header->raw_data_format),
+	    .audioDataStartPosBytes = header->audio_data_start_pos_bytes,
+	    .audioDataLengthBytes = header->audio_data_length_bytes,
+	    .cycleSize = cycleSize,
 	};
 }
