@@ -442,6 +442,30 @@ if(RT_LIB)
     target_link_libraries(deluge_loadcheck PRIVATE ${RT_LIB})
 endif()
 
+# deluge_audio_header_dump: headless C++ oracle for the `deluge_audio_format` (crates/deluge_audio_format)
+# corpus differential (see harness/audio_header_dump.h). Same app + host BSP boot as deluge_loadcheck, but
+# its own main()/driver (host_audio_header_dump_main.cpp) reads host filesystem paths from stdin and, for
+# each, dumps parseSampleHeader's/parseWaveTableHeader's (both makeWaveTableWorkAtAllCosts settings)
+# outcome as one JSON line to stdout — driven straight off an in-memory AudioByteSource, so unlike
+# deluge_loadcheck it needs no DELUGE_SD_ROOT/efatfs passthrough at all.
+add_executable(deluge_audio_header_dump
+    ${REPO_ROOT}/src/bsp/host/host_bsp.c
+    ${REPO_ROOT}/src/bsp/host/host_platform.c
+    ${REPO_ROOT}/src/bsp/host/host_audio.c
+    ${REPO_ROOT}/src/bsp/host/host_link.c
+    ${REPO_ROOT}/src/bsp/host/host_ws.c
+    ${REPO_ROOT}/src/bsp/host/host_pcm.c
+    ${REPO_ROOT}/src/bsp/host/host_midi.c
+    ${REPO_ROOT}/src/bsp/host/host_audio_header_dump_main.cpp
+    ${REPO_ROOT}/src/bsp/host/host_debug.cpp
+    ${REPO_ROOT}/src/bsp/host/host_efatfs_passthrough.cpp
+)
+target_include_directories(deluge_audio_header_dump PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
+target_link_libraries(deluge_audio_header_dump PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
+if(RT_LIB)
+    target_link_libraries(deluge_audio_header_dump PRIVATE ${RT_LIB})
+endif()
+
 # NOTE: the C-host `deluge_render` / `deluge_recorder_roundtrip` renderers and their CTests
 # (the padsweep layout-invariance guard + the SampleRecorder round-trip oracle) were retired
 # when the sample-streaming golden moved onto the async Embassy renderer: `deluge_render` is

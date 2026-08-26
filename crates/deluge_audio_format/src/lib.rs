@@ -702,18 +702,46 @@ pub fn parse(bytes: &[u8]) -> Result<AudioHeader, ParseError> {
             _ => {}
         }
 
+        let unpadded_end = match data_start.checked_add(raw_size as usize) {
+            Some(e) => e,
+            None => return Err(ParseError::NeedAtLeast(u32::MAX)),
+        };
         let next_pos = match data_start.checked_add(padded_size as usize) {
             Some(p) => p,
             None => return Err(ParseError::NeedAtLeast(u32::MAX)),
         };
-        // Chunks we don't otherwise inspect (the `_` arm above) are skipped
-        // by arithmetic alone, with no read to bounds-check it — so check
-        // here that the skip doesn't run past what we've actually been
-        // given.
-        if next_pos > bytes.len() {
+        // Chunks we don't otherwise inspect (the `_` arm above) are skipped by arithmetic alone, with
+        // no read to bounds-check it, so this chunk's own real content (`unpadded_end`) must always be
+        // present — ask for more if it isn't.
+        //
+        // The single trailing RIFF/AIFF pad byte for an odd-length chunk (folded into `padded_size`
+        // above) is deliberately NOT required to be present, though: that byte exists only so the NEXT
+        // chunk starts on an even offset, and real-world files routinely omit it when the odd chunk is
+        // the last thing in the file — there's nothing to align if there is no next chunk. The C++
+        // oracle never even notices this: its equivalent advance
+        // (`bytePos = bytePosOfThisChunkData + thisChunk.length`) has no bounds check at all, and its
+        // loop condition (`bytePos < src.size()`) just quietly stops scanning once the computed
+        // position reaches the file's real end — which `size()` reports independent of how much has
+        // been read, a signal this crate's `bytes: &[u8]`-only signature doesn't have. Demanding the
+        // pad byte unconditionally rejected real corpus files forever (`NeedAtLeast` past the file's
+        // own total size, unsatisfiable by any caller retry — verified against
+        // `~/Deluge Backup/SONGS/problem_songs/…/tropic regsnare1.wav`, whose `data` chunk is exactly
+        // 249477 bytes — odd — ending exactly at the file's real 249557-byte end with the pad byte
+        // never written) that the C++ has always loaded fine. See
+        // docs/superpowers/specs/2026-08-26-rust-audio-header-parser-design.md §6.
+        //
+        // This does mean a genuinely-streaming caller whose supplied prefix happens to end EXACTLY at
+        // an odd, non-final chunk's unpadded content will see the scan stop early rather than being
+        // asked for one more byte to discover a later chunk (e.g. a `smpl` after a truncated-exactly-
+        // there `LIST`) — an unavoidable ambiguity given this signature can't tell "this really is the
+        // whole file" from "the caller happened to stop here," and one this crate's design already
+        // accepted for every other under-supply that a specific chunk arm's OWN read doesn't catch.
+        // Silently missing optional trailing metadata is a far better failure mode than the
+        // unconditional version's guaranteed, unrecoverable rejection of a complete, valid file.
+        if unpadded_end > bytes.len() {
             return Err(ParseError::NeedAtLeast(next_pos as u32));
         }
-        pos = next_pos;
+        pos = next_pos.min(bytes.len());
     }
 
     // We've run out of `bytes` exactly on a chunk boundary. If we never
