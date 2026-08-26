@@ -558,12 +558,34 @@ into the packed page-major buffer); two parallel scene enums; duplicated
 component sets; lit-pixel-count "snapshot" tests; panel geometry stated three
 ways.
 
-## 14. Open questions
+## 14. Sub-specs
+
+This document is the umbrella; each layer has its own design (all 2026-08-26, this
+directory):
+
+| Spec | File | Plan |
+|---|---|---|
+| A — gfx | §6 here | `../plans/2026-08-26-gfx-extraction.md` |
+| B — toolkit (`ui-core`, `ui-oled`, `ui-grid`) | `2026-08-26-ui-toolkit-design.md` | — |
+| C — notifications (`DirtySet`, `NoticeQueue`) | `2026-08-26-ui-notifications-design.md` | — |
+| D — shell | `2026-08-26-ui-shell-design.md` | — |
+| E — scenes and menus | `2026-08-26-ui-scenes-menus-design.md` | — |
+| F — migration and coexistence | `2026-08-26-ui-migration-design.md` | — |
+| G — test harness | `2026-08-26-ui-test-harness-design.md` | — |
+| H — second frontend | `2026-08-26-ui-second-frontend-design.md` | — |
+
+Decisions taken while writing them, in addition to §3: the `deluge-commands` gate is
+staged out (scenes mutate the model directly under a direction rule; spec I is a later
+track); menus are declarative C++ `Node` literals, not generated; all new-library
+identifiers are `snake_case`; the second device has a two-column sidebar and ships as a
+**separate firmware image** selected at build time.
+
+## 15. Open questions
 
 1. **Surface roles on the new device.** Whether the extra OLEDs are
    per-encoder parameter displays or general-purpose determines which scenes
    grow `Param` views. Decide when the board profile is written; the shell
-   does not care.
+   does not care (spec H §3 supports both).
 2. **Menu bindings before the params registry.** Getter/setter pairs over
    `ModControllable` are an interim; the switch to registry handles (§7 of the
    target architecture) is a table edit but must be scheduled against that
