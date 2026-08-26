@@ -5,10 +5,20 @@
 //! hand-rolled C++ chunk walk, as the gate that made the rewrite trustworthy — the C++ treated as a
 //! REFERENCE, not an oracle, with the RIFF/AIFF spec deciding who was right on a disagreement. Since
 //! the C++ entry points were re-pointed at this crate, both sides are the SAME decoder, so it can no
-//! longer catch a decode defect. What it still catches is everything BETWEEN the two: whole-file
-//! prefix mode (`parse`) against the size-aware windowed walk the C++ adapter drives through the C
-//! ABI — window buffering, the audio-only walk's early stop, the fixed-width marshalling. Every one
-//! of those is a real defect surface, and a real one has been caught here.
+//! longer catch a decode defect. What it still catches is everything BETWEEN them, and the two entry
+//! points are compared against the walk each one actually runs:
+//!
+//! * **Sample**: `parse` — whole file in one slice, prefix mode, `WalkGoal::WholeHeader` — against
+//!   the C++'s size-aware windowed walk of the same goal. The delta under test is the protocol
+//!   itself: the adapter's window buffering and short-tail handling, and the fixed-width marshalling
+//!   back across the C ABI.
+//! * **WaveTable**: a `WalkGoal::AudioOnly` walk driven straight off the byte slice, against the same
+//!   goal driven through the C ABI. Both sides stop at the audio data chunk and skip the same chunks;
+//!   the delta is who reads the bytes. The goals must match — an audio-only walk reads no
+//!   `smpl`/`inst` and does not judge the sample rate, so comparing it against a whole-header walk
+//!   fails on files both sides handle correctly (see `decode_as_wavetable_walk`).
+//!
+//! Both are real defect surfaces, and a real defect has been caught on each.
 //!
 //! The two sides are deliberately NOT expected to agree everywhere; the differences below are the
 //! adjudicated ones, each recorded where the code that causes it lives:
@@ -42,7 +52,10 @@
 //! today — the value is always derived from small integer file fields, never from a computation that
 //! could produce a non-finite float) would panic in `parse_number` rather than compare cleanly.
 
-use deluge_audio_format::{parse, wavetable, AudioHeader, Container, ParseError};
+use deluge_audio_format::{
+    parse, wavetable, AudioHeader, Container, FeedResult, HeaderError, HeaderParser, ParseError,
+    WalkGoal,
+};
 use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
 use std::path::{Path, PathBuf};
@@ -761,9 +774,38 @@ fn compare_sample(
     }
 }
 
+/// Decode `bytes` the way `parseWaveTableHeader` does: a size-aware
+/// [`WalkGoal::AudioOnly`] walk, stopping at the audio data chunk.
+///
+/// The C++ side of this comparison has driven exactly this walk since the entry points moved onto
+/// this crate, and the two goals are not interchangeable — an audio-only walk reads no `smpl`/`inst`
+/// and does not insist on a playable sample rate. Deriving "ours" from `parse()` instead (prefix
+/// mode, whole header) made the comparison structurally divergent on precisely the files the goal
+/// exists for: one 192 kHz mono wavetable-shaped WAV in the corpus and this test failed with
+/// `ours="parse() failed: Unsupported(SampleRateOutOfRange)" theirs="ok"`, on a file both sides
+/// handle correctly.
+fn decode_as_wavetable_walk(bytes: &[u8]) -> Result<AudioHeader, HeaderError> {
+    let mut parser = HeaderParser::new_with_goal(bytes.len() as u32, WalkGoal::AudioOnly);
+    loop {
+        if parser.located_audio_data() {
+            return parser.finish_here();
+        }
+        let Some((start, len)) = parser.pending() else {
+            unreachable!("the walk only ever ends inside `feed`")
+        };
+        let from = (start as usize).min(bytes.len());
+        let to = from.saturating_add(len as usize).min(bytes.len());
+        match parser.feed(&bytes[from..to], start) {
+            Ok(FeedResult::Done(header)) => return Ok(header),
+            Ok(FeedResult::Need { .. }) => {}
+            Err(error) => return Err(error),
+        }
+    }
+}
+
 fn compare_wavetable(
     path: &Path,
-    ours: &Result<AudioHeader, ParseError>,
+    ours: &Result<AudioHeader, HeaderError>,
     insist: bool,
     theirs: &Json,
     out: &mut Vec<Disagreement>,
@@ -839,15 +881,14 @@ fn compare_wavetable(
                 out.push(Disagreement {
                     path: path.to_path_buf(),
                     field: "wavetable.outcome",
-                    ours: format!("insist={insist} parse() failed: {e:?}"),
+                    ours: format!("insist={insist} the walk failed: {e:?}"),
                     theirs: "ok".to_string(),
                     adjudicated: None,
                 });
             }
-            // If theirs also rejects, that's consistent enough without matching WHY: a whole-file
-            // `parse()` failure and a WaveTable-mode-specific rejection aren't directly comparable
-            // (parseWaveTableHeader can stop scanning at the data chunk, before whatever later chunk
-            // caused parse() to fail as a Sample).
+            // If theirs also rejects, that's consistent enough without matching WHY: this side
+            // reports a decode error and the C++ side lowers it onto one of a handful of `Error`
+            // values, and the reject REASON is not carried across the C ABI at all.
         }
     }
     let _ = key;
@@ -861,14 +902,110 @@ fn compare_one_file(
 ) -> Vec<Disagreement> {
     let mut out = Vec::new();
     compare_sample(path, ours, bytes, theirs, &mut out);
-    compare_wavetable(path, ours, false, theirs, &mut out);
-    compare_wavetable(path, ours, true, theirs, &mut out);
+    // Each entry point is compared against the walk it actually runs: the Sample side against
+    // `parse` above, the WaveTable side against an audio-only walk.
+    let ours_wavetable = decode_as_wavetable_walk(bytes);
+    compare_wavetable(path, &ours_wavetable, false, theirs, &mut out);
+    compare_wavetable(path, &ours_wavetable, true, theirs, &mut out);
     out
 }
 
 // ============================================================================================
 // The test.
 // ============================================================================================
+
+// ============================================================================================
+// Synthetic fixtures. A corpus is one person's library, not a proof: every regression this port
+// shipped was a shape the corpus did not contain. These are written to a temp directory and swept
+// alongside it, through the same C++ dumper and the same comparison, so the shapes we KNOW the two
+// entry points disagree about are covered rather than merely absent.
+// ============================================================================================
+
+/// A RIFF/WAVE file: `fmt ` + `data`, with the audio zero-filled.
+fn synth_wav(channels: u16, rate: u32, bits: u16, audio_bytes: u32) -> Vec<u8> {
+    let mut body = Vec::new();
+    body.extend_from_slice(b"fmt ");
+    body.extend_from_slice(&16u32.to_le_bytes());
+    body.extend_from_slice(&1u16.to_le_bytes()); // PCM
+    body.extend_from_slice(&channels.to_le_bytes());
+    body.extend_from_slice(&rate.to_le_bytes());
+    let block_align = channels * (bits / 8);
+    body.extend_from_slice(&(rate * u32::from(block_align)).to_le_bytes());
+    body.extend_from_slice(&block_align.to_le_bytes());
+    body.extend_from_slice(&bits.to_le_bytes());
+    body.extend_from_slice(b"data");
+    body.extend_from_slice(&audio_bytes.to_le_bytes());
+    body.resize(body.len() + audio_bytes as usize, 0);
+
+    let mut file = Vec::new();
+    file.extend_from_slice(b"RIFF");
+    file.extend_from_slice(&((4 + body.len()) as u32).to_le_bytes());
+    file.extend_from_slice(b"WAVE");
+    file.extend_from_slice(&body);
+    file
+}
+
+/// A `smpl` chunk declaring `numSampleLoops == 0`, which is 36 bytes — less than the 52-byte window
+/// the arm that reads it uses.
+fn synth_smpl_no_loops() -> Vec<u8> {
+    let mut chunk = Vec::new();
+    chunk.extend_from_slice(b"smpl");
+    chunk.extend_from_slice(&36u32.to_le_bytes());
+    for word in [0u32; 9] {
+        chunk.extend_from_slice(&word.to_le_bytes());
+    }
+    chunk
+}
+
+/// Splice `chunk` in just before the `data` chunk of a file built by [`synth_wav`], fixing the RIFF
+/// size up. The audio is zero-filled, so the only thing that moves is the header layout.
+fn synth_wav_with_chunk_before_data(base: Vec<u8>, chunk: &[u8]) -> Vec<u8> {
+    let data_at = base
+        .windows(4)
+        .position(|w| w == b"data")
+        .expect("the base file has a data chunk");
+    let mut file = Vec::with_capacity(base.len() + chunk.len());
+    file.extend_from_slice(&base[..data_at]);
+    file.extend_from_slice(chunk);
+    file.extend_from_slice(&base[data_at..]);
+    let riff_size = (file.len() - 8) as u32;
+    file[4..8].copy_from_slice(&riff_size.to_le_bytes());
+    file
+}
+
+/// Write the synthetic fixtures into `dir` and return their paths.
+fn write_synthetic_fixtures(dir: &Path) -> Vec<PathBuf> {
+    let mut written = Vec::new();
+    let mut put = |name: &str, bytes: Vec<u8>| {
+        let path = dir.join(name);
+        std::fs::write(&path, &bytes).unwrap_or_else(|e| panic!("write {path:?}: {e}"));
+        written.push(path);
+    };
+
+    // The shape this comparison was structurally unable to agree on until the wavetable side ran an
+    // audio-only walk: 192 kHz is unplayable as a SAMPLE and irrelevant to a wavetable, and mono
+    // with a whole number of 2048-sample cycles is a wavetable by length alone.
+    put(
+        "wt_192k_mono_2048.wav",
+        synth_wav(1, 192_000, 16, 2048 * 2 * 4),
+    );
+    // The same rate where it IS judged: as a stereo file of no wavetable shape, both sides must
+    // reject it, and for the same reason.
+    put("sample_192k_stereo.wav", synth_wav(2, 192_000, 16, 4096));
+    // A `smpl` declaring less than the window that reads it, immediately before `data` — the shape
+    // whose over-read used to walk the byte source into the audio.
+    put(
+        "wt_smpl_no_loops_before_data.wav",
+        synth_wav_with_chunk_before_data(
+            synth_wav(1, 44_100, 16, 2048 * 2),
+            &synth_smpl_no_loops(),
+        ),
+    );
+    // Ordinary files, so a change that broke the common case here would show up here too.
+    put("sample_44k1_stereo.wav", synth_wav(2, 44_100, 16, 4096));
+    put("wt_44k1_mono_2048.wav", synth_wav(1, 44_100, 16, 2048 * 2));
+    written
+}
 
 #[test]
 fn matches_the_cpp_parser_over_the_corpus() {
@@ -891,6 +1028,19 @@ fn matches_the_cpp_parser_over_the_corpus() {
         !paths.is_empty(),
         "no audio files found under {roots_env:?}"
     );
+
+    // Swept alongside the corpus, through the same dumper and the same comparison. Kept in a
+    // directory of their own so a corpus root is never written to.
+    let fixtures_dir = std::env::temp_dir().join("deluge-audio-differential-fixtures");
+    std::fs::create_dir_all(&fixtures_dir)
+        .unwrap_or_else(|e| panic!("create {fixtures_dir:?}: {e}"));
+    let synthetic = write_synthetic_fixtures(&fixtures_dir);
+    eprintln!(
+        "{}: {} synthetic fixtures",
+        fixtures_dir.display(),
+        synthetic.len()
+    );
+    paths.extend(synthetic);
 
     let dumps = run_cpp_dumper(&paths);
 
