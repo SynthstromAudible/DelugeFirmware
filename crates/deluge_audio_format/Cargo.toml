@@ -1,0 +1,16 @@
+# Audio-file HEADER decoding: WAV/RIFF and AIFF/FORM containers in, one plain
+# facts struct out. Deliberately narrow — this crate reads no files, allocates
+# nothing, and decodes no audio; it turns a byte prefix into an `AudioHeader`.
+#
+# It exists so the header parse can run inside a Rust async task, which the
+# pull-based C++ parser could not (a synchronous C++ callee cannot be driven by
+# an async reader). See
+# docs/superpowers/specs/2026-08-26-rust-audio-header-parser-design.md.
+[package]
+name = "deluge_audio_format"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+
+[lib]
