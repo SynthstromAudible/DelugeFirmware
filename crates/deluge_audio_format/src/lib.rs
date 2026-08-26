@@ -602,12 +602,23 @@ pub fn parse(bytes: &[u8]) -> Result<AudioHeader, ParseError> {
                 // than the file's own sample count); the corrected formula
                 // below reads sane positions matching the file. See
                 // task-7-report.md for the full trace.
-                if let Some(num_markers_raw) = read_u16_be(bytes, data_start) {
+                let chunk_end = data_start
+                    .checked_add(raw_size as usize)
+                    .map(|e| e.min(bytes.len()))
+                    .unwrap_or(bytes.len());
+                // Bound the count field itself the same way as every other
+                // read in this arm — it previously only relied on
+                // `read_u16_be`'s `bytes.len()` check, which was
+                // inconsistent with the chunk_end discipline used just below
+                // for the per-marker fields (benign today, since a bogus
+                // count still can't populate any markers past what the
+                // per-marker checks allow, but worth keeping symmetric).
+                if let Some(num_markers_raw) = data_start
+                    .checked_add(2)
+                    .filter(|&e| e <= chunk_end)
+                    .and_then(|_| read_u16_be(bytes, data_start))
+                {
                     let declared = core::cmp::min(num_markers_raw as usize, MAX_NUM_MARKERS);
-                    let chunk_end = data_start
-                        .checked_add(raw_size as usize)
-                        .map(|e| e.min(bytes.len()))
-                        .unwrap_or(bytes.len());
 
                     let mut cursor = data_start + 2;
                     let mut filled = 0usize;
@@ -1237,14 +1248,49 @@ mod tests {
 
     #[test]
     fn aiff_marker_count_past_bound_is_clamped() {
-        // kMaxNumMarkers is 8 (audio_file_format.cpp:31). Declare 3 markers
-        // but only the first 2 carry IDs the INST chunk names — this checks
-        // that clamping/iteration logic doesn't require exactly
-        // kMaxNumMarkers markers to be present, just that up to that many are
-        // read.
-        let h = parse(&form_with_markers(1, 100, 2, 200)).expect("should parse");
-        assert_eq!(h.file_loop_start_samples, 100);
-        assert_eq!(h.file_loop_end_samples, 200);
+        // kMaxNumMarkers is 8 (audio_file_format.cpp:31). Declare 9
+        // well-formed markers (ids 1..=9, positions 100..=900) — one more
+        // than the table holds — and have INST name marker 8 (the last one
+        // *inside* the bound, table index 7) as the loop start and marker 9
+        // (the first one *past* the bound) as the loop end.
+        //
+        // This exercises the boundary from both directions: marker 8 must
+        // still resolve (the clamp must not be off-by-one in the stricter
+        // direction and cut the table short), while marker 9 must NOT
+        // resolve (it must never be written into the table at all — with a
+        // fixed `[_; 8]` array and no clamp, writing a 9th entry would be an
+        // out-of-bounds array write, i.e. this test would panic rather than
+        // merely assert wrong, if the clamp were missing or off-by-one).
+        let mut v = form_comm_ssnd(1, 44100, 16, 8);
+        let mut mark = std::vec::Vec::new();
+        mark.extend_from_slice(&9u16.to_be_bytes()); // numMarkers: one past kMaxNumMarkers
+        for id in 1i16..=9 {
+            mark.extend_from_slice(&id.to_be_bytes());
+            mark.extend_from_slice(&(id as u32 * 100).to_be_bytes());
+            mark.push(0); // zero-length pstring
+            mark.push(0); // pad to even
+        }
+        v.extend_from_slice(b"MARK");
+        v.extend_from_slice(&(mark.len() as u32).to_be_bytes());
+        v.extend_from_slice(&mark);
+
+        let mut inst = std::vec::from_elem(0u8, 20);
+        inst[8..10].copy_from_slice(&1u16.to_be_bytes()); // playMode = forward loop
+        inst[10..12].copy_from_slice(&8i16.to_be_bytes()); // beginID: last marker inside the bound
+        inst[12..14].copy_from_slice(&9i16.to_be_bytes()); // endID: first marker past the bound
+        v.extend_from_slice(b"INST");
+        v.extend_from_slice(&20u32.to_be_bytes());
+        v.extend_from_slice(&inst);
+
+        let h = parse(&v).expect("should parse");
+        assert_eq!(
+            h.file_loop_start_samples, 800,
+            "marker 8 (in bound) should resolve"
+        );
+        assert_eq!(
+            h.file_loop_end_samples, 0,
+            "marker 9 (past the bound) must not resolve"
+        );
     }
 
     #[test]
