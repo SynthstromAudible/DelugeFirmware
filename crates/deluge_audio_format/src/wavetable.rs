@@ -147,4 +147,63 @@ mod tests {
             Ok(WavetableUse { cycle_size: 2048 })
         );
     }
+
+    // The tests above each violate exactly one rule, so none of them can
+    // notice if the check order were changed — every rejection would come
+    // out the same either way. The three below each violate two rules at
+    // once, so each one FAILS if its pair of checks were swapped: they pin
+    // precedence, not just "a rejection happens."
+
+    #[test]
+    fn aiff_check_precedes_stereo_check() {
+        // Stereo AND AIFF: the AIFF container check runs before the parser
+        // would even know the channel count (parseWaveTableHeader:493-496
+        // rejects before walkChunks starts), so it must win over Stereo when
+        // not insisting.
+        let h = header(Container::Aiff, 2, 2, 2048 * 2, true);
+        assert_eq!(
+            accept_as_wavetable(&h, false),
+            Err(Reject::AiffNotSupported),
+            "AIFF must be checked, and must reject, before stereo is ever considered"
+        );
+        // Insisting waives the AIFF check specifically, not the stereo
+        // check — so the same header now falls through to Stereo instead of
+        // being accepted.
+        assert_eq!(
+            accept_as_wavetable(&h, true),
+            Err(Reject::Stereo),
+            "insist waives the AIFF check, not the (unconditional) stereo check"
+        );
+    }
+
+    #[test]
+    fn stereo_check_precedes_length_shape_check() {
+        // Stereo AND a non-wavetable-looking length, no clm tag: finishWaveTable
+        // checks numChannels before it ever computes audioDataLengthSamples,
+        // so Stereo must win over NotAWavetable.
+        let h = header(Container::Wav, 2, 2, 1234, false);
+        assert_eq!(
+            accept_as_wavetable(&h, false),
+            Err(Reject::Stereo),
+            "stereo must be checked, and must reject, before the length/clm shape check runs"
+        );
+    }
+
+    #[test]
+    fn bit_depth_check_precedes_stereo_check() {
+        // byte_depth == 0 can't come from `parse` (see Reject::UnknownBitDepth's
+        // docs), but accept_as_wavetable takes any AudioHeader, and
+        // finishWaveTable's own first line checks byte depth before it looks
+        // at numChannels. Manufacturing this header isn't testing that the
+        // dead branch is reachable in practice (it still isn't) — it's the
+        // only way to observe that the two checks around it run in this
+        // order rather than the other.
+        let mut h = header(Container::Wav, 2, 2, 2048 * 2, true);
+        h.byte_depth = 0;
+        assert_eq!(
+            accept_as_wavetable(&h, false),
+            Err(Reject::UnknownBitDepth),
+            "bit depth must be checked, and must reject, before stereo is considered"
+        );
+    }
 }
