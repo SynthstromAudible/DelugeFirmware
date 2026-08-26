@@ -380,9 +380,12 @@ Important USB limits:
 - `k_usb_flush_backlog_message_threshold` opportunistically triggers a flush
   when the queued backlog grows and no USB send is active.
 
-`send_buffer_space()` reports remaining USB queue capacity as MIDI payload bytes,
-not as 4-byte USB-MIDI event slots. This keeps the return value comparable with
-callers that think in MIDI bytes.
+`send_buffer_space()` reports the free space in the **SysEx lane only**, as MIDI payload bytes rather
+than 4-byte USB-MIDI event slots, which keeps the return value comparable with a caller that thinks in
+MIDI bytes. Its one caller, `HIDSysex::sendDisplayIfChanged()`, uses it as backpressure before staging
+another OLED frame, and SysEx can only ever occupy the SysEx lane — so an aggregate across lanes would
+let a completely full SysEx lane still look like plenty of room. `MIDIQueueManagerDIN::send_buffer_space()`
+reports the same thing for the same reason.
 
 ### DIN scheduling
 
@@ -418,11 +421,12 @@ from filling the UART ahead of later higher-priority messages.
 - USB queue entries are already complete 4-byte USB-MIDI events, so one pop is
   one USB-MIDI event.
 - A logical USB SysEx message can span multiple USB-MIDI events. Once USB starts
-  draining that stream, no other MIDI is interleaved until the terminating SysEx
-  event has been sent.
+  draining a stream that is fully queued, no other MIDI is interleaved until the
+  terminating SysEx event has been sent.
 - A logical DIN SysEx message can span many raw bytes. Once DIN starts draining
-  that stream, no other MIDI is interleaved until the terminating `0xF7` byte
-  has been sent.
+  a stream that is fully queued, no other MIDI is interleaved until the
+  terminating `0xF7` byte has been sent. "Fully queued" is the qualification that
+  matters: see the `enqueue_sysex()` race noted at the end of this list.
 - DIN's highest-priority system lane is drained one byte at a time. Realtime
   messages are naturally complete in one byte.
 - Priority ordering applies when draining queues, not when enqueueing.
@@ -434,19 +438,44 @@ from filling the UART ahead of later higher-priority messages.
 - Lane capacities differ per lane and must each be a power of two. `MIDIQueueLane` masks positions
   rather than taking a modulo, and `MIDIQueueStorage` static-asserts the capacity table.
 - The queue manager never calls back into `MidiEngine`. `enqueue_message()` reports that a flush is
-  wanted and the caller decides; flushing from inside the queue would call back into the engine that
-  owns it and would let a mainline enqueue trigger the interrupt-masked drain.
+  wanted and the caller decides; flushing from inside the queue would close a call cycle
+  (engine → device → queue → engine) between layers that are otherwise one-way. This does not change
+  *when* the drain runs: both callers (`MidiEngine::sendUsbMidi()` and `MICableUSB::sendMessage()`)
+  flush synchronously on a `true` return, exactly where the queue would have.
 - Logical offsets used while scanning are relative to the lane read position, not
   physical array indices.
 - `write_pos` belongs to the producer and `read_pos` to the consumer. `consume_queued_messages()` runs
   in an ISR while senders enqueue from mainline code, so the consumer must never write `write_pos`.
   This is why out-of-order removal swaps with the head instead of rebuilding the ring.
 - Out-of-order removal frees its slot immediately. A lane must not accumulate dead entries.
-- Critical sections cover only the O(1) slot writes that producer and consumer share, never the
-  surrounding scan.
+- *Inside the queue manager*, critical sections cover only the O(1) slot writes that producer and
+  consumer share, never the surrounding scan. That is true of `MIDICCLanePolicy::coalesce()` and of the
+  head-swap removal in `pop_scheduled()`.
+  It is **not** true of the USB drain as a whole. `MidiEngine::flushUSBMIDIOutput()` takes a
+  whole-function `CriticalSectionGuard` (`midi_engine.cpp`, "make sure the interrupt doesn't fire mid
+  flush"), so every USB lane traversal — including up to
+  `k_usb_cc_message_allowance_per_transfer` scheduled-CC selection passes per transfer, for each of up
+  to `MAX_NUM_USB_MIDI_DEVICES` devices in host mode — runs with interrupts masked. That guard predates
+  this subsystem; what changed is how much work now sits inside it. It has not been narrowed, because
+  doing so is a real-time behaviour change that wants measurement on a device.
+- Consequently the inner `CriticalSectionGuard` in `midi_cc_policy.h`'s `remove_selected` is redundant
+  on the USB path — interrupts are already masked by the caller — but load-bearing on DIN, where
+  `MIDIQueueManagerDIN::consume_queued_messages()` runs without an outer guard. Nested guards are safe;
+  it stays because the policy is shared and cannot know which transport it is running under.
 - Because the scan runs unguarded, a coalescing write re-validates the entry's identity under the guard
   before overwriting it; a concurrent removal can shift logical offsets, so a captured offset may name a
   different message by the time it is used. On a mismatch the caller appends instead.
+- `MIDICCQueuePolicy`'s `cc_debt[]` is read and written from both sides of the ISR boundary with no
+  guard at all. That is deliberate: an entry is a single byte, and a lost update only mis-prioritises
+  one CC for one pop — the CC is still queued, still sent, and still carries its latest value. Debt is a
+  scheduling hint, not queue state.
+- `MIDIQueueManagerDIN::enqueue_sysex()` checks that the whole stream fits and then pushes it one byte
+  at a time from mainline code, so it is only atomic against the lane being *full*, not against the
+  drain. An ISR drain landing mid-enqueue can pop the leading `0xF0`, set `sysex_drain_active_`, run the
+  lane dry before the rest of the stream has been pushed, hit the defensive
+  `sysex_drain_active_ = false` recovery, and then emit other MIDI before the remainder of the stream
+  follows. The no-interleave guarantee above is therefore a property of the *drain*, not something that
+  survives an enqueue racing it.
 - Messages that must stay ordered relative to each other must share a lane, because lanes are FIFO and
   the drain reorders freely across them.
 
@@ -479,9 +508,15 @@ Headers are split by responsibility so a reader can start at the layer they care
 ## Testing
 
 `tests/unit/midi_queue_manager_tests.cpp` covers the transport-neutral pieces on the host: ring-lane
-mechanics, out-of-order removal, CC selection and coalescing, and one regression test per ordering
+mechanics, out-of-order removal, CC selection, lane capacities, and one regression test per ordering
 defect (RPN sequences, MPE note initialisation, bank select before program change, All Notes Off, and
-momentary CCs). Build and run with:
+momentary CCs).
+
+One caveat about that file: its *coalescing* tests drive
+`MIDICCQueuePolicy::coalesce_latest_matching_cc()` / `find_latest_matching_cc_offset()`, which nothing in
+`src/` calls any more. The live path is `MIDICCLanePolicy<Transport>::coalesce()`, and it is covered by
+the two drain test files instead. Read those tests as pinning the selection *algorithm*, not the
+production coalescing call. Build and run with:
 
 ```bash
 cmake -S tests -B tests/build && ninja -C tests/build UnitTests && ./tests/build/unit/UnitTests
@@ -506,6 +541,14 @@ allowance paths testable.
 What the host tests cannot reach is the hardware behaviour on the other side of those symbols, so the
 following still want checking on a device:
 
+- The interrupt-masked window in `MidiEngine::flushUSBMIDIOutput()`. Its whole-function
+  `CriticalSectionGuard` now encloses the full lane traversal plus up to eight scheduled-CC selection
+  passes per transfer, times up to `MAX_NUM_USB_MIDI_DEVICES` devices in host mode. The guard is
+  pre-existing; the work inside it is not. Nothing here can measure how long interrupts are actually
+  masked, or what that does to audio.
+- The `enqueue_sysex()` / drain race described in the invariants: an ISR drain landing between the
+  pushes of one DIN SysEx stream can emit other MIDI inside it. Reproducing it wants dense outgoing
+  MIDI concurrent with a large SysEx transfer on a real device.
 - MIDI expression output, particularly that an MPE note-on no longer overtakes the expression that
   initialises it.
 - MPE zone configuration actually applying (the RPN path).
