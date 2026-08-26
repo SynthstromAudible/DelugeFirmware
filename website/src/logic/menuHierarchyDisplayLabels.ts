@@ -2,6 +2,7 @@ const DISPLAY_CODE_PATTERN = /\(([^()]+)\)/g
 const MENU_HIERARCHY_PATH =
   /\/reference\/(menu_hierarchies|menu-hierarchies)\/?$/i
 const MAX_DISPLAY_CODE_LENGTH = 32
+const SEVEN_SEG_PREVIEW_LENGTH = 4
 const NON_DISPLAY_PARENTHETICAL_PATTERN =
   /^(if |note:|only |or |e\.g\.|can |each |synth clips$|kit rows$|no fx$|default\.xml$|synth \/ kit \/ midi \/ cv$)/i
 
@@ -17,6 +18,13 @@ type SeparatorDisplayPart = {
 }
 
 type DisplayPart = SingleDisplayPart | SeparatorDisplayPart
+
+function getTagClassSuffix(tag: string) {
+  return tag
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+}
 
 function isDisplayCode(value: string) {
   const code = value.trim()
@@ -101,7 +109,40 @@ function getDisplayParts(text: string): DisplayPart[] | undefined {
   return displayParts ? [displayParts] : undefined
 }
 
-function createDisplayLabel({ oled, displayCode }: SingleDisplayPart) {
+function getSevenSegPreview(value: string) {
+  const normalized = value.trim().replace(/\s+/g, " ")
+
+  if (normalized.length <= SEVEN_SEG_PREVIEW_LENGTH) {
+    return normalized
+  }
+
+  return normalized.slice(0, SEVEN_SEG_PREVIEW_LENGTH).toUpperCase()
+}
+
+function toggleSevenSegPreview(sevenSegment: HTMLElement) {
+  const shortLabel = sevenSegment.dataset.shortLabel ?? ""
+  const fullLabel = sevenSegment.dataset.fullLabel ?? shortLabel
+  const expanded = sevenSegment.dataset.expanded === "true"
+  const nextExpanded = !expanded
+
+  sevenSegment.dataset.expanded = nextExpanded ? "true" : "false"
+  sevenSegment.setAttribute("aria-pressed", nextExpanded ? "true" : "false")
+  sevenSegment.setAttribute(
+    "aria-label",
+    `7SEG: ${nextExpanded ? fullLabel : shortLabel}. Activate to ${nextExpanded ? "show short" : "show full"} text.`,
+  )
+  sevenSegment.textContent = nextExpanded ? fullLabel : shortLabel
+
+  const label = sevenSegment.closest(".menu-hierarchy-display-label")
+  if (label instanceof HTMLElement) {
+    label.dataset.sevenSegmentExpanded = nextExpanded ? "true" : "false"
+  }
+}
+
+function createDisplayLabel(
+  { oled, displayCode }: SingleDisplayPart,
+  allowSevenSegToggle: boolean,
+) {
   const label = document.createElement("span")
   label.className = "menu-hierarchy-display-label"
   label.dataset.oledLabel = oled.trim()
@@ -109,18 +150,45 @@ function createDisplayLabel({ oled, displayCode }: SingleDisplayPart) {
 
   const sevenSegment = document.createElement("span")
   sevenSegment.className = "menu-hierarchy-7seg"
-  sevenSegment.setAttribute("aria-label", `7SEG: ${displayCode}`)
-  sevenSegment.textContent = displayCode
+
+  const shortLabel = getSevenSegPreview(displayCode)
+  sevenSegment.dataset.shortLabel = shortLabel
+  sevenSegment.dataset.fullLabel = displayCode
+  sevenSegment.dataset.expanded = "false"
+  sevenSegment.textContent = shortLabel
+
+  if (allowSevenSegToggle && shortLabel !== displayCode) {
+    label.dataset.sevenSegmentExpanded = "false"
+    sevenSegment.classList.add("menu-hierarchy-7seg-toggle")
+    sevenSegment.tabIndex = 0
+    sevenSegment.setAttribute("role", "button")
+    sevenSegment.setAttribute("aria-pressed", "false")
+    sevenSegment.setAttribute(
+      "aria-label",
+      `7SEG: ${shortLabel}. Activate to show full text.`,
+    )
+    sevenSegment.addEventListener("click", () => {
+      toggleSevenSegPreview(sevenSegment)
+    })
+    sevenSegment.addEventListener("keydown", (event) => {
+      if (event.key === "Enter" || event.key === " ") {
+        event.preventDefault()
+        toggleSevenSegPreview(sevenSegment)
+      }
+    })
+  } else {
+    sevenSegment.setAttribute("aria-label", `7SEG: ${displayCode}`)
+  }
 
   const sevenSegmentValue = document.createElement("span")
   sevenSegmentValue.className = "menu-hierarchy-7seg-value"
-  sevenSegmentValue.append(document.createTextNode(" "), sevenSegment)
+  sevenSegmentValue.append(sevenSegment, document.createTextNode(" "))
 
   const oledText = document.createElement("span")
   oledText.className = "menu-hierarchy-oled"
   oledText.textContent = oled.trim()
 
-  label.append(oledText, sevenSegmentValue)
+  label.append(sevenSegmentValue, oledText)
 
   return label
 }
@@ -180,6 +248,8 @@ function enhanceNode(node: HTMLElement) {
     return
   }
 
+  const allowSevenSegToggle = !node.closest("summary")
+
   const replacementNodes = displayParts.flatMap((part) => {
     if ("text" in part) {
       return [document.createTextNode(part.text)]
@@ -187,13 +257,50 @@ function enhanceNode(node: HTMLElement) {
 
     return [
       document.createTextNode(part.leadingWhitespace),
-      createDisplayLabel(part),
+      createDisplayLabel(part, allowSevenSegToggle),
       document.createTextNode(part.after),
     ]
   })
 
   textNode.replaceWith(...replacementNodes)
   node.dataset.menuHierarchyDisplayLabel = "true"
+}
+
+function enhanceSummaryTags(content: HTMLElement) {
+  content.querySelectorAll(".menu-hierarchy-tree-root").forEach((treeRoot) => {
+    if (!(treeRoot instanceof HTMLElement)) {
+      return
+    }
+
+    const tag = treeRoot.dataset.treeTag?.trim() ?? ""
+    if (!tag) {
+      return
+    }
+
+    const details = treeRoot.closest("details")
+    if (!(details instanceof HTMLElement)) {
+      return
+    }
+
+    const summary = details.querySelector(":scope > summary")
+    if (!(summary instanceof HTMLElement)) {
+      return
+    }
+
+    if (summary.querySelector(".menu-hierarchy-node-tag")) {
+      return
+    }
+
+    summary.append(" ")
+
+    const badge = document.createElement("span")
+    const tagClassSuffix = getTagClassSuffix(tag)
+    badge.className = `menu-hierarchy-node-tag menu-hierarchy-node-tag--${tagClassSuffix}`
+    badge.setAttribute("data-tag", tag)
+    badge.setAttribute("aria-label", `Menu tag ${tag}`)
+    badge.textContent = tag
+    summary.append(badge)
+  })
 }
 
 export function enhanceMenuHierarchyLabels() {
@@ -208,10 +315,13 @@ export function enhanceMenuHierarchyLabels() {
 
   content.classList.add("menu-hierarchy-page")
   ensureHide7SegToggle(content)
+  enhanceSummaryTags(content)
 
-  content.querySelectorAll("li, summary").forEach((node) => {
-    if (node instanceof HTMLElement) {
-      enhanceNode(node)
-    }
-  })
+  content
+    .querySelectorAll(".menu-hierarchy-row-label, li, summary")
+    .forEach((node) => {
+      if (node instanceof HTMLElement) {
+        enhanceNode(node)
+      }
+    })
 }

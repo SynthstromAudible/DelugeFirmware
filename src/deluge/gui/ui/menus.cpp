@@ -1490,10 +1490,6 @@ PLACE_SDRAM_BSS HorizontalMenu soundMasterMenu{
     STRING_FOR_MASTER,
     {&synthModeMenu, &volumeMenu, &panMenu, &masterTransposeMenu, &vibratoMenu},
 };
-PLACE_SDRAM_BSS HorizontalMenu soundMasterMenuWithoutVibrato{
-    STRING_FOR_MASTER,
-    {&synthModeMenu, &volumeMenu, &panMenu, &masterTransposeMenu},
-};
 
 PLACE_SDRAM_BSS HorizontalMenuGroup sourceMenuGroup{
     {&source0Menu, &source1Menu, &modulator0Menu, &modulator1Menu, &oscMixerMenu}};
@@ -2018,7 +2014,7 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForKitGlobalFX[][kDisplayHeight] = {
 };
 
 PLACE_SDRAM_BSS deluge::vector<HorizontalMenu*> horizontalMenusChainForSound = {
-	&recorderMenu, &soundMasterMenuWithoutVibrato,
+    &recorderMenu, &soundMasterMenu,
 	&sourceMenuGroup, &voiceMenuGroup, &envMenuGroup, &lfoMenuGroup,
 	&filtersMenuGroup, &eqMenu, &modFXMenu,
 	&reverbMenuGroup, &delayMenu, &soundDistortionMenu,

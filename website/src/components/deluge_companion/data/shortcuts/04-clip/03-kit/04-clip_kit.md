@@ -42,7 +42,7 @@ hold(SAVE) + press(KIT), turn(SELECT), press(SELECT)
 #OFFICIAL #KIT
 
 ```shortcut
-hold(LOAD) + press(KIT), turn(SELECT), hold(LOAD) + menu(NONE), press(SELECT)
+hold(LOAD) + press(KIT), turn(SELECT), hold(LOAD), menu(CLONE), press(SELECT)
 ```
 
 A single preset can only appear in one active clip, so clone the original preset for multiple instances in the same song. It is good practice to clone first when tweaking to avoid affecting interdependent songs.
@@ -70,7 +70,7 @@ hold(SHIFT) + hold(AUDITION) + press(LOAD), turn(SELECT), press(SELECT)
 #OFFICIAL #KIT
 
 ```shortcut
-hold(SHIFT) + press(KIT), turn(SELECT), hold(SELECT), menu(NONE), press(SELECT)
+hold(SHIFT) + press(KIT), turn(SELECT), hold(SELECT), menu(LOAD_ALL), press(SELECT)
 ```
 
 Scroll to the parent folder of the samples you want, or to a sample within the folder, then choose ALL.
@@ -82,7 +82,7 @@ Beware of CPU and memory overhead when loading large amounts of samples into kit
 #OFFICIAL #KIT
 
 ```shortcut
-hold(SHIFT), press(KIT), turn(SELECT), hold(SELECT), menu(NONE), press(SELECT), menu(NONE), press(SELECT)
+hold(SHIFT), press(KIT), turn(SELECT), hold(SELECT), turn(select) + menu(SLICE), press(SELECT), turn(select), press(SELECT)
 ```
 
 Scroll to a sample, choose SLICE, then select the number of slices from 2-256.
@@ -94,7 +94,7 @@ You can add more samples to sliced kits, but not more slices to existing kits. O
 #OFFICIAL #KIT
 
 ```shortcut
-hold(AUDITION) + press(GRID), turn(SELECT), menu(NONE), press(SELECT)
+hold(AUDITION) + press(VOICE_POLYPHONY), turn(SELECT), menu(CHOKE), press(SELECT)
 ```
 
 Select CHOKe. When playing, this stops all other notes in the same kit that are set to the same choke group.
