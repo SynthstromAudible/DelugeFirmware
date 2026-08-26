@@ -16,6 +16,14 @@
 //! 8 MB of SDRAM. The C++ parser being replaced here *seeks*; losing that and
 //! substituting contiguity was the defect this API shape fixes.
 //!
+//! **The parser is told the file's size**, which is what makes the walk finite
+//! by construction rather than by the caller behaving: no request can name a
+//! byte past the end, so the end of the file is not something a caller has to
+//! signal — and cannot get wrong. That is also why the two entry points return
+//! different errors. [`HeaderParser`] fails with [`HeaderError`], which has no
+//! "supply more and retry" variant to loop on; only [`parse`], whose slice
+//! really is a prefix the caller can extend, has [`ParseError::NeedAtLeast`].
+//!
 //! [`parse`] remains as a convenience for callers that hold a whole file (tests,
 //! tools, the corpus differential).
 //!
@@ -80,6 +88,43 @@ pub enum ParseError {
     NotAudio,
     Malformed(Reason),
     Unsupported(Reason),
+}
+
+/// Why a streaming decode stopped.
+///
+/// Deliberately has no "supply more and retry": a [`HeaderParser`] is told the
+/// file's size at construction and never asks for a byte past it, so "the
+/// caller must read further" is not a state this type can express. That is the
+/// whole difference from [`ParseError`], whose [`ParseError::NeedAtLeast`]
+/// means exactly that — and an adapter looping on the two as if they were the
+/// same thing would re-read a file that has no more bytes to give, forever.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum HeaderError {
+    /// No container we recognise. Distinct from `Malformed` so a caller can
+    /// tell "not an audio file" from "a broken audio file".
+    NotAudio,
+    Malformed(Reason),
+    Unsupported(Reason),
+    /// The file ends before the header does. `needs_at_least` is how long the
+    /// file would have to be for the field being read to exist — a fact about
+    /// the file, not an instruction to fetch more.
+    Truncated {
+        needs_at_least: u32,
+    },
+}
+
+impl From<HeaderError> for ParseError {
+    /// [`parse`] treats its slice as a *prefix* the caller can extend, so a
+    /// file that ends too early is the one case that really is "supply more and
+    /// call again" — the only place the two meanings legitimately meet.
+    fn from(error: HeaderError) -> Self {
+        match error {
+            HeaderError::NotAudio => ParseError::NotAudio,
+            HeaderError::Malformed(reason) => ParseError::Malformed(reason),
+            HeaderError::Unsupported(reason) => ParseError::Unsupported(reason),
+            HeaderError::Truncated { needs_at_least } => ParseError::NeedAtLeast(needs_at_least),
+        }
+    }
 }
 
 /// Hints a file gives about being a wavetable. Facts only — whether they are
@@ -205,9 +250,19 @@ fn decode_aiff_extended_rate(bytes: &[u8; 10]) -> u32 {
 /// declares can influence how much the caller has to hold.
 ///
 /// This constant is the point of the windowed protocol: peak caller memory is
-/// this many bytes, not the file. A caller may always supply more than asked
-/// for — a whole SD cluster, say — and the parser will consume as much of it as
-/// it can before asking again.
+/// this many bytes, not the file.
+///
+/// **It is a floor, not a serving size.** A caller should hand back whatever it
+/// already holds — a whole SD cluster is ideal — and the parser will satisfy as
+/// many requests from that one window as it covers. The difference is not
+/// cosmetic. A walk costs one request per chunk header, and a file whose `data`
+/// chunk *under-declares* its length (a recorder that never fixed up the header,
+/// a card that filled mid-write — not hostile input, just common damage) makes
+/// the parser read the audio itself as a stream of nonsense chunk headers. On a
+/// 1 MB file of that shape the walk takes 131,075 feeds at exact windows,
+/// 2,050 at 512 bytes, 258 at 4 KiB, and 34 at 32 KiB. The parse is bounded and
+/// correct either way; only the number of round trips to the card changes, and
+/// on a device those are what you are paying for.
 pub const MAX_WINDOW_BYTES: u32 = 52;
 
 const TOP_HEADER_LEN: u32 = 12;
@@ -278,18 +333,6 @@ impl PayloadKind {
         PayloadKind::Ssnd,
         PayloadKind::AiffInst,
     ];
-
-    /// Whether a short window is a truncated *header* (ask for more) rather
-    /// than simply a chunk that runs out. The mandatory ones are the chunks the
-    /// C++ oracle rejects a file over; the rest are metadata whose absence just
-    /// leaves a field at its default, mirroring the oracle's bounds-checked
-    /// reads that silently skip.
-    const fn required(self) -> bool {
-        matches!(
-            self,
-            PayloadKind::Fmt | PayloadKind::Comm | PayloadKind::Ssnd
-        )
-    }
 }
 
 /// [`MAX_WINDOW_BYTES`] is a promise to the caller about its buffer, so it is
@@ -303,7 +346,8 @@ const _: () = {
         i += 1;
     }
     assert!(TOP_HEADER_LEN <= MAX_WINDOW_BYTES);
-    assert!(CHUNK_HEADER_LEN + 1 <= MAX_WINDOW_BYTES); // header plus a pad byte
+    // A chunk header plus the pad byte that can precede it.
+    assert!(CHUNK_HEADER_LEN < MAX_WINDOW_BYTES);
     assert!(MARK_COUNT_LEN <= MAX_WINDOW_BYTES);
     assert!(MARK_ENTRY_LEN <= MAX_WINDOW_BYTES);
 };
@@ -347,7 +391,7 @@ enum Phase {
         declared: usize,
     },
     Done(AudioHeader),
-    Failed(ParseError),
+    Failed(HeaderError),
 }
 
 /// A resumable WAV/AIFF header decode.
@@ -365,10 +409,13 @@ enum Phase {
 ///
 /// ```
 /// # use deluge_audio_format::{HeaderParser, FeedResult};
-/// # fn read_at(_f: &[u8], _s: u32, _l: u32) -> &'static [u8] { &[] }
-/// let mut parser = HeaderParser::new();
+/// # fn read_exact_at(_f: &[u8], _s: u32, _l: u32) -> &'static [u8] { &[] }
+/// # let file_size = 0u32;
+/// let mut parser = HeaderParser::new(file_size);
 /// while let Some((start, len)) = parser.pending() {
-///     let window = read_at(&[], start, len); // whatever exists at `start`
+///     // `start + len` is inside the file, so this always reads real bytes.
+///     // Handing back MORE than `len` — a whole cluster, say — is better still.
+///     let window = read_exact_at(&[], start, len);
 ///     match parser.feed(window, start) {
 ///         Ok(FeedResult::Done(header)) => { let _ = header; break }
 ///         Ok(FeedResult::Need { .. }) => continue,
@@ -378,6 +425,16 @@ enum Phase {
 /// ```
 #[derive(Clone, Debug)]
 pub struct HeaderParser {
+    /// The file's true size, when the caller knows it — which every real caller
+    /// does: the filesystem has it, and the C++ parser this replaces bounds its
+    /// own walk with `AudioByteSource::size()`. Knowing it is what makes
+    /// [`HeaderParser::pending`] unable to name a byte past the end, and so
+    /// makes the walk finite by construction.
+    ///
+    /// `None` is prefix mode, reachable only through [`parse`] (see
+    /// [`HeaderParser::for_prefix`]), where the end of the file is not known
+    /// and running out of bytes has to mean "ask for more" instead.
+    file_size: Option<u32>,
     phase: Phase,
     container: Container,
     /// Bytes 4..8 of the container header: how many bytes the file claims
@@ -411,17 +468,36 @@ pub struct HeaderParser {
     sustain_loop_end_marker_id: i16,
 }
 
-impl Default for HeaderParser {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl HeaderParser {
-    /// A parser positioned at the start of a file, wanting its container header.
+    /// A parser positioned at the start of a `file_size`-byte file, wanting its
+    /// container header.
+    ///
+    /// Passing the size is not a convenience — it is what bounds the walk. Every
+    /// request is clamped to what the file actually holds, so a request past the
+    /// end cannot be expressed, and a caller cannot answer one by padding.
     #[must_use]
-    pub const fn new() -> Self {
+    pub const fn new(file_size: u32) -> Self {
+        Self::with_size(Some(file_size))
+    }
+
+    /// A parser for a caller that does not know where the file ends: running out
+    /// of bytes means "supply more", not "the file stopped".
+    ///
+    /// Private on purpose. It is the shape [`parse`] needs — its slice is a
+    /// prefix, not a file — and the one shape whose walk is not bounded by a
+    /// size, so it is not something a caller can reach for by accident.
+    const fn for_prefix() -> Self {
+        Self::with_size(None)
+    }
+
+    /// The window a fresh parser wants: the container header. Exposed so
+    /// [`parse`] can drive the walk without a "what if it's already finished"
+    /// branch that could never be taken.
+    const FIRST_REQUEST: (u32, u32) = (0, TOP_HEADER_LEN);
+
+    const fn with_size(file_size: Option<u32>) -> Self {
         Self {
+            file_size,
             phase: Phase::Top,
             container: Container::Wav,
             declared_after_top: u32::MAX,
@@ -448,6 +524,10 @@ impl HeaderParser {
 
     /// The window `feed` is waiting for as `(start, len)`, or `None` once the
     /// parse has finished (successfully or not).
+    ///
+    /// Both halves are inside the file: `start + len` never exceeds the size
+    /// this parser was built with, so `read_exact` into a `len`-sized buffer is
+    /// always the right thing and there is never anything to pad.
     #[must_use]
     pub fn pending(&self) -> Option<(u32, u32)> {
         match self.phase {
@@ -459,18 +539,19 @@ impl HeaderParser {
     /// Hand the parser the bytes it asked for.
     ///
     /// `window_start` is the absolute file offset `window` begins at; it should
-    /// be the `start` of the pending request. **A window shorter than the
-    /// request declares that the file ends inside it** — that is how the parser
-    /// learns where the file stops, since it never asks for a total size. A
-    /// caller that supplies more than was asked for is welcome to: the parser
-    /// consumes as many further requests from the same window as it fully
-    /// covers before returning.
+    /// be the `start` of the pending request. Supplying **more** than was asked
+    /// for is not merely allowed but wanted — see [`MAX_WINDOW_BYTES`] — and the
+    /// parser will satisfy as many further requests from the same window as it
+    /// fully covers before asking again.
     ///
-    /// A window that does not reach the requested offset at all is treated as
-    /// "nothing lives there", which ends the walk deterministically rather than
-    /// re-asking — a misbehaving caller gets a wrong-but-terminating answer,
-    /// never a hang.
-    pub fn feed(&mut self, window: &[u8], window_start: u32) -> Result<FeedResult, ParseError> {
+    /// Supplying **less** is a failed read: the request was already clamped to
+    /// the file, so the bytes exist. It is reported as
+    /// [`HeaderError::Truncated`] rather than quietly ending the walk with a
+    /// half-built header. There is nothing to pad and no reason to.
+    ///
+    /// The end of the file needs no answer at all: the parser knows where it is
+    /// and finishes the walk itself.
+    pub fn feed(&mut self, window: &[u8], window_start: u32) -> Result<FeedResult, HeaderError> {
         loop {
             match self.phase {
                 Phase::Done(header) => return Ok(FeedResult::Done(header)),
@@ -479,15 +560,30 @@ impl HeaderParser {
             }
 
             let (start, len) = self.request();
+            if self.past_end(start) {
+                // The file has nothing at this offset. That is the end of the
+                // walk, and the parser already knows it — no round trip, and no
+                // way for a caller to answer with padding instead.
+                self.try_step(&[])?;
+                continue;
+            }
+
             let available = window_at(window, window_start, start);
-            let usable = &available[..available.len().min(len as usize)];
-            if let Err(error) = self.step(usable) {
+            if self.file_size.is_some() && (available.len() as u32) < len {
+                // Clamped above, so these bytes are inside the file: a short
+                // answer is a read that failed, not an end of file.
+                let error = HeaderError::Truncated {
+                    needs_at_least: start.saturating_add(len),
+                };
                 self.phase = Phase::Failed(error);
                 return Err(error);
             }
+            let usable = &available[..available.len().min(len as usize)];
+            self.try_step(usable)?;
 
             if let Some((next_start, next_len)) = self.pending() {
-                if !covers(window, window_start, next_start, next_len) {
+                if !self.past_end(next_start) && !covers(window, window_start, next_start, next_len)
+                {
                     return Ok(FeedResult::Need {
                         start: next_start,
                         len: next_len,
@@ -497,8 +593,31 @@ impl HeaderParser {
         }
     }
 
-    /// The pending window for a non-terminal phase.
+    /// Whether the file is known to hold nothing at `start`.
+    fn past_end(&self, start: u32) -> bool {
+        self.file_size.is_some_and(|size| start >= size)
+    }
+
+    fn try_step(&mut self, win: &[u8]) -> Result<(), HeaderError> {
+        if let Err(error) = self.step(win) {
+            self.phase = Phase::Failed(error);
+            return Err(error);
+        }
+        Ok(())
+    }
+
+    /// The pending window for a non-terminal phase, clamped to the file.
     fn request(&self) -> (u32, u32) {
+        let (start, len) = self.unclamped_request();
+        match self.file_size {
+            // `start < size` holds whenever this is reached: `feed` resolves a
+            // request at or past the end itself, without asking the caller.
+            Some(size) => (start, len.min(size.saturating_sub(start))),
+            None => (start, len),
+        }
+    }
+
+    fn unclamped_request(&self) -> (u32, u32) {
         match self.phase {
             Phase::Top => (0, TOP_HEADER_LEN),
             Phase::Header { at, pad } => (at, pad + CHUNK_HEADER_LEN),
@@ -511,7 +630,7 @@ impl HeaderParser {
         }
     }
 
-    fn step(&mut self, win: &[u8]) -> Result<(), ParseError> {
+    fn step(&mut self, win: &[u8]) -> Result<(), HeaderError> {
         match self.phase {
             Phase::Top => self.step_top(win),
             Phase::Header { at, pad } => self.step_header(win, at, pad),
@@ -528,14 +647,16 @@ impl HeaderParser {
         }
     }
 
-    fn step_top(&mut self, win: &[u8]) -> Result<(), ParseError> {
-        if win.len() < TOP_HEADER_LEN as usize {
-            return Err(ParseError::NeedAtLeast(TOP_HEADER_LEN));
-        }
-        self.container = match (&win[0..4], &win[8..12]) {
+    fn step_top(&mut self, win: &[u8]) -> Result<(), HeaderError> {
+        let Some(top) = win.first_chunk::<{ TOP_HEADER_LEN as usize }>() else {
+            return Err(HeaderError::Truncated {
+                needs_at_least: TOP_HEADER_LEN,
+            });
+        };
+        self.container = match (&top[0..4], &top[8..12]) {
             (b"RIFF", b"WAVE") => Container::Wav,
             (b"FORM", b"AIFF") => Container::Aiff,
-            _ => return Err(ParseError::NotAudio),
+            _ => return Err(HeaderError::NotAudio),
         };
         // Bytes 4..8 declare how many bytes follow them: the 4-byte format id
         // plus every chunk after it. A truthful, fully-supplied empty container
@@ -544,11 +665,11 @@ impl HeaderParser {
         // container (no chunks at all) apart from a file truncated before its
         // first chunk header; once the walk has read a real chunk we no longer
         // need it (see `finish`).
+        let declared = [top[4], top[5], top[6], top[7]];
         self.declared_after_top = match self.container {
-            Container::Wav => read_u32_le(win, 4),
-            Container::Aiff => read_u32_be(win, 4),
-        }
-        .unwrap_or(u32::MAX); // Always Some: the length check above guarantees it.
+            Container::Wav => u32::from_le_bytes(declared),
+            Container::Aiff => u32::from_be_bytes(declared),
+        };
         self.phase = Phase::Header {
             at: TOP_HEADER_LEN,
             pad: 0,
@@ -556,7 +677,7 @@ impl HeaderParser {
         Ok(())
     }
 
-    fn step_header(&mut self, win: &[u8], at: u32, pad: u32) -> Result<(), ParseError> {
+    fn step_header(&mut self, win: &[u8], at: u32, pad: u32) -> Result<(), HeaderError> {
         // The previous chunk's trailing pad byte is deliberately NOT required
         // to be present: it exists only so the NEXT chunk starts on an even
         // offset, and real-world files routinely omit it when the odd chunk is
@@ -575,9 +696,9 @@ impl HeaderParser {
         }
         let header_start = at.saturating_add(pad);
         if header.len() < CHUNK_HEADER_LEN as usize {
-            return Err(ParseError::NeedAtLeast(
-                header_start.saturating_add(CHUNK_HEADER_LEN),
-            ));
+            return Err(HeaderError::Truncated {
+                needs_at_least: header_start.saturating_add(CHUNK_HEADER_LEN),
+            });
         }
 
         let tag: [u8; 4] = [header[0], header[1], header[2], header[3]];
@@ -594,7 +715,11 @@ impl HeaderParser {
             Some(v) => v,
             // A chunk header the caller can't possibly grow into can never be
             // satisfied; report the largest ask we can.
-            None => return Err(ParseError::NeedAtLeast(u32::MAX)),
+            None => {
+                return Err(HeaderError::Truncated {
+                    needs_at_least: u32::MAX,
+                })
+            }
         };
         let chunk = Chunk {
             data_start,
@@ -623,7 +748,7 @@ impl HeaderParser {
                 // before looking at the payload at all, so this check precedes
                 // the window request.
                 if raw_size != PayloadKind::Comm.window_len() {
-                    return Err(ParseError::Unsupported(Reason::UnsupportedFormatTag));
+                    return Err(HeaderError::Unsupported(Reason::UnsupportedFormatTag));
                 }
                 self.wait_for(PayloadKind::Comm, chunk)
             }
@@ -649,7 +774,7 @@ impl HeaderParser {
         }
     }
 
-    fn wait_for(&mut self, kind: PayloadKind, chunk: Chunk) -> Result<(), ParseError> {
+    fn wait_for(&mut self, kind: PayloadKind, chunk: Chunk) -> Result<(), HeaderError> {
         self.phase = Phase::Payload { kind, chunk };
         Ok(())
     }
@@ -657,13 +782,17 @@ impl HeaderParser {
     /// Step over the rest of `chunk` — payload included, unread — and line up
     /// the next chunk header. RIFF/IFF chunks are word-aligned, so an odd
     /// payload is followed by a pad byte, folded into the next request.
-    fn advance_past(&mut self, chunk: Chunk) -> Result<(), ParseError> {
+    fn advance_past(&mut self, chunk: Chunk) -> Result<(), HeaderError> {
         let unpadded_end = match chunk.data_start.checked_add(chunk.raw_size) {
             Some(v) => v,
             // `raw_size` comes straight from the file: a hostile size that walks
             // the cursor past the end of the address space can never be
             // satisfied by any buffer.
-            None => return Err(ParseError::NeedAtLeast(u32::MAX)),
+            None => {
+                return Err(HeaderError::Truncated {
+                    needs_at_least: u32::MAX,
+                })
+            }
         };
         self.phase = Phase::Header {
             at: unpadded_end,
@@ -677,24 +806,29 @@ impl HeaderParser {
         win: &[u8],
         kind: PayloadKind,
         chunk: Chunk,
-    ) -> Result<(), ParseError> {
-        if kind.required() && (win.len() as u32) < kind.window_len() {
-            return Err(ParseError::NeedAtLeast(
-                chunk.data_start.saturating_add(kind.window_len()),
-            ));
-        }
+    ) -> Result<(), HeaderError> {
+        // Each arm below asks for exactly the bytes it reads and gets back a
+        // fixed-size array, so every read after that is bounds-checked by the
+        // type rather than by a rule kept in step with it by hand. The arms
+        // that tolerate a short window (metadata whose absence just leaves a
+        // field at its default, mirroring the C++ oracle's bounds-checked reads
+        // that silently skip) simply never ask.
+        let short = |needed: u32| HeaderError::Truncated {
+            needs_at_least: chunk.data_start.saturating_add(needed),
+        };
 
         match kind {
             PayloadKind::Fmt => {
                 // fmt chunk layout: wFormatTag:u16, wChannels:u16, dwSampleRate:u32,
                 // dwByteRate:u32 (unused), wBlockAlign:u16, wBitsPerSample:u16.
-                let word0 = read_u32_le(win, 0).expect("required window is 16 bytes");
-                let sample_rate = read_u32_le(win, 4).expect("required window is 16 bytes");
-                let word3 = read_u32_le(win, 12).expect("required window is 16 bytes");
+                let fields = win
+                    .first_chunk::<16>()
+                    .ok_or_else(|| short(PayloadKind::Fmt.window_len()))?;
 
-                let format_tag = (word0 & 0xFFFF) as u16;
-                let channels = (word0 >> 16) as u16;
-                let bits = (word3 >> 16) as u16;
+                let format_tag = u16::from_le_bytes([fields[0], fields[1]]);
+                let channels = u16::from_le_bytes([fields[2], fields[3]]);
+                let sample_rate = u32::from_le_bytes([fields[4], fields[5], fields[6], fields[7]]);
+                let bits = u16::from_le_bytes([fields[14], fields[15]]);
 
                 let byte_depth: u8 = match bits {
                     8 => {
@@ -702,7 +836,7 @@ impl HeaderParser {
                         1
                     }
                     16 | 24 | 32 => (bits / 8) as u8,
-                    _ => return Err(ParseError::Unsupported(Reason::UnsupportedBitDepth)),
+                    _ => return Err(HeaderError::Unsupported(Reason::UnsupportedBitDepth)),
                 };
 
                 if format_tag == 1 {
@@ -711,15 +845,15 @@ impl HeaderParser {
                 } else if format_tag == 3 && byte_depth == 4 {
                     self.raw_data_format = RawDataFormat::Float;
                 } else {
-                    return Err(ParseError::Unsupported(Reason::UnsupportedFormatTag));
+                    return Err(HeaderError::Unsupported(Reason::UnsupportedFormatTag));
                 }
 
                 if channels != 1 && channels != 2 {
-                    return Err(ParseError::Unsupported(Reason::UnsupportedChannelCount));
+                    return Err(HeaderError::Unsupported(Reason::UnsupportedChannelCount));
                 }
 
                 if !(5000..=96000).contains(&sample_rate) {
-                    return Err(ParseError::Unsupported(Reason::SampleRateOutOfRange));
+                    return Err(HeaderError::Unsupported(Reason::SampleRateOutOfRange));
                 }
 
                 self.byte_depth = Some(byte_depth);
@@ -840,19 +974,24 @@ impl HeaderParser {
                 // COMM layout (big-endian): numChannels:u16,
                 // numSampleFrames:u32 (unused here), sampleSize:u16,
                 // sampleRate:extended80 (10 bytes) — exactly 18 bytes.
-                let channels = read_u16_be(win, 0).expect("required window is 18 bytes");
-                let bits = read_u16_be(win, 6).expect("required window is 18 bytes");
-                let extended: [u8; 10] = win[8..18]
-                    .try_into()
-                    .expect("required window is 18 bytes: exactly 10 bytes wide here");
+                let fields = win
+                    .first_chunk::<18>()
+                    .ok_or_else(|| short(PayloadKind::Comm.window_len()))?;
+
+                let channels = u16::from_be_bytes([fields[0], fields[1]]);
+                let bits = u16::from_be_bytes([fields[6], fields[7]]);
+                let extended: [u8; 10] = [
+                    fields[8], fields[9], fields[10], fields[11], fields[12], fields[13],
+                    fields[14], fields[15], fields[16], fields[17],
+                ];
 
                 if channels != 1 && channels != 2 {
-                    return Err(ParseError::Unsupported(Reason::UnsupportedChannelCount));
+                    return Err(HeaderError::Unsupported(Reason::UnsupportedChannelCount));
                 }
 
                 let byte_depth: u8 = match bits {
                     8 | 16 | 24 | 32 => (bits / 8) as u8,
-                    _ => return Err(ParseError::Unsupported(Reason::UnsupportedBitDepth)),
+                    _ => return Err(HeaderError::Unsupported(Reason::UnsupportedBitDepth)),
                 };
 
                 // AIFF PCM is big-endian; anything wider than 8 bits needs a
@@ -870,7 +1009,7 @@ impl HeaderParser {
 
                 let sample_rate = decode_aiff_extended_rate(&extended);
                 if !(5000..=96000).contains(&sample_rate) {
-                    return Err(ParseError::Unsupported(Reason::SampleRateOutOfRange));
+                    return Err(HeaderError::Unsupported(Reason::SampleRateOutOfRange));
                 }
 
                 self.byte_depth = Some(byte_depth);
@@ -884,7 +1023,10 @@ impl HeaderParser {
                 // them from the chunk's declared size. Mirrors
                 // audio_file_format.cpp:297-311.
                 const SSND_PREFIX_LEN: u32 = 8;
-                let offset = read_u32_be(win, 0).expect("required window is 8 bytes");
+                let fields = win
+                    .first_chunk::<{ SSND_PREFIX_LEN as usize }>()
+                    .ok_or_else(|| short(SSND_PREFIX_LEN))?;
+                let offset = u32::from_be_bytes([fields[0], fields[1], fields[2], fields[3]]);
 
                 // The C++ computes this as an unsigned subtraction that silently
                 // wraps to a huge value when a hostile `offset` exceeds the
@@ -931,7 +1073,7 @@ impl HeaderParser {
         win: &[u8],
         chunk: Chunk,
         chunk_end: u32,
-    ) -> Result<(), ParseError> {
+    ) -> Result<(), HeaderError> {
         // MARK layout (big-endian): numMarkers:u16, then that many marker
         // records back to back. The count field is bounded by the chunk's own
         // declared end the same way every per-marker read below is.
@@ -947,7 +1089,10 @@ impl HeaderParser {
         self.phase = Phase::MarkEntry {
             chunk,
             chunk_end,
-            cursor: chunk.data_start + 2, // bounds-checked against chunk_end above
+            // The `+ 2` is the count field just read; `checked_add` above
+            // proved it doesn't overflow, but say so in the same idiom the rest
+            // of the walk uses rather than relying on the reader to remember.
+            cursor: chunk.data_start.saturating_add(MARK_COUNT_LEN),
             index: 0,
             declared,
         };
@@ -962,7 +1107,7 @@ impl HeaderParser {
         cursor: u32,
         index: usize,
         declared: usize,
-    ) -> Result<(), ParseError> {
+    ) -> Result<(), HeaderError> {
         // One marker record: id:u16 (bit-reinterpreted as the spec's signed
         // 16-bit ID, matching the C++'s own uint16_t-into-int16_t assignment),
         // position:u32, then a Pascal string name (u8 length prefix + that many
@@ -975,7 +1120,7 @@ impl HeaderParser {
             Some(v) => v as i16,
             None => return self.advance_past(chunk),
         };
-        let cursor = cursor + 2;
+        let cursor = cursor.saturating_add(2);
 
         let position = match cursor
             .checked_add(4)
@@ -985,7 +1130,7 @@ impl HeaderParser {
             Some(v) => v,
             None => return self.advance_past(chunk),
         };
-        let cursor = cursor + 4;
+        let cursor = cursor.saturating_add(4);
 
         // The id/position pair is fully read at this point, so record it even if
         // the trailing name string (read next, only to find where the *next*
@@ -998,7 +1143,7 @@ impl HeaderParser {
             Some(&b) if cursor < chunk_end => b,
             _ => return self.advance_past(chunk),
         };
-        let cursor = cursor + 1;
+        let cursor = cursor.saturating_add(1);
 
         // The pstring-skip amount below is a DELIBERATE CORRECTION, not a
         // mirror, of audio_file_format.cpp:394-395's `(stringLength + 1) & ~1`.
@@ -1037,28 +1182,28 @@ impl HeaderParser {
 
     /// The walk has reached the end of the file at `eof`. Resolve what the
     /// chunks said into a header, or report why they don't add up.
-    fn finish(&mut self, eof: u32) -> Result<(), ParseError> {
+    fn finish(&mut self, eof: u32) -> Result<(), HeaderError> {
         // If we never walked a real chunk, we can't tell a genuinely empty
         // container from a file truncated before its first chunk header — fall
         // back to the top-level size field. Once at least one chunk has been
         // walked, running out on a chunk boundary is unambiguously the end of
         // the container.
         if !self.saw_a_chunk && 8u32.checked_add(self.declared_after_top) != Some(eof) {
-            return Err(ParseError::NeedAtLeast(
-                eof.saturating_add(CHUNK_HEADER_LEN),
-            ));
+            return Err(HeaderError::Truncated {
+                needs_at_least: eof.saturating_add(CHUNK_HEADER_LEN),
+            });
         }
 
         if !self.found_data_chunk {
-            return Err(ParseError::Malformed(Reason::NoDataChunk));
+            return Err(HeaderError::Malformed(Reason::NoDataChunk));
         }
         let num_channels = match self.num_channels {
             Some(c) => c,
-            None => return Err(ParseError::Malformed(Reason::NoFmtChunk)),
+            None => return Err(HeaderError::Malformed(Reason::NoFmtChunk)),
         };
         let byte_depth = match self.byte_depth {
             Some(d) => d,
-            None => return Err(ParseError::Malformed(Reason::NoFmtChunk)),
+            None => return Err(HeaderError::Malformed(Reason::NoFmtChunk)),
         };
 
         // AIFF marker-resolved loop finalisation: `INST`'s sustain-loop marker
@@ -1131,21 +1276,15 @@ fn covers(window: &[u8], window_start: u32, start: u32, len: u32) -> bool {
 /// [`HeaderParser`] directly instead: it never asks for more than
 /// [`MAX_WINDOW_BYTES`] at a time, where this can ask for the whole file.
 pub fn parse(bytes: &[u8]) -> Result<AudioHeader, ParseError> {
-    let mut parser = HeaderParser::new();
+    let mut parser = HeaderParser::for_prefix();
+    let mut request = HeaderParser::FIRST_REQUEST;
     loop {
-        let Some((start, len)) = parser.pending() else {
-            // Terminal already: one inert feed hands back the stored outcome.
-            return match parser.feed(&[], 0)? {
-                FeedResult::Done(header) => Ok(header),
-                FeedResult::Need { start, .. } => Err(ParseError::NeedAtLeast(start)),
-            };
-        };
-
         // A request that starts past the prefix is the one thing this shape
         // can't answer: we don't know whether the file really ends here or the
         // caller simply stopped reading, so we ask for more rather than
-        // silently truncating the walk. (A `HeaderParser` caller has no such
-        // ambiguity — a short window means EOF, full stop.)
+        // silently truncating the walk. A `HeaderParser` has no such ambiguity —
+        // it is told the size and never asks past it.
+        let (start, len) = request;
         if start as usize > bytes.len() {
             return Err(ParseError::NeedAtLeast(start));
         }
@@ -1153,7 +1292,7 @@ pub fn parse(bytes: &[u8]) -> Result<AudioHeader, ParseError> {
         let to = from.saturating_add(len as usize).min(bytes.len());
         match parser.feed(&bytes[from..to], start)? {
             FeedResult::Done(header) => return Ok(header),
-            FeedResult::Need { .. } => {}
+            FeedResult::Need { start, len } => request = (start, len),
         }
     }
 }
