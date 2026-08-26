@@ -143,15 +143,15 @@ pub fn parse(bytes: &[u8]) -> Result<AudioHeader, ParseError> {
     let empty_container_is_fully_supplied =
         8usize.checked_add(declared_after_top as usize) == Some(bytes.len());
 
-    // Accumulator the chunk walk fills in. Tasks 3-6 add more fields and more
-    // match arms below; for now only the WAV `fmt ` chunk is handled, and
-    // nothing ever sets `found_data_chunk`, so every WAV/AIFF file currently
-    // ends in `NoDataChunk`.
-    let found_data_chunk = false;
-    let mut _num_channels: Option<u8> = None;
-    let mut _byte_depth: Option<u8> = None;
-    let mut _raw_data_format = RawDataFormat::Native;
-    let mut _sample_rate: u32 = 44100;
+    // Accumulator the chunk walk fills in. Tasks 4-6 add more fields and more
+    // match arms below; for now the WAV `fmt ` and `data` chunks are handled.
+    let mut found_data_chunk = false;
+    let mut num_channels_acc: Option<u8> = None;
+    let mut byte_depth_acc: Option<u8> = None;
+    let mut raw_data_format_acc = RawDataFormat::Native;
+    let mut sample_rate_acc: u32 = 44100;
+    let mut audio_data_start_pos_bytes_acc: u32 = 0;
+    let mut audio_data_length_bytes_acc: u32 = 0;
 
     let mut pos: usize = TOP_HEADER_LEN;
     // Once we've walked at least one real chunk, running out of `bytes`
@@ -213,7 +213,7 @@ pub fn parse(bytes: &[u8]) -> Result<AudioHeader, ParseError> {
 
                 let byte_depth: u8 = match bits {
                     8 => {
-                        _raw_data_format = RawDataFormat::Unsigned8;
+                        raw_data_format_acc = RawDataFormat::Unsigned8;
                         1
                     }
                     16 | 24 | 32 => (bits / 8) as u8,
@@ -224,7 +224,7 @@ pub fn parse(bytes: &[u8]) -> Result<AudioHeader, ParseError> {
                     // PCM: RawDataFormat stays whatever the bit-depth arm above set
                     // (Native, or Unsigned8 for 8-bit).
                 } else if format_tag == 3 && byte_depth == 4 {
-                    _raw_data_format = RawDataFormat::Float;
+                    raw_data_format_acc = RawDataFormat::Float;
                 } else {
                     return Err(ParseError::Unsupported(Reason::UnsupportedFormatTag));
                 }
@@ -237,9 +237,22 @@ pub fn parse(bytes: &[u8]) -> Result<AudioHeader, ParseError> {
                     return Err(ParseError::Unsupported(Reason::SampleRateOutOfRange));
                 }
 
-                _byte_depth = Some(byte_depth);
-                _num_channels = Some(channels as u8);
-                _sample_rate = sample_rate;
+                byte_depth_acc = Some(byte_depth);
+                num_channels_acc = Some(channels as u8);
+                sample_rate_acc = sample_rate;
+            }
+            (Container::Wav, b"data") => {
+                found_data_chunk = true;
+                // `data_start` is bounds-checked above (it's `size_end`, and the
+                // size read at `tag_end..size_end` already succeeded), but cast
+                // defensively rather than assume any relationship between
+                // `usize` and `u32` on the host running these tests.
+                audio_data_start_pos_bytes_acc = u32::try_from(data_start).unwrap_or(u32::MAX);
+                audio_data_length_bytes_acc = raw_size;
+                // A Sample parse keeps walking after the data chunk (to pick up
+                // AIFF loop markers etc. in later tasks) rather than stopping
+                // here the way a WaveTable parse would — see
+                // audio_file_format.cpp:74-76.
             }
             _ => {}
         }
@@ -275,10 +288,31 @@ pub fn parse(bytes: &[u8]) -> Result<AudioHeader, ParseError> {
         return Err(ParseError::Malformed(Reason::NoDataChunk));
     }
 
-    // Unreachable for now: no arm above ever sets `found_data_chunk`. A later
-    // task adds a `data`/`SSND` arm plus the success path this falls through
-    // to.
-    Err(ParseError::Malformed(Reason::NoDataChunk))
+    let num_channels = match num_channels_acc {
+        Some(c) => c,
+        None => return Err(ParseError::Malformed(Reason::NoFmtChunk)),
+    };
+    let byte_depth = match byte_depth_acc {
+        Some(d) => d,
+        None => return Err(ParseError::Malformed(Reason::NoFmtChunk)),
+    };
+
+    Ok(AudioHeader {
+        container,
+        num_channels,
+        byte_depth,
+        raw_data_format: raw_data_format_acc,
+        sample_rate: sample_rate_acc,
+        audio_data_start_pos_bytes: audio_data_start_pos_bytes_acc,
+        audio_data_length_bytes: audio_data_length_bytes_acc,
+        file_loop_start_samples: 0,
+        file_loop_end_samples: 0,
+        midi_note: None,
+        wavetable: WavetableHints {
+            cycle_size: 2048,
+            explicitly_specifies_self: false,
+        },
+    })
 }
 
 #[cfg(test)]
@@ -363,21 +397,56 @@ mod tests {
         v
     }
 
+    /// riff_fmt + a `data` chunk of `len` zero bytes.
+    fn riff_fmt_data(channels: u16, rate: u32, bits: u16, len: usize) -> std::vec::Vec<u8> {
+        let mut v = riff_fmt(channels, rate, bits, 1);
+        v.extend_from_slice(b"data");
+        v.extend_from_slice(&(len as u32).to_le_bytes());
+        v.resize(v.len() + len, 0);
+        v
+    }
+
     #[test]
     fn fmt_sets_channels_depth_and_rate() {
-        // No data chunk yet, so parse still errors — assert via the fmt-specific errors below instead.
-        assert!(matches!(
-            parse(&riff_fmt(2, 44100, 16, 1)),
-            Err(ParseError::Malformed(Reason::NoDataChunk))
-        ));
+        let h = parse(&riff_fmt_data(2, 44100, 16, 4)).expect("should parse");
+        assert_eq!(h.num_channels, 2);
+        assert_eq!(h.byte_depth, 2);
+        assert_eq!(h.sample_rate, 44100);
     }
 
     #[test]
     fn eight_bit_is_unsigned8() {
-        assert!(matches!(
-            parse(&riff_fmt(1, 44100, 8, 1)),
-            Err(ParseError::Malformed(Reason::NoDataChunk))
-        ));
+        let h = parse(&riff_fmt_data(1, 44100, 8, 4)).expect("should parse");
+        assert_eq!(h.byte_depth, 1);
+        assert_eq!(h.raw_data_format, RawDataFormat::Unsigned8);
+    }
+
+    #[test]
+    fn data_chunk_completes_the_parse() {
+        let bytes = riff_fmt_data(2, 44100, 16, 8);
+        let h = parse(&bytes).expect("should parse");
+        assert_eq!(h.container, Container::Wav);
+        assert_eq!(h.num_channels, 2);
+        assert_eq!(h.byte_depth, 2);
+        assert_eq!(h.raw_data_format, RawDataFormat::Native);
+        assert_eq!(h.sample_rate, 44100);
+        assert_eq!(h.audio_data_length_bytes, 8);
+        // 12 container + 8 fmt header + 16 fmt payload + 8 data header = 44
+        assert_eq!(h.audio_data_start_pos_bytes, 44);
+        assert_eq!(h.file_loop_start_samples, 0);
+        assert_eq!(h.file_loop_end_samples, 0);
+        assert_eq!(h.midi_note, None);
+    }
+
+    #[test]
+    fn data_before_fmt_is_still_malformed() {
+        let mut v = std::vec::Vec::new();
+        v.extend_from_slice(b"RIFF");
+        v.extend_from_slice(&0u32.to_le_bytes());
+        v.extend_from_slice(b"WAVE");
+        v.extend_from_slice(b"data");
+        v.extend_from_slice(&0u32.to_le_bytes());
+        assert_eq!(parse(&v), Err(ParseError::Malformed(Reason::NoFmtChunk)));
     }
 
     #[test]
