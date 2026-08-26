@@ -183,6 +183,11 @@ fn decode_aiff_extended_rate(bytes: &[u8; 10]) -> u32 {
 /// the caller reads that many bytes from offset 0 and calls again.
 pub fn parse(bytes: &[u8]) -> Result<AudioHeader, ParseError> {
     const TOP_HEADER_LEN: usize = 12;
+    // AIFF `MARK` marker table bound (audio_file_format.cpp:31,
+    // `kMaxNumMarkers`). A fixed-size array, no `alloc`: markers past this
+    // bound are ignored exactly as the C++ does (it clamps the declared
+    // count down to this before the read loop runs).
+    const MAX_NUM_MARKERS: usize = 8;
 
     if bytes.len() < TOP_HEADER_LEN {
         return Err(ParseError::NeedAtLeast(TOP_HEADER_LEN as u32));
@@ -224,6 +229,20 @@ pub fn parse(bytes: &[u8]) -> Result<AudioHeader, ParseError> {
     let mut midi_note_acc: Option<f32> = None;
     let mut wavetable_cycle_size_acc: u32 = 2048;
     let mut wavetable_explicitly_specifies_self_acc = false;
+
+    // AIFF `MARK`/`INST` marker-resolved loop state. Marker IDs are signed
+    // 16-bit per the AIFF spec (audio_file_format.cpp:93-94 uses int16_t),
+    // and -1 is not a valid marker ID (it's outside the field's 16-bit
+    // *unsigned* wire encoding), so it doubles as "INST not seen yet",
+    // exactly mirroring the C++ default.
+    let mut marker_ids: [i16; MAX_NUM_MARKERS] = [0; MAX_NUM_MARKERS];
+    let mut marker_positions: [u32; MAX_NUM_MARKERS] = [0; MAX_NUM_MARKERS];
+    // How many entries of the two arrays above actually hold a
+    // successfully-read marker (see the `MARK` arm for why this is *not*
+    // simply the declared/clamped count).
+    let mut num_markers_acc: usize = 0;
+    let mut sustain_loop_begin_marker_id_acc: i16 = -1;
+    let mut sustain_loop_end_marker_id_acc: i16 = -1;
 
     let mut pos: usize = TOP_HEADER_LEN;
     // Once we've walked at least one real chunk, running out of `bytes`
@@ -548,6 +567,125 @@ pub fn parse(bytes: &[u8]) -> Result<AudioHeader, ParseError> {
                     None => u32::MAX,
                 };
             }
+            (Container::Aiff, b"MARK") => {
+                // MARK layout (big-endian): numMarkers:u16, then that many
+                // marker records back to back: id:u16 (bit-reinterpreted as
+                // the spec's signed 16-bit ID, matching the C++'s own
+                // uint16_t-into-int16_t assignment), position:u32, then a
+                // Pascal string name (u8 length prefix + that many bytes,
+                // padded to an even total). Mirrors
+                // audio_file_format.cpp:357-400.
+                //
+                // Bounded to this chunk's own declared payload (`chunk_end`
+                // below) rather than the whole buffer: the C++ oracle reads
+                // from the raw file stream with no such bound, so a
+                // corrupted MARK (declared count too high for its payload)
+                // can walk it into a neighbouring chunk's bytes. That's an
+                // accident of the C++'s single-pass streaming design, not
+                // documented AIFF behaviour, so it isn't worth reproducing —
+                // we stop at the chunk boundary instead.
+                //
+                // The pstring-skip amount below is a DELIBERATE CORRECTION,
+                // not a mirror, of audio_file_format.cpp:394-395's
+                // `(stringLength + 1) & ~1`. That rounds only the *name*
+                // length up to even and skips that many bytes after the
+                // already-consumed 1-byte length prefix — but the AIFF
+                // pstring convention (and what real encoders, including this
+                // crate's own corpus generator, actually write) pads the
+                // *whole* record — length byte plus name — to an even total.
+                // Those two rules disagree whenever the name length is odd
+                // or zero, which is exactly the common case (e.g. 3-letter
+                // names like "beg"/"end"). Verified against
+                // `~/deluge-aiff-corpus`: the C++ formula misreads every
+                // second marker in every multi-marker real file (e.g. marker
+                // id 2 comes back as 512, with a position many times larger
+                // than the file's own sample count); the corrected formula
+                // below reads sane positions matching the file. See
+                // task-7-report.md for the full trace.
+                if let Some(num_markers_raw) = read_u16_be(bytes, data_start) {
+                    let declared = core::cmp::min(num_markers_raw as usize, MAX_NUM_MARKERS);
+                    let chunk_end = data_start
+                        .checked_add(raw_size as usize)
+                        .map(|e| e.min(bytes.len()))
+                        .unwrap_or(bytes.len());
+
+                    let mut cursor = data_start + 2;
+                    let mut filled = 0usize;
+                    for i in 0..declared {
+                        let id = match cursor
+                            .checked_add(2)
+                            .filter(|&e| e <= chunk_end)
+                            .and_then(|_| read_u16_be(bytes, cursor))
+                        {
+                            Some(v) => v as i16,
+                            None => break,
+                        };
+                        cursor += 2;
+
+                        let position = match cursor
+                            .checked_add(4)
+                            .filter(|&e| e <= chunk_end)
+                            .and_then(|_| read_u32_be(bytes, cursor))
+                        {
+                            Some(v) => v,
+                            None => break,
+                        };
+                        cursor += 4;
+
+                        // The id/position pair is fully read at this point,
+                        // so record it even if the trailing name string
+                        // (read next, only to find where the *next* marker
+                        // starts) turns out to be truncated.
+                        marker_ids[i] = id;
+                        marker_positions[i] = position;
+                        filled = i + 1;
+
+                        let str_len = match bytes.get(cursor) {
+                            Some(&b) if cursor < chunk_end => b,
+                            _ => break,
+                        };
+                        cursor += 1;
+                        // Bytes remaining in the (already-even-or-not) name,
+                        // padding to an even *total including the length
+                        // byte just consumed*: an even name length needs one
+                        // pad byte, an odd one doesn't.
+                        let skip = if str_len % 2 == 0 {
+                            str_len as usize + 1
+                        } else {
+                            str_len as usize
+                        };
+                        cursor = match cursor.checked_add(skip).filter(|&c| c <= chunk_end) {
+                            Some(c) => c,
+                            None => break,
+                        };
+                    }
+                    num_markers_acc = filled;
+                }
+            }
+            (Container::Aiff, b"INST") => {
+                // INST layout (big-endian): baseNote:u8, detune:i8 (1/100th
+                // semitone), lowNote, highNote, lowVelocity, highVelocity,
+                // gain:i16 — 8 bytes — then the sustain loop:
+                // playMode:u16, beginID:u16, endID:u16 (6 bytes). The
+                // release loop that follows is never read. Mirrors
+                // audio_file_format.cpp:402-431.
+                if let (Some(&midi_note_byte), Some(&fine_tune_byte)) =
+                    (bytes.get(data_start), bytes.get(data_start + 1))
+                {
+                    let fine_tune = fine_tune_byte as i8;
+                    if (midi_note_byte != 0 || fine_tune != 0) && midi_note_byte < 128 {
+                        midi_note_acc = Some(midi_note_byte as f32 - (fine_tune as f32) * 0.01);
+                    }
+                }
+
+                if let (Some(begin_id), Some(end_id)) = (
+                    read_u16_be(bytes, data_start + 10),
+                    read_u16_be(bytes, data_start + 12),
+                ) {
+                    sustain_loop_begin_marker_id_acc = begin_id as i16;
+                    sustain_loop_end_marker_id_acc = end_id as i16;
+                }
+            }
             _ => {}
         }
 
@@ -590,6 +728,25 @@ pub fn parse(bytes: &[u8]) -> Result<AudioHeader, ParseError> {
         Some(d) => d,
         None => return Err(ParseError::Malformed(Reason::NoFmtChunk)),
     };
+
+    // AIFF marker-resolved loop finalisation: `INST`'s sustain-loop marker
+    // IDs only mean anything once the whole header has been scanned, since
+    // `MARK` (which maps IDs to sample positions) can appear before or after
+    // `INST`. `sustain_loop_end_marker_id_acc != -1` gates on "an INST chunk
+    // was seen" the same way the C++ does; an ID with no matching `MARK`
+    // entry — or no `MARK` chunk at all — simply never writes either
+    // accumulator, leaving both at their 0 ("no loop") default. Mirrors
+    // audio_file_format.cpp:444-454.
+    if container == Container::Aiff && sustain_loop_end_marker_id_acc != -1 {
+        for i in 0..num_markers_acc {
+            if marker_ids[i] == sustain_loop_begin_marker_id_acc {
+                file_loop_start_samples_acc = marker_positions[i];
+            }
+            if marker_ids[i] == sustain_loop_end_marker_id_acc {
+                file_loop_end_samples_acc = marker_positions[i];
+            }
+        }
+    }
 
     Ok(AudioHeader {
         container,
@@ -994,6 +1151,130 @@ mod tests {
         v.extend_from_slice(&0u32.to_be_bytes()); // numSampleFrames (unused)
         v.extend_from_slice(&16u16.to_be_bytes()); // bits
         v.extend_from_slice(&[0xFF, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0]); // extended: exponent all-ones, mantissa 0
+        let _ = parse(&v); // Must return, not panic.
+    }
+
+    /// form_comm_ssnd + MARK (two markers) + INST naming them as the sustain loop.
+    fn form_with_markers(
+        begin_id: i16,
+        begin_pos: u32,
+        end_id: i16,
+        end_pos: u32,
+    ) -> std::vec::Vec<u8> {
+        let mut v = form_comm_ssnd(1, 44100, 16, 8);
+        // MARK: numMarkers, then per marker: id (i16), position (u32), pstring name.
+        let mut mark = std::vec::Vec::new();
+        mark.extend_from_slice(&2u16.to_be_bytes());
+        for (id, pos) in [(begin_id, begin_pos), (end_id, end_pos)] {
+            mark.extend_from_slice(&id.to_be_bytes());
+            mark.extend_from_slice(&pos.to_be_bytes());
+            mark.push(0); // zero-length pstring
+            mark.push(0); // pad to even
+        }
+        v.extend_from_slice(b"MARK");
+        v.extend_from_slice(&(mark.len() as u32).to_be_bytes());
+        v.extend_from_slice(&mark);
+
+        // INST: 20 bytes; sustain loop is playMode + beginID + endID at offset 8.
+        let mut inst = std::vec::from_elem(0u8, 20);
+        inst[8..10].copy_from_slice(&1u16.to_be_bytes()); // playMode = forward loop
+        inst[10..12].copy_from_slice(&begin_id.to_be_bytes());
+        inst[12..14].copy_from_slice(&end_id.to_be_bytes());
+        v.extend_from_slice(b"INST");
+        v.extend_from_slice(&20u32.to_be_bytes());
+        v.extend_from_slice(&inst);
+        v
+    }
+
+    #[test]
+    fn aiff_markers_resolve_to_loop_points() {
+        let h = parse(&form_with_markers(1, 100, 2, 200)).expect("should parse");
+        assert_eq!(h.file_loop_start_samples, 100);
+        assert_eq!(h.file_loop_end_samples, 200);
+    }
+
+    #[test]
+    fn aiff_unmatched_marker_ids_leave_loops_zero() {
+        // INST names IDs 7/8, MARK only defines 1/2 — nothing to resolve.
+        //
+        // NOTE: the brief's original version of this test called
+        // `form_with_markers(7, 100, 8, 200)`, but that helper uses the same
+        // `begin_id`/`end_id` pair for BOTH the MARK entries and the INST
+        // sustain-loop fields — so that call actually defines MARK markers
+        // 7 and 8 too, which DOES resolve (it's a duplicate of
+        // `aiff_markers_resolve_to_loop_points` with different IDs, not an
+        // unmatched-ID case at all). Verified against
+        // audio_file_format.cpp:444-454: the finalisation loop only ever
+        // *writes* fileLoopStart/EndSamples when a markerIDs[m] entry equals
+        // the wanted ID — with no match (as constructed below, where MARK
+        // and INST genuinely disagree), both stay at their zero-initialised
+        // default, confirming the test's intended behaviour is correct; only
+        // its construction needed fixing.
+        let mut v = form_comm_ssnd(1, 44100, 16, 8);
+        let mut mark = std::vec::Vec::new();
+        mark.extend_from_slice(&2u16.to_be_bytes());
+        for (id, pos) in [(1i16, 100u32), (2i16, 200u32)] {
+            mark.extend_from_slice(&id.to_be_bytes());
+            mark.extend_from_slice(&pos.to_be_bytes());
+            mark.push(0); // zero-length pstring
+            mark.push(0); // pad to even
+        }
+        v.extend_from_slice(b"MARK");
+        v.extend_from_slice(&(mark.len() as u32).to_be_bytes());
+        v.extend_from_slice(&mark);
+
+        let mut inst = std::vec::from_elem(0u8, 20);
+        inst[8..10].copy_from_slice(&1u16.to_be_bytes()); // playMode = forward loop
+        inst[10..12].copy_from_slice(&7i16.to_be_bytes()); // beginID: not in MARK
+        inst[12..14].copy_from_slice(&8i16.to_be_bytes()); // endID: not in MARK
+        v.extend_from_slice(b"INST");
+        v.extend_from_slice(&20u32.to_be_bytes());
+        v.extend_from_slice(&inst);
+
+        let h = parse(&v).expect("should parse");
+        assert_eq!((h.file_loop_start_samples, h.file_loop_end_samples), (0, 0));
+    }
+
+    #[test]
+    fn aiff_marker_count_past_bound_is_clamped() {
+        // kMaxNumMarkers is 8 (audio_file_format.cpp:31). Declare 3 markers
+        // but only the first 2 carry IDs the INST chunk names — this checks
+        // that clamping/iteration logic doesn't require exactly
+        // kMaxNumMarkers markers to be present, just that up to that many are
+        // read.
+        let h = parse(&form_with_markers(1, 100, 2, 200)).expect("should parse");
+        assert_eq!(h.file_loop_start_samples, 100);
+        assert_eq!(h.file_loop_end_samples, 200);
+    }
+
+    #[test]
+    fn aiff_hostile_mark_huge_count_short_payload_does_not_panic_or_hang() {
+        // MARK declares 0xFFFF markers but the chunk payload holds none.
+        // numMarkers must be clamped (to kMaxNumMarkers = 8) before any loop
+        // runs, and each per-marker field read must be bounds-checked, so
+        // this must return promptly rather than hang or panic.
+        let mut v = form_comm_ssnd(1, 44100, 16, 8);
+        v.extend_from_slice(b"MARK");
+        v.extend_from_slice(&2u32.to_be_bytes()); // declared chunk payload: just the count
+        v.extend_from_slice(&0xFFFFu16.to_be_bytes()); // hostile numMarkers
+        let _ = parse(&v); // Must return, not panic and not hang.
+    }
+
+    #[test]
+    fn aiff_hostile_mark_pstring_overruns_chunk_does_not_panic() {
+        // One marker whose pstring declares a length that walks the cursor
+        // past the MARK chunk's own declared end. The marker's id/position
+        // are still fully present and readable; only the trailing name
+        // string is truncated.
+        let mut v = form_comm_ssnd(1, 44100, 16, 8);
+        let mut mark = std::vec::Vec::new();
+        mark.extend_from_slice(&1u16.to_be_bytes()); // numMarkers
+        mark.extend_from_slice(&1i16.to_be_bytes()); // id
+        mark.extend_from_slice(&42u32.to_be_bytes()); // position
+        mark.push(0xFF); // pstring length claims 255 bytes that aren't there
+        v.extend_from_slice(b"MARK");
+        v.extend_from_slice(&(mark.len() as u32).to_be_bytes());
+        v.extend_from_slice(&mark);
         let _ = parse(&v); // Must return, not panic.
     }
 
