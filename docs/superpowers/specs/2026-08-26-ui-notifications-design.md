@@ -53,7 +53,7 @@ using ClipBits = std::bitset<256>;          // indexed by position in song->sess
 class DirtySet {
 public:
 	void raise(Dirty d);                                   // [any] atomic fetch_or
-	void raiseClip(Dirty d, uint16_t sessionClipIndex);    // [any] sets d + one clip bit
+	void raise_clip(Dirty d, uint16_t session_clip_index);    // [any] sets d + one clip bit
 	DirtySet drain();                                      // [task] atomic exchange with zero
 	bool has(Dirty d) const;
 	bool any() const;
@@ -62,7 +62,7 @@ public:
 
 DirtySet& dirty();                                       // the one instance (owned by deluge-app later)
 inline void raise(Dirty d) { dirty().raise(d); }
-inline void raiseClip(Dirty d, uint16_t i) { dirty().raiseClip(d, i); }
+inline void raise_clip(Dirty d, uint16_t i) { dirty().raise_clip(d, i); }
 
 } // namespace deluge::notify
 ```
@@ -109,7 +109,7 @@ struct Notice {
 	::Error error;            // Kind::Error
 	l10n::String string;      // Text / Console with an l10n id; else String::EMPTY
 	char text[24];            // copied short text (names, "E248"); NUL-terminated, truncated
-	uint8_t popupType;        // today's PopupType, for like-for-like replacement/dedupe
+	uint8_t popup_type;        // today's PopupType, for like-for-like replacement/dedupe
 };
 
 class NoticeQueue {
@@ -120,8 +120,8 @@ public:
 
 NoticeQueue& notices();
 void notice(::Error e);                                        // convenience raisers
-void notice(l10n::String s, Notice::Kind k = Notice::Kind::Text, uint8_t popupType = 0);
-void notice(std::string_view shortText, Notice::Kind k = Notice::Kind::Text, uint8_t popupType = 0);
+void notice(l10n::String s, Notice::Kind k = Notice::Kind::Text, uint8_t popup_type = 0);
+void notice(std::string_view short_text, Notice::Kind k = Notice::Kind::Text, uint8_t popup_type = 0);
 
 } // namespace deluge::notify
 ```
@@ -131,7 +131,7 @@ void notice(std::string_view shortText, Notice::Kind k = Notice::Kind::Text, uin
 - **The shell chooses the widget.** `Error` → popup and a console line; `Text` → popup;
   `Console` → console overlay; `Working`/`ClearWorking` → loading overlay; `CancelPopup`
   → dismiss the current popup. The model no longer names a widget.
-- `popupType` lets the shell replace a like-typed popup in place (today's
+- `popup_type` lets the shell replace a like-typed popup in place (today's
   `popupTextTemporary(PopupType::SWING)` semantics) and lets `CancelPopup` target a type.
 - `display->hasPopupOfType()` (5 sites where playback logic branches on UI state) is
   removed: the state those sites test becomes a model fact (§4).
@@ -150,7 +150,7 @@ not migrated to notices; they are turned into model/playback state plus a `Dirty
 | `"E336"` from `attemptLateStartOfNextNoteToPlay` (`[audio]`) | `notice(Error::…)`; push is `[any]`-safe |
 | `indicateAlertOnLed(PLAY)` from the voice-cull loop | `AudioEngine::cullAlertPending` + `raise(PlaybackState)`; `GlobalControls` blinks the LED |
 | `currentUIMode &= UI_MODE_AUDITIONING` written from audio | deleted; audio raises `PlaybackState`; the shell owns its mode |
-| `currentUIMode = UI_MODE_RECORD_COUNT_IN / LOADING_SONG_*` | `playbackHandler.countInActive`, `song.loadState` (model/playback state; the shell mirrors it) |
+| `currentUIMode = UI_MODE_RECORD_COUNT_IN / LOADING_SONG_*` | `playbackHandler.count_in_active`, `song.load_state` (model/playback state; the shell mirrors it) |
 | `displayLoadingAnimationText("Loading")` / `removeLoadingAnimation` (task only) | `Working` / `ClearWorking` notices |
 | `PadLEDs::clearTickSquares()` from `endPlayback` | `raise(PlaybackState)`; the scene stops drawing the playhead |
 
@@ -164,7 +164,7 @@ Catalogued here; relocated by the shell (D), scenes (E) and commands (I) specs.
 | `soundEditor.currentMultiRange*` (7) | `Source`, `Kit` | **model**: the selected multi-range is a selection on the sound |
 | `soundEditor.currentModControllable/currentParamManager/inNoteEditor` (8) | `NoteRow`, `Kit` | **`ModTarget`** (above); `inNoteEditor` becomes a `MenuScene` state read via `ModTarget.region` |
 | `soundEditor.shortcutsVersion`, `PadLEDs::flashCursor` persisted by `FlashStorage` (4) | settings | **settings store** owns the values; the UI reads them |
-| `currentUIMode` reads (61), `isUIModeActive` (29), writes (10) | playback, MIDI instrument, actions, `util/functions.cpp` | the ~8 modes the model tests get **proper model/playback state**: `countInActive`, `loadState`, `midiInstrument.awaitingCC`, `auditionState`, `holdingSectionPad`. The shell's mode enum becomes private. |
+| `currentUIMode` reads (61), `isUIModeActive` (29), writes (10) | playback, MIDI instrument, actions, `util/functions.cpp` | the ~8 modes the model tests get **proper model/playback state**: `count_in_active`, `load_state`, `midiInstrument.awaiting_cc`, `audition_state`, `holdingSectionPad`. The shell's mode enum becomes private. |
 | `instrumentClipView.getPosFromSquare/getSquareFromPos` (4) | `NoteRow::getSquareInfo` | **model**: `Clip::timelineWindow{scroll, zoom}` (already persisted in the song file); the square math is a pure function on it in `model/` |
 | `midiFollow.previousKnobPos` (3) | MIDI follow | **`io/midi`**: `MidiFollow` state moves out of `gui/` |
 | `sampleBrowser.lastFilePathLoaded` (2) | recorder, sample holder | **`AudioFileManager`** last-path memo |

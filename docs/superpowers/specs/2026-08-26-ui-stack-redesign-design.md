@@ -135,7 +135,7 @@ and `gui/menu_item/` dissolve into these targets over the migration (§12).
 
 ### 6.1 Canvas
 
-Today's `oled_canvas::Canvas` API is kept nearly verbatim — pixels, lines
+Today's `oled_canvas::Canvas` API is kept in shape (same operations, same parameter order; every name snake_case, per the codebase-wide naming migration) — pixels, lines
 (Bresenham with options), rectangles (plain/rounded), circles, strings
 (left/centred/right/shrink-to-fit), chars, glyph metrics, multi-line
 graphics, icons, `clearAreaExact`, `invertArea`, `invertAreaRounded`. Changes:
@@ -147,6 +147,9 @@ graphics, icons, `clearAreaExact`, `invertArea`, `invertAreaRounded`. Changes:
   transcode, no second buffer.
 - No geometry defaults in signatures (`endX = OLED_MAIN_WIDTH_PIXELS` and
   friends go); callers pass a `Rect`.
+- **Naming**: functions, methods, members and locals are `snake_case` in every new
+  library (the codebase is migrating from camelCase); types `PascalCase`; constants keep
+  the `k` prefix. Legacy camelCase survives only in compatibility façades.
 - `hackGetImageStore()` becomes `bytes()`; `roundedCornersEnabled` moves to
   `Style`; the `RZA1/cpu_specific.h` include is removed.
 - `visible_top` is applied in exactly one place (the frame's origin), never by

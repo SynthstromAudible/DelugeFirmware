@@ -17,7 +17,7 @@
 - `src/gfx/**` may include only: its own headers, the C++ standard library, and `<etl/...>` is **not** allowed. No `definitions*.h`, no `board_config.h`, no `libdeluge/`, no `gui/`, no `hid/`, no `model/`, no `storage/`. Task 13 enforces this mechanically.
 - No mutable globals in `src/gfx/**`. No heap allocation in drawing paths (`std::vector` in the current `drawGraphicMultiLine` is removed).
 - Framebuffers stay **1-bpp page-major** (`bytes[page * width + col]`, bit `b` = panel row `page*8 + b`) — the `deluge_display_blit_oled` wire format.
-- Public names in `src/gfx`: namespaces `deluge::gfx::oled` and `deluge::gfx::grid`; files `snake_case`; types `PascalCase`; methods keep the existing Canvas `camelCase` (verbatim API is a goal).
+- Public names in `src/gfx`: namespaces `deluge::gfx::oled` and `deluge::gfx::grid`; files, functions, methods, members and locals `snake_case` (the codebase is migrating to snake_case; new libraries start there); types `PascalCase`; constants keep the `k` prefix. The gfx `Canvas` API keeps the *shape* of the old one (same operations, same parameter order) but every method is renamed to snake_case; only the `hid/display` façade keeps the legacy camelCase names, as inline forwarders.
 - Commit style: `type(scope): imperative summary` (see `git log`). One commit per task step that says "Commit".
 - Format before every commit: `./dbt format`.
 - Test commands: configure once with `cmake -S tests -B build/tests -G "Ninja Multi-Config"`; build with `cmake --build build/tests --config Debug`; run one with `ctest --test-dir build/tests -C Debug -R <name> --output-on-failure`. `./dbt test` does all three.
@@ -36,7 +36,7 @@ include/libdeluge/display.h          + deluge_display_blit_oled_n, deluge_displa
 src/gfx/CMakeLists.txt               deluge_gfx_oled, deluge_gfx_grid STATIC targets
 src/gfx/README.md                    layer rules
 src/gfx/oled/geometry.h              Geometry, Point, Size, Rect, Insets, kEdge/kCentre
-src/gfx/oled/font.h / font.cpp       Font, FontId, fontForTextHeight, text metric constants
+src/gfx/oled/font.h / font.cpp       Font, FontId, font_for_text_height, text metric constants
 src/gfx/oled/fonts/fonts.c / fonts.h moved from src/deluge/gui/fonts (data only)
 src/gfx/oled/icon.h                  Icon
 src/gfx/oled/icons.h / icons.cpp     the DEFINE_ICON icons, namespace icons
@@ -44,7 +44,7 @@ src/gfx/oled/canvas.h / canvas.cpp   Canvas (non-owning), OwnedCanvas<W,H,TOP>
 src/gfx/grid/rgb.h / rgb.cpp         moved from src/deluge/gui/colour
 src/gfx/grid/palette.h               moved from src/deluge/gui/colour
 src/gfx/grid/pad_grid.h / .cpp       GridDimensions, PadGrid
-src/gfx/grid/tween.h / tween.cpp     fade, scrollHorizontal, scrollVertical, greyOut
+src/gfx/grid/tween.h / tween.cpp     fade, scroll_horizontal, scroll_vertical, grey_out
 tests/spec/gfx/support/pbm.h         page-major → P1 PBM text
 tests/spec/gfx/support/golden.h      golden compare/update helper
 tests/spec/gfx/canvas_golden_spec.cpp
@@ -345,7 +345,7 @@ struct Icon {
 	const uint8_t* data;
 	uint8_t width;
 	uint8_t height;
-	uint8_t numBytesTall;
+	uint8_t num_bytes_tall;
 };
 ```
 
@@ -407,8 +407,8 @@ Records what today's renderer draws, as human-readable P1 PBM files. Every later
 
 **Interfaces:**
 - Produces: `tests/spec/gfx/support/pbm.h`:
-  `std::string pageMajorToPbm(const uint8_t* bytes, int width, int height);` — P1 text, one row per line.
-  `tests/spec/gfx/support/golden.h`: `void expectGolden(const std::string& name, const std::string& actual);` — compares to `GFX_GOLDEN_DIR/<name>`; with env `GFX_GOLDEN_UPDATE=1` writes it instead.
+  `std::string page_major_to_pbm(const uint8_t* bytes, int width, int height);` — P1 text, one row per line.
+  `tests/spec/gfx/support/golden.h`: `void expect_golden(const std::string& name, const std::string& actual);` — compares to `GFX_GOLDEN_DIR/<name>`; with env `GFX_GOLDEN_UPDATE=1` writes it instead.
 - Scenes (names are the golden file stems): `primitives`, `text_all_fonts`, `text_alignment`, `icons`, `rounded_and_invert`, `graphic_multiline`, `line_options`.
 
 - [ ] **Step 1: Write the support headers**
@@ -422,7 +422,7 @@ Records what today's renderer draws, as human-readable P1 PBM files. Every later
 
 /// Convert a 1-bpp page-major framebuffer (bytes[page*width+col], bit b = row page*8+b)
 /// to a P1 PBM: "P1\n<w> <h>\n" then one line per pixel row of '1'/'0' separated by spaces.
-inline std::string pageMajorToPbm(const uint8_t* bytes, int width, int height) {
+inline std::string page_major_to_pbm(const uint8_t* bytes, int width, int height) {
 	std::string out = "P1\n" + std::to_string(width) + " " + std::to_string(height) + "\n";
 	for (int y = 0; y < height; y++) {
 		for (int x = 0; x < width; x++) {
@@ -451,7 +451,7 @@ inline std::string pageMajorToPbm(const uint8_t* bytes, int width, int height) {
 #endif
 
 /// Compare `actual` with tests/golden/gfx/<name>. GFX_GOLDEN_UPDATE=1 rewrites the file.
-inline void expectGolden(const std::string& name, const std::string& actual) {
+inline void expect_golden(const std::string& name, const std::string& actual) {
 	const std::string path = std::string(GFX_GOLDEN_DIR) + "/" + name;
 	if (std::getenv("GFX_GOLDEN_UPDATE")) {
 		std::ofstream(path) << actual;
@@ -483,7 +483,7 @@ namespace {
 constexpr int W = 128, H = 48;
 
 std::string pbm(Canvas& c) {
-	return pageMajorToPbm(&c.hackGetImageStore()[0][0], W, H);
+	return page_major_to_pbm(&c.hackGetImageStore()[0][0], W, H);
 }
 
 // 8x8 arrow used by the icon scenes: one byte per column, bit 0 = top.
@@ -502,7 +502,7 @@ describe canvas_golden("Canvas golden frames", $ {
 		c.drawRectangle(2, 12, 30, 30);
 		c.drawCircle(100, 20, 7, false);
 		c.drawCircle(110, 38, 5, true);
-		expectGolden("oled/primitives.pbm", pbm(c));
+		expect_golden("oled/primitives.pbm", pbm(c));
 	});
 
 	it("text_all_fonts", _ {
@@ -513,7 +513,7 @@ describe canvas_golden("Canvas golden frames", $ {
 		c.drawString("Ag10", 0, 16, 9, 10);  // metric 9
 		c.drawString("Ag13", 40, 16, 9, 13); // metric 13
 		c.drawString("Ag20", 0, 28, 18, 20); // metric 20
-		expectGolden("oled/text_all_fonts.pbm", pbm(c));
+		expect_golden("oled/text_all_fonts.pbm", pbm(c));
 	});
 
 	it("text_alignment", _ {
@@ -523,7 +523,7 @@ describe canvas_golden("Canvas golden frames", $ {
 		c.drawStringCentered("MID", 10, 26, 6, 9, 60);
 		c.drawStringCentredShrinkIfNecessary("THIS TITLE IS FAR TOO LONG TO FIT", 36, 9, 10);
 		c.drawString("SCROLL", 0, 40, 6, 7, 3, 40, true);
-		expectGolden("oled/text_alignment.pbm", pbm(c));
+		expect_golden("oled/text_alignment.pbm", pbm(c));
 	});
 
 	it("icons", _ {
@@ -532,7 +532,7 @@ describe canvas_golden("Canvas golden frames", $ {
 		c.drawIcon(kArrow, 20, 9, true);
 		c.drawIconCentered(kArrow, 40, 40, 20);
 		c.drawGraphicMultiLine(kArrowData, 100, 13, 8, 8, 1);
-		expectGolden("oled/icons.pbm", pbm(c));
+		expect_golden("oled/icons.pbm", pbm(c));
 	});
 
 	it("rounded_and_invert", _ {
@@ -551,7 +551,7 @@ describe canvas_golden("Canvas golden frames", $ {
 		Canvas::roundedCornersEnabled = false;
 		c.drawRectangleRounded(2, 38, 40, 46);
 		Canvas::roundedCornersEnabled = true;
-		expectGolden("oled/rounded_and_invert.pbm", pbm(c));
+		expect_golden("oled/rounded_and_invert.pbm", pbm(c));
 	});
 
 	it("graphic_multiline", _ {
@@ -563,7 +563,7 @@ describe canvas_golden("Canvas golden frames", $ {
 		c.drawGraphicMultiLine(g, 20, 9, 16, 16, 2);
 		c.drawGraphicMultiLine(g, 40, 15, 16, 12, 2);
 		c.drawGraphicMultiLine(g, 120, 20, 16, 16, 2); // clipped at right edge
-		expectGolden("oled/graphic_multiline.pbm", pbm(c));
+		expect_golden("oled/graphic_multiline.pbm", pbm(c));
 	});
 
 	it("line_options", _ {
@@ -571,7 +571,7 @@ describe canvas_golden("Canvas golden frames", $ {
 		c.drawLine(0, 6, 127, 47, DrawLineOptions{.thick = true});
 		c.drawLine(0, 47, 127, 6, DrawLineOptions{.min_x = 20, .max_x = 100});
 		c.drawScreenTitle("TITLE");
-		expectGolden("oled/line_options.pbm", pbm(c));
+		expect_golden("oled/line_options.pbm", pbm(c));
 	});
 });
 
@@ -627,7 +627,7 @@ git commit -m "test(gfx): golden PBM frames for the current OLED canvas"
   ```cpp
   struct Geometry { uint16_t width; uint16_t height; uint8_t visible_top;
                     constexpr uint32_t pages() const; constexpr uint32_t bytes() const;
-                    constexpr int32_t visibleHeight() const; };
+                    constexpr int32_t visible_height() const; };
   constexpr Geometry kDelugeOled{128, 48, 5};
   constexpr int32_t kEdge = -1;    // "the right edge of the canvas" in endX/rightPos params
   constexpr int32_t kCentre = -1;  // "the horizontal centre" in centrePos params
@@ -638,8 +638,8 @@ git commit -m "test(gfx): golden PBM frames for the current OLED canvas"
                 constexpr int32_t right() const; constexpr int32_t bottom() const;
                 constexpr bool contains(Point) const; constexpr Point centre() const;
                 constexpr Rect inset(Insets) const;
-                constexpr std::pair<Rect, Rect> splitRows(int32_t at) const;   // top h=at, bottom rest
-                constexpr std::pair<Rect, Rect> splitCols(int32_t at) const;   // left w=at, right rest
+                constexpr std::pair<Rect, Rect> split_rows(int32_t at) const;   // top h=at, bottom rest
+                constexpr std::pair<Rect, Rect> split_cols(int32_t at) const;   // left w=at, right rest
                 constexpr Rect intersect(Rect) const; };
   ```
 
@@ -659,15 +659,15 @@ describe geometry("gfx::oled geometry", $ {
 		expect(kDelugeOled.pages()).to_equal(6u);
 		expect(kDelugeOled.bytes()).to_equal(768u);
 		expect(Geometry{128, 64, 0}.bytes()).to_equal(1024u);
-		expect(kDelugeOled.visibleHeight()).to_equal(43);
+		expect(kDelugeOled.visible_height()).to_equal(43);
 	});
 
 	it("splits rects without gaps or overlap", _ {
 		Rect r{0, 5, 128, 43};
-		auto [top, bottom] = r.splitRows(10);
+		auto [top, bottom] = r.split_rows(10);
 		expect(top).to_equal(Rect{0, 5, 128, 10});
 		expect(bottom).to_equal(Rect{0, 15, 128, 33});
-		auto [left, right] = r.splitCols(32);
+		auto [left, right] = r.split_cols(32);
 		expect(left.w + right.w).to_equal(128);
 		expect(right.x).to_equal(32);
 	});
@@ -740,7 +740,7 @@ struct Geometry {
 	uint8_t visible_top;
 	constexpr uint32_t pages() const { return height >> 3; }
 	constexpr uint32_t bytes() const { return pages() * width; }
-	constexpr int32_t visibleHeight() const { return height - visible_top; }
+	constexpr int32_t visible_height() const { return height - visible_top; }
 };
 
 constexpr Geometry kDelugeOled{128, 48, 5};
@@ -769,8 +769,8 @@ struct Rect {
 	constexpr bool contains(Point p) const { return p.x >= x && p.x < right() && p.y >= y && p.y < bottom(); }
 	constexpr Point centre() const { return {x + w / 2, y + h / 2}; }
 	constexpr Rect inset(Insets i) const { return {x + i.left, y + i.top, w - i.left - i.right, h - i.top - i.bottom}; }
-	constexpr std::pair<Rect, Rect> splitRows(int32_t at) const { return {{x, y, w, at}, {x, y + at, w, h - at}}; }
-	constexpr std::pair<Rect, Rect> splitCols(int32_t at) const { return {{x, y, at, h}, {x + at, y, w - at, h}}; }
+	constexpr std::pair<Rect, Rect> split_rows(int32_t at) const { return {{x, y, w, at}, {x, y + at, w, h - at}}; }
+	constexpr std::pair<Rect, Rect> split_cols(int32_t at) const { return {{x, y, at, h}, {x + at, y, w - at, h}}; }
 	constexpr Rect intersect(Rect o) const {
 		int32_t nx = x > o.x ? x : o.x, ny = y > o.y ? y : o.y;
 		int32_t nr = right() < o.right() ? right() : o.right();
@@ -804,7 +804,7 @@ git commit -m "feat(gfx): add the gfx library skeleton and OLED geometry types"
 **Files:**
 - Move: `src/deluge/gui/fonts/fonts.c` → `src/gfx/oled/fonts/fonts.c`; `fonts.h` → `src/gfx/oled/fonts/fonts.h` (`git mv`)
 - Create: `src/gfx/oled/font.h`, `src/gfx/oled/font.cpp`, `src/deluge/gui/fonts/fonts.h` (façade)
-- Modify: `src/definitions_cxx.hpp:968-983` (kText* constants), `src/gfx/CMakeLists.txt`, `src/deluge/hid/display/oled_canvas/canvas.cpp:464-510,562-580` (use `fontForTextHeight`)
+- Modify: `src/definitions_cxx.hpp:968-983` (kText* constants), `src/gfx/CMakeLists.txt`, `src/deluge/hid/display/oled_canvas/canvas.cpp:464-510,562-580` (use `font_for_text_height`)
 - Test: `tests/spec/gfx/font_spec.cpp`; `canvas_golden_spec` unchanged
 
 **Interfaces:**
@@ -816,11 +816,11 @@ git commit -m "feat(gfx): add the gfx library skeleton and OLED geometry types"
                     kTextHugeSpacingX = 18, kTextHugeSizeY = 20;
   enum class FontId : uint8_t { Px5, Apple7, MetricBold9, MetricBold13, MetricBold20 };
   struct Font { FontId id; const uint8_t* bitmap; const lv_font_glyph_dsc_t* glyphs;
-                uint8_t nativeHeight; uint8_t renderHeight; int8_t yAdjust; bool monospaced; };
-  const Font& fontForTextHeight(int32_t textHeight);   // the switch from Canvas::drawChar, verbatim
-  int32_t glyphIndex(uint8_t c);                        // Canvas::getCharIndex, verbatim
+                uint8_t native_height; uint8_t render_height; int8_t y_adjust; bool monospaced; };
+  const Font& font_for_text_height(int32_t text_height);   // the switch from Canvas::drawChar, verbatim
+  int32_t glyph_index(uint8_t c);                        // Canvas::getCharIndex, verbatim
   ```
-  Mapping (from `canvas.cpp:466-509`): 5,6→Px5 (render 5, native 5); 7,8→Apple7 (render 7, native 8); 9→Apple7 with `yAdjust=1`; 10→MetricBold9 (render 9); 13→MetricBold13; 20 and default→MetricBold20. `monospaced` is true for Apple7 only.
+  Mapping (from `canvas.cpp:466-509`): 5,6→Px5 (render 5, native 5); 7,8→Apple7 (render 7, native 8); 9→Apple7 with `y_adjust=1`; 10→MetricBold9 (render 9); 13→MetricBold13; 20 and default→MetricBold20. `monospaced` is true for Apple7 only.
 
 - [ ] **Step 1: Write the failing spec**
 
@@ -835,23 +835,23 @@ using namespace deluge::gfx::oled;
 // clang-format off
 describe font("gfx::oled fonts", $ {
 	it("maps text heights to fonts exactly as the canvas did", _ {
-		expect(fontForTextHeight(5).id).to_equal(FontId::Px5);
-		expect(fontForTextHeight(6).id).to_equal(FontId::Px5);
-		expect(fontForTextHeight(7).id).to_equal(FontId::Apple7);
-		expect(fontForTextHeight(8).renderHeight).to_equal(7);
-		expect(fontForTextHeight(9).yAdjust).to_equal(1);
-		expect(fontForTextHeight(10).id).to_equal(FontId::MetricBold9);
-		expect(fontForTextHeight(13).id).to_equal(FontId::MetricBold13);
-		expect(fontForTextHeight(20).id).to_equal(FontId::MetricBold20);
-		expect(fontForTextHeight(99).id).to_equal(FontId::MetricBold20);
-		expect(fontForTextHeight(8).monospaced).to_be_true();
-		expect(fontForTextHeight(13).monospaced).to_be_false();
+		expect(font_for_text_height(5).id).to_equal(FontId::Px5);
+		expect(font_for_text_height(6).id).to_equal(FontId::Px5);
+		expect(font_for_text_height(7).id).to_equal(FontId::Apple7);
+		expect(font_for_text_height(8).render_height).to_equal(7);
+		expect(font_for_text_height(9).y_adjust).to_equal(1);
+		expect(font_for_text_height(10).id).to_equal(FontId::MetricBold9);
+		expect(font_for_text_height(13).id).to_equal(FontId::MetricBold13);
+		expect(font_for_text_height(20).id).to_equal(FontId::MetricBold20);
+		expect(font_for_text_height(99).id).to_equal(FontId::MetricBold20);
+		expect(font_for_text_height(8).monospaced).to_be_true();
+		expect(font_for_text_height(13).monospaced).to_be_false();
 	});
 
 	it("indexes glyphs with lowercase folded onto uppercase", _ {
-		expect(glyphIndex('A')).to_equal(glyphIndex('a'));
-		expect(glyphIndex(' ')).to_equal(0);
-		expect(glyphIndex('A')).to_equal('A' - 0x20);
+		expect(glyph_index('A')).to_equal(glyph_index('a'));
+		expect(glyph_index(' ')).to_equal(0);
+		expect(glyph_index('A')).to_equal('A' - 0x20);
 	});
 });
 
@@ -898,18 +898,18 @@ struct Font {
 	FontId id;
 	const uint8_t* bitmap;
 	const lv_font_glyph_dsc_t* glyphs;
-	uint8_t nativeHeight; // rows in the bitmap
-	uint8_t renderHeight; // rows drawn (the old textHeight after normalisation)
-	int8_t yAdjust;       // added to pixelY before drawing (textHeight 9 → +1)
+	uint8_t native_height; // rows in the bitmap
+	uint8_t render_height; // rows drawn (the old textHeight after normalisation)
+	int8_t y_adjust;       // added to pixelY before drawing (textHeight 9 → +1)
 	bool monospaced;      // Apple ][: every glyph advances kTextSpacingX
 };
 
 /// Select the font a text height selects. Same table as the original Canvas::drawChar.
-const Font& fontForTextHeight(int32_t textHeight);
+const Font& font_for_text_height(int32_t textHeight);
 
 /// Glyph table index for a character; <= 0 means "not drawable". Lowercase folds to
 /// uppercase because lowercase glyphs were snipped from the tables.
-int32_t glyphIndex(uint8_t c);
+int32_t glyph_index(uint8_t c);
 
 } // namespace deluge::gfx::oled
 ```
@@ -930,7 +930,7 @@ constexpr Font kMetric13{FontId::MetricBold13, font_metric_bold_13px, font_metri
 constexpr Font kMetric20{FontId::MetricBold20, font_metric_bold_20px, font_metric_bold_20px_desc, 20, 20, 0, false};
 } // namespace
 
-const Font& fontForTextHeight(int32_t textHeight) {
+const Font& font_for_text_height(int32_t textHeight) {
 	switch (textHeight) {
 	case 5:
 	case 6:
@@ -950,7 +950,7 @@ const Font& fontForTextHeight(int32_t textHeight) {
 	}
 }
 
-int32_t glyphIndex(uint8_t c) {
+int32_t glyph_index(uint8_t c) {
 	// Copy the body of Canvas::getCharIndex (canvas.cpp) here verbatim, then delete it there.
 	if (c >= 'a') {
 		if (c <= 'z') {
@@ -1006,11 +1006,11 @@ In `canvas.cpp`, replace the font switch in `drawChar` (lines 464-510) with:
 
 ```cpp
 	const auto& f = deluge::gfx::oled::fontForTextHeight(textHeight);
-	textHeight = f.renderHeight;
-	pixelY += f.yAdjust;
+	textHeight = f.render_height;
+	pixelY += f.y_adjust;
 	lv_font_glyph_dsc_t const* descriptor = f.glyphs;
 	uint8_t const* font = f.bitmap;
-	int32_t fontNativeHeight = f.nativeHeight;
+	int32_t fontNativeHeight = f.native_height;
 ```
 
 and the descriptor switch in `getCharWidthInPixels` (lines 562-580) with `lv_font_glyph_dsc_t const* descriptor = deluge::gfx::oled::fontForTextHeight(textHeight).glyphs;`. Make `Canvas::getCharIndex` call `deluge::gfx::oled::glyphIndex`. Remove `deluge_SOURCES` glob hits: `src/deluge/CMakeLists.txt` globs `*.c` under `src/deluge`, and `fonts.c` has moved out, so nothing to do there; add `deluge_gfx_oled` to `target_link_libraries(deluge_app PUBLIC ...)` in `src/deluge/CMakeLists.txt`.
@@ -1040,7 +1040,7 @@ git commit -m "refactor(gfx): move the bitmap fonts and text metrics into gfx/ol
 - Test: `canvas_golden_spec` unchanged; `./dbt build Debug`
 
 **Interfaces:**
-- Produces: `deluge::gfx::oled::Icon { const uint8_t* data; uint8_t width; uint8_t height; uint8_t numBytesTall; }`; `namespace deluge::gfx::oled::icons { extern const Icon <name>; ... }` for every icon that `oled_icons.cpp` defines with `DEFINE_ICON`.
+- Produces: `deluge::gfx::oled::Icon { const uint8_t* data; uint8_t width; uint8_t height; uint8_t num_bytes_tall; }`; `namespace deluge::gfx::oled::icons { extern const Icon <name>; ... }` for every icon that `oled_icons.cpp` defines with `DEFINE_ICON`.
 - `deluge::hid::display::Icon` becomes `using Icon = deluge::gfx::oled::Icon;`. `OLED::<name>Icon` members that were `Icon` become `static inline const Icon& <name>Icon = gfx::oled::icons::<name>;`. Raw `const uint8_t <name>Icon[]` arrays (drawn via `drawGraphicMultiLine`) stay in `OLED` for now; they are graphics, not icons, and move with the toolkit.
 
 - [ ] **Step 1: Inventory**
@@ -1056,12 +1056,12 @@ Run: `grep -n "DEFINE_ICON(" src/deluge/hid/display/oled_icons.cpp | wc -l` and 
 #include <cstdint>
 
 namespace deluge::gfx::oled {
-/// 1-bpp column-major bitmap: `width` columns of `numBytesTall` bytes, bit 0 = top row.
+/// 1-bpp column-major bitmap: `width` columns of `num_bytes_tall` bytes, bit 0 = top row.
 struct Icon {
 	const uint8_t* data;
 	uint8_t width;
 	uint8_t height;
-	uint8_t numBytesTall;
+	uint8_t num_bytes_tall;
 };
 } // namespace deluge::gfx::oled
 ```
@@ -1084,10 +1084,10 @@ extern const Icon arpModeUp;
 ```cpp
 #include "gfx/oled/icons.h"
 
-#define DEFINE_ICON(name, numBytesTall, ...)                                                                           \
+#define DEFINE_ICON(name, num_bytes_tall, ...)                                                                           \
 	static const uint8_t name##_data[] = {__VA_ARGS__};                                                                \
-	const Icon name = {name##_data, static_cast<uint8_t>(sizeof(name##_data) / (numBytesTall)),                        \
-	                   static_cast<uint8_t>((numBytesTall) * 8), numBytesTall}
+	const Icon name = {name##_data, static_cast<uint8_t>(sizeof(name##_data) / (num_bytes_tall)),                        \
+	                   static_cast<uint8_t>((num_bytes_tall) * 8), num_bytes_tall}
 
 namespace deluge::gfx::oled::icons {
 // DEFINE_ICON(sine, 2, ...); etc — pasted from oled_icons.cpp with the `Icon` suffix dropped
@@ -1144,10 +1144,16 @@ This is the core extraction. `canvas.cpp` is copied to `src/gfx/oled/canvas.cpp`
       Canvas(std::span<uint8_t> storage, Geometry g);   // storage.size() >= g.bytes()
       Geometry geometry() const; std::span<uint8_t> bytes(); std::span<const uint8_t> bytes() const;
       uint8_t* page(uint32_t p);                        // &bytes()[p * width]
-      // every drawing method of the old Canvas, same names and parameter order, with:
+      // every drawing method of the old Canvas, same parameter order, renamed to snake_case
+      // (draw_pixel, clear_pixel, invert_pixel, draw_horizontal_line, draw_vertical_line, draw_line,
+      //  draw_rectangle, draw_rectangle_rounded, draw_circle, draw_string, draw_string_centred,
+      //  draw_string_centered, draw_string_centred_shrink_if_necessary, draw_string_align_right, draw_char,
+      //  get_char_width_in_pixels, get_char_spacing_in_pixels, get_string_width_in_pixels,
+      //  draw_graphic_multi_line, draw_icon, draw_icon_centered, draw_screen_title, clear_area_exact,
+      //  invert_area, invert_area_rounded), with:
       //   - default endX / rightPos = kEdge, default centrePos = kCentre
-      //   - drawRectangleRounded(..., BorderRadius radius = SMALL, bool rounded = true)
-      //   - invertAreaRounded(..., BorderRadius radius = SMALL, bool rounded = true)
+      //   - draw_rectangle_rounded(..., BorderRadius radius = SMALL, bool rounded = true)
+      //   - invert_area_rounded(..., BorderRadius radius = SMALL, bool rounded = true)
       //   - NO invertLeftEdgeForMenuHighlighting (policy; stays in the façade)
       //   - NO etl::istring overload (façade)
       //   - NO hackGetImageStore / roundedCornersEnabled / menuHighlightingInverts
@@ -1181,7 +1187,7 @@ describe canvas("gfx::oled::Canvas", $ {
 	it("draws into caller storage of the right size", _ {
 		uint8_t store[768] = {};
 		g::Canvas c(store, g::kDelugeOled);
-		c.drawPixel(3, 9);
+		c.draw_pixel(3, 9);
 		expect(store[1 * 128 + 3]).to_equal(uint8_t(1 << 1));
 		expect(c.bytes().size()).to_equal(size_t(768));
 	});
@@ -1189,16 +1195,16 @@ describe canvas("gfx::oled::Canvas", $ {
 	it("respects a 128x64 geometry with no hidden rows", _ {
 		g::OwnedCanvas<g::Geometry{128, 64, 0}> c;
 		c.clear();
-		c.drawHorizontalLine(63, 0, 127);          // last row exists on 64-tall
+		c.draw_horizontal_line(63, 0, 127);        // last row exists on 64-tall
 		expect(c.bytes()[7 * 128 + 5]).to_equal(uint8_t(0x80));
-		c.drawString("EDGE", 100, 50, 6, 7);       // clipped, no write past the buffer
+		c.draw_string("EDGE", 100, 50, 6, 7);      // clipped, no write past the buffer
 		expect(c.bytes().size()).to_equal(size_t(1024));
 	});
 
 	it("resolves kEdge and kCentre against the geometry", _ {
 		g::OwnedCanvas<g::Geometry{64, 16, 0}> narrow;
 		narrow.clear();
-		narrow.drawStringAlignRight("R", 4, 6, 7); // rightPos defaults to kEdge == 64
+		narrow.draw_string_align_right("R", 4, 6, 7); // right_pos defaults to kEdge == 64
 		bool anyInLastCols = false;
 		for (int x = 56; x < 64; x++) anyInLastCols |= (narrow.bytes()[x] | narrow.bytes()[64 + x]) != 0;
 		expect(anyInLastCols).to_be_true();
@@ -1207,17 +1213,13 @@ describe canvas("gfx::oled::Canvas", $ {
 	it("is byte-identical to the legacy canvas on the Deluge geometry", _ {
 		OldCanvas old; old.clear();
 		g::OwnedCanvas<g::kDelugeOled> neu; neu.clear();
-		auto scene = [](auto& c) {
-			c.drawRectangle(2, 12, 30, 30);
-			c.drawCircle(100, 20, 7, false);
-			c.drawString("Ag13", 40, 16, 9, 13);
-			c.drawStringCentred("CENTRE", 6, 6, 7);
-			c.drawLine(0, 6, 127, 47, {.thick = true});
-		};
-		scene(old);
-		scene(neu);
+		old.drawRectangle(2, 12, 30, 30);            neu.draw_rectangle(2, 12, 30, 30);
+		old.drawCircle(100, 20, 7, false);           neu.draw_circle(100, 20, 7, false);
+		old.drawString("Ag13", 40, 16, 9, 13);       neu.draw_string("Ag13", 40, 16, 9, 13);
+		old.drawStringCentred("CENTRE", 6, 6, 7);    neu.draw_string_centred("CENTRE", 6, 6, 7);
+		old.drawLine(0, 6, 127, 47, {.thick = true}); neu.draw_line(0, 6, 127, 47, {.thick = true});
 		old.drawRectangleRounded(50, 6, 90, 20, deluge::hid::display::oled_canvas::BIG);
-		neu.drawRectangleRounded(50, 6, 90, 20, g::BIG, true);
+		neu.draw_rectangle_rounded(50, 6, 90, 20, g::BIG, true);
 		expect(std::memcmp(&old.hackGetImageStore()[0][0], neu.bytes().data(), 768)).to_equal(0);
 	});
 });
@@ -1225,7 +1227,7 @@ describe canvas("gfx::oled::Canvas", $ {
 CPPSPEC_SPEC(canvas)
 ```
 
-(`{.thick = true}` needs the two `DrawLineOptions` types to be aggregate-initialisable the same way; they are.)
+(The parity example calls the legacy and the gfx canvas side by side because their method names differ; `{.thick = true}` works for both `DrawLineOptions` types.)
 
 - [ ] **Step 2: Run it to see it fail**
 
@@ -1254,20 +1256,21 @@ Apply these transformations to **both** new files (every occurrence):
 | `&image_[rowOnDisplay][startX]` | `&bytes_[rowOnDisplay * geometry_.width + startX]` |
 | `memset(image_, 0, sizeof(image_))` | `std::fill(bytes_.begin(), bytes_.end(), 0)` |
 | `kTextSpacingX` etc. | unqualified is fine (same namespace as `font.h`) |
-| `getCharIndex(` | `glyphIndex(` (delete the member) |
+| `getCharIndex(` | `glyph_index(` (delete the member) |
+| every method name | snake_case per the list in the Interfaces block (`drawPixel` → `draw_pixel`, `drawStringCentredShrinkIfNecessary` → `draw_string_centred_shrink_if_necessary`, …); parameters too (`pixelX` → `pixel_x`, `textHeight` → `text_height`, `endX` → `end_x`, `rightPos` → `right_pos`, `centrePos` → `centre_pos`, `numBytesTall` → `num_bytes_tall`) |
 | `if (roundedCornersEnabled)` | `if (rounded)` — add `bool rounded = true` as the last parameter of `drawRectangleRounded` and `invertAreaRounded` |
 | the `drawStringCentered(etl::istring& ...)` overload | delete |
 | `invertLeftEdgeForMenuHighlighting` | delete |
 | `roundedCornersEnabled`, `menuHighlightingInverts`, `kImageWidth`, `ImageStore`, `hackGetImageStore` | delete |
 | `Canvas() = default;` and the private `image_` | replace per the block below |
-| `std::vector<uint8_t> reversedGraphic(width * numBytesTall);` | fixed stack buffer, see below |
+| `std::vector<uint8_t> reversedGraphic(width * num_bytes_tall);` | fixed stack buffer, see below |
 
 At the top of each method that uses `endX`, `rightPos` or `centrePos`, resolve the sentinels once:
 
 ```cpp
-	if (endX == kEdge) endX = geometry_.width;
-	if (rightPos == kEdge) rightPos = geometry_.width;
-	if (centrePos == kCentre) centrePos = geometry_.width / 2;
+	if (end_x == kEdge) end_x = geometry_.width;
+	if (right_pos == kEdge) right_pos = geometry_.width;
+	if (centre_pos == kCentre) centre_pos = geometry_.width / 2;
 ```
 
 Class storage block (replaces the constructor and `image_`):
@@ -1305,26 +1308,26 @@ Reversed graphics without the heap (`drawGraphicMultiLine`):
 ```cpp
 	if (reversed) {
 		constexpr size_t kMaxReversed = 512;
-		uint8_t reversedGraphic[kMaxReversed];
-		const size_t n = static_cast<size_t>(width) * numBytesTall;
+		uint8_t reversed_graphic[kMaxReversed];
+		const size_t n = static_cast<size_t>(width) * num_bytes_tall;
 		if (n > kMaxReversed) {
 			return; // larger reversed graphics do not exist; drawing nothing beats overflowing
 		}
 		for (int32_t col = 0; col < width; ++col) {
 			/* same loop body as before */
 		}
-		return drawGraphicMultiLine(reversedGraphic, startX, startY, width, height, numBytesTall);
+		return draw_graphic_multi_line(reversed_graphic, start_x, start_y, width, height, num_bytes_tall);
 	}
 ```
 
-Every clip that compared against `OLED_MAIN_WIDTH_PIXELS - startX` or `(OLED_MAIN_HEIGHT_PIXELS >> 3)` now uses `geometry_` — double-check `drawGraphicMultiLine`, `drawChar`, `drawString` (the `scrollPos`/`endX` path), `clearAreaExact`, `invertArea*`, `drawCircle`, `drawLine`.
+Every clip that compared against `OLED_MAIN_WIDTH_PIXELS - startX` or `(OLED_MAIN_HEIGHT_PIXELS >> 3)` now uses `geometry_` — double-check `draw_graphic_multi_line`, `draw_char`, `draw_string` (the `scroll_pos`/`end_x` path), `clear_area_exact`, `invert_area*`, `draw_circle`, `draw_line`.
 
 Add `oled/canvas.cpp` to `deluge_gfx_oled` in `src/gfx/CMakeLists.txt`.
 
 - [ ] **Step 4: Run the spec**
 
 Run: `cmake --build build/tests --config Debug && ctest --test-dir build/tests -C Debug -R "canvas_spec|canvas_golden_spec" --output-on-failure`
-Expected: PASS. If the parity example fails, diff the two buffers with `pageMajorToPbm` on each and fix the transformation — never adjust the expectation.
+Expected: PASS. If the parity example fails, diff the two buffers with `page_major_to_pbm` on each and fix the transformation — never adjust the expectation.
 
 - [ ] **Step 5: Commit**
 
@@ -1344,7 +1347,7 @@ git commit -m "feat(gfx): OLED Canvas over caller storage with runtime geometry"
 - Test: `canvas_golden_spec`, `canvas_spec`, `./dbt build Debug`, sim `deluge_host`
 
 **Interfaces:**
-- Produces: `deluge::hid::display::oled_canvas::Canvas : public deluge::gfx::oled::OwnedCanvas<deluge::gfx::oled::kDelugeOled>` keeping `roundedCornersEnabled`, `menuHighlightingInverts`, `invertLeftEdgeForMenuHighlighting`, the `etl::istring` overload, `kImageHeight`, `kImageWidth`, `ImageStore`, `hackGetImageStore()`; `BorderRadius`, `Point`, `DrawLineOptions`, `SMALL`, `BIG` re-exported with `using`.
+- Produces: `deluge::hid::display::oled_canvas::Canvas : public deluge::gfx::oled::OwnedCanvas<deluge::gfx::oled::kDelugeOled>` exposing the **legacy camelCase method names as inline forwarders** to the snake_case base (`drawPixel` → `draw_pixel`, …, one line each, `[[deprecated]]`-free for now), plus `roundedCornersEnabled`, `menuHighlightingInverts`, `invertLeftEdgeForMenuHighlighting`, the `etl::istring` overload, `kImageHeight`, `kImageWidth`, `ImageStore`, `hackGetImageStore()`; `BorderRadius`, `Point`, `DrawLineOptions`, `SMALL`, `BIG` re-exported with `using`. New code must call the gfx names; the forwarders exist only so the ~140 legacy call sites compile unchanged and are deleted in phase 5.
 
 - [ ] **Step 1: Rewrite the façade header**
 
@@ -1382,18 +1385,30 @@ public:
 	/// Mirrors FlashStorage::accessibilityMenuHighlighting (true = invert, false = edge line).
 	static inline bool menuHighlightingInverts = true;
 
+	// Legacy names → gfx names. One forwarder per Canvas method; the full list is the
+	// snake_case list in Task 8's Interfaces block. Representative entries:
+	void drawPixel(int32_t x, int32_t y) { draw_pixel(x, y); }
+	void clearPixel(int32_t x, int32_t y) { clear_pixel(x, y); }
+	void drawHorizontalLine(int32_t y, int32_t x0, int32_t x1) { draw_horizontal_line(y, x0, x1); }
+	void drawString(std::string_view s, int32_t x, int32_t y, int32_t w, int32_t h, int32_t scroll = 0,
+	                int32_t endX = deluge::gfx::oled::kEdge, bool useTextWidth = false) {
+		draw_string(s, x, y, w, h, scroll, endX, useTextWidth);
+	}
+	// ... (drawVerticalLine, drawLine, drawRectangle, drawCircle, drawStringCentred, drawStringCentered,
+	//      drawStringCentredShrinkIfNecessary, drawStringAlignRight, drawChar, getCharWidthInPixels,
+	//      getCharSpacingInPixels, getStringWidthInPixels, drawGraphicMultiLine, drawIcon, drawIconCentered,
+	//      drawScreenTitle, clearAreaExact, invertArea — same pattern, same defaults as before)
 	void drawRectangleRounded(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, BorderRadius radius = SMALL) {
-		Base::drawRectangleRounded(minX, minY, maxX, maxY, radius, roundedCornersEnabled);
+		draw_rectangle_rounded(minX, minY, maxX, maxY, radius, roundedCornersEnabled);
 	}
 	void invertAreaRounded(int32_t xMin, int32_t width, int32_t startY, int32_t endY, BorderRadius radius = SMALL) {
-		Base::invertAreaRounded(xMin, width, startY, endY, radius, roundedCornersEnabled);
+		invert_area_rounded(xMin, width, startY, endY, radius, roundedCornersEnabled);
 	}
 	void invertLeftEdgeForMenuHighlighting(int32_t xMin, int32_t width, int32_t startY, int32_t endY);
 
-	using Base::drawStringCentered;
 	void drawStringCentered(etl::istring& stringBuf, int32_t startX, int32_t startY, int32_t textSpacingX,
 	                        int32_t textSpacingY, int32_t totalWidth) {
-		Base::drawStringCentered(stringBuf.c_str(), startX, startY, textSpacingX, textSpacingY, totalWidth);
+		draw_string_centered(stringBuf.c_str(), startX, startY, textSpacingX, textSpacingY, totalWidth);
 	}
 
 	static constexpr uint32_t kImageHeight = deluge::gfx::oled::kDelugeOled.pages();
@@ -1416,7 +1431,7 @@ namespace deluge::hid::display::oled_canvas {
 
 void Canvas::invertLeftEdgeForMenuHighlighting(int32_t xMin, int32_t width, int32_t startY, int32_t endY) {
 	if (!menuHighlightingInverts) {
-		drawVerticalLine(xMin, startY, endY);
+		draw_vertical_line(xMin, startY, endY);
 	}
 	else {
 		invertAreaRounded(xMin, width, startY, endY);
@@ -1520,8 +1535,8 @@ git commit -m "refactor(gfx): move RGB and the palette into gfx/grid"
 **Interfaces:**
 - Produces (`deluge::gfx::grid`):
   ```cpp
-  struct GridDimensions { uint8_t mainCols; uint8_t sidebarCols; uint8_t rows;
-                          constexpr uint8_t cols() const { return mainCols + sidebarCols; } };
+  struct GridDimensions { uint8_t main_cols; uint8_t sidebar_cols; uint8_t rows;
+                          constexpr uint8_t cols() const { return main_cols + sidebar_cols; } };
   constexpr GridDimensions kDelugeGrid{16, 2, 8};
   constexpr uint8_t kMaxGridCols = 32, kMaxGridRows = 16;
   class PadGrid {
@@ -1530,14 +1545,14 @@ git commit -m "refactor(gfx): move RGB and the palette into gfx/grid"
       GridDimensions dims() const;
       RGB& at(uint8_t x, uint8_t y);  const RGB& at(uint8_t x, uint8_t y) const;   // row-major [y][x]
       void set(uint8_t x, uint8_t y, RGB c);                      // marks row y dirty; ignores out-of-range
-      void clear();  void clearRow(uint8_t y);
-      void fillRect(oled-free Rect-like: uint8_t x, uint8_t y, uint8_t w, uint8_t h, RGB c);
-      uint32_t dirtyRows() const;  void markRowDirty(uint8_t y);  void markAllDirty();  void clearDirty();
+      void clear();  void clear_row(uint8_t y);
+      void fill_rect(oled-free Rect-like: uint8_t x, uint8_t y, uint8_t w, uint8_t h, RGB c);
+      uint32_t dirty_rows() const;  void mark_row_dirty(uint8_t y);  void mark_all_dirty();  void clear_dirty();
       RGB* row(uint8_t y);                                          // &cells_[y][0], cols() valid entries
   };
   ```
   Storage is `RGB cells_[kMaxGridRows][kMaxGridCols]` row-major so that a `kDelugeGrid` grid's first 8 rows × 18 columns have the **same layout as `PadLEDs::image[8][18]`** when `kMaxGridCols == 18`… it does not (32 ≠ 18). Therefore `row(y)` is the aliasing seam later phases use (copy per row), not the whole array. Record this in the header comment.
-- `tests/spec/gfx/support/grid_state.h`: `std::string gridToState(const PadGrid&)` — one line per non-black pad: `pad <x> <y> <r> <g> <b>\n`, sorted by y then x (same format as deluge-sdk's headless `.state`).
+- `tests/spec/gfx/support/grid_state.h`: `std::string grid_to_state(const PadGrid&)` — one line per non-black pad: `pad <x> <y> <r> <g> <b>\n`, sorted by y then x (same format as deluge-sdk's headless `.state`).
 
 - [ ] **Step 1: Write the failing spec**
 
@@ -1556,36 +1571,36 @@ describe pad_grid("gfx::grid::PadGrid", $ {
 	it("sizes itself from the dimensions and starts black and clean", _ {
 		PadGrid g(kDelugeGrid);
 		expect(g.dims().cols()).to_equal(uint8_t(18));
-		expect(g.dirtyRows()).to_equal(0u);
+		expect(g.dirty_rows()).to_equal(0u);
 		expect(g.at(17, 7)).to_equal(RGB{0, 0, 0});
 	});
 
 	it("tracks dirty rows on set and ignores out-of-range writes", _ {
 		PadGrid g(kDelugeGrid);
 		g.set(3, 5, RGB{255, 0, 0});
-		expect(g.dirtyRows()).to_equal(1u << 5);
+		expect(g.dirty_rows()).to_equal(1u << 5);
 		g.set(18, 0, RGB{1, 1, 1}); // one past the sidebar
 		g.set(0, 8, RGB{1, 1, 1});  // one past the last row
-		expect(g.dirtyRows()).to_equal(1u << 5);
-		g.clearDirty();
-		expect(g.dirtyRows()).to_equal(0u);
+		expect(g.dirty_rows()).to_equal(1u << 5);
+		g.clear_dirty();
+		expect(g.dirty_rows()).to_equal(0u);
 	});
 
 	it("fills rectangles clipped to the grid", _ {
 		PadGrid g(GridDimensions{4, 1, 3});
-		g.fillRect(3, 1, 10, 10, RGB{0, 0, 9});
+		g.fill_rect(3, 1, 10, 10, RGB{0, 0, 9});
 		expect(g.at(3, 1)).to_equal(RGB{0, 0, 9});
 		expect(g.at(4, 2)).to_equal(RGB{0, 0, 9});
 		expect(g.at(2, 1)).to_equal(RGB{0, 0, 0});
-		expect(g.dirtyRows()).to_equal((1u << 1) | (1u << 2));
+		expect(g.dirty_rows()).to_equal((1u << 1) | (1u << 2));
 	});
 
 	it("dumps a golden state", _ {
 		PadGrid g(kDelugeGrid);
 		g.set(0, 0, RGB{255, 0, 0});
 		g.set(17, 7, RGB{0, 255, 0});
-		g.fillRect(4, 3, 2, 2, RGB{10, 20, 30});
-		expectGolden("grid/pad_grid_basic.state", gridToState(g));
+		g.fill_rect(4, 3, 2, 2, RGB{10, 20, 30});
+		expect_golden("grid/pad_grid_basic.state", grid_to_state(g));
 	});
 });
 
@@ -1610,10 +1625,10 @@ Run: `cmake --build build/tests --config Debug 2>&1 | tail -3` — Expected: `gf
 namespace deluge::gfx::grid {
 
 struct GridDimensions {
-	uint8_t mainCols;
-	uint8_t sidebarCols;
+	uint8_t main_cols;
+	uint8_t sidebar_cols;
 	uint8_t rows;
-	constexpr uint8_t cols() const { return mainCols + sidebarCols; }
+	constexpr uint8_t cols() const { return main_cols + sidebar_cols; }
 };
 constexpr GridDimensions kDelugeGrid{16, 2, 8};
 
@@ -1628,7 +1643,7 @@ public:
 	explicit PadGrid(GridDimensions d) : dims_(d) { clear(); }
 
 	GridDimensions dims() const { return dims_; }
-	bool inRange(uint8_t x, uint8_t y) const { return x < dims_.cols() && y < dims_.rows; }
+	bool in_range(uint8_t x, uint8_t y) const { return x < dims_.cols() && y < dims_.rows; }
 
 	RGB& at(uint8_t x, uint8_t y) { return cells_[y][x]; }
 	const RGB& at(uint8_t x, uint8_t y) const { return cells_[y][x]; }
@@ -1637,13 +1652,13 @@ public:
 
 	void set(uint8_t x, uint8_t y, RGB c);
 	void clear();
-	void clearRow(uint8_t y);
-	void fillRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, RGB c);
+	void clear_row(uint8_t y);
+	void fill_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, RGB c);
 
-	uint32_t dirtyRows() const { return dirty_; }
-	void markRowDirty(uint8_t y) { if (y < dims_.rows) dirty_ |= 1u << y; }
-	void markAllDirty() { dirty_ = (1u << dims_.rows) - 1; }
-	void clearDirty() { dirty_ = 0; }
+	uint32_t dirty_rows() const { return dirty_; }
+	void mark_row_dirty(uint8_t y) { if (y < dims_.rows) dirty_ |= 1u << y; }
+	void mark_all_dirty() { dirty_ = (1u << dims_.rows) - 1; }
+	void clear_dirty() { dirty_ = 0; }
 
 private:
 	GridDimensions dims_;
@@ -1662,7 +1677,7 @@ private:
 namespace deluge::gfx::grid {
 
 void PadGrid::set(uint8_t x, uint8_t y, RGB c) {
-	if (!inRange(x, y)) {
+	if (!in_range(x, y)) {
 		return;
 	}
 	cells_[y][x] = c;
@@ -1675,7 +1690,7 @@ void PadGrid::clear() {
 			cells_[y][x] = RGB{0, 0, 0};
 		}
 	}
-	markAllDirty();
+	mark_all_dirty();
 }
 
 void PadGrid::clearRow(uint8_t y) {
@@ -1710,7 +1725,7 @@ void PadGrid::fillRect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, RGB c) {
 #include <string>
 
 /// deluge-sdk headless `.state` format: one `pad x y r g b` line per non-black pad.
-inline std::string gridToState(const deluge::gfx::grid::PadGrid& g) {
+inline std::string grid_to_state(const deluge::gfx::grid::PadGrid& g) {
 	std::string out;
 	for (uint8_t y = 0; y < g.dims().rows; y++) {
 		for (uint8_t x = 0; x < g.dims().cols(); x++) {
@@ -1725,7 +1740,7 @@ inline std::string gridToState(const deluge::gfx::grid::PadGrid& g) {
 }
 ```
 
-Add `grid/pad_grid.cpp` to `deluge_gfx_grid`. Note the test's `fillRect(3,1,10,10)` on a 5×3 grid relies on `x + w` not overflowing `uint8_t`; compute `x1`/`y1` in `int32_t` if the compiler warns.
+Add `grid/pad_grid.cpp` to `deluge_gfx_grid`. Note the test's `fill_rect(3,1,10,10)` on a 5×3 grid relies on `x + w` not overflowing `uint8_t`; compute `x1`/`y1` in `int32_t` if the compiler warns.
 
 - [ ] **Step 4: Record the golden and run**
 
@@ -1763,13 +1778,13 @@ Scope note: `pad_leds.cpp`'s zoom, explode and expand/collapse animations read U
   void fade(const PadGrid& from, const PadGrid& to, uint16_t t, PadGrid& out);
   /// Shift `from` by `offset` columns (positive = content moves right); `incoming` fills the
   /// vacated columns from its far edge. Sidebar columns are untouched. All rows dirty.
-  void scrollHorizontal(const PadGrid& from, const PadGrid& incoming, int32_t offset, PadGrid& out);
+  void scroll_horizontal(const PadGrid& from, const PadGrid& incoming, int32_t offset, PadGrid& out);
   /// Same for rows (positive = content moves down).
-  void scrollVertical(const PadGrid& from, const PadGrid& incoming, int32_t offset, PadGrid& out);
+  void scroll_vertical(const PadGrid& from, const PadGrid& incoming, int32_t offset, PadGrid& out);
   /// RGB::greyOut applied to every main-grid pad; proportion as in RGB::greyOut.
-  void greyOut(const PadGrid& in, int32_t proportion, PadGrid& out);
+  void grey_out(const PadGrid& in, int32_t proportion, PadGrid& out);
   ```
-  All take `out` by reference (no allocation), require identical `dims()`, and leave `out.dirtyRows()` fully set.
+  All take `out` by reference (no allocation), require identical `dims()`, and leave `out.dirty_rows()` fully set.
 
 - [ ] **Step 1: Write the failing spec**
 
@@ -1791,38 +1806,38 @@ describe tween("gfx::grid tweens", $ {
 		expect(out.at(2, 2)).to_equal(RGB{200, 0, 0});
 		fade(a, b, 65535, out);
 		expect(out.at(2, 2)).to_equal(RGB{0, 0, 200});
-		expect(out.dirtyRows()).to_equal(0xFFu);
+		expect(out.dirty_rows()).to_equal(0xFFu);
 	});
 
-	it("scrollHorizontal moves main pads and pulls incoming columns in, leaving the sidebar alone", _ {
+	it("scroll_horizontal moves main pads and pulls incoming columns in, leaving the sidebar alone", _ {
 		PadGrid a(kDelugeGrid), in(kDelugeGrid), out(kDelugeGrid);
 		a.set(0, 0, RGB{9, 9, 9});
 		a.set(16, 0, RGB{7, 7, 7});      // sidebar
 		in.set(15, 0, RGB{1, 2, 3});     // rightmost incoming main column
-		scrollHorizontal(a, in, 1, out); // content moves right by one
+		scroll_horizontal(a, in, 1, out); // content moves right by one
 		expect(out.at(1, 0)).to_equal(RGB{9, 9, 9});
 		expect(out.at(0, 0)).to_equal(RGB{1, 2, 3});
 		expect(out.at(16, 0)).to_equal(RGB{7, 7, 7});
 		in.set(0, 0, RGB{4, 4, 4});
-		scrollHorizontal(a, in, -1, out); // content moves left by one; column 15 comes from incoming's column 0
+		scroll_horizontal(a, in, -1, out); // content moves left by one; column 15 comes from incoming's column 0
 		expect(out.at(15, 0)).to_equal(RGB{4, 4, 4});
 		expect(out.at(0, 0)).to_equal(RGB{0, 0, 0});
 	});
 
-	it("scrollVertical moves rows", _ {
+	it("scroll_vertical moves rows", _ {
 		PadGrid a(kDelugeGrid), in(kDelugeGrid), out(kDelugeGrid);
 		a.set(3, 0, RGB{5, 5, 5});
 		in.set(3, 7, RGB{6, 6, 6});
-		scrollVertical(a, in, 1, out);
+		scroll_vertical(a, in, 1, out);
 		expect(out.at(3, 1)).to_equal(RGB{5, 5, 5});
 		expect(out.at(3, 0)).to_equal(RGB{6, 6, 6});
 	});
 
-	it("greyOut dims main pads only", _ {
+	it("grey_out dims main pads only", _ {
 		PadGrid a(kDelugeGrid), out(kDelugeGrid);
 		a.set(0, 0, RGB{255, 255, 255});
 		a.set(17, 0, RGB{255, 255, 255});
-		greyOut(a, 65536 / 2, out);
+		grey_out(a, 65536 / 2, out);
 		expect(out.at(0, 0).r).to_be_less_than(uint8_t(255));
 		expect(out.at(17, 0)).to_equal(RGB{255, 255, 255});
 	});
@@ -1846,9 +1861,9 @@ Run: `cmake --build build/tests --config Debug 2>&1 | tail -3` — Expected: `gf
 namespace deluge::gfx::grid {
 // Pure frame→frame transitions. The caller owns timing; `out` must share `dims()` with the inputs.
 void fade(const PadGrid& from, const PadGrid& to, uint16_t t, PadGrid& out);
-void scrollHorizontal(const PadGrid& from, const PadGrid& incoming, int32_t offset, PadGrid& out);
-void scrollVertical(const PadGrid& from, const PadGrid& incoming, int32_t offset, PadGrid& out);
-void greyOut(const PadGrid& in, int32_t proportion, PadGrid& out);
+void scroll_horizontal(const PadGrid& from, const PadGrid& incoming, int32_t offset, PadGrid& out);
+void scroll_vertical(const PadGrid& from, const PadGrid& incoming, int32_t offset, PadGrid& out);
+void grey_out(const PadGrid& in, int32_t proportion, PadGrid& out);
 } // namespace deluge::gfx::grid
 ```
 
@@ -1867,12 +1882,12 @@ void fade(const PadGrid& from, const PadGrid& to, uint16_t t, PadGrid& out) {
 			out.at(x, y) = RGB::blend(to.at(x, y), from.at(x, y), t);
 		}
 	}
-	out.markAllDirty();
+	out.mark_all_dirty();
 }
 
-void scrollHorizontal(const PadGrid& from, const PadGrid& incoming, int32_t offset, PadGrid& out) {
+void scroll_horizontal(const PadGrid& from, const PadGrid& incoming, int32_t offset, PadGrid& out) {
 	const auto d = from.dims();
-	const int32_t main = d.mainCols;
+	const int32_t main = d.main_cols;
 	for (uint8_t y = 0; y < d.rows; y++) {
 		for (int32_t x = 0; x < main; x++) {
 			const int32_t src = x - offset;
@@ -1890,10 +1905,10 @@ void scrollHorizontal(const PadGrid& from, const PadGrid& incoming, int32_t offs
 			out.at(x, y) = from.at(x, y);
 		}
 	}
-	out.markAllDirty();
+	out.mark_all_dirty();
 }
 
-void scrollVertical(const PadGrid& from, const PadGrid& incoming, int32_t offset, PadGrid& out) {
+void scroll_vertical(const PadGrid& from, const PadGrid& incoming, int32_t offset, PadGrid& out) {
 	const auto d = from.dims();
 	const int32_t rows = d.rows;
 	for (int32_t y = 0; y < rows; y++) {
@@ -1910,18 +1925,18 @@ void scrollVertical(const PadGrid& from, const PadGrid& incoming, int32_t offset
 			}
 		}
 	}
-	out.markAllDirty();
+	out.mark_all_dirty();
 }
 
-void greyOut(const PadGrid& in, int32_t proportion, PadGrid& out) {
+void grey_out(const PadGrid& in, int32_t proportion, PadGrid& out) {
 	const auto d = in.dims();
 	for (uint8_t y = 0; y < d.rows; y++) {
 		for (uint8_t x = 0; x < d.cols(); x++) {
 			RGB c = in.at(x, y);
-			out.at(x, y) = (x < d.mainCols) ? c.greyOut(proportion) : c;
+			out.at(x, y) = (x < d.main_cols) ? c.greyOut(proportion) : c;
 		}
 	}
-	out.markAllDirty();
+	out.mark_all_dirty();
 }
 
 } // namespace deluge::gfx::grid
@@ -2065,4 +2080,4 @@ git commit -m "test(gfx): enforce the gfx include rules as a ctest"
 
 - **Spec coverage.** §10 (ABI): Tasks 1–2. §6.1 Canvas over span + geometry, sentinel defaults, `hackGetImageStore` → `bytes()`, `roundedCornersEnabled` out of the rasteriser, no `cpu_specific`/`board_config` dependency: Tasks 8–9. §6.2 geometry types, `Font` handle over the five fonts, one `Icon` type in a registry: Tasks 5–7 (the `TextStyle`/ink-bounds API is toolkit-phase and is not claimed here). §6.3 `PadGrid` with runtime dims and row mask, `RGB`/palette as-is, tweens as pure functions: Tasks 10–12 (three tweens now; zoom/explode/expand-collapse deferred with the reason stated). §6.4/§11 host-testable and golden-tested: Tasks 4, 8, 11, 13. §12 phase 2 acceptance "byte-identical frames": Task 4 records, Task 9 proves.
 - **Not in this plan (by design):** `deluge_display_blit_oled_n` has no caller yet — the shell (phase 4) is its consumer; `PadLEDs::` keeps its own `image` until phase 5; l10n/`ui-tokens` untouched.
-- **Type consistency:** `Geometry{width,height,visible_top}`, `kDelugeOled`, `kEdge`, `kCentre`, `OwnedCanvas<G>`, `bytes()`, `GridDimensions{mainCols,sidebarCols,rows}`, `PadGrid::at/set/row/dirtyRows/markAllDirty`, `fontForTextHeight`, `glyphIndex`, `icons::<name>` are used with the same spelling in every task.
+- **Type consistency:** `Geometry{width,height,visible_top}`, `kDelugeOled`, `kEdge`, `kCentre`, `OwnedCanvas<G>`, `bytes()`, `GridDimensions{main_cols,sidebar_cols,rows}`, `PadGrid::at/set/row/dirty_rows/mark_all_dirty`, `font_for_text_height`, `glyph_index`, `icons::<name>` are used with the same spelling in every task.

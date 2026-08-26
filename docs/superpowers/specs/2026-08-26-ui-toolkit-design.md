@@ -58,9 +58,9 @@ struct InputSnapshot {
 	int8_t turn;                        // Select encoder detents: navigate / move focus
 	int8_t edit[2];                     // GoldUpper, GoldLower detents: edit the focused value
 	int8_t horizontal, vertical;
-	bool selectPressed, backPressed, shift;
+	bool select_pressed, back_pressed, shift;
 	std::span<const PadEvent> pads;     // this tick's pad events; grid frames filter by region
-	uint32_t nowMs;
+	uint32_t now_ms;
 };
 
 struct Response {
@@ -69,36 +69,36 @@ struct Response {
 	uint8_t velocity = 0;
 };
 
-/// One per surface. Widgets with motion call requestRepaintAfter; navigation calls requestRepaint.
+/// One per surface. Widgets with motion call request_repaint_after; navigation calls request_repaint.
 class RepaintGate {
 public:
-	void requestRepaint();
-	void requestRepaintAfter(uint32_t ms, uint32_t nowMs);
-	bool needsFrame(uint32_t nowMs, bool hadInput, bool modelDirty);   // consumes the request
-	std::optional<uint32_t> nextDeadline() const;
+	void request_repaint();
+	void request_repaint_after(uint32_t ms, uint32_t now_ms);
+	bool needs_frame(uint32_t now_ms, bool had_input, bool model_dirty);   // consumes the request
+	std::optional<uint32_t> next_deadline() const;
 };
 
 // POD state the scene owns and passes by reference.
-struct ListState    { int16_t cursor = 0, scroll = 0, rowsLast = 0; bool editing = false; };
+struct ListState    { int16_t cursor = 0, scroll = 0, rows_last = 0; bool editing = false; };
 struct ColumnsState { int8_t focused = 0; uint8_t page = 0; };
-struct ScrollText   { int16_t offset = 0; int8_t dir = 1; uint32_t nextStepMs = 0; };
-struct Blink        { uint16_t periodMs = 500; uint32_t untilMs = 0; };
-struct Hold         { uint32_t downMs = 0; bool held = false; uint8_t x = 0, y = 0; };
-struct Timer        { uint32_t dueMs = 0; bool armed = false; };
-struct WaveformState{ int32_t scrollCols = 0; uint8_t zoom = 0; };
+struct ScrollText   { int16_t offset = 0; int8_t dir = 1; uint32_t next_step_ms = 0; };
+struct Blink        { uint16_t period_ms = 500; uint32_t until_ms = 0; };
+struct Hold         { uint32_t down_ms = 0; bool held = false; uint8_t x = 0, y = 0; };
+struct Timer        { uint32_t due_ms = 0; bool armed = false; };
+struct WaveformState{ int32_t scroll_cols = 0; uint8_t zoom = 0; };
 
 /// Passed by const& into every frame. Chosen per board profile; "menu line count" and
 /// "rounded corners" are values here, not globals on the rasteriser.
 struct Style {
-	int32_t titleHeight, rowHeight, insetX, scrollbarW, menuRows;
-	bool rounded, invertHighlight;
-	gfx::oled::FontId titleFont, rowFont, valueFont, bigFont;
+	int32_t title_height, row_height, inset_x, scrollbar_w, menu_rows;
+	bool rounded, invert_highlight;
+	gfx::oled::FontId title_font, row_font, value_font, big_font;
 };
 
 // LED declarations (surface-agnostic data; composed by the shell).
 enum class LedId : uint8_t;   // defined by the board profile (spec D)
 enum class RingId : uint8_t { Upper, Lower };
-struct LedState { enum class Kind : uint8_t { Off, On, Blink } kind; uint16_t periodMs; uint32_t untilMs; };
+struct LedState { enum class Kind : uint8_t { Off, On, Blink } kind; uint16_t period_ms; uint32_t until_ms; };
 struct KnobRing { uint8_t levels[4]; };
 class LedFrame {
 public:
@@ -138,7 +138,7 @@ struct GridFrame {
 	const InputSnapshot& input;
 	RepaintGate& gate;
 	Response pad(int x, int y, RGB colour);    // paint + hit-test, local coords
-	std::span<const PadEvent> localEvents() const;   // region-filtered, translated
+	std::span<const PadEvent> local_events() const;   // region-filtered, translated
 	template <class F> void region(gfx::grid::Rect local, F&& body);
 	gfx::grid::Rect bounds() const;
 };
@@ -161,11 +161,11 @@ struct Frames { std::span<oled::OledFrame> oled;   // indexed by surface role
 - **No global focus tree.** Focus is per container: `ListState::cursor` for vertical lists,
   `ColumnsState::focused` for the four-slot page. A scene has one current container and
   forwards `turn` to it.
-- `list()` clamps `turn` against `rowsLast` (last frame's row count) and writes `rowsLast`
+- `list()` clamps `turn` against `rows_last` (last frame's row count) and writes `rows_last`
   before returning — a turn past the end cannot skip on reverse.
-- Any navigation (cursor moved, submenu entered, page changed) calls `gate.requestRepaint()`
+- Any navigation (cursor moved, submenu entered, page changed) calls `gate.request_repaint()`
   so the new state renders before the shell blocks on input.
-- Motion widgets call `gate.requestRepaintAfter(ms, now)`; nothing touches a timer table.
+- Motion widgets call `gate.request_repaint_after(ms, now)`; nothing touches a timer table.
 
 ## 6. `ui-oled` widget catalogue
 
@@ -175,25 +175,25 @@ pairs; `measure(text, font) -> Size` uses ink bounds so centring is visually cor
 
 | Widget | Replaces | Behaviour |
 |---|---|---|
-| `title(f, text, underline)` | `drawScreenTitle` | `style.titleFont` |
+| `title(f, text, underline)` | `drawScreenTitle` | `style.title_font` |
 | `text(f, rect, text, TextStyle)` | the `drawString*` family (20+ call shapes) | `align ∈ {Left, Centre, Right}`, `shrink` = shrink-to-fit |
-| `scrollText(f, rect, text, ScrollText&)` | `setupSideScroller` + `scrollingAndBlinkingTimerEvent` | ping-pong when wider than `rect`; `requestRepaintAfter` |
-| `list(f, rect, ListState&, span<ListRow>)`, `ListRow{label, value, const Icon*, selectable}` | `drawItemsForOled`, submenu rendering, browser lists, `invertLeftEdgeForMenuHighlighting` | applies `turn`; keeps cursor visible; highlight per `style.invertHighlight`; draws `scrollbar` when rows > visible; `entered` on select press |
+| `scroll_text(f, rect, text, ScrollText&)` | `setupSideScroller` + `scrollingAndBlinkingTimerEvent` | ping-pong when wider than `rect`; `request_repaint_after` |
+| `list(f, rect, ListState&, span<ListRow>)`, `ListRow{label, value, const Icon*, selectable}` | `drawItemsForOled`, submenu rendering, browser lists, `invertLeftEdgeForMenuHighlighting` | applies `turn`; keeps cursor visible; highlight per `style.invert_highlight`; draws `scrollbar` when rows > visible; `entered` on select press |
 | `scrollbar(f, rect, first, visible, total)` | ad hoc | for non-list views |
-| `intValue(f, rect, int32_t&, Range{min,max,step}, ValueStyle)` / `decimalValue(…, places)` | `integer.cpp`, `decimal.cpp`, `number.h` | applies `edit[]` when focused; `changed` |
-| `enumValue(f, rect, int32_t& index, span<string_view> names)` | `enumeration`, `selection`, `sync_level`, `type.h`… | wraps; name + arrows |
+| `int_value(f, rect, int32_t&, Range{min,max,step}, ValueStyle)` / `decimal_value(…, places)` | `integer.cpp`, `decimal.cpp`, `number.h` | applies `edit[]` when focused; `changed` |
+| `enum_value(f, rect, int32_t& index, span<string_view> names)` | `enumeration`, `selection`, `sync_level`, `type.h`… | wraps; name + arrows |
 | `toggle(f, rect, bool&, label)` | `toggle.cpp` | checkbox glyph |
-| `bipolarBar(f, rect, value, range)` / `unipolarBar(…)` | `param.cpp` variants, `patch_cable_strength` | centre tick for bipolar |
-| `knobArc(f, rect, value, range, bipolar)` / `pan(f, rect, value)` | horizontal-menu slot renderers | |
+| `bipolar_bar(f, rect, value, range)` / `unipolar_bar(…)` | `param.cpp` variants, `patch_cable_strength` | centre tick for bipolar |
+| `knob_arc(f, rect, value, range, bipolar)` / `pan(f, rect, value)` | horizontal-menu slot renderers | |
 | `envelope(f, rect, a, d, s, r)` | `envelope/` | ADSR outline |
-| `filterCurve(f, rect, cutoff, resonance, kind)` | `filter/` | |
+| `filter_curve(f, rect, cutoff, resonance, kind)` | `filter/` | |
 | `waveform(f, rect, WaveformData{peaks, markers}, WaveformState&)` | `sample_marker_editor`, slicer, overview | draws precomputed peak columns |
 | `columns(f, rect, ColumnsState&, span<Column>)`, `Column{label, render(OledFrame&, bool focused)}` | `horizontal_menu.cpp` (`Paging`, `SlotPosition`, labels, page dots) | four slots, focus by `turn`, paging |
-| `popupFrame(f, rect, PopupStyle)` | `setupPopup`, `drawPermanentPopupLookingText` | border + cleared interior; caller draws content in `f.region` |
+| `popup_frame(f, rect, PopupStyle)` | `setupPopup`, `drawPermanentPopupLookingText` | border + cleared interior; caller draws content in `f.region` |
 | `progress(f, rect, num, den)` / `working(f, rect, word, Blink&)` | loading/working animations | |
 | `vu(f, rect, l, r)` | OLED VU | |
-| `outputName(f, rect, OutputNameData{type, slot, subslot, name, edited})` | `View::drawOutputNameFromDetails` | |
-| `segmentDigits(f, rect, span<uint8_t,4>)` | `renderEmulated7Seg` | emulated-display feature only |
+| `output_name(f, rect, OutputNameData{type, slot, subslot, name, edited})` | `View::drawOutputNameFromDetails` | |
+| `segment_digits(f, rect, span<uint8_t,4>)` | `renderEmulated7Seg` | emulated-display feature only |
 | `graphic(f, rect, data, w, h, bytesTall)` / `icon(f, pos, const Icon&)` | `drawGraphicMultiLine`, `drawIcon` | pass-throughs; scenes never touch `Canvas` directly |
 
 ## 7. `ui-grid` component catalogue
@@ -204,21 +204,21 @@ Shape: `Response name(GridFrame&, <data>, <state&>)`; pad units, region-local.
 |---|---|---|
 | `pad(f, x, y, colour)` | direct `PadLEDs::image[y][x]` writes (58) | the primitive; `{pressed, released, held, velocity}` |
 | `row(f, y, span<RGB>)` | `renderRow` ×10 | returns the pressed x if any |
-| `clipRow(f, y, ClipRowData{colour, length, playhead, span<NoteCell>})`, `NoteCell{start, len, velocity, flags}` | note-row rendering in `instrument_clip_view` | column units; the caller windows the model |
-| `statusPad(f, x, y, StatusPad{colour, muted, armed, soloed, Blink&})` | `drawMuteSquare`, `getClipMuteSquareColour`, clip status | |
-| `auditionPad(f, x, y, colour, active)` | `drawAuditionSquare` ×5 | |
-| `sidebarColumns(f, span<StatusPad> left, span<StatusPad> right)` | `renderSidebar` ×31 | |
-| `velocityColumn(f, x, VelocityData)` / `automationColumn(f, x, AutomationData{value, bipolar})` | automation bars, velocity pads | |
-| `macros(f, x, MacroData)` / `vuMeter(f, x, l, r)` | `View::renderMacros`, `View::renderVUMeter` | |
-| `tickSquares(f, span<TickSquare>)` | `PadLEDs::setTickSquares` ×8 | playhead overlay, drawn last |
-| `waveformRow(f, y, peaks)` / `waveformFull(f, PeakGrid)` | `WaveformRenderer::renderAsSingleRow/FullScreen` | rendering only; peak scanning (reads `Sample`) stays in `gui/waveform` and moves to `deluge-scenes` |
-| `keyboard(f, KeyboardLayout&)` / `controlColumn(f, x, ControlColumn&)` | `renderPads`, `renderColumn` | adapters over the existing interfaces, which keep their `RGB image[][]` signatures until phase 6 |
-| `textKeyboard(f, TextKeyboardState&)` | on-pad QWERTY | |
+| `clip_row(f, y, ClipRowData{colour, length, playhead, span<NoteCell>})`, `NoteCell{start, len, velocity, flags}` | note-row rendering in `instrument_clip_view` | column units; the caller windows the model |
+| `status_pad(f, x, y, StatusPad{colour, muted, armed, soloed, Blink&})` | `drawMuteSquare`, `getClipMuteSquareColour`, clip status | |
+| `audition_pad(f, x, y, colour, active)` | `drawAuditionSquare` ×5 | |
+| `sidebar_columns(f, span<StatusPad> left, span<StatusPad> right)` | `renderSidebar` ×31 | |
+| `velocity_column(f, x, VelocityData)` / `automation_column(f, x, AutomationData{value, bipolar})` | automation bars, velocity pads | |
+| `macros(f, x, MacroData)` / `vu_meter(f, x, l, r)` | `View::renderMacros`, `View::renderVUMeter` | |
+| `tick_squares(f, span<TickSquare>)` | `PadLEDs::setTickSquares` ×8 | playhead overlay, drawn last |
+| `waveform_row(f, y, peaks)` / `waveform_full(f, PeakGrid)` | `WaveformRenderer::renderAsSingleRow/FullScreen` | rendering only; peak scanning (reads `Sample`) stays in `gui/waveform` and moves to `deluge-scenes` |
+| `keyboard(f, KeyboardLayout&)` / `control_column(f, x, ControlColumn&)` | `renderPads`, `renderColumn` | adapters over the existing interfaces, which keep their `RGB image[][]` signatures until phase 6 |
+| `text_keyboard(f, TextKeyboardState&)` | on-pad QWERTY | |
 | `greyout(f, GreyoutMask{cols, rows}, amount)` | `reassessGreyout` ×25, `getGreyoutColsAndRows` | applied after painting; the tween drives `amount` |
-| `gesture(f, Hold&, HoldPolicy{shortPressMs}) -> GestureEvent{Tap, Hold, Release, SecondPad{x,y}}` | per-view tap/hold FSMs | clone/copy gestures |
+| `gesture(f, Hold&, HoldPolicy{short_press_ms}) -> GestureEvent{Tap, Hold, Release, SecondPad{x,y}}` | per-view tap/hold FSMs | clone/copy gestures |
 
 Pad→meaning is computed once: the call that paints a pad reports its press. Multi-pad
-state (chords, drags) reads `f.localEvents()` and keeps a `Hold`.
+state (chords, drags) reads `f.local_events()` and keeps a `Hold`.
 
 ## 8. Text and l10n
 
@@ -235,7 +235,7 @@ state (chords, drags) reads `f.localEvents()` and keeps a `Hold`.
   PBM/state frames from literal data at 128×48 and 128×64; (b) state-transition tests through
   a null-canvas frame — cursor clamp, scroll-into-view, `edit[]` applied only when focused,
   gate deadlines; (c) `GridFrame::region` routes one pad event to exactly one pane.
-- Migration hook: `list`/`intValue`/`enumValue`/`toggle`/`columns` are what `MenuScene`
+- Migration hook: `list`/`int_value`/`enum_value`/`toggle`/`columns` are what `MenuScene`
   (spec E) is built from; their goldens are compared with the legacy `MenuItem` renderers
   per item kind before that kind's table ships.
 
@@ -243,14 +243,14 @@ state (chords, drags) reads `f.localEvents()` and keeps a `Hold`.
 
 | Today | Target |
 |---|---|
-| `OLED::setupSideScroller`, `setupBlink`, `scrollingAndBlinkingTimerEvent` | `scrollText`, `Blink` + gate |
-| `OLED::setupPopup`, `popupText`, `drawPermanentPopupLookingText`, `displayWorkingAnimation` | `popupFrame`, `working`; the popup *scene* lives in the shell |
-| `MenuItem::drawItemsForOled`, `renderSubmenuItemTypeForOled`, `drawPixelsForOled` implementations (~50 files) | `list`, `intValue`, `enumValue`, `toggle`, bars, arcs — driven by `MenuNode` tables (spec E) |
+| `OLED::setupSideScroller`, `setupBlink`, `scrollingAndBlinkingTimerEvent` | `scroll_text`, `Blink` + gate |
+| `OLED::setupPopup`, `popupText`, `drawPermanentPopupLookingText`, `displayWorkingAnimation` | `popup_frame`, `working`; the popup *scene* lives in the shell |
+| `MenuItem::drawItemsForOled`, `renderSubmenuItemTypeForOled`, `drawPixelsForOled` implementations (~50 files) | `list`, `int_value`, `enum_value`, `toggle`, bars, arcs — driven by `MenuNode` tables (spec E) |
 | `HorizontalMenu` (`Paging`, `SlotPosition`, `renderColumnLabel`, `renderPageCounters`) | `columns` |
-| `View::drawOutputNameFromDetails`, `renderVUMeter`, `renderMacros`, `getClipMuteSquareColour` | `outputName`, `vuMeter`, `macros`, `statusPad` |
-| `PadLEDs::setTickSquares`, `reassessGreyout` | `tickSquares`, `greyout` |
-| `WaveformRenderer` drawing half | `waveformRow`/`waveformFull` |
-| `gui/ui/keyboard/layout/*`, `column_controls/*` | wrapped by `keyboard`/`controlColumn`; moved as-is |
+| `View::drawOutputNameFromDetails`, `renderVUMeter`, `renderMacros`, `getClipMuteSquareColour` | `output_name`, `vu_meter`, `macros`, `status_pad` |
+| `PadLEDs::setTickSquares`, `reassessGreyout` | `tick_squares`, `greyout` |
+| `WaveformRenderer` drawing half | `waveform_row`/`waveform_full` |
+| `gui/ui/keyboard/layout/*`, `column_controls/*` | wrapped by `keyboard`/`control_column`; moved as-is |
 
 ## 11. Open questions
 
