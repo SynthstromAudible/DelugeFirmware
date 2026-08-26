@@ -559,8 +559,8 @@ void readAHostedDeviceFromFile(Deserializer& reader) {
 	MIDICableUSBHosted* device = nullptr;
 
 	String name;
-	uint16_t vendorId;
-	uint16_t productId;
+	uint16_t vendorId = 0;
+	uint16_t productId = 0;
 
 	char const* tagName;
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
@@ -648,17 +648,17 @@ checkDevice:
 				device->is_relative = reader.readTagOrAttributeValueInt();
 			}
 		}
-		else if (!strcmp(tagName, "midi_thru")) {
+		else if (strcmp(tagName, "midi_thru") == 0) {
 			// this is actually not much duplicated code, just checks for nulls and then an attempt to create a device
-			if (!device) {
-				if (!name.isEmpty() || vendorId) {
+			if (device == nullptr) {
+				if (!name.isEmpty() || vendorId != 0) {
 					device = getOrCreateHostedMIDIDeviceFromDetails(&name, vendorId,
 					                                                productId); // Will return NULL if error.
 				}
 			}
 
-			if (device) {
-				device->midi_thru = reader.readTagOrAttributeValueInt();
+			if (device != nullptr) {
+				device->midi_thru = reader.readTagOrAttributeValueInt() != 0;
 			}
 		}
 
