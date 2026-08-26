@@ -133,8 +133,15 @@ void MelodicInstrument::receivedNote(ModelStackWithTimelineCounter* modelStack, 
 
 				if (instrumentClip) {
 
+					// Step record: place the MIDI note at the step cursor instead of the live position, bypassing the
+					// normal recording gate (which needs a running clock).
+					if (isUIModeActive(UI_MODE_STEP_RECORD) && instrumentClip == getCurrentInstrumentClip()) {
+						instrumentClipView.stepRecordMidiNoteOn(note, velocity, modelStackWithNoteRow, mpeValuesOrNull,
+						                                        midiChannel);
+					}
+
 					// If we wanna record...
-					if (shouldRecordNotes && instrumentClip->armedForRecording) {
+					else if (shouldRecordNotes && instrumentClip->armedForRecording) {
 
 						bool forcePos0 = false;
 
@@ -241,10 +248,15 @@ justAuditionNote:
 			if (notesAuditioned.contains(note)) {
 				if (noteRow) {
 					// If we get here, we know there is a Clip
-					if (shouldRecordNotes
-					    && ((playbackHandler.recording == RecordingMode::ARRANGEMENT
-					         && instrumentClip->isArrangementOnlyClip())
-					        || currentSong->isClipActive(instrumentClip))) {
+
+					// Step record: advance the cursor when the last held MIDI note is released.
+					if (isUIModeActive(UI_MODE_STEP_RECORD) && instrumentClip == getCurrentInstrumentClip()) {
+						instrumentClipView.stepRecordMidiNoteOff(note);
+					}
+					else if (shouldRecordNotes
+					         && ((playbackHandler.recording == RecordingMode::ARRANGEMENT
+					              && instrumentClip->isArrangementOnlyClip())
+					             || currentSong->isClipActive(instrumentClip))) {
 
 						if (playbackHandler.recording == RecordingMode::ARRANGEMENT
 						    && !instrumentClip->isArrangementOnlyClip()) {}

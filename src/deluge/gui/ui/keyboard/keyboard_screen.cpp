@@ -34,6 +34,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
 #include "model/instrument/melodic_instrument.h"
+#include "model/note/note.h"
 #include "model/note/note_row.h"
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
@@ -78,9 +79,12 @@ KeyboardScreen::KeyboardScreen() {
 	memset(&pressedPads, 0, sizeof(pressedPads));
 	currentNotesState = {0};
 	lastNotesState = {0};
+
+	// stepRecordNotePos uses -1 as "not a held step record note".
+	memset(stepRecordNotePos, 0xFF, sizeof(stepRecordNotePos));
 }
 
-static const uint32_t padActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN,
+static const uint32_t padActionUIModes[] = {UI_MODE_AUDITIONING, UI_MODE_RECORD_COUNT_IN, UI_MODE_STEP_RECORD,
                                             0}; // Careful - this is referenced in two places // I'm always careful ;)
 
 void KeyboardScreen::killColumnSwitchKey(int32_t column) {
@@ -210,6 +214,8 @@ void KeyboardScreen::updateActiveNotes() {
 	ModelStack* modelStack = setupModelStackWithSong(modelStackMemory, currentSong);
 	bool clipIsActiveOnInstrument = makeCurrentClipActiveOnInstrumentIfPossible(modelStack);
 
+	bool didStepRecordNoteOn = false;
+
 	// Map from the current index of a note to its index in the previous note state.
 	//
 	// -1 if the note was not present in the previous
@@ -315,18 +321,54 @@ void KeyboardScreen::updateActiveNotes() {
 			}
 			enterUIMode(UI_MODE_AUDITIONING);
 
-			// Begin resampling - yup this is even allowed if we're in the card routine!
-			if (Buttons::isButtonPressed(deluge::hid::button::RECORD)
+			// Begin resampling - yup this is even allowed if we're in the card routine! (Unless in step record, where
+			// RECORD is the tie gesture.)
+			if (!isUIModeActive(UI_MODE_STEP_RECORD) && Buttons::isButtonPressed(deluge::hid::button::RECORD)
 			    && audioRecorder.recordingSource == AudioInputChannel::NONE) {
 				audioRecorder.beginOutputRecording();
 				Buttons::recordButtonPressUsedUp = true;
 			}
 		}
 
+		// Step record - bypasses the normal recording gate: place the note at the step cursor (one step long, extended
+		// by ties). Only genuinely new notes (not retriggers) place a note.
+		if (isUIModeActive(UI_MODE_STEP_RECORD) && currentToLastIdx[idx] == -1
+		    && activeInstrument->type != OutputType::KIT && clipIsActiveOnInstrument
+		    && currentSong->isClipActive(getCurrentClip())) {
+			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
+			    modelStack->addTimelineCounter(getCurrentClip());
+			Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
+
+			bool scaleAltered = false;
+			ModelStackWithNoteRow* modelStackWithNoteRow = getCurrentInstrumentClip()->getOrCreateNoteRowForYNote(
+			    newNote, modelStackWithTimelineCounter, action, &scaleAltered);
+			if (modelStackWithNoteRow->getNoteRowAllowNull()) {
+				int32_t cursorPos = getCurrentInstrumentClip()->stepRecordCursor;
+				stepRecordNotePos[newNote] = cursorPos;
+				stepRecordNoteTied[newNote] = false;
+				didStepRecordNoteOn = true;
+
+				if (!getCurrentInstrumentClip()->stepRecordNoteOn(modelStackWithNoteRow,
+				                                                  currentNotesState.notes[idx].velocity,
+				                                                  currentSong->xZoom[NAVIGATION_CLIP], action)) {
+					stepRecordNotePos[newNote] = -1; // Note wasn't placed (e.g. overlap) - it doesn't drive the cursor.
+				}
+
+				// If this caused the scale to change, update scroll
+				if (action && scaleAltered) {
+					action->updateYScrollClipViewAfter();
+				}
+			}
+			else {
+				actionLogger.closeAction(
+				    ActionType::RECORD); // Don't leave an empty action open to merge with the next.
+			}
+		}
+
 		// Recording - this only works *if* the Clip that we're viewing right now is the Instrument's activeClip
-		if (activeInstrument->type != OutputType::KIT && clipIsActiveOnInstrument
-		    && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(getCurrentClip())
-		    && getCurrentClip()->armedForRecording) {
+		else if (activeInstrument->type != OutputType::KIT && clipIsActiveOnInstrument
+		         && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(getCurrentClip())
+		         && getCurrentClip()->armedForRecording) {
 			ModelStackWithTimelineCounter* modelStackWithTimelineCounter =
 			    modelStack->addTimelineCounter(getCurrentClip());
 
@@ -363,13 +405,44 @@ void KeyboardScreen::updateActiveNotes() {
 	}
 
 	// Handle removed notes
+	bool stepRecordReleasedAnyUntied = false;
 	for (uint8_t idx = 0; idx < lastNotesState.count; ++idx) {
 		uint8_t oldNote = lastNotesState.notes[idx].note;
 		if (currentNotesState.noteEnabled(oldNote)) {
 			continue;
 		} // Note is still enabled
 
+		// Step record: track the release so the cursor can advance when the last untied note of the chord is released.
+		if (isUIModeActive(UI_MODE_STEP_RECORD)) {
+			if (stepRecordNotePos[oldNote] >= 0 && !stepRecordNoteTied[oldNote]) {
+				stepRecordReleasedAnyUntied = true;
+			}
+			stepRecordNotePos[oldNote] = -1;
+			stepRecordNoteTied[oldNote] = false;
+		}
+
 		noteOff(*modelStack, *activeInstrument, clipIsActiveOnInstrument, oldNote);
+	}
+
+	// Step record: one advance per note - the cursor advances when the release of untied notes leaves no untied placed
+	// note held (notes released together share one advance).
+	if (isUIModeActive(UI_MODE_STEP_RECORD) && stepRecordReleasedAnyUntied) {
+		bool anyUntiedHeld = false;
+		for (uint8_t idx = 0; idx < currentNotesState.count; ++idx) {
+			uint8_t heldNote = currentNotesState.notes[idx].note;
+			if (stepRecordNotePos[heldNote] >= 0 && !stepRecordNoteTied[heldNote]) {
+				anyUntiedHeld = true;
+				break;
+			}
+		}
+		if (!anyUntiedHeld) {
+			instrumentClipView.advanceStepRecordCursor(currentSong->xZoom[NAVIGATION_CLIP]);
+		}
+	}
+
+	// Step record: each chord is its own undo action.
+	if (didStepRecordNoteOn) {
+		actionLogger.closeAction(ActionType::RECORD);
 	}
 
 	if (lastNotesState.count != 0 && currentNotesState.count == 0) {
@@ -401,14 +474,48 @@ void KeyboardScreen::noteOff(ModelStack& modelStack, Instrument& activeInstrumen
 	}
 
 	// Recording - this only works *if* the Clip that we're viewing right now is the Instrument's activeClip
-	if (activeInstrument.type != OutputType::KIT && clipIsActiveOnInstrument && playbackHandler.shouldRecordNotesNow()
-	    && currentSong->isClipActive(getCurrentClip())) {
+	if (!isUIModeActive(UI_MODE_STEP_RECORD) && activeInstrument.type != OutputType::KIT && clipIsActiveOnInstrument
+	    && playbackHandler.shouldRecordNotesNow() && currentSong->isClipActive(getCurrentClip())) {
 		ModelStackWithTimelineCounter* modelStackWithTimelineCounter = modelStack.addTimelineCounter(getCurrentClip());
 		ModelStackWithNoteRow* modelStackWithNoteRow =
 		    getCurrentInstrumentClip()->getNoteRowForYNote(note, modelStackWithTimelineCounter);
 		if (modelStackWithNoteRow->getNoteRowAllowNull()) {
 			getCurrentInstrumentClip()->recordNoteOff(modelStackWithNoteRow);
 		}
+	}
+}
+
+void KeyboardScreen::stepRecordTieHeldNotes() {
+	InstrumentClip* clip = getCurrentInstrumentClip();
+	if (!clip) {
+		return;
+	}
+
+	int32_t stepLength = currentSong->xZoom[NAVIGATION_CLIP];
+
+	char modelStackMemory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithTimelineCounter* modelStack = currentSong->setupModelStackWithCurrentClip(modelStackMemory);
+	Action* action = actionLogger.getNewAction(ActionType::RECORD, ActionAddition::ALLOWED);
+
+	bool extendedAny = false;
+	for (uint8_t idx = 0; idx < currentNotesState.count; ++idx) {
+		uint8_t note = currentNotesState.notes[idx].note;
+		ModelStackWithNoteRow* modelStackWithNoteRow = clip->getNoteRowForYNote(note, modelStack);
+		if (!modelStackWithNoteRow || !modelStackWithNoteRow->getNoteRowAllowNull()) {
+			continue;
+		}
+		// The held note is where it was placed - the cursor may already have advanced past it.
+		if (clip->stepRecordTieNote(modelStackWithNoteRow, stepRecordNotePos[note], stepLength, action)) {
+			stepRecordNoteTied[note] = true;
+			extendedAny = true;
+		}
+	}
+
+	actionLogger.closeAction(ActionType::RECORD);
+
+	// The tie both extends the held notes by a step and advances the cursor, consuming the release's advance.
+	if (extendedAny) {
+		instrumentClipView.advanceStepRecordCursor(stepLength);
 	}
 }
 
@@ -491,8 +598,17 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 		}
 		// Store active flag
 		keyboardButtonActive = on;
-		if (currentUIMode == UI_MODE_NONE && !keyboardButtonActive
-		    && !keyboardButtonUsed) { // Leave if key up and not used
+
+		// Step record: KEYBOARD alone (no notes held) leaves the keyboard view for the clip view, keeping the mode
+		// active. (A rest is just RECORD with no notes held, handled above.)
+		if (isUIModeActive(UI_MODE_STEP_RECORD) && !currentNotesState.count && !keyboardButtonActive
+		    && !keyboardButtonUsed) {
+			instrumentClipView.recalculateColours();
+			changeRootUI(&instrumentClipView);
+			keyboardButtonUsed = false;
+		}
+		else if (currentUIMode == UI_MODE_NONE && !keyboardButtonActive
+		         && !keyboardButtonUsed) { // Leave if key up and not used
 
 			instrumentClipView.recalculateColours();
 			if (getCurrentClip()->onAutomationClipView) {
@@ -602,6 +718,30 @@ ActionResult KeyboardScreen::buttonAction(deluge::hid::Button b, bool on, bool i
 				}
 			}
 		}
+	}
+
+	// Record button while in step record mode: ties held notes, or advances as a rest if none are held.
+	else if (b == RECORD && isUIModeActive(UI_MODE_STEP_RECORD)) {
+		if (on) {
+			if (currentNotesState.count) {
+				stepRecordTieHeldNotes();
+			}
+			else if (!instrumentClipView.stepRecordMidiNotesHeld()) {
+				instrumentClipView.advanceStepRecordCursor(currentSong->xZoom[NAVIGATION_CLIP]);
+			}
+			Buttons::recordButtonPressUsedUp = true;
+		}
+		return ActionResult::DEALT_WITH;
+	}
+
+	// Back button exits step record mode and returns to the clip view.
+	else if (b == BACK && isUIModeActive(UI_MODE_STEP_RECORD)) {
+		if (on) {
+			instrumentClipView.exitStepRecordMode();
+			instrumentClipView.recalculateColours();
+			changeRootUI(&instrumentClipView);
+		}
+		return ActionResult::DEALT_WITH;
 	}
 
 	else {
@@ -892,6 +1032,14 @@ void KeyboardScreen::exitScaleMode() {
 }
 
 void KeyboardScreen::setLedStates() {
+	if (isUIModeActive(UI_MODE_STEP_RECORD)) {
+		// Step record mode: blink the Record and Keyboard lights as a mode indicator.
+		indicator_leds::blinkLed(IndicatorLED::KEYBOARD);
+		InstrumentClipMinder::setLedStates();
+		// playbackHandler.setLedStates() (called above) resets the Record light, so re-blink it afterwards.
+		indicator_leds::blinkLed(IndicatorLED::RECORD);
+		return;
+	}
 	indicator_leds::setLedState(IndicatorLED::KEYBOARD, true);
 	InstrumentClipMinder::setLedStates();
 }
@@ -931,9 +1079,17 @@ void KeyboardScreen::graphicsRoutine() {
 
 	const uint8_t* colours = keyboardTickColoursBasicRecording;
 
-	if (!playbackHandler.isEitherClockActive() || !playbackHandler.isCurrentlyRecording()
-	    || !currentSong->isClipActive(getCurrentClip()) || currentUIMode == UI_MODE_EXPLODE_ANIMATION
-	    || currentUIMode == UI_MODE_IMPLODE_ANIMATION || playbackHandler.ticksLeftInCountIn) {
+	// Step record: show the step cursor as a tick square instead of the playhead.
+	if (isUIModeActive(UI_MODE_STEP_RECORD)) {
+		newTickSquare = (uint64_t)getCurrentInstrumentClip()->stepRecordCursor * kDisplayWidth
+		                / getCurrentInstrumentClip()->loopLength;
+		if (newTickSquare < 0 || newTickSquare >= kDisplayWidth) {
+			newTickSquare = 255;
+		}
+	}
+	else if (!playbackHandler.isEitherClockActive() || !playbackHandler.isCurrentlyRecording()
+	         || !currentSong->isClipActive(getCurrentClip()) || currentUIMode == UI_MODE_EXPLODE_ANIMATION
+	         || currentUIMode == UI_MODE_IMPLODE_ANIMATION || playbackHandler.ticksLeftInCountIn) {
 		newTickSquare = 255;
 	}
 	else {

@@ -30,6 +30,7 @@
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/clip/clip_instance.h"
+#include "model/clip/step_record.h"
 #include "model/consequence/consequence_note_row_mute.h"
 #include "model/consequence/consequence_scale_add_note.h"
 #include "model/drum/drum_name.h"
@@ -4423,8 +4424,52 @@ ModelStackWithNoteRow* InstrumentClip::duplicateModelStackForClipBeingRecordedFr
 
 extern int16_t zeroMPEValues[kNumExpressionDimensions];
 
+void InstrumentClip::advanceStepCursor(int32_t by) {
+	stepRecordCursor = stepRecordAdvancePosition(stepRecordCursor, by, loopLength);
+}
+
+bool InstrumentClip::stepRecordNoteOn(ModelStackWithNoteRow* modelStack, int32_t velocity, int32_t stepLength,
+                                      Action* action, int16_t const* mpeValuesOrNull, int32_t fromMIDIChannel) {
+	NoteRow* noteRow = modelStack->getNoteRowAllowNull();
+	if (!noteRow) {
+		return false;
+	}
+
+	int32_t cursorPos = stepRecordCursor;
+	int32_t numNotesBefore = noteRow->notes.getNumElements();
+	recordNoteOn(modelStack, velocity, false, mpeValuesOrNull, fromMIDIChannel, cursorPos);
+
+	// A note was only created if we weren't overlapping an existing one - if so, fix its length to exactly one step.
+	if (noteRow->notes.getNumElements() > numNotesBefore) {
+		int32_t i = noteRow->notes.search(cursorPos, GREATER_OR_EQUAL);
+		Note* note = noteRow->notes.getElement(i);
+		if (note && note->pos == cursorPos) {
+			noteRow->complexSetNoteLength(note, stepLength, modelStack, action);
+			return true;
+		}
+	}
+	return false;
+}
+
+bool InstrumentClip::stepRecordTieNote(ModelStackWithNoteRow* modelStack, int32_t notePos, int32_t stepLength,
+                                       Action* action) {
+	NoteRow* noteRow = modelStack->getNoteRowAllowNull();
+	if (!noteRow || notePos < 0) {
+		return false;
+	}
+
+	int32_t i = noteRow->notes.search(notePos, GREATER_OR_EQUAL);
+	Note* note = noteRow->notes.getElement(i);
+	if (!note || note->pos != notePos) {
+		return false;
+	}
+	noteRow->complexSetNoteLength(note, note->length + stepLength, modelStack, action);
+	return true;
+}
+
 void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t velocity, bool forcePos0,
-                                  int16_t const* mpeValuesOrNull, int32_t fromMIDIChannel) {
+                                  int16_t const* mpeValuesOrNull, int32_t fromMIDIChannel,
+                                  std::optional<int32_t> forcePos) {
 
 	NoteRow* noteRow = modelStack->getNoteRow();
 
@@ -4436,6 +4481,10 @@ void InstrumentClip::recordNoteOn(ModelStackWithNoteRow* modelStack, int32_t vel
 
 	if (forcePos0) {
 		noteRow->ignoreNoteOnsBefore_ = 1;
+	}
+	else if (forcePos.has_value()) {
+		// Step record: place the note at an explicit position, bypassing quantization entirely.
+		quantizedPos = *forcePos;
 	}
 	else {
 		uint32_t unquantizedPos = modelStack->getLivePos();
