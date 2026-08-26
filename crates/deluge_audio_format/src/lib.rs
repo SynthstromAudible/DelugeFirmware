@@ -111,6 +111,72 @@ fn read_u32_be(bytes: &[u8], pos: usize) -> Option<u32> {
     Some(u32::from_be_bytes(word.try_into().ok()?))
 }
 
+/// Read a big-endian `u16` at `pos`, or `None` if `bytes` is too short.
+/// Bounds-checked: no panic, ever.
+fn read_u16_be(bytes: &[u8], pos: usize) -> Option<u16> {
+    let end = pos.checked_add(2)?;
+    let half = bytes.get(pos..end)?;
+    Some(u16::from_be_bytes(half.try_into().ok()?))
+}
+
+/// Decode a big-endian 80-bit IEEE 754 extended-precision float (the AIFF
+/// `COMM` sample rate) straight to a `u32`.
+///
+/// AIFF sample rates are always small positive integers, which this format
+/// represents exactly — so unlike the C++ oracle (`ConvertFromIeeeExtended`
+/// in `audio_format_helpers.cpp`), which goes through `f64` and then
+/// truncates to `uint32_t` (undefined behaviour in C++ when that `f64` is
+/// negative or out of `u32` range), this decodes via integer shifts on the
+/// 64-bit mantissa and never touches a float. A hostile exponent (e.g. the
+/// all-ones "infinity" encoding, or one that would shift the mantissa out of
+/// `u32` range entirely) saturates to `0` or `u32::MAX` rather than
+/// panicking; the caller's `5000..=96000` range check then rejects it just
+/// as the C++'s own range check rejects its infinite/huge/negative result —
+/// so this is a deliberate implementation change, not a spec deviation.
+fn decode_aiff_extended_rate(bytes: &[u8; 10]) -> u32 {
+    let expon = (u16::from(bytes[0] & 0x7F) << 8) | u16::from(bytes[1]);
+    let hi = u32::from_be_bytes([bytes[2], bytes[3], bytes[4], bytes[5]]);
+    let lo = u32::from_be_bytes([bytes[6], bytes[7], bytes[8], bytes[9]]);
+
+    if expon == 0 && hi == 0 && lo == 0 {
+        return 0;
+    }
+    if expon == 0x7FFF {
+        // Infinity or NaN in the source encoding: no finite value to report.
+        return u32::MAX;
+    }
+    if bytes[0] & 0x80 != 0 {
+        // Negative "sample rate" is nonsensical; 0 fails the range check
+        // below exactly as reliably as any other sentinel would.
+        return 0;
+    }
+
+    // value == mantissa * 2^exp. The C++ reaches this same quantity via two
+    // `ldexp` calls (on the high and low 32-bit halves separately, at -31
+    // and a further -32) that combine to the same -63 used here on the
+    // unified 64-bit mantissa.
+    let mantissa = (u64::from(hi) << 32) | u64::from(lo);
+    let exp = i32::from(expon) - 16383 - 63;
+
+    if exp >= 0 {
+        // exp is bounded well under 64 by realistic files, but a hostile
+        // exponent could ask for a shift the type can't perform: `<<` panics
+        // if the shift amount reaches the bit width, in every build profile,
+        // not just under overflow-checks.
+        let shift = exp as u32;
+        if shift >= u64::BITS {
+            return u32::MAX; // far beyond any real sample rate
+        }
+        u32::try_from(mantissa << shift).unwrap_or(u32::MAX)
+    } else {
+        let shift = (-exp) as u32;
+        if shift >= u64::BITS {
+            return 0; // shifted away to nothing
+        }
+        u32::try_from(mantissa >> shift).unwrap_or(u32::MAX)
+    }
+}
+
 /// Decode the header at the start of `bytes`.
 ///
 /// Returns [`ParseError::NeedAtLeast`] when the prefix is too short to finish;
@@ -180,7 +246,13 @@ pub fn parse(bytes: &[u8]) -> Result<AudioHeader, ParseError> {
             Some(t) => t,
             None => return Err(ParseError::NeedAtLeast(size_end as u32)),
         };
-        let raw_size = match read_u32_le(bytes, tag_end) {
+        // Chunk *sizes* follow the container's endianness too — AIFF is
+        // big-endian throughout, not just in its field values.
+        let raw_size = match container {
+            Container::Wav => read_u32_le(bytes, tag_end),
+            Container::Aiff => read_u32_be(bytes, tag_end),
+        };
+        let raw_size = match raw_size {
             Some(s) => s,
             None => return Err(ParseError::NeedAtLeast(size_end as u32)),
         };
@@ -384,6 +456,97 @@ pub fn parse(bytes: &[u8]) -> Result<AudioHeader, ParseError> {
                         }
                     }
                 }
+            }
+            (Container::Aiff, b"COMM") => {
+                // COMM layout (big-endian): numChannels:u16,
+                // numSampleFrames:u32 (unused here), sampleSize:u16,
+                // sampleRate:extended80(10 bytes) — exactly 18 bytes. The
+                // C++ oracle rejects any other declared length outright
+                // rather than reading a partial/extended COMM
+                // (audio_file_format.cpp:317-319).
+                const COMM_LEN: usize = 18;
+                if raw_size != COMM_LEN as u32 {
+                    return Err(ParseError::Unsupported(Reason::UnsupportedFormatTag));
+                }
+                let need = match data_start.checked_add(COMM_LEN) {
+                    Some(n) => n,
+                    None => return Err(ParseError::NeedAtLeast(u32::MAX)),
+                };
+                if bytes.len() < need {
+                    return Err(ParseError::NeedAtLeast(need as u32));
+                }
+
+                let channels = read_u16_be(bytes, data_start).expect("bounds checked above");
+                let bits = read_u16_be(bytes, data_start + 6).expect("bounds checked above");
+                let extended: [u8; 10] = bytes[data_start + 8..data_start + 18]
+                    .try_into()
+                    .expect("bounds checked above: exactly 10 bytes wide");
+
+                if channels != 1 && channels != 2 {
+                    return Err(ParseError::Unsupported(Reason::UnsupportedChannelCount));
+                }
+
+                let byte_depth: u8 = match bits {
+                    8 | 16 | 24 | 32 => (bits / 8) as u8,
+                    _ => return Err(ParseError::Unsupported(Reason::UnsupportedBitDepth)),
+                };
+
+                // AIFF PCM is big-endian; anything wider than 8 bits needs a
+                // byte-swap on this (little-endian) target, hence
+                // EndiannessWrong*. 8-bit AIFF is signed already (unlike
+                // WAV's unsigned-8 convention), so it needs neither a swap
+                // nor `Unsigned8` — it stays `Native`. Mirrors
+                // audio_file_format.cpp:339-343.
+                raw_data_format_acc = match byte_depth {
+                    2 => RawDataFormat::EndiannessWrong16,
+                    3 => RawDataFormat::EndiannessWrong24,
+                    4 => RawDataFormat::EndiannessWrong32,
+                    _ => RawDataFormat::Native,
+                };
+
+                let sample_rate = decode_aiff_extended_rate(&extended);
+                if !(5000..=96000).contains(&sample_rate) {
+                    return Err(ParseError::Unsupported(Reason::SampleRateOutOfRange));
+                }
+
+                byte_depth_acc = Some(byte_depth);
+                num_channels_acc = Some(channels as u8);
+                sample_rate_acc = sample_rate;
+            }
+            (Container::Aiff, b"SSND") => {
+                found_data_chunk = true;
+                // SSND payload is offset:u32 + blockSize:u32 (both
+                // big-endian) followed by the audio bytes; the audio start
+                // must skip past both plus the declared `offset`, and the
+                // audio length excludes them from the chunk's declared
+                // size. Mirrors audio_file_format.cpp:297-311.
+                const SSND_PREFIX_LEN: usize = 8;
+                let need = match data_start.checked_add(SSND_PREFIX_LEN) {
+                    Some(n) => n,
+                    None => return Err(ParseError::NeedAtLeast(u32::MAX)),
+                };
+                if bytes.len() < need {
+                    return Err(ParseError::NeedAtLeast(need as u32));
+                }
+                let offset = read_u32_be(bytes, data_start).expect("bounds checked above");
+
+                // The C++ computes this as an unsigned subtraction that
+                // silently wraps to a huge value when a hostile `offset`
+                // exceeds the declared chunk size; that's not part of the
+                // AIFF spec, just unhandled-malformed-input behaviour in the
+                // oracle, so we deliberately saturate to 0 instead of
+                // mirroring the wraparound.
+                audio_data_length_bytes_acc = raw_size
+                    .saturating_sub(offset)
+                    .saturating_sub(SSND_PREFIX_LEN as u32);
+
+                let start = data_start
+                    .checked_add(SSND_PREFIX_LEN)
+                    .and_then(|p| p.checked_add(offset as usize));
+                audio_data_start_pos_bytes_acc = match start {
+                    Some(p) => u32::try_from(p).unwrap_or(u32::MAX),
+                    None => u32::MAX,
+                };
             }
             _ => {}
         }
@@ -766,6 +929,72 @@ mod tests {
         v.extend_from_slice(&0u32.to_le_bytes()); // sampler data
                                                   // No loop records follow.
         let _ = parse(&v); // Must return promptly, not panic and not hang.
+    }
+
+    /// 80-bit IEEE 754 extended, big-endian, for the small positive integers AIFF rates use.
+    fn extended80(value: u32) -> [u8; 10] {
+        let mut out = [0u8; 10];
+        if value == 0 {
+            return out;
+        }
+        let exp = 31 - value.leading_zeros();
+        let mantissa = (value as u64) << (63 - exp);
+        out[0..2].copy_from_slice(&((16383 + exp) as u16).to_be_bytes());
+        out[2..10].copy_from_slice(&mantissa.to_be_bytes());
+        out
+    }
+
+    fn form_comm_ssnd(channels: u16, rate: u32, bits: u16, frames: u32) -> std::vec::Vec<u8> {
+        let mut v = std::vec::Vec::new();
+        v.extend_from_slice(b"FORM");
+        v.extend_from_slice(&0u32.to_be_bytes());
+        v.extend_from_slice(b"AIFF");
+        v.extend_from_slice(b"COMM");
+        v.extend_from_slice(&18u32.to_be_bytes());
+        v.extend_from_slice(&channels.to_be_bytes());
+        v.extend_from_slice(&frames.to_be_bytes());
+        v.extend_from_slice(&bits.to_be_bytes());
+        v.extend_from_slice(&extended80(rate));
+        let data_len = frames * u32::from(channels) * u32::from(bits / 8);
+        v.extend_from_slice(b"SSND");
+        v.extend_from_slice(&(data_len + 8).to_be_bytes());
+        v.extend_from_slice(&0u32.to_be_bytes()); // offset
+        v.extend_from_slice(&0u32.to_be_bytes()); // block size
+        v.resize(v.len() + data_len as usize, 0);
+        v
+    }
+
+    #[test]
+    fn aiff_comm_and_ssnd_parse() {
+        let bytes = form_comm_ssnd(1, 44100, 16, 4);
+        let h = parse(&bytes).expect("should parse");
+        assert_eq!(h.container, Container::Aiff);
+        assert_eq!(h.num_channels, 1);
+        assert_eq!(h.byte_depth, 2);
+        assert_eq!(h.sample_rate, 44100);
+        assert_eq!(h.raw_data_format, RawDataFormat::EndiannessWrong16);
+        assert_eq!(h.audio_data_length_bytes, 8);
+    }
+
+    #[test]
+    fn aiff_comm_extreme_exponent_does_not_panic() {
+        // A COMM chunk whose 80-bit extended sample rate has an all-ones
+        // exponent (the IEEE 754 extended infinity/NaN encoding) and a zero
+        // mantissa. The C++ oracle's ConvertFromIeeeExtended returns
+        // HUGE_VAL for this and then truncates it to uint32_t — UB in C++.
+        // Our decode must just return, not panic, on the shift-by-a-hostile-
+        // exponent this implies.
+        let mut v = std::vec::Vec::new();
+        v.extend_from_slice(b"FORM");
+        v.extend_from_slice(&0u32.to_be_bytes());
+        v.extend_from_slice(b"AIFF");
+        v.extend_from_slice(b"COMM");
+        v.extend_from_slice(&18u32.to_be_bytes());
+        v.extend_from_slice(&1u16.to_be_bytes()); // channels
+        v.extend_from_slice(&0u32.to_be_bytes()); // numSampleFrames (unused)
+        v.extend_from_slice(&16u16.to_be_bytes()); // bits
+        v.extend_from_slice(&[0xFF, 0xFF, 0, 0, 0, 0, 0, 0, 0, 0]); // extended: exponent all-ones, mantissa 0
+        let _ = parse(&v); // Must return, not panic.
     }
 
     #[test]
