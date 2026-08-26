@@ -392,31 +392,6 @@ fail:
 			audioFileManager.deleteAnyTempRecordedSamplesFromMemory();
 		}
 
-		preLoadedSong->dirPath = currentDir;
-
-		std::string currentFilenameWithoutExtension = currentFileItem->getFilenameWithoutExtension();
-
-		error = audioFileManager.setupAlternateAudioFileDir(
-		    audioFileManager.alternateAudioFileLoadPath, currentDir.c_str(), currentFilenameWithoutExtension.c_str());
-		if (error != Error::NONE) {
-			goto gotErrorAfterCreatingSong;
-		}
-		audioFileManager.thingBeginningLoading(ThingType::SONG);
-
-		// Search existing RAM for all samples, to lay a claim to any which will be needed for this new Song.
-		// Do this before loading any new Samples from file, in case we were in danger of discarding any from RAM that
-		// we might actually want
-		preLoadedSong->loadAllSamples(false);
-
-		// Load samples from files, just for currently playing Sounds (or if not playing, then all Sounds)
-		if (playbackHandler.isEitherClockActive()) {
-			preLoadedSong->loadCrucialSamplesOnly();
-		}
-
-		else {
-			displayText(false);
-		}
-		currentUIMode = UI_MODE_NONE;
 		display->removeWorkingAnimation();
 		currentUIMode = UI_MODE_NONE;
 		performingLoad = false;
