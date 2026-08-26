@@ -18,6 +18,7 @@
 #pragma once
 
 #include <array>
+#include <atomic>
 #include <cstddef>
 #include <cstdint>
 
@@ -51,9 +52,26 @@ public:
 	uint16_t write_pos{0};
 
 	/// @brief Returns whether the lane holds no queued entries.
-	[[nodiscard]] bool empty() const { return read_pos == write_pos; }
+	///
+	/// @note The acquire fence pairs with the release fence in push(). Producer and consumer are on the
+	///       same core (mainline vs. ISR), so no hardware barrier is needed and none is emitted; this
+	///       only stops the compiler hoisting a read of `data[]` above the read of `write_pos` that
+	///       proved the entry was published. Every other accessor that needs the pairing reaches it
+	///       through this function or size().
+	[[nodiscard]] bool empty() const {
+		uint16_t published = write_pos;
+		std::atomic_signal_fence(std::memory_order_acquire);
+		return read_pos == published;
+	}
 	/// @brief Returns the number of queued entries.
-	[[nodiscard]] uint16_t size() const { return static_cast<uint16_t>((write_pos - read_pos) & mask); }
+	///
+	/// @note Acquires for the same reason as empty(); pop_many(), space() and
+	///       remove_span_via_head_swap() all read occupancy through here.
+	[[nodiscard]] uint16_t size() const {
+		uint16_t published = write_pos;
+		std::atomic_signal_fence(std::memory_order_acquire);
+		return static_cast<uint16_t>((published - read_pos) & mask);
+	}
 	/// @brief Returns the number of additional entries that can be pushed before the lane is full.
 	[[nodiscard]] uint16_t space() const { return static_cast<uint16_t>(mask - size()); }
 	/// @brief Reads a queued entry without removing it.
@@ -70,8 +88,12 @@ public:
 		if (next == read_pos) {
 			return false;
 		}
-		// Store into the current write slot, then publish it by moving write_pos.
+		// Store into the current write slot, then publish it by moving write_pos. The release fence keeps
+		// the compiler from sinking the slot store past the write_pos store, which would let a consumer
+		// that interrupts between the two read an unwritten slot. Compiler barrier only: producer and
+		// consumer share a core, so this emits no instructions.
 		data[write_pos] = value;
+		std::atomic_signal_fence(std::memory_order_release);
 		write_pos = next;
 		return true;
 	}
