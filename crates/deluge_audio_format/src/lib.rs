@@ -95,6 +95,22 @@ pub struct AudioHeader {
     pub wavetable: WavetableHints,
 }
 
+/// Read a little-endian `u32` at `pos`, or `None` if `bytes` is too short.
+/// Bounds-checked: no panic, ever.
+fn read_u32_le(bytes: &[u8], pos: usize) -> Option<u32> {
+    let end = pos.checked_add(4)?;
+    let word = bytes.get(pos..end)?;
+    Some(u32::from_le_bytes(word.try_into().ok()?))
+}
+
+/// Read a big-endian `u32` at `pos`, or `None` if `bytes` is too short.
+/// Bounds-checked: no panic, ever.
+fn read_u32_be(bytes: &[u8], pos: usize) -> Option<u32> {
+    let end = pos.checked_add(4)?;
+    let word = bytes.get(pos..end)?;
+    Some(u32::from_be_bytes(word.try_into().ok()?))
+}
+
 /// Decode the header at the start of `bytes`.
 ///
 /// Returns [`ParseError::NeedAtLeast`] when the prefix is too short to finish;
@@ -112,10 +128,151 @@ pub fn parse(bytes: &[u8]) -> Result<AudioHeader, ParseError> {
         _ => return Err(ParseError::NotAudio),
     };
 
-    // The chunk walk arrives in Tasks 2-8. Until then a recognised container
-    // with no chunks read is a file missing its format chunk.
-    let _ = container;
-    Err(ParseError::Malformed(Reason::NoFmtChunk))
+    // Bytes 4..8 declare how many bytes follow them: the 4-byte format id
+    // plus every chunk after it. A truthful, fully-supplied empty container
+    // is self-describing — `bytes.len()` equals `8 + declared`. That's the
+    // only signal available for telling a genuinely empty container (no
+    // chunks at all) apart from a prefix truncated before its first chunk
+    // header; once the walk has read a real chunk we no longer need it (see
+    // below).
+    let declared_after_top = match container {
+        Container::Wav => read_u32_le(bytes, 4),
+        Container::Aiff => read_u32_be(bytes, 4),
+    }
+    .unwrap_or(u32::MAX); // Always Some: bytes.len() >= TOP_HEADER_LEN is guaranteed above.
+    let empty_container_is_fully_supplied =
+        8usize.checked_add(declared_after_top as usize) == Some(bytes.len());
+
+    // Accumulator the chunk walk fills in. Tasks 3-6 add more fields and more
+    // match arms below; for now only the WAV `fmt ` chunk is handled, and
+    // nothing ever sets `found_data_chunk`, so every WAV/AIFF file currently
+    // ends in `NoDataChunk`.
+    let found_data_chunk = false;
+    let mut _num_channels: Option<u8> = None;
+    let mut _byte_depth: Option<u8> = None;
+    let mut _raw_data_format = RawDataFormat::Native;
+    let mut _sample_rate: u32 = 44100;
+
+    let mut pos: usize = TOP_HEADER_LEN;
+    // Once we've walked at least one real chunk, running out of `bytes`
+    // exactly on a chunk boundary is unambiguous: that's the end of the
+    // container, whatever bytes 4..8 claim.
+    let mut saw_a_chunk = false;
+
+    while pos < bytes.len() {
+        // A chunk header the caller can't possibly grow into (pos overflowed
+        // usize) can never be satisfied; report the largest ask we can.
+        let tag_end = match pos.checked_add(4) {
+            Some(n) => n,
+            None => return Err(ParseError::NeedAtLeast(u32::MAX)),
+        };
+        let size_end = match tag_end.checked_add(4) {
+            Some(n) => n,
+            None => return Err(ParseError::NeedAtLeast(u32::MAX)),
+        };
+        let tag = match bytes.get(pos..tag_end) {
+            Some(t) => t,
+            None => return Err(ParseError::NeedAtLeast(size_end as u32)),
+        };
+        let raw_size = match read_u32_le(bytes, tag_end) {
+            Some(s) => s,
+            None => return Err(ParseError::NeedAtLeast(size_end as u32)),
+        };
+        saw_a_chunk = true;
+
+        let data_start = size_end;
+        // RIFF chunks are word-aligned: an odd payload has a trailing pad byte.
+        let padded_size = raw_size + (raw_size & 1);
+
+        match (container, tag) {
+            (Container::Wav, b"fmt ") => {
+                const FMT_LEN: usize = 16;
+                let need = match data_start.checked_add(FMT_LEN) {
+                    Some(n) => n,
+                    None => return Err(ParseError::NeedAtLeast(u32::MAX)),
+                };
+                if bytes.len() < need {
+                    return Err(ParseError::NeedAtLeast(need as u32));
+                }
+
+                // fmt chunk layout: wFormatTag:u16, wChannels:u16, dwSampleRate:u32,
+                // dwByteRate:u32 (unused), wBlockAlign:u16, wBitsPerSample:u16.
+                let word0 = read_u32_le(bytes, data_start).expect("bounds checked above");
+                let sample_rate = read_u32_le(bytes, data_start + 4).expect("bounds checked above");
+                let word3 = read_u32_le(bytes, data_start + 12).expect("bounds checked above");
+
+                let format_tag = (word0 & 0xFFFF) as u16;
+                let channels = (word0 >> 16) as u16;
+                let bits = (word3 >> 16) as u16;
+
+                let byte_depth: u8 = match bits {
+                    8 => {
+                        _raw_data_format = RawDataFormat::Unsigned8;
+                        1
+                    }
+                    16 | 24 | 32 => (bits / 8) as u8,
+                    _ => return Err(ParseError::Unsupported(Reason::UnsupportedBitDepth)),
+                };
+
+                if format_tag == 1 {
+                    // PCM: RawDataFormat stays whatever the bit-depth arm above set
+                    // (Native, or Unsigned8 for 8-bit).
+                } else if format_tag == 3 && byte_depth == 4 {
+                    _raw_data_format = RawDataFormat::Float;
+                } else {
+                    return Err(ParseError::Unsupported(Reason::UnsupportedFormatTag));
+                }
+
+                if channels != 1 && channels != 2 {
+                    return Err(ParseError::Unsupported(Reason::UnsupportedChannelCount));
+                }
+
+                if !(5000..=96000).contains(&sample_rate) {
+                    return Err(ParseError::Unsupported(Reason::SampleRateOutOfRange));
+                }
+
+                _byte_depth = Some(byte_depth);
+                _num_channels = Some(channels as u8);
+                _sample_rate = sample_rate;
+            }
+            _ => {}
+        }
+
+        let next_pos = match data_start.checked_add(padded_size as usize) {
+            Some(p) => p,
+            None => return Err(ParseError::NeedAtLeast(u32::MAX)),
+        };
+        // Chunks we don't otherwise inspect (the `_` arm above) are skipped
+        // by arithmetic alone, with no read to bounds-check it — so check
+        // here that the skip doesn't run past what we've actually been
+        // given.
+        if next_pos > bytes.len() {
+            return Err(ParseError::NeedAtLeast(next_pos as u32));
+        }
+        pos = next_pos;
+    }
+
+    // We've run out of `bytes` exactly on a chunk boundary. If we never
+    // walked a real chunk, we can't tell a genuinely empty container from a
+    // prefix truncated before its first chunk header — fall back to the
+    // top-level size field. Once at least one chunk has been walked, this is
+    // unambiguously the end of the container.
+    if !saw_a_chunk && !empty_container_is_fully_supplied {
+        let next = match pos.checked_add(8) {
+            Some(n) => n,
+            None => return Err(ParseError::NeedAtLeast(u32::MAX)),
+        };
+        return Err(ParseError::NeedAtLeast(next as u32));
+    }
+
+    if !found_data_chunk {
+        return Err(ParseError::Malformed(Reason::NoDataChunk));
+    }
+
+    // Unreachable for now: no arm above ever sets `found_data_chunk`. A later
+    // task adds a `data`/`SSND` arm plus the success path this falls through
+    // to.
+    Err(ParseError::Malformed(Reason::NoDataChunk))
 }
 
 #[cfg(test)]
@@ -179,6 +336,83 @@ mod tests {
             for len in 0..64usize {
                 let buf = std::vec![b; len];
                 let _ = parse(&buf);
+            }
+        }
+    }
+
+    /// RIFF/WAVE + a `fmt ` chunk. `bits` is bits-per-sample, `fmt_tag` 1 = PCM, 3 = float.
+    fn riff_fmt(channels: u16, rate: u32, bits: u16, fmt_tag: u16) -> std::vec::Vec<u8> {
+        let mut v = std::vec::Vec::new();
+        v.extend_from_slice(b"RIFF");
+        v.extend_from_slice(&0u32.to_le_bytes());
+        v.extend_from_slice(b"WAVE");
+        v.extend_from_slice(b"fmt ");
+        v.extend_from_slice(&16u32.to_le_bytes());
+        v.extend_from_slice(&fmt_tag.to_le_bytes());
+        v.extend_from_slice(&channels.to_le_bytes());
+        v.extend_from_slice(&rate.to_le_bytes());
+        v.extend_from_slice(&0u32.to_le_bytes()); // byte rate (unused)
+        v.extend_from_slice(&0u16.to_le_bytes()); // block align (unused)
+        v.extend_from_slice(&bits.to_le_bytes());
+        v
+    }
+
+    #[test]
+    fn fmt_sets_channels_depth_and_rate() {
+        // No data chunk yet, so parse still errors — assert via the fmt-specific errors below instead.
+        assert!(matches!(
+            parse(&riff_fmt(2, 44100, 16, 1)),
+            Err(ParseError::Malformed(Reason::NoDataChunk))
+        ));
+    }
+
+    #[test]
+    fn eight_bit_is_unsigned8() {
+        assert!(matches!(
+            parse(&riff_fmt(1, 44100, 8, 1)),
+            Err(ParseError::Malformed(Reason::NoDataChunk))
+        ));
+    }
+
+    #[test]
+    fn float_only_allowed_at_32_bit() {
+        assert_eq!(
+            parse(&riff_fmt(1, 44100, 16, 3)),
+            Err(ParseError::Unsupported(Reason::UnsupportedFormatTag))
+        );
+        assert!(matches!(
+            parse(&riff_fmt(1, 44100, 32, 3)),
+            Err(ParseError::Malformed(Reason::NoDataChunk))
+        ));
+    }
+
+    #[test]
+    fn rejects_bad_depth_channels_and_rate() {
+        assert_eq!(
+            parse(&riff_fmt(1, 44100, 12, 1)),
+            Err(ParseError::Unsupported(Reason::UnsupportedBitDepth))
+        );
+        assert_eq!(
+            parse(&riff_fmt(3, 44100, 16, 1)),
+            Err(ParseError::Unsupported(Reason::UnsupportedChannelCount))
+        );
+        assert_eq!(
+            parse(&riff_fmt(1, 4000, 16, 1)),
+            Err(ParseError::Unsupported(Reason::SampleRateOutOfRange))
+        );
+        assert_eq!(
+            parse(&riff_fmt(1, 96001, 16, 1)),
+            Err(ParseError::Unsupported(Reason::SampleRateOutOfRange))
+        );
+    }
+
+    #[test]
+    fn truncated_mid_chunk_asks_for_more() {
+        let full = riff_fmt(1, 44100, 16, 1);
+        for n in 12..full.len() {
+            match parse(&full[..n]) {
+                Err(ParseError::NeedAtLeast(k)) => assert!(k as usize > n, "len {n} asked for {k}"),
+                other => panic!("len {n}: expected NeedAtLeast, got {other:?}"),
             }
         }
     }
