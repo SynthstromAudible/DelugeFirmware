@@ -154,8 +154,11 @@ Error decodeError(uint8_t status) {
 /// How far the walk should go, and what it may give up on early. The Sample and WaveTable parses differ
 /// only in these two answers.
 struct WalkOptions {
-	/// Stop as soon as the audio data chunk has been located, rather than walking the whole header. See
-	/// parseWaveTableHeader for why that is not just an optimisation.
+	/// Stop as soon as the audio data chunk has been located, rather than walking the whole header, and
+	/// read only the chunks that locate and shape the audio on the way there
+	/// (#DELUGE_AUDIO_WALK_AUDIO_ONLY). The two go together — both are about leaving the byte source
+	/// behind the audio, and about not judging a file by claims a wavetable never reads. See
+	/// parseWaveTableHeader.
 	bool stopAtAudioData = false;
 	/// Give up with FILE_NOT_LOADABLE_AS_WAVETABLE the moment the container turns out to be AIFF, before
 	/// reading a chunk — again see parseWaveTableHeader.
@@ -165,7 +168,8 @@ struct WalkOptions {
 /// Drive the decoder over @p src.
 std::expected<DelugeAudioHeader, Error> decodeHeader(AudioByteSource& src, WalkOptions options) {
 	DelugeAudioHeaderParser parser;
-	if (!deluge_audio_header_parser_init(&parser, sizeof(parser), src.size())) {
+	const uint8_t goal = options.stopAtAudioData ? DELUGE_AUDIO_WALK_AUDIO_ONLY : DELUGE_AUDIO_WALK_WHOLE_HEADER;
+	if (!deluge_audio_header_parser_init(&parser, sizeof(parser), src.size(), goal)) {
 		return std::unexpected(Error::BUG); // Storage too small — a build-time mismatch, not a file.
 	}
 
@@ -260,11 +264,14 @@ std::expected<WaveTableHeader, Error> parseWaveTableHeader(AudioByteSource& src,
 	// Two ways this walk is deliberately shorter than the Sample one, both of them behaviour the parser
 	// this replaces had:
 	//
-	//  - It stops at the audio data chunk. Not an optimisation: the wavetable load hands this SAME byte
-	//    source to WaveTable::setup, which seeks back to audioDataStartPosBytes and reads the audio
-	//    through the source's own block buffer. Walking on past the audio (to pick up metadata a
-	//    wavetable does not use) would leave a sequentially-read source blocks ahead of the audio and
-	//    make that seek a backwards one.
+	//  - It stops at the audio data chunk, and on the way there reads only the chunks that locate and
+	//    shape the audio. Not an optimisation: the wavetable load hands this SAME byte source to
+	//    WaveTable::setup, which seeks back to audioDataStartPosBytes and reads the audio through the
+	//    source's own block buffer. Walking on past the audio would leave a sequentially-read source
+	//    blocks ahead of it and make that seek a backwards one — and so, more quietly, would reading a
+	//    `smpl` chunk on the way, since those are read at a fixed 52-byte extent that a no-loops
+	//    sampler chunk (36 bytes declared) does not fill. A 192 kHz file is loadable here for the same
+	//    family of reasons: wavetable rendering never reads the sample rate.
 	//  - It gives up on AIFF as soon as the container is known, unless the user insists. That has to
 	//    happen before the walk, not after: sample_browser.cpp reads FILE_NOT_LOADABLE_AS_WAVETABLE as
 	//    "not a wavetable, load it as a Sample instead" and any other error as "give up and show it", so

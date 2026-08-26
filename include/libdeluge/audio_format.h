@@ -71,6 +71,26 @@ typedef enum DelugeAudioContainer : uint8_t {
 	DELUGE_AUDIO_CONTAINER_AIFF = 1,
 } DelugeAudioContainer;
 
+/// @brief What a walk is FOR: which chunks it reads, and which of the file's claims it insists on.
+///
+/// Not a style preference. The parser this replaces branched on the same distinction, and dropping it
+/// changed which files load: a wavetable load uses only the audio's shape and location, so the
+/// metadata that describes playing a NOTE back is neither read nor believed.
+typedef enum DelugeAudioWalkGoal : uint8_t {
+	/// Everything the header says. What a Sample load wants.
+	DELUGE_AUDIO_WALK_WHOLE_HEADER = 0,
+	/// Only what locates and shapes the audio. What a WaveTable load wants:
+	///
+	///  - `smpl`/`inst`/`INST` are stepped over UNREAD. Those chunks are read at a fixed extent rather
+	///    than at their declared length, so reading a `smpl` that declares less than 52 bytes (a
+	///    no-loops sampler chunk declares 36) walks the CALLER's byte source past the audio chunk
+	///    header behind it — and a wavetable load hands that same source, position and all, to
+	///    WaveTable::setup.
+	///  - The sample rate is still reported but no longer has to be one we can play. A 192 kHz
+	///    single-cycle file is a perfectly good wavetable; wavetable rendering never reads the rate.
+	DELUGE_AUDIO_WALK_AUDIO_ONLY = 1,
+} DelugeAudioWalkGoal;
+
 /// @brief Outcome of one `feed` / `finish_here` call.
 ///
 /// @note Fixed underlying type (`: uint8_t`): these cross the FFI by value, and `arm-none-eabi`
@@ -164,9 +184,12 @@ typedef struct DelugeAudioHeaderParser {
 ///                      the walk — no request can name a byte past it, so the end of the file is not
 ///                      something the caller has to signal, and cannot get wrong. Never pass a computed
 ///                      or inferred value: a lying size bounds the parse to what it claimed.
+/// @param goal          A DelugeAudioWalkGoal. Anything unrecognised reads more rather than less
+///                      (#DELUGE_AUDIO_WALK_WHOLE_HEADER).
 /// @return false (having written nothing) if @p parser is null or @p storage_bytes is too small for
 ///         the parser; nothing else can fail.
-bool deluge_audio_header_parser_init(DelugeAudioHeaderParser* parser, uint32_t storage_bytes, uint32_t file_size);
+bool deluge_audio_header_parser_init(DelugeAudioHeaderParser* parser, uint32_t storage_bytes, uint32_t file_size,
+                                     uint8_t goal);
 
 /// @brief The window the parser is waiting for.
 ///

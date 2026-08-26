@@ -36,8 +36,8 @@ use core::slice;
 
 use crate::wavetable::{accept_as_wavetable, Reject};
 use crate::{
-    AudioHeader, Container, FeedResult, HeaderError, HeaderParser, RawDataFormat, WavetableHints,
-    MAX_WINDOW_BYTES,
+    AudioHeader, Container, FeedResult, HeaderError, HeaderParser, RawDataFormat, WalkGoal,
+    WavetableHints, MAX_WINDOW_BYTES,
 };
 
 // ---------------------------------------------------------------------------
@@ -60,6 +60,13 @@ pub const DELUGE_AUDIO_PARSE_TRUNCATED: u8 = 5;
 /// The call itself was malformed — a null pointer, or storage too small for the
 /// parser. A programming error on the C side, never a property of a file.
 pub const DELUGE_AUDIO_PARSE_BAD_CALL: u8 = 6;
+
+/// Read everything the header says. What a Sample load wants.
+pub const DELUGE_AUDIO_WALK_WHOLE_HEADER: u8 = 0;
+/// Read only what locates and shapes the audio. What a WaveTable load wants —
+/// see [`WalkGoal::AudioOnly`] for what that leaves out, and why it is a
+/// correctness matter rather than a saving.
+pub const DELUGE_AUDIO_WALK_AUDIO_ONLY: u8 = 1;
 
 /// The header may be used as a wavetable; the cycle size has been written out.
 pub const DELUGE_WAVETABLE_ACCEPTED: u8 = 0;
@@ -270,6 +277,11 @@ unsafe fn as_parser_mut<'a>(parser: *mut DelugeAudioHeaderParser) -> &'a mut Hea
 /// the walk: no request can name a byte past it, so the end of the file is not
 /// something the caller has to signal, and cannot get wrong.
 ///
+/// `goal` is one of the `DELUGE_AUDIO_WALK_*` constants and decides which chunks
+/// the walk reads at all; anything unrecognised is treated as
+/// [`DELUGE_AUDIO_WALK_WHOLE_HEADER`], the answer that reads more rather than
+/// less.
+///
 /// # Safety
 /// `parser` must be non-null and point at `storage_bytes` writable, 8-aligned
 /// bytes.
@@ -278,17 +290,22 @@ pub unsafe extern "C" fn deluge_audio_header_parser_init(
     parser: *mut DelugeAudioHeaderParser,
     storage_bytes: u32,
     file_size: u32,
+    goal: u8,
 ) -> bool {
     if parser.is_null() || (storage_bytes as usize) < size_of::<HeaderParser>() {
         return false;
     }
+    let goal = match goal {
+        DELUGE_AUDIO_WALK_AUDIO_ONLY => WalkGoal::AudioOnly,
+        _ => WalkGoal::WholeHeader,
+    };
     // SAFETY: non-null, big enough (checked above), and 8-aligned by the type's
     // own `repr(align(8))` on both sides. Writing a fresh value over whatever
     // was there is sound because `HeaderParser` owns nothing that needs dropping.
     unsafe {
         parser
             .cast::<HeaderParser>()
-            .write(HeaderParser::new(file_size))
+            .write(HeaderParser::new_with_goal(file_size, goal))
     };
     true
 }
@@ -513,6 +530,11 @@ mod tests {
                 &mut storage,
                 size_of::<DelugeAudioHeaderParser>() as u32,
                 file.len() as u32,
+                if stop_at_audio_data {
+                    DELUGE_AUDIO_WALK_AUDIO_ONLY
+                } else {
+                    DELUGE_AUDIO_WALK_WHOLE_HEADER
+                },
             )
         };
         assert!(ok, "storage must be big enough for the parser");
@@ -698,6 +720,7 @@ mod tests {
                 &mut storage,
                 size_of::<DelugeAudioHeaderParser>() as u32,
                 file.len() as u32,
+                DELUGE_AUDIO_WALK_WHOLE_HEADER,
             )
         });
 
@@ -764,12 +787,15 @@ mod tests {
         let mut storage = DelugeAudioHeaderParser {
             _storage: [0; DELUGE_AUDIO_HEADER_PARSER_WORDS],
         };
-        assert!(!unsafe { deluge_audio_header_parser_init(&mut storage, 8, 1024) });
+        assert!(!unsafe {
+            deluge_audio_header_parser_init(&mut storage, 8, 1024, DELUGE_AUDIO_WALK_WHOLE_HEADER)
+        });
         assert!(unsafe {
             deluge_audio_header_parser_init(
                 &mut storage,
                 size_of::<DelugeAudioHeaderParser>() as u32,
                 1024,
+                DELUGE_AUDIO_WALK_WHOLE_HEADER,
             )
         });
     }

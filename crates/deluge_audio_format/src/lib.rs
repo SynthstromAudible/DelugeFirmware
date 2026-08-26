@@ -132,6 +132,32 @@ impl From<HeaderError> for ParseError {
     }
 }
 
+/// What a walk is FOR: which chunks it reads, and which of the file's claims it
+/// insists on.
+///
+/// Not a style preference — the C++ parser this replaces branched on the same
+/// distinction (`ParseMode`), and dropping it changed which files load. A
+/// wavetable load uses only the audio's shape and location; it never asks what
+/// rate the file plays back at, and it never renders a note. So the metadata
+/// that answers those questions is neither read nor believed.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(u8)]
+pub enum WalkGoal {
+    /// Everything the header says. What a Sample load wants.
+    WholeHeader = 0,
+    /// Only what locates and shapes the audio. What a WaveTable load wants:
+    ///
+    /// * per-note playback metadata (`smpl`, `inst`, AIFF `INST`) is stepped
+    ///   over unread, so a root note and loop points stay unset — and, because
+    ///   those chunks are read at a fixed extent rather than at their declared
+    ///   length, so does the caller's reader stay behind the audio it is about
+    ///   to read;
+    /// * the sample rate is still reported but no longer has to be one we can
+    ///   play. A 192 kHz single-cycle file is a perfectly good wavetable;
+    ///   wavetable rendering never looks at the rate.
+    AudioOnly = 1,
+}
+
 /// Hints a file gives about being a wavetable. Facts only — whether they are
 /// *sufficient* is [`wavetable::accept_as_wavetable`]'s decision.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -440,6 +466,8 @@ pub struct HeaderParser {
     /// [`HeaderParser::for_prefix`]), where the end of the file is not known
     /// and running out of bytes has to mean "ask for more" instead.
     file_size: Option<u32>,
+    /// What this walk is for; see [`WalkGoal`]. Fixed at construction.
+    goal: WalkGoal,
     phase: Phase,
     container: Container,
     /// Bytes 4..8 of the container header: how many bytes the file claims
@@ -482,7 +510,14 @@ impl HeaderParser {
     /// end cannot be expressed, and a caller cannot answer one by padding.
     #[must_use]
     pub const fn new(file_size: u32) -> Self {
-        Self::with_size(Some(file_size))
+        Self::with_size(Some(file_size), WalkGoal::WholeHeader)
+    }
+
+    /// A parser positioned at the start of a `file_size`-byte file, reading only
+    /// what `goal` calls for.
+    #[must_use]
+    pub const fn new_with_goal(file_size: u32, goal: WalkGoal) -> Self {
+        Self::with_size(Some(file_size), goal)
     }
 
     /// A parser for a caller that does not know where the file ends: running out
@@ -492,7 +527,7 @@ impl HeaderParser {
     /// prefix, not a file — and the one shape whose walk is not bounded by a
     /// size, so it is not something a caller can reach for by accident.
     const fn for_prefix() -> Self {
-        Self::with_size(None)
+        Self::with_size(None, WalkGoal::WholeHeader)
     }
 
     /// The window a fresh parser wants: the container header. Exposed so
@@ -500,9 +535,10 @@ impl HeaderParser {
     /// branch that could never be taken.
     const FIRST_REQUEST: (u32, u32) = (0, TOP_HEADER_LEN);
 
-    const fn with_size(file_size: Option<u32>) -> Self {
+    const fn with_size(file_size: Option<u32>, goal: WalkGoal) -> Self {
         Self {
             file_size,
+            goal,
             phase: Phase::Top,
             container: Container::Wav,
             declared_after_top: u32::MAX,
@@ -860,8 +896,23 @@ impl HeaderParser {
                 // payload itself is stepped over, never read.
                 self.advance_past(chunk)
             }
-            (Container::Wav, b"smpl") => self.wait_for(PayloadKind::Smpl, chunk),
-            (Container::Wav, b"inst") => self.wait_for(PayloadKind::Inst, chunk),
+            // The three per-note metadata chunks. An audio-only walk steps over
+            // them unread, exactly as the C++ oracle's `isSample` gate did
+            // (audio_file_format.cpp:215, :252, :404). That is not merely saved
+            // work: their windows are a fixed extent, NOT the chunk's declared
+            // length, so reading a `smpl` that declares less than 52 bytes (a
+            // no-loops sampler chunk declares 36) walks the CALLER's reader past
+            // the audio chunk header behind it — and a wavetable load hands that
+            // same reader, position and all, to the code that reads the audio.
+            (Container::Wav, b"smpl") if self.reads_note_metadata() => {
+                self.wait_for(PayloadKind::Smpl, chunk)
+            }
+            (Container::Wav, b"inst") if self.reads_note_metadata() => {
+                self.wait_for(PayloadKind::Inst, chunk)
+            }
+            (Container::Aiff, b"INST") if self.reads_note_metadata() => {
+                self.wait_for(PayloadKind::AiffInst, chunk)
+            }
             (Container::Wav, b"clm ") => self.wait_for(PayloadKind::Clm, chunk),
             (Container::Aiff, b"COMM") => {
                 // COMM is exactly 18 bytes. The C++ oracle rejects any other
@@ -890,10 +941,27 @@ impl HeaderParser {
                 self.phase = Phase::MarkCount { chunk, chunk_end };
                 Ok(())
             }
-            (Container::Aiff, b"INST") => self.wait_for(PayloadKind::AiffInst, chunk),
-            // Chunks we don't inspect are skipped by arithmetic alone.
+            // Chunks we don't inspect — including the three above on an
+            // audio-only walk — are skipped by arithmetic alone.
             _ => self.advance_past(chunk),
         }
+    }
+
+    /// Whether this walk reads the chunks that describe playing a note back
+    /// (`smpl`, `inst`, AIFF `INST`). See [`WalkGoal::AudioOnly`].
+    const fn reads_note_metadata(&self) -> bool {
+        matches!(self.goal, WalkGoal::WholeHeader)
+    }
+
+    /// Whether the file's sample rate has to be one we can play back.
+    ///
+    /// Only a Sample load has to be able to play the file at its own rate; a
+    /// wavetable is rendered from the audio's shape, and never asks. The C++
+    /// oracle gated the range check the same way (audio_file_format.cpp:204 for
+    /// `fmt `, :347 for `COMM`), and a 192 kHz single-cycle file browsed as a
+    /// wavetable loaded and played because of it.
+    const fn insists_on_a_playable_rate(&self) -> bool {
+        matches!(self.goal, WalkGoal::WholeHeader)
     }
 
     fn wait_for(&mut self, kind: PayloadKind, chunk: Chunk) -> Result<(), HeaderError> {
@@ -974,12 +1042,17 @@ impl HeaderParser {
                     return Err(HeaderError::Unsupported(Reason::UnsupportedChannelCount));
                 }
 
-                if !(5000..=96000).contains(&sample_rate) {
+                if self.insists_on_a_playable_rate() && !(5000..=96000).contains(&sample_rate) {
                     return Err(HeaderError::Unsupported(Reason::SampleRateOutOfRange));
                 }
 
                 self.byte_depth = Some(byte_depth);
                 self.num_channels = Some(channels as u8);
+                // Recorded even on a walk that will not insist on it (where the
+                // C++ oracle left the field at its 44100 default). Nothing reads
+                // it on that path — a `WaveTableHeader` has no sample rate — and
+                // a field whose value depends on why it was read would be a trap
+                // for whoever reads it next.
                 self.sample_rate = sample_rate;
             }
             PayloadKind::Smpl => {
@@ -1130,7 +1203,7 @@ impl HeaderParser {
                 };
 
                 let sample_rate = decode_aiff_extended_rate(&extended);
-                if !(5000..=96000).contains(&sample_rate) {
+                if self.insists_on_a_playable_rate() && !(5000..=96000).contains(&sample_rate) {
                     return Err(HeaderError::Unsupported(Reason::SampleRateOutOfRange));
                 }
 
@@ -1267,18 +1340,27 @@ impl HeaderParser {
         };
         let cursor = cursor.saturating_add(1);
 
-        // The pstring-skip amount below is a DELIBERATE CORRECTION, not a
-        // mirror, of audio_file_format.cpp:394-395's `(stringLength + 1) & ~1`.
-        // That rounds only the *name* length up to even and skips that many
-        // bytes after the already-consumed 1-byte length prefix — but the AIFF
-        // pstring convention (and what real encoders, including this crate's own
-        // corpus generator, actually write) pads the *whole* record — length
-        // byte plus name — to an even total. Those two rules disagree whenever
-        // the name length is odd or zero, which is exactly the common case (e.g.
-        // 3-letter names like "beg"/"end"). Verified against
-        // `~/deluge-aiff-corpus`: the C++ formula misreads every second marker
-        // in every multi-marker real file; the corrected formula below reads
-        // sane positions matching the file. See task-7-report.md for the trace.
+        // THE ONE DELIBERATE BEHAVIOUR CHANGE IN THIS PARSER, and this comment
+        // is its record — nothing outside the source justifies it.
+        //
+        // The pstring-skip amount below is a correction, not a mirror, of the
+        // C++ parser's `(stringLength + 1) & ~1` (audio_file_format.cpp:394-395
+        // as it stood at 77bd4488e). That rounds only the *name* length up to
+        // even and skips that many bytes after the already-consumed 1-byte
+        // length prefix — but the AIFF pstring convention (and what real
+        // encoders write) pads the *whole* record, length byte plus name, to an
+        // even total. The two rules disagree whenever the name length is odd or
+        // zero, which is the common case: 3-letter marker names like
+        // "beg"/"end".
+        //
+        // Consequence of the C++ rule: every marker after the first in a
+        // multi-marker file is read one byte off, so its ID and position are
+        // garbage, and an AIFF's sustain loop resolves to nothing. Measured over
+        // a 40-file AIFF corpus, 25 files' `file_loop_end_samples` came back 0
+        // from the C++ and correct from this formula; the corpus differential
+        // carries those 25 as its one adjudicated disagreement category. WAV is
+        // untouched — it has no MARK chunk — and the golden corpus is all WAV,
+        // so no golden can move on this.
         let skip = if str_len % 2 == 0 {
             u32::from(str_len) + 1
         } else {
@@ -1585,6 +1667,92 @@ mod tests {
         let mut chunk_sized = clean.clone();
         chunk_sized.extend(core::iter::repeat_n(0xAA, CHUNK_HEADER_LEN as usize));
         assert_eq!(decode_streamed(&chunk_sized), Ok(expected));
+    }
+
+    /// [`decode_streamed`] for a walk with a goal, reporting how far the caller
+    /// had to read — which is the property an audio-only walk has to keep.
+    fn decode_streamed_with_goal(
+        file: &[u8],
+        goal: WalkGoal,
+    ) -> (Result<AudioHeader, HeaderError>, u32) {
+        let mut parser = HeaderParser::new_with_goal(file.len() as u32, goal);
+        let mut read_to = 0;
+        loop {
+            let Some((start, len)) = parser.pending() else {
+                unreachable!("the walk only ever ends inside `feed`")
+            };
+            let from = (start as usize).min(file.len());
+            let to = from.saturating_add(len as usize).min(file.len());
+            read_to = read_to.max(to as u32);
+            if parser.located_audio_data() && goal == WalkGoal::AudioOnly {
+                return (parser.finish_here(), read_to);
+            }
+            match parser.feed(&file[from..to], start) {
+                Ok(FeedResult::Done(header)) => return (Ok(header), read_to),
+                Ok(FeedResult::Need { .. }) => {}
+                Err(error) => return (Err(error), read_to),
+            }
+        }
+    }
+
+    #[test]
+    fn an_audio_only_walk_leaves_the_reader_behind_the_audio() {
+        // A `smpl` chunk declaring 36 bytes — the ordinary "sampler chunk, no
+        // loops" shape — sits between `fmt ` and `data`. Reading it takes a
+        // fixed 52-byte window, which swallows the `data` header behind it and
+        // leaves the caller's reader PAST the audio start. A wavetable load
+        // hands that same reader to the code that reads the audio, so this is
+        // the invariant, not an optimisation.
+        let mut smpl = std::vec::Vec::new();
+        smpl.extend_from_slice(b"smpl");
+        smpl.extend_from_slice(&36u32.to_le_bytes());
+        for word in [0u32; 9] {
+            smpl.extend_from_slice(&word.to_le_bytes());
+        }
+        let mut file = riff_fmt(1, 44100, 16, 1);
+        file.extend_from_slice(&smpl);
+        file.extend_from_slice(b"data");
+        file.extend_from_slice(&2048u32.to_le_bytes());
+        file.resize(file.len() + 2048, 0);
+        // Fix up the RIFF size now that the body is complete.
+        let riff_size = (file.len() - 8) as u32;
+        file[4..8].copy_from_slice(&riff_size.to_le_bytes());
+
+        let (header, read_to) = decode_streamed_with_goal(&file, WalkGoal::AudioOnly);
+        let header = header.expect("the file must decode");
+        assert!(
+            read_to <= header.audio_data_start_pos_bytes,
+            "the walk read to {read_to}, past the audio at {}",
+            header.audio_data_start_pos_bytes
+        );
+
+        // The whole-header walk reads it, as it must — that is where root notes
+        // and loop points come from — and overshoots, which is why the two goals
+        // exist.
+        let (whole, whole_read_to) = decode_streamed_with_goal(&file, WalkGoal::WholeHeader);
+        let whole = whole.expect("the file must decode");
+        assert_eq!(
+            whole.audio_data_start_pos_bytes,
+            header.audio_data_start_pos_bytes
+        );
+        assert!(whole_read_to > whole.audio_data_start_pos_bytes);
+    }
+
+    #[test]
+    fn only_a_whole_header_walk_insists_on_a_playable_rate() {
+        // 192 kHz, mono, a whole number of 2048-sample cycles: unplayable as a
+        // sample, a perfectly good wavetable. It loaded before the parse moved
+        // here, because wavetable rendering never reads the rate.
+        let file = riff_fmt_data(1, 192_000, 16, 2048 * 2);
+        assert_eq!(
+            decode_streamed(&file),
+            Err(HeaderError::Unsupported(Reason::SampleRateOutOfRange))
+        );
+        let (header, _) = decode_streamed_with_goal(&file, WalkGoal::AudioOnly);
+        let header = header.expect("an audio-only walk must not judge the rate");
+        assert_eq!(header.sample_rate, 192_000);
+        assert_eq!(header.num_channels, 1);
+        assert_eq!(header.audio_data_length_bytes, 4096);
     }
 
     #[test]

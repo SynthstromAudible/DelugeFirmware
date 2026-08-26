@@ -364,6 +364,55 @@ describe audio_file_format("audio file header parser", $ {
 			}
 		});
 
+		// 192 kHz is outside the playable range a SAMPLE is held to, but a wavetable is rendered
+		// from the audio's shape and never reads the rate. Mono, and a whole number of 2048-sample
+		// cycles, so it is a wavetable by length alone. FILE_UNSUPPORTED here would not even reach
+		// sample_browser.cpp's "load it as a Sample instead" fallback -- the file would just stop
+		// loading.
+		it("loads a 192 kHz single-cycle file as a wavetable", _ {
+			ByteWriter body; body.append(wavFmt(16, 1, 192000)); body.append(wavData(2048 * 2));
+			auto r = parseWaveTable(wrapWav(body));
+			expect(r.has_value()).to_equal(true);
+			expect((int)r->cycleSize).to_equal(2048);
+			expect((int)r->audioDataLengthBytes).to_equal(4096);
+			expect(static_cast<int>(r->numChannels)).to_equal(1);
+
+			// As a SAMPLE the same file is still rejected: that rate is unplayable.
+			auto asSample = parseSample(wrapWav(body));
+			expect(asSample.has_value()).to_equal(false);
+			expect(static_cast<int>(asSample.error())).to_equal(static_cast<int>(Error::FILE_UNSUPPORTED));
+		});
+
+		// WaveTable::setup is handed the SAME byte source this parse read through, seeks it to
+		// audioDataStartPosBytes and reads the audio out of its block buffer -- so the parse must
+		// leave the cursor at or before the audio. A `smpl` declaring 36 bytes (the ordinary
+		// "sampler chunk, no loops" shape) is read at a fixed 52-byte extent, which swallows the
+		// `data` header behind it; the wavetable walk must not read it at all. When the overshoot
+		// crosses a cluster boundary the block buffer holds the wrong cluster and there is no
+		// recovery -- the first band is built from audio a cluster later in the file, silently.
+		it("leaves the byte source at or before the audio when parsing a wavetable", _ {
+			ByteWriter smpl; smpl.tag("smpl"); smpl.le32(36);
+			smpl.le32(0); smpl.le32(0); smpl.le32(0);   // manuf, product, samplePeriod
+			smpl.le32(0); smpl.le32(0);                 // midiUnityNote, pitchFraction
+			smpl.le32(0); smpl.le32(0);                 // smpteFormat, smpteOffset
+			smpl.le32(0);                               // numSampleLoops == 0
+			smpl.le32(0);                               // samplerData
+			ByteWriter body; body.append(wavFmt(16, 1, 44100)); body.append(smpl); body.append(wavData(2048 * 2));
+			const std::vector<std::byte> file = wrapWav(body);
+
+			MemoryByteSource src{file};
+			auto r = parseWaveTableHeader(src, false);
+			expect(r.has_value()).to_equal(true);
+			expect((int)src.pos() <= (int)r->audioDataStartPosBytes).to_equal(true);
+
+			// The Sample parse DOES read that chunk -- it is where root notes and loop points come
+			// from -- and nothing downstream depends on where it leaves the cursor.
+			MemoryByteSource sampleSrc{file};
+			auto asSample = parseSampleHeader(sampleSrc);
+			expect(asSample.has_value()).to_equal(true);
+			expect((int)asSample->audioDataStartPosBytes).to_equal((int)r->audioDataStartPosBytes);
+		});
+
 		// An AIFF is never a wavetable unless the user insists, and that verdict is about the CONTAINER,
 		// not about whether the file decodes: sample_browser.cpp turns FILE_NOT_LOADABLE_AS_WAVETABLE
 		// into "load it as a Sample instead", and any other error into "give up". This file decodes fine
