@@ -80,13 +80,17 @@ static_assert(sizeof(ConnectedUSBMIDIDevice) <= __builtin_offsetof(ConnectedUSBM
 // identically-shaped usbQueueManagers array.
 MIDIQueueManagerUSB& ConnectedUSBMIDIDevice::queue_manager() {
 	ptrdiff_t flat_index = this - &connectedUSBMIDIDevices[0][0];
+#if ALPHA_OR_BETA_VERSION
+	// The constructor is public, so nothing in the type system stops a ConnectedUSBMIDIDevice being
+	// created outside connectedUSBMIDIDevices; such an object would index usbQueueManagers out of bounds.
+	// Development builds only: this runs on the USB send-complete path, which is ISR context, and
+	// freezeWithError() draws to the OLED and then busy-waits on its DMA channel - not something to reach
+	// from an interrupt in a shipping build. Today the invariant holds structurally, since
+	// connectedUSBMIDIDevices is the only definition of a ConnectedUSBMIDIDevice anywhere.
 	if (flat_index < 0 || flat_index >= static_cast<ptrdiff_t>(USB_NUM_USBIP * MAX_NUM_USB_MIDI_DEVICES)) {
-		// The constructor is public, so nothing in the type system stops a ConnectedUSBMIDIDevice being
-		// created outside connectedUSBMIDIDevices. Such an object would index usbQueueManagers out of
-		// bounds and silently corrupt whatever follows it, so trap instead. This codebase has no assert
-		// macro; FREEZE_WITH_ERROR is how it states invariants that must hold at runtime.
 		FREEZE_WITH_ERROR("E403");
 	}
+#endif
 	return (&usbQueueManagers[0][0])[flat_index];
 }
 
