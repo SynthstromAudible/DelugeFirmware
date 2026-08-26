@@ -33,6 +33,7 @@ extern void loadAnyEnqueuedClustersRoutine(void);
 extern void logAudioAction(char const* string);
 
 extern void consoleTextIfAllBootedUp(char const* text);
+extern void usbDebugConsoleText(char const* text); // TEMP DIAGNOSTIC
 typedef bool (*RunCondition)();
 bool yieldingRoutineWithTimeoutForSD(RunCondition until, double timeoutSeconds);
 void yieldingRoutineForSD(RunCondition until);

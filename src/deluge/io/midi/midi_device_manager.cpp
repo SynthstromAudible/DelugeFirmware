@@ -255,6 +255,8 @@ extern "C" void hostedDeviceConfigured(int32_t ip, int32_t midiDeviceNum) {
 
 	device->freshly_connected = true; // Used to trigger hookOnConnected from the input loop
 
+	usbDebugConsoleText("USB: attached"); // TEMP DIAGNOSTIC
+
 	if (display->haveOLED()) {
 		String text;
 		text.set(&device->name);
