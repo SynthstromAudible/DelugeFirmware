@@ -31,11 +31,16 @@
 //! module reports what a file says, not whether some caller may use it.
 
 #![no_std]
-#![forbid(unsafe_code)]
+// `deny`, not `forbid`: the C ABI in [`abi`] cannot hand a raw pointer back to
+// safe Rust without it, and `forbid` cannot be lifted even for one module. That
+// module is the only place the lint is relaxed, and it says so at its top; the
+// decoder itself stays unsafe-free.
+#![deny(unsafe_code)]
 
 #[cfg(test)]
 extern crate std;
 
+pub mod abi;
 pub mod wavetable;
 
 /// Which container the file uses. Decides endianness for everything after the
@@ -534,6 +539,71 @@ impl HeaderParser {
             Phase::Done(_) | Phase::Failed(_) => None,
             _ => Some(self.request()),
         }
+    }
+
+    /// Whether the walk has located the audio data: a `data`/`SSND` chunk has
+    /// been read and [`AudioHeader::audio_data_start_pos_bytes`] /
+    /// [`AudioHeader::audio_data_length_bytes`] can no longer change.
+    ///
+    /// Pair it with [`HeaderParser::finish_here`] to stop the walk at that point.
+    /// A caller reading a file as a *wavetable* wants exactly that: everything
+    /// past the audio chunk is metadata a wavetable does not use, and walking it
+    /// drags the caller's own reader past the audio it is about to read — which
+    /// is why the C++ parser this replaces had a separate WaveTable mode that
+    /// stopped here.
+    ///
+    /// AIFF's `SSND` carries an offset in its payload, so this stays false until
+    /// that payload has been stepped, not merely until the chunk header has.
+    #[must_use]
+    pub fn located_audio_data(&self) -> bool {
+        self.found_data_chunk
+            && !matches!(
+                self.phase,
+                Phase::Payload {
+                    kind: PayloadKind::Ssnd,
+                    ..
+                }
+            )
+    }
+
+    /// End the walk here and resolve the header from what has been read so far.
+    ///
+    /// The same finalisation the end of the file would have run, just earlier:
+    /// the fields the remaining chunks would have set keep the values they have
+    /// (loop points and root note stay at their "the file said nothing"
+    /// defaults). Fails for the same reasons the end of a file does — no
+    /// `data`/`SSND` chunk, no `fmt `/`COMM` chunk — so it is only meaningful
+    /// once [`HeaderParser::located_audio_data`] is true.
+    ///
+    /// Idempotent: on an already-finished walk it re-reports that outcome
+    /// instead of finishing twice.
+    pub fn finish_here(&mut self) -> Result<AudioHeader, HeaderError> {
+        match self.phase {
+            Phase::Done(header) => return Ok(header),
+            Phase::Failed(error) => return Err(error),
+            _ => {}
+        }
+        // `finish`'s only use of `eof` is telling a genuinely empty container
+        // from one truncated before its first chunk header, which no walk that
+        // has read a chunk can be. The file's own size is the honest answer
+        // regardless, and prefix mode has none to give.
+        self.try_step_finish(self.file_size.unwrap_or(0))?;
+        match self.phase {
+            Phase::Done(header) => Ok(header),
+            // `finish` either sets `Done` or returns the error `try_step_finish`
+            // has already turned into `Failed` above.
+            _ => Err(HeaderError::Malformed(Reason::NoDataChunk)),
+        }
+    }
+
+    /// [`HeaderParser::finish`] with the same failure bookkeeping every other
+    /// step gets: an error is recorded on the parser, not just returned.
+    fn try_step_finish(&mut self, eof: u32) -> Result<(), HeaderError> {
+        if let Err(error) = self.finish(eof) {
+            self.phase = Phase::Failed(error);
+            return Err(error);
+        }
+        Ok(())
     }
 
     /// Hand the parser the bytes it asked for.
