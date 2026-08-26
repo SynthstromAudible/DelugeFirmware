@@ -349,6 +349,11 @@ impl PayloadKind {
             PayloadKind::Inst => 2,
             PayloadKind::Clm => 7,
             PayloadKind::Comm => 18,
+            // 8, where the C++ oracle read only the 4-byte offset. Reading the
+            // unused `blockSize` behind it costs nothing and reaches no further
+            // than the audio does anyway: an SSND's own audio starts at
+            // `data_start + 8 + offset`, so this window stops exactly where the
+            // earliest possible audio byte is.
             PayloadKind::Ssnd => 8,
             PayloadKind::AiffInst => 14,
         }
@@ -759,12 +764,43 @@ impl HeaderParser {
         match self.phase {
             Phase::Top => (0, TOP_HEADER_LEN),
             Phase::Header { at, pad } => (at, pad + CHUNK_HEADER_LEN),
-            Phase::Payload { kind, chunk } => (chunk.data_start, kind.window_len()),
+            Phase::Payload { kind, chunk } => {
+                (chunk.data_start, self.payload_window_len(kind, chunk))
+            }
             Phase::MarkCount { chunk, .. } => (chunk.data_start, MARK_COUNT_LEN),
             Phase::MarkEntry { cursor, .. } => (cursor, MARK_ENTRY_LEN),
             // Terminal phases are filtered out by `pending`/`feed` before this
             // is reached; a zero-length request is inert if one ever isn't.
             Phase::Done(_) | Phase::Failed(_) => (0, 0),
+        }
+    }
+
+    /// How much of a chunk's payload to ask for.
+    ///
+    /// [`PayloadKind::window_len`] is a fixed extent per chunk type, NOT the
+    /// chunk's declared length — deliberately, because that is what the C++
+    /// oracle read. On a whole-header walk it is used as is, over-reads and all:
+    /// those over-reads are what the corpus differential was validated against,
+    /// and nothing downstream cares where the walk left the caller's reader.
+    ///
+    /// An audio-only walk does owe the caller that, because a wavetable load
+    /// hands the same reader to the code that reads the audio (see
+    /// [`WalkGoal::AudioOnly`]). So the window is bounded to this chunk plus one
+    /// chunk header — the earliest point at which the NEXT chunk's payload, and
+    /// hence the audio, could begin. That makes "the walk never reads past
+    /// `audio_data_start_pos_bytes`" true by arithmetic rather than by no real
+    /// file having tripped it.
+    ///
+    /// It bites only where a chunk declares less than `window_len - 8`: in
+    /// practice a `fmt ` claiming under 8 bytes, which is malformed either way
+    /// and now fails the decode instead of reading its bit depth out of the
+    /// audio. The `clm ` over-read (7 bytes from a chunk that declares 4) is
+    /// untouched — 4 + 8 is still past 7 — so that quirk survives, as it must.
+    fn payload_window_len(&self, kind: PayloadKind, chunk: Chunk) -> u32 {
+        let extent = kind.window_len();
+        match self.goal {
+            WalkGoal::WholeHeader => extent,
+            WalkGoal::AudioOnly => extent.min(chunk.raw_size.saturating_add(CHUNK_HEADER_LEN)),
         }
     }
 
@@ -1413,7 +1449,16 @@ impl HeaderParser {
         // AIFF marker-resolved loop finalisation: `INST`'s sustain-loop marker
         // IDs only mean anything once the whole header has been scanned, since
         // `MARK` (which maps IDs to sample positions) can appear before or after
-        // `INST`. `sustain_loop_end_marker_id != -1` gates on "an INST chunk was
+        // `INST`.
+        //
+        // This block is inert on a [`WalkGoal::AudioOnly`] walk, but only by
+        // dataflow: the gated `INST` arm is the SOLE writer of
+        // `sustain_loop_*_marker_id`, so they keep the -1 that means "no INST
+        // seen" and the condition below never holds. `MARK` itself is NOT gated
+        // (the C++ oracle read it in both modes), so `marker_ids` really is
+        // populated on such a walk. An arm that starts writing a sustain-loop id
+        // outside `INST` would silently give an audio-only walk loop points it
+        // is not supposed to have — gate it, or gate this. `sustain_loop_end_marker_id != -1` gates on "an INST chunk was
         // seen" the same way the C++ does; an ID with no matching `MARK` entry —
         // or no `MARK` chunk at all — simply never writes either field, leaving
         // both at their 0 ("no loop") default. Mirrors
@@ -1736,6 +1781,47 @@ mod tests {
             header.audio_data_start_pos_bytes
         );
         assert!(whole_read_to > whole.audio_data_start_pos_bytes);
+    }
+
+    #[test]
+    fn a_short_fmt_cannot_pull_an_audio_only_walk_into_the_audio() {
+        // The `smpl` case above is not the only way a fixed-extent window can
+        // reach past the audio: `fmt `'s extent is 16, so a `fmt ` declaring
+        // fewer than 8 bytes with `data` right behind it puts the audio inside
+        // the window. This file decodes far enough to matter — the tag and
+        // channel count are real, and `wBitsPerSample` lands on the second audio
+        // frame, 0x0010 LE, which reads as a perfectly ordinary 16 — so nothing
+        // upstream stops the walk before the reader is already past the audio.
+        let mut file = std::vec::Vec::new();
+        file.extend_from_slice(b"RIFF");
+        file.extend_from_slice(&0u32.to_le_bytes()); // patched below
+        file.extend_from_slice(b"WAVE");
+        file.extend_from_slice(b"fmt ");
+        file.extend_from_slice(&4u32.to_le_bytes()); // declares 4 of the 16 read
+        file.extend_from_slice(&1u16.to_le_bytes()); // wFormatTag = PCM
+        file.extend_from_slice(&1u16.to_le_bytes()); // wChannels = 1
+        file.extend_from_slice(b"data");
+        file.extend_from_slice(&8u32.to_le_bytes());
+        file.extend_from_slice(&[0x00, 0x00, 0x10, 0x00, 0x00, 0x00, 0x00, 0x00]);
+        let riff_size = (file.len() - 8) as u32;
+        file[4..8].copy_from_slice(&riff_size.to_le_bytes());
+        // 12 container + 8 `fmt ` header + 4 payload + 8 `data` header.
+        let audio_start = 32;
+
+        // Whichever way the decode goes, the reader must not have entered the
+        // audio: that is the promise an audio-only walk makes to a caller that
+        // is about to read it.
+        let (_, read_to) = decode_streamed_with_goal(&file, WalkGoal::AudioOnly);
+        assert!(
+            read_to <= audio_start,
+            "an audio-only walk read to {read_to}, into the audio at {audio_start}"
+        );
+
+        // The whole-header walk keeps the C++ oracle's over-read — 16 bytes from
+        // a chunk that declares 4 — because that is what the corpus differential
+        // was validated against, and nothing downstream reuses its reader.
+        let (_, whole_read_to) = decode_streamed_with_goal(&file, WalkGoal::WholeHeader);
+        assert_eq!(whole_read_to, 36);
     }
 
     #[test]

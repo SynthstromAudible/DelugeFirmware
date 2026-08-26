@@ -184,10 +184,13 @@ typedef struct DelugeAudioHeaderParser {
 ///                      the walk — no request can name a byte past it, so the end of the file is not
 ///                      something the caller has to signal, and cannot get wrong. Never pass a computed
 ///                      or inferred value: a lying size bounds the parse to what it claimed.
-/// @param goal          A DelugeAudioWalkGoal. Anything unrecognised reads more rather than less
-///                      (#DELUGE_AUDIO_WALK_WHOLE_HEADER).
-/// @return false (having written nothing) if @p parser is null or @p storage_bytes is too small for
-///         the parser; nothing else can fail.
+/// @param goal          A DelugeAudioWalkGoal. An unrecognised value is REFUSED, not defaulted:
+///                      falling back to #DELUGE_AUDIO_WALK_WHOLE_HEADER is the safe direction for
+///                      which fields come back and the wrong one for the caller's byte source, since a
+///                      wavetable caller that mistyped the byte would silently get the over-reading
+///                      walk back.
+/// @return false (having written nothing) if @p parser is null, @p storage_bytes is too small for the
+///         parser, or @p goal is not a DelugeAudioWalkGoal; nothing else can fail.
 bool deluge_audio_header_parser_init(DelugeAudioHeaderParser* parser, uint32_t storage_bytes, uint32_t file_size,
                                      uint8_t goal);
 

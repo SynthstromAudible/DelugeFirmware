@@ -271,16 +271,19 @@ unsafe fn as_parser_mut<'a>(parser: *mut DelugeAudioHeaderParser) -> &'a mut Hea
 ///
 /// `storage_bytes` is the caller's own `sizeof(DelugeAudioHeaderParser)`.
 /// Returns `false` — having written nothing — if that is too small for the
-/// parser or the pointer is null; nothing else can fail.
+/// parser, the pointer is null, or `goal` is not one of the constants below;
+/// nothing else can fail.
 ///
 /// `file_size` must be the filesystem's own size for the file. It is what bounds
 /// the walk: no request can name a byte past it, so the end of the file is not
 /// something the caller has to signal, and cannot get wrong.
 ///
 /// `goal` is one of the `DELUGE_AUDIO_WALK_*` constants and decides which chunks
-/// the walk reads at all; anything unrecognised is treated as
-/// [`DELUGE_AUDIO_WALK_WHOLE_HEADER`], the answer that reads more rather than
-/// less.
+/// the walk reads at all. An unrecognised value is REFUSED rather than defaulted:
+/// defaulting to [`DELUGE_AUDIO_WALK_WHOLE_HEADER`] would be the safe direction
+/// for which fields come back and the wrong one for the caller's byte source,
+/// since a wavetable caller that mistyped the byte would silently get the
+/// over-reading walk back.
 ///
 /// # Safety
 /// `parser` must be non-null and point at `storage_bytes` writable, 8-aligned
@@ -296,8 +299,9 @@ pub unsafe extern "C" fn deluge_audio_header_parser_init(
         return false;
     }
     let goal = match goal {
+        DELUGE_AUDIO_WALK_WHOLE_HEADER => WalkGoal::WholeHeader,
         DELUGE_AUDIO_WALK_AUDIO_ONLY => WalkGoal::AudioOnly,
-        _ => WalkGoal::WholeHeader,
+        _ => return false,
     };
     // SAFETY: non-null, big enough (checked above), and 8-aligned by the type's
     // own `repr(align(8))` on both sides. Writing a fresh value over whatever
@@ -798,6 +802,22 @@ mod tests {
                 DELUGE_AUDIO_WALK_WHOLE_HEADER,
             )
         });
+    }
+
+    #[test]
+    fn an_unrecognised_goal_is_refused() {
+        let mut storage = DelugeAudioHeaderParser {
+            _storage: [0; DELUGE_AUDIO_HEADER_PARSER_WORDS],
+        };
+        let bytes = size_of::<DelugeAudioHeaderParser>() as u32;
+        for goal in [DELUGE_AUDIO_WALK_WHOLE_HEADER, DELUGE_AUDIO_WALK_AUDIO_ONLY] {
+            assert!(unsafe { deluge_audio_header_parser_init(&mut storage, bytes, 1024, goal) });
+        }
+        // Not defaulted to the whole-header walk: that is the wrong direction for
+        // a caller whose byte source the audio-only walk is protecting.
+        for goal in [2u8, 0xFF] {
+            assert!(!unsafe { deluge_audio_header_parser_init(&mut storage, bytes, 1024, goal) });
+        }
     }
 
     #[test]
