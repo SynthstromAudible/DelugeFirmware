@@ -12,9 +12,12 @@ publish = false
 # REQUIRED: without this, a `fuzz/` directory nested inside a workspace member
 # gets attributed to the parent workspace by cargo's directory walk, and every
 # command fails with "current package believes it's in a workspace when it's
-# not". See crates/deluge_alloc/fuzz for the same trap (fixed there via the
-# workspace's `exclude` list; an empty `[workspace]` table here is the fix that
-# actually works for the crate itself).
+# not". `crates/deluge_alloc/fuzz` hits the same trap and is currently
+# unrunnable because of it: crates/Cargo.toml's `exclude` list names it, but
+# `exclude` does NOT fix this — cargo's directory walk attributes the nested
+# package to the parent workspace regardless. An empty `[workspace]` table
+# here, in the fuzz crate's own manifest, is the fix that actually works (and
+# needed no change to crates/Cargo.toml at all).
 [workspace]
 
 [package.metadata]
