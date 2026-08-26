@@ -1263,7 +1263,7 @@ Apply these transformations to **both** new files (every occurrence):
 | `invertLeftEdgeForMenuHighlighting` | delete |
 | `roundedCornersEnabled`, `menuHighlightingInverts`, `kImageWidth`, `ImageStore`, `hackGetImageStore` | delete |
 | `Canvas() = default;` and the private `image_` | replace per the block below |
-| `std::vector<uint8_t> reversedGraphic(width * num_bytes_tall);` | fixed stack buffer, see below |
+| `std::vector<uint8_t> reversedGraphic(width * numBytesTall);` | fixed stack buffer, see below |
 
 At the top of each method that uses `endX`, `rightPos` or `centrePos`, resolve the sentinels once:
 
