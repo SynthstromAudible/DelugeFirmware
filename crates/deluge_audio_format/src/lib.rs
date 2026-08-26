@@ -181,8 +181,14 @@ pub fn parse(bytes: &[u8]) -> Result<AudioHeader, ParseError> {
         saw_a_chunk = true;
 
         let data_start = size_end;
-        // RIFF chunks are word-aligned: an odd payload has a trailing pad byte.
-        let padded_size = raw_size + (raw_size & 1);
+        // RIFF chunks are word-aligned: an odd payload has a trailing pad
+        // byte. `raw_size` comes straight from the file, so `raw_size == u32::MAX`
+        // (odd) must not overflow when padded — no length any real buffer
+        // could satisfy anyway, so report the largest possible ask.
+        let padded_size = match raw_size.checked_add(raw_size & 1) {
+            Some(p) => p,
+            None => return Err(ParseError::NeedAtLeast(u32::MAX)),
+        };
 
         match (container, tag) {
             (Container::Wav, b"fmt ") => {
@@ -414,6 +420,23 @@ mod tests {
                 Err(ParseError::NeedAtLeast(k)) => assert!(k as usize > n, "len {n} asked for {k}"),
                 other => panic!("len {n}: expected NeedAtLeast, got {other:?}"),
             }
+        }
+    }
+
+    #[test]
+    fn huge_chunk_size_does_not_panic() {
+        // A chunk size near u32::MAX must not overflow when word-aligned
+        // (`raw_size + (raw_size & 1)`). None of these declared sizes can be
+        // satisfied by any real buffer, so any `Err` is fine here — the
+        // point is that `parse` returns at all instead of panicking.
+        for size in [0xFFFFFFFFu32, 0xFFFFFFFEu32, 0x7FFFFFFFu32] {
+            let mut v = std::vec::Vec::new();
+            v.extend_from_slice(b"RIFF");
+            v.extend_from_slice(&0u32.to_le_bytes());
+            v.extend_from_slice(b"WAVE");
+            v.extend_from_slice(b"xxxx"); // Not "fmt " - skipped by arithmetic alone.
+            v.extend_from_slice(&size.to_le_bytes());
+            assert!(parse(&v).is_err(), "size {size:#x} should error, not panic");
         }
     }
 }
