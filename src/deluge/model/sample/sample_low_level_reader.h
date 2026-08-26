@@ -217,6 +217,14 @@ private:
 	///         failure (no cursor, or the port could not reserve at all).
 	RegionOutcome assignClusters(SamplePlaybackGuide* guide, Sample* sample, int32_t clusterIndex,
 	                             int32_t priorityRating);
+	/// @brief Fills interpolation slots `fromIndex` down to 0 with silence.
+	///
+	/// Used wherever there is no audio left to read. While there is no data there is also no play
+	/// position - changeClusterIfNecessary() nulls it - so currentPlayPos is reused as the count of
+	/// silent samples emitted, which is what the buffer-size bound tests.
+	/// @return false once the whole interpolation buffer has been filled with silence.
+	bool fillInterpolationBufferWithSilence(int32_t fromIndex, int32_t interpolationBufferSize);
+
 	bool fillInterpolationBufferForward(SamplePlaybackGuide* guide, Sample* sample, int32_t interpolationBufferSize,
 	                                    bool loopingAtLowLevel, int32_t numSpacesToFill, int32_t priorityRating);
 };
