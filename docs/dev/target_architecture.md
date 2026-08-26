@@ -479,6 +479,13 @@ registry bakes English into the engine layer.
 
 ## 6. UI architecture
 
+> **Superseded where it differs** by
+> [`../superpowers/specs/2026-08-26-ui-stack-redesign-design.md`](../superpowers/specs/2026-08-26-ui-stack-redesign-design.md)
+> (2026-08-26): 7-seg presenter sets and the semantic screen-state vocabulary
+> (§6.3) are dropped; the toolkit is immediate-mode; the shell composes
+> *scenes* over a surface set built from the board descriptor. §6.1's toolkit
+> split and §6.2's grid-view principles carry forward.
+
 Three presentation targets — grid, OLED, 7-seg — all the same shape:
 **semantic commands/state in → small framebuffer out**, with all interaction
 logic display-agnostic. Spark's `ui/` workspace is the direct reference
