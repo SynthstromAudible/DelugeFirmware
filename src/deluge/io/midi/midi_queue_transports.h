@@ -1,5 +1,5 @@
 /*
- * Copyright © 2026 Sean Ditny
+ * Copyright © 2026 Katherine Whitlock
  *
  * This file is part of The Synthstrom Audible Deluge Firmware.
  *
