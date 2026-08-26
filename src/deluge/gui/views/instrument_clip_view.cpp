@@ -3463,33 +3463,11 @@ void InstrumentClipView::displayProbability(uint8_t probability, bool prevBase) 
 
 void InstrumentClipView::displayIterance(Iterance iterance) {
 	char buffer[(display->haveOLED()) ? 29 : 5];
-
-	// Iteration dependence
-	int32_t iterancePreset = iterance.toPresetIndex();
-
-	if (iterancePreset == kDefaultIterancePreset) {
-		strcpy(buffer, display->haveOLED() ? "Iterance: OFF" : "OFF");
-	}
-	else if (iterancePreset == kCustomIterancePreset) {
-		strcpy(buffer, display->haveOLED() ? "Iterance: CUSTOM" : "CUSTOM");
-	}
-	else if (iterancePreset == kFirstIterancePreset) {
-		strcpy(buffer, display->haveOLED() ? "Iterance: FIRST" : "1 ST");
-	}
-	else if (iterancePreset == kLastIterancePreset) {
-		strcpy(buffer, display->haveOLED() ? "Iterance: LAST" : "LAST");
-	}
-	else {
-		Iterance iterance = iterancePresets[iterancePreset - 1];
-		int32_t i = iterance.divisor;
-		for (; i >= 0; i--) {
-			// try to find which iteration step index is active
-			if (iterance.iteranceStep[i]) {
-				break;
-			}
-		}
-		sprintf(buffer, display->haveOLED() ? "Iterance: %d of %d" : "%dof%d", i + 1, iterance.divisor);
-	}
+	iterance.format_display_value(
+	    buffer, sizeof(buffer),
+	    {.step_format = display->haveOLED() ? "%d of %d" : "%dof%d",
+	     .prefix = display->haveOLED() ? "Iterance: " : "",
+	     .label_type = display->haveOLED() ? Iterance::DisplayLabelType::LONG : Iterance::DisplayLabelType::SHORT});
 
 	if (display->haveOLED()) {
 		display->popupText(buffer, PopupType::ITERANCE);
