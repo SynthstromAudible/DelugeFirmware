@@ -534,9 +534,10 @@ layer-rule ratchet gains rows for the new targets and counts
    roles. No scene changes by construction; validated first in `deluge_host`
    with the new descriptor.
 
-Phases 2–3 run in parallel with 1; 4 gates 5; 5 gates 6. `next` is 367
-commits behind `main`; a merge is required before phase 4 at the latest,
-because community view PRs land on `main` and phase 5 touches every view.
+Phases 2–3 run in parallel with 1; 4 gates 5; 5 gates 6. `next` and `main`
+diverged on 2026-08-10; since then only 21 UI files (16 commits) changed on
+`main`, so UI reconciliation is cheap — `next` merges `main` at each release
+tag (spec F §6) and UI conflicts are resolved by rerunning the codemods.
 
 ## 13. Harvested from deluge-sdk and spark
 
@@ -570,4 +571,4 @@ ways.
 3. **Static-instance scenes and RAM.** ~40 scenes with POD state are small,
    but the state-cache slots for replace-navigation are per `SceneId`; cap
    and measure in phase 5.
-4. **`next` ↔ `main` reconciliation timing.** See §12.
+4. **`next` ↔ `main` reconciliation cadence.** See §12 and spec F §6.
