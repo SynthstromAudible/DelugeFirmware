@@ -174,23 +174,13 @@ void deluge_scenario_start_stem_export(int32_t mode) {
 	if (stemMode == StemExportType::MIXDOWN) {
 		stemExport.includeSongFX = true;
 	}
-	g_stem_export_dispatch_finished = false;
-	// Dispatch the whole export onto the storage-owner worker fiber, exactly as
-	// host_render_main.cpp's deluge_render_driver does — StemExport::startStemExportProcess
-	// itself performs this identical Owner::run dispatch of runStemExportProcess();
-	// it's reproduced here (rather than calling startStemExportProcess() directly)
-	// only so this wrapper can flip g_stem_export_dispatch_finished once the closure
-	// returns, without racing stemExport.processStarted (see the header doc).
-	deluge::storage::Owner::run(
-	    [](void* p) {
-		    stemExport.runStemExportProcess(static_cast<StemExportType>(reinterpret_cast<uintptr_t>(p)));
-		    g_stem_export_dispatch_finished = true;
-	    },
-	    reinterpret_cast<void*>(static_cast<uintptr_t>(mode)));
+	// Start the export and return. It no longer runs as one long call: each step is queued onto the
+	// storage owner from the export's own pump task, so completion is observed rather than awaited.
+	stemExport.startStemExportProcess(stemMode);
 }
 
 bool deluge_scenario_stem_export_done() {
-	return g_stem_export_dispatch_finished;
+	return !stemExport.isExportInFlight();
 }
 
 void deluge_scenario_start_recorder_roundtrip() {

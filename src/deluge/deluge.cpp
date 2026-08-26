@@ -66,6 +66,7 @@
 #include "playback/mode/session.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/engines/cv_engine.h"
+#include "processing/stem_export/stem_export.h"
 #include "scheduler_api.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/flash_storage.h"
@@ -588,6 +589,10 @@ void registerTasks() {
 	// Advances a song load past a wait it has finished. Cheap when no load is in flight, and it only ever
 	// queues the next stretch of the load onto the storage owner, so it holds no SD resource itself.
 	addRepeatingTask([]() { loadSongUI.loadRoutine(); }, p++, 0.001, 0.005, 0.02, "song load", RESOURCE_NONE);
+
+	// Same shape for stem export: each pass queues one step onto the storage owner and returns, so the
+	// UI keeps running for the whole export - which is what makes cancelling it possible at all.
+	addRepeatingTask([]() { stemExport.exportRoutine(); }, p++, 0.001, 0.005, 0.02, "stem export", RESOURCE_NONE);
 
 	// Check for and handle queued SysEx traffic
 	addRepeatingTask([]() { smSysex::handleNextSysEx(); }, p++, 0.0002, 0.0002, 0.01, "Handle pending SysEx traffic.",

@@ -1109,6 +1109,16 @@ void scheduleMidiGateOutISR(uint32_t offsetInBlock, int32_t timeWithinWindowAtWh
 }
 
 void routine_task() {
+	// An offline export owns the rendering: it drives routine() itself, as fast as it can, and the
+	// block count per call is what decides how rendering interleaves with the cluster loader and the
+	// recorder's write-out. A second, scheduler-paced caller rendering into the same recorder changes
+	// that interleaving and so changes the exported audio. There is also nothing for this task to do -
+	// an offline render is by definition not paced by the real-time clock.
+	if (stemExport.renderingOffline()) {
+		ignoreForStats();
+		return;
+	}
+
 	if (audioRoutineLocked) {
 		logAction("AudioDriver::routine locked");
 		ignoreForStats();

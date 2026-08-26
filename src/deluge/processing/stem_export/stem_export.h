@@ -34,20 +34,21 @@ public:
 
 	// start & stop process
 	void startStemExportProcess(StemExportType stemExportType);
-	// The actual export work, run on the worker fiber (it yields per element). Public
-	// only so the worker dispatch lambda in startStemExportProcess can reach it.
-	void runStemExportProcess(StemExportType stemExportType);
 	void stopStemExportProcess();
 	void abortStemExportProcess(deluge::l10n::String reason);
 	void startOutputRecordingUntilLoopEndAndSilence();
 	void stopPlayback();
 	void stopOutputRecording();
-	// Wait until `until` is satisfied while the export renders. On-device this is a
-	// cooperative scheduler yield() (UI/MIDI/etc must keep running); for an offline
-	// (faster-than-realtime) render it drives AudioEngine::routine() directly in a tight
-	// loop, bypassing the scheduler — whose chooseBestTask busy-wait otherwise caps the
-	// headless export at ~realtime. `until` matches yield()'s RunCondition (bool(*)()).
-	void renderWait(bool (*until)());
+
+	/// @brief Advances an in-flight export. Cheap no-op when none is running.
+	///
+	/// Registered as a repeating task by registerTasks(). The export used to run as one long call that
+	/// blocked per element, which meant nothing else could run while it did - not the UI that has to
+	/// service a cancellation, and not the fill task the render depends on. Now each step returns here.
+	void exportRoutine();
+
+	/// @brief True from @ref startStemExportProcess until the export has torn down.
+	[[nodiscard]] bool isExportInFlight() const { return exportPhase != ExportPhase::NONE; }
 	bool checkForLoopEnd();
 	bool checkForSilence();
 	bool processStarted;
@@ -81,10 +82,6 @@ public:
 		SoundDrum* drum = nullptr;
 	};
 
-	/// @brief Walks every element of the current export type, recording one stem each.
-	/// @return The element count, which the caller uses to restore the scroll position.
-	int32_t exportStems();
-
 	/// @brief Counts the elements this export type walks and disarms them for recording.
 	/// @return The element count, as @ref restoreElements and the caller both expect it.
 	int32_t prepareElements();
@@ -107,6 +104,52 @@ public:
 
 	/// @brief Restores whatever mutes @ref prepareElements changed.
 	void restoreElements(int32_t total);
+
+	/// @brief Where an in-flight export is parked between run-loop passes.
+	///
+	/// Only the per-element wait can span passes; each step itself runs straight through on the storage
+	/// owner. RUNNING covers a step that is queued or executing, and stops @ref exportRoutine
+	/// dispatching a second on top of it.
+	enum class ExportPhase : uint8_t {
+		NONE,          ///< No export in flight.
+		RUNNING,       ///< A step is queued on, or running on, the storage owner.
+		NEXT_ELEMENT,  ///< Ready to start the next element.
+		AWAIT_ELEMENT, ///< The current element is recording; waiting for it to finish.
+		FINISH,        ///< Every element done, or the user cancelled: tear down.
+	};
+	ExportPhase exportPhase{ExportPhase::NONE};
+
+	/// @name The export's cursor, promoted from exportStems()' locals because they span the wait.
+	/// @{
+	int32_t exportTotal;       ///< Element count from prepareElements(); what the teardown restores.
+	int32_t exportIndex;       ///< The element being walked, counting down.
+	StemElement exportElement; ///< The element @ref exportIndex resolved to.
+
+	/// @brief Parked at the offline render's drain point, between the audio routine and the slow
+	///        routines - exactly where the blocking drain used to suspend the worker fiber.
+	///
+	/// The rendered audio depends on that ordering: the drain decides cluster eviction and underrun
+	/// behaviour, so moving it even one call earlier or later changes the output bit-for-bit (see
+	/// AudioEngine::routine()'s offline batch comment). Resuming mid-iteration is what keeps it put.
+	bool exportAwaitingDrain;
+	/// @}
+
+	/// @name The export's steps, each dispatched onto the storage owner. Owner-only.
+	/// @{
+	void startNextElement(); ///< Fetch and start the next element, or fall through to the teardown.
+	void driveElement();     ///< One bounded slice of an offline render, then re-check for the finish.
+	void finishExport();     ///< Restore, run the completion UI, and clear the export.
+	/// @}
+
+	/// @name `Owner::run` trampolines for the three steps above.
+	/// @{
+	static void startNextElementTrampoline(void*);
+	static void driveElementTrampoline(void*);
+	static void finishExportTrampoline(void*);
+	/// @}
+
+	/// @brief Queues the next step on the storage owner, staying parked if the queue is full.
+	void dispatchExportStep(void (*step)(void*));
 
 	// export instruments
 	int32_t disarmAllInstrumentsForStemExport(StemExportType stemExportType);

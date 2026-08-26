@@ -17,6 +17,7 @@
 
 #include "processing/stem_export/stem_export.h"
 #include "definitions_cxx.hpp"
+#include "deluge_resource.h"
 #include "extern.h"
 #include "gui/context_menu/stem_export/cancel_stem_export.h"
 #include "gui/context_menu/stem_export/done_stem_export.h"
@@ -55,6 +56,15 @@ using namespace gui;
 
 StemExport stemExport{};
 
+/// How many audio blocks one offline pass renders before returning to the run loop.
+///
+/// Offline export has no scheduler driving the audio routine, so the pass drives it directly - the
+/// whole point of the old bypass, whose per-block scheduling cost capped a headless render at about
+/// realtime. Batching keeps that throughput while still letting go often enough for the fill task, the
+/// UI, and a cancellation to get a look in. A pass also stops early the moment the loader queue has
+/// work, so this bound only matters while nothing needs filling.
+constexpr int32_t kOfflineBlocksPerPass = 2048;
+
 StemExport::StemExport() {
 	currentStemExportType = StemExportType::CLIP;
 	processStarted = false;
@@ -69,6 +79,7 @@ StemExport::StemExport() {
 	loopLengthToStopStemExport = 0;
 	loopEndPointInSamplesForAudioFile = 0;
 	drumExportTotalNumClips = 0;
+	exportAwaitingDrain = false;
 
 	allowNormalization = false;
 	allowNormalizationForDrums = true;
@@ -86,18 +97,10 @@ StemExport::StemExport() {
 
 /// starts stem export process which includes setting up UI mode, timer, and preparing
 /// instruments / clips / kit rows for exporting
+/// Sets the export going and returns. Everything after this runs a step at a time from
+/// exportRoutine(), so the launching menu handler is free the moment this returns - and, more to the
+/// point, the UI keeps running for the whole export, which is what lets the user cancel it.
 void StemExport::startStemExportProcess(StemExportType stemExportType) {
-	// The export runs for a long time and yields per element (waiting for each
-	// stem's recording to finish). On the decomposed Embassy BSP a synchronous
-	// yield can't hand the CPU back, so run the whole export on the worker fiber;
-	// the launching menu/button handler returns immediately. The export type is
-	// carried in the ctx word (no capture needed).
-	deluge::storage::Owner::run(
-	    [](void* p) { stemExport.runStemExportProcess(static_cast<StemExportType>(reinterpret_cast<uintptr_t>(p))); },
-	    reinterpret_cast<void*>(static_cast<uintptr_t>(stemExportType)));
-}
-
-void StemExport::runStemExportProcess(StemExportType stemExportType) {
 	// in case playback is active when you start stem export, stop it.
 	stopPlayback();
 
@@ -117,20 +120,147 @@ void StemExport::runStemExportProcess(StemExportType stemExportType) {
 	enterUIMode(UI_MODE_STEM_EXPORT);
 	indicator_leds::blinkLed(IndicatorLED::BACK);
 
-	// so that we can reset vertical scroll position
-	int32_t elementsProcessed = 0;
+	exportTotal = prepareElements();
 
-	// export stems
-	elementsProcessed = exportStems();
+	// MIXDOWN records every unmuted output together, so it walks a single element however many outputs
+	// prepareElements() counted - but that count is still what the teardown restores.
+	int32_t elementCount = (currentStemExportType == StemExportType::MIXDOWN) ? 1 : exportTotal;
+	exportIndex = (exportTotal != 0 && totalNumStemsToExport != 0) ? elementCount - 1 : -1;
+
+	exportPhase = ExportPhase::NEXT_ELEMENT;
+}
+
+void StemExport::startNextElementTrampoline(void*) {
+	stemExport.startNextElement();
+}
+
+void StemExport::driveElementTrampoline(void*) {
+	stemExport.driveElement();
+}
+
+void StemExport::finishExportTrampoline(void*) {
+	stemExport.finishExport();
+}
+
+void StemExport::dispatchExportStep(void (*step)(void*)) {
+	ExportPhase parked = exportPhase;
+	exportPhase = ExportPhase::RUNNING;
+	if (!deluge::storage::Owner::run(step, nullptr)) {
+		// Owner queue was full. Stay in the phase we came from and try again next pass.
+		exportPhase = parked;
+	}
+}
+
+void StemExport::exportRoutine() {
+	switch (exportPhase) {
+	case ExportPhase::NONE:
+	case ExportPhase::RUNNING:
+		return;
+
+	case ExportPhase::NEXT_ELEMENT:
+		dispatchExportStep(&startNextElementTrampoline);
+		return;
+
+	case ExportPhase::AWAIT_ELEMENT:
+		dispatchExportStep(&driveElementTrampoline);
+		return;
+
+	case ExportPhase::FINISH:
+		dispatchExportStep(&finishExportTrampoline);
+		return;
+	}
+}
+
+void StemExport::startNextElement() {
+	// Cancelled, or nothing left to walk.
+	if (exportIndex < 0 || !isUIModeActive(UI_MODE_STEM_EXPORT)) {
+		exportPhase = ExportPhase::FINISH;
+		return;
+	}
+
+	if (fetchElement(exportIndex, exportElement) && startElement(exportIndex, exportElement)) {
+		exportAwaitingDrain = false;
+		exportPhase = ExportPhase::AWAIT_ELEMENT;
+		return;
+	}
+
+	// Empty slot, or a stem that is skipped (or the export was aborted while starting it - the phase
+	// above catches that on the next pass, from the UI mode).
+	exportIndex--;
+	exportPhase = ExportPhase::NEXT_ELEMENT;
+}
+
+/// One pass of the wait an element's recording needs.
+///
+/// Live, there is nothing to do but look: the scheduler is already running the audio routine, playback
+/// and the recorder. Offline there is no scheduler driving them, so this drives them itself - but in a
+/// BOUNDED batch, returning to the run loop either when the batch is spent or as soon as the loader
+/// queue has work, since the fill task that serves it only runs once we let go.
+void StemExport::driveElement() {
+	// elementFinished() is NOT a pure predicate - it drives stopOutputRecording(), which is what
+	// eventually ends the recording. So it must be evaluated exactly once per render iteration, as the
+	// old `while (!until())` did. Asking a second time to decide whether the element is done cost the
+	// render one 32-frame block, which is 192 bytes of a fixture's WAV and a failed golden.
+	bool finished = false;
+
+	if (renderOffline) {
+		for (int32_t i = 0; i < kOfflineBlocksPerPass; i++) {
+			if (!exportAwaitingDrain) {
+				finished = elementFinished();
+				if (finished) {
+					break;
+				}
+				AudioEngine::routine();
+				exportAwaitingDrain = true;
+			}
+
+			// The drain point. deluge_streaming_drain_queue_blocking() used to sit exactly here and
+			// suspend the worker fiber until the loader queue emptied; now we ask and return, resuming
+			// at this same point next pass. Keeping it between the audio routine and the slow routines
+			// is not cosmetic - it is what makes the render come out bit-identical.
+			if (!deluge_streaming_queue_drained()) {
+				deluge_streaming_request_drain();
+				break;
+			}
+			exportAwaitingDrain = false;
+
+			AudioEngine::slowRoutine();
+			audioRecorder.slowRoutine();
+		}
+	}
+	else {
+		// Live: the scheduler is already running the audio routine, playback and the recorder, so all
+		// this pass does is take the one look the old yield's predicate took.
+		finished = elementFinished();
+	}
+
+	if (finished) {
+		finishElement(exportElement);
+		exportIndex--;
+		exportPhase = ExportPhase::NEXT_ELEMENT;
+		return;
+	}
+
+	// Cancelled mid-element: stop walking and tear down.
+	if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
+		exportPhase = ExportPhase::FINISH;
+		return;
+	}
+
+	exportPhase = ExportPhase::AWAIT_ELEMENT;
+}
+
+void StemExport::finishExport() {
+	restoreElements(exportTotal);
 
 	// if process wasn't cancelled, then we got here because we finished
 	// exporting all the stems, so let's finish up
 	if (isUIModeActive(UI_MODE_STEM_EXPORT)) {
-		finishStemExportProcess(stemExportType, elementsProcessed);
+		finishStemExportProcess(currentStemExportType, exportTotal);
 	}
 	else {
 		processStarted = false;
-		updateScrollPosition(stemExportType, elementsProcessed);
+		updateScrollPosition(currentStemExportType, exportTotal);
 	}
 
 	// turn off recording if it's still on
@@ -142,6 +272,8 @@ void StemExport::runStemExportProcess(StemExportType stemExportType) {
 	// re-render UI because view scroll positions and mute statuses will have been updated
 	uiNeedsRendering(getCurrentUI());
 	renderUIsForOled();
+
+	exportPhase = ExportPhase::NONE;
 }
 
 /// Stop stem export process
@@ -183,41 +315,6 @@ void StemExport::startOutputRecordingUntilLoopEndAndSilence() {
 		if (audioRecorder.recordingSource > AudioInputChannel::NONE) {
 			stopRecording = true;
 		}
-	}
-}
-
-/// Wait until `until()` is satisfied while the export keeps rendering.
-///
-/// On-device export goes through the cooperative scheduler (yield) so the UI, MIDI,
-/// encoders, etc. keep running. An offline (faster-than-realtime) render has nothing
-/// else to service, and routing each audio block back through the scheduler makes
-/// chooseBestTask's busy-wait the dominant cost (it caps throughput at ~realtime). So
-/// offline we drive the audio routine directly: AudioEngine::routine()'s offline branch
-/// already does the whole per-block job (sequencer tick via tickSongFinalizeWindows,
-/// render, output drive, recorder drain, cluster load), so this is behaviour-identical
-/// to the scheduler running that same task — just without the per-block scheduling cost.
-///
-/// The scheduler also normally runs the recorder's card + finalize routines, so the bypass
-/// must drive those too or the per-stem WAV never finishes writing (the recorder reaches
-/// COMPLETE only via doRecorderCardRoutines, and recordingSource is cleared back to NONE —
-/// the `until` condition — only by audioRecorder.slowRoutine()'s finishRecording()).
-void StemExport::renderWait(RunCondition until) {
-	if (renderOffline) {
-		while (!until()) {
-			AudioEngine::routine();
-			// Drain the cluster loader HERE, between audio routines: the offline AudioEngine::routine()
-			// holds audioRoutineLocked for its whole body, and renderWait's offline loop has no other
-			// yield point, so the streamed clusters a headless render needs would otherwise never load
-			// (streaming starvation). Yield the worker fiber and drain the whole loader queue via the
-			// async streaming_fill_task. On-device the scheduler runs this between audio routines for
-			// the same reason.
-			deluge_streaming_drain_queue_blocking();
-			AudioEngine::slowRoutine();
-			audioRecorder.slowRoutine();
-		}
-	}
-	else {
-		yield(until);
 	}
 }
 
@@ -638,39 +735,6 @@ bool StemExport::startElement(int32_t index, const StemElement& element) {
 
 void StemExport::finishElement(const StemElement& element) {
 	finishCurrentStemExport(currentStemExportType, element.muteState);
-}
-
-/// @brief Records one stem per element of the current export type.
-///
-/// The four per-type drivers this replaced were the same loop over a different collection, so what
-/// varies now lives in prepareElements()/fetchElement()/startElement()/restoreElements() and the walk
-/// itself is written once.
-int32_t StemExport::exportStems() {
-	int32_t total = prepareElements();
-
-	// MIXDOWN records every unmuted output together, so it walks a single element however many outputs
-	// prepareElements() counted - but that count is still what the caller wants back, for the scroll.
-	int32_t elementCount = (currentStemExportType == StemExportType::MIXDOWN) ? 1 : total;
-
-	if (total != 0 && totalNumStemsToExport != 0) {
-		for (int32_t index = elementCount - 1; index >= 0; --index) {
-			StemElement element;
-			if (fetchElement(index, element)) {
-				if (startElement(index, element)) {
-					// wait until recording is done and playback is turned off
-					renderWait(&elementFinished);
-					finishElement(element);
-				}
-			}
-			// in the event that stem exporting is cancelled while iterating, break out of the loop
-			if (!isUIModeActive(UI_MODE_STEM_EXPORT)) {
-				break;
-			}
-		}
-	}
-
-	restoreElements(total);
-	return total;
 }
 
 bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* output, bool* muteState,
