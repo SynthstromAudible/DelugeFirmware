@@ -39,8 +39,8 @@ low-priority traffic than the MIDI link can drain, especially over DIN where
 serial bandwidth is much lower than USB. Without special handling, a burst of
 ordinary CCs can sit ahead of later clock or note messages and cause jitter.
 
-For CCs a sender has marked `Continuous`, the queue manager combines two strategies. First, it coalesces
-stale queued values: if a new CC arrives for the same status/channel and CC
+For CCs a sender has marked `Continuous`, the shared CC-lane policy combines two strategies. First, it
+coalesces stale queued values: if a new CC arrives for the same status/channel and CC
 number as one already waiting in the CC lane, the queued value byte is replaced
 with the latest value instead of appending another message. Second, it schedules
 CC dequeue with a per-transfer or UART-staging allowance. CC numbers with newly
@@ -192,13 +192,13 @@ Source creates MIDIMessage::cc
   -> MIDIQueueManagerDIN::enqueue_message
   -> MIDIQueueManager::classify_message
   -> QUEUE_PRIORITY_CC
-  -> enqueue_message_with_cc_policy
-  -> coalesce_cc_message or enqueue_priority_message
+  -> MIDICCLanePolicy<DinTransport>::enqueue_with_cc_policy
+  -> coalesce() or enqueue_priority_message
   -> DIN CC lane
 ```
 
 Ordinary CCs enter the lowest-priority channel lane. If the same status/channel
-and CC number is already queued, `coalesce_cc_message()` overwrites the queued
+and CC number is already queued, `MIDICCLanePolicy::coalesce()` overwrites the queued
 value byte with the newer value instead of appending another stale CC. The CC
 number's debt is bumped so the scheduler can prefer that refreshed CC the next
 time CC traffic is allowed to send. If there is no matching queued CC, the
@@ -214,7 +214,7 @@ MidiEngine::flushMIDI
   -> check UART space and reserve headroom
   -> scan priority lanes from clock to SysEx
   -> handle_cc_lane
-  -> pop_next_scheduled_cc_message
+  -> MIDICCLanePolicy<DinTransport>::pop_scheduled
   -> bufferMIDIUart for each byte in the selected CC
   -> uartFlushIfNotSending
 ```
@@ -222,10 +222,10 @@ MidiEngine::flushMIDI
 The DIN drain only considers the CC lane after higher-priority lanes are empty or
 blocked. Before sending a CC, it verifies that the complete three-byte message
 fits the current send allowance, UART space, and CC staging allowance. The CC
-scheduler then scans the CC lane, prefers CC numbers with debt, and falls back
+policy then scans the CC lane, prefers CC numbers with debt, and falls back
 to round-robin order when no candidate has debt. The selected three-byte CC is
-removed as one complete message, the lane is rebuilt around it, and the emitted
-CC number's debt is cleared.
+removed as one complete message by swapping it with the lane head and dropping
+the head, and the emitted CC number's debt is cleared.
 
 ### SysEx message
 
@@ -304,8 +304,9 @@ messages faster than MIDI can send them, especially over DIN.
 
 ### Enqueue-time coalescing
 
-Only `Continuous` CCs reach the CC lane, so only they are eligible. When one is queued, the queue
-manager first scans the lane for the latest queued message with the same status byte and CC number.
+Only `Continuous` CCs reach the CC lane, so only they are eligible. When one is queued,
+`MIDICCLanePolicy::coalesce()` first scans the lane for the latest queued message with the same status
+byte and CC number.
 
 - Same status byte means the same MIDI status type and channel.
 - Same CC number means the same value in `data1`.
@@ -316,18 +317,20 @@ added. This preserves the queued position while ensuring the eventually sent CC
 uses the newest value.
 
 USB and DIN perform the overwrite differently because they store different queue
-units:
+units. That difference is confined to `Transport::set_value()`; the surrounding scan-and-match logic is
+written once:
 
-- USB replaces byte 3 inside one packed 32-bit USB-MIDI event.
-- DIN replaces the third serial byte of the queued 3-byte CC message.
+- `UsbTransport` replaces byte 3 inside one packed 32-bit USB-MIDI event.
+- `DinTransport` replaces the third serial byte of the queued 3-byte CC message.
 
 After a CC is newly queued or coalesced, its CC debt is bumped so the scheduler
 knows that CC has unsent work.
 
 ### Scheduled CC dequeue
 
-When the CC lane is eligible to send, the scheduler does not blindly pop the lane head. A single pass
-over the lane both scans and selects:
+When the CC lane is eligible to send, `MIDICCLanePolicy::pop_scheduled()` does not blindly pop the lane
+head. It delegates selection to `MIDICCQueuePolicy::select_scheduled_cc()`, where a single pass over the
+lane both scans and selects:
 
 1. Walk the lane once. For each CC number, only its first entry is a candidate; a four-word bitmask
    tracks which numbers have already been seen, so clearing per pass costs four stores rather than 128.
@@ -428,6 +431,11 @@ from filling the UART ahead of later higher-priority messages.
   from the middle of a lane.
 - Each ring buffer keeps one slot unused so empty and full states are
   distinguishable.
+- Lane capacities differ per lane and must each be a power of two. `MIDIQueueLane` masks positions
+  rather than taking a modulo, and `MIDIQueueStorage` static-asserts the capacity table.
+- The queue manager never calls back into `MidiEngine`. `enqueue_message()` reports that a flush is
+  wanted and the caller decides; flushing from inside the queue would call back into the engine that
+  owns it and would let a mainline enqueue trigger the interrupt-masked drain.
 - Logical offsets used while scanning are relative to the lane read position, not
   physical array indices.
 - `write_pos` belongs to the producer and `read_pos` to the consumer. `consume_queued_messages()` runs
@@ -442,14 +450,29 @@ from filling the UART ahead of later higher-priority messages.
 - Messages that must stay ordered relative to each other must share a lane, because lanes are FIFO and
   the drain reorders freely across them.
 
+## Source layout
+
+Headers are split by responsibility so a reader can start at the layer they care about:
+
+| File | Contents |
+| --- | --- |
+| `midi_queue_definitions.h` | `QueuePriority`, the send-buffer sizing constants, and the per-lane capacity tables `k_usb_lane_capacity` / `k_din_lane_capacity`. |
+| `midi_queue_policy.h` | `MIDIQueueManager` — the transport-neutral policy: message classification and the shared result enums. |
+| `midi_queue_lane.h` | `MIDIQueueLane` and `MIDIQueueStorage` — the ring-buffer layer. |
+| `midi_cc_policy.h` | `MIDICCQueuePolicy` (CC debt and selection state) and `MIDICCLanePolicy<Transport>` (the CC-lane algorithm). |
+| `midi_queue_transports.h` | `UsbTransport` and `DinTransport` — the traits that specialise the CC-lane policy. |
+| `midi_queue_manager.h` | `MIDIQueueManagerUSB` and `MIDIQueueManagerDIN` — the per-transport managers, implemented in `midi_queue_manager.cpp`. |
+
 ## Main classes
 
 | Class | Role |
 | --- | --- |
-| `MIDIQueueManager` | Shared policy helpers for message classification, CC detection, scan result adaptation, and complete-message validation. |
+| `MIDIQueueManager` | Transport-neutral policy: message classification, CC status-byte detection, the shared scan/traversal result enums, the scheduled-CC gate, and complete-message validation. All static; it holds no state. |
 | `MIDICCQueuePolicy` | Per-device CC policy state: CC debt, the round-robin selection point, and the seen-bitmask used by one selection pass. |
-| `MIDIQueueLane` | Power-of-two ring buffer for one priority lane. |
-| `MIDIQueueStorage` | Fixed set of priority lanes. |
+| `MIDICCLanePolicy<Transport>` | The CC-lane policy, written once against transport traits: coalescing, scheduled selection and removal, and the enqueue-time policy wrapper. Stateless — all state lives in the lane and the `MIDICCQueuePolicy` it is handed. |
+| `UsbTransport` / `DinTransport` | Per-transport traits: element type, identity accessors (status and CC number), how many elements one CC message spans, and how a value byte is rewritten. Everything that genuinely differs between the two transports' CC handling lives here. |
+| `MIDIQueueLane` | Power-of-two ring lane for one priority. A view over the slice `MIDIQueueStorage` owns, so lanes may differ in capacity without becoming different types. |
+| `MIDIQueueStorage` | Owns one flat pool and hands each lane its slice, sized from the per-lane capacity table. |
 | `MIDIQueueManagerUSB` | USB-specific queue manager. Stores packed 32-bit USB-MIDI events and drains them into `dataSendingNow`. |
 | `MIDIQueueManagerDIN` | DIN-specific queue manager. Stores raw serial bytes, enforces serial pacing, keeps SysEx streams contiguous, and drains selected bytes into the MIDI UART buffer. |
 
@@ -464,8 +487,24 @@ momentary CCs). Build and run with:
 cmake -S tests -B tests/build && ninja -C tests/build UnitTests && ./tests/build/unit/UnitTests
 ```
 
-The transport wiring itself is not unit tested — it needs the USB and UART layers — so the following
-still want checking on hardware:
+The drain paths are covered too, against the real managers rather than a reimplementation:
+
+- `tests/unit/midi_din_drain_tests.cpp` drives `MIDIQueueManagerDIN::consume_queued_messages()` and
+  asserts on the bytes that reached the UART: clock overtaking a queued CC, `Event` CCs keeping their
+  order and their duplicate values, `Continuous` CCs coalescing to the latest value, SysEx staying
+  contiguous, malformed SysEx being rejected at enqueue, and a blocked CC lane not starving SysEx.
+- `tests/unit/midi_usb_drain_tests.cpp` drives `MIDIQueueManagerUSB::consume_queued_messages()` the way
+  `ConnectedUSBMIDIDevice` assembles a transfer, pinning the USB half of the shared CC-lane policy.
+
+This is reachable on the host because the transport symbols the drain path writes through have
+link-time doubles in `tests/unit/mocks/midi_transport_mock.cpp`: `bufferMIDIUart()` became a real
+function rather than a macro so it can be substituted, and `uartGetTxBufferSpace()`,
+`anyUSBSendingStillHappening`, and the critical-section pair are stubbed there as well. The mock
+captures every staged byte and can report an arbitrary UART space, which is what makes the pacing and
+allowance paths testable.
+
+What the host tests cannot reach is the hardware behaviour on the other side of those symbols, so the
+following still want checking on a device:
 
 - MIDI expression output, particularly that an MPE note-on no longer overtakes the expression that
   initialises it.
