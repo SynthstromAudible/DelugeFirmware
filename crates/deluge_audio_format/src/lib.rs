@@ -219,6 +219,12 @@ const CHUNK_HEADER_LEN: u32 = 8;
 /// loop runs).
 const MAX_NUM_MARKERS: usize = 8;
 
+/// An AIFF `MARK` chunk's leading marker count.
+const MARK_COUNT_LEN: u32 = 2;
+/// One `MARK` marker record's fixed head: id:u16, position:u32, name length:u8.
+/// The name itself is only skipped over, never read.
+const MARK_ENTRY_LEN: u32 = 7;
+
 /// What the parser wants next, or the finished header.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub enum FeedResult {
@@ -262,6 +268,17 @@ impl PayloadKind {
         }
     }
 
+    /// Every kind, so the bound below can be checked over all of them.
+    const ALL: [PayloadKind; 7] = [
+        PayloadKind::Fmt,
+        PayloadKind::Smpl,
+        PayloadKind::Inst,
+        PayloadKind::Clm,
+        PayloadKind::Comm,
+        PayloadKind::Ssnd,
+        PayloadKind::AiffInst,
+    ];
+
     /// Whether a short window is a truncated *header* (ask for more) rather
     /// than simply a chunk that runs out. The mandatory ones are the chunks the
     /// C++ oracle rejects a file over; the rest are metadata whose absence just
@@ -274,6 +291,22 @@ impl PayloadKind {
         )
     }
 }
+
+/// [`MAX_WINDOW_BYTES`] is a promise to the caller about its buffer, so it is
+/// checked here at compile time rather than left to a test to notice: every
+/// window the parser can ask for is one of these, and raising the bound has to
+/// be a deliberate edit to the constant, not a side effect of a new chunk arm.
+const _: () = {
+    let mut i = 0;
+    while i < PayloadKind::ALL.len() {
+        assert!(PayloadKind::ALL[i].window_len() <= MAX_WINDOW_BYTES);
+        i += 1;
+    }
+    assert!(TOP_HEADER_LEN <= MAX_WINDOW_BYTES);
+    assert!(CHUNK_HEADER_LEN + 1 <= MAX_WINDOW_BYTES); // header plus a pad byte
+    assert!(MARK_COUNT_LEN <= MAX_WINDOW_BYTES);
+    assert!(MARK_ENTRY_LEN <= MAX_WINDOW_BYTES);
+};
 
 /// One chunk's payload extent, carried across the states that decode it.
 #[derive(Clone, Copy, Debug)]
@@ -470,8 +503,8 @@ impl HeaderParser {
             Phase::Top => (0, TOP_HEADER_LEN),
             Phase::Header { at, pad } => (at, pad + CHUNK_HEADER_LEN),
             Phase::Payload { kind, chunk } => (chunk.data_start, kind.window_len()),
-            Phase::MarkCount { chunk, .. } => (chunk.data_start, 2),
-            Phase::MarkEntry { cursor, .. } => (cursor, 7),
+            Phase::MarkCount { chunk, .. } => (chunk.data_start, MARK_COUNT_LEN),
+            Phase::MarkEntry { cursor, .. } => (cursor, MARK_ENTRY_LEN),
             // Terminal phases are filtered out by `pending`/`feed` before this
             // is reached; a zero-length request is inert if one ever isn't.
             Phase::Done(_) | Phase::Failed(_) => (0, 0),
