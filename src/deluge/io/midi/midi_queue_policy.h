@@ -59,6 +59,12 @@ public:
 	}
 
 	/// @brief Outcome of adapting a scan step for scheduled-CC candidate selection.
+	///
+	/// @note Two of these four are inert as the code stands. `Skip` is neither produced by any scan
+	///       adapter nor distinguished by `MIDICCQueuePolicy::select_scheduled_cc()` (which folds it into
+	///       "not a candidate"). `Invalid` is consumed there but no adapter produces it: the only
+	///       production scan adapter, in `MIDICCLanePolicy::pop_scheduled()`, returns just `NoMore` and
+	///       `Candidate`. Left as-is deliberately; collapsing the enum is a separate change.
 	enum class CandidateScanResult : uint8_t {
 		/// Scan reached the end of the lane.
 		NoMore,
@@ -106,15 +112,25 @@ public:
 		Popped,
 		/// Stop traversing for this slot without trying lower-priority lanes.
 		///
-		/// @note Means a head this transport cannot safely pop. USB reaches it only for lane contents it
-		///       cannot decode. DIN also reaches it when a well-formed head does not fit the current
-		///       limits, because validate_head_message_pop() returning InsufficientCapacity is treated
-		///       the same as Invalid there. Only the CC *scheduling* allowance returns SkipLane on both
-		///       transports.
+		/// @note Only DIN ever produces this. `MIDIQueueManagerDIN::handle_cc_lane()` returns it for a
+		///       head it cannot safely pop: one that does not decode, and also one that decodes fine but
+		///       does not fit the current limits, because `validate_head_message_pop()` returning
+		///       `InsufficientCapacity` is treated the same as `Invalid` there.
+		/// @note `MIDIQueueManagerUSB::handle_cc_lane()` never returns this. USB entries are whole
+		///       events with nothing to decode or to size-check, so it maps `PopFailed` to `SkipLane`
+		///       and returns only `Popped` / `PopLane` / `SkipLane`. The `Abort` branch in
+		///       `MIDIQueueManagerUSB::consume_queued_messages()` is therefore unreachable, and is kept
+		///       only so the two traversal loops read the same way.
 		Abort,
 	};
 
 	/// @brief Outcome of validate_head_message_pop.
+	///
+	/// @note The three-way split has no consumer today. Both call sites
+	///       (`MIDIQueueManagerDIN::pop_lane()` and `MIDIQueueManagerDIN::handle_cc_lane()`) test only
+	///       `!= Ready`, so `Invalid` and `InsufficientCapacity` behave identically — which is the
+	///       mechanical root of the over-broad `Abort` documented above. Distinguishing them is a real
+	///       behaviour change and wants its own failing test.
 	enum class HeadMessageCheckResult : uint8_t {
 		/// The head status byte does not decode to a valid message length.
 		Invalid,

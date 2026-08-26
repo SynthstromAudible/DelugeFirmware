@@ -1277,7 +1277,10 @@ void MIDIInstrument::polyphonicExpressionEventPostArpeggiator(int32_t value32, i
 		case 1: { // Y
 			int32_t value7 = value32 >> 25;
 			mpeOutputMemberChannels[memberChannel].lastYAndZValuesSent[0] = value7;
-			// Ongoing per-note expression during a sounding note: latest value wins.
+			// Ongoing per-note expression during a sounding note, so Continuous is the honest annotation.
+			// It is inert here, though: classify_message() routes CC_EXTERNAL_MPE_Y to the expression lane
+			// on the CC number alone, before it ever looks at intent, so MPE Y is never coalesced or
+			// reordered. The annotation matters only if that routing is ever changed.
 			midiEngine.sendCC(this, memberChannel, outputMPEY, value7 + 64, channel, MIDIIntent::Continuous);
 			break;
 		}
