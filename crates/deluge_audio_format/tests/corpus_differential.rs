@@ -1,12 +1,22 @@
-//! Corpus differential: `deluge_audio_format::parse` + `wavetable::accept_as_wavetable` against the
-//! legacy C++ `parseSampleHeader`/`parseWaveTableHeader` it replaces, run over real WAV/AIFF files.
+//! Corpus differential: `deluge_audio_format::parse` + `wavetable::accept_as_wavetable` against
+//! `parseSampleHeader`/`parseWaveTableHeader`, run over real WAV/AIFF files.
 //!
-//! This is the gate that makes the rewrite trustworthy, so per
-//! `docs/superpowers/specs/2026-08-26-rust-audio-header-parser-design.md` §6 it treats the C++ as a
-//! REFERENCE, not an oracle: on disagreement, the RIFF/AIFF spec decides which side is right, and the
-//! ruling is recorded in that spec's §6 (not encoded silently here). Two fields are the sole
-//! exception — `cycle_size`/`explicitly_specifies_self` are Serum/Deluge convention with no governing
-//! spec, so for THOSE the C++ *is* the oracle and any disagreement is a Rust defect.
+//! **What the two sides are has changed, and so has what this proves.** It was written against the
+//! hand-rolled C++ chunk walk, as the gate that made the rewrite trustworthy — the C++ treated as a
+//! REFERENCE, not an oracle, with the RIFF/AIFF spec deciding who was right on a disagreement. Since
+//! the C++ entry points were re-pointed at this crate, both sides are the SAME decoder, so it can no
+//! longer catch a decode defect. What it still catches is everything BETWEEN the two: whole-file
+//! prefix mode (`parse`) against the size-aware windowed walk the C++ adapter drives through the C
+//! ABI — window buffering, the audio-only walk's early stop, the fixed-width marshalling. Every one
+//! of those is a real defect surface, and a real one has been caught here.
+//!
+//! The two sides are deliberately NOT expected to agree everywhere; the differences below are the
+//! adjudicated ones, each recorded where the code that causes it lives:
+//!
+//! * the AIFF MARK pstring correction (`lib.rs`, `step_mark_entry`) — the C++ walk's one behaviour
+//!   change, 25 files in the AIFF corpus;
+//! * `cycle_size`/`explicitly_specifies_self` are Serum/Deluge convention with no governing spec, so
+//!   for THOSE the C++ was the oracle and any disagreement is a defect on this side.
 //!
 //! A `std` test (this crate's library stays `no_std`/no-`alloc`; nothing here links into it).
 //! Gated on `DELUGE_AUDIO_CORPUS` so CI without a corpus checked out stays green:
@@ -361,9 +371,9 @@ struct Disagreement {
     field: &'static str,
     ours: String,
     theirs: String,
-    /// `Some(reason)` marks a KNOWN, adjudicated disagreement (see the module doc and
-    /// `docs/superpowers/specs/2026-08-26-rust-audio-header-parser-design.md` §6): recorded, but
-    /// does not fail the test. `None` is an unadjudicated finding that DOES fail the test.
+    /// `Some(reason)` marks a KNOWN, adjudicated disagreement (see the module doc, and the comment on
+    /// the code that causes it): recorded, but does not fail the test. `None` is an unadjudicated
+    /// finding that DOES fail the test.
     adjudicated: Option<&'static str>,
 }
 
