@@ -156,6 +156,8 @@ pub fn parse(bytes: &[u8]) -> Result<AudioHeader, ParseError> {
     let mut file_loop_start_samples_acc: u32 = 0;
     let mut file_loop_end_samples_acc: u32 = 0;
     let mut midi_note_acc: Option<f32> = None;
+    let mut wavetable_cycle_size_acc: u32 = 2048;
+    let mut wavetable_explicitly_specifies_self_acc = false;
 
     let mut pos: usize = TOP_HEADER_LEN;
     // Once we've walked at least one real chunk, running out of `bytes`
@@ -318,6 +320,71 @@ pub fn parse(bytes: &[u8]) -> Result<AudioHeader, ParseError> {
                     }
                 }
             }
+            (Container::Wav, b"clm ") => {
+                // Serum wavetable-hint chunk: "<!>" followed by an ASCII
+                // decimal cycle-size, e.g. "<!>2048". The C++ oracle reads
+                // exactly 7 raw bytes at the chunk payload *regardless of
+                // the chunk's own declared length* (audio_file_format.cpp:
+                // 270-271) — it never bounds the read to `thisChunk.length`.
+                // That's a real over-read quirk, not a typo: per the task
+                // brief this field pair is Serum/Deluge convention, not a
+                // documented format, so audio_file_format.cpp is normative
+                // and we mirror it exactly, quirks included.
+                if let Some(chunk_end) = data_start.checked_add(7) {
+                    if let Some(raw) = bytes.get(data_start..chunk_end) {
+                        // The C++ loads the first 4 bytes as a little-endian
+                        // u32 and masks it with 0x00FFFFFF before comparing
+                        // to charsToIntegerConstant('<','!','>',0)
+                        // (audio_file_format.cpp:276-277). Masking off the
+                        // top byte means the comparison only constrains
+                        // bytes 0-2 to be "<!>" — the 4th byte is compared
+                        // against nothing (both sides are zero there only
+                        // because the mask forces it, and the RHS's 4th
+                        // char argument is an unused placeholder — there is
+                        // no 3-argument overload of charsToIntegerConstant
+                        // for a 32-bit tag). So byte index 3 is left
+                        // completely unconstrained and, next, gets read as
+                        // the *first* digit character below.
+                        if raw[0] == b'<' && raw[1] == b'!' && raw[2] == b'>' {
+                            wavetable_explicitly_specifies_self_acc = true;
+                            // memToUIntOrError parses raw[3..7] — up to 4
+                            // ASCII decimal digits immediately following the
+                            // tag, with no separator (audio_file_format.cpp:
+                            // 281, util/audio_format_helpers.cpp:22-34).
+                            // Any non-digit anywhere in the run aborts the
+                            // whole parse (mirroring memToUIntOrError's
+                            // immediate `return -1`), which the C++ then
+                            // only applies when >= 1
+                            // (audio_file_format.cpp:282-283). This window
+                            // is fixed at 4 bytes, so a u32 can't actually
+                            // overflow here, but accumulate with checked
+                            // arithmetic anyway rather than trust the window
+                            // size never grows out from under this comment.
+                            let mut number: u32 = 0;
+                            let mut is_number = true;
+                            for &digit_byte in &raw[3..7] {
+                                if !digit_byte.is_ascii_digit() {
+                                    is_number = false;
+                                    break;
+                                }
+                                let digit = u32::from(digit_byte - b'0');
+                                number =
+                                    match number.checked_mul(10).and_then(|n| n.checked_add(digit))
+                                    {
+                                        Some(n) => n,
+                                        None => {
+                                            is_number = false;
+                                            break;
+                                        }
+                                    };
+                            }
+                            if is_number && number >= 1 {
+                                wavetable_cycle_size_acc = number;
+                            }
+                        }
+                    }
+                }
+            }
             _ => {}
         }
 
@@ -373,8 +440,8 @@ pub fn parse(bytes: &[u8]) -> Result<AudioHeader, ParseError> {
         file_loop_end_samples: file_loop_end_samples_acc,
         midi_note: midi_note_acc,
         wavetable: WavetableHints {
-            cycle_size: 2048,
-            explicitly_specifies_self: false,
+            cycle_size: wavetable_cycle_size_acc,
+            explicitly_specifies_self: wavetable_explicitly_specifies_self_acc,
         },
     })
 }
@@ -619,6 +686,47 @@ mod tests {
         // 200 as a raw byte is >= 128, so the C++ guard (`midiNote < 128`)
         // rejects it and midi_note stays unset.
         assert_eq!(h.midi_note, None);
+    }
+
+    /// riff_fmt_data + a `clm ` chunk whose ASCII payload declares samples-per-cycle.
+    fn riff_with_clm(payload: &str) -> std::vec::Vec<u8> {
+        let mut v = riff_fmt_data(1, 44100, 16, 8);
+        v.extend_from_slice(b"clm ");
+        v.extend_from_slice(&(payload.len() as u32).to_le_bytes());
+        v.extend_from_slice(payload.as_bytes());
+        if payload.len() % 2 == 1 {
+            v.push(0);
+        }
+        v
+    }
+
+    #[test]
+    fn clm_declares_a_wavetable() {
+        let h = parse(&riff_with_clm("<!>2048 00000000 wavetable")).expect("should parse");
+        assert!(h.wavetable.explicitly_specifies_self);
+        assert_eq!(h.wavetable.cycle_size, 2048);
+    }
+
+    #[test]
+    fn absent_clm_means_no_declaration() {
+        let h = parse(&riff_fmt_data(1, 44100, 16, 8)).expect("should parse");
+        assert!(!h.wavetable.explicitly_specifies_self);
+        // The C++ default is 2048 even with no clm chunk (audio_file_format.cpp:52).
+        assert_eq!(h.wavetable.cycle_size, 2048);
+    }
+
+    #[test]
+    fn clm_digit_overflow_does_not_panic() {
+        // The C++ oracle only ever reads 4 digit characters after "<!>" (a
+        // fixed 7-byte payload read, audio_file_format.cpp:270-281), so this
+        // can't overflow a u32 even naively. But a naive Rust port might
+        // instead walk the *whole* declared chunk payload as digits — this
+        // chunk's ASCII payload is a long run of digits, well beyond what
+        // fits in a u32 if accumulated without checked/saturating arithmetic.
+        // Assert only that parse returns rather than panicking.
+        let mut payload = std::string::String::from("<!>");
+        payload.push_str(&"9".repeat(200));
+        let _ = parse(&riff_with_clm(&payload));
     }
 
     #[test]
