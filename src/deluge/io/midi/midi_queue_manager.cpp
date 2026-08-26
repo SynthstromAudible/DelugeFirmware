@@ -487,7 +487,10 @@ void MIDIQueueManagerDIN::consume_queued_messages(uint32_t now_sample_timer) {
 						break;
 					}
 					if (cc_result == MIDIQueueManager::PriorityLaneTraversalResult::Abort) {
-						// The CC lane head is malformed or incomplete, so it cannot safely provide bytes.
+						// The CC lane head cannot safely provide bytes: either it does not decode, or it
+						// is well-formed but does not fit the current allowance/UART limits. Both end the
+						// pass here, so a CC head that is merely too large for the remaining space also
+						// stops lower-priority lanes from sending this time round.
 						break;
 					}
 					if (cc_result == MIDIQueueManager::PriorityLaneTraversalResult::SkipLane) {

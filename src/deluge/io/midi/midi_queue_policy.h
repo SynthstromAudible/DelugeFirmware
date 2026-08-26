@@ -106,9 +106,11 @@ public:
 		Popped,
 		/// Stop traversing for this slot without trying lower-priority lanes.
 		///
-		/// @note Reserved for lane contents this transport cannot decode, where retrying or falling
-		///       through would not be safe. A lane merely blocked by an allowance returns SkipLane on
-		///       both transports.
+		/// @note Means a head this transport cannot safely pop. USB reaches it only for lane contents it
+		///       cannot decode. DIN also reaches it when a well-formed head does not fit the current
+		///       limits, because validate_head_message_pop() returning InsufficientCapacity is treated
+		///       the same as Invalid there. Only the CC *scheduling* allowance returns SkipLane on both
+		///       transports.
 		Abort,
 	};
 
