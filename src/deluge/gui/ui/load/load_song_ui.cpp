@@ -59,6 +59,10 @@ extern void setupBlankSong();
 using namespace deluge::gui;
 namespace encoders = deluge::hid::encoders;
 
+/// How long a load waits for the sample loader to settle before swapping anyway. Carried over from the
+/// bounded wait this replaced, so a card that never settles still lets the song through.
+constexpr double kLoadSettleTimeoutSeconds = 5.;
+
 LoadSongUI::LoadSongUI() {
 	qwertyAlwaysVisible = false;
 	filePrefix = "SONG";
@@ -158,19 +162,14 @@ void LoadSongUI::enterKeyPress() {
 	}
 
 	else {
-		// Run the load on the worker fiber: performLoad() yields mid-load (waiting for
-		// clusters, or for the LOAD-button release while playing), and that must suspend
-		// the *operation*, not this button handler — otherwise the executor (and PIC
-		// input) freezes and the load hangs. Post-load work goes in the job too, since
-		// this handler returns immediately.
-		deluge::storage::Owner::run(
-		    [](void*) {
-			    loadSongUI.performLoad(); // May fail
-			    if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
-				    runtimeFeatureSettings.writeSettingsToFile();
-			    }
-		    },
-		    nullptr);
+		// Start the load and return: it owns its own dispatch onto the storage owner, and parks in the
+		// run loop at each point it has to wait, so this handler never blocks. The post-load settings
+		// write travels with it as the completion.
+		beginLoad([]() {
+			if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
+				runtimeFeatureSettings.writeSettingsToFile();
+			}
+		});
 	}
 }
 
@@ -294,18 +293,15 @@ void LoadSongUI::doQueueLoadNextSongIfAvailable(int8_t offset) {
 			else {
 				// if is a file, select it
 				songFound = true;
-				AudioEngine::logAction("performLoad");
-				// Run the load on the worker fiber (see enterKeyPress); the job owns the
-				// post-load settings write AND the UI-mode reset below, so return now.
-				deluge::storage::Owner::run(
-				    [](void*) {
-					    loadSongUI.performLoad();
-					    if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
-						    runtimeFeatureSettings.writeSettingsToFile();
-					    }
-					    currentUIMode = UI_MODE_NONE;
-				    },
-				    nullptr);
+				AudioEngine::logAction("beginLoad");
+				// See enterKeyPress. The completion owns the post-load settings write AND the
+				// UI-mode reset, so there is nothing left to do here.
+				beginLoad([]() {
+					if (FlashStorage::defaultStartupSongMode == StartupSongMode::LASTOPENED) {
+						runtimeFeatureSettings.writeSettingsToFile();
+					}
+					currentUIMode = UI_MODE_NONE;
+				});
 				return;
 			}
 		}
@@ -316,14 +312,93 @@ void LoadSongUI::doQueueLoadNextSongIfAvailable(int8_t offset) {
 	currentUIMode = UI_MODE_NONE;
 }
 
+void LoadSongUI::startLoadTrampoline(void*) {
+	loadSongUI.startLoad();
+}
+
+void LoadSongUI::armOrSwapTrampoline(void*) {
+	loadSongUI.armOrSwap();
+}
+
+void LoadSongUI::finishLoadTrampoline(void*) {
+	loadSongUI.finishLoad();
+}
+
+void LoadSongUI::dispatchLoadSegment(void (*segment)(void*)) {
+	LoadPhase parked = loadPhase_;
+	loadPhase_ = LoadPhase::RUNNING;
+	if (!deluge::storage::Owner::run(segment, nullptr)) {
+		// Owner queue was full. Stay parked in the phase we came from and try again next pass -
+		// the wait we just satisfied stays satisfied, so this only costs a pass.
+		loadPhase_ = parked;
+	}
+}
+
+void LoadSongUI::endLoad() {
+	loadPhase_ = LoadPhase::NONE;
+	loadToDelete_ = nullptr;
+	performingLoad = false;
+
+	// Cleared before the call so a completion that starts another load doesn't inherit this one's.
+	void (*onComplete)() = loadOnComplete_;
+	loadOnComplete_ = nullptr;
+	if (onComplete != nullptr) {
+		onComplete();
+	}
+}
+
 // Before calling this, you must set loadButtonReleased.
-void LoadSongUI::performLoad() {
+void LoadSongUI::beginLoad(void (*onComplete)()) {
+	loadOnComplete_ = onComplete;
 	performingLoad = true;
+
+	// The load reads the card, so all three of its stretches run on the storage owner - including this
+	// first one, which is why the call is dispatched rather than made here. Callers reach this from the
+	// interaction tier (a button press, the startup task), where card access is not allowed.
+	//
+	// A full owner queue parks the load in START rather than abandoning it. Finishing here instead would
+	// mean running the caller's completion - which writes to the card - on this interaction-tier context.
+	loadPhase_ = LoadPhase::START;
+	dispatchLoadSegment(&startLoadTrampoline);
+}
+
+void LoadSongUI::loadRoutine() {
+	switch (loadPhase_) {
+	case LoadPhase::NONE:
+	case LoadPhase::RUNNING:
+		return;
+
+	case LoadPhase::START:
+		dispatchLoadSegment(&startLoadTrampoline);
+		return;
+
+	case LoadPhase::SETTLE:
+		// The loader queue holding no lowest-priority (failed-and-requeued) items means the async fill
+		// task has settled. Observing that from here, rather than waiting on it, is the point: the fill
+		// task only makes progress once we return to the run loop.
+		if (deluge_resource_loader_has_lowest(GeneralMemoryAllocator::get().resourceManager())
+		    && getSystemTime() < settleDeadline_) {
+			return;
+		}
+		dispatchLoadSegment(&armOrSwapTrampoline);
+		return;
+
+	case LoadPhase::AWAIT_ARM:
+		if (currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED
+		    || currentUIMode == UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED) {
+			return;
+		}
+		dispatchLoadSegment(&finishLoadTrampoline);
+		return;
+	}
+}
+
+void LoadSongUI::startLoad() {
 	FileItem* currentFileItem = getCurrentFileItem();
 
 	if (!currentFileItem) {
 		display->displayError(Error::FILE_NOT_FOUND);
-		performingLoad = false;
+		endLoad();
 		return;
 	}
 
@@ -394,7 +469,7 @@ fail:
 
 		display->removeWorkingAnimation();
 		currentUIMode = UI_MODE_NONE;
-		performingLoad = false;
+		endLoad();
 		return;
 	}
 
@@ -452,17 +527,16 @@ gotErrorAfterCreatingSong:
 		preLoadedSong->loadAllSamples(true);
 	}
 
-	// Ensure all AudioFile Clusters needed for new song are loaded: wait until the loader queue holds
-	// no lowest-priority (failed-and-requeued) items, i.e. the async fill task has settled.
-	// NOT YET deluge_storage_await_progress(): that spins, and in a single-threaded host the only thing
-	// that makes the fill task progress is a pump. Today the fiber's yield provides it. See the R5b spec
-	// for the blocker -- golden_vt_render deliberately registers no sim_block progress hook.
-	yieldWithTimeout(
-	    []() { return !deluge_resource_loader_has_lowest(GeneralMemoryAllocator::get().resourceManager()); }, 5);
+	// The new song's essential clusters still have to finish arriving before the swap. Park here and let
+	// loadRoutine() watch for it: the fill task that does the arriving cannot run while we hold the owner.
+	settleDeadline_ = getSystemTime() + kLoadSettleTimeoutSeconds;
+	loadPhase_ = LoadPhase::SETTLE;
+}
 
+void LoadSongUI::armOrSwap() {
 	preLoadedSong->name = enteredText;
 
-	Song* toDelete = currentSong;
+	loadToDelete_ = currentSong;
 
 	if (playbackHandler.isEitherClockActive()) {
 
@@ -473,7 +547,8 @@ gotErrorAfterCreatingSong:
 			// If arming couldn't really be done, e.g. because current song had no Clips currently playing, swap has
 			// already occurred
 			if (!result) {
-				goto swapDone;
+				finishLoad();
+				return;
 			}
 
 			currentUIMode = UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED;
@@ -493,18 +568,17 @@ gotErrorAfterCreatingSong:
 		AudioEngine::logAction("asking for samples");
 		preLoadedSong->loadAllSamples(true);
 		AudioEngine::logAction("waiting for samples");
-		// make sure we don't get stuck
-		yield([]() {
-			return currentUIMode != UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_ARMED
-			       && currentUIMode != UI_MODE_LOADING_SONG_UNESSENTIAL_SAMPLES_UNARMED;
-		});
+		// Park until currentUIMode leaves the two loading modes - the arming, or the swap the arming
+		// launches, is what moves it, and neither can happen while we sit on the owner.
+		loadPhase_ = LoadPhase::AWAIT_ARM;
+		return;
 	}
 
-	else {
-		playbackHandler.doSongSwap();
-	}
+	playbackHandler.doSongSwap();
+	finishLoad();
+}
 
-swapDone:
+void LoadSongUI::finishLoad() {
 	// To override our popup if we did one. (Still necessary?)
 	deluge::hid::display::OLED::displayWorkingAnimation("Loading");
 	// The swap's been done and the first tick of the new song has been done; any samples wanting data
@@ -512,10 +586,11 @@ swapDone:
 
 	// Delete the old song
 	AudioEngine::logAction("deleting old song");
-	if (toDelete) {
-		void* toDealloc = dynamic_cast<void*>(toDelete);
-		toDelete->~Song();
+	if (loadToDelete_ != nullptr) {
+		void* toDealloc = dynamic_cast<void*>(loadToDelete_);
+		loadToDelete_->~Song();
 		delugeDealloc(toDealloc);
+		loadToDelete_ = nullptr;
 	}
 
 	audioFileManager.deleteAnyTempRecordedSamplesFromMemory();
@@ -551,7 +626,7 @@ swapDone:
 		}
 	}
 
-	performingLoad = false;
+	endLoad();
 }
 
 ActionResult LoadSongUI::timerCallback() {

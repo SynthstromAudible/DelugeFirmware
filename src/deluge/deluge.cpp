@@ -397,6 +397,33 @@ void setupBlankSong() {
 	AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
 }
 
+namespace {
+
+/// @brief Whether the startup song was loaded from the template, so its name must be wiped.
+bool startupSongWasTemplate = false;
+
+/// @brief The startup canary to remove once the load is done. Held here rather than on
+///        setupStartupSong()'s stack, which is long gone by the time the load finishes.
+std::string startupFailSafePath;
+
+/// @brief Cleanup owed to the startup song load, run as its completion.
+///
+/// This used to sit on the straight line after performLoad() returned. The load now finishes from the
+/// run loop, so the cleanup travels with it - otherwise the canary would be removed while the song was
+/// still loading, and a load that then bricked the device would look like a clean boot next time.
+void finishStartupSong() {
+	if (startupSongWasTemplate) {
+		// Wipe the name so the Save action asks you for a new song
+		currentSong->name.clear();
+	}
+	// ...but we got this far, cleanup
+	deluge_file_invalidate_cache();
+	(void)deluge::io::unlink(startupFailSafePath);
+	startupFailSafePath.clear();
+}
+
+} // namespace
+
 /// Can only happen after settings, which includes default settings, have been read
 void setupStartupSong() {
 
@@ -481,19 +508,17 @@ void setupStartupSong() {
 			}
 		}
 		// Load song, if we got this far!
-		void* songMemory = deluge::memory::alloc_fast(sizeof(Song));
 		currentSong->setSongFullPath(filename);
 		if (openUI(&loadSongUI)) {
-			loadSongUI.performLoad();
-			if (startupSongMode == StartupSongMode::TEMPLATE) {
-				// Wipe the name so the Save action asks you for a new song
-				currentSong->name.clear();
-			}
+			// beginLoad() returns as soon as the load has to wait, and this task is fire-once, so the
+			// cleanup below cannot stay here - it goes in the completion instead.
+			startupSongWasTemplate = (startupSongMode == StartupSongMode::TEMPLATE);
+			startupFailSafePath = failSafePath;
+			loadSongUI.beginLoad(&finishStartupSong);
+			return;
 		}
-		else {
-			// what just failed??
-			display->consoleText("Startup fault F4");
-		}
+		// what just failed??
+		display->consoleText("Startup fault F4");
 		// ...but we got this far, cleanup
 		deluge_file_invalidate_cache();
 		(void)deluge::io::unlink(failSafePath);
@@ -559,6 +584,10 @@ void registerTasks() {
 
 	// 30 Hz update desired?
 	addRepeatingTask(&doAnyPendingUIRendering, p++, 0.01, 0.01, 0.03, "pending UI", RESOURCE_NONE);
+
+	// Advances a song load past a wait it has finished. Cheap when no load is in flight, and it only ever
+	// queues the next stretch of the load onto the storage owner, so it holds no SD resource itself.
+	addRepeatingTask([]() { loadSongUI.loadRoutine(); }, p++, 0.001, 0.005, 0.02, "song load", RESOURCE_NONE);
 
 	// Check for and handle queued SysEx traffic
 	addRepeatingTask([]() { smSysex::handleNextSysEx(); }, p++, 0.0002, 0.0002, 0.01, "Handle pending SysEx traffic.",

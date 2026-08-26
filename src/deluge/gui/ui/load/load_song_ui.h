@@ -33,7 +33,28 @@ public:
 	bool opened() override;
 	void selectEncoderAction(int8_t offset) override;
 	void queueLoadNextSongIfAvailable(int8_t offset);
-	void performLoad();
+
+	/// @brief Starts loading the highlighted song and returns without waiting for it to finish.
+	///
+	/// The load runs as three stretches of storage work on the storage owner, separated by the two points
+	/// it has to wait at: the sample loader settling, and the user arming the song swap. Rather than
+	/// blocking across those, each stretch ends by parking the load in a phase; @ref loadRoutine observes
+	/// the phase from the run loop and dispatches the next stretch once the wait is over.
+	///
+	/// @param onComplete Run once the load has finished, whether it succeeded, failed, or never started.
+	///                   Runs on the storage owner. Null for callers with no follow-up work. Must outlive
+	///                   the load, so pass a free function or a captureless lambda.
+	void beginLoad(void (*onComplete)() = nullptr);
+
+	/// @brief Advances an in-flight load past a wait it has finished. Cheap no-op when none is in flight.
+	///
+	/// Registered as a repeating task by registerTasks(), so every entry point - both browser gestures,
+	/// the startup song, and the host harness drivers - is driven from one place.
+	void loadRoutine();
+
+	/// @brief True from @ref beginLoad until the load's completion has run.
+	[[nodiscard]] bool isLoadInFlight() const { return performingLoad; }
+
 	void displayLoopsRemainingPopup();
 	bool isLoadingSong();
 
@@ -95,6 +116,53 @@ private:
 	/// @brief Set up and start the scroll-in from `imageStore`. Call only once it is filled.
 	void beginPreviewScrollIn(int32_t movementDirection);
 
+	/// @brief Where an in-flight load is parked between run-loop passes.
+	///
+	/// Only the two waits can span passes; the storage work itself runs straight through inside whichever
+	/// stretch is on the owner. RUNNING covers a stretch that is queued or executing, and keeps
+	/// @ref loadRoutine from dispatching a second one on top of it.
+	enum class LoadPhase : uint8_t {
+		NONE,      ///< No load in flight.
+		START,     ///< Requested, but the owner queue was full - waiting to be dispatched.
+		RUNNING,   ///< A stretch is queued on, or running on, the storage owner.
+		SETTLE,    ///< Waiting for the sample loader to settle, or for its deadline to pass.
+		AWAIT_ARM, ///< Waiting for the user to arm the swap, or for the arming to launch it.
+	};
+	LoadPhase loadPhase_{LoadPhase::NONE};
+
+	/// @brief The outgoing song, captured before the swap and freed in @ref finishLoad.
+	///
+	/// The one piece of the load's state that has to survive a wait, so the only local promoted to a
+	/// member when the function was split.
+	Song* loadToDelete_{nullptr};
+
+	/// @brief getSystemTime() value past which SETTLE stops waiting and swaps anyway.
+	double settleDeadline_{0.};
+
+	/// @brief Completion handed to @ref beginLoad, cleared as it runs.
+	void (*loadOnComplete_)(){nullptr};
+
+	/// @name The three stretches of storage work, split at the two waits. Owner-only.
+	/// @{
+	void startLoad();  ///< Open, read and claim samples, then park in SETTLE.
+	void armOrSwap();  ///< Arm the swap and park in AWAIT_ARM, or swap outright and carry straight on.
+	void finishLoad(); ///< Free the old song, finish loading, restore the UI, run the completion.
+	/// @}
+
+	/// @name `Owner::run` trampolines for the three stretches above.
+	/// @{
+	static void startLoadTrampoline(void*);
+	static void armOrSwapTrampoline(void*);
+	static void finishLoadTrampoline(void*);
+	/// @}
+
+	/// @brief Queues the next stretch on the storage owner, leaving the phase alone if the queue is full.
+	/// @param segment One of the trampolines above.
+	void dispatchLoadSegment(void (*segment)(void*));
+
+	/// @brief Ends the load: clears the phase and runs the caller's completion exactly once.
+	void endLoad();
+
 	bool performingLoad;
 	bool scrollingIntoSlot{};
 	bool qwertyCurrentlyDrawnOnscreen;
@@ -102,7 +170,6 @@ private:
 	// int32_t findNextFile(int32_t offset);
 	void exitThisUI();
 	void exitActionWithError();
-	void performLoadFixedSM();
 };
 extern LoadSongUI loadSongUI;
 

@@ -122,7 +122,10 @@ bool deluge_scenario_song_load_begin_ok() {
 }
 
 bool deluge_scenario_commit_song_load() {
-	return deluge::storage::Owner::run([](void*) { loadSongUI.performLoad(); }, nullptr);
+	// beginLoad() owns its own dispatch onto the storage owner and returns straight away; the scenario
+	// then polls deluge_scenario_song_load_in_progress() as it did before.
+	loadSongUI.beginLoad();
+	return true;
 }
 
 bool deluge_scenario_song_load_in_progress() {

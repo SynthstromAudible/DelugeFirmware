@@ -37,6 +37,7 @@
 #include "gui/ui/ui.h"                // openUI
 #include "gui/views/session_view.h"   // sessionView, reproCreateNewInstrumentClip
 #include "memory/alloc_metadata.h"    // mem_guard (self-guards on MEM_GUARD)
+#include "scheduler_api.h"            // yieldWithTimeout
 
 #include <csignal>
 #include <cstdio>
@@ -192,6 +193,10 @@ void collectXmlPaths(const char* dir, int depth) {
 	closedir(dp);
 }
 
+/// How long loadOneSong() waits for one song. Generous: this harness loads whole corpora under a
+/// sanitizer, where a single load is far slower than anything the device would see.
+constexpr double kSongLoadTimeoutSeconds = 60.;
+
 void loadOneSong(const char* fullPath) {
 #if defined(__SANITIZE_ADDRESS__)
 	if (currentSong && __asan_address_is_poisoned((void*)currentSong)) {
@@ -200,8 +205,8 @@ void loadOneSong(const char* fullPath) {
 	}
 #endif
 	// Drive the same path the boot loader / enter-key uses: make loadSongUI the active UI (so the session view doesn't
-	// try to render - and dereference the transiently-null currentSong - during performLoad's yields), point the
-	// browser at this song, then perform the full load (read -> swap in -> delete the old song).
+	// try to render - and dereference the transiently-null currentSong - mid-load), point the browser at this song,
+	// then perform the full load (read -> swap in -> delete the old song).
 	openUI(&loadSongUI);
 	Error e = loadSongUI.setFileByFullPath(OutputType::NONE, fullPath);
 	if (e != Error::NONE) {
@@ -209,7 +214,10 @@ void loadOneSong(const char* fullPath) {
 		std::fflush(stdout);
 		return;
 	}
-	loadSongUI.performLoad();
+	loadSongUI.beginLoad();
+	// This harness deliberately blocks the app to load every song back-to-back, so it waits here for the
+	// load the run loop is advancing. Yielding is what lets the load's pump task run at all.
+	yieldWithTimeout([]() { return !loadSongUI.isLoadInFlight(); }, kSongLoadTimeoutSeconds);
 }
 
 void runSongLoadHarnessIfDue() {
