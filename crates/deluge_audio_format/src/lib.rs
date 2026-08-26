@@ -143,8 +143,9 @@ pub fn parse(bytes: &[u8]) -> Result<AudioHeader, ParseError> {
     let empty_container_is_fully_supplied =
         8usize.checked_add(declared_after_top as usize) == Some(bytes.len());
 
-    // Accumulator the chunk walk fills in. Tasks 4-6 add more fields and more
-    // match arms below; for now the WAV `fmt ` and `data` chunks are handled.
+    // Accumulator the chunk walk fills in. Tasks 5-6 add more fields and more
+    // match arms below; for now the WAV `fmt `, `data`, `smpl` and `inst`
+    // chunks are handled.
     let mut found_data_chunk = false;
     let mut num_channels_acc: Option<u8> = None;
     let mut byte_depth_acc: Option<u8> = None;
@@ -152,6 +153,9 @@ pub fn parse(bytes: &[u8]) -> Result<AudioHeader, ParseError> {
     let mut sample_rate_acc: u32 = 44100;
     let mut audio_data_start_pos_bytes_acc: u32 = 0;
     let mut audio_data_length_bytes_acc: u32 = 0;
+    let mut file_loop_start_samples_acc: u32 = 0;
+    let mut file_loop_end_samples_acc: u32 = 0;
+    let mut midi_note_acc: Option<f32> = None;
 
     let mut pos: usize = TOP_HEADER_LEN;
     // Once we've walked at least one real chunk, running out of `bytes`
@@ -254,6 +258,66 @@ pub fn parse(bytes: &[u8]) -> Result<AudioHeader, ParseError> {
                 // here the way a WaveTable parse would — see
                 // audio_file_format.cpp:74-76.
             }
+            (Container::Wav, b"smpl") => {
+                // smpl header: manufacturer, product, samplePeriod,
+                // midiUnityNote, midiPitchFraction, smpteFormat, smpteOffset,
+                // numSampleLoops, samplerData — 9 little-endian u32 fields (36
+                // bytes). Each field read is independently bounds-checked; a
+                // short/truncated chunk just leaves midi_note/loop points
+                // unset rather than erroring here (the generic truncation
+                // check after the match still asks for more bytes when the
+                // file is genuinely incomplete). Mirrors
+                // audio_file_format.cpp:214-247.
+                if let (Some(midi_unity_note), Some(pitch_fraction)) = (
+                    read_u32_le(bytes, data_start + 12),
+                    read_u32_le(bytes, data_start + 16),
+                ) {
+                    if (midi_unity_note != 0 || pitch_fraction != 0) && midi_unity_note < 128 {
+                        // audio_file_format.cpp:227-228 — fractional root
+                        // note; 2^32 is exactly representable in f32.
+                        midi_note_acc =
+                            Some(pitch_fraction as f32 / 4_294_967_296.0 + midi_unity_note as f32);
+                    }
+                }
+
+                // Only a single declared loop is ever honoured: the C++ gates
+                // the loop read on `numLoops == 1` rather than looping
+                // `numLoops` times (audio_file_format.cpp:231-245), so a
+                // hostile declared count (e.g. 0xFFFF_FFFF) never drives any
+                // iteration — bounded or not — and never indexes past what a
+                // single loop record needs.
+                if read_u32_le(bytes, data_start + 28) == Some(1) {
+                    // loop record: cuePointId, type, start, end, fraction,
+                    // playCount — 6 u32 fields starting right after the
+                    // 36-byte header above.
+                    if let (Some(loop_start), Some(loop_end)) = (
+                        read_u32_le(bytes, data_start + 44),
+                        read_u32_le(bytes, data_start + 48),
+                    ) {
+                        file_loop_start_samples_acc = loop_start;
+                        file_loop_end_samples_acc = loop_end;
+                    }
+                }
+            }
+            (Container::Wav, b"inst") => {
+                // inst chunk: MIDIUnshiftedNote:u8, fineTune:i8 (signed,
+                // 1/100th semitone), lowNote, highNote, lowVelocity,
+                // highVelocity, gain — only the first two bytes are used.
+                // Applied in file order like `smpl` above: whichever of
+                // `smpl`/`inst` is walked later simply overwrites
+                // `midi_note_acc` set by the other, with no other precedence
+                // rule — that's exactly what the C++ does too, since both
+                // arms write `f.midiNote` unconditionally when their own
+                // guard passes. Mirrors audio_file_format.cpp:251-266.
+                if let (Some(&midi_note_byte), Some(&fine_tune_byte)) =
+                    (bytes.get(data_start), bytes.get(data_start + 1))
+                {
+                    if midi_note_byte < 128 {
+                        let fine_tune = fine_tune_byte as i8;
+                        midi_note_acc = Some(midi_note_byte as f32 - (fine_tune as f32) * 0.01);
+                    }
+                }
+            }
             _ => {}
         }
 
@@ -305,9 +369,9 @@ pub fn parse(bytes: &[u8]) -> Result<AudioHeader, ParseError> {
         sample_rate: sample_rate_acc,
         audio_data_start_pos_bytes: audio_data_start_pos_bytes_acc,
         audio_data_length_bytes: audio_data_length_bytes_acc,
-        file_loop_start_samples: 0,
-        file_loop_end_samples: 0,
-        midi_note: None,
+        file_loop_start_samples: file_loop_start_samples_acc,
+        file_loop_end_samples: file_loop_end_samples_acc,
+        midi_note: midi_note_acc,
         wavetable: WavetableHints {
             cycle_size: 2048,
             explicitly_specifies_self: false,
@@ -490,6 +554,110 @@ mod tests {
                 other => panic!("len {n}: expected NeedAtLeast, got {other:?}"),
             }
         }
+    }
+
+    /// riff_fmt_data + a `smpl` chunk carrying one loop and a MIDI unity note.
+    fn riff_with_smpl(loop_start: u32, loop_end: u32, unity_note: u32) -> std::vec::Vec<u8> {
+        let mut v = riff_fmt_data(1, 44100, 16, 8);
+        v.extend_from_slice(b"smpl");
+        v.extend_from_slice(&60u32.to_le_bytes()); // 36-byte smpl header + one 24-byte loop
+        v.extend_from_slice(&0u32.to_le_bytes()); // manufacturer
+        v.extend_from_slice(&0u32.to_le_bytes()); // product
+        v.extend_from_slice(&0u32.to_le_bytes()); // sample period
+        v.extend_from_slice(&unity_note.to_le_bytes()); // MIDI unity note
+        v.extend_from_slice(&0u32.to_le_bytes()); // pitch fraction
+        v.extend_from_slice(&0u32.to_le_bytes()); // SMPTE format
+        v.extend_from_slice(&0u32.to_le_bytes()); // SMPTE offset
+        v.extend_from_slice(&1u32.to_le_bytes()); // num sample loops
+        v.extend_from_slice(&0u32.to_le_bytes()); // sampler data
+        v.extend_from_slice(&0u32.to_le_bytes()); // loop: cue point id
+        v.extend_from_slice(&0u32.to_le_bytes()); // loop: type
+        v.extend_from_slice(&loop_start.to_le_bytes());
+        v.extend_from_slice(&loop_end.to_le_bytes());
+        v.extend_from_slice(&0u32.to_le_bytes()); // loop: fraction
+        v.extend_from_slice(&0u32.to_le_bytes()); // loop: play count
+        v
+    }
+
+    #[test]
+    fn smpl_sets_loop_points_and_root_note() {
+        let h = parse(&riff_with_smpl(100, 200, 60)).expect("should parse");
+        assert_eq!(h.file_loop_start_samples, 100);
+        assert_eq!(h.file_loop_end_samples, 200);
+        assert_eq!(h.midi_note, Some(60.0));
+    }
+
+    #[test]
+    fn absent_smpl_leaves_loops_zero_and_note_none() {
+        let h = parse(&riff_fmt_data(1, 44100, 16, 8)).expect("should parse");
+        assert_eq!((h.file_loop_start_samples, h.file_loop_end_samples), (0, 0));
+        assert_eq!(h.midi_note, None);
+    }
+
+    /// riff_fmt_data + an `inst` chunk carrying a root note and fine-tune.
+    fn riff_with_inst(midi_note: u8, fine_tune: i8) -> std::vec::Vec<u8> {
+        let mut v = riff_fmt_data(1, 44100, 16, 8);
+        v.extend_from_slice(b"inst");
+        v.extend_from_slice(&7u32.to_le_bytes());
+        v.push(midi_note);
+        v.push(fine_tune as u8);
+        v.extend_from_slice(&[0u8; 5]); // lowNote, highNote, lowVelocity, highVelocity, gain
+        v.push(0); // RIFF word-alignment pad (7-byte payload is odd)
+        v
+    }
+
+    #[test]
+    fn inst_sets_root_note_with_fine_tune() {
+        let h = parse(&riff_with_inst(60, -50)).expect("should parse");
+        // audio_file_format.cpp:262 — midiNote - fineTune * 0.01
+        assert_eq!(h.midi_note, Some(60.0 - (-50.0) * 0.01));
+    }
+
+    #[test]
+    fn inst_note_out_of_range_is_ignored() {
+        let h = parse(&riff_with_inst(200, 0)).expect("should parse");
+        // 200 as a raw byte is >= 128, so the C++ guard (`midiNote < 128`)
+        // rejects it and midi_note stays unset.
+        assert_eq!(h.midi_note, None);
+    }
+
+    #[test]
+    fn later_chunk_wins_when_smpl_and_inst_both_set_the_note() {
+        // smpl before inst in the file: inst, appearing later in the walk,
+        // overwrites smpl's note — the walk applies both arms in file order
+        // with no extra precedence rule (audio_file_format.cpp:213-266).
+        let mut v = riff_with_smpl(0, 0, 60);
+        v.extend_from_slice(b"inst");
+        v.extend_from_slice(&7u32.to_le_bytes());
+        v.push(72);
+        v.push(0);
+        v.extend_from_slice(&[0u8; 5]);
+        v.push(0); // RIFF word-alignment pad (7-byte payload is odd)
+        let h = parse(&v).expect("should parse");
+        assert_eq!(h.midi_note, Some(72.0));
+    }
+
+    #[test]
+    fn hostile_smpl_loop_count_does_not_panic_or_hang() {
+        // A `smpl` chunk that declares an enormous loop count (0xFFFF_FFFF)
+        // while its actual payload holds only the 36-byte header — no loop
+        // records at all. The C++ reference gates the loop read on
+        // `numLoops == 1` (audio_file_format.cpp:231), so a count that isn't
+        // exactly 1 must never drive any iteration, bounded or not.
+        let mut v = riff_fmt_data(1, 44100, 16, 8);
+        v.extend_from_slice(b"smpl");
+        v.extend_from_slice(&36u32.to_le_bytes()); // header only, no loop data follows
+        v.extend_from_slice(&0u32.to_le_bytes()); // manufacturer
+        v.extend_from_slice(&0u32.to_le_bytes()); // product
+        v.extend_from_slice(&0u32.to_le_bytes()); // sample period
+        v.extend_from_slice(&0u32.to_le_bytes()); // MIDI unity note
+        v.extend_from_slice(&0u32.to_le_bytes()); // pitch fraction
+        v.extend_from_slice(&0u32.to_le_bytes()); // SMPTE format
+        v.extend_from_slice(&0u32.to_le_bytes()); // SMPTE offset
+        v.extend_from_slice(&0xFFFF_FFFFu32.to_le_bytes()); // num sample loops: hostile
+        v.extend_from_slice(&0u32.to_le_bytes()); // sampler data
+                                                  // No loop records follow.
+        let _ = parse(&v); // Must return promptly, not panic and not hang.
     }
 
     #[test]
