@@ -175,7 +175,7 @@ void DxCartridge::selectEncoderAction(int32_t offset) {
 
 MenuItem* DxCartridge::selectButtonPress() {
 	soundEditor.exitCompletely();
-	return nullptr;
+	return NO_NAVIGATION;
 }
 
 } // namespace deluge::gui::menu_item
