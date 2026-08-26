@@ -17,9 +17,7 @@
 
 #pragma once
 
-#include "io/midi/midi_queue_definitions.h"
 #include "io/midi/midi_queue_policy.h"
-#include "model/midi/message.h"
 #include <cstdint>
 
 /// @brief Transport traits for USB: one packed USB-MIDI event per queue element.
