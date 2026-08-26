@@ -147,6 +147,26 @@ void writeJsonString(std::ostringstream& out, const std::string& s) {
 	out << '"';
 }
 
+// Independent of parseSampleHeader/parseWaveTableHeader: reads the 12-byte top header's magic bytes
+// directly, mirroring detectContainer() in audio_file_format.cpp, so the dumper can report container
+// identity even though neither SampleHeader nor WaveTableHeader carries it (it's consumed internally
+// and never surfaced — see audio_file_format.h). "unknown" covers both a too-short file and a
+// recognised-neither-way one; the Rust side only ever compares this against Ok(AudioHeader), where the
+// container is always known, so "unknown" never needs to match anything.
+const char* detectContainerTag(const FileBuffer& bytes) {
+	if (bytes.size() < 12) {
+		return "unknown";
+	}
+	const char* data = bytes.data();
+	if (std::memcmp(data, "RIFF", 4) == 0 && std::memcmp(data + 8, "WAVE", 4) == 0) {
+		return "wav";
+	}
+	if (std::memcmp(data, "FORM", 4) == 0 && std::memcmp(data + 8, "AIFF", 4) == 0) {
+		return "aiff";
+	}
+	return "unknown";
+}
+
 void writeOptionalFloat(std::ostringstream& out, std::optional<float> v) {
 	if (!v) {
 		out << "null";
@@ -215,7 +235,7 @@ std::string dumpAudioHeaderAsJson(const std::string& path) {
 		return out.str();
 	}
 
-	out << ",\"read_error\":false,";
+	out << ",\"read_error\":false,\"container\":\"" << detectContainerTag(bytes) << "\",";
 	dumpSample(out, bytes);
 	out << ",";
 	dumpWaveTable(out, "wavetable_insist_false", bytes, /*insist=*/false);

@@ -26,6 +26,11 @@
 //! ```
 //!
 //! This test finds it at `<repo root>/sim/build/deluge_audio_header_dump` (or `DELUGE_AUDIO_HEADER_DUMP_BIN`).
+//!
+//! Known limitation, not reachable from the corpus: the hand-rolled JSON number parser below doesn't
+//! handle `nan`/`inf` tokens, so a `midi_note` that happened to render as one of those (impossible
+//! today — the value is always derived from small integer file fields, never from a computation that
+//! could produce a non-finite float) would panic in `parse_number` rather than compare cleanly.
 
 use deluge_audio_format::{parse, wavetable, AudioHeader, Container, ParseError};
 use std::collections::HashMap;
@@ -71,6 +76,12 @@ impl Json {
     }
     fn as_u32(&self) -> Option<u32> {
         self.as_f64().map(|n| n as u32)
+    }
+    fn as_str(&self) -> Option<&str> {
+        match self {
+            Json::Str(s) => Some(s.as_str()),
+            _ => None,
+        }
     }
     fn is_null(&self) -> bool {
         matches!(self, Json::Null)
@@ -416,6 +427,28 @@ fn cmp_bool(
     }
 }
 
+/// `container` isn't carried by either C++ output struct (`SampleHeader`/`WaveTableHeader` — see
+/// `audio_file_format.h`; it's consumed internally by `detectContainer()` and never surfaced), so the
+/// dumper (`harness/audio_header_dump.cpp`'s `detectContainerTag()`) reports it independently, straight
+/// off the file's own 12-byte magic, as a top-level `"container"` field ("wav"/"aiff"/"unknown").
+/// Compared here so every `AudioHeader` field genuinely has a differential check, not just the ones
+/// nested under `sample`/`wavetable_insist_*`.
+fn cmp_container(out: &mut Vec<Disagreement>, path: &Path, ours: Container, theirs: &Json) {
+    let ours_tag = match ours {
+        Container::Wav => "wav",
+        Container::Aiff => "aiff",
+    };
+    if theirs.get("container").as_str() != Some(ours_tag) {
+        out.push(Disagreement {
+            path: path.to_path_buf(),
+            field: "container",
+            ours: ours_tag.to_string(),
+            theirs: format!("{:?}", theirs.get("container")),
+            adjudicated: None,
+        });
+    }
+}
+
 /// Adjudication 1 (task-9 brief): the C++ computes `midiNote - fineTune * 0.01` where the bare
 /// `0.01` literal is `double`, so despite both operands being explicitly cast to `float` the whole
 /// expression evaluates in double precision and only narrows to `float` at the assignment; the Rust
@@ -466,32 +499,148 @@ fn cmp_midi_note(out: &mut Vec<Disagreement>, path: &Path, ours: Option<f32>, th
 /// an AIFF file is EXPECTED, not a Rust defect, and must not be "fixed" by matching the C++ bug.
 const AIFF_LOOP_MARKER_CPP_BUG: &str = "aiff_loop_marker_cpp_pstring_off_by_one (design doc §6)";
 
-fn cmp_loop_points(out: &mut Vec<Disagreement>, path: &Path, ours: &AudioHeader, theirs: &Json) {
+/// An INDEPENDENT reimplementation of the AIFF `MARK`/`INST` sustain-loop resolution, parameterized by
+/// which pstring-skip formula to use, so `cmp_loop_points` can make the [`AIFF_LOOP_MARKER_CPP_BUG`]
+/// exemption CAUSAL instead of blanket: derived straight from the file's own bytes, never from `ours`
+/// or `theirs`, so it can't be fooled by a coincidental match on either side.
+///
+/// `buggy_pstring_skip = true` reproduces `audio_file_format.cpp:394-395`'s `(stringLength + 1) & ~1`
+/// (rounds only the marker NAME up to even, applied AFTER the 1-byte length prefix is already
+/// consumed); `false` uses the AIFF-spec-correct skip, `((1 + stringLength + 1) & ~1) - 1` (pads the
+/// WHOLE pstring record — length byte + name — to an even total), matching `lib.rs`'s `MARK` arm.
+///
+/// Deliberately simpler than either real implementation: no `kMaxNumMarkers` clamp (every corpus file
+/// this differential sees carries at most 2 markers), and any read that would run out of bounds just
+/// stops the walk rather than being bounds-checked field-by-field. This is a differential AID, not
+/// production code — it only needs to correctly predict what each formula does to real, well-formed
+/// corpus files, not to be hardened against hostile ones (`lib.rs`'s own unit tests already cover
+/// that). Returns `None` when the file isn't AIFF, has no `INST` sustain loop, or is too short to
+/// support the walk at all.
+fn aiff_marker_walk(bytes: &[u8], buggy_pstring_skip: bool) -> Option<(u32, u32)> {
+    if bytes.len() < 12 || &bytes[0..4] != b"FORM" || &bytes[8..12] != b"AIFF" {
+        return None;
+    }
+
+    let mut markers: Vec<(i16, u32)> = Vec::new();
+    let mut sustain_begin_id: Option<i16> = None;
+    let mut sustain_end_id: Option<i16> = None;
+
+    let mut pos = 12usize;
+    while pos + 8 <= bytes.len() {
+        let tag = &bytes[pos..pos + 4];
+        let size = u32::from_be_bytes(bytes[pos + 4..pos + 8].try_into().unwrap());
+        let data_start = pos + 8;
+
+        if tag == b"MARK" {
+            let chunk_end = data_start.saturating_add(size as usize).min(bytes.len());
+            if data_start + 2 <= chunk_end {
+                let num_markers =
+                    u16::from_be_bytes(bytes[data_start..data_start + 2].try_into().unwrap());
+                let mut cursor = data_start + 2;
+                for _ in 0..num_markers {
+                    if cursor + 6 > chunk_end {
+                        break;
+                    }
+                    let id = i16::from_be_bytes(bytes[cursor..cursor + 2].try_into().unwrap());
+                    let position =
+                        u32::from_be_bytes(bytes[cursor + 2..cursor + 6].try_into().unwrap());
+                    cursor += 6;
+                    markers.push((id, position));
+
+                    if cursor >= chunk_end {
+                        break;
+                    }
+                    let str_len = bytes[cursor] as usize;
+                    cursor += 1;
+                    let skip = if buggy_pstring_skip {
+                        (str_len + 1) & !1
+                    } else {
+                        ((1 + str_len + 1) & !1) - 1
+                    };
+                    cursor = cursor.saturating_add(skip).min(chunk_end);
+                }
+            }
+        } else if tag == b"INST" && data_start + 14 <= bytes.len() {
+            sustain_begin_id = Some(i16::from_be_bytes(
+                bytes[data_start + 10..data_start + 12].try_into().unwrap(),
+            ));
+            sustain_end_id = Some(i16::from_be_bytes(
+                bytes[data_start + 12..data_start + 14].try_into().unwrap(),
+            ));
+        }
+
+        let padded = size.saturating_add(size & 1);
+        pos = data_start.saturating_add(padded as usize);
+    }
+
+    let begin_id = sustain_begin_id?;
+    let end_id = sustain_end_id?;
+    if end_id == -1 {
+        return None; // matches lib.rs's "no INST sustain loop seen" sentinel gate.
+    }
+    let start = markers
+        .iter()
+        .find(|(id, _)| *id == begin_id)
+        .map(|(_, p)| *p)
+        .unwrap_or(0);
+    let end = markers
+        .iter()
+        .find(|(id, _)| *id == end_id)
+        .map(|(_, p)| *p)
+        .unwrap_or(0);
+    Some((start, end))
+}
+
+fn cmp_loop_points(
+    out: &mut Vec<Disagreement>,
+    path: &Path,
+    ours: &AudioHeader,
+    bytes: &[u8],
+    theirs: &Json,
+) {
     let is_aiff = ours.container == Container::Aiff;
-    for (field, ours_v, key) in [
+    // Independently re-derive what EACH pstring-skip formula predicts for this specific file, straight
+    // from its bytes — see `aiff_marker_walk`'s doc for why this makes the exemption causal rather than
+    // "any AIFF loop-point mismatch is assumed to be the known bug."
+    let spec_walk = is_aiff.then(|| aiff_marker_walk(bytes, false)).flatten();
+    let buggy_walk = is_aiff.then(|| aiff_marker_walk(bytes, true)).flatten();
+
+    for (field, ours_v, key, spec_predicted, buggy_predicted) in [
         (
             "sample.file_loop_start_samples",
             ours.file_loop_start_samples,
             "file_loop_start_samples",
+            spec_walk.map(|(s, _)| s),
+            buggy_walk.map(|(s, _)| s),
         ),
         (
             "sample.file_loop_end_samples",
             ours.file_loop_end_samples,
             "file_loop_end_samples",
+            spec_walk.map(|(_, e)| e),
+            buggy_walk.map(|(_, e)| e),
         ),
     ] {
         let theirs_v = theirs.get(key).as_u32();
         if theirs_v != Some(ours_v) {
+            // Causal: only exempt when the C++'s ACTUAL reported value matches what the buggy formula
+            // independently predicts for this file, AND the Rust's ACTUAL value matches what the
+            // spec-correct formula independently predicts — never on container type alone. A real
+            // regression on either side (transposed begin/end, a broken clamp, a wrong ID match, …)
+            // would no longer match its respective prediction and so would fall through to `None`
+            // here, failing the test.
+            let adjudicated =
+                if is_aiff && spec_predicted == Some(ours_v) && buggy_predicted == theirs_v {
+                    Some(AIFF_LOOP_MARKER_CPP_BUG)
+                } else {
+                    None
+                };
             out.push(Disagreement {
                 path: path.to_path_buf(),
                 field,
                 ours: ours_v.to_string(),
                 theirs: format!("{theirs_v:?}"),
-                adjudicated: if is_aiff {
-                    Some(AIFF_LOOP_MARKER_CPP_BUG)
-                } else {
-                    None
-                },
+                adjudicated,
             });
         }
     }
@@ -500,6 +649,7 @@ fn cmp_loop_points(out: &mut Vec<Disagreement>, path: &Path, ours: &AudioHeader,
 fn compare_sample(
     path: &Path,
     ours: &Result<AudioHeader, ParseError>,
+    bytes: &[u8],
     theirs: &Json,
     out: &mut Vec<Disagreement>,
 ) {
@@ -507,6 +657,7 @@ fn compare_sample(
     let theirs_ok = sample.get("ok").as_bool();
     match (ours, theirs_ok) {
         (Ok(h), true) => {
+            cmp_container(out, path, h.container, theirs);
             cmp_u32(
                 out,
                 path,
@@ -549,7 +700,7 @@ fn compare_sample(
                 h.audio_data_length_bytes,
                 sample.get("audio_data_length_bytes"),
             );
-            cmp_loop_points(out, path, h, sample);
+            cmp_loop_points(out, path, h, bytes, sample);
             cmp_midi_note(out, path, h.midi_note, sample.get("midi_note"));
             // Adjudication 4 (task-9 brief): the C++ IS the oracle for these two fields (Serum/Deluge
             // convention, no governing spec) — deliberately no `adjudicated` tag, so ANY mismatch here
@@ -695,10 +846,11 @@ fn compare_wavetable(
 fn compare_one_file(
     path: &Path,
     ours: &Result<AudioHeader, ParseError>,
+    bytes: &[u8],
     theirs: &Json,
 ) -> Vec<Disagreement> {
     let mut out = Vec::new();
-    compare_sample(path, ours, theirs, &mut out);
+    compare_sample(path, ours, bytes, theirs, &mut out);
     compare_wavetable(path, ours, false, theirs, &mut out);
     compare_wavetable(path, ours, true, theirs, &mut out);
     out
@@ -747,15 +899,20 @@ fn matches_the_cpp_parser_over_the_corpus() {
         let bytes = std::fs::read(path).unwrap_or_else(|e| panic!("read {path:?}: {e}"));
         let ours = parse(&bytes);
 
-        for d in compare_one_file(path, &ours, theirs) {
+        for d in compare_one_file(path, &ours, &bytes, theirs) {
             match d.adjudicated {
                 Some(reason) => {
                     *expected_counts.entry(reason).or_insert(0) += 1;
                     let examples = expected_examples.entry(reason).or_default();
                     if examples.len() < 5 {
+                        // Read `d.path` (not the loop's own `path`) so `Disagreement::path` is a field
+                        // this code genuinely uses, not just one that rides along for `Debug` printing
+                        // (the `unexpected` path below already relies on that Debug output — see the
+                        // final `assert!` — but a field only ever read through a derive doesn't count
+                        // as "read" for the dead-code lint).
                         examples.push(format!(
                             "{} [{}]: ours={} theirs={}",
-                            path.display(),
+                            d.path.display(),
                             d.field,
                             d.ours,
                             d.theirs
