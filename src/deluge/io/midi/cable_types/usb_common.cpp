@@ -112,6 +112,8 @@ void MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 		// Since the message ends with 0xF7, we can assume that data[5] does exist.
 		// fake 0xF0, 0x7D, data[5] for first send
 		uint32_t packed = ((uint32_t)data[5] << 24) | 0x007DF004 | (portNumber << 4);
+		// Discard the flush hint: this is one chunk of a SysEx stream, and the whole message must finish
+		// queueing before anything flushes.
 		(void)connectedDevice->enqueue_message(packed, MIDIIntent::Event);
 		pos = 6;
 	}
@@ -137,6 +139,7 @@ void MIDICableUSB::sendSysex(const uint8_t* data, int32_t len) {
 		}
 		status |= (portNumber << 4);
 		uint32_t packed = ((uint32_t)byte2 << 24) | ((uint32_t)byte1 << 16) | ((uint32_t)byte0 << 8) | status;
+		// Same reasoning as above: don't flush mid-stream.
 		(void)connectedDevice->enqueue_message(packed, MIDIIntent::Event);
 	}
 }

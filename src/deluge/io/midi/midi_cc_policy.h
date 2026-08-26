@@ -54,12 +54,11 @@ public:
 	/// Selection follows the queued order for each CC number (the first entry for a CC number wins) and
 	/// then prefers the CC with the most debt, falling back to round-robin from `next_cc_number`.
 	///
-	/// @note This deliberately does the whole job in one traversal. The previous shape filled a
-	///       128-entry offset map, scanned the lane, then walked all 128 CC numbers to pick a winner -
-	///       per pop, up to eight times per transfer, inside the interrupt-masked section of
-	///       flushUSBMIDIOutput(). Folding selection into the scan drops that to O(lane occupancy) with
-	///       a four-word bitmask clear, and costs nothing extra when the lane is short, which is the
-	///       common case once coalescing has collapsed repeated CC updates.
+	/// @note Fuses the scan and the winner selection into a single traversal - O(lane occupancy) with a
+	///       four-word seen_mask clear - rather than building a candidate map and then walking all 128 CC
+	///       numbers to pick a winner. This runs inside the interrupt-masked section of
+	///       flushUSBMIDIOutput(), and costs nothing extra when the lane is short, which is the common
+	///       case once coalescing has collapsed repeated CC updates.
 	///
 	/// @param begin_scan         Transport callback that initializes a scan over the CC lane.
 	/// @param next_scan          Transport callback that advances the scan and yields one candidate.
@@ -109,8 +108,8 @@ public:
 				continue;
 			}
 
-			// Rank orders CC numbers starting at next_cc_number and wrapping, so ties resolve the same way
-			// the previous round-robin walk did.
+			// Rank orders CC numbers starting at next_cc_number and wrapping, so ties resolve in
+			// round-robin order.
 			uint8_t rank = static_cast<uint8_t>((cc_number - next_cc_number) & kMaxMIDIValue);
 			if (rr_offset == k_no_cc_offset || rank < rr_rank) {
 				rr_offset = candidate_offset;
@@ -310,12 +309,11 @@ private:
 	}
 };
 
-/// @brief The CC-lane half of the queue policy, written once for both transports.
+/// @brief The CC-lane half of the queue policy, written once and shared by both transports.
 ///
-/// Replaces nine method pairs that previously existed once per transport as near-identical lambda
-/// adapters. Everything that genuinely differs between USB and DIN is in the Transport traits: element
-/// type, how identity is read out of an element, how many elements one message spans, and how a value
-/// byte is rewritten.
+/// Everything that genuinely differs between USB and DIN is in the Transport traits: element type, how
+/// identity is read out of an element, how many elements one message spans, and how a value byte is
+/// rewritten.
 ///
 /// @note Stateless. All queue state lives in the lane it is handed, and all scheduling state lives in
 ///       the MIDICCQueuePolicy it is handed, so one instance per manager costs nothing.
@@ -488,7 +486,7 @@ bool MIDICCLanePolicy<Transport>::pop_scheduled(Lane& lane, MIDICCQueuePolicy& d
 	auto remove_selected = [&lane](uint16_t target_offset, Element* popped_out) {
 		// The producer's coalesce overwrite and this exchange are the only places both sides write the
 		// same slots. Guarding just these few instructions closes that race; the scan above deliberately
-		// stays outside the guard, which is what the old clear-and-repack got wrong.
+		// stays outside the guard.
 		CriticalSectionGuard guard;
 		return lane.remove_span_via_head_swap(target_offset, Transport::cc_span, popped_out);
 	};

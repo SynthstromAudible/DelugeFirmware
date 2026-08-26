@@ -3,9 +3,9 @@
 #include <cstring>
 
 // Drives the real USB drain path: enqueue packed USB-MIDI events, then assemble a transfer the way
-// ConnectedUSBMIDIDevice does. The DIN counterparts live in midi_din_drain_tests.cpp; USB had none, and
-// both transports now share one CC-lane policy, so these pin the USB half of it - coalescing, debt
-// reordering, and the fact that only the value byte of a packed event is ever rewritten.
+// ConnectedUSBMIDIDevice does. The DIN counterparts live in midi_din_drain_tests.cpp; both transports
+// share one CC-lane policy, so these pin the USB half of it - coalescing, debt reordering, and the fact
+// that only the value byte of a packed event is ever rewritten.
 
 namespace {
 /// Packs a channel CC the way ConnectedUSBMIDIDevice does: byte0 cable/CIN, then status, CC, value.

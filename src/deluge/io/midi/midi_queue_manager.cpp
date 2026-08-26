@@ -18,9 +18,9 @@
 #include "io/midi/midi_queue_manager.h"
 #include "timers_interrupts/timers_interrupts.h"
 
-/// Set when this queue has data waiting so the engine's flush logic knows to schedule a transfer.
-/// Declared here rather than including midi_engine.h: this is a shared flag, and the queue manager no
-/// longer calls into the engine.
+// Set when this queue has data waiting so the engine's flush logic knows to schedule a transfer.
+// Declared here rather than including midi_engine.h: this is a shared flag, and the queue manager
+// does not call into the engine directly.
 extern bool anythingInUSBOutputBuffer;
 
 extern "C" {
@@ -127,8 +127,8 @@ bool MIDIQueueManagerUSB::has_buffered_send_data() const {
 
 int MIDIQueueManagerUSB::send_buffer_space() const {
 	// The only caller is the SysEx display throttle, and SysEx can only ever occupy the SysEx lane, so
-	// report that lane and nothing else. Summing free space across every lane (as this used to) meant a
-	// completely full SysEx lane still looked like plenty of room, and the throttle never engaged.
+	// report that lane and nothing else. Summing free space across every lane would make a completely full
+	// SysEx lane still look like plenty of room, so the throttle would never engage.
 	// DIN's send_buffer_space() reports the same thing for the same reason.
 	//
 	// Each 4-byte USB-MIDI event carries up to 3 bytes of MIDI payload, so report payload bytes rather
@@ -158,8 +158,8 @@ bool MIDIQueueManagerUSB::enqueue_message(uint32_t full_message, MIDIIntent inte
 	// Total messages currently queued across all priority lanes for this device.
 	uint32_t queued = queue_storage_.total_queued_messages();
 	// Report backlog rather than acting on it. Flushing from here would close a call cycle back into the
-	// engine that owns this queue. The caller still flushes synchronously when this returns true, so the
-	// drain happens at the same point; only the direction of the call changed.
+	// engine that owns this queue. The caller flushes synchronously when this returns true, so the drain
+	// still happens at the same point.
 	bool wants_flush = queued > k_usb_flush_backlog_message_threshold;
 
 	// Determine which priority lane this packed USB-MIDI event belongs to.

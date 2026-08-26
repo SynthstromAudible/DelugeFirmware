@@ -22,8 +22,12 @@
 
 /// @brief Transport traits for USB: one packed USB-MIDI event per queue element.
 ///
-/// The CC lane policy is identical for both transports apart from these four operations, so it is
-/// written once against this interface rather than duplicated per transport.
+/// @note Packed-event byte layout: byte 0 is cable number + CIN, byte 1 is the MIDI status byte,
+///       byte 2 is the CC number, byte 3 is the value.
+///
+/// Element type, identity accessors, message span, and value rewrite are the only four things USB and
+/// DIN genuinely differ on, so the CC lane policy is written once against this interface rather than
+/// duplicated per transport.
 struct UsbTransport {
 	using Element = uint32_t;
 
@@ -46,14 +50,20 @@ struct UsbTransport {
 };
 
 /// @brief Transport traits for DIN: one raw serial byte per queue element.
+///
+/// @note Raw three-byte channel-CC message layout: byte 0 status, byte 1 CC number, byte 2 value.
 struct DinTransport {
 	using Element = uint8_t;
 
 	/// @brief Elements one queued channel-CC message occupies: status, CC number, value.
 	static constexpr uint16_t cc_span = MIDIQueueManager::k_channel_cc_message_length;
 
+	/// @brief True when this element is a channel CC and therefore a coalescing/scheduling candidate.
 	static bool is_channel_cc(Element const* e) { return MIDIQueueManager::is_channel_cc_status_byte(e[0]); }
+	/// @brief MIDI status byte (type and channel) of a channel-CC element.
 	static uint8_t status(Element const* e) { return e[0]; }
+	/// @brief CC number of a channel-CC element.
 	static uint8_t cc_number(Element const* e) { return e[1]; }
+	/// @brief Rewrites only the value byte, preserving status and CC number.
 	static void set_value(Element* e, uint8_t value) { e[2] = value; }
 };

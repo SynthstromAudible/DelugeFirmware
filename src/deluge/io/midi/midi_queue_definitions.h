@@ -22,9 +22,6 @@
 #endif
 
 /// @brief Sizing constants for the per-transfer USB send buffers.
-///
-/// The outer ring size and its wrap mask used to live here too. The per-lane capacity tables below
-/// replaced them, so the power-of-two requirement now belongs to those tables, not to this enum.
 enum QueueSendConstants {
 	/// Inner send-buffer size, in 32-bit messages.
 	///
@@ -55,14 +52,15 @@ typedef enum QueuePriority {
 	QUEUE_PRIORITY_COUNT = 5,
 } QueuePriority;
 
-/// Per-lane ring capacities, indexed by QueuePriority.
+/// @brief Per-lane ring capacities for the USB transport, indexed by QueuePriority.
 ///
-/// Declared `inline constexpr` deliberately: MIDIQueueStorage takes these by reference as a non-type
-/// template parameter, which requires external linkage. A plain `constexpr` array in a header has
-/// internal linkage, so every translation unit would get a distinct entity and the instantiations would
-/// not match.
+/// @warning Each entry MUST be an exact power of two: MIDIQueueLane masks positions into the ring
+///          rather than taking a modulo.
 ///
-/// Each MUST be an exact power of two: MIDIQueueLane masks positions rather than taking a modulo.
+/// @note Declared `inline constexpr` rather than plain `constexpr`: MIDIQueueStorage takes these
+///       arrays by reference as a non-type template parameter, which requires external linkage. A
+///       plain `constexpr` array in a header has internal linkage, so every translation unit would
+///       get a distinct entity and the instantiations would not match.
 ///
 /// Sized to what each lane actually holds rather than uniformly. SysEx is largest because a stream is
 /// queued all-or-nothing and the biggest the firmware stages is MidiEngine::sysex_fmt_buffer[1024]. CC
@@ -78,6 +76,10 @@ inline constexpr uint16_t k_usb_lane_capacity[QUEUE_PRIORITY_COUNT] = {
           // full OLED frame still fits behind whatever the backpressure gate let through
 };
 
+/// @brief Per-lane ring capacities for the DIN transport, indexed by QueuePriority.
+///
+/// Same power-of-two requirement and external-linkage rationale as k_usb_lane_capacity; larger here
+/// because DIN counts raw bytes per lane rather than packed USB-MIDI events.
 inline constexpr uint16_t k_din_lane_capacity[QUEUE_PRIORITY_COUNT] = {
     32,   // QUEUE_PRIORITY_CLOCK: one byte per realtime message
     256,  // QUEUE_PRIORITY_NOTES: 3 bytes per message

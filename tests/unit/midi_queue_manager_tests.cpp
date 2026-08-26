@@ -586,9 +586,9 @@ TEST(MIDIOrderingRegressions, MomentaryCCKeepsBothOfItsValues) {
 
 // --- Enqueue reports backpressure instead of flushing ---
 //
-// The queue manager must not call back into MidiEngine: that made the call graph a cycle and let a
-// mainline enqueue synchronously trigger the interrupt-masked drain. Enqueue reports that a flush is
-// wanted and the caller decides.
+// The queue manager must not call back into MidiEngine: doing so would turn the call graph into a
+// cycle and let a mainline enqueue synchronously trigger the interrupt-masked drain. Enqueue reports
+// that a flush is wanted and the caller decides.
 
 TEST_GROUP(MIDIQueueBackpressure){};
 

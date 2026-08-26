@@ -108,7 +108,7 @@ TEST(MIDIDinDrain, MalformedSysExIsRejectedRatherThanQueued) {
 
 TEST(MIDIDinDrain, BlockedCCLaneDoesNotStarveSysEx) {
 	// A CC lane that is merely blocked by its send allowance must not stop the pass: lower-priority
-	// SysEx can still make progress. USB already falls through; DIN used to halt the whole pass.
+	// SysEx can still make progress on DIN, the same as it already does on USB.
 	for (int i = 0; i < 40; i++) {
 		MIDIMessage cc = MIDIMessage::cc(0, static_cast<uint8_t>(i), 64);
 		cc.intent = MIDIIntent::Continuous;

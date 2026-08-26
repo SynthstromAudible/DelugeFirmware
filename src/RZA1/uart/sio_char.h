@@ -84,15 +84,17 @@ extern char midiTxBuffer[];
         uartItems[UART_ITEM_PIC].txBufferWritePos &= (PIC_TX_BUFFER_SIZE - 1);                                         \
     } while (0)
 
-/// Stages one byte in the MIDI UART transmit ring.
+/// @brief Stages one byte in the MIDI UART transmit ring.
 ///
 /// A function rather than a macro so it is one substitutable symbol: the host test build supplies its own
 /// definition to capture what the MIDI queue manager sends, which a header-expanded macro cannot allow.
 /// Release builds use -flto=auto, so this still inlines to the same code the macro produced. It is also
 /// far too cold to care - DIN runs at 31250 baud, about 3125 bytes per second.
 ///
-/// Safe to call from either mainline code or an ISR: the write-position update is guarded. flushMIDI()
-/// drains DIN from mainline and from the midiAndGateOutput timer interrupt, so both reach this.
+/// @note Safe to call from either mainline code or an ISR: the write-position update is guarded.
+///       flushMIDI() drains DIN from mainline and from the midiAndGateOutput timer interrupt, so both
+///       reach this.
+/// @param charToSend Byte to enqueue onto the MIDI UART transmit ring.
 void bufferMIDIUart(char charToSend);
 
 /* SIO_CHAR_H */
