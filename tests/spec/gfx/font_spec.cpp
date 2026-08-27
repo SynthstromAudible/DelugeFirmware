@@ -19,6 +19,12 @@ describe font("gfx::oled fonts", $ {
 		expect(font_for_text_height(13).monospaced).to_be_false();
 	});
 
+	it("leaves render_height at the sentinel 0 for the default (MetricBold20) font, so the "
+	   "caller's own text height survives unchanged, as the legacy switch did", _ {
+		expect(font_for_text_height(15).render_height).to_equal(0);
+		expect(font_for_text_height(20).render_height).to_equal(0);
+	});
+
 	it("indexes glyphs with lowercase folded onto uppercase", _ {
 		expect(glyph_index('A')).to_equal(glyph_index('a'));
 		expect(glyph_index(' ')).to_equal(0);

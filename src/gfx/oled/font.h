@@ -21,7 +21,13 @@ struct Font {
 	const uint8_t* bitmap;
 	const lv_font_glyph_dsc_t* glyphs;
 	uint8_t native_height; // rows in the bitmap
-	uint8_t render_height; // rows drawn (the old textHeight after normalisation)
+	uint8_t render_height; // rows drawn (the old textHeight after normalisation).
+	                       // Sentinel 0: render at whatever height the caller asked for,
+	                       // unchanged (the legacy switch's `case 20: default:` branch set
+	                       // fontNativeHeight but left textHeight alone, so an unlisted
+	                       // height — e.g. 15, on a taller-than-48px panel — drew the 20px
+	                       // font clipped/stretched to the caller's own height instead of
+	                       // being forced to 20).
 	int8_t y_adjust;       // added to pixelY before drawing (textHeight 9 → +1)
 	bool monospaced;       // Apple ][: every glyph advances kTextSpacingX
 };

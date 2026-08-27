@@ -460,7 +460,9 @@ void Canvas::drawChar(uint8_t theChar, int32_t pixelX, int32_t pixelY, int32_t s
 	}
 
 	const auto& f = deluge::gfx::oled::font_for_text_height(textHeight);
-	textHeight = f.render_height;
+	if (f.render_height != 0) {
+		textHeight = f.render_height;
+	}
 	pixelY += f.y_adjust;
 	lv_font_glyph_dsc_t const* descriptor = f.glyphs;
 	uint8_t const* font = f.bitmap;
