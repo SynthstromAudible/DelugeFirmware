@@ -33,13 +33,6 @@
 
 namespace deluge::hid::display {
 
-struct Icon {
-	const uint8_t* data;
-	uint8_t width;
-	uint8_t height;
-	uint8_t numBytesTall;
-};
-
 class OLED : public Display {
 public:
 	OLED() { l10n::chosenLanguage = &l10n::built_in::english; }

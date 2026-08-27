@@ -27,7 +27,13 @@
 
 namespace deluge::hid::display {
 class OLED;
-struct Icon;
+
+struct Icon {
+	const uint8_t* data;
+	uint8_t width;
+	uint8_t height;
+	uint8_t numBytesTall;
+};
 
 namespace oled_canvas {
 
@@ -289,6 +295,10 @@ public:
 	/// RoundedCorners community feature by the settings/menu layer; defaults to on so popups
 	/// drawn before settings are loaded at boot match the feature's default.
 	static inline bool roundedCornersEnabled = true;
+
+	/// Whether menu highlighting inverts (true) or draws an edge line (false). Mirrors
+	/// FlashStorage::accessibilityMenuHighlighting; the settings layer keeps it in sync.
+	static inline bool menuHighlightingInverts = true;
 
 	/// Height of the image in bytes
 	static constexpr uint32_t kImageHeight = OLED_MAIN_HEIGHT_PIXELS >> 3;

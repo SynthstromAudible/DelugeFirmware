@@ -21,6 +21,7 @@
 #include "gui/menu_item/colour.h"
 #include "gui/ui/sound_editor.h"
 #include "hid/display/display.h"
+#include "hid/display/oled_canvas/canvas.h"
 #include "hid/led/pad_leds.h"
 #include "io/midi/midi_engine.h"
 #include "io/midi/midi_transpose.h"
@@ -356,6 +357,8 @@ void resetSettings() {
 
 	accessibilityShortcuts = false;
 	accessibilityMenuHighlighting = MenuHighlighting::PARTIAL_INVERSION;
+	deluge::hid::display::oled_canvas::Canvas::menuHighlightingInverts =
+	    (FlashStorage::accessibilityMenuHighlighting != MenuHighlighting::NO_INVERSION);
 
 	defaultNewClipType = OutputType::SYNTH;
 	defaultUseLastClipType = true;
@@ -733,6 +736,8 @@ void readSettings() {
 	else {
 		accessibilityMenuHighlighting = static_cast<MenuHighlighting>(buffer[175]);
 	}
+	deluge::hid::display::oled_canvas::Canvas::menuHighlightingInverts =
+	    (FlashStorage::accessibilityMenuHighlighting != MenuHighlighting::NO_INVERSION);
 
 	if (buffer[176] < 0 && buffer[176] > util::to_underlying(OutputType::AUDIO)) {
 		defaultNewClipType = OutputType::SYNTH;

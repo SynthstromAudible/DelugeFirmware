@@ -19,11 +19,9 @@
 #include "definitions_cxx.hpp"
 #include "deluge/util/c_string.h"
 #include "gui/fonts/fonts.h"
-#include "storage/flash_storage.h"
 #include "util/etl_string.h"
 
 #include <algorithm>
-#include <hid/display/oled.h>
 #include <math.h>
 #include <vector>
 
@@ -808,7 +806,7 @@ void Canvas::invertAreaRounded(int32_t xMin, int32_t width, int32_t startY, int3
 
 /// inverts just the left edge
 void Canvas::invertLeftEdgeForMenuHighlighting(int32_t xMin, int32_t width, int32_t startY, int32_t endY) {
-	if (FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION) {
+	if (!menuHighlightingInverts) {
 		drawVerticalLine(xMin, startY, endY);
 	}
 	else {
