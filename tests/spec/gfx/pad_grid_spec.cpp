@@ -9,9 +9,17 @@ using namespace deluge::gfx::grid;
 describe pad_grid("gfx::grid::PadGrid", $ {
 	it("sizes itself from the dimensions and starts black and clean", _ {
 		PadGrid g(kDelugeGrid);
-		expect(g.dims().cols()).to_equal(uint8_t(18));
+		expect(g.dims().cols()).to_equal(uint16_t(18));
 		expect(g.dirty_rows()).to_equal(0u);
 		expect(g.at(17, 7)).to_equal(RGB{0, 0, 0});
+	});
+
+	it("adds the column counts without wrapping", _ {
+		// main_cols + sidebar_cols is up to 510: a uint8_t return would report 300 as 44, and
+		// every in_range()/fill_rect() clip downstream would silently use that wrong width.
+		// (Such a grid exceeds kMaxGridCols, so it is only ever a GridDimensions value here --
+		// constructing a PadGrid from it trips the constructor's assert, by design.)
+		expect(GridDimensions{200, 100, 8}.cols()).to_equal(uint16_t(300));
 	});
 
 	it("tracks dirty rows on set and ignores out-of-range writes", _ {

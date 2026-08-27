@@ -1,5 +1,6 @@
 #pragma once
 #include "gfx/grid/rgb.h"
+#include <cassert>
 #include <cstdint>
 
 namespace deluge::gfx::grid {
@@ -8,7 +9,9 @@ struct GridDimensions {
 	uint8_t main_cols;
 	uint8_t sidebar_cols;
 	uint8_t rows;
-	constexpr uint8_t cols() const { return main_cols + sidebar_cols; }
+	/// uint16_t, not uint8_t: both operands are uint8_t but their sum is up to 510, so the
+	/// narrower return type would silently wrap (e.g. {200, 100, 8} would report 44 columns).
+	constexpr uint16_t cols() const { return static_cast<uint16_t>(main_cols + sidebar_cols); }
 };
 constexpr GridDimensions kDelugeGrid{16, 2, 8};
 
@@ -24,6 +27,10 @@ constexpr uint8_t kMaxGridRows = 16;
 /// `cells_` array as one contiguous legacy image.
 class PadGrid {
 public:
+	/// Precondition: `d.rows <= kMaxGridRows`, `d.cols() <= kMaxGridCols` (the fixed `cells_`
+	/// capacity -- a larger grid would index off the end of it) and `d.rows <= 32` (the width
+	/// of the `dirty_` row mask). Asserted in the constructor; nothing here clamps, because a
+	/// silently-shrunk grid would drop pads the caller believes it drew.
 	explicit PadGrid(GridDimensions d);
 
 	GridDimensions dims() const { return dims_; }
@@ -45,7 +52,11 @@ public:
 			dirty_ |= 1u << y;
 		}
 	}
-	void mark_all_dirty() { dirty_ = (1u << dims_.rows) - 1; }
+	void mark_all_dirty() {
+		// `1u << 32` is undefined, so the full-width case is spelled out rather than computed.
+		// The constructor forbids rows > 32; this keeps rows == 32 well defined.
+		dirty_ = dims_.rows >= 32 ? 0xFFFFFFFFu : (1u << dims_.rows) - 1;
+	}
 	void clear_dirty() { dirty_ = 0; }
 
 private:
