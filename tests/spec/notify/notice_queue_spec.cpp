@@ -1,0 +1,61 @@
+#include "cppspec.hpp"
+#include "notify/notice_queue.h"
+#include <cstdlib>
+#include <cstring>
+
+using namespace deluge::notify;
+
+// clang-format off
+describe notice_queue("notify::NoticeQueue", $ {
+	it("pops in push order", _ {
+		NoticeQueue q;
+		Notice a{}; a.kind = Notice::Kind::Console; std::strcpy(a.text, "Undo");
+		Notice b{}; b.kind = Notice::Kind::Error; b.error_code = 42;
+		expect(q.push(a)).to_be_true();
+		expect(q.push(b)).to_be_true();
+		Notice out{};
+		expect(q.pop(out)).to_be_true();
+		expect(std::string(out.text)).to_equal("Undo");
+		expect(q.pop(out)).to_be_true();
+		expect(int(out.error_code)).to_equal(42);
+		expect(q.pop(out)).to_be_false();
+	});
+
+	it("overwrites the oldest when full and says so", _ {
+		NoticeQueue q;
+		for (size_t i = 0; i < kNoticeCapacity; i++) {
+			Notice n{}; n.error_code = int16_t(i);
+			expect(q.push(n)).to_be_true();
+		}
+		Notice last{}; last.error_code = 99;
+		expect(q.push(last)).to_be_false();
+		Notice out{};
+		expect(q.pop(out)).to_be_true();
+		expect(int(out.error_code)).to_equal(1);        // 0 was overwritten
+		expect(q.size()).to_equal(kNoticeCapacity - 1);
+	});
+
+	it("copies and truncates text with a NUL", _ {
+		// Drain first: the global queue is process-wide and shared with every other spec in
+		// this driver binary, so a prior example that called a notice_*() free function could
+		// leave entries behind. This example only cares about the notice it pushes itself.
+		Notice drained{};
+		while (notices().pop(drained)) {}
+		notice_text("THIS PRESET NAME IS LONGER THAN TWENTY-THREE CHARS", Notice::Kind::Text, 3);
+		Notice out{};
+		expect(notices().pop(out)).to_be_true();
+		expect(std::strlen(out.text)).to_equal(size_t(23));
+		expect(std::string(out.text)).to_equal("THIS PRESET NAME IS LON");
+		expect(int(out.popup_type)).to_equal(3);
+	});
+});
+
+// Not CPPSPEC_SPEC(notice_queue): create_test_sourcelist derives the extern function name from
+// this file's path relative to tests/spec (slashes become underscores), i.e.
+// `notify_notice_queue_spec` for notify/notice_queue_spec.cpp, which does not match the
+// `notice_queue` describe-block name the macro would otherwise assume. Spelled out by hand so the
+// exported symbol matches what the generated driver (all_specs.cpp) declares `extern` (see
+// tests/spec/notify/dirty_set_spec.cpp for the same pattern).
+int notify_notice_queue_spec(int argc, char** const argv) {
+	return CppSpec::parse(argc, argv).add_spec(notice_queue).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE;
+}
