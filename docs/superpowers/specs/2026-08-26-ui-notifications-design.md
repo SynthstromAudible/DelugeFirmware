@@ -78,8 +78,12 @@ Rules:
    pad row-bitmask protocol survives, inside the UI.
 3. `raise*` is `fetch_or` on a `std::atomic<uint32_t>` (and on one 32-bit word of the
    bitset for clip bits). No allocation, no lock, no UI-stack walk, no virtual call.
-4. `drain()` exchanges each word with zero; a raise that lands during a drain is seen on
-   the next drain, never lost.
+4. `drain()` exchanges the clip words first, then the coarse bits, and **derives** the
+   `ClipContent`/`NoteRows` flags from any non-zero clip word in the snapshot — so a clip
+   bit can never appear without its flag. The one remaining interleaving (a raise's coarse
+   bit landing after its word was drained) yields a snapshot whose flag is set with an
+   empty clip set; that means "which clips is unknown — treat as all" (over-invalidation,
+   never loss). A raise that lands during a drain is seen on that drain or the next.
 5. Raising during a mutation cannot re-enter the UI, by construction: the model has no
    UI symbol to call.
 

@@ -260,12 +260,17 @@ void DirtySet::raise_clip(Dirty d, uint16_t i) {
 
 DirtySet DirtySet::drain() {
 	DirtySet out;
-	out.bits_.store(bits_.exchange(0, std::memory_order_acq_rel), std::memory_order_relaxed);
+	// Clip words FIRST, then the coarse bits: a word can then never be drained without its flag.
+	uint32_t derived = 0;
 	for (int s = 0; s < 2; s++) {
 		for (size_t w = 0; w < kMaxSessionClips / 32; w++) {
 			out.snapshot_[s].words[w] = clip_words_[s][w].exchange(0, std::memory_order_relaxed);
 		}
+		if (out.snapshot_[s].any()) {
+			derived |= 1u << static_cast<unsigned>(s == 0 ? Dirty::ClipContent : Dirty::NoteRows);
+		}
 	}
+	out.bits_.store(bits_.exchange(0, std::memory_order_acq_rel) | derived, std::memory_order_relaxed);
 	return out;
 }
 
@@ -277,7 +282,7 @@ const ClipBits& DirtySet::clips(Dirty d) const {
 } // namespace deluge::notify
 ```
 
-Note on the race test: a clip bit raised *between* `bits_.exchange` and the word exchange is picked up by the word exchange of the same drain, with the coarse bit re-raised by `raise_clip`'s trailing `raise(d)` landing in the accumulator — so it is seen next drain. Never lost.
+Note on the race: words are drained before bits and the flag is derived from the words, so a snapshot never carries a clip bit without its flag. The one remaining interleaving (coarse bit landing after its word was drained by the previous call) yields a set flag with an empty clip set — documented on `has()`/`clips()` as "which clips is unknown: treat as all" (over-invalidation, never loss). The race example asserts `word ⇒ flag` on every drained snapshot.
 
 Wire CMake as listed under **Files**. In `src/deluge/CMakeLists.txt` add `deluge_notify` to `target_link_libraries(deluge_app PUBLIC ...)`.
 
