@@ -76,6 +76,7 @@ describe canvas_golden("Canvas golden frames", $ {
 		c.invertLeftEdgeForMenuHighlighting(80, 20, 24, 34);
 		Canvas::menuHighlightingInverts = false;
 		c.invertLeftEdgeForMenuHighlighting(104, 20, 24, 34);
+		c.drawCircle(12, 12, 4, true);
 		c.clearAreaExact(10, 10, 14, 14);
 		Canvas::roundedCornersEnabled = false;
 		c.drawRectangleRounded(2, 38, 40, 46);
