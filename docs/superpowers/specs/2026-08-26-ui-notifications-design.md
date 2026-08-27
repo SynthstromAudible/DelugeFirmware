@@ -139,8 +139,9 @@ void notice(std::string_view short_text, Notice::Kind k = Notice::Kind::Text, ui
   `popupTextTemporary(PopupType::SWING)` semantics) and lets `CancelPopup` target a type.
 - `display->hasPopupOfType()` (5 sites where playback logic branches on UI state) is
   removed: the state those sites test becomes a model fact (§4).
-- `deluge-notify` depends on `l10n::String` (an enum) and `Error` (an enum) — both are
-  header-only enums; the library stays a leaf.
+- `deluge-notify` stores `int16_t error_code` / `uint16_t string_id`; the typed conversions
+  live in `src/deluge/util/notify.h` because `gui/l10n/strings.h` is not a leaf header (it
+  includes `io/midi/midi_device.h`).
 
 ## 4. Presentation that becomes a fact
 
