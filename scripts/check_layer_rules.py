@@ -56,13 +56,15 @@ RULES = [
         "notify-is-leaf",
         "src/notify/**",
         "include",
-        r"^(?!notify/)",
+        r"^(?!notify/).*/",
         "2026-08-26-ui-notifications-design.md",
     ),
 ]
-# Only quoted includes (#include "...") are counted; angle-bracket (<...>) headers are
-# standard/system headers and never match -- INCLUDE_RE simply doesn't match those lines.
-INCLUDE_RE = re.compile(r'^\s*#\s*include\s*"([^"]+)"')
+# Matches both #include "path" and #include <path>, capturing only the path (the delimiter
+# itself is stripped either way). Angle-bracket project includes (e.g. #include <hid/buttons.h>)
+# are real layer violations and must count the same as the quoted spelling -- mirrors the
+# include regex in scripts/check_gfx_layer.py, which closed this exact hole earlier.
+INCLUDE_RE = re.compile(r'^\s*#\s*include\s*[<"]([^">]+)[>"]')
 
 
 def glob_match(rel: str, pattern: str) -> bool:
