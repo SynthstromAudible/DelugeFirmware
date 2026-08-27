@@ -1053,11 +1053,9 @@ void PlaybackHandler::actionSwungTick() {
 
 			int32_t newVisualCount = (uint32_t)(ticksLeftInCountIn - 1) / currentSong->getQuarterNoteLength() + 1;
 
-			if (newVisualCount != currentVisualCountForCountIn) {
-				// [audio] No formatting here -- just the fact. The UI tick renders the digit.
-				currentVisualCountForCountIn = newVisualCount;
-				deluge::notify::raise(deluge::notify::Dirty::PlaybackState);
-			}
+			// [audio] No formatting here -- just the fact. The UI tick polls this every pass and renders
+			// the digit; no dirty bit, since a redraw is not wanted on every count-in beat.
+			currentVisualCountForCountIn = newVisualCount;
 			swungTicksTilNextEvent = 2147483647;
 			goto doMetronome;
 		}
