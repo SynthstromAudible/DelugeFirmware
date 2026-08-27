@@ -443,6 +443,66 @@ if(RT_LIB)
     target_link_libraries(deluge_loadcheck PRIVATE ${RT_LIB})
 endif()
 
+# ===========================================================================
+# CTests: the DELUGE_HOST_DISPLAYS parser + the blit_oled_n range check.
+# ===========================================================================
+#
+# host_bsp.c's host_board_apply_env() turns DELUGE_HOST_DISPLAYS="128x48+5,128x64" into the
+# board's DelugeDisplayDesc set, and deluge_display_blit_oled_n() rejects an index the board
+# does not have. Neither had any automated coverage. `deluge_host --board-info` prints the
+# parsed set and the range check's verdict and exits 0 before the app boots (host_main.c), so
+# each case below is one process run matched against its expected `display N:` lines.
+#
+# These run `deluge_host`, not `deluge_host_boundary`: that smoke target has not linked since
+# the host BSP grew host_link/host_debug dependencies its two source files do not provide
+# (pre-existing on `next` — deluge_platform_init -> host_link_init, main -> deluge_main).
+enable_testing()
+
+# add_test(name env-spec expected-block) — one run of `deluge_host --board-info` with
+# DELUGE_HOST_DISPLAYS set to `env`, whose output must contain `expected`. `[+]` rather than a
+# backslash escape keeps the literal '+' unambiguous in CMake's regex syntax.
+# Any further arguments are extra patterns that must NOT appear. Built as a list rather than
+# interpolated into one string: an empty ${ARGN} would leave a trailing ";" and so an empty
+# regex, which matches everything and would fail every test.
+function(add_host_displays_test name spec expected)
+    add_test(NAME ${name} COMMAND $<TARGET_FILE:deluge_host> --board-info)
+    set(_fail_regexes "UNEXPECTED")
+    foreach(_pattern IN LISTS ARGN)
+        list(APPEND _fail_regexes "${_pattern}")
+    endforeach()
+    set_tests_properties(${name} PROPERTIES
+        ENVIRONMENT "DELUGE_HOST_DISPLAYS=${spec}"
+        PASS_REGULAR_EXPRESSION "${expected}"
+        FAIL_REGULAR_EXPRESSION "${_fail_regexes}"
+    )
+endfunction()
+
+# Two panels; the second omits "+top", which defaults to 0.
+add_host_displays_test(host_displays_two_panels "128x48+5,128x64"
+    "display_count: 2\ndisplay 0: 128x48[+]5\ndisplay 1: 128x64[+]0\nblit_oled_n\\(9\\) -> ERR_PARAM")
+
+# A single panel replaces the built-in default (which is 128x48+5).
+add_host_displays_test(host_displays_single "128x64"
+    "display_count: 1\ndisplay 0: 128x64[+]0\nblit_oled_n\\(9\\) -> ERR_PARAM")
+
+# A malformed entry stops the parse where it is: the panels already accepted are kept, the
+# rest of the spec is dropped. So exactly one panel here, and no "display 1:" line.
+add_host_displays_test(host_displays_trailing_garbage "128x48+5,garbage"
+    "display_count: 1\ndisplay 0: 128x48[+]5\nblit_oled_n\\(9\\) -> ERR_PARAM"
+    "display 1:")
+
+# A zero dimension is rejected before anything is stored, so nothing overrides the board's
+# own default descriptor (128x48+5) — the parse must not leave a 0-wide panel behind.
+add_host_displays_test(host_displays_zero_width "0x48"
+    "display_count: 1\ndisplay 0: 128x48[+]5\nblit_oled_n\\(9\\) -> ERR_PARAM"
+    "display 0: 0x")
+
+# More entries than HOST_MAX_DISPLAYS (4): the first four are taken and the fifth is dropped,
+# rather than written past the end of host_displays[].
+add_host_displays_test(host_displays_overflow "128x64,128x64+1,128x64+2,128x64+3,128x64+4"
+    "display_count: 4\ndisplay 0: 128x64[+]0\ndisplay 1: 128x64[+]1\ndisplay 2: 128x64[+]2\ndisplay 3: 128x64[+]3\nblit_oled_n\\(9\\) -> ERR_PARAM"
+    "display 4:")
+
 # NOTE: the C-host `deluge_render` / `deluge_recorder_roundtrip` renderers and their CTests
 # (the padsweep layout-invariance guard + the SampleRecorder round-trip oracle) were retired
 # when the sample-streaming golden moved onto the async Embassy renderer: `deluge_render` is
