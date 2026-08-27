@@ -53,6 +53,7 @@
 #include "storage/storage_manager.h"
 #include "util/const_functions.h"
 #include "util/firmware_version.h"
+#include "util/notify.h"
 #include "util/string.h"
 #include "util/try.h"
 #include <array>
@@ -4118,9 +4119,7 @@ haveNoDrum:
 void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack, Clip* nextPendingLoop,
                                            int32_t buttonLatencyForTempolessRecord) {
 
-	if (getRootUI() == &arrangerView) {
-		arrangerView.clipNeedsReRendering(this);
-	}
+	notify_content_changed();
 
 	InstrumentClip* newInstrumentClip = nullptr;
 	if (nextPendingLoop) {
@@ -4219,9 +4218,7 @@ void InstrumentClip::finishLinearRecording(ModelStackWithTimelineCounter* modelS
 		isUnfinishedAutoOverdub = false;
 	}
 
-	if (getRootUI()) {
-		getRootUI()->clipNeedsReRendering(this); // Notes might have been lengthened - we'd better render it.
-	}
+	notify_content_changed(); // Notes might have been lengthened - we'd better render it.
 }
 
 Clip* InstrumentClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStack, OverDubType newOverdubNature) {

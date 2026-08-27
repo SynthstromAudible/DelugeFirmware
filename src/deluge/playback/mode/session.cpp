@@ -50,6 +50,7 @@
 #include "playback/mode/arrangement.h"
 #include "storage/storage_manager.h"
 #include "util/containers.h"
+#include "util/notify.h"
 
 Session session{};
 
@@ -214,7 +215,7 @@ bool Session::giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clip
 	if (begun) {
 
 		if (getRootUI() == &sessionView) {
-			sessionView.clipNeedsReRendering(clip); // Necessary for InstrumentClips
+			clip->notify_content_changed(); // Necessary for InstrumentClips
 		}
 
 		// if we're creating a new recording based on a previous clip on the same
@@ -806,7 +807,7 @@ void Session::launchSchedulingMightNeedCancelling() {
 		}
 		else if ((rootUI == &sessionView || rootUI == &performanceView)
 		         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
-			renderUIsForOled();
+			deluge::notify::raise(deluge::notify::Dirty::Oled);
 		}
 	}
 }
@@ -1101,7 +1102,7 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 							                           false); // Tell it not to resync
 							armClipToStopAction(clip);
 
-							sessionView.clipNeedsReRendering(clip);
+							clip->notify_content_changed();
 							if (getCurrentClip()) {
 								if (getCurrentClip()->onAutomationClipView) {
 									uiNeedsRendering(&automationView, 0xFFFFFFFF, 0);
@@ -1295,7 +1296,7 @@ void Session::armingChanged() {
 		if (getCurrentUI()->canSeeViewUnderneath()) {
 			if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
 			    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
-				renderUIsForOled();
+				deluge::notify::raise(deluge::notify::Dirty::Oled);
 			}
 probablyDoFlashPlayEnable:
 			if (hasPlaybackActive()) {
@@ -1305,7 +1306,7 @@ probablyDoFlashPlayEnable:
 	}
 	else {
 		// TODO: only if sidebar visible!
-		uiNeedsRendering(getCurrentUI(), 0x00000000, 0xFFFFFFFF);
+		deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
 	}
 }
 
@@ -2375,7 +2376,7 @@ traverseClips:
 			}
 			else if ((rootUI == &sessionView || rootUI == &performanceView)
 			         && !isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)) {
-				renderUIsForOled();
+				deluge::notify::raise(deluge::notify::Dirty::Oled);
 			}
 		}
 	}

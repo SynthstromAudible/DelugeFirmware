@@ -35,7 +35,6 @@
 #include "hid/display/display.h"
 #include "hid/encoder_input.h"
 #include "hid/encoders.h"
-#include "hid/led/indicator_leds.h"
 #include "io/debug/log.h"
 #include "io/midi/midi_engine.h"
 #include "libdeluge/app.h"
@@ -71,6 +70,7 @@
 #include "sync/sd_access.h"
 #include "util/functions.h"
 #include "util/misc.h"
+#include "util/notify.h"
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
@@ -494,9 +494,9 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 	}
 	// blink LED to alert the user
 	if (culled && FlashStorage::highCPUUsageIndicator) {
-		if (indicator_leds::getLedBlinkerIndex(IndicatorLED::PLAY) == 255) {
-			indicator_leds::indicateAlertOnLed(IndicatorLED::PLAY);
-		}
+		// [audio] Just the fact -- the UI tick owns the LED.
+		cull_alert_pending = true;
+		deluge::notify::raise(deluge::notify::Dirty::PlaybackState);
 		D_PRINTLN("started %i voices this render cycle", voices_started_this_render);
 	}
 }

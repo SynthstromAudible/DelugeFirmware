@@ -79,6 +79,7 @@
 #include "util/cfunctions.h"
 #include "util/etl_string.h"
 #include "util/functions.h"
+#include "util/notify.h"
 #include <iterator>
 #include <math.h>
 #include <new>
@@ -624,7 +625,8 @@ void PlaybackHandler::endPlayback() {
 	playbackState = 0;
 
 	cvEngine.playbackEnded(); // Call this *after* playbackState is set
-	PadLEDs::clearTickSquares();
+	// [any] The UI tick clears the tick squares once it sees playback has stopped.
+	deluge::notify::raise(deluge::notify::Dirty::PlaybackState);
 
 	// Sometimes, ending playback will trigger an instant song swap
 	if (shouldDoInstantSongSwap) {
@@ -1039,9 +1041,9 @@ void PlaybackHandler::actionSwungTick() {
 				}
 			}
 
-			display->cancelPopup();
+			// [audio] The UI tick sees the count go back to 0 and takes down the popup.
 			currentVisualCountForCountIn = 0;
-			currentUIMode &= UI_MODE_AUDITIONING;
+			deluge::notify::raise(deluge::notify::Dirty::PlaybackState);
 
 			// And then yeah, just keep going below
 		}
@@ -1052,10 +1054,9 @@ void PlaybackHandler::actionSwungTick() {
 			int32_t newVisualCount = (uint32_t)(ticksLeftInCountIn - 1) / currentSong->getQuarterNoteLength() + 1;
 
 			if (newVisualCount != currentVisualCountForCountIn) {
+				// [audio] No formatting here -- just the fact. The UI tick renders the digit.
 				currentVisualCountForCountIn = newVisualCount;
-				char buffer[12];
-				intToString(newVisualCount, buffer);
-				display->displayPopup(buffer, 0, true, 255, 2);
+				deluge::notify::raise(deluge::notify::Dirty::PlaybackState);
 			}
 			swungTicksTilNextEvent = 2147483647;
 			goto doMetronome;

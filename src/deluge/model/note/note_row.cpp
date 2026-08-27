@@ -42,6 +42,7 @@
 #include "storage/storage_manager.h"
 #include "util/functions.h"
 #include "util/lookuptables/lookuptables.h"
+#include "util/notify.h"
 #include <new>
 #include <string.h>
 
@@ -2453,7 +2454,7 @@ void NoteRow::attemptLateStartOfNextNoteToPlay(ModelStackWithNoteRow* modelStack
 
 	if (timeAgo < 0) { // Gregory J got this. And Vinz
 #if ALPHA_OR_BETA_VERSION
-		display->displayPopup("E336"); // Popup only
+		deluge::notify::notice("E336"); // Popup only
 #endif
 		timeAgo = 0; // Just don't crash
 	}

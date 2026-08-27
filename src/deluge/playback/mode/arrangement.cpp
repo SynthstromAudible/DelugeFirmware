@@ -35,6 +35,7 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "util/functions.h"
+#include "util/notify.h"
 #include <iterator>
 
 extern "C" {}
@@ -96,7 +97,7 @@ bool Arrangement::endPlayback() {
 	// session view
 
 	// use root UI in case this is called from performance view
-	sessionView.requestRendering(getRootUI(), 0, 0xFFFFFFFF);
+	deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
 
 	// Work-around. Our caller, PlaybackHandler::endPlayback(), sets this next anyway, and can't do it earlier,
 	// but we need it before reassessing sessionView's greyout.
@@ -557,7 +558,7 @@ int32_t Arrangement::getLivePos(uint32_t* timeRemainder) {
 
 void Arrangement::stopOutputRecordingAtLoopEnd() {
 	playbackHandler.stopOutputRecordingAtLoopEnd = true;
-	renderUIsForOled();
+	deluge::notify::raise(deluge::notify::Dirty::Oled);
 }
 
 int32_t Arrangement::getPosAtWhichClipWillCut(ModelStackWithTimelineCounter const* modelStack) {
@@ -664,5 +665,5 @@ void Arrangement::endAnyLinearRecording() {
 
 	arrangerView.mustRedrawTickSquares = true; // Tick square shouldn't be red anymore
 
-	uiNeedsRendering(&arrangerView, 0xFFFFFFFF, 0);
+	deluge::notify::raise(deluge::notify::Dirty::GridMain);
 }

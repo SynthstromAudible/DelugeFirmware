@@ -168,6 +168,11 @@ public:
 	int32_t ticksLeftInCountIn{};
 	int32_t currentVisualCountForCountIn;
 
+	/// The digit the count-in wants shown, or 0 for "no count-in". Raised as a fact
+	/// (Dirty::PlaybackState) from the tick tree; the UI tick owns the popup. [any]
+	int32_t count_in_visual() const { return currentVisualCountForCountIn; }
+	bool count_in_active() const { return ticksLeftInCountIn > 0; }
+
 	int32_t metronomeOffset{};
 
 	void setLedStates();

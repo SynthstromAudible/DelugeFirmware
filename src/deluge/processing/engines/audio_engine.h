@@ -193,6 +193,10 @@ extern bool renderInStereo;
 extern uint32_t audioSampleTimer;
 extern bool mustUpdateReverbParamsBeforeNextRender;
 extern bool bypassCulling;
+/// Raised by the render loop when it culled a voice and the high-CPU indicator is on; the UI tick
+/// consumes it and blinks the Play LED. A namespace-scope inline variable (one object across all
+/// TUs) -- not `static`, which would give each TU its own copy. [any]
+inline bool cull_alert_pending = false;
 // The app-owned input ring. A mirror of the received audio input, filled by the
 // audio routine ahead of each render window; everything in the application that
 // consumes live input (monitoring, INPUT_L/R oscillators, live input buffers,

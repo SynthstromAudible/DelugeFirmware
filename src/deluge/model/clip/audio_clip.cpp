@@ -39,6 +39,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/storage_manager.h"
 #include "util/fixedpoint.h"
+#include "util/notify.h"
 #include <new>
 
 namespace params = deluge::modulation::params;
@@ -127,9 +128,7 @@ void AudioClip::abortRecording() {
 
 	session.justAbortedSomeLinearRecording();
 
-	if (getRootUI()) {
-		getRootUI()->clipNeedsReRendering(this);
-	}
+	notify_content_changed();
 
 	actionLogger.notifyClipRecordingAborted(this);
 }
@@ -217,9 +216,7 @@ void AudioClip::finishLinearRecording(ModelStackWithTimelineCounter* modelStack,
 	// SampleRecorder will also call sampleNeedsReRendering() when "capturing" is finished, but in plenty of cases, that
 	// will have happened in the above call to endSyncedRecording(), and our sample hasn't been set yet, so that won't
 	// have been effective. So, we have to call this here too, to cover our bases.
-	if (getRootUI()) {
-		getRootUI()->clipNeedsReRendering(this);
-	}
+	notify_content_changed();
 
 	if (!isEmpty()) {
 		clear(nullptr, modelStack, true, true);
