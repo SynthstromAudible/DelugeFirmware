@@ -453,6 +453,19 @@ bool writeTestWav(const std::string& path, uint32_t dataBytes, uint8_t fill) {
 	return written;
 }
 
+/// Write @p bytes bytes that are deliberately NOT audio: the file opens, and then fails to parse.
+/// @return true if the file was written.
+bool writeGarbageFile(const std::string& path, uint32_t bytes) {
+	const std::vector<uint8_t> junk(bytes, 0x7E);
+	FILE* f = fopen(path.c_str(), "wb");
+	if (f == nullptr) {
+		return false;
+	}
+	const bool written = fwrite(junk.data(), 1, junk.size(), f) == junk.size();
+	fclose(f);
+	return written;
+}
+
 /// The async loader, faked. This binary has no Rust loader, so libdeluge/audio_load.h's
 /// request/collect pair resolves to audio_load_abi.cpp's weak "there is no loader here" fallbacks;
 /// the strong definitions below override them for this binary so the collector's four outcomes
@@ -499,6 +512,21 @@ void resolveStubbedRequest() {
 			continue;
 		}
 		result = {};
+		// A candidate that OPENS is the one the loader parses -- it never tries another. So a file
+		// that is not audio comes back as a parse verdict, exactly as the real parser reports it, and
+		// NOT as "nothing opened": the difference is what decides whether the collector may go looking
+		// in the alternate dir.
+		FILE* f = fopen(full.c_str(), "rb");
+		char magic[4] = {};
+		const bool isRiff = f != nullptr && fread(magic, 1, sizeof(magic), f) == sizeof(magic)
+		                    && std::memcmp(magic, "RIFF", sizeof(magic)) == 0;
+		if (f != nullptr) {
+			fclose(f);
+		}
+		if (!isRiff) {
+			result.error = static_cast<uint8_t>(Error::FILE_UNSUPPORTED);
+			break;
+		}
 		result.size_bytes = static_cast<uint64_t>(st.st_size);
 		result.error = static_cast<uint8_t>(Error::NONE);
 		// The geometry of the WAVs this harness writes (see writeTestWav): 44-byte header, mono,
@@ -925,6 +953,56 @@ bool checkAsyncCollector() {
 		}
 	}
 
+	// A retry that cannot be formed must fall THROUGH to the synchronous path, not answer the call
+	// with a failure. The retry's candidates are new ones -- the alternate dir's -- so they can be
+	// inadmissible where the first request's were fine: here the alternate load dir's own name is not
+	// UTF-8, which a FAT long filename is free to be. The sample exists only in that directory, so a
+	// load that stops at the refused re-request loses a file the synchronous path finds.
+	{
+		const std::string oddAltDir = samplesDir + "/\xFFALT";
+		const std::string oddSample = oddAltDir + "/ODD.WAV";
+		mkdir(oddAltDir.c_str(), 0755);
+		if (!writeTestWav(oddSample, 1200, 0x77)) {
+			printf("FAIL [asyncCollector]: could not write the non-UTF-8 alternate dir's sample\n");
+			ok = false;
+		}
+		else {
+			g_asyncStub = {};
+			g_asyncStub.active = true;
+			g_asyncStub.collectStatus = DELUGE_AUDIO_LOAD_READY;
+			// "Nothing opened" -- which is what earns the alternate-dir probe and the re-request.
+			g_asyncStub.result = readyResult(static_cast<uint8_t>(Error::FILE_UNREADABLE), "");
+			audioFileManager.alternateAudioFileLoadPath = "SAMPLES/\xFFALT";
+			audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::MIGHT_EXIST;
+			audioFileManager.thingTypeBeingLoaded = ThingType::SONG;
+
+			std::string path = "SAMPLES/ODD.WAV";
+			Error error = Error::NONE;
+			AudioFile* file =
+			    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+			                                              /*makeWaveTableWorkAtAllCosts=*/false,
+			                                              /*mayLoadAsync=*/true);
+			if (file == nullptr || error != Error::NONE) {
+				printf("FAIL [asyncCollector]: a re-request that could not be formed answered the load instead "
+				       "of falling through to the synchronous path (file=%p error=%d)\n",
+				       static_cast<void*>(file), static_cast<int>(error));
+				ok = false;
+			}
+			else if (static_cast<Sample&>(*file).loadedFromAlternatePath != "SAMPLES/\xFFALT/ODD.WAV") {
+				printf("FAIL [asyncCollector]: the fallen-through load did not come from the alternate dir "
+				       "(alt=\"%s\")\n",
+				       static_cast<Sample&>(*file).loadedFromAlternatePath.c_str());
+				ok = false;
+			}
+			audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists("SAMPLES/ODD.WAV");
+			audioFileManager.alternateAudioFileLoadPath.clear();
+			audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
+			audioFileManager.thingTypeBeingLoaded = ThingType::NONE;
+		}
+		unlink(oddSample.c_str());
+		rmdir(oddAltDir.c_str());
+	}
+
 	// The two gate conjuncts that are invisible with the loader off, and would stay green through a
 	// refactor that dropped them. Both are about NOT taking the async path.
 	{
@@ -1171,7 +1249,7 @@ bool checkAsyncAlternateDirOrder() {
 	mkdir(altDir.c_str(), 0755);
 
 	const auto removeTempCard = [&] {
-		for (const char* name : {"/DUP.WAV", "/DUP2.WAV", "/ALT_ONLY.WAV"}) {
+		for (const char* name : {"/DUP.WAV", "/DUP2.WAV", "/BAD.WAV", "/ALT_ONLY.WAV"}) {
 			unlink((samplesDir + name).c_str());
 			unlink((altDir + name).c_str());
 		}
@@ -1184,7 +1262,12 @@ bool checkAsyncAlternateDirOrder() {
 	const bool fixtureWritten =
 	    writeTestWav(samplesDir + "/DUP.WAV", 2000, 0x11) && writeTestWav(altDir + "/DUP.WAV", 3000, 0x22)
 	    && writeTestWav(samplesDir + "/DUP2.WAV", 2400, 0x33) && writeTestWav(altDir + "/DUP2.WAV", 3400, 0x44)
-	    && writeTestWav(altDir + "/ALT_ONLY.WAV", 2800, 0x55);
+	    && writeTestWav(altDir + "/ALT_ONLY.WAV", 2800, 0x55)
+	    && writeTestWav(altDir + "/BAD.WAV", 3600, 0x66)
+	    // BAD.WAV's regular copy is not audio at all: it OPENS and then fails to parse, which is a
+	    // verdict about that file rather than a reason to go looking in the alternate dir -- where a
+	    // perfectly good file is sitting, ready to be loaded silently in its place.
+	    && writeGarbageFile(samplesDir + "/BAD.WAV", 2600);
 	if (!fixtureWritten) {
 		printf("FAIL [asyncAltDirOrder]: could not write the temp card's fixture files\n");
 		removeTempCard();
@@ -1195,6 +1278,11 @@ bool checkAsyncAlternateDirOrder() {
 	const std::string previousRoot = (previousRootRaw != nullptr) ? previousRootRaw : "";
 	const bool hadPreviousRoot = previousRootRaw != nullptr;
 	setenv("DELUGE_SD_ROOT", root, 1);
+
+	// The load, in order. BAD.WAV sits before ALT_ONLY.WAV deliberately: a wrongful retry on its parse
+	// verdict would promote the alternate-dir status, and every sample after it would inherit that.
+	static const char* const kFixtureNames[] = {"SAMPLES/DUP.WAV", "SAMPLES/DUP2.WAV", "SAMPLES/BAD.WAV",
+	                                            "SAMPLES/ALT_ONLY.WAV"};
 
 	// What a leg loaded, in the terms that decide which file plays.
 	struct LoadedIdentity {
@@ -1219,15 +1307,26 @@ bool checkAsyncAlternateDirOrder() {
 		}
 		// A song load: the alternate dir might exist, and the in-memory alternate-name search is
 		// skipped for SONG, so this is purely about which candidate is opened first.
-		for (const char* name : {"SAMPLES/DUP.WAV", "SAMPLES/DUP2.WAV", "SAMPLES/ALT_ONLY.WAV"}) {
+		for (const char* name : kFixtureNames) {
 			audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(name);
+			// A leg that started with one of these still resident would be served from memory and
+			// agree with the other leg without going near the loader at all -- every comparison below
+			// would then pass for the wrong reason.
+			bool stillResident = false;
+			(void)audioFileManager.audioFiles.search(name, &stillResident);
+			if (stillResident) {
+				printf("FAIL [asyncAltDirOrder]: %s survived into the next load; the leg would be served "
+				       "from memory\n",
+				       name);
+				ok = false;
+			}
 		}
 		audioFileManager.alternateAudioFileLoadPath = "SAMPLES/ALT";
 		audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::MIGHT_EXIST;
 		audioFileManager.thingTypeBeingLoaded = ThingType::SONG;
 
 		std::vector<LoadedIdentity> loaded;
-		for (const char* name : {"SAMPLES/DUP.WAV", "SAMPLES/DUP2.WAV", "SAMPLES/ALT_ONLY.WAV"}) {
+		for (const char* name : kFixtureNames) {
 			LoadedIdentity identity;
 			std::string path = name;
 			AudioFile* file = nullptr;
@@ -1259,26 +1358,55 @@ bool checkAsyncAlternateDirOrder() {
 
 	const std::vector<LoadedIdentity> synchronous = runLoad(/*useAsync=*/false);
 	const AlternateLoadDirStatus statusAfterSync = audioFileManager.alternateLoadDirStatus;
+	const int syncRequests = g_asyncStub.requestCalls;
+	const int syncCollects = g_asyncStub.collectCalls;
 	const std::vector<LoadedIdentity> asynchronous = runLoad(/*useAsync=*/true);
 	const AlternateLoadDirStatus statusAfterAsync = audioFileManager.alternateLoadDirStatus;
+	const int asyncRequests = g_asyncStub.requestCalls;
+	const int asyncCollects = g_asyncStub.collectCalls;
 
-	static const char* const kNames[] = {"SAMPLES/DUP.WAV", "SAMPLES/DUP2.WAV", "SAMPLES/ALT_ONLY.WAV"};
+	// Each leg has to have been served by the path it claims, or every comparison below is between two
+	// runs of the same one.
+	if (syncRequests != 0 || syncCollects != 0) {
+		printf("FAIL [asyncAltDirOrder]: the synchronous leg reached the loader (%d request(s), %d collect(s))\n",
+		       syncRequests, syncCollects);
+		ok = false;
+	}
+	if (asyncRequests < static_cast<int>(std::size(kFixtureNames))
+	    || asyncCollects < static_cast<int>(std::size(kFixtureNames))) {
+		printf("FAIL [asyncAltDirOrder]: the async leg did not go through the loader for every sample "
+		       "(%d request(s), %d collect(s) for %zu samples)\n",
+		       asyncRequests, asyncCollects, std::size(kFixtureNames));
+		ok = false;
+	}
+
 	for (size_t i = 0; i < synchronous.size(); i++) {
 		const LoadedIdentity& sync = synchronous[i];
 		const LoadedIdentity& async = asynchronous[i];
-		if (!sync.loaded || !async.loaded) {
-			printf("FAIL [asyncAltDirOrder]: %s did not load on both paths (sync=%d async=%d, errors %d/%d, "
+		if (sync.loaded != async.loaded || sync.error != async.error) {
+			printf("FAIL [asyncAltDirOrder]: the two paths disagree about %s (loaded %d/%d, errors %d/%d, "
 			       "%d/%d tick(s))\n",
-			       kNames[i], static_cast<int>(sync.loaded), static_cast<int>(async.loaded),
+			       kFixtureNames[i], static_cast<int>(sync.loaded), static_cast<int>(async.loaded),
 			       static_cast<int>(sync.error), static_cast<int>(async.error), sync.ticks, async.ticks);
 			ok = false;
 			continue;
+		}
+		if (!sync.loaded) {
+			continue; // both refused it, with the same error: nothing further to compare
+		}
+		// A sample the collector answered must have taken at least two calls -- one cannot both
+		// request and collect -- so a leg quietly served from memory shows up here.
+		if (async.ticks < 2) {
+			printf("FAIL [asyncAltDirOrder]: %s was answered in one call (%d tick(s)); it cannot have been "
+			       "requested AND collected\n",
+			       kFixtureNames[i], async.ticks);
+			ok = false;
 		}
 		if (sync.filePath != async.filePath || sync.loadedFromAlternatePath != async.loadedFromAlternatePath
 		    || sync.audioDataLengthBytes != async.audioDataLengthBytes) {
 			printf("FAIL [asyncAltDirOrder]: the two paths loaded DIFFERENT files for \"%s\" -- sync {path=\"%s\" "
 			       "alt=\"%s\" dataLen=%llu} vs async {path=\"%s\" alt=\"%s\" dataLen=%llu}\n",
-			       kNames[i], sync.filePath.c_str(), sync.loadedFromAlternatePath.c_str(),
+			       kFixtureNames[i], sync.filePath.c_str(), sync.loadedFromAlternatePath.c_str(),
 			       static_cast<unsigned long long>(sync.audioDataLengthBytes), async.filePath.c_str(),
 			       async.loadedFromAlternatePath.c_str(), static_cast<unsigned long long>(async.audioDataLengthBytes));
 			ok = false;
@@ -1286,15 +1414,29 @@ bool checkAsyncAlternateDirOrder() {
 		if (!sync.readOk || !async.readOk || sync.firstBytes != async.firstBytes) {
 			printf("FAIL [asyncAltDirOrder]: the two paths' streams read different bytes for \"%s\" (readable "
 			       "%d/%d) -- the bound file is not the same one\n",
-			       kNames[i], static_cast<int>(sync.readOk), static_cast<int>(async.readOk));
+			       kFixtureNames[i], static_cast<int>(sync.readOk), static_cast<int>(async.readOk));
 			ok = false;
 		}
 	}
 
-	// The sample that exists ONLY in the alternate dir must still be found -- the requirement the
+	// The sample that exists ONLY in the alternate dir must still be found there -- the requirement the
 	// up-front probe used to serve, now met by resolving after every proposed candidate has missed.
-	if (asynchronous.size() == 3 && asynchronous[2].loaded && asynchronous[2].loadedFromAlternatePath.empty()) {
-		printf("FAIL [asyncAltDirOrder]: the alternate-dir-only sample was not recorded as coming from there\n");
+	if (asynchronous.size() == std::size(kFixtureNames)
+	    && (!asynchronous[3].loaded || asynchronous[3].loadedFromAlternatePath != "SAMPLES/ALT/ALT_ONLY.WAV")) {
+		printf("FAIL [asyncAltDirOrder]: the alternate-dir-only sample was not loaded from the alternate dir "
+		       "(loaded=%d alt=\"%s\")\n",
+		       static_cast<int>(asynchronous[3].loaded), asynchronous[3].loadedFromAlternatePath.c_str());
+		ok = false;
+	}
+
+	// A file that opened and failed to parse must be REPORTED, not worked around. Retrying on a parse
+	// verdict would find the good copy in the alternate dir and load THAT -- a different file, reported
+	// as success, where the synchronous path reports the parse error.
+	if (asynchronous.size() == std::size(kFixtureNames)
+	    && (asynchronous[2].loaded || asynchronous[2].error != Error::FILE_UNSUPPORTED)) {
+		printf("FAIL [asyncAltDirOrder]: a file that opened and failed to parse was not reported as that "
+		       "(loaded=%d error=%d) -- a parse verdict must not send the load to the alternate dir\n",
+		       static_cast<int>(asynchronous[2].loaded), static_cast<int>(asynchronous[2].error));
 		ok = false;
 	}
 
@@ -1345,7 +1487,7 @@ bool checkAsyncAlternateDirOrder() {
 	}
 
 	g_asyncStub = {};
-	for (const char* name : {"SAMPLES/DUP.WAV", "SAMPLES/DUP2.WAV", "SAMPLES/ALT_ONLY.WAV"}) {
+	for (const char* name : kFixtureNames) {
 		audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(name);
 	}
 	audioFileManager.alternateAudioFileLoadPath.clear();

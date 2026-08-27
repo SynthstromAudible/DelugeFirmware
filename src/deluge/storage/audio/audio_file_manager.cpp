@@ -873,11 +873,26 @@ AudioFile* AudioFileManager::getAudioFileFromFilename(std::string& filePath, boo
 	                              error);
 }
 
+namespace {
+/// Map an error byte from libdeluge/audio_load.h onto the `Error` a failed load reports.
+///
+/// Never `Error::NONE`: a caller reading nullptr with *error still NONE would take it for "not on the
+/// card" (resolveFileSize's silent-miss shape) rather than the failure it is, so an out-of-contract
+/// NONE becomes `Error::BUG`.
+Error failureErrorFromAbiByte(uint8_t abiError) {
+	const Error mapped = deluge::storage::errorFromAbiByte(abiError);
+	return (mapped != Error::NONE) ? mapped : Error::BUG;
+}
+} // namespace
+
 std::optional<AudioFile*> AudioFileManager::collectAsyncSampleLoad(const std::string& filePath, Error* error) {
 	DelugeAudioLoadResult result{};
 	switch (deluge_audio_load_collect(filePath.c_str(), &result)) {
 
 	case DELUGE_AUDIO_LOAD_READY:
+		if (result.error != static_cast<uint8_t>(Error::NONE)) {
+			return answerFailedLoadResult(filePath, result.error, error);
+		}
 		// The bytes are already in hand: build and publish the Sample right here, synchronously.
 		return buildSampleFromLoadResult(filePath, result, error);
 
@@ -894,32 +909,48 @@ std::optional<AudioFile*> AudioFileManager::collectAsyncSampleLoad(const std::st
 	}
 }
 
+std::optional<AudioFile*> AudioFileManager::answerFailedLoadResult(const std::string& filePath, uint8_t resultError,
+                                                                   Error* error) {
+	// Only "no candidate opened" earns another attempt, and Error::FILE_UNREADABLE is exactly that:
+	// it is what the loader reports when every candidate failed to open (and what resolveFileSize
+	// reports for the same thing), while a file that DID open and failed to parse comes back as
+	// FILE_UNSUPPORTED or FILE_CORRUPTED. Retrying on a parse verdict would be a different bug in the
+	// same family as the one this ordering care exists for: a corrupt file at the regular path would
+	// probe the alternate dir, load a DIFFERENT file from there, and report success where the
+	// synchronous path reports the parse error -- while promoting the status for the rest of the load.
+	// The synchronous path never probes on a parse failure either; buildAudioFileFromCard just fails.
+	//
+	// The `!= MIGHT_EXIST` re-check is what bounds this to one attempt per load, structurally rather
+	// than by counting: the retry only happens when the probe actually moved the status, so the guard
+	// above is necessarily false next time round.
+	if (failureErrorFromAbiByte(resultError) == Error::FILE_UNREADABLE
+	    && alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST
+	    && deluge_audio_load_resolve_alternate_dir(nullptr)
+	    && alternateLoadDirStatus != AlternateLoadDirStatus::MIGHT_EXIST) {
+		// The alternate dir exists after all, so there are candidates this request did not carry --
+		// exactly what resolveFileSize does at this same point. A decline here is passed straight
+		// through (std::nullopt), so the load still reaches the synchronous path rather than being
+		// answered with a failure it never had to have.
+		return requestAsyncSampleLoad(filePath, error);
+	}
+
+	// Otherwise this is the loader's verdict on the file itself, carrying the same identity the
+	// synchronous path produces. Nothing was built, so there is nothing to close out here.
+	*error = failureErrorFromAbiByte(resultError);
+	return nullptr;
+}
+
 AudioFile* AudioFileManager::buildSampleFromLoadResult(const std::string& filePath, const DelugeAudioLoadResult& result,
                                                        Error* error) {
-	// Report a failure as a failure. Every code here arrives as a byte, and a caller reading nullptr
-	// with *error still Error::NONE would take it for "not on the card" (resolveFileSize's silent-miss
-	// shape) rather than the build failure it is -- so an out-of-contract Error::NONE becomes BUG.
 	const auto fail = [&](uint8_t abiError) -> AudioFile* {
-		const Error mapped = deluge::storage::errorFromAbiByte(abiError);
-		*error = (mapped != Error::NONE) ? mapped : Error::BUG;
+		*error = failureErrorFromAbiByte(abiError);
 		return nullptr;
 	};
 
 	if (result.error != static_cast<uint8_t>(Error::NONE)) {
-		// Every candidate this load could propose was tried and none of them opened -- which, if the
-		// alternate load dir is still unresolved, is EXACTLY the moment resolveFileSize probes it. Do
-		// the same here: resolve, and if that unlocks candidates this request did not carry, ask again
-		// rather than failing a load the synchronous path would have found. Bounded to one retry per
-		// load by the status itself, which is no longer MIGHT_EXIST afterwards.
-		if (alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST
-		    && deluge_audio_load_resolve_alternate_dir(nullptr)) {
-			if (std::optional<AudioFile*> retried = requestAsyncSampleLoad(filePath, error)) {
-				return *retried; // nullptr with Error::LOAD_IN_PROGRESS: collected on a later tick
-			}
-		}
-		// Otherwise this is the loader's verdict on the file itself (FILE_UNSUPPORTED, FILE_CORRUPTED,
-		// ...), carrying the same identity the synchronous parse produces. Nothing was built, so there
-		// is nothing to close out here.
+		// Not reachable through collectAsyncSampleLoad, which routes a verdict to
+		// answerFailedLoadResult before this is called. Kept so a future second caller cannot build a
+		// Sample out of a result whose geometry was never filled in.
 		return fail(result.error);
 	}
 

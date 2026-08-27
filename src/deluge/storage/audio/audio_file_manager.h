@@ -211,6 +211,11 @@ public:
 	/// A no-op when the status is already anything other than MIGHT_EXIST: returns immediately, true
 	/// only for DOES_EXIST, without touching the card.
 	///
+	/// @post Returning true implies `alternateLoadDirStatus == DOES_EXIST`, i.e. never MIGHT_EXIST.
+	///       The async collector's one-shot retry rests on that: it asks again only when this both
+	///       returned true AND left MIGHT_EXIST behind, so the same load cannot keep probing. An edit
+	///       that returned true without assigning the status would turn that into a per-tick probe.
+	///
 	/// @param error Set to Error::FILE_UNREADABLE if the probe finds the directory genuinely absent, or
 	///              Error::SD_CARD if presence couldn't be determined (left untouched otherwise).
 	/// @return true once the alternate dir is known to exist (already, or newly resolved); false
@@ -313,10 +318,27 @@ private:
 	/// @param filePath The nominal path being loaded; the key the loader reports results under.
 	/// @param error    Set only when this answers the call (see the return value).
 	/// @return std::nullopt if this load is not the loader's to answer, and the caller must fall
-	///         through to the synchronous path. Otherwise the call is answered: the published Sample,
+	///         through to the synchronous path -- which includes a result that asked for a re-request
+	///         no request could be formed for. Otherwise the call is answered: the published Sample,
 	///         or nullptr with @p error set -- to the loader's verdict on the file, to a build
 	///         failure, or to Error::LOAD_IN_PROGRESS (not a failure: ask again on a later tick).
 	std::optional<AudioFile*> collectAsyncSampleLoad(const std::string& filePath, Error* error);
+
+	/// @brief Answer a collected result that carries a failure verdict: either ask again with the
+	///        alternate dir resolved, or report the verdict.
+	///
+	/// "No candidate opened" (Error::FILE_UNREADABLE) with the alternate load dir still unresolved is
+	/// the one case that earns another attempt -- it is precisely where resolveFileSize runs its own
+	/// probe. A parse verdict (FILE_UNSUPPORTED, FILE_CORRUPTED) is the file's own answer and is
+	/// reported as-is: probing there would load a DIFFERENT file and call it success where the
+	/// synchronous path fails, and promote the alternate-dir status for the rest of the load with it.
+	///
+	/// @param filePath    The nominal path being loaded.
+	/// @param resultError The result's error byte (never Error::NONE).
+	/// @param error       Set to the verdict, or to Error::LOAD_IN_PROGRESS if this asks again.
+	/// @return std::nullopt if the load must fall through to the synchronous path (a re-request that
+	///         could not be formed); otherwise nullptr with @p error set.
+	std::optional<AudioFile*> answerFailedLoadResult(const std::string& filePath, uint8_t resultError, Error* error);
 
 	/// @brief Build and publish a Sample from a collected parse result. No I/O beyond the one
 	///        read-stream open (see deluge_audio_load_bind_read_stream).
@@ -327,7 +349,8 @@ private:
 	///
 	/// @param filePath The nominal path (the AudioFile's own path; @p result carries the alternate
 	///                 location the bytes were actually found at, if any).
-	/// @param result   A DELUGE_AUDIO_LOAD_READY result, already collected.
+	/// @param result   A DELUGE_AUDIO_LOAD_READY result whose own error is Error::NONE -- a verdict is
+	///                 answered by answerFailedLoadResult instead.
 	/// @param error    Set on failure (never left at Error::NONE when this returns nullptr).
 	/// @return The published Sample, or nullptr with @p error set.
 	AudioFile* buildSampleFromLoadResult(const std::string& filePath, const DelugeAudioLoadResult& result,
