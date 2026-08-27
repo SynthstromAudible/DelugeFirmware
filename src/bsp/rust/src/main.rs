@@ -45,6 +45,16 @@ extern crate deluge_resource;
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 extern crate deluge_resource;
 
+// Link-only, same reasoning as the `deluge_resource` pair above: the C++ app's
+// parseSampleHeader/parseWaveTableHeader (storage/audio/audio_file_format.cpp) call the
+// `deluge_audio_header_*` C ABI, whose sole definition is this crate's `abi.rs` -- there is no
+// weak C++ fallback -- so without this `extern crate` rustc/lld would drop the rlib from the link.
+#[cfg(target_os = "none")]
+extern crate deluge_audio_format;
+/// `host_app` feature: host-side sibling of the above — see that `extern crate`'s doc.
+#[cfg(all(not(target_os = "none"), feature = "host_app"))]
+extern crate deluge_audio_format;
+
 // Link-only, same reasoning as the `deluge_resource` pair above. The C++ reader
 // (sample_low_level_reader.cpp) CALLS the `deluge_sample_source_*`/`deluge_sample_region_*` C ABI;
 // `deluge_sample_source`'s crate (`abi.rs`) is the sole definition of those symbols -- there is no

@@ -244,6 +244,201 @@ describe audio_file_format("audio file header parser", $ {
 		});
 	});
 
+	// Whole-header pin: one file exercising every SampleHeader/WaveTableHeader field at once, so a
+	// re-implementation of the parse behind these two entry points has to reproduce all of them
+	// together rather than one facet per example. Deliberately puts `smpl` AFTER `data` — the layout
+	// 35% of the real corpus uses — so the pin covers a header field that only a parser willing to
+	// walk past the audio payload can reach.
+	context("full-header pin", _ {
+		// RIFF(12) + fmt(8+16) + data(8+216) + clm(8+7+1 pad) + smpl(8+60).
+		auto pinFile = [] {
+			ByteWriter smpl; smpl.tag("smpl"); smpl.le32(60);
+			smpl.le32(0); smpl.le32(0); smpl.le32(0);       // manuf, product, samplePeriod
+			smpl.le32(57);                                  // MIDI unity note
+			smpl.le32(0x80000000);                          // pitch fraction == half a semitone
+			smpl.le32(0); smpl.le32(0);                     // smpteFormat, smpteOffset
+			smpl.le32(1);                                   // num sample loops
+			smpl.le32(0);                                   // sampler data
+			smpl.le32(0); smpl.le32(0);                     // loop: id, type
+			smpl.le32(1234);                                // loop start
+			smpl.le32(5678);                                // loop end
+			smpl.le32(0); smpl.le32(0);                     // fraction, playCount
+			ByteWriter clm; clm.tag("clm "); clm.le32(7); clm.raw({'<','!','>','1','0','2','4'});
+			clm.u8(0);                                      // RIFF pad byte for the odd-length chunk
+			ByteWriter body;
+			body.append(wavFmt(24, 2, 48000));
+			body.append(wavData(216));
+			body.append(clm);
+			body.append(smpl);
+			return wrapWav(body);
+		};
+
+		it("pins every SampleHeader field", _ {
+			auto r = parseSample(pinFile());
+			expect(r.has_value()).to_equal(true);
+			const SampleHeader& f = *r;
+			expect(static_cast<int>(f.numChannels)).to_equal(2);
+			expect(static_cast<int>(f.byteDepth)).to_equal(3);
+			expect(rawFmt(f.rawDataFormat)).to_equal(rawFmt(RawDataFormat::NATIVE));
+			expect((int)f.sampleRate).to_equal(48000);
+			expect((int)f.audioDataStartPosBytes).to_equal(44); // 12 top + 8+16 fmt + 8 data hdr
+			expect((int)f.audioDataLengthBytes).to_equal(216);
+			expect((int)f.fileLoopStartSamples).to_equal(1234);
+			expect((int)f.fileLoopEndSamples).to_equal(5678);
+			expect(f.midiNote.has_value()).to_equal(true);
+			expect(*f.midiNote).to_equal(57.5f);
+			expect((int)f.waveTableCycleSize).to_equal(1024);
+			expect(f.fileExplicitlySpecifiesSelfAsWaveTable).to_equal(true);
+		});
+
+		it("pins every WaveTableHeader field", _ {
+			ByteWriter clm; clm.tag("clm "); clm.le32(7); clm.raw({'<','!','>','1','0','2','4'});
+			clm.u8(0);
+			ByteWriter body; body.append(wavFmt(16, 1, 44100)); body.append(clm); body.append(wavData(4096));
+			auto r = parseWaveTable(wrapWav(body));
+			expect(r.has_value()).to_equal(true);
+			const WaveTableHeader& f = *r;
+			expect(static_cast<int>(f.numChannels)).to_equal(1);
+			expect(static_cast<int>(f.byteDepth)).to_equal(2);
+			expect(rawFmt(f.rawDataFormat)).to_equal(rawFmt(RawDataFormat::NATIVE));
+			expect((int)f.audioDataStartPosBytes).to_equal(60); // 12 top + 8+16 fmt + 16 clm + 8 data hdr
+			expect((int)f.audioDataLengthBytes).to_equal(4096);
+			expect((int)f.cycleSize).to_equal(1024);
+		});
+
+		// The three wavetable rejections, pinned as the exact Error values callers switch on.
+		it("rejects an untagged non-wavetable-length file unless the caller insists", _ {
+			ByteWriter body; body.append(wavFmt(16, 1, 44100)); body.append(wavData(100));
+			auto r = parseWaveTable(wrapWav(body));
+			expect(r.has_value()).to_equal(false);
+			expect(static_cast<int>(r.error())).to_equal(static_cast<int>(Error::FILE_NOT_LOADABLE_AS_WAVETABLE));
+
+			auto insisted = parseWaveTable(wrapWav(body), true);
+			expect(insisted.has_value()).to_equal(true);
+			expect((int)insisted->cycleSize).to_equal(2048);
+		});
+
+		it("rejects an AIFF file as a wavetable unless the caller insists", _ {
+			ByteWriter comm; comm.tag("COMM"); comm.be32(18);
+			comm.be16(1); comm.be32(32); comm.be16(16);
+			comm.raw({0x40,0x0E,0xAC,0x44,0x00,0x00,0x00,0x00,0x00,0x00}); // 44100.0
+			ByteWriter ssnd; ssnd.tag("SSND"); ssnd.be32(8 + 4096); ssnd.be32(0); ssnd.be32(0); ssnd.zeros(4096);
+			ByteWriter w; w.tag("FORM"); w.be32(static_cast<uint32_t>(4 + comm.bytes.size() + ssnd.bytes.size()));
+			w.tag("AIFF"); w.append(comm); w.append(ssnd);
+			auto r = parseWaveTable(w.bytes);
+			expect(r.has_value()).to_equal(false);
+			expect(static_cast<int>(r.error())).to_equal(static_cast<int>(Error::FILE_NOT_LOADABLE_AS_WAVETABLE));
+
+			auto insisted = parseWaveTable(w.bytes, true);
+			expect(insisted.has_value()).to_equal(true);
+			expect((int)insisted->audioDataLengthBytes).to_equal(4096);
+		});
+	});
+
+	// Two shapes that loaded before the parse moved to Rust and must keep loading. Neither is in the
+	// sample corpus the port was differentially tested against, which is exactly why they are pinned
+	// here: "not in one person's library" is not the same as "cannot happen".
+	context("files that must keep loading", _ {
+		// Trailing slop -- DAW padding, an interrupted copy, a card that filled mid-write -- leaves a
+		// few bytes after the last chunk that cannot hold an 8-byte chunk header. The walk must end
+		// there and report the header it found, not call the file corrupt. 1..7 is exactly the range
+		// where the old parser's 8-byte read gave up.
+		it("decodes a file with a tail too short to hold a chunk header", _ {
+			ByteWriter body; body.append(wavFmt(16, 2, 44100)); body.append(wavData(100));
+			const std::vector<std::byte> clean = wrapWav(body);
+			auto reference = parseSample(clean);
+			expect(reference.has_value()).to_equal(true);
+
+			for (int tail = 1; tail <= 7; tail++) {
+				std::vector<std::byte> slopped = clean;
+				for (int i = 0; i < tail; i++) {
+					slopped.push_back(static_cast<std::byte>(0xAA));
+				}
+				auto r = parseSample(slopped);
+				expect(r.has_value()).to_equal(true);
+				expect((int)r->audioDataStartPosBytes).to_equal((int)reference->audioDataStartPosBytes);
+				expect((int)r->audioDataLengthBytes).to_equal((int)reference->audioDataLengthBytes);
+				expect((int)r->sampleRate).to_equal((int)reference->sampleRate);
+				expect(static_cast<int>(r->numChannels)).to_equal(static_cast<int>(reference->numChannels));
+				expect(static_cast<int>(r->byteDepth)).to_equal(static_cast<int>(reference->byteDepth));
+			}
+		});
+
+		// 192 kHz is outside the playable range a SAMPLE is held to, but a wavetable is rendered
+		// from the audio's shape and never reads the rate. Mono, and a whole number of 2048-sample
+		// cycles, so it is a wavetable by length alone. FILE_UNSUPPORTED here would not even reach
+		// sample_browser.cpp's "load it as a Sample instead" fallback -- the file would just stop
+		// loading.
+		it("loads a 192 kHz single-cycle file as a wavetable", _ {
+			ByteWriter body; body.append(wavFmt(16, 1, 192000)); body.append(wavData(2048 * 2));
+			auto r = parseWaveTable(wrapWav(body));
+			expect(r.has_value()).to_equal(true);
+			expect((int)r->cycleSize).to_equal(2048);
+			expect((int)r->audioDataLengthBytes).to_equal(4096);
+			expect(static_cast<int>(r->numChannels)).to_equal(1);
+
+			// As a SAMPLE the same file is still rejected: that rate is unplayable.
+			auto asSample = parseSample(wrapWav(body));
+			expect(asSample.has_value()).to_equal(false);
+			expect(static_cast<int>(asSample.error())).to_equal(static_cast<int>(Error::FILE_UNSUPPORTED));
+		});
+
+		// WaveTable::setup is handed the SAME byte source this parse read through, seeks it to
+		// audioDataStartPosBytes and reads the audio out of its block buffer -- so the parse must
+		// leave the cursor at or before the audio. A `smpl` declaring 36 bytes (the ordinary
+		// "sampler chunk, no loops" shape) is read at a fixed 52-byte extent, which swallows the
+		// `data` header behind it; the wavetable walk must not read it at all. When the overshoot
+		// crosses a cluster boundary the block buffer holds the wrong cluster and there is no
+		// recovery -- the first band is built from audio a cluster later in the file, silently.
+		it("leaves the byte source at or before the audio when parsing a wavetable", _ {
+			ByteWriter smpl; smpl.tag("smpl"); smpl.le32(36);
+			smpl.le32(0); smpl.le32(0); smpl.le32(0);   // manuf, product, samplePeriod
+			smpl.le32(0); smpl.le32(0);                 // midiUnityNote, pitchFraction
+			smpl.le32(0); smpl.le32(0);                 // smpteFormat, smpteOffset
+			smpl.le32(0);                               // numSampleLoops == 0
+			smpl.le32(0);                               // samplerData
+			ByteWriter body; body.append(wavFmt(16, 1, 44100)); body.append(smpl); body.append(wavData(2048 * 2));
+			const std::vector<std::byte> file = wrapWav(body);
+
+			MemoryByteSource src{file};
+			auto r = parseWaveTableHeader(src, false);
+			expect(r.has_value()).to_equal(true);
+			expect((int)src.pos() <= (int)r->audioDataStartPosBytes).to_equal(true);
+
+			// The Sample parse DOES read that chunk -- it is where root notes and loop points come
+			// from -- and nothing downstream depends on where it leaves the cursor.
+			MemoryByteSource sampleSrc{file};
+			auto asSample = parseSampleHeader(sampleSrc);
+			expect(asSample.has_value()).to_equal(true);
+			expect((int)asSample->audioDataStartPosBytes).to_equal((int)r->audioDataStartPosBytes);
+		});
+
+		// An AIFF is never a wavetable unless the user insists, and that verdict is about the CONTAINER,
+		// not about whether the file decodes: sample_browser.cpp turns FILE_NOT_LOADABLE_AS_WAVETABLE
+		// into "load it as a Sample instead", and any other error into "give up". This file decodes fine
+		// as a Sample but not as a wavetable-shaped walk (its SSND comes before its COMM, so a walk that
+		// stops at the audio data has no bit depth yet) -- so a decode-shaped error here would stop it
+		// being offered as a Sample at all.
+		it("offers an AIFF whose SSND precedes its COMM as a sample, not as a corrupt file", _ {
+			ByteWriter comm; comm.tag("COMM"); comm.be32(18);
+			comm.be16(1); comm.be32(32); comm.be16(16);
+			comm.raw({0x40,0x0E,0xAC,0x44,0x00,0x00,0x00,0x00,0x00,0x00}); // 44100.0
+			ByteWriter ssnd; ssnd.tag("SSND"); ssnd.be32(8 + 4096); ssnd.be32(0); ssnd.be32(0); ssnd.zeros(4096);
+			ByteWriter w; w.tag("FORM"); w.be32(static_cast<uint32_t>(4 + ssnd.bytes.size() + comm.bytes.size()));
+			w.tag("AIFF"); w.append(ssnd); w.append(comm); // SSND first, then COMM.
+
+			auto asWaveTable = parseWaveTable(w.bytes);
+			expect(asWaveTable.has_value()).to_equal(false);
+			expect(static_cast<int>(asWaveTable.error()))
+			    .to_equal(static_cast<int>(Error::FILE_NOT_LOADABLE_AS_WAVETABLE));
+
+			auto asSample = parseSample(w.bytes);
+			expect(asSample.has_value()).to_equal(true);
+			expect((int)asSample->audioDataLengthBytes).to_equal(4096);
+			expect((int)asSample->sampleRate).to_equal(44100);
+		});
+	});
+
 	context("AIFF samples", _ {
 		it("decodes a 16-bit mono COMM/SSND file (80-bit extended sample rate)", _ {
 			ByteWriter comm; comm.tag("COMM"); comm.be32(18);

@@ -62,7 +62,8 @@ if (UNIX AND NOT APPLE)
     set(RUST_TARGET i686-unknown-linux-gnu)
     set(RUST_LIB ${RUST_WS}/target/${RUST_TARGET}/release/libdeluge_rust.a)
     file(GLOB_RECURSE RUST_SOURCES CONFIGURE_DEPENDS
-        ${RUST_WS}/deluge_alloc/src/*.rs ${RUST_WS}/deluge_resource/src/*.rs ${RUST_WS}/deluge_rust/src/*.rs)
+        ${RUST_WS}/deluge_alloc/src/*.rs ${RUST_WS}/deluge_resource/src/*.rs
+        ${RUST_WS}/deluge_audio_format/src/*.rs ${RUST_WS}/deluge_rust/src/*.rs)
     add_custom_command(
         OUTPUT ${RUST_LIB}
         COMMAND cargo build -p deluge_rust --release --target ${RUST_TARGET}
@@ -71,6 +72,7 @@ if (UNIX AND NOT APPLE)
             ${RUST_WS}/Cargo.lock
             ${RUST_WS}/Cargo.toml ${RUST_WS}/deluge_alloc/Cargo.toml
             ${RUST_WS}/deluge_resource/Cargo.toml ${RUST_WS}/deluge_rust/Cargo.toml
+            ${RUST_WS}/deluge_audio_format/Cargo.toml
         COMMENT "Building Rust deluge_rust staticlib (${RUST_TARGET})"
         VERBATIM)
     add_custom_target(deluge_rust_rs_build DEPENDS ${RUST_LIB})
@@ -97,6 +99,7 @@ if (UNIX AND NOT APPLE)
     # already-resolved paths to re-glob), mirroring sim/CMakeLists.txt's own SIM_RUST_SOURCES.
     file(GLOB_RECURSE RUST_SOURCES_SIM CONFIGURE_DEPENDS
         ${RUST_WS}/deluge_alloc/src/*.rs ${RUST_WS}/deluge_resource/src/*.rs
+        ${RUST_WS}/deluge_audio_format/src/*.rs
         ${RUST_WS}/deluge_sample_reader/src/*.rs ${RUST_WS}/deluge_sample_fill/src/*.rs
         ${RUST_WS}/deluge_sample_source/src/*.rs ${RUST_WS}/deluge_rust/src/*.rs)
     add_custom_command(
@@ -108,6 +111,7 @@ if (UNIX AND NOT APPLE)
             ${RUST_WS}/Cargo.lock
             ${RUST_WS}/Cargo.toml ${RUST_WS}/deluge_alloc/Cargo.toml
             ${RUST_WS}/deluge_resource/Cargo.toml ${RUST_WS}/deluge_rust/Cargo.toml
+            ${RUST_WS}/deluge_audio_format/Cargo.toml
             ${RUST_WS}/deluge_sample_reader/Cargo.toml ${RUST_WS}/deluge_sample_fill/Cargo.toml
             ${RUST_WS}/deluge_sample_source/Cargo.toml
         COMMENT "Building Rust deluge_rust staticlib with the sim feature (${RUST_TARGET})"
@@ -118,6 +122,32 @@ if (UNIX AND NOT APPLE)
     add_dependencies(deluge_rust_rs_sim deluge_rust_rs_sim_build)
 
     add_subdirectory(spec_sample_reader)
+elseif (APPLE)
+    # macOS gets the umbrella staticlib too, because tests/spec needs it: audio_file_format.cpp's
+    # header parse IS the Rust decoder (crates/deluge_audio_format). Built for the DEFAULT host
+    # target rather than i686 -- the specs are 64-bit native here (no -m32 above), and letting cargo
+    # pick the host beats guessing an apple-darwin triple. The alloc/resource conformance specs stay
+    # Linux-only; this branch defines nothing but the shared archive.
+    set(RUST_WS ${CMAKE_CURRENT_LIST_DIR}/../crates)
+    set(RUST_LIB ${RUST_WS}/target/release/libdeluge_rust.a)
+    file(GLOB_RECURSE RUST_SOURCES CONFIGURE_DEPENDS
+        ${RUST_WS}/deluge_alloc/src/*.rs ${RUST_WS}/deluge_resource/src/*.rs
+        ${RUST_WS}/deluge_audio_format/src/*.rs ${RUST_WS}/deluge_rust/src/*.rs)
+    add_custom_command(
+        OUTPUT ${RUST_LIB}
+        COMMAND cargo build -p deluge_rust --release
+        WORKING_DIRECTORY ${RUST_WS}
+        DEPENDS ${RUST_SOURCES}
+            ${RUST_WS}/Cargo.lock
+            ${RUST_WS}/Cargo.toml ${RUST_WS}/deluge_alloc/Cargo.toml
+            ${RUST_WS}/deluge_resource/Cargo.toml ${RUST_WS}/deluge_rust/Cargo.toml
+            ${RUST_WS}/deluge_audio_format/Cargo.toml
+        COMMENT "Building Rust deluge_rust staticlib (host)"
+        VERBATIM)
+    add_custom_target(deluge_rust_rs_build DEPENDS ${RUST_LIB})
+    add_library(deluge_rust_rs STATIC IMPORTED GLOBAL)
+    set_target_properties(deluge_rust_rs PROPERTIES IMPORTED_LOCATION ${RUST_LIB})
+    add_dependencies(deluge_rust_rs deluge_rust_rs_build)
 endif ()
 add_subdirectory(spec)
 add_subdirectory(spec_io)

@@ -69,6 +69,11 @@ deluge-bsp = { path = "../../../../../../deluge-sdk/crates/deluge-bsp", features
 # crate deluge_resource` comment). Linked directly (not the `deluge_rust` umbrella,
 # which carries its own #[panic_handler]).
 deluge_resource = { path = "../../../../../crates/deluge_resource" }
+# The WAV/AIFF header decoder behind `libdeluge/audio_format.h`. The archived `deluge_app` object
+# closure's parseSampleHeader/parseWaveTableHeader call straight into its `deluge_audio_header_*`
+# C ABI, and there is no weak C++ fallback, so the rlib has to be on this link line too (mirrors
+# `deluge-bsp-rust`'s own dependency).
+deluge_audio_format = { path = "../../../../../crates/deluge_audio_format" }
 
 # `#[path]`-included `streaming_loader.rs` (see src/main.rs) sources
 # `StreamingFillDescriptor` and `ProdOps::begin`/`finish`'s `native_begin`/`native_finish`

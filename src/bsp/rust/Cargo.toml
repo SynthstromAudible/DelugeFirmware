@@ -110,6 +110,12 @@ fs_alloc = { package = "deluge_alloc", path = "../../../crates/deluge_alloc" }
 # in transitively via deluge_resource.
 deluge_resource = { path = "../../../crates/deluge_resource" }
 
+# The WAV/AIFF header decoder behind `libdeluge/audio_format.h`. The archived C++ app's
+# parseSampleHeader/parseWaveTableHeader call straight into its C ABI, and there is no weak C++
+# fallback, so the symbols have to be in this link. `extern crate` in main.rs keeps the rlib on
+# the link line (nothing in this crate's own Rust code references it).
+deluge_audio_format = { path = "../../../crates/deluge_audio_format" }
+
 # SR2d-5 Task 4: the Rust region-port cursor (`deluge_sample_source_*`/`deluge_sample_region_*`),
 # wrapping `cursor::SampleSource<ManagerResidency>` over the SAME `deluge_resource` handle above --
 # calls it directly, not through a second manager. Its strong `#[no_mangle]` symbols (gated
@@ -164,6 +170,9 @@ corosensei = "0.3"
 # dup-handler risk). Optional + gated by `host_app` so a plain host build never
 # pulls it in.
 deluge_resource = { path = "../../../crates/deluge_resource", optional = true }
+# Host sibling of the device dependency above -- the host-built C++ `deluge_app` calls the same
+# `deluge_audio_header_*` C ABI. Optional + gated on `host_app`, like `deluge_resource` here.
+deluge_audio_format = { path = "../../../crates/deluge_audio_format", optional = true }
 
 # SR2d-5 Task 4: host-side sibling of the device dep above. `abi.rs`'s strong symbols are gated
 # `cfg(any(target_os = "none", feature = "host_app"))`, so this crate's OWN `host_app` feature (forwarded
@@ -217,6 +226,7 @@ sanitize = ["corosensei/sanitizer"]
 ## storage stack `efatfs_host_shim`/`efatfs_core` need on host. Off by default.
 host_app = [
     "dep:deluge_resource",
+    "dep:deluge_audio_format",
     "dep:deluge_sample_source",
     "deluge_sample_source/host_app",
     "dep:deluge_sample_reader",

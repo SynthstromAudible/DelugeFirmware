@@ -1,0 +1,38 @@
+# cargo-fuzz harness for deluge_audio_format's WAV/AIFF header parser. Run with:
+#   cd crates/deluge_audio_format/fuzz && cargo +nightly fuzz run parse
+# The `parse` target feeds raw bytes to `deluge_audio_format::parse` and, on
+# success, both `wavetable::accept_as_wavetable` policy settings, asserting the
+# crate's central promise: no panic on any input.
+[package]
+name = "deluge_audio_format-fuzz"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+# REQUIRED: without this, a `fuzz/` directory nested inside a workspace member
+# gets attributed to the parent workspace by cargo's directory walk, and every
+# command fails with "current package believes it's in a workspace when it's
+# not". `crates/deluge_alloc/fuzz` hits the same trap and is currently
+# unrunnable because of it: crates/Cargo.toml's `exclude` list names it, but
+# `exclude` does NOT fix this — cargo's directory walk attributes the nested
+# package to the parent workspace regardless. An empty `[workspace]` table
+# here, in the fuzz crate's own manifest, is the fix that actually works (and
+# needed no change to crates/Cargo.toml at all).
+[workspace]
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+deluge_audio_format = { path = ".." }
+
+[[bin]]
+name = "parse"
+path = "fuzz_targets/parse.rs"
+test = false
+doc = false
+bench = false
+
+[profile.release]
+debug = 1
