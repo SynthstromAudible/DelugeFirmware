@@ -11,7 +11,12 @@ using gfx::oled::Rect;
 
 OledFrame root_frame(gfx::oled::Canvas& canvas, const Style& style, const InputSnapshot& input, RepaintGate& gate) {
 	const gfx::oled::Geometry g = canvas.geometry();
-	return OledFrame{canvas, Rect{0, g.visible_top, g.width, g.visible_height()}, Point{0, g.visible_top}, style, input,
+	return OledFrame{canvas,
+	                 Rect{0, g.visible_top, g.width, g.visible_height()},
+	                 Point{0, g.visible_top},
+	                 gfx::oled::Size{g.width, g.visible_height()},
+	                 style,
+	                 input,
 	                 gate};
 }
 
@@ -20,6 +25,12 @@ namespace {
 /// rather than relying on every span/rect computation below to come out empty.
 bool empty(const Rect& clip) {
 	return clip.w <= 0 || clip.h <= 0;
+}
+
+/// Local rect -> canvas rect, clipped. `w`/`h` of 0 means nothing survived. A free function
+/// rather than a member so OledFrame stays an aggregate (see the note at the end of frame.h).
+Rect to_canvas(const OledFrame& f, Rect r) {
+	return f.clip.intersect(Rect{f.origin.x + r.x, f.origin.y + r.y, r.w, r.h});
 }
 } // namespace
 
@@ -124,7 +135,7 @@ void OledFrame::rect_rounded(Rect r, gfx::oled::BorderRadius radius) {
 }
 
 void OledFrame::invert(Rect r) {
-	const Rect c = to_canvas(r);
+	const Rect c = to_canvas(*this, r);
 	if (c.w <= 0 || c.h <= 0) {
 		return;
 	}
@@ -143,7 +154,7 @@ void OledFrame::invert_rounded(Rect r, gfx::oled::BorderRadius radius) {
 }
 
 void OledFrame::clear(Rect r) {
-	const Rect c = to_canvas(r);
+	const Rect c = to_canvas(*this, r);
 	if (c.w <= 0 || c.h <= 0) {
 		return;
 	}

@@ -11,6 +11,13 @@ using gfx::oled::kTextSpacingY;
 using gfx::oled::kTextTitleSizeY;
 using gfx::oled::kTextTitleSpacingX;
 
+// Text metrics the gfx font tables do not carry, reproduced from the legacy
+// definitions_cxx.hpp so the FontId tables in ui/oled/text.cpp can name every arm rather than
+// spelling a number.
+constexpr int32_t kTextSmallSpacingX = 4; // definitions_cxx.hpp:967, the 5px font's textWidth
+constexpr int32_t kTextSmallSizeY = 5;    // definitions_cxx.hpp:968, its textHeight
+constexpr int32_t kTextBigSpacingX = 11;  // definitions_cxx.hpp:979, the 13px font's textWidth
+
 constexpr int32_t kSubmenuIconSpacingX = 7;
 constexpr int32_t kScrollTime = 400;         // ms pause at each end of a scrolling label
 constexpr int32_t kScrollStepForwardMs = 15; // legacy: 15 ms per pixel forwards

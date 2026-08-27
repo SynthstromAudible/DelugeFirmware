@@ -2,6 +2,9 @@
 
 #include "ui/core/metrics.h"
 
+#include <algorithm>
+#include <cstddef>
+
 namespace deluge::ui::oled {
 
 using gfx::oled::FontId;
@@ -12,9 +15,16 @@ using gfx::oled::string_width_px;
 int32_t text_height_for(FontId font) {
 	switch (font) {
 	case FontId::Px5:
-		return 5;
+		return kTextSmallSizeY; // 5
 	case FontId::Apple7:
-		return 7;
+		// 9 (kTextSpacingY), not 7. The Apple ][ face has two legacy heights that are NOT
+		// interchangeable: font_for_text_height returns kApple7 for 7-8 and kApple7Up for 9
+		// (gfx/oled/font.cpp:26-30), and kApple7Up carries y_adjust = 1 (font.cpp:13) -- the
+		// same glyphs drawn one row lower. Height 9 is the dominant legacy call shape (126
+		// sites under src/deluge against 29 for kTextSizeYUpdated = 7), including both
+		// height-passing callers of drawStringCentredShrinkIfNecessary, so it is the one
+		// FontId::Apple7 has to mean. A 7-high id can be added when a call site needs it.
+		return kTextSpacingY; // 9
 	case FontId::MetricBold9:
 		return kTextTitleSizeY; // 10
 	case FontId::MetricBold13:
@@ -28,12 +38,13 @@ int32_t text_height_for(FontId font) {
 int32_t spacing_x_for(FontId font) {
 	switch (font) {
 	case FontId::Px5:
-		return 6;
+		return kTextSmallSpacingX; // 4
 	case FontId::Apple7:
 		return kTextSpacingX; // 6
 	case FontId::MetricBold9:
-	case FontId::MetricBold13:
 		return kTextTitleSpacingX; // 9
+	case FontId::MetricBold13:
+		return kTextBigSpacingX; // 11, NOT the title font's 9 -- see definitions_cxx.hpp:979
 	case FontId::MetricBold20:
 	default:
 		return kTextHugeSpacingX; // 18
@@ -92,6 +103,37 @@ void centred_shrink(OledFrame& f, Rect rect, std::string_view s, int32_t text_wi
 	f.glyphs(s, pixel_x, rect.y, text_width, text_height, 0, rect.right(), shrink);
 }
 
+/// Port of `Canvas::draw_string_centered(string, pixel_x, pixel_y, text_spacing_x,
+/// text_spacing_y, total_width)` (gfx/oled/canvas.cpp:385-418 at 1576af582), with the rect
+/// standing in for the `pixel_x` / `total_width` pair.
+///
+/// Two legacy quirks preserved verbatim: the routine ignores its own `text_spacing_x`
+/// parameter entirely (`:417` passes the measured width as draw_string's text_width, and
+/// `use_text_width` is false, so it is never read), and it rounds the left padding *up*
+/// (`:412-415` "1px right is better than 1px left"), which differs from drawStringCentred's
+/// `>> 1` when `total_width` is odd. A `std::string_view` subrange replaces the legacy
+/// 24-char stack buffer; trimming is the same loop.
+void centred_truncate(OledFrame& f, Rect rect, std::string_view s, int32_t text_height) {
+	constexpr size_t kMaxChars = 24;
+	size_t length = std::min(s.length(), kMaxChars);
+
+	int32_t string_width = 0;
+	while ((string_width = string_width_px(s.substr(0, length), text_height)) >= rect.w - 3) {
+		if (length == 0) {
+			break; // nothing left to trim (the legacy resize() would have underflowed here)
+		}
+		length--;
+	}
+
+	const float padding = static_cast<float>(rect.w - string_width) / 2.0f;
+	int32_t padding_as_int = static_cast<int32_t>(padding);
+	if (padding != static_cast<float>(padding_as_int)) {
+		padding_as_int++;
+	}
+
+	f.glyphs(s.substr(0, length), rect.x + padding_as_int, rect.y, string_width, text_height, 0, rect.right());
+}
+
 } // namespace
 
 void text(OledFrame& f, Rect rect, std::string_view s, TextStyle ts) {
@@ -100,6 +142,10 @@ void text(OledFrame& f, Rect rect, std::string_view s, TextStyle ts) {
 
 	if (ts.shrink) {
 		centred_shrink(f, rect, s, spacing, height);
+		return;
+	}
+	if (ts.truncate) {
+		centred_truncate(f, rect, s, height);
 		return;
 	}
 
@@ -122,7 +168,12 @@ void text(OledFrame& f, Rect rect, std::string_view s, TextStyle ts) {
 }
 
 void title(OledFrame& f, std::string_view s, bool underline) {
-	f.glyphs(s, 0, kTitleY, kTextTitleSpacingX, kTextTitleSizeY);
+	// The face is the style's, per spec B section 6. Both shipped profiles set MetricBold9,
+	// whose table entries are exactly the kTextTitleSpacingX / kTextTitleSizeY that
+	// Canvas::draw_screen_title hard-coded (canvas.cpp:694 at 1576af582), so the pixels are
+	// unchanged; a profile that picks a bigger title face now actually gets it.
+	const gfx::oled::FontId font = f.style.title_font;
+	f.glyphs(s, 0, kTitleY, spacing_x_for(font), text_height_for(font));
 	if (underline) {
 		f.hline(kTitleSeparatorY, 0, f.bounds().w - 1);
 	}

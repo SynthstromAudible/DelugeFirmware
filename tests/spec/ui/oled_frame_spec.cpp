@@ -39,16 +39,28 @@ describe oled_frame("ui::oled::OledFrame", $ {
 		expect(r.lit(15, 15)).to_be_true();
 		expect(r.lit(21, 15)).to_be_false();        // would be lit if the nested clip were the outer one
 	});
-	it("clips a region that hangs off its parent, and reports the clipped bounds", _ {
+	it("clips a region that hangs off its parent, and still reports its full local rect", _ {
 		uitest::Rig64 r;
 		// Bottom-right corner: 20 wide but only 8 of those columns are on the panel.
 		r.frame.region(Rect{120, 60, 20, 20}, [&self](OledFrame& f) {
-			expect(f.bounds()).to_equal(Rect{0, 0, 8, 4});
+			expect(f.bounds()).to_equal(Rect{0, 0, 20, 20});   // spec B section 4: the requested rect
 			f.hline(0, 0, 19);                       // asks for 20 columns; 8 exist
 			f.vline(0, 0, 19);
 		});
 		expect(r.lit(127, 60)).to_be_true();
 		expect(r.lit(120, 63)).to_be_true();
+	});
+	it("keeps local (0,0) at the region's corner when it hangs off the left or top", _ {
+		uitest::Rig64 r;
+		// The case a clipped bounds() would get wrong: reporting {0,0,6,7} here would move the
+		// widget's own origin four columns right and three rows down without telling it.
+		r.frame.region(Rect{-4, -3, 10, 10}, [&self](OledFrame& f) {
+			expect(f.bounds()).to_equal(Rect{0, 0, 10, 10});
+			f.pixel(0, 0);                           // -> surface (-4,-3): off-panel, clipped
+			f.pixel(5, 5);                           // -> surface (1,2): the origin has not moved
+		});
+		expect(r.lit(1, 2)).to_be_true();
+		expect(r.lit(5, 5)).to_be_false();           // where a clipped-bounds origin would have put it
 	});
 	it("clips spans, outlines and filled areas to the region", _ {
 		uitest::Rig64 r;
