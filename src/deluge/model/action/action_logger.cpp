@@ -26,7 +26,6 @@
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"
@@ -748,7 +747,7 @@ currentClipSwitchedOver:
 
 	// If there was an actual error in the reversion itself...
 	if (error != Error::NONE) {
-		display->displayError(error);
+		deluge::notify::notice(error);
 
 		deleteAllLogs();
 	}
@@ -825,7 +824,7 @@ displayUndoMessage:
 #ifdef undoLedX
 		indicator_leds::indicateAlertOnLed(undoLedX, undoLedY);
 #else
-		display->consoleText("Undo");
+		deluge::notify::notice("Undo", deluge::notify::Notice::Kind::Console);
 #endif
 	}
 }
@@ -838,7 +837,7 @@ void ActionLogger::redo() {
 #ifdef redoLedX
 		indicator_leds::indicateAlertOnLed(redoLedX, redoLedY);
 #else
-		display->consoleText("Redo");
+		deluge::notify::notice("Redo", deluge::notify::Notice::Kind::Console);
 #endif
 	}
 }

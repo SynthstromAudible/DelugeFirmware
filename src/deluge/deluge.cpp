@@ -217,7 +217,7 @@ bool picSaysOLEDPresent = false;
 
 namespace Deluge {
 void factoryReset() {
-	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FACTORY_RESET));
+	deluge::notify::notice(deluge::l10n::String::STRING_FOR_FACTORY_RESET);
 	FlashStorage::factoryReset(false);
 	runtimeFeatureSettings.factoryReset(false);
 	midiFollow.factoryReset(false);
@@ -407,7 +407,7 @@ void setupStartupSong() {
 	// The messages we show to the user are mostly plain language, but
 	// for non-user facing errors we use codes. All messages are < 20 chars.
 	if (size > 2048) {
-		display->consoleText("Startup path too long");
+		deluge::notify::notice("Startup path too long", deluge::notify::Notice::Kind::Console);
 		return;
 	}
 
@@ -419,7 +419,7 @@ void setupStartupSong() {
 	// gives this site its real ruling.
 	if (StorageManager::fileExists(failSafePath.c_str()).value_or(false)) {
 		// canary exists, previous boot failed?
-		display->consoleText("Startup fault F1");
+		deluge::notify::notice("Startup fault F1", deluge::notify::Notice::Kind::Console);
 		return; // no cleanup, keep canary!
 	}
 	switch (startupSongMode) {
@@ -427,7 +427,7 @@ void setupStartupSong() {
 		// TODO(conflation-batch-3): unknown is being treated as absent here; the boot/failsafe batch
 		// gives this site its real ruling.
 		if (!StorageManager::fileExists(defaultSongFullPath).value_or(false)) {
-			display->consoleText("Creating template");
+			deluge::notify::notice("Creating template", deluge::notify::Notice::Kind::Console);
 			currentSong->writeTemplateSong(defaultSongFullPath);
 		}
 	}
@@ -445,7 +445,7 @@ void setupStartupSong() {
 			else {
 				// Could not create canary, not a user-facing error so code is fine.
 				// We're going to skip the startup song to avoid any issues.
-				display->consoleText("Startup fault F2");
+				deluge::notify::notice("Startup fault F2", deluge::notify::Notice::Kind::Console);
 				return; // no canary, no cleanup
 			}
 		}
@@ -455,18 +455,18 @@ void setupStartupSong() {
 		if (!StorageManager::fileExists(filename).value_or(false)) {
 			if (startupSongMode == StartupSongMode::TEMPLATE) {
 				// we tried to create it earlier, but didn't happen?
-				display->consoleText("Startup fault F3");
+				deluge::notify::notice("Startup fault F3", deluge::notify::Notice::Kind::Console);
 				// cleanup, this wasn't a crash
 				deluge_file_invalidate_cache();
 				(void)deluge::io::unlink(failSafePath);
 				return;
 			}
-			display->consoleText("Song missing");
+			deluge::notify::notice("Song missing", deluge::notify::Notice::Kind::Console);
 			// user didn't ask for the template, but if it exists let's use it instead
 			// TODO(conflation-batch-3): unknown is being treated as absent here; the boot/failsafe batch
 			// gives this site its real ruling.
 			if (StorageManager::fileExists(defaultSongFullPath).value_or(false)) {
-				display->consoleText("Using template");
+				deluge::notify::notice("Using template", deluge::notify::Notice::Kind::Console);
 				filename = defaultSongFullPath;
 				startupSongMode = StartupSongMode::TEMPLATE;
 			}
@@ -489,7 +489,7 @@ void setupStartupSong() {
 		}
 		else {
 			// what just failed??
-			display->consoleText("Startup fault F4");
+			deluge::notify::notice("Startup fault F4", deluge::notify::Notice::Kind::Console);
 		}
 		// ...but we got this far, cleanup
 		deluge_file_invalidate_cache();

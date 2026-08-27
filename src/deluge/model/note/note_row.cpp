@@ -3790,7 +3790,7 @@ void NoteRow::setDrum(Drum* newDrum, Kit* kit, ModelStackWithNoteRow* modelStack
 
 						// This is at least not ideal, so we'd better tell the user
 						if (ALPHA_OR_BETA_VERSION) {
-							display->displayPopup("E073");
+							deluge::notify::notice("E073");
 						}
 					}
 				}

@@ -206,7 +206,7 @@ void PlaybackHandler::slowRoutine() {
 			if (ALPHA_OR_BETA_VERSION && pendingGlobalMIDICommandNumClustersWritten) {
 				char buffer[12];
 				intToString(pendingGlobalMIDICommandNumClustersWritten, buffer);
-				display->displayPopup(buffer);
+				deluge::notify::notice(std::string_view(buffer));
 			}
 
 			// Run the whole undo()/redo() dispatch on the storage worker (mirrors
@@ -263,7 +263,7 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 				}
 				session.armForSwitchToArrangement();
 				deluge::notify::raise(deluge::notify::Dirty::Oled);
-				display->cancelPopup();
+				deluge::notify::notice_cancel_popup();
 			}
 
 			// Otherwise, if internal clock, restart playback
@@ -272,7 +272,7 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 					forceResetPlayPos(currentSong);
 				}
 				else {
-					display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_FOLLOWING_EXTERNAL_CLOCK));
+					deluge::notify::notice(deluge::l10n::String::STRING_FOR_FOLLOWING_EXTERNAL_CLOCK);
 				}
 			}
 		}
@@ -653,7 +653,7 @@ void PlaybackHandler::endPlayback() {
 
 	if (currentVisualCountForCountIn) {
 		currentVisualCountForCountIn = 0;
-		display->cancelPopup(); // In case the count-in was showing
+		deluge::notify::notice_cancel_popup(); // In case the count-in was showing
 	}
 
 	setLedStates();
@@ -1567,7 +1567,7 @@ void PlaybackHandler::doSongSwap(bool preservePlayPosition) {
 
 	AudioEngine::bypassCulling = true;
 
-	display->displayLoadingAnimationText("Loading"); // More loading might need to happen now, or still be happening
+	deluge::notify::notice_working("Loading"); // More loading might need to happen now, or still be happening
 	currentUIMode = UI_MODE_LOADING_SONG_NEW_SONG_PLAYING;
 	AudioEngine::logAction("PlaybackHandler::doSongSwap end");
 }
@@ -2195,7 +2195,7 @@ void PlaybackHandler::commandNudgeClock(int8_t offset) {
 			numInputTicksToSkip++; // Perform one less tick
 		}
 	}
-	display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_SYNC_NUDGED));
+	deluge::notify::notice(deluge::l10n::String::STRING_FOR_SYNC_NUDGED);
 }
 
 void PlaybackHandler::commandEditClockOutScale(int8_t offset) {
@@ -2561,7 +2561,7 @@ void PlaybackHandler::grabTempoFromClip(Clip* clip) {
 
 	if (clip->type != ClipType::AUDIO || clip->getCurrentlyRecordingLinearly()
 	    || !((AudioClip*)clip)->sampleHolder.audioFile) {
-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_GRAB_TEMPO_FROM_CLIP));
+		deluge::notify::notice(deluge::l10n::String::STRING_FOR_CANT_GRAB_TEMPO_FROM_CLIP);
 		return;
 	}
 
@@ -3352,13 +3352,11 @@ doCreateNextOverdub:
 					}
 				}
 				else {
-					display->displayPopup(
-					    deluge::l10n::get(deluge::l10n::String::STRING_FOR_AUDIO_TRACK_HAS_NO_INPUT_CHANNEL));
+					deluge::notify::notice(deluge::l10n::String::STRING_FOR_AUDIO_TRACK_HAS_NO_INPUT_CHANNEL);
 				}
 			}
 			else {
-				display->displayPopup(
-				    deluge::l10n::get(deluge::l10n::String::STRING_FOR_CREATE_OVERDUB_FROM_WHICH_CLIP));
+				deluge::notify::notice(deluge::l10n::String::STRING_FOR_CREATE_OVERDUB_FROM_WHICH_CLIP);
 			}
 		}
 	}

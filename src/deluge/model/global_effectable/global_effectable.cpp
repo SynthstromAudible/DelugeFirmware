@@ -36,6 +36,7 @@
 #include "util/comparison.h"
 #include "util/etl_string.h"
 #include "util/firmware_version.h"
+#include "util/notify.h"
 
 using namespace deluge;
 namespace params = deluge::modulation::params;
@@ -150,6 +151,9 @@ void GlobalEffectable::displayCompressorAndReverbSettings(bool on) {
 		display->popupText(popupMsg.c_str());
 	}
 	else {
+		// NOTIFY-DEFERRED: the show half of this pair is display->popupText(), which this task
+		// excludes (the shell will own PopupType). Deferring only the hide half would split an
+		// atomic show/hide across the immediate path and the queue, so both move together later.
 		display->cancelPopup();
 	}
 }
@@ -176,6 +180,9 @@ void GlobalEffectable::displayModFXSettings(bool on) {
 		display->popupText(popupMsg.c_str());
 	}
 	else {
+		// NOTIFY-DEFERRED: the show half of this pair is display->popupText(), which this task
+		// excludes (the shell will own PopupType). Deferring only the hide half would split an
+		// atomic show/hide across the immediate path and the queue, so both move together later.
 		display->cancelPopup();
 	}
 }
@@ -225,7 +232,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 					displayModFXSettings(on);
 				}
 				else {
-					display->displayPopup(getModFXTypeDisplayName());
+					deluge::notify::notice(std::string_view(getModFXTypeDisplayName()));
 				}
 				return true;
 			}
@@ -245,7 +252,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 					displayModFXSettings(on);
 				}
 				else {
-					display->displayPopup(getModFXParamDisplayName());
+					deluge::notify::notice(std::string_view(getModFXParamDisplayName()));
 				}
 				return true;
 			}
@@ -267,7 +274,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 					displayFilterSettings(on, currentFilterType);
 				}
 				else {
-					display->displayPopup(getFilterTypeDisplayName(currentFilterType));
+					deluge::notify::notice(std::string_view(getFilterTypeDisplayName(currentFilterType)));
 				}
 				return true;
 			}
@@ -285,7 +292,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 						displayFilterSettings(on, currentFilterType);
 					}
 					else {
-						display->displayPopup(getFilterModeDisplayName(currentFilterType));
+						deluge::notify::notice(std::string_view(getFilterModeDisplayName(currentFilterType)));
 					}
 					return true;
 				}
@@ -298,7 +305,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 						displayFilterSettings(on, currentFilterType);
 					}
 					else {
-						display->displayPopup(getFilterModeDisplayName(currentFilterType));
+						deluge::notify::notice(std::string_view(getFilterModeDisplayName(currentFilterType)));
 					}
 					return true;
 				}
@@ -327,7 +334,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 						displayDelaySettings(on);
 					}
 					else {
-						display->displayPopup(getDelaySyncTypeDisplayName());
+						deluge::notify::notice(std::string_view(getDelaySyncTypeDisplayName()));
 					}
 				}
 				else {
@@ -339,7 +346,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 						displayDelaySettings(on);
 					}
 					else {
-						display->displayPopup(getDelayPingPongStatusDisplayName());
+						deluge::notify::notice(std::string_view(getDelayPingPongStatusDisplayName()));
 					}
 				}
 				return true;
@@ -362,7 +369,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 					else {
 						char displayName[30];
 						getDelaySyncLevelDisplayName(displayName);
-						display->displayPopup(displayName);
+						deluge::notify::notice(std::string_view(displayName));
 					}
 				}
 				else {
@@ -374,7 +381,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 						displayDelaySettings(on);
 					}
 					else {
-						display->displayPopup(getDelayTypeDisplayName());
+						deluge::notify::notice(std::string_view(getDelayTypeDisplayName()));
 					}
 				}
 				return true;
@@ -400,7 +407,8 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 						displayCompressorAndReverbSettings(on);
 					}
 					else {
-						display->displayPopup(view.getReverbPresetDisplayName(view.getCurrentReverbPreset()));
+						deluge::notify::notice(
+						    std::string_view(view.getReverbPresetDisplayName(view.getCurrentReverbPreset())));
 					}
 				}
 				else {
@@ -413,7 +421,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 						displayCompressorAndReverbSettings(on);
 					}
 					else {
-						display->displayPopup(getCompressorParamDisplayName());
+						deluge::notify::notice(std::string_view(getCompressorParamDisplayName()));
 					}
 				}
 			}
@@ -428,7 +436,7 @@ bool GlobalEffectable::modEncoderButtonAction(uint8_t whichModEncoder, bool on,
 					displayCompressorAndReverbSettings(on);
 				}
 				else {
-					display->displayPopup(getCompressorModeDisplayName());
+					deluge::notify::notice(std::string_view(getCompressorModeDisplayName()));
 				}
 			}
 		}

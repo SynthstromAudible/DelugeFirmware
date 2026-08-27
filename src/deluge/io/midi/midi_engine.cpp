@@ -36,6 +36,7 @@
 #include "processing/engines/audio_engine.h"
 #include "storage/smsysex.h"
 #include "sync/sd_access.h"
+#include "util/notify.h"
 #include "version.h"
 
 extern "C" {
@@ -459,7 +460,7 @@ void MidiEngine::midiSysexReceived(MIDICable& cable, uint8_t* data, int32_t len)
 	} break;
 
 	case SysEx::SysexCommands::Popup:
-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_HELLO_SYSEX));
+		deluge::notify::notice(deluge::l10n::String::STRING_FOR_HELLO_SYSEX);
 		break;
 
 	case SysEx::SysexCommands::HID:

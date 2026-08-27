@@ -252,7 +252,7 @@ Clip* AudioClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStackOldC
 	void* clipMemory = deluge::memory::alloc_fast(sizeof(AudioClip));
 	if (!clipMemory) {
 ramError:
-		display->displayError(Error::INSUFFICIENT_RAM);
+		deluge::notify::notice(Error::INSUFFICIENT_RAM);
 		return nullptr;
 	}
 
@@ -1235,7 +1235,7 @@ void AudioClip::loadSample(bool mayActuallyReadFile) {
 	Error error = sampleHolder.loadFile(sampleControls.isCurrentlyReversed(), false, mayActuallyReadFile);
 	name = sampleHolder.filePath.c_str();
 	if (error != Error::NONE) {
-		display->displayError(error);
+		deluge::notify::notice(error);
 	}
 }
 

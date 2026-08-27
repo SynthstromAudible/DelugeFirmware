@@ -382,7 +382,7 @@ couldntLoad:
 
 		// If that failed (really unlikely) we're really screwed
 		if (!newInstrument) {
-			display->displayError(Error::INSUFFICIENT_RAM);
+			deluge::notify::notice(Error::INSUFFICIENT_RAM);
 			while (1) {}
 		}
 
@@ -391,7 +391,7 @@ couldntLoad:
 		newInstrument->name = "0";
 
 		((SoundInstrument*)newInstrument)->setupAsDefaultSynth(&newParamManager);
-		display->displayError(error); // E.g. show the CARD error.
+		deluge::notify::notice(error); // E.g. show the CARD error.
 	}
 
 	newInstrument->loadAllAudioFiles(true);
@@ -2160,7 +2160,7 @@ loadOutput:
 
 				if (lookingForIndex >= static_cast<int32_t>(clips->size())) {
 #if ALPHA_OR_BETA_VERSION
-					display->displayPopup("E248");
+					deluge::notify::notice("E248");
 #endif
 skipInstance:
 					thisOutput->clipInstances.erase(thisOutput->clipInstances.begin() + i);
@@ -2173,7 +2173,7 @@ skipInstance:
 				// If Instrument mismatch somehow...
 				if (thisInstance->clip->output != thisOutput) {
 #if ALPHA_OR_BETA_VERSION
-					display->displayPopup("E451"); // Changed from E041 - was a duplicate.
+					deluge::notify::notice("E451"); // Changed from E041 - was a duplicate.
 #endif
 					goto skipInstance;
 				}
@@ -2182,7 +2182,7 @@ skipInstance:
 				if (isArrangementClip && thisInstance->clip->gotInstanceYet) {
 
 #if ALPHA_OR_BETA_VERSION
-					display->displayPopup("E042");
+					deluge::notify::notice("E042");
 #endif
 					goto skipInstance;
 				}
@@ -2223,7 +2223,7 @@ skipInstance:
 
 		if (!clip->gotInstanceYet) {
 #if ALPHA_OR_BETA_VERSION
-			display->displayPopup("E043");
+			deluge::notify::notice("E043");
 #endif
 			if (currentClip == clip) {
 				currentClip = nullptr;
@@ -3065,7 +3065,7 @@ void Song::clearTempoAutomation() {
 	int32_t pos = -1; // means use the live position
 	Action* action = actionLogger.getNewAction(ActionType::AUTOMATION_DELETE, ActionAddition::ALLOWED);
 	tempoParam->autoParam->deleteAutomation(action, tempoParam);
-	display->displayPopup(l10n::get(l10n::String::STRING_FOR_AUTOMATION_CLEARED));
+	deluge::notify::notice(l10n::String::STRING_FOR_AUTOMATION_CLEARED);
 }
 
 void Song::setBPMInner(float tempoBPM, bool shouldLogAction) {
@@ -3325,6 +3325,8 @@ allDone:
 void Song::replaceInstrument(Instrument* oldOutput, Instrument* newOutput, bool keepNoteRowsWithMIDIInput) {
 	for (Output* thisOutput = firstOutput; thisOutput; thisOutput = thisOutput->next) {
 		if (thisOutput == newOutput) {
+			// NOTIFY-DEFERRED: FREEZE_WITH_ERROR() on the next line never returns to the UI tick, so a
+			// queued cancel would never drain.
 			display->cancelPopup();
 			FREEZE_WITH_ERROR("i009");
 		}
@@ -4135,7 +4137,7 @@ void Song::sortOutWhichClipsAreActiveWithoutSendingPGMs(ModelStack* modelStack,
 				if (!getBackedUpParamManagerPreferablyWithClip((ModControllableAudio*)output->toModControllable(),
 				                                               nullptr)) {
 #if ALPHA_OR_BETA_VERSION
-					display->displayPopup("E044");
+					deluge::notify::notice("E044");
 #endif
 					deleteOutputThatIsInMainList(output,
 					                             false); // Do *not* try to stop any auditioning first. There is
@@ -4610,7 +4612,7 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 				newChannel = CVInstrument::navigateChannels(newChannel, offset);
 
 				if (newChannel == oldChannel) {
-					display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG));
+					deluge::notify::notice(l10n::String::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG);
 					return output;
 				}
 				if (newChannel == CVInstrumentMode::both) {
@@ -4655,7 +4657,7 @@ Output* Song::navigateThroughPresetsForInstrument(Output* output, int32_t offset
 
 				if (newChannel == oldChannel && newChannelSuffix == oldChannelSuffix) {
 					oldNonAudioInstrument->setChannel(oldChannel); // Put it back
-					display->displayPopup(l10n::get(l10n::String::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG));
+					deluge::notify::notice(l10n::String::STRING_FOR_NO_FREE_CHANNEL_SLOTS_AVAILABLE_IN_SONG);
 					return output;
 				}
 
@@ -4692,7 +4694,7 @@ removeWorkingAnimationAndGetOut: {
 			return output;
 		}
 		else if (results.error != Error::NONE) {
-			display->displayError(results.error);
+			deluge::notify::notice(results.error);
 			goto removeWorkingAnimationAndGetOut;
 		}
 
@@ -4702,7 +4704,7 @@ removeWorkingAnimationAndGetOut: {
 		currentSong->replaceInstrument(oldInstrument, newInstrument);
 
 		oldInstrument = newInstrument;
-		display->removeLoadingAnimation();
+		deluge::notify::notice_clear_working();
 	}
 
 	currentSong->instrumentSwapped(oldInstrument);
@@ -4795,7 +4797,7 @@ Instrument* Song::changeOutputType(Instrument* oldInstrument, OutputType newOutp
 
 			// If we've searched all channels...
 			if (newSlot == oldSlot) {
-				display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_AVAILABLE_CHANNELS));
+				deluge::notify::notice(deluge::l10n::String::STRING_FOR_NO_AVAILABLE_CHANNELS);
 				return nullptr;
 			}
 		}
@@ -4808,7 +4810,7 @@ Instrument* Song::changeOutputType(Instrument* oldInstrument, OutputType newOutp
 		}
 		newInstrument = StorageManager::createNewNonAudioInstrument(newOutputType, newSlot, newSubSlot);
 		if (!newInstrument) {
-			display->displayError(Error::INSUFFICIENT_RAM);
+			deluge::notify::notice(Error::INSUFFICIENT_RAM);
 			return nullptr;
 		}
 
@@ -4822,7 +4824,7 @@ gotAnInstrument: {}
 		FileItem* fileItem = D_TRY_CATCH(loadInstrumentPresetUI.findAnUnlaunchedPresetIncludingWithinSubfolders(
 		                                     this, newOutputType, Availability::INSTRUMENT_UNUSED),
 		                                 error, {
-			                                 display->displayError(error);
+			                                 deluge::notify::notice(error);
 			                                 return nullptr;
 		                                 });
 
@@ -4840,7 +4842,7 @@ gotAnInstrument: {}
 		Browser::emptyFileItems();
 
 		if (error != Error::NONE) {
-			display->displayError(error);
+			deluge::notify::notice(error);
 			return nullptr;
 		}
 
@@ -4848,11 +4850,11 @@ gotAnInstrument: {}
 			removeInstrumentFromHibernationList(newInstrument);
 		}
 
-		display->displayLoadingAnimationText("Loading");
+		deluge::notify::notice_working("Loading");
 
 		newInstrument->loadAllAudioFiles(true);
 
-		display->removeWorkingAnimation();
+		deluge::notify::notice_clear_working();
 	}
 
 #if ALPHA_OR_BETA_VERSION
@@ -5081,7 +5083,7 @@ Instrument* Song::getNonAudioInstrumentToSwitchTo(OutputType newOutputType, Avai
 
 		// If we've searched all channels...
 		if (newSlot == oldSlot) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_NO_UNUSED_CHANNELS_AVAILABLE));
+			deluge::notify::notice(deluge::l10n::String::STRING_FOR_NO_UNUSED_CHANNELS_AVAILABLE);
 			return nullptr;
 		}
 	}
@@ -5099,7 +5101,7 @@ Instrument* Song::getNonAudioInstrumentToSwitchTo(OutputType newOutputType, Avai
 		}
 		newInstrument = StorageManager::createNewNonAudioInstrument(newOutputType, newSlot, newSubSlot);
 		if (!newInstrument) {
-			display->displayError(Error::INSUFFICIENT_RAM);
+			deluge::notify::notice(Error::INSUFFICIENT_RAM);
 			return nullptr;
 		}
 	}
@@ -5722,7 +5724,7 @@ void Song::displayCurrentRootNoteAndScaleName() {
 			return;
 		}
 	}
-	display->displayPopup(popupMsg.c_str());
+	deluge::notify::notice(std::string_view(popupMsg.c_str()));
 }
 
 void Song::commandTranspose(int32_t interval) {
@@ -5743,7 +5745,7 @@ void Song::transpose(int32_t interval) {
 		displayCurrentRootNoteAndScaleName();
 	}
 	else {
-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CANT_TRANSPOSE));
+		deluge::notify::notice(deluge::l10n::String::STRING_FOR_CANT_TRANSPOSE);
 	}
 }
 
@@ -5766,7 +5768,7 @@ void Song::displayMasterTransposeInterval() {
 		deluge::string::appendInt(popupMsg, masterTransposeInterval);
 		popupMsg.append(" Semitones");
 	}
-	display->displayPopup(popupMsg.c_str());
+	deluge::notify::notice(std::string_view(popupMsg.c_str()));
 }
 
 ModelStackWithThreeMainThings* Song::setupModelStackWithSongAsTimelineCounter(void* memory) {

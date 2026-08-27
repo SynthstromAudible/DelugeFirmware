@@ -24,6 +24,7 @@
 #include "io/midi/midi_engine.h"
 #include "memory/alloc_metadata.h"
 #include "util/chainload.h"
+#include "util/notify.h"
 
 #include "util/pack.h"
 
@@ -218,7 +219,7 @@ void Debug::loadCheckAndRun(uint8_t* data, int32_t len) {
 	unpack_7bit_to_8bit((uint8_t*)fields, sizeof(fields), data + 2, 14);
 
 	if (handshake != fields[0]) {
-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_BAD_KEY));
+		deluge::notify::notice(deluge::l10n::String::STRING_FOR_BAD_KEY);
 		return;
 	}
 
@@ -227,7 +228,7 @@ void Debug::loadCheckAndRun(uint8_t* data, int32_t len) {
 	uint32_t checksum = get_crc(load_buf, code_file_size);
 
 	if (checksum != fields[2]) {
-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CHECKSUM_FAIL));
+		deluge::notify::notice(deluge::l10n::String::STRING_FOR_CHECKSUM_FAIL);
 		return;
 	}
 

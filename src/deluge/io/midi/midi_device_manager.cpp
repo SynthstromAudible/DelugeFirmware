@@ -36,6 +36,7 @@
 #include "storage/existence_policy.h"
 #include "storage/storage_manager.h"
 #include "util/misc.h"
+#include "util/notify.h"
 #include <algorithm>
 #include <new>
 #include <strings.h>
@@ -504,7 +505,7 @@ bool successfullyReadDevicesFromFile = false; // We'll only do this one time
 
 void factoryReset(bool showPopup) {
 	if (showPopup) {
-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RESET_MIDI_DEVICES));
+		deluge::notify::notice(deluge::l10n::String::STRING_FOR_RESET_MIDI_DEVICES);
 	}
 
 	// May give an error (e.g. no such file), but there is no real consequence from that.

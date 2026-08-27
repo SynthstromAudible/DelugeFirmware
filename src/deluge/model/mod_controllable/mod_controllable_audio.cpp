@@ -1559,6 +1559,9 @@ void ModControllableAudio::displayFilterSettings(bool on, FilterType currentFilt
 		display->popupText(popupMsg.c_str());
 	}
 	else {
+		// NOTIFY-DEFERRED: the show half of this pair is display->popupText(), which this task
+		// excludes (the shell will own PopupType). Deferring only the hide half would split an
+		// atomic show/hide across the immediate path and the queue, so both move together later.
 		display->cancelPopup();
 	}
 }
@@ -1586,6 +1589,9 @@ void ModControllableAudio::displayDelaySettings(bool on) {
 		display->popupText(popupMsg.c_str());
 	}
 	else {
+		// NOTIFY-DEFERRED: the show half of this pair is display->popupText(), which this task
+		// excludes (the shell will own PopupType). Deferring only the hide half would split an
+		// atomic show/hide across the immediate path and the queue, so both move together later.
 		display->cancelPopup();
 	}
 }
@@ -1616,6 +1622,9 @@ void ModControllableAudio::displaySidechainAndReverbSettings(bool on) {
 		display->popupText(popupMsg.c_str());
 	}
 	else {
+		// NOTIFY-DEFERRED: the show half of this pair is display->popupText(), which this task
+		// excludes (the shell will own PopupType). Deferring only the hide half would split an
+		// atomic show/hide across the immediate path and the queue, so both move together later.
 		display->cancelPopup();
 	}
 }
@@ -1685,6 +1694,9 @@ void ModControllableAudio::displayOtherModKnobSettings(uint8_t whichModButton, b
 		display->popupText(popupMsg.c_str());
 	}
 	else {
+		// NOTIFY-DEFERRED: the show half of this pair is display->popupText(), which this task
+		// excludes (the shell will own PopupType). Deferring only the hide half would split an
+		// atomic show/hide across the immediate path and the queue, so both move together later.
 		display->cancelPopup();
 	}
 }

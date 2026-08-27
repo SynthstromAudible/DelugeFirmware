@@ -431,7 +431,7 @@ bool Clip::opportunityToBeginSessionLinearRecording(ModelStackWithTimelineCounte
 
 		Error error = beginLinearRecording(modelStack, buttonPressLatency);
 		if (error != Error::NONE) {
-			display->displayError(error);
+			deluge::notify::notice(error);
 			return false;
 		}
 

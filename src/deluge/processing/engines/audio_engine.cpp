@@ -16,6 +16,7 @@
  */
 
 #include "processing/engines/audio_engine.h"
+#include "util/notify.h"
 
 #include "chrono"
 #include "definitions.h"
@@ -1489,7 +1490,7 @@ void previewSample(std::string_view path, bool shouldActuallySound) {
 	Error error = range->sampleHolder.loadFile(false, true, true, CLUSTER_ENQUEUE);
 
 	if (error != Error::NONE) {
-		display->displayError(error); // Rare, shouldn't cause later problems.
+		deluge::notify::notice(error); // Rare, shouldn't cause later problems.
 	}
 
 	if (shouldActuallySound) {
@@ -1610,7 +1611,7 @@ void doRecorderCardRoutines() {
 
 		Error error = recorder->cardRoutine();
 		if (error != Error::NONE) {
-			display->displayError(error);
+			deluge::notify::notice(error);
 		}
 
 		// If, while in the card routine, a new Recorder was added, then our linked list traversal state thing will
@@ -1634,7 +1635,7 @@ void doRecorderCardRoutines() {
 	}
 
 	if (ALPHA_OR_BETA_VERSION && ENABLE_CLIP_CUTTING_DIAGNOSTICS && count >= 10 && !display->hasPopup()) {
-		display->displayPopup("MORE");
+		deluge::notify::notice("MORE");
 	}
 }
 

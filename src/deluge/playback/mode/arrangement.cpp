@@ -22,7 +22,6 @@
 #include "gui/views/arranger_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "hid/display/display.h"
 #include "hid/led/pad_leds.h"
 #include "model/clip/clip_instance.h"
 #include "model/clip/instrument_clip.h"
@@ -387,7 +386,7 @@ void Arrangement::resetPlayPos(int32_t newPos, bool doingComplete, int32_t butto
 
 				Error error = output->possiblyBeginArrangementRecording(currentSong, newPos);
 				if (error != Error::NONE) {
-					display->displayError(error);
+					deluge::notify::notice(error);
 				}
 			}
 		}

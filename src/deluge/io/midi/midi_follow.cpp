@@ -24,7 +24,6 @@
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
-#include "hid/display/display.h"
 #include "io/file.hpp"
 #include "io/midi/midi_device.h"
 #include "io/midi/midi_engine.h"
@@ -45,6 +44,7 @@
 #include "storage/storage_manager.h"
 #include "util/c_string.h"
 #include "util/etl_string.h"
+#include "util/notify.h"
 #include <cstdlib>
 
 using namespace deluge;
@@ -123,7 +123,7 @@ void MidiFollow::init() {
 
 void MidiFollow::factoryReset(bool showPopup) {
 	if (showPopup) {
-		display->displayPopup(l10n::get(l10n::String::STRING_FOR_RESET_MIDI_FOLLOW));
+		deluge::notify::notice(l10n::String::STRING_FOR_RESET_MIDI_FOLLOW);
 	}
 
 	// May give an error (e.g. no such file), but there is no real consequence from that.
@@ -653,7 +653,7 @@ void MidiFollow::displayParamControlError(int32_t soundParamId, int32_t globalPa
 			popupMsg.append("Can't control: \n");
 			popupMsg.append(name);
 		}
-		display->displayPopup(popupMsg.c_str());
+		deluge::notify::notice(std::string_view(popupMsg.c_str()));
 	}
 }
 

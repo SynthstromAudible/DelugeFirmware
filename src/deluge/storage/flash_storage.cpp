@@ -33,6 +33,7 @@
 #include "util/firmware_version.h"
 #include "util/functions.h"
 #include "util/misc.h"
+#include "util/notify.h"
 #include <cstdint>
 #include <modulation/patch/patch_cable.h>
 
@@ -372,7 +373,7 @@ void resetSettings() {
 
 void factoryReset(bool showPopup) {
 	if (showPopup) {
-		display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_RESET_FLASH));
+		deluge::notify::notice(deluge::l10n::String::STRING_FOR_RESET_FLASH);
 	}
 	resetSettings();
 	writeSettings();

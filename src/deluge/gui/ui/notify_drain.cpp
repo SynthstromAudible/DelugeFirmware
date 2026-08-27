@@ -129,14 +129,20 @@ void drain_notifications() {
 		case Notice::Kind::Error:
 			display->displayError(error_of(n));
 			break;
-		case Notice::Kind::Text:
+		case Notice::Kind::Text: {
+			// `numFlashes` is the one non-7SEG parameter of displayPopup(): OLED::displayPopup() passes
+			// `!numFlashes` as `persistent`, so 0 means "stays until something removes it" (the count-in
+			// popup above uses exactly that). Severity::Warn is how a notice asks for it; everything
+			// else keeps the legacy default of 3.
+			const int8_t flashes = (n.severity == Notice::Severity::Warn) ? 0 : 3;
 			if (n.string_id) {
-				display->displayPopup(deluge::l10n::get(string_of(n)), 3, false, 255, 1, popup_type_of(n));
+				display->displayPopup(deluge::l10n::get(string_of(n)), flashes, false, 255, 1, popup_type_of(n));
 			}
 			else {
-				display->displayPopup(n.text, 3, false, 255, 1, popup_type_of(n));
+				display->displayPopup(n.text, flashes, false, 255, 1, popup_type_of(n));
 			}
 			break;
+		}
 		case Notice::Kind::Console:
 			display->consoleText(n.string_id ? deluge::l10n::get(string_of(n)) : n.text);
 			break;

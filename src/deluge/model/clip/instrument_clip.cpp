@@ -3678,7 +3678,7 @@ bool InstrumentClip::isEmpty(bool displayPopup) {
 	// does this clip have notes?
 	if (containsAnyNotes()) {
 		if (displayPopup) {
-			display->displayPopup(deluge::l10n::get(deluge::l10n::String::STRING_FOR_CLIP_NOT_EMPTY));
+			deluge::notify::notice(deluge::l10n::String::STRING_FOR_CLIP_NOT_EMPTY);
 		}
 		return false;
 	}
@@ -3752,7 +3752,7 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 		FileItem* fileItem = D_TRY_CATCH(
 		    loadInstrumentPresetUI.confirmPresetOrNextUnlaunchedOne(newOutputType, &newName, availabilityRequirement),
 		    error, {
-			    display->displayError(error);
+			    deluge::notify::notice(error);
 			    return nullptr;
 		    });
 
@@ -3771,7 +3771,7 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 		Browser::emptyFileItems();
 
 		if (error != Error::NONE) {
-			display->displayError(error);
+			deluge::notify::notice(error);
 			return nullptr;
 		}
 
@@ -3779,7 +3779,7 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 			modelStack->song->removeInstrumentFromHibernationList(newInstrument);
 		}
 
-		display->displayLoadingAnimationText("Loading");
+		deluge::notify::notice_working("Loading");
 		newInstrument->loadAllAudioFiles(true);
 	}
 
@@ -3813,7 +3813,7 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 	outputChanged(modelStack, newInstrument);
 	modelStack->song->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E062", "H062");
 
-	display->removeWorkingAnimation();
+	deluge::notify::notice_clear_working();
 
 	return newInstrument;
 }
@@ -4227,7 +4227,7 @@ Clip* InstrumentClip::cloneAsNewOverdub(ModelStackWithTimelineCounter* modelStac
 	void* clipMemory = deluge::memory::alloc_fast(sizeof(InstrumentClip));
 	if (!clipMemory) {
 ramError:
-		display->displayError(Error::INSUFFICIENT_RAM);
+		deluge::notify::notice(Error::INSUFFICIENT_RAM);
 		return nullptr;
 	}
 
@@ -4235,7 +4235,7 @@ ramError:
 
 	Error error = newParamManager.cloneParamCollectionsFrom(&paramManager, false, true);
 	if (error != Error::NONE) {
-		display->displayError(error);
+		deluge::notify::notice(error);
 		return nullptr;
 	}
 
