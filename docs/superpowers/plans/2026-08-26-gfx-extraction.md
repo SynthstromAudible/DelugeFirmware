@@ -383,7 +383,7 @@ Records what today's renderer draws, as human-readable P1 PBM files. Every later
 **Interfaces:**
 - Produces: `tests/spec/gfx/support/pbm.h`:
   `std::string page_major_to_pbm(const uint8_t* bytes, int width, int height);` — P1 text, one row per line.
-  `tests/spec/gfx/support/golden.h`: `void expect_golden(const std::string& name, const std::string& actual);` — compares to `GFX_GOLDEN_DIR/<name>`; with env `GFX_GOLDEN_UPDATE=1` writes it instead.
+  `tests/spec/gfx/support/golden.h`: `void expect_golden(auto& self, const std::string& name, const std::string& actual);` — `self` is the CppSpec example context (needed by its `expect` macro); compares to `GFX_GOLDEN_DIR/<name>`; with env `GFX_GOLDEN_UPDATE=1` writes it instead.
 - Scenes (names are the golden file stems): `primitives`, `text_all_fonts`, `text_alignment`, `icons`, `rounded_and_invert`, `graphic_multiline`, `line_options`.
 
 - [ ] **Step 1: Write the support headers**
@@ -477,7 +477,7 @@ describe canvas_golden("Canvas golden frames", $ {
 		c.drawRectangle(2, 12, 30, 30);
 		c.drawCircle(100, 20, 7, false);
 		c.drawCircle(110, 38, 5, true);
-		expect_golden("oled/primitives.pbm", pbm(c));
+		expect_golden(self, "oled/primitives.pbm", pbm(c));
 	});
 
 	it("text_all_fonts", _ {
@@ -488,7 +488,7 @@ describe canvas_golden("Canvas golden frames", $ {
 		c.drawString("Ag10", 0, 16, 9, 10);  // metric 9
 		c.drawString("Ag13", 40, 16, 9, 13); // metric 13
 		c.drawString("Ag20", 0, 28, 18, 20); // metric 20
-		expect_golden("oled/text_all_fonts.pbm", pbm(c));
+		expect_golden(self, "oled/text_all_fonts.pbm", pbm(c));
 	});
 
 	it("text_alignment", _ {
@@ -498,7 +498,7 @@ describe canvas_golden("Canvas golden frames", $ {
 		c.drawStringCentered("MID", 10, 26, 6, 9, 60);
 		c.drawStringCentredShrinkIfNecessary("THIS TITLE IS FAR TOO LONG TO FIT", 36, 9, 10);
 		c.drawString("SCROLL", 0, 40, 6, 7, 3, 40, true);
-		expect_golden("oled/text_alignment.pbm", pbm(c));
+		expect_golden(self, "oled/text_alignment.pbm", pbm(c));
 	});
 
 	it("icons", _ {
@@ -507,7 +507,7 @@ describe canvas_golden("Canvas golden frames", $ {
 		c.drawIcon(kArrow, 20, 9, true);
 		c.drawIconCentered(kArrow, 40, 40, 20);
 		c.drawGraphicMultiLine(kArrowData, 100, 13, 8, 8, 1);
-		expect_golden("oled/icons.pbm", pbm(c));
+		expect_golden(self, "oled/icons.pbm", pbm(c));
 	});
 
 	it("rounded_and_invert", _ {
@@ -526,7 +526,7 @@ describe canvas_golden("Canvas golden frames", $ {
 		Canvas::roundedCornersEnabled = false;
 		c.drawRectangleRounded(2, 38, 40, 46);
 		Canvas::roundedCornersEnabled = true;
-		expect_golden("oled/rounded_and_invert.pbm", pbm(c));
+		expect_golden(self, "oled/rounded_and_invert.pbm", pbm(c));
 	});
 
 	it("graphic_multiline", _ {
@@ -538,7 +538,7 @@ describe canvas_golden("Canvas golden frames", $ {
 		c.drawGraphicMultiLine(g, 20, 9, 16, 16, 2);
 		c.drawGraphicMultiLine(g, 40, 15, 16, 12, 2);
 		c.drawGraphicMultiLine(g, 120, 20, 16, 16, 2); // clipped at right edge
-		expect_golden("oled/graphic_multiline.pbm", pbm(c));
+		expect_golden(self, "oled/graphic_multiline.pbm", pbm(c));
 	});
 
 	it("line_options", _ {
@@ -546,7 +546,7 @@ describe canvas_golden("Canvas golden frames", $ {
 		c.drawLine(0, 6, 127, 47, DrawLineOptions{.thick = true});
 		c.drawLine(0, 47, 127, 6, DrawLineOptions{.min_x = 20, .max_x = 100});
 		c.drawScreenTitle("TITLE");
-		expect_golden("oled/line_options.pbm", pbm(c));
+		expect_golden(self, "oled/line_options.pbm", pbm(c));
 	});
 });
 
@@ -1577,7 +1577,7 @@ describe pad_grid("gfx::grid::PadGrid", $ {
 		g.set(0, 0, RGB{255, 0, 0});
 		g.set(17, 7, RGB{0, 255, 0});
 		g.fill_rect(4, 3, 2, 2, RGB{10, 20, 30});
-		expect_golden("grid/pad_grid_basic.state", grid_to_state(g));
+		expect_golden(self, "grid/pad_grid_basic.state", grid_to_state(g));
 	});
 });
 
