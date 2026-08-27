@@ -1480,11 +1480,11 @@ void registerSideChainHit(int32_t strength) {
 	sideChainHitPending = combineHitStrengths(strength, sideChainHitPending);
 }
 
-void previewSample(std::string_view path, bool shouldActuallySound) {
+Error previewSample(std::string_view path, bool shouldActuallySound) {
 	stopAnyPreviewing();
 	MultisampleRange* range = (MultisampleRange*)sampleForPreview->sources[0].getOrCreateFirstRange();
 	if (!range) {
-		return;
+		return Error::INSUFFICIENT_RAM;
 	}
 	range->sampleHolder.filePath.assign(path);
 	// CLUSTER_ENQUEUE, not CLUSTER_LOAD_IMMEDIATELY: the immediate mode reads the covered clusters from
@@ -1497,6 +1497,16 @@ void previewSample(std::string_view path, bool shouldActuallySound) {
 	// Enqueueing never blocks. The note-on then sees LOADING and defers (VoiceUnisonPartSource), so the
 	// preview starts a few ms late instead of either stalling audio or dropping the voice.
 	Error error = range->sampleHolder.loadFile(false, true, true, CLUSTER_ENQUEUE, false, /*mayLoadAsync=*/true);
+
+	if (error == Error::LOAD_IN_PROGRESS) {
+		// Not a failure and not an outcome: the async loader has this file and has not finished. There
+		// is no sample to note-on (sampleHolder.audioFile is still nullptr, and a note-on against it
+		// would start a voice with nothing behind it) and nothing to draw. Hand the deferral back
+		// UNREPORTED so the caller's own tick can ask again -- see the declaration's contract. Showing
+		// a popup here would tell the user a load failed that is still running; swallowing it here
+		// would leave the preview permanently silent with no error at all.
+		return error;
+	}
 
 	if (error != Error::NONE) {
 		display->displayError(error); // Rare, shouldn't cause later problems.
@@ -1522,6 +1532,8 @@ void previewSample(std::string_view path, bool shouldActuallySound) {
 		bypassCulling = true;
 		sampleForPreview->Sound::noteOn(modelStack, &sampleForPreview->arpeggiator, kNoteForDrum, zeroMPEValues);
 	}
+
+	return error;
 }
 
 void stopAnyPreviewing() {

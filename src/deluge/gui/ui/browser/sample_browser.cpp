@@ -21,7 +21,9 @@
 #include "model/sample/sample.h"
 #include "util/try.h"
 #include <iterator>
+#include <optional>
 #include <ranges>
+#include <utility>
 #undef __GNU_VISIBLE
 #define __GNU_VISIBLE 1 // Makes strcasestr visible. Might already be the reason for the define above
 #include "extern.h"
@@ -94,6 +96,11 @@ SampleBrowser::SampleBrowser() {
 }
 
 bool SampleBrowser::opened() {
+
+	// Nothing carried over from a previous visit: a target deferred when the browser closed names a
+	// file in whatever folder was open then, and graphicsRoutine() starts running again the moment
+	// this UI is current -- before folderContentsReady() has picked the file for THIS visit.
+	deferredPreview_.reset();
 
 	bool success = Browser::opened();
 	if (!success) {
@@ -538,40 +545,100 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 
 	// Nothing to preview (empty selection or a folder) — just tear down any preview onscreen.
 	if (!currentFileItem || currentFileItem->isFolder) {
+		// Whatever was deferred is no longer what the user is on; re-driving it would land a
+		// waveform for a file the cursor has left. See previewFile() on why dropping it is free.
+		deferredPreview_.reset();
 		clearPreviewDisplay(movementDirection);
 		return;
 	}
 
+	previewFile(getCurrentFilePath(), movementDirection);
+}
+
+void SampleBrowser::previewFile(std::string path, int32_t movementDirection) {
 	// Snapshot the target so the dispatched op loads the file pointed at now, even if the
 	// selection moves on before it runs (fast cursor-scroll under async dispatch).
 	PreviewTarget target{
-	    .path = getCurrentFilePath(),
+	    .path = std::move(path),
 	    .movementDirection = movementDirection,
 	};
 
+	// A user-driven preview supersedes any deferred one: the file it was waiting for is no longer
+	// the file the user is on, so re-driving it would land a stale waveform. Dropping it is safe --
+	// the load itself carries on in the loader and its result is either collected by a later request
+	// for the same path or evicted, which costs the I/O and nothing else (see audio_loader.rs's
+	// RESULTS doc).
+	deferredPreview_.reset();
+	// A dropped dispatch is not re-armed here, unlike the re-drive: this is user-driven, and the
+	// next cursor move re-requests. Re-arming would put a target the user has moved off in front of
+	// graphicsRoutine().
+	(void)dispatchPreview(target);
+}
+
+bool SampleBrowser::dispatchPreview(const PreviewTarget& target) {
 	// Coalesce latest-wins onto one owner op: while one preview is loading, a newer request
 	// is queued and dispatched on completion, so rapid scrolls converge on the file landed on.
-	if (previewCoalescer_.request(target)) {
-		if (!deluge::storage::Owner::run(&SampleBrowser::runPreviewOp, this)) {
-			// Owner queue full → the op won't run, so release the guard or the coalescer
-			// would wedge single-flight forever. The next cursor move re-requests.
-			previewCoalescer_.reset();
-		}
+	if (!previewCoalescer_.request(target)) {
+		return true; // An op is already running and will pick this up on completion.
 	}
+	if (!deluge::storage::Owner::run(&SampleBrowser::runPreviewOp, this)) {
+		// Owner queue full → the op won't run, so release the guard or the coalescer
+		// would wedge single-flight forever.
+		previewCoalescer_.reset();
+		return false;
+	}
+	return true;
 }
 
 void SampleBrowser::runPreviewOp(void* self) {
 	auto* browser = static_cast<SampleBrowser*>(self);
-	browser->renderPreviewForTarget(browser->previewCoalescer_.current());
+	const PreviewTarget attempted = browser->previewCoalescer_.current();
+	const bool deferred = browser->renderPreviewForTarget(attempted);
+
 	// If a newer target arrived while this ran, dispatch it (latest-wins).
 	if (auto next = browser->previewCoalescer_.complete(); next.has_value()) {
+		// It supersedes `attempted` even if that deferred: re-driving the older one would land a
+		// waveform for a file the cursor has already left, which is the whole thing latest-wins
+		// exists to prevent. Its own deferral, if it defers, is recorded by the op just dispatched.
+		browser->deferredPreview_.reset();
 		if (!deluge::storage::Owner::run(&SampleBrowser::runPreviewOp, self)) {
-			browser->previewCoalescer_.reset(); // re-dispatch dropped — release (see previewIfPossible)
+			browser->previewCoalescer_.reset(); // re-dispatch dropped — release (see dispatchPreview)
 		}
+		return;
+	}
+
+	if (deferred) {
+		// The async loader has this file and has not finished. Nothing sounded, nothing drew, and
+		// nothing reported an error -- so unless something asks again this preview is simply lost.
+		// Hand it to graphicsRoutine(), which runs every ~15 ms while this UI is up.
+		browser->deferredPreview_ = attempted;
 	}
 }
 
-void SampleBrowser::renderPreviewForTarget(const PreviewTarget& target) {
+void SampleBrowser::graphicsRoutine() {
+	// Re-ask for a deferred preview.
+	//
+	// Deliberately re-entering through the coalescer rather than calling renderPreviewForTarget
+	// straight: the load binds a read stream, which is card I/O and belongs on the storage owner,
+	// and going through request() keeps the single-flight guard honest if the user scrolls while
+	// this is in flight. If the coalescer is already busy, request() queues this as the latest
+	// target and the running op picks it up on completion, so the re-drive is not lost there either.
+	//
+	// Taken OUT of the member before dispatching, not after: where the storage owner runs its ops
+	// inline (legacy/host), runPreviewOp completes inside dispatchPreview and re-arms this for a
+	// second deferral -- and clearing afterwards would wipe exactly that. It goes back only if
+	// nothing took it, which is the one case in which nothing can have re-armed it.
+	if (deferredPreview_.has_value()) {
+		const PreviewTarget target = *std::exchange(deferredPreview_, std::nullopt);
+		if (!dispatchPreview(target)) {
+			deferredPreview_ = target; // owner queue full; ask again next tick rather than drop it
+		}
+	}
+
+	UI::graphicsRoutine();
+}
+
+bool SampleBrowser::renderPreviewForTarget(const PreviewTarget& target) {
 
 	bool didDraw = false;
 
@@ -596,7 +663,12 @@ void SampleBrowser::renderPreviewForTarget(const PreviewTarget& target) {
 	}
 
 	// previewSample always resolves target.path fresh, the same as any other path-based open.
-	AudioEngine::previewSample(target.path, shouldActuallySound);
+	if (AudioEngine::previewSample(target.path, shouldActuallySound) == Error::LOAD_IN_PROGRESS) {
+		// Deferred, not failed. Leave the display exactly as it is -- clearing it here would flash
+		// the previous waveform away and back again a few ms later, where the synchronous path
+		// simply blocks with the old content still up. The caller re-drives.
+		return true;
+	}
 
 	if (autoLoadEnabled && getCurrentClip()->type != ClipType::AUDIO) {
 		// Feature: if Load has been toggled on, then the file will be auto-loaded into the current instrument
@@ -651,6 +723,7 @@ void SampleBrowser::renderPreviewForTarget(const PreviewTarget& target) {
 	if (!didDraw) {
 		clearPreviewDisplay(target.movementDirection);
 	}
+	return false;
 }
 
 void SampleBrowser::clearPreviewDisplay(int32_t movementDirection) {

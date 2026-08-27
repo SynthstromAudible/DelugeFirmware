@@ -141,7 +141,20 @@ void routineWithClusterLoading();
 void runRoutine();
 
 void init();
-void previewSample(std::string_view path, bool shouldActuallySound);
+/// @brief Load the sample at @p path into the preview drum and, if @p shouldActuallySound, sound it.
+///
+/// Opts into the async loader (AudioFileHolder::loadFile's `mayLoadAsync`), so the load may not be
+/// finished when this returns.
+///
+/// @param path                The file to preview. Resolved fresh, like any other path-based open.
+/// @param shouldActuallySound Whether to note-on the preview drum once the sample is in hand.
+/// @return `Error::NONE` once the sample is loaded (or was already resident);
+///         `Error::LOAD_IN_PROGRESS` if the async loader has it and has not finished -- NOT a
+///         failure, and NOT reported to the user: nothing was sounded or drawn, and the CALLER MUST
+///         call this again on a later tick, without further user input, or the preview never
+///         happens at all. Any other value is a real failure, already shown to the user by this
+///         function.
+Error previewSample(std::string_view path, bool shouldActuallySound);
 void stopAnyPreviewing();
 
 void songSwapAboutToHappen();
