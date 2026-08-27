@@ -670,36 +670,53 @@ constexpr uint8_t normaliseKerningChar(uint8_t the_char) {
 
 // Kerning rules for specific character pairs at different text heights
 // Format: {textHeight, previousChar, currentChar, adjustment}
-constexpr std::array<KerningRule, 48> kKerningRules{{
+constexpr auto kKerningRules = std::to_array<KerningRule>({
     // Title/menu font (textHeight 10): exact pairs
+    {.text_height = 10, .previous_char = 'B', .current_char = 'A', .adjustment = -1},
     {.text_height = 10, .previous_char = 'D', .current_char = 'A', .adjustment = -1},
     {.text_height = 10, .previous_char = 'F', .current_char = 'A', .adjustment = -1},
+    {.text_height = 10, .previous_char = 'G', .current_char = 'A', .adjustment = -1},
+    {.text_height = 10, .previous_char = 'O', .current_char = 'A', .adjustment = -1},
     {.text_height = 10, .previous_char = 'P', .current_char = 'A', .adjustment = -1},
+    {.text_height = 10, .previous_char = 'S', .current_char = 'A', .adjustment = -1},
     {.text_height = 10, .previous_char = 'T', .current_char = 'A', .adjustment = -1},
-    {.text_height = 10, .previous_char = 'W', .current_char = 'A', .adjustment = -1},
+    {.text_height = 10, .previous_char = 'V', .current_char = 'A', .adjustment = -1},
+    {.text_height = 10, .previous_char = 'W', .current_char = 'A', .adjustment = -2},
     {.text_height = 10, .previous_char = 'Y', .current_char = 'A', .adjustment = -2},
     {.text_height = 10, .previous_char = '7', .current_char = 'A', .adjustment = -1},
     {.text_height = 10, .previous_char = '9', .current_char = 'A', .adjustment = -1},
+    {.text_height = 10, .previous_char = 'A', .current_char = 'C', .adjustment = -1},
+    {.text_height = 10, .previous_char = 'A', .current_char = 'G', .adjustment = -1},
+    {.text_height = 10, .previous_char = 'W', .current_char = 'J', .adjustment = -1},
     {.text_height = 10, .previous_char = '7', .current_char = 'J', .adjustment = -1},
     {.text_height = 10, .previous_char = 'A', .current_char = 'O', .adjustment = -1},
     {.text_height = 10, .previous_char = 'W', .current_char = 'O', .adjustment = -1},
     {.text_height = 10, .previous_char = 'Y', .current_char = 'O', .adjustment = -1},
     {.text_height = 10, .previous_char = 'N', .current_char = 'R', .adjustment = 1},
+    {.text_height = 10, .previous_char = 'A', .current_char = 'S', .adjustment = -1},
     {.text_height = 10, .previous_char = 'Y', .current_char = 'S', .adjustment = -1},
     {.text_height = 10, .previous_char = 'A', .current_char = 'T', .adjustment = -1},
     {.text_height = 10, .previous_char = 'L', .current_char = 'T', .adjustment = -1},
-    {.text_height = 10, .previous_char = '\'', .current_char = 'T', .adjustment = -1},
     {.text_height = 10, .previous_char = '"', .current_char = 'T', .adjustment = -1},
     {.text_height = 10, .previous_char = '4', .current_char = 'T', .adjustment = -1},
     {.text_height = 10, .previous_char = '6', .current_char = 'T', .adjustment = -1},
     {.text_height = 10, .previous_char = 'A', .current_char = 'V', .adjustment = -1},
+    {.text_height = 10, .previous_char = 'L', .current_char = 'V', .adjustment = -1},
     {.text_height = 10, .previous_char = 'A', .current_char = 'W', .adjustment = -2},
     {.text_height = 10, .previous_char = 'A', .current_char = 'Y', .adjustment = -2},
     {.text_height = 10, .previous_char = 'L', .current_char = 'Y', .adjustment = -1},
+    {.text_height = 10, .previous_char = 'O', .current_char = 'Y', .adjustment = -1},
     {.text_height = 10, .previous_char = 'W', .current_char = '.', .adjustment = -2},
     {.text_height = 10, .previous_char = 'F', .current_char = '.', .adjustment = -2},
+    {.text_height = 10, .previous_char = 'T', .current_char = '.', .adjustment = -1},
+    {.text_height = 10, .previous_char = 'V', .current_char = '.', .adjustment = -1},
+    {.text_height = 10, .previous_char = '7', .current_char = '.', .adjustment = -1},
+    {.text_height = 10, .previous_char = 'T', .current_char = ',', .adjustment = -1},
+    {.text_height = 10, .previous_char = 'V', .current_char = ',', .adjustment = -1},
+    {.text_height = 10, .previous_char = '7', .current_char = ',', .adjustment = -1},
     {.text_height = 10, .previous_char = 'A', .current_char = '"', .adjustment = -1},
     {.text_height = 10, .previous_char = 'L', .current_char = '"', .adjustment = -2},
+    {.text_height = 10, .previous_char = 'L', .current_char = '\'', .adjustment = -1},
     {.text_height = 10, .previous_char = 'V', .current_char = '/', .adjustment = -1},
     {.text_height = 10, .previous_char = '7', .current_char = '4', .adjustment = -1},
 
@@ -722,12 +739,29 @@ constexpr std::array<KerningRule, 48> kKerningRules{{
     // 20px font: exact pairs.
     {.text_height = 20, .previous_char = '2', .current_char = '1', .adjustment = -1},
     {.text_height = 20, .previous_char = '2', .current_char = '7', .adjustment = -1},
-}};
+});
+
+constexpr bool kerningRulesFullySpecified() {
+	for (const KerningRule& rule : kKerningRules) {
+		if (rule.text_height == 0 || rule.previous_char == 0 || rule.current_char == 0) {
+			return false;
+		}
+	}
+	return true;
+}
+
+static_assert(kerningRulesFullySpecified(),
+              "kKerningRules has default-initialized entries; update the declared array size to match rule count.");
 
 int32_t getPreviousCharSpacingAdjustmentInPixels(uint8_t previous_char, uint8_t current_char, int32_t text_height) {
 	// don't adjust spacing around a space character
 	if (previous_char == ' ' || current_char == ' ') {
 		return 0;
+	}
+
+	// add 1px spacing around the hyphen character to make it feel more spaced out
+	if (text_height == 10 && (previous_char == '-' || current_char == '-')) {
+		return 1;
 	}
 
 	// normalise the characters to uppercase for kerning rules, since lowercase letters use the same spacing
