@@ -911,6 +911,33 @@ std::optional<AudioFile*> AudioFileManager::collectAsyncSampleLoad(const std::st
 
 std::optional<AudioFile*> AudioFileManager::answerFailedLoadResult(const std::string& filePath, uint8_t resultError,
                                                                    Error* error) {
+	// A FULL efatfs handle table, which is not a verdict about the file at all -- nothing was even
+	// attempted. It reaches here under its own identity rather than folded into FILE_UNREADABLE
+	// precisely so it can take THIS recovery instead of the alternate-dir probe below: the loader
+	// opens through the same 128-slot table SampleStream::open_read_stream uses, and that table fills
+	// up by construction under browser preview (each previewed Sample pins a handle for its whole
+	// residency, and samples are small, so handles run out long before the heap does) -- which is this
+	// rung's own workload.
+	//
+	// The reclaim itself cannot live where the open is: the loader runs on an executor that must make
+	// no synchronous C++ call, so releaseUnleasedAudioFiles() is unreachable from there. It runs here,
+	// on the tier that owns the cache, and the load is then asked again -- the same
+	// reclaim-and-retry-once the synchronous path performs inside open_read_stream, moved to the only
+	// tier that can perform it.
+	//
+	// Bounded by the reclaim actually having freed something. A second full table after a successful
+	// reclaim means the residents really are all leased, so `> 0` is false and the honest error is
+	// reported; there is no load between the two attempts that could create new unleased residents.
+	// A decline from the re-request falls through as nullopt, so the load still reaches the
+	// synchronous path rather than being answered with a failure it need not have.
+	if (failureErrorFromAbiByte(resultError) == Error::TOO_MANY_OPEN_STREAMS) {
+		if (releaseUnleasedAudioFiles() > 0) {
+			return requestAsyncSampleLoad(filePath, error);
+		}
+		*error = Error::TOO_MANY_OPEN_STREAMS;
+		return nullptr;
+	}
+
 	// Only "no candidate opened" earns another attempt, and Error::FILE_UNREADABLE is exactly that:
 	// it is what the loader reports when every candidate failed to open (and what resolveFileSize
 	// reports for the same thing), while a file that DID open and failed to parse comes back as
@@ -1061,9 +1088,9 @@ std::optional<AudioFile*> AudioFileManager::requestAsyncSampleLoad(const std::st
 	// path this function never touches.
 	//
 	// So the probe happens where the synchronous path already puts it: after every proposed candidate
-	// has actually missed (see buildSampleFromLoadResult's verdict branch, which resolves and asks
-	// again). Under MIGHT_EXIST that means the first request carries only the regular path -- exactly
-	// the one candidate resolveFileSize tries first from the same state.
+	// has actually missed (see answerFailedLoadResult, which resolves and asks again). Under
+	// MIGHT_EXIST that means the first request carries only the regular path -- exactly the one
+	// candidate resolveFileSize tries first from the same state.
 	std::array<char, kMaxLoadCandidates * DELUGE_MAX_PATH> candidates{};
 	const uint32_t proposed =
 	    deluge_audio_load_candidates(filePath.c_str(), candidates.data(), static_cast<uint32_t>(kMaxLoadCandidates));

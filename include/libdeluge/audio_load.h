@@ -25,10 +25,18 @@
 /// the file-open-and-parse I/O in between -- that part moves off the calling fiber without moving the
 /// allocation/bookkeeping with it.
 ///
-/// **Call order.** `begin` -> (optionally, repeatedly) `resolve_alternate_dir` + `candidates` to pick
-/// a path -> `bind_read_stream` on the chosen path -> the caller's own I/O to read and parse the
-/// header -> `apply_geometry` -> `finish` (or `abandon` at any point after `begin`, including when
-/// `bind_read_stream` or `apply_geometry` itself fails).
+/// **Call order.** The candidate policy comes FIRST and on a different tier from the parse, because
+/// it is neither I/O-free nor allowed on the loader's executor:
+///
+///   `candidates` (and, only where a load has already missed, `resolve_alternate_dir` before it)
+///   -> `request` -> the caller returns to its own loop -> `collect`, on a later tick, until it
+///   reports READY -> `begin` -> `bind_read_stream` on the path the result names -> `apply_geometry`
+///   -> `finish` (or `abandon` at any point after `begin`, including when `bind_read_stream` or
+///   `apply_geometry` itself fails).
+///
+/// `begin` is deliberately LAST-minute rather than first: it adopts and reasons a `Sample`, so
+/// opening a build before the I/O would mean owning one across every await. Nothing is adopted until
+/// the bytes are already in hand.
 ///
 /// **Ownership.** `deluge_audio_load_begin` allocates and adopts a `Sample` and gives it a
 /// protect-during-setup reason BEFORE any I/O runs. From the moment it returns a non-NULL build,
@@ -125,10 +133,22 @@ DelugeSampleBuild* deluge_audio_load_begin(const char* file_path, const char* al
 /// I/O: opens the alternate directory. A song/preset load starts with the alternate-dir status
 /// unresolved (`MIGHT_EXIST`), in which state `deluge_audio_load_candidates` proposes only the regular
 /// path -- promoting that status to `DOES_EXIST`/`NOT_FOUND` is what unlocks the alternate-dir
-/// candidates, and it is I/O, so it cannot live in the (I/O-free) candidates call itself. The async
-/// loader must call this and let it settle before its first `deluge_audio_load_candidates` of a load,
-/// or a collect-media song's first sample silently misses candidates the synchronous path would have
-/// found.
+/// candidates, and it is I/O, so it cannot live in the (I/O-free) candidates call itself.
+///
+/// **Call this AFTER a load has missed, never before its first `deluge_audio_load_candidates`.** The
+/// tempting reading -- "resolve first so the candidate list is complete" -- is the defect this
+/// wording replaced, and re-introducing it is a behaviour change for loads that never touch this
+/// path at all. `alternateLoadDirStatus` is per-LOAD shared state: promoting it up front makes every
+/// LATER sample of the same load try the alternate directory first, including the ones taking the
+/// synchronous path, which still promotes only after a real miss. So the load's effective try order
+/// flips out from under callers this function never runs for.
+///
+/// The synchronous path (`AudioFileManager::resolveFileSize`) puts the probe after every proposed
+/// candidate has actually missed, and the async collector matches it: a request carries whatever the
+/// current status proposes (under `MIGHT_EXIST`, the regular path alone -- exactly the one candidate
+/// `resolveFileSize` tries first from that same state), and a "no candidate opened" verdict
+/// (`Error::FILE_UNREADABLE`) is what resolves the directory and asks again. See
+/// `AudioFileManager::requestAsyncSampleLoad` and `answerFailedLoadResult`.
 ///
 /// A no-op, doing no I/O, once the status is already resolved (from an earlier call in the same
 /// load, or because nothing is loading) -- safe to call speculatively.
@@ -331,9 +351,18 @@ typedef struct DelugeAudioLoadResult {
 	/// @ref deluge_audio_load_bind_read_stream must open. NUL-terminated.
 	char alternate_path[DELUGE_MAX_PATH];
 	/// A Deluge `Error` code (as `uint8_t`). `Error::NONE` means @ref geometry is valid and the
-	/// build should be published; anything else is the parse verdict to fail the load with, and
+	/// build should be published; anything else is the loader's verdict to fail the load with, and
 	/// carries the same identity the synchronous path produced (`FILE_UNSUPPORTED` for "not audio"
-	/// or an unplayable format, `FILE_CORRUPTED` for malformed or truncated).
+	/// or an unplayable format, `FILE_CORRUPTED` for malformed or truncated, `FILE_UNREADABLE` for
+	/// "no candidate opened").
+	///
+	/// `TOO_MANY_OPEN_STREAMS` is the one verdict that is NOT about the file: the efatfs handle
+	/// table had no free slot, so nothing was even attempted. It is reported under its own identity
+	/// rather than as `FILE_UNREADABLE` precisely because the two need different recoveries -- a
+	/// miss earns the alternate-directory probe, a full table earns
+	/// `AudioFileManager::releaseUnleasedAudioFiles()` and one retry, which is what the synchronous
+	/// path does (`SampleStream::open_read_stream`). Collapsing them sent a full table probing the
+	/// alternate directory and answering with a different file.
 	uint8_t error;
 } DelugeAudioLoadResult;
 

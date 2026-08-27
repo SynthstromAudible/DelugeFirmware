@@ -151,7 +151,9 @@ public:
 	/// samples in the browser leaves each one cached, so the handle table fills while the
 	/// heap is still nearly empty and opening the next stream fails with
 	/// Error::TOO_MANY_OPEN_STREAMS. This gives that resource the reclaim path it was
-	/// missing — see SampleStream::open_read_stream(), its only caller.
+	/// missing — see SampleStream::open_read_stream(), and AudioFileManager::answerFailedLoadResult()
+	/// which runs the same reclaim when the ASYNC loader's own open hits the full table (it cannot
+	/// call this itself: it runs on an executor that must make no synchronous C++ call).
 	///
 	/// Safe because `leaseCount() > 0` is what it skips on, which covers a playing voice, a
 	/// recorder, a project reference and the protect-during-setup lease held by a sample
@@ -244,8 +246,13 @@ public:
 	static constexpr size_t kMaxLoadCandidates = 3;
 
 	/// @brief Decide, in priority order and without touching the card, which path(s) a load of
-	///        @p filePath should try. The async loader (a later migration step) calls this directly as
-	///        its only source of truth for candidate paths, so it and resolveFileSize must stay in sync.
+	///        @p filePath should try.
+	///
+	/// The single source of candidate policy for BOTH backings, which is what keeps them in step: the
+	/// synchronous path calls this from resolveFileSize, and the async path calls it from
+	/// requestAsyncSampleLoad and hands the result to the Rust loader AS DATA (the loader never calls
+	/// this -- it cannot; it runs on an executor that must make no synchronous C++ call at all, and
+	/// this allocates). Whichever backing runs, the try order came from here.
 	///
 	/// When the alternate load dir is known to exist (`alternateLoadDirStatus ==
 	/// AlternateLoadDirStatus::DOES_EXIST`), up to three candidates are proposed, in try order: (1) only
@@ -259,15 +266,19 @@ public:
 	/// original code's hard-stop on that failure, rather than silently falling back to the weaker
 	/// candidates) -- see resolveFileSize's caller-side note on the error code this produces.
 	///
-	/// NOT a sufficient "only source of truth" on its own when `alternateLoadDirStatus ==
-	/// AlternateLoadDirStatus::MIGHT_EXIST` -- the state at the start of every song/preset load, before
-	/// anything has probed whether the alternate dir actually exists. In that state this proposes only
-	/// the regular path; a caller that needs the alternate-dir candidates too (as resolveFileSize does,
-	/// and as the C ABI's async loader must) must first resolve `MIGHT_EXIST` to `DOES_EXIST` or
-	/// `NOT_FOUND` itself via resolveAlternateLoadDirStatus() -- an I/O probe (`deluge::io::Directory::open`
-	/// on `alternateAudioFileLoadPath`) that cannot live in this I/O-free function -- and only then call
-	/// this again. Calling this while still `MIGHT_EXIST` silently yields an incomplete candidate list,
-	/// not an error.
+	/// Incomplete on its own when `alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST` --
+	/// the state at the start of every song/preset load, before anything has probed whether the
+	/// alternate dir actually exists. In that state this proposes only the regular path, silently
+	/// rather than as an error. Reaching the alternate-dir candidates needs resolveAlternateLoadDirStatus()
+	/// -- an I/O probe (`deluge::io::Directory::open` on `alternateAudioFileLoadPath`) that cannot live
+	/// in this I/O-free function -- to have promoted the status first, and then a second call here.
+	///
+	/// **Where that probe belongs is AFTER a miss, not before the first call.** resolveFileSize runs
+	/// it only once every proposed candidate has actually failed to open, and requestAsyncSampleLoad
+	/// deliberately does the same rather than resolving up front: `alternateLoadDirStatus` is per-LOAD
+	/// state, so promoting it early flips the try order for every later sample of the load INCLUDING
+	/// the synchronous ones, which still promote only after a real miss. See requestAsyncSampleLoad's
+	/// own comment and answerFailedLoadResult, which is where the async side's post-miss probe lives.
 	///
 	/// `const` here describes the signature, not thread-safety: this reads the mutable
 	/// `alternateLoadDirStatus` / `alternateAudioFileLoadPath` members, so a caller running it

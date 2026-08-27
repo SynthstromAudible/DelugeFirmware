@@ -103,6 +103,35 @@
 //! that to `crate::efatfs_fs` / `crate::efatfs_host_shim`, and
 //! `tests/audio_loader_host.rs` wires it to an in-memory double.
 
+// `async_audio_load_active` gates the accepting `enqueue_request` and the
+// QUEUE/IN_FLIGHT/RESULTS statics; `audio_load_task` (the only thing that drains
+// them) additionally needs a backing to do I/O through, and on device that is
+// `efatfs_streaming`. Turned on without one, this crate builds cleanly, accepts
+// every request, and drains none of them: the C++ collector reports
+// LOAD_IN_PROGRESS forever, on every tick, for every sample -- silence with no
+// error, which is the exact failure shape the request path's permanent-decline
+// handling exists to avoid. Unreachable through the default features (which carry
+// `efatfs_streaming`), but nothing stopped `--no-default-features --features
+// async_audio_load_active` on a device build, so refuse it at compile time rather
+// than leaving the livelock as a latent build configuration.
+//
+// Scoped to the DEVICE build deliberately. On host the module is reached two ways:
+// through `main.rs` under `host_app` (which is itself a backing, so the condition
+// is already satisfied), and through `tests/audio_loader_host.rs`, which
+// `#[path]`-recompiles this file with neither backing and for which
+// `cargo test --features async_audio_load_active` is a standing gate -- it drives
+// the queue/result statics by hand and needs no task at all.
+#[cfg(all(
+    feature = "async_audio_load_active",
+    target_os = "none",
+    not(feature = "efatfs_streaming")
+))]
+compile_error!(
+    "feature `async_audio_load_active` needs `efatfs_streaming` on device: `audio_load_task` is \
+     the only drain for the request queue and is not compiled without it, so every accepted \
+     request would stay queued forever and the C++ side would see LOAD_IN_PROGRESS on every tick."
+);
+
 use core::ffi::{CStr, c_char};
 
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
@@ -184,6 +213,14 @@ pub const DELUGE_ERROR_FILE_CORRUPTED: u8 = 5;
 pub const DELUGE_ERROR_FILE_UNREADABLE: u8 = 6;
 /// `Error::FILE_UNSUPPORTED`.
 pub const DELUGE_ERROR_FILE_UNSUPPORTED: u8 = 7;
+/// `Error::TOO_MANY_OPEN_STREAMS` — the efatfs handle table had no free slot.
+///
+/// Deliberately NOT folded into [`DELUGE_ERROR_FILE_UNREADABLE`]: the collector
+/// treats that code as "no candidate opened" and answers it by probing the
+/// alternate directory, which is the wrong recovery for a resource exhaustion and
+/// can end up loading a different file. This code is what routes it to the
+/// reclaim the synchronous path uses instead.
+pub const DELUGE_ERROR_TOO_MANY_OPEN_STREAMS: u8 = 34;
 
 /// `deluge_audio_load_collect`: queued or in flight; ask again, do not re-request.
 pub const DELUGE_AUDIO_LOAD_PENDING: u8 = 0;
@@ -213,6 +250,7 @@ const _: () = {
     assert!(DELUGE_ERROR_FILE_CORRUPTED == 5);
     assert!(DELUGE_ERROR_FILE_UNREADABLE == 6);
     assert!(DELUGE_ERROR_FILE_UNSUPPORTED == 7);
+    assert!(DELUGE_ERROR_TOO_MANY_OPEN_STREAMS == 34);
 };
 
 /// The parsed header geometry, field-for-field `DelugeAudioLoadGeometry`
@@ -743,7 +781,8 @@ pub(crate) unsafe fn cstr_to_path(ptr: *const c_char) -> Option<LoadPath> {
 mod driver {
     use super::{
         DELUGE_ERROR_FILE_CORRUPTED, DELUGE_ERROR_FILE_UNREADABLE, DELUGE_ERROR_FILE_UNSUPPORTED,
-        DELUGE_ERROR_NONE, LoadGeometry, LoadRequest, LoadResult,
+        DELUGE_ERROR_NONE, DELUGE_ERROR_TOO_MANY_OPEN_STREAMS, LoadGeometry, LoadRequest,
+        LoadResult,
     };
     use deluge_audio_format::{
         AudioHeader, FeedResult, HeaderError, HeaderParser, MAX_WINDOW_BYTES,
@@ -794,14 +833,38 @@ mod driver {
         }
     }
 
+    /// Why one candidate's open did not yield a handle.
+    ///
+    /// A plain `Option` collapsed the two, and the collapse was a real defect:
+    /// "this file is not here" is a CANDIDATE verdict (try the next one, and if
+    /// none opens the load has genuinely missed, which is what earns the
+    /// alternate-dir probe), while "the handle table is full" is a RESOURCE
+    /// verdict that says nothing at all about where the file lives. Reported as a
+    /// miss, a full table sent the load probing the alternate directory,
+    /// promoted `alternateLoadDirStatus` for every later sample of the load, and
+    /// could answer with a same-named file from the alternate directory — where
+    /// the synchronous path reports `Error::TOO_MANY_OPEN_STREAMS` and reclaims.
+    /// The two must stay distinguishable all the way out to the collector.
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum OpenVerdict {
+        /// Opened. The efatfs handle, which the caller must close.
+        Opened(u32),
+        /// Nothing to read at this path: missing, unmounted, or any other open
+        /// failure the backing does not distinguish. A candidate verdict.
+        Missing,
+        /// The efatfs handle table has no free slot. A resource verdict, and not
+        /// specific to this candidate — every other candidate would hit it too.
+        TableFull,
+    }
+
     /// The filesystem operations [`load_io_once`] needs. **All four are `async`
     /// and none reaches C++** — that is the module doc's single rule, expressed as
     /// a type. Adding a synchronous C++ call to this trait would reintroduce the
     /// interrupt-priority deadlock the split exists to remove.
     pub trait LoadOps {
-        /// Open `path` for reading, resolving to an efatfs handle. `None` if it
-        /// could not be opened (missing, unmounted, or the handle table is full).
-        async fn open(&self, path: &str) -> Option<u32>;
+        /// Open `path` for reading, resolving to an efatfs handle. See
+        /// [`OpenVerdict`] for why a failure is not simply `None`.
+        async fn open(&self, path: &str) -> OpenVerdict;
 
         /// The size of the file behind `handle`, in bytes. Must read the same
         /// handle table [`LoadOps::open`] filled, or the parse gets a bound
@@ -824,33 +887,72 @@ mod driver {
         async fn close(&self, handle: u32);
     }
 
-    /// Run one queued load's I/O: try each candidate in order, size the one that
-    /// opens, and walk its header to a verdict.
+    /// Run one queued load's I/O: try each candidate in order until one both
+    /// opens and sizes, then walk its header to a verdict.
     ///
     /// Always returns a [`LoadResult`] — success or failure, there is always
-    /// something for the C++ side to collect and act on. The efatfs handle is
-    /// closed on the single path out of the parse, so no exit can leak it.
+    /// something for the C++ side to collect and act on. Every handle this opens
+    /// is closed before it returns, on every path.
+    ///
+    /// # Which candidate is the "regular" one
+    ///
+    /// By POSITION, never by string equality. `proposeLoadCandidates` always
+    /// pushes the regular path LAST and says so in its own comment, and
+    /// `resolveFileSize` classifies on that position for a reason: when
+    /// `alternateAudioFileLoadPath` happens to be the file's own directory, the
+    /// bare-name alternate candidate stringifies to exactly the nominal path. A
+    /// `winning_path != request.path` test then calls that hit "regular", leaves
+    /// `alternate_path` empty, and `Sample::loadedFromAlternatePath` stays empty
+    /// where the synchronous path fills it — which is what `save_song_ui.cpp`
+    /// gates the collect-media copy-back on, so the sample is silently not
+    /// copied into the saved song folder. The C++ side removed that bug class by
+    /// classifying positionally; this is the same rule on this side of the
+    /// boundary.
     pub async fn load_io_once<O: LoadOps>(ops: &O, request: &LoadRequest) -> LoadResult {
-        // One open for the whole load. The C++ side supplied only the policy
-        // (which paths, in what order); trying them is I/O and belongs here.
-        let mut opened: Option<(u32, &str)> = None;
-        for candidate in &request.candidates {
-            if let Some(handle) = ops.open(candidate).await {
-                opened = Some((handle, candidate.as_str()));
-                break;
+        // The C++ side supplied only the policy (which paths, in what order);
+        // trying them is I/O and belongs here.
+        //
+        // A candidate is taken only once it has BOTH opened and sized, matching
+        // `tryOpenCandidate`, whose own `sz.has_value()` check treats a file that
+        // opens but cannot be sized as a plain candidate miss and moves on. Taking
+        // it on the open alone let an openable-but-unsizeable candidate shadow a
+        // good later one and fail the whole load, on the async path only.
+        let mut taken: Option<(u32, &str, u32, usize)> = None;
+        for (index, candidate) in request.candidates.iter().enumerate() {
+            let handle = match ops.open(candidate).await {
+                OpenVerdict::Opened(handle) => handle,
+                OpenVerdict::Missing => continue,
+                // Not a verdict about this candidate: every remaining one would
+                // hit the same full table. Stop, and report the resource failure
+                // under its own identity so the collector can reclaim and retry
+                // rather than reading it as "nothing is here" and probing the
+                // alternate directory.
+                OpenVerdict::TableFull => {
+                    return LoadResult::failed(DELUGE_ERROR_TOO_MANY_OPEN_STREAMS);
+                }
+            };
+            match ops.size_of(handle).await {
+                Some(size_bytes) => {
+                    taken = Some((handle, candidate.as_str(), size_bytes, index));
+                    break;
+                }
+                None => ops.close(handle).await,
             }
         }
-        let Some((handle, winning_path)) = opened else {
+        let Some((handle, winning_path, size_bytes, index)) = taken else {
             return LoadResult::failed(DELUGE_ERROR_FILE_UNREADABLE);
         };
 
-        let mut result = parse_open_file(ops, handle).await;
+        let mut result = parse_open_file(ops, handle, size_bytes).await;
 
         // The single close, on the one path out of the parse.
         ops.close(handle).await;
 
-        // `usingAlternateLocation` is empty exactly when the regular path won.
-        if result.error == DELUGE_ERROR_NONE && winning_path != request.path {
+        // `usingAlternateLocation` is empty exactly when the LAST candidate won —
+        // the regular path's slot. See this function's doc comment for why this is
+        // positional and must stay so.
+        let is_regular_path = index + 1 == request.candidates.len();
+        if result.error == DELUGE_ERROR_NONE && !is_regular_path {
             if !result.set_alternate_path(winning_path) {
                 // Cannot happen for a C-proposed candidate (bounded by
                 // DELUGE_MAX_PATH), but a path we cannot report is a path the
@@ -861,13 +963,9 @@ mod driver {
         result
     }
 
-    /// Size the open file and drive the header windows to a verdict. Never closes
-    /// `handle` — see [`load_io_once`].
-    async fn parse_open_file<O: LoadOps>(ops: &O, handle: u32) -> LoadResult {
-        let Some(size_bytes) = ops.size_of(handle).await else {
-            return LoadResult::failed(DELUGE_ERROR_FILE_UNREADABLE);
-        };
-
+    /// Drive the header windows of an open, already-sized file to a verdict.
+    /// Never closes `handle` — see [`load_io_once`].
+    async fn parse_open_file<O: LoadOps>(ops: &O, handle: u32, size_bytes: u32) -> LoadResult {
         let mut parser = HeaderParser::new(size_bytes);
         let mut window = [0u8; MAX_WINDOW_BYTES as usize];
         while let Some((start, len)) = parser.pending() {
@@ -913,7 +1011,7 @@ mod driver {
 // some of these, so the rest read as unused here.
 #[cfg(feature = "async_audio_load")]
 #[allow(unused_imports)]
-pub use driver::{LoadOps, error_code_for, load_io_once};
+pub use driver::{LoadOps, OpenVerdict, error_code_for, load_io_once};
 
 // ── Production wiring ───────────────────────────────────────────────────────
 // Only compiled where the efatfs backing is actually linked: on device under
@@ -959,12 +1057,23 @@ mod prod {
     }
 
     impl LoadOps for ProdOps {
-        async fn open(&self, path: &str) -> Option<u32> {
+        async fn open(&self, path: &str) -> super::driver::OpenVerdict {
+            use super::driver::OpenVerdict;
             match backing::open(path).await {
-                crate::efatfs_core::OpenOutcome::Handle(handle) => Some(handle),
-                // Missing, unmounted, or the handle table is full. All three end
-                // this candidate; the next one (if any) is tried.
-                _ => None,
+                crate::efatfs_core::OpenOutcome::Handle(handle) => OpenVerdict::Opened(handle),
+                // A candidate verdict: nothing to read at this path, so try the
+                // next. `efatfs_fs::open` collapses every open failure -- missing,
+                // unmounted, any granular status -- onto NotFound, which is the
+                // same conflation `resolveFileSize`'s tryOpenCandidate makes (see
+                // its own TODO(conflation-batch-5)).
+                crate::efatfs_core::OpenOutcome::NotFound => OpenVerdict::Missing,
+                // NOT a candidate verdict. The loader opens through the same 128-slot
+                // `HANDLES` table `open_read_stream` uses, and `sample_stream.cpp`
+                // documents that table filling up by construction under browser
+                // preview -- this rung's own workload. Kept distinct all the way to
+                // the collector so it reaches the reclaim rather than the
+                // alternate-directory probe.
+                crate::efatfs_core::OpenOutcome::TableFull => OpenVerdict::TableFull,
             }
         }
 
