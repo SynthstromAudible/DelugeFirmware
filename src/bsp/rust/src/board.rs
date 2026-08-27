@@ -19,7 +19,7 @@
 #[cfg(target_os = "none")]
 use rza1l_hal::gpio;
 
-use crate::sys::{DelugeBoard, DelugeDisplayKind_DELUGE_DISPLAY_OLED};
+use crate::sys::{DelugeBoard, DelugeDisplayDesc, DelugeDisplayKind_DELUGE_DISPLAY_OLED};
 
 // Pin map (mirrors src/bsp/rza1/board.c / definitions_cxx.hpp):
 //   BATTERY_LED {1,1}  SYNCED_LED {6,7}  CODEC {6,12}  SPEAKER_ENABLE {4,1}
@@ -35,6 +35,15 @@ static BOARD_NAME: &[u8] = b"Synthstrom Deluge (144-pad, OLED)\0";
 struct BoardDescriptor(DelugeBoard);
 unsafe impl Sync for BoardDescriptor {}
 
+/// The single OLED panel this board carries. `DelugeBoard::displays` points at
+/// this array; `display_width`/`display_height` above mirror `displays[0]` for
+/// single-panel callers that haven't adopted the multi-display fields yet.
+static DELUGE_DISPLAYS: [DelugeDisplayDesc; 1] = [DelugeDisplayDesc {
+    width: 128,
+    height: 48,
+    visible_top: 5,
+}];
+
 static DELUGE_BOARD: BoardDescriptor = BoardDescriptor(DelugeBoard {
     name: BOARD_NAME.as_ptr() as *const core::ffi::c_char,
     pad_grid_width: 16,
@@ -47,6 +56,8 @@ static DELUGE_BOARD: BoardDescriptor = BoardDescriptor(DelugeBoard {
     display_kind: DelugeDisplayKind_DELUGE_DISPLAY_OLED,
     display_width: 128, // OLED_MAIN_WIDTH_PIXELS
     display_height: 48, // OLED_MAIN_HEIGHT_PIXELS
+    display_count: 1,
+    displays: DELUGE_DISPLAYS.as_ptr(),
     audio_sample_rate_hz: 44_100,
     audio_in_channels: 2,
     audio_out_channels: 2,

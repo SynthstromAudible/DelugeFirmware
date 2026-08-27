@@ -15,7 +15,10 @@ use core::sync::atomic::{AtomicBool, Ordering};
 
 use deluge_bsp::{oled, pic};
 
-use crate::sys::{DelugeStatus, DelugeStatus_DELUGE_OK as DELUGE_OK};
+use crate::sys::{
+    DelugeStatus, DelugeStatus_DELUGE_ERR_PARAM as DELUGE_ERR_PARAM,
+    DelugeStatus_DELUGE_OK as DELUGE_OK,
+};
 
 /// Latest frame from the app, awaiting transfer. Written by [`deluge_display_blit_oled`]
 /// (synchronously, from the app tick), read by [`oled_render`]. Safe without a
@@ -84,6 +87,29 @@ pub extern "C" fn deluge_display_blit_oled(
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_display_busy() -> bool {
     BUSY.load(Ordering::Acquire)
+}
+
+/// Multi-display extension: blit to panel `index`. This board carries a single
+/// OLED (`DelugeBoard::display_count == 1`), so index 0 is the same panel as
+/// [`deluge_display_blit_oled`]; any other index is out of range.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_display_blit_oled_n(
+    index: u8,
+    pixels: *const u8,
+    width: u16,
+    height: u16,
+) -> DelugeStatus {
+    if index != 0 {
+        return DELUGE_ERR_PARAM;
+    }
+    deluge_display_blit_oled(pixels, width, height)
+}
+
+/// Multi-display extension: busy state for panel `index`. See
+/// [`deluge_display_blit_oled_n`] — only index 0 exists on this board.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_display_busy_n(index: u8) -> bool {
+    index == 0 && deluge_display_busy()
 }
 
 /// One-time display bring-up. The render task owns the SSD1309 init sequence

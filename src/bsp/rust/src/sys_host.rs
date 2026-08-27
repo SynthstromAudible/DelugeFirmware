@@ -16,6 +16,7 @@
 /// so this is a 1-byte enum on every target.
 pub type DelugeStatus = i8;
 pub const DelugeStatus_DELUGE_OK: DelugeStatus = 0;
+pub const DelugeStatus_DELUGE_ERR_PARAM: DelugeStatus = -2;
 
 /// `include/libdeluge/control_surface.h`: `DelugeInputEventKind`. PAD=0,
 /// BUTTON=1, ENCODER=2 (unused by control.rs — encoder motion arrives via
