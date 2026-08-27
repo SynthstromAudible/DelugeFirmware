@@ -24,12 +24,14 @@
 /// net for the file-loading redesign: load known WAV/AIFF files off the project directory and dump every
 /// descriptor field; a diff in the output across a refactor flags a behavioural change.
 ///
-/// Usage: deluge_loadcheck [--project <dir>] [--file SAMPLES/A.WAV | --wavetable PATH]...
+/// Usage: deluge_loadcheck [--project <dir> (--file SAMPLES/A.WAV | --wavetable PATH)...]
 /// Deterministic. No external tools required — the project directory IS the SD card.
 ///
-/// With no --file/--wavetable at all, only checkProposeLoadCandidates()'s I/O-free policy checks run
-/// (no card fixture needed, so --project may also be omitted) -- this is what the harness registry
-/// entry for this binary runs as a standing gate; see harness/registry.toml.
+/// With no --file/--wavetable at all, main() returns immediately after running
+/// checkProposeLoadCandidates()'s I/O-free policy checks -- it does not call deluge_platform_init() or
+/// deluge_main(), so there is no app boot, no card fixture, and --project is ignored. This is what the
+/// harness registry entry for this binary runs as a standing gate (harness/registry.toml); running it
+/// with zero arguments from any directory, including the repo root, leaves the tree untouched.
 
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"
@@ -315,11 +317,11 @@ void deluge_loadcheck_driver() {
 }
 
 void usage(const char* argv0) {
-	fprintf(stderr, "usage: %s [--project <dir>] [--file PATH | --wavetable PATH]...\n", argv0);
-	fprintf(stderr, "  --project defaults to \".\" when omitted.\n");
-	fprintf(stderr,
-	        "  With no --file/--wavetable, only the I/O-free policy checks run (checkProposeLoadCandidates) --\n");
-	fprintf(stderr, "  meaningful with no card fixture at all; this is what the harness registry runs as a gate.\n");
+	fprintf(stderr, "usage: %s [--project <dir> (--file PATH | --wavetable PATH)...]\n", argv0);
+	fprintf(stderr, "  With no --file/--wavetable at all, runs only the I/O-free policy checks\n");
+	fprintf(stderr, "  (checkProposeLoadCandidates) and exits -- no app boot, no card fixture, --project\n");
+	fprintf(stderr, "  ignored. This is what the harness registry runs as a gate.\n");
+	fprintf(stderr, "  With --file/--wavetable, --project <dir> is required.\n");
 }
 
 } // namespace
@@ -348,11 +350,22 @@ int main(int argc, char** argv) {
 		}
 	}
 
-	// --project is optional -- default to the current directory, the same convention
-	// deluge_audio_header_dump uses for the same env var, so the pure-policy checks below are runnable
-	// (and meaningful) with no card fixture at all: they touch no file, so any existing directory does.
+	if (g_items.empty()) {
+		// Pure policy checks only: no card, no filesystem, no app boot. Deliberately does NOT call
+		// deluge_platform_init()/deluge_main() here, even with --project defaulted to something benign --
+		// booting the app has real side effects (RuntimeFeatureSettings::readSettingsFromFile()
+		// unconditionally mkdir's SETTINGS/ under whatever DELUGE_SD_ROOT resolves to), and this mode's
+		// whole point is to be safe to run from anywhere -- including the repo root, with zero arguments,
+		// which is exactly what the harness registry entry does -- with no fixture and no cleanup
+		// required. --project is unused and ignored here.
+		const bool ok = checkProposeLoadCandidates();
+		fflush(nullptr);
+		return ok ? 0 : 1;
+	}
+
 	if (project == nullptr) {
-		project = ".";
+		usage(argv[0]);
+		return 1;
 	}
 
 	// The project directory IS the SD card: host_efatfs_passthrough.cpp serves every task-context
