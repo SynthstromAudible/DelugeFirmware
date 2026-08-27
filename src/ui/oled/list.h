@@ -45,6 +45,19 @@ struct ListRow {
 /// Exists so the scenes in tasks 6/8 do not each re-derive the two magic numbers.
 gfx::oled::Rect menu_rect(const OledFrame& f);
 
+/// How many rows `list` will draw inside \p rect on \p f: `min(style.menu_rows, rect.h /
+/// kTextSpacingY)`, at least one. See the layout notes on `list` below.
+int32_t list_visible_rows(const OledFrame& f, gfx::oled::Rect rect);
+
+/// The index of the first row `list` shows: `Selection::drawPixelsForOled`'s window rule
+/// (selection.cpp:9-29), which keeps \p cursor as near the middle of a \p visible -row window
+/// over \p n rows as the ends of the list allow.
+///
+/// Exposed because a caller that renders a *slice* of a long list -- `enum_value`, which never
+/// materialises more than the visible window -- has to know which slice `list` would have
+/// chosen before it can build one.
+int32_t list_window_start(int32_t cursor, int32_t n, int32_t visible);
+
 /// The legacy vertical menu, as one immediate-mode call.
 ///
 /// Ports `MenuItem::drawItemsForOled` (menu_item.cpp:47-66) and

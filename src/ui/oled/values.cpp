@@ -1,0 +1,326 @@
+#include "ui/oled/values.h"
+
+#include "ui/core/metrics.h"
+#include "ui/oled/list.h"
+#include "ui/oled/text.h"
+
+#include <algorithm>
+#include <array>
+#include <charconv>
+#include <cstddef>
+
+namespace deluge::ui::oled {
+
+using gfx::oled::Rect;
+
+namespace {
+
+/// `intToString(number, buffer, minNumDigits)` (foundation/string_format.c:35-65), as a view
+/// into \p buf: the decimal digits of |number| zero-padded to at least \p min_digits, with a
+/// leading `-` for negatives that does *not* count towards \p min_digits.
+///
+/// The magnitude is taken as `0u - (uint32_t)number` for the same reason legacy spells it that
+/// way (string_format.c:39-40): `-number` is undefined for INT32_MIN.
+std::string_view int_to_string(int32_t number, int32_t min_digits, std::span<char> buf) {
+	const uint32_t magnitude =
+	    number < 0 ? 0u - static_cast<uint32_t>(number) : static_cast<uint32_t>(number); // string_format.c:39-40
+	std::array<char, 10> digits{}; // uint32_t is 10 digits at most
+	const std::to_chars_result r = std::to_chars(digits.data(), digits.data() + digits.size(), magnitude);
+	const int32_t n = static_cast<int32_t>(r.ptr - digits.data());
+
+	size_t out = 0;
+	const auto push = [&](char c) {
+		if (out < buf.size()) {
+			buf[out++] = c;
+		}
+	};
+	if (number < 0) {
+		push('-');
+	}
+	for (int32_t pad = n; pad < min_digits; pad++) {
+		push('0');
+	}
+	for (int32_t i = 0; i < n; i++) {
+		push(digits[static_cast<size_t>(i)]);
+	}
+	return std::string_view{buf.data(), out};
+}
+
+/// `value + delta`, clamped into \p range. Widened to 64 bits first, because legacy's
+/// `getValue() + offset` (integer.cpp:26) can overflow int32 near the type's ends and the
+/// clamp that follows would then read a wrapped value.
+int32_t add_clamped(int32_t value, int64_t delta, Range range) {
+	const int64_t next = static_cast<int64_t>(value) + delta;
+	return static_cast<int32_t>(std::clamp<int64_t>(next, range.min, range.max));
+}
+
+/// The `edit[]` pair as one signed amount: `edit[0]` (GoldUpper) at \p coarse per detent and
+/// `edit[1]` (GoldLower) at \p fine. See the fine/coarse note in values.h.
+int64_t edit_delta(const InputSnapshot& in, int32_t coarse, int32_t fine) {
+	return static_cast<int64_t>(in.edit[0]) * coarse + static_cast<int64_t>(in.edit[1]) * fine;
+}
+
+/// A `step` of 0 would freeze the coarse knob; legacy had no such value (its step was always 1),
+/// so it is read as the default rather than honoured.
+int32_t coarse_step(Range range) {
+	return range.step != 0 ? range.step : 1;
+}
+
+/// The same frame with `input.turn` zeroed, for the widgets that move their own cursor and must
+/// stop `list` from moving it a second time. \p masked must outlive the returned frame.
+OledFrame without_turn(const OledFrame& f, InputSnapshot& masked) {
+	masked = f.input;
+	masked.turn = 0;
+	return OledFrame{f.canvas, f.clip, f.origin, f.size, f.style, masked, f.gate};
+}
+
+/// `10^exponent`, saturated at INT32_MAX -- legacy's `numberEditSize`, built by the same
+/// repeated multiplication (decimal.cpp:40-42).
+int32_t pow10(int32_t exponent) {
+	int64_t v = 1;
+	for (int32_t i = 0; i < exponent && v <= INT32_MAX; i++) {
+		v *= 10;
+	}
+	return static_cast<int32_t>(std::min<int64_t>(v, INT32_MAX));
+}
+
+/// Is the blinking cursor lit at \p now? `OLED::performBlink` (oled.cpp:832-838) inverts the
+/// cursor band every `kFlashTime`, starting one `kFlashTime` after `setupBlink` armed the timer
+/// (oled.cpp:840-850) -- so the first half-period after arming is dark and every odd one after
+/// that is lit. `blink.until_ms` is that arming instant; see values.h.
+bool blink_lit(const Blink& blink, uint32_t now) {
+	const uint32_t elapsed = now - blink.until_ms;
+	return ((elapsed / blink.period_ms) & 1u) != 0;
+}
+
+/// Milliseconds until the blink flips, i.e. what the next frame has to be scheduled for.
+uint32_t blink_next_flip_in(const Blink& blink, uint32_t now) {
+	return blink.period_ms - ((now - blink.until_ms) % blink.period_ms);
+}
+
+} // namespace
+
+Response int_value(OledFrame& f, int32_t& value, Range range, ValueStyle style, bool focused) {
+	Response resp{};
+	resp.focused = focused;
+
+	if (focused) {
+		// Integer::selectEncoderAction (integer.cpp:25-39): add, then clamp to [min, max].
+		const int64_t delta = edit_delta(f.input, coarse_step(range), 1);
+		if (delta != 0) {
+			const int32_t next = add_clamped(value, delta, range);
+			if (next != value) {
+				value = next;
+				resp.changed = true;
+				f.gate.request_repaint();
+			}
+		}
+	}
+
+	// drawStringCentred(buffer, 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX, kTextHugeSizeY)
+	// -- integer.cpp:52-61. The topmost-pixel term is the frame's origin, so the y is kValueY.
+	const gfx::oled::FontId font = f.style.value_font;
+	const Rect band{0, kValueY, f.bounds().w, text_height_for(font)};
+	f.clear(band);
+
+	if (style.off_at_zero && value == 0) {
+		// IntegerWithOff::drawPixelsForOled, integer.cpp:41-50: "OFF" in place of the digits,
+		// and without the unit.
+		text(f, band, "OFF", TextStyle{.font = font, .align = Align::Centre});
+		return resp;
+	}
+
+	// char buffer[12] + strncat(buffer, getUnit(), 4) (integer.cpp:53-55). The buffer here is
+	// wide enough for both parts at once; legacy's 12 held only the digits, and its strncat
+	// could run past them.
+	std::array<char, 12 + 4> buf{};
+	const std::string_view digits = int_to_string(value, 1, std::span{buf}); // intToString(..., 1)
+	size_t length = digits.size();
+	for (size_t i = 0; i < style.unit.size() && i < 4 && length < buf.size(); i++) {
+		buf[length++] = style.unit[i];
+	}
+	text(f, band, std::string_view{buf.data(), length}, TextStyle{.font = font, .align = Align::Centre});
+	return resp;
+}
+
+Response decimal_value(OledFrame& f, int32_t& value, Range range, uint8_t places, int8_t& edit_pos, Blink& blink,
+                       bool focused) {
+	Response resp{};
+	resp.focused = focused;
+	const uint32_t now = f.input.now_ms;
+	const int32_t num_decimal_places = places;
+	edit_pos = static_cast<int8_t>(std::max<int32_t>(0, edit_pos));
+
+	bool cursor_moved = false;
+	if (focused) {
+		// Decimal::horizontalEncoderAction, decimal.cpp:83-101: one place per tick, right when
+		// positive, left when the next place up is still inside the range.
+		const int8_t horizontal = f.input.horizontal;
+		if (horizontal > 0 && edit_pos > 0) {
+			edit_pos--;
+			cursor_moved = true;
+		}
+		else if (horizontal < 0 && static_cast<int64_t>(pow10(edit_pos)) * 10 <= range.max) {
+			edit_pos++;
+			cursor_moved = true;
+		}
+
+		// Decimal::selectEncoderAction, decimal.cpp:57-79: the value moves by numberEditSize per
+		// detent (decimal.cpp:39-42 builds that as 10^numberEditPos), then clamps.
+		const int64_t delta = edit_delta(f.input, pow10(edit_pos), coarse_step(range));
+		if (delta != 0) {
+			const int32_t next = add_clamped(value, delta, range);
+			if (next != value) {
+				value = next;
+				resp.changed = true;
+				f.gate.request_repaint();
+			}
+		}
+	}
+
+	// Legacy setupBlink is reached once per full redraw, so a value change restarts the phase
+	// dark and a cursor move (its `shouldBlinkImmediately`, decimal.cpp:98-100 via :163) restarts
+	// it lit. period_ms doubles as "armed": a Blink still holding state.h's 500ms default has
+	// never been through here.
+	if (blink.period_ms != kFlashTime) {
+		blink.period_ms = kFlashTime;
+		blink.until_ms = now;
+	}
+	if (cursor_moved) {
+		blink.until_ms = now - blink.period_ms; // one half-period in: lit immediately
+	}
+	else if (resp.changed) {
+		blink.until_ms = now;
+	}
+	f.gate.request_repaint_after(blink_next_flip_in(blink, now), now);
+
+	// Everything below is decimal.cpp:128-163 verbatim, in canvas coordinates, converted to
+	// frame-local at the point of drawing -- see the canvas-absolute note in values.h.
+	const int32_t width = f.canvas.geometry().width; // OLED_MAIN_WIDTH_PIXELS
+	const int32_t local_y = 20 - f.origin.y;         // decimal.cpp:149/152/161's literal 20
+	const int32_t local_end_x = width - f.origin.x;  // decimal.cpp:149's literal 128
+	const auto local_x = [&](int32_t canvas_x) { return canvas_x - f.origin.x; };
+
+	std::array<char, 13> buf{}; // char buffer[13], decimal.cpp:130
+	const std::string_view text_all = int_to_string(value, num_decimal_places + 1, std::span{buf});
+	const int32_t length = static_cast<int32_t>(text_all.size());
+
+	int32_t editing_char = length - edit_pos;
+	if (edit_pos >= num_decimal_places) {
+		editing_char--;
+	}
+
+	const int32_t digit_width = kTextHugeSpacingX;
+	const int32_t period_width = digit_width / 2;
+	const int32_t string_width = digit_width * length + (num_decimal_places != 0 ? period_width : 0);
+	int32_t string_start_x = (width - string_width) >> 1;
+	int32_t our_digit_start_x = string_start_x + editing_char * digit_width;
+
+	// The digits' own band and the cursor's, cleared before either is drawn: legacy got that
+	// from renderUIsForOled clearing the whole canvas first, and the cursor in particular is an
+	// inversion, which is only deterministic over a known background.
+	f.clear(Rect{local_x(0), local_y, width, kTextHugeSizeY});
+	f.clear(Rect{local_x(0), 41 - f.origin.y, width, 2});
+
+	std::string_view rest = text_all;
+	if (num_decimal_places != 0) {
+		const int32_t before_point = length - num_decimal_places;
+		// Both halves are drawn with use_width set, so every digit advances exactly digit_width
+		// and the period exactly period_width (decimal.cpp:149-153).
+		f.glyphs(text_all.substr(0, static_cast<size_t>(before_point)), local_x(string_start_x), local_y, digit_width,
+		         kTextHugeSizeY, 0, local_end_x, true);
+		f.glyphs(".", local_x(string_start_x + before_point * digit_width), local_y, period_width, kTextHugeSizeY, 0,
+		         local_end_x, true);
+		rest = text_all.substr(static_cast<size_t>(before_point));
+		string_start_x += before_point * digit_width + period_width;
+		if (editing_char > before_point) {
+			our_digit_start_x -= period_width;
+		}
+	}
+	f.glyphs(rest, local_x(string_start_x), local_y, digit_width, kTextHugeSizeY, 0, local_end_x, true);
+
+	// setupBlink(ourDigitStartX + 1, digitWidth - 2, 41, 42, movingCursor), decimal.cpp:163:
+	// canvas rows 41..42 inclusive, i.e. a 2-row band, inverted while the phase is lit.
+	if (blink_lit(blink, now)) {
+		f.invert(Rect{local_x(our_digit_start_x + 1), 41 - f.origin.y, digit_width - 2, 2});
+	}
+	return resp;
+}
+
+Response enum_value(OledFrame& f, int32_t& index, std::span<const std::string_view> names, ListState& state,
+                    ScrollText& scroll_label, bool wrap) {
+	Response resp{};
+	const int32_t n = static_cast<int32_t>(names.size());
+	if (n <= 0) {
+		state.cursor = 0;
+		state.scroll = 0;
+		state.rows_last = 0;
+		return resp;
+	}
+
+	// Enumeration::selectEncoderAction, enumeration.cpp:18-36.
+	int32_t next = std::clamp<int32_t>(index, 0, n - 1);
+	if (f.input.turn != 0) {
+		next += f.input.turn;
+		next = wrap ? ((next % n) + n) % n : std::clamp<int32_t>(next, 0, n - 1);
+	}
+	resp.changed = next != index;
+	index = next;
+	if (resp.changed) {
+		f.gate.request_repaint();
+	}
+
+	const Rect rect = menu_rect(f);
+	const int32_t visible = std::min<int32_t>(list_visible_rows(f, rect), kMaxWindowRows);
+	const int32_t start = list_window_start(index, n, visible);
+	const int32_t count = std::min<int32_t>(visible, n - start);
+
+	std::array<ListRow, kMaxWindowRows> window{};
+	for (int32_t i = 0; i < count; i++) {
+		window[static_cast<size_t>(i)] = ListRow{.label = names[static_cast<size_t>(start + i)]};
+	}
+
+	// list re-derives the window from the cursor it is given, and for a span of exactly the
+	// visible count that always comes out at 0 -- the slice already *is* the window.
+	ListState windowed{
+	    .cursor = static_cast<int16_t>(index - start), .scroll = 0, .rows_last = static_cast<int16_t>(count)};
+	InputSnapshot masked{};
+	OledFrame inner = without_turn(f, masked);
+	const Response inner_resp =
+	    list(inner, rect, windowed, std::span{window.data(), static_cast<size_t>(count)}, scroll_label);
+	resp.entered = inner_resp.entered;
+
+	state.cursor = static_cast<int16_t>(index);
+	state.scroll = static_cast<int16_t>(start);
+	state.rows_last = static_cast<int16_t>(n);
+	return resp;
+}
+
+Response toggle(OledFrame& f, bool& value, std::string_view off_label, std::string_view on_label,
+                ScrollText& scroll_label) {
+	Response resp{};
+
+	bool next = value;
+	if (f.input.turn != 0) {
+		next = f.input.turn > 0; // Toggle::selectEncoderAction, toggle.cpp:14-17
+	}
+	if (f.input.select_pressed) {
+		next = !next; // Toggle::selectButtonPress -> toggleValue(), toggle.h:33-44
+	}
+	resp.changed = next != value;
+	value = next;
+	if (resp.changed) {
+		f.gate.request_repaint();
+	}
+
+	// toggle.cpp:29-42 -- `bool order[2] = {false, true}`, the current one highlighted.
+	const std::array<ListRow, 2> rows{ListRow{.label = off_label}, ListRow{.label = on_label}};
+	ListState windowed{.cursor = static_cast<int16_t>(value ? 1 : 0), .scroll = 0, .rows_last = 2};
+	InputSnapshot masked{};
+	OledFrame inner = without_turn(f, masked);
+	list(inner, menu_rect(f), windowed, std::span{rows}, scroll_label);
+	// resp.entered stays false: Toggle::shouldEnterSubmenu() is false (toggle.h:18-19).
+	return resp;
+}
+
+} // namespace deluge::ui::oled

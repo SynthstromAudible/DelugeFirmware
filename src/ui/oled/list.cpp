@@ -23,6 +23,14 @@ int32_t base_y_for(const OledFrame& f) {
 	return f.canvas.geometry().height == 64 ? kMenuBaseY64 : kMenuBaseY48;
 }
 
+} // namespace
+
+int32_t list_visible_rows(const OledFrame& f, Rect rect) {
+	// style.menu_rows is legacy's OLED_HEIGHT_CHARS - 1; the rect.h term is this layer's own
+	// bound, so a rect too short for that many rows cannot draw past its own bottom edge.
+	return std::clamp<int32_t>(rect.h / kTextSpacingY, 1, std::max<int32_t>(1, f.style.menu_rows));
+}
+
 /// `Selection::drawPixelsForOled`, selection.cpp:9-29: the index of the first visible row.
 ///
 /// Ideally the cursor sits in the middle of the window (rounding down for even counts), but
@@ -30,7 +38,7 @@ int32_t base_y_for(const OledFrame& f) {
 /// in. Note this is `Selection`'s form, not `Submenu`'s: `Submenu::drawPixelsForOled`
 /// (submenu.cpp:82-84) additionally re-tightens `tail` in the first branch, which only matters
 /// for a list shorter than the window, where both forms produce the same `cursor - pos` anyway.
-int32_t window_start(int32_t cursor, int32_t n, int32_t visible) {
+int32_t list_window_start(int32_t cursor, int32_t n, int32_t visible) {
 	const int32_t before = std::max<int32_t>(0, cursor - visible); // earliest row that might show
 	const int32_t n_before = cursor - before;
 	const int32_t after = std::min<int32_t>(cursor + visible, n); // first row offscreen
@@ -47,6 +55,8 @@ int32_t window_start(int32_t cursor, int32_t n, int32_t visible) {
 	}
 	return cursor - pos;
 }
+
+namespace {
 
 /// `Submenu::selectEncoderAction`, submenu.cpp:132-176: walk `turn` detents, consuming one only
 /// when the row landed on is selectable (legacy: relevant), and revert to the last selectable
@@ -87,9 +97,7 @@ Response list(OledFrame& f, Rect rect, ListState& state, std::span<const ListRow
               bool allow_motion) {
 	Response resp{};
 	const int32_t n = static_cast<int32_t>(rows.size());
-	// style.menu_rows is legacy's OLED_HEIGHT_CHARS - 1; the rect.h term is this layer's own
-	// bound, so a rect too short for that many rows cannot draw past its own bottom edge.
-	const int32_t visible = std::clamp<int32_t>(rect.h / kTextSpacingY, 1, std::max<int32_t>(1, f.style.menu_rows));
+	const int32_t visible = list_visible_rows(f, rect);
 
 	// The cursor moves before anything is drawn, bounded by the row count the previous frame
 	// published. `rows_last == 0` means "no previous frame" (its default), so the first frame
@@ -110,7 +118,7 @@ Response list(OledFrame& f, Rect rect, ListState& state, std::span<const ListRow
 		return resp;
 	}
 
-	const int32_t start = window_start(cursor, n, visible);
+	const int32_t start = list_window_start(cursor, n, visible);
 	state.scroll = static_cast<int16_t>(start);
 	resp.entered = f.input.select_pressed && rows[cursor].selectable;
 
