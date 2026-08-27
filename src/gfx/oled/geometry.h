@@ -1,5 +1,6 @@
 #pragma once
 #include <cstdint>
+#include <limits>
 #include <utility>
 
 namespace deluge::gfx::oled {
@@ -19,8 +20,13 @@ constexpr Geometry kDelugeOled{128, 48, 5};
 
 /// Sentinels for "the canvas edge" / "the canvas centre" in x parameters, so call sites
 /// written against a fixed 128-wide panel keep their defaults on any geometry.
-constexpr int32_t kEdge = -1;
-constexpr int32_t kCentre = -1;
+///
+/// Deliberately the two most negative int32_t values rather than -1: a caller can plausibly
+/// *compute* -1 as an x coordinate (`width - render_length` on a panel narrower than the
+/// content), and that arithmetic result would then be silently reinterpreted as "use the
+/// whole width". Nothing computes INT32_MIN, so these can only be passed on purpose.
+constexpr int32_t kEdge = std::numeric_limits<int32_t>::min();
+constexpr int32_t kCentre = std::numeric_limits<int32_t>::min() + 1;
 
 struct Point {
 	int32_t x, y;
