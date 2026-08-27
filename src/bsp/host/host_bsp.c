@@ -295,12 +295,34 @@ static void host_board_apply_env(void) {
 	while (*p && n < HOST_MAX_DISPLAYS) {
 		unsigned w, h, top = 0;
 		int used = 0;
-		if (sscanf(p, "%ux%u+%u%n", &w, &h, &top, &used) < 2)
+		// "+visible_top" is optional (defaults to 0); parse it separately so a
+		// missing "+" doesn't abort the whole %n match and leave `used` at 0
+		// (which would re-parse the same substring forever).
+		if (sscanf(p, "%ux%u%n", &w, &h, &used) != 2 || used <= 0) {
+			fprintf(stderr, "DELUGE_HOST_DISPLAYS: ignoring malformed entry at \"%s\"\n", p);
 			break;
+		}
+		const char* q = p + used;
+		if (*q == '+') {
+			int top_used = 0;
+			if (sscanf(q, "+%u%n", &top, &top_used) == 1 && top_used > 0) {
+				q += top_used;
+			}
+		}
+		if (w == 0 || h == 0 || (h % 8) != 0) {
+			fprintf(stderr, "DELUGE_HOST_DISPLAYS: ignoring malformed entry at \"%s\"\n", p);
+			break;
+		}
 		host_displays[n++] = (DelugeDisplayDesc){(uint16_t)w, (uint16_t)h, (uint8_t)top};
-		p += used;
-		if (*p == ',')
-			p++;
+		if (*q == ',') {
+			p = q + 1;
+			continue;
+		}
+		if (*q == '\0') {
+			break;
+		}
+		fprintf(stderr, "DELUGE_HOST_DISPLAYS: ignoring malformed entry at \"%s\"\n", q);
+		break;
 	}
 	if (n == 0)
 		return;
