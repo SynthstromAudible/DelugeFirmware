@@ -3,6 +3,7 @@
 add_library(deluge_ui_core STATIC
   core/repaint_gate.cpp
   core/led_frame.cpp
+  core/text_wrap.cpp
 )
 target_include_directories(deluge_ui_core PUBLIC ${SHARED_INCLUDE})
 target_link_libraries(deluge_ui_core PUBLIC deluge_gfx_oled deluge_gfx_grid)
@@ -18,6 +19,8 @@ add_library(deluge_ui_oled STATIC
   oled/values.cpp
   oled/meters.cpp
   oled/columns.cpp
+  oled/popup.cpp
+  oled/misc.cpp
 )
 target_include_directories(deluge_ui_oled PUBLIC ${SHARED_INCLUDE})
 target_link_libraries(deluge_ui_oled PUBLIC deluge_ui_core deluge_gfx_oled)

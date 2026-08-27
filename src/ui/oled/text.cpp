@@ -13,26 +13,10 @@ using gfx::oled::Size;
 using gfx::oled::string_width_px;
 
 int32_t text_height_for(FontId font) {
-	switch (font) {
-	case FontId::Px5:
-		return kTextSmallSizeY; // 5
-	case FontId::Apple7:
-		// 9 (kTextSpacingY), not 7. The Apple ][ face has two legacy heights that are NOT
-		// interchangeable: font_for_text_height returns kApple7 for 7-8 and kApple7Up for 9
-		// (gfx/oled/font.cpp:26-30), and kApple7Up carries y_adjust = 1 (font.cpp:13) -- the
-		// same glyphs drawn one row lower. Height 9 is the dominant legacy call shape (126
-		// sites under src/deluge against 29 for kTextSizeYUpdated = 7), including both
-		// height-passing callers of drawStringCentredShrinkIfNecessary, so it is the one
-		// FontId::Apple7 has to mean. A 7-high id can be added when a call site needs it.
-		return kTextSpacingY; // 9
-	case FontId::MetricBold9:
-		return kTextTitleSizeY; // 10
-	case FontId::MetricBold13:
-		return kTextBigSizeY; // 13
-	case FontId::MetricBold20:
-	default:
-		return kTextHugeSizeY; // 20
-	}
+	// The table moved to ui/core/metrics.h (`text_height_of`, which carries the Apple7-is-9
+	// rationale), because ui/core/text_wrap.cpp needs it too and ui-core cannot include ui-oled.
+	// This stays as the ui-oled spelling every widget here already calls.
+	return text_height_of(font);
 }
 
 int32_t spacing_x_for(FontId font) {
