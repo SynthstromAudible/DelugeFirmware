@@ -1631,7 +1631,7 @@ constexpr uint8_t kMaxGridRows = 16;
 /// compile-time capacity; `row(y)` is the seam for copying to/from legacy PadLEDs::image.
 class PadGrid {
 public:
-	explicit PadGrid(GridDimensions d) : dims_(d) { clear(); }
+	explicit PadGrid(GridDimensions d) : dims_(d) {} // cells_ value-initialised to black; nothing dirty yet (clear() marks all rows dirty)
 
 	GridDimensions dims() const { return dims_; }
 	bool in_range(uint8_t x, uint8_t y) const { return x < dims_.cols() && y < dims_.rows; }
@@ -1654,7 +1654,7 @@ public:
 private:
 	GridDimensions dims_;
 	uint32_t dirty_ = 0;
-	RGB cells_[kMaxGridRows][kMaxGridCols];
+	RGB cells_[kMaxGridRows][kMaxGridCols]{};
 };
 
 } // namespace deluge::gfx::grid
