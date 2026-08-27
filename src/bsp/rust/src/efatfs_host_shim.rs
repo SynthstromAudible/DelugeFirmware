@@ -280,6 +280,26 @@ pub async fn read_at(handle: u32, byte_offset: u32, dst: &mut [u8]) -> bool {
     }
 }
 
+/// The size, in bytes, of the file behind `handle`; `None` if the handle is out
+/// of range/free, the FS is unmounted, or the size could not be read. This is
+/// what `ProdOps::size_of` calls on host (a faithful mirror of the device
+/// `efatfs_fs::size_of_handle`, including its use of the streaming-read
+/// [`HANDLES`] table rather than the separate task-file table — see that
+/// function's doc).
+pub async fn size_of_handle(handle: u32) -> Option<u32> {
+    let (generation, ctx) = HANDLES.lock().await.checkout(handle)?;
+
+    let result = with_fs(async |fs| efatfs_core::size_context(fs, ctx).await).await;
+
+    match result {
+        Some(Some((newctx, size))) => {
+            HANDLES.lock().await.commit(handle, generation, newctx);
+            Some(size)
+        }
+        _ => None,
+    }
+}
+
 /// Close `handle`, freeing its slot. No-op for an out-of-range handle.
 pub async fn close(handle: u32) {
     HANDLES.lock().await.remove(handle);

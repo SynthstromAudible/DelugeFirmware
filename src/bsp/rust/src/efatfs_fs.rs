@@ -206,6 +206,37 @@ pub async fn read_at(handle: u32, byte_offset: u32, dst: &mut [u8]) -> bool {
     }
 }
 
+/// The size, in bytes, of the file behind `handle`; `None` if the handle is
+/// out of range/free, the FS is unmounted, or the size could not be read.
+///
+/// Deliberately reads [`HANDLES`] — the *streaming-read* handle table
+/// [`open`]/[`read_at`]/[`close`] above share — and NOT the separate
+/// `TASK_FILES` table `deluge_efatfs_file_size` serves. The async audio loader
+/// opens a file through [`open`] and must size that same open file; routing its
+/// size through the task-file table would index an unrelated (or empty) slot and
+/// hand the header parser a bound belonging to a different file, which bounds
+/// the parse to the wrong place rather than failing.
+///
+/// Same lock discipline as [`read_at`]: `checkout` (release HANDLES) →
+/// `size_context` under `with_fs` → `commit` (re-lock HANDLES,
+/// generation-gated). `size_context` leaves the context's cursor at EOF, which
+/// is harmless — every `read_context` reattaches and seeks absolutely first.
+pub async fn size_of_handle(handle: u32) -> Option<u32> {
+    let (generation, ctx) = HANDLES.lock().await.checkout(handle)?;
+
+    let result = with_fs(async |fs| efatfs_core::size_context(fs, ctx).await).await;
+
+    match result {
+        Some(Some((newctx, size))) => {
+            HANDLES.lock().await.commit(handle, generation, newctx);
+            Some(size)
+        }
+        // FS not mounted, or reattach/seek failed — slot left untouched (`checkout`
+        // clones rather than takes, so the handle stays usable).
+        _ => None,
+    }
+}
+
 /// Close `handle`, freeing its slot. No-op for an out-of-range handle. Bumps
 /// the slot's generation so any `read_at` write-back already in flight for
 /// this handle (captured before this `close`) is detected as stale even if no

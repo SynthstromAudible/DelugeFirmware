@@ -13,6 +13,15 @@
 #![cfg_attr(target_os = "none", no_std)]
 #![cfg_attr(target_os = "none", no_main)]
 #![feature(impl_trait_in_assoc_type)]
+// `audio_load_task`'s future nests the load driver's async calls inside the
+// `LoadOps` trait's own `async fn` futures, and `embassy_executor::task` makes
+// rustc compute the layout of the whole `TaskPool<Fut>` in one go. That exceeds
+// the default 128-deep query limit ("queries overflow the depth limit" while
+// computing the layout of `TaskPool<..audio_load_task::Fut..>`), which is a
+// compiler budget, not a sign of runaway recursion — the future is a fixed,
+// finite size. Raise it rather than flattening the driver into one function and
+// losing the structure that makes finish/abandon exactly-once.
+#![recursion_limit = "512"]
 
 #[cfg(target_os = "none")]
 use core::mem::MaybeUninit;
@@ -128,6 +137,16 @@ mod audio;
 /// stub in `host_link_stubs.rs`.
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 mod audio_host;
+/// The async audio-file load task and its selector/enqueue C ABI: drives a card
+/// sample's candidate open, size resolution and header parse on this executor,
+/// between the two I/O-free halves of `include/libdeluge/audio_load.h`. Compiled
+/// on the Embassy BSP unconditionally (device, or host under `host_app`) so
+/// `deluge_audio_load_async_active`/`deluge_audio_load_enqueue` always resolve to
+/// this crate's strong symbols rather than `audio_load_abi.cpp`'s weak
+/// fallbacks; the driver and the task itself stay gated behind
+/// `async_audio_load` — see its module doc's "Two compilation tiers".
+#[cfg(any(target_os = "none", feature = "host_app"))]
+mod audio_loader;
 /// board.h — capability descriptor + GPIO/audio/CV bring-up. Compiled on host
 /// too under `host_app` (the descriptor/probe are pure data/logic; the GPIO/CV
 /// bring-up bodies get host no-op siblings — see board.rs).
@@ -391,20 +410,31 @@ fn stream_sgi_handler() {
 }
 
 /// Bootstrap for [`STREAM_EXEC`]: obtain that executor's own `Spawner` from a task already
-/// running on it, then spawn the (non-`Send`) streaming fill task locally.
+/// running on it, then spawn the (non-`Send`) storage tasks locally.
 ///
 /// The indirection exists because `InterruptExecutor::start` hands out a `SendSpawner`, while
 /// the fill task's future holds a raw `DelugeResource*` and so is not `Send`. This task is
 /// `Send` (it owns nothing across its single await), and once it is running ON `STREAM_EXEC`
 /// it can spawn onto that executor directly.
-#[cfg(all(target_os = "none", feature = "async_streaming_loader"))]
+///
+/// The audio-file load task lands here rather than on the thread-mode executor for the reason
+/// its own module doc gives: like the fill task, it holds the single `efatfs` FS mutex across
+/// an SD await, and the storage fiber's non-yielding `sim_block::block_on` spin would deadlock
+/// against that if both shared an executor.
+#[cfg(all(
+    target_os = "none",
+    any(feature = "async_streaming_loader", feature = "async_audio_load")
+))]
 #[embassy_executor::task]
 async fn stream_bootstrap() {
     // SAFETY: this task only ever runs on STREAM_EXEC (it is spawned onto it and nowhere
     // else), so the Spawner yielded here belongs to STREAM_EXEC, and the non-Send task
     // spawned with it never leaves the executor it was created on.
     let spawner = unsafe { Spawner::for_current_executor() }.await;
+    #[cfg(feature = "async_streaming_loader")]
     spawner.spawn(streaming_loader::streaming_fill_task().unwrap());
+    #[cfg(all(feature = "async_audio_load", feature = "efatfs_streaming"))]
+    spawner.spawn(audio_loader::audio_load_task().unwrap());
 }
 
 /// Firmware entry. The HAL reset handler (`_reset_handler` in rza1l-hal) ends in
@@ -517,11 +547,11 @@ pub extern "C" fn main() -> ! {
     // not be enabled before the executor its handler drives exists. Spawned via
     // `stream_bootstrap` — see that task's doc for why a SendSpawner cannot take the fill task
     // directly.
-    #[cfg(feature = "async_streaming_loader")]
+    #[cfg(any(feature = "async_streaming_loader", feature = "async_audio_load"))]
     STREAM_EXEC
         .start(STREAM_SGI)
         .spawn(stream_bootstrap().unwrap());
-    #[cfg(not(feature = "async_streaming_loader"))]
+    #[cfg(not(any(feature = "async_streaming_loader", feature = "async_audio_load")))]
     let _ = STREAM_EXEC.start(STREAM_SGI);
     unsafe { rza1l_hal::gic::enable(STREAM_SGI as u16) };
 
@@ -1129,7 +1159,12 @@ fn main() {
         // constructor reads app state `deluge_app_init` is still writing. See
         // `streaming_fill_task`'s doc — an earlier version of this thread raced
         // `Cluster::set_size` exactly that way, which is what TSan caught.
-        #[cfg(feature = "async_streaming_loader")]
+        //
+        // The audio-file load task shares this thread for the same reason it shares
+        // `STREAM_EXEC` on device: it too holds the FS mutex across an SD await, so it must not
+        // live where a non-yielding storage spin could starve it. See `audio_loader`'s module
+        // doc.
+        #[cfg(any(feature = "async_streaming_loader", feature = "async_audio_load"))]
         {
             let stream_ready = Arc::new(Barrier::new(2));
             let stream_barrier = Arc::clone(&stream_ready);
@@ -1138,7 +1173,10 @@ fn main() {
                 .spawn(move || {
                     let executor: &'static mut Executor = Box::leak(Box::new(Executor::new()));
                     executor.run(|spawner: Spawner| {
+                        #[cfg(feature = "async_streaming_loader")]
                         spawner.spawn(streaming_loader::streaming_fill_task().unwrap());
+                        #[cfg(feature = "async_audio_load")]
+                        spawner.spawn(audio_loader::audio_load_task().unwrap());
                         log::info!(
                             "deluge-bsp-rust: host streaming executor up on thread {:?}",
                             std::thread::current().name()

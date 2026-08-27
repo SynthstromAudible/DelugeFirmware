@@ -208,7 +208,7 @@ embedded-fatfs = { path = "../../../crates/embedded-fatfs", default-features = f
 embedded-io-async = { version = "0.7.0", optional = true }
 
 [features]
-default = ["rtt", "async_streaming_loader", "efatfs_streaming"]
+default = ["rtt", "async_streaming_loader", "async_audio_load", "efatfs_streaming"]
 
 ## RTT (SEGGER Real-Time Transfer) logging over a debug probe: selects the
 ## rza1l_rtt.x linker script (via build.rs) and registers the log logger.
@@ -265,6 +265,21 @@ sim_latency = []
 ## (false ⇒ `loader.cpp`'s fiber pump behaves exactly as before). On by default;
 ## opt out with --no-default-features.
 async_streaming_loader = []
+
+## Build + spawn the Rust async audio-file load task (`audio_loader.rs`), which
+## drives a card sample's candidate open, size resolution and header parse
+## between the two I/O-free halves of `include/libdeluge/audio_load.h` instead of
+## running them inline on the storage fiber. The selector/enqueue C ABI
+## (`deluge_audio_load_async_active`/`_enqueue`) is always compiled so the C++
+## side always has a strong symbol overriding its weak fallbacks;
+## `async_active()`'s return value is the switch (false ⇒ every load takes the
+## synchronous path, exactly as before). On by default; opt out with
+## --no-default-features.
+##
+## Also enables the header decoder on host: `deluge_audio_format` is a required
+## dependency on device but an optional, `host_app`-gated one on host, and the
+## driver needs `HeaderParser` in the plain-host build the integration tests use.
+async_audio_load = ["dep:deluge_audio_format"]
 
 [build-dependencies]
 # Generate Rust signatures + POD types from the canonical libdeluge C headers so
