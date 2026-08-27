@@ -23,12 +23,18 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <optional>
 
 class Sample;
 class SampleCache;
 #include <string>
 class SampleRecorder;
 class Output;
+
+/// A finished async header parse (libdeluge/audio_load.h). Forward-declared rather than included: the
+/// C ABI header is only needed where the collector is actually implemented (audio_file_manager.cpp),
+/// not by every translation unit that talks to the manager.
+struct DelugeAudioLoadResult;
 
 enum class AlternateLoadDirStatus {
 	NONE_SET,
@@ -83,8 +89,30 @@ public:
 	AudioFileVector audioFiles;
 
 	void init();
+	/// @brief Get the AudioFile for @p fileName: from memory if it is already resident, otherwise from
+	///        the card.
+	///
+	/// @param fileName                    The path to load. May be rewritten to the alternate location
+	///                                    the file was actually found at (see resolveFileSize).
+	/// @param mayReadCard                 false makes this an in-memory lookup only: a miss returns
+	///                                    nullptr and leaves @p error untouched.
+	/// @param error                       Set on failure. Also set to Error::LOAD_IN_PROGRESS -- which
+	///                                    is NOT a failure -- when the async loader has been asked for
+	///                                    this file and has not finished yet; see @p mayLoadAsync.
+	/// @param type                        Which concrete AudioFile subclass is wanted.
+	/// @param makeWaveTableWorkAtAllCosts Force wavetable interpretation even without the tag/length
+	///                                    hints that normally identify one.
+	/// @param mayLoadAsync                Opt in to the async loader (libdeluge/audio_load.h) for a
+	///                                    card miss, instead of the blocking load. Only honoured for
+	///                                    AudioFileType::SAMPLE, and only where the async backing is
+	///                                    actually active. A caller opting in MUST handle
+	///                                    Error::LOAD_IN_PROGRESS -- returning to its own loop and
+	///                                    asking again on a later tick, without re-requesting or
+	///                                    reporting a failure. Defaulted off: every existing caller
+	///                                    keeps the synchronous behaviour it was written against.
+	/// @return The AudioFile, held by no reason (the caller leases it), or nullptr with @p error set.
 	AudioFile* getAudioFileFromFilename(std::string& fileName, bool mayReadCard, Error* error, AudioFileType type,
-	                                    bool makeWaveTableWorkAtAllCosts = false);
+	                                    bool makeWaveTableWorkAtAllCosts = false, bool mayLoadAsync = false);
 
 	bool ensureEnoughMemoryForOneMoreAudioFile();
 
@@ -236,6 +264,65 @@ private:
 	/// cost to being speculative) and skips `ThingType::SONG` entirely -- a genuinely different subset,
 	/// not a duplicate to collapse. If this naming rule ever changes, change it here once.
 	std::string alternateDirBareNameCandidate(const std::string& filePath) const;
+
+	/// @brief The resident AudioFile of @p type at @p filePath, given the index audioFiles.search()
+	///        returned for that path (with foundExact).
+	///
+	/// A Sample and a WaveTable of the same file share a path, and audioFiles is sorted by path, so
+	/// they sit adjacent and a search for the path can land on either -- hence the neighbour check
+	/// rather than just a type test on the hit itself.
+	///
+	/// @param audioFileI A search() index that matched @p filePath exactly.
+	/// @return The AudioFile of the wanted type, or nullptr if only the other type is resident.
+	AudioFile* matchingResidentAudioFile(int32_t audioFileI, const std::string& filePath, AudioFileType type) const;
+
+	/// @brief Answer a card miss through the async loader (libdeluge/audio_load.h) instead of the
+	///        blocking card path: collect a finished parse and build the Sample from it, or ask for
+	///        one.
+	///
+	/// Deliberately keeps NO in-flight table of its own. The loader already keys its queue, its
+	/// in-flight set and its results by path, and reports DELUGE_AUDIO_LOAD_PENDING for a path it is
+	/// already working on -- a second table here would be a second thing that has to agree with that
+	/// one.
+	///
+	/// @param filePath The nominal path being loaded; the key the loader reports results under.
+	/// @param error    Set only when this answers the call (see the return value).
+	/// @return std::nullopt if this load is not the loader's to answer, and the caller must fall
+	///         through to the synchronous path. Otherwise the call is answered: the published Sample,
+	///         or nullptr with @p error set -- to the loader's verdict on the file, to a build
+	///         failure, or to Error::LOAD_IN_PROGRESS (not a failure: ask again on a later tick).
+	std::optional<AudioFile*> collectAsyncSampleLoad(const std::string& filePath, Error* error);
+
+	/// @brief Build and publish a Sample from a collected parse result. No I/O beyond the one
+	///        read-stream open (see deluge_audio_load_bind_read_stream).
+	///
+	/// Runs the whole build the loader is not allowed to run itself -- begin, bind, apply the parsed
+	/// geometry, publish -- checking every step, and abandoning the build on any failure so nothing is
+	/// left adopted-but-unpublished. See libdeluge/audio_load.h's ownership note.
+	///
+	/// @param filePath The nominal path (the AudioFile's own path; @p result carries the alternate
+	///                 location the bytes were actually found at, if any).
+	/// @param result   A DELUGE_AUDIO_LOAD_READY result, already collected.
+	/// @param error    Set on failure (never left at Error::NONE when this returns nullptr).
+	/// @return The published Sample, or nullptr with @p error set.
+	AudioFile* buildSampleFromLoadResult(const std::string& filePath, const DelugeAudioLoadResult& result,
+	                                     Error* error);
+
+	/// @brief Ask the async loader to load @p filePath, resolving the alternate load dir first.
+	///
+	/// The order is behaviour, not tidiness: `alternateLoadDirStatus` is MIGHT_EXIST at the start of
+	/// every song and preset load, and proposeLoadCandidates() proposes only the regular path in that
+	/// state, so asking for candidates before resolving the status silently loses the alternate-dir
+	/// candidates a "collect media" song's samples actually live at. Both calls stay on this tier: the
+	/// loader task runs where it may only await, and may not call into C++ at all.
+	///
+	/// @param filePath The nominal path to load.
+	/// @param error    Set to Error::LOAD_IN_PROGRESS when a request was made (or dropped -- see the
+	///                 implementation).
+	/// @return std::nullopt if no request could be formed at all, and the caller must fall through to
+	///         the synchronous path; otherwise nullptr with @p error set.
+	std::optional<AudioFile*> requestAsyncSampleLoad(const std::string& filePath, Error* error);
+
 	bool cardReadOnce{false};
 	bool cardEjected{};
 	bool cardDisabled = false;

@@ -486,6 +486,12 @@ enum class Error {
 	POS_PAST_STRING,
 	FILE_NOT_SAVED,
 	TOO_MANY_OPEN_STREAMS,
+	/// Not a failure: the async sample loader has been asked for this file and has not finished yet.
+	/// A caller that gets this got no AudioFile *this* time and should ask again on a later tick --
+	/// it must NOT re-request, report a load failure, or write anything on the strength of it. Only
+	/// produced by AudioFileManager::getAudioFileFromFilename's opt-in async path (see
+	/// libdeluge/audio_load.h); the synchronous path never returns it.
+	LOAD_IN_PROGRESS,
 };
 
 enum class SampleRepeatMode {

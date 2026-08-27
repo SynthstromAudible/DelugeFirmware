@@ -26,6 +26,7 @@
 #include "io/file.hpp"
 #include "io/midi/midi_device_manager.h"
 #include "io/stream.hpp"
+#include "libdeluge/audio_load.h" // the async loader's request/collect pair + the sample build
 #include "libdeluge/block_device.h"
 #include "libdeluge/file_io.h"       // deluge_efatfs_cluster_size
 #include "libdeluge/storage_owner.h" // deluge_storage_on_owner
@@ -39,6 +40,7 @@
 #include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "storage/audio/audio_load_abi.h" // deluge::storage::errorFromAbiByte
 #include "storage/audio/file_byte_source.h"
 #include "storage/cluster/cluster.h"
 #include "storage/existence_policy.h"
@@ -47,6 +49,7 @@
 #include "storage/wave_table/wave_table.h"
 #include "util/string.h"
 #include "util/try.h"
+#include <algorithm>
 #include <cstddef>
 
 #include <new>
@@ -763,8 +766,32 @@ AudioFile* AudioFileManager::convertSampleToWaveTable(Sample& foundSample, bool 
 	return newWaveTable;
 }
 
+AudioFile* AudioFileManager::matchingResidentAudioFile(int32_t audioFileI, const std::string& filePath,
+                                                       AudioFileType type) const {
+	// Correct type at the found index...
+	AudioFile* foundAudioFile = audioFiles[audioFileI];
+	if (foundAudioFile->type == type) {
+		return foundAudioFile;
+	}
+
+	// ...or at an immediate same-path neighbour (the vector is sorted by path, so a Sample and a WaveTable of
+	// the same file sit adjacent). Try the one before, then the one after.
+	for (const int32_t neighbourI : {audioFileI - 1, audioFileI + 1}) {
+		if (neighbourI < 0 || neighbourI >= static_cast<int32_t>(audioFiles.size())) {
+			continue;
+		}
+		AudioFile* neighbour = audioFiles[neighbourI];
+		if (neighbour->type == type && strcasecmp(filePath.c_str(), neighbour->filePath.c_str()) == 0) {
+			return neighbour;
+		}
+	}
+
+	return nullptr;
+}
+
 AudioFile* AudioFileManager::getAudioFileFromFilename(std::string& filePath, bool mayReadCard, Error* error,
-                                                      AudioFileType type, bool makeWaveTableWorkAtAllCosts) {
+                                                      AudioFileType type, bool makeWaveTableWorkAtAllCosts,
+                                                      bool mayLoadAsync) {
 
 	*error = Error::NONE;
 
@@ -797,34 +824,41 @@ AudioFile* AudioFileManager::getAudioFileFromFilename(std::string& filePath, boo
 
 	// If we found it resident (directly or in the alternate location)...
 	if (foundExact) {
-		AudioFile* foundAudioFile = audioFiles[audioFileI];
-
-		// Correct type at the found index...
-		if (foundAudioFile->type == type) {
-			return foundAudioFile;
-		}
-
-		// ...or at an immediate same-path neighbour (the vector is sorted by path, so a Sample and a WaveTable of
-		// the same file sit adjacent). Try the one before, then the one after.
-		for (const int32_t neighbourI : {audioFileI - 1, audioFileI + 1}) {
-			if (neighbourI < 0 || neighbourI >= static_cast<int32_t>(audioFiles.size())) {
-				continue;
-			}
-			AudioFile* neighbour = audioFiles[neighbourI];
-			if (neighbour->type == type && strcasecmp(filePath.c_str(), neighbour->filePath.c_str()) == 0) {
-				return neighbour;
-			}
+		if (AudioFile* residentOfWantedType = matchingResidentAudioFile(audioFileI, filePath, type)) {
+			return residentOfWantedType;
 		}
 
 		// We found the path but not the wanted type. If we want a WaveTable but have the Sample, we can convert.
 		if (type == AudioFileType::WAVETABLE) {
-			return convertSampleToWaveTable(static_cast<Sample&>(*foundAudioFile), makeWaveTableWorkAtAllCosts, error);
+			return convertSampleToWaveTable(static_cast<Sample&>(*audioFiles[audioFileI]), makeWaveTableWorkAtAllCosts,
+			                                error);
 		}
 
 		// Otherwise (want Sample, have WaveTable) we can't convert, so load from card after all — restoring the
 		// original filePath if we'd switched to the alternate one (pretty unlikely scenario).
 		if (!backedUpFilePath.empty()) {
 			filePath = backedUpFilePath;
+		}
+	}
+
+	// Not resident. The async loader may answer this miss instead of the blocking card path below.
+	//
+	// Deliberately here, between the two searches and resolveFileSize: after them, because a resident
+	// file must never cost a request (both searches are free in-memory lookups, and the alternate-name
+	// one is what a preset load's second reference to the same sample hits); before resolveFileSize,
+	// because its candidate opens ARE the blocking card I/O this exists to move off the calling tier --
+	// asking after it would leave the cost exactly where it was.
+	//
+	// Every conjunct below keeps an existing caller's behaviour exactly as it is: only a caller that
+	// opted in, only for a Sample (the loader parses sample headers; a WaveTable's build reads the file
+	// again through the deserializer), only where the loader is actually backing loads, only when the
+	// caller allowed the card to be read at all (!mayReadCard means "in-memory lookup only", and a
+	// request is card I/O on another tier), and only while the card is usable (a disabled card must
+	// still report Error::SD_CARD from resolveFileSize, not sit in LOAD_IN_PROGRESS forever).
+	if (mayLoadAsync && mayReadCard && !cardDisabled && type == AudioFileType::SAMPLE
+	    && deluge_audio_load_async_active()) {
+		if (std::optional<AudioFile*> collected = collectAsyncSampleLoad(filePath, error)) {
+			return *collected;
 		}
 	}
 
@@ -836,6 +870,130 @@ AudioFile* AudioFileManager::getAudioFileFromFilename(std::string& filePath, boo
 
 	return buildAudioFileFromCard(filePath, usingAlternateLocation, sizeBytes, type, makeWaveTableWorkAtAllCosts,
 	                              error);
+}
+
+std::optional<AudioFile*> AudioFileManager::collectAsyncSampleLoad(const std::string& filePath, Error* error) {
+	DelugeAudioLoadResult result{};
+	switch (deluge_audio_load_collect(filePath.c_str(), &result)) {
+
+	case DELUGE_AUDIO_LOAD_READY:
+		// The bytes are already in hand: build and publish the Sample right here, synchronously.
+		return buildSampleFromLoadResult(filePath, result, error);
+
+	case DELUGE_AUDIO_LOAD_PENDING:
+		// Queued or in flight. Not a failure, and NOT a reason to request again -- the loader is
+		// already working on this exact path (which is why this keeps no in-flight table of its own).
+		*error = Error::LOAD_IN_PROGRESS;
+		return nullptr;
+
+	case DELUGE_AUDIO_LOAD_UNKNOWN:
+	default:
+		// Never requested, or its result was collected/evicted already. Ask (again).
+		return requestAsyncSampleLoad(filePath, error);
+	}
+}
+
+AudioFile* AudioFileManager::buildSampleFromLoadResult(const std::string& filePath, const DelugeAudioLoadResult& result,
+                                                       Error* error) {
+	// Report a failure as a failure. Every code here arrives as a byte, and a caller reading nullptr
+	// with *error still Error::NONE would take it for "not on the card" (resolveFileSize's silent-miss
+	// shape) rather than the build failure it is -- so an out-of-contract Error::NONE becomes BUG.
+	const auto fail = [&](uint8_t abiError) -> AudioFile* {
+		const Error mapped = deluge::storage::errorFromAbiByte(abiError);
+		*error = (mapped != Error::NONE) ? mapped : Error::BUG;
+		return nullptr;
+	};
+
+	if (result.error != static_cast<uint8_t>(Error::NONE)) {
+		// The loader's verdict on the file itself (FILE_UNSUPPORTED, FILE_CORRUPTED, ...), carrying the
+		// same identity the synchronous parse produces. Nothing was built, so there is nothing to close
+		// out here.
+		return fail(result.error);
+	}
+
+	uint8_t abiError = static_cast<uint8_t>(Error::NONE);
+	DelugeSampleBuild* build =
+	    deluge_audio_load_begin(filePath.c_str(), result.alternate_path, result.size_bytes, &abiError);
+	if (build == nullptr) {
+		return fail(abiError); // nothing adopted, nothing to abandon
+	}
+
+	// From here the Sample is adopted and reasoned, so EXACTLY one of deluge_audio_load_finish or
+	// deluge_audio_load_abandon must run on every path out of this function -- see audio_load.h's
+	// ownership note for what an escape leaves behind (an unevictable, zero-geometry Sample that every
+	// fill-context consumer silently resolves nothing for).
+
+	// The Sample's own streaming read handle: a build published without it loads with no error and
+	// plays silence forever. Open the file the size and geometry actually came from -- the alternate
+	// location if the loader resolved one, the nominal path otherwise.
+	const char* pathToOpen = (result.alternate_path[0] != '\0') ? result.alternate_path : filePath.c_str();
+	abiError = deluge_audio_load_bind_read_stream(build, pathToOpen);
+	if (abiError != static_cast<uint8_t>(Error::NONE)) {
+		deluge_audio_load_abandon(build);
+		return fail(abiError);
+	}
+
+	// Refusable, and refused rather than degraded for a reason (an invalid raw_data_format renders
+	// wrong while loading without error) -- so this return is checked, not assumed.
+	if (!deluge_audio_load_apply_geometry(build, &result.geometry, &abiError)) {
+		deluge_audio_load_abandon(build);
+		return fail(abiError);
+	}
+
+	abiError = static_cast<uint8_t>(Error::NONE);
+	if (!deluge_audio_load_finish(build, static_cast<uint8_t>(Error::NONE), &abiError)) {
+		// Publishing itself failed (e.g. the cache insert ran out of memory). finish() consumed the
+		// build either way, so there is nothing left to abandon -- and its error_out, not our
+		// Error::NONE input, is the outcome to report.
+		return fail(abiError);
+	}
+
+	// Published into audioFiles. finish() reports only whether it published, so recover the object the
+	// same way a resident hit is found -- an in-memory lookup of the path we just inserted at.
+	bool foundExact = false;
+	const int32_t audioFileI = audioFiles.search(filePath.c_str(), &foundExact);
+	AudioFile* published =
+	    foundExact ? matchingResidentAudioFile(audioFileI, filePath, AudioFileType::SAMPLE) : nullptr;
+	if (published == nullptr) {
+		// Cannot happen: finish() returned true, which means the insert succeeded. Refuse to hand back
+		// a silent nullptr if it ever does.
+		*error = Error::BUG;
+		return nullptr;
+	}
+	return published;
+}
+
+std::optional<AudioFile*> AudioFileManager::requestAsyncSampleLoad(const std::string& filePath, Error* error) {
+	// Discovery BEFORE candidates (see the declaration): resolving the alternate load dir is what
+	// unlocks its candidates, and it is I/O, so it cannot live inside the I/O-free candidate policy.
+	// Its answer is deliberately ignored here -- "no alternate dir" is not a load failure, it just
+	// means the regular path is the only candidate, which is exactly what proposeLoadCandidates then
+	// returns.
+	(void)deluge_audio_load_resolve_alternate_dir(nullptr);
+
+	std::array<char, kMaxLoadCandidates * DELUGE_MAX_PATH> candidates{};
+	const uint32_t proposed =
+	    deluge_audio_load_candidates(filePath.c_str(), candidates.data(), static_cast<uint32_t>(kMaxLoadCandidates));
+	if (proposed == DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED || proposed == 0) {
+		// No trustworthy candidate list to hand over: a candidate too long to fit, or a candidate
+		// construction that failed. Decline rather than request, and let the synchronous path -- which
+		// builds the same candidates as std::strings, and reports its own error for the second case --
+		// answer this load.
+		return std::nullopt;
+	}
+
+	// proposeLoadCandidates reports how many it PROPOSED, which may exceed what fits (snprintf's
+	// contract); only the slots actually written may be read. kMaxLoadCandidates is its true upper
+	// bound, so this cannot bite today -- it is here so it cannot start to.
+	const uint32_t numCandidates = std::min<uint32_t>(proposed, static_cast<uint32_t>(kMaxLoadCandidates));
+	(void)deluge_audio_load_request(filePath.c_str(), candidates.data(), numCandidates);
+
+	// A dropped request (a full queue) is reported exactly like an accepted one, by contract: the
+	// caller has been told LOAD_IN_PROGRESS, so it asks again on a later tick, by which time the queue
+	// has drained. Falling back to a blocking load here instead would put the stall back on this tier
+	// precisely when the loader is busiest.
+	*error = Error::LOAD_IN_PROGRESS;
+	return nullptr;
 }
 
 /// Allocate and construct a Sample ready to be populated from the card. No I/O: every step here is

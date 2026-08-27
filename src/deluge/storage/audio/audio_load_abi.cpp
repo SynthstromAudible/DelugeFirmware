@@ -38,6 +38,7 @@
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file_format.h" // RawDataFormat
 #include "storage/audio/audio_file_manager.h"
+#include "storage/audio/audio_load_abi.h"
 #include "util/misc.h" // util::to_underlying
 
 #include <algorithm>
@@ -88,9 +89,9 @@ BuildHandle* validateHandle(DelugeSampleBuild* build) noexcept {
 }
 
 // Every value `error_in`/`error_out` can carry across this boundary is matched by NUMBER
-// (errorFromByte below), never `static_cast<Error>(byte)` -- `enum class Error` has no fixed
+// (errorFromAbiByte below), never `static_cast<Error>(byte)` -- `enum class Error` has no fixed
 // underlying type, so its valid range is whatever `int` gives it and casting an out-of-range byte is
-// undefined behaviour. These static_asserts pin the numeric identity errorFromByte depends on:
+// undefined behaviour. These static_asserts pin the numeric identity errorFromAbiByte depends on:
 // inserting a new Error enumerator upstream (definitions_cxx.hpp) shifts every later value, and
 // without this, that shift would be silent -- every gate staying green while a caller across this
 // boundary mismatches every code from the insertion point on.
@@ -129,6 +130,7 @@ static_assert(util::to_underlying(Error::INVALID_SYSEX_FORMAT) == 31);
 static_assert(util::to_underlying(Error::POS_PAST_STRING) == 32);
 static_assert(util::to_underlying(Error::FILE_NOT_SAVED) == 33);
 static_assert(util::to_underlying(Error::TOO_MANY_OPEN_STREAMS) == 34);
+static_assert(util::to_underlying(Error::LOAD_IN_PROGRESS) == 35);
 
 // The request/collect boundary's two POD structs are hand-declared on BOTH sides: audio_load.h is
 // not in the Rust BSP's wrapper.h, so bindgen does not generate them and nothing else cross-checks
@@ -173,11 +175,17 @@ static_assert(DELUGE_AUDIO_LOAD_UNKNOWN == 2u);
 // The Rust side bounds its candidate list by its own copy of this.
 static_assert(AudioFileManager::kMaxLoadCandidates == 3);
 
+} // namespace
+
 /// Map a byte crossing the ABI to `Error` by number (see the static_asserts above). An out-of-range
 /// byte degrades to `Error::UNSPECIFIED` rather than producing an invalid enum value via
 /// `static_cast` -- the same fail-safe direction `raw_data_format_from_u8`
 /// (crates/deluge_sample_fill/src/fill_logic.rs) takes for the analogous RawDataFormat byte below.
-Error errorFromByte(uint8_t v) noexcept {
+///
+/// Declared in audio_load_abi.h (a C++-only header, not part of the ABI) rather than kept file-local:
+/// the C++ collector that consumes `DelugeAudioLoadResult::error` needs exactly this mapping, and a
+/// second copy of it is a second thing to keep in step with the asserts above.
+Error deluge::storage::errorFromAbiByte(uint8_t v) noexcept {
 	switch (v) {
 	case 0:
 		return Error::NONE;
@@ -249,16 +257,20 @@ Error errorFromByte(uint8_t v) noexcept {
 		return Error::FILE_NOT_SAVED;
 	case 34:
 		return Error::TOO_MANY_OPEN_STREAMS;
+	case 35:
+		return Error::LOAD_IN_PROGRESS;
 	default:
 		return Error::UNSPECIFIED; // out-of-range byte: degrade safely rather than UB-cast.
 	}
 }
 
+namespace {
+
 /// Never called; exists only to be COMPILED. An exhaustive switch over `Error` ITSELF (not the byte
 /// crossing the boundary) with no `default` case: this repo builds with `-Werror=switch`
 /// (CMakeLists.txt), so the compiler refuses to build the moment a new `Error` enumerator is added
 /// upstream and not listed here. This is the count-completeness half the per-value static_asserts
-/// above cannot provide alone -- they stay green if a value is simply APPENDED, since errorFromByte's
+/// above cannot provide alone -- they stay green if a value is simply APPENDED, since errorFromAbiByte's
 /// `default` would just keep degrading the new byte to `Error::UNSPECIFIED` without anyone noticing.
 [[maybe_unused]] constexpr void errorEnumerationIsComplete(Error e) noexcept {
 	switch (e) {
@@ -297,6 +309,7 @@ Error errorFromByte(uint8_t v) noexcept {
 	case Error::POS_PAST_STRING:
 	case Error::FILE_NOT_SAVED:
 	case Error::TOO_MANY_OPEN_STREAMS:
+	case Error::LOAD_IN_PROGRESS:
 		break;
 	}
 }
@@ -308,8 +321,8 @@ static_assert(util::to_underlying(RawDataFormat::ENDIANNESS_WRONG_16) == 3);
 static_assert(util::to_underlying(RawDataFormat::ENDIANNESS_WRONG_24) == 4);
 static_assert(util::to_underlying(RawDataFormat::ENDIANNESS_WRONG_32) == 5);
 
-/// Map a byte crossing the ABI to `RawDataFormat` by number -- see errorFromByte's doc comment for
-/// why never `static_cast`. Unlike errorFromByte, an out-of-range byte here is REFUSED (empty
+/// Map a byte crossing the ABI to `RawDataFormat` by number -- see errorFromAbiByte's doc comment for
+/// why never `static_cast`. Unlike errorFromAbiByte, an out-of-range byte here is REFUSED (empty
 /// `optional`), not degraded to a default: this is one geometry field the synchronous path can never
 /// receive out of range (`AudioFile::loadFile` assigns a `RawDataFormat` straight from the parser, so
 /// an invalid value cannot arise there), and silently accepting a bad one would publish a sample that
@@ -484,7 +497,7 @@ extern "C" bool deluge_audio_load_finish(DelugeSampleBuild* build, uint8_t error
 	                                          // bug, not a live build (see validateHandle()).
 	std::unique_ptr<BuildHandle> handle{raw}; // guarantees the wrapper itself is freed on every path
 	                                          // below, including the exception path.
-	Error error = errorFromByte(error_in);
+	Error error = deluge::storage::errorFromAbiByte(error_in);
 	AudioFile* published = nullptr;
 	try {
 		published = audioFileManager.finishSampleFromCard(handle->sample, handle->sizeBytes, &error);
