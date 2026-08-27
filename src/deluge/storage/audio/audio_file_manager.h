@@ -165,6 +165,22 @@ public:
 	                            uint64_t sizeBytes, Error* error);
 	AudioFile* finishSampleFromCard(Sample* sampleFile, uint64_t sizeBytes, Error* error);
 
+	/// @brief Resolve `alternateLoadDirStatus` from `MIGHT_EXIST` to `DOES_EXIST` or `NOT_FOUND`. I/O:
+	///        opens `alternateAudioFileLoadPath`. Public, and split out of resolveFileSize (its only
+	///        other caller), so the C ABI (a later migration step) can run this probe on its own before
+	///        proposeLoadCandidates() -- that function only proposes the alternate-dir candidates once
+	///        this status is DOES_EXIST, so calling it while still MIGHT_EXIST silently yields an
+	///        incomplete list (see proposeLoadCandidates's doc comment).
+	///
+	/// A no-op when the status is already anything other than MIGHT_EXIST: returns immediately, true
+	/// only for DOES_EXIST, without touching the card.
+	///
+	/// @param error Set to Error::FILE_UNREADABLE if the probe finds the directory genuinely absent, or
+	///              Error::SD_CARD if presence couldn't be determined (left untouched otherwise).
+	/// @return true once the alternate dir is known to exist (already, or newly resolved); false
+	///         otherwise.
+	bool resolveAlternateLoadDirStatus(Error* error);
+
 	/// Upper bound on how many candidate paths proposeLoadCandidates() can propose: the alternate dir's
 	/// "collect media" flattened name, its bare-filename fallback, and the regular path.
 	static constexpr size_t kMaxLoadCandidates = 3;
@@ -188,11 +204,12 @@ public:
 	/// NOT a sufficient "only source of truth" on its own when `alternateLoadDirStatus ==
 	/// AlternateLoadDirStatus::MIGHT_EXIST` -- the state at the start of every song/preset load, before
 	/// anything has probed whether the alternate dir actually exists. In that state this proposes only
-	/// the regular path; a caller that needs the alternate-dir candidates too (as resolveFileSize does)
-	/// must first resolve `MIGHT_EXIST` to `DOES_EXIST` or `NOT_FOUND` itself -- an I/O probe
-	/// (`deluge::io::Directory::open` on `alternateAudioFileLoadPath`) that cannot live in this
-	/// I/O-free function -- and only then call this again. Calling this while still `MIGHT_EXIST`
-	/// silently yields an incomplete candidate list, not an error.
+	/// the regular path; a caller that needs the alternate-dir candidates too (as resolveFileSize does,
+	/// and as the C ABI's async loader must) must first resolve `MIGHT_EXIST` to `DOES_EXIST` or
+	/// `NOT_FOUND` itself via resolveAlternateLoadDirStatus() -- an I/O probe (`deluge::io::Directory::open`
+	/// on `alternateAudioFileLoadPath`) that cannot live in this I/O-free function -- and only then call
+	/// this again. Calling this while still `MIGHT_EXIST` silently yields an incomplete candidate list,
+	/// not an error.
 	///
 	/// `const` here describes the signature, not thread-safety: this reads the mutable
 	/// `alternateLoadDirStatus` / `alternateAudioFileLoadPath` members, so a caller running it

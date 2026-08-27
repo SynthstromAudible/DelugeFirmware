@@ -28,11 +28,15 @@
 /// Deterministic. No external tools required — the project directory IS the SD card.
 ///
 /// With no --file/--wavetable at all, main() returns immediately after running
-/// checkProposeLoadCandidates()'s I/O-free policy checks -- it does not call deluge_platform_init() or
-/// deluge_main(), so there is no app boot, no card fixture, and --project is ignored. This is what the
-/// harness registry entry for this binary runs as a standing gate (harness/registry.toml); running it
-/// with zero arguments from any directory, including the repo root, leaves the tree untouched.
+/// checkProposeLoadCandidates()'s I/O-free policy checks and checkAudioLoadAbiAbandon()'s libdeluge/
+/// audio_load.h ownership check -- it does not call deluge_platform_init() or deluge_main(), so there
+/// is no app boot, no card fixture, and --project is ignored (both checks self-initialize the
+/// allocator/resource-manager they touch, same as the rest of this binary's zero-arg mode). This is
+/// what the harness registry entry for this binary runs as a standing gate (harness/registry.toml);
+/// running it with zero arguments from any directory, including the repo root, leaves the tree
+/// untouched.
 
+#include "libdeluge/audio_load.h"
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/wave_table/wave_table.h"
@@ -277,6 +281,34 @@ bool checkProposeLoadCandidates() {
 	return ok;
 }
 
+/// Pin the C ABI build's ownership contract (libdeluge/audio_load.h): abandoning a build must not
+/// publish it, and must not leave it sitting in the manager half-built (adopted, reasoned, zero
+/// geometry) -- see deluge_audio_load_begin's doc comment. No I/O, no card fixture: exercises
+/// deluge_audio_load_begin/_abandon directly.
+bool checkAudioLoadAbiAbandon() {
+	bool ok = true;
+
+	// abandons a build without leaking a reason or publishing it
+	{
+		uint8_t error = 0;
+		const size_t before = audioFileManager.audioFiles.size();
+		DelugeSampleBuild* build = deluge_audio_load_begin("TEST/abandon.wav", "", 4096, &error);
+		if (build == nullptr) {
+			printf("FAIL [audioLoadAbiAbandon]: deluge_audio_load_begin returned NULL (error=%u)\n", error);
+			return false;
+		}
+		deluge_audio_load_abandon(build);
+		// Nothing published, and the object is gone rather than sitting adopted with zero geometry.
+		if (audioFileManager.audioFiles.size() != before) {
+			printf("FAIL [audioLoadAbiAbandon]: audioFiles.size() changed across abandon (%zu -> %zu)\n", before,
+			       audioFileManager.audioFiles.size());
+			ok = false;
+		}
+	}
+
+	return ok;
+}
+
 void deluge_loadcheck_driver() {
 	static bool started = false;
 	if (started) {
@@ -286,6 +318,9 @@ void deluge_loadcheck_driver() {
 
 	int failures = 0;
 	if (!checkProposeLoadCandidates()) {
+		failures++;
+	}
+	if (!checkAudioLoadAbiAbandon()) {
 		failures++;
 	}
 	for (const LoadItem& item : g_items) {
@@ -319,8 +354,8 @@ void deluge_loadcheck_driver() {
 void usage(const char* argv0) {
 	fprintf(stderr, "usage: %s [--project <dir> (--file PATH | --wavetable PATH)...]\n", argv0);
 	fprintf(stderr, "  With no --file/--wavetable at all, runs only the I/O-free policy checks\n");
-	fprintf(stderr, "  (checkProposeLoadCandidates) and exits -- no app boot, no card fixture, --project\n");
-	fprintf(stderr, "  ignored. This is what the harness registry runs as a gate.\n");
+	fprintf(stderr, "  (checkProposeLoadCandidates, checkAudioLoadAbiAbandon) and exits -- no app boot,\n");
+	fprintf(stderr, "  no card fixture, --project ignored. This is what the harness registry runs as a gate.\n");
 	fprintf(stderr, "  With --file/--wavetable, --project <dir> is required.\n");
 }
 
@@ -358,9 +393,10 @@ int main(int argc, char** argv) {
 		// whole point is to be safe to run from anywhere -- including the repo root, with zero arguments,
 		// which is exactly what the harness registry entry does -- with no fixture and no cleanup
 		// required. --project is unused and ignored here.
-		const bool ok = checkProposeLoadCandidates();
+		const bool policyOk = checkProposeLoadCandidates();
+		const bool abiOk = checkAudioLoadAbiAbandon();
 		fflush(nullptr);
-		return ok ? 0 : 1;
+		return (policyOk && abiOk) ? 0 : 1;
 	}
 
 	if (project == nullptr) {

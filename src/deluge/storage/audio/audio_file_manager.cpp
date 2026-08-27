@@ -662,21 +662,8 @@ bool AudioFileManager::resolveFileSize(std::string& filePath, bool mayReadCard, 
 	// Nothing above hit, and the alternate dir's existence wasn't known yet (so it wasn't among the
 	// candidates above) — probe it once and remember the answer.
 	if (alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST) {
-		switch (deluge::storage::presence_of(
-		    deluge::io::presence_from_open(deluge::io::Directory::open(alternateAudioFileLoadPath.c_str())))) {
-		case deluge::storage::Presence::Absent:
-			// Genuinely not there: worth remembering, so later lookups skip it.
-			alternateLoadDirStatus = AlternateLoadDirStatus::NOT_FOUND;
-			*error = Error::FILE_UNREADABLE;
+		if (!resolveAlternateLoadDirStatus(error)) {
 			return false;
-		case deluge::storage::Presence::Undeterminable:
-			// Could not tell. Leave the status at MIGHT_EXIST so a later attempt asks again —
-			// caching this would turn one transient refusal into a permanent wrong answer.
-			*error = Error::SD_CARD;
-			return false;
-		case deluge::storage::Presence::Present:
-			alternateLoadDirStatus = AlternateLoadDirStatus::DOES_EXIST;
-			break;
 		}
 
 		// status is now DOES_EXIST: re-propose to get the alternate-dir candidates. The last slot (the
@@ -693,6 +680,33 @@ bool AudioFileManager::resolveFileSize(std::string& filePath, bool mayReadCard, 
 
 	*error = Error::FILE_UNREADABLE;
 	return false;
+}
+
+// Split out of resolveFileSize (its only other caller) so a direct caller -- the C ABI, later -- can
+// run the probe on its own before proposeLoadCandidates(); see the declaration's doc comment.
+bool AudioFileManager::resolveAlternateLoadDirStatus(Error* error) {
+	if (alternateLoadDirStatus != AlternateLoadDirStatus::MIGHT_EXIST) {
+		// Already known (or never set): nothing to probe. Only DOES_EXIST counts as "exists".
+		return alternateLoadDirStatus == AlternateLoadDirStatus::DOES_EXIST;
+	}
+
+	switch (deluge::storage::presence_of(
+	    deluge::io::presence_from_open(deluge::io::Directory::open(alternateAudioFileLoadPath.c_str())))) {
+	case deluge::storage::Presence::Absent:
+		// Genuinely not there: worth remembering, so later lookups skip it.
+		alternateLoadDirStatus = AlternateLoadDirStatus::NOT_FOUND;
+		*error = Error::FILE_UNREADABLE;
+		return false;
+	case deluge::storage::Presence::Undeterminable:
+		// Could not tell. Leave the status at MIGHT_EXIST so a later attempt asks again — caching this
+		// would turn one transient refusal into a permanent wrong answer.
+		*error = Error::SD_CARD;
+		return false;
+	case deluge::storage::Presence::Present:
+		alternateLoadDirStatus = AlternateLoadDirStatus::DOES_EXIST;
+		return true;
+	}
+	return false; // unreachable -- silences -Wreturn-type on the (exhaustive) enum switch above
 }
 
 AudioFile* AudioFileManager::convertSampleToWaveTable(Sample& foundSample, bool makeWaveTableWorkAtAllCosts,
