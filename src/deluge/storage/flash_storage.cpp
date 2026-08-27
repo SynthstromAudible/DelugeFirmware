@@ -190,6 +190,9 @@ enum Entries {
 190: GlobalMIDICommand::SHIFT channel + 1
 191: GlobalMIDICommand::SHIFT noteCode + 1
 192-195: GlobalMIDICommand::SHIFT product / vendor ids
+196: screensaver mode
+197: screensaver timeout (minutes)
+198-199: shortcut blink interval (ms, little-endian)
 */
 
 uint8_t defaultScale;
@@ -260,6 +263,8 @@ Polarity defaultPatchCablePolarity = Polarity::BIPOLAR;
 GlobalMIDICommand defaultLoopRecordingCommand = GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING;
 
 bool defaultUseSharps = true;
+
+int32_t shortcutBlinkInterval = kDefaultShortcutBlinkInterval;
 
 void resetSettings() {
 
@@ -370,6 +375,8 @@ void resetSettings() {
 	defaultLoopRecordingCommand = GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING;
 
 	defaultUseSharps = true;
+
+	shortcutBlinkInterval = kDefaultShortcutBlinkInterval;
 }
 
 void factoryReset(bool showPopup) {
@@ -792,6 +799,11 @@ void readSettings() {
 		defaultPatchCablePolarity = static_cast<Polarity>(buffer[189]);
 	}
 
+	shortcutBlinkInterval = buffer[198] | (buffer[199] << 8);
+	if (shortcutBlinkInterval < kMinShortcutBlinkInterval || shortcutBlinkInterval > kMaxShortcutBlinkInterval) {
+		shortcutBlinkInterval = kDefaultShortcutBlinkInterval;
+	}
+
 	// Bytes 196-197 hold the screensaver settings, and take the shipped defaults on any unit that
 	// has never saved them -- which is how an upgrading unit picks the screensaver up.
 	//
@@ -1050,6 +1062,9 @@ void writeSettings() {
 
 	buffer[196] = util::to_underlying(screensaverMode);
 	buffer[197] = screensaverTimeoutMinutes;
+
+	buffer[198] = shortcutBlinkInterval & 0xFF;
+	buffer[199] = (shortcutBlinkInterval >> 8) & 0xFF;
 
 	R_SFLASH_EraseSector(0x80000 - 0x1000, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, 1, SPIBSC_OUTPUT_ADDR_24);
 	R_SFLASH_ByteProgram(0x80000 - 0x1000, buffer.data(), 256, SPIBSC_CH, SPIBSC_CMNCR_BSZ_SINGLE, SPIBSC_1BIT,
