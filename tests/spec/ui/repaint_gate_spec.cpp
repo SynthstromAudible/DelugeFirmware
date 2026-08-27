@@ -1,4 +1,5 @@
 #include "cppspec.hpp"
+#include "support/frames.h"
 #include "ui/core/repaint_gate.h"
 
 using deluge::ui::RepaintGate;
@@ -25,9 +26,24 @@ describe repaint_gate("ui::RepaintGate", $ {
 		expect(g.next_deadline().has_value()).to_be_false();
 	});
 	it("keeps the earliest of several timed requests", _ {
-		RepaintGate g; g.needs_frame(0, false, false);
-		g.request_repaint_after(300, 0); g.request_repaint_after(120, 0);
-		expect(*g.next_deadline()).to_equal(120u);
+		// Later call is the earlier deadline: a last-write-wins implementation would also land
+		// on 120, so this ordering alone can't distinguish min-wins from last-wins.
+		RepaintGate g1; g1.needs_frame(0, false, false);
+		g1.request_repaint_after(300, 0); g1.request_repaint_after(120, 0);
+		expect(*g1.next_deadline()).to_equal(120u);
+
+		// Later call is the LARGER deadline: a last-write-wins implementation would overwrite
+		// the pending 120 with 300 here, so this is the discriminating case.
+		RepaintGate g2; g2.needs_frame(0, false, false);
+		g2.request_repaint_after(120, 0); g2.request_repaint_after(300, 0);
+		expect(*g2.next_deadline()).to_equal(120u);   // the later, larger request does not push it out
+	});
+	it("null_input starts every field at zero/false (keeps support/frames.h compiled)", _ {
+		auto in = deluge::ui::test::null_input(42);
+		expect(in.now_ms).to_equal(uint32_t(42));
+		expect(in.turn).to_equal(int8_t(0));
+		expect(in.select_pressed).to_be_false();
+		expect(in.pads.empty()).to_be_true();
 	});
 });
 // clang-format on

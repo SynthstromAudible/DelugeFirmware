@@ -12,28 +12,28 @@ struct Style {
 	gfx::oled::FontId title_font, row_font, value_font, big_font;
 };
 
-constexpr Style kDelugeStyle48{.title_height = 12,
-                               .row_height = 9,
-                               .inset_x = 6,
-                               .scrollbar_w = 4,
-                               .menu_rows = 3,
-                               .rounded = true,
-                               .invert_highlight = true,
-                               .title_font = gfx::oled::FontId::MetricBold9,
-                               .row_font = gfx::oled::FontId::Apple7,
-                               .value_font = gfx::oled::FontId::MetricBold20,
-                               .big_font = gfx::oled::FontId::MetricBold20};
+inline constexpr Style kDelugeStyle48{.title_height = 12,
+                                      .row_height = 9,
+                                      .inset_x = 6,
+                                      .scrollbar_w = 4,
+                                      .menu_rows = 3,
+                                      .rounded = true,
+                                      .invert_highlight = true,
+                                      .title_font = gfx::oled::FontId::MetricBold9,
+                                      .row_font = gfx::oled::FontId::Apple7,
+                                      .value_font = gfx::oled::FontId::MetricBold20,
+                                      .big_font = gfx::oled::FontId::MetricBold20};
 
-constexpr Style kDelugeStyle64{.title_height = 12,
-                               .row_height = 9,
-                               .inset_x = 6,
-                               .scrollbar_w = 4,
-                               .menu_rows = 5,
-                               .rounded = true,
-                               .invert_highlight = true,
-                               .title_font = gfx::oled::FontId::MetricBold9,
-                               .row_font = gfx::oled::FontId::Apple7,
-                               .value_font = gfx::oled::FontId::MetricBold20,
-                               .big_font = gfx::oled::FontId::MetricBold20};
+inline constexpr Style kDelugeStyle64{.title_height = 12,
+                                      .row_height = 9,
+                                      .inset_x = 6,
+                                      .scrollbar_w = 4,
+                                      .menu_rows = 5,
+                                      .rounded = true,
+                                      .invert_highlight = true,
+                                      .title_font = gfx::oled::FontId::MetricBold9,
+                                      .row_font = gfx::oled::FontId::Apple7,
+                                      .value_font = gfx::oled::FontId::MetricBold20,
+                                      .big_font = gfx::oled::FontId::MetricBold20};
 
 } // namespace deluge::ui

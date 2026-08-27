@@ -5,14 +5,27 @@ using namespace deluge::ui;
 
 // clang-format off
 describe led_frame("ui::LedFrame", $ {
-	it("records entries in order and lets a later set win", _ {
+	it("records entries in call order and lets a later set win", _ {
 		LedFrame f;
 		f.set(LedId{3}, LedState{LedState::Kind::On, 0, 0});
-		f.set(LedId{3}, LedState{LedState::Kind::Blink, 200, 0});
+		f.set(LedId{5}, LedState{LedState::Kind::On, 0, 0});      // second, distinct id
+		f.set(LedId{3}, LedState{LedState::Kind::Blink, 200, 0}); // overwrites id 3 in place, not appended
 		f.ring(RingId::Lower, KnobRing{{1, 2, 3, 0}});
-		expect(f.entries().size()).to_equal(size_t(1));
+
+		// Two entries, not three: the repeat set() overwrote rather than appended. Order is
+		// call order (3 then 5), not id order or insertion-reversed -- an implementation that
+		// inserted at the front, or sorted by id, would fail these two index checks.
+		expect(f.entries().size()).to_equal(size_t(2));
+		expect(f.entries()[0].first == LedId{3}).to_be_true();
 		expect(f.entries()[0].second.kind == LedState::Kind::Blink).to_be_true();
+		expect(f.entries()[1].first == LedId{5}).to_be_true();
+		expect(f.entries()[1].second.kind == LedState::Kind::On).to_be_true();
 		expect(f.ring_or_null(RingId::Lower)->levels[2]).to_equal(uint8_t(3));
+		expect(f.ring_or_null(RingId::Upper) == nullptr).to_be_true();
+
+		f.clear();
+		expect(f.entries().empty()).to_be_true();
+		expect(f.ring_or_null(RingId::Lower) == nullptr).to_be_true(); // ring reset too, not just entries
 		expect(f.ring_or_null(RingId::Upper) == nullptr).to_be_true();
 	});
 });

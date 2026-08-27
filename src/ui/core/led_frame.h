@@ -24,12 +24,18 @@ public:
 
 	void set(LedId id, LedState s);
 	void ring(RingId r, KnobRing k) {
-		rings_[static_cast<int>(r)] = k;
-		has_ring_[static_cast<int>(r)] = true;
+		// RingId has a fixed underlying type, so an out-of-range value (RingId{2}) is
+		// constructible; guard rather than index rings_/has_ring_ unchecked (same house style as
+		// gfx::grid::PadGrid::set's in_range guard for caller-supplied coordinates).
+		if (!ring_in_range(r)) {
+			return;
+		}
+		rings_[static_cast<size_t>(r)] = k;
+		has_ring_[static_cast<size_t>(r)] = true;
 	}
 	std::span<const std::pair<LedId, LedState>> entries() const { return {entries_, count_}; }
 	const KnobRing* ring_or_null(RingId r) const {
-		return has_ring_[static_cast<int>(r)] ? &rings_[static_cast<int>(r)] : nullptr;
+		return ring_in_range(r) && has_ring_[static_cast<size_t>(r)] ? &rings_[static_cast<size_t>(r)] : nullptr;
 	}
 	void clear() {
 		count_ = 0;
@@ -37,6 +43,8 @@ public:
 	}
 
 private:
+	static constexpr bool ring_in_range(RingId r) { return static_cast<size_t>(r) < 2; }
+
 	std::pair<LedId, LedState> entries_[kMaxEntries];
 	size_t count_ = 0;
 	KnobRing rings_[2]{};
