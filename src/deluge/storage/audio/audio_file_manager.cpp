@@ -803,11 +803,26 @@ AudioFile* AudioFileManager::getAudioFileFromFilename(std::string& filePath, boo
 /// Allocate and construct a Sample ready to be populated from the card. No I/O: every step here is
 /// allocation or bookkeeping, which is what lets the open and header parse move to an async task.
 ///
+/// Validates sizeBytes itself (same checks buildAudioFileFromCard used to make on every caller's
+/// behalf) so a direct caller -- the C ABI, later -- gets the same rejection a full card build always
+/// gave, instead of a Sample built with a truncated (possibly zero) cluster count.
+///
 /// The object is adopted and reasoned BEFORE the I/O ("so it's protected while setting up"), so the
 /// caller owns its fate unconditionally from here on: every exit must reach either
 /// finishSampleFromCard or destroyAudioFileObject.
 Sample* AudioFileManager::beginSampleFromCard(const std::string& filePath, const std::string& usingAlternateLocation,
                                               uint64_t sizeBytes, Error* error) {
+	// 0-byte files not allowed.
+	if (sizeBytes == 0) {
+		*error = Error::FILE_CORRUPTED;
+		return nullptr;
+	}
+	// Files bigger than 1GB not allowed.
+	if (sizeBytes > kMaxFileSize) {
+		*error = Error::FILE_TOO_BIG;
+		return nullptr;
+	}
+
 	const uint32_t numClusters = ((sizeBytes - 1) >> Cluster::size_magnitude) + 1;
 
 	void* audioFileMemory = deluge::memory::alloc_external(sizeof(Sample), 16);
@@ -835,7 +850,16 @@ Sample* AudioFileManager::beginSampleFromCard(const std::string& filePath, const
 /// register_fill_context() must run here, not earlier: both prior registrations (open_read_stream and
 /// the header parse's define_asset) ran while the geometry was still zero, and a zero frame stride
 /// makes every fill-context consumer resolve nothing for this sample.
-AudioFile* AudioFileManager::finishSampleFromCard(Sample* sampleFile, Error* error) {
+///
+/// Finalizes and publishes fully -- geometry clamp, pre-scan re-arm, and dropping the protect-during-
+/// setup reason -- so a direct caller (the C ABI, later) can't land a half-finished Sample in
+/// audioFiles: one that's inserted but still holds its setup reason forever (unevictable) and never had
+/// its geometry clamped/quantized by finalizeAfterLoad. @p sizeBytes must be the same value passed to
+/// the matching beginSampleFromCard.
+AudioFile* AudioFileManager::finishSampleFromCard(Sample* sampleFile, uint64_t sizeBytes, Error* error) {
+	if (sampleFile == nullptr) {
+		return nullptr;
+	}
 	if (*error != Error::NONE) {
 		destroyAudioFileObject(*sampleFile);
 		return nullptr;
@@ -848,6 +872,10 @@ AudioFile* AudioFileManager::finishSampleFromCard(Sample* sampleFile, Error* err
 		destroyAudioFileObject(*sampleFile);
 		return nullptr;
 	}
+
+	sampleFile->finalizeAfterLoad(sizeBytes);
+	overviewScanAllDone = false;      // A newly loaded audio file may need pre-scanning (#4460)
+	sampleFile->removeReason("E399"); // Setup done; drop the protect-during-setup reason (the caller re-leases).
 	return sampleFile;
 }
 
@@ -893,71 +921,60 @@ AudioFile* AudioFileManager::buildAudioFileFromCard(const std::string& filePath,
 		                      static_cast<uint32_t>(sizeBytes)};
 		*error = sampleFile->loadFile(source, makeWaveTableWorkAtAllCosts);
 
-		AudioFile* audioFile = finishSampleFromCard(sampleFile, error);
-		if (audioFile == nullptr) {
+		return finishSampleFromCard(sampleFile, sizeBytes, error);
+	}
+	else {
+		const int32_t memorySizeNeeded = sizeof(WaveTable);
+		void* audioFileMemory = deluge::memory::alloc_external(memorySizeNeeded, 16);
+		if (audioFileMemory == nullptr) {
+			*error = Error::INSUFFICIENT_RAM;
 			return nullptr;
 		}
 
-		// finalizeAfterLoad()/removeReason() must run after finishSampleFromCard's register_fill_context(),
-		// not before: that's the existing (pre-split) order, and finalizeAfterLoad's clamped
-		// audioDataLengthBytes is not what register_fill_context snapshots today, so reordering these
-		// would change what geometry the streaming fill-context sees.
+		AudioFile* audioFile = new (audioFileMemory) WaveTable;
+		adoptAudioFileObject(audioFile); // resource-manager evictable object (before addReason)
+		audioFile->addReason();          // So it's protected while setting up.
+
+		audioFile->filePath = filePath;
+		audioFile->loadedFromAlternatePath = usingAlternateLocation;
+
+		// WaveTable reads the file more normally, so open it for the deserializer to stream from. `filePath`
+		// is already the correct final resolved path (regular or alternate) at this point, and Tier 2's
+		// adapter-side directory cache makes this reopen fast even though the file was just opened once
+		// already (in tryRegularPath, to discover sizeBytes).
+		auto opened = deluge::io::File::open(filePath, DELUGE_FILE_READ);
+		if (!opened) {
+			*error = Error::FILE_NOT_FOUND;
+			destroyAudioFileObject(*audioFile);
+			return nullptr;
+		}
+		smDeserializer.file = std::move(opened.value());
+
+		// One deserializer-backed source serves both the header parse (via the AudioByteSource surface) and
+		// WaveTable::setup's zero-copy band read (via its cluster accessors) — hence passed both ways.
+		FileByteSource source{std::make_unique<DeserializerBlockReader>(), static_cast<uint32_t>(sizeBytes)};
+		*error = audioFile->loadFile(source, makeWaveTableWorkAtAllCosts, &source);
+
+		if (*error != Error::NONE) {
+			// A WaveTable has no SampleStream/streaming asset to release; destroyAudioFileObject just
+			// un-adopts + frees it (through the manager if adopted).
+			destroyAudioFileObject(*audioFile);
+			return nullptr;
+		}
+
+		const auto insertedFile = audioFiles.insertElement(audioFile);
+		if (!insertedFile) {
+			*error = insertedFile.error();
+			destroyAudioFileObject(*audioFile);
+			return nullptr;
+		}
+
 		audioFile->finalizeAfterLoad(sizeBytes);
-		overviewScanAllDone = false;     // A newly loaded audio file may need pre-scanning (#4460)
+		overviewScanAllDone = false; // A newly loaded audio file may need pre-scanning (#4460)
+
 		audioFile->removeReason("E399"); // Setup done; drop the protect-during-setup reason (the caller re-leases).
 		return audioFile;
 	}
-
-	const int32_t memorySizeNeeded = sizeof(WaveTable);
-	void* audioFileMemory = deluge::memory::alloc_external(memorySizeNeeded, 16);
-	if (audioFileMemory == nullptr) {
-		*error = Error::INSUFFICIENT_RAM;
-		return nullptr;
-	}
-
-	AudioFile* audioFile = new (audioFileMemory) WaveTable;
-	adoptAudioFileObject(audioFile); // resource-manager evictable object (before addReason)
-	audioFile->addReason();          // So it's protected while setting up.
-
-	audioFile->filePath = filePath;
-	audioFile->loadedFromAlternatePath = usingAlternateLocation;
-
-	// WaveTable reads the file more normally, so open it for the deserializer to stream from. `filePath`
-	// is already the correct final resolved path (regular or alternate) at this point, and Tier 2's
-	// adapter-side directory cache makes this reopen fast even though the file was just opened once
-	// already (in tryRegularPath, to discover sizeBytes).
-	auto opened = deluge::io::File::open(filePath, DELUGE_FILE_READ);
-	if (!opened) {
-		*error = Error::FILE_NOT_FOUND;
-		destroyAudioFileObject(*audioFile);
-		return nullptr;
-	}
-	smDeserializer.file = std::move(opened.value());
-
-	// One deserializer-backed source serves both the header parse (via the AudioByteSource surface) and
-	// WaveTable::setup's zero-copy band read (via its cluster accessors) — hence passed both ways.
-	FileByteSource source{std::make_unique<DeserializerBlockReader>(), static_cast<uint32_t>(sizeBytes)};
-	*error = audioFile->loadFile(source, makeWaveTableWorkAtAllCosts, &source);
-
-	if (*error != Error::NONE) {
-		// ~AudioFile releases the streaming asset back to the resource manager, freeing any resident
-		// clusters; destroyAudioFileObject also un-adopts + frees (through the manager if adopted).
-		destroyAudioFileObject(*audioFile);
-		return nullptr;
-	}
-
-	const auto insertedFile = audioFiles.insertElement(audioFile);
-	if (!insertedFile) {
-		*error = insertedFile.error();
-		destroyAudioFileObject(*audioFile);
-		return nullptr;
-	}
-
-	audioFile->finalizeAfterLoad(sizeBytes);
-	overviewScanAllDone = false; // A newly loaded audio file may need pre-scanning (#4460)
-
-	audioFile->removeReason("E399"); // Setup done; drop the protect-during-setup reason (the caller re-leases).
-	return audioFile;
 }
 
 // Only needs calling a couple times per second. Must be called outside of the audio / SD-reading routine

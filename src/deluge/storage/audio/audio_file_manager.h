@@ -158,10 +158,11 @@ public:
 	void firstCardRead();
 
 	// The no-I/O halves of buildAudioFileFromCard's SAMPLE path, public because the C ABI (a later
-	// migration step) calls them directly around an async open + header parse.
+	// migration step) calls them directly around an async open + header parse. Each validates/finalizes
+	// on its own -- a direct caller gets the same guarantees buildAudioFileFromCard's callers always did.
 	Sample* beginSampleFromCard(const std::string& filePath, const std::string& usingAlternateLocation,
 	                            uint64_t sizeBytes, Error* error);
-	AudioFile* finishSampleFromCard(Sample* sampleFile, Error* error);
+	AudioFile* finishSampleFromCard(Sample* sampleFile, uint64_t sizeBytes, Error* error);
 
 private:
 	bool cardReadOnce{false};
