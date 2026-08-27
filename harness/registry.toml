@@ -95,6 +95,27 @@ requires = ["cargo", "build-embassy-hostapp", "deluge-sdk-sibling", "mtools"]
 ci = "nightly"
 runtime = "~5m"
 
+# The ONLY rig that runs the real Rust audio loader against the real C++ collector over real
+# files. Everything else that touches the async load path drives a stub.
+#
+# `run` is a script rather than a cargo invocation because the comparison is across two BUILDS,
+# not two passes: `deluge_audio_load_async_active()` is `cfg!(feature = "async_audio_load_active")`,
+# a compile-time constant, so there is no runtime switch to flip mid-run. The script builds the
+# harness with the switch off and with it on, runs the same fixture card through both, and diffs
+# their per-file output. It needs no song corpus — it generates its own WAVs and packs them with
+# mtools — so unlike the sibling golden_vt_render gates it can run anywhere.
+[[harness]]
+name = "audio-load-ab"
+path = "."
+kind = "differential"
+status = "gate"
+gates = "the async Rust audio loader and the synchronous C++ card path must load the SAME file the SAME way -- identical chosen path (regular vs alternate dir), identical byteDepth/numChannels/audioDataStartPosBytes/audioDataLengthBytes and the rest of the parsed geometry, identical bytes read back through the Sample's own stream, and the identical Error identity on a failure. Also pins, per leg, that no load leaves a half-built zero-geometry object or a leaked reason behind, and that the async leg genuinely went through the collector (at least one load deferred) rather than being answered synchronously."
+build = []
+run = ["scripts/audio_load_ab.sh"]
+requires = ["cargo", "build-embassy-hostapp", "deluge-sdk-sibling", "mtools"]
+ci = "nightly"
+runtime = "~5m"
+
 # ci = "never": needs song-corpus, a directory of real songs on the maintainer's
 # machine that cannot be committed or fixtured. Runs locally via
 # `dbt harness run`; revisit if a synthetic corpus fixture is ever built.

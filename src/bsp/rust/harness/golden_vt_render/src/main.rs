@@ -77,6 +77,7 @@
 //! ([`run_stem_export_scenario`]) is a `StemExport` drive, not the
 //! streaming-underrun harness's play/record scenario that file wraps.
 #![feature(impl_trait_in_assoc_type)]
+#![recursion_limit = "512"]
 
 use core::ffi::c_char;
 use core::sync::atomic::{AtomicBool, Ordering};
@@ -130,6 +131,16 @@ mod sys {
 // pattern `../lens1_vt_sim/`/`tests/*.rs` already use (see `HOST_HARNESS.md`).
 #[path = "../../../src/audio_host.rs"]
 mod audio_host;
+/// The async audio-file load task and its request/collect C ABI: the AWAITED file I/O of a
+/// card sample's load (open a candidate, size it, walk its header), publishing a result the
+/// C++ collector picks up on its own tier.
+///
+/// Gated on `async_audio_load` rather than compiled unconditionally the way `../src/main.rs`
+/// compiles it, so the default build of this package — the golden stem-export/recorder gate —
+/// is unchanged by this module's existence. See `Cargo.toml`'s feature comment.
+#[cfg(feature = "async_audio_load")]
+#[path = "../../../src/audio_loader.rs"]
+mod audio_loader;
 #[path = "../../../src/board.rs"]
 mod board;
 #[path = "../../../src/control.rs"]
@@ -228,6 +239,11 @@ unsafe extern "C" {
     fn deluge_scenario_start_recorder_roundtrip();
     fn deluge_scenario_recorder_roundtrip_done() -> bool;
     fn deluge_scenario_recorder_roundtrip_failures() -> i32;
+    fn deluge_scenario_audio_load_ab_begin();
+    fn deluge_scenario_audio_load_ab_complete() -> bool;
+    fn deluge_scenario_audio_load_ab_dispatch_step();
+    fn deluge_scenario_audio_load_ab_step_done() -> bool;
+    fn deluge_scenario_audio_load_ab_failures() -> i32;
 }
 
 /// Set once [`boot_task`] has run the efatfs mount, `deluge_app_init` (which
@@ -542,6 +558,151 @@ async fn run_recorder_roundtrip_scenario(done: &'static AtomicBool) {
     done.store(true, Ordering::Release);
 }
 
+/// Write a minimal, genuinely parseable WAV: canonical 44-byte header, then `data_bytes` bytes of
+/// data all equal to `fill`.
+///
+/// The fill is what makes two files that agree on every geometry field still tell each other apart
+/// when the C++ side fingerprints the bytes it reads back through the Sample's own stream — which is
+/// how `SAMPLES/BOTH.WAV` and `SAMPLES/ALT/BOTH.WAV` are distinguished at all.
+fn write_test_wav(path: &std::path::Path, channels: u16, bits: u16, data_bytes: u32, fill: u8) {
+    const SAMPLE_RATE: u32 = 44_100;
+    let block_align = channels * (bits / 8);
+    let mut bytes: Vec<u8> = Vec::with_capacity(44 + data_bytes as usize);
+    bytes.extend_from_slice(b"RIFF");
+    bytes.extend_from_slice(&(36 + data_bytes).to_le_bytes());
+    bytes.extend_from_slice(b"WAVE");
+    bytes.extend_from_slice(b"fmt ");
+    bytes.extend_from_slice(&16u32.to_le_bytes());
+    bytes.extend_from_slice(&1u16.to_le_bytes()); // PCM
+    bytes.extend_from_slice(&channels.to_le_bytes());
+    bytes.extend_from_slice(&SAMPLE_RATE.to_le_bytes());
+    bytes.extend_from_slice(&(SAMPLE_RATE * u32::from(block_align)).to_le_bytes());
+    bytes.extend_from_slice(&block_align.to_le_bytes());
+    bytes.extend_from_slice(&bits.to_le_bytes());
+    bytes.extend_from_slice(b"data");
+    bytes.extend_from_slice(&data_bytes.to_le_bytes());
+    bytes.resize(44 + data_bytes as usize, fill);
+    std::fs::write(path, &bytes)
+        .unwrap_or_else(|e| panic!("writing the A/B fixture WAV {}: {e}", path.display()));
+}
+
+/// Stage the A/B scenario's card and pack it into a FAT image.
+///
+/// The layout is the fixture, and every part of it is load-bearing:
+///
+/// - `SAMPLES/BOTH.WAV` exists in the regular directory AND in `SAMPLES/ALT`, with a different
+///   length and a different data fill in each. A backing that tries the candidates in the wrong
+///   order picks the other one and the geometry, the recorded path and the stream fingerprint all
+///   move together.
+/// - `SAMPLES/BOTH2.WAV` is the same two-locations shape, and exists because `BOTH.WAV` alone does
+///   not actually test the candidate ORDER: it is asked for before the alternate directory has been
+///   probed, so its request carries one candidate and any order picks it. `BOTH2.WAV` is asked for
+///   after the probe, with both candidates live. Reversing the loader's candidate order changes
+///   this file and only this file — which is how the gate was shown to be able to fail on file
+///   identity rather than only on geometry.
+/// - `SAMPLES/ONLYALT.WAV` exists ONLY in `SAMPLES/ALT`. It is the file that the alternate-dir probe
+///   has to find, and the one whose miss promotes `alternateLoadDirStatus` for every later case.
+/// - `SAMPLES/ONLYREG.WAV` and `SAMPLES/STEREO24.WAV` come after that promotion, so they are the
+///   cases that see the changed try order — and `STEREO24.WAV`'s geometry (2 channels, 24-bit)
+///   differs in both fields the comparison names first.
+/// - `SAMPLES/GARBAGE.WAV` opens and then fails to parse; `SAMPLES/MISSING.WAV` is never written.
+///   Between them they pin that the two backings fail with the SAME `Error` identity, not merely
+///   that they both fail.
+///
+/// Both legs of the A/B stage byte-identical content, so `sd_image::pack_image`'s content
+/// fingerprint resolves them to the very same cached image — the two runs read the same card, not
+/// two equivalent ones.
+fn pack_audio_load_ab_image() -> std::path::PathBuf {
+    let root = std::env::temp_dir().join("deluge-audio-load-ab-card");
+    let _ = std::fs::remove_dir_all(&root);
+    let samples = root.join("SAMPLES");
+    let alt = samples.join("ALT");
+    std::fs::create_dir_all(&alt).expect("creating the A/B fixture card directories");
+
+    write_test_wav(&samples.join("BOTH.WAV"), 1, 16, 2048, 0x11);
+    write_test_wav(&alt.join("BOTH.WAV"), 1, 16, 4096, 0x22);
+    write_test_wav(&alt.join("ONLYALT.WAV"), 1, 16, 1536, 0x33);
+    write_test_wav(&samples.join("BOTH2.WAV"), 1, 16, 1792, 0x66);
+    write_test_wav(&alt.join("BOTH2.WAV"), 1, 16, 3584, 0x77);
+    write_test_wav(&samples.join("ONLYREG.WAV"), 1, 16, 2560, 0x44);
+    write_test_wav(&samples.join("STEREO24.WAV"), 2, 24, 3072, 0x55);
+    std::fs::write(samples.join("GARBAGE.WAV"), vec![0x7Eu8; 512])
+        .expect("writing the A/B fixture's unparseable file");
+
+    sd_image::pack_image(&root)
+}
+
+/// The `GOLDEN_SCENARIO=audio_load_ab` scenario: run one whole song-shaped load of the fixture's
+/// sample list through `AudioFileManager::getAudioFileFromFilename`, printing each file's resolved
+/// identity and geometry as a diffable `AB-CASE` line.
+///
+/// This binary is ONE leg. Which leg it is depends on how it was built — `async_audio_load` alone
+/// (synchronous) or `async_audio_load_active` (the Rust `audio_load_task` spawned in `main` below,
+/// serving every load through the request/collect ABI). `scripts/audio_load_ab.sh` builds both and
+/// diffs their `AB-CASE` lines; the two builds' `AB-SUMMARY` lines are expected to differ and are
+/// not diffed.
+///
+/// The step machine is not ceremony. A deferred load answers `Error::LOAD_IN_PROGRESS` and its
+/// caller must RETURN to its own loop; on this single-executor substrate the C++ worker fiber is
+/// what runs while the executor is not polling, so a C++-side retry spin would starve the very task
+/// it is waiting for. One attempt per dispatch, with an `await` in between, is what gives
+/// `audio_load_task` the polls it needs to make progress.
+#[embassy_executor::task]
+async fn run_audio_load_ab_scenario(done: &'static AtomicBool) {
+    log::info!("golden_vt_render: run_audio_load_ab_scenario: awaiting boot+mount");
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        if BOOT_MOUNTED.load(Ordering::Acquire) {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!(
+                "golden_vt_render: boot+mount did not complete within the 30s wait budget — wedged"
+            );
+            hard_exit(2);
+        }
+        Timer::after_millis(5).await;
+    }
+
+    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
+    unsafe { deluge_scenario_audio_load_ab_begin() };
+
+    let deadline = Instant::now() + Duration::from_secs(300);
+    loop {
+        // SAFETY: as above.
+        if unsafe { deluge_scenario_audio_load_ab_complete() } {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!(
+                "golden_vt_render: the audio-load A/B did not complete within the 300s wait budget — wedged"
+            );
+            hard_exit(2);
+        }
+        // One attempt on the worker fiber...
+        // SAFETY: as above.
+        unsafe { deluge_scenario_audio_load_ab_dispatch_step() };
+        // ...then wait for it to come back, letting the executor poll `audio_load_task` (and the
+        // fiber pump that runs the attempt itself) in between.
+        // SAFETY: as above.
+        while !unsafe { deluge_scenario_audio_load_ab_step_done() } {
+            Timer::after_millis(1).await;
+        }
+        Timer::after_millis(1).await;
+    }
+
+    // SAFETY: as above.
+    let failures = unsafe { deluge_scenario_audio_load_ab_failures() };
+    if failures != 0 {
+        log::error!(
+            "golden_vt_render: the audio-load A/B leg FAILED ({failures} in-process failure(s) — see the log above)"
+        );
+        hard_exit(1);
+    }
+    log::info!("golden_vt_render: audio-load A/B leg completed (0 in-process failures)");
+    done.store(true, Ordering::Release);
+}
+
 /// Our own pender: no thread, no parking — just a flag the driver loop polls
 /// itself between `raw::Executor::poll()` calls.
 static PENDED: AtomicBool = AtomicBool::new(false);
@@ -575,10 +736,25 @@ fn main() {
     // ex-`deluge_recorder_roundtrip`, converged onto Embassy so the C++ sync fill drain can be
     // retired). The recorder scenario ignores GOLDEN_FIXTURE — it formats an empty image and
     // records into it rather than loading a corpus song.
-    let recorder_mode = std::env::var("GOLDEN_SCENARIO").as_deref() == Ok("recorder_roundtrip");
+    let scenario = std::env::var("GOLDEN_SCENARIO").unwrap_or_default();
+    let recorder_mode = scenario == "recorder_roundtrip";
+    let audio_load_ab_mode = scenario == "audio_load_ab";
+    if audio_load_ab_mode && !cfg!(feature = "async_audio_load") {
+        // Refusing beats running: without `async_audio_load` this binary has no `audio_loader`
+        // module at all, so the "synchronous leg" it would produce is one built from a DIFFERENT
+        // configuration than the async leg it gets diffed against — the two would differ in more
+        // than the switch under test, which is precisely the vacuous comparison this gate exists
+        // to avoid.
+        eprintln!(
+            "golden_vt_render: GOLDEN_SCENARIO=audio_load_ab needs --features async_audio_load \
+             (synchronous leg) or --features async_audio_load_active (async leg)"
+        );
+        std::process::exit(2);
+    }
 
     log::info!(
-        "golden_vt_render: fixture={fixture} budget_ms={budget_ms} recorder_mode={recorder_mode}"
+        "golden_vt_render: fixture={fixture} budget_ms={budget_ms} recorder_mode={recorder_mode} \
+         audio_load_ab_mode={audio_load_ab_mode}"
     );
 
     // Pack (or reuse) a real FAT SD image from the golden corpus — same
@@ -596,6 +772,8 @@ fn main() {
         // stem-export golden packs the fixture's corpus song + samples.
         let img = if recorder_mode {
             sd_image::format_empty_image()
+        } else if audio_load_ab_mode {
+            pack_audio_load_ab_image()
         } else {
             sd_image::pack_golden_fixture(&repo_root, &fixture)
         };
@@ -640,9 +818,13 @@ fn main() {
     // inert otherwise.
     #[cfg(feature = "async_streaming_loader")]
     spawner.spawn(streaming_loader::streaming_fill_task().unwrap());
+    #[cfg(feature = "async_audio_load_active")]
+    spawner.spawn(audio_loader::audio_load_task().unwrap());
 
     static DONE: AtomicBool = AtomicBool::new(false);
-    if recorder_mode {
+    if audio_load_ab_mode {
+        spawner.spawn(run_audio_load_ab_scenario(&DONE).unwrap());
+    } else if recorder_mode {
         spawner.spawn(run_recorder_roundtrip_scenario(&DONE).unwrap());
     } else {
         let fixture_static: &'static str = Box::leak(fixture.into_boxed_str());

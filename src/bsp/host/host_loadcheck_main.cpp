@@ -38,6 +38,19 @@
 /// what the harness registry entry for this binary runs as a standing gate (harness/registry.toml);
 /// running it with zero arguments from any directory, including the repo root, leaves the tree
 /// untouched.
+///
+/// @warning **Every async-load check in this file drives a STUB** (`g_asyncStub`, below), not the
+///          Rust loader. That is not a shortcut, it is a property of this binary: the real loader is
+///          a module of the bin-only `deluge-bsp-rust` crate, its `ProdOps` is wired to the Rust
+///          efatfs shim (whose `deluge_efatfs_*` symbols this binary already defines itself, in C++,
+///          via host_efatfs_passthrough.cpp), and its task needs an Embassy executor this binary
+///          does not have. So these checks pin the COLLECTOR's contract against a loader that
+///          answers as the design says one should — which is worth having, and is not evidence that
+///          the real loader answers that way.
+///          The gate that runs the real Rust loader against this same C++ collector, over real
+///          files, is `audio-load-ab` (harness/registry.toml -> scripts/audio_load_ab.sh ->
+///          src/deluge/harness/audio_load_ab_scenario.cpp), on the Embassy host BSP. If a change
+///          here alters what the collector does with a loader result, that is the gate to run.
 
 #include "libdeluge/audio_load.h"
 #include "memory/general_memory_allocator.h" // GeneralMemoryAllocator::resourceManager()

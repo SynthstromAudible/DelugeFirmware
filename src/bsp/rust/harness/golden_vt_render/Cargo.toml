@@ -175,6 +175,21 @@ rtt = []
 # conditionals need zero edits when `#[path]`-included here). See `main.rs`'s
 # `mod streaming_loader` doc comment for how this package spawns the task.
 async_streaming_loader = []
+# Mirrors `../Cargo.toml`'s two audio-load features exactly (same spellings, so
+# `audio_loader.rs`'s own `#[cfg(feature = ...)]` conditionals need zero edits when
+# `#[path]`-included here). NEITHER is in this package's `default` set, and that is
+# deliberate in a way the streaming pair above is not: with `async_audio_load` off,
+# `mod audio_loader` is not compiled at all, so the golden stem-export/recorder builds this
+# package exists for are byte-for-byte the same binary they were before the A/B scenario
+# landed. The `GOLDEN_SCENARIO=audio_load_ab` gate turns them on explicitly.
+#
+# `async_audio_load` alone = the driver compiled, the switch OFF: the SYNCHRONOUS leg of the
+# A/B, and the shape the firmware actually ships. `async_audio_load_active` = the switch on,
+# the Rust `audio_load_task` spawned: the ASYNC leg. They cannot both be true in one process
+# -- `deluge_audio_load_async_active()` is `cfg!(feature = ...)`, a compile-time constant --
+# which is exactly why the A/B is a diff of two builds.
+async_audio_load = []
+async_audio_load_active = ["async_audio_load"]
 
 [build-dependencies]
 bindgen = "0.70"
