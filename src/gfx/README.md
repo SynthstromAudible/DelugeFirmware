@@ -20,3 +20,8 @@ Rules (enforced by `scripts/check_gfx_layer.py`):
   if the audio-side table ever changes, `gfx/grid/sine_table.cpp` will silently drift out of sync
   unless someone remembers to update both. Worth resolving by hoisting the table into a place both
   `util/` and `gfx/` can depend on, if that's ever worth the churn.
+
+Run the check locally with `python3 scripts/check_gfx_layer.py`; it is also the `gfx_layer_check` ctest.
+
+Deferred to later phases (tracked in the UI redesign spec): `RGB` into the `deluge::gfx::grid`
+namespace; the raw `uint8_t[]` graphics still on `OLED`; zoom/explode/expand-collapse tweens.

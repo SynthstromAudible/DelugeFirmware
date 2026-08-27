@@ -33,6 +33,13 @@ endfunction()
 
 enable_testing()
 
+find_package(Python3 COMPONENTS Interpreter)
+if (Python3_Interpreter_FOUND)
+    add_test(NAME gfx_layer_check
+             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/../scripts/check_gfx_layer.py
+                     --root ${CMAKE_CURRENT_LIST_DIR}/../src/gfx)
+endif ()
+
 # ETL (etl::string) is used by util/string helpers pulled in transitively via functions.h,
 # so make it available to every test target (32bit_unit_tests, spec, unit).
 include(FetchContent)
