@@ -1,8 +1,6 @@
 #include "midi_transpose.h"
-#include "gui/ui/keyboard/keyboard_screen.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/session_view.h"
 #include "hid/display/display.h"
@@ -10,6 +8,7 @@
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/non_audio_instrument.h"
 #include "model/song/song.h"
+#include "util/notify.h"
 
 namespace MIDITranspose {
 
@@ -62,13 +61,14 @@ void doTranspose(bool on, int32_t newNoteOrCC) {
 			if (rootUI->getUIContextType() == UIType::INSTRUMENT_CLIP) {
 				switch (rootUI->getUIType()) {
 				case UIType::KEYBOARD_SCREEN:
-					uiNeedsRendering(rootUI, 0xFFFFFFFF, 0);
+					deluge::notify::raise(deluge::notify::Dirty::GridMain);
 					break;
 				case UIType::INSTRUMENT_CLIP:
-					uiNeedsRendering(rootUI);
+					deluge::notify::raise(deluge::notify::Dirty::GridMain);
+					deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
 					break;
 				case UIType::AUTOMATION:
-					uiNeedsRendering(rootUI, 0, 0xFFFFFFFF);
+					deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
 					break;
 				default:
 				    // fallthrough for everything else -- to many UIs to list explicitly

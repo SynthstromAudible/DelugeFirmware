@@ -20,7 +20,6 @@
 #include "dsp/stereo_sample.h"
 #include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
-#include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "gui/views/view.h"
 #include "io/debug/log.h"
@@ -45,6 +44,7 @@
 #include "processing/stem_export/stem_export.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/storage_manager.h"
+#include "util/notify.h"
 #include <cstring>
 
 namespace params = deluge::modulation::params;
@@ -1522,7 +1522,8 @@ goingToRecordNoteOnEarly:
 
 				instrumentClip->recordNoteOn(modelStackWithNoteRow, velocity, false, mpeValuesOrNull);
 				if (getRootUI()) {
-					getRootUI()->noteRowChanged(instrumentClip, thisNoteRow);
+					instrumentClip->notify_content_changed();
+					deluge::notify::raise(deluge::notify::Dirty::NoteRows);
 				}
 			}
 			// TODO: possibly should change the MPE params' currentValue to the initial values, since that usually does
@@ -1549,7 +1550,8 @@ goingToRecordNoteOnEarly:
 				else {
 					instrumentClip->recordNoteOff(modelStackWithNoteRow, velocity);
 					if (getRootUI()) {
-						getRootUI()->noteRowChanged(instrumentClip, thisNoteRow);
+						instrumentClip->notify_content_changed();
+						deluge::notify::raise(deluge::notify::Dirty::NoteRows);
 					}
 				}
 			}
@@ -1608,7 +1610,7 @@ void Kit::offerReceivedNote(ModelStackWithTimelineCounter* modelStack, MIDICable
 
 				UI* currentUI = getCurrentUI();
 				if (currentUI->getUIContextType() == UIType::INSTRUMENT_CLIP) {
-					uiNeedsRendering(currentUI, 0, 0xFFFFFFFF);
+					deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
 				}
 			}
 		}

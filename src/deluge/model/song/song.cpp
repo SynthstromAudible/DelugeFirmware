@@ -63,6 +63,7 @@
 #include "storage/storage_manager.h"
 #include "util/etl_string.h"
 #include "util/lookuptables/lookuptables.h"
+#include "util/notify.h"
 #include "util/string.h"
 #include "util/try.h"
 #include <cstring>
@@ -889,7 +890,7 @@ void Song::changeFillMode(bool on) {
 	UI* root_ui = getRootUI();
 	if (root_ui == &instrumentClipView) {
 		// we peek fill notes when fill is held so need to re render rows
-		uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+		deluge::notify::raise(deluge::notify::Dirty::GridMain);
 	}
 
 	if ((runtimeFeatureSettings.get(RuntimeFeatureSettingType::SyncScalingAction)

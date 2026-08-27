@@ -18,12 +18,10 @@
 #include "processing/stem_export/stem_export.h"
 #include "definitions_cxx.hpp"
 #include "extern.h"
-#include "gui/context_menu/stem_export/cancel_stem_export.h"
 #include "gui/context_menu/stem_export/done_stem_export.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/audio_recorder.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/session_view.h"
 #include "hid/display/display.h"
 #include "hid/display/oled.h"
 #include "hid/led/indicator_leds.h"
@@ -45,6 +43,7 @@
 #include "storage/owner.h" // deluge::storage::Owner::run — run the export on the worker fiber
 #include "util/etl_string.h"
 #include "util/functions.h"
+#include "util/notify.h"
 #include "util/string.h"
 #include <iterator>
 #include <new>
@@ -150,8 +149,9 @@ void StemExport::runStemExportProcess(StemExportType stemExportType) {
 	}
 
 	// re-render UI because view scroll positions and mute statuses will have been updated
-	uiNeedsRendering(getCurrentUI());
-	renderUIsForOled();
+	deluge::notify::raise(deluge::notify::Dirty::GridMain);
+	deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
+	deluge::notify::raise(deluge::notify::Dirty::Oled);
 }
 
 /// Stop stem export process
@@ -752,7 +752,8 @@ bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* o
 	}
 
 	// re-render song view since we scrolled and updated mutes
-	uiNeedsRendering(getCurrentUI());
+	deluge::notify::raise(deluge::notify::Dirty::GridMain);
+	deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
 
 	// set wav file name for stem to be exported
 	if (!setWavFileNameForStemExport(stemExportType, output, indexNumber, drum)) {

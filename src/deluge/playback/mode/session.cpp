@@ -19,8 +19,6 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/audio_recorder.h"
 #include "gui/views/arranger_view.h"
-#include "gui/views/automation_view.h"
-#include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -225,7 +223,8 @@ bool Session::giveClipOpportunityToBeginLinearRecording(Clip* clip, int32_t clip
 			currentSong->setCurrentClip(clip);
 			getCurrentUI()->focusRegained(); // A bit shifty...
 
-			uiNeedsRendering(getCurrentUI());
+			deluge::notify::raise(deluge::notify::Dirty::GridMain);
+			deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
 		}
 
 		if (clip->overdubNature != OverDubType::Normal && playbackHandler.isEitherClockActive()) {
@@ -1054,7 +1053,7 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 					playbackHandler.finishTempolessRecording(true, buttonPressLatency);
 					RootUI* rootUI = getRootUI();
 					if (rootUI == &sessionView || rootUI == &performanceView) {
-						uiNeedsRendering(rootUI, 0, 0xFFFFFFFF);
+						deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
 					}
 					return;
 				}
@@ -1105,10 +1104,10 @@ void Session::toggleClipStatus(Clip* clip, int32_t* clipIndex, bool doInstant, i
 							clip->notify_content_changed();
 							if (getCurrentClip()) {
 								if (getCurrentClip()->onAutomationClipView) {
-									uiNeedsRendering(&automationView, 0xFFFFFFFF, 0);
+									deluge::notify::raise(deluge::notify::Dirty::GridMain);
 								}
 								else {
-									uiNeedsRendering(&instrumentClipView, 0xFFFFFFFF, 0);
+									deluge::notify::raise(deluge::notify::Dirty::GridMain);
 								}
 							}
 						}

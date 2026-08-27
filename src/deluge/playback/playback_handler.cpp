@@ -26,7 +26,6 @@
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/automation_view.h"
-#include "gui/views/instrument_clip_view.h"
 #include "gui/views/performance_view.h"
 #include "gui/views/session_view.h"
 #include "gui/views/view.h"
@@ -263,7 +262,7 @@ void PlaybackHandler::playButtonPressed(int32_t buttonPressLatency) {
 					arrangementPosToStartAtOnSwitch = currentSong->xScroll[NAVIGATION_ARRANGEMENT];
 				}
 				session.armForSwitchToArrangement();
-				renderUIsForOled();
+				deluge::notify::raise(deluge::notify::Dirty::Oled);
 				display->cancelPopup();
 			}
 
@@ -565,7 +564,7 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	    getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor());
 
 	if (getRootUI() && ((getCurrentUI() == getRootUI()) || inNoteOrNoteRowEditor)) {
-		getRootUI()->notifyPlaybackBegun();
+		deluge::notify::raise(deluge::notify::Dirty::PlaybackState);
 	}
 
 	currentPlaybackMode->setupPlayback(); // This doesn't call the audio routine
@@ -648,7 +647,7 @@ void PlaybackHandler::endPlayback() {
 		}
 
 		if (currentSong && getRootUI()) {
-			getRootUI()->playbackEnded();
+			deluge::notify::raise(deluge::notify::Dirty::PlaybackState);
 		}
 	}
 
@@ -3041,7 +3040,7 @@ void PlaybackHandler::switchToArrangement() {
 	arrangerView.reassessWhetherDoingAutoScroll();
 	if (!isUIModeActive(UI_MODE_CLIP_PRESSED_IN_SONG_VIEW)
 	    && !isUIModeActive(UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION)) {
-		renderUIsForOled();
+		deluge::notify::raise(deluge::notify::Dirty::Oled);
 	}
 
 	if (getCurrentUI() == &sessionView) {

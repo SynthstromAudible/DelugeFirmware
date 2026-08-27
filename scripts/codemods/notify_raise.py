@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+"""Rewrite model-side UI redraw calls to notify::raise*. Idempotent. Run from repo root.
+
+  uiNeedsRendering(X, 0xFFFFFFFF, 0)        -> deluge::notify::raise(deluge::notify::Dirty::GridMain);
+  uiNeedsRendering(X, 0, 0xFFFFFFFF)        -> raise(Dirty::GridSidebar)
+  uiNeedsRendering(X) / (X, 0xFFFFFFFF, 0xFFFFFFFF) / (X, 0x00000000, 0xFFFFFFFF)
+                                            -> raise(GridMain); raise(GridSidebar)  (both / sidebar)
+  renderUIsForOled();                       -> raise(Dirty::Oled);
+  getRootUI()->notifyPlaybackBegun();  getRootUI()->playbackEnded();   -> raise(Dirty::PlaybackState);
+  getRootUI()->sampleNeedsReRendering(s);   -> raise(Dirty::SampleReady);
+  getRootUI()->noteRowChanged(clip, row);   -> clip->notify_content_changed(); raise(Dirty::NoteRows);
+  arrangerView.notifyActiveClipChangedOnOutput(o); -> raise(Dirty::OutputChanged);
+
+instrument_clip_minder.cpp is a UI mixin slated to move wholesale in a later spec (scenes
+plan) and is left untouched here even though it isn't under gui/ or hid/ -- its remaining
+uiNeedsRendering()/renderUIsForOled() calls are an expected leftover of Step 2's grep.
+"""
+
+import re
+import sys
+from pathlib import Path
+
+RAISE = "deluge::notify::raise(deluge::notify::Dirty::{})"
+RULES = [
+    (
+        re.compile(r"uiNeedsRendering\([^,()]+,\s*0xFFFFFFFF,\s*0\)\s*;"),
+        RAISE.format("GridMain") + ";",
+    ),
+    (
+        re.compile(r"uiNeedsRendering\([^,()]+,\s*0(?:x0+)?,\s*0xFFFFFFFF\)\s*;"),
+        RAISE.format("GridSidebar") + ";",
+    ),
+    (
+        re.compile(r"uiNeedsRendering\([^,()]+(?:,\s*0xFFFFFFFF,\s*0xFFFFFFFF)?\)\s*;"),
+        RAISE.format("GridMain") + "; " + RAISE.format("GridSidebar") + ";",
+    ),
+    (re.compile(r"renderUIsForOled\(\)\s*;"), RAISE.format("Oled") + ";"),
+    (
+        re.compile(r"getRootUI\(\)->(?:notifyPlaybackBegun|playbackEnded)\(\)\s*;"),
+        RAISE.format("PlaybackState") + ";",
+    ),
+    (
+        re.compile(r"getRootUI\(\)->sampleNeedsReRendering\([^;]*\)\s*;"),
+        RAISE.format("SampleReady") + ";",
+    ),
+    (
+        re.compile(
+            r"getRootUI\(\)->noteRowChanged\(\s*([A-Za-z_][\w>\-.]*)\s*,[^;]*\)\s*;"
+        ),
+        r"\1->notify_content_changed(); " + RAISE.format("NoteRows") + ";",
+    ),
+    (
+        re.compile(r"arrangerView\.notifyActiveClipChangedOnOutput\([^;]*\)\s*;"),
+        RAISE.format("OutputChanged") + ";",
+    ),
+]
+INCLUDE = '#include "util/notify.h"\n'
+
+
+def rewrite(path: Path) -> bool:
+    src = path.read_text()
+    out = src
+    for rx, rep in RULES:
+        out = rx.sub(rep, out)
+    if out == src:
+        return False
+    if INCLUDE not in out:
+        # after the first #include line
+        out = re.sub(
+            r"(^\s*#include[^\n]*\n)", r"\1" + INCLUDE, out, count=1, flags=re.MULTILINE
+        )
+    path.write_text(out)
+    return True
+
+
+def main(argv):
+    roots = [Path(a) for a in argv[1:]] or [Path("src/deluge")]
+    changed = 0
+    for root in roots:
+        for p in root.rglob("*"):
+            if (
+                p.suffix not in {".cpp", ".h", ".hpp"}
+                or "/gui/" in str(p)
+                or "/hid/" in str(p)
+            ):
+                continue
+            if p.name == "instrument_clip_minder.cpp":
+                continue
+            if rewrite(p):
+                changed += 1
+                print(f"rewrote {p}")
+    print(f"{changed} file(s) changed")
+
+
+if __name__ == "__main__":
+    main(sys.argv)

@@ -50,6 +50,7 @@
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
 #include "util/functions.h"
+#include "util/notify.h"
 #include <iterator>
 #include <new>
 #include <string.h>
@@ -666,7 +667,8 @@ currentClipSwitchedOver:
 			    && whichAnimation != Animation::CLIP_MINDER_TO_ARRANGEMENT) {
 				instrumentClipView.recalculateColours();
 				if (whichAnimation == Animation::NONE) {
-					uiNeedsRendering(currentUI);
+					deluge::notify::raise(deluge::notify::Dirty::GridMain);
+					deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
 				}
 			}
 		}
@@ -678,24 +680,27 @@ currentClipSwitchedOver:
 					instrumentClipView.recalculateColours();
 				}
 				if (whichAnimation == Animation::NONE) {
-					uiNeedsRendering(currentUI);
+					deluge::notify::raise(deluge::notify::Dirty::GridMain);
+					deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
 				}
 			}
 		}
 		else if (currentUI == &audioClipView) {
 			if (whichAnimation == Animation::NONE) {
-				uiNeedsRendering(currentUI);
+				deluge::notify::raise(deluge::notify::Dirty::GridMain);
+				deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
 			}
 		}
 		else if (currentUI == &keyboardScreen) {
 			if (whichAnimation != Animation::ENTER_KEYBOARD_VIEW) {
-				uiNeedsRendering(currentUI, 0xFFFFFFFF, 0);
+				deluge::notify::raise(deluge::notify::Dirty::GridMain);
 			}
 		}
 		// Got to try this even if we're supposedly doing a horizontal scroll animation or something cos that may have
 		// failed if the Clip wasn't long enough before we did the action->revert() ...
 		else if (currentUI == &sessionView) {
-			uiNeedsRendering(currentUI, 0xFFFFFFFF, 0xFFFFFFFF);
+			deluge::notify::raise(deluge::notify::Dirty::GridMain);
+			deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
 		}
 		else if (currentUI == &arrangerView) {
 			arrangerView.repopulateOutputsOnScreen(whichAnimation == Animation::NONE);

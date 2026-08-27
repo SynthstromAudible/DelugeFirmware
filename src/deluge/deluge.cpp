@@ -20,11 +20,7 @@
 #include "gui/ui/audio_recorder.h"
 #include "gui/ui/browser/browser.h"
 #include "gui/ui/keyboard/keyboard_screen.h"
-#include "gui/ui/load/load_instrument_preset_ui.h"
 #include "gui/ui/load/load_song_ui.h"
-#include "gui/ui/save/save_instrument_preset_ui.h"
-#include "gui/ui/save/save_song_ui.h"
-#include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/arranger_view.h"
@@ -72,6 +68,7 @@
 #include "storage/smsysex.h"
 #include "storage/storage_manager.h"
 #include "util/misc.h"
+#include "util/notify.h"
 #include "util/pack.h"
 #include <stdlib.h>
 
@@ -117,7 +114,7 @@ void inputRoutine() {
 	if (micNow != AudioEngine::micPluggedIn) {
 		D_PRINT("mic %d", micNow);
 		AudioEngine::micPluggedIn = micNow;
-		renderUIsForOled();
+		deluge::notify::raise(deluge::notify::Dirty::Oled);
 	}
 
 	bool speakerOn = (!AudioEngine::headphonesPluggedIn && !outputPluggedInR && !outputPluggedInL);
@@ -130,7 +127,7 @@ void inputRoutine() {
 	if (lineInNow != AudioEngine::lineInPluggedIn) {
 		D_PRINTLN("line in %d", lineInNow);
 		AudioEngine::lineInPluggedIn = lineInNow;
-		renderUIsForOled();
+		deluge::notify::raise(deluge::notify::Dirty::Oled);
 	}
 
 	// Battery voltage
@@ -368,7 +365,7 @@ void setUIForLoadedSong(Song* song) {
 	setRootUILowLevel(newUI);
 
 	getCurrentUI()->opened();
-	renderUIsForOled();
+	deluge::notify::raise(deluge::notify::Dirty::Oled);
 }
 
 void setupBlankSong() {

@@ -18,11 +18,11 @@
 #pragma once
 
 #include "definitions_cxx.hpp"
-#include "gui/ui/ui.h"
 #include "model/global_effectable/global_effectable_for_clip.h"
 #include "model/output.h"
 #include "modulation/envelope.h"
 #include "util/container/enum_to_string_map.hpp"
+#include "util/notify.h"
 
 class ModelStackWithTimelineCounter;
 
@@ -149,7 +149,8 @@ public:
 		mode = static_cast<AudioOutputMode>(std::clamp<int>(modeInt, 0, kNumAudioOutputModes - 1));
 		// update the output we're recording from on whether we're monitoring
 		updateMonitoringClaim();
-		renderUIsForOled(); // oled shows the type on the clip screen (including while holding a clip in song view)
+		deluge::notify::raise(deluge::notify::Dirty::Oled); // oled shows the type on the clip screen (including while
+		                                                    // holding a clip in song view)
 	}
 
 protected:
