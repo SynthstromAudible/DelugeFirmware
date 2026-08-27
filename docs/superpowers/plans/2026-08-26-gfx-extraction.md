@@ -1772,7 +1772,7 @@ Scope note: `pad_leds.cpp`'s zoom, explode and expand/collapse animations read U
   void scroll_horizontal(const PadGrid& from, const PadGrid& incoming, int32_t offset, PadGrid& out);
   /// Same for rows (positive = content moves down).
   void scroll_vertical(const PadGrid& from, const PadGrid& incoming, int32_t offset, PadGrid& out);
-  /// RGB::greyOut applied to every main-grid pad; proportion as in RGB::greyOut.
+  /// RGB::greyOut applied to every main-grid pad; proportion on RGB::greyOut's own scale (~0..6,500,000 in legacy callers).
   void grey_out(const PadGrid& in, int32_t proportion, PadGrid& out);
   ```
   All take `out` by reference (no allocation), require identical `dims()`, and leave `out.dirty_rows()` fully set.
@@ -1828,7 +1828,7 @@ describe tween("gfx::grid tweens", $ {
 		PadGrid a(kDelugeGrid), out(kDelugeGrid);
 		a.set(0, 0, RGB{255, 255, 255});
 		a.set(17, 0, RGB{255, 255, 255});
-		grey_out(a, 65536 / 2, out);
+		grey_out(a, 6500000 / 2, out); // RGB::greyOut's proportion scale (~0..6.5M per its legacy callers), not blend's 0..65535
 		expect(out.at(0, 0).r).to_be_less_than(uint8_t(255));
 		expect(out.at(17, 0)).to_equal(RGB{255, 255, 255});
 	});
