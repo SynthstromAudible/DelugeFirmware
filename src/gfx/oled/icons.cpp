@@ -813,4 +813,37 @@ DEFINE_ICON(crossedOutKeyboard, 2,  //<
             0b00000100, 0b00000000, //<
 );
 
+// Menu-row icons. Ported byte-for-byte from the legacy OLED::checkedBoxIcon,
+// OLED::uncheckedBoxIcon and OLED::submenuArrowIcon (src/deluge/hid/display/oled_icons.cpp:130,
+// 140, 150), which the submenu renderers blit with kSubmenuIconSpacingX == 7 columns.
+DEFINE_ICON(checkedBox, 1, //<
+            0b11111110,    //<
+            0b10000010,    //<
+            0b10011010,    //<
+            0b10110010,    //<
+            0b10011010,    //<
+            0b10001100,    //<
+            0b11100110,    //<
+);
+
+DEFINE_ICON(uncheckedBox, 1, //<
+            0b11111110,      //<
+            0b10000010,      //<
+            0b10000010,      //<
+            0b10000010,      //<
+            0b10000010,      //<
+            0b10000010,      //<
+            0b11111110,      //<
+);
+
+DEFINE_ICON(submenuArrow, 1, //<
+            0b00000000,      //<
+            0b00000000,      //<
+            0b01000100,      //<
+            0b00101000,      //<
+            0b00010000,      //<
+            0b00000000,      //<
+            0b00000000,      //<
+);
+
 } // namespace deluge::gfx::oled::icons
