@@ -21,6 +21,23 @@ requires = ["cargo", "mtools"]
 ci = "pr"
 runtime = "~1m"
 
+# Runs with no --project/--file args at all (defaults documented in host_loadcheck_main.cpp's usage()),
+# so it exercises only checkProposeLoadCandidates()'s I/O-free policy checks -- no card fixture needed.
+# The deluge_loadcheck binary also supports --project <dir> --file PATH... for the fuller
+# construction-path regression net (Tier 2 for the file-loading redesign); that mode is exploratory,
+# run locally against a real project directory, not wired into this gate.
+[[harness]]
+name = "audio-loadcheck"
+path = "sim/build"
+kind = "regression"
+status = "gate"
+gates = "AudioFileManager::proposeLoadCandidates's candidate order/count (the alternate-dir-vs-regular-path policy a real load and the async loader share) and the load invariants (no half-built cache entry, no leaked AudioFile reason) must hold -- this is what caught the dropped-bare-name-candidate regression this entry exists to pin"
+build = ["cmake", "--build", ".", "--target", "deluge_loadcheck"]
+run = ["./deluge_loadcheck"]
+requires = ["sim-host-build"]
+ci = "pr"
+runtime = "~5s"
+
 [[harness]]
 name = "region-fill-differential"
 path = "harness/rust/region_fill_differential"

@@ -184,13 +184,41 @@ public:
 	/// If the flattened-name construction (1) fails, no candidates are proposed at all (matching the
 	/// original code's hard-stop on that failure, rather than silently falling back to the weaker
 	/// candidates) -- see resolveFileSize's caller-side note on the error code this produces.
+	///
+	/// NOT a sufficient "only source of truth" on its own when `alternateLoadDirStatus ==
+	/// AlternateLoadDirStatus::MIGHT_EXIST` -- the state at the start of every song/preset load, before
+	/// anything has probed whether the alternate dir actually exists. In that state this proposes only
+	/// the regular path; a caller that needs the alternate-dir candidates too (as resolveFileSize does)
+	/// must first resolve `MIGHT_EXIST` to `DOES_EXIST` or `NOT_FOUND` itself -- an I/O probe
+	/// (`deluge::io::Directory::open` on `alternateAudioFileLoadPath`) that cannot live in this
+	/// I/O-free function -- and only then call this again. Calling this while still `MIGHT_EXIST`
+	/// silently yields an incomplete candidate list, not an error.
+	///
+	/// `const` here describes the signature, not thread-safety: this reads the mutable
+	/// `alternateLoadDirStatus` / `alternateAudioFileLoadPath` members, so a caller running it
+	/// concurrently with something that writes them (e.g. `thingBeginningLoading`, off a different
+	/// task/fiber) can race.
+	///
 	/// @param filePath The nominal path a load was asked for.
-	/// @param out      Array of at least @p max entries to fill with candidates, in try order.
+	/// @param out      Array of at least @p max entries to fill with candidates, in try order. Entries
+	///                 at or past the returned count (when it exceeds @p max) are left untouched --
+	///                 check the return value against @p max before reading @p out, the same as
+	///                 `snprintf`'s return-vs-buffer-size contract.
 	/// @param max      Capacity of @p out (pass kMaxLoadCandidates for the full list).
-	/// @return How many entries of @p out were written. Never more than @p max.
-	size_t proposeLoadCandidates(const std::string& filePath, std::string* out, size_t max) const;
+	/// @return How many candidates were proposed in total. This can exceed @p max, in which case only
+	///         the first @p max were written to @p out -- the return value, not @p max, is how a caller
+	///         detects that. Never silently drops the tail.
+	[[nodiscard]] size_t proposeLoadCandidates(const std::string& filePath, std::string* out, size_t max) const;
 
 private:
+	/// The bare-filename alternate-dir candidate shared by proposeLoadCandidates() and
+	/// getAudioFileFromFilename()'s in-memory search. Deliberately just the string construction, not a
+	/// routed call to proposeLoadCandidates(): that function's alternate candidates only exist when
+	/// `alternateLoadDirStatus == DOES_EXIST` (about to do I/O, so it's worth being sure first), while
+	/// the in-memory search is a free sorted-vector lookup that also checks under `MIGHT_EXIST` (no I/O
+	/// cost to being speculative) and skips `ThingType::SONG` entirely -- a genuinely different subset,
+	/// not a duplicate to collapse. If this naming rule ever changes, change it here once.
+	std::string alternateDirBareNameCandidate(const std::string& filePath) const;
 	bool cardReadOnce{false};
 	bool cardEjected{};
 	bool cardDisabled = false;

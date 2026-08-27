@@ -27,6 +27,7 @@ PROBES = {
         "cmake -B build-embassy-hostapp -S sim -G Ninja -DDELUGE_SIM_X64=ON && "
         "cmake --build build-embassy-hostapp"
     ),
+    "sim-host-build": "cmake -S sim -B sim/build -- configures the plain host-sim CMake project (deluge_loadcheck and friends); a separate build dir from build-embassy-hostapp",
     "song-corpus": "set DELUGE_BACKUP (default ~/Deluge Backup) or DELUGE_SONG_CORPUS to a directory of .XML songs",
     "deluge-sdk-sibling": (
         "clone https://github.com/FirestormAudio/deluge-embassy as a sibling "
@@ -115,6 +116,8 @@ def probe(requirement: str, root: Path) -> bool:
             return shutil.which("arm-linux-gnueabihf-g++") is not None
         case "build-embassy-hostapp":
             return (root / "build-embassy-hostapp").is_dir()
+        case "sim-host-build":
+            return (root / "sim" / "build").is_dir()
         case "deluge-sdk-sibling":
             # A checkout of another repository beside this one, not a path
             # inside it -- hence `root.parent`.

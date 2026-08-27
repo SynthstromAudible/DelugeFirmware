@@ -536,17 +536,29 @@ Error AudioFileManager::setupAlternateAudioFilePath(std::string& newPath, int32_
 	return Error::NONE;
 }
 
+std::string AudioFileManager::alternateDirBareNameCandidate(const std::string& filePath) const {
+	std::string candidate = alternateAudioFileLoadPath;
+	candidate.append("/");
+	candidate.append(getFileNameFromEndOfPath(filePath.c_str()));
+	return candidate;
+}
+
 size_t AudioFileManager::proposeLoadCandidates(const std::string& filePath, std::string* out, size_t max) const {
-	size_t count = 0;
+	// `proposed` counts every candidate this call considers, independent of whether it fit in `out` --
+	// the snprintf-style contract documented on the declaration. Never silently drop the tail: a caller
+	// that under-sized `max` can tell, by comparing the return value against `max`, rather than quietly
+	// losing (say) the regular-path candidate because it happened to be pushed last.
+	size_t proposed = 0;
 	const auto pushCandidate = [&](std::string&& candidate) {
-		if (count < max) {
-			out[count++] = std::move(candidate);
+		if (proposed < max) {
+			out[proposed] = std::move(candidate);
 		}
+		proposed++;
 	};
 
 	if (alternateLoadDirStatus != AlternateLoadDirStatus::DOES_EXIST) {
 		pushCandidate(std::string{filePath});
-		return count;
+		return proposed;
 	}
 
 	// Alternate load dir is known to exist, so its candidates are proposed first.
@@ -569,16 +581,15 @@ size_t AudioFileManager::proposeLoadCandidates(const std::string& filePath, std:
 
 	// Candidate 2 (unconditional): the bare filename in the alternate dir -- tried even when candidate 1
 	// applied and missed, since it also lets users drop files straight into an instrument's alternate
-	// folder.
-	std::string bareCandidate = alternateAudioFileLoadPath;
-	bareCandidate.append("/");
-	bareCandidate.append(getFileNameFromEndOfPath(filePath.c_str()));
-	pushCandidate(std::move(bareCandidate));
+	// folder. Shared with getAudioFileFromFilename()'s in-memory search via alternateDirBareNameCandidate
+	// (see its doc comment for why that search isn't routed through this function wholesale).
+	pushCandidate(alternateDirBareNameCandidate(filePath));
 
-	// Candidate 3: the regular path.
+	// Candidate 3: the regular path. Always pushed last -- resolveFileSize relies on that position
+	// (not string equality) to tell an alternate-dir hit from a regular one.
 	pushCandidate(std::string{filePath});
 
-	return count;
+	return proposed;
 }
 
 bool AudioFileManager::resolveFileSize(std::string& filePath, bool mayReadCard, std::string& usingAlternateLocation,
@@ -602,7 +613,11 @@ bool AudioFileManager::resolveFileSize(std::string& filePath, bool mayReadCard, 
 
 	// Open one proposed candidate; on success fill sizeBytes / usingAlternateLocation (and, for SYNTH/KIT
 	// presets resolved via the alternate dir, rewrite filePath to that now-canonical location).
-	const auto tryOpenCandidate = [&](const std::string& candidate) -> bool {
+	// `isRegularPath` is positional (which slot proposeLoadCandidates put this candidate in), not a
+	// string comparison against `filePath` -- an alternate-dir candidate that happens to stringify the
+	// same as `filePath` (the alternate dir sits in filePath's own directory) is still an alternate hit,
+	// not a false "regular" one.
+	const auto tryOpenCandidate = [&](const std::string& candidate, bool isRegularPath) -> bool {
 		auto opened = deluge::io::File::open(candidate, DELUGE_FILE_READ);
 		// TODO(conflation-batch-5): unknown is being treated as absent here -- a refusal is reported to
 		// the caller the same as a genuine miss, yielding Error::FILE_UNREADABLE ("not here") where
@@ -615,7 +630,7 @@ bool AudioFileManager::resolveFileSize(std::string& filePath, bool mayReadCard, 
 			return false;
 		}
 		sizeBytes = *sz;
-		if (candidate == filePath) {
+		if (isRegularPath) {
 			usingAlternateLocation.clear();
 		}
 		else {
@@ -630,13 +645,16 @@ bool AudioFileManager::resolveFileSize(std::string& filePath, bool mayReadCard, 
 		return true; // File auto-closes on scope exit (RAII)
 	};
 
-	std::string candidates[kMaxLoadCandidates];
-	size_t count = proposeLoadCandidates(filePath, candidates, kMaxLoadCandidates);
+	// Sized to kMaxLoadCandidates, the true upper bound proposeLoadCandidates ever proposes, so `count`
+	// below always equals the full proposed list -- this call site never truncates.
+	std::array<std::string, kMaxLoadCandidates> candidates{};
+	size_t count = proposeLoadCandidates(filePath, candidates.data(), candidates.size());
 
 	// If we already know the alternate dir exists there's a high chance the file is in it, so
-	// proposeLoadCandidates puts its candidates first; otherwise it proposes only the regular path.
+	// proposeLoadCandidates puts its candidates first; otherwise it proposes only the regular path. The
+	// regular path is always the last candidate proposed (see proposeLoadCandidates).
 	for (size_t i = 0; i < count; i++) {
-		if (tryOpenCandidate(candidates[i])) {
+		if (tryOpenCandidate(candidates[i], /*isRegularPath=*/i + 1 == count)) {
 			return true;
 		}
 	}
@@ -661,12 +679,13 @@ bool AudioFileManager::resolveFileSize(std::string& filePath, bool mayReadCard, 
 			break;
 		}
 
-		// status is now DOES_EXIST: re-propose to get the alternate-dir candidates. The last one
-		// (the regular path) was already tried above and failed, so skip it here.
-		std::string altCandidates[kMaxLoadCandidates];
-		size_t altCount = proposeLoadCandidates(filePath, altCandidates, kMaxLoadCandidates);
-		for (size_t i = 0; i < altCount; i++) {
-			if (altCandidates[i] != filePath && tryOpenCandidate(altCandidates[i])) {
+		// status is now DOES_EXIST: re-propose to get the alternate-dir candidates. The last slot (the
+		// regular path) was already tried above and failed, so skip it here -- by position, not string
+		// equality (see tryOpenCandidate's doc note).
+		std::array<std::string, kMaxLoadCandidates> altCandidates{};
+		size_t altCount = proposeLoadCandidates(filePath, altCandidates.data(), altCandidates.size());
+		for (size_t i = 0; i + 1 < altCount; i++) {
+			if (tryOpenCandidate(altCandidates[i], /*isRegularPath=*/false)) {
 				return true;
 			}
 		}
@@ -747,9 +766,11 @@ AudioFile* AudioFileManager::getAudioFileFromFilename(std::string& filePath, boo
 	    && (alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST
 	        || alternateLoadDirStatus == AlternateLoadDirStatus::DOES_EXIST)
 	    && thingTypeBeingLoaded != ThingType::SONG) {
-		std::string searchPath = alternateAudioFileLoadPath;
-		searchPath.append("/");
-		searchPath.append(getFileNameFromEndOfPath(filePath.c_str()));
+		// Same bare-name rule proposeLoadCandidates() uses for its alternate-dir candidate (see
+		// alternateDirBareNameCandidate()'s doc comment for why this in-memory search isn't just a call
+		// to that function instead): a free sorted-vector lookup, so it's worth trying under MIGHT_EXIST
+		// too, not just the known-DOES_EXIST case an actual card open would require.
+		std::string searchPath = alternateDirBareNameCandidate(filePath);
 
 		audioFileI = audioFiles.search(searchPath.c_str(), &foundExact);
 		if (foundExact) {

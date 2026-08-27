@@ -16,6 +16,7 @@ virtual-time simulations, sanitizer stress runs, and fuzzers. Unit specs live in
 | Harness | Kind | Status | Gates | CI | Runtime |
 | --- | --- | --- | --- | --- | --- |
 | fs-differential | differential | gate | embedded-fatfs must agree with the reference FAT implementation on every filesystem operation | pr | ~1m |
+| audio-loadcheck | regression | gate | AudioFileManager::proposeLoadCandidates's candidate order/count (the alternate-dir-vs-regular-path policy a real load and the async loader share) and the load invariants (no half-built cache entry, no leaked AudioFile reason) must hold -- this is what caught the dropped-bare-name-candidate regression this entry exists to pin | pr | ~5s |
 | region-fill-differential | differential | gate | the Rust cluster fill must stay byte-identical to the C++ convert/stitch reference | pr | ~1m |
 | region-read-differential | differential | gate | the sample range-reader must resolve the same frames as the chunk-payload oracle | pr | ~1m |
 | region-source-differential | differential | gate | the region cursor must resolve a chunk's payload, not its header, over real streamed backing | pr | ~1m |

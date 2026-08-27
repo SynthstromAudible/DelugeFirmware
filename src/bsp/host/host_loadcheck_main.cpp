@@ -24,8 +24,12 @@
 /// net for the file-loading redesign: load known WAV/AIFF files off the project directory and dump every
 /// descriptor field; a diff in the output across a refactor flags a behavioural change.
 ///
-/// Usage: deluge_loadcheck --project <dir> --file SAMPLES/A.WAV [--file ... | --wavetable PATH]
+/// Usage: deluge_loadcheck [--project <dir>] [--file SAMPLES/A.WAV | --wavetable PATH]...
 /// Deterministic. No external tools required — the project directory IS the SD card.
+///
+/// With no --file/--wavetable at all, only checkProposeLoadCandidates()'s I/O-free policy checks run
+/// (no card fixture needed, so --project may also be omitted) -- this is what the harness registry
+/// entry for this binary runs as a standing gate; see harness/registry.toml.
 
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"
@@ -311,7 +315,11 @@ void deluge_loadcheck_driver() {
 }
 
 void usage(const char* argv0) {
-	fprintf(stderr, "usage: %s --project <dir> (--file PATH | --wavetable PATH)...\n", argv0);
+	fprintf(stderr, "usage: %s [--project <dir>] [--file PATH | --wavetable PATH]...\n", argv0);
+	fprintf(stderr, "  --project defaults to \".\" when omitted.\n");
+	fprintf(stderr,
+	        "  With no --file/--wavetable, only the I/O-free policy checks run (checkProposeLoadCandidates) --\n");
+	fprintf(stderr, "  meaningful with no card fixture at all; this is what the harness registry runs as a gate.\n");
 }
 
 } // namespace
@@ -340,9 +348,11 @@ int main(int argc, char** argv) {
 		}
 	}
 
-	if (g_items.empty() || project == nullptr) {
-		usage(argv[0]);
-		return 1;
+	// --project is optional -- default to the current directory, the same convention
+	// deluge_audio_header_dump uses for the same env var, so the pure-policy checks below are runnable
+	// (and meaningful) with no card fixture at all: they touch no file, so any existing directory does.
+	if (project == nullptr) {
+		project = ".";
 	}
 
 	// The project directory IS the SD card: host_efatfs_passthrough.cpp serves every task-context
