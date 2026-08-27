@@ -20,7 +20,11 @@ struct Notice {
 constexpr size_t kNoticeCapacity = 16;
 
 /// Overwrite-oldest ring. Single logical producer at a time (cooperative scheduling today --
-/// see spec C §6, `COOP-WRITE`); the consumer is the UI tick.
+/// see spec C §6, `COOP-WRITE`); the consumer is the UI tick. COOP-WRITE also covers the
+/// overwrite-oldest branch itself: the slot a concurrent pop's advanced `tail` just released is
+/// rewritten here by a plain struct copy, which assumes push and that pop never truly overlap --
+/// under real preemption the copy could tear. Replace with the real SPSC queue of
+/// target_architecture.md §4.2.
 class NoticeQueue {
 public:
 	bool push(const Notice& n); // [any] COOP-WRITE: producers are serialised by today's
