@@ -101,11 +101,24 @@ struct OledFrame {
 	void glyphs(std::string_view s, int32_t x, int32_t y, int32_t spacing_x, int32_t height, int32_t scroll_px = 0,
 	            int32_t end_x = gfx::oled::kEdge, bool use_width = false);
 
+	/// A single character, straight through to `Canvas::draw_char` -- the legacy `drawChar` that
+	/// `Number::drawPercent` blits its `%` with (number.cpp:124). `glyphs` with a one-character
+	/// view is pixel-identical for a monospaced face, but not for a proportional one (it would
+	/// pass the *measured* width where `drawChar` passes the caller's `spacing_x`, and
+	/// `draw_char` centres the glyph inside that number), so the character case gets its own
+	/// forwarder rather than a lookalike. Same clipping caveat as `glyphs`.
+	void glyph(char c, int32_t x, int32_t y, int32_t spacing_x, int32_t height, int32_t end_x = gfx::oled::kEdge);
+
 	/// Blit a column-major 1-bpp bitmap, whole or not at all (see the clipping note above).
 	void graphic(const uint8_t* data, int32_t x, int32_t y, int32_t w, int32_t h, int32_t bytes_tall,
 	             bool reversed = false);
 	/// `reversed` mirrors `Canvas::draw_icon`'s own parameter; the brief's interface omitted it.
 	void icon(const gfx::oled::Icon& i, int32_t x, int32_t y, bool reversed = false);
+	/// `Canvas::draw_icon_centered` (canvas.cpp:627-630): the icon centred across `total_width`
+	/// starting from `start_x`, i.e. at `start_x + ((total_width - i.width) >> 1)`. Whole or not
+	/// at all, as `icon`. Legacy `Number::drawKnob` (number.cpp:132) centres its arc this way.
+	void icon_centered(const gfx::oled::Icon& i, int32_t start_x, int32_t total_width, int32_t y,
+	                   bool reversed = false);
 	/// @}
 
 	// Deliberately no private section, and no data member may be added below the public ones:

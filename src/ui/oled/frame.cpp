@@ -170,6 +170,14 @@ void OledFrame::glyphs(std::string_view s, int32_t x, int32_t y, int32_t spacing
 	canvas.draw_string(s, origin.x + x, origin.y + y, spacing_x, height, scroll_px, canvas_end_x, use_width);
 }
 
+void OledFrame::glyph(char c, int32_t x, int32_t y, int32_t spacing_x, int32_t height, int32_t end_x) {
+	if (empty(clip)) {
+		return;
+	}
+	const int32_t canvas_end_x = (end_x == kEdge) ? clip.right() : std::min(origin.x + end_x, clip.right());
+	canvas.draw_char(static_cast<uint8_t>(c), origin.x + x, origin.y + y, spacing_x, height, 0, canvas_end_x);
+}
+
 void OledFrame::graphic(const uint8_t* data, int32_t x, int32_t y, int32_t w, int32_t h, int32_t bytes_tall,
                         bool reversed) {
 	if (w <= 0 || h <= 0) {
@@ -184,6 +192,12 @@ void OledFrame::graphic(const uint8_t* data, int32_t x, int32_t y, int32_t w, in
 
 void OledFrame::icon(const gfx::oled::Icon& i, int32_t x, int32_t y, bool reversed) {
 	graphic(i.data, x, y, i.width, i.height, i.num_bytes_tall, reversed);
+}
+
+void OledFrame::icon_centered(const gfx::oled::Icon& i, int32_t start_x, int32_t total_width, int32_t y,
+                              bool reversed) {
+	const int32_t padding = (total_width - i.width) >> 1; // canvas.cpp:628, the same >> 1
+	icon(i, start_x + padding, y, reversed);
 }
 
 } // namespace deluge::ui::oled
