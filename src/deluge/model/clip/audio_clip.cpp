@@ -19,7 +19,6 @@
 #include "clip.h"
 #include "definitions_cxx.hpp"
 #include "dsp/timestretch/time_stretcher.h"
-#include "gui/views/automation_view.h"
 #include "gui/waveform/waveform_renderer.h"
 #include "io/debug/log.h"
 #include "memory/general_memory_allocator.h"

@@ -96,7 +96,9 @@ bool Arrangement::endPlayback() {
 	// Some Clips might have been reset to "disabled", so need their mute-square redrawn if we're actually viewing the
 	// session view
 
-	// use root UI in case this is called from performance view
+	// Main rows too: legacy went through SessionView::requestRendering(), which upgrades to
+	// main + sidebar in grid session layout, where the clip pads *are* main pads.
+	deluge::notify::raise(deluge::notify::Dirty::GridMain);
 	deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
 
 	// Work-around. Our caller, PlaybackHandler::endPlayback(), sets this next anyway, and can't do it earlier,

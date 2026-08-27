@@ -2,12 +2,15 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/ui.h"
+#include "gui/views/audio_clip_view.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
+#include "model/clip/audio_clip.h"
+#include "model/song/song.h"
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
-#include "util/functions.h"
+#include "util/c_string.h"
 #include "util/notify.h"
 
 /// Notice::popup_type is a plain uint8_t whose 0 means "unspecified" -- and today PopupType::NONE
@@ -22,7 +25,20 @@ void drain_notifications() {
 	const DirtySet d = dirty().drain();
 	if (d.any()) {
 		const LegacyRedraw r = legacy_redraw_for(d);
-		if (RootUI* root = getRootUI(); root && (r.main_rows || r.sidebar_rows)) {
+		RootUI* root = getRootUI();
+		// AudioClipView::clipNeedsReRendering() is not a pure redraw request: when the clip's length
+		// just shrank under the scroll position (an aborted or finished linear recording) it scrolls
+		// back left instead of rendering. Route clip-content facts through it so that survives.
+		// Testing the flag alone is enough: drain() derives it from the clip words it took, so the
+		// flag is always a superset of the clip bits (dirty_set.h). The generic request below still
+		// runs -- doAnyPendingGridRendering() sits out UI_MODE_HORIZONTAL_SCROLL, so a main-row bit
+		// set during the scroll animation simply waits for it to finish.
+		if (d.has(Dirty::ClipContent) && root == &audioClipView && currentSong) {
+			if (AudioClip* c = getCurrentAudioClip()) {
+				audioClipView.clipNeedsReRendering(c);
+			}
+		}
+		if (root && (r.main_rows || r.sidebar_rows)) {
 			uiNeedsRendering(root, r.main_rows ? 0xFFFFFFFF : 0, r.sidebar_rows ? 0xFFFFFFFF : 0);
 		}
 		if (r.oled) {
@@ -49,7 +65,11 @@ void drain_notifications() {
 			display->cancelPopup();
 			// Legacy did `currentUIMode &= UI_MODE_AUDITIONING` unconditionally here; only the
 			// count-in mode was ever meaningfully set during a count-in, so narrow it to that.
-			if (currentUIMode == UI_MODE_RECORD_COUNT_IN) {
+			// Must be the *masked* compare: UI_MODE_RECORD_COUNT_IN is exclusive (45) while
+			// UI_MODE_AUDITIONING is the (1 << 30) flag ORed on top, so during an audition-pad or
+			// keyboard take currentUIMode is 0x4000002D and an exact compare would leave the
+			// count-in mode set -- which is precisely the case the legacy mask existed for.
+			if (isUIModeActive(UI_MODE_RECORD_COUNT_IN)) {
 				currentUIMode &= UI_MODE_AUDITIONING;
 			}
 		}

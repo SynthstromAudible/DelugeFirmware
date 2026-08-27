@@ -15,6 +15,8 @@ describe drain_mapping("legacy_redraw_for", $ {
 		s.raise_clip(Dirty::ClipContent, 2);
 		r = legacy_redraw_for(s.drain());
 		expect(r.main_rows).to_be_true();
+		// The clipNeedsReRendering() overrides ClipContent replaced re-rendered the sidebar too.
+		expect(r.sidebar_rows).to_be_true();
 	});
 	it("is empty for an empty set", _ {
 		DirtySet s;

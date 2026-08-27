@@ -70,7 +70,6 @@
 #include "sync/sd_access.h"
 #include "util/functions.h"
 #include "util/misc.h"
-#include "util/notify.h"
 #include <algorithm>
 #include <cstdint>
 #include <cstring>
@@ -494,9 +493,10 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 	}
 	// blink LED to alert the user
 	if (culled && FlashStorage::highCPUUsageIndicator) {
-		// [audio] Just the fact -- the UI tick owns the LED.
+		// [audio] Just the fact -- the UI tick owns the LED. No dirty bit: the drain polls this flag
+		// outside its d.any() gate, and PlaybackState would schedule a full main+sidebar+OLED repaint
+		// once per render period exactly when the CPU is already over budget.
 		cull_alert_pending = true;
-		deluge::notify::raise(deluge::notify::Dirty::PlaybackState);
 		D_PRINTLN("started %i voices this render cycle", voices_started_this_render);
 	}
 }
