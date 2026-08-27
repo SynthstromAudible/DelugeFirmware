@@ -24,6 +24,12 @@ struct OutputNameData {
 	/// callers pass the channel *already incremented* (view.cpp:2150), and so must this one.
 	int32_t slot;
 	int32_t sub_slot;
+	/// **A field spec B section 6's `OutputNameData{type, slot, subslot, name, edited}` does not
+	/// list.** It is legacy's `isNameEmpty` (view.cpp:2026), which selects between the two whole
+	/// branches of the routine, and it is not derivable from `name`: legacy passes
+	/// `output->name.c_str()` and `output->name.empty()` separately (view.cpp:2018) and the
+	/// substitute strings above arrive in `name` with this false. Named here as a deviation from
+	/// section 6 rather than left to be noticed.
 	bool name_empty;
 	/// `View::drawOutputNameFromDetails`' `editedByUser` (view.cpp:2025). **Draws nothing.** The
 	/// parameter survives in legacy's signature but its body never reads it: the only renderer
@@ -80,7 +86,8 @@ void segment_digits(OledFrame& f, gfx::oled::Rect rect, std::span<const uint8_t,
 /// widget, so it is drawn here on the only part of legacy that carries over: the eight-step
 /// quantisation of `getMaxYDisplayForVUMeter` (:1813-1846, one step per grid row) becomes eight
 /// segments per channel, lit left to right, a segment's width being `rect.w / 8` less a
-/// one-pixel gap. Golden-tested only; there is nothing to compare against.
+/// one-pixel gap -- so the eight steps show as eight blocks, not as one bar. Golden-tested only;
+/// there is nothing to compare against.
 ///
 /// \p l and \p r are 0..255 levels, already scaled by the caller -- the dBFS curve legacy applies
 /// reads `AudioEngine::approxRMSLevel`, which is model data this layer cannot see.

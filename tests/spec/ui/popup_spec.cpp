@@ -43,18 +43,19 @@ namespace uitest = deluge::ui::test;
 //
 // Deviations, all noted where they occur:
 //
-//  D1. **The popup is centred on the frame, not the panel.** Legacy divides
-//      `OLED_MAIN_HEIGHT_PIXELS` (oled.cpp:127-129), which includes the five rows the faceplate
-//      hides; a frame cannot see them. On the 64-row flush geometry the two rules agree exactly
-//      and the legacy oracle below is compared byte for byte; on the 48-row one the port's box
-//      sits `visible_top / 2` rows lower, so the oracle there is run against a *bezel-less* 48-row
-//      panel (the same arithmetic legacy would do if `OLED_MAIN_TOPMOST_PIXEL` were 0), which is
-//      what the frame reproduces. This is ruling 1 of the task's brief and spec B section 4's
-//      "no widget knows about the bezel"; it is the only deliberate pixel deviation here.
-//  D2. `popup_rect_for` returns legacy's `{minX, minY, width, height}`, whose drawn extent is one
-//      pixel larger on each axis because `setupPopup` passes `minX + width` as an *inclusive*
-//      maximum. The brief's `{(128-42)/2, (43-21)/2, 42, 21}` for a 30x9 content is that rect and
-//      is asserted verbatim; the border it produces is 43 columns wide, and that is asserted too.
+//  D1. **The popup is centred on the whole panel, as legacy centres it** -- 48 rows on the
+//      shipped board, the five the faceplate hides included (`popupMinY =
+//      (OLED_MAIN_HEIGHT_PIXELS - height) / 2`, oled.cpp:128, and `textPixelY`, :620). The port
+//      reads `f.canvas.geometry()` and converts by `f.origin`, the same canvas-absolute idiom
+//      `segment_digits` and `decimal_value` use, so the oracles below need **no shim at all**:
+//      both geometries are compared byte for byte against verbatim legacy handed 128x48 and
+//      128x64. An earlier revision of this port centred on `f.bounds()` (43 visible rows), which
+//      put every 48-row popup 3 rows low; corrected in fix round 1.
+//  D2. `popup_rect_for` returns legacy's `{minX, minY, width, height}` in *frame* coordinates,
+//      and its drawn extent is one pixel larger on each axis because `setupPopup` passes
+//      `minX + width` as an *inclusive* maximum. The task brief's `{(128-42)/2, (43-21)/2, 42, 21}`
+//      for a 30x9 content is superseded on the y term (see D1); the box is canvas `{43, 13, 42, 21}`
+//      and the border it produces is 43 columns wide, both asserted below.
 //  D3. `working` draws no word and no dots. `displayWorkingAnimation` keeps only
 //      `loading = !strcmp(word, "Loading")` (oled.cpp:723); the brief's ""Loading" + animated
 //      dots" describes no code in this tree. The port replays the animation's history each frame
@@ -185,8 +186,7 @@ findNextStringSplitPoint:
 	}
 }
 
-/// oled.cpp:120-136. `height_pixels` stands in for OLED_MAIN_HEIGHT_PIXELS; see D1 -- the port
-/// centres on the *visible* height, so the oracle is handed that number.
+/// oled.cpp:120-136. `width_pixels`/`height_pixels` stand in for the two macros.
 void setupPopup(Canvas& popup, bool notification, int32_t width, int32_t height, int32_t width_pixels,
                 int32_t height_pixels, bool rounded) {
 	height = std::clamp<int32_t>(height, 0, height_pixels);
@@ -201,10 +201,11 @@ void setupPopup(Canvas& popup, bool notification, int32_t width, int32_t height,
 	}
 }
 
-/// oled.cpp:605-643, minus the two timers. `y_shift` is added to every row so the oracle can be
-/// laid out against a bezel-less panel and then dropped into the real canvas (see D1).
+/// oled.cpp:605-643, minus the two timers. `width_pixels`/`height_pixels` stand in for the two
+/// macros and nothing else does: the port reproduces this arithmetic exactly, so the oracle needs
+/// no shim of any kind (see D1).
 void popupText(Canvas& popup, char const* text, bool notification, int32_t width_pixels, int32_t height_pixels,
-               int32_t y_shift, bool rounded) {
+               bool rounded) {
 	TextLineBreakdown textLineBreakdown{};
 	textLineBreakdown.maxCharsPerLine = 19;
 
@@ -216,17 +217,8 @@ void popupText(Canvas& popup, char const* text, bool notification, int32_t width
 	int32_t textWidth = textLineBreakdown.longestLineWidth;
 	int32_t textHeight = textLineBreakdown.numLines * 9;
 
-	// setupPopup, but shifted -- inlined here so the shift applies to the box too.
-	{
-		int32_t height = std::clamp<int32_t>(textHeight + doubleMargin, 0, height_pixels);
-		const int32_t width = textWidth + doubleMargin;
-		const int32_t minX = (width_pixels - width) / 2;
-		const int32_t minY = (height_pixels - height) / 2 + y_shift;
-		popup.clear_area_exact(minX, minY, minX + width, minY + height);
-		if (!notification) {
-			popup.draw_rectangle_rounded(minX, minY, minX + width, minY + height, deluge::gfx::oled::SMALL, rounded);
-		}
-	}
+	setupPopup(popup, notification, textWidth + doubleMargin, textHeight + doubleMargin, width_pixels, height_pixels,
+	           rounded);
 
 	int32_t textPixelY = (height_pixels - textHeight) >> 1;
 	if (textPixelY < 0) {
@@ -239,14 +231,13 @@ void popupText(Canvas& popup, char const* text, bool notification, int32_t width
 		}
 		int32_t textPixelX = (width_pixels - static_cast<int32_t>(textLineBreakdown.lineWidths[l])) >> 1;
 		popup.draw_string(std::string_view{textLineBreakdown.lines[l], textLineBreakdown.lineLengths[l]}, textPixelX,
-		                  textPixelY + y_shift, 6, 9); // kTextSpacingX, kTextSpacingY
+		                  textPixelY, 6, 9); // kTextSpacingX, kTextSpacingY
 		textPixelY += 9;
 	}
 }
 
 /// oled.cpp:570-601, on the same terms.
-void drawPermanentPopupLookingText(Canvas& main, char const* text, int32_t width_pixels, int32_t height_pixels,
-                                   int32_t y_shift) {
+void drawPermanentPopupLookingText(Canvas& main, char const* text, int32_t width_pixels, int32_t height_pixels) {
 	TextLineBreakdown textLineBreakdown{};
 	textLineBreakdown.maxCharsPerLine = 19;
 
@@ -265,8 +256,8 @@ void drawPermanentPopupLookingText(Canvas& main, char const* text, int32_t width
 	int32_t maxY = height_pixels - minY;
 
 	// The port clears before it draws (spec B section 6); legacy relied on clearMainImage.
-	main.clear_area_exact(minX, minY + y_shift, maxX, maxY + y_shift);
-	main.draw_rectangle(minX, minY + y_shift, maxX, maxY + y_shift);
+	main.clear_area_exact(minX, minY, maxX, maxY);
+	main.draw_rectangle(minX, minY, maxX, maxY);
 
 	int32_t textPixelY = (height_pixels - textHeight) >> 1;
 	if (textPixelY < 0) {
@@ -276,7 +267,7 @@ void drawPermanentPopupLookingText(Canvas& main, char const* text, int32_t width
 	for (int32_t l = 0; l < textLineBreakdown.numLines; l++) {
 		int32_t textPixelX = (width_pixels - static_cast<int32_t>(textLineBreakdown.lineWidths[l])) >> 1;
 		main.draw_string(std::string_view{textLineBreakdown.lines[l], textLineBreakdown.lineLengths[l]}, textPixelX,
-		                 textPixelY + y_shift, 6, 9);
+		                 textPixelY, 6, 9);
 		textPixelY += 9;
 	}
 }
@@ -366,6 +357,15 @@ void drawHorizontalBar(Canvas& canvas, int32_t left_most, int32_t right_most, in
 }
 
 } // namespace legacy
+
+/// Is the pixel at canvas coordinates \p x, \p y lit on a rig's *reference* canvas? `OledRig`
+/// offers `lit` for the port's canvas and `reference_pbm` for the whole oracle image, but not the
+/// per-pixel reader the bezel comparison below needs. Kept local rather than added to the shared
+/// rig, which tasks 4-8's specs also use.
+template <typename Rig>
+bool reference_lit(const Rig& r, int32_t x, int32_t y) {
+	return (r.reference.bytes()[static_cast<size_t>(y >> 3) * 128u + static_cast<size_t>(x)] & (1u << (y & 7))) != 0;
+}
 
 /// The `t_reset` of the shipped animation: w1 + w2 + (h - 2) * (w2 - 2) = 5 + 5 + 6 * 3.
 constexpr int32_t kReset = 28;
@@ -466,19 +466,27 @@ describe popup_w("ui::oled::popup", $ {
 		expect(std::string(c.lines[1])).to_equal(std::string(b.lines[1]));
 	});
 
-	it("places the popup box where the brief says, at both geometries", _ {
-		// D2: the brief's `{(128 - 42) / 2, (43 - 21) / 2, 42, 21}` for a 30x9 content.
+	it("centres the popup box on the panel, at both geometries", _ {
+		// D2. `popupMinX = (OLED_MAIN_WIDTH_PIXELS - width) / 2` and `popupMinY =
+		// (OLED_MAIN_HEIGHT_PIXELS - height) / 2` (oled.cpp:126-129), the height being the *whole*
+		// 48 rows including the five the faceplate hides. For a 30x9 content that is canvas
+		// {43, 13, 42, 21}, i.e. frame-local y 8 once the frame's origin (5) comes off.
+		//
+		// The task brief's sketch spelled `(43 - 21) / 2 = 11` -- centred on the 43 *visible* rows
+		// -- which is 3 rows below where the device puts it. Superseded, per the parity ruling;
+		// see popup.h.
 		uitest::Rig48 r;
 		const Rect box = popup_rect_for(r.frame, Size{30, 9});
 		expect(box.x).to_equal((128 - 42) / 2);
-		expect(box.y).to_equal((43 - 21) / 2);
+		expect(box.y).to_equal((48 - 21) / 2 - 5);
+		expect(r.frame.origin.y + box.y).to_equal(13); // the canvas row legacy computes
 		expect(box.w).to_equal(30 + kPopupMargin);
 		expect(box.h).to_equal(9 + kPopupMargin);
 
 		uitest::Rig64 r64;
 		const Rect box64 = popup_rect_for(r64.frame, Size{30, 9});
 		expect(box64.x).to_equal((128 - 42) / 2);
-		expect(box64.y).to_equal((64 - 21) / 2);
+		expect(box64.y).to_equal((64 - 21) / 2); // origin 0: the two rules coincide
 
 		// The drawn border is one column and one row larger, because legacy's maxima are
 		// inclusive: 43 columns, 43..85, and 22 rows.
@@ -532,49 +540,87 @@ describe popup_w("ui::oled::popup", $ {
 		expect(square.pbm() == round.pbm()).to_be_false();
 	});
 
-	it("matches popupText byte for byte on a flush 64-row panel", _ {
-		// D1: with no bezel, legacy's panel-height centring and the port's frame centring are the
-		// same arithmetic, so the comparison is exact.
-		auto both_ways = [&](const char* text, PopupStyle style) {
-			uitest::Rig64 r;
+	it("matches popupText byte for byte, at both geometries, against verbatim legacy", _ {
+		// D1. The oracle is handed the *panel*'s width and height -- 128x48 with the bezel rows
+		// included, exactly what OLED_MAIN_WIDTH_PIXELS / OLED_MAIN_HEIGHT_PIXELS are -- and no
+		// shim of any kind. The port centres on `f.canvas.geometry()` and converts by `f.origin`,
+		// so both geometries compare exactly.
+		auto both_ways = [&](auto& r, int32_t panel_h, const char* text, PopupStyle style) {
 			popup_text(r.frame, text, style);
 			if (style == PopupStyle::Permanent) {
-				legacy::drawPermanentPopupLookingText(r.reference, text, 128, 64, 0);
+				legacy::drawPermanentPopupLookingText(r.reference, text, 128, panel_h);
 			}
 			else {
-				legacy::popupText(r.reference, text, style == PopupStyle::Notification, 128, 64, 0, r.style.rounded);
+				legacy::popupText(r.reference, text, style == PopupStyle::Notification, 128, panel_h,
+				                  r.style.rounded);
 			}
 			expect(r.pbm()).to_equal(r.reference_pbm());
 		};
-		both_ways("SAVED", PopupStyle::Framed);
-		both_ways("SAVED", PopupStyle::Notification);
-		both_ways("SAVED", PopupStyle::Permanent);
-		both_ways("HELLO WORLD THIS WRAPS", PopupStyle::Framed);
-		both_ways("Operation resumed. Save to new file then reboot.", PopupStyle::Framed);
-		// Five lines is the tallest multi-line popup whose border still fits a 64-row frame; see
-		// the "taller than the frame" example below for what happens past that.
-		both_ways("A\nB\nC\nD\nE", PopupStyle::Framed);
+		auto at_48 = [&](const char* text, PopupStyle style) {
+			uitest::Rig48 r;
+			both_ways(r, 48, text, style);
+		};
+		auto at_64 = [&](const char* text, PopupStyle style) {
+			uitest::Rig64 r;
+			both_ways(r, 64, text, style);
+		};
+
+		for (PopupStyle style : {PopupStyle::Framed, PopupStyle::Notification, PopupStyle::Permanent}) {
+			at_48("SAVED", style);                       // box canvas rows 13..34
+			at_64("SAVED", style);
+		}
+		at_48("HELLO WORLD THIS WRAPS", PopupStyle::Framed); // two lines, rows 9..39
+		at_64("HELLO WORLD THIS WRAPS", PopupStyle::Framed);
+		at_64("Operation resumed. Save to new file then reboot.", PopupStyle::Framed);
+		at_64("A\nB\nC\nD\nE", PopupStyle::Framed);
+		// The 48-row cases stop at two lines on purpose: a three-line box is 39 rows, which
+		// panel-centring puts at canvas row 4 -- inside the bezel. See the next example.
 	});
 
-	it("matches popupText on a 48-row panel once the bezel is taken out of legacy's arithmetic", _ {
-		// D1: legacy divides 48; the frame divides its own 43 and then sits at row 5. Handing the
-		// oracle 43 and a shift of 5 is the same routine with OLED_MAIN_TOPMOST_PIXEL folded in,
-		// and that is exactly what the port computes.
-		auto both_ways = [&](const char* text, PopupStyle style) {
-			uitest::Rig48 r;
-			popup_text(r.frame, text, style);
-			if (style == PopupStyle::Permanent) {
-				legacy::drawPermanentPopupLookingText(r.reference, text, 128, 43, 5);
+	it("drops the border, but not the text, when a popup reaches into the bezel", _ {
+		// The one place the port and legacy still differ on a 48-row panel, and it is the frame's
+		// clipping contract rather than a placement difference. Now that the box is centred where
+		// legacy centres it, a tall popup's top edge lands in the bezel: "Operation resumed..."
+		// wraps to three lines, a 39-row box, which legacy puts at canvas row (48 - 39) / 2 = 4 --
+		// one row above the visible area.
+		//
+		// Legacy drew straight onto the canvas and inked row 4 regardless. The port cannot: a
+		// frame's clip is the visible area (frame.h / root_frame). And because
+		// `OledFrame::rect_rounded` is all-or-nothing against that clip -- a rounded rect has no
+		// span decomposition, frame.h -- a box that pokes one row over the top loses its *whole*
+		// border, not just that row. **The text still lands, pixel for pixel.**
+		//
+		// This is the same limitation the "fills the panel" example below pins, but panel-centring
+		// brings it within reach of an ordinary three-line popup, so it is worth its own example.
+		// The fix is the gfx clip rectangle frame.h already lists as a prerequisite; see the task
+		// report's follow-ups.
+		const char* long_text = "Operation resumed. Save to new file then reboot.";
+		uitest::Rig48 r;
+		popup_text(r.frame, long_text);
+		legacy::popupText(r.reference, long_text, false, 128, 48, r.style.rounded);
+
+		// Legacy inks the box's top edge at row 4 and its bottom at row 43; the port inks neither.
+		expect(reference_lit(r, 60, 4)).to_be_true();
+		expect(reference_lit(r, 60, 43)).to_be_true();
+		expect(r.lit(60, 4)).to_be_false();
+		expect(r.lit(60, 43)).to_be_false();
+		// Nor the sides, at columns 1 and 127.
+		expect(reference_lit(r, 1, 20)).to_be_true();
+		expect(r.lit(1, 20)).to_be_false();
+
+		// The three text lines sit at canvas rows 10, 19 and 28 ((48 - 27) >> 1 = 10, then +9).
+		// Across those rows, and inside the border's columns, the two are identical.
+		for (int32_t y = 10; y < 37; y++) {
+			for (int32_t x = 2; x < 127; x++) {
+				expect(r.lit(x, y)).to_equal(reference_lit(r, x, y));
 			}
-			else {
-				legacy::popupText(r.reference, text, style == PopupStyle::Notification, 128, 43, 5, r.style.rounded);
-			}
-			expect(r.pbm()).to_equal(r.reference_pbm());
-		};
-		both_ways("SAVED", PopupStyle::Framed);
-		both_ways("SAVED", PopupStyle::Notification);
-		both_ways("SAVED", PopupStyle::Permanent);
-		both_ways("HELLO WORLD THIS WRAPS", PopupStyle::Framed);
+		}
+		// And the text really is there, rather than both being blank.
+		bool any = false;
+		for (int32_t x = 2; x < 127; x++) {
+			any = any || r.lit(x, 11);
+		}
+		expect(any).to_be_true();
 	});
 
 	it("renders the popup goldens", _ {
@@ -741,30 +787,33 @@ describe popup_w("ui::oled::popup", $ {
 	});
 
 	it("draws the framed popup's border exactly where legacy's inclusive maxima put it", _ {
-		// "SAVED" is five monospaced characters: 30px wide, one 9px line. The box is therefore
-		// {43, 11, 42, 21} and the border runs canvas rows 16..37, columns 43..85 -- 43 columns
-		// for a 42-wide popup (D2). SMALL rounding leaves the four corners clear.
+		// "SAVED" is five monospaced characters: 30px wide, one 9px line, so the box is 42x21 and
+		// legacy puts it at canvas (43, 13) -- `(128 - 42) / 2` and `(48 - 21) / 2`, oled.cpp:126-129.
+		// The border therefore runs canvas rows 13..34, columns 43..85: 43 columns for a 42-wide
+		// popup (D3), because both maxima are inclusive. SMALL rounding leaves the four corners clear.
 		uitest::Rig48 r;
 		popup_text(r.frame, "SAVED");
 
-		expect(r.lit(43, 16)).to_be_false(); // corners
-		expect(r.lit(85, 16)).to_be_false();
-		expect(r.lit(43, 37)).to_be_false();
-		expect(r.lit(85, 37)).to_be_false();
+		expect(r.lit(43, 13)).to_be_false(); // corners
+		expect(r.lit(85, 13)).to_be_false();
+		expect(r.lit(43, 34)).to_be_false();
+		expect(r.lit(85, 34)).to_be_false();
 
 		for (int32_t x = 44; x <= 84; x++) {
-			expect(r.lit(x, 16)).to_be_true();
-			expect(r.lit(x, 37)).to_be_true();
+			expect(r.lit(x, 13)).to_be_true();
+			expect(r.lit(x, 34)).to_be_true();
 		}
-		for (int32_t y = 17; y <= 36; y++) {
+		for (int32_t y = 14; y <= 33; y++) {
 			expect(r.lit(43, y)).to_be_true();
 			expect(r.lit(85, y)).to_be_true();
 		}
 		expect(r.lit(86, 20)).to_be_false(); // and nothing past the right edge
 		expect(r.lit(42, 20)).to_be_false();
+		expect(r.lit(44, 12)).to_be_false(); // nor above the top edge
+		expect(r.lit(44, 35)).to_be_false();
 	});
 
-	it("loses only its border when a popup is taller than the frame", _ {
+	it("loses only its border when a popup fills the panel", _ {
 		// `popup_frame` reaches OledFrame::rect_rounded, which is all-or-nothing against the clip
 		// (frame.h: corner arcs have no span decomposition). Legacy clamped the box's *height* to
 		// the panel (oled.cpp:122) and then drew a border whose last row fell off the canvas, so

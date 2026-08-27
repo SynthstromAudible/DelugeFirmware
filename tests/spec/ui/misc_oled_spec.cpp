@@ -302,12 +302,26 @@ describe misc_oled_w("ui::oled::misc", $ {
 		uitest::Rig48 half;
 		vu(half.frame, Rect{4, 4, 120, 18}, 127, 255);
 		const int32_t top = half.frame.origin.y;
-		// Left channel: four of eight segments, each 15 columns less the gap.
-		expect(half.lit(4, top + 4)).to_be_true();
-		expect(half.lit(4 + 59, top + 4)).to_be_true();
-		expect(half.lit(4 + 60, top + 4)).to_be_false();
-		// Right channel: all eight.
+		// Left channel at 127: four of eight segments lit. Each segment is `rect.w / 8` = 15
+		// columns wide *less one for the gap*, so segment i inks columns 4 + 15i .. 4 + 15i + 13
+		// and column 4 + 15i + 14 is dark. Without that gap the four segments would be one
+		// unbroken 60-column bar, indistinguishable from a `unipolar_bar`.
+		expect(half.lit(4, top + 4)).to_be_true();       // segment 0 starts
+		expect(half.lit(4 + 13, top + 4)).to_be_true();  // and ends 14 columns later
+		expect(half.lit(4 + 14, top + 4)).to_be_false(); // the gap
+		expect(half.lit(4 + 15, top + 4)).to_be_true();  // segment 1 starts
+		expect(half.lit(4 + 29, top + 4)).to_be_false(); // the gap after segment 1
+		expect(half.lit(4 + 44, top + 4)).to_be_false(); // and after segment 2
+		expect(half.lit(4 + 58, top + 4)).to_be_true();  // segment 3's last column
+		expect(half.lit(4 + 59, top + 4)).to_be_false(); // nothing past four segments
+		// Every gap column, and only the gap columns, dark across the lit run.
+		for (int32_t i = 0; i < 4; i++) {
+			expect(half.lit(4 + 15 * i + 14, top + 4)).to_be_false();
+		}
+		// Right channel at 255: all eight, last segment ending at 4 + 120 - 2.
 		expect(half.lit(4 + 118, top + 13)).to_be_true();
+		expect(half.lit(4 + 119, top + 13)).to_be_false();
+		expect(half.lit(4 + 104, top + 13)).to_be_false(); // the gap before segment 7
 		expect_golden(self, "../ui/widgets/vu_half_full_48.pbm", half.pbm());
 
 		uitest::Rig64 r64;

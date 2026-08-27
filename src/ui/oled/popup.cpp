@@ -91,22 +91,35 @@ WorkingPhase working_phase(uint32_t elapsed) {
 	return WorkingPhase{kReset, cycle, cycle_len - r};
 }
 
+/// The whole canvas, expressed in \p f's local coordinates: `{-origin.x, -origin.y, width,
+/// height}`.
+///
+/// Every popup coordinate legacy computes is against `OLED_MAIN_WIDTH_PIXELS` /
+/// `OLED_MAIN_HEIGHT_PIXELS` -- the *panel*, hidden bezel rows included -- so all of the
+/// arithmetic below is done in this rectangle and lands in frame coordinates for free. The same
+/// canvas-absolute conversion `segment_digits` (misc.cpp) and `decimal_value` (values.cpp:172-173)
+/// do by hand, hoisted into one place because five call sites want it. See popup.h.
+Rect panel_of(const OledFrame& f) {
+	const gfx::oled::Geometry g = f.canvas.geometry();
+	return Rect{-f.origin.x, -f.origin.y, g.width, g.height};
+}
+
 } // namespace
 
 Rect popup_rect_for(OledFrame& f, Size content, PopupStyle style) {
-	const Rect b = f.bounds();
+	const Rect p = panel_of(f);
 
 	if (style == PopupStyle::Permanent) {
 		// drawPermanentPopupLookingText, oled.cpp:582-586: mirrored, not centred-and-sized.
-		const int32_t min_x = (b.w - content.w - kPopupMargin) >> 1;
-		const int32_t min_y = (b.h - content.h - kPopupMargin) >> 1;
-		return Rect{b.x + min_x, b.y + min_y, b.w - min_x * 2, b.h - min_y * 2};
+		const int32_t min_x = (p.w - content.w - kPopupMargin) >> 1;
+		const int32_t min_y = (p.h - content.h - kPopupMargin) >> 1;
+		return Rect{p.x + min_x, p.y + min_y, p.w - min_x * 2, p.h - min_y * 2};
 	}
 
 	// setupPopup, oled.cpp:121-129. The height clamp is legacy's own (:122); the width has none.
 	const int32_t w = content.w + kPopupMargin;
-	const int32_t h = std::clamp<int32_t>(content.h + kPopupMargin, 0, b.h);
-	return Rect{b.x + (b.w - w) / 2, b.y + (b.h - h) / 2, w, h};
+	const int32_t h = std::clamp<int32_t>(content.h + kPopupMargin, 0, p.h);
+	return Rect{p.x + (p.w - w) / 2, p.y + (p.h - h) / 2, w, h};
 }
 
 void popup_frame(OledFrame& f, Rect rect, PopupStyle style) {
@@ -129,21 +142,23 @@ void popup_frame(OledFrame& f, Rect rect, PopupStyle style) {
 }
 
 void popup_text(OledFrame& f, std::string_view text_view, PopupStyle style) {
-	const Rect b = f.bounds();
+	const Rect p = panel_of(f);
 	const gfx::oled::FontId font = f.style.row_font;
 	const int32_t line_h = text_height_for(font);  // kTextSpacingY
 	const int32_t spacing_x = spacing_x_for(font); // kTextSpacingX
 
 	// oled.cpp:607-613 (and :571-577 for Permanent): identical setup in both routines.
-	const WrappedLines lines = wrap_lines(text_view, b.w - kPopupMargin, kPopupMaxCharsPerLine, font);
+	const WrappedLines lines = wrap_lines(text_view, p.w - kPopupMargin, kPopupMaxCharsPerLine, font);
 
 	const int32_t text_width = lines.longest;
 	const int32_t text_height = static_cast<int32_t>(lines.count) * line_h;
 
 	popup_frame(f, popup_rect_for(f, Size{text_width, text_height}, style), style);
 
-	// textPixelY = (height - textHeight) >> 1, floored at 0 (oled.cpp:620-623 / :591-594).
-	int32_t y = (b.h - text_height) >> 1;
+	// textPixelY = (OLED_MAIN_HEIGHT_PIXELS - textHeight) >> 1, floored at 0 (oled.cpp:620-623 /
+	// :591-594). `y` stays canvas-absolute through the loop, as legacy's does, because the
+	// bottom check below is against the panel; `p.y` converts it at the draw call.
+	int32_t y = (p.h - text_height) >> 1;
 	if (y < 0) {
 		y = 0;
 	}
@@ -152,11 +167,11 @@ void popup_text(OledFrame& f, std::string_view text_view, PopupStyle style) {
 		// popupText skips a line that would start past the bottom (:626-628);
 		// drawPermanentPopupLookingText has no such check, and neither does this for it. Legacy's
 		// `continue` skips the increment too, so once past the bottom every later line is skipped.
-		if (style != PopupStyle::Permanent && y >= b.h) {
+		if (style != PopupStyle::Permanent && y >= p.h) {
 			continue;
 		}
-		const int32_t x = (b.w - lines.widths[l]) >> 1; // :630 / :597
-		f.glyphs(lines.lines[l], b.x + x, b.y + y, spacing_x, line_h);
+		const int32_t x = (p.w - lines.widths[l]) >> 1; // :630 / :597
+		f.glyphs(lines.lines[l], p.x + x, p.y + y, spacing_x, line_h);
 		y += line_h;
 	}
 }

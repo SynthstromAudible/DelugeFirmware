@@ -35,7 +35,10 @@ void vu_channel(OledFrame& f, Rect band, uint8_t level) {
 	const int32_t h = std::max<int32_t>(1, band.h - 1);
 	for (int32_t i = 0; i < lit; i++) {
 		const int32_t x0 = band.x + i * band.w / 8;
-		const int32_t x1 = band.x + (i + 1) * band.w / 8 - 1; // less one column, for the gap
+		// `- 2`, not `- 1`: the segment's last column is *inclusive*, so stopping one short of the
+		// next segment's first column still leaves them touching. This leaves one dark column
+		// between segments, which is the whole point of drawing eight of them rather than a bar.
+		const int32_t x1 = band.x + (i + 1) * band.w / 8 - 2;
 		if (x1 >= x0) {
 			f.invert(Rect{x0, band.y, x1 - x0 + 1, h});
 		}
