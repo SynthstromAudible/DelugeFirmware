@@ -65,7 +65,13 @@ public:
 	void graphicsRoutine() override;
 	[[nodiscard]] int32_t getNavSysId() const override { return NAVIGATION_ARRANGEMENT; }
 	void navigateThroughPresets(int32_t offset);
-	void notifyActiveClipChangedOnOutput(Output* output);
+	/// Replaces the old notifyActiveClipChangedOnOutput(Output*) RootUI-adjacent hook (it had no
+	/// callers left once uiNeedsRendering()/renderUIsForOled() callers were converted to
+	/// notify::raise(Dirty::OutputChanged), which carries no output identity). Re-reads the
+	/// currently-held audition row's own output instead of being told which output changed --
+	/// over-invalidation, never loss, same as the rest of the drain mapping. Called from
+	/// drain_notifications() when Dirty::OutputChanged is set and this is the root UI.
+	void refresh_held_row_mod_target();
 	ActionResult timerCallback() override;
 	void reassessWhetherDoingAutoScroll(int32_t pos = -1);
 	void autoScrollOnPlaybackEnd();

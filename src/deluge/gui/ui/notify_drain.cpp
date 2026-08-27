@@ -2,6 +2,7 @@
 #include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui/ui.h"
+#include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
 #include "hid/display/display.h"
 #include "hid/led/indicator_leds.h"
@@ -26,6 +27,38 @@ void drain_notifications() {
 	if (d.any()) {
 		const LegacyRedraw r = legacy_redraw_for(d);
 		RootUI* root = getRootUI();
+
+		// Legacy PlaybackHandler::setupPlayback()/endPlayback() called RootUI::notifyPlaybackBegun()/
+		// playbackEnded() directly and synchronously on the playbackState transition. Those overrides
+		// mutate state beyond redrawing (ArrangerView::notifyPlaybackBegun() sets
+		// mustRedrawTickSquares and can end a held row audition; ArrangerView::playbackEnded()
+		// auto-scrolls; InstrumentClipView/AutomationView re-run reassessAllAuditionStatus()), so
+		// raise(Dirty::PlaybackState) alone can't reproduce them -- re-dispatch on the edge here,
+		// before any redraw below runs.
+		if (d.has(Dirty::PlaybackState)) {
+			static bool was_playing = false;
+			const bool playing = playbackHandler.playbackState != 0;
+			if (playing != was_playing) {
+				if (playing) {
+					if (root) {
+						root->notifyPlaybackBegun();
+					}
+				}
+				else if (currentSong && root) { // legacy endPlayback() guarded playbackEnded() the same way
+					root->playbackEnded();
+				}
+				was_playing = playing;
+			}
+		}
+		// Legacy Arrangement playback called ArrangerView::notifyActiveClipChangedOnOutput(output)
+		// directly whenever a clip instance's active clip changed while a row audition was held, to
+		// keep the shown mod-controllable target in sync. raise(Dirty::OutputChanged) carries no
+		// output identity, so re-read the held row's own output instead of being told which output
+		// changed (see ArrangerView::refresh_held_row_mod_target()).
+		if (d.has(Dirty::OutputChanged) && root == &arrangerView) {
+			arrangerView.refresh_held_row_mod_target();
+		}
+
 		// AudioClipView::clipNeedsReRendering() is not a pure redraw request: when the clip's length
 		// just shrank under the scroll position (an aborted or finished linear recording) it scrolls
 		// back left instead of rendering. Route clip-content facts through it so that survives.

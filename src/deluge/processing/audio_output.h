@@ -149,8 +149,8 @@ public:
 		mode = static_cast<AudioOutputMode>(std::clamp<int>(modeInt, 0, kNumAudioOutputModes - 1));
 		// update the output we're recording from on whether we're monitoring
 		updateMonitoringClaim();
-		deluge::notify::raise(deluge::notify::Dirty::Oled); // oled shows the type on the clip screen (including while
-		                                                    // holding a clip in song view)
+		// oled shows the type on the clip screen (including while holding a clip in song view)
+		deluge::notify::raise(deluge::notify::Dirty::Oled);
 	}
 
 protected:

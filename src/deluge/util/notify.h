@@ -4,12 +4,23 @@
 // is deliberately NOT included here -- that header pulls in l10n.h and more, and the spec
 // library must stay light. Callers pass static_cast<uint8_t>(PopupType::X) instead; the cast
 // moves to a typed one when Display dissolves and PopupType moves into notify.
+//
+// deluge::l10n::String only appears here by value/reference and by static_cast, so a forward
+// declaration is enough -- this header does NOT include "gui/l10n/strings.h". That keeps this
+// widely-included header (processing/audio_output.h and others) from pulling a gui/ header into
+// model/playback/storage/io translation units. Callers that name an actual l10n::String
+// enumerator (not just the type) must already include "gui/l10n/strings.h" or "gui/l10n/l10n.h"
+// themselves, same as they would for any other enum they use by value.
 #include "definitions_cxx.hpp" // Error
-#include "gui/l10n/strings.h"  // deluge::l10n::String
 #include "notify/dirty_set.h"
 #include "notify/notice_queue.h"
+#include <cstddef> // size_t, for the enum's underlying type below
 #include <cstdint>
 #include <string_view>
+
+namespace deluge::l10n {
+enum class String : size_t;
+}
 
 namespace deluge::notify {
 

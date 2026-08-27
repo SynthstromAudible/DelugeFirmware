@@ -1,4 +1,5 @@
 #include "cppspec.hpp"
+#include "gui/l10n/strings.h" // deluge::l10n::String enumerators -- util/notify.h only forward-declares the type
 #include "util/notify.h"
 
 using namespace deluge::notify;
