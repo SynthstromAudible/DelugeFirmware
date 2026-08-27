@@ -157,6 +157,12 @@ public:
 	std::bitset<kNumAudioRecordingFolders> highestUsedAudioRecordingNumberNeedsReChecking{};
 	void firstCardRead();
 
+	// The no-I/O halves of buildAudioFileFromCard's SAMPLE path, public because the C ABI (a later
+	// migration step) calls them directly around an async open + header parse.
+	Sample* beginSampleFromCard(const std::string& filePath, const std::string& usingAlternateLocation,
+	                            uint64_t sizeBytes, Error* error);
+	AudioFile* finishSampleFromCard(Sample* sampleFile, Error* error);
+
 private:
 	bool cardReadOnce{false};
 	bool cardEjected{};

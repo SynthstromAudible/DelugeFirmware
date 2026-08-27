@@ -800,6 +800,57 @@ AudioFile* AudioFileManager::getAudioFileFromFilename(std::string& filePath, boo
 	                              error);
 }
 
+/// Allocate and construct a Sample ready to be populated from the card. No I/O: every step here is
+/// allocation or bookkeeping, which is what lets the open and header parse move to an async task.
+///
+/// The object is adopted and reasoned BEFORE the I/O ("so it's protected while setting up"), so the
+/// caller owns its fate unconditionally from here on: every exit must reach either
+/// finishSampleFromCard or destroyAudioFileObject.
+Sample* AudioFileManager::beginSampleFromCard(const std::string& filePath, const std::string& usingAlternateLocation,
+                                              uint64_t sizeBytes, Error* error) {
+	const uint32_t numClusters = ((sizeBytes - 1) >> Cluster::size_magnitude) + 1;
+
+	void* audioFileMemory = deluge::memory::alloc_external(sizeof(Sample), 16);
+	if (audioFileMemory == nullptr) {
+		*error = Error::INSUFFICIENT_RAM;
+		return nullptr;
+	}
+
+	Sample* sampleFile = new (audioFileMemory) Sample;
+	adoptAudioFileObject(sampleFile); // resource-manager evictable object (before addReason)
+	sampleFile->addReason();          // So it's protected while setting up. Must precede initialize().
+	*error = sampleFile->initialize(numClusters);
+	if (*error != Error::NONE) { // Very rare, only if not enough RAM
+		destroyAudioFileObject(*sampleFile);
+		return nullptr;
+	}
+
+	sampleFile->filePath = filePath;
+	sampleFile->loadedFromAlternatePath = usingAlternateLocation;
+	return sampleFile;
+}
+
+/// Apply everything that depends on the parsed header, then publish. No I/O.
+///
+/// register_fill_context() must run here, not earlier: both prior registrations (open_read_stream and
+/// the header parse's define_asset) ran while the geometry was still zero, and a zero frame stride
+/// makes every fill-context consumer resolve nothing for this sample.
+AudioFile* AudioFileManager::finishSampleFromCard(Sample* sampleFile, Error* error) {
+	if (*error != Error::NONE) {
+		destroyAudioFileObject(*sampleFile);
+		return nullptr;
+	}
+	sampleFile->stream().register_fill_context();
+
+	const auto insertedFile = audioFiles.insertElement(sampleFile);
+	if (!insertedFile) {
+		*error = insertedFile.error();
+		destroyAudioFileObject(*sampleFile);
+		return nullptr;
+	}
+	return sampleFile;
+}
+
 AudioFile* AudioFileManager::buildAudioFileFromCard(const std::string& filePath,
                                                     const std::string& usingAlternateLocation, uint64_t sizeBytes,
                                                     AudioFileType type, bool makeWaveTableWorkAtAllCosts,
@@ -815,44 +866,24 @@ AudioFile* AudioFileManager::buildAudioFileFromCard(const std::string& filePath,
 		return nullptr;
 	}
 
-	const uint32_t numClusters = ((sizeBytes - 1) >> Cluster::size_magnitude) + 1;
-	const int32_t memorySizeNeeded = (type == AudioFileType::SAMPLE) ? sizeof(Sample) : sizeof(WaveTable);
-
-	void* audioFileMemory = deluge::memory::alloc_external(memorySizeNeeded, 16);
-	if (audioFileMemory == nullptr) {
-		*error = Error::INSUFFICIENT_RAM;
-		return nullptr;
-	}
-
-	AudioFile* audioFile;
 	if (type == AudioFileType::SAMPLE) {
-		audioFile = new (audioFileMemory) Sample;
-		adoptAudioFileObject(audioFile); // resource-manager evictable object (before addReason)
-		audioFile->addReason(); // So it's protected while setting up. Must do this before calling initialize().
-		*error = static_cast<Sample*>(audioFile)->initialize(numClusters);
-		if (*error != Error::NONE) { // Very rare, only if not enough RAM
-			destroyAudioFileObject(*audioFile);
+		Sample* sampleFile = beginSampleFromCard(filePath, usingAlternateLocation, sizeBytes, error);
+		if (sampleFile == nullptr) {
 			return nullptr;
 		}
-
-		audioFile->filePath = filePath;
-		audioFile->loadedFromAlternatePath = usingAlternateLocation;
 
 		// Open the stream_io.h boundary once for this Sample's lifetime; the per-cluster playback reads
 		// (the async streaming-fill task, over this Sample's efatfs handle) go through it.
 		//
 		// `filePath` is only the file's *actual* on-disk location when it wasn't resolved via the
 		// alternate-load-dir mechanism (see resolveFileSize): when `usingAlternateLocation` is
-		// non-empty, that's where the bytes backing `sizeBytes` really live (filePath stays
-		// the nominal/display path). Must open the same file sizeBytes was resolved from, or
-		// numClusters (computed from sizeBytes) mismatches the opened file's real
-		// size/cluster layout.
-		Sample* sampleFile = static_cast<Sample*>(audioFile);
+		// non-empty, that's where the bytes backing `sizeBytes` really live. Must open the same file
+		// sizeBytes was resolved from, or numClusters mismatches the opened file's cluster layout.
 		const std::string& pathToOpen = usingAlternateLocation.empty() ? filePath : usingAlternateLocation;
 		Error openStreamError = sampleFile->stream().open_read_stream(pathToOpen);
 		if (openStreamError != Error::NONE) {
 			*error = openStreamError;
-			destroyAudioFileObject(*audioFile);
+			destroyAudioFileObject(*sampleFile);
 			return nullptr;
 		}
 
@@ -860,49 +891,57 @@ AudioFile* AudioFileManager::buildAudioFileFromCard(const std::string& filePath,
 		// block by block, taking no manager lease and touching no StreamedChunk.
 		FileByteSource source{std::make_unique<ReadSourceBlockReader>(sampleFile->stream().make_read_source()),
 		                      static_cast<uint32_t>(sizeBytes)};
-		*error = audioFile->loadFile(source, makeWaveTableWorkAtAllCosts);
+		*error = sampleFile->loadFile(source, makeWaveTableWorkAtAllCosts);
 
-		// loadFile() parses the WAV header, which is what finally populates the Sample's geometry
-		// (byteDepth/numChannels/audioDataStartPosBytes/audioDataLengthBytes). Both earlier
-		// registrations of the streaming fill-context -- open_read_stream() above and the header-parse
-		// getCluster's define_asset() -- ran while that geometry was still zero, so the context was
-		// snapshotted with a zero frame stride. Refresh it now that the geometry is final; otherwise
-		// every fill-context consumer (the sample range-reader and its passive peek) resolves a
-		// zero-stride geometry and returns nothing for this sample.
-		if (*error == Error::NONE) {
-			sampleFile->stream().register_fill_context();
-		}
-	}
-	else {
-		audioFile = new (audioFileMemory) WaveTable;
-		adoptAudioFileObject(audioFile); // resource-manager evictable object (before addReason)
-		audioFile->addReason();          // So it's protected while setting up.
-
-		audioFile->filePath = filePath;
-		audioFile->loadedFromAlternatePath = usingAlternateLocation;
-
-		// WaveTable reads the file more normally, so open it for the deserializer to stream from. `filePath`
-		// is already the correct final resolved path (regular or alternate) at this point, and Tier 2's
-		// adapter-side directory cache makes this reopen fast even though the file was just opened once
-		// already (in tryRegularPath, to discover sizeBytes).
-		auto opened = deluge::io::File::open(filePath, DELUGE_FILE_READ);
-		if (!opened) {
-			*error = Error::FILE_NOT_FOUND;
-			destroyAudioFileObject(*audioFile);
+		AudioFile* audioFile = finishSampleFromCard(sampleFile, error);
+		if (audioFile == nullptr) {
 			return nullptr;
 		}
-		smDeserializer.file = std::move(opened.value());
 
-		// One deserializer-backed source serves both the header parse (via the AudioByteSource surface) and
-		// WaveTable::setup's zero-copy band read (via its cluster accessors) — hence passed both ways.
-		FileByteSource source{std::make_unique<DeserializerBlockReader>(), static_cast<uint32_t>(sizeBytes)};
-		*error = audioFile->loadFile(source, makeWaveTableWorkAtAllCosts, &source);
+		// finalizeAfterLoad()/removeReason() must run after finishSampleFromCard's register_fill_context(),
+		// not before: that's the existing (pre-split) order, and finalizeAfterLoad's clamped
+		// audioDataLengthBytes is not what register_fill_context snapshots today, so reordering these
+		// would change what geometry the streaming fill-context sees.
+		audioFile->finalizeAfterLoad(sizeBytes);
+		overviewScanAllDone = false;     // A newly loaded audio file may need pre-scanning (#4460)
+		audioFile->removeReason("E399"); // Setup done; drop the protect-during-setup reason (the caller re-leases).
+		return audioFile;
 	}
 
+	const int32_t memorySizeNeeded = sizeof(WaveTable);
+	void* audioFileMemory = deluge::memory::alloc_external(memorySizeNeeded, 16);
+	if (audioFileMemory == nullptr) {
+		*error = Error::INSUFFICIENT_RAM;
+		return nullptr;
+	}
+
+	AudioFile* audioFile = new (audioFileMemory) WaveTable;
+	adoptAudioFileObject(audioFile); // resource-manager evictable object (before addReason)
+	audioFile->addReason();          // So it's protected while setting up.
+
+	audioFile->filePath = filePath;
+	audioFile->loadedFromAlternatePath = usingAlternateLocation;
+
+	// WaveTable reads the file more normally, so open it for the deserializer to stream from. `filePath`
+	// is already the correct final resolved path (regular or alternate) at this point, and Tier 2's
+	// adapter-side directory cache makes this reopen fast even though the file was just opened once
+	// already (in tryRegularPath, to discover sizeBytes).
+	auto opened = deluge::io::File::open(filePath, DELUGE_FILE_READ);
+	if (!opened) {
+		*error = Error::FILE_NOT_FOUND;
+		destroyAudioFileObject(*audioFile);
+		return nullptr;
+	}
+	smDeserializer.file = std::move(opened.value());
+
+	// One deserializer-backed source serves both the header parse (via the AudioByteSource surface) and
+	// WaveTable::setup's zero-copy band read (via its cluster accessors) — hence passed both ways.
+	FileByteSource source{std::make_unique<DeserializerBlockReader>(), static_cast<uint32_t>(sizeBytes)};
+	*error = audioFile->loadFile(source, makeWaveTableWorkAtAllCosts, &source);
+
 	if (*error != Error::NONE) {
-		// ~AudioFile (for a Sample, via ~SampleStream::release_asset) releases the streaming asset back to
-		// the resource manager, freeing any resident clusters; destroyAudioFileObject also un-adopts +
-		// frees (through the manager if adopted).
+		// ~AudioFile releases the streaming asset back to the resource manager, freeing any resident
+		// clusters; destroyAudioFileObject also un-adopts + frees (through the manager if adopted).
 		destroyAudioFileObject(*audioFile);
 		return nullptr;
 	}
