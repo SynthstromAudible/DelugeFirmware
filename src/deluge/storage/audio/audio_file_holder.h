@@ -45,6 +45,22 @@ public:
 	AudioFileHolder& operator=(AudioFileHolder const&) = delete;
 	virtual void setAudioFile(AudioFile* newSample, bool reversed = false, bool manuallySelected = false,
 	                          int32_t clusterLoadInstruction = CLUSTER_ENQUEUE);
+	/// @brief Load the file at `filePath` (already set by the caller) via AudioFileManager, taking on a
+	///        reason and calling setAudioFile() if one was found.
+	///
+	/// @param mayActuallyReadFile false confines the lookup to files already resident in memory -- see
+	///                            getAudioFileFromFilename's `mayReadCard`.
+	/// @param mayLoadAsync        Opt in to AudioFileManager::getAudioFileFromFilename's async loader for
+	///                            a card miss, instead of the blocking load. Forwarded straight through,
+	///                            same contract: only honoured for a Sample, and only where the async
+	///                            backing is actually active. A caller opting in MUST handle
+	///                            Error::LOAD_IN_PROGRESS -- returning to its own loop and asking again
+	///                            on a later tick, without re-requesting or reporting a failure. Defaulted
+	///                            off: every caller but AudioEngine::previewSample keeps the synchronous
+	///                            behaviour it was written against.
+	/// @return Error::NONE does not necessarily mean a file is now loaded -- see the two silent-miss
+	///         cases in the .cpp. Otherwise the failure, or Error::LOAD_IN_PROGRESS (not a failure --
+	///         see mayLoadAsync).
 	Error loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile,
 	               int32_t clusterLoadInstruction = CLUSTER_ENQUEUE, bool makeWaveTableWorkAtAllCosts = false,
 	               bool mayLoadAsync = false);

@@ -42,6 +42,7 @@
 #include "libdeluge/audio_load.h"
 #include "memory/general_memory_allocator.h" // GeneralMemoryAllocator::resourceManager()
 #include "model/sample/sample.h"
+#include "storage/audio/audio_file_holder.h" // checkLoadFileDefaultStaysSynchronous exercises AudioFileHolder::loadFile directly
 #include "storage/audio/audio_file_manager.h"
 #include "storage/wave_table/wave_table.h"
 
@@ -1223,10 +1224,23 @@ bool checkAsyncCollector() {
 
 /// Pin that every existing AudioFileHolder::loadFile call site -- all but previewSample's, which is the
 /// one this task changed to pass true -- keeps taking the synchronous backing when mayLoadAsync is left
-/// at its default. audio_file_holder.cpp:47 forwards its own mayLoadAsync argument straight to
-/// getAudioFileFromFilename, so calling it with mayLoadAsync omitted (as the other eight callers do) must
-/// behave exactly as it did before that parameter existed: no Error::LOAD_IN_PROGRESS, and a real load
-/// off the card succeeds.
+/// at its default. This exercises AudioFileHolder::loadFile ITSELF (not getAudioFileFromFilename
+/// directly): that is the level all nine real call sites (slicer.cpp x2, sample_browser.cpp x2,
+/// instrument_clip_view.cpp, audio_clip.cpp, consequence_audio_clip_set_sample.cpp, source.cpp, and
+/// audio_engine.cpp's previewSample) actually invoke, and audio_file_holder.cpp:47 forwards its own
+/// mayLoadAsync argument straight to getAudioFileFromFilename -- so a regression there would not be
+/// visible to a check that calls getAudioFileFromFilename directly and bypasses the holder entirely.
+///
+/// The async gate is `mayLoadAsync && ... && deluge_audio_load_async_active()`: with the loader
+/// INACTIVE (the shipping default), that whole conjunction is false regardless of what mayLoadAsync
+/// holds, so a check that never arms the stub cannot tell "the default is false" from "the default is
+/// true but nothing is listening" -- it would pass either way. This check therefore arms
+/// `g_asyncStub.active = true` itself (checkAsyncCollector, which runs immediately before this in the
+/// gate list, resets the stub to inactive on its own exit), and runs the SAME file through the SAME
+/// active stub twice via AudioFileHolder::loadFile: once with mayLoadAsync omitted (must stay
+/// synchronous, zero loader calls), and once with it explicit `true` (must reach the loader and report
+/// LOAD_IN_PROGRESS). That contrast is what makes the check able to fail: flip either loadFile's or
+/// getAudioFileFromFilename's default to `true` and the first call starts behaving like the second.
 bool checkLoadFileDefaultStaysSynchronous() {
 	bool ok = true;
 
@@ -1255,25 +1269,75 @@ bool checkLoadFileDefaultStaysSynchronous() {
 	const bool hadPreviousRoot = previousRootRaw != nullptr;
 	setenv("DELUGE_SD_ROOT", root, 1);
 
-	// mayLoadAsync omitted, exactly as slicer.cpp / sample_browser.cpp / instrument_clip_view.cpp /
-	// audio_clip.cpp / consequence_audio_clip_set_sample.cpp / source.cpp call it -- this call is deliberately
-	// unmodified by this task, standing in for all of them.
-	std::string path = "SAMPLES/DEFAULT.WAV";
-	Error error = Error::NONE;
-	AudioFile* file =
-	    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
-	                                              /*makeWaveTableWorkAtAllCosts=*/false);
-	if (error == Error::LOAD_IN_PROGRESS) {
-		printf("FAIL [loadFileDefault]: an unmodified loadFile call site reached the async path "
-		       "(Error::LOAD_IN_PROGRESS)\n");
-		ok = false;
+	// Arm the loader as active -- see the doc comment above for why this is required for the check to
+	// be able to fail at all.
+	g_asyncStub = {};
+	g_asyncStub.active = true;
+
+	// mayLoadAsync omitted from AudioFileHolder::loadFile itself, exactly as the eight untouched call
+	// sites invoke it. Even with the loader active, it must still take the synchronous backing and
+	// never touch the loader at all.
+	{
+		AudioFileHolder holder;
+		holder.filePath = "SAMPLES/DEFAULT.WAV";
+		holder.audioFileType = AudioFileType::SAMPLE;
+		Error error = holder.loadFile(/*reversed=*/false, /*manuallySelected=*/true, /*mayActuallyReadFile=*/true);
+		if (error == Error::LOAD_IN_PROGRESS) {
+			printf("FAIL [loadFileDefault]: AudioFileHolder::loadFile's default reached the async path "
+			       "with the loader active (Error::LOAD_IN_PROGRESS)\n");
+			ok = false;
+		}
+		if (holder.audioFile == nullptr) {
+			printf("FAIL [loadFileDefault]: AudioFileHolder::loadFile's default did not load the file "
+			       "(error=%d)\n",
+			       static_cast<int>(error));
+			ok = false;
+		}
+		if (g_asyncStub.requestCalls != 0 || g_asyncStub.collectCalls != 0) {
+			printf("FAIL [loadFileDefault]: AudioFileHolder::loadFile's default (mayLoadAsync omitted) "
+			       "consulted the async loader anyway (%d request(s), %d collect(s))\n",
+			       g_asyncStub.requestCalls, g_asyncStub.collectCalls);
+			ok = false;
+		}
+		if (holder.audioFile != nullptr) {
+			// Drop the reason setAudioFile took (addReason()) -- the same tag setAudioFile itself uses
+			// when releasing one -- so the file can be freed before the contrast call below; otherwise
+			// it stays resident and that call short-circuits on the in-memory search instead of
+			// reaching the async gate at all.
+			holder.audioFile->removeReason("E391");
+		}
 	}
-	if (file == nullptr) {
-		printf("FAIL [loadFileDefault]: the default (synchronous) path did not load the file (error=%d)\n",
-		       static_cast<int>(error));
-		ok = false;
+	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists("SAMPLES/DEFAULT.WAV");
+
+	// The contrast: the SAME file, the SAME active stub, through AudioFileHolder::loadFile again,
+	// differing only in mayLoadAsync being explicit true instead of omitted. This MUST reach the loader
+	// and report LOAD_IN_PROGRESS -- if it doesn't, the call above proved nothing, because the async
+	// branch would be unreachable either way.
+	{
+		g_asyncStub = {};
+		g_asyncStub.active = true;
+		AudioFileHolder holder;
+		holder.filePath = "SAMPLES/DEFAULT.WAV";
+		holder.audioFileType = AudioFileType::SAMPLE;
+		Error error = holder.loadFile(/*reversed=*/false, /*manuallySelected=*/true, /*mayActuallyReadFile=*/true,
+		                              CLUSTER_ENQUEUE, /*makeWaveTableWorkAtAllCosts=*/false,
+		                              /*mayLoadAsync=*/true);
+		if (holder.audioFile != nullptr || error != Error::LOAD_IN_PROGRESS) {
+			printf("FAIL [loadFileDefault]: AudioFileHolder::loadFile(..., mayLoadAsync=true) did not "
+			       "reach the async path with the loader active (audioFile=%p error=%d) -- the "
+			       "default-vs-explicit contrast this check exists to see is broken\n",
+			       static_cast<void*>(holder.audioFile), static_cast<int>(error));
+			ok = false;
+		}
+		if (g_asyncStub.requestCalls != 1) {
+			printf("FAIL [loadFileDefault]: expected exactly one async request for the explicit "
+			       "mayLoadAsync=true call, got %d\n",
+			       g_asyncStub.requestCalls);
+			ok = false;
+		}
 	}
 
+	g_asyncStub = {};
 	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists("SAMPLES/DEFAULT.WAV");
 	if (hadPreviousRoot) {
 		setenv("DELUGE_SD_ROOT", previousRoot.c_str(), 1);

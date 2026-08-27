@@ -31,6 +31,10 @@ AudioFileHolder::~AudioFileHolder() {
 // Returns error, but Error::NONE doesn't necessarily mean there's now a file loaded - it might be that filePath was
 // NULL, but that's not a problem. Or that the SD card would need to be accessed but we didn't have permission for that
 // (!mayActuallyReadFile).
+// mayLoadAsync is forwarded as-is to getAudioFileFromFilename (see its own doc comment and this
+// function's declaration in the header): a caller that passes true must be prepared to see
+// Error::LOAD_IN_PROGRESS come back out of this function and treat it as "ask again later", not a
+// failure.
 Error AudioFileHolder::loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile,
                                 int32_t clusterLoadInstruction, bool makeWaveTableWorkAtAllCosts, bool mayLoadAsync) {
 
