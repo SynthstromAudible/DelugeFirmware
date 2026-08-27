@@ -100,7 +100,7 @@ uint32_t blink_next_flip_in(const Blink& blink, uint32_t now) {
 
 } // namespace
 
-Response int_value(OledFrame& f, int32_t& value, Range range, ValueStyle style, bool focused) {
+Response int_value(OledFrame& f, Rect rect, int32_t& value, Range range, ValueStyle style, bool focused) {
 	Response resp{};
 	resp.focused = focused;
 
@@ -118,9 +118,11 @@ Response int_value(OledFrame& f, int32_t& value, Range range, ValueStyle style, 
 	}
 
 	// drawStringCentred(buffer, 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX, kTextHugeSizeY)
-	// -- integer.cpp:52-61. The topmost-pixel term is the frame's origin, so the y is kValueY.
+	// -- integer.cpp:52-61. The topmost-pixel term is the frame's origin, so the y is kValueY,
+	// measured from the rect's top; with rect == f.bounds() that is the legacy panel-relative 18,
+	// and the centring is over the legacy panel width.
 	const gfx::oled::FontId font = f.style.value_font;
-	const Rect band{0, kValueY, f.bounds().w, text_height_for(font)};
+	const Rect band{rect.x, rect.y + kValueY, rect.w, text_height_for(font)};
 	f.clear(band);
 
 	if (style.off_at_zero && value == 0) {
@@ -143,26 +145,27 @@ Response int_value(OledFrame& f, int32_t& value, Range range, ValueStyle style, 
 	return resp;
 }
 
-Response decimal_value(OledFrame& f, int32_t& value, Range range, uint8_t places, int8_t& edit_pos, Blink& blink,
-                       bool focused) {
+Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uint8_t places, int8_t& edit_pos,
+                       Blink& blink, bool focused) {
 	Response resp{};
 	resp.focused = focused;
 	const uint32_t now = f.input.now_ms;
 	const int32_t num_decimal_places = places;
 	edit_pos = static_cast<int8_t>(std::max<int32_t>(0, edit_pos));
 
-	bool cursor_moved = false;
+	bool horizontal_ticked = false;
 	if (focused) {
 		// Decimal::horizontalEncoderAction, decimal.cpp:83-101: one place per tick, right when
 		// positive, left when the next place up is still inside the range.
 		const int8_t horizontal = f.input.horizontal;
+		// decimal.cpp:98 sets movingCursor *after and outside* the if/else at :84-96, so a tick
+		// blocked by either bound below still restarts the blink lit.
+		horizontal_ticked = horizontal != 0;
 		if (horizontal > 0 && edit_pos > 0) {
 			edit_pos--;
-			cursor_moved = true;
 		}
 		else if (horizontal < 0 && static_cast<int64_t>(pow10(edit_pos)) * 10 <= range.max) {
 			edit_pos++;
-			cursor_moved = true;
 		}
 
 		// Decimal::selectEncoderAction, decimal.cpp:57-79: the value moves by numberEditSize per
@@ -179,14 +182,14 @@ Response decimal_value(OledFrame& f, int32_t& value, Range range, uint8_t places
 	}
 
 	// Legacy setupBlink is reached once per full redraw, so a value change restarts the phase
-	// dark and a cursor move (its `shouldBlinkImmediately`, decimal.cpp:98-100 via :163) restarts
-	// it lit. period_ms doubles as "armed": a Blink still holding state.h's 500ms default has
-	// never been through here.
+	// dark and a horizontal tick (its `shouldBlinkImmediately`, decimal.cpp:98-100 via :163)
+	// restarts it lit. period_ms doubles as "armed": a Blink still holding state.h's 500ms default
+	// has never been through here.
 	if (blink.period_ms != kFlashTime) {
 		blink.period_ms = kFlashTime;
 		blink.until_ms = now;
 	}
-	if (cursor_moved) {
+	if (horizontal_ticked) {
 		blink.until_ms = now - blink.period_ms; // one half-period in: lit immediately
 	}
 	else if (resp.changed) {
@@ -194,12 +197,13 @@ Response decimal_value(OledFrame& f, int32_t& value, Range range, uint8_t places
 	}
 	f.gate.request_repaint_after(blink_next_flip_in(blink, now), now);
 
-	// Everything below is decimal.cpp:128-163 verbatim, in canvas coordinates, converted to
-	// frame-local at the point of drawing -- see the canvas-absolute note in values.h.
-	const int32_t width = f.canvas.geometry().width; // OLED_MAIN_WIDTH_PIXELS
-	const int32_t local_y = 20 - f.origin.y;         // decimal.cpp:149/152/161's literal 20
-	const int32_t local_end_x = width - f.origin.x;  // decimal.cpp:149's literal 128
-	const auto local_x = [&](int32_t canvas_x) { return canvas_x - f.origin.x; };
+	// Everything below is decimal.cpp:128-163 verbatim. The x arithmetic is relative to `rect`,
+	// which at f.bounds() on the root frame is legacy's OLED_MAIN_WIDTH_PIXELS span; the two y
+	// constants stay canvas-absolute and are converted by subtracting the frame's origin -- see
+	// the canvas-absolute note in values.h.
+	const int32_t local_y = 20 - f.origin.y;  // decimal.cpp:149/152/161's literal 20
+	const int32_t cursor_y = 41 - f.origin.y; // decimal.cpp:163's literal 41
+	const int32_t local_end_x = rect.right(); // decimal.cpp:149's literal 128
 
 	std::array<char, 13> buf{}; // char buffer[13], decimal.cpp:130
 	const std::string_view text_all = int_to_string(value, num_decimal_places + 1, std::span{buf});
@@ -213,23 +217,23 @@ Response decimal_value(OledFrame& f, int32_t& value, Range range, uint8_t places
 	const int32_t digit_width = kTextHugeSpacingX;
 	const int32_t period_width = digit_width / 2;
 	const int32_t string_width = digit_width * length + (num_decimal_places != 0 ? period_width : 0);
-	int32_t string_start_x = (width - string_width) >> 1;
+	int32_t string_start_x = rect.x + ((rect.w - string_width) >> 1); // decimal.cpp:142
 	int32_t our_digit_start_x = string_start_x + editing_char * digit_width;
 
 	// The digits' own band and the cursor's, cleared before either is drawn: legacy got that
 	// from renderUIsForOled clearing the whole canvas first, and the cursor in particular is an
 	// inversion, which is only deterministic over a known background.
-	f.clear(Rect{local_x(0), local_y, width, kTextHugeSizeY});
-	f.clear(Rect{local_x(0), 41 - f.origin.y, width, 2});
+	f.clear(Rect{rect.x, local_y, rect.w, kTextHugeSizeY});
+	f.clear(Rect{rect.x, cursor_y, rect.w, 2});
 
 	std::string_view rest = text_all;
 	if (num_decimal_places != 0) {
 		const int32_t before_point = length - num_decimal_places;
 		// Both halves are drawn with use_width set, so every digit advances exactly digit_width
 		// and the period exactly period_width (decimal.cpp:149-153).
-		f.glyphs(text_all.substr(0, static_cast<size_t>(before_point)), local_x(string_start_x), local_y, digit_width,
+		f.glyphs(text_all.substr(0, static_cast<size_t>(before_point)), string_start_x, local_y, digit_width,
 		         kTextHugeSizeY, 0, local_end_x, true);
-		f.glyphs(".", local_x(string_start_x + before_point * digit_width), local_y, period_width, kTextHugeSizeY, 0,
+		f.glyphs(".", string_start_x + before_point * digit_width, local_y, period_width, kTextHugeSizeY, 0,
 		         local_end_x, true);
 		rest = text_all.substr(static_cast<size_t>(before_point));
 		string_start_x += before_point * digit_width + period_width;
@@ -237,17 +241,17 @@ Response decimal_value(OledFrame& f, int32_t& value, Range range, uint8_t places
 			our_digit_start_x -= period_width;
 		}
 	}
-	f.glyphs(rest, local_x(string_start_x), local_y, digit_width, kTextHugeSizeY, 0, local_end_x, true);
+	f.glyphs(rest, string_start_x, local_y, digit_width, kTextHugeSizeY, 0, local_end_x, true);
 
 	// setupBlink(ourDigitStartX + 1, digitWidth - 2, 41, 42, movingCursor), decimal.cpp:163:
 	// canvas rows 41..42 inclusive, i.e. a 2-row band, inverted while the phase is lit.
 	if (blink_lit(blink, now)) {
-		f.invert(Rect{local_x(our_digit_start_x + 1), 41 - f.origin.y, digit_width - 2, 2});
+		f.invert(Rect{our_digit_start_x + 1, cursor_y, digit_width - 2, 2});
 	}
 	return resp;
 }
 
-Response enum_value(OledFrame& f, int32_t& index, std::span<const std::string_view> names, ListState& state,
+Response enum_value(OledFrame& f, Rect rect, int32_t& index, std::span<const std::string_view> names, ListState& state,
                     ScrollText& scroll_label, bool wrap) {
 	Response resp{};
 	const int32_t n = static_cast<int32_t>(names.size());
@@ -270,7 +274,6 @@ Response enum_value(OledFrame& f, int32_t& index, std::span<const std::string_vi
 		f.gate.request_repaint();
 	}
 
-	const Rect rect = menu_rect(f);
 	const int32_t visible = std::min<int32_t>(list_visible_rows(f, rect), kMaxWindowRows);
 	const int32_t start = list_window_start(index, n, visible);
 	const int32_t count = std::min<int32_t>(visible, n - start);
@@ -296,16 +299,13 @@ Response enum_value(OledFrame& f, int32_t& index, std::span<const std::string_vi
 	return resp;
 }
 
-Response toggle(OledFrame& f, bool& value, std::string_view off_label, std::string_view on_label,
+Response toggle(OledFrame& f, Rect rect, bool& value, std::string_view off_label, std::string_view on_label,
                 ScrollText& scroll_label) {
 	Response resp{};
 
 	bool next = value;
 	if (f.input.turn != 0) {
 		next = f.input.turn > 0; // Toggle::selectEncoderAction, toggle.cpp:14-17
-	}
-	if (f.input.select_pressed) {
-		next = !next; // Toggle::selectButtonPress -> toggleValue(), toggle.h:33-44
 	}
 	resp.changed = next != value;
 	value = next;
@@ -318,8 +318,14 @@ Response toggle(OledFrame& f, bool& value, std::string_view off_label, std::stri
 	ListState windowed{.cursor = static_cast<int16_t>(value ? 1 : 0), .scroll = 0, .rows_last = 2};
 	InputSnapshot masked{};
 	OledFrame inner = without_turn(f, masked);
-	list(inner, menu_rect(f), windowed, std::span{rows}, scroll_label);
-	// resp.entered stays false: Toggle::shouldEnterSubmenu() is false (toggle.h:18-19).
+	list(inner, rect, windowed, std::span{rows}, scroll_label);
+
+	// On this screen the Toggle is the current menu item, so selectButtonPress takes the
+	// `getCurrentMenuItem() == this` branch and returns nullptr *without touching the value*
+	// (toggle.h:35-36); sound_editor.cpp:357 + :386-389 then goes up a level. The toggleValue()
+	// branch (toggle.h:39-43) is for a Toggle drawn as a row inside a Submenu, not for this
+	// widget. So the press is reported and the scene navigates -- as with enum_value.
+	resp.entered = f.input.select_pressed;
 	return resp;
 }
 

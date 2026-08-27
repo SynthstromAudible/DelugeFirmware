@@ -28,6 +28,13 @@ struct ScrollText {
 };
 struct Blink {
 	uint16_t period_ms = 500;
+	/// Read by the free-running blinkers (`ui/oled/values.h`'s `decimal_value`, and the `working`
+	/// / status animations to come) as the phase *anchor*: the ms timestamp the current blink
+	/// cycle was last restarted at, with the visible phase alternating every `period_ms` from
+	/// there. Spec B section 3 declares both fields without assigning them meanings, and this is
+	/// the only meaning that fits legacy's square wave (`OLED::setupBlink` / `performBlink`,
+	/// hid/display/oled.cpp:832-849) into two words with no phase bit. A widget that arms a
+	/// `Blink` also owns its `period_ms`, so one `Blink` serves one blinker.
 	uint32_t until_ms = 0;
 };
 struct Hold {
