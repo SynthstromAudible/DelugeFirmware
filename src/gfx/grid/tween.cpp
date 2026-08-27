@@ -1,4 +1,5 @@
 #include "gfx/grid/tween.h"
+#include <algorithm>
 
 namespace deluge::gfx::grid {
 
@@ -16,6 +17,9 @@ void fade(const PadGrid& from, const PadGrid& to, uint16_t t, PadGrid& out) {
 void scroll_horizontal(const PadGrid& from, const PadGrid& incoming, int32_t offset, PadGrid& out) {
 	const auto d = from.dims();
 	const int32_t main = d.main_cols;
+	// A scroll by the full main-axis extent already yields an all-`incoming` result; anything
+	// larger has no further meaning and would index PadGrid::at's uint8_t params out of range.
+	offset = std::clamp<int32_t>(offset, -main, main);
 	for (uint8_t y = 0; y < d.rows; y++) {
 		for (int32_t x = 0; x < main; x++) {
 			const int32_t src = x - offset;
@@ -39,6 +43,8 @@ void scroll_horizontal(const PadGrid& from, const PadGrid& incoming, int32_t off
 void scroll_vertical(const PadGrid& from, const PadGrid& incoming, int32_t offset, PadGrid& out) {
 	const auto d = from.dims();
 	const int32_t rows = d.rows;
+	// Same reasoning as scroll_horizontal's clamp: a full-extent scroll is already all-`incoming`.
+	offset = std::clamp<int32_t>(offset, -rows, rows);
 	for (int32_t y = 0; y < rows; y++) {
 		const int32_t src = y - offset;
 		for (uint8_t x = 0; x < d.cols(); x++) {
