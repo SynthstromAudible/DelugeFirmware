@@ -513,72 +513,19 @@ void Canvas::draw_char(uint8_t the_char, int32_t pixel_x, int32_t pixel_y, int32
 	                        text_height, bytes_per_col);
 }
 
+// The three metric routines below only read the font tables; their bodies live in font.cpp
+// (`char_width_px` / `char_spacing_px` / `string_width_px`) so callers that just want to
+// measure text do not need a canvas. These members stay as the established call-site spelling.
 int32_t Canvas::get_char_width_in_pixels(uint8_t the_char, int32_t text_height) {
-	int32_t char_index = glyph_index(the_char);
-	if (char_index <= 0) {
-		return 0;
-	}
-	else if (text_height >= 7 && text_height <= 9) {
-		// the smaller apple ][ is monospaced, so return standard width of each character
-		return kTextSpacingX;
-	}
-
-	lv_font_glyph_dsc_t const* descriptor = font_for_text_height(text_height).glyphs;
-
-	descriptor += char_index;
-	return descriptor->w_px;
+	return char_width_px(the_char, text_height);
 }
 
 int32_t Canvas::get_char_spacing_in_pixels(uint8_t the_char, int32_t text_height, bool is_last_char) {
-	bool monospaced_font = (text_height >= 7 and text_height <= 9);
-	// don't add space to the last character
-	if (is_last_char) {
-		return 0;
-	}
-	else if (the_char == ' ') {
-		// smaller apple ][ font is monospaced, so spacing is different
-		if (monospaced_font) {
-			return kTextSpacingX;
-		}
-		// small font is spaced 2px
-		else if (text_height <= 6) {
-			return 2;
-		}
-		// if character is a space, make spacing 6px instead
-		// (just need to add 5 since previous character added 1 after it)
-		else {
-			return 5;
-		}
-	}
-	else {
-		// smaller apple ][ font is monospaced, so no extra spacing needs to be added
-		// as it's handled by the standard char width
-		if (monospaced_font) {
-			return 0;
-		}
-		// small font
-		else if (text_height <= 6) {
-			return 1;
-		}
-		// default spacing is 2 pixels for bold fonts
-		else {
-			return 2;
-		}
-	}
+	return char_spacing_px(the_char, text_height, is_last_char);
 }
 
 int32_t Canvas::get_string_width_in_pixels(char const* string, int32_t text_height) {
-	std::string_view str{string};
-	int32_t string_length = str.length();
-	int32_t string_width = 0;
-	int32_t char_idx = 0;
-	for (char const c : str) {
-		int32_t char_spacing = get_char_spacing_in_pixels(c, text_height, char_idx == string_length);
-		int32_t char_width = get_char_width_in_pixels(c, text_height) + char_spacing;
-		string_width += char_width;
-		char_idx++;
-	}
-	return string_width;
+	return string_width_px(std::string_view{string}, text_height);
 }
 
 void Canvas::draw_graphic_multi_line(uint8_t const* graphic, int32_t start_x, int32_t start_y, int32_t width,

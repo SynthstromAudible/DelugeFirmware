@@ -61,4 +61,75 @@ int32_t glyph_index(uint8_t c) {
 	return charIndex;
 }
 
+int32_t char_width_px(uint8_t the_char, int32_t text_height) {
+	int32_t char_index = glyph_index(the_char);
+	if (char_index <= 0) {
+		return 0;
+	}
+	else if (text_height >= 7 && text_height <= 9) {
+		// the smaller apple ][ is monospaced, so return standard width of each character
+		return kTextSpacingX;
+	}
+
+	lv_font_glyph_dsc_t const* descriptor = font_for_text_height(text_height).glyphs;
+
+	descriptor += char_index;
+	return descriptor->w_px;
+}
+
+int32_t char_spacing_px(uint8_t the_char, int32_t text_height, bool is_last_char) {
+	bool monospaced_font = (text_height >= 7 and text_height <= 9);
+	// don't add space to the last character
+	if (is_last_char) {
+		return 0;
+	}
+	else if (the_char == ' ') {
+		// smaller apple ][ font is monospaced, so spacing is different
+		if (monospaced_font) {
+			return kTextSpacingX;
+		}
+		// small font is spaced 2px
+		else if (text_height <= 6) {
+			return 2;
+		}
+		// if character is a space, make spacing 6px instead
+		// (just need to add 5 since previous character added 1 after it)
+		else {
+			return 5;
+		}
+	}
+	else {
+		// smaller apple ][ font is monospaced, so no extra spacing needs to be added
+		// as it's handled by the standard char width
+		if (monospaced_font) {
+			return 0;
+		}
+		// small font
+		else if (text_height <= 6) {
+			return 1;
+		}
+		// default spacing is 2 pixels for bold fonts
+		else {
+			return 2;
+		}
+	}
+}
+
+int32_t string_width_px(std::string_view str, int32_t text_height) {
+	int32_t string_length = str.length();
+	int32_t string_width = 0;
+	int32_t char_idx = 0;
+	for (char const c : str) {
+		// `string_length`, not `string_length - 1`: char_idx never reaches it, so the last
+		// character DOES get trailing spacing counted here even though draw_string does not
+		// advance by it. Kept verbatim -- every legacy centring/right-aligning call site was
+		// laid out against this width, so "fixing" it would shift text by a pixel or two.
+		int32_t char_spacing = char_spacing_px(c, text_height, char_idx == string_length);
+		int32_t char_width = char_width_px(c, text_height) + char_spacing;
+		string_width += char_width;
+		char_idx++;
+	}
+	return string_width;
+}
+
 } // namespace deluge::gfx::oled

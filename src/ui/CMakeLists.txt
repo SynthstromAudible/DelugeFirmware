@@ -10,7 +10,15 @@ set_target_properties(deluge_ui_core PROPERTIES
   CXX_STANDARD 26
   CXX_STANDARD_REQUIRED YES
 )
-add_library(deluge_ui_oled INTERFACE)
-target_link_libraries(deluge_ui_oled INTERFACE deluge_ui_core)
+add_library(deluge_ui_oled STATIC
+  oled/frame.cpp
+  oled/text.cpp
+)
+target_include_directories(deluge_ui_oled PUBLIC ${SHARED_INCLUDE})
+target_link_libraries(deluge_ui_oled PUBLIC deluge_ui_core deluge_gfx_oled)
+set_target_properties(deluge_ui_oled PROPERTIES
+  CXX_STANDARD 26
+  CXX_STANDARD_REQUIRED YES
+)
 add_library(deluge_ui_grid INTERFACE)
 target_link_libraries(deluge_ui_grid INTERFACE deluge_ui_core)
