@@ -20,12 +20,16 @@ add_library(deluge_spec STATIC
 ../../src/deluge/util/lookuptables/lookuptables.cpp
 ../../src/deluge/hid/display/starfield.cpp
 ../../src/deluge/hid/display/rainfall.cpp
+../../src/deluge/hid/display/oled_canvas/canvas.cpp
+../../src/deluge/gui/fonts/fonts.c
 ../32bit_unit_tests/mocks/mock_display.cpp
 ../32bit_unit_tests/mocks/mock_print.cpp
 )
 target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi)
 
 target_include_directories(deluge_spec PUBLIC ../../src/deluge ../../src ../32bit_unit_test/mocks/ ../../include)
+
+target_compile_definitions(deluge_spec PUBLIC GFX_GOLDEN_DIR="${CMAKE_CURRENT_LIST_DIR}/../golden/gfx")
 
 set_target_properties(deluge_spec PROPERTIES
   CXX_STANDARD 26
@@ -46,9 +50,14 @@ function(create_specs_driver driver_name spec_dir)
 
   foreach(spec IN LISTS spec_sources)
     cmake_path(GET spec STEM LAST_ONLY spec_name)
+    # create_test_sourcelist registers each spec under its relative path minus extension
+    # (e.g. "gfx/canvas_golden_spec"), not just the file stem, whenever the spec lives in a
+    # subdirectory. Pass that full id as the driver argument so name matching succeeds, while
+    # keeping the ctest test NAME as the bare stem for a short `-R <name>` filter.
+    cmake_path(REMOVE_EXTENSION spec OUTPUT_VARIABLE spec_id)
     add_test(
       NAME ${spec_name}
-      COMMAND ${driver_name} ${spec_name} --verbose
+      COMMAND ${driver_name} ${spec_id} --verbose
     )
   endforeach()
 endfunction()
