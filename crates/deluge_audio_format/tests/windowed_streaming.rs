@@ -43,9 +43,11 @@ struct Cost {
 /// Drive a decode of a `file_size`-byte file to completion, answering every
 /// request from `read`.
 ///
-/// Also enforces the contract the parser makes to its callers: every request
-/// lies wholly inside the file, so `read` is never asked for a byte that does
-/// not exist and there is never anything to pad.
+/// Two checks run on every request, and both are the point of this harness,
+/// not incidental scaffolding: every request lies wholly inside the file, so
+/// `read` is never asked for a byte that does not exist and there is never
+/// anything to pad; and the total number of `feed` calls is capped, so a walk
+/// that fails to make progress fails here instead of looping.
 fn drive(
     file_size: u32,
     mut read: impl FnMut(u32, u32) -> Vec<u8>,
@@ -313,6 +315,13 @@ fn walk_audio_files(root: &str, out: &mut Vec<PathBuf>) {
     recurse(Path::new(root), out);
 }
 
+/// Sweep every real audio file under `DELUGE_AUDIO_CORPUS`, decoding through
+/// nothing but the windows `HeaderParser` asks for, and check the largest
+/// window it ever requested against the bound every caller must size its
+/// buffer to (`MAX_WINDOW_BYTES`). Also cross-checks each streamed decode
+/// against `parse`'s whole-file answer, and repeats the sweep on a half- and
+/// one-byte-short truncation of every file, to cover the on-device failure
+/// mode of a card that filled or a transfer that stopped.
 #[test]
 fn windows_stay_bounded_over_the_corpus() {
     let Ok(roots) = std::env::var("DELUGE_AUDIO_CORPUS") else {

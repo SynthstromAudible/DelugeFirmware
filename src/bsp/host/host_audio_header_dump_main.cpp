@@ -75,7 +75,7 @@ int main() {
 	}
 	// deluge.cpp's startup task is gated on isCardReady(), which (host_platform.c) is just "does
 	// DELUGE_SD_ROOT name an existing directory" -- this dumper never reads through that path (it
-	// reads raw file bytes straight off the host filesystem via std::ifstream), but the task still
+	// reads raw file bytes straight off the host filesystem via std::fopen/fread), but the task still
 	// won't fire at all without SOME existing directory here, so point it at the process's own cwd
 	// rather than requiring a caller-supplied SD image.
 	if (getenv("DELUGE_SD_ROOT") == nullptr) {

@@ -299,10 +299,10 @@ pub const MAX_WINDOW_BYTES: u32 = 52;
 const TOP_HEADER_LEN: u32 = 12;
 const CHUNK_HEADER_LEN: u32 = 8;
 
-/// AIFF `MARK` marker table bound (audio_file_format.cpp:31, `kMaxNumMarkers`).
-/// A fixed-size array, no `alloc`: markers past this bound are ignored exactly
-/// as the C++ does (it clamps the declared count down to this before the read
-/// loop runs).
+/// AIFF `MARK` marker table bound, matching the C++ parser this replaced's
+/// `kMaxNumMarkers`. A fixed-size array, no `alloc`: markers past this bound
+/// are ignored exactly as the C++ does (it clamps the declared count down to
+/// this before the read loop runs).
 const MAX_NUM_MARKERS: usize = 8;
 
 /// An AIFF `MARK` chunk's leading marker count.
@@ -493,7 +493,7 @@ pub struct HeaderParser {
     wavetable_cycle_size: u32,
     wavetable_explicitly_specifies_self: bool,
     /// AIFF `MARK`/`INST` marker-resolved loop state. Marker IDs are signed
-    /// 16-bit per the AIFF spec (audio_file_format.cpp:93-94 uses int16_t), and
+    /// 16-bit per the AIFF spec (the C++ parser this replaced used `int16_t`), and
     /// -1 is not a valid marker ID (it's outside the field's 16-bit *unsigned*
     /// wire encoding), so it doubles as "INST not seen yet", exactly mirroring
     /// the C++ default.
@@ -928,13 +928,13 @@ impl HeaderParser {
                 self.audio_data_length_bytes = raw_size;
                 // A Sample parse keeps walking after the data chunk (to pick up
                 // `smpl`/`inst`/`clm ` metadata, which legally follow it) rather
-                // than stopping here — see audio_file_format.cpp:74-76. The
+                // than stopping here — matching the C++ parser this replaced. The
                 // payload itself is stepped over, never read.
                 self.advance_past(chunk)
             }
             // The three per-note metadata chunks. An audio-only walk steps over
-            // them unread, exactly as the C++ oracle's `isSample` gate did
-            // (audio_file_format.cpp:215, :252, :404). That is not merely saved
+            // them unread, exactly as the C++ oracle's `isSample` gate did.
+            // That is not merely saved
             // work: their windows are a fixed extent, NOT the chunk's declared
             // length, so reading a `smpl` that declares less than 52 bytes (a
             // no-loops sampler chunk declares 36) walks the CALLER's reader past
@@ -953,8 +953,8 @@ impl HeaderParser {
             (Container::Aiff, b"COMM") => {
                 // COMM is exactly 18 bytes. The C++ oracle rejects any other
                 // declared length outright rather than reading a partial or
-                // extended COMM (audio_file_format.cpp:317-319) — and it does so
-                // before looking at the payload at all, so this check precedes
+                // extended COMM — and it does so before looking at the
+                // payload at all, so this check precedes
                 // the window request.
                 if raw_size != PayloadKind::Comm.window_len() {
                     return Err(HeaderError::Unsupported(Reason::UnsupportedFormatTag));
@@ -993,9 +993,8 @@ impl HeaderParser {
     ///
     /// Only a Sample load has to be able to play the file at its own rate; a
     /// wavetable is rendered from the audio's shape, and never asks. The C++
-    /// oracle gated the range check the same way (audio_file_format.cpp:204 for
-    /// `fmt `, :347 for `COMM`), and a 192 kHz single-cycle file browsed as a
-    /// wavetable loaded and played because of it.
+    /// oracle gated the range check the same way, and a 192 kHz single-cycle
+    /// file browsed as a wavetable loaded and played because of it.
     const fn insists_on_a_playable_rate(&self) -> bool {
         matches!(self.goal, WalkGoal::WholeHeader)
     }
@@ -1098,13 +1097,12 @@ impl HeaderParser {
                 // bytes), then the loop records. Each field read is
                 // independently bounds-checked; a short/truncated chunk just
                 // leaves midi_note/loop points unset rather than erroring.
-                // Mirrors audio_file_format.cpp:214-247.
+                // Mirrors the C++ parser this replaced.
                 if let (Some(midi_unity_note), Some(pitch_fraction)) =
                     (read_u32_le(win, 12), read_u32_le(win, 16))
                 {
                     if (midi_unity_note != 0 || pitch_fraction != 0) && midi_unity_note < 128 {
-                        // audio_file_format.cpp:227-228 — fractional root
-                        // note; 2^32 is exactly representable in f32.
+                        // Fractional root note; 2^32 is exactly representable in f32.
                         self.midi_note =
                             Some(pitch_fraction as f32 / 4_294_967_296.0 + midi_unity_note as f32);
                     }
@@ -1112,10 +1110,9 @@ impl HeaderParser {
 
                 // Only a single declared loop is ever honoured: the C++ gates
                 // the loop read on `numLoops == 1` rather than looping
-                // `numLoops` times (audio_file_format.cpp:231-245), so a
-                // hostile declared count (e.g. 0xFFFF_FFFF) never drives any
-                // iteration — bounded or not — and never indexes past what a
-                // single loop record needs.
+                // `numLoops` times, so a hostile declared count (e.g.
+                // 0xFFFF_FFFF) never drives any iteration — bounded or not —
+                // and never indexes past what a single loop record needs.
                 if read_u32_le(win, 28) == Some(1) {
                     // loop record: cuePointId, type, start, end, fraction,
                     // playCount — 6 u32 fields starting right after the
@@ -1136,8 +1133,7 @@ impl HeaderParser {
                 // `smpl`/`inst` is walked later simply overwrites the note set
                 // by the other, with no other precedence rule — that's exactly
                 // what the C++ does too, since both arms write `f.midiNote`
-                // unconditionally when their own guard passes. Mirrors
-                // audio_file_format.cpp:251-266.
+                // unconditionally when their own guard passes.
                 if let (Some(&midi_note_byte), Some(&fine_tune_byte)) = (win.first(), win.get(1)) {
                     if midi_note_byte < 128 {
                         let fine_tune = fine_tune_byte as i8;
@@ -1149,8 +1145,8 @@ impl HeaderParser {
                 // Serum wavetable-hint chunk: "<!>" followed by an ASCII
                 // decimal cycle-size, e.g. "<!>2048". The C++ oracle reads
                 // exactly 7 raw bytes at the chunk payload *regardless of the
-                // chunk's own declared length* (audio_file_format.cpp:270-271) —
-                // it never bounds the read to `thisChunk.length`. That's a real
+                // chunk's own declared length* — it never bounds the read to
+                // `thisChunk.length`. That's a real
                 // over-read quirk, not a typo: this field pair is Serum/Deluge
                 // convention, not a documented format, so audio_file_format.cpp
                 // is normative and we mirror it exactly, quirks included. It is
@@ -1159,22 +1155,20 @@ impl HeaderParser {
                 if let Some(raw) = win.get(0..7) {
                     // The C++ loads the first 4 bytes as a little-endian u32 and
                     // masks it with 0x00FFFFFF before comparing to
-                    // charsToIntegerConstant('<','!','>',0)
-                    // (audio_file_format.cpp:276-277). Masking off the top byte
-                    // means the comparison only constrains bytes 0-2 to be
+                    // charsToIntegerConstant('<','!','>',0). Masking off the
+                    // top byte means the comparison only constrains bytes 0-2 to be
                     // "<!>" — byte index 3 is left completely unconstrained and,
                     // next, gets read as the *first* digit character below.
                     if raw[0] == b'<' && raw[1] == b'!' && raw[2] == b'>' {
                         self.wavetable_explicitly_specifies_self = true;
                         // memToUIntOrError parses raw[3..7] — up to 4 ASCII
                         // decimal digits immediately following the tag, with no
-                        // separator (audio_file_format.cpp:281,
-                        // util/audio_format_helpers.cpp:22-34). Any non-digit
-                        // anywhere in the run aborts the whole parse (mirroring
-                        // memToUIntOrError's immediate `return -1`), which the
-                        // C++ then only applies when >= 1
-                        // (audio_file_format.cpp:282-283). This window is fixed
-                        // at 4 bytes, so a u32 can't actually overflow here, but
+                        // separator (util/audio_format_helpers.cpp:22-34). Any
+                        // non-digit anywhere in the run aborts the whole parse
+                        // (mirroring memToUIntOrError's immediate `return -1`),
+                        // which the C++ then only applies when >= 1. This
+                        // window is fixed at 4 bytes, so a u32 can't actually
+                        // overflow here, but
                         // accumulate with checked arithmetic anyway rather than
                         // trust the window size never grows out from under this
                         // comment.
@@ -1229,8 +1223,8 @@ impl HeaderParser {
                 // byte-swap on this (little-endian) target, hence
                 // EndiannessWrong*. 8-bit AIFF is signed already (unlike WAV's
                 // unsigned-8 convention), so it needs neither a swap nor
-                // `Unsigned8` — it stays `Native`. Mirrors
-                // audio_file_format.cpp:339-343.
+                // `Unsigned8` — it stays `Native`. Mirrors the C++ parser
+                // this replaced.
                 self.raw_data_format = match byte_depth {
                     2 => RawDataFormat::EndiannessWrong16,
                     3 => RawDataFormat::EndiannessWrong24,
@@ -1251,8 +1245,8 @@ impl HeaderParser {
                 // SSND payload is offset:u32 + blockSize:u32 (both big-endian)
                 // followed by the audio bytes; the audio start must skip past
                 // both plus the declared `offset`, and the audio length excludes
-                // them from the chunk's declared size. Mirrors
-                // audio_file_format.cpp:297-311.
+                // them from the chunk's declared size. Mirrors the C++ parser
+                // this replaced.
                 const SSND_PREFIX_LEN: u32 = 8;
                 let fields = win
                     .first_chunk::<{ SSND_PREFIX_LEN as usize }>()
@@ -1280,7 +1274,7 @@ impl HeaderParser {
                 // semitone), lowNote, highNote, lowVelocity, highVelocity,
                 // gain:i16 — 8 bytes — then the sustain loop: playMode:u16,
                 // beginID:u16, endID:u16 (6 bytes). The release loop that
-                // follows is never read. Mirrors audio_file_format.cpp:402-431.
+                // follows is never read. Mirrors the C++ parser this replaced.
                 if let (Some(&midi_note_byte), Some(&fine_tune_byte)) = (win.first(), win.get(1)) {
                     let fine_tune = fine_tune_byte as i8;
                     if (midi_note_byte != 0 || fine_tune != 0) && midi_note_byte < 128 {
@@ -1342,7 +1336,7 @@ impl HeaderParser {
         // One marker record: id:u16 (bit-reinterpreted as the spec's signed
         // 16-bit ID, matching the C++'s own uint16_t-into-int16_t assignment),
         // position:u32, then a Pascal string name (u8 length prefix + that many
-        // bytes, padded to an even total). Mirrors audio_file_format.cpp:357-400.
+        // bytes, padded to an even total). Mirrors the C++ parser this replaced.
         let id = match cursor
             .checked_add(2)
             .filter(|&e| e <= chunk_end)
@@ -1380,14 +1374,13 @@ impl HeaderParser {
         // is its record — nothing outside the source justifies it.
         //
         // The pstring-skip amount below is a correction, not a mirror, of the
-        // C++ parser's `(stringLength + 1) & ~1` (audio_file_format.cpp:394-395
-        // as it stood at 77bd4488e). That rounds only the *name* length up to
-        // even and skips that many bytes after the already-consumed 1-byte
-        // length prefix — but the AIFF pstring convention (and what real
-        // encoders write) pads the *whole* record, length byte plus name, to an
-        // even total. The two rules disagree whenever the name length is odd or
-        // zero, which is the common case: 3-letter marker names like
-        // "beg"/"end".
+        // C++ parser's `(stringLength + 1) & ~1`. That rounds only the *name*
+        // length up to even and skips that many bytes after the
+        // already-consumed 1-byte length prefix — but the AIFF pstring
+        // convention (and what real encoders write) pads the *whole* record,
+        // length byte plus name, to an even total. The two rules disagree
+        // whenever the name length is odd or zero, which is the common case:
+        // 3-letter marker names like "beg"/"end".
         //
         // Consequence of the C++ rule: every marker after the first in a
         // multi-marker file is read one byte off, so its ID and position are
@@ -1458,11 +1451,13 @@ impl HeaderParser {
         // (the C++ oracle read it in both modes), so `marker_ids` really is
         // populated on such a walk. An arm that starts writing a sustain-loop id
         // outside `INST` would silently give an audio-only walk loop points it
-        // is not supposed to have — gate it, or gate this. `sustain_loop_end_marker_id != -1` gates on "an INST chunk was
-        // seen" the same way the C++ does; an ID with no matching `MARK` entry —
-        // or no `MARK` chunk at all — simply never writes either field, leaving
-        // both at their 0 ("no loop") default. Mirrors
-        // audio_file_format.cpp:444-454.
+        // is not supposed to have — gate it, or gate this.
+        //
+        // `sustain_loop_end_marker_id != -1` gates on "an INST chunk was seen"
+        // the same way the C++ does; an ID with no matching `MARK` entry — or
+        // no `MARK` chunk at all — simply never writes either field, leaving
+        // both at their 0 ("no loop") default. Mirrors the C++ parser this
+        // replaced.
         if self.container == Container::Aiff && self.sustain_loop_end_marker_id != -1 {
             for i in 0..self.num_markers {
                 if self.marker_ids[i] == self.sustain_loop_begin_marker_id {
@@ -1519,7 +1514,7 @@ fn covers(window: &[u8], window_start: u32, start: u32, len: u32) -> bool {
 /// the entire file — tests, tools, the corpus differential. `bytes` is treated
 /// as a *prefix*, not necessarily the whole file: when the walk needs bytes
 /// beyond it, this returns [`ParseError::NeedAtLeast`] with the offset the
-/// caller must reach, exactly as it always has.
+/// caller must reach.
 ///
 /// Streaming callers — anything reading off a card — should drive
 /// [`HeaderParser`] directly instead: it never asks for more than
@@ -1982,7 +1977,7 @@ mod tests {
     #[test]
     fn inst_sets_root_note_with_fine_tune() {
         let h = parse(&riff_with_inst(60, -50)).expect("should parse");
-        // audio_file_format.cpp:262 — midiNote - fineTune * 0.01
+        // The C++ parser this replaced computed midiNote - fineTune * 0.01.
         assert_eq!(h.midi_note, Some(60.0 - (-50.0) * 0.01));
     }
 
@@ -2017,15 +2012,15 @@ mod tests {
     fn absent_clm_means_no_declaration() {
         let h = parse(&riff_fmt_data(1, 44100, 16, 8)).expect("should parse");
         assert!(!h.wavetable.explicitly_specifies_self);
-        // The C++ default is 2048 even with no clm chunk (audio_file_format.cpp:52).
+        // The C++ default is 2048 even with no clm chunk.
         assert_eq!(h.wavetable.cycle_size, 2048);
     }
 
     #[test]
     fn clm_digit_overflow_does_not_panic() {
         // The C++ oracle only ever reads 4 digit characters after "<!>" (a
-        // fixed 7-byte payload read, audio_file_format.cpp:270-281), so this
-        // can't overflow a u32 even naively. But a naive Rust port might
+        // fixed 7-byte payload read), so this can't overflow a u32 even
+        // naively. But a naive Rust port might
         // instead walk the *whole* declared chunk payload as digits — this
         // chunk's ASCII payload is a long run of digits, well beyond what
         // fits in a u32 if accumulated without checked/saturating arithmetic.
@@ -2039,7 +2034,7 @@ mod tests {
     fn later_chunk_wins_when_smpl_and_inst_both_set_the_note() {
         // smpl before inst in the file: inst, appearing later in the walk,
         // overwrites smpl's note — the walk applies both arms in file order
-        // with no extra precedence rule (audio_file_format.cpp:213-266).
+        // with no extra precedence rule.
         let mut v = riff_with_smpl(0, 0, 60);
         v.extend_from_slice(b"inst");
         v.extend_from_slice(&7u32.to_le_bytes());
@@ -2056,8 +2051,8 @@ mod tests {
         // A `smpl` chunk that declares an enormous loop count (0xFFFF_FFFF)
         // while its actual payload holds only the 36-byte header — no loop
         // records at all. The C++ reference gates the loop read on
-        // `numLoops == 1` (audio_file_format.cpp:231), so a count that isn't
-        // exactly 1 must never drive any iteration, bounded or not.
+        // `numLoops == 1`, so a count that isn't exactly 1 must never drive
+        // any iteration, bounded or not.
         let mut v = riff_fmt_data(1, 44100, 16, 8);
         v.extend_from_slice(b"smpl");
         v.extend_from_slice(&36u32.to_le_bytes()); // header only, no loop data follows
@@ -2183,19 +2178,16 @@ mod tests {
     fn aiff_unmatched_marker_ids_leave_loops_zero() {
         // INST names IDs 7/8, MARK only defines 1/2 — nothing to resolve.
         //
-        // NOTE: the brief's original version of this test called
-        // `form_with_markers(7, 100, 8, 200)`, but that helper uses the same
-        // `begin_id`/`end_id` pair for BOTH the MARK entries and the INST
-        // sustain-loop fields — so that call actually defines MARK markers
-        // 7 and 8 too, which DOES resolve (it's a duplicate of
-        // `aiff_markers_resolve_to_loop_points` with different IDs, not an
-        // unmatched-ID case at all). Verified against
-        // audio_file_format.cpp:444-454: the finalisation loop only ever
-        // *writes* fileLoopStart/EndSamples when a markerIDs[m] entry equals
-        // the wanted ID — with no match (as constructed below, where MARK
-        // and INST genuinely disagree), both stay at their zero-initialised
-        // default, confirming the test's intended behaviour is correct; only
-        // its construction needed fixing.
+        // `form_with_markers` can't build this case directly: it reuses its
+        // `begin_id`/`end_id` arguments for both the MARK entries and the INST
+        // sustain-loop fields, so calling it with IDs 7/8 would define MARK
+        // markers 7 and 8 too, which DOES resolve — that's the
+        // `aiff_markers_resolve_to_loop_points` case, not an unmatched-ID one.
+        // Constructed by hand below instead, so MARK and INST genuinely
+        // disagree. Verified against the C++ parser this replaced: the
+        // finalisation loop only ever *writes* fileLoopStart/EndSamples when a
+        // markerIDs[m] entry equals the wanted ID, so with no match both stay
+        // at their zero-initialised default.
         let mut v = form_comm_ssnd(1, 44100, 16, 8);
         let mut mark = std::vec::Vec::new();
         mark.extend_from_slice(&2u16.to_be_bytes());
@@ -2223,7 +2215,8 @@ mod tests {
 
     #[test]
     fn aiff_marker_count_past_bound_is_clamped() {
-        // kMaxNumMarkers is 8 (audio_file_format.cpp:31). Declare 9
+        // The marker table bound is 8, matching the C++ parser this
+        // replaced's `kMaxNumMarkers`. Declare 9
         // well-formed markers (ids 1..=9, positions 100..=900) — one more
         // than the table holds — and have INST name marker 8 (the last one
         // *inside* the bound, table index 7) as the loop start and marker 9

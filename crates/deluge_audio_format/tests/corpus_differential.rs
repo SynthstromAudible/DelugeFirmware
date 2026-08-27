@@ -29,13 +29,18 @@
 //!   for THOSE the C++ was the oracle and any disagreement is a defect on this side.
 //!
 //! A `std` test (this crate's library stays `no_std`/no-`alloc`; nothing here links into it).
-//! Gated on `DELUGE_AUDIO_CORPUS` so CI without a corpus checked out stays green:
+//! Gated on `DELUGE_AUDIO_CORPUS`, a comma-separated list of corpus roots each walked recursively for
+//! `.wav`/`.aif`/`.aiff` files, so CI without a corpus checked out stays green:
 //!
 //! ```text
 //! DELUGE_AUDIO_CORPUS="$HOME/Deluge Backup"      cargo test -p deluge_audio_format --test corpus_differential -- --nocapture
 //! DELUGE_AUDIO_CORPUS="$HOME/deluge-aiff-corpus"  cargo test -p deluge_audio_format --test corpus_differential -- --nocapture
 //! DELUGE_AUDIO_CORPUS="$HOME/Deluge Backup,$HOME/deluge-aiff-corpus" cargo test -p deluge_audio_format --test corpus_differential -- --nocapture
 //! ```
+//!
+//! That "stays green" only covers the var being unset entirely. Once it's set, an empty or
+//! misspelled root fails the test loudly (`no audio files found under ...`) rather than silently
+//! passing with zero files checked.
 //!
 //! The C++ side of the comparison is `deluge_audio_header_dump` (`src/bsp/host/
 //! host_audio_header_dump_main.cpp`, driving `harness/audio_header_dump.h`), a host-only CLI that
@@ -391,9 +396,8 @@ struct Disagreement {
 }
 
 /// `ParseError`'s coarse outcome shape, for comparing against the C++'s single `Error` enum without
-/// requiring the exact `Reason` to line up (the C++ doesn't have that granularity at all — see
-/// `HeaderFields`/`walkChunks` in `audio_file_format.cpp`, which return one of a handful of `Error`
-/// values regardless of which specific check failed).
+/// requiring the exact `Reason` to line up. The C++ parser this replaced had no such granularity: it
+/// returned one of a handful of `Error` values regardless of which specific check failed.
 fn ours_outcome_category(e: &ParseError) -> &'static str {
     match e {
         ParseError::NeedAtLeast(_) => "corrupted",
@@ -472,16 +476,18 @@ fn cmp_container(out: &mut Vec<Disagreement>, path: &Path, ours: Container, thei
     }
 }
 
-/// Adjudication 1 (task-9 brief): the C++ computes `midiNote - fineTune * 0.01` where the bare
-/// `0.01` literal is `double`, so despite both operands being explicitly cast to `float` the whole
-/// expression evaluates in double precision and only narrows to `float` at the assignment; the Rust
-/// stays in `f32` throughout (matching the explicit casts, which is what the C++ source visibly
-/// intends). Verified exhaustively over all 32768 (note, fine_tune) pairs: 285 differ from the exact
-/// double-precision computation by less than 1e-4 semitone. Adjudicated in the RUST's favour — this
-/// tolerance exists to absorb that known double-vs-float promotion artefact, not to paper over a real
-/// bug, so it is deliberately far tighter than the actual worst-case divergence would need to catch a
-/// genuinely wrong computation (a wrong midi note or fine-tune byte produces errors of a whole
-/// semitone or more, nowhere close to this boundary).
+/// A known, historical divergence: since the C++ entry points now call into this crate, this can no
+/// longer actually occur, but the check remains as a guard band. It used to arise because the C++
+/// computed `midiNote - fineTune * 0.01` where the bare `0.01` literal was `double`, so despite both
+/// operands being explicitly cast to `float` the whole expression evaluated in double precision and
+/// only narrowed to `float` at the assignment; the Rust stays in `f32` throughout (matching the
+/// explicit casts, which is what the C++ source visibly intended). Verified exhaustively over all
+/// 32768 (note, fine_tune) pairs: 285 differed from the exact double-precision computation by less
+/// than 1e-4 semitone. Adjudicated in the RUST's favour — this tolerance existed to absorb that known
+/// double-vs-float promotion artefact, not to paper over a real bug, so it was deliberately far
+/// tighter than the actual worst-case divergence would have needed to catch a genuinely wrong
+/// computation (a wrong midi note or fine-tune byte produces errors of a whole semitone or more,
+/// nowhere close to this boundary).
 const MIDI_NOTE_TOLERANCE: f64 = 1e-4;
 
 fn cmp_midi_note(out: &mut Vec<Disagreement>, path: &Path, ours: Option<f32>, theirs: &Json) {
@@ -511,15 +517,16 @@ fn cmp_midi_note(out: &mut Vec<Disagreement>, path: &Path, ours: Option<f32>, th
     }
 }
 
-/// Adjudication 2 (task-9 brief): `audio_file_format.cpp:394-395`'s AIFF `MARK` pstring skip,
-/// `(stringLength + 1) & ~1`, rounds only the marker NAME length up to even; the AIFF spec pads the
-/// WHOLE pstring record (length byte + name) to an even total. The two formulas disagree whenever the
-/// name length is even (including zero) — the common case, e.g. this crate's own AIFF corpus
-/// generator writes zero-length marker names — and every marker after the first one in such a file
-/// gets misread by the C++ (verified on a real file: marker 2 resolves as `id=512 pos=466179`
-/// instead of `id=2 pos=1821`). The Rust implementation (`lib.rs`'s `MARK` arm) uses the corrected
-/// skip, `((1 + count + 1) & ~1) - 1`. This is adjudicated in the RUST's favour; a divergence here on
-/// an AIFF file is EXPECTED, not a Rust defect, and must not be "fixed" by matching the C++ bug.
+/// A known, historical divergence, adjudicated when the C++ was still an independent implementation:
+/// its AIFF `MARK` pstring skip, `(stringLength + 1) & ~1`, rounded only the marker NAME length up to
+/// even; the AIFF spec pads the WHOLE pstring record (length byte + name) to an even total. The two
+/// formulas disagreed whenever the name length was even (including zero) — the common case, e.g. this
+/// crate's own AIFF corpus generator writes zero-length marker names — and every marker after the
+/// first one in such a file got misread by the old C++ (verified on a real file: marker 2 resolved as
+/// `id=512 pos=466179` instead of `id=2 pos=1821`). The Rust implementation (`lib.rs`'s `MARK` arm)
+/// uses the corrected skip, `((1 + count + 1) & ~1) - 1`. This was adjudicated in the RUST's favour; a
+/// divergence here on an AIFF file was EXPECTED, not a Rust defect, and was never to be "fixed" by
+/// matching the C++ bug.
 const AIFF_LOOP_MARKER_CPP_BUG: &str = "aiff_loop_marker_cpp_pstring_off_by_one (design doc §6)";
 
 /// An INDEPENDENT reimplementation of the AIFF `MARK`/`INST` sustain-loop resolution, parameterized by
@@ -527,7 +534,7 @@ const AIFF_LOOP_MARKER_CPP_BUG: &str = "aiff_loop_marker_cpp_pstring_off_by_one 
 /// exemption CAUSAL instead of blanket: derived straight from the file's own bytes, never from `ours`
 /// or `theirs`, so it can't be fooled by a coincidental match on either side.
 ///
-/// `buggy_pstring_skip = true` reproduces `audio_file_format.cpp:394-395`'s `(stringLength + 1) & ~1`
+/// `buggy_pstring_skip = true` reproduces the old C++ parser's `(stringLength + 1) & ~1`
 /// (rounds only the marker NAME up to even, applied AFTER the 1-byte length prefix is already
 /// consumed); `false` uses the AIFF-spec-correct skip, `((1 + stringLength + 1) & ~1) - 1` (pads the
 /// WHOLE pstring record — length byte + name — to an even total), matching `lib.rs`'s `MARK` arm.
@@ -725,7 +732,7 @@ fn compare_sample(
             );
             cmp_loop_points(out, path, h, bytes, sample);
             cmp_midi_note(out, path, h.midi_note, sample.get("midi_note"));
-            // Adjudication 4 (task-9 brief): the C++ IS the oracle for these two fields (Serum/Deluge
+            // The C++ IS the oracle for these two fields (Serum/Deluge
             // convention, no governing spec) — deliberately no `adjudicated` tag, so ANY mismatch here
             // fails the test as a real Rust defect.
             cmp_u32(

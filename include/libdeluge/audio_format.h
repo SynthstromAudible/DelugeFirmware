@@ -54,9 +54,10 @@ extern "C" {
 ///
 /// A FLOOR for the caller's buffer, not a serving size. Handing back MORE than was asked for — a
 /// whole SD block, ideally — is wanted, not merely tolerated: the parser satisfies as many further
-/// requests from the same window as it fully covers, and the difference is 131,075 feeds versus 34 on
-/// a 1 MB file whose `data` chunk under-declares its length (a recorder that never fixed up its
-/// header; a card that filled mid-write).
+/// requests from the same window as it fully covers, and the difference is 131,075 feeds at exact
+/// windows versus 2,050 at a 512-byte (one SD block) serving size, on a 1 MB file whose `data` chunk
+/// under-declares its length (a recorder that never fixed up its header; a card that filled
+/// mid-write).
 #define DELUGE_AUDIO_MAX_WINDOW_BYTES 52u
 
 /// @brief `sizeof(DelugeAudioHeaderParser)` in 64-bit words.
@@ -185,7 +186,7 @@ typedef struct DelugeAudioHeaderParser {
 ///                      something the caller has to signal, and cannot get wrong. Never pass a computed
 ///                      or inferred value: a lying size bounds the parse to what it claimed.
 /// @param goal          A DelugeAudioWalkGoal. An unrecognised value is REFUSED, not defaulted:
-///                      falling back to #DELUGE_AUDIO_WALK_WHOLE_HEADER is the safe direction for
+///                      falling back to DELUGE_AUDIO_WALK_WHOLE_HEADER is the safe direction for
 ///                      which fields come back and the wrong one for the caller's byte source, since a
 ///                      wavetable caller that mistyped the byte would silently get the over-reading
 ///                      walk back.
@@ -204,17 +205,22 @@ bool deluge_audio_header_parser_pending(const DelugeAudioHeaderParser* parser, D
 
 /// @brief Hand the parser bytes read from the file.
 ///
-/// Supplying MORE than was asked for is wanted (see #DELUGE_AUDIO_MAX_WINDOW_BYTES). Supplying LESS is
-/// a failed read, not an end of file: the request was already clamped to the file, so the bytes exist,
-/// and a short answer is reported as #DELUGE_AUDIO_PARSE_TRUNCATED rather than quietly ending the walk
-/// with a half-built header.
+/// Supplying MORE than was asked for is wanted (see DELUGE_AUDIO_MAX_WINDOW_BYTES).
+///
+/// @warning Supplying LESS than was asked for is how a caller reports a short read — there is
+///          nothing to pad and no reason to. The request was already clamped to the file, so the
+///          bytes exist; @p window_len must be the count actually obtained, or
+///          the parser cannot tell a real short read from a full one and will walk forward on
+///          fabricated data instead of concluding the file is truncated. Report the true, shorter
+///          length and the walk ends cleanly with DELUGE_AUDIO_PARSE_TRUNCATED rather than
+///          continuing on a half-built header.
 ///
 /// @param parser       An initialised parser.
 /// @param window       The bytes, or null when @p window_len is 0.
 /// @param window_len   How many bytes @p window holds.
 /// @param window_start The absolute file offset @p window begins at.
-/// @param header_out   Written only on #DELUGE_AUDIO_PARSE_DONE.
-/// @return A DelugeAudioParseStatus. #DELUGE_AUDIO_PARSE_NEED means "ask `pending` again"; every other
+/// @param header_out   Written only on DELUGE_AUDIO_PARSE_DONE.
+/// @return A DelugeAudioParseStatus. DELUGE_AUDIO_PARSE_NEED means "ask `pending` again"; every other
 ///         value is terminal.
 uint8_t deluge_audio_header_parser_feed(DelugeAudioHeaderParser* parser, const uint8_t* window, uint32_t window_len,
                                         uint32_t window_start, DelugeAudioHeader* header_out);
@@ -225,6 +231,9 @@ uint8_t deluge_audio_header_parser_feed(DelugeAudioHeaderParser* parser, const u
 /// change. Pair it with deluge_audio_header_parser_finish_here() to stop the walk there — which is what
 /// a WaveTable load wants: everything past the audio chunk is metadata a wavetable does not use, and
 /// walking it would drag the caller's byte source past the audio it is about to read.
+///
+/// @param parser An initialised parser.
+/// @return true once the audio chunk has been located.
 bool deluge_audio_header_parser_located_audio_data(const DelugeAudioHeaderParser* parser);
 
 /// @brief The container the file declares, once the 12-byte top header has been read.
@@ -233,10 +242,11 @@ bool deluge_audio_header_parser_located_audio_data(const DelugeAudioHeaderParser
 /// verdict that depends on the container alone and should not wait for the rest of the walk: a
 /// wavetable load rejects AIFF outright unless the caller insists, and reporting a DECODE failure
 /// instead for a malformed AIFF changes what the caller does with it (`sample_browser.cpp` reads
-/// #DELUGE_WAVETABLE_REJECT_AIFF's error as "not a wavetable, try it as a sample", and any other
+/// DELUGE_WAVETABLE_REJECT_AIFF's error as "not a wavetable, try it as a sample", and any other
 /// error as "give up").
 ///
-/// @param out Receives a DelugeAudioContainer.
+/// @param parser An initialised parser.
+/// @param out    Receives a DelugeAudioContainer.
 /// @return false, leaving @p out untouched, before the top header has been read and on a walk that
 ///         failed without identifying a container.
 bool deluge_audio_header_parser_container(const DelugeAudioHeaderParser* parser, uint8_t* out);
@@ -248,7 +258,9 @@ bool deluge_audio_header_parser_container(const DelugeAudioHeaderParser* parser,
 /// file does (no `data`/`SSND`, no `fmt `/`COMM`), so it is only meaningful once
 /// deluge_audio_header_parser_located_audio_data() is true.
 ///
-/// @return A DelugeAudioParseStatus; never #DELUGE_AUDIO_PARSE_NEED — this call always terminates.
+/// @param parser     An initialised parser.
+/// @param header_out Written only on DELUGE_AUDIO_PARSE_DONE.
+/// @return A DelugeAudioParseStatus; never DELUGE_AUDIO_PARSE_NEED — this call always terminates.
 uint8_t deluge_audio_header_parser_finish_here(DelugeAudioHeaderParser* parser, DelugeAudioHeader* header_out);
 
 /// @brief Decide whether a decoded header may be used as a wavetable.
@@ -256,7 +268,7 @@ uint8_t deluge_audio_header_parser_finish_here(DelugeAudioHeaderParser* parser, 
 /// @param header         A header a parse produced.
 /// @param insist         Mirrors `makeWaveTableWorkAtAllCosts`: waives the `clm `/length-shape check and
 ///                       the AIFF rejection, but never the mono requirement.
-/// @param cycle_size_out Written only on #DELUGE_WAVETABLE_ACCEPTED.
+/// @param cycle_size_out Written only on DELUGE_WAVETABLE_ACCEPTED.
 /// @return A DelugeWavetableAccept.
 uint8_t deluge_audio_header_accept_as_wavetable(const DelugeAudioHeader* header, bool insist, uint32_t* cycle_size_out);
 

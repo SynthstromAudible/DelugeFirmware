@@ -17,8 +17,12 @@
 
 #pragma once
 
-/// @brief Host-only C++ oracle for the corpus differential that validates `crates/deluge_audio_format`
-///        against the parser it will replace.
+/// @brief Host-only C++ oracle for the corpus differential over `crates/deluge_audio_format`.
+///
+/// The C++ entry points (`parseSampleHeader()`/`parseWaveTableHeader()`) now call straight into this
+/// crate themselves, so both sides of the differential are the same decoder — it no longer compares
+/// this crate against an independent C++ implementation, but compares two different entry
+/// points/walks through it (see `corpus_differential.rs`'s module doc for what that still catches).
 ///
 /// `dumpAudioHeaderAsJson()` reads one WAV/AIFF file straight off the host filesystem (no efatfs, no
 /// `DELUGE_SD_ROOT` — this is deliberately independent of the SD-card abstraction the rest of the app

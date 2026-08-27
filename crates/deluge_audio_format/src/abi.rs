@@ -278,8 +278,11 @@ unsafe fn as_parser_mut<'a>(parser: *mut DelugeAudioHeaderParser) -> &'a mut Hea
 /// the walk: no request can name a byte past it, so the end of the file is not
 /// something the caller has to signal, and cannot get wrong.
 ///
-/// `goal` is one of the `DELUGE_AUDIO_WALK_*` constants and decides which chunks
-/// the walk reads at all. An unrecognised value is REFUSED rather than defaulted:
+/// `goal` is one of the `DELUGE_AUDIO_WALK_*` constants and decides which
+/// chunks the walk reads at all. It crosses as a plain `u8` and is matched
+/// against those constants — never transmuted into [`WalkGoal`] — so a
+/// foreign garbage value can only fail the match, never construct an invalid
+/// enum. An unrecognised value is REFUSED rather than defaulted:
 /// defaulting to [`DELUGE_AUDIO_WALK_WHOLE_HEADER`] would be the safe direction
 /// for which fields come back and the wrong one for the caller's byte source,
 /// since a wavetable caller that mistyped the byte would silently get the
@@ -354,6 +357,11 @@ pub unsafe extern "C" fn deluge_audio_header_parser_pending(
 /// parser satisfies as many subsequent requests from the same window as it fully
 /// covers before asking again.
 ///
+/// Supplying **less** is a failed read, not an end of file: the request was already clamped to the
+/// file, so the bytes exist. Report the true, shorter count in `window_len` rather than padding —
+/// there is nothing to pad and no reason to — and the walk ends cleanly with
+/// [`DELUGE_AUDIO_PARSE_TRUNCATED`] instead of continuing on a half-built header.
+///
 /// # Safety
 /// `parser` must have been initialised by `deluge_audio_header_parser_init`;
 /// `window` must point at `window_len` readable bytes (or be null when
@@ -420,8 +428,8 @@ pub unsafe extern "C" fn deluge_audio_header_parser_located_audio_data(
 /// unless the caller insists, and reporting a *decode* failure instead for a
 /// malformed AIFF changes what the caller does with it.
 ///
-/// @return false, leaving `out` untouched, before the top header has been read
-/// and on a walk that failed without identifying a container.
+/// Returns `false`, leaving `out` untouched, before the top header has been
+/// read, and on a walk that failed without identifying a container.
 ///
 /// # Safety
 /// `parser` must have been initialised by `deluge_audio_header_parser_init`, and

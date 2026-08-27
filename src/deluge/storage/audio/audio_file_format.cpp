@@ -156,7 +156,7 @@ Error decodeError(uint8_t status) {
 struct WalkOptions {
 	/// Stop as soon as the audio data chunk has been located, rather than walking the whole header, and
 	/// read only the chunks that locate and shape the audio on the way there
-	/// (#DELUGE_AUDIO_WALK_AUDIO_ONLY). The two go together — both are about leaving the byte source
+	/// (DELUGE_AUDIO_WALK_AUDIO_ONLY). The two go together — both are about leaving the byte source
 	/// behind the audio, and about not judging a file by claims a wavetable never reads. See
 	/// parseWaveTableHeader.
 	bool stopAtAudioData = false;
@@ -177,9 +177,9 @@ std::expected<DelugeAudioHeader, Error> decodeHeader(AudioByteSource& src, WalkO
 	DelugeAudioHeader header{};
 
 	while (true) {
-		// The container is known after the first window, which is where the AIFF verdict was made before
-		// this file called into Rust — and it has to stay there: it is a verdict about the container, not
-		// about whether the file decodes.
+		// The container only becomes knowable once the first window has reached the parser, so this check
+		// runs every iteration until it fires. It must depend only on the container classification, not on
+		// whether the file goes on to decode — this is a verdict about the container, nothing else.
 		uint8_t container = 0;
 		if (options.rejectAiff && deluge_audio_header_parser_container(&parser, &container)
 		    && container == DELUGE_AUDIO_CONTAINER_AIFF) {
@@ -226,8 +226,10 @@ Error wavetableError(uint8_t verdict) {
 	case DELUGE_WAVETABLE_REJECT_STEREO:
 		return Error::FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO;
 	case DELUGE_WAVETABLE_REJECT_NOT_A_WAVETABLE:
-	// An AIFF container is rejected as "not a wavetable" rather than "unsupported", matching the check
-	// this replaces (which ran before the walk and returned exactly this).
+	// An AIFF container is rejected with the same value as "not a wavetable", rather than "unsupported":
+	// sample_browser.cpp falls back to loading it as a Sample on FILE_NOT_LOADABLE_AS_WAVETABLE unless
+	// the caller explicitly insisted on a wavetable, already tried more than one OscType, or the synth
+	// is in RINGMOD mode, in which case it gives up instead — see parseWaveTableHeader.
 	case DELUGE_WAVETABLE_REJECT_AIFF:
 		return Error::FILE_NOT_LOADABLE_AS_WAVETABLE;
 	case DELUGE_WAVETABLE_REJECT_UNKNOWN_BIT_DEPTH:
@@ -261,8 +263,7 @@ std::expected<SampleHeader, Error> parseSampleHeader(AudioByteSource& src) {
 }
 
 std::expected<WaveTableHeader, Error> parseWaveTableHeader(AudioByteSource& src, bool makeWaveTableWorkAtAllCosts) {
-	// Two ways this walk is deliberately shorter than the Sample one, both of them behaviour the parser
-	// this replaces had:
+	// Two ways this walk is deliberately shorter than the Sample one:
 	//
 	//  - It stops at the audio data chunk, and on the way there reads only the chunks that locate and
 	//    shape the audio. Not an optimisation: the wavetable load hands this SAME byte source to
