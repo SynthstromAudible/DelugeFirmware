@@ -63,10 +63,10 @@ deluge_sample_fill = { path = "../../../crates/deluge_sample_fill", features = [
 # live SDK co-development, `src/bsp/rust/local-sdk.toml` (gitignored) patches
 # these back to a sibling ../deluge-sdk checkout; `dbt build` and `dbt rust`
 # pass it via `cargo --config` when it exists.
-deluge-bsp = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "07c4aabc477c44524afc87907eb703c24c88b674", features = [
+deluge-bsp = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "8e497f4392e2f3ae6bd8a1f52e0f0bb7a1f3b317", features = [
     "flash",
 ] }
-rza1l-hal = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "07c4aabc477c44524afc87907eb703c24c88b674" }
+rza1l-hal = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "8e497f4392e2f3ae6bd8a1f52e0f0bb7a1f3b317" }
 
 # ── Device (the Deluge, armv7a-none-eabihf) ──────────────────────────────────
 # `deluge-alloc` (the general-purpose Rust heap) has no host meaning — the host
@@ -77,7 +77,7 @@ rza1l-hal = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev 
 # by embassy-executor's `check_at_most_one!`, so they must live in disjoint
 # `[target...]` sections rather than both landing in `[dependencies]`.
 [target.'cfg(target_os = "none")'.dependencies]
-deluge-alloc = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "07c4aabc477c44524afc87907eb703c24c88b674" }
+deluge-alloc = { git = "https://github.com/FirestormAudio/deluge-embassy.git", rev = "8e497f4392e2f3ae6bd8a1f52e0f0bb7a1f3b317" }
 
 # SP1: the device `BlockDevice`/`BufStream`/`embedded-fatfs` storage stack
 # (`fat_block_device.rs`) — same vendored crates `fs_differential`'s host
