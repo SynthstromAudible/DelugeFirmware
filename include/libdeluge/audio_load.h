@@ -264,14 +264,102 @@ bool deluge_audio_load_finish(DelugeSampleBuild* build, uint8_t error_in, uint8_
 /// @param build An in-flight build from deluge_audio_load_begin, or NULL.
 void deluge_audio_load_abandon(DelugeSampleBuild* build) DELUGE_NOEXCEPT;
 
-/// @brief Queue @p file_path for the async loader and wake it.
+/* ---------------------------------------------------------------------------
+ * The async request/collect pair.
+ *
+ * The async loader is split so that each half runs where it is allowed to. The Rust task owns
+ * only AWAITED file I/O -- open a candidate, read the size, walk the header windows -- and makes
+ * no call back into C++ at all. Everything that touches the model (`begin`, `bind_read_stream`,
+ * `apply_geometry`, `finish`) stays on the C++ tier, run synchronously by the collector once the
+ * bytes are already in hand.
+ *
+ * Two hard constraints force that division, and neither is negotiable:
+ *
+ *  - The loader task cannot run on the thread-mode executor. It holds the single filesystem mutex
+ *    across an SD await, while the C++ `deluge_efatfs_*` entry points bridge to those same futures
+ *    through a NON-yielding spin ("the calling context is HELD ... thread-mode tasks do not run
+ *    during one" -- efatfs_fs.rs). A thread-mode spin would wait forever on a mutex only the task
+ *    it is starving can release.
+ *  - Running on its own interrupt executor instead, it must never make a synchronous C++ call that
+ *    reaches storage, for the mirror-image reason: those calls spin rather than await, and a spin
+ *    at interrupt priority cannot be preempted by the thread-mode context holding the mutex. It
+ *    must also not allocate through the C++ allocator or mutate model state, which preempting
+ *    thread-mode mid-mutation would corrupt.
+ *
+ * The residue of the second constraint is why `deluge_audio_load_request` takes the candidate list
+ * as DATA rather than letting the loader ask for it: `deluge_audio_load_resolve_alternate_dir`
+ * probes a directory (a spin), and `deluge_audio_load_candidates` allocates `std::string`s. Both
+ * therefore run on the requesting tier, before the request is made.
+ * ------------------------------------------------------------------------- */
+
+/// @brief A finished async header parse: everything the collector needs to build the `Sample`
+///        without touching the card again.
 ///
-/// Takes only the path: the loader resolves candidates, opens one, and reads its size itself. Silently
-/// drops the request if the queue is full -- the caller has already been told `LOAD_IN_PROGRESS`, and
-/// the next cursor move re-requests.
+/// Plain data, no ownership. That is the point rather than an incidental property: a result sits in
+/// a fixed-size slot until it is collected, so it must be safe to overwrite or discard one that
+/// nobody ever collects. Nothing here owns a file handle, an allocation, or an adopted object, so
+/// dropping a result costs exactly the I/O that produced it and leaks nothing.
+typedef struct DelugeAudioLoadResult {
+	/// The parsed geometry, ready to hand to @ref deluge_audio_load_apply_geometry. Only meaningful
+	/// when @ref error is `Error::NONE`.
+	DelugeAudioLoadGeometry geometry;
+	/// The resolved on-card size, to hand to @ref deluge_audio_load_begin.
+	uint64_t size_bytes;
+	/// The alternate location the bytes were actually found at, or "" if the regular path won --
+	/// exactly @ref deluge_audio_load_begin's `alternate_path`, and the path
+	/// @ref deluge_audio_load_bind_read_stream must open. NUL-terminated.
+	char alternate_path[DELUGE_MAX_PATH];
+	/// A Deluge `Error` code (as `uint8_t`). `Error::NONE` means @ref geometry is valid and the
+	/// build should be published; anything else is the parse verdict to fail the load with, and
+	/// carries the same identity the synchronous path produced (`FILE_UNSUPPORTED` for "not audio"
+	/// or an unplayable format, `FILE_CORRUPTED` for malformed or truncated).
+	uint8_t error;
+} DelugeAudioLoadResult;
+
+/// @ref deluge_audio_load_collect: the loader has no result for this path -- it is queued, or in
+/// flight. Ask again next tick; do NOT re-request.
+#define DELUGE_AUDIO_LOAD_PENDING 0u
+/// @ref deluge_audio_load_collect: a result was written to `out` and REMOVED from the loader. A
+/// second collect for the same path reports `DELUGE_AUDIO_LOAD_UNKNOWN`.
+#define DELUGE_AUDIO_LOAD_READY 1u
+/// @ref deluge_audio_load_collect: the loader knows nothing about this path. Either it was never
+/// requested, its result was already collected, or its result was evicted by later loads. The
+/// caller should request it (again).
+#define DELUGE_AUDIO_LOAD_UNKNOWN 2u
+
+/// @brief Queue @p file_path for the async loader and wake it. Returns immediately; never waits.
 ///
-/// @param file_path The nominal path to load.
-void deluge_audio_load_enqueue(const char* file_path) DELUGE_NOEXCEPT;
+/// Pair with @ref deluge_audio_load_collect: request, return to your own loop, and ask for the
+/// result on a later tick. This is the same non-blocking shape
+/// `deluge_streaming_request_chunk`/`deluge_streaming_chunk_ready` (streaming_fill.h) already uses.
+///
+/// The candidates are supplied rather than resolved by the loader -- see this section's header
+/// comment for why. Call `deluge_audio_load_resolve_alternate_dir` and then
+/// `deluge_audio_load_candidates` on the calling tier and pass the buffer straight through.
+///
+/// @param file_path      The nominal path being loaded, and the key @ref deluge_audio_load_collect
+///                       looks the result up by. Must not be NULL.
+/// @param candidates     `num_candidates * DELUGE_MAX_PATH` bytes, one NUL-terminated path per slot
+///                       in try order -- exactly the buffer `deluge_audio_load_candidates` filled.
+///                       Must not be NULL. Copied out before this returns.
+/// @param num_candidates How many slots of @p candidates to read. Anything above
+///                       `AudioFileManager::kMaxLoadCandidates` is ignored.
+/// @return true if the request was accepted. false if it was dropped (the queue is full, the path
+///         is not valid UTF-8, or there are no candidates) -- the caller has already been told
+///         `LOAD_IN_PROGRESS`, so its next tick re-requests.
+bool deluge_audio_load_request(const char* file_path, const char* candidates, uint32_t num_candidates) DELUGE_NOEXCEPT;
+
+/// @brief Collect the finished parse for @p file_path, if one is ready. Never waits.
+///
+/// On `DELUGE_AUDIO_LOAD_READY` the result is written to @p out and removed from the loader, so the
+/// caller now owns it and must act on it: run `begin` -> `bind_read_stream` -> `apply_geometry` ->
+/// `finish` (or fail the load with `result.error`). All of that is I/O-free apart from
+/// `bind_read_stream`'s own open, because the size and the geometry are already resolved here.
+///
+/// @param file_path The nominal path passed to @ref deluge_audio_load_request. Must not be NULL.
+/// @param out       Written only when this returns `DELUGE_AUDIO_LOAD_READY`. Must not be NULL.
+/// @return One of `DELUGE_AUDIO_LOAD_PENDING` / `_READY` / `_UNKNOWN`.
+uint8_t deluge_audio_load_collect(const char* file_path, DelugeAudioLoadResult* out) DELUGE_NOEXCEPT;
 
 /// @brief Whether the Rust async loader backs sample loads on this BSP/config.
 /// @return true if async loading is active; false if every load takes the synchronous path.

@@ -477,7 +477,16 @@ extern "C" __attribute__((weak)) bool deluge_audio_load_async_active() noexcept 
 	return false;
 }
 
-extern "C" __attribute__((weak)) void deluge_audio_load_enqueue(const char* /*file_path*/) noexcept {
+extern "C" __attribute__((weak)) bool deluge_audio_load_request(const char* /*file_path*/, const char* /*candidates*/,
+                                                                uint32_t /*num_candidates*/) noexcept {
 	// No async loader on this BSP/config; the caller never reaches here because
-	// deluge_audio_load_async_active() is false.
+	// deluge_audio_load_async_active() is false. Refusing (rather than pretending to accept) keeps
+	// a caller that ignores async_active() from waiting for a result nothing will ever produce.
+	return false;
+}
+
+extern "C" __attribute__((weak)) uint8_t deluge_audio_load_collect(const char* /*file_path*/,
+                                                                   DelugeAudioLoadResult* /*out*/) noexcept {
+	// Same as above. UNKNOWN, not PENDING: PENDING would tell a caller to keep asking forever.
+	return DELUGE_AUDIO_LOAD_UNKNOWN;
 }

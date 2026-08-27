@@ -1,166 +1,87 @@
-//! Host unit tests for `audio_loader::load_once` — the async audio-file load
-//! driver, exercised against an in-memory [`FakeOps`] double rather than the real
-//! `deluge_audio_load_*` C ABI and a real card.
+//! Host unit tests for `audio_loader` — the awaited-I/O half of a card sample's
+//! load, plus the result table that carries its output to the C++ collector.
 //!
-//! See `src/audio_loader.rs`'s module doc ("Why the driver is generic over
-//! `LoadOps`") for why the operations are injected: `host_app` (which links the
-//! host-built C++ app closure) and this crate's integration tests do not
-//! co-compile, so a test binary cannot call the real symbols, and defining fakes
-//! with those names would collide with the real ones wherever the C++ app *is*
-//! linked.
+//! See `src/audio_loader.rs`'s module doc for why the halves are split at all
+//! (each executor forbids what the other requires), and why [`LoadOps`] is only
+//! four async filesystem operations with no route into C++.
 //!
 //! `deluge-bsp-rust` is bin-only (no `[lib]` target — see `Cargo.toml`), so this
 //! recompiles `src/audio_loader.rs` unmodified into this test binary via
 //! `#[path]`, the same convention `tests/streaming_fill_host.rs` and
-//! `tests/owner_host.rs` use. Only the `async_audio_load`-gated driver is needed
-//! here — the `prod` submodule (the real `extern "C"` wiring, plus the efatfs
-//! backing) is gated on device/`host_app` and stays uncompiled, so this test
-//! never needs the C++ app linked.
+//! `tests/owner_host.rs` use. Only the `async_audio_load`-gated driver and the
+//! always-compiled request/collect tier are needed — the `prod` submodule (the
+//! efatfs backing) is gated on device/`host_app` and stays uncompiled, so this
+//! test never needs the C++ app linked.
 //!
-//! What these tests are actually pinning, in one line each: the build is adopted
-//! by `begin` and must be released by exactly one of `finish`/`abandon` on every
-//! path; the efatfs handle must be closed on every path; and a zero-length window
-//! request must still be read and fed, or the parse loop never terminates.
+//! What these tests pin, in one line each: the efatfs handle is closed on every
+//! path; a parse verdict always reaches the caller with the error identity the
+//! synchronous path produced; a zero-length window is still read and fed; and an
+//! uncollected result is evicted rather than leaked.
 #![cfg(feature = "async_audio_load")]
 #![cfg(not(target_os = "none"))]
 
-use core::ffi::c_void;
 use std::cell::{Cell, RefCell};
+use std::ffi::CString;
 
 #[path = "../src/audio_loader.rs"]
 mod audio_loader;
 
-use audio_loader::{LoadGeometry, LoadOps, LoadRequest, decode_candidates, load_once};
+use audio_loader::{
+    DELUGE_AUDIO_LOAD_PENDING, DELUGE_AUDIO_LOAD_READY, DELUGE_AUDIO_LOAD_UNKNOWN,
+    DELUGE_ERROR_FILE_CORRUPTED, DELUGE_ERROR_FILE_UNREADABLE, DELUGE_ERROR_FILE_UNSUPPORTED,
+    DELUGE_ERROR_NONE, DELUGE_MAX_PATH, LoadGeometry, LoadOps, LoadRequest, LoadResult,
+    decode_candidates, deluge_audio_load_async_active, deluge_audio_load_collect,
+    deluge_audio_load_request, load_io_once, publish_result,
+};
 
-/// Deluge `Error` codes, by number — the same identities `audio_load_abi.cpp`
-/// pins with `static_assert`s.
-const ERROR_NONE: u8 = 0;
-const ERROR_FILE_CORRUPTED: u8 = 5;
-const ERROR_FILE_UNREADABLE: u8 = 6;
-const ERROR_FILE_UNSUPPORTED: u8 = 7;
-
-/// The stride `deluge_audio_load_candidates` writes its slots at
-/// (`DELUGE_MAX_PATH`).
-const MAX_PATH: usize = 256;
-
-/// One call `FakeOps` observed, in order. Only the calls whose ORDER is part of
-/// the contract are recorded: alternate-dir resolution must precede
-/// `candidates`, and the read stream must be bound before anything can publish.
+/// One call `FakeOps` observed, in order.
 #[derive(Debug, PartialEq, Eq, Clone)]
 enum Call {
-    ResolveAlternateDir,
-    Candidates,
     Open(String),
     SizeOf,
-    /// The two path arguments `deluge_audio_load_begin` takes: the nominal path
-    /// and the alternate location (empty when the regular path won).
-    Begin {
-        path: String,
-        alternate: String,
-    },
-    BindReadStream(String),
-    Read {
-        offset: u32,
-        len: usize,
-    },
-    ApplyGeometry,
-    Finish(u8),
-    Abandon,
+    Read { offset: u32, len: usize },
     Close,
 }
-
-/// A non-null opaque stand-in for `DelugeSampleBuild*`. Never dereferenced — the
-/// driver only threads it through.
-const FAKE_BUILD: *mut c_void = 0x1000 as *mut c_void;
 
 /// Counting double for [`LoadOps`].
 ///
 /// `open_handles` is the LIVE count: incremented by `open`, decremented by
 /// `close`, and asserted zero at the end of every test because the efatfs handle
-/// table has only `MAX_HANDLES` (128) slots and a resident `Sample` pins one for
-/// its whole lifetime — a leaked handle is silent capacity loss, not an error
-/// anything reports.
-///
-/// `build_live` is the ownership check: `begin` sets it, `finish`/`abandon` clear
-/// it, and both panic if it is already clear. Together with the `finished` /
-/// `abandoned` counts that turns "exactly one of finish or abandon, on every
-/// path" from a claim into an assertion.
+/// table has only `MAX_HANDLES` (128) slots — a leaked handle is silent capacity
+/// loss, not an error anything reports.
 struct FakeOps {
-    /// The file's bytes, served from memory.
-    bytes: Vec<u8>,
-    /// What `candidates` proposes, in try order.
-    candidates: Vec<String>,
-    /// `candidates` reports the C side's buffer untrustworthy.
-    candidates_untrustworthy: bool,
-    /// Paths `open` refuses; every other path in `candidates` opens.
-    unopenable: Vec<String>,
-    /// What `bind_read_stream` returns.
-    bind_error: u8,
-    /// `apply_geometry` refuses (as it does for an invalid `raw_data_format`).
-    refuse_geometry: bool,
+    /// The file's bytes, served from memory, keyed by path.
+    files: Vec<(String, Vec<u8>)>,
     /// `size_of` fails.
     size_fails: bool,
+    /// `read_at` fails from this call onwards (a card pulled mid-parse).
+    fail_read_after: Option<u32>,
 
     calls: RefCell<Vec<Call>>,
-    finished: Cell<u32>,
-    abandoned: Cell<u32>,
     open_handles: Cell<i32>,
     next_handle: Cell<u32>,
-    build_live: Cell<bool>,
-    begun: Cell<u32>,
-    alternate_resolved: Cell<bool>,
-    last_geometry: RefCell<Option<LoadGeometry>>,
+    reads_done: Cell<u32>,
+    /// The bytes of whichever file is currently open. The fake only ever holds
+    /// one handle at a time, which is exactly what `load_io_once` does.
+    opened: RefCell<Vec<u8>>,
 }
 
 impl FakeOps {
     fn new() -> Self {
         Self {
-            bytes: Vec::new(),
-            candidates: vec![String::from("A.wav")],
-            candidates_untrustworthy: false,
-            unopenable: Vec::new(),
-            bind_error: ERROR_NONE,
-            refuse_geometry: false,
+            files: Vec::new(),
             size_fails: false,
+            fail_read_after: None,
             calls: RefCell::new(Vec::new()),
-            finished: Cell::new(0),
-            abandoned: Cell::new(0),
             open_handles: Cell::new(0),
             next_handle: Cell::new(7),
-            build_live: Cell::new(false),
-            begun: Cell::new(0),
-            alternate_resolved: Cell::new(false),
-            last_geometry: RefCell::new(None),
+            reads_done: Cell::new(0),
+            opened: RefCell::new(Vec::new()),
         }
     }
 
-    fn with_bytes(mut self, bytes: Vec<u8>) -> Self {
-        self.bytes = bytes;
-        self
-    }
-
-    fn with_open_failing(mut self) -> Self {
-        self.unopenable = self.candidates.clone();
-        self
-    }
-
-    fn with_candidates(mut self, candidates: &[&str]) -> Self {
-        self.candidates = candidates.iter().map(|c| String::from(*c)).collect();
-        self
-    }
-
-    fn with_untrustworthy_candidates(mut self) -> Self {
-        self.candidates_untrustworthy = true;
-        self
-    }
-
-    fn with_bind_failing(mut self) -> Self {
-        self.bind_error = ERROR_FILE_UNREADABLE;
-        self
-    }
-
-    fn with_geometry_refused(mut self) -> Self {
-        self.refuse_geometry = true;
+    fn with_file(mut self, path: &str, bytes: Vec<u8>) -> Self {
+        self.files.push((String::from(path), bytes));
         self
     }
 
@@ -169,12 +90,9 @@ impl FakeOps {
         self
     }
 
-    fn finished(&self) -> u32 {
-        self.finished.get()
-    }
-
-    fn abandoned(&self) -> u32 {
-        self.abandoned.get()
+    fn with_read_failing_after(mut self, reads: u32) -> Self {
+        self.fail_read_after = Some(reads);
+        self
     }
 
     fn open_handles(&self) -> i32 {
@@ -189,6 +107,17 @@ impl FakeOps {
         self.calls.borrow_mut().push(call);
     }
 
+    /// Assert the invariant that holds at the end of EVERY load: no handle left
+    /// open.
+    fn assert_settled(&self) {
+        assert_eq!(
+            self.open_handles(),
+            0,
+            "efatfs handle leaked: {:?}",
+            self.calls()
+        );
+    }
+
     /// Every window the driver asked the file for, in order.
     fn reads(&self) -> Vec<(u32, usize)> {
         self.calls()
@@ -199,77 +128,17 @@ impl FakeOps {
             })
             .collect()
     }
-
-    /// The single `finish` error code, if `finish` was called exactly once.
-    fn finish_error(&self) -> Option<u8> {
-        let codes: Vec<u8> = self
-            .calls()
-            .into_iter()
-            .filter_map(|c| match c {
-                Call::Finish(code) => Some(code),
-                _ => None,
-            })
-            .collect();
-        match codes.as_slice() {
-            [code] => Some(*code),
-            _ => None,
-        }
-    }
-
-    /// Assert the invariants that hold at the end of EVERY load, whatever its
-    /// outcome: no handle left open, no build left adopted, and at most one of
-    /// finish/abandon.
-    fn assert_settled(&self) {
-        assert_eq!(
-            self.open_handles(),
-            0,
-            "efatfs handle leaked: {:?}",
-            self.calls()
-        );
-        assert!(
-            !self.build_live.get(),
-            "build left adopted: {:?}",
-            self.calls()
-        );
-        assert!(
-            self.finished() + self.abandoned() <= 1,
-            "build consumed more than once: {:?}",
-            self.calls()
-        );
-        // Every build that was begun was consumed exactly once.
-        assert_eq!(
-            self.begun.get(),
-            self.finished() + self.abandoned(),
-            "begun builds and finish/abandon calls disagree: {:?}",
-            self.calls()
-        );
-    }
 }
 
 impl LoadOps for FakeOps {
-    async fn ensure_alternate_dir_resolved(&self) {
-        self.record(Call::ResolveAlternateDir);
-        self.alternate_resolved.set(true);
-    }
-
-    fn candidates(&self, _path: &str) -> Option<Vec<String>> {
-        self.record(Call::Candidates);
-        assert!(
-            self.alternate_resolved.get(),
-            "candidates asked for before the alternate dir was resolved: a collect-media song's \
-             first sample would silently miss its alternate-dir candidates"
-        );
-        if self.candidates_untrustworthy {
-            return None;
-        }
-        Some(self.candidates.clone())
-    }
-
     async fn open(&self, path: &str) -> Option<u32> {
         self.record(Call::Open(String::from(path)));
-        if self.unopenable.iter().any(|p| p == path) {
-            return None;
-        }
+        let bytes = self
+            .files
+            .iter()
+            .find(|(candidate, _)| candidate == path)
+            .map(|(_, bytes)| bytes.clone())?;
+        *self.opened.borrow_mut() = bytes;
         let handle = self.next_handle.get();
         self.next_handle.set(handle + 1);
         self.open_handles.set(self.open_handles.get() + 1);
@@ -281,25 +150,7 @@ impl LoadOps for FakeOps {
         if self.size_fails {
             return None;
         }
-        Some(self.bytes.len() as u32)
-    }
-
-    fn begin(&self, path: &str, alternate: &str, size_bytes: u64) -> *mut c_void {
-        self.record(Call::Begin {
-            path: String::from(path),
-            alternate: String::from(alternate),
-        });
-        assert_eq!(size_bytes, self.bytes.len() as u64);
-        self.begun.set(self.begun.get() + 1);
-        self.build_live.set(true);
-        FAKE_BUILD
-    }
-
-    async fn bind_read_stream(&self, build: *mut c_void, path: &str) -> u8 {
-        assert_eq!(build, FAKE_BUILD);
-        assert!(self.build_live.get(), "bind on a consumed build");
-        self.record(Call::BindReadStream(String::from(path)));
-        self.bind_error
+        Some(self.opened.borrow().len() as u32)
     }
 
     async fn read_at(&self, _handle: u32, offset: u32, buf: &mut [u8]) -> bool {
@@ -307,48 +158,26 @@ impl LoadOps for FakeOps {
             offset,
             len: buf.len(),
         });
-        // Mirrors `efatfs_fs::read_at`: an empty fill trivially succeeds,
-        // whatever the offset. This is the case the driver MUST still feed.
+        let done = self.reads_done.get();
+        self.reads_done.set(done + 1);
+        if self.fail_read_after.is_some_and(|limit| done >= limit) {
+            return false;
+        }
+        // Mirrors `efatfs_fs::read_at`: an empty fill trivially succeeds, whatever
+        // the offset. This is the case the driver MUST still feed.
         if buf.is_empty() {
             return true;
         }
+        let bytes = self.opened.borrow();
         let start = offset as usize;
         let Some(end) = start.checked_add(buf.len()) else {
             return false;
         };
-        if end > self.bytes.len() {
+        if end > bytes.len() {
             return false; // A real read failure: the parser clamps inside the file.
         }
-        buf.copy_from_slice(&self.bytes[start..end]);
+        buf.copy_from_slice(&bytes[start..end]);
         true
-    }
-
-    fn apply_geometry(&self, build: *mut c_void, geometry: &LoadGeometry) -> bool {
-        assert_eq!(build, FAKE_BUILD);
-        assert!(self.build_live.get(), "apply_geometry on a consumed build");
-        self.record(Call::ApplyGeometry);
-        *self.last_geometry.borrow_mut() = Some(*geometry);
-        !self.refuse_geometry
-    }
-
-    fn finish(&self, build: *mut c_void, error: u8) -> bool {
-        assert_eq!(build, FAKE_BUILD);
-        assert!(self.build_live.get(), "finish on an already-consumed build");
-        self.build_live.set(false);
-        self.record(Call::Finish(error));
-        self.finished.set(self.finished.get() + 1);
-        error == ERROR_NONE
-    }
-
-    fn abandon(&self, build: *mut c_void) {
-        assert_eq!(build, FAKE_BUILD);
-        assert!(
-            self.build_live.get(),
-            "abandon on an already-consumed build"
-        );
-        self.build_live.set(false);
-        self.record(Call::Abandon);
-        self.abandoned.set(self.abandoned.get() + 1);
     }
 
     async fn close(&self, _handle: u32) {
@@ -387,131 +216,42 @@ fn block_on<F: core::future::Future>(future: F) -> F::Output {
     embassy_futures::block_on(future)
 }
 
-fn request(path: &str) -> LoadRequest {
+fn request(path: &str, candidates: &[&str]) -> LoadRequest {
     LoadRequest {
         path: String::from(path),
+        candidates: candidates.iter().map(|c| String::from(*c)).collect(),
     }
 }
 
-// ── Ownership: exactly one of finish/abandon, and never a leaked handle ──────
-
-/// Nothing opened means nothing was ever adopted: `begin` takes the resolved
-/// size, so it cannot run before a candidate opens. There is therefore no build
-/// to abandon here — asserting an `abandon` would be asserting a double-free of
-/// an object that does not exist. What must hold is that no handle leaked and no
-/// build was begun.
-#[test]
-fn a_failed_open_never_begins_a_build() {
-    let ops = FakeOps::new().with_bytes(minimal_wav()).with_open_failing();
-    let published = block_on(load_once(&ops, request("A.wav")));
-    assert!(!published);
-    assert_eq!(ops.finished(), 0);
-    assert_eq!(ops.abandoned(), 0);
-    assert_eq!(ops.open_handles(), 0);
-    assert!(!ops.calls().iter().any(|c| matches!(c, Call::Begin { .. })));
-    ops.assert_settled();
-}
-
-/// A build that will never carry a parse result must be ABANDONED — never
-/// dropped on the floor, or the manager keeps a zero-geometry `Sample` holding a
-/// reason it can never be evicted under. Binding the read stream is the first
-/// thing that can fail after `begin`.
-#[test]
-fn a_failed_read_stream_bind_abandons_the_build() {
-    let ops = FakeOps::new().with_bytes(minimal_wav()).with_bind_failing();
-    let published = block_on(load_once(&ops, request("A.wav")));
-    assert!(!published);
-    assert_eq!(ops.finished(), 0);
-    assert_eq!(ops.abandoned(), 1);
-    assert_eq!(ops.open_handles(), 0);
-    ops.assert_settled();
-}
-
-/// A refused geometry (`apply_geometry` returning false) leaves the build at zero
-/// geometry with nothing written. Publishing it would be exactly the silent
-/// wrong-render that refusal exists to prevent, so it must be abandoned, not
-/// finished.
-#[test]
-fn a_refused_geometry_abandons_the_build() {
-    let ops = FakeOps::new()
-        .with_bytes(minimal_wav())
-        .with_geometry_refused();
-    let published = block_on(load_once(&ops, request("A.wav")));
-    assert!(!published);
-    assert_eq!(ops.finished(), 0);
-    assert_eq!(ops.abandoned(), 1);
-    assert_eq!(ops.open_handles(), 0);
-    ops.assert_settled();
-}
-
-/// A read that fails mid-parse (a pulled card) abandons rather than publishing a
-/// half-parsed build, and still closes the handle.
-#[test]
-fn a_truncated_file_fails_the_parse_and_releases_everything() {
-    // The file ends inside its own `fmt ` payload, so the read for that window is
-    // inside the size the parser was given and genuinely comes back short.
-    let mut truncated = minimal_wav();
-    truncated.truncate(24);
-    let ops = FakeOps::new().with_bytes(truncated);
-    let published = block_on(load_once(&ops, request("A.wav")));
-    assert!(!published);
-    assert_eq!(ops.open_handles(), 0);
-    ops.assert_settled();
-    assert_eq!(ops.finished() + ops.abandoned(), 1);
-}
-
-/// A `size_of` failure ends the load before `begin`, and still closes the handle
-/// the (successful) open took.
-#[test]
-fn a_failed_size_closes_the_handle_without_beginning_a_build() {
-    let ops = FakeOps::new().with_bytes(minimal_wav()).with_size_failing();
-    let published = block_on(load_once(&ops, request("A.wav")));
-    assert!(!published);
-    assert_eq!(ops.open_handles(), 0);
-    assert!(!ops.calls().iter().any(|c| matches!(c, Call::Begin { .. })));
-    ops.assert_settled();
+/// The alternate path a result reports, as a `String`.
+fn alternate_of(result: &LoadResult) -> String {
+    let end = result
+        .alternate_path
+        .iter()
+        .position(|b| *b == 0)
+        .expect("NUL-terminated");
+    String::from_utf8(result.alternate_path[..end].to_vec()).expect("UTF-8")
 }
 
 // ── The happy path ──────────────────────────────────────────────────────────
 
-/// The happy path drives the parser to `Done`, applies the geometry and finishes
-/// exactly once — after binding the Sample's own read stream, without which the
-/// published sample would load cleanly and play silence.
+/// A good file parses to a geometry, a size, and no error — and closes its handle.
 #[test]
-fn a_good_file_finishes_exactly_once() {
-    let ops = FakeOps::new().with_bytes(minimal_wav());
-    let published = block_on(load_once(&ops, request("A.wav")));
-    assert!(published);
-    assert_eq!(ops.finished(), 1);
-    assert_eq!(ops.abandoned(), 0);
-    assert_eq!(ops.open_handles(), 0);
-    assert_eq!(ops.finish_error(), Some(ERROR_NONE));
+fn a_good_file_parses_to_a_geometry() {
+    let ops = FakeOps::new().with_file("A.wav", minimal_wav());
+    let result = block_on(load_io_once(&ops, &request("A.wav", &["A.wav"])));
+    assert_eq!(result.error, DELUGE_ERROR_NONE);
+    assert_eq!(result.size_bytes, 52);
     ops.assert_settled();
-
-    let calls = ops.calls();
-    let bind = calls
-        .iter()
-        .position(|c| matches!(c, Call::BindReadStream(_)))
-        .expect("the Sample's own read stream must be bound before it is published");
-    let finish = calls
-        .iter()
-        .position(|c| matches!(c, Call::Finish(_)))
-        .expect("finish");
-    assert!(bind < finish);
-    assert_eq!(
-        calls[bind],
-        Call::BindReadStream(String::from("A.wav")),
-        "the read stream binds to the path the bytes were actually resolved at"
-    );
 }
 
-/// The geometry handed across the ABI is the parsed header, field for field. A
-/// wrong or missed field here loads without any error and renders wrong.
+/// The geometry crossing the ABI is the parsed header, field for field. A wrong
+/// or missed field here loads without any error and renders wrong.
 #[test]
-fn the_parsed_geometry_reaches_apply_geometry() {
-    let ops = FakeOps::new().with_bytes(minimal_wav());
-    assert!(block_on(load_once(&ops, request("A.wav"))));
-    let geometry = ops.last_geometry.borrow().expect("geometry applied");
+fn the_parsed_geometry_matches_the_header() {
+    let ops = FakeOps::new().with_file("A.wav", minimal_wav());
+    let result = block_on(load_io_once(&ops, &request("A.wav", &["A.wav"])));
+    let geometry: LoadGeometry = result.geometry;
     assert_eq!(geometry.num_channels, 1);
     assert_eq!(geometry.byte_depth, 2);
     assert_eq!(geometry.sample_rate, 44100);
@@ -529,17 +269,125 @@ fn the_parsed_geometry_reaches_apply_geometry() {
     assert_eq!(geometry.wavetable_cycle_size, 2048);
 }
 
-/// Every window the parser asks for stays inside the size it was given
-/// (`start + len <= size`), which is exactly what makes
-/// [`LoadOps::read_at`]'s full-fill-or-`false` contract usable here: a short read
-/// can only be a real read failure, never an end of file that a byte count would
-/// have had to distinguish. `read_at` cannot report both, so if the parser could
-/// ask past the end this driver would have no way to tell the two apart.
+// ── The handle is released on every path ────────────────────────────────────
+
+/// Nothing opens: no handle was taken, and the verdict is `FILE_UNREADABLE` —
+/// there is always a result for the collector, never silence.
+#[test]
+fn no_candidate_opening_reports_unreadable() {
+    let ops = FakeOps::new();
+    let result = block_on(load_io_once(
+        &ops,
+        &request("A.wav", &["A.wav", "ALT/A.wav"]),
+    ));
+    assert_eq!(result.error, DELUGE_ERROR_FILE_UNREADABLE);
+    assert_eq!(ops.open_handles(), 0);
+    // Both candidates were tried, in order.
+    assert_eq!(
+        ops.calls(),
+        vec![
+            Call::Open(String::from("A.wav")),
+            Call::Open(String::from("ALT/A.wav")),
+        ]
+    );
+}
+
+/// A `size_of` failure still closes the handle the successful open took.
+#[test]
+fn a_failed_size_closes_the_handle() {
+    let ops = FakeOps::new()
+        .with_file("A.wav", minimal_wav())
+        .with_size_failing();
+    let result = block_on(load_io_once(&ops, &request("A.wav", &["A.wav"])));
+    assert_eq!(result.error, DELUGE_ERROR_FILE_UNREADABLE);
+    ops.assert_settled();
+    assert!(ops.calls().contains(&Call::Close));
+}
+
+/// A read that fails mid-parse (a card pulled) still closes the handle and still
+/// produces a verdict.
+#[test]
+fn a_failed_read_mid_parse_closes_the_handle() {
+    let ops = FakeOps::new()
+        .with_file("A.wav", minimal_wav())
+        .with_read_failing_after(1);
+    let result = block_on(load_io_once(&ops, &request("A.wav", &["A.wav"])));
+    assert_eq!(result.error, DELUGE_ERROR_FILE_UNREADABLE);
+    ops.assert_settled();
+}
+
+// ── Parse verdicts keep the C++ side's error identity ───────────────────────
+
+/// Not audio at all: `FILE_UNSUPPORTED`, the same code the synchronous path
+/// produced, which is what `sample_browser.cpp` reads as "not a wavetable, try it
+/// as a sample".
+#[test]
+fn a_non_audio_file_reports_file_unsupported() {
+    let ops = FakeOps::new().with_file("A.wav", b"NOTAUDIOATALLREALLY!".to_vec());
+    let result = block_on(load_io_once(&ops, &request("A.wav", &["A.wav"])));
+    assert_eq!(result.error, DELUGE_ERROR_FILE_UNSUPPORTED);
+    ops.assert_settled();
+}
+
+/// A RIFF/WAVE container with no `data` chunk is malformed, not unsupported:
+/// `FILE_CORRUPTED`.
+#[test]
+fn a_wav_without_audio_data_reports_file_corrupted() {
+    let mut wav = minimal_wav();
+    wav.truncate(36); // Drop the whole `data` chunk, keeping `fmt `.
+    let riff_size = (wav.len() - 8) as u32;
+    wav[4..8].copy_from_slice(&riff_size.to_le_bytes());
+    let ops = FakeOps::new().with_file("A.wav", wav);
+    let result = block_on(load_io_once(&ops, &request("A.wav", &["A.wav"])));
+    assert_eq!(result.error, DELUGE_ERROR_FILE_CORRUPTED);
+    ops.assert_settled();
+}
+
+// ── Candidate order and the alternate location ──────────────────────────────
+
+/// Candidates are tried in order and the FIRST that opens wins. A winner that is
+/// not the nominal path is reported as the alternate location — exactly
+/// `usingAlternateLocation`, and the path the collector must bind its read stream
+/// to.
+#[test]
+fn the_first_candidate_that_opens_becomes_the_alternate_location() {
+    let ops = FakeOps::new().with_file("SAMPLES/SONG/A.wav", minimal_wav());
+    let result = block_on(load_io_once(
+        &ops,
+        &request("SAMPLES/A.wav", &["SAMPLES/A.wav", "SAMPLES/SONG/A.wav"]),
+    ));
+    assert_eq!(result.error, DELUGE_ERROR_NONE);
+    assert_eq!(alternate_of(&result), "SAMPLES/SONG/A.wav");
+    ops.assert_settled();
+}
+
+/// The regular path winning means NO alternate location — an empty string, which
+/// is what `deluge_audio_load_begin` documents for "resolved at `file_path`
+/// directly" (and never NULL).
+#[test]
+fn the_regular_path_winning_reports_no_alternate_location() {
+    let ops = FakeOps::new().with_file("SAMPLES/A.wav", minimal_wav());
+    let result = block_on(load_io_once(
+        &ops,
+        &request("SAMPLES/A.wav", &["SAMPLES/A.wav"]),
+    ));
+    assert_eq!(alternate_of(&result), "");
+}
+
+// ── The window protocol ─────────────────────────────────────────────────────
+
+/// Every window stays inside the size the parser was given
+/// (`start + len <= size`), which is what makes [`LoadOps::read_at`]'s
+/// full-fill-or-`false` contract usable: a short read can only be a real failure,
+/// never an end of file that a byte count would have had to distinguish.
 #[test]
 fn every_window_stays_inside_the_file() {
     let bytes = minimal_wav();
-    let ops = FakeOps::new().with_bytes(bytes.clone());
-    assert!(block_on(load_once(&ops, request("A.wav"))));
+    let ops = FakeOps::new().with_file("A.wav", bytes.clone());
+    assert_eq!(
+        block_on(load_io_once(&ops, &request("A.wav", &["A.wav"]))).error,
+        DELUGE_ERROR_NONE
+    );
     assert!(
         ops.reads()
             .iter()
@@ -547,9 +395,9 @@ fn every_window_stays_inside_the_file() {
         "the parser must never name a byte past the size it was given; reads were {:?}",
         ops.reads()
     );
-    // And the audio payload is stepped over by arithmetic, never read: the walk
-    // stops at the `data` chunk HEADER (offset 36, 8 bytes), it does not read the
-    // 8 audio bytes behind it.
+    // The audio payload is stepped over by arithmetic, never read: the walk stops
+    // at the `data` chunk HEADER (offset 36, 8 bytes) and does not read the 8
+    // audio bytes behind it.
     assert_eq!(ops.reads(), vec![(0, 12), (12, 8), (20, 16), (36, 8)]);
 }
 
@@ -559,185 +407,249 @@ fn every_window_stays_inside_the_file() {
 /// spin in the parse loop forever — this test would hang rather than fail.
 ///
 /// A zero-byte file is the case that produces one: `pending` clamps the container
-/// header request to what remains, which is nothing. In production
-/// `deluge_audio_load_begin` refuses a zero-byte file (`FILE_CORRUPTED`) before
-/// the parser is ever built, so this is defence in depth on the driver's own
-/// loop rather than a reachable card state — which is precisely why it needs a
-/// test: nothing else would notice if the loop stopped feeding.
+/// header request to what remains, which is nothing. In production a zero-byte
+/// file is refused before a `Sample` is ever built, so this is defence in depth on
+/// the driver's own loop rather than a reachable card state — which is precisely
+/// why it needs a test: nothing else would notice if the loop stopped feeding.
 #[test]
 fn a_zero_length_window_is_still_read_and_fed() {
-    let ops = FakeOps::new().with_bytes(Vec::new());
-    let published = block_on(load_once(&ops, request("A.wav")));
-    assert!(!published);
+    let ops = FakeOps::new().with_file("A.wav", Vec::new());
+    let result = block_on(load_io_once(&ops, &request("A.wav", &["A.wav"])));
     assert_eq!(
         ops.reads(),
         vec![(0, 0)],
         "the clamped-to-zero window must be read, then fed"
     );
-    // Fed, so the parse reached a verdict and the build was consumed exactly once
-    // rather than being left adopted by a loop that never ended.
-    ops.assert_settled();
-    assert_eq!(ops.finished() + ops.abandoned(), 1);
-}
-
-// ── Parse failures keep the C++ side's error identity ───────────────────────
-
-/// A file that is not audio at all is reported as `FILE_UNSUPPORTED` through
-/// `finish` — the same code the synchronous path produced, which is what
-/// `sample_browser.cpp` reads as "not a wavetable, try it as a sample". A parse
-/// RESULT exists, so this goes through `finish`, not `abandon`.
-#[test]
-fn a_non_audio_file_finishes_with_file_unsupported() {
-    let ops = FakeOps::new().with_bytes(b"NOTAUDIOATALLREALLY!".to_vec());
-    let published = block_on(load_once(&ops, request("A.wav")));
-    assert!(!published);
-    assert_eq!(ops.finished(), 1);
-    assert_eq!(ops.abandoned(), 0);
-    assert_eq!(ops.finish_error(), Some(ERROR_FILE_UNSUPPORTED));
+    // Fed, so the parse reached a verdict rather than looping forever.
+    assert_ne!(result.error, DELUGE_ERROR_NONE);
     ops.assert_settled();
 }
 
-/// A RIFF/WAVE container with no `data` chunk is malformed, not unsupported:
-/// `FILE_CORRUPTED`.
-#[test]
-fn a_wav_without_audio_data_finishes_with_file_corrupted() {
-    let mut wav = minimal_wav();
-    wav.truncate(36); // Drop the whole `data` chunk, keeping `fmt `.
-    let riff_size = (wav.len() - 8) as u32;
-    wav[4..8].copy_from_slice(&riff_size.to_le_bytes());
-    let ops = FakeOps::new().with_bytes(wav);
-    let published = block_on(load_once(&ops, request("A.wav")));
-    assert!(!published);
-    assert_eq!(ops.finish_error(), Some(ERROR_FILE_CORRUPTED));
-    ops.assert_settled();
+// ── The result table: what carries a result between the halves ──────────────
+
+/// `RESULTS` and `QUEUE` are process-wide statics, and cargo runs tests on
+/// parallel threads. The tests below assert on table *capacity* (eviction), so
+/// they must not interleave with each other's publishes. Distinct key prefixes
+/// are not enough on their own — a concurrent publish still consumes a slot.
+static TABLE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+fn collect(path: &str) -> (u8, LoadResult) {
+    let key = CString::new(path).unwrap();
+    let mut out = LoadResult::failed(0xFF);
+    // SAFETY: `key` is a valid NUL-terminated C string and `out` a live,
+    // writable `LoadResult`.
+    let status = unsafe { deluge_audio_load_collect(key.as_ptr(), &mut out) };
+    (status, out)
 }
 
-// ── Candidate policy ────────────────────────────────────────────────────────
-
-/// Discovery precedes candidates: the alternate-dir status must be resolved (I/O)
-/// before the C side is asked which paths to try, or a collect-media song's first
-/// sample resolves to the regular path only and silently fails to load where the
-/// synchronous path finds it.
-#[test]
-fn the_alternate_dir_is_resolved_before_candidates_are_asked_for() {
-    let ops = FakeOps::new().with_bytes(minimal_wav());
-    assert!(block_on(load_once(&ops, request("A.wav"))));
-    let calls = ops.calls();
-    let resolve = calls
-        .iter()
-        .position(|c| *c == Call::ResolveAlternateDir)
-        .expect("resolve");
-    let candidates = calls
-        .iter()
-        .position(|c| *c == Call::Candidates)
-        .expect("candidates");
-    assert!(resolve < candidates, "calls were {calls:?}");
+fn publish(path: &str, error: u8) {
+    block_on(publish_result(
+        String::from(path),
+        LoadResult::failed(error),
+    ));
 }
 
-/// Candidates are tried in order, and the FIRST one that opens wins. The winning
-/// path is reported to `begin` as the alternate location when it is not the
-/// nominal path — that is exactly `usingAlternateLocation` — and it is the path
-/// the Sample's own read stream binds to.
+/// A published result is collected exactly once: `READY` with the payload, then
+/// `UNKNOWN`, because collecting REMOVES it. A second collect returning the same
+/// result would let a caller build the same Sample twice.
 #[test]
-fn the_first_candidate_that_opens_becomes_the_alternate_location() {
-    let mut ops = FakeOps::new()
-        .with_bytes(minimal_wav())
-        .with_candidates(&["SAMPLES/A.wav", "SAMPLES/SONG/A.wav"]);
-    ops.unopenable = vec![String::from("SAMPLES/A.wav")];
-    let published = block_on(load_once(&ops, request("SAMPLES/A.wav")));
-    assert!(published);
-
-    let calls = ops.calls();
-    assert!(calls.contains(&Call::Begin {
-        path: String::from("SAMPLES/A.wav"),
-        alternate: String::from("SAMPLES/SONG/A.wav"),
-    }));
-    assert!(calls.contains(&Call::BindReadStream(String::from("SAMPLES/SONG/A.wav"))));
-    // The refused candidate was tried first and took no handle with it.
-    assert_eq!(
-        calls
-            .iter()
-            .filter(|c| matches!(c, Call::Open(_)))
-            .cloned()
-            .collect::<Vec<_>>(),
-        vec![
-            Call::Open(String::from("SAMPLES/A.wav")),
-            Call::Open(String::from("SAMPLES/SONG/A.wav")),
-        ]
-    );
-    ops.assert_settled();
+fn a_result_is_collected_exactly_once() {
+    let _guard = TABLE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    publish("once/A.wav", DELUGE_ERROR_FILE_CORRUPTED);
+    let (status, result) = collect("once/A.wav");
+    assert_eq!(status, DELUGE_AUDIO_LOAD_READY);
+    assert_eq!(result.error, DELUGE_ERROR_FILE_CORRUPTED);
+    assert_eq!(collect("once/A.wav").0, DELUGE_AUDIO_LOAD_UNKNOWN);
 }
 
-/// The regular path winning means NO alternate location — an empty string, which
-/// is what `deluge_audio_load_begin` documents for "resolved at `file_path`
-/// directly" (and never NULL).
+/// A path the loader has never been asked about is `UNKNOWN`, not `PENDING` —
+/// `PENDING` would tell the caller to keep asking for something that will never
+/// arrive.
 #[test]
-fn the_regular_path_winning_reports_no_alternate_location() {
-    let ops = FakeOps::new()
-        .with_bytes(minimal_wav())
-        .with_candidates(&["SAMPLES/A.wav"]);
-    assert!(block_on(load_once(&ops, request("SAMPLES/A.wav"))));
-    assert!(ops.calls().contains(&Call::Begin {
-        path: String::from("SAMPLES/A.wav"),
-        alternate: String::new(),
-    }));
+fn an_unrequested_path_is_unknown() {
+    let _guard = TABLE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    assert_eq!(collect("never/asked.wav").0, DELUGE_AUDIO_LOAD_UNKNOWN);
 }
 
-/// An untrustworthy candidate buffer fails the load outright rather than opening
-/// whatever a silent truncation would have left behind — which could be a
-/// DIFFERENT real file sitting at the truncated path.
+/// A queued-but-unparsed request reports `PENDING`, so the caller waits instead
+/// of re-requesting work already in the queue.
 #[test]
-fn an_untrustworthy_candidate_list_opens_nothing() {
-    let ops = FakeOps::new()
-        .with_bytes(minimal_wav())
-        .with_untrustworthy_candidates();
-    let published = block_on(load_once(&ops, request("A.wav")));
-    assert!(!published);
-    assert!(!ops.calls().iter().any(|c| matches!(c, Call::Open(_))));
-    ops.assert_settled();
+fn a_queued_request_is_pending() {
+    let _guard = TABLE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let path = CString::new("queued/A.wav").unwrap();
+    let mut candidates = vec![0u8; DELUGE_MAX_PATH];
+    candidates[..12].copy_from_slice(b"queued/A.wav");
+    candidates[12] = 0;
+    // SAFETY: both pointers are valid for the lengths the ABI documents.
+    let accepted = unsafe {
+        deluge_audio_load_request(
+            path.as_ptr(),
+            candidates.as_ptr().cast::<core::ffi::c_char>(),
+            1,
+        )
+    };
+    assert!(accepted);
+    assert_eq!(collect("queued/A.wav").0, DELUGE_AUDIO_LOAD_PENDING);
 }
 
-// ── The candidate decoder's truncation contract ─────────────────────────────
+/// Re-publishing the same key REPLACES its entry rather than adding a second, so
+/// a coalescing caller (the browser re-requesting as the cursor settles) cannot
+/// grow the table with duplicates — and the newest parse is the one collected.
+#[test]
+fn republishing_a_key_replaces_its_entry() {
+    let _guard = TABLE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    publish("dup/A.wav", DELUGE_ERROR_FILE_CORRUPTED);
+    publish("dup/A.wav", DELUGE_ERROR_FILE_UNSUPPORTED);
+    let (status, result) = collect("dup/A.wav");
+    assert_eq!(status, DELUGE_AUDIO_LOAD_READY);
+    assert_eq!(result.error, DELUGE_ERROR_FILE_UNSUPPORTED, "latest wins");
+    // Exactly one entry existed, so there is nothing left behind it.
+    assert_eq!(collect("dup/A.wav").0, DELUGE_AUDIO_LOAD_UNKNOWN);
+}
+
+/// An uncollected result is EVICTED, oldest first, once the table fills — it is
+/// not held forever and it is not leaked. That is safe only because `LoadResult`
+/// owns nothing: eviction costs the I/O that produced it and nothing else, and the
+/// caller sees `UNKNOWN`, whose documented meaning is "request it again".
+#[test]
+fn an_uncollected_result_is_evicted_rather_than_leaked() {
+    let _guard = TABLE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    // Five results into four slots.
+    for index in 0..5 {
+        publish(&format!("evict/{index}.wav"), DELUGE_ERROR_FILE_CORRUPTED);
+    }
+    // The oldest was evicted...
+    assert_eq!(collect("evict/0.wav").0, DELUGE_AUDIO_LOAD_UNKNOWN);
+    // ...and the four newest all survived, in their own slots.
+    for index in 1..5 {
+        assert_eq!(
+            collect(&format!("evict/{index}.wav")).0,
+            DELUGE_AUDIO_LOAD_READY,
+            "slot {index} should have survived"
+        );
+    }
+}
+
+// ── The candidate buffer decoder ────────────────────────────────────────────
 
 /// Build the buffer `deluge_audio_load_candidates` would have written: one
-/// NUL-terminated path per `DELUGE_MAX_PATH` slot, the rest of the buffer left as
-/// the caller had it.
-fn candidate_buffer(paths: &[&str], capacity: usize) -> Vec<u8> {
-    // 0xAA, not zero: a slot the C side never wrote must not accidentally decode
-    // as an empty string.
-    let mut buffer = vec![0xAAu8; capacity * MAX_PATH];
+/// NUL-terminated path per `DELUGE_MAX_PATH` slot, the rest left as the caller had
+/// it.
+fn candidate_buffer(paths: &[&str]) -> Vec<u8> {
+    // 0xAA, not zero: a slot the C side never wrote must not decode as an empty
+    // string.
+    let mut buffer = vec![0xAAu8; paths.len() * DELUGE_MAX_PATH];
     for (slot, path) in paths.iter().enumerate() {
         let bytes = path.as_bytes();
-        let base = slot * MAX_PATH;
+        let base = slot * DELUGE_MAX_PATH;
         buffer[base..base + bytes.len()].copy_from_slice(bytes);
         buffer[base + bytes.len()] = 0;
     }
     buffer
 }
 
-/// The count `deluge_audio_load_candidates` returns is a TOTAL and can exceed the
-/// capacity it was given — only the first `capacity` slots were written. Reading
-/// `0..count` would decode slots the C side never touched.
+/// Each slot decodes to its own NUL-terminated path, in order.
 #[test]
-fn a_count_over_capacity_decodes_only_the_slots_that_were_written() {
-    let buffer = candidate_buffer(&["A.wav", "B.wav", "C.wav"], 3);
-    let decoded = decode_candidates(&buffer, 5).expect("a real count, not the sentinel");
-    assert_eq!(decoded, vec!["A.wav", "B.wav", "C.wav"]);
+fn candidates_decode_slot_by_slot() {
+    let buffer = candidate_buffer(&["A.wav", "ALT/A.wav", "A2.wav"]);
+    assert_eq!(
+        decode_candidates(&buffer).unwrap(),
+        vec!["A.wav", "ALT/A.wav", "A2.wav"]
+    );
 }
 
-/// The `DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED` sentinel means `out` is not
-/// trustworthy at all and must not be read.
+/// An unterminated slot is refused rather than read past: the C side always
+/// NUL-terminates what it writes, so an unterminated slot means the buffer is not
+/// what it claims to be.
 #[test]
-fn the_truncation_sentinel_yields_no_candidates() {
-    let buffer = candidate_buffer(&["A.wav"], 3);
-    assert!(decode_candidates(&buffer, 0xFFFF_FFFF).is_none());
+fn an_unterminated_candidate_slot_is_refused() {
+    let buffer = vec![0xAAu8; DELUGE_MAX_PATH];
+    assert!(decode_candidates(&buffer).is_none());
 }
 
-/// A count below capacity decodes exactly that many, leaving the untouched slots
-/// alone.
+/// A request naming more candidates than the C side ever proposes reads only the
+/// slots within that bound, never past the buffer the caller sized.
 #[test]
-fn a_short_count_decodes_only_that_many() {
-    let buffer = candidate_buffer(&["A.wav"], 3);
-    assert_eq!(decode_candidates(&buffer, 1).unwrap(), vec!["A.wav"]);
-    assert!(decode_candidates(&buffer, 0).unwrap().is_empty());
+fn a_request_reads_only_the_candidate_slots_it_was_given() {
+    let _guard = TABLE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let buffer = candidate_buffer(&["bound/A.wav"]);
+    let path = CString::new("bound/A.wav").unwrap();
+    // SAFETY: the buffer really is 1 * DELUGE_MAX_PATH bytes, matching the count.
+    let accepted = unsafe {
+        deluge_audio_load_request(
+            path.as_ptr(),
+            buffer.as_ptr().cast::<core::ffi::c_char>(),
+            1,
+        )
+    };
+    assert!(accepted);
+    assert_eq!(collect("bound/A.wav").0, DELUGE_AUDIO_LOAD_PENDING);
+}
+
+// ── The switch ──────────────────────────────────────────────────────────────
+
+/// `deluge_audio_load_async_active()` must report false unless
+/// `async_audio_load_active` was explicitly enabled — it must NOT follow
+/// `async_audio_load`, which is on by default and only says the driver is
+/// compiled. Running under default features, this test asserts the shipped
+/// default is off; run with `--features async_audio_load_active` it asserts the
+/// flip actually reaches the selector.
+///
+/// This replaces an `objdump` check on the linked image: with no C++ caller yet,
+/// `--gc-sections` drops the symbol from the firmware entirely, so there is
+/// nothing there to disassemble. A behavioural assertion is durable where that
+/// was incidental.
+#[test]
+fn the_async_switch_follows_only_its_own_feature() {
+    if cfg!(feature = "async_audio_load_active") {
+        assert!(
+            deluge_audio_load_async_active(),
+            "the flip must reach the selector"
+        );
+    } else {
+        assert!(
+            !deluge_audio_load_async_active(),
+            "async loading must be off unless async_audio_load_active is set, even though \
+             async_audio_load (which only compiles the driver) is on by default"
+        );
+    }
+}
+
+/// Collecting from the MIDDLE of the table must leave the remaining entries in
+/// their original order, because eviction is oldest-first and reads that order.
+///
+/// This is a regression test for a real bug in `remove_at`: it rotated the
+/// surviving entries instead of restoring them, so after one mid-table collect
+/// the "oldest" entry was no longer the oldest, and the next eviction discarded
+/// the wrong result. Nothing else would have caught it — every other test here
+/// collects from a single-entry table, where index 0 is correct either way.
+///
+/// A,B,C,D fill the table; collecting C must leave A,B,D in that order, so that
+/// two further publishes evict A first and D still survives. The buggy rotation
+/// left D,A,B and evicted D.
+#[test]
+fn collecting_from_the_middle_keeps_the_eviction_order() {
+    let _guard = TABLE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    for key in ["ord/A", "ord/B", "ord/C", "ord/D"] {
+        publish(key, DELUGE_ERROR_FILE_CORRUPTED);
+    }
+    assert_eq!(collect("ord/C").0, DELUGE_AUDIO_LOAD_READY);
+
+    // Table now holds A,B,D. Two more publishes push it past four entries, so the
+    // two OLDEST (A, then B) are the ones evicted.
+    publish("ord/E", DELUGE_ERROR_FILE_CORRUPTED);
+    publish("ord/F", DELUGE_ERROR_FILE_CORRUPTED);
+
+    assert_eq!(
+        collect("ord/A").0,
+        DELUGE_AUDIO_LOAD_UNKNOWN,
+        "A was oldest"
+    );
+    assert_eq!(
+        collect("ord/D").0,
+        DELUGE_AUDIO_LOAD_READY,
+        "D was newer than A and B, so it must survive"
+    );
+    assert_eq!(collect("ord/E").0, DELUGE_AUDIO_LOAD_READY);
+    assert_eq!(collect("ord/F").0, DELUGE_AUDIO_LOAD_READY);
 }

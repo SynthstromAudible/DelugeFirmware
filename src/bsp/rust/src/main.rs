@@ -137,13 +137,13 @@ mod audio;
 /// stub in `host_link_stubs.rs`.
 #[cfg(all(not(target_os = "none"), feature = "host_app"))]
 mod audio_host;
-/// The async audio-file load task and its selector/enqueue C ABI: drives a card
-/// sample's candidate open, size resolution and header parse on this executor,
-/// between the two I/O-free halves of `include/libdeluge/audio_load.h`. Compiled
+/// The async audio-file load task and its request/collect C ABI: owns the AWAITED
+/// file I/O of a card sample's load — open a candidate, size it, walk its header
+/// — and publishes a plain result the C++ side collects on its own tier. It calls
+/// no C++ itself; see its module doc for the two constraints that force that. Compiled
 /// on the Embassy BSP unconditionally (device, or host under `host_app`) so
-/// `deluge_audio_load_async_active`/`deluge_audio_load_enqueue` always resolve to
-/// this crate's strong symbols rather than `audio_load_abi.cpp`'s weak
-/// fallbacks; the driver and the task itself stay gated behind
+/// `deluge_audio_load_async_active`/`_request`/`_collect` always resolve to this
+/// crate's strong symbols rather than `audio_load_abi.cpp`'s weak fallbacks; the driver and the task itself stay gated behind
 /// `async_audio_load` — see its module doc's "Two compilation tiers".
 #[cfg(any(target_os = "none", feature = "host_app"))]
 mod audio_loader;
