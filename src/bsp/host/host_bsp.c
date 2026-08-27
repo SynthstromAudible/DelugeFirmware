@@ -261,7 +261,9 @@ void deluge_cache_invalidate(const void* addr, uint32_t size) {
 // board.h
 // ===========================================================================
 
-static const DelugeBoard host_board = {
+#define HOST_MAX_DISPLAYS 4
+static DelugeDisplayDesc host_displays[HOST_MAX_DISPLAYS] = {{128, 48, 5}};
+static DelugeBoard host_board = {
     .name = "Host-sim (libdeluge)",
     .pad_grid_width = 16,
     .pad_grid_height = 8,
@@ -270,10 +272,45 @@ static const DelugeBoard host_board = {
     .encoder_count = 6,
     .cv_channels = 2,
     .gate_channels = 4,
+    .display_kind = DELUGE_DISPLAY_OLED,
+    .display_width = 128,
+    .display_height = 48,
+    .display_count = 1,
+    .displays = host_displays,
     .audio_sample_rate_hz = 44100,
 };
 
+// DELUGE_HOST_DISPLAYS="128x48+5,128x64+0" overrides the panel set so the shell can be
+// exercised against a future board's descriptor before that board's BSP exists.
+static void host_board_apply_env(void) {
+	static bool applied = false;
+	if (applied)
+		return;
+	applied = true;
+	const char* spec = getenv("DELUGE_HOST_DISPLAYS");
+	if (!spec || !*spec)
+		return;
+	uint8_t n = 0;
+	const char* p = spec;
+	while (*p && n < HOST_MAX_DISPLAYS) {
+		unsigned w, h, top = 0;
+		int used = 0;
+		if (sscanf(p, "%ux%u+%u%n", &w, &h, &top, &used) < 2)
+			break;
+		host_displays[n++] = (DelugeDisplayDesc){(uint16_t)w, (uint16_t)h, (uint8_t)top};
+		p += used;
+		if (*p == ',')
+			p++;
+	}
+	if (n == 0)
+		return;
+	host_board.display_count = n;
+	host_board.display_width = host_displays[0].width;
+	host_board.display_height = host_displays[0].height;
+}
+
 const DelugeBoard* deluge_board(void) {
+	host_board_apply_env();
 	return &host_board;
 }
 
@@ -336,6 +373,27 @@ DelugeStatus deluge_display_blit_oled(const uint8_t* pixels, uint16_t width, uin
 	return DELUGE_OK;
 }
 bool deluge_display_busy(void) {
+	return false;
+}
+DelugeStatus deluge_display_blit_oled_n(uint8_t index, const uint8_t* pixels, uint16_t width, uint16_t height) {
+	host_board_apply_env();
+	if (index >= host_board.display_count)
+		return DELUGE_ERR_PARAM;
+	if (index == 0)
+		return deluge_display_blit_oled(pixels, width, height);
+	if (host_link_active()) {
+		uint16_t bytes = (uint16_t)((height >> 3) * width);
+		uint8_t buf[1 + 128 * 8]; // index + up to 128x64
+		if (bytes > sizeof(buf) - 1)
+			return DELUGE_ERR_PARAM;
+		buf[0] = index;
+		memcpy(buf + 1, pixels, bytes);
+		host_link_send(HOST_LINK_MSG_UPDATE_DISPLAY_N, buf, (uint16_t)(bytes + 1));
+	}
+	return DELUGE_OK;
+}
+bool deluge_display_busy_n(uint8_t index) {
+	(void)index;
 	return false;
 }
 DelugeStatus deluge_display_write_seven_segment(const uint8_t* digits, uint8_t count) {

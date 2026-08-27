@@ -39,6 +39,13 @@ DelugeStatus deluge_display_blit_oled(const uint8_t* pixels, uint16_t width, uin
 /// True while a previous blit/transfer is still in flight. [task] [isr]
 bool deluge_display_busy(void);
 
+/// Blit to panel `index` (0 .. deluge_board()->display_count-1). Index 0 is the
+/// same panel as `deluge_display_blit_oled`. DELUGE_ERR_PARAM for an index the
+/// board does not have. [task]
+DelugeStatus deluge_display_blit_oled_n(uint8_t index, const uint8_t* pixels, uint16_t width, uint16_t height);
+/// Per-panel `deluge_display_busy`. Always false for an index the board lacks. [task] [isr]
+bool deluge_display_busy_n(uint8_t index);
+
 /// Write the 7-segment display. `digits` points to `count` raw segment bytes
 /// (board-defined segment bit layout). No-op on OLED boards. [task]
 DelugeStatus deluge_display_write_seven_segment(const uint8_t* digits, uint8_t count);

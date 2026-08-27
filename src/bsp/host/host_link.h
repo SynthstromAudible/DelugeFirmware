@@ -46,6 +46,7 @@ extern "C" {
 #define HOST_LINK_MSG_SET_KNOB_INDICATOR 0x28
 #define HOST_LINK_MSG_SET_SYNCED_LED 0x29
 #define HOST_LINK_MSG_CLEAR_ALL_LEDS 0x2A
+#define HOST_LINK_MSG_UPDATE_DISPLAY_N 0x2B // [index][page-major pixels]; host-only extension
 
 // ── MessageFromDeluge type bytes (GUI → firmware: input) ─────────────────────
 #define HOST_LINK_MSG_PAD_PRESSED 0x01

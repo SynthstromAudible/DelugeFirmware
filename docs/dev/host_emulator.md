@@ -54,6 +54,7 @@ Length-prefixed frames: `[len_lo][len_hi][type][data…]`, `len = 1 + N` (type+d
 | `0x24` | SetLed | `index,on` | `deluge_control_set_led` |
 | `0x28` | SetKnobIndicator | `which,l0,l1,l2,l3` | `deluge_control_set_indicator` |
 | `0x29` | SetSyncedLed | `on` | (rear sync LED) |
+| `0x2B` | UpdateDisplayN | `index, 768/1024-byte page-major OLED` | `deluge_display_blit_oled_n(index, px, w, h)` — host-only extension for multi-display boards; index 0 always uses `0x20` |
 
 The firmware's `oledCurrentImage` is **already** the 768-byte SSD1309 page-major
 buffer spark's `update_display_from_buffer` expects (`buf[page*128+col]`, bit b =
@@ -90,3 +91,5 @@ DELUGE_HOST_LINK=/tmp/deluge.sock ./build-sim/deluge_host
 # spark GUI as the panel:
 cargo run -p spark-deluge-native --bin spark-deluge-simulator -- --emulate /tmp/deluge.sock
 ```
+
+`DELUGE_HOST_DISPLAYS="128x48+5,128x64+0"` selects the panel set the host board reports.
