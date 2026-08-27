@@ -43,4 +43,6 @@ extern const Icon crossedOutKeyboard;
 extern const Icon checkedBox;
 extern const Icon uncheckedBox;
 extern const Icon submenuArrow;
+/// The bolder chevron the *horizontal* menu draws for a submenu slot (submenu.cpp:55).
+extern const Icon submenuArrowBold;
 } // namespace deluge::gfx::oled::icons

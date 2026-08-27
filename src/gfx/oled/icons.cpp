@@ -846,4 +846,19 @@ DEFINE_ICON(submenuArrow, 1, //<
             0b00000000,      //<
 );
 
+// The horizontal menu's own submenu arrow: OLED::submenuArrowIconBold
+// (src/deluge/hid/display/oled_icons.cpp:160-168), a heavier chevron than the menu-row arrow
+// above. `Submenu::renderInHorizontalMenu` (submenu.cpp:55) blits it with
+// drawGraphicMultiLine(..., kSubmenuIconSpacingX), i.e. 7 columns of one byte -- exactly what
+// an Icon of this shape draws.
+DEFINE_ICON(submenuArrowBold, 1, //<
+            0b00000000,          //<
+            0b00000000,          //<
+            0b11000110,          //<
+            0b01101100,          //<
+            0b00111000,          //<
+            0b00010000,          //<
+            0b00000000,          //<
+);
+
 } // namespace deluge::gfx::oled::icons

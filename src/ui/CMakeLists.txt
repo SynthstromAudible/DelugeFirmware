@@ -17,6 +17,7 @@ add_library(deluge_ui_oled STATIC
   oled/list.cpp
   oled/values.cpp
   oled/meters.cpp
+  oled/columns.cpp
 )
 target_include_directories(deluge_ui_oled PUBLIC ${SHARED_INCLUDE})
 target_link_libraries(deluge_ui_oled PUBLIC deluge_ui_core deluge_gfx_oled)
