@@ -144,6 +144,10 @@ def popup_type(args: str) -> str:
 def rewrite_popup(args: str):
     parts = [a.strip() for a in split_top_level(args)]
     # numFlashes == 0 is "persistent" on OLED -- Severity::Warn territory, not a plain notice.
+    # Any other non-default numFlashes literal (e.g. 6) is silently discarded below: OLED (the
+    # only Display implementation today) only branches on `!numFlashes`, so distinct non-zero
+    # counts are indistinguishable at runtime -- harmless now, but re-running this codemod over
+    # a future 7SEG-capable tree would lose a real distinction. Only the literal 0 is special-cased.
     if len(parts) > 1 and parts[1] == "0":
         return None
     text = parts[0]

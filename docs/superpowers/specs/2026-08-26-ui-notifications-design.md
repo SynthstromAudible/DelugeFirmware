@@ -48,7 +48,11 @@ enum class Dirty : uint8_t {
 	Count
 };
 
-using ClipBits = std::bitset<256>;          // indexed by position in song->sessionClips
+struct ClipBits {                           // POD word array, indexed by position in song->sessionClips
+	uint32_t words[256 / 32] = {};
+	bool test(uint16_t i) const;
+	bool any() const;
+};
 
 class DirtySet {
 public:
@@ -110,9 +114,9 @@ struct Notice {
 	enum class Severity : uint8_t { Info, Warn, Error };
 	Kind kind;
 	Severity severity;
-	::Error error;            // Kind::Error
-	l10n::String string;      // Text / Console with an l10n id; else String::EMPTY
-	char text[24];            // copied short text (names, "E248"); NUL-terminated, truncated
+	int16_t error_code;        // Kind::Error
+	uint16_t string_id;        // Text / Console with an l10n id; else String::EMPTY
+	char text[48];             // copied short text (names, "E248"); NUL-terminated, truncated
 	uint8_t popup_type;        // today's PopupType, for like-for-like replacement/dedupe
 };
 
@@ -150,7 +154,7 @@ not migrated to notices; they are turned into model/playback state plus a `Dirty
 
 | Today | Becomes |
 |---|---|
-| count-in digit `displayPopup(buffer)` + `cancelPopup()` in `actionSwungTick` | `PlaybackHandler::countInBarsRemaining()` + `raise(PlaybackState)`; a `CountInScene` overlay renders it |
+| count-in digit `displayPopup(buffer)` + `cancelPopup()` in `actionSwungTick` | `PlaybackHandler::count_in_visual()`, polled (not raised) each drain; the drain pops/pushes the digit popup itself |
 | swing / tempo `popupTextTemporary(PopupType::SWING/TEMPO)` + `hasPopupOfType(SWING)` | transient-value state in the shell's `ModKnobs`; playback reads its own swing value, not the popup |
 | `"E336"` from `attemptLateStartOfNextNoteToPlay` (`[audio]`) | `notice(Error::…)`; push is `[any]`-safe |
 | `indicateAlertOnLed(PLAY)` from the voice-cull loop | `AudioEngine::cullAlertPending` + `raise(PlaybackState)`; `GlobalControls` blinks the LED |
@@ -222,6 +226,8 @@ Catalogued here; relocated by the shell (D), scenes (E) and commands (I) specs.
 2. Whether `Notice::text` at 24 bytes covers the dynamic-name popups (preset/output names
    can be longer); the shell may need to look names up by id instead — decide during the
    `display->` burn-down when the real distribution is visible.
+
+   Resolved 2026-08-27: 48 bytes — the longest computed popup sources are `etl::string<40>`.
 
 ## Appendix A — census summary (2026-08-26)
 

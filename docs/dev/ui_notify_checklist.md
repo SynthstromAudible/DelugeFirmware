@@ -29,6 +29,11 @@ development (`.superpowers/sdd/2026-08-26-ui-notifications/task-5-report.md`,
 - [ ] Nudge sync / adjust tempo / adjust swing: the "SYNC NUDGED" popup still appears, and the
       SWING/TEMPO `popupTextTemporary` popups still interact sanely with the now-deferred
       neighbouring popups (no flicker, no popup left stuck).
+- [ ] Start playback from inside a menu (sound editor open, **not** the note editor or
+      note-row editor), then stop it: back in instrument clip view, held-audition state is
+      reassessed (`reassessAllAuditionStatus()`), and if the root UI was the arranger, it
+      auto-scrolls back on stop (`autoScrollOnPlaybackEnd()`) — this is the off-root-UI
+      playback-start case (C1) that starting from session view would not surface.
 
 ## Recording
 
@@ -84,3 +89,8 @@ development (`.superpowers/sdd/2026-08-26-ui-notifications/task-5-report.md`,
 
 - [ ] End arrangement playback while in **grid** session layout: the clip pads lose their
       stale colours (rather than being left showing the last-played state).
+- [ ] Hold an arrangement-row audition, then start playback: the audition ends (legacy
+      `endAudition`) and the tick squares appear.
+- [ ] During arrangement playback, hold a row and let a clip instance on that row change to a
+      different clip: the gold-knob mod target follows the new active clip
+      (`refresh_held_row_mod_target()`).

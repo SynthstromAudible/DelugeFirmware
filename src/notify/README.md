@@ -60,9 +60,12 @@ the cast moves to a typed one once `PopupType` moves into `notify`. `popup_type 
 
 ## The drain
 
-`drain_notifications()` (`src/deluge/gui/ui/notify_drain.cpp`) runs first, in task context,
-inside `doAnyPendingUIRendering()` — before grid/OLED rendering and before the render-budget
-early-outs. Besides draining `DirtySet` and `NoticeQueue`, every pass it also:
+`drain_notifications()` (`src/deluge/gui/ui/notify_drain.cpp`) runs in task context, inside
+`doAnyPendingUIRendering()`. It's gated by the same re-entrancy lock and render-budget early-out
+as grid/OLED rendering (a skipped drain is picked up on the next pass), but once past those it's
+the first thing done under `pendingUIRenderingLock` — before grid/OLED rendering — so a render
+the drain itself triggers can't re-enter this function and drain a second time within the same
+pass. Besides draining `DirtySet` and `NoticeQueue`, every pass it also:
 
 - polls `playbackHandler.count_in_visual()` and `AudioEngine::cull_alert_pending` — these have
   no `Dirty` bit; the drain just checks them unconditionally;
@@ -77,13 +80,17 @@ early-outs. Besides draining `DirtySet` and `NoticeQueue`, every pass it also:
   redraw would lose), and folds the fact into both main and sidebar rows otherwise.
 
 A `Notice` with `Severity::Warn` becomes a persistent popup (`numFlashes 0`, i.e. it stays until
-something removes it) instead of the default 3-flash popup.
+something removes it) instead of the default 3-flash popup. No raiser sets `Severity::Warn`
+today (`notice_text`/`notice_string`/`notice_kind` never touch it; only `notice_error_code` sets
+`Error`), so this path is currently unreachable, not merely undocumented.
 
 ## Deferred sites
 
 Some `display->`/UI-hook call sites in the model are deliberately not migrated yet; each is
 marked `// NOTIFY-DEFERRED: <reason>` and is counted by `scripts/check_layer_rules.py`'s
-`model-calls-display` rule so the count can't silently grow. The working-animation pairs that
+`model-calls-display` rule so the count can't silently grow. `instrument_clip_minder.cpp` is a
+separate, unmarked exception: it's the accepted model/UI mixin (spec §1/§5), so its
+`display->displayPopup` sites are left as-is rather than tagged. The working-animation pairs that
 bracket a synchronous load, and errors on a path that never returns to the tick, stay as direct
 `display->` calls until the shell can tick during `sd_busy` (spec D;
 `docs/superpowers/specs/2026-08-26-ui-notifications-design.md`).
