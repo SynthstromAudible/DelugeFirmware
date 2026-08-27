@@ -165,7 +165,7 @@ void StemExport::abortStemExportProcess(deluge::l10n::String reason) {
 	stopPlayback();
 	highestUsedStemFolderNumber++;
 	// `reason` is already an l10n id, so raise it as one: the notice carries the id and the drain
-	// looks the text up, instead of copying a resolved string into the notice's 24-byte buffer.
+	// looks the text up, instead of copying a resolved string into the notice's fixed text buffer.
 	deluge::notify::notice(reason);
 	indicator_leds::setLedState(IndicatorLED::BACK, false);
 }

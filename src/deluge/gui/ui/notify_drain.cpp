@@ -150,7 +150,8 @@ void drain_notifications() {
 			display->displayLoadingAnimationText(n.text);
 			break;
 		case Notice::Kind::ClearWorking:
-			display->removeLoadingAnimation();
+			// Display::removeLoadingAnimation() is removeWorkingAnimation() on the only implementation
+			// there is (oled.h), so one call clears both of the legacy spellings.
 			display->removeWorkingAnimation();
 			break;
 		case Notice::Kind::CancelPopup:

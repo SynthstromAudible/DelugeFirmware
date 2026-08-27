@@ -13,7 +13,11 @@ struct Notice {
 	Severity severity = Severity::Info;
 	int16_t error_code = 0; // Kind::Error: static_cast<int16_t>(::Error)
 	uint16_t string_id = 0; // Text/Console with an l10n id (static_cast of l10n::String); 0 = none
-	char text[24] = {};     // copied; NUL-terminated; 0-length = none
+	// Copied at the raise; NUL-terminated; 0-length = none. 48 bytes holds every computed popup
+	// the model raises today -- the longest sources are `etl::string<40>` messages
+	// ("Transpose Interval: \n<n> Semitones", "Can't control: \n<param name>"), so 40 + NUL fits
+	// with room to spare, and nothing else in the model exceeds 47 characters.
+	char text[48] = {};
 	uint8_t popup_type = 0; // today's PopupType value; 0 = GENERAL
 };
 

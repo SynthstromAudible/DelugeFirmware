@@ -8,8 +8,6 @@
   display->displayPopup(deluge::l10n::get(String::X)[, ...]);-> notice(String::X[, ...]);
   display->displayPopup(<expr>[, ...]);   (computed text)    -> notice(std::string_view(<expr>)[, ...]);
   display->cancelPopup();                                    -> notice_cancel_popup();
-  display->removeWorkingAnimation();  removeLoadingAnimation(); -> notice_clear_working();
-  display->displayLoadingAnimationText("Loading"[, ...]);    -> notice_working("Loading");
 
 PopupType is preserved when the call passed one as the last argument. A call that passed no
 PopupType is rewritten without one: Notice::popup_type == 0 means "unspecified" and the drain maps
@@ -19,6 +17,12 @@ be wrong for every default call.
 Not rewritten (left for a human):
   * anything under src/deluge/gui/ or src/deluge/hid/, and instrument_clip_minder.cpp;
   * calls inside comments (// and block comments);
+  * the working animation -- displayLoadingAnimationText(), removeWorkingAnimation() and
+    removeLoadingAnimation(). These are deliberately NOT in the mapping. The animation is armed
+    to be visible *during* a long blocking load, and the drain only runs once per
+    deluge_app_tick(), so a queued "show" and a queued "clear" bracketing a synchronous load pop
+    back-to-back in the same drain pass and the animation is never painted. Converting them
+    needs the shell to tick during sd_busy (spec D), not a codemod;
   * displayPopup(..., 0, ...) -- numFlashes 0 means "persistent" on OLED
     (OLED::displayPopup passes `!numFlashes` as `persistent`); that maps to
     Notice::Severity::Warn, which the raisers do not expose yet, so those sites are reported
@@ -89,9 +93,7 @@ def classify(src: str) -> bytearray:
 
 # `(?<![\w:])` keeps `my_display->` / `Foo::display->` out; the name is anchored by the `(`.
 CALL = re.compile(
-    r"(?<![\w:])display->"
-    r"(displayError|consoleText|displayPopup|cancelPopup"
-    r"|removeWorkingAnimation|removeLoadingAnimation|displayLoadingAnimationText)\s*\("
+    r"(?<![\w:])display->(displayError|consoleText|displayPopup|cancelPopup)\s*\("
 )
 
 
@@ -168,15 +170,7 @@ RULES = {
     "cancelPopup": lambda args: (
         f"{NS}notice_cancel_popup();" if not args.strip() else None
     ),
-    "removeWorkingAnimation": lambda args: (
-        f"{NS}notice_clear_working();" if not args.strip() else None
-    ),
-    "removeLoadingAnimation": lambda args: (
-        f"{NS}notice_clear_working();" if not args.strip() else None
-    ),
-    "displayLoadingAnimationText": lambda args: (
-        f"{NS}notice_working({split_top_level(args)[0].strip()});"
-    ),
+    # The working animation is deliberately absent -- see the module docstring.
 }
 
 

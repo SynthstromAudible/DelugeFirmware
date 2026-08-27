@@ -35,17 +35,31 @@ describe notice_queue("notify::NoticeQueue", $ {
 		expect(q.size()).to_equal(kNoticeCapacity - 1);
 	});
 
-	it("copies and truncates text with a NUL", _ {
+	it("round-trips a text that exactly fills the buffer", _ {
 		// Drain first: the global queue is process-wide and shared with every other spec in
 		// this driver binary, so a prior example that called a notice_*() free function could
 		// leave entries behind. This example only cares about the notice it pushes itself.
 		Notice drained{};
 		while (notices().pop(drained)) {}
-		notice_text("THIS PRESET NAME IS LONGER THAN TWENTY-THREE CHARS", Notice::Kind::Text, 3);
+		// 47 characters: the most Notice::text can hold alongside its NUL.
+		const char* longest = "Transpose Interval: 12 Semitones, unclipped :-)";
+		expect(std::strlen(longest)).to_equal(sizeof(Notice::text) - 1);
+		notice_text(longest, Notice::Kind::Text, 3);
 		Notice out{};
 		expect(notices().pop(out)).to_be_true();
-		expect(std::strlen(out.text)).to_equal(size_t(23));
-		expect(std::string(out.text)).to_equal("THIS PRESET NAME IS LON");
+		expect(std::string(out.text)).to_equal(std::string(longest));
+		expect(int(out.popup_type)).to_equal(3);
+	});
+
+	it("copies and truncates text with a NUL", _ {
+		Notice drained{};
+		while (notices().pop(drained)) {}
+		// 60 characters, i.e. past the 47 Notice::text can hold.
+		notice_text("THIS PRESET NAME IS VERY MUCH LONGER THAN FORTY-SEVEN CHARS.", Notice::Kind::Text, 3);
+		Notice out{};
+		expect(notices().pop(out)).to_be_true();
+		expect(std::strlen(out.text)).to_equal(sizeof(Notice::text) - 1);
+		expect(std::string(out.text)).to_equal("THIS PRESET NAME IS VERY MUCH LONGER THAN FORTY");
 		expect(int(out.popup_type)).to_equal(3);
 	});
 });

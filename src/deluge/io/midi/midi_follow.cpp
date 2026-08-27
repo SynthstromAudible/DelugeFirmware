@@ -653,7 +653,7 @@ void MidiFollow::displayParamControlError(int32_t soundParamId, int32_t globalPa
 			popupMsg.append("Can't control: \n");
 			popupMsg.append(name);
 		}
-		deluge::notify::notice(std::string_view(popupMsg.c_str()));
+		deluge::notify::notice(std::string_view(popupMsg));
 	}
 }
 

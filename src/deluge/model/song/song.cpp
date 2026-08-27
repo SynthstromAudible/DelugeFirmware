@@ -382,7 +382,8 @@ couldntLoad:
 
 		// If that failed (really unlikely) we're really screwed
 		if (!newInstrument) {
-			deluge::notify::notice(Error::INSUFFICIENT_RAM);
+			// NOTIFY-DEFERRED: fatal path, never returns to the tick
+			display->displayError(Error::INSUFFICIENT_RAM);
 			while (1) {}
 		}
 
@@ -4850,11 +4851,15 @@ gotAnInstrument: {}
 			removeInstrumentFromHibernationList(newInstrument);
 		}
 
-		deluge::notify::notice_working("Loading");
+		// NOTIFY-DEFERRED: synchronous load in task context; the animation must be on screen
+		// before the load starts -- resolved when the shell ticks during sd_busy (spec D)
+		display->displayLoadingAnimationText("Loading");
 
 		newInstrument->loadAllAudioFiles(true);
 
-		deluge::notify::notice_clear_working();
+		// NOTIFY-DEFERRED: synchronous load in task context; the animation must be on screen
+		// before the load starts -- resolved when the shell ticks during sd_busy (spec D)
+		display->removeWorkingAnimation();
 	}
 
 #if ALPHA_OR_BETA_VERSION
@@ -5724,7 +5729,7 @@ void Song::displayCurrentRootNoteAndScaleName() {
 			return;
 		}
 	}
-	deluge::notify::notice(std::string_view(popupMsg.c_str()));
+	deluge::notify::notice(std::string_view(popupMsg));
 }
 
 void Song::commandTranspose(int32_t interval) {
@@ -5768,7 +5773,7 @@ void Song::displayMasterTransposeInterval() {
 		deluge::string::appendInt(popupMsg, masterTransposeInterval);
 		popupMsg.append(" Semitones");
 	}
-	deluge::notify::notice(std::string_view(popupMsg.c_str()));
+	deluge::notify::notice(std::string_view(popupMsg));
 }
 
 ModelStackWithThreeMainThings* Song::setupModelStackWithSongAsTimelineCounter(void* memory) {

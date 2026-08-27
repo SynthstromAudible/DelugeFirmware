@@ -3779,7 +3779,9 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 			modelStack->song->removeInstrumentFromHibernationList(newInstrument);
 		}
 
-		deluge::notify::notice_working("Loading");
+		// NOTIFY-DEFERRED: synchronous load in task context; the animation must be on screen
+		// before the load starts -- resolved when the shell ticks during sd_busy (spec D)
+		display->displayLoadingAnimationText("Loading");
 		newInstrument->loadAllAudioFiles(true);
 	}
 
@@ -3813,7 +3815,9 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 	outputChanged(modelStack, newInstrument);
 	modelStack->song->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E062", "H062");
 
-	deluge::notify::notice_clear_working();
+	// NOTIFY-DEFERRED: synchronous load in task context; the animation must be on screen
+	// before the load starts -- resolved when the shell ticks during sd_busy (spec D)
+	display->removeWorkingAnimation();
 
 	return newInstrument;
 }
