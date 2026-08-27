@@ -119,6 +119,13 @@ if (UNIX AND NOT APPLE)
 
     add_subdirectory(spec_sample_reader)
 endif ()
+
+# deluge_gfx_oled / deluge_gfx_grid: pure drawing primitives, shared by spec/ and unit/
+# (both are subdirectories of this single tests/ project, so the gfx subdirectory is
+# added exactly once here rather than from each of them).
+cmake_path(SET SHARED_INCLUDE ${CMAKE_CURRENT_LIST_DIR}/../src)
+add_subdirectory(../src/gfx gfx)
+
 add_subdirectory(spec)
 add_subdirectory(spec_io)
 add_subdirectory(spec_host_passthrough)
