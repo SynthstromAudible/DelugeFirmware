@@ -58,7 +58,7 @@ tests/golden/gfx/grid/*.state        committed goldens
 scripts/check_gfx_layer.py           include-rule checker (ctest)
 ```
 
-Modified (façades and consumers):
+Modified (façades and consumers) — note `src/bsp/rza1/**` is retired dead source and is never edited:
 
 ```
 src/deluge/hid/display/oled_canvas/canvas.h / canvas.cpp   → façade subclass of OwnedCanvas<128,48,5>
@@ -67,7 +67,7 @@ src/deluge/gui/fonts/fonts.h                               → façade
 src/deluge/gui/colour/rgb.h, palette.h, colour.h            → façades
 src/definitions_cxx.hpp                                     → kText* come from gfx/oled/font.h
 src/deluge/CMakeLists.txt, src/CMakeLists.txt, sim/CMakeLists.txt, tests/spec/CMakeLists.txt, tests/unit/CMakeLists.txt
-src/bsp/rza1/board.c, display.cpp; src/bsp/host/host_bsp.c, host_link.h, host_link.c; src/bsp/rust/src/board.rs, display.rs
+src/bsp/host/host_bsp.c, host_link.h, host_link.c; src/bsp/rust/src/board.rs, display.rs
 docs/dev/host_emulator.md
 ```
 
@@ -78,7 +78,6 @@ docs/dev/host_emulator.md
 **Files:**
 - Modify: `include/libdeluge/board.h` (after `display_height`, ~line 54)
 - Modify: `include/libdeluge/display.h` (after `deluge_display_busy`, ~line 40)
-- Modify: `src/bsp/rza1/board.c:48-62`, `src/bsp/rza1/display.cpp:58-65`
 - Modify: `src/bsp/host/host_bsp.c:255-280` (board), `:328-340` (blit)
 - Modify: `src/bsp/host/host_link.h:40-48`, `docs/dev/host_emulator.md` (wire table)
 - Test: `sim` build of `deluge_host_boundary` + `./dbt build Debug`
@@ -131,35 +130,11 @@ DelugeStatus deluge_display_blit_oled_n(uint8_t index, const uint8_t* pixels, ui
 bool deluge_display_busy_n(uint8_t index);
 ```
 
-- [ ] **Step 2: Implement on the RZ/A1 BSP**
+- [ ] **Step 2: (removed) — the C RZ/A1 BSP is retired**
 
-`src/bsp/rza1/board.c` — add above `rza1_board`:
-
-```c
-static const DelugeDisplayDesc rza1_displays[1] = {{.width = 128, .height = 48, .visible_top = 5}};
-```
-
-and inside the initializer after `.display_height = 48, // OLED_MAIN_HEIGHT_PIXELS`:
-
-```c
-    .display_count = 1,
-    .displays = rza1_displays,
-```
-
-`src/bsp/rza1/display.cpp` — after `deluge_display_blit_oled`:
-
-```cpp
-DelugeStatus deluge_display_blit_oled_n(uint8_t index, const uint8_t* pixels, uint16_t width, uint16_t height) {
-	if (index != 0) {
-		return DELUGE_ERR_PARAM;
-	}
-	return deluge_display_blit_oled(pixels, width, height);
-}
-
-bool deluge_display_busy_n(uint8_t index) {
-	return index == 0 && deluge_display_busy();
-}
-```
+`src/bsp/rza1/` is dead source since `e58003257` ("build: drop the retired legacy RZA1
+firmware image"); nothing compiles it. The device implementation of this extension is the
+Rust BSP (Task 2). Do not edit `src/bsp/rza1`.
 
 - [ ] **Step 3: Implement on the host BSP with the env override**
 
@@ -251,13 +226,13 @@ and a sentence under "Running": `DELUGE_HOST_DISPLAYS="128x48+5,128x64+0"` selec
 Run: `cmake -B build-sim -S sim -G Ninja && cmake --build build-sim --target deluge_host_boundary deluge_host`
 Expected: builds. Then `DELUGE_HOST_DISPLAYS="128x48+5,128x64+0" ./build-sim/deluge_host_boundary` runs (it prints the board name via `host_main.c:44`; no crash).
 Run: `./dbt build Debug`
-Expected: firmware links (the app still calls only the 1-display entry points).
+Expected: the app + Rust BSP image links (the app still calls only the 1-display entry points; the Rust BSP gains the new ones in Task 2).
 
 - [ ] **Step 6: Commit**
 
 ```bash
 ./dbt format
-git add include/libdeluge/board.h include/libdeluge/display.h src/bsp/rza1/board.c src/bsp/rza1/display.cpp src/bsp/host/host_bsp.c src/bsp/host/host_link.h docs/dev/host_emulator.md
+git add include/libdeluge/board.h include/libdeluge/display.h src/bsp/host/host_bsp.c src/bsp/host/host_link.h docs/dev/host_emulator.md
 git commit -m "feat(libdeluge): describe multiple OLED panels and blit by index"
 ```
 
