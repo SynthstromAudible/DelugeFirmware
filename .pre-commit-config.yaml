@@ -63,6 +63,13 @@ repos:
         language: system
         pass_filenames: false
         files: ^(src/deluge/|scripts/(check_platform_boundary\.py|platform_boundary_allowlist\.txt))
+      - id: check-layer-rules
+        name: UI layer-rule ratchet
+        description: model/playback/storage/io/etc. must not reach into gui/hid directly (shrink-only baseline)
+        entry: python3 scripts/check_layer_rules.py
+        language: system
+        pass_filenames: false
+        files: ^(src/deluge/|src/notify/|scripts/(check_layer_rules\.py|layer_rules_baseline\.txt))
 # - repo: local
 
 #   hooks:

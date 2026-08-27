@@ -38,6 +38,8 @@ if (Python3_Interpreter_FOUND)
     add_test(NAME gfx_layer_check
              COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/../scripts/check_gfx_layer.py
                      --root ${CMAKE_CURRENT_LIST_DIR}/../src/gfx)
+    add_test(NAME layer_rules
+             COMMAND ${Python3_EXECUTABLE} ${CMAKE_CURRENT_LIST_DIR}/../scripts/check_layer_rules.py)
 endif ()
 
 # ETL (etl::string) is used by util/string helpers pulled in transitively via functions.h,
