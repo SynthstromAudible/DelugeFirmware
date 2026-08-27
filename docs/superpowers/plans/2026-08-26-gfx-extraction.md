@@ -1495,7 +1495,7 @@ git mv src/deluge/gui/colour/palette.h src/gfx/grid/palette.h
 #include "gfx/grid/palette.h" // IWYU pragma: export
 ```
 
-`src/gfx/CMakeLists.txt`: make `deluge_gfx_grid` STATIC with `grid/rgb.cpp`, same properties as the oled target. `src/deluge/CMakeLists.txt`: add `deluge_gfx_grid` next to `deluge_gfx_oled` in `target_link_libraries(deluge_app PUBLIC ...)`. `tests/unit/CMakeLists.txt`: `deluge_SOURCES` lists explicit files; if `../../src/deluge/gui/colour/rgb.cpp` appears, delete that line (the library provides it now).
+`src/gfx/CMakeLists.txt`: make `deluge_gfx_grid` STATIC with `grid/rgb.cpp`, same properties as the oled target. `src/deluge/CMakeLists.txt`: add `deluge_gfx_grid` next to `deluge_gfx_oled` in `target_link_libraries(deluge_app PUBLIC ...)`. **Firmware link closure (learned in Task 6):** the Rust firmware links the C++ app as explicit archives, so add `deluge_gfx_grid` wherever Task 6 added `deluge_gfx_oled` — `src/bsp/rust/build.rs`, its two harness copies under `src/bsp/rust/harness/*/build.rs`, and `scripts/tasks/task-build.py` / `task-rust.py` (grep for `deluge_gfx_oled` to find every site); without this the device/host-app link loses the `RGB` symbols once `rgb.cpp` leaves `deluge_app`'s glob. `tests/unit/CMakeLists.txt`: `deluge_SOURCES` lists explicit files; if `../../src/deluge/gui/colour/rgb.cpp` appears, delete that line (the library provides it now).
 
 - [ ] **Step 4: Test and build**
 
