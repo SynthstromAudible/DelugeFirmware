@@ -21,7 +21,6 @@ add_library(deluge_spec STATIC
 ../../src/deluge/hid/display/starfield.cpp
 ../../src/deluge/hid/display/rainfall.cpp
 ../../src/deluge/hid/display/oled_canvas/canvas.cpp
-../../src/deluge/gui/fonts/fonts.c
 ../32bit_unit_tests/mocks/mock_display.cpp
 ../32bit_unit_tests/mocks/mock_print.cpp
 )

@@ -18,7 +18,7 @@
 #include "canvas.h"
 #include "definitions_cxx.hpp"
 #include "deluge/util/c_string.h"
-#include "gui/fonts/fonts.h"
+#include "gfx/oled/font.h"
 #include "util/etl_string.h"
 
 #include <algorithm>
@@ -459,49 +459,12 @@ void Canvas::drawChar(uint8_t theChar, int32_t pixelX, int32_t pixelY, int32_t s
 		return;
 	}
 
-	lv_font_glyph_dsc_t const* descriptor;
-	uint8_t const* font;
-	int32_t fontNativeHeight;
-
-	switch (textHeight) {
-	case 5:
-		[[fallthrough]];
-	case 6:
-		textHeight = 5;
-		descriptor = font_5px_desc;
-		font = font_5px;
-		fontNativeHeight = 5;
-		break;
-	case 9:
-		pixelY++;
-		[[fallthrough]];
-	case 7:
-		[[fallthrough]];
-	case 8:
-		textHeight = 7;
-		descriptor = font_apple_desc;
-		font = font_apple;
-		fontNativeHeight = 8;
-		break;
-	case 10:
-		textHeight = 9;
-		descriptor = font_metric_bold_9px_desc;
-		font = font_metric_bold_9px;
-		fontNativeHeight = 9;
-		break;
-	case 13:
-		descriptor = font_metric_bold_13px_desc;
-		font = font_metric_bold_13px;
-		fontNativeHeight = 13;
-		break;
-	case 20:
-		[[fallthrough]];
-	default:
-		fontNativeHeight = 20;
-		descriptor = font_metric_bold_20px_desc;
-		font = font_metric_bold_20px;
-		break;
-	}
+	const auto& f = deluge::gfx::oled::font_for_text_height(textHeight);
+	textHeight = f.render_height;
+	pixelY += f.y_adjust;
+	lv_font_glyph_dsc_t const* descriptor = f.glyphs;
+	uint8_t const* font = f.bitmap;
+	int32_t fontNativeHeight = f.native_height;
 
 	descriptor += charIndex;
 
@@ -526,25 +489,7 @@ void Canvas::drawChar(uint8_t theChar, int32_t pixelX, int32_t pixelY, int32_t s
 }
 
 int32_t Canvas::getCharIndex(uint8_t theChar) {
-	// 129 represents flat glyph
-	if (theChar == 129) {
-		theChar = '~' + 1;
-	}
-	else if (theChar > '~') {
-		return 0;
-	}
-
-	if (theChar >= 'a') {
-		if (theChar <= 'z') {
-			theChar -= 32;
-		}
-		else {
-			theChar -= 26; // Lowercase chars have been snipped out of the tables.
-		}
-	}
-
-	int32_t charIndex = theChar - 0x20;
-	return charIndex;
+	return deluge::gfx::oled::glyph_index(theChar);
 }
 
 int32_t Canvas::getCharWidthInPixels(uint8_t theChar, int32_t textHeight) {
@@ -557,23 +502,7 @@ int32_t Canvas::getCharWidthInPixels(uint8_t theChar, int32_t textHeight) {
 		return kTextSpacingX;
 	}
 
-	lv_font_glyph_dsc_t const* descriptor;
-	switch (textHeight) {
-	case 5:
-		descriptor = font_5px_desc;
-		break;
-	case 10:
-		descriptor = font_metric_bold_9px_desc;
-		break;
-	case 13:
-		descriptor = font_metric_bold_13px_desc;
-		break;
-	case 20:
-		[[fallthrough]];
-	default:
-		descriptor = font_metric_bold_20px_desc;
-		break;
-	}
+	lv_font_glyph_dsc_t const* descriptor = deluge::gfx::oled::font_for_text_height(textHeight).glyphs;
 
 	descriptor += charIndex;
 	return descriptor->w_px;

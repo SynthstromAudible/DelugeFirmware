@@ -54,6 +54,7 @@ target_link_libraries(deluge_app PUBLIC
     etl::etl
     deluge_foundation
     deluge_midi
+    deluge_gfx_oled
 )
 
 target_compile_definitions(deluge_app PUBLIC

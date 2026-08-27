@@ -18,6 +18,7 @@
 #pragma once
 #include "board_layout.hpp" // board pad/indicator/numeric dimensions (HAL-free, shared with the BSP)
 #include "definitions.h"
+#include "gfx/oled/font.h"
 #include "model/iterance/iterance.h"
 #include "util/misc.h"
 
@@ -966,20 +967,20 @@ constexpr int32_t kConsoleImageNumRows = (OLED_MAIN_HEIGHT_PIXELS >> 3);
 constexpr int32_t kTextSmallSpacingX = 4;
 constexpr int32_t kTextSmallSizeY = 5;
 
-// non-title characters
-constexpr int32_t kTextSpacingX = 6; // the width of a character (5 px) + the space after it (1 px)
-constexpr int32_t kTextSpacingY = 9; // the height of a character (7 px) + the space above (1px) and below it (1px)
-constexpr int32_t kTextSizeYUpdated = 7;
+// non-title characters (definitions live in gfx/oled/font.h; see include above)
+using deluge::gfx::oled::kTextSizeYUpdated;
+using deluge::gfx::oled::kTextSpacingX;
+using deluge::gfx::oled::kTextSpacingY;
 
 // title characters
-constexpr int32_t kTextTitleSpacingX = 9;
-constexpr int32_t kTextTitleSizeY = 10;
+using deluge::gfx::oled::kTextTitleSizeY;
+using deluge::gfx::oled::kTextTitleSpacingX;
 
 constexpr int32_t kTextBigSpacingX = 11;
-constexpr int32_t kTextBigSizeY = 13;
+using deluge::gfx::oled::kTextBigSizeY;
 
-constexpr int32_t kTextHugeSpacingX = 18;
-constexpr int32_t kTextHugeSizeY = 20;
+using deluge::gfx::oled::kTextHugeSizeY;
+using deluge::gfx::oled::kTextHugeSpacingX;
 
 // submenu icons
 constexpr int32_t kSubmenuIconSpacingX = 7;
