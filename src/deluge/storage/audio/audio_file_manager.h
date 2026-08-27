@@ -99,7 +99,7 @@ public:
 	bool overviewScanAllDone =
 	    false; // Set once every loaded sample is fully pre-scanned; re-armed on load/reset (#4460)
 
-	Error setupAlternateAudioFilePath(std::string& newPath, int32_t dirPathLength, std::string& oldPath);
+	Error setupAlternateAudioFilePath(std::string& newPath, int32_t dirPathLength, const std::string& oldPath) const;
 	Error setupAlternateAudioFileDir(std::string& newPath, char const* rootDir,
 	                                 const char* songFilenameWithoutExtension);
 	/// @brief Whether the SD card is currently unusable for streaming (ejected, disabled, or not
@@ -164,6 +164,20 @@ public:
 	                            uint64_t sizeBytes, Error* error);
 	AudioFile* finishSampleFromCard(Sample* sampleFile, uint64_t sizeBytes, Error* error);
 
+	/// @brief Decide, in priority order and without touching the card, which path(s) a load of
+	///        @p filePath should try. The async loader (a later migration step) calls this directly as
+	///        its only source of truth for candidate paths, so it and resolveFileSize must stay in sync.
+	///
+	/// When the alternate load dir is known to exist (`alternateLoadDirStatus ==
+	/// AlternateLoadDirStatus::DOES_EXIST`) it is proposed first, named via the "collect media"
+	/// flattened form for a path under "SAMPLES/" (or the bare filename otherwise, which also lets
+	/// users drop files straight into an instrument's alternate folder), and the regular path second.
+	/// Otherwise only the regular path is proposed.
+	/// @param filePath  The nominal path a load was asked for.
+	/// @param outFirst  The candidate to try first. Never empty.
+	/// @param outSecond The candidate to try second, or empty if only one candidate applies.
+	void proposeLoadCandidates(const std::string& filePath, std::string& outFirst, std::string& outSecond) const;
+
 private:
 	bool cardReadOnce{false};
 	bool cardEjected{};
@@ -172,9 +186,9 @@ private:
 	uint32_t clusterSizeAtBoot{0};
 
 	void cardReinserted();
-	// Resolve a not-already-resident audio file's size by path: search the alternate load dir (long then
-	// short name) and/or the regular path. Sets `sizeBytes` (+ `usingAlternateLocation`, and may rewrite
-	// `filePath` for preset alternates) and returns true on success; returns false on not-found /
+	// Resolve a not-already-resident audio file's size by path: opens proposeLoadCandidates()'s
+	// candidates, in order, until one exists. Sets `sizeBytes` (+ `usingAlternateLocation`, and may
+	// rewrite `filePath` for preset alternates) and returns true on success; returns false on not-found /
 	// card-unavailable (with `*error` set, except the !mayReadCard case which leaves it untouched, as before).
 	bool resolveFileSize(std::string& filePath, bool mayReadCard, std::string& usingAlternateLocation,
 	                     uint64_t& sizeBytes, Error* error);

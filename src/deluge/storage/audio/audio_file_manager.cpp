@@ -511,7 +511,8 @@ Error AudioFileManager::setupAlternateAudioFileDir(std::string& newPath, char co
 	return Error::NONE;
 }
 
-Error AudioFileManager::setupAlternateAudioFilePath(std::string& newPath, int32_t dirPathLength, std::string& oldPath) {
+Error AudioFileManager::setupAlternateAudioFilePath(std::string& newPath, int32_t dirPathLength,
+                                                    const std::string& oldPath) const {
 	newPath.resize(dirPathLength);
 	newPath.append(&oldPath.c_str()[8]);
 	Error error = Error::NONE; // The [8] skips us past "SAMPLES/"
@@ -535,9 +536,34 @@ Error AudioFileManager::setupAlternateAudioFilePath(std::string& newPath, int32_
 	return Error::NONE;
 }
 
+void AudioFileManager::proposeLoadCandidates(const std::string& filePath, std::string& outFirst,
+                                             std::string& outSecond) const {
+	if (alternateLoadDirStatus != AlternateLoadDirStatus::DOES_EXIST) {
+		outFirst = filePath;
+		outSecond.clear();
+		return;
+	}
+
+	// Alternate load dir is known to exist, so it's proposed first. Name the file there via the "collect
+	// media" flattened form (the original path, with each '/' after "SAMPLES/" replaced by '_') when it
+	// came from under "SAMPLES/", else by its bare filename -- which also lets users drop files straight
+	// into an instrument's alternate folder.
+	std::string alternateName;
+	if (memcasecmp(filePath.c_str(), "SAMPLES/", 8) == 0) {
+		setupAlternateAudioFilePath(alternateName, 0, filePath);
+	}
+	else {
+		alternateName = getFileNameFromEndOfPath(filePath.c_str());
+	}
+
+	outFirst = alternateAudioFileLoadPath;
+	outFirst.append("/");
+	outFirst.append(alternateName);
+	outSecond = filePath;
+}
+
 bool AudioFileManager::resolveFileSize(std::string& filePath, bool mayReadCard, std::string& usingAlternateLocation,
                                        uint64_t& sizeBytes, Error* error) {
-	// Try and load it in.
 	if (!mayReadCard) {
 		return false; // NB: leaves *error untouched (caller initialised it to NONE) — a "silently absent" miss.
 	}
@@ -555,58 +581,10 @@ bool AudioFileManager::resolveFileSize(std::string& filePath, bool mayReadCard, 
 	}
 	*/
 
-	// Look up one proposed name in the (known-to-exist) alternate load dir by full path; on a hit, fill
-	// sizeBytes / usingAlternateLocation (and, for SYNTH/KIT presets, rewrite filePath to the
-	// now-non-alternate location).
-	const auto tryAlternateName = [&](const std::string& proposedFileName) -> bool {
-		std::string candidate = alternateAudioFileLoadPath;
-		candidate.append("/");
-		candidate.append(proposedFileName);
+	// Open one proposed candidate; on success fill sizeBytes / usingAlternateLocation (and, for SYNTH/KIT
+	// presets resolved via the alternate dir, rewrite filePath to that now-canonical location).
+	const auto tryOpenCandidate = [&](const std::string& candidate) -> bool {
 		auto opened = deluge::io::File::open(candidate, DELUGE_FILE_READ);
-		// TODO(conflation-batch-5): unknown is being treated as absent here -- a refusal is reported to
-		// the caller the same as a genuine miss (returns false, so tryAlternateDir falls through to
-		// tryRegularPath), yielding Error::FILE_UNREADABLE ("not here") where Error::SD_CARD ("could
-		// not read the card") would be correct.
-		if (!opened.has_value()) {
-			return false;
-		}
-		auto sz = opened->size();
-		if (!sz.has_value()) {
-			return false;
-		}
-		sizeBytes = *sz;
-		usingAlternateLocation = alternateAudioFileLoadPath;
-		usingAlternateLocation.append("/");
-		usingAlternateLocation.append(proposedFileName);
-		if (thingTypeBeingLoaded == ThingType::SYNTH || thingTypeBeingLoaded == ThingType::KIT) {
-			// Special rule for loading presets with files in their dedicated "alternate" folder: point the
-			// AudioFile's filePath at that location and then treat it as normal (not alternate).
-			filePath = usingAlternateLocation;
-			usingAlternateLocation.clear();
-		}
-		return true;
-	};
-
-	enum class AltResult { Found, NotFound, HardError };
-	// Search the (known-to-exist) alternate load dir: first the long collect-media name — the full original path,
-	// only if it's under "SAMPLES/" — then the bare filename (which lets users drop files into instrument folders).
-	const auto tryAlternateDir = [&]() -> AltResult {
-		if (memcasecmp(filePath.c_str(), "SAMPLES/", 8) == 0) {
-			std::string longName;
-			*error = setupAlternateAudioFilePath(longName, 0, filePath);
-			if (*error != Error::NONE) {
-				return AltResult::HardError;
-			}
-			if (tryAlternateName(longName)) {
-				return AltResult::Found;
-			}
-		}
-		return tryAlternateName(getFileNameFromEndOfPath(filePath.c_str())) ? AltResult::Found : AltResult::NotFound;
-	};
-
-	// Open the file at its regular path; on success fill sizeBytes. Returns whether it opened.
-	const auto tryRegularPath = [&]() -> bool {
-		auto opened = deluge::io::File::open(filePath, DELUGE_FILE_READ);
 		// TODO(conflation-batch-5): unknown is being treated as absent here -- a refusal is reported to
 		// the caller the same as a genuine miss, yielding Error::FILE_UNREADABLE ("not here") where
 		// Error::SD_CARD ("could not read the card") would be correct.
@@ -618,54 +596,58 @@ bool AudioFileManager::resolveFileSize(std::string& filePath, bool mayReadCard, 
 			return false;
 		}
 		sizeBytes = *sz;
+		if (candidate == filePath) {
+			usingAlternateLocation.clear();
+		}
+		else {
+			usingAlternateLocation = candidate;
+			if (thingTypeBeingLoaded == ThingType::SYNTH || thingTypeBeingLoaded == ThingType::KIT) {
+				// Special rule for loading presets with files in their dedicated "alternate" folder: point
+				// the AudioFile's filePath at that location and then treat it as normal (not alternate).
+				filePath = usingAlternateLocation;
+				usingAlternateLocation.clear();
+			}
+		}
 		return true; // File auto-closes on scope exit (RAII)
 	};
 
-	// If we already know the alternate dir exists there's a high chance the file is in it, so try that first and
-	// fall back to the regular path. Otherwise try the regular path first, and only then discover/search the
-	// alternate dir. (`alreadyTriedRegular` in the old goto version just prevented looping between the two.)
-	if (alternateLoadDirStatus == AlternateLoadDirStatus::DOES_EXIST) {
-		switch (tryAlternateDir()) {
-		case AltResult::Found:
+	std::string first;
+	std::string second;
+	proposeLoadCandidates(filePath, first, second);
+
+	// If we already know the alternate dir exists there's a high chance the file is in it, so
+	// proposeLoadCandidates puts it first; otherwise it proposes only the regular path.
+	for (const std::string& candidate : {first, second}) {
+		if (!candidate.empty() && tryOpenCandidate(candidate)) {
 			return true;
-		case AltResult::HardError:
-			return false;
-		case AltResult::NotFound:
-			if (tryRegularPath()) {
-				return true;
-			}
 		}
 	}
-	else {
-		if (tryRegularPath()) {
-			return true;
-		}
-		// Regular path failed — if an alternate dir might exist, open it and search there.
-		if (alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST) {
-			switch (deluge::storage::presence_of(
-			    deluge::io::presence_from_open(deluge::io::Directory::open(alternateAudioFileLoadPath.c_str())))) {
-			case deluge::storage::Presence::Absent:
-				// Genuinely not there: worth remembering, so later lookups skip it.
-				alternateLoadDirStatus = AlternateLoadDirStatus::NOT_FOUND;
-				*error = Error::FILE_UNREADABLE;
-				return false;
-			case deluge::storage::Presence::Undeterminable:
-				// Could not tell. Leave the status at MIGHT_EXIST so a later attempt asks again —
-				// caching this would turn one transient refusal into a permanent wrong answer.
-				*error = Error::SD_CARD;
-				return false;
-			case deluge::storage::Presence::Present:
-				break;
-			}
+
+	// The regular path failed and the alternate dir's existence wasn't known yet (so it wasn't among the
+	// candidates above) — probe it once and remember the answer.
+	if (alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST) {
+		switch (deluge::storage::presence_of(
+		    deluge::io::presence_from_open(deluge::io::Directory::open(alternateAudioFileLoadPath.c_str())))) {
+		case deluge::storage::Presence::Absent:
+			// Genuinely not there: worth remembering, so later lookups skip it.
+			alternateLoadDirStatus = AlternateLoadDirStatus::NOT_FOUND;
+			*error = Error::FILE_UNREADABLE;
+			return false;
+		case deluge::storage::Presence::Undeterminable:
+			// Could not tell. Leave the status at MIGHT_EXIST so a later attempt asks again —
+			// caching this would turn one transient refusal into a permanent wrong answer.
+			*error = Error::SD_CARD;
+			return false;
+		case deluge::storage::Presence::Present:
 			alternateLoadDirStatus = AlternateLoadDirStatus::DOES_EXIST;
-			switch (tryAlternateDir()) {
-			case AltResult::Found:
-				return true;
-			case AltResult::HardError:
-				return false;
-			case AltResult::NotFound:
-				break;
-			}
+			break;
+		}
+
+		std::string altCandidate;
+		std::string unused;
+		proposeLoadCandidates(filePath, altCandidate, unused); // status is now DOES_EXIST: altCandidate is the alt path
+		if (tryOpenCandidate(altCandidate)) {
+			return true;
 		}
 	}
 

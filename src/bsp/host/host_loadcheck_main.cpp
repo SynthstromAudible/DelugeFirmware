@@ -146,6 +146,55 @@ bool checkLoadInvariants(const char* label) {
 	return ok;
 }
 
+/// Pin proposeLoadCandidates()'s policy (which paths a load tries, in what order — no I/O). A later
+/// async loader consumes this function as its only source of truth for candidate paths, so its order
+/// is behaviour: get it wrong and a load silently opens the wrong file.
+bool checkProposeLoadCandidates() {
+	bool ok = true;
+
+	// proposes the alternate directory before the regular path when it exists
+	{
+		// Order is behaviour: resolveFileSize tries the alternate dir first whenever it exists, and
+		// the async loader opens candidates in the order this function returns them.
+		audioFileManager.alternateAudioFileLoadPath = "SAMPLES/ALT";
+		audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::DOES_EXIST;
+		std::string first;
+		std::string second;
+		audioFileManager.proposeLoadCandidates("SAMPLES/kick.wav", first, second);
+		if (first != "SAMPLES/ALT/kick.wav") {
+			printf("FAIL [proposeLoadCandidates]: expected first \"SAMPLES/ALT/kick.wav\", got \"%s\"\n",
+			       first.c_str());
+			ok = false;
+		}
+		if (second != "SAMPLES/kick.wav") {
+			printf("FAIL [proposeLoadCandidates]: expected second \"SAMPLES/kick.wav\", got \"%s\"\n", second.c_str());
+			ok = false;
+		}
+	}
+
+	// proposes only the regular path when no alternate directory exists
+	{
+		audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
+		std::string first;
+		std::string second;
+		audioFileManager.proposeLoadCandidates("SAMPLES/kick.wav", first, second);
+		if (first != "SAMPLES/kick.wav") {
+			printf("FAIL [proposeLoadCandidates]: expected first \"SAMPLES/kick.wav\", got \"%s\"\n", first.c_str());
+			ok = false;
+		}
+		if (!second.empty()) {
+			printf("FAIL [proposeLoadCandidates]: expected second empty, got \"%s\"\n", second.c_str());
+			ok = false;
+		}
+	}
+
+	// Leave the manager in its default (no-alternate-dir-known) state for the real loads below.
+	audioFileManager.alternateAudioFileLoadPath.clear();
+	audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
+
+	return ok;
+}
+
 void deluge_loadcheck_driver() {
 	static bool started = false;
 	if (started) {
@@ -154,6 +203,9 @@ void deluge_loadcheck_driver() {
 	started = true;
 
 	int failures = 0;
+	if (!checkProposeLoadCandidates()) {
+		failures++;
+	}
 	for (const LoadItem& item : g_items) {
 		std::string path = item.path;
 		Error error = Error::NONE;
