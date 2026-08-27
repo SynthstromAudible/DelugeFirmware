@@ -52,6 +52,7 @@
 #include <algorithm>
 #include <cstddef>
 
+#include <cstring> // std::memchr (<string.h> alone only guarantees the global-namespace names)
 #include <new>
 #include <string.h>
 #include <strings.h>
@@ -905,9 +906,20 @@ AudioFile* AudioFileManager::buildSampleFromLoadResult(const std::string& filePa
 	};
 
 	if (result.error != static_cast<uint8_t>(Error::NONE)) {
-		// The loader's verdict on the file itself (FILE_UNSUPPORTED, FILE_CORRUPTED, ...), carrying the
-		// same identity the synchronous parse produces. Nothing was built, so there is nothing to close
-		// out here.
+		// Every candidate this load could propose was tried and none of them opened -- which, if the
+		// alternate load dir is still unresolved, is EXACTLY the moment resolveFileSize probes it. Do
+		// the same here: resolve, and if that unlocks candidates this request did not carry, ask again
+		// rather than failing a load the synchronous path would have found. Bounded to one retry per
+		// load by the status itself, which is no longer MIGHT_EXIST afterwards.
+		if (alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST
+		    && deluge_audio_load_resolve_alternate_dir(nullptr)) {
+			if (std::optional<AudioFile*> retried = requestAsyncSampleLoad(filePath, error)) {
+				return *retried; // nullptr with Error::LOAD_IN_PROGRESS: collected on a later tick
+			}
+		}
+		// Otherwise this is the loader's verdict on the file itself (FILE_UNSUPPORTED, FILE_CORRUPTED,
+		// ...), carrying the same identity the synchronous parse produces. Nothing was built, so there
+		// is nothing to close out here.
 		return fail(result.error);
 	}
 
@@ -969,9 +981,13 @@ bool AudioFileManager::admissibleAsyncCandidates(const char* candidates, uint32_
 	for (uint32_t i = 0; i < numCandidates; i++) {
 		const char* slot = candidates + (static_cast<size_t>(i) * DELUGE_MAX_PATH);
 		// Each slot is NUL-terminated within DELUGE_MAX_PATH by deluge_audio_load_candidates, which
-		// reports an over-long candidate as untrustworthy rather than writing it -- the bounded length
-		// here is belt and braces against that contract changing, not a second opinion about it.
-		if (!admissibleAsyncLoadPath(std::string_view{slot, strnlen(slot, DELUGE_MAX_PATH)})) {
+		// reports an over-long candidate as untrustworthy rather than writing it -- reading the length
+		// with a bound is belt and braces against that contract changing, not a second opinion about
+		// it. An unterminated slot measures the full width, which admissibleAsyncLoadPath refuses (the
+		// loader's decoder refuses it too, for the same reason: there is no path there to trust).
+		const auto* terminator = static_cast<const char*>(std::memchr(slot, '\0', DELUGE_MAX_PATH));
+		const size_t length = (terminator != nullptr) ? static_cast<size_t>(terminator - slot) : DELUGE_MAX_PATH;
+		if (!admissibleAsyncLoadPath(std::string_view{slot, length})) {
 			return false;
 		}
 	}
@@ -990,16 +1006,17 @@ std::optional<AudioFile*> AudioFileManager::requestAsyncSampleLoad(const std::st
 		return std::nullopt;
 	}
 
-	// Discovery BEFORE candidates (see the declaration): resolving the alternate load dir is what
-	// unlocks its candidates, and it is I/O, so it cannot live inside the I/O-free candidate policy.
-	// Its answer is deliberately ignored here -- "no alternate dir" is not a load failure, it just
-	// means the regular path is the only candidate, which is exactly what proposeLoadCandidates then
-	// returns.
+	// The candidates are whatever the CURRENT alternate-dir status proposes, and this deliberately
+	// does not resolve that status first. Resolving here would promote it for the whole load, ahead of
+	// any real regular-path miss -- and since the status is per-load shared state, every later sample
+	// would then try the alternate dir first, INCLUDING the ones that take the synchronous path, which
+	// still promotes only after a miss. The load's effective try order would flip out from under a
+	// path this function never touches.
 	//
-	// Whether it was still unresolved on entry is remembered, because it decides the try ORDER below.
-	const bool wasUnresolved = alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST;
-	(void)deluge_audio_load_resolve_alternate_dir(nullptr);
-
+	// So the probe happens where the synchronous path already puts it: after every proposed candidate
+	// has actually missed (see buildSampleFromLoadResult's verdict branch, which resolves and asks
+	// again). Under MIGHT_EXIST that means the first request carries only the regular path -- exactly
+	// the one candidate resolveFileSize tries first from the same state.
 	std::array<char, kMaxLoadCandidates * DELUGE_MAX_PATH> candidates{};
 	const uint32_t proposed =
 	    deluge_audio_load_candidates(filePath.c_str(), candidates.data(), static_cast<uint32_t>(kMaxLoadCandidates));
@@ -1018,23 +1035,6 @@ std::optional<AudioFile*> AudioFileManager::requestAsyncSampleLoad(const std::st
 
 	if (!admissibleAsyncCandidates(candidates.data(), numCandidates)) {
 		return std::nullopt; // the same permanent refusal as above, one level down
-	}
-
-	// Reproduce resolveFileSize's EFFECTIVE try order, which is not proposeLoadCandidates' order when
-	// the status was unresolved on entry. In that state the synchronous path proposes only the regular
-	// path and tries it FIRST, probing the alternate dir (and trying its candidates) only once that
-	// misses. Resolving up front is what makes the alternate candidates available to a single request
-	// -- but it also promotes them ahead of the regular path, so a file present at BOTH locations would
-	// load from the alternate one here and the regular one synchronously. Rotating the regular path
-	// (always proposed last) back to the front restores the synchronous order exactly, with no extra
-	// round trip.
-	if (wasUnresolved && numCandidates > 1) {
-		std::array<char, DELUGE_MAX_PATH> regularPath{};
-		char* const slots = candidates.data();
-		const size_t precedingBytes = (static_cast<size_t>(numCandidates) - 1) * DELUGE_MAX_PATH;
-		std::memcpy(regularPath.data(), slots + precedingBytes, DELUGE_MAX_PATH);
-		std::memmove(slots + DELUGE_MAX_PATH, slots, precedingBytes);
-		std::memcpy(slots, regularPath.data(), DELUGE_MAX_PATH);
 	}
 
 	(void)deluge_audio_load_request(filePath.c_str(), candidates.data(), numCandidates);

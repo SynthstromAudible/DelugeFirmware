@@ -721,10 +721,14 @@ pub fn decode_candidates(buffer: &[u8]) -> Option<CandidateList> {
 /// refused rather than truncated, because a truncated path names a *different*
 /// file that may well exist.
 ///
+/// `pub(crate)` for the host test that runs it against the corpus C++ checks the
+/// same rule with (`path_admission_corpus.inc`); nothing outside this module
+/// calls it.
+///
 /// # Safety
 ///
 /// `ptr` must be NULL or a valid NUL-terminated C string.
-unsafe fn cstr_to_path(ptr: *const c_char) -> Option<LoadPath> {
+pub(crate) unsafe fn cstr_to_path(ptr: *const c_char) -> Option<LoadPath> {
     if ptr.is_null() {
         return None;
     }

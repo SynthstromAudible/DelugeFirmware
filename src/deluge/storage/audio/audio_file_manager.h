@@ -217,6 +217,23 @@ public:
 	///         otherwise.
 	bool resolveAlternateLoadDirStatus(Error* error);
 
+	/// @brief Whether @p path is one the async loader can accept at all.
+	///
+	/// Its two permanent refusals -- a path that is not valid UTF-8, and one that does not fit its
+	/// fixed-capacity buffer -- are checked before a request is made, so such a path is never
+	/// requested. Unlike a full queue, re-requesting one of those cannot ever succeed, so reporting
+	/// Error::LOAD_IN_PROGRESS for it would leave the load neither completing nor failing. The
+	/// synchronous path has neither limit.
+	///
+	/// The rule this applies is the Rust side's (`cstr_to_path`/`decode_candidates`, audio_loader.rs)
+	/// and the two must not drift apart -- a LOOSER rule here is the wait described above coming back.
+	/// Public so the shared corpus in path_admission_corpus.inc, which the Rust side asserts against
+	/// too, can be run against it directly rather than inferred through a load.
+	///
+	/// @param path A nominal path, or one candidate slot.
+	/// @return true if the loader would accept it; false if the caller must take the synchronous path.
+	[[nodiscard]] static bool admissibleAsyncLoadPath(std::string_view path);
+
 	/// Upper bound on how many candidate paths proposeLoadCandidates() can propose: the alternate dir's
 	/// "collect media" flattened name, its bare-filename fallback, and the regular path.
 	static constexpr size_t kMaxLoadCandidates = 3;
@@ -316,29 +333,22 @@ private:
 	AudioFile* buildSampleFromLoadResult(const std::string& filePath, const DelugeAudioLoadResult& result,
 	                                     Error* error);
 
-	/// @brief Whether @p path is one the async loader can accept at all.
-	///
-	/// Its two permanent refusals -- a path that is not valid UTF-8, and one that does not fit its
-	/// fixed-capacity buffer -- are checked here so such a path is never requested. Unlike a full
-	/// queue, re-requesting one of those cannot ever succeed, so reporting Error::LOAD_IN_PROGRESS for
-	/// it would leave the load neither completing nor failing. The synchronous path has neither limit.
-	///
-	/// @param path A nominal path, or one candidate slot.
-	/// @return true if the loader would accept it; false if the caller must take the synchronous path.
-	[[nodiscard]] static bool admissibleAsyncLoadPath(std::string_view path);
-
 	/// @brief admissibleAsyncLoadPath() over every slot of a candidate buffer.
 	/// @param candidates    `numCandidates * DELUGE_MAX_PATH` bytes, one NUL-terminated path per slot.
 	/// @param numCandidates How many slots to check.
 	/// @return true if every candidate is one the loader would accept.
 	[[nodiscard]] static bool admissibleAsyncCandidates(const char* candidates, uint32_t numCandidates);
 
-	/// @brief Ask the async loader to load @p filePath, resolving the alternate load dir first.
+	/// @brief Ask the async loader to load @p filePath, with the candidates the current alternate-dir
+	///        status proposes.
 	///
-	/// The order is behaviour, not tidiness: `alternateLoadDirStatus` is MIGHT_EXIST at the start of
-	/// every song and preset load, and proposeLoadCandidates() proposes only the regular path in that
-	/// state, so asking for candidates before resolving the status silently loses the alternate-dir
-	/// candidates a "collect media" song's samples actually live at. Both calls stay on this tier: the
+	/// Deliberately does NOT resolve that status first, even though resolving is what unlocks the
+	/// alternate-dir candidates. `alternateLoadDirStatus` is per-LOAD state, not per-sample: promoting
+	/// it here would make every later sample of the same load try the alternate dir first, including
+	/// the ones that never come near this function, while the synchronous path still promotes only
+	/// after a regular-path miss. The probe therefore happens where the synchronous path puts it --
+	/// after every proposed candidate has missed, in buildSampleFromLoadResult's verdict branch, which
+	/// then asks again with the candidates the probe unlocked. It stays on this tier either way: the
 	/// loader task runs where it may only await, and may not call into C++ at all.
 	///
 	/// @param filePath The nominal path to load.

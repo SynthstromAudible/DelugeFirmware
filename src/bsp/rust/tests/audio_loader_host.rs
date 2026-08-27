@@ -450,6 +450,37 @@ fn the_first_candidate_that_opens_becomes_the_alternate_location() {
     ops.assert_settled();
 }
 
+/// The order the candidates arrive in is the order they are tried, and the FIRST
+/// one that opens wins. Both files exist here, which is what makes the claim
+/// testable at all: with only one openable candidate, "first that opens" cannot
+/// be told apart from "last", or from "any". The C++ side decides which copy of a
+/// duplicated sample a load gets purely by the order it fills the buffer
+/// (AudioFileManager::requestAsyncSampleLoad), so this is that contract.
+#[test]
+fn the_first_candidate_that_opens_wins_when_more_than_one_would() {
+    let ops = FakeOps::new()
+        .with_file("SAMPLES/A.wav", minimal_wav())
+        .with_file("SAMPLES/ALT/A.wav", minimal_wav());
+
+    let regular_first = block_on(load_io_once(
+        &ops,
+        &request("SAMPLES/A.wav", &["SAMPLES/A.wav", "SAMPLES/ALT/A.wav"]),
+    ));
+    assert_eq!(regular_first.error, DELUGE_ERROR_NONE);
+    assert_eq!(alternate_of(&regular_first), "");
+
+    // The same two candidates, the other way round: the winner follows the order,
+    // not the contents.
+    let alternate_first = block_on(load_io_once(
+        &ops,
+        &request("SAMPLES/A.wav", &["SAMPLES/ALT/A.wav", "SAMPLES/A.wav"]),
+    ));
+    assert_eq!(alternate_first.error, DELUGE_ERROR_NONE);
+    assert_eq!(alternate_of(&alternate_first), "SAMPLES/ALT/A.wav");
+
+    ops.assert_settled();
+}
+
 /// The regular path winning means NO alternate location — an empty string, which
 /// is what `deluge_audio_load_begin` documents for "resolved at `file_path`
 /// directly" (and never NULL).
@@ -832,6 +863,133 @@ fn an_unterminated_candidate_slot_is_refused_even_after_a_good_one() {
         decode_candidates(&buffer[..DELUGE_MAX_PATH]).unwrap()[0].as_str(),
         "A.wav"
     );
+}
+
+// ── The admission rule, shared with the C++ side ────────────────────────────
+
+/// One case from `path_admission_corpus.inc`.
+struct AdmissionCase {
+    accepted: bool,
+    bytes: Vec<u8>,
+    label: String,
+}
+
+/// Parse the corpus the C++ side `#include`s.
+///
+/// The file is the single source of truth for which paths the loader accepts:
+/// C++ checks the rule before requesting (a path refused permanently must never
+/// become a request that is retried forever), and this side applies it when the
+/// request arrives. Reading the same file from both is what makes a drift between
+/// them fail a test rather than resurface as a load that never completes.
+///
+/// The reader is deliberately simple, and the corpus documents the format it
+/// understands: one macro call per line, `\xNN` the only escape.
+fn admission_corpus() -> Vec<AdmissionCase> {
+    const CORPUS: &str = include_str!("../../../deluge/storage/audio/path_admission_corpus.inc");
+    const MACRO: &str = "DELUGE_PATH_ADMISSION_CASE(";
+
+    fn unescape(literal: &str) -> Vec<u8> {
+        let bytes = literal.as_bytes();
+        let mut out = Vec::new();
+        let mut i = 0;
+        while i < bytes.len() {
+            if bytes[i] == b'\\' {
+                assert!(
+                    i + 3 < bytes.len() && bytes[i + 1] == b'x',
+                    "the corpus may only use \\xNN escapes: {literal}"
+                );
+                let hex = core::str::from_utf8(&bytes[i + 2..i + 4]).expect("ASCII hex");
+                out.push(u8::from_str_radix(hex, 16).expect("two hex digits"));
+                i += 4;
+            } else {
+                out.push(bytes[i]);
+                i += 1;
+            }
+        }
+        out
+    }
+
+    let mut cases = Vec::new();
+    for line in CORPUS.lines() {
+        let Some(rest) = line.trim().strip_prefix(MACRO) else {
+            continue;
+        };
+        let rest = rest.strip_suffix(')').expect("a case line ends with ')'");
+        let (accepted, rest) = rest.split_once(',').expect("accepted, then the bytes");
+        let accepted = match accepted.trim() {
+            "true" => true,
+            "false" => false,
+            other => panic!("case verdict is true or false, not {other}"),
+        };
+        let rest = rest
+            .trim_start()
+            .strip_prefix('"')
+            .expect("the bytes are a string literal");
+        let (literal, rest) = rest.split_once('"').expect("the literal is closed");
+        let (repeat, label) = rest
+            .trim_start()
+            .strip_prefix(',')
+            .expect("a repeat count follows the bytes")
+            .split_once(',')
+            .expect("a label follows the repeat count");
+        let repeat: usize = repeat.trim().parse().expect("the repeat count is a number");
+        let unit = unescape(literal);
+        let mut bytes = Vec::with_capacity(unit.len() * repeat);
+        for _ in 0..repeat {
+            bytes.extend_from_slice(&unit);
+        }
+        cases.push(AdmissionCase {
+            accepted,
+            bytes,
+            label: String::from(label.trim().trim_matches('"')),
+        });
+    }
+
+    // A corpus that silently parsed to nothing would make every assertion below
+    // vacuous -- exactly what a renamed macro or a reformatted file would do.
+    assert!(
+        cases.len() >= 15,
+        "the shared corpus parsed to only {} case(s); the file's format changed under this reader",
+        cases.len()
+    );
+    cases
+}
+
+/// Every case in the shared corpus gets the verdict it declares, from the two
+/// entry points the refusal actually happens in.
+///
+/// `cstr_to_path` is the nominal path's check; `decode_candidates` is each
+/// candidate slot's. A case too long to fit a slot AT ALL is unterminated there
+/// rather than over-length, which is the same refusal by a different route --
+/// both mean "this path never becomes a load", which is what the C++ side has to
+/// agree with.
+#[test]
+fn the_admission_rule_matches_the_corpus_the_c_side_checks() {
+    use std::ffi::CString;
+
+    for case in admission_corpus() {
+        let c_path = CString::new(case.bytes.clone()).expect("no interior NUL in the corpus");
+        // SAFETY: a live, NUL-terminated CString.
+        let accepted_as_path = unsafe { audio_loader::cstr_to_path(c_path.as_ptr()) }.is_some();
+        assert_eq!(
+            accepted_as_path, case.accepted,
+            "cstr_to_path disagrees with the corpus on {}",
+            case.label
+        );
+
+        let mut slot = vec![0xAAu8; DELUGE_MAX_PATH];
+        let usable = case.bytes.len().min(DELUGE_MAX_PATH);
+        slot[..usable].copy_from_slice(&case.bytes[..usable]);
+        if case.bytes.len() < DELUGE_MAX_PATH {
+            slot[case.bytes.len()] = 0;
+        }
+        let accepted_as_candidate = decode_candidates(&slot).is_some();
+        assert_eq!(
+            accepted_as_candidate, case.accepted,
+            "decode_candidates disagrees with the corpus on {}",
+            case.label
+        );
+    }
 }
 
 // ── The switch ──────────────────────────────────────────────────────────────
