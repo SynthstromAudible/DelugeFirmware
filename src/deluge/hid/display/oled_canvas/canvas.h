@@ -16,14 +16,16 @@
  */
 
 #pragma once
-
-#include "definitions.h"
-#include "deluge/util/c_string.h"
+// FACADE (remove after UI phase 5): the firmware's OLED canvas is gfx/oled/canvas.h plus
+// four pieces of policy (rounded-corner and menu-highlighting settings, the highlighting
+// primitive, an etl overload) and the 2-D image-store accessor that hid/display/oled.cpp
+// still composites with. New code must call the gfx (snake_case) names directly; the
+// camelCase forwarders below exist only so the legacy call sites compile unchanged.
+#include "gfx/oled/canvas.h"
+#include "gfx/oled/font.h"
 #include "gfx/oled/icon.h"
 #include "util/etl_string.h"
-#include <cstring>
-#include <functional>
-#include <optional>
+#include <cstdint>
 #include <string_view>
 
 namespace deluge::hid::display {
@@ -32,260 +34,17 @@ class OLED;
 using Icon = deluge::gfx::oled::Icon;
 
 namespace oled_canvas {
+using deluge::gfx::oled::BIG;
+using deluge::gfx::oled::BorderRadius;
+using deluge::gfx::oled::DrawLineOptions;
+using deluge::gfx::oled::Point;
+using deluge::gfx::oled::SMALL;
 
-enum BorderRadius : uint8_t {
-	SMALL = 0, //< 1px
-	BIG = 1    //< 2px
-};
+class Canvas : public deluge::gfx::oled::OwnedCanvas<deluge::gfx::oled::kDelugeOled> {
+	using Base = deluge::gfx::oled::OwnedCanvas<deluge::gfx::oled::kDelugeOled>;
 
-struct Point {
-	int32_t x;
-	int32_t y;
-	bool operator==(const Point& other) const noexcept { return x == other.x && y == other.y; }
-};
-
-struct DrawLineOptions {
-	bool thick{false};
-	std::optional<uint8_t> min_x{std::nullopt};
-	std::optional<uint8_t> max_x{std::nullopt};
-	std::optional<std::function<void(Point)>> point_callback{std::nullopt};
-};
-
-class Canvas {
 public:
 	Canvas() = default;
-	~Canvas() = default;
-
-	Canvas(Canvas const& other) = delete;
-	Canvas(Canvas&& other) = delete;
-
-	Canvas& operator=(Canvas const& other) = delete;
-	Canvas& operator=(Canvas&& other) = delete;
-
-	/// @{
-	/// @name Rendering routines
-
-	/// Clear the entire image
-	void clear() {
-		// Takes about 1 fast-timer tick (whereas entire rendering takes around 8 to 15).
-		// So, not worth trying to use DMA here or anything.
-		memset(image_, 0, sizeof(image_));
-	};
-
-	/// Clear only a subset of the image
-	///
-	/// @param minX minimum X coordinate, inclusive
-	/// @param minY minimum Y coordinate, inclusive
-	/// @param maxX maximum X coordinate, inclusive
-	/// @param maxY maximum Y coordinate, *exclusive*
-	void clearAreaExact(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY);
-
-	/// Set a single pixel
-	void drawPixel(int32_t x, int32_t y);
-
-	/// Clear a single pixel
-	void clearPixel(int32_t x, int32_t y);
-
-	/// Invert a single pixel
-	void invertPixel(int32_t x, int32_t y);
-
-	/// Draw a horizontal line.
-	///
-	/// @param pixelY Y coordinate of the line to draw
-	/// @param startX Starting X coordinate, inclusive
-	/// @param endY Ending Y coordinate, inclusive
-	void drawHorizontalLine(int32_t pixelY, int32_t startX, int32_t endX);
-
-	/// Draw a vertical line.
-	///
-	/// @param pixelX X coordinate of the line
-	/// @param startY Y coordinate of the line, inclusive
-	/// @param endY Y coordinate of the line, inclusive
-	void drawVerticalLine(int32_t pixelX, int32_t startY, int32_t endY);
-
-	/// Draw a line using Bresenham algorithm
-	/// @param x0 Start X coordinate of the line
-	/// @param y0 Start Y coordinate of the line
-	/// @param x1 End X coordinate of the line
-	/// @param y1 End Y coordinate of the line
-	/// @param options Draw options
-	void drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, const DrawLineOptions& options = {});
-
-	/// Draw a 1-px wide rectangle.
-	///
-	/// @param minX Minimum X coordinate, inclusive
-	/// @param minY Minimum Y coordinate, inclusive
-	/// @param maxX Maximum X coordinate, inclusive
-	/// @param maxY Maximum Y coordinate, inclusive
-	void drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY);
-
-	/// Draw a 1-px wide rectangle with rounded corners
-	///
-	/// @param minX Minimum X coordinate, inclusive
-	/// @param minY Minimum Y coordinate, inclusive
-	/// @param maxX Maximum X coordinate, inclusive
-	/// @param maxY Maximum Y coordinate, inclusive
-	void drawRectangleRounded(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, BorderRadius radius = SMALL);
-
-	/// Draw a circle using Bresenham algorithm
-	///
-	/// @param centerX Center X coordinate
-	/// @param centerY Center Y coordinate
-	/// @param radius Circle radius
-	void drawCircle(int32_t centerX, int32_t centerY, int32_t radius, bool fill = false);
-
-	/// Draw a string
-	///
-	/// @param str The string
-	/// @param pixelX X coordinate of the left side of the string
-	/// @param pixelY Y coordinate of the top side of the string
-	/// @param textWidth Base width in pixels of each character
-	/// @param textHeight Height in pixels of each character
-	/// @param scrollPos Offset in pixels representing how far the text has scrolled from the left.
-	/// @param endX Maximum X coordinate after which we bail out. N.B. this means the *actual* maximum X coordinate
-	///             rendered is endX + textWidth, as the individual character rendering work can overshoot.
-	void drawString(std::string_view str, int32_t pixelX, int32_t pixelY, int32_t textWidth, int32_t textHeight,
-	                int32_t scrollPos = 0, int32_t endX = OLED_MAIN_WIDTH_PIXELS, bool useTextWidth = false);
-
-	/// Draw a string, centered at the provided location.
-	///
-	/// @param string A null-terminated C string
-	/// @param pixelY Y coordinate of the top side of the string
-	/// @param textWidth Base width in pixels of each character
-	/// @param textHeight Height in pixels of each character
-	/// @param scrollPos Offset in pixels representing how far the text has scrolled from the left.
-	/// @param endX Maximum X coordinate after which we bail out. N.B. this means the *actual* maximum X coordinate
-	///             rendered is endX + textWidth, as the individual character rendering work can overshoot.
-	void drawStringCentred(char const* string, int32_t pixelY, int32_t textWidth, int32_t textHeight,
-	                       int32_t centrePos = OLED_MAIN_WIDTH_PIXELS / 2);
-
-	/// Draw a string, centered between the provided startX and startX + totalWidth
-	///
-	/// @param string A null-terminated C string
-	/// @param startX Beginning X coordinate for center calculation
-	/// @param startY Y coordinate of the top side of the string
-	/// @param textSpacingX Base width in pixels of each character
-	/// @param textSpacingY Height in pixels of each character
-	/// @param totalWidth Total width for center calculation
-	void drawStringCentered(char const* string, int32_t startX, int32_t startY, int32_t textSpacingX,
-	                        int32_t textSpacingY, int32_t totalWidth);
-
-	/// Draw a string, centered between the provided startX and startX + totalWidth
-	///
-	/// @param stringBuf A string buffer
-	/// @param startX Beginning X coordinate for center calculation
-	/// @param startY Y coordinate of the top side of the string
-	/// @param textSpacingX Base width in pixels of each character
-	/// @param textSpacingY Height in pixels of each character
-	/// @param totalWidth Total width for center calculation
-	void drawStringCentered(etl::istring& stringBuf, int32_t startX, int32_t startY, int32_t textSpacingX,
-	                        int32_t textSpacingY, int32_t totalWidth);
-
-	/// Draw a string, reducing its height so the string fits within the specified width
-	///
-	/// @param string A null-terminated C string
-	/// @param pixelY The Y coordinate of the top of the string
-	/// @param textWidth Requested width for each character in the string
-	/// @param textHeight Requested height for each character in the string
-	void drawStringCentredShrinkIfNecessary(char const* string, int32_t pixelY, int32_t textWidth, int32_t textHeight);
-
-	/// Draw a string, aligned to the right.
-	///
-	/// @param string A null-terminated C string
-	/// @param pixelY The Y coordinate of the top of the string
-	/// @param textWidth The width for each character in the string
-	/// @param textHeight The height for each character in the string
-	/// @param rightPos X coordinate, exclusive, of the rightmost pixel to use for the string
-	void drawStringAlignRight(char const* string, int32_t pixelY, int32_t textWidth, int32_t textHeight,
-	                          int32_t rightPos = OLED_MAIN_WIDTH_PIXELS);
-
-	/// Draw a single character
-	void drawChar(uint8_t theChar, int32_t pixelX, int32_t pixelY, int32_t textWidth, int32_t textHeight,
-	              int32_t scrollPos = 0, int32_t endX = OLED_MAIN_WIDTH_PIXELS);
-
-	/// Returns index for character so it can be looked up
-	///
-	/// @param theChar A single character
-	int32_t getCharIndex(uint8_t theChar);
-
-	/// Return width of a single character with a given character height
-	///
-	/// @param theChar A single character
-	/// @param textHeight The height of the character
-	int32_t getCharWidthInPixels(uint8_t theChar, int32_t textHeight);
-
-	/// Returns spacing in pixels between characters drawn in a string
-	///
-	/// @param theChar A single character
-	/// @param textHeight The height of the character (to distinguish between non-bold and bold characters)
-	/// @param isLastChar a boolean to specify whether any char's follow this char
-	int32_t getCharSpacingInPixels(uint8_t theChar, int32_t textHeight, bool isLastChar);
-
-	/// Returns width of a string in pixels
-	///
-	/// @param string A null-terminated C string
-	/// @param textHeight The height for each character in the string
-	int32_t getStringWidthInPixels(char const* string, int32_t textHeight);
-
-	/// Draw a "graphic".
-	///
-	/// The provided \ref graphic array is used as a bit mask and added to the existing content.
-	///
-	/// @param graphic Pointer to the start of an array representing the graphic.
-	/// @param startX X coodinate of the left edge of the graphic
-	/// @param startY Y coordinate of the top of the graphic
-	/// @param width Width of the graphic in pixels
-	/// @param height Height of the graphic in pixels
-	/// @param numBytesTall Number of bytes in the Y direction, determines the stride in the graphic array
-	void drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY, int32_t width, int32_t height = 8,
-	                          int32_t numBytesTall = 1, bool reversed = false);
-	/// Draw an icon.
-	///
-	/// @param icon Reference to the icon
-	/// @param x X coodinate of the left edge of the icon
-	/// @param y Y coordinate of the top of the icon
-	/// @param reversed Should reverse the icon horizontally
-	void drawIcon(const Icon& icon, int32_t x, int32_t y, bool reversed = false);
-
-	/// Draw an icon, centered between the provided startX and startX + totalWidth
-	///
-	/// @param icon Reference to the icon
-	/// @param startX Beginning X coordinate for center calculation
-	/// @param totalWidth Total width for center calculation
-	/// @param y Y coordinate of the top of the icon
-	/// @param reversed Should reverse the icon horizontally
-	void drawIconCentered(const Icon& icon, int32_t startX, int32_t totalWidth, int32_t y, bool reversed = false);
-
-	/// Draw a screen title and underline it.
-	///
-	/// @param text Title text
-	void drawScreenTitle(std::string_view text, bool drawSeparator = true);
-
-	/// Invert an area of the canvas.
-	///
-	/// @param xMin Minimum X coordinate, inclusive
-	/// @param width Width of the region to invert. End coordinate is excluded.
-	/// @param startY Minimum Y coordinate, inclusive
-	/// @param endY Maximum Y coordinate, inclusive
-	void invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t endY);
-
-	/// Invert an area of the canvas with rounded corners
-	///
-	/// @param xMin Minimum X coordinate, inclusive
-	/// @param width Width of the region to invert. End coordinate is excluded.
-	/// @param startY Minimum Y coordinate, inclusive
-	/// @param endY Maximum Y coordinate, inclusive
-	void invertAreaRounded(int32_t xMin, int32_t width, int32_t startY, int32_t endY, BorderRadius radius = SMALL);
-
-	/// Invert just the left edge of the canvas.
-	///
-	/// @param xMin Minimum X coordinate, inclusive
-	/// @param width Width of the region to invert. End coordinate is excluded.
-	/// @param startY Minimum Y coordinate, inclusive
-	/// @param endY Maximum Y coordinate, inclusive
-	void invertLeftEdgeForMenuHighlighting(int32_t xMin, int32_t width, int32_t startY, int32_t endY);
-
-	/// @}
 
 	/// Whether the *Rounded primitives actually round their corners. Kept in sync with the
 	/// RoundedCorners community feature by the settings/menu layer; defaults to on so popups
@@ -296,18 +55,107 @@ public:
 	/// FlashStorage::accessibilityMenuHighlighting; the settings layer keeps it in sync.
 	static inline bool menuHighlightingInverts = true;
 
+	/// @{
+	/// @name Legacy names → gfx names. One forwarder per Canvas method; `clear()` is
+	///       inherited unchanged. Defaults match the legacy header, with the gfx
+	///       `kEdge`/`kCentre` sentinels standing in for the panel width / half-width.
+
+	void clearAreaExact(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY) {
+		clear_area_exact(minX, minY, maxX, maxY);
+	}
+	void drawPixel(int32_t x, int32_t y) { draw_pixel(x, y); }
+	void clearPixel(int32_t x, int32_t y) { clear_pixel(x, y); }
+	void invertPixel(int32_t x, int32_t y) { invert_pixel(x, y); }
+	void drawHorizontalLine(int32_t pixelY, int32_t startX, int32_t endX) {
+		draw_horizontal_line(pixelY, startX, endX);
+	}
+	void drawVerticalLine(int32_t pixelX, int32_t startY, int32_t endY) { draw_vertical_line(pixelX, startY, endY); }
+	void drawLine(int32_t x0, int32_t y0, int32_t x1, int32_t y1, const DrawLineOptions& options = {}) {
+		draw_line(x0, y0, x1, y1, options);
+	}
+	void drawRectangle(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY) {
+		draw_rectangle(minX, minY, maxX, maxY);
+	}
+	void drawRectangleRounded(int32_t minX, int32_t minY, int32_t maxX, int32_t maxY, BorderRadius radius = SMALL) {
+		draw_rectangle_rounded(minX, minY, maxX, maxY, radius, roundedCornersEnabled);
+	}
+	void drawCircle(int32_t centerX, int32_t centerY, int32_t radius, bool fill = false) {
+		draw_circle(centerX, centerY, radius, fill);
+	}
+	void drawString(std::string_view str, int32_t pixelX, int32_t pixelY, int32_t textWidth, int32_t textHeight,
+	                int32_t scrollPos = 0, int32_t endX = deluge::gfx::oled::kEdge, bool useTextWidth = false) {
+		draw_string(str, pixelX, pixelY, textWidth, textHeight, scrollPos, endX, useTextWidth);
+	}
+	void drawStringCentred(char const* string, int32_t pixelY, int32_t textWidth, int32_t textHeight,
+	                       int32_t centrePos = deluge::gfx::oled::kCentre) {
+		draw_string_centred(string, pixelY, textWidth, textHeight, centrePos);
+	}
+	void drawStringCentered(char const* string, int32_t startX, int32_t startY, int32_t textSpacingX,
+	                        int32_t textSpacingY, int32_t totalWidth) {
+		draw_string_centered(string, startX, startY, textSpacingX, textSpacingY, totalWidth);
+	}
+	/// Overload for the etl string buffers the menus build their values in. The trimming the
+	/// legacy overload did in place now happens on gfx's own copy, which no caller observed.
+	void drawStringCentered(etl::istring& stringBuf, int32_t startX, int32_t startY, int32_t textSpacingX,
+	                        int32_t textSpacingY, int32_t totalWidth) {
+		draw_string_centered(stringBuf.c_str(), startX, startY, textSpacingX, textSpacingY, totalWidth);
+	}
+	void drawStringCentredShrinkIfNecessary(char const* string, int32_t pixelY, int32_t textWidth, int32_t textHeight) {
+		draw_string_centred_shrink_if_necessary(string, pixelY, textWidth, textHeight);
+	}
+	void drawStringAlignRight(char const* string, int32_t pixelY, int32_t textWidth, int32_t textHeight,
+	                          int32_t rightPos = deluge::gfx::oled::kEdge) {
+		draw_string_align_right(string, pixelY, textWidth, textHeight, rightPos);
+	}
+	void drawChar(uint8_t theChar, int32_t pixelX, int32_t pixelY, int32_t textWidth, int32_t textHeight,
+	              int32_t scrollPos = 0, int32_t endX = deluge::gfx::oled::kEdge) {
+		draw_char(theChar, pixelX, pixelY, textWidth, textHeight, scrollPos, endX);
+	}
+	int32_t getCharIndex(uint8_t theChar) { return deluge::gfx::oled::glyph_index(theChar); }
+	int32_t getCharWidthInPixels(uint8_t theChar, int32_t textHeight) {
+		return get_char_width_in_pixels(theChar, textHeight);
+	}
+	int32_t getCharSpacingInPixels(uint8_t theChar, int32_t textHeight, bool isLastChar) {
+		return get_char_spacing_in_pixels(theChar, textHeight, isLastChar);
+	}
+	int32_t getStringWidthInPixels(char const* string, int32_t textHeight) {
+		return get_string_width_in_pixels(string, textHeight);
+	}
+	void drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_t startY, int32_t width, int32_t height = 8,
+	                          int32_t numBytesTall = 1, bool reversed = false) {
+		draw_graphic_multi_line(graphic, startX, startY, width, height, numBytesTall, reversed);
+	}
+	void drawIcon(const Icon& icon, int32_t x, int32_t y, bool reversed = false) { draw_icon(icon, x, y, reversed); }
+	void drawIconCentered(const Icon& icon, int32_t startX, int32_t totalWidth, int32_t y, bool reversed = false) {
+		draw_icon_centered(icon, startX, totalWidth, y, reversed);
+	}
+	void drawScreenTitle(std::string_view text, bool drawSeparator = true) { draw_screen_title(text, drawSeparator); }
+	void invertArea(int32_t xMin, int32_t width, int32_t startY, int32_t endY) {
+		invert_area(xMin, width, startY, endY);
+	}
+	void invertAreaRounded(int32_t xMin, int32_t width, int32_t startY, int32_t endY, BorderRadius radius = SMALL) {
+		invert_area_rounded(xMin, width, startY, endY, radius, roundedCornersEnabled);
+	}
+
+	/// Invert just the left edge of the canvas (or draw a line there, per the accessibility setting).
+	///
+	/// @param xMin Minimum X coordinate, inclusive
+	/// @param width Width of the region to invert. End coordinate is excluded.
+	/// @param startY Minimum Y coordinate, inclusive
+	/// @param endY Maximum Y coordinate, inclusive
+	void invertLeftEdgeForMenuHighlighting(int32_t xMin, int32_t width, int32_t startY, int32_t endY);
+
+	/// @}
+
 	/// Height of the image in bytes
-	static constexpr uint32_t kImageHeight = OLED_MAIN_HEIGHT_PIXELS >> 3;
+	static constexpr uint32_t kImageHeight = deluge::gfx::oled::kDelugeOled.pages();
 	/// Width of the image in pixels
-	static constexpr uint32_t kImageWidth = OLED_MAIN_WIDTH_PIXELS;
+	static constexpr uint32_t kImageWidth = deluge::gfx::oled::kDelugeOled.width;
 
 	using ImageStore = uint8_t[kImageHeight][kImageWidth];
 
-	/// XXX: DO NOT USE THIS OUTSIDE OF THE CORE OLED CODE
-	ImageStore& hackGetImageStore() { return image_; }
-
-private:
-	[[gnu::aligned(CACHE_LINE_SIZE)]] uint8_t image_[kImageHeight][kImageWidth];
+	/// XXX: DO NOT USE THIS OUTSIDE OF THE CORE OLED CODE; it disappears with the shell (phase 5).
+	ImageStore& hackGetImageStore() { return *reinterpret_cast<ImageStore*>(bytes().data()); }
 };
 } // namespace oled_canvas
 } // namespace deluge::hid::display
