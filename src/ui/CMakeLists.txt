@@ -32,6 +32,7 @@ add_library(deluge_ui_grid STATIC
   grid/frame.cpp
   grid/rows.cpp
   grid/sidebar.cpp
+  grid/columns.cpp
 )
 target_include_directories(deluge_ui_grid PUBLIC ${SHARED_INCLUDE})
 target_link_libraries(deluge_ui_grid PUBLIC deluge_ui_core deluge_gfx_grid)
