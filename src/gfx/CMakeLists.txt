@@ -5,6 +5,6 @@
 add_library(deluge_gfx_oled STATIC oled/canvas.cpp oled/font.cpp oled/fonts/fonts.c oled/icons.cpp)
 target_include_directories(deluge_gfx_oled PUBLIC ${SHARED_INCLUDE})
 set_target_properties(deluge_gfx_oled PROPERTIES C_STANDARD 23 CXX_STANDARD 26 CXX_STANDARD_REQUIRED YES)
-add_library(deluge_gfx_grid STATIC grid/rgb.cpp grid/sine_table.cpp grid/pad_grid.cpp)
+add_library(deluge_gfx_grid STATIC grid/rgb.cpp grid/sine_table.cpp grid/pad_grid.cpp grid/tween.cpp)
 target_include_directories(deluge_gfx_grid PUBLIC ${SHARED_INCLUDE})
 set_target_properties(deluge_gfx_grid PROPERTIES CXX_STANDARD 26 CXX_STANDARD_REQUIRED YES)
