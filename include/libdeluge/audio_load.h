@@ -91,6 +91,16 @@ extern "C" {
 ///        `deluge_audio_load_begin`.
 typedef struct DelugeSampleBuild DelugeSampleBuild;
 
+/// @brief A published `AudioFile`. Opaque, and owned by `AudioFileManager::audioFiles` -- never by the
+///        caller: this is a borrowed view of the object `deluge_audio_load_finish` inserted, valid
+///        exactly as long as that object stays resident (it is unleased at that moment, so a caller
+///        that intends to keep it leases it first, the same as every other load path).
+///
+/// Exists so `finish` can hand its caller the object it published rather than making the caller find
+/// it again by path. Nothing outside C++ has any use for it -- a non-C++ caller passes NULL and
+/// ignores it -- and only C++ may cast it back (to `AudioFile*`).
+typedef struct DelugeAudioFile DelugeAudioFile;
+
 /// @brief Allocate and construct a `Sample` from an already-resolved size. No I/O.
 ///
 /// Adopts the object and gives it a protect-during-setup reason before returning, so from here the
@@ -242,17 +252,28 @@ bool deluge_audio_load_apply_geometry(DelugeSampleBuild* build, const DelugeAudi
 /// always consumes @p build: after this call returns, the pointer is invalid regardless of the
 /// result.
 ///
-/// @param build     An in-flight build from deluge_audio_load_begin. Consumed if valid.
-/// @param error_in  The parse result (a Deluge `Error` code, as `uint8_t`); `Error::NONE` publishes
-///                  the build, anything else destroys it (matching @ref deluge_audio_load_abandon).
-/// @param error_out Written with the actual outcome (a Deluge `Error` code, as `uint8_t`): @p
-///                  error_in echoed back on a clean publish or a clean destroy, or a DIFFERENT code
-///                  (e.g. `Error::INSUFFICIENT_RAM`) if publishing itself failed -- a cache-insert
-///                  failure with @p error_in == `Error::NONE` must not be reported to the caller as
-///                  success. May be NULL if the caller does not need the distinction.
+/// @param build         An in-flight build from deluge_audio_load_begin. Consumed if valid.
+/// @param error_in      The parse result (a Deluge `Error` code, as `uint8_t`); `Error::NONE`
+///                      publishes the build, anything else destroys it (matching @ref
+///                      deluge_audio_load_abandon).
+/// @param error_out     Written with the actual outcome (a Deluge `Error` code, as `uint8_t`): @p
+///                      error_in echoed back on a clean publish or a clean destroy, or a DIFFERENT
+///                      code (e.g. `Error::INSUFFICIENT_RAM`) if publishing itself failed -- a
+///                      cache-insert failure with @p error_in == `Error::NONE` must not be reported
+///                      to the caller as success. May be NULL if the caller does not need the
+///                      distinction.
+/// @param published_out Written with the published object whenever this returns true, and with NULL
+///                      whenever it returns false -- so the caller never has to find the object again
+///                      by path. Finding it again is not equivalent: it assumes the object is keyed by
+///                      the path handed to @ref deluge_audio_load_begin (which the SYNTH/KIT
+///                      alternate-location rule does not guarantee), and it searches across the moment
+///                      the protect-during-setup reason is dropped, when the object is unleased and
+///                      therefore evictable. May be NULL if the caller does not want the object (a
+///                      non-C++ caller has no use for it).
 /// @return true if the build was published; false if it was destroyed (a non-NONE @p error_in, a
 ///         cache-insert failure, or an invalid @p build).
-bool deluge_audio_load_finish(DelugeSampleBuild* build, uint8_t error_in, uint8_t* error_out) DELUGE_NOEXCEPT;
+bool deluge_audio_load_finish(DelugeSampleBuild* build, uint8_t error_in, uint8_t* error_out,
+                              DelugeAudioFile** published_out) DELUGE_NOEXCEPT;
 
 /// @brief Destroy a build that will never be finished -- a file-open failure, a card pull, or any
 ///        other path that ends the load before a parse result exists.

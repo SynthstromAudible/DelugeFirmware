@@ -485,7 +485,13 @@ extern "C" bool deluge_audio_load_apply_geometry(DelugeSampleBuild* build, const
 	return true;
 }
 
-extern "C" bool deluge_audio_load_finish(DelugeSampleBuild* build, uint8_t error_in, uint8_t* error_out) noexcept {
+extern "C" bool deluge_audio_load_finish(DelugeSampleBuild* build, uint8_t error_in, uint8_t* error_out,
+                                         DelugeAudioFile** published_out) noexcept {
+	if (published_out != nullptr) {
+		// Cleared up front, so every failure exit below (including the invalid-handle one, which
+		// returns before anything else runs) leaves it NULL rather than whatever the caller had there.
+		*published_out = nullptr;
+	}
 	BuildHandle* raw = validateHandle(build);
 	if (raw == nullptr) {
 		if (error_out != nullptr) {
@@ -507,6 +513,9 @@ extern "C" bool deluge_audio_load_finish(DelugeSampleBuild* build, uint8_t error
 	}
 	if (error_out != nullptr) {
 		*error_out = static_cast<uint8_t>(error);
+	}
+	if (published != nullptr && published_out != nullptr) {
+		*published_out = reinterpret_cast<DelugeAudioFile*>(published);
 	}
 	return published != nullptr;
 }

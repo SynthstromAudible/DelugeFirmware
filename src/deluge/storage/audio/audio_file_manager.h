@@ -24,6 +24,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <optional>
+#include <string_view>
 
 class Sample;
 class SampleCache;
@@ -182,6 +183,13 @@ public:
 	AlternateLoadDirStatus alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
 	ThingType thingTypeBeingLoaded = ThingType::NONE;
 
+	/// Set when the card came back with a cluster size larger than this boot sized its buffers for:
+	/// the card cannot be used again until reboot, and resolveFileSize refuses every load with
+	/// Error::SD_CARD before touching it. Public alongside this class's other card/load state (rather
+	/// than private like `cardEjected`, which has its own setter) so the async-load gate that must
+	/// honour it can be exercised.
+	bool cardDisabled = false;
+
 	std::array<int32_t, kNumAudioRecordingFolders> highestUsedAudioRecordingNumber{};
 	std::bitset<kNumAudioRecordingFolders> highestUsedAudioRecordingNumberNeedsReChecking{};
 	void firstCardRead();
@@ -308,6 +316,23 @@ private:
 	AudioFile* buildSampleFromLoadResult(const std::string& filePath, const DelugeAudioLoadResult& result,
 	                                     Error* error);
 
+	/// @brief Whether @p path is one the async loader can accept at all.
+	///
+	/// Its two permanent refusals -- a path that is not valid UTF-8, and one that does not fit its
+	/// fixed-capacity buffer -- are checked here so such a path is never requested. Unlike a full
+	/// queue, re-requesting one of those cannot ever succeed, so reporting Error::LOAD_IN_PROGRESS for
+	/// it would leave the load neither completing nor failing. The synchronous path has neither limit.
+	///
+	/// @param path A nominal path, or one candidate slot.
+	/// @return true if the loader would accept it; false if the caller must take the synchronous path.
+	[[nodiscard]] static bool admissibleAsyncLoadPath(std::string_view path);
+
+	/// @brief admissibleAsyncLoadPath() over every slot of a candidate buffer.
+	/// @param candidates    `numCandidates * DELUGE_MAX_PATH` bytes, one NUL-terminated path per slot.
+	/// @param numCandidates How many slots to check.
+	/// @return true if every candidate is one the loader would accept.
+	[[nodiscard]] static bool admissibleAsyncCandidates(const char* candidates, uint32_t numCandidates);
+
 	/// @brief Ask the async loader to load @p filePath, resolving the alternate load dir first.
 	///
 	/// The order is behaviour, not tidiness: `alternateLoadDirStatus` is MIGHT_EXIST at the start of
@@ -325,7 +350,6 @@ private:
 
 	bool cardReadOnce{false};
 	bool cardEjected{};
-	bool cardDisabled = false;
 
 	uint32_t clusterSizeAtBoot{0};
 

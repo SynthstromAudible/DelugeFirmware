@@ -53,6 +53,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <new> // placement new (the stand-in WaveTable in checkAsyncCollector)
 #include <string>
 #include <sys/stat.h>
 #include <unistd.h>
@@ -407,6 +408,51 @@ bool checkAudioLoadAbiAbandon() {
 	return ok;
 }
 
+/// Write a minimal, genuinely parseable WAV: 44-byte canonical header, mono, 16-bit, 44100 Hz, then
+/// @p dataBytes bytes of data filled with @p fill. Both load paths have to be able to read these for
+/// real -- the synchronous one parses the header, and the async one opens the file to bind its read
+/// stream -- and the fill makes two otherwise identical files tell each other apart when read back.
+/// @return true if the file was written.
+bool writeTestWav(const std::string& path, uint32_t dataBytes, uint8_t fill) {
+	constexpr uint32_t kHeaderBytes = 44;
+	constexpr uint32_t kSampleRate = 44100;
+	constexpr uint16_t kChannels = 1;
+	constexpr uint16_t kBitsPerSample = 16;
+	const uint16_t blockAlign = kChannels * (kBitsPerSample / 8);
+
+	std::vector<uint8_t> bytes;
+	bytes.reserve(kHeaderBytes + dataBytes);
+	const auto put = [&](const void* src, size_t n) {
+		const auto* p = static_cast<const uint8_t*>(src);
+		bytes.insert(bytes.end(), p, p + n);
+	};
+	const auto putU32 = [&](uint32_t v) { put(&v, sizeof(v)); };
+	const auto putU16 = [&](uint16_t v) { put(&v, sizeof(v)); };
+
+	put("RIFF", 4);
+	putU32(36 + dataBytes);
+	put("WAVE", 4);
+	put("fmt ", 4);
+	putU32(16);
+	putU16(1); // PCM
+	putU16(kChannels);
+	putU32(kSampleRate);
+	putU32(kSampleRate * blockAlign);
+	putU16(blockAlign);
+	putU16(kBitsPerSample);
+	put("data", 4);
+	putU32(dataBytes);
+	bytes.insert(bytes.end(), dataBytes, fill);
+
+	FILE* f = fopen(path.c_str(), "wb");
+	if (f == nullptr) {
+		return false;
+	}
+	const bool written = fwrite(bytes.data(), 1, bytes.size(), f) == bytes.size();
+	fclose(f);
+	return written;
+}
+
 /// The async loader, faked. This binary has no Rust loader, so libdeluge/audio_load.h's
 /// request/collect pair resolves to audio_load_abi.cpp's weak "there is no loader here" fallbacks;
 /// the strong definitions below override them for this binary so the collector's four outcomes
@@ -424,8 +470,49 @@ struct AsyncLoaderStub {
 	int requestCalls = 0;
 	std::string requestedPath;                    ///< the path of the last request
 	std::vector<std::string> requestedCandidates; ///< the candidate list of the last request, in order
+	/// When set, a request RESOLVES itself against this directory the way the real loader resolves
+	/// against the card -- first candidate that exists wins -- and arms the READY result for it. That
+	/// is what makes the candidate ORDER observable end to end: a stub that always handed back a
+	/// pre-baked result would agree with any order at all.
+	std::string resolveAgainstRoot;
 };
 AsyncLoaderStub g_asyncStub;
+
+/// Resolve `requestedCandidates` against `resolveAgainstRoot` exactly as the loader resolves against
+/// the card, and arm the result the next collect hands back: the first candidate that exists wins, its
+/// size and (known) geometry are reported, and `alternate_path` is set only when the winner is not the
+/// nominal path -- the same rule audio_loader.rs applies. If nothing exists, the loader's
+/// FILE_UNREADABLE verdict.
+void resolveStubbedRequest() {
+	DelugeAudioLoadResult result{};
+	result.error = static_cast<uint8_t>(Error::FILE_UNREADABLE);
+
+	for (const std::string& candidate : g_asyncStub.requestedCandidates) {
+		struct stat st{};
+		const std::string full = g_asyncStub.resolveAgainstRoot + "/" + candidate;
+		if (stat(full.c_str(), &st) != 0 || !S_ISREG(st.st_mode)) {
+			continue;
+		}
+		result = {};
+		result.size_bytes = static_cast<uint64_t>(st.st_size);
+		result.error = static_cast<uint8_t>(Error::NONE);
+		// The geometry of the WAVs this harness writes (see writeTestWav): 44-byte header, mono,
+		// 16-bit, 44100 Hz.
+		result.geometry.sample_rate = 44100;
+		result.geometry.audio_data_start_pos_bytes = 44;
+		result.geometry.audio_data_length_bytes = static_cast<uint32_t>(st.st_size) - 44;
+		result.geometry.num_channels = 1;
+		result.geometry.byte_depth = 2;
+		result.geometry.raw_data_format = 0; // RawDataFormat::NATIVE
+		if (candidate != g_asyncStub.requestedPath) {
+			std::snprintf(result.alternate_path, DELUGE_MAX_PATH, "%s", candidate.c_str());
+		}
+		break;
+	}
+
+	g_asyncStub.result = result;
+	g_asyncStub.collectStatus = DELUGE_AUDIO_LOAD_READY;
+}
 
 } // namespace
 
@@ -449,6 +536,9 @@ extern "C" bool deluge_audio_load_request(const char* file_path, const char* can
 	g_asyncStub.requestedCandidates.clear();
 	for (uint32_t i = 0; i < num_candidates; i++) {
 		g_asyncStub.requestedCandidates.emplace_back(candidates + (i * DELUGE_MAX_PATH));
+	}
+	if (!g_asyncStub.resolveAgainstRoot.empty()) {
+		resolveStubbedRequest();
 	}
 	return g_asyncStub.requestAccepted;
 }
@@ -479,6 +569,14 @@ bool checkAsyncCollector() {
 	mkdir(samplesDir.c_str(), 0755);
 	mkdir(altDir.c_str(), 0755);
 	constexpr uint32_t kSampleFileSize = 4096;
+	// Removes whatever of the temp card exists, on the failure exit below as well as at the end -- an
+	// early return must not leave a directory behind in /tmp.
+	const auto removeTempCard = [&] {
+		unlink(samplePath.c_str());
+		rmdir(altDir.c_str());
+		rmdir(samplesDir.c_str());
+		rmdir(root);
+	};
 	{
 		std::vector<char> bytes(kSampleFileSize, 0);
 		FILE* f = fopen(samplePath.c_str(), "wb");
@@ -487,6 +585,7 @@ bool checkAsyncCollector() {
 			if (f != nullptr) {
 				fclose(f);
 			}
+			removeTempCard();
 			return false;
 		}
 		fclose(f);
@@ -570,11 +669,14 @@ bool checkAsyncCollector() {
 		}
 	}
 
-	// UNKNOWN: the loader has never heard of this path, so ask it -- and the alternate load dir must be
-	// resolved BEFORE the candidates are proposed, or a "collect media" song's samples are requested
-	// with only their regular path. Driven from MIGHT_EXIST, the state every song and preset load
-	// starts in: proposeLoadCandidates() yields exactly one candidate in that state and three once the
-	// probe has promoted it, so the captured list is what tells the two orders apart.
+	// UNKNOWN: the loader has never heard of this path, so ask it. Two things about the request are
+	// pinned here, both driven from MIGHT_EXIST -- the state every song and preset load starts in:
+	//   * the alternate load dir is resolved BEFORE the candidates are proposed, or a "collect media"
+	//     song's samples are requested with only their regular path (proposeLoadCandidates yields one
+	//     candidate in that state and three once the probe has promoted it);
+	//   * and the list is then rotated so the REGULAR path is tried first, which is what resolveFileSize
+	//     effectively does from the same state -- see checkAsyncAlternateDirOrder for what the two
+	//     orders cost when a file exists at both locations.
 	{
 		g_asyncStub = {};
 		g_asyncStub.active = true;
@@ -599,16 +701,17 @@ bool checkAsyncCollector() {
 			       g_asyncStub.requestCalls, g_asyncStub.requestedPath.c_str());
 			ok = false;
 		}
-		const std::vector<std::string> expected{"SAMPLES/ALT/FOLDER_kick.wav", "SAMPLES/ALT/kick.wav",
-		                                        "SAMPLES/FOLDER/kick.wav"};
+		const std::vector<std::string> expected{"SAMPLES/FOLDER/kick.wav", "SAMPLES/ALT/FOLDER_kick.wav",
+		                                        "SAMPLES/ALT/kick.wav"};
 		if (g_asyncStub.requestedCandidates != expected) {
-			printf("FAIL [asyncCollector]: the request's candidates are not the resolved-alternate-dir list "
-			       "(got %zu:",
+			printf("FAIL [asyncCollector]: the request's candidates are not the resolved-alternate-dir list, "
+			       "regular path first (got %zu:",
 			       g_asyncStub.requestedCandidates.size());
 			for (const std::string& c : g_asyncStub.requestedCandidates) {
 				printf(" \"%s\"", c.c_str());
 			}
-			printf(") -- the alternate dir must be resolved before candidates are proposed\n");
+			printf(") -- the alternate dir must be resolved before candidates are proposed, and the "
+			       "regular path must lead\n");
 			ok = false;
 		}
 		if (audioFileManager.audioFiles.size() != before) {
@@ -764,6 +867,175 @@ bool checkAsyncCollector() {
 		}
 	}
 
+	// A path the loader can NEVER accept must fall through to the synchronous path, not sit in
+	// LOAD_IN_PROGRESS. deluge_audio_load_request refuses a non-UTF-8 path and one that does not fit
+	// its fixed-capacity buffer, and neither refusal can change on a later tick -- a caller told
+	// LOAD_IN_PROGRESS would re-request into the same refusal forever, so the load would never
+	// complete and never fail. The synchronous path has neither limit, which is why declining is the
+	// answer rather than an error.
+	{
+		struct InadmissibleCase {
+			const char* label;
+			std::string path;
+		};
+		// 0xFF can never appear in valid UTF-8 in any position; 300 characters is past the 255 the
+		// loader's fixed-capacity path can hold.
+		const InadmissibleCase cases[] = {
+		    {"a non-UTF-8 path", std::string{"SAMPLES/BAD"} + static_cast<char>(0xFF) + "NAME.WAV"},
+		    {"an over-long path", "SAMPLES/" + std::string(300, 'A') + ".WAV"},
+		};
+		for (const InadmissibleCase& c : cases) {
+			g_asyncStub = {};
+			g_asyncStub.active = true;
+			g_asyncStub.collectStatus = DELUGE_AUDIO_LOAD_UNKNOWN;
+			std::string path = c.path;
+			Error error = Error::NONE;
+			AudioFile* file =
+			    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+			                                              /*makeWaveTableWorkAtAllCosts=*/false,
+			                                              /*mayLoadAsync=*/true);
+			if (file != nullptr || error == Error::LOAD_IN_PROGRESS) {
+				printf("FAIL [asyncCollector]: %s must fall through to the synchronous path, not wait forever "
+				       "for a request that is refused permanently (file=%p error=%d)\n",
+				       c.label, static_cast<void*>(file), static_cast<int>(error));
+				ok = false;
+			}
+			if (g_asyncStub.requestCalls != 0) {
+				printf("FAIL [asyncCollector]: %s was requested anyway (%d time(s))\n", c.label,
+				       g_asyncStub.requestCalls);
+				ok = false;
+			}
+		}
+	}
+
+	// The two gate conjuncts that are invisible with the loader off, and would stay green through a
+	// refactor that dropped them. Both are about NOT taking the async path.
+	{
+		// mayReadCard=false means "look in memory only". A miss must stay the silent absence it has
+		// always been (nullptr, *error untouched) rather than becoming card I/O on another tier.
+		g_asyncStub = {};
+		g_asyncStub.active = true;
+		g_asyncStub.collectStatus = DELUGE_AUDIO_LOAD_READY;
+		g_asyncStub.result = readyResult(static_cast<uint8_t>(Error::NONE), "");
+		std::string path = "SAMPLES/NOT_RESIDENT.WAV"; // a miss, so the gate is what decides
+		Error error = Error::NONE;
+		AudioFile* file =
+		    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/false, &error, AudioFileType::SAMPLE,
+		                                              /*makeWaveTableWorkAtAllCosts=*/false,
+		                                              /*mayLoadAsync=*/true);
+		if (file != nullptr || error != Error::NONE || g_asyncStub.collectCalls != 0) {
+			printf("FAIL [asyncCollector]: mayReadCard=false reached the loader (file=%p error=%d %d collect(s))\n",
+			       static_cast<void*>(file), static_cast<int>(error), g_asyncStub.collectCalls);
+			ok = false;
+		}
+	}
+	{
+		// A card disabled until reboot (its cluster size grew past what this boot sized its buffers
+		// for) must keep reporting SD_CARD from the synchronous path. Requesting instead would hand the
+		// loader a card the app has already ruled unusable, and report LOAD_IN_PROGRESS forever.
+		g_asyncStub = {};
+		g_asyncStub.active = true;
+		g_asyncStub.collectStatus = DELUGE_AUDIO_LOAD_READY;
+		g_asyncStub.result = readyResult(static_cast<uint8_t>(Error::NONE), "");
+		audioFileManager.cardDisabled = true;
+		std::string path = "SAMPLES/DISABLED.WAV";
+		Error error = Error::NONE;
+		AudioFile* file =
+		    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+		                                              /*makeWaveTableWorkAtAllCosts=*/false,
+		                                              /*mayLoadAsync=*/true);
+		audioFileManager.cardDisabled = false;
+		if (file != nullptr || error != Error::SD_CARD || g_asyncStub.collectCalls != 0) {
+			printf("FAIL [asyncCollector]: a disabled card should report SD_CARD from the synchronous path "
+			       "(file=%p error=%d %d collect(s))\n",
+			       static_cast<void*>(file), static_cast<int>(error), g_asyncStub.collectCalls);
+			ok = false;
+		}
+	}
+
+	// A Sample and a WaveTable of the same file share a path and sit adjacent in the sorted vector, so
+	// a search for that path can land on either. Put a WaveTable there first, then collect a Sample at
+	// the same path: the collector must hand back the SAMPLE, and so must the resident lookup that
+	// answers every later request for it.
+	//
+	// The WaveTable is constructed and published directly rather than loaded, because a real wavetable
+	// load cannot run in this mode at all: WaveTable::setup builds an FFT config, and allocating one
+	// pumps the audio engine (routineWithClusterLoading), which faults with no booted host behind it.
+	// It stands in perfectly for what this branch actually reads -- an AudioFile of the other type at
+	// the same path -- since nothing here touches its band data.
+	{
+		g_asyncStub = {};
+		const char* const sharedPath = "SAMPLES/SHARED.WAV";
+		void* waveTableMemory = deluge::memory::alloc_external(sizeof(WaveTable), 16);
+		auto* waveTable = (waveTableMemory != nullptr) ? new (waveTableMemory) WaveTable : nullptr;
+		if (waveTable == nullptr) {
+			printf("FAIL [asyncCollector]: could not allocate the stand-in WaveTable\n");
+			ok = false;
+		}
+		else {
+			waveTable->filePath = sharedPath;
+			audioFileManager.adoptAudioFileObject(waveTable);
+			const auto inserted = audioFileManager.audioFiles.insertElement(waveTable);
+			if (!inserted) {
+				printf("FAIL [asyncCollector]: could not publish the stand-in WaveTable\n");
+				audioFileManager.destroyAudioFileObject(*waveTable);
+				ok = false;
+			}
+			else {
+				g_asyncStub.active = true;
+				g_asyncStub.collectStatus = DELUGE_AUDIO_LOAD_READY;
+				g_asyncStub.result = readyResult(static_cast<uint8_t>(Error::NONE), "SAMPLES/ASYNC.WAV");
+				std::string path = sharedPath;
+				Error error = Error::NONE;
+				AudioFile* sample =
+				    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+				                                              /*makeWaveTableWorkAtAllCosts=*/false,
+				                                              /*mayLoadAsync=*/true);
+				if (sample == nullptr || error != Error::NONE || sample->type != AudioFileType::SAMPLE) {
+					printf("FAIL [asyncCollector]: collecting a SAMPLE where a WaveTable is resident at the same "
+					       "path did not produce a Sample (file=%p type=%d error=%d)\n",
+					       static_cast<void*>(sample), sample != nullptr ? static_cast<int>(sample->type) : -1,
+					       static_cast<int>(error));
+					ok = false;
+				}
+				else {
+					// Both types are resident at this path now, so the resident lookup has to pick the
+					// right neighbour -- the branch a plain "return the search hit" would get wrong.
+					const int collectsBefore = g_asyncStub.collectCalls;
+					std::string residentPath = sharedPath;
+					Error residentError = Error::NONE;
+					AudioFile* residentSample = audioFileManager.getAudioFileFromFilename(
+					    residentPath, /*mayReadCard=*/true, &residentError, AudioFileType::SAMPLE,
+					    /*makeWaveTableWorkAtAllCosts=*/false,
+					    /*mayLoadAsync=*/true);
+					if (residentSample != sample || g_asyncStub.collectCalls != collectsBefore) {
+						printf("FAIL [asyncCollector]: the resident SAMPLE at a path a WaveTable also occupies was "
+						       "not returned (file=%p vs %p, type=%d, %d extra collect(s))\n",
+						       static_cast<void*>(residentSample), static_cast<void*>(sample),
+						       residentSample != nullptr ? static_cast<int>(residentSample->type) : -1,
+						       g_asyncStub.collectCalls - collectsBefore);
+						ok = false;
+					}
+					std::string waveTablePath = sharedPath;
+					Error waveTableError = Error::NONE;
+					AudioFile* residentWaveTable = audioFileManager.getAudioFileFromFilename(
+					    waveTablePath, /*mayReadCard=*/true, &waveTableError, AudioFileType::WAVETABLE,
+					    /*makeWaveTableWorkAtAllCosts=*/false,
+					    /*mayLoadAsync=*/false);
+					if (residentWaveTable != waveTable) {
+						printf("FAIL [asyncCollector]: the resident WAVETABLE at that same path was not returned "
+						       "(file=%p vs %p)\n",
+						       static_cast<void*>(residentWaveTable), static_cast<void*>(waveTable));
+						ok = false;
+					}
+				}
+			}
+		}
+		// Both entries share one path, so this runs twice -- once per resident object.
+		audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(sharedPath);
+		audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(sharedPath);
+	}
+
 	// A build that cannot be closed out cleanly must still be closed out. Two failures reach that:
 	// the read-stream bind failing (the file the loader resolved is gone by the time we open it) and
 	// the geometry being refused (an out-of-range raw_data_format). Both must abandon the build --
@@ -838,10 +1110,204 @@ bool checkAsyncCollector() {
 	}
 
 	g_asyncStub = {};
-	unlink(samplePath.c_str());
-	rmdir(altDir.c_str());
-	rmdir(samplesDir.c_str());
-	rmdir(root);
+	// Nothing this check published may outlive the temp card it was loaded from: a resident Sample
+	// holds one of the streaming registry's scarce handles for the rest of the run, on a file the next
+	// few lines delete.
+	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists("SAMPLES/ASYNC.WAV");
+	removeTempCard();
+	if (hadPreviousRoot) {
+		setenv("DELUGE_SD_ROOT", previousRoot.c_str(), 1);
+	}
+	else {
+		unsetenv("DELUGE_SD_ROOT");
+	}
+	return ok;
+}
+
+/// Pin that both paths load the SAME FILE when one exists at both its regular path and in the
+/// alternate load dir.
+///
+/// This is the case an A/B of the two paths cannot catch on its own: a sample that exists in only one
+/// place is found there either way, so the two agree for the wrong reason. Here they can disagree, and
+/// the difference is which file the user hears.
+///
+/// The synchronous path's effective try order is not proposeLoadCandidates' order. From `MIGHT_EXIST`
+/// -- the state every song and preset load starts in -- resolveFileSize proposes only the REGULAR path,
+/// tries it first, and probes the alternate dir only once that misses. The collector cannot probe
+/// lazily (its one request carries every candidate), so it resolves up front and then has to put the
+/// order back.
+///
+/// Both legs run from a fresh `MIGHT_EXIST` against a card holding the same filename twice with
+/// different lengths and contents, and the resulting Samples must agree on identity, geometry and the
+/// bytes read back through the stream.
+bool checkAsyncAlternateDirOrder() {
+	bool ok = true;
+
+	char rootTemplate[] = "/tmp/deluge_loadcheck_alt_XXXXXX";
+	const char* root = mkdtemp(rootTemplate);
+	if (root == nullptr) {
+		printf("FAIL [asyncAltDirOrder]: could not create a temp card directory\n");
+		return false;
+	}
+	const std::string samplesDir = std::string{root} + "/SAMPLES";
+	const std::string altDir = samplesDir + "/ALT";
+	const std::string regularFile = samplesDir + "/DUP.WAV";
+	const std::string alternateFile = altDir + "/DUP.WAV";
+	mkdir(samplesDir.c_str(), 0755);
+	mkdir(altDir.c_str(), 0755);
+	// Different lengths AND different contents, so a mix-up shows up in the geometry and in the bytes.
+	const auto removeTempCard = [&] {
+		unlink(regularFile.c_str());
+		unlink(alternateFile.c_str());
+		rmdir(altDir.c_str());
+		rmdir(samplesDir.c_str());
+		rmdir(root);
+	};
+	const bool fixtureWritten = writeTestWav(regularFile, 2000, 0x11) && writeTestWav(alternateFile, 3000, 0x22);
+	if (!fixtureWritten) {
+		printf("FAIL [asyncAltDirOrder]: could not write the temp card's duplicate sample files\n");
+		removeTempCard();
+		return false;
+	}
+
+	const char* previousRootRaw = getenv("DELUGE_SD_ROOT");
+	const std::string previousRoot = (previousRootRaw != nullptr) ? previousRootRaw : "";
+	const bool hadPreviousRoot = previousRootRaw != nullptr;
+	setenv("DELUGE_SD_ROOT", root, 1);
+
+	// What each leg loaded, in the terms that decide which file plays.
+	struct LoadedIdentity {
+		bool loaded = false;
+		std::string filePath;
+		std::string loadedFromAlternatePath;
+		uint64_t audioDataLengthBytes = 0;
+		std::array<std::byte, 16> firstBytes{};
+		bool readOk = false;
+	};
+
+	const auto capture = [](AudioFile* file) {
+		LoadedIdentity identity;
+		if (file == nullptr || file->type != AudioFileType::SAMPLE) {
+			return identity;
+		}
+		Sample& sample = static_cast<Sample&>(*file);
+		identity.loaded = true;
+		identity.filePath = sample.filePath;
+		identity.loadedFromAlternatePath = sample.loadedFromAlternatePath;
+		identity.audioDataLengthBytes = sample.audioDataLengthBytes;
+		auto readSource = sample.stream().make_read_source();
+		identity.readOk = readSource != nullptr && readSource->read(0, identity.firstBytes).has_value();
+		return identity;
+	};
+
+	// A load of a song's sample: the alternate dir might exist, and the in-memory alternate-name search
+	// is skipped for SONG, so this is purely about which candidate is opened first.
+	const auto startOfLoad = [&]() {
+		audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists("SAMPLES/DUP.WAV");
+		audioFileManager.alternateAudioFileLoadPath = "SAMPLES/ALT";
+		audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::MIGHT_EXIST;
+		audioFileManager.thingTypeBeingLoaded = ThingType::SONG;
+	};
+
+	g_asyncStub = {};
+	startOfLoad();
+	std::string syncPath = "SAMPLES/DUP.WAV";
+	Error syncError = Error::NONE;
+	const LoadedIdentity synchronous = capture(
+	    audioFileManager.getAudioFileFromFilename(syncPath, /*mayReadCard=*/true, &syncError, AudioFileType::SAMPLE,
+	                                              /*makeWaveTableWorkAtAllCosts=*/false,
+	                                              /*mayLoadAsync=*/false));
+
+	// Now the same load through the collector, with the stub resolving the candidates it is given
+	// against the same card -- so the ORDER of that list is what decides which file wins.
+	g_asyncStub = {};
+	g_asyncStub.active = true;
+	g_asyncStub.collectStatus = DELUGE_AUDIO_LOAD_UNKNOWN;
+	g_asyncStub.resolveAgainstRoot = root;
+	startOfLoad();
+	std::string asyncPath = "SAMPLES/DUP.WAV";
+	Error asyncError = Error::NONE;
+	AudioFile* pending =
+	    audioFileManager.getAudioFileFromFilename(asyncPath, /*mayReadCard=*/true, &asyncError, AudioFileType::SAMPLE,
+	                                              /*makeWaveTableWorkAtAllCosts=*/false, /*mayLoadAsync=*/true);
+	if (pending != nullptr || asyncError != Error::LOAD_IN_PROGRESS) {
+		printf("FAIL [asyncAltDirOrder]: the first tick should request and report LOAD_IN_PROGRESS (file=%p "
+		       "error=%d)\n",
+		       static_cast<void*>(pending), static_cast<int>(asyncError));
+		ok = false;
+	}
+	asyncError = Error::NONE;
+	const LoadedIdentity asynchronous = capture(
+	    audioFileManager.getAudioFileFromFilename(asyncPath, /*mayReadCard=*/true, &asyncError, AudioFileType::SAMPLE,
+	                                              /*makeWaveTableWorkAtAllCosts=*/false,
+	                                              /*mayLoadAsync=*/true));
+
+	if (!synchronous.loaded || !asynchronous.loaded) {
+		printf("FAIL [asyncAltDirOrder]: a leg did not load a Sample at all (sync=%d async=%d, errors %d/%d)\n",
+		       static_cast<int>(synchronous.loaded), static_cast<int>(asynchronous.loaded), static_cast<int>(syncError),
+		       static_cast<int>(asyncError));
+		ok = false;
+	}
+	else {
+		if (synchronous.filePath != asynchronous.filePath
+		    || synchronous.loadedFromAlternatePath != asynchronous.loadedFromAlternatePath
+		    || synchronous.audioDataLengthBytes != asynchronous.audioDataLengthBytes) {
+			printf("FAIL [asyncAltDirOrder]: the two paths loaded DIFFERENT files for \"SAMPLES/DUP.WAV\" -- "
+			       "sync {path=\"%s\" alt=\"%s\" dataLen=%llu} vs async {path=\"%s\" alt=\"%s\" dataLen=%llu}\n",
+			       synchronous.filePath.c_str(), synchronous.loadedFromAlternatePath.c_str(),
+			       static_cast<unsigned long long>(synchronous.audioDataLengthBytes), asynchronous.filePath.c_str(),
+			       asynchronous.loadedFromAlternatePath.c_str(),
+			       static_cast<unsigned long long>(asynchronous.audioDataLengthBytes));
+			ok = false;
+		}
+		if (!synchronous.readOk || !asynchronous.readOk || synchronous.firstBytes != asynchronous.firstBytes) {
+			printf("FAIL [asyncAltDirOrder]: the two paths' streams read different bytes (readable %d/%d) -- the "
+			       "bound file is not the same one\n",
+			       static_cast<int>(synchronous.readOk), static_cast<int>(asynchronous.readOk));
+			ok = false;
+		}
+	}
+
+	// The accepted residual of resolving up front: an alternate dir that is genuinely absent is
+	// recorded as NOT_FOUND right away, where the synchronous path would have left the status alone
+	// until a regular open missed. The only consequence is that getAudioFileFromFilename's in-memory
+	// alternate-name search stops being tried for the rest of the load -- a cache lookup that could
+	// only have hit on an object put there by an earlier load through the same (now absent) directory.
+	// Accepted rather than restored, because re-arming MIGHT_EXIST would mean probing the directory
+	// again on every single request. Asserted so the choice cannot drift unnoticed.
+	{
+		g_asyncStub = {};
+		g_asyncStub.active = true;
+		g_asyncStub.collectStatus = DELUGE_AUDIO_LOAD_UNKNOWN;
+		audioFileManager.alternateAudioFileLoadPath = "SAMPLES/NO_SUCH_ALT";
+		audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::MIGHT_EXIST;
+		std::string path = "SAMPLES/DUP.WAV";
+		Error error = Error::NONE;
+		audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists("SAMPLES/DUP.WAV");
+		(void)audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+		                                                /*makeWaveTableWorkAtAllCosts=*/false, /*mayLoadAsync=*/true);
+		if (audioFileManager.alternateLoadDirStatus != AlternateLoadDirStatus::NOT_FOUND) {
+			printf("FAIL [asyncAltDirOrder]: an absent alternate dir should be resolved to NOT_FOUND by the "
+			       "request (status=%d) -- if that changed deliberately, change this assertion with it\n",
+			       static_cast<int>(audioFileManager.alternateLoadDirStatus));
+			ok = false;
+		}
+		// The candidate list for an absent alternate dir is just the regular path, so there is nothing
+		// to rotate and the request must carry exactly one candidate.
+		const std::vector<std::string> expected{"SAMPLES/DUP.WAV"};
+		if (g_asyncStub.requestedCandidates != expected) {
+			printf("FAIL [asyncAltDirOrder]: an absent alternate dir should leave one candidate, got %zu\n",
+			       g_asyncStub.requestedCandidates.size());
+			ok = false;
+		}
+	}
+
+	g_asyncStub = {};
+	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists("SAMPLES/DUP.WAV");
+	audioFileManager.alternateAudioFileLoadPath.clear();
+	audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
+	audioFileManager.thingTypeBeingLoaded = ThingType::NONE;
+	removeTempCard();
 	if (hadPreviousRoot) {
 		setenv("DELUGE_SD_ROOT", previousRoot.c_str(), 1);
 	}
@@ -866,6 +1332,9 @@ void deluge_loadcheck_driver() {
 		failures++;
 	}
 	if (!checkAsyncCollector()) {
+		failures++;
+	}
+	if (!checkAsyncAlternateDirOrder()) {
 		failures++;
 	}
 	for (const LoadItem& item : g_items) {
@@ -944,8 +1413,9 @@ int main(int argc, char** argv) {
 		// Serves itself a two-file temp directory as the card (removed again before it returns), so it
 		// needs no fixture here either -- see its own doc comment.
 		const bool collectorOk = checkAsyncCollector();
+		const bool altDirOrderOk = checkAsyncAlternateDirOrder();
 		fflush(nullptr);
-		return (policyOk && abiOk && collectorOk) ? 0 : 1;
+		return (policyOk && abiOk && collectorOk && altDirOrderOk) ? 0 : 1;
 	}
 
 	if (project == nullptr) {

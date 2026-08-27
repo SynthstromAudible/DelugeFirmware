@@ -1175,6 +1175,10 @@ void OLED::displayError(Error error) {
 	switch (error) {
 	case Error::NONE:
 	case Error::ABORTED_BY_USER:
+	// Not a failure: the async loader has this file and has not finished. A caller that gets it asks
+	// again on a later tick, so nothing should ever reach here with it -- and if something does, the
+	// user must not be shown a popup that reads as a failed load.
+	case Error::LOAD_IN_PROGRESS:
 		return;
 	default:
 		message = getErrorMessage(error).data();

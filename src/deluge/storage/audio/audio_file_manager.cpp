@@ -941,34 +941,63 @@ AudioFile* AudioFileManager::buildSampleFromLoadResult(const std::string& filePa
 	}
 
 	abiError = static_cast<uint8_t>(Error::NONE);
-	if (!deluge_audio_load_finish(build, static_cast<uint8_t>(Error::NONE), &abiError)) {
+	DelugeAudioFile* published = nullptr;
+	if (!deluge_audio_load_finish(build, static_cast<uint8_t>(Error::NONE), &abiError, &published)) {
 		// Publishing itself failed (e.g. the cache insert ran out of memory). finish() consumed the
 		// build either way, so there is nothing left to abandon -- and its error_out, not our
 		// Error::NONE input, is the outcome to report.
 		return fail(abiError);
 	}
 
-	// Published into audioFiles. finish() reports only whether it published, so recover the object the
-	// same way a resident hit is found -- an in-memory lookup of the path we just inserted at.
-	bool foundExact = false;
-	const int32_t audioFileI = audioFiles.search(filePath.c_str(), &foundExact);
-	AudioFile* published =
-	    foundExact ? matchingResidentAudioFile(audioFileI, filePath, AudioFileType::SAMPLE) : nullptr;
-	if (published == nullptr) {
-		// Cannot happen: finish() returned true, which means the insert succeeded. Refuse to hand back
-		// a silent nullptr if it ever does.
-		*error = Error::BUG;
-		return nullptr;
+	// The published object comes back from finish() itself rather than being searched for again: it is
+	// unleased the moment finish() drops the protect-during-setup reason, and it is not necessarily
+	// keyed by the path passed to begin() (the SYNTH/KIT alternate-location rule rewrites it), so a
+	// re-search would be both a window and an assumption. The synchronous path holds the pointer for
+	// exactly the same reason.
+	return reinterpret_cast<AudioFile*>(published);
+}
+
+bool AudioFileManager::admissibleAsyncLoadPath(std::string_view path) {
+	// Both conditions mirror deluge_audio_load_request's own admission rule (audio_loader.rs's
+	// `cstr_to_path`/`decode_candidates`), and both must: a path this accepts and the loader refuses is
+	// a load that can never complete, while one this refuses and the loader would have accepted only
+	// costs a synchronous load.
+	return path.size() < DELUGE_MAX_PATH && deluge::string::isValidUtf8(path);
+}
+
+bool AudioFileManager::admissibleAsyncCandidates(const char* candidates, uint32_t numCandidates) {
+	for (uint32_t i = 0; i < numCandidates; i++) {
+		const char* slot = candidates + (static_cast<size_t>(i) * DELUGE_MAX_PATH);
+		// Each slot is NUL-terminated within DELUGE_MAX_PATH by deluge_audio_load_candidates, which
+		// reports an over-long candidate as untrustworthy rather than writing it -- the bounded length
+		// here is belt and braces against that contract changing, not a second opinion about it.
+		if (!admissibleAsyncLoadPath(std::string_view{slot, strnlen(slot, DELUGE_MAX_PATH)})) {
+			return false;
+		}
 	}
-	return published;
+	return true;
 }
 
 std::optional<AudioFile*> AudioFileManager::requestAsyncSampleLoad(const std::string& filePath, Error* error) {
+	// A path the loader can never accept must never become a request. deluge_audio_load_request
+	// refuses a path (or a candidate) that is not valid UTF-8 or does not fit its fixed-capacity
+	// buffer, and unlike a full queue those refusals are PERMANENT: reporting LOAD_IN_PROGRESS for one
+	// would have the caller re-request into the same refusal on every tick, so the load would never
+	// complete and never fail -- silence with no error, the exact shape this boundary exists to avoid.
+	// Neither condition stops the synchronous path (std::string has no ceiling and reads no encoding),
+	// so decline and let it answer.
+	if (!admissibleAsyncLoadPath(filePath)) {
+		return std::nullopt;
+	}
+
 	// Discovery BEFORE candidates (see the declaration): resolving the alternate load dir is what
 	// unlocks its candidates, and it is I/O, so it cannot live inside the I/O-free candidate policy.
 	// Its answer is deliberately ignored here -- "no alternate dir" is not a load failure, it just
 	// means the regular path is the only candidate, which is exactly what proposeLoadCandidates then
 	// returns.
+	//
+	// Whether it was still unresolved on entry is remembered, because it decides the try ORDER below.
+	const bool wasUnresolved = alternateLoadDirStatus == AlternateLoadDirStatus::MIGHT_EXIST;
 	(void)deluge_audio_load_resolve_alternate_dir(nullptr);
 
 	std::array<char, kMaxLoadCandidates * DELUGE_MAX_PATH> candidates{};
@@ -986,6 +1015,28 @@ std::optional<AudioFile*> AudioFileManager::requestAsyncSampleLoad(const std::st
 	// contract); only the slots actually written may be read. kMaxLoadCandidates is its true upper
 	// bound, so this cannot bite today -- it is here so it cannot start to.
 	const uint32_t numCandidates = std::min<uint32_t>(proposed, static_cast<uint32_t>(kMaxLoadCandidates));
+
+	if (!admissibleAsyncCandidates(candidates.data(), numCandidates)) {
+		return std::nullopt; // the same permanent refusal as above, one level down
+	}
+
+	// Reproduce resolveFileSize's EFFECTIVE try order, which is not proposeLoadCandidates' order when
+	// the status was unresolved on entry. In that state the synchronous path proposes only the regular
+	// path and tries it FIRST, probing the alternate dir (and trying its candidates) only once that
+	// misses. Resolving up front is what makes the alternate candidates available to a single request
+	// -- but it also promotes them ahead of the regular path, so a file present at BOTH locations would
+	// load from the alternate one here and the regular one synchronously. Rotating the regular path
+	// (always proposed last) back to the front restores the synchronous order exactly, with no extra
+	// round trip.
+	if (wasUnresolved && numCandidates > 1) {
+		std::array<char, DELUGE_MAX_PATH> regularPath{};
+		char* const slots = candidates.data();
+		const size_t precedingBytes = (static_cast<size_t>(numCandidates) - 1) * DELUGE_MAX_PATH;
+		std::memcpy(regularPath.data(), slots + precedingBytes, DELUGE_MAX_PATH);
+		std::memmove(slots + DELUGE_MAX_PATH, slots, precedingBytes);
+		std::memcpy(slots, regularPath.data(), DELUGE_MAX_PATH);
+	}
+
 	(void)deluge_audio_load_request(filePath.c_str(), candidates.data(), numCandidates);
 
 	// A dropped request (a full queue) is reported exactly like an accepted one, by contract: the
