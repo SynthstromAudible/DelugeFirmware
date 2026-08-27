@@ -485,14 +485,23 @@ AsyncLoaderStub g_asyncStub;
 
 /// Resolve `requestedCandidates` against `resolveAgainstRoot` exactly as the loader resolves against
 /// the card, and arm the result the next collect hands back: the first candidate that exists wins, its
-/// size and (known) geometry are reported, and `alternate_path` is set only when the winner is not the
-/// nominal path -- the same rule audio_loader.rs applies. If nothing exists, the loader's
+/// size and (known) geometry are reported, and `alternate_path` is set only when the winner is not in
+/// the LAST slot -- the same rule audio_loader.rs applies. If nothing exists, the loader's
 /// FILE_UNREADABLE verdict.
+///
+/// Positional, never a string comparison against the nominal path, and this stub has to get that
+/// right or the differential it feeds cannot see the case that matters: when
+/// `alternateAudioFileLoadPath` is the file's own directory, the bare-name alternate candidate
+/// stringifies to exactly the nominal path, and only the SLOT distinguishes an alternate-dir hit from
+/// a regular one. `proposeLoadCandidates` guarantees the regular path is last, and `resolveFileSize`
+/// relies on that; so does the real loader.
 void resolveStubbedRequest() {
 	DelugeAudioLoadResult result{};
 	result.error = static_cast<uint8_t>(Error::FILE_UNREADABLE);
 
-	for (const std::string& candidate : g_asyncStub.requestedCandidates) {
+	const size_t lastSlot = g_asyncStub.requestedCandidates.empty() ? 0 : g_asyncStub.requestedCandidates.size() - 1;
+	for (size_t slot = 0; slot < g_asyncStub.requestedCandidates.size(); slot++) {
+		const std::string& candidate = g_asyncStub.requestedCandidates[slot];
 		struct stat st{};
 		const std::string full = g_asyncStub.resolveAgainstRoot + "/" + candidate;
 		if (stat(full.c_str(), &st) != 0 || !S_ISREG(st.st_mode)) {
@@ -524,7 +533,7 @@ void resolveStubbedRequest() {
 		result.geometry.num_channels = 1;
 		result.geometry.byte_depth = 2;
 		result.geometry.raw_data_format = 0; // RawDataFormat::NATIVE
-		if (candidate != g_asyncStub.requestedPath) {
+		if (slot != lastSlot) {
 			std::snprintf(result.alternate_path, DELUGE_MAX_PATH, "%s", candidate.c_str());
 		}
 		break;
@@ -600,8 +609,13 @@ bool checkAsyncCollector() {
 	constexpr uint32_t kSampleFileSize = 4096;
 	// Removes whatever of the temp card exists, on the failure exit below as well as at the end -- an
 	// early return must not leave a directory behind in /tmp.
+	// A REAL parseable WAV, unlike samplePath's 4096 zero bytes: the full-handle-table reclaim check
+	// needs one file that actually loads synchronously, so there is something resident and unleased
+	// for releaseUnleasedAudioFiles() to find.
+	const std::string reclaimablePath = samplesDir + "/RECLAIM.WAV";
 	const auto removeTempCard = [&] {
 		unlink(samplePath.c_str());
+		unlink(reclaimablePath.c_str());
 		rmdir(altDir.c_str());
 		rmdir(samplesDir.c_str());
 		rmdir(root);
@@ -618,6 +632,11 @@ bool checkAsyncCollector() {
 			return false;
 		}
 		fclose(f);
+	}
+	if (!writeTestWav(reclaimablePath, 2000, 0x5A)) {
+		printf("FAIL [asyncCollector]: could not write the temp card's reclaimable sample file\n");
+		removeTempCard();
+		return false;
 	}
 	// Point the host passthrough at the temp card for the duration, then put back whatever was there
 	// (the --project directory, in file-loading mode) so this leaves nothing behind it.
@@ -795,6 +814,104 @@ bool checkAsyncCollector() {
 		}
 		if (g_asyncStub.requestCalls != 0) {
 			printf("FAIL [asyncCollector]: a PENDING path was re-requested (%d times)\n", g_asyncStub.requestCalls);
+			ok = false;
+		}
+	}
+
+	// A FULL efatfs handle table is not a verdict about the file, and must not be answered like one.
+	//
+	// The loader opens through the same 128-slot table SampleStream::open_read_stream uses, which
+	// sample_stream.cpp documents filling up by construction under browser preview. Reported as
+	// FILE_UNREADABLE it would hit the collector's retry gate: probe the alternate directory, promote
+	// alternateLoadDirStatus for every later sample of the load, and possibly answer with a
+	// same-named file from there -- where the synchronous path reclaims and reports
+	// TOO_MANY_OPEN_STREAMS. These two blocks pin both halves of the recovery.
+	//
+	// Half 1: with nothing reclaimable, the honest error comes out AND the alternate dir was never
+	// probed. The pre-emptive releaseUnleasedAudioFiles() is what makes that deterministic -- it
+	// empties the cache so the call inside the collector necessarily returns 0, whatever earlier
+	// checks left resident.
+	{
+		audioFileManager.releaseUnleasedAudioFiles();
+		g_asyncStub = {};
+		g_asyncStub.active = true;
+		g_asyncStub.collectStatus = DELUGE_AUDIO_LOAD_READY;
+		g_asyncStub.result = readyResult(static_cast<uint8_t>(Error::TOO_MANY_OPEN_STREAMS), "");
+		audioFileManager.alternateAudioFileLoadPath = "SAMPLES/ALT";
+		audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::MIGHT_EXIST;
+
+		std::string path = "SAMPLES/TABLEFULL.WAV";
+		Error error = Error::NONE;
+		AudioFile* file =
+		    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+		                                              /*makeWaveTableWorkAtAllCosts=*/false,
+		                                              /*mayLoadAsync=*/true);
+		if (file != nullptr || error != Error::TOO_MANY_OPEN_STREAMS) {
+			printf("FAIL [asyncCollector]: a full handle table with nothing to reclaim should report "
+			       "TOO_MANY_OPEN_STREAMS, got file=%p error=%d\n",
+			       static_cast<void*>(file), static_cast<int>(error));
+			ok = false;
+		}
+		if (audioFileManager.alternateLoadDirStatus != AlternateLoadDirStatus::MIGHT_EXIST) {
+			printf("FAIL [asyncCollector]: a full handle table probed the alternate dir and promoted the "
+			       "status (to %d) -- it is a resource failure, not a candidate miss, and the promotion "
+			       "would change the try order for every later sample of the load\n",
+			       static_cast<int>(audioFileManager.alternateLoadDirStatus));
+			ok = false;
+		}
+		audioFileManager.alternateAudioFileLoadPath.clear();
+		audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
+	}
+
+	// Half 2: with something reclaimable, the reclaim runs and the load is asked AGAIN rather than
+	// failed -- the same reclaim-and-retry-once SampleStream::open_read_stream performs, run on the
+	// only tier that can perform it (the loader's executor may make no synchronous C++ call).
+	{
+		g_asyncStub = {};
+		// Make one resident, unleased AudioFile for releaseUnleasedAudioFiles() to find: load it
+		// synchronously, then drop the reason setAudioFile-style callers hold.
+		{
+			std::string path = "SAMPLES/RECLAIM.WAV";
+			Error error = Error::NONE;
+			AudioFile* resident =
+			    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+			                                              /*makeWaveTableWorkAtAllCosts=*/false,
+			                                              /*mayLoadAsync=*/false);
+			if (resident == nullptr) {
+				printf("FAIL [asyncCollector]: could not make a reclaimable resident (error=%d); the reclaim "
+				       "half of the full-table check would pass vacuously\n",
+				       static_cast<int>(error));
+				ok = false;
+			}
+		}
+
+		g_asyncStub.active = true;
+		g_asyncStub.collectStatus = DELUGE_AUDIO_LOAD_READY;
+		g_asyncStub.result = readyResult(static_cast<uint8_t>(Error::TOO_MANY_OPEN_STREAMS), "");
+
+		std::string path = "SAMPLES/TABLEFULL2.WAV";
+		Error error = Error::NONE;
+		AudioFile* file =
+		    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+		                                              /*makeWaveTableWorkAtAllCosts=*/false,
+		                                              /*mayLoadAsync=*/true);
+		if (file != nullptr || error != Error::LOAD_IN_PROGRESS) {
+			printf("FAIL [asyncCollector]: a full handle table with something reclaimable should reclaim and "
+			       "ask again (LOAD_IN_PROGRESS), got file=%p error=%d\n",
+			       static_cast<void*>(file), static_cast<int>(error));
+			ok = false;
+		}
+		if (g_asyncStub.requestCalls != 1 || g_asyncStub.requestedPath != "SAMPLES/TABLEFULL2.WAV") {
+			printf("FAIL [asyncCollector]: expected exactly one re-request for the reclaimed load, got %d for "
+			       "\"%s\"\n",
+			       g_asyncStub.requestCalls, g_asyncStub.requestedPath.c_str());
+			ok = false;
+		}
+		bool stillResident = false;
+		(void)audioFileManager.audioFiles.search("SAMPLES/RECLAIM.WAV", &stillResident);
+		if (stillResident) {
+			printf("FAIL [asyncCollector]: the reclaimable resident survived, so releaseUnleasedAudioFiles() "
+			       "never ran -- the retry above was not earned by a reclaim\n");
 			ok = false;
 		}
 	}
@@ -1438,7 +1555,7 @@ bool checkAsyncAlternateDirOrder() {
 	mkdir(altDir.c_str(), 0755);
 
 	const auto removeTempCard = [&] {
-		for (const char* name : {"/DUP.WAV", "/DUP2.WAV", "/BAD.WAV", "/ALT_ONLY.WAV"}) {
+		for (const char* name : {"/DUP.WAV", "/DUP2.WAV", "/BAD.WAV", "/ALT_ONLY.WAV", "/SELF.WAV"}) {
 			unlink((samplesDir + name).c_str());
 			unlink((altDir + name).c_str());
 		}
@@ -1453,6 +1570,14 @@ bool checkAsyncAlternateDirOrder() {
 	    && writeTestWav(samplesDir + "/DUP2.WAV", 2400, 0x33) && writeTestWav(altDir + "/DUP2.WAV", 3400, 0x44)
 	    && writeTestWav(altDir + "/ALT_ONLY.WAV", 2800, 0x55)
 	    && writeTestWav(altDir + "/BAD.WAV", 3600, 0x66)
+	    // SELF.WAV lives IN the alternate directory and is asked for by that path, so
+	    // `alternateAudioFileLoadPath` IS its own directory: proposeLoadCandidates' bare-name
+	    // alternate candidate (slot 1) and its regular path (slot 2) are the SAME string. Only the
+	    // SLOT can tell the resulting hit apart, and getting that wrong leaves
+	    // `loadedFromAlternatePath` empty -- which is what save_song_ui.cpp gates the collect-media
+	    // copy-back on, so the sample is silently left out of a saved song's folder. There is
+	    // deliberately no ALT_SELF.WAV: slot 0 must MISS so the ambiguous slot 1 is the winner.
+	    && writeTestWav(altDir + "/SELF.WAV", 3800, 0x77)
 	    // BAD.WAV's regular copy is not audio at all: it OPENS and then fails to parse, which is a
 	    // verdict about that file rather than a reason to go looking in the alternate dir -- where a
 	    // perfectly good file is sitting, ready to be loaded silently in its place.
@@ -1470,8 +1595,11 @@ bool checkAsyncAlternateDirOrder() {
 
 	// The load, in order. BAD.WAV sits before ALT_ONLY.WAV deliberately: a wrongful retry on its parse
 	// verdict would promote the alternate-dir status, and every sample after it would inherit that.
+	//
+	// SELF.WAV comes LAST because it needs the promoted status: under MIGHT_EXIST only the regular
+	// path is proposed, and with one candidate the ambiguity it exists to expose does not arise.
 	static const char* const kFixtureNames[] = {"SAMPLES/DUP.WAV", "SAMPLES/DUP2.WAV", "SAMPLES/BAD.WAV",
-	                                            "SAMPLES/ALT_ONLY.WAV"};
+	                                            "SAMPLES/ALT_ONLY.WAV", "SAMPLES/ALT/SELF.WAV"};
 
 	// What a leg loaded, in the terms that decide which file plays.
 	struct LoadedIdentity {

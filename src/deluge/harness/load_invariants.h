@@ -36,6 +36,16 @@
 #include <cstdint>
 #include <cstdio>
 
+// `src/lib/printf.h` soft-aliases `printf` to the embedded `printf_`, which emits through
+// `putchar_` -- a symbol only the C host BSP defines (src/bsp/host/host_platform.c). This header is
+// also included by the Embassy-BSP A/B gate, which has no such provider, so whether the alias is in
+// scope here depends on nothing more than which OTHER header a consumer happened to include first:
+// with it, this inline fails to LINK in one of its two consumers. Pin the standard function, since
+// what this prints is gate output that has to reach real stdout either way.
+#ifdef printf
+#undef printf
+#endif
+
 /// @brief Assert the two invariants an async load must preserve (design §4b, §6): the manager holds
 ///        no half-built object (adopted, reasoned, but with zero geometry), and no load leaked a
 ///        reason.

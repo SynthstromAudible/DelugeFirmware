@@ -20,8 +20,11 @@
 #ifdef DELUGE_HOST
 
 #include "definitions_cxx.hpp"
-#include "harness/load_invariants.h" // checkLoadInvariants -- shared with deluge_loadcheck
-#include "libdeluge/audio_load.h"    // deluge_audio_load_async_active
+#include "gui/ui/browser/sample_browser.h"         // the converted caller, driven end to end below
+#include "gui/views/instrument_clip_view.h"        // fileBrowserShouldNotPreview
+#include "gui/waveform/waveform_basic_navigator.h" // proof the preview actually DREW
+#include "harness/load_invariants.h"               // checkLoadInvariants -- shared with deluge_loadcheck
+#include "libdeluge/audio_load.h"                  // deluge_audio_load_async_active
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/owner.h"
@@ -32,6 +35,16 @@
 #include <cstdio>
 #include <span>
 #include <string>
+
+// The GUI headers above reach `src/lib/printf.h`, which soft-aliases `printf` to the embedded
+// `printf_`. That implementation emits through `putchar_`, which only the C host BSP defines
+// (`src/bsp/host/host_platform.c`) -- this harness links the Rust BSP and has no provider, so the
+// alias turns every line this file writes into an undefined symbol at link time. Every one of those
+// lines IS the gate's output (the script diffs them), so they must go to real stdout regardless of
+// which headers a future edit pulls in.
+#ifdef printf
+#undef printf
+#endif
 
 namespace {
 
@@ -67,16 +80,26 @@ struct Case {
 ///   duplicate and the three-candidate order collapses to two. All three locations exist here, with
 ///   three different lengths, so a wrongly constructed flattened name or a swap between candidates 1
 ///   and 2 changes which file is chosen.
+/// - `selfdir` LIVES IN THE ALTERNATE DIRECTORY ITSELF, so `alternateAudioFileLoadPath` equals its
+///   own directory and the bare-name alternate candidate stringifies to EXACTLY the nominal path.
+///   That is the only shape in which "which candidate won" cannot be decided by comparing strings:
+///   `resolveFileSize` decides by SLOT and calls it an alternate hit, so `loadedFromAlternatePath`
+///   is filled and `save_song_ui.cpp` copies the file into a saved song's folder. A backing that
+///   compared the winning path against the nominal one calls the same hit "regular", leaves that
+///   field empty, and the sample is silently left behind on a collect-media save. It sits after
+///   `only_alt` because it needs the promoted status for the alternate candidates to exist at all.
+///   The `alt="..."` field of its AB-CASE line is what carries this; nothing else in the list can.
 /// - `only_reg` and `stereo24` follow, under the promoted status; `stereo24` differs in both of the
 ///   geometry fields the comparison names first (2 channels, 24-bit).
 /// - `garbage` (bytes that are not audio), `empty` (a zero-length file) and `missing` (no file at
 ///   all) are three DIFFERENT ways to fail, and they are here as three cases rather than one because
 ///   what has to match is the `Error` IDENTITY, not the mere fact of failure. A backing that
 ///   collapsed two of these onto one code would still "fail" on both.
-constexpr std::array<Case, 9> kCases{{
+constexpr std::array<Case, 10> kCases{{
     {"both", "SAMPLES/BOTH.WAV"},
     {"only_alt", "SAMPLES/ONLYALT.WAV"},
     {"both2", "SAMPLES/BOTH2.WAV"},
+    {"selfdir", "SAMPLES/ALT/SELFDIR.WAV"},
     {"nested", "SAMPLES/KIT/SNARE.WAV"},
     {"only_reg", "SAMPLES/ONLYREG.WAV"},
     {"stereo24", "SAMPLES/STEREO24.WAV"},
@@ -115,6 +138,40 @@ int32_t g_failures = 0;
 bool g_stepDone = true;
 /// Set once the summary has been printed, so complete() latches.
 bool g_summaryPrinted = false;
+
+// ── The preview re-drive stage ──────────────────────────────────────────────
+//
+// Everything above drives the loader through its OWN retry loop: `runOneStep`
+// returns on LOAD_IN_PROGRESS and the platform driver calls it again. That proves
+// the loader completes when something asks repeatedly -- and it is exactly the
+// reason the shipped caller's missing re-drive got through nine gates. The gate's
+// driver WAS the handler the caller lacked.
+//
+// This stage removes the harness from that role. It calls the production entry
+// (`SampleBrowser::previewFile`) ONCE, and from then on drives only
+// `SampleBrowser::graphicsRoutine()` -- the per-tick surface, with no further
+// "user input" of any kind. If the browser ever stops re-asking for a deferred
+// preview, the async leg simply never lands and this fails; the synchronous leg,
+// which never defers, is unaffected either way.
+
+/// The file the preview stage loads. Exists only at its regular path, and is
+/// asked for by nothing above, so it is never resident when this stage starts.
+constexpr const char* kPreviewPath = "SAMPLES/PREVIEW.WAV";
+
+/// Ticks the preview stage may take before it is called wedged. Each is one
+/// graphicsRoutine() call plus a dispatch round trip, so this is generous: the
+/// synchronous leg lands on tick 1, a healthy async one within a few.
+constexpr int32_t kMaxPreviewTicks = 2000;
+
+/// Which stage `dispatch_step` is in.
+enum class Stage : uint8_t { Cases, Preview, Done };
+Stage g_stage = Stage::Cases;
+/// Whether previewFile() has been called. It is called exactly once.
+bool g_previewStarted = false;
+/// graphicsRoutine() calls made since then.
+int32_t g_previewTicks = 0;
+/// Of those, how many found a deferred preview still waiting.
+int32_t g_previewRedrives = 0;
 
 /// Plain CRC32 (IEEE 802.3, reflected) — a stable fingerprint of the bytes read back through the
 /// Sample's own stream. Same routine host_loadcheck_main.cpp uses for band data.
@@ -277,8 +334,77 @@ void runOneStep() {
 	g_deferralsThisCase = 0;
 
 	if (g_caseIndex == kCases.size()) {
-		printSummary();
-		g_summaryPrinted = true;
+		g_stage = Stage::Preview;
+	}
+}
+
+/// Has the preview actually DRAWN its waveform for `kPreviewPath`?
+///
+/// `waveformBasicNavigator.sample` is assigned by `SampleBrowser::renderPreviewForTarget` on the one
+/// path that renders the waveform, so a non-null pointer naming this file is direct evidence that
+/// the preview reached the screen -- not merely that the file became resident somewhere. That
+/// distinction is the whole point here: the defect this stage exists for left the file unloaded, the
+/// waveform undrawn and no error shown, which from outside looks identical to "the user did not
+/// scroll here".
+bool previewHasDrawn() {
+	const Sample* drawn = waveformBasicNavigator.sample;
+	return drawn != nullptr && drawn->filePath == kPreviewPath;
+}
+
+/// One tick of the preview stage. See the Stage/kPreviewPath comments above.
+void runOnePreviewTick() {
+	if (!g_previewStarted) {
+		// The ONE user-driven action of this stage: the browser is told which file to preview,
+		// exactly as a cursor move tells it. Nothing below ever calls this again.
+		g_previewStarted = true;
+		sampleBrowser.previewFile(kPreviewPath, /*movementDirection=*/0);
+		return;
+	}
+
+	g_previewTicks++;
+	if (sampleBrowser.previewLoadPending()) {
+		g_previewRedrives++;
+	}
+	// The per-tick surface, and the ONLY thing driven from here on.
+	sampleBrowser.graphicsRoutine();
+}
+
+/// Print the preview stage's outcome and assert what both legs must satisfy.
+///
+/// The counts differ between the legs (the synchronous one never defers, so it re-drives nothing),
+/// which is why this line is NOT diffed -- like AB-SUMMARY, each leg asserts its own consistency.
+void finishPreviewStage(bool drawn) {
+	printf("AB-PREVIEW asyncActive=%d drawn=%d ticks=%d redrives=%d pending=%d\n",
+	       deluge_audio_load_async_active() ? 1 : 0, drawn ? 1 : 0, g_previewTicks, g_previewRedrives,
+	       sampleBrowser.previewLoadPending() ? 1 : 0);
+
+	if (!drawn) {
+		printf("FAIL [audioLoadAB/preview]: after ONE previewFile() and %d graphicsRoutine() tick(s) with no "
+		       "further input, the preview never sounded or drew '%s'. A deferred preview that nothing asks "
+		       "for again is silent, blank and errorless -- indistinguishable to the user from a file that "
+		       "does not exist.\n",
+		       g_previewTicks, kPreviewPath);
+		g_failures++;
+	}
+	if (sampleBrowser.previewLoadPending()) {
+		printf("FAIL [audioLoadAB/preview]: a deferral is STILL pending after this stage -- either it was never "
+		       "answered (see above), or the re-drive state is not cleared once it lands and will fire again "
+		       "over whatever the user looks at next\n");
+		g_failures++;
+	}
+	// The async leg must have gone through the deferred path at least once, or this stage compared
+	// nothing: a preview that landed synchronously exercises no re-drive at all, and the check would
+	// pass with the surface it exists to guard removed entirely.
+	if (deluge_audio_load_async_active() && g_previewRedrives == 0) {
+		printf("FAIL [audioLoadAB/preview]: the async backing is active but the preview never deferred, so the "
+		       "re-drive was never under test in this leg\n");
+		g_failures++;
+	}
+	if (!deluge_audio_load_async_active() && g_previewRedrives != 0) {
+		printf("FAIL [audioLoadAB/preview]: the synchronous backing deferred a preview (%d re-drive(s)), which "
+		       "it has no way to do\n",
+		       g_previewRedrives);
+		g_failures++;
 	}
 }
 
@@ -294,6 +420,15 @@ void deluge_scenario_audio_load_ab_begin(void) {
 	g_failures = 0;
 	g_stepDone = true;
 	g_summaryPrinted = false;
+	g_stage = Stage::Cases;
+	g_previewStarted = false;
+	g_previewTicks = 0;
+	g_previewRedrives = 0;
+
+	// The preview stage must not start a voice: this harness has no audio path driving it, and the
+	// property under test is that a DEFERRED preview is asked for again, which is upstream of
+	// sounding. This is the same flag the UI itself sets to suppress preview audio.
+	instrumentClipView.fileBrowserShouldNotPreview = true;
 
 	// The state a song load starts from, which is the only state in which the alternate-dir ordering
 	// this compares means anything: the directory MIGHT exist, and nothing has probed it yet.
@@ -318,6 +453,28 @@ void deluge_scenario_audio_load_ab_dispatch_step(void) {
 	if (g_summaryPrinted) {
 		return;
 	}
+
+	if (g_stage == Stage::Preview) {
+		// The preview stage runs on the UI tier, not the worker fiber -- that is where the real
+		// browser calls both of these from, and previewFile()/graphicsRoutine() dispatch their own
+		// card work onto the owner themselves. A marker op behind them releases the latch: the owner
+		// queue is FIFO, so it runs after whatever they just queued (and immediately if they queued
+		// nothing).
+		g_stepDone = false;
+		runOnePreviewTick();
+		const bool drawn = previewHasDrawn();
+		if (drawn || g_previewTicks >= kMaxPreviewTicks) {
+			finishPreviewStage(drawn);
+			g_stage = Stage::Done;
+			printSummary();
+			g_summaryPrinted = true;
+		}
+		if (!deluge::storage::Owner::run([](void*) { g_stepDone = true; }, nullptr)) {
+			g_stepDone = true;
+		}
+		return;
+	}
+
 	g_stepDone = false;
 	// Onto the storage-owner worker fiber: the attempt opens files and binds a read stream, which is
 	// card I/O and has to run where card I/O is allowed. Same dispatch shape as

@@ -29,9 +29,10 @@ mod audio_loader;
 
 use audio_loader::{
     CandidateList, DELUGE_ERROR_FILE_CORRUPTED, DELUGE_ERROR_FILE_UNREADABLE,
-    DELUGE_ERROR_FILE_UNSUPPORTED, DELUGE_ERROR_NONE, DELUGE_MAX_PATH, LoadGeometry, LoadOps,
-    LoadPath, LoadRequest, LoadResult, RESULT_SLOTS, ResultTable, decode_candidates,
-    deluge_audio_load_async_active, load_io_once, publish_into, take_from,
+    DELUGE_ERROR_FILE_UNSUPPORTED, DELUGE_ERROR_NONE, DELUGE_ERROR_TOO_MANY_OPEN_STREAMS,
+    DELUGE_MAX_PATH, LoadGeometry, LoadOps, LoadPath, LoadRequest, LoadResult, OpenVerdict,
+    RESULT_SLOTS, ResultTable, decode_candidates, deluge_audio_load_async_active, load_io_once,
+    publish_into, take_from,
 };
 
 // The live request/collect pipeline only exists where its storage does. See the
@@ -62,6 +63,10 @@ struct FakeOps {
     files: Vec<(String, Vec<u8>)>,
     /// `size_of` fails.
     size_fails: bool,
+    /// Paths whose `open` reports a full efatfs handle table rather than a miss.
+    table_full_for: Vec<String>,
+    /// `size_of` fails only for these paths (by the bytes their handle refers to).
+    size_fails_for: Vec<String>,
     /// `read_at` fails from this call onwards (a card pulled mid-parse).
     fail_read_after: Option<u32>,
 
@@ -78,7 +83,7 @@ struct FakeOps {
     /// observe that bug at all — it would serve the right bytes for the wrong
     /// handle. Every operation here therefore looks the handle up and panics if
     /// it was never issued or has been closed.
-    live: RefCell<Vec<(u32, Vec<u8>)>>,
+    live: RefCell<Vec<(u32, String, Vec<u8>)>>,
 }
 
 impl FakeOps {
@@ -86,6 +91,8 @@ impl FakeOps {
         Self {
             files: Vec::new(),
             size_fails: false,
+            table_full_for: Vec::new(),
+            size_fails_for: Vec::new(),
             fail_read_after: None,
             calls: RefCell::new(Vec::new()),
             open_handles: Cell::new(0),
@@ -102,6 +109,20 @@ impl FakeOps {
 
     fn with_size_failing(mut self) -> Self {
         self.size_fails = true;
+        self
+    }
+
+    /// Make `open` of `path` report `OpenVerdict::TableFull` -- the efatfs handle
+    /// table being full -- rather than a miss. The file need not exist.
+    fn with_table_full_for(mut self, path: &str) -> Self {
+        self.table_full_for.push(String::from(path));
+        self
+    }
+
+    /// Make `path` open successfully but fail to size, the shape
+    /// `tryOpenCandidate` treats as a plain candidate miss.
+    fn with_size_failing_for(mut self, path: &str) -> Self {
+        self.size_fails_for.push(String::from(path));
         self
     }
 
@@ -137,14 +158,19 @@ impl FakeOps {
     /// `open`, or has already been closed — either is a real defect in the
     /// driver, not a test-harness detail.
     fn bytes_for(&self, handle: u32) -> Vec<u8> {
+        self.entry_for(handle).1
+    }
+
+    /// The path and bytes behind a live handle. Panics as `bytes_for` does.
+    fn entry_for(&self, handle: u32) -> (String, Vec<u8>) {
         let live = self.live.borrow();
         live.iter()
-            .find(|(live_handle, _)| *live_handle == handle)
-            .map(|(_, bytes)| bytes.clone())
+            .find(|(live_handle, _, _)| *live_handle == handle)
+            .map(|(_, path, bytes)| (path.clone(), bytes.clone()))
             .unwrap_or_else(|| {
                 panic!(
                     "operation on handle {handle}, which is not open (live: {:?})",
-                    live.iter().map(|(h, _)| *h).collect::<Vec<_>>()
+                    live.iter().map(|(h, _, _)| *h).collect::<Vec<_>>()
                 )
             })
     }
@@ -162,26 +188,34 @@ impl FakeOps {
 }
 
 impl LoadOps for FakeOps {
-    async fn open(&self, path: &str) -> Option<u32> {
+    async fn open(&self, path: &str) -> OpenVerdict {
         self.record(Call::Open(String::from(path)));
-        let bytes = self
+        if self.table_full_for.iter().any(|p| p == path) {
+            return OpenVerdict::TableFull;
+        }
+        let Some(bytes) = self
             .files
             .iter()
             .find(|(candidate, _)| candidate == path)
-            .map(|(_, bytes)| bytes.clone())?;
+            .map(|(_, bytes)| bytes.clone())
+        else {
+            return OpenVerdict::Missing;
+        };
         // A fresh handle every time, never reused, so a driver that held on to a
         // stale one cannot accidentally land on a live entry.
         let handle = self.next_handle.get();
         self.next_handle.set(handle + 1);
-        self.live.borrow_mut().push((handle, bytes));
+        self.live
+            .borrow_mut()
+            .push((handle, String::from(path), bytes));
         self.open_handles.set(self.open_handles.get() + 1);
-        Some(handle)
+        OpenVerdict::Opened(handle)
     }
 
     async fn size_of(&self, handle: u32) -> Option<u32> {
         self.record(Call::SizeOf);
-        let bytes = self.bytes_for(handle);
-        if self.size_fails {
+        let (path, bytes) = self.entry_for(handle);
+        if self.size_fails || self.size_fails_for.iter().any(|p| *p == path) {
             return None;
         }
         Some(bytes.len() as u32)
@@ -221,7 +255,7 @@ impl LoadOps for FakeOps {
         let mut live = self.live.borrow_mut();
         let index = live
             .iter()
-            .position(|(live_handle, _)| *live_handle == handle)
+            .position(|(live_handle, _, _)| *live_handle == handle)
             .unwrap_or_else(|| panic!("close of handle {handle}, which is not open"));
         live.remove(index);
         self.open_handles.set(self.open_handles.get() - 1);
@@ -435,15 +469,18 @@ fn a_wav_without_audio_data_reports_file_corrupted() {
 // ── Candidate order and the alternate location ──────────────────────────────
 
 /// Candidates are tried in order and the FIRST that opens wins. A winner that is
-/// not the nominal path is reported as the alternate location — exactly
+/// not in the LAST slot is reported as the alternate location — exactly
 /// `usingAlternateLocation`, and the path the collector must bind its read stream
 /// to.
+///
+/// The list is shaped the way `proposeLoadCandidates` shapes one: the regular
+/// path last, alternates before it.
 #[test]
 fn the_first_candidate_that_opens_becomes_the_alternate_location() {
     let ops = FakeOps::new().with_file("SAMPLES/SONG/A.wav", minimal_wav());
     let result = block_on(load_io_once(
         &ops,
-        &request("SAMPLES/A.wav", &["SAMPLES/A.wav", "SAMPLES/SONG/A.wav"]),
+        &request("SAMPLES/A.wav", &["SAMPLES/SONG/A.wav", "SAMPLES/A.wav"]),
     ));
     assert_eq!(result.error, DELUGE_ERROR_NONE);
     assert_eq!(alternate_of(&result), "SAMPLES/SONG/A.wav");
@@ -451,34 +488,58 @@ fn the_first_candidate_that_opens_becomes_the_alternate_location() {
 }
 
 /// The order the candidates arrive in is the order they are tried, and the FIRST
-/// one that opens wins. Both files exist here, which is what makes the claim
+/// one that opens wins. All three files exist here, which is what makes the claim
 /// testable at all: with only one openable candidate, "first that opens" cannot
 /// be told apart from "last", or from "any". The C++ side decides which copy of a
 /// duplicated sample a load gets purely by the order it fills the buffer
 /// (AudioFileManager::requestAsyncSampleLoad), so this is that contract.
+///
+/// Removing the earlier candidates one at a time walks the winner down the list,
+/// which is the same order `resolveFileSize` walks.
 #[test]
 fn the_first_candidate_that_opens_wins_when_more_than_one_would() {
-    let ops = FakeOps::new()
-        .with_file("SAMPLES/A.wav", minimal_wav())
-        .with_file("SAMPLES/ALT/A.wav", minimal_wav());
+    // The real three-candidate shape: flattened alternate, bare-name alternate,
+    // regular path last.
+    let candidates = [
+        "SAMPLES/ALT/KIT_A.wav",
+        "SAMPLES/ALT/A.wav",
+        "SAMPLES/KIT/A.wav",
+    ];
 
-    let regular_first = block_on(load_io_once(
-        &ops,
-        &request("SAMPLES/A.wav", &["SAMPLES/A.wav", "SAMPLES/ALT/A.wav"]),
+    let all_three = FakeOps::new()
+        .with_file(candidates[0], minimal_wav())
+        .with_file(candidates[1], minimal_wav())
+        .with_file(candidates[2], minimal_wav());
+    let result = block_on(load_io_once(
+        &all_three,
+        &request("SAMPLES/KIT/A.wav", &candidates),
     ));
-    assert_eq!(regular_first.error, DELUGE_ERROR_NONE);
-    assert_eq!(alternate_of(&regular_first), "");
+    assert_eq!(result.error, DELUGE_ERROR_NONE);
+    assert_eq!(alternate_of(&result), candidates[0]);
+    all_three.assert_settled();
 
-    // The same two candidates, the other way round: the winner follows the order,
-    // not the contents.
-    let alternate_first = block_on(load_io_once(
-        &ops,
-        &request("SAMPLES/A.wav", &["SAMPLES/ALT/A.wav", "SAMPLES/A.wav"]),
+    // Drop the first: the second alternate wins, still an alternate.
+    let without_flattened = FakeOps::new()
+        .with_file(candidates[1], minimal_wav())
+        .with_file(candidates[2], minimal_wav());
+    let result = block_on(load_io_once(
+        &without_flattened,
+        &request("SAMPLES/KIT/A.wav", &candidates),
     ));
-    assert_eq!(alternate_first.error, DELUGE_ERROR_NONE);
-    assert_eq!(alternate_of(&alternate_first), "SAMPLES/ALT/A.wav");
+    assert_eq!(result.error, DELUGE_ERROR_NONE);
+    assert_eq!(alternate_of(&result), candidates[1]);
+    without_flattened.assert_settled();
 
-    ops.assert_settled();
+    // Drop both alternates: the regular path in the last slot wins, and reports
+    // no alternate location.
+    let regular_only = FakeOps::new().with_file(candidates[2], minimal_wav());
+    let result = block_on(load_io_once(
+        &regular_only,
+        &request("SAMPLES/KIT/A.wav", &candidates),
+    ));
+    assert_eq!(result.error, DELUGE_ERROR_NONE);
+    assert_eq!(alternate_of(&result), "");
+    regular_only.assert_settled();
 }
 
 /// The regular path winning means NO alternate location — an empty string, which
@@ -492,6 +553,138 @@ fn the_regular_path_winning_reports_no_alternate_location() {
         &request("SAMPLES/A.wav", &["SAMPLES/A.wav"]),
     ));
     assert_eq!(alternate_of(&result), "");
+}
+
+/// ⭐ The alternate directory IS the file's own directory, so the bare-name
+/// alternate candidate stringifies to exactly the nominal path.
+///
+/// This is the case that separates the two ways of deciding "did an alternate
+/// win". `alternateAudioFileLoadPath` = `SAMPLES/ALT` and a file already at
+/// `SAMPLES/ALT/A.wav` gives candidates whose slot 1 (bare name in the alternate
+/// dir) and slot 2 (regular path) are the SAME string. `resolveFileSize`
+/// classifies by SLOT and calls the slot-1 hit an alternate; a
+/// `winning_path != request.path` test calls it regular and leaves
+/// `alternate_path` empty. `Sample::loadedFromAlternatePath` is what
+/// `save_song_ui.cpp` gates the collect-media copy-back on, so the empty one
+/// means the sample is silently not copied into the saved song folder.
+#[test]
+fn a_bare_name_candidate_equal_to_the_nominal_path_is_still_an_alternate() {
+    // What proposeLoadCandidates produces for SAMPLES/ALT/A.wav with
+    // alternateAudioFileLoadPath == "SAMPLES/ALT": the flattened form, the bare
+    // name in the alternate dir, then the regular path -- the last two identical.
+    let candidates = [
+        "SAMPLES/ALT/ALT_A.wav",
+        "SAMPLES/ALT/A.wav",
+        "SAMPLES/ALT/A.wav",
+    ];
+    let ops = FakeOps::new().with_file("SAMPLES/ALT/A.wav", minimal_wav());
+    let result = block_on(load_io_once(
+        &ops,
+        &request("SAMPLES/ALT/A.wav", &candidates),
+    ));
+    assert_eq!(result.error, DELUGE_ERROR_NONE);
+    assert_eq!(
+        alternate_of(&result),
+        "SAMPLES/ALT/A.wav",
+        "the slot-1 hit is an alternate-dir hit even though it stringifies to the nominal path"
+    );
+    ops.assert_settled();
+}
+
+// ── A full handle table is not a candidate miss ─────────────────────────────
+
+/// ⭐ The efatfs handle table filling up must NOT read as "this candidate is not
+/// here".
+///
+/// The loader opens through the same 128-slot table `open_read_stream` uses, and
+/// `sample_stream.cpp` documents it filling up by construction under browser
+/// preview -- this rung's own workload. Reported as a miss it becomes
+/// `FILE_UNREADABLE`, which is the collector's retry gate: the load probes the
+/// alternate directory, promotes `alternateLoadDirStatus` for every later sample,
+/// and can answer with a same-named file from there. The synchronous path instead
+/// reports `TOO_MANY_OPEN_STREAMS` and runs `releaseUnleasedAudioFiles()`.
+#[test]
+fn a_full_handle_table_is_reported_as_too_many_open_streams() {
+    let ops = FakeOps::new()
+        .with_file("SAMPLES/ALT/A.wav", minimal_wav())
+        .with_table_full_for("SAMPLES/A.wav");
+    let result = block_on(load_io_once(
+        &ops,
+        // Regular path last, as proposeLoadCandidates orders them. The alternate
+        // is tried first and misses; the regular one then hits the full table.
+        &request("SAMPLES/A.wav", &["SAMPLES/OTHER/A.wav", "SAMPLES/A.wav"]),
+    ));
+    assert_eq!(
+        result.error, DELUGE_ERROR_TOO_MANY_OPEN_STREAMS,
+        "a full handle table must keep its own identity, not masquerade as a candidate miss"
+    );
+    ops.assert_settled();
+}
+
+/// A full table stops the walk rather than trying the remaining candidates: every
+/// one of them would hit the same full table, and continuing would end the load
+/// on `FILE_UNREADABLE` -- the miss verdict this exists to avoid producing.
+#[test]
+fn a_full_handle_table_stops_the_candidate_walk() {
+    let ops = FakeOps::new()
+        .with_file("SAMPLES/ALT/A.wav", minimal_wav())
+        .with_table_full_for("SAMPLES/ALT/A.wav");
+    let result = block_on(load_io_once(
+        &ops,
+        &request("SAMPLES/A.wav", &["SAMPLES/ALT/A.wav", "SAMPLES/A.wav"]),
+    ));
+    assert_eq!(result.error, DELUGE_ERROR_TOO_MANY_OPEN_STREAMS);
+    assert_eq!(
+        ops.calls(),
+        vec![Call::Open(String::from("SAMPLES/ALT/A.wav"))],
+        "the walk must stop at the full table, not go on to try the regular path"
+    );
+    ops.assert_settled();
+}
+
+// ── An unsizeable candidate is a miss, not the end of the load ──────────────
+
+/// ⭐ A candidate that opens but cannot be sized is a plain candidate MISS, and
+/// the walk moves to the next candidate.
+///
+/// `tryOpenCandidate` does exactly this (its own `sz.has_value()` check), so a
+/// loader that ended the load there would let an openable-but-unsizeable
+/// candidate shadow a perfectly good later one -- on the async path only.
+#[test]
+fn an_unsizeable_candidate_yields_to_the_next_one() {
+    let ops = FakeOps::new()
+        .with_file("SAMPLES/ALT/A.wav", minimal_wav())
+        .with_file("SAMPLES/A.wav", minimal_wav())
+        .with_size_failing_for("SAMPLES/ALT/A.wav");
+    let result = block_on(load_io_once(
+        &ops,
+        &request("SAMPLES/A.wav", &["SAMPLES/ALT/A.wav", "SAMPLES/A.wav"]),
+    ));
+    assert_eq!(
+        result.error, DELUGE_ERROR_NONE,
+        "the sizeable regular path should have answered the load"
+    );
+    assert_eq!(alternate_of(&result), "");
+    // The unsizeable candidate's handle was closed before the next was opened.
+    assert_eq!(
+        ops.calls(),
+        vec![
+            Call::Open(String::from("SAMPLES/ALT/A.wav")),
+            Call::SizeOf,
+            Call::Close,
+            Call::Open(String::from("SAMPLES/A.wav")),
+            Call::SizeOf,
+            Call::Read { offset: 0, len: 12 },
+            Call::Read { offset: 12, len: 8 },
+            Call::Read {
+                offset: 20,
+                len: 16
+            },
+            Call::Read { offset: 36, len: 8 },
+            Call::Close,
+        ]
+    );
+    ops.assert_settled();
 }
 
 // ── The window protocol ─────────────────────────────────────────────────────

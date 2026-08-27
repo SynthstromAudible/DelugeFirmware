@@ -608,6 +608,12 @@ fn write_test_wav(path: &std::path::Path, channels: u16, bits: u16, data_bytes: 
 /// - `SAMPLES/GARBAGE.WAV` opens and then fails to parse; `SAMPLES/MISSING.WAV` is never written.
 ///   Between them they pin that the two backings fail with the SAME `Error` identity, not merely
 ///   that they both fail.
+/// - `SAMPLES/ALT/SELFDIR.WAV` sits INSIDE the alternate directory, which is the only shape where
+///   the bare-name alternate candidate and the regular path are the same string — so "an alternate
+///   won" can only be decided by candidate position, never by comparing paths.
+/// - `SAMPLES/PREVIEW.WAV` belongs to the preview re-drive stage rather than the case list: it is
+///   the file `SampleBrowser` is asked to preview once, and must then load and draw with nothing
+///   but per-tick calls driving it.
 ///
 /// Both legs stage byte-IDENTICAL content, which is what makes the comparison sound. They do NOT
 /// share one image: `sd_image_path::fingerprint_dir` hashes path/length/mtime, not bytes, and this
@@ -637,6 +643,18 @@ fn pack_audio_load_ab_image() -> std::path::PathBuf {
     write_test_wav(&kit.join("SNARE.WAV"), 1, 16, 1024, 0x88);
     write_test_wav(&alt.join("KIT_SNARE.WAV"), 1, 16, 2304, 0x99);
     write_test_wav(&alt.join("SNARE.WAV"), 1, 16, 3072, 0xAA);
+    // The self-directory case: the file lives IN the alternate directory, so
+    // `alternateAudioFileLoadPath` is its own directory and the bare-name alternate
+    // candidate stringifies to exactly the nominal path. Only a positional reading of
+    // "which candidate won" calls that an alternate hit -- see the `selfdir` entry in
+    // `audio_load_ab_scenario.cpp`'s kCases. There is deliberately NO flattened
+    // `ALT/ALT_SELFDIR.WAV` companion: the flattened candidate must miss so the
+    // ambiguous bare-name one is the one that wins.
+    write_test_wav(&alt.join("SELFDIR.WAV"), 1, 16, 1280, 0xBB);
+    // The preview stage's file (see the same scenario's kPreviewPath): regular path
+    // only, and asked for by no case above, so it is never resident when that stage
+    // begins and its load necessarily goes through the loader on the async leg.
+    write_test_wav(&samples.join("PREVIEW.WAV"), 1, 16, 2816, 0xCC);
 
     std::fs::write(samples.join("GARBAGE.WAV"), vec![0x7Eu8; 512])
         .expect("writing the A/B fixture's unparseable file");

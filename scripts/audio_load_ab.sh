@@ -15,6 +15,14 @@
 #   AB-CASE   one per sample: the Error, the file actually chosen (`file`/`alt`/`asked`), the whole
 #             parsed geometry, and a CRC of the bytes read back through the Sample's own stream.
 #             Diffed. Any difference is the gate failing.
+#   AB-PREVIEW
+#             the converted CALLER, driven end to end: SampleBrowser is asked to preview one file
+#             ONCE and then driven only by its per-tick surface (graphicsRoutine), with no further
+#             input. It must eventually draw. EXPECTED to differ (the synchronous leg never defers,
+#             so it re-drives nothing), so not diffed — but each leg asserts its own consistency,
+#             and this is the only check on either side that fails if the caller stops re-asking
+#             for a deferred load. Everything else here drives the loader through the HARNESS's own
+#             retry loop, which is precisely the handler the shipped caller was missing.
 #   AB-SUMMARY / AB-BEGIN
 #             which backing ran and how many loads were deferred. EXPECTED to differ, so not
 #             diffed — but each leg asserts its own consistency in-process (an "async" run that
@@ -113,7 +121,14 @@ run_leg() {
 	fi
 	if ! grep -q '^AB-RESULT failures=0$' "$OUT_ROOT/$tag.txt"; then
 		echo "FAIL — the $tag leg reported in-process failures:"
-		grep -E '^(FAIL|AB-SUMMARY|AB-RESULT) ' "$OUT_ROOT/$tag.txt"
+		grep -E '^(FAIL|AB-PREVIEW|AB-SUMMARY|AB-RESULT) ' "$OUT_ROOT/$tag.txt"
+		exit 1
+	fi
+	# The preview stage prints exactly one of these, and prints it before the summary. Its absence
+	# means the run reached AB-RESULT without ever driving the caller — which the failure count
+	# above cannot show, because a stage that never ran asserts nothing.
+	if ! grep -q '^AB-PREVIEW ' "$OUT_ROOT/$tag.txt"; then
+		echo "FAIL — the $tag leg produced no AB-PREVIEW line; the preview re-drive stage did not run"
 		exit 1
 	fi
 }
@@ -146,7 +161,7 @@ fi
 # A floor on the case count, so a future edit that shrinks `kCases` cannot keep printing PASS over a
 # comparison that no longer covers the properties this gate was built for. Bump it deliberately when
 # cases are added; never lower it to make a run go green.
-MIN_CASES=9
+MIN_CASES=10
 CASES="$(wc -l <"$OUT_ROOT/sync.cases")"
 if [ "$CASES" -lt "$MIN_CASES" ]; then
 	echo "FAIL — only $CASES case(s) ran, fewer than the $MIN_CASES this gate requires; kCases was shrunk"
@@ -154,4 +169,4 @@ if [ "$CASES" -lt "$MIN_CASES" ]; then
 fi
 
 echo "PASS — both backings loaded all $CASES sample(s) identically"
-grep -h '^AB-SUMMARY \|^AB-DEFER ' "$OUT_ROOT/sync.txt" "$OUT_ROOT/async.txt"
+grep -h '^AB-SUMMARY \|^AB-DEFER \|^AB-PREVIEW ' "$OUT_ROOT/sync.txt" "$OUT_ROOT/async.txt"
