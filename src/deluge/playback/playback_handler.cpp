@@ -559,12 +559,6 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	playbackState = newPlaybackState;
 	cvEngine.playbackBegun(); // Call this *after* playbackState is set. If there's a count-in, nothing will happen
 
-	// Raise unconditionally -- notify_drain.cpp re-evaluates the on-screen guard (root UI, or the
-	// note / note-row editor exception) when it re-dispatches notifyPlaybackBegun(), so this side
-	// must not gate the raise itself. A guarded raise here left `was_playing` unarmed whenever
-	// playback started off the root UI, silently losing the paired playbackEnded() dispatch later.
-	deluge::notify::raise(deluge::notify::Dirty::PlaybackState);
-
 	currentPlaybackMode->setupPlayback(); // This doesn't call the audio routine
 
 	arrangerView.reassessWhetherDoingAutoScroll(playFromPos);
@@ -578,6 +572,13 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 		AudioEngine::routineWithClusterLoading();
 		playbackState = newPlaybackState;
 	}
+
+	// Raise unconditionally, and only now: notify_drain.cpp re-evaluates the on-screen guard (root
+	// UI, or the note / note-row editor exception) when it re-dispatches notifyPlaybackBegun(), so
+	// this side must not gate the raise; and the raise must follow the transient `playbackState = 0`
+	// above, or a drain landing inside that window (SD yield re-entrancy) would read 0 and miss the
+	// begin edge -- silently losing the paired playbackEnded() dispatch later.
+	deluge::notify::raise(deluge::notify::Dirty::PlaybackState);
 
 	// May not call audio routine during this, cos that'd try doing ticks before everything's set up
 	bool oldState = AudioEngine::audioRoutineLocked;
