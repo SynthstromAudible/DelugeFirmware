@@ -296,6 +296,8 @@ private:
 };
 
 /// Framebuffers are DMA'd on the real hardware, so they want to start on a cache line.
+/// == CACHE_LINE_SIZE in board_config.h (RZ/A1, 32-byte line); gfx must not include that header.
+/// Revisit for a board with a 64-byte line.
 constexpr size_t kFramebufferAlignment = 32;
 
 /// A \ref Canvas that owns its (statically sized, aligned) storage.
