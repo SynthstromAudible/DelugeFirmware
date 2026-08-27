@@ -658,7 +658,9 @@ describe geometry("gfx::oled geometry", $ {
 	});
 });
 
-CPPSPEC_SPEC(geometry)
+int gfx_geometry_spec(int argc, char** const argv) {
+	return CppSpec::parse(argc, argv).add_spec(geometry).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE; // needs <cstdlib>
+}
 ```
 
 `Rect` and `Point` need `operator==` for `to_equal`; give both `= default`.
@@ -830,7 +832,11 @@ describe font("gfx::oled fonts", $ {
 	});
 });
 
-CPPSPEC_SPEC(font)
+// Not CPPSPEC_SPEC(font): create_test_sourcelist derives the extern function name from this file's
+// path relative to tests/spec (slashes become underscores) — see canvas_golden_spec.cpp.
+int gfx_font_spec(int argc, char** const argv) {
+	return CppSpec::parse(argc, argv).add_spec(font).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE; // needs <cstdlib>
+}
 ```
 
 - [ ] **Step 2: Run it to see it fail**
@@ -1201,7 +1207,11 @@ describe canvas("gfx::oled::Canvas", $ {
 	});
 });
 
-CPPSPEC_SPEC(canvas)
+// Not CPPSPEC_SPEC(canvas): create_test_sourcelist derives the extern function name from this file's
+// path relative to tests/spec (slashes become underscores) — see canvas_golden_spec.cpp.
+int gfx_canvas_spec(int argc, char** const argv) {
+	return CppSpec::parse(argc, argv).add_spec(canvas).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE; // needs <cstdlib>
+}
 ```
 
 (The parity example calls the legacy and the gfx canvas side by side because their method names differ; `{.thick = true}` works for both `DrawLineOptions` types.)
@@ -1581,7 +1591,11 @@ describe pad_grid("gfx::grid::PadGrid", $ {
 	});
 });
 
-CPPSPEC_SPEC(pad_grid)
+// Not CPPSPEC_SPEC(pad_grid): create_test_sourcelist derives the extern function name from this file's
+// path relative to tests/spec (slashes become underscores) — see canvas_golden_spec.cpp.
+int gfx_pad_grid_spec(int argc, char** const argv) {
+	return CppSpec::parse(argc, argv).add_spec(pad_grid).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE; // needs <cstdlib>
+}
 ```
 
 `RGB` needs `operator==`; check `rgb.h` — if absent add `constexpr bool operator==(const RGB&) const = default;`.
@@ -1820,7 +1834,11 @@ describe tween("gfx::grid tweens", $ {
 	});
 });
 
-CPPSPEC_SPEC(tween)
+// Not CPPSPEC_SPEC(tween): create_test_sourcelist derives the extern function name from this file's
+// path relative to tests/spec (slashes become underscores) — see canvas_golden_spec.cpp.
+int gfx_tween_spec(int argc, char** const argv) {
+	return CppSpec::parse(argc, argv).add_spec(tween).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE; // needs <cstdlib>
+}
 ```
 
 - [ ] **Step 2: Run it to see it fail**
