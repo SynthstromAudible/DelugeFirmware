@@ -3,6 +3,24 @@
 
 gfx may include: its own headers ("gfx/..." or a relative path that resolves inside
 src/gfx) and standard headers (<...>). gfx/oled and gfx/grid may not include each other.
+
+Angle-bracket includes are NOT waved through. The firmware's include path carries src/,
+include/ and lib/, so `#include <etl/string.h>` or `#include <util/containers.h>` names a
+project header just as surely as the quoted spelling does; only headers that resolve
+outside those roots (and carry none of the known project prefixes) count as standard.
+
+Probe procedure -- the check is only worth its ctest if it actually fails on a violation.
+Introduce each of these into src/gfx, run `python3 scripts/check_gfx_layer.py`, confirm it
+exits 1 naming that line, then revert it (the real tree must exit 0):
+
+  1. `#include "model/song/song.h"` in src/gfx/oled/canvas.cpp
+     -- an app header by its quoted project-relative path.
+  2. `#include "gfx/grid/rgb.h"` in src/gfx/oled/canvas.cpp
+     -- a gfx/-prefixed include crossing the oled/grid divide.
+  3. `#include "../grid/rgb.h"` in src/gfx/oled/canvas.cpp
+     -- the same crossing spelled as a relative path.
+  4. `#include <etl/string.h>` in src/gfx/oled/canvas.cpp
+     -- a project header (lib/etl) borrowed in the angle-bracket spelling.
 """
 
 import argparse
@@ -12,6 +30,38 @@ from pathlib import Path
 
 INCLUDE = re.compile(r'^\s*#\s*include\s+([<"])([^>"]+)[>"]')
 SIDES = {"oled", "grid"}
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+
+# Directories on the firmware's include path. A <...> target that resolves under one of
+# these is a project header, not a standard one.
+PROJECT_INCLUDE_ROOTS = ("src", "include", "lib")
+
+# Project header prefixes rejected regardless of whether the file is on disk right now:
+# vendored libraries reached through their own include/ dir (so not found under the roots
+# above), plus the app subtrees gfx must never reach into. No standard header starts with
+# any of these.
+FORBIDDEN_ANGLE_PREFIXES = (
+    "etl/",
+    "argon/",
+    "libdeluge/",
+    "gui/",
+    "hid/",
+    "model/",
+    "storage/",
+    "util/",
+    "io/",
+    "playback/",
+    "processing/",
+    "definitions",
+)
+
+
+def is_project_header(target: str) -> bool:
+    """True if a <target> names something in this repo rather than a standard header."""
+    if target.startswith(FORBIDDEN_ANGLE_PREFIXES):
+        return True
+    return any((REPO_ROOT / root / target).exists() for root in PROJECT_INCLUDE_ROOTS)
 
 
 def check(root: Path) -> int:
@@ -30,7 +80,13 @@ def check(root: Path) -> int:
                 continue
             kind, target = m.groups()
             if kind == "<":
-                continue  # standard headers only; nothing else in the tree is <...>-included from gfx
+                # Standard headers only. A project header included with angle brackets
+                # (the include path carries src/, include/ and lib/) is just as forbidden
+                # as the quoted spelling, so it must be rejected here rather than skipped.
+                if is_project_header(target):
+                    print(f"{path}:{lineno}: forbidden include <{target}>")
+                    bad += 1
+                continue
             if target.startswith("gfx/"):
                 ok = True
                 if side is not None:
