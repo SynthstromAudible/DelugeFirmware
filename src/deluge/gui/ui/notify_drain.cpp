@@ -1,6 +1,7 @@
 #include "gui/ui/notify_drain.h"
 #include "gui/l10n/l10n.h"
 #include "gui/ui/root_ui.h"
+#include "gui/ui/sound_editor.h"
 #include "gui/ui/ui.h"
 #include "gui/views/arranger_view.h"
 #include "gui/views/audio_clip_view.h"
@@ -40,7 +41,11 @@ void drain_notifications() {
 			const bool playing = playbackHandler.playbackState != 0;
 			if (playing != was_playing) {
 				if (playing) {
-					if (root) {
+					// Legacy setupPlayback() only told the root UI when it was the UI on screen -- with
+					// the exception of the note / note-row editor, so note edits stay audible.
+					const bool in_note_editor =
+					    getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor());
+					if (root && (getCurrentUI() == root || in_note_editor)) {
 						root->notifyPlaybackBegun();
 					}
 				}
