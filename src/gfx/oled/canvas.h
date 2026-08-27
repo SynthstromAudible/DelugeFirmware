@@ -21,6 +21,7 @@
 #include "gfx/oled/icon.h"
 
 #include <algorithm>
+#include <cassert>
 #include <cstddef>
 #include <cstdint>
 #include <functional>
@@ -52,7 +53,16 @@ public:
 	/// @param storage At least `g.bytes()` bytes of caller-owned storage. Not copied; the
 	///                caller keeps it alive for as long as the canvas is used.
 	/// @param g Panel geometry.
-	Canvas(std::span<uint8_t> storage, Geometry g) : bytes_(storage.first(g.bytes())), geometry_(g) {}
+	///
+	/// Precondition: `storage.size() >= g.bytes()`. A shorter span is a programming error, not
+	/// a runtime condition to recover from -- the canvas would index off the end of it on the
+	/// first draw call. Asserted below.
+	Canvas(std::span<uint8_t> storage, Geometry g) : geometry_(g) {
+		// Body form rather than a member initialiser so the assert runs FIRST: `storage.first(n)`
+		// with n > storage.size() is itself undefined, so it must not happen before the check.
+		assert(storage.size() >= g.bytes());
+		bytes_ = storage.first(g.bytes());
+	}
 
 	/// The geometry this canvas was built with.
 	Geometry geometry() const { return geometry_; }

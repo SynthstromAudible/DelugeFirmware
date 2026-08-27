@@ -40,6 +40,20 @@ describe canvas("gfx::oled::Canvas", $ {
 		expect(c.bytes().size()).to_equal(size_t(768));
 	});
 
+	it("accepts storage sized exactly to the geometry", _ {
+		// The constructor's precondition is `storage.size() >= g.bytes()`; kDelugeOled needs
+		// (48/8) * 128 == 768. Exactly 768 is the boundary case and must be accepted, so the
+		// assert cannot have been written as a strict `>`.
+		// The undersized case is deliberately NOT exercised: it trips an assert(), and CppSpec
+		// has no death-test facility to catch the resulting abort.
+		expect(g::kDelugeOled.bytes()).to_equal(uint32_t(768));
+		uint8_t exact[768] = {};
+		g::Canvas c(std::span<uint8_t>(exact, 768), g::kDelugeOled);
+		expect(c.bytes().size()).to_equal(size_t(768));
+		c.draw_pixel(127, 47); // the last pixel of the last page still lands inside the span
+		expect(exact[5 * 128 + 127]).to_equal(uint8_t(1 << 7));
+	});
+
 	it("respects a 128x64 geometry and never writes past the caller's span", _ {
 		// The canvas gets the middle 1024 bytes; the 32 bytes on either side are guard
 		// bytes that nothing on-canvas may touch.
