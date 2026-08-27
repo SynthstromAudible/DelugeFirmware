@@ -49,7 +49,7 @@ RULES = [
         "gfx-includes-outside",
         "src/gfx/**",
         "include",
-        r"^(?!gfx/)",
+        r"^(?!gfx/).*/",
         "2026-08-26-ui-stack-redesign-design.md",
     ),
     (

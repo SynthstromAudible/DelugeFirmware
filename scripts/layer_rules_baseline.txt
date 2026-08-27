@@ -120,16 +120,3 @@ src/deluge/util/functions.cpp	model-calls-ui	1
 src/deluge/util/functions.cpp	model-includes-ui	4
 src/deluge/util/functions.h	model-calls-ui	1
 src/deluge/util/functions.h	model-includes-ui	1
-src/gfx/grid/pad_grid.h	gfx-includes-outside	2
-src/gfx/grid/palette.h	gfx-includes-outside	1
-src/gfx/grid/rgb.cpp	gfx-includes-outside	2
-src/gfx/grid/rgb.h	gfx-includes-outside	6
-src/gfx/grid/sine_table.h	gfx-includes-outside	1
-src/gfx/grid/tween.cpp	gfx-includes-outside	1
-src/gfx/oled/canvas.cpp	gfx-includes-outside	4
-src/gfx/oled/canvas.h	gfx-includes-outside	8
-src/gfx/oled/font.h	gfx-includes-outside	1
-src/gfx/oled/fonts/fonts.c	gfx-includes-outside	1
-src/gfx/oled/fonts/fonts.h	gfx-includes-outside	1
-src/gfx/oled/geometry.h	gfx-includes-outside	3
-src/gfx/oled/icon.h	gfx-includes-outside	1
