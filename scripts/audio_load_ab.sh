@@ -65,7 +65,29 @@ for b in "$SYNC_BIN" "$ASYNC_BIN"; do
 done
 
 OUT_ROOT="$(mktemp -d "${TMPDIR:-/tmp}/audio_load_ab.XXXXXX")"
-cleanup() { rm -rf "$OUT_ROOT"; }
+IMG_GLOB="${TMPDIR:-/tmp}/deluge-streaming-scenario-*.img"
+
+# Every run of this gate packs TWO 2.5 GB sparse FAT images, one per leg, and nothing else removes
+# them: `sd_image_path::fingerprint_dir` hashes path/length/mtime rather than content, and the
+# fixture is rewritten on each process start, so the legs never share a cached image and never reuse
+# a previous run's. Left alone they accumulate under exactly the prefix this project's golden
+# invocations all begin by clearing — and a full /tmp is a known way to make an unrelated stem
+# export hang forever, presenting as a firmware wedge rather than a disk problem.
+#
+# Only images that appeared DURING this run are removed. A blanket `rm` of the glob would delete
+# other rigs' cached corpus images (packing one of those is minutes of work), so the set is
+# snapshotted first and differenced at exit.
+IMGS_BEFORE="$OUT_ROOT/.imgs_before"
+ls -1 $IMG_GLOB 2>/dev/null | sort >"$IMGS_BEFORE" || true
+
+cleanup() {
+	if [ -f "$IMGS_BEFORE" ]; then
+		ls -1 $IMG_GLOB 2>/dev/null | sort | comm -13 "$IMGS_BEFORE" - | while read -r img; do
+			rm -f "$img"
+		done
+	fi
+	rm -rf "$OUT_ROOT" "${TMPDIR:-/tmp}/deluge-audio-load-ab-card"
+}
 trap cleanup EXIT
 
 # Run one leg. $1 = binary, $2 = tag. Echoes nothing; writes $OUT_ROOT/$2.txt.
@@ -121,6 +143,15 @@ if ! diff -u "$OUT_ROOT/sync.cases" "$OUT_ROOT/async.cases"; then
 	exit 1
 fi
 
+# A floor on the case count, so a future edit that shrinks `kCases` cannot keep printing PASS over a
+# comparison that no longer covers the properties this gate was built for. Bump it deliberately when
+# cases are added; never lower it to make a run go green.
+MIN_CASES=9
 CASES="$(wc -l <"$OUT_ROOT/sync.cases")"
+if [ "$CASES" -lt "$MIN_CASES" ]; then
+	echo "FAIL — only $CASES case(s) ran, fewer than the $MIN_CASES this gate requires; kCases was shrunk"
+	exit 1
+fi
+
 echo "PASS — both backings loaded all $CASES sample(s) identically"
-grep '^AB-SUMMARY ' "$OUT_ROOT/sync.txt" "$OUT_ROOT/async.txt"
+grep -h '^AB-SUMMARY \|^AB-DEFER ' "$OUT_ROOT/sync.txt" "$OUT_ROOT/async.txt"

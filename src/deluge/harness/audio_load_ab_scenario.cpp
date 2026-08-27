@@ -20,7 +20,8 @@
 #ifdef DELUGE_HOST
 
 #include "definitions_cxx.hpp"
-#include "libdeluge/audio_load.h" // deluge_audio_load_async_active
+#include "harness/load_invariants.h" // checkLoadInvariants -- shared with deluge_loadcheck
+#include "libdeluge/audio_load.h"    // deluge_audio_load_async_active
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/owner.h"
@@ -59,17 +60,28 @@ struct Case {
 ///   only one candidate exists, and every later file exists in one place, so any order finds the
 ///   same file. (Established by negative control: reversing the loader's candidate order left the
 ///   six-case version of this list completely unchanged.)
+/// - `nested` is the only case whose path is NOT flat, and that is its whole reason for existing.
+///   `setupAlternateAudioFilePath`'s flattened candidate (`ALT/KIT_SNARE.WAV`) and
+///   `alternateDirBareNameCandidate` (`ALT/SNARE.WAV`) are DISTINCT strings only for a nested path;
+///   for every flat path in this list they stringify to the same thing, so the request carries a
+///   duplicate and the three-candidate order collapses to two. All three locations exist here, with
+///   three different lengths, so a wrongly constructed flattened name or a swap between candidates 1
+///   and 2 changes which file is chosen.
 /// - `only_reg` and `stereo24` follow, under the promoted status; `stereo24` differs in both of the
 ///   geometry fields the comparison names first (2 channels, 24-bit).
-/// - `garbage` opens and fails to parse, `missing` never opens: between them they pin that the two
-///   backings fail with the same `Error` IDENTITY, not merely that both fail.
-constexpr std::array<Case, 7> kCases{{
+/// - `garbage` (bytes that are not audio), `empty` (a zero-length file) and `missing` (no file at
+///   all) are three DIFFERENT ways to fail, and they are here as three cases rather than one because
+///   what has to match is the `Error` IDENTITY, not the mere fact of failure. A backing that
+///   collapsed two of these onto one code would still "fail" on both.
+constexpr std::array<Case, 9> kCases{{
     {"both", "SAMPLES/BOTH.WAV"},
     {"only_alt", "SAMPLES/ONLYALT.WAV"},
     {"both2", "SAMPLES/BOTH2.WAV"},
+    {"nested", "SAMPLES/KIT/SNARE.WAV"},
     {"only_reg", "SAMPLES/ONLYREG.WAV"},
     {"stereo24", "SAMPLES/STEREO24.WAV"},
     {"garbage", "SAMPLES/GARBAGE.WAV"},
+    {"empty", "SAMPLES/EMPTY.WAV"},
     {"missing", "SAMPLES/MISSING.WAV"},
 }};
 
@@ -84,6 +96,19 @@ size_t g_caseIndex = 0;
 int32_t g_deferralsThisCase = 0;
 /// Deferrals recorded across the whole run.
 int32_t g_deferralsTotal = 0;
+/// Deferrals recorded PER CASE, kept after the case settles.
+///
+/// A total is not enough, and the difference is a hole big enough to hide the thing this gate
+/// exists to pin. `requestAsyncSampleLoad` declines permanently for three reasons (an inadmissible
+/// path, a candidate list that could not be formed, a truncation sentinel), and
+/// `collectAsyncSampleLoad` passes an UNKNOWN-after-decline straight through to the SYNCHRONOUS
+/// path -- correctly, since a permanently refused request would otherwise never complete. So a
+/// single case can quietly fall through to the same synchronous code the other leg runs. Its
+/// AB-CASE line is then trivially identical, the run-wide total is still non-zero because the other
+/// cases deferred, and the gate passes green with that case no longer under test at all. Concretely:
+/// tighten the admission rule so `both2` declines and the candidate-ORDER property disappears from
+/// the gate silently. Per-case counts are what make that visible.
+std::array<int32_t, kCases.size()> g_deferralsByCase{};
 /// In-process assertion failures.
 int32_t g_failures = 0;
 /// Set false by dispatch_step(), true by the dispatched closure on its way out.
@@ -103,38 +128,6 @@ uint32_t crc32(const void* data, size_t len) {
 		}
 	}
 	return ~crc;
-}
-
-/// The two invariants an async load must preserve (design §4b, §6): the manager holds no half-built
-/// object (adopted and reasoned, but with zero geometry), and no load leaked a reason.
-///
-/// This is `host_loadcheck_main.cpp`'s `checkLoadInvariants` transplanted, not shared: that one
-/// lives in an anonymous namespace inside a different binary's `main()` file (the C-host
-/// `deluge_loadcheck`), which this binary does not link. Keeping them textually parallel is
-/// deliberate — a change to what "half-built" means has to land in both.
-///
-/// @param label Printed with any failure, to say which case broke it.
-/// @return true if both invariants hold across every resident AudioFile.
-bool checkLoadInvariants(const char* label) {
-	bool ok = true;
-	for (int32_t i = 0; i < static_cast<int32_t>(audioFileManager.audioFiles.size()); i++) {
-		AudioFile* f = audioFileManager.audioFiles[i];
-
-		if (f->type == AudioFileType::SAMPLE) {
-			auto* s = static_cast<Sample*>(f);
-			if (s->byteDepth == 0 || s->numChannels == 0) {
-				printf("FAIL [audioLoadAB/%s]: zero-geometry Sample in cache: %s\n", label, s->filePath.c_str());
-				ok = false;
-			}
-		}
-
-		if (f->leaseCount() != 0) {
-			printf("FAIL [audioLoadAB/%s]: leaked reason(s) on %s (leaseCount=%u)\n", label, f->filePath.c_str(),
-			       f->leaseCount());
-			ok = false;
-		}
-	}
-	return ok;
 }
 
 /// Read the first bytes of the Sample back through its OWN read source and fingerprint them.
@@ -206,10 +199,23 @@ void printSummary() {
 	printf("AB-SUMMARY asyncActive=%d cases=%zu deferrals=%d failures=%d\n", active ? 1 : 0, kCases.size(),
 	       g_deferralsTotal, g_failures);
 
-	if (active && g_deferralsTotal == 0) {
-		printf("FAIL [audioLoadAB]: the async backing is active but no load was ever deferred -- every case was "
-		       "answered without the collector, so this run is not the async leg it claims to be\n");
-		g_failures++;
+	printf("AB-DEFER");
+	for (size_t i = 0; i < kCases.size(); i++) {
+		printf(" %s=%d", kCases[i].label, g_deferralsByCase[i]);
+	}
+	printf("\n");
+
+	if (active) {
+		// EVERY case, not merely some case. See g_deferralsByCase's comment for the fall-through this
+		// catches and the run-wide total misses.
+		for (size_t i = 0; i < kCases.size(); i++) {
+			if (g_deferralsByCase[i] == 0) {
+				printf("FAIL [audioLoadAB]: the async backing is active but case '%s' never deferred -- it was "
+				       "answered on the synchronous path, so it is not under test in this leg at all\n",
+				       kCases[i].label);
+				g_failures++;
+			}
+		}
 	}
 	if (!active && g_deferralsTotal != 0) {
 		printf("FAIL [audioLoadAB]: the async backing is inactive but %d load(s) reported LOAD_IN_PROGRESS\n",
@@ -266,6 +272,7 @@ void runOneStep() {
 	// short-circuit one edit away.
 	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(c.path);
 
+	g_deferralsByCase[g_caseIndex] = g_deferralsThisCase;
 	g_caseIndex++;
 	g_deferralsThisCase = 0;
 
@@ -283,6 +290,7 @@ void deluge_scenario_audio_load_ab_begin(void) {
 	g_caseIndex = 0;
 	g_deferralsThisCase = 0;
 	g_deferralsTotal = 0;
+	g_deferralsByCase.fill(0);
 	g_failures = 0;
 	g_stepDone = true;
 	g_summaryPrinted = false;

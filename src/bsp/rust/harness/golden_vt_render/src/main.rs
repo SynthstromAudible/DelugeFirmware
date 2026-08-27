@@ -609,15 +609,20 @@ fn write_test_wav(path: &std::path::Path, channels: u16, bits: u16, data_bytes: 
 ///   Between them they pin that the two backings fail with the SAME `Error` identity, not merely
 ///   that they both fail.
 ///
-/// Both legs of the A/B stage byte-identical content, so `sd_image::pack_image`'s content
-/// fingerprint resolves them to the very same cached image — the two runs read the same card, not
-/// two equivalent ones.
+/// Both legs stage byte-IDENTICAL content, which is what makes the comparison sound. They do NOT
+/// share one image: `sd_image_path::fingerprint_dir` hashes path/length/mtime, not bytes, and this
+/// function rewrites every file on each process start, so the two legs necessarily fingerprint
+/// differently and each packs its own 2.5 GB sparse image. `scripts/audio_load_ab.sh` removes both
+/// afterwards — an accumulation of those under `/tmp/deluge-streaming-scenario-*.img` is a known way
+/// to wedge an unrelated stem export on this project.
 fn pack_audio_load_ab_image() -> std::path::PathBuf {
     let root = std::env::temp_dir().join("deluge-audio-load-ab-card");
     let _ = std::fs::remove_dir_all(&root);
     let samples = root.join("SAMPLES");
     let alt = samples.join("ALT");
+    let kit = samples.join("KIT");
     std::fs::create_dir_all(&alt).expect("creating the A/B fixture card directories");
+    std::fs::create_dir_all(&kit).expect("creating the A/B fixture card directories");
 
     write_test_wav(&samples.join("BOTH.WAV"), 1, 16, 2048, 0x11);
     write_test_wav(&alt.join("BOTH.WAV"), 1, 16, 4096, 0x22);
@@ -626,10 +631,26 @@ fn pack_audio_load_ab_image() -> std::path::PathBuf {
     write_test_wav(&alt.join("BOTH2.WAV"), 1, 16, 3584, 0x77);
     write_test_wav(&samples.join("ONLYREG.WAV"), 1, 16, 2560, 0x44);
     write_test_wav(&samples.join("STEREO24.WAV"), 2, 24, 3072, 0x55);
+    // The nested case: three DIFFERENT locations, three different lengths. The regular path is
+    // nested, which is the only shape for which the flattened alternate candidate
+    // (`ALT/KIT_SNARE.WAV`) and the bare-name one (`ALT/SNARE.WAV`) are distinct strings at all.
+    write_test_wav(&kit.join("SNARE.WAV"), 1, 16, 1024, 0x88);
+    write_test_wav(&alt.join("KIT_SNARE.WAV"), 1, 16, 2304, 0x99);
+    write_test_wav(&alt.join("SNARE.WAV"), 1, 16, 3072, 0xAA);
+
     std::fs::write(samples.join("GARBAGE.WAV"), vec![0x7Eu8; 512])
         .expect("writing the A/B fixture's unparseable file");
+    // A third failure shape: the file opens and there is nothing in it.
+    std::fs::write(samples.join("EMPTY.WAV"), Vec::<u8>::new())
+        .expect("writing the A/B fixture's zero-length file");
 
-    sd_image::pack_image(&root)
+    let img = sd_image::pack_image(&root);
+    // The staging tree has served its purpose once the image exists, and leaving it in the system
+    // temp dir is the same kind of litter as leaving the images themselves (see
+    // scripts/audio_load_ab.sh's cleanup): this harness runs on machines where a full /tmp is a
+    // known way to wedge an unrelated stem export.
+    let _ = std::fs::remove_dir_all(&root);
+    img
 }
 
 /// The `GOLDEN_SCENARIO=audio_load_ab` scenario: run one whole song-shaped load of the fixture's

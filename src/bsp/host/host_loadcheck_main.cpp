@@ -52,6 +52,7 @@
 ///          src/deluge/harness/audio_load_ab_scenario.cpp), on the Embassy host BSP. If a change
 ///          here alters what the collector does with a loader result, that is the gate to run.
 
+#include "harness/load_invariants.h" // checkLoadInvariants -- shared with the Embassy A/B gate
 #include "libdeluge/audio_load.h"
 #include "memory/general_memory_allocator.h" // GeneralMemoryAllocator::resourceManager()
 #include "model/sample/sample.h"
@@ -148,36 +149,6 @@ void dumpSample(const char* path, const Sample& s) {
 	       s.audioDataStartPosBytes, static_cast<unsigned long long>(s.audioDataLengthBytes),
 	       static_cast<unsigned long long>(s.lengthInSamples), static_cast<double>(s.midiNoteFromFile),
 	       s.fileLoopStartSamples, s.fileLoopEndSamples, s.waveTableCycleSize);
-}
-
-/// Assert the two invariants an async load must preserve (design §4b, §6): the manager holds no
-/// half-built object (adopted, reasoned, but with zero geometry), and no load leaked a reason.
-/// Both hold trivially on the synchronous path — pinning them here makes a later async break loud.
-///
-/// The geometry half only applies to Samples (a WaveTable has no byteDepth/numChannels concept of
-/// its own in this sense). The leaked-reason half applies to every AudioFile: this driver never
-/// calls addReason() itself, and buildAudioFileFromCard's own protect-during-setup reason is always
-/// dropped before getAudioFileFromFilename returns (removeReason("E399") — "Setup done ... the
-/// caller re-leases"), so every object reachable here should sit at leaseCount() == 0 between items.
-bool checkLoadInvariants(const char* label) {
-	bool ok = true;
-	for (int32_t i = 0; i < static_cast<int32_t>(audioFileManager.audioFiles.size()); i++) {
-		AudioFile* f = audioFileManager.audioFiles[i];
-
-		if (f->type == AudioFileType::SAMPLE) {
-			Sample* s = static_cast<Sample*>(f);
-			if (s->byteDepth == 0 || s->numChannels == 0) {
-				printf("FAIL [%s]: zero-geometry Sample in cache: %s\n", label, s->filePath.c_str());
-				ok = false;
-			}
-		}
-
-		if (f->leaseCount() != 0) {
-			printf("FAIL [%s]: leaked reason(s) on %s (leaseCount=%u)\n", label, f->filePath.c_str(), f->leaseCount());
-			ok = false;
-		}
-	}
-	return ok;
 }
 
 /// Pin proposeLoadCandidates()'s policy (which paths a load tries, in what order — no I/O). A later
