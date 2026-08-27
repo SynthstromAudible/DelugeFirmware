@@ -7,3 +7,16 @@ Rules (enforced by `scripts/check_gfx_layer.py`):
 - No mutable globals. No heap allocation in drawing paths.
 - No knowledge of the board: geometry, dimensions and style arrive as values.
 - `gfx/oled` and `gfx/grid` do not include each other.
+
+## Deferred
+
+- `RGB` and the palette (`gfx/grid/rgb.h`, `gfx/grid/palette.h`) live at their new path but are
+  still declared in the **global namespace** (palette contents under `deluge::gui::colours`,
+  unchanged). Moving `RGB` into `deluge::gfx::grid` touches roughly 600 call sites across the
+  codebase and was out of scope for the file move (Task 10); do it as its own follow-up pass.
+- `gfx/grid/sine_table.{h,cpp}` duplicates `util::sineWaveSmall` (`src/deluge/util/lookuptables/lookuptables.cpp`)
+  and a local port of `util/waves.h`'s `getSine`, so that `RGB::fromHue`/`fromHuePastel` don't pull
+  `util/**` into `gfx/**`. This is a verbatim data/logic duplication, not a shared source of truth —
+  if the audio-side table ever changes, `gfx/grid/sine_table.cpp` will silently drift out of sync
+  unless someone remembers to update both. Worth resolving by hoisting the table into a place both
+  `util/` and `gfx/` can depend on, if that's ever worth the churn.

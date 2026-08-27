@@ -1,5 +1,8 @@
 #include "rgb.h"
-#include "util/functions.h"
+#include "gfx/grid/sine_table.h"
+#include <cstdlib>
+
+using deluge::gfx::grid::sine_q15;
 
 RGB RGB::fromHue(int32_t hue) {
 	RGB rgb{};
@@ -20,9 +23,12 @@ RGB RGB::fromHue(int32_t hue) {
 		}
 
 		if (channelDarkness < 64) {
-			rgb[c] = ((uint32_t)getSine(((channelDarkness << 3) + util::bit_value<9>)&util::bitmask<10>, 10)
-			          + util::median_value<uint32_t>)
-			         >> 24;
+			rgb[c] =
+			    ((uint32_t)sine_q15(((channelDarkness << 3)
+			                         + deluge::gfx::grid::detail::bit_value<9>)&deluge::gfx::grid::detail::bitmask<10>,
+			                        10)
+			     + deluge::gfx::grid::detail::median_value<uint32_t>)
+			    >> 24;
 		}
 		else {
 			rgb[c] = 0;
@@ -52,8 +58,11 @@ RGB RGB::fromHuePastel(int32_t hue) {
 		}
 
 		if (channelDarkness < 64) {
-			uint32_t basicValue = (uint32_t)getSine(((channelDarkness << 3) + util::bit_value<9>)&util::bitmask<10>, 10)
-			                      + util::median_value<uint32_t>; // Goes all the way up to max uint32_t
+			uint32_t basicValue =
+			    (uint32_t)sine_q15(((channelDarkness << 3)
+			                        + deluge::gfx::grid::detail::bit_value<9>)&deluge::gfx::grid::detail::bitmask<10>,
+			                       10)
+			    + deluge::gfx::grid::detail::median_value<uint32_t>; // Goes all the way up to max uint32_t
 			uint32_t flipped = std::numeric_limits<uint32_t>::max() - basicValue;
 			uint32_t flippedScaled = (flipped >> 8) * kMaxPastel;
 			rgb[c] = (std::numeric_limits<uint32_t>::max() - flippedScaled) >> 24;
