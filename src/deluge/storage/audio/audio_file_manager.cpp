@@ -918,7 +918,23 @@ std::optional<AudioFile*> AudioFileManager::answerFailedLoadResult(const std::st
 	// same family as the one this ordering care exists for: a corrupt file at the regular path would
 	// probe the alternate dir, load a DIFFERENT file from there, and report success where the
 	// synchronous path reports the parse error -- while promoting the status for the rest of the load.
-	// The synchronous path never probes on a parse failure either; buildAudioFileFromCard just fails.
+	//
+	// NOT an exact match to the synchronous path, and the residual matters to anyone widening or
+	// narrowing this condition. Error::FILE_UNREADABLE has three producers in the loader, and only two
+	// of them are what this gate means. (1) No candidate opened -- the case this exists for, and the
+	// same verdict resolveFileSize ends on. (2) A candidate opened but could not be sized --
+	// resolveFileSize's own tryOpenCandidate treats a failed size as a plain candidate miss too, so
+	// retrying matches it. (3) A read failed PART WAY THROUGH the parse of a file that did open --
+	// which is not "nothing opened" at all, and on which this gate can still do the thing it exists to
+	// prevent: if that read failure is transient (a pulled card is not, because it fails the probe
+	// below as well) and a DIFFERENT file of the same name sits in the alternate dir and parses
+	// cleanly, the retry answers with that file where the synchronous path would have failed on the
+	// first one. Narrow, but a real window rather than an absent one -- do not read the paragraph above
+	// as saying the two paths agree on every FILE_UNREADABLE.
+	//
+	// Closing it needs the loader to distinguish its own producers, i.e. another code hand-kept in step
+	// across a boundary nothing cross-checks (audio_load.h has no bindgen coverage). That trade was
+	// weighed and declined; this comment is the record of what it left behind.
 	//
 	// The `!= MIGHT_EXIST` re-check is what bounds this to one attempt per load, structurally rather
 	// than by counting: the retry only happens when the probe actually moved the status, so the guard
