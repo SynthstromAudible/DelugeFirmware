@@ -320,7 +320,7 @@ struct Icon {
 	const uint8_t* data;
 	uint8_t width;
 	uint8_t height;
-	uint8_t num_bytes_tall;
+	uint8_t numBytesTall; // legacy field name, unchanged until Task 7
 };
 ```
 
@@ -1072,6 +1072,8 @@ namespace deluge::gfx::oled::icons {
 Add `oled/icons.cpp` to `deluge_gfx_oled`'s sources.
 
 - [ ] **Step 3: Re-point the firmware**
+
+The gfx `Icon` field is `num_bytes_tall` (new library, snake_case) where the legacy struct had `numBytesTall`; because the legacy `Icon` becomes an alias of the gfx one, update every legacy reader of `.numBytesTall` (`grep -rn "numBytesTall" src/deluge` — expect `Canvas::drawIcon` in `hid/display/oled_canvas/canvas.cpp` and the `DEFINE_ICON` macro) to `.num_bytes_tall` in this task.
 
 In `canvas.h`, replace the `struct Icon {...}` from Task 3 with:
 
