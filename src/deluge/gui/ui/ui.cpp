@@ -15,6 +15,7 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+#include "gui/ui/notify_drain.h"
 #include "gui/ui/root_ui.h"
 #include "gui/ui_timer_manager.h"
 #include "gui/views/view.h"
@@ -372,6 +373,8 @@ void doAnyPendingOLEDRendering() {
 bool pendingUIRenderingLock = false;
 
 void doAnyPendingUIRendering() {
+	drain_notifications();
+
 	if (pendingUIRenderingLock) {
 		return; // There's no point going in here multiple times inside each other
 	}
