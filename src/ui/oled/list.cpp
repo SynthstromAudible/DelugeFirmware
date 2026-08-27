@@ -77,11 +77,19 @@ int32_t move_cursor(int32_t cursor, int32_t turn, std::span<const ListRow> rows,
 
 } // namespace
 
-Response list(OledFrame& f, ListState& state, std::span<const ListRow> rows, ScrollText& scroll_label,
+Rect menu_rect(const OledFrame& f) {
+	const int32_t base = base_y_for(f);
+	const Rect b = f.bounds();
+	return Rect{b.x, base, b.w, b.h - base};
+}
+
+Response list(OledFrame& f, Rect rect, ListState& state, std::span<const ListRow> rows, ScrollText& scroll_label,
               bool allow_motion) {
 	Response resp{};
 	const int32_t n = static_cast<int32_t>(rows.size());
-	const int32_t visible = std::max<int32_t>(1, f.style.menu_rows);
+	// style.menu_rows is legacy's OLED_HEIGHT_CHARS - 1; the rect.h term is this layer's own
+	// bound, so a rect too short for that many rows cannot draw past its own bottom edge.
+	const int32_t visible = std::clamp<int32_t>(rect.h / kTextSpacingY, 1, std::max<int32_t>(1, f.style.menu_rows));
 
 	// The cursor moves before anything is drawn, bounded by the row count the previous frame
 	// published. `rows_last == 0` means "no previous frame" (its default), so the first frame
@@ -106,26 +114,33 @@ Response list(OledFrame& f, ListState& state, std::span<const ListRow> rows, Scr
 	state.scroll = static_cast<int16_t>(start);
 	resp.entered = f.input.select_pressed && rows[cursor].selectable;
 
-	const int32_t base = base_y_for(f);
-	const int32_t w = f.bounds().w;
 	const gfx::oled::FontId font = f.style.row_font;
-	const int32_t icon_x = w - kSubmenuIconSpacingX - 3; // menu_item.h:280
+	const int32_t label_x = rect.x + kTextSpacingX;                 // menu_item.cpp:58
+	const int32_t icon_x = rect.right() - kSubmenuIconSpacingX - 3; // menu_item.h:280
 
 	for (int32_t o = 0; o < visible && start + o < n; o++) {
 		const ListRow& row = rows[start + o];
-		const int32_t y = base + o * kTextSpacingY; // menu_item.cpp:56
-		const Rect band{0, y, w, kTextSpacingY};
-		f.clear(band);
+		const int32_t y = rect.y + o * kTextSpacingY; // menu_item.cpp:56
+		f.clear(Rect{rect.x, y, rect.w, kTextSpacingY});
 
 		// menu_item.h:278 -- an icon costs the label `4 + kSubmenuIconSpacingX + 3` px.
-		int32_t content_end = row.icon != nullptr ? w - (kIconGapX + kSubmenuIconSpacingX + 3) : w;
+		int32_t content_end =
+		    row.icon != nullptr ? rect.right() - (kIconGapX + kSubmenuIconSpacingX + 3) : rect.right();
 		if (!row.value.empty()) {
-			text(f, Rect{0, y, content_end, kTextSpacingY}, row.value, TextStyle{.font = font, .align = Align::Right});
-			content_end -= measure(row.value, font).w + kIconGapX;
+			// Right-aligned against the content edge, but never starting left of the label
+			// origin and never leaving the label box negative. Unlike everything around it
+			// this column has no legacy counterpart, so it gets an explicit bound rather than
+			// inheriting drawStringAlignRight's unbounded `rightPos - stringWidth`.
+			const int32_t value_w = measure(row.value, font).w;
+			if (content_end > label_x) {
+				f.glyphs(row.value, std::max<int32_t>(label_x, content_end - value_w), y, spacing_x_for(font),
+				         text_height_for(font), 0, content_end);
+			}
+			content_end = std::max<int32_t>(label_x, content_end - (value_w + kIconGapX));
 		}
 
 		const bool selected = start + o == cursor;
-		const Rect label_box{kTextSpacingX, y, content_end - kTextSpacingX, kTextSpacingY};
+		const Rect label_box{label_x, y, content_end - label_x, kTextSpacingY};
 		if (selected) {
 			// setupSideScroller(0, name, kTextSpacingX, endX, yPixel, yPixel + 8, ..., true)
 			// -- menu_item.cpp:62 / submenu.cpp:124 -- collapsed into the draw, since this
@@ -155,10 +170,10 @@ Response list(OledFrame& f, ListState& state, std::span<const ListRow> rows, Scr
 		// because legacy routes it through Canvas::invertAreaRounded(..., roundedCornersEnabled)
 		// (oled_canvas/canvas.h:136-138) -- otherwise just the rule down the left edge.
 		if (f.style.invert_highlight) {
-			f.invert_rounded(Rect{0, y, w, 9});
+			f.invert_rounded(Rect{rect.x, y, rect.w, 9});
 		}
 		else {
-			f.vline(0, y, y + 8);
+			f.vline(rect.x, y, y + 8);
 		}
 	}
 	return resp;
