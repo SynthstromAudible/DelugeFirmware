@@ -41,6 +41,7 @@
 #include "util/misc.h" // util::to_underlying
 
 #include <algorithm>
+#include <cstddef> // offsetof
 #include <cstdio>
 #include <memory>
 #include <optional>
@@ -128,6 +129,45 @@ static_assert(util::to_underlying(Error::INVALID_SYSEX_FORMAT) == 31);
 static_assert(util::to_underlying(Error::POS_PAST_STRING) == 32);
 static_assert(util::to_underlying(Error::FILE_NOT_SAVED) == 33);
 static_assert(util::to_underlying(Error::TOO_MANY_OPEN_STREAMS) == 34);
+
+// The request/collect boundary's two POD structs are hand-declared on BOTH sides: audio_load.h is
+// not in the Rust BSP's wrapper.h, so bindgen does not generate them and nothing else cross-checks
+// them. Pinning the size alone would not be enough -- swapping two same-width fields keeps every
+// size identical and compiles clean on both sides, which is exactly the "loads without error,
+// renders wrong" failure this file's own doc comment calls the worst available shape. These mirror
+// the `const _` assertions in src/bsp/rust/src/audio_loader.rs, so a reorder on either side fails
+// to build rather than silently reinterpreting every field after it.
+static_assert(sizeof(DelugeAudioLoadGeometry) == 36);
+static_assert(alignof(DelugeAudioLoadGeometry) == 4);
+static_assert(offsetof(DelugeAudioLoadGeometry, sample_rate) == 0);
+static_assert(offsetof(DelugeAudioLoadGeometry, audio_data_start_pos_bytes) == 4);
+static_assert(offsetof(DelugeAudioLoadGeometry, audio_data_length_bytes) == 8);
+static_assert(offsetof(DelugeAudioLoadGeometry, file_loop_start_samples) == 12);
+static_assert(offsetof(DelugeAudioLoadGeometry, file_loop_end_samples) == 16);
+static_assert(offsetof(DelugeAudioLoadGeometry, wavetable_cycle_size) == 20);
+static_assert(offsetof(DelugeAudioLoadGeometry, midi_note_value) == 24);
+static_assert(offsetof(DelugeAudioLoadGeometry, num_channels) == 28);
+static_assert(offsetof(DelugeAudioLoadGeometry, byte_depth) == 29);
+static_assert(offsetof(DelugeAudioLoadGeometry, raw_data_format) == 30);
+static_assert(offsetof(DelugeAudioLoadGeometry, midi_note_present) == 31);
+static_assert(offsetof(DelugeAudioLoadGeometry, wavetable_explicitly_specifies_self) == 32);
+
+static_assert(sizeof(DelugeAudioLoadResult) == 312);
+static_assert(alignof(DelugeAudioLoadResult) == 8);
+static_assert(offsetof(DelugeAudioLoadResult, geometry) == 0);
+static_assert(offsetof(DelugeAudioLoadResult, size_bytes) == 40);
+static_assert(offsetof(DelugeAudioLoadResult, alternate_path) == 48);
+static_assert(offsetof(DelugeAudioLoadResult, error) == 304);
+
+// The remaining values the Rust side hand-duplicates from this header. DELUGE_MAX_PATH is also the
+// stride of the candidate buffer and the width of DelugeAudioLoadResult::alternate_path, so a change
+// here that is not mirrored would misread every candidate slot after the first.
+static_assert(DELUGE_MAX_PATH == 256);
+static_assert(DELUGE_AUDIO_LOAD_PENDING == 0u);
+static_assert(DELUGE_AUDIO_LOAD_READY == 1u);
+static_assert(DELUGE_AUDIO_LOAD_UNKNOWN == 2u);
+// The Rust side bounds its candidate list by its own copy of this.
+static_assert(AudioFileManager::kMaxLoadCandidates == 3);
 
 /// Map a byte crossing the ABI to `Error` by number (see the static_asserts above). An out-of-range
 /// byte degrades to `Error::UNSPECIFIED` rather than producing an invalid enum value via

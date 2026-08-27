@@ -85,16 +85,6 @@
 //! that to `crate::efatfs_fs` / `crate::efatfs_host_shim`, and
 //! `tests/audio_loader_host.rs` wires it to an in-memory double.
 
-// The request path and its candidate list are heap strings: the path bound
-// (`DELUGE_MAX_PATH`, 256) times the candidate bound (3) is 768 bytes, which is
-// more than belongs in an interrupt-executor stack frame or a task future. This
-// module compiles both `no_std` (device) and `std` (the `#[path]`-recompiled
-// host test), and `extern crate` visibility is per-module in Rust 2018+, so this
-// cannot rely on another module's `extern crate alloc;`.
-extern crate alloc;
-
-use alloc::string::String;
-use alloc::vec::Vec;
 use core::ffi::{CStr, c_char};
 
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
@@ -110,14 +100,50 @@ pub const DELUGE_MAX_PATH: usize = 256;
 /// many, so a longer buffer would only ever be partly meaningful.
 const MAX_LOAD_CANDIDATES: usize = 3;
 
+/// `deluge_audio_load_candidates`' "`out` is not trustworthy at all" sentinel: a
+/// candidate did not fit, or an internal allocation failed. The header is
+/// explicit that the caller must not read `out` in that case, so a request
+/// carrying it is refused rather than clamped. Never a legitimate count.
+const DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED: u32 = 0xFFFF_FFFF;
+
+/// One path, inline. **Nothing in this module may touch the Rust global heap.**
+///
+/// That heap is `fs_alloc::DelugeGlobalAlloc` over the 96 KiB `EFATFS_ARENA`,
+/// and it says of itself: "Single-threaded use is assumed ... no internal
+/// locking is added speculatively" (`deluge_alloc/src/lib.rs`). Today the
+/// assumption holds because its only other user is `embedded-fatfs`, which runs
+/// inside `with_fs` under the single FS mutex. This task runs on a *preempting*
+/// interrupt executor, so a `String` allocated or dropped here could call
+/// `Tlsf::free` while the thread-mode fiber is mid-`Tlsf::malloc` on the same
+/// control block — corrupted free lists, surfacing later at some unrelated mount
+/// or read.
+///
+/// It is the same hazard class as the C++ calls the request/collect split
+/// removed, one level down: moving the C++ calls off this tier did not move the
+/// Rust heap off it. Fixed-capacity storage is what actually removes it.
+pub type LoadPath = heapless::String<DELUGE_MAX_PATH>;
+
+/// The candidate paths for one load, inline. See [`LoadPath`].
+pub type CandidateList = heapless::Vec<LoadPath, MAX_LOAD_CANDIDATES>;
+
 /// How many queued loads are held before further requests are refused. A refusal
 /// is safe: the caller has already been told `LOAD_IN_PROGRESS` and its next
 /// cursor move re-requests.
 const LOAD_QUEUE_DEPTH: usize = 8;
 
-/// How many finished-but-uncollected results are held. See [`RESULTS`] for what
-/// happens when this fills.
-const RESULT_SLOTS: usize = 4;
+/// How many finished-but-uncollected results are held.
+///
+/// Deliberately not smaller than [`LOAD_QUEUE_DEPTH`]: a loader that accepts more
+/// work than it can report would, on a song load that fans out, discard the
+/// earliest results by construction and re-read those headers every round. The
+/// assertion below makes that structural rather than a property of two numbers
+/// that happen to match today.
+pub const RESULT_SLOTS: usize = LOAD_QUEUE_DEPTH;
+
+const _: () = assert!(
+    RESULT_SLOTS >= LOAD_QUEUE_DEPTH,
+    "the result table must be able to report every request the queue accepts"
+);
 
 // Deluge `Error` codes as they cross the ABI, matched by NUMBER (`audio_load.h`:
 // "Fixed-width, never a native enum"). `enum class Error` has no fixed underlying
@@ -219,34 +245,56 @@ impl LoadResult {
     }
 }
 
-/// `DelugeAudioLoadResult`'s layout, pinned.
+/// `DelugeAudioLoadGeometry`'s and `DelugeAudioLoadResult`'s layouts, pinned
+/// field by field.
 ///
 /// This boundary is hand-declared on both sides — `audio_load.h` is not in
-/// `wrapper.h`, so bindgen does not generate this struct and a field reorder on
-/// either side would compile clean and misread every field after it. These
-/// checks catch a Rust-side change; the C side is held by the header being the
-/// single place the field order is written down.
+/// `wrapper.h`, so bindgen does not generate these structs. Pinning the SIZE
+/// alone is not enough and was the gap here before: swapping `sample_rate` and
+/// `audio_data_start_pos_bytes` (both `u32`) keeps every size identical and
+/// compiles clean on both sides, producing a sample that loads without error and
+/// renders at the wrong rate — this file's own "worst available shape".
+///
+/// `audio_load_abi.cpp` carries the mirror of these numbers as `static_assert`s,
+/// so a reorder on EITHER side fails to compile rather than silently
+/// reinterpreting every field after it.
 const _: () = {
-    assert!(core::mem::size_of::<LoadGeometry>() == 36);
-    assert!(core::mem::size_of::<LoadResult>() == 312);
-    assert!(core::mem::align_of::<LoadResult>() == 8);
-    assert!(core::mem::offset_of!(LoadResult, geometry) == 0);
-    assert!(core::mem::offset_of!(LoadResult, size_bytes) == 40);
-    assert!(core::mem::offset_of!(LoadResult, alternate_path) == 48);
-    assert!(core::mem::offset_of!(LoadResult, error) == 304);
+    use core::mem::{align_of, offset_of, size_of};
+
+    assert!(size_of::<LoadGeometry>() == 36);
+    assert!(align_of::<LoadGeometry>() == 4);
+    assert!(offset_of!(LoadGeometry, sample_rate) == 0);
+    assert!(offset_of!(LoadGeometry, audio_data_start_pos_bytes) == 4);
+    assert!(offset_of!(LoadGeometry, audio_data_length_bytes) == 8);
+    assert!(offset_of!(LoadGeometry, file_loop_start_samples) == 12);
+    assert!(offset_of!(LoadGeometry, file_loop_end_samples) == 16);
+    assert!(offset_of!(LoadGeometry, wavetable_cycle_size) == 20);
+    assert!(offset_of!(LoadGeometry, midi_note_value) == 24);
+    assert!(offset_of!(LoadGeometry, num_channels) == 28);
+    assert!(offset_of!(LoadGeometry, byte_depth) == 29);
+    assert!(offset_of!(LoadGeometry, raw_data_format) == 30);
+    assert!(offset_of!(LoadGeometry, midi_note_present) == 31);
+    assert!(offset_of!(LoadGeometry, wavetable_explicitly_specifies_self) == 32);
+
+    assert!(size_of::<LoadResult>() == 312);
+    assert!(align_of::<LoadResult>() == 8);
+    assert!(offset_of!(LoadResult, geometry) == 0);
+    assert!(offset_of!(LoadResult, size_bytes) == 40);
+    assert!(offset_of!(LoadResult, alternate_path) == 48);
+    assert!(offset_of!(LoadResult, error) == 304);
 };
 
 /// One queued load: the nominal path (the key a result is collected by) and the
 /// candidate paths to try, in order.
 pub struct LoadRequest {
-    pub path: String,
-    pub candidates: Vec<String>,
+    pub path: LoadPath,
+    pub candidates: CandidateList,
 }
 
 /// A finished parse waiting to be collected, tagged with the nominal path it
 /// belongs to.
 struct PendingResult {
-    key: String,
+    key: LoadPath,
     result: LoadResult,
 }
 
@@ -265,7 +313,7 @@ static QUEUE: Mutex<CriticalSectionRawMutex, heapless::Deque<LoadRequest, LOAD_Q
 /// the window between a request leaving [`QUEUE`] and its result reaching
 /// [`RESULTS`] — an `UNKNOWN` there would tell the C++ side to re-request work
 /// that is already running, and it would do so on every tick.
-static IN_FLIGHT: Mutex<CriticalSectionRawMutex, Option<String>> = Mutex::new(None);
+static IN_FLIGHT: Mutex<CriticalSectionRawMutex, Option<LoadPath>> = Mutex::new(None);
 
 /// Finished parses waiting to be collected, oldest at the front.
 ///
@@ -317,10 +365,20 @@ pub unsafe extern "C" fn deluge_audio_load_request(
     num_candidates: u32,
 ) -> bool {
     // SAFETY: the caller's contract, above.
-    let Some(path) = (unsafe { cstr_to_string(file_path) }) else {
+    let Some(path) = (unsafe { cstr_to_path(file_path) }) else {
         return false;
     };
     if candidates.is_null() {
+        return false;
+    }
+    if num_candidates == DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED {
+        // `deluge_audio_load_candidates` reported its buffer untrustworthy, and
+        // the header is explicit that the caller must not read it. Clamping this
+        // to the candidate bound and reading three slots anyway would open
+        // whatever a silent truncation left there -- possibly a DIFFERENT real
+        // file sitting at the truncated path. Most such buffers would also fail
+        // the decoder's NUL/UTF-8 checks, but that is an accident of the decoder,
+        // not the contract.
         return false;
     }
     let slots = (num_candidates as usize).min(MAX_LOAD_CANDIDATES);
@@ -351,6 +409,25 @@ pub unsafe extern "C" fn deluge_audio_load_request(
 /// Collect the finished parse for `file_path`, if one is ready. See
 /// `audio_load.h`.
 ///
+/// # Why the probe order is QUEUE -> IN_FLIGHT -> RESULTS
+///
+/// An entry only ever moves forward: [`QUEUE`] -> [`IN_FLIGHT`] -> [`RESULTS`].
+/// Two rules close the handoffs — [`audio_load_task`] sets `IN_FLIGHT` while
+/// still holding the `QUEUE` lock, and publishes to `RESULTS` *before* clearing
+/// `IN_FLIGHT` — so at every instant a live entry is in at least one table.
+///
+/// Given that, reading the tables in forward order cannot miss: a miss on `QUEUE`
+/// means the entry has already advanced past it, a subsequent miss on `IN_FLIGHT`
+/// means it has advanced past that too, and `RESULTS` is terminal until
+/// collected. Reading in the REVERSE order can miss — a miss on `RESULTS`, then
+/// the task publishes and clears `IN_FLIGHT`, then a miss on `IN_FLIGHT` — and
+/// reports `UNKNOWN` for a load that has already succeeded, so the caller
+/// re-requests work that is done and orphans the result slot it left behind.
+///
+/// That interleaving needs two threads and is not directly testable here; the
+/// argument above is what makes it safe, and each branch of the probe has its own
+/// test.
+///
 /// # Safety
 ///
 /// `file_path` must be a valid NUL-terminated C string and `out` a valid,
@@ -365,9 +442,17 @@ pub unsafe extern "C" fn deluge_audio_load_collect(
         return DELUGE_AUDIO_LOAD_UNKNOWN;
     }
     // SAFETY: the caller's contract, above.
-    let Some(path) = (unsafe { cstr_to_string(file_path) }) else {
+    let Some(path) = (unsafe { cstr_to_path(file_path) }) else {
         return DELUGE_AUDIO_LOAD_UNKNOWN;
     };
+
+    // Probe in the pipeline's OWN direction -- QUEUE, then IN_FLIGHT, then
+    // RESULTS -- because an entry only ever moves that way. See
+    // [`deluge_audio_load_collect`]'s doc for why the reverse order can report
+    // `UNKNOWN` for a load that has already succeeded.
+    if is_queued(&path) || is_in_flight(&path) {
+        return DELUGE_AUDIO_LOAD_PENDING;
+    }
 
     // A contended table means the task is mid-publish. `PENDING` is the honest
     // answer: never claim `UNKNOWN` on contention, or the caller re-requests work
@@ -381,30 +466,37 @@ pub unsafe extern "C" fn deluge_audio_load_collect(
         unsafe { core::ptr::write(out, taken.result) };
         return DELUGE_AUDIO_LOAD_READY;
     }
-    drop(results);
-
-    if is_awaiting_parse(&path) {
-        return DELUGE_AUDIO_LOAD_PENDING;
-    }
     DELUGE_AUDIO_LOAD_UNKNOWN
 }
 
-/// Whether `path` is queued or currently being parsed. Contention on either table
-/// reports `true`: the loader is demonstrably busy, so "ask again" is right and
-/// "never heard of it" would be wrong.
-fn is_awaiting_parse(path: &str) -> bool {
-    match IN_FLIGHT.try_lock() {
-        Ok(in_flight) => {
-            if in_flight.as_deref() == Some(path) {
-                return true;
-            }
-        }
-        Err(_) => return true,
-    }
+/// Whether `path` is still waiting in [`QUEUE`]. Contention reports `true`: the
+/// loader is demonstrably busy, so "ask again" is right and "never heard of it"
+/// would be wrong.
+fn is_queued(path: &str) -> bool {
     match QUEUE.try_lock() {
         Ok(queue) => queue.iter().any(|request| request.path == path),
         Err(_) => true,
     }
+}
+
+/// Whether `path` is the load being parsed right now. Contention reports `true`,
+/// for the same reason as [`is_queued`].
+fn is_in_flight(path: &str) -> bool {
+    match IN_FLIGHT.try_lock() {
+        Ok(in_flight) => in_flight.as_deref() == Some(path),
+        Err(_) => true,
+    }
+}
+
+/// Record (or clear) the load being parsed right now.
+///
+/// Called by [`audio_load_task`] while it still holds the [`QUEUE`] lock, so the
+/// QUEUE -> IN_FLIGHT handoff has no window in which a request sits in neither
+/// table. Also the seam the host tests drive to exercise
+/// [`deluge_audio_load_collect`]'s IN_FLIGHT branch, which no test could reach
+/// otherwise because no test runs the task.
+pub async fn mark_in_flight(path: Option<LoadPath>) {
+    *IN_FLIGHT.lock().await = path;
 }
 
 /// Remove and return the entry at `index`, preserving the order of the rest.
@@ -436,7 +528,7 @@ fn remove_at(
 
 /// Publish `result` under `key`, replacing any existing entry for that key and
 /// evicting the oldest if the table is full. See [`RESULTS`].
-pub async fn publish_result(key: String, result: LoadResult) {
+pub async fn publish_result(key: LoadPath, result: LoadResult) {
     let mut results = RESULTS.lock().await;
     if let Some(index) = results.iter().position(|entry| entry.key == key) {
         let _ = remove_at(&mut results, index);
@@ -448,41 +540,47 @@ pub async fn publish_result(key: String, result: LoadResult) {
 }
 
 /// Decode the candidate buffer the C side filled: one NUL-terminated path per
-/// [`DELUGE_MAX_PATH`] slot. `None` if any slot is unterminated or not UTF-8.
-pub fn decode_candidates(buffer: &[u8]) -> Option<Vec<String>> {
+/// [`DELUGE_MAX_PATH`] slot. `None` if any slot is unterminated, not UTF-8, or
+/// there are more slots than [`MAX_LOAD_CANDIDATES`].
+///
+/// Allocation-free, like everything else here — see [`LoadPath`].
+pub fn decode_candidates(buffer: &[u8]) -> Option<CandidateList> {
     let slots = buffer.len() / DELUGE_MAX_PATH;
-    let mut out = Vec::with_capacity(slots);
+    if slots > MAX_LOAD_CANDIDATES {
+        return None;
+    }
+    let mut out = CandidateList::new();
     for slot in 0..slots {
         let bytes = &buffer[slot * DELUGE_MAX_PATH..(slot + 1) * DELUGE_MAX_PATH];
         // Anything after the NUL is the caller's untouched buffer, never read.
         let end = bytes.iter().position(|b| *b == 0)?;
-        out.push(String::from(core::str::from_utf8(&bytes[..end]).ok()?));
+        let path = LoadPath::try_from(core::str::from_utf8(&bytes[..end]).ok()?).ok()?;
+        out.push(path).ok()?;
     }
     Some(out)
 }
 
-/// Copy a C string out to an owned [`String`]. `None` for NULL or non-UTF-8.
+/// Copy a C string into a fixed-capacity [`LoadPath`]. `None` for NULL, non-UTF-8,
+/// or a path longer than [`DELUGE_MAX_PATH`] — a path that does not fit is
+/// refused rather than truncated, because a truncated path names a *different*
+/// file that may well exist.
 ///
 /// # Safety
 ///
 /// `ptr` must be NULL or a valid NUL-terminated C string.
-unsafe fn cstr_to_string(ptr: *const c_char) -> Option<String> {
+unsafe fn cstr_to_path(ptr: *const c_char) -> Option<LoadPath> {
     if ptr.is_null() {
         return None;
     }
     // SAFETY: the caller's contract, above.
     let cstr = unsafe { CStr::from_ptr(ptr) };
-    cstr.to_str().ok().map(String::from)
+    LoadPath::try_from(cstr.to_str().ok()?).ok()
 }
 
 // ── The parse driver ────────────────────────────────────────────────────────
 
 #[cfg(feature = "async_audio_load")]
 mod driver {
-    // `extern crate` visibility is per-module in Rust 2018+, so the outer
-    // module's declaration is not in scope here.
-    extern crate alloc;
-
     use super::{
         DELUGE_ERROR_FILE_CORRUPTED, DELUGE_ERROR_FILE_UNREADABLE, DELUGE_ERROR_FILE_UNSUPPORTED,
         DELUGE_ERROR_NONE, LoadGeometry, LoadRequest, LoadResult,
@@ -745,18 +843,27 @@ pub async fn audio_load_task() {
     LOAD_WAKE.wait().await;
     let ops = ProdOps::new();
     loop {
-        while let Some(request) = next_queued_request().await {
+        while let Some(request) = take_next_request().await {
             let key = request.path.clone();
-            *IN_FLIGHT.lock().await = Some(key.clone());
             let result = load_io_once(&ops, &request).await;
+            // Publish BEFORE clearing IN_FLIGHT, never after: the entry is briefly
+            // in both tables, which is harmless, whereas the reverse leaves a
+            // window in which it is in neither and `collect` would report
+            // `UNKNOWN` for a load that just succeeded.
             publish_result(key, result).await;
-            *IN_FLIGHT.lock().await = None;
+            mark_in_flight(None).await;
         }
         LOAD_WAKE.wait().await;
     }
 }
 
-/// Pop the next queued request, or `None` when the queue is empty.
+/// Pop the next queued request and mark it in flight, atomically with respect to
+/// [`deluge_audio_load_collect`].
+///
+/// The mark happens while the [`QUEUE`] lock is still held, so there is no
+/// instant at which the request has left the queue but not yet appeared as
+/// in-flight. A `collect` racing this either sees it queued, or blocks on the
+/// queue's `try_lock` and reports `PENDING` — never `UNKNOWN`.
 #[cfg(all(
     feature = "async_audio_load",
     any(
@@ -764,6 +871,9 @@ pub async fn audio_load_task() {
         feature = "host_app"
     )
 ))]
-async fn next_queued_request() -> Option<LoadRequest> {
-    QUEUE.lock().await.pop_front()
+async fn take_next_request() -> Option<LoadRequest> {
+    let mut queue = QUEUE.lock().await;
+    let request = queue.pop_front()?;
+    mark_in_flight(Some(request.path.clone())).await;
+    Some(request)
 }

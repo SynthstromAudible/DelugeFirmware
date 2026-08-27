@@ -27,11 +27,11 @@ use std::ffi::CString;
 mod audio_loader;
 
 use audio_loader::{
-    DELUGE_AUDIO_LOAD_PENDING, DELUGE_AUDIO_LOAD_READY, DELUGE_AUDIO_LOAD_UNKNOWN,
+    CandidateList, DELUGE_AUDIO_LOAD_PENDING, DELUGE_AUDIO_LOAD_READY, DELUGE_AUDIO_LOAD_UNKNOWN,
     DELUGE_ERROR_FILE_CORRUPTED, DELUGE_ERROR_FILE_UNREADABLE, DELUGE_ERROR_FILE_UNSUPPORTED,
-    DELUGE_ERROR_NONE, DELUGE_MAX_PATH, LoadGeometry, LoadOps, LoadRequest, LoadResult,
-    decode_candidates, deluge_audio_load_async_active, deluge_audio_load_collect,
-    deluge_audio_load_request, load_io_once, publish_result,
+    DELUGE_ERROR_NONE, DELUGE_MAX_PATH, LoadGeometry, LoadOps, LoadPath, LoadRequest, LoadResult,
+    RESULT_SLOTS, decode_candidates, deluge_audio_load_async_active, deluge_audio_load_collect,
+    deluge_audio_load_request, load_io_once, mark_in_flight, publish_result,
 };
 
 /// One call `FakeOps` observed, in order.
@@ -61,9 +61,16 @@ struct FakeOps {
     open_handles: Cell<i32>,
     next_handle: Cell<u32>,
     reads_done: Cell<u32>,
-    /// The bytes of whichever file is currently open. The fake only ever holds
-    /// one handle at a time, which is exactly what `load_io_once` does.
-    opened: RefCell<Vec<u8>>,
+    /// Live handles: `handle -> the bytes that handle refers to`.
+    ///
+    /// Keyed by HANDLE, not "whatever was opened last", and that is the point.
+    /// `efatfs_fs::size_of_handle` exists because the pre-existing size entry
+    /// point reads a DIFFERENT handle table, so sizing through it would silently
+    /// bound the parse to another file. A double that ignores the handle cannot
+    /// observe that bug at all — it would serve the right bytes for the wrong
+    /// handle. Every operation here therefore looks the handle up and panics if
+    /// it was never issued or has been closed.
+    live: RefCell<Vec<(u32, Vec<u8>)>>,
 }
 
 impl FakeOps {
@@ -76,7 +83,7 @@ impl FakeOps {
             open_handles: Cell::new(0),
             next_handle: Cell::new(7),
             reads_done: Cell::new(0),
-            opened: RefCell::new(Vec::new()),
+            live: RefCell::new(Vec::new()),
         }
     }
 
@@ -118,6 +125,22 @@ impl FakeOps {
         );
     }
 
+    /// The bytes behind a live handle. Panics if `handle` was never issued by
+    /// `open`, or has already been closed — either is a real defect in the
+    /// driver, not a test-harness detail.
+    fn bytes_for(&self, handle: u32) -> Vec<u8> {
+        let live = self.live.borrow();
+        live.iter()
+            .find(|(live_handle, _)| *live_handle == handle)
+            .map(|(_, bytes)| bytes.clone())
+            .unwrap_or_else(|| {
+                panic!(
+                    "operation on handle {handle}, which is not open (live: {:?})",
+                    live.iter().map(|(h, _)| *h).collect::<Vec<_>>()
+                )
+            })
+    }
+
     /// Every window the driver asked the file for, in order.
     fn reads(&self) -> Vec<(u32, usize)> {
         self.calls()
@@ -138,22 +161,25 @@ impl LoadOps for FakeOps {
             .iter()
             .find(|(candidate, _)| candidate == path)
             .map(|(_, bytes)| bytes.clone())?;
-        *self.opened.borrow_mut() = bytes;
+        // A fresh handle every time, never reused, so a driver that held on to a
+        // stale one cannot accidentally land on a live entry.
         let handle = self.next_handle.get();
         self.next_handle.set(handle + 1);
+        self.live.borrow_mut().push((handle, bytes));
         self.open_handles.set(self.open_handles.get() + 1);
         Some(handle)
     }
 
-    async fn size_of(&self, _handle: u32) -> Option<u32> {
+    async fn size_of(&self, handle: u32) -> Option<u32> {
         self.record(Call::SizeOf);
+        let bytes = self.bytes_for(handle);
         if self.size_fails {
             return None;
         }
-        Some(self.opened.borrow().len() as u32)
+        Some(bytes.len() as u32)
     }
 
-    async fn read_at(&self, _handle: u32, offset: u32, buf: &mut [u8]) -> bool {
+    async fn read_at(&self, handle: u32, offset: u32, buf: &mut [u8]) -> bool {
         self.record(Call::Read {
             offset,
             len: buf.len(),
@@ -164,11 +190,13 @@ impl LoadOps for FakeOps {
             return false;
         }
         // Mirrors `efatfs_fs::read_at`: an empty fill trivially succeeds, whatever
-        // the offset. This is the case the driver MUST still feed.
+        // the offset. This is the case the driver MUST still feed. The handle is
+        // still resolved first, so a zero-length read against a bad handle is
+        // caught too.
+        let bytes = self.bytes_for(handle);
         if buf.is_empty() {
             return true;
         }
-        let bytes = self.opened.borrow();
         let start = offset as usize;
         let Some(end) = start.checked_add(buf.len()) else {
             return false;
@@ -180,8 +208,14 @@ impl LoadOps for FakeOps {
         true
     }
 
-    async fn close(&self, _handle: u32) {
+    async fn close(&self, handle: u32) {
         self.record(Call::Close);
+        let mut live = self.live.borrow_mut();
+        let index = live
+            .iter()
+            .position(|(live_handle, _)| *live_handle == handle)
+            .unwrap_or_else(|| panic!("close of handle {handle}, which is not open"));
+        live.remove(index);
         self.open_handles.set(self.open_handles.get() - 1);
     }
 }
@@ -216,10 +250,19 @@ fn block_on<F: core::future::Future>(future: F) -> F::Output {
     embassy_futures::block_on(future)
 }
 
+fn path_of(path: &str) -> LoadPath {
+    LoadPath::try_from(path).expect("test path fits DELUGE_MAX_PATH")
+}
+
 fn request(path: &str, candidates: &[&str]) -> LoadRequest {
+    let mut list = CandidateList::new();
+    for candidate in candidates {
+        list.push(path_of(candidate))
+            .expect("candidate list capacity");
+    }
     LoadRequest {
-        path: String::from(path),
-        candidates: candidates.iter().map(|c| String::from(*c)).collect(),
+        path: path_of(path),
+        candidates: list,
     }
 }
 
@@ -267,6 +310,44 @@ fn the_parsed_geometry_matches_the_header() {
     // The parser's "the file said nothing" default, mirroring the C++ parser's
     // Serum convention.
     assert_eq!(geometry.wavetable_cycle_size, 2048);
+}
+
+/// Two loads through one `FakeOps` must each report their OWN file's size, via
+/// their own handle.
+///
+/// The double serves strictly by handle and issues a fresh one per open, so a
+/// driver that cached a handle, a size, or "the last file opened" between loads
+/// reports the first file's size for the second — which is the shape of the bug
+/// `efatfs_fs::size_of_handle` exists to prevent (the pre-existing size entry
+/// point reads a different handle table, so it would bound the parse to another
+/// file entirely).
+#[test]
+fn each_load_is_sized_through_its_own_handle() {
+    let mut small = minimal_wav();
+    // A second `data` byte pair, so the two files differ in size and geometry.
+    small.truncate(44 + 4);
+    let riff_size = (small.len() - 8) as u32;
+    small[4..8].copy_from_slice(&riff_size.to_le_bytes());
+    small[40..44].copy_from_slice(&4u32.to_le_bytes());
+
+    let ops = FakeOps::new()
+        .with_file("big.wav", minimal_wav())
+        .with_file("small.wav", small);
+
+    let big = block_on(load_io_once(&ops, &request("big.wav", &["big.wav"])));
+    assert_eq!(big.error, DELUGE_ERROR_NONE);
+    assert_eq!(big.size_bytes, 52);
+    assert_eq!(big.geometry.audio_data_length_bytes, 8);
+
+    let small = block_on(load_io_once(&ops, &request("small.wav", &["small.wav"])));
+    assert_eq!(small.error, DELUGE_ERROR_NONE);
+    assert_eq!(
+        small.size_bytes, 48,
+        "the second load must be sized by its own handle"
+    );
+    assert_eq!(small.geometry.audio_data_length_bytes, 4);
+
+    ops.assert_settled();
 }
 
 // ── The handle is released on every path ────────────────────────────────────
@@ -443,10 +524,7 @@ fn collect(path: &str) -> (u8, LoadResult) {
 }
 
 fn publish(path: &str, error: u8) {
-    block_on(publish_result(
-        String::from(path),
-        LoadResult::failed(error),
-    ));
+    block_on(publish_result(path_of(path), LoadResult::failed(error)));
 }
 
 /// A published result is collected exactly once: `READY` with the payload, then
@@ -514,20 +592,98 @@ fn republishing_a_key_replaces_its_entry() {
 #[test]
 fn an_uncollected_result_is_evicted_rather_than_leaked() {
     let _guard = TABLE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    // Five results into four slots.
-    for index in 0..5 {
+    // One more than the table holds.
+    for index in 0..=RESULT_SLOTS {
         publish(&format!("evict/{index}.wav"), DELUGE_ERROR_FILE_CORRUPTED);
     }
     // The oldest was evicted...
     assert_eq!(collect("evict/0.wav").0, DELUGE_AUDIO_LOAD_UNKNOWN);
-    // ...and the four newest all survived, in their own slots.
-    for index in 1..5 {
+    // ...and every newer one survived, in its own slot.
+    for index in 1..=RESULT_SLOTS {
         assert_eq!(
             collect(&format!("evict/{index}.wav")).0,
             DELUGE_AUDIO_LOAD_READY,
             "slot {index} should have survived"
         );
     }
+}
+
+/// Collecting from the MIDDLE of the table must leave the remaining entries in
+/// their original order, because eviction is oldest-first and reads that order.
+///
+/// This is a regression test for a real bug in `remove_at`: it rotated the
+/// surviving entries instead of restoring them, so after one mid-table collect
+/// the "oldest" entry was no longer the oldest, and the next eviction discarded
+/// the wrong result. Nothing else catches it — every other collect here runs
+/// against a single-entry table, where index 0 is correct either way.
+///
+/// Fill the table, collect from the middle, then publish two more so the table
+/// overflows: entry 0 must be the one evicted, and the entries that were newer
+/// than it must all survive.
+#[test]
+fn collecting_from_the_middle_keeps_the_eviction_order() {
+    let _guard = TABLE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    for index in 0..RESULT_SLOTS {
+        publish(&format!("ord/{index}"), DELUGE_ERROR_FILE_CORRUPTED);
+    }
+    let middle = RESULT_SLOTS / 2;
+    assert_eq!(collect(&format!("ord/{middle}")).0, DELUGE_AUDIO_LOAD_READY);
+
+    // One free slot after the collect, so the second of these evicts the oldest.
+    publish("ord/x", DELUGE_ERROR_FILE_CORRUPTED);
+    publish("ord/y", DELUGE_ERROR_FILE_CORRUPTED);
+
+    assert_eq!(
+        collect("ord/0").0,
+        DELUGE_AUDIO_LOAD_UNKNOWN,
+        "entry 0 was the oldest and must be the one evicted"
+    );
+    let newest = RESULT_SLOTS - 1;
+    assert_eq!(
+        collect(&format!("ord/{newest}")).0,
+        DELUGE_AUDIO_LOAD_READY,
+        "the newest original entry was never the oldest, so it must survive"
+    );
+    assert_eq!(collect("ord/x").0, DELUGE_AUDIO_LOAD_READY);
+    assert_eq!(collect("ord/y").0, DELUGE_AUDIO_LOAD_READY);
+}
+
+// ── The collect state machine ───────────────────────────────────────────────
+
+/// A load being parsed RIGHT NOW reports `PENDING`, not `UNKNOWN`.
+///
+/// This branch had no test at all, because no test runs the loader task — the
+/// same degenerate-coverage shape that hid the `remove_at` bug. `mark_in_flight`
+/// is the seam the task uses, so driving it directly exercises the real branch
+/// rather than a copy of it.
+///
+/// A false `UNKNOWN` here is not cosmetic: it tells the caller to re-request a
+/// load that is already running, on every tick, and each redundant request
+/// eventually orphans a result slot.
+#[test]
+fn an_in_flight_request_is_pending_not_unknown() {
+    let _guard = TABLE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    block_on(mark_in_flight(Some(path_of("inflight/A.wav"))));
+    assert_eq!(collect("inflight/A.wav").0, DELUGE_AUDIO_LOAD_PENDING);
+    // A DIFFERENT path is still unknown — the branch matches on identity, not on
+    // "something is in flight".
+    assert_eq!(collect("inflight/B.wav").0, DELUGE_AUDIO_LOAD_UNKNOWN);
+    block_on(mark_in_flight(None));
+    assert_eq!(collect("inflight/A.wav").0, DELUGE_AUDIO_LOAD_UNKNOWN);
+}
+
+/// The window the task leaves open deliberately: a result is published while its
+/// path is still marked in flight. `PENDING` is the correct answer there — one
+/// extra tick, never a wrong one — and the result is collectable as soon as the
+/// mark clears.
+#[test]
+fn a_published_result_still_marked_in_flight_reports_pending() {
+    let _guard = TABLE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    block_on(mark_in_flight(Some(path_of("window/A.wav"))));
+    publish("window/A.wav", DELUGE_ERROR_NONE);
+    assert_eq!(collect("window/A.wav").0, DELUGE_AUDIO_LOAD_PENDING);
+    block_on(mark_in_flight(None));
+    assert_eq!(collect("window/A.wav").0, DELUGE_AUDIO_LOAD_READY);
 }
 
 // ── The candidate buffer decoder ────────────────────────────────────────────
@@ -552,19 +708,55 @@ fn candidate_buffer(paths: &[&str]) -> Vec<u8> {
 #[test]
 fn candidates_decode_slot_by_slot() {
     let buffer = candidate_buffer(&["A.wav", "ALT/A.wav", "A2.wav"]);
+    let decoded = decode_candidates(&buffer).unwrap();
+    assert_eq!(decoded.len(), 3);
+    assert_eq!(decoded[0].as_str(), "A.wav");
+    assert_eq!(decoded[1].as_str(), "ALT/A.wav");
+    assert_eq!(decoded[2].as_str(), "A2.wav");
+}
+
+/// An unterminated slot is refused rather than read past — and the refusal must
+/// hold when it is NOT the first slot, which is the case a single-slot buffer
+/// cannot exercise. Slot 0 is a perfectly good path; slot 1 is unterminated, and
+/// the whole buffer is rejected rather than the good prefix accepted.
+#[test]
+fn an_unterminated_candidate_slot_is_refused_even_after_a_good_one() {
+    let mut buffer = candidate_buffer(&["A.wav", "B.wav"]);
+    // Scrub slot 1's terminator, leaving slot 0 intact.
+    for byte in buffer[DELUGE_MAX_PATH..].iter_mut() {
+        *byte = 0xAA;
+    }
+    assert!(decode_candidates(&buffer).is_none());
+    // Slot 0 alone still decodes, so the refusal above is about slot 1.
     assert_eq!(
-        decode_candidates(&buffer).unwrap(),
-        vec!["A.wav", "ALT/A.wav", "A2.wav"]
+        decode_candidates(&buffer[..DELUGE_MAX_PATH]).unwrap()[0].as_str(),
+        "A.wav"
     );
 }
 
-/// An unterminated slot is refused rather than read past: the C side always
-/// NUL-terminates what it writes, so an unterminated slot means the buffer is not
-/// what it claims to be.
+/// The `DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED` sentinel means the C side's
+/// buffer is not trustworthy at all. It must be REFUSED, not clamped to the
+/// candidate bound and read anyway — the header is explicit that the caller must
+/// not read `out`, and a silently truncated path can name a different real file.
 #[test]
-fn an_unterminated_candidate_slot_is_refused() {
-    let buffer = vec![0xAAu8; DELUGE_MAX_PATH];
-    assert!(decode_candidates(&buffer).is_none());
+fn the_truncation_sentinel_is_refused_not_clamped() {
+    let _guard = TABLE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let buffer = candidate_buffer(&["trunc/A.wav", "trunc/B.wav", "trunc/C.wav"]);
+    let path = CString::new("trunc/A.wav").unwrap();
+    // SAFETY: the buffer is three full slots; only the count is the sentinel.
+    let accepted = unsafe {
+        deluge_audio_load_request(
+            path.as_ptr(),
+            buffer.as_ptr().cast::<core::ffi::c_char>(),
+            0xFFFF_FFFF,
+        )
+    };
+    assert!(!accepted, "the sentinel must refuse the request");
+    assert_eq!(
+        collect("trunc/A.wav").0,
+        DELUGE_AUDIO_LOAD_UNKNOWN,
+        "a refused request must not have been queued"
+    );
 }
 
 /// A request naming more candidates than the C side ever proposes reads only the
@@ -613,43 +805,4 @@ fn the_async_switch_follows_only_its_own_feature() {
              async_audio_load (which only compiles the driver) is on by default"
         );
     }
-}
-
-/// Collecting from the MIDDLE of the table must leave the remaining entries in
-/// their original order, because eviction is oldest-first and reads that order.
-///
-/// This is a regression test for a real bug in `remove_at`: it rotated the
-/// surviving entries instead of restoring them, so after one mid-table collect
-/// the "oldest" entry was no longer the oldest, and the next eviction discarded
-/// the wrong result. Nothing else would have caught it — every other test here
-/// collects from a single-entry table, where index 0 is correct either way.
-///
-/// A,B,C,D fill the table; collecting C must leave A,B,D in that order, so that
-/// two further publishes evict A first and D still survives. The buggy rotation
-/// left D,A,B and evicted D.
-#[test]
-fn collecting_from_the_middle_keeps_the_eviction_order() {
-    let _guard = TABLE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    for key in ["ord/A", "ord/B", "ord/C", "ord/D"] {
-        publish(key, DELUGE_ERROR_FILE_CORRUPTED);
-    }
-    assert_eq!(collect("ord/C").0, DELUGE_AUDIO_LOAD_READY);
-
-    // Table now holds A,B,D. Two more publishes push it past four entries, so the
-    // two OLDEST (A, then B) are the ones evicted.
-    publish("ord/E", DELUGE_ERROR_FILE_CORRUPTED);
-    publish("ord/F", DELUGE_ERROR_FILE_CORRUPTED);
-
-    assert_eq!(
-        collect("ord/A").0,
-        DELUGE_AUDIO_LOAD_UNKNOWN,
-        "A was oldest"
-    );
-    assert_eq!(
-        collect("ord/D").0,
-        DELUGE_AUDIO_LOAD_READY,
-        "D was newer than A and B, so it must survive"
-    );
-    assert_eq!(collect("ord/E").0, DELUGE_AUDIO_LOAD_READY);
-    assert_eq!(collect("ord/F").0, DELUGE_AUDIO_LOAD_READY);
 }
