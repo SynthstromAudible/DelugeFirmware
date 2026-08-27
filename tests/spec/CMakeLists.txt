@@ -18,6 +18,10 @@ add_library(deluge_spec STATIC
 ../../src/foundation/string_format.c
 ../../src/deluge/util/c_string.cpp
 ../../src/deluge/util/lookuptables/lookuptables.cpp
+# Legacy RGB::fromHue/fromHuePastel, still at their pre-move path: compiled in directly so
+# hue_spec.cpp can record/verify a golden BEFORE the gfx/grid move (see hue_spec.cpp). Removed
+# once the move lands and deluge_gfx_grid (linked below) provides grid/rgb.cpp instead.
+../../src/deluge/gui/colour/rgb.cpp
 ../../src/deluge/hid/display/starfield.cpp
 ../../src/deluge/hid/display/rainfall.cpp
 ../../src/deluge/hid/display/oled_canvas/canvas.cpp
