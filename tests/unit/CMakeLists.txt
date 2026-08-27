@@ -108,7 +108,7 @@ set_target_properties(UnitTests
         CXX_EXTENSIONS ON
 )
 
-target_link_libraries(UnitTests CppUTestExt etl::etl deluge_gfx_oled deluge_gfx_grid deluge_notify)
+target_link_libraries(UnitTests CppUTestExt etl::etl deluge_gfx_oled deluge_gfx_grid deluge_ui_core deluge_ui_oled deluge_ui_grid deluge_notify)
 
 # strchr is seemingly different in x86
 target_compile_options(UnitTests PUBLIC

@@ -25,7 +25,7 @@ add_library(deluge_spec STATIC
 ../32bit_unit_tests/mocks/mock_display.cpp
 ../32bit_unit_tests/mocks/mock_print.cpp
 )
-target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi deluge_gfx_oled deluge_gfx_grid deluge_notify)
+target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi deluge_gfx_oled deluge_gfx_grid deluge_ui_core deluge_ui_oled deluge_ui_grid deluge_notify)
 
 target_include_directories(deluge_spec PUBLIC ../../src/deluge ../../src ../32bit_unit_test/mocks/ ../../include)
 
