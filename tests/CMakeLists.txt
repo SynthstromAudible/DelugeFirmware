@@ -133,6 +133,10 @@ endif ()
 cmake_path(SET SHARED_INCLUDE ${CMAKE_CURRENT_LIST_DIR}/../src)
 add_subdirectory(../src/gfx gfx)
 
+# deluge_notify: the model->UI notification channel, shared by spec/ and unit/ on the
+# same terms as gfx above (added exactly once here rather than from each of them).
+add_subdirectory(../src/notify notify)
+
 add_subdirectory(spec)
 add_subdirectory(spec_io)
 add_subdirectory(spec_host_passthrough)

@@ -56,6 +56,7 @@ target_link_libraries(deluge_app PUBLIC
     deluge_midi
     deluge_gfx_oled
     deluge_gfx_grid
+    deluge_notify
 )
 
 target_compile_definitions(deluge_app PUBLIC

@@ -48,6 +48,7 @@ CPP_TARGETS = [
     "deluge_midi",
     "deluge_gfx_oled",
     "deluge_gfx_grid",
+    "deluge_notify",
 ]
 
 RUST_BSP_DIR = Path("src/bsp/rust")
