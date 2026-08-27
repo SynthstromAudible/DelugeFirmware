@@ -127,11 +127,44 @@ void OledFrame::rect_rounded(Rect r, gfx::oled::BorderRadius radius) {
 	if (r.w <= 0 || r.h <= 0) {
 		return;
 	}
-	const Rect c{origin.x + r.x, origin.y + r.y, r.w, r.h};
-	if (clip.intersect(c) != c) {
-		return; // all-or-nothing: corner arcs are not clippable as spans
+	if (!style.rounded) {
+		// Canvas::draw_rectangle_rounded's own `!rounded` arm is a plain rectangle, and `rect`
+		// above is already that decomposition.
+		rect(r);
+		return;
 	}
-	canvas.draw_rectangle_rounded(c.x, c.y, c.right() - 1, c.bottom() - 1, radius, style.rounded);
+
+	// Canvas::draw_rectangle_rounded's decomposition (gfx/oled/canvas.cpp), replayed through this
+	// frame's clipped primitives rather than handed to the canvas whole. A "rounded corner" is not
+	// an arc: it is the four edges inset by the radius, plus -- at radius 2 -- one pixel diagonally
+	// in from each corner. Every one of those is a span or a point, so every one of them clips
+	// exactly, and a box that hangs off the region now draws the part of its border that is
+	// inside it instead of nothing at all.
+	const int32_t min_x = r.x;
+	const int32_t min_y = r.y;
+	const int32_t max_x = r.right() - 1;
+	const int32_t max_y = r.bottom() - 1;
+	const int32_t radius_pixels = (radius == gfx::oled::SMALL) ? 1 : 2;
+
+	// The canvas's own line routines return early on a reversed range (`end < start`, canvas.cpp),
+	// while `hline`/`vline` above normalise one. For a box narrower or shorter than twice the
+	// radius the inset runs *are* reversed, so the canvas's guard is reproduced here to keep this
+	// pixel-identical to the call it replaces.
+	if (min_y + radius_pixels <= max_y - radius_pixels) {
+		vline(min_x, min_y + radius_pixels, max_y - radius_pixels);
+		vline(max_x, min_y + radius_pixels, max_y - radius_pixels);
+	}
+	if (min_x + radius_pixels <= max_x - radius_pixels) {
+		hline(min_y, min_x + radius_pixels, max_x - radius_pixels);
+		hline(max_y, min_x + radius_pixels, max_x - radius_pixels);
+	}
+
+	if (radius_pixels == 2) {
+		pixel(min_x + 1, min_y + 1); // top-left
+		pixel(max_x - 1, min_y + 1); // top-right
+		pixel(min_x + 1, max_y - 1); // bottom-left
+		pixel(max_x - 1, max_y - 1); // bottom-right
+	}
 }
 
 void OledFrame::invert(Rect r) {

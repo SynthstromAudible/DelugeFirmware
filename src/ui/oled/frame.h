@@ -19,8 +19,9 @@ namespace deluge::ui::oled {
 /// `root_frame()` below does exactly that.
 ///
 /// `origin` translates local to canvas coordinates and `clip` (a canvas-coordinate rectangle)
-/// bounds what reaches the framebuffer. That bound is complete for the geometric primitives
-/// and all-or-nothing for the rounded and blitting ones, but it is NOT complete for `glyphs`:
+/// bounds what reaches the framebuffer. That bound is complete for the geometric primitives --
+/// `rect_rounded` included -- and all-or-nothing for the blitting ones (`graphic`, `icon`) and for
+/// `invert_rounded`, but it is NOT complete for `glyphs`:
 /// text is clipped to the frame's right edge and to the canvas, and can still escape a region
 /// on the left or vertically. Closing that gap needs a clip rectangle threaded through
 /// `Canvas::draw_char` / `draw_graphic_multi_line` in gfx, tracked as a follow-up and a
@@ -73,10 +74,15 @@ struct OledFrame {
 	/// - `pixel`/`hline`/`vline`/`line`/`invert`/`clear` clip exactly, pixel for pixel.
 	/// - `rect` is decomposed into its four clipped edges, which is exactly what
 	///   `Canvas::draw_rectangle` does, so the clipping is exact there too.
-	/// - the rounded and blitting primitives (`rect_rounded`, `invert_rounded`, `graphic`,
-	///   `icon`) are all-or-nothing: a shape that would fall even partly outside `clip` is
-	///   skipped. Their corner arcs and bitmaps cannot be decomposed into clippable spans,
-	///   and silently overdrawing a sibling region would be worse than drawing nothing.
+	/// - `rect_rounded` is decomposed the same way: a rounded corner is not an arc but the four
+	///   edges inset by the radius plus, at radius 2, one pixel in from each corner, so it too
+	///   clips exactly, span by span and point by point. A box hanging off the region draws the
+	///   part of its border that is inside.
+	/// - `invert_rounded`, `graphic` and `icon` remain all-or-nothing: a shape that would fall
+	///   even partly outside `clip` is skipped. `invert_rounded` is an area operation (an XOR
+	///   across a filled region with the corners spared), not an outline, and the two blits are
+	///   bitmaps; none of the three decomposes into clippable spans, and silently overdrawing a
+	///   sibling region would be worse than drawing nothing.
 	/// - `glyphs` clips to `clip`'s right edge, and to the canvas otherwise; see below.
 
 	void pixel(int32_t x, int32_t y);
@@ -84,6 +90,8 @@ struct OledFrame {
 	void vline(int32_t x, int32_t y0, int32_t y1);
 	void line(int32_t x0, int32_t y0, int32_t x1, int32_t y1, bool thick = false);
 	void rect(gfx::oled::Rect r);
+	/// `Canvas::draw_rectangle_rounded`, decomposed into its four inset edges and its corner
+	/// pixels so that each clips exactly; `style.rounded` selects the square arm, which is `rect`.
 	void rect_rounded(gfx::oled::Rect r, gfx::oled::BorderRadius radius = gfx::oled::SMALL);
 	void invert(gfx::oled::Rect r);
 	void invert_rounded(gfx::oled::Rect r, gfx::oled::BorderRadius radius = gfx::oled::SMALL);

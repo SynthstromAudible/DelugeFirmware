@@ -577,50 +577,45 @@ describe popup_w("ui::oled::popup", $ {
 		// panel-centring puts at canvas row 4 -- inside the bezel. See the next example.
 	});
 
-	it("drops the border, but not the text, when a popup reaches into the bezel", _ {
-		// The one place the port and legacy still differ on a 48-row panel, and it is the frame's
-		// clipping contract rather than a placement difference. Now that the box is centred where
-		// legacy centres it, a tall popup's top edge lands in the bezel: "Operation resumed..."
-		// wraps to three lines, a 39-row box, which legacy puts at canvas row (48 - 39) / 2 = 4 --
-		// one row above the visible area.
+	it("draws the visible part of a border that reaches into the bezel", _ {
+		// Now that the box is centred where legacy centres it, a tall popup's top edge lands in the
+		// bezel: "Operation resumed..." (a real string, oled.cpp:1168) wraps to three lines, a 126x39
+		// box, which legacy puts at canvas (1, 4) -- `(128 - 126) / 2` and `(48 - 39) / 2`. Row 4 is
+		// one above the visible area.
 		//
-		// Legacy drew straight onto the canvas and inked row 4 regardless. The port cannot: a
-		// frame's clip is the visible area (frame.h / root_frame). And because
-		// `OledFrame::rect_rounded` is all-or-nothing against that clip -- a rounded rect has no
-		// span decomposition, frame.h -- a box that pokes one row over the top loses its *whole*
-		// border, not just that row. **The text still lands, pixel for pixel.**
-		//
-		// This is the same limitation the "fills the panel" example below pins, but panel-centring
-		// brings it within reach of an ordinary three-line popup, so it is worth its own example.
-		// The fix is the gfx clip rectangle frame.h already lists as a prerequisite; see the task
-		// report's follow-ups.
+		// `OledFrame::rect_rounded` decomposes into four inset edge runs and clips each (frame.h), so
+		// the port draws every part of that border except the one row it cannot reach. Legacy drew
+		// straight onto the canvas and inked row 4 too; that row is under the faceplate, so the two
+		// agree on every pixel a user can see.
 		const char* long_text = "Operation resumed. Save to new file then reboot.";
 		uitest::Rig48 r;
 		popup_text(r.frame, long_text);
 		legacy::popupText(r.reference, long_text, false, 128, 48, r.style.rounded);
 
-		// Legacy inks the box's top edge at row 4 and its bottom at row 43; the port inks neither.
-		expect(reference_lit(r, 60, 4)).to_be_true();
-		expect(reference_lit(r, 60, 43)).to_be_true();
-		expect(r.lit(60, 4)).to_be_false();
-		expect(r.lit(60, 43)).to_be_false();
-		// Nor the sides, at columns 1 and 127.
-		expect(reference_lit(r, 1, 20)).to_be_true();
-		expect(r.lit(1, 20)).to_be_false();
+		// The sides: `drawRectangleRounded` insets them by the SMALL radius, so columns 1 and 127
+		// run canvas rows 5..42 (legacy's `min_y + 1` = 5 through `max_y - 1` = 42).
+		for (int32_t y = 5; y <= 42; y++) {
+			expect(r.lit(1, y)).to_be_true();
+			expect(r.lit(127, y)).to_be_true();
+		}
+		// The bottom edge, row 43, inset by the radius at both ends: columns 2..126.
+		for (int32_t x = 2; x <= 126; x++) {
+			expect(r.lit(x, 43)).to_be_true();
+		}
+		expect(r.lit(1, 43)).to_be_false(); // the inset corners stay clear
+		expect(r.lit(127, 43)).to_be_false();
 
-		// The three text lines sit at canvas rows 10, 19 and 28 ((48 - 27) >> 1 = 10, then +9).
-		// Across those rows, and inside the border's columns, the two are identical.
-		for (int32_t y = 10; y < 37; y++) {
-			for (int32_t x = 2; x < 127; x++) {
+		// The top edge is legacy's row 4, inside the bezel: legacy inks it, the frame cannot.
+		expect(reference_lit(r, 60, 4)).to_be_true();
+		expect(r.lit(60, 4)).to_be_false();
+
+		// Everything from the first visible row down is identical, border and text alike.
+		for (int32_t y = 5; y < 48; y++) {
+			for (int32_t x = 0; x < 128; x++) {
 				expect(r.lit(x, y)).to_equal(reference_lit(r, x, y));
 			}
 		}
-		// And the text really is there, rather than both being blank.
-		bool any = false;
-		for (int32_t x = 2; x < 127; x++) {
-			any = any || r.lit(x, 11);
-		}
-		expect(any).to_be_true();
+		expect_golden(self, "../ui/widgets/popup_three_lines_48.pbm", r.pbm());
 	});
 
 	it("renders the popup goldens", _ {
@@ -813,22 +808,29 @@ describe popup_w("ui::oled::popup", $ {
 		expect(r.lit(44, 35)).to_be_false();
 	});
 
-	it("loses only its border when a popup fills the panel", _ {
-		// `popup_frame` reaches OledFrame::rect_rounded, which is all-or-nothing against the clip
-		// (frame.h: corner arcs have no span decomposition). Legacy clamped the box's *height* to
-		// the panel (oled.cpp:122) and then drew a border whose last row fell off the canvas, so
-		// for a popup that fills the panel the two differ: legacy inks three sides, this inks
-		// none. The text still lands, which is what the popup is for.
+	it("keeps the border it can reach when a popup fills the panel", _ {
+		// Eight lines is a 72-row text block, so the box is clamped to the panel's own height
+		// (oled.cpp:122) and lands at canvas row 0 with `max_y` at 64 -- one row off the bottom of a
+		// 64-row canvas. Legacy's `draw_horizontal_line` bails on that row (`pixel_y > last_y`), and
+		// the frame's clip does the same, so both draw the top edge and both omit the bottom one:
+		// with `rect_rounded` decomposed, this case is now byte-identical to legacy rather than
+		// borderless.
 		uitest::Rig64 r;
 		popup_text(r.frame, "A\nB\nC\nD\nE\nF\nG\nH");
-		bool any_border = false;
-		for (int32_t x = 0; x < 128; x++) {
-			any_border = any_border || r.lit(x, 0);
+		legacy::popupText(r.reference, "A\nB\nC\nD\nE\nF\nG\nH", false, 128, 64, r.style.rounded);
+		expect(r.pbm()).to_equal(r.reference_pbm());
+
+		// The box is 18 wide, centred: columns 55..73, top edge on row 0 inset by the radius.
+		for (int32_t x = 56; x <= 72; x++) {
+			expect(r.lit(x, 0)).to_be_true();
 		}
-		expect(any_border).to_be_false();
+		// Sides from row 1 to the last row the canvas has.
+		expect(r.lit(55, 1)).to_be_true();
+		expect(r.lit(73, 63)).to_be_true();
+		// And the text still lands, which is what the popup is for.
 		bool any_text = false;
-		for (int32_t y = 0; y < 64; y++) {
-			for (int32_t x = 0; x < 128; x++) {
+		for (int32_t x = 56; x <= 72; x++) {
+			for (int32_t y = 1; y < 63; y++) {
 				any_text = any_text || r.lit(x, y);
 			}
 		}
