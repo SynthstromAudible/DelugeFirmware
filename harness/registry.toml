@@ -22,11 +22,12 @@ ci = "pr"
 runtime = "~1m"
 
 # Runs with zero args (main() short-circuits before any app boot when no --file/--wavetable is
-# given -- see host_loadcheck_main.cpp), so it exercises only checkProposeLoadCandidates()'s I/O-free
-# policy checks -- no card fixture, no --project, no SD-root side effects. The deluge_loadcheck binary
-# also supports --project <dir> --file PATH... for the fuller construction-path regression net (Tier 2
-# for the file-loading redesign); that mode is exploratory, run locally against a real project
-# directory, not wired into this gate.
+# given -- see host_loadcheck_main.cpp), so it exercises checkProposeLoadCandidates()'s I/O-free
+# policy checks and checkAudioLoadAbiAbandon()'s libdeluge/audio_load.h ownership check -- no card
+# fixture, no --project, no SD-root side effects (both self-initialize the allocator/resource-manager
+# they touch). The deluge_loadcheck binary also supports --project <dir> --file PATH... for the fuller
+# construction-path regression net (Tier 2 for the file-loading redesign); that mode is exploratory,
+# run locally against a real project directory, not wired into this gate.
 #
 # `build` runs sim/build_loadcheck.sh, which configures AND builds sim/build itself -- this entry must
 # be self-sufficient on a clean checkout, since CI's pr-tier harness job (.github/workflows/rust.yml,
@@ -38,7 +39,7 @@ name = "audio-loadcheck"
 path = "sim"
 kind = "regression"
 status = "gate"
-gates = "AudioFileManager::proposeLoadCandidates's candidate order/count (the alternate-dir-vs-regular-path policy a real load and the async loader share) and the load invariants (no half-built cache entry, no leaked AudioFile reason) must hold -- this is what caught the dropped-bare-name-candidate regression this entry exists to pin"
+gates = "AudioFileManager::proposeLoadCandidates's candidate order/count (the alternate-dir-vs-regular-path policy a real load and the async loader share) and the load invariants (no half-built cache entry, no leaked AudioFile reason) must hold -- this is what caught the dropped-bare-name-candidate regression this entry exists to pin. Also gates the libdeluge/audio_load.h C ABI's build-ownership contract: deluge_audio_load_abandon() must actually release the adopted resource-manager chunk, not just free its wrapper, or repeated begin/abandon churn (as a browser cursor move that never lands would produce) exhausts the chunk table."
 build = ["./build_loadcheck.sh"]
 run = ["./build/deluge_loadcheck"]
 requires = []

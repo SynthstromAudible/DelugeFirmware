@@ -288,21 +288,52 @@ bool checkProposeLoadCandidates() {
 bool checkAudioLoadAbiAbandon() {
 	bool ok = true;
 
-	// abandons a build without leaking a reason or publishing it
+	// abandons a build without publishing it
 	{
-		uint8_t error = 0;
 		const size_t before = audioFileManager.audioFiles.size();
+		uint8_t error = 0;
 		DelugeSampleBuild* build = deluge_audio_load_begin("TEST/abandon.wav", "", 4096, &error);
 		if (build == nullptr) {
 			printf("FAIL [audioLoadAbiAbandon]: deluge_audio_load_begin returned NULL (error=%u)\n", error);
 			return false;
 		}
 		deluge_audio_load_abandon(build);
-		// Nothing published, and the object is gone rather than sitting adopted with zero geometry.
+		// Nothing published. NOTE: begin() never inserts into audioFiles (only finish() does), so this
+		// alone does not prove abandon() actually released the adopted chunk -- see the loop below for
+		// that.
 		if (audioFileManager.audioFiles.size() != before) {
 			printf("FAIL [audioLoadAbiAbandon]: audioFiles.size() changed across abandon (%zu -> %zu)\n", before,
 			       audioFileManager.audioFiles.size());
 			ok = false;
+		}
+	}
+
+	// abandon() must actually release the adopted resource-manager chunk, not just free the
+	// BuildHandle wrapper: loop begin/abandon well past this host build's chunk-table capacity
+	// (slabCapacity + kAssetCap; on the order of a few thousand for the 64 MiB host SDRAM region --
+	// see GeneralMemoryAllocator::ensureClusterSystem()). Nothing here touches cluster data, so a
+	// correct abandon() frees and reuses the same handful of slots every iteration and this stays
+	// fast regardless of the loop count. A leaking abandon() (e.g. one that only freed the wrapper and
+	// forgot to release the Sample) would instead exhaust the table: the next begin()'s adopt hits
+	// AudioFileManager::adoptAudioFileObject's FREEZE_WITH_ERROR("RAF1") -- a hard, unmistakable crash
+	// (logged, then a null-display-pointer fault in this no-boot mode) rather than a silent pass. This
+	// is deliberately a crash-on-leak test, not a clean assertion: there is no cheaper way to observe
+	// "is this chunk still resident" through the public C ABI (DelugeResourceStats has no live-count
+	// field; its `evictions` counter isn't even incremented by the explicit evict_chunk() path this
+	// goes through, only by pressure-driven eviction).
+	{
+		constexpr int kIterations = 20000;
+		for (int i = 0; i < kIterations; i++) {
+			uint8_t error = 0;
+			DelugeSampleBuild* build = deluge_audio_load_begin("TEST/abandon_loop.wav", "", 4096, &error);
+			if (build == nullptr) {
+				printf("FAIL [audioLoadAbiAbandon]: begin/abandon churn ran out of chunk-table slots -- "
+				       "begin() failed after %d iterations (error=%u); abandon() is likely leaking\n",
+				       i, error);
+				ok = false;
+				break;
+			}
+			deluge_audio_load_abandon(build);
 		}
 	}
 
