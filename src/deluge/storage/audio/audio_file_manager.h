@@ -21,6 +21,7 @@
 #include "storage/cluster/cluster.h"
 #include "util/c_string.h"
 #include <array>
+#include <cstddef>
 #include <cstdint>
 
 class Sample;
@@ -164,19 +165,30 @@ public:
 	                            uint64_t sizeBytes, Error* error);
 	AudioFile* finishSampleFromCard(Sample* sampleFile, uint64_t sizeBytes, Error* error);
 
+	/// Upper bound on how many candidate paths proposeLoadCandidates() can propose: the alternate dir's
+	/// "collect media" flattened name, its bare-filename fallback, and the regular path.
+	static constexpr size_t kMaxLoadCandidates = 3;
+
 	/// @brief Decide, in priority order and without touching the card, which path(s) a load of
 	///        @p filePath should try. The async loader (a later migration step) calls this directly as
 	///        its only source of truth for candidate paths, so it and resolveFileSize must stay in sync.
 	///
 	/// When the alternate load dir is known to exist (`alternateLoadDirStatus ==
-	/// AlternateLoadDirStatus::DOES_EXIST`) it is proposed first, named via the "collect media"
-	/// flattened form for a path under "SAMPLES/" (or the bare filename otherwise, which also lets
-	/// users drop files straight into an instrument's alternate folder), and the regular path second.
-	/// Otherwise only the regular path is proposed.
-	/// @param filePath  The nominal path a load was asked for.
-	/// @param outFirst  The candidate to try first. Never empty.
-	/// @param outSecond The candidate to try second, or empty if only one candidate applies.
-	void proposeLoadCandidates(const std::string& filePath, std::string& outFirst, std::string& outSecond) const;
+	/// AlternateLoadDirStatus::DOES_EXIST`), up to three candidates are proposed, in try order: (1) only
+	/// for a @p filePath under "SAMPLES/", the "collect media" flattened form (the original path, with
+	/// each '/' after "SAMPLES/" replaced by '_'); (2) unconditionally, the bare filename in the
+	/// alternate dir -- tried even when (1) applied and would miss, since it also lets users drop files
+	/// straight into an instrument's alternate folder; (3) the regular path. Otherwise only the regular
+	/// path is proposed (one candidate).
+	///
+	/// If the flattened-name construction (1) fails, no candidates are proposed at all (matching the
+	/// original code's hard-stop on that failure, rather than silently falling back to the weaker
+	/// candidates) -- see resolveFileSize's caller-side note on the error code this produces.
+	/// @param filePath The nominal path a load was asked for.
+	/// @param out      Array of at least @p max entries to fill with candidates, in try order.
+	/// @param max      Capacity of @p out (pass kMaxLoadCandidates for the full list).
+	/// @return How many entries of @p out were written. Never more than @p max.
+	size_t proposeLoadCandidates(const std::string& filePath, std::string* out, size_t max) const;
 
 private:
 	bool cardReadOnce{false};
@@ -189,7 +201,11 @@ private:
 	// Resolve a not-already-resident audio file's size by path: opens proposeLoadCandidates()'s
 	// candidates, in order, until one exists. Sets `sizeBytes` (+ `usingAlternateLocation`, and may
 	// rewrite `filePath` for preset alternates) and returns true on success; returns false on not-found /
-	// card-unavailable (with `*error` set, except the !mayReadCard case which leaves it untouched, as before).
+	// card-unavailable (with `*error` set, except the !mayReadCard case which leaves it untouched, as
+	// before). NB: if proposeLoadCandidates() produced zero candidates (its flattened-name construction
+	// failed), this reports the generic Error::FILE_UNREADABLE rather than that specific error code --
+	// proposeLoadCandidates has no error channel to carry it. Currently unreachable in practice: the
+	// construction it calls (setupAlternateAudioFilePath) can't actually fail.
 	bool resolveFileSize(std::string& filePath, bool mayReadCard, std::string& usingAlternateLocation,
 	                     uint64_t& sizeBytes, Error* error);
 	// Convert an already-in-memory Sample into a WaveTable (the caller wanted a wavetable but only the Sample

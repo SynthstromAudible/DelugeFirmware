@@ -34,6 +34,8 @@
 #include "OSLikeStuff/scheduler_api.h" // TaskHandle
 #include "libdeluge/system.h"          // deluge_platform_init
 
+#include <array>
+#include <cstddef>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
@@ -148,42 +150,116 @@ bool checkLoadInvariants(const char* label) {
 
 /// Pin proposeLoadCandidates()'s policy (which paths a load tries, in what order — no I/O). A later
 /// async loader consumes this function as its only source of truth for candidate paths, so its order
-/// is behaviour: get it wrong and a load silently opens the wrong file.
+/// is behaviour: get it wrong and a load silently opens the wrong file (or misses one it used to find).
 bool checkProposeLoadCandidates() {
 	bool ok = true;
+	using Candidates = std::array<std::string, AudioFileManager::kMaxLoadCandidates>;
 
-	// proposes the alternate directory before the regular path when it exists
+	// proposes the alternate directory (bare-name form) before the regular path when it exists
 	{
 		// Order is behaviour: resolveFileSize tries the alternate dir first whenever it exists, and
-		// the async loader opens candidates in the order this function returns them.
+		// the async loader opens candidates in the order this function returns them. For a single-level
+		// "SAMPLES/..." path the flattened and bare alternate names coincide, so this exercises the
+		// 2-distinct-candidate shape (duplicate alt name, then the regular path).
 		audioFileManager.alternateAudioFileLoadPath = "SAMPLES/ALT";
 		audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::DOES_EXIST;
-		std::string first;
-		std::string second;
-		audioFileManager.proposeLoadCandidates("SAMPLES/kick.wav", first, second);
-		if (first != "SAMPLES/ALT/kick.wav") {
-			printf("FAIL [proposeLoadCandidates]: expected first \"SAMPLES/ALT/kick.wav\", got \"%s\"\n",
-			       first.c_str());
+		Candidates c;
+		size_t count = audioFileManager.proposeLoadCandidates("SAMPLES/kick.wav", c.data(), c.size());
+		if (count != 3) {
+			printf("FAIL [proposeLoadCandidates]: expected 3 candidates for a single-level SAMPLES/ path, got %zu\n",
+			       count);
 			ok = false;
 		}
-		if (second != "SAMPLES/kick.wav") {
-			printf("FAIL [proposeLoadCandidates]: expected second \"SAMPLES/kick.wav\", got \"%s\"\n", second.c_str());
+		else {
+			if (c[0] != "SAMPLES/ALT/kick.wav") {
+				printf("FAIL [proposeLoadCandidates]: expected candidate[0] \"SAMPLES/ALT/kick.wav\", got \"%s\"\n",
+				       c[0].c_str());
+				ok = false;
+			}
+			if (c[1] != "SAMPLES/ALT/kick.wav") {
+				printf("FAIL [proposeLoadCandidates]: expected candidate[1] \"SAMPLES/ALT/kick.wav\", got \"%s\"\n",
+				       c[1].c_str());
+				ok = false;
+			}
+			if (c[2] != "SAMPLES/kick.wav") {
+				printf("FAIL [proposeLoadCandidates]: expected candidate[2] \"SAMPLES/kick.wav\", got \"%s\"\n",
+				       c[2].c_str());
+				ok = false;
+			}
+		}
+	}
+
+	// a nested SAMPLES/ path proposes the flattened alt name, then the bare alt name, then the regular
+	// path -- this is the case a two-candidate policy previously dropped (the bare-name-in-alt-dir
+	// fallback), so it's the one that most needs pinning.
+	{
+		audioFileManager.alternateAudioFileLoadPath = "SAMPLES/ALT";
+		audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::DOES_EXIST;
+		Candidates c;
+		size_t count = audioFileManager.proposeLoadCandidates("SAMPLES/FOLDER/kick.wav", c.data(), c.size());
+		if (count != 3) {
+			printf("FAIL [proposeLoadCandidates]: expected 3 candidates for a nested SAMPLES/ path, got %zu\n", count);
 			ok = false;
+		}
+		else {
+			if (c[0] != "SAMPLES/ALT/FOLDER_kick.wav") {
+				printf("FAIL [proposeLoadCandidates]: expected candidate[0] (flattened) "
+				       "\"SAMPLES/ALT/FOLDER_kick.wav\", got \"%s\"\n",
+				       c[0].c_str());
+				ok = false;
+			}
+			if (c[1] != "SAMPLES/ALT/kick.wav") {
+				printf("FAIL [proposeLoadCandidates]: expected candidate[1] (bare) \"SAMPLES/ALT/kick.wav\", got "
+				       "\"%s\"\n",
+				       c[1].c_str());
+				ok = false;
+			}
+			if (c[2] != "SAMPLES/FOLDER/kick.wav") {
+				printf("FAIL [proposeLoadCandidates]: expected candidate[2] (regular) \"SAMPLES/FOLDER/kick.wav\", got "
+				       "\"%s\"\n",
+				       c[2].c_str());
+				ok = false;
+			}
+		}
+	}
+
+	// a path outside SAMPLES/ skips the flattened-name candidate: bare alt name, then regular path.
+	{
+		audioFileManager.alternateAudioFileLoadPath = "SAMPLES/ALT";
+		audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::DOES_EXIST;
+		Candidates c;
+		size_t count = audioFileManager.proposeLoadCandidates("PRESETS/SYNTHS/kick.xml", c.data(), c.size());
+		if (count != 2) {
+			printf("FAIL [proposeLoadCandidates]: expected 2 candidates for a non-SAMPLES/ path, got %zu\n", count);
+			ok = false;
+		}
+		else {
+			if (c[0] != "SAMPLES/ALT/kick.xml") {
+				printf("FAIL [proposeLoadCandidates]: expected candidate[0] \"SAMPLES/ALT/kick.xml\", got \"%s\"\n",
+				       c[0].c_str());
+				ok = false;
+			}
+			if (c[1] != "PRESETS/SYNTHS/kick.xml") {
+				printf("FAIL [proposeLoadCandidates]: expected candidate[1] \"PRESETS/SYNTHS/kick.xml\", got "
+				       "\"%s\"\n",
+				       c[1].c_str());
+				ok = false;
+			}
 		}
 	}
 
 	// proposes only the regular path when no alternate directory exists
 	{
 		audioFileManager.alternateLoadDirStatus = AlternateLoadDirStatus::NONE_SET;
-		std::string first;
-		std::string second;
-		audioFileManager.proposeLoadCandidates("SAMPLES/kick.wav", first, second);
-		if (first != "SAMPLES/kick.wav") {
-			printf("FAIL [proposeLoadCandidates]: expected first \"SAMPLES/kick.wav\", got \"%s\"\n", first.c_str());
+		Candidates c;
+		size_t count = audioFileManager.proposeLoadCandidates("SAMPLES/kick.wav", c.data(), c.size());
+		if (count != 1) {
+			printf("FAIL [proposeLoadCandidates]: expected 1 candidate with no alternate dir known, got %zu\n", count);
 			ok = false;
 		}
-		if (!second.empty()) {
-			printf("FAIL [proposeLoadCandidates]: expected second empty, got \"%s\"\n", second.c_str());
+		else if (c[0] != "SAMPLES/kick.wav") {
+			printf("FAIL [proposeLoadCandidates]: expected candidate[0] \"SAMPLES/kick.wav\", got \"%s\"\n",
+			       c[0].c_str());
 			ok = false;
 		}
 	}
