@@ -116,6 +116,25 @@ void dumpSample(const char* path, const Sample& s) {
 	       s.fileLoopStartSamples, s.fileLoopEndSamples, s.waveTableCycleSize);
 }
 
+/// Assert the two invariants an async load must preserve (design §4b): the manager holds no
+/// half-built object (adopted, reasoned, but with zero geometry), and no load leaked a reason.
+/// Both hold trivially on the synchronous path — pinning them here makes a later async break loud.
+bool checkLoadInvariants(const char* label) {
+	bool ok = true;
+	for (int32_t i = 0; i < static_cast<int32_t>(audioFileManager.audioFiles.size()); i++) {
+		AudioFile* f = audioFileManager.audioFiles[i];
+		if (f->type != AudioFileType::SAMPLE) {
+			continue;
+		}
+		Sample* s = static_cast<Sample*>(f);
+		if (s->byteDepth == 0 || s->numChannels == 0) {
+			printf("FAIL [%s]: zero-geometry Sample in cache: %s\n", label, s->filePath.c_str());
+			ok = false;
+		}
+	}
+	return ok;
+}
+
 void deluge_loadcheck_driver() {
 	static bool started = false;
 	if (started) {
@@ -141,6 +160,10 @@ void deluge_loadcheck_driver() {
 		}
 		else {
 			dumpSample(item.path.c_str(), static_cast<Sample&>(*audioFile));
+		}
+
+		if (!checkLoadInvariants(item.path.c_str())) {
+			failures++;
 		}
 	}
 
