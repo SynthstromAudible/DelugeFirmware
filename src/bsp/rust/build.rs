@@ -233,7 +233,7 @@ fn archive_app_objects(build_dir: &Path, cfg: &str, ar: &Path, out_dir: &Path) -
             "C++ app objects not found at {}. Build them first:\n  \
              cmake --build {} --target deluge_app NE10 eyalroz_printf \
              deluge_dsp deluge_scheduler deluge_foundation deluge_midi deluge_gfx_oled deluge_gfx_grid \
-             deluge_notify",
+             deluge_ui_core deluge_notify",
             app_objs_dir.display(),
             build_dir.display()
         );
@@ -266,7 +266,7 @@ fn archive_app_objects(build_dir: &Path, cfg: &str, ar: &Path, out_dir: &Path) -
 /// `--start-group` because the references are mutual: C++ calls the
 /// `deluge_*` services, this crate calls `deluge_main()`.
 fn link_app_closure(build_dir: &Path, cfg: &str, app_objs_archive: &Path) {
-    let deps: [(&str, &str); 9] = [
+    let deps: [(&str, &str); 10] = [
         ("src/NE10", "libNE10.a"),
         ("src/lib", "libeyalroz_printf.a"),
         ("src/deluge/dsp", "libdeluge_dsp.a"),
@@ -275,6 +275,7 @@ fn link_app_closure(build_dir: &Path, cfg: &str, app_objs_archive: &Path) {
         ("src/midi", "libdeluge_midi.a"),
         ("src/gfx", "libdeluge_gfx_oled.a"),
         ("src/gfx", "libdeluge_gfx_grid.a"),
+        ("src/ui", "libdeluge_ui_core.a"),
         ("src/notify", "libdeluge_notify.a"),
     ];
 
@@ -403,7 +404,7 @@ fn archive_host_app_objects(app_objs_dir: &Path, out_dir: &Path) -> Vec<PathBuf>
             "host C++ app objects not found at {}. Build them first:\n  \
              ninja -C <host tree> deluge_app NE10 eyalroz_printf deluge_dsp \
              deluge_scheduler deluge_foundation deluge_midi deluge_gfx_oled deluge_gfx_grid \
-             deluge_notify",
+             deluge_ui_core deluge_notify",
             app_objs_dir.display(),
         );
     }
@@ -465,7 +466,7 @@ fn emit_host_staleness_hash(app_objs_dir: &Path, objs: &[PathBuf], out_dir: &Pat
 /// device tree's: NE10 sits at the build root and dsp under `app/`, not under
 /// `src/deluge/`.
 fn link_host_app_closure(build_dir: &Path, app_objs_archive: &Path) {
-    let deps: [(&str, &str); 9] = [
+    let deps: [(&str, &str); 10] = [
         (".", "libNE10.a"),
         ("printf", "libeyalroz_printf.a"),
         ("app/dsp", "libdeluge_dsp.a"),
@@ -474,6 +475,7 @@ fn link_host_app_closure(build_dir: &Path, app_objs_archive: &Path) {
         ("midi", "libdeluge_midi.a"),
         ("gfx", "libdeluge_gfx_oled.a"),
         ("gfx", "libdeluge_gfx_grid.a"),
+        ("ui", "libdeluge_ui_core.a"),
         ("notify", "libdeluge_notify.a"),
     ];
 
