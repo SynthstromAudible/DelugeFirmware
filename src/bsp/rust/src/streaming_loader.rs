@@ -45,10 +45,25 @@
 //! ## Concurrency
 //!
 //! The manager (`DelugeResource*`) is `!Send`/`!Sync` by design — single-executor
-//! only. [`streaming_fill_task`] and the C++ enqueue path (the CLUSTER_ENQUEUE
-//! sites in `sample_stream.cpp`) both run on the one thread-mode Embassy
-//! executor the whole app runs on, so the raw
-//! pointer never needs to (and must never) cross threads.
+//! only, and [`streaming_fill_task`] is the only place this module touches it.
+//!
+//! That task does NOT run on the thread-mode executor. On device it runs on
+//! `STREAM_EXEC`, a preemptive `InterruptExecutor` at SGI priority 24 (spawned
+//! via `main.rs`'s `stream_bootstrap`); on host it owns the `"deluge-stream"`
+//! thread. That placement is load-bearing rather than incidental: this task
+//! holds the single `efatfs` FS mutex across its SD await, while the C++
+//! storage FFI (`deluge_efatfs_*`) bridges to these same futures through
+//! `sim_block::block_on`, a NON-yielding spin on device. A spin on the
+//! thread-mode executor therefore cannot let a thread-mode task run — see the
+//! FFI-bridge note in `efatfs_fs.rs`, "thread-mode tasks (PIC pump, OLED, UI)
+//! do not run during one. Streaming is unaffected — it lives on its own
+//! interrupt executor." Were the fill task thread-mode, that spin would wait
+//! forever on a mutex only the task it is starving can release.
+//!
+//! Cross-tier safety for the `!Send` manager pointer comes from
+//! `deluge_resource::sync`'s critical-section serialization, not from sharing an
+//! executor with the C++ enqueue path (the CLUSTER_ENQUEUE sites in
+//! `sample_stream.cpp`), which it does not.
 use core::ffi::c_void;
 
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;

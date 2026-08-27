@@ -266,20 +266,33 @@ sim_latency = []
 ## opt out with --no-default-features.
 async_streaming_loader = []
 
-## Build + spawn the Rust async audio-file load task (`audio_loader.rs`), which
-## drives a card sample's candidate open, size resolution and header parse
-## between the two I/O-free halves of `include/libdeluge/audio_load.h` instead of
-## running them inline on the storage fiber. The selector/enqueue C ABI
-## (`deluge_audio_load_async_active`/`_enqueue`) is always compiled so the C++
-## side always has a strong symbol overriding its weak fallbacks;
-## `async_active()`'s return value is the switch (false ⇒ every load takes the
-## synchronous path, exactly as before). On by default; opt out with
-## --no-default-features.
+## BUILD the Rust async audio-file load task (`audio_loader.rs`) -- the driver
+## that opens a card sample's candidate path, sizes it, and walks its header
+## between the two I/O-free halves of `include/libdeluge/audio_load.h`. On by
+## default so every build compiles and links the driver, and so the host test
+## (`tests/audio_loader_host.rs`) is exercised by a plain `cargo test`.
+##
+## This feature does NOT turn async loading on -- see `async_audio_load_active`
+## below. Building the task is inert on its own: nothing enqueues into it while
+## the switch is off, so it waits on `LOAD_WAKE` forever.
 ##
 ## Also enables the header decoder on host: `deluge_audio_format` is a required
 ## dependency on device but an optional, `host_app`-gated one on host, and the
 ## driver needs `HeaderParser` in the plain-host build the integration tests use.
 async_audio_load = ["dep:deluge_audio_format"]
+
+## THE SWITCH: the sole input to `deluge_audio_load_async_active()`, which is
+## what the C++ side asks before choosing the async path over the synchronous
+## one. **Off by default, and deliberately separate from `async_audio_load`
+## above**: whether the driver is *compiled* is a build-convenience question
+## (it keeps the host test running and the device link honest), whereas whether
+## card samples actually load through it is a behavioural change that has to be
+## an explicit, reversible flip rather than a side effect of landing the code.
+##
+## Implies `async_audio_load`, so turning the switch on cannot produce a build
+## where the C++ side dispatches to a task that was never spawned -- which would
+## queue every load and load none of them.
+async_audio_load_active = ["async_audio_load"]
 
 [build-dependencies]
 # Generate Rust signatures + POD types from the canonical libdeluge C headers so

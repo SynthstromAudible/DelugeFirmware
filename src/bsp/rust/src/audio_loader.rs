@@ -26,6 +26,14 @@
 //! - Feature-gated behind `async_audio_load`: the driver itself ([`LoadOps`],
 //!   [`load_once`], `ProdOps`, [`audio_load_task`]).
 //!
+//! Compiling the driver and *using* it are two different switches.
+//! `async_audio_load` (on by default) only builds and spawns the task;
+//! `async_audio_load_active` (off by default) is the sole input to
+//! [`deluge_audio_load_async_active`], and therefore the only thing that makes
+//! the C++ side dispatch a load here at all. With the switch off nothing ever
+//! enqueues, so the task waits on [`LOAD_WAKE`] forever and every load takes
+//! the synchronous path exactly as before.
+//!
 //! ## Why the driver is generic over [`LoadOps`]
 //!
 //! Same constraint as `streaming_loader`: `host_app` (which links the host-built
@@ -110,13 +118,21 @@ pub struct LoadRequest {
 static QUEUE: Mutex<CriticalSectionRawMutex, heapless::Deque<LoadRequest, LOAD_QUEUE_DEPTH>> =
     Mutex::new(heapless::Deque::new());
 
-/// Whether the Rust async loader backs sample loads on this BSP/config. The
-/// return value is the only thing that depends on the cargo feature — the symbol
-/// itself must always exist so the C++ call site links regardless of which
-/// config produced this BSP image.
+/// Whether the Rust async loader backs sample loads on this BSP/config — the
+/// switch the C++ side asks before choosing the async path over the synchronous
+/// one. The symbol itself must always exist so that call site links regardless
+/// of which config produced this BSP image; only the return value moves.
+///
+/// Keyed on `async_audio_load_active`, NOT on `async_audio_load`, and the
+/// separation is deliberate. `async_audio_load` says the driver is *compiled*
+/// (which keeps the host test running under a plain `cargo test` and keeps the
+/// device link honest); this says card samples actually *load through it*, which
+/// is a behavioural change and must be an explicit, reversible flip rather than
+/// a side effect of the code landing. Off by default, so a build that merely
+/// contains this task still takes the synchronous path for every load.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_audio_load_async_active() -> bool {
-    cfg!(feature = "async_audio_load")
+    cfg!(feature = "async_audio_load_active")
 }
 
 /// Queue `file_path` for the async loader and wake it. See `audio_load.h`.
