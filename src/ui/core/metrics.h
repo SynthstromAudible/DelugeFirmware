@@ -26,6 +26,14 @@ constexpr int32_t kFlashTime = 110;          // blink half-period
 constexpr int32_t kHorizontalSlotYOffset = 2;
 constexpr int32_t kMenuBaseY48 = 14; // list top for a 48-row panel (+ visible_top)
 constexpr int32_t kMenuBaseY64 = 15;
+/// The horizontal menu's box top (+ visible_top). A legacy *literal*:
+/// `HorizontalMenu::renderMenuItems` spells `constexpr int32_t base_y = 14 +
+/// OLED_MAIN_TOPMOST_PIXEL` (horizontal_menu.cpp:216) with no panel-height branch anywhere in it,
+/// so it is 14 on every geometry. Deliberately distinct from `kMenuBaseY48/64` above, which are
+/// the *list* constants -- `MenuItem::drawItemsForOled`'s `(OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 :
+/// 14` (menu_item.cpp:50). The two rules coincide on the shipped 48-row panel and diverge by one
+/// row on a 64-row one; `columns` follows this one, `list`/`menu_rect` the pair above.
+constexpr int32_t kHorizontalMenuBaseY = 14;
 constexpr int32_t kTitleY = 1;           // title baseline offset (+ visible_top)
 constexpr int32_t kTitleSeparatorY = 12; // (+ visible_top)
 constexpr int32_t kPopupMargin = 12;     // legacy doubleMargin

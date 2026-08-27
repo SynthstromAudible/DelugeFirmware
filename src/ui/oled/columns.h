@@ -88,9 +88,10 @@ Paging paging_of(std::span<const Column> cols, int32_t focused);
 ///
 /// Geometry, all from `renderMenuItems` (:214-306) and frame-local because the legacy
 /// `+ OLED_MAIN_TOPMOST_PIXEL` is already in the frame's origin:
-///   - `base_y` is `rect.y + kMenuBaseY48/64` (:216 spells `14` unconditionally; see the note
-///     below), `column_width` is `rect.w / 4` (:217), a column's box is `column_width * slots`
-///     wide (:225) and `kHorizontalBoxHeight` (25) tall (:226);
+///   - `base_y` is `rect.y + kHorizontalMenuBaseY` (:216, a literal `14 +
+///     OLED_MAIN_TOPMOST_PIXEL` with no panel-height branch), `column_width` is `rect.w / 4`
+///     (:217), a column's box is `column_width * slots` wide (:225) and `kHorizontalBoxHeight`
+///     (25) tall (:226);
 ///   - a labelled column's label occupies the bottom `kTextSpacingY` rows of that box, at
 ///     `base_y + 25 - 9` (:227-228) -- canvas rows 35..43 on the shipped 48-row panel -- and the
 ///     value region shrinks to `{x, base_y, box_width - 1, 25 - 9}` (:260-263);
@@ -98,11 +99,12 @@ Paging paging_of(std::span<const Column> cols, int32_t focused);
 ///   - the page counters are `n/N` in the top right (`renderPageCounters`, :178-201) and the
 ///     title is drawn with no separator rule (`renderTitle`, :137-176, via `title_paged`).
 ///
-/// `kMenuBaseY48/64` is the task brief's constant, not literally legacy's: horizontal_menu.cpp:216
-/// hard-codes `14` for every panel, but `OLED_MAIN_HEIGHT_PIXELS` is unconditionally 48
-/// (board_config.h:63) so no legacy build ever chose otherwise, and 48 keeps 14 either way. The
-/// height-selected form matches `menu_rect` (list.h) and lets a 64-row profile keep the same
-/// relationship to the title.
+/// **`kHorizontalMenuBaseY`, not `list`'s `kMenuBaseY48/64`.** The task brief's doc sketch named
+/// the latter pair, but those are `MenuItem::drawItemsForOled`'s `(OLED_MAIN_HEIGHT_PIXELS == 64) ?
+/// 15 : 14` (menu_item.cpp:50), and `renderMenuItems` has no such branch: its base_y is a
+/// `constexpr` literal 14 on every panel. The two rules coincide on the shipped 48-row panel and
+/// differ by a row on a 64-row one, where legacy's literal is the only reading there is. So this
+/// widget deliberately does *not* follow `menu_rect`.
 ///
 /// The value region is handed to `Column::render` as a frame of its own, whose `(0, 0)` is the
 /// region's corner. Its clip is the region **grown by one row at the top**: legacy's slot
@@ -128,6 +130,12 @@ Paging paging_of(std::span<const Column> cols, int32_t focused);
 ///   - `Response::entered` is a select press on a relevant submenu column, which is the press
 ///     legacy routed to `handleItemAction` -> `soundEditor.enterSubmenu` (:663-678).
 ///     `Response::focused` is not set, as in `list`: focus lives in the state the scene owns.
+///
+/// An empty span still draws: legacy's `renderOLED` calls all three of `renderTitle`,
+/// `renderPageCounters` and `renderMenuItems` unconditionally (:130-132), and `renderMenuItems`
+/// with no items skips straight to the placeholder loop (:290-306) with `current_x == 0`, which
+/// draws four dotted frames under the title. `Paging::total_pages` is 0 there (:537-539), so no
+/// counters are drawn.
 ///
 /// The focus highlight follows `style.invert_highlight`, which is legacy's
 /// `FlashStorage::accessibilityMenuHighlighting` (:268-283): true is `FULL_INVERSION`, an
@@ -155,9 +163,15 @@ void title_paged(OledFrame& f, std::string_view s, bool paged);
 /// @{
 /// @name Ready-made column renderers
 ///
-/// The four `renderInHorizontalMenu` overrides a slot can have, as `Column::render` functions.
+/// Four of the `renderInHorizontalMenu` overrides a slot can have, as `Column::render` functions.
 /// Each takes its data through `Column::ctx`, which must point at the matching struct and
 /// outlive the call. They are plain functions, so a page can mix them freely with a caller's own.
+///
+/// A fifth arm has no helper here: `Number::renderInHorizontalMenu`'s `default:` case
+/// (number.cpp:99-103) draws the raw number in the **title** face
+/// (`kTextTitleSpacingX`/`kTextTitleSizeY`), which is what `meter` draws for `Hint::None` -- so a
+/// plain number is a `meter_column` with `Hint::None`, *not* a `text_column`, whose face is the
+/// row font.
 
 /// `Number::renderInHorizontalMenu` (number.cpp:75-105), i.e. `meter` over the whole value
 /// region. `ctx` is a `MeterColumn`.

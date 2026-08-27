@@ -51,10 +51,13 @@ namespace uitest = deluge::ui::test;
 //      which the task brief's interface omitted, plus the brief's `title_text`. **`f.bounds()` is
 //      the rect that reproduces legacy** -- not `menu_rect(f)`, which starts below the title band
 //      this widget draws into -- and every golden is recorded with it.
-//  D2. `base_y` is `kMenuBaseY48/64` (14 / 15), the brief's constant.
-//      horizontal_menu.cpp:216 spells `14 + OLED_MAIN_TOPMOST_PIXEL` for every panel, and
-//      `OLED_MAIN_HEIGHT_PIXELS` is unconditionally 48 (board_config.h:63), so the two agree on
-//      every panel legacy can build; the 64-row oracle below uses 15 for the same reason.
+//  D2. `base_y` is `kHorizontalMenuBaseY` (14) on *both* panels, because horizontal_menu.cpp:216
+//      is a `constexpr` literal `14 + OLED_MAIN_TOPMOST_PIXEL` with no panel-height branch. It is
+//      NOT list's `kMenuBaseY48/64`, which is `MenuItem::drawItemsForOled`'s
+//      `(OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14` (menu_item.cpp:50) and belongs to a different
+//      renderer; the brief's doc sketch named that pair. The two coincide at 48 and differ by a
+//      row at 64, so the oracle below spells legacy's literal rather than the port's constant --
+//      encoding the port's rule there would make the 64-row comparison circular.
 //  D3. The non-inverting highlight rule is at `rect.bottom() - 3`. Legacy draws it at
 //      `OLED_MAIN_VISIBLE_HEIGHT + 2` (horizontal_menu.cpp:281), a canvas-absolute row that is
 //      the same pixel on the shipped panel but falls off the bottom of a panel with no bezel.
@@ -272,7 +275,7 @@ void renderTitle(Canvas& image, std::string title, int32_t totalPages, int32_t w
 /// `style.rounded` in the port.
 void renderMenuItems(Canvas& image, std::span<const Item> items, int32_t current, int32_t width, int32_t height,
                      int32_t topmost, bool full_inversion, bool rounded) {
-	const int32_t base_y = ((height == 64) ? 15 : 14) + topmost; // :216, and D2 above
+	const int32_t base_y = 14 + topmost; // :216, a literal on every panel -- see D2
 	const int32_t column_width = width / 4;
 	int32_t current_x = 0;
 
@@ -466,6 +469,17 @@ describe columns_w("ui::oled::columns", $ {
 
 		// An unfocused column's label is plain text on a dark background.
 		expect(r.lit(34, 39)).to_be_false();
+
+		// And on a 64-row panel with no bezel, the same literal base_y puts the label row at
+		// 14 + 25 - 9 = 30..38 -- one row *above* where list's kMenuBaseY64 would have put it.
+		uitest::Rig64 r64;
+		Page p64{four_columns()};
+		ColumnsState s64{};
+		columns(r64.frame, r64.frame.bounds(), s64, p64.span());
+		expect(r64.lit(2, 29)).to_be_false();
+		expect(r64.lit(2, 30)).to_be_true();
+		expect(r64.lit(2, 38)).to_be_true();
+		expect(r64.lit(2, 39)).to_be_false();
 	});
 
 	it("moves focus one relevant column per detent, and reports it", _ {
@@ -734,14 +748,52 @@ describe columns_w("ui::oled::columns", $ {
 		expect(rule).to_be_false();
 	});
 
-	it("reports no page for an empty span", _ {
-		// horizontal_menu.cpp:537-539 -- totalPages 0 when the page acquired nothing.
+	it("still draws the title and four placeholder frames for an empty span", _ {
+		// renderOLED (horizontal_menu.cpp:130-132) calls all three renderers unconditionally, and
+		// renderMenuItems with no items falls straight through to the placeholder loop
+		// (:290-306) with current_x == 0 -- four dotted frames under the title. totalPages is 0
+		// (:537-539), so renderPageCounters draws nothing (:179-181).
 		uitest::Rig48 r;
 		ColumnsState state{};
-		const Response resp = columns(r.frame, r.frame.bounds(), state, std::span<const Column>{});
+		const Response resp = columns(r.frame, r.frame.bounds(), state, std::span<const Column>{}, "FILTER");
 		expect(resp.changed).to_be_false();
 		expect(resp.entered).to_be_false();
 		expect(static_cast<int32_t>(paging_of(std::span<const Column>{}, 0).total_pages)).to_equal(0);
+		expect(static_cast<int32_t>(state.page)).to_equal(0);
+
+		legacy::renderOLED(r.reference, "FILTER", std::span<const legacy::Item>{}, 0, 0, 0, 128, 48, r.frame.origin.y,
+		                   r.style.invert_highlight, r.style.rounded);
+		expect(r.pbm()).to_equal(r.reference_pbm());
+		expect_golden(self, "../ui/widgets/columns_empty_48.pbm", r.pbm());
+
+		// The four frames, spelled out: each is drawn from `n * 32 + 7`, with dots along the top
+		// at base_y + 1 (canvas row 20) and along the sides from `start_x - 2` / `end_x + 2`.
+		for (int32_t n = 0; n < 4; n++) {
+			const int32_t start_x = n * 32 + 7;
+			expect(r.lit(start_x + 1, 20)).to_be_true();      // top edge
+			expect(r.lit(start_x + 1, 41)).to_be_true();      // bottom edge, OLED height - 7
+			expect(r.lit(start_x - 2, 23)).to_be_true();      // left edge, start_y + 3
+			expect(r.lit(start_x + 17 + 2, 23)).to_be_true(); // right edge
+		}
+		// And no page counters in the top right.
+		bool counters = false;
+		for (int32_t x = 100; x < 128; x++) {
+			for (int32_t y = 6; y < 15; y++) {
+				counters = counters || r.lit(x, y);
+			}
+		}
+		expect(counters).to_be_false();
+	});
+
+	it("reports the page of an out-of-range focus rather than a window over everything", _ {
+		// `paging_of` is public and total; `columns` clamps identically before it calls in.
+		std::vector<legacy::Item> six = four_columns();
+		six.push_back(legacy::Item{.label = "DRIVE", .kind = legacy::Item::BAR, .norm = 0.75f});
+		six.push_back(legacy::Item{.label = "MIX", .kind = legacy::Item::TOGGLE, .on = true});
+		Page p{six};
+		expect(static_cast<int32_t>(paging_of(p.span(), -3).page)).to_equal(0);
+		expect(static_cast<int32_t>(paging_of(p.span(), 99).page)).to_equal(1);
+		expect(static_cast<int32_t>(paging_of(p.span(), 99).focused_on_page)).to_equal(1);
 	});
 });
 // clang-format on

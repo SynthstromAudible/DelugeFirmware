@@ -30,14 +30,6 @@ constexpr size_t kTextBufferSize = 64;
 /// One row of headroom above the value region -- see the note on `columns` in the header.
 constexpr int32_t kSlotBleedY = 1;
 
-/// horizontal_menu.cpp:216 spells `14` for every panel; the height-selected form is the brief's,
-/// and agrees with legacy on the only panel legacy has (board_config.h:63). Frame-local, because
-/// the legacy `+ OLED_MAIN_TOPMOST_PIXEL` is already in the frame's origin. Same derivation as
-/// `menu_rect` (list.cpp:22-24).
-int32_t base_y_for(const OledFrame& f) {
-	return f.canvas.geometry().height == 64 ? kMenuBaseY64 : kMenuBaseY48;
-}
-
 /// `HorizontalMenu::renderColumnLabel` (horizontal_menu.cpp:603-628): the label, spaces removed,
 /// trimmed until it clears the column edges, centred at the bottom of the box, with side ticks
 /// filling the leftover width of a multi-slot column.
@@ -89,7 +81,7 @@ void column_label(OledFrame& f, const Column& col, int32_t label_y, int32_t slot
 /// The digits of \p v, capped at two characters: legacy's `etl::string<2>` +
 /// `deluge::string::appendInt` (horizontal_menu.cpp:188-189, :198-199), which truncates what does
 /// not fit rather than growing.
-std::string_view two_digits(char (&buf)[3], int32_t v) {
+std::string_view two_digits(char (&buf)[2], int32_t v) {
 	char reversed[12];
 	int32_t digits = 0;
 	uint32_t u = v < 0 ? 0u : static_cast<uint32_t>(v); // a page count is never negative
@@ -114,7 +106,7 @@ void page_counters(OledFrame& f, Rect rect, const Paging& paging) {
 	}
 	const int32_t y = rect.y + kTitleY;           // :184, legacy `1 + OLED_MAIN_TOPMOST_PIXEL`
 	int32_t x = rect.right() - kTextSpacingX - 1; // :185
-	char buf[3];
+	char buf[2];                                  // legacy's etl::string<2> (:188), which truncates rather than growing
 	f.glyphs(two_digits(buf, paging.total_pages), x, y, kTextSpacingX, kTextSpacingY); // :190
 	x -= kTextSpacingX - 1;                                                            // :191
 	f.line(x, y + kTextSpacingY - 2, x + 2, y + 1);                                    // :194
@@ -183,6 +175,10 @@ PageWindow window_of(std::span<const Column> cols, int32_t focused) {
 	if (n == 0) {
 		return w; // total_pages 0, as :537-539 reports for a page that acquired nothing
 	}
+	// `paging_of` is public and total: an index outside the span reports the page its nearest
+	// column is on, rather than a window spanning every column. `columns` clamps identically
+	// before it calls in, so this changes nothing for the widget itself.
+	focused = std::clamp<int32_t>(focused, 0, n - 1);
 
 	int32_t page = 0;
 	int32_t acquired = 0;
@@ -266,7 +262,10 @@ int32_t move_focus(int32_t focused, int32_t turn, std::span<const Column> cols) 
 
 /// `HorizontalMenu::renderMenuItems` (horizontal_menu.cpp:203-307) over one page's columns.
 void render_page(OledFrame& f, Rect rect, std::span<const Column> cols, const PageWindow& w, int32_t focused) {
-	const int32_t base_y = rect.y + base_y_for(f);    // :216
+	// :216 -- `14 + OLED_MAIN_TOPMOST_PIXEL`, a literal with no panel-height branch anywhere in
+	// renderMenuItems, so it is the same row on every geometry. NOT list's height-selected
+	// kMenuBaseY48/64; see the note on kHorizontalMenuBaseY in ui/core/metrics.h.
+	const int32_t base_y = rect.y + kHorizontalMenuBaseY;
 	const int32_t column_width = rect.w / kPageSlots; // :217
 	const int32_t page_columns = w.last - w.first;
 	int32_t current_x = rect.x; // :218
@@ -386,6 +385,9 @@ Response columns(OledFrame& f, Rect rect, ColumnsState& state, std::span<const C
 	if (f.input.turn != 0 && n > 0) {
 		focused = move_focus(focused, f.input.turn, cols);
 	}
+	// Spec B section 5's "focus moved", which includes the clamp: a scene whose column list shrank
+	// under a stale `state.focused` gets one `changed` frame as the index is pulled back into
+	// range with no turn. That is the same bound `list` puts on its cursor (list.cpp:105-110).
 	resp.changed = focused != state.focused;
 	state.focused = static_cast<int8_t>(focused);
 	if (resp.changed) {
@@ -394,11 +396,8 @@ Response columns(OledFrame& f, Rect rect, ColumnsState& state, std::span<const C
 
 	const PageWindow w = window_of(cols, focused);
 	state.page = w.paging.page;
-	if (n == 0) {
-		return resp;
-	}
 	// The press legacy routed to handleItemAction -> enterSubmenu (:663-678).
-	resp.entered = f.input.select_pressed && cols[focused].is_submenu && cols[focused].relevant;
+	resp.entered = n > 0 && f.input.select_pressed && cols[focused].is_submenu && cols[focused].relevant;
 
 	// Legacy got a cleared panel from renderUIsForOled before renderOLED ran; an immediate-mode
 	// widget owns its own area instead, exactly as `list` clears its row bands.
