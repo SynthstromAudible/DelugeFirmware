@@ -1222,25 +1222,34 @@ bool checkAsyncCollector() {
 	return ok;
 }
 
-/// Pin that every existing AudioFileHolder::loadFile call site -- all but previewSample's, which is the
-/// one this task changed to pass true -- keeps taking the synchronous backing when mayLoadAsync is left
-/// at its default. This exercises AudioFileHolder::loadFile ITSELF (not getAudioFileFromFilename
-/// directly): that is the level all nine real call sites (slicer.cpp x2, sample_browser.cpp x2,
-/// instrument_clip_view.cpp, audio_clip.cpp, consequence_audio_clip_set_sample.cpp, source.cpp, and
-/// audio_engine.cpp's previewSample) actually invoke, and audio_file_holder.cpp:47 forwards its own
-/// mayLoadAsync argument straight to getAudioFileFromFilename -- so a regression there would not be
-/// visible to a check that calls getAudioFileFromFilename directly and bypasses the holder entirely.
+/// Pin that every existing loadFile-family call site -- all but previewSample's, which is the one this
+/// task changed to pass true -- keeps taking the synchronous backing when mayLoadAsync is left at its
+/// default, on BOTH layers that default it. `AudioFileHolder::loadFile` forwards its own mayLoadAsync
+/// argument straight to `AudioFileManager::getAudioFileFromFilename` (see audio_file_holder.cpp), and
+/// each has its own `= false` default -- so a regression in EITHER one has to be independently
+/// reachable from this check, or it is not actually guarding that default.
+///
+/// Two layers, two calling shapes:
+///  - AudioFileHolder::loadFile is the level nine call sites go through (slicer.cpp x2,
+///    sample_browser.cpp's single-sample path, instrument_clip_view.cpp, audio_clip.cpp,
+///    consequence_audio_clip_set_sample.cpp, source.cpp, and audio_engine.cpp's previewSample).
+///  - getAudioFileFromFilename is called DIRECTLY, bypassing the holder, by a tenth site:
+///    sample_browser.cpp's folder-load path (`loadAllSamplesInFolder`), which has no AudioFileHolder to
+///    go through at all. A check that only exercises the holder would leave this one, and its own
+///    default, completely unwatched.
 ///
 /// The async gate is `mayLoadAsync && ... && deluge_audio_load_async_active()`: with the loader
 /// INACTIVE (the shipping default), that whole conjunction is false regardless of what mayLoadAsync
 /// holds, so a check that never arms the stub cannot tell "the default is false" from "the default is
 /// true but nothing is listening" -- it would pass either way. This check therefore arms
 /// `g_asyncStub.active = true` itself (checkAsyncCollector, which runs immediately before this in the
-/// gate list, resets the stub to inactive on its own exit), and runs the SAME file through the SAME
-/// active stub twice via AudioFileHolder::loadFile: once with mayLoadAsync omitted (must stay
-/// synchronous, zero loader calls), and once with it explicit `true` (must reach the loader and report
-/// LOAD_IN_PROGRESS). That contrast is what makes the check able to fail: flip either loadFile's or
-/// getAudioFileFromFilename's default to `true` and the first call starts behaving like the second.
+/// gate list, resets the stub to inactive on its own exit, and this check resets it again on ITS OWN
+/// exit so nothing after it inherits an armed loader either), and for each layer runs the SAME file
+/// through the SAME active stub twice: once with mayLoadAsync omitted (must stay synchronous, zero
+/// loader calls), and once with it explicit `true` (must reach the loader and report
+/// LOAD_IN_PROGRESS). That contrast, run per layer, is what makes the check able to fail: flip either
+/// default to `true` on its own and the corresponding omitted-argument call starts behaving like the
+/// explicit one.
 bool checkLoadFileDefaultStaysSynchronous() {
 	bool ok = true;
 
@@ -1269,12 +1278,14 @@ bool checkLoadFileDefaultStaysSynchronous() {
 	const bool hadPreviousRoot = previousRootRaw != nullptr;
 	setenv("DELUGE_SD_ROOT", root, 1);
 
+	// ---- Layer 1: AudioFileHolder::loadFile ----
+
 	// Arm the loader as active -- see the doc comment above for why this is required for the check to
 	// be able to fail at all.
 	g_asyncStub = {};
 	g_asyncStub.active = true;
 
-	// mayLoadAsync omitted from AudioFileHolder::loadFile itself, exactly as the eight untouched call
+	// mayLoadAsync omitted from AudioFileHolder::loadFile itself, exactly as the nine untouched call
 	// sites invoke it. Even with the loader active, it must still take the synchronous backing and
 	// never touch the loader at all.
 	{
@@ -1331,7 +1342,71 @@ bool checkLoadFileDefaultStaysSynchronous() {
 		}
 		if (g_asyncStub.requestCalls != 1) {
 			printf("FAIL [loadFileDefault]: expected exactly one async request for the explicit "
-			       "mayLoadAsync=true call, got %d\n",
+			       "mayLoadAsync=true call (holder layer), got %d\n",
+			       g_asyncStub.requestCalls);
+			ok = false;
+		}
+	}
+	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists("SAMPLES/DEFAULT.WAV");
+
+	// ---- Layer 2: AudioFileManager::getAudioFileFromFilename, called directly ----
+	//
+	// sample_browser.cpp's folder-load path (loadAllSamplesInFolder) calls this with no
+	// AudioFileHolder in between and no mayLoadAsync argument at all -- so its own default has to be
+	// exercised here too, not just inferred from the holder's forwarding.
+
+	// mayLoadAsync omitted, exactly as that call site invokes it. Even with the loader active, it must
+	// still take the synchronous backing and never touch the loader at all.
+	{
+		g_asyncStub = {};
+		g_asyncStub.active = true;
+		std::string path = "SAMPLES/DEFAULT.WAV";
+		Error error = Error::NONE;
+		AudioFile* file =
+		    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE);
+		if (error == Error::LOAD_IN_PROGRESS) {
+			printf("FAIL [loadFileDefault]: getAudioFileFromFilename's default reached the async path "
+			       "with the loader active (Error::LOAD_IN_PROGRESS)\n");
+			ok = false;
+		}
+		if (file == nullptr) {
+			printf("FAIL [loadFileDefault]: getAudioFileFromFilename's default did not load the file "
+			       "(error=%d)\n",
+			       static_cast<int>(error));
+			ok = false;
+		}
+		if (g_asyncStub.requestCalls != 0 || g_asyncStub.collectCalls != 0) {
+			printf("FAIL [loadFileDefault]: getAudioFileFromFilename's default (mayLoadAsync omitted) "
+			       "consulted the async loader anyway (%d request(s), %d collect(s))\n",
+			       g_asyncStub.requestCalls, g_asyncStub.collectCalls);
+			ok = false;
+		}
+		// Returned "held by no reason" per its own doc comment -- nothing to release before deleting.
+	}
+	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists("SAMPLES/DEFAULT.WAV");
+
+	// The contrast for this layer: the SAME file, the SAME active stub, calling
+	// getAudioFileFromFilename directly again, differing only in mayLoadAsync being explicit true
+	// instead of omitted. This MUST reach the loader and report LOAD_IN_PROGRESS.
+	{
+		g_asyncStub = {};
+		g_asyncStub.active = true;
+		std::string path = "SAMPLES/DEFAULT.WAV";
+		Error error = Error::NONE;
+		AudioFile* file =
+		    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+		                                              /*makeWaveTableWorkAtAllCosts=*/false,
+		                                              /*mayLoadAsync=*/true);
+		if (file != nullptr || error != Error::LOAD_IN_PROGRESS) {
+			printf("FAIL [loadFileDefault]: getAudioFileFromFilename(..., mayLoadAsync=true) did not "
+			       "reach the async path with the loader active (file=%p error=%d) -- the "
+			       "default-vs-explicit contrast this check exists to see is broken\n",
+			       static_cast<void*>(file), static_cast<int>(error));
+			ok = false;
+		}
+		if (g_asyncStub.requestCalls != 1) {
+			printf("FAIL [loadFileDefault]: expected exactly one async request for the explicit "
+			       "mayLoadAsync=true call (manager layer), got %d\n",
 			       g_asyncStub.requestCalls);
 			ok = false;
 		}
