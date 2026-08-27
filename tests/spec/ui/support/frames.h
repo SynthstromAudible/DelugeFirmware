@@ -1,10 +1,13 @@
 #pragma once
+#include "../../gfx/support/grid_state.h"
 #include "../../gfx/support/pbm.h"
+#include "gfx/grid/pad_grid.h"
 #include "gfx/oled/canvas.h"
 #include "gfx/oled/geometry.h"
 #include "ui/core/input.h"
 #include "ui/core/repaint_gate.h"
 #include "ui/core/style.h"
+#include "ui/grid/frame.h"
 #include "ui/oled/frame.h"
 
 #include <string>
@@ -23,6 +26,7 @@ inline InputSnapshot null_input(uint32_t now_ms = 0) {
 	    .back_pressed = false,
 	    .shift = false,
 	    .pads = {},
+	    .held_pads = {},
 	    .now_ms = now_ms,
 	};
 }
@@ -59,5 +63,21 @@ struct OledRig {
 
 using Rig48 = OledRig<deluge::gfx::oled::kDelugeOled>;
 using Rig64 = OledRig<deluge::gfx::oled::Geometry{128, 64, 0}>;
+
+/// Everything a grid component spec needs: a Deluge-shaped pad surface (16 main + 2 sidebar
+/// columns x 8 rows, addressed as one 18-wide space), the root frame built over it exactly as
+/// the shell will build it, and the deluge-sdk `.state` dump for golden assertions.
+///
+/// `input` is a live member, so a spec sets `r.input.pads` / `r.input.held_pads` *after*
+/// constructing the rig and `r.frame` still sees it -- frames read the snapshot through the
+/// reference they hold rather than copying the event span (see ui/grid/frame.h).
+struct GridRig {
+	deluge::gfx::grid::PadGrid grid{deluge::gfx::grid::kDelugeGrid};
+	deluge::ui::RepaintGate gate;
+	deluge::ui::InputSnapshot input = null_input();
+	deluge::ui::grid::GridFrame frame = deluge::ui::grid::root_grid_frame(grid, input, gate);
+
+	std::string state() { return grid_to_state(grid); }
+};
 
 } // namespace deluge::ui::test
