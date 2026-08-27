@@ -50,6 +50,10 @@ enum class Hint : uint8_t {
 	Attack,
 	Release,
 	Ducking,
+	// TODO(task 8): Enum/Toggle slots are drawn by `columns` via `enum_value` / `toggle`, not
+	// here. They are listed so a slot's style can be named in one enum, but `meter` can only
+	// give them legacy's `default:` arm (the raw number) -- their real slot renderings take a
+	// string, which this signature does not carry. Not an oversight; see `meter` below.
 	Enum,
 	Toggle,
 };
@@ -102,8 +106,16 @@ void slider(OledFrame& f, gfx::oled::Rect slot, float norm);
 /// with a 3px-tall bar up to the thumb, and the dots laid out from the *right*.
 ///
 /// \p min_pos is legacy's `min_slider_pos`, which shifts the thumb's zero one pixel right
-/// (number.cpp:213) -- the caller sets it for a length whose minimum is still a non-empty value.
-void length_slider(OledFrame& f, gfx::oled::Rect slot, float norm, bool min_pos);
+/// (number.cpp:213) and so moves the thumb, the fill's right end and the dotted run's left bound
+/// at the bottom of the range (they coincide from about norm 0.5 up).
+///
+/// **It defaults to `true`, because legacy's does.** `drawLengthSlider(const SlotPosition&, bool
+/// min_slider_pos = 3)` (number.h:57) copy-initialises the bool from `3`, and
+/// `renderInHorizontalMenu` (number.cpp:85-86) is its only caller anywhere in the tree, so every
+/// LENGTH_SLIDER slot the firmware has ever drawn used `true`. Kept verbatim rather than
+/// "corrected"; the `= 3` is near-certainly a legacy typo and is worth raising upstream on its
+/// own.
+void length_slider(OledFrame& f, gfx::oled::Rect slot, float norm, bool min_pos = true);
 
 /// `Number::drawLpf` (number.cpp:301-329) and `Number::drawHpf` (:271-299): a 21x11 filter
 /// response at `(slot.x + 5, slot.y + 1)` -- a 2px-thick corner slope 5px wide, the passband as
@@ -148,6 +160,11 @@ void sidechain_ducking(OledFrame& f, gfx::oled::Rect slot, int32_t value, int32_
 ///
 /// \p raw_max is `getMaxValue()`, which only `Hint::Ducking` reads (number.cpp:402); it defaults
 /// to 50, the value that selects legacy's `getValue() / 50.0f` arm.
+///
+/// **`Hint::Ducking` callers must pass `raw_max`.** The default exists only so that the four-
+/// parameter call shape the toolkit spec describes still compiles; on the ducking arm, omitting a
+/// `getMaxValue()` above 50 silently picks the wrong one of legacy's two value scales and draws a
+/// wrong-but-plausible wedge with no diagnostic. Every other hint ignores it.
 void meter(OledFrame& f, gfx::oled::Rect slot, Hint hint, float norm, int32_t raw, int32_t raw_max = 50);
 
 } // namespace deluge::ui::oled

@@ -3,10 +3,10 @@
 #include "gfx/oled/font.h"
 #include "gfx/oled/icons.h"
 #include "ui/core/metrics.h"
+#include "ui/oled/detail/int_to_string.h"
 #include "ui/oled/text.h"
 
 #include <array>
-#include <charconv>
 #include <cmath>
 #include <cstdlib>
 #include <span>
@@ -32,10 +32,9 @@ constexpr Rect inverted(int32_t x_min, int32_t width, int32_t start_y, int32_t e
 }
 
 /// `deluge::string::appendInt(str, number)` (util/string.cpp:103-107), i.e. `intToString(number,
-/// buf, 1)`: the decimal digits with a leading `-` for negatives, as a view into \p buf.
+/// buf, 1)` -- the shared copy in `ui/oled/detail/int_to_string.h`.
 std::string_view int_to_string(int32_t number, std::span<char> buf) {
-	const std::to_chars_result r = std::to_chars(buf.data(), buf.data() + buf.size(), number);
-	return std::string_view{buf.data(), static_cast<size_t>(r.ptr - buf.data())};
+	return detail::int_to_string(number, 1, buf);
 }
 
 } // namespace
@@ -203,37 +202,43 @@ void length_slider(OledFrame& f, Rect slot, float norm, bool min_pos) {
 	}
 }
 
-void filter_curve(OledFrame& f, Rect slot, float norm, FilterKind kind) {
+namespace {
+
+/// `Number::drawHpf`, number.cpp:271-299.
+void draw_hpf(OledFrame& f, Rect slot, float norm) {
 	constexpr uint8_t slope_width = 5;
 	constexpr uint8_t width = 21;
 	constexpr uint8_t height = 11;
 
-	if (kind == FilterKind::Hpf) {
-		// number.cpp:271-299.
-		const uint8_t hpf_start_x = slot.x + 5;
-		const uint8_t hpf_end_x = hpf_start_x + width - 1;
-		const uint8_t hpf_start_y = slot.y + 1;
-		const uint8_t hpf_end_y = hpf_start_y + height - 1;
+	const uint8_t hpf_start_x = slot.x + 5;
+	const uint8_t hpf_end_x = hpf_start_x + width - 1;
+	const uint8_t hpf_start_y = slot.y + 1;
+	const uint8_t hpf_end_y = hpf_start_y + height - 1;
 
-		const uint8_t slope_start_x = std::lerp(hpf_start_x, hpf_end_x - slope_width - 4, norm);
-		const uint8_t slope_end_x = slope_start_x + slope_width;
+	const uint8_t slope_start_x = std::lerp(hpf_start_x, hpf_end_x - slope_width - 4, norm);
+	const uint8_t slope_end_x = slope_start_x + slope_width;
 
-		f.line(slope_start_x, hpf_end_y, slope_end_x, hpf_start_y, true);
-		f.hline(hpf_start_y, slope_end_x, hpf_end_x);
-		f.hline(hpf_start_y + 1, slope_end_x, hpf_end_x);
+	f.line(slope_start_x, hpf_end_y, slope_end_x, hpf_start_y, true);
+	f.hline(hpf_start_y, slope_end_x, hpf_end_x);
+	f.hline(hpf_start_y + 1, slope_end_x, hpf_end_x);
 
-		for (uint8_t x = hpf_start_x; x < slope_start_x; x += 3) {
-			f.pixel(x, hpf_start_y);
-		}
-		if (slope_start_x != hpf_start_x) {
-			for (uint8_t y = hpf_start_y; y < hpf_end_y; y += 3) {
-				f.pixel(hpf_start_x, y);
-			}
-		}
-		return;
+	for (uint8_t x = hpf_start_x; x < slope_start_x; x += 3) {
+		f.pixel(x, hpf_start_y);
 	}
+	if (slope_start_x != hpf_start_x) {
+		for (uint8_t y = hpf_start_y; y < hpf_end_y; y += 3) {
+			f.pixel(hpf_start_x, y);
+		}
+	}
+}
 
-	// number.cpp:301-329.
+/// `Number::drawLpf`, number.cpp:301-329. Not `draw_hpf` mirrored: the corner's travel and the
+/// two conditional dotted runs differ, which is why these are two routines and not one.
+void draw_lpf(OledFrame& f, Rect slot, float norm) {
+	constexpr uint8_t slope_width = 5;
+	constexpr uint8_t width = 21;
+	constexpr uint8_t height = 11;
+
 	const uint8_t lpf_start_x = slot.x + 5;
 	const uint8_t lpf_end_x = lpf_start_x + width - 1;
 	const uint8_t lpf_start_y = slot.y + 1;
@@ -256,37 +261,40 @@ void filter_curve(OledFrame& f, Rect slot, float norm, FilterKind kind) {
 	}
 }
 
-void envelope_stage(OledFrame& f, Rect slot, float norm, StageKind kind) {
+/// `Number::drawRelease`, number.cpp:331-359.
+void draw_release(OledFrame& f, Rect slot, float norm) {
 	constexpr uint8_t width = 19;
 	constexpr uint8_t height = 11;
 
-	if (kind == StageKind::Release) {
-		// number.cpp:331-359.
-		const uint8_t rel_start_x = slot.x + 5;
-		const uint8_t rel_end_x = rel_start_x + width - 1;
-		const uint8_t rel_start_y = slot.y + kHorizontalSlotYOffset - 1;
-		const uint8_t rel_end_y = rel_start_y + height - 1;
+	const uint8_t rel_start_x = slot.x + 5;
+	const uint8_t rel_end_x = rel_start_x + width - 1;
+	const uint8_t rel_start_y = slot.y + kHorizontalSlotYOffset - 1;
+	const uint8_t rel_end_y = rel_start_y + height - 1;
 
-		const uint8_t rel_stage_start_x = rel_start_x + 4;
-		const uint8_t rel_effective_x = std::lerp(rel_stage_start_x, rel_end_x, norm);
+	const uint8_t rel_stage_start_x = rel_start_x + 4;
+	const uint8_t rel_effective_x = std::lerp(rel_stage_start_x, rel_end_x, norm);
 
-		f.hline(rel_start_y, rel_start_x, rel_stage_start_x);
-		f.line(rel_stage_start_x, rel_start_y, rel_effective_x, rel_end_y);
+	f.hline(rel_start_y, rel_start_x, rel_stage_start_x);
+	f.line(rel_stage_start_x, rel_start_y, rel_effective_x, rel_end_y);
 
-		constexpr uint8_t indicator_offset = 2;
-		for (uint8_t x = rel_effective_x - indicator_offset; x <= rel_effective_x + indicator_offset; x++) {
-			for (uint8_t y = rel_end_y - indicator_offset; y <= rel_end_y + indicator_offset - 1; y++) {
-				f.pixel(x, y);
-			}
+	constexpr uint8_t indicator_offset = 2;
+	for (uint8_t x = rel_effective_x - indicator_offset; x <= rel_effective_x + indicator_offset; x++) {
+		for (uint8_t y = rel_end_y - indicator_offset; y <= rel_end_y + indicator_offset - 1; y++) {
+			f.pixel(x, y);
 		}
-
-		for (uint8_t x = rel_end_x; x > rel_effective_x + 1; x -= 2) {
-			f.pixel(x, rel_end_y);
-		}
-		return;
 	}
 
-	// number.cpp:361-387.
+	for (uint8_t x = rel_end_x; x > rel_effective_x + 1; x -= 2) {
+		f.pixel(x, rel_end_y);
+	}
+}
+
+/// `Number::drawAttack`, number.cpp:361-387. Not `draw_release` reversed: the origin, the
+/// y offset, the travel and the indicator's rows all differ.
+void draw_attack(OledFrame& f, Rect slot, float norm) {
+	constexpr uint8_t width = 19;
+	constexpr uint8_t height = 11;
+
 	const uint8_t atk_start_x = slot.x + 7;
 	const uint8_t atk_end_x = atk_start_x + width - 1;
 	const uint8_t atk_start_y = slot.y + kHorizontalSlotYOffset;
@@ -306,6 +314,16 @@ void envelope_stage(OledFrame& f, Rect slot, float norm, StageKind kind) {
 	for (uint8_t x = atk_end_x; x > atk_effective_x + 1; x -= 2) {
 		f.pixel(x, atk_start_y);
 	}
+}
+
+} // namespace
+
+void filter_curve(OledFrame& f, Rect slot, float norm, FilterKind kind) {
+	return kind == FilterKind::Hpf ? draw_hpf(f, slot, norm) : draw_lpf(f, slot, norm);
+}
+
+void envelope_stage(OledFrame& f, Rect slot, float norm, StageKind kind) {
+	return kind == StageKind::Release ? draw_release(f, slot, norm) : draw_attack(f, slot, norm);
 }
 
 void sidechain_ducking(OledFrame& f, Rect slot, int32_t value, int32_t max) {
@@ -359,7 +377,13 @@ void meter(OledFrame& f, Rect slot, Hint hint, float norm, int32_t raw, int32_t 
 	case Hint::Slider:
 		return slider(f, slot, norm);
 	case Hint::LengthSlider:
-		return length_slider(f, slot, norm, false);
+		// `min_pos` is defaulted, and legacy's default is TRUE: `drawLengthSlider(const
+		// SlotPosition&, bool min_slider_pos = 3)` (number.h:57) copy-initialises the bool from
+		// `3`, and renderInHorizontalMenu (number.cpp:85-86) is its only caller in the tree, so
+		// every legacy LENGTH_SLIDER slot draws with the thumb's zero one pixel right. Almost
+		// certainly a legacy typo for an integer offset that later became a bool; reproduced
+		// verbatim here, and worth raising upstream separately.
+		return length_slider(f, slot, norm);
 	case Hint::Pan:
 		return pan(f, slot, raw);
 	case Hint::Hpf:
