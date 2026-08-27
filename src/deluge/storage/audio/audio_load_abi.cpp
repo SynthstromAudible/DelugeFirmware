@@ -163,6 +163,10 @@ static_assert(offsetof(DelugeAudioLoadResult, error) == 304);
 // stride of the candidate buffer and the width of DelugeAudioLoadResult::alternate_path, so a change
 // here that is not mirrored would misread every candidate slot after the first.
 static_assert(DELUGE_MAX_PATH == 256);
+// The one whose drift silently reinstates a bug rather than causing a mismatch: if this stopped
+// being the value the Rust side refuses, `deluge_audio_load_request` would clamp it to the candidate
+// bound and read a buffer the header says must not be read.
+static_assert(DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED == 0xFFFFFFFFu);
 static_assert(DELUGE_AUDIO_LOAD_PENDING == 0u);
 static_assert(DELUGE_AUDIO_LOAD_READY == 1u);
 static_assert(DELUGE_AUDIO_LOAD_UNKNOWN == 2u);

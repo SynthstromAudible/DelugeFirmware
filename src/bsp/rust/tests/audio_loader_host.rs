@@ -21,17 +21,25 @@
 #![cfg(not(target_os = "none"))]
 
 use std::cell::{Cell, RefCell};
+#[cfg(feature = "async_audio_load_active")]
 use std::ffi::CString;
 
 #[path = "../src/audio_loader.rs"]
 mod audio_loader;
 
 use audio_loader::{
-    CandidateList, DELUGE_AUDIO_LOAD_PENDING, DELUGE_AUDIO_LOAD_READY, DELUGE_AUDIO_LOAD_UNKNOWN,
-    DELUGE_ERROR_FILE_CORRUPTED, DELUGE_ERROR_FILE_UNREADABLE, DELUGE_ERROR_FILE_UNSUPPORTED,
-    DELUGE_ERROR_NONE, DELUGE_MAX_PATH, LoadGeometry, LoadOps, LoadPath, LoadRequest, LoadResult,
-    RESULT_SLOTS, decode_candidates, deluge_audio_load_async_active, deluge_audio_load_collect,
-    deluge_audio_load_request, load_io_once, mark_in_flight, publish_result,
+    CandidateList, DELUGE_ERROR_FILE_CORRUPTED, DELUGE_ERROR_FILE_UNREADABLE,
+    DELUGE_ERROR_FILE_UNSUPPORTED, DELUGE_ERROR_NONE, DELUGE_MAX_PATH, LoadGeometry, LoadOps,
+    LoadPath, LoadRequest, LoadResult, RESULT_SLOTS, ResultTable, decode_candidates,
+    deluge_audio_load_async_active, load_io_once, publish_into, take_from,
+};
+
+// The live request/collect pipeline only exists where its storage does. See the
+// `live_pipeline` module below.
+#[cfg(feature = "async_audio_load_active")]
+use audio_loader::{
+    DELUGE_AUDIO_LOAD_PENDING, DELUGE_AUDIO_LOAD_READY, DELUGE_AUDIO_LOAD_UNKNOWN,
+    deluge_audio_load_collect, deluge_audio_load_request, mark_in_flight, publish_result,
 };
 
 /// One call `FakeOps` observed, in order.
@@ -507,82 +515,70 @@ fn a_zero_length_window_is_still_read_and_fed() {
 }
 
 // ── The result table: what carries a result between the halves ──────────────
+//
+// These run against a LOCAL `ResultTable`, not the process-wide `RESULTS`
+// static, so they are compiled and run on every build — including the default one
+// where that static does not exist at all (its storage now follows
+// `async_audio_load_active`; see the module doc). That is deliberate: the
+// `remove_at` ordering bug lived in exactly this code, and coverage that
+// disappears with a feature flag is coverage that will not be there when it is
+// next needed.
 
-/// `RESULTS` and `QUEUE` are process-wide statics, and cargo runs tests on
-/// parallel threads. The tests below assert on table *capacity* (eviction), so
-/// they must not interleave with each other's publishes. Distinct key prefixes
-/// are not enough on their own — a concurrent publish still consumes a slot.
-static TABLE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
-fn collect(path: &str) -> (u8, LoadResult) {
-    let key = CString::new(path).unwrap();
-    let mut out = LoadResult::failed(0xFF);
-    // SAFETY: `key` is a valid NUL-terminated C string and `out` a live,
-    // writable `LoadResult`.
-    let status = unsafe { deluge_audio_load_collect(key.as_ptr(), &mut out) };
-    (status, out)
+fn table_with(paths: &[&str]) -> ResultTable {
+    let mut table = ResultTable::new();
+    for path in paths {
+        publish_into(
+            &mut table,
+            path_of(path),
+            LoadResult::failed(DELUGE_ERROR_FILE_CORRUPTED),
+        );
+    }
+    table
 }
 
-fn publish(path: &str, error: u8) {
-    block_on(publish_result(path_of(path), LoadResult::failed(error)));
-}
-
-/// A published result is collected exactly once: `READY` with the payload, then
-/// `UNKNOWN`, because collecting REMOVES it. A second collect returning the same
-/// result would let a caller build the same Sample twice.
+/// A published result is taken exactly once: the payload, then nothing, because
+/// taking REMOVES it. Returning it twice would let a caller build the same
+/// `Sample` twice.
 #[test]
-fn a_result_is_collected_exactly_once() {
-    let _guard = TABLE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    publish("once/A.wav", DELUGE_ERROR_FILE_CORRUPTED);
-    let (status, result) = collect("once/A.wav");
-    assert_eq!(status, DELUGE_AUDIO_LOAD_READY);
-    assert_eq!(result.error, DELUGE_ERROR_FILE_CORRUPTED);
-    assert_eq!(collect("once/A.wav").0, DELUGE_AUDIO_LOAD_UNKNOWN);
+fn a_result_is_taken_exactly_once() {
+    let mut table = table_with(&["once/A.wav"]);
+    let taken = take_from(&mut table, "once/A.wav").expect("published");
+    assert_eq!(taken.error, DELUGE_ERROR_FILE_CORRUPTED);
+    assert!(take_from(&mut table, "once/A.wav").is_none());
 }
 
-/// A path the loader has never been asked about is `UNKNOWN`, not `PENDING` —
-/// `PENDING` would tell the caller to keep asking for something that will never
-/// arrive.
+/// A path that was never published is simply absent.
 #[test]
-fn an_unrequested_path_is_unknown() {
-    let _guard = TABLE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    assert_eq!(collect("never/asked.wav").0, DELUGE_AUDIO_LOAD_UNKNOWN);
-}
-
-/// A queued-but-unparsed request reports `PENDING`, so the caller waits instead
-/// of re-requesting work already in the queue.
-#[test]
-fn a_queued_request_is_pending() {
-    let _guard = TABLE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    let path = CString::new("queued/A.wav").unwrap();
-    let mut candidates = vec![0u8; DELUGE_MAX_PATH];
-    candidates[..12].copy_from_slice(b"queued/A.wav");
-    candidates[12] = 0;
-    // SAFETY: both pointers are valid for the lengths the ABI documents.
-    let accepted = unsafe {
-        deluge_audio_load_request(
-            path.as_ptr(),
-            candidates.as_ptr().cast::<core::ffi::c_char>(),
-            1,
-        )
-    };
-    assert!(accepted);
-    assert_eq!(collect("queued/A.wav").0, DELUGE_AUDIO_LOAD_PENDING);
+fn an_unpublished_path_is_absent() {
+    let mut table = table_with(&["other/A.wav"]);
+    assert!(take_from(&mut table, "never/asked.wav").is_none());
 }
 
 /// Re-publishing the same key REPLACES its entry rather than adding a second, so
 /// a coalescing caller (the browser re-requesting as the cursor settles) cannot
-/// grow the table with duplicates — and the newest parse is the one collected.
+/// grow the table with duplicates — and the newest parse is the one taken.
+///
+/// Exercised from the MIDDLE of a populated table, not against a single entry:
+/// the replace path rotates through `remove_at`, which is where the ordering bug
+/// lived.
 #[test]
-fn republishing_a_key_replaces_its_entry() {
-    let _guard = TABLE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    publish("dup/A.wav", DELUGE_ERROR_FILE_CORRUPTED);
-    publish("dup/A.wav", DELUGE_ERROR_FILE_UNSUPPORTED);
-    let (status, result) = collect("dup/A.wav");
-    assert_eq!(status, DELUGE_AUDIO_LOAD_READY);
-    assert_eq!(result.error, DELUGE_ERROR_FILE_UNSUPPORTED, "latest wins");
-    // Exactly one entry existed, so there is nothing left behind it.
-    assert_eq!(collect("dup/A.wav").0, DELUGE_AUDIO_LOAD_UNKNOWN);
+fn republishing_a_key_replaces_its_entry_in_place() {
+    let mut table = table_with(&["dup/A", "dup/B", "dup/C"]);
+    publish_into(
+        &mut table,
+        path_of("dup/B"),
+        LoadResult::failed(DELUGE_ERROR_FILE_UNSUPPORTED),
+    );
+    assert_eq!(table.len(), 3, "replace must not add an entry");
+    assert_eq!(
+        take_from(&mut table, "dup/B").unwrap().error,
+        DELUGE_ERROR_FILE_UNSUPPORTED,
+        "latest wins"
+    );
+    assert!(take_from(&mut table, "dup/B").is_none());
+    // The neighbours are untouched.
+    assert!(take_from(&mut table, "dup/A").is_some());
+    assert!(take_from(&mut table, "dup/C").is_some());
 }
 
 /// An uncollected result is EVICTED, oldest first, once the table fills — it is
@@ -591,99 +587,203 @@ fn republishing_a_key_replaces_its_entry() {
 /// caller sees `UNKNOWN`, whose documented meaning is "request it again".
 #[test]
 fn an_uncollected_result_is_evicted_rather_than_leaked() {
-    let _guard = TABLE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    // One more than the table holds.
-    for index in 0..=RESULT_SLOTS {
-        publish(&format!("evict/{index}.wav"), DELUGE_ERROR_FILE_CORRUPTED);
-    }
+    let keys: Vec<String> = (0..=RESULT_SLOTS).map(|i| format!("evict/{i}")).collect();
+    let mut table = table_with(&keys.iter().map(String::as_str).collect::<Vec<_>>());
+    assert_eq!(table.len(), RESULT_SLOTS);
     // The oldest was evicted...
-    assert_eq!(collect("evict/0.wav").0, DELUGE_AUDIO_LOAD_UNKNOWN);
+    assert!(take_from(&mut table, "evict/0").is_none());
     // ...and every newer one survived, in its own slot.
     for index in 1..=RESULT_SLOTS {
-        assert_eq!(
-            collect(&format!("evict/{index}.wav")).0,
-            DELUGE_AUDIO_LOAD_READY,
+        assert!(
+            take_from(&mut table, &format!("evict/{index}")).is_some(),
             "slot {index} should have survived"
         );
     }
 }
 
-/// Collecting from the MIDDLE of the table must leave the remaining entries in
-/// their original order, because eviction is oldest-first and reads that order.
+/// Taking from the MIDDLE must leave the remaining entries in their original
+/// order, because eviction is oldest-first and reads that order.
 ///
-/// This is a regression test for a real bug in `remove_at`: it rotated the
-/// surviving entries instead of restoring them, so after one mid-table collect
-/// the "oldest" entry was no longer the oldest, and the next eviction discarded
-/// the wrong result. Nothing else catches it — every other collect here runs
-/// against a single-entry table, where index 0 is correct either way.
-///
-/// Fill the table, collect from the middle, then publish two more so the table
-/// overflows: entry 0 must be the one evicted, and the entries that were newer
-/// than it must all survive.
+/// Regression test for a real bug in `remove_at`: it rotated the survivors
+/// instead of restoring them, so after one mid-table take the "oldest" entry was
+/// no longer oldest and the next eviction discarded the wrong result. Verified to
+/// fail against the buggy rotation, not merely to pass against the fix.
 #[test]
-fn collecting_from_the_middle_keeps_the_eviction_order() {
-    let _guard = TABLE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    for index in 0..RESULT_SLOTS {
-        publish(&format!("ord/{index}"), DELUGE_ERROR_FILE_CORRUPTED);
-    }
+fn taking_from_the_middle_keeps_the_eviction_order() {
+    let keys: Vec<String> = (0..RESULT_SLOTS).map(|i| format!("ord/{i}")).collect();
+    let mut table = table_with(&keys.iter().map(String::as_str).collect::<Vec<_>>());
+
     let middle = RESULT_SLOTS / 2;
-    assert_eq!(collect(&format!("ord/{middle}")).0, DELUGE_AUDIO_LOAD_READY);
+    assert!(take_from(&mut table, &format!("ord/{middle}")).is_some());
 
-    // One free slot after the collect, so the second of these evicts the oldest.
-    publish("ord/x", DELUGE_ERROR_FILE_CORRUPTED);
-    publish("ord/y", DELUGE_ERROR_FILE_CORRUPTED);
+    // One free slot after the take, so the second of these evicts the oldest.
+    publish_into(
+        &mut table,
+        path_of("ord/x"),
+        LoadResult::failed(DELUGE_ERROR_NONE),
+    );
+    publish_into(
+        &mut table,
+        path_of("ord/y"),
+        LoadResult::failed(DELUGE_ERROR_NONE),
+    );
 
-    assert_eq!(
-        collect("ord/0").0,
-        DELUGE_AUDIO_LOAD_UNKNOWN,
+    assert!(
+        take_from(&mut table, "ord/0").is_none(),
         "entry 0 was the oldest and must be the one evicted"
     );
     let newest = RESULT_SLOTS - 1;
-    assert_eq!(
-        collect(&format!("ord/{newest}")).0,
-        DELUGE_AUDIO_LOAD_READY,
+    assert!(
+        take_from(&mut table, &format!("ord/{newest}")).is_some(),
         "the newest original entry was never the oldest, so it must survive"
     );
-    assert_eq!(collect("ord/x").0, DELUGE_AUDIO_LOAD_READY);
-    assert_eq!(collect("ord/y").0, DELUGE_AUDIO_LOAD_READY);
+    assert!(take_from(&mut table, "ord/x").is_some());
+    assert!(take_from(&mut table, "ord/y").is_some());
 }
 
-// ── The collect state machine ───────────────────────────────────────────────
+// ── The live pipeline: request -> in flight -> collect ──────────────────────
+//
+// These drive the process-wide statics through the real C ABI, so they only exist
+// where those statics do. `cargo test --features async_audio_load_active` is a
+// standing gate for exactly this reason — with the switch off, `request` refuses
+// everything and `collect` reports UNKNOWN, so these would pass vacuously rather
+// than testing anything.
+#[cfg(feature = "async_audio_load_active")]
+mod live_pipeline {
+    use super::*;
 
-/// A load being parsed RIGHT NOW reports `PENDING`, not `UNKNOWN`.
-///
-/// This branch had no test at all, because no test runs the loader task — the
-/// same degenerate-coverage shape that hid the `remove_at` bug. `mark_in_flight`
-/// is the seam the task uses, so driving it directly exercises the real branch
-/// rather than a copy of it.
-///
-/// A false `UNKNOWN` here is not cosmetic: it tells the caller to re-request a
-/// load that is already running, on every tick, and each redundant request
-/// eventually orphans a result slot.
-#[test]
-fn an_in_flight_request_is_pending_not_unknown() {
-    let _guard = TABLE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    block_on(mark_in_flight(Some(path_of("inflight/A.wav"))));
-    assert_eq!(collect("inflight/A.wav").0, DELUGE_AUDIO_LOAD_PENDING);
-    // A DIFFERENT path is still unknown — the branch matches on identity, not on
-    // "something is in flight".
-    assert_eq!(collect("inflight/B.wav").0, DELUGE_AUDIO_LOAD_UNKNOWN);
-    block_on(mark_in_flight(None));
-    assert_eq!(collect("inflight/A.wav").0, DELUGE_AUDIO_LOAD_UNKNOWN);
-}
+    /// `RESULTS`/`QUEUE`/`IN_FLIGHT` are process-wide and cargo runs tests on
+    /// parallel threads, so these must not interleave.
+    static PIPELINE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
-/// The window the task leaves open deliberately: a result is published while its
-/// path is still marked in flight. `PENDING` is the correct answer there — one
-/// extra tick, never a wrong one — and the result is collectable as soon as the
-/// mark clears.
-#[test]
-fn a_published_result_still_marked_in_flight_reports_pending() {
-    let _guard = TABLE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    block_on(mark_in_flight(Some(path_of("window/A.wav"))));
-    publish("window/A.wav", DELUGE_ERROR_NONE);
-    assert_eq!(collect("window/A.wav").0, DELUGE_AUDIO_LOAD_PENDING);
-    block_on(mark_in_flight(None));
-    assert_eq!(collect("window/A.wav").0, DELUGE_AUDIO_LOAD_READY);
+    fn collect(path: &str) -> (u8, LoadResult) {
+        let key = CString::new(path).unwrap();
+        let mut out = LoadResult::failed(0xFF);
+        // SAFETY: `key` is a valid NUL-terminated C string and `out` a live,
+        // writable `LoadResult`.
+        let status = unsafe { deluge_audio_load_collect(key.as_ptr(), &mut out) };
+        (status, out)
+    }
+
+    fn request_load(path: &str, candidates: &[&str]) -> bool {
+        let buffer = candidate_buffer(candidates);
+        let key = CString::new(path).unwrap();
+        // SAFETY: the buffer is `candidates.len() * DELUGE_MAX_PATH` bytes,
+        // matching the count passed.
+        unsafe {
+            deluge_audio_load_request(
+                key.as_ptr(),
+                buffer.as_ptr().cast::<core::ffi::c_char>(),
+                candidates.len() as u32,
+            )
+        }
+    }
+
+    /// A path the loader has never been asked about is `UNKNOWN`, not `PENDING`
+    /// — `PENDING` would tell the caller to keep asking for something that will
+    /// never arrive.
+    #[test]
+    fn an_unrequested_path_is_unknown() {
+        let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        assert_eq!(collect("never/asked.wav").0, DELUGE_AUDIO_LOAD_UNKNOWN);
+    }
+
+    /// A queued-but-unparsed request reports `PENDING`, so the caller waits
+    /// instead of re-requesting work already in the queue.
+    #[test]
+    fn a_queued_request_is_pending() {
+        let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        assert!(request_load("queued/A.wav", &["queued/A.wav"]));
+        assert_eq!(collect("queued/A.wav").0, DELUGE_AUDIO_LOAD_PENDING);
+    }
+
+    /// A load being parsed RIGHT NOW reports `PENDING`, not `UNKNOWN`.
+    ///
+    /// This branch had no test at all, because no test runs the loader task —
+    /// the same degenerate-coverage shape that hid the `remove_at` bug.
+    /// `mark_in_flight` is the seam the task uses, so driving it directly
+    /// exercises the real branch rather than a copy of it.
+    ///
+    /// A false `UNKNOWN` here is not cosmetic: it tells the caller to re-request
+    /// a load that is already running, on every tick, and each redundant request
+    /// eventually orphans a result slot.
+    #[test]
+    fn an_in_flight_request_is_pending_not_unknown() {
+        let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        block_on(mark_in_flight(Some(path_of("inflight/A.wav"))));
+        assert_eq!(collect("inflight/A.wav").0, DELUGE_AUDIO_LOAD_PENDING);
+        // A DIFFERENT path is still unknown — the branch matches on identity,
+        // not on "something is in flight".
+        assert_eq!(collect("inflight/B.wav").0, DELUGE_AUDIO_LOAD_UNKNOWN);
+        block_on(mark_in_flight(None));
+        assert_eq!(collect("inflight/A.wav").0, DELUGE_AUDIO_LOAD_UNKNOWN);
+    }
+
+    /// The window the task leaves open deliberately: a result is published while
+    /// its path is still marked in flight. `PENDING` is the correct answer there
+    /// — one extra tick, never a wrong one — and the result is collectable as
+    /// soon as the mark clears.
+    #[test]
+    fn a_published_result_still_marked_in_flight_reports_pending() {
+        let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        block_on(mark_in_flight(Some(path_of("window/A.wav"))));
+        block_on(publish_result(
+            path_of("window/A.wav"),
+            LoadResult::failed(DELUGE_ERROR_NONE),
+        ));
+        assert_eq!(collect("window/A.wav").0, DELUGE_AUDIO_LOAD_PENDING);
+        block_on(mark_in_flight(None));
+        assert_eq!(collect("window/A.wav").0, DELUGE_AUDIO_LOAD_READY);
+    }
+
+    /// A collected result is removed: a second collect reports `UNKNOWN`.
+    #[test]
+    fn collecting_removes_the_result() {
+        let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        block_on(publish_result(
+            path_of("gone/A.wav"),
+            LoadResult::failed(DELUGE_ERROR_FILE_CORRUPTED),
+        ));
+        let (status, result) = collect("gone/A.wav");
+        assert_eq!(status, DELUGE_AUDIO_LOAD_READY);
+        assert_eq!(result.error, DELUGE_ERROR_FILE_CORRUPTED);
+        assert_eq!(collect("gone/A.wav").0, DELUGE_AUDIO_LOAD_UNKNOWN);
+    }
+
+    /// The `DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED` sentinel means the C side's
+    /// buffer is not trustworthy at all. It must be REFUSED, not clamped to the
+    /// candidate bound and read anyway — the header is explicit that the caller
+    /// must not read `out`, and a silently truncated path can name a different
+    /// real file.
+    #[test]
+    fn the_truncation_sentinel_is_refused_not_clamped() {
+        let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let buffer = candidate_buffer(&["trunc/A.wav", "trunc/B.wav", "trunc/C.wav"]);
+        let key = CString::new("trunc/A.wav").unwrap();
+        // SAFETY: the buffer is three full slots; only the count is the sentinel.
+        let accepted = unsafe {
+            deluge_audio_load_request(
+                key.as_ptr(),
+                buffer.as_ptr().cast::<core::ffi::c_char>(),
+                0xFFFF_FFFF,
+            )
+        };
+        assert!(!accepted, "the sentinel must refuse the request");
+        assert_eq!(
+            collect("trunc/A.wav").0,
+            DELUGE_AUDIO_LOAD_UNKNOWN,
+            "a refused request must not have been queued"
+        );
+    }
+
+    /// A request reads only the candidate slots it was given, never past the
+    /// buffer the caller sized.
+    #[test]
+    fn a_request_reads_only_the_candidate_slots_it_was_given() {
+        let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        assert!(request_load("bound/A.wav", &["bound/A.wav"]));
+        assert_eq!(collect("bound/A.wav").0, DELUGE_AUDIO_LOAD_PENDING);
+    }
 }
 
 // ── The candidate buffer decoder ────────────────────────────────────────────
@@ -732,50 +832,6 @@ fn an_unterminated_candidate_slot_is_refused_even_after_a_good_one() {
         decode_candidates(&buffer[..DELUGE_MAX_PATH]).unwrap()[0].as_str(),
         "A.wav"
     );
-}
-
-/// The `DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED` sentinel means the C side's
-/// buffer is not trustworthy at all. It must be REFUSED, not clamped to the
-/// candidate bound and read anyway — the header is explicit that the caller must
-/// not read `out`, and a silently truncated path can name a different real file.
-#[test]
-fn the_truncation_sentinel_is_refused_not_clamped() {
-    let _guard = TABLE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    let buffer = candidate_buffer(&["trunc/A.wav", "trunc/B.wav", "trunc/C.wav"]);
-    let path = CString::new("trunc/A.wav").unwrap();
-    // SAFETY: the buffer is three full slots; only the count is the sentinel.
-    let accepted = unsafe {
-        deluge_audio_load_request(
-            path.as_ptr(),
-            buffer.as_ptr().cast::<core::ffi::c_char>(),
-            0xFFFF_FFFF,
-        )
-    };
-    assert!(!accepted, "the sentinel must refuse the request");
-    assert_eq!(
-        collect("trunc/A.wav").0,
-        DELUGE_AUDIO_LOAD_UNKNOWN,
-        "a refused request must not have been queued"
-    );
-}
-
-/// A request naming more candidates than the C side ever proposes reads only the
-/// slots within that bound, never past the buffer the caller sized.
-#[test]
-fn a_request_reads_only_the_candidate_slots_it_was_given() {
-    let _guard = TABLE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-    let buffer = candidate_buffer(&["bound/A.wav"]);
-    let path = CString::new("bound/A.wav").unwrap();
-    // SAFETY: the buffer really is 1 * DELUGE_MAX_PATH bytes, matching the count.
-    let accepted = unsafe {
-        deluge_audio_load_request(
-            path.as_ptr(),
-            buffer.as_ptr().cast::<core::ffi::c_char>(),
-            1,
-        )
-    };
-    assert!(accepted);
-    assert_eq!(collect("bound/A.wav").0, DELUGE_AUDIO_LOAD_PENDING);
 }
 
 // ── The switch ──────────────────────────────────────────────────────────────

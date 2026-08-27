@@ -71,11 +71,29 @@
 //!   ([`LoadOps`], [`load_io_once`], `ProdOps`, [`audio_load_task`]).
 //!
 //! Compiling the driver and *using* it are two different switches.
-//! `async_audio_load` (on by default) only builds and spawns the task;
+//! `async_audio_load` (on by default) only builds the driver;
 //! `async_audio_load_active` (off by default) is the sole input to
 //! [`deluge_audio_load_async_active`], and therefore the only thing that makes
-//! the C++ side dispatch a load here at all. With the switch off nothing ever
-//! requests, so the task waits on [`LOAD_WAKE`] forever.
+//! the C++ side dispatch a load here at all.
+//!
+//! ## What the off build costs: nothing
+//!
+//! The switch gates the STORAGE and the task, not just the behaviour. With it
+//! off, `QUEUE`/`RESULTS`/`IN_FLIGHT` do not exist, the task is neither compiled
+//! nor spawned, and [`deluge_audio_load_request`]/[`deluge_audio_load_collect`]
+//! refuse exactly as `audio_load_abi.cpp`'s weak fallbacks do.
+//!
+//! That distinction is not cosmetic. These statics live in `.bss` — **on-chip
+//! SRAM**, not the SDRAM the app's bulk globals sit in — and they shared a budget
+//! with the C++ allocator's `FAST_INTERNAL` heap, whose size steps down as the
+//! image grows. Holding ~16 KB of that for a feature nothing can enter was paying
+//! a scarce resource for an unreachable path.
+//!
+//! What stays compiled with the switch off is the *code*: the driver, `ProdOps`,
+//! the layout assertions and the FFI entry points, so the default build still
+//! type-checks this module against `efatfs_fs` and still exports strong symbols
+//! over the weak C++ fallbacks. The task itself is type-checked by the
+//! switch-on build, which is a standing gate.
 //!
 //! ## Why the driver is generic over [`LoadOps`]
 //!
@@ -88,6 +106,7 @@
 use core::ffi::{CStr, c_char};
 
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
+#[cfg(feature = "async_audio_load_active")]
 use embassy_sync::mutex::Mutex;
 use embassy_sync::signal::Signal;
 
@@ -121,7 +140,15 @@ const DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED: u32 = 0xFFFF_FFFF;
 /// It is the same hazard class as the C++ calls the request/collect split
 /// removed, one level down: moving the C++ calls off this tier did not move the
 /// Rust heap off it. Fixed-capacity storage is what actually removes it.
-pub type LoadPath = heapless::String<DELUGE_MAX_PATH>;
+pub type LoadPath = heapless::String<MAX_PATH_CHARS>;
+
+/// Longest path in CHARACTERS. [`DELUGE_MAX_PATH`] is a C buffer size and counts
+/// the NUL, so the text it can hold is one byte shorter. Keeping the two
+/// separate is not pedantry: sizing [`LoadPath`] at `DELUGE_MAX_PATH` let a
+/// 256-character path be accepted as a request key and then refused by
+/// [`LoadResult::set_alternate_path`] (which needs room for the terminator),
+/// turning a loadable file into a spurious `FILE_UNREADABLE`.
+const MAX_PATH_CHARS: usize = DELUGE_MAX_PATH - 1;
 
 /// The candidate paths for one load, inline. See [`LoadPath`].
 pub type CandidateList = heapless::Vec<LoadPath, MAX_LOAD_CANDIDATES>;
@@ -164,6 +191,29 @@ pub const DELUGE_AUDIO_LOAD_PENDING: u8 = 0;
 pub const DELUGE_AUDIO_LOAD_READY: u8 = 1;
 /// `deluge_audio_load_collect`: nothing known about this path.
 pub const DELUGE_AUDIO_LOAD_UNKNOWN: u8 = 2;
+
+/// The values this module hand-duplicates from `audio_load.h`, pinned.
+///
+/// Asserting a constant against its own literal looks tautological, and that is
+/// exactly the point: it makes a change here take two deliberate edits instead of
+/// one, and the mirror of these numbers lives in `audio_load_abi.cpp`'s
+/// `static_assert`s. Without this the C side pinned only C's own values, so a
+/// Rust-side edit — `MAX_LOAD_CANDIDATES` most dangerously, since it silently
+/// changes how many candidate slots are read — was caught by nothing.
+const _: () = {
+    assert!(DELUGE_MAX_PATH == 256);
+    assert!(MAX_PATH_CHARS == 255);
+    assert!(MAX_LOAD_CANDIDATES == 3); // AudioFileManager::kMaxLoadCandidates
+    assert!(DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED == 0xFFFF_FFFF);
+    assert!(DELUGE_AUDIO_LOAD_PENDING == 0);
+    assert!(DELUGE_AUDIO_LOAD_READY == 1);
+    assert!(DELUGE_AUDIO_LOAD_UNKNOWN == 2);
+    // Deluge `Error`, pinned C-side by audio_load_abi.cpp's own static_asserts.
+    assert!(DELUGE_ERROR_NONE == 0);
+    assert!(DELUGE_ERROR_FILE_CORRUPTED == 5);
+    assert!(DELUGE_ERROR_FILE_UNREADABLE == 6);
+    assert!(DELUGE_ERROR_FILE_UNSUPPORTED == 7);
+};
 
 /// The parsed header geometry, field-for-field `DelugeAudioLoadGeometry`
 /// (`audio_load.h`). A named struct rather than positional scalars precisely so a
@@ -293,7 +343,7 @@ pub struct LoadRequest {
 
 /// A finished parse waiting to be collected, tagged with the nominal path it
 /// belongs to.
-struct PendingResult {
+pub struct PendingResult {
     key: LoadPath,
     result: LoadResult,
 }
@@ -305,14 +355,22 @@ pub static LOAD_WAKE: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 
 /// The bounded request queue [`deluge_audio_load_request`] pushes into and
 /// [`audio_load_task`] drains.
-static QUEUE: Mutex<CriticalSectionRawMutex, heapless::Deque<LoadRequest, LOAD_QUEUE_DEPTH>> =
-    Mutex::new(heapless::Deque::new());
+/// The request queue's storage type. Named so the table logic below can be
+/// compiled and tested without the static itself existing.
+pub type RequestQueue = heapless::Deque<LoadRequest, LOAD_QUEUE_DEPTH>;
+
+/// The result table's storage type. See [`RequestQueue`].
+pub type ResultTable = heapless::Deque<PendingResult, RESULT_SLOTS>;
+
+#[cfg(feature = "async_audio_load_active")]
+static QUEUE: Mutex<CriticalSectionRawMutex, RequestQueue> = Mutex::new(heapless::Deque::new());
 
 /// The path the task is parsing right now, if any. Exists so
 /// [`deluge_audio_load_collect`] can answer `PENDING` rather than `UNKNOWN` in
 /// the window between a request leaving [`QUEUE`] and its result reaching
 /// [`RESULTS`] — an `UNKNOWN` there would tell the C++ side to re-request work
 /// that is already running, and it would do so on every tick.
+#[cfg(feature = "async_audio_load_active")]
 static IN_FLIGHT: Mutex<CriticalSectionRawMutex, Option<LoadPath>> = Mutex::new(None);
 
 /// Finished parses waiting to be collected, oldest at the front.
@@ -332,8 +390,8 @@ static IN_FLIGHT: Mutex<CriticalSectionRawMutex, Option<LoadPath>> = Mutex::new(
 /// collected or evicted. A repeat request for a path already in the table
 /// replaces that entry rather than adding a second, so a coalescing caller
 /// cannot grow the table with duplicates.
-static RESULTS: Mutex<CriticalSectionRawMutex, heapless::Deque<PendingResult, RESULT_SLOTS>> =
-    Mutex::new(heapless::Deque::new());
+#[cfg(feature = "async_audio_load_active")]
+static RESULTS: Mutex<CriticalSectionRawMutex, ResultTable> = Mutex::new(heapless::Deque::new());
 
 /// Whether the Rust async loader backs sample loads on this BSP/config — the
 /// switch the C++ side asks before choosing the async path over the synchronous
@@ -352,6 +410,17 @@ pub extern "C" fn deluge_audio_load_async_active() -> bool {
 }
 
 /// Queue `file_path` for the async loader and wake it. See `audio_load.h`.
+///
+/// # Stack cost on the calling tier
+///
+/// Going allocation-free moved this cost from the heap to the caller's stack, and
+/// it is worth stating rather than only counting the `.bss` half. On device
+/// (`usize` = 4) a [`LoadPath`] is 260 bytes, a [`CandidateList`] 784, and a
+/// [`LoadRequest`] 1044; this function materialises the decoded list and then the
+/// request, so its frame peaks under ~2 KB before the request is moved into the
+/// queue. Against the 32 KB program stack that is comfortable, but it is charged
+/// to whatever context C++ calls this from, not to the loader. (Derived from the
+/// type layouts, not measured — Rust has no stack-usage report here.)
 ///
 /// # Safety
 ///
@@ -393,17 +462,37 @@ pub unsafe extern "C" fn deluge_audio_load_request(
         return false;
     }
 
-    // `try_lock` rather than a block: this is called synchronously from C++ in
-    // whatever context the app happens to be in, and must never wait.
+    enqueue_request(LoadRequest { path, candidates })
+}
+
+/// Push a decoded request onto [`QUEUE`] and wake the loader.
+///
+/// `try_lock` rather than a block: this is called synchronously from C++ in
+/// whatever context the app happens to be in, and must never wait.
+#[cfg(feature = "async_audio_load_active")]
+fn enqueue_request(request: LoadRequest) -> bool {
     let Ok(mut queue) = QUEUE.try_lock() else {
         return false;
     };
-    if queue.push_back(LoadRequest { path, candidates }).is_err() {
+    if queue.push_back(request).is_err() {
         return false; // Queue full; the caller re-requests on its next tick.
     }
     drop(queue);
     LOAD_WAKE.signal(());
     true
+}
+
+/// No loader on this build: refuse, exactly as `audio_load_abi.cpp`'s weak
+/// fallback does. Nothing reaches here in practice — the C++ side gates on
+/// [`deluge_audio_load_async_active`], which is false in this configuration —
+/// and refusing is what keeps a caller that ignores the selector from waiting
+/// for a result nothing will produce.
+///
+/// The queue and result tables do not exist here at all; see the module doc's
+/// "What the off build costs".
+#[cfg(not(feature = "async_audio_load_active"))]
+fn enqueue_request(_request: LoadRequest) -> bool {
+    false
 }
 
 /// Collect the finished parse for `file_path`, if one is ready. See
@@ -412,17 +501,30 @@ pub unsafe extern "C" fn deluge_audio_load_request(
 /// # Why the probe order is QUEUE -> IN_FLIGHT -> RESULTS
 ///
 /// An entry only ever moves forward: [`QUEUE`] -> [`IN_FLIGHT`] -> [`RESULTS`].
-/// Two rules close the handoffs — [`audio_load_task`] sets `IN_FLIGHT` while
-/// still holding the `QUEUE` lock, and publishes to `RESULTS` *before* clearing
-/// `IN_FLIGHT` — so at every instant a live entry is in at least one table.
+/// **Three** rules together make a forward pass unable to miss one, and all three
+/// are load-bearing:
 ///
-/// Given that, reading the tables in forward order cannot miss: a miss on `QUEUE`
-/// means the entry has already advanced past it, a subsequent miss on `IN_FLIGHT`
-/// means it has advanced past that too, and `RESULTS` is terminal until
-/// collected. Reading in the REVERSE order can miss — a miss on `RESULTS`, then
-/// the task publishes and clears `IN_FLIGHT`, then a miss on `IN_FLIGHT` — and
-/// reports `UNKNOWN` for a load that has already succeeded, so the caller
-/// re-requests work that is done and orphans the result slot it left behind.
+/// 1. [`audio_load_task`] sets `IN_FLIGHT` while still holding the `QUEUE` lock.
+/// 2. It publishes to `RESULTS` *before* clearing `IN_FLIGHT`, so that handoff
+///    overlaps rather than gaps.
+/// 3. [`is_queued`] and [`is_in_flight`] report `true` when they cannot take
+///    their lock.
+///
+/// Rule 3 is what covers the QUEUE -> IN_FLIGHT handoff, and it is easy to lose:
+/// rule 1 does NOT put the entry in two tables at once, so during that handoff
+/// the entry really is in neither — a reader that treated contention as "not
+/// there" would report `UNKNOWN` for a request the loader had just picked up. It
+/// is the *lock*, not the table, that covers that window. (Rule 2, by contrast,
+/// does put the entry in both tables briefly, which is why a published-but-still-
+/// marked result reports `PENDING` for one extra tick.)
+///
+/// Given all three: a miss on `QUEUE` means the entry has advanced past it, a
+/// subsequent miss on `IN_FLIGHT` means it has advanced past that too, and
+/// `RESULTS` is terminal until collected. Reading in the REVERSE order can miss —
+/// a miss on `RESULTS`, then the task publishes and clears `IN_FLIGHT`, then a
+/// miss on `IN_FLIGHT` — and reports `UNKNOWN` for a load that has already
+/// succeeded, so the caller re-requests work that is done and orphans the result
+/// slot it left behind.
 ///
 /// That interleaving needs two threads and is not directly testable here; the
 /// argument above is what makes it safe, and each branch of the probe has its own
@@ -446,32 +548,64 @@ pub unsafe extern "C" fn deluge_audio_load_collect(
         return DELUGE_AUDIO_LOAD_UNKNOWN;
     };
 
-    // Probe in the pipeline's OWN direction -- QUEUE, then IN_FLIGHT, then
-    // RESULTS -- because an entry only ever moves that way. See
-    // [`deluge_audio_load_collect`]'s doc for why the reverse order can report
-    // `UNKNOWN` for a load that has already succeeded.
-    if is_queued(&path) || is_in_flight(&path) {
-        return DELUGE_AUDIO_LOAD_PENDING;
+    match probe(&path) {
+        Probe::Ready(result) => {
+            // SAFETY: `out` is a valid writable `LoadResult` (checked non-null above).
+            unsafe { core::ptr::write(out, result) };
+            DELUGE_AUDIO_LOAD_READY
+        }
+        Probe::Pending => DELUGE_AUDIO_LOAD_PENDING,
+        Probe::Unknown => DELUGE_AUDIO_LOAD_UNKNOWN,
     }
-
-    // A contended table means the task is mid-publish. `PENDING` is the honest
-    // answer: never claim `UNKNOWN` on contention, or the caller re-requests work
-    // that is about to land.
-    let Ok(mut results) = RESULTS.try_lock() else {
-        return DELUGE_AUDIO_LOAD_PENDING;
-    };
-    if let Some(index) = results.iter().position(|entry| entry.key == path) {
-        let taken = remove_at(&mut results, index);
-        // SAFETY: `out` is a valid writable `LoadResult` (checked non-null above).
-        unsafe { core::ptr::write(out, taken.result) };
-        return DELUGE_AUDIO_LOAD_READY;
-    }
-    DELUGE_AUDIO_LOAD_UNKNOWN
 }
 
-/// Whether `path` is still waiting in [`QUEUE`]. Contention reports `true`: the
-/// loader is demonstrably busy, so "ask again" is right and "never heard of it"
-/// would be wrong.
+/// What one forward pass over the pipeline found. Deliberately produced by a
+/// SINGLE pass: splitting "is it ready?" and "is it still coming?" into two
+/// passes reintroduces the very race this ordering exists to close, because the
+/// loader can publish between them and the second pass then reports `Unknown`
+/// for a result the first pass merely missed.
+enum Probe {
+    Ready(LoadResult),
+    Pending,
+    Unknown,
+}
+
+/// One forward pass: QUEUE, then IN_FLIGHT, then RESULTS. See
+/// [`deluge_audio_load_collect`]'s doc for why the order and the contention
+/// mapping are both load-bearing.
+#[cfg(feature = "async_audio_load_active")]
+fn probe(path: &str) -> Probe {
+    if is_queued(path) || is_in_flight(path) {
+        return Probe::Pending;
+    }
+    // A contended table means the loader is mid-publish. `Pending` is the honest
+    // answer: never claim `Unknown` on contention, or the caller re-requests work
+    // that is about to land.
+    let Ok(mut results) = RESULTS.try_lock() else {
+        return Probe::Pending;
+    };
+    match take_from(&mut results, path) {
+        Some(result) => Probe::Ready(result),
+        None => Probe::Unknown,
+    }
+}
+
+/// No loader on this build: nothing was ever requested, so nothing is coming.
+/// `Unknown`, never `Pending` — `Pending` would tell a caller to keep asking
+/// forever. Matches `audio_load_abi.cpp`'s weak fallback.
+#[cfg(not(feature = "async_audio_load_active"))]
+fn probe(_path: &str) -> Probe {
+    Probe::Unknown
+}
+
+/// Whether `path` is still waiting in [`QUEUE`].
+///
+/// **Contention reports `true`, and that is load-bearing, not defensive.** The
+/// loader marks a request in flight while still holding this lock, so a `collect`
+/// racing that handoff finds the lock taken — mapping it to `false` here would
+/// report `UNKNOWN` for a request mid-handoff, which is exactly the bug the probe
+/// order exists to prevent. Do not "simplify" this branch.
+#[cfg(feature = "async_audio_load_active")]
 fn is_queued(path: &str) -> bool {
     match QUEUE.try_lock() {
         Ok(queue) => queue.iter().any(|request| request.path == path),
@@ -480,7 +614,8 @@ fn is_queued(path: &str) -> bool {
 }
 
 /// Whether `path` is the load being parsed right now. Contention reports `true`,
-/// for the same reason as [`is_queued`].
+/// for the same reason as [`is_queued`] — and with the same warning.
+#[cfg(feature = "async_audio_load_active")]
 fn is_in_flight(path: &str) -> bool {
     match IN_FLIGHT.try_lock() {
         Ok(in_flight) => in_flight.as_deref() == Some(path),
@@ -495,6 +630,7 @@ fn is_in_flight(path: &str) -> bool {
 /// table. Also the seam the host tests drive to exercise
 /// [`deluge_audio_load_collect`]'s IN_FLIGHT branch, which no test could reach
 /// otherwise because no test runs the task.
+#[cfg(feature = "async_audio_load_active")]
 pub async fn mark_in_flight(path: Option<LoadPath>) {
     *IN_FLIGHT.lock().await = path;
 }
@@ -526,17 +662,37 @@ fn remove_at(
     taken
 }
 
-/// Publish `result` under `key`, replacing any existing entry for that key and
-/// evicting the oldest if the table is full. See [`RESULTS`].
+/// Publish `result` under `key` into `table`, replacing any existing entry for
+/// that key and evicting the oldest if the table is full. See [`RESULTS`].
+///
+/// Takes the table by reference rather than reaching for the static, so the
+/// eviction and replace behaviour is compiled and unit-tested on every build —
+/// including the ones where [`RESULTS`] does not exist. That matters: the
+/// `remove_at` ordering bug lived in exactly this code and was invisible to
+/// every test that ran against a single-entry table.
+pub fn publish_into(table: &mut ResultTable, key: LoadPath, result: LoadResult) {
+    if let Some(index) = table.iter().position(|entry| entry.key == key) {
+        let _ = remove_at(table, index);
+    }
+    if table.is_full() {
+        let _ = table.pop_front();
+    }
+    let _ = table.push_back(PendingResult { key, result });
+}
+
+/// Take `path`'s result out of `table`, if it holds one. Removing is the point:
+/// a second collect must report `UNKNOWN`, or a caller could build the same
+/// `Sample` twice.
+pub fn take_from(table: &mut ResultTable, path: &str) -> Option<LoadResult> {
+    let index = table.iter().position(|entry| entry.key == path)?;
+    Some(remove_at(table, index).result)
+}
+
+/// Publish into the live [`RESULTS`] table.
+#[cfg(feature = "async_audio_load_active")]
 pub async fn publish_result(key: LoadPath, result: LoadResult) {
-    let mut results = RESULTS.lock().await;
-    if let Some(index) = results.iter().position(|entry| entry.key == key) {
-        let _ = remove_at(&mut results, index);
-    }
-    if results.is_full() {
-        let _ = results.pop_front();
-    }
-    let _ = results.push_back(PendingResult { key, result });
+    let mut table = RESULTS.lock().await;
+    publish_into(&mut table, key, result);
 }
 
 /// Decode the candidate buffer the C side filled: one NUL-terminated path per
@@ -784,6 +940,12 @@ mod prod {
 
     /// The real [`LoadOps`], wired to the efatfs streaming handle table. Holds no
     /// state: every operation is keyed by handle.
+    ///
+    /// Compiled under `async_audio_load` even when the switch is off, so the
+    /// default build still type-checks this wiring against `efatfs_fs` — the
+    /// link-checking value of building the module at all. Unused in that
+    /// configuration, hence the allow.
+    #[allow(dead_code)]
     pub struct ProdOps;
 
     impl ProdOps {
@@ -823,6 +985,7 @@ mod prod {
         feature = "host_app"
     )
 ))]
+#[allow(unused_imports)]
 pub use prod::ProdOps;
 
 /// The load task: wakes on [`LOAD_WAKE`], drains every queued request through the
@@ -832,7 +995,7 @@ pub use prod::ProdOps;
 /// published, so [`deluge_audio_load_collect`] never sees a gap where a running
 /// load looks unknown.
 #[cfg(all(
-    feature = "async_audio_load",
+    feature = "async_audio_load_active",
     any(
         all(target_os = "none", feature = "efatfs_streaming"),
         feature = "host_app"
@@ -865,7 +1028,7 @@ pub async fn audio_load_task() {
 /// in-flight. A `collect` racing this either sees it queued, or blocks on the
 /// queue's `try_lock` and reports `PENDING` — never `UNKNOWN`.
 #[cfg(all(
-    feature = "async_audio_load",
+    feature = "async_audio_load_active",
     any(
         all(target_os = "none", feature = "efatfs_streaming"),
         feature = "host_app"

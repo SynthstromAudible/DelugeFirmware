@@ -423,7 +423,10 @@ fn stream_sgi_handler() {
 /// against that if both shared an executor.
 #[cfg(all(
     target_os = "none",
-    any(feature = "async_streaming_loader", feature = "async_audio_load")
+    any(
+        feature = "async_streaming_loader",
+        feature = "async_audio_load_active"
+    )
 ))]
 #[embassy_executor::task]
 async fn stream_bootstrap() {
@@ -433,7 +436,7 @@ async fn stream_bootstrap() {
     let spawner = unsafe { Spawner::for_current_executor() }.await;
     #[cfg(feature = "async_streaming_loader")]
     spawner.spawn(streaming_loader::streaming_fill_task().unwrap());
-    #[cfg(all(feature = "async_audio_load", feature = "efatfs_streaming"))]
+    #[cfg(all(feature = "async_audio_load_active", feature = "efatfs_streaming"))]
     spawner.spawn(audio_loader::audio_load_task().unwrap());
 }
 
@@ -547,11 +550,17 @@ pub extern "C" fn main() -> ! {
     // not be enabled before the executor its handler drives exists. Spawned via
     // `stream_bootstrap` — see that task's doc for why a SendSpawner cannot take the fill task
     // directly.
-    #[cfg(any(feature = "async_streaming_loader", feature = "async_audio_load"))]
+    #[cfg(any(
+        feature = "async_streaming_loader",
+        feature = "async_audio_load_active"
+    ))]
     STREAM_EXEC
         .start(STREAM_SGI)
         .spawn(stream_bootstrap().unwrap());
-    #[cfg(not(any(feature = "async_streaming_loader", feature = "async_audio_load")))]
+    #[cfg(not(any(
+        feature = "async_streaming_loader",
+        feature = "async_audio_load_active"
+    )))]
     let _ = STREAM_EXEC.start(STREAM_SGI);
     unsafe { rza1l_hal::gic::enable(STREAM_SGI as u16) };
 
@@ -1164,7 +1173,10 @@ fn main() {
         // `STREAM_EXEC` on device: it too holds the FS mutex across an SD await, so it must not
         // live where a non-yielding storage spin could starve it. See `audio_loader`'s module
         // doc.
-        #[cfg(any(feature = "async_streaming_loader", feature = "async_audio_load"))]
+        #[cfg(any(
+            feature = "async_streaming_loader",
+            feature = "async_audio_load_active"
+        ))]
         {
             let stream_ready = Arc::new(Barrier::new(2));
             let stream_barrier = Arc::clone(&stream_ready);
@@ -1175,7 +1187,7 @@ fn main() {
                     executor.run(|spawner: Spawner| {
                         #[cfg(feature = "async_streaming_loader")]
                         spawner.spawn(streaming_loader::streaming_fill_task().unwrap());
-                        #[cfg(feature = "async_audio_load")]
+                        #[cfg(feature = "async_audio_load_active")]
                         spawner.spawn(audio_loader::audio_load_task().unwrap());
                         log::info!(
                             "deluge-bsp-rust: host streaming executor up on thread {:?}",
