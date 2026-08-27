@@ -29,7 +29,9 @@
 ///
 /// With no --file/--wavetable at all, main() returns immediately after running
 /// checkProposeLoadCandidates()'s I/O-free policy checks, checkAudioLoadAbiAbandon()'s libdeluge/
-/// audio_load.h ownership check and checkAsyncCollector()'s async-load miss path -- it does not call
+/// audio_load.h ownership check, checkAsyncCollector()'s async-load miss path, and
+/// checkLoadFileDefaultStaysSynchronous()'s pin that every unmodified loadFile call site stays
+/// synchronous -- it does not call
 /// deluge_platform_init() or deluge_main(), so there is no app boot, no card fixture, and --project is
 /// ignored (each check self-initializes the allocator/resource-manager it touches, and the collector
 /// check serves itself a temp directory as its card and removes it again). This is
@@ -1219,6 +1221,70 @@ bool checkAsyncCollector() {
 	return ok;
 }
 
+/// Pin that every existing AudioFileHolder::loadFile call site -- all but previewSample's, which is the
+/// one this task changed to pass true -- keeps taking the synchronous backing when mayLoadAsync is left
+/// at its default. audio_file_holder.cpp:47 forwards its own mayLoadAsync argument straight to
+/// getAudioFileFromFilename, so calling it with mayLoadAsync omitted (as the other eight callers do) must
+/// behave exactly as it did before that parameter existed: no Error::LOAD_IN_PROGRESS, and a real load
+/// off the card succeeds.
+bool checkLoadFileDefaultStaysSynchronous() {
+	bool ok = true;
+
+	char rootTemplate[] = "/tmp/deluge_loadcheck_XXXXXX";
+	const char* root = mkdtemp(rootTemplate);
+	if (root == nullptr) {
+		printf("FAIL [loadFileDefault]: could not create a temp card directory\n");
+		return false;
+	}
+	const std::string samplesDir = std::string{root} + "/SAMPLES";
+	const std::string samplePath = samplesDir + "/DEFAULT.WAV";
+	mkdir(samplesDir.c_str(), 0755);
+	const auto removeTempCard = [&] {
+		unlink(samplePath.c_str());
+		rmdir(samplesDir.c_str());
+		rmdir(root);
+	};
+	if (!writeTestWav(samplePath, 2000, 0x42)) {
+		printf("FAIL [loadFileDefault]: could not write the temp card's sample file\n");
+		removeTempCard();
+		return false;
+	}
+
+	const char* previousRootRaw = getenv("DELUGE_SD_ROOT");
+	const std::string previousRoot = (previousRootRaw != nullptr) ? previousRootRaw : "";
+	const bool hadPreviousRoot = previousRootRaw != nullptr;
+	setenv("DELUGE_SD_ROOT", root, 1);
+
+	// mayLoadAsync omitted, exactly as slicer.cpp / sample_browser.cpp / instrument_clip_view.cpp /
+	// audio_clip.cpp / consequence_audio_clip_set_sample.cpp / source.cpp call it -- this call is deliberately
+	// unmodified by this task, standing in for all of them.
+	std::string path = "SAMPLES/DEFAULT.WAV";
+	Error error = Error::NONE;
+	AudioFile* file =
+	    audioFileManager.getAudioFileFromFilename(path, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+	                                              /*makeWaveTableWorkAtAllCosts=*/false);
+	if (error == Error::LOAD_IN_PROGRESS) {
+		printf("FAIL [loadFileDefault]: an unmodified loadFile call site reached the async path "
+		       "(Error::LOAD_IN_PROGRESS)\n");
+		ok = false;
+	}
+	if (file == nullptr) {
+		printf("FAIL [loadFileDefault]: the default (synchronous) path did not load the file (error=%d)\n",
+		       static_cast<int>(error));
+		ok = false;
+	}
+
+	audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists("SAMPLES/DEFAULT.WAV");
+	if (hadPreviousRoot) {
+		setenv("DELUGE_SD_ROOT", previousRoot.c_str(), 1);
+	}
+	else {
+		unsetenv("DELUGE_SD_ROOT");
+	}
+	removeTempCard();
+	return ok;
+}
+
 /// Pin that a whole LOAD resolves to the same files whichever path serves it.
 ///
 /// This is the case an A/B of the two paths cannot catch on its own: a sample that exists in only one
@@ -1597,7 +1663,8 @@ void usage(const char* argv0) {
 	fprintf(stderr, "usage: %s [--project <dir> (--file PATH | --wavetable PATH)...]\n", argv0);
 	fprintf(stderr, "  With no --file/--wavetable at all, runs only the fixture-free checks\n");
 	fprintf(stderr, "  (checkProposeLoadCandidates, checkAudioLoadAbiAbandon, checkAsyncCollector,\n");
-	fprintf(stderr, "  checkAsyncAlternateDirOrder, checkPathAdmissionCorpus) and\n");
+	fprintf(stderr, "  checkLoadFileDefaultStaysSynchronous, checkAsyncAlternateDirOrder,\n");
+	fprintf(stderr, "  checkPathAdmissionCorpus) and\n");
 	fprintf(stderr, "  exits -- no app boot, no card fixture, --project ignored. This is what the harness\n");
 	fprintf(stderr, "  registry runs as a gate.\n");
 	fprintf(stderr, "  With --file/--wavetable, --project <dir> is required.\n");
@@ -1642,10 +1709,11 @@ int main(int argc, char** argv) {
 		// Serves itself a two-file temp directory as the card (removed again before it returns), so it
 		// needs no fixture here either -- see its own doc comment.
 		const bool collectorOk = checkAsyncCollector();
+		const bool loadFileDefaultOk = checkLoadFileDefaultStaysSynchronous();
 		const bool altDirOrderOk = checkAsyncAlternateDirOrder();
 		const bool admissionOk = checkPathAdmissionCorpus();
 		fflush(nullptr);
-		return (policyOk && abiOk && collectorOk && altDirOrderOk && admissionOk) ? 0 : 1;
+		return (policyOk && abiOk && collectorOk && loadFileDefaultOk && altDirOrderOk && admissionOk) ? 0 : 1;
 	}
 
 	if (project == nullptr) {

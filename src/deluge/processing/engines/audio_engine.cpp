@@ -1496,7 +1496,7 @@ void previewSample(std::string_view path, bool shouldActuallySound) {
 	//
 	// Enqueueing never blocks. The note-on then sees LOADING and defers (VoiceUnisonPartSource), so the
 	// preview starts a few ms late instead of either stalling audio or dropping the voice.
-	Error error = range->sampleHolder.loadFile(false, true, true, CLUSTER_ENQUEUE);
+	Error error = range->sampleHolder.loadFile(false, true, true, CLUSTER_ENQUEUE, false, /*mayLoadAsync=*/true);
 
 	if (error != Error::NONE) {
 		display->displayError(error); // Rare, shouldn't cause later problems.

@@ -46,7 +46,8 @@ public:
 	virtual void setAudioFile(AudioFile* newSample, bool reversed = false, bool manuallySelected = false,
 	                          int32_t clusterLoadInstruction = CLUSTER_ENQUEUE);
 	Error loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile,
-	               int32_t clusterLoadInstruction = CLUSTER_ENQUEUE, bool makeWaveTableWorkAtAllCosts = false);
+	               int32_t clusterLoadInstruction = CLUSTER_ENQUEUE, bool makeWaveTableWorkAtAllCosts = false,
+	               bool mayLoadAsync = false);
 	virtual void unassignAllClusterReasons(bool beingDestructed = false) {}
 
 	std::string filePath{};
