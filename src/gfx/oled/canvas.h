@@ -79,7 +79,7 @@ public:
 	/// @param min_x minimum X coordinate, inclusive
 	/// @param min_y minimum Y coordinate, inclusive
 	/// @param max_x maximum X coordinate, inclusive
-	/// @param max_y maximum Y coordinate, *exclusive*
+	/// @param max_y maximum Y coordinate, inclusive
 	void clear_area_exact(int32_t min_x, int32_t min_y, int32_t max_x, int32_t max_y);
 
 	/// Set a single pixel

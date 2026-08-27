@@ -19,7 +19,9 @@
 #include "gfx/oled/font.h"
 
 #include <algorithm>
+#include <cstddef>
 #include <cstdlib>
+#include <utility>
 
 using deluge::gfx::oled::Canvas;
 
@@ -604,6 +606,15 @@ void Canvas::draw_graphic_multi_line(uint8_t const* graphic, int32_t start_x, in
 	int32_t row_on_display = start_y >> 3;
 	int32_t y_offset = start_y & 7;
 	int32_t row_on_graphic = 0;
+
+	// The legacy code only bounds-checked the *middle* rows, so a first row off the top or
+	// bottom of the panel, or a negative start_x, wrote outside the framebuffer. Now that the
+	// storage belongs to the caller, refuse those outright. No on-canvas draw can reach this,
+	// so the rendered output is unchanged.
+	if (row_on_display < 0 || row_on_display >= static_cast<int32_t>(geometry_.pages()) || start_x < 0
+	    || start_x >= geometry_.width || width <= 0) {
+		return;
+	}
 
 	if (width > geometry_.width - start_x) {
 		width = geometry_.width - start_x;
