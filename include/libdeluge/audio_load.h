@@ -27,7 +27,8 @@
 ///
 /// **Call order.** `begin` -> (optionally, repeatedly) `resolve_alternate_dir` + `candidates` to pick
 /// a path -> `bind_read_stream` on the chosen path -> the caller's own I/O to read and parse the
-/// header -> `apply_geometry` -> `finish` (or `abandon` at any point after `begin`).
+/// header -> `apply_geometry` -> `finish` (or `abandon` at any point after `begin`, including when
+/// `bind_read_stream` or `apply_geometry` itself fails).
 ///
 /// **Ownership.** `deluge_audio_load_begin` allocates and adopts a `Sample` and gives it a
 /// protect-during-setup reason BEFORE any I/O runs. From the moment it returns a non-NULL build,
@@ -51,9 +52,15 @@
 #include <stdbool.h>
 #include <stdint.h>
 
-/* This header is parsed as plain C by bindgen (wrapper.h, src/bsp/rust/build.rs) as well as compiled
- * as C++, so `noexcept` -- meaningful only C++-side, and invalid C syntax -- is spelled through this
- * macro rather than written bare. */
+/* Not currently parsed as C: as of this writing neither wrapper.h nor the libdeluge.h umbrella
+ * includes this header (src/bsp/rust/build.rs), so only the two C++ translation units that include
+ * it directly (audio_load_abi.cpp, host_loadcheck_main.cpp) ever see it. This macro is forward-
+ * looking hardening, not a fix for an active failure: it matches the C-parseable convention the
+ * sibling libdeluge headers (audio_format.h, file_io.h) already follow, for whenever a Rust consumer
+ * of this ABI is wired in (a later migration step) and this header joins wrapper.h. `noexcept` is
+ * C++-only and invalid C syntax, so it is spelled through this macro -- #undef'd at the end of the
+ * file so it cannot leak into (or collide with a same-named macro in) whatever includes this header
+ * next -- rather than written bare. */
 #ifdef __cplusplus
 #define DELUGE_NOEXCEPT noexcept
 extern "C" {
@@ -91,13 +98,15 @@ typedef struct DelugeSampleBuild DelugeSampleBuild;
 /// itself (`FILE_CORRUPTED` for 0, `FILE_TOO_BIG` over the 1 GB ceiling); the caller does not need to
 /// re-check either.
 ///
-/// @param file_path       The file's nominal/display path.
+/// @param file_path       The file's nominal/display path. Must not be NULL.
 /// @param alternate_path  The alternate-load-dir path segment the bytes actually live at, or an empty
-///                        string if resolved at @p file_path directly.
+///                        string if resolved at @p file_path directly. Must not be NULL (pass "" for
+///                        "none", not NULL).
 /// @param size_bytes      The resolved on-card file's size, in bytes.
-/// @param error_out       Written with a Deluge `Error` code (as `uint8_t`) on failure. Must not be
-///                        NULL.
-/// @return The new build, or NULL on failure (nothing adopted, no reason held) with @p error_out set.
+/// @param error_out       Written with a Deluge `Error` code (as `uint8_t`) on failure. May be NULL if
+///                        the caller does not need the code (a NULL build is still NULL on failure).
+/// @return The new build, or NULL on failure (nothing adopted, no reason held) with @p error_out set
+///         (if non-NULL).
 DelugeSampleBuild* deluge_audio_load_begin(const char* file_path, const char* alternate_path, uint64_t size_bytes,
                                            uint8_t* error_out) DELUGE_NOEXCEPT;
 
@@ -114,11 +123,11 @@ DelugeSampleBuild* deluge_audio_load_begin(const char* file_path, const char* al
 /// A no-op, doing no I/O, once the status is already resolved (from an earlier call in the same
 /// load, or because nothing is loading) -- safe to call speculatively.
 ///
-/// @param error_out Written unconditionally with a Deluge `Error` code (as `uint8_t`):
+/// @param error_out Written unconditionally (if non-NULL) with a Deluge `Error` code (as `uint8_t`):
 ///                  `Error::NONE` whenever this returns true (already resolved, or newly resolved as
 ///                  present); `Error::FILE_UNREADABLE` if the probe finds the dir genuinely absent, or
-///                  `Error::SD_CARD` if presence couldn't be determined, when it returns false. Must
-///                  not be NULL.
+///                  `Error::SD_CARD` if presence couldn't be determined, when it returns false. May be
+///                  NULL if the caller does not need the code.
 /// @return true once the alternate dir is known to exist (already, or newly resolved); false
 ///         otherwise.
 bool deluge_audio_load_resolve_alternate_dir(uint8_t* error_out) DELUGE_NOEXCEPT;
@@ -129,9 +138,9 @@ bool deluge_audio_load_resolve_alternate_dir(uint8_t* error_out) DELUGE_NOEXCEPT
 /// Call `deluge_audio_load_resolve_alternate_dir` first (see its doc comment) or this proposes only
 /// the regular path even when an alternate dir exists.
 ///
-/// @param file_path      The nominal path a load was asked for.
+/// @param file_path      The nominal path a load was asked for. Must not be NULL.
 /// @param out            Caller-owned buffer of at least `max_candidates * DELUGE_MAX_PATH` bytes; each
-///                       slot holds one NUL-terminated path, in try order.
+///                       slot holds one NUL-terminated path, in try order. Must not be NULL.
 /// @param max_candidates Capacity of @p out, in slots.
 /// @return How many candidates were proposed in total. This can exceed @p max_candidates, in which case
 ///         only the first @p max_candidates were written to @p out -- the same snprintf-style
@@ -160,7 +169,8 @@ uint32_t deluge_audio_load_candidates(const char* file_path, char* out, uint32_t
 /// @param build An in-flight build from deluge_audio_load_begin.
 /// @param path  The path to open: the alternate location the bytes actually live at if the file was
 ///              resolved there, the nominal path otherwise -- whichever path the resolved size
-///              actually came from (matches @ref deluge_audio_load_begin's `alternate_path`).
+///              actually came from (matches @ref deluge_audio_load_begin's `alternate_path`). Must not
+///              be NULL.
 /// @return A Deluge `Error` code (as `uint8_t`): `Error::NONE` on success, leaving the handle
 ///         engaged; otherwise the handle is left disengaged and the build must be abandoned, not
 ///         finished. `Error::BUG` if @p build is NULL or already consumed (a caller bug, not a file
@@ -201,11 +211,28 @@ typedef struct DelugeAudioLoadGeometry {
 /// sample loaded through the async path renders with the wrong geometry -- silently: it loads without
 /// error either way.
 ///
-/// @param build    An in-flight build from deluge_audio_load_begin. A NULL or already-consumed build
-///                 is a silent no-op.
-/// @param geometry The parsed fields. A NULL @p geometry is a no-op.
-void deluge_audio_load_apply_geometry(DelugeSampleBuild* build,
-                                      const DelugeAudioLoadGeometry* geometry) DELUGE_NOEXCEPT;
+/// Unlike the other setters in this header, an invalid `raw_data_format` is REFUSED rather than
+/// degraded to a default: the synchronous path has no analogue for this failure at all (it assigns a
+/// `RawDataFormat` straight from the parser, so an invalid value cannot arise there), and silently
+/// accepting one here would be exactly the "loads without error, renders wrong" failure this file's
+/// own doc comment calls the worst available shape. On refusal nothing is written -- the build's
+/// geometry is left exactly as it was before this call (zeroed, if this is the first attempt) -- and
+/// the caller must `deluge_audio_load_abandon` it rather than proceed to `deluge_audio_load_finish`.
+///
+/// @param build     An in-flight build from deluge_audio_load_begin. A NULL or already-consumed build
+///                  fails (see @p error_out) rather than silently no-opping.
+/// @param geometry  The parsed fields. A NULL @p geometry fails the same way. Must not be NULL.
+/// @param error_out Written with a Deluge `Error` code (as `uint8_t`): `Error::NONE` on success;
+///                  `Error::BUG` on any refusal -- @p build or @p geometry NULL, @p build already
+///                  consumed, or `geometry->raw_data_format` not one of `RawDataFormat`'s values.
+///                  Every refusal here is a caller-contract violation, not a property of the file (an
+///                  invalid `raw_data_format` cannot arise from a well-behaved parser -- see above),
+///                  so all three share one code rather than pretending to distinguish a file problem
+///                  that cannot occur. May be NULL if the caller does not need the code (the return
+///                  value alone still distinguishes success from refusal).
+/// @return true if the geometry was applied; false if it was refused (see @p error_out).
+bool deluge_audio_load_apply_geometry(DelugeSampleBuild* build, const DelugeAudioLoadGeometry* geometry,
+                                      uint8_t* error_out) DELUGE_NOEXCEPT;
 
 /// @brief Apply the parse result, register the fill context, and publish to the cache. No I/O.
 ///
@@ -253,4 +280,5 @@ bool deluge_audio_load_async_active(void) DELUGE_NOEXCEPT;
 #ifdef __cplusplus
 }
 #endif
+#undef DELUGE_NOEXCEPT
 #endif // LIBDELUGE_AUDIO_LOAD_H

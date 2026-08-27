@@ -37,11 +37,13 @@
 /// untouched.
 
 #include "libdeluge/audio_load.h"
+#include "memory/general_memory_allocator.h" // GeneralMemoryAllocator::resourceManager()
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/wave_table/wave_table.h"
 
 #include "OSLikeStuff/scheduler_api.h" // TaskHandle
+#include "deluge_resource.h"           // DelugeResourceStats, deluge_resource_stats(_reset)
 #include "libdeluge/system.h"          // deluge_platform_init
 
 #include <array>
@@ -281,10 +283,11 @@ bool checkProposeLoadCandidates() {
 	return ok;
 }
 
-/// Pin the C ABI build's ownership contract (libdeluge/audio_load.h): abandoning a build must not
-/// publish it, and must not leave it sitting in the manager half-built (adopted, reasoned, zero
-/// geometry) -- see deluge_audio_load_begin's doc comment. No I/O, no card fixture: exercises
-/// deluge_audio_load_begin/_abandon directly.
+/// Pin the C ABI build's contracts (libdeluge/audio_load.h): abandoning a build must not publish it,
+/// and must not leave it sitting in the manager half-built (adopted, reasoned, zero geometry) -- see
+/// deluge_audio_load_begin's doc comment; apply_geometry() must refuse an invalid raw_data_format
+/// rather than silently accept it. No I/O, no card fixture: exercises deluge_audio_load_begin/_abandon/
+/// _apply_geometry directly.
 bool checkAudioLoadAbiAbandon() {
 	bool ok = true;
 
@@ -308,20 +311,69 @@ bool checkAudioLoadAbiAbandon() {
 		}
 	}
 
-	// abandon() must actually release the adopted resource-manager chunk, not just free the
-	// BuildHandle wrapper: loop begin/abandon well past this host build's chunk-table capacity
-	// (slabCapacity + kAssetCap; on the order of a few thousand for the 64 MiB host SDRAM region --
-	// see GeneralMemoryAllocator::ensureClusterSystem()). Nothing here touches cluster data, so a
-	// correct abandon() frees and reuses the same handful of slots every iteration and this stays
-	// fast regardless of the loop count. A leaking abandon() (e.g. one that only freed the wrapper and
-	// forgot to release the Sample) would instead exhaust the table: the next begin()'s adopt hits
-	// AudioFileManager::adoptAudioFileObject's FREEZE_WITH_ERROR("RAF1") -- a hard, unmistakable crash
-	// (logged, then a null-display-pointer fault in this no-boot mode) rather than a silent pass. This
-	// is deliberately a crash-on-leak test, not a clean assertion: there is no cheaper way to observe
-	// "is this chunk still resident" through the public C ABI (DelugeResourceStats has no live-count
-	// field; its `evictions` counter isn't even incremented by the explicit evict_chunk() path this
-	// goes through, only by pressure-driven eviction).
+	// apply_geometry() refuses an invalid raw_data_format (rather than silently degrading it, which
+	// would publish a sample that renders wrong with no error) and accepts a valid one.
 	{
+		uint8_t error = 0;
+		DelugeSampleBuild* build = deluge_audio_load_begin("TEST/geometry.wav", "", 4096, &error);
+		if (build == nullptr) {
+			printf("FAIL [audioLoadAbiAbandon]: deluge_audio_load_begin (geometry case) returned NULL "
+			       "(error=%u)\n",
+			       error);
+			return false;
+		}
+
+		DelugeAudioLoadGeometry geometry{};
+		geometry.raw_data_format = 200; // not one of RawDataFormat's 0..5 values
+		uint8_t geometryError = 0;
+		const bool acceptedInvalid = deluge_audio_load_apply_geometry(build, &geometry, &geometryError);
+		if (acceptedInvalid || geometryError != static_cast<uint8_t>(Error::BUG)) {
+			printf("FAIL [audioLoadAbiAbandon]: apply_geometry() accepted an invalid raw_data_format=200 "
+			       "(accepted=%d error=%u)\n",
+			       acceptedInvalid, geometryError);
+			ok = false;
+		}
+
+		geometry.raw_data_format = 0; // RawDataFormat::NATIVE -- valid
+		geometryError = 0;
+		const bool acceptedValid = deluge_audio_load_apply_geometry(build, &geometry, &geometryError);
+		if (!acceptedValid || geometryError != static_cast<uint8_t>(Error::NONE)) {
+			printf("FAIL [audioLoadAbiAbandon]: apply_geometry() refused a valid raw_data_format=0 "
+			       "(accepted=%d error=%u)\n",
+			       acceptedValid, geometryError);
+			ok = false;
+		}
+
+		deluge_audio_load_abandon(build);
+	}
+
+	// abandon() must actually release the adopted resource-manager chunk, not just free the
+	// BuildHandle wrapper. Two complementary checks catch two different leak SHAPES a buggy abandon()
+	// could take -- neither alone is sufficient:
+	//
+	//  (a) A leak that keeps the chunk LEASED (e.g. abandon() forgets to release the reason at all):
+	//      the chunk is never evictable, so churn accumulates them forever and the table genuinely
+	//      fills. Caught by the crash loop below -- the next begin()'s adopt eventually hits
+	//      AudioFileManager::adoptAudioFileObject's FREEZE_WITH_ERROR("RAF1") (logged, then a
+	//      null-display-pointer fault in this no-boot mode): a hard, unmistakable crash rather than a
+	//      silent pass.
+	//  (b) A leak that drops the lease but never actually destroys the object (e.g. abandon() calls
+	//      removeReason() but not destroyAudioFileObject()): the chunk sits adopted but UNLEASED, so
+	//      it stays evictable, and deluge_resource_adopt's own table-full path silently reclaims it
+	//      via evict_lowest() (manager.rs) when room is needed. The crash loop above would then never
+	//      fail -- begin() just keeps succeeding as old leaked chunks get quietly evicted to make
+	//      room -- so it is blind to this shape. evict_lowest() DOES bump `DelugeResourceStats.
+	//      evictions` (manager.rs:1054) even though the deliberate evict_chunk() a correct abandon()
+	//      goes through does not (manager.rs:1296-1312) -- so a correct run should see zero evictions
+	//      here (nothing in this test creates real memory pressure), and a stats reset immediately
+	//      before the loop plus an `evictions == 0` assertion immediately after catches shape (b)
+	//      without needing a live chunk-count query the public C ABI doesn't expose.
+	{
+		DelugeResource* mgr = GeneralMemoryAllocator::get().resourceManager();
+		if (mgr != nullptr) {
+			deluge_resource_stats_reset(mgr);
+		}
+
 		constexpr int kIterations = 20000;
 		for (int i = 0; i < kIterations; i++) {
 			uint8_t error = 0;
@@ -334,6 +386,18 @@ bool checkAudioLoadAbiAbandon() {
 				break;
 			}
 			deluge_audio_load_abandon(build);
+		}
+
+		if (mgr != nullptr) {
+			DelugeResourceStats stats{};
+			deluge_resource_stats(mgr, &stats);
+			if (stats.evictions != 0) {
+				printf("FAIL [audioLoadAbiAbandon]: %llu pressure-driven eviction(s) during begin/abandon "
+				       "churn that should never have needed any -- abandon() is likely dropping the lease "
+				       "without destroying the object (shape (b) above)\n",
+				       static_cast<unsigned long long>(stats.evictions));
+				ok = false;
+			}
 		}
 	}
 

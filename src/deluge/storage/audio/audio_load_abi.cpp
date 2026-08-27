@@ -26,7 +26,11 @@
 /// (operators.cpp), and letting that (or anything else) unwind out of an `extern "C"` frame into the
 /// Rust caller on the other side of this boundary is undefined behaviour -- on this target it
 /// presents as `std::terminate()` aborting silently, i.e. an unexplained device death with no error
-/// message. Each function catches locally and degrades to a safe return instead.
+/// message. Each function catches with `catch (...)`, not just `deluge::exception` -- the repo's own
+/// allocators only ever throw that, but anything else escaping would be the exact silent-terminate()
+/// outcome this exists to prevent -- and degrades to a safe return instead. Where a catch handler
+/// itself calls back into C++ (deluge_audio_load_begin's cleanup path), that call is wrapped in its
+/// own nested try/catch so a second exception can't escape either.
 
 #include "libdeluge/audio_load.h"
 
@@ -34,12 +38,12 @@
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file_format.h" // RawDataFormat
 #include "storage/audio/audio_file_manager.h"
-#include "util/exceptions.h" // deluge::exception
-#include "util/misc.h"       // util::to_underlying
+#include "util/misc.h" // util::to_underlying
 
 #include <algorithm>
 #include <cstdio>
 #include <memory>
+#include <optional>
 #include <string>
 
 static_assert(DELUGE_MAX_PATH == kFilenameBufferSize,
@@ -206,6 +210,53 @@ Error errorFromByte(uint8_t v) noexcept {
 	}
 }
 
+/// Never called; exists only to be COMPILED. An exhaustive switch over `Error` ITSELF (not the byte
+/// crossing the boundary) with no `default` case: this repo builds with `-Werror=switch`
+/// (CMakeLists.txt), so the compiler refuses to build the moment a new `Error` enumerator is added
+/// upstream and not listed here. This is the count-completeness half the per-value static_asserts
+/// above cannot provide alone -- they stay green if a value is simply APPENDED, since errorFromByte's
+/// `default` would just keep degrading the new byte to `Error::UNSPECIFIED` without anyone noticing.
+[[maybe_unused]] constexpr void errorEnumerationIsComplete(Error e) noexcept {
+	switch (e) {
+	case Error::NONE:
+	case Error::INSUFFICIENT_RAM:
+	case Error::UNSPECIFIED:
+	case Error::SD_CARD:
+	case Error::NO_FURTHER_PRESETS:
+	case Error::FILE_CORRUPTED:
+	case Error::FILE_UNREADABLE:
+	case Error::FILE_UNSUPPORTED:
+	case Error::FILE_FIRMWARE_VERSION_TOO_NEW:
+	case Error::RESULT_TAG_UNUSED:
+	case Error::FOLDER_DOESNT_EXIST:
+	case Error::WRITE_PROTECTED:
+	case Error::BUG:
+	case Error::WRITE_FAIL:
+	case Error::FILE_TOO_BIG:
+	case Error::PRESET_IN_USE:
+	case Error::NO_FURTHER_FILES_THIS_DIRECTION:
+	case Error::FILE_ALREADY_EXISTS:
+	case Error::FILE_NOT_FOUND:
+	case Error::ABORTED_BY_USER:
+	case Error::MAX_FILE_SIZE_REACHED:
+	case Error::SD_CARD_FULL:
+	case Error::FILE_NOT_LOADABLE_AS_WAVETABLE:
+	case Error::FILE_NOT_LOADABLE_AS_WAVETABLE_BECAUSE_STEREO:
+	case Error::NO_FURTHER_DIRECTORY_LEVELS_TO_GO_UP:
+	case Error::NO_ERROR_BUT_GET_OUT:
+	case Error::INSUFFICIENT_RAM_FOR_FOLDER_CONTENTS_SIZE:
+	case Error::SD_CARD_NOT_PRESENT:
+	case Error::SD_CARD_NO_FILESYSTEM:
+	case Error::INVALID_PATTERN_VERSION:
+	case Error::OUT_OF_BUFFER_SPACE:
+	case Error::INVALID_SYSEX_FORMAT:
+	case Error::POS_PAST_STRING:
+	case Error::FILE_NOT_SAVED:
+	case Error::TOO_MANY_OPEN_STREAMS:
+		break;
+	}
+}
+
 static_assert(util::to_underlying(RawDataFormat::NATIVE) == 0);
 static_assert(util::to_underlying(RawDataFormat::FLOAT) == 1);
 static_assert(util::to_underlying(RawDataFormat::UNSIGNED_8) == 2);
@@ -214,9 +265,12 @@ static_assert(util::to_underlying(RawDataFormat::ENDIANNESS_WRONG_24) == 4);
 static_assert(util::to_underlying(RawDataFormat::ENDIANNESS_WRONG_32) == 5);
 
 /// Map a byte crossing the ABI to `RawDataFormat` by number -- see errorFromByte's doc comment for
-/// why never `static_cast`. An out-of-range byte degrades to `RawDataFormat::NATIVE` (a no-op
-/// convert), matching `raw_data_format_from_u8`'s fallback on the Rust side.
-RawDataFormat rawDataFormatFromByte(uint8_t v) noexcept {
+/// why never `static_cast`. Unlike errorFromByte, an out-of-range byte here is REFUSED (empty
+/// `optional`), not degraded to a default: this is one geometry field the synchronous path can never
+/// receive out of range (`AudioFile::loadFile` assigns a `RawDataFormat` straight from the parser, so
+/// an invalid value cannot arise there), and silently accepting a bad one would publish a sample that
+/// renders wrong with no error -- exactly the failure shape this whole boundary exists to avoid.
+std::optional<RawDataFormat> tryRawDataFormatFromByte(uint8_t v) noexcept {
 	switch (v) {
 	case 0:
 		return RawDataFormat::NATIVE;
@@ -231,7 +285,7 @@ RawDataFormat rawDataFormatFromByte(uint8_t v) noexcept {
 	case 5:
 		return RawDataFormat::ENDIANNESS_WRONG_32;
 	default:
-		return RawDataFormat::NATIVE;
+		return std::nullopt;
 	}
 }
 
@@ -246,22 +300,37 @@ extern "C" DelugeSampleBuild* deluge_audio_load_begin(const char* file_path, con
 		const std::string alternate{alternate_path};
 		sample = audioFileManager.beginSampleFromCard(filePath, alternate, size_bytes, &error);
 		if (sample == nullptr) {
-			*error_out = static_cast<uint8_t>(error);
+			if (error_out != nullptr) {
+				*error_out = static_cast<uint8_t>(error);
+			}
 			return nullptr;
 		}
 		auto* handle = new BuildHandle{.sample = sample, .sizeBytes = size_bytes};
-		*error_out = static_cast<uint8_t>(Error::NONE);
+		if (error_out != nullptr) {
+			*error_out = static_cast<uint8_t>(Error::NONE);
+		}
 		return reinterpret_cast<DelugeSampleBuild*>(handle);
-	} catch (const deluge::exception&) {
+	}
+	// Catches EVERYTHING, not just deluge::exception: this repo's own allocators only ever throw
+	// that, but a stray std::length_error out of std::string (or anything else) unwinding out of
+	// this noexcept, extern "C" function is exactly the silent-terminate() outcome this file's
+	// hardening exists to prevent -- a narrower catch would leave that door open.
+	catch (...) {
 		if (sample != nullptr) {
 			// beginSampleFromCard succeeded -- adopting and reasoning `sample` -- before the
 			// allocation that just threw (the BuildHandle wrapper itself). Destroy it the same way
 			// abandon() would, so this doesn't orphan an adopted, reasoned, zero-geometry Sample with
-			// no handle left to close it.
-			Error destroyError = Error::INSUFFICIENT_RAM;
-			(void)audioFileManager.finishSampleFromCard(sample, size_bytes, &destroyError);
+			// no handle left to close it. Nested try: if THIS throws too (e.g. another allocation
+			// failure while destroying), there is nothing further to do safely, so swallow it rather
+			// than let a second exception escape this noexcept function.
+			try {
+				Error destroyError = Error::INSUFFICIENT_RAM;
+				(void)audioFileManager.finishSampleFromCard(sample, size_bytes, &destroyError);
+			} catch (...) {}
 		}
-		*error_out = static_cast<uint8_t>(Error::INSUFFICIENT_RAM);
+		if (error_out != nullptr) {
+			*error_out = static_cast<uint8_t>(Error::INSUFFICIENT_RAM);
+		}
 		return nullptr;
 	}
 }
@@ -270,10 +339,14 @@ extern "C" bool deluge_audio_load_resolve_alternate_dir(uint8_t* error_out) noex
 	try {
 		Error error = Error::NONE;
 		const bool exists = audioFileManager.resolveAlternateLoadDirStatus(&error);
-		*error_out = static_cast<uint8_t>(error);
+		if (error_out != nullptr) {
+			*error_out = static_cast<uint8_t>(error);
+		}
 		return exists;
-	} catch (const deluge::exception&) {
-		*error_out = static_cast<uint8_t>(Error::INSUFFICIENT_RAM);
+	} catch (...) {
+		if (error_out != nullptr) {
+			*error_out = static_cast<uint8_t>(Error::INSUFFICIENT_RAM);
+		}
 		return false;
 	}
 }
@@ -294,7 +367,7 @@ extern "C" uint32_t deluge_audio_load_candidates(const char* file_path, char* ou
 			std::snprintf(out + (i * DELUGE_MAX_PATH), DELUGE_MAX_PATH, "%s", candidates[i].c_str());
 		}
 		return static_cast<uint32_t>(count);
-	} catch (const deluge::exception&) {
+	} catch (...) {
 		return DELUGE_AUDIO_LOAD_CANDIDATES_TRUNCATED; // `out` is not trustworthy either way.
 	}
 }
@@ -309,21 +382,37 @@ extern "C" uint8_t deluge_audio_load_bind_read_stream(DelugeSampleBuild* build, 
 		// handle space from whatever efatfs handle the caller used to read/parse the header) and its
 		// own TOO_MANY_OPEN_STREAMS reclaim retry -- forward to it rather than reimplementing either.
 		return static_cast<uint8_t>(handle->sample->stream().open_read_stream(path));
-	} catch (const deluge::exception&) {
+	} catch (...) {
 		return static_cast<uint8_t>(Error::INSUFFICIENT_RAM);
 	}
 }
 
-extern "C" void deluge_audio_load_apply_geometry(DelugeSampleBuild* build,
-                                                 const DelugeAudioLoadGeometry* geometry) noexcept {
+extern "C" bool deluge_audio_load_apply_geometry(DelugeSampleBuild* build, const DelugeAudioLoadGeometry* geometry,
+                                                 uint8_t* error_out) noexcept {
 	BuildHandle* handle = validateHandle(build);
 	if (handle == nullptr || geometry == nullptr) {
-		return;
+		// A caller bug (invalid/consumed build, or no geometry at all) -- refuse rather than
+		// silently no-op, so the caller cannot go on to `finish` a build nothing was ever written to.
+		if (error_out != nullptr) {
+			*error_out = static_cast<uint8_t>(Error::BUG);
+		}
+		return false;
+	}
+	const std::optional<RawDataFormat> rawDataFormat = tryRawDataFormatFromByte(geometry->raw_data_format);
+	if (!rawDataFormat.has_value()) {
+		// Refuse outright rather than degrade: unlike every other field here, the synchronous path
+		// structurally cannot receive an invalid RawDataFormat (AudioFile::loadFile assigns it
+		// straight from the parser), so accepting one would be the async path inventing a failure
+		// mode -- silent wrong-geometry render -- that has no sync-path analogue at all.
+		if (error_out != nullptr) {
+			*error_out = static_cast<uint8_t>(Error::BUG);
+		}
+		return false;
 	}
 	Sample* s = handle->sample;
 	s->numChannels = geometry->num_channels;
 	s->byteDepth = geometry->byte_depth;
-	s->rawDataFormat = rawDataFormatFromByte(geometry->raw_data_format);
+	s->rawDataFormat = *rawDataFormat;
 	s->sampleRate = geometry->sample_rate;
 	s->audioDataStartPosBytes = geometry->audio_data_start_pos_bytes;
 	s->audioDataLengthBytes = geometry->audio_data_length_bytes;
@@ -333,6 +422,10 @@ extern "C" void deluge_audio_load_apply_geometry(DelugeSampleBuild* build,
 	s->midiNoteFromFile = (geometry->midi_note_present != 0) ? geometry->midi_note_value : -1.0f;
 	s->waveTableCycleSize = geometry->wavetable_cycle_size;
 	s->fileExplicitlySpecifiesSelfAsWaveTable = (geometry->wavetable_explicitly_specifies_self != 0);
+	if (error_out != nullptr) {
+		*error_out = static_cast<uint8_t>(Error::NONE);
+	}
+	return true;
 }
 
 extern "C" bool deluge_audio_load_finish(DelugeSampleBuild* build, uint8_t error_in, uint8_t* error_out) noexcept {
@@ -351,7 +444,7 @@ extern "C" bool deluge_audio_load_finish(DelugeSampleBuild* build, uint8_t error
 	AudioFile* published = nullptr;
 	try {
 		published = audioFileManager.finishSampleFromCard(handle->sample, handle->sizeBytes, &error);
-	} catch (const deluge::exception&) {
+	} catch (...) {
 		error = Error::INSUFFICIENT_RAM;
 		published = nullptr;
 	}
@@ -371,7 +464,7 @@ extern "C" void deluge_audio_load_abandon(DelugeSampleBuild* build) noexcept {
 	try {
 		Error error = Error::FILE_UNREADABLE; // any non-NONE drives finishSampleFromCard's destroy path
 		(void)audioFileManager.finishSampleFromCard(handle->sample, handle->sizeBytes, &error);
-	} catch (const deluge::exception&) {
+	} catch (...) {
 		// Best-effort: if finishSampleFromCard threw mid-destroy, the Sample's exact state is no
 		// longer knowable from here -- but the BuildHandle wrapper itself is still freed either way
 		// (`handle`'s destructor runs regardless of this catch).
