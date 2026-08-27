@@ -21,6 +21,7 @@
 #ifdef __cplusplus
 #include "definitions_cxx.hpp"
 #include "display.h"
+#include "gfx/oled/icons.h"
 #include "oled_canvas/canvas.h"
 #include <sys/types.h>
 #include <vector>
@@ -106,40 +107,40 @@ public:
 	static const uint8_t submenuArrowIcon[];
 	static const uint8_t submenuArrowIconBold[];
 	static const uint8_t metronomeIcon[];
-	static const Icon sineIcon;
-	static const Icon squareIcon;
-	static const Icon sawIcon;
-	static const Icon triangleIcon;
-	static const Icon sampleHoldIcon;
-	static const Icon randomWalkIcon;
-	static const Icon warblerIcon;
-	static const Icon syncTypeEvenIcon;
-	static const Icon syncTypeDottedIcon;
-	static const Icon syncTypeTripletsIcon;
-	static const Icon switcherIconOff;
-	static const Icon switcherIconOn;
-	static const Icon arpModeIconUp;
-	static const Icon arpModeIconUpDown;
-	static const Icon arpModeIconWalk;
-	static const Icon arpModeIconCustom;
-	static const Icon lockedIconBig;
-	static const Icon unlockedIconBig;
-	static const Icon diceIcon;
-	static const Icon directionIcon;
-	static const Icon knobArcIcon;
-	static const Icon infinityIcon;
-	static const Icon sampleIcon;
-	static const Icon wavetableIcon;
-	static const Icon inputIcon;
-	static const Icon micIcon;
-	static const Icon folderIconBig;
-	static const Icon loopPointIcon;
-	static const Icon sampleModeCutIcon;
-	static const Icon sampleModeOnceIcon;
-	static const Icon sampleModeLoopIcon;
-	static const Icon sampleModeStretchIcon;
-	static const Icon keyboardIcon;
-	static const Icon crossedOutKeyboardIcon;
+	static inline const Icon& sineIcon = deluge::gfx::oled::icons::sine;
+	static inline const Icon& squareIcon = deluge::gfx::oled::icons::square;
+	static inline const Icon& sawIcon = deluge::gfx::oled::icons::saw;
+	static inline const Icon& triangleIcon = deluge::gfx::oled::icons::triangle;
+	static inline const Icon& sampleHoldIcon = deluge::gfx::oled::icons::sampleHold;
+	static inline const Icon& randomWalkIcon = deluge::gfx::oled::icons::randomWalk;
+	static inline const Icon& warblerIcon = deluge::gfx::oled::icons::warbler;
+	static inline const Icon& syncTypeEvenIcon = deluge::gfx::oled::icons::syncTypeEven;
+	static inline const Icon& syncTypeDottedIcon = deluge::gfx::oled::icons::syncTypeDotted;
+	static inline const Icon& syncTypeTripletsIcon = deluge::gfx::oled::icons::syncTypeTriplets;
+	static inline const Icon& switcherIconOff = deluge::gfx::oled::icons::switcherOff;
+	static inline const Icon& switcherIconOn = deluge::gfx::oled::icons::switcherOn;
+	static inline const Icon& arpModeIconUp = deluge::gfx::oled::icons::arpModeUp;
+	static inline const Icon& arpModeIconUpDown = deluge::gfx::oled::icons::arpModeUpDown;
+	static inline const Icon& arpModeIconWalk = deluge::gfx::oled::icons::arpModeWalk;
+	static inline const Icon& arpModeIconCustom = deluge::gfx::oled::icons::arpModeCustom;
+	static inline const Icon& lockedIconBig = deluge::gfx::oled::icons::lockedBig;
+	static inline const Icon& unlockedIconBig = deluge::gfx::oled::icons::unlockedBig;
+	static inline const Icon& diceIcon = deluge::gfx::oled::icons::dice;
+	static inline const Icon& directionIcon = deluge::gfx::oled::icons::direction;
+	static inline const Icon& knobArcIcon = deluge::gfx::oled::icons::knobArc;
+	static inline const Icon& infinityIcon = deluge::gfx::oled::icons::infinity;
+	static inline const Icon& sampleIcon = deluge::gfx::oled::icons::sample;
+	static inline const Icon& wavetableIcon = deluge::gfx::oled::icons::wavetable;
+	static inline const Icon& inputIcon = deluge::gfx::oled::icons::input;
+	static inline const Icon& micIcon = deluge::gfx::oled::icons::mic;
+	static inline const Icon& folderIconBig = deluge::gfx::oled::icons::folderBig;
+	static inline const Icon& loopPointIcon = deluge::gfx::oled::icons::loopPoint;
+	static inline const Icon& sampleModeCutIcon = deluge::gfx::oled::icons::sampleModeCut;
+	static inline const Icon& sampleModeOnceIcon = deluge::gfx::oled::icons::sampleModeOnce;
+	static inline const Icon& sampleModeLoopIcon = deluge::gfx::oled::icons::sampleModeLoop;
+	static inline const Icon& sampleModeStretchIcon = deluge::gfx::oled::icons::sampleModeStretch;
+	static inline const Icon& keyboardIcon = deluge::gfx::oled::icons::keyboard;
+	static inline const Icon& crossedOutKeyboardIcon = deluge::gfx::oled::icons::crossedOutKeyboard;
 
 	void removeWorkingAnimation() override;
 	void timerRoutine() override;

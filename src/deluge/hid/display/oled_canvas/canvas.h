@@ -19,6 +19,7 @@
 
 #include "definitions.h"
 #include "deluge/util/c_string.h"
+#include "gfx/oled/icon.h"
 #include "util/etl_string.h"
 #include <cstring>
 #include <functional>
@@ -28,12 +29,7 @@
 namespace deluge::hid::display {
 class OLED;
 
-struct Icon {
-	const uint8_t* data;
-	uint8_t width;
-	uint8_t height;
-	uint8_t numBytesTall;
-};
+using Icon = deluge::gfx::oled::Icon;
 
 namespace oled_canvas {
 

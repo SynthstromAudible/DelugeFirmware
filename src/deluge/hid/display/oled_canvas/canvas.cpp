@@ -639,7 +639,7 @@ void Canvas::drawGraphicMultiLine(uint8_t const* graphic, int32_t startX, int32_
 }
 
 void Canvas::drawIcon(const Icon& icon, int32_t x, int32_t y, bool reversed) {
-	drawGraphicMultiLine(icon.data, x, y, icon.width, icon.height, icon.numBytesTall, reversed);
+	drawGraphicMultiLine(icon.data, x, y, icon.width, icon.height, icon.num_bytes_tall, reversed);
 }
 void Canvas::drawIconCentered(const Icon& icon, int32_t startX, int32_t totalWidth, int32_t y, bool reversed) {
 	int32_t padding = (totalWidth - icon.width) >> 1;
