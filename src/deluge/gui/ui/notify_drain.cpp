@@ -37,6 +37,9 @@ void drain_notifications() {
 		// raise(Dirty::PlaybackState) alone can't reproduce them -- re-dispatch on the edge here,
 		// before any redraw below runs.
 		if (d.has(Dirty::PlaybackState)) {
+			// Every playback start/stop raises PlaybackState unconditionally (playback_handler.cpp
+			// setupPlayback()/endPlayback()) -- that contract is what lets this edge detector arm
+			// reliably; the on-screen guard belongs only here, on the re-dispatch below.
 			static bool was_playing = false;
 			const bool playing = playbackHandler.playbackState != 0;
 			if (playing != was_playing) {

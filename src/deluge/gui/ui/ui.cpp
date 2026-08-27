@@ -373,8 +373,6 @@ void doAnyPendingOLEDRendering() {
 bool pendingUIRenderingLock = false;
 
 void doAnyPendingUIRendering() {
-	drain_notifications();
-
 	if (pendingUIRenderingLock) {
 		return; // There's no point going in here multiple times inside each other
 	}
@@ -384,6 +382,12 @@ void doAnyPendingUIRendering() {
 	}
 
 	pendingUIRenderingLock = true;
+
+	// Still the first thing done under the lock: the drain can perform real UI mutation (playback
+	// hook re-dispatch, mod-target refresh, popups, tick-square clears), so it must run before any
+	// legacy rendering below -- and now that it's inside the lock, a render it triggers can't
+	// re-enter this function and drain a second time within the same pass.
+	drain_notifications();
 
 	doAnyPendingGridRendering();
 	doAnyPendingOLEDRendering();

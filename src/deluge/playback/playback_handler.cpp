@@ -559,13 +559,11 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 	playbackState = newPlaybackState;
 	cvEngine.playbackBegun(); // Call this *after* playbackState is set. If there's a count-in, nothing will happen
 
-	// make exception for note / note row editor because we want to be able to hear note changes
-	bool inNoteOrNoteRowEditor =
-	    getCurrentUI() == &soundEditor && (soundEditor.inNoteEditor() || soundEditor.inNoteRowEditor());
-
-	if (getRootUI() && ((getCurrentUI() == getRootUI()) || inNoteOrNoteRowEditor)) {
-		deluge::notify::raise(deluge::notify::Dirty::PlaybackState);
-	}
+	// Raise unconditionally -- notify_drain.cpp re-evaluates the on-screen guard (root UI, or the
+	// note / note-row editor exception) when it re-dispatches notifyPlaybackBegun(), so this side
+	// must not gate the raise itself. A guarded raise here left `was_playing` unarmed whenever
+	// playback started off the root UI, silently losing the paired playbackEnded() dispatch later.
+	deluge::notify::raise(deluge::notify::Dirty::PlaybackState);
 
 	currentPlaybackMode->setupPlayback(); // This doesn't call the audio routine
 
@@ -645,10 +643,7 @@ void PlaybackHandler::endPlayback() {
 			recording = RecordingMode::OFF;
 			view.setModLedStates();
 		}
-
-		if (currentSong && getRootUI()) {
-			deluge::notify::raise(deluge::notify::Dirty::PlaybackState);
-		}
+		// PlaybackState was already raised unconditionally above (:626); no need to raise it again here.
 	}
 
 	if (currentVisualCountForCountIn) {
