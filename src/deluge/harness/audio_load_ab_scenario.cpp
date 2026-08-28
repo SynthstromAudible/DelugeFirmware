@@ -132,6 +132,20 @@ int32_t g_deferralsTotal = 0;
 /// tighten the admission rule so `both2` declines and the candidate-ORDER property disappears from
 /// the gate silently. Per-case counts are what make that visible.
 std::array<int32_t, kCases.size()> g_deferralsByCase{};
+/// The index of `selfdir` in kCases, whose one property is checked absolutely below.
+constexpr size_t kSelfdirIndex = 3;
+/// What `selfdir` recorded in `loadedFromAlternatePath`.
+///
+/// The diffed AB-CASE lines cannot require this. `selfdir`'s winning candidate stringifies to
+/// EXACTLY its nominal path, so "both backings say the same thing" is satisfied just as well by both
+/// saying nothing -- which is what a backing that decided "an alternate won" by comparing paths
+/// rather than by candidate SLOT does. And the case is only meaningful under the promoted
+/// alternate-dir status, so it has to sit after `only_alt` in the list; move it above and the status
+/// is still unresolved, only the regular path is proposed, both backings report an empty alternate,
+/// and the diff still matches with the property gone. An empty value here is what
+/// `save_song_ui.cpp` gates the collect-media copy on: the sample is silently left out of a saved
+/// song's folder.
+std::string g_selfdirAlternatePath{};
 /// In-process assertion failures.
 int32_t g_failures = 0;
 /// Set false by dispatch_step(), true by the dispatched closure on its way out.
@@ -309,6 +323,16 @@ void printSummary() {
 			}
 		}
 	}
+	// Absolute, not comparative: see g_selfdirAlternatePath. Required of BOTH legs, because both
+	// resolve this candidate positionally and a regression in the shared resolver would take the two
+	// of them down together, agreeing perfectly.
+	if (g_selfdirAlternatePath.empty()) {
+		printf("FAIL [audioLoadAB/%s]: the sample living IN the alternate dir recorded no "
+		       "loadedFromAlternatePath -- the winning candidate was read by comparing paths rather than "
+		       "by slot, so a collect-media save would leave it behind\n",
+		       kCases[kSelfdirIndex].label);
+		g_failures++;
+	}
 	if (!active && g_deferralsTotal != 0) {
 		printf("FAIL [audioLoadAB]: the async backing is inactive but %d load(s) reported LOAD_IN_PROGRESS\n",
 		       g_deferralsTotal);
@@ -353,6 +377,10 @@ void runOneStep() {
 	}
 
 	printCaseLine(c, file, error, fileName);
+
+	if (g_caseIndex == kSelfdirIndex && file != nullptr) {
+		g_selfdirAlternatePath = static_cast<Sample&>(*file).loadedFromAlternatePath;
+	}
 
 	if (!checkLoadInvariants(c.label)) {
 		g_failures++;
@@ -528,6 +556,7 @@ void deluge_scenario_audio_load_ab_begin(void) {
 	g_previewRedrives = 0;
 	g_cancelStarted = false;
 	g_cancelTicks = 0;
+	g_selfdirAlternatePath.clear();
 
 	// The preview stage must not start a voice: this harness has no audio path driving it, and the
 	// property under test is that a DEFERRED preview is asked for again, which is upstream of

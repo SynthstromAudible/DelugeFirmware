@@ -1746,6 +1746,23 @@ bool checkAsyncAlternateDirOrder() {
 		ok = false;
 	}
 
+	// The sample that lives IN the alternate directory must be recorded as an alternate hit. Nothing
+	// above can require this: its winning candidate and its nominal path are the SAME string, so
+	// sync/async agreeing about `loadedFromAlternatePath` is satisfied just as well by both leaving
+	// it empty -- which is what a backing that decided "alternate" by comparing paths rather than by
+	// candidate SLOT does, and what makes save_song_ui.cpp skip the collect-media copy and silently
+	// leave the sample out of the saved song's folder. Its position at the end of kFixtureNames
+	// (which it needs, for the promoted alternate-dir status) also puts it past the only other
+	// absolute assertion here, so without this the whole property can be deleted from the fixture
+	// with every check still green.
+	if (asynchronous.size() == std::size(kFixtureNames)
+	    && (!asynchronous[4].loaded || asynchronous[4].loadedFromAlternatePath != "SAMPLES/ALT/SELF.WAV")) {
+		printf("FAIL [asyncAltDirOrder]: the sample living IN the alternate dir was not recorded as an "
+		       "alternate hit (loaded=%d alt=\"%s\") -- a collect-media save would leave it behind\n",
+		       static_cast<int>(asynchronous[4].loaded), asynchronous[4].loadedFromAlternatePath.c_str());
+		ok = false;
+	}
+
 	// A file that opened and failed to parse must be REPORTED, not worked around. Retrying on a parse
 	// verdict would find the good copy in the alternate dir and load THAT -- a different file, reported
 	// as success, where the synchronous path reports the parse error.
