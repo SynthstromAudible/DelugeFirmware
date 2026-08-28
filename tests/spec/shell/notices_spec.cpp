@@ -21,16 +21,27 @@ namespace {
 
 /// @brief A `notify::Notice` with \p text and \p popup_type copied into its own 48-byte buffer,
 ///        of kind \p kind.
-Notice make_notice(Notice::Kind kind, std::string_view text = {}, uint8_t popup_type = 0, int16_t error_code = 0) {
+Notice make_notice(Notice::Kind kind, std::string_view text = {}, uint8_t popup_type = 0, int16_t error_code = 0,
+                   Notice::Severity severity = Notice::Severity::Info) {
 	Notice n{};
 	n.kind = kind;
 	n.popup_type = popup_type;
 	n.error_code = error_code;
+	n.severity = severity;
 	const size_t len = std::min(text.size(), sizeof(n.text) - 1);
 	std::memcpy(n.text, text.data(), len);
 	n.text[len] = '\0';
 	return n;
 }
+
+/// Legacy's `Error::NONE`/`Error::ABORTED_BY_USER`, mirrored numerically on the same terms as
+/// `notices.cpp`'s own `kErrorNone`/`kErrorAbortedByUser` (see that file's citation of
+/// `definitions_cxx.hpp:455,474`) -- kept as a separate copy here rather than reused from
+/// `notices.cpp`'s anonymous namespace, so the spec pins the *values* `Notices::drain` is
+/// contractually bound to suppress, not merely whatever constant the implementation happens to
+/// define.
+constexpr int16_t kErrorNone = 0;
+constexpr int16_t kErrorAbortedByUser = 19;
 
 /// @brief A board profile with fixed `text`/`error_text` lookups, so `Notices::drain` has
 ///        something to resolve string/error ids through without reaching into l10n or `Error`.
@@ -122,6 +133,65 @@ describe shell_notices("shell::Notices", $ {
 		expect(general.pbm() == notification.pbm()).to_be_false();
 	});
 
+	it("Error suppresses NONE and ABORTED_BY_USER, exactly as OLED::displayError does", _ {
+		// oled.cpp:1173-1180: `switch (error) { case Error::NONE: case Error::ABORTED_BY_USER:
+		// return; ... }` -- displayPopup is never reached for either code.
+		Rig r;
+		(void)r.queue.push(make_notice(Notice::Kind::Error, {}, /*popup_type=*/0, kErrorNone));
+		r.notices.drain(r.queue, 0);
+		expect(r.stack.depth()).to_equal(size_t(0));
+
+		(void)r.queue.push(make_notice(Notice::Kind::Error, {}, /*popup_type=*/0, kErrorAbortedByUser));
+		r.notices.drain(r.queue, 0);
+		expect(r.stack.depth()).to_equal(size_t(0));
+
+		// A code that is neither still shows, through the same profile.error_text lookup.
+		(void)r.queue.push(make_notice(Notice::Kind::Error, {}, /*popup_type=*/0, /*error_code=*/7));
+		r.notices.drain(r.queue, 0);
+		expect(r.stack.top().kind() == SceneKind::Popup).to_be_true();
+		expect(std::string(r.notices.last_popup_text())).to_equal(std::string("ERROR TEXT"));
+	});
+
+	it("a Warn text notice is persistent; a later notice replaces it and re-arms the timeout", _ {
+		// notify_drain.cpp:137 (`flashes = (severity == Warn) ? 0 : 3`) feeds
+		// OLED::displayPopup's `persistent = !numFlashes` (oled.h:156), so a Warn text notice
+		// never sets TimerName::DISPLAY (oled.cpp:642) and so never auto-expires.
+		Rig r;
+		(void)r.queue.push(make_notice(Notice::Kind::Text, "WARNING", 0, 0, Notice::Severity::Warn));
+		r.notices.drain(r.queue, 0);
+		expect(r.stack.top().kind() == SceneKind::Popup).to_be_true();
+		expect(std::string(r.notices.last_popup_text())).to_equal(std::string("WARNING"));
+
+		// Stays up across a tick far past the ordinary (non-persistent) timeout.
+		r.notices.tick(r.notices.timeout_for(1) * 100, 0);
+		expect(r.stack.top().kind() == SceneKind::Popup).to_be_true();
+		expect(std::string(r.notices.last_popup_text())).to_equal(std::string("WARNING"));
+
+		// A later, non-persistent notice replaces it and re-arms the ordinary timeout -- no
+		// special "cancel persistence" step, exactly as legacy's OLED::popupText unconditionally
+		// re-decides persistence on every call (oled.cpp:636-643).
+		(void)r.queue.push(make_notice(Notice::Kind::Text, "SAVED"));
+		r.notices.drain(r.queue, r.notices.timeout_for(1) * 100);
+		expect(r.stack.depth()).to_equal(size_t(1)); // still just the one popup
+		expect(std::string(r.notices.last_popup_text())).to_equal(std::string("SAVED"));
+
+		const uint32_t now = r.notices.timeout_for(1) * 100;
+		r.notices.tick(now + r.notices.timeout_for(1) + 1, 0);
+		expect(r.stack.top().kind() == SceneKind::Popup).to_be_false(); // expires now that it isn't Warn
+	});
+
+	it("CancelPopup ends a still-persistent (Warn) popup too", _ {
+		Rig r;
+		(void)r.queue.push(make_notice(Notice::Kind::Text, "WARNING", 0, 0, Notice::Severity::Warn));
+		r.notices.drain(r.queue, 0);
+		r.notices.tick(1'000'000, 0); // would never expire on its own
+		expect(r.stack.top().kind() == SceneKind::Popup).to_be_true();
+
+		(void)r.queue.push(make_notice(Notice::Kind::CancelPopup));
+		r.notices.drain(r.queue, 1'000'000);
+		expect(r.stack.top().kind() == SceneKind::Popup).to_be_false();
+	});
+
 	it("Console appends and never occludes; Working arms and ClearWorking pops it", _ {
 		Rig r;
 		expect(r.console.oled_transparent(SurfaceRole::Main)).to_be_true();
@@ -178,16 +248,44 @@ describe shell_notices("shell::Notices", $ {
 	});
 
 	it("renders the popup goldens at both geometries", _ {
+		using deluge::gfx::oled::Size;
+
+		// "SAVED" is five monospaced Apple7 characters: 30px wide, one 9px line -- the same
+		// content size tests/spec/ui/popup_spec.cpp pins its own border assertions against.
+		const Size content{30, 9};
+
 		deluge::ui::test::Rig48 saved48;
 		PopupScene popup48;
 		popup48.show("SAVED", /*popup_type=*/1, 0, 800);
 		popup48.render_oled(SurfaceRole::Main, saved48.frame);
+
+		// Real content, asserted before trusting the golden: the Framed border sits exactly
+		// where deluge::ui::oled::popup_rect_for computes it (mirrors popup_spec.cpp's own technique),
+		// and the canvas is not blank -- so a blind re-record over a broken render (wrong style,
+		// missing text, an empty canvas) cannot pass silently.
+		const auto box48 = deluge::ui::oled::popup_rect_for(saved48.frame, content);
+		const int32_t top48 = saved48.frame.origin.y;
+		expect(saved48.lit(box48.x, top48 + box48.y + 1)).to_be_true();         // left edge
+		expect(saved48.lit(box48.x + box48.w, top48 + box48.y + 1)).to_be_true(); // right edge
+		expect(saved48.lit(box48.x + 1, top48 + box48.y)).to_be_true();         // top edge
+		expect(saved48.lit(box48.x + 1, top48 + box48.y + box48.h)).to_be_true(); // bottom edge
+		expect(saved48.lit(box48.x, top48 + box48.y)).to_be_false();            // corner (SMALL rounding)
+		expect(saved48.pbm() != deluge::ui::test::Rig48{}.pbm()).to_be_true();  // not blank
 		expect_golden(self, "../shell/popup_saved_48.pbm", saved48.pbm());
 
 		deluge::ui::test::Rig64 saved64;
 		PopupScene popup64;
 		popup64.show("SAVED", /*popup_type=*/1, 0, 800);
 		popup64.render_oled(SurfaceRole::Main, saved64.frame);
+
+		const auto box64 = deluge::ui::oled::popup_rect_for(saved64.frame, content);
+		const int32_t top64 = saved64.frame.origin.y;
+		expect(saved64.lit(box64.x, top64 + box64.y + 1)).to_be_true();
+		expect(saved64.lit(box64.x + box64.w, top64 + box64.y + 1)).to_be_true();
+		expect(saved64.lit(box64.x + 1, top64 + box64.y)).to_be_true();
+		expect(saved64.lit(box64.x + 1, top64 + box64.y + box64.h)).to_be_true();
+		expect(saved64.lit(box64.x, top64 + box64.y)).to_be_false();
+		expect(saved64.pbm() != deluge::ui::test::Rig64{}.pbm()).to_be_true();
 		expect_golden(self, "../shell/popup_saved_64.pbm", saved64.pbm());
 
 		// role != Main is a no-op.

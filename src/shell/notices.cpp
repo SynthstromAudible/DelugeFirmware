@@ -45,6 +45,19 @@ inline constexpr uint32_t kPopupTimeoutMs = 800;
 /// recorded above only for provenance.
 inline constexpr uint32_t kConsoleLineMs = 1179;
 
+/// @name Legacy `Error`, mirrored numerically for the two codes `Notices` must suppress
+///
+/// `OLED::displayError` (`oled.cpp:1173-1185`) `return`s before ever calling `displayPopup` for
+/// `Error::NONE`/`Error::ABORTED_BY_USER`. `Error` is declared in `src/definitions_cxx.hpp`
+/// (`:454-488`), which `src/shell` may not include (the same libdeluge-boundary reason
+/// `notices.h`'s `PopupType` mirror documents), so the two codes this case actually tests are
+/// reproduced here by their declaration order instead: `NONE` is the enum's first entry (`:455`)
+/// = 0; `ABORTED_BY_USER` is the twentieth (`:474`, after `NONE` and 18 others) = 19.
+/// @{
+inline constexpr int16_t kErrorNone = 0;
+inline constexpr int16_t kErrorAbortedByUser = 19;
+/// @}
+
 } // namespace
 
 ui::oled::PopupStyle PopupScene::style_for(uint8_t popup_type) {
@@ -129,9 +142,15 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 	while (queue.pop(n)) {
 		switch (n.kind) {
 		case notify::Notice::Kind::Error:
-			// Legacy's `Display::displayError` reaches `displayPopup` with its default
-			// `type = PopupType::GENERAL` (display.h:48-49) -- always General, never
-			// `n.popup_type`.
+			// Legacy's `OLED::displayError` (oled.cpp:1173-1180) shows nothing at all for
+			// Error::NONE/Error::ABORTED_BY_USER -- suppressed here the same way, before ever
+			// resolving error_text or touching the stack.
+			if (n.error_code == kErrorNone || n.error_code == kErrorAbortedByUser) {
+				break;
+			}
+			// Otherwise `displayPopup` runs with its default `type = PopupType::GENERAL`
+			// (display.h:48-49) -- always General, never `n.popup_type` -- and the ordinary
+			// (non-persistent) timeout: `Display::displayError` never reads severity.
 			show_popup(profile_.error_text ? profile_.error_text(n.error_code) : std::string_view{}, kPopupTypeGeneral,
 			           now_ms);
 			break;
@@ -139,7 +158,13 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 			const std::string_view text = n.string_id
 			                                  ? (profile_.text ? profile_.text(n.string_id) : std::string_view{})
 			                                  : std::string_view{n.text};
-			show_popup(text, n.popup_type, now_ms);
+			const uint8_t type = popup_type_of(n.popup_type);
+			// Severity::Warn -> persistent, exactly as legacy's notify_drain.cpp:137
+			// (`flashes = (severity == Warn) ? 0 : 3`) feeds OLED::displayPopup's inline
+			// `persistent = !numFlashes` (oled.h:156), which oled.cpp:642 turns into "never set
+			// the DISPLAY timer" -- everything else keeps the ordinary timeout_for() duration.
+			const uint32_t timeout_ms = n.severity == notify::Notice::Severity::Warn ? 0 : timeout_for(type);
+			show_popup_with_timeout(text, type, now_ms, timeout_ms);
 			break;
 		}
 		case notify::Notice::Kind::Console: {
@@ -171,7 +196,17 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 
 void Notices::show_popup(std::string_view text, uint8_t popup_type, uint32_t now_ms) {
 	const uint8_t type = popup_type_of(popup_type);
-	popup_.show(text, type, now_ms, timeout_for(type));
+	show_popup_with_timeout(text, type, now_ms, timeout_for(type));
+}
+
+void Notices::show_popup_with_timeout(std::string_view text, uint8_t popup_type, uint32_t now_ms, uint32_t timeout_ms) {
+	// `PopupScene::show` fully overwrites text/type/timeout on every call, whatever the previous
+	// call's persistence was -- exactly as legacy's OLED::popupText unconditionally sets or unsets
+	// TimerName::DISPLAY for *this* call (oled.cpp:636-643), never consulting the popup's prior
+	// state. A later non-persistent notice replacing a still-persistent one therefore ends the
+	// persistence the same way legacy does: not by any special "cancel persistence" step, but
+	// because the replacement simply never re-arms it.
+	popup_.show(text, popup_type, now_ms, timeout_ms);
 	if (stack_.top().kind() != SceneKind::Popup) {
 		stack_.push(SceneId{SceneKind::Popup});
 	}

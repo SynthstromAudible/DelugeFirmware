@@ -1,9 +1,9 @@
 #pragma once
 #include "notify/notice_queue.h"
 #include "shell/profile.h"
-#include "shell/router.h"
 #include "shell/scene.h"
 #include "shell/scene_stack.h"
+#include "shell/service.h"
 #include "ui/core/state.h"
 #include "ui/oled/popup.h"
 
@@ -168,23 +168,38 @@ public:
 
 	/// @brief Pop every notice off \p queue and apply it.
 	///
-	/// `Notice::Kind::Error` and `Kind::Text` both resolve to a popup through `show_popup()`
-	/// (`Error` always at `General`, ignoring \p n.popup_type -- legacy's `displayError` reaches
-	/// `displayPopup` with its default `type = GENERAL`, `display.h:48-49`); `Kind::Console`
-	/// appends to the console scene; `Kind::Working`/`Kind::ClearWorking` arm/clear the working
-	/// scene (and push it, on the way up, the first time it is armed); `Kind::CancelPopup` pops
-	/// the popup scene, but only when it is actually the stack's top.
+	/// `Notice::Kind::Error` resolves to a popup through `show_popup()`, always at `General`,
+	/// ignoring \p n.popup_type -- legacy's `displayError` reaches `displayPopup` with its default
+	/// `type = GENERAL` (`display.h:48-49`) -- *unless* \p n.error_code is legacy's `Error::NONE`
+	/// or `Error::ABORTED_BY_USER`, which `OLED::displayError` (`oled.cpp:1173-1180`) suppresses
+	/// entirely (`return;` before ever reaching `displayPopup`); this drops the notice the same
+	/// way, showing nothing. `Kind::Text` also resolves to a popup, but not always through the
+	/// plain `show_popup()` path: legacy's `notify_drain.cpp:137` computes
+	/// `flashes = (severity == Warn) ? 0 : 3`, and `OLED::displayPopup`'s inline body
+	/// (`oled.h:156`) turns that into `persistent = !numFlashes`, so a `Severity::Warn` text notice
+	/// is persistent (`oled.cpp:642`, `unsetTimer(TimerName::DISPLAY)`) while every other severity
+	/// gets the ordinary `timeout_for()` duration (`oled.cpp:637`) -- this drains that distinction
+	/// through to `PopupScene::show`'s own `timeout_ms == 0` persistence, via the private helper
+	/// `show_popup_with_timeout()` both this case and the public `show_popup()` below share.
+	/// `Kind::Console` appends to the console scene; `Kind::Working`/`Kind::ClearWorking` arm/clear
+	/// the working scene (and push it, on the way up, the first time it is armed);
+	/// `Kind::CancelPopup` pops the popup scene, but only when it is actually the stack's top --
+	/// including a still-persistent one, exactly as legacy's `cancelPopup()`/`removePopup()`
+	/// (`oled.cpp:253-260`) does not consult the timer state either.
 	/// @param queue  The notice queue to drain.
 	/// @param now_ms The tick's wall clock.
 	void drain(notify::NoticeQueue& queue, uint32_t now_ms);
 
-	/// @brief Show (or update) the popup scene, computing its timeout from \p popup_type.
+	/// @brief Show (or update) the popup scene at the ordinary (non-persistent) timeout computed
+	///        from \p popup_type.
 	///
-	/// The shared path `drain()` uses for `Error`/`Text` notices, and also the path the shell
-	/// (outside this class) is meant to call from a `Router::pending_popup_string()`/
-	/// `pending_popup_type()` pair once it has resolved the string id through the profile --
-	/// `Action::Kind::Popup` and `Notice::Kind::Text` both end up drawing the same popup, through
-	/// the same call.
+	/// The path the shell (outside this class) is meant to call from a
+	/// `Router::pending_popup_string()`/`pending_popup_type()` pair once it has resolved the
+	/// string id through the profile -- `Action::Kind::Popup` and a non-`Warn` `Notice::Kind::Text`
+	/// both end up drawing the same popup, through the same underlying mechanism
+	/// (`show_popup_with_timeout()`). `drain()`'s `Kind::Text` case does **not** call this
+	/// overload -- it calls `show_popup_with_timeout()` directly, so it can pass 0 for a `Warn`
+	/// notice instead of always computing `timeout_for(popup_type)` -- see `drain()`'s own doc.
 	///
 	/// If the popup scene is already the stack's top, this only replaces its text/type/timeout
 	/// (no second push); otherwise it pushes the popup scene first.
@@ -224,6 +239,17 @@ public:
 	const char* last_popup_text() const { return popup_.text(); }
 
 private:
+	/// @brief The body both `show_popup()` and `drain()`'s `Kind::Text` case share: show \p text
+	///        at \p popup_type with an explicit \p timeout_ms (0 = persistent, per
+	///        `PopupScene::show`), pushing the popup scene only if it is not already the stack's
+	///        top.
+	/// @param text       The resolved text to show.
+	/// @param popup_type The legacy `PopupType` value, already folded (0 -> `General`) by the
+	///                    caller.
+	/// @param now_ms     The tick's wall clock.
+	/// @param timeout_ms How long the popup should stay up; 0 for a persistent (`Warn`) notice.
+	void show_popup_with_timeout(std::string_view text, uint8_t popup_type, uint32_t now_ms, uint32_t timeout_ms);
+
 	SceneStack& stack_;
 	const BoardProfile& profile_;
 	PopupScene& popup_;
