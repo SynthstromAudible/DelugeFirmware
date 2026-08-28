@@ -24,6 +24,7 @@
 #include "gui/views/instrument_clip_view.h"        // fileBrowserShouldNotPreview
 #include "gui/waveform/waveform_basic_navigator.h" // proof the preview actually DREW
 #include "harness/load_invariants.h"               // checkLoadInvariants -- shared with deluge_loadcheck
+#include "io/file.hpp"                             // the card swap's unlink + rename
 #include "libdeluge/audio_load.h"                  // deluge_audio_load_async_active
 #include "model/sample/sample.h"
 #include "storage/audio/audio_file_manager.h"
@@ -220,8 +221,84 @@ constexpr const char* kCancelPath = "SAMPLES/CANCEL.WAV";
 /// several times over — a healthy load takes one or two dispatch round trips.
 constexpr int32_t kCancelTicks = 64;
 
-/// Which stage `dispatch_step` is in.
-enum class Stage : uint8_t { Cases, Preview, Cancel, Done };
+// ── The card-ejection stage ─────────────────────────────────────────────────
+//
+// Everything the async loader holds is keyed by the nominal PATH, and a
+// DelugeAudioLoadResult records nothing about which card produced it. So a header
+// parsed from one card and collected after another has been inserted binds the
+// NEW card's file (deluge_audio_load_bind_read_stream opens the path) to the OLD
+// card's geometry (deluge_audio_load_apply_geometry writes the numbers the result
+// carries). It loads clean, reports no error, and plays the wrong thing.
+//
+// This stage reproduces exactly that sequence and requires it NOT to happen:
+//
+//   1. Ask for kSwapPath once. On the async leg that queues a request and returns
+//      LOAD_IN_PROGRESS; the stage then stops asking, so the result the loader
+//      produces sits in its table UNCOLLECTED -- which is the state the hazard
+//      needs and which no other stage here ever creates.
+//   2. Drive kWitnessPath until it lands. The loader drains its queue in order and
+//      kWitnessPath was queued SECOND, so a collected witness is positive proof
+//      that kSwapPath's result has been published. That is what makes this stage
+//      deterministic rather than a fixed sleep hoping the parse finished.
+//   3. Eject: AudioFileManager::setCardEjected(), which is where the flush lives.
+//   4. Put a DIFFERENT file at the same path, and re-insert
+//      (reinitEjectedCard() -> deluge_efatfs_remount() -> cardReinserted()).
+//   5. Ask for kSwapPath again. It must come back with the NEW file's geometry.
+//
+// MODELLING NOTE, and it is the honest limit of this fixture: step 4 changes the
+// file at the path through the filesystem (unlink + rename), not by swapping the
+// block device underneath. The host BSP has no card-swap primitive to use instead
+// -- `deluge_bsp::sd`'s host stand-in opens ONE backing file for the whole process
+// lifetime behind a `OnceLock` and hard-codes `is_inserted()` to true, so there is
+// no image to exchange and no card-detect edge to inject without editing the
+// out-of-tree deluge-sdk BSP. What the code under test sees is identical either
+// way: it keyed a result by a path, and the file at that path is now a different
+// file. The eject/re-insert edges themselves ARE driven, through the same
+// setCardEjected()/reinitEjectedCard() pair slowRoutine() drives on the device.
+
+/// The file whose identity changes across the ejection.
+constexpr const char* kSwapPath = "SAMPLES/SWAP.WAV";
+/// The "other card's" version of it, staged elsewhere and moved into place at the swap.
+constexpr const char* kSwapReplacementPath = "SAMPLES/SWAPB.WAV";
+/// The file whose arrival proves kSwapPath's result has been published. Queued
+/// second, drained second -- see the block comment above.
+constexpr const char* kWitnessPath = "SAMPLES/WITNESS.WAV";
+
+// The replacement file's geometry, asserted ABSOLUTELY rather than only diffed.
+// The diff alone would not be enough on its own: a defect that fed BOTH legs the
+// stale result would agree perfectly. These numbers differ from the pre-swap
+// file's in both fields (1 channel/2 bytes there, 2/3 here), so a stale geometry
+// cannot coincide with a correct one.
+constexpr uint8_t kSwapReplacementChannels = 2;
+constexpr uint8_t kSwapReplacementByteDepth = 3;
+constexpr uint32_t kSwapReplacementDataLength = 6144;
+
+/// Ticks either half of this stage may take before it is called wedged. Same
+/// generosity as the other stages: a healthy load takes one or two.
+constexpr int32_t kMaxEjectTicks = 2000;
+
+/// Where `runOneEjectTick` is in the sequence above.
+enum class EjectStep : uint8_t { Request, AwaitWitness, Swap, Collect, Finished };
+EjectStep g_ejectStep = EjectStep::Request;
+/// Ticks spent in the current step.
+int32_t g_ejectTicks = 0;
+/// Deferrals seen while re-collecting kSwapPath AFTER the swap.
+///
+/// The single most direct witness this gate has that the flush ran. With it, the
+/// post-swap collect reports UNKNOWN, re-requests, and therefore defers at least
+/// once; without it, the stale result is READY on the very first ask and this
+/// stays zero. Asserted on the async leg.
+int32_t g_ejectCollectDeferrals = 0;
+/// Set if the swap itself could not be performed, so a stage that never created
+/// the hazard cannot report having survived it.
+bool g_ejectSwapFailed = false;
+/// Whether the pre-eject request ever deferred on the async leg -- i.e. whether
+/// there was an uncollected result to go stale at all.
+int32_t g_ejectRequestDeferrals = 0;
+
+/// Which stage `dispatch_step` is in, in order. `Eject` sits between the case list and the
+/// browser-driven stages deliberately — see runOneStep()'s hand-off for why it cannot follow them.
+enum class Stage : uint8_t { Cases, Eject, Preview, Cancel, Done };
 Stage g_stage = Stage::Cases;
 /// Whether previewFile() has been called. It is called exactly once.
 bool g_previewStarted = false;
@@ -270,16 +347,22 @@ uint32_t streamFingerprint(Sample& s, bool& readable) {
 	return crc32(probe.data(), probe.size());
 }
 
-/// Print one case's whole outcome as a single stable, diffable line.
+/// Print one load's whole outcome as a single stable, diffable line.
 ///
 /// Every field here must match between the two builds. Nothing that legitimately differs between
 /// them (deferral counts, which backing ran, timings, pointers) appears on this line — those go to
 /// `AB-SUMMARY`, which the diff does not cover.
-void printCaseLine(const Case& c, AudioFile* file, Error error, const std::string& fileNameAfter) {
+///
+/// @param tag   The line prefix, which is also what the gate script diffs on: `AB-CASE` for the case
+///              list, `AB-EJECT` for the card-swap stage. Kept separate rather than folding the swap
+///              into `kCases` because the two are counted independently — `MIN_CASES` guards the
+///              case list against being quietly shrunk, and a swap line inflating that count would
+///              hide exactly the shrink it exists to catch.
+/// @param label Short, stable, and independent of the path.
+void printCaseLine(const char* tag, const char* label, AudioFile* file, Error error, const std::string& fileNameAfter) {
 	if (file == nullptr) {
-		printf("AB-CASE %-9s | error=%d | file=none | asked=\"%s\" | altDirStatus=%d\n", c.label,
-		       static_cast<int>(error), fileNameAfter.c_str(),
-		       static_cast<int>(audioFileManager.alternateLoadDirStatus));
+		printf("%s %-9s | error=%d | file=none | asked=\"%s\" | altDirStatus=%d\n", tag, label, static_cast<int>(error),
+		       fileNameAfter.c_str(), static_cast<int>(audioFileManager.alternateLoadDirStatus));
 		return;
 	}
 
@@ -289,14 +372,14 @@ void printCaseLine(const Case& c, AudioFile* file, Error error, const std::strin
 	if (!readable) {
 		printf("FAIL [audioLoadAB/%s]: the published Sample cannot be read -- its stream was never bound, so it "
 		       "would load without error and play silence\n",
-		       c.label);
+		       label);
 		g_failures++;
 	}
 
-	printf("AB-CASE %-9s | error=%d | file=\"%s\" | alt=\"%s\" | asked=\"%s\" | channels=%u byteDepth=%u "
+	printf("%s %-9s | error=%d | file=\"%s\" | alt=\"%s\" | asked=\"%s\" | channels=%u byteDepth=%u "
 	       "rawFormat=%u rate=%u dataStart=%u dataLen=%llu lengthSamples=%llu loop=%u/%u wtCycle=%u midiNote=%.4f | "
 	       "readable=%d streamCrc=%08X | altDirStatus=%d\n",
-	       c.label, static_cast<int>(error), s.filePath.c_str(), s.loadedFromAlternatePath.c_str(),
+	       tag, label, static_cast<int>(error), s.filePath.c_str(), s.loadedFromAlternatePath.c_str(),
 	       fileNameAfter.c_str(), s.numChannels, s.byteDepth, static_cast<unsigned>(s.rawDataFormat), s.sampleRate,
 	       s.audioDataStartPosBytes, static_cast<unsigned long long>(s.audioDataLengthBytes),
 	       static_cast<unsigned long long>(s.lengthInSamples), s.fileLoopStartSamples, s.fileLoopEndSamples,
@@ -391,7 +474,7 @@ void runOneStep() {
 		error = Error::LOAD_IN_PROGRESS;
 	}
 
-	printCaseLine(c, file, error, fileName);
+	printCaseLine("AB-CASE", c.label, file, error, fileName);
 
 	if (g_caseIndex == kSelfdirIndex && file != nullptr) {
 		g_selfdirAlternatePath = static_cast<Sample&>(*file).loadedFromAlternatePath;
@@ -412,7 +495,11 @@ void runOneStep() {
 	g_deferralsThisCase = 0;
 
 	if (g_caseIndex == kCases.size()) {
-		g_stage = Stage::Preview;
+		// The ejection stage next, not the browser ones. It runs on this same worker fiber, and it has
+		// to run BEFORE the preview stage: a previewed sample stays leased for as long as it is on
+		// screen, so checkLoadInvariants' leaked-reason half would report that legitimate lease as a
+		// failure for every load attempted afterwards.
+		g_stage = Stage::Eject;
 	}
 }
 
@@ -553,6 +640,191 @@ void finishCancelStage() {
 	}
 }
 
+/// One load attempt for the ejection stage. Returns the resolved file (or nullptr), and reports
+/// through @p deferred whether the loader answered LOAD_IN_PROGRESS instead of settling.
+///
+/// Residency is dropped on every settled attempt: a resident AudioFile short-circuits
+/// getAudioFileFromFilename before the async gate is even consulted, and this stage asks for the
+/// same path twice with a card swap in between — exactly where a leftover resident would answer the
+/// second ask from memory and prove nothing.
+AudioFile* ejectAttempt(const char* path, Error& error, bool& deferred) {
+	std::string fileName = path;
+	error = Error::NONE;
+	AudioFile* file =
+	    audioFileManager.getAudioFileFromFilename(fileName, /*mayReadCard=*/true, &error, AudioFileType::SAMPLE,
+	                                              /*makeWaveTableWorkAtAllCosts=*/false,
+	                                              /*mayLoadAsync=*/true);
+	deferred = (error == Error::LOAD_IN_PROGRESS);
+	return file;
+}
+
+/// Put the "other card's" file at kSwapPath: the same path, a different file.
+///
+/// See the block comment above kSwapPath for why this is an unlink+rename rather than a block-device
+/// swap, and why the code under test cannot tell the difference.
+bool performCardSwap() {
+	if (!deluge::io::unlink(kSwapPath).has_value()) {
+		printf("FAIL [audioLoadAB/eject]: could not remove '%s' to stage the swapped card\n", kSwapPath);
+		return false;
+	}
+	if (!deluge::io::rename(kSwapReplacementPath, kSwapPath).has_value()) {
+		printf("FAIL [audioLoadAB/eject]: could not move '%s' into place at '%s'\n", kSwapReplacementPath, kSwapPath);
+		return false;
+	}
+	return true;
+}
+
+/// One tick of the ejection stage. See the block comment above kSwapPath for the sequence.
+void runOneEjectTick() {
+	g_ejectTicks++;
+	if (g_ejectTicks > kMaxEjectTicks) {
+		printf("FAIL [audioLoadAB/eject]: wedged after %d tick(s) in step %d\n", g_ejectTicks,
+		       static_cast<int>(g_ejectStep));
+		g_failures++;
+		g_ejectStep = EjectStep::Finished;
+		return;
+	}
+
+	switch (g_ejectStep) {
+
+	case EjectStep::Request: {
+		// kSwapPath FIRST, so the loader's FIFO queue drains it before the witness. Its outcome is
+		// deliberately discarded: on the async leg it defers, and this stage then never asks again,
+		// which is what leaves an uncollected result behind to go stale.
+		Error error = Error::NONE;
+		bool deferred = false;
+		AudioFile* file = ejectAttempt(kSwapPath, error, deferred);
+		g_ejectRequestDeferrals += deferred ? 1 : 0;
+		if (file != nullptr) {
+			// The synchronous leg answers immediately. Drop it so the post-swap ask is a real load.
+			audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(kSwapPath);
+		}
+		bool witnessDeferred = false;
+		(void)ejectAttempt(kWitnessPath, error, witnessDeferred);
+		g_ejectStep = EjectStep::AwaitWitness;
+		g_ejectTicks = 0;
+		return;
+	}
+
+	case EjectStep::AwaitWitness: {
+		Error error = Error::NONE;
+		bool deferred = false;
+		AudioFile* file = ejectAttempt(kWitnessPath, error, deferred);
+		if (deferred) {
+			return; // Still coming. Ask again next tick — never kSwapPath.
+		}
+		if (file == nullptr) {
+			printf("FAIL [audioLoadAB/eject]: the witness file '%s' did not load (error=%d), so this stage cannot "
+			       "know whether '%s' was ever parsed\n",
+			       kWitnessPath, static_cast<int>(error), kSwapPath);
+			g_failures++;
+			g_ejectStep = EjectStep::Finished;
+			return;
+		}
+		audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(kWitnessPath);
+		g_ejectStep = EjectStep::Swap;
+		g_ejectTicks = 0;
+		return;
+	}
+
+	case EjectStep::Swap:
+		// The ejection, through the production entry point. This is the call the flush lives in, and
+		// it must run BEFORE the new file appears — flushing on re-insertion instead would leave the
+		// window open for as long as the slot stayed empty.
+		audioFileManager.setCardEjected();
+		if (!performCardSwap()) {
+			g_ejectSwapFailed = true;
+			g_failures++;
+			g_ejectStep = EjectStep::Finished;
+			return;
+		}
+		// And the re-insertion: remount against the "new" card and re-validate residents, exactly as
+		// slowRoutine() drives it on the device.
+		audioFileManager.reinitEjectedCard();
+		g_ejectStep = EjectStep::Collect;
+		g_ejectTicks = 0;
+		return;
+
+	case EjectStep::Collect: {
+		Error error = Error::NONE;
+		bool deferred = false;
+		AudioFile* file = ejectAttempt(kSwapPath, error, deferred);
+		if (deferred) {
+			g_ejectCollectDeferrals++;
+			return;
+		}
+		// The one diffed line this stage produces, and the one that carries the whole property: the
+		// geometry printed here must be the file that is on the card NOW.
+		printCaseLine("AB-EJECT", "swap", file, error, std::string{kSwapPath});
+		if (!checkLoadInvariants("audioLoadAB/eject")) {
+			g_failures++;
+		}
+		if (file == nullptr) {
+			printf("FAIL [audioLoadAB/eject]: '%s' did not load after the card swap (error=%d)\n", kSwapPath,
+			       static_cast<int>(error));
+			g_failures++;
+		}
+		else {
+			auto& s = static_cast<Sample&>(*file);
+			if (s.numChannels != kSwapReplacementChannels || s.byteDepth != kSwapReplacementByteDepth
+			    || s.audioDataLengthBytes != kSwapReplacementDataLength) {
+				printf("FAIL [audioLoadAB/eject]: '%s' loaded with channels=%u byteDepth=%u dataLen=%llu, but the "
+				       "file at that path after the swap is channels=%u byteDepth=%u dataLen=%u -- a header parsed "
+				       "from the PREVIOUS card was applied to this one's file, which loads with no error and plays "
+				       "the wrong thing\n",
+				       kSwapPath, s.numChannels, s.byteDepth, static_cast<unsigned long long>(s.audioDataLengthBytes),
+				       kSwapReplacementChannels, kSwapReplacementByteDepth, kSwapReplacementDataLength);
+				g_failures++;
+			}
+			audioFileManager.tryToDeleteAudioFileFromMemoryIfItExists(kSwapPath);
+		}
+		g_ejectStep = EjectStep::Finished;
+		return;
+	}
+
+	case EjectStep::Finished:
+		return;
+	}
+}
+
+/// Print the ejection stage's outcome and assert what the diff cannot.
+void finishEjectStage() {
+	const bool active = deluge_audio_load_async_active();
+	printf("AB-EJECT-SUMMARY asyncActive=%d swapped=%d requestDeferrals=%d collectDeferrals=%d\n", active ? 1 : 0,
+	       g_ejectSwapFailed ? 0 : 1, g_ejectRequestDeferrals, g_ejectCollectDeferrals);
+
+	if (!active) {
+		// The synchronous leg has no loader state to go stale — it is the oracle for the diffed
+		// AB-EJECT line, and it must not have deferred anything, which it has no way to do.
+		if (g_ejectRequestDeferrals != 0 || g_ejectCollectDeferrals != 0) {
+			printf("FAIL [audioLoadAB/eject]: the synchronous backing deferred (%d before, %d after the swap)\n",
+			       g_ejectRequestDeferrals, g_ejectCollectDeferrals);
+			g_failures++;
+		}
+		return;
+	}
+
+	// Without this, the stage could "pass" having never created the hazard at all: a pre-eject ask
+	// that was answered synchronously (a permanent request decline falls through to the sync path)
+	// leaves no uncollected result behind, and the post-swap load is then trivially correct.
+	if (g_ejectRequestDeferrals == 0) {
+		printf("FAIL [audioLoadAB/eject]: the pre-ejection ask for '%s' never deferred, so no uncollected result was "
+		       "left for the ejection to invalidate -- this stage tested nothing\n",
+		       kSwapPath);
+		g_failures++;
+	}
+	// The direct witness that the flush ran. A flushed path reports UNKNOWN, which makes the
+	// collector request it again and therefore defer at least once. A STALE result is READY on the
+	// very first ask and defers not at all -- so zero here is the bug, whatever the geometry check
+	// happened to say.
+	if (!g_ejectSwapFailed && g_ejectCollectDeferrals == 0) {
+		printf("FAIL [audioLoadAB/eject]: the post-swap collect for '%s' was answered without a single deferral, so "
+		       "it came from a result parsed BEFORE the ejection rather than from the card now in the slot\n",
+		       kSwapPath);
+		g_failures++;
+	}
+}
+
 } // namespace
 
 extern "C" {
@@ -571,6 +843,11 @@ void deluge_scenario_audio_load_ab_begin(void) {
 	g_previewRedrives = 0;
 	g_cancelStarted = false;
 	g_cancelTicks = 0;
+	g_ejectStep = EjectStep::Request;
+	g_ejectTicks = 0;
+	g_ejectCollectDeferrals = 0;
+	g_ejectRequestDeferrals = 0;
+	g_ejectSwapFailed = false;
 	g_selfdirAlternatePath.clear();
 
 	// The preview stage must not start a voice: this harness has no audio path driving it, and the
@@ -636,10 +913,20 @@ void deluge_scenario_audio_load_ab_dispatch_step(void) {
 	g_stepDone = false;
 	// Onto the storage-owner worker fiber: the attempt opens files and binds a read stream, which is
 	// card I/O and has to run where card I/O is allowed. Same dispatch shape as
-	// deluge_scenario_start_recorder_roundtrip.
+	// deluge_scenario_start_recorder_roundtrip. The ejection stage goes here too — it also renames a
+	// file and remounts the volume.
 	const bool queued = deluge::storage::Owner::run(
 	    [](void*) {
-		    runOneStep();
+		    if (g_stage == Stage::Eject) {
+			    runOneEjectTick();
+			    if (g_ejectStep == EjectStep::Finished) {
+				    finishEjectStage();
+				    g_stage = Stage::Preview;
+			    }
+		    }
+		    else {
+			    runOneStep();
+		    }
 		    g_stepDone = true;
 	    },
 	    nullptr);

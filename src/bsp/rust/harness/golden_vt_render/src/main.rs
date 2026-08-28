@@ -616,6 +616,10 @@ fn write_test_wav(path: &std::path::Path, channels: u16, bits: u16, data_bytes: 
 ///   but per-tick calls driving it.
 /// - `SAMPLES/CANCEL.WAV` belongs to the cancellation stage, which asserts the converse: it is
 ///   asked for and then abandoned before its load runs, and must never load or draw at all.
+/// - `SAMPLES/SWAP.WAV`, `SAMPLES/SWAPB.WAV` and `SAMPLES/WITNESS.WAV` belong to the card-ejection
+///   stage: the first is parsed and left uncollected, the second is moved onto its path once the
+///   card has been marked ejected, and the third is what tells the stage the first has finished
+///   parsing. Their geometries are deliberately unlike each other.
 ///
 /// Both legs stage byte-IDENTICAL content, which is what makes the comparison sound. They do NOT
 /// share one image: `sd_image_path::fingerprint_dir` hashes path/length/mtime, not bytes, and this
@@ -662,6 +666,17 @@ fn pack_audio_load_ab_image() -> std::path::PathBuf {
     // NOTHING loaded or drew it, and a file that could not have loaded anyway would let that pass
     // for the wrong reason.
     write_test_wav(&samples.join("CANCEL.WAV"), 1, 16, 3328, 0xDD);
+
+    // The card-ejection stage's three files (see `audio_load_ab_scenario.cpp`'s kSwapPath block
+    // comment). `SWAP.WAV` is the file the loader parses BEFORE the ejection; `SWAPB.WAV` is the
+    // "other card's" file, moved onto that same path once the card has been marked gone. They differ
+    // in every field the stage asserts — 1 vs 2 channels, 16- vs 24-bit, 2048 vs 6144 data bytes —
+    // so a header parsed from the first and applied to the second cannot coincide with a correct
+    // load. `WITNESS.WAV` is queued behind `SWAP.WAV` and drained after it, which is what lets the
+    // stage know the swap file's result has been published without guessing at a delay.
+    write_test_wav(&samples.join("SWAP.WAV"), 1, 16, 2048, 0xE1);
+    write_test_wav(&samples.join("SWAPB.WAV"), 2, 24, 6144, 0xE2);
+    write_test_wav(&samples.join("WITNESS.WAV"), 1, 16, 1536, 0xE3);
 
     std::fs::write(samples.join("GARBAGE.WAV"), vec![0x7Eu8; 512])
         .expect("writing the A/B fixture's unparseable file");

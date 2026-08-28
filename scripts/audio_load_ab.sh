@@ -23,6 +23,17 @@
 #             and this is the only check on either side that fails if the caller stops re-asking
 #             for a deferred load. Everything else here drives the loader through the HARNESS's own
 #             retry loop, which is precisely the handler the shipped caller was missing.
+#   AB-EJECT  the card-swap property: a header is parsed from one card and left uncollected, the
+#             card is ejected, a DIFFERENT file is put at the same path, and the load is asked for
+#             again. Diffed, like AB-CASE — the synchronous leg is the oracle, since it holds no
+#             parsed-but-uncollected state to go stale. A stale collect shows up here as the wrong
+#             geometry against the same file, which is the "loads clean, plays the wrong thing"
+#             shape the whole boundary exists to keep out.
+#   AB-EJECT-SUMMARY
+#             that stage's deferral counts. EXPECTED to differ, so not diffed — but each leg
+#             asserts its own consistency, and the async leg's post-swap collect having deferred
+#             ZERO times is itself the bug (a flushed path reports UNKNOWN and is asked for again;
+#             a stale one is READY on the first ask).
 #   AB-CANCEL the converse property, on the same caller: a preview is asked for and then ABANDONED
 #             before the storage owner runs its load (what a cursor move onto a folder does — the
 #             one move that dispatches no replacement, so nothing supersedes the load in flight).
@@ -143,6 +154,12 @@ run_leg() {
 		echo "FAIL — the $tag leg produced no AB-CANCEL line; the preview cancellation stage did not run"
 		exit 1
 	fi
+	# And for the card-ejection stage. Its AB-EJECT line is diffed below, and two files that are both
+	# missing diff clean — so absence has to be an error here rather than something the diff notices.
+	if ! grep -q '^AB-EJECT ' "$OUT_ROOT/$tag.txt"; then
+		echo "FAIL — the $tag leg produced no AB-EJECT line; the card-ejection stage did not run"
+		exit 1
+	fi
 }
 
 echo "audio-load A/B: running the synchronous leg (async_audio_load, switch off)"
@@ -180,5 +197,16 @@ if [ "$CASES" -lt "$MIN_CASES" ]; then
 	exit 1
 fi
 
-echo "PASS — both backings loaded all $CASES sample(s) identically"
-grep -h '^AB-SUMMARY \|^AB-DEFER \|^AB-PREVIEW \|^AB-CANCEL ' "$OUT_ROOT/sync.txt" "$OUT_ROOT/async.txt"
+# The card-ejection stage's one diffed line, kept out of the case files above so MIN_CASES keeps
+# counting only the case list. The synchronous leg is the oracle: it holds no parsed-but-uncollected
+# result, so what it reports here is simply the file that is on the card after the swap.
+grep '^AB-EJECT ' "$OUT_ROOT/sync.txt" >"$OUT_ROOT/sync.eject"
+grep '^AB-EJECT ' "$OUT_ROOT/async.txt" >"$OUT_ROOT/async.eject"
+if ! diff -u "$OUT_ROOT/sync.eject" "$OUT_ROOT/async.eject"; then
+	echo "FAIL — after a card swap the two backings did not load the same file the same way (diff above: -sync +async)"
+	exit 1
+fi
+
+echo "PASS — both backings loaded all $CASES sample(s) identically, and agreed across a card swap"
+grep -h '^AB-SUMMARY \|^AB-DEFER \|^AB-PREVIEW \|^AB-CANCEL \|^AB-EJECT-SUMMARY ' "$OUT_ROOT/sync.txt" \
+	"$OUT_ROOT/async.txt"
