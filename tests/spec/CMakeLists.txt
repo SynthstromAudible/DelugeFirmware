@@ -24,10 +24,15 @@ add_library(deluge_spec STATIC
 ../../src/deluge/gui/ui/notify_drain_mapping.cpp
 ../32bit_unit_tests/mocks/mock_display.cpp
 ../32bit_unit_tests/mocks/mock_print.cpp
+# UI test harness level 0: script parser + .state formatter (dependency-free; also compiled
+# into the host BSP, so it may not include src/shell -- see tests/harness/README.md).
+../harness/ui_script.cpp
+../harness/snapshot.cpp
 )
 target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi deluge_gfx_oled deluge_gfx_grid deluge_ui_core deluge_ui_oled deluge_ui_grid deluge_ui_shell deluge_notify)
 
-target_include_directories(deluge_spec PUBLIC ../../src/deluge ../../src ../32bit_unit_test/mocks/ ../../include)
+# ".." (tests/) lets specs (e.g. harness/ui_script_spec.cpp) #include "harness/ui_script.h".
+target_include_directories(deluge_spec PUBLIC ../../src/deluge ../../src ../32bit_unit_test/mocks/ ../../include ..)
 
 target_compile_definitions(deluge_spec PUBLIC GFX_GOLDEN_DIR="${CMAKE_CURRENT_LIST_DIR}/../golden/gfx")
 
