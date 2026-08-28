@@ -12,15 +12,22 @@
 
 namespace deluge::ui::oled {
 
-/// Sets the canvas clip for the duration of one drawing call and puts back whatever was there
-/// before.
+/// Narrows the canvas clip to a region for the duration of one drawing call and puts back whatever
+/// was there before.
 ///
 /// Every `OledFrame` drawing method opens one of these over its own `clip` before it touches the
 /// canvas, which is what makes a frame's region binding on *every* primitive rather than only on
-/// the ones this file can decompose into spans. Saving and restoring (rather than setting and
-/// clearing) is what lets regions nest: a widget drawing inside a sub-region leaves the parent's
-/// clip exactly as it found it, and the root frame's clip survives a widget that draws through a
-/// child frame.
+/// the ones this file can decompose into spans.
+///
+/// It **intersects**, never replaces: a scope can only ever narrow what the canvas already allows,
+/// so a clip set from outside the frame tree -- a shell clipping a repaint to a damage rectangle,
+/// say -- keeps bounding everything a widget draws inside it. An empty intersection is set as an
+/// empty clip (not cleared), which is the canvas's own spelling of "draw nothing"; clearing would
+/// be exactly the widening this type must not do.
+///
+/// Restoring (rather than clearing) on the way out is what lets scopes nest: a widget drawing
+/// inside a sub-region leaves the parent's clip exactly as it found it, and an outer clip survives
+/// a widget that draws through a child frame.
 ///
 /// Non-copyable, stack-only, and never held across a call that returns to the caller's own
 /// drawing -- the clip it restores is the one that was live when it was constructed.
@@ -28,7 +35,9 @@ struct ClipScope {
 	gfx::oled::Canvas& canvas;
 	std::optional<gfx::oled::Rect> saved;
 
-	ClipScope(gfx::oled::Canvas& c, gfx::oled::Rect region) : canvas{c}, saved{c.clip()} { canvas.set_clip(region); }
+	ClipScope(gfx::oled::Canvas& c, gfx::oled::Rect region) : canvas{c}, saved{c.clip()} {
+		canvas.set_clip(saved.has_value() ? saved->intersect(region) : region);
+	}
 	~ClipScope() {
 		if (saved.has_value()) {
 			canvas.set_clip(*saved);

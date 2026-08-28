@@ -230,6 +230,39 @@ describe oled_frame("ui::oled::OledFrame", $ {
 		expect(r.lit(35, 16 + 3)).to_be_false();     // well inside the OUTER region: still clipped
 	});
 
+	it("draws nothing when a clip already on the canvas excludes the region", _ {
+		uitest::Rig64 r;
+		// The shape of a shell repainting only a damage rectangle: the clip is set on the canvas,
+		// outside the frame tree, so no frame knows about it.
+		r.canvas.set_clip(Rect{0, 0, 64, 64});       // the left half only
+		r.frame.region(Rect{80, 10, 20, 20}, [](OledFrame& f) {
+			f.invert(f.bounds());
+			f.glyphs("Ag", 0, 0, 9, 13);
+			f.icon(kArrow, 0, 0);
+			f.rect(f.bounds());
+		});
+		expect(lit_pixels(r.canvas.bytes())).to_equal(0);  // a region may not widen the canvas clip
+		expect(r.canvas.clip().has_value()).to_be_true();  // ...and it is still in force afterwards
+		expect(*r.canvas.clip() == Rect{0, 0, 64, 64}).to_be_true();
+	});
+
+	it("lets a clip already on the canvas narrow what a region draws", _ {
+		uitest::Rig64 bounded;
+		bounded.canvas.set_clip(Rect{0, 0, 24, 64});  // cuts the region below in half, at x = 24
+		bounded.frame.region(Rect{20, 10, 20, 20}, [](OledFrame& f) { f.invert(f.bounds()); });
+		expect(bounded.lit(20, 10)).to_be_true();
+		expect(bounded.lit(23, 10)).to_be_true();     // the last column the canvas clip allows
+		expect(bounded.lit(24, 10)).to_be_false();    // ...and not one further
+
+		// The same region with no canvas clip does light column 24, so it really was the outer
+		// clip that narrowed the draw and not the region's own bounds.
+		uitest::Rig64 unbounded;
+		unbounded.frame.region(Rect{20, 10, 20, 20}, [](OledFrame& f) { f.invert(f.bounds()); });
+		expect(unbounded.lit(24, 10)).to_be_true();
+		expect(unbounded.lit(39, 10)).to_be_true();
+		expect(unbounded.lit(40, 10)).to_be_false();       // the region's own right edge, either way
+	});
+
 	it("ClipScope puts back the clip that was live before it", _ {
 		uitest::Rig64 r;
 		expect(r.canvas.clip().has_value()).to_be_false();

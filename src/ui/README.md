@@ -124,9 +124,11 @@ worth freezing is the RGB it computes.
   `gfx::oled::Canvas` carries a clip rectangle (`set_clip`/`clear_clip`/`clip`) that *every*
   primitive honours pixel for pixel — glyphs and bitmaps included, clipped column by column and
   by a per-page bit mask rather than all-or-nothing. `OledFrame` opens a `ClipScope` over its
-  region in each drawing method, so nothing a widget draws escapes its region on any edge, and
-  regions nest because the scope restores the clip it found. With no clip set the canvas draws
-  exactly as it did before. See `oled/frame.h` and `gfx/oled/canvas.h`.
+  region in each drawing method, so nothing a widget draws escapes its region on any edge. The
+  scope *intersects* with whatever clip the canvas already carries and restores it on the way out,
+  so it can only ever narrow — a clip set from outside the frame tree (a repaint bounded to a
+  damage rectangle, say) keeps bounding every widget that draws inside it. With no clip set the
+  canvas draws exactly as it did before. See `oled/frame.h` and `gfx/oled/canvas.h`.
 - **`Response` for grid columns (closed: `void`).** `row`/`clip_row`/`status_pad`/
   `audition_pad`/`text_keyboard` return a `Response`; the per-column components (`macros`,
   `velocity_column`, `automation_column`, `tick_squares`, `vu_meter`, `sidebar_columns`) return
