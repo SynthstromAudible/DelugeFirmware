@@ -97,10 +97,10 @@ SampleBrowser::SampleBrowser() {
 
 bool SampleBrowser::opened() {
 
-	// Nothing carried over from a previous visit: a target deferred when the browser closed names a
-	// file in whatever folder was open then, and graphicsRoutine() starts running again the moment
-	// this UI is current -- before folderContentsReady() has picked the file for THIS visit.
-	deferredPreview_.reset();
+	// Nothing carried over from a previous visit: a preview still loading when the browser closed
+	// names a file in whatever folder was open then, and graphicsRoutine() starts running again the
+	// moment this UI is current -- before folderContentsReady() has picked the file for THIS visit.
+	cancelPreview();
 
 	bool success = Browser::opened();
 	if (!success) {
@@ -545,9 +545,11 @@ void SampleBrowser::previewIfPossible(int32_t movementDirection) {
 
 	// Nothing to preview (empty selection or a folder) — just tear down any preview onscreen.
 	if (!currentFileItem || currentFileItem->isFolder) {
-		// Whatever was deferred is no longer what the user is on; re-driving it would land a
-		// waveform for a file the cursor has left. See previewFile() on why dropping it is free.
-		deferredPreview_.reset();
+		// Whatever is loading is no longer what the user is on, and this branch dispatches no
+		// replacement to supersede it -- so it has to be cancelled outright, or it lands a waveform
+		// (and a note-on) for a file the cursor has left, over a folder. See previewFile() on why
+		// dropping the load itself is free.
+		cancelPreview();
 		clearPreviewDisplay(movementDirection);
 		return;
 	}
@@ -563,28 +565,24 @@ void SampleBrowser::previewFile(std::string path, int32_t movementDirection) {
 	    .movementDirection = movementDirection,
 	};
 
-	// A user-driven preview supersedes any deferred one: the file it was waiting for is no longer
-	// the file the user is on, so re-driving it would land a stale waveform. Dropping it is safe --
-	// the load itself carries on in the loader and its result is either collected by a later request
-	// for the same path or evicted, which costs the I/O and nothing else (see audio_loader.rs's
-	// RESULTS doc).
-	deferredPreview_.reset();
-	// A dropped dispatch is not re-armed here, unlike the re-drive: this is user-driven, and the
-	// next cursor move re-requests. Re-arming would put a target the user has moved off in front of
-	// graphicsRoutine().
+	// A user-driven preview supersedes any deferred one (request() drops it): the file that one was
+	// waiting for is no longer the file the user is on, so re-driving it would land a stale
+	// waveform. Dropping it is safe -- the load itself carries on in the loader and its result is
+	// either collected by a later request for the same path or evicted, which costs the I/O and
+	// nothing else (see audio_loader.rs's RESULTS doc).
 	(void)dispatchPreview(target);
 }
 
 bool SampleBrowser::dispatchPreview(const PreviewTarget& target) {
 	// Coalesce latest-wins onto one owner op: while one preview is loading, a newer request
 	// is queued and dispatched on completion, so rapid scrolls converge on the file landed on.
-	if (!previewCoalescer_.request(target)) {
+	if (!previewLoad_.request(target)) {
 		return true; // An op is already running and will pick this up on completion.
 	}
 	if (!deluge::storage::Owner::run(&SampleBrowser::runPreviewOp, this)) {
-		// Owner queue full → the op won't run, so release the guard or the coalescer
-		// would wedge single-flight forever.
-		previewCoalescer_.reset();
+		// Owner queue full → the op won't run, so release the guard (which would otherwise wedge
+		// single-flight forever) and leave the target for graphicsRoutine() to ask for again.
+		previewLoad_.releaseDispatch();
 		return false;
 	}
 	return true;
@@ -592,26 +590,21 @@ bool SampleBrowser::dispatchPreview(const PreviewTarget& target) {
 
 void SampleBrowser::runPreviewOp(void* self) {
 	auto* browser = static_cast<SampleBrowser*>(self);
-	const PreviewTarget attempted = browser->previewCoalescer_.current();
-	const bool deferred = browser->renderPreviewForTarget(attempted);
+	const auto attempt = browser->previewLoad_.attempt();
 
-	// If a newer target arrived while this ran, dispatch it (latest-wins).
-	if (auto next = browser->previewCoalescer_.complete(); next.has_value()) {
-		// It supersedes `attempted` even if that deferred: re-driving the older one would land a
-		// waveform for a file the cursor has already left, which is the whole thing latest-wins
-		// exists to prevent. Its own deferral, if it defers, is recorded by the op just dispatched.
-		browser->deferredPreview_.reset();
+	// Checked BEFORE the work, not merely before recording a deferral: between the dispatch and
+	// this running, the cursor can have moved somewhere with no preview at all (a folder, an empty
+	// list), which dispatches no replacement and so supersedes nothing. Rendering the file the
+	// cursor has left -- drawing its waveform and sounding it over a folder -- is the damage.
+	const bool deferred = browser->previewLoad_.isCurrent(attempt) && browser->renderPreviewForTarget(attempt.target);
+
+	// A deferral is recorded for graphicsRoutine() to re-drive (that surface runs every ~15 ms
+	// while this UI is up, and is the ONLY thing that finishes a deferred preview); if a newer
+	// target arrived while this ran, that one is dispatched instead (latest-wins).
+	if (auto next = browser->previewLoad_.complete(attempt, deferred); next.has_value()) {
 		if (!deluge::storage::Owner::run(&SampleBrowser::runPreviewOp, self)) {
-			browser->previewCoalescer_.reset(); // re-dispatch dropped — release (see dispatchPreview)
+			browser->previewLoad_.releaseDispatch(); // re-dispatch dropped (see dispatchPreview)
 		}
-		return;
-	}
-
-	if (deferred) {
-		// The async loader has this file and has not finished. Nothing sounded, nothing drew, and
-		// nothing reported an error -- so unless something asks again this preview is simply lost.
-		// Hand it to graphicsRoutine(), which runs every ~15 ms while this UI is up.
-		browser->deferredPreview_ = attempted;
 	}
 }
 
@@ -624,15 +617,13 @@ void SampleBrowser::graphicsRoutine() {
 	// this is in flight. If the coalescer is already busy, request() queues this as the latest
 	// target and the running op picks it up on completion, so the re-drive is not lost there either.
 	//
-	// Taken OUT of the member before dispatching, not after: where the storage owner runs its ops
-	// inline (legacy/host), runPreviewOp completes inside dispatchPreview and re-arms this for a
-	// second deferral -- and clearing afterwards would wipe exactly that. It goes back only if
-	// nothing took it, which is the one case in which nothing can have re-armed it.
-	if (deferredPreview_.has_value()) {
-		const PreviewTarget target = *std::exchange(deferredPreview_, std::nullopt);
-		if (!dispatchPreview(target)) {
-			deferredPreview_ = target; // owner queue full; ask again next tick rather than drop it
-		}
+	// takePending() takes the target OUT before dispatching, not after: where the storage owner runs
+	// its ops inline (legacy/host), runPreviewOp completes inside dispatchPreview and arms a second
+	// deferral -- and clearing afterwards would wipe exactly that. A dispatch that could not be
+	// queued re-arms it itself (dispatchPreview → releaseDispatch), so it is asked for again next
+	// tick rather than dropped.
+	if (auto target = previewLoad_.takePending(); target.has_value()) {
+		(void)dispatchPreview(*target);
 	}
 
 	UI::graphicsRoutine();

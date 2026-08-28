@@ -20,8 +20,7 @@
 #include "definitions_cxx.hpp"
 #include "gui/ui/browser/browser.h"
 #include "hid/button.h"
-#include "storage/latest_wins.h"
-#include <optional>
+#include "storage/deferred_load.h"
 #include <string>
 
 class SoundDrum;
@@ -75,11 +74,24 @@ public:
 	/// @param movementDirection Scroll direction driving the teardown/entry animation; 0 for none.
 	void previewFile(std::string path, int32_t movementDirection);
 
+	/// @brief Abandon any preview in progress: nothing that is loading is wanted any more.
+	///
+	/// For the moves that leave nothing to preview at all -- onto a folder, onto an empty selection,
+	/// out of the browser entirely. Those dispatch no replacement, so the ordinary latest-wins
+	/// supersession never fires; without this, a load dispatched for the file the cursor has LEFT
+	/// finishes, gets re-driven by graphicsRoutine(), and then sounds and draws that file over
+	/// whatever the user actually moved to.
+	///
+	/// Public because the A/B gate has to be able to drive it: that harness calls previewFile()
+	/// directly and never populates a file list, so it can never reach the folder branch that calls
+	/// this in the real UI.
+	void cancelPreview() { previewLoad_.cancel(); }
+
 	/// @brief Whether a preview load deferred and is waiting for graphicsRoutine() to ask again.
 	///
 	/// Exposed so a gate can tell "the preview settled" apart from "the preview was dropped and
 	/// nothing will ever finish it" -- from outside, the two look identical.
-	[[nodiscard]] bool previewLoadPending() const { return deferredPreview_.has_value(); }
+	[[nodiscard]] bool previewLoadPending() const { return previewLoad_.pending(); }
 
 	std::string lastFilePathLoaded{};
 
@@ -126,8 +138,11 @@ private:
 	///         that will pick it up); false if the storage-owner queue was full so nothing will run
 	///         it -- the caller decides whether to drop it or ask again.
 	[[nodiscard]] bool dispatchPreview(const PreviewTarget& target);
-	/// @brief The dispatched op: load and render the coalescer's current target, then re-dispatch
-	///        if a newer target arrived while it ran.
+	/// @brief The dispatched op: load and render its attempt's target, then re-dispatch if a newer
+	///        target arrived while it ran.
+	///
+	/// Renders nothing if the attempt was cancelled while it sat queued -- the cursor has moved
+	/// somewhere with no preview at all, and drawing the file it has left is the damage.
 	///
 	/// Runs on the storage owner (inline on legacy/host).
 	/// @param self The SampleBrowser instance.
@@ -147,15 +162,12 @@ private:
 	/// @param movementDirection Scroll direction driving the teardown animation.
 	void clearPreviewDisplay(int32_t movementDirection);
 
-	deluge::storage::LatestWins<PreviewTarget> previewCoalescer_{};
-
-	/// @brief The target of a preview whose load answered Error::LOAD_IN_PROGRESS, awaiting re-drive
-	///        by graphicsRoutine().
+	/// @brief The one piece of preview-load state: which file is being previewed, whether an op is
+	///        out working on it, whether it deferred, and whether it is still wanted.
 	///
-	/// Holds the ORIGINAL target, movementDirection included, so when the re-drive lands the entry
-	/// animation is the one the cursor move asked for, a few ms late. Superseded (and so replaced) by
-	/// a newer user-driven preview.
-	std::optional<PreviewTarget> deferredPreview_{};
+	/// A deferred re-ask holds the ORIGINAL target, movementDirection included, so when the re-drive
+	/// lands the entry animation is the one the cursor move asked for, a few ms late.
+	deluge::storage::DeferredLoad<PreviewTarget> previewLoad_{};
 
 	/// @brief The dispatched op for the direct pad-tap load (enterKeyPress).
 	///
