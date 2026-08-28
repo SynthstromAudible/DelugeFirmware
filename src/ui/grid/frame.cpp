@@ -97,6 +97,52 @@ std::span<const PadEvent> GridFrame::local_events() const {
 	return {local_, local_count_};
 }
 
+Response GridFrame::interact(gfx::grid::Rect local) const {
+	Response resp;
+	// Same clip as first_press_in(): bound the caller's rectangle to what this frame really spans
+	// before scanning it. local_events() has already dropped anything outside `clip`, so this only
+	// needs to guard direction/degenerate sizes, not re-derive visibility.
+	const Rect r = bounds().intersect(local);
+	if (r.w <= 0 || r.h <= 0) {
+		return resp;
+	}
+	for (const PadEvent& e : local_events()) {
+		if (!r.contains(e.x, e.y)) {
+			continue;
+		}
+		// The first matching event wins (see the deviation from the SDK's no-break loop, noted on
+		// the declaration in frame.h) -- index and pressed/released/velocity all come from it.
+		if (e.pressed) {
+			resp.pressed = true;
+			resp.velocity = e.velocity;
+		}
+		else {
+			resp.released = true;
+		}
+		resp.index = static_cast<int16_t>((int32_t(e.y) - local.y) * local.w + (int32_t(e.x) - local.x));
+		break;
+	}
+	// held is a level, not an edge, and is independent of which (if any) event was first: any pad
+	// inside `local` that is down right now makes this true. Scoped to visible(), the same gate
+	// pad() applies before it will read held_pads() for a single pad -- a pad this frame cannot
+	// actually paint was never interactive through it either.
+	const Rect held_r = visible().intersect(local);
+	for (int32_t y = held_r.y; y < held_r.y + held_r.h && !resp.held; ++y) {
+		for (int32_t x = held_r.x; x < held_r.x + held_r.w; ++x) {
+			const int32_t abs_x = rect.x + x;
+			const int32_t abs_y = rect.y + y;
+			if (abs_x < 0 || abs_y < 0 || abs_x > 0xFF || abs_y > 0xFF) {
+				continue;
+			}
+			if (held_pads().test(static_cast<uint8_t>(abs_x), static_cast<uint8_t>(abs_y))) {
+				resp.held = true;
+				break;
+			}
+		}
+	}
+	return resp;
+}
+
 std::optional<PadEvent> GridFrame::first_press_in(gfx::grid::Rect local) const {
 	// Clip to the frame first, so a rectangle hanging off the edge reports only its real part --
 	// the same rule `pad()` and `region()` follow.

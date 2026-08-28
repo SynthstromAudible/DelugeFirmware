@@ -23,5 +23,40 @@ Rules (enforced by `scripts/check_gfx_layer.py`):
 
 Run the check locally with `python3 scripts/check_gfx_layer.py`; it is also the `gfx_layer_check` ctest.
 
+## `gfx::grid::Rect`: splits and inset
+
+`split_rows(n, i)`/`split_cols(n, i)` (`gfx/grid/rect.h`) return slice `i` of `n` equal-ish
+row-/column-bands: `size / n` per slice, with the first `size % n` slices one unit larger so the
+remainder lands at the front rather than vanishing off the far edge -- 8 rows split 3 ways is
+`3, 3, 2`. This is not the SDK's shape: `deluge-grid-toolkit`'s `Frame::split_rows`/`split_cols`
+(`imode.rs:367-398`) take a single split point `at` and return a `(before, after)` pair, not an
+n-way index; the `(n, i)` signature here is task-6's own generalisation of that two-way split,
+matching `gfx::oled::Rect`'s naming (`split_rows`/`split_cols`, `oled/geometry.h:50-51`) rather
+than the SDK's. `n > 0` and `0 <= i < n` are caller preconditions (`DELUGE_GFX_CONTRACT`), not
+values a caller can legitimately compute at runtime. `inset(int32_t)` shrinks by one uniform
+amount on every side (negative grows it) -- the OLED sibling's shape, not its per-side `Insets`;
+nothing in the grid toolkit needs asymmetric insets yet.
+
+## `gfx::grid::composite`
+
+`composite(base, overlay, mode, out)` (`gfx/grid/composite.{h,cpp}`) flattens one `PadGrid`
+overlay onto another per a `BlendMode`, writing into `out` (which may alias `base`) and marking
+only the rows of `out` whose colour actually changed dirty. Ported from
+`deluge-grid-toolkit::layer` (`layer.rs:17-25` for the enum, `layer.rs:84-112` for
+`apply_layer`), whose `GridLayer` cells are `Option<Color>` -- `None` meaning transparent. This
+`PadGrid` has no such channel, so black (`RGB{0, 0, 0}`) stands in for "nothing here" wherever the
+SDK's `None` would have:
+
+| mode | rule | vs. the SDK |
+|---|---|---|
+| `Replace` | overlay pad wins wherever it is **non-black**; a black overlay pad leaves `base` showing through | adapted -- the SDK's `Replace` (`layer.rs:91-93`) always overwrites for any non-`None` cell, transparency alone gating it, not colour. Since every `PadGrid` cell is a concrete colour, a non-black overlay pad is what stands in for "this was painted" |
+| `Overlay` | `base` pad wins unless it is currently **black**, in which case the overlay pad shows through (regardless of the overlay's own colour) | verbatim (`layer.rs:94-99`) -- the SDK already treats a black *destination* cell as empty, so the substitution above changes nothing here |
+| `Tint` | each channel is `base * overlay / 255`, truncating (no rounding) | verbatim (`layer.rs:100-106`) |
+
+`tests/spec/gfx/composite_spec.cpp` hand-computes one cell per corner case for each mode (a black
+overlay pad, a black base pad, a full-white tint identity, and a truncating tint), pins the
+dirty-row marking and in-place aliasing, and freezes a golden `.state` per mode
+(`tests/golden/gfx/grid/composite_{replace,overlay,tint}.state`).
+
 Deferred to later phases (tracked in the UI redesign spec): `RGB` into the `deluge::gfx::grid`
 namespace; the raw `uint8_t[]` graphics still on `OLED`; zoom/explode/expand-collapse tweens.

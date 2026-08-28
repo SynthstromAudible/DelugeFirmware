@@ -152,6 +152,27 @@ struct GridFrame : FrameInput {
 	/// names its target by where it landed.
 	std::optional<PadEvent> first_press_in(gfx::grid::Rect local) const;
 
+	/// Hit-test \p local (this frame's coordinates) against this tick's input without painting --
+	/// the toolkit-fixes task-6 port of the SDK's `Frame::interact` (`imode.rs:315-345`).
+	///
+	/// The SDK's `Response` there is `{pressed: Option<Pad>, released: Option<Pad>, held: bool}`
+	/// and its event loop does not `break`, so of several matching events in one tick the *last*
+	/// silently wins for `pressed` and, independently, for `released`. This port instead reports
+	/// **the first event inside \p local**, in `local_events()` order (ctx.input.pads order): the
+	/// first matching event's `pressed`/`velocity` (if it was a press) or `released` (if it was a
+	/// release) populate the one `deluge::ui::Response` this returns, and `index` is that event's
+	/// position within \p local, row-major -- `(event.y - local.y) * local.w + (event.x - local.x)`
+	/// -- so a component spanning several pads (a fader, a row of steps) can tell which one fired
+	/// without its own scan over `local_events()`. `held` is independent of which event (if any)
+	/// was first: it is true whenever *any* pad inside \p local -- clipped to `visible()`, the same
+	/// gate `pad()` applies before it will read `held_pads()` for a single pad -- is currently held,
+	/// mirroring the SDK's separate `'held: for row ... for col` scan (`imode.rs:335-344`).
+	///
+	/// \p local is clipped to `bounds()` first, exactly as `first_press_in` clips -- a rectangle
+	/// hanging off this frame reports only the part that is really inside it. Never masked (rule 4,
+	/// ui/README.md): a pad names its target by where it landed, focused region or not.
+	Response interact(gfx::grid::Rect local) const;
+
 	/// Run \p body against a sub-frame whose `(0, 0)` is `local`'s corner and whose input is
 	/// filtered to it (spec B §4). Nests to any depth; panes route their own input with no
 	/// routing code, because the child's `pad()` and `local_events()` are already local.

@@ -201,5 +201,71 @@ describe grid_frame("ui::grid::GridFrame", $ {
 		expect(r.frame.first_press_in(Rect{0, 0, 2, 8}).has_value()).to_be_false();
 		expect(r.frame.first_press_in(Rect{40, 0, 4, 8}).has_value()).to_be_false();
 	});
+	// interact(): task-6 port of the SDK's Frame::interact (imode.rs:315-345), adapted to report
+	// the first matching event (not the SDK's last-wins, since its loop never breaks -- see
+	// frame.h) and to add index = (event.y - local.y) * local.w + (event.x - local.x).
+	it("reports a miss as a default Response", _ {
+		uitest::GridRig r;
+		Response miss = r.frame.interact(Rect{4, 0, 4, 2});
+		expect(miss.pressed).to_be_false();
+		expect(miss.released).to_be_false();
+		expect(miss.held).to_be_false();
+		expect(int(miss.index)).to_equal(-1);
+	});
+	it("reports a hit with velocity and a row-major index within the rect", _ {
+		uitest::GridRig r;
+		PadEvent ev[] = {{6, 3, 111, true}}; // inside {x=4,y=2,w=4,h=4}: local (2, 1)
+		r.input.pads = ev;
+		Response hit = r.frame.interact(Rect{4, 2, 4, 4});
+		expect(hit.pressed).to_be_true();
+		expect(hit.velocity).to_equal(uint8_t(111));
+		expect(hit.released).to_be_false();
+		expect(int(hit.index)).to_equal(1 * 4 + 2); // y=1, w=4, x=2 -> 6
+	});
+	it("reports the first event inside the rect when several fall inside it", _ {
+		uitest::GridRig r;
+		// Both land inside {0,0,8,8}; local_events() preserves ctx.input.pads order, so the first
+		// one (5,5) wins even though it is not the topmost or leftmost.
+		PadEvent ev[] = {{5, 5, 20, true}, {1, 1, 90, true}};
+		r.input.pads = ev;
+		Response first = r.frame.interact(Rect{0, 0, 8, 8});
+		expect(first.pressed).to_be_true();
+		expect(first.velocity).to_equal(uint8_t(20));
+		expect(int(first.index)).to_equal(5 * 8 + 5);
+	});
+	it("reports a release separately from a press", _ {
+		uitest::GridRig r;
+		PadEvent ev[] = {{2, 1, 0, false}};
+		r.input.pads = ev;
+		Response rel = r.frame.interact(Rect{0, 0, 4, 4});
+		expect(rel.released).to_be_true();
+		expect(rel.pressed).to_be_false();
+		expect(rel.velocity).to_equal(uint8_t(0));
+		expect(int(rel.index)).to_equal(1 * 4 + 2);
+	});
+	it("reports held from the level, independent of any event", _ {
+		uitest::GridRig r;
+		r.input.held_pads.set(9, 4, true); // inside the rect below, absolute
+		Response held = r.frame.interact(Rect{8, 0, 4, 8});
+		expect(held.held).to_be_true();
+		expect(held.pressed).to_be_false();
+		expect(int(held.index)).to_equal(-1); // no event -> no index, even though held is true
+		Response outside = r.frame.interact(Rect{0, 0, 4, 8});
+		expect(outside.held).to_be_false();
+	});
+	it("clips the rect to bounds(), like first_press_in", _ {
+		uitest::GridRig r;
+		PadEvent ev[] = {{12, 5, 77, true}};
+		r.input.pads = ev;
+		int hits = 0;
+		r.frame.region(Rect{8, 0, 8, 8}, [&](GridFrame& outer) {
+			// Local (4,5) inside the outer region; a rect hanging off past its width is clipped.
+			Response hit = outer.interact(Rect{0, 0, 40, 8});
+			expect(hit.pressed).to_be_true();
+			expect(int(hit.index)).to_equal(5 * 40 + 4); // stride is the requested w, not the clipped one
+			if (hit.pressed) hits++;
+		});
+		expect(hits).to_equal(1);
+	});
 });
 DELUGE_SPEC(ui_grid_frame_spec, grid_frame)

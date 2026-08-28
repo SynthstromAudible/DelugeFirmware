@@ -86,7 +86,7 @@ under `src/ui/` → exits 1 naming `ui-includes-outside`; remove it → exits 0.
 
 | component / helper | file |
 |---|---|
-| `GridFrame` (`pad`, `peek`, `local_events`, `first_press_in`, `held_pads`, `region`, `bounds`, `visible`, the input accessors and `claim_*`, `gate`), `root_grid_frame(grid, ctx)` | `grid/frame.h` |
+| `GridFrame` (`pad`, `peek`, `local_events`, `first_press_in`, `interact`, `held_pads`, `region`, `bounds`, `visible`, the input accessors and `claim_*`, `gate`), `root_grid_frame(grid, ctx)` | `grid/frame.h` |
 | `pad` — see `GridFrame::pad` above (the primitive every component is built from) | `grid/frame.h` |
 | `NoteFill`, `NoteCell`, `ClipRowData`, `row`, `clip_row` | `grid/rows.h` |
 | `LaunchStyle`, `StatusColours`, `StatusPad`, `AuditionPad`, `status_colour`, `status_pad`, `audition_colour`, `audition_pad`, `sidebar_columns` | `grid/sidebar.h` |
@@ -181,8 +181,8 @@ non-virtual base is allowed in one, and their aggregate initialisation simply be
    `RepaintGate` with a deadline in the future rather than one permanently in the past. `shift` is
    a modifier read alongside another gesture, and focus arbitrates the gesture.
 4. **Pad input is positional and never masked.** `pad()`, `peek()`, `local_events()`,
-   `first_press_in()` and `held_pads()` report presses in an unfocused region exactly as in a
-   focused one: a press names its target by where it landed.
+   `first_press_in()`, `interact()` and `held_pads()` report presses in an unfocused region
+   exactly as in a focused one: a press names its target by where it landed.
 5. **`select_pressed`/`back_pressed` are edges the caller supplies once per press** (see
    `core/input.h`); a claim is not a latch — it records ownership for the tick and is cleared by
    the next `begin_tick()`.
@@ -191,6 +191,24 @@ non-virtual base is allowed in one, and their aggregate initialisation simply be
 while another is withheld, and a child that cannot ask for one back), the unmasked clock (a label
 that still scrolls, a gesture that still holds, a gate deadline in the future), the tick boundary,
 `double_claim` on two focused lists, and the horizontal menu spending one detent exactly once.
+
+### `interact()` and `Rect` splits (task-6)
+
+`GridFrame::interact(local)` (`grid/frame.h`/`.cpp`) hit-tests a rectangle without painting --
+the toolkit-fixes task-6 port of the SDK `Frame::interact` (`deluge-grid-toolkit`'s
+`imode.rs:315-345`). It reports the **first** matching event in `local_events()` order (the SDK's
+own loop never `break`s, so of several matches the *last* silently wins there instead), filling
+`pressed`/`velocity` or `released` from that one event and `index` with its row-major position
+within `local` -- `(event.y - local.y) * local.w + (event.x - local.x)` -- so a widget spanning
+several pads (a fader, a row of steps) reads back *which* pad fired without its own scan.  `held`
+is independent of that first-event rule: true whenever any pad inside `local`, clipped to
+`visible()`, is currently down -- mirroring the SDK's separate held-scan loop. `local` is clipped
+to `bounds()` first, exactly like `first_press_in`.
+
+`gfx::grid::Rect` (`gfx/grid/rect.h`) gained `split_rows(n, i)`/`split_cols(n, i)` (slice `i` of
+`n` equal-ish bands, front slices absorbing the remainder -- 8 rows split 3 ways is `3, 3, 2`) and
+`inset(int32_t)` (shrink by one uniform amount on every side). See `src/gfx/README.md` for the
+full rule and how it differs in shape from the SDK's two-way `Frame::split_rows`/`split_cols`.
 
 ### `bounds()` vs `visible()`
 
