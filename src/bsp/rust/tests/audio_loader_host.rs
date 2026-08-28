@@ -880,13 +880,55 @@ mod live_pipeline {
     /// parallel threads, so these must not interleave.
     static PIPELINE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
+    /// The value `collect` seeds `out` with before every call. `0xFF` is not a
+    /// real error code (the largest is `TOO_MANY_OPEN_STREAMS`, 34), so it cannot
+    /// be mistaken for a result the loader actually produced.
+    const UNTOUCHED: u8 = 0xFF;
+
     fn collect(path: &str) -> (u8, LoadResult) {
         let key = CString::new(path).unwrap();
-        let mut out = LoadResult::failed(0xFF);
+        let mut out = LoadResult::failed(UNTOUCHED);
         // SAFETY: `key` is a valid NUL-terminated C string and `out` a live,
         // writable `LoadResult`.
         let status = unsafe { deluge_audio_load_collect(key.as_ptr(), &mut out) };
         (status, out)
+    }
+
+    /// Assert `out` came back exactly as [`collect`] seeded it.
+    ///
+    /// This is the NEGATIVE half of `audio_load.h`'s contract, and it had no test
+    /// at all: `out` is written on `READY` and on nothing else, so a caller may
+    /// pass an uninitialised slot and read it back only on `READY`. Every
+    /// `PENDING`/`UNKNOWN` assertion here checked the status and dropped the
+    /// result on the floor, which is exactly the shape that lets a violation
+    /// through — status stays right, the C++ collector never looks, and the whole
+    /// suite stays green until some later caller does look.
+    ///
+    /// What it catches: a `probe` branch that writes a placeholder, or an
+    /// `out.write` hoisted above the `take_from` match to reuse a scratch value.
+    /// Both leave the status correct and only this assertion wrong.
+    ///
+    /// Checks every field rather than just `error`, because a partial write —
+    /// geometry stamped before a verdict is known, say — is the more likely
+    /// accident and the harder one to see.
+    fn assert_out_untouched(result: &LoadResult) {
+        assert_eq!(
+            result.error, UNTOUCHED,
+            "`out` must not be written unless the status is READY"
+        );
+        assert_eq!(
+            result.geometry,
+            LoadGeometry::default(),
+            "`out.geometry` must not be written unless the status is READY"
+        );
+        assert_eq!(
+            result.size_bytes, 0,
+            "`out.size_bytes` must not be written unless the status is READY"
+        );
+        assert!(
+            result.alternate_path.iter().all(|&byte| byte == 0),
+            "`out.alternate_path` must not be written unless the status is READY"
+        );
     }
 
     fn request_load(path: &str, candidates: &[&str]) -> bool {
@@ -909,7 +951,9 @@ mod live_pipeline {
     #[test]
     fn an_unrequested_path_is_unknown() {
         let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        assert_eq!(collect("never/asked.wav").0, DELUGE_AUDIO_LOAD_UNKNOWN);
+        let (status, out) = collect("never/asked.wav");
+        assert_eq!(status, DELUGE_AUDIO_LOAD_UNKNOWN);
+        assert_out_untouched(&out);
     }
 
     /// A queued-but-unparsed request reports `PENDING`, so the caller waits
@@ -918,7 +962,9 @@ mod live_pipeline {
     fn a_queued_request_is_pending() {
         let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         assert!(request_load("queued/A.wav", &["queued/A.wav"]));
-        assert_eq!(collect("queued/A.wav").0, DELUGE_AUDIO_LOAD_PENDING);
+        let (status, out) = collect("queued/A.wav");
+        assert_eq!(status, DELUGE_AUDIO_LOAD_PENDING);
+        assert_out_untouched(&out);
     }
 
     /// A load being parsed RIGHT NOW reports `PENDING`, not `UNKNOWN`.

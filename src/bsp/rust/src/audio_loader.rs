@@ -606,16 +606,38 @@ pub unsafe extern "C" fn deluge_audio_load_collect(
 /// loader can publish between them and the second pass then reports `Unknown`
 /// for a result the first pass merely missed.
 ///
-/// A status only — [`Probe::Ready`] carries no payload. A found [`LoadResult`] is
-/// ~312 bytes and has exactly one destination, the caller's `out` slot, so
-/// [`probe`] writes it there and reports which case it took. Threading it back
-/// through the return value instead would make every `Pending`/`Unknown` collect
-/// (the common ones, on a per-tick path) move a 312-byte enum to say one of two
-/// things that fit in a byte. Boxing the variant would be the other way to shrink
-/// it and is the wrong one here: that puts a heap allocation on the collect path,
-/// which is called from the audio-adjacent tick and must not allocate at all.
+/// A status only — [`Probe::Ready`] carries no payload. A found [`LoadResult`]
+/// has exactly one destination, the caller's `out` slot, so [`probe`] writes it
+/// there and reports which case it took, instead of handing ~312 bytes back
+/// through a return value for the caller to forward.
+///
+/// **That is a shape argument, not a speed one — do not restate it as an
+/// optimisation.** Both forms were measured on the release build of
+/// `deluge_audio_load_collect` and cost the same: 368 instructions each, the
+/// same `sub $0x488,%rsp` frame, and the same two 312-byte `memcpy`s. `probe`
+/// inlines completely either way, so the old form never moved a payload on
+/// `Pending`/`Unknown` either, and on `Ready` the copy moved rather than went
+/// away — from the enum's payload slot to `take_from`'s return temporary.
+///
+/// Boxing the payload is the other way to shrink the enum, and it is wrong here
+/// for a reason that has nothing to do with size: it puts a heap allocation on
+/// the collect path, which the C++ side calls per tick and which must not
+/// allocate.
+///
+/// One genuine behavioural delta, small but worth knowing: the copy into `out`
+/// now happens while the `RESULTS` guard is still held — the match scrutinee
+/// keeps it alive across the arm — where before it happened in the caller, after
+/// `probe` had returned and the guard had dropped. `embassy_sync`'s async
+/// `Mutex` guard holds no critical section, so this only widens the window in
+/// which a concurrent `publish_result` would `.await`. It cannot deadlock and
+/// cannot produce a wrong status.
 enum Probe {
-    /// `out` has been written. Only this case writes it.
+    /// `out` has been written. **Only this case writes it**, and the C side is
+    /// told so: `audio_load.h` lets a caller pass an uninitialised slot and read
+    /// it back only on `READY`. `live_pipeline`'s `collect` seeds a `0xFF`
+    /// sentinel and the `PENDING`/`UNKNOWN` tests assert it survives, so a
+    /// future branch that writes a placeholder fails there rather than in a
+    /// caller that trusted the contract.
     Ready,
     Pending,
     Unknown,
