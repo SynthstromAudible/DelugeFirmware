@@ -188,24 +188,30 @@ bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 
 	auto param = item->getParamIndex();
 
-	if (currentSound->maySourcePatchToParam(PatchSource::LFO_LOCAL_1, param, soundEditor.currentParamManager)
-		== PatchCableAcceptance::DISALLOWED)
+	auto patchable = item->getParamKind() == params::Kind::PATCHED;
+
+	if (patchable)
 	{
-		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++)
+		// canary - if the local lfo (lfo 2 to users) can't patch then it's a global patched param
+		if (currentSound->maySourcePatchToParam(PatchSource::LFO_LOCAL_1, param, soundEditor.currentParamManager)
+			== PatchCableAcceptance::DISALLOWED)
 		{
-			for (int32_t xDisplay = kDisplayWidth - 2; xDisplay < kDisplayWidth; xDisplay++)
+			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++)
 			{
-				image[yDisplay][xDisplay] = mono_mod_shortcut_colours[xDisplay - (kDisplayWidth - 2)][yDisplay];
+				for (int32_t xDisplay = kDisplayWidth - 2; xDisplay < kDisplayWidth; xDisplay++)
+				{
+					image[yDisplay][xDisplay] = mono_mod_shortcut_colours[xDisplay - (kDisplayWidth - 2)][yDisplay];
+				}
 			}
 		}
-	}
-	else
-	{
-		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++)
+		else
 		{
-			for (int32_t xDisplay = kDisplayWidth - 2; xDisplay < kDisplayWidth; xDisplay++)
+			for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++)
 			{
-				image[yDisplay][xDisplay] = poly_mod_shortcut_colours[xDisplay - (kDisplayWidth - 2)][yDisplay];
+				for (int32_t xDisplay = kDisplayWidth - 2; xDisplay < kDisplayWidth; xDisplay++)
+				{
+					image[yDisplay][xDisplay] = poly_mod_shortcut_colours[xDisplay - (kDisplayWidth - 2)][yDisplay];
+				}
 			}
 		}
 	}
