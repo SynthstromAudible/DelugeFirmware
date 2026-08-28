@@ -171,21 +171,27 @@ Shell::Shell(SurfaceSet& surfaces, const BoardProfile& profile, const SceneRegis
              ShellConfig config)
     : surfaces_(surfaces), profile_(profile), config_(config), services_(services),
       registry_{std::span<Scene* const>{table_}}, stack_(registry_), lowering_(profile, config.lowering),
-      router_(stack_, services, lowering_), notices_(stack_, profile_, popup_, console_, working_) {
+      router_(stack_, services, lowering_), screensaver_(stack_, config.screensaver_idle_ms, config.seed),
+      notices_(stack_, profile_, popup_, console_, working_) {
 	for (size_t i = 0; i < table_.size(); i++) {
 		table_[i] = registry.find(static_cast<SceneKind>(i));
 	}
-	// The shell owns its three overlay kinds outright: `Notices` drives *these* instances, so a
-	// scene an application registered in one of those slots could never be told anything.
+	// The shell owns these kinds outright: `Notices` drives the first three instances directly,
+	// and `boot()`/`song_loading()` drive the next two, so a scene an application registered in
+	// one of those slots could never be told anything. `SceneKind::Screensaver` is deliberately
+	// absent from this list -- see `screensaver_`'s own doc.
 	table_[static_cast<size_t>(SceneKind::Popup)] = &popup_;
 	table_[static_cast<size_t>(SceneKind::Console)] = &console_;
 	table_[static_cast<size_t>(SceneKind::Working)] = &working_;
+	table_[static_cast<size_t>(SceneKind::Boot)] = &boot_;
+	table_[static_cast<size_t>(SceneKind::Loading)] = &loading_;
 
 	// The services are fixed at construction, so the deduplicated list is built once rather than
 	// three times a tick. The three `Services` slots default to the one shared `null_service()`,
 	// and nothing stops an application putting one object in two of them; a service must be ticked,
 	// asked for LEDs and asked for its timer exactly once.
-	Service* const all[] = {services_.mod_knobs, services_.global_controls, services_.midi_learn, &notices_};
+	Service* const all[] = {services_.mod_knobs, services_.global_controls, services_.midi_learn, &notices_,
+	                        &screensaver_};
 	for (Service* service : all) {
 		if (service == nullptr) {
 			continue;
@@ -204,6 +210,32 @@ void Shell::init(SceneId initial) {
 	stack_.push(initial);
 }
 
+void Shell::boot(std::string_view firmware_version) {
+	boot_.set_firmware_version(firmware_version);
+	init(SceneId{SceneKind::Boot, 0});
+	for (OledSurface& s : surfaces_.oled()) {
+		s.gate.request_repaint();
+	}
+	surfaces_.grid().gate.request_repaint();
+	lowering_.widgets_gate().request_repaint();
+}
+
+void Shell::song_loading(bool loading) {
+	if (loading) {
+		stack_.reset();
+		(void)stack_.push(SceneId{SceneKind::Loading, 0});
+		lowering_.set_input_lock(true);
+		return;
+	}
+	stack_.pop(SceneKind::Loading);
+	lowering_.set_input_lock(false);
+	if (song_hooks_.root_for_song != nullptr) {
+		(void)stack_.replace_root(song_hooks_.root_for_song(song_hooks_.ctx));
+	}
+	// No hooks: the stack is left exactly as `pop` leaves it -- empty, `top()` the `NullScene` --
+	// per this method's own doc.
+}
+
 // -- Feeding ----------------------------------------------------------------------------------
 
 void Shell::ensure_tick_window(uint32_t now_ms) {
@@ -215,11 +247,15 @@ void Shell::ensure_tick_window(uint32_t now_ms) {
 
 void Shell::on_board_event(const DelugeInputEvent& ev, uint32_t now_ms) {
 	ensure_tick_window(now_ms);
+	// Before lowering, not instead of it: see `Screensaver::note_activity`'s doc on why the event
+	// that wakes the screensaver must still reach the scene beneath it.
+	screensaver_.note_activity(now_ms);
 	lowering_.on_board_event(ev, now_ms);
 }
 
 void Shell::on_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms) {
 	ensure_tick_window(now_ms);
+	screensaver_.note_activity(now_ms);
 	lowering_.on_encoder_edges(index, edges, now_ms);
 }
 
@@ -337,6 +373,14 @@ void Shell::apply_dirty(const notify::DirtySet& dirty) {
 	}
 	for (Scene* scene : stack_.scenes()) {
 		scene->on_model_changed(dirty);
+	}
+	// A bare `SongSwapped` (no preceding `song_loading(true)`/`(false)` bracket) only re-queries
+	// the root -- spec D §9's second, narrower protocol. Run after the `on_model_changed` loop
+	// above, never inside it: `replace_root` tears down and rebuilds the stack `scenes()` is a
+	// view over, and `SceneStack` is explicitly not reentrant from within a lifecycle hook. With
+	// no hooks set this is a no-op, per this method's own doc.
+	if (dirty.has(Dirty::SongSwapped) && song_hooks_.root_for_song != nullptr) {
+		(void)stack_.replace_root(song_hooks_.root_for_song(song_hooks_.ctx));
 	}
 	const bool untargeted = has_untargeted_fact(dirty);
 	if (dirty.has(Dirty::Oled) || untargeted) {

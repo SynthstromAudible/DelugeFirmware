@@ -1,5 +1,6 @@
 #pragma once
 #include "notify/dirty_set.h"
+#include "shell/boot_scenes.h"
 #include "shell/fixed_vector.h"
 #include "shell/input_lowering.h"
 #include "shell/leds.h"
@@ -9,6 +10,7 @@
 #include "shell/router.h"
 #include "shell/scene.h"
 #include "shell/scene_stack.h"
+#include "shell/screensaver.h"
 #include "shell/service.h"
 #include "shell/surfaces.h"
 #include "ui/grid/effects.h"
@@ -26,11 +28,23 @@ struct ShellConfig {
 	/// Passed straight through to the `InputLowering` the shell owns.
 	LoweringConfig lowering;
 	/// How long the shell may sit with no input before the screensaver scene is pushed; 0 is off.
-	/// @note Stored but unread until Task 9 builds `Screensaver`.
 	uint32_t screensaver_idle_ms = 0;
-	/// The seed the screensaver's animation is started from.
-	/// @note Stored but unread until Task 9.
+	/// The seed the screensaver's animation is started from; passed through to the pushed
+	/// scene's `SceneId::arg` (see `Screensaver`).
 	uint32_t seed = 0;
+};
+
+/// @brief What the shell calls to find the application's root scene for a song, on the two paths
+///        that ask for it (`Shell::song_loading(false)` and a bare `Dirty::SongSwapped`).
+///
+/// A free function pointer plus an opaque context rather than a `std::function`, matching the
+/// rest of `src/shell`'s no-allocation rule; `ctx` is passed back unchanged, so an application
+/// wanting member access closes over `this` there.
+struct SongHooks {
+	/// @param ctx The context below, passed straight through.
+	/// @return The scene to make the new root.
+	SceneId (*root_for_song)(void* ctx) = nullptr;
+	void* ctx = nullptr;
 };
 
 /// @brief The shell's own name for \p k, for `.state` lines and diagnostics.
@@ -104,9 +118,40 @@ public:
 	Shell(const Shell&) = delete;
 	Shell& operator=(const Shell&) = delete;
 
-	/// @brief Push the first scene. Task 9 makes this `SceneKind::Boot`.
+	/// @brief Push the first scene.
 	/// @param initial What to push.
 	void init(SceneId initial);
+
+	/// @brief Show the boot splash: the shell's own `BootScene`, carrying \p firmware_version.
+	///
+	/// Ports the presentation half of legacy's boot sequence (`renderUIsForOled`,
+	/// `deluge.cpp:120,133,371`, now `raise(Dirty::Oled)`): equivalent to `init({SceneKind::Boot})`
+	/// plus configuring the splash's text, plus requesting a repaint on every surface so the
+	/// first `tick()` after this call draws it regardless of any gate's prior state.
+	/// @param firmware_version The version string to draw under the "DELUGE" title.
+	void boot(std::string_view firmware_version);
+
+	/// @brief Wire (or clear) the hooks the shell asks for the application's song root through,
+	///        on `song_loading(false)` and on a bare `Dirty::SongSwapped` (see `apply_dirty`).
+	/// @param hooks The hooks; a default-constructed `SongHooks` (`root_for_song == nullptr`)
+	///              makes both paths a no-op -- see their own docs.
+	void set_song_hooks(SongHooks hooks) { song_hooks_ = hooks; }
+
+	/// @brief The shell's half of the song-load protocol (spec D §9): what the firmware calls from
+	///        the load path (spec F wires it) to bracket a song read.
+	///
+	/// `loading=true`: reset the whole stack, push the shell's own `LoadingScene`, and take the
+	/// input lock -- the port of `nullifyUIs()` (`gui/ui/ui.cpp:257-261`) plus the input side of
+	/// `gui/ui/load/load_song_ui.*`'s "loading" presentation. `loading=false`: pop the loading
+	/// scene, release the lock, and -- only if `set_song_hooks` was given a real
+	/// `root_for_song` -- `replace_root()` to whatever it returns for the now-loaded song.
+	///
+	/// @note With no hooks set, `loading=false` pops `Loading` and stops there: the stack is left
+	///       empty (`top()` is the `NullScene`, which draws nothing and swallows every event) --
+	///       valid, if not useful, until either a later `init()`/`song_loading(true)` or hooks
+	///       finally being set and a bare `Dirty::SongSwapped` arriving.
+	/// @param loading True as loading starts, false once the song is ready.
+	void song_loading(bool loading);
 
 	/// @brief One pass of the whole UI, in spec D §7's order.
 	/// @param now_ms The tick's wall clock.
@@ -197,11 +242,15 @@ public:
 	std::string state_lines() const;
 
 private:
-	/// @brief `on_model_changed` on every stacked scene, and the dirty facts onto the gates.
+	/// @brief `on_model_changed` on every stacked scene, `Dirty::SongSwapped`'s bare re-query, and
+	///        the dirty facts onto the gates.
 	///
 	/// `Dirty::Oled` invalidates the OLED surfaces; `GridMain`/`GridSidebar`/`ClipContent`/
 	/// `NoteRows` invalidate the grid; every other fact is a model change with no surface named,
-	/// so it invalidates both.
+	/// so it invalidates both. `Dirty::SongSwapped` additionally -- once every scene has had its
+	/// `on_model_changed` -- calls `replace_root(hooks.root_for_song(ctx))` if `set_song_hooks`
+	/// was given real hooks; this is the narrower of the song-swap protocol's two paths (see
+	/// `song_loading`'s own doc for the bracketed one) and a no-op with none set.
 	/// @param dirty This tick's drained facts.
 	void apply_dirty(const notify::DirtySet& dirty);
 	/// @brief Close the lowering's tick window and route everything ordinary out of it.
@@ -260,10 +309,23 @@ private:
 	PopupScene popup_;
 	ConsoleScene console_;
 	WorkingScene working_;
+	/// The shell's own boot splash and song-loading scenes, installed into `table_` alongside
+	/// `popup_`/`console_`/`working_` above -- unlike `SceneKind::Screensaver`, which names no
+	/// shell-owned scene at all (see `screensaver_`'s own doc).
+	BootScene boot_;
+	LoadingScene loading_;
+	/// Pushes/pops `SceneKind::Screensaver` after idle. Deliberately does *not* own a scene
+	/// instance the way `popup_`/`console_`/`working_`/`boot_`/`loading_` do: the real animation
+	/// is spec E3's, registered by the application (or a spec's stand-in) like any other scene, so
+	/// `table_[Screensaver]` is left exactly as `registry.find()` reported it.
+	Screensaver screensaver_;
 	Notices notices_;
-	/// `mod_knobs`, `global_controls`, `midi_learn` and `Notices`, each listed once; built in the
-	/// constructor, since `Services` is fixed there.
-	FixedVector<Service*, 4> service_list_;
+	/// `mod_knobs`, `global_controls`, `midi_learn`, `Notices` and `Screensaver`, each listed
+	/// once; built in the constructor, since `Services` is fixed there.
+	FixedVector<Service*, 5> service_list_;
+	/// The hooks `song_loading(false)` and a bare `Dirty::SongSwapped` ask for the application's
+	/// song root through; unset (`root_for_song == nullptr`) until `set_song_hooks` is called.
+	SongHooks song_hooks_;
 
 	/// The union of the stack's `greyout_mask()`s, re-queried whenever the stack changes.
 	grid::GreyoutMask greyout_{};
