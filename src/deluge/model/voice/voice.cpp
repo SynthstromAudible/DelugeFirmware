@@ -1079,13 +1079,20 @@ skipAutoRelease: {}
 		// so this is a constant scale folded in here - once per source per render block - rather than
 		// anything per-sample. Attenuation only, so it can't push the amplitude past the headroom the
 		// limits above are protecting.
-		for (int32_t s = 0; s < kNumSources; s++) {
-			if (sound.sources[s].oscType != OscType::SAMPLE || guides[s].audioFileHolder == nullptr) {
-				continue;
-			}
-			uint8_t trim = static_cast<SampleHolderForVoice*>(guides[s].audioFileHolder)->volume;
-			if (trim < kVariantVolumeUnity) {
-				sourceAmplitudes[s] = (int32_t)(((int64_t)sourceAmplitudes[s] * trim) / kVariantVolumeUnity);
+		//
+		// Gated on the community feature like every other part of this: with it off the VOL menu is
+		// hidden, so a trim left over from when it was on would keep attenuating with no way for the
+		// user to see or undo it. Turning the feature off must leave playback exactly as it was before
+		// the feature existed. The stored value is untouched, so turning it back on restores the trim.
+		if (runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants)) {
+			for (int32_t s = 0; s < kNumSources; s++) {
+				if (sound.sources[s].oscType != OscType::SAMPLE || guides[s].audioFileHolder == nullptr) {
+					continue;
+				}
+				uint8_t trim = static_cast<SampleHolderForVoice*>(guides[s].audioFileHolder)->volume;
+				if (trim < kVariantVolumeUnity) {
+					sourceAmplitudes[s] = (int32_t)(((int64_t)sourceAmplitudes[s] * trim) / kVariantVolumeUnity);
+				}
 			}
 		}
 
@@ -1901,7 +1908,7 @@ void Voice::renderFMWithFeedbackAdd(int32_t* bufferStart, int32_t numSamples, in
 			// version. The hard clipping one sounds really solid.
 			feedback = signed_saturate<22>(feedback);
 
-			uint32_t sum = (uint32_t)*(fmSample++) + (uint32_t)feedback;
+			uint32_t sum = (uint32_t) * (fmSample++) + (uint32_t)feedback;
 
 			feedbackValue = dsp::SineOsc::doFMNew(phaseNow += phaseIncrement, sum);
 			*thisSample = multiply_accumulate_32x32_rshift32_rounded(*thisSample, feedbackValue, amplitudeNow);
