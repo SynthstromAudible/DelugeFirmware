@@ -142,9 +142,20 @@ PLACE_SDRAM_RODATA constexpr RGB shortcut_colours [][kDisplayHeight] = {
 	{arp_colour,				arp_colour,				arp_colour,             arp_colour,             arp_colour,				meta_colour,		eq_colour,			eq_colour			},
     {lfo_colour,				lfo_colour,				lfo_colour,             fx_colour,              fx_colour,				fx_colour,			fx_colour,			fx_colour           },
     {lfo_colour,				lfo_colour,				lfo_colour,             reverb_colour,          reverb_colour,			reverb_colour,		reverb_colour,		reverb_colour       },
-	{delay_colour,			delay_colour,			delay_colour,           delay_colour,           delay_colour,			mod_source_colour,	mod_source_colour,	mod_source_colour   },
-	{mod_source_colour,		synth_global_colour,	synth_global_colour,    synth_global_colour,    mod_source_colour,		mod_source_colour,	mod_source_colour,	mod_source_colour   },
+	{delay_colour,			delay_colour,			delay_colour,           delay_colour,           delay_colour,			none_colour,		none_colour,		none_colour   },
+	{none_colour,			synth_global_colour,	synth_global_colour,    synth_global_colour,    none_colour,			none_colour,		none_colour,		none_colour   },
 };
+
+PLACE_SDRAM_RODATA constexpr RGB poly_mod_shortcut_colours [][kDisplayHeight] = {
+	{delay_colour,			delay_colour,			delay_colour,           delay_colour,           delay_colour,			mod_source_colour,	mod_source_colour,	mod_source_colour   },
+	{mod_source_colour,		mod_source_colour,		mod_source_colour,		mod_source_colour,		mod_source_colour,		mod_source_colour,	mod_source_colour,	mod_source_colour   },
+};
+
+PLACE_SDRAM_RODATA constexpr RGB mono_mod_shortcut_colours [][kDisplayHeight] = {
+	{delay_colour,			delay_colour,			delay_colour,           delay_colour,           delay_colour,			mod_source_colour,	none_colour,	none_colour   },
+	{none_colour,			synth_global_colour,	synth_global_colour,	synth_global_colour,	mod_source_colour,		none_colour,		none_colour,	none_colour   },
+};
+
 //clang-format on
 
 bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSideBarWidth],
@@ -172,6 +183,33 @@ bool SoundEditor::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth +
 			occupancyMask[yDisplay][xDisplay] = 64;
 		}
 	}
+
+	MenuItem* item = getCurrentMenuItem();
+
+	auto param = item->getParamIndex();
+
+	if (currentSound->maySourcePatchToParam(PatchSource::LFO_LOCAL_1, param, soundEditor.currentParamManager)
+		== PatchCableAcceptance::DISALLOWED)
+	{
+		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++)
+		{
+			for (int32_t xDisplay = kDisplayWidth - 2; xDisplay < kDisplayWidth; xDisplay++)
+			{
+				image[yDisplay][xDisplay] = mono_mod_shortcut_colours[xDisplay - (kDisplayWidth - 2)][yDisplay];
+			}
+		}
+	}
+	else
+	{
+		for (int32_t yDisplay = 0; yDisplay < kDisplayHeight; yDisplay++)
+		{
+			for (int32_t xDisplay = kDisplayWidth - 2; xDisplay < kDisplayWidth; xDisplay++)
+			{
+				image[yDisplay][xDisplay] = poly_mod_shortcut_colours[xDisplay - (kDisplayWidth - 2)][yDisplay];
+			}
+		}
+	}
+
 	return true;
 }
 
@@ -1283,6 +1321,165 @@ const MenuItem* SoundEditor::check_basic_shortcut_for_press(int32_t x, int32_t y
 	return item;
 }
 
+ActionResult SoundEditor::handle_patch_source_shortcut(int32_t x, int32_t y, bool on, bool& modulationItemFound)
+{
+	const int32_t modSourceX = x - 14;
+	PatchSource source = modSourceShortcuts[modSourceX][y];
+
+	secondLayerModSourceShortcutsToggled =
+		sourceShortcutBlinkFrequencies[modSourceX][y] != 255
+		&& getCurrentMenuItem()->getParamKind() == modulation::params::Kind::PATCH_CABLE
+			? !secondLayerModSourceShortcutsToggled
+			: false;
+
+	// Replace with the second layer shortcut (e.g. env3, lfo3) if the pad was pressed twice
+	if (secondLayerModSourceShortcutsToggled)
+	{
+		const auto secondLayerSource = modSourceShortcutsSecondLayer[modSourceX][y];
+		if (secondLayerSource != PatchSource::NOT_AVAILABLE)
+		{
+			source = secondLayerSource;
+		}
+	}
+
+	if (source == PatchSource::SOON)
+	{
+		display->displayPopup("SOON");
+	}
+
+	if (source >= kLastPatchSource)
+	{
+		return ActionResult::DEALT_WITH;
+	}
+
+	bool previousPressStillActive = check_for_active_previous_press(x, y);
+
+	bool wentBack = false;
+
+	int32_t newNavigationDepth = navigationDepth;
+
+	while (true)
+	{
+		// Ask current MenuItem what to do with this action
+		MenuItem* newMenuItem = menuItemNavigationRecord[newNavigationDepth]->patchingSourceShortcutPress(
+			source, previousPressStillActive);
+
+		// If it says "go up a level and ask that MenuItem", do that
+		if (newMenuItem == NO_NAVIGATION)
+		{
+			newNavigationDepth--;
+			if (newNavigationDepth < 0)
+			{
+				// This normally shouldn't happen
+				exitCompletely();
+				return ActionResult::DEALT_WITH;
+			}
+			wentBack = true;
+		}
+
+		// Otherwise...
+		else
+		{
+			// If we've been given a MenuItem to go into, do that
+			if (newMenuItem
+				&& newMenuItem->checkPermissionToBeginSession(currentModControllable, currentSourceIndex,
+				                                              &currentMultiRange)
+				!= MenuPermission::NO)
+			{
+				// end current menu item session before beginning new menu item session
+				endScreen();
+
+				modulationItemFound = true;
+				navigationDepth = newNavigationDepth + 1;
+				menuItemNavigationRecord[navigationDepth] = newMenuItem;
+				if (!wentBack)
+				{
+					display->setNextTransitionDirection(1);
+				}
+				beginScreen();
+
+				if (getRootUI() == &automationView)
+				{
+					// if automation view is open in the background
+					// potentially refresh grid if opening a new patch cable menu
+					getCurrentMenuItem()->buttonAction(hid::button::SELECT_ENC, on, sdRoutineLock);
+				}
+			}
+
+			// Otherwise, do nothing
+			break;
+		}
+	}
+	return ActionResult::NOT_DEALT_WITH;
+}
+
+void SoundEditor::handle_sound_shortcut_item(int32_t x, int32_t y, const MenuItem*& item)
+{
+	//< randomizer shortcuts
+
+	if (editingCVOrMIDIClip() || editingNonAudioDrumRow())
+	{
+		if (x == 11)
+		{
+			item = editingGateDrumRow() ? gateDrumParamShortcuts[y] : midiOrCVParamShortcuts[y];
+			if (editingNonAudioDrumRow() && item == &editNameMenu)
+			{
+				item = &drumNameEditMenu;
+			}
+		}
+		else if (x == 15)
+		{
+			// Randomizer shortcuts for MIDI / CV clips
+			item = [&]
+			{
+				switch (y)
+				{
+				case 1:
+					return static_cast<MenuItem*>(&spreadVelocityMenuMIDIOrCV);
+				case 2:
+					return static_cast<MenuItem*>(&randomizerLockMenu);
+				case 3:
+					return static_cast<MenuItem*>(&randomizerNoteProbabilityMenuMIDIOrCV);
+				default:
+					return static_cast<MenuItem*>(nullptr);
+				}
+			}();
+		}
+		else if (x == 4 && y == 7)
+		{
+			item = &sequenceDirectionMenu;
+		}
+		else
+		{
+			item = nullptr;
+		}
+	}
+	else
+	{
+		item = paramShortcutsForSounds[x][y];
+		if (getCurrentOutputType() == OutputType::KIT && item == &editNameMenu)
+		{
+			item = &drumNameEditMenu;
+		}
+
+		// Replace the current shortcut with a second layer shortcut if the pad was pressed twice
+		secondLayerShortcutsToggled =
+			getCurrentMenuItem() != nullptr && x == currentParamShortcutX && y == currentParamShortcutY
+			&& getCurrentMenuItem()->getParamKind() != modulation::params::Kind::PATCH_CABLE
+				? !secondLayerShortcutsToggled
+				: false;
+
+		if (secondLayerShortcutsToggled)
+		{
+			if (const auto secondLayerItem = paramShortcutsForSoundsSecondLayer[x][y];
+				secondLayerItem != nullptr)
+			{
+				item = secondLayerItem;
+			}
+		}
+	}
+}
+
 ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool on) {
 	bool ignoreAction = false;
 	bool modulationItemFound = false;
@@ -1324,146 +1521,27 @@ ActionResult SoundEditor::potentialShortcutPadAction(int32_t x, int32_t y, bool 
 			}
 
 			// Shortcut to patch a modulation source to the parameter we're already looking at
-			if (getCurrentUI() == &soundEditor && ((x == 14 && y >= 5) || x == 15)) {
-
-				const int32_t modSourceX = x - 14;
-				PatchSource source = modSourceShortcuts[modSourceX][y];
-
-				secondLayerModSourceShortcutsToggled =
-				    sourceShortcutBlinkFrequencies[modSourceX][y] != 255
-				            && getCurrentMenuItem()->getParamKind() == modulation::params::Kind::PATCH_CABLE
-				        ? !secondLayerModSourceShortcutsToggled
-				        : false;
-
-				// Replace with the second layer shortcut (e.g. env3, lfo3) if the pad was pressed twice
-				if (secondLayerModSourceShortcutsToggled) {
-					const auto secondLayerSource = modSourceShortcutsSecondLayer[modSourceX][y];
-					if (secondLayerSource != PatchSource::NOT_AVAILABLE) {
-						source = secondLayerSource;
-					}
-				}
-
-				if (source == PatchSource::SOON) {
-					display->displayPopup("SOON");
-				}
-
-				if (source >= kLastPatchSource) {
-					return ActionResult::DEALT_WITH;
-				}
-
-				bool previousPressStillActive = check_for_active_previous_press(x, y);
-
-				bool wentBack = false;
-
-				int32_t newNavigationDepth = navigationDepth;
-
-				while (true) {
-
-					// Ask current MenuItem what to do with this action
-					MenuItem* newMenuItem = menuItemNavigationRecord[newNavigationDepth]->patchingSourceShortcutPress(
-					    source, previousPressStillActive);
-
-					// If it says "go up a level and ask that MenuItem", do that
-					if (newMenuItem == NO_NAVIGATION) {
-						newNavigationDepth--;
-						if (newNavigationDepth < 0) { // This normally shouldn't happen
-							exitCompletely();
-							return ActionResult::DEALT_WITH;
-						}
-						wentBack = true;
-					}
-
-					// Otherwise...
-					else {
-						// If we've been given a MenuItem to go into, do that
-						if (newMenuItem
-						    && newMenuItem->checkPermissionToBeginSession(currentModControllable, currentSourceIndex,
-						                                                  &currentMultiRange)
-						           != MenuPermission::NO) {
-							// end current menu item session before beginning new menu item session
-							endScreen();
-
-							modulationItemFound = true;
-							navigationDepth = newNavigationDepth + 1;
-							menuItemNavigationRecord[navigationDepth] = newMenuItem;
-							if (!wentBack) {
-								display->setNextTransitionDirection(1);
-							}
-							beginScreen();
-
-							if (getRootUI() == &automationView) {
-								// if automation view is open in the background
-								// potentially refresh grid if opening a new patch cable menu
-								getCurrentMenuItem()->buttonAction(hid::button::SELECT_ENC, on, sdRoutineLock);
-							}
-						}
-
-						// Otherwise, do nothing
-						break;
-					}
-				}
+			if (getCurrentUI() == &soundEditor && ((x == 14 && y >= 5) || x == 15))
+			{
+				if (handle_patch_source_shortcut(x, y, on, modulationItemFound) ==
+					ActionResult::ACTIONED_AND_CAUSED_CHANGE) return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
 			}
 
 			// Shortcut to edit a parameter
 			if (!modulationItemFound
 			    && (x < 14 || (x == 14 && y < 5) ||   //< regular shortcuts
-			        (x == 15 && y >= 1 && y <= 3))) { //< randomizer shortcuts
-
-				if (editingCVOrMIDIClip() || editingNonAudioDrumRow()) {
-					if (x == 11) {
-						item = editingGateDrumRow() ? gateDrumParamShortcuts[y] : midiOrCVParamShortcuts[y];
-						if (editingNonAudioDrumRow() && item == &editNameMenu) {
-							item = &drumNameEditMenu;
-						}
-					}
-					else if (x == 15) {
-						// Randomizer shortcuts for MIDI / CV clips
-						item = [&] {
-							switch (y) {
-							case 1:
-								return static_cast<MenuItem*>(&spreadVelocityMenuMIDIOrCV);
-							case 2:
-								return static_cast<MenuItem*>(&randomizerLockMenu);
-							case 3:
-								return static_cast<MenuItem*>(&randomizerNoteProbabilityMenuMIDIOrCV);
-							default:
-								return static_cast<MenuItem*>(nullptr);
-							}
-						}();
-					}
-					else if (x == 4 && y == 7) {
-						item = &sequenceDirectionMenu;
-					}
-					else {
-						item = nullptr;
-					}
-				}
-				else {
-					item = paramShortcutsForSounds[x][y];
-					if (getCurrentOutputType() == OutputType::KIT && item == &editNameMenu) {
-						item = &drumNameEditMenu;
-					}
-
-					// Replace the current shortcut with a second layer shortcut if the pad was pressed twice
-					secondLayerShortcutsToggled =
-					    getCurrentMenuItem() != nullptr && x == currentParamShortcutX && y == currentParamShortcutY
-					            && getCurrentMenuItem()->getParamKind() != modulation::params::Kind::PATCH_CABLE
-					        ? !secondLayerShortcutsToggled
-					        : false;
-
-					if (secondLayerShortcutsToggled) {
-						if (const auto secondLayerItem = paramShortcutsForSoundsSecondLayer[x][y];
-						    secondLayerItem != nullptr) {
-							item = secondLayerItem;
-						}
-					}
-				}
+				    (x == 15 && y >= 1 && y <= 3)))
+			{
+				handle_sound_shortcut_item(x, y, item);
 
 			}
 		}
 	}
 doSetup:
-	if (item) {
+	if (item)
+	{
+		// we need to reset the colours now
+		uiNeedsRendering(this, 0xFFFFFFFF, 0);
 		return handle_menu_item_action(x, on, item);
 
 	}

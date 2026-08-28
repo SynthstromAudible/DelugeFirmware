@@ -128,6 +128,8 @@ public:
 	ActionResult handle_menu_item_action(int32_t x, bool on, const MenuItem*& item);
 	bool check_for_active_previous_press(int32_t x, int32_t y);
 	const MenuItem* check_basic_shortcut_for_press(int32_t x, int32_t y) const;
+	ActionResult handle_patch_source_shortcut(int32_t x, int32_t y, bool on, bool& modulationItemFound);
+	void handle_sound_shortcut_item(int32_t x, int32_t y, const MenuItem*& item);
 	ActionResult potentialShortcutPadAction(int32_t x, int32_t y, bool on);
 	bool editingReverbSidechain();
 	MenuItem* getCurrentMenuItem();
