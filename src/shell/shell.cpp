@@ -1,9 +1,11 @@
 #include "shell/shell.h"
 
+#include "gfx/grid/tween.h"
 #include "notify/notice_queue.h"
 #include "ui/grid/frame.h"
 #include "ui/oled/frame.h"
 
+#include <algorithm>
 #include <string_view>
 
 namespace deluge::ui::shell {
@@ -48,6 +50,48 @@ bool has_untargeted_fact(const notify::DirtySet& dirty) {
 		}
 	}
 	return false;
+}
+
+/// @brief Assemble column pair \p pair_index's 16 pad colours from \p grid.
+///
+/// Legacy order (`PadLEDs::sortLedsForCol`, `hid/led/pad_leds.cpp:260-275`): column
+/// `pair_index * 2` rows 0..7, then column `pair_index * 2 + 1` rows 0..7 -- `doubleColumn`'s two
+/// back-to-back fills, each over `kDisplayHeight` (8) rows.
+ColumnPair read_column_pair(const gfx::grid::PadGrid& grid, uint8_t pair_index) {
+	ColumnPair out{};
+	const uint8_t rows = std::min<uint8_t>(grid.dims().rows, kColumnPairLeds / 2);
+	const uint8_t x0 = static_cast<uint8_t>(pair_index * 2);
+	const uint8_t x1 = static_cast<uint8_t>(x0 + 1);
+	uint8_t idx = 0;
+	for (uint8_t y = 0; y < rows; y++) {
+		out.colours[idx++] = grid.row(y)[x0];
+	}
+	for (uint8_t y = 0; y < rows; y++) {
+		out.colours[idx++] = grid.row(y)[x1];
+	}
+	return out;
+}
+
+/// @brief Elementwise equality for `KnobIndicator`, which (unlike `ColumnPair`) declares no
+///        `operator==` of its own.
+bool same_indicator(const KnobIndicator& a, const KnobIndicator& b) {
+	for (uint8_t i = 0; i < 4; i++) {
+		if (a.levels[i] != b.levels[i]) {
+			return false;
+		}
+	}
+	return true;
+}
+
+/// @brief The tween's blend parameter, 0..65535, from elapsed time over its duration.
+///
+/// `elapsed * 65536 / duration` rather than `* 65535`: at `elapsed == duration / 2` this lands on
+/// an exact half (e.g. 100/200 -> 32768) instead of landing one short of it, and the caller never
+/// sees this function once `elapsed >= duration` (the tween has already cleared by then), so the
+/// unreachable `t == 65536` overflow of a true 0..65535 scale never arises.
+uint16_t tween_progress(uint32_t elapsed_ms, uint32_t duration_ms) {
+	const uint64_t t = (static_cast<uint64_t>(elapsed_ms) * 65536u) / duration_ms;
+	return static_cast<uint16_t>(std::min<uint64_t>(t, 65535u));
 }
 
 } // namespace
@@ -417,8 +461,54 @@ void Shell::render_grid(uint32_t now_ms) {
 		ui::grid::greyout(frame, greyout_, kGreyoutAmountFull);
 	}
 
-	// Task 8 evaluates `g.tween` here, into the output grid.
-	(void)now_ms;
+	// A grid tween blends the whole composed frame above -- scenes, overlay dim and greyout alike
+	// -- so it runs last, from the snapshot `start_tween` took of the grid at the moment it was
+	// called toward *this* tick's freshly composed grid (which plays "to").
+	if (g.tween.has_value() && tween_from_.has_value()) {
+		const ActiveTween& tw = *g.tween;
+		const uint32_t elapsed = now_ms - tw.start_ms;
+		if (elapsed >= tw.duration_ms) {
+			// The live grid above is already the final frame; nothing left to blend.
+			g.tween.reset();
+			tween_from_.reset();
+		}
+		else {
+			const uint16_t t = tw.duration_ms == 0 ? uint16_t{65535} : tween_progress(elapsed, tw.duration_ms);
+			switch (tw.kind) {
+			case ActiveTween::Kind::Fade:
+				gfx::grid::fade(*tween_from_, grid, t, grid);
+				break;
+			case ActiveTween::Kind::ScrollH: {
+				// Unlike fade()/grey_out(), scroll_horizontal() reads `incoming` at column indices
+				// other than the one it is writing, so passing `grid` as both `incoming` and `out`
+				// could read a column this same pass already overwrote. A scratch grid keeps the
+				// read and write sides distinct; it is then copied back onto the live grid.
+				const int32_t offset = static_cast<int32_t>((static_cast<int64_t>(tw.param) * t) / 65536);
+				gfx::grid::PadGrid scratch(grid.dims());
+				gfx::grid::scroll_horizontal(*tween_from_, grid, offset, scratch);
+				grid = scratch;
+				break;
+			}
+			case ActiveTween::Kind::ScrollV: {
+				const int32_t offset = static_cast<int32_t>((static_cast<int64_t>(tw.param) * t) / 65536);
+				gfx::grid::PadGrid scratch(grid.dims());
+				gfx::grid::scroll_vertical(*tween_from_, grid, offset, scratch);
+				grid = scratch;
+				break;
+			}
+			case ActiveTween::Kind::GreyOut: {
+				const int32_t proportion = static_cast<int32_t>((static_cast<int64_t>(tw.param) * t) / 65536);
+				gfx::grid::grey_out(grid, proportion, grid);
+				break;
+			}
+			}
+			// Still mid-tween: ask for another frame next tick so the animation keeps stepping even
+			// with no input and no model change, the way `TimerName::MATRIX_DRIVER` re-arms itself
+			// (`hid/led/pad_leds.cpp:640,730` -- 35 ms fade steps; `:760,946,992` -- `UI_MS_PER_
+			// REFRESH` (50 ms, `board_config.h:55`) scroll steps).
+			g.gate.request_repaint();
+		}
+	}
 }
 
 void Shell::deliver_post_render_input(uint32_t now_ms) {
@@ -460,14 +550,117 @@ void Shell::derive_leds(uint32_t now_ms) {
 	}
 }
 
+void Shell::start_tween(ActiveTween tw) {
+	GridSurface& g = surfaces_.grid();
+	if (g.grid_storage.has_value()) {
+		tween_from_.emplace(g.grid());
+	}
+	g.tween = tw;
+	g.gate.request_repaint();
+}
+
 void Shell::flush(uint32_t now_ms) {
-	// Task 8. It diffs and pushes what the tick above rendered: an OLED blit per surface whose
-	// `blit_pending` is set and whose panel is not `oled_busy`, the column pairs that differ from
-	// `GridSurface::last_sent` (under `pad_output_space` back-pressure), and the LEDs and knob
-	// indicators `led_send_needed`/`indicators_sent` say have changed -- then clears
-	// `blit_pending`, `GridSurface::dirty` and the send shadows. Empty until then, but called from
-	// its final position so this task's specs already pin where in the tick it runs.
-	(void)now_ms;
+	bool any_sent = false;
+
+	// OLED: one blit per surface that rendered this tick, skipping (and leaving `blit_pending`
+	// armed on) a panel still transferring a previous frame -- the `deluge_display_busy` skip
+	// around `OLED::sendMainImage` (`hid/display/oled.cpp:335-378`).
+	for (OledSurface& s : surfaces_.oled()) {
+		if (!s.blit_pending) {
+			continue;
+		}
+		if (surfaces_.oled_busy(s.index)) {
+			continue;
+		}
+		surfaces_.blit(s.index, s.canvas.bytes(), s.geometry.width, s.geometry.height);
+		s.blit_pending = false;
+		any_sent = true;
+		// `HIDSysex` mirrors the one main panel, not every OLED a board might have
+		// (`sendMainImage` -> `HIDSysex::sendDisplayIfChanged`, `hid/display/oled.cpp:378`).
+		if (s.role == SurfaceRole::Main) {
+			mirror_.after_blit(s, now_ms);
+		}
+	}
+
+	// Grid: send the column pairs that changed since `last_sent`, budgeted by the control
+	// surface's free pad-output space. Port of `sendOutMainPadColours`'s backpressure check
+	// (`hid/led/pad_leds.cpp:1019-1037`, gated on `kNumBytesInMainPadRedraw`) generalised to a
+	// per-pair budget instead of an all-or-nothing gate, so a large backlog drains over several
+	// ticks instead of stalling until the whole frame fits at once -- the same spirit as
+	// `timerRoutine`'s retry-soon (`:850`) and `ui.cpp:389`'s *2 headroom, but pin the tick, not
+	// the byte count, as the unit of back-pressure retry.
+	GridSurface& g = surfaces_.grid();
+	if (g.dirty && g.grid_storage.has_value()) {
+		const gfx::grid::PadGrid& grid = g.grid();
+		const uint32_t budget = surfaces_.pad_output_space() / kBytesPerColumnPair;
+		uint32_t sent = 0;
+		bool any_remaining = false;
+		for (uint8_t pair = 0; pair < g.pairs; pair++) {
+			const ColumnPair current = read_column_pair(grid, pair);
+			if (g.sent_once[pair] && current == g.last_sent[pair]) {
+				continue;
+			}
+			if (sent >= budget) {
+				// Changed, but no budget left this tick: leave it dirty for the next flush to
+				// retry, in ascending order again (today's `sendOutMainPadColoursSoon`).
+				any_remaining = true;
+				continue;
+			}
+			surfaces_.send_columns(pair, current);
+			g.last_sent[pair] = current;
+			g.sent_once[pair] = true;
+			any_sent = true;
+			sent++;
+		}
+		g.dirty = any_remaining;
+		if (any_remaining) {
+			g.gate.request_repaint();
+		}
+	}
+
+	// LEDs: diff this tick's desired on/off (`Shell::derive_leds`) against what was last sent.
+	// `i` is `LedId`'s own underlying value -- the shadow-array index `derive_leds` and
+	// `led_send_needed` both use -- and the board profile maps that to the physical board LED
+	// `SurfaceSet::set_led` takes.
+	LedSurface& leds = surfaces_.leds();
+	for (size_t i = 0; i < LedFrame::kMaxEntries; i++) {
+		if (!led_send_needed(leds, i)) {
+			continue;
+		}
+		if (i >= profile_.led_by_button.size()) {
+			// No board mapping for this `LedId` value at all (an "extras" id past the button
+			// table -- Task 10); nothing to send it as.
+			continue;
+		}
+		const int8_t board_index = profile_.led_by_button[i];
+		if (board_index < 0) {
+			continue; // -1: this id names no board LED.
+		}
+		surfaces_.set_led(static_cast<uint8_t>(board_index), leds.desired_on[i]);
+		leds.last_on[i] = leds.desired_on[i];
+		leds.sent_once[i] = true;
+		any_sent = true;
+	}
+
+	// Knob indicators: diff against `last_indicators`, only while declared this tick -- an
+	// indicator nothing declared is left exactly as it was, the same rule as an undeclared LED.
+	for (uint8_t which = 0; which < 2; which++) {
+		const KnobIndicator* ind = leds.frame.indicator_or_null(static_cast<IndicatorId>(which));
+		if (ind == nullptr) {
+			continue;
+		}
+		if (leds.indicators_sent[which] && same_indicator(*ind, leds.last_indicators[which])) {
+			continue;
+		}
+		surfaces_.set_indicator(which, *ind);
+		leds.last_indicators[which] = *ind;
+		leds.indicators_sent[which] = true;
+		any_sent = true;
+	}
+
+	if (any_sent) {
+		surfaces_.flush();
+	}
 }
 
 std::optional<uint32_t> Shell::compute_next_wake(uint32_t now_ms) {

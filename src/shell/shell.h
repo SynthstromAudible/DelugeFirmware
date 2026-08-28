@@ -3,6 +3,7 @@
 #include "shell/fixed_vector.h"
 #include "shell/input_lowering.h"
 #include "shell/leds.h"
+#include "shell/mirror.h"
 #include "shell/notices.h"
 #include "shell/profile.h"
 #include "shell/router.h"
@@ -110,6 +111,21 @@ public:
 	/// @brief One pass of the whole UI, in spec D §7's order.
 	/// @param now_ms The tick's wall clock.
 	void tick(uint32_t now_ms);
+
+	/// @brief Wire (or, with `nullptr`, unwire) the sysex/MIDI display mirror `flush` drives after
+	///        every real blit of the `Main` surface.
+	/// @param sink The mirror sink, or `nullptr` to stop mirroring.
+	void set_mirror(MirrorSink sink) { mirror_.sink = sink; }
+
+	/// @brief Start (or replace) the grid's tween.
+	///
+	/// Snapshots the live grid as \p tw's "from" frame, arms the grid gate for the next tick, and
+	/// hands the tween to `render_grid`, which blends from that frozen snapshot toward each tick's
+	/// freshly rendered grid (`gfx::grid::fade`/`scroll_horizontal`/`scroll_vertical`/`grey_out`
+	/// per `tw.kind`) until `tw.duration_ms` has elapsed, at which point the tween clears and the
+	/// live grid shows through unblended.
+	/// @param tw The tween to play; `tw.start_ms` is the clock it is measured from.
+	void start_tween(ActiveTween tw);
 
 	/// @name Feeding input
 	/// Called by the board poll loop between ticks; both open the lowering's tick window if it is
@@ -234,6 +250,14 @@ private:
 
 	/// The union of the stack's `greyout_mask()`s, re-queried whenever the stack changes.
 	grid::GreyoutMask greyout_{};
+	/// The sysex/MIDI display mirror `flush` drives after a real blit of the `Main` surface.
+	Mirror mirror_;
+	/// The grid tween's "from" frame: a snapshot taken by `start_tween` of the grid as it stood at
+	/// that moment. `std::nullopt` whenever `GridSurface::tween` is, and cleared together with it;
+	/// held here rather than on `GridSurface` because it is a `Shell`-side concern (the surface
+	/// pool has no business owning a whole extra framebuffer) and `PadGrid` has no default
+	/// constructor for a plain array member to hold before a tween's first snapshot.
+	std::optional<gfx::grid::PadGrid> tween_from_;
 	/// The scenes drawn this tick, in the order they were drawn; each gets one `after_render()`.
 	FixedVector<Scene*, kStackDepth> rendered_this_tick_;
 	std::optional<uint32_t> next_wake_;

@@ -221,19 +221,23 @@ describe shell_tick("shell::Shell::tick", $ {
 		r.shell.init({kBase, 0});
 
 		r.shell.tick(0);
-		expect(r.fake.oled()[0].blit_pending).to_be_true();
-		expect(r.fake.oled()[1].blit_pending).to_be_true();
-		expect(r.fake.grid().dirty).to_be_true();
-		expect(r.base.oled_renders).to_equal(2);
-		expect(r.base.grid_renders).to_equal(1);
-
-		// Task 8's flush is what lowers these; stand in for it and tick again with nothing at all
-		// pending -- no input, no dirty facts, no stack change, no armed deadline.
-		r.consume_pending();
-		r.shell.tick(10);
+		// `Shell::flush` runs at the end of every tick now, so the first tick's render is already
+		// pushed out by the time it returns: one blit per OLED surface, and every one of
+		// `kBoard2`'s 9 column pairs (18 total columns), the base scene having painted every pad a
+		// colour that differs from the all-black `last_sent` every pair starts at.
+		expect(r.fake.blits.size()).to_equal(size_t(2));
+		expect(r.fake.columns_sent.size()).to_equal(size_t(9));
 		expect(r.fake.oled()[0].blit_pending).to_be_false();
 		expect(r.fake.oled()[1].blit_pending).to_be_false();
 		expect(r.fake.grid().dirty).to_be_false();
+		expect(r.base.oled_renders).to_equal(2);
+		expect(r.base.grid_renders).to_equal(1);
+
+		// Nothing at all pending -- no input, no dirty facts, no stack change, no armed deadline --
+		// so the second tick neither renders nor sends anything new.
+		r.shell.tick(10);
+		expect(r.fake.blits.size()).to_equal(size_t(2));
+		expect(r.fake.columns_sent.size()).to_equal(size_t(9));
 		expect(r.base.oled_renders).to_equal(2);
 		expect(r.base.grid_renders).to_equal(1);
 	});
@@ -248,33 +252,35 @@ describe shell_tick("shell::Shell::tick", $ {
 
 		// A grid-only fact repaints the grid and leaves the OLED alone: `apply_dirty` requests
 		// exactly the gates the fact names, and `needs_frame`'s `model_dirty` is passed `false` so
-		// nothing widens that back out to every surface.
+		// nothing widens that back out to every surface. (The base scene paints the same solid
+		// colour every time, so the re-render sends no new column pairs -- `grid_renders` is the
+		// signal that the grid rendered again, not the flush-managed `dirty`/`columns_sent`.)
 		deluge::notify::dirty().raise(Dirty::ClipContent);
 		r.shell.tick(20);
 		expect(r.base.model_changed).to_equal(1);
 		expect(r.base.grid_renders).to_equal(2);
-		expect(r.fake.grid().dirty).to_be_true();
 		expect(r.base.oled_renders).to_equal(2); // still just the first tick's two
 		expect(r.fake.oled()[0].blit_pending).to_be_false();
 		expect(r.fake.oled()[1].blit_pending).to_be_false();
 
-		// An OLED-only fact is the mirror image.
+		// An OLED-only fact is the mirror image: both panels re-render and (being unbusy) reblit.
 		r.consume_pending();
+		const size_t blits_before_oled_fact = r.fake.blits.size();
 		deluge::notify::dirty().raise(Dirty::Oled);
 		r.shell.tick(30);
 		expect(r.base.oled_renders).to_equal(4);
-		expect(r.fake.oled()[0].blit_pending).to_be_true();
+		expect(r.fake.blits.size()).to_be_greater_than(blits_before_oled_fact);
 		expect(r.base.grid_renders).to_equal(2);
 		expect(r.fake.grid().dirty).to_be_false();
 
 		// A fact that names no surface still reaches every gate.
 		r.consume_pending();
+		const size_t blits_before_untargeted_fact = r.fake.blits.size();
 		deluge::notify::dirty().raise(Dirty::PlaybackState);
 		r.shell.tick(40);
 		expect(r.base.oled_renders).to_equal(6);
 		expect(r.base.grid_renders).to_equal(3);
-		expect(r.fake.oled()[0].blit_pending).to_be_true();
-		expect(r.fake.grid().dirty).to_be_true();
+		expect(r.fake.blits.size()).to_be_greater_than(blits_before_untargeted_fact);
 	});
 
 	it("input requests a frame and routes to the top scene", _ {
@@ -285,11 +291,12 @@ describe shell_tick("shell::Shell::tick", $ {
 		r.consume_pending();
 
 		// Play, at matrix (8, 3) -- `definitions_cxx.hpp:68`, mirrored in `test_profile_input`.
+		const size_t blits_before = r.fake.blits.size();
 		r.shell.on_board_event(button_ev(8, 3, true), 25);
 		r.shell.tick(30);
 		expect(r.base.events).to_equal(1);
-		expect(r.fake.oled()[0].blit_pending).to_be_true();
-		expect(r.fake.grid().dirty).to_be_true();
+		expect(r.fake.blits.size()).to_be_greater_than(blits_before);
+		expect(r.base.grid_renders).to_equal(2);
 		expect(r.base.oled_renders).to_equal(4);
 	});
 
@@ -557,12 +564,14 @@ describe shell_tick("shell::Shell::tick", $ {
 		// Released between ticks, with the lowering's tick window closed by the tick above: the
 		// replay has to open one, or the next `begin_tick` clears every replayed edge before
 		// anything can route it.
+		const size_t blits_before = r.fake.blits.size();
 		r.shell.set_sd_busy(false);
 		r.shell.tick(40);
 		expect(r.base.events).to_equal(1);
 		expect(r.base.last_event_kind == UiEvent::Kind::Button).to_be_true();
-		// The replay also counts as input, so the tick that delivers it renders a frame.
-		expect(r.fake.oled()[0].blit_pending).to_be_true();
+		// The replay also counts as input, so the tick that delivers it renders a frame and, being
+		// unbusy, flush blits it straight away.
+		expect(r.fake.blits.size()).to_be_greater_than(blits_before);
 	});
 
 	it("state_lines reports the stack top first, then the lock", _ {

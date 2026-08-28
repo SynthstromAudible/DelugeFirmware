@@ -222,8 +222,25 @@ inline BoardProfile test_profile_input() {
 	static_assert(sizeof(kKinds) / sizeof(kKinds[0]) == static_cast<size_t>(EncoderRole::Count));
 	static constexpr SurfaceRole kRoles[] = {SurfaceRole::Main};
 	static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle48};
+	// `LedId` values equal `ButtonId` values for the LEDs under buttons (`shell/leds.h`,
+	// `Shell::flush`'s ruling), so this table is indexed by `ButtonId`; -1 = no board LED under
+	// that button. Only `Play` and `Record` are wired -- the two ids the shell specs that exercise
+	// `Shell::flush`'s LED diff need -- everything else stays -1 until a real board profile lands.
+	static constexpr int8_t kLedByButton[] = {
+	    -1,                                     // None
+	    -1, -1, -1, -1, -1, -1, -1, -1, -1, -1, // AffectEntire .. CrossScreen
+	    -1, -1, -1, -1, -1, -1, -1,             // Back .. Triplets
+	    9,                                      // Play
+	    10,                                     // Record
+	    -1, -1, -1, -1, -1, -1, -1, -1, -1,     // Shift .. Mod7
+	    -1, -1, -1, -1, -1, -1,                 // SelectEnc .. ModEnc1
+	};
+	static_assert(sizeof(kLedByButton) / sizeof(kLedByButton[0]) == static_cast<size_t>(ButtonId::Count));
+	static_assert(kLedByButton[static_cast<size_t>(ButtonId::Play)] == 9);
+	static_assert(kLedByButton[static_cast<size_t>(ButtonId::Record)] == 10);
 	return BoardProfile{
 	    .button_by_matrix = kMatrix,
+	    .led_by_button = kLedByButton,
 	    .encoder_by_index = kEncoders,
 	    .encoder_kind = kKinds,
 	    .oled_role_by_index = kRoles,
