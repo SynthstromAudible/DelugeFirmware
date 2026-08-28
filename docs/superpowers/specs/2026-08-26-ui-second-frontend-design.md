@@ -23,7 +23,7 @@ Nothing in `deluge-ui-*`, `deluge-ui-shell` or `deluge-scenes` changes for a new
    `DelugeBoard{pad_grid_width 16, pad_grid_height 8, button_rows/cols for its matrix,
    encoder_count, display_kind OLED, display_count N, displays[] = {128, 64, 0}, …}`,
    `deluge_display_blit_oled_n`, `deluge_control_*`, `deluge_encoder_take_edges`.
-2. **A `BoardProfile`** in `src/scenes/profiles/<board>.cpp`:
+2. **A `BoardProfile`** in `src/shell/profiles/<board>.{h,cpp}`:
    `button_by_matrix` (new `ButtonId` values for the extra buttons), `led_by_button`,
    `encoder_by_index` / `encoder_kind`, `oled_role_by_index` (which panel is `Main`, which
    are `Param0..3` / `Aux`), a `Style` (larger faces and row heights for 64 rows), and the
@@ -74,8 +74,8 @@ Panels with `SurfaceRole::None` are cleared once at boot and never drawn.
 - CI builds `deluge_app` for **both profiles** against the host BSP and runs both golden
   sets, so a scene that hard-codes `128×48`, renders only to `Main`, or references a
   Deluge-specific `ButtonId` fails before it ships.
-- Layer-rule row: `src/scenes/**` outside `profiles/` may not reference `kDelugeOled`,
-  `kDelugeGrid`, or any symbol from `profiles/deluge.cpp`.
+- Layer-rule row: `src/scenes/**` outside `shell/profiles/` may not reference `kDelugeOled`,
+  `kDelugeGrid`, or any symbol from `shell/profiles/deluge.cpp`.
 - Size budget per image (`./dbt sizediff`): the second image carries only its own profile
   tables and goldens; the shell/toolkit are shared code.
 
