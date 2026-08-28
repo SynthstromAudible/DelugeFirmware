@@ -218,6 +218,7 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 		// Various stuff in this block is only relevant for OscType::SAMPLE, but no real harm in it just happening in
 		// other cases.
 		guides[s].audioFileHolder = nullptr;
+		guides[s].isRoundRobinAlternate = false;
 
 		bool sourceEverActive = modelStack->checkSourceEverActive(s);
 		if (sourceEverActive) [[likely]] {
@@ -250,6 +251,9 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 					else {
 						resolvedHolder = sampleRange->resolveVariant();
 					}
+					// Compare the holder rather than the slot index: resolveVariant() reports the slot
+					// it picked even when it falls back to the primary because that slot is empty.
+					guides[s].isRoundRobinAlternate = (resolvedHolder != &sampleRange->sampleHolder);
 					holder = static_cast<AudioFileHolder*>(resolvedHolder);
 				}
 				// Only actually set the Range as ours if it has an AudioFile - so that we'll always know that any
