@@ -41,6 +41,19 @@ struct Hold {
 	uint32_t down_ms = 0;
 	bool held = false;
 	uint8_t x = 0, y = 0;
+	/// One-shot latch for `gesture()`'s `GestureEvent::Hold` (ui/grid/effects.h). Deviates from
+	/// spec B section 3's three-field `Hold` -- recorded with the task-14 gesture port, on the
+	/// same terms as the `ScrollText` change-detection keys above: appended last, so any existing
+	/// positional use of {down_ms, held, x, y} is unaffected.
+	///
+	/// Legacy never emits a discrete "held long enough" event on the pad path: the per-view FSMs
+	/// either test the elapsed time once, at release (session_view.cpp:944-945,
+	/// arranger_view.cpp:1307), or arm a *one-shot* uiTimerManager timer at press
+	/// (qwerty_ui.cpp:220). The one-shot timer is itself the latch, and an immediate-mode
+	/// component that is re-entered every tick has nowhere else to keep it: without this bit the
+	/// deadline stays crossed and `Hold` would repeat on every frame for as long as the pad is
+	/// down, which is exactly what a one-shot timer does not do.
+	bool hold_reported = false;
 };
 struct Timer {
 	uint32_t due_ms = 0;

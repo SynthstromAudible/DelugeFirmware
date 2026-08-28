@@ -30,9 +30,12 @@ set_target_properties(deluge_ui_oled PROPERTIES
 )
 add_library(deluge_ui_grid STATIC
   grid/columns.cpp
+  grid/effects.cpp
   grid/frame.cpp
+  grid/keyboard.cpp
   grid/rows.cpp
   grid/sidebar.cpp
+  grid/waveform.cpp
 )
 target_include_directories(deluge_ui_grid PUBLIC ${SHARED_INCLUDE})
 target_link_libraries(deluge_ui_grid PUBLIC deluge_ui_core deluge_gfx_grid)
