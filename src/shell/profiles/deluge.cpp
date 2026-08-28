@@ -19,38 +19,38 @@ static constexpr ButtonId kMatrix[] = {
 // clang-format on
 static_assert(sizeof(kMatrix) / sizeof(kMatrix[0]) == 9 * 4);
 
-// LED indices by ButtonId: x + y*9 for buttons with LEDs, -1 for encoder buttons.
-// LED::Shift = 8 (from indicator_leds.h); Play = 8 + 3*9 = 35; Record = 8 + 2*9 = 26, etc.
+// LED indices by ButtonId: x + y*9 for buttons with LEDs (from indicator_leds.h:37-56), -1 for encoder buttons.
+// All values from legacy LED enum: indicator_leds.h:36-66.
 static constexpr int8_t kLedByButton[] = {
     -1, // None
-    -1, // AffectEntire (3, 0) -> 3 = missing LED (only some buttons have LEDs)
-    -1, // Session (3, 1) -> 12
-    -1, // Clip (3, 2) -> 21
-    -1, // Synth (5, 0) -> 5
-    -1, // Kit (5, 1) -> 14
-    -1, // Midi (5, 2) -> 23
-    -1, // Cv (5, 3) -> 32
-    -1, // Keyboard (3, 3) -> 30
-    -1, // Scale (6, 0) -> 6
-    -1, // CrossScreen (6, 2) -> 24
-    -1, // Back (7, 1) -> 16
-    -1, // Load (6, 1) -> 15
-    -1, // Save (6, 3) -> 33
-    -1, // Learn (7, 0) -> 7
-    -1, // TapTempo (7, 3) -> 34
-    -1, // SyncScaling (7, 2) -> 25
-    -1, // Triplets (8, 1) -> 17
-    35, // Play (8, 3) -> 35
-    26, // Record (8, 2) -> 26
-    8,  // Shift (8, 0) -> 8
-    1,  // Mod0 (1, 0) -> 1
-    10, // Mod1 (1, 1) -> 10
-    19, // Mod2 (1, 2) -> 19
-    28, // Mod3 (1, 3) -> 28
-    2,  // Mod4 (2, 0) -> 2
-    11, // Mod5 (2, 1) -> 11
-    20, // Mod6 (2, 2) -> 20
-    29, // Mod7 (2, 3) -> 29
+    3,  // AffectEntire (3, 0) -> 3; indicator_leds.h:37
+    12, // Session (3, 1) -> 12; indicator_leds.h:38
+    21, // Clip (3, 2) -> 21; indicator_leds.h:39
+    5,  // Synth (5, 0) -> 5; indicator_leds.h:40
+    14, // Kit (5, 1) -> 14; indicator_leds.h:41
+    23, // Midi (5, 2) -> 23; indicator_leds.h:42
+    32, // Cv (5, 3) -> 32; indicator_leds.h:43
+    30, // Keyboard (3, 3) -> 30; indicator_leds.h:44
+    6,  // Scale (6, 0) -> 6; indicator_leds.h:45
+    24, // CrossScreen (6, 2) -> 24; indicator_leds.h:46
+    16, // Back (7, 1) -> 16; indicator_leds.h:47
+    15, // Load (6, 1) -> 15; indicator_leds.h:48
+    33, // Save (6, 3) -> 33; indicator_leds.h:49
+    7,  // Learn (7, 0) -> 7; indicator_leds.h:50
+    34, // TapTempo (7, 3) -> 34; indicator_leds.h:51
+    25, // SyncScaling (7, 2) -> 25; indicator_leds.h:52
+    17, // Triplets (8, 1) -> 17; indicator_leds.h:53
+    35, // Play (8, 3) -> 35; indicator_leds.h:54
+    26, // Record (8, 2) -> 26; indicator_leds.h:55
+    8,  // Shift (8, 0) -> 8; indicator_leds.h:56
+    1,  // Mod0 (1, 0) -> 1; indicator_leds.h:58
+    10, // Mod1 (1, 1) -> 10; indicator_leds.h:59
+    19, // Mod2 (1, 2) -> 19; indicator_leds.h:60
+    28, // Mod3 (1, 3) -> 28; indicator_leds.h:61
+    2,  // Mod4 (2, 0) -> 2; indicator_leds.h:62
+    11, // Mod5 (2, 1) -> 11; indicator_leds.h:63
+    20, // Mod6 (2, 2) -> 20; indicator_leds.h:64
+    29, // Mod7 (2, 3) -> 29; indicator_leds.h:65
     -1, // SelectEnc
     -1, // TempoEnc
     -1, // XEnc
@@ -61,6 +61,8 @@ static constexpr int8_t kLedByButton[] = {
 static_assert(sizeof(kLedByButton) / sizeof(kLedByButton[0]) == static_cast<size_t>(ButtonId::Count));
 static_assert(kLedByButton[static_cast<size_t>(ButtonId::Play)] == 35);
 static_assert(kLedByButton[static_cast<size_t>(ButtonId::Record)] == 26);
+static_assert(kLedByButton[static_cast<size_t>(ButtonId::AffectEntire)] == 3);
+static_assert(kLedByButton[static_cast<size_t>(ButtonId::Session)] == 12);
 
 // Encoder order from encoder_input.cpp:56-63: 0=scrollY 1=scrollX 2=tempo 3=select 4=mod1(upper) 5=mod0(lower).
 // 4=mod1=upper gold; 5=mod0=lower gold (encoders.h:80-81).
@@ -93,6 +95,14 @@ static_assert(sizeof(kRoles) / sizeof(kRoles[0]) == 1);
 // Display styles: Deluge has one 128×48 OLED.
 static constexpr const Style* kStyles[] = {&kDelugeStyle48};
 static_assert(sizeof(kStyles) / sizeof(kStyles[0]) == 1);
+
+// Export table spans for use by test_board and other profiles.
+const std::span<const ButtonId> kDelugeButtonMatrix = kMatrix;
+const std::span<const int8_t> kDelugeLedByButton = kLedByButton;
+const std::span<const EncoderRole> kDelugeEncoders = kEncoders;
+const std::span<const EncoderKind> kDelugeEncoderKinds = kKinds;
+const std::span<const SurfaceRole> kDelugeOledRoles = kRoles;
+const std::span<const Style* const> kDelugeOledStyles = kStyles;
 
 // Deluge board descriptor: 16 main pad columns + 2 sidebar = 18 total, 8 rows, 4 button rows, 9 button cols, 6
 // encoders, 1 OLED.

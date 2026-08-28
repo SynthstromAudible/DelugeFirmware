@@ -1,7 +1,9 @@
 #pragma once
 #include "libdeluge/board.h"
 #include "shell/profile.h"
+#include "ui/core/input.h"
 #include <cstdint>
+#include <span>
 
 namespace deluge::ui::shell {
 
@@ -9,37 +11,26 @@ namespace deluge::ui::shell {
 /// visible_top 5.
 extern const DelugeBoard kDelugeBoard;
 
-/// Deluge LED indices (matching LED enum values under buttons).
-enum class DelugeLed : uint8_t {
-	AFFECT_ENTIRE = 3,
-	SESSION_VIEW = 12,
-	CLIP_VIEW = 21,
-	SYNTH = 5,
-	KIT = 14,
-	MIDI = 23,
-	CV = 32,
-	KEYBOARD = 30,
-	SCALE_MODE = 6,
-	CROSS_SCREEN_EDIT = 24,
-	BACK = 16,
-	LOAD = 15,
-	SAVE = 33,
-	LEARN = 7,
-	TAP_TEMPO = 34,
-	SYNC_SCALING = 25,
-	TRIPLETS = 17,
-	PLAY = 35,
-	RECORD = 26,
-	SHIFT = 8,
-	MOD_0 = 1,
-	MOD_1 = 10,
-	MOD_2 = 19,
-	MOD_3 = 28,
-	MOD_4 = 2,
-	MOD_5 = 11,
-	MOD_6 = 20,
-	MOD_7 = 29,
-};
+/// Deluge button matrix: 4 rows × 9 columns, indexed [y * 9 + x].
+extern const std::span<const ButtonId> kDelugeButtonMatrix;
+
+/// Deluge LED indices by ButtonId: x + y*9 for each button with an LED (e.g., Play at (8,3) → 35),
+/// -1 for encoder buttons (SelectEnc, TempoEnc, XEnc, YEnc, ModEnc0, ModEnc1).
+/// Contract: LedId values = ButtonId values per shell/leds.h.
+extern const std::span<const int8_t> kDelugeLedByButton;
+
+/// Deluge encoder order: libdeluge index → EncoderRole (0=Vertical, 1=Horizontal, 2=Tempo, 3=Select, 4=GoldUpper,
+/// 5=GoldLower).
+extern const std::span<const EncoderRole> kDelugeEncoders;
+
+/// Deluge encoder kinds: EncoderRole → EncoderKind (Detented or Accelerating).
+extern const std::span<const EncoderKind> kDelugeEncoderKinds;
+
+/// Deluge OLED roles: display index → SurfaceRole (one Main panel).
+extern const std::span<const SurfaceRole> kDelugeOledRoles;
+
+/// Deluge OLED styles: display index → Style* (one 48-row style).
+extern const std::span<const Style* const> kDelugeOledStyles;
 
 /// The board profile for the Deluge: button matrix, LED map, encoders, styles, and shortcuts.
 /// @return The profile, viewing static storage.
