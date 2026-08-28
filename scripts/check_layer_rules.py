@@ -88,8 +88,12 @@ RULES = [
         # through its frame's accessors -- f.turn(), f.edit(0), f.select_pressed() -- so that
         # focus masking and input claims are not something a widget can forget to apply. Reaching
         # into the snapshot behind the frame skips both. The two frame files are excluded because
-        # they *are* the accessors: `ctx.input.turn` inside OledFrame::turn() is the one place
+        # they *are* the accessors: `ctx.input.turn` inside FrameInput::turn() is the one place
         # the field may be read.
+        #
+        # Line-based, like every rule here: `auto& in = f.ctx.input;` followed by `in.turn` slips
+        # past it, and a `/* ... */` block comment naming `input.turn` counts (only `//`-prefixed
+        # lines are skipped). It is a ratchet against drift, not a proof.
         "ui-widgets-read-input-directly",
         ("src/ui/{oled,grid}/**", "src/ui/{oled,grid}/frame.{h,cpp}"),
         "symbol",

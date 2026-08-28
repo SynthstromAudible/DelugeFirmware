@@ -14,7 +14,7 @@ GridFrame root_grid_frame(gfx::grid::PadGrid& grid, FrameContext& ctx) {
 	const Rect all{0, 0, d.cols(), d.rows};
 	// Requested == visible at the root: nothing clips the whole surface. Focused, because the root
 	// of a surface is always live; regions below it narrow.
-	return GridFrame{grid, all, all, ctx, true};
+	return GridFrame{{ctx, /*focused*/ true}, grid, all, all};
 }
 
 Response GridFrame::pad(int32_t x, int32_t y, RGB colour) {

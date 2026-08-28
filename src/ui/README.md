@@ -54,7 +54,7 @@ under `src/ui/` → exits 1 naming `ui-includes-outside`; remove it → exits 0.
 | type | file |
 |---|---|
 | `EncoderRole`, `PadEvent`, `PadMask`, `InputSnapshot` | `core/input.h` |
-| `InputClaims`, `FrameContext` (and the input-consumption contract) | `core/frame_context.h` |
+| `InputClaims`, `FrameContext` (+ `begin_tick`), `FrameInput` (the accessors/claims both frames inherit, and the input-consumption contract) | `core/frame_context.h` |
 | `LedId`, `RingId`, `LedState`, `KnobRing`, `LedFrame` | `core/led_frame.h` |
 | text/geometry constants (`kMenuBaseY48/64`, `kHorizontalMenuBaseY`, `kScrollTime`, …), `text_height_of` | `core/metrics.h` |
 | `RepaintGate` | `core/repaint_gate.h` |
@@ -120,13 +120,21 @@ the firmware, by the rigs in `tests/spec/ui/support/frames.h` — and every fram
 a reference to it:
 
 ```cpp
-FrameContext ctx{input, gate};                 // + claims{} and a tick counter
+FrameContext ctx{input, gate};                 // + claims{}, tick, tick_ms
+ctx.begin_tick(now_ms);                        // exactly once per tick, before any frame
 OledFrame f = root_frame(canvas, style, ctx);  // GridFrame: root_grid_frame(grid, ctx)
 ```
 
-Both frames carry `FrameContext& ctx` and `bool focused` in place of the old
-`const InputSnapshot& input; RepaintGate& gate;` pair, and both stay aggregates (`region()`
-builds its child by aggregate initialisation).
+`begin_tick()` clears `claims` and bumps `tick`/`tick_ms`. Claims are per-tick by definition: a
+context reused without it would latch the first tick's claims and withhold those inputs from
+`Scene::handle()` for ever after. The rigs expose the same call (`r.begin_tick(now_ms)`), which
+also moves the rig's clock.
+
+Both frames inherit `FrameInput` (`core/frame_context.h`) — `FrameContext& ctx; bool focused;`
+plus every accessor, every `claim_*()` and `gate()`, written once for both surfaces — in place of
+the old `const InputSnapshot& input; RepaintGate& gate;` pair. Both stay aggregates: a public,
+non-virtual base is allowed in one, and their aggregate initialisation simply begins with a
+`{ctx, focused}` brace pair for the base subobject.
 
 1. **Widgets read input only through the frame.** `turn()`, `edit(0)`/`edit(1)`, `horizontal()`,
    `vertical()`, `select_pressed()`, `back_pressed()`, `shift()`, `now_ms()`, and `held_pads()`
@@ -134,35 +142,55 @@ builds its child by aggregate initialisation).
 2. **A widget that renders a control consumes that control's inputs and claims them in the same
    call** — `claim_turn()`, `claim_edit(i)`, `claim_horizontal()`, `claim_vertical()`,
    `claim_select()`, `claim_back()`. A claim means *"this control owns that input this tick"*, so
-   a focused `list` claims the turn on every frame it renders, not only on the frames a detent
-   arrives; the shell reads `ctx.claims` after rendering and may deliver whatever is left over to
-   the scene. `InputClaims::any()` answers "did anything get consumed at all".
-3. **An unfocused frame presents zero input.** `f.region(rect, /*focused*/ false, body)` masks
-   every accessor above to 0/false and turns the claims into no-ops, so a widget drawn there
-   paints exactly as it would have but cannot move. Focus only ever narrows — `region(rect, true)`
-   inside an unfocused parent stays unfocused — and the two-argument `region(rect, body)` means
-   "inherit". `enum_value`/`toggle` use this to render a `list` for its window and highlight while
-   keeping the select encoder for themselves; it replaced a `without_turn` helper that hand-masked
-   one snapshot field and left the rest for the inner widget to consume twice.
+   a focused `list` claims the turn on every frame it renders — not only when a detent arrives,
+   and not only when it has rows (`list`, `columns` and `enum_value` all claim before their
+   empty-model early-outs). The shell reads `ctx.claims` after rendering and may deliver whatever
+   is left over to the scene; `InputClaims::any()` answers "was anything consumed at all", and
+   `operator==` lets a spec pin a whole claim set at once.
+
+   **A claim records ownership; it does not arbitrate.** An input reaches every focused frame that
+   asks for it, so two focused sibling regions each running a `list` both move. Keeping at most
+   one focused region per input is the scene's job, and `region(rect, false)` is how it does it.
+   `InputClaims::double_claim` is set when an input already claimed this tick is claimed again —
+   the diagnostic for getting that wrong, not a defence against it.
+3. **An unfocused frame presents zero *navigational* input.** `f.region(rect, /*focused*/ false,
+   body)` masks `turn`, `edit`, `horizontal`, `vertical`, `select_pressed` and `back_pressed` to
+   0/false and turns the claims into no-ops, so a widget drawn there paints exactly as it would
+   have but cannot move. Focus only ever narrows — `region(rect, true)` inside an unfocused parent
+   stays unfocused — and the two-argument `region(rect, body)` means "inherit". `enum_value` and
+   `toggle` use this to render a `list` for its window and highlight while keeping the select
+   encoder for themselves; `columns` uses it to narrow each slot to its own column, so one detent
+   cannot both walk the column focus and edit the column it walked past.
+
+   **`now_ms()` and `shift()` are *not* masked.** The clock is not an input a control owns, it is
+   the tick's own time: an unfocused region still scrolls its labels, still times its gestures
+   (pad events are unmasked, so their interpretation must be too) and still arms the surface-wide
+   `RepaintGate` with a deadline in the future rather than one permanently in the past. `shift` is
+   a modifier read alongside another gesture, and focus arbitrates the gesture.
 4. **Pad input is positional and never masked.** `pad()`, `peek()`, `local_events()`,
    `first_press_in()` and `held_pads()` report presses in an unfocused region exactly as in a
    focused one: a press names its target by where it landed.
 5. **`select_pressed`/`back_pressed` are edges the caller supplies once per press** (see
-   `core/input.h`); a claim is not a latch — it records ownership for the tick and dies with the
-   context.
+   `core/input.h`); a claim is not a latch — it records ownership for the tick and is cleared by
+   the next `begin_tick()`.
 
-`tests/spec/ui/frame_context_spec.cpp` pins all five.
+`tests/spec/ui/frame_context_spec.cpp` pins all five, including the unmasked clock (a label that
+still scrolls, a gesture that still holds, a gate deadline in the future), the tick boundary, and
+`double_claim` on two focused lists.
 
 ### `bounds()` vs `visible()`
 
 `bounds()` is the rect the region *asked* for, `{0, 0, w, h}` in its own local coordinates;
 `visible()` is the part of it the parent granted, in those same coordinates (empty when the
-region falls entirely outside its parent). Layout measures against `bounds()`, so local `(0, 0)`
-stays the region's own corner even when it overhangs and a component's arithmetic does not shift
-under it; drawing and pad hit-testing crop to `visible()` on their own. Both frames now answer
-the same way — `GridFrame::bounds()` used to report the *clipped* extent and now reports the
-requested one, which is the only behavioural change in the migration (`grid_frame_spec` pins both
-halves).
+region falls entirely outside its parent, where only the extent is meaningful). Layout measures
+against `bounds()`, so local `(0, 0)` stays the region's own corner even when it overhangs and a
+component's arithmetic does not shift under it; drawing and pad hit-testing crop to `visible()` on
+their own. Both frames now answer the same way — `GridFrame::bounds()` used to report the
+*clipped* extent and now reports the requested one. Two behavioural consequences, both intended:
+an overhanging grid region keeps its own origin (pinned by `grid_frame_spec` and
+`frame_context_spec`), and `grid::waveform_*` now mirrors about the requested width rather than
+the clipped one, which is what `waveform.h`'s "provided the frame is not clipped" caveat wanted —
+unchanged for every unclipped frame, i.e. for every caller today.
 
 ## Parity
 

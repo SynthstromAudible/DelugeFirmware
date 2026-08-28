@@ -37,7 +37,11 @@ namespace deluge::ui::oled {
 ///   `renderInHorizontalMenu`, so it is `submenu_column` below, a `render` like any other.
 /// - `render` draws the value region. It is handed a frame whose `(0, 0)` is the region's
 ///   top-left corner (see `columns` for the region's exact geometry and its one row of
-///   headroom) and whether the column has focus.
+///   headroom) and whether the column has focus. That `focused` argument is "am I the current
+///   column", for drawing; the slot *frame* is focused only for that same column, so a renderer
+///   built out of `list`/`enum_value`/`toggle` -- none of which take a `focused` parameter -- is
+///   inert in every other column. @see ui/core/frame_context.h, rules 2 and 3, for how the two
+///   compose.
 struct Column {
 	std::string_view label;
 	uint8_t slots = 1;

@@ -55,6 +55,15 @@ struct OledRig {
 		reference.clear();
 	}
 
+	/// Begin a new simulated tick: move the clock to \p now_ms and clear the tick's claims, as
+	/// the shell's own pass will. A spec that renders several ticks through one rig calls this
+	/// between them; one that renders a single frame needs it only when it asserts on `ctx.tick`
+	/// or wants `claims` reset.
+	void begin_tick(uint32_t now_ms) {
+		input.now_ms = now_ms;
+		ctx.begin_tick(now_ms);
+	}
+
 	std::string pbm() { return page_major_to_pbm(canvas.bytes().data(), G.width, G.height); }
 
 	/// Is the pixel at *canvas* (not frame-local) coordinates lit?
@@ -82,6 +91,12 @@ struct GridRig {
 	deluge::ui::InputSnapshot input = null_input();
 	deluge::ui::FrameContext ctx{input, gate};
 	deluge::ui::grid::GridFrame frame = deluge::ui::grid::root_grid_frame(grid, ctx);
+
+	/// As `OledRig::begin_tick`.
+	void begin_tick(uint32_t now_ms) {
+		input.now_ms = now_ms;
+		ctx.begin_tick(now_ms);
+	}
 
 	std::string state() { return grid_to_state(grid); }
 };

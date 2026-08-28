@@ -58,7 +58,9 @@ static_assert(kMaxWindowRows >= kDelugeStyle48.menu_rows && kMaxWindowRows >= kD
 /// widget owns its own band instead.
 ///
 /// Editing, only while \p focused (spec B section 3: `edit[]` changes the focused value, with no
-/// modal edit state):
+/// modal edit state). NB two different "focused"s meet here and compose: \p focused is "am I the
+/// current control in my pane", `OledFrame::focused` is "is my pane live", and the widget reads
+/// input only when both hold -- @see ui/core/frame_context.h, rules 2 and 3.
 ///   - `f.edit(0)` (GoldUpper) moves the value by `range.step` per detent -- the coarse
 ///     knob;
 ///   - `f.edit(1)` (GoldLower) moves it by one unit per detent -- the fine knob.

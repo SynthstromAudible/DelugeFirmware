@@ -156,11 +156,16 @@ void render_slot(OledFrame& f, Rect value_rect, const Column& col, bool focused)
 	const Point origin{f.origin.x + value_rect.x, f.origin.y + value_rect.y};
 	const Rect clip =
 	    f.clip.intersect(Rect{origin.x, origin.y - kSlotBleedY, value_rect.w, value_rect.h + kSlotBleedY});
-	// Focus is *inherited*, not narrowed to the focused column: `col.render` is handed the
-	// column's own `focused` flag as an argument and every slot renderer already gates on it, and
-	// an unfocused frame would also stop the slot's clock (`now_ms()`), freezing the animations of
-	// every column that is not the current one.
-	OledFrame slot{f.canvas, clip, origin, Size{value_rect.w, value_rect.h}, f.style, f.ctx, f.focused};
+	// Focus is *narrowed* to the focused column: only the current column's slot may consume
+	// navigational input. `col.render`'s own `focused` argument stays -- a renderer still has to
+	// know it is the current column in order to *draw* itself that way -- but it is no longer the
+	// only thing between two controls and the same encoder. `Column::render` is a caller-supplied
+	// function pointer, and the widgets a scene will reach for there (`list`, `enum_value`,
+	// `toggle`) have no `focused` parameter at all: an unfocused frame is their only "be inert"
+	// switch, and without this an unfocused column's enum would move on the very detent that
+	// walked the focus past it. The clock and `shift` are not masked by focus, so every column
+	// keeps animating either way (ui/core/frame_context.h rule 3).
+	OledFrame slot{{f.ctx, f.focused && focused}, f.canvas, clip, origin, Size{value_rect.w, value_rect.h}, f.style};
 	col.render(slot, focused, col.ctx);
 }
 

@@ -67,17 +67,16 @@ struct ClipScope {
 ///
 /// An aggregate of references, built per frame on the stack and passed by reference. It owns
 /// nothing and outlives nothing.
-struct OledFrame {
+struct OledFrame : FrameInput {
+	// `FrameInput` (ui/core/frame_context.h) supplies `ctx`, `focused`, every input accessor, the
+	// `claim_*()` methods and `gate()` -- one copy of the input-consumption contract for both
+	// surfaces. A public, non-virtual base keeps `OledFrame` an aggregate; its initialiser list
+	// therefore starts with a `{ctx, focused}` brace pair for the base subobject.
 	gfx::oled::Canvas& canvas;
 	gfx::oled::Rect clip;    ///< absolute, on the canvas
 	gfx::oled::Point origin; ///< local (0,0) in canvas coordinates
 	gfx::oled::Size size;    ///< the region's own extent, before clipping
 	const Style& style;
-	/// This tick's input, gate and claim set, shared by every frame in the tree.
-	FrameContext& ctx;
-	/// Is this frame the live one? See the input-consumption contract in ui/core/frame_context.h:
-	/// an unfocused frame draws exactly as a focused one and reads zero input.
-	bool focused = true;
 
 	/// The frame's extent in local coordinates: spec B §4's `{0, 0, w, h}`.
 	///
@@ -90,61 +89,14 @@ struct OledFrame {
 
 	/// The part of `bounds()` that can actually reach the framebuffer, in the same local
 	/// coordinates: `clip` translated back through `origin`. Equal to `bounds()` for a region that
-	/// fits inside its parent, and empty (`w == 0` or `h == 0`) for one entirely outside it.
+	/// fits inside its parent, and empty (`w == 0` or `h == 0`) for one entirely outside it --
+	/// where only the extent is meaningful: the corner of an empty rectangle is `Rect::intersect`'s
+	/// and may sit outside `bounds()`. Test emptiness, never the corner.
 	///
 	/// Drawing never needs this -- every primitive clips itself -- but a widget that *measures*
 	/// does: "how many rows can be seen here" is a different question from "how tall was I asked
 	/// to be", and only the second one may drive layout.
 	gfx::oled::Rect visible() const { return {clip.x - origin.x, clip.y - origin.y, clip.w, clip.h}; }
-
-	/// @{
-	/// @name Input
-	///
-	/// The only way a widget reads input (contract rule 1, ui/core/frame_context.h). Every
-	/// accessor here is masked by `focused`: an unfocused frame reports no detents, no presses, no
-	/// shift and no clock, so a widget drawn inside one cannot move. `claim_*()` records that this
-	/// control owns the input for the tick, and is a no-op on an unfocused frame for the same
-	/// reason -- a widget that consumed nothing owns nothing.
-
-	int8_t turn() const { return focused ? ctx.input.turn : int8_t{0}; }
-	/// \p i is 0 (GoldUpper, coarse) or 1 (GoldLower, fine); anything else reads 0.
-	int8_t edit(int i) const { return (focused && i >= 0 && i < 2) ? ctx.input.edit[i] : int8_t{0}; }
-	int8_t horizontal() const { return focused ? ctx.input.horizontal : int8_t{0}; }
-	int8_t vertical() const { return focused ? ctx.input.vertical : int8_t{0}; }
-	bool select_pressed() const { return focused && ctx.input.select_pressed; }
-	bool back_pressed() const { return focused && ctx.input.back_pressed; }
-	bool shift() const { return focused && ctx.input.shift; }
-	/// This tick's millisecond clock, masked like the rest: an unfocused frame reads 0, so a
-	/// widget drawn for its looks alone does not advance its own animations.
-	uint32_t now_ms() const { return focused ? ctx.input.now_ms : 0u; }
-
-	void claim_turn() const { set_claim(&InputClaims::turn); }
-	void claim_edit(int i) const {
-		if (i == 0) {
-			set_claim(&InputClaims::edit0);
-		}
-		else if (i == 1) {
-			set_claim(&InputClaims::edit1);
-		}
-	}
-	void claim_horizontal() const { set_claim(&InputClaims::horizontal); }
-	void claim_vertical() const { set_claim(&InputClaims::vertical); }
-	void claim_select() const { set_claim(&InputClaims::select); }
-	void claim_back() const { set_claim(&InputClaims::back); }
-
-	/// Set one claim flag, on a focused frame only -- the whole of the "claims are no-ops when
-	/// unfocused" rule, written once. Public because `OledFrame` has no private section (see the
-	/// aggregate note at the bottom); widgets call the named `claim_*()` methods above.
-	void set_claim(bool InputClaims::* flag) const {
-		if (focused) {
-			ctx.claims.*flag = true;
-		}
-	}
-	/// @}
-
-	/// The surface's repaint gate. A widget with motion schedules its next frame through this;
-	/// focus does not mask it, because an unfocused widget still has to be redrawn.
-	RepaintGate& gate() const { return ctx.gate; }
 
 	/// Run \p body against a sub-frame whose (0,0) is `local`'s corner and whose clip is
 	/// `local` intersected with this frame's. Nests to any depth; panes route their own
@@ -159,8 +111,8 @@ struct OledFrame {
 		const gfx::oled::Point child_origin{origin.x + local.x, origin.y + local.y};
 		const gfx::oled::Rect child_clip =
 		    clip.intersect(gfx::oled::Rect{child_origin.x, child_origin.y, local.w, local.h});
-		OledFrame child{
-		    canvas, child_clip, child_origin, gfx::oled::Size{local.w, local.h}, style, ctx, focused && child_focused};
+		OledFrame child{{ctx, focused && child_focused},   canvas, child_clip, child_origin,
+		                gfx::oled::Size{local.w, local.h}, style};
 		std::forward<F>(body)(child);
 	}
 
@@ -229,8 +181,8 @@ struct OledFrame {
 
 	// Deliberately no private section, and no data member may be added below the public ones:
 	// OledFrame must stay an aggregate, because `region` above builds its child with aggregate
-	// initialisation of `canvas, clip, origin, size, style, ctx, focused` in that order. Helpers
-	// live in frame.cpp.
+	// initialisation of `{ctx, focused}, canvas, clip, origin, size, style` in that order -- the
+	// FrameInput base subobject first, then this struct's own members. Helpers live in frame.cpp.
 };
 
 /// The root frame for a whole panel: origin at the top of the *visible* area, clipped to it,

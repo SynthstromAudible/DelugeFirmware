@@ -46,7 +46,8 @@ void expect_region_clips(Self& self, Rect region, Body&& body) {
 	});
 
 	const Point origin{want.frame.origin.x + region.x, want.frame.origin.y + region.y};
-	OledFrame unclipped{want.canvas, Rect{0, 0, kW, kH}, origin, Size{region.w, region.h}, want.style, want.ctx, true};
+	OledFrame unclipped{{want.ctx, true},         want.canvas, Rect{0, 0, kW, kH}, origin,
+	                    Size{region.w, region.h}, want.style};
 	body(unclipped);
 	for (int32_t y = 0; y < kH; ++y) {
 		for (int32_t x = 0; x < kW; ++x) {

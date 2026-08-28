@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <utility>
 
 namespace deluge::ui::oled {
 
@@ -38,16 +39,22 @@ int32_t coarse_step(Range range) {
 	return range.step != 0 ? range.step : 1;
 }
 
-/// The same region, rendered *unfocused*: same canvas, clip, origin and size, no input.
+/// Render \p body over the whole of \p f, *unfocused*.
 ///
 /// The composite widgets below (`enum_value`, `toggle`) own the select encoder themselves and
 /// draw a `list` only for its window and highlight. An unfocused frame is the contract's way to
 /// say exactly that (ui/core/frame_context.h rule 3): the list paints pixel for pixel as it would
-/// have, reads no turn and no press, and claims nothing -- the outer widget has already claimed
-/// both. It replaces an earlier `without_turn` helper that copied the snapshot with `turn` zeroed,
-/// which masked one field by hand and left the rest for a widget to consume twice.
-OledFrame unfocused(const OledFrame& f) {
-	return OledFrame{f.canvas, f.clip, f.origin, f.size, f.style, f.ctx, false};
+/// have -- the clock is not masked, so its label still scrolls -- but reads no turn and no press,
+/// and claims nothing, because the outer widget has already claimed both. It replaces an earlier
+/// `without_turn` helper that copied the snapshot with `turn` zeroed, which masked one field by
+/// hand and left the rest for the inner widget to consume twice.
+///
+/// `f.bounds()` is the whole frame and `clip` is already inside it, so the child comes out with
+/// the same origin, size and clip as \p f -- this is `region()` used for its focus argument
+/// alone, rather than a fourth place that spells out `OledFrame`'s member list.
+template <class F>
+void render_unfocused(OledFrame& f, F&& body) {
+	f.region(f.bounds(), /*focused*/ false, std::forward<F>(body));
 }
 
 /// `10^exponent`, saturated at INT32_MAX -- legacy's `numberEditSize`, built by the same
@@ -246,6 +253,11 @@ Response enum_value(OledFrame& f, Rect rect, int32_t& index, std::span<const std
                     ScrollText& scroll_label, bool wrap) {
 	Response resp{};
 	const int32_t n = static_cast<int32_t>(names.size());
+	// Claimed before the empty case returns: ownership is a property of the control being on
+	// screen, not of the model behind it (ui/core/frame_context.h rule 2), which is also where
+	// `list` and `columns` claim.
+	f.claim_turn();
+	f.claim_select();
 	if (n <= 0) {
 		state.cursor = 0;
 		state.scroll = 0;
@@ -254,8 +266,6 @@ Response enum_value(OledFrame& f, Rect rect, int32_t& index, std::span<const std
 	}
 
 	// Enumeration::selectEncoderAction, enumeration.cpp:18-36.
-	f.claim_turn();
-	f.claim_select();
 	int32_t next = std::clamp<int32_t>(index, 0, n - 1);
 	if (f.turn() != 0) {
 		next += f.turn();
@@ -280,8 +290,9 @@ Response enum_value(OledFrame& f, Rect rect, int32_t& index, std::span<const std
 	// visible count that always comes out at 0 -- the slice already *is* the window.
 	ListState windowed{
 	    .cursor = static_cast<int16_t>(index - start), .scroll = 0, .rows_last = static_cast<int16_t>(count)};
-	OledFrame inner = unfocused(f);
-	list(inner, rect, windowed, std::span{window.data(), static_cast<size_t>(count)}, scroll_label);
+	render_unfocused(f, [&](OledFrame& inner) {
+		list(inner, rect, windowed, std::span{window.data(), static_cast<size_t>(count)}, scroll_label);
+	});
 	// The press is this widget's, not the inner list's: every row it built is selectable (the
 	// `selectable` default), so `list`'s own `entered` was always exactly this -- and the inner
 	// frame is unfocused, so it no longer reports one at all.
@@ -312,8 +323,7 @@ Response toggle(OledFrame& f, Rect rect, bool& value, std::string_view off_label
 	// toggle.cpp:29-42 -- `bool order[2] = {false, true}`, the current one highlighted.
 	const std::array<ListRow, 2> rows{ListRow{.label = off_label}, ListRow{.label = on_label}};
 	ListState windowed{.cursor = static_cast<int16_t>(value ? 1 : 0), .scroll = 0, .rows_last = 2};
-	OledFrame inner = unfocused(f);
-	list(inner, rect, windowed, std::span{rows}, scroll_label);
+	render_unfocused(f, [&](OledFrame& inner) { list(inner, rect, windowed, std::span{rows}, scroll_label); });
 
 	// On this screen the Toggle is the current menu item, so selectButtonPress takes the
 	// `getCurrentMenuItem() == this` branch and returns nullptr *without touching the value*
