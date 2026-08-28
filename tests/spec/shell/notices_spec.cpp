@@ -205,6 +205,8 @@ describe shell_notices("shell::Notices", $ {
 			expect(scene->is_grid_overlay()).to_be_true();
 			expect(scene->occludes_grid()).to_be_false();
 			expect(scene->input_transparent()).to_be_true();
+			// Composites nothing, so dims nothing: legacy popups have no grid effect at all.
+			expect(scene->dims_grid()).to_be_false();
 			// None of them paints a pad: `render_grid` is the base `Scene`'s do-nothing default.
 			deluge::gfx::grid::PadGrid grid{{16, 2, 8}};
 			grid.set(3, 3, RGB{9, 9, 9});

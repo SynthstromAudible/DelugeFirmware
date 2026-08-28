@@ -81,6 +81,11 @@ public:
 	///       while it is up. That dim is spec design (see `Shell::render_grid`); legacy has none.
 	/// @return Always true.
 	bool is_grid_overlay() const override { return true; }
+	/// @brief Composites nothing, so dims nothing: legacy's popups, console lines and working
+	///        animation leave the pads exactly as the view beneath painted them
+	///        (`Scene::dims_grid`).
+	/// @return Always false.
+	bool dims_grid() const override { return false; }
 	/// @brief Never takes the input of the scene it is drawn over.
 	///
 	/// Legacy routes nothing to a popup, a console line or the working animation: they are images,
@@ -141,6 +146,11 @@ public:
 	///       while it is up. That dim is spec design (see `Shell::render_grid`); legacy has none.
 	/// @return Always true.
 	bool is_grid_overlay() const override { return true; }
+	/// @brief Composites nothing, so dims nothing: legacy's popups, console lines and working
+	///        animation leave the pads exactly as the view beneath painted them
+	///        (`Scene::dims_grid`).
+	/// @return Always false.
+	bool dims_grid() const override { return false; }
 	/// @brief Never takes the input of the scene it is drawn over.
 	///
 	/// Legacy routes nothing to a popup, a console line or the working animation: they are images,
@@ -197,6 +207,11 @@ public:
 	///       while it is up. That dim is spec design (see `Shell::render_grid`); legacy has none.
 	/// @return Always true.
 	bool is_grid_overlay() const override { return true; }
+	/// @brief Composites nothing, so dims nothing: legacy's popups, console lines and working
+	///        animation leave the pads exactly as the view beneath painted them
+	///        (`Scene::dims_grid`).
+	/// @return Always false.
+	bool dims_grid() const override { return false; }
 	/// @brief Never takes the input of the scene it is drawn over.
 	///
 	/// Legacy routes nothing to a popup, a console line or the working animation: they are images,

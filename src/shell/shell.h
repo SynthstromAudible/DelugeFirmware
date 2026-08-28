@@ -181,10 +181,13 @@ private:
 	/// @return False when the surface could not be drawn (no `Style`), so the caller does not mark
 	///         an untouched canvas for blitting.
 	bool render_oled(OledSurface& s);
-	/// @brief Draw the pad grid: the base scene, dimmed if anything overlays it, then the
-	///        overlays, then the stack's greyout.
+	/// @brief Draw the pad grid: the base scene, dimmed if an overlay above it `dims_grid()`, then
+	///        the overlays, then the stack's greyout.
 	/// @param now_ms The tick's wall clock.
 	void render_grid(uint32_t now_ms);
+	/// @brief Halve every pad's channels in place, the dim an overlay is composited over.
+	/// @param grid The pad framebuffer.
+	static void dim_grid(gfx::grid::PadGrid& grid);
 	/// @brief Offer this tick's held-back, widget-owned events to the routing chain.
 	/// @param now_ms The tick's wall clock.
 	void deliver_post_render_input(uint32_t now_ms);

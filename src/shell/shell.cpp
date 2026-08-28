@@ -333,6 +333,22 @@ bool Shell::render_oled(OledSurface& s) {
 	return true;
 }
 
+void Shell::dim_grid(gfx::grid::PadGrid& grid) {
+	// Dim what is underneath by one bit per channel, so the overlay reads as the live layer.
+	//
+	// **Spec design, not a port.** Legacy has no such dim: the only thing it does to the layer
+	// under an overlay is the greyout, applied in the *send* path by `prepareColour`
+	// (`hid/led/pad_leds.cpp:283-298`), and its overlays (the sidebar menus, the context menus)
+	// simply overwrite the pads they cover. `RGB::dim(1)` is `channel >> 1` per channel
+	// (`gfx/grid/rgb.h`), which is what spec D §7 asks for in so many words.
+	const gfx::grid::GridDimensions d = grid.dims();
+	for (uint8_t y = 0; y < d.rows; y++) {
+		for (uint8_t x = 0; x < d.cols(); x++) {
+			grid.set(x, y, grid.at(x, y).dim(1));
+		}
+	}
+}
+
 void Shell::render_grid(uint32_t now_ms) {
 	GridSurface& g = surfaces_.grid();
 	if (!g.grid_storage.has_value()) {
@@ -354,6 +370,12 @@ void Shell::render_grid(uint32_t now_ms) {
 		}
 	}
 	const bool has_overlay = scenes.size() > base + 1;
+	// Spec D §7 dims "if any overlay is above", but an overlay that composites nothing may opt out
+	// (`Scene::dims_grid`) -- a popup must not halve the brightness of a grid it never touches.
+	bool dim = false;
+	for (size_t k = base + 1; k < scenes.size(); k++) {
+		dim = dim || scenes[k]->dims_grid();
+	}
 
 	// Same focus rule as `render_oled`: the input-frontmost scene, not simply the topmost one.
 	Scene* const focus = &stack_.input_top();
@@ -365,18 +387,8 @@ void Shell::render_grid(uint32_t now_ms) {
 	}
 
 	if (has_overlay) {
-		// Dim what is underneath by one bit per channel, so the overlay reads as the live layer.
-		//
-		// **Spec design, not a port.** Legacy has no such dim: the only thing it does to the layer
-		// under an overlay is the greyout below, applied in the *send* path by `prepareColour`
-		// (`hid/led/pad_leds.cpp:283-298`), and its overlays (the sidebar menus, the context
-		// menus) simply overwrite the pads they cover. `RGB::dim(1)` is `channel >> 1` per channel
-		// (`gfx/grid/rgb.h`), which is what spec D §7 asks for in so many words.
-		const gfx::grid::GridDimensions d = grid.dims();
-		for (uint8_t y = 0; y < d.rows; y++) {
-			for (uint8_t x = 0; x < d.cols(); x++) {
-				grid.set(x, y, grid.at(x, y).dim(1));
-			}
+		if (dim) {
+			dim_grid(grid);
 		}
 		for (size_t k = base + 1; k < scenes.size(); k++) {
 			const InputMask mask = scenes[k] == focus ? InputMask::all() : InputMask::none();

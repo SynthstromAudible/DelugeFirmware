@@ -73,6 +73,7 @@ application owns and registers once; the stack only holds pointers.
 | `UiContext` | The world around one event: held buttons and pads, shift, the clock, the board profile, and the `InputLowering` behind `press_used_up`/`held_since` |
 | `Action`, `Result` | What a scene asks the shell to do (`Push`/`Replace`/`ReplaceRoot`/`Pop`/`Popup`/`Repaint`/`LockInput`) and whether the event was handled |
 | `Scene` | The interface; only `kind()` and `handle()` are pure, everything else defaults to nothing |
+| `Scene::dims_grid` | Whether what is beneath this scene is dimmed for it. Defaults to `is_grid_overlay()`; an overlay that composites nothing (the notice scenes) returns false |
 | `Scene::input_transparent` | "Drawn over what is beneath, but never takes its input" -- popups, console lines, the working animation. `SceneStack::input_top()` walks past these to the scene that is routed to and focused |
 | `SceneRegistry` | `std::span<Scene* const>` indexed by kind; `find()` is null for an unregistered or out-of-range kind |
 | `NullScene` | What `SceneStack::top()` reports when the stack is empty: draws nothing, swallows everything |
@@ -152,15 +153,16 @@ and draws from there up -- the port of `OLED::sendMainImage`'s two-layer if-chai
 non-overlay scene, dims it by `RGB::dim(1)` (`>> 1` per channel) if anything overlays it, draws the
 overlays, then applies the stack's greyout at legacy's full strength (`setGreyoutAmount(1)` →
 `greyProportion = 6500000`, `pad_leds.cpp:753,786-788`). The dim is **spec D design, not a port**:
-legacy has only the greyout, and the dim is unconditional on "an overlay is above" -- spec D §7
-names no exception for an overlay that paints nothing, and the shell cannot know what one painted
-without rendering it and diffing. A notice therefore dims the pads beneath it while it is up.
+legacy has only the greyout. Spec D §7 says "dim if any overlay is above"; the shell narrows that
+to "if any overlay above the base `dims_grid()`", so an overlay that composites nothing can opt out.
 
-The three notice scenes are grid overlays that paint nothing (`is_grid_overlay()` true,
-`occludes_grid()` false, no `render_grid`): the grid base is the topmost scene that is *not* an
-overlay, so without that flag a pushed notice would become the base and -- since `render_grid`
-clears first -- leave the pads black. Legacy's popups, console lines and working animation are
-OLED-only; the pads keep showing the view underneath.
+The three notice scenes are grid overlays that paint nothing and dim nothing (`is_grid_overlay()`
+true, `dims_grid()` false, `occludes_grid()` false, no `render_grid`). Both flags are load-bearing
+and separate: the grid base is the topmost scene that is *not* an overlay, so without
+`is_grid_overlay()` a pushed notice would become the base and -- since `render_grid` clears first --
+leave the pads black; and with the dim left on, a "SAVED" popup would halve the brightness of a grid
+it never touches. Legacy's popups, console lines and working animation are OLED-only; the pads keep
+showing the view underneath, unchanged.
 
 ## LEDs (`leds.h`, Task 7)
 

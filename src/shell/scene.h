@@ -284,6 +284,20 @@ public:
 	virtual bool is_grid_overlay() const { return false; }
 	/// @brief Does this scene cover the grid completely, so scenes beneath need not render?
 	virtual bool occludes_grid() const { return false; }
+	/// @brief Should what is beneath this scene be dimmed for it?
+	///
+	/// Spec D §7's rule is "dim by right-shift if any overlay is above", and for an overlay that
+	/// actually composites pads -- a sidebar menu, a context menu -- that is right: the dim is what
+	/// says the layer beneath is no longer the live one. **An overlay that composites nothing may
+	/// opt out.** A popup, a console line and the working animation are OLED-only in legacy
+	/// (`OLED::sendMainImage`, `hid/display/oled.cpp:364-376`) and have no grid effect whatever;
+	/// halving every pad's brightness to announce a "SAVED" popup would be a visible regression,
+	/// not a port. They are still `is_grid_overlay()` -- they must not be mistaken for the grid
+	/// base -- so the two questions are separate predicates.
+	///
+	/// @return True (the default, for any grid overlay) to dim what is beneath; false to leave it
+	///         exactly as the base painted it.
+	virtual bool dims_grid() const { return is_grid_overlay(); }
 	/// @brief Should the scene beneath still draw \p role, with this scene drawn over it?
 	/// @param role The surface in question.
 	virtual bool oled_transparent(SurfaceRole role) const { return false; }

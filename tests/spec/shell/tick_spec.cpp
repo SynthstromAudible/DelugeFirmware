@@ -433,11 +433,28 @@ describe shell_tick("shell::Shell::tick", $ {
 
 		// The base still painted: a notice is a grid overlay that paints nothing, not the base.
 		expect(r.base.grid_renders).to_equal(1);
+		// And it is left exactly as the base painted it: a notice composites nothing on the grid,
+		// so it opts out of the overlay dim (`Scene::dims_grid`). Legacy's popups have no grid
+		// effect at all, and halving every pad to announce a message would be a regression.
 		const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
-		expect(g.at(3, 3) == RGB{0, 0, 0}).to_be_false();
-		// Spec D §7 dims "if any overlay is above", with no exception for an overlay that paints
-		// nothing -- the shell cannot know what one painted without rendering it and diffing.
+		expect(g.at(3, 3) == kBaseColour).to_be_true();
+		expect(g.at(17, 7) == kBaseColour).to_be_true();
+	});
+
+	it("an overlay that composites pads still dims the base beneath it", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.shell.init({kBase, 0});
+		// A real grid overlay -- one that paints -- takes the default `dims_grid()`.
+		expect(r.overlay.dims_grid()).to_be_true();
+		expect(r.shell.stack().push({kOverlay, 0})).to_be_true();
+		// ...and a notice above it does not undo that: the dim asks "does *any* overlay dim".
+		expect(r.shell.stack().push({SceneKind::Popup, 0})).to_be_true();
+		r.shell.tick(0);
+
+		const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
 		expect(g.at(3, 3) == RGB{50, 40, 30}).to_be_true();
+		expect(g.at(0, 0) == kOverlayColour).to_be_true();
 	});
 
 	it("a passive overlay leaves the scene beneath focused and routed", _ {
