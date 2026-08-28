@@ -411,40 +411,10 @@ bool deluge_audio_load_request(const char* file_path, const char* candidates, ui
 /// @return One of `DELUGE_AUDIO_LOAD_PENDING` / `_READY` / `_UNKNOWN`.
 uint8_t deluge_audio_load_collect(const char* file_path, DelugeAudioLoadResult* out) DELUGE_NOEXCEPT;
 
-/// @brief Discard every published result, queued request and in-flight mark. Never waits.
-///
-/// Call this when the card is EJECTED. Everything the loader holds is keyed by the nominal path and
-/// nothing records which card produced it, so a result parsed from one card must never be collected
-/// after another has been inserted: @ref deluge_audio_load_bind_read_stream would open the NEW
-/// card's file at that path and @ref deluge_audio_load_apply_geometry would write the OLD card's
-/// numbers onto it. That loads with no error and plays the wrong thing -- this header's own "worst
-/// available shape".
-///
-/// **At ejection, not at re-insertion.** Flushing on the way back in leaves the window open for as
-/// long as the slot stays empty, and the re-insert path (`deluge_efatfs_remount` ->
-/// `AudioFileManager::firstCardRead` -> `cardReinserted`) is about re-validating RESIDENT samples,
-/// which is a different question from what the loader has in its tables.
-///
-/// A load that is genuinely in flight when this is called is also covered: it publishes after this
-/// returns, and its result is discarded rather than reinstated. The loader stamps each result with
-/// the card generation the load began under and re-checks that stamp when the result is COLLECTED,
-/// so the discard does not depend on this call having managed to empty anything, nor on which
-/// context either side runs in. There is nothing for the caller to sequence against and nothing
-/// left in the loader to clean up afterwards.
-///
-/// **That is a statement about the loader's tables, not about the whole load pipeline.** A result
-/// already handed out is past the loader's reach: @ref deluge_audio_load_collect removes it, and the
-/// caller then runs @ref deluge_audio_load_begin -> @ref deluge_audio_load_bind_read_stream -> @ref
-/// deluge_audio_load_apply_geometry, of which the bind is a real open that can yield the storage
-/// owner. An ejection landing in that window has nothing left to flush -- the geometry is already on
-/// the caller's stack. It degrades to a read error rather than a wrong load, because the re-insert
-/// (`AudioFileManager::reinitEjectedCard` -> `deluge_efatfs_remount`) is dispatched to that same
-/// owner through the storage `Coalescer` and so cannot run during the bind: the open hits the old
-/// mount and fails.
-///
-/// Afterwards every flushed path reports @ref DELUGE_AUDIO_LOAD_UNKNOWN, whose documented meaning is
-/// already "request it (again)" -- the collector needs no new lifecycle for this.
-void deluge_audio_load_flush(void) DELUGE_NOEXCEPT;
+/* Discarding what this loader parsed from a card that has been ejected is deluge_card_flush
+ * (card.h), not a call of this header's own: the ejection invalidates every loader at once, and
+ * they share one card generation to say so. Deliberately not a doc comment -- it documents an
+ * absence, and would otherwise attach itself to the declaration below. */
 
 /// @brief Whether the Rust async loader backs sample loads on this BSP/config.
 /// @return true if async loading is active; false if every load takes the synchronous path.

@@ -61,7 +61,7 @@
 //! B's file at the same path. It loads clean, reports no error, and plays the
 //! wrong thing — the failure shape this whole boundary is built to keep out.
 //!
-//! [`deluge_audio_load_flush`] is what closes it, and it is called at EJECTION
+//! `deluge_card_flush` (`card.rs`) is what closes it, and it is called at EJECTION
 //! (`AudioFileManager::setCardEjected`), not at re-insertion — flushing on the way
 //! back in would leave the window open for however long the slot stays empty.
 //!
@@ -73,7 +73,7 @@
 //! is simply left populated.
 //!
 //! What closes both is a STAMP on the result rather than a clear of the table.
-//! Each load carries the [`GENERATION`] it began under, [`publish_into`] records
+//! Each load carries the card generation it began under, [`publish_into`] records
 //! that value on the resident entry, and [`take_from`] returns an entry only when
 //! its stamp equals the generation the TAKER is asking under — dropping a
 //! mismatched entry outright, so the collector reads `UNKNOWN` and asks again
@@ -82,6 +82,11 @@
 //! context either side happens to run in. ([`publish_result`] checks the same
 //! stamp on the way in as well; that is an early drop that saves a slot, not the
 //! guarantee — see its doc.)
+//!
+//! The counter itself is not this module's. It is [`deluge_card_generation`],
+//! shared with every other loader that caches something read from the card,
+//! because a card swap invalidates all of them at once and a second hand-rolled
+//! counter is a second chance to reintroduce the bug this belt closed.
 //!
 //! The stamp is taken where the load BEGINS ([`take_next_request`], under the
 //! queue lock), never where it publishes: sampling it at publish time reads the
@@ -175,8 +180,6 @@ compile_error!(
 
 use core::ffi::{CStr, c_char};
 use core::mem::MaybeUninit;
-#[cfg(feature = "async_audio_load_active")]
-use core::sync::atomic::{AtomicU32, Ordering};
 
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 #[cfg(feature = "async_audio_load_active")]
@@ -428,10 +431,10 @@ pub struct LoadRequest {
 pub struct PendingResult {
     key: LoadPath,
     result: LoadResult,
-    /// The [`GENERATION`] the load was started under. Carried on the RESIDENT
-    /// entry, not merely checked on the way in, so that whether a result is
-    /// honoured is decided by the taker rather than by which locks a flush
-    /// managed to take. See [`take_from`].
+    /// The [`deluge_card_generation`] value the load was started under. Carried
+    /// on the RESIDENT entry, not merely checked on the way in, so that whether a
+    /// result is honoured is decided by the taker rather than by which locks a
+    /// flush managed to take. See [`take_from`].
     generation: u32,
 }
 
@@ -480,46 +483,14 @@ static IN_FLIGHT: Mutex<CriticalSectionRawMutex, Option<LoadPath>> = Mutex::new(
 #[cfg(feature = "async_audio_load_active")]
 static RESULTS: Mutex<CriticalSectionRawMutex, ResultTable> = Mutex::new(heapless::Deque::new());
 
-/// Which card the loader is reading. Bumped by [`deluge_audio_load_flush`]; a
-/// load that began under an older value has nothing to say about the card that
-/// is in the slot now, and its result is discarded rather than published.
+/// Drop the tables this loader keeps. The card generation's bump belongs to the
+/// CALLER (`card.rs`'s `deluge_card_flush`), which performs it before calling
+/// here — see that function for why the ordering is not negotiable.
 ///
-/// A plain wrapping counter, and the wrap is harmless: `!=` is the only test, and
-/// distinguishing two generations 2^32 ejections apart is not a property anything
-/// needs.
-#[cfg(feature = "async_audio_load_active")]
-static GENERATION: AtomicU32 = AtomicU32::new(0);
-
-/// The card generation a load starting *now* belongs to. See [`GENERATION`].
-///
-/// `pub` for the host test, which has to stamp a result the way
-/// [`take_next_request`] would in order to drive the in-flight-across-a-flush case
-/// at all; nothing in the firmware calls it from outside this module.
-#[cfg(feature = "async_audio_load_active")]
-pub fn current_generation() -> u32 {
-    GENERATION.load(Ordering::Acquire)
-}
-
-/// Discard every published result, queued request and in-flight mark. See
-/// `audio_load.h`.
-///
-/// Always exported, on every configuration this module compiles in, so the C++
-/// call site links regardless of which build produced this BSP image — the same
-/// rule [`deluge_audio_load_async_active`] follows.
-#[unsafe(no_mangle)]
-pub extern "C" fn deluge_audio_load_flush() {
-    flush();
-}
-
-/// Invalidate everything the loader knows and drop the tables it knows it in.
-///
-/// # Why the bump comes first, and why a failed clear is free
+/// # Why a failed clear is free
 ///
 /// This runs synchronously from C++ on the interaction tier and must never wait,
-/// so the three tables are `try_lock`ed rather than awaited. The generation bump
-/// is the part that cannot fail, and it is deliberately ordered ahead of the
-/// clears so that no window exists in which a table has been emptied but the
-/// generation still reads as the one a load in flight is about to publish under.
+/// so the three tables are `try_lock`ed rather than awaited.
 ///
 /// **Every one of the three `try_lock`s may fail, and none of them costs
 /// anything.** The clears are housekeeping — they free slots and stop the
@@ -545,8 +516,7 @@ pub extern "C" fn deluge_audio_load_flush() {
 /// "these two cannot run at once" is false on some configuration that builds this
 /// file.
 #[cfg(feature = "async_audio_load_active")]
-fn flush() {
-    GENERATION.fetch_add(1, Ordering::AcqRel);
+pub(crate) fn flush_tables() {
     if let Ok(mut queue) = QUEUE.try_lock() {
         queue.clear();
     }
@@ -559,10 +529,11 @@ fn flush() {
 }
 
 /// No loader on this build: the tables do not exist and nothing was ever
-/// published, so there is nothing to discard. Matches `audio_load_abi.cpp`'s weak
-/// fallback.
+/// published, so there is nothing to discard. Matches `card_abi.cpp`'s weak
+/// fallback. The generation bump still happens in the caller — it is not this
+/// loader's, and another loader on this build may well need it.
 #[cfg(not(feature = "async_audio_load_active"))]
-fn flush() {}
+pub(crate) fn flush_tables() {}
 
 /// Whether the Rust async loader backs sample loads on this BSP/config — the
 /// switch the C++ side asks before choosing the async path over the synchronous
@@ -789,11 +760,11 @@ fn probe(path: &str, out: &mut MaybeUninit<LoadResult>) -> Probe {
     let Ok(mut results) = RESULTS.try_lock() else {
         return Probe::Pending;
     };
-    // `current_generation()` read HERE, at the take, not sampled earlier: it is
+    // The card generation is read HERE, at the take, not sampled earlier: it is
     // the collector's own view of which card is in the slot right now, and
     // deciding from it is what makes a result's fate independent of whether the
     // flush that invalidated it managed to take this lock. See [`take_from`].
-    match take_from(&mut results, path, current_generation()) {
+    match take_from(&mut results, path, deluge_card_generation::current()) {
         Some(result) => {
             out.write(result);
             Probe::Ready
@@ -879,9 +850,10 @@ fn remove_at(
 /// the oldest if the table is full. See [`RESULTS`].
 ///
 /// The generation arrives as a PARAMETER rather than being read from
-/// [`GENERATION`] here, for the same reason the table is passed by reference: this
-/// has to compile, and be unit-tested, on builds where that static does not exist.
-/// Do not reach for it from inside this function.
+/// [`deluge_card_generation`] here, for the same reason the table is passed by
+/// reference: the stamp that belongs on the entry is the one the load BEGAN under,
+/// which only the caller knows, and a test must be able to publish and take under
+/// generations it chooses. Do not reach for the live counter inside this function.
 ///
 /// Takes the table by reference rather than reaching for the static, so the
 /// eviction and replace behaviour is compiled and unit-tested on every build —
@@ -916,13 +888,14 @@ pub fn publish_into(table: &mut ResultTable, key: LoadPath, result: LoadResult, 
 /// wrong-file bug the whole flush exists to prevent. `None` reaches the collector
 /// as `UNKNOWN`, whose documented meaning is already "request it again".
 ///
-/// **This is the safety property, and the only one.** [`flush`] cannot guarantee
-/// it: the bump it performs is unconditional, but its clears are `try_lock`ed and
-/// a contended table stays populated, so an entry can outlive a flush. Deciding at
-/// TAKE, from the caller's own current generation, is what makes the outcome
-/// independent of which locks the flush managed to take and of which context
-/// either side runs in. [`publish_result`]'s matching pre-insert check is an early
-/// drop layered on top, not the guarantee.
+/// **This is the safety property, and the only one.** `deluge_card_flush`
+/// (`card.rs`) cannot guarantee it: the generation bump it performs is
+/// unconditional, but [`flush_tables`]'s clears are `try_lock`ed and a contended
+/// table stays populated, so an entry can outlive a flush. Deciding at TAKE, from
+/// the caller's own current generation, is what makes the outcome independent of
+/// which locks the flush managed to take and of which context either side runs
+/// in. [`publish_result`]'s matching pre-insert check is an early drop layered on
+/// top, not the guarantee.
 ///
 /// Deliberately not paired with a sweep of the other stale entries. One can sit in
 /// a slot until it is evicted or asked for, and since it is uncollectable either
@@ -937,9 +910,9 @@ pub fn take_from(table: &mut ResultTable, path: &str, generation: u32) -> Option
 /// Publish into the live [`RESULTS`] table, stamped with the card generation the
 /// load began under, and skip the insert entirely if that card is already gone.
 ///
-/// `generation` is the value [`GENERATION`] held when the load STARTED — see
-/// [`take_next_request`], which samples it, and the module doc for why sampling it
-/// here instead would defeat the whole mechanism.
+/// `generation` is the value [`deluge_card_generation::current`] returned when the
+/// load STARTED — see [`take_next_request`], which samples it, and the module doc
+/// for why sampling it here instead would defeat the whole mechanism.
 ///
 /// # The early-drop check is an optimisation, not the guarantee
 ///
@@ -949,18 +922,19 @@ pub fn take_from(table: &mut ResultTable, path: &str, generation: u32) -> Option
 /// the stamp this call records against the taker's own current generation.
 ///
 /// That distinction is load-bearing rather than pedantic. There is no
-/// happens-before edge from [`flush`]'s `fetch_add` to this `load` when this task
-/// wins the `RESULTS` lock (the two synchronise only through the lock, in the
-/// other direction), so this check can legitimately read the pre-flush generation,
-/// pass, and insert. The entry it inserts still carries the pre-flush stamp, and
-/// the take drops it. Do not rewrite this as the safety property.
+/// happens-before edge from [`deluge_card_generation::bump`]'s `fetch_add` to
+/// this `load` when this task wins the `RESULTS` lock (the two synchronise only
+/// through the lock, in the other direction), so this check can legitimately read
+/// the pre-flush generation, pass, and insert. The entry it inserts still carries
+/// the pre-flush stamp, and the take drops it. Do not rewrite this as the safety
+/// property.
 ///
 /// The check happens with the table lock already held, not before acquiring it, so
 /// that it is at least ordered against a flush that DID take the lock.
 #[cfg(feature = "async_audio_load_active")]
 pub async fn publish_result(key: LoadPath, result: LoadResult, generation: u32) {
     let mut table = RESULTS.lock().await;
-    if generation != current_generation() {
+    if generation != deluge_card_generation::current() {
         // The card this was read from is gone. Dropping costs the I/O that
         // produced it and nothing else (`LoadResult` owns nothing), and the
         // collector reads the resulting `UNKNOWN` as "request it again" -- which
@@ -1400,7 +1374,7 @@ pub async fn audio_load_task() {
 async fn take_next_request() -> Option<(LoadRequest, u32)> {
     let mut queue = QUEUE.lock().await;
     let request = queue.pop_front()?;
-    let generation = current_generation();
+    let generation = deluge_card_generation::current();
     mark_in_flight(Some(request.path.clone())).await;
     Some((request, generation))
 }

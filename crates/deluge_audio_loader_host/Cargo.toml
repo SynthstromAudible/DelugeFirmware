@@ -65,6 +65,10 @@ embassy-sync = "0.8.0"
 heapless = { version = "0.8", default-features = false }
 # The header decoder the driver walks each candidate's prefix through.
 deluge_audio_format = { path = "../deluge_audio_format" }
+# The card generation the driver stamps each result with and the collector compares at take. A
+# crate, not a BSP module, precisely so that this recompilation of `audio_loader.rs` reads the SAME
+# static the firmware does instead of a private copy. Path dependency, so it cannot drift.
+deluge_card_generation = { path = "../deluge_card_generation" }
 
 [dev-dependencies]
 # The statics above are `CriticalSectionRawMutex`-backed, so the test binary must

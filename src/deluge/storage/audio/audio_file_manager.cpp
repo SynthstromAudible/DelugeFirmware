@@ -28,6 +28,7 @@
 #include "io/stream.hpp"
 #include "libdeluge/audio_load.h" // the async loader's request/collect pair + the sample build
 #include "libdeluge/block_device.h"
+#include "libdeluge/card.h"          // deluge_card_flush
 #include "libdeluge/file_io.h"       // deluge_efatfs_cluster_size
 #include "libdeluge/storage_owner.h" // deluge_storage_on_owner
 #include "libdeluge/stream_io.h"
@@ -135,8 +136,8 @@ void AudioFileManager::init() {
 	else {
 		Cluster::set_size(Cluster::kSizeFAT16Max);
 		// Through the setter, not a bare assignment: this is an ejection like any other as far as the
-		// async loader is concerned (the mount failed, so whatever it parsed came from a card that is
-		// no longer readable), and routing it here is what keeps the flush from having a second
+		// card's loaders are concerned (the mount failed, so whatever they read came from a card that
+		// is no longer readable), and routing it here is what keeps the flush from having a second
 		// entrance it does not cover.
 		setCardEjected();
 	}
@@ -1317,11 +1318,12 @@ void card_init_fill(void*) {
 
 void AudioFileManager::setCardEjected() {
 	cardEjected = true;
-	// Unconditional -- deliberately not gated on deluge_audio_load_async_active(). A flush skipped on
-	// the wrong build is a silent wrong-file load; one that runs where there is no loader costs a
-	// call into a no-op weak fallback. See audio_load.h for the whole contract, and this function's
-	// declaration for why the ejection is the hook rather than the re-insertion.
-	deluge_audio_load_flush();
+	// Card-scoped, not loader-scoped: one call invalidates everything every loader read from the
+	// card that just left. Unconditional -- deliberately not gated on any loader's "am I active?"
+	// selector. A flush skipped on the wrong build is a silent wrong-file load; one that runs where
+	// there is no loader costs a call into a no-op weak fallback. See card.h for the whole contract,
+	// and this function's declaration for why the ejection is the hook rather than the re-insertion.
+	deluge_card_flush();
 }
 
 void AudioFileManager::reinitEjectedCard() {

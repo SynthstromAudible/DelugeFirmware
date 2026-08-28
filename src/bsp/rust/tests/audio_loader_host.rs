@@ -30,6 +30,19 @@ use std::ffi::CString;
 #[path = "../src/audio_loader.rs"]
 mod audio_loader;
 
+/// The ejection hook itself, recompiled here the same way — the belt tests below drive
+/// `deluge_card_flush` rather than its two halves, because "the bump precedes the clears" is part
+/// of what they are pinning. It reaches its loader through `super::audio_loader`, which is exactly
+/// what the module above provides — here at the crate root, and one module deeper when
+/// `crates/deluge_audio_loader_host` recompiles this whole file for CI.
+///
+/// The shared counter it bumps needs no `#[path]`: `deluge_card_generation` is a real dependency
+/// crate, so the very same static resolves here and in the BSP binary. That is why it is a crate —
+/// a `crate::card_generation` module would be a *different* static in this build from the one
+/// `audio_loader.rs` reads inside the firmware.
+#[path = "../src/card.rs"]
+mod card;
+
 use audio_loader::{
     CandidateList, DELUGE_ERROR_FILE_CORRUPTED, DELUGE_ERROR_FILE_UNREADABLE,
     DELUGE_ERROR_FILE_UNSUPPORTED, DELUGE_ERROR_NONE, DELUGE_ERROR_TOO_MANY_OPEN_STREAMS,
@@ -43,9 +56,12 @@ use audio_loader::{
 #[cfg(feature = "async_audio_load_active")]
 use audio_loader::{
     DELUGE_AUDIO_LOAD_PENDING, DELUGE_AUDIO_LOAD_READY, DELUGE_AUDIO_LOAD_UNKNOWN,
-    current_generation, deluge_audio_load_collect, deluge_audio_load_flush,
-    deluge_audio_load_request, mark_in_flight, publish_result,
+    deluge_audio_load_collect, deluge_audio_load_request, mark_in_flight, publish_result,
 };
+#[cfg(feature = "async_audio_load_active")]
+use card::deluge_card_flush;
+#[cfg(feature = "async_audio_load_active")]
+use deluge_card_generation::current as current_generation;
 
 /// One call `FakeOps` observed, in order.
 #[derive(Debug, PartialEq, Eq, Clone)]
@@ -1177,10 +1193,10 @@ mod live_pipeline {
     // A result is keyed by path and records nothing about the card it came from,
     // so one parsed before an ejection and collected after the next insertion
     // binds the NEW card's file to the OLD card's geometry: a load that reports no
-    // error and plays the wrong thing. `deluge_audio_load_flush` is what makes
-    // that impossible, and there are two halves to it -- what was already
-    // published, and what is still in flight. The second is the one that is easy
-    // to get wrong, so it has its own test.
+    // error and plays the wrong thing. `deluge_card_flush` is what makes that
+    // impossible, and there are two halves to it -- what was already published,
+    // and what is still in flight. The second is the one that is easy to get
+    // wrong, so it has its own test.
 
     /// A result published before the ejection is gone afterwards: `UNKNOWN`, whose
     /// documented meaning is "request it again" -- which is exactly what the
@@ -1196,7 +1212,7 @@ mod live_pipeline {
         );
 
         publish("eject/published.wav", LoadResult::failed(DELUGE_ERROR_NONE));
-        deluge_audio_load_flush();
+        deluge_card_flush();
         let (status, out) = collect("eject/published.wav");
         assert_eq!(status, DELUGE_AUDIO_LOAD_UNKNOWN);
         assert_out_untouched(&out);
@@ -1221,7 +1237,7 @@ mod live_pipeline {
         let began_under = current_generation();
 
         // The card is pulled mid-parse.
-        deluge_audio_load_flush();
+        deluge_card_flush();
 
         // ...and the parse finishes anyway, because nothing can stop an await that
         // is already running. Its result must not become collectable.
@@ -1257,7 +1273,7 @@ mod live_pipeline {
         let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         assert!(request_load("eject/queued.wav", &["eject/queued.wav"]));
         assert_eq!(collect("eject/queued.wav").0, DELUGE_AUDIO_LOAD_PENDING);
-        deluge_audio_load_flush();
+        deluge_card_flush();
         assert_eq!(
             collect("eject/queued.wav").0,
             DELUGE_AUDIO_LOAD_UNKNOWN,
@@ -1273,7 +1289,7 @@ mod live_pipeline {
         let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         block_on(mark_in_flight(Some(path_of("eject/mark.wav"))));
         assert_eq!(collect("eject/mark.wav").0, DELUGE_AUDIO_LOAD_PENDING);
-        deluge_audio_load_flush();
+        deluge_card_flush();
         assert_eq!(collect("eject/mark.wav").0, DELUGE_AUDIO_LOAD_UNKNOWN);
     }
 
@@ -1284,11 +1300,11 @@ mod live_pipeline {
     #[test]
     fn the_loader_still_accepts_work_after_a_flush() {
         let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        deluge_audio_load_flush();
+        deluge_card_flush();
         assert!(request_load("eject/after.wav", &["eject/after.wav"]));
         assert_eq!(collect("eject/after.wav").0, DELUGE_AUDIO_LOAD_PENDING);
         // Drain it, so this test leaves the shared queue as it found it.
-        deluge_audio_load_flush();
+        deluge_card_flush();
     }
 }
 

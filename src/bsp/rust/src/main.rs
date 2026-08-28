@@ -155,6 +155,12 @@ mod board;
 /// C++ memory-model bring-up (SDRAM bss/data, global ctors).
 #[cfg(target_os = "none")]
 mod boot_mem;
+/// card.h — `deluge_card_flush`, the one ejection hook every loader on this BSP is
+/// invalidated through. Gated identically to `audio_loader` above, which it calls into: the
+/// symbol has to exist wherever a loader's tables do, and nowhere else (the weak fallback in
+/// `card_abi.cpp` covers every other BSP).
+#[cfg(any(target_os = "none", feature = "host_app"))]
+mod card;
 /// control_surface.h — pads/buttons/encoders + LEDs (M2b WIP).
 mod control;
 /// cv_gate.h — CV/gate outputs + external trigger clock.

@@ -364,6 +364,10 @@ name = "deluge_audio_format"
 version = "0.1.0"
 
 [[package]]
+name = "deluge_card_generation"
+version = "0.1.0"
+
+[[package]]
 name = "deluge_resource"
 version = "0.1.0"
 dependencies = [
@@ -703,6 +707,7 @@ dependencies = [
  "critical-section",
  "deluge-bsp",
  "deluge_audio_format",
+ "deluge_card_generation",
  "deluge_resource",
  "deluge_sample_fill",
  "deluge_sample_reader",

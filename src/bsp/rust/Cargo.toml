@@ -40,6 +40,14 @@ heapless = { version = "0.8", default-features = false }
 # correctly on all three.
 deluge_sample_convert = { path = "../../../crates/deluge_sample_convert" }
 
+# The one card generation, shared by every loader here that caches something read from the card
+# (`audio_loader`, and the file-prefix reader beside it). Unconditional, like the deps above: it is
+# a single `AtomicU32` with no dependencies of its own, and it must resolve on every tier this
+# crate builds -- device, `host_app`, AND a plain host `cargo test`, where `tests/*.rs`
+# `#[path]`-include the loader modules that read it. An `extern crate` path is what makes that last
+# case work at all; see the crate's own Cargo.toml for why it is not a module of this crate.
+deluge_card_generation = { path = "../../../crates/deluge_card_generation" }
+
 # C2a: the relocated cluster-fill core. `fill_logic` (Task 1) lands here; deluge-bsp-rust's
 # streaming_loader imports it instead of its own `mod fill_logic`. `native_fill` (Task 3) pulls in
 # the manager-reaching `native_begin`/`native_finish` -- streaming_loader.rs no longer defines those

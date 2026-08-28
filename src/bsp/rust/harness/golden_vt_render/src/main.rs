@@ -143,6 +143,14 @@ mod audio_host;
 mod audio_loader;
 #[path = "../../../src/board.rs"]
 mod board;
+/// `deluge_card_flush` — the ejection hook that bumps the shared card generation and then clears
+/// the loader's tables. Gated with `audio_loader` above rather than with `../src/main.rs`'s
+/// device/`host_app` pair, because it calls into that module: without the loader compiled there is
+/// nothing here to clear, and `card_abi.cpp`'s weak fallback in the `deluge_app` object closure
+/// resolves the symbol instead.
+#[cfg(feature = "async_audio_load")]
+#[path = "../../../src/card.rs"]
+mod card;
 #[path = "../../../src/control.rs"]
 mod control;
 #[path = "../../../src/display.rs"]

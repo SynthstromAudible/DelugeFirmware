@@ -556,11 +556,3 @@ extern "C" __attribute__((weak)) uint8_t deluge_audio_load_collect(const char* /
 	// Same as above. UNKNOWN, not PENDING: PENDING would tell a caller to keep asking forever.
 	return DELUGE_AUDIO_LOAD_UNKNOWN;
 }
-
-extern "C" __attribute__((weak)) void deluge_audio_load_flush() noexcept {
-	// No async loader on this BSP/config, so nothing was ever queued, parsed or published and there
-	// is nothing a card swap could make stale. Unconditionally callable is the point: the ejection
-	// path calls this without first asking deluge_audio_load_async_active(), because a flush that is
-	// skipped on the wrong build is a silent wrong-file load, while one that runs on a build with no
-	// tables costs a call.
-}
