@@ -788,15 +788,6 @@ Here is a list of features that have been added to the firmware as a list, group
 
 - (#3213) <Badge text="c1.3" variant="tip" /> A new option, 'Launch Exclusively', isolates a clip section from all other launch activity. This option is found to the left of option 'Launch non-exclusively' when selecting the section's number of repetitions. As a complement to non-exclusive sections that arm and turn off when another section is launched, exclusive sections remain independant and continue playing.
 
-### 4.2.11 - Round-Robin Sample Variants
-
-- Each oscillator sample zone in Synth and Kit sound sources can now hold up to 4 sample variants: the primary
-  sample plus up to 3 alternates, played in rotation each time the zone is triggered - the classic
-  multi-sample-per-pad workflow known from MPC-style samplers, useful for removing the "machine gun" effect on
-  repeated drum hits.
-- For a detailed description of this feature, please refer to the feature documentation:
-  [Round-Robin Sample Variants Documentation](/features/round_robin_sample_variants)
-
 ## 4.3 - Instrument Clip View - General Features
 
 These features were added to the Instrument Clip View and affect Synth, Kit and MIDI instrument clip types.
@@ -1221,6 +1212,15 @@ For a detailed description of this feature, please refer to the feature document
   (and also base note for drums) that will be sent at the same time as the sound triggers.
   In case of drums, it is like having a Sound row + a Midi row together triggering at the same time. And in case of synths, it is like
   having a Synth clip + a Midi clip together triggering at the same time. This feature is limited to regular MIDI (that is, not for MPE).
+
+### 4.5.11 - Round-Robin Sample Variants
+
+- Each oscillator sample zone in Synth and Kit sound sources can now hold up to 4 sample variants: the primary
+  sample plus up to 3 alternates, played in rotation each time the zone is triggered - the classic
+  multi-sample-per-pad workflow known from MPC-style samplers, useful for removing the "machine gun" effect on
+  repeated drum hits.
+- For a detailed description of this feature, please refer to the feature documentation:
+  [Round-Robin Sample Variants Documentation](/features/round_robin_sample_variants)
 
 ## 4.6 - Instrument Clip View - Kit Clip Features
 

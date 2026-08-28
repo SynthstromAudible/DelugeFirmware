@@ -1012,8 +1012,6 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_VARIANT_SLOT_3, "Slot 3"},
         {STRING_FOR_VARIANT_SLOT_4, "Slot 4"},
         {STRING_FOR_FILE, "File"},
-        {STRING_FOR_MARKERS, "Markers"},
-        {STRING_FOR_CENTS, "Cents"},
         {STRING_FOR_CYCLE, "Cycle"},
         {STRING_FOR_NO_REPEAT, "No Repeat"},
         {STRING_FOR_LOAD, "Load"},

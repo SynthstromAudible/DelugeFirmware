@@ -236,7 +236,12 @@ bool Voice::noteOn(ModelStackWithSoundFlags* modelStack, int32_t newNoteCodeBefo
 				}
 
 				AudioFileHolder* holder = range->getAudioFileHolder();
-				if (sound.sources[s].oscType == OscType::SAMPLE
+				// hasMultisampleRanges(), not oscType: setOscType() only re-types the ranges array when
+				// moving to or from SAMPLE/WAVETABLE, so the mode can say SAMPLE while the array still
+				// holds elements of the other shape - and rrCount/alternates overlap the wavetable
+				// holder, so reading them off the wrong type gives garbage. Every other site that
+				// touches round-robin fields already checks this way.
+				if (sound.sources[s].hasMultisampleRanges()
 				    && runtimeFeatureSettings.isOn(RuntimeFeatureSettingType::RoundRobinSampleVariants)) {
 					MultisampleRange* sampleRange = (MultisampleRange*)range;
 					SampleHolderForVoice* resolvedHolder;
