@@ -254,10 +254,15 @@ void Shell::tick(uint32_t now_ms) {
 	tick_stack(now_ms - last_ms_);                    // 4. top-down, stop below occludes_grid()
 	services_.tick(now_ms - last_ms_);
 	rendered_this_tick_.clear();
-	for (auto& s : surfaces_.oled()) {                // 5. OLED surfaces whose gate (or the shared frame gate) fires
-		if (s.gate.needs_frame(now_ms, had_input_, dirty.any()) || lowering_.ctx().gate.needs_frame(...)) { render_oled(s); blit(s); }
+	// needs_frame() *consumes* the request it reports, so the shared widget gate is read exactly
+	// once per tick, into a local, and that one bool is OR'd into every surface's own decision --
+	// not re-queried per surface, which would starve every surface after the first (see §13
+	// Amendments).
+	const bool widgets_want_frame = lowering_.ctx().gate.needs_frame(now_ms, had_input_, false);
+	for (auto& s : surfaces_.oled()) {                // 5. OLED surfaces whose gate (or the shared widget gate) fires
+		if (s.gate.needs_frame(now_ms, had_input_, dirty.any()) || widgets_want_frame) { render_oled(s); blit(s); }
 	}
-	if (surfaces_.grid().gate.needs_frame(...) || lowering_.ctx().gate.needs_frame(...)) { render_grid(); flush_grid(); }   // 6. incl. tween
+	if (surfaces_.grid().gate.needs_frame(now_ms, had_input_, dirty.any()) || widgets_want_frame) { render_grid(); flush_grid(); }   // 6. incl. tween
 	for (auto* scene : rendered_this_tick_) router_.apply(scene->after_render());     // 7. navigation from this tick's Responses (§3)
 	deliver_post_render_input(now_ms);                // 8. held-back events, each gated by lowering_.ctx().claims
 	derive_leds(now_ms);                             // 9. every tick; cheap
@@ -487,6 +492,22 @@ folded into §2–§7's body (the `render_oled`/`render_grid`/`after_render` spl
   not call out, ruled during the same review round.
 
 **§7 Tick**
+- The pseudocode's `lowering_.ctx().gate.needs_frame(...)` call, repeated once per OLED surface and
+  again for the grid, is **not** what ships. `RepaintGate::needs_frame()` *consumes* the repaint
+  request it reports (a one-shot "has anyone asked since I last answered yes" check, not an
+  idempotent query), so calling it a second and third time in the same tick would only ever see a
+  widget's request on the *first* surface asked — every other OLED surface, and the grid, would be
+  starved of a repaint a widget genuinely requested. Found in the pre-flight scan across Tasks 4
+  and 7 (`InputLowering` owns the shared `FrameContext` input side, `Shell::tick` owns the surface
+  loop that reads it), before either task had been dispatched: `InputLowering` instead owns one
+  `RepaintGate widgets_gate_` (`input_lowering.h:405`, exposed as `widgets_gate()`, referenced by
+  the one shared `FrameContext` at `:406`), and `Shell::tick` calls `needs_frame()` on it **exactly
+  once per tick**, into a local (`widgets_want_frame`, `shell.cpp:331`), OR'd into every surface's
+  own decision (`shell.cpp:328-344`; `README.md`'s "The widgets' gate is evaluated once per tick"
+  line). The rejected alternative — cache the bool across ticks instead of re-deriving it fresh
+  each tick — would have widened the bug rather than fixed it: a widget's animation would then
+  repaint only whichever surface happened to ask first, on every subsequent tick too, instead of
+  correctly reaching every surface within the one tick the request was actually made.
 - The pseudocode's `s.gate.needs_frame(now_ms, had_input_, dirty.any())` is **not** what ships:
   `dirty.any()` is never passed. Step 1 has already turned this tick's facts into gate requests
   targeted at the surfaces they actually name (`apply_dirty`, `Dirty::Oled` → OLED gates,
