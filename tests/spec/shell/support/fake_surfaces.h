@@ -175,4 +175,49 @@ inline BoardProfile test_profile_two_oleds() {
 	};
 }
 
+/// @brief A board profile with the input tables filled in: the Deluge's 9x4 button matrix, its
+///        six encoders in the board's edge-index order, and each encoder's kind.
+///
+/// The matrix mirrors the `*ButtonCoord` constants in `src/definitions_cxx.hpp:59-84` and the
+/// mod-button table in `src/deluge/hid/button.h:20-21`; `(4,0)` and `(4,2)` are the two cells the
+/// Deluge does not populate and map to `ButtonId::None`. The encoder order is the one
+/// `interpretEncoders` folds edges in (`src/deluge/hid/encoder_input.cpp:56-63`): 0=scrollY,
+/// 1=scrollX, 2=tempo, 3=select, 4/5 = the two gold knobs. The real board profile lands with the
+/// Deluge board tables; this one exists so the input specs have something to lower against.
+/// @return The profile, viewing static storage.
+inline BoardProfile test_profile_input() {
+	using deluge::ui::EncoderRole;
+	using deluge::ui::shell::ButtonId;
+	using deluge::ui::shell::EncoderKind;
+	// clang-format off
+	static constexpr ButtonId kMatrix[] = {
+	    // x:  0                  1               2               3                       4                    5                6                      7                      8
+	    /*y0*/ ButtonId::YEnc,    ButtonId::Mod0, ButtonId::Mod4, ButtonId::AffectEntire, ButtonId::None,      ButtonId::Synth, ButtonId::Scale,       ButtonId::Learn,       ButtonId::Shift,
+	    /*y1*/ ButtonId::XEnc,    ButtonId::Mod1, ButtonId::Mod5, ButtonId::Session,      ButtonId::TempoEnc,  ButtonId::Kit,   ButtonId::Load,        ButtonId::Back,        ButtonId::Triplets,
+	    /*y2*/ ButtonId::ModEnc0, ButtonId::Mod2, ButtonId::Mod6, ButtonId::Clip,         ButtonId::None,      ButtonId::Midi,  ButtonId::CrossScreen, ButtonId::SyncScaling, ButtonId::Record,
+	    /*y3*/ ButtonId::ModEnc1, ButtonId::Mod3, ButtonId::Mod7, ButtonId::Keyboard,     ButtonId::SelectEnc, ButtonId::Cv,    ButtonId::Save,        ButtonId::TapTempo,    ButtonId::Play,
+	};
+	// clang-format on
+	static_assert(sizeof(kMatrix) / sizeof(kMatrix[0]) == 9 * 4);
+	static constexpr EncoderRole kEncoders[] = {EncoderRole::Vertical, EncoderRole::Horizontal, EncoderRole::Tempo,
+	                                            EncoderRole::Select,   EncoderRole::GoldLower,  EncoderRole::GoldUpper};
+	// Indexed by EncoderRole: Select, Horizontal, Vertical, GoldUpper, GoldLower, Tempo.
+	static constexpr EncoderKind kKinds[] = {EncoderKind::Detented,     EncoderKind::Detented,
+	                                         EncoderKind::Detented,     EncoderKind::Accelerating,
+	                                         EncoderKind::Accelerating, EncoderKind::Detented};
+	static_assert(sizeof(kKinds) / sizeof(kKinds[0]) == static_cast<size_t>(EncoderRole::Count));
+	static constexpr SurfaceRole kRoles[] = {SurfaceRole::Main};
+	static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle48};
+	return BoardProfile{
+	    .button_by_matrix = kMatrix,
+	    .encoder_by_index = kEncoders,
+	    .encoder_kind = kKinds,
+	    .oled_role_by_index = kRoles,
+	    .style_by_index = kStyles,
+	    .button_cols = 9,
+	    .button_rows = 4,
+	    .sidebar_cols = 2,
+	};
+}
+
 } // namespace uitest
