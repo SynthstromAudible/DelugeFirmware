@@ -1967,6 +1967,15 @@ skipOctaveCorrection:
 			firstRange->clearAlternateSlot(0);
 		}
 		firstRange->rrMode = MultisampleRange::RRMode::Cycle;
+		// clearAlternateSlot() walks each alternate's velocity band back to the default as it
+		// compacts, but slot 0's band is never touched by that. Reset it too, so a re-import doesn't
+		// inherit a band from whatever was loaded here before. Only when the table already exists -
+		// if it doesn't, the getters return the defaults anyway and allocating one just to write
+		// them would be waste.
+		if (firstRange->alternates != nullptr) {
+			firstRange->setVelocityRange(0, MultisampleRange::kDefaultVelocityMin,
+			                             MultisampleRange::kDefaultVelocityMax);
+		}
 	}
 
 	// Samples that share a note become round-robin alternates of one shared range instead of each

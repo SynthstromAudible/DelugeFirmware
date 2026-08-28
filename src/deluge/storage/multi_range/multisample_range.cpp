@@ -140,6 +140,9 @@ void MultisampleRange::clearAlternateSlot(uint8_t alternateSlotIndex) {
 	for (uint8_t i = alternateSlotIndex; i + 1 < rrCount; i++) {
 		alternates->slots[i] = alternates->slots[i + 1];
 	}
+
+	compactVelocityRangesAfterClear(*alternates, alternateSlotIndex, rrCount);
+
 	alternates->slots[rrCount - 1] = nullptr;
 	rrCount--;
 

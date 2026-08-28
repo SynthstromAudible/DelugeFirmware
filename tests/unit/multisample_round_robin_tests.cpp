@@ -319,6 +319,72 @@ TEST(MultisampleRoundRobinVelocityMode, nullAlternatesFallsBackToDefaultFullRang
 	CHECK_EQUAL(0, MultisampleRange::resolveVelocitySlotIndex(2, 64, nullptr, rrIndex)); // wrapped
 }
 
+TEST_GROUP(MultisampleVelocityRangeCompaction){};
+
+namespace {
+/// The bands a folder import of vel20/vel50/vel90/vel127 produces.
+void setUpFourVelocityLayers(RoundRobinAlternates& alts) {
+	const uint8_t mins[kMaxRoundRobinSlots] = {1, 36, 71, 109};
+	const uint8_t maxs[kMaxRoundRobinSlots] = {35, 70, 108, 127};
+	for (int i = 0; i < kMaxRoundRobinSlots; i++) {
+		alts.velocityRangeMin[i] = mins[i];
+		alts.velocityRangeMax[i] = maxs[i];
+	}
+}
+} // namespace
+
+TEST(MultisampleVelocityRangeCompaction, bandsFollowTheSamplesThatMovedDown) {
+	RoundRobinAlternates alts;
+	setUpFourVelocityLayers(alts);
+
+	// Clear UI "SLOT 2" - alternate index 0 - out of a full four-slot zone.
+	MultisampleRange::compactVelocityRangesAfterClear(alts, 0, 3);
+
+	// Slot 0 (the primary) never moves.
+	CHECK_EQUAL(1, alts.velocityRangeMin[0]);
+	CHECK_EQUAL(35, alts.velocityRangeMax[0]);
+	// The takes that slid down keep their own bands rather than inheriting the slot's.
+	CHECK_EQUAL(71, alts.velocityRangeMin[1]);
+	CHECK_EQUAL(108, alts.velocityRangeMax[1]);
+	CHECK_EQUAL(109, alts.velocityRangeMin[2]);
+	CHECK_EQUAL(127, alts.velocityRangeMax[2]);
+	// The vacated top slot is back at the documented default.
+	CHECK_EQUAL(MultisampleRange::kDefaultVelocityMin, alts.velocityRangeMin[3]);
+	CHECK_EQUAL(MultisampleRange::kDefaultVelocityMax, alts.velocityRangeMax[3]);
+}
+
+TEST(MultisampleVelocityRangeCompaction, everyVelocityStillResolvesToALoadedSlot) {
+	RoundRobinAlternates alts;
+	setUpFourVelocityLayers(alts);
+	MultisampleRange::compactVelocityRangesAfterClear(alts, 0, 3);
+
+	uint8_t rrCount = 2; // one primary + two surviving alternates
+	uint8_t rrIndex = 0;
+	for (int v = 1; v <= 127; v++) {
+		uint8_t slot = MultisampleRange::resolveVelocitySlotIndex(rrCount, (uint8_t)v, &alts, rrIndex);
+		CHECK(slot <= rrCount);
+	}
+	// Before the fix nothing covered 109-127 any more, so the hardest hits fell back to slot 0 -
+	// a full-force strike played the softest sample.
+	CHECK_EQUAL(2, MultisampleRange::resolveVelocitySlotIndex(rrCount, 127, &alts, rrIndex));
+	CHECK_EQUAL(2, MultisampleRange::resolveVelocitySlotIndex(rrCount, 120, &alts, rrIndex));
+}
+
+TEST(MultisampleVelocityRangeCompaction, clearingTheTopSlotOnlyResetsThatSlot) {
+	RoundRobinAlternates alts;
+	setUpFourVelocityLayers(alts);
+
+	// Clear UI "SLOT 4" - the last alternate. Nothing shifts; only its band resets.
+	MultisampleRange::compactVelocityRangesAfterClear(alts, 2, 3);
+
+	CHECK_EQUAL(1, alts.velocityRangeMin[0]);
+	CHECK_EQUAL(36, alts.velocityRangeMin[1]);
+	CHECK_EQUAL(71, alts.velocityRangeMin[2]);
+	CHECK_EQUAL(108, alts.velocityRangeMax[2]);
+	CHECK_EQUAL(MultisampleRange::kDefaultVelocityMin, alts.velocityRangeMin[3]);
+	CHECK_EQUAL(MultisampleRange::kDefaultVelocityMax, alts.velocityRangeMax[3]);
+}
+
 TEST_GROUP(MultisampleRoundRobinUnloadedSlots){};
 
 TEST(MultisampleRoundRobinUnloadedSlots, loadedSlotIsKept) {
