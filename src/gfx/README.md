@@ -16,10 +16,12 @@ Rules (enforced by `scripts/check_gfx_layer.py`):
   codebase and was out of scope for the file move (Task 10); do it as its own follow-up pass.
 - `gfx/grid/sine_table.{h,cpp}` duplicates `util::sineWaveSmall` (`src/deluge/util/lookuptables/lookuptables.cpp`)
   and a local port of `util/waves.h`'s `getSine`, so that `RGB::fromHue`/`fromHuePastel` don't pull
-  `util/**` into `gfx/**`. This is a verbatim data/logic duplication, not a shared source of truth —
-  if the audio-side table ever changes, `gfx/grid/sine_table.cpp` will silently drift out of sync
-  unless someone remembers to update both. Worth resolving by hoisting the table into a place both
-  `util/` and `gfx/` can depend on, if that's ever worth the churn.
+  `util/**` into `gfx/**`. `gfx/grid/exp_table.{h,cpp}` does the same for `util::expTableSmall` plus
+  `interpolateTable` (`util/functions.cpp:487`) and `increaseMagnitude` (`util/functions.h:362`),
+  which `tween.cpp`'s `zoom` needs. Both are verbatim data/logic duplications, not shared sources of
+  truth — if the audio-side tables ever change, these copies will silently drift out of sync unless
+  someone remembers to update both. Worth resolving by hoisting them into a place both `util/` and
+  `gfx/` can depend on, if that's ever worth the churn.
 
 Run the check locally with `python3 scripts/check_gfx_layer.py`; it is also the `gfx_layer_check` ctest.
 

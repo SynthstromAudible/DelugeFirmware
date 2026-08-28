@@ -10,7 +10,7 @@ target_include_directories(deluge_gfx_oled PUBLIC ${SHARED_INCLUDE})
 # a consumer's own warning policy is its own business.
 target_compile_options(deluge_gfx_oled PRIVATE ${DELUGE_COMMON_COMPILE_OPTIONS})
 set_target_properties(deluge_gfx_oled PROPERTIES C_STANDARD 23 CXX_STANDARD 26 CXX_STANDARD_REQUIRED YES)
-add_library(deluge_gfx_grid STATIC grid/rgb.cpp grid/sine_table.cpp grid/pad_grid.cpp grid/tween.cpp grid/composite.cpp)
+add_library(deluge_gfx_grid STATIC grid/rgb.cpp grid/sine_table.cpp grid/exp_table.cpp grid/pad_grid.cpp grid/tween.cpp grid/composite.cpp)
 target_include_directories(deluge_gfx_grid PUBLIC ${SHARED_INCLUDE})
 target_compile_options(deluge_gfx_grid PRIVATE ${DELUGE_COMMON_COMPILE_OPTIONS})
 set_target_properties(deluge_gfx_grid PROPERTIES CXX_STANDARD 26 CXX_STANDARD_REQUIRED YES)
