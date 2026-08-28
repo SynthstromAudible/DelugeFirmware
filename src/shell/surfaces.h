@@ -81,6 +81,9 @@ struct ActiveTween {
 	enum class Kind : uint8_t { Fade, ScrollH, ScrollV, GreyOut } kind;
 	uint32_t start_ms;
 	uint32_t duration_ms;
+	/// Meaning depends on `kind`: unused for `Fade`; a target scroll offset in pads for
+	/// `ScrollH`/`ScrollV`; a target `RGB::greyOut` proportion (the ~0..6500000 scale) for
+	/// `GreyOut`. See `Shell::start_tween`'s doc for the full per-kind table.
 	int32_t param;
 };
 

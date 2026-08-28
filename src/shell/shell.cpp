@@ -6,6 +6,7 @@
 #include "ui/oled/frame.h"
 
 #include <algorithm>
+#include <iterator>
 #include <string_view>
 
 namespace deluge::ui::shell {
@@ -73,9 +74,10 @@ ColumnPair read_column_pair(const gfx::grid::PadGrid& grid, uint8_t pair_index) 
 }
 
 /// @brief Elementwise equality for `KnobIndicator`, which (unlike `ColumnPair`) declares no
-///        `operator==` of its own.
+///        `operator==` of its own. Iterates the real extent of `levels` rather than a hardcoded
+///        4, so this does not silently go stale if that array's size ever changes.
 bool same_indicator(const KnobIndicator& a, const KnobIndicator& b) {
-	for (uint8_t i = 0; i < 4; i++) {
+	for (size_t i = 0; i < std::size(a.levels); i++) {
 		if (a.levels[i] != b.levels[i]) {
 			return false;
 		}
@@ -83,15 +85,63 @@ bool same_indicator(const KnobIndicator& a, const KnobIndicator& b) {
 	return true;
 }
 
+/// @brief How many knob indicators the board has: `IndicatorId::Upper` and `::Lower`.
+///
+/// `IndicatorId` (`ui/core/led_frame.h`) declares no `Count`, and `LedFrame::indicator_in_range`
+/// hardcodes this same "2" privately -- this is the shell's own name for that same fact, not a
+/// duplicate source of truth to keep in sync with a differently-spelled one.
+constexpr uint8_t kIndicatorCount = 2;
+
+/// @brief Legacy's "come back in a little while" retry interval for backpressured pad sends.
+///
+/// `setTimerForSoon` (`hid/led/pad_leds.cpp:1063-1067`) re-arms `TimerName::MATRIX_DRIVER` at
+/// 20 ms when `deluge_control_pad_output_space()` was too small to send (the `sendOutMainPadColours`
+/// / `timerRoutine` backpressure paths, `:1019-1023`, `:850`).
+constexpr uint32_t kBackpressureRetryMs = 20;
+
 /// @brief The tween's blend parameter, 0..65535, from elapsed time over its duration.
 ///
 /// `elapsed * 65536 / duration` rather than `* 65535`: at `elapsed == duration / 2` this lands on
-/// an exact half (e.g. 100/200 -> 32768) instead of landing one short of it, and the caller never
-/// sees this function once `elapsed >= duration` (the tween has already cleared by then), so the
-/// unreachable `t == 65536` overflow of a true 0..65535 scale never arises.
+/// an exact half (e.g. 100/200 -> 32768) instead of landing one short of it.
+/// @pre `duration_ms > 0` and `elapsed_ms < duration_ms` -- the caller never asks once a tween has
+///      run its full duration (it clears instead), so the unreachable `t == 65536` overflow of a
+///      true 0..65535 scale, and the zero-duration divide, never arise.
 uint16_t tween_progress(uint32_t elapsed_ms, uint32_t duration_ms) {
 	const uint64_t t = (static_cast<uint64_t>(elapsed_ms) * 65536u) / duration_ms;
 	return static_cast<uint16_t>(std::min<uint64_t>(t, 65535u));
+}
+
+/// @brief How often a running tween should ask for its next step, per `ActiveTween::Kind`.
+///
+/// Only `Fade` and the greyout ramp have a legacy per-kind timer to cite; `ScrollH`'s legacy
+/// counterpart has its own faster one, and `ScrollV`'s has none at all (its caller drives it
+/// directly rather than the animation re-arming itself) -- ported values are cited per kind below.
+/// This cadence only governs `Shell::next_wake()`'s reported deadline: the driver itself
+/// re-evaluates every tick regardless, so a caller ticking faster than this still animates
+/// correctly. Used both by `Shell::start_tween` (the initial deadline) and `render_grid` (each
+/// mid-tween step's re-arm).
+/// @param kind Which tween is running.
+/// @return Milliseconds until the next step should be considered due.
+uint32_t tween_cadence_ms(ActiveTween::Kind kind) {
+	switch (kind) {
+	case ActiveTween::Kind::Fade:
+		// `renderFade` re-arms `TimerName::MATRIX_DRIVER` at `UI_MS_PER_REFRESH`
+		// (`hid/led/pad_leds.cpp:1479`; 50 ms, `board_config.h:55`).
+		return 50;
+	case ActiveTween::Kind::ScrollH:
+		// `horizontal::renderScroll` re-arms at `UI_MS_PER_REFRESH_SCROLLING`
+		// (`hid/led/pad_leds.cpp:1409`; 7 ms, `board_config.h:59`).
+		return 7;
+	case ActiveTween::Kind::ScrollV:
+		// `vertical::renderScroll` (`hid/led/pad_leds.cpp:1431-1456`) re-arms no timer of its own
+		// at all -- its caller drives each step directly. `UI_MS_PER_REFRESH` (50 ms) is this
+		// port's own choice for "how often to ask", not a legacy value; there is none to cite.
+		return 50;
+	case ActiveTween::Kind::GreyOut:
+		// The greyout ramp re-arms at `UI_MS_PER_REFRESH` too (`pad_leds.cpp:991,1003`; 50 ms).
+		return 50;
+	}
+	return 50;
 }
 
 } // namespace
@@ -453,7 +503,15 @@ void Shell::render_grid(uint32_t now_ms) {
 		}
 	}
 
-	if (greyout_.cols != 0 || greyout_.rows != 0) {
+	// A `GreyOut` tween ramps `greyout_`'s own mask in place -- legacy's ramp
+	// (`pad_leds.cpp:983-1005`) is the only thing that ever changes `greyProportion` gradually,
+	// and `prepareColour` (`:293-296`) applies whichever value is current to the same masked pads
+	// regardless of whether it is ramping or settled. So while that tween is running, it *replaces*
+	// this static full-strength pass rather than stacking underneath it; running both would grey
+	// the frame twice; the tween block below applies the masked `ui::grid::greyout` itself, at the
+	// ramped or (on completion) full proportion.
+	const bool greyout_tween_active = g.tween.has_value() && g.tween->kind == ActiveTween::Kind::GreyOut;
+	if (!greyout_tween_active && (greyout_.cols != 0 || greyout_.rows != 0)) {
 		// Last, and once: `ui::grid::greyout` mutates the grid rather than tinting on the way out,
 		// so anything painted after it would escape the tint (`ui/grid/effects.h`'s warning).
 		// `InputMask::none()`: an effect pass paints, it does not consume input.
@@ -468,12 +526,21 @@ void Shell::render_grid(uint32_t now_ms) {
 		const ActiveTween& tw = *g.tween;
 		const uint32_t elapsed = now_ms - tw.start_ms;
 		if (elapsed >= tw.duration_ms) {
-			// The live grid above is already the final frame; nothing left to blend.
+			if (greyout_tween_active && (greyout_.cols != 0 || greyout_.rows != 0)) {
+				// The ramp has reached its target; settle at full strength once, matching legacy's
+				// `amountDone > 1` snap to `setGreyoutAmount(1)` (`pad_leds.cpp:984-987`) -- the
+				// static pass above was skipped this tick precisely because this tween was still
+				// live when that check ran.
+				ui::grid::GridFrame frame = ui::grid::root_grid_frame(grid, lowering_.ctx(), InputMask::none());
+				ui::grid::greyout(frame, greyout_, kGreyoutAmountFull);
+			}
+			// Otherwise the live grid above is already the final frame; nothing left to blend.
 			g.tween.reset();
 			tween_from_.reset();
+			tween_scratch_.reset();
 		}
 		else {
-			const uint16_t t = tw.duration_ms == 0 ? uint16_t{65535} : tween_progress(elapsed, tw.duration_ms);
+			const uint16_t t = tween_progress(elapsed, tw.duration_ms);
 			switch (tw.kind) {
 			case ActiveTween::Kind::Fade:
 				gfx::grid::fade(*tween_from_, grid, t, grid);
@@ -481,32 +548,32 @@ void Shell::render_grid(uint32_t now_ms) {
 			case ActiveTween::Kind::ScrollH: {
 				// Unlike fade()/grey_out(), scroll_horizontal() reads `incoming` at column indices
 				// other than the one it is writing, so passing `grid` as both `incoming` and `out`
-				// could read a column this same pass already overwrote. A scratch grid keeps the
+				// could read a column this same pass already overwrote. `tween_scratch_` keeps the
 				// read and write sides distinct; it is then copied back onto the live grid.
 				const int32_t offset = static_cast<int32_t>((static_cast<int64_t>(tw.param) * t) / 65536);
-				gfx::grid::PadGrid scratch(grid.dims());
-				gfx::grid::scroll_horizontal(*tween_from_, grid, offset, scratch);
-				grid = scratch;
+				gfx::grid::scroll_horizontal(*tween_from_, grid, offset, *tween_scratch_);
+				grid = *tween_scratch_;
 				break;
 			}
 			case ActiveTween::Kind::ScrollV: {
 				const int32_t offset = static_cast<int32_t>((static_cast<int64_t>(tw.param) * t) / 65536);
-				gfx::grid::PadGrid scratch(grid.dims());
-				gfx::grid::scroll_vertical(*tween_from_, grid, offset, scratch);
-				grid = scratch;
+				gfx::grid::scroll_vertical(*tween_from_, grid, offset, *tween_scratch_);
+				grid = *tween_scratch_;
 				break;
 			}
 			case ActiveTween::Kind::GreyOut: {
+				// Masked, not `gfx::grid::grey_out`'s unconditional "every main column": see the
+				// class comment above on why this replaces the static pass rather than adding to it.
 				const int32_t proportion = static_cast<int32_t>((static_cast<int64_t>(tw.param) * t) / 65536);
-				gfx::grid::grey_out(grid, proportion, grid);
+				ui::grid::GridFrame frame = ui::grid::root_grid_frame(grid, lowering_.ctx(), InputMask::none());
+				ui::grid::greyout(frame, greyout_, proportion);
 				break;
 			}
 			}
-			// Still mid-tween: ask for another frame next tick so the animation keeps stepping even
-			// with no input and no model change, the way `TimerName::MATRIX_DRIVER` re-arms itself
-			// (`hid/led/pad_leds.cpp:640,730` -- 35 ms fade steps; `:760,946,992` -- `UI_MS_PER_
-			// REFRESH` (50 ms, `board_config.h:55`) scroll steps).
-			g.gate.request_repaint();
+			// Still mid-tween: ask for another frame at this kind's step cadence so the animation
+			// keeps stepping even with no input and no model change -- and so `next_wake()` can
+			// actually see it (`request_repaint()` alone arms no deadline).
+			g.gate.request_repaint_after(tween_cadence_ms(tw.kind), now_ms);
 		}
 	}
 }
@@ -552,11 +619,27 @@ void Shell::derive_leds(uint32_t now_ms) {
 
 void Shell::start_tween(ActiveTween tw) {
 	GridSurface& g = surfaces_.grid();
-	if (g.grid_storage.has_value()) {
-		tween_from_.emplace(g.grid());
+	if (!g.grid_storage.has_value()) {
+		// No grid to snapshot or animate yet (the surfaces haven't been `build()`-t). Refuse
+		// outright, and clear any stale state, rather than leaving a tween armed to activate later
+		// against whatever the grid happens to hold once `build()` finally runs -- `render_grid`'s
+		// guard requires both `g.tween` and `tween_from_`, so a half-set pair here would otherwise
+		// sit inert indefinitely and then fire against an unrelated snapshot.
+		g.tween.reset();
+		tween_from_.reset();
+		tween_scratch_.reset();
+		return;
 	}
+	tween_from_.emplace(g.grid());
+	tween_scratch_.emplace(g.grid().dims());
 	g.tween = tw;
-	g.gate.request_repaint();
+	// Arms the deadline `next_wake()` needs to see, not just the request `needs_frame` consumes --
+	// `request_repaint()` alone leaves no deadline for a scheduler to wake on.
+	g.gate.request_repaint_after(tween_cadence_ms(tw.kind), tw.start_ms);
+	// `next_wake()` is otherwise only refreshed at the end of `tick()`; a caller starting a tween
+	// from outside the tick loop (e.g. in response to some external event) needs an up-to-date
+	// answer without first forcing a whole tick just to find out.
+	next_wake_ = compute_next_wake(tw.start_ms);
 }
 
 void Shell::flush(uint32_t now_ms) {
@@ -581,6 +664,10 @@ void Shell::flush(uint32_t now_ms) {
 			mirror_.after_blit(s, now_ms);
 		}
 	}
+	// Deliver a frame the throttle held back, once its interval has passed -- independent of
+	// whether anything blitted *this* tick, since the deferred send must still go out on its own
+	// schedule (`Mirror::retry`'s doc).
+	mirror_.retry(now_ms);
 
 	// Grid: send the column pairs that changed since `last_sent`, budgeted by the control
 	// surface's free pad-output space. Port of `sendOutMainPadColours`'s backpressure check
@@ -614,7 +701,9 @@ void Shell::flush(uint32_t now_ms) {
 		}
 		g.dirty = any_remaining;
 		if (any_remaining) {
-			g.gate.request_repaint();
+			// Arms a real deadline (not just a request), so `next_wake()` reports it and a
+			// scheduler that would otherwise sleep until the next input instead wakes to retry.
+			g.gate.request_repaint_after(kBackpressureRetryMs, now_ms);
 		}
 	}
 
@@ -627,6 +716,12 @@ void Shell::flush(uint32_t now_ms) {
 		if (!led_send_needed(leds, i)) {
 			continue;
 		}
+		// Whether or not there is a board LED to actually send this id to, the shadow is marked
+		// caught-up either way: an id with no mapping can never become "not needed" any other way,
+		// and leaving it unmarked would make `led_send_needed` re-flag (and this loop re-look-up)
+		// the same unmapped id every single tick forever.
+		leds.last_on[i] = leds.desired_on[i];
+		leds.sent_once[i] = true;
 		if (i >= profile_.led_by_button.size()) {
 			// No board mapping for this `LedId` value at all (an "extras" id past the button
 			// table -- Task 10); nothing to send it as.
@@ -637,14 +732,12 @@ void Shell::flush(uint32_t now_ms) {
 			continue; // -1: this id names no board LED.
 		}
 		surfaces_.set_led(static_cast<uint8_t>(board_index), leds.desired_on[i]);
-		leds.last_on[i] = leds.desired_on[i];
-		leds.sent_once[i] = true;
 		any_sent = true;
 	}
 
 	// Knob indicators: diff against `last_indicators`, only while declared this tick -- an
 	// indicator nothing declared is left exactly as it was, the same rule as an undeclared LED.
-	for (uint8_t which = 0; which < 2; which++) {
+	for (uint8_t which = 0; which < kIndicatorCount; which++) {
 		const KnobIndicator* ind = leds.frame.indicator_or_null(static_cast<IndicatorId>(which));
 		if (ind == nullptr) {
 			continue;
@@ -676,6 +769,7 @@ std::optional<uint32_t> Shell::compute_next_wake(uint32_t now_ms) {
 	}
 	consider(surfaces_.grid().gate.next_deadline());
 	consider(lowering_.ctx().gate.next_deadline());
+	consider(mirror_.next_deadline());
 	for (Scene* scene : stack_.scenes()) {
 		if (const std::optional<uint32_t> in = scene->next_timer(); in.has_value()) {
 			consider(now_ms + *in);

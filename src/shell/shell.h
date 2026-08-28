@@ -119,11 +119,28 @@ public:
 
 	/// @brief Start (or replace) the grid's tween.
 	///
-	/// Snapshots the live grid as \p tw's "from" frame, arms the grid gate for the next tick, and
-	/// hands the tween to `render_grid`, which blends from that frozen snapshot toward each tick's
-	/// freshly rendered grid (`gfx::grid::fade`/`scroll_horizontal`/`scroll_vertical`/`grey_out`
-	/// per `tw.kind`) until `tw.duration_ms` has elapsed, at which point the tween clears and the
-	/// live grid shows through unblended.
+	/// Snapshots the live grid as \p tw's "from" frame, arms the grid gate for the next tick at
+	/// this kind's step cadence, and hands the tween to `render_grid`, which blends from that
+	/// frozen snapshot toward each tick's freshly rendered grid until `tw.duration_ms` has
+	/// elapsed, at which point the tween clears and the live grid shows through unblended.
+	/// A tween started before the surfaces are built (`grid_storage` unset) is refused outright --
+	/// there is no grid to snapshot, and holding one pending would let it activate later against a
+	/// snapshot from an unrelated moment.
+	///
+	/// \p tw.param's meaning depends on `tw.kind`:
+	/// | `kind` | render, per tick | `param` |
+	/// |---|---|---|
+	/// | `Fade` | `gfx::grid::fade(from, live, t, live)` | unused |
+	/// | `ScrollH` | `gfx::grid::scroll_horizontal(from, live, param * t / 65536, live)` | target offset, in main
+	/// columns (`scroll_horizontal`'s own `offset`) | | `ScrollV` | `gfx::grid::scroll_vertical(from, live, param * t /
+	/// 65536, live)` | target offset, in rows | | `GreyOut` | `ui::grid::greyout(live, greyout_mask, param * t /
+	/// 65536)` | target `RGB::greyOut` proportion (the ~0..6500000 scale, e.g. spec D's `kGreyoutAmountFull`), reached
+	/// at `t == 65535`; ramps **in** only -- there is no ramp-out kind |
+	///
+	/// where `t` is `(now_ms - tw.start_ms) * 65536 / tw.duration_ms`, clamped to 0..65535.
+	/// `GreyOut` replaces (not stacks with) the tick's ordinary full-strength greyout pass while it
+	/// runs, and applies only inside the stack's greyout mask, matching legacy's ramp
+	/// (`pad_leds.cpp:983-1005`) feeding the same masked `prepareColour` (`:293-296`).
 	/// @param tw The tween to play; `tw.start_ms` is the clock it is measured from.
 	void start_tween(ActiveTween tw);
 
@@ -258,6 +275,13 @@ private:
 	/// pool has no business owning a whole extra framebuffer) and `PadGrid` has no default
 	/// constructor for a plain array member to hold before a tween's first snapshot.
 	std::optional<gfx::grid::PadGrid> tween_from_;
+	/// Scratch storage for `ScrollH`/`ScrollV` tween steps: `gfx::grid::scroll_horizontal`/
+	/// `scroll_vertical` read `incoming` at column/row indices other than the one they are
+	/// writing, so blending straight into the live grid could read a cell this same pass already
+	/// overwrote. Reused every step rather than a per-tick stack local (~1.5 KB for `kMaxGridRows`
+	/// x `kMaxGridCols` `RGB`s -- `PadGrid`'s own doc), since `Shell` already lives for the whole
+	/// tick loop and the render path should not pay for it on every call.
+	std::optional<gfx::grid::PadGrid> tween_scratch_;
 	/// The scenes drawn this tick, in the order they were drawn; each gets one `after_render()`.
 	FixedVector<Scene*, kStackDepth> rendered_this_tick_;
 	std::optional<uint32_t> next_wake_;

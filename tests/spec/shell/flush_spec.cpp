@@ -33,6 +33,33 @@ constexpr int32_t kLegacyNumBytesInColUpdateMessage = 49;
 constexpr int32_t kLegacyNumBytesInMainPadRedraw = kLegacyNumBytesInColUpdateMessage * 8;
 static_assert(kBytesPerColumnPair == static_cast<uint32_t>(kLegacyNumBytesInMainPadRedraw / 8));
 
+/// Legacy's full greyout strength (`setGreyoutAmount(1)` -> `greyProportion = 1 * 6500000`,
+/// `hid/led/pad_leds.cpp:786-788`), repeated here (as `tick_spec.cpp` also does) so this file pins
+/// the value the `GreyOut` tween is bound to rather than reusing whatever constant the
+/// implementation happens to define.
+constexpr int32_t kGreyoutAmountFull = 6500000;
+/// Legacy's backpressure retry interval (`setTimerForSoon`, `hid/led/pad_leds.cpp:1063-1067`:
+/// `uiTimerManager.setTimer(TimerName::MATRIX_DRIVER, 20)`), independently of `shell.cpp`'s own
+/// (unexported) constant of the same value.
+constexpr uint32_t kBackpressureRetryMs = 20;
+/// Legacy's `UI_MS_PER_REFRESH` (`board_config.h:55`), the `Fade` tween's step cadence
+/// (`renderFade`, `pad_leds.cpp:1479`).
+constexpr uint32_t kFadeCadenceMs = 50;
+
+/// @brief `count` distinct colours, deterministic from `seed`, for a scroll-tween spec: a flat
+///        fill would look identical at any offset, so shifting it could never be told apart from
+///        merely recolouring it.
+std::vector<RGB> gradient(size_t count, uint8_t seed) {
+	std::vector<RGB> v;
+	v.reserve(count);
+	for (size_t i = 0; i < count; i++) {
+		const auto x = static_cast<uint8_t>(i);
+		v.push_back(RGB{static_cast<uint8_t>(x * 7 + seed), static_cast<uint8_t>(x * 13 + seed),
+		                static_cast<uint8_t>(x * 19 + seed)});
+	}
+	return v;
+}
+
 /// @brief A scene that paints the whole grid one flat colour (with a few columns overridable),
 ///        draws a trivial mark on every OLED role, and declares `kPlayLed` and the upper knob
 ///        indicator from public fields -- everything `Shell::flush`'s specs drive from outside.
@@ -50,6 +77,14 @@ public:
 		for (int32_t y = 0; y < b.h; y++) {
 			for (int32_t x = 0; x < b.w; x++) {
 				RGB c = colour;
+				// A pattern (one colour per column, or per row) lets a scroll spec tell "shifted"
+				// apart from "recoloured" -- a flat fill would look identical at any offset.
+				if (!row_colours.empty() && static_cast<size_t>(y) < row_colours.size()) {
+					c = row_colours[static_cast<size_t>(y)];
+				}
+				else if (!column_colours.empty() && static_cast<size_t>(x) < column_colours.size()) {
+					c = column_colours[static_cast<size_t>(x)];
+				}
 				for (const auto& [col, tint] : column_overrides) {
 					if (col == x) {
 						c = tint;
@@ -71,8 +106,13 @@ public:
 
 	Result handle(const UiEvent&, const UiContext&) override { return Result::unhandled(); }
 
+	deluge::ui::grid::GreyoutMask greyout_mask() const override { return mask; }
+
 	RGB colour{10, 20, 30};
 	std::vector<std::pair<int32_t, RGB>> column_overrides;
+	std::vector<RGB> column_colours;
+	std::vector<RGB> row_colours;
+	deluge::ui::grid::GreyoutMask mask{};
 	bool play_on = true;
 	bool declare_indicator = true;
 	deluge::ui::KnobIndicator indicator{{1, 2, 3, 4}};
@@ -171,12 +211,25 @@ describe shell_flush("shell::Shell::flush", $ {
 		expect(r.fake.columns_sent.size()).to_equal(size_t(10)); // the 9 plus this tick's one pair
 		expect(r.fake.columns_sent.back().first).to_equal(uint8_t(1));
 		expect(r.fake.grid().dirty).to_be_true(); // pair 6 is still owed
+		// Intra-pair byte order: column `pair * 2` (2, untouched -- the flat `colour`) rows 0..7,
+		// then column `pair * 2 + 1` (3, overridden) rows 0..7 -- `sortLedsForCol`'s order
+		// (`pad_leds.cpp:265-272`), which `read_column_pair` ports.
+		const ColumnPair& pair1 = r.fake.columns_sent.back().second;
+		for (uint8_t i = 0; i < 8; i++) {
+			expect(pair1.colours[i] == r.base.colour).to_be_true();
+			expect(pair1.colours[i + 8] == RGB{9, 9, 9}).to_be_true();
+		}
 
 		// The retry, with no dirty fact raised again: the backpressure branch re-armed the gate.
 		r.shell.tick(20);
 		expect(r.fake.columns_sent.size()).to_equal(size_t(11));
 		expect(r.fake.columns_sent.back().first).to_equal(uint8_t(6));
 		expect(r.fake.grid().dirty).to_be_false();
+		const ColumnPair& pair6 = r.fake.columns_sent.back().second;
+		for (uint8_t i = 0; i < 8; i++) {
+			expect(pair6.colours[i] == RGB{7, 7, 7}).to_be_true();
+			expect(pair6.colours[i + 8] == r.base.colour).to_be_true();
+		}
 	});
 
 	it("LED diff emits only changes; indicators only on change", _ {
@@ -204,7 +257,7 @@ describe shell_flush("shell::Shell::flush", $ {
 		expect(r.fake.indicator_writes.size()).to_equal(size_t(1)); // unchanged
 	});
 
-	it("mirror sees the main surface after a blit, throttled", _ {
+	it("mirror sees the main surface after a blit, throttled, and never drops a deferred frame", _ {
 		deluge::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
@@ -217,15 +270,19 @@ describe shell_flush("shell::Shell::flush", $ {
 		expect(calls[0].w).to_equal(uint16_t(128));
 		expect(calls[0].h).to_equal(uint16_t(48));
 
-		// A reblit inside the 100 ms throttle window is not mirrored again.
+		// A reblit 10 ms later, inside the 100 ms throttle window, is not sent immediately...
 		deluge::notify::dirty().raise(Dirty::Oled);
-		r.shell.tick(50);
-		expect(r.fake.blits.size()).to_equal(size_t(4)); // 2 surfaces x 2 ticks
+		r.shell.tick(10);
 		expect(calls.size()).to_equal(size_t(1));
+		// ...but is remembered, not dropped: `next_wake()` reports exactly when it is owed.
+		expect(r.shell.next_wake().has_value()).to_be_true();
+		expect(*r.shell.next_wake()).to_equal(uint32_t(100));
 
-		// Past the interval, the next blit is mirrored.
-		deluge::notify::dirty().raise(Dirty::Oled);
-		r.shell.tick(150);
+		const size_t blits_before_retry = r.fake.blits.size();
+		// Nothing rendered this tick (no dirty fact, no input) -- yet once the interval has
+		// elapsed, `Shell::flush` delivers the deferred frame on its own, with no new blit.
+		r.shell.tick(100);
+		expect(r.fake.blits.size()).to_equal(blits_before_retry);
 		expect(calls.size()).to_equal(size_t(2));
 
 		g_mirror_target = nullptr;
@@ -266,6 +323,161 @@ describe shell_flush("shell::Shell::flush", $ {
 		// Past the duration, the tween clears and the live grid shows through unblended.
 		r.shell.tick(250);
 		expect(r.fake.grid().grid().at(0, 0) == kTo).to_be_true();
+	});
+
+	it("a scroll-horizontal tween interpolates from the snapshot to the live grid over its duration", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.shell.init({kBase, 0});
+		const deluge::gfx::grid::GridDimensions dims = r.fake.grid().grid().dims();
+		const std::vector<RGB> from_cols = gradient(dims.cols(), 10);
+		const std::vector<RGB> to_cols = gradient(dims.cols(), 200);
+		r.base.column_colours = from_cols;
+		r.shell.tick(0);
+
+		// Snapshot "from" is `from_cols`; the scene then switches to `to_cols`, which the next
+		// tick renders as "to".
+		constexpr int32_t kTargetOffset = 4;
+		r.shell.start_tween(ActiveTween{ActiveTween::Kind::ScrollH, 0, 200, kTargetOffset});
+		r.base.column_colours = to_cols;
+		r.shell.tick(100); // halfway: t == 32768, offset == kTargetOffset * t / 65536 == 2
+
+		// Reproduce `horizontal::renderScroll`'s shape by hand, via the same `gfx::grid`
+		// primitive `render_grid` calls, from two grids built out of the same column patterns.
+		deluge::gfx::grid::PadGrid from_grid(dims), to_grid(dims), expected(dims);
+		for (uint8_t y = 0; y < dims.rows; y++) {
+			for (uint8_t x = 0; x < dims.cols(); x++) {
+				from_grid.set(x, y, from_cols[x]);
+				to_grid.set(x, y, to_cols[x]);
+			}
+		}
+		deluge::gfx::grid::scroll_horizontal(from_grid, to_grid, 2, expected);
+		const deluge::gfx::grid::PadGrid& live = r.fake.grid().grid();
+		for (uint8_t y = 0; y < dims.rows; y++) {
+			for (uint8_t x = 0; x < dims.cols(); x++) {
+				expect(live.at(x, y) == expected.at(x, y)).to_be_true();
+			}
+		}
+
+		// Past the duration, the tween clears and the live grid (`to_cols`) shows through
+		// unblended -- equivalent to the scroll having completed.
+		r.shell.tick(250);
+		for (uint8_t x = 0; x < dims.cols(); x++) {
+			expect(r.fake.grid().grid().at(x, 0) == to_cols[x]).to_be_true();
+		}
+	});
+
+	it("a scroll-vertical tween interpolates from the snapshot to the live grid over its duration", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.shell.init({kBase, 0});
+		const deluge::gfx::grid::GridDimensions dims = r.fake.grid().grid().dims();
+		const std::vector<RGB> from_rows = gradient(dims.rows, 20);
+		const std::vector<RGB> to_rows = gradient(dims.rows, 210);
+		r.base.row_colours = from_rows;
+		r.shell.tick(0);
+
+		constexpr int32_t kTargetOffset = 2;
+		r.shell.start_tween(ActiveTween{ActiveTween::Kind::ScrollV, 0, 200, kTargetOffset});
+		r.base.row_colours = to_rows;
+		r.shell.tick(100); // halfway: offset == 1
+
+		// `vertical::renderScroll`'s shape (`hid/led/pad_leds.cpp:1431-1456`): the sidebar moves
+		// with the rows, unlike the horizontal case -- `scroll_vertical` shifts every column.
+		deluge::gfx::grid::PadGrid from_grid(dims), to_grid(dims), expected(dims);
+		for (uint8_t y = 0; y < dims.rows; y++) {
+			for (uint8_t x = 0; x < dims.cols(); x++) {
+				from_grid.set(x, y, from_rows[y]);
+				to_grid.set(x, y, to_rows[y]);
+			}
+		}
+		deluge::gfx::grid::scroll_vertical(from_grid, to_grid, 1, expected);
+		const deluge::gfx::grid::PadGrid& live = r.fake.grid().grid();
+		for (uint8_t y = 0; y < dims.rows; y++) {
+			for (uint8_t x = 0; x < dims.cols(); x++) {
+				expect(live.at(x, y) == expected.at(x, y)).to_be_true();
+			}
+		}
+
+		r.shell.tick(250); // past the duration: settles on the live (`to_rows`) grid, unblended
+		for (uint8_t y = 0; y < dims.rows; y++) {
+			expect(r.fake.grid().grid().at(0, y) == to_rows[y]).to_be_true();
+		}
+	});
+
+	it("a greyout tween ramps the mask from half to full over its duration, replacing the static pass", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		// Grey every row (and therefore every pad, regardless of column) -- sidesteps
+		// `GreyoutMask`'s right-to-left column numbering (see `tick_spec.cpp`'s greyout test).
+		r.base.mask = deluge::ui::grid::GreyoutMask{.cols = 0, .rows = 0xFF};
+		r.shell.init({kBase, 0});
+		RGB colour{120, 90, 60};
+		r.base.colour = colour;
+		r.shell.tick(0);
+		// Baseline: no tween is running, so the mask being in place (recomputed on this first,
+		// stack-changing tick) means the ordinary static pass already grades it at full strength.
+		const RGB full_grey = colour.greyOut(kGreyoutAmountFull);
+		expect(r.fake.grid().grid().at(0, 0) == full_grey).to_be_true();
+
+		r.shell.start_tween(ActiveTween{ActiveTween::Kind::GreyOut, 0, 200, kGreyoutAmountFull});
+		r.shell.tick(100); // halfway: t == 32768, proportion == kGreyoutAmountFull / 2
+
+		const RGB half_grey = colour.greyOut(kGreyoutAmountFull / 2);
+		expect(r.fake.grid().grid().at(0, 0) == half_grey).to_be_true();
+		// Not the static full-strength pass stacked underneath the ramp: if it were, this pad
+		// would already be at `full_grey` regardless of the ramp's own halfway proportion.
+		expect(r.fake.grid().grid().at(0, 0) == full_grey).to_be_false();
+
+		// Past the duration, the ramp settles back at full strength -- legacy's `amountDone > 1`
+		// snap (`pad_leds.cpp:984-987`), matching the ordinary static pass that resumes right after.
+		r.shell.tick(250);
+		expect(r.fake.grid().grid().at(0, 0) == full_grey).to_be_true();
+	});
+
+	it("next_wake sees a running tween's step cadence", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+
+		r.shell.start_tween(ActiveTween{ActiveTween::Kind::Fade, 20, 200, 0});
+		// Armed by `start_tween` itself, without needing an intervening tick: `request_repaint()`
+		// alone (the old behaviour) would leave `next_wake()` at `std::nullopt`.
+		expect(r.shell.next_wake().has_value()).to_be_true();
+		expect(*r.shell.next_wake()).to_equal(uint32_t(20 + kFadeCadenceMs));
+
+		// A tick before that deadline changes nothing -- the gate is not yet due, so `render_grid`
+		// does not even run and the original deadline stands.
+		r.shell.tick(30);
+		expect(*r.shell.next_wake()).to_equal(uint32_t(20 + kFadeCadenceMs));
+
+		// Right at the deadline (elapsed 50 of 200 ms, still mid-tween), the render step re-arms
+		// the same cadence from *this* tick's own clock, not the tween's start.
+		r.shell.tick(20 + kFadeCadenceMs);
+		expect(r.shell.next_wake().has_value()).to_be_true();
+		expect(*r.shell.next_wake()).to_equal(uint32_t(20 + kFadeCadenceMs + kFadeCadenceMs));
+	});
+
+	it("next_wake sees the backpressure backlog's retry deadline, and the next tick past it drains more", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0); // baseline: all 9 pairs sent
+
+		r.base.column_overrides = {{3, RGB{9, 9, 9}}, {12, RGB{7, 7, 7}}};
+		r.fake.space = kBytesPerColumnPair; // budget for exactly one pair
+		deluge::notify::dirty().raise(Dirty::GridMain);
+		r.shell.tick(10);
+		expect(r.fake.grid().dirty).to_be_true(); // pair 6 is still owed
+		expect(r.shell.next_wake().has_value()).to_be_true();
+		expect(*r.shell.next_wake()).to_equal(uint32_t(10 + kBackpressureRetryMs));
+
+		// The next tick, right at that deadline and with no new dirty fact, drains the remaining
+		// pair -- `request_repaint()` alone (the old behaviour) would never have woken this up.
+		r.shell.tick(10 + kBackpressureRetryMs);
+		expect(r.fake.columns_sent.back().first).to_equal(uint8_t(6));
+		expect(r.fake.grid().dirty).to_be_false();
 	});
 });
 // clang-format on

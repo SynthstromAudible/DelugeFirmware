@@ -254,11 +254,14 @@ describe shell_tick("shell::Shell::tick", $ {
 		// exactly the gates the fact names, and `needs_frame`'s `model_dirty` is passed `false` so
 		// nothing widens that back out to every surface. (The base scene paints the same solid
 		// colour every time, so the re-render sends no new column pairs -- `grid_renders` is the
-		// signal that the grid rendered again, not the flush-managed `dirty`/`columns_sent`.)
+		// signal that the grid rendered again, and `columns_sent` staying flat confirms the diff
+		// correctly found nothing changed rather than merely not being exercised.)
+		const size_t columns_before_grid_fact = r.fake.columns_sent.size();
 		deluge::notify::dirty().raise(Dirty::ClipContent);
 		r.shell.tick(20);
 		expect(r.base.model_changed).to_equal(1);
 		expect(r.base.grid_renders).to_equal(2);
+		expect(r.fake.columns_sent.size()).to_equal(columns_before_grid_fact);
 		expect(r.base.oled_renders).to_equal(2); // still just the first tick's two
 		expect(r.fake.oled()[0].blit_pending).to_be_false();
 		expect(r.fake.oled()[1].blit_pending).to_be_false();
@@ -276,10 +279,12 @@ describe shell_tick("shell::Shell::tick", $ {
 		// A fact that names no surface still reaches every gate.
 		r.consume_pending();
 		const size_t blits_before_untargeted_fact = r.fake.blits.size();
+		const size_t columns_before_untargeted_fact = r.fake.columns_sent.size();
 		deluge::notify::dirty().raise(Dirty::PlaybackState);
 		r.shell.tick(40);
 		expect(r.base.oled_renders).to_equal(6);
 		expect(r.base.grid_renders).to_equal(3);
+		expect(r.fake.columns_sent.size()).to_equal(columns_before_untargeted_fact);
 		expect(r.fake.blits.size()).to_be_greater_than(blits_before_untargeted_fact);
 	});
 
