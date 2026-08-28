@@ -94,6 +94,21 @@ public:
 	/// Removes every alternate and goes back to Cycle, leaving just the zone's own sample. For when the zone is
 	/// about to be given a whole new job, such as becoming one slice of a kit. Kill the sound's voices first.
 	void clearAllAlternates();
+	/// Shifts each velocity range down to follow the sample that clearAlternateSlot() just moved
+	/// into its position, and resets the vacated top slot to the full default range. The ranges are
+	/// indexed by slotIndex while the sample pointers are indexed by alternate index, so they need
+	/// compacting separately - transpose/cents/volume live on the holder and travel with it for
+	/// free. `alternateSlotIndex` is 0-based among alternates; `rrCount` is the count BEFORE the
+	/// clear. Static and pure so the index arithmetic is testable on the host.
+	static void compactVelocityRangesAfterClear(RoundRobinAlternates& alts, uint8_t alternateSlotIndex,
+	                                            uint8_t rrCount) {
+		for (uint8_t slotIndex = alternateSlotIndex + 1; slotIndex + 1 <= rrCount; slotIndex++) {
+			alts.velocityRangeMin[slotIndex] = alts.velocityRangeMin[slotIndex + 1];
+			alts.velocityRangeMax[slotIndex] = alts.velocityRangeMax[slotIndex + 1];
+		}
+		alts.velocityRangeMin[rrCount] = kDefaultVelocityMin;
+		alts.velocityRangeMax[rrCount] = kDefaultVelocityMax;
+	}
 	/// Computes which slot to play next and advances rrIndex in read-then-advance order.
 	/// rrCount is number of alternates (0..3), so pool size is rrCount + 1.
 	static uint8_t resolveNextSlotIndex(uint8_t rrCount, uint8_t& rrIndex) {
