@@ -68,10 +68,10 @@ struct ClipScope {
 /// An aggregate of references, built per frame on the stack and passed by reference. It owns
 /// nothing and outlives nothing.
 struct OledFrame : FrameInput {
-	// `FrameInput` (ui/core/frame_context.h) supplies `ctx`, `focused`, every input accessor, the
+	// `FrameInput` (ui/core/frame_context.h) supplies `ctx`, `mask`, every input accessor, the
 	// `claim_*()` methods and `gate()` -- one copy of the input-consumption contract for both
 	// surfaces. A public, non-virtual base keeps `OledFrame` an aggregate; its initialiser list
-	// therefore starts with a `{ctx, focused}` brace pair for the base subobject.
+	// therefore starts with a `{ctx, mask}` brace pair for the base subobject.
 	gfx::oled::Canvas& canvas;
 	gfx::oled::Rect clip;    ///< absolute, on the canvas
 	gfx::oled::Point origin; ///< local (0,0) in canvas coordinates
@@ -103,23 +103,31 @@ struct OledFrame : FrameInput {
 	/// drawing with no routing code.
 	///
 	/// @param local the sub-rectangle, in this frame's coordinates
-	/// @param child_focused may only *narrow* focus: the child is focused when this frame is and
-	///        this argument is true. Defaults to true, i.e. "inherit".
+	/// @param granted the inputs the child may consume; intersected with this frame's own mask, so
+	///        a region only ever narrows. `InputMask::all()` inherits, `none()` draws without
+	///        consuming, and a partial mask keeps some inputs for the parent.
 	/// @param body invoked as `body(OledFrame&)`
 	template <class F>
-	void region(gfx::oled::Rect local, bool child_focused, F&& body) {
+	void region(gfx::oled::Rect local, InputMask granted, F&& body) {
 		const gfx::oled::Point child_origin{origin.x + local.x, origin.y + local.y};
 		const gfx::oled::Rect child_clip =
 		    clip.intersect(gfx::oled::Rect{child_origin.x, child_origin.y, local.w, local.h});
-		OledFrame child{{ctx, focused && child_focused},   canvas, child_clip, child_origin,
+		OledFrame child{{ctx, child_mask(granted)},        canvas, child_clip, child_origin,
 		                gfx::oled::Size{local.w, local.h}, style};
 		std::forward<F>(body)(child);
 	}
 
-	/// `region(local, true, body)`: a child that inherits this frame's focus.
+	/// `region` with the coarse spelling: `true` inherits every input this frame has, `false`
+	/// grants none.
+	template <class F>
+	void region(gfx::oled::Rect local, bool granted, F&& body) {
+		region(local, granted ? InputMask::all() : InputMask::none(), std::forward<F>(body));
+	}
+
+	/// `region(local, InputMask::all(), body)`: a child that inherits this frame's mask.
 	template <class F>
 	void region(gfx::oled::Rect local, F&& body) {
-		region(local, true, std::forward<F>(body));
+		region(local, InputMask::all(), std::forward<F>(body));
 	}
 
 	/// @{
@@ -181,12 +189,12 @@ struct OledFrame : FrameInput {
 
 	// Deliberately no private section, and no data member may be added below the public ones:
 	// OledFrame must stay an aggregate, because `region` above builds its child with aggregate
-	// initialisation of `{ctx, focused}, canvas, clip, origin, size, style` in that order -- the
+	// initialisation of `{ctx, mask}, canvas, clip, origin, size, style` in that order -- the
 	// FrameInput base subobject first, then this struct's own members. Helpers live in frame.cpp.
 };
 
-/// The root frame for a whole panel: origin at the top of the *visible* area, clipped to it,
-/// and focused (the root of a surface is always live; regions below it narrow).
+/// The root frame for a whole panel: origin at the top of the *visible* area, clipped to it, with
+/// every input granted (the root of a surface holds them all; regions below it narrow).
 /// No widget below this point knows the bezel exists.
 OledFrame root_frame(gfx::oled::Canvas& canvas, const Style& style, FrameContext& ctx);
 

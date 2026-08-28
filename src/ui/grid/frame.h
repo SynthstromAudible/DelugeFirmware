@@ -65,10 +65,10 @@ constexpr uint8_t kMaxLocalEvents = 32;
 ///    for -- a child region sees *the same* event span as its parent, never a filtered copy --
 ///    without the staleness. `local_events()` does the filtering, per call, on demand.
 struct GridFrame : FrameInput {
-	// `FrameInput` (ui/core/frame_context.h) supplies `ctx`, `focused`, every input accessor, the
+	// `FrameInput` (ui/core/frame_context.h) supplies `ctx`, `mask`, every input accessor, the
 	// `claim_*()` methods and `gate()` -- one copy of the input-consumption contract for both
 	// surfaces. A public, non-virtual base keeps `GridFrame` an aggregate; its initialiser list
-	// therefore starts with a `{ctx, focused}` brace pair for the base subobject. Everything
+	// therefore starts with a `{ctx, mask}` brace pair for the base subobject. Everything
 	// positional stays below, on this struct: pads are answered by geometry, never by focus.
 	gfx::grid::PadGrid& grid;
 	/// The rectangle the frame was *asked* for, in absolute pad coordinates. Its corner is the
@@ -159,20 +159,27 @@ struct GridFrame : FrameInput {
 	/// The one templated entry point in the toolkit (spec B §2 rule 3: "only `region` bodies").
 	///
 	/// @param local the sub-rectangle, in this frame's coordinates
-	/// @param child_focused may only *narrow* focus: the child is focused when this frame is and
-	///        this argument is true. Defaults to true, i.e. "inherit".
+	/// @param granted the inputs the child may consume; intersected with this frame's own mask, so
+	///        a region only ever narrows. Pads are not in the mask and are never narrowed.
 	/// @param body  invoked as `body(GridFrame&)`
 	template <class F>
-	void region(gfx::grid::Rect local, bool child_focused, F&& body) {
+	void region(gfx::grid::Rect local, InputMask granted, F&& body) {
 		const gfx::grid::Rect translated{rect.x + local.x, rect.y + local.y, local.w, local.h};
-		GridFrame child{{ctx, focused && child_focused}, grid, translated, clip.intersect(translated)};
+		GridFrame child{{ctx, child_mask(granted)}, grid, translated, clip.intersect(translated)};
 		std::forward<F>(body)(child);
 	}
 
-	/// `region(local, true, body)`: a child that inherits this frame's focus.
+	/// `region` with the coarse spelling: `true` inherits every input this frame has, `false`
+	/// grants none.
+	template <class F>
+	void region(gfx::grid::Rect local, bool granted, F&& body) {
+		region(local, granted ? InputMask::all() : InputMask::none(), std::forward<F>(body));
+	}
+
+	/// `region(local, InputMask::all(), body)`: a child that inherits this frame's mask.
 	template <class F>
 	void region(gfx::grid::Rect local, F&& body) {
-		region(local, true, std::forward<F>(body));
+		region(local, InputMask::all(), std::forward<F>(body));
 	}
 
 	// Scratch for local_events(), refilled from `ctx.input.pads` on every call -- not a cache; see the
@@ -181,7 +188,7 @@ struct GridFrame : FrameInput {
 	// above.
 	//
 	// These must stay LAST and keep their initialisers: `region` above builds its child by
-	// aggregate initialisation of `{ctx, focused}, grid, rect, clip` in that order -- the
+	// aggregate initialisation of `{ctx, mask}, grid, rect, clip` in that order -- the
 	// FrameInput base subobject first, then these three members -- so GridFrame must remain an
 	// aggregate and nothing may be inserted between `clip` and here.
 	mutable PadEvent local_[kMaxLocalEvents] = {};

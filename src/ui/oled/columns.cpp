@@ -156,16 +156,24 @@ void render_slot(OledFrame& f, Rect value_rect, const Column& col, bool focused)
 	const Point origin{f.origin.x + value_rect.x, f.origin.y + value_rect.y};
 	const Rect clip =
 	    f.clip.intersect(Rect{origin.x, origin.y - kSlotBleedY, value_rect.w, value_rect.h + kSlotBleedY});
-	// Focus is *narrowed* to the focused column: only the current column's slot may consume
-	// navigational input. `col.render`'s own `focused` argument stays -- a renderer still has to
-	// know it is the current column in order to *draw* itself that way -- but it is no longer the
-	// only thing between two controls and the same encoder. `Column::render` is a caller-supplied
-	// function pointer, and the widgets a scene will reach for there (`list`, `enum_value`,
-	// `toggle`) have no `focused` parameter at all: an unfocused frame is their only "be inert"
-	// switch, and without this an unfocused column's enum would move on the very detent that
-	// walked the focus past it. The clock and `shift` are not masked by focus, so every column
-	// keeps animating either way (ui/core/frame_context.h rule 3).
-	OledFrame slot{{f.ctx, f.focused && focused}, f.canvas, clip, origin, Size{value_rect.w, value_rect.h}, f.style};
+	// Input is narrowed per column *and* per input (ui/core/frame_context.h rule 3):
+	//
+	//   - a column that is not the focused one is granted nothing. `Column::render` is a
+	//     caller-supplied function pointer and the widgets a scene reaches for there (`list`,
+	//     `enum_value`, `toggle`) have no `focused` parameter at all, so the mask is their only
+	//     "be inert" switch; without it, an unfocused column's enum would move on the very detent
+	//     that walked the focus past it.
+	//   - the focused column is granted everything *but the turn*. `columns` spends the select
+	//     encoder on walking the column focus (see `columns` below), so passing the same detent on
+	//     to the column it lands on would make one detent do two things -- the audit's "cursor
+	//     moves twice per detent", one level down. The gold knobs, the press and the back button
+	//     do go through: they are what a horizontal menu's value is edited and entered with.
+	//
+	// `col.render`'s own `focused` argument stays: a renderer still has to know it is the current
+	// column in order to *draw* itself that way. The clock and `shift` are never masked, so every
+	// column keeps animating either way.
+	const InputMask granted = focused ? InputMask{.turn = false} : InputMask::none();
+	OledFrame slot{{f.ctx, f.child_mask(granted)}, f.canvas, clip, origin, Size{value_rect.w, value_rect.h}, f.style};
 	col.render(slot, focused, col.ctx);
 }
 
@@ -390,9 +398,11 @@ Response columns(OledFrame& f, Rect rect, ColumnsState& state, std::span<const C
 	Response resp{};
 	const int32_t n = static_cast<int32_t>(cols.size());
 
-	// This control owns the select encoder and its press, on every focused frame -- see `list`.
+	// This control owns the select encoder: it walks the column focus with it, and `render_slot`
+	// grants the focused column every input except that one. The *press* is only ours when it
+	// enters a submenu -- on a value column it passes through the slot's mask to the widget in
+	// the slot, which claims it there -- so that claim sits with the `entered` computation below.
 	f.claim_turn();
-	f.claim_select();
 	int32_t focused = std::clamp<int32_t>(state.focused, 0, std::max<int32_t>(0, n - 1));
 	if (f.turn() != 0 && n > 0) {
 		focused = move_focus(focused, f.turn(), cols);
@@ -408,8 +418,13 @@ Response columns(OledFrame& f, Rect rect, ColumnsState& state, std::span<const C
 
 	const PageWindow w = window_of(cols, focused);
 	state.page = w.paging.page;
-	// The press legacy routed to handleItemAction -> enterSubmenu (:663-678).
-	resp.entered = n > 0 && f.select_pressed() && cols[focused].is_submenu && cols[focused].relevant;
+	// The press legacy routed to handleItemAction -> enterSubmenu (:663-678). Claimed only for a
+	// submenu column, which is the only shape in which `columns` consumes it.
+	const bool owns_press = n > 0 && cols[focused].is_submenu && cols[focused].relevant;
+	if (owns_press) {
+		f.claim_select();
+	}
+	resp.entered = owns_press && f.select_pressed();
 
 	// Legacy got a cleared panel from renderUIsForOled before renderOLED ran; an immediate-mode
 	// widget owns its own area instead, exactly as `list` clears its row bands.

@@ -27,10 +27,10 @@ struct InputClaims {
 	bool select = false, back = false;
 
 	/// **Diagnostic.** Set when an input that was already claimed this tick is claimed again --
-	/// i.e. two focused controls both owned it. A claim records ownership; it does not arbitrate
-	/// (see rule 2 below), so nothing stops the second widget from consuming the input as well,
-	/// and the flag is the only trace that it happened. The shell's own tests assert it stays
-	/// false; a scene that trips it has two focused regions competing for one encoder.
+	/// i.e. two controls that were both granted it owned it. A claim records ownership; it does
+	/// not arbitrate (see rule 2 below), so nothing stops the second widget from consuming the
+	/// input as well, and the flag is the only trace that it happened. The shell's own tests
+	/// assert it stays false; a scene that trips it granted one input to two regions.
 	///
 	/// Deliberately outside `any()`: it says something about *how* inputs were consumed, not that
 	/// any were.
@@ -42,6 +42,49 @@ struct InputClaims {
 
 	/// So a spec can pin a whole claim set in one expectation instead of one per flag.
 	bool operator==(const InputClaims&) const = default;
+};
+
+/// Which inputs a frame may see: focus, per input rather than all-or-nothing.
+///
+/// A parent grants a child exactly the inputs the child is allowed to own. `all()` is "everything
+/// I have" (the root, and the default `region()` argument), `none()` is "draw, do not consume" --
+/// but the interesting masks are in between, and they are what stops one detent doing two things.
+/// `columns` is the worked example: it owns the select encoder to walk the column focus, so it
+/// hands the focused column's slot `InputMask{.turn = false}` -- the value widget in that slot
+/// gets the gold knobs, the press and the back button, and cannot also consume the turn that
+/// moved the focus onto it.
+///
+/// One bit for both gold knobs (`edit`), because they are one control: no widget owns the coarse
+/// knob without the fine one. Never masks the clock, `shift` or the pads -- see rules 3 and 4.
+struct InputMask {
+	bool turn = true;
+	bool edit = true;
+	bool horizontal = true, vertical = true;
+	bool select = true, back = true;
+
+	static constexpr InputMask all() { return InputMask{}; }
+	static constexpr InputMask none() {
+		return InputMask{
+		    .turn = false, .edit = false, .horizontal = false, .vertical = false, .select = false, .back = false};
+	}
+
+	/// Intersection: what a parent holding `*this` may grant to a child asking for \p o. Focus
+	/// only ever narrows, so this is the only way a child mask is built.
+	constexpr InputMask operator&(InputMask o) const {
+		return InputMask{.turn = turn && o.turn,
+		                 .edit = edit && o.edit,
+		                 .horizontal = horizontal && o.horizontal,
+		                 .vertical = vertical && o.vertical,
+		                 .select = select && o.select,
+		                 .back = back && o.back};
+	}
+
+	/// Is every input granted? The old boolean "focused", recovered.
+	constexpr bool is_all() const { return turn && edit && horizontal && vertical && select && back; }
+	/// Is nothing granted?
+	constexpr bool is_none() const { return !turn && !edit && !horizontal && !vertical && !select && !back; }
+
+	constexpr bool operator==(const InputMask&) const = default;
 };
 
 /// One per tick per surface set, owned by the shell (or, in a spec, by the rig): the input the
@@ -73,20 +116,25 @@ struct InputClaims {
 ///    live (an unfocused frame, or a widget passed `focused == false`) consumes nothing and
 ///    therefore claims nothing.
 ///
-///    **A claim records ownership; it does not arbitrate.** An input reaches *every* focused frame
-///    that asks for it, so two focused sibling regions each running a `list` both move. Keeping at
-///    most one focused region per input is the scene's job, and `region(rect, false)` is how it
-///    does it. `InputClaims::double_claim` is the diagnostic for getting that wrong, not a defence
-///    against it; if a shell ever needs "consumed at most once" it is a check written on top of
-///    `claims`, not a property of them.
+///    **A claim records ownership; it does not arbitrate.** An input reaches *every* frame whose
+///    mask grants it, so two sibling regions that were both granted the turn each run their `list`
+///    and both move. Granting an input to at most one region is the parent's job, and that is
+///    exactly what `InputMask` is for. `InputClaims::double_claim` is the diagnostic for getting
+///    it wrong, not a defence against it; if a shell ever needs "consumed at most once" it is a
+///    check written on top of `claims`, not a property of them.
 ///
-/// 3. **An unfocused frame presents zero *navigational* input.** `region(rect, false)` gives its
-///    child a frame whose `turn`, `edit`, `horizontal`, `vertical`, `select_pressed` and
-///    `back_pressed` read 0/false, so a widget rendered there paints exactly as it would have but
-///    cannot move, change or enter; its claims are no-ops for the same reason. Focus only ever
-///    narrows (`focused && arg`), so a child cannot re-focus itself inside an unfocused parent.
-///    This is how a composite widget draws a sub-widget for its looks alone -- `enum_value`
-///    renders a `list` to get the legacy window and highlight while keeping the cursor for itself.
+/// 3. **A frame sees exactly the inputs its parent granted it.** Focus is an `InputMask`, not a
+///    flag: `region(rect, m)` gives the child `mask & m`, so it only ever narrows and a child can
+///    never re-grant itself something its parent did not have. A masked-off input reads 0/false
+///    and its `claim_*()` is a no-op, so a widget rendered without it paints exactly as it would
+///    have but cannot move, change or enter on that input.
+///
+///    `region(rect, false)` (mask `none()`) is how a composite widget draws a sub-widget for its
+///    looks alone -- `enum_value` renders a `list` to get the legacy window and highlight while
+///    keeping the cursor for itself. A partial mask is how a *container* keeps one input and hands
+///    the rest on: `columns` grants the focused column everything but the turn, so a detent walks
+///    the column focus and the enum in the column it lands on stays put. `focused()` is shorthand
+///    for "my mask is `all()`".
 ///
 ///    **`now_ms()` and `shift()` are not masked.** The clock is not an input a control owns: it is
 ///    the tick's own time, and every timed thing a widget does -- a scrolling label, a blinking
@@ -138,7 +186,7 @@ struct FrameContext {
 
 /// The input half of a frame, shared by `OledFrame` and `GridFrame` (which inherit it publicly and
 /// stay aggregates -- an aggregate may have public, non-virtual bases; their aggregate
-/// initialisation begins with a `{ctx, focused}` brace pair for this subobject).
+/// initialisation begins with a `{ctx, mask}` brace pair for this subobject).
 ///
 /// One copy of the accessors, the `claim_*()` methods and the masking rule, rather than one per
 /// surface: the contract above is the toolkit's single source of truth about input, and it should
@@ -147,23 +195,28 @@ struct FrameContext {
 struct FrameInput {
 	/// This tick's input, gate and claim set, shared by every frame in the tree.
 	FrameContext& ctx;
-	/// Is this frame the live one? See rule 3: an unfocused frame draws exactly as a focused one
-	/// and reads no navigational input.
-	bool focused = true;
+	/// The inputs this frame was granted (rule 3). `all()` at the root; narrowed, never widened,
+	/// by every `region()` below it.
+	InputMask mask = InputMask::all();
+
+	/// Was this frame granted everything -- the old boolean "focused"? For a widget or a spec that
+	/// asks the coarse question; the accessors below each consult their own bit.
+	bool focused() const { return mask.is_all(); }
 
 	/// @{
 	/// @name Navigational input
 	///
-	/// Masked by `focused`: an unfocused frame reports no detents and no presses, so a widget
-	/// drawn inside one cannot move.
+	/// Each masked by its own bit: an input this frame was not granted reads 0/false, so a widget
+	/// drawn without it cannot move on it.
 
-	int8_t turn() const { return focused ? ctx.input.turn : int8_t{0}; }
-	/// \p i is 0 (GoldUpper, coarse) or 1 (GoldLower, fine); anything else reads 0.
-	int8_t edit(int i) const { return (focused && i >= 0 && i < 2) ? ctx.input.edit[i] : int8_t{0}; }
-	int8_t horizontal() const { return focused ? ctx.input.horizontal : int8_t{0}; }
-	int8_t vertical() const { return focused ? ctx.input.vertical : int8_t{0}; }
-	bool select_pressed() const { return focused && ctx.input.select_pressed; }
-	bool back_pressed() const { return focused && ctx.input.back_pressed; }
+	int8_t turn() const { return mask.turn ? ctx.input.turn : int8_t{0}; }
+	/// \p i is 0 (GoldUpper, coarse) or 1 (GoldLower, fine); anything else reads 0. Both knobs are
+	/// one control and share `InputMask::edit`.
+	int8_t edit(int i) const { return (mask.edit && i >= 0 && i < 2) ? ctx.input.edit[i] : int8_t{0}; }
+	int8_t horizontal() const { return mask.horizontal ? ctx.input.horizontal : int8_t{0}; }
+	int8_t vertical() const { return mask.vertical ? ctx.input.vertical : int8_t{0}; }
+	bool select_pressed() const { return mask.select && ctx.input.select_pressed; }
+	bool back_pressed() const { return mask.back && ctx.input.back_pressed; }
 	/// @}
 
 	/// @{
@@ -180,28 +233,28 @@ struct FrameInput {
 	/// @{
 	/// @name Claims
 	///
-	/// Recorded by a widget in the same call that consumes the input (rule 2). No-ops on an
-	/// unfocused frame -- a widget that consumed nothing owns nothing.
+	/// Recorded by a widget in the same call that consumes the input (rule 2). A claim on an input
+	/// this frame was not granted is a no-op -- a widget that could not consume it does not own it.
 
-	void claim_turn() const { set_claim(&InputClaims::turn); }
+	void claim_turn() const { set_claim(mask.turn, &InputClaims::turn); }
 	void claim_edit(int i) const {
 		if (i == 0) {
-			set_claim(&InputClaims::edit0);
+			set_claim(mask.edit, &InputClaims::edit0);
 		}
 		else if (i == 1) {
-			set_claim(&InputClaims::edit1);
+			set_claim(mask.edit, &InputClaims::edit1);
 		}
 	}
-	void claim_horizontal() const { set_claim(&InputClaims::horizontal); }
-	void claim_vertical() const { set_claim(&InputClaims::vertical); }
-	void claim_select() const { set_claim(&InputClaims::select); }
-	void claim_back() const { set_claim(&InputClaims::back); }
+	void claim_horizontal() const { set_claim(mask.horizontal, &InputClaims::horizontal); }
+	void claim_vertical() const { set_claim(mask.vertical, &InputClaims::vertical); }
+	void claim_select() const { set_claim(mask.select, &InputClaims::select); }
+	void claim_back() const { set_claim(mask.back, &InputClaims::back); }
 
-	/// Set one claim flag, on a focused frame only, flagging a second claim on the same input as
+	/// Set one claim flag if \p granted, flagging a second claim on the same input as
 	/// `double_claim`. Not part of the widget API -- widgets call the named `claim_*()` methods
 	/// above; this is public only because `FrameInput` is an aggregate and has no private section.
-	void set_claim(bool InputClaims::* flag) const {
-		if (!focused) {
+	void set_claim(bool granted, bool InputClaims::* flag) const {
+		if (!granted) {
 			return;
 		}
 		if (ctx.claims.*flag) {
@@ -214,6 +267,12 @@ struct FrameInput {
 	/// The surface's repaint gate. A widget with motion schedules its next frame through this;
 	/// focus does not mask it, because an unfocused widget still has to be redrawn.
 	RepaintGate& gate() const { return ctx.gate; }
+
+	/// The mask a child asking for \p m may have: the intersection with this frame's own. The one
+	/// place a child mask is built, so narrowing-only holds by construction.
+	InputMask child_mask(InputMask m) const { return mask & m; }
+	/// The `bool` spelling: `true` is "inherit everything I have", `false` is "draw only".
+	InputMask child_mask(bool granted) const { return mask & (granted ? InputMask::all() : InputMask::none()); }
 };
 
 } // namespace deluge::ui

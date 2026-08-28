@@ -12,9 +12,9 @@ GridFrame root_grid_frame(gfx::grid::PadGrid& grid, FrameContext& ctx) {
 	// Deluge rather than a main area with a sidebar bolted on beside it.
 	const gfx::grid::GridDimensions d = grid.dims();
 	const Rect all{0, 0, d.cols(), d.rows};
-	// Requested == visible at the root: nothing clips the whole surface. Focused, because the root
-	// of a surface is always live; regions below it narrow.
-	return GridFrame{{ctx, /*focused*/ true}, grid, all, all};
+	// Requested == visible at the root: nothing clips the whole surface, and the root holds every
+	// input; regions below it narrow.
+	return GridFrame{{ctx, InputMask::all()}, grid, all, all};
 }
 
 Response GridFrame::pad(int32_t x, int32_t y, RGB colour) {

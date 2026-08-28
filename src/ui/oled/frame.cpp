@@ -11,7 +11,7 @@ using gfx::oled::Rect;
 
 OledFrame root_frame(gfx::oled::Canvas& canvas, const Style& style, FrameContext& ctx) {
 	const gfx::oled::Geometry g = canvas.geometry();
-	return OledFrame{{ctx, /*focused*/ true},
+	return OledFrame{{ctx, InputMask::all()},
 	                 canvas,
 	                 Rect{0, g.visible_top, g.width, g.visible_height()},
 	                 Point{0, g.visible_top},

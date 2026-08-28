@@ -54,8 +54,9 @@ struct EnumSlot {
 // The input-consumption contract of ui/core/frame_context.h, from the outside:
 //
 //   * a frame's accessors are the input, and they pass it through unchanged while focused;
-//   * `region(rect, false)` presents zero input to its child, so a widget drawn there paints but
-//     cannot move -- and focus only narrows, so the child cannot take it back;
+//   * focus is an `InputMask`: a region sees exactly the inputs its parent granted it, so
+//     `region(rect, false)` draws without consuming, `region(rect, InputMask{.turn = false})`
+//     hands on everything but the turn, and narrowing is the only direction available;
 //   * a widget that consumes an input records a claim on the tick's context, which is how the
 //     shell learns what is left over for the scene;
 //   * pad input is positional and is *not* masked: an unfocused grid region still reports its
@@ -90,8 +91,9 @@ describe frame_context("ui::FrameContext", $ {
 		expect(r.frame.back_pressed()).to_be_true();
 		expect(r.frame.shift()).to_be_true();
 		expect(r.frame.now_ms()).to_equal(uint32_t(1234));
-		// The root frame is the live one, and nothing has been consumed yet.
-		expect(r.frame.focused).to_be_true();
+		// The root frame holds every input, and nothing has been consumed yet.
+		expect(r.frame.focused()).to_be_true();
+		expect(r.frame.mask == InputMask::all()).to_be_true();
 		expect(r.ctx.claims.any()).to_be_false();
 	});
 
@@ -107,7 +109,7 @@ describe frame_context("ui::FrameContext", $ {
 		r.input.now_ms = 500;
 
 		r.frame.region(Rect{0, 0, 64, 20}, false, [&](OledFrame& f) {
-			expect(f.focused).to_be_false();
+			expect(f.focused()).to_be_false();
 			expect(int(f.turn())).to_equal(0);
 			expect(int(f.edit(0))).to_equal(0);
 			expect(int(f.horizontal())).to_equal(0);
@@ -131,20 +133,41 @@ describe frame_context("ui::FrameContext", $ {
 		expect(int(r.frame.turn())).to_equal(1);
 	});
 
-	it("lets a region narrow focus but never widen it", _ {
+	it("lets a region narrow the input mask but never widen it", _ {
 		uitest::Rig48 r;
 		r.input.turn = 1;
+		r.input.edit[0] = 1;
+		r.input.select_pressed = true;
 		r.frame.region(Rect{0, 0, 64, 20}, false, [&](OledFrame& outer) {
 			// `true` here means "inherit", and the parent has nothing to hand down.
 			outer.region(Rect{0, 0, 32, 10}, true, [&](OledFrame& inner) {
-				expect(inner.focused).to_be_false();
+				expect(inner.focused()).to_be_false();
 				expect(int(inner.turn())).to_equal(0);
 			});
+			// Nor can a child ask for one input back by name.
+			outer.region(Rect{0, 0, 32, 10}, InputMask::all(), [&](OledFrame& inner) {
+				expect(inner.mask == InputMask::none()).to_be_true();
+				expect(int(inner.edit(0))).to_equal(0);
+			});
 			// The default overload is the same "inherit".
-			outer.region(Rect{0, 0, 32, 10}, [&](OledFrame& inner) { expect(inner.focused).to_be_false(); });
+			outer.region(Rect{0, 0, 32, 10}, [&](OledFrame& inner) { expect(inner.focused()).to_be_false(); });
 		});
+
+		// A *partial* mask: everything but the turn, which is what `columns` grants its focused
+		// column. Masking is per input, so the rest arrives untouched.
+		r.frame.region(Rect{0, 0, 64, 20}, InputMask{.turn = false}, [&](OledFrame& f) {
+			expect(f.focused()).to_be_false();          // not everything, so not "focused"
+			expect(int(f.turn())).to_equal(0);
+			expect(int(f.edit(0))).to_equal(1);
+			expect(f.select_pressed()).to_be_true();
+			f.claim_turn();                             // not granted: a no-op ...
+			f.claim_edit(0);                            // ... this one lands
+		});
+		expect(r.ctx.claims.turn).to_be_false();
+		expect(r.ctx.claims.edit0).to_be_true();
+
 		r.frame.region(Rect{0, 0, 64, 20}, [&](OledFrame& f) {
-			expect(f.focused).to_be_true();   // a focused parent hands focus down by default
+			expect(f.focused()).to_be_true();   // a full mask is handed down by default
 			expect(int(f.turn())).to_equal(1);
 		});
 	});
@@ -223,7 +246,7 @@ describe frame_context("ui::FrameContext", $ {
 		r.input.held_pads.set(11, 2, true);
 		r.input.turn = 1;
 		r.frame.region(GridRect{8, 0, 8, 8}, false, [&](GridFrame& f) {
-			expect(f.focused).to_be_false();
+			expect(f.focused()).to_be_false();
 			expect(int(f.turn())).to_equal(0);          // encoders are masked ...
 			const Response hit = f.pad(2, 2, RGB{1, 2, 3});
 			expect(hit.pressed).to_be_true();           // ... pads are not
@@ -374,9 +397,10 @@ describe frame_context("ui::FrameContext", $ {
 		expect(ok.ctx.claims.turn).to_be_true();
 	});
 
-	it("moves only the focused column's value in a horizontal menu", _ {
-		// I1: the slot frame is focused only for the current column, so a detent that walks the
-		// column focus does not also edit the enum in the column it walked past.
+	it("spends one detent on the column focus and hands the rest of the inputs to the column", _ {
+		// I1/round 2: the slot mask is `none()` for every column but the focused one, and
+		// `{.turn = false}` for that one -- `columns` owns the turn (it walks the column focus
+		// with it), the column's own value widget owns the gold knobs, the press and back.
 		const std::string_view names[] = {"AAA", "BBB", "CCC"};
 		uitest::Rig48 r;
 		EnumSlot left{.names = names};
@@ -391,12 +415,35 @@ describe frame_context("ui::FrameContext", $ {
 		columns(r.frame, r.frame.bounds(), state, cols, "MENU");
 
 		expect(int(state.focused)).to_equal(1);   // the detent walked the column focus ...
-		expect(left.index).to_equal(0);           // ... the column it left is inert ...
-		expect(right.index).to_equal(1);          // ... and only the focused column's value moved
-		// Both `columns` and the focused column's `enum_value` own the turn this tick, which is
-		// exactly what `double_claim` is for: a scene that does not want one detent to do two
-		// things has to spend the encoder once.
-		expect(r.ctx.claims.double_claim).to_be_true();
+		expect(left.index).to_equal(0);           // ... and edited nothing, in either column
+		expect(right.index).to_equal(0);
+		expect(r.ctx.claims.turn).to_be_true();   // `columns` owns it, once
+		expect(r.ctx.claims.double_claim).to_be_false();
+
+		// The press does reach the focused column's widget: `columns` claims the select only for a
+		// submenu column, and these are value columns, so `enum_value` claims it in the slot.
+		r.begin_tick(10);
+		r.input.turn = 0;
+		r.input.select_pressed = true;
+		columns(r.frame, r.frame.bounds(), state, cols, "MENU");
+		expect(r.ctx.claims.select).to_be_true();
+		expect(r.ctx.claims.double_claim).to_be_false();
+
+		// A submenu column is the other half of that rule: there the press is `columns`'s own.
+		uitest::Rig48 sub;
+		EnumSlot only{.names = names};
+		const Column submenu[] = {
+		    Column{.label = "S", .is_submenu = true, .render = &EnumSlot::render, .ctx = &only},
+		};
+		ColumnsState sub_state;
+		sub.begin_tick(0);
+		sub.input.select_pressed = true;
+		const Response entered = columns(sub.frame, sub.frame.bounds(), sub_state, submenu, "MENU");
+		expect(entered.entered).to_be_true();
+		expect(sub.ctx.claims.select).to_be_true();
+		// The slot's `enum_value` claims it too -- a submenu column whose renderer also consumes
+		// the press is exactly the shape `double_claim` is meant to surface.
+		expect(sub.ctx.claims.double_claim).to_be_true();
 	});
 
 	it("makes a grid claim a no-op in an unfocused region, at any depth", _ {
@@ -406,7 +453,7 @@ describe frame_context("ui::FrameContext", $ {
 		r.frame.region(GridRect{0, 0, 8, 8}, false, [&](GridFrame& outer) {
 			// Focus narrows on the grid exactly as on the OLED, and a nested `true` cannot undo it.
 			outer.region(GridRect{0, 0, 4, 4}, true, [&](GridFrame& inner) {
-				expect(inner.focused).to_be_false();
+				expect(inner.focused()).to_be_false();
 				expect(int(inner.turn())).to_equal(0);
 				inner.claim_turn();
 				inner.claim_select();

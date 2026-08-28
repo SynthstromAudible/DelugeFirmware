@@ -54,7 +54,7 @@ under `src/ui/` → exits 1 naming `ui-includes-outside`; remove it → exits 0.
 | type | file |
 |---|---|
 | `EncoderRole`, `PadEvent`, `PadMask`, `InputSnapshot` | `core/input.h` |
-| `InputClaims`, `FrameContext` (+ `begin_tick`), `FrameInput` (the accessors/claims both frames inherit, and the input-consumption contract) | `core/frame_context.h` |
+| `InputMask`, `InputClaims`, `FrameContext` (+ `begin_tick`), `FrameInput` (the accessors/claims both frames inherit, and the input-consumption contract) | `core/frame_context.h` |
 | `LedId`, `RingId`, `LedState`, `KnobRing`, `LedFrame` | `core/led_frame.h` |
 | text/geometry constants (`kMenuBaseY48/64`, `kHorizontalMenuBaseY`, `kScrollTime`, …), `text_height_of` | `core/metrics.h` |
 | `RepaintGate` | `core/repaint_gate.h` |
@@ -123,6 +123,10 @@ a reference to it:
 FrameContext ctx{input, gate};                 // + claims{}, tick, tick_ms
 ctx.begin_tick(now_ms);                        // exactly once per tick, before any frame
 OledFrame f = root_frame(canvas, style, ctx);  // GridFrame: root_grid_frame(grid, ctx)
+
+f.region(pane, [](OledFrame& p) { … });                        // inherit every input
+f.region(pane, false, [](OledFrame& p) { … });                 // draw only
+f.region(pane, InputMask{.turn = false}, [](OledFrame& p) { … }); // all but the turn
 ```
 
 `begin_tick()` clears `claims` and bumps `tick`/`tick_ms`. Claims are per-tick by definition: a
@@ -130,15 +134,16 @@ context reused without it would latch the first tick's claims and withhold those
 `Scene::handle()` for ever after. The rigs expose the same call (`r.begin_tick(now_ms)`), which
 also moves the rig's clock.
 
-Both frames inherit `FrameInput` (`core/frame_context.h`) — `FrameContext& ctx; bool focused;`
+Both frames inherit `FrameInput` (`core/frame_context.h`) — `FrameContext& ctx; InputMask mask;`
 plus every accessor, every `claim_*()` and `gate()`, written once for both surfaces — in place of
 the old `const InputSnapshot& input; RepaintGate& gate;` pair. Both stay aggregates: a public,
 non-virtual base is allowed in one, and their aggregate initialisation simply begins with a
-`{ctx, focused}` brace pair for the base subobject.
+`{ctx, mask}` brace pair for the base subobject.
 
 1. **Widgets read input only through the frame.** `turn()`, `edit(0)`/`edit(1)`, `horizontal()`,
    `vertical()`, `select_pressed()`, `back_pressed()`, `shift()`, `now_ms()`, and `held_pads()`
-   on the grid; `gate()` reaches the repaint gate. The ratchet row above keeps it that way.
+   on the grid; `gate()` reaches the repaint gate, `mask`/`focused()` say what was granted. The
+   ratchet row above keeps it that way.
 2. **A widget that renders a control consumes that control's inputs and claims them in the same
    call** — `claim_turn()`, `claim_edit(i)`, `claim_horizontal()`, `claim_vertical()`,
    `claim_select()`, `claim_back()`. A claim means *"this control owns that input this tick"*, so
@@ -148,19 +153,27 @@ non-virtual base is allowed in one, and their aggregate initialisation simply be
    is left over to the scene; `InputClaims::any()` answers "was anything consumed at all", and
    `operator==` lets a spec pin a whole claim set at once.
 
-   **A claim records ownership; it does not arbitrate.** An input reaches every focused frame that
-   asks for it, so two focused sibling regions each running a `list` both move. Keeping at most
-   one focused region per input is the scene's job, and `region(rect, false)` is how it does it.
-   `InputClaims::double_claim` is set when an input already claimed this tick is claimed again —
-   the diagnostic for getting that wrong, not a defence against it.
-3. **An unfocused frame presents zero *navigational* input.** `f.region(rect, /*focused*/ false,
-   body)` masks `turn`, `edit`, `horizontal`, `vertical`, `select_pressed` and `back_pressed` to
-   0/false and turns the claims into no-ops, so a widget drawn there paints exactly as it would
-   have but cannot move. Focus only ever narrows — `region(rect, true)` inside an unfocused parent
-   stays unfocused — and the two-argument `region(rect, body)` means "inherit". `enum_value` and
-   `toggle` use this to render a `list` for its window and highlight while keeping the select
-   encoder for themselves; `columns` uses it to narrow each slot to its own column, so one detent
-   cannot both walk the column focus and edit the column it walked past.
+   **A claim records ownership; it does not arbitrate.** An input reaches every frame whose mask
+   grants it, so two sibling regions that were both granted the turn each move their `list`.
+   Granting an input to at most one region is the parent's job, and that is what `InputMask` is
+   for. `InputClaims::double_claim` is set when an input already claimed this tick is claimed
+   again — the diagnostic for getting that wrong, not a defence against it.
+3. **A frame sees exactly the inputs its parent granted it.** Focus is an `InputMask` —
+   `{turn, edit, horizontal, vertical, select, back}`, one bit each (both gold knobs share `edit`:
+   they are one control) — not a flag. `f.region(rect, m, body)` gives the child `mask & m`, so it
+   only ever narrows and a child can never re-grant itself what its parent did not have. A
+   masked-off input reads 0/false and its `claim_*()` is a no-op, so a widget rendered without it
+   paints exactly as it would have but cannot move on it. `focused()` is shorthand for "my mask is
+   `all()`", and `region(rect, bool)` is the coarse spelling (`all()` / `none()`).
+
+   `region(rect, false)` is how a composite widget draws a sub-widget for its looks alone —
+   `enum_value` and `toggle` render a `list` for its window and highlight while keeping the select
+   encoder for themselves. A *partial* mask is how a container keeps one input and hands the rest
+   on: `columns` grants the focused column `InputMask{.turn = false}` (and every other column
+   `none()`), because it spends the turn on walking the column focus — so one detent moves the
+   focus and nothing else, while the gold knobs, the press and the back button reach the value
+   widget in the focused column. `columns` claims the press only for a submenu column, which is
+   the only shape in which it consumes one.
 
    **`now_ms()` and `shift()` are *not* masked.** The clock is not an input a control owns, it is
    the tick's own time: an unfocused region still scrolls its labels, still times its gestures
@@ -174,9 +187,10 @@ non-virtual base is allowed in one, and their aggregate initialisation simply be
    `core/input.h`); a claim is not a latch — it records ownership for the tick and is cleared by
    the next `begin_tick()`.
 
-`tests/spec/ui/frame_context_spec.cpp` pins all five, including the unmasked clock (a label that
-still scrolls, a gesture that still holds, a gate deadline in the future), the tick boundary, and
-`double_claim` on two focused lists.
+`tests/spec/ui/frame_context_spec.cpp` pins all five, including partial masks (an input granted
+while another is withheld, and a child that cannot ask for one back), the unmasked clock (a label
+that still scrolls, a gesture that still holds, a gate deadline in the future), the tick boundary,
+`double_claim` on two focused lists, and the horizontal menu spending one detent exactly once.
 
 ### `bounds()` vs `visible()`
 
