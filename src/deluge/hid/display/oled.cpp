@@ -1173,8 +1173,14 @@ extern std::string_view getErrorMessage(Error);
 void OLED::displayError(Error error) {
 	char const* message = nullptr;
 	switch (error) {
+	// Nothing to report. ABORTED_BY_USER in particular is ROUTINE -- scrolling the preset browser
+	// while its sample load runs produces it on every interrupted load -- so this pair must stay
+	// silent, which is why LOAD_IN_PROGRESS gets a label of its own below rather than sharing this
+	// body: a diagnostic that also fires on ordinary user aborts is noise a reader learns to skip.
 	case Error::NONE:
 	case Error::ABORTED_BY_USER:
+		return;
+
 	// Not a failure: the async loader has this file and has not finished. A caller that gets it asks
 	// again on a later tick, so nothing should ever reach here with it -- and if something does, the
 	// user must not be shown a popup that reads as a failed load.
