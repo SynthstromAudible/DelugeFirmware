@@ -18,7 +18,8 @@
 //! synchronous path produced; a zero-length window is still read and fed; an
 //! uncollected result is evicted rather than leaked; and nothing parsed from one
 //! card survives that card being ejected, including a load that was still in
-//! flight when it went.
+//! flight when it went and one that publishes into a table the flush could not
+//! clear.
 #![cfg(feature = "async_audio_load")]
 #![cfg(not(target_os = "none"))]
 
@@ -751,6 +752,13 @@ fn a_zero_length_window_is_still_read_and_fed() {
 // disappears with a feature flag is coverage that will not be there when it is
 // next needed.
 
+/// The card generation the ordering tests below publish and take under.
+///
+/// Deliberately nonzero: `0` is what an unstamped entry would hold, so a table
+/// built at `0` would let a `publish_into` that dropped the stamp on the floor
+/// still satisfy every take.
+const CARD: u32 = 3;
+
 fn table_with(paths: &[&str]) -> ResultTable {
     let mut table = ResultTable::new();
     for path in paths {
@@ -758,9 +766,20 @@ fn table_with(paths: &[&str]) -> ResultTable {
             &mut table,
             path_of(path),
             LoadResult::failed(DELUGE_ERROR_FILE_CORRUPTED),
+            CARD,
         );
     }
     table
+}
+
+/// Take under the same card the table was built on.
+///
+/// The ordering and eviction tests are about `remove_at`, not about generations,
+/// so they say so by taking through this rather than repeating [`CARD`] at every
+/// call. The generation belt has its own tests below, which pass the parameter
+/// explicitly because it is the thing under test there.
+fn take(table: &mut ResultTable, path: &str) -> Option<LoadResult> {
+    take_from(table, path, CARD)
 }
 
 /// A published result is taken exactly once: the payload, then nothing, because
@@ -769,16 +788,16 @@ fn table_with(paths: &[&str]) -> ResultTable {
 #[test]
 fn a_result_is_taken_exactly_once() {
     let mut table = table_with(&["once/A.wav"]);
-    let taken = take_from(&mut table, "once/A.wav").expect("published");
+    let taken = take(&mut table, "once/A.wav").expect("published");
     assert_eq!(taken.error, DELUGE_ERROR_FILE_CORRUPTED);
-    assert!(take_from(&mut table, "once/A.wav").is_none());
+    assert!(take(&mut table, "once/A.wav").is_none());
 }
 
 /// A path that was never published is simply absent.
 #[test]
 fn an_unpublished_path_is_absent() {
     let mut table = table_with(&["other/A.wav"]);
-    assert!(take_from(&mut table, "never/asked.wav").is_none());
+    assert!(take(&mut table, "never/asked.wav").is_none());
 }
 
 /// Re-publishing the same key REPLACES its entry rather than adding a second, so
@@ -795,17 +814,18 @@ fn republishing_a_key_replaces_its_entry_in_place() {
         &mut table,
         path_of("dup/B"),
         LoadResult::failed(DELUGE_ERROR_FILE_UNSUPPORTED),
+        CARD,
     );
     assert_eq!(table.len(), 3, "replace must not add an entry");
     assert_eq!(
-        take_from(&mut table, "dup/B").unwrap().error,
+        take(&mut table, "dup/B").unwrap().error,
         DELUGE_ERROR_FILE_UNSUPPORTED,
         "latest wins"
     );
-    assert!(take_from(&mut table, "dup/B").is_none());
+    assert!(take(&mut table, "dup/B").is_none());
     // The neighbours are untouched.
-    assert!(take_from(&mut table, "dup/A").is_some());
-    assert!(take_from(&mut table, "dup/C").is_some());
+    assert!(take(&mut table, "dup/A").is_some());
+    assert!(take(&mut table, "dup/C").is_some());
 }
 
 /// An uncollected result is EVICTED, oldest first, once the table fills — it is
@@ -818,11 +838,11 @@ fn an_uncollected_result_is_evicted_rather_than_leaked() {
     let mut table = table_with(&keys.iter().map(String::as_str).collect::<Vec<_>>());
     assert_eq!(table.len(), RESULT_SLOTS);
     // The oldest was evicted...
-    assert!(take_from(&mut table, "evict/0").is_none());
+    assert!(take(&mut table, "evict/0").is_none());
     // ...and every newer one survived, in its own slot.
     for index in 1..=RESULT_SLOTS {
         assert!(
-            take_from(&mut table, &format!("evict/{index}")).is_some(),
+            take(&mut table, &format!("evict/{index}")).is_some(),
             "slot {index} should have survived"
         );
     }
@@ -841,31 +861,121 @@ fn taking_from_the_middle_keeps_the_eviction_order() {
     let mut table = table_with(&keys.iter().map(String::as_str).collect::<Vec<_>>());
 
     let middle = RESULT_SLOTS / 2;
-    assert!(take_from(&mut table, &format!("ord/{middle}")).is_some());
+    assert!(take(&mut table, &format!("ord/{middle}")).is_some());
 
     // One free slot after the take, so the second of these evicts the oldest.
     publish_into(
         &mut table,
         path_of("ord/x"),
         LoadResult::failed(DELUGE_ERROR_NONE),
+        CARD,
     );
     publish_into(
         &mut table,
         path_of("ord/y"),
         LoadResult::failed(DELUGE_ERROR_NONE),
+        CARD,
     );
 
     assert!(
-        take_from(&mut table, "ord/0").is_none(),
+        take(&mut table, "ord/0").is_none(),
         "entry 0 was the oldest and must be the one evicted"
     );
     let newest = RESULT_SLOTS - 1;
     assert!(
-        take_from(&mut table, &format!("ord/{newest}")).is_some(),
+        take(&mut table, &format!("ord/{newest}")).is_some(),
         "the newest original entry was never the oldest, so it must survive"
     );
-    assert!(take_from(&mut table, "ord/x").is_some());
-    assert!(take_from(&mut table, "ord/y").is_some());
+    assert!(take(&mut table, "ord/x").is_some());
+    assert!(take(&mut table, "ord/y").is_some());
+}
+
+// ── The generation belt: the stamp on the RESIDENT entry ────────────────────
+//
+// `flush()` bumps the generation unconditionally but `try_lock`s the tables, so a
+// contended `RESULTS` is left populated -- and there is no happens-before edge
+// from that bump to a concurrent `publish_result`'s read of it, so a publish can
+// also legitimately pass its own pre-insert check and land after the flush. Both
+// leave a stale entry resident, and neither is hypothetical on `host_app` builds,
+// where the loader is a plain `std::thread` alongside the app rather than an
+// interrupt executor.
+//
+// What makes those harmless is that the entry carries the generation it was
+// published under and `take_from` compares it against the generation the TAKER is
+// asking under. These two tests are the evidence for that; the A/B gate is not,
+// because its witness handshake parks the loader at the flush so nothing is ever
+// in flight across one.
+
+/// An entry stamped by the previous card is not returned, and does not stay
+/// resident either -- it is dropped from the table on the way past.
+///
+/// Withholding without removing would only defer the problem: the entry would
+/// still be sitting there at the next generation, and it also occupies a slot the
+/// live cards' results need.
+#[test]
+fn an_entry_from_a_previous_card_is_dropped_not_returned() {
+    let mut table = table_with(&["gen/A.wav"]);
+    assert!(
+        take_from(&mut table, "gen/A.wav", CARD + 1).is_none(),
+        "a result parsed from the previous card must not be collectable"
+    );
+    assert!(
+        table.is_empty(),
+        "the stale entry must be dropped from the table, not merely withheld"
+    );
+    assert!(
+        take_from(&mut table, "gen/A.wav", CARD).is_none(),
+        "and it must not be recoverable by asking under its own old generation"
+    );
+}
+
+/// The TAKER's current generation is the only thing that decides -- which is what
+/// covers the case `publish_result`'s pre-insert check structurally cannot.
+///
+/// The scenario: `flush()` has already bumped to `CARD + 1` and failed (or not yet
+/// tried) to clear the table. The loader, which sampled `CARD` before its I/O,
+/// wins the `RESULTS` lock and publishes anyway -- its check reads whatever the
+/// bump has not yet been ordered against, so assume it passes. The entry lands.
+/// It must still be uncollectable, and its `CARD + 1` neighbour must not be.
+#[test]
+fn a_result_stamped_before_a_flush_cannot_be_taken_after_it() {
+    let mut table = ResultTable::new();
+
+    // The late publish: stamped with the pre-flush generation, inserted after it.
+    publish_into(
+        &mut table,
+        path_of("gen/late.wav"),
+        LoadResult::failed(DELUGE_ERROR_NONE),
+        CARD,
+    );
+    // A load that genuinely began on the new card.
+    publish_into(
+        &mut table,
+        path_of("gen/fresh.wav"),
+        LoadResult::failed(DELUGE_ERROR_FILE_CORRUPTED),
+        CARD + 1,
+    );
+    assert_eq!(
+        table.len(),
+        2,
+        "the late publish must actually have landed, or this test proves nothing about \
+         what happens once it has"
+    );
+
+    assert!(
+        take_from(&mut table, "gen/late.wav", CARD + 1).is_none(),
+        "a result stamped before the flush must not be collectable after it"
+    );
+    // The positive control, and it is not optional: a check that refused
+    // EVERYTHING after a flush would satisfy the assertion above while wedging the
+    // loader for the rest of the session.
+    assert_eq!(
+        take_from(&mut table, "gen/fresh.wav", CARD + 1)
+            .expect("a load that began on the current card must be collectable")
+            .error,
+        DELUGE_ERROR_FILE_CORRUPTED
+    );
+    assert!(table.is_empty());
 }
 
 // ── The live pipeline: request -> in flight -> collect ──────────────────────

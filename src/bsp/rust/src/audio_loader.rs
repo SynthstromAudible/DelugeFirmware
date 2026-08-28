@@ -406,10 +406,15 @@ pub struct LoadRequest {
 }
 
 /// A finished parse waiting to be collected, tagged with the nominal path it
-/// belongs to.
+/// belongs to and the card generation the load that produced it began under.
 pub struct PendingResult {
     key: LoadPath,
     result: LoadResult,
+    /// The [`GENERATION`] the load was started under. Carried on the RESIDENT
+    /// entry, not merely checked on the way in, so that whether a result is
+    /// honoured is decided by the taker rather than by which locks a flush
+    /// managed to take. See [`take_from`].
+    generation: u32,
 }
 
 /// Raised to wake [`audio_load_task`] when a load is newly requested. Always
@@ -758,7 +763,11 @@ fn probe(path: &str, out: &mut MaybeUninit<LoadResult>) -> Probe {
     let Ok(mut results) = RESULTS.try_lock() else {
         return Probe::Pending;
     };
-    match take_from(&mut results, path) {
+    // `current_generation()` read HERE, at the take, not sampled earlier: it is
+    // the collector's own view of which card is in the slot right now, and
+    // deciding from it is what makes a result's fate independent of whether the
+    // flush that invalidated it managed to take this lock. See [`take_from`].
+    match take_from(&mut results, path, current_generation()) {
         Some(result) => {
             out.write(result);
             Probe::Ready
@@ -839,42 +848,89 @@ fn remove_at(
     taken
 }
 
-/// Publish `result` under `key` into `table`, replacing any existing entry for
-/// that key and evicting the oldest if the table is full. See [`RESULTS`].
+/// Publish `result` under `key` into `table`, stamped with the card `generation`
+/// the load began under, replacing any existing entry for that key and evicting
+/// the oldest if the table is full. See [`RESULTS`].
+///
+/// The generation arrives as a PARAMETER rather than being read from
+/// [`GENERATION`] here, for the same reason the table is passed by reference: this
+/// has to compile, and be unit-tested, on builds where that static does not exist.
+/// Do not reach for it from inside this function.
 ///
 /// Takes the table by reference rather than reaching for the static, so the
 /// eviction and replace behaviour is compiled and unit-tested on every build —
 /// including the ones where [`RESULTS`] does not exist. That matters: the
 /// `remove_at` ordering bug lived in exactly this code and was invisible to
 /// every test that ran against a single-entry table.
-pub fn publish_into(table: &mut ResultTable, key: LoadPath, result: LoadResult) {
+pub fn publish_into(table: &mut ResultTable, key: LoadPath, result: LoadResult, generation: u32) {
     if let Some(index) = table.iter().position(|entry| entry.key == key) {
         let _ = remove_at(table, index);
     }
     if table.is_full() {
         let _ = table.pop_front();
     }
-    let _ = table.push_back(PendingResult { key, result });
+    let _ = table.push_back(PendingResult {
+        key,
+        result,
+        generation,
+    });
 }
 
-/// Take `path`'s result out of `table`, if it holds one. Removing is the point:
-/// a second collect must report `UNKNOWN`, or a caller could build the same
-/// `Sample` twice.
-pub fn take_from(table: &mut ResultTable, path: &str) -> Option<LoadResult> {
+/// Take `path`'s result out of `table`, if it holds one stamped `generation`.
+///
+/// Removing is the point: a second collect must report `UNKNOWN`, or a caller
+/// could build the same `Sample` twice.
+///
+/// # The generation check, and why it lives HERE
+///
+/// A matching entry stamped anything other than `generation` was parsed from a
+/// card that is no longer in the slot. It is removed and `None` is returned —
+/// removed as well as withheld, because leaving it resident would let a later
+/// take at some future generation find it again, and returning it is the
+/// wrong-file bug the whole flush exists to prevent. `None` reaches the collector
+/// as `UNKNOWN`, whose documented meaning is already "request it again".
+///
+/// **This is the safety property, and the only one.** [`flush`] cannot guarantee
+/// it: the bump it performs is unconditional, but its clears are `try_lock`ed and
+/// a contended table stays populated, so an entry can outlive a flush. Deciding at
+/// TAKE, from the caller's own current generation, is what makes the outcome
+/// independent of which locks the flush managed to take and of which context
+/// either side runs in. [`publish_result`]'s matching pre-insert check is an early
+/// drop layered on top, not the guarantee.
+///
+/// Deliberately not paired with a sweep of the other stale entries. One can sit in
+/// a slot until it is evicted or asked for, and since it is uncollectable either
+/// way the whole cost is one redundant header read on a table of [`RESULT_SLOTS`]
+/// — bounded waste, not a correctness question.
+pub fn take_from(table: &mut ResultTable, path: &str, generation: u32) -> Option<LoadResult> {
     let index = table.iter().position(|entry| entry.key == path)?;
-    Some(remove_at(table, index).result)
+    let entry = remove_at(table, index);
+    (entry.generation == generation).then_some(entry.result)
 }
 
-/// Publish into the live [`RESULTS`] table, unless the card it was read from has
-/// been ejected since the load began.
+/// Publish into the live [`RESULTS`] table, stamped with the card generation the
+/// load began under, and skip the insert entirely if that card is already gone.
 ///
 /// `generation` is the value [`GENERATION`] held when the load STARTED — see
 /// [`take_next_request`], which samples it, and the module doc for why sampling it
 /// here instead would defeat the whole mechanism.
 ///
-/// The check happens with the table lock already held, not before acquiring it: a
-/// flush landing in that gap would clear the table and then watch this write a
-/// stale result straight back into it.
+/// # The early-drop check is an optimisation, not the guarantee
+///
+/// The check below is an EARLY DROP: it keeps a result already known to be doomed
+/// from occupying one of [`RESULT_SLOTS`] slots and evicting a live neighbour. It
+/// is not what makes the stale result unusable — [`take_from`] is, by comparing
+/// the stamp this call records against the taker's own current generation.
+///
+/// That distinction is load-bearing rather than pedantic. There is no
+/// happens-before edge from [`flush`]'s `fetch_add` to this `load` when this task
+/// wins the `RESULTS` lock (the two synchronise only through the lock, in the
+/// other direction), so this check can legitimately read the pre-flush generation,
+/// pass, and insert. The entry it inserts still carries the pre-flush stamp, and
+/// the take drops it. Do not rewrite this as the safety property.
+///
+/// The check happens with the table lock already held, not before acquiring it, so
+/// that it is at least ordered against a flush that DID take the lock.
 #[cfg(feature = "async_audio_load_active")]
 pub async fn publish_result(key: LoadPath, result: LoadResult, generation: u32) {
     let mut table = RESULTS.lock().await;
@@ -885,7 +941,7 @@ pub async fn publish_result(key: LoadPath, result: LoadResult, generation: u32) 
         // it then does, against the card that is actually in the slot.
         return;
     }
-    publish_into(&mut table, key, result);
+    publish_into(&mut table, key, result, generation);
 }
 
 /// Decode the candidate buffer the C side filled: one NUL-terminated path per
