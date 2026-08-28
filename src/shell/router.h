@@ -65,9 +65,11 @@ struct Services {
 	Service* midi_learn = &null_service();
 };
 
-/// @brief The shell's routing chain: modifiers, then the mod-knob bar, then the top scene, then
-///        the global controls, in the order `Buttons::buttonAction` tried them
-///        (`hid/buttons.cpp:100-107,134,143-231`).
+/// @brief The shell's routing chain: the mod-knob bar, then the top scene, then the global
+///        controls, in the order `Buttons::buttonAction` tried them (`hid/buttons.cpp:100-107`
+///        for the mod-button loop, `:134` for the scene, `:143-231` for the tail -- which is where
+///        `MOD_ENCODER_0`/`MOD_ENCODER_1` (`ButtonId::ModEnc0/1`) actually live, at `:225-231`,
+///        reached only after the scene has already had a look).
 ///
 /// A `Router` owns no scenes and no services -- it borrows the `SceneStack` and `InputLowering`
 /// the shell already has, and the `Services` it is built with -- and applies every `Result` it
@@ -88,14 +90,17 @@ public:
 	Router(SceneStack& stack, Services services, InputLowering& lowering)
 	    : stack_(stack), services_(services), lowering_(lowering) {}
 
-	/// @brief Route one event through the full chain: modifiers -> `mod_knobs` -> top scene ->
+	/// @brief Route one event through the full chain: `mod_knobs` -> top scene ->
 	///        `global_controls` -> drop.
 	///
-	/// `services.mod_knobs->handle` is only consulted when \p event is a mod button, a gold-knob
-	/// turn, or a gold-knob's own push (`ButtonId::Mod0..Mod7`, `EncoderRole::GoldUpper/GoldLower`,
-	/// `ButtonId::ModEnc0/1`); anything else goes straight to the top scene. Every `Result` along
-	/// the way is `apply()`d immediately, whether or not it reports `handled`, and routing stops at
-	/// the first `handled` step.
+	/// `services.mod_knobs->handle` is only consulted when \p event is a mod button or a gold-knob
+	/// turn (`ButtonId::Mod0..Mod7`, `EncoderRole::GoldUpper/GoldLower`); anything else goes
+	/// straight to the top scene. In particular, a gold knob's own push
+	/// (`ButtonId::ModEnc0`/`ModEnc1`) is **not** a `mod_knobs` event: legacy routes it to
+	/// `getCurrentUI()->modEncoderButtonAction` from the tail, after the scene's own `buttonAction`
+	/// has already run (`hid/buttons.cpp:225-231`), so it reaches the scene first here too, exactly
+	/// as any other plain button would. Every `Result` along the way is `apply()`d immediately,
+	/// whether or not it reports `handled`, and routing stops at the first `handled` step.
 	/// @param event The event to route.
 	/// @param ctx   The world around it.
 	void route(const UiEvent& event, const UiContext& ctx);
@@ -118,16 +123,17 @@ public:
 	/// @brief Apply every action in \p result, in order.
 	///
 	/// `Push`/`Replace`/`ReplaceRoot`/`Pop` reach `SceneStack`; `Popup` stores its string and type
-	/// for `pending_popup_string()`/`pending_popup_type()`; `Repaint` sets the named surface's flag
-	/// (or, when `surface == SurfaceRole::None`, every surface's -- see `repaint_requested()`);
-	/// `LockInput` calls `InputLowering::set_input_lock`.
+	/// for `pending_popup_string()`/`pending_popup_type()`; `Repaint` sets the named surface's
+	/// flag (a `surface` of `SurfaceRole::None` is a no-op -- see `repaint_requested()`);
+	/// `RepaintAll` sets every surface's flag; `LockInput` calls `InputLowering::set_input_lock`.
 	/// @param result The result to apply.
 	void apply(const Result& result);
 
-	/// @brief Has a `Repaint` action requested \p role since the last `clear_repaint_requests()`?
+	/// @brief Has a `Repaint`/`RepaintAll` action requested \p role since the last
+	///        `clear_repaint_requests()`?
 	/// @param role The surface to ask about.
-	/// @return True if requested; false for `SurfaceRole::None` itself, which is never a real
-	///         surface to request.
+	/// @return True if requested; false for `SurfaceRole::None`, which keeps its "no surface,
+	///         never matches" meaning here (`surfaces.h`) and is never itself a requestable slot.
 	bool repaint_requested(SurfaceRole role) const;
 	/// @brief Clear every surface's repaint flag.
 	///
@@ -161,9 +167,15 @@ private:
 	///        (the latter only once the claim gate has let the event through).
 	void run_chain(const UiEvent& event, const UiContext& ctx);
 
-	/// Real surfaces a `Repaint` action can name -- `Main` through `Aux`; `None` is the "all
-	/// surfaces" sentinel and is not itself a slot (see `repaint_requested()`).
+	/// Real surfaces a `Repaint` action can name -- `Main` through `Aux`. `None` is excluded: it
+	/// keeps `surfaces.h`'s "no surface, never matches" meaning and is never itself a slot (see
+	/// `repaint_requested()`); `RepaintAll` is what sets every one of these flags at once.
 	static constexpr size_t kSurfaceCount = static_cast<size_t>(SurfaceRole::Aux) + 1;
+	// Pins the assumption above to SurfaceRole's actual declaration order (Main, Param0..3, Aux,
+	// None) -- reordering the enum would otherwise silently change which surfaces kSurfaceCount
+	// covers with no compile error.
+	static_assert(static_cast<size_t>(SurfaceRole::None) == kSurfaceCount,
+	              "SurfaceRole::None must immediately follow the last real surface");
 
 	SceneStack& stack_;
 	Services services_;

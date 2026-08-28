@@ -153,22 +153,27 @@ struct UiContext {
 /// | `ReplaceRoot` | `id` | `SceneStack::replace_root(id)` |
 /// | `Pop` | `pop_to` | `SceneStack::pop(pop_to)`; `SceneKind::Null` means "just the top" |
 /// | `Popup` | `popup_string`, `popup_type`, `surface` | show a message, resolved through `BoardProfile::text` |
-/// | `Repaint` | `surface` | invalidate that surface for the next tick |
-/// | `LockInput` | `lock` | take or release the input lock (the legacy `waitingForSDRoutineToEnd` gate) |
+/// | `Repaint` | `surface` | invalidate that surface for the next tick; `SurfaceRole::None` is a no-op ("no surface,
+/// never matches", `surfaces.h`) | | `RepaintAll` | none | invalidate every surface for the next tick | | `LockInput` |
+/// `lock` | take or release the input lock (the legacy `waitingForSDRoutineToEnd` gate) |
 ///
 /// @note `Replace` is deliberately the short name for the common case (swap the top) and
 ///       `ReplaceRoot` the long one for the rarer whole-stack move, matching the pair of
 ///       `SceneStack` methods rather than the pair of legacy function names.
 struct Action {
 	/// @brief Which action this is; see the table above.
-	enum class Kind : uint8_t { Push, Replace, ReplaceRoot, Pop, Popup, Repaint, LockInput };
+	enum class Kind : uint8_t { Push, Replace, ReplaceRoot, Pop, Popup, Repaint, RepaintAll, LockInput };
 
 	Kind kind;
-	SceneId id{};                            ///< `Push`/`Replace`/`ReplaceRoot`: the target.
-	SceneKind pop_to = SceneKind::Null;      ///< `Pop`: pop down to and including this kind.
-	SurfaceRole surface = SurfaceRole::Main; ///< `Popup`/`Repaint`: which surface.
-	bool lock = false;                       ///< `LockInput`: true to take the lock, false to release.
-	uint16_t popup_string = 0;               ///< `Popup`: the string id to show.
+	SceneId id{};                       ///< `Push`/`Replace`/`ReplaceRoot`: the target.
+	SceneKind pop_to = SceneKind::Null; ///< `Pop`: pop down to and including this kind.
+	/// `Popup`/`Repaint`: which surface. For `Repaint`, `SurfaceRole::None` is a no-op --
+	/// it keeps the "no surface, never matches" meaning `surfaces.h` gives that enumerator
+	/// everywhere else in the shell, rather than being overloaded here as an "all surfaces"
+	/// sentinel; use `RepaintAll` for that.
+	SurfaceRole surface = SurfaceRole::Main;
+	bool lock = false;         ///< `LockInput`: true to take the lock, false to release.
+	uint16_t popup_string = 0; ///< `Popup`: the string id to show.
 	/// `Popup`: which flavour of popup, as `notify::Notice::popup_type` spells it -- the legacy
 	/// `PopupType` value as a bare `uint8_t`, so this header does not have to reach into
 	/// `hid/display`. 0 means "unspecified" and is mapped to the general-purpose popup, never to

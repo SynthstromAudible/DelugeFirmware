@@ -4,15 +4,20 @@ namespace deluge::ui::shell {
 
 namespace {
 
-/// @brief Is \p e a mod button, a gold-knob turn, or a gold-knob's own push -- the events
-///        `services.mod_knobs->handle` is consulted for before the top scene sees them?
+/// @brief Is \p e a mod button or a gold-knob turn -- the events `services.mod_knobs->handle` is
+///        consulted for before the top scene sees them?
+///
+/// @note A gold knob's own push (`ButtonId::ModEnc0`/`ModEnc1`) is deliberately **not** included:
+///       legacy routes it to `getCurrentUI()->modEncoderButtonAction` from the tail block, after
+///       the scene's own `buttonAction` has already run and declined to handle it
+///       (`hid/buttons.cpp:225-231`, reached only past the `buttonAction` call at `:134`) -- so it
+///       goes through the ordinary chain (scene, then `global_controls`) like any other plain
+///       button, never straight to `mod_knobs`.
 bool is_mod_or_gold(const UiEvent& e) {
 	switch (e.kind) {
 	case UiEvent::Kind::Button:
 		return static_cast<uint8_t>(e.button) >= static_cast<uint8_t>(ButtonId::Mod0)
 		       && static_cast<uint8_t>(e.button) <= static_cast<uint8_t>(ButtonId::Mod7);
-	case UiEvent::Kind::EncoderButton:
-		return e.button == ButtonId::ModEnc0 || e.button == ButtonId::ModEnc1;
 	case UiEvent::Kind::Encoder:
 		return e.encoder == EncoderRole::GoldUpper || e.encoder == EncoderRole::GoldLower;
 	default:
@@ -109,17 +114,18 @@ void Router::apply(const Result& result) {
 			popup_string_ = action.popup_string;
 			popup_type_ = action.popup_type;
 			break;
-		case Action::Kind::Repaint:
-			if (action.surface == SurfaceRole::None) {
-				for (bool& flag : repaint_) {
-					flag = true;
-				}
+		case Action::Kind::Repaint: {
+			// SurfaceRole::None keeps its "no surface, never matches" meaning (surfaces.h): it is
+			// a no-op here, not an "all surfaces" sentinel -- RepaintAll is that.
+			const size_t i = static_cast<size_t>(action.surface);
+			if (i < kSurfaceCount) {
+				repaint_[i] = true;
 			}
-			else {
-				const size_t i = static_cast<size_t>(action.surface);
-				if (i < kSurfaceCount) {
-					repaint_[i] = true;
-				}
+			break;
+		}
+		case Action::Kind::RepaintAll:
+			for (bool& flag : repaint_) {
+				flag = true;
 			}
 			break;
 		case Action::Kind::LockInput:

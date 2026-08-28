@@ -205,11 +205,10 @@ describe shell_router("shell::Router", $ {
 		expect(r.stack.top().kind() == kB).to_be_true();
 	});
 
-	it("a Repaint with surface None marks every surface", _ {
+	it("a RepaintAll action marks every surface", _ {
 		Rig r;
 		Action repaint_all;
-		repaint_all.kind = Action::Kind::Repaint;
-		repaint_all.surface = SurfaceRole::None;
+		repaint_all.kind = Action::Kind::RepaintAll;
 		Result res;
 		res.handled = true;
 		res.actions.push_back(repaint_all);
@@ -220,6 +219,50 @@ describe shell_router("shell::Router", $ {
 		expect(r.router.repaint_requested(SurfaceRole::Main)).to_be_true();
 		expect(r.router.repaint_requested(SurfaceRole::Aux)).to_be_true();
 		expect(r.router.repaint_requested(SurfaceRole::Param0)).to_be_true();
+	});
+
+	it("a Repaint action with surface None is a no-op, not an all-surfaces sentinel", _ {
+		Rig r;
+		Action repaint_none;
+		repaint_none.kind = Action::Kind::Repaint;
+		repaint_none.surface = SurfaceRole::None;
+		Result res;
+		res.handled = true;
+		res.actions.push_back(repaint_none);
+		r.scene_a.next_result = res;
+
+		r.router.route(button_event(ButtonId::Back, true), make_ctx(r.lowering));
+
+		expect(r.router.repaint_requested(SurfaceRole::Main)).to_be_false();
+		expect(r.router.repaint_requested(SurfaceRole::Aux)).to_be_false();
+		expect(r.router.repaint_requested(SurfaceRole::Param0)).to_be_false();
+		expect(r.router.repaint_requested(SurfaceRole::None)).to_be_false();
+	});
+
+	it("ButtonId::ModEnc0/ModEnc1 presses are not mod_knobs events -- they reach the scene "
+	   "first, exactly like any other button", _ {
+		Rig r;
+		UiEvent mod_enc_event{};
+		mod_enc_event.kind = UiEvent::Kind::EncoderButton;
+		mod_enc_event.button = ButtonId::ModEnc0;
+		mod_enc_event.on = true;
+
+		r.router.route(mod_enc_event, make_ctx(r.lowering));
+
+		expect(r.mod_knobs.calls).to_equal(0);          // never reached: not a mod_knobs event
+		expect(r.log.size()).to_equal(size_t(2));
+		expect(r.log[0] == "scene").to_be_true();       // the scene sees it first
+		expect(r.log[1] == "global").to_be_true();      // and, unhandled, it falls to global_controls
+
+		// ModEnc1 (the other gold knob's push) follows the same rule.
+		r.log.clear();
+		UiEvent mod_enc1_event{};
+		mod_enc1_event.kind = UiEvent::Kind::EncoderButton;
+		mod_enc1_event.button = ButtonId::ModEnc1;
+		mod_enc1_event.on = true;
+		r.router.route(mod_enc1_event, make_ctx(r.lowering));
+		expect(r.mod_knobs.calls).to_equal(0);
+		expect(r.log[0] == "scene").to_be_true();
 	});
 
 	it("Popup actions store both popup_string and popup_type, cleared together", _ {
