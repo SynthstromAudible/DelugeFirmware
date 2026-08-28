@@ -69,19 +69,6 @@ RGB legacy_macro_colour(MacroKind kind, bool clip_active, bool clip_armed, bool 
 	return image.adjust(255, (held ? 1 : 8));
 }
 
-// --- PadLEDs::setTickSquares' muted transform (hid/led/pad_leds.cpp:192-202), transcribed ------
-RGB legacy_muted(RGB c) {
-	auto transform = [](uint8_t& channel, size_t idx) {
-		if (channel >= 64) {
-			channel += (1 << idx);
-		}
-	};
-	transform(c.r, 0);
-	transform(c.g, 1);
-	transform(c.b, 2);
-	return c;
-}
-
 constexpr RGB kBlack = RGB{0, 0, 0};
 
 } // namespace
@@ -373,6 +360,13 @@ describe grid_columns("ui::grid columns", $ {
 		for (int32_t y = 4; y < 8; y++) {
 			expect(r.grid.at(2, y)).to_equal(kBlack);
 		}
+		// Partway below the middle: 32 clears rows 1, 2 and 3's maxima (32, 48, 64) but not row 0's
+		// (16), so the bottom pad stays dark -- the arm that reads `kUnipolarRowMax` (:169).
+		automation_column(r.frame, 3, AutomationData{.knob_pos = 32, .bipolar = true, .automated = true});
+		expect(r.grid.at(3, 0)).to_equal(kBlack);
+		for (int32_t y = 1; y < 4; y++) {
+			expect(r.grid.at(3, y)).to_equal(kAutomationBipolar[y]);
+		}
 		// Rows 3 and 4 both take the ramp's last entry -- green, nearest the middle (:52).
 		expect(kAutomationBipolar[3]).to_equal(RGB{0, 255, 0});
 		expect(kAutomationBipolar[0]).to_equal(RGB{255, 0, 0});
@@ -394,6 +388,14 @@ describe grid_columns("ui::grid columns", $ {
 		for (int32_t y = 0; y < 3; y++) {
 			expect(r.grid.at(1, y)).to_equal(kBlack);
 		}
+		// Above the middle: 60 clears row 4's minimum (1) and row 5's (33) but not row 6's (65),
+		// so the bar stops two rows up -- the arm that reads `kPatchCableRowMin` (:158).
+		automation_column(r.frame, 3, AutomationData{.knob_pos = 60, .patch_cable = true, .bipolar = true,
+		                                             .automated = true});
+		expect(r.grid.at(3, 4)).to_equal(kAutomationBipolar[3]);
+		expect(r.grid.at(3, 5)).to_equal(kAutomationBipolar[2]);
+		expect(r.grid.at(3, 6)).to_equal(kBlack);
+		expect(r.grid.at(3, 7)).to_equal(kBlack);
 		// 0 is the middle for a patch cable, so the column is empty (:138-139).
 		automation_column(r.frame, 2, AutomationData{.knob_pos = 0, .patch_cable = true, .bipolar = true,
 		                                             .automated = true});
@@ -422,7 +424,8 @@ describe grid_columns("ui::grid columns", $ {
 	});
 
 	// -----------------------------------------------------------------------------------------
-	// Tick squares -- PadLEDs::setTickSquares' colour half (hid/led/pad_leds.cpp:165-229, :277-291)
+	// Tick squares -- the colour half of PadLEDs::setTickSquares (hid/led/pad_leds.cpp:165-229) as
+	// it reaches a pixel: `flashColours` (:277-281) and `prepareColour` (:283-291)
 	// -----------------------------------------------------------------------------------------
 
 	it("overlays the playhead on the rows that have one, leaving the rest of the grid alone", _ {
@@ -446,27 +449,31 @@ describe grid_columns("ui::grid columns", $ {
 		expect(r.grid.at(0, 0)).to_equal(RGB{9, 9, 9});
 		expect(r.grid.at(2, 1)).to_equal(kPlayheadColour);       // flashColours[0] (:278)
 		expect(r.grid.at(2, 1)).to_equal(RGB{130, 120, 130});
-		expect(r.grid.at(4, 2)).to_equal(legacy_muted(kMuted));  // :192-202
+		expect(r.grid.at(4, 2)).to_equal(kMuted);                // `prepareColour` (:285-286)
 		expect(r.grid.at(6, 3)).to_equal(palette::red);          // flashColours[2] (:280)
 		// Untouched columns keep what the view painted.
 		expect(r.grid.at(3, 1)).to_equal(RGB{9, 9, 9});
 		expect(r.grid.at(4, 4)).to_equal(RGB{9, 9, 9});
 	});
 
-	it("adds 1, 2 and 4 to a muted colour's channels of 64 or more, and wraps at 255", _ {
-		// pad_leds.cpp:192-202: `if (channel >= 64) channel += (1 << idx)` for r, g, b, in `uint8_t`
-		// and with no clamp.
-		expect(tick_muted_colour(RGB{255, 160, 0})).to_equal(RGB{0, 162, 0}); // 255 wraps to 0
-		expect(tick_muted_colour(RGB{64, 64, 64})).to_equal(RGB{65, 66, 68});
-		expect(tick_muted_colour(RGB{63, 63, 63})).to_equal(RGB{63, 63, 63}); // below the threshold
-		expect(tick_muted_colour(RGB{200, 63, 64})).to_equal(RGB{201, 63, 68});
-		for (RGB c : {RGB{255, 160, 0}, RGB{64, 64, 64}, RGB{63, 63, 63}, RGB{200, 63, 64}}) {
-			expect(tick_muted_colour(c)).to_equal(legacy_muted(c));
-		}
-		// The three kinds (:189-208, :277-291).
-		expect(tick_colour(TickColour::Normal, RGB{255, 160, 0})).to_equal(kPlayheadColour);
-		expect(tick_colour(TickColour::Red, RGB{255, 160, 0})).to_equal(palette::red);
-		expect(tick_colour(TickColour::Muted, RGB{255, 160, 0})).to_equal(RGB{0, 162, 0});
+	it("paints a muted tick square the menu colour itself, with no channel transform", _ {
+		// The live pixel path is `prepareColour` (pad_leds.cpp:283-291), which substitutes
+		// `mutedColourMenu.getRGB()` untransformed at :285-286; `FLASH_CURSOR_SLOW`, the mode that
+		// goes through it, is the factory default (storage/flash_storage.cpp:282). The channel
+		// transform in the fast-cursor branch (:192-202) computes a local that :208 never passes
+		// on -- `colour` is still the `0` of :190, and `flashMainPad` sends a colour only when it
+		// is `> 0` (hid/led/pad_leds.h:128-134).
+		constexpr RGB kFactoryMuted = RGB{255, 160, 0}; // YELLOW (flash_storage.cpp:317)
+		expect(tick_colour(TickColour::Muted, kFactoryMuted)).to_equal(kFactoryMuted);
+		// Specifically *not* {0, 162, 0}: the transform's unclamped `uint8_t` arithmetic wraps that
+		// 255 and would turn the device's orange playhead green.
+		expect(tick_colour(TickColour::Muted, kFactoryMuted) == RGB{0, 162, 0}).to_be_false();
+		// Any menu colour, including ones the transform would have left alone.
+		expect(tick_colour(TickColour::Muted, RGB{64, 64, 64})).to_equal(RGB{64, 64, 64});
+		expect(tick_colour(TickColour::Muted, RGB{63, 63, 63})).to_equal(RGB{63, 63, 63});
+		// The other two kinds come from `flashColours` (:277-281).
+		expect(tick_colour(TickColour::Normal, kFactoryMuted)).to_equal(kPlayheadColour);
+		expect(tick_colour(TickColour::Red, kFactoryMuted)).to_equal(palette::red);
 	});
 
 	// -----------------------------------------------------------------------------------------

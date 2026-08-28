@@ -1,7 +1,6 @@
 #pragma once
 #include "gfx/grid/palette.h"
 #include "gfx/grid/rgb.h"
-#include "ui/core/response.h"
 #include "ui/grid/frame.h"
 #include "ui/grid/rows.h"
 
@@ -71,6 +70,8 @@ constexpr RGB kVuRed = gui::colours::red;
 
 /// The colour of VU row \p y: `renderVUMeter`'s `if (y < 5) green; else if (y < 7) orange; else
 /// red` (gui/views/view.cpp:1852-1862).
+///
+/// \p y must be in `[0, kColumnRows)`; the component loops clamp, a direct caller must.
 RGB vu_row_colour(int32_t y);
 
 /// Paint a stereo VU meter in columns \p x (left) and \p x + 1 (right) -- spec B section 7's
@@ -246,6 +247,8 @@ struct VelocityData {
 /// Row 0's minimum is 0, so a column with any note at all lights its bottom pad whatever the
 /// velocity -- velocity 0 and velocity 1 are one blue pad each, and only from 17 up does the bar
 /// grow.
+///
+/// \p y must be in `[0, kColumnRows)`; the component loops clamp, a direct caller must.
 RGB velocity_colour(const VelocityData& data, int32_t y);
 
 /// Paint one column of the note editor's velocity bar at \p x
@@ -307,7 +310,7 @@ struct AutomationData {
 	/// The `isBipolar` argument (mod_controllable.cpp:119-126) -- pan, pitch and patch cables render
 	/// outward from the middle row instead of upward from the bottom.
 	bool bipolar = false;
-	/// `modelStackWithParam->autoParam->isAutomated()` (mod_controllable.cpp:104-105, :121): the
+	/// `modelStackWithParam->autoParam->isAutomated()` (mod_controllable.cpp:100-101, :121): the
 	/// parameter has automation nodes, so the column is drawn in the bright ramp rather than the
 	/// tail ramp (:176-191, :228-233).
 	bool automated = false;
@@ -355,6 +358,8 @@ struct AutomationData {
 ///
 /// `knob_pos == middle` renders nothing anywhere (`doRender` stays false, :152-155), so a bipolar
 /// parameter at its centre shows an empty column rather than a middle row.
+///
+/// \p y must be in `[0, kColumnRows)`; the component loops clamp, a direct caller must.
 RGB automation_colour(const AutomationData& data, int32_t y);
 
 /// Paint one column of the automation editor at \p x
@@ -372,7 +377,7 @@ enum class TickColour : uint8_t {
 	/// `flashColours[0]`, `{130, 120, 130}` -- the ordinary playhead. Same constant as
 	/// `kPlayheadColour` (ui/grid/rows.h), which is this entry.
 	Normal = 0,
-	/// The muted row's colour, `menu_item::mutedColourMenu.getRGB()` (pad_leds.cpp:193, :286).
+	/// The muted row's colour, `menu_item::mutedColourMenu.getRGB()` (pad_leds.cpp:285-286).
 	Muted = 1,
 	/// `flashColours[2]`, `colours::red` -- a row recording linearly (pad_leds.cpp:280).
 	Red = 2,
@@ -391,29 +396,33 @@ struct TickSquare {
 	TickColour colour = TickColour::Normal;
 };
 
-/// The muted colour's channel transform, from `setTickSquares`' fast-cursor branch
-/// (hid/led/pad_leds.cpp:192-202), verbatim:
+/// The colour of a tick square of kind \p kind.
 ///
-/// ```
-/// auto transform = [](uint8_t& channel, size_t idx) { if (channel >= 64) channel += (1 << idx); };
-/// transform(r, 0); transform(g, 1); transform(b, 2);
-/// ```
+/// | kind | legacy | colour |
+/// |---|---|---|
+/// | `Normal` | `flashColours[0]` (hid/led/pad_leds.cpp:278) | `kPlayheadColour`, `{130, 120, 130}` |
+/// | `Muted`  | `prepareColour` (:285-286)                   | \p muted, exactly as the menu gives it |
+/// | `Red`    | `flashColours[2]` (:280)                     | `colours::red` |
 ///
-/// So a channel of 64 or more gains 1 (red), 2 (green) or 4 (blue) -- the bottom bits the pad
-/// driver's own colour handling uses as a marker. `uint8_t` arithmetic, and legacy does not clamp:
-/// a channel of 255 wraps to 0 (red), 1 (green) or 3 (blue). Kept, because clamping would change
-/// what the firmware sends for a fully saturated muted colour.
+/// **The brief's "muted" transform is deliberately absent.** The brief asks for
+/// `if (channel >= 64) channel += (1 << idx)` on r, g and b, and legacy does write that -- in
+/// `setTickSquares`' fast-cursor branch (pad_leds.cpp:192-202) -- but never reads the result:
+/// `colour` is declared `int32_t colour = 0` at :190, the transformed `mutedColour` is a local
+/// nothing consumes, and :208 calls `flashMainPad(squares[y], y, colour)` with `colour` still 0,
+/// which `PadLEDs::flashMainPad` (hid/led/pad_leds.h:128-134) routes to the colourless
+/// `deluge_control_flash_pad` -- only `colour > 0` sends a colour at all. That branch's "colour" is
+/// an int flag rather than an RGB in any case: its Red arm passes `0b00000001` (:205-206).
 ///
-/// **Recorded divergence.** Legacy has two paths and they disagree. The fast-cursor path computes
-/// this transform and then *discards it* -- `colour` is still 0 when it reaches `flashMainPad`
-/// (pad_leds.cpp:191-208) -- while the slow-cursor path (`prepareColour`, :283-291) uses the menu
-/// colour untransformed. The transform is therefore dead in the firmware as it stands, but it is
-/// the only place legacy says what a muted tick square is *meant* to look like, and the brief names
-/// it explicitly, so the port applies it. If the intent was that muted tick squares are plain
-/// `mutedColourMenu`, this is the one line to change.
-RGB tick_muted_colour(RGB muted);
-
-/// The colour of a tick square of kind \p kind (hid/led/pad_leds.cpp:189-208, :277-291).
+/// The path that does reach a pixel is `prepareColour` (:283-291, called from `sortLedsForCol`
+/// :259-274), and it substitutes `mutedColourMenu.getRGB()` **untransformed** (:285-286).
+/// `FLASH_CURSOR_SLOW`, the cursor mode that goes through it, is the factory default
+/// (storage/flash_storage.cpp:282).
+///
+/// So the transform is unreachable on every path that reaches a pixel, and applying it would not be
+/// parity but a visible change: the factory muted colour is YELLOW (flash_storage.cpp:317) ->
+/// `colours::yellow_orange` = `{255, 160, 0}`, and the transform's unclamped `uint8_t` arithmetic
+/// wraps that 255 to 0, so a transformed square would paint `{0, 162, 0}` -- a green pad where the
+/// device shows orange.
 RGB tick_colour(TickColour kind, RGB muted);
 
 /// Paint the playhead over an already-painted grid -- spec B section 7's `tick_squares`, "playhead
@@ -425,8 +434,12 @@ RGB tick_colour(TickColour kind, RGB muted);
 /// (`prepareColour`, hid/led/pad_leds.cpp:283-291), so a caller paints the grid first and calls
 /// this last -- exactly as `ClipRowData::playhead_col` (ui/grid/rows.h) does for a single row.
 ///
-/// \p muted_colour is `menu_item::mutedColourMenu.getRGB()` (pad_leds.cpp:193, :286), a user
+/// \p muted_colour is `menu_item::mutedColourMenu.getRGB()` (pad_leds.cpp:285-286), a user
 /// setting, so it travels as a parameter rather than being read from the palette.
+///
+/// One legacy gate is the caller's, not this component's: `prepareColour` suppresses the tick
+/// square entirely while `currentUIMode == UI_MODE_HORIZONTAL_SCROLL` (pad_leds.cpp:284). That is
+/// UI-mode state, so the scene decides whether to call `tick_squares` at all.
 void tick_squares(GridFrame& f, std::span<const TickSquare> per_row, RGB muted_colour);
 
 } // namespace deluge::ui::grid

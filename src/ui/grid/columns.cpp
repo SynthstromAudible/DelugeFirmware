@@ -226,21 +226,12 @@ void automation_column(GridFrame& f, int32_t x, const AutomationData& data) {
 
 // --- Tick squares ---------------------------------------------------------------------------
 
-RGB tick_muted_colour(RGB muted) {
-	// hid/led/pad_leds.cpp:192-202, verbatim -- `uint8_t` arithmetic, and no clamp.
-	auto transform = [](uint8_t channel, uint32_t idx) -> uint8_t {
-		if (channel >= 64) {
-			channel += static_cast<uint8_t>(1u << idx);
-		}
-		return channel;
-	};
-	return RGB{transform(muted.r, 0), transform(muted.g, 1), transform(muted.b, 2)};
-}
-
 RGB tick_colour(TickColour kind, RGB muted) {
 	switch (kind) {
 	case TickColour::Muted:
-		return tick_muted_colour(muted); // pad_leds.cpp:192-202 (and :285-287 for the menu read)
+		// `prepareColour`, hid/led/pad_leds.cpp:285-286: the menu colour, untransformed. The
+		// channel transform at :192-202 is never read -- see `tick_colour`'s declaration.
+		return muted;
 	case TickColour::Red:
 		return gui::colours::red; // flashColours[2], pad_leds.cpp:280
 	case TickColour::Normal:
