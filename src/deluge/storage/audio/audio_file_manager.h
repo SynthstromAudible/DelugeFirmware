@@ -172,7 +172,19 @@ public:
 	void thingFinishedLoading();
 
 	void setCardRead() { cardReadOnce = true; }
-	void setCardEjected() { cardEjected = true; }
+
+	/// @brief Mark the card gone, and discard everything the async loader parsed from it.
+	///
+	/// Out of line, and not merely for the flush's sake: everything the loader holds is keyed by the
+	/// nominal path with no record of which card produced it, so a header parsed from one card and
+	/// collected after another is inserted binds the NEW card's file to the OLD card's geometry --
+	/// a load that reports no error and plays the wrong thing.
+	///
+	/// This runs on the interaction tier, the same tier as the collect, so the flush is correctly
+	/// ordered against any collect that could otherwise consume a stale result. The re-insert path
+	/// (reinitEjectedCard) is deliberately NOT the hook: flushing there would leave the window open
+	/// for as long as the slot stayed empty.
+	void setCardEjected();
 
 	/// @brief Re-initialise the SD card if it is currently marked ejected, clearing the flag on success.
 	///

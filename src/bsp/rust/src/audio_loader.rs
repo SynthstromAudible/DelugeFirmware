@@ -52,6 +52,29 @@
 //! all. The only resource here is the efatfs handle, released on the single path
 //! out of [`load_io_once`].
 //!
+//! ## Results are keyed by path, and a path outlives the card it was read from
+//!
+//! Everything here is keyed by the nominal path, and nothing in a [`LoadResult`]
+//! records *which card* produced it. That is fine while one card stays in the
+//! slot and is a silent wrong-file bug the moment one does not: parse a header
+//! from card A, eject, insert card B, and the collector applies A's geometry to
+//! B's file at the same path. It loads clean, reports no error, and plays the
+//! wrong thing — the failure shape this whole boundary is built to keep out.
+//!
+//! [`deluge_audio_load_flush`] is what closes it, and it is called at EJECTION
+//! (`AudioFileManager::setCardEjected`), not at re-insertion — flushing on the way
+//! back in would leave the window open for however long the slot stays empty.
+//!
+//! Clearing the three tables is not enough on its own. A load already in flight
+//! when the card goes finishes afterwards and would publish into [`RESULTS`]
+//! *after* the flush, reinstating exactly the stale result the flush existed to
+//! remove. So each load also carries the [`GENERATION`] it began under, and
+//! [`publish_result`] discards a result whose stamp no longer matches. The stamp
+//! is taken where the load BEGINS ([`take_next_request`], under the queue lock),
+//! never where it publishes: sampling it at publish time reads the generation the
+//! flush just installed and lets the stale result straight through, which is the
+//! same "sampled too late" defect the C++ half's deferred-load cancel already had.
+//!
 //! ## Two compilation tiers
 //!
 //! Same shape, and for the same reason, as `streaming_loader.rs`: the selector
@@ -134,6 +157,8 @@ compile_error!(
 
 use core::ffi::{CStr, c_char};
 use core::mem::MaybeUninit;
+#[cfg(feature = "async_audio_load_active")]
+use core::sync::atomic::{AtomicU32, Ordering};
 
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 #[cfg(feature = "async_audio_load_active")]
@@ -431,6 +456,82 @@ static IN_FLIGHT: Mutex<CriticalSectionRawMutex, Option<LoadPath>> = Mutex::new(
 /// cannot grow the table with duplicates.
 #[cfg(feature = "async_audio_load_active")]
 static RESULTS: Mutex<CriticalSectionRawMutex, ResultTable> = Mutex::new(heapless::Deque::new());
+
+/// Which card the loader is reading. Bumped by [`deluge_audio_load_flush`]; a
+/// load that began under an older value has nothing to say about the card that
+/// is in the slot now, and its result is discarded rather than published.
+///
+/// A plain wrapping counter, and the wrap is harmless: `!=` is the only test, and
+/// distinguishing two generations 2^32 ejections apart is not a property anything
+/// needs.
+#[cfg(feature = "async_audio_load_active")]
+static GENERATION: AtomicU32 = AtomicU32::new(0);
+
+/// The card generation a load starting *now* belongs to. See [`GENERATION`].
+///
+/// `pub` for the host test, which has to stamp a result the way
+/// [`take_next_request`] would in order to drive the in-flight-across-a-flush case
+/// at all; nothing in the firmware calls it from outside this module.
+#[cfg(feature = "async_audio_load_active")]
+pub fn current_generation() -> u32 {
+    GENERATION.load(Ordering::Acquire)
+}
+
+/// Discard every published result, queued request and in-flight mark. See
+/// `audio_load.h`.
+///
+/// Always exported, on every configuration this module compiles in, so the C++
+/// call site links regardless of which build produced this BSP image — the same
+/// rule [`deluge_audio_load_async_active`] follows.
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_audio_load_flush() {
+    flush();
+}
+
+/// Invalidate everything the loader knows and drop the tables it knows it in.
+///
+/// # Why the bump comes first, and why the clears may fail
+///
+/// This runs synchronously from C++ on the interaction tier and must never wait,
+/// so the three tables are `try_lock`ed rather than awaited. The generation bump
+/// is the part that cannot fail, and it is deliberately ordered ahead of the
+/// clears so that no window exists in which a table has been emptied but a load
+/// still in flight would be allowed to refill it.
+///
+/// What a failed `try_lock` actually costs, table by table:
+///
+/// - [`RESULTS`] and [`IN_FLIGHT`] are never held across an `await`, so a task
+///   holding either is a task that is RUNNING. The loader runs on an interrupt
+///   executor and this runs at thread mode, so the two cannot be in those regions
+///   at once and these locks cannot be observed as contended from here at all.
+/// - [`QUEUE`] *is* held across an `await` ([`take_next_request`] marks the
+///   request in flight before releasing it), so this one can genuinely fail. It
+///   costs nothing: a request that is still QUEUED has done no I/O yet, so
+///   whenever it runs it reads whatever card is in the slot then. Clearing the
+///   queue is the contract ("a request issued against a card that is gone has no
+///   claim on being honoured"), not the safety property.
+///
+/// The safety property is the stamp, and it holds no matter which locks were
+/// taken.
+#[cfg(feature = "async_audio_load_active")]
+fn flush() {
+    GENERATION.fetch_add(1, Ordering::AcqRel);
+    if let Ok(mut queue) = QUEUE.try_lock() {
+        queue.clear();
+    }
+    if let Ok(mut in_flight) = IN_FLIGHT.try_lock() {
+        *in_flight = None;
+    }
+    if let Ok(mut results) = RESULTS.try_lock() {
+        results.clear();
+    }
+}
+
+/// No loader on this build: the tables do not exist and nothing was ever
+/// published, so there is nothing to discard. Matches `audio_load_abi.cpp`'s weak
+/// fallback.
+#[cfg(not(feature = "async_audio_load_active"))]
+fn flush() {}
 
 /// Whether the Rust async loader backs sample loads on this BSP/config — the
 /// switch the C++ side asks before choosing the async path over the synchronous
@@ -764,10 +865,26 @@ pub fn take_from(table: &mut ResultTable, path: &str) -> Option<LoadResult> {
     Some(remove_at(table, index).result)
 }
 
-/// Publish into the live [`RESULTS`] table.
+/// Publish into the live [`RESULTS`] table, unless the card it was read from has
+/// been ejected since the load began.
+///
+/// `generation` is the value [`GENERATION`] held when the load STARTED — see
+/// [`take_next_request`], which samples it, and the module doc for why sampling it
+/// here instead would defeat the whole mechanism.
+///
+/// The check happens with the table lock already held, not before acquiring it: a
+/// flush landing in that gap would clear the table and then watch this write a
+/// stale result straight back into it.
 #[cfg(feature = "async_audio_load_active")]
-pub async fn publish_result(key: LoadPath, result: LoadResult) {
+pub async fn publish_result(key: LoadPath, result: LoadResult, generation: u32) {
     let mut table = RESULTS.lock().await;
+    if generation != current_generation() {
+        // The card this was read from is gone. Dropping costs the I/O that
+        // produced it and nothing else (`LoadResult` owns nothing), and the
+        // collector reads the resulting `UNKNOWN` as "request it again" -- which
+        // it then does, against the card that is actually in the slot.
+        return;
+    }
     publish_into(&mut table, key, result);
 }
 
@@ -1161,14 +1278,17 @@ pub async fn audio_load_task() {
     LOAD_WAKE.wait().await;
     let ops = ProdOps::new();
     loop {
-        while let Some(request) = take_next_request().await {
+        while let Some((request, generation)) = take_next_request().await {
             let key = request.path.clone();
             let result = load_io_once(&ops, &request).await;
             // Publish BEFORE clearing IN_FLIGHT, never after: the entry is briefly
             // in both tables, which is harmless, whereas the reverse leaves a
             // window in which it is in neither and `collect` would report
             // `UNKNOWN` for a load that just succeeded.
-            publish_result(key, result).await;
+            //
+            // `generation` was sampled before the I/O above, so a card pulled
+            // during it is what makes this publish a no-op.
+            publish_result(key, result, generation).await;
             mark_in_flight(None).await;
         }
         LOAD_WAKE.wait().await;
@@ -1176,12 +1296,18 @@ pub async fn audio_load_task() {
 }
 
 /// Pop the next queued request and mark it in flight, atomically with respect to
-/// [`deluge_audio_load_collect`].
+/// [`deluge_audio_load_collect`], and report the card generation the load begins
+/// under.
 ///
 /// The mark happens while the [`QUEUE`] lock is still held, so there is no
 /// instant at which the request has left the queue but not yet appeared as
 /// in-flight. A `collect` racing this either sees it queued, or blocks on the
 /// queue's `try_lock` and reports `PENDING` — never `UNKNOWN`.
+///
+/// The generation is read HERE, before the first `await` that can suspend this
+/// task and therefore before any I/O, because that is what makes it mean "the
+/// card this load is reading". Reading it later — at publish time — reads the
+/// value a flush has already installed and defeats the check entirely.
 #[cfg(all(
     feature = "async_audio_load_active",
     any(
@@ -1189,9 +1315,10 @@ pub async fn audio_load_task() {
         feature = "host_app"
     )
 ))]
-async fn take_next_request() -> Option<LoadRequest> {
+async fn take_next_request() -> Option<(LoadRequest, u32)> {
     let mut queue = QUEUE.lock().await;
     let request = queue.pop_front()?;
+    let generation = current_generation();
     mark_in_flight(Some(request.path.clone())).await;
-    Some(request)
+    Some((request, generation))
 }

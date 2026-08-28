@@ -15,8 +15,10 @@
 //!
 //! What these tests pin, in one line each: the efatfs handle is closed on every
 //! path; a parse verdict always reaches the caller with the error identity the
-//! synchronous path produced; a zero-length window is still read and fed; and an
-//! uncollected result is evicted rather than leaked.
+//! synchronous path produced; a zero-length window is still read and fed; an
+//! uncollected result is evicted rather than leaked; and nothing parsed from one
+//! card survives that card being ejected, including a load that was still in
+//! flight when it went.
 #![cfg(feature = "async_audio_load")]
 #![cfg(not(target_os = "none"))]
 
@@ -40,7 +42,8 @@ use audio_loader::{
 #[cfg(feature = "async_audio_load_active")]
 use audio_loader::{
     DELUGE_AUDIO_LOAD_PENDING, DELUGE_AUDIO_LOAD_READY, DELUGE_AUDIO_LOAD_UNKNOWN,
-    deluge_audio_load_collect, deluge_audio_load_request, mark_in_flight, publish_result,
+    current_generation, deluge_audio_load_collect, deluge_audio_load_flush,
+    deluge_audio_load_request, mark_in_flight, publish_result,
 };
 
 /// One call `FakeOps` observed, in order.
@@ -931,6 +934,13 @@ mod live_pipeline {
         );
     }
 
+    /// Publish as the loader task would for a load that began just now: stamped
+    /// with the CURRENT card generation, so nothing here is accidentally testing
+    /// the flush's drop path.
+    fn publish(path: &str, result: LoadResult) {
+        block_on(publish_result(path_of(path), result, current_generation()));
+    }
+
     fn request_load(path: &str, candidates: &[&str]) -> bool {
         let buffer = candidate_buffer(candidates);
         let key = CString::new(path).unwrap();
@@ -997,10 +1007,7 @@ mod live_pipeline {
     fn a_published_result_still_marked_in_flight_reports_pending() {
         let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         block_on(mark_in_flight(Some(path_of("window/A.wav"))));
-        block_on(publish_result(
-            path_of("window/A.wav"),
-            LoadResult::failed(DELUGE_ERROR_NONE),
-        ));
+        publish("window/A.wav", LoadResult::failed(DELUGE_ERROR_NONE));
         assert_eq!(collect("window/A.wav").0, DELUGE_AUDIO_LOAD_PENDING);
         block_on(mark_in_flight(None));
         assert_eq!(collect("window/A.wav").0, DELUGE_AUDIO_LOAD_READY);
@@ -1010,10 +1017,10 @@ mod live_pipeline {
     #[test]
     fn collecting_removes_the_result() {
         let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
-        block_on(publish_result(
-            path_of("gone/A.wav"),
+        publish(
+            "gone/A.wav",
             LoadResult::failed(DELUGE_ERROR_FILE_CORRUPTED),
-        ));
+        );
         let (status, result) = collect("gone/A.wav");
         assert_eq!(status, DELUGE_AUDIO_LOAD_READY);
         assert_eq!(result.error, DELUGE_ERROR_FILE_CORRUPTED);
@@ -1053,6 +1060,125 @@ mod live_pipeline {
         let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         assert!(request_load("bound/A.wav", &["bound/A.wav"]));
         assert_eq!(collect("bound/A.wav").0, DELUGE_AUDIO_LOAD_PENDING);
+    }
+
+    // ── Ejection ────────────────────────────────────────────────────────────
+    //
+    // A result is keyed by path and records nothing about the card it came from,
+    // so one parsed before an ejection and collected after the next insertion
+    // binds the NEW card's file to the OLD card's geometry: a load that reports no
+    // error and plays the wrong thing. `deluge_audio_load_flush` is what makes
+    // that impossible, and there are two halves to it -- what was already
+    // published, and what is still in flight. The second is the one that is easy
+    // to get wrong, so it has its own test.
+
+    /// A result published before the ejection is gone afterwards: `UNKNOWN`, whose
+    /// documented meaning is "request it again" -- which is exactly what the
+    /// collector should do against the card that is now in the slot.
+    #[test]
+    fn a_flush_discards_a_published_result() {
+        let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        publish("eject/published.wav", LoadResult::failed(DELUGE_ERROR_NONE));
+        assert_eq!(
+            collect("eject/published.wav").0,
+            DELUGE_AUDIO_LOAD_READY,
+            "the result must be collectable before the ejection, or this test proves nothing"
+        );
+
+        publish("eject/published.wav", LoadResult::failed(DELUGE_ERROR_NONE));
+        deluge_audio_load_flush();
+        let (status, out) = collect("eject/published.wav");
+        assert_eq!(status, DELUGE_AUDIO_LOAD_UNKNOWN);
+        assert_out_untouched(&out);
+    }
+
+    /// A load already IN FLIGHT when the card goes finishes afterwards and
+    /// publishes into a table the flush has already emptied -- reinstating exactly
+    /// the stale result the flush existed to remove.
+    ///
+    /// This is the half that clearing the tables cannot cover, and the half a
+    /// naive fix gets wrong: stamping the result with the generation it PUBLISHES
+    /// under reads the value the flush just installed, so the check passes and the
+    /// stale result lands anyway. The stamp has to be the one the load BEGAN
+    /// under, which is what `take_next_request` samples and what this test
+    /// reproduces by capturing the generation before the flush.
+    #[test]
+    fn a_flush_drops_a_result_from_a_load_that_was_already_in_flight() {
+        let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        // The loader picks the request up and starts its I/O: this is the moment
+        // `take_next_request` samples the generation.
+        block_on(mark_in_flight(Some(path_of("eject/inflight.wav"))));
+        let began_under = current_generation();
+
+        // The card is pulled mid-parse.
+        deluge_audio_load_flush();
+
+        // ...and the parse finishes anyway, because nothing can stop an await that
+        // is already running. Its result must not become collectable.
+        block_on(publish_result(
+            path_of("eject/inflight.wav"),
+            LoadResult::failed(DELUGE_ERROR_NONE),
+            began_under,
+        ));
+        let (status, out) = collect("eject/inflight.wav");
+        assert_eq!(
+            status, DELUGE_AUDIO_LOAD_UNKNOWN,
+            "a load that began on the previous card must not publish onto this one"
+        );
+        assert_out_untouched(&out);
+
+        // The positive control, and it is not optional: a check that dropped
+        // EVERY publish after a flush would satisfy the assertion above while
+        // wedging the loader permanently -- every later load would report
+        // LOAD_IN_PROGRESS, then UNKNOWN, forever.
+        publish("eject/inflight.wav", LoadResult::failed(DELUGE_ERROR_NONE));
+        assert_eq!(
+            collect("eject/inflight.wav").0,
+            DELUGE_AUDIO_LOAD_READY,
+            "a load that began AFTER the flush must publish normally"
+        );
+    }
+
+    /// A queued request does not survive the ejection either. It named a path on a
+    /// card that is gone, and honouring it would answer with whatever happens to
+    /// sit at that path on the next one.
+    #[test]
+    fn a_flush_discards_a_queued_request() {
+        let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        assert!(request_load("eject/queued.wav", &["eject/queued.wav"]));
+        assert_eq!(collect("eject/queued.wav").0, DELUGE_AUDIO_LOAD_PENDING);
+        deluge_audio_load_flush();
+        assert_eq!(
+            collect("eject/queued.wav").0,
+            DELUGE_AUDIO_LOAD_UNKNOWN,
+            "a flushed request must report UNKNOWN, which is what makes the collector ask again"
+        );
+    }
+
+    /// The in-flight MARK goes too. Left behind, it reports `PENDING` for a load
+    /// nothing will ever publish, and the collector waits for it on every tick
+    /// instead of requesting the file from the card that is actually present.
+    #[test]
+    fn a_flush_clears_the_in_flight_mark() {
+        let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        block_on(mark_in_flight(Some(path_of("eject/mark.wav"))));
+        assert_eq!(collect("eject/mark.wav").0, DELUGE_AUDIO_LOAD_PENDING);
+        deluge_audio_load_flush();
+        assert_eq!(collect("eject/mark.wav").0, DELUGE_AUDIO_LOAD_UNKNOWN);
+    }
+
+    /// The loader keeps working after an ejection. Stated separately from the
+    /// positive control inside the in-flight test because it is the property a
+    /// too-broad flush breaks in the field rather than in a unit test: a card
+    /// swapped mid-session must still load samples, not go quiet.
+    #[test]
+    fn the_loader_still_accepts_work_after_a_flush() {
+        let _guard = PIPELINE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        deluge_audio_load_flush();
+        assert!(request_load("eject/after.wav", &["eject/after.wav"]));
+        assert_eq!(collect("eject/after.wav").0, DELUGE_AUDIO_LOAD_PENDING);
+        // Drain it, so this test leaves the shared queue as it found it.
+        deluge_audio_load_flush();
     }
 }
 

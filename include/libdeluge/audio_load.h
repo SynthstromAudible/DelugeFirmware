@@ -411,6 +411,29 @@ bool deluge_audio_load_request(const char* file_path, const char* candidates, ui
 /// @return One of `DELUGE_AUDIO_LOAD_PENDING` / `_READY` / `_UNKNOWN`.
 uint8_t deluge_audio_load_collect(const char* file_path, DelugeAudioLoadResult* out) DELUGE_NOEXCEPT;
 
+/// @brief Discard every published result, queued request and in-flight mark. Never waits.
+///
+/// Call this when the card is EJECTED. Everything the loader holds is keyed by the nominal path and
+/// nothing records which card produced it, so a result parsed from one card must never be collected
+/// after another has been inserted: @ref deluge_audio_load_bind_read_stream would open the NEW
+/// card's file at that path and @ref deluge_audio_load_apply_geometry would write the OLD card's
+/// numbers onto it. That loads with no error and plays the wrong thing -- this header's own "worst
+/// available shape".
+///
+/// **At ejection, not at re-insertion.** Flushing on the way back in leaves the window open for as
+/// long as the slot stays empty, and the re-insert path (`deluge_efatfs_remount` ->
+/// `AudioFileManager::firstCardRead` -> `cardReinserted`) is about re-validating RESIDENT samples,
+/// which is a different question from what the loader has in its tables.
+///
+/// A load that is genuinely in flight when this is called is also covered: it publishes after this
+/// returns, and its result is discarded rather than reinstated (the loader stamps each load with the
+/// card generation it began under). So there is nothing for the caller to sequence against and no
+/// state left to clean up afterwards.
+///
+/// Afterwards every flushed path reports @ref DELUGE_AUDIO_LOAD_UNKNOWN, whose documented meaning is
+/// already "request it (again)" -- the collector needs no new lifecycle for this.
+void deluge_audio_load_flush(void) DELUGE_NOEXCEPT;
+
 /// @brief Whether the Rust async loader backs sample loads on this BSP/config.
 /// @return true if async loading is active; false if every load takes the synchronous path.
 bool deluge_audio_load_async_active(void) DELUGE_NOEXCEPT;
