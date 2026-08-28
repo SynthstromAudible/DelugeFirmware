@@ -100,6 +100,27 @@ RULES = [
         r"\binput\.(turn|edit|horizontal|vertical|select_pressed|back_pressed|shift|now_ms)\b",
         "2026-08-26-ui-toolkit-design.md",
     ),
+    (
+        # Mirrors ui-includes-outside for src/shell: only shell/**, ui/**, gfx/**, notify/** and
+        # libdeluge/** (the one hardware seam, board_surfaces.cpp/profile.h) may be included --
+        # never model/, gui/, hid/, or the root headers (definitions*, board_config.h,
+        # board_layout.hpp) that would pull the model layer in by the back door.
+        "shell-includes-outside",
+        "src/shell/**",
+        "include",
+        r"^(?!shell/|ui/|gfx/|notify/|libdeluge/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)",
+        "2026-08-26-ui-shell-design.md",
+    ),
+    (
+        # Spec G §5: the shell reads no wall clock of its own -- every tick and gate deadline is
+        # driven by the `now_ms` the caller passes in, so the shell can be driven by a fake clock
+        # in a spec exactly as it is driven by the real one on device.
+        "shell-no-clock",
+        "src/shell/**",
+        "symbol",
+        r"\bdeluge_clock_|\bstd::chrono\b",
+        "2026-08-26-ui-test-harness-design.md",
+    ),
 ]
 # Matches both #include "path" and #include <path>, capturing only the path (the delimiter
 # itself is stripped either way). Angle-bracket project includes (e.g. #include <hid/buttons.h>)

@@ -362,3 +362,212 @@ void Shell::tick(uint32_t now_ms) {
    `ModKnobs` — e.g. seeing the turn immediately, before any widget could have claimed it. Nothing
    observes the difference today (`ModKnobs` is a `NullService` until spec E), so the shell plan
    ships the simpler rule and spec E may revisit it.
+
+## 13. Amendments during implementation (2026-08-27)
+
+Recorded against `src/shell/**` as the shell was built (Tasks 1–10) and its review rounds. Each
+line names the change and why it deviates from the draft above; the task-9 reconciliation already
+folded into §2–§7's body (the `render_oled`/`render_grid`/`after_render` split, per-surface
+`Style`, `begin_tick`) is not repeated here.
+
+**§2 Board profile and surfaces**
+- Concrete board tables live in **`src/shell/profiles/`** (`profiles/deluge.h,cpp`,
+  `profiles/test_board.h,cpp`), not in a `deluge-scenes` package as the draft's comment says — no
+  such package exists on this branch; the tables are board description, not application scenes,
+  and have no dependency on anything a scene would need.
+- `BoardProfile::encoder_by_index`'s Deluge instance is `{Vertical, Horizontal, Tempo, Select,
+  GoldUpper, GoldLower}` — index 4 is the **upper** gold knob, index 5 the **lower** one
+  (`hid/encoders.h:80-81`: `mod0` is commented "lower gold encoder", `mod1` "upper"; wired at board
+  index 5 and 4 respectively, `hid/encoder_input.cpp:57`, `interpretEncoders`'s edge-index comment).
+  A first pass had this swapped; the profile spec (`profiles_spec.cpp`) now pins both indices
+  against the legacy comments directly so a future edit cannot silently re-swap them.
+- `LedId` (the toolkit's opaque enum, `ui/core/led_frame.h`) has no board-independent meaning of
+  its own; **this profile's contract is that its values equal `ButtonId`'s** (`profiles/deluge.h`,
+  `shell/leds.h`), so `led_by_button` is the one table a button's LED is found through instead of
+  a second, separately-numbered id space. Not a spec D requirement — a later board is free to
+  number its LEDs however it likes, as long as its own `led_by_button` agrees with whatever it
+  chooses.
+
+**§3 Scenes, registry, stack**
+- `SceneId` is `{SceneKind kind; uint16_t arg;}`, not the draft's tagged union
+  (`SceneKind kind; union { uint16_t clip; uint16_t output; BrowserKind browser; } arg;`) —
+  every use the shell itself has for `arg` (a clip index, an output index, a browser kind, the
+  screensaver's animation seed) fits one 16-bit value, and a real union member would need its own
+  discriminant anyway since `SceneKind` already *is* the discriminant that says which member is
+  live. One field the target scene interprets is simpler than a union nothing here needs to be a
+  union.
+- `Result` gained the named constructor **`Result::unhandled()`** (`{ return {}; }`) alongside its
+  two default-constructed fields — not a new capability, but `Result::unhandled()` at a `handle()`
+  call site says "I looked at this and did nothing" where a bare `{}` or `{false, {}}` reads as
+  though a field was forgotten; `Scene::handle()`'s own doc leans on the name to make "swallows
+  everything" never the accident of a missing override.
+- `Action::Kind` gained **`RepaintAll`**, alongside `Repaint{SurfaceRole}`: the draft's `Repaint`
+  already used `SurfaceRole` to name one surface, so "repaint everything" needed either an
+  overloaded sentinel value or its own `Kind`. `SurfaceRole::None` keeps the "no surface, never
+  matches" meaning `surfaces.h` gives it everywhere else in the shell (`Repaint{None}` is
+  specified as a no-op, not "all surfaces"), so the all-surfaces case is `RepaintAll` instead —
+  ruled during Task 5's review (spec FAIL / cost if wrong: a rename).
+- Two new `Scene` virtuals, **`dims_grid()`** and **`input_transparent()`**, neither in the draft:
+  - `input_transparent()` (default `false`) answers "is this scene drawn over what's beneath but
+    never taking its input" — the same three notice scenes, because legacy routes no key press,
+    pad or encoder to a popup, a console line or the working animation; the UI underneath keeps
+    running exactly as it was. `SceneStack::input_top()` — the topmost scene that is *not*
+    `input_transparent()` — is both the scene `Router::route`/`route_post_render` call `handle()`
+    on, and the one whose render frames get `InputMask::all()` (every other layer in a pass draws
+    with `none()`, reads 0/false, and claims nothing). Ruled during Task 7's review (spec FAIL,
+    1 Critical): without it, a console message would deafen the view drawn under it for as long
+    as the line is up.
+  - `dims_grid()` (default `is_grid_overlay()`), added one fix round later, answers "should
+    what's beneath this scene be dimmed for it", separately from `is_grid_overlay()` answering
+    "is this scene an overlay at all, so it must not be mistaken for the grid's base". The
+    draft's §7 rule — "dim by right-shift if any overlay is above" — is right for an overlay
+    that actually composites pads (a sidebar menu, a context menu) but wrong for one that
+    composites nothing: legacy's popups, console lines and the working animation are OLED-only
+    (`OLED::sendMainImage`, `hid/display/oled.cpp:364-376`) and have no grid effect whatever, so
+    halving every pad's brightness to announce a "SAVED" popup would be a visible regression, not
+    a port. Ruled in the same Task 7 review's fix-round-1 cycle; cost if wrong was one virtual.
+- **A scene reads any one input in at most one render pass per tick.** Reading through a frame
+  *is* claiming it (`ui/core/frame_context.h`), and a scene drawn on two surfaces builds two
+  independent `FrameInput`s in the same tick, so reading `f.turn()` in both `render_oled` and
+  `render_grid` claims the same detent twice and trips `InputClaims::double_claim`. Not stated in
+  the draft because the draft had one `render(Frames&)` call, not one call per surface; now that
+  task-9 split it, this rule is what keeps a two-surface scene from double-claiming — a scene that
+  wants one input to affect both surfaces reads it in the pass that owns it and lets the other
+  surface draw the resulting state, and a scene that needs the raw event on both leaves it
+  unclaimed and reacts in `handle()` instead. Recorded here and in `src/shell/README.md` and
+  `shell.h`'s class doc as the standing rule for spec E's scenes.
+
+**§4 Input lowering and routing**
+- §4's line "`held_pads` with velocities (14 reads)" is a **text error**, not a deviation: a pad's
+  velocity belongs to its `UiEvent::Pad`, one-shot on press; the *level* `UiContext::held_pads`
+  tracks (which pads are down right now) carries no velocity of its own, and no legacy call this
+  branch ported reads one off the held set. Held pads are a `PadMask`; nothing here carries a
+  velocity per held pad.
+- The gold-knob **initial-turn-direction debounce** the draft's §4 bullet names is dead code on
+  `main` as of the encoder overhaul (`e460593c8`, "FIX/Encoder overhaul + gold knob acceleration"):
+  the overhaul dropped the `turnedRecently` half of the old mod-knob block and left the surviving
+  `modEncoderInitialTurnDirection` test in `hid/encoder_input.cpp:178-205` unreachable. Ported here
+  from the block's *pre-overhaul* shape at `e460593c8^` (`hid/encoders.cpp:242-292` at that
+  revision) instead, since that is the last commit where the debounce actually ran and is
+  therefore the legacy behaviour to reproduce; documented at length in `input_lowering.h`'s "gold-
+  knob wiggle debounce" section.
+- The **SD-test fuzz hook** (`nextSDTestDirection`, a debug-build-only randomised direction
+  injector) stays **out of `src/shell`**, contrary to the draft's §4 bullet grouping it with the
+  encoder lowering it sits beside in legacy. Spec G's script injector is the debug-input path for
+  every shell test, not a feature the lowering itself needs to know about; adding it here would be
+  a test-only code path inside production shell logic for no behavioural gain.
+- **Routing order correction**: `ModEnc0`/`ModEnc1`'s own button presses (the gold knobs' pushes)
+  are **not** `mod_knobs` events, despite being encoder-adjacent — legacy sends them to
+  `getCurrentUI()->modEncoderButtonAction` from the *tail* of `Buttons::buttonAction`
+  (`hid/buttons.cpp:225-231`), reached only after the scene's own `buttonAction` has already run.
+  They are ordinary buttons routed scene-first, exactly like any other `Button`/`EncoderButton`
+  event; only `Mod0..Mod7` and the gold-knob *turns* go to `mod_knobs` first, per the draft's
+  order 2→3→4. Ruled during Task 5's review (spec FAIL): the brief had grouped all mod-encoder
+  input as `mod_knobs`-first, which would have run a scene's `modEncoderButtonAction` handling one
+  step later than legacy does — cost if wrong, per that review, is one case spec E's `ModKnobs`
+  service would have to re-map.
+- The **held-back stash** (`held_back()`/`held_back_dropped()`) for the six widget-owned shapes
+  lives on **`InputLowering`**, not on `Shell` as a first reading of the draft's §7 pseudocode
+  might suggest (`shell.h`'s own earlier revisions carried a `held_back_` member before this was
+  settled) — the lowering already owns every other piece of that event's bookkeeping (held state,
+  detent accumulation), so the stash sits next to the state it is a view over, and `Shell` only
+  ever reads it through `lowering_.held_back()`.
+
+**§5 Services**
+- `Notices` (`shell/notices.h`) drains `notify::Notice::Severity::Warn` into a **persistent**
+  popup (`timeout_ms = 0`), matching legacy's `numFlashes = (severity == Warn) ? 0 : 3`
+  (`notify_drain.cpp:137`) feeding `OLED::displayPopup`'s inline `persistent = !numFlashes`
+  (`oled.h:156`) — not stated as a distinct rule in the draft's §5 row, which only names `Notices`
+  as draining the queue. Ruled during Task 6's review (2 Important): a `Warn` notice with a normal
+  timeout would clear itself before the condition it is warning about does.
+- `Notices` also suppresses `notify::Notice`s carrying legacy's `Error::NONE` or
+  `Error::ABORTED_BY_USER` (declaration order in `src/definitions_cxx.hpp`: `NONE` first = 0,
+  `ABORTED_BY_USER` twentieth = 19), matching `OLED::displayError`'s own suppression
+  (`oled.cpp:1173-1180`) — again a port of an existing legacy special case the draft's §5 row does
+  not call out, ruled during the same review round.
+
+**§7 Tick**
+- The pseudocode's `s.gate.needs_frame(now_ms, had_input_, dirty.any())` is **not** what ships:
+  `dirty.any()` is never passed. Step 1 has already turned this tick's facts into gate requests
+  targeted at the surfaces they actually name (`apply_dirty`, `Dirty::Oled` → OLED gates,
+  `GridMain`/`GridSidebar`/`ClipContent`/`NoteRows` → the grid gate, anything unmapped → both); OR
+  in `dirty.any()` besides would repaint the OLED for a note-row change and the grid for an OLED
+  one, which is exactly the per-gate targeting `apply_dirty` exists to provide. Ruled during Task
+  7's review (Important): `needs_frame`'s `model_dirty` argument is always `false` in the shipped
+  code, and `apply_dirty`'s own gate requests carry the model-dirty signal instead.
+- The **frame clock** for every frame built this tick is stamped by `InputLowering::end_tick(now_ms)`
+  from the tick's own `now_ms`, not from whichever `on_board_event`/`on_encoder_edges` call happened
+  to open the tick window — the draft's pseudocode calls `lowering_.ctx().begin_tick(now_ms)` at the
+  top of `tick()`, which reads as though the window opens there, but it does not: input arrives
+  *between* ticks, so `Shell` opens the window lazily on the first feed (or at `pump_input` if none
+  arrived) and only closes it at the *bottom* of `tick()`. What *is* stamped fresh every tick, at
+  the point the draft's pseudocode names, is the clock: `end_tick(now_ms)` re-stamps the snapshot,
+  so `f.now_ms()` inside any widget's frame is always the tick's clock regardless of when the
+  window happened to open. Ruled during Task 7's review (Important); documented at length in
+  `shell.h`'s "the tick window" class note.
+- Tween steps and the grid's backpressure backlog retry (§8, `flush`) both use
+  `RepaintGate::request_repaint_after(ms, now_ms)` to arm a real deadline rather than merely
+  requesting a repaint — so `next_deadline()`/`next_wake()` report the retry and a scheduler that
+  would otherwise sleep past it wakes on time instead. Not named in the draft, which has no
+  `request_repaint_after` API at all; added because "repaint eventually, when something else
+  happens to wake the tick" is not equivalent to legacy's explicit retry timers
+  (`setTimerForSoon`-style intervals) once the scheduler is free to sleep to `next_wake()`.
+- `GreyOut` tweens ramp `RGB::greyOut`'s proportion **only inside the stack's greyout mask**, and
+  **replace** (rather than stack with) the tick's ordinary full-strength greyout pass while the
+  tween is running — ruled during Task 8's review (quality FAIL) to match legacy's own ramp
+  (`pad_leds.cpp:983-1005`) feeding the same masked `prepareColour` (`:293-296`); stacking the two
+  would double-darken the masked region.
+- A **mirror frame throttled by `Mirror`'s `min_interval_ms`** is delivered late, once the interval
+  elapses (`Mirror::retry`, called every `flush`), and is **never simply dropped** — the draft's
+  §8 line ("throttled to at most one send per interval") could be read either way; ruled during
+  Task 8's review that a dropped frame would leave the MIDI display mirror stale for longer than
+  the throttle window, which legacy's own retry-and-resend timer does not do.
+- `ScrollV` tweens step on a **50 ms cadence** (`UI_MS_PER_REFRESH`, `src/board_config.h:55`) —
+  a port choice, not a literal one: legacy's vertical scroll has no self-timer of its own to copy
+  (unlike the fade's 35 ms, `pad_leds.cpp:640/730`), so this is the same cadence the rest of the
+  legacy grid animation path already uses, chosen for consistency rather than measured from a
+  specific legacy call site.
+- Spec D §8's **hardware grid-scroll opcodes** (device-side column-shift instructions
+  some boards expose, as opposed to redrawing every pad every step) are **not implemented**: there
+  is no `SurfaceSet` sink for them. `ScrollH`/`ScrollV` tweens always redraw the whole grid every
+  step on this branch. Parked during Task 8's review as needing a new `SurfaceSet` sink — spec F
+  (or a later amendment) is where that sink, and the board capability that decides whether to use
+  it, belongs.
+
+**§9 Boot and song swap**
+- `Shell` gained **`boot(std::string_view firmware_version)`** alongside `init(SceneId)`, not
+  instead of it: `init()` (built in Task 7, before boot/song-swap existed) already covers "push an
+  arbitrary first scene" for the unit specs' two-scene test registries, and `boot()` is the
+  application's actual entry point — construct the shell's own `BootScene` carrying the version
+  string, `init({SceneKind::Boot})`, and request a repaint on every surface so the first `tick()`
+  after boot draws regardless of any gate's prior state. Keeping both avoids a rename the draft
+  never specified either way.
+- The shell's half of the song-load protocol is **`Shell::song_loading(bool loading)`**, matching
+  the draft's §9 prose ("`reset()` then `push(LoadingScene)`... `Dirty::SongSwapped` → the shell
+  replaces the root") but naming it as one bracketing call the firmware makes around a song read,
+  rather than the draft's two separate verbs: `song_loading(true)` resets the stack, pushes the
+  shell's own `LoadingScene`, and takes the input lock; `song_loading(false)` pops it, releases the
+  lock, and — only if `set_song_hooks` was given a real `SongHooks::root_for_song` — replaces the
+  root with what that hook returns. `Dirty::SongSwapped` (apply_dirty) is the narrower, unbracketed
+  path for the same hook, for a swap that was not itself started through `song_loading(true)`.
+  Named during Task 9 to give the bracketing pattern one call the firmware's load path (spec F
+  wires it) can call at both ends.
+- `Screensaver` (§5's service) pushes **`SceneKind::Screensaver`**, but ships **no scene instance**
+  of its own kind — unlike the shell's other four owned kinds (`Popup`/`Console`/`Working`/`Boot`/
+  `Loading`), `table_[Screensaver]` is left exactly as the application's `SceneRegistry` reports
+  it. `ScreensaverScene` itself (the `rainfall`/`starfield` animations) is spec E3's to write; this
+  task's registry entry is a stand-in only, per the pre-ruling carried into Task 9's brief.
+- The screensaver's animation **seed** reaches the pushed scene through `SceneId::arg`, which is
+  16 bits — `ShellConfig::seed` is `uint32_t` (matching the draft's general-purpose config shape)
+  but is truncated to the low 16 bits when handed to the scene. Noted as a minor for spec E3: a
+  seed source wider than 16 bits of entropy loses bits here, though nothing on this branch supplies
+  one.
+
+**A new open question, not in §12 above**: there is no grid `SurfaceRole` for `Action::Repaint` —
+a scene's `Result` cannot request a *grid* repaint the way it can an OLED one, because
+`Action::Repaint` names a `SurfaceRole` and the grid is not one of `Main`/`Param0..3`/`Aux`. Parked
+during Task 7's review fix round (`Shell::tick`'s grid-render decision has no `repaint_requested`
+term for exactly this reason) and left unresolved: nothing on this branch needs it, since
+model-side grid invalidation reaches the grid gate through `notify::Dirty` instead of through a
+scene's own `Action`. Left for spec E to pick up if a scene ever needs to request a grid repaint
+from `handle()`/`after_render()` the way it can an OLED one today.
