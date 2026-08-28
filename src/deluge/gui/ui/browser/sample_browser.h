@@ -76,11 +76,20 @@ public:
 
 	/// @brief Abandon any preview in progress: nothing that is loading is wanted any more.
 	///
-	/// For the moves that leave nothing to preview at all -- onto a folder, onto an empty selection,
-	/// out of the browser entirely. Those dispatch no replacement, so the ordinary latest-wins
-	/// supersession never fires; without this, a load dispatched for the file the cursor has LEFT
-	/// finishes, gets re-driven by graphicsRoutine(), and then sounds and draws that file over
-	/// whatever the user actually moved to.
+	/// For the moves that leave nothing to preview at all: onto a folder or an empty selection
+	/// (previewIfPossible), up a directory or out of the browser (backButtonAction, exitAction,
+	/// exitAndNeverDeleteDrum), and into a fresh visit (opened). None of those dispatch a
+	/// replacement, so the ordinary latest-wins supersession never fires; without this, a load
+	/// dispatched for the file the cursor has LEFT finishes, gets re-driven by graphicsRoutine(),
+	/// and then sounds and draws that file over whatever the user actually moved to -- or, on the
+	/// exit paths, after the browser is gone.
+	///
+	/// Cancelling strands nothing. It abandons the RESULT, never the work: the load carries on in
+	/// the loader and is either collected by a later request for the same path or evicted. And it
+	/// keeps the single-flight guard rather than releasing it, which is safe on every path here
+	/// because each one reaches this only after a dispatch the storage owner ACCEPTED, so the op
+	/// runs and releases the guard itself (a dispatch the owner refused goes to release_dispatch(),
+	/// not here).
 	///
 	/// Public because the A/B gate has to be able to drive it: that harness calls previewFile()
 	/// directly and never populates a file list, so it can never reach the folder branch that calls

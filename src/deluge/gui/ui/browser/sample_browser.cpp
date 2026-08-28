@@ -263,11 +263,14 @@ void SampleBrowser::currentFileChanged(int32_t movementDirection) {
 }
 
 void SampleBrowser::exitAndNeverDeleteDrum() {
+	cancelPreview();
 	close();
 }
 
 // Will "delete drum if possible".
 void SampleBrowser::exitAction() {
+	cancelPreview();
+
 	UI* redrawUI = nullptr;
 
 	if (!isUIOpen(&soundEditor)) {
@@ -407,6 +410,11 @@ void SampleBrowser::runClaimCurrentFileOp(void*) {
 
 ActionResult SampleBrowser::backButtonAction() {
 	AudioEngine::stopAnyPreviewing();
+	// Back either leaves the browser or goes up a directory. Either way the file this was hovering
+	// is no longer the selection, and neither outcome dispatches a replacement preview to supersede
+	// a load already in flight -- the same shape as the folder branch. Going up re-selects through
+	// folderContentsReady(), which requests afresh.
+	cancelPreview();
 
 	return Browser::backButtonAction();
 }
@@ -582,7 +590,7 @@ bool SampleBrowser::dispatchPreview(const PreviewTarget& target) {
 	if (!deluge::storage::Owner::run(&SampleBrowser::runPreviewOp, this)) {
 		// Owner queue full → the op won't run, so release the guard (which would otherwise wedge
 		// single-flight forever) and leave the target for graphicsRoutine() to ask for again.
-		previewLoad_.releaseDispatch();
+		previewLoad_.release_dispatch();
 		return false;
 	}
 	return true;
@@ -596,14 +604,14 @@ void SampleBrowser::runPreviewOp(void* self) {
 	// this running, the cursor can have moved somewhere with no preview at all (a folder, an empty
 	// list), which dispatches no replacement and so supersedes nothing. Rendering the file the
 	// cursor has left -- drawing its waveform and sounding it over a folder -- is the damage.
-	const bool deferred = browser->previewLoad_.isCurrent(attempt) && browser->renderPreviewForTarget(attempt.target);
+	const bool deferred = browser->previewLoad_.is_current(attempt) && browser->renderPreviewForTarget(attempt.target);
 
 	// A deferral is recorded for graphicsRoutine() to re-drive (that surface runs every ~15 ms
 	// while this UI is up, and is the ONLY thing that finishes a deferred preview); if a newer
 	// target arrived while this ran, that one is dispatched instead (latest-wins).
 	if (auto next = browser->previewLoad_.complete(attempt, deferred); next.has_value()) {
 		if (!deluge::storage::Owner::run(&SampleBrowser::runPreviewOp, self)) {
-			browser->previewLoad_.releaseDispatch(); // re-dispatch dropped (see dispatchPreview)
+			browser->previewLoad_.release_dispatch(); // re-dispatch dropped (see dispatchPreview)
 		}
 	}
 }
@@ -617,12 +625,12 @@ void SampleBrowser::graphicsRoutine() {
 	// this is in flight. If the coalescer is already busy, request() queues this as the latest
 	// target and the running op picks it up on completion, so the re-drive is not lost there either.
 	//
-	// takePending() takes the target OUT before dispatching, not after: where the storage owner runs
+	// take_pending() takes the target OUT before dispatching, not after: where the storage owner runs
 	// its ops inline (legacy/host), runPreviewOp completes inside dispatchPreview and arms a second
 	// deferral -- and clearing afterwards would wipe exactly that. A dispatch that could not be
-	// queued re-arms it itself (dispatchPreview → releaseDispatch), so it is asked for again next
+	// queued re-arms it itself (dispatchPreview → release_dispatch), so it is asked for again next
 	// tick rather than dropped.
-	if (auto target = previewLoad_.takePending(); target.has_value()) {
+	if (auto target = previewLoad_.take_pending(); target.has_value()) {
 		(void)dispatchPreview(*target);
 	}
 
