@@ -1179,6 +1179,14 @@ void OLED::displayError(Error error) {
 	// again on a later tick, so nothing should ever reach here with it -- and if something does, the
 	// user must not be shown a popup that reads as a failed load.
 	case Error::LOAD_IN_PROGRESS:
+#if ALPHA_OR_BETA_VERSION
+		// Say so on the way out. A converted caller that forgets to ask again produces exactly this
+		// and nothing else: no sound, no waveform, no error -- indistinguishable from the user not
+		// having asked for anything. Returning SILENTLY is what made the missing re-drive invisible
+		// through nine gates; the next one to forget gets a line in the log instead.
+		D_PRINTLN("displayError(LOAD_IN_PROGRESS): a deferred load reached the display -- its caller "
+		          "is reporting the deferral instead of asking again");
+#endif
 		return;
 	default:
 		message = getErrorMessage(error).data();
