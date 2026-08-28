@@ -76,6 +76,14 @@ public:
 		queued_.reset();
 	}
 
+	/// @brief Discard the queued target, KEEPING the single-flight guard.
+	///
+	/// The half of reset() that applies when the dispatched op is still genuinely out there and will
+	/// still report back, but what was queued behind it is no longer wanted. Releasing the guard as
+	/// well would let a second op dispatch alongside the running one. Nothing is queued unless an op
+	/// is in flight, so on an idle instance this does nothing.
+	void clear_queued() { queued_.reset(); }
+
 	[[nodiscard]] bool in_flight() const { return in_flight_; }
 	[[nodiscard]] const T& current() const { return current_; }
 

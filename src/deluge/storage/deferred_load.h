@@ -39,7 +39,7 @@ namespace deluge::storage {
 ///     Every attempt therefore carries a GENERATION, and `cancel()` moves it; an op whose attempt
 ///     is stale must neither act on its result nor re-ask for it.
 ///  2. A deferral has to be remembered somewhere the caller's per-tick surface can find it. That
-///     is `takePending()`.
+///     is `take_pending()`.
 ///
 /// The generation moves on `cancel()` and on nothing else. In particular it does NOT move on
 /// `request()`: moving from one target to the next is ordinary supersession, and the in-flight op
@@ -75,7 +75,7 @@ public:
 		pending_.reset();
 		const bool dispatch = flight_.request(target);
 		if (dispatch) {
-			currentGeneration_ = generation_; // this target is current as of now
+			current_generation_ = generation_; // this target is current as of now
 		}
 		// Otherwise it is queued behind a running op, and becomes current in complete() — which is
 		// where its generation is stamped, since a cancellation may land in between.
@@ -85,13 +85,13 @@ public:
 	/// @brief The attempt a dispatched op is to work on.
 	///
 	/// Call this at the top of the op, before doing anything else with it.
-	[[nodiscard]] Attempt attempt() const { return Attempt{flight_.current(), currentGeneration_}; }
+	[[nodiscard]] Attempt attempt() const { return Attempt{flight_.current(), current_generation_}; }
 
 	/// @brief Is @p a still wanted?
 	///
 	/// Check this BEFORE doing the work, not merely before recording a deferral. Rendering a
 	/// cancelled target is the damage; a stale re-ask is only the mechanism that keeps rendering it.
-	[[nodiscard]] bool isCurrent(const Attempt& a) const { return a.generation == generation_; }
+	[[nodiscard]] bool is_current(const Attempt& a) const { return a.generation == generation_; }
 
 	/// @brief Report that the op working on @p a has finished.
 	///
@@ -99,17 +99,17 @@ public:
 	/// @param deferred Whether the work answered "not finished yet" and has to be asked for again.
 	/// @return The next target to dispatch if a newer one arrived while this op ran (latest-wins
 	///         re-dispatch), or nullopt. On nullopt with @p deferred set and @p a still current, the
-	///         target is armed for `takePending()` instead.
+	///         target is armed for `take_pending()` instead.
 	std::optional<T> complete(const Attempt& a, bool deferred) {
 		if (auto next = flight_.complete(); next.has_value()) {
 			// The newer target supersedes `a` even if `a` deferred: re-driving the older one would
 			// land a result for something the caller has already left. If the op about to run defers
 			// in turn, it records its OWN deferral.
 			pending_.reset();
-			currentGeneration_ = generation_; // it is current as of now, not as of when it was queued
+			current_generation_ = generation_; // it is current as of now, not as of when it was queued
 			return next;
 		}
-		if (deferred && isCurrent(a)) {
+		if (deferred && is_current(a)) {
 			pending_ = a.target;
 		}
 		// A stale attempt arriving here is what releases the single-flight guard `cancel()`
@@ -130,16 +130,10 @@ public:
 	void cancel() {
 		generation_++;
 		pending_.reset();
-		if (flight_.in_flight()) {
-			// Drop the queued target without releasing the guard. `LatestWins` only exposes the two
-			// together (`reset()`), so re-arm immediately: the guard ends up exactly as it was, with
-			// nothing queued behind it. Note this goes through `flight_` rather than this class's own
-			// request(), so `currentGeneration_` is deliberately left where it was: the re-armed
-			// target keeps the stale stamp it already had, and every op checks isCurrent() first.
-			T current = flight_.current();
-			flight_.reset();
-			(void)flight_.request(std::move(current));
-		}
+		// The queued target went in before the cancellation, so it is abandoned too. Dropped without
+		// releasing the guard, and without touching `current_generation_`: whatever is still in flight
+		// keeps the stamp it already had, which the bump above has just made stale.
+		flight_.clear_queued();
 	}
 
 	/// @brief Take the target of a load that deferred, for the caller's per-tick re-ask.
@@ -149,7 +143,7 @@ public:
 	/// wipe.
 	///
 	/// @return The target to ask for again, or nullopt if nothing deferred.
-	std::optional<T> takePending() { return std::exchange(pending_, std::nullopt); }
+	std::optional<T> take_pending() { return std::exchange(pending_, std::nullopt); }
 
 	/// @brief Whether a load deferred and is waiting to be asked for again.
 	[[nodiscard]] bool pending() const { return pending_.has_value(); }
@@ -157,9 +151,9 @@ public:
 	/// @brief Report that a dispatch the caller believed it had issued will never run.
 	///
 	/// Releases the single-flight guard (which would otherwise wedge forever) and arms the target
-	/// for `takePending()`, so the per-tick surface asks again rather than the target being lost
+	/// for `take_pending()`, so the per-tick surface asks again rather than the target being lost
 	/// with nothing sounded, drawn or reported.
-	void releaseDispatch() {
+	void release_dispatch() {
 		// `current()` is the target of the dispatch that failed: `request()` only returns true —
 		// which is the only thing that leads here — after making it current.
 		pending_ = flight_.current();
@@ -167,7 +161,7 @@ public:
 	}
 
 	/// @brief Whether an op is dispatched and has not reported back.
-	[[nodiscard]] bool inFlight() const { return flight_.in_flight(); }
+	[[nodiscard]] bool in_flight() const { return flight_.in_flight(); }
 
 private:
 	LatestWins<T> flight_{};
@@ -175,7 +169,7 @@ private:
 	/// Moves on cancel(), and on nothing else. The value everything is judged against.
 	uint32_t generation_ = 0;
 	/// The generation in force when `flight_.current()` became current.
-	uint32_t currentGeneration_ = 0;
+	uint32_t current_generation_ = 0;
 };
 
 } // namespace deluge::storage

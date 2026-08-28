@@ -11,7 +11,7 @@ describe deferred_load("deluge::storage::DeferredLoad", $ {
 		DeferredLoad<int> dl;
 		expect(dl.request(1)).to_be_true();
 		expect(dl.attempt().target).to_equal(1);
-		expect(dl.isCurrent(dl.attempt())).to_be_true();
+		expect(dl.is_current(dl.attempt())).to_be_true();
 	});
 
 	it("arms a re-ask when the work deferred", _ {
@@ -20,7 +20,7 @@ describe deferred_load("deluge::storage::DeferredLoad", $ {
 		auto next = dl.complete(dl.attempt(), /*deferred=*/true);
 		expect(next.has_value()).to_be_false();
 		expect(dl.pending()).to_be_true();
-		expect(dl.takePending().value_or(-1)).to_equal(1);
+		expect(dl.take_pending().value_or(-1)).to_equal(1);
 		expect(dl.pending()).to_be_false();
 	});
 
@@ -29,7 +29,7 @@ describe deferred_load("deluge::storage::DeferredLoad", $ {
 		dl.request(1);
 		(void)dl.complete(dl.attempt(), /*deferred=*/false);
 		expect(dl.pending()).to_be_false();
-		expect(dl.inFlight()).to_be_false();
+		expect(dl.in_flight()).to_be_false();
 	});
 
 	it("re-dispatches the latest target on completion, dropping the older deferral", _ {
@@ -51,7 +51,7 @@ describe deferred_load("deluge::storage::DeferredLoad", $ {
 		dl.request(1);
 		const auto first = dl.attempt();
 		dl.request(2);
-		expect(dl.isCurrent(first)).to_be_true();
+		expect(dl.is_current(first)).to_be_true();
 	});
 
 	it("cancel() makes the in-flight attempt stale", _ {
@@ -59,7 +59,7 @@ describe deferred_load("deluge::storage::DeferredLoad", $ {
 		dl.request(1);
 		const auto attempt = dl.attempt();
 		dl.cancel();
-		expect(dl.isCurrent(attempt)).to_be_false();
+		expect(dl.is_current(attempt)).to_be_false();
 	});
 
 	it("an attempt READ after the cancellation is stale too", _ {
@@ -70,7 +70,7 @@ describe deferred_load("deluge::storage::DeferredLoad", $ {
 		DeferredLoad<int> dl;
 		dl.request(1);
 		dl.cancel();
-		expect(dl.isCurrent(dl.attempt())).to_be_false();
+		expect(dl.is_current(dl.attempt())).to_be_false();
 	});
 
 	it("cancel() drops a pending re-ask", _ {
@@ -100,7 +100,7 @@ describe deferred_load("deluge::storage::DeferredLoad", $ {
 		const auto attempt = dl.attempt();
 		dl.cancel();
 		// An op is genuinely still out there: a second dispatch must not run alongside it.
-		expect(dl.inFlight()).to_be_true();
+		expect(dl.in_flight()).to_be_true();
 		expect(dl.request(2)).to_be_false();
 	});
 
@@ -112,7 +112,7 @@ describe deferred_load("deluge::storage::DeferredLoad", $ {
 		dl.cancel();    // nothing is wanted any more, 2 included
 		auto next = dl.complete(first, /*deferred=*/false);
 		expect(next.has_value()).to_be_false();
-		expect(dl.inFlight()).to_be_false();
+		expect(dl.in_flight()).to_be_false();
 	});
 
 	it("the guard is released by the stale op reporting back, not by cancel()", _ {
@@ -121,7 +121,7 @@ describe deferred_load("deluge::storage::DeferredLoad", $ {
 		const auto attempt = dl.attempt();
 		dl.cancel();
 		(void)dl.complete(attempt, /*deferred=*/true);
-		expect(dl.inFlight()).to_be_false();
+		expect(dl.in_flight()).to_be_false();
 		expect(dl.request(9)).to_be_true(); // not wedged
 	});
 
@@ -135,7 +135,7 @@ describe deferred_load("deluge::storage::DeferredLoad", $ {
 		expect(next.has_value()).to_be_true();
 		expect(next.value_or(-1)).to_equal(2);
 		// And that newer target IS wanted: cancel() moved the generation before it was requested.
-		expect(dl.isCurrent(dl.attempt())).to_be_true();
+		expect(dl.is_current(dl.attempt())).to_be_true();
 	});
 
 	it("request() supersedes a pending re-ask", _ {
@@ -146,13 +146,13 @@ describe deferred_load("deluge::storage::DeferredLoad", $ {
 		expect(dl.pending()).to_be_false();
 	});
 
-	it("releaseDispatch() un-wedges the guard and asks again for the dropped target", _ {
+	it("release_dispatch() un-wedges the guard and asks again for the dropped target", _ {
 		DeferredLoad<int> dl;
 		dl.request(7);
-		dl.releaseDispatch(); // the op was never queued, so it will never complete()
-		expect(dl.inFlight()).to_be_false();
+		dl.release_dispatch(); // the op was never queued, so it will never complete()
+		expect(dl.in_flight()).to_be_false();
 		expect(dl.pending()).to_be_true();
-		expect(dl.takePending().value_or(-1)).to_equal(7);
+		expect(dl.take_pending().value_or(-1)).to_equal(7);
 	});
 });
 // clang-format on
