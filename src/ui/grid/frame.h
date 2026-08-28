@@ -45,9 +45,10 @@ constexpr uint8_t kMaxLocalEvents = 32;
 /// tick and lets it die at the bottom; regions are built and destroyed inside one call. It is a
 /// borrowed view over the grid, the snapshot and the gate -- four references and a rectangle --
 /// so building one costs nothing and there is no reason to keep one alive between ticks. Nothing
-/// here *breaks* if a frame outlives its tick (`local_events()`'s cache is keyed on the snapshot's
-/// event span, so a refreshed snapshot invalidates it), but the lifetime the toolkit is written
-/// and tested against is one frame per tick.
+/// here *breaks* if a frame outlives its tick: `local_events()` re-filters `input.pads` on every
+/// call rather than caching, so a frame that is kept alive across ticks (or across two calls
+/// where the caller has mutated the same buffer in place) always sees the snapshot as it stands
+/// right now. But the lifetime the toolkit is written and tested against is one frame per tick.
 ///
 /// Two recorded deviations from spec B §4's code block, which does not compile as written:
 ///
@@ -102,14 +103,14 @@ struct GridFrame {
 	/// This tick's pad events that fall inside this frame, translated to local coordinates.
 	///
 	/// For multi-pad gestures (chords, drags) that `pad()`'s one-pad-at-a-time answer cannot
-	/// express. Filtered and translated into a fixed member buffer on first call and reused while
-	/// the snapshot's event span is unchanged -- no heap, and no cost at all for the components
-	/// that never ask. At most `kMaxLocalEvents` are kept; a tick with more events than that
-	/// inside one region loses the later ones, which is a lost gesture, never a corrupted one.
-	///
-	/// The cache is keyed on `input.pads`' `data()` and `size()`, not merely on "have I run
-	/// before": a frame that *is* reused across ticks over a refreshed snapshot (the rig shape
-	/// above) re-filters instead of answering with the previous tick's events.
+	/// express. Filtered and translated into a fixed member buffer, from scratch, on *every*
+	/// call -- there is no cache. Filtering `input.pads` (a handful of events, never heap-backed)
+	/// is O(events) and was measured free; a cache keyed on the span's identity is not a
+	/// meaningful saving and it is actively wrong: a caller that reuses one buffer across ticks
+	/// with the same pointer and the same count -- or mutates it in place between two calls on
+	/// the same frame -- would get back stale events instead of what `input.pads` holds right
+	/// now. At most `kMaxLocalEvents` are kept; a tick with more events than that inside one
+	/// region loses the later ones, which is a lost gesture, never a corrupted one.
 	///
 	/// The span points into this frame. It dangles the moment the frame does -- in particular a
 	/// span returned from inside a `region` body must not outlive that body.
@@ -140,22 +141,16 @@ struct GridFrame {
 		std::forward<F>(body)(child);
 	}
 
-	// Cache for local_events(). Mutable because local_events() is const in spec B §4 and filling
-	// the buffer is not an observable change -- the frame's identity is the four members above.
-	//
-	// Keyed on the snapshot's event span rather than on a filled flag: the snapshot is a
-	// reference, so the shell (or a test rig) can install a new tick's events behind a frame that
-	// is still alive, and a latched cache would then answer with the previous tick's events. A
-	// null `cached_pads_` means "never filled", which no real span can collide with while it has
-	// events -- and a genuinely empty span filters to an empty result either way.
+	// Scratch for local_events(), refilled from `input.pads` on every call -- not a cache; see the
+	// note on local_events() above. Mutable because local_events() is const in spec B §4 and
+	// filling the buffer is not an observable change -- the frame's identity is the four members
+	// above.
 	//
 	// These must stay LAST and keep their initialisers: `region` above builds its child by
 	// aggregate initialisation of the first four members, so GridFrame must remain an aggregate
 	// and nothing may be inserted between `gate` and here.
-	mutable PadEvent cached_local_[kMaxLocalEvents] = {};
-	mutable uint8_t cached_count_ = 0;
-	mutable const PadEvent* cached_pads_ = nullptr;
-	mutable size_t cached_pads_size_ = 0;
+	mutable PadEvent local_[kMaxLocalEvents] = {};
+	mutable uint8_t local_count_ = 0;
 };
 
 /// The root frame for a whole pad surface: the full grid, sidebar columns included.

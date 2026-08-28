@@ -25,6 +25,7 @@
 #include "memory/object_pool.h"
 #include "model/output.h"
 #include "util/containers.h"
+#include <atomic>
 #include <cstdint>
 #include <memory>
 
@@ -195,8 +196,16 @@ extern bool mustUpdateReverbParamsBeforeNextRender;
 extern bool bypassCulling;
 /// Raised by the render loop when it culled a voice and the high-CPU indicator is on; the UI tick
 /// consumes it and blinks the Play LED. A namespace-scope inline variable (one object across all
-/// TUs) -- not `static`, which would give each TU its own copy. [any]
-inline bool cull_alert_pending = false;
+/// TUs) -- not `static`, which would give each TU's own copy. [any]
+///
+/// `std::atomic<bool>` because the write is on the audio render path and the read-and-clear is on
+/// the UI drain: two threads (or, on the RZ/A1, an audio ISR and mainline UI code) touching a
+/// plain `bool` without synchronisation is a data race even though both sides only ever write a
+/// single boolean value. `memory_order_relaxed` is enough -- this carries no other memory with it,
+/// it is just a flag -- so the drain clears it with `exchange(false, std::memory_order_relaxed)`
+/// rather than a separate load-then-store, which would race the render loop setting it again
+/// between the two.
+inline std::atomic<bool> cull_alert_pending{false};
 // The app-owned input ring. A mirror of the received audio input, filled by the
 // audio routine ahead of each render window; everything in the application that
 // consumes live input (monitoring, INPUT_L/R oscillators, live input buffers,

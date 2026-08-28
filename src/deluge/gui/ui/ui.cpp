@@ -377,20 +377,20 @@ void doAnyPendingUIRendering() {
 		return; // There's no point going in here multiple times inside each other
 	}
 
-	if (deluge_control_pad_output_space() <= (kNumBytesInMainPadRedraw + kNumBytesInSidebarRedraw) * 2) {
-		return; // Trialling the *2 to fix flickering when flicking through presets very fast
-	}
-
 	pendingUIRenderingLock = true;
 
-	// Still the first thing done under the lock: the drain can perform real UI mutation (playback
-	// hook re-dispatch, mod-target refresh, popups, tick-square clears), so it must run before any
-	// legacy rendering below -- and now that it's inside the lock, a render it triggers can't
+	// Runs before the pad-output-space gate below, not after: notices and playback-hook edges
+	// (count-in, the cull-alert LED blink) must never be starved by pad TX back-pressure, and the
+	// drain's ring is only 16 deep, so a notice delayed long enough gets overwritten, not merely
+	// late. Still the first thing done under the lock, so a render the drain triggers can't
 	// re-enter this function and drain a second time within the same pass.
 	drain_notifications();
 
-	doAnyPendingGridRendering();
-	doAnyPendingOLEDRendering();
+	if (deluge_control_pad_output_space() > (kNumBytesInMainPadRedraw + kNumBytesInSidebarRedraw) * 2) {
+		// Trialling the *2 to fix flickering when flicking through presets very fast
+		doAnyPendingGridRendering();
+		doAnyPendingOLEDRendering();
+	}
 
 	pendingUIRenderingLock = false;
 }

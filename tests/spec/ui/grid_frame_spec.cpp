@@ -155,6 +155,25 @@ describe grid_frame("ui::grid::GridFrame", $ {
 		r.input.pads = {};                                               // and a tick with none
 		expect(r.frame.local_events().size()).to_equal(size_t(0));
 	});
+	it("never caches: the same span's contents changing under one frame is seen immediately", _ {
+		// A shell that refills one fixed buffer each tick with the *same* event count gives
+		// local_events() the same pointer and the same size on both ticks -- a cache keyed on
+		// those (frame.cpp's old cached_pads_/cached_pads_size_) would wrongly answer with the
+		// first tick's events. There must be no cache at all: every call re-filters.
+		uitest::GridRig r;
+		PadEvent buf[2] = {{3, 5, 100, true}, {9, 9, 1, true}};
+		r.input.pads = buf;
+		r.frame.region(Rect{0, 0, 8, 8}, [&](GridFrame& f) {
+			expect(f.local_events().size()).to_equal(size_t(1));   // (9,9) is outside the region
+			expect(int(f.local_events()[0].x)).to_equal(3);
+			expect(int(f.local_events()[0].y)).to_equal(5);
+
+			buf[0] = PadEvent{4, 4, 50, true};   // same pointer, same size -- only the content changed
+			expect(f.local_events().size()).to_equal(size_t(1));
+			expect(int(f.local_events()[0].x)).to_equal(4);
+			expect(int(f.local_events()[0].y)).to_equal(4);
+		});
+	});
 	it("finds the first press inside a rectangle, in frame coordinates", _ {
 		uitest::GridRig r;
 		PadEvent ev[] = {{2, 1, 30, false}, {5, 6, 77, true}, {5, 2, 90, true}, {12, 0, 40, true}};

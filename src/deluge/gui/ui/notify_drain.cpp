@@ -118,9 +118,10 @@ void drain_notifications() {
 	}
 
 	// Voice culling asked for the Play LED alert. Same "don't restart an existing blink" guard the
-	// audio path used to apply itself.
-	if (AudioEngine::cull_alert_pending) {
-		AudioEngine::cull_alert_pending = false;
+	// audio path used to apply itself. exchange(false, relaxed), not a load then a store: the
+	// audio render path can set the flag again between the two, and a plain store here would
+	// silently drop that re-raise.
+	if (AudioEngine::cull_alert_pending.exchange(false, std::memory_order_relaxed)) {
 		if (indicator_leds::getLedBlinkerIndex(IndicatorLED::PLAY) == 255) {
 			indicator_leds::indicateAlertOnLed(IndicatorLED::PLAY);
 		}
