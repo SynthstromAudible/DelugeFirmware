@@ -20,9 +20,13 @@
 //! # What this file is
 //!
 //! Nothing is reimplemented here. `src/bsp/rust/tests/audio_loader_host.rs` is
-//! included verbatim through `#[path]`, and it in turn `#[path]`-includes
-//! `src/bsp/rust/src/audio_loader.rs`; both relative paths resolve against the
-//! included file's real location, so the nesting needs no help from this side.
+//! included verbatim through `#[path]`, and it in turn `#[path]`-includes both
+//! `src/bsp/rust/src/audio_loader.rs` and `src/bsp/rust/src/card.rs` (the
+//! ejection hook the generation-belt tests drive); every relative path resolves
+//! against the including file's real location, so the nesting needs no help from
+//! this side. `card.rs` reaches its loader as `super::audio_loader` rather than
+//! `crate::audio_loader` precisely so that it resolves HERE too, where those
+//! modules sit one level below the crate root instead of at it.
 //! Every `#[test]` in that file is registered in this binary's harness.
 //!
 //! The included file is a crate root in its own package and a module here. That
@@ -34,8 +38,11 @@
 //!
 //! Three dependencies are duplicated literals across the two manifests, with
 //! nothing holding them equal: **`heapless`, `embassy-sync`, and
-//! `embassy-futures`**. (`deluge_audio_format` is exempt — it is a path
-//! dependency to the same directory from both, so it cannot drift.)
+//! `embassy-futures`**. (`deluge_audio_format` and `deluge_card_generation` are
+//! both exempt — each is a path dependency to the same directory from both
+//! manifests, so neither can drift. `deluge_card_generation` matters most of the
+//! three: a second copy of that crate would be a second card-generation counter,
+//! and these tests would then be pinning a belt the firmware does not wear.)
 //!
 //! Drift that changes an API fails loudly and immediately, which is fine. The
 //! case to watch is the quiet one: a BSP bump to a version with the same API and

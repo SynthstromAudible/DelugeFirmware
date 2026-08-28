@@ -173,17 +173,23 @@ public:
 
 	void setCardRead() { cardReadOnce = true; }
 
-	/// @brief Mark the card gone, and discard everything the async loader parsed from it.
+	/// @brief Mark the card gone, and discard everything every loader read from it.
 	///
-	/// Out of line, and not merely for the flush's sake: everything the loader holds is keyed by the
-	/// nominal path with no record of which card produced it, so a header parsed from one card and
-	/// collected after another is inserted binds the NEW card's file to the OLD card's geometry --
-	/// a load that reports no error and plays the wrong thing.
+	/// Out of line, and not merely for the flush's sake: what a loader holds is keyed by the nominal
+	/// path with no record of which card produced it, so a header parsed from one card and collected
+	/// after another is inserted binds the NEW card's file to the OLD card's geometry -- a load that
+	/// reports no error and plays the wrong thing.
 	///
-	/// This runs on the interaction tier, the same tier as the collect, so the flush is correctly
-	/// ordered against any collect that could otherwise consume a stale result. The re-insert path
-	/// (reinitEjectedCard) is deliberately NOT the hook: flushing there would leave the window open
-	/// for as long as the slot stayed empty.
+	/// The flush is card-scoped rather than loader-scoped (libdeluge/card.h's deluge_card_flush):
+	/// one ejection invalidates every loader at once, and they share one card generation to say so.
+	/// What makes a stale result unusable is that stamp, compared when the result is TAKEN -- never
+	/// this call's table clears, which are best-effort and may not land at all, and never an
+	/// argument about which tier the two sides run on. A loader owns its own executor on device but
+	/// a plain thread on a host build, so any claim of the form "these two cannot run at once" is
+	/// false on some configuration that ships this code.
+	///
+	/// The re-insert path (reinitEjectedCard) is deliberately NOT the hook: flushing there would
+	/// leave the window open for as long as the slot stayed empty.
 	void setCardEjected();
 
 	/// @brief Re-initialise the SD card if it is currently marked ejected, clearing the flag on success.

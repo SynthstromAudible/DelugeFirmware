@@ -908,13 +908,14 @@ fn taking_from_the_middle_keeps_the_eviction_order() {
 
 // ── The generation belt: the stamp on the RESIDENT entry ────────────────────
 //
-// `flush()` bumps the generation unconditionally but `try_lock`s the tables, so a
-// contended `RESULTS` is left populated -- and there is no happens-before edge
-// from that bump to a concurrent `publish_result`'s read of it, so a publish can
-// also legitimately pass its own pre-insert check and land after the flush. Both
-// leave a stale entry resident, and neither is hypothetical on `host_app` builds,
-// where the loader is a plain `std::thread` alongside the app rather than an
-// interrupt executor.
+// `deluge_card_flush` bumps the generation unconditionally -- that half cannot
+// fail -- but the table clears it then calls are `flush_tables`'s, and those are
+// `try_lock`ed, so a contended `RESULTS` is left populated. And there is no
+// happens-before edge from that bump to a concurrent `publish_result`'s read of
+// it, so a publish can also legitimately pass its own pre-insert check and land
+// after the flush. Both leave a stale entry resident, and neither is hypothetical
+// on `host_app` builds, where the loader is a plain `std::thread` alongside the
+// app rather than an interrupt executor.
 //
 // What makes those harmless is that the entry carries the generation it was
 // published under and `take_from` compares it against the generation the TAKER is
@@ -948,11 +949,12 @@ fn an_entry_from_a_previous_card_is_dropped_not_returned() {
 /// The TAKER's current generation is the only thing that decides -- which is what
 /// covers the case `publish_result`'s pre-insert check structurally cannot.
 ///
-/// The scenario: `flush()` has already bumped to `CARD + 1` and failed (or not yet
-/// tried) to clear the table. The loader, which sampled `CARD` before its I/O,
-/// wins the `RESULTS` lock and publishes anyway -- its check reads whatever the
-/// bump has not yet been ordered against, so assume it passes. The entry lands.
-/// It must still be uncollectable, and its `CARD + 1` neighbour must not be.
+/// The scenario: `deluge_card_flush` has already bumped to `CARD + 1`, and
+/// `flush_tables` has failed (or not yet tried) to clear the table. The loader,
+/// which sampled `CARD` before its I/O, wins the `RESULTS` lock and publishes
+/// anyway -- its check reads whatever the bump has not yet been ordered against,
+/// so assume it passes. The entry lands. It must still be uncollectable, and its
+/// `CARD + 1` neighbour must not be.
 #[test]
 fn a_result_stamped_before_a_flush_cannot_be_taken_after_it() {
     let mut table = ResultTable::new();
