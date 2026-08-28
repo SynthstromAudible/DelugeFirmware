@@ -26,9 +26,10 @@ int32_t add_clamped(int32_t value, int64_t delta, Range range) {
 }
 
 /// The `edit[]` pair as one signed amount: `edit[0]` (GoldUpper) at \p coarse per detent and
-/// `edit[1]` (GoldLower) at \p fine. See the fine/coarse note in values.h.
-int64_t edit_delta(const InputSnapshot& in, int32_t coarse, int32_t fine) {
-	return static_cast<int64_t>(in.edit[0]) * coarse + static_cast<int64_t>(in.edit[1]) * fine;
+/// `edit[1]` (GoldLower) at \p fine. See the fine/coarse note in values.h. Read through the
+/// frame, so an unfocused frame contributes nothing.
+int64_t edit_delta(const OledFrame& f, int32_t coarse, int32_t fine) {
+	return static_cast<int64_t>(f.edit(0)) * coarse + static_cast<int64_t>(f.edit(1)) * fine;
 }
 
 /// A `step` of 0 would freeze the coarse knob; legacy had no such value (its step was always 1),
@@ -37,12 +38,16 @@ int32_t coarse_step(Range range) {
 	return range.step != 0 ? range.step : 1;
 }
 
-/// The same frame with `input.turn` zeroed, for the widgets that move their own cursor and must
-/// stop `list` from moving it a second time. \p masked must outlive the returned frame.
-OledFrame without_turn(const OledFrame& f, InputSnapshot& masked) {
-	masked = f.input;
-	masked.turn = 0;
-	return OledFrame{f.canvas, f.clip, f.origin, f.size, f.style, masked, f.gate};
+/// The same region, rendered *unfocused*: same canvas, clip, origin and size, no input.
+///
+/// The composite widgets below (`enum_value`, `toggle`) own the select encoder themselves and
+/// draw a `list` only for its window and highlight. An unfocused frame is the contract's way to
+/// say exactly that (ui/core/frame_context.h rule 3): the list paints pixel for pixel as it would
+/// have, reads no turn and no press, and claims nothing -- the outer widget has already claimed
+/// both. It replaces an earlier `without_turn` helper that copied the snapshot with `turn` zeroed,
+/// which masked one field by hand and left the rest for a widget to consume twice.
+OledFrame unfocused(const OledFrame& f) {
+	return OledFrame{f.canvas, f.clip, f.origin, f.size, f.style, f.ctx, false};
 }
 
 /// `10^exponent`, saturated at INT32_MAX -- legacy's `numberEditSize`, built by the same
@@ -77,13 +82,15 @@ Response int_value(OledFrame& f, Rect rect, int32_t& value, Range range, ValueSt
 
 	if (focused) {
 		// Integer::selectEncoderAction (integer.cpp:25-39): add, then clamp to [min, max].
-		const int64_t delta = edit_delta(f.input, coarse_step(range), 1);
+		f.claim_edit(0);
+		f.claim_edit(1);
+		const int64_t delta = edit_delta(f, coarse_step(range), 1);
 		if (delta != 0) {
 			const int32_t next = add_clamped(value, delta, range);
 			if (next != value) {
 				value = next;
 				resp.changed = true;
-				f.gate.request_repaint();
+				f.gate().request_repaint();
 			}
 		}
 	}
@@ -120,7 +127,7 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
                        Blink& blink, bool focused) {
 	Response resp{};
 	resp.focused = focused;
-	const uint32_t now = f.input.now_ms;
+	const uint32_t now = f.now_ms();
 	const int32_t num_decimal_places = places;
 	edit_pos = static_cast<int8_t>(std::max<int32_t>(0, edit_pos));
 
@@ -128,7 +135,10 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
 	if (focused) {
 		// Decimal::horizontalEncoderAction, decimal.cpp:83-101: one place per tick, right when
 		// positive, left when the next place up is still inside the range.
-		const int8_t horizontal = f.input.horizontal;
+		f.claim_horizontal();
+		f.claim_edit(0);
+		f.claim_edit(1);
+		const int8_t horizontal = f.horizontal();
 		// decimal.cpp:98 sets movingCursor *after and outside* the if/else at :84-96, so a tick
 		// blocked by either bound below still restarts the blink lit.
 		horizontal_ticked = horizontal != 0;
@@ -141,13 +151,13 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
 
 		// Decimal::selectEncoderAction, decimal.cpp:57-79: the value moves by numberEditSize per
 		// detent (decimal.cpp:39-42 builds that as 10^numberEditPos), then clamps.
-		const int64_t delta = edit_delta(f.input, pow10(edit_pos), coarse_step(range));
+		const int64_t delta = edit_delta(f, pow10(edit_pos), coarse_step(range));
 		if (delta != 0) {
 			const int32_t next = add_clamped(value, delta, range);
 			if (next != value) {
 				value = next;
 				resp.changed = true;
-				f.gate.request_repaint();
+				f.gate().request_repaint();
 			}
 		}
 	}
@@ -166,7 +176,7 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
 	else if (resp.changed) {
 		blink.until_ms = now;
 	}
-	f.gate.request_repaint_after(blink_next_flip_in(blink, now), now);
+	f.gate().request_repaint_after(blink_next_flip_in(blink, now), now);
 
 	// Everything below is decimal.cpp:128-163 verbatim. The x arithmetic is relative to `rect`,
 	// which at f.bounds() on the root frame is legacy's OLED_MAIN_WIDTH_PIXELS span; the two y
@@ -244,15 +254,17 @@ Response enum_value(OledFrame& f, Rect rect, int32_t& index, std::span<const std
 	}
 
 	// Enumeration::selectEncoderAction, enumeration.cpp:18-36.
+	f.claim_turn();
+	f.claim_select();
 	int32_t next = std::clamp<int32_t>(index, 0, n - 1);
-	if (f.input.turn != 0) {
-		next += f.input.turn;
+	if (f.turn() != 0) {
+		next += f.turn();
 		next = wrap ? ((next % n) + n) % n : std::clamp<int32_t>(next, 0, n - 1);
 	}
 	resp.changed = next != index;
 	index = next;
 	if (resp.changed) {
-		f.gate.request_repaint();
+		f.gate().request_repaint();
 	}
 
 	const int32_t visible = std::min<int32_t>(list_visible_rows(f, rect), kMaxWindowRows);
@@ -268,11 +280,12 @@ Response enum_value(OledFrame& f, Rect rect, int32_t& index, std::span<const std
 	// visible count that always comes out at 0 -- the slice already *is* the window.
 	ListState windowed{
 	    .cursor = static_cast<int16_t>(index - start), .scroll = 0, .rows_last = static_cast<int16_t>(count)};
-	InputSnapshot masked{};
-	OledFrame inner = without_turn(f, masked);
-	const Response inner_resp =
-	    list(inner, rect, windowed, std::span{window.data(), static_cast<size_t>(count)}, scroll_label);
-	resp.entered = inner_resp.entered;
+	OledFrame inner = unfocused(f);
+	list(inner, rect, windowed, std::span{window.data(), static_cast<size_t>(count)}, scroll_label);
+	// The press is this widget's, not the inner list's: every row it built is selectable (the
+	// `selectable` default), so `list`'s own `entered` was always exactly this -- and the inner
+	// frame is unfocused, so it no longer reports one at all.
+	resp.entered = f.select_pressed();
 
 	state.cursor = static_cast<int16_t>(index);
 	state.scroll = static_cast<int16_t>(start);
@@ -284,21 +297,22 @@ Response toggle(OledFrame& f, Rect rect, bool& value, std::string_view off_label
                 ScrollText& scroll_label) {
 	Response resp{};
 
+	f.claim_turn();
+	f.claim_select();
 	bool next = value;
-	if (f.input.turn != 0) {
-		next = f.input.turn > 0; // Toggle::selectEncoderAction, toggle.cpp:14-17
+	if (f.turn() != 0) {
+		next = f.turn() > 0; // Toggle::selectEncoderAction, toggle.cpp:14-17
 	}
 	resp.changed = next != value;
 	value = next;
 	if (resp.changed) {
-		f.gate.request_repaint();
+		f.gate().request_repaint();
 	}
 
 	// toggle.cpp:29-42 -- `bool order[2] = {false, true}`, the current one highlighted.
 	const std::array<ListRow, 2> rows{ListRow{.label = off_label}, ListRow{.label = on_label}};
 	ListState windowed{.cursor = static_cast<int16_t>(value ? 1 : 0), .scroll = 0, .rows_last = 2};
-	InputSnapshot masked{};
-	OledFrame inner = without_turn(f, masked);
+	OledFrame inner = unfocused(f);
 	list(inner, rect, windowed, std::span{rows}, scroll_label);
 
 	// On this screen the Toggle is the current menu item, so selectButtonPress takes the
@@ -306,7 +320,7 @@ Response toggle(OledFrame& f, Rect rect, bool& value, std::string_view off_label
 	// (toggle.h:35-36); sound_editor.cpp:357 + :386-389 then goes up a level. The toggleValue()
 	// branch (toggle.h:39-43) is for a Toggle drawn as a row inside a Submenu, not for this
 	// widget. So the press is reported and the scene navigates -- as with enum_value.
-	resp.entered = f.input.select_pressed;
+	resp.entered = f.select_pressed();
 	return resp;
 }
 

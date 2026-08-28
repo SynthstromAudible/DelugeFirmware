@@ -9,15 +9,15 @@ using gfx::oled::kEdge;
 using gfx::oled::Point;
 using gfx::oled::Rect;
 
-OledFrame root_frame(gfx::oled::Canvas& canvas, const Style& style, const InputSnapshot& input, RepaintGate& gate) {
+OledFrame root_frame(gfx::oled::Canvas& canvas, const Style& style, FrameContext& ctx) {
 	const gfx::oled::Geometry g = canvas.geometry();
 	return OledFrame{canvas,
 	                 Rect{0, g.visible_top, g.width, g.visible_height()},
 	                 Point{0, g.visible_top},
 	                 gfx::oled::Size{g.width, g.visible_height()},
 	                 style,
-	                 input,
-	                 gate};
+	                 ctx,
+	                 true};
 }
 
 namespace {

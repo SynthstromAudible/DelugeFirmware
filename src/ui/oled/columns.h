@@ -117,7 +117,7 @@ Paging paging_of(std::span<const Column> cols, int32_t focused);
 ///
 /// Focus and paging (spec B section 5; legacy moved focus with the instrument buttons, not with
 /// an encoder, so there is no legacy turn behaviour to port):
-///   - `state.focused` indexes `cols` as a whole, not the page. `input.turn` walks it one
+///   - `state.focused` indexes `cols` as a whole, not the page. `f.turn()` walks it one
 ///     *relevant* column per detent and stops at either end without wrapping, the same walk
 ///     `list` makes over its selectable rows. `Response::changed` reports that it moved, and
 ///     requests a repaint.

@@ -265,7 +265,7 @@ describe list_w("ui::oled::list", $ {
 		uitest::Rig48 r;
 		Style plain = kDelugeStyle48;
 		plain.invert_highlight = false;
-		OledFrame f = root_frame(r.canvas, plain, r.input, r.gate);
+		OledFrame f = root_frame(r.canvas, plain, r.ctx);
 		ListState st; ScrollText sc;
 		list(f, menu_rect(f), st, rows, sc);
 		for (int y = 19; y <= 27; y++) {
@@ -315,7 +315,7 @@ describe list_w("ui::oled::list", $ {
 		uitest::Rig48 r;
 		Style plain = kDelugeStyle48;
 		plain.invert_highlight = false;
-		OledFrame f = root_frame(r.canvas, plain, r.input, r.gate);
+		OledFrame f = root_frame(r.canvas, plain, r.ctx);
 		ListState st; ScrollText sc;
 		const Rect m = menu_rect(f);
 		r.input.now_ms = 0;             list(f, m, st, rows, sc);

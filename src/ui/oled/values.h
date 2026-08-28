@@ -59,9 +59,9 @@ static_assert(kMaxWindowRows >= kDelugeStyle48.menu_rows && kMaxWindowRows >= kD
 ///
 /// Editing, only while \p focused (spec B section 3: `edit[]` changes the focused value, with no
 /// modal edit state):
-///   - `input.edit[0]` (GoldUpper) moves the value by `range.step` per detent -- the coarse
+///   - `f.edit(0)` (GoldUpper) moves the value by `range.step` per detent -- the coarse
 ///     knob;
-///   - `input.edit[1]` (GoldLower) moves it by one unit per detent -- the fine knob.
+///   - `f.edit(1)` (GoldLower) moves it by one unit per detent -- the fine knob.
 /// The coarse/fine split is legacy's only precedent for two edit granularities on one number,
 /// `Decimal::getNumberEditSize` (decimal.cpp:49-55), which likewise pairs a coarse step with a
 /// 1-unit fine one; `Integer::selectEncoderAction` itself has a single encoder and a `step` of 1
@@ -125,7 +125,7 @@ Response int_value(OledFrame& f, gfx::oled::Rect rect, int32_t& value, Range ran
 /// been armed for a decimal cursor yet", which means a `Blink` shared with a widget that wants a
 /// different period would be re-anchored on every frame. One `Blink` per cursor.
 ///
-/// `input.horizontal` moves \p edit_pos, one place per non-zero tick, exactly as
+/// `f.horizontal()` moves \p edit_pos, one place per non-zero tick, exactly as
 /// `Decimal::horizontalEncoderAction` (decimal.cpp:83-101): a positive tick moves the cursor
 /// right (`edit_pos--`, floored at 0), a negative tick moves it left (`edit_pos++`) only while
 /// the next place up is still reachable inside `range.max` (legacy `numberEditSize * 10 <=
@@ -134,8 +134,8 @@ Response int_value(OledFrame& f, gfx::oled::Rect rect, int32_t& value, Range ran
 /// outside the `if/else` at :84-96, and then renders, so `setupBlink(..., true)` (:163) inverts
 /// the band immediately either way.
 ///
-/// `input.edit[0]` moves the value by `10^edit_pos` per detent -- legacy's `numberEditSize`
-/// (decimal.cpp:39-42, 58) -- and `input.edit[1]` by `range.step`, the fine amount. Both only
+/// `f.edit(0)` moves the value by `10^edit_pos` per detent -- legacy's `numberEditSize`
+/// (decimal.cpp:39-42, 58) -- and `f.edit(1)` by `range.step`, the fine amount. Both only
 /// while \p focused. The clamp is `add_clamped`'s, i.e. both ends at once;
 /// `Decimal::selectEncoderAction` clamps only in the turn's own direction (decimal.cpp:60-74),
 /// which differs solely when the incoming value already sits outside `[min, max]` and the turn is
@@ -157,7 +157,9 @@ Response decimal_value(OledFrame& f, gfx::oled::Rect rect, int32_t& value, Range
 /// wrapped into `[0, n)` when \p wrap and clamped to it otherwise. `Enumeration::wrapAround`
 /// returns false by default (enumeration.cpp:12-16), which is why \p wrap defaults to false.
 /// `list`'s own clamping walk is bypassed -- it is `Submenu`'s, not `Enumeration`'s, and cannot
-/// wrap -- by handing `list` a frame whose `input.turn` is zeroed.
+/// wrap -- by rendering `list` through an *unfocused* frame: it draws the window and the
+/// highlight and reads no input at all (ui/core/frame_context.h rule 3). The press is reported by
+/// `enum_value` itself, which has claimed both the turn and the select for the tick.
 ///
 /// Spec B section 6's catalogue row also says "name + arrows". `Selection::drawPixelsForOled`
 /// draws no arrows -- it hands the options straight to `MenuItem::drawItemsForOled`

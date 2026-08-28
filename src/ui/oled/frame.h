@@ -2,6 +2,7 @@
 #include "gfx/oled/canvas.h"
 #include "gfx/oled/geometry.h"
 #include "gfx/oled/icon.h"
+#include "ui/core/frame_context.h"
 #include "ui/core/input.h"
 #include "ui/core/repaint_gate.h"
 #include "ui/core/style.h"
@@ -72,31 +73,101 @@ struct OledFrame {
 	gfx::oled::Point origin; ///< local (0,0) in canvas coordinates
 	gfx::oled::Size size;    ///< the region's own extent, before clipping
 	const Style& style;
-	const InputSnapshot& input;
-	RepaintGate& gate;
+	/// This tick's input, gate and claim set, shared by every frame in the tree.
+	FrameContext& ctx;
+	/// Is this frame the live one? See the input-consumption contract in ui/core/frame_context.h:
+	/// an unfocused frame draws exactly as a focused one and reads zero input.
+	bool focused = true;
 
 	/// The frame's extent in local coordinates: spec B §4's `{0, 0, w, h}`.
 	///
-	/// This is the region's *requested* size, not the visible part of it. Local `(0, 0)` stays
-	/// the region's own corner even when the region hangs off the parent's left or top edge, so
-	/// a widget's layout arithmetic does not shift under it; the pixels that fall outside are
-	/// clipped away. Reporting the clipped size instead would silently move the origin for a
-	/// left/top overhang, which is worse than drawing nothing there.
+	/// This is the region's *requested* size, not the visible part of it -- `visible()` is that.
+	/// Local `(0, 0)` stays the region's own corner even when the region hangs off the parent's
+	/// left or top edge, so a widget's layout arithmetic does not shift under it; the pixels that
+	/// fall outside are clipped away. Reporting the clipped size instead would silently move the
+	/// origin for a left/top overhang, which is worse than drawing nothing there.
 	gfx::oled::Rect bounds() const { return {0, 0, size.w, size.h}; }
+
+	/// The part of `bounds()` that can actually reach the framebuffer, in the same local
+	/// coordinates: `clip` translated back through `origin`. Equal to `bounds()` for a region that
+	/// fits inside its parent, and empty (`w == 0` or `h == 0`) for one entirely outside it.
+	///
+	/// Drawing never needs this -- every primitive clips itself -- but a widget that *measures*
+	/// does: "how many rows can be seen here" is a different question from "how tall was I asked
+	/// to be", and only the second one may drive layout.
+	gfx::oled::Rect visible() const { return {clip.x - origin.x, clip.y - origin.y, clip.w, clip.h}; }
+
+	/// @{
+	/// @name Input
+	///
+	/// The only way a widget reads input (contract rule 1, ui/core/frame_context.h). Every
+	/// accessor here is masked by `focused`: an unfocused frame reports no detents, no presses, no
+	/// shift and no clock, so a widget drawn inside one cannot move. `claim_*()` records that this
+	/// control owns the input for the tick, and is a no-op on an unfocused frame for the same
+	/// reason -- a widget that consumed nothing owns nothing.
+
+	int8_t turn() const { return focused ? ctx.input.turn : int8_t{0}; }
+	/// \p i is 0 (GoldUpper, coarse) or 1 (GoldLower, fine); anything else reads 0.
+	int8_t edit(int i) const { return (focused && i >= 0 && i < 2) ? ctx.input.edit[i] : int8_t{0}; }
+	int8_t horizontal() const { return focused ? ctx.input.horizontal : int8_t{0}; }
+	int8_t vertical() const { return focused ? ctx.input.vertical : int8_t{0}; }
+	bool select_pressed() const { return focused && ctx.input.select_pressed; }
+	bool back_pressed() const { return focused && ctx.input.back_pressed; }
+	bool shift() const { return focused && ctx.input.shift; }
+	/// This tick's millisecond clock, masked like the rest: an unfocused frame reads 0, so a
+	/// widget drawn for its looks alone does not advance its own animations.
+	uint32_t now_ms() const { return focused ? ctx.input.now_ms : 0u; }
+
+	void claim_turn() const { set_claim(&InputClaims::turn); }
+	void claim_edit(int i) const {
+		if (i == 0) {
+			set_claim(&InputClaims::edit0);
+		}
+		else if (i == 1) {
+			set_claim(&InputClaims::edit1);
+		}
+	}
+	void claim_horizontal() const { set_claim(&InputClaims::horizontal); }
+	void claim_vertical() const { set_claim(&InputClaims::vertical); }
+	void claim_select() const { set_claim(&InputClaims::select); }
+	void claim_back() const { set_claim(&InputClaims::back); }
+
+	/// Set one claim flag, on a focused frame only -- the whole of the "claims are no-ops when
+	/// unfocused" rule, written once. Public because `OledFrame` has no private section (see the
+	/// aggregate note at the bottom); widgets call the named `claim_*()` methods above.
+	void set_claim(bool InputClaims::* flag) const {
+		if (focused) {
+			ctx.claims.*flag = true;
+		}
+	}
+	/// @}
+
+	/// The surface's repaint gate. A widget with motion schedules its next frame through this;
+	/// focus does not mask it, because an unfocused widget still has to be redrawn.
+	RepaintGate& gate() const { return ctx.gate; }
 
 	/// Run \p body against a sub-frame whose (0,0) is `local`'s corner and whose clip is
 	/// `local` intersected with this frame's. Nests to any depth; panes route their own
 	/// drawing with no routing code.
 	///
 	/// @param local the sub-rectangle, in this frame's coordinates
+	/// @param child_focused may only *narrow* focus: the child is focused when this frame is and
+	///        this argument is true. Defaults to true, i.e. "inherit".
 	/// @param body invoked as `body(OledFrame&)`
 	template <class F>
-	void region(gfx::oled::Rect local, F&& body) {
+	void region(gfx::oled::Rect local, bool child_focused, F&& body) {
 		const gfx::oled::Point child_origin{origin.x + local.x, origin.y + local.y};
 		const gfx::oled::Rect child_clip =
 		    clip.intersect(gfx::oled::Rect{child_origin.x, child_origin.y, local.w, local.h});
-		OledFrame child{canvas, child_clip, child_origin, gfx::oled::Size{local.w, local.h}, style, input, gate};
+		OledFrame child{
+		    canvas, child_clip, child_origin, gfx::oled::Size{local.w, local.h}, style, ctx, focused && child_focused};
 		std::forward<F>(body)(child);
+	}
+
+	/// `region(local, true, body)`: a child that inherits this frame's focus.
+	template <class F>
+	void region(gfx::oled::Rect local, F&& body) {
+		region(local, true, std::forward<F>(body));
 	}
 
 	/// @{
@@ -158,11 +229,13 @@ struct OledFrame {
 
 	// Deliberately no private section, and no data member may be added below the public ones:
 	// OledFrame must stay an aggregate, because `region` above builds its child with aggregate
-	// initialisation. Helpers live in frame.cpp.
+	// initialisation of `canvas, clip, origin, size, style, ctx, focused` in that order. Helpers
+	// live in frame.cpp.
 };
 
-/// The root frame for a whole panel: origin at the top of the *visible* area, clipped to it.
+/// The root frame for a whole panel: origin at the top of the *visible* area, clipped to it,
+/// and focused (the root of a surface is always live; regions below it narrow).
 /// No widget below this point knows the bezel exists.
-OledFrame root_frame(gfx::oled::Canvas& canvas, const Style& style, const InputSnapshot& input, RepaintGate& gate);
+OledFrame root_frame(gfx::oled::Canvas& canvas, const Style& style, FrameContext& ctx);
 
 } // namespace deluge::ui::oled

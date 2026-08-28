@@ -628,7 +628,7 @@ describe columns_w("ui::oled::columns", $ {
 		uitest::Rig48 r;
 		Style plain = kDelugeStyle48;
 		plain.invert_highlight = false;
-		OledFrame f = root_frame(r.canvas, plain, r.input, r.gate);
+		OledFrame f = root_frame(r.canvas, plain, r.ctx);
 		Page p{four_columns()};
 		ColumnsState state{};
 		columns(f, f.bounds(), state, p.span());

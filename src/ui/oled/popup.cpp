@@ -177,7 +177,7 @@ void popup_text(OledFrame& f, std::string_view text_view, PopupStyle style) {
 }
 
 void working(OledFrame& f, Rect rect, std::string_view word, Blink& blink) {
-	const uint32_t now = f.input.now_ms;
+	const uint32_t now = f.now_ms();
 
 	// period_ms doubles as "armed", as in decimal_value: a Blink still holding state.h's 500 ms
 	// default (or any other period) is anchored here, which is `working_animation_count = 1`.
@@ -187,7 +187,7 @@ void working(OledFrame& f, Rect rect, std::string_view word, Blink& blink) {
 	}
 
 	const WorkingPhase phase = working_phase(now - blink.until_ms);
-	f.gate.request_repaint_after(phase.remain_ms, now);
+	f.gate().request_repaint_after(phase.remain_ms, now);
 
 	const bool loading = (word == "Loading"); // oled.cpp:723's !strcmp(word, "Loading")
 

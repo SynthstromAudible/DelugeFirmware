@@ -4,6 +4,7 @@
 #include "gfx/grid/pad_grid.h"
 #include "gfx/oled/canvas.h"
 #include "gfx/oled/geometry.h"
+#include "ui/core/frame_context.h"
 #include "ui/core/input.h"
 #include "ui/core/repaint_gate.h"
 #include "ui/core/style.h"
@@ -42,8 +43,12 @@ struct OledRig {
 	deluge::gfx::oled::OwnedCanvas<G> canvas;
 	deluge::ui::RepaintGate gate;
 	deluge::ui::InputSnapshot input = null_input();
+	/// The tick's context, built over the two members above and read by every frame in the rig.
+	/// Declared before `frame` so it is alive when the root frame binds to it; `ctx.claims` is
+	/// what a spec inspects to see what a widget consumed.
+	deluge::ui::FrameContext ctx{input, gate};
 	const deluge::ui::Style& style = (G.height == 64) ? deluge::ui::kDelugeStyle64 : deluge::ui::kDelugeStyle48;
-	deluge::ui::oled::OledFrame frame = deluge::ui::oled::root_frame(canvas, style, input, gate);
+	deluge::ui::oled::OledFrame frame = deluge::ui::oled::root_frame(canvas, style, ctx);
 
 	OledRig() {
 		canvas.clear();
@@ -75,7 +80,8 @@ struct GridRig {
 	deluge::gfx::grid::PadGrid grid{deluge::gfx::grid::kDelugeGrid};
 	deluge::ui::RepaintGate gate;
 	deluge::ui::InputSnapshot input = null_input();
-	deluge::ui::grid::GridFrame frame = deluge::ui::grid::root_grid_frame(grid, input, gate);
+	deluge::ui::FrameContext ctx{input, gate};
+	deluge::ui::grid::GridFrame frame = deluge::ui::grid::root_grid_frame(grid, ctx);
 
 	std::string state() { return grid_to_state(grid); }
 };

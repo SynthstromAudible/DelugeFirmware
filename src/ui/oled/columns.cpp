@@ -156,7 +156,11 @@ void render_slot(OledFrame& f, Rect value_rect, const Column& col, bool focused)
 	const Point origin{f.origin.x + value_rect.x, f.origin.y + value_rect.y};
 	const Rect clip =
 	    f.clip.intersect(Rect{origin.x, origin.y - kSlotBleedY, value_rect.w, value_rect.h + kSlotBleedY});
-	OledFrame slot{f.canvas, clip, origin, Size{value_rect.w, value_rect.h}, f.style, f.input, f.gate};
+	// Focus is *inherited*, not narrowed to the focused column: `col.render` is handed the
+	// column's own `focused` flag as an argument and every slot renderer already gates on it, and
+	// an unfocused frame would also stop the slot's clock (`now_ms()`), freezing the animations of
+	// every column that is not the current one.
+	OledFrame slot{f.canvas, clip, origin, Size{value_rect.w, value_rect.h}, f.style, f.ctx, f.focused};
 	col.render(slot, focused, col.ctx);
 }
 
@@ -381,9 +385,12 @@ Response columns(OledFrame& f, Rect rect, ColumnsState& state, std::span<const C
 	Response resp{};
 	const int32_t n = static_cast<int32_t>(cols.size());
 
+	// This control owns the select encoder and its press, on every focused frame -- see `list`.
+	f.claim_turn();
+	f.claim_select();
 	int32_t focused = std::clamp<int32_t>(state.focused, 0, std::max<int32_t>(0, n - 1));
-	if (f.input.turn != 0 && n > 0) {
-		focused = move_focus(focused, f.input.turn, cols);
+	if (f.turn() != 0 && n > 0) {
+		focused = move_focus(focused, f.turn(), cols);
 	}
 	// Spec B section 5's "focus moved", which includes the clamp: a scene whose column list shrank
 	// under a stale `state.focused` gets one `changed` frame as the index is pulled back into
@@ -391,13 +398,13 @@ Response columns(OledFrame& f, Rect rect, ColumnsState& state, std::span<const C
 	resp.changed = focused != state.focused;
 	state.focused = static_cast<int8_t>(focused);
 	if (resp.changed) {
-		f.gate.request_repaint(); // spec B section 5: navigation renders before the shell blocks
+		f.gate().request_repaint(); // spec B section 5: navigation renders before the shell blocks
 	}
 
 	const PageWindow w = window_of(cols, focused);
 	state.page = w.paging.page;
 	// The press legacy routed to handleItemAction -> enterSubmenu (:663-678).
-	resp.entered = n > 0 && f.input.select_pressed && cols[focused].is_submenu && cols[focused].relevant;
+	resp.entered = n > 0 && f.select_pressed() && cols[focused].is_submenu && cols[focused].relevant;
 
 	// Legacy got a cleared panel from renderUIsForOled before renderOLED ran; an immediate-mode
 	// widget owns its own area instead, exactly as `list` clears its row bands.

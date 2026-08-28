@@ -8,8 +8,9 @@ Rules (CMake deps + the layer checker from the gfx plan, extended):
 2. None of the three includes `notify`, `model`, `libdeluge`, `l10n`, `gui/`, `hid/`.
 3. No mutable globals; no heap in any widget; widgets are not templates (only `region`
    bodies are, plus the two named legacy-bridge exceptions in `keyboard.h` below).
-4. Every widget takes its state by reference from the caller and reads input only from the
-   frame.
+4. Every widget takes its state by reference from the caller and reads input only through the
+   frame's accessors (`f.turn()`, `f.edit(0)`, `f.select_pressed()`, ...) -- never through the
+   snapshot behind it. See "The input-consumption contract" below.
 
 Rules 1 and 2 are enforced mechanically, not just by convention (see "Layer rules" below).
 
@@ -32,7 +33,7 @@ Enforced by `scripts/check_layer_rules.py` (ctest `layer_rules`, pre-commit hook
 see, `scripts/check_gfx_layer.py` (ctest `gfx_layer_check`, `--root src/gfx` only — it does not
 run over `src/ui`).
 
-Three ratchet rows cover `src/ui` (baseline `scripts/layer_rules_baseline.txt`, all three
+Four ratchet rows cover `src/ui` (baseline `scripts/layer_rules_baseline.txt`, all four
 currently at count 0 — any occurrence is a regression):
 
 | rule | applies to | forbids |
@@ -40,6 +41,7 @@ currently at count 0 — any occurrence is a regression):
 | `ui-includes-outside` | `src/ui/**` | any `#include` outside `ui/`/`gfx/` whose path contains a slash, **plus** the root headers the plan's Global Constraints name (`definitions*`, `board_config.h`, `board_layout.hpp`), which are slash-free at their include sites (a std header is neither, so it still never matches) |
 | `ui-oled-no-grid` | `src/ui/oled/**` | `#include "ui/grid/..."` |
 | `ui-grid-no-oled` | `src/ui/grid/**` | `#include "ui/oled/..."` |
+| `ui-widgets-read-input-directly` | `src/ui/{oled,grid}/**` except `frame.{h,cpp}` | `input.turn` / `input.edit` / `input.horizontal` / `input.vertical` / `input.select_pressed` / `input.back_pressed` / `input.shift` / `input.now_ms` — the fields a widget must read through its frame, so that focus masking and claims cannot be forgotten. The two frame files are the exception because they *are* the accessors |
 
 Probe (also exercised by `ctest -R layer_rules` and the pre-commit hook, whose `files:`
 pattern covers `src/ui/`): add `#include "ui/grid/frame.h"` to `src/ui/oled/text.h` →
@@ -52,6 +54,7 @@ under `src/ui/` → exits 1 naming `ui-includes-outside`; remove it → exits 0.
 | type | file |
 |---|---|
 | `EncoderRole`, `PadEvent`, `PadMask`, `InputSnapshot` | `core/input.h` |
+| `InputClaims`, `FrameContext` (and the input-consumption contract) | `core/frame_context.h` |
 | `LedId`, `RingId`, `LedState`, `KnobRing`, `LedFrame` | `core/led_frame.h` |
 | text/geometry constants (`kMenuBaseY48/64`, `kHorizontalMenuBaseY`, `kScrollTime`, …), `text_height_of` | `core/metrics.h` |
 | `RepaintGate` | `core/repaint_gate.h` |
@@ -64,7 +67,7 @@ under `src/ui/` → exits 1 naming `ui-includes-outside`; remove it → exits 0.
 
 | widget / helper | file |
 |---|---|
-| `OledFrame` (`pixel`, `hline`, `vline`, `line`, `rect`, `rect_rounded`, `invert`, `invert_rounded`, `clear`, `glyphs`, `glyph`, `graphic`, `icon`, `icon_centered`, `region`, `bounds`), `root_frame` | `oled/frame.h` |
+| `OledFrame` (`pixel`, `hline`, `vline`, `line`, `rect`, `rect_rounded`, `invert`, `invert_rounded`, `clear`, `glyphs`, `glyph`, `graphic`, `icon`, `icon_centered`, `region`, `bounds`, `visible`, the input accessors and `claim_*`, `gate`), `root_frame(canvas, style, ctx)` | `oled/frame.h` |
 | `Align`, `TextStyle`, `text_height_for`, `spacing_x_for`, `measure`, `text`, `title` | `oled/text.h` |
 | `scroll_text` | `oled/scroll_text.h` |
 | `ListRow`, `menu_rect`, `list_visible_rows`, `list_window_start`, `list`, `scrollbar` | `oled/list.h` |
@@ -83,7 +86,7 @@ under `src/ui/` → exits 1 naming `ui-includes-outside`; remove it → exits 0.
 
 | component / helper | file |
 |---|---|
-| `GridFrame` (`pad`, `peek`, `local_events`, `first_press_in`, `region`, `bounds`), `root_grid_frame` | `grid/frame.h` |
+| `GridFrame` (`pad`, `peek`, `local_events`, `first_press_in`, `held_pads`, `region`, `bounds`, `visible`, the input accessors and `claim_*`, `gate`), `root_grid_frame(grid, ctx)` | `grid/frame.h` |
 | `pad` — see `GridFrame::pad` above (the primitive every component is built from) | `grid/frame.h` |
 | `NoteFill`, `NoteCell`, `ClipRowData`, `row`, `clip_row` | `grid/rows.h` |
 | `LaunchStyle`, `StatusColours`, `StatusPad`, `AuditionPad`, `status_colour`, `status_pad`, `audition_colour`, `audition_pad`, `sidebar_columns` | `grid/sidebar.h` |
@@ -109,6 +112,57 @@ with `GridFrame::region`/`OledFrame::region`, these are the only templates in th
 (`LegacyImage`, `copy_legacy_image`, `copy_legacy_column`), are deleted in phase 6 of the UI
 stack redesign, once the keyboard layouts are rewritten as components that paint through the
 frame directly.
+
+## The input-consumption contract
+
+One `FrameContext` (`core/frame_context.h`) is built per tick per surface set — by the shell in
+the firmware, by the rigs in `tests/spec/ui/support/frames.h` — and every frame in the tree holds
+a reference to it:
+
+```cpp
+FrameContext ctx{input, gate};                 // + claims{} and a tick counter
+OledFrame f = root_frame(canvas, style, ctx);  // GridFrame: root_grid_frame(grid, ctx)
+```
+
+Both frames carry `FrameContext& ctx` and `bool focused` in place of the old
+`const InputSnapshot& input; RepaintGate& gate;` pair, and both stay aggregates (`region()`
+builds its child by aggregate initialisation).
+
+1. **Widgets read input only through the frame.** `turn()`, `edit(0)`/`edit(1)`, `horizontal()`,
+   `vertical()`, `select_pressed()`, `back_pressed()`, `shift()`, `now_ms()`, and `held_pads()`
+   on the grid; `gate()` reaches the repaint gate. The ratchet row above keeps it that way.
+2. **A widget that renders a control consumes that control's inputs and claims them in the same
+   call** — `claim_turn()`, `claim_edit(i)`, `claim_horizontal()`, `claim_vertical()`,
+   `claim_select()`, `claim_back()`. A claim means *"this control owns that input this tick"*, so
+   a focused `list` claims the turn on every frame it renders, not only on the frames a detent
+   arrives; the shell reads `ctx.claims` after rendering and may deliver whatever is left over to
+   the scene. `InputClaims::any()` answers "did anything get consumed at all".
+3. **An unfocused frame presents zero input.** `f.region(rect, /*focused*/ false, body)` masks
+   every accessor above to 0/false and turns the claims into no-ops, so a widget drawn there
+   paints exactly as it would have but cannot move. Focus only ever narrows — `region(rect, true)`
+   inside an unfocused parent stays unfocused — and the two-argument `region(rect, body)` means
+   "inherit". `enum_value`/`toggle` use this to render a `list` for its window and highlight while
+   keeping the select encoder for themselves; it replaced a `without_turn` helper that hand-masked
+   one snapshot field and left the rest for the inner widget to consume twice.
+4. **Pad input is positional and never masked.** `pad()`, `peek()`, `local_events()`,
+   `first_press_in()` and `held_pads()` report presses in an unfocused region exactly as in a
+   focused one: a press names its target by where it landed.
+5. **`select_pressed`/`back_pressed` are edges the caller supplies once per press** (see
+   `core/input.h`); a claim is not a latch — it records ownership for the tick and dies with the
+   context.
+
+`tests/spec/ui/frame_context_spec.cpp` pins all five.
+
+### `bounds()` vs `visible()`
+
+`bounds()` is the rect the region *asked* for, `{0, 0, w, h}` in its own local coordinates;
+`visible()` is the part of it the parent granted, in those same coordinates (empty when the
+region falls entirely outside its parent). Layout measures against `bounds()`, so local `(0, 0)`
+stays the region's own corner even when it overhangs and a component's arithmetic does not shift
+under it; drawing and pad hit-testing crop to `visible()` on their own. Both frames now answer
+the same way — `GridFrame::bounds()` used to report the *clipped* extent and now reports the
+requested one, which is the only behavioural change in the migration (`grid_frame_spec` pins both
+halves).
 
 ## Parity
 

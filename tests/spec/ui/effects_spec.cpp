@@ -51,7 +51,7 @@ struct Tick {
 /// caches"). This builds a fresh one anyway, because that is the shape the shell has and the one
 /// the gesture FSM is specified for.
 GestureEvent step(uitest::GridRig& r, Hold& hold, int32_t& second_x, int32_t& second_y) {
-	GridFrame f = root_grid_frame(r.grid, r.input, r.gate);
+	GridFrame f = root_grid_frame(r.grid, r.ctx);
 	return gesture(f, hold, HoldPolicy{}, second_x, second_y);
 }
 

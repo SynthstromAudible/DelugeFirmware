@@ -91,15 +91,19 @@ int32_t list_window_start(int32_t cursor, int32_t n, int32_t visible);
 ///     origin. No legacy menu row drew a value string, so this arrangement is new; everything
 ///     else above is a port.
 ///
-/// Behaviour: `input.turn` is applied first, walking one selectable row per detent and
+/// Behaviour: `f.turn()` is applied first, walking one selectable row per detent and
 /// stopping at the ends without wrapping, exactly as `Submenu::selectEncoderAction` does; the
 /// walk is bounded by the row count the *previous* frame saw (`state.rows_last`, or
 /// `rows.size()` on the first frame), so a list that shrank under the cursor cannot be walked
 /// past its old length. `state.rows_last` is then set to `rows.size()`. The window keeps the
 /// cursor visible per `Selection`'s pos/tail rule and is published as `state.scroll`.
 /// `Response.changed` reports that the cursor moved (and requests a repaint);
-/// `Response.entered` reports `input.select_pressed` on a selectable row. `Response.focused`
+/// `Response.entered` reports `f.select_pressed()` on a selectable row. `Response.focused`
 /// is never set: neither the brief nor spec section 6 asks `list` for it.
+///
+/// `list` claims the turn and the select for the tick (ui/core/frame_context.h rule 2) whenever
+/// its frame is focused -- on an unfocused frame it reads no input, moves nothing and claims
+/// nothing, which is how `enum_value` and `toggle` borrow it for its looks alone.
 ///
 /// The selected row's label goes through `scroll_text` with `scroll_label`, so a label too wide
 /// for its box ping-pongs -- the legacy `setupSideScroller(0, name, kTextSpacingX, endX, yPixel,

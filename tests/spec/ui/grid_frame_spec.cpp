@@ -98,9 +98,12 @@ describe grid_frame("ui::grid::GridFrame", $ {
 				if (inner.pad(0, 1, RGB{8, 8, 8}).pressed) deep_hits++;
 				inner.pad(4, 0, RGB{5, 5, 5});   // outside the INNER region, inside the outer
 			});
-			// A child that overhangs its parent is clipped to it, not to the grid.
+			// A child that overhangs its parent is clipped to it, not to the grid. `bounds()` is
+			// what it *asked* for -- local coordinates keep measuring from the region's own
+			// corner -- and `visible()` is what it got.
 			outer.region(Rect{6, 0, 8, 2}, [&](GridFrame& clipped) {
-				expect(clipped.bounds()).to_equal(Rect{0, 0, 2, 2});
+				expect(clipped.bounds()).to_equal(Rect{0, 0, 8, 2});
+				expect(clipped.visible()).to_equal(Rect{0, 0, 2, 2});
 				clipped.pad(3, 0, RGB{6, 6, 6});  // would be absolute (17,0) but for the clip
 			});
 		});

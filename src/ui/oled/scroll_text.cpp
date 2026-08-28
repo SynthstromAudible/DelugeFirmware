@@ -40,7 +40,7 @@ Response scroll_text(OledFrame& f, Rect rect, std::string_view s, FontId font, S
 		state.dir = 1;
 	}
 	else {
-		const uint32_t now = f.input.now_ms;
+		const uint32_t now = f.now_ms();
 		const int32_t max_offset = width - rect.w;
 		if (changed) {
 			// legacy setupSideScroller (oled.cpp:913-914): a freshly-appeared or resized label
@@ -69,7 +69,7 @@ Response scroll_text(OledFrame& f, Rect rect, std::string_view s, FontId font, S
 		// The delay is always small and non-negative here (the branch above just set it), so the
 		// signed difference is the honest one; clamp at 0 in case a caller's clock jumped past it.
 		const int32_t delay = static_cast<int32_t>(state.next_step_ms - now);
-		f.gate.request_repaint_after(static_cast<uint32_t>(std::max<int32_t>(delay, 0)), now);
+		f.gate().request_repaint_after(static_cast<uint32_t>(std::max<int32_t>(delay, 0)), now);
 	}
 
 	// clear_pad_x widens only the cleared rect -- legacy's endX += 4 (oled.cpp:984-992), which

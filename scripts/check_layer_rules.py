@@ -83,6 +83,19 @@ RULES = [
         r"^ui/oled/",
         "2026-08-26-ui-toolkit-design.md",
     ),
+    (
+        # The input-consumption contract (ui/core/frame_context.h): a widget reads input only
+        # through its frame's accessors -- f.turn(), f.edit(0), f.select_pressed() -- so that
+        # focus masking and input claims are not something a widget can forget to apply. Reaching
+        # into the snapshot behind the frame skips both. The two frame files are excluded because
+        # they *are* the accessors: `ctx.input.turn` inside OledFrame::turn() is the one place
+        # the field may be read.
+        "ui-widgets-read-input-directly",
+        ("src/ui/{oled,grid}/**", "src/ui/{oled,grid}/frame.{h,cpp}"),
+        "symbol",
+        r"\binput\.(turn|edit|horizontal|vertical|select_pressed|back_pressed|shift|now_ms)\b",
+        "2026-08-26-ui-toolkit-design.md",
+    ),
 ]
 # Matches both #include "path" and #include <path>, capturing only the path (the delimiter
 # itself is stripped either way). Angle-bracket project includes (e.g. #include <hid/buttons.h>)
@@ -102,12 +115,27 @@ def glob_match(rel: str, pattern: str) -> bool:
     return fnmatch(rel, pattern)
 
 
+def rule_covers(rel: str, frm) -> bool:
+    """Does rule scope `frm` cover file `rel`?
+
+    A plain string is one include glob. A tuple is `(include, *excludes)`: the file must match
+    the include glob and none of the excludes -- for a rule that holds across a directory
+    except for the file that implements the thing being ratcheted.
+    """
+    if isinstance(frm, tuple):
+        include, *excludes = frm
+        return glob_match(rel, include) and not any(
+            glob_match(rel, e) for e in excludes
+        )
+    return glob_match(rel, frm)
+
+
 def count_file(path: Path) -> dict[str, int]:
     rel = str(path.relative_to(REPO))
     counts: dict[str, int] = {}
     text = path.read_text(encoding="utf-8", errors="replace").splitlines()
     for name, frm, kind, rx, _ in RULES:
-        if not glob_match(rel, frm):
+        if not rule_covers(rel, frm):
             continue
         r = re.compile(rx)
         n = 0

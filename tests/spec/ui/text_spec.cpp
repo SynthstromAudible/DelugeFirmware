@@ -81,7 +81,7 @@ describe text_widgets("ui::oled text & title", $ {
 		uitest::Rig48 r;
 		Style big = kDelugeStyle48;
 		big.title_font = FontId::MetricBold13;
-		OledFrame f = root_frame(r.canvas, big, r.input, r.gate);
+		OledFrame f = root_frame(r.canvas, big, r.ctx);
 		title(f, "SOUND");
 		// Legacy equivalent: draw_string("SOUND", 0, 1 + 5, kTextBigSpacingX, kTextBigSizeY).
 		// The 13px face inks rows 6..18; the 9px face stops at 14, so row 16 is the tell.

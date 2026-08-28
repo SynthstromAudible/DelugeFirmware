@@ -31,7 +31,7 @@ void greyout(GridFrame& f, GreyoutMask mask, int32_t amount) {
 }
 
 GestureEvent gesture(GridFrame& f, Hold& hold, HoldPolicy policy, int32_t& second_x, int32_t& second_y) {
-	const uint32_t now = f.input.now_ms;
+	const uint32_t now = f.now_ms();
 	GestureEvent result = GestureEvent::None;
 
 	// Every event, in order: legacy runs SessionView::padAction once per event
@@ -50,7 +50,7 @@ GestureEvent gesture(GridFrame& f, Hold& hold, HoldPolicy policy, int32_t& secon
 			hold.x = e.x;
 			hold.y = e.y;
 			// qwerty_ui.cpp:220's one-shot timer, as a repaint deadline (spec B section 5).
-			f.gate.request_repaint_after(policy.short_press_ms, now);
+			f.gate().request_repaint_after(policy.short_press_ms, now);
 			continue;
 		}
 

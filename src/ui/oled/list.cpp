@@ -104,14 +104,19 @@ Response list(OledFrame& f, Rect rect, ListState& state, std::span<const ListRow
 	// bounds itself by the rows it was handed; never past what the span actually holds.
 	const int32_t limit = std::min<int32_t>(state.rows_last > 0 ? state.rows_last : n, n);
 	int32_t cursor = std::clamp<int32_t>(state.cursor, 0, std::max<int32_t>(0, limit - 1));
-	if (f.input.turn != 0 && limit > 0) {
-		cursor = move_cursor(cursor, f.input.turn, rows, limit);
+	// The two inputs this control owns, claimed on every focused frame rather than only on the
+	// frames a detent or a press arrives: ownership is a property of what is on screen, not of
+	// what the user did this millisecond (ui/core/frame_context.h rule 2).
+	f.claim_turn();
+	f.claim_select();
+	if (f.turn() != 0 && limit > 0) {
+		cursor = move_cursor(cursor, f.turn(), rows, limit);
 	}
 	resp.changed = cursor != state.cursor;
 	state.cursor = static_cast<int16_t>(cursor);
 	state.rows_last = static_cast<int16_t>(n);
 	if (resp.changed) {
-		f.gate.request_repaint();
+		f.gate().request_repaint();
 	}
 	if (n == 0) {
 		state.scroll = 0;
@@ -120,7 +125,7 @@ Response list(OledFrame& f, Rect rect, ListState& state, std::span<const ListRow
 
 	const int32_t start = list_window_start(cursor, n, visible);
 	state.scroll = static_cast<int16_t>(start);
-	resp.entered = f.input.select_pressed && rows[cursor].selectable;
+	resp.entered = f.select_pressed() && rows[cursor].selectable;
 
 	const gfx::oled::FontId font = f.style.row_font;
 	const int32_t row_h = f.style.row_height;                       // kTextSpacingY, per style.h

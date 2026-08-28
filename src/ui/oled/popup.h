@@ -108,7 +108,7 @@ void popup_text(OledFrame& f, std::string_view text, PopupStyle style = PopupSty
 ///
 /// \p blink is the animation's clock. `period_ms` doubles as "armed" (the same idiom
 /// `decimal_value` uses): a `Blink` not already holding `kWorkingStepMs` is (re)anchored at
-/// `f.input.now_ms`, so zeroing it restarts the animation the way `displayWorkingAnimation`'s
+/// `f.now_ms()`, so zeroing it restarts the animation the way `displayWorkingAnimation`'s
 /// `working_animation_count = 1` did. The step is then derived from the elapsed time --
 /// `kWorkingPauseMs` before the sequence starts, `kWorkingStepMs` per step, `kWorkingPauseMs`
 /// again on the final frame of each cycle (:711-720) -- and `request_repaint_after` is armed for

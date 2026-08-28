@@ -2,6 +2,7 @@
 #include "gfx/grid/pad_grid.h"
 #include "gfx/grid/rect.h"
 #include "gfx/grid/rgb.h"
+#include "ui/core/frame_context.h"
 #include "ui/core/input.h"
 #include "ui/core/repaint_gate.h"
 #include "ui/core/response.h"
@@ -43,12 +44,13 @@ constexpr uint8_t kMaxLocalEvents = 32;
 ///
 /// **A `GridFrame` is a per-tick object.** The shell builds the root frame at the top of every
 /// tick and lets it die at the bottom; regions are built and destroyed inside one call. It is a
-/// borrowed view over the grid, the snapshot and the gate -- four references and a rectangle --
-/// so building one costs nothing and there is no reason to keep one alive between ticks. Nothing
-/// here *breaks* if a frame outlives its tick: `local_events()` re-filters `input.pads` on every
-/// call rather than caching, so a frame that is kept alive across ticks (or across two calls
-/// where the caller has mutated the same buffer in place) always sees the snapshot as it stands
-/// right now. But the lifetime the toolkit is written and tested against is one frame per tick.
+/// borrowed view over the grid and the tick's `FrameContext` -- two references and two
+/// rectangles -- so building one costs nothing and there is no reason to keep one alive between
+/// ticks. Nothing here *breaks* if a frame outlives its tick: `local_events()` re-filters
+/// `ctx.input.pads` on every call rather than caching, so a frame that is kept alive across ticks
+/// (or across two calls where the caller has mutated the same buffer in place) always sees the
+/// snapshot as it stands right now. But the lifetime the toolkit is written and tested against
+/// is one frame per tick.
 ///
 /// Two recorded deviations from spec B §4's code block, which does not compile as written:
 ///
@@ -58,34 +60,101 @@ constexpr uint8_t kMaxLocalEvents = 32;
 /// 2. §4 gives the frame its own `std::span<const PadEvent> events`. Dropped: a span copied when
 ///    the frame is built cannot see the events the shell installs on the snapshot afterwards, and
 ///    a rig that holds one frame over a live snapshot (the `GridRig` in
-///    tests/spec/ui/support/frames.h) does exactly that. Every frame instead reads `input.pads`
+///    tests/spec/ui/support/frames.h) does exactly that. Every frame instead reads `ctx.input.pads`
 ///    through the reference it already holds, which satisfies the routing rule the member existed
 ///    for -- a child region sees *the same* event span as its parent, never a filtered copy --
 ///    without the staleness. `local_events()` does the filtering, per call, on demand.
 struct GridFrame {
 	gfx::grid::PadGrid& grid;
-	/// The frame's rectangle in absolute pad coordinates. Its corner is also the local origin:
-	/// unlike `OledFrame`, a grid frame has no separate unclipped `size`, so `bounds()` reports
-	/// the *clipped* extent and a region hanging off its parent's left or top edge would shift
-	/// its own origin inward. Pads are addressed from 0, so no caller has a reason to ask for a
-	/// negative origin; `region()` clamps into the parent either way and nothing escapes.
+	/// The rectangle the frame was *asked* for, in absolute pad coordinates. Its corner is the
+	/// local origin, whether or not the parent could grant all of it: local `(0, 0)` is the
+	/// region's own corner, so a component's column arithmetic does not shift under it when the
+	/// region overhangs. `bounds()` reports this extent.
+	gfx::grid::Rect rect;
+	/// What the frame may actually paint: `rect` intersected with the parent's own clip, absolute.
+	/// `visible()` reports it in local coordinates. `pad()` and `peek()` test against this, so an
+	/// overhanging region paints the part that is inside its parent and drops the rest.
 	gfx::grid::Rect clip;
-	const InputSnapshot& input;
-	RepaintGate& gate;
+	/// This tick's input, gate and claim set, shared by every frame in the tree.
+	FrameContext& ctx;
+	/// Is this frame the live one? An unfocused frame reads zero from the encoder/button
+	/// accessors and records no claims -- but its *pad* surface is unchanged, because pad input is
+	/// positional (see the contract in ui/core/frame_context.h).
+	bool focused = true;
 
-	/// The frame's extent in local coordinates: spec B §4's `{0, 0, w, h}`.
-	gfx::grid::Rect bounds() const { return {0, 0, clip.w, clip.h}; }
+	/// The frame's extent in local coordinates: spec B §4's `{0, 0, w, h}`, the size the region
+	/// asked for. `visible()` is the part of it that can be painted.
+	gfx::grid::Rect bounds() const { return {0, 0, rect.w, rect.h}; }
+
+	/// The part of `bounds()` that survives the parent's clip, in the same local coordinates.
+	/// Equal to `bounds()` for a region that fits inside its parent; empty (`w == 0` or `h == 0`)
+	/// for one entirely outside it. Layout measures against `bounds()`; only code that needs to
+	/// know what is really reachable -- a component sizing an overlay to the pads it can light --
+	/// asks for this.
+	gfx::grid::Rect visible() const { return {clip.x - rect.x, clip.y - rect.y, clip.w, clip.h}; }
+
+	/// @{
+	/// @name Input
+	///
+	/// Encoders and buttons, masked by `focused`; the only way a component reads them (contract
+	/// rule 1, ui/core/frame_context.h). The pad accessors below (`pad`, `peek`, `local_events`,
+	/// `first_press_in`, `held_pads`) are *not* here and are never masked.
+
+	int8_t turn() const { return focused ? ctx.input.turn : int8_t{0}; }
+	/// \p i is 0 (GoldUpper, coarse) or 1 (GoldLower, fine); anything else reads 0.
+	int8_t edit(int i) const { return (focused && i >= 0 && i < 2) ? ctx.input.edit[i] : int8_t{0}; }
+	int8_t horizontal() const { return focused ? ctx.input.horizontal : int8_t{0}; }
+	int8_t vertical() const { return focused ? ctx.input.vertical : int8_t{0}; }
+	bool select_pressed() const { return focused && ctx.input.select_pressed; }
+	bool back_pressed() const { return focused && ctx.input.back_pressed; }
+	bool shift() const { return focused && ctx.input.shift; }
+	/// This tick's millisecond clock, masked like the rest: an unfocused frame reads 0, so a
+	/// component drawn for its looks alone does not advance its own animations.
+	uint32_t now_ms() const { return focused ? ctx.input.now_ms : 0u; }
+
+	/// Which pads are down right now, in *absolute* coordinates. Pad input, so never masked --
+	/// and absolute, because it is the level behind `pad()`'s `held`, which does its own
+	/// translation.
+	const PadMask& held_pads() const { return ctx.input.held_pads; }
+
+	void claim_turn() const { set_claim(&InputClaims::turn); }
+	void claim_edit(int i) const {
+		if (i == 0) {
+			set_claim(&InputClaims::edit0);
+		}
+		else if (i == 1) {
+			set_claim(&InputClaims::edit1);
+		}
+	}
+	void claim_horizontal() const { set_claim(&InputClaims::horizontal); }
+	void claim_vertical() const { set_claim(&InputClaims::vertical); }
+	void claim_select() const { set_claim(&InputClaims::select); }
+	void claim_back() const { set_claim(&InputClaims::back); }
+
+	/// Set one claim flag, on a focused frame only. Public because `GridFrame` has no private
+	/// section (see the aggregate note at the bottom); components call `claim_*()`.
+	void set_claim(bool InputClaims::* flag) const {
+		if (focused) {
+			ctx.claims.*flag = true;
+		}
+	}
+	/// @}
+
+	/// The surface's repaint gate; focus does not mask it, because an unfocused component still
+	/// has to be redrawn.
+	RepaintGate& gate() const { return ctx.gate; }
 
 	/// Paint one pad and report what happened to it this tick -- the primitive of spec B §7.
 	///
-	/// Outside `bounds()` this paints nothing and returns a default `Response`, so a component
-	/// may sweep a rectangle larger than the region it was given and let the frame crop it.
+	/// Outside `visible()` this paints nothing and returns a default `Response`, so a component
+	/// may sweep a rectangle larger than the region it was given -- or larger than the part of it
+	/// the parent granted -- and let the frame crop it.
 	/// Inside, the pad is written through `PadGrid::set` (which marks the row dirty, so only
 	/// touched rows are pushed to the hardware) and the returned `Response` carries:
 	///
-	/// - `pressed` / `velocity` -- a press event for this pad in `input.pads` this tick,
+	/// - `pressed` / `velocity` -- a press event for this pad in `ctx.input.pads` this tick,
 	/// - `released`             -- a release event for it this tick,
-	/// - `held`                 -- the pad is in `input.held_pads`, i.e. down since some earlier
+	/// - `held`                 -- the pad is in `held_pads()`, i.e. down since some earlier
 	///                             tick. Level, not edge: a press reports `pressed` on the tick
 	///                             it arrives and `held` on every tick until the release.
 	///
@@ -96,7 +165,7 @@ struct GridFrame {
 	/// Read back the colour currently on a pad, without painting -- the counterpart to `pad()`
 	/// for an overlay that re-tints what earlier components already drew (`greyout`, ui/grid/
 	/// effects.h). Clipping lives here, in the one place that owns it, rather than in each
-	/// caller's own `clip.x + x` arithmetic. Outside `bounds()` this reports black, matching
+	/// caller's own `rect.x + x` arithmetic. Outside `visible()` this reports black, matching
 	/// `pad()`'s "paints nothing, reports nothing" for the same coordinates.
 	RGB peek(int32_t x, int32_t y) const;
 
@@ -104,7 +173,7 @@ struct GridFrame {
 	///
 	/// For multi-pad gestures (chords, drags) that `pad()`'s one-pad-at-a-time answer cannot
 	/// express. Filtered and translated into a fixed member buffer, from scratch, on *every*
-	/// call -- there is no cache. Filtering `input.pads` (a handful of events, never heap-backed)
+	/// call -- there is no cache. Filtering `ctx.input.pads` (a handful of events, never heap-backed)
 	/// is O(events) and was measured free; a cache keyed on the span's identity is not a
 	/// meaningful saving and it is actively wrong: a caller that reuses one buffer across ticks
 	/// with the same pointer and the same count -- or mutates it in place between two calls on
@@ -116,14 +185,15 @@ struct GridFrame {
 	/// span returned from inside a `region` body must not outlive that body.
 	std::span<const PadEvent> local_events() const;
 
-	/// The first press inside \p local (this frame's coordinates), in `input.pads` order, with its
+	/// The first press inside \p local (this frame's coordinates), in `ctx.input.pads` order, with its
 	/// coordinates translated to be local to *this* frame -- not to \p local.
 	///
 	/// The reuse the `void`-returning column components (ui/grid/columns.h) ask of their callers:
 	/// "which pad in my column was hit this tick" is one scan over `local_events()`, and this is
 	/// that scan, written once. Releases are skipped; `std::nullopt` means no press landed inside
 	/// the rectangle. \p local is clipped to `bounds()` first, so a rectangle hanging off the
-	/// frame reports only the part that is really inside it.
+	/// frame reports only the part that is really inside it. Never masked by focus: a press names
+	/// its target by where it landed.
 	std::optional<PadEvent> first_press_in(gfx::grid::Rect local) const;
 
 	/// Run \p body against a sub-frame whose `(0, 0)` is `local`'s corner and whose input is
@@ -133,27 +203,35 @@ struct GridFrame {
 	/// The one templated entry point in the toolkit (spec B §2 rule 3: "only `region` bodies").
 	///
 	/// @param local the sub-rectangle, in this frame's coordinates
+	/// @param child_focused may only *narrow* focus: the child is focused when this frame is and
+	///        this argument is true. Defaults to true, i.e. "inherit".
 	/// @param body  invoked as `body(GridFrame&)`
 	template <class F>
-	void region(gfx::grid::Rect local, F&& body) {
-		const gfx::grid::Rect translated{clip.x + local.x, clip.y + local.y, local.w, local.h};
-		GridFrame child{grid, clip.intersect(translated), input, gate};
+	void region(gfx::grid::Rect local, bool child_focused, F&& body) {
+		const gfx::grid::Rect translated{rect.x + local.x, rect.y + local.y, local.w, local.h};
+		GridFrame child{grid, translated, clip.intersect(translated), ctx, focused && child_focused};
 		std::forward<F>(body)(child);
 	}
 
-	// Scratch for local_events(), refilled from `input.pads` on every call -- not a cache; see the
+	/// `region(local, true, body)`: a child that inherits this frame's focus.
+	template <class F>
+	void region(gfx::grid::Rect local, F&& body) {
+		region(local, true, std::forward<F>(body));
+	}
+
+	// Scratch for local_events(), refilled from `ctx.input.pads` on every call -- not a cache; see the
 	// note on local_events() above. Mutable because local_events() is const in spec B §4 and
 	// filling the buffer is not an observable change -- the frame's identity is the four members
 	// above.
 	//
 	// These must stay LAST and keep their initialisers: `region` above builds its child by
-	// aggregate initialisation of the first four members, so GridFrame must remain an aggregate
-	// and nothing may be inserted between `gate` and here.
+	// aggregate initialisation of `grid, rect, clip, ctx, focused` in that order, so GridFrame
+	// must remain an aggregate and nothing may be inserted between `focused` and here.
 	mutable PadEvent local_[kMaxLocalEvents] = {};
 	mutable uint8_t local_count_ = 0;
 };
 
-/// The root frame for a whole pad surface: the full grid, sidebar columns included.
-GridFrame root_grid_frame(gfx::grid::PadGrid& grid, const InputSnapshot& input, RepaintGate& gate);
+/// The root frame for a whole pad surface: the full grid, sidebar columns included, focused.
+GridFrame root_grid_frame(gfx::grid::PadGrid& grid, FrameContext& ctx);
 
 } // namespace deluge::ui::grid
