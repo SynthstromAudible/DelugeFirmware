@@ -133,6 +133,7 @@ compile_error!(
 );
 
 use core::ffi::{CStr, c_char};
+use core::mem::MaybeUninit;
 
 use embassy_sync::blocking_mutex::raw::CriticalSectionRawMutex;
 #[cfg(feature = "async_audio_load_active")]
@@ -586,12 +587,14 @@ pub unsafe extern "C" fn deluge_audio_load_collect(
         return DELUGE_AUDIO_LOAD_UNKNOWN;
     };
 
-    match probe(&path) {
-        Probe::Ready(result) => {
-            // SAFETY: `out` is a valid writable `LoadResult` (checked non-null above).
-            unsafe { core::ptr::write(out, result) };
-            DELUGE_AUDIO_LOAD_READY
-        }
+    // SAFETY: `out` is non-null (checked above) and the caller's contract makes it
+    // a suitably aligned, writable `LoadResult` allocation. Viewing it as possibly
+    // uninitialised is the weaker assumption, and the honest one: C hands us an
+    // output slot, not a value, and nothing here ever reads it.
+    let out = unsafe { &mut *out.cast::<MaybeUninit<LoadResult>>() };
+
+    match probe(&path, out) {
+        Probe::Ready => DELUGE_AUDIO_LOAD_READY,
         Probe::Pending => DELUGE_AUDIO_LOAD_PENDING,
         Probe::Unknown => DELUGE_AUDIO_LOAD_UNKNOWN,
     }
@@ -602,8 +605,18 @@ pub unsafe extern "C" fn deluge_audio_load_collect(
 /// passes reintroduces the very race this ordering exists to close, because the
 /// loader can publish between them and the second pass then reports `Unknown`
 /// for a result the first pass merely missed.
+///
+/// A status only — [`Probe::Ready`] carries no payload. A found [`LoadResult`] is
+/// ~312 bytes and has exactly one destination, the caller's `out` slot, so
+/// [`probe`] writes it there and reports which case it took. Threading it back
+/// through the return value instead would make every `Pending`/`Unknown` collect
+/// (the common ones, on a per-tick path) move a 312-byte enum to say one of two
+/// things that fit in a byte. Boxing the variant would be the other way to shrink
+/// it and is the wrong one here: that puts a heap allocation on the collect path,
+/// which is called from the audio-adjacent tick and must not allocate at all.
 enum Probe {
-    Ready(LoadResult),
+    /// `out` has been written. Only this case writes it.
+    Ready,
     Pending,
     Unknown,
 }
@@ -612,7 +625,7 @@ enum Probe {
 /// [`deluge_audio_load_collect`]'s doc for why the order and the contention
 /// mapping are both load-bearing.
 #[cfg(feature = "async_audio_load_active")]
-fn probe(path: &str) -> Probe {
+fn probe(path: &str, out: &mut MaybeUninit<LoadResult>) -> Probe {
     if is_queued(path) || is_in_flight(path) {
         return Probe::Pending;
     }
@@ -623,7 +636,10 @@ fn probe(path: &str) -> Probe {
         return Probe::Pending;
     };
     match take_from(&mut results, path) {
-        Some(result) => Probe::Ready(result),
+        Some(result) => {
+            out.write(result);
+            Probe::Ready
+        }
         None => Probe::Unknown,
     }
 }
@@ -632,7 +648,7 @@ fn probe(path: &str) -> Probe {
 /// `Unknown`, never `Pending` — `Pending` would tell a caller to keep asking
 /// forever. Matches `audio_load_abi.cpp`'s weak fallback.
 #[cfg(not(feature = "async_audio_load_active"))]
-fn probe(_path: &str) -> Probe {
+fn probe(_path: &str, _out: &mut MaybeUninit<LoadResult>) -> Probe {
     Probe::Unknown
 }
 
@@ -952,13 +968,17 @@ mod driver {
         // the regular path's slot. See this function's doc comment for why this is
         // positional and must stay so.
         let is_regular_path = index + 1 == request.candidates.len();
-        if result.error == DELUGE_ERROR_NONE && !is_regular_path {
-            if !result.set_alternate_path(winning_path) {
-                // Cannot happen for a C-proposed candidate (bounded by
-                // DELUGE_MAX_PATH), but a path we cannot report is a path the
-                // collector would open at the wrong location.
-                return LoadResult::failed(DELUGE_ERROR_FILE_UNREADABLE);
-            }
+        // `set_alternate_path` is the WRITE, not a test, and `&&` is what keeps it
+        // one: it runs only when the first two hold, exactly as the nested form
+        // did. Reordering these terms would call it on the regular path too.
+        if result.error == DELUGE_ERROR_NONE
+            && !is_regular_path
+            && !result.set_alternate_path(winning_path)
+        {
+            // Cannot happen for a C-proposed candidate (bounded by
+            // DELUGE_MAX_PATH), but a path we cannot report is a path the
+            // collector would open at the wrong location.
+            return LoadResult::failed(DELUGE_ERROR_FILE_UNREADABLE);
         }
         result
     }

@@ -110,7 +110,7 @@ pub fn accept_as_wavetable(h: &AudioHeader, insist: bool) -> Result<WavetableUse
     // otherwise the audio data must be an exact multiple of 2048 samples.
     if !h.wavetable.explicitly_specifies_self && !insist {
         let length_samples = h.audio_data_length_bytes / u32::from(h.byte_depth);
-        if length_samples % 2048 != 0 {
+        if !length_samples.is_multiple_of(2048) {
             return Err(Reject::NotAWavetable);
         }
     }

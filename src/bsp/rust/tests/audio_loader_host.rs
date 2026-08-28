@@ -215,7 +215,7 @@ impl LoadOps for FakeOps {
     async fn size_of(&self, handle: u32) -> Option<u32> {
         self.record(Call::SizeOf);
         let (path, bytes) = self.entry_for(handle);
-        if self.size_fails || self.size_fails_for.iter().any(|p| *p == path) {
+        if self.size_fails || self.size_fails_for.contains(&path) {
             return None;
         }
         Some(bytes.len() as u32)
