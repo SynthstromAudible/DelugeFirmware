@@ -57,3 +57,32 @@ Storage is a fixed pool: `kMaxOled` (4) surfaces of `kOledStorageBytes` (128x64/
 descriptor has no sidebar field, so the sidebar width comes from `BoardProfile::sidebar_cols`
 (default 2). The grid is `{pad_grid_width, sidebar_cols, pad_grid_height}` and
 `GridSurface::pairs` counts pairs across the *total* width -- 9 on the Deluge.
+
+## Scenes and the stack (`scene.h`, `scene_stack.h`)
+
+A scene is one screen's worth of behaviour: what it draws on each surface, what it does with an
+event nothing else claimed, and what it remembers. Scenes are long-lived singletons the
+application owns and registers once; the stack only holds pointers.
+
+| type | purpose |
+|---|---|
+| `SceneKind` | The registry index and state-slot key; `Null..Screensaver` are the shell's own, applications number from `FirstApp` (16) |
+| `SceneId` | `{kind, arg}` -- the navigation target; `arg` is a clip/output/browser index the target scene interprets |
+| `SceneState` | 256 opaque 8-aligned bytes per `SceneKind`, saved and restored across a `replace_root` |
+| `UiEvent` | One lowered event, as a tagged POD struct (`Pad`, `Button`, `Encoder`, `EncoderButton`, `AllReleased`) |
+| `UiContext` | The world around one event: held buttons and pads, shift, the clock, the board profile, and the `InputLowering` behind `press_used_up`/`held_since` |
+| `Action`, `Result` | What a scene asks the shell to do (`Push`/`Replace`/`ReplaceRoot`/`Pop`/`Popup`/`Repaint`/`LockInput`) and whether the event was handled |
+| `Scene` | The interface; only `kind()` and `handle()` are pure, everything else defaults to nothing |
+| `SceneRegistry` | `std::span<Scene* const>` indexed by kind; `find()` is null for an unregistered or out-of-range kind |
+| `NullScene` | What `SceneStack::top()` reports when the stack is empty: draws nothing, swallows everything |
+| `SceneStack` | `push`/`pop`/`replace_root`/`replace_top`/`reset` over at most `kStackDepth` (8) scenes |
+
+A scene never mutates the stack: it returns `Action`s and the shell's router applies them once the
+call has returned, so a scene cannot be exited or re-entered inside its own method. Only
+`replace_root` saves and restores `SceneState`; `pop` and `replace_top` do not. Every stack
+operation sets `changed_since_last_query()`, which is deliberately conservative -- a redundant
+greyout re-query is cheaper than a stale one.
+
+`UiContext::press_used_up`/`held_since` are declared with the struct but defined alongside
+`InputLowering`; a context built with a null `lowering` (a spec, a synthesised event) answers
+false and 0.

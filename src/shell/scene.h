@@ -1,0 +1,315 @@
+#pragma once
+#include "notify/dirty_set.h"
+#include "shell/fixed_vector.h"
+#include "shell/profile.h"
+#include "ui/core/frame_context.h"
+#include "ui/core/input.h"
+#include "ui/core/led_frame.h"
+#include "ui/grid/effects.h"
+#include "ui/grid/frame.h"
+#include "ui/oled/frame.h"
+
+#include <cstddef>
+#include <cstdint>
+#include <optional>
+#include <span>
+
+namespace deluge::ui::shell {
+
+/// @brief Lowers hardware input into the shell's own vocabulary and tracks per-button press
+///        bookkeeping.
+///
+/// Only forward-declared here: `UiContext` holds a pointer to one so a scene can ask whether a
+/// press was already consumed, and nothing in this header needs the definition.
+class InputLowering;
+
+/// @brief Which scene a `SceneId` names -- the registry index, and the `SceneState` cache key.
+///
+/// `Null` through `Screensaver` are reserved for the shell's own scenes; application scenes number
+/// from `FirstApp` upwards, leaving room for shell scenes to be added without renumbering anything
+/// an application already registered. Every value must stay below `kMaxSceneKinds`.
+enum class SceneKind : uint8_t {
+	Null = 0,      ///< The scene `SceneStack::top()` reports when the stack is empty; swallows input.
+	Popup,         ///< A transient message over whatever is beneath.
+	Console,       ///< The scrolling log surface.
+	Working,       ///< The "busy, please wait" indicator.
+	Boot,          ///< Shown from power-on until the application's root scene is pushed.
+	Loading,       ///< Shown while a song is being read.
+	Screensaver,   ///< The idle animation.
+	FirstApp = 16, ///< The first kind an application may register; application kinds run upwards.
+};
+
+/// @brief How many `SceneKind` values exist: the size of the registry and of the state-slot array.
+inline constexpr uint8_t kMaxSceneKinds = 48;
+/// @brief The deepest the scene stack can go.
+///
+/// The legacy UI's deepest path is five (root -> clip minder -> sound editor -> context menu ->
+/// rename); eight leaves headroom without making the state-slot array any larger.
+inline constexpr uint8_t kStackDepth = 8;
+/// @brief Bytes of saved state per `SceneKind`.
+inline constexpr size_t kSceneStateBytes = 256;
+
+/// @brief What to navigate to: a `SceneKind` plus the one argument that distinguishes instances of
+///        it.
+///
+/// POD, comparable, and small enough to pass by value. `arg` is interpreted by the scene the
+/// `kind` names -- a clip index, an output index, a browser kind -- and is handed to the scene as
+/// `on_enter`'s parameter. It is deliberately *not* part of the `SceneState` cache key: state is
+/// saved per `SceneKind`, so re-entering the same kind with a different `arg` restores the kind's
+/// last saved state and then lets `on_enter` re-target it.
+struct SceneId {
+	SceneKind kind = SceneKind::Null;
+	uint16_t arg = 0;
+	bool operator==(const SceneId&) const = default;
+};
+
+/// @brief One scene's saved state: an opaque, fixed-size, 8-aligned byte block.
+///
+/// The shell never looks inside. A scene writes whatever POD it wants to survive a `replace_root`
+/// in `save_state` and reads it back in `restore_state`; the alignment lets a scene `memcpy` a
+/// struct containing 64-bit members in and out without a misaligned access.
+///
+/// @warning There is one slot per `SceneKind`, not one per `SceneId`, and the block is not
+///          versioned -- a scene that changes its state layout must not expect to read an older
+///          layout back. Slots live only as long as the `SceneStack`, so nothing persists across a
+///          reboot.
+struct SceneState {
+	alignas(8) uint8_t bytes[kSceneStateBytes];
+};
+static_assert(sizeof(SceneState) == kSceneStateBytes);
+static_assert(alignof(SceneState) == 8);
+
+/// @brief One lowered input event, as a scene sees it.
+///
+/// A tagged struct rather than a variant: it is copied into every `handle()` call on the way down
+/// the stack, so it stays POD, trivially copyable and small. `kind` says which fields carry
+/// meaning; the rest keep their zero values and must not be read.
+///
+/// | `kind` | valid fields |
+/// |---|---|
+/// | `Pad` | `x`, `y` (absolute pad coordinates, sidebar included), `velocity` (0 on release), `on` |
+/// | `Button` | `button`, `on` |
+/// | `Encoder` | `encoder`, `delta` (signed detents, or an accelerated magnitude per `EncoderKind`) |
+/// | `EncoderButton` | `button` (the encoder's own `*Enc` id), `on` |
+/// | `AllReleased` | none -- the edge where the last held button and pad went up |
+///
+/// @note `AllReleased` is an edge, not a level: it fires once when the held set empties, and
+///       `UiContext::held`/`held_pads` are the level a scene should test instead.
+struct UiEvent {
+	/// @brief Which shape this event has; see the table above.
+	enum class Kind : uint8_t { Pad, Button, Encoder, EncoderButton, AllReleased };
+
+	Kind kind;
+	uint8_t x = 0;                    ///< `Pad`: column, absolute.
+	uint8_t y = 0;                    ///< `Pad`: row, absolute.
+	uint8_t velocity = 0;             ///< `Pad`: strike velocity; 0 means release.
+	bool on = false;                  ///< `Pad`/`Button`/`EncoderButton`: true on press, false on release.
+	ButtonId button = ButtonId::None; ///< `Button`/`EncoderButton`: which button.
+	EncoderRole encoder{};            ///< `Encoder`: which encoder turned.
+	int8_t delta = 0;                 ///< `Encoder`: signed turn magnitude.
+};
+
+/// @brief Everything a scene may ask about the world *around* one `UiEvent`.
+///
+/// An aggregate of borrowed references built on the stack once per delivered event. It owns
+/// nothing and outlives nothing.
+struct UiContext {
+	const ButtonSet& held;       ///< Buttons down right now, this event included.
+	const PadMask& held_pads;    ///< Pads down right now, absolute coordinates.
+	bool shift;                  ///< Is shift held (latched or physical)?
+	bool sticky;                 ///< Is the shift latch engaged rather than the physical hold?
+	uint32_t now_ms;             ///< The tick's wall clock.
+	const BoardProfile& profile; ///< The board this event came from.
+	/// The lowering that produced the event, or null in a context built without one (a spec, or a
+	/// synthesised event). Null makes `press_used_up` false and `held_since` zero.
+	const InputLowering* lowering = nullptr;
+
+	/// @brief Has \p b's current press already been consumed by something else?
+	///
+	/// The legacy `Buttons::ignoreCurrentPress` bit: a scene that acted on a *hold* marks the
+	/// press used up so the release does not also act.
+	/// @param b The button to ask about.
+	/// @return True if the press was consumed; false when `lowering` is null.
+	/// @note Defined alongside `InputLowering`, not in this header.
+	bool press_used_up(ButtonId b) const;
+	/// @brief When did \p b's current press begin?
+	/// @param b The button to ask about.
+	/// @return The `now_ms` of the press, or 0 if `b` is not held or `lowering` is null.
+	/// @note Defined alongside `InputLowering`, not in this header.
+	uint32_t held_since(ButtonId b) const;
+};
+
+/// @brief One thing the shell should do as a consequence of a scene's `handle()` or
+///        `after_render()`.
+///
+/// A scene never touches the stack itself: it describes what should happen and the shell's router
+/// applies it, so navigation is testable without a shell and one scene cannot re-enter another
+/// mid-event. `kind` says which fields carry meaning.
+///
+/// | `kind` | valid fields | effect |
+/// |---|---|---|
+/// | `Push` | `id` | `SceneStack::push(id)` |
+/// | `Replace` | `id` | `SceneStack::replace_top(id)` |
+/// | `ReplaceRoot` | `id` | `SceneStack::replace_root(id)` |
+/// | `Pop` | `pop_to` | `SceneStack::pop(pop_to)`; `SceneKind::Null` means "just the top" |
+/// | `Popup` | `popup_string`, `surface` | show a transient message, resolved through `BoardProfile::text` |
+/// | `Repaint` | `surface` | invalidate that surface for the next tick |
+/// | `LockInput` | `lock` | take or release the input lock (the legacy `waitingForSDRoutineToEnd` gate) |
+struct Action {
+	/// @brief Which action this is; see the table above.
+	enum class Kind : uint8_t { Push, Replace, ReplaceRoot, Pop, Popup, Repaint, LockInput };
+
+	Kind kind;
+	SceneId id{};                            ///< `Push`/`Replace`/`ReplaceRoot`: the target.
+	SceneKind pop_to = SceneKind::Null;      ///< `Pop`: pop down to and including this kind.
+	SurfaceRole surface = SurfaceRole::Main; ///< `Popup`/`Repaint`: which surface.
+	bool lock = false;                       ///< `LockInput`: true to take the lock, false to release.
+	uint16_t popup_string = 0;               ///< `Popup`: the string id to show.
+};
+
+/// @brief What one `handle()` or `after_render()` call decided.
+///
+/// `handled` stops the event travelling further down the stack; `actions` is what the shell should
+/// do about it, applied in order. The two are independent: a scene may handle an event and ask for
+/// nothing, or ask for a repaint while letting the event fall through.
+///
+/// Eight actions is well past what any single event produces (the busiest legacy path is a pop
+/// plus a push plus a popup); a ninth is dropped by `FixedVector::push_back` rather than growing.
+struct Result {
+	bool handled = false;
+	FixedVector<Action, 8> actions;
+
+	/// @brief The "I did nothing with this" result: not handled, no actions.
+	static Result unhandled() { return {}; }
+};
+
+/// @brief One screen's worth of behaviour: what it draws, what it does with input, and what it
+///        remembers.
+///
+/// Scenes are long-lived singletons owned by the application and registered once in a
+/// `SceneRegistry`; the `SceneStack` only ever holds pointers to them, so a scene is entered and
+/// exited many times over its life and must keep its own state across that. Every hook except
+/// `kind()` and `handle()` has a do-nothing default, so a minimal scene is two overrides.
+///
+/// @warning A scene must never mutate the stack. It returns `Action`s and the shell applies them
+///          after the call returns, which is what keeps a scene from being destroyed or re-entered
+///          in the middle of its own method.
+class Scene {
+public:
+	virtual ~Scene() = default;
+
+	/// @brief The kind this scene is registered under.
+	/// @return The registry index and state-slot key; must match the slot the registry holds it in.
+	virtual SceneKind kind() const = 0;
+
+	/// @name Rendering
+	/// Called once per surface per tick, for each surface the scene is not transparent for. A
+	/// scene that paints only one surface kind leaves the other default.
+	/// @{
+	/// @brief Draw this scene's contents on one OLED surface.
+	/// @param role  Which surface is being drawn (`Main` on a single-panel board).
+	/// @param frame The root frame for that surface, already clipped to its visible region.
+	virtual void render_oled(SurfaceRole role, ui::oled::OledFrame& frame) {}
+	/// @brief Draw this scene's contents on the pad grid.
+	/// @param frame The root grid frame, spanning the main pads and the sidebar in one coordinate
+	///              space.
+	virtual void render_grid(ui::grid::GridFrame& frame) {}
+	/// @brief Declare this scene's LED and knob-indicator states for the tick.
+	/// @param frame The tick's LED declarations, to be composed and flushed by the shell.
+	virtual void leds(LedFrame& frame) {}
+	/// @}
+
+	/// @brief Navigation derived from what this tick's render observed.
+	///
+	/// A widget claims its inputs while it is being drawn and hands back a `Response`; a scene
+	/// stashes that in its own state during `render_*` and turns it into navigation here, rather
+	/// than re-deriving it from the raw event in `handle()`. Runs once per tick per scene that was
+	/// rendered, after every surface for that tick; its `Result` is applied exactly as a
+	/// `handle()` result is.
+	/// @return What the shell should do about this tick's render.
+	virtual Result after_render() { return {}; }
+
+	/// @brief React to one lowered input event.
+	///
+	/// The only pure-virtual hook besides `kind()`: a scene that wants nothing from input returns
+	/// `Result::unhandled()` explicitly, so "swallows everything" is never the accident of a
+	/// missing override.
+	///
+	/// @note This does not see an input a widget in this scene's frame claimed while rendering --
+	///       the shell delivers only what nothing owned.
+	/// @param event The event.
+	/// @param ctx   The world around it.
+	/// @return Whether the event was handled, and what should happen next.
+	virtual Result handle(const UiEvent& event, const UiContext& ctx) = 0;
+
+	/// @brief Advance any time-based state.
+	/// @param dt_ms Milliseconds since this scene was last ticked.
+	virtual void tick(uint32_t dt_ms) {}
+
+	/// @name Lifecycle
+	/// @{
+	/// @brief Called when this scene is pushed or otherwise becomes the top.
+	/// @param id The id it was entered with; `id.arg` is the scene's instance argument.
+	/// @return False to refuse the entry, which rolls the push back and resumes the previous top.
+	virtual bool on_enter(const SceneId& id) { return true; }
+	/// @brief Called when this scene leaves the stack.
+	virtual void on_exit() {}
+	/// @brief Called when this scene becomes the top again because something above it left.
+	virtual void on_resume() {}
+	/// @}
+
+	/// @brief React to model changes published since the last tick.
+	/// @param dirty What changed.
+	virtual void on_model_changed(const notify::DirtySet& dirty) {}
+
+	/// @name Composition
+	/// How the shell composes this scene with the ones beneath it.
+	/// @{
+	/// @brief Should what is beneath be dimmed and this scene composited over it?
+	virtual bool is_grid_overlay() const { return false; }
+	/// @brief Does this scene cover the grid completely, so scenes beneath need not render?
+	virtual bool occludes_grid() const { return false; }
+	/// @brief Should the scene beneath still draw \p role, with this scene drawn over it?
+	/// @param role The surface in question.
+	virtual bool oled_transparent(SurfaceRole role) const { return false; }
+	/// @brief Which pad rows and columns this scene wants greyed out.
+	/// @return The mask; all-zero (the default) greys nothing.
+	virtual grid::GreyoutMask greyout_mask() const { return {}; }
+	/// @}
+
+	/// @name Saved state
+	/// Only `replace_root` saves and restores; `pop` and `replace_top` do not.
+	/// @{
+	/// @brief Write whatever should survive being replaced as root into \p state.
+	/// @param state The scene's slot, to be filled in.
+	virtual void save_state(SceneState& state) const {}
+	/// @brief Read back what a previous `save_state` wrote.
+	/// @param state A slot this scene previously saved to.
+	virtual void restore_state(const SceneState& state) {}
+	/// @}
+
+	/// @brief When this scene next needs a `tick()` even with no input.
+	/// @return Milliseconds from now, or `std::nullopt` for "no timer".
+	virtual std::optional<uint32_t> next_timer() const { return std::nullopt; }
+};
+
+/// @brief The application's scene table: one pointer per `SceneKind`, indexed by the kind itself.
+///
+/// A borrowed view over an array the application owns (a `static constexpr`-sized array of
+/// pointers to its scene singletons), so the registry itself allocates nothing and a spec can hand
+/// the stack a table of two test scenes. Kinds the application does not implement are left null.
+struct SceneRegistry {
+	std::span<Scene* const> by_kind;
+
+	/// @brief The scene registered for \p k.
+	/// @param k The kind to look up.
+	/// @return The scene, or null when \p k is unregistered or past the end of `by_kind` -- a
+	///         short table is a table whose later kinds are simply not implemented, never an
+	///         out-of-bounds read.
+	Scene* find(SceneKind k) const {
+		const size_t i = static_cast<size_t>(k);
+		return i < by_kind.size() ? by_kind[i] : nullptr;
+	}
+};
+
+} // namespace deluge::ui::shell

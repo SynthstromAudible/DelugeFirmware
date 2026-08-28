@@ -1,0 +1,132 @@
+#pragma once
+#include "shell/scene.h"
+
+#include <array>
+#include <cstddef>
+#include <span>
+
+namespace deluge::ui::shell {
+
+/// @brief The scene `SceneStack::top()` reports when the stack is empty.
+///
+/// It draws nothing and swallows every event, which is what removes the legacy "remember the last
+/// UI before nullifying so the null check has something to fall back on" hack: the boot window and
+/// the moment after `reset()` are ordinary scenes rather than a null pointer every caller has to
+/// test for.
+class NullScene final : public Scene {
+public:
+	SceneKind kind() const override { return SceneKind::Null; }
+	Result handle(const UiEvent&, const UiContext&) override { return Result::unhandled(); }
+};
+
+/// @brief The stack of scenes the shell renders and routes input through, root first.
+///
+/// Holds pointers to registry-owned scenes and per-`SceneKind` state slots; it allocates nothing
+/// and owns nothing but its own `NullScene`. Every operation is described in terms of the scene
+/// lifecycle hooks it fires, in the order it fires them:
+///
+/// | operation | lifecycle, in order |
+/// |---|---|
+/// | `push(id)` | `on_enter(id)`; a refusal rolls back and resumes the previous top |
+/// | `pop(kind)` | `on_exit()` top-down through `kind`, then `on_resume()` on the new top |
+/// | `replace_root(id)` | `save_state()` + `on_exit()` on all, top first; `push(id)`; `restore_state()` |
+/// | `replace_top(id)` | `on_exit()` on the top, `on_enter(id)` on the replacement; no state save |
+/// | `reset()` | `on_exit()` on every scene, top first |
+///
+/// @warning Not reentrant. A lifecycle hook must not call back into the stack; scenes ask for
+///          navigation by returning `Action`s, which the shell applies between calls.
+class SceneStack {
+public:
+	/// @brief Build an empty stack over \p registry.
+	/// @param registry The scene table, held by reference: it must outlive the stack, and a
+	///                 registry whose span is repointed afterwards is seen by the stack.
+	explicit SceneStack(const SceneRegistry& registry) : reg_(registry) {}
+
+	/// @name Operations
+	/// Every one of these marks the stack changed, so the shell re-queries greyout and the
+	/// composition gates on its next tick.
+	/// @{
+	/// @brief Push \p id on top of the stack.
+	/// @param id What to push; `id.kind` is looked up in the registry.
+	/// @return False when the kind is unregistered, the stack is already `kStackDepth` deep, or
+	///         the scene's `on_enter` refused -- in which case the push is rolled back and the
+	///         previous top is resumed, leaving the stack exactly as it was.
+	bool push(SceneId id);
+
+	/// @brief Pop scenes off the top.
+	/// @param to Pop down to and including the topmost scene of this kind. The default,
+	///           `SceneKind::Null`, means "just the top". A kind that is not on the stack pops
+	///           nothing.
+	void pop(SceneKind to = SceneKind::Null);
+
+	/// @brief Save every scene's state, empty the stack, and make \p id the new root.
+	///
+	/// The state save is what makes leaving and coming back to a root scene cheap: each scene's
+	/// `save_state` is written to its `SceneKind`'s slot on the way out, and a later
+	/// `replace_root` back to that kind restores the slot after `on_enter` has run.
+	/// @param id The new root.
+	/// @return False if the new root could not be entered. An unregistered kind is rejected before
+	///         anything is torn down and leaves the stack exactly as it was; a refusal from
+	///         `on_enter` comes after the old stack has already been saved and exited, and leaves
+	///         the stack empty with `top()` the `NullScene`.
+	bool replace_root(SceneId id);
+
+	/// @brief Swap the top scene for \p id without saving state.
+	///
+	/// The sideways move between peer scenes. On an empty stack this is a plain `push`.
+	/// @param id The replacement.
+	/// @return False when the kind is unregistered (the stack is untouched) or the replacement's
+	///         `on_enter` refused -- in which case the previous top is put back and resumed.
+	bool replace_top(SceneId id);
+
+	/// @brief Exit every scene, top first, and empty the stack.
+	///
+	/// No state is saved. `top()` becomes the `NullScene`.
+	void reset();
+	/// @}
+
+	/// @name Inspection
+	/// @{
+	/// @brief The scene input is routed to first and that draws last.
+	/// @return The top scene, or the `NullScene` when the stack is empty.
+	Scene& top();
+	/// @brief The bottom scene.
+	/// @return The root scene, or null when the stack is empty.
+	Scene* root();
+	/// @brief How many scenes are on the stack.
+	size_t depth() const { return n_; }
+	/// @brief The whole stack, root first, for a render pass that walks it bottom-up.
+	std::span<Scene* const> scenes() const { return std::span<Scene* const>{stack_.data(), n_}; }
+	/// @brief The id a stacked scene was entered with.
+	/// @param i Index from the root (0) to the top (`depth() - 1`).
+	/// @return The id, or a default-constructed `SceneId` when \p i is out of range.
+	SceneId id_at(size_t i) const { return i < n_ ? ids_[i] : SceneId{}; }
+	/// @}
+
+	/// @brief Has the stack changed since this was last called, and clear the flag.
+	///
+	/// The shell polls this once a tick and, when it is set, re-queries `greyout_mask()` and the
+	/// composition gates and invalidates every surface.
+	///
+	/// @note Deliberately conservative: every operation sets the flag, including one that turned
+	///       out to be a no-op (a refused push, a `pop` for a kind that is not on the stack). The
+	///       cost of a false positive is one redundant re-query; the cost of a false negative is a
+	///       stale greyout, so the flag errs towards the former.
+	/// @return True if any operation ran since the last call.
+	bool changed_since_last_query();
+
+private:
+	/// @brief Save \p scene's state into its kind's slot and mark the slot valid.
+	void save_slot(Scene& scene);
+
+	const SceneRegistry& reg_;
+	std::array<Scene*, kStackDepth> stack_{};
+	std::array<SceneId, kStackDepth> ids_{};
+	size_t n_ = 0;
+	std::array<SceneState, kMaxSceneKinds> state_slots_{};
+	std::array<bool, kMaxSceneKinds> slot_valid_{};
+	NullScene null_;
+	bool changed_ = false;
+};
+
+} // namespace deluge::ui::shell
