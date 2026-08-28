@@ -29,7 +29,7 @@ public:
 /// |---|---|
 /// | `push(id)` | `on_enter(id)`; a refusal rolls back and resumes the previous top |
 /// | `pop(kind)` | `on_exit()` top-down through `kind`, then `on_resume()` on the new top |
-/// | `replace_root(id)` | `save_state()` + `on_exit()` on all, top first; `push(id)`; `restore_state()` |
+/// | `replace_root(id)` | per scene, top first: `save_state()` then `on_exit()`; `push(id)`; `restore_state()` |
 /// | `replace_top(id)` | `on_exit()` on the top, `on_enter(id)` on the replacement; no state save |
 /// | `reset()` | `on_exit()` on every scene, top first |
 ///
@@ -64,6 +64,18 @@ public:
 	/// The state save is what makes leaving and coming back to a root scene cheap: each scene's
 	/// `save_state` is written to its `SceneKind`'s slot on the way out, and a later
 	/// `replace_root` back to that kind restores the slot after `on_enter` has run.
+	///
+	/// The stack is unwound one scene at a time, top first, and each scene's `save_state()` runs
+	/// immediately before its own `on_exit()` -- interleaved per scene, not two passes over the
+	/// whole stack. A scene therefore saves while it is still the state it was in when it lost
+	/// the stack, before anything beneath it has been told it is leaving.
+	///
+	/// @note The slots are keyed by `SceneKind` alone, so a `replace_root` to a kind that already
+	///       has a saved slot restores that slot **whatever `id.arg` says** -- coming back to a
+	///       kind with a different argument restores the kind's last saved state and leaves it to
+	///       `on_enter(id)` (which runs first) to have re-targeted the scene at the new argument.
+	///       A scene whose state is argument-specific must therefore either re-derive it in
+	///       `restore_state` or not save it at all.
 	/// @param id The new root.
 	/// @return False if the new root could not be entered. An unregistered kind is rejected before
 	///         anything is torn down and leaves the stack exactly as it was; a refusal from

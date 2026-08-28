@@ -195,6 +195,44 @@ describe shell_scene_stack("shell::SceneStack", $ {
 		expect(r.a.arg).to_equal(uint16_t(7));
 	});
 
+	it("replace_top on an empty stack is a plain push", _ {
+		Rig r;
+		expect(r.st.depth()).to_equal(size_t(0));
+		expect(r.st.replace_top({kA, 3})).to_be_true();
+		expect(r.st.depth()).to_equal(size_t(1));
+		expect(r.st.top().kind() == kA).to_be_true();
+		expect(r.a.enters).to_equal(1);
+		expect(r.a.arg).to_equal(uint16_t(3));
+		expect(r.a.exits).to_equal(0);                               // there was nothing to exit
+		expect(r.a.resumes).to_equal(0);
+	});
+
+	it("a refused replace_top restores and resumes the previous top", _ {
+		Rig r;
+		expect(r.st.push({kA})).to_be_true();
+		expect(r.st.push({kB})).to_be_true();
+		expect(r.st.replace_top({kA, 99})).to_be_false();
+		expect(r.st.depth()).to_equal(size_t(2));
+		expect(r.st.top().kind() == kB).to_be_true();                // kB is back on top
+		expect(r.st.id_at(1) == SceneId{kB}).to_be_true();           // and so is its id
+		expect(r.b.exits).to_equal(1);                               // it was exited before the swap
+		expect(r.b.resumes).to_equal(1);                             // and resumed by the rollback
+		expect(r.a.enters).to_equal(1);                              // only the original push entered
+		expect(r.a.resumes).to_equal(0);                             // the scene beneath was not disturbed
+	});
+
+	it("replace_root to the same kind with a different arg restores the kind's slot", _ {
+		Rig r;
+		expect(r.st.push({kA, 5})).to_be_true();
+		expect(r.st.replace_root({kB})).to_be_true();                // saves arg 5 into kA's slot
+		expect(r.st.replace_root({kA, 7})).to_be_true();
+		// The slot is keyed by SceneKind, not by SceneId, so the saved state comes back whatever
+		// the new arg says -- and on_enter, which ran first, is what re-targeted the scene.
+		expect(r.a.restores).to_equal(1);
+		expect(r.a.restored).to_equal(uint16_t(5));
+		expect(r.a.arg).to_equal(uint16_t(7));
+	});
+
 	it("replace_root leaves a scene's state alone when its slot is invalid", _ {
 		Rig r;
 		expect(r.st.push({kA, 5})).to_be_true();
