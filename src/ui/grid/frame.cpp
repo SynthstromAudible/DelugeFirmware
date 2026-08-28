@@ -110,8 +110,14 @@ Response GridFrame::interact(gfx::grid::Rect local) const {
 		if (!r.contains(e.x, e.y)) {
 			continue;
 		}
-		// The first matching event wins (see the deviation from the SDK's no-break loop, noted on
-		// the declaration in frame.h) -- index and pressed/released/velocity all come from it.
+		// No break -- every matching event in the tick is walked, exactly like pad() walks every
+		// match for its one pad (frame.cpp's pad(), above). pressed/released accumulate
+		// independently, so both can end up true from two different qualifying events (a press
+		// then a release of the same or different pads this tick); velocity is only touched by a
+		// press, so it (like pad()'s) ends up holding the *last* press's velocity. index has no
+		// SDK counterpart to anchor it, so it follows the same "last write wins" rule as
+		// velocity/pressed/released -- it is recomputed on every match, so after the loop it holds
+		// the last matching event's position, whichever kind that event was.
 		if (e.pressed) {
 			resp.pressed = true;
 			resp.velocity = e.velocity;
@@ -120,7 +126,6 @@ Response GridFrame::interact(gfx::grid::Rect local) const {
 			resp.released = true;
 		}
 		resp.index = static_cast<int16_t>((int32_t(e.y) - local.y) * local.w + (int32_t(e.x) - local.x));
-		break;
 	}
 	// held is a level, not an edge, and is independent of which (if any) event was first: any pad
 	// inside `local` that is down right now makes this true. Scoped to visible(), the same gate

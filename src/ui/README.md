@@ -196,19 +196,24 @@ that still scrolls, a gesture that still holds, a gate deadline in the future), 
 
 `GridFrame::interact(local)` (`grid/frame.h`/`.cpp`) hit-tests a rectangle without painting --
 the toolkit-fixes task-6 port of the SDK `Frame::interact` (`deluge-grid-toolkit`'s
-`imode.rs:315-345`). It reports the **first** matching event in `local_events()` order (the SDK's
-own loop never `break`s, so of several matches the *last* silently wins there instead), filling
-`pressed`/`velocity` or `released` from that one event and `index` with its row-major position
-within `local` -- `(event.y - local.y) * local.w + (event.x - local.x)` -- so a widget spanning
-several pads (a fader, a row of steps) reads back *which* pad fired without its own scan.  `held`
-is independent of that first-event rule: true whenever any pad inside `local`, clipped to
-`visible()`, is currently down -- mirroring the SDK's separate held-scan loop. `local` is clipped
-to `bounds()` first, exactly like `first_press_in`.
+`imode.rs:315-343`). Like `pad()`, it walks *every* matching event in `local` this tick rather than
+stopping at the first (the SDK's own loop has no `break` either): `pressed`/`released` accumulate
+independently, so a pad pressed and released in the same tick -- or two different pads both inside
+`local` -- can set both flags from two different events. `velocity` is only touched by a press, so
+it ends up holding the *last* matching press's velocity, exactly as `pad()`'s does. `index` (this
+port's addition, with no SDK counterpart) follows the same last-write-wins rule: recomputed on
+every match, so after the loop it is the *last* matching event's row-major position within
+`local` -- `(event.y - local.y) * local.w + (event.x - local.x)` -- letting a widget spanning
+several pads (a fader, a row of steps) read back which pad fired last without its own scan. `held`
+is unrelated to any of that: true whenever any pad inside `local`, clipped to `visible()`, is
+currently down -- mirroring the SDK's separate held-scan loop. `local` is clipped to `bounds()`
+first, exactly like `first_press_in`.
 
-`gfx::grid::Rect` (`gfx/grid/rect.h`) gained `split_rows(n, i)`/`split_cols(n, i)` (slice `i` of
-`n` equal-ish bands, front slices absorbing the remainder -- 8 rows split 3 ways is `3, 3, 2`) and
-`inset(int32_t)` (shrink by one uniform amount on every side). See `src/gfx/README.md` for the
-full rule and how it differs in shape from the SDK's two-way `Frame::split_rows`/`split_cols`.
+`gfx::grid::Rect` (`gfx/grid/rect.h`) has `split_rows(at)`/`split_cols(at)` -- the same two-way
+split-at-a-position shape as `gfx::oled::Rect`'s siblings (`gfx/oled/geometry.h:50-51`) and the
+SDK's `Frame::split_rows`/`split_cols` (`imode.rs:367-398`), returning a `(before, after)` pair --
+and `inset(int32_t)` (shrink by one uniform amount on every side). See `src/gfx/README.md` for the
+full rule.
 
 ### `bounds()` vs `visible()`
 

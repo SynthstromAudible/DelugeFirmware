@@ -25,17 +25,15 @@ Run the check locally with `python3 scripts/check_gfx_layer.py`; it is also the 
 
 ## `gfx::grid::Rect`: splits and inset
 
-`split_rows(n, i)`/`split_cols(n, i)` (`gfx/grid/rect.h`) return slice `i` of `n` equal-ish
-row-/column-bands: `size / n` per slice, with the first `size % n` slices one unit larger so the
-remainder lands at the front rather than vanishing off the far edge -- 8 rows split 3 ways is
-`3, 3, 2`. This is not the SDK's shape: `deluge-grid-toolkit`'s `Frame::split_rows`/`split_cols`
-(`imode.rs:367-398`) take a single split point `at` and return a `(before, after)` pair, not an
-n-way index; the `(n, i)` signature here is task-6's own generalisation of that two-way split,
-matching `gfx::oled::Rect`'s naming (`split_rows`/`split_cols`, `oled/geometry.h:50-51`) rather
-than the SDK's. `n > 0` and `0 <= i < n` are caller preconditions (`DELUGE_GFX_CONTRACT`), not
-values a caller can legitimately compute at runtime. `inset(int32_t)` shrinks by one uniform
-amount on every side (negative grows it) -- the OLED sibling's shape, not its per-side `Insets`;
-nothing in the grid toolkit needs asymmetric insets yet.
+`split_rows(at)`/`split_cols(at)` (`gfx/grid/rect.h`) split into a `(before, after)` pair at a
+single row/column position `at` -- the same two-way-at-a-position shape as `gfx::oled::Rect`'s
+siblings (`split_rows`/`split_cols`, `oled/geometry.h:50-51`, used at `ui/oled/misc.cpp:126` as
+`rect.split_rows(rect.h / 2)`) and the SDK's `deluge-grid-toolkit::Frame::split_rows`/`split_cols`
+(`imode.rs:367-398`). Task-6 fix round 1 replaced an earlier `(n, i)` n-way form here (slice `i`
+of `n` equal bands) that matched neither sibling -- no production call site used it, and no
+distinctly-named n-way helper was added in its place since none has a caller yet. `inset(int32_t)`
+shrinks by one uniform amount on every side (negative grows it) -- the OLED sibling's shape, not
+its per-side `Insets`; nothing in the grid toolkit needs asymmetric insets yet.
 
 ## `gfx::grid::composite`
 

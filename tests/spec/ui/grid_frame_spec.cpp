@@ -201,9 +201,9 @@ describe grid_frame("ui::grid::GridFrame", $ {
 		expect(r.frame.first_press_in(Rect{0, 0, 2, 8}).has_value()).to_be_false();
 		expect(r.frame.first_press_in(Rect{40, 0, 4, 8}).has_value()).to_be_false();
 	});
-	// interact(): task-6 port of the SDK's Frame::interact (imode.rs:315-345), adapted to report
-	// the first matching event (not the SDK's last-wins, since its loop never breaks -- see
-	// frame.h) and to add index = (event.y - local.y) * local.w + (event.x - local.x).
+	// interact(): task-6 port of the SDK's Frame::interact (imode.rs:315-343). Fix round 1: walks
+	// every matching event like pad() does (no break) -- pressed/released accumulate independently
+	// and velocity/index follow "last matching event wins", not the first-wins of the original cut.
 	it("reports a miss as a default Response", _ {
 		uitest::GridRig r;
 		Response miss = r.frame.interact(Rect{4, 0, 4, 2});
@@ -222,16 +222,17 @@ describe grid_frame("ui::grid::GridFrame", $ {
 		expect(hit.released).to_be_false();
 		expect(int(hit.index)).to_equal(1 * 4 + 2); // y=1, w=4, x=2 -> 6
 	});
-	it("reports the first event inside the rect when several fall inside it", _ {
+	it("reports the last matching press's velocity and index when two presses fall inside it", _ {
 		uitest::GridRig r;
-		// Both land inside {0,0,8,8}; local_events() preserves ctx.input.pads order, so the first
-		// one (5,5) wins even though it is not the topmost or leftmost.
+		// Both land inside {0,0,8,8}; local_events() preserves ctx.input.pads order and the loop
+		// does not break, so the *second* (1,1) wins for velocity/index, per the ruling's
+		// "two presses -> index of the second".
 		PadEvent ev[] = {{5, 5, 20, true}, {1, 1, 90, true}};
 		r.input.pads = ev;
-		Response first = r.frame.interact(Rect{0, 0, 8, 8});
-		expect(first.pressed).to_be_true();
-		expect(first.velocity).to_equal(uint8_t(20));
-		expect(int(first.index)).to_equal(5 * 8 + 5);
+		Response last = r.frame.interact(Rect{0, 0, 8, 8});
+		expect(last.pressed).to_be_true();
+		expect(last.velocity).to_equal(uint8_t(90));
+		expect(int(last.index)).to_equal(1 * 8 + 1);
 	});
 	it("reports a release separately from a press", _ {
 		uitest::GridRig r;
@@ -242,6 +243,29 @@ describe grid_frame("ui::grid::GridFrame", $ {
 		expect(rel.pressed).to_be_false();
 		expect(rel.velocity).to_equal(uint8_t(0));
 		expect(int(rel.index)).to_equal(1 * 4 + 2);
+	});
+	it("sets both pressed and released when a pad is pressed and released in one tick, index from the release", _ {
+		uitest::GridRig r;
+		// Two different pads, both inside the rect: press at (2,1), then release at (5,6). Neither
+		// break nor per-category tracking, so both flags end up set and index -- last write wins --
+		// is the release's position, not the press's, since the release comes later in event order.
+		PadEvent ev[] = {{2, 1, 60, true}, {5, 6, 0, false}};
+		r.input.pads = ev;
+		Response both = r.frame.interact(Rect{0, 0, 8, 8});
+		expect(both.pressed).to_be_true();
+		expect(both.velocity).to_equal(uint8_t(60)); // only a press touches velocity
+		expect(both.released).to_be_true();
+		expect(int(both.index)).to_equal(6 * 8 + 5); // the release's (x=5,y=6), not the press's
+	});
+	it("sets both flags for a single pad pressed and released in the same tick", _ {
+		uitest::GridRig r;
+		PadEvent ev[] = {{3, 2, 45, true}, {3, 2, 0, false}};
+		r.input.pads = ev;
+		Response both = r.frame.interact(Rect{0, 0, 8, 8});
+		expect(both.pressed).to_be_true();
+		expect(both.released).to_be_true();
+		expect(both.velocity).to_equal(uint8_t(45));
+		expect(int(both.index)).to_equal(2 * 8 + 3);
 	});
 	it("reports held from the level, independent of any event", _ {
 		uitest::GridRig r;

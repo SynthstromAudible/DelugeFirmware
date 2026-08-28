@@ -153,20 +153,27 @@ struct GridFrame : FrameInput {
 	std::optional<PadEvent> first_press_in(gfx::grid::Rect local) const;
 
 	/// Hit-test \p local (this frame's coordinates) against this tick's input without painting --
-	/// the toolkit-fixes task-6 port of the SDK's `Frame::interact` (`imode.rs:315-345`).
+	/// the toolkit-fixes task-6 port of the SDK's `Frame::interact` (`imode.rs:315-343`).
 	///
-	/// The SDK's `Response` there is `{pressed: Option<Pad>, released: Option<Pad>, held: bool}`
-	/// and its event loop does not `break`, so of several matching events in one tick the *last*
-	/// silently wins for `pressed` and, independently, for `released`. This port instead reports
-	/// **the first event inside \p local**, in `local_events()` order (ctx.input.pads order): the
-	/// first matching event's `pressed`/`velocity` (if it was a press) or `released` (if it was a
-	/// release) populate the one `deluge::ui::Response` this returns, and `index` is that event's
-	/// position within \p local, row-major -- `(event.y - local.y) * local.w + (event.x - local.x)`
-	/// -- so a component spanning several pads (a fader, a row of steps) can tell which one fired
-	/// without its own scan over `local_events()`. `held` is independent of which event (if any)
-	/// was first: it is true whenever *any* pad inside \p local -- clipped to `visible()`, the same
-	/// gate `pad()` applies before it will read `held_pads()` for a single pad -- is currently held,
-	/// mirroring the SDK's separate `'held: for row ... for col` scan (`imode.rs:335-344`).
+	/// Walks every event in \p local this tick, exactly as `pad()` walks every event for its one
+	/// pad (above) and as the SDK's own event loop does (`imode.rs:315-330`, no `break`):
+	/// `pressed`/`released` accumulate independently, so a pad pressed and released in the same
+	/// tick -- or two different pads both landing inside \p local -- can set *both* flags from two
+	/// different events. `velocity` is only touched by a press match, so (like `pad()`) it ends up
+	/// holding the *last* matching press's velocity. `index` -- this port's addition, with no SDK
+	/// counterpart -- follows the same last-write-wins rule as the rest of the loop: it is
+	/// recomputed on every match, press or release, so after the loop it is the *last* matching
+	/// event's row-major position within \p local -- `(event.y - local.y) * local.w + (event.x -
+	/// local.x)` -- letting a component spanning several pads (a fader, a row of steps) tell which
+	/// one fired last without its own scan over `local_events()`. Two worked cases: a press then a
+	/// release of the same pad in one tick sets both `pressed` and `released`, with `index` from
+	/// the release (the later event); two presses inside \p local set `pressed` with `index` from
+	/// the second.
+	///
+	/// `held` is unrelated to any of the above: it is true whenever *any* pad inside \p local --
+	/// clipped to `visible()`, the same gate `pad()` applies before it will read `held_pads()` for
+	/// a single pad -- is currently held, mirroring the SDK's separate `'held: for row ... for col`
+	/// scan (`imode.rs:335-344`).
 	///
 	/// \p local is clipped to `bounds()` first, exactly as `first_press_in` clips -- a rectangle
 	/// hanging off this frame reports only the part that is really inside it. Never masked (rule 4,
