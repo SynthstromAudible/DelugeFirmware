@@ -6,7 +6,7 @@
 # they compose cleanly into the one umbrella without duplicate-symbol collisions.
 [workspace]
 resolver = "2"
-members = ["deluge_alloc", "deluge_audio_format", "deluge_resource", "deluge_rust", "deluge_sample_source", "deluge_sample_fill", "deluge_sample_reader", "deluge_sample_stream"]
+members = ["deluge_alloc", "deluge_audio_format", "deluge_audio_loader_host", "deluge_resource", "deluge_rust", "deluge_sample_source", "deluge_sample_fill", "deluge_sample_reader", "deluge_sample_stream"]
 # cargo-fuzz crate has its own [profile] + is nightly/standalone — keep it out of
 # the workspace (it still path-deps deluge_alloc directly).
 # `deluge_sample_convert` is likewise standalone: its build.rs `cc`-compiles app

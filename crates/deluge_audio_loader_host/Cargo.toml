@@ -1,0 +1,88 @@
+# CI carrier for the async audio loader's host test suite.
+#
+# `src/bsp/rust/tests/audio_loader_host.rs` is the only coverage the loader's
+# parse/publish driver has, and no CI job could ever run it: `src/bsp/rust`
+# carries a `[patch]` redirecting `deluge-bsp`/`rza1l-hal` to a sibling
+# `../../../../deluge-sdk` checkout, so on a plain checkout cargo fails to
+# resolve that manifest at all ("patch location ... does not contain packages
+# matching `deluge-bsp`") -- before compiling anything, and regardless of which
+# target is asked for. The patch is not this branch's to remove (it is what lets
+# the device image link locally), so the tests are carried here instead.
+#
+# This package adds no test source of its own. `tests/audio_loader_host.rs`
+# below is a three-line `#[path]` shim onto the BSP's file, which in turn
+# `#[path]`-includes `src/audio_loader.rs`: one source of truth, compiled twice.
+# Editing either BSP file changes what runs here, with no copy to keep in sync.
+#
+# The dependency set is exactly what the driver reaches for once its `prod`
+# submodule (the efatfs backing, gated on device/`host_app`) drops out of a plain
+# host build -- see that module's `#[cfg]`. `critical-section/std` is not
+# decoration: the driver's statics are `CriticalSectionRawMutex`-backed and the
+# test binary needs a real implementation to link.
+[package]
+name = "deluge_audio_loader_host"
+version = "0.1.0"
+# Matches `src/bsp/rust`, so the shared source compiles under the same edition
+# rules here as it does in the firmware.
+edition = "2024"
+license = "GPL-3.0-or-later"
+publish = false
+
+# No library, no binary: this package exists only to own a test target.
+[lib]
+path = "src/lib.rs"
+test = false
+doctest = false
+
+[features]
+# Both on by default, unlike the BSP. There the split is a shipping decision --
+# `async_audio_load` builds the driver, `async_audio_load_active` is THE SWITCH
+# that routes real card loads through it, and it ships off. Here neither feature
+# reaches a firmware image; they only select how much of the test file compiles.
+# The whole file is `#![cfg(feature = "async_audio_load")]`, and its
+# `live_pipeline` module (the request/collect FFI tier) is gated on
+# `async_audio_load_active`, so with defaults off this package would build clean
+# and run zero tests -- the exact silent-no-coverage failure it exists to end.
+default = ["async_audio_load", "async_audio_load_active"]
+
+## Compile the parse driver. Mirrors the BSP feature of the same name.
+async_audio_load = []
+## Compile the live request/collect tier as well. Mirrors the BSP feature of the
+## same name; here it is a compilation switch only, never a shipping one.
+async_audio_load_active = ["async_audio_load"]
+
+[dependencies]
+# The loader's queue/result statics: `Mutex<CriticalSectionRawMutex, _>` and
+# `Signal`.
+embassy-sync = "0.8.0"
+# `LoadPath`/`CandidateList`/`RequestQueue`/`ResultTable` are all fixed-capacity.
+#
+# Pinned to 0.8 to match `src/bsp/rust`, NOT to the 0.9 the rest of this
+# workspace already resolves through embassy-sync. The two coexist in the
+# lockfile, which is the price of the guarantee that matters here: the shared
+# source compiles against the same heapless API in this test as it does in the
+# firmware, so a construct that builds here builds on device.
+heapless = { version = "0.8", default-features = false }
+# The header decoder the driver walks each candidate's prefix through.
+deluge_audio_format = { path = "../deluge_audio_format" }
+
+[dev-dependencies]
+# The statics above are `CriticalSectionRawMutex`-backed, so the test binary must
+# supply a critical-section implementation or fail to link. `std` is the host one.
+critical-section = { version = "1", features = ["std"] }
+# The tests drive the driver's futures to completion by hand -- there is no
+# executor in this build.
+embassy-futures = "0.1.2"
+
+# `audio_loader.rs` also branches on `efatfs_streaming` and `host_app` — the BSP
+# features that decide whether the efatfs backing is linked. Neither can ever be
+# on here (this package links no backing at all, which is the whole reason the
+# driver is reachable without the C++ app), but the `cfg`s reading them are still
+# compiled, and check-cfg would flag each as a typo. Declaring them as expected
+# values silences that without inventing two features this package would have to
+# pretend to support; `warn` is kept so a genuinely misspelled feature still
+# shows up, and so the workspace's `clippy -D warnings` still catches one.
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = [
+    'cfg(feature, values("efatfs_streaming", "host_app"))',
+] }
