@@ -9,9 +9,9 @@ using gfx::oled::kEdge;
 using gfx::oled::Point;
 using gfx::oled::Rect;
 
-OledFrame root_frame(gfx::oled::Canvas& canvas, const Style& style, FrameContext& ctx) {
+OledFrame root_frame(gfx::oled::Canvas& canvas, const Style& style, FrameContext& ctx, InputMask mask) {
 	const gfx::oled::Geometry g = canvas.geometry();
-	return OledFrame{{ctx, InputMask::all()},
+	return OledFrame{{ctx, mask},
 	                 canvas,
 	                 Rect{0, g.visible_top, g.width, g.visible_height()},
 	                 Point{0, g.visible_top},

@@ -223,7 +223,20 @@ struct GridFrame : FrameInput {
 	mutable uint8_t local_count_ = 0;
 };
 
-/// The root frame for a whole pad surface: the full grid, sidebar columns included, focused.
-GridFrame root_grid_frame(gfx::grid::PadGrid& grid, FrameContext& ctx);
+/// The root frame for a whole pad surface: the full grid, sidebar columns included, granted
+/// \p mask -- `InputMask::all()` by default.
+///
+/// \p mask is the shell's lever at the top of the tree (I2), the grid-side twin of
+/// `oled::root_frame`'s: a shell rendering several scenes onto one pad surface (a base scene under
+/// a grid overlay) builds the frontmost, focused one's root with `all()` and every scene beneath it
+/// with `none()`, so a scene under an overlay still paints -- and a component built over that root
+/// still lights every pad it would have -- but reads 0/false from every masked accessor and claims
+/// nothing. **Pads are unaffected either way (rule 4).** `pad()`, `peek()`, `local_events()`,
+/// `first_press_in()`, `interact()` and `held_pads()` are never masked, so a root built with
+/// `none()` still reports every press exactly as one built with `all()` would: a component that
+/// only ever paints and hit-tests pads -- never reads an encoder -- behaves identically under
+/// either mask, which is what makes an inert *encoder* surface a live *pad* surface still make
+/// sense as one frame.
+GridFrame root_grid_frame(gfx::grid::PadGrid& grid, FrameContext& ctx, InputMask mask = InputMask::all());
 
 } // namespace deluge::ui::grid

@@ -28,6 +28,7 @@ using deluge::ui::oled::list;
 using deluge::ui::oled::ListRow;
 using deluge::ui::oled::menu_rect;
 using deluge::ui::oled::OledFrame;
+using deluge::ui::oled::root_frame;
 using deluge::ui::oled::scroll_text;
 using deluge::ui::oled::working;
 using Rect = deluge::gfx::oled::Rect;
@@ -91,10 +92,20 @@ describe frame_context("ui::FrameContext", $ {
 		expect(r.frame.back_pressed()).to_be_true();
 		expect(r.frame.shift()).to_be_true();
 		expect(r.frame.now_ms()).to_equal(uint32_t(1234));
-		// The root frame holds every input, and nothing has been consumed yet.
+		// The root frame holds every input. Reading is claiming (rule 2, I3): every accessor read
+		// above claimed its own input on this frame, except edit(2) -- there is no third encoder to
+		// own, so it neither reads nor claims anything. now_ms()/shift() are never masked and never
+		// claimed; they are not controls.
 		expect(r.frame.focused()).to_be_true();
 		expect(r.frame.mask == InputMask::all()).to_be_true();
-		expect(r.ctx.claims.any()).to_be_false();
+		expect(r.ctx.claims.turn).to_be_true();
+		expect(r.ctx.claims.edit0).to_be_true();
+		expect(r.ctx.claims.edit1).to_be_true();
+		expect(r.ctx.claims.horizontal).to_be_true();
+		expect(r.ctx.claims.vertical).to_be_true();
+		expect(r.ctx.claims.select).to_be_true();
+		expect(r.ctx.claims.back).to_be_true();
+		expect(r.ctx.claims.double_claim).to_be_false();
 	});
 
 	it("presents zero input to an unfocused region", _ {
@@ -466,6 +477,73 @@ describe frame_context("ui::FrameContext", $ {
 		// ... and a focused grid region records them, so the no-op above is not vacuous.
 		r.frame.region(GridRect{0, 0, 8, 8}, [&](GridFrame& f) { f.claim_turn(); });
 		expect(r.ctx.claims.turn).to_be_true();
+	});
+
+	it("claims on read, idempotently per frame, and only trips double_claim between frames (I3)", _ {
+		uitest::Rig64 r;
+		r.input.turn = 1;
+
+		// One frame reading the same input three times: the first read claims it, the other two
+		// are no-ops on that same instance -- not a widget claiming twice by mistake.
+		r.frame.region(Rect{0, 0, 64, 64}, [&](OledFrame& f) {
+			expect(int(f.turn())).to_equal(1);
+			expect(int(f.turn())).to_equal(1);
+			expect(int(f.turn())).to_equal(1);
+		});
+		expect(r.ctx.claims.turn).to_be_true();
+		expect(r.ctx.claims.double_claim).to_be_false();
+
+		// A widget that reads an input without ever calling claim_turn() still shows up in
+		// ctx.claims -- the gap I3 closes: before this rule only an explicit claim_*() call was
+		// visible here, so a hand-written reader of f.turn() (or f.back_pressed(), etc.) looked
+		// exactly like one that had claimed nothing at all.
+		uitest::Rig64 r2;
+		r2.input.turn = 1;
+		r2.frame.region(Rect{0, 0, 64, 64}, [&](OledFrame& f) { (void)f.turn(); });
+		expect(r2.ctx.claims.turn).to_be_true();
+
+		// Two different frames, each granted the turn, each only *reading* it (neither calls
+		// claim_turn()): double_claim still fires. It is a property of two frames, never of one
+		// frame's repeated reads.
+		uitest::Rig64 r3;
+		r3.input.turn = 1;
+		r3.frame.region(Rect{0, 0, 64, 64}, [&](OledFrame& f) { (void)f.turn(); });
+		r3.frame.region(Rect{64, 0, 64, 64}, [&](OledFrame& f) { (void)f.turn(); });
+		expect(r3.ctx.claims.double_claim).to_be_true();
+	});
+
+	it("root_frame/root_grid_frame take the shell's InputMask (I2): none() leaves a list inert but "
+	   "pads still report", _ {
+		const ListRow rows[] = {{"ONE"}, {"TWO"}, {"THREE"}};
+		uitest::Rig48 r;
+		r.input.turn = 1;
+		r.input.select_pressed = true;
+		ListState st;
+		ScrollText sc;
+		// What the shell grants a scene sitting under an overlay: the root itself, not a region
+		// below it, is built with none(). Everything over it draws exactly as it would focused,
+		// but reads 0/false and claims nothing -- the same shape as an unfocused region(), one
+		// level higher, where there is no parent frame to call region() on.
+		OledFrame inert = root_frame(r.canvas, r.style, r.ctx, InputMask::none());
+		const Response resp = list(inert, menu_rect(inert), st, rows, sc);
+		expect(st.cursor).to_equal(int16_t(0));    // the turn never reached it
+		expect(resp.changed).to_be_false();
+		expect(resp.entered).to_be_false();        // nor did the press
+		expect(r.ctx.claims.any()).to_be_false();
+		expect(r.lit(0, 20)).to_be_true();         // it still drew the first row's highlight
+
+		// The grid side: pads are never masked (rule 4), so a root built with none() reports every
+		// press exactly as one built with all() would, even though the same root's encoders read 0.
+		uitest::GridRig g;
+		PadEvent ev[] = {{2, 2, 100, true}};
+		g.input.pads = ev;
+		g.input.turn = 1;
+		GridFrame none_root = root_grid_frame(g.grid, g.ctx, InputMask::none());
+		expect(int(none_root.turn())).to_equal(0);
+		const Response hit = none_root.pad(2, 2, RGB{9, 9, 9});
+		expect(hit.pressed).to_be_true();
+		expect(g.grid.at(2, 2)).to_equal(RGB{9, 9, 9});
+		expect(g.ctx.claims.any()).to_be_false();
 	});
 });
 DELUGE_SPEC(ui_frame_context_spec, frame_context)

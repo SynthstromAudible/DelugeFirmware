@@ -193,9 +193,20 @@ struct OledFrame : FrameInput {
 	// FrameInput base subobject first, then this struct's own members. Helpers live in frame.cpp.
 };
 
-/// The root frame for a whole panel: origin at the top of the *visible* area, clipped to it, with
-/// every input granted (the root of a surface holds them all; regions below it narrow).
-/// No widget below this point knows the bezel exists.
-OledFrame root_frame(gfx::oled::Canvas& canvas, const Style& style, FrameContext& ctx);
+/// The root frame for a whole panel: origin at the top of the *visible* area, clipped to it, and
+/// granted \p mask -- `InputMask::all()` by default, since a root not otherwise told holds every
+/// input and regions below it only ever narrow.
+///
+/// \p mask is the shell's lever at the top of the tree (I2): the toolkit builds one `OledFrame`
+/// tree per surface per tick, and a shell that stacks several scenes on one surface (an overlay
+/// over a base scene) has to be able to tell a scene "you may draw, but the scene above you owns
+/// this tick's input" -- exactly `region`'s `false`/`none()` argument one level up, where there is
+/// no parent frame to call it on. `InputMask::all()` is what the top (frontmost, focused) scene's
+/// root is built with; every scene beneath it gets `InputMask::none()`, so its widgets still render
+/// -- and a `list` built over that root still paints its window and highlight -- but read 0/false
+/// from every masked accessor and claim nothing, exactly as an unfocused `region()` does. No widget
+/// below this point knows the bezel exists, regardless of \p mask.
+OledFrame root_frame(gfx::oled::Canvas& canvas, const Style& style, FrameContext& ctx,
+                     InputMask mask = InputMask::all());
 
 } // namespace deluge::ui::oled

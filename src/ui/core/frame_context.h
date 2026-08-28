@@ -26,11 +26,15 @@ struct InputClaims {
 	bool horizontal = false, vertical = false;
 	bool select = false, back = false;
 
-	/// **Diagnostic.** Set when an input that was already claimed this tick is claimed again --
-	/// i.e. two controls that were both granted it owned it. A claim records ownership; it does
-	/// not arbitrate (see rule 2 below), so nothing stops the second widget from consuming the
-	/// input as well, and the flag is the only trace that it happened. The shell's own tests
-	/// assert it stays false; a scene that trips it granted one input to two regions.
+	/// **Diagnostic.** Set when an input that was already claimed this tick is claimed again by a
+	/// *different* `FrameInput` -- i.e. two frames that were both granted it each owned it. It
+	/// never fires for one frame reading (or claiming) the same input twice: `FrameInput::claimed_`
+	/// (below) makes the first claim by a given frame instance the only one that touches this flag
+	/// for that frame, so a widget that calls `f.turn()` three times, or reads it once and then
+	/// calls `f.claim_turn()` for good measure, does not trip this against itself. A claim records
+	/// ownership; it does not arbitrate (see rule 2 below), so nothing stops the second widget from
+	/// consuming the input as well, and the flag is the only trace that it happened. The shell's
+	/// own tests assert it stays false; a scene that trips it granted one input to two regions.
 	///
 	/// Deliberately outside `any()`: it says something about *how* inputs were consumed, not that
 	/// any were.
@@ -105,16 +109,32 @@ struct InputMask {
 ///    something a widget can forget. The `ui-widgets-read-input-directly` rule in
 ///    scripts/check_layer_rules.py holds that at zero.
 ///
-/// 2. **A widget that renders a control consumes the inputs that control owns, and claims them in
-///    the same call.** The claim says *"this control owns that input this tick"*, not *"the value
-///    was non-zero"*, and not *"there was something to do with it"*: a focused `list` claims the
-///    turn on every frame it renders -- whether or not a detent arrived, and whether or not it has
-///    any rows -- because the answer to "may the shell scroll the page with this encoder?" is the
-///    same either way: no, the list has it. Claiming only on a non-zero value would hand the shell
-///    every idle tick's encoder and make ownership flicker at the detent rate; claiming only when
-///    the widget has content would make it flicker with the model. A widget that is drawn but not
-///    live (an unfocused frame, or a widget passed `focused == false`) consumes nothing and
-///    therefore claims nothing.
+/// 2. **Reading is claiming.** `f.turn()`, `f.edit(i)`, `f.horizontal()`, `f.vertical()`,
+///    `f.select_pressed()` and `f.back_pressed()` each record the claim for their own input, on
+///    the frame that read them, in the same call that hands back the value -- there is no separate
+///    step a widget can forget. The claim says *"this control owns that input this tick"*, not
+///    *"the value was non-zero"*, and not *"there was something to do with it"*: a focused `list`
+///    claims the turn on every frame it renders -- whether or not a detent arrived, and whether or
+///    not it has any rows -- because the answer to "may the shell scroll the page with this
+///    encoder?" is the same either way: no, the list has it. Claiming only on a non-zero value
+///    would hand the shell every idle tick's encoder and make ownership flicker at the detent
+///    rate; claiming only when the widget has content would make it flicker with the model. A
+///    widget that is drawn but not live (an unfocused frame, or a widget passed `focused == false`)
+///    reads a masked-off 0/false, claims nothing and therefore consumes nothing.
+///
+///    The explicit `claim_turn()`, `claim_edit(i)`, `claim_horizontal()`, `claim_vertical()`,
+///    `claim_select()`, `claim_back()` methods still exist, and still matter: a widget that owns an
+///    input without ever reading it -- `list` claims the select encoder before it knows whether
+///    the model even has a selectable row this tick -- has to say so some other way, and these are
+///    it. They run through the same idempotent path as the accessors (`set_claim`, below), so
+///    calling `claim_turn()` after already reading `turn()` this frame costs nothing and claims
+///    nothing twice.
+///
+///    **Claiming is idempotent per frame, not per read.** Each `FrameInput` remembers, in its own
+///    `claimed_` (below), which inputs *it* has already recorded a claim for; a second read or
+///    `claim_*()` call by that same frame instance for the same input is a no-op. This is what
+///    keeps a widget that reads `turn()` twice from tripping `InputClaims::double_claim` against
+///    itself -- see that flag's own doc for the two-*frame* case it does catch.
 ///
 ///    **A claim records ownership; it does not arbitrate.** An input reaches *every* frame whose
 ///    mask grants it, so two sibling regions that were both granted the turn each run their `list`
@@ -122,6 +142,17 @@ struct InputMask {
 ///    exactly what `InputMask` is for. `InputClaims::double_claim` is the diagnostic for getting
 ///    it wrong, not a defence against it; if a shell ever needs "consumed at most once" it is a
 ///    check written on top of `claims`, not a property of them.
+///
+///    **What `double_claim` cannot see: a read with no claim at all.** Before this rule, an
+///    accessor only returned a value -- claiming was a second, separate call a widget had to
+///    remember to make -- so a widget (or a hand-written scene) that read `f.back_pressed()` to
+///    decide something, without ever calling `claim_back()`, left the input looking unclaimed. The
+///    shell gates its post-render delivery to `Scene::handle()` on exactly that claim bit, so the
+///    input would then reach the scene a second time: a genuine double-consumption with
+///    `double_claim` false and every "claims stay clean" test passing, because nothing pairs a read
+///    with a claim to catch it. Folding the claim into the read itself, as this rule now does,
+///    closes that gap -- there is no longer a way to read an input through a frame without also
+///    claiming it.
 ///
 /// 3. **A frame sees exactly the inputs its parent granted it.** Focus is an `InputMask`, not a
 ///    flag: `region(rect, m)` gives the child `mask & m`, so it only ever narrows and a child can
@@ -198,6 +229,13 @@ struct FrameInput {
 	/// The inputs this frame was granted (rule 3). `all()` at the root; narrowed, never widened,
 	/// by every `region()` below it.
 	InputMask mask = InputMask::all();
+	/// Which inputs *this* `FrameInput` instance has already recorded a claim for (rule 2). Shaped
+	/// like `InputClaims` rather than `InputMask` because the two gold knobs share one mask bit but
+	/// claim two separate flags (`edit0`/`edit1`); `double_claim` is unused here. A fresh `region()`
+	/// builds a fresh child with a default-initialised `claimed_`, so nesting starts clean at every
+	/// depth; nothing about a tick clears it early, because a frame does not outlive its own tick's
+	/// single pass over it. See `set_claim` for the idempotency this drives.
+	mutable InputClaims claimed_{};
 
 	/// Was this frame granted everything -- the old boolean "focused"? For a widget or a spec that
 	/// asks the coarse question; the accessors below each consult their own bit.
@@ -209,14 +247,41 @@ struct FrameInput {
 	/// Each masked by its own bit: an input this frame was not granted reads 0/false, so a widget
 	/// drawn without it cannot move on it.
 
-	int8_t turn() const { return mask.turn ? ctx.input.turn : int8_t{0}; }
-	/// \p i is 0 (GoldUpper, coarse) or 1 (GoldLower, fine); anything else reads 0. Both knobs are
-	/// one control and share `InputMask::edit`.
-	int8_t edit(int i) const { return (mask.edit && i >= 0 && i < 2) ? ctx.input.edit[i] : int8_t{0}; }
-	int8_t horizontal() const { return mask.horizontal ? ctx.input.horizontal : int8_t{0}; }
-	int8_t vertical() const { return mask.vertical ? ctx.input.vertical : int8_t{0}; }
-	bool select_pressed() const { return mask.select && ctx.input.select_pressed; }
-	bool back_pressed() const { return mask.back && ctx.input.back_pressed; }
+	/// Reading is claiming (rule 2): granted or not, every call below records the claim on `ctx`
+	/// through `set_claim` before it returns, so there is no way to read a masked-in input through
+	/// a frame without also owning it for the tick.
+	int8_t turn() const {
+		set_claim(mask.turn, &InputClaims::turn);
+		return mask.turn ? ctx.input.turn : int8_t{0};
+	}
+	/// \p i is 0 (GoldUpper, coarse) or 1 (GoldLower, fine); anything else reads 0 and claims
+	/// nothing -- there is no third encoder to own. Both knobs are one control and share
+	/// `InputMask::edit`, but each has its own claim flag (`edit0`/`edit1`).
+	int8_t edit(int i) const {
+		if (i == 0) {
+			set_claim(mask.edit, &InputClaims::edit0);
+		}
+		else if (i == 1) {
+			set_claim(mask.edit, &InputClaims::edit1);
+		}
+		return (mask.edit && i >= 0 && i < 2) ? ctx.input.edit[i] : int8_t{0};
+	}
+	int8_t horizontal() const {
+		set_claim(mask.horizontal, &InputClaims::horizontal);
+		return mask.horizontal ? ctx.input.horizontal : int8_t{0};
+	}
+	int8_t vertical() const {
+		set_claim(mask.vertical, &InputClaims::vertical);
+		return mask.vertical ? ctx.input.vertical : int8_t{0};
+	}
+	bool select_pressed() const {
+		set_claim(mask.select, &InputClaims::select);
+		return mask.select && ctx.input.select_pressed;
+	}
+	bool back_pressed() const {
+		set_claim(mask.back, &InputClaims::back);
+		return mask.back && ctx.input.back_pressed;
+	}
 	/// @}
 
 	/// @{
@@ -233,8 +298,12 @@ struct FrameInput {
 	/// @{
 	/// @name Claims
 	///
-	/// Recorded by a widget in the same call that consumes the input (rule 2). A claim on an input
-	/// this frame was not granted is a no-op -- a widget that could not consume it does not own it.
+	/// For a widget that owns an input without ever reading it through the accessors above (rule
+	/// 2) -- `list` claims the select encoder before it knows whether the model has a selectable
+	/// row this tick. These run through the same `set_claim` the accessors do, so calling one after
+	/// this frame has already read (or claimed) the same input is a no-op, not a second claim. A
+	/// claim on an input this frame was not granted is also a no-op -- a widget that could not
+	/// consume it does not own it.
 
 	void claim_turn() const { set_claim(mask.turn, &InputClaims::turn); }
 	void claim_edit(int i) const {
@@ -250,13 +319,21 @@ struct FrameInput {
 	void claim_select() const { set_claim(mask.select, &InputClaims::select); }
 	void claim_back() const { set_claim(mask.back, &InputClaims::back); }
 
-	/// Set one claim flag if \p granted, flagging a second claim on the same input as
-	/// `double_claim`. Not part of the widget API -- widgets call the named `claim_*()` methods
+	/// Set one claim flag if \p granted -- idempotently for *this* frame instance. `claimed_`
+	/// (above) is this frame's own record of which flags it has already gone through here for;
+	/// the first call for a given flag (from a read or from a `claim_*()`) is the one that touches
+	/// `ctx.claims`, flagging `double_claim` if some *other* frame had already claimed it this tick,
+	/// and every later call this same frame makes for that flag returns immediately. That is what
+	/// keeps a widget reading `turn()` three times, or reading it and then also calling
+	/// `claim_turn()`, from tripping `double_claim` against its own repeated bookkeeping -- the flag
+	/// still fires, correctly, the moment a *second* frame claims the same input (see its doc).
+	/// Not part of the widget API -- widgets call the named accessors and `claim_*()` methods
 	/// above; this is public only because `FrameInput` is an aggregate and has no private section.
 	void set_claim(bool granted, bool InputClaims::* flag) const {
-		if (!granted) {
+		if (!granted || claimed_.*flag) {
 			return;
 		}
+		claimed_.*flag = true;
 		if (ctx.claims.*flag) {
 			ctx.claims.double_claim = true;
 		}
