@@ -99,21 +99,24 @@ Response list(OledFrame& f, Rect rect, ListState& state, std::span<const ListRow
 	const int32_t n = static_cast<int32_t>(rows.size());
 	const int32_t visible = list_visible_rows(f, rect);
 
-	// The cursor moves before anything is drawn, bounded by the row count the previous frame
-	// published. `rows_last == 0` means "no previous frame" (its default), so the first frame
-	// bounds itself by the rows it was handed; never past what the span actually holds.
-	const int32_t limit = std::min<int32_t>(state.rows_last > 0 ? state.rows_last : n, n);
-	int32_t cursor = std::clamp<int32_t>(state.cursor, 0, std::max<int32_t>(0, limit - 1));
-	// The two inputs this control owns, claimed on every focused frame rather than only on the
-	// frames a detent or a press arrives: ownership is a property of what is on screen, not of
-	// what the user did this millisecond (ui/core/frame_context.h rule 2).
+	// Two-pass, count then draw (SDK menu.rs:346-415): `n` above is already the count of the
+	// span `list` was handed *this* frame, so the cursor clamps and walks against `n` directly --
+	// never against `state.rows_last`, which is last frame's count and would lag a shrinking or
+	// growing list by one frame. The two inputs this control owns are claimed on every focused
+	// frame rather than only on the frames a detent or a press arrives: ownership is a property
+	// of what is on screen, not of what the user did this millisecond (ui/core/frame_context.h
+	// rule 2).
+	int32_t cursor = std::clamp<int32_t>(state.cursor, 0, std::max<int32_t>(0, n - 1));
 	f.claim_turn();
 	f.claim_select();
-	if (f.turn() != 0 && limit > 0) {
-		cursor = move_cursor(cursor, f.turn(), rows, limit);
+	if (f.turn() != 0 && n > 0) {
+		cursor = move_cursor(cursor, f.turn(), rows, n);
 	}
 	resp.changed = cursor != state.cursor;
 	state.cursor = static_cast<int16_t>(cursor);
+	// A pure cache from here on: republished for a caller that wants last frame's count (e.g.
+	// `enum_value`'s windowed inner `list` call sizes itself from its own copy of this field),
+	// never read back by `list` itself.
 	state.rows_last = static_cast<int16_t>(n);
 	if (resp.changed) {
 		f.gate().request_repaint();

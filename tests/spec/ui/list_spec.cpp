@@ -243,19 +243,56 @@ describe list_w("ui::oled::list", $ {
 		expect(st3.cursor).to_equal(int16_t(3));
 	});
 
-	it("bounds turn by the row count the previous frame saw", _ {
+	it("bounds turn by this frame's row count, not the previous frame's", _ {
 		const ListRow five[] = {{"ONE"}, {"TWO"}, {"THREE"}, {"FOUR"}, {"FIVE"}};
 		const ListRow two[] = {{"ONE"}, {"TWO"}};
 		uitest::Rig48 r; ListState st; ScrollText sc;
 		const Rect m = menu_rect(r.frame);
 		list(r.frame, m, st, five, sc);
 		expect(st.rows_last).to_equal(int16_t(5));
-		// The list shrank to two rows this frame; the cursor may not be walked past what the
-		// span actually holds, and rows_last is then republished as the new count.
+		// The list shrinks to two rows on this same call; the cursor and the turn walk are both
+		// bounded by that count -- never past what the span actually holds -- and rows_last is
+		// then republished as the new count (a pure cache from here on, not consulted above).
 		r.input.turn = 4;
 		list(r.frame, m, st, two, sc);
 		expect(st.cursor).to_equal(int16_t(1));
 		expect(st.rows_last).to_equal(int16_t(2));
+	});
+
+	it("clamps a shrinking list into range on the same frame it shrinks, not the next one", _ {
+		// Two-pass count-then-draw (SDK menu.rs:346-415): the clamp uses *this* frame's row
+		// count. Get the cursor to 4 on a five-row list, then shrink to two rows with no turn --
+		// today's bug would leave the cursor at 4 until a subsequent frame reads state.rows_last;
+		// the fix clamps it into [0, 1] immediately.
+		const ListRow five[] = {{"ONE"}, {"TWO"}, {"THREE"}, {"FOUR"}, {"FIVE"}};
+		const ListRow two[] = {{"ONE"}, {"TWO"}};
+		uitest::Rig48 r; ListState st; ScrollText sc;
+		const Rect m = menu_rect(r.frame);
+		r.input.turn = 4; list(r.frame, m, st, five, sc);
+		expect(st.cursor).to_equal(int16_t(4));
+		r.input.turn = 0;
+		Response resp = list(r.frame, m, st, two, sc);
+		expect(st.cursor).to_equal(int16_t(1));      // clamped against this frame's 2 rows
+		expect(resp.changed).to_be_true();           // the clamp itself is a same-frame change
+		expect(st.rows_last).to_equal(int16_t(2));
+	});
+
+	it("lets turn walk into a newly-grown row on the same frame it grows", _ {
+		// The other half of the two-pass fix: growing must not be held back by last frame's
+		// (smaller) count either. Park the cursor at the old end of a two-row list, then hand
+		// `list` a five-row span with turn = +1 on the same call -- the cursor must advance into
+		// row 2, not stay pinned at row 1 waiting for state.rows_last to catch up.
+		const ListRow two[] = {{"ONE"}, {"TWO"}};
+		const ListRow five[] = {{"ONE"}, {"TWO"}, {"THREE"}, {"FOUR"}, {"FIVE"}};
+		uitest::Rig48 r; ListState st; ScrollText sc;
+		const Rect m = menu_rect(r.frame);
+		r.input.turn = 1; list(r.frame, m, st, two, sc);
+		expect(st.cursor).to_equal(int16_t(1));       // at the old end, two rows
+		r.input.turn = 1;
+		Response resp = list(r.frame, m, st, five, sc); // grows to five rows this same call
+		expect(st.cursor).to_equal(int16_t(2));       // walked into the newly-available row
+		expect(resp.changed).to_be_true();
+		expect(st.rows_last).to_equal(int16_t(5));
 	});
 
 	it("draws the left-edge rule instead of an inverted row when invert_highlight is off", _ {

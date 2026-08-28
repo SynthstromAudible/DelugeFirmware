@@ -91,11 +91,18 @@ int32_t list_window_start(int32_t cursor, int32_t n, int32_t visible);
 ///     origin. No legacy menu row drew a value string, so this arrangement is new; everything
 ///     else above is a port.
 ///
-/// Behaviour: `f.turn()` is applied first, walking one selectable row per detent and
-/// stopping at the ends without wrapping, exactly as `Submenu::selectEncoderAction` does; the
-/// walk is bounded by the row count the *previous* frame saw (`state.rows_last`, or
-/// `rows.size()` on the first frame), so a list that shrank under the cursor cannot be walked
-/// past its old length. `state.rows_last` is then set to `rows.size()`. The window keeps the
+/// Behaviour: the row count is counted first -- `rows.size()`, the span `list` was actually
+/// handed *this* frame -- matching the SDK menu walker's count-then-draw shape
+/// (`crates/deluge-ui-toolkit/src/menu.rs:346-415`). The cursor is clamped into that count, then
+/// `f.turn()` is applied, walking one selectable row per detent and stopping at the ends without
+/// wrapping, exactly as `Submenu::selectEncoderAction` does -- all before anything is drawn. A
+/// list that shrinks under the cursor is clamped into range on the same frame it shrinks, and a
+/// list that grows lets `turn` walk into the newly-available rows on the same frame too: neither
+/// case waits a frame for `state.rows_last` to catch up, because the clamp and the walk are
+/// bounded by `rows.size()` directly, never by `state.rows_last`. `state.rows_last` is then set
+/// to `rows.size()`, but purely as a cache of last frame's count for a caller that wants one
+/// (e.g. `enum_value` sizes its own windowed inner `list` call from its own copy of the field);
+/// `list` itself never reads it. The window keeps the
 /// cursor visible per `Selection`'s pos/tail rule and is published as `state.scroll`.
 /// `Response.changed` reports that the cursor moved (and requests a repaint);
 /// `Response.entered` reports `f.select_pressed()` on a selectable row. `Response.focused`
