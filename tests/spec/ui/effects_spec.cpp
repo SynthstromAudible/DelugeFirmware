@@ -4,6 +4,7 @@
 
 #include "cppspec.hpp"
 
+#include "../support/spec_main.h"
 #include <cstdint>
 #include <string>
 #include <vector>
@@ -328,10 +329,4 @@ describe effects_spec("ui/grid/effects", $ {
 		expect((int32_t)hold.y).to_equal(1); // 3 - 2
 	});
 });
-// clang-format on
-
-// Hand-spelled exporter: create_test_sourcelist derives the extern name from this file's path
-// relative to tests/spec, i.e. `ui_effects_spec`.
-int ui_effects_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv).add_spec(effects_spec).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE;
-}
+DELUGE_SPEC(ui_effects_spec, effects_spec)

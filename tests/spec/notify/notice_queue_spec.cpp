@@ -1,3 +1,4 @@
+#include "../support/spec_main.h"
 #include "cppspec.hpp"
 #include "notify/notice_queue.h"
 #include <cstdint>
@@ -91,12 +92,4 @@ describe notice_queue("notify::NoticeQueue", $ {
 	});
 });
 
-// Not CPPSPEC_SPEC(notice_queue): create_test_sourcelist derives the extern function name from
-// this file's path relative to tests/spec (slashes become underscores), i.e.
-// `notify_notice_queue_spec` for notify/notice_queue_spec.cpp, which does not match the
-// `notice_queue` describe-block name the macro would otherwise assume. Spelled out by hand so the
-// exported symbol matches what the generated driver (all_specs.cpp) declares `extern` (see
-// tests/spec/notify/dirty_set_spec.cpp for the same pattern).
-int notify_notice_queue_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv).add_spec(notice_queue).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE;
-}
+DELUGE_SPEC(notify_notice_queue_spec, notice_queue)

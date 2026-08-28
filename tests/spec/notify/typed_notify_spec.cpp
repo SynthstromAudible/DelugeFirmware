@@ -1,3 +1,4 @@
+#include "../support/spec_main.h"
 #include "cppspec.hpp"
 #include "gui/l10n/strings.h" // deluge::l10n::String enumerators -- util/notify.h only forward-declares the type
 #include "util/notify.h"
@@ -19,12 +20,4 @@ describe typed_notify("notify typed raisers", $ {
 	});
 });
 
-// Not CPPSPEC_SPEC(typed_notify): create_test_sourcelist derives the extern function name from
-// this file's path relative to tests/spec (slashes become underscores), i.e.
-// `notify_typed_notify_spec` for notify/typed_notify_spec.cpp, which does not match the
-// `typed_notify` describe-block name the macro would otherwise assume. Spelled out by hand so the
-// exported symbol matches what the generated driver (all_specs.cpp) declares `extern` (see
-// tests/spec/notify/dirty_set_spec.cpp for the same pattern).
-int notify_typed_notify_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv).add_spec(typed_notify).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE;
-}
+DELUGE_SPEC(notify_typed_notify_spec, typed_notify)

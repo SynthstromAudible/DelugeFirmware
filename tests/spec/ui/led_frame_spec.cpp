@@ -1,3 +1,4 @@
+#include "../support/spec_main.h"
 #include "cppspec.hpp"
 #include "ui/core/led_frame.h"
 
@@ -46,13 +47,4 @@ describe led_frame("ui::LedFrame", $ {
 		expect(f.ring(RingId{2}, KnobRing{{9, 9, 9, 9}})).to_be_false();
 	});
 });
-// clang-format on
-
-// Not CPPSPEC_SPEC(led_frame): create_test_sourcelist derives the extern function name from this
-// file's path relative to tests/spec (slashes become underscores), i.e. `ui_led_frame_spec` for
-// ui/led_frame_spec.cpp, which does not match the `led_frame` describe-block name the macro would
-// otherwise assume. Spelled out by hand so the exported symbol matches what the generated driver
-// (all_specs.cpp) declares `extern` (see ui/rect_spec.cpp for the same pattern).
-int ui_led_frame_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv).add_spec(led_frame).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE;
-}
+DELUGE_SPEC(ui_led_frame_spec, led_frame)

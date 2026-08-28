@@ -1,6 +1,7 @@
 #include "support/frames.h"
 #include "ui/oled/frame.h"
 
+#include "../support/spec_main.h"
 #include "cppspec.hpp"
 
 using namespace deluge::ui::oled;
@@ -111,13 +112,4 @@ describe oled_frame("ui::oled::OledFrame", $ {
 		expect(r.lit(4, 0)).to_be_false();           // the oversized blit left nothing behind
 	});
 });
-// clang-format on
-
-// Not CPPSPEC_SPEC(oled_frame): create_test_sourcelist derives the extern function name from this
-// file's path relative to tests/spec (slashes become underscores), i.e. `ui_oled_frame_spec` for
-// ui/oled_frame_spec.cpp, which does not match the `oled_frame` describe-block name the macro
-// would otherwise assume. Spelled out by hand so the exported symbol matches what the generated
-// driver (all_specs.cpp) declares `extern` (see ui/led_frame_spec.cpp for the same pattern).
-int ui_oled_frame_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv).add_spec(oled_frame).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE;
-}
+DELUGE_SPEC(ui_oled_frame_spec, oled_frame)

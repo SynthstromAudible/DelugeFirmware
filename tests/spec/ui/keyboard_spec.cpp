@@ -4,6 +4,7 @@
 
 #include "cppspec.hpp"
 
+#include "../support/spec_main.h"
 #include <cstdint>
 #include <string>
 #include <utility>
@@ -315,11 +316,4 @@ describe keyboard_spec("ui/grid/keyboard", $ {
 		expect(r.grid.at(16, 2)).to_equal(palette::black);
 	});
 });
-// clang-format on
-
-// Hand-spelled exporter: create_test_sourcelist derives the extern name from this file's path
-// relative to tests/spec, i.e. `ui_keyboard_spec`, which CPPSPEC_SPEC would not produce from the
-// `keyboard_spec` describe-block name.
-int ui_keyboard_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv).add_spec(keyboard_spec).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE;
-}
+DELUGE_SPEC(ui_keyboard_spec, keyboard_spec)

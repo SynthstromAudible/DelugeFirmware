@@ -8,6 +8,7 @@
 
 #include "cppspec.hpp"
 
+#include "../support/spec_main.h"
 #include <string_view>
 
 using namespace deluge::ui;
@@ -625,13 +626,4 @@ describe values_w("ui::oled::values", $ {
 		expect(pressed.entered).to_be_true();   // the scene navigates, as it does for enum_value
 	});
 });
-// clang-format on
-
-// Not CPPSPEC_SPEC(values_w): create_test_sourcelist derives the extern function name from this
-// file's path relative to tests/spec (slashes become underscores), i.e. `ui_values_spec`, which
-// does not match the `values_w` describe-block name the macro would assume. Spelled out by hand,
-// as the other ui specs do, so the exported symbol matches what the generated driver
-// (all_specs.cpp) declares `extern`.
-int ui_values_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv).add_spec(values_w).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE;
-}
+DELUGE_SPEC(ui_values_spec, values_w)

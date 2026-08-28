@@ -1,3 +1,4 @@
+#include "../support/spec_main.h"
 #include "cppspec.hpp"
 #include "notify/dirty_set.h"
 #include <cstdlib>
@@ -59,12 +60,4 @@ describe dirty_set("notify::DirtySet", $ {
 	});
 });
 
-// Not CPPSPEC_SPEC(dirty_set): create_test_sourcelist derives the extern function name from this
-// file's path relative to tests/spec (slashes become underscores), i.e. `notify_dirty_set_spec`
-// for notify/dirty_set_spec.cpp, which does not match the `dirty_set` describe-block name the
-// macro would otherwise assume. Spelled out by hand so the exported symbol matches what the
-// generated driver (all_specs.cpp) declares `extern` (see tests/spec/gfx/geometry_spec.cpp for
-// the same pattern).
-int notify_dirty_set_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv).add_spec(dirty_set).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE;
-}
+DELUGE_SPEC(notify_dirty_set_spec, dirty_set)

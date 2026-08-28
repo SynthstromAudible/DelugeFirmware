@@ -5,6 +5,7 @@
 #include "ui/core/style.h"
 #include "ui/oled/list.h"
 
+#include "../support/spec_main.h"
 #include "cppspec.hpp"
 
 using namespace deluge::ui;
@@ -501,13 +502,4 @@ describe list_w("ui::oled::list", $ {
 		scrollbar(r3.frame, Rect{124, 14, 4, 27}, 0, 3, 0);  // total 0 draws nothing at all
 	});
 });
-// clang-format on
-
-// Not CPPSPEC_SPEC(list_w): create_test_sourcelist derives the extern function name from this
-// file's path relative to tests/spec (slashes become underscores), i.e. `ui_list_spec`, which
-// does not match the `list_w` describe-block name the macro would assume. Spelled out by hand,
-// as the other ui specs do, so the exported symbol matches what the generated driver
-// (all_specs.cpp) declares `extern`.
-int ui_list_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv).add_spec(list_w).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE;
-}
+DELUGE_SPEC(ui_list_spec, list_w)

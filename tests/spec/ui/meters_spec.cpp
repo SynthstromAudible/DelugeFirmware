@@ -6,6 +6,7 @@
 
 #include "cppspec.hpp"
 
+#include "../support/spec_main.h"
 #include <cmath>
 #include <cstdlib>
 #include <string>
@@ -851,13 +852,4 @@ describe meters_w("ui::oled::meters", $ {
 		expect(doubled.pbm() == plain.pbm()).to_be_false();
 	});
 });
-// clang-format on
-
-// Not CPPSPEC_SPEC(meters_w): create_test_sourcelist derives the extern function name from this
-// file's path relative to tests/spec (slashes become underscores), i.e. `ui_meters_spec`, which
-// does not match the `meters_w` describe-block name the macro would assume. Spelled out by hand,
-// as the other ui specs do, so the exported symbol matches what the generated driver
-// (all_specs.cpp) declares `extern`.
-int ui_meters_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv).add_spec(meters_w).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE;
-}
+DELUGE_SPEC(ui_meters_spec, meters_w)

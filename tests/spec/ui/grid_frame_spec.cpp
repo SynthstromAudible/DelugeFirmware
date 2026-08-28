@@ -3,6 +3,7 @@
 
 #include <optional>
 
+#include "../support/spec_main.h"
 #include "cppspec.hpp"
 
 using namespace deluge::ui;
@@ -198,13 +199,4 @@ describe grid_frame("ui::grid::GridFrame", $ {
 		expect(r.frame.first_press_in(Rect{40, 0, 4, 8}).has_value()).to_be_false();
 	});
 });
-// clang-format on
-
-// Not CPPSPEC_SPEC(grid_frame): create_test_sourcelist derives the extern function name from this
-// file's path relative to tests/spec (slashes become underscores), i.e. `ui_grid_frame_spec`,
-// which does not match the `grid_frame` describe-block name the macro would assume. Spelled out
-// by hand so the exported symbol matches what the generated driver declares `extern` (see
-// ui/oled_frame_spec.cpp for the same pattern).
-int ui_grid_frame_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv).add_spec(grid_frame).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE;
-}
+DELUGE_SPEC(ui_grid_frame_spec, grid_frame)

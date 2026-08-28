@@ -1,3 +1,4 @@
+#include "../support/spec_main.h"
 #include "cppspec.hpp"
 #include "gfx/grid/tween.h"
 #include "support/grid_state.h"
@@ -84,8 +85,4 @@ describe tween("gfx::grid tweens", $ {
 	});
 });
 
-// Not CPPSPEC_SPEC(tween): create_test_sourcelist derives the extern function name from this file's
-// path relative to tests/spec (slashes become underscores) — see canvas_golden_spec.cpp.
-int gfx_tween_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv).add_spec(tween).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE; // needs <cstdlib>
-}
+DELUGE_SPEC(gfx_tween_spec, tween)

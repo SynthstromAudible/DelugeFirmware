@@ -1,3 +1,4 @@
+#include "../support/spec_main.h"
 #include "cppspec.hpp"
 #include "gfx/grid/pad_grid.h"
 #include "support/golden.h"
@@ -51,8 +52,4 @@ describe pad_grid("gfx::grid::PadGrid", $ {
 	});
 });
 
-// Not CPPSPEC_SPEC(pad_grid): create_test_sourcelist derives the extern function name from this file's
-// path relative to tests/spec (slashes become underscores) — see canvas_golden_spec.cpp.
-int gfx_pad_grid_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv).add_spec(pad_grid).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE; // needs <cstdlib>
-}
+DELUGE_SPEC(gfx_pad_grid_spec, pad_grid)

@@ -3,6 +3,7 @@
 #include "ui/core/metrics.h"
 #include "ui/oled/scroll_text.h"
 
+#include "../support/spec_main.h"
 #include "cppspec.hpp"
 
 using namespace deluge::ui;
@@ -116,14 +117,4 @@ describe scroll_text_w("ui::oled::scroll_text", $ {
 		expect(st.offset).to_equal(int16_t(0));                       // the pad never touches the text/scroll math
 	});
 });
-// clang-format on
-
-// Not CPPSPEC_SPEC(scroll_text_w): create_test_sourcelist derives the extern function name from
-// this file's path relative to tests/spec (slashes become underscores), i.e. `ui_scroll_text_spec`
-// for ui/scroll_text_spec.cpp, which does not match the `scroll_text_w` describe-block name the
-// macro would otherwise assume. Spelled out by hand, as ui/text_spec.cpp and
-// ui/led_frame_spec.cpp do, so the exported symbol matches what the generated driver
-// (all_specs.cpp) declares `extern`.
-int ui_scroll_text_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv).add_spec(scroll_text_w).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE;
-}
+DELUGE_SPEC(ui_scroll_text_spec, scroll_text_w)

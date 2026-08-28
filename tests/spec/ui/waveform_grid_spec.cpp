@@ -5,6 +5,7 @@
 
 #include "cppspec.hpp"
 
+#include "../support/spec_main.h"
 #include <algorithm>
 #include <array>
 #include <cstdint>
@@ -205,12 +206,4 @@ describe waveform_grid("ui/grid/waveform", $ {
 		expect_golden(self, "../ui/widgets/waveform_full.state", r.state());
 	});
 });
-// clang-format on
-
-// Not CPPSPEC_SPEC(waveform_grid): create_test_sourcelist derives the extern function name from
-// this file's path relative to tests/spec (slashes become underscores), i.e.
-// `ui_waveform_grid_spec`, which does not match the `waveform_grid` describe-block name the macro
-// would assume. Spelled out by hand, as the other ui specs do.
-int ui_waveform_grid_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv).add_spec(waveform_grid).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE;
-}
+DELUGE_SPEC(ui_waveform_grid_spec, waveform_grid)

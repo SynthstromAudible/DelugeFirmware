@@ -2,6 +2,7 @@
 #include "gui/colour/rgb.h"
 #include "support/golden.h"
 
+#include "../support/spec_main.h"
 #include <sstream>
 
 namespace {
@@ -33,11 +34,4 @@ describe hue("RGB::fromHue / fromHuePastel golden", $ {
 	});
 });
 
-// Not CPPSPEC_SPEC(hue): create_test_sourcelist derives the extern function name from this file's
-// path relative to tests/spec (slashes become underscores), i.e. `gfx_hue_spec` for gfx/hue_spec.cpp,
-// which does not match the `hue` describe-block name the macro would otherwise assume. Spelled out
-// by hand so the exported symbol matches what the generated driver (all_specs.cpp) declares `extern`
-// (see gfx/canvas_golden_spec.cpp for the same pattern).
-int gfx_hue_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv).add_spec(hue).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE;
-}
+DELUGE_SPEC(gfx_hue_spec, hue)

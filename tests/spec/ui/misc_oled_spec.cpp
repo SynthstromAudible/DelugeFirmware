@@ -8,6 +8,7 @@
 
 #include "cppspec.hpp"
 
+#include "../support/spec_main.h"
 #include <array>
 #include <cstdint>
 #include <span>
@@ -364,13 +365,4 @@ describe misc_oled_w("ui::oled::misc", $ {
 		expect(g.pbm()).to_equal(r.pbm()); // draw_icon is draw_graphic_multi_line
 	});
 });
-// clang-format on
-
-// Not CPPSPEC_SPEC(misc_oled_w): create_test_sourcelist derives the extern function name from this
-// file's path relative to tests/spec (slashes become underscores), i.e. `ui_misc_oled_spec`, which
-// does not match the `misc_oled_w` describe-block name the macro would assume. Spelled out by
-// hand, as the other ui specs do, so the exported symbol matches what the generated driver
-// (all_specs.cpp) declares `extern`.
-int ui_misc_oled_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv).add_spec(misc_oled_w).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE;
-}
+DELUGE_SPEC(ui_misc_oled_spec, misc_oled_w)

@@ -4,6 +4,7 @@
 
 #include "cppspec.hpp"
 
+#include "../support/spec_main.h"
 #include <cstdlib>
 #include <cstring>
 #include <span>
@@ -226,11 +227,4 @@ describe canvas("gfx::oled::Canvas", $ {
 	});
 });
 
-// Not CPPSPEC_SPEC(canvas): create_test_sourcelist derives the extern function name from this file's
-// path relative to tests/spec (slashes become underscores), i.e. `gfx_canvas_spec` for
-// gfx/canvas_spec.cpp, which does not match the `canvas` describe-block name the macro would
-// otherwise assume. Spelled out by hand so the exported symbol matches what the generated driver
-// (all_specs.cpp) declares `extern` (see gfx/canvas_golden_spec.cpp for the same pattern).
-int gfx_canvas_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv).add_spec(canvas).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE;
-}
+DELUGE_SPEC(gfx_canvas_spec, canvas)

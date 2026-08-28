@@ -6,6 +6,7 @@
 #define NDEBUG 1
 #endif
 
+#include "../support/spec_main.h"
 #include "cppspec.hpp"
 #include "gfx/contract.h"
 #include "gfx/grid/pad_grid.h"
@@ -104,13 +105,4 @@ describe contract("gfx::DELUGE_GFX_CONTRACT", $ {
 	});
 #endif
 });
-// clang-format on
-
-// Not CPPSPEC_SPEC(contract): create_test_sourcelist derives the extern function name from this
-// file's path relative to tests/spec (slashes become underscores), i.e. `gfx_contract_spec` for
-// gfx/contract_spec.cpp, which does not match the `contract` describe-block name the macro would
-// otherwise assume. Spelled out by hand so the exported symbol matches what the generated driver
-// (all_specs.cpp) declares `extern` (see tests/spec/gfx/canvas_golden_spec.cpp for the pattern).
-int gfx_contract_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv).add_spec(contract).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE;
-}
+DELUGE_SPEC(gfx_contract_spec, contract)

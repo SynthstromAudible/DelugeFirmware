@@ -1,3 +1,4 @@
+#include "../support/spec_main.h"
 #include "cppspec.hpp"
 #include "gfx/oled/geometry.h"
 
@@ -33,11 +34,4 @@ describe geometry("gfx::oled geometry", $ {
 	});
 });
 
-// Not CPPSPEC_SPEC(geometry): create_test_sourcelist derives the extern function name from this
-// file's path relative to tests/spec (slashes become underscores), i.e. `gfx_geometry_spec` for
-// gfx/geometry_spec.cpp, which does not match the `geometry` describe-block name the macro would
-// otherwise assume. Spelled out by hand so the exported symbol matches what the generated driver
-// (all_specs.cpp) declares `extern` (see gfx/canvas_golden_spec.cpp for the same pattern).
-int gfx_geometry_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv).add_spec(geometry).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE;
-}
+DELUGE_SPEC(gfx_geometry_spec, geometry)

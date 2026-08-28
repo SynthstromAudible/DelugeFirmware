@@ -4,6 +4,7 @@
 
 #include "cppspec.hpp"
 
+#include "../support/spec_main.h"
 #include <array>
 #include <cstdint>
 #include <span>
@@ -352,12 +353,4 @@ describe rows("ui::grid rows", $ {
 		expect_golden(self, "../ui/widgets/clip_row_composite.state", r.state());
 	});
 });
-// clang-format on
-
-// Not CPPSPEC_SPEC(rows): create_test_sourcelist derives the extern function name from this file's
-// path relative to tests/spec (slashes become underscores), i.e. `ui_rows_spec`, which does not
-// match the `rows` describe-block name the macro would assume. Spelled out by hand, as the other
-// ui specs do, so the exported symbol matches what the generated driver declares `extern`.
-int ui_rows_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv).add_spec(rows).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE;
-}
+DELUGE_SPEC(ui_rows_spec, rows)

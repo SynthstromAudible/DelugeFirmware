@@ -1,3 +1,4 @@
+#include "../support/spec_main.h"
 #include "cppspec.hpp"
 #include "gui/ui/notify_drain.h"
 
@@ -24,13 +25,4 @@ describe drain_mapping("legacy_redraw_for", $ {
 		expect(r.main_rows || r.sidebar_rows || r.oled).to_be_false();
 	});
 });
-// clang-format on
-
-// Not CPPSPEC_SPEC(drain_mapping): create_test_sourcelist derives the extern function name from
-// this file's path relative to tests/spec (slashes become underscores), i.e. `notify_drain_mapping_spec`
-// for notify/drain_mapping_spec.cpp, which does not match the `drain_mapping` describe-block name the
-// macro would otherwise assume. Spelled out by hand so the exported symbol matches what the generated
-// driver (all_specs.cpp) declares `extern` (see tests/spec/notify/dirty_set_spec.cpp for the same pattern).
-int notify_drain_mapping_spec(int argc, char** const argv) {
-	return CppSpec::parse(argc, argv).add_spec(drain_mapping).exec().is_success() ? EXIT_SUCCESS : EXIT_FAILURE;
-}
+DELUGE_SPEC(notify_drain_mapping_spec, drain_mapping)
