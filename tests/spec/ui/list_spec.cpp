@@ -9,8 +9,8 @@
 
 using namespace deluge::ui;
 using namespace deluge::ui::oled;
+using deluge::gfx::oled::BorderRadius;
 using deluge::gfx::oled::Rect;
-using deluge::gfx::oled::SMALL;
 namespace uitest = deluge::ui::test;
 namespace icons = deluge::gfx::oled::icons;
 
@@ -90,7 +90,7 @@ describe list_w("ui::oled::list", $ {
 			const int y = 14 + 5 + o * 9;
 			r.reference.draw_string(labels[o], 6, y, 6, 9);
 			if (o == 0) {
-				r.reference.invert_area_rounded(0, 128, y, y + 8, SMALL, true);
+				r.reference.invert_area_rounded(0, 128, y, y + 8, BorderRadius::Small, true);
 			}
 		}
 		expect(r.pbm()).to_equal(r.reference_pbm());
@@ -158,7 +158,7 @@ describe list_w("ui::oled::list", $ {
 			const int y = 14 + 5 + o * 9;
 			r.reference.draw_string(labels[o], 6, y, 6, 9);
 			if (o == 2) {
-				r.reference.invert_area_rounded(0, 128, y, y + 8, SMALL, true);
+				r.reference.invert_area_rounded(0, 128, y, y + 8, BorderRadius::Small, true);
 			}
 		}
 		expect(r.pbm()).to_equal(r.reference_pbm());
@@ -368,7 +368,7 @@ describe list_w("ui::oled::list", $ {
 			r.reference.draw_string(labels[o], 6, y, 6, 9, 0, end_x);
 			if (o == 0) {
 				r.reference.draw_graphic_multi_line(icons::checkedBox.data, 118, y, 7, 8, 1);
-				r.reference.invert_area_rounded(0, 128, y, y + 8, SMALL, true);
+				r.reference.invert_area_rounded(0, 128, y, y + 8, BorderRadius::Small, true);
 			}
 		}
 		expect(r.pbm()).to_equal(r.reference_pbm());

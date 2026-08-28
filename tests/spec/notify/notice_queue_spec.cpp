@@ -1,5 +1,6 @@
 #include "cppspec.hpp"
 #include "notify/notice_queue.h"
+#include <cstdint>
 #include <cstdlib>
 #include <cstring>
 
@@ -49,6 +50,32 @@ describe notice_queue("notify::NoticeQueue", $ {
 		expect(notices().pop(out)).to_be_true();
 		expect(std::string(out.text)).to_equal(std::string(longest));
 		expect(int(out.popup_type)).to_equal(3);
+	});
+
+	it("counts a drop when the global queue overflows behind a notice_* helper", _ {
+		// The notice_*() helpers cannot return a failure -- their callers are model code with
+		// nowhere to put it -- so they count it instead. dropped_notices() is a process-wide
+		// counter that never resets, so this measures the delta, not the absolute value.
+		Notice drained{};
+		while (notices().pop(drained)) {}
+		const uint32_t before = dropped_notices();
+
+		// Exactly fills the ring: no drop yet.
+		for (size_t i = 0; i < kNoticeCapacity; i++) {
+			notice_error_code(int16_t(i));
+		}
+		expect(dropped_notices()).to_equal(before);
+
+		// One past capacity overwrites the oldest, and the helper counts it.
+		notice_error_code(99);
+		expect(dropped_notices()).to_equal(before + 1);
+
+		// The overwrite really happened: the oldest (0) is gone and the queue still holds
+		// kNoticeCapacity - 1 entries plus the newcomer.
+		Notice out{};
+		expect(notices().pop(out)).to_be_true();
+		expect(int(out.error_code)).to_equal(1);
+		while (notices().pop(drained)) {}
 	});
 
 	it("copies and truncates text with a NUL", _ {

@@ -2,7 +2,9 @@
 #include "gfx/grid/pad_grid.h"
 
 namespace deluge::gfx::grid {
-// Pure frame→frame transitions. The caller owns timing; `out` must share `dims()` with the inputs.
+// Pure frame→frame transitions. The caller owns timing; `out` must share `dims()` with the inputs
+// -- a precondition, checked with DELUGE_GFX_CONTRACT in each function (gfx/contract.h), because a
+// mismatch indexes one of the grids past its own extent.
 
 /// Blend `from` toward `to` at parameter `t` (0..65535: 0 = from, 65535 = to). Leaves out.dirty_rows()
 /// fully set.

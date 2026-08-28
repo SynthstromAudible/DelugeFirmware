@@ -121,6 +121,11 @@ endif()
 set(DELUGE_COMMON_COMPILE_OPTIONS -fsigned-char)
 add_compile_options(-fsigned-char)
 
+# ...then append the project's shared warning set (MAINTAINER_MODE, DELUGE_C_STANDARD /
+# DELUGE_CXX_STANDARD, DELUGE_COMMON_COMPILE_OPTIONS), the same file the device and tests
+# projects include. list(APPEND) inside, so -fsigned-char above survives.
+include(${REPO_ROOT}/cmake/deluge_common_options.cmake)
+
 # Debug info — this is a host debug / CI harness; -g makes the inevitable runtime
 # triage (gdb backtraces, member inspection) tractable.
 add_compile_options(-g)

@@ -17,9 +17,9 @@
 
 using namespace deluge::ui;
 using namespace deluge::ui::oled;
+using deluge::gfx::oled::BorderRadius;
 using deluge::gfx::oled::Canvas;
 using deluge::gfx::oled::Rect;
-using deluge::gfx::oled::SMALL;
 namespace icons = deluge::gfx::oled::icons;
 namespace uitest = deluge::ui::test;
 
@@ -306,7 +306,7 @@ void renderMenuItems(Canvas& image, std::span<const Item> items, int32_t current
 				const bool highlight_whole_slot = !item.show_label || isSubmenu(item);
 				const int32_t start_y = highlight_whole_slot ? base_y - 1 : label_y;
 				const int32_t end_y = highlight_whole_slot ? base_y + box_height - 1 : label_y + label_height - 1;
-				image.invert_area_rounded(current_x + 1, box_width - 3, start_y, end_y, SMALL, rounded);
+				image.invert_area_rounded(current_x + 1, box_width - 3, start_y, end_y, BorderRadius::Small, rounded);
 			}
 			else {
 				image.draw_horizontal_line(height - 3, current_x, current_x + box_width - 2); // :281, D3

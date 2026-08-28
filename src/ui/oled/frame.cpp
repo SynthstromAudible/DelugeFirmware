@@ -144,7 +144,7 @@ void OledFrame::rect_rounded(Rect r, gfx::oled::BorderRadius radius) {
 	const int32_t min_y = r.y;
 	const int32_t max_x = r.right() - 1;
 	const int32_t max_y = r.bottom() - 1;
-	const int32_t radius_pixels = (radius == gfx::oled::SMALL) ? 1 : 2;
+	const int32_t radius_pixels = (radius == gfx::oled::BorderRadius::Small) ? 1 : 2;
 
 	// The canvas's own line routines return early on a reversed range (`end < start`, canvas.cpp),
 	// while `hline`/`vline` above normalise one. For a box narrower or shorter than twice the

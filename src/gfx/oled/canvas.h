@@ -17,30 +17,34 @@
 
 #pragma once
 
+#include "gfx/contract.h"
 #include "gfx/oled/geometry.h"
 #include "gfx/oled/icon.h"
 
 #include <algorithm>
-#include <cassert>
 #include <cstddef>
 #include <cstdint>
-#include <functional>
 #include <optional>
 #include <span>
 #include <string_view>
 
 namespace deluge::gfx::oled {
 
-enum BorderRadius : uint8_t {
-	SMALL = 0, //< 1px
-	BIG = 1    //< 2px
+enum class BorderRadius : uint8_t {
+	Small = 0, //< 1px
+	Big = 1    //< 2px
 };
 
 struct DrawLineOptions {
 	bool thick{false};
 	std::optional<uint8_t> min_x{std::nullopt};
 	std::optional<uint8_t> max_x{std::nullopt};
-	std::optional<std::function<void(Point)>> point_callback{std::nullopt};
+	/// Called for each pixel the line visits, if set. A raw function pointer plus an opaque
+	/// context (the pattern `ui/oled/columns.h` already uses) rather than a `std::function`:
+	/// a `std::function` holding a capturing lambda heap-allocates, and `src/gfx/README.md`
+	/// forbids allocation in this library. `callback_ctx` is passed back unchanged.
+	void (*point_callback)(Point, void*) = nullptr;
+	void* callback_ctx = nullptr;
 };
 
 /// A non-owning 1-bpp page-major drawing surface over caller-provided storage.
@@ -58,9 +62,10 @@ public:
 	/// a runtime condition to recover from -- the canvas would index off the end of it on the
 	/// first draw call. Asserted below.
 	Canvas(std::span<uint8_t> storage, Geometry g) : geometry_(g) {
-		// Body form rather than a member initialiser so the assert runs FIRST: `storage.first(n)`
+		// Body form rather than a member initialiser so the check runs FIRST: `storage.first(n)`
 		// with n > storage.size() is itself undefined, so it must not happen before the check.
-		assert(storage.size() >= g.bytes());
+		// DELUGE_GFX_CONTRACT, not assert: this survives -DNDEBUG. See gfx/contract.h.
+		DELUGE_GFX_CONTRACT(storage.size() >= g.bytes());
 		bytes_ = storage.first(g.bytes());
 	}
 
@@ -139,8 +144,8 @@ public:
 	/// @param max_y Maximum Y coordinate, inclusive
 	/// @param radius Corner radius
 	/// @param rounded When false, the corners are square (the caller's policy decides)
-	void draw_rectangle_rounded(int32_t min_x, int32_t min_y, int32_t max_x, int32_t max_y, BorderRadius radius = SMALL,
-	                            bool rounded = true);
+	void draw_rectangle_rounded(int32_t min_x, int32_t min_y, int32_t max_x, int32_t max_y,
+	                            BorderRadius radius = BorderRadius::Small, bool rounded = true);
 
 	/// Draw a circle using Bresenham algorithm
 	///
@@ -278,8 +283,8 @@ public:
 	/// @param end_y Maximum Y coordinate, inclusive
 	/// @param radius Corner radius
 	/// @param rounded When false, the corners are left inverted (the caller's policy decides)
-	void invert_area_rounded(int32_t x_min, int32_t width, int32_t start_y, int32_t end_y, BorderRadius radius = SMALL,
-	                         bool rounded = true);
+	void invert_area_rounded(int32_t x_min, int32_t width, int32_t start_y, int32_t end_y,
+	                         BorderRadius radius = BorderRadius::Small, bool rounded = true);
 
 	/// @}
 

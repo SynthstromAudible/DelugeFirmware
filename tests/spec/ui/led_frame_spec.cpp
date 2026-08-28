@@ -7,10 +7,12 @@ using namespace deluge::ui;
 describe led_frame("ui::LedFrame", $ {
 	it("records entries in call order and lets a later set win", _ {
 		LedFrame f;
-		f.set(LedId{3}, LedState{LedState::Kind::On, 0, 0});
-		f.set(LedId{5}, LedState{LedState::Kind::On, 0, 0});      // second, distinct id
-		f.set(LedId{3}, LedState{LedState::Kind::Blink, 200, 0}); // overwrites id 3 in place, not appended
-		f.ring(RingId::Lower, KnobRing{{1, 2, 3, 0}});
+		// set()/ring() are [[nodiscard]] bool -- false means the declaration was dropped. All four
+		// of these fit, so all four report true; the full-frame case is covered below.
+		expect(f.set(LedId{3}, LedState{LedState::Kind::On, 0, 0})).to_be_true();
+		expect(f.set(LedId{5}, LedState{LedState::Kind::On, 0, 0})).to_be_true();      // second, distinct id
+		expect(f.set(LedId{3}, LedState{LedState::Kind::Blink, 200, 0})).to_be_true(); // overwrites id 3 in place
+		expect(f.ring(RingId::Lower, KnobRing{{1, 2, 3, 0}})).to_be_true();
 
 		// Two entries, not three: the repeat set() overwrote rather than appended. Order is
 		// call order (3 then 5), not id order or insertion-reversed -- an implementation that
@@ -27,6 +29,21 @@ describe led_frame("ui::LedFrame", $ {
 		expect(f.entries().empty()).to_be_true();
 		expect(f.ring_or_null(RingId::Lower) == nullptr).to_be_true(); // ring reset too, not just entries
 		expect(f.ring_or_null(RingId::Upper) == nullptr).to_be_true();
+	});
+
+	it("reports the dropped declaration when the frame is full", _ {
+		LedFrame f;
+		for (size_t i = 0; i < LedFrame::kMaxEntries; i++) {
+			expect(f.set(LedId(i), LedState{LedState::Kind::On, 0, 0})).to_be_true();
+		}
+		// kMaxEntries distinct ids fit; the next distinct id does not, and says so rather than
+		// vanishing. An id already in the frame still succeeds -- it overwrites, it does not append.
+		expect(f.set(LedId(LedFrame::kMaxEntries), LedState{LedState::Kind::On, 0, 0})).to_be_false();
+		expect(f.set(LedId(0), LedState{LedState::Kind::Blink, 100, 0})).to_be_true();
+		expect(f.entries().size()).to_equal(LedFrame::kMaxEntries);
+
+		// An out-of-range ring is refused, not stored.
+		expect(f.ring(RingId{2}, KnobRing{{9, 9, 9, 9}})).to_be_false();
 	});
 });
 // clang-format on

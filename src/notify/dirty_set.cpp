@@ -16,6 +16,9 @@ DirtySet::DirtySet(const DirtySet& o) {
 }
 
 DirtySet& DirtySet::operator=(const DirtySet& o) {
+	if (this == &o) { // the copies below are element-wise, so self-assignment is benign -- but this
+		return *this; // is the one class in the tree doing hand-rolled atomics, so it is spelled out
+	}
 	bits_.store(o.bits_.load(std::memory_order_relaxed), std::memory_order_relaxed);
 	for (int s = 0; s < 2; s++) {
 		snapshot_[s] = o.snapshot_[s];
@@ -27,13 +30,13 @@ DirtySet& DirtySet::operator=(const DirtySet& o) {
 }
 
 void DirtySet::raise(Dirty d) {
-	bits_.fetch_or(1u << static_cast<unsigned>(d), std::memory_order_release);
+	bits_.fetch_or(1u << std::to_underlying(d), std::memory_order_release);
 }
 
-void DirtySet::raise_clip(Dirty d, uint16_t i) {
+void DirtySet::raise_clip(Dirty d, uint16_t session_clip_index) {
 	const int s = clip_slot(d);
-	if (s >= 0 && i < kMaxSessionClips) {
-		clip_words_[s][i >> 5].fetch_or(1u << (i & 31), std::memory_order_relaxed);
+	if (s >= 0 && session_clip_index < kMaxSessionClips) {
+		clip_words_[s][session_clip_index >> 5].fetch_or(1u << (session_clip_index & 31), std::memory_order_relaxed);
 	}
 	raise(d); // release: publishes the clip word above
 }
@@ -59,10 +62,10 @@ DirtySet DirtySet::drain() {
 	// this exchange -- surface as a flag-with-empty-clips on the *next* drain, which callers
 	// must treat as "unknown, assume all clips dirty" per the comment on has() in dirty_set.h).
 	if (out.snapshot_[0].any()) {
-		bits |= 1u << static_cast<unsigned>(Dirty::ClipContent);
+		bits |= 1u << std::to_underlying(Dirty::ClipContent);
 	}
 	if (out.snapshot_[1].any()) {
-		bits |= 1u << static_cast<unsigned>(Dirty::NoteRows);
+		bits |= 1u << std::to_underlying(Dirty::NoteRows);
 	}
 	out.bits_.store(bits, std::memory_order_relaxed);
 	return out;

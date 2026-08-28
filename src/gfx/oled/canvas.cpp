@@ -21,6 +21,7 @@
 #include <algorithm>
 #include <cstddef>
 #include <cstdlib>
+#include <cstring>
 #include <utility>
 
 using deluge::gfx::oled::Canvas;
@@ -210,8 +211,8 @@ void Canvas::draw_line(int32_t x0, int32_t y0, int32_t x1, int32_t y1, const Dra
 				draw_pixel(steep ? actual_x + 1 : actual_x, steep ? actual_y : actual_y - 1);
 			}
 
-			if (options.point_callback.has_value()) {
-				options.point_callback.value()({actual_x, actual_y});
+			if (options.point_callback != nullptr) {
+				options.point_callback({actual_x, actual_y}, options.callback_ctx);
 			}
 		}
 
@@ -238,7 +239,7 @@ void Canvas::draw_rectangle_rounded(int32_t min_x, int32_t min_y, int32_t max_x,
 		return;
 	}
 
-	const int32_t radius_pixels = radius == SMALL ? 1 : 2;
+	const int32_t radius_pixels = radius == BorderRadius::Small ? 1 : 2;
 
 	draw_vertical_line(min_x, min_y + radius_pixels, max_y - radius_pixels);
 	draw_vertical_line(max_x, min_y + radius_pixels, max_y - radius_pixels);
@@ -603,8 +604,13 @@ void Canvas::draw_graphic_multi_line(uint8_t const* graphic, int32_t start_x, in
 		while (current_pos < end_pos) {
 			// Cleverly read 2 bytes in one go. Doesn't really speed things up. I should try addressing display
 			// vertically, so I can do 32 bits in one go on both the graphic and the display...
-			uint32_t data = *(uint16_t*)graphic_pos;
-			*current_pos |= data >> y_offset_negative;
+			//
+			// memcpy, not `*(uint16_t*)graphic_pos`: the cast reads a uint16_t through a uint8_t*,
+			// which is both a strict-aliasing violation and a potentially unaligned load (graphic
+			// data is byte-aligned). Both compilers lower this memcpy to the same single load.
+			uint16_t data = 0;
+			std::memcpy(&data, graphic_pos, sizeof data);
+			*current_pos |= static_cast<uint8_t>(data >> y_offset_negative);
 
 			//*current_pos |= (*graphic_pos >> y_offset_negative) | (*(graphic_pos + 1) << y_offset);
 			current_pos++;
@@ -685,7 +691,7 @@ void Canvas::invert_area_rounded(int32_t x_min, int32_t width, int32_t start_y, 
 		return;
 	}
 
-	const int32_t radius_pixels = radius == SMALL ? 1 : 2;
+	const int32_t radius_pixels = radius == BorderRadius::Small ? 1 : 2;
 
 	// restore corners back
 	const int32_t x_max = x_min + width - 1;

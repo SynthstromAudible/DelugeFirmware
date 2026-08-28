@@ -12,12 +12,12 @@
 
 using namespace deluge::ui;
 using namespace deluge::ui::oled;
+using deluge::gfx::oled::BorderRadius;
 using deluge::gfx::oled::kTextHugeSizeY;
 using deluge::gfx::oled::kTextHugeSpacingX;
 using deluge::gfx::oled::kTextSpacingX;
 using deluge::gfx::oled::kTextSpacingY;
 using deluge::gfx::oled::Rect;
-using deluge::gfx::oled::SMALL;
 namespace uitest = deluge::ui::test;
 
 // Every widget below is pinned three ways at once. First as individual canvas coordinates read
@@ -410,7 +410,7 @@ describe values_w("ui::oled::values", $ {
 		for (int o = 0; o < 3; o++) {
 			r.reference.draw_string(names[3 + o], kTextSpacingX, 19 + 9 * o, 6, 9);
 		}
-		r.reference.invert_area_rounded(0, 128, 28, 36, SMALL, true);
+		r.reference.invert_area_rounded(0, 128, 28, 36, BorderRadius::Small, true);
 		expect(r.pbm()).to_equal(r.reference_pbm());
 		expect_golden(self, "../ui/widgets/enum_value_window_48.pbm", r.pbm());
 
@@ -425,7 +425,7 @@ describe values_w("ui::oled::values", $ {
 		for (int o = 0; o < 5; o++) {
 			r64.reference.draw_string(names[1 + o], kTextSpacingX, 15 + 9 * o, 6, 9);
 		}
-		r64.reference.invert_area_rounded(0, 128, 15 + 27, 15 + 27 + 8, SMALL, true);
+		r64.reference.invert_area_rounded(0, 128, 15 + 27, 15 + 27 + 8, BorderRadius::Small, true);
 		expect(r64.pbm()).to_equal(r64.reference_pbm());
 	});
 
@@ -478,7 +478,7 @@ describe values_w("ui::oled::values", $ {
 		r.reference.draw_string("XX", kTextSpacingX, 19, 6, 9);
 		r.reference.draw_string("HERE", kTextSpacingX, 28, 6, 9);
 		r.reference.draw_string("XX", kTextSpacingX, 37, 6, 9);
-		r.reference.invert_area_rounded(0, 128, 28, 36, SMALL, true);
+		r.reference.invert_area_rounded(0, 128, 28, 36, BorderRadius::Small, true);
 		expect(r.pbm()).to_equal(r.reference_pbm());
 
 		// Both ends, where Selection's pos/tail rule switches branches (selection.cpp:21-27):
@@ -500,7 +500,7 @@ describe values_w("ui::oled::values", $ {
 		tail.reference.draw_string("XX", kTextSpacingX, 19, 6, 9);
 		tail.reference.draw_string("XX", kTextSpacingX, 28, 6, 9);
 		tail.reference.draw_string("XX", kTextSpacingX, 37, 6, 9);
-		tail.reference.invert_area_rounded(0, 128, 37, 45, SMALL, true);
+		tail.reference.invert_area_rounded(0, 128, 37, 45, BorderRadius::Small, true);
 		expect(tail.pbm()).to_equal(tail.reference_pbm());
 	});
 
@@ -534,7 +534,7 @@ describe values_w("ui::oled::values", $ {
 		// Rows at local 20 and 29, i.e. canvas 25 and 34.
 		t.reference.draw_string("OFF", kTextSpacingX, 25, kTextSpacingX, kTextSpacingY);
 		t.reference.draw_string("ON", kTextSpacingX, 34, kTextSpacingX, kTextSpacingY);
-		t.reference.invert_area_rounded(0, 128, 34, 42, SMALL, true);
+		t.reference.invert_area_rounded(0, 128, 34, 42, BorderRadius::Small, true);
 		expect(t.pbm()).to_equal(t.reference_pbm());
 
 		const std::string_view names[] = {"AAA", "BBB"};
@@ -545,7 +545,7 @@ describe values_w("ui::oled::values", $ {
 		enum_value(e.frame, Rect{0, 20, 128, 18}, index, names, st, esc);
 		e.reference.draw_string("AAA", kTextSpacingX, 25, kTextSpacingX, kTextSpacingY);
 		e.reference.draw_string("BBB", kTextSpacingX, 34, kTextSpacingX, kTextSpacingY);
-		e.reference.invert_area_rounded(0, 128, 34, 42, SMALL, true);
+		e.reference.invert_area_rounded(0, 128, 34, 42, BorderRadius::Small, true);
 		expect(e.pbm()).to_equal(e.reference_pbm());
 	});
 
@@ -568,7 +568,7 @@ describe values_w("ui::oled::values", $ {
 		expect(r.lit(126, 36)).to_be_true();
 		r.reference.draw_string("OFF", kTextSpacingX, 19, kTextSpacingX, kTextSpacingY);
 		r.reference.draw_string("ON", kTextSpacingX, 28, kTextSpacingX, kTextSpacingY);
-		r.reference.invert_area_rounded(0, 128, 28, 36, SMALL, true);
+		r.reference.invert_area_rounded(0, 128, 28, 36, BorderRadius::Small, true);
 		expect(r.pbm()).to_equal(r.reference_pbm());
 		expect_golden(self, "../ui/widgets/toggle_on_48.pbm", r.pbm());
 
@@ -578,7 +578,7 @@ describe values_w("ui::oled::values", $ {
 		toggle(off.frame, menu_rect(off.frame), off_value, "OFF", "ON", off_sc);
 		off.reference.draw_string("OFF", kTextSpacingX, 19, kTextSpacingX, kTextSpacingY);
 		off.reference.draw_string("ON", kTextSpacingX, 28, kTextSpacingX, kTextSpacingY);
-		off.reference.invert_area_rounded(0, 128, 19, 27, SMALL, true);
+		off.reference.invert_area_rounded(0, 128, 19, 27, BorderRadius::Small, true);
 		expect(off.pbm()).to_equal(off.reference_pbm());
 
 		// The 64-row panel puts the same two rows at base-y 15 (menu_item.cpp:50, toggle.cpp:26).
@@ -588,7 +588,7 @@ describe values_w("ui::oled::values", $ {
 		toggle(r64.frame, menu_rect(r64.frame), v64, "OFF", "ON", sc64);
 		r64.reference.draw_string("OFF", kTextSpacingX, 15, kTextSpacingX, kTextSpacingY);
 		r64.reference.draw_string("ON", kTextSpacingX, 24, kTextSpacingX, kTextSpacingY);
-		r64.reference.invert_area_rounded(0, 128, 24, 32, SMALL, true);
+		r64.reference.invert_area_rounded(0, 128, 24, 32, BorderRadius::Small, true);
 		expect(r64.pbm()).to_equal(r64.reference_pbm());
 	});
 

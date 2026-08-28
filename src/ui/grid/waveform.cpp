@@ -16,31 +16,31 @@ namespace {
 /// into the row the bar reaches.
 void draw_col_bar(GridFrame& f, int32_t x, int32_t min24, int32_t max24, int32_t brightness, std::optional<RGB> rgb,
                   int32_t half) {
-	const int32_t yStart = std::max<int32_t>(min24 >> 24, -half);     // :734
-	const int32_t yStop = std::min<int32_t>((max24 >> 24) + 1, half); // :735
+	const int32_t y_start = std::max<int32_t>(min24 >> 24, -half);     // :734
+	const int32_t y_stop = std::min<int32_t>((max24 >> 24) + 1, half); // :735
 
-	for (int32_t y = yStart; y < yStop; y++) {
-		int32_t colourAmount; // Out of 256 (:739)
+	for (int32_t y = y_start; y < y_stop; y++) {
+		int32_t colour_amount = 0; // Out of 256 (:739); every branch below assigns it
 
-		if (y == (min24 >> 24)) {                                        // :741 -- bottom row, partially covered
-			const int32_t howMuchThisSquare = (min24 - (y << 24)) >> 16; // 8-bit (:742)
-			colourAmount = brightness - ((howMuchThisSquare * brightness) >> 8); // :743
+		if (y == (min24 >> 24)) {                                           // :741 -- bottom row, partially covered
+			const int32_t how_much_this_square = (min24 - (y << 24)) >> 16; // 8-bit (:742)
+			colour_amount = brightness - ((how_much_this_square * brightness) >> 8); // :743
 		}
-		else if (y < (max24 >> 24)) {  // :746 -- fully covered
-			colourAmount = brightness; // :747
+		else if (y < (max24 >> 24)) {   // :746 -- fully covered
+			colour_amount = brightness; // :747
 		}
-		else {                                                           // :750 -- top row, partially covered
-			const int32_t howMuchThisSquare = (max24 - (y << 24)) >> 16; // :751
-			colourAmount = ((howMuchThisSquare * brightness) >> 8);      // :752
+		else {                                                              // :750 -- top row, partially covered
+			const int32_t how_much_this_square = (max24 - (y << 24)) >> 16; // :751
+			colour_amount = ((how_much_this_square * brightness) >> 8);     // :752
 		}
 
-		const int32_t valueHere = (colourAmount * colourAmount) >> 8; // :755
+		const int32_t value_here = (colour_amount * colour_amount) >> 8; // :755
 		// :756-758. `RGB::monochrome` takes a uint8_t and legacy relies on the mono path only ever
-		// being reached with brightness 128 (`renderOneCol`, :767), where valueHere peaks at 64.
+		// being reached with brightness 128 (`renderOneCol`, :767), where value_here peaks at 64.
 		// `waveform_full` states that as a precondition rather than clamping it -- see the header.
-		const RGB color = rgb.has_value()
-		                      ? rgb.value().transform([valueHere](auto channel) { return (valueHere * channel) >> 8; })
-		                      : RGB::monochrome(valueHere);
+		const RGB color =
+		    rgb.has_value() ? rgb.value().transform([value_here](auto channel) { return (value_here * channel) >> 8; })
+		                    : RGB::monochrome(value_here);
 
 		f.pad(x, y + half, color); // :760
 	}
@@ -49,11 +49,11 @@ void draw_col_bar(GridFrame& f, int32_t x, int32_t min24, int32_t max24, int32_t
 } // namespace
 
 RGB waveform_col_colour(int32_t brightness, RGB base) {
-	const int32_t colourValue = brightness * brightness;         // :137
-	return base.transform([colourValue](auto channel) {          // :140
-		const int32_t valueHere = (colourValue * channel) >> 16; // :141
+	const int32_t colour_value = brightness * brightness;          // :137
+	return base.transform([colour_value](auto channel) {           // :140
+		const int32_t value_here = (colour_value * channel) >> 16; // :141
 		// :144 -- the deliberate bit-depth limiter, not rounding. See the header.
-		return std::clamp<int32_t>((valueHere + 6) & ~15, 0, RGB::channel_max);
+		return std::clamp<int32_t>((value_here + 6) & ~15, 0, RGB::channel_max);
 	});
 }
 

@@ -197,7 +197,8 @@ void setupPopup(Canvas& popup, bool notification, int32_t width, int32_t height,
 
 	popup.clear_area_exact(popupMinX, popupMinY, popupMaxX, popupMaxY);
 	if (!notification) {
-		popup.draw_rectangle_rounded(popupMinX, popupMinY, popupMaxX, popupMaxY, deluge::gfx::oled::SMALL, rounded);
+		popup.draw_rectangle_rounded(popupMinX, popupMinY, popupMaxX, popupMaxY, deluge::gfx::oled::BorderRadius::Small,
+		                             rounded);
 	}
 }
 
@@ -338,8 +339,8 @@ void updateWorkingAnimation(Canvas& image, bool loading, int32_t count, int32_t 
 void drawHorizontalBar(Canvas& canvas, int32_t left_most, int32_t right_most, int32_t y_top, int32_t height,
                        int32_t value, int32_t max_value, bool rounded) {
 	if (value == 0) {
-		canvas.draw_rectangle_rounded(left_most, y_top, right_most - 1, y_top + height, deluge::gfx::oled::SMALL,
-		                              rounded);
+		canvas.draw_rectangle_rounded(left_most, y_top, right_most - 1, y_top + height,
+		                              deluge::gfx::oled::BorderRadius::Small, rounded);
 		return;
 	}
 	const uint32_t range = static_cast<uint32_t>(max_value);
@@ -353,7 +354,8 @@ void drawHorizontalBar(Canvas& canvas, int32_t left_most, int32_t right_most, in
 	else {
 		canvas.invert_area(left_most, pos_horizontal, y_top + 1, y_top + height - 1);
 	}
-	canvas.draw_rectangle_rounded(left_most, y_top, right_most - 1, y_top + height, deluge::gfx::oled::SMALL, rounded);
+	canvas.draw_rectangle_rounded(left_most, y_top, right_most - 1, y_top + height,
+	                              deluge::gfx::oled::BorderRadius::Small, rounded);
 }
 
 } // namespace legacy

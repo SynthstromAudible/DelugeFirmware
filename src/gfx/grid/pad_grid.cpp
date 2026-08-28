@@ -8,11 +8,12 @@ namespace deluge::gfx::grid {
 PadGrid::PadGrid(GridDimensions d) : dims_(d) {
 	// The storage is a fixed kMaxGridRows x kMaxGridCols array and the dirty mask is 32 bits
 	// wide, so anything larger is a programming error rather than something to clamp away.
+	// DELUGE_GFX_CONTRACT, not assert: these have to survive -DNDEBUG (gfx/contract.h).
 	// `rows <= 32` is redundant while kMaxGridRows is 16, and is stated anyway so raising that
 	// capacity past the mask width trips here rather than silently corrupting dirty_.
-	assert(d.rows <= kMaxGridRows);
-	assert(d.cols() <= kMaxGridCols);
-	assert(d.rows <= 32);
+	DELUGE_GFX_CONTRACT(d.rows <= kMaxGridRows);
+	DELUGE_GFX_CONTRACT(d.cols() <= kMaxGridCols);
+	DELUGE_GFX_CONTRACT(d.rows <= 32);
 	for (uint8_t y = 0; y < kMaxGridRows; y++) {
 		for (uint8_t x = 0; x < kMaxGridCols; x++) {
 			cells_[y][x] = RGB{0, 0, 0};

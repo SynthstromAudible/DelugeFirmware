@@ -31,9 +31,13 @@ constexpr size_t kNoticeCapacity = 16;
 /// target_architecture.md §4.2.
 class NoticeQueue {
 public:
-	bool push(const Notice& n); // [any] COOP-WRITE: producers are serialised by today's
-	                            // cooperative scheduler, not by this class.
-	bool pop(Notice& out);      // [task]
+	/// [any] COOP-WRITE: producers are serialised by today's cooperative scheduler, not by this
+	/// class. Returns false when the ring was full and the oldest notice was overwritten to make
+	/// room -- i.e. a notice the model raised will never be shown. [[nodiscard]] because silently
+	/// dropping that is indistinguishable from "the model never raised it"; a caller that has
+	/// nowhere to report it should say so with `(void)` or count it (see `dropped_notices()`).
+	[[nodiscard]] bool push(const Notice& n);
+	bool pop(Notice& out); // [task]
 	size_t size() const { return head_.load(std::memory_order_acquire) - tail_.load(std::memory_order_acquire); }
 
 private:
@@ -43,9 +47,18 @@ private:
 };
 
 NoticeQueue& notices();
+
+// The raise-side helpers. They cannot propagate a full queue -- their callers are model code deep
+// in the audio/playback paths with no way to handle it and nowhere to put it -- so instead of
+// discarding the fact, each one counts the drop. `dropped_notices()` is the shell's diagnostic:
+// a non-zero, growing count says notices are being raised faster than the UI tick drains them.
 void notice_text(std::string_view short_text, Notice::Kind k = Notice::Kind::Text, uint8_t popup_type = 0);
 void notice_string(uint16_t string_id, Notice::Kind k = Notice::Kind::Text, uint8_t popup_type = 0);
 void notice_error_code(int16_t code);
 void notice_kind(Notice::Kind k, uint8_t popup_type = 0); // Working/ClearWorking/CancelPopup
+
+/// Number of notices the helpers above have overwritten because the queue was full, since boot.
+/// Relaxed: it is a diagnostic counter, ordered against nothing, and the helpers may run [any].
+uint32_t dropped_notices();
 
 } // namespace deluge::notify

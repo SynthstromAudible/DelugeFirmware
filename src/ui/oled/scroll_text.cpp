@@ -50,7 +50,11 @@ Response scroll_text(OledFrame& f, Rect rect, std::string_view s, FontId font, S
 			state.dir = 1;
 			state.next_step_ms = now + kScrollTime;
 		}
-		else if (now >= state.next_step_ms) {
+		// Wrap-safe compare, matching RepaintGate (ui/core/repaint_gate.cpp) and the grid's
+		// gesture timing: `now` is a free-running millisecond counter that wraps every ~49.7 days,
+		// and a plain `now >= next_step_ms` stalls the scroller for the rest of the epoch when it
+		// does. The signed difference is correct across the wrap for any interval < 2^31 ms.
+		else if (static_cast<int32_t>(now - state.next_step_ms) >= 0) {
 			state.offset += state.dir;
 			if (state.offset <= 0 || state.offset >= max_offset) {
 				state.offset = static_cast<int16_t>(std::clamp<int32_t>(state.offset, 0, max_offset));
@@ -61,7 +65,11 @@ Response scroll_text(OledFrame& f, Rect rect, std::string_view s, FontId font, S
 				state.next_step_ms = now + (state.dir > 0 ? kScrollStepForwardMs : kScrollStepBackMs);
 			}
 		}
-		f.gate.request_repaint_after(state.next_step_ms - now, now);
+		// Same reasoning: an unsigned `next_step_ms - now` across a wrap is a ~49-day deadline.
+		// The delay is always small and non-negative here (the branch above just set it), so the
+		// signed difference is the honest one; clamp at 0 in case a caller's clock jumped past it.
+		const int32_t delay = static_cast<int32_t>(state.next_step_ms - now);
+		f.gate.request_repaint_after(static_cast<uint32_t>(std::max<int32_t>(delay, 0)), now);
 	}
 
 	// clear_pad_x widens only the cleared rect -- legacy's endX += 4 (oled.cpp:984-992), which

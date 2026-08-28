@@ -92,9 +92,9 @@ struct OledFrame {
 	void rect(gfx::oled::Rect r);
 	/// `Canvas::draw_rectangle_rounded`, decomposed into its four inset edges and its corner
 	/// pixels so that each clips exactly; `style.rounded` selects the square arm, which is `rect`.
-	void rect_rounded(gfx::oled::Rect r, gfx::oled::BorderRadius radius = gfx::oled::SMALL);
+	void rect_rounded(gfx::oled::Rect r, gfx::oled::BorderRadius radius = gfx::oled::BorderRadius::Small);
 	void invert(gfx::oled::Rect r);
-	void invert_rounded(gfx::oled::Rect r, gfx::oled::BorderRadius radius = gfx::oled::SMALL);
+	void invert_rounded(gfx::oled::Rect r, gfx::oled::BorderRadius radius = gfx::oled::BorderRadius::Small);
 	void clear(gfx::oled::Rect r);
 
 	/// Draw text, straight through to `Canvas::draw_string` (see it for `scroll_px`,

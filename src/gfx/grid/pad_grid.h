@@ -1,6 +1,6 @@
 #pragma once
+#include "gfx/contract.h"
 #include "gfx/grid/rgb.h"
-#include <cassert>
 #include <cstdint>
 
 namespace deluge::gfx::grid {
@@ -12,6 +12,8 @@ struct GridDimensions {
 	/// uint16_t, not uint8_t: both operands are uint8_t but their sum is up to 510, so the
 	/// narrower return type would silently wrap (e.g. {200, 100, 8} would report 44 columns).
 	constexpr uint16_t cols() const { return static_cast<uint16_t>(main_cols + sidebar_cols); }
+	/// So the tweens can state their "out shares dims() with the inputs" precondition as a check.
+	constexpr bool operator==(const GridDimensions&) const = default;
 };
 constexpr GridDimensions kDelugeGrid{16, 2, 8};
 
@@ -29,17 +31,33 @@ class PadGrid {
 public:
 	/// Precondition: `d.rows <= kMaxGridRows`, `d.cols() <= kMaxGridCols` (the fixed `cells_`
 	/// capacity -- a larger grid would index off the end of it) and `d.rows <= 32` (the width
-	/// of the `dirty_` row mask). Asserted in the constructor; nothing here clamps, because a
+	/// of the `dirty_` row mask). Checked in the constructor; nothing here clamps, because a
 	/// silently-shrunk grid would drop pads the caller believes it drew.
 	explicit PadGrid(GridDimensions d);
 
 	GridDimensions dims() const { return dims_; }
 	bool in_range(uint8_t x, uint8_t y) const { return x < dims_.cols() && y < dims_.rows; }
 
-	RGB& at(uint8_t x, uint8_t y) { return cells_[y][x]; }
-	const RGB& at(uint8_t x, uint8_t y) const { return cells_[y][x]; }
-	RGB* row(uint8_t y) { return cells_[y]; }
-	const RGB* row(uint8_t y) const { return cells_[y]; }
+	/// Accessors, unlike set()/clear_row()/fill_rect(), do NOT clamp: they hand back a reference
+	/// the caller writes through, so there is no in-range answer to return for an out-of-range
+	/// request. `in_range(x, y)` (rows for row()) is the caller's precondition; violating it is a
+	/// programming error and traps. See gfx/contract.h for why this survives -DNDEBUG.
+	RGB& at(uint8_t x, uint8_t y) {
+		DELUGE_GFX_CONTRACT(in_range(x, y));
+		return cells_[y][x];
+	}
+	const RGB& at(uint8_t x, uint8_t y) const {
+		DELUGE_GFX_CONTRACT(in_range(x, y));
+		return cells_[y][x];
+	}
+	RGB* row(uint8_t y) {
+		DELUGE_GFX_CONTRACT(y < dims_.rows);
+		return cells_[y];
+	}
+	const RGB* row(uint8_t y) const {
+		DELUGE_GFX_CONTRACT(y < dims_.rows);
+		return cells_[y];
+	}
 
 	void set(uint8_t x, uint8_t y, RGB c);
 	void clear();

@@ -8,7 +8,7 @@ RGB RGB::fromHue(int32_t hue) {
 	RGB rgb{};
 	hue = (uint16_t)(hue + 1920) % 192;
 
-	for (int32_t c = 0; c < rgb.size(); c++) {
+	for (int32_t c = 0; c < static_cast<int32_t>(rgb.size()); c++) {
 		int32_t channelDarkness;
 		if (c == 0) {
 			if (hue < 64) {
@@ -43,7 +43,7 @@ RGB RGB::fromHuePastel(int32_t hue) {
 	RGB rgb{};
 	hue = (uint16_t)(hue + 1920) % 192;
 
-	for (int32_t c = 0; c < rgb.size(); c++) {
+	for (int32_t c = 0; c < static_cast<int32_t>(rgb.size()); c++) {
 		int32_t channelDarkness;
 		if (c == 0) {
 			if (hue < 64) {

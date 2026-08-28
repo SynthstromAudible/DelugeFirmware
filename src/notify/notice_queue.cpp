@@ -5,7 +5,21 @@ namespace deluge::notify {
 
 namespace {
 NoticeQueue g_notices;
+/// Incremented by the notice_* helpers below when push() reports an overwrite. Relaxed
+/// throughout: nothing is ordered against it, and it may be bumped from [any] context.
+std::atomic<uint32_t> g_dropped{0};
+
+/// The one place the helpers' `[[nodiscard]] bool` is consumed: a drop is counted, never ignored.
+void push_counting_drops(const Notice& n) {
+	if (!g_notices.push(n)) {
+		g_dropped.fetch_add(1, std::memory_order_relaxed);
+	}
+}
 } // namespace
+
+uint32_t dropped_notices() {
+	return g_dropped.load(std::memory_order_relaxed);
+}
 
 NoticeQueue& notices() {
 	return g_notices;
@@ -41,7 +55,7 @@ void notice_text(std::string_view s, Notice::Kind k, uint8_t popup_type) {
 	const size_t len = s.size() < sizeof(n.text) - 1 ? s.size() : sizeof(n.text) - 1;
 	std::memcpy(n.text, s.data(), len);
 	n.text[len] = 0;
-	g_notices.push(n);
+	push_counting_drops(n);
 }
 
 void notice_string(uint16_t string_id, Notice::Kind k, uint8_t popup_type) {
@@ -49,7 +63,7 @@ void notice_string(uint16_t string_id, Notice::Kind k, uint8_t popup_type) {
 	n.kind = k;
 	n.string_id = string_id;
 	n.popup_type = popup_type;
-	g_notices.push(n);
+	push_counting_drops(n);
 }
 
 void notice_error_code(int16_t code) {
@@ -57,14 +71,14 @@ void notice_error_code(int16_t code) {
 	n.kind = Notice::Kind::Error;
 	n.severity = Notice::Severity::Error;
 	n.error_code = code;
-	g_notices.push(n);
+	push_counting_drops(n);
 }
 
 void notice_kind(Notice::Kind k, uint8_t popup_type) {
 	Notice n{};
 	n.kind = k;
 	n.popup_type = popup_type;
-	g_notices.push(n);
+	push_counting_drops(n);
 }
 
 } // namespace deluge::notify

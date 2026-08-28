@@ -62,9 +62,6 @@ public:
 	/// Blue channel
 	channel_type b = 0;
 
-	/// Copies RGB values from a colour
-	constexpr RGB& operator=(const RGB& other) = default;
-
 	/**
 	 * @brief Construct a monochrome (white) shade
 	 *

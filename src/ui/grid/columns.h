@@ -4,6 +4,7 @@
 #include "ui/grid/frame.h"
 #include "ui/grid/rows.h"
 
+#include <array>
 #include <cstdint>
 #include <span>
 
@@ -47,7 +48,8 @@ constexpr int32_t kColumnRows = 8;
 /// `dBFS >= dBFSForYDisplay[y]` with a `float` on both sides, and a `double` table would move the
 /// boundaries by a few parts in 10^7 -- enough to change which row lights at a level that lands on
 /// a threshold (a level of exactly 9.0 is such a case; see `vu_max_row`).
-inline constexpr float kVuDbfsForRow[kColumnRows] = {-30.8, -26.4, -22.0, -17.6, -13.2, -8.8, -4.4, -0.2};
+inline constexpr std::array<float, kColumnRows> kVuDbfsForRow{-30.8f, -26.4f, -22.0f, -17.6f,
+                                                              -13.2f, -8.8f,  -4.4f,  -0.2f};
 
 /// Legacy's "nothing to draw" sentinel: `maxYDisplay` starts at 255 and stays there when the level
 /// is below the bottom row's threshold (view.cpp:1819, tested by the caller at :1787 and :1792).
@@ -208,12 +210,12 @@ enum class NoteSquare : uint8_t {
 /// row of the grid" (velocity.cpp:43-44, and the identical `nonPatchCableMinPadDisplayValues` at
 /// mod_controllable.cpp:62-63), verbatim. Shared by the velocity bar and the unipolar automation
 /// bar, which is exactly how legacy has it -- two copies of the same eight numbers.
-inline constexpr int32_t kUnipolarRowMin[kColumnRows] = {0, 17, 33, 49, 65, 81, 97, 113};
+inline constexpr std::array<int32_t, kColumnRows> kUnipolarRowMin{0, 17, 33, 49, 65, 81, 97, 113};
 
 /// The maxima of the same ranges (`maxPadDisplayValues`, velocity.cpp:46-47 /
 /// `nonPatchCableMaxPadDisplayValues`, mod_controllable.cpp:66-67). Used only by the bipolar
 /// automation bar's below-middle arm.
-inline constexpr int32_t kUnipolarRowMax[kColumnRows] = {16, 32, 48, 64, 80, 96, 112, 128};
+inline constexpr std::array<int32_t, kColumnRows> kUnipolarRowMax{16, 32, 48, 64, 80, 96, 112, 128};
 
 /// The velocity editor's three eight-row ramps: blue at the bottom through red at the top for a
 /// note head, a much darker version for a tail, and a washed-out one for the pad-selection cursor
@@ -221,12 +223,12 @@ inline constexpr int32_t kUnipolarRowMax[kColumnRows] = {16, 32, 48, 64, 80, 96,
 ///
 /// Constants, not parameters: legacy has them as file-scope tables, not user settings, so the
 /// brief's `RGB colour` parameter has nothing to bind to (see `velocity_column`).
-inline constexpr RGB kVelocityRow[kColumnRows] = {{0, 0, 255},   {36, 0, 219}, {73, 0, 182}, {109, 0, 146},
-                                                  {146, 0, 109}, {182, 0, 73}, {219, 0, 36}, {255, 0, 0}};
-inline constexpr RGB kVelocityRowTail[kColumnRows] = {{2, 2, 53},  {9, 2, 46},  {17, 2, 38}, {24, 2, 31},
-                                                      {31, 2, 24}, {38, 2, 17}, {46, 2, 9},  {53, 2, 2}};
-inline constexpr RGB kVelocityRowBlur[kColumnRows] = {{71, 71, 111}, {72, 66, 101}, {73, 62, 90}, {74, 57, 80},
-                                                      {76, 53, 70},  {77, 48, 60},  {78, 44, 49}, {79, 39, 39}};
+inline constexpr std::array<RGB, kColumnRows> kVelocityRow{
+    {{0, 0, 255}, {36, 0, 219}, {73, 0, 182}, {109, 0, 146}, {146, 0, 109}, {182, 0, 73}, {219, 0, 36}, {255, 0, 0}}};
+inline constexpr std::array<RGB, kColumnRows> kVelocityRowTail{
+    {{2, 2, 53}, {9, 2, 46}, {17, 2, 38}, {24, 2, 31}, {31, 2, 24}, {38, 2, 17}, {46, 2, 9}, {53, 2, 2}}};
+inline constexpr std::array<RGB, kColumnRows> kVelocityRowBlur{
+    {{71, 71, 111}, {72, 66, 101}, {73, 62, 90}, {74, 57, 80}, {76, 53, 70}, {77, 48, 60}, {78, 44, 49}, {79, 39, 39}}};
 
 /// One column of the note (velocity) editor -- spec B section 7's `VelocityData`.
 ///
@@ -273,12 +275,12 @@ void velocity_column(GridFrame& f, int32_t x, const VelocityData& data);
 /// The unipolar automation editor's three ramps: "VU meter style colours" (mod_controllable.cpp:41)
 /// -- green at the bottom through red at the top, plus the tail and blur versions
 /// (`rowColour` :43-44, `rowTailColour` :46-47, `rowBlurColour` :49-50).
-inline constexpr RGB kAutomationRow[kColumnRows] = {{0, 255, 0},   {36, 219, 0}, {73, 182, 0}, {109, 146, 0},
-                                                    {146, 109, 0}, {182, 73, 0}, {219, 36, 0}, {255, 0, 0}};
-inline constexpr RGB kAutomationRowTail[kColumnRows] = {{2, 53, 2},  {9, 46, 2},  {17, 38, 2}, {24, 31, 2},
-                                                        {31, 24, 2}, {38, 17, 2}, {46, 9, 2},  {53, 2, 2}};
-inline constexpr RGB kAutomationRowBlur[kColumnRows] = {{71, 111, 71}, {72, 101, 66}, {73, 90, 62}, {74, 80, 57},
-                                                        {76, 70, 53},  {77, 60, 48},  {78, 49, 44}, {79, 39, 39}};
+inline constexpr std::array<RGB, kColumnRows> kAutomationRow{
+    {{0, 255, 0}, {36, 219, 0}, {73, 182, 0}, {109, 146, 0}, {146, 109, 0}, {182, 73, 0}, {219, 36, 0}, {255, 0, 0}}};
+inline constexpr std::array<RGB, kColumnRows> kAutomationRowTail{
+    {{2, 53, 2}, {9, 46, 2}, {17, 38, 2}, {24, 31, 2}, {31, 24, 2}, {38, 17, 2}, {46, 9, 2}, {53, 2, 2}}};
+inline constexpr std::array<RGB, kColumnRows> kAutomationRowBlur{
+    {{71, 111, 71}, {72, 101, 66}, {73, 90, 62}, {74, 80, 57}, {76, 70, 53}, {77, 60, 48}, {78, 49, 44}, {79, 39, 39}}};
 
 /// The bipolar editor's ramps, which are only four rows long and are indexed *outward from the
 /// middle* (`rowBipolarDownColour` mod_controllable.cpp:52, `rowBipolarDownTailColour` :54,
@@ -287,17 +289,19 @@ inline constexpr RGB kAutomationRowBlur[kColumnRows] = {{71, 111, 71}, {72, 101,
 /// Legacy indexes them `[yDisplay]` for the bottom half and `[-yDisplay + 7]` for the top
 /// (:176-191), i.e. row 3 and row 4 both take entry 3 (green, nearest the middle) and rows 0 and 7
 /// both take entry 0 (red, furthest from it).
-inline constexpr RGB kAutomationBipolar[kColumnRows / 2] = {{255, 0, 0}, {182, 73, 0}, {73, 182, 0}, {0, 255, 0}};
-inline constexpr RGB kAutomationBipolarTail[kColumnRows / 2] = {{53, 2, 2}, {38, 17, 2}, {17, 38, 2}, {2, 53, 2}};
-inline constexpr RGB kAutomationBipolarBlur[kColumnRows / 2] = {
-    {79, 39, 39}, {77, 60, 48}, {73, 90, 62}, {71, 111, 71}};
+inline constexpr std::array<RGB, kColumnRows / 2> kAutomationBipolar{
+    {{255, 0, 0}, {182, 73, 0}, {73, 182, 0}, {0, 255, 0}}};
+inline constexpr std::array<RGB, kColumnRows / 2> kAutomationBipolarTail{
+    {{53, 2, 2}, {38, 17, 2}, {17, 38, 2}, {2, 53, 2}}};
+inline constexpr std::array<RGB, kColumnRows / 2> kAutomationBipolarBlur{
+    {{79, 39, 39}, {77, 60, 48}, {73, 90, 62}, {71, 111, 71}}};
 
 /// "lookup tables for the min/max value of each pad's value range" for a *patch cable*, whose knob
 /// position runs -128..128 with 0 in the middle (`patchCableMinPadDisplayValues`
 /// mod_controllable.cpp:64, `patchCableMaxPadDisplayValues` :68). Legacy's own summary of the
 /// ranges is at :70-89.
-inline constexpr int32_t kPatchCableRowMin[kColumnRows] = {-128, -96, -64, -32, 1, 33, 65, 97};
-inline constexpr int32_t kPatchCableRowMax[kColumnRows] = {-97, -65, -33, -1, 32, 64, 96, 128};
+inline constexpr std::array<int32_t, kColumnRows> kPatchCableRowMin{-128, -96, -64, -32, 1, 33, 65, 97};
+inline constexpr std::array<int32_t, kColumnRows> kPatchCableRowMax{-97, -65, -33, -1, 32, 64, 96, 128};
 
 /// One column of the automation editor -- spec B section 7's `AutomationData`.
 ///

@@ -34,11 +34,16 @@ class OLED;
 using Icon = deluge::gfx::oled::Icon;
 
 namespace oled_canvas {
-using deluge::gfx::oled::BIG;
 using deluge::gfx::oled::BorderRadius;
 using deluge::gfx::oled::DrawLineOptions;
 using deluge::gfx::oled::Point;
-using deluge::gfx::oled::SMALL;
+
+// Legacy spellings of the two BorderRadius values, kept for the app call sites and the golden
+// specs. The library enum is now `enum class BorderRadius : uint8_t { Small, Big }` (the
+// unscoped SMALL/BIG used to leak into `deluge::gfx::oled`); this façade is the app layer, where
+// the legacy names belong.
+inline constexpr BorderRadius SMALL = BorderRadius::Small;
+inline constexpr BorderRadius BIG = BorderRadius::Big;
 
 class Canvas : public deluge::gfx::oled::OwnedCanvas<deluge::gfx::oled::kDelugeOled> {
 	using Base = deluge::gfx::oled::OwnedCanvas<deluge::gfx::oled::kDelugeOled>;

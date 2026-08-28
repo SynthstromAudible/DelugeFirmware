@@ -93,7 +93,7 @@ describe canvas("gfx::oled::Canvas", $ {
 		old.drawStringCentred("CENTRE", 6, 6, 7);    neu.draw_string_centred("CENTRE", 6, 6, 7);
 		old.drawLine(0, 6, 127, 47, {.thick = true}); neu.draw_line(0, 6, 127, 47, {.thick = true});
 		old.drawRectangleRounded(50, 6, 90, 20, deluge::hid::display::oled_canvas::BIG);
-		neu.draw_rectangle_rounded(50, 6, 90, 20, g::BIG, true);
+		neu.draw_rectangle_rounded(50, 6, 90, 20, g::BorderRadius::Big, true);
 		expect(std::memcmp(&old.hackGetImageStore()[0][0], neu.bytes().data(), kBytes)).to_equal(0);
 		// Non-vacuous: two blank buffers would also compare equal.
 		expect(lit_pixels(neu.bytes()) > 500).to_be_true();
@@ -166,21 +166,21 @@ describe canvas("gfx::oled::Canvas", $ {
 		g::OwnedCanvas<g::kDelugeOled> neu; neu.clear();
 		OldCanvas::roundedCornersEnabled = true;
 		old.drawRectangleRounded(2, 6, 40, 20);
-		neu.draw_rectangle_rounded(2, 6, 40, 20, g::SMALL, true);
+		neu.draw_rectangle_rounded(2, 6, 40, 20, g::BorderRadius::Small, true);
 		OldCanvas::roundedCornersEnabled = true;
 		old.drawRectangleRounded(50, 6, 90, 20, deluge::hid::display::oled_canvas::BIG);
-		neu.draw_rectangle_rounded(50, 6, 90, 20, g::BIG, true);
+		neu.draw_rectangle_rounded(50, 6, 90, 20, g::BorderRadius::Big, true);
 		old.drawString("INV", 4, 26, 6, 7);         neu.draw_string("INV", 4, 26, 6, 7);
 		old.invertArea(2, 30, 24, 34);              neu.invert_area(2, 30, 24, 34);
 		OldCanvas::roundedCornersEnabled = true;
 		old.invertAreaRounded(40, 30, 24, 34);
-		neu.invert_area_rounded(40, 30, 24, 34, g::SMALL, true);
+		neu.invert_area_rounded(40, 30, 24, 34, g::BorderRadius::Small, true);
 		// invertLeftEdgeForMenuHighlighting is policy and has no gfx counterpart: its two
 		// branches are replayed directly on the gfx side.
 		OldCanvas::menuHighlightingInverts = true;
 		OldCanvas::roundedCornersEnabled = true;
 		old.invertLeftEdgeForMenuHighlighting(80, 20, 24, 34);
-		neu.invert_area_rounded(80, 20, 24, 34, g::SMALL, true);
+		neu.invert_area_rounded(80, 20, 24, 34, g::BorderRadius::Small, true);
 		OldCanvas::menuHighlightingInverts = false;
 		old.invertLeftEdgeForMenuHighlighting(104, 20, 24, 34);
 		neu.draw_vertical_line(104, 24, 34);
@@ -188,7 +188,7 @@ describe canvas("gfx::oled::Canvas", $ {
 		old.clearAreaExact(10, 10, 14, 14);         neu.clear_area_exact(10, 10, 14, 14);
 		OldCanvas::roundedCornersEnabled = false;
 		old.drawRectangleRounded(2, 38, 40, 46);
-		neu.draw_rectangle_rounded(2, 38, 40, 46, g::SMALL, false);
+		neu.draw_rectangle_rounded(2, 38, 40, 46, g::BorderRadius::Small, false);
 		OldCanvas::roundedCornersEnabled = true;
 		OldCanvas::menuHighlightingInverts = true;
 		expect(std::memcmp(&old.hackGetImageStore()[0][0], neu.bytes().data(), kBytes)).to_equal(0);

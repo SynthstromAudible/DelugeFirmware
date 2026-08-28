@@ -6,6 +6,8 @@ add_library(deluge_ui_core STATIC
   core/text_wrap.cpp
 )
 target_include_directories(deluge_ui_core PUBLIC ${SHARED_INCLUDE})
+# See src/gfx/CMakeLists.txt for what DELUGE_COMMON_COMPILE_OPTIONS carries and why it is PRIVATE.
+target_compile_options(deluge_ui_core PRIVATE ${DELUGE_COMMON_COMPILE_OPTIONS})
 # gfx_oled only: nothing under core/** includes anything from gfx/grid (PadMask names
 # kMaxGridCols in a comment, not in code), and carrying the dep here dragged gfx-grid into every
 # ui-core consumer's link closure. deluge_ui_grid links it directly.
@@ -26,6 +28,7 @@ add_library(deluge_ui_oled STATIC
   oled/misc.cpp
 )
 target_include_directories(deluge_ui_oled PUBLIC ${SHARED_INCLUDE})
+target_compile_options(deluge_ui_oled PRIVATE ${DELUGE_COMMON_COMPILE_OPTIONS})
 target_link_libraries(deluge_ui_oled PUBLIC deluge_ui_core deluge_gfx_oled)
 set_target_properties(deluge_ui_oled PROPERTIES
   CXX_STANDARD 26
@@ -41,6 +44,7 @@ add_library(deluge_ui_grid STATIC
   grid/waveform.cpp
 )
 target_include_directories(deluge_ui_grid PUBLIC ${SHARED_INCLUDE})
+target_compile_options(deluge_ui_grid PRIVATE ${DELUGE_COMMON_COMPILE_OPTIONS})
 target_link_libraries(deluge_ui_grid PUBLIC deluge_ui_core deluge_gfx_grid)
 set_target_properties(deluge_ui_grid PROPERTIES
   CXX_STANDARD 26
