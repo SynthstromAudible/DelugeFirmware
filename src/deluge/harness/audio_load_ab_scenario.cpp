@@ -35,6 +35,7 @@
 #include <cstdio>
 #include <span>
 #include <string>
+#include <string_view>
 
 // The GUI headers above reach `src/lib/printf.h`, which soft-aliases `printf` to the embedded
 // `printf_`. That implementation emits through `putchar_`, which only the C host BSP defines
@@ -134,6 +135,17 @@ int32_t g_deferralsTotal = 0;
 std::array<int32_t, kCases.size()> g_deferralsByCase{};
 /// The index of `selfdir` in kCases, whose one property is checked absolutely below.
 constexpr size_t kSelfdirIndex = 3;
+/// Where `selfdir` must be recorded as having been loaded from.
+///
+/// The SAME string as its nominal path, which is the entire reason this case exists: only a
+/// positional reading of "which candidate won" fills the field at all.
+constexpr std::string_view kSelfdirAlternate = "SAMPLES/ALT/SELFDIR.WAV";
+// The index is a bare number, and reordering kCases would silently point it at a different case --
+// one that may well carry a non-empty alternate of its own and pass, under a message about a
+// property nothing is testing any more. So the index is tied to the case: a reorder is a build
+// failure, not a quietly weakened gate.
+static_assert(std::string_view{kCases[kSelfdirIndex].path} == kSelfdirAlternate,
+              "kSelfdirIndex no longer names the self-directory case; kCases was reordered");
 /// What `selfdir` recorded in `loadedFromAlternatePath`.
 ///
 /// The diffed AB-CASE lines cannot require this. `selfdir`'s winning candidate stringifies to
@@ -326,11 +338,14 @@ void printSummary() {
 	// Absolute, not comparative: see g_selfdirAlternatePath. Required of BOTH legs, because both
 	// resolve this candidate positionally and a regression in the shared resolver would take the two
 	// of them down together, agreeing perfectly.
-	if (g_selfdirAlternatePath.empty()) {
-		printf("FAIL [audioLoadAB/%s]: the sample living IN the alternate dir recorded no "
-		       "loadedFromAlternatePath -- the winning candidate was read by comparing paths rather than "
-		       "by slot, so a collect-media save would leave it behind\n",
-		       kCases[kSelfdirIndex].label);
+	// The VALUE, not merely non-emptiness: a case that happens to resolve from some other alternate
+	// candidate would satisfy "not empty" while proving nothing about this one.
+	if (g_selfdirAlternatePath != kSelfdirAlternate) {
+		printf("FAIL [audioLoadAB/%s]: the sample living IN the alternate dir recorded "
+		       "loadedFromAlternatePath \"%s\", expected \"%.*s\" -- the winning candidate was read by "
+		       "comparing paths rather than by slot, so a collect-media save would leave it behind\n",
+		       kCases[kSelfdirIndex].label, g_selfdirAlternatePath.c_str(), static_cast<int>(kSelfdirAlternate.size()),
+		       kSelfdirAlternate.data());
 		g_failures++;
 	}
 	if (!active && g_deferralsTotal != 0) {
