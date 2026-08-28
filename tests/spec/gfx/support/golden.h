@@ -9,18 +9,21 @@
 #error "GFX_GOLDEN_DIR must be defined by CMake"
 #endif
 
-/// Compare `actual` with tests/golden/gfx/<name>. GFX_GOLDEN_UPDATE=1 rewrites the file.
+/// @brief Compare @p actual against the recorded golden file `tests/golden/gfx/<name>`.
 ///
-/// Exactly "1", not merely "set": re-recording a golden destroys the evidence the extraction is
-/// behaviour-preserving (the rewritten file then matches whatever was just produced, so the
-/// comparison below passes vacuously). GFX_GOLDEN_UPDATE=0 -- the natural way to say "no" -- must
-/// therefore not trigger it, and neither must an empty or stray value inherited from the shell.
+/// @param self   The enclosing `it(...)` block's own lambda parameter, taken as an explicit,
+///               templated first parameter and forwarded from each call site: CppSpec's
+///               `expect(...)` macro expands to `self.expect(...)` (see the `_` macro in
+///               cppspec.hpp), and there is no ambient `self` available to a plain free function.
+/// @param name   Path relative to GFX_GOLDEN_DIR, e.g. "oled/primitives.pbm".
+/// @param actual The value to compare against the golden (or, when re-recording, to write to it).
 ///
-/// NB: deviates from the brief's free-function signature. CppSpec's `expect(...)` macro expands
-/// to `self.expect(...)`, where `self` is the `it(...)` block's own lambda parameter (see the `_`
-/// macro in cppspec.hpp) -- there is no ambient `self` available to a plain free function. Taking
-/// `self` as an explicit (templated) first parameter and forwarding it from each call site is the
-/// minimal change that lets this compile against the real CppSpec API.
+/// @note Setting `GFX_GOLDEN_UPDATE=1` rewrites the golden file instead of comparing against it.
+///       The check is for exactly "1", not merely "set": `GFX_GOLDEN_UPDATE=0` -- the natural way
+///       to say "no" -- must not trigger it, nor must an empty or stray value inherited from the
+///       shell. Re-recording destroys the evidence that the port is behaviour-preserving (the
+///       rewritten file then matches whatever was just produced, so the comparison would pass
+///       vacuously), so make sure a re-record is deliberate, not accidental.
 template <typename Self>
 inline void expect_golden(Self& self, const std::string& name, const std::string& actual) {
 	const std::string path = std::string(GFX_GOLDEN_DIR) + "/" + name;

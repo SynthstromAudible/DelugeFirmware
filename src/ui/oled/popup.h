@@ -7,142 +7,143 @@
 
 namespace deluge::ui::oled {
 
-/// Legacy's `PopupType` (hid/display/oled.h), reduced to the three that differ in *pixels*.
+/// @brief Legacy's `PopupType`, reduced to the three that differ in *pixels*.
 ///
 ///  - `Framed` is `setupPopup` with anything but `PopupType::NOTIFICATION`: cleared interior plus
-///    a rounded border (hid/display/oled.cpp:132-135).
+///    a rounded border.
 ///  - `Notification` is `PopupType::NOTIFICATION`: the same cleared interior and **no border at
-///    all** -- the `if (type != PopupType::NOTIFICATION)` at :132 is the whole difference.
-///  - `Permanent` is `drawPermanentPopupLookingText` (:570-601), which draws a **square**
-///    `drawRectangle` (:588) rather than a rounded one and centres its box with a different
-///    (mirrored) arithmetic; see `popup_rect_for`.
+///    all**.
+///  - `Permanent` is `drawPermanentPopupLookingText`, which draws a **square** rectangle rather
+///    than a rounded one and centres its box with a different (mirrored) arithmetic; see
+///    `popup_rect_for`.
 ///
 /// Legacy's remaining types (`GENERAL`, `QUANTIZE`, ...) select timeout and priority policy in the
 /// display driver, not geometry, and none of that is a widget's business.
 enum class PopupStyle : uint8_t { Framed, Notification, Permanent };
 
-/// Where a popup box holding \p content goes: centred on the panel, `kPopupMargin` bigger on
-/// both axes (legacy's `doubleMargin`, oled.cpp:610-611 -- one margin's worth on *each* side,
-/// despite the name). The result is in \p f's local coordinates.
+/// @brief Where a popup box holding \p content goes: centred on the panel, `kPopupMargin` bigger
+///        on both axes (one margin's worth on *each* side).
 ///
-/// **The returned rect is legacy's `{minX, minY, width, height}` pair, and the border
-/// `popup_frame` draws from it spans `w + 1` columns and `h + 1` rows.** `setupPopup` computes
-/// `popupMaxX = popupMinX + width` and hands that to `clearAreaExact` / `drawRectangleRounded`
-/// as an *inclusive* maximum (oled.cpp:126-135), so a popup legacy calls 42 wide inks 43
-/// columns. Kept rather than "corrected", because correcting it would move every popup border by
-/// a pixel; `popup_frame` is the only consumer and does the +1 in one place.
+/// @note **The returned rect is legacy's `{minX, minY, width, height}` pair, and the border
+///       `popup_frame` draws from it spans `w + 1` columns and `h + 1` rows.** Legacy treats
+///       `minX + width` as an *inclusive* maximum when clearing and drawing the border, so a
+///       popup legacy calls 42 wide inks 43 columns. Kept rather than "corrected", because
+///       correcting it would move every popup border by a pixel; `popup_frame` is the only
+///       consumer and does the +1 in one place.
 ///
-/// **Centred on the whole canvas, not on the frame** -- the returned rect is nonetheless in
-/// frame-local coordinates. Legacy divides `OLED_MAIN_WIDTH_PIXELS` and
-/// `OLED_MAIN_HEIGHT_PIXELS` (`popupMinX`/`popupMinY`, oled.cpp:126-129), and the height is the
-/// *whole* panel: on the shipped board that is 48, the five rows the faceplate hides included, so
-/// a legacy popup sits above the visible centre. The port reproduces that exactly by centring on
-/// `f.canvas.geometry()` and converting to frame coordinates by subtracting `f.origin` -- the
-/// same canvas-absolute idiom `segment_digits` (misc.cpp) and `decimal_value` (values.cpp:172-173)
-/// use, and the same panel-height read as `output_name` (misc.cpp) and `list` (list.cpp:23).
+/// @note **Centred on the whole canvas, not on the frame** -- the returned rect is nonetheless in
+///       \p f's local coordinates. Legacy centres against the *whole* panel -- on the shipped
+///       48-row board that includes the five rows the faceplate hides, so a legacy popup sits
+///       above the visible centre. This reproduces that exactly by centring on
+///       `f.canvas.geometry()` and converting to frame coordinates by subtracting `f.origin`.
 ///
-/// So for a 30x9 content on the shipped 48-row panel the box is canvas rows 13..34
-/// (`(48 - 21) / 2 = 13`), i.e. local y 8, not the `(43 - 21) / 2 = 11` the task brief's sketch
-/// spelled: the brief's number centres on the 43 visible rows and does not reproduce the device.
-/// At `Geometry{128, 64, 0}` the two rules coincide, `origin` is zero, and the arithmetic is
-/// legacy's unchanged.
+///       So for a 30x9 content on the shipped 48-row panel the box is canvas rows 13..34
+///       (`(48 - 21) / 2 = 13`) -- not the row centring against the 43 *visible* rows would give,
+///       which would not reproduce the device. At `Geometry{128, 64, 0}` the two rules coincide,
+///       `origin` is zero, and the arithmetic is legacy's unchanged.
 ///
-/// A popup is a panel-global object in legacy -- there is no sub-region popup anywhere -- so the
-/// centring deliberately ignores which region \p f covers. A frame whose origin is not the
-/// panel's corner still gets the panel's popup, drawn where legacy would draw it and clipped to
-/// the frame like anything else.
+/// @note A popup is a panel-global object in legacy -- there is no sub-region popup anywhere -- so
+///       the centring deliberately ignores which region \p f covers. A frame whose origin is not
+///       the panel's corner still gets the panel's popup, drawn where legacy would draw it and
+///       clipped to the frame like anything else.
 ///
-/// @param style `Permanent` uses `drawPermanentPopupLookingText`'s own centring --
-///        `minX = (w - content.w - margin) >> 1` with `maxX = w - minX` (oled.cpp:582-586) --
-///        which mirrors rather than adds, and so lands one pixel wider than the `Framed` rule
-///        whenever `w - content.w - margin` is odd. Defaults to `Framed` so the two-argument
-///        call shape still compiles.
+/// @param f       Target frame; used for its canvas geometry and origin, not its own bounds.
+/// @param content Size of the content the popup box must fit.
+/// @param style   `Permanent` uses its own centring -- `minX = (w - content.w - margin) >> 1` with
+///                `maxX = w - minX` -- which mirrors rather than adds, and so lands one pixel
+///                wider than the `Framed` rule whenever `w - content.w - margin` is odd. Defaults
+///                to `Framed` so the two-argument call shape still compiles.
+/// @return The popup box, in \p f's local coordinates.
 gfx::oled::Rect popup_rect_for(OledFrame& f, gfx::oled::Size content, PopupStyle style = PopupStyle::Framed);
 
-/// Clear \p rect's interior and draw its border, per \p style. `rect` is `popup_rect_for`'s --
-/// see the `w + 1` note there.
+/// @brief Clear \p rect's interior and draw its border, per \p style.
 ///
-/// The clear is `clearAreaExact(minX, minY, maxX, maxY)` (oled.cpp:131). Legacy's `Permanent`
-/// path does *not* clear (it drew straight onto a `clearMainImage`d canvas, oled.cpp:588); this
-/// clears for every style, which is what spec B section 6 asks of `popup_frame` ("border +
-/// cleared interior") and is identical on the cleared canvas legacy always had.
+/// @note Legacy's `Permanent` path does *not* clear -- it drew straight onto an already-cleared
+///       canvas. This clears for every style instead, which is identical on the cleared canvas
+///       legacy always had.
+///
+/// @param f     Target frame.
+/// @param rect  The popup box; see `popup_rect_for` for the `w + 1`/`h + 1` note.
+/// @param style Border style; see `PopupStyle`.
 void popup_frame(OledFrame& f, gfx::oled::Rect rect, PopupStyle style);
 
-/// The whole of `OLED::popupText` (oled.cpp:605-643) bar its timers: wrap \p text, size a box to
-/// the widest line, frame it, and centre the lines inside.
+/// @brief Ports legacy `OLED::popupText` bar its timers: wrap \p text, size a box to the widest
+///        line, frame it, and centre the lines inside.
 ///
-/// Layout, all legacy's, and all against the *canvas* extent rather than the frame's (see
-/// `popup_rect_for`): wrap at `panel width - kPopupMargin` in `f.style.row_font` (oled.cpp:610-613;
-/// both shipped profiles set `Apple7`, whose metrics are exactly the `kTextSpacingX`/`kTextSpacingY`
-/// pair legacy hard-coded); box `= {longest line, count * 9} + kPopupMargin` (:615-618); first line
-/// at `(panel height - text height) >> 1`, clamped up to 0 (:620-623); each line at
-/// `(panel width - its width) >> 1` (:630). The line widths are `wrap_lines`' own, not `measure`'s
-/// -- they differ by the trailing inter-character spacing that `breakStringIntoLines` subtracts off
-/// (text_wrap.h).
+/// Layout, all against the *canvas* extent rather than the frame's (see `popup_rect_for`): wrap
+/// at `panel width - kPopupMargin` in `f.style.row_font` (both shipped profiles set `Apple7`,
+/// whose metrics are exactly the `kTextSpacingX`/`kTextSpacingY` pair legacy hard-coded); box
+/// `= {longest line, count * 9} + kPopupMargin`; first line at
+/// `(panel height - text height) >> 1`, clamped up to 0; each line at
+/// `(panel width - its width) >> 1`. The line widths are `wrap_lines`' own, not `measure`'s -- they
+/// differ by the trailing inter-character spacing that `breakStringIntoLines` subtracts off.
 ///
-/// `PopupStyle::Permanent` follows `drawPermanentPopupLookingText` (:570-601) instead, which is
-/// the same routine with a square border, the mirrored centring above, and no "line fell off the
-/// bottom" check (:626-628 has one; :595 does not).
+/// @note `PopupStyle::Permanent` follows `drawPermanentPopupLookingText` instead, which is the
+///       same routine with a square border, the mirrored centring described on `popup_rect_for`,
+///       and no "line fell off the bottom" check.
 ///
 /// Centres on the panel, in \p f's coordinates; see `popup_rect_for`. Draws no timer and sets no
 /// state: how long a popup stays up is the shell's business, not a widget's.
+///
+/// @param f     Target frame.
+/// @param text  Text to wrap and display.
+/// @param style Border style; see `PopupStyle`.
 void popup_text(OledFrame& f, std::string_view text, PopupStyle style = PopupStyle::Framed);
 
-/// `updateWorkingAnimation` (oled.cpp:647-721): the 18x10 box of sliding bars the Deluge shows in
-/// the top-right corner while it loads or saves.
+/// @brief Ports legacy `updateWorkingAnimation`: the 18x10 box of sliding bars the Deluge shows in
+///        the top-right corner while it loads or saves.
 ///
-/// \p word is legacy's own direction switch and **nothing is printed**: `displayWorkingAnimation`
-/// keeps only `loading = !strcmp(word, "Loading")` (:723) and the animation runs right-to-left
-/// for "Loading" and left-to-right for anything else ("Saving"). There is no word drawn on screen
-/// and no row of dots anywhere in the routine; the task brief's ""Loading" + animated dots" does
-/// not describe any legacy code, and legacy is what is ported here.
+/// @note \p word is legacy's own direction switch and **nothing is printed**: only
+///       `loading = (word == "Loading")` is read, and the animation runs right-to-left for
+///       "Loading" and left-to-right for anything else ("Saving"). There is no word drawn on
+///       screen and no row of dots anywhere in the routine.
 ///
-/// Placed hard against \p rect's top-right corner, as legacy places it against the panel's:
-/// `popupX = OLED_MAIN_WIDTH_PIXELS - 1 - animation_width` with `popupMaxX = popupX +
-/// animation_width` (:654, and setupPopup's inclusive maximum) puts the box's last column on the
-/// panel's last column, so the `- 1` is absorbed by that inclusive maximum and there is no gap.
-/// `popupY = OLED_MAIN_TOPMOST_PIXEL + 2` (:655) is frame-local 2, the topmost-pixel term being
-/// the frame's origin -- which is why `working`, alone among the popups here, needs no
-/// canvas-absolute conversion. With `rect == f.bounds()` these are legacy's pixels exactly. It is
-/// the one popup legacy does *not* centre.
+/// @note Placed hard against \p rect's top-right corner, as legacy places it against the panel's:
+///       the box's last column lands on the panel's last column, with no gap, and its top is two
+///       rows below the frame's origin. It is the one popup legacy does *not* centre; with
+///       `rect == f.bounds()` these are legacy's pixels exactly, and it needs no canvas-absolute
+///       conversion (unlike the other popups here).
 ///
-/// \p blink is the animation's clock. `period_ms` doubles as "armed" (the same idiom
-/// `decimal_value` uses): a `Blink` not already holding `kWorkingStepMs` is (re)anchored at
-/// `f.now_ms()`, so zeroing it restarts the animation the way `displayWorkingAnimation`'s
-/// `working_animation_count = 1` did. The step is then derived from the elapsed time --
-/// `kWorkingPauseMs` before the sequence starts, `kWorkingStepMs` per step, `kWorkingPauseMs`
-/// again on the final frame of each cycle (:711-720) -- and `request_repaint_after` is armed for
-/// the remainder of the current step, replacing `TimerName::LOADING_ANIMATION` entirely.
+/// @note \p blink is the animation's clock. `period_ms` doubles as "armed" (the same idiom
+///       `decimal_value` uses): a `Blink` not already holding `kWorkingStepMs` is (re)anchored at
+///       `f.now_ms()`, so zeroing it restarts the animation. The step is then derived from the
+///       elapsed time -- `kWorkingPauseMs` before the sequence starts, `kWorkingStepMs` per step,
+///       `kWorkingPauseMs` again on the final frame of each cycle -- and `request_repaint_after`
+///       is armed for the remainder of the current step.
 ///
-/// Legacy accumulated this animation on a persistent canvas: most frames repaint only the top
-/// `h2` rows and leave the rest standing. An immediate-mode frame has no history, so this replays
-/// the frames that produced it -- the initialiser, then (for any cycle after the first) the
-/// full-interior repaint that ends a cycle, then every step of the current cycle. At most 29
-/// steps of at most six one-row spans each; the result is the same pixels legacy's canvas held.
+/// @note Legacy accumulated this animation on a persistent canvas: most frames repaint only the
+///       top few rows and leave the rest standing. An immediate-mode frame has no history, so
+///       this replays the frames that produced it -- the initialiser, then (for any cycle after
+///       the first) the full-interior repaint that ends a cycle, then every step of the current
+///       cycle -- landing on the same pixels legacy's canvas held.
+///
+/// @param f     Target frame.
+/// @param rect  Region to anchor the animation's top-right corner against.
+/// @param word  Legacy's direction switch: `"Loading"` runs right-to-left, anything else
+///              left-to-right. Nothing is printed.
+/// @param blink Animation clock, persisted by the caller across frames.
 void working(OledFrame& f, gfx::oled::Rect rect, std::string_view word, Blink& blink);
 
-/// A progress bar filling \p rect left to right at \p num / \p den.
+/// @brief A progress bar filling \p rect left to right at \p num / \p den.
 ///
-/// **Legacy has no progress bar.** Nothing under `src/deluge` draws one for a long operation --
-/// loading and saving show `working` above, and there is no percentage popup or stem-export
-/// readout in this tree. The closest legacy pixels are `Number::drawHorizontalBar`
-/// (gui/menu_item/number.cpp:33-73), the full-screen menu bar that task 8 deliberately left out
-/// of `meters.h` because no horizontal-menu slot reaches it, and this *is* that routine with
-/// `min_value = 0`, `value = num`, `max_value = den`:
+/// @note Legacy has no progress bar as such. The closest legacy pixels are
+///       `Number::drawHorizontalBar`, the full-screen menu bar (out of scope for `meters.h`, since
+///       no horizontal-menu slot reaches it), and this is that routine with `min_value = 0`,
+///       `value = num`, `max_value = den`:
 ///
-///  - the outline is `drawRectangleRounded(left_most, y_top, right_most - 1, y_top + height)`
-///    (:72), i.e. exactly \p rect;
-///  - a zero numerator draws the outline and nothing else (:41-44);
-///  - otherwise `invertArea` fills `num * rect.w / den` columns from the left across
-///    `rect.y + 1 .. rect.bottom() - 2` (:66-70), and a non-zero numerator too small to fill one
-///    column still inks a single column, which is legacy's "= 0, draw vertical line" arm
-///    (:55-60) reached at `zero_pos_horizontal == 0`.
+///  - the outline is exactly \p rect;
+///  - a zero numerator draws the outline and nothing else;
+///  - otherwise the fill covers `num * rect.w / den` columns from the left, across
+///    `rect.y + 1 .. rect.bottom() - 2`, and a non-zero numerator too small to fill one column
+///    still inks a single column (legacy's "draw vertical line" arm at zero fill width).
 ///
-/// Unlike `popup_rect_for`'s rect, \p rect here is the outline's true pixel extent: nothing in
-/// legacy computes this box from a `width`, so there is no off-by-one to preserve.
+/// @note Unlike `popup_rect_for`'s rect, \p rect here is the outline's true pixel extent: nothing
+///       in legacy computes this box from a `width`, so there is no off-by-one to preserve.
 ///
-/// \p num is clamped to `[0, den]` and a \p den of zero or less draws the empty outline. Legacy
-/// needed neither guard (its value was in range by construction) and has neither.
+/// @param f    Target frame.
+/// @param rect The bar's outline, its true pixel extent.
+/// @param num  Numerator; clamped to `[0, den]`.
+/// @param den  Denominator; zero or less draws the empty outline.
 void progress(OledFrame& f, gfx::oled::Rect rect, int32_t num, int32_t den);
 
 } // namespace deluge::ui::oled

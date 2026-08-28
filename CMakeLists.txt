@@ -262,7 +262,7 @@ add_compile_options(
 add_subdirectory(lib)
 
 # MAINTAINER_MODE, DELUGE_C_STANDARD / DELUGE_CXX_STANDARD and DELUGE_COMMON_COMPILE_OPTIONS.
-# Shared verbatim with sim/CMakeLists.txt and tests/CMakeLists.txt so the leaf libraries
+# Also included by sim/CMakeLists.txt and tests/CMakeLists.txt so the leaf libraries
 # (deluge_gfx_*, deluge_ui_*, deluge_notify) get the same warning set in all three projects.
 include(${CMAKE_CURRENT_LIST_DIR}/cmake/deluge_common_options.cmake)
 

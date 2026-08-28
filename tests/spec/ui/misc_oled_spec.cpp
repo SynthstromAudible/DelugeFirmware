@@ -26,42 +26,41 @@ namespace uitest = deluge::ui::test;
 // The four "everything else" OLED widgets, pinned the same three ways the other ui specs use.
 //
 // Byte for byte against legacy where legacy exists: `namespace legacy` below re-transcribes
-// `View::drawOutputNameFromDetails`' drawing half (gui/views/view.cpp:2087-2175) and
-// `OLED::renderEmulated7Seg` (hid/display/oled.cpp:768-803 as of 6a4ccefbc^, the commit before the
-// emulated-display feature was deleted) against the raw gfx `Canvas` in canvas-absolute
-// coordinates, with every magic number spelled as a literal (3/12 and 17/30 for the two y pairs,
-// 6/9 and 9/10 for the two faces, 33 and 17 for the digit pitch and row pitch) rather than
-// borrowed from the constants the port lays out with -- otherwise the 64-row comparison would be
-// circular.
+// `View::drawOutputNameFromDetails`' drawing half and `OLED::renderEmulated7Seg` (as it existed
+// at 6a4ccefbc^, the commit before the emulated-display feature was deleted) against the raw gfx
+// `Canvas` in canvas-absolute coordinates, with every magic number spelled as a literal (3/12 and
+// 17/30 for the two y pairs, 6/9 and 9/10 for the two faces, 33 and 17 for the digit pitch and
+// row pitch) rather than borrowed from the constants the port lays out with -- otherwise the
+// 64-row comparison would be circular.
 //
-// As individual coordinates for the checks the task brief names: the type text's y on both
-// panels, the digit shapes, and the segment pitch.
+// As individual coordinates for a handful of checks worth pinning explicitly: the type text's y
+// on both panels, the digit shapes, and the segment pitch.
 //
 // And as golden PBMs, at both shipped geometries.
 //
-// Deviations:
+// Points worth calling out explicitly:
 //
-//  D1. `output_name` draws nothing for `edited`. `drawOutputNameFromDetails` takes `editedByUser`
-//      and its body never reads it (view.cpp:2025-2175); the only renderer that did was the
-//      7-segment one, gone with commit 6a4ccefbc. The brief's "asterisk" is not in this tree.
-//  D2. `output_name` does not arm a side-scroller for a name too wide to fit (view.cpp:2128).
-//      That is `scroll_text`'s job and needs state this widget does not own; the name is
-//      left-aligned, which is what legacy draws on the first frame. Pinned below.
-//  D3. `segment_digits`' constants are canvas-absolute -- `renderEmulated7Seg` laid out against
-//      `main` with no `OLED_MAIN_TOPMOST_PIXEL` term -- so the port converts them by subtracting
-//      the frame's origin, as `decimal_value` does for its rows 20 and 41. On the 48-row panel
-//      that reproduces legacy exactly; on a flush 64-row panel the digits sit at legacy's rows
-//      with a topmost pixel of 0, which is the same routine.
-//  D4. `vu` and `envelope` have no legacy at all -- there is no OLED VU anywhere under
-//      `hid/display` (the VU meter is `View::renderVUMeter`, RGB pads, view.cpp:1849-1860) and no
-//      combined ADSR renderer. Golden-only, per the widget docs in misc.h.
+//  - `output_name` draws nothing for `edited`. `drawOutputNameFromDetails` takes `editedByUser`
+//    and its body never reads it; the only renderer that did was the 7-segment one, gone with
+//    commit 6a4ccefbc. There is no "edited" indicator left to reproduce.
+//  - `output_name` does not arm a side-scroller for a name too wide to fit. That is
+//    `scroll_text`'s job and needs state this widget does not own; the name is left-aligned,
+//    which is what legacy draws on the first frame. Pinned below.
+//  - `segment_digits`' constants are canvas-absolute -- `renderEmulated7Seg` laid out against
+//    `main` with no `OLED_MAIN_TOPMOST_PIXEL` term -- so the port converts them by subtracting
+//    the frame's origin, as `decimal_value` does for its rows 20 and 41. On the 48-row panel
+//    that reproduces legacy exactly; on a flush 64-row panel the digits sit at legacy's rows
+//    with a topmost pixel of 0, which is the same routine.
+//  - `vu` and `envelope` have no legacy at all -- there is no OLED VU anywhere under
+//    `hid/display` (the VU meter is `View::renderVUMeter`, RGB pads) and no combined ADSR
+//    renderer. Golden-only, per the widget docs in misc.h.
 
 namespace {
 
 namespace legacy {
 
-/// `View::drawOutputNameFromDetails` (view.cpp:2087-2175), drawing half only, with
-/// `height_pixels` and `topmost` standing in for the two macros.
+/// `View::drawOutputNameFromDetails`, drawing half only, with `height_pixels` and `topmost`
+/// standing in for the two macros.
 void drawOutputNameFromDetails(Canvas& canvas, const char* outputTypeText, const char* nameToDraw, int32_t width_pixels,
                                int32_t height_pixels, int32_t topmost) {
 	{
@@ -80,7 +79,7 @@ void drawOutputNameFromDetails(Canvas& canvas, const char* outputTypeText, const
 	}
 }
 
-/// `OLED::renderEmulated7Seg` (oled.cpp:768-803 @ 6a4ccefbc^), minus its clearMainImage.
+/// `OLED::renderEmulated7Seg` (as it existed at 6a4ccefbc^), minus its clearMainImage.
 void renderEmulated7Seg(Canvas& main, const std::array<uint8_t, 4>& display) {
 	for (int i = 0; i < 4; i++) {
 		int ix = 33 * i + 1;
@@ -119,15 +118,15 @@ void renderEmulated7Seg(Canvas& main, const std::array<uint8_t, 4>& display) {
 
 } // namespace legacy
 
-/// The task brief's literal bytes. They are the *textbook* `gfedcba` codes for "0123", kept
-/// because the brief names them, but they are not what the Deluge's panel sends: in the Deluge's
-/// own order (bit 0 middle, 1/2 the left uprights, 3 bottom, 4/5 the right uprights, 6 top, 7 the
-/// point) 0x3F is an eight missing its top bar. Used for the byte-compare and the golden.
+/// The *textbook* `gfedcba` codes for "0123". Not what the Deluge's panel actually sends: in the
+/// Deluge's own bit order (bit 0 middle, 1/2 the left uprights, 3 bottom, 4/5 the right uprights,
+/// 6 top, 7 the point) 0x3F is an eight missing its top bar. Used for the byte-compare and the
+/// golden.
 constexpr std::array<uint8_t, 4> kBriefBytes{0x3F, 0x06, 0x5B, 0x4F};
 
 /// "0123" as the panel actually encodes it: `numberSegments[10] = {0x7E, 0x30, 0x6D, 0x79, ...}`
-/// (hid/display/seven_segment.cpp:60 @ 6a4ccefbc^). Used for the shape assertions, which only
-/// mean anything against real digits.
+/// (as it existed at 6a4ccefbc^). Used for the shape assertions, which only mean anything
+/// against real digits.
 constexpr std::array<uint8_t, 4> kDigits0123{0x7E, 0x30, 0x6D, 0x79};
 
 } // namespace
@@ -194,7 +193,7 @@ describe misc_oled_w("ui::oled::misc", $ {
 	});
 
 	it("draws nothing extra for `edited`", _ {
-		// D1: editedByUser is a parameter legacy's OLED body never reads.
+		// editedByUser is a parameter legacy's OLED body never reads.
 		uitest::Rig48 plain;
 		uitest::Rig48 edited;
 		OutputNameData data{.type_text = "SYNTH",
@@ -210,8 +209,8 @@ describe misc_oled_w("ui::oled::misc", $ {
 	});
 
 	it("left-aligns a name too wide to centre", _ {
-		// D2: view.cpp:2123-2131 -- centred when it fits, drawn from x 0 when it does not (and
-		// legacy then armed a side scroller, which is scroll_text's job now).
+		// Legacy centres the name when it fits, and draws it from x 0 when it does not (and then
+		// armed a side scroller, which is scroll_text's job now).
 		uitest::Rig48 r;
 		const char* wide = "A VERY LONG PRESET NAME INDEED";
 		const OutputNameData data{.type_text = "SYNTH",
@@ -279,8 +278,8 @@ describe misc_oled_w("ui::oled::misc", $ {
 		expect(r.pbm()).to_equal(r.reference_pbm());
 		expect(r.lit(22, 42)).to_be_true(); // invert_area(ix + 21, 3, 41, 43)
 
-		// D3: on a flush panel the same constants land on the same canvas rows, which is legacy
-		// with OLED_MAIN_TOPMOST_PIXEL == 0.
+		// On a flush panel the same constants land on the same canvas rows, which is legacy with
+		// OLED_MAIN_TOPMOST_PIXEL == 0.
 		uitest::Rig64 r64;
 		segment_digits(r64.frame, r64.frame.bounds(), std::span<const uint8_t, 4>{kBriefBytes});
 		legacy::renderEmulated7Seg(r64.reference, kBriefBytes);
@@ -289,7 +288,7 @@ describe misc_oled_w("ui::oled::misc", $ {
 	});
 
 	it("lights the VU meter one segment at a time", _ {
-		// D4: no legacy pixels; the eight steps are getMaxYDisplayForVUMeter's eight grid rows.
+		// No legacy pixels; the eight steps are getMaxYDisplayForVUMeter's eight grid rows.
 		uitest::Rig48 silent;
 		vu(silent.frame, Rect{4, 4, 120, 18}, 0, 0);
 		bool any = false;
@@ -331,7 +330,7 @@ describe misc_oled_w("ui::oled::misc", $ {
 	});
 
 	it("draws an ADSR outline", _ {
-		// D4: golden only; the brief's a/d/s/r = 0.2/0.3/0.7/0.4.
+		// Golden only; a/d/s/r = 0.2/0.3/0.7/0.4.
 		uitest::Rig48 r;
 		envelope(r.frame, Rect{4, 4, 120, 30}, 0.2f, 0.3f, 0.7f, 0.4f);
 		expect_golden(self, "../ui/widgets/envelope_48.pbm", r.pbm());

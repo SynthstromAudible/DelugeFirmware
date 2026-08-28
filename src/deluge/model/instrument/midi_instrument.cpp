@@ -146,9 +146,9 @@ void MIDIInstrument::modButtonAction(uint8_t whichModButton, bool on, ParamManag
 		display->popupText(popupMsg.c_str());
 	}
 	else {
-		// NOTIFY-DEFERRED: the show half of this pair is display->popupText(), which this task
-		// excludes (the shell will own PopupType). Deferring only the hide half would split an
-		// atomic show/hide across the immediate path and the queue, so both move together later.
+		// NOTIFY-DEFERRED: the show half of this pair is display->popupText(), which is out of scope
+		// here (the shell will own PopupType). Deferring only the hide half would split an atomic
+		// show/hide across the immediate path and the queue, so both move together later.
 		display->cancelPopup();
 	}
 }

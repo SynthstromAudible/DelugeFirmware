@@ -13,7 +13,7 @@ GridFrame root_grid_frame(gfx::grid::PadGrid& grid, FrameContext& ctx, InputMask
 	const gfx::grid::GridDimensions d = grid.dims();
 	const Rect all{0, 0, d.cols(), d.rows};
 	// Requested == visible at the root: nothing clips the whole surface. `mask` is the caller's
-	// lever (I2, root_grid_frame's own doc); regions below it only ever narrow further.
+	// lever; regions below it only ever narrow further.
 	return GridFrame{{ctx, mask}, grid, all, all};
 }
 

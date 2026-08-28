@@ -19,31 +19,31 @@ void accumulate(Response& out, const Response& pad, int32_t x) {
 	}
 }
 
-/// The fill-mode / note-editor recolouring (model/note/note_row.cpp:1985-2004).
+/// The fill-mode / note-editor recolouring, called only from the exact-start arm below.
 ///
 /// Legacy runs this after every square, but its outer test is "the pixel is neither the row's blur
-/// colour nor its tail colour" (:1986) and both inner arms need `drewNote`, so the only pixel it
-/// can ever change is the one the exact-start arm just wrote. Called from there, with legacy's
-/// colour comparison kept: a start colour that happens to equal the blur or tail colour is left
-/// alone, exactly as legacy leaves it (`InstrumentClip::renderAsSingleRow` really does pass
-/// `blurColour == mainColour` when `allowBlur` is false, model/clip/instrument_clip.cpp:1467).
+/// colour nor its tail colour" and both inner arms need `drewNote`, so the only pixel it can ever
+/// change is the one the exact-start arm just wrote. Legacy's colour comparison is kept here: a
+/// start colour that happens to equal the blur or tail colour is left alone, exactly as legacy
+/// leaves it (`InstrumentClip::renderAsSingleRow` really does pass `blurColour == mainColour` when
+/// `allowBlur` is false).
 RGB recoloured(RGB pixel, const NoteCell& note, const ClipRowData& data) {
 	if (pixel == data.blur_colour || pixel == data.tail_colour) {
-		return pixel; // :1986
+		return pixel;
 	}
-	if (data.fill_mode_active) { // :1988
+	if (data.fill_mode_active) {
 		if (note.fill == NoteFill::Fill) {
-			return data.blue; // :1989-1990
+			return data.blue;
 		}
 		if (note.fill == NoteFill::NotFill) {
-			return data.red; // :1992-1993
+			return data.red;
 		}
 		// Legacy's arms are `if (fill mode) ... else if (note editor) ...`, so an ordinary note
 		// while fill mode is active is never given the note editor's colour.
 		return pixel;
 	}
 	if (data.note_editor && note.non_default_params) {
-		return data.yellow; // :1996-2002
+		return data.yellow;
 	}
 	return pixel;
 }
@@ -63,18 +63,18 @@ Response row(GridFrame& f, int32_t y, std::span<const RGB> cells) {
 Response clip_row(GridFrame& f, int32_t y, const ClipRowData& data) {
 	const int32_t w = std::min(f.bounds().w, static_cast<int32_t>(kMaxRowCells));
 
-	// `overwriteExisting`'s clear (model/note/note_row.cpp:1878-1883): every column starts black,
-	// and a row with no notes stays that way (legacy's early `if (notes.empty()) return;`, :1885).
-	// When `overwrite_existing` is false these cells are never written to the grid -- `touched`
-	// records which columns this call actually has something to say about.
+	// `overwrite_existing`'s clear: every column starts black, and a row with no notes stays that
+	// way (legacy's early empty-notes return). When `overwrite_existing` is false these cells are
+	// never written to the grid -- `touched` records which columns this call actually has
+	// something to say about.
 	RGB cells[kMaxRowCells] = {};
 	bool touched[kMaxRowCells] = {};
 
-	// Pass 1 -- continuing notes (note_row.cpp:1967-1984). A note contributes tail columns only
-	// when `allowNoteTails` is set for it, which is legacy's `noteEnd > squareStartPos &&
-	// allowNoteTails` at :1977. A note that began left of the window (negative `start_col`, whether
-	// scrolled off or wrapped around the loop as at :1969-1975) contributes nothing else, and the
-	// clamp to 0 below is what makes its visible columns start at the left edge.
+	// Pass 1 -- continuing notes. A note contributes tail columns only when `allowNoteTails` is
+	// set for it, which is legacy's `noteEnd > squareStartPos && allowNoteTails`. A note that began
+	// left of the window (negative `start_col`, whether scrolled off or wrapped around the loop)
+	// contributes nothing else, and the clamp to 0 below is what makes its visible columns start
+	// at the left edge.
 	for (const NoteCell& note : data.notes) {
 		if (!note.tail || note.len_cols == 0) {
 			continue;
@@ -88,8 +88,8 @@ Response clip_row(GridFrame& f, int32_t y, const ClipRowData& data) {
 	}
 
 	// Pass 2 -- note starts, after the tails so a start always wins the column it shares with
-	// another note's tail (legacy's per-square if/else-if reaches the "starts within"/"starts on"
-	// arms before the continuing-note arm: note_row.cpp:1947, :1956, :1967).
+	// another note's tail (legacy's per-square if/else-if reaches the "starts within" / "starts
+	// on" arms before the continuing-note arm).
 	for (const NoteCell& note : data.notes) {
 		if (note.len_cols == 0) {
 			continue;
@@ -99,13 +99,14 @@ Response clip_row(GridFrame& f, int32_t y, const ClipRowData& data) {
 			continue; // began before the window (or past it): only its tail is visible
 		}
 		if (note.starts_within) {
-			cells[x] = data.blur_colour; // note_row.cpp:1947-1949
+			cells[x] = data.blur_colour;
 		}
 		else {
-			// note_row.cpp:1956-1960, verbatim: "colour * (0.25 + 0.75 * velocity) but in fixed
-			// point, i.e. it'll go linearly from 0.25 to max brightness with velocity". The cast
-			// to the parameter's uint16_t is legacy's own implicit narrowing -- for the 0..127
-			// velocities a Deluge produces, (65 + v + v/2) << 8 tops out at 255 << 8 and fits.
+			// "colour * (0.25 + 0.75 * velocity) but in fixed point, i.e. it'll go linearly from
+			// 0.25 to max brightness with velocity" -- legacy's own description of this formula.
+			// The cast to the parameter's uint16_t is legacy's own implicit narrowing -- for the
+			// 0..127 velocities a Deluge produces, (65 + v + v/2) << 8 tops out at 255 << 8 and
+			// fits.
 			const auto numerator = static_cast<uint16_t>((65 + note.velocity + (note.velocity / 2)) << 8);
 			cells[x] = recoloured(data.colour.adjustFractional(numerator, static_cast<uint16_t>(255 << 8)), note, data);
 		}
@@ -113,7 +114,7 @@ Response clip_row(GridFrame& f, int32_t y, const ClipRowData& data) {
 	}
 
 	// The playhead last, over whatever the notes left: legacy substitutes the flash colour for the
-	// square's own colour in the driver, after the view has rendered (hid/led/pad_leds.cpp:283-292).
+	// square's own colour in the driver, after the view has rendered.
 	if (data.playhead_col >= 0 && data.playhead_col < w) {
 		cells[data.playhead_col] = kPlayheadColour;
 		touched[data.playhead_col] = true;

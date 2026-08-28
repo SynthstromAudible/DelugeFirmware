@@ -4852,13 +4852,13 @@ gotAnInstrument: {}
 		}
 
 		// NOTIFY-DEFERRED: synchronous load in task context; the animation must be on screen
-		// before the load starts -- resolved when the shell ticks during sd_busy (spec D)
+		// before the load starts -- resolved when the shell ticks during sd_busy
 		display->displayLoadingAnimationText("Loading");
 
 		newInstrument->loadAllAudioFiles(true);
 
 		// NOTIFY-DEFERRED: synchronous load in task context; the animation must be on screen
-		// before the load starts -- resolved when the shell ticks during sd_busy (spec D)
+		// before the load starts -- resolved when the shell ticks during sd_busy
 		display->removeWorkingAnimation();
 	}
 

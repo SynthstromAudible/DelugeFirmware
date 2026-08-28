@@ -6,16 +6,25 @@
 
 namespace deluge::gfx::grid {
 
-/// Verbatim copy of `util::expTableSmall` (src/deluge/util/lookuptables/lookuptables.cpp:127), a
-/// 257-entry table of `32768 * 2^(i/256)`. `PadLEDs::renderZoom` (pad_leds.cpp:1200) reads it to
-/// turn the transition progress into "how many times bigger than native is the zoomed-in image".
+/// @brief 257-entry table of `32768 * 2^(i/256)`, mirroring the audio DSP's `expTableSmall`.
+///
+/// @note Legacy `PadLEDs::renderZoom` reads this to turn the transition progress into "how many
+///       times bigger than native is the zoomed-in image".
 extern const uint16_t kExpTableSmall[257];
 
-/// Verbatim port of `interpolateTable` (src/deluge/util/functions.cpp:487) -- the *unsigned*
-/// sibling of sine_table.h's `interpolate_table_signed`. Note the 15-bit (not 16-bit) interpolation
-/// weights: the result is on a `table_value * 32768` scale, so `kExpTableSmall` yields at most
-/// 65535 * 32768, which still fits an int32_t. `input` must not have bits set above
-/// `num_bits_in_input`.
+/// @brief Bilinear interpolation into an unsigned lookup table -- the *unsigned* sibling of
+///        sine_table.h's interpolate_table_signed().
+///
+/// @note The interpolation weights are 15-bit (not 16-bit): the result is on a
+///       `table_value * 32768` scale, so kExpTableSmall yields at most `65535 * 32768`, which
+///       still fits an int32_t.
+///
+/// @param input                Phase/position value; must not have bits set above
+///                              @p num_bits_in_input.
+/// @param num_bits_in_input    Number of significant bits in @p input.
+/// @param table                The unsigned lookup table to interpolate into.
+/// @param num_bits_in_table_size Number of bits of @p input that index @p table.
+/// @return The interpolated table value.
 [[gnu::always_inline]] inline int32_t interpolate_table(uint32_t input, int32_t num_bits_in_input,
                                                         const uint16_t* table, int32_t num_bits_in_table_size = 8) {
 	int32_t which_value = input >> (num_bits_in_input - num_bits_in_table_size);
@@ -36,7 +45,13 @@ extern const uint16_t kExpTableSmall[257];
 	return value1 * strength1 + value2 * strength2;
 }
 
-/// Verbatim port of `increaseMagnitude` (src/deluge/util/functions.h:362).
+/// @brief Shift @p number left by @p magnitude, or right if @p magnitude is negative.
+///
+/// @note Ports legacy `increaseMagnitude`.
+///
+/// @param number    Value to shift.
+/// @param magnitude Shift amount; positive shifts left, negative shifts right.
+/// @return @p number shifted by @p magnitude.
 [[gnu::always_inline]] inline int32_t increase_magnitude(int32_t number, int32_t magnitude) {
 	if (magnitude >= 0) {
 		return number << magnitude;

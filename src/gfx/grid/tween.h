@@ -7,218 +7,257 @@ namespace deluge::gfx::grid {
 // -- a precondition, checked with DELUGE_GFX_CONTRACT in each function (gfx/contract.h), because a
 // mismatch indexes one of the grids past its own extent.
 
-/// Occupancy for one grid, in the layout `ui::core::PadMask` uses (`ui/core/input.h:31`): one
-/// `uint32_t` per column, bit `y` = row `y`. Spelled as a span rather than that struct because
-/// `gfx` is a leaf and cannot include `ui/**`; a caller holding a `PadMask` passes
-/// `std::span{mask.cols}.first(cols())`.
+/// @brief Occupancy for one grid, in the layout `ui::core::PadMask` uses: one `uint32_t` per
+///        column, bit `y` = row `y`.
 ///
-/// The tweens that accumulate several source pads into one destination pad (`explode`,
-/// `expand_collapse`) need legacy's `occupancyMask` distinction between "black" and "nothing here".
-/// Those are not the same thing on device: `View::renderMacros` (`view.cpp:2805-2828`) writes
-/// `image[y][column] = {0, 0, 0}` for an armed clip on the flash-off frame and then sets
-/// `occupancyMask[y][column]` anyway, and that column reaches `occupancyMaskStore` through both
-/// animation paths ported here (`instrument_clip_view.cpp:5941`, `session_view.cpp:3076`).
-/// Legacy blends that black in through `drawSquare`, darkening what is underneath.
+/// Spelled as a span rather than that struct because `gfx` is a leaf and cannot include `ui/**`; a
+/// caller holding a `PadMask` passes `std::span{mask.cols}.first(cols())`.
 ///
-/// An **empty** span means "derive occupancy from the pad: non-black is occupied", which is what
-/// `PadLEDs::refreshSidebarOccupancy` (pad_leds.cpp:308-312) does and is right for most of the
-/// sidebar -- just not for the case above. A **non-empty** span must be exactly `cols()` long
-/// (contract) and is authoritative.
-///
-/// Note the one thing a bitset cannot carry: legacy occupancy is a 0..64 scale, and callers do use
-/// intermediate values (`renderMacros` sets 1, the row renderers set 64). Only nonzero-ness matters
-/// for a *source* pad -- legacy's test is `if (!occupancyMaskStore[i][col]) continue;` -- so the
-/// bitset is exact there. Where `expand_collapse` seeds the destination mask from `to`, an occupied
-/// pad is taken as fully occupied (64), matching legacy's only precedent for a pre-drawn
-/// destination pad (pad_leds.cpp:354).
+/// @note **Occupancy vs. colour.** The tweens that accumulate several source pads into one
+///       destination pad (explode(), expand_collapse()) need to distinguish "black" from "nothing
+///       here" -- not the same thing on device: legacy's `View::renderMacros` can paint an armed
+///       clip's pad black on the flash-off frame while still marking it occupied, and that
+///       occupancy reaches both animation paths this file ports. Legacy blends that black in
+///       through `drawSquare`, darkening what is underneath.
+/// @note **Empty span.** An empty span means "derive occupancy from the pad: non-black is
+///       occupied", which is right for most callers -- just not the flash-off case above. A
+///       non-empty span must be exactly `cols()` long (contract) and is authoritative.
+/// @note **Scale.** A bitset can't carry legacy's 0..64 occupancy scale, but only nonzero-ness
+///       matters for a *source* pad, so the bitset is exact there. Where expand_collapse() seeds
+///       the destination mask from `to`, an occupied pad is taken as fully occupied (64) --
+///       legacy's only precedent for a pre-drawn destination pad.
 using OccupancyMask = std::span<const uint32_t>;
 
-/// Blend `from` toward `to` at parameter `t` (0..65535: 0 = from, 65535 = to). Leaves out.dirty_rows()
-/// fully set.
+/// @brief Blend `from` toward `to`.
+///
+/// @param from Source frame at `t == 0`.
+/// @param to   Source frame at `t == 65535`.
+/// @param t    Blend parameter, 0..65535 (0 = `from`, 65535 = `to`).
+/// @param out  Destination; must share `dims()` with `from` and `to`. Left fully dirty.
 void fade(const PadGrid& from, const PadGrid& to, uint16_t t, PadGrid& out);
 
-/// Shift `from` by `offset` columns (positive = content moves right); `incoming` fills the
-/// vacated columns from its far edge. Sidebar columns are untouched. All rows dirty.
-/// `offset` is clamped to [-main_cols, main_cols]: a scroll by the full main-axis extent is
-/// already all-`incoming`, so larger magnitudes clamp to that rather than reading out of range.
+/// @brief Shift `from` sideways by `offset` columns.
+///
+/// @param from     Source frame.
+/// @param incoming Fills the columns vacated by the shift, from its far edge.
+/// @param offset   Columns to shift; positive moves content right. Clamped to
+///                 [-main_cols, main_cols] -- a scroll by the full main-axis extent is already
+///                 all-`incoming`, so larger magnitudes clamp to that rather than reading out of
+///                 range.
+/// @param out      Destination; must share `dims()` with `from` and `incoming`. Sidebar columns
+///                 are untouched. Left fully dirty.
 void scroll_horizontal(const PadGrid& from, const PadGrid& incoming, int32_t offset, PadGrid& out);
 
-/// Same for rows (positive = content moves down), but the sidebar columns move with the rows too
-/// (the legacy vertical scroll shifts the whole image, mute/audition columns included) -- unlike
-/// scroll_horizontal, which leaves the sidebar untouched. `offset` is clamped to [-rows, rows] for
-/// the same reason scroll_horizontal clamps to main_cols.
+/// @brief Shift `from` vertically by `offset` rows.
+///
+/// Unlike scroll_horizontal(), the sidebar columns move with the rows too -- the legacy vertical
+/// scroll shifts the whole image, mute/audition columns included.
+///
+/// @param from     Source frame.
+/// @param incoming Fills the rows vacated by the shift, from its far edge.
+/// @param offset   Rows to shift; positive moves content down. Clamped to [-rows, rows] for the
+///                 same reason scroll_horizontal() clamps to `main_cols`.
+/// @param out      Destination; must share `dims()` with `from` and `incoming`. Left fully dirty.
 void scroll_vertical(const PadGrid& from, const PadGrid& incoming, int32_t offset, PadGrid& out);
 
-/// RGB::greyOut applied to every main-grid pad; proportion as in RGB::greyOut (a ~0..6500000
-/// scale for a full grey-out, NOT the 0..65535 scale `fade`'s `t` and `RGB::blend`'s index use --
-/// see existing callers in pad_leds.cpp/session_view.cpp/load_song_ui.cpp). Sidebar pads pass
-/// through untouched.
+/// @brief Grey out every main-grid pad of `in`; sidebar pads pass through untouched.
+///
+/// @param in         Source frame.
+/// @param proportion Grey-out proportion, as `RGB::greyOut` -- a ~0..6500000 scale for a full
+///                   grey-out, NOT the 0..65535 scale fade()'s `t` and `RGB::blend`'s index use.
+/// @param out        Destination; must share `dims()` with `in`. Left fully dirty.
 void grey_out(const PadGrid& in, int32_t proportion, PadGrid& out);
 
 // ---------------------------------------------------------------------------------------------
 // Sub-pixel ("smear") scroll.
 //
-// The device has no software equivalent: legacy `PadLEDs::horizontal::renderScroll`
-// (pad_leds.cpp:1375) shifts whole squares and then hands the incoming column to the PIC
-// (`deluge_control_scroll_row`), which interpolates the intermediate positions in hardware. That
-// leaves the host simulator and any second display without the smooth part of the scroll, so this
-// is a port of the SDK's software version -- `deluge-grid-toolkit`
-// `animations/smear_scroll.rs:52-77` (horizontal) and `:160-186` (vertical): sample the two
+// The device has no software equivalent: legacy shifts whole squares and hands the incoming
+// column to the PIC, which interpolates the intermediate positions in hardware. That leaves the
+// host simulator and any second display without the smooth part of the scroll, so this is a port
+// of the SDK's software version (`deluge-grid-toolkit`'s smear-scroll animations): sample the two
 // neighbouring source columns/rows and blend by the fractional part of the offset.
 //
 // Deviations from that SDK code, both deliberate:
-//  * the SDK passes `(color_a = floor, color_b = floor + 1, frac)` to its `blend_static`, whose
-//    index weights the *first* argument -- so at `frac == 0` it returns `floor + 1`, i.e. the whole
-//    image is off by one pixel and an integral offset does not scroll at all. The arguments are
-//    swapped here so that an integral `offset_px_16` reproduces `scroll_horizontal` /
-//    `scroll_vertical` exactly (which is the legacy whole-square behaviour, the parity authority).
-//  * the SDK smears all 18 columns; `smear_scroll_horizontal` smears only the main columns and
+//  * the SDK's blend function weights its *first* argument, so at a zero fractional offset it
+//    would return the *next* sample -- the whole image off by one pixel, and an integral offset
+//    would not scroll at all. The arguments are swapped here so that an integral `offset_px_16`
+//    reproduces scroll_horizontal() / scroll_vertical() exactly (the legacy whole-square
+//    behaviour, and the parity authority).
+//  * the SDK smears every column; `smear_scroll_horizontal` smears only the main columns and
 //    passes the sidebar through from `from`, matching its own sibling `scroll_horizontal`.
 //    `smear_scroll_vertical` moves the sidebar with the rows, matching `scroll_vertical`.
 //
-/// `offset_px_16` is 16.16 fixed point in pads (65536 = one pad, positive = content moves right),
-/// clamped to +/-`main_cols` for the reason `scroll_horizontal` clamps. `incoming` fills the
-/// vacated columns from its far edge; a source that lands outside both images reads black (the
-/// SDK's `get_source_color` fallback). All rows dirty.
+/// @brief Sub-pixel ("smear") horizontal scroll: like scroll_horizontal(), but samples and blends
+///        between the two neighbouring source columns instead of jumping a whole pad at a time.
+///
+/// @param from         Source frame.
+/// @param incoming     Fills the vacated columns from its far edge; a source that lands outside
+///                     both images reads black.
+/// @param offset_px_16 16.16 fixed point in pads (65536 = one pad, positive = content moves
+///                     right), clamped to +/-`main_cols` for the reason scroll_horizontal()
+///                     clamps.
+/// @param out          Destination; must share `dims()` with `from` and `incoming`. Sidebar
+///                     columns are untouched. Left fully dirty.
 void smear_scroll_horizontal(const PadGrid& from, const PadGrid& incoming, int32_t offset_px_16, PadGrid& out);
 
-/// Rows, positive = content moves down; clamped to +/-`rows`. Sidebar columns move with the rows.
+/// @brief Sub-pixel ("smear") vertical scroll; rows, positive = content moves down, clamped to
+///        +/-`rows`. Sidebar columns move with the rows, matching scroll_vertical().
+///
+/// @param from         Source frame.
+/// @param incoming     Fills the vacated rows from its far edge.
+/// @param offset_px_16 16.16 fixed point in pads, as smear_scroll_horizontal().
+/// @param out          Destination; must share `dims()` with `from` and `incoming`. Left fully
+///                     dirty.
 void smear_scroll_vertical(const PadGrid& from, const PadGrid& incoming, int32_t offset_px_16, PadGrid& out);
 
 // ---------------------------------------------------------------------------------------------
-/// Horizontal zoom cross-fade -- port of `PadLEDs::renderZoom` (pad_leds.cpp:1173) *and* the
-/// `renderZoomWithProgress` (:1216) / `renderZoomedSquare` (:1338) pair it drives, which legacy
-/// splits only because two callers share the latter.
+/// @brief Horizontal zoom cross-fade between two frames at different zoom levels.
 ///
-/// The legacy globals become parameters:
+/// @note Ports legacy `PadLEDs::renderZoom` and the `renderZoomWithProgress` /
+///       `renderZoomedSquare` pair it drives.
 ///
-/// | legacy | here |
-/// |---|---|
-/// | `zoomingIn` (timeline_view.cpp:323) | `new_zoom < old_zoom` |
-/// | `zoomMagnitude` (same line; the abs log2 step) | `abs(bit_width(new) - bit_width(old))` |
-/// | `imageStore[0]` -- inner, the more-zoomed-*in* frame | `to` when zooming in, else `from` |
-/// | `imageStore[kDisplayHeight]` -- outer | `from` when zooming in, else `to` |
-/// | `zoomPinSquare[y]` (timeline_view.cpp:54; one value per frame) | `pin_square_from` |
-/// | `zoomPinSquareInner` (:1238, aliased to the above) | the inner image's pin, per the swap |
-/// | `zoomPinSquareOuter` (:1239, likewise) | the outer image's pin, per the swap |
-/// | `transitionProgress` (0..65535; 65536 ends the animation) | `t` |
-/// | `transitionTakingPlaceOnRow[]` | absent -- every row renders |
+/// Zoom direction is derived from the parameters: zooming in when `new_zoom < old_zoom`. The zoom
+/// magnitude is `abs(bit_width(new_zoom) - bit_width(old_zoom))` -- zoom levels are ticks-per-square
+/// and always differ by a power of two, so the bit-width difference is the log2 step. The
+/// more-zoomed-in frame is `to` when zooming in, otherwise `from`; the other parameter is the
+/// more-zoomed-out frame.
 ///
-/// Legacy passes one pin square for all three roles, so passing `pin_square_from ==
-/// pin_square_to` is the parity case; they are separated here because the on-screen pin and the
-/// two image-local pins are conceptually distinct. The on-screen pin is `pin_square_from` (at
-/// `t == 0` the output is `from` at native scale, so the two coincide). Pin squares are 16.16.
+/// `pin_square_from` doubles as the animation's fixed on-screen pin for the whole transition;
+/// `pin_square_to` is the pin square for `to`'s zoom level alone. Passing them equal is the common
+/// case (one pin square for the whole transition); at `t == 0` the output is `from` at native
+/// scale, so the on-screen pin and `from`'s pin necessarily coincide there regardless.
 ///
-/// Main columns only, as in legacy (`innerImageRightEdge == kDisplayWidth`); sidebar columns are
-/// copied from `from`. All rows dirty.
+/// Main columns only; sidebar columns are copied from `from`. All rows dirty, and every row
+/// renders unconditionally (legacy could skip a row that wasn't currently animating; this
+/// doesn't).
 ///
-/// Precondition: the derived magnitude is at most `kMaxZoomMagnitude`. `renderZoom`'s
-/// `coarse = powersOfTwo >> 10` bottoms out at `-2^(magnitude - 1)` (reached at `t < 128`, i.e. on
-/// the first frame of every zoom), and `increaseMagnitude(x, coarse - 14)` then shifts right by
-/// `2^(magnitude - 1) + 14`. At magnitude 6 that is 46 -- past the operand width, so UB, and if it
-/// folded to 0 the next line's `4294967295u / in_image_times_bigger` would divide by zero and trap
-/// on the host. Legacy is saved only by ARM's shift-masking and non-trapping `udiv`. Callers can
-/// exceed it: `TimelineView::zoomToMax` passes `howMuchMoreMagnitude(maxZoom, oldZoom)`
-/// (`timeline_view.cpp:296`), an unbounded log2 ratio -- `getMagnitudeOld(kMaxZoom) -
-/// getMagnitudeOld(3)` is 25 -- so a caller wiring `zoomToMax` up must step or clamp it.
+/// @warning Precondition: the derived zoom magnitude must be at most kMaxZoomMagnitude. Past that,
+///          an intermediate shift amount exceeds the 32-bit operand width (undefined behaviour),
+///          and if it folded to zero the following unsigned divide would divide by zero and trap.
+///          Legacy is saved only by ARM's shift-masking and non-trapping `udiv`. A caller whose
+///          zoom range can exceed this must step the transition or clamp the magnitude itself.
 ///
-/// Uses ~576 bytes of stack for its per-column scratch (four `kMaxGridCols` int32 arrays plus the
-/// fade array). Legacy parked the equivalents in `miscStringBuffer` "to save on stack usage"
-/// (pad_leds.cpp:1229); worth re-checking against `-Wstack-usage` if the device render path ever
-/// calls this from a deep frame.
+/// @note Uses ~576 bytes of stack for its per-column scratch (four `kMaxGridCols` int32 arrays
+///       plus the fade array); worth re-checking against `-Wstack-usage` if the device render path
+///       ever calls this from a deep frame.
+///
+/// @param from   The more-zoomed-out (or, when zooming in, more-zoomed-in) frame -- see above.
+/// @param to     The complementary frame -- see above.
+/// @param params Zoom parameters; see ZoomParams.
+/// @param out    Destination; must share `dims()` with `from` and `to`. Left fully dirty.
 constexpr int32_t kMaxZoomMagnitude = 5;
 struct ZoomParams {
+	/// Zoom level (ticks per square) `from` is at.
 	int32_t old_zoom;
+	/// Zoom level `to` is at; `new_zoom < old_zoom` means zooming in.
 	int32_t new_zoom;
+	/// Pin square (16.16) for `from`'s zoom level; also the fixed on-screen pin for the whole
+	/// transition.
 	int32_t pin_square_from;
+	/// Pin square (16.16) for `to`'s zoom level.
 	int32_t pin_square_to;
+	/// Transition progress, 0..65535 (65536 would end the animation).
 	uint16_t t;
 };
 void zoom(const PadGrid& from, const PadGrid& to, ZoomParams params, PadGrid& out);
 
 // ---------------------------------------------------------------------------------------------
-/// Explode / implode about an origin -- port of `PadLEDs::renderExplodeAnimation`
-/// (pad_leds.cpp:645). Each lit source pad is spread bilinearly across the (up to) four
-/// destination pads its scaled position straddles, accumulated with the legacy `drawSquare`
-/// (util/functions.h:337) occupancy blend. `out` starts black, as legacy's `memset(image, ...)`
-/// does; the sidebar therefore ends black too.
+/// @brief Explode / implode the lit pads of `from` outward from (or inward toward) an origin
+///        point.
 ///
-/// `origin_x_big`/`width_big` are legacy's `explodeAnimationXStartBig`/`explodeAnimationXWidthBig`
-/// and `origin_y_big` is `explodeAnimationYOriginBig` -- all 16.16. `implode` distinguishes the
-/// two branches of the caller at pad_leds.cpp:956-957 (`explodeAnimationDirection`): explode uses
-/// `explodedness = t`, implode uses `65536 - t`. `t` is that caller's `progress`, 0..65535;
-/// legacy's terminal `explodedness` of exactly 65536 is one step past `t`'s range, and the caller
-/// renders that end state from the destination frame anyway (pad_leds.cpp:872-880).
+/// @note Ports legacy `PadLEDs::renderExplodeAnimation`.
 ///
-/// `from_occupancy` (see `OccupancyMask` above) stands in for legacy's `occupancyMaskStore`; empty
-/// keeps the non-black rule, so it does not disturb a caller that has no mask.
+/// Each lit source pad is spread bilinearly across the (up to) four destination pads its scaled
+/// position straddles, accumulated with the same occupancy-weighted blend as legacy's
+/// `drawSquare`. `out` starts black, so the sidebar ends up black too.
 ///
-/// Preconditions: `main_cols` is a power of two -- legacy divides by the main width with
-/// `>> kDisplayWidthMagnitude` and this keeps that exact (floor) arithmetic -- `out` does not
-/// alias `from`, since `out` is cleared before `from` is read, and a non-empty `from_occupancy` is
-/// `cols()` long. Uses ~768 bytes of stack (the `kMaxGridRows x kMaxGridCols` destination
-/// occupancy plus two per-column arrays); see the note on `zoom` above.
+/// @warning Preconditions: `main_cols` must be a power of two (the scaling divides by it with a
+///          shift, to keep exact floor arithmetic); `out` must not alias `from` (`out` is cleared
+///          before `from` is read); a non-empty `from_occupancy` must be `cols()` long.
+///
+/// @note `t` is the caller's transition progress, 0..65535; legacy's terminal `explodedness` of
+///       exactly 65536 is one step past `t`'s range -- the caller renders that end state directly
+///       from the destination frame instead of reaching it through this function.
+/// @note Uses ~768 bytes of stack (a `kMaxGridRows` x `kMaxGridCols` destination occupancy array
+///       plus two per-column arrays); see the stack note on zoom() above.
+///
+/// @param from   Source frame; only its lit (or `from_occupancy`-occupied) pads are drawn.
+/// @param params Explode parameters; see ExplodeParams.
+/// @param out    Destination; must share `dims()` with `from`, and must not alias it. Starts
+///               black; left fully dirty.
 struct ExplodeParams {
+	/// X origin of the explosion, 16.16.
 	int32_t origin_x_big;
+	/// Y origin of the explosion, 16.16.
 	int32_t origin_y_big;
+	/// Width the explosion scales across, 16.16.
 	int32_t width_big;
+	/// false = explode (`explodedness = t`); true = implode (`65536 - t`).
 	bool implode;
+	/// Transition progress, 0..65535.
 	uint16_t t;
+	/// Occupancy of `from` (see OccupancyMask); empty keeps the non-black-is-occupied rule, so it
+	/// does not disturb a caller that has no mask.
 	OccupancyMask from_occupancy{};
 };
 void explode(const PadGrid& from, ExplodeParams params, PadGrid& out);
 
 // ---------------------------------------------------------------------------------------------
-/// Rows converging into (or fanning out of) a single destination row -- the shared core of
-/// `renderInstrumentClipCollapseAnimation` (pad_leds.cpp:344), stripped of everything that reads a
-/// global: the greyed-out region past the clip length, the triplet columns, the mute-square colour
-/// morph and the keyboard sidebar morph all stay in `pad_leds.cpp`, because they need
-/// `currentSong` / `instrumentClipView` / the UI mode. What is left is the part the three callers
-/// share: interpolate every source row's position, then draw it into the one or two rows it
-/// straddles with `drawSquare`, weighted by the fractional part.
+/// @brief Rows converging into (or fanning out of) a single destination row.
 ///
-/// Row `i` of `from` sits at display row `row_from + i` when fully expanded and at its destination
-/// row when fully collapsed -- `row_to_by_row[i]` if that span is non-empty, else the scalar
-/// `row_to` for every row (legacy's `animatedRowGoingTo[i]`, pad_leds.cpp:366). `to` is the
-/// destination frame the moving rows are composited over (legacy cleared `image` and drew the
-/// Session pads into it first, which is the same thing); occupied pads of `to` start at full
-/// occupancy, exactly as legacy's `occupancyMask[row][kDisplayWidth] = 64` (pad_leds.cpp:354) did.
+/// @note Ports the shared core of legacy `renderInstrumentClipCollapseAnimation`, stripped of
+///       everything that reads global UI state -- the greyed-out region past the clip length, the
+///       triplet columns, the mute-square colour morph, and the keyboard sidebar morph all stay
+///       with the caller, since they need song/UI-mode state a leaf can't reach. What is left is
+///       the part every caller shares: interpolate each source row's position, then draw it into
+///       the one or two rows it straddles, weighted by the fractional part.
 ///
-/// `t` runs 0..65535 forwards through the animation. Legacy's `progress` argument is
-/// *expandedness* (65536 = at `animatedRowGoingFrom`, 0 = at `animatedRowGoingTo`), which is why
-/// each caller flips it; `collapsing` reproduces that flip.
+/// Row `i` of `from` sits at display row `row_from + i` when fully expanded, and at its
+/// destination row when fully collapsed -- `row_to_by_row[i]` if that span is non-empty, else the
+/// scalar `row_to` for every row. `to` is the destination frame the moving rows are composited
+/// over (as if a cleared image already had the destination content drawn into it); its occupied
+/// pads start at full occupancy.
+///
+/// `t` runs 0..65535 forwards through the animation. Legacy's progress argument is *expandedness*
+/// (65536 = fully at the source row, 0 = fully at the destination), which is why each caller flips
+/// it for a collapse; `collapsing` reproduces that flip.
 ///
 /// | legacy caller | `collapsing` | `row_from` | destination |
 /// |---|---|---|---|
-/// | `renderClipExpandOrCollapse`, expanding (:1101) | false | 0 | `row_to` = `clipPlaceOnScreen` |
-/// | `renderClipExpandOrCollapse`, collapsing (:1101) | true | 0 | `row_to` = `clipPlaceOnScreen` |
-/// | `renderNoteRowExpandOrCollapse` (:1155) | true | 0 | `row_to_by_row[i]` = `yDisplayTo` per note row |
-/// | `renderAudioClipExpandOrCollapse` (:1069) | matches | -- | -- (waveform path) |
+/// | clip expand/collapse, expanding | false | 0 | `row_to` = clip's on-screen row |
+/// | clip expand/collapse, collapsing | true | 0 | `row_to` = clip's on-screen row |
+/// | note-row expand/collapse | true | 0 | `row_to_by_row[i]` = per-note-row destination |
+/// | audio-clip expand/collapse | matches caller | -- | -- (waveform path; see below) |
 ///
 /// `from` is the expanded frame and `to` the frame it collapses onto; `t` is the raw transition
-/// progress in every row of that table. `clipPlaceOnScreen` is set at `session_view.cpp:2625`, the
-/// note rows' `yDisplayTo` at `instrument_clip_view.cpp:5781`; the two legacy callers that flip
-/// `progress` themselves do so at :1096 and :1163.
+/// progress in every row of the table above.
 ///
-/// Coverage limits:
-///  * destinations above the display. `uint8_t` cannot carry a negative `animatedRowGoingTo[i]`,
-///    and `instrument_clip_view.cpp:5776-5777` does admit a note row whose `yDisplayTo` is
-///    off-screen as long as its `yDisplayFrom` is on-screen. Such a row has to be dropped by the
-///    caller (or the field widened) -- everything on-screen is expressible.
-///  * off-screen source rows. Legacy animates `kDisplayHeight + 2` rows, the extra two being the
-///    off-screen rows above and below (`session_view.cpp:2623-2626`, `animatedRowGoingFrom[y] =
-///    y - 1`); a `PadGrid` has exactly `rows` rows and no off-screen margin, so `row_from` is 0
-///    for all three callers and those two rows contribute nothing.
-///  * `renderAudioClipExpandOrCollapse` shares only the progress flip. Its pixels come from
-///    `waveformRenderer.renderOneColForCollapseAnimation`, not from a stored frame, so it cannot
-///    use a frame-to-frame tween at all.
+/// @note Coverage limits inherited from the callers above:
+///       - a destination above the display can't be expressed (`uint8_t` can't carry a negative
+///         row), though a note row is allowed an off-screen destination as long as its source row
+///         is on-screen; such a row must be dropped by the caller, or the field widened.
+///       - off-screen source rows aren't modelled: legacy animates two extra rows above and below
+///         the display; a `PadGrid` has exactly `rows` rows and no off-screen margin, so those
+///         contribute nothing and `row_from` is 0 for every current caller.
+///       - the audio-clip case shares only the progress flip -- its pixels come from the waveform
+///         renderer rather than a stored frame, so it cannot use a frame-to-frame tween at all.
 ///
-/// Preconditions: `row_to < rows` and `row_from < rows`; a non-empty `row_to_by_row` is `rows` long
-/// with every entry `< rows`; a non-empty `from_occupancy` / `to_occupancy` is `cols()` long.
+/// @warning Preconditions: `row_to < rows` and `row_from < rows`; a non-empty `row_to_by_row` is
+///          `rows` long with every entry `< rows`; a non-empty `from_occupancy` / `to_occupancy`
+///          is `cols()` long.
+///
+/// @param from   The expanded frame.
+/// @param to     The frame `from` collapses onto (or expands away from).
+/// @param params Expand/collapse parameters; see ExpandCollapseParams.
+/// @param out    Destination; must share `dims()` with `from` and `to`. Left fully dirty.
 struct ExpandCollapseParams {
+	/// Source row `from` starts at (currently always 0; see coverage limits).
 	uint8_t row_from;
+	/// Destination row, used when `row_to_by_row` is empty.
 	uint8_t row_to;
+	/// false = expanding; true = collapsing (flips `t`'s sense internally).
 	bool collapsing;
+	/// Transition progress, 0..65535.
 	uint16_t t;
 	/// Per-row destinations; overrides `row_to` when non-empty. Legacy `animatedRowGoingTo[]`.
 	std::span<const uint8_t> row_to_by_row{};

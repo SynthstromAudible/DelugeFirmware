@@ -573,11 +573,9 @@ void PlaybackHandler::setupPlayback(int32_t newPlaybackState, int32_t playFromPo
 		playbackState = newPlaybackState;
 	}
 
-	// Raise unconditionally, and only now: notify_drain.cpp re-evaluates the on-screen guard (root
-	// UI, or the note / note-row editor exception) when it re-dispatches notifyPlaybackBegun(), so
-	// this side must not gate the raise; and the raise must follow the transient `playbackState = 0`
-	// above, or a drain landing inside that window (SD yield re-entrancy) would read 0 and miss the
-	// begin edge -- silently losing the paired playbackEnded() dispatch later.
+	// Raise unconditionally, after the transient `playbackState = 0` window above, or a drain
+	// landing inside that window would read 0 and miss the begin edge, silently losing the paired
+	// playbackEnded() dispatch later.
 	deluge::notify::raise(deluge::notify::Dirty::PlaybackState);
 
 	// May not call audio routine during this, cos that'd try doing ticks before everything's set up
@@ -644,7 +642,7 @@ void PlaybackHandler::endPlayback() {
 			recording = RecordingMode::OFF;
 			view.setModLedStates();
 		}
-		// PlaybackState was already raised unconditionally above (:626); no need to raise it again here.
+		// PlaybackState was already raised unconditionally above; no need to raise it again here.
 	}
 
 	if (currentVisualCountForCountIn) {

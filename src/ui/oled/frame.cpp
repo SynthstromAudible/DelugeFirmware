@@ -212,7 +212,7 @@ void OledFrame::icon(const gfx::oled::Icon& i, int32_t x, int32_t y, bool revers
 
 void OledFrame::icon_centered(const gfx::oled::Icon& i, int32_t start_x, int32_t total_width, int32_t y,
                               bool reversed) {
-	const int32_t padding = (total_width - i.width) >> 1; // canvas.cpp:628, the same >> 1
+	const int32_t padding = (total_width - i.width) >> 1; // same centring as Canvas::draw_icon_centered
 	icon(i, start_x + padding, y, reversed);
 }
 

@@ -6,9 +6,9 @@ namespace deluge::ui::grid {
 
 namespace {
 
-/// `keyboardChars` (gui/ui/qwerty_ui.cpp:180-203), transcribed verbatim -- three layouts, five
-/// rows, eleven columns. Row 0 is the digit row (`home_row + 2`) and row 4 the space bar
-/// (`home_row - 2`), because legacy indexes it as `kQwertyHomeRow - y + 2`.
+/// The keyboard character table -- three layouts, five rows, eleven columns. Row 0 is the digit
+/// row (`home_row + 2`) and row 4 the space bar (`home_row - 2`); a lookup indexes it as
+/// `home_row - y + 2`.
 constexpr char kKeyboardChars[kNumKeyboardLayoutKinds][5][11] = {
     {
         // QWERTY
@@ -36,8 +36,8 @@ constexpr char kKeyboardChars[kNumKeyboardLayoutKinds][5][11] = {
     },
 };
 
-/// How many columns of \p f the keyboard owns: legacy clears and draws only the main pads
-/// (qwerty_ui.cpp:76 -> pad_leds.cpp:236-240).
+// How many columns of `f` the keyboard owns: only the main pads are cleared and drawn, never the
+// sidebar.
 int32_t keyboard_cols(const GridFrame& f) {
 	return std::min<int32_t>(f.bounds().w, kTextKeyboardCols);
 }
@@ -45,18 +45,17 @@ int32_t keyboard_cols(const GridFrame& f) {
 } // namespace
 
 bool text_keyboard_is_shift_pad(int32_t x, int32_t y, int32_t home_row) {
-	// qwerty_ui.cpp:284-287 (read) / :117-118 (painted).
 	return y == home_row - 1 && ((x >= 1 && x < 3) || (x >= 13 && x < 15));
 }
 
 char text_keyboard_char_at(KeyboardLayoutKind layout, int32_t x, int32_t y, int32_t home_row, bool shift) {
 	if (y == home_row + 2 && x >= 14 && x < 16) {
-		return kTextKeyboardBackspace; // :205
+		return kTextKeyboardBackspace;
 	}
 	if (y == home_row && x >= 14 && x < 16) {
-		return kTextKeyboardEnter; // :232
+		return kTextKeyboardEnter;
 	}
-	// :255 -- outside this rectangle legacy's padAction does nothing at all.
+	// Outside this rectangle, no pad types anything.
 	if (!(x >= 3 && x < 14 && y >= home_row - 2 && y <= home_row + 2)) {
 		return 0;
 	}
@@ -65,22 +64,22 @@ char text_keyboard_char_at(KeyboardLayoutKind layout, int32_t x, int32_t y, int3
 	if (index >= kNumKeyboardLayoutKinds) {
 		return 0;
 	}
-	char newChar = kKeyboardChars[index][home_row - y + 2][x - 3]; // :267-268
+	char newChar = kKeyboardChars[index][home_row - y + 2][x - 3];
 	if (newChar == 0) {
-		return 0; // :269
+		return 0;
 	}
 
-	// :283-302 -- shift only rewrites four keys, and only on the digit row.
+	// Shift only rewrites four keys, and only on the digit row.
 	if (shift && y == home_row + 2) {
 		switch (newChar) {
 		case '-':
-			return '_'; // :290-291
+			return '_';
 		case '1':
-			return '!'; // :293-294
+			return '!';
 		case '3':
-			return '#'; // :296-297
+			return '#';
 		case '6':
-			return '^'; // :299-300
+			return '^';
 		default:
 			break;
 		}
@@ -89,45 +88,45 @@ char text_keyboard_char_at(KeyboardLayoutKind layout, int32_t x, int32_t y, int3
 }
 
 std::optional<RGB> text_keyboard_key_colour(int32_t x, int32_t y, int32_t home_row) {
-	// Ordered last-write-first: `drawKeys` overwrites some pads, and the last write wins.
+	// Ordered last-write-first: later checks would overwrite earlier ones if a pad matched both.
 	if (text_keyboard_is_shift_pad(x, y, home_row)) {
-		return gui::colours::blue; // :117-118
+		return gui::colours::blue;
 	}
 	if (y == home_row && x >= 14 && x < 16) {
-		return gui::colours::green; // :114
+		return gui::colours::green;
 	}
 	if (y == home_row + 2 && x >= 14 && x < 16) {
-		return gui::colours::red; // :111
+		return gui::colours::red;
 	}
 	if (y == home_row - 2 && x >= 5 && x < 11) {
-		return RGB::monochrome(160); // :105-107
+		return RGB::monochrome(160);
 	}
 	if (y == home_row) {
 		if (x == 6 || x == 9) {
-			return RGB::monochrome(160); // :98-99
+			return RGB::monochrome(160);
 		}
 		if ((x >= 3 && x <= 5) || (x >= 10 && x <= 12)) {
-			return RGB::monochrome(64); // :95-97, :100-102
+			return RGB::monochrome(64);
 		}
 		if (x >= 3 && x < 14) {
-			return RGB::monochrome(10); // :86 -- x = 7, 8, 13, left as the loop drew them
+			return RGB::monochrome(10); // x = 7, 8, 13
 		}
 		return std::nullopt;
 	}
 	if (y == home_row + 2) {
 		if (x == 13) {
-			return RGB::monochrome(10); // :92 -- the '-' key, dimmer than the digits
+			return RGB::monochrome(10); // the '-' key, dimmer than the digits
 		}
 		if (x >= 3 && x < 13) {
-			return RGB::monochrome(64); // :83
+			return RGB::monochrome(64);
 		}
 		return std::nullopt;
 	}
 	if (y == home_row + 1 && x >= 3 && x < 13) {
-		return RGB::monochrome(10); // :84
+		return RGB::monochrome(10);
 	}
 	if (y == home_row - 1 && x >= 3 && x < 12) {
-		return RGB::monochrome(10); // :88
+		return RGB::monochrome(10);
 	}
 	return std::nullopt;
 }
@@ -144,22 +143,21 @@ Response text_keyboard(GridFrame& f, TextKeyboardState& state, KeyboardLayoutKin
 
 	for (int32_t y = 0; y < h; y++) {
 		for (int32_t x = 0; x < w; x++) {
-			// One pass: `clearMainPadsWithoutSending` (:76) plus every `drawKeys` write, since a
-			// pad the map has no colour for is exactly a pad legacy leaves cleared.
+			// One pass: painting and clearing collapsed together, since a pad the map has no
+			// colour for is exactly a pad that should be left cleared.
 			const Response r = f.pad(x, y, text_keyboard_key_colour(x, y, home_row).value_or(gui::colours::black));
 
 			if ((r.held || r.pressed) && text_keyboard_is_shift_pad(x, y, home_row)) {
-				shift_held = true; // :284-287
+				shift_held = true;
 			}
 			if (r.pressed) {
 				out.pressed = true;
-				// The *typing* press, not merely the first press in scan order. Legacy runs
-				// padAction once per event (qwerty_ui.cpp:205-330), where a pad outside the key
-				// rectangle (:255) -- a shift pad, say -- simply does nothing and leaves the key
-				// pressed in the same tick free to type. Testing with shift = false is safe: the
-				// shift rewrites at :290-301 map non-zero to non-zero and never produce or consume
-				// a 0, so "types a character" does not depend on the shift state that is still
-				// being gathered by this very sweep.
+				// The *typing* press, not merely the first press in scan order: a pad outside the
+				// key rectangle (a shift pad, say) simply does nothing and leaves the key pressed
+				// in the same tick free to type. Testing with shift = false is safe here: the shift
+				// rewrites map non-zero to non-zero and never produce or consume a 0, so "types a
+				// character" does not depend on the shift state that is still being gathered by
+				// this very sweep.
 				if (pressed_x < 0 && text_keyboard_char_at(layout, x, y, home_row, false) != 0) {
 					pressed_x = x;
 					pressed_y = y;

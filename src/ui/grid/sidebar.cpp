@@ -9,8 +9,8 @@ namespace colours = deluge::gui::colours;
 
 namespace {
 
-/// Legacy's `checkIfSelectingRanges` label (gui/views/instrument_clip_view.cpp:6115-6125): while a
-/// range is being selected, a note inside it is brightened by 30 per channel.
+/// Legacy's `checkIfSelectingRanges` label: while a range is being selected, a note inside it is
+/// brightened by 30 per channel.
 RGB with_range_boost(RGB colour, const AuditionPad& pad) {
 	if (!pad.selecting_ranges || !pad.within_range) {
 		return colour;
@@ -20,8 +20,8 @@ RGB with_range_boost(RGB colour, const AuditionPad& pad) {
 	});
 }
 
-/// The selected drum's square (instrument_clip_view.cpp:6078-6085), transcribed literally --
-/// `RGB::greyOut(6500000)`'s arithmetic without its rounding, so the two can differ by one.
+/// The selected drum's square, transcribed literally -- `RGB::greyOut(6500000)`'s arithmetic
+/// without its rounding, so the two can differ by one.
 RGB selected_drum_colour(RGB row_colour) {
 	const int32_t total = static_cast<int32_t>(static_cast<uint16_t>(row_colour[0]) + row_colour[1] + row_colour[2]);
 	RGB out;
@@ -32,62 +32,61 @@ RGB selected_drum_colour(RGB row_colour) {
 	return out;
 }
 
-/// Legacy's `drawNormally` label (instrument_clip_view.cpp:6061-6130), reached from three of the
-/// four arms above it.
+/// Legacy's `drawNormally` label, reached from three of the four arms above it.
 RGB draw_normally(const AuditionPad& pad) {
 	if (pad.kit) {
 		if (pad.affect_entire_hidden) {
-			return colours::black; // :6070-6072
+			return colours::black;
 		}
 		if (pad.selected_drum) {
-			return selected_drum_colour(pad.row_colour); // :6076-6086
+			return selected_drum_colour(pad.row_colour);
 		}
-		return colours::black; // the kit arm falls out of its `if` to :6130
+		return colours::black; // the kit arm falls out of its `if` to the final black
 	}
 
-	// Not kit (:6091).
+	// Not kit.
 	if (pad.scale_mode_button) {
 		if (pad.default_root_flash) {
-			return pad.row_colour; // :6094-6098
+			return pad.row_colour;
 		}
-		return colours::black; // scale mode without a match also falls to :6130
+		return colours::black; // scale mode without a match also falls to the final black
 	}
 
-	// :6104-6113, then the range check at the `checkIfSelectingRanges` label.
+	// Then the range check at the `checkIfSelectingRanges` label.
 	return with_range_boost(pad.root_note ? pad.row_colour : colours::black, pad);
 }
 
 } // namespace
 
 RGB status_colour(const StatusPad& pad, const StatusColours& colours_in) {
-	// Branch 1-3 (gui/views/view.cpp:2598-2616).
+	// Branches 1-3.
 	if (pad.viewing_record_arming && pad.armed_for_recording) {
 		if (!pad.blink_on) {
-			return colours::black; // :2615
+			return colours::black;
 		}
 		if (pad.wants_linear_record) {
-			// Bright colour (:2603-2608).
+			// Bright colour.
 			return pad.overdub_clone ? colours_in.magenta : colours_in.red;
 		}
-		// Dull colour, cos can't actually begin linear recording despite being armed (:2609-2613).
+		// Dull colour, cos can't actually begin linear recording despite being armed.
 		return pad.overdub_clone ? colours_in.magenta_dull : colours_in.red_dull;
 	}
 
-	// Branch 4 (:2618-2621): user assigning MIDI controls and this clip has a command assigned.
+	// Branch 4: user assigning MIDI controls and this clip has a command assigned.
 	if (pad.allow_midi_flash && pad.midi_flash_on && pad.has_midi_command) {
 		return colours_in.midi_command;
 	}
 
 	RGB colour;
 	if (pad.arm_flash_on && pad.armed) {
-		colour = colours::black; // :2623-2625
+		colour = colours::black;
 	}
 	else if (pad.soloing_or_armed_solo) {
-		colour = colours_in.solo; // :2627-2630
+		colour = colours_in.solo;
 	}
 	else {
 		if (!pad.active) {
-			switch (pad.launch) { // :2635-2645
+			switch (pad.launch) {
 			case LaunchStyle::Fill:
 				colour = colours_in.fill;
 				break;
@@ -100,17 +99,17 @@ RGB status_colour(const StatusPad& pad, const StatusColours& colours_in) {
 			}
 		}
 		else {
-			// Active pads of any type go green (or the active colour from the menu) (:2647-2650).
+			// Active pads of any type go green (or the active colour from the menu).
 			colour = colours_in.active;
 		}
 
 		if (pad.any_soloing) {
-			colour = colour.dull(); // :2652-2654, inside this arm only
+			colour = colour.dull(); // inside this arm only
 		}
 	}
 
-	// :2657-2659: assigning MIDI controls with this clip selected -- half brightness, whatever the
-	// colour above turned out to be. Legacy does not gate this on `allowMIDIFlash`.
+	// Assigning MIDI controls with this clip selected -- half brightness, whatever the colour
+	// above turned out to be. Legacy does not gate this on `allowMIDIFlash`.
 	if (pad.midi_flash_on && pad.midi_learn_selected) {
 		colour = colour.dim();
 	}
@@ -122,30 +121,30 @@ Response status_pad(GridFrame& f, int32_t x, int32_t y, const StatusPad& pad, co
 }
 
 RGB audition_colour(const AuditionPad& pad) {
-	if (pad.midi_flash_on) { // :6008
+	if (pad.midi_flash_on) {
 		if (pad.midi_assigned) {
-			return colours::midi_command; // :6019-6021
+			return colours::midi_command;
 		}
 		if (pad.holding_for_learn) {
-			return pad.row_colour.dim(); // :6034-6035
+			return pad.row_colour.dim();
 		}
-		return draw_normally(pad); // :6038
+		return draw_normally(pad);
 	}
 
-	if (pad.in_note_editor) { // :6043-6044
+	if (pad.in_note_editor) {
 		if (pad.note_row_flash) {
-			return pad.row_colour.forBlur(); // :6045-6046
+			return pad.row_colour.forBlur();
 		}
-		return draw_normally(pad); // :6049
+		return draw_normally(pad);
 	}
 
 	if (pad.pressed) {
-		// :6056-6057. The `goto` jumps into the not-kit arm, so the range check applies here even
-		// on a kit -- and the kit's selected-drum shading does not.
+		// Legacy's `goto` jumps into the not-kit arm, so the range check applies here even on a
+		// kit -- and the kit's selected-drum shading does not.
 		return with_range_boost(pad.row_colour, pad);
 	}
 
-	return draw_normally(pad); // :6060-6061
+	return draw_normally(pad);
 }
 
 Response audition_pad(GridFrame& f, int32_t x, int32_t y, const AuditionPad& pad) {
@@ -153,9 +152,9 @@ Response audition_pad(GridFrame& f, int32_t x, int32_t y, const AuditionPad& pad
 }
 
 void sidebar_columns(GridFrame& f, std::span<const RGB> left, std::span<const RGB> right) {
-	// kDisplayWidth == 16: legacy's sidebar is `thisImage[kDisplayWidth]` and `[kDisplayWidth + 1]`
-	// of a row that is kDisplayWidth + kSideBarWidth wide (hid/led/pad_leds.cpp:305), which is the
-	// same one coordinate space the root GridFrame spans.
+	// Column 16: legacy's sidebar is the row's display-width and display-width-plus-one columns,
+	// of a row that is display-width-plus-sidebar-width wide -- the same one coordinate space the
+	// root GridFrame spans.
 	constexpr int32_t kSidebarX = 16;
 	constexpr int32_t kSidebarCols = 2;
 

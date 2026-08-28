@@ -28,7 +28,7 @@ int32_t spacing_x_for(FontId font) {
 	case FontId::MetricBold9:
 		return kTextTitleSpacingX; // 9
 	case FontId::MetricBold13:
-		return kTextBigSpacingX; // 11, NOT the title font's 9 -- see definitions_cxx.hpp:979
+		return kTextBigSpacingX; // 11, NOT the title font's 9 -- see definitions_cxx.hpp
 	case FontId::MetricBold20:
 	default:
 		return kTextHugeSpacingX; // 18
@@ -88,15 +88,15 @@ void centred_shrink(OledFrame& f, Rect rect, std::string_view s, int32_t text_wi
 }
 
 /// Port of `Canvas::draw_string_centered(string, pixel_x, pixel_y, text_spacing_x,
-/// text_spacing_y, total_width)` (gfx/oled/canvas.cpp:385-418 at 1576af582), with the rect
-/// standing in for the `pixel_x` / `total_width` pair.
+/// text_spacing_y, total_width)`, with the rect standing in for the `pixel_x` / `total_width`
+/// pair.
 ///
-/// Two legacy quirks preserved verbatim: the routine ignores its own `text_spacing_x`
-/// parameter entirely (`:417` passes the measured width as draw_string's text_width, and
+/// Two legacy quirks are kept rather than fixed: the routine ignores its own `text_spacing_x`
+/// parameter entirely (it passes the measured width as draw_string's text_width, and
 /// `use_text_width` is false, so it is never read), and it rounds the left padding *up*
-/// (`:412-415` "1px right is better than 1px left"), which differs from drawStringCentred's
-/// `>> 1` when `total_width` is odd. A `std::string_view` subrange replaces the legacy
-/// 24-char stack buffer; trimming is the same loop.
+/// ("1px right is better than 1px left"), which differs from drawStringCentred's `>> 1` when
+/// `total_width` is odd. A `std::string_view` subrange replaces the legacy 24-char stack buffer;
+/// trimming is the same loop.
 void centred_truncate(OledFrame& f, Rect rect, std::string_view s, int32_t text_height) {
 	constexpr size_t kMaxChars = 24;
 	size_t length = std::min(s.length(), kMaxChars);
@@ -152,10 +152,10 @@ void text(OledFrame& f, Rect rect, std::string_view s, TextStyle ts) {
 }
 
 void title(OledFrame& f, std::string_view s, bool underline) {
-	// The face is the style's, per spec B section 6. Both shipped profiles set MetricBold9,
-	// whose table entries are exactly the kTextTitleSpacingX / kTextTitleSizeY that
-	// Canvas::draw_screen_title hard-coded (canvas.cpp:694 at 1576af582), so the pixels are
-	// unchanged; a profile that picks a bigger title face now actually gets it.
+	// The face is the style's, not a fixed font. Both shipped profiles set MetricBold9, whose
+	// table entries are exactly the kTextTitleSpacingX / kTextTitleSizeY that
+	// Canvas::draw_screen_title hard-coded, so the pixels are unchanged; a profile that picks a
+	// bigger title face now actually gets it.
 	const gfx::oled::FontId font = f.style.title_font;
 	f.glyphs(s, 0, kTitleY, spacing_x_for(font), text_height_for(font));
 	if (underline) {

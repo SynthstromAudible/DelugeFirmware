@@ -35,9 +35,11 @@ static BOARD_NAME: &[u8] = b"Synthstrom Deluge (144-pad, OLED)\0";
 struct BoardDescriptor(DelugeBoard);
 unsafe impl Sync for BoardDescriptor {}
 
-/// The single OLED panel this board carries. `DelugeBoard::displays` points at
-/// this array; `display_width`/`display_height` above mirror `displays[0]` for
-/// single-panel callers that haven't adopted the multi-display fields yet.
+/// The single OLED panel this board carries.
+///
+/// `DelugeBoard::displays` points at this array; `display_width`/`display_height`
+/// above are a single-panel alias that mirrors `displays[0]`, for callers that
+/// haven't adopted the multi-display fields yet.
 static DELUGE_DISPLAYS: [DelugeDisplayDesc; 1] = [DelugeDisplayDesc {
     width: 128,
     height: 48,

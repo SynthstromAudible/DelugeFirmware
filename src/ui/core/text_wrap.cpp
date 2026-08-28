@@ -11,28 +11,28 @@ namespace {
 using gfx::oled::char_spacing_px;
 using gfx::oled::char_width_px;
 
-/// Legacy walked a NUL-terminated `char const*` and tested `*space == 0` for the end of the
-/// string. A `string_view` has no terminator, so "one past the end" reads as `'\0'` here and
-/// every legacy `== 0` test keeps working unchanged. An embedded NUL inside the view therefore
-/// ends the wrap early, exactly as it would have ended legacy's C string.
+// "One past the end" of `text` reads as `'\0'` here, since `string_view` has no terminator of its
+// own -- so the `== 0` checks below work the way an ordinary C-string end-of-string test would.
+// An embedded NUL inside the view ends the wrap early, the same way it would for a
+// NUL-terminated string.
 char at(std::string_view text, size_t i) {
 	return i < text.size() ? text[i] : '\0';
 }
 
-/// `addCharacterToLine` (hid/display/oled.cpp:404-430), verbatim. Returns false when the
-/// character just added pushed the line past \p max_width_px -- note that the character is
-/// counted into \p line_width / \p line_length either way, and the caller unwinds.
+// Ports legacy `addCharacterToLine`. Returns false when the character just added pushed the line
+// past `max_width_px` -- note that the character is still counted into `line_width` /
+// `line_length` either way, and the caller unwinds.
 bool add_character_to_line(char c, int32_t max_width_px, int32_t text_height, int32_t& line_width, int32_t& line_length,
                            int32_t& char_spacing) {
 	line_width += char_width_px(static_cast<uint8_t>(c), text_height);
-	// Kept even though the popup font is monospaced, as legacy's comment says (oled.cpp:414-415).
+	// Kept even though the popup font is monospaced.
 	char_spacing = char_spacing_px(static_cast<uint8_t>(c), text_height, false);
 	line_width += char_spacing;
 	line_length++;
 	return line_width <= max_width_px;
 }
 
-/// `findLineSplitPoint` (oled.cpp:441-463), verbatim, returning an index instead of a pointer.
+// Ports legacy `findLineSplitPoint`, returning an index instead of a pointer.
 size_t find_line_split_point(std::string_view text, size_t word_start, int32_t max_width_px, int32_t text_height,
                              int32_t& line_width, int32_t& line_length, int32_t& char_spacing) {
 	size_t space = word_start;
@@ -47,7 +47,7 @@ size_t find_line_split_point(std::string_view text, size_t word_start, int32_t m
 		space++;
 	}
 
-	// The separator that ended the word joins the line it ended (oled.cpp:459-461).
+	// The separator that ended the word joins the line it ended.
 	const char c = at(text, space);
 	if (c == '_' || c == ' ') {
 		add_character_to_line(c, max_width_px, text_height, line_width, line_length, char_spacing);
@@ -55,8 +55,8 @@ size_t find_line_split_point(std::string_view text, size_t word_start, int32_t m
 	return space;
 }
 
-/// `addLine` (oled.cpp:465-484). The cap is checked by the caller *after* this, exactly as
-/// legacy does, which is why `count` can reach `kWrapMaxLines` but never exceed it.
+// Ports legacy `addLine`. The cap is checked by the caller after this call returns, which is why
+// `count` can reach `kWrapMaxLines` but never exceed it.
 void add_line(WrappedLines& out, std::string_view text, size_t line_start, int32_t line_width, int32_t line_length) {
 	const size_t start = line_start < text.size() ? line_start : text.size();
 	const size_t len =
@@ -87,8 +87,8 @@ WrappedLines wrap_lines(std::string_view text, int32_t max_width_px, [[maybe_unu
 	int32_t line_length_before_this_word = 0;
 	int32_t char_spacing = 0; // pixels added after the last character
 
-	// `breakStringIntoLines` (oled.cpp:494-568); legacy's `goto findNextStringSplitPoint` is this
-	// loop, and its two `return`s are the two `break`s.
+	// Ports legacy `breakStringIntoLines`; its `goto findNextStringSplitPoint` is this loop, and
+	// its two `return`s are the two `break`s below.
 	while (true) {
 		line_width_before_this_word = line_width;
 		line_length_before_this_word = line_length;
@@ -99,7 +99,7 @@ WrappedLines wrap_lines(std::string_view text, int32_t max_width_px, [[maybe_unu
 		if (line_width <= max_width_px) {
 			const char c = at(text, space);
 			if (c == '\n' || c == '\0') {
-				line_width -= char_spacing; // no gap after the final glyph (oled.cpp:519-521)
+				line_width -= char_spacing; // no gap after the final glyph
 				add_line(out, text, line_start, line_width, line_length);
 				if (c == '\0' || out.count == kWrapMaxLines) {
 					break;

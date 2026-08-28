@@ -414,8 +414,7 @@ void Canvas::draw_string_centred(char const* string, int32_t pixel_y, int32_t te
 
 void Canvas::draw_string_centered(char const* string, int32_t pixel_x, int32_t pixel_y, int32_t text_spacing_x,
                                   int32_t text_spacing_y, int32_t total_width) {
-	// Was an etl::string<24> in the legacy canvas (which trimmed via resize()); a fixed stack
-	// buffer of the same capacity keeps the behaviour without pulling etl into gfx.
+	// A fixed 24-char stack buffer, trimmed below to fit, avoids pulling etl into gfx.
 	constexpr size_t kMaxChars = 24;
 	char buf[kMaxChars + 1];
 	size_t length = 0;
@@ -430,7 +429,7 @@ void Canvas::draw_string_centered(char const* string, int32_t pixel_x, int32_t p
 	// Trim characters from the end until it fits.
 	while ((string_width = get_string_width_in_pixels(buf, text_spacing_y)) >= total_width - 3) {
 		if (length == 0) {
-			break; // nothing left to trim (the legacy resize() would have underflowed here)
+			break; // nothing left to trim; guards `--length` below against underflow
 		}
 		buf[--length] = '\0';
 	}
@@ -561,8 +560,9 @@ int32_t Canvas::get_string_width_in_pixels(char const* string, int32_t text_heig
 void Canvas::draw_graphic_multi_line(uint8_t const* graphic, int32_t start_x, int32_t start_y, int32_t width,
                                      int32_t height, int32_t num_bytes_tall, bool reversed) {
 	if (reversed) {
-		// Was a std::vector; gfx does not allocate in drawing paths. The largest reversed
-		// graphic actually drawn is an icon (<= 32 columns), so a stack buffer is plenty.
+		// gfx does not allocate in drawing paths, so this uses a stack buffer rather than a
+		// std::vector. The largest reversed graphic actually drawn is an icon (<= 32 columns),
+		// so kMaxReversed is plenty.
 		constexpr size_t kMaxReversed = 512;
 		uint8_t reversed_graphic[kMaxReversed];
 		const size_t n = static_cast<size_t>(width) * static_cast<size_t>(num_bytes_tall);
@@ -584,10 +584,9 @@ void Canvas::draw_graphic_multi_line(uint8_t const* graphic, int32_t start_x, in
 	int32_t y_offset = start_y & 7;
 	int32_t row_on_graphic = 0;
 
-	// The legacy code only bounds-checked the *middle* rows, so a first row off the top or
-	// bottom of the panel, or a negative start_x, wrote outside the framebuffer. Now that the
-	// storage belongs to the caller, refuse those outright. No on-canvas draw can reach this,
-	// so the rendered output is unchanged.
+	// A first row off the top or bottom of the panel, or a negative start_x, would write outside
+	// the framebuffer -- now that the storage belongs to the caller, refuse those outright. No
+	// on-canvas draw can reach this, so the rendered output for valid input is unchanged.
 	if (row_on_display < 0 || row_on_display >= static_cast<int32_t>(geometry_.pages()) || start_x < 0
 	    || start_x >= geometry_.width || width <= 0) {
 		return;
@@ -692,7 +691,7 @@ void Canvas::draw_icon_centered(const Icon& icon, int32_t start_x, int32_t total
 void Canvas::draw_screen_title(std::string_view title, bool draw_separator) {
 	constexpr int32_t extra_y = 1;
 	const int32_t start_y = extra_y + geometry_.visible_top;
-	// Was kScreenTitleSeparatorY (= 12 + OLED_MAIN_TOPMOST_PIXEL), which is geometry, not a constant.
+	// Depends on panel geometry (visible_top), so this can't be a compile-time constant.
 	const int32_t separator_y = 12 + geometry_.visible_top;
 
 	draw_string(title, 0, start_y, kTextTitleSpacingX, kTextTitleSizeY);

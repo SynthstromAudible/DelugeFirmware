@@ -31,8 +31,8 @@ constexpr Rect inverted(int32_t x_min, int32_t width, int32_t start_y, int32_t e
 	return Rect{x_min, start_y, width, end_y - start_y + 1};
 }
 
-/// `deluge::string::appendInt(str, number)` (util/string.cpp:103-107), i.e. `intToString(number,
-/// buf, 1)` -- the shared copy in `ui/oled/detail/int_to_string.h`.
+/// Ports legacy `deluge::string::appendInt` via the shared `int_to_string` helper in
+/// ui/oled/detail/int_to_string.h.
 std::string_view int_to_string(int32_t number, std::span<char> buf) {
 	return detail::int_to_string(number, 1, buf);
 }
@@ -40,13 +40,13 @@ std::string_view int_to_string(int32_t number, std::span<char> buf) {
 } // namespace
 
 void percent(OledFrame& f, Rect slot, int32_t value) {
-	// number.cpp:107-125. The face is the style's rather than the hard-coded kTextSpacingX /
-	// kTextSpacingY pair; both shipped profiles set Apple7, which *is* that pair.
+	// Ports legacy `Number::drawPercent`. The face is the style's rather than a hard-coded pair;
+	// both shipped profiles set Apple7, which has the same metrics legacy hard-coded.
 	const gfx::oled::FontId font = f.style.row_font;
 	const int32_t text_spacing_x = spacing_x_for(font);
 	const int32_t text_spacing_y = text_height_for(font);
 
-	std::array<char, 12> buf{}; // etl::string<12> valueString, number.cpp:110
+	std::array<char, 12> buf{}; // matches legacy's buffer size
 	const std::string_view value_string = int_to_string(value, std::span{buf});
 
 	constexpr char percent_char = '%';
@@ -64,9 +64,8 @@ void percent(OledFrame& f, Rect slot, int32_t value) {
 }
 
 void knob_arc(OledFrame& f, Rect slot, float norm) {
-	// number.cpp:127-154.
-	// Draw the background arc
-	// Easier to adjust pixel-perfect, so we use a bitmap
+	// Ports legacy `Number::drawKnob`.
+	// Background arc: a bitmap, easier to keep pixel-perfect than a drawn arc.
 	f.icon_centered(gfx::oled::icons::knobArc, slot.x, slot.w, slot.y - 1);
 
 	// Calculate current value angle
@@ -82,9 +81,9 @@ void knob_arc(OledFrame& f, Rect slot, float norm) {
 	const float current_angle = beginning_angle + (arc_range_angle * norm); // legacy's value_percent
 
 	// Draw the leading line
-	// M_PI, i.e. double: legacy's `current_angle * M_PI / 180.0f` (number.cpp:144) evaluates in
-	// double and only then narrows to float, and the rounded endpoints below are sensitive to
-	// that -- spelled out here so no feature-test macro decides whether M_PI exists.
+	// M_PI, i.e. double: the angle-to-radians conversion evaluates in double and only then
+	// narrows to float, and the rounded endpoints below are sensitive to that -- spelled out
+	// here so no feature-test macro decides whether M_PI exists.
 	constexpr double pi = 3.14159265358979323846;
 	const float radians = current_angle * pi / 180.0f;
 	constexpr float outer_radius = static_cast<float>(knob_radius) - 1.0f;
@@ -100,7 +99,7 @@ void knob_arc(OledFrame& f, Rect slot, float norm) {
 }
 
 void unipolar_bar(OledFrame& f, Rect slot, float norm) {
-	// number.cpp:156-173.
+	// Ports legacy `Number::drawBar`.
 	constexpr int32_t bar_width = 21;
 	constexpr int32_t bar_height = 5;
 	constexpr int32_t outline_padding = 2;
@@ -112,13 +111,13 @@ void unipolar_bar(OledFrame& f, Rect slot, float norm) {
 	f.rect(inclusive(bar_start_x - outline_padding, bar_start_y - outline_padding, bar_end_x + outline_padding,
 	                 bar_end_y + outline_padding));
 
-	// The float->integer truncation is legacy's and is kept; only the destination width changes.
+	// The float->integer truncation matches legacy; only the destination width changes.
 	const int32_t fill_width = static_cast<int32_t>(norm * static_cast<float>(bar_width));
 	f.invert(inverted(bar_start_x, fill_width, bar_start_y, bar_end_y));
 }
 
 void pan(OledFrame& f, Rect slot, int32_t value) {
-	// number.cpp:229-269.
+	// Ports legacy `Number::drawPan`.
 	constexpr int32_t bar_width = 21;
 	constexpr int32_t bar_height = 5;
 	constexpr int32_t outline_padding = 2;
@@ -144,9 +143,8 @@ void pan(OledFrame& f, Rect slot, int32_t value) {
 	const int32_t direction = (value > 0) - (value < 0);
 
 	// Adjust the value a bit to make a perfect zero indication.
-	// static_cast<uint8_t>: legacy's `uint8_t abs_value = std::abs(value)` (number.cpp:258) is
-	// value-derived, not slot-derived, and `value` here is an unconstrained int32_t parameter --
-	// pan positions only ever run +/-50, but the truncation is preserved rather than quietly
+	// static_cast<uint8_t>: `value` here is an unconstrained int32_t parameter -- pan positions
+	// only ever run +/-50, but legacy's narrower truncation is preserved rather than quietly
 	// widened, so a caller that passes something larger gets legacy's pixels, not new ones.
 	int32_t abs_value = static_cast<uint8_t>(std::abs(value));
 	if (abs_value > 0 && abs_value < 3) {
@@ -162,7 +160,7 @@ void pan(OledFrame& f, Rect slot, int32_t value) {
 }
 
 void slider(OledFrame& f, Rect slot, float norm) {
-	// number.cpp:175-200.
+	// Ports legacy `Number::drawSlider`.
 	constexpr int32_t slider_width = 23;
 	constexpr int32_t slider_height = 11;
 	const int32_t min_x = slot.x + 4;
@@ -187,7 +185,7 @@ void slider(OledFrame& f, Rect slot, float norm) {
 }
 
 void length_slider(OledFrame& f, Rect slot, float norm, bool min_pos) {
-	// number.cpp:202-227.
+	// Ports legacy `Number::drawLengthSlider`.
 	constexpr int32_t slider_width = 23;
 	constexpr int32_t slider_height = 11;
 	const int32_t min_x = slot.x + 4;
@@ -213,7 +211,7 @@ void length_slider(OledFrame& f, Rect slot, float norm, bool min_pos) {
 
 namespace {
 
-/// `Number::drawHpf`, number.cpp:271-299.
+/// Ports legacy `Number::drawHpf`.
 void draw_hpf(OledFrame& f, Rect slot, float norm) {
 	constexpr int32_t slope_width = 5;
 	constexpr int32_t width = 21;
@@ -243,8 +241,8 @@ void draw_hpf(OledFrame& f, Rect slot, float norm) {
 	}
 }
 
-/// `Number::drawLpf`, number.cpp:301-329. Not `draw_hpf` mirrored: the corner's travel and the
-/// two conditional dotted runs differ, which is why these are two routines and not one.
+/// Ports legacy `Number::drawLpf`. Not `draw_hpf` mirrored: the corner's travel and the two
+/// conditional dotted runs differ, which is why these are two routines and not one.
 void draw_lpf(OledFrame& f, Rect slot, float norm) {
 	constexpr int32_t slope_width = 5;
 	constexpr int32_t width = 21;
@@ -272,7 +270,7 @@ void draw_lpf(OledFrame& f, Rect slot, float norm) {
 	}
 }
 
-/// `Number::drawRelease`, number.cpp:331-359.
+/// Ports legacy `Number::drawRelease`.
 void draw_release(OledFrame& f, Rect slot, float norm) {
 	constexpr int32_t width = 19;
 	constexpr int32_t height = 11;
@@ -300,8 +298,8 @@ void draw_release(OledFrame& f, Rect slot, float norm) {
 	}
 }
 
-/// `Number::drawAttack`, number.cpp:361-387. Not `draw_release` reversed: the origin, the
-/// y offset, the travel and the indicator's rows all differ.
+/// Ports legacy `Number::drawAttack`. Not `draw_release` reversed: the origin, the y offset, the
+/// travel and the indicator's rows all differ.
 void draw_attack(OledFrame& f, Rect slot, float norm) {
 	constexpr int32_t width = 19;
 	constexpr int32_t height = 11;
@@ -338,7 +336,7 @@ void envelope_stage(OledFrame& f, Rect slot, float norm, StageKind kind) {
 }
 
 void sidechain_ducking(OledFrame& f, Rect slot, int32_t value, int32_t max) {
-	// number.cpp:389-427.
+	// Ports legacy `Number::drawSidechainDucking`.
 	constexpr int32_t width = 23;
 	constexpr int32_t height = 11;
 
@@ -377,10 +375,10 @@ void sidechain_ducking(OledFrame& f, Rect slot, int32_t value, int32_t max) {
 }
 
 void meter(OledFrame& f, Rect slot, Hint hint, float norm, int32_t raw, int32_t raw_max) {
-	// number.cpp:75-105.
+	// Ports legacy `Number::renderInHorizontalMenu`.
 	switch (hint) {
 	case Hint::Percent:
-		return percent(f, slot, raw * 2); // number.cpp:111
+		return percent(f, slot, raw * 2); // doubled for the percent style, matching legacy
 	case Hint::Knob:
 		return knob_arc(f, slot, norm);
 	case Hint::Bar:
@@ -388,12 +386,8 @@ void meter(OledFrame& f, Rect slot, Hint hint, float norm, int32_t raw, int32_t 
 	case Hint::Slider:
 		return slider(f, slot, norm);
 	case Hint::LengthSlider:
-		// `min_pos` is defaulted, and legacy's default is TRUE: `drawLengthSlider(const
-		// SlotPosition&, bool min_slider_pos = 3)` (number.h:57) copy-initialises the bool from
-		// `3`, and renderInHorizontalMenu (number.cpp:85-86) is its only caller in the tree, so
-		// every legacy LENGTH_SLIDER slot draws with the thumb's zero one pixel right. Almost
-		// certainly a legacy typo for an integer offset that later became a bool; reproduced
-		// verbatim here, and worth raising upstream separately.
+		// min_pos defaults to true, matching legacy's only call site (see the note on
+		// length_slider in meters.h).
 		return length_slider(f, slot, norm);
 	case Hint::Pan:
 		return pan(f, slot, raw);
@@ -411,10 +405,9 @@ void meter(OledFrame& f, Rect slot, Hint hint, float norm, int32_t raw, int32_t 
 	case Hint::Enum:
 	case Hint::Toggle:
 	default: {
-		// drawStringCentered(paramValue, slot.start_x, slot.start_y + kHorizontalMenuSlotYOffset,
-		// kTextTitleSpacingX, kTextTitleSizeY, slot.width) -- number.cpp:100-103, which is
-		// `text` with `truncate` over the slot. Both shipped profiles' title_font is MetricBold9,
-		// i.e. exactly that spacing/size pair.
+		// Ports legacy's default `Number` rendering: the raw value centred (with truncation) in
+		// the title face. Both shipped profiles' title_font is MetricBold9, matching legacy's
+		// hard-coded spacing/size.
 		std::array<char, 12> buf{};
 		const std::string_view value_string = int_to_string(raw, std::span{buf});
 		const gfx::oled::FontId font = f.style.title_font;

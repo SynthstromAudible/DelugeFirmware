@@ -16,21 +16,20 @@ using deluge::gfx::grid::Rect;
 namespace uitest = deluge::ui::test;
 namespace palette = deluge::gui::colours;
 
-// `row` and `clip_row` (spec B section 7), the two components every pad view's `renderRow` is made
-// of. `clip_row` is a direct port of `NoteRow::renderRow`'s colour rules
-// (model/note/note_row.cpp:1873-2013), so the colours below are spelled as the legacy expressions
-// -- `colour.adjustFractional((65 + v + v / 2) << 8, 255 << 8)` and the two derived colours -- and
-// never as literals a port could drift from silently.
+// `row` and `clip_row`, the two components every pad view's `renderRow` is made of. `clip_row` is
+// a direct port of `NoteRow::renderRow`'s colour rules, so the colours below are spelled as the
+// legacy expressions -- `colour.adjustFractional((65 + v + v / 2) << 8, 255 << 8)` and the two
+// derived colours -- and never as literals a port could drift from silently.
 
 namespace {
 // The row's three colours, as a view derives them before calling `NoteRow::renderRow`: the base
-// colour plus `RGB::forTail()` / `RGB::forBlur()` (gfx/grid/rgb.h:107-129).
+// colour plus `RGB::forTail()` / `RGB::forBlur()`.
 constexpr RGB kBase = RGB{200, 100, 50};
 const RGB kTail = kBase.forTail();
 const RGB kBlur = kBase.forBlur();
 
-/// note_row.cpp:1960, transcribed here so the spec asserts against legacy's arithmetic rather
-/// than against the port's own.
+/// Transcribed here from legacy's `NoteRow::renderRow`, so the spec asserts against legacy's
+/// arithmetic rather than against the port's own.
 RGB velocity_colour(RGB colour, uint8_t velocity) {
 	return colour.adjustFractional(static_cast<uint16_t>((65 + velocity + (velocity / 2)) << 8),
 	                               static_cast<uint16_t>(255 << 8));
@@ -41,8 +40,8 @@ RGB velocity_colour(RGB colour, uint8_t velocity) {
 describe rows("ui::grid rows", $ {
 	it("paints a note's start, tail and blur exactly as NoteRow::renderRow does", _ {
 		uitest::GridRig r;
-		// The task 11 brief's case: a three-column note starting on column 0 at full velocity, and
-		// a one-column note starting *within* column 5.
+		// A three-column note starting on column 0 at full velocity, and a one-column note
+		// starting *within* column 5.
 		const NoteCell notes[] = {
 		    {.start_col = 0, .len_cols = 3, .velocity = 127, .starts_within = false, .tail = true},
 		    {.start_col = 5, .len_cols = 1, .velocity = 64, .starts_within = true, .tail = true},
@@ -67,15 +66,15 @@ describe rows("ui::grid rows", $ {
 		clip_row(r.frame, 1, ClipRowData{.colour = kBase, .tail_colour = kTail, .blur_colour = kBlur, .notes = mid});
 		expect(r.grid.at(1, 0)).to_equal(velocity_colour(kBase, 0));
 		expect(r.grid.at(2, 1)).to_equal(velocity_colour(kBase, 64));
-		// "linearly from 0.25 to max brightness with velocity" (note_row.cpp:1957-1958): a zero
-		// velocity is a quarter-ish of the row colour, never black, and never the full colour.
+		// Legacy scales "linearly from 0.25 to max brightness with velocity": a zero velocity
+		// is a quarter-ish of the row colour, never black, and never the full colour.
 		expect(int(r.grid.at(1, 0).r)).to_equal(int(kBase.r) * ((65 + 0) << 8) / (255 << 8));
 		expect(r.grid.at(1, 0) == kBase).to_be_false();
 		expect(r.grid.at(1, 0) == RGB{0, 0, 0}).to_be_false();
 	});
 	it("draws no tail when the note does not allow one", _ {
 		uitest::GridRig r;
-		// legacy `allowNoteTails == false` (note_row.cpp:1977): the continuing squares stay clear.
+		// legacy `allowNoteTails == false`: the continuing squares stay clear.
 		const NoteCell notes[] = {{.start_col = 4, .len_cols = 4, .velocity = 127, .starts_within = false, .tail = false}};
 		clip_row(r.frame, 3, ClipRowData{.colour = kBase, .tail_colour = kTail, .blur_colour = kBlur, .notes = notes});
 		expect(r.grid.at(4, 3)).to_equal(velocity_colour(kBase, 127));
@@ -97,7 +96,7 @@ describe rows("ui::grid rows", $ {
 		const NoteCell notes[] = {{.start_col = 0, .len_cols = 4, .velocity = 127, .starts_within = false, .tail = true}};
 		ClipRowData data{.colour = kBase, .tail_colour = kTail, .blur_colour = kBlur, .notes = notes, .playhead_col = 2};
 		clip_row(r.frame, 4, data);
-		// PadLEDs::flashColours[0] (hid/led/pad_leds.cpp:277-278).
+		// PadLEDs::flashColours[0].
 		expect(r.grid.at(2, 4)).to_equal(RGB{130, 120, 130});
 		expect(kPlayheadColour).to_equal(RGB{130, 120, 130});
 		expect(r.grid.at(1, 4)).to_equal(kTail);      // its neighbours are untouched
@@ -120,7 +119,7 @@ describe rows("ui::grid rows", $ {
 	});
 	it("paints only the tail of a note that began left of the window", _ {
 		uitest::GridRig r;
-		// Legacy's continuing arm (note_row.cpp:1967-1984) paints rowTailColour on every square a
+		// Legacy's continuing arm paints rowTailColour on every square a
 		// note's end is still beyond, whether or not the note's beginning is on screen. A note two
 		// columns before the window, five columns long, is three visible tail columns and no start.
 		const NoteCell notes[] = {{.start_col = -2, .len_cols = 5, .velocity = 127, .starts_within = false, .tail = true}};
@@ -142,7 +141,7 @@ describe rows("ui::grid rows", $ {
 		uitest::GridRig r;
 		// A 16-column loop with a four-column note starting at column 14: it covers 14 and 15, then
 		// wraps onto 0 and 1. Legacy finds no note below those left-hand squares, takes the last
-		// note and subtracts the loop length (note_row.cpp:1969-1975); the caller does the same
+		// note and subtracts the loop length; the caller does the same
 		// subtraction in column units and passes a second cell at 14 - 16 = -2.
 		constexpr int16_t kLoopCols = 16;
 		const NoteCell notes[] = {
@@ -161,9 +160,9 @@ describe rows("ui::grid rows", $ {
 	});
 	it("composites note rows into one grid row when overwrite_existing is false", _ {
 		uitest::GridRig r;
-		// InstrumentClip::renderAsSingleRow (model/clip/instrument_clip.cpp:1449-1477) renders every
+		// InstrumentClip::renderAsSingleRow renders every
 		// note row into the same image row with overwriteExisting = false and its own colour triple
-		// (:1465-1467). Two calls, two colours, one row.
+		// Two calls, two colours, one row.
 		constexpr RGB kOther{0, 80, 160};
 		const RGB kOtherTail = kOther.forTail();
 		const NoteCell low[] = {{.start_col = 0, .len_cols = 2, .velocity = 127, .starts_within = false, .tail = true}};
@@ -211,16 +210,16 @@ describe rows("ui::grid rows", $ {
 		    {.start_col = 6, .len_cols = 1, .velocity = 127, .fill = NoteFill::Off, .non_default_params = true},
 		    {.start_col = 8, .len_cols = 1, .velocity = 127, .starts_within = true, .fill = NoteFill::Fill},
 		};
-		// Fill mode on (note_row.cpp:1988): FILL goes blue (:1990), NOT_FILL red (:1993), and the
+		// Fill mode on: FILL goes blue, NOT_FILL red, and the
 		// note editor's arm is an `else if` so it cannot also fire.
 		clip_row(r.frame, 0, ClipRowData{.colour = kBase, .tail_colour = kTail, .blur_colour = kBlur,
 		                                 .notes = notes, .fill_mode_active = true, .note_editor = true});
 		expect(r.grid.at(0, 0)).to_equal(palette::blue);
-		expect(r.grid.at(1, 0)).to_equal(kTail);   // :1986 -- a tail column is never recoloured
+		expect(r.grid.at(1, 0)).to_equal(kTail);   // a tail column is never recoloured
 		expect(r.grid.at(3, 0)).to_equal(palette::red);
 		expect(r.grid.at(6, 0)).to_equal(velocity_colour(kBase, 127));   // fill mode wins the else-if
-		expect(r.grid.at(8, 0)).to_equal(kBlur);   // :1986 -- nor is a blur column
-		// Note editor, fill mode off (:1997-2002): the non-default note goes yellow (:2001).
+		expect(r.grid.at(8, 0)).to_equal(kBlur);   // nor is a blur column
+		// Note editor, fill mode off: the non-default note goes yellow.
 		clip_row(r.frame, 1, ClipRowData{.colour = kBase, .tail_colour = kTail, .blur_colour = kBlur,
 		                                 .notes = notes, .note_editor = true});
 		expect(r.grid.at(0, 1)).to_equal(velocity_colour(kBase, 127));   // a FILL note, fill mode off
@@ -234,7 +233,7 @@ describe rows("ui::grid rows", $ {
 	it("skips the recolouring when the start colour equals the row's blur colour", _ {
 		uitest::GridRig r;
 		// InstrumentClip::renderAsSingleRow passes blurColour == mainColour when allowBlur is false
-		// (model/clip/instrument_clip.cpp:1467), and legacy's gate is a colour comparison (:1986),
+		// and legacy's gate is a colour comparison,
 		// so a full-velocity start compares equal to the blur colour and is left alone.
 		const NoteCell note[] = {{.start_col = 0, .len_cols = 1, .velocity = 127, .fill = NoteFill::Fill}};
 		clip_row(r.frame, 3, ClipRowData{.colour = kBase, .tail_colour = kTail, .blur_colour = kBase,

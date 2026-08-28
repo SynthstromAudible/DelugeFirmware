@@ -22,49 +22,46 @@ namespace uitest = deluge::ui::test;
 // widgets. First as a byte-for-byte comparison against the legacy routine itself: `namespace
 // legacy` re-transcribes `Number::drawPercent` / `drawKnob` / `drawBar` / `drawSlider` /
 // `drawLengthSlider` / `drawPan` / `drawHpf` / `drawLpf` / `drawAttack` / `drawRelease` /
-// `drawSidechainDucking` (gui/menu_item/number.cpp:107-427) against the raw gfx `Canvas` in
-// canvas-absolute coordinates, with every magic number spelled as a literal (2 for
-// kHorizontalMenuSlotYOffset, 6/9 for the Apple ][ font, 9/10 for the title font) rather than
-// borrowed from the constants the port lays out with, and every scene is drawn both ways and
-// compared. Second as individual coordinates read off the legacy source, for the three checks
-// the task brief names. Third as golden PBMs. Both shipped geometries are covered for every
-// meter, since the legacy `SlotPosition::start_y` was panel-relative and the frame's origin now
-// carries the bezel term.
+// `drawSidechainDucking` against the raw gfx `Canvas` in canvas-absolute coordinates, with every
+// magic number spelled as a literal (2 for kHorizontalMenuSlotYOffset, 6/9 for the Apple ][ font,
+// 9/10 for the title font) rather than borrowed from the constants the port lays out with, and
+// every scene is drawn both ways and compared. Second as individual coordinates read off the
+// legacy source, for a handful of checks worth pinning explicitly. Third as golden PBMs. Both
+// shipped geometries are covered for every meter, since the legacy `SlotPosition::start_y` was
+// panel-relative and the frame's origin now carries the bezel term.
 //
-// Deviations from the task brief, all resolved in the legacy code's favour (ruling 1):
+// Points where the port's shape departs from a literal reading of the legacy interface, all
+// resolved in the legacy code's favour:
 //
-//  D1. The brief says `unipolar_bar(0.5)` "inverts exactly columns bar_start_x .. bar_start_x +
-//      10", i.e. eleven columns. `drawBar` (number.cpp:170-172) computes `fill_width = norm *
-//      21` through a `uint8_t` -- 10, not 10.5 and not 11 -- and `invertArea`'s `width` is
-//      exclusive (canvas.h:265-271), so exactly ten columns invert: bar_start_x .. bar_start_x +
-//      9. Asserted below, including that bar_start_x + 10 stays dark.
-//  D2. The brief's `meter(f, slot, Hint, float norm, int32_t raw)` has no room for
-//      `getMaxValue()`, which `drawSidechainDucking` reads (number.cpp:402) to pick between its
-//      two value scales. A defaulted sixth parameter `raw_max` carries it; the brief's five-
-//      argument call shape still compiles and selects the `/ 50.0f` arm.
-//  D3. The brief lists `percent(f, slot, int32_t value)` and, separately, "getValue()*2 for
-//      percent -> the value parameter". Taken literally: the widget's parameter is the number
-//      that gets *printed*, and `meter` does legacy's doubling (number.cpp:111). Pinned by the
-//      dispatch test at the bottom.
-//  D4. Legacy's `drawSlider` takes an optional value override and `drawLengthSlider` a
-//      `min_slider_pos` flag; the brief's `slider(f, slot, float norm)` drops the former (it is
-//      just "whichever number the caller wants normalised", number.cpp:185) and keeps the latter
-//      as `min_pos`. Both arms of `min_pos` are covered.
-//  D5. `min_pos` DEFAULTS TO TRUE, because legacy's does: `drawLengthSlider(const SlotPosition&,
-//      bool min_slider_pos = 3)` (number.h:57) copy-initialises the bool from `3`, and
-//      `renderInHorizontalMenu` (number.cpp:85-86) is its only caller in the tree -- so every
-//      LENGTH_SLIDER slot the firmware draws (the arp gate item, arpeggiator/midi_cv/gate.h:37)
-//      uses `true`, and the thumb sits one pixel right at the bottom of the range. The
-//      `meter_length_slider_*` goldens are recorded with the defaulted (true) arm for that
-//      reason; the `false` arm is still pinned against the legacy replay.
+//  - `unipolar_bar(0.5)` inverts exactly ten columns, not eleven: `drawBar` computes
+//    `fill_width = norm * 21` through a `uint8_t` -- 10, not 10.5 and not 11 -- and
+//    `invertArea`'s `width` is exclusive, so exactly ten columns invert: bar_start_x ..
+//    bar_start_x + 9. Asserted below, including that bar_start_x + 10 stays dark.
+//  - `meter(f, slot, Hint, float norm, int32_t raw)` has no room for `getMaxValue()`, which
+//    `drawSidechainDucking` reads to pick between its two value scales. A defaulted sixth
+//    parameter `raw_max` carries it; a five-argument call still compiles and selects the
+//    `/ 50.0f` arm.
+//  - `percent(f, slot, int32_t value)`'s parameter is the number that gets *printed*, and `meter`
+//    does legacy's doubling of `getValue()` before passing it in. Pinned by the dispatch test at
+//    the bottom.
+//  - Legacy's `drawSlider` takes an optional value override and `drawLengthSlider` a
+//    `min_slider_pos` flag; `slider(f, slot, float norm)` drops the former (it is just "whichever
+//    number the caller wants normalised") and keeps the latter as `min_pos`. Both arms of
+//    `min_pos` are covered.
+//  - `min_pos` DEFAULTS TO TRUE, because legacy's does: `drawLengthSlider(const SlotPosition&,
+//    bool min_slider_pos = 3)` copy-initialises the bool from `3`, and `renderInHorizontalMenu`
+//    is its only caller in the tree -- so every LENGTH_SLIDER slot the firmware draws (the arp
+//    gate item) uses `true`, and the thumb sits one pixel right at the bottom of the range. The
+//    `meter_length_slider_*` goldens are recorded with the defaulted (true) arm for that reason;
+//    the `false` arm is still pinned against the legacy replay.
 //
-// The `meter` dispatch is driven through `legacy::renderInHorizontalMenu` -- a transcription of
-// number.cpp:75-105 *including* the defaulted arguments off number.h:56-57 -- so no arm is
-// checked merely against the port's own widget called with the port's own arguments.
+// The `meter` dispatch is driven through `legacy::renderInHorizontalMenu` -- a transcription
+// *including* its defaulted arguments -- so no arm is checked merely against the port's own
+// widget called with the port's own arguments.
 
 namespace {
 
-// The slot geometry the task brief fixes: three legacy SlotPositions side by side.
+// The slot geometry: three legacy SlotPositions side by side.
 constexpr int32_t kSlotY = 14;
 constexpr int32_t kSlotW = 31;
 constexpr int32_t kSlotH = 25;
@@ -82,8 +79,8 @@ Rect slot_at(int32_t i) {
 namespace legacy {
 
 void drawPercent(Canvas& image, int32_t slot_x, int32_t slot_y, int32_t slot_w, int32_t value) {
-	// `value` is legacy's getValue(); the doubling at number.cpp:111 lives *inside* the routine,
-	// which is what makes D3 a real decision on the port's side.
+	// `value` is legacy's getValue(); the doubling lives *inside* the routine, which is what
+	// makes the doubling a real decision on the port's side.
 	const std::string valueString = std::to_string(value * 2); // etl::string<12> + appendInt
 
 	constexpr char percent_char = '%';
@@ -364,8 +361,7 @@ void drawSidechainDucking(Canvas& image, int32_t slot_x, int32_t slot_y, int32_t
 	image.draw_horizontal_line(y1, max_x - offset_right, max_x);
 }
 
-/// `enum RenderingStyle` verbatim, including the order and the `NUMBER` default arm
-/// (number.h:25-38).
+/// `enum RenderingStyle` verbatim, including the order and the `NUMBER` default arm.
 enum RenderingStyle {
 	NUMBER,
 	KNOB,
@@ -381,14 +377,14 @@ enum RenderingStyle {
 	SIDECHAIN_DUCKING
 };
 
-/// `Number::normalize` (number.cpp:27-31).
+/// `Number::normalize`.
 float normalize(int32_t value, int32_t min_value, int32_t max_value) {
 	return static_cast<float>(value - min_value) / static_cast<float>(max_value - min_value);
 }
 
-/// `Number::renderInHorizontalMenu` (number.cpp:75-105), the dispatch itself -- **including the
-/// defaulted arguments, which are read off number.h:56-57 and are part of what each arm draws.**
-/// `getValue()` / `getMinValue()` / `getMaxValue()` become the three trailing parameters.
+/// `Number::renderInHorizontalMenu`, the dispatch itself -- **including the defaulted arguments,
+/// which are part of what each arm draws.** `getValue()` / `getMinValue()` / `getMaxValue()`
+/// become the three trailing parameters.
 void renderInHorizontalMenu(Canvas& image, int32_t slot_x, int32_t slot_y, int32_t slot_w, RenderingStyle style,
                             int32_t value, int32_t min_value, int32_t max_value) {
 	const float norm = normalize(value, min_value, max_value);
@@ -400,12 +396,12 @@ void renderInHorizontalMenu(Canvas& image, int32_t slot_x, int32_t slot_y, int32
 	case BAR:
 		return drawBar(image, slot_x, slot_y, slot_w, norm);
 	case SLIDER:
-		// drawSlider(slot) -- the `std::optional<int32_t> value = std::nullopt` default
-		// (number.h:56) means value_or(getValue()), i.e. this same norm.
+		// drawSlider(slot) -- the `std::optional<int32_t> value = std::nullopt` default means
+		// value_or(getValue()), i.e. this same norm.
 		return drawSlider(image, slot_x, slot_y, slot_w, norm);
 	case LENGTH_SLIDER:
-		// drawLengthSlider(slot) -- `bool min_slider_pos = 3` (number.h:57) copy-initialises to
-		// TRUE, and this is the only caller of drawLengthSlider in the tree.
+		// drawLengthSlider(slot) -- `bool min_slider_pos = 3` copy-initialises to TRUE, and this
+		// is the only caller of drawLengthSlider in the tree.
 		return drawLengthSlider(image, slot_x, slot_y, slot_w, norm, true);
 	case PAN:
 		return drawPan(image, slot_x, slot_y, slot_w, value);
@@ -488,9 +484,9 @@ describe meters_w("ui::oled::meters", $ {
 	// -------------------------------------------------------------------- percent
 
 	it("draws the legacy percent readout at both geometries", _ {
-		// number.cpp:107-125. The oracle takes legacy's getValue() and doubles it itself
-		// (number.cpp:111); the widget takes the already-doubled number, so the doubling has to
-		// happen on this side of the call (D3). The three slots print 0%, 50% and 100%.
+		// The oracle takes legacy's getValue() and doubles it itself; the widget takes the
+		// already-doubled number, so the doubling has to happen on this side of the call. The
+		// three slots print 0%, 50% and 100%.
 		constexpr int32_t raw[3] = {0, 25, 50};
 		both_geometries(self, "meter_percent",
 			[&](OledFrame& f, Rect s, int32_t i) { percent(f, s, raw[i] * 2); },
@@ -513,9 +509,9 @@ describe meters_w("ui::oled::meters", $ {
 			[](OledFrame& f, Rect s, int32_t i) { knob_arc(f, s, kNorms[i]); },
 			[](Canvas& c, int32_t x, int32_t y, int32_t w, int32_t i) { legacy::drawKnob(c, x, y, w, kNorms[i]); });
 
-		// The brief's explicit check, with the trig spelled out here rather than borrowed from
-		// the port: at norm 1 the line ends at 165 + 210 = 375 degrees, radius knob_radius - 1
-		// (number.cpp:141-153), about a centre at (slot.x + slot.w / 2, slot.y + 10).
+		// The trig spelled out here rather than borrowed from the port: at norm 1 the line ends
+		// at 165 + 210 = 375 degrees, radius knob_radius - 1, about a centre at
+		// (slot.x + slot.w / 2, slot.y + 10).
 		uitest::Rig48 r;
 		knob_arc(r.frame, slot_at(2), 1.0f);
 		const double radians = (165.0 + 210.0) * M_PI / 180.0;
@@ -549,8 +545,8 @@ describe meters_w("ui::oled::meters", $ {
 	});
 
 	it("inverts exactly ten columns at half (D1)", _ {
-		// number.cpp:170-172: fill_width = norm * 21 through a uint8_t is 10, and invertArea's
-		// width is exclusive -- so bar_start_x .. bar_start_x + 9, not + 10 as the brief said.
+		// fill_width = norm * 21 through a uint8_t is 10, and invertArea's width is exclusive --
+		// so bar_start_x .. bar_start_x + 9, not + 10.
 		uitest::Rig48 r;
 		unipolar_bar(r.frame, slot_at(1), 0.5f);
 		const int32_t bar_start_x = kSlotX[1] + 5;                   // 37
@@ -570,8 +566,7 @@ describe meters_w("ui::oled::meters", $ {
 		expect(filled).to_be_true();
 		expect(empty).to_be_true();
 
-		// The outline is 2px outside the bar on every side (number.cpp:161-168): x 35..59 and
-		// canvas rows 21..29.
+		// The outline is 2px outside the bar on every side: x 35..59 and canvas rows 21..29.
 		expect(r.lit(35, 21)).to_be_true();
 		expect(r.lit(59, 29)).to_be_true();
 		expect(r.lit(34, 21)).to_be_false();
@@ -637,7 +632,7 @@ describe meters_w("ui::oled::meters", $ {
 		const int32_t bar_end_y = bar_start_y + 5 - 1;               // canvas row 27
 
 		// Inside the bar, the centre column and nothing else: value 0 gives direction 0 and
-		// abs_value 0, so fill_width is 0 and the invertArea at number.cpp:267 never runs.
+		// abs_value 0, so fill_width is 0 and the invertArea never runs.
 		bool only_midline = true;
 		for (int32_t y = bar_start_y; y <= bar_end_y; y++) {
 			for (int32_t x = bar_start_x; x <= bar_start_x + 20; x++) {
@@ -647,15 +642,14 @@ describe meters_w("ui::oled::meters", $ {
 		}
 		expect(only_midline).to_be_true();
 
-		// The two notches above and below the outline (number.cpp:246-249) are drawn regardless.
+		// The two notches above and below the outline are drawn regardless.
 		expect(r.lit(bar_center_x, bar_end_y + 2 + 1)).to_be_true();
 		expect(r.lit(bar_center_x, bar_end_y + 2 + 2)).to_be_true();
 		expect(r.lit(bar_center_x, bar_start_y - 2 - 1)).to_be_true();
 		expect(r.lit(bar_center_x, bar_start_y - 2 - 2)).to_be_true();
 
-		// A magnitude of 1 is rounded up to 3 so that "off centre" always shows
-		// (number.cpp:258-261): fill_width = 3 / 25 * 10 = 1, inverting two columns right of
-		// the midline.
+		// A magnitude of 1 is rounded up to 3 so that "off centre" always shows: fill_width =
+		// 3 / 25 * 10 = 1, inverting two columns right of the midline.
 		uitest::Rig48 nudged;
 		pan(nudged.frame, slot_at(1), 1);
 		expect(nudged.lit(bar_center_x + 1, bar_start_y)).to_be_true();
@@ -673,9 +667,9 @@ describe meters_w("ui::oled::meters", $ {
 			[](OledFrame& f, Rect s, int32_t i) { slider(f, s, kNorms[i]); },
 			[](Canvas& c, int32_t x, int32_t y, int32_t w, int32_t i) { legacy::drawSlider(c, x, y, w, kNorms[i]); });
 
-		// number.cpp:186-199: the thumb is two columns wide and spans the full 11-row track, and
-		// at norm 0 it sits on the track's left edge (slot.x + 4). Track rows are slot.y + 1 ..
-		// + 11, i.e. canvas 20..30 for the 48-row panel.
+		// The thumb is two columns wide and spans the full 11-row track, and at norm 0 it sits on
+		// the track's left edge (slot.x + 4). Track rows are slot.y + 1 .. + 11, i.e. canvas
+		// 20..30 for the 48-row panel.
 		uitest::Rig48 r;
 		slider(r.frame, slot_at(0), 0.0f);
 		expect(r.lit(4, 20)).to_be_true();
@@ -686,8 +680,8 @@ describe meters_w("ui::oled::meters", $ {
 	// -------------------------------------------------------------- length_slider
 
 	it("draws the legacy length slider at both geometries", _ {
-		// Recorded with the DEFAULTED min_pos, which is legacy's `= 3` -> true (number.h:57) and
-		// therefore the only shape the firmware's LENGTH_SLIDER slots have ever drawn.
+		// Recorded with the DEFAULTED min_pos, which is legacy's `= 3` -> true and therefore the
+		// only shape the firmware's LENGTH_SLIDER slots have ever drawn.
 		both_geometries(self, "meter_length_slider",
 			[](OledFrame& f, Rect s, int32_t i) { length_slider(f, s, kNorms[i]); },
 			[](Canvas& c, int32_t x, int32_t y, int32_t w, int32_t i) {
@@ -704,15 +698,15 @@ describe meters_w("ui::oled::meters", $ {
 	});
 
 	it("puts the thumb one pixel right when min_pos, and defaults it on", _ {
-		// number.cpp:212-215: value_line_min_x = min_x + min_slider_pos, and value_line_width =
-		// norm * (max_x - value_line_min_x), so the two arms land on different columns at the
-		// bottom of the range and converge higher up. For the slot at x 32: min_x = 36,
-		// max_x = 58, and at norm 0.25 the thumb is at 36 + 1 + int(0.25 * 21) = 42 with
-		// min_pos and at 36 + int(0.25 * 22) = 41 without. The thumb is the full-height vline
-		// (number.cpp:221), so canvas row 20 discriminates -- the 3-row fill and the dotted run
-		// are both at center_y +/- 1, canvas rows 24..26.
+		// value_line_min_x = min_x + min_slider_pos, and value_line_width = norm *
+		// (max_x - value_line_min_x), so the two arms land on different columns at the bottom of
+		// the range and converge higher up. For the slot at x 32: min_x = 36, max_x = 58, and at
+		// norm 0.25 the thumb is at 36 + 1 + int(0.25 * 21) = 42 with min_pos and at
+		// 36 + int(0.25 * 22) = 41 without. The thumb is the full-height vline, so canvas row 20
+		// discriminates -- the 3-row fill and the dotted run are both at center_y +/- 1, canvas
+		// rows 24..26.
 		uitest::Rig48 on;
-		length_slider(on.frame, slot_at(1), 0.25f); // defaulted -> true, as number.h:57 defaults it
+		length_slider(on.frame, slot_at(1), 0.25f); // defaulted -> true, as legacy defaults it
 		expect(on.lit(42, 20)).to_be_true();
 		expect(on.lit(41, 20)).to_be_false();
 
@@ -745,10 +739,10 @@ describe meters_w("ui::oled::meters", $ {
 			[](Canvas& c, int32_t x, int32_t y, int32_t w, int32_t i) { legacy::drawHpf(c, x, y, w, kNorms[i]); });
 
 		// The two are not mirror images, and the dotted stopband is conditional at both ends.
-		// The low-pass corner travels lerp(start + 3, end - 5, norm) (number.cpp:314), so at
-		// norm 1 slope_end_x lands on lpf_end_x and both the dotted top-right run and the dotted
-		// right edge vanish (number.cpp:321-328); at norm 0 the run is there. The corner's own
-		// pixel at (lpf_end_x, lpf_start_y) is canvas (25, 20) for a slot at x 0.
+		// The low-pass corner travels lerp(start + 3, end - 5, norm), so at norm 1 slope_end_x
+		// lands on lpf_end_x and both the dotted top-right run and the dotted right edge vanish;
+		// at norm 0 the run is there. The corner's own pixel at (lpf_end_x, lpf_start_y) is
+		// canvas (25, 20) for a slot at x 0.
 		uitest::Rig48 lpf_open;
 		filter_curve(lpf_open.frame, slot_at(0), 0.0f, FilterKind::Lpf);
 		expect(lpf_open.lit(25, 20)).to_be_true();
@@ -756,8 +750,8 @@ describe meters_w("ui::oled::meters", $ {
 		filter_curve(lpf_shut.frame, slot_at(0), 1.0f, FilterKind::Lpf);
 		expect(lpf_shut.lit(25, 20)).to_be_false();
 
-		// The high-pass corner travels lerp(start, end - 5 - 4, norm) (number.cpp:284) -- flush
-		// against the left edge at norm 0, where number.cpp:291-298 leaves the near edge bare.
+		// The high-pass corner travels lerp(start, end - 5 - 4, norm) -- flush against the left
+		// edge at norm 0, where legacy leaves the near edge bare.
 		uitest::Rig48 hpf_open;
 		filter_curve(hpf_open.frame, slot_at(0), 0.0f, FilterKind::Hpf);
 		expect(hpf_open.lit(5, 20)).to_be_false();
@@ -783,8 +777,7 @@ describe meters_w("ui::oled::meters", $ {
 	// ---------------------------------------------------------- sidechain_ducking
 
 	it("draws the legacy ducking wedge at both geometries", _ {
-		// max 50 selects legacy's `getValue() / 50.0f` arm (number.cpp:402), so these three are
-		// norms 0, 0.5 and 1.
+		// max 50 selects legacy's `getValue() / 50.0f` arm, so these three are norms 0, 0.5 and 1.
 		constexpr int32_t values[3] = {0, 25, 50};
 		both_geometries(self, "meter_ducking",
 			[&](OledFrame& f, Rect s, int32_t i) { sidechain_ducking(f, s, values[i], 50); },
@@ -792,14 +785,14 @@ describe meters_w("ui::oled::meters", $ {
 				legacy::drawSidechainDucking(c, x, y, w, values[i], 50);
 			});
 
-		// The negative branch draws bottom-up (number.cpp:414-419) ...
+		// The negative branch draws bottom-up ...
 		uitest::Rig48 down;
 		sidechain_ducking(down.frame, slot_at(1), -25, 50);
 		legacy::drawSidechainDucking(down.reference, kSlotX[1], kSlotY + 5, kSlotW, -25, 50);
 		expect(down.pbm()).to_equal(down.reference_pbm());
 
-		// ... and a max above 50 switches to the /5000 scale on the magnitude (number.cpp:402),
-		// so -2500 there is the same wedge shape as +2500.
+		// ... and a max above 50 switches to the /5000 scale on the magnitude, so -2500 there is
+		// the same wedge shape as +2500.
 		uitest::Rig48 big;
 		sidechain_ducking(big.frame, slot_at(1), -2500, 1000);
 		legacy::drawSidechainDucking(big.reference, kSlotX[1], kSlotY + 5, kSlotW, -2500, 1000);
@@ -809,11 +802,11 @@ describe meters_w("ui::oled::meters", $ {
 	// ---------------------------------------------------------------------- meter
 
 	it("dispatches like Number::renderInHorizontalMenu, defaulted arguments included", _ {
-		// Driven against legacy::renderInHorizontalMenu (number.cpp:75-105) rather than against
-		// the port's own widgets, so an arm that passes the wrong argument fails here -- which is
-		// exactly how C1 (LENGTH_SLIDER's `min_slider_pos = 3` default, number.h:57) hid from the
-		// previous round's port-derived assertions. Three values per style, three slots, both
-		// geometries, whole-canvas comparison.
+		// Driven against legacy::renderInHorizontalMenu rather than against the port's own
+		// widgets, so an arm that passes the wrong argument fails here -- which is exactly how a
+		// defaulted argument like LENGTH_SLIDER's `min_slider_pos = 3` can hide from assertions
+		// derived from the port itself. Three values per style, three slots, both geometries,
+		// whole-canvas comparison.
 		constexpr int32_t thirds[3] = {0, 25, 50}; // norms 0, 0.5, 1 over [0, 50]
 		dispatch_matches_legacy(self, Hint::Knob, legacy::KNOB, thirds, 0, 50);
 		dispatch_matches_legacy(self, Hint::Bar, legacy::BAR, thirds, 0, 50);
@@ -822,8 +815,8 @@ describe meters_w("ui::oled::meters", $ {
 		dispatch_matches_legacy(self, Hint::Hpf, legacy::HPF, thirds, 0, 50);
 		dispatch_matches_legacy(self, Hint::Attack, legacy::ATTACK, thirds, 0, 50);
 		dispatch_matches_legacy(self, Hint::Release, legacy::RELEASE, thirds, 0, 50);
-		// PERCENT prints getValue() * 2 inside the legacy routine (number.cpp:111), so this is
-		// also the pin on `meter` doing that doubling for the widget (D3).
+		// PERCENT prints getValue() * 2 inside the legacy routine, so this is also the pin on
+		// `meter` doing that doubling for the widget.
 		dispatch_matches_legacy(self, Hint::Percent, legacy::PERCENT, thirds, 0, 50);
 		// LENGTH_SLIDER at a low norm, where min_slider_pos actually moves pixels: value 12 is
 		// norm 0.24, one of the values that discriminates true from false.
@@ -833,12 +826,12 @@ describe meters_w("ui::oled::meters", $ {
 		constexpr int32_t pans[3] = {-25, 0, 25};
 		dispatch_matches_legacy(self, Hint::Pan, legacy::PAN, pans, -25, 25);
 		// SIDECHAIN_DUCKING reads both the value and getMaxValue(): once on the `/ 50.0f` arm,
-		// once on the `max > 50` magnitude arm (number.cpp:402).
+		// once on the `max > 50` magnitude arm.
 		dispatch_matches_legacy(self, Hint::Ducking, legacy::SIDECHAIN_DUCKING, thirds, 0, 50);
 		constexpr int32_t deep[3] = {-2500, 0, 2500};
 		dispatch_matches_legacy(self, Hint::Ducking, legacy::SIDECHAIN_DUCKING, deep, -5000, 5000);
-		// The default arm: NUMBER is legacy's first enumerator and its `default:` (number.h:26,
-		// number.cpp:99-104). None/Enum/Toggle all land there.
+		// The default arm: NUMBER is legacy's first enumerator and its `default:`. None/Enum/Toggle
+		// all land there.
 		constexpr int32_t numbers[3] = {0, 42, -7};
 		dispatch_matches_legacy(self, Hint::None, legacy::NUMBER, numbers, -100, 100);
 		dispatch_matches_legacy(self, Hint::Enum, legacy::NUMBER, numbers, -100, 100);

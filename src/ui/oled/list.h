@@ -10,19 +10,15 @@
 
 namespace deluge::ui::oled {
 
-/// One row of a menu list. Plain data: a label, an optional right-aligned value string, an
-/// optional right-hand icon (the legacy "submenu item type": the `>` arrow or a checkbox), and
-/// whether the cursor may land on it.
+/// @brief One row of a menu list.
 ///
-/// `selectable == false` is this layer's stand-in for the legacy `MenuItem::isRelevant`
-/// filter. Legacy never *drew* an irrelevant item -- `Submenu::drawPixelsForOled` collects only
-/// relevant items into its window (submenu.cpp:60-76) and `Submenu::selectEncoderAction`
-/// consumes a detent only on a relevant item, reverting to the last relevant one when it runs
-/// off the end (submenu.cpp:132-176). A caller that wants the legacy behaviour exactly still
-/// filters the rows out before building the span; `selectable == false` is for the rows legacy
-/// had no concept of (section headings, greyed-out entries), and it reproduces the
-/// `selectEncoderAction` scan: the row is drawn, the cursor steps over it, and `select_pressed`
-/// on it never reports `entered`.
+/// Plain data: a label, an optional right-aligned value string, an optional right-hand icon (the
+/// `>` arrow or a checkbox), and whether the cursor may land on it.
+///
+/// @note A row with `selectable == false` (e.g. a section heading) is still drawn and the cursor
+///       still steps over it, but the cursor can never stop on it and `select_pressed` on it never
+///       reports `entered`. A caller that wants a row omitted entirely must filter it out of the
+///       span before calling `list`.
 struct ListRow {
 	std::string_view label;
 	std::string_view value = {};
@@ -30,125 +26,114 @@ struct ListRow {
 	bool selectable = true;
 };
 
-/// The rect a legacy vertical menu occupies in \p f: the whole frame below the legacy menu
-/// base-y. Pass it to `list` to reproduce `drawItemsForOled` / `drawSubmenuItemsForOled`
-/// exactly.
+/// @brief The rect a vertical menu occupies in @p f: the whole frame below the menu base-y.
 ///
-/// The base-y is `(OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14` (menu_item.cpp:50), selected here
-/// off `f.canvas.geometry().height`, which is that macro's exact analogue -- `kDelugeOled` is
-/// `{128, 48, 5}` against `board_config.h:63`'s `OLED_MAIN_HEIGHT_PIXELS 48`. Legacy's
-/// `baseY += OLED_MAIN_TOPMOST_PIXEL` on the next line is already in the frame's origin, so
-/// the number here is frame-local. Both shipped panels leave room for exactly `style.menu_rows`
-/// rows below it: 48 gives `43 - 14 = 29` px, 64 gives `64 - 15 = 49` px, i.e. 3 and 5 rows of
-/// `kTextSpacingY`.
-///
-/// Exists so the scenes in tasks 6/8 do not each re-derive the two magic numbers.
+/// @note Frame-local coordinates. The base-y is `style.menu_base_y` (14px on the 48px-tall panel,
+///       15px on the 64px-tall one); both shipped panels leave room for exactly `style.menu_rows`
+///       rows below it, at `style.row_height` pitch.
+/// @param f Frame to measure against.
+/// @return The menu rect, in frame-local coordinates.
 gfx::oled::Rect menu_rect(const OledFrame& f);
 
-/// How many rows `list` will draw inside \p rect on \p f: `min(style.menu_rows, rect.h /
-/// kTextSpacingY)`, at least one. See the layout notes on `list` below.
+/// @brief How many rows `list` will draw inside @p rect on @p f.
+///
+/// `min(style.menu_rows, rect.h / style.row_height)`, at least one.
+/// @param f    Frame supplying the style metrics.
+/// @param rect Rect the rows would be drawn into.
+/// @return Number of visible rows, always at least 1.
 int32_t list_visible_rows(const OledFrame& f, gfx::oled::Rect rect);
 
-/// The index of the first row `list` shows: `Selection::drawPixelsForOled`'s window rule
-/// (selection.cpp:9-29), which keeps \p cursor as near the middle of a \p visible -row window
-/// over \p n rows as the ends of the list allow.
+/// @brief The index of the first row `list` shows for a given cursor/row-count/window size.
 ///
-/// Exposed because a caller that renders a *slice* of a long list -- `enum_value`, which never
-/// materialises more than the visible window -- has to know which slice `list` would have
-/// chosen before it can build one.
+/// Keeps @p cursor as near the middle of a @p visible-row window over @p n rows as the ends of
+/// the list allow.
+///
+/// @note Exposed so a caller that renders only a *slice* of a long list (e.g. `enum_value`, which
+///       never materialises more than the visible window) can know which slice `list` would have
+///       chosen before building it.
+/// @param cursor  Currently selected row index.
+/// @param n       Total row count.
+/// @param visible Window size in rows.
+/// @return Index of the first visible row.
 int32_t list_window_start(int32_t cursor, int32_t n, int32_t visible);
 
-/// The legacy vertical menu, as one immediate-mode call.
+/// @brief The vertical menu, as one immediate-mode call.
 ///
-/// Ports `MenuItem::drawItemsForOled` (menu_item.cpp:47-66) and
-/// `Submenu::drawSubmenuItemsForOled` (submenu.cpp:98-127) for the drawing,
-/// `Selection::drawPixelsForOled` (selection.cpp:9-29) for the window, and
-/// `Submenu::selectEncoderAction` (submenu.cpp:132-176) for the cursor movement.
+/// @note Ports legacy `MenuItem::drawItemsForOled`, `Submenu::drawSubmenuItemsForOled`,
+///       `Selection::drawPixelsForOled` (the window), and `Submenu::selectEncoderAction` (the
+///       cursor movement).
 ///
-/// The parameter order is spec B section 6's -- `list(f, rect, ListState&, span<ListRow>)` --
-/// with the scroller state and the motion gate appended, since section 6's one-line catalogue
-/// row does not carry them. The task brief's interface omitted `rect` entirely and made `list`
-/// paint the whole frame; the spec wins, no caller existed yet, and `menu_rect(f)` above
-/// recovers the brief's geometry in one call.
-///
-/// Everything is laid out inside \p rect, in frame-local coordinates:
-///   - the first row's top is `rect.y`; rows are `kTextSpacingY` apart and 9 rows tall
-///     (legacy `yPixel .. yPixel + 8`, menu_item.cpp:56);
-///   - labels start at `rect.x + kTextSpacingX` (menu_item.cpp:58);
+/// Everything is laid out inside @p rect, in frame-local coordinates:
+///   - the first row's top is `rect.y`; rows are `style.row_height` apart and 9 rows tall;
+///   - labels start at `rect.x + style.inset_x`;
 ///   - the highlight, and the per-row band clear, span `rect.x .. rect.right()`;
-///   - `min(style.menu_rows, rect.h / kTextSpacingY)` rows are visible. `style.menu_rows` is
-///     legacy's `OLED_HEIGHT_CHARS - 1`, which is also the `kOLEDMenuNumOptionsVisible` the
-///     window rule is written against (definitions_cxx.hpp:957); the `rect.h` term is this
-///     layer's own addition, so a short rect cannot draw past its own bottom edge. Spec
-///     section 6 says nothing about the count, and for `menu_rect(f)` on either shipped panel
-///     the `rect.h` term is not the binding one, so the legacy pixels are unchanged.
-///   - a row with an icon blits it at `rect.right() - kSubmenuIconSpacingX - 3`
-///     (`MenuItem::getSubmenuItemTypeRenderIconStart`, menu_item.h:280) and shortens its
-///     label/scroller to `rect.right() - (4 + kSubmenuIconSpacingX + 3)`
-///     (`getSubmenuItemTypeRenderLength`, menu_item.h:278);
+///   - `list_visible_rows(f, rect)` rows are visible: `min(style.menu_rows, rect.h /
+///     style.row_height)`, so a short rect cannot draw past its own bottom edge;
+///   - a row with an icon is blitted at `rect.right() - kSubmenuIconSpacingX - 3` and its
+///     label/scroller is shortened to leave room for it;
 ///   - a row with a value right-aligns it against that same content edge and shortens the
-///     label by the value's width plus the legacy 4px "spacing before", never past the label
-///     origin. No legacy menu row drew a value string, so this arrangement is new; everything
-///     else above is a port.
+///     label by the value's width plus a 4px gap, never past the label origin.
 ///
-/// Behaviour: the row count is counted first -- `rows.size()`, the span `list` was actually
-/// handed *this* frame -- matching the SDK menu walker's count-then-draw shape
-/// (`crates/deluge-ui-toolkit/src/menu.rs:346-415`). The cursor is clamped into that count, then
-/// `f.turn()` is applied, walking one selectable row per detent and stopping at the ends without
-/// wrapping, exactly as `Submenu::selectEncoderAction` does -- all before anything is drawn. A
-/// list that shrinks under the cursor is clamped into range on the same frame it shrinks, and a
-/// list that grows lets `turn` walk into the newly-available rows on the same frame too: neither
-/// case waits a frame for `state.rows_last` to catch up, because the clamp and the walk are
-/// bounded by `rows.size()` directly, never by `state.rows_last`. `state.rows_last` is then set
-/// to `rows.size()`, but purely as a cache of last frame's count for a caller that wants one
-/// (e.g. `enum_value` sizes its own windowed inner `list` call from its own copy of the field);
-/// `list` itself never reads it. The window keeps the
-/// cursor visible per `Selection`'s pos/tail rule and is published as `state.scroll`.
-/// `Response.changed` reports that the cursor moved (and requests a repaint);
-/// `Response.entered` reports `f.select_pressed()` on a selectable row. `Response.focused`
-/// is never set: neither the brief nor spec section 6 asks `list` for it.
+/// @note **Two-pass: count then draw.** The row count used for clamping and cursor motion is
+///       `rows.size()` -- the span `list` was actually handed *this* frame -- never
+///       `state.rows_last`, which is last frame's count. So a list that shrinks under the cursor
+///       clamps into range on the same frame it shrinks, and a list that grows lets `turn` walk
+///       into the newly-available rows on the same frame too; neither case waits a frame for
+///       `state.rows_last` to catch up. `state.rows_last` is set to `rows.size()` afterwards, but
+///       purely as a cache for a caller that wants last frame's count (e.g. `enum_value` sizes its
+///       own windowed inner `list` call from its own copy of the field) -- `list` itself never
+///       reads it back.
 ///
-/// `list` claims the turn and the select for the tick (ui/core/frame_context.h rule 2) whenever
-/// its frame is focused -- on an unfocused frame it reads no input, moves nothing and claims
-/// nothing, which is how `enum_value` and `toggle` borrow it for its looks alone.
+/// The cursor is clamped into range, then `f.turn()` walks it one selectable row per detent,
+/// stopping at the ends without wrapping -- all before anything is drawn. The window keeps the
+/// cursor visible per the windowing rule in `list_window_start` and is published as
+/// `state.scroll`. `Response.changed` reports that the cursor moved (and requests a repaint);
+/// `Response.entered` reports `f.select_pressed()` on a selectable row. `Response.focused` is
+/// never set.
 ///
-/// The selected row's label goes through `scroll_text` with `scroll_label`, so a label too wide
-/// for its box ping-pongs -- the legacy `setupSideScroller(0, name, kTextSpacingX, endX, yPixel,
-/// yPixel + 8, ..., true)` at menu_item.cpp:62 / submenu.cpp:124. The highlight follows
-/// `style.invert_highlight`, which is `Canvas::invertLeftEdgeForMenuHighlighting`'s
-/// `menuHighlightingInverts` (canvas.cpp:26-33): true inverts the whole row, rounded per
-/// `style.rounded` because legacy routes it through `Canvas::invertAreaRounded(...,
-/// roundedCornersEnabled)` (oled_canvas/canvas.h:136-138); false draws only the left-edge rule
-/// and gives `scroll_text` legacy's clear-only `+4` padding (oled.cpp:984-992), which exists
-/// precisely for that case. The label is drawn *before* the inversion, which is the order a
-/// legacy full redraw uses; legacy's scroller-*tick* path instead re-inverts just its own box
-/// with the non-rounded `invertArea` (oled.cpp:996-997), which re-lights the row's right-hand
-/// corner pixels on a full-width list until the next full redraw. That two-pixel mid-scroll
-/// transient is deliberately not reproduced: this widget renders the authoritative full-redraw
-/// result at every scroll position.
+/// @note `list` claims the turn and the select for the tick whenever its frame is focused; on an
+///       unfocused frame it reads no input, moves nothing, and claims nothing -- which is how
+///       `enum_value` and `toggle` borrow it for its looks alone.
 ///
-/// Each visible row's band is cleared, across the full width of \p rect, before it is drawn.
-/// Legacy got the same effect from `renderUIsForOled` clearing the whole canvas before
-/// `drawPixelsForOled`; an immediate-mode widget owns its own band instead. Ordering
-/// constraint: anything else drawn inside `rect`'s row bands -- a `scrollbar` down its right
-/// edge, for instance -- must be drawn *after* `list`, or given a rect of its own that `rect`
-/// does not cover, or the clear will erase it.
+/// The selected row's label goes through `scroll_text` with @p scroll_label, so a label too wide
+/// for its box ping-pongs. The highlight follows `style.invert_highlight`: true inverts the whole
+/// row (rounded per `style.rounded`); false draws only the left-edge rule and gives `scroll_text`
+/// a `+4` clear-only padding, which exists precisely for that case.
 ///
-/// Draws no scrollbar: neither legacy menu renderer has one. Spec B section 6's catalogue row
-/// says `list` "draws `scrollbar` when rows > visible", which would break pixel parity, so the
-/// caller composes the two if it wants one -- see `scrollbar` below, whose own catalogue row
-/// already says "for non-list views".
+/// @note The label is drawn *before* the inversion -- the order a full redraw uses. This widget
+///       always renders the authoritative full-redraw result at every scroll position; it does
+///       not reproduce the two-pixel mid-scroll transient an incremental redraw would leave on
+///       the row's right-hand corners between full redraws.
+///
+/// Each visible row's band is cleared, across the full width of @p rect, before it is drawn.
+///
+/// @warning Anything else drawn inside @p rect's row bands (a `scrollbar` down its right edge,
+///          for instance) must be drawn *after* `list`, or be given a rect of its own that
+///          @p rect does not cover -- otherwise the clear erases it.
+///
+/// Draws no scrollbar; compose with `scrollbar` below if the caller wants one.
+///
+/// @param f            Frame to draw into and read input from.
+/// @param rect         Rect the menu occupies, in frame-local coordinates.
+/// @param state        Persistent cursor/scroll-window state.
+/// @param rows         The rows to draw this frame.
+/// @param scroll_label Scroll state for the selected row's label.
+/// @param allow_motion Whether the selected label's scroller may advance this frame.
+/// @return `changed` if the cursor moved; `entered` if a selectable row was chosen.
 Response list(OledFrame& f, gfx::oled::Rect rect, ListState& state, std::span<const ListRow> rows,
               ScrollText& scroll_label, bool allow_motion = true);
 
-/// A vertical scroll indicator for `rect`: a 1px track down `rect.right() - 1` and a thumb
-/// `rect.w` wide covering the visible slice of `total`.
+/// @brief A vertical scroll indicator for @p rect.
 ///
-/// The thumb is `max(2, rect.h * visible / total)` rows tall at `rect.y + rect.h * first /
-/// total`. There is no legacy scrollbar anywhere in the firmware to port -- the menus scroll
-/// without an indicator -- so this is the brief's formula, unmodified. The track is a hairline
-/// at the far right so a `style.scrollbar_w`-wide thumb reads against it; with `rect.w == 1`
-/// the two coincide and only the thumb's extent is legible.
+/// A 1px track down `rect.right() - 1` and a thumb `rect.w` wide covering the visible slice of
+/// @p total. The thumb is `max(2, rect.h * visible / total)` rows tall at `rect.y + rect.h *
+/// first / total`. The track is a hairline at the far right so a `style.scrollbar_w`-wide thumb
+/// reads against it; with `rect.w == 1` the two coincide and only the thumb's extent is legible.
+/// @param f       Frame to draw into.
+/// @param rect    Rect the indicator occupies.
+/// @param first   Index of the first visible row.
+/// @param visible Number of visible rows.
+/// @param total   Total row count.
 void scrollbar(OledFrame& f, gfx::oled::Rect rect, int32_t first, int32_t visible, int32_t total);
 
 } // namespace deluge::ui::oled

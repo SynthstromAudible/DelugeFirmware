@@ -160,9 +160,10 @@ public:
 	void getActiveModControllable(ModelStackWithTimelineCounter* modelStack) override;
 	void expectEvent() override;
 
-	/// Raise "this clip's content changed" on the notification channel: the clip's session index
-	/// when it has one, the coarse ClipContent bit otherwise (arrangement-only clips). Replaces
-	/// calling clipNeedsReRendering() on whichever UI happens to be showing. [any]
+	/// @brief Notify observers that this clip's content changed.
+	///
+	/// Raises the clip's session index when it has one, or the coarse ClipContent bit otherwise
+	/// (arrangement-only clips). [any]
 	void notify_content_changed();
 
 	Output* output;

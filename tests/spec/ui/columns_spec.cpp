@@ -29,49 +29,47 @@ namespace uitest = deluge::ui::test;
 //
 // First, byte for byte against the legacy renderer itself: `namespace legacy` below
 // re-transcribes `HorizontalMenu::renderMenuItems`, `renderColumnLabel`, `renderPageCounters` and
-// `renderTitle` (gui/menu_item/horizontal_menu.cpp:137-307) together with the four slot
-// renderings a column can have -- `Submenu::renderInHorizontalMenu` (submenu.cpp:49-56),
-// `Toggle::renderInHorizontalMenu` (toggle.cpp:59-63), `Enumeration::renderInHorizontalMenu`
-// (enumeration.cpp:42-51) and `Number::drawKnob` / `drawBar` (number.cpp:127-173, which
+// `renderTitle` together with the four slot renderings a column can have --
+// `Submenu::renderInHorizontalMenu`, `Toggle::renderInHorizontalMenu`,
+// `Enumeration::renderInHorizontalMenu` and `Number::drawKnob` / `drawBar` (which
 // `Decimal::renderInHorizontalMenu` reaches through `Number` for a non-NUMBER style) -- against
 // the raw gfx `Canvas` in canvas-absolute coordinates, with every magic number spelled as a
 // literal (14 for base_y, 25 for the box, 6/9 for the Apple ][ font, 9/10 for the title font, 7
 // for the arrow) rather than borrowed from the constants the port lays out with. Every scene is
 // drawn both ways and the whole canvas compared.
 //
-// Second, as individual coordinates read off the legacy source, for the checks the task brief
-// names: the label row, the focus inversion, the turn, and the "1/2" counters with their slanted
-// separator.
+// Second, as individual coordinates read off the legacy source, for a handful of checks worth
+// pinning explicitly: the label row, the focus inversion, the turn, and the "1/2" counters with
+// their slanted separator.
 //
 // Third, as golden PBMs, at both shipped geometries.
 //
-// Deviations, all noted where they occur and all resolved in the legacy code's favour except
-// where legacy has no behaviour to favour:
+// Points where the port's interface or behaviour needed a decision, all resolved in the legacy
+// code's favour except where legacy has no behaviour to favour:
 //
-//  D1. `columns` takes spec B section 6's rect (`columns(f, rect, ColumnsState&, span<Column>)`),
-//      which the task brief's interface omitted, plus the brief's `title_text`. **`f.bounds()` is
-//      the rect that reproduces legacy** -- not `menu_rect(f)`, which starts below the title band
-//      this widget draws into -- and every golden is recorded with it.
-//  D2. `base_y` is `kHorizontalMenuBaseY` (14) on *both* panels, because horizontal_menu.cpp:216
-//      is a `constexpr` literal `14 + OLED_MAIN_TOPMOST_PIXEL` with no panel-height branch. It is
-//      NOT list's `kMenuBaseY48/64`, which is `MenuItem::drawItemsForOled`'s
-//      `(OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14` (menu_item.cpp:50) and belongs to a different
-//      renderer; the brief's doc sketch named that pair. The two coincide at 48 and differ by a
-//      row at 64, so the oracle below spells legacy's literal rather than the port's constant --
-//      encoding the port's rule there would make the 64-row comparison circular.
-//  D3. The non-inverting highlight rule is at `rect.bottom() - 3`. Legacy draws it at
-//      `OLED_MAIN_VISIBLE_HEIGHT + 2` (horizontal_menu.cpp:281), a canvas-absolute row that is
-//      the same pixel on the shipped panel but falls off the bottom of a panel with no bezel.
-//      Same reading for the placeholder frames' `OLED_MAIN_HEIGHT_PIXELS - 7` (:295).
-//  D4. The value region handed to `Column::render` is a frame whose clip is one row taller than
-//      the region at the top, because `drawKnob` (number.cpp:129) and
-//      `Toggle::renderInHorizontalMenu` (toggle.cpp:62) blit 16-row icons at `start_y - 1` and
-//      `OledFrame`'s icon primitive is all-or-nothing against its clip. A tight region would draw
-//      no knob arc and no toggle switch at all; the scenes below fail if it is tightened.
-//  D5. There is no legacy behaviour for `turn`: the horizontal menu moved focus with the
-//      instrument buttons (horizontal_menu.cpp:400-442) and spent the select encoder on the
-//      focused value (:309-333). The walk is `list`'s -- one relevant column per detent,
-//      stopping at the ends -- per spec B section 5.
+//  - `columns` takes a rect (`columns(f, rect, ColumnsState&, span<Column>)`), plus a
+//    `title_text`. **`f.bounds()` is the rect that reproduces legacy** -- not `menu_rect(f)`,
+//    which starts below the title band this widget draws into -- and every golden is recorded
+//    with it.
+//  - `base_y` is `kHorizontalMenuBaseY` (14) on *both* panels, because legacy's is a `constexpr`
+//    literal `14 + OLED_MAIN_TOPMOST_PIXEL` with no panel-height branch. It is NOT list's
+//    `kMenuBaseY48/64`, which is `MenuItem::drawItemsForOled`'s
+//    `(OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14` and belongs to a different renderer. The two
+//    coincide at 48 and differ by a row at 64, so the oracle below spells legacy's literal
+//    rather than the port's constant -- encoding the port's rule there would make the 64-row
+//    comparison circular.
+//  - The non-inverting highlight rule is at `rect.bottom() - 3`. Legacy draws it at
+//    `OLED_MAIN_VISIBLE_HEIGHT + 2`, a canvas-absolute row that is the same pixel on the shipped
+//    panel but falls off the bottom of a panel with no bezel. Same reading for the placeholder
+//    frames' `OLED_MAIN_HEIGHT_PIXELS - 7`.
+//  - The value region handed to `Column::render` is a frame whose clip is one row taller than
+//    the region at the top, because `drawKnob` and `Toggle::renderInHorizontalMenu` blit 16-row
+//    icons at `start_y - 1` and `OledFrame`'s icon primitive is all-or-nothing against its clip.
+//    A tight region would draw no knob arc and no toggle switch at all; the scenes below fail if
+//    it is tightened.
+//  - There is no legacy behaviour for `turn`: the horizontal menu moved focus with the instrument
+//    buttons and spent the select encoder on the focused value. The walk is `list`'s -- one
+//    relevant column per detent, stopping at the ends.
 
 namespace {
 
@@ -97,7 +95,7 @@ bool isSubmenu(const Item& item) {
 	return item.kind == Item::SUBMENU;
 }
 
-/// `Number::drawKnob` (number.cpp:127-154).
+/// `Number::drawKnob`.
 void drawKnob(Canvas& image, int32_t slot_x, int32_t slot_y, int32_t slot_w, float norm) {
 	image.draw_icon_centered(icons::knobArc, slot_x, slot_w, slot_y - 1);
 
@@ -118,7 +116,7 @@ void drawKnob(Canvas& image, int32_t slot_x, int32_t slot_y, int32_t slot_w, flo
 	                {.thick = true});
 }
 
-/// `Number::drawBar` (number.cpp:156-173).
+/// `Number::drawBar`.
 void drawBar(Canvas& image, int32_t slot_x, int32_t slot_y, float norm) {
 	constexpr uint8_t bar_width = 21;
 	constexpr uint8_t bar_height = 5;
@@ -133,14 +131,14 @@ void drawBar(Canvas& image, int32_t slot_x, int32_t slot_y, float norm) {
 	image.invert_area(bar_start_x, static_cast<uint8_t>(norm * bar_width), bar_start_y, bar_end_y);
 }
 
-/// `Enumeration::renderInHorizontalMenu` (enumeration.cpp:42-51). `Decimal`'s NUMBER-style arm
-/// (decimal.cpp:176-191) is the same call with a formatted value.
+/// `Enumeration::renderInHorizontalMenu`. `Decimal`'s NUMBER-style arm is the same call with a
+/// formatted value.
 void drawEnum(Canvas& image, int32_t slot_x, int32_t slot_y, int32_t slot_w, const char* short_option) {
 	image.draw_string_centered(short_option, slot_x, slot_y + 2, 6, 9, slot_w);
 }
 
-/// `OLED::submenuArrowIconBold` (hid/display/oled_icons.cpp:160-168), byte for byte, so the
-/// icon added to the gfx registry for this task is checked rather than assumed.
+/// `OLED::submenuArrowIconBold`, byte for byte, so the icon added to the gfx registry is checked
+/// rather than assumed.
 const uint8_t submenuArrowIconBold[] = {
     0b00000000, //<
     0b00000000, //<
@@ -151,14 +149,14 @@ const uint8_t submenuArrowIconBold[] = {
     0b00000000, //<
 };
 
-/// `Submenu::renderInHorizontalMenu` (submenu.cpp:49-56).
+/// `Submenu::renderInHorizontalMenu`.
 void drawSubmenuArrow(Canvas& image, int32_t slot_x, int32_t slot_y, int32_t slot_w) {
 	const int32_t arrow_y = slot_y + 2;
 	const int32_t arrow_x = slot_x + (slot_w - 7) / 2 - 1;
 	image.draw_graphic_multi_line(submenuArrowIconBold, arrow_x, arrow_y, 7);
 }
 
-/// `Toggle::renderInHorizontalMenu` (toggle.cpp:59-63).
+/// `Toggle::renderInHorizontalMenu`.
 void drawToggle(Canvas& image, int32_t slot_x, int32_t slot_y, int32_t slot_w, bool on) {
 	image.draw_icon_centered(on ? icons::switcherOn : icons::switcherOff, slot_x, slot_w, slot_y - 1);
 }
@@ -178,8 +176,7 @@ void renderInHorizontalMenu(Canvas& image, const Item& item, int32_t start_x, in
 	}
 }
 
-/// `HorizontalMenu::renderColumnLabel` (horizontal_menu.cpp:603-628), with
-/// `deluge::string::removeSpaces` (util/string.cpp:121-129) inlined.
+/// `HorizontalMenu::renderColumnLabel`, with `deluge::string::removeSpaces` inlined.
 void renderColumnLabel(Canvas& image, const Item& item, int32_t labelY, int32_t slotStartX, int32_t slotWidth,
                        bool isSelected) {
 	std::string label;
@@ -207,8 +204,7 @@ void renderColumnLabel(Canvas& image, const Item& item, int32_t labelY, int32_t 
 	}
 }
 
-/// `HorizontalMenu::renderPageCounters` (horizontal_menu.cpp:178-201). `etl::string<2>` truncates,
-/// hence the resize.
+/// `HorizontalMenu::renderPageCounters`. `etl::string<2>` truncates, hence the resize.
 void renderPageCounters(Canvas& image, int32_t visiblePageNumber, int32_t totalPages, int32_t width, int32_t topmost) {
 	if (totalPages <= 1) {
 		return;
@@ -233,7 +229,7 @@ void renderPageCounters(Canvas& image, int32_t visiblePageNumber, int32_t totalP
 	image.draw_string(currentPageNum, x, y, 6, 9);
 }
 
-/// `HorizontalMenu::renderTitle` (horizontal_menu.cpp:137-176).
+/// `HorizontalMenu::renderTitle`.
 void renderTitle(Canvas& image, std::string title, int32_t totalPages, int32_t width) {
 	if (totalPages > 1) {
 		const uint8_t title_width = image.get_string_width_in_pixels(title.c_str(), 10);
@@ -268,15 +264,15 @@ void renderTitle(Canvas& image, std::string title, int32_t totalPages, int32_t w
 	image.draw_screen_title(title, false);
 }
 
-/// `HorizontalMenu::renderMenuItems` (horizontal_menu.cpp:203-307) over one page's items, minus
-/// the container map (:204-212, :231-245) the port replaces with `Column::slots`. `items` is
-/// legacy's `paging.visiblePageItems` and `current` the index of the current item within it.
+/// `HorizontalMenu::renderMenuItems` over one page's items, minus the container map the port
+/// replaces with `Column::slots`. `items` is legacy's `paging.visiblePageItems` and `current`
+/// the index of the current item within it.
 /// `full_inversion` is `FlashStorage::accessibilityMenuHighlighting == FULL_INVERSION` and
 /// `rounded` is the canvas's `roundedCornersEnabled` -- `style.invert_highlight` and
 /// `style.rounded` in the port.
 void renderMenuItems(Canvas& image, std::span<const Item> items, int32_t current, int32_t width, int32_t height,
                      int32_t topmost, bool full_inversion, bool rounded) {
-	const int32_t base_y = 14 + topmost; // :216, a literal on every panel -- see D2
+	const int32_t base_y = 14 + topmost; // a literal on every panel, not list's kMenuBaseY48/64
 	const int32_t column_width = width / 4;
 	int32_t current_x = 0;
 
@@ -310,7 +306,8 @@ void renderMenuItems(Canvas& image, std::span<const Item> items, int32_t current
 				image.invert_area_rounded(current_x + 1, box_width - 3, start_y, end_y, BorderRadius::Small, rounded);
 			}
 			else {
-				image.draw_horizontal_line(height - 3, current_x, current_x + box_width - 2); // :281, D3
+				image.draw_horizontal_line(height - 3, current_x,
+				                           current_x + box_width - 2); // canvas-absolute in legacy
 			}
 		}
 
@@ -321,7 +318,7 @@ void renderMenuItems(Canvas& image, std::span<const Item> items, int32_t current
 		const int32_t start_x = n * column_width + 7;
 		const int32_t end_x = start_x + 17;
 		const int32_t start_y = base_y + 1;
-		const int32_t end_y = height - 7; // :295, D3
+		const int32_t end_y = height - 7; // canvas-absolute in legacy
 		constexpr int32_t dot_interval = 5;
 
 		for (int32_t x = start_x + 1; x < end_x; x += dot_interval) {
@@ -335,7 +332,7 @@ void renderMenuItems(Canvas& image, std::span<const Item> items, int32_t current
 	}
 }
 
-/// `HorizontalMenu::renderOLED` (horizontal_menu.cpp:109-135), the three drawing calls of it.
+/// `HorizontalMenu::renderOLED`, the three drawing calls of it.
 void renderOLED(Canvas& image, const char* title, std::span<const Item> page, int32_t current, int32_t visible_page,
                 int32_t total_pages, int32_t width, int32_t height, int32_t topmost, bool full_inversion,
                 bool rounded) {
@@ -404,7 +401,7 @@ struct Page {
 	}
 };
 
-/// The task brief's scene: FREQ (knob at 0.5), RES (bar at 0.25), MODE (the enum text "12dB")
+/// A representative scene: FREQ (knob at 0.5), RES (bar at 0.25), MODE (the enum text "12dB")
 /// and MORPH (a submenu arrow), focused on FREQ.
 std::vector<legacy::Item> four_columns() {
 	return {
@@ -445,10 +442,10 @@ describe columns_w("ui::oled::columns", $ {
 	});
 
 	it("puts the label row at the legacy base_y + box_height - label_height", _ {
-		// horizontal_menu.cpp:216, :226-228 -- base_y 14 (+ the panel's 5 hidden rows), a 25px
-		// box, a 9px label at its bottom: canvas rows 35..43, which is the brief's
-		// 5 + 14 + 25 - 9. The focused column's label box is inverted (:274), so its background
-		// pixels are the ones that light up, and they stop exactly at the row boundaries.
+		// base_y 14 (+ the panel's 5 hidden rows), a 25px box, a 9px label at its bottom: canvas
+		// rows 35..43, i.e. 5 + 14 + 25 - 9. The focused column's label box is inverted, so its
+		// background pixels are the ones that light up, and they stop exactly at the row
+		// boundaries.
 		uitest::Rig48 r;
 		Page p{four_columns()};
 		ColumnsState state{};
@@ -459,9 +456,9 @@ describe columns_w("ui::oled::columns", $ {
 		expect(r.lit(2, 43)).to_be_true();  // last row
 		expect(r.lit(2, 44)).to_be_false(); // one row below
 
-		// The inversion is `invertAreaRounded(current_x + 1, box_width - 3, ...)` (:274): it
-		// starts one pixel in from the column's left edge and is three pixels narrower than the
-		// box, with the corners rounded back off (style.rounded).
+		// The inversion is `invertAreaRounded(current_x + 1, box_width - 3, ...)`: it starts one
+		// pixel in from the column's left edge and is three pixels narrower than the box, with
+		// the corners rounded back off (style.rounded).
 		expect(r.lit(0, 39)).to_be_false();  // outside the inverted box
 		expect(r.lit(1, 39)).to_be_true();   // its left edge, mid-height
 		expect(r.lit(29, 39)).to_be_true();  // its right edge: 1 + (32 - 3) - 1
@@ -508,7 +505,7 @@ describe columns_w("ui::oled::columns", $ {
 		expect(stuck.changed).to_be_false();
 		expect(static_cast<int32_t>(at_start.focused)).to_equal(0);
 
-		// An irrelevant column is stepped over, not landed on (horizontal_menu.cpp:223, :253).
+		// An irrelevant column is stepped over, not landed on.
 		std::vector<legacy::Item> with_gap = four_columns();
 		with_gap[1].relevant = false;
 		uitest::Rig48 r3;
@@ -520,8 +517,8 @@ describe columns_w("ui::oled::columns", $ {
 	});
 
 	it("draws an irrelevant column as the legacy dash", _ {
-		// horizontal_menu.cpp:253-257 -- the FIXED layout's disabled slot: a dash in the title
-		// face, centred across the whole box.
+		// The FIXED layout's disabled slot: a dash in the title face, centred across the whole
+		// box.
 		std::vector<legacy::Item> with_gap = four_columns();
 		with_gap[1].relevant = false;
 		uitest::Rig48 r;
@@ -535,7 +532,7 @@ describe columns_w("ui::oled::columns", $ {
 		six.push_back(legacy::Item{.label = "DRIVE", .kind = legacy::Item::BAR, .norm = 0.75f});
 		six.push_back(legacy::Item{.label = "MIX", .kind = legacy::Item::TOGGLE, .on = true});
 
-		// Four one-slot columns fill a page (horizontal_menu.cpp:504), so this is two pages.
+		// Four one-slot columns fill a page, so this is two pages.
 		Page p{six};
 		expect(static_cast<int32_t>(paging_of(p.span(), 0).total_pages)).to_equal(2);
 		expect(static_cast<int32_t>(paging_of(p.span(), 0).page)).to_equal(0);
@@ -548,8 +545,8 @@ describe columns_w("ui::oled::columns", $ {
 		matches_legacy(self, r, p, state, 0, 4, 2, "FILTER");
 		expect_golden(self, "../ui/widgets/columns_paged_48.pbm", r.pbm());
 
-		// renderPageCounters (:178-201): "1/2" in the top right, the digits at canvas rows
-		// 6..14 and the separator a slanted two-pixel line from (116, 13) to (118, 7).
+		// renderPageCounters: "1/2" in the top right, the digits at canvas rows 6..14 and the
+		// separator a slanted two-pixel line from (116, 13) to (118, 7).
 		bool any_in_band = false;
 		for (int32_t x = 110; x < 128; x++) {
 			for (int32_t y = 6; y < 15; y++) {
@@ -561,7 +558,7 @@ describe columns_w("ui::oled::columns", $ {
 		expect(r.lit(118, 7)).to_be_true();  // its top end, y + 1
 		expect(r.lit(117, 10)).to_be_true(); // and the middle of the run between them
 
-		// A single page draws no counters at all (:179-181).
+		// A single page draws no counters at all.
 		uitest::Rig48 unpaged;
 		Page p4{four_columns()};
 		ColumnsState s4{};
@@ -591,7 +588,7 @@ describe columns_w("ui::oled::columns", $ {
 		expect(static_cast<int32_t>(paging_of(p.span(), state.focused).focused_on_page)).to_equal(0);
 
 		// The second page holds two columns, and the two empty slots get the legacy dotted
-		// placeholder frames (:290-306).
+		// placeholder frames.
 		legacy::renderOLED(r.reference, "FILTER", p.page(4, 6), 0, 1, 2, 128, 48, r.frame.origin.y,
 		                   r.style.invert_highlight, r.style.rounded);
 		expect(r.pbm()).to_equal(r.reference_pbm());
@@ -599,15 +596,15 @@ describe columns_w("ui::oled::columns", $ {
 	});
 
 	it("highlights the whole slot for a submenu or an unlabelled column", _ {
-		// horizontal_menu.cpp:271-274 -- a submenu column (or one with no label) inverts the
-		// whole 25px box from base_y - 1, not just the label row.
+		// A submenu column (or one with no label) inverts the whole 25px box from base_y - 1,
+		// not just the label row.
 		uitest::Rig48 r;
 		Page p{four_columns()};
 		ColumnsState state{.focused = 3};
 		matches_legacy(self, r, p, state, 0, 4, 1, nullptr);
 		// The box is `invertAreaRounded(current_x + 1, box_width - 3, base_y - 1, base_y + 24)`,
 		// i.e. canvas x 97..125 and rows 18..43, with the four corner pixels cleared back off by
-		// the SMALL radius (gfx/oled/canvas.cpp:693-699).
+		// the SMALL radius.
 		expect(r.lit(98, 18)).to_be_true();  // canvas base_y - 1 == 5 + 14 - 1, its first row
 		expect(r.lit(98, 43)).to_be_true();  // its last row, base_y + 25 - 1
 		expect(r.lit(98, 44)).to_be_false();
@@ -624,7 +621,7 @@ describe columns_w("ui::oled::columns", $ {
 	});
 
 	it("draws the underline highlight when invert_highlight is off", _ {
-		// horizontal_menu.cpp:278-282, the PARTIAL_INVERSION / NO_INVERSION arm.
+		// The PARTIAL_INVERSION / NO_INVERSION arm.
 		uitest::Rig48 r;
 		Style plain = kDelugeStyle48;
 		plain.invert_highlight = false;
@@ -644,8 +641,8 @@ describe columns_w("ui::oled::columns", $ {
 	});
 
 	it("gives a multi-slot column the legacy side ticks", _ {
-		// horizontal_menu.cpp:622-627 -- a wide, unfocused, non-submenu column gets a rule
-		// either side of its label. The focused one does not.
+		// A wide, unfocused, non-submenu column gets a rule either side of its label. The
+		// focused one does not.
 		std::vector<legacy::Item> wide = {
 		    legacy::Item{.label = "OSC", .kind = legacy::Item::KNOB, .norm = 0.5f},
 		    legacy::Item{.label = "WAVEFORM", .kind = legacy::Item::ENUM, .text = "SQUARE", .slots = 2},
@@ -665,10 +662,10 @@ describe columns_w("ui::oled::columns", $ {
 	});
 
 	it("keeps the knob arc and the toggle switch, which draw one row above the value box", _ {
-		// number.cpp:129 and toggle.cpp:62 both blit a 16-row icon at `slot.start_y - 1`, which
-		// is one row above the region `Column::render` is given. OledFrame's icon primitive is
-		// all-or-nothing against the clip (frame.h:44-48), so a region clipped tight to the
-		// value box would draw neither icon at all.
+		// Legacy's drawKnob and Toggle::renderInHorizontalMenu both blit a 16-row icon at
+		// `slot.start_y - 1`, which is one row above the region `Column::render` is given.
+		// OledFrame's icon primitive is all-or-nothing against the clip, so a region clipped
+		// tight to the value box would draw neither icon at all.
 		std::vector<legacy::Item> icons_only = {
 		    legacy::Item{.label = "FREQ", .kind = legacy::Item::KNOB, .norm = 0.5f},
 		    legacy::Item{.label = "MIX", .kind = legacy::Item::TOGGLE, .on = true},
@@ -719,9 +716,8 @@ describe columns_w("ui::oled::columns", $ {
 	});
 
 	it("shortens a two-word title only when the page counters need the room", _ {
-		// horizontal_menu.cpp:137-176. "MODULATION MATRIX" is wider than 128 - (6 * 2 + 10), so
-		// a paged menu draws it as "M. MATRIX"; unpaged, it is drawn whole. A three-word title
-		// is never shortened.
+		// "MODULATION MATRIX" is wider than 128 - (6 * 2 + 10), so a paged menu draws it as
+		// "M. MATRIX"; unpaged, it is drawn whole. A three-word title is never shortened.
 		const auto both_ways = [&](const char* title, bool paged) {
 			uitest::Rig48 r;
 			title_paged(r.frame, title, paged);
@@ -741,7 +737,7 @@ describe columns_w("ui::oled::columns", $ {
 		title_paged(whole.frame, "MODULATION MATRIX", false);
 		expect(shortened.pbm() == whole.pbm()).to_be_false();
 
-		// And no separator rule is drawn (:175 passes false), unlike a plain menu title.
+		// And no separator rule is drawn, unlike a plain menu title.
 		bool rule = false;
 		for (int32_t x = 0; x < 128; x++) {
 			rule = rule || whole.lit(x, 17); // kTitleSeparatorY + the panel's hidden rows
@@ -750,10 +746,9 @@ describe columns_w("ui::oled::columns", $ {
 	});
 
 	it("still draws the title and four placeholder frames for an empty span", _ {
-		// renderOLED (horizontal_menu.cpp:130-132) calls all three renderers unconditionally, and
-		// renderMenuItems with no items falls straight through to the placeholder loop
-		// (:290-306) with current_x == 0 -- four dotted frames under the title. totalPages is 0
-		// (:537-539), so renderPageCounters draws nothing (:179-181).
+		// renderOLED calls all three renderers unconditionally, and renderMenuItems with no items
+		// falls straight through to the placeholder loop with current_x == 0 -- four dotted
+		// frames under the title. totalPages is 0, so renderPageCounters draws nothing.
 		uitest::Rig48 r;
 		ColumnsState state{};
 		const Response resp = columns(r.frame, r.frame.bounds(), state, std::span<const Column>{}, "FILTER");

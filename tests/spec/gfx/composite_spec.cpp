@@ -36,7 +36,7 @@ PadGrid make_overlay() {
 // clang-format off
 describe grid_composite("gfx::grid::composite", $ {
 	it("Replace: a black overlay pad leaves the base showing through, any other colour overwrites", _ {
-		// layer.rs:91-93, adapted (composite.h): the SDK's Replace overwrites every non-`None`
+		// layer.rs, adapted (composite.h): the SDK's Replace overwrites every non-`None`
 		// overlay cell unconditionally; PadGrid has no `None`, so a black overlay pad stands in
 		// for "nothing was painted here" and is the one cell Replace leaves alone.
 		const PadGrid base = make_base();
@@ -49,7 +49,7 @@ describe grid_composite("gfx::grid::composite", $ {
 		expect(out.at(1, 1)).to_equal(RGB{128, 64, 32});
 	});
 	it("Overlay: the overlay wins only where the base is currently black", _ {
-		// layer.rs:94-99 verbatim: `if dst_cell == BLACK { dst = Some(src) }` -- a non-black base
+		// layer.rs verbatim: `if dst_cell == BLACK { dst = Some(src) }` -- a non-black base
 		// pad is kept regardless of what the overlay holds there, even a non-black overlay colour.
 		const PadGrid base = make_base();
 		const PadGrid overlay = make_overlay();
@@ -62,7 +62,7 @@ describe grid_composite("gfx::grid::composite", $ {
 		                                                    // even though the overlay has a colour
 	});
 	it("Tint: each channel is base * overlay / 255, truncating", _ {
-		// layer.rs:100-106 verbatim: `((dst.c as u16 * src.c as u16) / 255) as u8` -- integer
+		// layer.rs verbatim: `((dst.c as u16 * src.c as u16) / 255) as u8` -- integer
 		// division, no rounding. Hand-computed:
 		//   (0,0): {10,20,30} * {0,0,0}     / 255 = {0,0,0}          (overlay black kills it)
 		//   (1,0): {0,0,0}    * {111,222,33}/ 255 = {0,0,0}          (base black kills it)

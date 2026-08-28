@@ -23,12 +23,12 @@ bool occupied(OccupancyMask mask, const PadGrid& g, uint8_t x, uint8_t y) {
 	return is_lit(g.at(x, y));
 }
 
-/// Port of `drawSquare` (src/deluge/util/functions.h:337-357), which every pad_leds.cpp animation
-/// that accumulates several source pads into one destination pad goes through.
+/// Port of legacy `drawSquare`, which every animation that accumulates several source pads into
+/// one destination pad goes through.
 ///
-/// Legacy's fifth parameter, `occupancyFromWhichColourCame`, is dropped: its only use is commented
-/// out at functions.h:339 (`modifiedIntensity = intensity` unconditionally), so it has no effect on
-/// the result. The occupancy the callers *do* need is the running destination mask, which stays.
+/// Legacy's fifth parameter, `occupancyFromWhichColourCame`, is dropped: legacy's own use of it is
+/// dead (it unconditionally leaves the intensity unchanged), so it has no effect on the result.
+/// The occupancy the callers *do* need is the running destination mask, which stays.
 RGB draw_square(RGB square_colour, int32_t intensity, RGB square, uint8_t* occupancy_mask) {
 	int32_t modified_intensity = intensity;
 	int32_t colour_remaining_amount = 65536;
@@ -45,7 +45,7 @@ RGB draw_square(RGB square_colour, int32_t intensity, RGB square, uint8_t* occup
 	                   static_cast<uint32_t>(modified_intensity));
 }
 
-/// The SDK's `get_source_color` (smear_scroll.rs:79-98), on the main columns of a `PadGrid` pair.
+/// Port of the SDK's `get_source_color`, restricted to the main columns of a `PadGrid` pair.
 RGB smear_sample_col(const PadGrid& from, const PadGrid& incoming, int32_t x, uint8_t y, int32_t main) {
 	if (x >= 0 && x < main) {
 		return from.at(static_cast<uint8_t>(x), y);
@@ -160,7 +160,7 @@ void smear_scroll_horizontal(const PadGrid& from, const PadGrid& incoming, int32
 	offset_px_16 = std::clamp<int32_t>(offset_px_16, -main * 65536, main * 65536);
 	for (uint8_t y = 0; y < d.rows; y++) {
 		for (uint8_t x = 0; x < d.main_cols; x++) {
-			// Arithmetic shift, i.e. floor -- `source_x.floor()` in smear_scroll.rs:64.
+			// Arithmetic shift, i.e. floor -- matches the SDK's floor semantics for the source position.
 			const int32_t source_16 = (static_cast<int32_t>(x) << 16) - offset_px_16;
 			const int32_t source = source_16 >> 16;
 			const uint16_t frac = static_cast<uint16_t>(source_16 & 0xFFFF);
@@ -198,9 +198,9 @@ void smear_scroll_vertical(const PadGrid& from, const PadGrid& incoming, int32_t
 
 namespace {
 
-/// Port of `renderZoomedSquare` (pad_leds.cpp:1338). Accumulates, into `output`, every source pad
-/// that the output square [`start`, `end`) covers on `source`'s row `y`, weighted by how much of
-/// the square each covers.
+/// Port of legacy `renderZoomedSquare`. Accumulates, into `output`, every source pad that the
+/// output square [`start`, `end`) covers on `source`'s row `y`, weighted by how much of the square
+/// each covers.
 void render_zoomed_square(int32_t start, int32_t end, uint32_t source_times_bigger, uint32_t source_fade,
                           uint32_t* output, const PadGrid& source, uint8_t y, int32_t source_width,
                           bool* drawing_anything) {
@@ -239,20 +239,19 @@ void zoom(const PadGrid& from, const PadGrid& to, ZoomParams params, PadGrid& ou
 	DELUGE_GFX_CONTRACT(out.dims() == d);
 	DELUGE_GFX_CONTRACT(params.old_zoom > 0 && params.new_zoom > 0);
 
-	// timeline_view.cpp:322-323: `zoomingIn` is "the new zoom level is finer", and PadLEDs'
-	// `zoomMagnitude` is the absolute log2 step (the local one is signed; that line negates it
-	// when zooming in). Zoom levels are ticks-per-square and always differ by a power of two, so
-	// the bit-width difference is that log2 step.
+	// `zoomingIn` is "the new zoom level is finer". Legacy's `zoomMagnitude` is the absolute log2
+	// step; zoom levels are ticks-per-square and always differ by a power of two, so the bit-width
+	// difference computed here is that same log2 step.
 	const bool zooming_in = params.new_zoom < params.old_zoom;
 	const int32_t zoom_magnitude =
 	    std::abs(static_cast<int32_t>(std::bit_width(static_cast<uint32_t>(params.new_zoom)))
 	             - static_cast<int32_t>(std::bit_width(static_cast<uint32_t>(params.old_zoom))));
 	// `coarse` below reaches -2^(magnitude - 1), so `increase_magnitude(x, coarse - 14)` shifts
 	// right by 2^(magnitude - 1) + 14 -- 30 at magnitude 5, past the operand width at 6. See the
-	// note on kMaxZoomMagnitude in tween.h: legacy survives this only on ARM's shift-masking.
+	// note on kMaxZoomMagnitude in tween.h for why that bounds the magnitude.
 	DELUGE_GFX_CONTRACT(zoom_magnitude <= kMaxZoomMagnitude);
 
-	// --- renderZoom (pad_leds.cpp:1173-1210) -------------------------------------------------
+	// --- renderZoom -----------------------------------------------------------------------
 	int32_t transition_progress = params.t;
 	if (!zooming_in) {
 		transition_progress = 65536 - transition_progress;
@@ -268,7 +267,7 @@ void zoom(const PadGrid& from, const PadGrid& to, ZoomParams params, PadGrid& ou
 	int32_t in_image_times_bigger = interpolate_table(static_cast<uint32_t>(fine), 10, kExpTableSmall);
 	in_image_times_bigger = increase_magnitude(in_image_times_bigger, coarse - 14);
 
-	// --- renderZoomWithProgress (pad_leds.cpp:1216-1336) --------------------------------------
+	// --- renderZoomWithProgress -------------------------------------------------------------
 	const PadGrid& inner = zooming_in ? to : from;
 	const PadGrid& outer = zooming_in ? from : to;
 	const int32_t pin_inner = zooming_in ? params.pin_square_to : params.pin_square_from;
@@ -359,19 +358,17 @@ void explode(const PadGrid& from, ExplodeParams params, PadGrid& out) {
 	DELUGE_GFX_CONTRACT(std::has_single_bit(static_cast<uint32_t>(d.main_cols)));
 	const int32_t width_magnitude = std::countr_zero(static_cast<uint32_t>(d.main_cols));
 
-	// pad_leds.cpp:956-957.
 	const int32_t explodedness =
 	    params.implode ? (65536 - static_cast<int32_t>(params.t)) : static_cast<int32_t>(params.t);
 
-	out.clear(); // legacy memsets both `image` and `occupancyMask` (pad_leds.cpp:646-647)
+	out.clear(); // matches legacy's clearing of both the image and its occupancy mask
 	uint8_t occupancy[kMaxGridRows][kMaxGridCols];
 	std::memset(occupancy, 0, sizeof(occupancy));
 
 	const int32_t main = d.main_cols;
-	// Legacy leaves these uninitialised for the columns its xStart/xEnd narrowing excludes
-	// (pad_leds.cpp:672-678, quirk 3 of the report). Those entries are provably never read -- the
-	// bounds exclude exactly them -- so zeroing is observationally identical and costs nothing but
-	// removes the stack-garbage hazard a sanitiser would rightly flag.
+	// These entries are never read -- the xStart/xEnd narrowing below excludes exactly the columns
+	// that would leave them unset -- so zeroing is observationally identical to leaving them
+	// uninitialised, but removes the stack-garbage hazard a sanitiser would rightly flag.
 	int32_t x_dest_array[kMaxGridCols] = {};
 	uint16_t x_intensity_array[kMaxGridCols][2] = {};
 	int32_t x_start = 0;
@@ -464,13 +461,13 @@ void expand_collapse(const PadGrid& from, const PadGrid& to, ExpandCollapseParam
 	DELUGE_GFX_CONTRACT(params.from_occupancy.empty() || params.from_occupancy.size() == d.cols());
 	DELUGE_GFX_CONTRACT(params.to_occupancy.empty() || params.to_occupancy.size() == d.cols());
 
-	// Legacy's `progress` is expandedness; each caller flips it for a collapse (pad_leds.cpp:1096
-	// and :1163). `t` runs forwards, so the flip lives here.
+	// Legacy's `progress` is expandedness; each caller flips it for a collapse. `t` runs forwards,
+	// so the flip lives here.
 	const int32_t progress =
 	    params.collapsing ? (65536 - static_cast<int32_t>(params.t)) : static_cast<int32_t>(params.t);
 
 	// The destination frame plays the part of legacy's freshly-cleared `image` plus the Session
-	// pads it drew into it; an occupied pad there starts at full occupancy (pad_leds.cpp:354).
+	// pads it drew into it; an occupied pad there starts at full occupancy.
 	uint8_t occupancy[kMaxGridRows][kMaxGridCols];
 	std::memset(occupancy, 0, sizeof(occupancy));
 	for (uint8_t y = 0; y < d.rows; y++) {
@@ -480,7 +477,6 @@ void expand_collapse(const PadGrid& from, const PadGrid& to, ExpandCollapseParam
 		}
 	}
 
-	// pad_leds.cpp:365-372.
 	uint16_t intensity1_array[kMaxGridRows];
 	uint16_t intensity2_array[kMaxGridRows];
 	int8_t new_row_position1_array[kMaxGridRows];

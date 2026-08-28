@@ -1,7 +1,7 @@
 #pragma once
 
-/// Runtime contract checks for the leaf drawing libraries (`src/gfx`, and anything else that may
-/// only include the standard library).
+/// @brief Runtime contract check for the leaf drawing libraries (`src/gfx`, and anything else that
+///        may only include the standard library): traps immediately if @p cond is false.
 ///
 /// Why not `assert`: the libraries' only contract checks used to be `assert()`, which `-DNDEBUG`
 /// compiles out. Every shipped build defines `NDEBUG`, so on the device the checks did not exist —
@@ -26,8 +26,11 @@
 /// precondition whose alternative is silent memory corruption: a trap at the violating frame is
 /// far easier to debug (the PC and backtrace are exact) than a heap smash discovered later.
 ///
-/// Do NOT use this for conditions a caller can legitimately produce at runtime — clipping,
-/// out-of-range values arriving from the model, a full queue. Those are return values.
+/// @param cond Condition that must hold. Traps immediately (never returns) if false.
+///
+/// @warning Do NOT use this for conditions a caller can legitimately produce at runtime --
+///          clipping, out-of-range values arriving from the model, a full queue. Those are
+///          return values, not contract violations.
 #define DELUGE_GFX_CONTRACT(cond)                                                                                      \
 	do {                                                                                                               \
 		if (!(cond)) {                                                                                                 \

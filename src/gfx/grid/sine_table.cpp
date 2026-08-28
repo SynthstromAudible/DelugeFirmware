@@ -2,7 +2,7 @@
 
 namespace deluge::gfx::grid {
 
-// Verbatim copy of util::sineWaveSmall (src/deluge/util/lookuptables/lookuptables.cpp:94).
+// Mirrors the audio DSP's `sineWaveSmall`; see the note on kSineWaveSmall in sine_table.h.
 const int16_t kSineWaveSmall[257] = {
     0,      804,    1608,   2410,   3212,   4011,   4808,   5602,   6393,   7179,   7962,   8739,   9512,   10278,
     11039,  11793,  12539,  13279,  14010,  14732,  15446,  16151,  16846,  17530,  18204,  18868,  19519,  20159,

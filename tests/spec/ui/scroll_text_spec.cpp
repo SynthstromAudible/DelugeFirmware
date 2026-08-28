@@ -31,7 +31,7 @@ describe scroll_text_w("ui::oled::scroll_text", $ {
 	it("arms the legacy kScrollTime pause before the first pixel step, then steps one pixel per interval and ping-pongs (review I1)", _ {
 		uitest::Rig48 r; ScrollText st;
 		const char* s = "A VERY LONG LABEL THAT DOES NOT FIT ON THE PANEL";
-		r.input.now_ms = 0;            scroll_text(r.frame, Rect{6, 14, 122, 9}, s, FontId::Apple7, st);   // arms the initial pause, legacy oled.cpp:913-914
+		r.input.now_ms = 0;            scroll_text(r.frame, Rect{6, 14, 122, 9}, s, FontId::Apple7, st);   // arms the initial pause, matching legacy timing
 		expect(*r.gate.next_deadline()).to_equal(uint32_t(kScrollTime));
 		expect(st.offset).to_equal(int16_t(0));                   // still sitting still during the pause
 		r.input.now_ms = kScrollTime;  scroll_text(r.frame, Rect{6, 14, 122, 9}, s, FontId::Apple7, st);   // pause elapsed: first pixel step
@@ -77,8 +77,8 @@ describe scroll_text_w("ui::oled::scroll_text", $ {
 		// Mirrors every scroll_text call onto a second canvas via the same raw Canvas calls
 		// scroll_text itself makes (clear_area_exact + draw_string), rather than one isolated
 		// reference draw at the end: draw_string's end_x is only a *bail-out* bound -- the last
-		// visible character's glyph can overshoot it by up to one more character width
-		// (canvas.h:159-160) -- and a fixed-size clear_area_exact never reaches that overshoot
+		// visible character's glyph can overshoot it by up to one more character width -- and a
+		// fixed-size clear_area_exact never reaches that overshoot
 		// band, so residual ink from an earlier call's overshoot at a different scroll_pos can
 		// persist there across steps. That ghosting is a real, legacy-identical property of
 		// repeatedly re-rendering a scroller with Canvas::draw_string/clear_area_exact, not a
@@ -98,7 +98,7 @@ describe scroll_text_w("ui::oled::scroll_text", $ {
 		// Unclipped, the still-scrolling label would keep inking columns well past rect.right()
 		// (the string is far longer than the 100px box); confirm nothing lands there, at a
 		// column safely past even draw_string's documented end_x + text_width overshoot
-		// allowance (canvas.h:159-160: up to one more character width, 6px here).
+		// allowance (up to one more character width, 6px here).
 		for (int y = 19; y <= 27; y++) {
 			expect(r.lit(120, y)).to_be_false();
 		}

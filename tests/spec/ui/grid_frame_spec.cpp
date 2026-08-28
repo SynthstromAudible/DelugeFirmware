@@ -22,8 +22,8 @@ describe grid_frame("ui::grid::GridFrame", $ {
 		expect(a.pressed).to_be_true(); expect(a.velocity).to_equal(uint8_t(100));
 		expect(b.pressed).to_be_false();
 		expect(r.grid.at(3, 5)).to_equal(RGB{255, 0, 0});
-		// `!= 0` added to the brief's `expect(dirty_rows() & (1u << 5)).to_be_true()`: cppspec's
-		// to_be_true() static_asserts on `bool`, and the masked uint32_t is not one.
+		// cppspec's to_be_true() static_asserts on `bool`, and the masked uint32_t is not one,
+		// hence the `!= 0`.
 		expect((r.grid.dirty_rows() & (1u << 5)) != 0).to_be_true();
 	});
 	it("routes events to exactly one region and translates them", _ {
@@ -201,9 +201,9 @@ describe grid_frame("ui::grid::GridFrame", $ {
 		expect(r.frame.first_press_in(Rect{0, 0, 2, 8}).has_value()).to_be_false();
 		expect(r.frame.first_press_in(Rect{40, 0, 4, 8}).has_value()).to_be_false();
 	});
-	// interact(): task-6 port of the SDK's Frame::interact (imode.rs:315-343). Fix round 1: walks
-	// every matching event like pad() does (no break) -- pressed/released accumulate independently
-	// and velocity/index follow "last matching event wins", not the first-wins of the original cut.
+	// interact(): a port of the SDK's Frame::interact. Walks every matching event like pad() does
+	// (no break) -- pressed/released accumulate independently, and velocity/index follow "last
+	// matching event wins", not first-wins.
 	it("reports a miss as a default Response", _ {
 		uitest::GridRig r;
 		Response miss = r.frame.interact(Rect{4, 0, 4, 2});
@@ -225,8 +225,8 @@ describe grid_frame("ui::grid::GridFrame", $ {
 	it("reports the last matching press's velocity and index when two presses fall inside it", _ {
 		uitest::GridRig r;
 		// Both land inside {0,0,8,8}; local_events() preserves ctx.input.pads order and the loop
-		// does not break, so the *second* (1,1) wins for velocity/index, per the ruling's
-		// "two presses -> index of the second".
+		// does not break, so the *second* (1,1) wins for velocity/index: two presses -> index of
+		// the second.
 		PadEvent ev[] = {{5, 5, 20, true}, {1, 1, 90, true}};
 		r.input.pads = ev;
 		Response last = r.frame.interact(Rect{0, 0, 8, 8});

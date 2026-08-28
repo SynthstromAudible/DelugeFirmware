@@ -2,7 +2,10 @@
 #include "gfx/grid/pad_grid.h"
 #include <string>
 
-/// deluge-sdk headless `.state` format: one `pad x y r g b` line per non-black pad.
+/// @brief Serialize a PadGrid to the deluge-sdk headless `.state` format.
+///
+/// @param g The grid to serialize.
+/// @return One `pad x y r g b` line per non-black pad.
 inline std::string grid_to_state(const deluge::gfx::grid::PadGrid& g) {
 	std::string out;
 	for (uint8_t y = 0; y < g.dims().rows; y++) {

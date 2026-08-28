@@ -37,12 +37,18 @@ extern const Icon sampleModeStretch;
 extern const Icon keyboard;
 extern const Icon crossedOutKeyboard;
 
-// Menu-row icons, ported from the legacy OLED::checkedBoxIcon / uncheckedBoxIcon /
-// submenuArrowIcon (src/deluge/hid/display/oled_icons.cpp:130-157). 7 columns wide, which is
-// exactly the kSubmenuIconSpacingX the legacy submenu renderer blits them at.
+/// @{
+/// @name Menu-row icons
+///
+/// 7 columns wide -- exactly the kSubmenuIconSpacingX the submenu renderer blits them at.
+/// @note Legacy icon `checkedBoxIcon`.
 extern const Icon checkedBox;
+/// @note Legacy icon `uncheckedBoxIcon`.
 extern const Icon uncheckedBox;
+/// @note Legacy icon `submenuArrowIcon`.
 extern const Icon submenuArrow;
-/// The bolder chevron the *horizontal* menu draws for a submenu slot (submenu.cpp:55).
+/// @brief The bolder chevron the *horizontal* menu draws for a submenu slot.
+/// @note Legacy icon `submenuArrowIconBold`.
 extern const Icon submenuArrowBold;
+/// @}
 } // namespace deluge::gfx::oled::icons

@@ -94,8 +94,8 @@ bool Arrangement::endPlayback() {
 	// Some Clips might have been reset to "disabled", so need their mute-square redrawn if we're actually viewing the
 	// session view
 
-	// Main rows too: legacy went through SessionView::requestRendering(), which upgrades to
-	// main + sidebar in grid session layout, where the clip pads *are* main pads.
+	// Main rows too: in grid session layout the clip pads are the main pads, so both need
+	// invalidating together.
 	deluge::notify::raise(deluge::notify::Dirty::GridMain);
 	deluge::notify::raise(deluge::notify::Dirty::GridSidebar);
 

@@ -274,7 +274,7 @@ describe tween("gfx::grid tweens", $ {
 				PadGrid out(kDelugeGrid);
 				zoom(from, to, ZoomParams{c.old_zoom, c.new_zoom, pin, pin, static_cast<uint16_t>(t)}, out);
 
-				// timeline_view.cpp:316-325: the more-zoomed-in frame is the inner one.
+				// timeline_view.cpp: the more-zoomed-in frame is the inner one.
 				grid_to_image(c.zooming_in ? to : from, inner_image);
 				grid_to_image(c.zooming_in ? from : to, outer_image);
 				RGB image[8][18];
@@ -289,7 +289,7 @@ describe tween("gfx::grid tweens", $ {
 	});
 
 	// The oracle compares above all pass `pin_square_from == pin_square_to`, which is the case
-	// legacy's two `#define`s (:1238-1239) alias to one array -- so the one thing this port adds
+	// legacy's two `#define`s alias to one array -- so the one thing this port adds
 	// over legacy, three independently addressable pin roles, would otherwise have no coverage.
 	it("zoom's two pin squares are independent, and agreeing is the legacy case", _ {
 		PadGrid from = make_test_grid(3), to = make_test_grid(4);
@@ -345,7 +345,7 @@ describe tween("gfx::grid tweens", $ {
 				explode(src, ExplodeParams{origin_x_big, origin_y_big, width_big, implode, static_cast<uint16_t>(t)},
 				        out);
 
-				// pad_leds.cpp:956-957.
+				// pad_leds.cpp: explodedness flips for an implode.
 				const int32_t explodedness = implode ? (65536 - t) : t;
 				RGB image[8][18];
 				legacy::renderExplodeAnimation(store, occ_store, explodedness, origin_x_big, width_big, origin_y_big,
@@ -379,7 +379,7 @@ describe tween("gfx::grid tweens", $ {
 						going_to[i] = row_to;
 					}
 					// Legacy's `progress` is expandedness, so each caller flips it for a collapse
-					// (pad_leds.cpp:1096, :1163).
+					// (pad_leds.cpp).
 					const int32_t progress = collapsing ? (65536 - t) : t;
 					RGB image[8][18];
 					grid_to_image(dest, image);
@@ -392,8 +392,8 @@ describe tween("gfx::grid tweens", $ {
 		}
 	});
 
-	// I1: the third legacy caller. `renderNoteRowExpandOrCollapse` sets `animatedRowGoingTo[i]`
-	// per note row (`instrument_clip_view.cpp:5781`), which the scalar `row_to` cannot express.
+	// The third legacy caller: `renderNoteRowExpandOrCollapse` sets `animatedRowGoingTo[i]`
+	// per note row (`instrument_clip_view.cpp`), which the scalar `row_to` cannot express.
 	it("expand_collapse follows per-row destinations, as renderNoteRowExpandOrCollapse needs", _ {
 		PadGrid src = make_test_grid(2), dest = make_test_grid(7);
 		RGB store[8][18];
@@ -440,7 +440,7 @@ describe tween("gfx::grid tweens", $ {
 		expect(grid_to_state(per_row) == grid_to_state(scalar)).to_be_false();
 	});
 
-	// I2: `View::renderMacros` (view.cpp:2805-2828) paints an armed clip's macro pad black on the
+	// `View::renderMacros` (view.cpp) paints an armed clip's macro pad black on the
 	// flash-off frame and sets its occupancy anyway, and that column reaches `occupancyMaskStore`
 	// through both animation paths ported here. Legacy blends that black in; the "non-black is
 	// occupied" default cannot, which is exactly why the mask is an input.

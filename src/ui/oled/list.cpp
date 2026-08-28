@@ -12,29 +12,22 @@ using gfx::oled::Rect;
 
 namespace {
 
-/// Legacy `getSubmenuItemTypeRenderLength`'s "spacing before" (menu_item.h:275, 278): the gap
-/// kept between the label and whatever is rendered to its right, so the two never touch and the
-/// label still has room to scroll.
+// The gap kept between a label and whatever is rendered to its right (an icon or a value), so
+// the two never touch and the label still has room to scroll.
 constexpr int32_t kIconGapX = 4;
 
 } // namespace
 
 int32_t list_visible_rows(const OledFrame& f, Rect rect) {
-	// style.menu_rows is legacy's OLED_HEIGHT_CHARS - 1; the rect.h term is this layer's own
-	// bound, so a rect too short for that many rows cannot draw past its own bottom edge.
-	// style.row_height is the row pitch (kTextSpacingY on both shipped profiles, pinned by the
-	// static_asserts in ui/core/style.h), so a taller-rowed profile shows correspondingly fewer.
+	// rect.h / row_height bounds this to the rect's own height, so a rect too short for
+	// style.menu_rows rows cannot draw past its own bottom edge; a taller-rowed profile shows
+	// correspondingly fewer.
 	return std::clamp<int32_t>(rect.h / std::max<int32_t>(1, f.style.row_height), 1,
 	                           std::max<int32_t>(1, f.style.menu_rows));
 }
 
-/// `Selection::drawPixelsForOled`, selection.cpp:9-29: the index of the first visible row.
-///
-/// Ideally the cursor sits in the middle of the window (rounding down for even counts), but
-/// near either end of the list it cannot, so `pos` -- its offset within the window -- is pulled
-/// in. Note this is `Selection`'s form, not `Submenu`'s: `Submenu::drawPixelsForOled`
-/// (submenu.cpp:82-84) additionally re-tightens `tail` in the first branch, which only matters
-/// for a list shorter than the window, where both forms produce the same `cursor - pos` anyway.
+// The cursor ideally sits in the middle of the window (rounding down for even counts), but near
+// either end of the list it cannot, so `pos` -- its offset within the window -- is pulled in.
 int32_t list_window_start(int32_t cursor, int32_t n, int32_t visible) {
 	const int32_t before = std::max<int32_t>(0, cursor - visible); // earliest row that might show
 	const int32_t n_before = cursor - before;
@@ -55,10 +48,9 @@ int32_t list_window_start(int32_t cursor, int32_t n, int32_t visible) {
 
 namespace {
 
-/// `Submenu::selectEncoderAction`, submenu.cpp:132-176: walk `turn` detents, consuming one only
-/// when the row landed on is selectable (legacy: relevant), and revert to the last selectable
-/// row rather than wrapping when the walk runs off an end. With every row selectable this is
-/// exactly `clamp(cursor + turn, 0, n - 1)`.
+// Walk `turn` detents, consuming one only when the row landed on is selectable, and revert to
+// the last selectable row rather than wrapping when the walk runs off an end. With every row
+// selectable this is exactly `clamp(cursor + turn, 0, n - 1)`.
 int32_t move_cursor(int32_t cursor, int32_t turn, std::span<const ListRow> rows, int32_t n) {
 	int32_t last_ok = cursor;
 	while (turn > 0) {
@@ -85,9 +77,8 @@ int32_t move_cursor(int32_t cursor, int32_t turn, std::span<const ListRow> rows,
 } // namespace
 
 Rect menu_rect(const OledFrame& f) {
-	// menu_item.cpp:50 -- `(OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14`, now a profile value
-	// (`Style::menu_base_y`) rather than a read of the framebuffer's height. Frame-local, because
-	// the `+= OLED_MAIN_TOPMOST_PIXEL` on the next legacy line is already in the frame's origin.
+	// A profile value (style.menu_base_y) rather than derived from the framebuffer height; the
+	// rect is frame-local.
 	const int32_t base = f.style.menu_base_y;
 	const Rect b = f.bounds();
 	return Rect{b.x, base, b.w, b.h - base};
@@ -99,13 +90,12 @@ Response list(OledFrame& f, Rect rect, ListState& state, std::span<const ListRow
 	const int32_t n = static_cast<int32_t>(rows.size());
 	const int32_t visible = list_visible_rows(f, rect);
 
-	// Two-pass, count then draw (SDK menu.rs:346-415): `n` above is already the count of the
-	// span `list` was handed *this* frame, so the cursor clamps and walks against `n` directly --
-	// never against `state.rows_last`, which is last frame's count and would lag a shrinking or
-	// growing list by one frame. The two inputs this control owns are claimed on every focused
-	// frame rather than only on the frames a detent or a press arrives: ownership is a property
-	// of what is on screen, not of what the user did this millisecond (ui/core/frame_context.h
-	// rule 2).
+	// Two-pass: count then draw. `n` above is already the count of the span `list` was handed
+	// *this* frame, so the cursor clamps and walks against `n` directly -- never against
+	// `state.rows_last`, which is last frame's count and would lag a shrinking or growing list by
+	// one frame. The turn and select inputs are claimed on every focused frame rather than only on
+	// the frames a detent or a press arrives: ownership is a property of what is on screen, not of
+	// what the user did this millisecond.
 	int32_t cursor = std::clamp<int32_t>(state.cursor, 0, std::max<int32_t>(0, n - 1));
 	f.claim_turn();
 	f.claim_select();
@@ -132,22 +122,20 @@ Response list(OledFrame& f, Rect rect, ListState& state, std::span<const ListRow
 
 	const gfx::oled::FontId font = f.style.row_font;
 	const int32_t row_h = f.style.row_height;                       // kTextSpacingY, per style.h
-	const int32_t label_x = rect.x + f.style.inset_x;               // menu_item.cpp:58's kTextSpacingX
-	const int32_t icon_x = rect.right() - kSubmenuIconSpacingX - 3; // menu_item.h:280
+	const int32_t label_x = rect.x + f.style.inset_x;               // menu_item.cpp's kTextSpacingX
+	const int32_t icon_x = rect.right() - kSubmenuIconSpacingX - 3; // menu_item.h
 
 	for (int32_t o = 0; o < visible && start + o < n; o++) {
 		const ListRow& row = rows[start + o];
-		const int32_t y = rect.y + o * row_h; // menu_item.cpp:56
+		const int32_t y = rect.y + o * row_h; // menu_item.cpp
 		f.clear(Rect{rect.x, y, rect.w, row_h});
 
-		// menu_item.h:278 -- an icon costs the label `4 + kSubmenuIconSpacingX + 3` px.
+		// menu_item.h -- an icon costs the label `4 + kSubmenuIconSpacingX + 3` px.
 		int32_t content_end =
 		    row.icon != nullptr ? rect.right() - (kIconGapX + kSubmenuIconSpacingX + 3) : rect.right();
 		if (!row.value.empty()) {
-			// Right-aligned against the content edge, but never starting left of the label
-			// origin and never leaving the label box negative. Unlike everything around it
-			// this column has no legacy counterpart, so it gets an explicit bound rather than
-			// inheriting drawStringAlignRight's unbounded `rightPos - stringWidth`.
+			// Right-aligned against the content edge, clamped so it never starts left of the
+			// label origin or leaves the label box with negative width.
 			const int32_t value_w = measure(row.value, font).w;
 			if (content_end > label_x) {
 				f.glyphs(row.value, std::max<int32_t>(label_x, content_end - value_w), y, spacing_x_for(font),
@@ -159,33 +147,27 @@ Response list(OledFrame& f, Rect rect, ListState& state, std::span<const ListRow
 		const bool selected = start + o == cursor;
 		const Rect label_box{label_x, y, content_end - label_x, row_h};
 		if (selected) {
-			// setupSideScroller(0, name, kTextSpacingX, endX, yPixel, yPixel + 8, ..., true)
-			// -- menu_item.cpp:62 / submenu.cpp:124 -- collapsed into the draw, since this
-			// layer re-renders every frame instead of arming a timer. `highlight` stays false
-			// and the row inversion below covers the whole row: that is the order legacy's
-			// full redraw uses (drawString, then invertLeftEdgeForMenuHighlighting), and it is
-			// what keeps the rounded corners. Legacy's scroller-tick path inverts only its own
-			// box (oled.cpp:996-997), which erases the row's right-hand corners until the next
-			// full redraw; that transient is not reproduced. The +4 clear padding is legacy's
-			// non-inverting branch (oled.cpp:984-989).
+			// Collapsed into the draw itself, since this layer re-renders every frame instead of
+			// arming a timer. `highlight` stays false here and the row inversion below covers the
+			// whole row instead -- label first, then inversion, which is what keeps the rounded
+			// corners and matches a full redraw's order; the two-pixel mid-scroll transient an
+			// incremental redraw would leave is not reproduced. The +4 clear padding is for the
+			// non-inverting (left-edge-rule) branch.
 			scroll_text(f, label_box, row.label, font, scroll_label, allow_motion, false,
 			            f.style.invert_highlight ? 0 : kIconGapX);
 		}
 		else {
-			// menu_item.cpp:58 / submenu.cpp:114 -- drawString at kTextSpacingX, clipped to
-			// content_end.
+			// Drawn at label_x, clipped to content_end.
 			text(f, label_box, row.label, TextStyle{.font = font});
 		}
 		if (row.icon != nullptr) {
-			f.icon(*row.icon, icon_x, y); // menu_item.cpp:74 / selection.cpp:41-56
+			f.icon(*row.icon, icon_x, y);
 		}
 		if (!selected) {
 			continue;
 		}
-		// invertLeftEdgeForMenuHighlighting(0, width, yPixel, yPixel + 8), canvas.cpp:26-33:
-		// invertAreaRounded over the full row when inversion is on -- rounded per style.rounded,
-		// because legacy routes it through Canvas::invertAreaRounded(..., roundedCornersEnabled)
-		// (oled_canvas/canvas.h:136-138) -- otherwise just the rule down the left edge.
+		// Inverts the full row when inversion is on, rounded per style.rounded; otherwise just
+		// draws the rule down the left edge.
 		if (f.style.invert_highlight) {
 			f.invert_rounded(Rect{rect.x, y, rect.w, 9});
 		}

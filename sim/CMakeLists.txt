@@ -320,7 +320,7 @@ add_subdirectory(${REPO_ROOT}/src/OSLikeStuff ${CMAKE_BINARY_DIR}/scheduler) # d
 add_subdirectory(${REPO_ROOT}/src/deluge     ${CMAKE_BINARY_DIR}/app)        # deluge_app + deluge_dsp + generators
 
 # --- Rust core (crates/ workspace: deluge_rust umbrella = alloc + slab + resource,
-# + the region cursor (deluge_sample_source) under its `sim` feature, SR3a Task 1) -
+# + the region cursor (deluge_sample_source) under its `sim` feature) -
 # Build the umbrella as a host staticlib matching the sim's word size and link it
 # into the sim executables. The deluge_app allocator (heaps + the GMA coordinator)
 # is unconditionally backed by it; the legacy C++ MemoryRegion path has been retired.
@@ -351,7 +351,7 @@ file(GLOB_RECURSE SIM_RUST_SOURCES CONFIGURE_DEPENDS
 # Always build the Rust region cursor (deluge_sample_source, SR2d-5) into the umbrella so the sim
 # resolves the SAME strong `deluge_sample_source_*`/`deluge_sample_region_*` cursor as
 # device/host_app. Since SR3f deleted the C++ weak fallback (sample_source.cpp), the Rust cursor is
-# the sole definition of those symbols here (proved via nm on the sim binary; golden byte-identical).
+# the sole definition of those symbols here (proved via nm on the sim binary).
 # `deluge_rust/sim` forwards to `deluge_sample_source`'s own `sim` feature, which widens abi.rs's cfg
 # gate to actually emit the symbols (see that crate's Cargo.toml).
 # Under the ASan sim build, also turn on the allocator's poison hooks so use-after-free within a
@@ -394,7 +394,7 @@ add_dependencies(deluge_rust_sim sim_deluge_rust_build)
 # plain extraction never pulled the strong Rust override (empirically all 7 showed as `W` in `nm`).
 # WHOLE_ARCHIVE force-extracted the whole umbrella so strong/weak resolution could pick Rust. SR3f
 # deleted that mirror, so the symbols are genuinely undefined here and the workaround is no longer
-# needed (verified: `nm deluge_render` shows all 7 as `T`, golden byte-identical, without it).
+# needed (verified: `nm deluge_render` shows all 7 as `T` without it).
 set(SIM_ALLOC_LINK deluge_rust_sim pthread dl m)
 if(APPLE)
     # host_pcm.c's native CoreAudio (AudioQueue) audio backend.
@@ -460,9 +460,9 @@ endif()
 # parsed set and the range check's verdict and exits 0 before the app boots (host_main.c), so
 # each case below is one process run matched against its expected `display N:` lines.
 #
-# These run `deluge_host`, not `deluge_host_boundary`: that smoke target has not linked since
-# the host BSP grew host_link/host_debug dependencies its two source files do not provide
-# (pre-existing on `next` — deluge_platform_init -> host_link_init, main -> deluge_main).
+# These run `deluge_host`, not `deluge_host_boundary`: that smoke target does not link, since
+# the host BSP grew host_link/host_debug dependencies (deluge_platform_init -> host_link_init,
+# main -> deluge_main) that its two source files do not provide.
 enable_testing()
 
 # add_test(name env-spec expected-block) — one run of `deluge_host --board-info` with

@@ -3199,9 +3199,7 @@ void ArrangerView::refresh_held_row_mod_target() {
 	// currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION guarantees yPressedEffective is a
 	// valid row index into outputsOnScreen (set alongside entering this mode, clamped to range) --
 	// same invariant every other unguarded outputsOnScreen[yPressedEffective] access in this file
-	// relies on. The old code's `outputsOnScreen[yPressedEffective] == output` check is gone
-	// because there's no longer an `output` argument to compare against (Dirty::OutputChanged
-	// carries no identity); guard the pointer explicitly instead of via that comparison.
+	// relies on. The row's output can still be null, so it's guarded explicitly before use.
 	if (currentUIMode == UI_MODE_HOLDING_ARRANGEMENT_ROW_AUDITION && yPressedEffective >= 0
 	    && yPressedEffective < kDisplayHeight) {
 		if (Output* output = outputsOnScreen[yPressedEffective]) {

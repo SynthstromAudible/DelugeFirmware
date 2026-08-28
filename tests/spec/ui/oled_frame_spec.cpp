@@ -101,7 +101,7 @@ describe oled_frame("ui::oled::OledFrame", $ {
 		uitest::Rig64 r;
 		// Bottom-right corner: 20 wide but only 8 of those columns are on the panel.
 		r.frame.region(Rect{120, 60, 20, 20}, [&self](OledFrame& f) {
-			expect(f.bounds()).to_equal(Rect{0, 0, 20, 20});   // spec B section 4: the requested rect
+			expect(f.bounds()).to_equal(Rect{0, 0, 20, 20});   // the requested rect
 			f.hline(0, 0, 19);                       // asks for 20 columns; 8 exist
 			f.vline(0, 0, 19);
 		});
@@ -169,7 +169,7 @@ describe oled_frame("ui::oled::OledFrame", $ {
 		expect(r.lit(0, 6)).to_be_false();           // ...nor one row further, mid-page though it is
 	});
 
-	// The clip rect reaching every primitive (task 4). Each case is checked against the same
+	// The clip rect reaching every primitive. Each case is checked against the same
 	// drawing done through an unclipped frame at the same origin and then masked to the region --
 	// exact, and needing no golden of its own.
 	it("clips glyphs half outside the region on each edge", _ {

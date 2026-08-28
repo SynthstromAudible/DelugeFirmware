@@ -1,13 +1,12 @@
 #pragma once
-/// Legacy-transcription oracles for the pad_leds.cpp tweens.
+/// @brief Legacy-transcription oracles for the pad_leds.cpp tweens; the parity net's ground truth.
 ///
 /// Every function below is a line-by-line transcription of the routine named in its comment, taken
-/// from `src/deluge/hid/led/pad_leds.cpp` on the commit this port was written against. They exist
-/// so `gfx/grid/tween.cpp` can be written idiomatically (runtime `PadGrid` dimensions, hoisted
-/// invariants, helpers factored out) while still being byte-compared against the legacy arithmetic
-/// it claims parity with. Deliberately NOT written in terms of the toolkit: fixed 8x18 `RGB`
-/// arrays indexed `image[y][x]`, the legacy variable names, the legacy control flow, and local
-/// copies of the fixed-point helpers.
+/// from `src/deluge/hid/led/pad_leds.cpp`. They exist so `gfx/grid/tween.cpp` can be written
+/// idiomatically (runtime `PadGrid` dimensions, hoisted invariants, helpers factored out) while
+/// still being byte-compared against the legacy arithmetic it claims parity with. Deliberately NOT
+/// written in terms of the toolkit: fixed 8x18 `RGB` arrays indexed `image[y][x]`, the legacy
+/// variable names, the legacy control flow, and local copies of the fixed-point helpers.
 ///
 /// Occupancy stays a real input here -- `renderExplodeAnimation` and
 /// `renderInstrumentClipCollapseAnimation` take the `occupancyMaskStore` legacy reads, so the
@@ -46,12 +45,24 @@ constexpr int32_t kTotalWidth = kDisplayWidth + kSideBarWidth;
 using Image = RGB[kDisplayHeight][kTotalWidth];
 using OccupancyMask = uint8_t[kDisplayHeight][kTotalWidth];
 
-/// util/const_functions.h
+/// @brief Transcription of util/const_functions.h's `rshift_round`: shift right with
+///        round-to-nearest, matching the legacy fixed-point rounding convention.
+/// @param value  Value to shift.
+/// @param rshift Shift amount (must be >= 1).
+/// @return `value` rounded to the nearest multiple of 2^rshift, then shifted right by `rshift`.
 inline uint32_t rshift_round(uint32_t value, uint32_t rshift) {
 	return (value + (1 << (rshift - 1))) >> rshift;
 }
 
-/// util/functions.h:337 -- verbatim, `occupancyFromWhichColourCame` and all.
+/// @brief Transcription of util/functions.h's `drawSquare` -- verbatim, `occupancyFromWhichColourCame`
+///        included: blends `squareColour` into `square` at `intensity`/65536 coverage, weighted
+///        against how much of `*occupancyMask`'s existing coverage the new draw can still displace.
+/// @param squareColour                 Colour being drawn.
+/// @param intensity                    Coverage of the new draw, on a 0..65536 scale.
+/// @param square                       Pixel colour already there.
+/// @param occupancyMask                In/out: existing coverage (0..64), updated by the blend.
+/// @param occupancyFromWhichColourCame Unused; kept because the legacy signature carried it.
+/// @return The blended pixel colour.
 inline RGB drawSquare(const RGB& squareColour, int32_t intensity, const RGB& square, uint8_t* occupancyMask,
                       int32_t occupancyFromWhichColourCame) {
 	(void)occupancyFromWhichColourCame;
@@ -69,17 +80,27 @@ inline RGB drawSquare(const RGB& squareColour, int32_t intensity, const RGB& squ
 	                   static_cast<uint32_t>(modifiedIntensity));
 }
 
+/// @brief Whether `c` is not pure black.
+/// @param c Colour to test.
+/// @return True if any channel of `c` is non-zero.
 inline bool anythingHere(const RGB& c) {
 	return (c.r | c.g | c.b) != 0;
 }
 
 // -------------------------------------------------------------------------------------------
-// renderExplodeAnimation -- pad_leds.cpp:645-732.
-//
-// `imageStore` here is the legacy 10-row store: row 0 is the off-screen row above the display,
-// rows 1..8 are the display, row 9 the off-screen row below (session_view.cpp:2604-2606). The
-// tween's single-`PadGrid` source has no such margin, so the two margin rows are always black --
-// transcribed anyway, so the loop bounds stay legacy's.
+/// @brief Transcription of `renderExplodeAnimation` (pad_leds.cpp).
+///
+/// `imageStore` here is the legacy 10-row store: row 0 is the off-screen row above the display,
+/// rows 1..8 are the display, row 9 the off-screen row below (session_view.cpp). The tween's
+/// single-`PadGrid` source has no such margin, so the two margin rows are always black --
+/// transcribed anyway, so the loop bounds stay legacy's.
+/// @param imageStore                 Source pixels, legacy's 10-row margin-included store.
+/// @param occupancyMaskStore         Source occupancy, same shape as `imageStore`.
+/// @param explodedness               0 == imploded (at rest), 65536 == fully exploded.
+/// @param explodeAnimationXStartBig  Explosion origin X, Q16.16.
+/// @param explodeAnimationXWidthBig  Explosion width, Q16.16.
+/// @param explodeAnimationYOriginBig Explosion origin Y, Q16.16.
+/// @param image                      Out: the rendered frame (8x18, no margin).
 inline void renderExplodeAnimation(const RGB imageStore[kDisplayHeight + 2][kTotalWidth],
                                    const uint8_t occupancyMaskStore[kDisplayHeight + 2][kTotalWidth],
                                    int32_t explodedness, int32_t explodeAnimationXStartBig,
@@ -162,14 +183,25 @@ inline void renderExplodeAnimation(const RGB imageStore[kDisplayHeight + 2][kTot
 }
 
 // -------------------------------------------------------------------------------------------
-// renderInstrumentClipCollapseAnimation -- pad_leds.cpp:344-517, reduced to the part that does not
-// read a global. The greyed-out region past the clip length (:390-418), the triplet columns
-// (:435-441), the expanding mute column (:438-444) and the keyboard sidebar morph (:456-501) all
-// depend on `currentSong` / `instrumentClipView` / the UI mode, so `transitioning` is false here
-// and those branches are skipped -- exactly the shape the toolkit core exposes.
-//
-// `image` arrives pre-filled with the destination frame instead of legacy's `memset` + Session
-// pads (:347-356); `occupancyMask` is 64 wherever it is lit, as :354 sets it.
+/// @brief Transcription of `renderInstrumentClipCollapseAnimation` (pad_leds.cpp), reduced to the
+///        part that does not read a global.
+///
+/// The greyed-out region past the clip length, the triplet columns, the expanding mute column and
+/// the keyboard sidebar morph all depend on `currentSong` / `instrumentClipView` / the UI mode, so
+/// `transitioning` is false here and those branches are skipped -- exactly the shape the toolkit
+/// core exposes.
+///
+/// `image` arrives pre-filled with the destination frame instead of legacy's `memset` + Session
+/// pads; `occupancyMask` is 64 wherever it is lit, as legacy sets it.
+/// @param imageStore           Source pixels for the rows in transit.
+/// @param occupancyMaskStore   Source occupancy, same shape as `imageStore`.
+/// @param destinationOccupied  Occupancy of the pre-filled destination frame already in `image`.
+/// @param animatedRowGoingFrom Per animated row, its source row index.
+/// @param animatedRowGoingTo   Per animated row, its destination row index.
+/// @param numAnimatedRows      How many entries of the `animatedRowGoing*` arrays are valid.
+/// @param progress             Expandedness, 0..65536 (collapsing callers pass `65536 - t`).
+/// @param image                In/out: pre-filled with the destination frame; rows in transit are
+///                             blended in over it.
 inline void renderInstrumentClipCollapseAnimation(const RGB imageStore[kDisplayHeight][kTotalWidth],
                                                   const uint8_t occupancyMaskStore[kDisplayHeight][kTotalWidth],
                                                   const uint8_t destinationOccupied[kDisplayHeight][kTotalWidth],
@@ -220,7 +252,18 @@ inline void renderInstrumentClipCollapseAnimation(const RGB imageStore[kDisplayH
 }
 
 // -------------------------------------------------------------------------------------------
-// renderZoomedSquare -- pad_leds.cpp:1338-1370.
+/// @brief Transcription of `renderZoomedSquare` (pad_leds.cpp): accumulate one source row's
+///        contribution to one output square into `output`.
+/// @param outputSquareStartOnSourceImage Left edge of the output square, mapped onto the source
+///                                       image, Q16.16.
+/// @param outputSquareEndOnSourceImage   Right edge of the output square, mapped onto the source
+///                                       image, Q16.16.
+/// @param sourceImageTimesBiggerThanNormal Source-to-native scale factor, Q16.16.
+/// @param sourceImageFade                Fade weight for this source image, 0..65535.
+/// @param output                         In/out: accumulated {r, g, b} weighted sum.
+/// @param inputImageRow                  The source row to sample.
+/// @param inputImageWidth                Number of columns in `inputImageRow`.
+/// @param drawingAnything                Out: set true if any sampled source pixel was non-black.
 inline void renderZoomedSquare(int32_t outputSquareStartOnSourceImage, int32_t outputSquareEndOnSourceImage,
                                uint32_t sourceImageTimesBiggerThanNormal, uint32_t sourceImageFade, uint32_t* output,
                                const RGB* inputImageRow, int32_t inputImageWidth, bool* drawingAnything) {
@@ -252,10 +295,18 @@ inline void renderZoomedSquare(int32_t outputSquareStartOnSourceImage, int32_t o
 	}
 }
 
-// renderZoomWithProgress -- pad_leds.cpp:1216-1336, with `zoomPinSquareInner`/`zoomPinSquareOuter`
-// left as the single `zoomPinSquare` array the two #defines at :1238-1239 alias them to, and
-// `transitionTakingPlaceOnRow[]` all true. Only main columns are written; `image`'s sidebar is
-// whatever the caller left in it.
+/// @brief Transcription of `renderZoomWithProgress` (pad_leds.cpp), with `zoomPinSquareInner`/
+///        `zoomPinSquareOuter` left as the single `zoomPinSquare` array the two legacy `#define`s
+///        alias them to, and `transitionTakingPlaceOnRow[]` all true.
+///
+/// Only main columns are written; `image`'s sidebar is whatever the caller left in it.
+/// @param inImageTimesBiggerThanNative Scale of the inner (more-zoomed-in) image relative to native.
+/// @param inImageFadeAmount            Fade weight of the inner image, 0..65535.
+/// @param zoomMagnitude                Zoom step size in powers of two.
+/// @param innerImage                   The more-zoomed-in frame.
+/// @param outerImage                   The less-zoomed-in frame.
+/// @param zoomPinSquare                On-screen anchor both images are pinned to, Q16.16.
+/// @param image                        Out: the rendered frame; only the main columns are written.
 inline void renderZoomWithProgress(int32_t inImageTimesBiggerThanNative, uint32_t inImageFadeAmount,
                                    int8_t zoomMagnitude, const RGB innerImage[kDisplayHeight][kTotalWidth],
                                    const RGB outerImage[kDisplayHeight][kTotalWidth], int32_t zoomPinSquare,
@@ -343,8 +394,16 @@ inline void renderZoomWithProgress(int32_t inImageTimesBiggerThanNative, uint32_
 	}
 }
 
-// renderZoom -- pad_leds.cpp:1173-1210 (the progress-to-scale/fade arithmetic only; the UI-mode
-// bookkeeping and the send-out at either end are the caller's).
+/// @brief Transcription of `renderZoom` (pad_leds.cpp): the progress-to-scale/fade arithmetic
+///        only; the UI-mode bookkeeping and the send-out at either end are the caller's.
+/// @param innerImage         The more-zoomed-in frame.
+/// @param outerImage         The less-zoomed-in frame.
+/// @param zoomingIn          Whether `transitionProgress` runs towards `innerImage` (true) or away
+///                           from it (false).
+/// @param zoomMagnitude      Zoom step size in powers of two.
+/// @param zoomPinSquare      On-screen anchor both images are pinned to, Q16.16.
+/// @param transitionProgress Animation position, 0..65536.
+/// @param image              Out: the rendered frame.
 inline void renderZoom(const RGB innerImage[kDisplayHeight][kTotalWidth],
                        const RGB outerImage[kDisplayHeight][kTotalWidth], bool zoomingIn, int8_t zoomMagnitude,
                        int32_t zoomPinSquare, int32_t transitionProgress, Image image) {

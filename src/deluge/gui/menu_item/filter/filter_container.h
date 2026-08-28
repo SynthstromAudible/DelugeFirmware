@@ -88,11 +88,11 @@ public:
 
 		// The per-point callback is a plain function pointer plus an opaque context, not a
 		// std::function: src/gfx is a no-allocation library, and a std::function holding a
-		// capturing lambda heap-allocates. The state the lambda used to capture (the canvas, the
-		// bottom of the fill and the previous point) travels in FillPattern instead.
+		// capturing lambda heap-allocates. FillPattern carries the callback's state (the canvas,
+		// the bottom of the fill, and the previous point) across calls instead.
 		FillPattern fill{.image = &image, .end_y = end_y};
 		auto draw_segment = [&](int32_t x0, int32_t y0, int32_t x1, int32_t y1) {
-			fill.last_point = {-1, -1}; // each segment starts a fresh run, as the old per-call lambda did
+			fill.last_point = {-1, -1}; // each segment starts a fresh run
 			image.drawLine(x0, y0, x1, y1,
 			               {.min_x = min_x,
 			                .max_x = max_x,
@@ -116,7 +116,8 @@ public:
 	};
 
 private:
-	/// Context for drawFillPattern: what the old capturing fill-pattern lambda held.
+	/// Per-call state for drawFillPattern: the target canvas, the fill's lower bound, and the
+	/// last point visited.
 	struct FillPattern {
 		oled_canvas::Canvas* image{nullptr};
 		int32_t end_y{0};

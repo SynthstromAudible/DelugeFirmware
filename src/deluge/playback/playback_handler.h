@@ -168,9 +168,14 @@ public:
 	int32_t ticksLeftInCountIn{};
 	int32_t currentVisualCountForCountIn;
 
-	/// The digit the count-in wants shown, or 0 for "no count-in". Raised as a fact
-	/// (Dirty::PlaybackState) from the tick tree; the UI tick owns the popup. [any]
+	/// @brief The digit the count-in wants shown, or 0 for "no count-in".
+	///
+	/// Raised as a fact (Dirty::PlaybackState) from the tick tree; the UI tick owns the popup. [any]
+	/// @return Current count-in digit, or 0 when no count-in is active.
 	int32_t count_in_visual() const { return currentVisualCountForCountIn; }
+
+	/// @brief Whether a count-in is currently in progress.
+	/// @return True while ticks remain in the count-in.
 	bool count_in_active() const { return ticksLeftInCountIn > 0; }
 
 	int32_t metronomeOffset{};

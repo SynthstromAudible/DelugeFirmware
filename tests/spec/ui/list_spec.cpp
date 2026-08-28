@@ -16,37 +16,35 @@ namespace uitest = deluge::ui::test;
 namespace icons = deluge::gfx::oled::icons;
 
 // Every scene below pins the row geometry twice over. First as individual canvas coordinates
-// read off the *legacy* renderers -- `MenuItem::drawItemsForOled` (menu_item.cpp:47-66) and
-// `Submenu::drawSubmenuItemsForOled` (submenu.cpp:98-127) -- so a port that merely agrees with
-// itself fails. Second, for the three plain-geometry scenes, as byte-for-byte equality with the
-// legacy call sequence replayed onto a second canvas of the same geometry through the raw
-// gfx Canvas, with every legacy magic number spelled as a literal (6/9 for the Apple font's
-// textWidth/textHeight, 14/15 for baseY, 118 for the icon start) rather than borrowed from the
-// constants the port itself lays out with.
+// read off the *legacy* renderers -- `MenuItem::drawItemsForOled` and
+// `Submenu::drawSubmenuItemsForOled` -- so a port that merely agrees with itself fails. Second,
+// for the three plain-geometry scenes, as byte-for-byte equality with the legacy call sequence
+// replayed onto a second canvas of the same geometry through the raw gfx Canvas, with every
+// legacy magic number spelled as a literal (6/9 for the Apple font's textWidth/textHeight, 14/15
+// for baseY, 118 for the icon start) rather than borrowed from the constants the port itself
+// lays out with.
 //
-// Deviations from the task brief's draft assertions, all resolved in the legacy code's favour:
+// Three deliberate departures from a literal reading of the widget's spec, each resolved in the
+// legacy code's favour:
 //
-//  D1. The brief expects `lit(0, 19)` and `lit(127, 27)` -- the highlight's top-left and
-//      bottom-right *corners* -- to be lit. They are not: legacy highlights a row with
-//      `invertLeftEdgeForMenuHighlighting(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8)`
-//      (menu_item.cpp:61, submenu.cpp:122), whose inverting branch is
-//      `invertAreaRounded(...)` (oled_canvas/canvas.cpp:26-33), which forwards
-//      `roundedCornersEnabled` (oled_canvas/canvas.h:136-138) and, when set, clears the four
-//      corner pixels back off (gfx/oled/canvas.cpp:680-700). `kDelugeStyle48.rounded` is true,
-//      so the corners are dark and the pixels one row in are lit. Asserted both ways below.
-//  D2. The brief's `list` draws a scrollbar per spec B section 6's catalogue row. Neither
-//      legacy menu renderer draws one -- there is no scrollbar anywhere in the firmware to
-//      port -- so `list` draws none and `scrollbar` is specified on its own, as spec B's own
-//      `scrollbar` row ("for non-list views") already implies.
-//  D5. The brief's `list` took no rect and painted the whole frame. Spec B section 6 declares
-//      `list(f, rect, ListState&, span<ListRow>)`, and the spec wins. `menu_rect(f)` returns
-//      the rect a legacy menu occupies, and the first scene below asserts that the resulting
-//      pixels are identical to the brief's whole-frame layout.
+//  D1. The highlight's top-left and bottom-right *corners* -- `lit(0, 19)` and `lit(127, 27)` --
+//      are dark, not lit: legacy highlights a row with
+//      `invertLeftEdgeForMenuHighlighting(0, OLED_MAIN_WIDTH_PIXELS, yPixel, yPixel + 8)`, whose
+//      inverting branch is `invertAreaRounded(...)`, which forwards `roundedCornersEnabled` and,
+//      when set, clears the four corner pixels back off. `kDelugeStyle48.rounded` is true, so
+//      the corners stay dark and the pixels one row in are lit. Asserted both ways below.
+//  D2. `list` draws no scrollbar: neither legacy menu renderer draws one -- there is no
+//      scrollbar anywhere in the firmware to port -- so `list` draws none and `scrollbar` is
+//      specified and tested on its own.
+//  D5. `list` takes an explicit rect (`list(f, rect, ListState&, span<ListRow>)`) rather than
+//      always painting the whole frame. `menu_rect(f)` returns the rect a legacy menu occupies,
+//      and the first scene below asserts that the resulting pixels are identical to painting
+//      the whole frame.
 
 // clang-format off
 describe list_w("ui::oled::list", $ {
 	it("puts a legacy menu's rect at the legacy base-y", _ {
-		// menu_item.cpp:50 -- baseY is 14 on a 48px panel and 15 on a 64px one; the
+		// Legacy baseY is 14 on a 48px panel and 15 on a 64px one; the
 		// `+= OLED_MAIN_TOPMOST_PIXEL` on the next line is the frame's origin, so these are
 		// frame-local. Both panels leave room for exactly style.menu_rows rows below it.
 		uitest::Rig48 r48;
@@ -69,9 +67,9 @@ describe list_w("ui::oled::list", $ {
 		expect(st.cursor).to_equal(int16_t(0));
 		expect(st.scroll).to_equal(int16_t(0));
 
-		// Legacy baseY for a 48px panel is 14 (menu_item.cpp:50) plus OLED_MAIN_TOPMOST_PIXEL
-		// = 5 (board_config.h:64, carried by the frame's origin), so row 0 occupies canvas
-		// rows 19..27 and rows are kTextSpacingY = 9 apart: 19, 28, 37.
+		// Legacy baseY for a 48px panel is 14 plus OLED_MAIN_TOPMOST_PIXEL = 5 (carried by the
+		// frame's origin), so row 0 occupies canvas rows 19..27 and rows are kTextSpacingY = 9
+		// apart: 19, 28, 37.
 		// The highlight spans the full width, minus the four rounded corners (D1).
 		expect(r.lit(0, 18)).to_be_false();    // the row above the first one is untouched
 		expect(r.lit(0, 19)).to_be_false();    // top-left corner, rounded off
@@ -167,8 +165,8 @@ describe list_w("ui::oled::list", $ {
 	});
 
 	it("keeps the cursor visible at every position, per Selection's pos/tail rule", _ {
-		// selection.cpp:9-29 with kOLEDMenuNumOptionsVisible == 3: the cursor sits in the
-		// middle when it can, and is pinned to the near end when it cannot.
+		// Legacy Selection, with kOLEDMenuNumOptionsVisible == 3: the cursor sits in the middle
+		// when it can, and is pinned to the near end when it cannot.
 		const ListRow rows[] = {{"ONE"}, {"TWO"}, {"THREE"}, {"FOUR"}, {"FIVE"}};
 		const int16_t want_scroll[] = {0, 0, 1, 2, 2};
 		for (int16_t c = 0; c < 5; c++) {
@@ -222,10 +220,9 @@ describe list_w("ui::oled::list", $ {
 		expect(list(r.frame, menu_rect(r.frame), st, rows, sc).entered).to_be_true();
 
 		// Legacy has no drawn-but-unselectable row: Submenu filters irrelevant items out of the
-		// window entirely (submenu.cpp:60-76) and selectEncoderAction only ever consumes a
-		// detent on a relevant one, reverting to the last relevant item at the ends
-		// (submenu.cpp:132-176). ListRow::selectable reproduces that scan for rows the caller
-		// does want drawn.
+		// window entirely and selectEncoderAction only ever consumes a detent on a relevant
+		// one, reverting to the last relevant item at the ends. ListRow::selectable reproduces
+		// that scan for rows the caller does want drawn.
 		const ListRow mixed[] = {{"HEAD", {}, nullptr, false}, {"ONE"}, {"GAP", {}, nullptr, false}, {"TWO"}};
 		uitest::Rig48 r2; ListState st2; ScrollText sc2;
 		st2.cursor = 0; st2.rows_last = 4;                 // parked on the unselectable header
@@ -260,10 +257,10 @@ describe list_w("ui::oled::list", $ {
 	});
 
 	it("clamps a shrinking list into range on the same frame it shrinks, not the next one", _ {
-		// Two-pass count-then-draw (SDK menu.rs:346-415): the clamp uses *this* frame's row
+		// Two-pass count-then-draw, as in the SDK's menu.rs: the clamp uses *this* frame's row
 		// count. Get the cursor to 4 on a five-row list, then shrink to two rows with no turn --
-		// today's bug would leave the cursor at 4 until a subsequent frame reads state.rows_last;
-		// the fix clamps it into [0, 1] immediately.
+		// a naive implementation would leave the cursor at 4 until a subsequent frame reads
+		// state.rows_last; this clamps it into [0, 1] immediately.
 		const ListRow five[] = {{"ONE"}, {"TWO"}, {"THREE"}, {"FOUR"}, {"FIVE"}};
 		const ListRow two[] = {{"ONE"}, {"TWO"}};
 		uitest::Rig48 r; ListState st; ScrollText sc;
@@ -296,7 +293,7 @@ describe list_w("ui::oled::list", $ {
 	});
 
 	it("draws the left-edge rule instead of an inverted row when invert_highlight is off", _ {
-		// canvas.cpp:26-29: the non-inverting branch of invertLeftEdgeForMenuHighlighting is
+		// The non-inverting branch of invertLeftEdgeForMenuHighlighting is
 		// draw_vertical_line(xMin, startY, endY) -- one column, no rounding, nothing else.
 		const ListRow rows[] = {{"ONE"}, {"TWO"}, {"THREE"}};
 		uitest::Rig48 r;
@@ -315,10 +312,10 @@ describe list_w("ui::oled::list", $ {
 	});
 
 	it("scrolls a selected label that overflows its row, under an intact highlight (D3)", _ {
-		// The D3 ruling -- label drawn first, whole row inverted after -- only has teeth once
-		// the label actually scrolls. This is the case: 41 chars at the Apple font's 6px
-		// advance is 246px against a 122px box, so scroll_text takes its scrolling branch
-		// (scroll_text.h) instead of the "fits" early return.
+		// D3: label drawn first, whole row inverted after -- only has teeth once the label
+		// actually scrolls. This is the case: 41 chars at the Apple font's 6px advance is 246px
+		// against a 122px box, so scroll_text takes its scrolling branch instead of the "fits"
+		// early return.
 		const char* longest = "A VERY LONG MENU ROW LABEL THAT OVERFLOWS";
 		const ListRow rows[] = {{longest}, {"TWO"}, {"THREE"}};
 		uitest::Rig48 r; ListState st; ScrollText sc;
@@ -332,9 +329,8 @@ describe list_w("ui::oled::list", $ {
 		expect(sc.offset).to_equal(int16_t(2));
 
 		// The highlight is still the full, rounded row -- the point of D3. Legacy's scroller
-		// *tick* path would by now have re-inverted [6, 128) with the non-rounded invertArea
-		// (oled.cpp:996-997), re-lighting (127, 19) and (127, 27); this port keeps the
-		// full-redraw result instead.
+		// *tick* path would by now have re-inverted [6, 128) with the non-rounded invertArea,
+		// re-lighting (127, 19) and (127, 27); this port keeps the full-redraw result instead.
 		expect(r.lit(0, 19)).to_be_false();   expect(r.lit(127, 19)).to_be_false();
 		expect(r.lit(0, 27)).to_be_false();   expect(r.lit(127, 27)).to_be_false();
 		expect(r.lit(0, 20)).to_be_true();    expect(r.lit(127, 20)).to_be_true();
@@ -345,8 +341,7 @@ describe list_w("ui::oled::list", $ {
 
 	it("scrolls the same label under the left-edge rule, with legacy's clear-only +4 pad", _ {
 		// The other half of D3's routing: with inversion off, scroll_text is handed
-		// clear_pad_x = 4 (oled.cpp:984-989) and no highlight, and the rule stays a single
-		// column.
+		// clear_pad_x = 4 and no highlight, and the rule stays a single column.
 		const char* longest = "A VERY LONG MENU ROW LABEL THAT OVERFLOWS";
 		const ListRow rows[] = {{longest}, {"TWO"}, {"THREE"}};
 		uitest::Rig48 r;
@@ -382,8 +377,8 @@ describe list_w("ui::oled::list", $ {
 		expect(st.rows_last).to_equal(int16_t(6));
 		expect(st.scroll).to_equal(int16_t(0));
 
-		// Legacy baseY for a 64px panel is 15 with OLED_MAIN_TOPMOST_PIXEL 0
-		// (menu_item.cpp:50), so rows sit at 15, 24, 33, 42, 51 and five of the six fit
+		// Legacy baseY for a 64px panel is 15 with OLED_MAIN_TOPMOST_PIXEL 0, so rows sit at
+		// 15, 24, 33, 42, 51 and five of the six fit
 		// (OLED_HEIGHT_CHARS - 1 == kOLEDMenuNumOptionsVisible == style.menu_rows).
 		expect(r.lit(0, 14)).to_be_false();
 		expect(r.lit(0, 15)).to_be_false();   // rounded corner (D1)
@@ -396,9 +391,9 @@ describe list_w("ui::oled::list", $ {
 		}
 
 		// Legacy replay: drawString clipped to endX = 128 - getSubmenuItemTypeRenderLength()
-		// (= 4 + 7 + 3 = 14, menu_item.h:278) for the row that renders an icon, the icon
-		// blitted at getSubmenuItemTypeRenderIconStart() = 128 - 7 - 3 = 118 (menu_item.h:280),
-		// then the selected row inverted.
+		// (= 4 + 7 + 3 = 14) for the row that renders an icon, the icon blitted at
+		// getSubmenuItemTypeRenderIconStart() = 128 - 7 - 3 = 118, then the selected row
+		// inverted.
 		const char* labels[] = {"A", "B", "C", "D", "E"};
 		for (int o = 0; o < 5; o++) {
 			const int y = 15 + o * 9;
@@ -417,7 +412,7 @@ describe list_w("ui::oled::list", $ {
 		// Same geometry, cursor parked elsewhere, so the icon's own pixels can be read
 		// straight off the canvas instead of through the selected row's inversion. All three
 		// menu icons are exercised: their bitmaps are the legacy OLED::checkedBoxIcon /
-		// uncheckedBoxIcon / submenuArrowIcon (oled_icons.cpp:130, :140, :150).
+		// uncheckedBoxIcon / submenuArrowIcon.
 		uitest::Rig64 r; ListState st; ScrollText sc;
 		const ListRow with_icons[] = {{"A"},
 		                              {"B", {}, &icons::checkedBox},
@@ -480,9 +475,9 @@ describe list_w("ui::oled::list", $ {
 		uitest::Rig48 r; ListState st; ScrollText sc;
 		const ListRow rows[] = {{"ONE"}, {"TWO", "ON", &icons::checkedBox}, {"THREE"}};
 		list(r.frame, menu_rect(r.frame), st, rows, sc);
-		// content_end = 128 - 14 = 114 for the icon (menu_item.h:278), so the 12px value ends
-		// there: columns 102..113. The icon still sits at 118 (menu_item.h:280), and the 4px
-		// legacy gap between the two stays empty.
+		// content_end = 128 - 14 = 114 for the icon, so the 12px value ends there: columns
+		// 102..113. The icon still sits at 118, and the 4px legacy gap between the two stays
+		// empty.
 		bool in_value_box = false;
 		for (int y = 28; y <= 36; y++) {
 			for (int x = 102; x < 114; x++) {

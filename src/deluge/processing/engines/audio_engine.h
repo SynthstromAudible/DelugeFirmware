@@ -194,17 +194,19 @@ extern bool renderInStereo;
 extern uint32_t audioSampleTimer;
 extern bool mustUpdateReverbParamsBeforeNextRender;
 extern bool bypassCulling;
-/// Raised by the render loop when it culled a voice and the high-CPU indicator is on; the UI tick
-/// consumes it and blinks the Play LED. A namespace-scope inline variable (one object across all
-/// TUs) -- not `static`, which would give each TU's own copy. [any]
+/// @brief Set by the render loop when it culls a voice while the high-CPU indicator is on; cleared
+///        by the UI tick, which blinks the Play LED in response.
 ///
-/// `std::atomic<bool>` because the write is on the audio render path and the read-and-clear is on
-/// the UI drain: two threads (or, on the RZ/A1, an audio ISR and mainline UI code) touching a
-/// plain `bool` without synchronisation is a data race even though both sides only ever write a
-/// single boolean value. `memory_order_relaxed` is enough -- this carries no other memory with it,
-/// it is just a flag -- so the drain clears it with `exchange(false, std::memory_order_relaxed)`
-/// rather than a separate load-then-store, which would race the render loop setting it again
-/// between the two.
+/// A namespace-scope `inline` variable -- one object across all TUs, not `static`, which would
+/// give each TU its own copy. [any]
+///
+/// @note `std::atomic<bool>` because the write happens on the audio render path (or, on the
+///       RZ/A1, an audio ISR) while the read-and-clear happens on the UI drain: two threads
+///       touching a plain `bool` without synchronisation is a data race even though each side
+///       only ever writes a single boolean value. `memory_order_relaxed` suffices -- this carries
+///       no other memory with it, it is just a flag -- so the drain clears it with
+///       `exchange(false, std::memory_order_relaxed)` rather than a separate load-then-store,
+///       which would race the render loop setting it again in between.
 inline std::atomic<bool> cull_alert_pending{false};
 // The app-owned input ring. A mirror of the received audio input, filled by the
 // audio routine ahead of each render window; everything in the application that

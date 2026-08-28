@@ -19,23 +19,20 @@ Response scroll_text(OledFrame& f, Rect rect, std::string_view s, FontId font, S
 
 	// The label or its box changed since the last call (or this is the very first call a
 	// fresh ScrollText ever sees, since both *_last fields default to 0): treat it as a
-	// newly-appeared label, exactly as a fresh legacy setupSideScroller call would.
+	// newly-appeared label.
 	const bool changed = state.text_w_last != width || state.rect_w_last != rect.w;
 	state.text_w_last = static_cast<uint16_t>(width);
 	state.rect_w_last = static_cast<uint16_t>(rect.w);
 
 	if (width <= rect.w) {
-		// Fits: not actively scrolling. Legacy resets scroller->pos to 0 (and, for the same
-		// "not scrolling" reason, sideScrollerDirection to 1) whenever the widget isn't
-		// scrolling (oled.cpp:975-981, 1020-1021) -- applied here whenever there's no
-		// scrolling to do at all, so a label that shrinks to fit starts clean instead of
-		// carrying a stale mid-scroll offset into a render that never scrolls it back.
+		// Fits: not actively scrolling. Reset whenever there's no scrolling to do at all, so a
+		// label that shrinks to fit starts clean instead of carrying a stale mid-scroll offset
+		// into a render that never scrolls it back.
 		state.offset = 0;
 		state.dir = 1;
 	}
 	else if (!allow_motion) {
-		// legacy: playback running freezes the label at its start and forces the direction
-		// forward (oled.cpp:1020-1021).
+		// Motion disabled: freeze the label at its start and force the direction forward.
 		state.offset = 0;
 		state.dir = 1;
 	}
@@ -43,9 +40,8 @@ Response scroll_text(OledFrame& f, Rect rect, std::string_view s, FontId font, S
 		const uint32_t now = f.now_ms();
 		const int32_t max_offset = width - rect.w;
 		if (changed) {
-			// legacy setupSideScroller (oled.cpp:913-914): a freshly-appeared or resized label
-			// arms the *first* tick to the same kScrollTime pause used at the ping-pong ends,
-			// not an immediate 15/5ms step.
+			// A freshly-appeared or resized label arms the *first* tick to the same kScrollTime
+			// pause used at the ping-pong ends, not an immediate 15/5ms step.
 			state.offset = 0;
 			state.dir = 1;
 			state.next_step_ms = now + kScrollTime;
@@ -72,9 +68,8 @@ Response scroll_text(OledFrame& f, Rect rect, std::string_view s, FontId font, S
 		f.gate().request_repaint_after(static_cast<uint32_t>(std::max<int32_t>(delay, 0)), now);
 	}
 
-	// clear_pad_x widens only the cleared rect -- legacy's endX += 4 (oled.cpp:984-992), which
-	// never touches drawString's own end_x, invertArea's span, or the scroll bounds (see
-	// scroll_text.h's doc comment).
+	// clear_pad_x widens only the cleared rect; it never touches drawString's own end_x,
+	// invertArea's span, or the scroll bounds (see scroll_text.h's doc comment).
 	Rect clear_rect = rect;
 	clear_rect.w += clear_pad_x;
 	f.clear(clear_rect);

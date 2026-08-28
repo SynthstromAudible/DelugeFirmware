@@ -967,7 +967,7 @@ constexpr int32_t kConsoleImageNumRows = (OLED_MAIN_HEIGHT_PIXELS >> 3);
 constexpr int32_t kTextSmallSpacingX = 4;
 constexpr int32_t kTextSmallSizeY = 5;
 
-// non-title characters (definitions live in gfx/oled/font.h; see include above)
+// non-title characters (defined in gfx/oled/font.h)
 using deluge::gfx::oled::kTextSizeYUpdated;
 using deluge::gfx::oled::kTextSpacingX;
 using deluge::gfx::oled::kTextSpacingY;

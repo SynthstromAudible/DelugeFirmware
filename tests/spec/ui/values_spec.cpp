@@ -23,44 +23,38 @@ namespace uitest = deluge::ui::test;
 
 // Every widget below is pinned three ways at once. First as individual canvas coordinates read
 // off the legacy renderers -- `Integer::drawInteger` / `Integer::drawPixelsForOled` /
-// `IntegerWithOff::drawPixelsForOled` (gui/menu_item/integer.cpp:41-61),
-// `Decimal::drawPixelsForOled` plus `OLED::setupBlink` (decimal.cpp:128-164, oled.cpp:832-850),
-// `Toggle::drawPixelsForOled` (toggle.cpp:23-43) and `Selection::drawPixelsForOled`
-// (selection.cpp:8-30) -- so a port that merely agrees with itself fails. Second as
-// byte-for-byte equality with those legacy call sequences replayed onto a second canvas of the
-// same geometry through the raw gfx Canvas, with every legacy magic number spelled as a literal
-// (18/20 for the huge font's textWidth/textHeight, 9 for the half-width period, 20 and 41/42 for
-// Decimal's canvas-absolute rows, 14/15 for the menu base-y, 6/9 for the Apple font) rather than
-// borrowed from the constants the port itself lays out with. Third, for one scene per widget, as
-// a golden PBM. Both shipped geometries are covered for each widget.
+// `IntegerWithOff::drawPixelsForOled`, `Decimal::drawPixelsForOled` plus `OLED::setupBlink`,
+// `Toggle::drawPixelsForOled` and `Selection::drawPixelsForOled` -- so a port that merely agrees
+// with itself fails. Second as byte-for-byte equality with those legacy call sequences replayed
+// onto a second canvas of the same geometry through the raw gfx Canvas, with every legacy magic
+// number spelled as a literal (18/20 for the huge font's textWidth/textHeight, 9 for the
+// half-width period, 20 and 41/42 for Decimal's canvas-absolute rows, 14/15 for the menu base-y,
+// 6/9 for the Apple font) rather than borrowed from the constants the port itself lays out with.
+// Third, for one scene per widget, as a golden PBM. Both shipped geometries are covered for each
+// widget.
 //
-// Deviations from the task brief's draft assertions, all resolved in the legacy code's favour:
+// Points where the legacy behaviour is easy to get wrong, so worth stating explicitly:
 //
-//  D1. The brief has `toggle` flip on a turn ("turn or select toggles"). `Toggle::selectEncoderAction`
-//      is `setValue(offset > 0)` (toggle.cpp:14-17): a turn *selects* the row in its own
-//      direction, so turning the same way twice is idempotent.
-//  D2. Nor does a select press flip it. This two-row screen only exists while the Toggle is the
-//      current menu item (`Toggle::shouldEnterSubmenu()` is false, toggle.h:19, so no submenu
-//      navigation can enter it), and on that branch `Toggle::selectButtonPress` returns nullptr
-//      without touching the value (toggle.h:35-36) and `sound_editor.cpp:357` + `:386-389` goes up
-//      a level. `toggleValue()` (toggle.h:39-43) is the *submenu row* branch. So a press reports
-//      `entered` and leaves `changed` false, and the scene navigates.
-//  D3. The brief describes the decimal cursor as "Blink armed" at the first frame. Legacy's
-//      `setupBlink(..., shouldBlinkImmediately)` is called with false from a plain redraw and
-//      only inverts the band a `kFlashTime` later (oled.cpp:840-850, via `performBlink`), so the
-//      cursor is *dark* for the first 110ms and the deadline is `kFlashTime` -- both asserted.
-//      Only a horizontal-encoder cursor move passes true (decimal.cpp:98-100, :163) and lights
-//      it at once.
-//  D4. `int_value`'s huge digits ink canvas rows 23..42 on the 48-row panel exactly as the brief
-//      says (kValueY 18 + visible_top 5, kTextHugeSizeY tall) -- with row 22 and row 43 dark on
-//      both sides. `decimal_value`'s do NOT: legacy Decimal draws at a canvas-absolute y of 20
-//      (decimal.cpp:149) with no `OLED_MAIN_TOPMOST_PIXEL` term, so its digits ink rows 20..39 on
-//      *both* panels and the cursor sits at rows 41..42 on both. Asserted at both geometries.
-//  D5. Every widget takes spec B section 6's `Rect` (the brief's interfaces omitted it, as they
-//      did for `list`; the spec wins on the same ground as `list.h:68-72`). The rect that
-//      reproduces legacy is `f.bounds()` for `int_value`/`decimal_value` and `menu_rect(f)` for
-//      `enum_value`/`toggle`; every golden below uses it, and "lays out relative to the rect"
-//      pins what a different rect does -- including `decimal_value`'s y staying canvas-absolute.
+//  - `toggle` does not flip on a turn: `Toggle::selectEncoderAction` is `setValue(offset > 0)`, a
+//    turn *selects* the row in its own direction, so turning the same way twice is idempotent.
+//  - Nor does a select press flip it. The two-row screen only exists while the Toggle is the
+//    current menu item (`Toggle::shouldEnterSubmenu()` is false, so no submenu navigation can
+//    enter it), and on that branch `Toggle::selectButtonPress` returns nullptr without touching
+//    the value, and the scene goes up one level. `toggleValue()` is the *submenu row* branch,
+//    reached only when a Toggle is drawn as a row inside a Submenu. So a press reports `entered`
+//    and leaves `changed` false, and the scene navigates.
+//  - The decimal cursor is dark on the first frame: `setupBlink(..., shouldBlinkImmediately)` is
+//    called with false from a plain redraw and only inverts the band one `kFlashTime` later (via
+//    `performBlink`). Only a horizontal-encoder cursor move passes true and lights it at once.
+//  - `int_value`'s huge digits ink canvas rows 23..42 on the 48-row panel (kValueY 18 +
+//    visible_top 5, kTextHugeSizeY tall) -- with row 22 and row 43 dark on both sides.
+//    `decimal_value`'s do NOT: legacy Decimal draws at a canvas-absolute y of 20 with no
+//    `OLED_MAIN_TOPMOST_PIXEL` term, so its digits ink rows 20..39 on *both* panels and the cursor
+//    sits at rows 41..42 on both. Asserted at both geometries.
+//  - Every widget takes a `Rect`. The rect that reproduces legacy is `f.bounds()` for
+//    `int_value`/`decimal_value` and `menu_rect(f)` for `enum_value`/`toggle`; every golden below
+//    uses it, and "lays out relative to the rect" pins what a different rect does -- including
+//    `decimal_value`'s y staying canvas-absolute.
 
 // clang-format off
 describe values_w("ui::oled::values", $ {
@@ -74,9 +68,9 @@ describe values_w("ui::oled::values", $ {
 		expect(resp.focused).to_be_true();
 		expect(resp.changed).to_be_false();
 
-		// integer.cpp:59-61 -> drawInteger(kTextHugeSpacingX, kTextHugeSizeY, 18) ->
-		// drawStringCentred(buffer, 18 + OLED_MAIN_TOPMOST_PIXEL, 18, 20) (integer.cpp:52-57).
-		// 18 + 5 = 23, so the glyphs ink canvas rows 23..42 and nothing above or below.
+		// drawInteger(kTextHugeSpacingX, kTextHugeSizeY, 18) -> drawStringCentred(buffer, 18 +
+		// OLED_MAIN_TOPMOST_PIXEL, 18, 20). 18 + 5 = 23, so the glyphs ink canvas rows 23..42 and
+		// nothing above or below.
 		for (int x = 0; x < 128; x++) {
 			expect(r.lit(x, 22)).to_be_false();
 			expect(r.lit(x, 43)).to_be_false();
@@ -119,9 +113,8 @@ describe values_w("ui::oled::values", $ {
 		uitest::Rig48 r;
 		int32_t value = 0;
 		int_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 128}, ValueStyle{.off_at_zero = true});
-		// IntegerWithOff::drawPixelsForOled, integer.cpp:41-50: drawStringCentred("OFF",
-		// 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX, kTextHugeSizeY) -- same band, and the
-		// unit is not appended. "OFF" is 51px wide, so it starts at 64 - 25 = 39 and inks 40..87.
+		// IntegerWithOff::drawPixelsForOled: drawStringCentred("OFF", 18 + OLED_MAIN_TOPMOST_PIXEL,
+		// kTextHugeSpacingX, kTextHugeSizeY) -- same band, and the unit is not appended. "OFF" is 51px wide, so it starts at 64 - 25 = 39 and inks 40..87.
 		expect(r.lit(40, 32)).to_be_true();
 		expect(r.lit(87, 26)).to_be_true();
 		expect(r.lit(39, 32)).to_be_false();
@@ -140,7 +133,7 @@ describe values_w("ui::oled::values", $ {
 		uitest::Rig48 r;
 		int32_t value = 7;
 		int_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 128}, ValueStyle{.unit = "ms"});
-		r.reference.draw_string_centred("7ms", 18 + 5, 18, 20);   // integer.cpp:53-56
+		r.reference.draw_string_centred("7ms", 18 + 5, 18, 20);   // the unit is appended to the digits
 		expect(r.pbm()).to_equal(r.reference_pbm());
 
 		uitest::Rig48 long_unit;
@@ -156,30 +149,29 @@ describe values_w("ui::oled::values", $ {
 		r.input.edit[0] = 1;
 		const Response up = int_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 42});
 		expect(value).to_equal(42);
-		expect(up.changed).to_be_true();       // integer.cpp:26 -- getValue() + offset
+		expect(up.changed).to_be_true();       // getValue() + offset
 
 		const Response at_max = int_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 42});
-		expect(value).to_equal(42);            // integer.cpp:27-30 clamps to maxValue
+		expect(value).to_equal(42);            // clamps to maxValue
 		expect(at_max.changed).to_be_false();
 
 		int32_t low = 0;
 		r.input.edit[0] = -3;
 		const Response down = int_value(r.frame, r.frame.bounds(), low, Range{.min = 0, .max = 42});
-		expect(low).to_equal(0);               // integer.cpp:31-36 clamps to minValue
+		expect(low).to_equal(0);               // clamps to minValue
 		expect(down.changed).to_be_false();
 
 		int32_t unfocused = 41;
 		r.input.edit[0] = 1;
 		const Response blurred = int_value(r.frame, r.frame.bounds(), unfocused, Range{.min = 0, .max = 42}, {}, false);
-		expect(unfocused).to_equal(41);        // spec B section 3: edit[] moves the *focused* value
+		expect(unfocused).to_equal(41);        // edit[] moves only the *focused* value
 		expect(blurred.changed).to_be_false();
 		expect(blurred.focused).to_be_false();
 	});
 
 	it("splits the two edit encoders into a coarse and a fine step", _ {
-		// Decimal::getNumberEditSize (decimal.cpp:49-55) is legacy's only two-granularity
-		// number edit: a coarse step and a 1-unit fine one. edit[0] takes range.step, edit[1]
-		// takes 1.
+		// Decimal::getNumberEditSize is legacy's only two-granularity number edit: a coarse step
+		// and a 1-unit fine one. edit[0] takes range.step, edit[1] takes 1.
 		uitest::Rig48 r;
 		int32_t value = 100;
 		r.input.edit[0] = 1;
@@ -202,9 +194,9 @@ describe values_w("ui::oled::values", $ {
 		r.input.now_ms = 0;
 		decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 9999}, 2, edit_pos, blink);
 
-		// decimal.cpp:149/152/161 draw at a literal y of 20 -- canvas rows, with no
-		// OLED_MAIN_TOPMOST_PIXEL term anywhere in the routine (D4). 18*4 + 9 = 81 wide,
-		// so (128 - 81) >> 1 = 23: "12" at 23..58, "." at 59..67, "34" at 68..103.
+		// Legacy Decimal draws at a literal y of 20 -- canvas rows, with no OLED_MAIN_TOPMOST_PIXEL
+		// term anywhere in the routine. 18*4 + 9 = 81 wide, so (128 - 81) >> 1 = 23: "12" at
+		// 23..58, "." at 59..67, "34" at 68..103.
 		for (int x = 0; x < 128; x++) {
 			expect(r.lit(x, 19)).to_be_false();
 			expect(r.lit(x, 40)).to_be_false();
@@ -215,7 +207,7 @@ describe values_w("ui::oled::values", $ {
 		expect(r.lit(63, 20)).to_be_false();
 
 		// setupBlink is armed but has not fired: shouldBlinkImmediately is false on a plain
-		// redraw, so the band stays dark for one kFlashTime (oled.cpp:840-850) -- D3.
+		// redraw, so the band stays dark for one kFlashTime.
 		for (int x = 0; x < 128; x++) {
 			expect(r.lit(x, 41)).to_be_false();
 			expect(r.lit(x, 42)).to_be_false();
@@ -224,9 +216,9 @@ describe values_w("ui::oled::values", $ {
 		expect(*r.gate.next_deadline()).to_equal(uint32_t(kFlashTime));
 
 		// One half-period later performBlink inverts the band: x = ourDigitStartX + 1 = 87,
-		// width digitWidth - 2 = 16, rows 41..42 inclusive (decimal.cpp:163). The shell wakes on
-		// the deadline and consumes it first -- RepaintGate keeps the *earliest* request until
-		// needs_frame() clears it, so without this the deadline below would still read 110.
+		// width digitWidth - 2 = 16, rows 41..42 inclusive. The shell wakes on the deadline and
+		// consumes it first -- RepaintGate keeps the *earliest* request until needs_frame()
+		// clears it, so without this the deadline below would still read 110.
 		expect(r.gate.needs_frame(kFlashTime, false, false)).to_be_true();
 		r.input.now_ms = kFlashTime;
 		decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 9999}, 2, edit_pos, blink);
@@ -279,7 +271,7 @@ describe values_w("ui::oled::values", $ {
 		int8_t pos = 0;
 		Blink b;
 		decimal_value(whole.frame, whole.frame.bounds(), v, Range{.min = 0, .max = 99}, 0, pos, b);
-		// places 0 skips the whole period branch (decimal.cpp:146-159): 18*2 = 36 wide, at 46.
+		// places 0 skips the whole period branch: 18*2 = 36 wide, at 46.
 		whole.reference.draw_string("42", 46, 20, 18, 20, 0, 128, true);
 		expect(whole.pbm()).to_equal(whole.reference_pbm());
 	});
@@ -290,32 +282,32 @@ describe values_w("ui::oled::values", $ {
 		int8_t edit_pos = 0;
 		Blink blink;
 		r.input.now_ms = 5000;
-		r.input.horizontal = -1;               // decimal.cpp:91-96: one place left
+		r.input.horizontal = -1;               // one place left
 		decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 9999}, 2, edit_pos, blink);
 		expect(int(edit_pos)).to_equal(1);
-		// movingCursor -> setupBlink(..., true) inverts immediately (decimal.cpp:98-100, :163):
-		// the cursor is one digit (18px) left of where edit_pos 0 put it, i.e. 69..84.
+		// movingCursor -> setupBlink(..., true) inverts immediately: the cursor is one digit
+		// (18px) left of where edit_pos 0 put it, i.e. 69..84.
 		expect(r.lit(69, 41)).to_be_true();
 		expect(r.lit(84, 42)).to_be_true();
 		expect(r.lit(85, 41)).to_be_false();
 		expect(r.lit(87, 41)).to_be_false();
 		expect(*r.gate.next_deadline()).to_equal(uint32_t(5000 + kFlashTime));
 
-		r.input.horizontal = 1;                // decimal.cpp:84-89: back to the right
+		r.input.horizontal = 1;                // back to the right
 		decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 9999}, 2, edit_pos, blink);
 		expect(int(edit_pos)).to_equal(0);
 		expect(r.lit(87, 41)).to_be_true();
 
-		// At the right-hand end a further positive tick does nothing (decimal.cpp:85).
+		// At the right-hand end a further positive tick does nothing.
 		decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 9999}, 2, edit_pos, blink);
 		expect(int(edit_pos)).to_equal(0);
 	});
 
 	it("restarts the blink lit on a horizontal tick that moves nothing", _ {
-		// decimal.cpp:98 sets movingCursor AFTER and OUTSIDE the if/else at :84-96, so a blocked
-		// tick still reaches setupBlink(..., true) at :163 and inverts the band at once
-		// (oled.cpp:840-847). Reachable in the default state: getDefaultEditPos is 0
-		// (decimal.cpp:37), so a rightward tick there moves nothing.
+		// Legacy sets movingCursor after and outside the branch that moves the cursor, so a
+		// blocked tick still reaches setupBlink(..., true) and inverts the band at once.
+		// Reachable in the default state: getDefaultEditPos is 0, so a rightward tick there
+		// moves nothing.
 		uitest::Rig48 r;
 		int32_t value = 1234;
 		int8_t edit_pos = 0;
@@ -324,7 +316,7 @@ describe values_w("ui::oled::values", $ {
 		decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 9999}, 2, edit_pos, blink);
 		expect(r.lit(87, 41)).to_be_false();   // plain redraw: dark for the first kFlashTime
 
-		r.input.horizontal = 1;                // blocked by decimal.cpp:85 -- edit_pos is already 0
+		r.input.horizontal = 1;                // blocked: edit_pos is already 0
 		decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 9999}, 2, edit_pos, blink);
 		expect(int(edit_pos)).to_equal(0);
 		expect(r.lit(87, 41)).to_be_true();    // ... but the cursor lights anyway
@@ -332,7 +324,7 @@ describe values_w("ui::oled::values", $ {
 		expect(r.lit(86, 41)).to_be_false();
 
 		// And the other blocked branch: a negative tick when the next place up leaves the range
-		// (decimal.cpp:92 -- numberEditSize * 10 <= max; 10^2 * 10 > 99).
+		// (numberEditSize * 10 <= max; 10^2 * 10 > 99).
 		uitest::Rig48 small;
 		int32_t v = 42;
 		int8_t pos = 2;
@@ -355,10 +347,10 @@ describe values_w("ui::oled::values", $ {
 		Blink blink;
 		r.input.edit[0] = 1;
 		const Response resp = decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 9999}, 2, edit_pos, blink);
-		expect(value).to_equal(1334);          // decimal.cpp:58 -- offset * getNumberEditSize()
+		expect(value).to_equal(1334);          // offset * getNumberEditSize()
 		expect(resp.changed).to_be_true();
 
-		r.input.edit[0] = 100;                 // way past the top: decimal.cpp:70-73 clamps
+		r.input.edit[0] = 100;                 // way past the top: clamps
 		const Response clamped = decimal_value(r.frame, r.frame.bounds(), value, Range{.min = 0, .max = 9999}, 2, edit_pos, blink);
 		expect(value).to_equal(9999);
 		expect(clamped.changed).to_be_true();
@@ -396,8 +388,8 @@ describe values_w("ui::oled::values", $ {
 		ScrollText sc;
 		const Response resp = enum_value(r.frame, menu_rect(r.frame), index, names, st, sc);
 		expect(resp.changed).to_be_false();
-		// Selection's window rule (selection.cpp:11-27) over kOLEDMenuNumOptionsVisible = 3:
-		// nBefore 3, nAfter 2, pos 1 -> first visible name is index 3.
+		// Selection's window rule over kOLEDMenuNumOptionsVisible = 3: nBefore 3, nAfter 2, pos 1
+		// -> first visible name is index 3.
 		expect(st.scroll).to_equal(int16_t(3));
 		expect(st.cursor).to_equal(int16_t(4));
 		expect(st.rows_last).to_equal(int16_t(6));
@@ -436,15 +428,14 @@ describe values_w("ui::oled::values", $ {
 		ListState st;
 		ScrollText sc;
 
-		// Enumeration::wrapAround() is false by default (enumeration.cpp:12-16), so
-		// enumeration.cpp:28 clamps.
+		// Enumeration::wrapAround() is false by default, so the out-of-range turn clamps.
 		int32_t index = 5;
 		r.input.turn = 1;
 		const Response clamped = enum_value(r.frame, menu_rect(r.frame), index, names, st, sc);
 		expect(index).to_equal(5);
 		expect(clamped.changed).to_be_false();
 
-		// enumeration.cpp:25 -- mod(nextValue, numOptions), which is positive-valued.
+		// mod(nextValue, numOptions), which is positive-valued.
 		const Response wrapped = enum_value(r.frame, menu_rect(r.frame), index, names, st, sc, true);
 		expect(index).to_equal(0);
 		expect(wrapped.changed).to_be_true();
@@ -482,9 +473,8 @@ describe values_w("ui::oled::values", $ {
 		r.reference.invert_area_rounded(0, 128, 28, 36, BorderRadius::Small, true);
 		expect(r.pbm()).to_equal(r.reference_pbm());
 
-		// Both ends, where Selection's pos/tail rule switches branches (selection.cpp:21-27):
-		// at the head nBefore < pos pulls pos to 0, at the tail nAfter < tail pulls the window
-		// flush against the end.
+		// Both ends, where Selection's pos/tail rule switches branches: at the head nBefore < pos
+		// pulls pos to 0, at the tail nAfter < tail pulls the window flush against the end.
 		uitest::Rig48 head;
 		int32_t first = 0;
 		ListState head_st;
@@ -523,8 +513,8 @@ describe values_w("ui::oled::values", $ {
 		int8_t pos = 0;
 		Blink blink;
 		decimal_value(d.frame, Rect{0, 0, 64, 43}, dv, Range{.min = 0, .max = 99}, 0, pos, blink);
-		// x follows the rect -- (64 - 36) >> 1 = 14 -- but y is still the canvas-absolute 20
-		// (decimal.cpp:149), not rect.y + anything.
+		// x follows the rect -- (64 - 36) >> 1 = 14 -- but y is still the canvas-absolute 20,
+		// not rect.y + anything.
 		d.reference.draw_string("42", 14, 20, 18, 20, 0, 64, true);
 		expect(d.pbm()).to_equal(d.reference_pbm());
 
@@ -559,9 +549,9 @@ describe values_w("ui::oled::values", $ {
 		const Response resp = toggle(r.frame, menu_rect(r.frame), value, "OFF", "ON", sc);
 		expect(resp.changed).to_be_false();
 
-		// toggle.cpp:26-42: yPixel = 14 + OLED_MAIN_TOPMOST_PIXEL = 19, rows kTextSpacingY
-		// apart, drawString at kTextSpacingX, and invertLeftEdgeForMenuHighlighting(0, 128,
-		// yPixel, yPixel + 8) on the selected one.
+		// yPixel = 14 + OLED_MAIN_TOPMOST_PIXEL = 19, rows kTextSpacingY apart, drawString at
+		// kTextSpacingX, and invertLeftEdgeForMenuHighlighting(0, 128, yPixel, yPixel + 8) on the
+		// selected one.
 		expect(r.lit(6, 21)).to_be_true();     // the 'O' of the unhighlighted first row
 		expect(r.lit(0, 28)).to_be_false();    // rounded corner of the second row's highlight
 		expect(r.lit(0, 29)).to_be_true();
@@ -582,7 +572,7 @@ describe values_w("ui::oled::values", $ {
 		off.reference.invert_area_rounded(0, 128, 19, 27, BorderRadius::Small, true);
 		expect(off.pbm()).to_equal(off.reference_pbm());
 
-		// The 64-row panel puts the same two rows at base-y 15 (menu_item.cpp:50, toggle.cpp:26).
+		// The 64-row panel puts the same two rows at base-y 15.
 		uitest::Rig64 r64;
 		bool v64 = true;
 		ScrollText sc64;
@@ -598,8 +588,8 @@ describe values_w("ui::oled::values", $ {
 		bool value = false;
 		ScrollText sc;
 
-		// Toggle::selectEncoderAction is setValue(offset > 0) (toggle.cpp:14-17), NOT a flip:
-		// turning up twice leaves it on (D1).
+		// Toggle::selectEncoderAction is setValue(offset > 0), NOT a flip: turning up twice
+		// leaves it on.
 		r.input.turn = 1;
 		expect(toggle(r.frame, menu_rect(r.frame), value, "OFF", "ON", sc).changed).to_be_true();
 		expect(value).to_be_true();
@@ -610,13 +600,12 @@ describe values_w("ui::oled::values", $ {
 		expect(toggle(r.frame, menu_rect(r.frame), value, "OFF", "ON", sc).changed).to_be_true();
 		expect(value).to_be_false();
 
-		// A select press on THIS screen does not touch the value (D2). The two-row screen only
-		// exists while the Toggle is the current menu item -- Toggle::shouldEnterSubmenu() is
-		// false (toggle.h:19), so no submenu navigation can enter it -- and on that branch
-		// Toggle::selectButtonPress returns nullptr without calling toggleValue()
-		// (toggle.h:35-36), after which sound_editor.cpp:357 + :386-389 runs goUpOneLevel().
-		// The toggleValue() branch (toggle.h:39-43) fires only for a Toggle drawn as a row
-		// inside a Submenu, where the parent's list row carries the checkbox icon.
+		// A select press on THIS screen does not touch the value. The two-row screen only exists
+		// while the Toggle is the current menu item -- Toggle::shouldEnterSubmenu() is false, so
+		// no submenu navigation can enter it -- and on that branch Toggle::selectButtonPress
+		// returns nullptr without calling toggleValue(), after which the scene runs
+		// goUpOneLevel(). The toggleValue() branch fires only for a Toggle drawn as a row inside a
+		// Submenu, where the parent's list row carries the checkbox icon.
 		r.input.turn = 0;
 		r.input.select_pressed = true;
 		const bool before = value;

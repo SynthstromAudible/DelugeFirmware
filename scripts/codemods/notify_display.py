@@ -22,7 +22,7 @@ Not rewritten (left for a human):
     to be visible *during* a long blocking load, and the drain only runs once per
     deluge_app_tick(), so a queued "show" and a queued "clear" bracketing a synchronous load pop
     back-to-back in the same drain pass and the animation is never painted. Converting them
-    needs the shell to tick during sd_busy (spec D), not a codemod;
+    needs a change to when the shell ticks during sd_busy, not a codemod;
   * displayPopup(..., 0, ...) -- numFlashes 0 means "persistent" on OLED
     (OLED::displayPopup passes `!numFlashes` as `persistent`); that maps to
     Notice::Severity::Warn, which the raisers do not expose yet, so those sites are reported

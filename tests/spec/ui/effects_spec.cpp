@@ -21,8 +21,8 @@ namespace {
 
 const RGB kPainted{200, 100, 40};
 
-// The colour legacy would leave: RGB::greyOut is the shared helper both sides call
-// (pad_leds.cpp:295 -> gfx/grid/rgb.h:177), so the spec pins *which pads* change, not the maths.
+// The colour legacy would leave: RGB::greyOut is the shared helper both sides call, so the spec
+// pins *which pads* change, not the maths.
 RGB greyed(RGB c, int32_t amount) {
 	return c.greyOut(amount);
 }
@@ -55,7 +55,7 @@ GestureEvent step(uitest::GridRig& r, Hold& hold, int32_t& second_x, int32_t& se
 	return gesture(f, hold, HoldPolicy{}, second_x, second_y);
 }
 
-constexpr int32_t kShortPressMs = 500; // definitions_cxx.hpp:1028 / qwerty_ui.cpp:220
+constexpr int32_t kShortPressMs = 500; // legacy's kShortPressTime
 
 } // namespace
 
@@ -65,9 +65,8 @@ describe effects_spec("ui/grid/effects", $ {
 	// --- greyout ------------------------------------------------------------------------------
 
 	it("greys the column a cols bit selects, counting from the right", _ {
-		// pad_leds.cpp:294 -- `greyoutCols & (1 << (kDisplayWidth + kSideBarWidth - 1 - x))`, so
-		// bit 0 is the LAST column of the frame, not the first. Parity with legacy over the
-		// brief's wording (see the amendment note in effects.h).
+		// Legacy tests `greyoutCols & (1 << (kDisplayWidth + kSideBarWidth - 1 - x))`, so bit 0 is
+		// the LAST column of the frame, not the first -- see the note in effects.h.
 		uitest::GridRig r = painted_rig();
 		greyout(r.frame, GreyoutMask{.cols = 1u << 0}, 0x100000);
 
@@ -110,7 +109,7 @@ describe effects_spec("ui/grid/effects", $ {
 
 	it("does nothing for an empty mask", _ {
 		uitest::GridRig r = painted_rig();
-		greyout(r.frame, GreyoutMask{}, 0x100000); // pad_leds.cpp:293's guard
+		greyout(r.frame, GreyoutMask{}, 0x100000); // legacy's `(greyoutRows || greyoutCols)` guard
 
 		for (int32_t y = 0; y < 8; y++) {
 			for (int32_t x = 0; x < 18; x++) {
@@ -153,7 +152,7 @@ describe effects_spec("ui/grid/effects", $ {
 		r.input.pads = up.pads;
 		r.input.now_ms = 100;
 		expect(step(r, hold, sx, sy) == GestureEvent::Tap).to_be_true();
-		expect(hold.held).to_be_false(); // session_view.cpp:966-975, the press is over
+		expect(hold.held).to_be_false(); // the press is over
 	});
 
 	it("reports a hold exactly once when the deadline passes", _ {
@@ -174,7 +173,7 @@ describe effects_spec("ui/grid/effects", $ {
 
 		r.input.now_ms = 600;
 		expect(step(r, hold, sx, sy) == GestureEvent::Hold).to_be_true();
-		// One-shot, like the timer at qwerty_ui.cpp:220.
+		// One-shot, like legacy's short-press timer.
 		r.input.now_ms = 700;
 		expect(step(r, hold, sx, sy) == GestureEvent::None).to_be_true();
 		expect(hold.held).to_be_true();
@@ -209,7 +208,7 @@ describe effects_spec("ui/grid/effects", $ {
 		r.input.now_ms = 600;
 		expect(step(r, hold, sx, sy) == GestureEvent::Hold).to_be_true();
 
-		// arranger_view.cpp:1307 -- `>= kShortPressTime` exits the sub-mode with no action.
+		// Legacy's `>= kShortPressTime` exits the sub-mode with no action.
 		Tick up{{{.x = 5, .y = 2, .velocity = 0, .pressed = false}}};
 		r.input.pads = up.pads;
 		r.input.now_ms = 900;
@@ -228,7 +227,7 @@ describe effects_spec("ui/grid/effects", $ {
 		step(r, hold, sx, sy);
 		r.input.held_pads.set(5, 2, true);
 
-		// session_view.cpp:884-902 -- "clone it to newly-pressed row", which ends the press.
+		// Legacy's "clone it to newly-pressed row", which ends the press.
 		Tick second{{{.x = 9, .y = 6, .velocity = 64, .pressed = true}}};
 		r.input.pads = second.pads;
 		r.input.now_ms = 120;
@@ -256,8 +255,8 @@ describe effects_spec("ui/grid/effects", $ {
 	});
 
 	it("handles a press and its release arriving in the same tick", _ {
-		// Legacy runs padAction once per event (session_view.cpp:817-975), so a tick carrying both
-		// edges still taps. Returning on the first event would have started a hold and never ended
+		// Legacy runs padAction once per event, so a tick carrying both edges still taps.
+		// Returning on the first event would have started a hold and never ended
 		// it -- local_events() is rebuilt per frame, so the release would be lost, not deferred.
 		uitest::GridRig r;
 		Hold hold;
@@ -283,7 +282,7 @@ describe effects_spec("ui/grid/effects", $ {
 		expect(step(r, hold, sx, sy) == GestureEvent::SecondPad).to_be_true();
 		expect(sx).to_equal(9);
 		expect(sy).to_equal(6);
-		expect(hold.held).to_be_false(); // session_view.cpp:901 ends the press
+		expect(hold.held).to_be_false(); // legacy ends the press when a second pad is pressed
 	});
 
 	it("keeps tracking a pad pressed after another was released in the same tick", _ {

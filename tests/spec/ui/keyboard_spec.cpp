@@ -18,13 +18,13 @@ namespace palette = deluge::gui::colours;
 
 // The on-pad text keyboard (QwertyUI::drawKeys / padAction) and the two legacy adapters.
 //
-// The character table below is transcribed straight out of gui/ui/qwerty_ui.cpp:180-203 and every
+// The character table below is transcribed straight out of legacy's keyboardChars and every
 // reachable pad is compared against it for all three layouts, so a typo in the port's copy of the
 // table fails here rather than on a device.
 
 namespace {
 
-// --- keyboardChars (gui/ui/qwerty_ui.cpp:180-203), transcribed --------------------------------
+// --- keyboardChars, transcribed -----------------------------------------------------------------
 const char legacy_keyboard_chars[][5][11] = {{
                                                  {'1', '2', '3', '4', '5', '6', '7', '8', '9', '0', '-'},
                                                  {'Q', 'W', 'E', 'R', 'T', 'Y', 'U', 'I', 'O', 'P', 0},
@@ -47,7 +47,7 @@ const char legacy_keyboard_chars[][5][11] = {{
                                                  {0, 0, ' ', ' ', ' ', ' ', ' ', ' ', 0, 0, 0},
                                              }};
 
-constexpr int32_t kHomeRow = kTextKeyboardHomeRow; // definitions_cxx.hpp:848
+constexpr int32_t kHomeRow = kTextKeyboardHomeRow;
 
 // A rig plus the storage its pad-event span points into, so a spec can hold shift and hit a key in
 // the same tick the way a player does. The events live in the struct, not in a shared static, so
@@ -113,7 +113,7 @@ describe keyboard_spec("ui/grid/keyboard", $ {
 	});
 
 	it("reproduces the whole legacy table for every layout", _ {
-		// qwerty_ui.cpp:255 bounds the lookup; :267-268 is the index; :269 makes a 0 entry type
+		// Legacy bounds the lookup to the key rectangle, indexes the table, and a 0 entry types
 		// nothing. Sweep the entire rectangle for all three layouts.
 		const KeyboardLayoutKind kinds[] = {KeyboardLayoutKind::Qwerty, KeyboardLayoutKind::Azerty,
 		                                    KeyboardLayoutKind::Qwertz};
@@ -131,7 +131,7 @@ describe keyboard_spec("ui/grid/keyboard", $ {
 		expect(text_keyboard_char_at(KeyboardLayoutKind::Qwerty, 2, kHomeRow, kHomeRow, false)).to_equal(0);
 		expect(text_keyboard_char_at(KeyboardLayoutKind::Qwerty, 3, kHomeRow + 3, kHomeRow, false)).to_equal(0);
 		expect(text_keyboard_char_at(KeyboardLayoutKind::Qwerty, 3, kHomeRow - 3, kHomeRow, false)).to_equal(0);
-		// The shift pads themselves type nothing (x = 1, 2 is left of the rectangle at :255).
+		// The shift pads themselves type nothing (x = 1, 2 is left of the key rectangle).
 		expect(text_keyboard_char_at(KeyboardLayoutKind::Qwerty, 1, kHomeRow - 1, kHomeRow, false)).to_equal(0);
 	});
 
@@ -144,7 +144,7 @@ describe keyboard_spec("ui/grid/keyboard", $ {
 		expect(text_keyboard_char_at(KeyboardLayoutKind::Qwerty, 3, kHomeRow - 2, kHomeRow, false)).to_equal(0);
 		expect(text_keyboard_char_at(KeyboardLayoutKind::Qwerty, 11, kHomeRow - 2, kHomeRow, false)).to_equal(0);
 
-		// Backspace (:205) and enter (:232), both two pads wide.
+		// Backspace and enter, both two pads wide.
 		expect(text_keyboard_char_at(KeyboardLayoutKind::Qwerty, 14, kHomeRow + 2, kHomeRow, false))
 		    .to_equal(kTextKeyboardBackspace);
 		expect(text_keyboard_char_at(KeyboardLayoutKind::Qwerty, 15, kHomeRow + 2, kHomeRow, false))
@@ -156,12 +156,12 @@ describe keyboard_spec("ui/grid/keyboard", $ {
 	});
 
 	it("applies shift to legacy's four digit-row keys and nothing else", _ {
-		// :283-302 -- only on y == home_row + 2, only these four.
+		// Legacy shifts only on y == home_row + 2, only these four.
 		expect(text_keyboard_char_at(KeyboardLayoutKind::Qwerty, 3, kHomeRow + 2, kHomeRow, true)).to_equal('!');
 		expect(text_keyboard_char_at(KeyboardLayoutKind::Qwerty, 5, kHomeRow + 2, kHomeRow, true)).to_equal('#');
 		expect(text_keyboard_char_at(KeyboardLayoutKind::Qwerty, 8, kHomeRow + 2, kHomeRow, true)).to_equal('^');
 		expect(text_keyboard_char_at(KeyboardLayoutKind::Qwerty, 13, kHomeRow + 2, kHomeRow, true)).to_equal('_');
-		// Untouched digits, and the letters (legacy cases those from the text, :337-345).
+		// Untouched digits, and the letters (legacy cases those from the text).
 		expect(text_keyboard_char_at(KeyboardLayoutKind::Qwerty, 4, kHomeRow + 2, kHomeRow, true)).to_equal('2');
 		expect(text_keyboard_char_at(KeyboardLayoutKind::Qwerty, 3, kHomeRow + 1, kHomeRow, true)).to_equal('Q');
 		// The '-' key only shifts on the digit row; AZERTY's row-2 apostrophe is not a shift key.
@@ -175,28 +175,28 @@ describe keyboard_spec("ui/grid/keyboard", $ {
 		TextKeyboardState state;
 		text_keyboard(r.frame, state, KeyboardLayoutKind::Qwerty);
 
-		// Backspace red (:111) and enter green (:114), both pads of each.
+		// Backspace red and enter green, both pads of each.
 		expect(r.grid.at(14, kHomeRow + 2)).to_equal(palette::red);
 		expect(r.grid.at(15, kHomeRow + 2)).to_equal(palette::red);
 		expect(r.grid.at(14, kHomeRow)).to_equal(palette::green);
 		expect(r.grid.at(15, kHomeRow)).to_equal(palette::green);
-		// Shift blue on both sides (:117-118).
+		// Shift blue on both sides.
 		expect(r.grid.at(1, kHomeRow - 1)).to_equal(palette::blue);
 		expect(r.grid.at(2, kHomeRow - 1)).to_equal(palette::blue);
 		expect(r.grid.at(13, kHomeRow - 1)).to_equal(palette::blue);
 		expect(r.grid.at(14, kHomeRow - 1)).to_equal(palette::blue);
-		// Digits 64 (:83), the '-' key 10 (:92), qwer 10 (:84).
+		// Digits 64, the '-' key 10, qwer 10.
 		expect(r.grid.at(3, kHomeRow + 2)).to_equal(RGB::monochrome(64));
 		expect(r.grid.at(13, kHomeRow + 2)).to_equal(RGB::monochrome(10));
 		expect(r.grid.at(3, kHomeRow + 1)).to_equal(RGB::monochrome(10));
-		// Home keys (:95-102): 64 either side of the two 160s, 10 in the middle.
+		// Home keys: 64 either side of the two 160s, 10 in the middle.
 		expect(r.grid.at(5, kHomeRow)).to_equal(RGB::monochrome(64));
 		expect(r.grid.at(6, kHomeRow)).to_equal(RGB::monochrome(160));
 		expect(r.grid.at(7, kHomeRow)).to_equal(RGB::monochrome(10));
 		expect(r.grid.at(9, kHomeRow)).to_equal(RGB::monochrome(160));
 		expect(r.grid.at(10, kHomeRow)).to_equal(RGB::monochrome(64));
 		expect(r.grid.at(13, kHomeRow)).to_equal(RGB::monochrome(10));
-		// Space bar 160 (:105-107), and the pad beside it left clear.
+		// Space bar 160, and the pad beside it left clear.
 		expect(r.grid.at(5, kHomeRow - 2)).to_equal(RGB::monochrome(160));
 		expect(r.grid.at(10, kHomeRow - 2)).to_equal(RGB::monochrome(160));
 		expect(r.grid.at(4, kHomeRow - 2)).to_equal(palette::black);
@@ -210,7 +210,7 @@ describe keyboard_spec("ui/grid/keyboard", $ {
 		}
 		TextKeyboardState state;
 		text_keyboard(r.frame, state, KeyboardLayoutKind::Qwerty);
-		// clearMainPadsWithoutSending (:76 -> pad_leds.cpp:236-240) stops at kDisplayWidth.
+		// clearMainPadsWithoutSending stops at kDisplayWidth.
 		expect(r.grid.at(16, 0)).to_equal(RGB{3, 3, 3});
 		expect(r.grid.at(17, 7)).to_equal(RGB{4, 4, 4});
 	});
@@ -239,15 +239,15 @@ describe keyboard_spec("ui/grid/keyboard", $ {
 		TextKeyboardState state;
 		const Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
 
-		expect(state.shift).to_be_true();     // :284-287
-		expect((char)resp.index).to_equal('!'); // :293-294
+		expect(state.shift).to_be_true();     // the shift pad's own event
+		expect((char)resp.index).to_equal('!'); // the digit-row event, shifted
 	});
 
 	it("types the digit when shift and the digit are pressed in the same tick", _ {
 		// The shift pad sits at home_row - 1 and the digit row at home_row + 2, so a bottom-up
-		// sweep reaches shift first. Legacy runs padAction per event (qwerty_ui.cpp:205-330), where
-		// the shift pad falls outside the key rectangle (:255) and types nothing while the digit
-		// still types '!'. Taking the first press in scan order would have returned 0.
+		// sweep reaches shift first. Legacy runs padAction per event, where the shift pad falls
+		// outside the key rectangle and types nothing while the digit still types '!'. Taking the
+		// first press in scan order would have returned 0.
 		KeyRig k({{.x = 1, .y = kHomeRow - 1, .velocity = 64, .pressed = true},
 		          {.x = 3, .y = kHomeRow + 2, .velocity = 64, .pressed = true}},
 		         {});

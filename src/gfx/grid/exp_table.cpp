@@ -2,7 +2,7 @@
 
 namespace deluge::gfx::grid {
 
-// Verbatim copy of util::expTableSmall (src/deluge/util/lookuptables/lookuptables.cpp:127).
+// Mirrors the audio DSP's `expTableSmall`; see the note on kExpTableSmall in exp_table.h.
 const uint16_t kExpTableSmall[257] = {
     32768, 32857, 32946, 33035, 33125, 33215, 33305, 33395, 33486, 33576, 33667, 33759, 33850, 33942, 34034, 34126,
     34219, 34312, 34405, 34498, 34591, 34685, 34779, 34874, 34968, 35063, 35158, 35253, 35349, 35445, 35541, 35637,

@@ -14,10 +14,8 @@ describe grid_rect("gfx::grid::Rect", $ {
 		expect(r.intersect(Rect{4, 2, 10, 10})).to_equal(Rect{4, 2, 2, 2});
 		expect(deluge::ui::kTextSpacingY).to_equal(9);
 	});
-	// split_rows(at) / split_cols(at): task-6 fix round 1 -- same two-way-at-a-position shape as
-	// gfx::oled::Rect::split_rows/split_cols (gfx/oled/geometry.h:50-51, tests/spec/gfx/geometry_spec.cpp)
-	// and the SDK's Frame::split_rows/split_cols (imode.rs:367-398), replacing an earlier (n, i)
-	// n-way form that matched neither sibling.
+	// split_rows(at) / split_cols(at): the same two-way-at-a-position shape as
+	// gfx::oled::Rect::split_rows/split_cols and the SDK's Frame::split_rows/split_cols.
 	it("splits rows into (top, bottom) at a row position, without gaps or overlap", _ {
 		Rect r{5, 10, 4, 8}; // x=5, y=10, w=4, h=8
 		auto [top, bottom] = r.split_rows(3);

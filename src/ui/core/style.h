@@ -5,28 +5,29 @@
 
 namespace deluge::ui {
 
-/// Passed by const& into every frame. Chosen per board profile; "menu line count", "menu base
-/// row" and "rounded corners" are values here, not globals on the rasteriser.
+/// @brief Per-frame OLED style parameters for a board profile, passed by const& into every frame.
 ///
-/// Every field is read by at least one widget -- the branch review's rule, so a board profile
-/// cannot fill in a number that quietly does nothing. Where a field's value coincides with a
-/// legacy metric from `core/metrics.h`, the widget that reads it carries a `static_assert` tying
-/// the two together, so a profile edit that would move pixels fails to compile rather than
-/// failing a golden.
+/// "Menu line count", "menu base row" and "rounded corners" are values here, not globals on the
+/// rasteriser.
+///
+/// Every field is read by at least one widget, so a board profile cannot fill in a number that
+/// quietly does nothing. Where a field's value coincides with a legacy metric from
+/// `core/metrics.h`, the widget that reads it carries a `static_assert` tying the two together,
+/// so a profile edit that would move pixels fails to compile rather than failing a golden.
 ///
 /// A profile is really a `(Style, Geometry)` *pair*: the geometry decides how many rows exist and
 /// the style decides where the menu starts inside them. `menu_base_y` is what keeps the two in
-/// step -- it is the only panel-height-dependent number the OLED widgets need, and it now lives
-/// here rather than being re-derived from `Canvas::geometry()` inside `list` and `output_name`.
+/// step -- it is the only panel-height-dependent number the OLED widgets need, so `list` and
+/// `output_name` read it here instead of re-deriving it from `Canvas::geometry()`.
 struct Style {
 	/// The title band's height: the row `title()` draws its separator rule on, and the first row
 	/// below the title a caller may use. `= kTitleSeparatorY` on both shipped profiles.
 	int32_t title_height;
 	/// The vertical pitch of one `list` row, in pixels. `= kTextSpacingY` on both shipped
-	/// profiles, which is the legacy menu-item pitch (`menu_item.cpp:56`).
+	/// profiles, which is the legacy menu-item pitch.
 	int32_t row_height;
 	/// The x inset of a `list` row's label from the rect's left edge. `= kTextSpacingX` on both
-	/// shipped profiles (`menu_item.cpp:58`).
+	/// shipped profiles.
 	int32_t inset_x;
 	/// The width `scrollbar()` draws its thumb, clamped to the rect it is given. No legacy
 	/// counterpart -- the legacy menus scroll with no indicator at all -- so this is the toolkit's
@@ -35,9 +36,9 @@ struct Style {
 	/// How many rows `list` will show at once: legacy's `OLED_HEIGHT_CHARS - 1`.
 	int32_t menu_rows;
 	/// The `list`/`menu_rect` base row, `MenuItem::drawItemsForOled`'s `(OLED_MAIN_HEIGHT_PIXELS
-	/// == 64) ? 15 : 14` (`menu_item.cpp:50`) as a profile value. Deliberately *not*
-	/// `kHorizontalMenuBaseY`, which `columns` uses and which is 14 on every panel -- see the note
-	/// on that constant in `core/metrics.h`.
+	/// == 64) ? 15 : 14` as a profile value. Deliberately *not* `kHorizontalMenuBaseY`, which
+	/// `columns` uses and which is 14 on every panel -- see the note on that constant in
+	/// `core/metrics.h`.
 	int32_t menu_base_y;
 	bool rounded, invert_highlight;
 	gfx::oled::FontId title_font, row_font, value_font, big_font;

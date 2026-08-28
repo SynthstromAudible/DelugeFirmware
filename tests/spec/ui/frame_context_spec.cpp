@@ -36,9 +36,9 @@ using GridRect = deluge::gfx::grid::Rect;
 namespace uitest = deluge::ui::test;
 
 namespace {
-/// One column of a horizontal menu whose value is an `enum_value` -- the case I1 is about: a
-/// caller-supplied slot renderer built out of a widget that has no `focused` parameter of its own,
-/// so an unfocused frame is the only thing that can keep it inert.
+/// One column of a horizontal menu whose value is an `enum_value`: a caller-supplied slot
+/// renderer built out of a widget that has no `focused` parameter of its own, so an unfocused
+/// frame is the only thing that can keep it inert.
 struct EnumSlot {
 	std::span<const std::string_view> names;
 	int32_t index = 0;
@@ -92,7 +92,7 @@ describe frame_context("ui::FrameContext", $ {
 		expect(r.frame.back_pressed()).to_be_true();
 		expect(r.frame.shift()).to_be_true();
 		expect(r.frame.now_ms()).to_equal(uint32_t(1234));
-		// The root frame holds every input. Reading is claiming (rule 2, I3): every accessor read
+		// The root frame holds every input. Reading is claiming (rule 2): every accessor read
 		// above claimed its own input on this frame, except edit(2) -- there is no third encoder to
 		// own, so it neither reads nor claims anything. now_ms()/shift() are never masked and never
 		// claimed; they are not controls.
@@ -299,7 +299,7 @@ describe frame_context("ui::FrameContext", $ {
 	});
 
 	it("keeps the clock running in an unfocused region: a label still scrolls", _ {
-		// The whole point of C1: `scroll_text` reads `now_ms()`, and a masked clock would pin it
+		// `scroll_text` reads `now_ms()`, and a masked clock would pin it
 		// at 0 for ever, so a too-wide label in an unfocused pane would never ping-pong.
 		const std::string_view label = "A VERY LONG LABEL THAT CANNOT FIT";
 		const Rect box{0, 14, 40, 9};
@@ -409,7 +409,7 @@ describe frame_context("ui::FrameContext", $ {
 	});
 
 	it("spends one detent on the column focus and hands the rest of the inputs to the column", _ {
-		// I1/round 2: the slot mask is `none()` for every column but the focused one, and
+		// The slot mask is `none()` for every column but the focused one, and
 		// `{.turn = false}` for that one -- `columns` owns the turn (it walks the column focus
 		// with it), the column's own value widget owns the gold knobs, the press and back.
 		const std::string_view names[] = {"AAA", "BBB", "CCC"};
@@ -494,7 +494,7 @@ describe frame_context("ui::FrameContext", $ {
 		expect(r.ctx.claims.double_claim).to_be_false();
 
 		// A widget that reads an input without ever calling claim_turn() still shows up in
-		// ctx.claims -- the gap I3 closes: before this rule only an explicit claim_*() call was
+		// ctx.claims: before this rule only an explicit claim_*() call was
 		// visible here, so a hand-written reader of f.turn() (or f.back_pressed(), etc.) looked
 		// exactly like one that had claimed nothing at all.
 		uitest::Rig64 r2;

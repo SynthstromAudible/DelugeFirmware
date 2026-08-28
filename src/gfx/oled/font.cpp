@@ -3,18 +3,16 @@
 namespace deluge::gfx::oled {
 
 namespace {
-// Px5 also serves heights 5 AND 6 (no separate 6px table exists); as a side effect,
-// width/spacing lookups for height 6 now select Px5 too. The legacy getCharWidthInPixels
-// switch had no `case 6` and fell through to `default` (MetricBold20) for width queries at
-// that height — a pre-existing inconsistency with drawChar's own height-6 handling (which
-// already used Px5). No live caller passes textHeight 6, so this is unobservable either way.
+// Px5 also serves heights 5 and 6 -- there's no separate 6px table. This unifies drawChar's
+// and getCharWidthInPixels' previously-disagreeing height-6 behaviour (draw used Px5; width
+// queries fell through to MetricBold20). No live caller passes textHeight 6, so the
+// difference is unobservable either way.
 constexpr Font kPx5{FontId::Px5, font_5px, font_5px_desc, 5, 5, 0, false};
 constexpr Font kApple7{FontId::Apple7, font_apple, font_apple_desc, 8, 7, 0, true};
 constexpr Font kApple7Up{FontId::Apple7, font_apple, font_apple_desc, 8, 7, 1, true};
 constexpr Font kMetric9{FontId::MetricBold9, font_metric_bold_9px, font_metric_bold_9px_desc, 9, 9, 0, false};
 constexpr Font kMetric13{FontId::MetricBold13, font_metric_bold_13px, font_metric_bold_13px_desc, 13, 13, 0, false};
-// render_height 0: the legacy `case 20: default:` branch left textHeight as the caller's
-// own value (only fontNativeHeight was set to 20) — see the Font::render_height comment.
+// render_height 0: see Font::render_height for the sentinel's meaning.
 constexpr Font kMetric20{FontId::MetricBold20, font_metric_bold_20px, font_metric_bold_20px_desc, 20, 0, 0, false};
 } // namespace
 
@@ -39,7 +37,6 @@ const Font& font_for_text_height(int32_t textHeight) {
 }
 
 int32_t glyph_index(uint8_t c) {
-	// Copied verbatim from Canvas::getCharIndex (canvas.cpp).
 	// 129 represents flat glyph
 	if (c == 129) {
 		c = '~' + 1;
@@ -122,8 +119,8 @@ int32_t string_width_px(std::string_view str, int32_t text_height) {
 	for (char const c : str) {
 		// `string_length`, not `string_length - 1`: char_idx never reaches it, so the last
 		// character DOES get trailing spacing counted here even though draw_string does not
-		// advance by it. Kept verbatim -- every legacy centring/right-aligning call site was
-		// laid out against this width, so "fixing" it would shift text by a pixel or two.
+		// advance by it. This is intentional -- centring/right-aligning call sites are laid
+		// out against this width, so "fixing" it would shift text by a pixel or two.
 		int32_t char_spacing = char_spacing_px(c, text_height, char_idx == string_length);
 		int32_t char_width = char_width_px(c, text_height) + char_spacing;
 		string_width += char_width;

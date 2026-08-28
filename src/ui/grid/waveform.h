@@ -8,125 +8,120 @@
 
 namespace deluge::ui::grid {
 
-/// Waveform-on-pads rendering: spec B section 7's `waveform_row` / `waveform_full`, ported from
-/// `WaveformRenderer` (gui/waveform/waveform_renderer.cpp).
+/// @brief Waveform-on-pads rendering.
 ///
-/// **Rendering only.** Legacy's renderers do two jobs at once: they scan the `Sample`'s clusters
-/// into per-column peaks (`findPeaksPerCol`, `getColBrightnessForSingleRow`,
-/// `getColBarPositions`) and then turn those peaks into pad colours. Only the second half is here;
-/// the scanning reads `Sample`, `SampleRecorder` and the card, and stays in `gui/waveform` until
-/// it moves to `deluge-scenes` (spec B section 7 and section 10). Everything below is a pure
-/// function of its arguments, so a spec can pin every branch without a card image.
+/// @note Rendering only. The scan that turns a `Sample`'s clusters into per-column peaks
+///       (finding peaks per column, computing brightness, computing bar positions) reads
+///       `Sample`, `SampleRecorder` and the card, and stays outside this module. Everything below
+///       is a pure function of its arguments.
 ///
 /// Both entry points paint through `GridFrame::pad`, so they are region-local and the caller
 /// decides which columns and rows the waveform occupies.
 
 // ---------------------------------------------------------------------------------------------
-// Single row -- WaveformRenderer::renderAsSingleRow (waveform_renderer.cpp:105-150)
+// Single row
 // ---------------------------------------------------------------------------------------------
 
-/// The largest per-column brightness legacy produces.
+/// @brief The largest per-column brightness this module accepts.
 ///
-/// `getColBrightnessForSingleRow` (waveform_renderer.cpp:152-169) ends with
-/// `std::min<int32_t>(peak16 >> 8, 256)` -- "Max 256 - for now. Looks great and bright" (:166) --
-/// so the value legacy feeds the colour formula is 0..256 *inclusive*, one past what a `uint8_t`
-/// can hold. Recorded as an amendment: the brief spells the brightness span
-/// `std::span<const uint8_t> /*0..255 per col*/`, and `waveform_row` takes
-/// `std::span<const int32_t>` instead. Clamping to 255 at the model boundary would move the
-/// quantised output colour at some channel values (the formula's `& ~15` step means a one-count
-/// difference in `brightness` is usually invisible but not always), and this port is meant to be
-/// exact.
+/// The value is 0..256 *inclusive*, one past what a `uint8_t` can hold, to match the source of
+/// per-column brightness values exactly: clamping the span to 0..255 at the model boundary would
+/// move the quantised output colour at some channel values (the colour formula's `& ~15` step
+/// means a one-count difference in brightness is usually invisible but not always).
 constexpr int32_t kWaveformMaxBrightness = 256;
 
-/// The colour legacy paints for one single-row column at \p brightness over base colour \p base.
+/// @brief The colour to paint for one single-row column at @p brightness over base colour @p base.
 ///
-/// `renderAsSingleRow`, waveform_renderer.cpp:137-146, verbatim:
+/// Computed as:
 ///
-///     colourValue = (colourValue * colourValue);              // :137
-///     rgb.transform([](channel) {                             // :140
-///         int32_t valueHere = (colourValue * channel) >> 16;  // :141
-///         return std::clamp<int32_t>((valueHere + 6) & ~15, 0, RGB::channel_max);  // :144
+///     colour_value = brightness * brightness;
+///     base.transform([](channel) {
+///         value_here = (colour_value * channel) >> 16;
+///         return clamp((value_here + 6) & ~15, 0, channel_max);
 ///     });
 ///
-/// The `& ~15` is legacy's deliberate bit-depth limiter -- "to avoid problem with PIC firmware
-/// where too many different colour shades cause big problems. The 6 is quite arbitrary, but I
-/// think it looks good" (:142-143). It is not rounding and must not be "cleaned up": it is what
-/// makes a waveform row land on a small set of shades.
+/// @note The `& ~15` step is a deliberate bit-depth limiter, not rounding, and must not be "cleaned
+///       up": it is what makes a waveform row land on a small set of shades rather than a smooth
+///       gradient.
 ///
-/// A \p brightness of 0 yields black, which is also what legacy paints for a column it has no
-/// data for (`colStatus != COL_STATUS_INVESTIGATED`, :130-133) -- so the two cases coincide and
-/// the span needs no separate validity flag.
+/// A @p brightness of 0 yields black, which is also the colour painted for a column with no data
+/// -- so the two cases coincide and the caller needs no separate validity flag.
+///
+/// @param brightness Column brightness, in `[0, kWaveformMaxBrightness]`.
+/// @param base       Base colour to scale.
+/// @return The scaled, bit-depth-limited colour.
 RGB waveform_col_colour(int32_t brightness, RGB base);
 
-/// Paint a one-row waveform across the frame's full width -- spec B section 7's
-/// `waveform_row(f, y, peaks)`.
+/// @brief Paint a one-row waveform across the frame's full width.
 ///
-/// \p brightness is one value per *source* column, in `[0, kWaveformMaxBrightness]`, produced by
-/// the model's peak scan (legacy `getColBrightnessForSingleRow`). \p reversed mirrors the source
-/// index, as `renderAsSingleRow` does at :125-128 (and :112-116 for the scan range).
+/// @p brightness is one value per *source* column, in `[0, kWaveformMaxBrightness]`, produced by
+/// the model's peak scan. @p reversed mirrors the source index.
 ///
-/// Legacy mirrors about `kDisplayWidth`, the full width of the area it renders into; the port
-/// mirrors about `f.bounds().w`, the frame's own width, which is the same thing *provided the
-/// caller hands the component a frame exactly as wide as the waveform*. On a Deluge that means
-/// opening a `region` over the 16 main columns rather than passing the 18-wide root frame -- a
-/// root frame would mirror across the sidebar. Columns with no entry in \p brightness are painted
-/// black, matching legacy's "If no data here (e.g. if Sample not recorded this far yet...)"
-/// branch (:130-133).
+/// @note Mirroring is about the frame's own width (`f.bounds().w`), not a fixed display width, so
+///       the caller must hand this component a frame exactly as wide as the waveform -- on a
+///       Deluge that means opening a `region` over the main columns rather than passing a
+///       sidebar-inclusive root frame, or the mirror would run across the sidebar too. Columns
+///       with no entry in @p brightness are painted black.
+///
+/// @param f          Frame to paint into.
+/// @param y          Row to paint.
+/// @param brightness Per-source-column brightness values.
+/// @param base       Base colour to scale each column's brightness against.
+/// @param reversed   If true, column @p x reads source column `w - 1 - x` instead of `x`.
 void waveform_row(GridFrame& f, int32_t y, std::span<const int32_t> brightness, RGB base, bool reversed);
 
 // ---------------------------------------------------------------------------------------------
-// Full screen -- WaveformRenderer::renderFullScreen / renderOneCol / drawColBar
-// (waveform_renderer.cpp:82-102, :764-778, :731-762)
+// Full screen
 // ---------------------------------------------------------------------------------------------
 
-/// One column's vertical extent, in legacy's 8.24 fixed-point pad units.
+/// @brief One column's vertical extent, in 8.24 fixed-point pad units.
 ///
-/// Exactly what `getColBarPositions` (waveform_renderer.cpp:718-729) writes through its `min24` /
-/// `max24` out-parameters: the column's minimum and maximum sample values, re-centred on the
-/// sample's `getFoundValueCentrePoint()` and scaled by `getValueSpan()` so that one whole pad row
-/// is `1 << 24`. `valid` is legacy's `colStatus[x] == COL_STATUS_INVESTIGATED` test
-/// (`renderOneCol`, :771) lowered to a POD field, because the status array is model state.
+/// The column's minimum and maximum sample values, re-centred on the sample's found value centre
+/// point and scaled so that one whole pad row is `1 << 24`. `valid` marks whether this column has
+/// been investigated by the scan; an uninvestigated column is left black.
 ///
-/// The "at least 1 pixel's width" widening at :724-728 is part of the *scan*, not the render, and
-/// stays with the model along with the rest of `getColBarPositions`.
+/// @note The "at least 1 pixel's width" widening of a bar is part of the scan that produces
+///       `min24`/`max24`, not the render, and lives with the rest of that scan.
 struct PeakCol {
 	int32_t min24 = 0;
 	int32_t max24 = 0;
 	bool valid = false;
 };
 
-/// The two brightnesses `renderOneCol` chooses between: `int32_t brightness = rgb ? 256 : 128`
-/// (waveform_renderer.cpp:767). Named here because `waveform_full` takes the brightness as an
-/// argument (the collapse animation interpolates it, :242-260) rather than deriving it.
+/// @brief The two brightnesses a full-screen bar chooses between: coloured bars use
+///        `kWaveformBarBrightnessColoured`, monochrome bars use `kWaveformBarBrightnessMono`.
+///
+/// Named as constants because `waveform_full` takes the brightness as an argument (the collapse
+/// animation interpolates it) rather than deriving it from whether a colour is supplied.
 constexpr int32_t kWaveformBarBrightnessColoured = 256;
 constexpr int32_t kWaveformBarBrightnessMono = 128;
 
-/// Paint a full-height waveform, one vertical bar per column -- spec B section 7's
-/// `waveform_full(f, PeakGrid)`.
+/// @brief Paint a full-height waveform, one vertical bar per column.
 ///
-/// Clears **the whole frame** first, as `renderFullScreen` does (`memset(thisImage[y], 0,
-/// kDisplayWidth * 3)` for every row, :92-95), then draws `drawColBar` for every `valid` column
-/// (`renderOneCol`, :771-777). Legacy clears all `kDisplayWidth` columns and then renders only
-/// `xEnd` of them (:97-98), so a main column past the end of the waveform ends up black; the port
-/// does the same, which is also what `waveform_row` does for a column with no brightness entry
-/// (:130-133). A column that is not `valid` is likewise left black, which is what legacy's early
-/// return leaves behind after that clear. The frame is the waveform's area, so give the component
-/// a region rather than the sidebar-inclusive root frame.
+/// Clears the whole frame first, then draws a bar for every `valid` column. A main column past the
+/// end of the waveform, or one that is not `valid`, ends up black -- the same fallback
+/// `waveform_row` uses for a column with no brightness entry. The frame is the waveform's area, so
+/// give the component a region rather than the sidebar-inclusive root frame.
 ///
-/// Bars are centred on the frame: legacy's `kDisplayHeight >> 1` (:734-735, :760) becomes
-/// `f.bounds().h >> 1`, so the component works on a frame of any height.
+/// Bars are centred on the frame: `f.bounds().h >> 1`, so the component works on a frame of any
+/// height.
 ///
-/// **Precondition:** pass `kWaveformBarBrightnessMono` when \p rgb is empty. Legacy couples the
-/// two (`brightness = rgb ? 256 : 128`, :767) so the monochrome path never sees a `valueHere`
-/// above 64; this signature decouples them because the collapse animation interpolates the
-/// brightness (:242-260), and a monochrome call with brightness 256 would reach
-/// `RGB::monochrome(256)`, which narrows to 0 in the `uint8_t` parameter (gfx/grid/rgb.h:74) and
-/// paints black bars. Not clamped here: the arithmetic is transcribed verbatim, and silently
-/// changing it would hide the caller's mistake rather than the legacy behaviour.
+/// @warning **Precondition:** pass `kWaveformBarBrightnessMono` when @p rgb is empty. The
+///          monochrome path relies on `brightness` never exceeding 128, since a monochrome call
+///          with brightness 256 would compute `RGB::monochrome(256)`, which narrows to 0 in the
+///          `uint8_t` parameter and paints black bars. This is not clamped here: the arithmetic is
+///          transcribed exactly, and silently changing it would hide the caller's mistake instead
+///          of surfacing it.
 ///
-/// Unlike `waveform_row`, this takes no `reversed` flag -- legacy applies reversal while choosing
-/// which *source* column to read (`renderOneCol`, :769), i.e. before the peaks exist, so with the
-/// scan on the model's side the caller reverses the span it passes.
+/// @note Unlike `waveform_row`, this takes no `reversed` flag: reversal is applied while choosing
+///       which *source* column to read, before the peaks exist, so with the scan on the model's
+///       side the caller reverses the span it passes in.
+///
+/// @param f          Frame to paint into.
+/// @param cols       Per-column peak extents, one entry per column.
+/// @param brightness Bar brightness; pass `kWaveformBarBrightnessColoured` or
+///                    `kWaveformBarBrightnessMono` (see the precondition above).
+/// @param rgb        Bar colour, or `nullopt` to paint monochrome bars.
 void waveform_full(GridFrame& f, std::span<const PeakCol> cols, int32_t brightness, std::optional<RGB> rgb);
 
 } // namespace deluge::ui::grid

@@ -494,9 +494,10 @@ void cullVoices(size_t numSamples, int32_t numAudio, int32_t numVoice) {
 	}
 	// blink LED to alert the user
 	if (culled && FlashStorage::highCPUUsageIndicator) {
-		// [audio] Just the fact -- the UI tick owns the LED. No dirty bit: the drain polls this flag
-		// outside its d.any() gate, and PlaybackState would schedule a full main+sidebar+OLED repaint
-		// once per render period exactly when the CPU is already over budget.
+		// [audio] The UI tick owns the LED blink, not the render loop; this only sets the flag for it
+		// to consume. No dirty bit is raised here: the drain polls this flag outside its d.any() gate,
+		// and a dirty bit would make PlaybackState schedule a full main+sidebar+OLED repaint once per
+		// render period, exactly when the CPU is already over budget.
 		cull_alert_pending = true;
 		D_PRINTLN("started %i voices this render cycle", voices_started_this_render);
 	}
@@ -1750,7 +1751,7 @@ errorAfterAllocation:
 //
 // Diagnostic only, not a hard invariant (see docs/dev/sd_busy_audit.md, audio_engine.cpp): this used
 // to FREEZE_WITH_ERROR("E251") here. On Embassy isSDRoutineActive() is hardwired false
-// (scheduler.rs:658), so before sd_busy() was backed for real, this check never fired at all -- it was
+// (scheduler.rs), so before sd_busy() was backed for real, this check never fired at all -- it was
 // exactly as dead as save_song_ui.cpp's E316, not "half-live". sd_busy() is now real, but it answers "is
 // ANY FS operation in flight anywhere", not "is THIS recorder's own cardRoutine() suspended mid-transfer"
 // -- the two can differ, since FatFS work is serialized but not per-caller-attributed. The precise

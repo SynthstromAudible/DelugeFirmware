@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Layer-rule ratchet (UI redesign, spec C §7 / spec F §5).
+"""Layer-rule ratchet enforcing the UI redesign's dependency direction.
 
 Each rule is (name, from_glob, kind, regex, spec). `kind` is "include" (match the include
 path) or "symbol" (match any source line). The baseline holds counts per (file, rule) and
@@ -61,7 +61,7 @@ RULES = [
     ),
     (
         # Slashed paths outside ui/ and gfx/ -- which is every project header except the handful
-        # the plan's Global Constraints name by name, and those are spelled out: a std header
+        # named explicitly below (definitions*, board_config.h, board_layout.hpp): a std header
         # (<cstdint>, <span>) has no slash and no such name, so it still never matches.
         "ui-includes-outside",
         "src/ui/**",
@@ -104,7 +104,8 @@ RULES = [
 # Matches both #include "path" and #include <path>, capturing only the path (the delimiter
 # itself is stripped either way). Angle-bracket project includes (e.g. #include <hid/buttons.h>)
 # are real layer violations and must count the same as the quoted spelling -- mirrors the
-# include regex in scripts/check_gfx_layer.py, which closed this exact hole earlier.
+# include regex in scripts/check_gfx_layer.py, which treats angle-bracket project includes
+# the same way.
 INCLUDE_RE = re.compile(r'^\s*#\s*include\s*[<"]([^">]+)[>"]')
 
 

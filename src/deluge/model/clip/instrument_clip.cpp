@@ -3780,7 +3780,7 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 		}
 
 		// NOTIFY-DEFERRED: synchronous load in task context; the animation must be on screen
-		// before the load starts -- resolved when the shell ticks during sd_busy (spec D)
+		// before the load starts -- resolved when the shell ticks during sd_busy
 		display->displayLoadingAnimationText("Loading");
 		newInstrument->loadAllAudioFiles(true);
 	}
@@ -3816,7 +3816,7 @@ Instrument* InstrumentClip::changeOutputType(ModelStackWithTimelineCounter* mode
 	modelStack->song->ensureAllInstrumentsHaveAClipOrBackedUpParamManager("E062", "H062");
 
 	// NOTIFY-DEFERRED: synchronous load in task context; the animation must be on screen
-	// before the load starts -- resolved when the shell ticks during sd_busy (spec D)
+	// before the load starts -- resolved when the shell ticks during sd_busy
 	display->removeWorkingAnimation();
 
 	return newInstrument;

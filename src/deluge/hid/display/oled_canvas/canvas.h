@@ -16,11 +16,11 @@
  */
 
 #pragma once
-// FACADE (remove after UI phase 5): the firmware's OLED canvas is gfx/oled/canvas.h plus
-// four pieces of policy (rounded-corner and menu-highlighting settings, the highlighting
-// primitive, an etl overload) and the 2-D image-store accessor that hid/display/oled.cpp
-// still composites with. New code must call the gfx (snake_case) names directly; the
-// camelCase forwarders below exist only so the legacy call sites compile unchanged.
+// FACADE (remove after UI phase 5): the firmware's OLED canvas is gfx/oled/canvas.h plus four pieces of policy
+// (rounded-corner and menu-highlighting settings, the highlighting primitive, an etl
+// overload) and the 2-D image-store accessor that hid/display/oled.cpp still composites
+// with. New code must call the gfx (snake_case) names directly; the camelCase forwarders
+// below exist only so the legacy call sites compile unchanged.
 #include "gfx/oled/canvas.h"
 #include "gfx/oled/font.h"
 #include "gfx/oled/icon.h"
@@ -39,9 +39,8 @@ using deluge::gfx::oled::DrawLineOptions;
 using deluge::gfx::oled::Point;
 
 // Legacy spellings of the two BorderRadius values, kept for the app call sites and the golden
-// specs. The library enum is now `enum class BorderRadius : uint8_t { Small, Big }` (the
-// unscoped SMALL/BIG used to leak into `deluge::gfx::oled`); this façade is the app layer, where
-// the legacy names belong.
+// specs; the library enum is `deluge::gfx::oled::BorderRadius::{Small, Big}`. This façade is
+// the app layer, where the legacy names belong.
 inline constexpr BorderRadius SMALL = BorderRadius::Small;
 inline constexpr BorderRadius BIG = BorderRadius::Big;
 
@@ -99,8 +98,8 @@ public:
 	                        int32_t textSpacingY, int32_t totalWidth) {
 		draw_string_centered(string, startX, startY, textSpacingX, textSpacingY, totalWidth);
 	}
-	/// Overload for the etl string buffers the menus build their values in. The trimming the
-	/// legacy overload did in place now happens on gfx's own copy, which no caller observed.
+	/// Overload for the etl string buffers the menus build their values in. Trims into gfx's own
+	/// copy of the string, not in place; no caller depends on the source buffer being mutated.
 	void drawStringCentered(etl::istring& stringBuf, int32_t startX, int32_t startY, int32_t textSpacingX,
 	                        int32_t textSpacingY, int32_t totalWidth) {
 		draw_string_centered(stringBuf.c_str(), startX, startY, textSpacingX, textSpacingY, totalWidth);
@@ -159,7 +158,7 @@ public:
 
 	using ImageStore = uint8_t[kImageHeight][kImageWidth];
 
-	/// XXX: DO NOT USE THIS OUTSIDE OF THE CORE OLED CODE; it disappears with the shell (phase 5).
+	/// XXX: DO NOT USE THIS OUTSIDE OF THE CORE OLED CODE.
 	ImageStore& hackGetImageStore() { return *reinterpret_cast<ImageStore*>(bytes().data()); }
 };
 } // namespace oled_canvas

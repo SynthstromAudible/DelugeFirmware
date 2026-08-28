@@ -813,9 +813,8 @@ DEFINE_ICON(crossedOutKeyboard, 2,  //<
             0b00000100, 0b00000000, //<
 );
 
-// Menu-row icons. Ported byte-for-byte from the legacy OLED::checkedBoxIcon,
-// OLED::uncheckedBoxIcon and OLED::submenuArrowIcon (src/deluge/hid/display/oled_icons.cpp:130,
-// 140, 150), which the submenu renderers blit with kSubmenuIconSpacingX == 7 columns.
+// Menu-row icons: checkedBox, uncheckedBox, submenuArrow. The submenu renderers blit these
+// at kSubmenuIconSpacingX == 7 columns.
 DEFINE_ICON(checkedBox, 1, //<
             0b11111110,    //<
             0b10000010,    //<
@@ -846,11 +845,9 @@ DEFINE_ICON(submenuArrow, 1, //<
             0b00000000,      //<
 );
 
-// The horizontal menu's own submenu arrow: OLED::submenuArrowIconBold
-// (src/deluge/hid/display/oled_icons.cpp:160-168), a heavier chevron than the menu-row arrow
-// above. `Submenu::renderInHorizontalMenu` (submenu.cpp:55) blits it with
-// drawGraphicMultiLine(..., kSubmenuIconSpacingX), i.e. 7 columns of one byte -- exactly what
-// an Icon of this shape draws.
+// The horizontal menu's own submenu arrow: a heavier chevron than the menu-row arrow above.
+// `Submenu::renderInHorizontalMenu` blits it with drawGraphicMultiLine(..., kSubmenuIconSpacingX),
+// i.e. 7 columns of one byte -- exactly what an Icon of this shape draws.
 DEFINE_ICON(submenuArrowBold, 1, //<
             0b00000000,          //<
             0b00000000,          //<

@@ -1,16 +1,14 @@
 # DELUGE_COMMON_COMPILE_OPTIONS — the project's warning set, in one place.
 #
-# Hoisted out of the top-level CMakeLists.txt so that all three CMake projects that build Deluge
-# sources can apply the same flags to the same targets:
+# Included by all three CMake projects that build Deluge sources, so the same flags apply to
+# the same targets everywhere:
 #
 #   * the device build   (top-level CMakeLists.txt   -> src/deluge, src/gfx, src/ui, src/notify)
 #   * the host-sim build (sim/CMakeLists.txt         -> the same subdirectories, plus sim glue)
 #   * the host tests     (tests/CMakeLists.txt       -> src/gfx, src/ui, src/notify only)
 #
-# Before this file existed the variable was defined only by the device project, so the leaf
-# libraries picked up the flags on device and *nothing* under tests/ or sim/ — where they are
-# actually compiled most often. The content below is a verbatim move; MAINTAINER_MODE and the
-# C/C++ standard variables move with it because the generator expressions read them.
+# MAINTAINER_MODE and the C/C++ standard variables live here too because the generator
+# expressions below read them.
 #
 # Include it once per project, before the add_subdirectory() calls that create the targets:
 #   include(${REPO_ROOT}/cmake/deluge_common_options.cmake)

@@ -8,7 +8,7 @@ if (WIN32 AND NOT CMAKE_CXX_COMPILER_ID STREQUAL "Gcc")
 endif ()
 
 # MAINTAINER_MODE, DELUGE_C_STANDARD / DELUGE_CXX_STANDARD and DELUGE_COMMON_COMPILE_OPTIONS,
-# shared verbatim with the device (top-level CMakeLists.txt) and host-sim (sim/CMakeLists.txt)
+# also included by the device (top-level CMakeLists.txt) and host-sim (sim/CMakeLists.txt)
 # projects. The six leaf-library targets added below (../src/gfx, ../src/ui, ../src/notify) apply
 # DELUGE_COMMON_COMPILE_OPTIONS themselves, so the warning set is identical wherever they build.
 include(${CMAKE_CURRENT_LIST_DIR}/../cmake/deluge_common_options.cmake)

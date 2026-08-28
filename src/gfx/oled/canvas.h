@@ -39,28 +39,32 @@ struct DrawLineOptions {
 	bool thick{false};
 	std::optional<uint8_t> min_x{std::nullopt};
 	std::optional<uint8_t> max_x{std::nullopt};
-	/// Called for each pixel the line visits, if set. A raw function pointer plus an opaque
-	/// context (the pattern `ui/oled/columns.h` already uses) rather than a `std::function`:
-	/// a `std::function` holding a capturing lambda heap-allocates, and `src/gfx/README.md`
-	/// forbids allocation in this library. `callback_ctx` is passed back unchanged.
+	/// @brief Called for each pixel the line visits, if set.
+	///
+	/// A raw function pointer plus an opaque context (the pattern `ui/oled/columns.h` already
+	/// uses) rather than a `std::function`: a `std::function` holding a capturing lambda
+	/// heap-allocates, and `src/gfx/README.md` forbids allocation in this library.
+	/// `callback_ctx` is passed back unchanged.
 	void (*point_callback)(Point, void*) = nullptr;
 	void* callback_ctx = nullptr;
 };
 
-/// A non-owning 1-bpp page-major drawing surface over caller-provided storage.
+/// @brief A non-owning 1-bpp page-major drawing surface over caller-provided storage.
 ///
 /// The panel size arrives as a value (\ref Geometry), so the same code draws on any
 /// OLED-like surface: `bytes()[page * width + x]`, bit `b` of that byte being row
 /// `page * 8 + b`. Nothing here knows about the board, the settings or the display driver.
 class Canvas {
 public:
+	/// @brief Construct a canvas over caller-owned storage with the given panel geometry.
+	///
 	/// @param storage At least `g.bytes()` bytes of caller-owned storage. Not copied; the
 	///                caller keeps it alive for as long as the canvas is used.
 	/// @param g Panel geometry.
 	///
-	/// Precondition: `storage.size() >= g.bytes()`. A shorter span is a programming error, not
-	/// a runtime condition to recover from -- the canvas would index off the end of it on the
-	/// first draw call. Asserted below.
+	/// @pre `storage.size() >= g.bytes()`. A shorter span is a programming error, not a runtime
+	///      condition to recover from -- the canvas would index off the end of it on the first
+	///      draw call. Enforced below via DELUGE_GFX_CONTRACT.
 	Canvas(std::span<uint8_t> storage, Geometry g) : geometry_(g) {
 		// Body form rather than a member initialiser so the check runs FIRST: `storage.first(n)`
 		// with n > storage.size() is itself undefined, so it must not happen before the check.
@@ -70,7 +74,8 @@ public:
 		clip_box_ = whole_canvas();
 	}
 
-	/// The geometry this canvas was built with.
+	/// @brief The geometry this canvas was built with.
+	/// @return The canvas's geometry.
 	Geometry geometry() const { return geometry_; }
 
 	/// @{
@@ -78,36 +83,50 @@ public:
 	///
 	/// A clip rectangle bounds *every* drawing routine below, pixel for pixel: a glyph, an icon
 	/// or a rounded invert that straddles the boundary draws the part that is inside and nothing
-	/// else. With no clip set (the default) the routines behave exactly as they did before this
-	/// existed -- the clip simply starts out as the whole canvas.
+	/// else.
 	///
 	/// The rectangle is in canvas coordinates and is half-open in the usual \ref Rect way
-	/// (`x .. right()-1`, `y .. bottom()-1`). It is stored resolved to four inclusive ints
-	/// intersected with the canvas, so no drawing loop ever reads a `std::optional`.
+	/// (`x .. right()-1`, `y .. bottom()-1`). It is stored resolved to four inclusive ints,
+	/// intersected with the canvas once per call to set_clip(), so no drawing loop ever reads a
+	/// `std::optional`.
+	///
+	/// @note With no clip set (the default), the routines behave exactly as they did before
+	///       clipping existed -- the clip simply starts out as the whole canvas (unclamped).
 
-	/// Restrict subsequent drawing to \p r. An empty or wholly off-canvas rectangle means
-	/// "draw nothing", which is the useful answer for a region scrolled out of view.
+	/// @brief Restrict subsequent drawing to \p r.
+	///
+	/// An empty or wholly off-canvas rectangle means "draw nothing", which is the useful answer
+	/// for a region scrolled out of view.
+	///
+	/// @param r The new clip rectangle, in canvas coordinates.
 	void set_clip(Rect r);
 
-	/// Drop the clip: subsequent drawing is bounded only by the canvas.
+	/// @brief Drop the clip: subsequent drawing is bounded only by the canvas.
 	void clear_clip();
 
-	/// The clip as last set, or `std::nullopt` if none is. Unclamped -- this returns what was
-	/// passed in, so a caller (\ref deluge::ui::oled::ClipScope) can save and restore it.
+	/// @brief The clip as last set, or `std::nullopt` if none is.
+	///
+	/// Unclamped -- this returns what was passed in, so a caller (\ref
+	/// deluge::ui::oled::ClipScope) can save and restore it.
+	/// @return The current clip rectangle, or `std::nullopt`.
 	std::optional<Rect> clip() const { return clip_; }
 	/// @}
 
-	/// The framebuffer, page-major.
+	/// @brief The framebuffer, page-major (see class documentation for the byte layout).
+	/// @return The framebuffer bytes.
 	std::span<uint8_t> bytes() { return bytes_; }
+	/// @copydoc bytes()
 	std::span<const uint8_t> bytes() const { return bytes_; }
 
-	/// The first byte of page \p p (i.e. of pixel rows `p * 8` to `p * 8 + 7`).
+	/// @brief The first byte of page \p p (i.e. of pixel rows `p * 8` to `p * 8 + 7`).
+	/// @param p Page index.
+	/// @return Pointer into the framebuffer at the start of that page.
 	uint8_t* page(uint32_t p) { return &bytes_[p * geometry_.width]; }
 
 	/// @{
 	/// @name Rendering routines
 
-	/// Clear the entire image -- or, when a clip is set, the clipped part of it.
+	/// @brief Clear the entire image -- or, when a clip is set, the clipped part of it.
 	void clear() {
 		if (clip_.has_value()) {
 			clear_area_exact(clip_box_.min_x, clip_box_.min_y, clip_box_.max_x, clip_box_.max_y);
@@ -118,7 +137,7 @@ public:
 		std::fill(bytes_.begin(), bytes_.end(), 0);
 	};
 
-	/// Clear only a subset of the image
+	/// @brief Clear only a subset of the image.
 	///
 	/// @param min_x minimum X coordinate, inclusive
 	/// @param min_y minimum Y coordinate, inclusive
@@ -165,7 +184,7 @@ public:
 	/// @param max_y Maximum Y coordinate, inclusive
 	void draw_rectangle(int32_t min_x, int32_t min_y, int32_t max_x, int32_t max_y);
 
-	/// Draw a 1-px wide rectangle with rounded corners
+	/// @brief Draw a 1-px wide rectangle with rounded corners.
 	///
 	/// @param min_x Minimum X coordinate, inclusive
 	/// @param min_y Minimum Y coordinate, inclusive
@@ -183,7 +202,7 @@ public:
 	/// @param radius Circle radius
 	void draw_circle(int32_t center_x, int32_t center_y, int32_t radius, bool fill = false);
 
-	/// Draw a string
+	/// @brief Draw a string.
 	///
 	/// @param str The string
 	/// @param pixel_x X coordinate of the left side of the string
@@ -197,7 +216,7 @@ public:
 	void draw_string(std::string_view str, int32_t pixel_x, int32_t pixel_y, int32_t text_width, int32_t text_height,
 	                 int32_t scroll_pos = 0, int32_t end_x = kEdge, bool use_text_width = false);
 
-	/// Draw a string, centered at the provided location.
+	/// @brief Draw a string, centered at the provided location.
 	///
 	/// @param string A null-terminated C string
 	/// @param pixel_y Y coordinate of the top side of the string
@@ -227,7 +246,7 @@ public:
 	void draw_string_centred_shrink_if_necessary(char const* string, int32_t pixel_y, int32_t text_width,
 	                                             int32_t text_height);
 
-	/// Draw a string, aligned to the right.
+	/// @brief Draw a string, aligned to the right.
 	///
 	/// @param string A null-terminated C string
 	/// @param pixel_y The Y coordinate of the top of the string
@@ -304,7 +323,7 @@ public:
 	/// @param end_y Maximum Y coordinate, inclusive
 	void invert_area(int32_t x_min, int32_t width, int32_t start_y, int32_t end_y);
 
-	/// Invert an area of the canvas with rounded corners
+	/// @brief Invert an area of the canvas with rounded corners.
 	///
 	/// @param x_min Minimum X coordinate, inclusive
 	/// @param width Width of the region to invert. End coordinate is excluded.
@@ -345,12 +364,16 @@ private:
 	std::optional<Rect> clip_{};
 };
 
-/// Framebuffers are DMA'd on the real hardware, so they want to start on a cache line.
+/// @brief Framebuffers are DMA'd on the real hardware, so they want to start on a cache line.
+///
 /// == CACHE_LINE_SIZE in board_config.h (RZ/A1, 32-byte line); gfx must not include that header.
 /// Revisit for a board with a 64-byte line.
 constexpr size_t kFramebufferAlignment = 32;
 
-/// A \ref Canvas that owns its (statically sized, aligned) storage.
+/// @brief A \ref Canvas that owns its (statically sized, aligned) storage.
+///
+/// @tparam G Panel geometry, fixed at compile time.
+/// @tparam Align Byte alignment of the storage; defaults to kFramebufferAlignment.
 template <Geometry G, size_t Align = kFramebufferAlignment>
 class OwnedCanvas : public Canvas {
 public:

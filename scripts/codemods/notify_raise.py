@@ -19,12 +19,11 @@ because gui/ui/notify_drain.cpp's drain_notifications() separately re-dispatches
 itself whenever it sees the matching Dirty bit (PlaybackState / OutputChanged) -- see the
 "Legacy PlaybackHandler::.../Legacy Arrangement playback..." comments there. If that drain-side
 dispatch is ever removed, these three rules must not be applied blindly again without restoring
-it, or the hooks' state-mutating side effects silently disappear (this happened once already;
-see task-6-review.md C1).
+it, or the hooks' state-mutating side effects silently disappear.
 
-instrument_clip_minder.cpp is a UI mixin slated to move wholesale in a later spec (scenes
-plan) and is left untouched here even though it isn't under gui/ or hid/ -- its remaining
-uiNeedsRendering()/renderUIsForOled() calls are an expected leftover of Step 2's grep.
+instrument_clip_minder.cpp is a UI mixin slated to move wholesale later and is left untouched
+here even though it isn't under gui/ or hid/ -- its remaining uiNeedsRendering()/renderUIsForOled()
+calls are expected and not converted by this pass.
 
 Line-based: a line whose first non-space characters are "//" is left untouched (so a comment
 mentioning one of these calls isn't rewritten into code-shaped text). Each pattern below is

@@ -89,9 +89,11 @@ pub extern "C" fn deluge_display_busy() -> bool {
     BUSY.load(Ordering::Acquire)
 }
 
-/// Multi-display extension: blit to panel `index`. This board carries a single
-/// OLED (`DelugeBoard::display_count == 1`), so index 0 is the same panel as
-/// [`deluge_display_blit_oled`]; any other index is out of range.
+/// Blit to display panel `index`.
+///
+/// This board carries a single OLED (`DelugeBoard::display_count == 1`), so
+/// index 0 is the same panel as [`deluge_display_blit_oled`]; any other index
+/// is out of range and returns `DELUGE_ERR_PARAM`.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_display_blit_oled_n(
     index: u8,
@@ -105,8 +107,10 @@ pub extern "C" fn deluge_display_blit_oled_n(
     deluge_display_blit_oled(pixels, width, height)
 }
 
-/// Multi-display extension: busy state for panel `index`. See
-/// [`deluge_display_blit_oled_n`] — only index 0 exists on this board.
+/// Busy state for display panel `index`.
+///
+/// See [`deluge_display_blit_oled_n`] — only index 0 exists on this board;
+/// any other index reports not busy (`false`).
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_display_busy_n(index: u8) -> bool {
     index == 0 && deluge_display_busy()

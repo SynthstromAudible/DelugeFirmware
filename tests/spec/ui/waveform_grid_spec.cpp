@@ -19,13 +19,13 @@ using deluge::gfx::grid::Rect;
 namespace uitest = deluge::ui::test;
 namespace palette = deluge::gui::colours;
 
-// Waveform-on-pads rendering (spec B section 7), ported from WaveformRenderer. Every colour
-// assertion below transcribes *legacy's* expression and compares the port against that, rather
-// than against literals the port and the spec could drift to together.
+// Waveform-on-pads rendering, ported from WaveformRenderer. Every colour assertion below
+// transcribes *legacy's* expression and compares the port against that, rather than against
+// literals the port and the spec could drift to together.
 
 namespace {
 
-// --- WaveformRenderer::renderAsSingleRow's colour body (waveform_renderer.cpp:137-145) --------
+// --- WaveformRenderer::renderAsSingleRow's colour body -----------------------------------------
 RGB legacy_single_row_colour(int32_t brightness, RGB rgb) {
 	int32_t colourValue = (brightness * brightness);
 	return rgb.transform([colourValue](auto channel) {
@@ -34,7 +34,7 @@ RGB legacy_single_row_colour(int32_t brightness, RGB rgb) {
 	});
 }
 
-// --- WaveformRenderer::drawColBar (waveform_renderer.cpp:731-762), transcribed ----------------
+// --- WaveformRenderer::drawColBar, transcribed --------------------------------------------------
 // Writes into an 8-row column so the spec can compare a whole column against the port.
 void legacy_draw_col_bar(std::array<RGB, 8>& column, int32_t min24, int32_t max24, int32_t brightness,
                          std::optional<RGB> rgb) {
@@ -81,12 +81,12 @@ describe waveform_grid("ui/grid/waveform", $ {
 
 		expect(r.grid.at(0, 3)).to_equal(legacy_single_row_colour(255, kBase));
 		expect(r.grid.at(1, 3)).to_equal(palette::black);
-		// Columns past the span have no data: legacy paints those black too (:130-133).
+		// Columns past the span have no data: legacy paints those black too.
 		expect(r.grid.at(15, 3)).to_equal(palette::black);
 	});
 
 	it("quantises every channel to legacy's 16-step ladder", _ {
-		// The `& ~15` at :144 is the whole point of the formula; check it holds across the range
+		// The `& ~15` is the whole point of the formula; check it holds across the range
 		// rather than only at the extremes.
 		for (int32_t b : {0, 1, 17, 64, 100, 128, 200, 255, kWaveformMaxBrightness}) {
 			expect(waveform_col_colour(b, kBase)).to_equal(legacy_single_row_colour(b, kBase));
@@ -98,8 +98,8 @@ describe waveform_grid("ui/grid/waveform", $ {
 	});
 
 	it("accepts legacy's full 0..256 brightness range", _ {
-		// getColBrightnessForSingleRow ends with min(peak16 >> 8, 256) (:166) -- one past uint8_t,
-		// which is why the span is int32_t. 256 must not wrap to black.
+		// getColBrightnessForSingleRow ends with min(peak16 >> 8, 256) -- one past uint8_t, which
+		// is why the span is int32_t. 256 must not wrap to black.
 		expect(waveform_col_colour(kWaveformMaxBrightness, kBase))
 		    .to_equal(legacy_single_row_colour(256, kBase));
 		expect(waveform_col_colour(kWaveformMaxBrightness, kBase) == palette::black).to_be_false();
@@ -112,7 +112,7 @@ describe waveform_grid("ui/grid/waveform", $ {
 		brightness[15] = 96;
 		r.frame.region(kMainArea, [&](GridFrame& main) { waveform_row(main, 0, brightness, kBase, true); });
 
-		// :125-128 -- output column x reads source column (width - 1 - x).
+		// output column x reads source column (width - 1 - x).
 		expect(r.grid.at(0, 0)).to_equal(legacy_single_row_colour(96, kBase));
 		expect(r.grid.at(15, 0)).to_equal(legacy_single_row_colour(255, kBase));
 	});
@@ -184,8 +184,8 @@ describe waveform_grid("ui/grid/waveform", $ {
 		for (int32_t y = 0; y < 8; y++) {
 			expect(r.grid.at(0, y)).to_equal(palette::black); // cleared, then skipped
 		}
-		// renderFullScreen memsets all kDisplayWidth columns (:92-95) and only then renders xEnd of
-		// them (:97-98), so a main column past the end of the waveform is black, not stale.
+		// renderFullScreen memsets all kDisplayWidth columns and only then renders xEnd of them,
+		// so a main column past the end of the waveform is black, not stale.
 		expect(r.grid.at(2, 0)).to_equal(palette::black);
 		expect(r.grid.at(15, 7)).to_equal(palette::black);
 		// The frame is the waveform's area: outside it, nothing moves.

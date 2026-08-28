@@ -10,22 +10,21 @@ constexpr bool is_black(RGB c) {
 	return c.r == 0 && c.g == 0 && c.b == 0;
 }
 
-/// Ported from `GridCompositor::apply_layer`'s per-cell `match layer.blend_mode` (`layer.rs:90-107`).
-/// The SDK skips a cell entirely when the overlay's `Option<Color>` is `None` (`layer.rs:87-89`);
-/// here every overlay cell is a concrete `RGB`, so `Replace` uses `is_black(overlay)` as that same
-/// "nothing to draw" test (documented on the enumerator in composite.h) while `Overlay` and `Tint`
-/// are the SDK's formulas verbatim.
+/// Ports legacy `GridCompositor::apply_layer`'s per-cell blend-mode dispatch. The SDK skips a cell
+/// entirely when the overlay's `Option<Color>` is `None`; here every overlay cell is a concrete
+/// `RGB`, so Replace uses `is_black(overlay)` as that same "nothing to draw" test (documented on
+/// the enumerator in composite.h) while Overlay and Tint are the SDK's formulas verbatim.
 RGB blend_cell(RGB base, RGB overlay, BlendMode mode) {
 	switch (mode) {
 	case BlendMode::Replace:
-		// layer.rs:91-93, adapted: `None` (skip) becomes "overlay is black" (see composite.h).
+		// Adapted: `None` (skip) becomes "overlay is black" (see composite.h).
 		return is_black(overlay) ? base : overlay;
 	case BlendMode::Overlay:
-		// layer.rs:94-99 verbatim: overlay wins only where the base is currently black.
+		// Verbatim: overlay wins only where the base is currently black.
 		return is_black(base) ? overlay : base;
 	case BlendMode::Tint:
-		// layer.rs:100-106 verbatim: `((dst.c as u16 * src.c as u16) / 255) as u8` per channel --
-		// truncating integer division, not rounded.
+		// Verbatim: `((dst.c as u16 * src.c as u16) / 255) as u8` per channel -- truncating
+		// integer division, not rounded.
 		return RGB{
 		    .r = static_cast<RGB::channel_type>((static_cast<uint16_t>(base.r) * overlay.r) / 255),
 		    .g = static_cast<RGB::channel_type>((static_cast<uint16_t>(base.g) * overlay.g) / 255),

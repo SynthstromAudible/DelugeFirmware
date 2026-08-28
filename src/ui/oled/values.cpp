@@ -18,9 +18,8 @@ namespace {
 
 using detail::int_to_string;
 
-/// `value + delta`, clamped into \p range. Widened to 64 bits first, because legacy's
-/// `getValue() + offset` (integer.cpp:26) can overflow int32 near the type's ends and the
-/// clamp that follows would then read a wrapped value.
+/// `value + delta`, clamped into \p range. Widened to 64 bits first because the sum can overflow
+/// int32 near the type's ends, and the clamp that follows would then read a wrapped value.
 int32_t add_clamped(int32_t value, int64_t delta, Range range) {
 	const int64_t next = static_cast<int64_t>(value) + delta;
 	return static_cast<int32_t>(std::clamp<int64_t>(next, range.min, range.max));
@@ -33,8 +32,8 @@ int64_t edit_delta(const OledFrame& f, int32_t coarse, int32_t fine) {
 	return static_cast<int64_t>(f.edit(0)) * coarse + static_cast<int64_t>(f.edit(1)) * fine;
 }
 
-/// A `step` of 0 would freeze the coarse knob; legacy had no such value (its step was always 1),
-/// so it is read as the default rather than honoured.
+/// A `step` of 0 would freeze the coarse knob, so it is read as the default (1) rather than
+/// honoured.
 int32_t coarse_step(Range range) {
 	return range.step != 0 ? range.step : 1;
 }
@@ -45,9 +44,7 @@ int32_t coarse_step(Range range) {
 /// draw a `list` only for its window and highlight. An unfocused frame is the contract's way to
 /// say exactly that (ui/core/frame_context.h rule 3): the list paints pixel for pixel as it would
 /// have -- the clock is not masked, so its label still scrolls -- but reads no turn and no press,
-/// and claims nothing, because the outer widget has already claimed both. It replaces an earlier
-/// `without_turn` helper that copied the snapshot with `turn` zeroed, which masked one field by
-/// hand and left the rest for the inner widget to consume twice.
+/// and claims nothing, because the outer widget has already claimed both.
 ///
 /// `f.bounds()` is the whole frame and `clip` is already inside it, so the child comes out with
 /// the same origin, size and clip as \p f -- this is `region()` used for its focus argument
@@ -57,8 +54,7 @@ void render_unfocused(OledFrame& f, F&& body) {
 	f.region(f.bounds(), /*focused*/ false, std::forward<F>(body));
 }
 
-/// `10^exponent`, saturated at INT32_MAX -- legacy's `numberEditSize`, built by the same
-/// repeated multiplication (decimal.cpp:40-42).
+/// `10^exponent`, saturated at INT32_MAX.
 int32_t pow10(int32_t exponent) {
 	int64_t v = 1;
 	for (int32_t i = 0; i < exponent && v <= INT32_MAX; i++) {
@@ -67,10 +63,9 @@ int32_t pow10(int32_t exponent) {
 	return static_cast<int32_t>(std::min<int64_t>(v, INT32_MAX));
 }
 
-/// Is the blinking cursor lit at \p now? `OLED::performBlink` (oled.cpp:832-838) inverts the
-/// cursor band every `kFlashTime`, starting one `kFlashTime` after `setupBlink` armed the timer
-/// (oled.cpp:840-850) -- so the first half-period after arming is dark and every odd one after
-/// that is lit. `blink.until_ms` is that arming instant; see values.h.
+/// Is the blinking cursor lit at \p now? The cursor inverts every `period_ms`, starting dark for
+/// the first half-period after `until_ms` (the arming instant) and lit on every odd interval
+/// after that. See the blink phase note on `decimal_value` in values.h.
 bool blink_lit(const Blink& blink, uint32_t now) {
 	const uint32_t elapsed = now - blink.until_ms;
 	return ((elapsed / blink.period_ms) & 1u) != 0;
@@ -88,7 +83,7 @@ Response int_value(OledFrame& f, Rect rect, int32_t& value, Range range, ValueSt
 	resp.focused = focused;
 
 	if (focused) {
-		// Integer::selectEncoderAction (integer.cpp:25-39): add, then clamp to [min, max].
+		// Ports legacy `Integer::selectEncoderAction`: add, then clamp to [min, max].
 		f.claim_edit(0);
 		f.claim_edit(1);
 		const int64_t delta = edit_delta(f, coarse_step(range), 1);
@@ -102,24 +97,22 @@ Response int_value(OledFrame& f, Rect rect, int32_t& value, Range range, ValueSt
 		}
 	}
 
-	// drawStringCentred(buffer, 18 + OLED_MAIN_TOPMOST_PIXEL, kTextHugeSpacingX, kTextHugeSizeY)
-	// -- integer.cpp:52-61. The topmost-pixel term is the frame's origin, so the y is kValueY,
-	// measured from the rect's top; with rect == f.bounds() that is the legacy panel-relative 18,
-	// and the centring is over the legacy panel width.
+	// Ports legacy `Integer::drawPixelsForOled`'s centred digit layout. The frame's origin absorbs
+	// the topmost-pixel term, so kValueY is measured from the rect's top; with rect == f.bounds()
+	// that matches the legacy panel-relative offset and centring.
 	const gfx::oled::FontId font = f.style.value_font;
 	const Rect band{rect.x, rect.y + kValueY, rect.w, text_height_for(font)};
 	f.clear(band);
 
 	if (style.off_at_zero && value == 0) {
-		// IntegerWithOff::drawPixelsForOled, integer.cpp:41-50: "OFF" in place of the digits,
-		// and without the unit.
+		// Ports legacy `IntegerWithOff::drawPixelsForOled`: "OFF" in place of the digits, without
+		// the unit.
 		text(f, band, "OFF", TextStyle{.font = font, .align = Align::Centre});
 		return resp;
 	}
 
-	// char buffer[12] + strncat(buffer, getUnit(), 4) (integer.cpp:53-55). The buffer here is
-	// wide enough for both parts at once; legacy's 12 held only the digits, and its strncat
-	// could run past them.
+	// Buffer is wide enough for the digits and the unit together; legacy's fixed-size buffer held
+	// only the digits, and appending the unit could run past it.
 	std::array<char, 12 + 4> buf{};
 	const std::string_view digits = int_to_string(value, 1, std::span{buf}); // intToString(..., 1)
 	size_t length = digits.size();
@@ -140,14 +133,15 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
 
 	bool horizontal_ticked = false;
 	if (focused) {
-		// Decimal::horizontalEncoderAction, decimal.cpp:83-101: one place per tick, right when
+		// Ports legacy `Decimal::horizontalEncoderAction`: one place per tick, right when
 		// positive, left when the next place up is still inside the range.
 		f.claim_horizontal();
 		f.claim_edit(0);
 		f.claim_edit(1);
 		const int8_t horizontal = f.horizontal();
-		// decimal.cpp:98 sets movingCursor *after and outside* the if/else at :84-96, so a tick
-		// blocked by either bound below still restarts the blink lit.
+		// A tick still restarts the blink lit even when blocked by either bound below (matches
+		// the legacy ordering, where the moving-cursor flag is set unconditionally after the
+		// position update).
 		horizontal_ticked = horizontal != 0;
 		if (horizontal > 0 && edit_pos > 0) {
 			edit_pos--;
@@ -156,8 +150,8 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
 			edit_pos++;
 		}
 
-		// Decimal::selectEncoderAction, decimal.cpp:57-79: the value moves by numberEditSize per
-		// detent (decimal.cpp:39-42 builds that as 10^numberEditPos), then clamps.
+		// Ports legacy `Decimal::selectEncoderAction`: the value moves by 10^edit_pos per detent,
+		// then clamps.
 		const int64_t delta = edit_delta(f, pow10(edit_pos), coarse_step(range));
 		if (delta != 0) {
 			const int32_t next = add_clamped(value, delta, range);
@@ -169,10 +163,9 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
 		}
 	}
 
-	// Legacy setupBlink is reached once per full redraw, so a value change restarts the phase
-	// dark and a horizontal tick (its `shouldBlinkImmediately`, decimal.cpp:98-100 via :163)
-	// restarts it lit. period_ms doubles as "armed": a Blink still holding state.h's 500ms default
-	// has never been through here.
+	// A value change restarts the blink phase dark; a horizontal tick restarts it lit
+	// immediately. period_ms doubles as "armed": a Blink still holding its default period has
+	// never been through here.
 	if (blink.period_ms != kFlashTime) {
 		blink.period_ms = kFlashTime;
 		blink.until_ms = now;
@@ -185,15 +178,14 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
 	}
 	f.gate().request_repaint_after(blink_next_flip_in(blink, now), now);
 
-	// Everything below is decimal.cpp:128-163 verbatim. The x arithmetic is relative to `rect`,
-	// which at f.bounds() on the root frame is legacy's OLED_MAIN_WIDTH_PIXELS span; the two y
-	// constants stay canvas-absolute and are converted by subtracting the frame's origin -- see
-	// the canvas-absolute note in values.h.
-	const int32_t local_y = 20 - f.origin.y;  // decimal.cpp:149/152/161's literal 20
-	const int32_t cursor_y = 41 - f.origin.y; // decimal.cpp:163's literal 41
-	const int32_t local_end_x = rect.right(); // decimal.cpp:149's literal 128
+	// The x arithmetic is relative to `rect`, which at f.bounds() on the root frame spans the
+	// whole panel width; the two y constants stay canvas-absolute and are converted to
+	// frame-local by subtracting the frame's origin -- see the canvas-absolute note in values.h.
+	const int32_t local_y = 20 - f.origin.y;  // canvas-absolute row, converted to frame-local
+	const int32_t cursor_y = 41 - f.origin.y; // canvas-absolute row, converted to frame-local
+	const int32_t local_end_x = rect.right();
 
-	std::array<char, 13> buf{}; // char buffer[13], decimal.cpp:130
+	std::array<char, 13> buf{};
 	const std::string_view text_all = int_to_string(value, num_decimal_places + 1, std::span{buf});
 	const int32_t length = static_cast<int32_t>(text_all.size());
 
@@ -203,10 +195,9 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
 	}
 
 	// `Style::big_font` is the huge digit face this widget draws in -- the profile's answer to
-	// "which face are the big numbers", where `value_font` is `int_value`'s. Both are
-	// MetricBold20 on the shipped profiles, whose advance and height are exactly the
-	// kTextHugeSpacingX / kTextHugeSizeY that decimal.cpp:149-163 spells as literals, so the
-	// pixels are unchanged; the static_asserts below are what keeps that true.
+	// "which face are the big numbers", distinct from `value_font` which `int_value` uses. The
+	// static_asserts below enforce that both shipped profiles set the same metrics this layout
+	// assumes.
 	const gfx::oled::FontId big = f.style.big_font;
 	static_assert(kDelugeStyle48.big_font == gfx::oled::FontId::MetricBold20
 	              && kDelugeStyle64.big_font == gfx::oled::FontId::MetricBold20);
@@ -215,11 +206,10 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
 	const int32_t digit_width = spacing_x_for(big);
 	const int32_t period_width = digit_width / 2;
 	const int32_t string_width = digit_width * length + (num_decimal_places != 0 ? period_width : 0);
-	int32_t string_start_x = rect.x + ((rect.w - string_width) >> 1); // decimal.cpp:142
+	int32_t string_start_x = rect.x + ((rect.w - string_width) >> 1); // centred across rect.w
 	int32_t our_digit_start_x = string_start_x + editing_char * digit_width;
 
-	// The digits' own band and the cursor's, cleared before either is drawn: legacy got that
-	// from renderUIsForOled clearing the whole canvas first, and the cursor in particular is an
+	// The digits' band and the cursor's band are cleared before either is drawn: the cursor is an
 	// inversion, which is only deterministic over a known background.
 	f.clear(Rect{rect.x, local_y, rect.w, digit_height});
 	f.clear(Rect{rect.x, cursor_y, rect.w, 2});
@@ -228,7 +218,7 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
 	if (num_decimal_places != 0) {
 		const int32_t before_point = length - num_decimal_places;
 		// Both halves are drawn with use_width set, so every digit advances exactly digit_width
-		// and the period exactly period_width (decimal.cpp:149-153).
+		// and the period exactly period_width.
 		f.glyphs(text_all.substr(0, static_cast<size_t>(before_point)), string_start_x, local_y, digit_width,
 		         digit_height, 0, local_end_x, true);
 		f.glyphs(".", string_start_x + before_point * digit_width, local_y, period_width, digit_height, 0, local_end_x,
@@ -241,8 +231,7 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
 	}
 	f.glyphs(rest, string_start_x, local_y, digit_width, digit_height, 0, local_end_x, true);
 
-	// setupBlink(ourDigitStartX + 1, digitWidth - 2, 41, 42, movingCursor), decimal.cpp:163:
-	// canvas rows 41..42 inclusive, i.e. a 2-row band, inverted while the phase is lit.
+	// A 2-row band at the edited digit's position, inverted while the phase is lit.
 	if (blink_lit(blink, now)) {
 		f.invert(Rect{our_digit_start_x + 1, cursor_y, digit_width - 2, 2});
 	}
@@ -265,7 +254,7 @@ Response enum_value(OledFrame& f, Rect rect, int32_t& index, std::span<const std
 		return resp;
 	}
 
-	// Enumeration::selectEncoderAction, enumeration.cpp:18-36.
+	// Ports legacy `Enumeration::selectEncoderAction`.
 	int32_t next = std::clamp<int32_t>(index, 0, n - 1);
 	if (f.turn() != 0) {
 		next += f.turn();
@@ -312,7 +301,7 @@ Response toggle(OledFrame& f, Rect rect, bool& value, std::string_view off_label
 	f.claim_select();
 	bool next = value;
 	if (f.turn() != 0) {
-		next = f.turn() > 0; // Toggle::selectEncoderAction, toggle.cpp:14-17
+		next = f.turn() > 0; // Ports legacy `Toggle::selectEncoderAction`
 	}
 	resp.changed = next != value;
 	value = next;
@@ -320,16 +309,15 @@ Response toggle(OledFrame& f, Rect rect, bool& value, std::string_view off_label
 		f.gate().request_repaint();
 	}
 
-	// toggle.cpp:29-42 -- `bool order[2] = {false, true}`, the current one highlighted.
+	// off/on order, the current one highlighted.
 	const std::array<ListRow, 2> rows{ListRow{.label = off_label}, ListRow{.label = on_label}};
 	ListState windowed{.cursor = static_cast<int16_t>(value ? 1 : 0), .scroll = 0, .rows_last = 2};
 	render_unfocused(f, [&](OledFrame& inner) { list(inner, rect, windowed, std::span{rows}, scroll_label); });
 
-	// On this screen the Toggle is the current menu item, so selectButtonPress takes the
-	// `getCurrentMenuItem() == this` branch and returns nullptr *without touching the value*
-	// (toggle.h:35-36); sound_editor.cpp:357 + :386-389 then goes up a level. The toggleValue()
-	// branch (toggle.h:39-43) is for a Toggle drawn as a row inside a Submenu, not for this
-	// widget. So the press is reported and the scene navigates -- as with enum_value.
+	// This widget only renders while the toggle is the current menu item; a press there exits the
+	// item without touching the value in legacy too. The value-flipping behaviour belongs to a
+	// toggle rendered as a row inside a parent menu, which is a different code path. So the press
+	// is reported and the scene navigates -- as with enum_value.
 	resp.entered = f.select_pressed();
 	return resp;
 }

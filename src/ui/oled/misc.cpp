@@ -16,8 +16,8 @@ using gfx::oled::string_width_px;
 
 namespace {
 
-/// `slotToString(slot, sub_slot, buffer, 1)` (foundation/string_format.c:205-213): the slot in
-/// decimal, then `'A' + sub_slot` unless `sub_slot` is -1.
+// Mirrors legacy's `slotToString(slot, sub_slot, buffer, 1)`: the slot in decimal, then
+// `'A' + sub_slot` unless `sub_slot` is -1.
 std::string_view slot_text(int32_t slot, int32_t sub_slot, std::span<char> buf) {
 	std::string_view digits = detail::int_to_string(slot, 1, buf);
 	if (sub_slot != -1 && digits.size() < buf.size()) {
@@ -27,10 +27,10 @@ std::string_view slot_text(int32_t slot, int32_t sub_slot, std::span<char> buf) 
 	return digits;
 }
 
-/// One channel of `vu`, as a run of lit segments across \p band with a one-row gap under it.
+// One channel of vu(), as a run of lit segments across `band` with a one-row gap under it.
 void vu_channel(OledFrame& f, Rect band, uint8_t level) {
 	// (level + 1) * 8 / 256: 0 lights nothing, 255 lights all eight -- the eight steps
-	// getMaxYDisplayForVUMeter quantises to (view.cpp:1813-1846).
+	// getMaxYDisplayForVUMeter quantises to.
 	const int32_t lit = (static_cast<int32_t>(level) + 1) * 8 / 256;
 	const int32_t h = std::max<int32_t>(1, band.h - 1);
 	for (int32_t i = 0; i < lit; i++) {
@@ -48,10 +48,9 @@ void vu_channel(OledFrame& f, Rect band, uint8_t level) {
 } // namespace
 
 void output_name(OledFrame& f, Rect rect, const OutputNameData& data) {
-	// `#if OLED_MAIN_HEIGHT_PIXELS == 64` (view.cpp:2093-2097, :2115-2119), as a *profile* value
-	// rather than a read of the framebuffer's height: `Style::menu_base_y` is the one
-	// panel-height-dependent number the profile carries (15 on a 64-row panel, 14 on a 48-row
-	// one), so it is what this fork asks. Reading the canvas instead would let a mismatched
+	// A *profile* value (`Style::menu_base_y`), not a read of the framebuffer's height: it's the
+	// one panel-height-dependent number the profile carries (15 on a 64-row panel, 14 on a
+	// 48-row one), so it is what this asks. Reading the canvas instead would let a mismatched
 	// `(Style, Geometry)` pair take the 64-row branch with the 48-row style; now the pair cannot
 	// disagree, because only the style is consulted. The four constants below stay literals --
 	// ui/core/metrics.h records why they are deliberately not derived from `title_height`.
@@ -59,20 +58,20 @@ void output_name(OledFrame& f, Rect rect, const OutputNameData& data) {
 	const int32_t type_y = rect.y + (tall ? kOutputTypeY64 : kOutputTypeY48);
 	const int32_t name_y = rect.y + (tall ? kOutputNameY64 : kOutputNameY48);
 
-	// drawStringCentred(outputTypeText, yPos, kTextSpacingX, kTextSpacingY) -- view.cpp:2098.
+	// Mirrors legacy's drawStringCentred(outputTypeText, yPos, kTextSpacingX, kTextSpacingY).
 	// f.style.row_font is Apple7 on both profiles, i.e. that exact pair.
 	const int32_t type_h = text_height_for(f.style.row_font);
 	text(f, Rect{rect.x, type_y, rect.w, type_h}, data.type_text,
 	     TextStyle{.font = f.style.row_font, .align = Align::Centre});
 
-	std::array<char, 13> buf{}; // char buffer[12] (view.cpp:2101), plus the suffix
+	std::array<char, 13> buf{}; // legacy's buffer[12], plus the suffix
 	const std::string_view to_draw = data.name_empty ? slot_text(data.slot, data.sub_slot, std::span{buf}) : data.name;
 
-	// drawStringCentred / drawString at kTextTitleSpacingX, kTextTitleSizeY (view.cpp:2126-2129);
+	// Mirrors legacy's drawStringCentred / drawString at kTextTitleSpacingX, kTextTitleSizeY;
 	// f.style.title_font is MetricBold9 on both profiles, i.e. that pair.
 	const gfx::oled::FontId font = f.style.title_font;
 	const int32_t name_h = text_height_for(font);
-	// `stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS` (view.cpp:2123-2125), against the rect.
+	// Mirrors legacy's `stringLengthPixels <= OLED_MAIN_WIDTH_PIXELS`, against the rect.
 	const bool fits = string_width_px(to_draw, name_h) <= rect.w;
 	text(f, Rect{rect.x, name_y, rect.w, name_h}, to_draw,
 	     TextStyle{.font = font, .align = fits ? Align::Centre : Align::Left});
