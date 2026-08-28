@@ -426,9 +426,21 @@ uint8_t deluge_audio_load_collect(const char* file_path, DelugeAudioLoadResult* 
 /// which is a different question from what the loader has in its tables.
 ///
 /// A load that is genuinely in flight when this is called is also covered: it publishes after this
-/// returns, and its result is discarded rather than reinstated (the loader stamps each load with the
-/// card generation it began under). So there is nothing for the caller to sequence against and no
-/// state left to clean up afterwards.
+/// returns, and its result is discarded rather than reinstated. The loader stamps each result with
+/// the card generation the load began under and re-checks that stamp when the result is COLLECTED,
+/// so the discard does not depend on this call having managed to empty anything, nor on which
+/// context either side runs in. There is nothing for the caller to sequence against and nothing
+/// left in the loader to clean up afterwards.
+///
+/// **That is a statement about the loader's tables, not about the whole load pipeline.** A result
+/// already handed out is past the loader's reach: @ref deluge_audio_load_collect removes it, and the
+/// caller then runs @ref deluge_audio_load_begin -> @ref deluge_audio_load_bind_read_stream -> @ref
+/// deluge_audio_load_apply_geometry, of which the bind is a real open that can yield the storage
+/// owner. An ejection landing in that window has nothing left to flush -- the geometry is already on
+/// the caller's stack. It degrades to a read error rather than a wrong load, because the re-insert
+/// (`AudioFileManager::reinitEjectedCard` -> `deluge_efatfs_remount`) is dispatched to that same
+/// owner through the storage `Coalescer` and so cannot run during the bind: the open hits the old
+/// mount and fails.
 ///
 /// Afterwards every flushed path reports @ref DELUGE_AUDIO_LOAD_UNKNOWN, whose documented meaning is
 /// already "request it (again)" -- the collector needs no new lifecycle for this.

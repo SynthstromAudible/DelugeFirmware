@@ -65,15 +65,33 @@
 //! (`AudioFileManager::setCardEjected`), not at re-insertion — flushing on the way
 //! back in would leave the window open for however long the slot stays empty.
 //!
-//! Clearing the three tables is not enough on its own. A load already in flight
-//! when the card goes finishes afterwards and would publish into [`RESULTS`]
-//! *after* the flush, reinstating exactly the stale result the flush existed to
-//! remove. So each load also carries the [`GENERATION`] it began under, and
-//! [`publish_result`] discards a result whose stamp no longer matches. The stamp
-//! is taken where the load BEGINS ([`take_next_request`], under the queue lock),
-//! never where it publishes: sampling it at publish time reads the generation the
-//! flush just installed and lets the stale result straight through, which is the
-//! same "sampled too late" defect the C++ half's deferred-load cancel already had.
+//! Clearing the three tables is not enough on its own, and the clears are not
+//! what the correctness rests on. A load already in flight when the card goes
+//! finishes afterwards and would publish into [`RESULTS`] *after* the flush,
+//! reinstating exactly the stale result the flush existed to remove; and the
+//! flush's own clears are `try_lock`ed (it must never wait), so a contended table
+//! is simply left populated.
+//!
+//! What closes both is a STAMP on the result rather than a clear of the table.
+//! Each load carries the [`GENERATION`] it began under, [`publish_into`] records
+//! that value on the resident entry, and [`take_from`] returns an entry only when
+//! its stamp equals the generation the TAKER is asking under — dropping a
+//! mismatched entry outright, so the collector reads `UNKNOWN` and asks again
+//! against the card that is actually in the slot. Checking at take is what makes
+//! the outcome independent of which locks the flush managed to take, and of which
+//! context either side happens to run in. ([`publish_result`] checks the same
+//! stamp on the way in as well; that is an early drop that saves a slot, not the
+//! guarantee — see its doc.)
+//!
+//! The stamp is taken where the load BEGINS ([`take_next_request`], under the
+//! queue lock), never where it publishes: sampling it at publish time reads the
+//! generation the flush just installed and lets the stale result straight through,
+//! which is the same "sampled too late" defect the C++ half's deferred-load cancel
+//! already had.
+//!
+//! A stale entry that a failed clear left behind stays in its slot until it is
+//! evicted or asked for. Deliberately not swept: it is uncollectable either way,
+//! and with [`RESULT_SLOTS`] slots the cost is at most one redundant header read.
 //!
 //! ## Two compilation tiers
 //!
@@ -495,29 +513,37 @@ pub extern "C" fn deluge_audio_load_flush() {
 
 /// Invalidate everything the loader knows and drop the tables it knows it in.
 ///
-/// # Why the bump comes first, and why the clears may fail
+/// # Why the bump comes first, and why a failed clear is free
 ///
 /// This runs synchronously from C++ on the interaction tier and must never wait,
 /// so the three tables are `try_lock`ed rather than awaited. The generation bump
 /// is the part that cannot fail, and it is deliberately ordered ahead of the
-/// clears so that no window exists in which a table has been emptied but a load
-/// still in flight would be allowed to refill it.
+/// clears so that no window exists in which a table has been emptied but the
+/// generation still reads as the one a load in flight is about to publish under.
 ///
-/// What a failed `try_lock` actually costs, table by table:
+/// **Every one of the three `try_lock`s may fail, and none of them costs
+/// anything.** The clears are housekeeping — they free slots and stop the
+/// collector waiting on a mark nothing will resolve — and no correctness argument
+/// rests on any of them landing:
 ///
-/// - [`RESULTS`] and [`IN_FLIGHT`] are never held across an `await`, so a task
-///   holding either is a task that is RUNNING. The loader runs on an interrupt
-///   executor and this runs at thread mode, so the two cannot be in those regions
-///   at once and these locks cannot be observed as contended from here at all.
-/// - [`QUEUE`] *is* held across an `await` ([`take_next_request`] marks the
-///   request in flight before releasing it), so this one can genuinely fail. It
-///   costs nothing: a request that is still QUEUED has done no I/O yet, so
-///   whenever it runs it reads whatever card is in the slot then. Clearing the
-///   queue is the contract ("a request issued against a card that is gone has no
-///   claim on being honoured"), not the safety property.
+/// - [`RESULTS`]: an entry that survives an unclearable table carries the stamp of
+///   the card it was read from, and [`take_from`] compares that stamp against the
+///   collector's current generation and drops it. A surviving entry is
+///   uncollectable, not stale-but-live.
+/// - [`IN_FLIGHT`]: a surviving mark reports `PENDING` for one more collect, and
+///   the load it names clears it when it finishes publishing (into a table that
+///   will refuse it). It cannot make a result collectable.
+/// - [`QUEUE`]: a request that is still QUEUED has done no I/O yet, so whenever it
+///   runs it reads whatever card is in the slot then and is stamped accordingly.
+///   Clearing the queue is the contract ("a request issued against a card that is
+///   gone has no claim on being honoured"), not the safety property.
 ///
-/// The safety property is the stamp, and it holds no matter which locks were
-/// taken.
+/// The safety property is the STAMP, checked at take, and it holds no matter which
+/// locks were taken or which contexts the two sides ran in. Nothing here may be
+/// re-argued from where the loader is scheduled: the loader owns its own executor
+/// on device but a plain `std::thread` under `host_app`, so any claim of the form
+/// "these two cannot run at once" is false on some configuration that builds this
+/// file.
 #[cfg(feature = "async_audio_load_active")]
 fn flush() {
     GENERATION.fetch_add(1, Ordering::AcqRel);
