@@ -69,7 +69,7 @@ repos:
         entry: python3 scripts/check_layer_rules.py
         language: system
         pass_filenames: false
-        files: ^(src/deluge/|src/notify/|src/gfx/|scripts/(check_layer_rules\.py|layer_rules_baseline\.txt))
+        files: ^(src/deluge/|src/notify/|src/gfx/|src/ui/|scripts/(check_layer_rules\.py|layer_rules_baseline\.txt))
 # - repo: local
 
 #   hooks:

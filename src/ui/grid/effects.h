@@ -11,7 +11,7 @@ namespace deluge::ui::grid {
 /// `gesture` only reads.
 
 // ---------------------------------------------------------------------------------------------
-// Greyout -- PadLEDs::prepareColour (hid/led/pad_leds.cpp:283-296)
+// Greyout -- PadLEDs::prepareColour (hid/led/pad_leds.cpp:283-298)
 // ---------------------------------------------------------------------------------------------
 
 /// Which pads the greyout covers, in legacy's two bitmask globals `greyoutCols` / `greyoutRows`.

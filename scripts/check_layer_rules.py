@@ -59,6 +59,27 @@ RULES = [
         r"^(?!notify/).*/",
         "2026-08-26-ui-notifications-design.md",
     ),
+    (
+        "ui-includes-outside",
+        "src/ui/**",
+        "include",
+        r"^(?!ui/|gfx/).*/",
+        "2026-08-26-ui-toolkit-design.md",
+    ),
+    (
+        "ui-oled-no-grid",
+        "src/ui/oled/**",
+        "include",
+        r"^ui/grid/",
+        "2026-08-26-ui-toolkit-design.md",
+    ),
+    (
+        "ui-grid-no-oled",
+        "src/ui/grid/**",
+        "include",
+        r"^ui/oled/",
+        "2026-08-26-ui-toolkit-design.md",
+    ),
 ]
 # Matches both #include "path" and #include <path>, capturing only the path (the delimiter
 # itself is stripped either way). Angle-bracket project includes (e.g. #include <hid/buttons.h>)
