@@ -136,11 +136,26 @@ public:
 
 	/// @name The tick
 	/// @{
-	/// @brief Start a tick: clear the per-tick state and the frame context's claims.
-	/// @param now_ms This tick's wall clock.
+	/// @brief Open a tick: clear the per-tick state and the frame context's claims.
+	///
+	/// \p now_ms is provisional. The shell opens the window on the first *feed* since the previous
+	/// tick (input arrives between ticks, and this call is what clears the held-back queue and
+	/// `had_input_this_tick`), so the clock passed here is the clock that feed arrived at, not the
+	/// clock of the tick the frames will be built on. `end_tick` is what stamps the final one.
+	/// @param now_ms The clock the window is being opened at.
 	void begin_tick(uint32_t now_ms);
-	/// @brief Finish a tick: assemble the `ui::InputSnapshot` the frames read.
-	void end_tick();
+	/// @brief Close a tick: stamp \p now_ms as *the* tick's clock and assemble the
+	///        `ui::InputSnapshot` the frames read.
+	///
+	/// The snapshot's `now_ms` and `FrameContext::tick_ms` both come from here rather than from
+	/// `begin_tick`, so `f.now_ms()` -- which every widget's animation, gesture threshold and
+	/// `request_repaint_after` deadline is measured against -- is the clock the frame is being
+	/// built on and never a feed's arrival time one tick period earlier.
+	///
+	/// @note Does not re-run `FrameContext::begin_tick`: the claims are cleared and the tick
+	///       counter bumped exactly once per tick, by `begin_tick`.
+	/// @param now_ms This tick's wall clock.
+	void end_tick(uint32_t now_ms);
 	/// @}
 
 	/// @name Draining

@@ -287,6 +287,25 @@ public:
 	/// @brief Should the scene beneath still draw \p role, with this scene drawn over it?
 	/// @param role The surface in question.
 	virtual bool oled_transparent(SurfaceRole role) const { return false; }
+	/// @brief Is this scene passive: drawn over whatever is beneath, but never taking its input?
+	///
+	/// A popup, a console line and the working animation are the shipped cases: legacy draws all
+	/// three straight into the OLED image on their way out (`OLED::sendMainImage`,
+	/// `hid/display/oled.cpp:364-376`) and no key press, pad or encoder ever reaches them -- the
+	/// UI underneath keeps running exactly as it was. Without this flag, a scene that merely
+	/// *sits* on the stack would take the input focus away from the scene it is drawn over, which
+	/// would make a console message deafen the view beneath it for as long as the line is up.
+	///
+	/// The shell reads it in two places, and they must agree:
+	/// - **Routing.** `SceneStack::input_top()` -- the topmost scene that is *not*
+	///   input-transparent -- is the scene `Router::route`/`route_post_render` call `handle()` on,
+	///   rather than `top()`.
+	/// - **Focus.** That same scene is the one whose render frames are built with
+	///   `InputMask::all()`; every other layer in the pass, above or below, gets
+	///   `InputMask::none()` and therefore paints normally but reads 0/false and claims nothing.
+	///
+	/// @return True to pass input through to the scene beneath; false (the default) to take it.
+	virtual bool input_transparent() const { return false; }
 	/// @brief Which pad rows and columns this scene wants greyed out.
 	/// @return The mask; all-zero (the default) greys nothing.
 	virtual grid::GreyoutMask greyout_mask() const { return {}; }

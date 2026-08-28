@@ -66,6 +66,27 @@ public:
 	///        not re-render the scene below just to keep this surface current. Every other
 	///        surface is untouched, so the scene below should still draw it.
 	bool oled_transparent(SurfaceRole role) const override;
+	/// @brief A grid overlay that paints nothing.
+	///
+	/// Legacy's popups, console lines and working animation are OLED-only: `sendMainImage`
+	/// composites them into the display image (`hid/display/oled.cpp:364-376`) and the pads carry
+	/// on rendering whatever view is underneath. This is how the shell says the same thing --
+	/// `Shell::render_grid` picks its base as the topmost scene that is *not* a grid overlay, so
+	/// without this a pushed notice would become the base, and (having no `render_grid` of its
+	/// own) would leave the pads black.
+	///
+	/// @note Spec D §7's dim rule is "dim by right-shift if any overlay is above", with no
+	///       exception for an overlay that paints nothing -- the shell cannot know what an overlay
+	///       painted without rendering it and diffing -- so a notice does dim the pads beneath it
+	///       while it is up. That dim is spec design (see `Shell::render_grid`); legacy has none.
+	/// @return Always true.
+	bool is_grid_overlay() const override { return true; }
+	/// @brief Never takes the input of the scene it is drawn over.
+	///
+	/// Legacy routes nothing to a popup, a console line or the working animation: they are images,
+	/// not UIs. See `Scene::input_transparent`.
+	/// @return Always true.
+	bool input_transparent() const override { return true; }
 	Result handle(const UiEvent&, const UiContext&) override { return Result::unhandled(); }
 
 private:
@@ -105,6 +126,27 @@ public:
 	/// @brief Always transparent: the console draws only its own strip and leaves the rest of the
 	///        surface for the scene beneath, which must still be drawn.
 	bool oled_transparent(SurfaceRole) const override { return true; }
+	/// @brief A grid overlay that paints nothing.
+	///
+	/// Legacy's popups, console lines and working animation are OLED-only: `sendMainImage`
+	/// composites them into the display image (`hid/display/oled.cpp:364-376`) and the pads carry
+	/// on rendering whatever view is underneath. This is how the shell says the same thing --
+	/// `Shell::render_grid` picks its base as the topmost scene that is *not* a grid overlay, so
+	/// without this a pushed notice would become the base, and (having no `render_grid` of its
+	/// own) would leave the pads black.
+	///
+	/// @note Spec D §7's dim rule is "dim by right-shift if any overlay is above", with no
+	///       exception for an overlay that paints nothing -- the shell cannot know what an overlay
+	///       painted without rendering it and diffing -- so a notice does dim the pads beneath it
+	///       while it is up. That dim is spec design (see `Shell::render_grid`); legacy has none.
+	/// @return Always true.
+	bool is_grid_overlay() const override { return true; }
+	/// @brief Never takes the input of the scene it is drawn over.
+	///
+	/// Legacy routes nothing to a popup, a console line or the working animation: they are images,
+	/// not UIs. See `Scene::input_transparent`.
+	/// @return Always true.
+	bool input_transparent() const override { return true; }
 	Result handle(const UiEvent&, const UiContext&) override { return Result::unhandled(); }
 
 private:
@@ -140,6 +182,27 @@ public:
 	void render_oled(SurfaceRole role, ui::oled::OledFrame& frame) override;
 	/// @brief Always transparent: the animation draws only its own corner box.
 	bool oled_transparent(SurfaceRole) const override { return true; }
+	/// @brief A grid overlay that paints nothing.
+	///
+	/// Legacy's popups, console lines and working animation are OLED-only: `sendMainImage`
+	/// composites them into the display image (`hid/display/oled.cpp:364-376`) and the pads carry
+	/// on rendering whatever view is underneath. This is how the shell says the same thing --
+	/// `Shell::render_grid` picks its base as the topmost scene that is *not* a grid overlay, so
+	/// without this a pushed notice would become the base, and (having no `render_grid` of its
+	/// own) would leave the pads black.
+	///
+	/// @note Spec D §7's dim rule is "dim by right-shift if any overlay is above", with no
+	///       exception for an overlay that paints nothing -- the shell cannot know what an overlay
+	///       painted without rendering it and diffing -- so a notice does dim the pads beneath it
+	///       while it is up. That dim is spec design (see `Shell::render_grid`); legacy has none.
+	/// @return Always true.
+	bool is_grid_overlay() const override { return true; }
+	/// @brief Never takes the input of the scene it is drawn over.
+	///
+	/// Legacy routes nothing to a popup, a console line or the working animation: they are images,
+	/// not UIs. See `Scene::input_transparent`.
+	/// @return Always true.
+	bool input_transparent() const override { return true; }
 	Result handle(const UiEvent&, const UiContext&) override { return Result::unhandled(); }
 
 private:

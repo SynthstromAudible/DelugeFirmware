@@ -72,7 +72,10 @@ void InputLowering::begin_tick(uint32_t now_ms) {
 	ctx_.begin_tick(now_ms);
 }
 
-void InputLowering::end_tick() {
+void InputLowering::end_tick(uint32_t now_ms) {
+	// The tick's clock, not the clock of whichever feed happened to open the window.
+	now_ms_ = now_ms;
+	ctx_.tick_ms = now_ms;
 	snap_.turn = tick_delta_[static_cast<size_t>(EncoderRole::Select)];
 	snap_.edit[0] = tick_delta_[static_cast<size_t>(EncoderRole::GoldUpper)];
 	snap_.edit[1] = tick_delta_[static_cast<size_t>(EncoderRole::GoldLower)];

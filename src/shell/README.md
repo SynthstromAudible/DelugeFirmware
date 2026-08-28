@@ -73,6 +73,7 @@ application owns and registers once; the stack only holds pointers.
 | `UiContext` | The world around one event: held buttons and pads, shift, the clock, the board profile, and the `InputLowering` behind `press_used_up`/`held_since` |
 | `Action`, `Result` | What a scene asks the shell to do (`Push`/`Replace`/`ReplaceRoot`/`Pop`/`Popup`/`Repaint`/`LockInput`) and whether the event was handled |
 | `Scene` | The interface; only `kind()` and `handle()` are pure, everything else defaults to nothing |
+| `Scene::input_transparent` | "Drawn over what is beneath, but never takes its input" -- popups, console lines, the working animation. `SceneStack::input_top()` walks past these to the scene that is routed to and focused |
 | `SceneRegistry` | `std::span<Scene* const>` indexed by kind; `find()` is null for an unregistered or out-of-range kind |
 | `NullScene` | What `SceneStack::top()` reports when the stack is empty: draws nothing, swallows everything |
 | `SceneStack` | `push`/`pop`/`replace_root`/`replace_top`/`reset` over at most `kStackDepth` (8) scenes |
@@ -100,12 +101,22 @@ false and 0.
    gates (`Oled` → the OLED surfaces; `GridMain`/`GridSidebar`/`ClipContent`/`NoteRows` → the grid;
    anything else → both).
 2. `notices_.drain(notify::notices(), now)` → the popup/console/working scenes.
-3. `pump_input` — close the lowering's tick window and route the ordinary shapes; a `Popup` action
-   the router stored is resolved through `BoardProfile::text` and handed to `Notices::show_popup`.
+3. `pump_input` — end the lowering's *input* phase (`end_tick(now_ms)`, which stamps the tick's
+   clock onto the snapshot every frame reads) and route the ordinary shapes; a `Popup` action the
+   router stored is resolved through `BoardProfile::text` and handed to `Notices::show_popup`. The
+   window itself is closed at the bottom of `tick()`, not here.
 4. `tick_stack` — scenes top-down, stopping below the first `occludes_grid()`, then the services.
    A stack that changed re-queries the union of `greyout_mask()` and invalidates every gate.
 5. OLED, per surface: `gate.needs_frame(...) || widgets_gate || router_.repaint_requested(role)`.
 6. Grid: `gate.needs_frame(...) || widgets_gate`.
+
+`needs_frame`'s `model_dirty` argument is always `false`: step 1 has already requested exactly the
+gates this tick's facts name (and every gate for a fact that names none), so passing `dirty.any()`
+as well — spec D §7's shorthand, written before the shell had that channel — would repaint the OLED
+for a note-row change and the grid for an OLED one. A `Result` cannot request a *grid* repaint
+today: `Action::Repaint` names a `SurfaceRole` and there is no grid role, so the grid decision omits
+`repaint_requested`. Left as-is pending a ruling; the model side reaches the grid gate through
+`notify::Dirty` instead.
 7. `after_render()` on every scene rendered this tick, applied through the router.
 8. `deliver_post_render_input` — the held-back, widget-owned shapes, each gated on `ctx().claims`.
 9. `derive_leds`, then `flush` (Task 8).
@@ -119,14 +130,37 @@ the first feed (or at `pump_input`) and closes it at the *bottom* of `tick()`. N
 `end_tick()` and the end of the tick calls `begin_tick()`, which is what lets step 8 still read
 `held_back()` and `claims` after the frame has been built.
 
+**Focus and routing.** Exactly one scene per tick owns the input: `SceneStack::input_top()`, the
+topmost scene that is not `Scene::input_transparent()`. It is the scene `Router` calls `handle()`
+on, and the only one whose render frames are built with `InputMask::all()` — every other layer in a
+pass, above or below, draws with `none()` and so paints normally but reads 0/false and claims
+nothing. The three notice scenes are `input_transparent`, because legacy routes nothing to a popup,
+a console line or the working animation; without the flag, a console message would deafen the view
+it is drawn over for as long as the line is up.
+
+**A scene reads any one input in at most one render pass per tick.** Reading through a frame *is*
+claiming it (`ui/core/frame_context.h`, rule 2), and a scene drawn on two surfaces builds two
+independent `FrameInput`s in one tick — reading `f.turn()` in both `render_oled` and `render_grid`
+claims the same detent twice and trips `InputClaims::double_claim`. A scene whose two surfaces both
+react to one input reads it in the pass that owns it and draws the resulting state on the other; a
+scene that needs the raw event on both leaves it unclaimed and reacts in `handle()`, which the shell
+delivers *after* render for exactly that reason.
+
 **Composition.** `render_oled` walks down from the top while each scene is `oled_transparent(role)`
 and draws from there up -- the port of `OLED::sendMainImage`'s two-layer if-chain
 (`oled.cpp:364-376`) as a property each scene declares. `render_grid` draws the topmost
 non-overlay scene, dims it by `RGB::dim(1)` (`>> 1` per channel) if anything overlays it, draws the
 overlays, then applies the stack's greyout at legacy's full strength (`setGreyoutAmount(1)` →
 `greyProportion = 6500000`, `pad_leds.cpp:753,786-788`). The dim is **spec D design, not a port**:
-legacy has only the greyout. Only the frontmost scene on a surface gets `InputMask::all()`;
-everything beneath it draws with `none()`.
+legacy has only the greyout, and the dim is unconditional on "an overlay is above" -- spec D §7
+names no exception for an overlay that paints nothing, and the shell cannot know what one painted
+without rendering it and diffing. A notice therefore dims the pads beneath it while it is up.
+
+The three notice scenes are grid overlays that paint nothing (`is_grid_overlay()` true,
+`occludes_grid()` false, no `render_grid`): the grid base is the topmost scene that is *not* an
+overlay, so without that flag a pushed notice would become the base and -- since `render_grid`
+clears first -- leave the pads black. Legacy's popups, console lines and working animation are
+OLED-only; the pads keep showing the view underneath.
 
 ## LEDs (`leds.h`, Task 7)
 

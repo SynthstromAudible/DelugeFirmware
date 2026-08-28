@@ -25,14 +25,29 @@ using notify::Dirty;
 /// over a 23-bit shift (`gfx/grid/rgb.h`), which is why the number is this size rather than 0..255.
 constexpr int32_t kGreyoutAmountFull = 6500000;
 
-/// @brief Does \p dirty carry any fact that names no particular surface?
+/// @brief Does \p f name a surface the shell can invalidate on its own?
 ///
-/// `Oled` and the four grid facts each name a surface; everything else is a model change whose
-/// consequences the shell cannot attribute, so it invalidates both sides.
+/// `Oled` names the OLED surfaces; the four grid facts name the grid. Deliberately a *denylist*:
+/// a fact added to `notify::Dirty` later is untargeted until someone says otherwise, which
+/// over-invalidates. An allowlist of the untargeted facts would instead leave a new fact
+/// repainting nothing at all -- the one failure mode a dirty flag must not have.
+bool names_a_surface(Dirty f) {
+	return f == Dirty::Oled || f == Dirty::GridMain || f == Dirty::GridSidebar || f == Dirty::ClipContent
+	       || f == Dirty::NoteRows;
+}
+
+/// @brief Does \p dirty carry a fact that names no particular surface?
+///
+/// Such a fact is a model change whose consequences the shell cannot attribute, so it invalidates
+/// both sides.
 bool has_untargeted_fact(const notify::DirtySet& dirty) {
-	return dirty.has(Dirty::SampleReady) || dirty.has(Dirty::PlaybackState) || dirty.has(Dirty::SongSwapped)
-	       || dirty.has(Dirty::OutputChanged) || dirty.has(Dirty::ParamAutomation) || dirty.has(Dirty::ModTarget)
-	       || dirty.has(Dirty::SelectedDrum) || dirty.has(Dirty::MidiLearn);
+	for (uint8_t i = 0; i < static_cast<uint8_t>(Dirty::Count); i++) {
+		const Dirty f = static_cast<Dirty>(i);
+		if (!names_a_surface(f) && dirty.has(f)) {
+			return true;
+		}
+	}
+	return false;
 }
 
 } // namespace
@@ -71,6 +86,24 @@ Shell::Shell(SurfaceSet& surfaces, const BoardProfile& profile, const SceneRegis
 	table_[static_cast<size_t>(SceneKind::Popup)] = &popup_;
 	table_[static_cast<size_t>(SceneKind::Console)] = &console_;
 	table_[static_cast<size_t>(SceneKind::Working)] = &working_;
+
+	// The services are fixed at construction, so the deduplicated list is built once rather than
+	// three times a tick. The three `Services` slots default to the one shared `null_service()`,
+	// and nothing stops an application putting one object in two of them; a service must be ticked,
+	// asked for LEDs and asked for its timer exactly once.
+	Service* const all[] = {services_.mod_knobs, services_.global_controls, services_.midi_learn, &notices_};
+	for (Service* service : all) {
+		if (service == nullptr) {
+			continue;
+		}
+		bool seen = false;
+		for (Service* already : service_list_) {
+			seen = seen || already == service;
+		}
+		if (!seen) {
+			(void)service_list_.push_back(service);
+		}
+	}
 }
 
 void Shell::init(SceneId initial) {
@@ -103,6 +136,12 @@ void Shell::set_sd_busy(bool busy) {
 // -- The tick ---------------------------------------------------------------------------------
 
 void Shell::tick(uint32_t now_ms) {
+	// A shell first ticked at a non-zero clock has no previous tick to measure from; handing every
+	// scene `now_ms` as its first `dt` would fast-forward every animation by the boot time.
+	if (!ticked_) {
+		last_ms_ = now_ms;
+		ticked_ = true;
+	}
 	const uint32_t dt = now_ms - last_ms_;
 	// 1. Model facts -> the gates and every stacked scene.
 	const notify::DirtySet dirty = notify::dirty().drain();
@@ -138,25 +177,39 @@ void Shell::tick(uint32_t now_ms) {
 		lowering_.widgets_gate().request_repaint();
 	}
 	rendered_this_tick_.clear();
+	// `model_dirty` is deliberately `false` at all three `needs_frame` sites below. The gate's
+	// third argument fires *every* gate, which would make step 1's careful attribution dead
+	// weight: `apply_dirty` has already called `request_repaint()` on exactly the gates this
+	// tick's facts name, and on every gate for a fact that names none. Passing `dirty.any()` as
+	// well -- spec D §7's shorthand, written before the shell had that finer channel -- would
+	// repaint the OLED for a note-row change and the grid for an OLED one.
+	//
 	// The widgets' gate is shell-wide and `needs_frame` *consumes* the request, so it is evaluated
 	// exactly once and the answer OR'd into every surface's own decision -- asking it per surface
 	// would give the request to whichever surface happened to be checked first.
-	const bool widgets_want_frame = lowering_.ctx().gate.needs_frame(now_ms, had_input_, dirty.any());
+	const bool widgets_want_frame = lowering_.ctx().gate.needs_frame(now_ms, had_input_, false);
 	// 5. OLED.
 	for (OledSurface& s : surfaces_.oled()) {
-		if (s.gate.needs_frame(now_ms, had_input_, dirty.any()) || widgets_want_frame
-		    || router_.repaint_requested(s.role)) {
-			render_oled(s);
-			s.blit_pending = true;
+		if (s.gate.needs_frame(now_ms, had_input_, false) || widgets_want_frame || router_.repaint_requested(s.role)) {
+			// Only a surface that actually drew has anything to push: `render_oled` refuses a
+			// surface with no style, and blitting its untouched canvas would push a blank frame.
+			if (render_oled(s)) {
+				s.blit_pending = true;
+			}
 		}
 	}
 	// 6. Grid.
 	GridSurface& g = surfaces_.grid();
-	if (g.gate.needs_frame(now_ms, had_input_, dirty.any()) || widgets_want_frame) {
+	if (g.gate.needs_frame(now_ms, had_input_, false) || widgets_want_frame) {
 		render_grid(now_ms);
 		g.dirty = true;
 	}
 	// 7. Navigation derived from what this tick's render observed.
+	//
+	// Applied as we go rather than collected first: spec D §7 step 7 says every rendered scene gets
+	// exactly one `after_render()` call, so an early scene whose `Result` pops the stack still
+	// leaves the later calls to run -- deliberately, on scenes that may no longer be stacked. A
+	// scene's `after_render` is about the frame it just drew, which happened either way.
 	for (Scene* scene : rendered_this_tick_) {
 		router_.apply(scene->after_render());
 	}
@@ -208,32 +261,12 @@ void Shell::pump_input(uint32_t now_ms) {
 	// A tick with no input at all still has to open and close a window, so that `begin_tick`'s
 	// per-tick reset runs and `end_tick` assembles a snapshot for this tick's frames to read.
 	ensure_tick_window(now_ms);
-	lowering_.end_tick();
+	lowering_.end_tick(now_ms);
 	UiEvent event{UiEvent::Kind::AllReleased};
 	while (lowering_.next(event)) {
 		router_.route(event, make_context(now_ms));
 	}
 	had_input_ = lowering_.had_input_this_tick();
-}
-
-FixedVector<Service*, 4> Shell::service_list() {
-	FixedVector<Service*, 4> out;
-	Service* const all[] = {services_.mod_knobs, services_.global_controls, services_.midi_learn, &notices_};
-	for (Service* service : all) {
-		if (service == nullptr) {
-			continue;
-		}
-		// The three `Services` slots default to the one shared `null_service()`, and nothing stops
-		// an application putting one object in two of them; a service must be ticked once.
-		bool seen = false;
-		for (Service* already : out) {
-			seen = seen || already == service;
-		}
-		if (!seen) {
-			(void)out.push_back(service);
-		}
-	}
-	return out;
 }
 
 void Shell::tick_stack(uint32_t now_ms, uint32_t dt_ms) {
@@ -247,7 +280,7 @@ void Shell::tick_stack(uint32_t now_ms, uint32_t dt_ms) {
 			break;
 		}
 	}
-	for (Service* service : service_list()) {
+	for (Service* service : service_list_) {
 		service->tick(now_ms, dt_ms);
 	}
 }
@@ -263,17 +296,17 @@ void Shell::append_rendered(Scene* scene) {
 	(void)rendered_this_tick_.push_back(scene);
 }
 
-void Shell::render_oled(OledSurface& s) {
+bool Shell::render_oled(OledSurface& s) {
 	// A surface with no style cannot be drawn (`surfaces.h`: "such a surface must not be
 	// rendered"), and a board profile that leaves one null is a profile bug, not a frame to guess
 	// the metrics for.
 	if (s.style == nullptr) {
-		return;
+		return false;
 	}
 	s.canvas.clear();
 	const std::span<Scene* const> scenes = stack_.scenes();
 	if (scenes.empty()) {
-		return;
+		return true;
 	}
 	// Walk down from the top while each scene lets the one below show through; the scene that
 	// stops the walk is the lowest one that has to be drawn. This is the port of
@@ -284,15 +317,20 @@ void Shell::render_oled(OledSurface& s) {
 	while (lowest > 0 && scenes[lowest]->oled_transparent(s.role)) {
 		lowest--;
 	}
+	Scene* const focus = &stack_.input_top();
 	for (size_t k = lowest; k < scenes.size(); k++) {
-		// Only the frontmost scene on this surface owns the tick's input: everything beneath it
-		// draws with `InputMask::none()`, so its widgets still paint but read 0/false and claim
-		// nothing (`ui/oled/frame.h`, `root_frame`'s `mask` note).
-		const InputMask mask = (k + 1 == scenes.size()) ? InputMask::all() : InputMask::none();
+		// Exactly one scene per pass owns the tick's input, and it is the same one the router hands
+		// events to: the input-frontmost scene (`Scene::input_transparent`). Everything else in the
+		// pass -- beneath it, or a passive layer above it -- draws with `InputMask::none()`, so its
+		// widgets still paint but read 0/false and claim nothing (`ui/oled/frame.h`, `root_frame`'s
+		// `mask` note). Keying this on the *topmost* scene instead would let a console line or the
+		// working animation, which route nothing, deafen the view they are drawn over.
+		const InputMask mask = scenes[k] == focus ? InputMask::all() : InputMask::none();
 		ui::oled::OledFrame frame = ui::oled::root_frame(s.canvas, *s.style, lowering_.ctx(), mask);
 		scenes[k]->render_oled(s.role, frame);
 		append_rendered(scenes[k]);
 	}
+	return true;
 }
 
 void Shell::render_grid(uint32_t now_ms) {
@@ -317,8 +355,10 @@ void Shell::render_grid(uint32_t now_ms) {
 	}
 	const bool has_overlay = scenes.size() > base + 1;
 
+	// Same focus rule as `render_oled`: the input-frontmost scene, not simply the topmost one.
+	Scene* const focus = &stack_.input_top();
 	{
-		const InputMask mask = has_overlay ? InputMask::none() : InputMask::all();
+		const InputMask mask = scenes[base] == focus ? InputMask::all() : InputMask::none();
 		ui::grid::GridFrame frame = ui::grid::root_grid_frame(grid, lowering_.ctx(), mask);
 		scenes[base]->render_grid(frame);
 		append_rendered(scenes[base]);
@@ -339,7 +379,7 @@ void Shell::render_grid(uint32_t now_ms) {
 			}
 		}
 		for (size_t k = base + 1; k < scenes.size(); k++) {
-			const InputMask mask = (k + 1 == scenes.size()) ? InputMask::all() : InputMask::none();
+			const InputMask mask = scenes[k] == focus ? InputMask::all() : InputMask::none();
 			ui::grid::GridFrame frame = ui::grid::root_grid_frame(grid, lowering_.ctx(), mask);
 			scenes[k]->render_grid(frame);
 			append_rendered(scenes[k]);
@@ -363,8 +403,13 @@ void Shell::deliver_post_render_input(uint32_t now_ms) {
 	// `Router::route_post_render` is what applies the claim map (`Encoder{Select}` -> `turn`,
 	// ... `Button{Back}` -> `back`, documented on that method): it drops a claimed event outright
 	// rather than routing it, so the gate lives in one place instead of being restated here.
-	for (const UiEvent& event : lowering_.held_back()) {
-		router_.route_post_render(event, ctx, lowering_.ctx().claims);
+	// Size snapshotted first: routing can reach arbitrary application code, and a feed from
+	// anything it calls would append to the same vector mid-iteration. Such an event belongs to the
+	// *next* tick's window -- it was never in this tick's snapshot and no widget could have claimed
+	// it -- so it is deliberately left for the next `begin_tick` rather than routed here.
+	const size_t n = lowering_.held_back().size();
+	for (size_t i = 0; i < n; i++) {
+		router_.route_post_render(lowering_.held_back()[i], ctx, lowering_.ctx().claims);
 	}
 	// Not cleared here: `InputLowering::begin_tick` owns that, and the window this shell opened is
 	// closed at the bottom of `tick()` so the next feed re-opens (and therefore clears) it. See
@@ -374,13 +419,17 @@ void Shell::deliver_post_render_input(uint32_t now_ms) {
 void Shell::derive_leds(uint32_t now_ms) {
 	LedSurface& leds = surfaces_.leds();
 	leds.frame.clear();
-	const FixedVector<Service*, 4> services = service_list();
-	LedCompose::compose(leds.frame, std::span<Service* const>{services.begin(), services.size()}, stack_.scenes());
+	LedCompose::compose(leds.frame, std::span<Service* const>{service_list_.begin(), service_list_.size()},
+	                    stack_.scenes());
 	leds.desired_on.fill(false);
 	leds.desired_declared.fill(false);
 	for (const auto& [id, state] : leds.frame.entries()) {
 		const size_t board_led = static_cast<size_t>(static_cast<uint8_t>(id));
 		if (board_led >= LedFrame::kMaxEntries) {
+			// A board LED past the shadow arrays cannot be diffed or sent. `LedFrame::set` returns
+			// a bool precisely so a dropped declaration is not swallowed, and neither is this one:
+			// the count is the diagnostic that a board profile has outgrown `kMaxEntries`.
+			leds_dropped_++;
 			continue;
 		}
 		leds.desired_declared[board_led] = true;
@@ -416,7 +465,7 @@ std::optional<uint32_t> Shell::compute_next_wake(uint32_t now_ms) {
 			consider(now_ms + *in);
 		}
 	}
-	for (Service* service : service_list()) {
+	for (Service* service : service_list_) {
 		if (const std::optional<uint32_t> in = service->next_timer(); in.has_value()) {
 			consider(now_ms + *in);
 		}
@@ -427,8 +476,10 @@ std::optional<uint32_t> Shell::compute_next_wake(uint32_t now_ms) {
 std::string Shell::state_lines() const {
 	std::string out;
 	const std::span<Scene* const> scenes = stack_.scenes();
+	bool popup_shown = false;
 	for (size_t k = scenes.size(); k-- > 0;) {
 		const SceneKind kind = scenes[k]->kind();
+		popup_shown = popup_shown || kind == SceneKind::Popup;
 		out += "scene ";
 		if (const char* name = scene_kind_name(kind); name != nullptr) {
 			out += name;
@@ -444,13 +495,10 @@ std::string Shell::state_lines() const {
 	if (lowering_.input_locked()) {
 		out += "lock 1\n";
 	}
-	for (Scene* scene : scenes) {
-		if (scene->kind() == SceneKind::Popup) {
-			out += "notice ";
-			out += notices_.last_popup_text();
-			out += '\n';
-			break;
-		}
+	if (popup_shown) {
+		out += "notice ";
+		out += notices_.last_popup_text();
+		out += '\n';
 	}
 	return out;
 }

@@ -139,6 +139,15 @@ Scene& SceneStack::top() {
 	return n_ > 0 ? *stack_[n_ - 1] : null_;
 }
 
+Scene& SceneStack::input_top() {
+	for (size_t i = n_; i-- > 0;) {
+		if (!stack_[i]->input_transparent()) {
+			return *stack_[i];
+		}
+	}
+	return null_;
+}
+
 Scene* SceneStack::root() {
 	return n_ > 0 ? stack_[0] : nullptr;
 }

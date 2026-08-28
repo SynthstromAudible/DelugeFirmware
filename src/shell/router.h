@@ -29,6 +29,10 @@ struct Services {
 ///        `MOD_ENCODER_0`/`MOD_ENCODER_1` (`ButtonId::ModEnc0/1`) actually live, at `:225-231`,
 ///        reached only after the scene has already had a look).
 ///
+/// The scene step is `SceneStack::input_top()` -- the topmost scene that is not
+/// `Scene::input_transparent()` -- rather than `top()`, so a passive overlay (popup, console,
+/// working animation) drawn over a scene does not intercept that scene's input.
+///
 /// A `Router` owns no scenes and no services -- it borrows the `SceneStack` and `InputLowering`
 /// the shell already has, and the `Services` it is built with -- and applies every `Result` it
 /// gets back through `apply()`, in order, whether or not that step went on to handle the event.

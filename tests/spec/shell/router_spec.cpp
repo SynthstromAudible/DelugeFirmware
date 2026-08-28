@@ -290,7 +290,7 @@ describe shell_router("shell::Router", $ {
 
 		r.lowering.begin_tick(0);
 		r.lowering.on_board_event(board_button(8, 0, true), 0); // Shift, test_profile_input's matrix
-		r.lowering.end_tick();
+		r.lowering.end_tick(0);
 		UiEvent shift_event;
 		expect(r.lowering.next(shift_event)).to_be_true();
 		expect(shift_event.kind == UiEvent::Kind::Button).to_be_true();
@@ -307,7 +307,7 @@ describe shell_router("shell::Router", $ {
 		// scene sees every event's own ctx.shift, this one included.
 		r.lowering.begin_tick(10);
 		r.lowering.on_board_event(board_button(5, 0, true), 10); // Synth, a plain button
-		r.lowering.end_tick();
+		r.lowering.end_tick(10);
 		UiEvent synth_event;
 		expect(r.lowering.next(synth_event)).to_be_true();
 		expect(synth_event.button == ButtonId::Synth).to_be_true();

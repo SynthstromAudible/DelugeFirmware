@@ -8,6 +8,8 @@
 #include <cstdint>
 #include <optional>
 #include <span>
+#include <string>
+#include <string_view>
 
 #include "../support/spec_main.h"
 using namespace deluge::ui::shell;
@@ -41,12 +43,16 @@ DelugeInputEvent button_ev(uint8_t x, uint8_t y, bool on) {
 
 /// @brief The board profile the tick specs run against: `test_profile_input`'s matrix and encoders
 ///        on `kBoard2`'s two panels, so one rig can exercise both routing and per-role rendering.
+/// The one string `tick_profile`'s `text` lookup resolves every id to.
+constexpr std::string_view kPopupText = "SAVED";
+
 BoardProfile tick_profile() {
 	static constexpr SurfaceRole kRoles[] = {SurfaceRole::Main, SurfaceRole::Aux};
 	static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle48, &deluge::ui::kDelugeStyle64};
 	BoardProfile p = uitest::test_profile_input();
 	p.oled_role_by_index = kRoles;
 	p.style_by_index = kStyles;
+	p.text = +[](uint16_t) -> std::string_view { return kPopupText; };
 	return p;
 }
 
@@ -71,6 +77,13 @@ public:
 		oled_renders++;
 		if (role == SurfaceRole::Main) {
 			frame.hline(kMainLineY, 0, 40);
+			frame_ms = frame.now_ms();
+			// Read (and therefore claim, per `FrameContext` rule 2) only when asked to, and only
+			// in this one pass: reading the same input in `render_grid` as well would claim it
+			// twice and trip `double_claim`.
+			if (read_turn) {
+				turns_seen += frame.turn();
+			}
 		}
 		else {
 			frame.rect({kAuxRectX, kAuxRectY, 20, 10});
@@ -88,9 +101,22 @@ public:
 	void leds(deluge::ui::LedFrame& frame) override {
 		(void)frame.set(kPlayLed, deluge::ui::LedState{deluge::ui::LedState::Kind::On, 0, 0});
 	}
-	Result handle(const UiEvent&, const UiContext&) override {
+	Result handle(const UiEvent& event, const UiContext&) override {
 		events++;
-		return Result::unhandled();
+		last_event_kind = event.kind;
+		if (!emit_popup) {
+			return Result::unhandled();
+		}
+		emit_popup = false;
+		Result r;
+		r.handled = true;
+		(void)r.actions.push_back(Action{.kind = Action::Kind::Popup, .popup_string = 42, .popup_type = 1});
+		return r;
+	}
+	Result after_render() override {
+		after_renders++;
+		events_at_after_render = events;
+		return {};
 	}
 	void tick(uint32_t) override { ticks++; }
 	void on_model_changed(const deluge::notify::DirtySet&) override { model_changed++; }
@@ -102,6 +128,13 @@ public:
 	static constexpr int32_t kAuxRectX = 4, kAuxRectY = 4;
 
 	int oled_renders = 0, grid_renders = 0, events = 0, ticks = 0, model_changed = 0;
+	int after_renders = 0, events_at_after_render = -1, turns_seen = 0;
+	uint32_t frame_ms = 0;
+	/// Whether `render_oled` reads (and claims) the select-encoder turn.
+	bool read_turn = false;
+	/// Whether the next `handle()` returns a `Popup` action.
+	bool emit_popup = false;
+	UiEvent::Kind last_event_kind = UiEvent::Kind::AllReleased;
 	std::optional<uint32_t> timer;
 };
 
@@ -205,7 +238,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		expect(r.base.grid_renders).to_equal(1);
 	});
 
-	it("model dirtiness re-renders and reaches on_model_changed", _ {
+	it("model dirtiness re-renders the surface it names, and reaches on_model_changed", _ {
 		deluge::notify::dirty().drain();
 		Rig r;
 		r.shell.init({kBase, 0});
@@ -213,12 +246,35 @@ describe shell_tick("shell::Shell::tick", $ {
 		r.consume_pending();
 		expect(r.base.model_changed).to_equal(0);
 
+		// A grid-only fact repaints the grid and leaves the OLED alone: `apply_dirty` requests
+		// exactly the gates the fact names, and `needs_frame`'s `model_dirty` is passed `false` so
+		// nothing widens that back out to every surface.
 		deluge::notify::dirty().raise(Dirty::ClipContent);
 		r.shell.tick(20);
 		expect(r.base.model_changed).to_equal(1);
 		expect(r.base.grid_renders).to_equal(2);
 		expect(r.fake.grid().dirty).to_be_true();
+		expect(r.base.oled_renders).to_equal(2); // still just the first tick's two
+		expect(r.fake.oled()[0].blit_pending).to_be_false();
+		expect(r.fake.oled()[1].blit_pending).to_be_false();
+
+		// An OLED-only fact is the mirror image.
+		r.consume_pending();
+		deluge::notify::dirty().raise(Dirty::Oled);
+		r.shell.tick(30);
+		expect(r.base.oled_renders).to_equal(4);
 		expect(r.fake.oled()[0].blit_pending).to_be_true();
+		expect(r.base.grid_renders).to_equal(2);
+		expect(r.fake.grid().dirty).to_be_false();
+
+		// A fact that names no surface still reaches every gate.
+		r.consume_pending();
+		deluge::notify::dirty().raise(Dirty::PlaybackState);
+		r.shell.tick(40);
+		expect(r.base.oled_renders).to_equal(6);
+		expect(r.base.grid_renders).to_equal(3);
+		expect(r.fake.oled()[0].blit_pending).to_be_true();
+		expect(r.fake.grid().dirty).to_be_true();
 	});
 
 	it("input requests a frame and routes to the top scene", _ {
@@ -365,6 +421,103 @@ describe shell_tick("shell::Shell::tick", $ {
 		expect(r.fake.leds().desired_on[play]).to_be_false();
 		r.shell.tick(400);
 		expect(r.fake.leds().desired_on[play]).to_be_true();
+	});
+
+	it("a notice scene overlays the grid rather than replacing it", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.shell.init({kBase, 0});
+		// The shell owns SceneKind::Popup, so this pushes its own PopupScene.
+		expect(r.shell.stack().push({SceneKind::Popup, 0})).to_be_true();
+		r.shell.tick(0);
+
+		// The base still painted: a notice is a grid overlay that paints nothing, not the base.
+		expect(r.base.grid_renders).to_equal(1);
+		const deluge::gfx::grid::PadGrid& g = r.fake.grid().grid();
+		expect(g.at(3, 3) == RGB{0, 0, 0}).to_be_false();
+		// Spec D §7 dims "if any overlay is above", with no exception for an overlay that paints
+		// nothing -- the shell cannot know what one painted without rendering it and diffing.
+		expect(g.at(3, 3) == RGB{50, 40, 30}).to_be_true();
+	});
+
+	it("a passive overlay leaves the scene beneath focused and routed", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.base.read_turn = true;
+		r.shell.init({kBase, 0});
+		// The console strip: `oled_transparent` on every role, so the base is still drawn beneath
+		// it -- which is what makes the focus question visible at all. (A popup is opaque on Main,
+		// so the base is not drawn there; the routing half below holds for either.)
+		expect(r.shell.stack().push({SceneKind::Console, 0})).to_be_true();
+		r.shell.tick(0);
+		r.consume_pending();
+
+		// Select turn (board encoder index 3, two A-pin edges = one detent) and a Play press, both
+		// fed while the console is the stack's top.
+		r.shell.on_encoder_edges(3, 2, 25);
+		r.shell.on_board_event(button_ev(8, 3, true), 25);
+		r.shell.tick(30);
+
+		// The base's frame was built with InputMask::all() despite the console above it...
+		expect(r.base.turns_seen).to_equal(1);
+		// ...and the router reached the base's handle(), not the popup's.
+		expect(r.base.events).to_equal(1);
+		expect(r.base.last_event_kind == UiEvent::Kind::Button).to_be_true();
+	});
+
+	it("the frame clock is the tick's, not the feed's", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+
+		r.shell.on_board_event(button_ev(8, 3, true), 25);
+		r.shell.tick(30);
+		expect(r.base.frame_ms).to_equal(uint32_t(30));
+		expect(r.shell.lowering().snapshot().now_ms).to_equal(uint32_t(30));
+		expect(r.shell.lowering().ctx().tick_ms).to_equal(uint32_t(30));
+	});
+
+	it("a held-back event claimed during render is not routed; an unclaimed one is", _ {
+		deluge::notify::dirty().drain();
+		Rig claimed;
+		claimed.base.read_turn = true;
+		claimed.shell.init({kBase, 0});
+		claimed.shell.tick(0);
+		claimed.shell.on_encoder_edges(3, 2, 25);
+		claimed.shell.tick(30);
+		expect(claimed.base.turns_seen).to_equal(1);
+		expect(claimed.base.events).to_equal(0); // the frame owned it
+
+		deluge::notify::dirty().drain();
+		Rig unclaimed;
+		unclaimed.base.read_turn = false;
+		unclaimed.shell.init({kBase, 0});
+		unclaimed.shell.tick(0);
+		unclaimed.shell.on_encoder_edges(3, 2, 25);
+		unclaimed.shell.tick(30);
+		expect(unclaimed.base.events).to_equal(1);
+		expect(unclaimed.base.last_event_kind == UiEvent::Kind::Encoder).to_be_true();
+		// Delivered after render *and* after this tick's after_render(): the claim is only knowable
+		// once the frame that could have made it has been built and acted on.
+		expect(unclaimed.base.after_renders).to_equal(2);
+		expect(unclaimed.base.events_at_after_render).to_equal(0);
+	});
+
+	it("a Popup action becomes the popup scene, resolved through the profile's text", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+
+		r.base.emit_popup = true;
+		r.shell.on_board_event(button_ev(8, 3, true), 25);
+		r.shell.tick(30);
+
+		expect(r.shell.stack().top().kind() == SceneKind::Popup).to_be_true();
+		expect(std::string(r.shell.notices().last_popup_text())).to_equal(std::string(kPopupText));
+		expect(r.shell.state_lines())
+		    .to_equal(std::string("scene Popup 0\nscene app16 0\nnotice SAVED\n"));
 	});
 
 	it("state_lines reports the stack top first, then the lock", _ {

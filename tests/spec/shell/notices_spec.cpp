@@ -2,6 +2,7 @@
 #include "../ui/support/frames.h"
 #include "shell/notices.h"
 #include "shell/scene_stack.h"
+#include "ui/grid/frame.h"
 
 #include "cppspec.hpp"
 
@@ -192,11 +193,33 @@ describe shell_notices("shell::Notices", $ {
 		expect(r.stack.top().kind() == SceneKind::Popup).to_be_false();
 	});
 
+	it("every notice scene is a passive grid overlay that never takes input", _ {
+		Rig r;
+		// The shell picks the grid base as the topmost scene that is *not* a grid overlay and
+		// clears the grid before drawing it, so a notice that claimed to be the base -- having no
+		// `render_grid` of its own -- would leave the pads black. Legacy's popups, console lines
+		// and working animation are OLED-only (`OLED::sendMainImage`, `oled.cpp:364-376`): the
+		// pads keep showing the view underneath.
+		Scene* const all[] = {&r.popup, &r.console, &r.working};
+		for (Scene* scene : all) {
+			expect(scene->is_grid_overlay()).to_be_true();
+			expect(scene->occludes_grid()).to_be_false();
+			expect(scene->input_transparent()).to_be_true();
+			// None of them paints a pad: `render_grid` is the base `Scene`'s do-nothing default.
+			deluge::gfx::grid::PadGrid grid{{16, 2, 8}};
+			grid.set(3, 3, RGB{9, 9, 9});
+			deluge::ui::InputSnapshot snap{};
+			deluge::ui::RepaintGate gate;
+			deluge::ui::FrameContext ctx{snap, gate};
+			deluge::ui::grid::GridFrame frame = deluge::ui::grid::root_grid_frame(grid, ctx);
+			scene->render_grid(frame);
+			expect(grid.at(3, 3) == RGB{9, 9, 9}).to_be_true();
+		}
+	});
+
 	it("Console appends and never occludes; Working arms and ClearWorking pops it", _ {
 		Rig r;
 		expect(r.console.oled_transparent(SurfaceRole::Main)).to_be_true();
-		expect(r.console.occludes_grid()).to_be_false();
-		expect(r.console.is_grid_overlay()).to_be_false();
 
 		deluge::ui::test::Rig48 before;
 		r.console.render_oled(SurfaceRole::Main, before.frame);

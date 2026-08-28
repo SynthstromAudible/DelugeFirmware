@@ -47,7 +47,9 @@ const char* scene_kind_name(SceneKind k);
 /// half of `readButtonsAndPadsOnce` / `GRAPHICS_ROUTINE` quartet (`deluge.cpp:592-624`). It owns
 /// the scene stack, the input lowering, the router, the three overlay scenes and the `Notices`
 /// service that drives them; it *borrows* the `SurfaceSet` (the only hardware seam) and the board
-/// profile. Nothing here is global and nothing here allocates.
+/// profile. Nothing here is global, and nothing on the tick path allocates -- `state_lines()`,
+/// which builds a `std::string`, is the UI test harness's entry point and is never called from a
+/// tick.
 ///
 /// # The tick window
 ///
@@ -65,7 +67,24 @@ const char* scene_kind_name(SceneKind k);
 ///
 /// That ordering is what lets `deliver_post_render_input` read `held_back()` and `ctx().claims`
 /// after the frame has been built: nothing between `end_tick()` and the end of the tick calls
-/// `begin_tick()`, so neither has been cleared yet.
+/// `begin_tick()`, so neither has been cleared yet. The window's *clock*, however, is the tick's,
+/// not the opening feed's: `InputLowering::end_tick(now_ms)` re-stamps the snapshot, so
+/// `f.now_ms()` is always the clock the frame is being built on.
+///
+/// # What a scene may read, and where
+///
+/// **A scene reads any one input in at most one render pass per tick.** Reading through a frame
+/// *is* claiming it (`ui/core/frame_context.h`, rule 2), and a scene drawn on two surfaces builds
+/// two independent `FrameInput`s in the same tick -- so reading `f.turn()` in both `render_oled`
+/// and `render_grid` claims the same detent twice and trips `InputClaims::double_claim`. A scene
+/// that wants one input to affect both surfaces reads it in the pass that owns it and lets the
+/// other surface draw the state that produced; a scene that needs the raw event on both leaves it
+/// unclaimed and reacts in `handle()`, which the shell delivers *after* render for exactly that
+/// reason.
+///
+/// Only the **input-frontmost** scene (`SceneStack::input_top()`, the topmost that is not
+/// `Scene::input_transparent()`) is drawn with `InputMask::all()`; every other layer in a pass
+/// draws with `none()` and therefore reads 0/false and claims nothing.
 class Shell {
 public:
 	/// @brief Build a shell over \p surfaces for the board \p profile describes.
@@ -127,6 +146,9 @@ public:
 	/// @brief The union of every stacked scene's `greyout_mask()`, as re-queried on the last tick
 	///        the stack changed.
 	grid::GreyoutMask greyout() const { return greyout_; }
+	/// @brief How many LED declarations were dropped for naming a board LED past
+	///        `LedFrame::kMaxEntries`.
+	uint32_t leds_dropped() const { return leds_dropped_; }
 	/// @}
 
 	/// @brief The shell's half of the UI test harness's `.state` snapshot (spec G §3).
@@ -156,7 +178,9 @@ private:
 	void tick_stack(uint32_t now_ms, uint32_t dt_ms);
 	/// @brief Draw one OLED surface: the topmost opaque scene for its role, and everything above.
 	/// @param s The surface.
-	void render_oled(OledSurface& s);
+	/// @return False when the surface could not be drawn (no `Style`), so the caller does not mark
+	///         an untouched canvas for blitting.
+	bool render_oled(OledSurface& s);
 	/// @brief Draw the pad grid: the base scene, dimmed if anything overlays it, then the
 	///        overlays, then the stack's greyout.
 	/// @param now_ms The tick's wall clock.
@@ -180,9 +204,6 @@ private:
 	/// @brief Note that \p scene rendered this tick, at most once per tick.
 	/// @param scene The scene that was just drawn.
 	void append_rendered(Scene* scene);
-	/// @brief The services, in chain order and without repeats.
-	/// @return `mod_knobs`, `global_controls`, `midi_learn` and `Notices`, each listed once.
-	FixedVector<Service*, 4> service_list();
 	/// @brief The earliest deadline any gate, scene or service is waiting on.
 	/// @param now_ms The tick's wall clock, which the scenes' relative timers are measured from.
 	std::optional<uint32_t> compute_next_wake(uint32_t now_ms);
@@ -201,6 +222,9 @@ private:
 	ConsoleScene console_;
 	WorkingScene working_;
 	Notices notices_;
+	/// `mod_knobs`, `global_controls`, `midi_learn` and `Notices`, each listed once; built in the
+	/// constructor, since `Services` is fixed there.
+	FixedVector<Service*, 4> service_list_;
 
 	/// The union of the stack's `greyout_mask()`s, re-queried whenever the stack changes.
 	grid::GreyoutMask greyout_{};
@@ -214,6 +238,12 @@ private:
 	bool had_input_ = false;
 	/// Whether the lowering's tick window is open; see the class note on the tick window.
 	bool tick_open_ = false;
+	/// Whether `tick()` has ever run, so the first tick's `dt` is 0 rather than the boot clock.
+	bool ticked_ = false;
+	/// How many LED declarations named a board LED at or past `LedFrame::kMaxEntries` and could
+	/// therefore neither be diffed nor sent. Should stay at zero; non-zero means the board profile
+	/// has outgrown the shadow arrays.
+	uint32_t leds_dropped_ = 0;
 };
 
 } // namespace deluge::ui::shell

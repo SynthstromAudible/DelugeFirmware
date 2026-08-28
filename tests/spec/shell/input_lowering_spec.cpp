@@ -28,7 +28,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		InputLowering in(uitest::test_profile_input(), {});
 		in.begin_tick(1000);
 		in.on_board_event(button_ev(8, 3, true), 1000);   // Play, definitions_cxx.hpp:68
-		in.end_tick();
+		in.end_tick(1000);
 		UiEvent e;
 		expect(in.next(e)).to_be_true();
 		expect(e.kind == UiEvent::Kind::Button).to_be_true();
@@ -49,7 +49,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		in.on_board_event(button_ev(4, 1, true), 10);     // TempoEnc -> next()
 		in.on_encoder_edges(3, 2, 10);                    // Select turn -> held_back()
 		in.on_encoder_edges(2, 2, 10);                    // Tempo turn -> next()
-		in.end_tick();
+		in.end_tick(10);
 
 		expect(in.held_back().size()).to_equal(size_t(3));
 		expect(in.held_back()[0].button == ButtonId::Back).to_be_true();
@@ -107,7 +107,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		InputLowering in(uitest::test_profile_input(), {});
 		in.begin_tick(5);
 		in.on_encoder_edges(3, 2, 5);                     // select, encoders.cpp:28-34
-		in.end_tick();
+		in.end_tick(5);
 		UiEvent e = only_held_back(in);
 		expect(e.kind == UiEvent::Kind::Encoder).to_be_true();
 		expect(e.encoder == EncoderRole::Select).to_be_true();
@@ -117,7 +117,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		// Index 4 is mod1, the upper gold knob (encoders.h:80-81, encoder_input.cpp:57).
 		in.begin_tick(6);
 		in.on_encoder_edges(4, 3, 6);                     // gold knob: raw edges through
-		in.end_tick();
+		in.end_tick(6);
 		e = only_held_back(in);
 		expect(e.encoder == EncoderRole::GoldUpper).to_be_true();
 		expect(e.delta).to_equal(int8_t(3));
@@ -126,7 +126,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		// Index 5 is mod0, the lower gold knob, and lands in edit[1].
 		in.begin_tick(7);
 		in.on_encoder_edges(5, -2, 7);
-		in.end_tick();
+		in.end_tick(7);
 		e = only_held_back(in);
 		expect(e.encoder == EncoderRole::GoldLower).to_be_true();
 		expect(in.snapshot().edit[1]).to_equal(int8_t(-2));
@@ -136,18 +136,18 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		InputLowering in(uitest::test_profile_input(), {});
 		in.begin_tick(1);
 		in.on_encoder_edges(3, 3, 1);                     // 3 edges -> 1 detent, 1 carried
-		in.end_tick();
+		in.end_tick(1);
 		expect(in.snapshot().turn).to_equal(int8_t(1));
 		expect(in.held_back().size()).to_equal(size_t(1));
 
 		in.begin_tick(2);
-		in.end_tick();
+		in.end_tick(2);
 		expect(in.snapshot().turn).to_equal(int8_t(0));
 		expect(in.held_back().empty()).to_be_true();
 
 		in.begin_tick(3);
 		in.on_encoder_edges(3, 1, 3);                     // the carried edge completes a detent
-		in.end_tick();
+		in.end_tick(3);
 		expect(in.snapshot().turn).to_equal(int8_t(1));
 	});
 
@@ -223,7 +223,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		in.on_board_event(button_ev(7, 1, true), 4242);   // Back press edge
 		in.on_board_event(button_ev(8, 0, true), 4242);   // Shift held
 		in.on_board_event(pad_ev(3, 5, 90), 4242);
-		in.end_tick();
+		in.end_tick(4242);
 
 		const deluge::ui::InputSnapshot& s = in.snapshot();
 		expect(s.turn).to_equal(int8_t(1));
@@ -240,11 +240,11 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		InputLowering in(uitest::test_profile_input(), {});
 		in.begin_tick(2);
 		in.on_board_event(button_ev(4, 3, true), 2);
-		in.end_tick();
+		in.end_tick(2);
 		expect(in.snapshot().select_pressed).to_be_true();
 
 		in.begin_tick(3);
-		in.end_tick();
+		in.end_tick(3);
 		expect(in.snapshot().select_pressed).to_be_false();
 		expect(in.snapshot().pads.empty()).to_be_true();
 		expect(in.held().has(ButtonId::SelectEnc)).to_be_true();
@@ -257,7 +257,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		in.on_board_event(button_ev(9, 0, true), 1);      // past button_cols
 		in.on_board_event(button_ev(0, 4, true), 1);      // past button_rows
 		in.on_board_event(pad_ev(40, 0, 64), 1);          // past PadMask bounds
-		in.end_tick();
+		in.end_tick(1);
 		UiEvent e;
 		expect(in.next(e)).to_be_false();
 		expect(in.held().any()).to_be_false();
@@ -268,7 +268,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 	it("clears the frame context's claims once per tick", _ {
 		InputLowering in(uitest::test_profile_input(), {});
 		in.begin_tick(1);
-		in.end_tick();
+		in.end_tick(1);
 		const uint32_t first = in.ctx().tick;
 		in.ctx().claims.turn = true;
 		in.ctx().claims.back = true;
@@ -363,7 +363,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		// First turn after a pause longer than short_press_ms (500): recorded, not actioned.
 		in.begin_tick(1000);
 		in.on_encoder_edges(4, 1, 1000);
-		in.end_tick();
+		in.end_tick(1000);
 		expect(in.held_back().empty()).to_be_true();
 		expect(in.snapshot().edit[0]).to_equal(int8_t(0));
 		expect(in.had_input_this_tick()).to_be_true();    // legacy still sets `anything`
@@ -372,39 +372,39 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		// Straight back the other way, inside the window: an accidental wiggle, also swallowed.
 		in.begin_tick(1100);
 		in.on_encoder_edges(4, -1, 1100);
-		in.end_tick();
+		in.end_tick(1100);
 		expect(in.held_back().empty()).to_be_true();
 		expect(in.snapshot().edit[0]).to_equal(int8_t(0));
 
 		// Carrying on that way is a real turn.
 		in.begin_tick(1200);
 		in.on_encoder_edges(4, -1, 1200);
-		in.end_tick();
+		in.end_tick(1200);
 		expect(in.held_back().size()).to_equal(size_t(1));
 		expect(in.snapshot().edit[0]).to_equal(int8_t(-1));
 
 		// And so is the next one, in either direction, now that the record is cleared.
 		in.begin_tick(1300);
 		in.on_encoder_edges(4, 1, 1300);
-		in.end_tick();
+		in.end_tick(1300);
 		expect(in.snapshot().edit[0]).to_equal(int8_t(1));
 
 		// Pausing past the window arms the debounce again.
 		in.begin_tick(2000);
 		in.on_encoder_edges(4, 1, 2000);
-		in.end_tick();
+		in.end_tick(2000);
 		expect(in.snapshot().edit[0]).to_equal(int8_t(0));
 
 		// The other gold knob keeps its own record.
 		in.begin_tick(2010);
 		in.on_encoder_edges(5, 1, 2010);
-		in.end_tick();
+		in.end_tick(2010);
 		expect(in.snapshot().edit[1]).to_equal(int8_t(0));
 
 		// Detented encoders are not debounced.
 		in.begin_tick(3000);
 		in.on_encoder_edges(3, 2, 3000);
-		in.end_tick();
+		in.end_tick(3000);
 		expect(in.snapshot().turn).to_equal(int8_t(1));
 	});
 
@@ -414,7 +414,7 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		for (int i = 0; i < InputLowering::kHeldBackCapacity + 2; i++) {
 			in.on_board_event(button_ev(7, 1, i % 2 == 0), 1);   // Back, pressed and released
 		}
-		in.end_tick();
+		in.end_tick(1);
 		expect(in.held_back().size()).to_equal(size_t(InputLowering::kHeldBackCapacity));
 		expect(in.held_back_dropped()).to_equal(uint32_t(2));
 	});

@@ -99,9 +99,19 @@ public:
 
 	/// @name Inspection
 	/// @{
-	/// @brief The scene input is routed to first and that draws last.
+	/// @brief The scene that draws last.
 	/// @return The top scene, or the `NullScene` when the stack is empty.
 	Scene& top();
+	/// @brief The scene input is routed to first: the topmost one that is not
+	///        `Scene::input_transparent()`.
+	///
+	/// A passive layer -- a popup, a console line, the working animation -- is drawn over the
+	/// scene beneath it without ever taking its input, so `top()` is the wrong scene to hand an
+	/// event to whenever one of those is up. This walks down past them; a stack of nothing but
+	/// input-transparent scenes has no input top and reports the `NullScene`, which swallows
+	/// everything, exactly as an empty stack does.
+	/// @return The input-frontmost scene, or the `NullScene` when there is none.
+	Scene& input_top();
 	/// @brief The bottom scene.
 	/// @return The root scene, or null when the stack is empty.
 	Scene* root();

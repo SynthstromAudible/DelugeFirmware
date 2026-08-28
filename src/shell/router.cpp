@@ -69,7 +69,11 @@ void Router::run_chain(const UiEvent& event, const UiContext& ctx) {
 		}
 	}
 
-	Result scene_result = stack_.top().handle(event, ctx);
+	// `input_top()`, not `top()`: a popup, a console line or the working animation sits on the
+	// stack without ever taking the input of the scene it is drawn over (`Scene::input_transparent`,
+	// and legacy's own popups, which are composited into the OLED image and route nothing --
+	// `hid/display/oled.cpp:364-376`).
+	Result scene_result = stack_.input_top().handle(event, ctx);
 	apply(scene_result);
 	if (scene_result.handled) {
 		return;
