@@ -1,4 +1,5 @@
 from dmui.dsl import Menu
+
 from . import round_robin
 
 _available_txt = 'Oscillator has its type set to <string-for name="STRING_FOR_SAMPLE">SAMPLE</string-for>'
