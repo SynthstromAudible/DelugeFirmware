@@ -163,8 +163,39 @@ constexpr const char* kPreviewPath = "SAMPLES/PREVIEW.WAV";
 /// synchronous leg lands on tick 1, a healthy async one within a few.
 constexpr int32_t kMaxPreviewTicks = 2000;
 
+// ── The preview cancellation stage ──────────────────────────────────────────
+//
+// The stage above proves a deferred preview is asked for again until it lands.
+// This one proves the opposite requirement, which the same re-drive makes
+// necessary: a preview the user has moved OFF must stop being asked for, and
+// must never be rendered.
+//
+// In the real UI the move is onto a folder or an empty selection — the one
+// cursor move that dispatches no replacement, so latest-wins supersession never
+// fires. This harness calls previewFile() directly and never populates a file
+// list, so it cannot reach that branch; it drives the same invalidation through
+// `SampleBrowser::cancelPreview()`, which is what that branch calls.
+//
+// The order below is the defect exactly: preview a file, and before the storage
+// owner has run the op, cancel. If the op renders anyway, the browser draws (and
+// on a real device sounds) a file the cursor has left, over a folder — and it
+// re-arms itself, so it keeps trying every ~15 ms until the load lands. Both
+// legs are held to this: the owner queue is FIFO, so the cancellation lands
+// before the op on the synchronous leg too.
+
+/// The file the cancellation stage asks for and then abandons. Its own file, asked for by
+/// nothing else, so "it drew" and "it loaded" can only be this stage's doing.
+constexpr const char* kCancelPath = "SAMPLES/CANCEL.WAV";
+
+/// graphicsRoutine() calls the cancellation stage makes after cancelling.
+///
+/// Fixed rather than "until something happens": the property is that nothing EVER happens, so
+/// there is nothing to wait for. Generous enough for the queued op to have run and reported back
+/// several times over — a healthy load takes one or two dispatch round trips.
+constexpr int32_t kCancelTicks = 64;
+
 /// Which stage `dispatch_step` is in.
-enum class Stage : uint8_t { Cases, Preview, Done };
+enum class Stage : uint8_t { Cases, Preview, Cancel, Done };
 Stage g_stage = Stage::Cases;
 /// Whether previewFile() has been called. It is called exactly once.
 bool g_previewStarted = false;
@@ -172,6 +203,10 @@ bool g_previewStarted = false;
 int32_t g_previewTicks = 0;
 /// Of those, how many found a deferred preview still waiting.
 int32_t g_previewRedrives = 0;
+/// Whether the cancellation stage has issued its previewFile()/cancelPreview() pair.
+bool g_cancelStarted = false;
+/// graphicsRoutine() calls made since then.
+int32_t g_cancelTicks = 0;
 
 /// Plain CRC32 (IEEE 802.3, reflected) — a stable fingerprint of the bytes read back through the
 /// Sample's own stream. Same routine host_loadcheck_main.cpp uses for band data.
@@ -408,6 +443,73 @@ void finishPreviewStage(bool drawn) {
 	}
 }
 
+/// Has anything drawn the cancelled file's waveform?
+///
+/// Same witness as previewHasDrawn(): `waveformBasicNavigator.sample` is assigned only on
+/// `renderPreviewForTarget`'s waveform path. It still names the PREVIOUS stage's file, which is
+/// exactly right -- what must not have happened is this file replacing it.
+bool cancelledHasDrawn() {
+	const Sample* drawn = waveformBasicNavigator.sample;
+	return drawn != nullptr && drawn->filePath == kCancelPath;
+}
+
+/// Was the cancelled file loaded (and, on a device, sounded) at all?
+///
+/// `lastFilePathLoaded` is assigned at the very top of `renderPreviewForTarget`, before the load
+/// and before anything is drawn -- so it witnesses the op having done the work at all, which is
+/// the half `cancelledHasDrawn()` misses on a leg whose first attempt defers.
+/// `AudioEngine::previewSample`, which that same function calls, is what starts the note.
+bool cancelledWasLoaded() {
+	return sampleBrowser.lastFilePathLoaded == kCancelPath;
+}
+
+/// One tick of the cancellation stage. See the block comment above kCancelPath.
+void runOneCancelTick() {
+	if (!g_cancelStarted) {
+		g_cancelStarted = true;
+		// The user-driven preview, exactly as a cursor move issues it. This QUEUES the op on the
+		// storage owner; nothing below runs it yet.
+		sampleBrowser.previewFile(kCancelPath, /*movementDirection=*/0);
+		// And then the cursor moves onto something with nothing to preview, before that op has run.
+		sampleBrowser.cancelPreview();
+		return;
+	}
+
+	g_cancelTicks++;
+	// The per-tick surface, and the only thing driven from here on -- the same surface that
+	// re-drives a deferral. If the cancelled preview re-arms itself, this is what keeps it alive.
+	sampleBrowser.graphicsRoutine();
+}
+
+/// Print the cancellation stage's outcome and assert it.
+void finishCancelStage() {
+	const bool drawn = cancelledHasDrawn();
+	const bool loaded = cancelledWasLoaded();
+	printf("AB-CANCEL asyncActive=%d drawn=%d loaded=%d ticks=%d pending=%d\n",
+	       deluge_audio_load_async_active() ? 1 : 0, drawn ? 1 : 0, loaded ? 1 : 0, g_cancelTicks,
+	       sampleBrowser.previewLoadPending() ? 1 : 0);
+
+	if (drawn) {
+		printf("FAIL [audioLoadAB/cancel]: the preview was cancelled before its load ran, and its waveform "
+		       "was drawn anyway -- on the device that is a file the cursor has LEFT, rendered over the "
+		       "folder the user moved onto, with its note-on no longer suppressed\n");
+		g_failures++;
+	}
+	if (loaded) {
+		printf("FAIL [audioLoadAB/cancel]: the preview was cancelled before its load ran, and the load ran "
+		       "anyway (lastFilePathLoaded is '%s') -- the op acted on an abandoned target instead of "
+		       "checking whether it was still wanted\n",
+		       kCancelPath);
+		g_failures++;
+	}
+	if (sampleBrowser.previewLoadPending()) {
+		printf("FAIL [audioLoadAB/cancel]: a cancelled preview is STILL pending after %d tick(s) -- it re-armed "
+		       "itself and will be re-driven every frame until it lands, and then rendered\n",
+		       g_cancelTicks);
+		g_failures++;
+	}
+}
+
 } // namespace
 
 extern "C" {
@@ -424,6 +526,8 @@ void deluge_scenario_audio_load_ab_begin(void) {
 	g_previewStarted = false;
 	g_previewTicks = 0;
 	g_previewRedrives = 0;
+	g_cancelStarted = false;
+	g_cancelTicks = 0;
 
 	// The preview stage must not start a voice: this harness has no audio path driving it, and the
 	// property under test is that a DEFERRED preview is asked for again, which is upstream of
@@ -454,20 +558,30 @@ void deluge_scenario_audio_load_ab_dispatch_step(void) {
 		return;
 	}
 
-	if (g_stage == Stage::Preview) {
-		// The preview stage runs on the UI tier, not the worker fiber -- that is where the real
-		// browser calls both of these from, and previewFile()/graphicsRoutine() dispatch their own
-		// card work onto the owner themselves. A marker op behind them releases the latch: the owner
-		// queue is FIFO, so it runs after whatever they just queued (and immediately if they queued
-		// nothing).
+	if (g_stage == Stage::Preview || g_stage == Stage::Cancel) {
+		// Both browser-driven stages run on the UI tier, not the worker fiber -- that is where the
+		// real browser calls these from, and previewFile()/graphicsRoutine() dispatch their own card
+		// work onto the owner themselves. A marker op behind them releases the latch: the owner queue
+		// is FIFO, so it runs after whatever they just queued (and immediately if they queued
+		// nothing). That FIFO ordering is also what makes the cancellation stage's window real on
+		// BOTH legs: the op previewFile() queues has not run when cancelPreview() is called.
 		g_stepDone = false;
-		runOnePreviewTick();
-		const bool drawn = previewHasDrawn();
-		if (drawn || g_previewTicks >= kMaxPreviewTicks) {
-			finishPreviewStage(drawn);
-			g_stage = Stage::Done;
-			printSummary();
-			g_summaryPrinted = true;
+		if (g_stage == Stage::Preview) {
+			runOnePreviewTick();
+			const bool drawn = previewHasDrawn();
+			if (drawn || g_previewTicks >= kMaxPreviewTicks) {
+				finishPreviewStage(drawn);
+				g_stage = Stage::Cancel;
+			}
+		}
+		else {
+			runOneCancelTick();
+			if (g_cancelTicks >= kCancelTicks) {
+				finishCancelStage();
+				g_stage = Stage::Done;
+				printSummary();
+				g_summaryPrinted = true;
+			}
 		}
 		if (!deluge::storage::Owner::run([](void*) { g_stepDone = true; }, nullptr)) {
 			g_stepDone = true;

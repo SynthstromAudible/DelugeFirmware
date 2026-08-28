@@ -614,6 +614,8 @@ fn write_test_wav(path: &std::path::Path, channels: u16, bits: u16, data_bytes: 
 /// - `SAMPLES/PREVIEW.WAV` belongs to the preview re-drive stage rather than the case list: it is
 ///   the file `SampleBrowser` is asked to preview once, and must then load and draw with nothing
 ///   but per-tick calls driving it.
+/// - `SAMPLES/CANCEL.WAV` belongs to the cancellation stage, which asserts the converse: it is
+///   asked for and then abandoned before its load runs, and must never load or draw at all.
 ///
 /// Both legs stage byte-IDENTICAL content, which is what makes the comparison sound. They do NOT
 /// share one image: `sd_image_path::fingerprint_dir` hashes path/length/mtime, not bytes, and this
@@ -655,6 +657,11 @@ fn pack_audio_load_ab_image() -> std::path::PathBuf {
     // only, and asked for by no case above, so it is never resident when that stage
     // begins and its load necessarily goes through the loader on the async leg.
     write_test_wav(&samples.join("PREVIEW.WAV"), 1, 16, 2816, 0xCC);
+    // The cancellation stage's file (kCancelPath): asked for once and then abandoned before the
+    // storage owner runs the load. It is a real, loadable file on purpose -- the stage asserts that
+    // NOTHING loaded or drew it, and a file that could not have loaded anyway would let that pass
+    // for the wrong reason.
+    write_test_wav(&samples.join("CANCEL.WAV"), 1, 16, 3328, 0xDD);
 
     std::fs::write(samples.join("GARBAGE.WAV"), vec![0x7Eu8; 512])
         .expect("writing the A/B fixture's unparseable file");

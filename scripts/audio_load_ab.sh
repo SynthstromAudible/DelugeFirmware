@@ -23,6 +23,12 @@
 #             and this is the only check on either side that fails if the caller stops re-asking
 #             for a deferred load. Everything else here drives the loader through the HARNESS's own
 #             retry loop, which is precisely the handler the shipped caller was missing.
+#   AB-CANCEL the converse property, on the same caller: a preview is asked for and then ABANDONED
+#             before the storage owner runs its load (what a cursor move onto a folder does — the
+#             one move that dispatches no replacement, so nothing supersedes the load in flight).
+#             Nothing may load, draw or stay pending. EXPECTED to agree between the legs but not
+#             diffed; each leg asserts it in-process. Without it, a cancelled preview is re-driven
+#             every frame and then rendered over whatever the user moved onto.
 #   AB-SUMMARY / AB-BEGIN
 #             which backing ran and how many loads were deferred. EXPECTED to differ, so not
 #             diffed — but each leg asserts its own consistency in-process (an "async" run that
@@ -121,7 +127,7 @@ run_leg() {
 	fi
 	if ! grep -q '^AB-RESULT failures=0$' "$OUT_ROOT/$tag.txt"; then
 		echo "FAIL — the $tag leg reported in-process failures:"
-		grep -E '^(FAIL|AB-PREVIEW|AB-SUMMARY|AB-RESULT) ' "$OUT_ROOT/$tag.txt"
+		grep -E '^(FAIL|AB-PREVIEW|AB-CANCEL|AB-SUMMARY|AB-RESULT) ' "$OUT_ROOT/$tag.txt"
 		exit 1
 	fi
 	# The preview stage prints exactly one of these, and prints it before the summary. Its absence
@@ -129,6 +135,12 @@ run_leg() {
 	# above cannot show, because a stage that never ran asserts nothing.
 	if ! grep -q '^AB-PREVIEW ' "$OUT_ROOT/$tag.txt"; then
 		echo "FAIL — the $tag leg produced no AB-PREVIEW line; the preview re-drive stage did not run"
+		exit 1
+	fi
+	# Same reasoning for the cancellation stage: it asserts that NOTHING happened, so a stage that
+	# never ran satisfies every one of its checks and contributes nothing to the failure count.
+	if ! grep -q '^AB-CANCEL ' "$OUT_ROOT/$tag.txt"; then
+		echo "FAIL — the $tag leg produced no AB-CANCEL line; the preview cancellation stage did not run"
 		exit 1
 	fi
 }
@@ -169,4 +181,4 @@ if [ "$CASES" -lt "$MIN_CASES" ]; then
 fi
 
 echo "PASS — both backings loaded all $CASES sample(s) identically"
-grep -h '^AB-SUMMARY \|^AB-DEFER \|^AB-PREVIEW ' "$OUT_ROOT/sync.txt" "$OUT_ROOT/async.txt"
+grep -h '^AB-SUMMARY \|^AB-DEFER \|^AB-PREVIEW \|^AB-CANCEL ' "$OUT_ROOT/sync.txt" "$OUT_ROOT/async.txt"
