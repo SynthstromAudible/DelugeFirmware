@@ -14,6 +14,15 @@ bool is_lit(RGB c) {
 	return (c.r | c.g | c.b) != 0;
 }
 
+/// Legacy's `if (occupancyMaskStore[y][x])` test, against an explicit mask when the caller has one
+/// and against the pad's own colour otherwise. See `OccupancyMask` in tween.h for why both exist.
+bool occupied(OccupancyMask mask, const PadGrid& g, uint8_t x, uint8_t y) {
+	if (!mask.empty()) {
+		return (mask[x] & (1u << y)) != 0;
+	}
+	return is_lit(g.at(x, y));
+}
+
 /// Port of `drawSquare` (src/deluge/util/functions.h:337-357), which every pad_leds.cpp animation
 /// that accumulates several source pads into one destination pad goes through.
 ///
@@ -238,6 +247,10 @@ void zoom(const PadGrid& from, const PadGrid& to, ZoomParams params, PadGrid& ou
 	const int32_t zoom_magnitude =
 	    std::abs(static_cast<int32_t>(std::bit_width(static_cast<uint32_t>(params.new_zoom)))
 	             - static_cast<int32_t>(std::bit_width(static_cast<uint32_t>(params.old_zoom))));
+	// `coarse` below reaches -2^(magnitude - 1), so `increase_magnitude(x, coarse - 14)` shifts
+	// right by 2^(magnitude - 1) + 14 -- 30 at magnitude 5, past the operand width at 6. See the
+	// note on kMaxZoomMagnitude in tween.h: legacy survives this only on ARM's shift-masking.
+	DELUGE_GFX_CONTRACT(zoom_magnitude <= kMaxZoomMagnitude);
 
 	// --- renderZoom (pad_leds.cpp:1173-1210) -------------------------------------------------
 	int32_t transition_progress = params.t;
@@ -339,6 +352,9 @@ void zoom(const PadGrid& from, const PadGrid& to, ZoomParams params, PadGrid& ou
 void explode(const PadGrid& from, ExplodeParams params, PadGrid& out) {
 	const auto d = from.dims();
 	DELUGE_GFX_CONTRACT(out.dims() == d);
+	// `out.clear()` below runs before `from` is read, so aliasing them would explode a black grid.
+	DELUGE_GFX_CONTRACT(&out != &from);
+	DELUGE_GFX_CONTRACT(params.from_occupancy.empty() || params.from_occupancy.size() == d.cols());
 	// Legacy's `>> (kDisplayWidthMagnitude + 16)`; keeping it a shift keeps the floor rounding.
 	DELUGE_GFX_CONTRACT(std::has_single_bit(static_cast<uint32_t>(d.main_cols)));
 	const int32_t width_magnitude = std::countr_zero(static_cast<uint32_t>(d.main_cols));
@@ -352,8 +368,12 @@ void explode(const PadGrid& from, ExplodeParams params, PadGrid& out) {
 	std::memset(occupancy, 0, sizeof(occupancy));
 
 	const int32_t main = d.main_cols;
-	int32_t x_dest_array[kMaxGridCols];
-	uint16_t x_intensity_array[kMaxGridCols][2];
+	// Legacy leaves these uninitialised for the columns its xStart/xEnd narrowing excludes
+	// (pad_leds.cpp:672-678, quirk 3 of the report). Those entries are provably never read -- the
+	// bounds exclude exactly them -- so zeroing is observationally identical and costs nothing but
+	// removes the stack-garbage hazard a sanitiser would rightly flag.
+	int32_t x_dest_array[kMaxGridCols] = {};
+	uint16_t x_intensity_array[kMaxGridCols][2] = {};
 	int32_t x_start = 0;
 	int32_t x_end = main;
 
@@ -398,8 +418,10 @@ void explode(const PadGrid& from, ExplodeParams params, PadGrid& out) {
 		y_intensity[0] = 65535u - y_intensity[1];
 
 		for (int32_t x_source = x_start; x_source < x_end; x_source++) {
-			const RGB source_colour = from.at(static_cast<uint8_t>(x_source), static_cast<uint8_t>(y_source));
-			if (!is_lit(source_colour)) { // legacy: `if (occupancyMaskStore[...])`
+			const uint8_t xs = static_cast<uint8_t>(x_source);
+			const uint8_t ys = static_cast<uint8_t>(y_source);
+			const RGB source_colour = from.at(xs, ys);
+			if (!occupied(params.from_occupancy, from, xs, ys)) { // legacy: `if (occupancyMaskStore[...])`
 				continue;
 			}
 			for (int32_t x_offset = 0; x_offset < 2; x_offset++) {
@@ -435,6 +457,12 @@ void expand_collapse(const PadGrid& from, const PadGrid& to, ExpandCollapseParam
 	DELUGE_GFX_CONTRACT(to.dims() == d);
 	DELUGE_GFX_CONTRACT(out.dims() == d);
 	DELUGE_GFX_CONTRACT(params.row_to < d.rows);
+	// `row_from` feeds `going_from * 65536` and then the int8_t narrowing below, exactly as
+	// `row_to` does; contract it the same way rather than letting it wrap silently.
+	DELUGE_GFX_CONTRACT(params.row_from < d.rows);
+	DELUGE_GFX_CONTRACT(params.row_to_by_row.empty() || params.row_to_by_row.size() == d.rows);
+	DELUGE_GFX_CONTRACT(params.from_occupancy.empty() || params.from_occupancy.size() == d.cols());
+	DELUGE_GFX_CONTRACT(params.to_occupancy.empty() || params.to_occupancy.size() == d.cols());
 
 	// Legacy's `progress` is expandedness; each caller flips it for a collapse (pad_leds.cpp:1096
 	// and :1163). `t` runs forwards, so the flip lives here.
@@ -442,14 +470,13 @@ void expand_collapse(const PadGrid& from, const PadGrid& to, ExpandCollapseParam
 	    params.collapsing ? (65536 - static_cast<int32_t>(params.t)) : static_cast<int32_t>(params.t);
 
 	// The destination frame plays the part of legacy's freshly-cleared `image` plus the Session
-	// pads it drew into it; a lit pad there starts at full occupancy (pad_leds.cpp:354).
+	// pads it drew into it; an occupied pad there starts at full occupancy (pad_leds.cpp:354).
 	uint8_t occupancy[kMaxGridRows][kMaxGridCols];
 	std::memset(occupancy, 0, sizeof(occupancy));
 	for (uint8_t y = 0; y < d.rows; y++) {
 		for (uint8_t x = 0; x < d.cols(); x++) {
-			const RGB c = to.at(x, y);
-			out.at(x, y) = c;
-			occupancy[y][x] = is_lit(c) ? 64 : 0;
+			out.at(x, y) = to.at(x, y);
+			occupancy[y][x] = occupied(params.to_occupancy, to, x, y) ? 64 : 0;
 		}
 	}
 
@@ -459,10 +486,14 @@ void expand_collapse(const PadGrid& from, const PadGrid& to, ExpandCollapseParam
 	int8_t new_row_position1_array[kMaxGridRows];
 	for (int32_t i = 0; i < d.rows; i++) {
 		const int32_t going_from = static_cast<int32_t>(params.row_from) + i;
-		const int32_t going_to = static_cast<int32_t>(params.row_to);
+		// `animatedRowGoingTo[i]`: per row when the caller has a span, else one shared destination.
+		const int32_t going_to = params.row_to_by_row.empty()
+		                             ? static_cast<int32_t>(params.row_to)
+		                             : static_cast<int32_t>(params.row_to_by_row[static_cast<size_t>(i)]);
+		DELUGE_GFX_CONTRACT(going_to < d.rows);
 		const int32_t new_row_position = going_from * 65536 + (going_to - going_from) * (65536 - progress);
-		// int8_t, as in legacy. The `row_to < rows` precondition keeps this in range, so the
-		// narrowing never bites; it is kept so the arithmetic stays literally legacy's.
+		// int8_t, as in legacy. The row preconditions keep this in range, so the narrowing never
+		// bites; it is kept so the arithmetic stays literally legacy's.
 		new_row_position1_array[i] = static_cast<int8_t>(new_row_position >> 16);
 		intensity2_array[i] = static_cast<uint16_t>(new_row_position);
 		intensity1_array[i] = static_cast<uint16_t>(65535 - intensity2_array[i]);
@@ -470,8 +501,10 @@ void expand_collapse(const PadGrid& from, const PadGrid& to, ExpandCollapseParam
 
 	for (uint8_t col = 0; col < d.cols(); col++) {
 		for (int32_t i = 0; i < d.rows; i++) {
-			const RGB square_colours = from.at(col, static_cast<uint8_t>(i));
-			if (!is_lit(square_colours)) { // legacy: `if (!occupancyMaskStore[i][col]) continue;`
+			const uint8_t src_row = static_cast<uint8_t>(i);
+			const RGB square_colours = from.at(col, src_row);
+			// legacy: `if (!occupancyMaskStore[i][col]) continue;`
+			if (!occupied(params.from_occupancy, from, col, src_row)) {
 				continue;
 			}
 			const int32_t row1 = new_row_position1_array[i];

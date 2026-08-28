@@ -1,10 +1,37 @@
 #pragma once
 #include "gfx/grid/pad_grid.h"
+#include <span>
 
 namespace deluge::gfx::grid {
 // Pure frame→frame transitions. The caller owns timing; `out` must share `dims()` with the inputs
 // -- a precondition, checked with DELUGE_GFX_CONTRACT in each function (gfx/contract.h), because a
 // mismatch indexes one of the grids past its own extent.
+
+/// Occupancy for one grid, in the layout `ui::core::PadMask` uses (`ui/core/input.h:31`): one
+/// `uint32_t` per column, bit `y` = row `y`. Spelled as a span rather than that struct because
+/// `gfx` is a leaf and cannot include `ui/**`; a caller holding a `PadMask` passes
+/// `std::span{mask.cols}.first(cols())`.
+///
+/// The tweens that accumulate several source pads into one destination pad (`explode`,
+/// `expand_collapse`) need legacy's `occupancyMask` distinction between "black" and "nothing here".
+/// Those are not the same thing on device: `View::renderMacros` (`view.cpp:2805-2828`) writes
+/// `image[y][column] = {0, 0, 0}` for an armed clip on the flash-off frame and then sets
+/// `occupancyMask[y][column]` anyway, and that column reaches `occupancyMaskStore` through both
+/// animation paths ported here (`instrument_clip_view.cpp:5941`, `session_view.cpp:3076`).
+/// Legacy blends that black in through `drawSquare`, darkening what is underneath.
+///
+/// An **empty** span means "derive occupancy from the pad: non-black is occupied", which is what
+/// `PadLEDs::refreshSidebarOccupancy` (pad_leds.cpp:308-312) does and is right for most of the
+/// sidebar -- just not for the case above. A **non-empty** span must be exactly `cols()` long
+/// (contract) and is authoritative.
+///
+/// Note the one thing a bitset cannot carry: legacy occupancy is a 0..64 scale, and callers do use
+/// intermediate values (`renderMacros` sets 1, the row renderers set 64). Only nonzero-ness matters
+/// for a *source* pad -- legacy's test is `if (!occupancyMaskStore[i][col]) continue;` -- so the
+/// bitset is exact there. Where `expand_collapse` seeds the destination mask from `to`, an occupied
+/// pad is taken as fully occupied (64), matching legacy's only precedent for a pre-drawn
+/// destination pad (pad_leds.cpp:354).
+using OccupancyMask = std::span<const uint32_t>;
 
 /// Blend `from` toward `to` at parameter `t` (0..65535: 0 = from, 65535 = to). Leaves out.dirty_rows()
 /// fully set.
@@ -84,6 +111,22 @@ void smear_scroll_vertical(const PadGrid& from, const PadGrid& incoming, int32_t
 ///
 /// Main columns only, as in legacy (`innerImageRightEdge == kDisplayWidth`); sidebar columns are
 /// copied from `from`. All rows dirty.
+///
+/// Precondition: the derived magnitude is at most `kMaxZoomMagnitude`. `renderZoom`'s
+/// `coarse = powersOfTwo >> 10` bottoms out at `-2^(magnitude - 1)` (reached at `t < 128`, i.e. on
+/// the first frame of every zoom), and `increaseMagnitude(x, coarse - 14)` then shifts right by
+/// `2^(magnitude - 1) + 14`. At magnitude 6 that is 46 -- past the operand width, so UB, and if it
+/// folded to 0 the next line's `4294967295u / in_image_times_bigger` would divide by zero and trap
+/// on the host. Legacy is saved only by ARM's shift-masking and non-trapping `udiv`. Callers can
+/// exceed it: `TimelineView::zoomToMax` passes `howMuchMoreMagnitude(maxZoom, oldZoom)`
+/// (`timeline_view.cpp:296`), an unbounded log2 ratio -- `getMagnitudeOld(kMaxZoom) -
+/// getMagnitudeOld(3)` is 25 -- so a caller wiring `zoomToMax` up must step or clamp it.
+///
+/// Uses ~576 bytes of stack for its per-column scratch (four `kMaxGridCols` int32 arrays plus the
+/// fade array). Legacy parked the equivalents in `miscStringBuffer` "to save on stack usage"
+/// (pad_leds.cpp:1229); worth re-checking against `-Wstack-usage` if the device render path ever
+/// calls this from a deep frame.
+constexpr int32_t kMaxZoomMagnitude = 5;
 struct ZoomParams {
 	int32_t old_zoom;
 	int32_t new_zoom;
@@ -107,15 +150,21 @@ void zoom(const PadGrid& from, const PadGrid& to, ZoomParams params, PadGrid& ou
 /// legacy's terminal `explodedness` of exactly 65536 is one step past `t`'s range, and the caller
 /// renders that end state from the destination frame anyway (pad_leds.cpp:872-880).
 ///
+/// `from_occupancy` (see `OccupancyMask` above) stands in for legacy's `occupancyMaskStore`; empty
+/// keeps the non-black rule, so it does not disturb a caller that has no mask.
+///
 /// Preconditions: `main_cols` is a power of two -- legacy divides by the main width with
-/// `>> kDisplayWidthMagnitude` and this keeps that exact (floor) arithmetic -- and `out` does not
-/// alias `from`, since `out` is cleared before `from` is read.
+/// `>> kDisplayWidthMagnitude` and this keeps that exact (floor) arithmetic -- `out` does not
+/// alias `from`, since `out` is cleared before `from` is read, and a non-empty `from_occupancy` is
+/// `cols()` long. Uses ~768 bytes of stack (the `kMaxGridRows x kMaxGridCols` destination
+/// occupancy plus two per-column arrays); see the note on `zoom` above.
 struct ExplodeParams {
 	int32_t origin_x_big;
 	int32_t origin_y_big;
 	int32_t width_big;
 	bool implode;
 	uint16_t t;
+	OccupancyMask from_occupancy{};
 };
 void explode(const PadGrid& from, ExplodeParams params, PadGrid& out);
 
@@ -128,31 +177,34 @@ void explode(const PadGrid& from, ExplodeParams params, PadGrid& out);
 /// share: interpolate every source row's position, then draw it into the one or two rows it
 /// straddles with `drawSquare`, weighted by the fractional part.
 ///
-/// Row `i` of `from` sits at display row `row_from + i` when fully expanded and at `row_to` when
-/// fully collapsed. `to` is the destination frame the moving rows are composited over (legacy
-/// cleared `image` and drew the Session pads into it first, which is the same thing); pads of `to`
-/// that are lit start at full occupancy, exactly as legacy's `occupancyMask[row][kDisplayWidth] =
-/// 64` (pad_leds.cpp:354) did.
+/// Row `i` of `from` sits at display row `row_from + i` when fully expanded and at its destination
+/// row when fully collapsed -- `row_to_by_row[i]` if that span is non-empty, else the scalar
+/// `row_to` for every row (legacy's `animatedRowGoingTo[i]`, pad_leds.cpp:366). `to` is the
+/// destination frame the moving rows are composited over (legacy cleared `image` and drew the
+/// Session pads into it first, which is the same thing); occupied pads of `to` start at full
+/// occupancy, exactly as legacy's `occupancyMask[row][kDisplayWidth] = 64` (pad_leds.cpp:354) did.
 ///
 /// `t` runs 0..65535 forwards through the animation. Legacy's `progress` argument is
 /// *expandedness* (65536 = at `animatedRowGoingFrom`, 0 = at `animatedRowGoingTo`), which is why
 /// each caller flips it; `collapsing` reproduces that flip.
 ///
-/// | legacy caller | `collapsing` | `row_from` | `row_to` |
+/// | legacy caller | `collapsing` | `row_from` | destination |
 /// |---|---|---|---|
-/// | `renderClipExpandOrCollapse`, expanding (:1101) | false | 0 | `clipPlaceOnScreen` |
-/// | `renderClipExpandOrCollapse`, collapsing (:1101) | true | 0 | `clipPlaceOnScreen` |
-/// | `renderNoteRowExpandOrCollapse` (:1155) | true | 0 | the shared `yDisplayTo` |
+/// | `renderClipExpandOrCollapse`, expanding (:1101) | false | 0 | `row_to` = `clipPlaceOnScreen` |
+/// | `renderClipExpandOrCollapse`, collapsing (:1101) | true | 0 | `row_to` = `clipPlaceOnScreen` |
+/// | `renderNoteRowExpandOrCollapse` (:1155) | true | 0 | `row_to_by_row[i]` = `yDisplayTo` per note row |
 /// | `renderAudioClipExpandOrCollapse` (:1069) | matches | -- | -- (waveform path) |
 ///
 /// `from` is the expanded frame and `to` the frame it collapses onto; `t` is the raw transition
-/// progress in every row of that table. `clipPlaceOnScreen` is set at `session_view.cpp:2625`; the
-/// two legacy callers that flip `progress` themselves do so at :1096 and :1163.
+/// progress in every row of that table. `clipPlaceOnScreen` is set at `session_view.cpp:2625`, the
+/// note rows' `yDisplayTo` at `instrument_clip_view.cpp:5781`; the two legacy callers that flip
+/// `progress` themselves do so at :1096 and :1163.
 ///
-/// Coverage limits -- the first two inherent to the scalar parameters this signature specifies:
-///  * per-row destinations. `renderNoteRowExpandOrCollapse` sets `animatedRowGoingTo[i]`
-///    per note row (`instrument_clip_view.cpp:5781`); one `row_to` covers it only when every
-///    animated row shares a destination, which is the clip-collapse case.
+/// Coverage limits:
+///  * destinations above the display. `uint8_t` cannot carry a negative `animatedRowGoingTo[i]`,
+///    and `instrument_clip_view.cpp:5776-5777` does admit a note row whose `yDisplayTo` is
+///    off-screen as long as its `yDisplayFrom` is on-screen. Such a row has to be dropped by the
+///    caller (or the field widened) -- everything on-screen is expressible.
 ///  * off-screen source rows. Legacy animates `kDisplayHeight + 2` rows, the extra two being the
 ///    off-screen rows above and below (`session_view.cpp:2623-2626`, `animatedRowGoingFrom[y] =
 ///    y - 1`); a `PadGrid` has exactly `rows` rows and no off-screen margin, so `row_from` is 0
@@ -160,11 +212,19 @@ void explode(const PadGrid& from, ExplodeParams params, PadGrid& out);
 ///  * `renderAudioClipExpandOrCollapse` shares only the progress flip. Its pixels come from
 ///    `waveformRenderer.renderOneColForCollapseAnimation`, not from a stored frame, so it cannot
 ///    use a frame-to-frame tween at all.
+///
+/// Preconditions: `row_to < rows` and `row_from < rows`; a non-empty `row_to_by_row` is `rows` long
+/// with every entry `< rows`; a non-empty `from_occupancy` / `to_occupancy` is `cols()` long.
 struct ExpandCollapseParams {
 	uint8_t row_from;
 	uint8_t row_to;
 	bool collapsing;
 	uint16_t t;
+	/// Per-row destinations; overrides `row_to` when non-empty. Legacy `animatedRowGoingTo[]`.
+	std::span<const uint8_t> row_to_by_row{};
+	/// Occupancy of `from` (legacy `occupancyMaskStore`) and of `to` (the destination seed).
+	OccupancyMask from_occupancy{};
+	OccupancyMask to_occupancy{};
 };
 void expand_collapse(const PadGrid& from, const PadGrid& to, ExpandCollapseParams params, PadGrid& out);
 

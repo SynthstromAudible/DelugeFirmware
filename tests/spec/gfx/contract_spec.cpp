@@ -103,6 +103,31 @@ describe contract("gfx::DELUGE_GFX_CONTRACT", $ {
 			g_sink = out.at(0, 0).r;
 		})).to_be_true();
 	});
+
+	// A zoom magnitude of 6 makes renderZoom's `increaseMagnitude(x, coarse - 14)` shift right by
+	// 2^5 + 14 == 46, past the operand width -- UB, and a divide by zero on the next line if it
+	// folds to 0. Legacy only survives it on ARM's shift-masking and non-trapping udiv; this port
+	// refuses instead. `bit_width(3) == 2`, so 96 -> magnitude 5 (legal) and 192 -> 6 (not).
+	it("traps on a zoom magnitude past what renderZoom's shift arithmetic can hold", _ {
+		expect(dies_on_signal([] {
+			using namespace deluge::gfx::grid;
+			PadGrid from{kDelugeGrid}, to{kDelugeGrid}, out{kDelugeGrid};
+			from.set(0, 0, RGB{200, 40, 40});
+			zoom(from, to, ZoomParams{192, 3, 9 * 65536, 9 * 65536, 0}, out);
+			g_sink = out.at(0, 0).r;
+		})).to_be_true();
+	});
+
+	it("does not trap at the largest legal zoom magnitude", _ {
+		expect(dies_on_signal([] {
+			using namespace deluge::gfx::grid;
+			static_assert(kMaxZoomMagnitude == 5);
+			PadGrid from{kDelugeGrid}, to{kDelugeGrid}, out{kDelugeGrid};
+			from.set(0, 0, RGB{200, 40, 40});
+			zoom(from, to, ZoomParams{96, 3, 9 * 65536, 9 * 65536, 0}, out);
+			g_sink = out.at(0, 0).r;
+		})).to_be_false();
+	});
 #endif
 });
 DELUGE_SPEC(gfx_contract_spec, contract)

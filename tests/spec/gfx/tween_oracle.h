@@ -9,11 +9,23 @@
 /// arrays indexed `image[y][x]`, the legacy variable names, the legacy control flow, and local
 /// copies of the fixed-point helpers.
 ///
-/// The two substitutions the `PadGrid` shape forces, applied identically here and in the port:
-///   * the legacy `occupancyMaskStore` "is there anything in this source square" test becomes
-///     "is this source pad non-black" -- a `PadGrid` carries no occupancy channel;
-///   * `renderZoomedSquare`'s `(*(uint32_t*)&inputImageRow[xSource * 3]) & 16777215` black test
-///     becomes `r | g | b`.
+/// Occupancy stays a real input here -- `renderExplodeAnimation` and
+/// `renderInstrumentClipCollapseAnimation` take the `occupancyMaskStore` legacy reads, so the
+/// byte-compares can falsify the port's optional `OccupancyMask` rather than assuming it. Specs
+/// that exercise the port's *default* (empty mask, "non-black is occupied") pass the oracle a mask
+/// derived the same way; the spec that exercises a black-but-occupied pad passes a mask that
+/// differs from the colours, which is exactly the case the substitution gets wrong.
+///
+/// The one substitution the `PadGrid` shape still forces, applied identically here and in the port:
+/// `renderZoomedSquare`'s `(*(uint32_t*)&inputImageRow[xSource * 3]) & 16777215` black test becomes
+/// `r | g | b` (legacy has no occupancy plane for the zoom source images either).
+///
+/// One blind spot, deliberate and unavoidable: the zoom oracle calls the *port's* copies of the
+/// lookup tables and helpers (`deluge::gfx::grid::kExpTableSmall`, `interpolate_table`,
+/// `sine_q15`), because a spec that links the leaf library cannot pull `util/**` in. A
+/// transcription error in `gfx/grid/exp_table.{h,cpp}` or `sine_table.{h,cpp}` would therefore be
+/// invisible to the byte-compares below; those files have to be checked against
+/// `util/lookuptables` and `util/waves.h` by eye (they were, entry for entry).
 #include "gfx/grid/exp_table.h"
 #include "gfx/grid/pad_grid.h"
 #include "gfx/grid/sine_table.h"
@@ -68,9 +80,10 @@ inline bool anythingHere(const RGB& c) {
 // rows 1..8 are the display, row 9 the off-screen row below (session_view.cpp:2604-2606). The
 // tween's single-`PadGrid` source has no such margin, so the two margin rows are always black --
 // transcribed anyway, so the loop bounds stay legacy's.
-inline void renderExplodeAnimation(const RGB imageStore[kDisplayHeight + 2][kTotalWidth], int32_t explodedness,
-                                   int32_t explodeAnimationXStartBig, int32_t explodeAnimationXWidthBig,
-                                   int32_t explodeAnimationYOriginBig, Image image) {
+inline void renderExplodeAnimation(const RGB imageStore[kDisplayHeight + 2][kTotalWidth],
+                                   const uint8_t occupancyMaskStore[kDisplayHeight + 2][kTotalWidth],
+                                   int32_t explodedness, int32_t explodeAnimationXStartBig,
+                                   int32_t explodeAnimationXWidthBig, int32_t explodeAnimationYOriginBig, Image image) {
 	std::memset(image, 0, sizeof(RGB) * kDisplayHeight * kTotalWidth);
 	OccupancyMask occupancyMask;
 	std::memset(occupancyMask, 0, sizeof(occupancyMask));
@@ -120,7 +133,7 @@ inline void renderExplodeAnimation(const RGB imageStore[kDisplayHeight + 2][kTot
 		yIntensity[0] = 65535 - yIntensity[1];
 
 		for (int32_t xSource = xStart; xSource < xEnd; xSource++) {
-			if (anythingHere(imageStore[ySource + 1][xSource])) {
+			if (occupancyMaskStore[ySource + 1][xSource]) {
 				for (int32_t xOffset = 0; xOffset < 2; xOffset++) {
 					int32_t xNow = xDestArray[xSource] + xOffset;
 					if (xNow < 0) {
@@ -158,13 +171,15 @@ inline void renderExplodeAnimation(const RGB imageStore[kDisplayHeight + 2][kTot
 // `image` arrives pre-filled with the destination frame instead of legacy's `memset` + Session
 // pads (:347-356); `occupancyMask` is 64 wherever it is lit, as :354 sets it.
 inline void renderInstrumentClipCollapseAnimation(const RGB imageStore[kDisplayHeight][kTotalWidth],
+                                                  const uint8_t occupancyMaskStore[kDisplayHeight][kTotalWidth],
+                                                  const uint8_t destinationOccupied[kDisplayHeight][kTotalWidth],
                                                   const int16_t animatedRowGoingFrom[kDisplayHeight],
                                                   const int16_t animatedRowGoingTo[kDisplayHeight],
                                                   int32_t numAnimatedRows, int32_t progress, Image image) {
 	OccupancyMask occupancyMask;
 	for (int32_t y = 0; y < kDisplayHeight; y++) {
 		for (int32_t x = 0; x < kTotalWidth; x++) {
-			occupancyMask[y][x] = anythingHere(image[y][x]) ? 64 : 0;
+			occupancyMask[y][x] = destinationOccupied[y][x] ? 64 : 0;
 		}
 	}
 
@@ -183,7 +198,7 @@ inline void renderInstrumentClipCollapseAnimation(const RGB imageStore[kDisplayH
 
 	for (int32_t col = 0; col < kTotalWidth; col++) {
 		for (int32_t i = 0; i < numAnimatedRows; i++) {
-			if (!anythingHere(imageStore[i][col])) {
+			if (!occupancyMaskStore[i][col]) {
 				continue;
 			}
 			RGB squareColours = imageStore[i][col];
@@ -193,12 +208,12 @@ inline void renderInstrumentClipCollapseAnimation(const RGB imageStore[kDisplayH
 			if (newRowPosition1Array[i] >= 0 && newRowPosition1Array[i] < kDisplayHeight) {
 				image[newRowPosition1Array[i]][col] =
 				    drawSquare(squareColours, intensity1, image[newRowPosition1Array[i]][col],
-				               &occupancyMask[newRowPosition1Array[i]][col], 64);
+				               &occupancyMask[newRowPosition1Array[i]][col], occupancyMaskStore[i][col]);
 			}
 			if (newRowPosition1Array[i] >= -1 && newRowPosition1Array[i] < kDisplayHeight - 1) {
 				image[newRowPosition1Array[i] + 1][col] =
 				    drawSquare(squareColours, intensity2, image[newRowPosition1Array[i] + 1][col],
-				               &occupancyMask[newRowPosition1Array[i] + 1][col], 64);
+				               &occupancyMask[newRowPosition1Array[i] + 1][col], occupancyMaskStore[i][col]);
 			}
 		}
 	}

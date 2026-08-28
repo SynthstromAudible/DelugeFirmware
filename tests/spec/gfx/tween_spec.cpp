@@ -4,6 +4,7 @@
 #include "support/golden.h"
 #include "support/grid_state.h"
 #include "tween_oracle.h"
+#include <array>
 
 using namespace deluge::gfx::grid;
 
@@ -44,6 +45,33 @@ PadGrid image_to_grid(const RGB image[legacy::kDisplayHeight][legacy::kTotalWidt
 		}
 	}
 	return g;
+}
+
+/// Occupancy in the port's `OccupancyMask` layout: one word per column, bit y = row.
+using MaskWords = std::array<uint32_t, legacy::kTotalWidth>;
+
+/// "Non-black is occupied" as a mask -- what an empty `OccupancyMask` means, made explicit so the
+/// oracle (which always takes a real mask) can be fed the same rule the port's default applies.
+MaskWords occupancy_from_colour(const PadGrid& g) {
+	MaskWords m{};
+	for (uint8_t x = 0; x < kDelugeGrid.cols(); x++) {
+		for (uint8_t y = 0; y < kDelugeGrid.rows; y++) {
+			const RGB c = g.at(x, y);
+			if (c.r | c.g | c.b) {
+				m[x] |= 1u << y;
+			}
+		}
+	}
+	return m;
+}
+
+/// The same mask in legacy's `occupancyMaskStore[y][x]` shape (64 = fully occupied).
+void mask_to_store(const MaskWords& m, uint8_t store[legacy::kDisplayHeight][legacy::kTotalWidth]) {
+	for (uint8_t y = 0; y < kDelugeGrid.rows; y++) {
+		for (uint8_t x = 0; x < kDelugeGrid.cols(); x++) {
+			store[y][x] = ((m[x] >> y) & 1u) ? 64 : 0;
+		}
+	}
 }
 
 } // namespace
@@ -205,7 +233,7 @@ describe tween("gfx::grid tweens", $ {
 		}
 	});
 
-	it("explode at rest is a single pad's worth of light, and spreads as it runs", _ {
+	it("explode is fully imploded at t = 0 and spreads as it runs", _ {
 		PadGrid from = make_test_grid(3), out(kDelugeGrid);
 		auto lit_count = [&out] {
 			int32_t n = 0;
@@ -260,6 +288,39 @@ describe tween("gfx::grid tweens", $ {
 		}
 	});
 
+	// The oracle compares above all pass `pin_square_from == pin_square_to`, which is the case
+	// legacy's two `#define`s (:1238-1239) alias to one array -- so the one thing this port adds
+	// over legacy, three independently addressable pin roles, would otherwise have no coverage.
+	it("zoom's two pin squares are independent, and agreeing is the legacy case", _ {
+		PadGrid from = make_test_grid(3), to = make_test_grid(4);
+		PadGrid aliased(kDelugeGrid), split(kDelugeGrid), also_aliased(kDelugeGrid);
+		zoom(from, to, ZoomParams{6, 3, 9 * 65536, 9 * 65536, 32768}, aliased);
+		zoom(from, to, ZoomParams{6, 3, 9 * 65536, 5 * 65536, 32768}, split);
+		zoom(from, to, ZoomParams{6, 3, 9 * 65536, 9 * 65536, 32768}, also_aliased);
+		// Pinning the incoming image at a different square really does move it...
+		expect(grid_to_state(split) == grid_to_state(aliased)).to_be_false();
+		// ...and the aliased call is deterministic, i.e. the difference is the pin, not noise.
+		expect(grid_to_state(also_aliased)).to_equal(grid_to_state(aliased));
+	});
+
+	// I3: the largest magnitude the arithmetic survives. `coarse` reaches -2^(magnitude - 1) at
+	// t == 0, so increase_magnitude shifts right by 2^(magnitude - 1) + 14 -- 30 here, 46 at
+	// magnitude 6. The trap probe for the far side lives in contract_spec.cpp.
+	it("zoom works at the largest legal magnitude", _ {
+		PadGrid from = make_test_grid(3), to = make_test_grid(4), out(kDelugeGrid);
+		RGB inner_image[8][18], outer_image[8][18], image[8][18];
+		const int32_t pin = 9 * 65536;
+		// bit_width(3) == 2, bit_width(96) == 7 -> magnitude 5 == kMaxZoomMagnitude.
+		for (int32_t t : {0, 32768, 65535}) {
+			zoom(from, to, ZoomParams{96, 3, pin, pin, static_cast<uint16_t>(t)}, out);
+			grid_to_image(to, inner_image); // 3 < 96, so this is a zoom in
+			grid_to_image(from, outer_image);
+			grid_to_image(from, image);
+			legacy::renderZoom(inner_image, outer_image, true, kMaxZoomMagnitude, pin, t, image);
+			expect(grid_to_state(out)).to_equal(grid_to_state(image_to_grid(image)));
+		}
+	});
+
 	// --- explode ------------------------------------------------------------------------------
 
 	it("explode reproduces renderExplodeAnimation byte for byte, exploding and imploding", _ {
@@ -268,10 +329,13 @@ describe tween("gfx::grid tweens", $ {
 		const int32_t origin_y_big = 4 * 65536;
 		const int32_t width_big = 5 * 65536;
 
-		RGB store[10][18] = {}; // legacy's imageStore: row 0 / row 9 are the off-screen margin
+		RGB store[10][18] = {};        // legacy's imageStore: row 0 / row 9 are the off-screen margin
+		uint8_t occ_store[10][18] = {}; // and its occupancyMaskStore
 		for (uint8_t y = 0; y < 8; y++) {
 			for (uint8_t x = 0; x < 18; x++) {
 				store[y + 1][x] = src.at(x, y);
+				const RGB c = src.at(x, y);
+				occ_store[y + 1][x] = (c.r | c.g | c.b) ? 64 : 0; // the port's default rule
 			}
 		}
 
@@ -284,7 +348,8 @@ describe tween("gfx::grid tweens", $ {
 				// pad_leds.cpp:956-957.
 				const int32_t explodedness = implode ? (65536 - t) : t;
 				RGB image[8][18];
-				legacy::renderExplodeAnimation(store, explodedness, origin_x_big, width_big, origin_y_big, image);
+				legacy::renderExplodeAnimation(store, occ_store, explodedness, origin_x_big, width_big, origin_y_big,
+				                               image);
 
 				expect(grid_to_state(out)).to_equal(grid_to_state(image_to_grid(image)));
 			}
@@ -297,6 +362,9 @@ describe tween("gfx::grid tweens", $ {
 		PadGrid src = make_test_grid(2), dest = make_test_grid(7);
 		RGB store[8][18];
 		grid_to_image(src, store);
+		uint8_t occ_store[8][18], dest_occ[8][18];
+		mask_to_store(occupancy_from_colour(src), occ_store); // the port's default rule, made explicit
+		mask_to_store(occupancy_from_colour(dest), dest_occ);
 
 		for (uint8_t row_to : {0, 5, 7}) {
 			for (bool collapsing : {false, true}) {
@@ -315,12 +383,145 @@ describe tween("gfx::grid tweens", $ {
 					const int32_t progress = collapsing ? (65536 - t) : t;
 					RGB image[8][18];
 					grid_to_image(dest, image);
-					legacy::renderInstrumentClipCollapseAnimation(store, going_from, going_to, 8, progress, image);
+					legacy::renderInstrumentClipCollapseAnimation(store, occ_store, dest_occ, going_from, going_to, 8,
+					                                             progress, image);
 
 					expect(grid_to_state(out)).to_equal(grid_to_state(image_to_grid(image)));
 				}
 			}
 		}
+	});
+
+	// I1: the third legacy caller. `renderNoteRowExpandOrCollapse` sets `animatedRowGoingTo[i]`
+	// per note row (`instrument_clip_view.cpp:5781`), which the scalar `row_to` cannot express.
+	it("expand_collapse follows per-row destinations, as renderNoteRowExpandOrCollapse needs", _ {
+		PadGrid src = make_test_grid(2), dest = make_test_grid(7);
+		RGB store[8][18];
+		grid_to_image(src, store);
+		uint8_t occ_store[8][18], dest_occ[8][18];
+		mask_to_store(occupancy_from_colour(src), occ_store);
+		mask_to_store(occupancy_from_colour(dest), dest_occ);
+
+		// A scale-mode shuffle: every row goes somewhere different, two of them stay put.
+		const std::array<uint8_t, 8> destinations{3, 3, 4, 4, 4, 5, 6, 6};
+
+		for (int32_t t : {0, 32768, 65535}) {
+			PadGrid out(kDelugeGrid);
+			expand_collapse(src, dest,
+			                ExpandCollapseParams{.row_from = 0,
+			                                     .row_to = 0, // ignored while row_to_by_row is non-empty
+			                                     .collapsing = true,
+			                                     .t = static_cast<uint16_t>(t),
+			                                     .row_to_by_row = destinations},
+			                out);
+
+			int16_t going_from[8], going_to[8];
+			for (int32_t i = 0; i < 8; i++) {
+				going_from[i] = static_cast<int16_t>(i);
+				going_to[i] = destinations[static_cast<size_t>(i)];
+			}
+			RGB image[8][18];
+			grid_to_image(dest, image);
+			legacy::renderInstrumentClipCollapseAnimation(store, occ_store, dest_occ, going_from, going_to, 8,
+			                                             65536 - t, image);
+
+			expect(grid_to_state(out)).to_equal(grid_to_state(image_to_grid(image)));
+		}
+
+		// And it really is different from what the scalar could produce -- otherwise the compare
+		// above would pass just as happily with row_to_by_row ignored.
+		PadGrid per_row(kDelugeGrid), scalar(kDelugeGrid);
+		expand_collapse(src, dest,
+		                ExpandCollapseParams{
+		                    .row_from = 0, .row_to = 3, .collapsing = true, .t = 32768, .row_to_by_row = destinations},
+		                per_row);
+		expand_collapse(src, dest, ExpandCollapseParams{.row_from = 0, .row_to = 3, .collapsing = true, .t = 32768},
+		                scalar);
+		expect(grid_to_state(per_row) == grid_to_state(scalar)).to_be_false();
+	});
+
+	// I2: `View::renderMacros` (view.cpp:2805-2828) paints an armed clip's macro pad black on the
+	// flash-off frame and sets its occupancy anyway, and that column reaches `occupancyMaskStore`
+	// through both animation paths ported here. Legacy blends that black in; the "non-black is
+	// occupied" default cannot, which is exactly why the mask is an input.
+	it("expand_collapse honours a black-but-occupied source pad, which the colour rule misses", _ {
+		PadGrid src = make_test_grid(2), dest(kDelugeGrid);
+		// A bright destination row for the black pad to be blended into, so "black was drawn here"
+		// and "nothing was drawn here" cannot look the same.
+		for (uint8_t x = 0; x < kDelugeGrid.cols(); x++) {
+			for (uint8_t y = 0; y < kDelugeGrid.rows; y++) {
+				dest.set(x, y, RGB{255, 255, 255});
+			}
+		}
+		const uint8_t kMacroCol = 16; // the sidebar column renderMacros writes
+		const uint8_t kMacroRow = 2;
+		src.set(kMacroCol, kMacroRow, RGB{0, 0, 0}); // armed clip, flash-off frame
+
+		MaskWords from_mask = occupancy_from_colour(src);
+		from_mask[kMacroCol] |= 1u << kMacroRow; // ...but occupied, as renderMacros marks it
+		const MaskWords dest_mask = occupancy_from_colour(dest);
+
+		const ExpandCollapseParams with_mask{.row_from = 0,
+		                                     .row_to = 4,
+		                                     .collapsing = true,
+		                                     .t = 32768,
+		                                     .from_occupancy = from_mask,
+		                                     .to_occupancy = dest_mask};
+		PadGrid masked(kDelugeGrid), unmasked(kDelugeGrid);
+		expand_collapse(src, dest, with_mask, masked);
+		expand_collapse(src, dest, ExpandCollapseParams{.row_from = 0, .row_to = 4, .collapsing = true, .t = 32768},
+		                unmasked);
+
+		// The mask must change the result: the black pad now darkens the two rows it straddles.
+		expect(grid_to_state(masked) == grid_to_state(unmasked)).to_be_false();
+
+		// And it must change it the way legacy would, byte for byte.
+		RGB store[8][18];
+		grid_to_image(src, store);
+		uint8_t occ_store[8][18], dest_occ[8][18];
+		mask_to_store(from_mask, occ_store);
+		mask_to_store(dest_mask, dest_occ);
+		int16_t going_from[8], going_to[8];
+		for (int32_t i = 0; i < 8; i++) {
+			going_from[i] = static_cast<int16_t>(i);
+			going_to[i] = 4;
+		}
+		RGB image[8][18];
+		grid_to_image(dest, image);
+		legacy::renderInstrumentClipCollapseAnimation(store, occ_store, dest_occ, going_from, going_to, 8, 65536 - 32768,
+		                                             image);
+		expect(grid_to_state(masked)).to_equal(grid_to_state(image_to_grid(image)));
+	});
+
+	it("explode honours a black-but-occupied source pad too", _ {
+		PadGrid src = make_test_grid(1);
+		const uint8_t kMacroCol = 4;
+		const uint8_t kMacroRow = 2;
+		src.set(kMacroCol, kMacroRow, RGB{0, 0, 0});
+
+		MaskWords from_mask = occupancy_from_colour(src);
+		from_mask[kMacroCol] |= 1u << kMacroRow;
+
+		const int32_t ox = 3 * 65536, oy = 4 * 65536, w = 5 * 65536;
+		PadGrid masked(kDelugeGrid), unmasked(kDelugeGrid);
+		explode(src, ExplodeParams{ox, oy, w, false, 32768, from_mask}, masked);
+		explode(src, ExplodeParams{ox, oy, w, false, 32768}, unmasked);
+
+		// `explode` draws onto a cleared grid, so blending black in changes the *occupancy* the
+		// later source pads are marginalised against, not the first colour written. Byte-compare
+		// against the oracle is the real assertion; that it differs at all is the cheap one.
+		RGB store[10][18] = {};
+		uint8_t occ_store[10][18] = {};
+		for (uint8_t y = 0; y < 8; y++) {
+			for (uint8_t x = 0; x < 18; x++) {
+				store[y + 1][x] = src.at(x, y);
+				occ_store[y + 1][x] = ((from_mask[x] >> y) & 1u) ? 64 : 0;
+			}
+		}
+		RGB image[8][18];
+		legacy::renderExplodeAnimation(store, occ_store, 32768, ox, w, oy, image);
+		expect(grid_to_state(masked)).to_equal(grid_to_state(image_to_grid(image)));
+		expect(grid_to_state(masked) == grid_to_state(unmasked)).to_be_false();
 	});
 
 	// --- goldens ------------------------------------------------------------------------------
