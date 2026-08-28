@@ -104,7 +104,7 @@ void InputLowering::on_board_event(const DelugeInputEvent& ev, uint32_t now_ms) 
 void InputLowering::dispatch(const DelugeInputEvent& ev, uint32_t now_ms) {
 	switch (ev.kind) {
 	case DELUGE_EVENT_PAD:
-		on_pad(ev.x, ev.y, static_cast<uint8_t>(ev.value), now_ms);
+		on_pad(ev.x, ev.y, static_cast<uint8_t>(ev.value));
 		break;
 	case DELUGE_EVENT_BUTTON:
 		on_matrix(ev.x, ev.y, ev.value != 0, now_ms);
@@ -160,7 +160,6 @@ void InputLowering::on_encoder_edges(uint8_t index, int8_t edges, uint32_t now_m
 }
 
 void InputLowering::apply_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms) {
-	(void)now_ms;
 	if (index >= profile_.encoder_by_index.size()) {
 		return;
 	}
@@ -186,6 +185,9 @@ void InputLowering::apply_encoder_edges(uint8_t index, int8_t edges, uint32_t no
 		// `ContinuousEncoder::applyEdges`: the raw edge count is the magnitude; acceleration is
 		// applied by whoever consumes it, through `calc_next_knob_speed`.
 		delta = edges;
+		if (delta != 0 && !action_gold_turn(r, delta, now_ms)) {
+			return;
+		}
 	}
 	if (delta == 0) {
 		return;
@@ -198,12 +200,43 @@ void InputLowering::apply_encoder_edges(uint8_t index, int8_t edges, uint32_t no
 	emit(e);
 }
 
-void InputLowering::on_pad(uint8_t x, uint8_t y, uint8_t velocity, uint32_t now_ms) {
-	(void)now_ms;
+bool InputLowering::action_gold_turn(size_t role_index, int8_t delta, uint32_t now_ms) {
+	// The mod-knob block of `interpretEncoders` as it stood before the encoder overhaul
+	// (`hid/encoders.cpp:242-292` at `e460593c8^`). The overhaul kept the
+	// `modEncoderInitialTurnDirection` test but dropped the `turnedRecently` branch that is the
+	// only thing that ever sets the field, so the surviving code can no longer reach its own
+	// wiggle case (`hid/encoder_input.cpp:178-205`); this restores the working shape.
+	const bool turned_recently = (now_ms - last_turn_ms_[role_index]) < cfg_.short_press_ms;
+	last_turn_ms_[role_index] = now_ms;
+	if (!turned_recently) {
+		// The first turn after a pause is not acted on: remember which way it went, so that going
+		// straight back the other way can be written off as an accidental wiggle.
+		//
+		// Legacy also closes the action logger's pending value change here when the *other* gold
+		// knob has been still too; that is an undo-history concern rather than a lowering one, and
+		// belongs to whoever owns the mod knobs.
+		initial_turn_direction_[role_index] = delta;
+		return false;
+	}
+	if (delta + initial_turn_direction_[role_index] == 0) {
+		// Exactly cancels the remembered turn: an accidental wiggle.
+		initial_turn_direction_[role_index] = delta;
+		return false;
+	}
+	initial_turn_direction_[role_index] = 0;
+	return true;
+}
+
+void InputLowering::on_pad(uint8_t x, uint8_t y, uint8_t velocity) {
 	if (x >= PadMask::kCols || y >= PadMask::kRows) {
 		return;
 	}
 	had_input_ = true;
+	if (velocity != 0) {
+		// `deluge.cpp:241-243` calls `Buttons::ignoreCurrentShiftForSticky()` on every pad press,
+		// so shift held over a pad press does not latch when shift is then tapped off.
+		consider_shift_release_for_sticky_ = false;
+	}
 	const bool down = velocity != 0;
 	held_pads_.set(x, y, down);
 	pad_events_.push_back(ui::PadEvent{x, y, velocity, down});
@@ -243,6 +276,7 @@ void InputLowering::on_button(ButtonId b, bool on, uint32_t now_ms) {
 		consider_shift_release_for_sticky_ = false;
 		held_.set(b, true);
 		press_time_[i] = now_ms;
+		ever_pressed_.set(b, true);
 		used_up_.set(b, false);
 	}
 	else {
@@ -286,6 +320,21 @@ void InputLowering::toggle_shift(bool on, uint32_t now_ms) {
 	}
 }
 
+void InputLowering::clear_shift_sticky() {
+	// `Buttons::clearShiftSticky` (`buttons.cpp:302-306`).
+	shift_stuck_ = false;
+	shift_pressed_ = false;
+}
+
+void InputLowering::set_shift_is_sticky(bool sticky) {
+	cfg_.shift_is_sticky = sticky;
+	if (!sticky) {
+		// `ShiftIsSticky::writeCurrentValue` (`shift_is_sticky.cpp:25-27`): turning the feature off
+		// must also release a shift that is latched under it.
+		clear_shift_sticky();
+	}
+}
+
 void InputLowering::clear_all_held(uint32_t now_ms) {
 	had_input_ = true;
 	for (size_t i = 1; i < kButtonCount; i++) {
@@ -300,7 +349,7 @@ void InputLowering::clear_all_held(uint32_t now_ms) {
 		while (column != 0) {
 			const uint8_t y = static_cast<uint8_t>(std::countr_zero(column));
 			column &= column - 1;
-			on_pad(x, y, 0, now_ms);
+			on_pad(x, y, 0);
 		}
 	}
 	push_out(UiEvent{UiEvent::Kind::AllReleased});
@@ -313,7 +362,12 @@ void InputLowering::emit(const UiEvent& e) {
 	                       || ((e.kind == UiEvent::Kind::Button || e.kind == UiEvent::Kind::EncoderButton)
 	                           && is_held_back_button(e.button));
 	if (held_back) {
-		held_back_.push_back(e);
+		if (!held_back_.push_back(e)) {
+			// Read whole rather than popped, so the prefix -- the part with the press edges in it
+			// -- is what to keep. `kHeldBackCapacity` is sized past what a tick can produce, so
+			// this should never fire.
+			held_back_dropped_++;
+		}
 		return;
 	}
 	push_out(e);
@@ -350,7 +404,7 @@ uint32_t InputLowering::held_since(ButtonId b) const {
 
 bool InputLowering::was_short_press(ButtonId b, uint32_t now_ms) const {
 	const size_t i = static_cast<size_t>(b);
-	return i < kButtonCount && (now_ms - press_time_[i]) < cfg_.short_press_ms;
+	return i < kButtonCount && ever_pressed_.has(b) && (now_ms - press_time_[i]) < cfg_.short_press_ms;
 }
 
 double InputLowering::calc_next_knob_speed(EncoderRole role, int8_t delta, uint32_t now_ms) {
@@ -378,7 +432,11 @@ double InputLowering::calc_next_knob_speed(EncoderRole role, int8_t delta, uint3
 		knob_speed_[r] = 0.0;
 	}
 	else {
-		knob_speed_[r] = knob_speed_[r] * inertia + 1.0 / (time - last_time) * acceleration;
+		// Legacy's clock is a sub-millisecond `double`, so it never divides by zero here. This one
+		// can, and an infinite speed would then latch for the rest of the gesture, so a zero
+		// interval is read as the smallest this clock represents.
+		constexpr double smallest_interval = 0.001;
+		knob_speed_[r] = knob_speed_[r] * inertia + 1.0 / std::max(time - last_time, smallest_interval) * acceleration;
 	}
 	last_knob_ms_[r] = now_ms;
 	last_knob_offset_[r] = delta;

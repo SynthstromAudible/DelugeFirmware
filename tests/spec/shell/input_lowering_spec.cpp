@@ -114,13 +114,22 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		expect(e.delta).to_equal(int8_t(1));
 		expect(in.snapshot().turn).to_equal(int8_t(1));
 
+		// Index 4 is mod1, the upper gold knob (encoders.h:80-81, encoder_input.cpp:57).
 		in.begin_tick(6);
-		in.on_encoder_edges(5, 3, 6);                     // gold knob: raw edges through
+		in.on_encoder_edges(4, 3, 6);                     // gold knob: raw edges through
 		in.end_tick();
 		e = only_held_back(in);
 		expect(e.encoder == EncoderRole::GoldUpper).to_be_true();
 		expect(e.delta).to_equal(int8_t(3));
 		expect(in.snapshot().edit[0]).to_equal(int8_t(3));
+
+		// Index 5 is mod0, the lower gold knob, and lands in edit[1].
+		in.begin_tick(7);
+		in.on_encoder_edges(5, -2, 7);
+		in.end_tick();
+		e = only_held_back(in);
+		expect(e.encoder == EncoderRole::GoldLower).to_be_true();
+		expect(in.snapshot().edit[1]).to_equal(int8_t(-2));
 	});
 
 	it("carries a partial detent across ticks", _ {
@@ -296,6 +305,124 @@ describe shell_input_lowering("shell::InputLowering", $ {
 		expect(in.press_used_up(ButtonId::Record)).to_be_true();  // buttons.cpp:171: cleared on press
 		in.on_board_event(button_ev(8, 2, true), 3);
 		expect(in.press_used_up(ButtonId::Record)).to_be_false();
+	});
+
+	it("a pad press disarms the pending sticky-shift toggle", _ {
+		InputLowering in(uitest::test_profile_input(), LoweringConfig{.shift_is_sticky = true});
+		in.begin_tick(0);
+		in.on_board_event(button_ev(8, 0, true), 0);      // shift down
+		in.on_board_event(pad_ev(3, 5, 90), 10);          // deluge.cpp:241-243
+		in.on_board_event(button_ev(8, 0, false), 20);    // released well inside hold_time_ms
+		expect(in.sticky()).to_be_false();
+		expect(in.shift()).to_be_false();
+
+		// A pad *release* is not a press and leaves the toggle armed.
+		InputLowering armed(uitest::test_profile_input(), LoweringConfig{.shift_is_sticky = true});
+		armed.begin_tick(0);
+		armed.on_board_event(button_ev(8, 0, true), 0);
+		armed.on_board_event(pad_ev(3, 5, 0), 10);
+		armed.on_board_event(button_ev(8, 0, false), 20);
+		expect(armed.sticky()).to_be_true();
+	});
+
+	it("clears a latched shift on demand and when the feature is switched off", _ {
+		InputLowering in(uitest::test_profile_input(), LoweringConfig{.shift_is_sticky = true});
+		in.begin_tick(0);
+		in.on_board_event(button_ev(8, 0, true), 0);
+		in.on_board_event(button_ev(8, 0, false), 20);
+		expect(in.sticky()).to_be_true();
+		in.clear_shift_sticky();                          // buttons.cpp:302-306
+		expect(in.sticky()).to_be_false();
+		expect(in.shift()).to_be_false();
+
+		// Turning the feature off clears a latch made while it was on.
+		in.on_board_event(button_ev(8, 0, true), 100);
+		in.on_board_event(button_ev(8, 0, false), 120);
+		expect(in.sticky()).to_be_true();
+		in.set_shift_is_sticky(false);                    // shift_is_sticky.cpp:25-27
+		expect(in.shift_is_sticky()).to_be_false();
+		expect(in.sticky()).to_be_false();
+		expect(in.shift()).to_be_false();
+
+		// ...and a tap no longer latches once it is off.
+		in.on_board_event(button_ev(8, 0, true), 200);
+		in.on_board_event(button_ev(8, 0, false), 220);
+		expect(in.sticky()).to_be_false();
+
+		// Switching it back on latches again, without clearing anything.
+		in.set_shift_is_sticky(true);
+		in.on_board_event(button_ev(8, 0, true), 300);
+		in.on_board_event(button_ev(8, 0, false), 320);
+		expect(in.sticky()).to_be_true();
+	});
+
+	it("debounces the first turn and an immediate reversal of a gold knob", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		UiEvent e;
+
+		// First turn after a pause longer than short_press_ms (500): recorded, not actioned.
+		in.begin_tick(1000);
+		in.on_encoder_edges(4, 1, 1000);
+		in.end_tick();
+		expect(in.held_back().empty()).to_be_true();
+		expect(in.snapshot().edit[0]).to_equal(int8_t(0));
+		expect(in.had_input_this_tick()).to_be_true();    // legacy still sets `anything`
+		expect(in.next(e)).to_be_false();
+
+		// Straight back the other way, inside the window: an accidental wiggle, also swallowed.
+		in.begin_tick(1100);
+		in.on_encoder_edges(4, -1, 1100);
+		in.end_tick();
+		expect(in.held_back().empty()).to_be_true();
+		expect(in.snapshot().edit[0]).to_equal(int8_t(0));
+
+		// Carrying on that way is a real turn.
+		in.begin_tick(1200);
+		in.on_encoder_edges(4, -1, 1200);
+		in.end_tick();
+		expect(in.held_back().size()).to_equal(size_t(1));
+		expect(in.snapshot().edit[0]).to_equal(int8_t(-1));
+
+		// And so is the next one, in either direction, now that the record is cleared.
+		in.begin_tick(1300);
+		in.on_encoder_edges(4, 1, 1300);
+		in.end_tick();
+		expect(in.snapshot().edit[0]).to_equal(int8_t(1));
+
+		// Pausing past the window arms the debounce again.
+		in.begin_tick(2000);
+		in.on_encoder_edges(4, 1, 2000);
+		in.end_tick();
+		expect(in.snapshot().edit[0]).to_equal(int8_t(0));
+
+		// The other gold knob keeps its own record.
+		in.begin_tick(2010);
+		in.on_encoder_edges(5, 1, 2010);
+		in.end_tick();
+		expect(in.snapshot().edit[1]).to_equal(int8_t(0));
+
+		// Detented encoders are not debounced.
+		in.begin_tick(3000);
+		in.on_encoder_edges(3, 2, 3000);
+		in.end_tick();
+		expect(in.snapshot().turn).to_equal(int8_t(1));
+	});
+
+	it("counts held-back events it had no room for", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		in.begin_tick(1);
+		for (int i = 0; i < InputLowering::kHeldBackCapacity + 2; i++) {
+			in.on_board_event(button_ev(7, 1, i % 2 == 0), 1);   // Back, pressed and released
+		}
+		in.end_tick();
+		expect(in.held_back().size()).to_equal(size_t(InputLowering::kHeldBackCapacity));
+		expect(in.held_back_dropped()).to_equal(uint32_t(2));
+	});
+
+	it("does not call a button that was never pressed a short press", _ {
+		InputLowering in(uitest::test_profile_input(), {});
+		expect(in.was_short_press(ButtonId::Record, 0)).to_be_false();
+		expect(in.was_short_press(ButtonId::Record, 10)).to_be_false();
 	});
 });
 // clang-format on

@@ -104,9 +104,13 @@ using ErrorLookup = std::string_view (*)(int16_t error_code);
 /// Every span is a view over board-owned storage (typically a `constexpr` array in a board's
 /// `.cpp`), so a `BoardProfile` itself is cheap to copy and carries no ownership.
 struct BoardProfile {
-	std::span<const ButtonId> button_by_matrix;      ///< [y * button_cols + x]
-	std::span<const int8_t> led_by_button;           ///< [ButtonId] -> board LED index, -1 = none
-	std::span<const EncoderRole> encoder_by_index;   ///< libdeluge encoder index -> role
+	std::span<const ButtonId> button_by_matrix; ///< [y * button_cols + x]
+	std::span<const int8_t> led_by_button;      ///< [ButtonId] -> board LED index, -1 = none
+	/// libdeluge encoder index -> role. The Deluge's board order is 0=scrollY, 1=scrollX, 2=tempo,
+	/// 3=select, 4=mod1, 5=mod0 (`hid/encoder_input.cpp:56-63`), and `mod0` is the *lower* gold
+	/// encoder with `mod1` the upper (`hid/encoders.h:80-81`) -- so index 4 is `GoldUpper` and
+	/// index 5 is `GoldLower`, which is the pair most easily got backwards.
+	std::span<const EncoderRole> encoder_by_index;
 	std::span<const EncoderKind> encoder_kind;       ///< [EncoderRole]
 	std::span<const SurfaceRole> oled_role_by_index; ///< libdeluge display index -> role
 	/// libdeluge display index -> toolkit `Style` (task-9 reconciliation: was a single `style`;

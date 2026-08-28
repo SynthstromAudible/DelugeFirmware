@@ -26,7 +26,8 @@ struct LoweringConfig {
 	uint16_t short_press_ms = 500;
 	/// A-pin edges per detent click on a `EncoderKind::Detented` encoder; 0 is read as 1.
 	uint8_t edges_per_detent = 2;
-	/// Whether a tap on shift latches it (the `ShiftIsSticky` runtime feature).
+	/// Whether a tap on shift latches it (the `ShiftIsSticky` runtime feature). Settable after
+	/// construction through `set_shift_is_sticky`, because the settings menu toggles it live.
 	bool shift_is_sticky = false;
 };
 
@@ -62,6 +63,17 @@ struct LoweringConfig {
 /// does, and they still reach the snapshot every tick, so `f.turn()`, `f.select_pressed()` and
 /// `f.back_pressed()` read them the same way regardless.
 ///
+/// # The gold-knob wiggle debounce
+///
+/// An `EncoderKind::Accelerating` encoder does not act on every turn. The first turn after it has
+/// been still for `LoweringConfig::short_press_ms` is recorded but swallowed, and a turn that
+/// exactly cancels the recorded one is written off as an accidental wiggle and swallowed too; only
+/// a turn that carries on past the recorded direction is lowered. Ported from the mod-knob block
+/// of `interpretEncoders` as it stood before the encoder overhaul (`hid/encoders.cpp:242-292` at
+/// `e460593c8^`) -- the overhaul dropped the `turnedRecently` half and left the surviving
+/// `modEncoderInitialTurnDirection` test unreachable (`hid/encoder_input.cpp:178-205`). A swallowed
+/// turn produces no `UiEvent` and contributes nothing to the snapshot, but still counts as input.
+///
 /// # What is dropped
 ///
 /// A matrix cell mapped to `ButtonId::None`, a matrix coordinate at or past
@@ -78,9 +90,16 @@ public:
 	/// @brief How many board events are held while the SD routine has the lock.
 	static constexpr uint8_t kDeferredCapacity = 8;
 	/// @brief How many pad events one tick's snapshot can carry.
+	///
+	/// A 33rd pad event in one tick is missing from `snapshot().pads` but still reaches
+	/// `held_pads()` and `next()`, so only a widget reading the tick's edges loses it. Every pad on
+	/// the Deluge's grid would have to change state in a single tick to reach that.
 	static constexpr uint8_t kPadEventCapacity = 32;
 	/// @brief How many widget-owned events one tick can hold back.
-	static constexpr uint8_t kHeldBackCapacity = 8;
+	///
+	/// Ten is one more than a tick can actually produce: five held-back encoder roles turning once
+	/// each, plus press and release of both `SelectEnc` and `Back`.
+	static constexpr uint8_t kHeldBackCapacity = 10;
 
 	/// @brief Build a lowering for one board.
 	/// @param profile The board's tables. Copied in -- a `BoardProfile` is a handful of spans over
@@ -136,6 +155,13 @@ public:
 	/// owned. Cleared by the next `begin_tick()`.
 	/// @return The held-back queue.
 	const FixedVector<UiEvent, kHeldBackCapacity>& held_back() const { return held_back_; }
+	/// @brief How many widget-owned events have been dropped for want of room.
+	///
+	/// Unlike the two FIFOs, this queue drops the *newest*: it is read whole rather than popped,
+	/// and an over-full tick means more widget-owned events arrived than a tick can hold, so the
+	/// prefix is the part with the press edges in it. Should stay at zero (`kHeldBackCapacity` is
+	/// sized past what a tick can produce); non-zero means that reasoning is wrong.
+	uint32_t held_back_dropped() const { return held_back_dropped_; }
 	/// @}
 
 	/// @name Input state
@@ -148,6 +174,20 @@ public:
 	bool shift() const { return shift_pressed_ || shift_stuck_; }
 	/// @brief Is the sticky-shift latch engaged?
 	bool sticky() const { return shift_stuck_; }
+	/// @brief Drop the sticky-shift latch and the pressed flag together.
+	///
+	/// `Buttons::clearShiftSticky` (`buttons.cpp:302-306`): the way out of a latch that nothing is
+	/// going to release, since the physical button is long since up.
+	void clear_shift_sticky();
+	/// @brief Turn the sticky-shift feature on or off at runtime.
+	///
+	/// The `ShiftIsSticky` settings toggle (`menu_item/runtime_feature/shift_is_sticky.cpp:25-27`),
+	/// which calls `clearShiftSticky()` when it is switched off -- otherwise a shift latched under
+	/// the old setting would stay on with nothing left to clear it.
+	/// @param sticky The new setting.
+	void set_shift_is_sticky(bool sticky);
+	/// @brief Is the sticky-shift feature enabled?
+	bool shift_is_sticky() const { return cfg_.shift_is_sticky; }
 	/// @brief Has \p b's current press already been consumed?
 	///
 	/// The generalisation of the legacy `recordButtonPressUsedUp` / `selectButtonPressUsedUp`
@@ -156,7 +196,12 @@ public:
 	/// @return True if something has claimed the press.
 	bool press_used_up(ButtonId b) const { return used_up_.has(b); }
 	/// @brief Mark \p b's current press consumed, so its release does not act as well.
-	/// @param b The button.
+	///
+	/// @note The bit belongs to the button whose *release* should be suppressed, which is not
+	///       always the button that was pressed: legacy's single `recordButtonPressUsedUp` is
+	///       written on a **Play** press (`buttons.cpp:172`) to stop the following Record release
+	///       acting, so that caller must pass `ButtonId::Record`, not `ButtonId::Play`.
+	/// @param b The button whose current press is consumed.
 	void mark_press_used_up(ButtonId b) { used_up_.set(b, true); }
 	/// @brief When \p b's current press began.
 	/// @param b The button.
@@ -168,7 +213,9 @@ public:
 	/// the release, so this deliberately does not require \p b to still be held.
 	/// @param b      The button.
 	/// @param now_ms The clock to measure against.
-	/// @return True if the press began less than `short_press_ms` ago.
+	/// @return True if the press began less than `short_press_ms` ago; false for a button that has
+	///         never been pressed, which a bare timestamp compare would otherwise call a short
+	///         press for the first `short_press_ms` after construction.
 	bool was_short_press(ButtonId b, uint32_t now_ms) const;
 	/// @brief Did anything the lowering accepted arrive this tick?
 	///
@@ -182,8 +229,11 @@ public:
 	/// @{
 	/// @brief This tick's input as the widgets see it, assembled by `end_tick()`.
 	///
-	/// @warning `pads` views this object's own buffer, so the snapshot must not outlive the
-	///          lowering and is rewritten by every `end_tick()`.
+	/// @warning Only valid between `end_tick()` and the next `begin_tick()`. Read mid-tick it
+	///          carries the *previous* tick's scalars over a `pads` span into a buffer that is
+	///          being refilled in place -- `begin_tick` resets the buffer's length without zeroing
+	///          it. `pads` also views this object's own storage, so the snapshot must not outlive
+	///          the lowering.
 	const ui::InputSnapshot& snapshot() const { return snap_; }
 	/// @brief The tick's one shared frame context: this snapshot, the widgets' gate, and the
 	///        claims every frame built this tick records into.
@@ -209,6 +259,11 @@ public:
 	/// arrival order, each event with the clock it arrived at. `DELUGE_EVENT_NO_PRESSES` is
 	/// deferred like everything else rather than dropped -- dropping it strands whatever the
 	/// firmware still believes is held (issue #3168, `deluge.cpp:262-271`).
+	///
+	/// @note Dropping the oldest can separate a press from its release, so a scene that pairs the
+	///       two may see a release for a button it never saw pressed. `held()` stays correct
+	///       either way, and the alternative -- dropping the newest -- would strand the *held*
+	///       state instead, which is the worse failure.
 	/// @param busy True to take the lock.
 	void set_sd_busy(bool busy);
 	/// @brief Is the SD-routine lock taken?
@@ -239,17 +294,20 @@ public:
 	/// @}
 
 	/// @brief The gold-knob acceleration multiplier for one turn, ported from
-	///        `ContinuousEncoder::calcNextKnobSpeed` (`hid/encoders.cpp:57-75`).
+	///        `ContinuousEncoder::calcNextKnobSpeed` (`hid/encoders.cpp:46-77`).
 	///
-	/// Speed builds while the knob keeps turning the same way and resets when it changes direction
-	/// or pauses for longer than the threshold. Unlike the legacy version, whose direction and
-	/// timestamp were function-level `static`s shared by both gold knobs, the state here is per
-	/// encoder role.
+	/// Speed builds while the knob keeps turning the same way and resets when it stops matching the
+	/// previous turn or pauses for longer than the threshold. Unlike the legacy version, whose
+	/// direction and timestamp were function-level `static`s shared by both gold knobs, the state
+	/// here is per encoder role.
 	///
-	/// @note Two calls in the same millisecond divide by a zero interval; the result is infinite
-	///       and clamps to the maximum, which is the right answer for a knob spun that fast.
+	/// @note The reset test compares \p delta to the previous turn for *equality*, as legacy does,
+	///       so one detent followed by two also resets the ramp -- it is not only a sign change.
+	/// @note Two calls in the same millisecond would divide by a zero interval and latch the speed
+	///       at infinity for the rest of the gesture, so a zero interval is read as one
+	///       millisecond, the smallest this clock can represent.
 	/// @param role   Which encoder turned.
-	/// @param delta  The signed turn, used only for its direction.
+	/// @param delta  The signed turn; compared against the previous turn, not scaled.
 	/// @param now_ms The wall clock.
 	/// @return A multiplier in [1.0, 3.0].
 	double calc_next_knob_speed(EncoderRole role, int8_t delta, uint32_t now_ms);
@@ -264,9 +322,10 @@ private:
 	void dispatch(const DelugeInputEvent& ev, uint32_t now_ms);
 	void defer(const DelugeInputEvent& ev, uint32_t now_ms);
 	void apply_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms);
-	void on_pad(uint8_t x, uint8_t y, uint8_t velocity, uint32_t now_ms);
+	void on_pad(uint8_t x, uint8_t y, uint8_t velocity);
 	void on_matrix(uint8_t x, uint8_t y, bool on, uint32_t now_ms);
 	void on_button(ButtonId b, bool on, uint32_t now_ms);
+	bool action_gold_turn(size_t role_index, int8_t delta, uint32_t now_ms);
 	void toggle_shift(bool on, uint32_t now_ms);
 	void emit(const UiEvent& e);
 	void push_out(const UiEvent& e);
@@ -281,6 +340,7 @@ private:
 	/// @{
 	ButtonSet held_;
 	ButtonSet used_up_;
+	ButtonSet ever_pressed_; ///< Whether `press_time_` has ever been written, for `was_short_press`.
 	PadMask held_pads_{};
 	uint32_t press_time_[kButtonCount]{}; ///< The clock of each button's most recent press.
 	bool shift_pressed_ = false;
@@ -291,11 +351,13 @@ private:
 
 	/// @name Encoder state
 	/// @{
-	int32_t edge_accumulator_[kEncoderCount]{}; ///< Partial detents, carried between ticks.
-	int8_t tick_delta_[kEncoderCount]{};        ///< What each encoder contributed to this tick.
-	double knob_speed_[kEncoderCount]{};        ///< `ContinuousEncoder::currentKnobSpeed`, per role.
-	int8_t last_knob_offset_[kEncoderCount]{};  ///< `calcNextKnobSpeed`'s `last_offset`, per role.
-	uint32_t last_knob_ms_[kEncoderCount]{};    ///< `calcNextKnobSpeed`'s `last_encoder_time`, per role.
+	int32_t edge_accumulator_[kEncoderCount]{};      ///< Partial detents, carried between ticks.
+	int8_t tick_delta_[kEncoderCount]{};             ///< What each encoder contributed to this tick.
+	double knob_speed_[kEncoderCount]{};             ///< `ContinuousEncoder::currentKnobSpeed`, per role.
+	int8_t last_knob_offset_[kEncoderCount]{};       ///< `calcNextKnobSpeed`'s `last_offset`, per role.
+	uint32_t last_knob_ms_[kEncoderCount]{};         ///< `calcNextKnobSpeed`'s `last_encoder_time`, per role.
+	int8_t initial_turn_direction_[kEncoderCount]{}; ///< `modEncoderInitialTurnDirection`, per role.
+	uint32_t last_turn_ms_[kEncoderCount]{};         ///< `timeModEncoderLastTurned`, per role.
 	/// @}
 
 	/// @name Queues
@@ -305,6 +367,7 @@ private:
 	uint8_t queue_count_ = 0;
 	uint32_t queue_dropped_ = 0;
 	FixedVector<UiEvent, kHeldBackCapacity> held_back_;
+	uint32_t held_back_dropped_ = 0;
 	DeferredEvent deferred_[kDeferredCapacity]{};
 	uint8_t deferred_head_ = 0;
 	uint8_t deferred_count_ = 0;
