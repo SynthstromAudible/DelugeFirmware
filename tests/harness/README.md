@@ -72,7 +72,9 @@ still written -- silence is not a pass.
 
 ### `sorted_text()` ordering, precisely
 
-`scene` lines come first, in insertion order. `indicator`/`lock`/`notice` lines always come
-last, in insertion order (they are singleton-ish status lines, not meant to interleave
-alphabetically with the rest). Everything else (`pad`, `led`, and any other line added
-directly via `StateLines::add`) is ASCII-sorted in between.
+Lines are emitted in a **fixed category order**, by first word: `scene`, `led`, `pad`,
+`indicator`, `lock`, `notice`, then anything with an unrecognized first word, last. Within a
+category, entries are ASCII-sorted -- except `scene`, which keeps insertion order (so a
+script's nested-scene breadcrumb reads top-down as written). So two `indicator` lines always
+come out `lower` before `upper` regardless of the order they were added in, and a `notice`
+line always comes out after a `lock` line even if the `notice` was added first.

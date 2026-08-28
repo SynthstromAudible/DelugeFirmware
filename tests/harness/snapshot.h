@@ -25,10 +25,15 @@ struct StateLines {
 	FixedVector<std::array<char, 48>, 256> lines;
 
 	/// @brief Append one already-formatted line (no trailing newline).
+	/// @note Silently truncated at 47 characters, not rejected -- a line needing more than that
+	/// to stay unique from another is a snapshot format bug worth catching in a golden diff, not
+	/// a value worth failing this call over.
 	void add(std::string_view line);
 
-	/// @brief Render every line, `scene` lines first in insertion order, then the rest
-	/// ASCII-sorted, each terminated with `\n`.
+	/// @brief Render every line in a fixed category order -- `scene`, `led`, `pad`,
+	/// `indicator`, `lock`, `notice`, then anything else (by first word) -- each terminated
+	/// with `\n`. `scene` lines keep insertion order within their category; every other
+	/// category, including the unrecognized-prefix catch-all, is ASCII-sorted within itself.
 	std::string sorted_text() const;
 };
 

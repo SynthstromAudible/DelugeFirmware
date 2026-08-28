@@ -13,6 +13,12 @@ namespace deluge::harness {
 enum class StepKind : uint8_t { Board, Snapshot, Button, Encoder, Pad, Released, Model, Notice, Quit };
 
 /// @brief One parsed line of a UI test script (spec G §2).
+///
+/// `name`/`text` are silently truncated (not rejected) if a script's token doesn't fit --
+/// scripts are hand-written fixtures the author controls, so a truncation is a copy/paste
+/// mistake to notice in a golden diff, not a value worth spending a `ParseError` on. A script
+/// relying on more than 31/63 significant characters would collide silently; keep names and
+/// notice args shorter than that.
 struct Step {
 	uint32_t at_ms = 0;
 	StepKind kind = StepKind::Board;

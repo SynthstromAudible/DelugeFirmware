@@ -41,42 +41,56 @@ bool starts_with_word(std::string_view s, std::string_view word) {
 	return s.size() > word.size() && s.compare(0, word.size(), word) == 0 && s[word.size()] == ' ';
 }
 
+/// @brief `.state` category order (controller ruling on spec G §3): a fixed category order,
+/// `scene` first, then `led`, `pad`, `indicator`, `lock`, `notice`; anything with an
+/// unrecognized first word sorts last. `scene` keeps insertion order within its category;
+/// every other category (including `kOther`) is ASCII-sorted within itself.
+enum Category : int { kScene = 0, kLed, kPad, kIndicator, kLock, kNotice, kOther, kCategoryCount };
+
+Category category_of(std::string_view s) {
+	if (starts_with_word(s, "scene")) {
+		return kScene;
+	}
+	if (starts_with_word(s, "led")) {
+		return kLed;
+	}
+	if (starts_with_word(s, "pad")) {
+		return kPad;
+	}
+	if (starts_with_word(s, "indicator")) {
+		return kIndicator;
+	}
+	if (starts_with_word(s, "lock")) {
+		return kLock;
+	}
+	if (starts_with_word(s, "notice")) {
+		return kNotice;
+	}
+	return kOther;
+}
+
 } // namespace
 
 std::string StateLines::sorted_text() const {
-	// Three tiers, per spec G §3's display order: `scene` always leads (insertion order, so a
-	// script's nested-scene breadcrumb reads top-down); the bulk of the state (pad/led/anything
-	// else `add()`ed directly) is ASCII-sorted so diffs are stable regardless of write order;
-	// `indicator`/`lock`/`notice` are singleton-ish status lines that always trail, in the order
-	// they were written, rather than competing alphabetically with the sorted bulk.
-	std::vector<std::string_view> scenes, general, trailing;
+	std::vector<std::string_view> buckets[kCategoryCount];
 	for (const auto& buf : lines) {
 		std::string_view sv(buf.data());
-		if (starts_with_word(sv, "scene")) {
-			scenes.push_back(sv);
-		}
-		else if (starts_with_word(sv, "indicator") || starts_with_word(sv, "lock") || starts_with_word(sv, "notice")) {
-			trailing.push_back(sv);
-		}
-		else {
-			general.push_back(sv);
-		}
+		buckets[category_of(sv)].push_back(sv);
 	}
-	std::sort(general.begin(), general.end());
+	// scene (bucket 0) keeps insertion order; every other category is ASCII-sorted within itself.
+	for (int c = kLed; c < kCategoryCount; c++) {
+		std::sort(buckets[c].begin(), buckets[c].end());
+	}
 
 	std::string out;
 	auto emit = [&](std::string_view sv) {
 		out.append(sv);
 		out.push_back('\n');
 	};
-	for (auto sv : scenes) {
-		emit(sv);
-	}
-	for (auto sv : general) {
-		emit(sv);
-	}
-	for (auto sv : trailing) {
-		emit(sv);
+	for (const auto& bucket : buckets) {
+		for (auto sv : bucket) {
+			emit(sv);
+		}
 	}
 	return out;
 }

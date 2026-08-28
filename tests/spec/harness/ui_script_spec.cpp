@@ -27,6 +27,12 @@ describe ui_script("harness::ui_script", $ {
 		add_led_line(s, "Play", false, 0); add_led_line(s, "Record", true, 500); uint8_t lv[4] = {3, 3, 2, 0}; add_indicator_line(s, true, lv);
 		expect(s.sorted_text()).to_equal("scene Session\nscene Popup/General\nled Play on\nled Record blink 500\npad 4 3 10 20 30\nindicator upper 3 3 2 0\n");
 	});
+	it("orders indicator/lock/notice by fixed category, ASCII-sorted within category", _ {
+		StateLines s; uint8_t lv[4] = {1, 1, 1, 1};
+		add_indicator_line(s, false, lv); add_indicator_line(s, true, lv);   // added lower-then-upper
+		s.add("notice Error 248"); s.add("lock loading");                   // added notice-then-lock
+		expect(s.sorted_text()).to_equal("indicator lower 1 1 1 1\nindicator upper 1 1 1 1\nlock loading\nnotice Error 248\n");
+	});
 });
 // clang-format on
 int harness_ui_script_spec(int argc, char** const argv) {
