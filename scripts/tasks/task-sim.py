@@ -92,7 +92,7 @@ def host_triple():
     # which has no such file, so name the channel explicitly. Both in-tree tomls
     # pin nightly, so +nightly stays consistent.
     out = subprocess.run(
-        ["rustc", "+nightly", "-vV"], capture_output=True, text=True
+        ["rustc", "+nightly", "-vV"], capture_output=True, text=True, check=False
     ).stdout
     for line in out.splitlines():
         if line.startswith("host:"):
@@ -113,11 +113,14 @@ def build_host(no_build, build_dir, cmake_defs=()):
         rc = subprocess.run(
             ["cmake", "-B", build_dir, "-S", "sim", "-G", "Ninja", *cmake_defs],
             env=os.environ,
+            check=False,
         ).returncode
         if rc != 0:
             return rc
     return subprocess.run(
-        ["cmake", "--build", build_dir, "--target", "deluge_host"], env=os.environ
+        ["cmake", "--build", build_dir, "--target", "deluge_host"],
+        env=os.environ,
+        check=False,
     ).returncode
 
 
@@ -149,7 +152,7 @@ def build_sim(triple, release, no_build):
     ]
     if not release:
         cmd += ["--debug"]
-    return subprocess.run(cmd, env=os.environ).returncode
+    return subprocess.run(cmd, env=os.environ, check=False).returncode
 
 
 def sim_binary():
@@ -227,7 +230,7 @@ def main():
         print("Starting deluge-simulator (panel) — close the window to stop.")
         # The GUI's wgpu/winit chatter is noise; keep deluge_host's logs (audio/MIDI/link) on the
         # terminal but send the panel's stdout/stderr to a logfile.
-        sim_log = open(
+        sim_log = open(  # noqa: SIM115 -- must outlive the Popen; closed in the finally block
             os.path.join(util.get_git_root(), SIM_BUILD_DIR, "deluge-simulator.log"),
             "w",
         )
