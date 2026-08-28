@@ -41,10 +41,10 @@ src/ui/oled/text.h / .cpp                 TextStyle, Align, measure(), text(), t
 src/ui/oled/scroll_text.h / .cpp
 src/ui/oled/list.h / .cpp                 ListRow, list(), scrollbar()
 src/ui/oled/values.h / .cpp               int_value, decimal_value, enum_value, toggle
-src/ui/oled/meters.h / .cpp               Hint, unipolar_bar, bipolar_bar, knob_arc, pan, percent, slider, length_slider, filter_curve, envelope_stage
+src/ui/oled/meters.h / .cpp               Hint, unipolar_bar, knob_arc, pan, percent, slider, length_slider, filter_curve, envelope_stage, sidechain_ducking, meter
 src/ui/oled/columns.h / .cpp              Column, columns()
 src/ui/oled/popup.h / .cpp                popup_frame, popup_text, working, progress
-src/ui/oled/misc.h / .cpp                 envelope, waveform, vu, output_name, segment_digits, graphic, icon
+src/ui/oled/misc.h / .cpp                 envelope, vu, output_name, segment_digits, graphic, icon   (no `waveform`: deferred, see the spec's Amendments)
 src/ui/grid/frame.h / .cpp                GridFrame, pad(), region(), local_events()
 src/ui/grid/rows.h / .cpp                 row, clip_row, NoteCell, ClipRowData
 src/ui/grid/sidebar.h / .cpp              StatusPad, status_pad, audition_pad, sidebar_columns

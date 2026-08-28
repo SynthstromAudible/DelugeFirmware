@@ -30,12 +30,12 @@ libraries that cannot include each other (D5); components model-free (D6); widge
 
 ```
 deluge-ui-core   InputSnapshot, Response, RepaintGate, POD state structs, Style, LedFrame
-                 deps: gfx-oled (Rect, FontId), gfx-grid (RGB) — types only
+                 deps: gfx-oled (Rect, FontId) — types only
 deluge-ui-oled   OledFrame + widgets (namespace deluge::ui::oled)      deps: ui-core, gfx-oled
 deluge-ui-grid   GridFrame + components (namespace deluge::ui::grid)   deps: ui-core, gfx-grid
 ```
 
-Rules (CMake `PRIVATE` deps + the layer checker from the gfx plan, extended):
+Rules (CMake deps + the layer checker from the gfx plan, extended):
 
 1. `ui-oled` and `ui-grid` never include each other.
 2. None of the three includes `notify`, `model`, `libdeluge`, `l10n`, `gui/`, `hid/`.
@@ -68,7 +68,7 @@ struct InputSnapshot {
 	int8_t turn;                        // Select encoder detents: navigate / move focus
 	int8_t edit[2];                     // GoldUpper, GoldLower detents: edit the focused value
 	int8_t horizontal, vertical;
-	bool select_pressed, back_pressed, shift;
+	bool select_pressed, back_pressed, shift;   // the two presses are EDGES; shift is a level
 	std::span<const PadEvent> pads;     // this tick's pad events; grid frames filter by region
 	PadMask held_pads{};                 // pads down right now, absolute coords; level to `pads`' edges
 	uint32_t now_ms;
@@ -77,7 +77,8 @@ struct InputSnapshot {
 struct Response {
 	bool changed = false, focused = false, entered = false;   // OLED widgets
 	bool pressed = false, released = false, held = false;      // grid components
-	uint8_t velocity = 0;
+	uint8_t velocity = 0;   // the pad's velocity, and nothing else
+	int16_t index = -1;     // widget-defined selection index; -1 = none
 };
 
 /// One per surface. Widgets with motion call request_repaint_after; navigation calls request_repaint.
@@ -103,7 +104,7 @@ struct WaveformState{ int32_t scroll_cols = 0; uint8_t zoom = 0; };
 /// Passed by const& into every frame. Chosen per board profile; "menu line count" and
 /// "rounded corners" are values here, not globals on the rasteriser.
 struct Style {
-	int32_t title_height, row_height, inset_x, scrollbar_w, menu_rows;
+	int32_t title_height, row_height, inset_x, scrollbar_w, menu_rows, menu_base_y;
 	bool rounded, invert_highlight;
 	gfx::oled::FontId title_font, row_font, value_font, big_font;
 };
@@ -125,6 +126,17 @@ public:
 Encoder semantics: `turn` moves focus/cursor; `edit[]` changes the focused value with **no
 modal edit state**. A widget that needs an explicit edit mode (text entry) uses
 `ListState::editing`.
+
+Button semantics: `select_pressed` and `back_pressed` are **edges** — true only on the tick the
+button went down, like `turn`/`edit[]`'s detents and `pads`' events. `shift` is a **level**, like
+`held_pads`. The shell lowers the edges and the widgets deliberately do not latch: `list`,
+`columns` and `toggle` set `Response::entered` straight from `select_pressed`, so a level here
+would enter a submenu once per tick for as long as the encoder was held.
+
+`Response` carries **two** payload fields, with one meaning each. `velocity` is the pad's own
+press velocity, everywhere, and nothing else. `index` is a widget-defined selection index, −1 for
+none: `row`/`clip_row` report the pressed column x, `text_keyboard` the typed character code.
+Each widget names its own meaning in its header.
 
 `FontId::Apple7` is the legacy text height **9** (`kTextSpacingY`), not 7: legacy's
 `font_for_text_height` returns a 7-high face only for heights 7-8, and height 9 -- the
@@ -204,7 +216,10 @@ struct Frames { std::span<oled::OledFrame> oled;   // indexed by surface role
 
 ## 6. `ui-oled` widget catalogue
 
-Shape: `Response name(OledFrame&, Rect, <data>, <state&>)`. Data is plain; never a model
+Shape: `Response` for interactive widgets; `void` for pure draws (meters, misc, grid columns).
+So `Response name(OledFrame&, Rect, <data>, <state&>)` for `scroll_text`, `list`, the four value
+widgets and `columns`, and `void name(...)` for `text`, `title`, `scrollbar` and every entry in
+`meters.h`, `misc.h` and `popup.h`. Data is plain; never a model
 type. `TextStyle{FontId font; Align align; bool shrink; bool truncate;}` replaces the
 `textWidth/textHeight` pairs; `truncate` is the `drawStringCentered(startX…)` port (trims from
 the end, capped at 24 chars, and centres unconditionally like `shrink`). `measure(text, font)
@@ -227,7 +242,7 @@ and ink bounds would shift all of them.
 | `meter(f, rect, Hint hint, norm, raw, raw_max=50)` | `Number::renderInHorizontalMenu` | dispatches by `Hint` to the widgets above (or `percent`/`sidechain_ducking`/`filter_curve`); `Hint::Ducking` callers must pass `raw_max` |
 | `envelope(f, rect, a, d, s, r)` / `envelope_stage(f, rect, norm, StageKind)` | `envelope/`, `Number::drawAttack`/`drawRelease` | `envelope` is spec-driven, with no combined legacy renderer to match (golden only); `envelope_stage` is the single-stage horizontal-menu port |
 | `filter_curve(f, rect, norm, FilterKind kind)` | `filter/`, `Number::drawLpf`/`drawHpf` | |
-| `waveform(f, rect, WaveformData{peaks, markers}, WaveformState&)` | `sample_marker_editor`, slicer, overview | draws precomputed peak columns |
+| `waveform(f, rect, WaveformData{peaks, markers}, WaveformState&)` | `sample_marker_editor`, slicer, overview | **deferred to spec E's sample-view scene; `WaveformState` retained for it** — its data shape depends on `WaveformRenderData`, which is model-side. Not implemented in this toolkit |
 | `columns(f, rect, ColumnsState&, span<Column>, title_text={})`, `Column{label, slots=1, show_label=true, relevant=true, is_submenu=false, render(OledFrame&, bool focused)}` | `horizontal_menu.cpp` (`Paging`, `SlotPosition`, labels, page dots) | four slots, focus by `turn` over *relevant* columns, paging via `paging_of`; base y is `kHorizontalMenuBaseY` (14) on **both** panels -- `renderMenuItems`'s literal has no panel-height branch, unlike `list`'s; an empty span still draws the title plus four placeholder frames; `title_paged` draws the (possibly abbreviated) title; ready-made `Column::render`s: `meter_column`, `text_column`, `submenu_column`, `toggle_column` |
 | `popup_frame(f, rect, PopupStyle)` / `popup_rect_for(f, content, style)` | `setupPopup`, `drawPermanentPopupLookingText` | border + cleared interior; caller draws content in `f.region`; **centres on the whole canvas geometry height** (legacy divides `OLED_MAIN_HEIGHT_PIXELS`, i.e. 48 including the 5 bezel-hidden rows), not on the frame's visible bounds |
 | `progress(f, rect, num, den)` | none -- spec-driven | no legacy progress bar exists anywhere in the tree; this is `Number::drawHorizontalBar`'s geometry with `min=0` |
@@ -247,7 +262,7 @@ after the table. Pad units, region-local.
 | Component | Replaces | Notes |
 |---|---|---|
 | `pad(f, x, y, colour)` | direct `PadLEDs::image[y][x]` writes (58) | the primitive; `{pressed, released, held, velocity}` |
-| `row(f, y, span<RGB>)` | `renderRow` ×10 | returns the pressed x if any |
+| `row(f, y, span<RGB>)` | `renderRow` ×10 | returns the pressed x in `Response::index` (-1 = none) and that pad's velocity in `Response::velocity` |
 | `clip_row(f, y, ClipRowData{colour, tail_colour, blur_colour, notes, playhead_col, overwrite_existing, fill_mode_active, note_editor, blue, red, yellow})`, `NoteCell{start_col (int16_t, may be negative), len_cols, velocity, starts_within, tail, NoteFill fill, non_default_params}` | note-row rendering in `instrument_clip_view` | column units; the caller windows the model; fill-mode/note-editor recolouring lives in `clip_row` itself; the playhead's muted/recording colour variants belong to `tick_squares`, not here (this takes only a column) |
 | `status_pad(f, x, y, StatusPad, StatusColours)` / `audition_pad(f, x, y, AuditionPad)` | `drawMuteSquare`, `getClipMuteSquareColour`, `drawAuditionSquare` ×5 | `status_colour`/`audition_colour` are pure functions of the pad structs (no globals read); `StatusPad`/`AuditionPad` carry every field legacy's branches actually read, well beyond the brief's shortlist (see task-11-12-report.md's tables) |
 | `sidebar_columns(f, span<RGB> left, span<RGB> right)` | `renderSidebar` ×31 | opens `region{16, 0, 2, rows}` -- the two rightmost columns of the root frame, same coordinate space as everything else |
@@ -261,14 +276,16 @@ after the table. Pad units, region-local.
 | `gesture(f, Hold&, HoldPolicy{short_press_ms}, int32_t& second_x, int32_t& second_y) -> GestureEvent{None, Tap, Hold, Release, SecondPad}` | per-view tap/hold FSMs | `Hold` gained a `hold_reported` one-shot latch (ui/core/state.h) so an immediate-mode `Hold` fires its `Hold` event exactly once per press, the way legacy's one-shot timer does |
 
 Pad→meaning is computed once: the call that paints a pad reports its press. Multi-pad
-state (chords, drags) reads `f.local_events()` and keeps a `Hold`.
+state (chords, drags) reads `f.local_events()` and keeps a `Hold`; "which pad in this rectangle
+was hit" is `f.first_press_in(rect)`.
 
-**Open question, carried from implementation (not resolved by this amendment):** `row`,
-`clip_row`, `status_pad`, `audition_pad` and `text_keyboard` return a `Response`; `macros`,
-`velocity_column`, `automation_column`, `tick_squares`, `vu_meter` and `sidebar_columns` return
-`void`. A caller that needs per-pad interaction from the `void` ones reads
-`GridFrame::local_events()` itself. Whether they should gain a `Response` -- and what "changed"
-would even mean for a VU meter -- is still open.
+**Closed (final branch review):** `row`, `clip_row`, `status_pad`, `audition_pad` and
+`text_keyboard` return a `Response`; `macros`, `velocity_column`, `automation_column`,
+`tick_squares`, `vu_meter` and `sidebar_columns` return **`void`, and stay that way**. What those
+six carry is *which row*, which a response collapsed over a whole column cannot say; and two of
+them (`sidebar_columns`, `tick_squares`) have no interaction of their own to report at all. A
+caller that needs the press reads `GridFrame::first_press_in(rect)` -- the one-line scan added
+alongside this decision -- or `local_events()` for the full tick.
 
 ## 8. Text and l10n
 
@@ -333,6 +350,38 @@ toolkit was built. Each line names the change and why it deviates from the draft
 - `core/metrics.h` gained `kTextBigSpacingX` and `kHorizontalMenuBaseY` — legacy parity: values
   the gfx font tables don't carry, needed once `text.cpp`/`columns.cpp` had to name every arm
   instead of spelling a literal.
+- `Response` gained `int16_t index = -1`, and `velocity` is now the pad's velocity **only** —
+  needed state: `velocity` had been carrying three incompatible meanings (a real velocity from
+  `GridFrame::pad`, `row`/`clip_row`'s pressed column as `x + 1`, and `text_keyboard`'s typed
+  character), all in one `uint8_t`, so nothing caught a mix-up between them. The two encodings
+  moved to `index`, whose −1 sentinel needs no bias and cannot collide with column 0 or a NUL.
+- `select_pressed`/`back_pressed` are documented as **edges**, `shift` as a level — needed
+  contract, not a code change: three widgets derive `Response::entered` straight from
+  `select_pressed` and none of them latches, so a shell lowering a level would enter a submenu
+  once per tick. `list_spec` pins the un-defended behaviour (two ticks with the flag set →
+  `entered` twice) so the requirement is visible to whoever writes that shell.
+- `Style` gained `int32_t menu_base_y` (14 / 15), and every previously unread field
+  (`title_height`, `row_height`, `inset_x`, `scrollbar_w`, `big_font`) is now read by the widget
+  it describes — needed state: `list`/`menu_rect` and `output_name` were branching on
+  `Canvas::geometry().height` instead, which let a mismatched `(Style, Geometry)` pair take the
+  64-row branch with the 48-row style. Where a field's value coincides with a `core/metrics.h`
+  constant, `core/style.h` carries a `static_assert` tying the two, so a profile edit that would
+  move pixels fails to compile. `kHorizontalMenuBaseY` deliberately stays a free constant: it is
+  14 on every panel and follows the horizontal menu's rule, not the menu item's.
+- `Timer` and `EncoderRole` are documented as spec-declared placeholders that no widget on this
+  branch reads, as is `ListState::editing` — noted rather than deleted: each has a named caller
+  waiting in spec D/E, and each header now says so plus "delete it if none appears".
+
+**§2 layout and rules**
+- The CMake deps are `PUBLIC`, not `PRIVATE` as §2 said — spec wording corrected: `Style` exposes
+  `gfx::oled::FontId` and `GridFrame` exposes `RGB`, so both are part of the interface and
+  `PRIVATE` would not compile for consumers. `deluge_ui_core` no longer links `deluge_gfx_grid`
+  at all: nothing under `core/**` includes it (`PadMask` names `kMaxGridCols` in a comment), and
+  the dep was dragging gfx-grid into every ui-core consumer's link closure.
+- The `ui-includes-outside` ratchet also matches the slash-free root headers the Global
+  Constraints name (`definitions*`, `board_config.h`, `board_layout.hpp`) — its `.*/` alternative
+  could not see any of them, which was a hole in exactly the named spot. Baseline stays 0; a
+  `#include <cstdint>` is neither slashed nor named, so std headers still never match.
 
 **§4 frames**
 - `GridFrame`'s clip rectangle is named `clip`, not `region` — brief drift: the draft names a
@@ -341,6 +390,12 @@ toolkit was built. Each line names the change and why it deviates from the draft
 - `GridFrame` carries no copied `events` span; frames read `input.pads` live and
   `local_events()` filters on demand — needed state: a span captured at frame-build time can't
   see events the shell installs on the snapshot later that tick.
+- A `GridFrame` is a **per-tick object** (the header said the shell would build frames once and
+  refresh the snapshot) and `local_events()`' cache is keyed on the snapshot's `pads` span, not on
+  a "have I run" latch — needed state: the latched cache made a reused frame answer with the first
+  tick's events forever, which is exactly the shape `frame.h` was telling the shell to adopt.
+  `grid_frame_spec` pins the swap; `GridFrame::first_press_in(Rect)` was added beside it as the
+  read-back the `void`-returning column components ask their callers for.
 - `OledFrame` gained a `size` member (the region's *unclipped* extent) so `bounds()` can report
   it — needed state: without it, a region hanging off its parent's edge would report a bounds
   rect with a shifted origin.
@@ -382,6 +437,16 @@ toolkit was built. Each line names the change and why it deviates from the draft
 - `vu`/`envelope`/`progress` are spec-driven with no legacy OLED equivalent to match — brief
   drift, noted rather than silently invented: golden-tested only. `vu` keeps a one-pixel gap
   between its eight segments per channel.
+- **The OLED `waveform` widget is not implemented**; it is deferred to spec E's sample-view scene,
+  and `WaveformState` (`core/state.h`) is retained for it — brief drift: its `WaveformData` shape
+  depends on `WaveformRenderData`, which is model-side and therefore outside a leaf toolkit that
+  may include only `ui/**`, `gfx/**` and the standard library. §6's catalogue row is marked.
+  (The *grid* `waveform_row`/`waveform_full` components are unrelated and are implemented.)
+- §6's shape line reads "`Response` for interactive widgets; `void` for pure draws" — brief
+  drift: the majority of the shipped OLED widgets (`text`, `title`, `scrollbar`, all of
+  `meters.h`, `misc.h` and `popup.h`) have nothing to report, and only `scroll_text`, `list`, the
+  four value widgets and `columns` return a `Response`. §7 had already documented the same split
+  for the grid; this is the OLED half of it, and the two now say the same thing.
 
 **§5/§7 grid components**
 - `NoteCell`/`ClipRowData` carry the fields above (signed `start_col`, the three colour fields,
@@ -400,8 +465,10 @@ toolkit was built. Each line names the change and why it deviates from the draft
   the colours come from fixed ramps chosen by row and note/automation state, and the bounds
   from fixed lookup tables, neither of which the brief's signature had anywhere to bind.
 - Grid column components (`macros`, `velocity_column`, `automation_column`, `tick_squares`,
-  `vu_meter`, `sidebar_columns`) return `void`, not `Response` — brief drift, left open (M6):
-  a caller needing per-pad interaction reads `f.local_events()` itself.
+  `vu_meter`, `sidebar_columns`) return `void`, not `Response` — brief drift, **closed by the
+  final branch review**: `void` stands. Their interaction is *which row*, which a response
+  collapsed over a column cannot express, and `sidebar_columns`/`tick_squares` have none of their
+  own at all. The read-back is `GridFrame::first_press_in({x, 0, 1, rows})`.
 - `sidebar_columns` opens `region{16, 0, 2, rows}` — needed state: the concrete geometry the
   draft's prose implied but didn't spell out.
 - `keyboard<Layout>`/`control_column<Column>` are templates — needed state: the only way to
