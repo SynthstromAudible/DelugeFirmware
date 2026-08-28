@@ -91,6 +91,12 @@ struct GridSurface {
 	/// How many column pairs this board's grid has; indexes `last_sent`/`sent_once`.
 	uint8_t pairs = 0;
 	std::optional<ActiveTween> tween;
+	/// Has the grid been re-rendered since the last flush? The grid-side twin of
+	/// `OledSurface::blit_pending`: `Shell::render_grid` raises it and `Shell::flush` (Task 8)
+	/// lowers it once the changed column pairs have gone out. It is deliberately *not* "some pad
+	/// changed colour" -- that question is answered by diffing `last_sent`, which is the only
+	/// thing that can tell a re-render that painted the same pixels from one that did not.
+	bool dirty = false;
 
 	/// @brief The pad framebuffer.
 	/// @pre `SurfaceSet::build()` has run.
@@ -101,8 +107,22 @@ struct GridSurface {
 };
 
 /// @brief The board's indicator LEDs and knob indicators, plus their send-side shadow.
+///
+/// The three LED arrays are all indexed by *board LED index* -- `LedId`'s own underlying value,
+/// which is the number `SurfaceSet::set_led` takes -- not by a position in `frame.entries()`:
+/// `LedFrame::set` appends a newly-declared id and overwrites an already-declared one, so an
+/// entry's position moves as scenes come and go and would make a useless shadow key.
 struct LedSurface {
+	/// This tick's composed declarations, filled by `Shell::derive_leds` through
+	/// `LedCompose::compose` (`shell/leds.h`).
 	LedFrame frame;
+	/// Whether board LED `i` should be lit right now: `led_is_on()` evaluated against this tick's
+	/// clock, so the blink phase is resolved before the diff rather than inside it.
+	std::array<bool, LedFrame::kMaxEntries> desired_on{};
+	/// Whether anything declared board LED `i` at all this tick. An undeclared LED is left alone
+	/// rather than driven off -- a board LED nothing in the stack mentions is not the shell's to
+	/// turn off.
+	std::array<bool, LedFrame::kMaxEntries> desired_declared{};
 	std::array<bool, LedFrame::kMaxEntries> last_on{};
 	std::array<bool, LedFrame::kMaxEntries> sent_once{};
 	KnobIndicator last_indicators[2]{};

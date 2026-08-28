@@ -86,3 +86,56 @@ greyout re-query is cheaper than a stale one.
 `UiContext::press_used_up`/`held_since` are declared with the struct but defined alongside
 `InputLowering`; a context built with a null `lowering` (a spec, a synthesised event) answers
 false and 0.
+
+## The tick (`shell.h`, Task 7)
+
+`Shell` is the whole UI once per tick, replacing the legacy `doAnyPendingUIRendering` /
+`uiTimerManager.routine` / UI half of `readButtonsAndPadsOnce` / `GRAPHICS_ROUTINE` quartet
+(`deluge.cpp:592-624`). It owns the stack, the lowering, the router, the three overlay scenes and
+`Notices`; it borrows the `SurfaceSet` and the board profile, and allocates nothing.
+
+`tick(now_ms)` runs spec D §7's order exactly:
+
+1. `notify::dirty().drain()` → `on_model_changed` on every stacked scene, and the facts onto the
+   gates (`Oled` → the OLED surfaces; `GridMain`/`GridSidebar`/`ClipContent`/`NoteRows` → the grid;
+   anything else → both).
+2. `notices_.drain(notify::notices(), now)` → the popup/console/working scenes.
+3. `pump_input` — close the lowering's tick window and route the ordinary shapes; a `Popup` action
+   the router stored is resolved through `BoardProfile::text` and handed to `Notices::show_popup`.
+4. `tick_stack` — scenes top-down, stopping below the first `occludes_grid()`, then the services.
+   A stack that changed re-queries the union of `greyout_mask()` and invalidates every gate.
+5. OLED, per surface: `gate.needs_frame(...) || widgets_gate || router_.repaint_requested(role)`.
+6. Grid: `gate.needs_frame(...) || widgets_gate`.
+7. `after_render()` on every scene rendered this tick, applied through the router.
+8. `deliver_post_render_input` — the held-back, widget-owned shapes, each gated on `ctx().claims`.
+9. `derive_leds`, then `flush` (Task 8).
+
+The widgets' gate is evaluated **once** per tick (`needs_frame` consumes the request) and the
+answer OR'd into every surface's decision.
+
+**The tick window.** `InputLowering::begin_tick` clears the held-back queue, the claims and
+`had_input_this_tick`, but input arrives *between* ticks -- so the shell opens the window lazily on
+the first feed (or at `pump_input`) and closes it at the *bottom* of `tick()`. Nothing between
+`end_tick()` and the end of the tick calls `begin_tick()`, which is what lets step 8 still read
+`held_back()` and `claims` after the frame has been built.
+
+**Composition.** `render_oled` walks down from the top while each scene is `oled_transparent(role)`
+and draws from there up -- the port of `OLED::sendMainImage`'s two-layer if-chain
+(`oled.cpp:364-376`) as a property each scene declares. `render_grid` draws the topmost
+non-overlay scene, dims it by `RGB::dim(1)` (`>> 1` per channel) if anything overlays it, draws the
+overlays, then applies the stack's greyout at legacy's full strength (`setGreyoutAmount(1)` →
+`greyProportion = 6500000`, `pad_leds.cpp:753,786-788`). The dim is **spec D design, not a port**:
+legacy has only the greyout. Only the frontmost scene on a surface gets `InputMask::all()`;
+everything beneath it draws with `none()`.
+
+## LEDs (`leds.h`, Task 7)
+
+| name | purpose |
+|---|---|
+| `led_is_on(state, now_ms)` | The whole `indicator_leds` blinker table (`indicator_leds.h:71-79`, `LED_BLINK*` timers at `kFlashTime`/`kFastFlashTime`) as a pure function: phase is `now_ms / period_ms`, so same-period LEDs blink together, and `until_ms` folds an alert back to On |
+| `LedCompose::compose` | Services first, then the stack bottom to top; `LedFrame::set` overwrites, so the top scene wins for every LED it mentions and the ones beneath supply the rest |
+| `led_send_needed` | The diff Task 8's flush drives `set_led` from; an LED nothing declared is never sent |
+
+`Shell::derive_leds` composes into `LedSurface::frame` and resolves each declaration into
+`LedSurface::desired_on`/`desired_declared`, both indexed by *board LED index* (`LedId`'s own
+value), not by position in `frame.entries()`.
