@@ -1,6 +1,6 @@
 # deluge_ui_shell — surfaces, scene stack, input lowering, services, tick, flush (spec D).
 # May include shell/**, ui/**, gfx/**, notify/**, libdeluge/** and the standard library only.
-add_library(deluge_ui_shell STATIC profile.cpp surfaces.cpp board_surfaces.cpp scene_stack.cpp input_lowering.cpp router.cpp)
+add_library(deluge_ui_shell STATIC profile.cpp surfaces.cpp board_surfaces.cpp scene_stack.cpp input_lowering.cpp router.cpp notices.cpp)
 target_include_directories(deluge_ui_shell PUBLIC ${SHARED_INCLUDE})
 # <libdeluge/...> boundary headers. Spelled relative to this file (not ${CMAKE_SOURCE_DIR}/include,
 # which only resolves to the repo's include/ when this is built from the top-level project --

@@ -155,7 +155,20 @@ private:
 
 /// @brief Two 128-wide OLED panels (48px with a 5px faceplate, then 64px), a 16x8 main pad grid
 ///        and a 9x4 button matrix: a descriptor for a board whose BSP does not exist yet.
-inline constexpr DelugeDisplayDesc kBoard2Displays[] = {{128, 48, 5}, {128, 64, 0}};
+///
+/// Sized to `kMaxOled` entries, not just the two `kBoard2` itself declares
+/// (`display_count == 2`): `surfaces_spec.cpp`'s "clamps a board with more displays than the pool
+/// holds" test builds a copy of `kBoard2` with `display_count` raised past `kMaxOled` while
+/// leaving `displays` pointed at this same array, and `SurfaceSet::build()` (`surfaces.cpp:12-13`)
+/// indexes `board.displays[i]` for every `i < oled_count_` (`min(display_count, kMaxOled)`) --
+/// up to `kMaxOled - 1` once clamped. A shorter array left indices 2 and 3 reading whatever
+/// happened to sit next in `.rodata`, which `DELUGE_GFX_CONTRACT` in `Canvas`'s constructor only
+/// caught by chance (it traps once the garbage geometry's byte count exceeds `kOledStorageBytes`,
+/// which depends on binary layout the test does not control). The two filler entries below are
+/// never asserted on by name -- only `oled().size()` is -- so repeating the real pair is as good
+/// as anything else in-bounds.
+inline constexpr DelugeDisplayDesc kBoard2Displays[] = {{128, 48, 5}, {128, 64, 0}, {128, 48, 5}, {128, 64, 0}};
+static_assert(sizeof(kBoard2Displays) / sizeof(kBoard2Displays[0]) >= kMaxOled);
 /// @copydoc kBoard2Displays
 inline constexpr DelugeBoard kBoard2{"test",          16,    8, 4, 9, 6, 0, 0, DELUGE_DISPLAY_OLED, 128, 48, 2,
                                      kBoard2Displays, 44100, 2, 2};

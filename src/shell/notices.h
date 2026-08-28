@@ -1,0 +1,234 @@
+#pragma once
+#include "notify/notice_queue.h"
+#include "shell/profile.h"
+#include "shell/router.h"
+#include "shell/scene.h"
+#include "shell/scene_stack.h"
+#include "ui/core/state.h"
+#include "ui/oled/popup.h"
+
+#include <cstdint>
+#include <string_view>
+
+namespace deluge::ui::shell {
+
+/// @name Legacy PopupType, mirrored numerically
+///
+/// `src/deluge/hid/display/display.h:13-36` (the `enum class PopupType`, no explicit values):
+/// `NONE=0, GENERAL=1, LOADING=2, PROBABILITY=3, ITERANCE=4, FILL=5, SWING=6, TEMPO=7,
+/// QUANTIZE=8, THRESHOLD_RECORDING_MODE=9, NOTIFICATION=10`.
+///
+/// `src/shell` may not include `hid/display` (the layer-rule ratchet's `ui-includes-outside`
+/// only exempts `board_surfaces.cpp` for libdeluge headers, and this is not that file), so the
+/// numbers are reproduced here rather than named from the real enum -- exactly as
+/// `shell::Action::popup_type` already documents doing for the same reason. `Notice::popup_type`
+/// (`notify/notice_queue.h:22`) is a bare `uint8_t` for the same boundary reason, and
+/// `notify_drain.cpp`'s `popup_type_of()` folds 0 ("unspecified") to `GENERAL`, never to `NONE` --
+/// `Notices::popup_type_of` below does the same.
+/// @{
+inline constexpr uint8_t kPopupTypeNone = 0;
+inline constexpr uint8_t kPopupTypeGeneral = 1;
+inline constexpr uint8_t kPopupTypeNotification = 10;
+/// @}
+
+/// @brief A transient message drawn over whatever is beneath it: legacy's `OLED::popupText`/
+///        `displayPopup`, ported to the shell's `Scene` vocabulary.
+///
+/// Owned by the application (typically as part of its scene table) and driven entirely through
+/// `show()`/`expired()` by `Notices`; a `PopupScene` never reads the notice queue itself.
+class PopupScene final : public Scene {
+public:
+	SceneKind kind() const override { return SceneKind::Popup; }
+
+	/// @brief Replace the popup's contents and (re)arm its timeout.
+	/// @param text       The text to show; copied into a 48-byte buffer (`Notice::text`'s own
+	///                    size), truncated if longer.
+	/// @param popup_type The legacy `PopupType` value, as a bare `uint8_t` -- see the numbering
+	///                    above. Selects `Framed` vs. `Notification` in `render_oled`.
+	/// @param now_ms     The tick's wall clock, used to compute the expiry deadline.
+	/// @param timeout_ms How long until this popup should be popped; 0 means persistent (never
+	///                    expires on its own -- `expired()` always reports false).
+	void show(std::string_view text, uint8_t popup_type, uint32_t now_ms, uint32_t timeout_ms);
+
+	/// @brief Has this popup's timeout elapsed?
+	/// @param now_ms The tick's wall clock.
+	/// @return False for a persistent popup (`timeout_ms == 0` at the last `show()`); otherwise
+	///         true once \p now_ms reaches the deadline `show()` computed.
+	bool expired(uint32_t now_ms) const;
+
+	/// @brief The text last shown, for `.state` "notice" lines and specs.
+	/// @return A NUL-terminated pointer into this scene's own 48-byte buffer.
+	const char* text() const { return text_; }
+
+	void render_oled(SurfaceRole role, ui::oled::OledFrame& frame) override;
+	/// @brief Never transparent on `Main`: a shown popup draws its whole box (border or cleared
+	///        interior, per style) over whatever the scene below left there, so the shell need
+	///        not re-render the scene below just to keep this surface current. Every other
+	///        surface is untouched, so the scene below should still draw it.
+	bool oled_transparent(SurfaceRole role) const override;
+	Result handle(const UiEvent&, const UiContext&) override { return Result::unhandled(); }
+
+private:
+	/// @brief `Framed` for every legacy `PopupType` except `NOTIFICATION` -- exactly
+	///        `OLED::setupPopup`'s own branch (`oled.cpp:134`: draws the rounded border unless
+	///        `type == PopupType::NOTIFICATION`). `PopupStyle::Permanent` is never selected here:
+	///        it is `drawPermanentPopupLookingText`'s own, separate call path (`session_view.cpp`,
+	///        `automation_view.cpp`, `stem_export.cpp`), never reached through `Notice`/
+	///        `notify_drain.cpp`, so a persistent (`timeout_ms == 0`) popup still draws `Framed`/
+	///        `Notification` rather than switching style.
+	static ui::oled::PopupStyle style_for(uint8_t popup_type);
+
+	char text_[48] = {};
+	uint8_t popup_type_ = kPopupTypeGeneral;
+	uint32_t timeout_ms_ = 0;
+	uint32_t deadline_ms_ = 0;
+};
+
+/// @brief The scrolling console log strip: legacy's `OLED::consoleText`, reduced to "show up to
+///        three most-recent lines, each gone `kConsoleLineMs` after it was appended" -- no
+///        pixel-by-pixel scroll-off animation (see `kConsoleLineMs` for why that duration, not
+///        the animation's own frame interval, is the port's unit).
+class ConsoleScene final : public Scene {
+public:
+	/// How many most-recent lines are kept; legacy's `MAX_NUM_CONSOLE_ITEMS` is 4, but the shell
+	/// keeps 3 (per the brief driving this port).
+	static constexpr size_t kMaxLines = 3;
+
+	SceneKind kind() const override { return SceneKind::Console; }
+
+	/// @brief Append one line, evicting the oldest once more than `kMaxLines` are live.
+	/// @param line   The text to show; copied into a 48-byte buffer, truncated if longer.
+	/// @param now_ms The tick's wall clock; this line stops drawing at `now_ms + kConsoleLineMs`.
+	void append(std::string_view line, uint32_t now_ms);
+
+	void render_oled(SurfaceRole role, ui::oled::OledFrame& frame) override;
+	/// @brief Always transparent: the console draws only its own strip and leaves the rest of the
+	///        surface for the scene beneath, which must still be drawn.
+	bool oled_transparent(SurfaceRole) const override { return true; }
+	Result handle(const UiEvent&, const UiContext&) override { return Result::unhandled(); }
+
+private:
+	struct Line {
+		char text[48] = {};
+		uint32_t expire_ms = 0;
+		bool active = false;
+	};
+	/// Index 0 is the most recently appended line; `append` shifts the rest down.
+	Line lines_[kMaxLines]{};
+};
+
+/// @brief The "busy, please wait" corner animation: legacy's `updateWorkingAnimation`/
+///        `displayWorkingAnimation`, drawn through the toolkit's `ui::oled::working()`.
+class WorkingScene final : public Scene {
+public:
+	SceneKind kind() const override { return SceneKind::Working; }
+
+	/// @brief Arm the animation and (re)anchor its clock.
+	/// @param word   Legacy's direction switch: `"Loading"` runs right-to-left, anything else
+	///               (`"Saving"`) left-to-right; copied into an 8-byte buffer, truncated if
+	///               longer. See `ui::oled::working` -- nothing is printed.
+	/// @param now_ms The tick's wall clock; the animation clock's own anchor is derived from this
+	///               by `ui::oled::working` on the next `render_oled`, not stored eagerly here.
+	void arm(std::string_view word, uint32_t now_ms);
+	/// @brief Disarm the animation. Does not touch the scene stack -- see `Notices::tick`, which
+	///        is what pops this scene once `armed()` goes false.
+	void clear();
+	/// @brief Is the animation currently armed?
+	/// @return True from `arm()` until the next `clear()`.
+	bool armed() const { return armed_; }
+
+	void render_oled(SurfaceRole role, ui::oled::OledFrame& frame) override;
+	/// @brief Always transparent: the animation draws only its own corner box.
+	bool oled_transparent(SurfaceRole) const override { return true; }
+	Result handle(const UiEvent&, const UiContext&) override { return Result::unhandled(); }
+
+private:
+	char word_[8] = {};
+	bool armed_ = false;
+	Blink blink_{};
+};
+
+/// @brief Bridges `notify::NoticeQueue` to the shell's scene stack: the tick-context service that
+///        drains raised notices into the three overlay scenes above, and polls them for
+///        expiry/clearing every tick.
+///
+/// A `Service` rather than a `Scene`: `Notices` is not itself pushed or popped, has no render
+/// surface of its own, and -- unlike a `Scene` -- is allowed to call `SceneStack::push`/`pop`
+/// directly, which is exactly what draining a notice and expiring a popup need to do.
+class Notices final : public Service {
+public:
+	/// @param stack   The scene stack `Notices` pushes/pops the popup and working scenes on.
+	/// @param profile The board profile `text`/`error_text` resolve string/error ids through.
+	/// @param popup   The popup scene `drain()`/`tick()`/`show_popup()` drive.
+	/// @param console The console scene `drain()` appends to.
+	/// @param working The working scene `drain()`/`tick()` arm, clear, and pop.
+	Notices(SceneStack& stack, const BoardProfile& profile, PopupScene& popup, ConsoleScene& console,
+	        WorkingScene& working)
+	    : stack_(stack), profile_(profile), popup_(popup), console_(console), working_(working) {}
+
+	/// @brief Pop every notice off \p queue and apply it.
+	///
+	/// `Notice::Kind::Error` and `Kind::Text` both resolve to a popup through `show_popup()`
+	/// (`Error` always at `General`, ignoring \p n.popup_type -- legacy's `displayError` reaches
+	/// `displayPopup` with its default `type = GENERAL`, `display.h:48-49`); `Kind::Console`
+	/// appends to the console scene; `Kind::Working`/`Kind::ClearWorking` arm/clear the working
+	/// scene (and push it, on the way up, the first time it is armed); `Kind::CancelPopup` pops
+	/// the popup scene, but only when it is actually the stack's top.
+	/// @param queue  The notice queue to drain.
+	/// @param now_ms The tick's wall clock.
+	void drain(notify::NoticeQueue& queue, uint32_t now_ms);
+
+	/// @brief Show (or update) the popup scene, computing its timeout from \p popup_type.
+	///
+	/// The shared path `drain()` uses for `Error`/`Text` notices, and also the path the shell
+	/// (outside this class) is meant to call from a `Router::pending_popup_string()`/
+	/// `pending_popup_type()` pair once it has resolved the string id through the profile --
+	/// `Action::Kind::Popup` and `Notice::Kind::Text` both end up drawing the same popup, through
+	/// the same call.
+	///
+	/// If the popup scene is already the stack's top, this only replaces its text/type/timeout
+	/// (no second push); otherwise it pushes the popup scene first.
+	/// @param text       The resolved text to show.
+	/// @param popup_type The legacy `PopupType` value, as a bare `uint8_t`; 0 is folded to
+	///                    `General`, exactly as `notify_drain.cpp`'s `popup_type_of` does.
+	/// @param now_ms     The tick's wall clock.
+	void show_popup(std::string_view text, uint8_t popup_type, uint32_t now_ms);
+
+	/// @brief Pop the popup once it has expired, and pop the working scene once it has been
+	///        cleared.
+	/// @param now_ms The tick's wall clock.
+	/// @param dt_ms  Unused: both checks are level tests against the current stack top, not
+	///               accumulators -- there is nothing to integrate.
+	void tick(uint32_t now_ms, uint32_t dt_ms) override;
+
+	/// @brief How long a popup of \p popup_type should stay up before `tick()` pops it.
+	///
+	/// Ported from `OLED::popupText` (`oled.cpp:605-644`): every non-persistent popup gets the
+	/// same `TimerName::DISPLAY` timeout, 800ms, regardless of `PopupType`
+	/// (`oled.cpp:637`; unset entirely for a persistent popup, `oled.cpp:642`). Every
+	/// `Notice`-reachable popup call -- `displayPopup` (used by `Notice::Kind::Error` and
+	/// `Kind::Text` alike, `notify_drain.cpp:130,139,142`), `popupText`, `popupTextTemporary` --
+	/// funnels through this one routine (`oled.h:154-162`), so there is no per-`PopupType`
+	/// duration to port: this table is flat by construction, not by omission. (The one *other*
+	/// `DISPLAY`-timer setter tied to a specific type, `oled.cpp:794` in `Display::displayNotification`,
+	/// sets 2000ms for `PopupType::NOTIFICATION` -- but `displayNotification` is a call path
+	/// `Notice`/`notify_drain.cpp` never reaches, so it is not modelled here.)
+	/// @param popup_type The legacy `PopupType` value; unused today (see above), kept for
+	///                    interface symmetry and in case a future type gains a real duration.
+	/// @return The timeout in milliseconds.
+	uint32_t timeout_for(uint8_t popup_type) const;
+
+	/// @brief The popup scene's current text, for `.state` "notice" lines.
+	/// @return The text last shown, or an empty (but still valid) NUL-terminated string if none
+	///         has been shown yet.
+	const char* last_popup_text() const { return popup_.text(); }
+
+private:
+	SceneStack& stack_;
+	const BoardProfile& profile_;
+	PopupScene& popup_;
+	ConsoleScene& console_;
+	WorkingScene& working_;
+};
+
+} // namespace deluge::ui::shell
