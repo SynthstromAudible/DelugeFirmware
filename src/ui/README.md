@@ -67,7 +67,7 @@ under `src/ui/` → exits 1 naming `ui-includes-outside`; remove it → exits 0.
 
 | widget / helper | file |
 |---|---|
-| `OledFrame` (`pixel`, `hline`, `vline`, `line`, `rect`, `rect_rounded`, `invert`, `invert_rounded`, `clear`, `glyphs`, `glyph`, `graphic`, `icon`, `icon_centered`, `region`, `bounds`, `visible`, the input accessors and `claim_*`, `gate`), `root_frame(canvas, style, ctx)` | `oled/frame.h` |
+| `OledFrame` (`pixel`, `hline`, `vline`, `line`, `rect`, `rect_rounded`, `invert`, `invert_rounded`, `clear`, `glyphs`, `glyph`, `graphic`, `icon`, `icon_centered`, `region`, `bounds`, `visible`, the input accessors and `claim_*`, `gate`), `root_frame(canvas, style, ctx, mask = InputMask::all())` | `oled/frame.h` |
 | `Align`, `TextStyle`, `text_height_for`, `spacing_x_for`, `measure`, `text`, `title` | `oled/text.h` |
 | `scroll_text` | `oled/scroll_text.h` |
 | `ListRow`, `menu_rect`, `list_visible_rows`, `list_window_start`, `list`, `scrollbar` | `oled/list.h` |
@@ -86,7 +86,7 @@ under `src/ui/` → exits 1 naming `ui-includes-outside`; remove it → exits 0.
 
 | component / helper | file |
 |---|---|
-| `GridFrame` (`pad`, `peek`, `local_events`, `first_press_in`, `interact`, `held_pads`, `region`, `bounds`, `visible`, the input accessors and `claim_*`, `gate`), `root_grid_frame(grid, ctx)` | `grid/frame.h` |
+| `GridFrame` (`pad`, `peek`, `local_events`, `first_press_in`, `interact`, `held_pads`, `region`, `bounds`, `visible`, the input accessors and `claim_*`, `gate`), `root_grid_frame(grid, ctx, mask = InputMask::all())` | `grid/frame.h` |
 | `pad` — see `GridFrame::pad` above (the primitive every component is built from) | `grid/frame.h` |
 | `NoteFill`, `NoteCell`, `ClipRowData`, `row`, `clip_row` | `grid/rows.h` |
 | `LaunchStyle`, `StatusColours`, `StatusPad`, `AuditionPad`, `status_colour`, `status_pad`, `audition_colour`, `audition_pad`, `sidebar_columns` | `grid/sidebar.h` |
@@ -129,6 +129,16 @@ f.region(pane, false, [](OledFrame& p) { … });                 // draw only
 f.region(pane, InputMask{.turn = false}, [](OledFrame& p) { … }); // all but the turn
 ```
 
+`root_frame`/`root_grid_frame` take an `InputMask` too, defaulted to `all()` — the shell's lever at
+the *top* of the tree, where there is no parent frame to call `region(rect, false, …)` on. Several
+scenes can render onto one surface in a tick (an overlay over a base scene); the shell builds the
+frontmost, focused one's root with `all()` and every scene beneath it with `none()`, so a scene
+under an overlay still renders — a `list` built over that root still paints its window and
+highlight — but reads 0/false from every accessor and claims nothing, exactly as an unfocused
+`region()` does one level down. Pads are unaffected by the root's mask either way (rule 4): a
+`GridFrame` root built with `none()` still reports every press through `pad()`/`local_events()`,
+because a press names its target by where it landed, not by focus.
+
 `begin_tick()` clears `claims` and bumps `tick`/`tick_ms`. Claims are per-tick by definition: a
 context reused without it would latch the first tick's claims and withhold those inputs from
 `Scene::handle()` for ever after. The rigs expose the same call (`r.begin_tick(now_ms)`), which
@@ -144,20 +154,31 @@ non-virtual base is allowed in one, and their aggregate initialisation simply be
    `vertical()`, `select_pressed()`, `back_pressed()`, `shift()`, `now_ms()`, and `held_pads()`
    on the grid; `gate()` reaches the repaint gate, `mask`/`focused()` say what was granted. The
    ratchet row above keeps it that way.
-2. **A widget that renders a control consumes that control's inputs and claims them in the same
-   call** — `claim_turn()`, `claim_edit(i)`, `claim_horizontal()`, `claim_vertical()`,
-   `claim_select()`, `claim_back()`. A claim means *"this control owns that input this tick"*, so
-   a focused `list` claims the turn on every frame it renders — not only when a detent arrives,
-   and not only when it has rows (`list`, `columns` and `enum_value` all claim before their
-   empty-model early-outs). The shell reads `ctx.claims` after rendering and may deliver whatever
-   is left over to the scene; `InputClaims::any()` answers "was anything consumed at all", and
-   `operator==` lets a spec pin a whole claim set at once.
+2. **Reading is claiming.** `turn()`, `edit(i)`, `horizontal()`, `vertical()`, `select_pressed()`
+   and `back_pressed()` each record the claim for their own input, on the frame that read them, in
+   the same call that returns the value — there is no separate step a widget can forget. A claim
+   means *"this control owns that input this tick"*, so a focused `list` claims the turn on every
+   frame it renders — not only when a detent arrives, and not only when it has rows (`list`,
+   `columns` and `enum_value` all claim before their empty-model early-outs, which is what the
+   explicit `claim_turn()`, `claim_edit(i)`, `claim_horizontal()`, `claim_vertical()`,
+   `claim_select()`, `claim_back()` methods are still for: owning an input without ever reading it).
+   Both paths run through the same idempotent bookkeeping, keyed per `FrameInput` instance, so a
+   widget that reads `turn()` three times, or reads it and then calls `claim_turn()` too, claims it
+   exactly once. The shell reads `ctx.claims` after rendering and may deliver whatever is left over
+   to the scene; `InputClaims::any()` answers "was anything consumed at all", and `operator==` lets
+   a spec pin a whole claim set at once.
 
    **A claim records ownership; it does not arbitrate.** An input reaches every frame whose mask
    grants it, so two sibling regions that were both granted the turn each move their `list`.
    Granting an input to at most one region is the parent's job, and that is what `InputMask` is
-   for. `InputClaims::double_claim` is set when an input already claimed this tick is claimed
-   again — the diagnostic for getting that wrong, not a defence against it.
+   for. `InputClaims::double_claim` is set when an input already claimed this tick by *another*
+   frame is claimed again — the diagnostic for getting that wrong, not a defence against it; it
+   never fires for one frame reading (or claiming) the same input more than once. Before rule 2
+   read this way, a hand-written reader of `f.back_pressed()` that never called `claim_back()`
+   left the input looking unclaimed, so the shell's post-render delivery would hand it to
+   `Scene::handle()` a second time — a genuine double-consumption with `double_claim` false,
+   because nothing paired the read with a claim. Folding the claim into the read closes that gap:
+   there is no longer a way to read a masked-in input through a frame without also owning it.
 3. **A frame sees exactly the inputs its parent granted it.** Focus is an `InputMask` —
    `{turn, edit, horizontal, vertical, select, back}`, one bit each (both gold knobs share `edit`:
    they are one control) — not a flag. `f.region(rect, m, body)` gives the child `mask & m`, so it
@@ -190,7 +211,11 @@ non-virtual base is allowed in one, and their aggregate initialisation simply be
 `tests/spec/ui/frame_context_spec.cpp` pins all five, including partial masks (an input granted
 while another is withheld, and a child that cannot ask for one back), the unmasked clock (a label
 that still scrolls, a gesture that still holds, a gate deadline in the future), the tick boundary,
-`double_claim` on two focused lists, and the horizontal menu spending one detent exactly once.
+`double_claim` on two focused lists, and the horizontal menu spending one detent exactly once. It
+also pins reading-is-claiming (one frame reading `turn()` three times claims it once and never
+trips `double_claim`; two frames each only reading it, with no `claim_*()` call at all, still trips
+`double_claim`) and `root_frame`/`root_grid_frame`'s `mask` argument (a `none()` root leaves a
+`list` inert while the grid side's pads still report).
 
 ### `interact()` and `Rect` splits (task-6)
 

@@ -207,7 +207,7 @@ struct GridFrame : FrameInput {
 	gfx::grid::Rect clip;                       // rect intersected with the parent's clip
 	Response pad(int32_t x, int32_t y, RGB colour);   // paint + hit-test, local coords
 	RGB peek(int32_t x, int32_t y) const;             // read back without painting (for greyout)
-	std::span<const PadEvent> local_events() const;   // region-filtered, translated; cached per frame
+	std::span<const PadEvent> local_events() const;   // filtered on every call, O(events), <= 32
 	std::optional<PadEvent> first_press_in(gfx::grid::Rect local) const;
 	Response interact(gfx::grid::Rect local) const;   // hit-test without painting, no side effect on pad()'s paint
 	const PadMask& held_pads() const;                 // never masked -- positional (rule 4)
@@ -246,16 +246,31 @@ spec D §3, §7.
   is likewise no copied `events` span -- a span captured when the frame is built cannot see events
   the shell installs on the snapshot later that same tick -- so every frame instead reads
   `ctx.input.pads` through the reference it already holds, and `local_events()` filters and
-  translates on demand, cached per frame.
+  translates on demand, from scratch, on every call -- there is no cache. Filtering a handful of
+  events is O(events), at most `kMaxLocalEvents` (32) kept, and was measured free; a cache keyed on
+  the span's identity would be actively wrong for a caller that reuses one buffer across ticks with
+  the same pointer and count. **Closed by toolkit-fixes task-1** (below).
 - One `FrameContext` per tick carries the `InputSnapshot`, the `RepaintGate` and this tick's
   `InputClaims`; both frame types get their input handling from one shared `FrameInput` base
   (`ctx`, `mask`, the accessors, the `claim_*()` methods, `gate()`) instead of duplicating ~45
-  lines of it per surface. **A widget that renders a control consumes and claims the inputs that
-  control owns, in the same call** (`f.turn()` then `f.claim_turn()`): the claim records ownership
-  for the tick, not that a value arrived -- a focused `list` claims the turn on every frame it
-  draws, whether or not a detent came in. A claim is not arbitration: two sibling regions both
-  granted an input each still see it, and `InputClaims::double_claim` is the diagnostic for that,
-  not a defence -- narrowing which region gets an input at all is `InputMask`'s job (§5).
+  lines of it per surface. **Reading is claiming.** `f.turn()`, `f.edit(i)`, `f.horizontal()`,
+  `f.vertical()`, `f.select_pressed()` and `f.back_pressed()` each record the claim for their own
+  input, on the frame that read them, in the same call that returns the value -- the claim records
+  ownership for the tick, not that a value arrived -- a focused `list` claims the turn on every
+  frame it draws, whether or not a detent came in. The explicit `claim_turn()`/`claim_edit(i)`/etc.
+  methods remain, for a widget that owns an input without ever reading it (`list` claims the select
+  encoder before it knows whether the model has a selectable row this tick); both paths run through
+  the same idempotent bookkeeping, keyed per `FrameInput` instance, so a widget reading `turn()`
+  more than once, or reading it and then also calling `claim_turn()`, claims it exactly once. A
+  claim is not arbitration: two sibling regions both granted an input each still see it, and
+  `InputClaims::double_claim` is the diagnostic for that -- but only across two distinct frames,
+  never for one frame's repeated reads or claims -- not a defence, narrowing which region gets an
+  input at all is `InputMask`'s job (§5). **Final-review fix (toolkit-fixes, I3):** before this
+  rule, an accessor only returned a value and claiming was a second call a widget had to remember,
+  so a hand-written reader of e.g. `f.back_pressed()` that never called `claim_back()` left the
+  input looking unclaimed to the shell's post-render delivery, which gates on exactly that bit --
+  a genuine double-consumption with `double_claim` false, because nothing paired the read with a
+  claim. Folding the claim into the read closes that gap.
 - The clock (`now_ms()`) and `shift()` are **not masked**: an unfocused region still animates and
   still arms its gate with a real deadline; only the six navigational accessors (`turn`, `edit`,
   `horizontal`, `vertical`, `select_pressed`, `back_pressed`) are. Pad input (`pad()`,
@@ -470,11 +485,17 @@ toolkit was built. Each line names the change and why it deviates from the draft
   `local_events()` filters on demand — needed state: a span captured at frame-build time can't
   see events the shell installs on the snapshot later that tick.
 - A `GridFrame` is a **per-tick object** (the header said the shell would build frames once and
-  refresh the snapshot) and `local_events()`' cache is keyed on the snapshot's `pads` span, not on
-  a "have I run" latch — needed state: the latched cache made a reused frame answer with the first
-  tick's events forever, which is exactly the shape `frame.h` was telling the shell to adopt.
-  `grid_frame_spec` pins the swap; `GridFrame::first_press_in(Rect)` was added beside it as the
-  read-back the `void`-returning column components ask their callers for.
+  refresh the snapshot), and `local_events()` has **no cache at all**: every call re-filters
+  `ctx.input.pads` from scratch into the frame's own buffer — needed state: an earlier revision of
+  this task cached the result keyed on the snapshot's `pads` span, which made a frame kept alive
+  across ticks (or reused with the same buffer pointer and count mutated in place between two
+  calls) answer with stale events instead of what `input.pads` holds right now — exactly the shape
+  `frame.h` was telling the shell *not* to rely on. Filtering a handful of events per call is
+  O(events), at most `kMaxLocalEvents` (32) kept, and was measured free, so dropping the cache cost
+  nothing. `grid_frame_spec` pins the swap (a reused buffer, same pointer and count, mutated between
+  two calls on the same frame, answers with the new contents); `GridFrame::first_press_in(Rect)` was
+  added beside it as the read-back the `void`-returning column components ask their callers for.
+  **Closed by toolkit-fixes task-1** (below).
 - `OledFrame` gained a `size` member (the region's *unclipped* extent) so `bounds()` can report
   it — needed state: without it, a region hanging off its parent's edge would report a bounds
   rect with a shifted origin.
