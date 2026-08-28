@@ -87,9 +87,15 @@ add_executable(UnitTests
         notes_state_tests.cpp
         waveform_peak_math_tests.cpp
         waveform_overview_cache_tests.cpp
+        song_preview_window_tests.cpp
 )
+# WORKING_DIRECTORY: song_preview_window_tests.cpp reads a checked-in fixture by a path relative to
+# the repo root (tests/data/songs/...) and DELUGE_SONG_CORPUS points at a real directory on disk, so
+# the binary needs to run from the same place a developer invoking it by hand would, not ctest's
+# default (the build tree).
 add_test(NAME UnitTests
-        COMMAND UnitTests)
+        COMMAND UnitTests
+        WORKING_DIRECTORY ${CMAKE_CURRENT_LIST_DIR}/../..)
 target_sources(UnitTests PRIVATE ${deluge_SOURCES})
 target_include_directories(UnitTests PRIVATE
         # include the non test project source
