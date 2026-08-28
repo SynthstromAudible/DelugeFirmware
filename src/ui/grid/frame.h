@@ -78,6 +78,13 @@ struct GridFrame {
 	/// from the press.
 	Response pad(int32_t x, int32_t y, RGB colour);
 
+	/// Read back the colour currently on a pad, without painting -- the counterpart to `pad()`
+	/// for an overlay that re-tints what earlier components already drew (`greyout`, ui/grid/
+	/// effects.h). Clipping lives here, in the one place that owns it, rather than in each
+	/// caller's own `clip.x + x` arithmetic. Outside `bounds()` this reports black, matching
+	/// `pad()`'s "paints nothing, reports nothing" for the same coordinates.
+	RGB peek(int32_t x, int32_t y) const;
+
 	/// This tick's pad events that fall inside this frame, translated to local coordinates.
 	///
 	/// For multi-pad gestures (chords, drags) that `pad()`'s one-pad-at-a-time answer cannot

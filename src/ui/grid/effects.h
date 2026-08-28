@@ -1,5 +1,4 @@
 #pragma once
-#include "gfx/grid/rgb.h"
 #include "ui/core/state.h"
 #include "ui/grid/frame.h"
 
@@ -12,13 +11,13 @@ namespace deluge::ui::grid {
 /// `gesture` only reads.
 
 // ---------------------------------------------------------------------------------------------
-// Greyout -- PadLEDs::prepareColour (hid/led/pad_leds.cpp:283-291)
+// Greyout -- PadLEDs::prepareColour (hid/led/pad_leds.cpp:283-296)
 // ---------------------------------------------------------------------------------------------
 
 /// Which pads the greyout covers, in legacy's two bitmask globals `greyoutCols` / `greyoutRows`.
 ///
 /// **The two masks are indexed differently, and that is legacy's rule, not a mistake.** From
-/// `prepareColour` (pad_leds.cpp:287-288):
+/// `prepareColour` (pad_leds.cpp:293-294):
 ///
 ///     if ((greyoutRows || greyoutCols)
 ///         && ((greyoutRows & (1 << y)) || (greyoutCols & (1 << (kDisplayWidth + kSideBarWidth - 1 - x)))))
@@ -42,14 +41,22 @@ struct GreyoutMask {
 
 /// Grey out the pads \p mask selects, in place -- spec B section 7's `greyout(f, mask, amount)`.
 ///
-/// Reads each selected pad's current colour back out of the grid and rewrites it through
-/// `RGB::greyOut(amount)` (gfx/grid/rgb.h:177), exactly as `prepareColour` does on its way to the
-/// hardware (pad_leds.cpp:289). It must therefore run *after* everything else has painted --
-/// legacy applies it in the send path, which is unconditionally last.
+/// Reads each selected pad's current colour back through `GridFrame::peek` and rewrites it with
+/// `RGB::greyOut(amount)` (gfx/grid/rgb.h:177), as `prepareColour` does on its way to the hardware
+/// (pad_leds.cpp:295).
 ///
 /// \p amount is legacy's `greyProportion`, the argument `RGB::greyOut` takes.
 ///
-/// An all-zero mask greys nothing, matching the `(greyoutRows || greyoutCols)` guard at :287.
+/// **Call this last, and once.** Legacy greys in the *send* path and never mutates
+/// `PadLEDs::image`, so its tint is applied exactly once per frame however many times the image
+/// was drawn. This port has to mutate the grid (an immediate-mode component has no separate send
+/// stage to hook), so it is neither idempotent nor commutative with painting: a second call in the
+/// same frame greys an already-greyed pad, and anything painted after it is not greyed at all.
+/// Not enforced -- a "already greyed this frame" flag would be surface-wide state the toolkit
+/// deliberately does not have (spec B section 3 keeps state in the scene's own PODs), and the
+/// scene that composes the frame is the only thing that knows what "last" means.
+///
+/// An all-zero mask greys nothing, matching the `(greyoutRows || greyoutCols)` guard at :293.
 /// Column bits are counted against `f.bounds().w`, so a component applied to the 18-wide root
 /// frame reproduces legacy's `kDisplayWidth + kSideBarWidth - 1 - x` exactly.
 void greyout(GridFrame& f, GreyoutMask mask, int32_t amount);
@@ -100,6 +107,13 @@ struct HoldPolicy {
 ///   kShortPressTime` -> `exitSubModeWithoutAction()`): the press ends with no action. That is
 ///   `Release`.
 ///
+/// Two deliberate generalisations away from that FSM, because this component is not
+/// session-view-shaped: legacy's second-pad branch is guarded by `selectedClipYDisplay !=
+/// yDisplay` alone (:886), so a second press in the *same row* does nothing there, whereas here
+/// any pad other than the held one gives `SecondPad`; and legacy's tap test matches on
+/// `xDisplay` alone (:944) where this requires both coordinates. Both differences follow from the
+/// fact that legacy's clip grid is one clip per row and this is a general pad surface.
+///
 /// `Hold` itself has no legacy counterpart on that path -- legacy tests the elapsed time once, at
 /// release. The one place legacy arms a *pad* hold at this threshold is `QwertyUI::padAction`'s
 /// backspace (`currentUIMode = UI_MODE_HOLDING_BACKSPACE; … setTimer(TimerName::UI_SPECIFIC,
@@ -108,11 +122,27 @@ struct HoldPolicy {
 /// wakes for the deadline instead of a timer table (spec B section 5) -- and latches the single
 /// firing in `Hold::hold_reported` (see ui/core/state.h for that amendment).
 ///
+/// **Every event in the tick is processed, in order.** Legacy calls `padAction` once per event and
+/// therefore cannot drop one; `local_events()` is rebuilt each frame from `input.pads`
+/// (ui/grid/frame.h), so an event this function skipped would be gone for good, not deferred. The
+/// loop below consumes the whole span and `hold` always reflects *all* of it -- a tick carrying
+/// `[release A, press B]` both ends A's press and starts tracking B.
+///
+/// A single `GestureEvent` cannot express two results, so when more than one event in a tick
+/// produces one, **the last one is returned**. That is the result consistent with the `Hold` the
+/// caller is left holding: legacy's per-event handling is sequential and a later event supersedes
+/// the earlier press state (the second-pad branch ends the press outright, :901), so returning an
+/// earlier result while the state has already moved past it would invite the scene to act on a
+/// press that no longer exists. Losing a result needs three events of particular shapes in one
+/// tick (e.g. `[release A, press B, press C]`, which reports `SecondPad` and drops `Tap`); a
+/// scene that cannot tolerate even that reads `f.local_events()` itself, which this function does
+/// not consume.
+///
 /// Only events inside \p f are seen (`f.local_events()`), and \p hold's coordinates are frame-
 /// local, so a region gets its own gesture with no routing code.
 ///
 /// @param second_x, second_y written only when the result is `SecondPad`, in frame-local pads
-/// @return the single event for this tick; at most one, later events wait for the next frame
+/// @return the tick's last non-`None` result, or `None`
 GestureEvent gesture(GridFrame& f, Hold& hold, HoldPolicy policy, int32_t& second_x, int32_t& second_y);
 
 } // namespace deluge::ui::grid

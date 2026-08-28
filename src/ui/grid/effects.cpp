@@ -4,17 +4,17 @@ namespace deluge::ui::grid {
 
 void greyout(GridFrame& f, GreyoutMask mask, int32_t amount) {
 	if (mask.cols == 0 && mask.rows == 0) {
-		return; // pad_leds.cpp:287, the `(greyoutRows || greyoutCols)` guard
+		return; // pad_leds.cpp:293, the `(greyoutRows || greyoutCols)` guard
 	}
 
 	const int32_t w = f.bounds().w;
 	const int32_t h = f.bounds().h;
 
 	for (int32_t y = 0; y < h; y++) {
-		const bool row_hit = y < 32 && (mask.rows & (1u << y)) != 0; // :288, `greyoutRows & (1 << y)`
+		const bool row_hit = y < 32 && (mask.rows & (1u << y)) != 0; // :294, `greyoutRows & (1 << y)`
 
 		for (int32_t x = 0; x < w; x++) {
-			// :288, `greyoutCols & (1 << (kDisplayWidth + kSideBarWidth - 1 - x))`: the column bits
+			// :294, `greyoutCols & (1 << (kDisplayWidth + kSideBarWidth - 1 - x))`: the column bits
 			// run right to left, so bit 0 is the last column of the frame.
 			const int32_t col_bit = w - 1 - x;
 			const bool col_hit = col_bit >= 0 && col_bit < 32 && (mask.cols & (1u << col_bit)) != 0;
@@ -23,8 +23,8 @@ void greyout(GridFrame& f, GreyoutMask mask, int32_t amount) {
 				continue;
 			}
 			// Read back what has already been painted and re-tint it, as prepareColour does on the
-			// way to the hardware (:289). greyOut is non-const, hence the copy.
-			RGB current = f.grid.at(static_cast<uint8_t>(f.clip.x + x), static_cast<uint8_t>(f.clip.y + y));
+			// way to the hardware (:295). greyOut is non-const, hence the copy.
+			RGB current = f.peek(x, y);
 			f.pad(x, y, current.greyOut(amount));
 		}
 	}
@@ -32,7 +32,12 @@ void greyout(GridFrame& f, GreyoutMask mask, int32_t amount) {
 
 GestureEvent gesture(GridFrame& f, Hold& hold, HoldPolicy policy, int32_t& second_x, int32_t& second_y) {
 	const uint32_t now = f.input.now_ms;
+	GestureEvent result = GestureEvent::None;
 
+	// Every event, in order: legacy runs SessionView::padAction once per event
+	// (session_view.cpp:817-975) and so cannot drop one. Returning early here would lose the rest
+	// of the tick outright -- `local_events()` is rebuilt per frame, never replayed. When more
+	// than one event produces a result, the last one wins; see the header for why.
 	for (const PadEvent& e : f.local_events()) {
 		if (!hold.held) {
 			if (!e.pressed) {
@@ -60,7 +65,8 @@ GestureEvent gesture(GridFrame& f, Hold& hold, HoldPolicy policy, int32_t& secon
 			second_x = e.x;
 			second_y = e.y;
 			hold = Hold{};
-			return GestureEvent::SecondPad;
+			result = GestureEvent::SecondPad;
+			continue;
 		}
 
 		if (!same_pad) {
@@ -71,7 +77,11 @@ GestureEvent gesture(GridFrame& f, Hold& hold, HoldPolicy policy, int32_t& secon
 		// no action). Unsigned subtraction, so a wrapped `now_ms` still measures the elapsed time.
 		const uint32_t elapsed = now - hold.down_ms;
 		hold = Hold{};
-		return elapsed < policy.short_press_ms ? GestureEvent::Tap : GestureEvent::Release;
+		result = elapsed < policy.short_press_ms ? GestureEvent::Tap : GestureEvent::Release;
+	}
+
+	if (result != GestureEvent::None) {
+		return result;
 	}
 
 	// The deadline armed at press has passed and the pad is still down. Fires once per press --

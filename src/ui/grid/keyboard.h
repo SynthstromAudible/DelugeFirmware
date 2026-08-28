@@ -117,9 +117,14 @@ bool text_keyboard_is_shift_pad(int32_t x, int32_t y, int32_t home_row);
 /// pressed on this very tick already counts), written to `state.shift`, and applied to the
 /// lookup -- so a press on `1` while shift is down returns `'!'` on the tick it happens.
 ///
-/// The flags describe the keyboard as a whole: `pressed` is set (and `velocity` filled) from the
-/// first key press this tick; `released` and `held` are true if *any* keyboard pad was released
-/// or is down. A scene that needs per-pad detail reads `f.local_events()` for the same tick.
+/// The flags describe the keyboard as a whole: `pressed`, `released` and `held` are true if *any*
+/// keyboard pad was pressed, released or is down this tick. `velocity` comes from the first press
+/// **that types a character** -- not merely the first press in scan order. Legacy runs `padAction`
+/// once per event (`qwerty_ui.cpp:205-330`), so a shift pad (which sits at `home_row - 1`, ahead of
+/// the digit row in a bottom-up sweep, and falls outside the key rectangle at `:255`) does nothing
+/// while the digit pressed in the same tick still types; taking the first press unconditionally
+/// would have swallowed that keystroke. A scene that needs per-pad detail reads `f.local_events()`
+/// for the same tick.
 Response text_keyboard(GridFrame& f, TextKeyboardState& state, KeyboardLayoutKind layout,
                        int32_t home_row = kTextKeyboardHomeRow);
 

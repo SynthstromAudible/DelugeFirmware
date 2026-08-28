@@ -21,7 +21,7 @@ namespace {
 const RGB kPainted{200, 100, 40};
 
 // The colour legacy would leave: RGB::greyOut is the shared helper both sides call
-// (pad_leds.cpp:289 -> gfx/grid/rgb.h:177), so the spec pins *which pads* change, not the maths.
+// (pad_leds.cpp:295 -> gfx/grid/rgb.h:177), so the spec pins *which pads* change, not the maths.
 RGB greyed(RGB c, int32_t amount) {
 	return c.greyOut(amount);
 }
@@ -61,7 +61,7 @@ describe effects_spec("ui/grid/effects", $ {
 	// --- greyout ------------------------------------------------------------------------------
 
 	it("greys the column a cols bit selects, counting from the right", _ {
-		// pad_leds.cpp:288 -- `greyoutCols & (1 << (kDisplayWidth + kSideBarWidth - 1 - x))`, so
+		// pad_leds.cpp:294 -- `greyoutCols & (1 << (kDisplayWidth + kSideBarWidth - 1 - x))`, so
 		// bit 0 is the LAST column of the frame, not the first. Parity with legacy over the
 		// brief's wording (see the amendment note in effects.h).
 		uitest::GridRig r = painted_rig();
@@ -106,7 +106,7 @@ describe effects_spec("ui/grid/effects", $ {
 
 	it("does nothing for an empty mask", _ {
 		uitest::GridRig r = painted_rig();
-		greyout(r.frame, GreyoutMask{}, 0x100000); // pad_leds.cpp:287's guard
+		greyout(r.frame, GreyoutMask{}, 0x100000); // pad_leds.cpp:293's guard
 
 		for (int32_t y = 0; y < 8; y++) {
 			for (int32_t x = 0; x < 18; x++) {
@@ -249,6 +249,66 @@ describe effects_spec("ui/grid/effects", $ {
 		r.input.now_ms = 50;
 		expect(step(r, hold, sx, sy) == GestureEvent::None).to_be_true();
 		expect(hold.held).to_be_true();
+	});
+
+	it("handles a press and its release arriving in the same tick", _ {
+		// Legacy runs padAction once per event (session_view.cpp:817-975), so a tick carrying both
+		// edges still taps. Returning on the first event would have started a hold and never ended
+		// it -- local_events() is rebuilt per frame, so the release would be lost, not deferred.
+		uitest::GridRig r;
+		Hold hold;
+		int32_t sx = -1, sy = -1;
+
+		Tick both{{{.x = 5, .y = 2, .velocity = 64, .pressed = true},
+		           {.x = 5, .y = 2, .velocity = 0, .pressed = false}}};
+		r.input.pads = both.pads;
+		r.input.now_ms = 0;
+		expect(step(r, hold, sx, sy) == GestureEvent::Tap).to_be_true();
+		expect(hold.held).to_be_false();
+	});
+
+	it("handles two different pads pressed in the same tick", _ {
+		uitest::GridRig r;
+		Hold hold;
+		int32_t sx = -1, sy = -1;
+
+		Tick two{{{.x = 5, .y = 2, .velocity = 64, .pressed = true},
+		          {.x = 9, .y = 6, .velocity = 64, .pressed = true}}};
+		r.input.pads = two.pads;
+		r.input.now_ms = 0;
+		expect(step(r, hold, sx, sy) == GestureEvent::SecondPad).to_be_true();
+		expect(sx).to_equal(9);
+		expect(sy).to_equal(6);
+		expect(hold.held).to_be_false(); // session_view.cpp:901 ends the press
+	});
+
+	it("keeps tracking a pad pressed after another was released in the same tick", _ {
+		// The concrete drop the single-return loop caused: [release A, press B] reported the tap
+		// and never started B's hold.
+		uitest::GridRig r;
+		Hold hold;
+		int32_t sx = -1, sy = -1;
+
+		Tick down{{{.x = 5, .y = 2, .velocity = 64, .pressed = true}}};
+		r.input.pads = down.pads;
+		r.input.now_ms = 0;
+		step(r, hold, sx, sy);
+
+		Tick mixed{{{.x = 5, .y = 2, .velocity = 0, .pressed = false},
+		            {.x = 9, .y = 6, .velocity = 64, .pressed = true}}};
+		r.input.pads = mixed.pads;
+		r.input.now_ms = 100;
+		expect(step(r, hold, sx, sy) == GestureEvent::Tap).to_be_true();
+		expect(hold.held).to_be_true(); // B is now the tracked pad
+		expect((int32_t)hold.x).to_equal(9);
+		expect((int32_t)hold.y).to_equal(6);
+		expect((int32_t)hold.down_ms).to_equal(100);
+
+		// ...and B behaves like any other press from here.
+		Tick up_b{{{.x = 9, .y = 6, .velocity = 0, .pressed = false}}};
+		r.input.pads = up_b.pads;
+		r.input.now_ms = 800;
+		expect(step(r, hold, sx, sy) == GestureEvent::Release).to_be_true();
 	});
 
 	it("uses frame-local coordinates inside a region", _ {

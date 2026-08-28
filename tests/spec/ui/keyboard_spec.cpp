@@ -6,6 +6,7 @@
 
 #include <cstdint>
 #include <string>
+#include <utility>
 #include <vector>
 
 using namespace deluge::ui;
@@ -47,18 +48,20 @@ const char legacy_keyboard_chars[][5][11] = {{
 
 constexpr int32_t kHomeRow = kTextKeyboardHomeRow; // definitions_cxx.hpp:848
 
-// A press event for one pad, plus the held-mask bit, so a spec can hold shift and hit a key in
-// the same tick the way a player does.
-uitest::GridRig make_rig(const std::vector<PadEvent>& pads, const std::vector<std::pair<int, int>>& held) {
-	uitest::GridRig r;
-	static std::vector<PadEvent> storage;
-	storage = pads;
-	r.input.pads = storage;
-	for (auto [x, y] : held) {
-		r.input.held_pads.set(static_cast<uint8_t>(x), static_cast<uint8_t>(y), true);
+// A rig plus the storage its pad-event span points into, so a spec can hold shift and hit a key in
+// the same tick the way a player does. The events live in the struct, not in a shared static, so
+// several rigs can coexist in one example without reseating each other's spans.
+struct KeyRig {
+	std::vector<PadEvent> events;
+	uitest::GridRig rig;
+
+	KeyRig(std::vector<PadEvent> pads, const std::vector<std::pair<int, int>>& held) : events(std::move(pads)) {
+		rig.input.pads = events;
+		for (auto [x, y] : held) {
+			rig.input.held_pads.set(static_cast<uint8_t>(x), static_cast<uint8_t>(y), true);
+		}
 	}
-	return r;
-}
+};
 
 // --- Fakes for the two adapters ---------------------------------------------------------------
 // Deliberately *not* the real gui/ classes: the adapters exist so ui/grid never includes gui/,
@@ -212,9 +215,9 @@ describe keyboard_spec("ui/grid/keyboard", $ {
 	});
 
 	it("returns the typed character in the response velocity", _ {
-		uitest::GridRig r = make_rig({{.x = 3, .y = kHomeRow + 1, .velocity = 64, .pressed = true}}, {});
+		KeyRig k({{.x = 3, .y = kHomeRow + 1, .velocity = 64, .pressed = true}}, {});
 		TextKeyboardState state;
-		const Response resp = text_keyboard(r.frame, state, KeyboardLayoutKind::Qwerty);
+		const Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
 
 		expect(resp.pressed).to_be_true();
 		expect((char)resp.velocity).to_equal('Q');
@@ -222,21 +225,44 @@ describe keyboard_spec("ui/grid/keyboard", $ {
 	});
 
 	it("reports no character for a pad that types nothing", _ {
-		uitest::GridRig r = make_rig({{.x = 0, .y = 0, .velocity = 64, .pressed = true}}, {});
+		KeyRig k({{.x = 0, .y = 0, .velocity = 64, .pressed = true}}, {});
 		TextKeyboardState state;
-		const Response resp = text_keyboard(r.frame, state, KeyboardLayoutKind::Qwerty);
+		const Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
 		expect(resp.pressed).to_be_true();
 		expect((int32_t)resp.velocity).to_equal(0);
 	});
 
 	it("shifts the digit row while a shift pad is held", _ {
-		uitest::GridRig r = make_rig({{.x = 3, .y = kHomeRow + 2, .velocity = 64, .pressed = true}},
-		                             {{1, kHomeRow - 1}});
+		KeyRig k({{.x = 3, .y = kHomeRow + 2, .velocity = 64, .pressed = true}}, {{1, kHomeRow - 1}});
 		TextKeyboardState state;
-		const Response resp = text_keyboard(r.frame, state, KeyboardLayoutKind::Qwerty);
+		const Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
 
 		expect(state.shift).to_be_true();     // :284-287
 		expect((char)resp.velocity).to_equal('!'); // :293-294
+	});
+
+	it("types the digit when shift and the digit are pressed in the same tick", _ {
+		// The shift pad sits at home_row - 1 and the digit row at home_row + 2, so a bottom-up
+		// sweep reaches shift first. Legacy runs padAction per event (qwerty_ui.cpp:205-330), where
+		// the shift pad falls outside the key rectangle (:255) and types nothing while the digit
+		// still types '!'. Taking the first press in scan order would have returned 0.
+		KeyRig k({{.x = 1, .y = kHomeRow - 1, .velocity = 64, .pressed = true},
+		          {.x = 3, .y = kHomeRow + 2, .velocity = 64, .pressed = true}},
+		         {});
+		TextKeyboardState state;
+		const Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
+
+		expect(state.shift).to_be_true();
+		expect((char)resp.velocity).to_equal('!');
+	});
+
+	it("types the first character-producing key when two keys land in one tick", _ {
+		KeyRig k({{.x = 0, .y = 0, .velocity = 64, .pressed = true},          // types nothing
+		          {.x = 4, .y = kHomeRow + 1, .velocity = 64, .pressed = true}}, // 'W'
+		         {});
+		TextKeyboardState state;
+		const Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
+		expect((char)resp.velocity).to_equal('W');
 	});
 
 	it("records the keyboard's colour map", _ {

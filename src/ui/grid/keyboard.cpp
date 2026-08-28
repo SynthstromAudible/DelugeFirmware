@@ -150,10 +150,19 @@ Response text_keyboard(GridFrame& f, TextKeyboardState& state, KeyboardLayoutKin
 			if ((r.held || r.pressed) && text_keyboard_is_shift_pad(x, y, home_row)) {
 				shift_held = true; // :284-287
 			}
-			if (r.pressed && pressed_x < 0) {
-				pressed_x = x;
-				pressed_y = y;
+			if (r.pressed) {
 				out.pressed = true;
+				// The *typing* press, not merely the first press in scan order. Legacy runs
+				// padAction once per event (qwerty_ui.cpp:205-330), where a pad outside the key
+				// rectangle (:255) -- a shift pad, say -- simply does nothing and leaves the key
+				// pressed in the same tick free to type. Testing with shift = false is safe: the
+				// shift rewrites at :290-301 map non-zero to non-zero and never produce or consume
+				// a 0, so "types a character" does not depend on the shift state that is still
+				// being gathered by this very sweep.
+				if (pressed_x < 0 && text_keyboard_char_at(layout, x, y, home_row, false) != 0) {
+					pressed_x = x;
+					pressed_y = y;
+				}
 			}
 			out.released = out.released || r.released;
 			out.held = out.held || r.held;

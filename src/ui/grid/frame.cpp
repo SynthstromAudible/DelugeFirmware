@@ -1,5 +1,7 @@
 #include "ui/grid/frame.h"
 
+#include "gfx/grid/palette.h"
+
 namespace deluge::ui::grid {
 
 using gfx::grid::Rect;
@@ -44,6 +46,25 @@ Response GridFrame::pad(int32_t x, int32_t y, RGB colour) {
 	}
 	r.held = input.held_pads.test(px, py);
 	return r;
+}
+
+RGB GridFrame::peek(int32_t x, int32_t y) const {
+	if (!bounds().contains(x, y)) {
+		return gui::colours::black;
+	}
+	const int32_t abs_x = clip.x + x;
+	const int32_t abs_y = clip.y + y;
+	// Same narrowing guard as pad(): clip only ever shrinks from the grid's own dimensions, so
+	// this holds by construction, and a wrapped coordinate would read the wrong pad.
+	if (abs_x < 0 || abs_y < 0 || abs_x > 0xFF || abs_y > 0xFF) {
+		return gui::colours::black;
+	}
+	const auto px = static_cast<uint8_t>(abs_x);
+	const auto py = static_cast<uint8_t>(abs_y);
+	if (!grid.in_range(px, py)) {
+		return gui::colours::black;
+	}
+	return grid.at(px, py);
 }
 
 std::span<const PadEvent> GridFrame::local_events() const {

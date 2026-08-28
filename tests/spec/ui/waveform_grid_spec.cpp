@@ -1,4 +1,5 @@
 #include "../gfx/support/golden.h"
+#include "gfx/grid/palette.h"
 #include "support/frames.h"
 #include "ui/grid/waveform.h"
 
@@ -23,7 +24,7 @@ namespace palette = deluge::gui::colours;
 
 namespace {
 
-// --- WaveformRenderer::renderAsSingleRow's colour body (waveform_renderer.cpp:137-146) --------
+// --- WaveformRenderer::renderAsSingleRow's colour body (waveform_renderer.cpp:137-145) --------
 RGB legacy_single_row_colour(int32_t brightness, RGB rgb) {
 	int32_t colourValue = (brightness * brightness);
 	return rgb.transform([colourValue](auto channel) {
@@ -79,12 +80,12 @@ describe waveform_grid("ui/grid/waveform", $ {
 
 		expect(r.grid.at(0, 3)).to_equal(legacy_single_row_colour(255, kBase));
 		expect(r.grid.at(1, 3)).to_equal(palette::black);
-		// Columns past the span have no data: legacy paints those black too (:127-130).
+		// Columns past the span have no data: legacy paints those black too (:130-133).
 		expect(r.grid.at(15, 3)).to_equal(palette::black);
 	});
 
 	it("quantises every channel to legacy's 16-step ladder", _ {
-		// The `& ~15` at :145 is the whole point of the formula; check it holds across the range
+		// The `& ~15` at :144 is the whole point of the formula; check it holds across the range
 		// rather than only at the extremes.
 		for (int32_t b : {0, 1, 17, 64, 100, 128, 200, 255, kWaveformMaxBrightness}) {
 			expect(waveform_col_colour(b, kBase)).to_equal(legacy_single_row_colour(b, kBase));
@@ -96,7 +97,7 @@ describe waveform_grid("ui/grid/waveform", $ {
 	});
 
 	it("accepts legacy's full 0..256 brightness range", _ {
-		// getColBrightnessForSingleRow ends with min(peak16 >> 8, 256) (:168) -- one past uint8_t,
+		// getColBrightnessForSingleRow ends with min(peak16 >> 8, 256) (:166) -- one past uint8_t,
 		// which is why the span is int32_t. 256 must not wrap to black.
 		expect(waveform_col_colour(kWaveformMaxBrightness, kBase))
 		    .to_equal(legacy_single_row_colour(256, kBase));
@@ -110,7 +111,7 @@ describe waveform_grid("ui/grid/waveform", $ {
 		brightness[15] = 96;
 		r.frame.region(kMainArea, [&](GridFrame& main) { waveform_row(main, 0, brightness, kBase, true); });
 
-		// :131-134 -- output column x reads source column (width - 1 - x).
+		// :125-128 -- output column x reads source column (width - 1 - x).
 		expect(r.grid.at(0, 0)).to_equal(legacy_single_row_colour(96, kBase));
 		expect(r.grid.at(15, 0)).to_equal(legacy_single_row_colour(255, kBase));
 	});
@@ -162,7 +163,7 @@ describe waveform_grid("ui/grid/waveform", $ {
 		}
 	});
 
-	it("clears its columns and leaves invalid ones black", _ {
+	it("clears the whole frame and leaves invalid columns black", _ {
 		uitest::GridRig r;
 		for (int32_t y = 0; y < 8; y++) {
 			for (int32_t x = 0; x < 16; x++) {
@@ -182,8 +183,12 @@ describe waveform_grid("ui/grid/waveform", $ {
 		for (int32_t y = 0; y < 8; y++) {
 			expect(r.grid.at(0, y)).to_equal(palette::black); // cleared, then skipped
 		}
-		expect(r.grid.at(2, 0)).to_equal(RGB{9, 9, 9});   // outside the span: untouched
-		expect(r.grid.at(16, 0)).to_equal(RGB{7, 7, 7});  // sidebar: untouched
+		// renderFullScreen memsets all kDisplayWidth columns (:92-95) and only then renders xEnd of
+		// them (:97-98), so a main column past the end of the waveform is black, not stale.
+		expect(r.grid.at(2, 0)).to_equal(palette::black);
+		expect(r.grid.at(15, 7)).to_equal(palette::black);
+		// The frame is the waveform's area: outside it, nothing moves.
+		expect(r.grid.at(16, 0)).to_equal(RGB{7, 7, 7});
 	});
 
 	it("records a full-screen waveform", _ {
