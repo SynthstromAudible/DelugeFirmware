@@ -1484,6 +1484,11 @@ Error previewSample(std::string_view path, bool shouldActuallySound) {
 	stopAnyPreviewing();
 	MultisampleRange* range = (MultisampleRange*)sampleForPreview->sources[0].getOrCreateFirstRange();
 	if (!range) {
+		// Reported here, like every other real failure this function returns -- see the declaration's
+		// contract. Leaving it to the caller would push the reporting obligation onto every future
+		// converted caller, and this one's caller compares only against LOAD_IN_PROGRESS, so the
+		// failure would reach nobody at all.
+		display->displayError(Error::INSUFFICIENT_RAM);
 		return Error::INSUFFICIENT_RAM;
 	}
 	range->sampleHolder.filePath.assign(path);
