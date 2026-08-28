@@ -70,7 +70,7 @@ Non-goals:
 | D2 | The future device: several 128×64 mono OLEDs, the same 8×(16+2) pad grid, more buttons, encoders. | Everything stays 1-bpp; "display" becomes a *set* of surfaces; the Deluge bezel offset becomes a per-surface parameter; button identity must be board-provided. |
 | D3 | 7SEG stays removed; no presenter/vocabulary layer. | The new device is a better forcing function for multi-frontend design than 7SEG was, and cheaper. |
 | D4 | Immediate-mode rendering inside retained scene objects. | Both deluge-sdk toolkits converged on this independently: bindings reference the real fields, so the view cannot desync from the model — the failure mode of the current menu tree. One pass paints *and* hit-tests. Retained state is tiny and app-owned. |
-| D5 | OLED and grid components live in separate libraries that cannot include each other. | Enforces reuse across devices and across the two halves of a scene (spark's `spark-grid` / `spark-display-oled` split). |
+| D5 | OLED and grid components live in separate libraries that cannot include each other. | Enforces reuse across devices and across the two halves of a scene. **Attribution corrected (task-10 reconciliation):** the split, and the immediate-mode frame model `OledFrame`/`GridFrame` port, are `deluge-sdk`'s own — its `deluge-ui-toolkit` (OLED) / `deluge-grid-toolkit` (grid) crates — not spark's. spark has the same two-crate shape (`ui/grid`, `ui/display-oled`) but its grid crate is a thin re-export of `deluge-grid-toolkit` (`ui/grid/src/lib.rs:55`, pinned to `github.com/FirestormAudio/deluge-sdk`) and its OLED crate has no reusable widget library at all — spark is a consumer that has only partly adopted the SDK's split, not its origin. See `docs/superpowers/audits/2026-08-27-abc-audit-reports.md` §0 (provenance correction) and §13 below, which already attributed this correctly. |
 | D6 | Components are model-free; views bind model to components; scenes compose views. | Lets the same component serve a different scene arrangement on the new device and be golden-tested with literal data. |
 | D7 | LED state is declared per tick and re-derived, not commanded. | Removes the "forgot to clear the LED on exit" bug class; makes flush drops safe. |
 | D8 | Scope of this document: umbrella architecture + migration. Each layer gets its own spec and plan; the first is `deluge-gfx-*`. | Too large for one plan. |
@@ -484,6 +484,16 @@ the extension first (any count, any size) so the shell can be tested against
 the new device's descriptor before its BSP exists. `button_rows/cols` and
 `encoder_count` already describe the surface; button *identity* is the app's
 board profile, not the ABI's.
+
+**Status (task-10 reconciliation):** the multi-display wire opcode already exists on the host
+link — `HOST_LINK_MSG_UPDATE_DISPLAY_N` (`0x2B`, `[index][page-major pixels]`,
+`src/bsp/host/host_link.h:49`) is a clean additive extension in a gap the upstream (spark) wire
+format left free, and `src/bsp/host/host_bsp.c:413` already sends it per display. But
+`src/bsp/host/host_link.c` — the file that reads and dispatches incoming/outgoing host-link
+messages — has **no reader** for it: nothing on the receiving side interprets `0x2B` yet, so today
+it is a reservation, not a working extension. This is a harness-plan item (`2026-08-27-ui-test-harness.md`
+or its successor), not a shell-plan one: either implement the reader in `host_link.c` or mark the
+opcode explicitly `// reserved, no reader yet` until the harness plan wires one up.
 
 ## 11. Testing
 

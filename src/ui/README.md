@@ -215,6 +215,26 @@ SDK's `Frame::split_rows`/`split_cols` (`imode.rs:367-398`), returning a `(befor
 and `inset(int32_t)` (shrink by one uniform amount on every side). See `src/gfx/README.md` for the
 full rule.
 
+### Compositing and tweens (`gfx::grid`, task-6/7) -- no `ui/grid` caller yet
+
+`gfx::grid::composite(base, overlay, BlendMode, out)` and the five `from -> to` tween functions
+(`fade`, `scroll_horizontal`/`_vertical`, `smear_scroll_horizontal`/`_vertical`, `zoom`,
+`explode`, `expand_collapse`) live one layer down, in `gfx/grid/composite.h` and
+`gfx/grid/tween.h` -- see `src/gfx/README.md` for what each ports and the legacy quirks they
+reproduce. Nothing in `src/ui/grid` calls either yet: overlay compositing and animated
+transitions are a shell/scene concern (spec D §7's `render_grid`/tween driver), not a widget one,
+so they wait for that caller rather than growing a placeholder wrapper here.
+
+### Two-pass `list`: this frame's row count, not last frame's (task-8)
+
+`list` counts `rows.size()` -- the span it was actually handed *this* frame -- before doing
+anything else, clamps the cursor into that count, then walks `turn`, all before drawing a pixel.
+`state.rows_last` is still published every frame, but only as a cache for a caller that windows
+against it on its own (`enum_value` sizes its inner windowed `list` call from its own copy of the
+field); `list` itself never reads it back. A list that shrinks or grows under the cursor is
+therefore correct on the same frame it changes, not one frame late the way clamping against
+`rows_last` would have left it. See `oled/list.h`.
+
 ### `bounds()` vs `visible()`
 
 `bounds()` is the rect the region *asked* for, `{0, 0, w, h}` in its own local coordinates;
@@ -260,6 +280,55 @@ worth freezing is the RGB it computes.
   `kHorizontalMenuBaseY` stays a free constant in `core/metrics.h` and is *not* folded in: it is
   14 on every panel and follows a different legacy rule (horizontal-menu box top, see
   `columns.h`), so merging the two would conflate things that only coincide at 48 rows.
+- **`deluge-sdk` ideas surveyed and deliberately not harvested (task-10).** Two audited ideas were
+  looked at and turned down, not overlooked:
+  - **Ink-bounds centring** (the SDK's `hmenu.rs:57-110` `InkBounds`, which records a widget's
+    actually-lit pixels via a pixel-discarding draw target and centres on *that* rather than on
+    its nominal box, unioning both value extremes so layout doesn't jitter as a value changes).
+    Not adopted for the same reason `measure()` returns the legacy advance width rather than ink
+    bounds (§6 of spec B): every legacy centring/right-align call site — and every `meters.h`
+    widget's `slot` centring — was laid out against the *nominal* geometry, blank padding
+    included; switching to ink bounds would move pixels relative to legacy on every widget that
+    isn't already visually flush with its box, which is exactly the kind of change this port's
+    parity rule exists to prevent.
+  - **The structural `FrameOutput` gate** (the SDK's `GridUi::run`, which returns
+    `FrameOutput::Skipped` without ever invoking the render closure on a clean frame, so a skipped
+    frame is *structurally* incapable of producing a stale result). Not adopted: it needs a
+    closure-shaped render call (`ui.run(|f| ...)` returning a value) to have something to
+    withhold, and this toolkit's render calls are virtual methods returning `void`
+    (`Scene::render_oled`/`render_grid`, spec D §3), not closures — there is no return value for
+    a `Skipped` to replace. The advisory shape stays: `RepaintGate::needs_frame()` is a bare
+    predicate the shell consults before calling `render_oled`/`render_grid` at all (spec D §7), so
+    a skipped frame already does not render — but nothing stops a scene from acting on stale POD
+    state in `handle()`/`after_render()` regardless of whether that tick rendered, the way the SDK's
+    structural gate would prevent by construction. Left as a known gap rather than closed.
+
+## Legacy quirks reproduced on purpose
+
+Ported behaviour that visibly diverges from a plausible fix, kept because parity with the
+shipped firmware outranks correcting it — the user decides per item, later. Each is pinned by a
+spec/golden that would have to change along with the fix, so an accidental "fix" fails CI before
+it ships.
+
+| # | quirk | where | pinned by | one-line fix |
+|---|---|---|---|---|
+| 1 | `popup_rect_for` centres popups on the full 48-row panel geometry, bezel-hidden rows included, so a popup sits visibly above the true visible centre on the shipped device (and would centre correctly, and therefore *inconsistently*, on a 64-row panel where `visible_top == 0`) | `oled/popup.cpp:109-119` (`panel_of(f)`) | `tests/spec/ui/popup_spec.cpp` "centres the popup box on the panel, at both geometries"; `popup_three_lines_48.pbm`, `popup_saved_48/64.pbm`, `popup_wrapped_48.pbm`, `popup_notification_48.pbm`, `popup_permanent_48/64.pbm` | make it a `Style` decision (`Style::popup_centre_on_full_height`, defaulting `true` for parity) and centre on `f.bounds()` when it is `false` |
+| 2 | `decimal_value` draws at a canvas-absolute y (converted back to frame-local only by subtracting `f.origin.y`), ignoring `rect.y`/`rect.h` entirely — the one widget that cannot be placed anywhere in its frame, and the one that lands at a different position relative to `int_value` on a 64-row panel | `oled/values.h:81-90`, `oled/values.cpp:172-173` | `tests/spec/ui/values_spec.cpp` "D4"; `decimal_value_12_34_48.pbm` | offset the digit/cursor rows from `rect.y` instead of from the legacy literal, the way `int_value` already does |
+| 3 | `kHorizontalMenuBaseY` is the literal `14` on **every** panel height, while `list`'s vertical-menu base y is `14`/`15` (48/64 rows) — a one-row inconsistency between the horizontal and vertical menus frozen into the profile system, based on a 64-row arm of `HorizontalMenu::renderMenuItems` that is dead code in legacy (the shipped Deluge panel is 48) | `core/metrics.h:36`, `oled/columns.cpp:284-285` | `tests/spec/ui/columns_spec.cpp` "puts the label row at the legacy base_y + box_height - label_height"; `columns_four_64.pbm` | give it a 64-row arm (`15`) mirroring `list`'s `kMenuBaseY64`, keyed off `f.canvas.geometry().height` the way `menu_rect` already is |
+| 4 | `GreyoutMask::cols`' bits run right-to-left — bit 0 selects the *last* (rightmost) column, bit 17 selects column 0 — matching legacy `prepareColour`'s own mirrored numbering rather than a natural left-to-right convention a brand-new POD type would otherwise get | `grid/effects.h:18-33` | `tests/spec/ui/effects_spec.cpp` (bit-0/bit-17 cases, lines 72–133) | flip the bit test in `greyout()` to natural (left-to-right) order and mirror the index once, in the legacy bridge that builds a `GreyoutMask` from `greyoutCols`, instead of at every scene call site |
+| 5 | `wrap_lines`' `max_chars_per_line` parameter is read by nothing — every legacy caller passes `19` (`kPopupMaxCharsPerLine`) but no line of `breakStringIntoLines`/`findLineSplitPoint`/`addLine`/`addCharacterToLine` ever reads the field; only `max_width_px` caps a line | `core/text_wrap.h:51-62`, `core/text_wrap.cpp:74-76` | `tests/spec/ui/popup_spec.cpp` "ignores max_chars_per_line, because legacy never reads the field" | drop the parameter from `wrap_lines`'s signature and its call sites' `kPopupMaxCharsPerLine` argument |
+| 6 | `length_slider`'s `min_pos` defaults to `true`, because every legacy call site inherited `drawLengthSlider`'s `= 3` default (`number.h:57`) — a near-certain legacy typo (`3` is truthy, not a deliberate `min_pos = true`), reproduced verbatim as a **default argument** on a brand-new API, so every future call site inherits it too unless it opts out | `oled/meters.h:108-118`, `oled/meters.cpp:189-198,391` | `tests/spec/ui/meters_spec.cpp` "puts the thumb one pixel right when min_pos, and defaults it on" (D5); `meter_length_slider_48/64.pbm` | flip the default to `false` and re-record the two goldens |
+
+Five more, in the four tweens `gfx/grid/tween.cpp` ported from `hid/led/pad_leds.cpp`
+(toolkit-fixes task-7; full detail in `src/gfx/README.md`'s tween section):
+
+| # | quirk | where | pinned by | one-line fix |
+|---|---|---|---|---|
+| 7 | Complementary blend weights are computed as `65535 - frac`, not `65536 - frac` (`explode`'s x/y intensity pairs, `expand_collapse`'s row-position weight) — a pad exactly on a square boundary renders at 65535/65536 intensity, imperceptibly darker than a true "still" frame | `pad_leds.cpp:679-680,690-691,370-371`, ported in `gfx/grid/tween.cpp` | `tests/spec/gfx/tween_spec.cpp`'s `legacy::` oracle byte-compares for `explode`/`expand_collapse` (the oracle itself uses `65535 -`, so it would reject a `65536 -` "fix" made to only one side) | change `65535 - frac` to `65536 - frac` in the port **and** the oracle together |
+| 8 | `expand_collapse`'s row position is narrowed to `int8_t` (legacy `newRowPosition1Array`), which would wrap for a destination row past ±127 on a real display — unreachable today, and made explicitly unreachable here by `DELUGE_GFX_CONTRACT(row_to < rows)` rather than silently relying on it | `pad_leds.cpp:359`, `gfx/grid/tween.h`'s `ExpandCollapseParams` contract | `tests/spec/gfx/tween_spec.cpp`'s `expand_collapse` oracle byte-compares (any `row_to`/`t` case) | widen the row-position field to `int16_t` (or wider) in the port and the oracle together |
+| 9 | `explode`'s per-column intensity scratch is left logically dependent on `xStart`/`xEnd` excluding every column whose destination lands off-screen, rather than being unconditionally written for every column — legacy's version of this left the *storage* uninitialised too (closed here in task-7 fix round 1 by zero-initialising the port's own scratch; the algorithm's dependence on the excluded range is what remains, not a memory hazard) | `pad_leds.cpp:672-678`, `gfx/grid/tween.cpp`'s `explode` | `tests/spec/gfx/tween_spec.cpp`'s `explode` oracle (which also zeroes its copy of the array, so a read of an excluded entry would show up as a mismatch — it doesn't) | write every column's intensity pair unconditionally (even the ones whose destination is excluded), rather than relying on the excluded range never being read |
+| 10 | `zoom`'s inner-image pin arithmetic truncates each operand to 8 bits *before* multiplying (`(pin_square >> 8) * (in_image_times_bigger >> 8)`), losing up to ~1/256 of a pad of precision in the inner image's on-screen origin — legacy's own comment reads "Beware rounding inaccuracy" | `pad_leds.cpp:1251-1253`, `gfx/grid/tween.cpp`'s `zoom` | `tests/spec/gfx/tween_spec.cpp`'s `zoom` oracle byte-compares across `t`/magnitude cases | multiply the two full-precision operands first, then shift the product once, instead of shifting both operands down before multiplying |
+| 11 | `zoom` treats a source pad that is genuinely black as "nothing drawn there" and *assigns* black to the output square, rather than leaving whatever the destination frame already held — the reason `zoom`'s output is a full frame, never an overlay | `pad_leds.cpp:1327-1333,1358`, `gfx/grid/tween.cpp`'s `zoom` | `tests/spec/gfx/tween_spec.cpp`'s `zoom` oracle byte-compares (any case with a black source region) | track "was anything drawn to this pad" independently of colour, and skip the black assignment when nothing was, instead of using black itself as the sentinel |
 
 ## Size
 

@@ -150,69 +150,148 @@ and differ from it by one on a 64-row panel).
 ## 4. Frames
 
 ```cpp
+// ui-core (ui/core/frame_context.h) — landed by the toolkit-fixes tasks (task-9/10 reconciliation
+// replaces this section's original draft with the shape that actually shipped)
+namespace deluge::ui {
+struct InputClaims {         // one flag per widget-owned input, written by claim_*(), read by the shell
+	bool turn = false, edit0 = false, edit1 = false, horizontal = false, vertical = false, select = false, back = false;
+	bool double_claim = false;   // diagnostic: set when an already-claimed input is claimed again
+	bool any() const;
+	bool operator==(const InputClaims&) const = default;
+};
+struct InputMask {            // which inputs a frame may see: focus, per input, not all-or-nothing
+	bool turn = true, edit = true, horizontal = true, vertical = true, select = true, back = true;
+	static constexpr InputMask all();
+	static constexpr InputMask none();
+	constexpr InputMask operator&(InputMask o) const;   // intersection: the only way a child mask is built -- narrows, never widens
+	constexpr bool is_all() const; constexpr bool is_none() const;
+	constexpr bool operator==(const InputMask&) const = default;
+};
+struct FrameContext {          // one per tick, shared by every frame built over it (spec D §3/§7)
+	const InputSnapshot& input; RepaintGate& gate;
+	InputClaims claims{}; uint32_t tick = 0; uint32_t tick_ms = 0;
+	void begin_tick(uint32_t now_ms);   // clears claims, bumps tick/tick_ms -- called exactly once per tick, before any frame is built
+};
+struct FrameInput {            // shared base of OledFrame and GridFrame: one copy of the contract, not one per surface
+	FrameContext& ctx; InputMask mask = InputMask::all();
+	bool focused() const;                                      // mask.is_all() -- the old boolean "focused", recovered
+	int8_t turn() const; int8_t edit(int i) const; int8_t horizontal() const; int8_t vertical() const;
+	bool select_pressed() const; bool back_pressed() const;      // masked; edges (rule 5)
+	uint32_t now_ms() const; bool shift() const;                  // NOT masked (rule 3's clock/modifier exemption)
+	void claim_turn() const; void claim_edit(int i) const; void claim_horizontal() const; void claim_vertical() const;
+	void claim_select() const; void claim_back() const;            // no-ops when the corresponding mask bit is off
+	RepaintGate& gate() const;                                       // unmasked -- an unfocused widget still has to be redrawn
+	InputMask child_mask(InputMask m) const; InputMask child_mask(bool granted) const;   // the one place a child mask is built
+};
+}
 // ui-oled
 namespace deluge::ui::oled {
-struct OledFrame {
+struct OledFrame : FrameInput {
 	gfx::oled::Canvas& canvas;
 	gfx::oled::Rect clip;        // absolute, on the canvas
 	gfx::oled::Point origin;     // local (0,0) in canvas coordinates
 	gfx::oled::Size size;        // the region's own (unclipped) extent, for bounds()
 	const Style& style;
-	const InputSnapshot& input;
-	RepaintGate& gate;
-	template <class F> void region(gfx::oled::Rect local, F&& body);   // clips + translates; body(OledFrame&)
-	gfx::oled::Rect bounds() const;                                    // local {0,0,w,h}, unclipped size
+	template <class F> void region(gfx::oled::Rect local, InputMask granted, F&& body);   // clips + translates; body(OledFrame&)
+	template <class F> void region(gfx::oled::Rect local, bool granted, F&& body);          // granted ? all() : none()
+	template <class F> void region(gfx::oled::Rect local, F&& body);                          // inherits this frame's mask
+	gfx::oled::Rect bounds() const;    // local {0,0,w,h}, unclipped size (the region's *requested* extent)
+	gfx::oled::Rect visible() const;   // the part of bounds() that survives the parent's clip, same local coordinates
 };
 }
 // ui-grid
 namespace deluge::ui::grid {
-struct GridFrame {
+struct GridFrame : FrameInput {
 	gfx::grid::PadGrid& grid;
-	gfx::grid::Rect clip;                      // pad units, absolute; also the local origin
-	const InputSnapshot& input;
-	RepaintGate& gate;
+	gfx::grid::Rect rect;                       // pad units, absolute; the region asked for -- also the local origin
+	gfx::grid::Rect clip;                       // rect intersected with the parent's clip
 	Response pad(int32_t x, int32_t y, RGB colour);   // paint + hit-test, local coords
 	RGB peek(int32_t x, int32_t y) const;             // read back without painting (for greyout)
 	std::span<const PadEvent> local_events() const;   // region-filtered, translated; cached per frame
+	std::optional<PadEvent> first_press_in(gfx::grid::Rect local) const;
+	Response interact(gfx::grid::Rect local) const;   // hit-test without painting, no side effect on pad()'s paint
+	const PadMask& held_pads() const;                 // never masked -- positional (rule 4)
+	template <class F> void region(gfx::grid::Rect local, InputMask granted, F&& body);
+	template <class F> void region(gfx::grid::Rect local, bool granted, F&& body);
 	template <class F> void region(gfx::grid::Rect local, F&& body);
 	gfx::grid::Rect bounds() const;
+	gfx::grid::Rect visible() const;
 };
 }
-// what a scene receives (ui-core)
-struct Frames { std::span<oled::OledFrame> oled;   // indexed by surface role
-                grid::GridFrame& grid;  LedFrame& leds; };
 ```
 
+`Frames` — the `ui-core` aggregate this section originally gave a scene (`std::span<OledFrame>
+oled; GridFrame& grid; LedFrame& leds;`) — never shipped and is dropped (task-9/10
+reconciliation): it does not exist anywhere in `src/ui/core`, the shell plan defined an
+incompatible shape of its own, and a scene invoked once per surface with only that surface's slot
+populated (spec D §2.6's audit finding) was worse than one call per surface. What a scene receives
+instead is `Scene::render_oled(SurfaceRole, OledFrame&)` / `Scene::render_grid(GridFrame&)` — see
+spec D §3, §7.
+
 - A region's body sees a frame whose `(0,0)` is the region's corner and whose input is
-  filtered to it; panes route their own input with no routing code.
+  filtered to it — an `InputMask`, not a bare bool (§5) — so panes route their own input with
+  no routing code.
 - The shell builds the root `OledFrame` with origin `(0, geometry.visible_top)`; **no widget
   knows about the bezel**.
 - `gfx::grid::Rect` is the same shape as `gfx::oled::Rect` in pad units (added to
   `gfx-grid` with the toolkit; a `Rect` per library keeps the two gfx libraries
   independent).
-- `GridFrame`'s rectangle member is named `clip`, not `region` as drafted above: C++ forbids a
-  data member and a member function sharing a name, and `region()` is the name components call.
-  There is likewise no copied `events` span -- a span captured when the frame is built cannot
-  see events the shell installs on the snapshot later that same tick -- so every frame instead
-  reads `input.pads` through the reference it already holds, and `local_events()` filters and
+- `GridFrame` carries two rectangles, not one: `rect` (the region's *requested* absolute extent,
+  and the local origin) and `clip` (`rect` intersected with the parent's clip). `bounds()` reports
+  the former, `visible()` the latter translated to local coordinates -- so a region hanging off
+  its parent's edge does not shift its own coordinate origin, and a widget that *measures* ("how
+  many rows can be seen here" versus "how tall was I asked to be") can tell the two questions
+  apart. The rectangle is named `clip`, not `region` as originally drafted: C++ forbids a data
+  member and a member function sharing a name, and `region()` is the name components call. There
+  is likewise no copied `events` span -- a span captured when the frame is built cannot see events
+  the shell installs on the snapshot later that same tick -- so every frame instead reads
+  `ctx.input.pads` through the reference it already holds, and `local_events()` filters and
   translates on demand, cached per frame.
-- `OledFrame`'s clip is exact (decomposed into clipped spans) for `pixel`/`hline`/`vline`/
-  `line`/`invert`/`clear`/`rect`/`rect_rounded`; `glyphs` clips only to the frame's right edge
-  and to the canvas otherwise; `invert_rounded`, `graphic`, `icon` and `icon_centered` are
-  all-or-nothing (skipped whole if any part would fall outside `clip`). Closing the `glyphs` gap
-  needs a clip rectangle threaded through `Canvas::draw_char`/`draw_graphic_multi_line` in gfx --
-  tracked as a follow-up.
+- One `FrameContext` per tick carries the `InputSnapshot`, the `RepaintGate` and this tick's
+  `InputClaims`; both frame types get their input handling from one shared `FrameInput` base
+  (`ctx`, `mask`, the accessors, the `claim_*()` methods, `gate()`) instead of duplicating ~45
+  lines of it per surface. **A widget that renders a control consumes and claims the inputs that
+  control owns, in the same call** (`f.turn()` then `f.claim_turn()`): the claim records ownership
+  for the tick, not that a value arrived -- a focused `list` claims the turn on every frame it
+  draws, whether or not a detent came in. A claim is not arbitration: two sibling regions both
+  granted an input each still see it, and `InputClaims::double_claim` is the diagnostic for that,
+  not a defence -- narrowing which region gets an input at all is `InputMask`'s job (§5).
+- The clock (`now_ms()`) and `shift()` are **not masked**: an unfocused region still animates and
+  still arms its gate with a real deadline; only the six navigational accessors (`turn`, `edit`,
+  `horizontal`, `vertical`, `select_pressed`, `back_pressed`) are. Pad input (`pad()`,
+  `local_events()`, `first_press_in()`, `held_pads()`, `interact()`) is never masked either -- it
+  is positional, named by where it landed, not by focus.
+- `OledFrame`'s clip is now exact for **every** primitive, glyphs and bitmaps included
+  (toolkit-fixes task-4 closed the gap this section originally left open as a follow-up):
+  `pixel`/`hline`/`vline`/`line`/`rect`/`rect_rounded`/`invert`/`invert_rounded`/`clear`/`glyphs`/
+  `glyph`/`graphic`/`icon`/`icon_centered` each open a `ClipScope` that narrows the canvas's own
+  clip rect for the call, so a shape that straddles the region boundary draws the part that is
+  inside and nothing else, on every edge.
+- `GridFrame::interact(rect)` hit-tests a rectangle without painting -- every event inside it in
+  one call, `pressed`/`released` accumulating independently and `velocity`/`index` holding the
+  last matching event's, mirroring `pad()`'s own last-write-wins loop (toolkit-fixes task-6,
+  ported from `deluge-sdk`'s `Frame::interact`).
 
 ## 5. Focus and navigation
 
-- **No global focus tree.** Focus is per container: `ListState::cursor` for vertical lists,
-  `ColumnsState::focused` for the four-slot page. A scene has one current container and
-  forwards `turn` to it.
-- `list()` clamps `turn` against `rows_last` (last frame's row count) and writes `rows_last`
-  before returning — a turn past the end cannot skip on reverse.
+- **No global focus tree, and now a mechanism to enforce it: `InputMask` (§4).** Focus is per
+  container, same as drafted -- `ListState::cursor` for vertical lists, `ColumnsState::focused`
+  for the four-slot page -- but "forwards turn to it" is no longer only a convention a scene has
+  to get right: a container grants its current child exactly the inputs it may consume
+  (`region(rect, InputMask{...}, body)`), and everything else reads zero/false and its claims are
+  no-ops. `columns` is the worked example (toolkit-fixes task-5 fix round 2): it keeps the turn
+  for itself (`InputMask{.turn = false}` handed to the focused slot) to walk the column focus, and
+  grants that slot everything else, so one detent either walks the column focus or edits the
+  value, never both -- `InputClaims::double_claim` would flag it if a scene got the split wrong.
+- `list()` clamps `turn` against **this frame's own row count**, counted before drawing, not
+  last frame's (toolkit-fixes task-8): `rows_last` is published every frame but is now documented
+  as a pure cache for a caller that windows against it (`enum_value`), never read back by `list`
+  itself, so a list that shrinks or grows under the cursor is correct on the same frame it changes
+  rather than one frame late.
 - Any navigation (cursor moved, submenu entered, page changed) calls `gate.request_repaint()`
   so the new state renders before the shell blocks on input.
-- Motion widgets call `gate.request_repaint_after(ms, now)`; nothing touches a timer table.
+- Motion widgets call `gate.request_repaint_after(ms, now)`; nothing touches a timer table. The
+  clock is never masked (§4), so this holds even for a widget drawn in an unfocused region.
 
 ## 6. `ui-oled` widget catalogue
 
@@ -404,7 +483,64 @@ toolkit was built. Each line names the change and why it deviates from the draft
   plus a documented gap: the outline/fill primitives decompose into clipped spans exactly, the
   blits and the XOR area do not (silently overdrawing a sibling region would be worse than
   drawing nothing), and glyph clipping needs a `Canvas::draw_char` change tracked as a
-  follow-up, not shipped with this task.
+  follow-up, not shipped with this task. **Closed by toolkit-fixes task-4** (below): every
+  primitive, blits and glyphs included, is now exactly clipped.
+
+**Toolkit-fixes tasks 4–8 (2026-08-27) — the follow-ups this section tracked, closed**
+
+- **Task 4 — the clip-rect gap above.** `gfx::oled::Canvas` gained `set_clip(Rect)`/
+  `clear_clip()`/`clip() -> optional<Rect>`, resolved once into a private `ClipBox` of four
+  inclusive ints so no drawing loop reads an `optional`; every routine (pixel/line/rect/circle,
+  the string family, icons, `draw_graphic_multi_line`'s byte blitter via a per-page bit mask)
+  clips through it. `ui::oled::ClipScope` (`ui/oled/frame.h`) opens one over `clip` for every
+  `OledFrame` drawing method; it **intersects**, never replaces (`saved->intersect(region)`), so
+  a clip set from outside the frame tree still bounds what a widget draws, and restores (not
+  clears) on exit so scopes nest. An empty intersection is set as an empty clip, the canvas's own
+  spelling of "draw nothing" — never cleared, which would be exactly the widening this type must
+  not do. No golden changed (the port was already drawing inside its bounds); oracled against a
+  second, unclipped canvas with the same calls masked to the region by hand.
+- **Task 5 — `FrameContext`/`InputClaims`/`InputMask`/`FrameInput`.** Landed as §4 above now
+  describes; superseded this section's original `const InputSnapshot& input; RepaintGate& gate;`
+  pair on each frame type. `FrameContext::begin_tick(now_ms)` must be called exactly once per
+  tick, before any frame is built over it, or claims from the previous tick latch forever.
+- **Task 6 — `gfx::grid::Rect::split_rows(at)`/`split_cols(at)`, `inset(d)`; `interact`;
+  `composite`.** `split_rows`/`split_cols` are the **two-way** `(before, after)` split at a single
+  point `at` — matching `gfx::oled::Rect`'s siblings (`geometry.h:50-51`) and `deluge-sdk`'s
+  `Frame::split_rows`/`split_cols` (`imode.rs:367-398`) exactly — not an n-way `(n, i)` form an
+  earlier round of this task tried and reverted (no caller existed for it). `GridFrame::interact`
+  is documented in §4. `gfx::grid::composite(base, overlay, BlendMode, out)` (new,
+  `gfx/grid/composite.h`) ports `deluge-grid-toolkit::layer::BlendMode` (`Replace`, `Overlay`,
+  `Tint`); since `PadGrid` has no per-cell transparency channel, black stands in for the SDK's
+  `None` everywhere — exact for `Overlay`/`Tint`, and a deliberate adaptation for `Replace`
+  (documented on the enumerator: the SDK's `Replace` is gated by transparency alone, this port's
+  is gated by "the overlay pad is non-black").
+- **Task 7 — the four missing tweens.** `gfx/grid/tween.h` gained `smear_scroll_horizontal`/
+  `_vertical` (software sub-pixel scroll, since the device does this in hardware via the PIC and
+  the host/second-display path had nothing — ported from `deluge-grid-toolkit`'s
+  `animations/smear_scroll.rs`, with its `blend_static` argument order swapped because the SDK's
+  own code is a whole pixel out of place at a zero offset), `zoom` (`renderZoom` + its
+  `renderZoomWithProgress`/`renderZoomedSquare` helpers, `ZoomParams` incl. `kMaxZoomMagnitude`
+  contract — the shift arithmetic is UB past magnitude 5), `explode` (`renderExplodeAnimation`,
+  `ExplodeParams` incl. `OccupancyMask` and per-row destinations are not this one's shape),
+  `expand_collapse` (`renderInstrumentClipCollapseAnimation`'s shared core, `ExpandCollapseParams`
+  incl. `row_to_by_row` — per-row destinations, for `renderNoteRowExpandOrCollapse`'s per-note-row
+  `animatedRowGoingTo[]` — and `from_occupancy`/`to_occupancy`, both `OccupancyMask` spans since
+  `PadGrid` carries no occupancy channel of its own and "source pad is non-black" is not always
+  the right substitute: `View::renderMacros` paints an armed clip's macro pad black on the
+  flash-off frame and marks it occupied anyway). An empty `OccupancyMask` keeps the non-black
+  default (every existing golden is unaffected); a non-empty one must be exactly `cols()` long
+  (`DELUGE_GFX_CONTRACT`, `gfx/contract.h` — see below). Five legacy quirks are reproduced rather
+  than fixed in these four functions; `src/ui/README.md`'s "Legacy quirks reproduced on purpose"
+  section lists them alongside the six from tasks 6/8/audit.
+- **Task 8 — `list`'s two-pass count-then-draw fix.** Documented in §5 above.
+- **`DELUGE_GFX_CONTRACT(cond)`** (`gfx/contract.h`, new) — the leaf libraries' runtime
+  precondition check: `assert()` compiles out under `-DNDEBUG`, which every shipped build
+  defines, so a memory-safety precondition guarded only by `assert()` did not exist on the device.
+  This macro is an unconditional `__builtin_trap()` that survives `-DNDEBUG` by construction (no
+  `NDEBUG` appears in the file). Used by every precondition these tasks added: `Rect::split_*`'s
+  `0 <= i < n`, `composite`'s dimension match, the tween functions' row/column/magnitude bounds.
+  Not for a condition a caller can legitimately produce at runtime (clipping, an out-of-range
+  model value) — those stay return values.
 
 **§6 OLED widgets**
 - `list` takes a `ScrollText&`/`allow_motion` and **draws no scrollbar** — legacy parity:
