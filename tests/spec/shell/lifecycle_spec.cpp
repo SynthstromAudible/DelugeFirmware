@@ -71,27 +71,37 @@ public:
 	uint16_t last_arg = 0;
 };
 
-std::array<Scene*, 18> table_for(Scene& root, Scene& screensaver) {
+/// @param register_screensaver False leaves `SceneKind::Screensaver` unregistered -- the branch's
+///        documented state until spec E3 writes the real animation, and the case the shell has to
+///        survive without repainting every surface every tick.
+std::array<Scene*, 18> table_for(Scene& root, Scene& screensaver, bool register_screensaver) {
 	std::array<Scene*, 18> t{};
 	t[static_cast<size_t>(kRoot)] = &root;
-	t[static_cast<size_t>(SceneKind::Screensaver)] = &screensaver;
+	if (register_screensaver) {
+		t[static_cast<size_t>(SceneKind::Screensaver)] = &screensaver;
+	}
 	return t;
 }
 
-/// @brief A `Shell` over `FakeSurfaceSet`, with the application's root scene and a screensaver
-///        stand-in registered. `cfg` is settable per spec (the idle specs need a non-zero
-///        `screensaver_idle_ms`), so it is a constructor argument rather than a fixed default.
+/// @brief A `Shell` over `FakeSurfaceSet`, with the application's root scene and (by default) a
+///        screensaver stand-in registered. `cfg` is settable per spec (the idle specs need a
+///        non-zero `screensaver_idle_ms`), so it is a constructor argument rather than a fixed
+///        default, and so is whether the screensaver kind is registered at all.
 struct Rig {
 	BoardProfile profile = lifecycle_profile();
 	RootScene root;
 	ScreensaverStub screensaver;
-	std::array<Scene*, 18> table = table_for(root, screensaver);
+	/// Declared before `table`, which is built from it.
+	bool screensaver_registered;
+	std::array<Scene*, 18> table;
 	SceneRegistry reg{std::span<Scene* const>{table}};
 	uitest::FakeSurfaceSet fake{uitest::kBoard2, profile};
 	ShellConfig cfg;
 	Shell shell{fake, profile, reg, Services{}, cfg};
 
-	explicit Rig(ShellConfig c = {}) : cfg(c) {}
+	explicit Rig(ShellConfig c = {}, bool register_screensaver = true)
+	    : screensaver_registered(register_screensaver), table(table_for(root, screensaver, register_screensaver)),
+	      cfg(c) {}
 
 	Rig(const Rig&) = delete;
 	Rig& operator=(const Rig&) = delete;
@@ -155,6 +165,62 @@ describe shell_lifecycle("shell::Shell lifecycle", $ {
 		r2.shell.tick(1000);
 		expect(r2.shell.stack().top().kind() == SceneKind::Screensaver).to_be_true();
 		expect(r2.screensaver.last_arg).to_equal(r.screensaver.last_arg);
+	});
+
+	it("an unregistered screensaver kind latches the service off instead of retrying every tick", _ {
+		deluge::notify::dirty().drain();
+		// No `SceneKind::Screensaver` in the registry -- the branch's documented state until spec
+		// E3 lands the real animation -- with the idle timer switched on, which is what an
+		// application setting `screensaver_idle_ms` today actually gets.
+		Rig r{ShellConfig{.screensaver_idle_ms = 1000, .seed = 7}, /*register_screensaver=*/false};
+		r.shell.init(SceneId{kRoot, 0});
+		r.shell.tick(0);
+		const size_t blits_after_first_frame = r.fake.blits.size();
+		expect(r.shell.screensaver_push_refused()).to_equal(uint32_t(0));
+
+		// The idle deadline: one refused push, counted, and then the service is done.
+		r.shell.tick(1000);
+		expect(r.shell.stack().top().kind() == kRoot).to_be_true();
+		expect(r.shell.screensaver_push_refused()).to_equal(uint32_t(1));
+
+		// Ninety more ticks past the (permanently past) deadline. Nothing repaints: the refused
+		// push neither flags the stack as changed nor is retried, so no gate is armed and no frame
+		// is drawn or blitted.
+		for (uint32_t t = 1010; t <= 1900; t += 10) {
+			r.shell.tick(t);
+		}
+		expect(r.fake.blits.size()).to_equal(blits_after_first_frame);
+		expect(r.shell.screensaver_push_refused()).to_equal(uint32_t(1));
+		// And the scheduler is free to sleep: `next_wake()` is not pinned to now by a service
+		// reporting a deadline it can never satisfy.
+		expect(r.shell.next_wake().has_value()).to_be_false();
+	});
+
+	it("the screensaver idle deadline survives the uint32 clock wrap", _ {
+		deluge::notify::dirty().drain();
+		Rig r{ShellConfig{.screensaver_idle_ms = 1000, .seed = 7}};
+		r.shell.init(SceneId{kRoot, 0});
+
+		// 256 ms before the millisecond clock wraps, so every deadline armed below lands on the
+		// far side of it. An absolute `now_ms >= deadline_ms_` reads those wrapped (tiny) deadlines
+		// as long past and pushes the screensaver over the view the user is actively touching.
+		constexpr uint32_t kNearWrap = 0xFFFFFF00u;
+		r.shell.tick(kNearWrap);
+		r.shell.on_board_event(button_ev(8, 3, true), kNearWrap + 10); // arms kNearWrap + 1010
+		r.shell.tick(kNearWrap + 20);
+		expect(r.shell.stack().top().kind() == kRoot).to_be_true();
+		// The idle period is still 1000 ms away, so that is what the shell asks to be woken at --
+		// the wrapped value, not 0 and not the pre-wrap arithmetic's answer.
+		expect(r.shell.next_wake().has_value()).to_be_true();
+		expect(*r.shell.next_wake()).to_equal(static_cast<uint32_t>(kNearWrap + 1010));
+
+		r.shell.tick(static_cast<uint32_t>(kNearWrap + 500)); // past the wrap, short of the deadline
+		expect(r.shell.stack().top().kind() == kRoot).to_be_true();
+		expect(r.screensaver.enters).to_equal(0);
+
+		r.shell.tick(static_cast<uint32_t>(kNearWrap + 1010)); // the deadline itself
+		expect(r.shell.stack().top().kind() == SceneKind::Screensaver).to_be_true();
+		expect(r.screensaver.enters).to_equal(1);
 	});
 
 	it("song_loading(true) resets to Loading and locks input; (false) restores the song root", _ {

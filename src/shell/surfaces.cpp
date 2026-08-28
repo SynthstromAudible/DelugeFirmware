@@ -26,6 +26,11 @@ void SurfaceSet::build(const DelugeBoard& board, const BoardProfile& profile) {
 	// pad_grid_width is main columns only; the sidebar is a profile fact (see build()'s note).
 	const gfx::grid::GridDimensions dims{board.pad_grid_width, profile.sidebar_cols, board.pad_grid_height};
 	grid_.grid_storage.emplace(dims);
+	// Column *pairs*: `flush` reads and sends two columns at a time (`read_column_pair`, the legacy
+	// `sortLedsForCol` order), so an odd total width would leave its last column in no pair and
+	// never send it. The Deluge's 16 + 2 is even and every board so far is; a board that is not
+	// must widen the send path rather than expect the odd column to appear -- see `build()`'s
+	// preconditions in `surfaces.h`.
 	grid_.pairs = static_cast<uint8_t>(std::min<uint16_t>(dims.cols() / 2, kMaxColumnPairs));
 	grid_.gate = RepaintGate{};
 	grid_.tween.reset();

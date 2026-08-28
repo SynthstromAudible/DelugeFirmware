@@ -14,7 +14,12 @@ bool led_is_on(const LedState& s, uint32_t now_ms) {
 		// used it passed an LED that was meant to be *on* afterwards -- `indicateAlertOnLed`
 		// blinks and leaves it lit. `until_ms == 0` is "blink for ever", which is what a plain
 		// `blinkLed(led)` (`numBlinks = 255`) did.
-		if (s.until_ms != 0 && now_ms >= s.until_ms) {
+		//
+		// Difference form, not `now_ms >= s.until_ms`: `until_ms` is an absolute clock that wraps
+		// at ~49.7 days of uptime, and an absolute compare would read a blink armed across the wrap
+		// as already finished and latch it solid-on instead of blinking. Same form as
+		// `RepaintGate::needs_frame` (`ui/core/repaint_gate.cpp:13`).
+		if (s.until_ms != 0 && static_cast<int32_t>(now_ms - s.until_ms) >= 0) {
 			return true;
 		}
 		// A period of zero has no phase to be in; dividing by it would trap. Read it as lit, which

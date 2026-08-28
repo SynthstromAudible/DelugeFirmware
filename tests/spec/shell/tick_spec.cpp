@@ -104,6 +104,13 @@ public:
 	Result handle(const UiEvent& event, const UiContext&) override {
 		events++;
 		last_event_kind = event.kind;
+		if (emit_repaint_from_handle) {
+			emit_repaint_from_handle = false;
+			Result r;
+			r.handled = true;
+			(void)r.actions.push_back(Action{.kind = Action::Kind::Repaint, .surface = SurfaceRole::Main});
+			return r;
+		}
 		if (!emit_popup) {
 			return Result::unhandled();
 		}
@@ -116,7 +123,13 @@ public:
 	Result after_render() override {
 		after_renders++;
 		events_at_after_render = events;
-		return {};
+		if (!emit_repaint_from_after_render) {
+			return {};
+		}
+		emit_repaint_from_after_render = false;
+		Result r;
+		(void)r.actions.push_back(Action{.kind = Action::Kind::Repaint, .surface = SurfaceRole::Main});
+		return r;
 	}
 	void tick(uint32_t) override { ticks++; }
 	void on_model_changed(const deluge::notify::DirtySet&) override { model_changed++; }
@@ -134,6 +147,11 @@ public:
 	bool read_turn = false;
 	/// Whether the next `handle()` returns a `Popup` action.
 	bool emit_popup = false;
+	/// Whether the next `after_render()` returns `Repaint{Main}` (one-shot).
+	bool emit_repaint_from_after_render = false;
+	/// Whether the next `handle()` returns `Repaint{Main}` (one-shot), which is how a scene reacts
+	/// to a widget-owned event the shell holds back and delivers after render.
+	bool emit_repaint_from_handle = false;
 	UiEvent::Kind last_event_kind = UiEvent::Kind::AllReleased;
 	std::optional<uint32_t> timer;
 };
@@ -547,6 +565,66 @@ describe shell_tick("shell::Shell::tick", $ {
 		expect(std::string(r.shell.notices().last_popup_text())).to_equal(std::string(kPopupText));
 		expect(r.shell.state_lines())
 		    .to_equal(std::string("scene Popup 0\nscene app16 0\nnotice SAVED\n"));
+	});
+
+	it("a Repaint from after_render is honoured on the next tick", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+		r.consume_pending();
+
+		// `after_render()` only runs for a scene that rendered, so give this tick a reason to
+		// render: an OLED fact draws both panels, and the base's `after_render` then asks for Main
+		// again. The request is raised at step 7 -- after every render decision this tick has
+		// already been made -- so it is for the *next* tick, and the shell must both keep it and
+		// arrange to be woken for it.
+		r.base.emit_repaint_from_after_render = true;
+		deluge::notify::dirty().raise(Dirty::Oled);
+		r.shell.tick(10);
+		const int renders_after_the_asking_tick = r.base.oled_renders;
+		expect(r.base.after_renders).to_be_greater_than(0);
+		expect(r.shell.next_wake().has_value()).to_be_true();
+		expect(*r.shell.next_wake()).to_equal(uint32_t(10)); // "now": there is work waiting
+		r.consume_pending();
+
+		// No input, no dirty fact, no stack change: the *only* thing that can draw this tick is the
+		// repaint `after_render` asked for, and it draws only Main.
+		const size_t blits_before = r.fake.blits.size();
+		r.shell.tick(20);
+		expect(r.base.oled_renders).to_equal(renders_after_the_asking_tick + 1);
+		expect(r.fake.blits.size()).to_equal(blits_before + 1);
+		expect(r.base.grid_renders).to_equal(1); // Main only; the grid was never asked for
+
+		// And it is a one-shot: nothing re-requested it, so the tick after is clean again.
+		r.consume_pending();
+		r.shell.tick(30);
+		expect(r.base.oled_renders).to_equal(renders_after_the_asking_tick + 1);
+	});
+
+	it("a Repaint from a post-render-delivered event is honoured on the next tick", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.base.read_turn = false; // leave the detent unclaimed, so it reaches handle() after render
+		r.base.emit_repaint_from_handle = true;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+		r.consume_pending();
+
+		// A select turn is one of the six widget-owned shapes: the shell holds it back and delivers
+		// it at step 8, after the frame is built. The scene advances its selection there and asks
+		// for Main -- the shape of a menu that does not move when the knob does.
+		r.shell.on_encoder_edges(3, 2, 25);
+		r.shell.tick(30);
+		expect(r.base.events).to_equal(1);
+		const int renders_after_the_asking_tick = r.base.oled_renders;
+		expect(*r.shell.next_wake()).to_equal(uint32_t(30));
+		r.consume_pending();
+
+		const size_t blits_before = r.fake.blits.size();
+		r.shell.tick(40);
+		expect(r.base.oled_renders).to_equal(renders_after_the_asking_tick + 1);
+		expect(r.fake.blits.size()).to_equal(blits_before + 1);
 	});
 
 	it("events deferred by the SD lock are routed once the lock is released", _ {

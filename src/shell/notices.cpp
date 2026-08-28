@@ -72,7 +72,11 @@ void PopupScene::show(std::string_view text, uint8_t popup_type, uint32_t now_ms
 }
 
 bool PopupScene::expired(uint32_t now_ms) const {
-	return timeout_ms_ != 0 && now_ms >= deadline_ms_;
+	// Difference form, not `now_ms >= deadline_ms_`: `deadline_ms_` is an absolute clock that wraps
+	// at ~49.7 days of uptime, and an absolute compare would read a popup shown in the last
+	// `timeout_ms` before the wrap as already expired -- it would flash and vanish on the very next
+	// tick. Same form as `RepaintGate::needs_frame` (`ui/core/repaint_gate.cpp:13`).
+	return timeout_ms_ != 0 && static_cast<int32_t>(now_ms - deadline_ms_) >= 0;
 }
 
 void PopupScene::render_oled(SurfaceRole role, ui::oled::OledFrame& frame) {
@@ -105,7 +109,10 @@ void ConsoleScene::render_oled(SurfaceRole role, ui::oled::OledFrame& frame) {
 	constexpr int32_t kLineHeight = 7;
 	int32_t y = frame.bounds().h;
 	for (const Line& line : lines_) {
-		if (!line.active || frame.now_ms() >= line.expire_ms) {
+		// Difference form for the same wrap reason as `PopupScene::expired`: a line appended just
+		// before the clock wraps has a wrapped (small) `expire_ms`, which an absolute compare reads
+		// as already gone -- the line would be skipped on its first render and never shown at all.
+		if (!line.active || static_cast<int32_t>(frame.now_ms() - line.expire_ms) >= 0) {
 			continue;
 		}
 		y -= kLineHeight;
@@ -140,6 +147,12 @@ void WorkingScene::render_oled(SurfaceRole role, ui::oled::OledFrame& frame) {
 void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 	notify::Notice n;
 	while (queue.pop(n)) {
+		// Every id resolved below goes through `BoardProfile::text_or_digits`/`error_text_or_digits`
+		// rather than testing the hook itself, so a profile with no l10n bridge -- which is every
+		// profile on this branch, `deluge_profile()` included -- shows the numeric id instead of an
+		// empty popup box. `scratch` is what the digits are rendered into; it outlives each view
+		// built from it, and `show_popup`/`console_.append` copy the text before the case ends.
+		TextScratch scratch;
 		switch (n.kind) {
 		case notify::Notice::Kind::Error:
 			// Legacy's `OLED::displayError` (oled.cpp:1173-1180) shows nothing at all for
@@ -151,13 +164,11 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 			// Otherwise `displayPopup` runs with its default `type = PopupType::GENERAL`
 			// (display.h:48-49) -- always General, never `n.popup_type` -- and the ordinary
 			// (non-persistent) timeout: `Display::displayError` never reads severity.
-			show_popup(profile_.error_text ? profile_.error_text(n.error_code) : std::string_view{}, kPopupTypeGeneral,
-			           now_ms);
+			show_popup(profile_.error_text_or_digits(n.error_code, scratch), kPopupTypeGeneral, now_ms);
 			break;
 		case notify::Notice::Kind::Text: {
-			const std::string_view text = n.string_id
-			                                  ? (profile_.text ? profile_.text(n.string_id) : std::string_view{})
-			                                  : std::string_view{n.text};
+			const std::string_view text =
+			    n.string_id ? profile_.text_or_digits(n.string_id, scratch) : std::string_view{n.text};
 			const uint8_t type = popup_type_of(n.popup_type);
 			// Severity::Warn -> persistent, exactly as legacy's notify_drain.cpp:137
 			// (`flashes = (severity == Warn) ? 0 : 3`) feeds OLED::displayPopup's inline
@@ -168,9 +179,8 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 			break;
 		}
 		case notify::Notice::Kind::Console: {
-			const std::string_view text = n.string_id
-			                                  ? (profile_.text ? profile_.text(n.string_id) : std::string_view{})
-			                                  : std::string_view{n.text};
+			const std::string_view text =
+			    n.string_id ? profile_.text_or_digits(n.string_id, scratch) : std::string_view{n.text};
 			console_.append(text, now_ms);
 			break;
 		}
@@ -186,9 +196,13 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 			working_.clear();
 			break;
 		case notify::Notice::Kind::CancelPopup:
-			if (stack_.top().kind() == SceneKind::Popup) {
-				stack_.pop();
-			}
+			// By kind, not "pop if the popup happens to be on top": a scene pushed above a live
+			// popup would otherwise strand it -- invisible (the `render_oled` walk stops at the
+			// first non-transparent scene above it) but still stacked, still reported by
+			// `state_lines()`, and back on screen the moment that scene pops. `pop(kind)` takes
+			// what is above it down too, exactly as `Screensaver::note_activity` does on wake; a
+			// no-op when no popup is stacked at all.
+			stack_.pop(SceneKind::Popup);
 			break;
 		}
 	}
@@ -214,11 +228,16 @@ void Notices::show_popup_with_timeout(std::string_view text, uint8_t popup_type,
 
 void Notices::tick(uint32_t now_ms, uint32_t dt_ms) {
 	(void)dt_ms;
-	if (stack_.top().kind() == SceneKind::Popup && popup_.expired(now_ms)) {
-		stack_.pop();
+	// Both pops are by kind rather than "only while it is the top", for the reason `CancelPopup`'s
+	// own case above spells out: a scene pushed over a live notice must not be able to strand it on
+	// the stack for ever. Neither is guarded on the scene being stacked at all -- `SceneStack::pop`
+	// for a kind that is not there touches nothing and (since the review's `changed_` fix) does not
+	// flag the stack as changed either, so calling it on every tick costs one downward scan.
+	if (popup_.expired(now_ms)) {
+		stack_.pop(SceneKind::Popup);
 	}
-	if (stack_.top().kind() == SceneKind::Working && !working_.armed()) {
-		stack_.pop();
+	if (!working_.armed()) {
+		stack_.pop(SceneKind::Working);
 	}
 }
 

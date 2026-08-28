@@ -6,6 +6,8 @@
 
 #include "cppspec.hpp"
 
+#include <string>
+
 #include "../support/spec_main.h"
 using namespace deluge::ui::shell;
 using namespace deluge::ui;
@@ -132,6 +134,19 @@ describe shell_profiles("shell::board profiles", $ {
 		const BoardProfile& profile = deluge_profile();
 		expect(profile.oled_role_by_index.size()).to_equal(size_t(1));
 		expect(profile.oled_role_by_index[0]).to_equal(SurfaceRole::Main);
+	});
+	it("Deluge profile has no l10n bridge yet, and falls back to digits", _ {
+		// The l10n table is spec E's and wiring it here is spec F's, so both hooks are null on the
+		// shipping profile. Pinned so the fallback path stays the one the real board takes, and so
+		// a future wiring is a deliberate edit to this expectation rather than a silent change of
+		// what an error popup says.
+		const BoardProfile& profile = deluge_profile();
+		expect(profile.text == nullptr).to_be_true();
+		expect(profile.error_text == nullptr).to_be_true();
+
+		TextScratch scratch{};
+		expect(std::string(profile.text_or_digits(42, scratch))).to_equal(std::string("42"));
+		expect(std::string(profile.error_text_or_digits(-7, scratch))).to_equal(std::string("-7"));
 	});
 });
 // clang-format on

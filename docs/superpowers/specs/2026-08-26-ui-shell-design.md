@@ -584,6 +584,49 @@ folded into §2–§7's body (the `render_oled`/`render_grid`/`after_render` spl
   seed source wider than 16 bits of entropy loses bits here, though nothing on this branch supplies
   one.
 
+**Final whole-branch review fix wave (2026-08-28)**
+
+- **§7 step 7's "applied through `router_` immediately, same as a `handle()` result" is now true.**
+  It was not: `Action::Repaint`/`RepaintAll` set a flag on the `Router` and nothing else, the flag's
+  only reader is the step-5 OLED loop, and `clear_repaint_requests()` ran at the *bottom* of the
+  tick — so a repaint asked for by `after_render()` (step 7) or by post-render delivery (step 8)
+  was set and wiped inside one tick with nothing reading it. The clear now runs immediately after
+  the render decisions (between steps 6 and 7), and what steps 7/8 request is additionally armed on
+  the named surfaces' own `RepaintGate`s at a zero-millisecond deadline, so `next_wake()` reports
+  `now` and the frame lands on the next tick rather than waiting for an unrelated event. A `Popup`
+  from those same two steps is still one tick late by design (the bridge runs at step 3), which is
+  now stated in `src/shell/README.md`'s tick walkthrough rather than left to be discovered.
+- **`Screensaver` disables itself on a refused push.** §9's amendment above records that
+  `SceneKind::Screensaver` names no scene until spec E3 writes one, so `SceneStack::push` refuses
+  it — and the idle deadline stays past for ever, so the retry was unbounded. The first refusal now
+  latches the service off (`active()` false, `next_timer()` `std::nullopt`, no further attempt,
+  counted by `Screensaver::push_refused()` / `Shell::screensaver_push_refused()`). Paired with it:
+  **`SceneStack` flags `changed_` only for an operation that touched something**, so a refused
+  push, a `pop` for an unstacked kind, or a `replace_root`/`replace_top` of an unregistered kind no
+  longer makes `Shell::tick` re-query the greyout and `request_repaint()` every gate. A push whose
+  `on_enter` refused still flags, because `on_enter` and `on_resume` both ran.
+- **Every absolute deadline in the shell is compared in difference form**
+  (`static_cast<int32_t>(now_ms - deadline) >= 0`), matching what `RepaintGate`, `Mirror::due` and
+  `InputLowering` already did: the popup timeout, the console-line lifetime, the screensaver idle
+  deadline and its `next_timer()`, an LED blink's `until_ms`, and `compute_next_wake`'s choice of
+  the earliest deadline. The millisecond clock wraps at ~49.7 days of uptime, and an absolute
+  compare across that wrap reads a freshly armed deadline as long past.
+- **The `nullptr` text hook renders the id as digits, as the pre-flight ruling said it would.**
+  Every consumer now goes through `BoardProfile::text_or_digits`/`error_text_or_digits` (an
+  allocation-free helper writing into a caller-supplied `TextScratch`) rather than testing the hook
+  and substituting an empty string. `deluge_profile()` states `.text`/`.error_text`/`.shortcuts` as
+  unset rather than leaving them to the defaults, since the l10n table is spec E's and wiring it is
+  spec F's — until then a Deluge error popup shows its code, not a blank box.
+- **A notice is popped by kind, not only while it is the stack top.** `Notices::tick`'s popup and
+  working expiry and `Kind::CancelPopup` all used a `top()` guard, which let any scene pushed over
+  a live notice strand it: invisible but stacked, reported by `state_lines()`, and back on screen
+  when that scene popped. Each now takes what is above it down with it, exactly as
+  `Screensaver::note_activity`'s wake already did.
+- **Two latent hazards closed with the same wave**: `SurfaceSet::build`'s preconditions now state
+  that a board's total column count must be **even** (`pairs` is `cols() / 2` and the send path
+  works a pair at a time, so an odd total would silently drop its last column), and `Shell::flush`
+  clears `GridSurface::dirty` when there is no grid storage instead of latching it.
+
 **A new open question, not in §12 above**: there is no grid `SurfaceRole` for `Action::Repaint` —
 a scene's `Result` cannot request a *grid* repaint the way it can an OLED one, because
 `Action::Repaint` names a `SurfaceRole` and the grid is not one of `Main`/`Param0..3`/`Aux`. Parked

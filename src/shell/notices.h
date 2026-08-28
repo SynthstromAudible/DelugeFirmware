@@ -258,9 +258,16 @@ public:
 	/// `show_popup_with_timeout()` both this case and the public `show_popup()` below share.
 	/// `Kind::Console` appends to the console scene; `Kind::Working`/`Kind::ClearWorking` arm/clear
 	/// the working scene (and push it, on the way up, the first time it is armed);
-	/// `Kind::CancelPopup` pops the popup scene, but only when it is actually the stack's top --
-	/// including a still-persistent one, exactly as legacy's `cancelPopup()`/`removePopup()`
-	/// (`oled.cpp:253-260`) does not consult the timer state either.
+	/// `Kind::CancelPopup` pops the popup scene **by kind**, wherever it sits -- including a
+	/// still-persistent one, exactly as legacy's `cancelPopup()`/`removePopup()`
+	/// (`oled.cpp:253-260`) does not consult the timer state either, and including anything a
+	/// caller pushed above it, exactly as `Screensaver::note_activity`'s wake does. A popup only
+	/// closable while it is the top would be stranded -- invisible but stacked -- by any scene
+	/// pushed over it. A no-op when no popup is stacked at all.
+	///
+	/// Every string id and error code here is resolved through `BoardProfile::text_or_digits` /
+	/// `error_text_or_digits`, so a profile with no l10n bridge shows the id's digits rather than
+	/// an empty popup box.
 	/// @param queue  The notice queue to drain.
 	/// @param now_ms The tick's wall clock.
 	void drain(notify::NoticeQueue& queue, uint32_t now_ms);
@@ -286,8 +293,12 @@ public:
 
 	/// @brief Pop the popup once it has expired, and pop the working scene once it has been
 	///        cleared.
+	///
+	/// Both pops are by kind, for the same reason `drain()`'s `CancelPopup` case is: a notice must
+	/// not be strandable on the stack by a scene pushed over it. Each takes whatever is above it
+	/// down with it.
 	/// @param now_ms The tick's wall clock.
-	/// @param dt_ms  Unused: both checks are level tests against the current stack top, not
+	/// @param dt_ms  Unused: both checks are level tests against the scenes' own state, not
 	///               accumulators -- there is nothing to integrate.
 	void tick(uint32_t now_ms, uint32_t dt_ms) override;
 

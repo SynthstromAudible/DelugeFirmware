@@ -295,8 +295,11 @@ void Shell::tick(uint32_t now_ms) {
 	// router has no l10n and `Notices` takes text, so the shell is the one place both are in
 	// scope. Read and cleared as a pair, per `Router::clear_pending_popup`.
 	if (router_.pending_popup_string() != 0) {
-		const std::string_view text =
-		    profile_.text != nullptr ? profile_.text(router_.pending_popup_string()) : std::string_view{};
+		// `scratch` outlives `text`, which points into it when the profile has no `text` hook and
+		// the id is spelled as digits instead (`BoardProfile::text_or_digits`); `show_popup` copies
+		// before either goes out of scope.
+		TextScratch scratch;
+		const std::string_view text = profile_.text_or_digits(router_.pending_popup_string(), scratch);
 		notices_.show_popup(text, router_.pending_popup_type(), now_ms);
 		router_.clear_pending_popup();
 	}
@@ -345,6 +348,12 @@ void Shell::tick(uint32_t now_ms) {
 		render_grid(now_ms);
 		g.dirty = true;
 	}
+	// Every render decision that could read a router repaint request has now been made, so the
+	// requests those decisions consumed are cleared *here* rather than at the bottom of the tick.
+	// Steps 7 and 8 below both run `router_.apply()`, and a `Repaint`/`RepaintAll` either of them
+	// produces must survive to be acted on -- clearing after them set and wiped it inside one tick
+	// with no reader in between. See the "Repaint requests" invariant on `Shell` (`shell.h`).
+	router_.clear_repaint_requests();
 	// 7. Navigation derived from what this tick's render observed.
 	//
 	// Applied as we go rather than collected first: spec D §7 step 7 says every rendered scene gets
@@ -356,10 +365,21 @@ void Shell::tick(uint32_t now_ms) {
 	}
 	// 8. The held-back events, now that the claims they are gated on are knowable.
 	deliver_post_render_input(now_ms);
+	// A repaint requested by step 7 or step 8 is for the *next* tick -- this tick's frames are
+	// already built. Arming the surface's own gate at a zero-millisecond deadline is what makes
+	// that next tick happen at all: `compute_next_wake` reads gate deadlines, so `next_wake()`
+	// reports `now_ms` and a scheduler that would otherwise sleep until the next input wakes
+	// immediately instead. (A bare `request_repaint()` would fire the gate but arm no deadline, so
+	// the frame would wait for an unrelated wake.) The router's own flags are deliberately left
+	// standing too: the next tick's step-5 loop reads them before clearing them above.
+	for (OledSurface& s : surfaces_.oled()) {
+		if (router_.repaint_requested(s.role)) {
+			s.gate.request_repaint_after(0, now_ms);
+		}
+	}
 	// 9. LEDs, every tick.
 	derive_leds(now_ms);
 	flush(now_ms); // Task 8
-	router_.clear_repaint_requests();
 	next_wake_ = compute_next_wake(now_ms);
 	last_ms_ = now_ms;
 	// The lowering's tick window closes here and not before: `deliver_post_render_input` above
@@ -721,7 +741,14 @@ void Shell::flush(uint32_t now_ms) {
 	// `timerRoutine`'s retry-soon (`:850`) and `ui.cpp:389`'s *2 headroom, but pin the tick, not
 	// the byte count, as the unit of back-pressure retry.
 	GridSurface& g = surfaces_.grid();
-	if (g.dirty && g.grid_storage.has_value()) {
+	if (g.dirty && !g.grid_storage.has_value()) {
+		// Dirty with nothing to read: clear the flag rather than latching it. `render_grid` only
+		// sets `dirty` after its own `grid_storage` check, so this is unreachable today -- but the
+		// set and the clear live in different functions and only one of them is guarded, so the
+		// pair is closed here rather than left to stay closed by coincidence.
+		g.dirty = false;
+	}
+	if (g.dirty) {
 		const gfx::grid::PadGrid& grid = g.grid();
 		const uint32_t budget = surfaces_.pad_output_space() / kBytesPerColumnPair;
 		uint32_t sent = 0;
@@ -802,8 +829,12 @@ void Shell::flush(uint32_t now_ms) {
 
 std::optional<uint32_t> Shell::compute_next_wake(uint32_t now_ms) {
 	std::optional<uint32_t> best;
+	// Difference form, not `*at < *best`: these are absolute clocks that wrap at ~49.7 days of
+	// uptime, and a plain `<` across the wrap picks the *later* of two deadlines that straddle it.
+	// `now_ms + *in` below may itself wrap, which is exactly why the comparison must not care.
+	// Same form as `RepaintGate::request_repaint_after` (`ui/core/repaint_gate.cpp:7`).
 	const auto consider = [&best](std::optional<uint32_t> at) {
-		if (at.has_value() && (!best.has_value() || *at < *best)) {
+		if (at.has_value() && (!best.has_value() || static_cast<int32_t>(*at - *best) < 0)) {
 			best = at;
 		}
 	};

@@ -60,7 +60,7 @@ BoardProfile fixed_lookup_profile() {
 ///        directly rather than via the process-global `notices()`, is a separate member each spec
 ///        pushes into and hands to `drain()`.
 struct Rig {
-	BoardProfile profile = fixed_lookup_profile();
+	BoardProfile profile;
 	PopupScene popup;
 	ConsoleScene console;
 	WorkingScene working;
@@ -70,7 +70,10 @@ struct Rig {
 	Notices notices{stack, profile, popup, console, working};
 	NoticeQueue queue;
 
-	Rig() {
+	/// @param p The board profile `Notices` resolves ids through; the default has both lookups
+	///          wired, and `BoardProfile{}` is the null-lookup board every shipping profile is
+	///          today.
+	explicit Rig(BoardProfile p = fixed_lookup_profile()) : profile(p) {
 		table[static_cast<size_t>(SceneKind::Popup)] = &popup;
 		table[static_cast<size_t>(SceneKind::Console)] = &console;
 		table[static_cast<size_t>(SceneKind::Working)] = &working;
@@ -191,6 +194,73 @@ describe shell_notices("shell::Notices", $ {
 		(void)r.queue.push(make_notice(Notice::Kind::CancelPopup));
 		r.notices.drain(r.queue, 1'000'000);
 		expect(r.stack.top().kind() == SceneKind::Popup).to_be_false();
+	});
+
+	it("a null text/error lookup shows the id as digits, not an empty box", _ {
+		// `deluge_profile()` -- the real board -- leaves both hooks null until spec E's l10n table
+		// and spec F's wiring exist, so this is the shipping path, not a corner. An empty string
+		// here would draw a correctly framed, correctly sized, completely blank popup: an SD write
+		// failure would be unreportable.
+		Rig r{BoardProfile{}};
+		Notice text = make_notice(Notice::Kind::Text);
+		text.string_id = 42;
+		(void)r.queue.push(text);
+		r.notices.drain(r.queue, 0);
+		expect(r.stack.top().kind() == SceneKind::Popup).to_be_true();
+		expect(std::string(r.notices.last_popup_text())).to_equal(std::string("42"));
+
+		(void)r.queue.push(make_notice(Notice::Kind::Error, {}, /*popup_type=*/0, /*error_code=*/7));
+		r.notices.drain(r.queue, 0);
+		expect(std::string(r.notices.last_popup_text())).to_equal(std::string("7"));
+
+		// A negative error code keeps its sign rather than wrapping through the unsigned path.
+		(void)r.queue.push(make_notice(Notice::Kind::Error, {}, /*popup_type=*/0, /*error_code=*/-273));
+		r.notices.drain(r.queue, 0);
+		expect(std::string(r.notices.last_popup_text())).to_equal(std::string("-273"));
+	});
+
+	it("the popup and console lifetimes survive the uint32 clock wrap", _ {
+		// 256 ms before the millisecond clock wraps: every deadline armed here lands on the far
+		// side of it, and an absolute `now_ms >= deadline` compare reads those wrapped (tiny)
+		// deadlines as long past -- the popup flashes and vanishes on the next tick, and a console
+		// line is skipped on its very first render.
+		constexpr uint32_t kNearWrap = 0xFFFFFF00u;
+		Rig r;
+		(void)r.queue.push(make_notice(Notice::Kind::Text, "SAVED"));
+		r.notices.drain(r.queue, kNearWrap);
+		expect(r.stack.top().kind() == SceneKind::Popup).to_be_true();
+
+		// Ten milliseconds later -- across the wrap, well inside the 800 ms lifetime.
+		r.notices.tick(static_cast<uint32_t>(kNearWrap + 10), 0);
+		expect(r.stack.top().kind() == SceneKind::Popup).to_be_true();
+		// One millisecond short of the deadline, still up.
+		r.notices.tick(static_cast<uint32_t>(kNearWrap + r.notices.timeout_for(1) - 1), 0);
+		expect(r.stack.top().kind() == SceneKind::Popup).to_be_true();
+		// And it does still expire once the wrapped deadline is genuinely past.
+		r.notices.tick(static_cast<uint32_t>(kNearWrap + r.notices.timeout_for(1) + 1), 0);
+		expect(r.stack.top().kind() == SceneKind::Popup).to_be_false();
+
+		// The console line appended just before the wrap draws on the tick after it.
+		(void)r.queue.push(make_notice(Notice::Kind::Console, "HELLO"));
+		r.notices.drain(r.queue, kNearWrap);
+		deluge::ui::test::Rig48 across_the_wrap;
+		across_the_wrap.begin_tick(static_cast<uint32_t>(kNearWrap + 10));
+		r.console.render_oled(SurfaceRole::Main, across_the_wrap.frame);
+		expect(across_the_wrap.pbm() != deluge::ui::test::Rig48{}.pbm()).to_be_true();
+	});
+
+	it("an expired popup is popped even with a scene above it", _ {
+		// A popup only closable while it is the stack top is stranded by anything pushed over it:
+		// invisible (the `render_oled` walk stops at the first non-transparent scene above it) but
+		// still stacked, still in `state_lines()`, and back on screen when that scene pops.
+		Rig r;
+		(void)r.queue.push(make_notice(Notice::Kind::Text, "SAVED"));
+		r.notices.drain(r.queue, 0);
+		expect(r.stack.push(SceneId{SceneKind::Console})).to_be_true();
+		expect(r.stack.depth()).to_equal(size_t(2));
+
+		r.notices.tick(r.notices.timeout_for(1) + 1, 0);
+		expect(r.stack.depth()).to_equal(size_t(0)); // the popup, and what was pushed over it
 	});
 
 	it("every notice scene is a passive grid overlay that never takes input", _ {

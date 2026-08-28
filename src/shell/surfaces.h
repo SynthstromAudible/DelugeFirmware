@@ -221,6 +221,11 @@ protected:
 	/// @param profile Board profile; supplies the surface roles, styles and sidebar width.
 	/// @pre The board's total column count fits `gfx::grid::kMaxGridCols` and its row count fits
 	///      `gfx::grid::kMaxGridRows` (enforced by `PadGrid`'s own contract).
+	/// @pre The board's total column count (`pad_grid_width + sidebar_cols`) is **even**. `pairs`
+	///      is `cols() / 2` and the send path works a pair at a time (`read_column_pair`), so an
+	///      odd total leaves its last column in no pair, never read and never sent -- silently, and
+	///      with no diagnostic. Every board so far is even (the Deluge is 16 + 2); an odd one needs
+	///      a single-column send path added here, not a rounding change.
 	void build(const DelugeBoard& board, const BoardProfile& profile);
 
 	uint8_t storage_[kMaxOled][kOledStorageBytes]{};

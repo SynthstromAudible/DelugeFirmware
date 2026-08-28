@@ -34,18 +34,36 @@ void Screensaver::tick(uint32_t now_ms, uint32_t /*dt_ms*/) {
 		armed_ = true;
 		return;
 	}
-	if (!active_ && now_ms >= deadline_ms_) {
+	// Difference form, not `now_ms >= deadline_ms_`: the deadline is an absolute clock that wraps
+	// at ~49.7 days of uptime, and an absolute compare across that wrap reads a freshly armed
+	// (wrapped, therefore small) deadline as long past and pushes the screensaver over the view the
+	// user is actively using. The same form `RepaintGate::needs_frame` (`ui/core/repaint_gate.cpp:13`),
+	// `Mirror::due` and every `InputLowering` hold comparison already use.
+	if (!active_ && !refused_ && static_cast<int32_t>(now_ms - deadline_ms_) >= 0) {
 		// `arg` is deterministic in `seed_` alone, so two services built with the same seed push
 		// the scene with the same instantiation argument every time.
 		active_ = stack_.push(SceneId{SceneKind::Screensaver, static_cast<uint16_t>(seed_ & 0xffffu)});
+		if (!active_) {
+			// The stack refused it -- on this branch, because `SceneKind::Screensaver` names no
+			// registered scene (spec E3 writes the real one). Latch off rather than retrying: the
+			// deadline is still past on the next tick, so an unlatched retry is an unbounded loop
+			// that pushes, fails, and (before the `SceneStack::push` fix above it) invalidated
+			// every gate, once per tick, for ever. See this class's own doc.
+			refused_ = true;
+			push_refused_++;
+		}
 	}
 }
 
 std::optional<uint32_t> Screensaver::next_timer() const {
-	if (idle_ms_ == 0 || active_ || !armed_) {
+	if (idle_ms_ == 0 || active_ || refused_ || !armed_) {
 		return std::nullopt;
 	}
-	return deadline_ms_ > now_ms_ ? deadline_ms_ - now_ms_ : 0;
+	// Difference form again, for the same wrap reason as `tick` above: an absolute
+	// `deadline_ms_ > now_ms_` reads a wrapped deadline as already past and reports 0, which pins
+	// `Shell::next_wake()` to now and stops the scheduler ever sleeping.
+	const int32_t remaining = static_cast<int32_t>(deadline_ms_ - now_ms_);
+	return remaining > 0 ? static_cast<uint32_t>(remaining) : 0u;
 }
 
 } // namespace deluge::ui::shell

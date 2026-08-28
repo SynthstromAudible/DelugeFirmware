@@ -14,11 +14,16 @@ void SceneStack::save_slot(Scene& scene) {
 }
 
 bool SceneStack::push(SceneId id) {
-	changed_ = true;
 	Scene* scene = reg_.find(id.kind);
 	if (scene == nullptr || n_ == kStackDepth) {
+		// Nothing was touched, so nothing changed. Flagging this would make a caller that retries a
+		// refused push every tick -- `Screensaver::tick` against an unregistered `SceneKind::
+		// Screensaver` was exactly that -- re-query the greyout and invalidate every gate on every
+		// one of those ticks, which is a repaint storm rather than the "one redundant re-query"
+		// `changed_since_last_query` budgets for.
 		return false;
 	}
+	changed_ = true;
 	// Installed before `on_enter` runs, so a scene can see itself as the top from inside it.
 	stack_[n_] = scene;
 	ids_[n_] = id;
@@ -32,15 +37,17 @@ bool SceneStack::push(SceneId id) {
 			// this is the legacy `openUI` rollback, which resumes unconditionally.
 			stack_[n_ - 1]->on_resume();
 		}
+		// `changed_` deliberately stays set here, unlike the refusal above: `on_enter` and
+		// `on_resume` both ran, so a scene may have moved its greyout mask even though the stack
+		// composition ended up where it started.
 		return false;
 	}
 	return true;
 }
 
 void SceneStack::pop(SceneKind to) {
-	changed_ = true;
 	if (n_ == 0) {
-		return;
+		return; // nothing popped, so nothing changed -- see `push`'s note on the refusal path
 	}
 
 	// `target` is the lowest index that gets popped: the top for the default, otherwise the
@@ -52,11 +59,12 @@ void SceneStack::pop(SceneKind to) {
 			i--;
 		}
 		if (i == 0) {
-			return; // no scene of that kind is on the stack; pop nothing
+			return; // no scene of that kind is on the stack; pop nothing, and flag nothing
 		}
 		target = i - 1;
 	}
 
+	changed_ = true;
 	while (n_ > target) {
 		n_--;
 		Scene* scene = stack_[n_];
@@ -70,12 +78,12 @@ void SceneStack::pop(SceneKind to) {
 }
 
 bool SceneStack::replace_root(SceneId id) {
-	changed_ = true;
 	if (reg_.find(id.kind) == nullptr) {
 		// Nothing to replace the stack with, so leave it standing rather than emptying it into a
-		// state the caller did not ask for.
+		// state the caller did not ask for -- and, nothing having moved, flag nothing.
 		return false;
 	}
+	changed_ = true;
 
 	// Top first, so a scene saves before anything beneath it does -- the order `reset()` exits in.
 	for (size_t i = n_; i > 0; i--) {
@@ -99,14 +107,14 @@ bool SceneStack::replace_root(SceneId id) {
 }
 
 bool SceneStack::replace_top(SceneId id) {
-	changed_ = true;
 	Scene* scene = reg_.find(id.kind);
 	if (scene == nullptr) {
-		return false;
+		return false; // untouched stack, unflagged -- see `push`'s note on the refusal path
 	}
 	if (n_ == 0) {
-		return push(id);
+		return push(id); // which flags it, if it takes
 	}
+	changed_ = true;
 
 	Scene* previous = stack_[n_ - 1];
 	const SceneId previous_id = ids_[n_ - 1];

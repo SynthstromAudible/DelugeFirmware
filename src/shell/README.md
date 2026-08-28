@@ -23,6 +23,7 @@ The board-independent vocabulary a `BoardProfile` is built from:
 | `ButtonSet` | A `uint64_t`-backed bitset of `ButtonId`s (`has`/`set`/`any`) |
 | `ShortcutTable` | Pad-index -> param-id tables for a shortcut layer (`layer0`, `layer1`; spec E fills it in) |
 | `TextLookup`, `ErrorLookup` | The shell's l10n bridge -- the shell has no l10n of its own |
+| `TextScratch`, `BoardProfile::text_or_digits`/`error_text_or_digits` | The one place those two hooks are read: a null hook renders the id as digits into the caller's `TextScratch`, never an empty string |
 | `BoardProfile` | The full board description: button matrix, LED map, encoder roles/kinds, OLED surface roles and per-surface `Style`, shortcuts, the l10n bridge, and the matrix dimensions |
 | `button_name(ButtonId)` | For `.state` files and diagnostics |
 | `FixedVector<T, N>` (`fixed_vector.h`) | A no-heap, fixed-capacity vector; `push_back` fails soft past `N` |
@@ -33,6 +34,12 @@ The board-independent vocabulary a `BoardProfile` is built from:
 
 Concrete board tables (e.g. the Deluge's own matrix/LED/encoder layout) are a later task; Task 1
 is the vocabulary only.
+
+`deluge_profile()` sets `text`, `error_text` and `shortcuts` to nothing on purpose: the
+`l10n::String` table they resolve against is spec E's and wiring the firmware's copy of it to this
+profile is spec F's. Until then every popup string id and error code shows as its own digits --
+which is what `text_or_digits`/`error_text_or_digits` do with a null hook, and the reason no call
+site is allowed to test the hook itself.
 
 ## Surfaces (`surfaces.h`, `board_surfaces.h`)
 
@@ -123,6 +130,24 @@ are the seam spec E fills in once it exists -- the model-owned `ModTarget`, tran
 MIDI-learn table -- without the shell changing. Nothing in `src/shell` depends on their being real:
 a `Service` is the whole contract, and a `NullService` satisfies it completely.
 
+`Screensaver` pushes `SceneKind::Screensaver` but ships no scene of that kind — the animation is
+spec E3's, registered by the application like any other scene. Until it exists the push is refused,
+and **the first refusal latches the service off for good**: `active()` stays false, `next_timer()`
+reports nothing, no further push is attempted, and `Shell::screensaver_push_refused()` counts it.
+Without the latch the idle deadline stays past for ever, so every subsequent tick retried the push
+— which, with a `SceneStack` that flagged even a refused push as a change, re-queried the greyout
+and invalidated every gate once per tick: a full OLED render, blit and grid recompose on every tick
+with `next_wake()` pinned to now. That is why `SceneStack` now flags only operations that touched
+something (see `changed_since_last_query`).
+
+**Every absolute deadline in the shell is compared in difference form**
+(`static_cast<int32_t>(now_ms - deadline) >= 0`), never `now_ms >= deadline` — the popup and console
+lifetimes, the screensaver idle deadline, an LED blink's `until_ms`, and `compute_next_wake`'s
+choice of the earliest deadline. The clock is a `uint32_t` millisecond counter that wraps at ~49.7
+days of uptime, and an absolute compare across that wrap reads a freshly armed (wrapped, therefore
+small) deadline as long past. This is the form `RepaintGate`, `Mirror::due` and `InputLowering`'s
+hold/press comparisons already use.
+
 ## The tick (`shell.h`, Task 7)
 
 `Shell` is the whole UI once per tick, replacing the legacy `doAnyPendingUIRendering` /
@@ -138,8 +163,11 @@ a `Service` is the whole contract, and a `NullService` satisfies it completely.
 2. `notices_.drain(notify::notices(), now)` → the popup/console/working scenes.
 3. `pump_input` — end the lowering's *input* phase (`end_tick(now_ms)`, which stamps the tick's
    clock onto the snapshot every frame reads) and route the ordinary shapes; a `Popup` action the
-   router stored is resolved through `BoardProfile::text` and handed to `Notices::show_popup`. The
-   window itself is closed at the bottom of `tick()`, not here.
+   router stored is resolved through `BoardProfile::text_or_digits` and handed to
+   `Notices::show_popup`. The window itself is closed at the bottom of `tick()`, not here. This
+   bridge runs *before* steps 7 and 8, so a `Popup` action produced by `after_render()` or by
+   post-render delivery is shown one tick later — `Router::popup_string_` is only cleared on
+   consumption, so it is late, never lost.
 4. `tick_stack` — scenes top-down, stopping below the first `occludes_grid()`, then the services.
    A stack that changed re-queries the union of `greyout_mask()` and invalidates every gate.
 5. OLED, per surface: `gate.needs_frame(...) || widgets_gate || router_.repaint_requested(role)`.
@@ -155,6 +183,16 @@ today: `Action::Repaint` names a `SurfaceRole` and there is no grid role, so the
 7. `after_render()` on every scene rendered this tick, applied through the router.
 8. `deliver_post_render_input` — the held-back, widget-owned shapes, each gated on `ctx().claims`.
 9. `derive_leds`, then `flush` (Task 8).
+
+**Repaint requests are cleared between 6 and 7, not at the bottom of the tick.**
+`Action::Repaint`/`RepaintAll` set a flag on the `Router` and nothing else — no surface, no gate —
+so step 5 is their only reader. Steps 7 and 8 both `apply()` results of their own, and a clear
+placed after them set and wiped such a request inside one tick with nothing reading it in between:
+a menu scene that advanced its selection from a post-render-delivered detent and asked for a
+`Repaint{Main}` got no frame at all until some unrelated event fired a gate. What steps 7 and 8
+request instead lands on the named surfaces' own `RepaintGate`s at the bottom of the tick, at a
+zero-millisecond deadline, so `next_wake()` reports `now` and the next tick both happens and
+renders.
 
 The widgets' gate is evaluated **once** per tick (`needs_frame` consumes the request) and the
 answer OR'd into every surface's decision.
@@ -228,8 +266,15 @@ after LEDs are derived:
 `SurfaceSet` (`surfaces.h`) is the shell's only hardware seam, and `flush` is the only method that
 calls its sink virtuals -- `blit`, `oled_busy`, `send_columns`, `pad_output_space`, `set_led`,
 `set_indicator`. `BoardSurfaceSet` (`board_surfaces.cpp`) binds those to `libdeluge`, and is the
-**only** `.cpp` in `src/shell` that includes a `libdeluge/*` header (the `shell-includes-outside`
-ratchet enforces this); the specs' `uitest::FakeSurfaceSet` binds the same virtuals to recorders
+**only** `.cpp` in `src/shell` that includes `libdeluge/display.h` or `libdeluge/control_surface.h`
+-- the two headers that actually name hardware, and the only `.cpp`, not the only file:
+`input_lowering.h` includes `libdeluge/control_surface.h` for the raw event type it lowers.
+Other `libdeluge/*` headers are ordinary dependencies here (`surfaces.h`, `profiles/deluge.cpp`
+and `profiles/test_board.cpp` all include `libdeluge/board.h`).
+The `shell-includes-outside` ratchet enforces the *layer* rule at the top of this file -- no
+`model/`, `gui/`, `hid/`, `definitions*` -- and allows `libdeluge/` from anywhere, so the
+display/control-surface narrowing is a convention this file records, not something the ratchet
+checks. The specs' `uitest::FakeSurfaceSet` binds the same virtuals to recorders
 instead, so a spec drives the exact code path a board does. Spec D §8's grid scroll opcodes
 (hardware column-shift instructions some boards expose) are **not implemented** -- there is no
 `SurfaceSet` sink for them yet, so `ScrollH`/`ScrollV` tweens always redraw every pair every step;

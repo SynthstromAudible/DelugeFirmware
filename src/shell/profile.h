@@ -90,7 +90,7 @@ struct ShortcutTable {
 
 /// @brief The shell's l10n bridge: a string id (as stored on disk / baked into a board profile)
 /// to display text. The shell has no l10n of its own; a board profile supplies this bridge, or
-/// `nullptr` to fall back to rendering the id as digits.
+/// `nullptr` to fall back to rendering the id as digits (`BoardProfile::text_or_digits`).
 /// @param string_id The id to resolve.
 /// @return The resolved text.
 using TextLookup = std::string_view (*)(uint16_t string_id);
@@ -98,6 +98,17 @@ using TextLookup = std::string_view (*)(uint16_t string_id);
 /// @param error_code The code to resolve.
 /// @return The resolved text.
 using ErrorLookup = std::string_view (*)(int16_t error_code);
+
+/// @brief The caller-owned buffer a `BoardProfile` text accessor renders its numeric fallback into.
+///
+/// The fallback has to produce a `std::string_view` over storage that outlives the call, and
+/// `src/shell` allocates nothing on the tick path, so the caller supplies the bytes: declare one of
+/// these next to the view it is filling, and keep it alive for exactly as long as that view. Eight
+/// bytes is the widest case with room to spare -- `int16_t`'s `"-32768"` is six characters plus a
+/// terminator, and `uint16_t`'s `"65535"` is five.
+struct TextScratch {
+	char chars[8];
+};
 
 /// @brief Everything the shell needs to know about one physical board.
 ///
@@ -127,6 +138,29 @@ struct BoardProfile {
 	/// field, so the sidebar width is a profile fact rather than a board-descriptor one. The
 	/// Deluge's two sidebar columns are the default; a board with no sidebar sets 0.
 	uint8_t sidebar_cols = 2;
+
+	/// @name Resolving text
+	///
+	/// The one place `text`/`error_text` are read. Every consumer goes through these rather than
+	/// testing the pointer itself, so the `nullptr` case has exactly one behaviour: the id,
+	/// rendered as digits. An empty string was the alternative, and is strictly worse -- an SD
+	/// write failure on a profile with no `error_text` would draw a correctly framed, correctly
+	/// sized, completely blank popup box, which is neither reportable nor distinguishable from a
+	/// rendering bug.
+	/// @{
+	/// @brief Resolve \p string_id through `text`, or render it as digits when `text` is null.
+	/// @param string_id The id to resolve.
+	/// @param scratch   Storage for the digits; must outlive the returned view, which points into
+	///                  it whenever the fallback is taken.
+	/// @return The looked-up text, or the decimal spelling of \p string_id.
+	std::string_view text_or_digits(uint16_t string_id, TextScratch& scratch) const;
+	/// @brief Resolve \p error_code through `error_text`, or render it as digits when
+	///        `error_text` is null.
+	/// @param error_code The code to resolve; a negative code keeps its sign.
+	/// @param scratch    Storage for the digits; must outlive the returned view.
+	/// @return The looked-up text, or the decimal spelling of \p error_code.
+	std::string_view error_text_or_digits(int16_t error_code, TextScratch& scratch) const;
+	/// @}
 };
 
 /// @brief The button's name, for `.state` files and diagnostics.

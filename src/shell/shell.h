@@ -86,6 +86,19 @@ const char* scene_kind_name(SceneKind k);
 /// not the opening feed's: `InputLowering::end_tick(now_ms)` re-stamps the snapshot, so
 /// `f.now_ms()` is always the clock the frame is being built on.
 ///
+/// # Repaint requests
+///
+/// **A `Router` repaint request is always read before it is cleared, and one raised too late to be
+/// read this tick takes effect on the next one.** `Action::Repaint`/`RepaintAll` set a flag on the
+/// `Router` and nothing else -- the router holds no surface and arms no gate -- so the flag's only
+/// reader is `tick()`'s OLED loop (step 5). `router_.clear_repaint_requests()` therefore runs
+/// immediately *after* the render decisions, not at the bottom of the tick: steps 7
+/// (`after_render()`) and 8 (post-render delivery) both `apply()` results of their own, and a
+/// clear placed after them would set and wipe such a request within one tick with no reader in
+/// between -- losing it outright rather than delaying it. What those two steps request instead
+/// lands on the named surfaces' own `RepaintGate`s at the bottom of the tick, at a zero-millisecond
+/// deadline, so `next_wake()` reports `now` and the next tick both happens and renders.
+///
 /// # What a scene may read, and where
 ///
 /// **A scene reads any one input in at most one render pass per tick.** Reading through a frame
@@ -230,6 +243,12 @@ public:
 	/// @brief How many LED declarations were dropped for naming a board LED past
 	///        `LedFrame::kMaxEntries`.
 	uint32_t leds_dropped() const { return leds_dropped_; }
+	/// @brief How many times the idle deadline came and went with no `SceneKind::Screensaver`
+	///        scene for the stack to push (`Screensaver::push_refused`).
+	/// @return 0 normally; 1 once the screensaver service has latched itself off, which is what
+	///         `screensaver_idle_ms > 0` does on an application that has not registered a
+	///         screensaver scene.
+	uint32_t screensaver_push_refused() const { return screensaver_.push_refused(); }
 	/// @}
 
 	/// @brief The shell's half of the UI test harness's `.state` snapshot (spec G §3).

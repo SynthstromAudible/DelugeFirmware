@@ -130,11 +130,19 @@ public:
 	/// The shell polls this once a tick and, when it is set, re-queries `greyout_mask()` and the
 	/// composition gates and invalidates every surface.
 	///
-	/// @note Deliberately conservative: every operation sets the flag, including one that turned
-	///       out to be a no-op (a refused push, a `pop` for a kind that is not on the stack). The
-	///       cost of a false positive is one redundant re-query; the cost of a false negative is a
-	///       stale greyout, so the flag errs towards the former.
-	/// @return True if any operation ran since the last call.
+	/// @note Deliberately conservative *among operations that did something*: an operation that
+	///       ran a lifecycle hook sets the flag even if the stack ended up where it started (a
+	///       push whose `on_enter` refused still ran `on_enter` and `on_resume`, either of which
+	///       may have moved a greyout mask). The cost of that false positive is one redundant
+	///       re-query; the cost of a false negative is a stale greyout.
+	/// @note An operation that touched **nothing** -- a push of an unregistered kind or onto a
+	///       full stack, a `pop` for a kind that is not stacked, a `replace_root`/`replace_top`
+	///       of an unregistered kind -- deliberately does *not* set the flag. A caller that
+	///       retries such a call every tick would otherwise make `Shell::tick` re-query the
+	///       greyout and `request_repaint()` every gate every tick, which is a repaint storm
+	///       rather than one redundant re-query.
+	/// @return True if any operation that touched the stack or ran a lifecycle hook has run since
+	///         the last call.
 	bool changed_since_last_query();
 
 private:

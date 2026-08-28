@@ -3,6 +3,9 @@
 
 #include "cppspec.hpp"
 
+#include <string>
+#include <string_view>
+
 #include "../support/spec_main.h"
 using namespace deluge::ui::shell;
 
@@ -23,6 +26,25 @@ describe shell_profile("shell::profile", $ {
 	});
 	it("names every button", _ {
 		for (int i = 0; i < int(ButtonId::Count); i++) { expect(std::string_view(button_name(ButtonId(i))).empty()).to_be_false(); }
+	});
+	it("resolves text through the profile's hooks, and as digits when they are null", _ {
+		TextScratch scratch{};
+		BoardProfile wired{};
+		wired.text = +[](uint16_t) -> std::string_view { return "STRING"; };
+		wired.error_text = +[](int16_t) -> std::string_view { return "ERROR TEXT"; };
+		expect(std::string(wired.text_or_digits(42, scratch))).to_equal(std::string("STRING"));
+		expect(std::string(wired.error_text_or_digits(7, scratch))).to_equal(std::string("ERROR TEXT"));
+
+		// The documented fallback: the id itself, in decimal -- never an empty string, which would
+		// draw a correctly framed but completely blank popup box.
+		BoardProfile bare{};
+		expect(std::string(bare.text_or_digits(42, scratch))).to_equal(std::string("42"));
+		expect(std::string(bare.text_or_digits(0, scratch))).to_equal(std::string("0"));
+		// Both extremes of each id type, since the scratch buffer is sized for exactly these.
+		expect(std::string(bare.text_or_digits(65535, scratch))).to_equal(std::string("65535"));
+		expect(std::string(bare.error_text_or_digits(-1, scratch))).to_equal(std::string("-1"));
+		expect(std::string(bare.error_text_or_digits(-32768, scratch))).to_equal(std::string("-32768"));
+		expect(std::string(bare.error_text_or_digits(32767, scratch))).to_equal(std::string("32767"));
 	});
 });
 // clang-format on

@@ -19,6 +19,14 @@ namespace deluge::ui::shell {
 /// @note `idle_ms == 0` disables the service outright, the port of legacy's `ScreensaverMode::OFF`
 ///       (`screensaver.cpp:92-94,102-104,171-174`): `tick()` never pushes and `note_activity()`
 ///       never re-arms the deadline.
+///
+/// @note **A refused push disables the service for good.** `SceneStack::push` returns false when
+///       `SceneKind::Screensaver` names no registered scene -- which is this branch's documented
+///       default until spec E3 lands the real one -- and the idle deadline stays past for ever
+///       afterwards, so retrying is an unbounded loop rather than a recoverable state. The first
+///       refusal therefore latches the service off: `active()` stays false, `next_timer()` reports
+///       `std::nullopt` (so `Shell::next_wake()` is not pinned to now), no further push is
+///       attempted, and `push_refused()` counts the refusal for diagnostics.
 class Screensaver final : public Service {
 public:
 	/// @param stack   The stack this service pushes/pops `SceneKind::Screensaver` on.
@@ -58,6 +66,13 @@ public:
 	/// @brief Is the screensaver scene currently pushed?
 	bool active() const { return active_; }
 
+	/// @brief How many times `SceneStack::push` refused `SceneKind::Screensaver`.
+	/// @return 0 normally; 1 once the service has latched itself off (see the class note). It
+	///         cannot exceed 1, because the latch is what stops the next attempt -- the count
+	///         exists so "the screensaver never appears" is a readable diagnostic rather than
+	///         silence.
+	uint32_t push_refused() const { return push_refused_; }
+
 private:
 	SceneStack& stack_;
 	uint32_t idle_ms_;
@@ -71,6 +86,9 @@ private:
 	/// `note_activity()` call, or whenever `idle_ms_` is 0.
 	bool armed_ = false;
 	bool active_ = false;
+	/// Latched by the first refused push; never cleared. See the class note.
+	bool refused_ = false;
+	uint32_t push_refused_ = 0;
 };
 
 } // namespace deluge::ui::shell
