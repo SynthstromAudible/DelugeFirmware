@@ -27,57 +27,38 @@ bool empty(const Rect& clip) {
 	return clip.w <= 0 || clip.h <= 0;
 }
 
-/// Local rect -> canvas rect, clipped. `w`/`h` of 0 means nothing survived. A free function
-/// rather than a member so OledFrame stays an aggregate (see the note at the end of frame.h).
-Rect to_canvas(const OledFrame& f, Rect r) {
-	return f.clip.intersect(Rect{f.origin.x + r.x, f.origin.y + r.y, r.w, r.h});
+/// One point of a walked shape, translated but not clipped -- the caller holds the ClipScope, so
+/// the canvas drops it if it is outside. A free function rather than a member so OledFrame stays
+/// an aggregate (see the note at the end of frame.h).
+void plot(const OledFrame& f, int32_t x, int32_t y) {
+	f.canvas.draw_pixel(f.origin.x + x, f.origin.y + y);
 }
 } // namespace
 
 void OledFrame::pixel(int32_t x, int32_t y) {
-	const int32_t cx = origin.x + x;
-	const int32_t cy = origin.y + y;
-	if (clip.contains(Point{cx, cy})) {
-		canvas.draw_pixel(cx, cy);
-	}
+	ClipScope scope{canvas, clip};
+	canvas.draw_pixel(origin.x + x, origin.y + y);
 }
 
 void OledFrame::hline(int32_t y, int32_t x0, int32_t x1) {
-	if (empty(clip)) {
-		return;
-	}
-	const int32_t cy = origin.y + y;
-	if (cy < clip.y || cy >= clip.bottom()) {
-		return;
-	}
-	int32_t a = std::max(origin.x + std::min(x0, x1), clip.x);
-	int32_t b = std::min(origin.x + std::max(x0, x1), clip.right() - 1);
-	if (a <= b) {
-		canvas.draw_horizontal_line(cy, a, b);
-	}
+	ClipScope scope{canvas, clip};
+	// The canvas drops a reversed span; this one has always normalised it, so keep doing that
+	// here and let the scope above do the clipping.
+	canvas.draw_horizontal_line(origin.y + y, origin.x + std::min(x0, x1), origin.x + std::max(x0, x1));
 }
 
 void OledFrame::vline(int32_t x, int32_t y0, int32_t y1) {
-	if (empty(clip)) {
-		return;
-	}
-	const int32_t cx = origin.x + x;
-	if (cx < clip.x || cx >= clip.right()) {
-		return;
-	}
-	int32_t a = std::max(origin.y + std::min(y0, y1), clip.y);
-	int32_t b = std::min(origin.y + std::max(y0, y1), clip.bottom() - 1);
-	if (a <= b) {
-		canvas.draw_vertical_line(cx, a, b);
-	}
+	ClipScope scope{canvas, clip};
+	canvas.draw_vertical_line(origin.x + x, origin.y + std::min(y0, y1), origin.y + std::max(y0, y1));
 }
 
 void OledFrame::line(int32_t x0, int32_t y0, int32_t x1, int32_t y1, bool thick) {
-	// The same Bresenham walk as Canvas::draw_line (gfx/oled/canvas.cpp), plotting through
-	// this frame's clipped pixel() instead of the canvas's own draw_pixel. Clipping the two
-	// endpoints and handing the shortened segment to gfx would rasterise a *different* set of
-	// pixels (the error term restarts), so the walk is repeated here to keep a clipped line
-	// a strict subset of the unclipped one.
+	ClipScope scope{canvas, clip};
+
+	// The same Bresenham walk as Canvas::draw_line (gfx/oled/canvas.cpp), plotting straight to
+	// the canvas under this frame's clip rather than clipping the endpoints first: shortening the
+	// segment would rasterise a *different* set of pixels (the error term restarts), whereas
+	// clipping per plotted point keeps a clipped line a strict subset of the unclipped one.
 	const bool steep = std::abs(y1 - y0) > std::abs(x1 - x0);
 	if (steep) {
 		std::swap(x0, y0);
@@ -98,9 +79,9 @@ void OledFrame::line(int32_t x0, int32_t y0, int32_t x1, int32_t y1, bool thick)
 		const int32_t actual_x = steep ? y : x;
 		const int32_t actual_y = steep ? x : y;
 
-		pixel(actual_x, actual_y);
+		plot(*this, actual_x, actual_y);
 		if (thick) {
-			pixel(steep ? actual_x + 1 : actual_x, steep ? actual_y : actual_y - 1);
+			plot(*this, steep ? actual_x + 1 : actual_x, steep ? actual_y : actual_y - 1);
 		}
 
 		error -= dy;
@@ -168,10 +149,11 @@ void OledFrame::rect_rounded(Rect r, gfx::oled::BorderRadius radius) {
 }
 
 void OledFrame::invert(Rect r) {
-	const Rect c = to_canvas(*this, r);
-	if (c.w <= 0 || c.h <= 0) {
+	if (r.w <= 0 || r.h <= 0) {
 		return;
 	}
+	ClipScope scope{canvas, clip};
+	const Rect c{origin.x + r.x, origin.y + r.y, r.w, r.h};
 	canvas.invert_area(c.x, c.w, c.y, c.bottom() - 1);
 }
 
@@ -179,18 +161,19 @@ void OledFrame::invert_rounded(Rect r, gfx::oled::BorderRadius radius) {
 	if (r.w <= 0 || r.h <= 0) {
 		return;
 	}
+	ClipScope scope{canvas, clip};
 	const Rect c{origin.x + r.x, origin.y + r.y, r.w, r.h};
-	if (clip.intersect(c) != c) {
-		return; // as rect_rounded
-	}
+	// The XOR fill and the spared corners both clip in the canvas now, so a rounded highlight
+	// that hangs off the region inverts the part inside it instead of being skipped whole.
 	canvas.invert_area_rounded(c.x, c.w, c.y, c.bottom() - 1, radius, style.rounded);
 }
 
 void OledFrame::clear(Rect r) {
-	const Rect c = to_canvas(*this, r);
-	if (c.w <= 0 || c.h <= 0) {
+	if (r.w <= 0 || r.h <= 0) {
 		return;
 	}
+	ClipScope scope{canvas, clip};
+	const Rect c{origin.x + r.x, origin.y + r.y, r.w, r.h};
 	canvas.clear_area_exact(c.x, c.y, c.right() - 1, c.bottom() - 1);
 }
 
@@ -199,6 +182,7 @@ void OledFrame::glyphs(std::string_view s, int32_t x, int32_t y, int32_t spacing
 	if (empty(clip)) {
 		return;
 	}
+	ClipScope scope{canvas, clip};
 	const int32_t canvas_end_x = (end_x == kEdge) ? clip.right() : std::min(origin.x + end_x, clip.right());
 	canvas.draw_string(s, origin.x + x, origin.y + y, spacing_x, height, scroll_px, canvas_end_x, use_width);
 }
@@ -207,6 +191,7 @@ void OledFrame::glyph(char c, int32_t x, int32_t y, int32_t spacing_x, int32_t h
 	if (empty(clip)) {
 		return;
 	}
+	ClipScope scope{canvas, clip};
 	const int32_t canvas_end_x = (end_x == kEdge) ? clip.right() : std::min(origin.x + end_x, clip.right());
 	canvas.draw_char(static_cast<uint8_t>(c), origin.x + x, origin.y + y, spacing_x, height, 0, canvas_end_x);
 }
@@ -216,11 +201,10 @@ void OledFrame::graphic(const uint8_t* data, int32_t x, int32_t y, int32_t w, in
 	if (w <= 0 || h <= 0) {
 		return;
 	}
-	const Rect c{origin.x + x, origin.y + y, w, h};
-	if (clip.intersect(c) != c) {
-		return; // all-or-nothing: the blit has no span decomposition
-	}
-	canvas.draw_graphic_multi_line(data, c.x, c.y, w, h, bytes_tall, reversed);
+	ClipScope scope{canvas, clip};
+	// The blit clips column by column and page-mask by page-mask inside the canvas; a bitmap
+	// wider or taller than the region draws the part that fits rather than nothing at all.
+	canvas.draw_graphic_multi_line(data, origin.x + x, origin.y + y, w, h, bytes_tall, reversed);
 }
 
 void OledFrame::icon(const gfx::oled::Icon& i, int32_t x, int32_t y, bool reversed) {

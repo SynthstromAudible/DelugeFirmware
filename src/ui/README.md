@@ -120,14 +120,13 @@ worth freezing is the RGB it computes.
 
 ## Known follow-ups
 
-- **gfx clip rect for `glyphs`/`graphic`/`icon`/`invert_rounded`.** `OledFrame`'s clip is exact
-  for the outline/fill primitives (`rect`, `rect_rounded`, `pixel`/`hline`/`vline`/`line`,
-  `invert`, `clear`), decomposed into clipped spans. `glyphs`/`glyph` only clip to the frame's
-  right edge and to the canvas; `graphic`, `icon`, `icon_centered` and `invert_rounded` are
-  all-or-nothing (skipped whole if any part would fall outside `clip`). Closing this needs a
-  clip rectangle threaded through `Canvas::draw_char` / `draw_graphic_multi_line` in gfx — out
-  of scope for this leaf toolkit, and a prerequisite for widgets that draw text or blit inside
-  sub-regions (`list`, `columns`, `popup_frame`). See `oled/frame.h`.
+- **gfx clip rect for `glyphs`/`graphic`/`icon`/`invert_rounded` (closed: done).**
+  `gfx::oled::Canvas` carries a clip rectangle (`set_clip`/`clear_clip`/`clip`) that *every*
+  primitive honours pixel for pixel — glyphs and bitmaps included, clipped column by column and
+  by a per-page bit mask rather than all-or-nothing. `OledFrame` opens a `ClipScope` over its
+  region in each drawing method, so nothing a widget draws escapes its region on any edge, and
+  regions nest because the scope restores the clip it found. With no clip set the canvas draws
+  exactly as it did before. See `oled/frame.h` and `gfx/oled/canvas.h`.
 - **`Response` for grid columns (closed: `void`).** `row`/`clip_row`/`status_pad`/
   `audition_pad`/`text_keyboard` return a `Response`; the per-column components (`macros`,
   `velocity_column`, `automation_column`, `tick_squares`, `vu_meter`, `sidebar_columns`) return

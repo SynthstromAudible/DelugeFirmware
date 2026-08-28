@@ -67,10 +67,35 @@ public:
 		// DELUGE_GFX_CONTRACT, not assert: this survives -DNDEBUG. See gfx/contract.h.
 		DELUGE_GFX_CONTRACT(storage.size() >= g.bytes());
 		bytes_ = storage.first(g.bytes());
+		clip_box_ = whole_canvas();
 	}
 
 	/// The geometry this canvas was built with.
 	Geometry geometry() const { return geometry_; }
+
+	/// @{
+	/// @name Clipping
+	///
+	/// A clip rectangle bounds *every* drawing routine below, pixel for pixel: a glyph, an icon
+	/// or a rounded invert that straddles the boundary draws the part that is inside and nothing
+	/// else. With no clip set (the default) the routines behave exactly as they did before this
+	/// existed -- the clip simply starts out as the whole canvas.
+	///
+	/// The rectangle is in canvas coordinates and is half-open in the usual \ref Rect way
+	/// (`x .. right()-1`, `y .. bottom()-1`). It is stored resolved to four inclusive ints
+	/// intersected with the canvas, so no drawing loop ever reads a `std::optional`.
+
+	/// Restrict subsequent drawing to \p r. An empty or wholly off-canvas rectangle means
+	/// "draw nothing", which is the useful answer for a region scrolled out of view.
+	void set_clip(Rect r);
+
+	/// Drop the clip: subsequent drawing is bounded only by the canvas.
+	void clear_clip();
+
+	/// The clip as last set, or `std::nullopt` if none is. Unclamped -- this returns what was
+	/// passed in, so a caller (\ref deluge::ui::oled::ClipScope) can save and restore it.
+	std::optional<Rect> clip() const { return clip_; }
+	/// @}
 
 	/// The framebuffer, page-major.
 	std::span<uint8_t> bytes() { return bytes_; }
@@ -82,8 +107,12 @@ public:
 	/// @{
 	/// @name Rendering routines
 
-	/// Clear the entire image
+	/// Clear the entire image -- or, when a clip is set, the clipped part of it.
 	void clear() {
+		if (clip_.has_value()) {
+			clear_area_exact(clip_box_.min_x, clip_box_.min_y, clip_box_.max_x, clip_box_.max_y);
+			return;
+		}
 		// Takes about 1 fast-timer tick (whereas entire rendering takes around 8 to 15).
 		// So, not worth trying to use DMA here or anything.
 		std::fill(bytes_.begin(), bytes_.end(), 0);
@@ -289,15 +318,31 @@ public:
 	/// @}
 
 private:
-	/// Largest in-bounds X coordinate.
-	int32_t last_x() const { return geometry_.width - 1; }
-	/// Largest in-bounds Y coordinate.
-	int32_t last_y() const { return geometry_.height - 1; }
-	/// Clamp a rectangle to the canvas. Returns false if nothing of it is on-canvas.
+	/// The region a drawing routine may touch: the clip intersected with the canvas, as four
+	/// *inclusive* coordinates. Resolved once when the clip is set rather than per pixel, so the
+	/// byte loops below cost one extra compare (or one extra `&`) and never touch a
+	/// `std::optional`. `max < min` on either axis means "nothing is drawable".
+	struct ClipBox {
+		int32_t min_x, min_y, max_x, max_y;
+	};
+
+	ClipBox whole_canvas() const { return ClipBox{0, 0, geometry_.width - 1, geometry_.height - 1}; }
+
+	/// Which bits of \p page the clip lets through, bit `b` being row `page * 8 + b`. 0xFF when
+	/// the whole page is inside, 0 when none of it is. This is how the blitting routines --
+	/// which write whole bytes -- clip vertically without a per-pixel test.
+	uint8_t clip_page_mask(int32_t page) const;
+
+	/// Clamp a rectangle to the clip (and so to the canvas). Returns false if nothing survives.
 	bool clip_rect(int32_t& min_x, int32_t& min_y, int32_t& max_x, int32_t& max_y) const;
 
 	std::span<uint8_t> bytes_;
 	Geometry geometry_;
+	/// The resolved clip. Always valid; `whole_canvas()` until someone narrows it.
+	ClipBox clip_box_{};
+	/// The clip exactly as handed to \ref set_clip, for \ref clip() to give back. Read only by
+	/// save/restore code, never by a drawing routine.
+	std::optional<Rect> clip_{};
 };
 
 /// Framebuffers are DMA'd on the real hardware, so they want to start on a cache line.

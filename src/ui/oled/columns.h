@@ -109,11 +109,11 @@ Paging paging_of(std::span<const Column> cols, int32_t focused);
 /// The value region is handed to `Column::render` as a frame of its own, whose `(0, 0)` is the
 /// region's corner. Its clip is the region **grown by one row at the top**: legacy's slot
 /// renderers draw at `slot.start_y - 1` (`Number::drawKnob`'s centred arc, number.cpp:129, and
-/// `Toggle::renderInHorizontalMenu`, toggle.cpp:62), both blit 16-row icons, and `OledFrame`'s
-/// icon primitive is all-or-nothing against the clip (frame.h:44-48) -- a region clipped tight to
-/// the value box would drop the knob arc and the toggle switch entirely rather than shave a row
-/// off them. The brief asks for `f.region(value_rect)`; this is that region with the one row of
-/// bleed the ported renderers demonstrably need, and no more.
+/// `Toggle::renderInHorizontalMenu`, toggle.cpp:62), both blit 16-row icons, and `OledFrame`
+/// clips a blit exactly -- so a region clipped tight to the value box would shave the top row off
+/// the knob arc and the toggle switch, which legacy draws. The brief asks for
+/// `f.region(value_rect)`; this is that region with the one row of bleed the ported renderers
+/// demonstrably need, and no more.
 ///
 /// Focus and paging (spec B section 5; legacy moved focus with the instrument buttons, not with
 /// an encoder, so there is no legacy turn behaviour to port):

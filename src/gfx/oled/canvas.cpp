@@ -26,19 +26,48 @@
 
 using deluge::gfx::oled::Canvas;
 
-bool Canvas::clip_rect(int32_t& min_x, int32_t& min_y, int32_t& max_x, int32_t& max_y) const {
-	const int32_t limit_x = geometry_.width - 1;
-	const int32_t limit_y = geometry_.height - 1;
+void Canvas::set_clip(Rect r) {
+	clip_ = r;
+	// Resolved against the canvas here, once, so nothing downstream has to. A degenerate or
+	// off-canvas rectangle comes out with max < min, which every routine below reads as "empty".
+	clip_box_ = ClipBox{std::max<int32_t>(r.x, 0), std::max<int32_t>(r.y, 0),
+	                    std::min<int32_t>(r.right() - 1, geometry_.width - 1),
+	                    std::min<int32_t>(r.bottom() - 1, geometry_.height - 1)};
+}
 
-	if (max_x < min_x || max_y < min_y || max_x < 0 || min_x > limit_x || max_y < 0 || min_y > limit_y) {
+void Canvas::clear_clip() {
+	clip_.reset();
+	clip_box_ = whole_canvas();
+}
+
+uint8_t Canvas::clip_page_mask(int32_t page) const {
+	const int32_t top = page << 3;
+	const int32_t bottom = top + 7;
+	if (clip_box_.max_y < top || clip_box_.min_y > bottom || clip_box_.max_x < clip_box_.min_x) {
+		return 0;
+	}
+	uint8_t mask = 0xFF;
+	if (clip_box_.min_y > top) {
+		mask &= static_cast<uint8_t>(0xFF << (clip_box_.min_y - top));
+	}
+	if (clip_box_.max_y < bottom) {
+		mask &= static_cast<uint8_t>(0xFF >> (bottom - clip_box_.max_y));
+	}
+	return mask;
+}
+
+bool Canvas::clip_rect(int32_t& min_x, int32_t& min_y, int32_t& max_x, int32_t& max_y) const {
+	if (max_x < min_x || max_y < min_y) {
 		return false;
 	}
 
-	min_x = std::clamp<int32_t>(min_x, 0, limit_x);
-	max_x = std::clamp<int32_t>(max_x, 0, limit_x);
-	min_y = std::clamp<int32_t>(min_y, 0, limit_y);
-	max_y = std::clamp<int32_t>(max_y, 0, limit_y);
-	return true;
+	min_x = std::max(min_x, clip_box_.min_x);
+	min_y = std::max(min_y, clip_box_.min_y);
+	max_x = std::min(max_x, clip_box_.max_x);
+	max_y = std::min(max_y, clip_box_.max_y);
+	// Clamping can cross the bounds over (the rectangle was entirely outside, or the clip itself
+	// is empty), which is exactly the "nothing survives" case.
+	return min_x <= max_x && min_y <= max_y;
 }
 
 void Canvas::clear_area_exact(int32_t min_x, int32_t min_y, int32_t max_x, int32_t max_y) {
@@ -87,7 +116,7 @@ void Canvas::clear_area_exact(int32_t min_x, int32_t min_y, int32_t max_x, int32
 }
 
 void Canvas::draw_pixel(int32_t x, int32_t y) {
-	if (x < 0 || x > last_x() || y < 0 || y > last_y()) {
+	if (x < clip_box_.min_x || x > clip_box_.max_x || y < clip_box_.min_y || y > clip_box_.max_y) {
 		return;
 	}
 
@@ -96,7 +125,7 @@ void Canvas::draw_pixel(int32_t x, int32_t y) {
 }
 
 void Canvas::clear_pixel(int32_t x, int32_t y) {
-	if (x < 0 || x > last_x() || y < 0 || y > last_y()) {
+	if (x < clip_box_.min_x || x > clip_box_.max_x || y < clip_box_.min_y || y > clip_box_.max_y) {
 		return;
 	}
 
@@ -105,7 +134,7 @@ void Canvas::clear_pixel(int32_t x, int32_t y) {
 }
 
 void Canvas::invert_pixel(int32_t x, int32_t y) {
-	if (x < 0 || x > last_x() || y < 0 || y > last_y()) {
+	if (x < clip_box_.min_x || x > clip_box_.max_x || y < clip_box_.min_y || y > clip_box_.max_y) {
 		return;
 	}
 
@@ -117,12 +146,12 @@ void Canvas::invert_pixel(int32_t x, int32_t y) {
 // negative end_x means "entirely off the left of the canvas" and must clip away, as callers
 // like draw_rectangle (max_x - 1) and draw_circle (cx + x) rely on.
 void Canvas::draw_horizontal_line(int32_t pixel_y, int32_t start_x, int32_t end_x) {
-	if (pixel_y < 0 || pixel_y > last_y() || end_x < start_x || end_x < 0 || start_x > last_x()) {
+	if (pixel_y < clip_box_.min_y || pixel_y > clip_box_.max_y || end_x < start_x) {
 		return;
 	}
 
-	start_x = std::clamp<int32_t>(start_x, 0, last_x());
-	end_x = std::clamp<int32_t>(end_x, 0, last_x());
+	start_x = std::max(start_x, clip_box_.min_x);
+	end_x = std::min(end_x, clip_box_.max_x);
 	if (end_x < start_x) {
 		return;
 	}
@@ -138,12 +167,12 @@ void Canvas::draw_horizontal_line(int32_t pixel_y, int32_t start_x, int32_t end_
 }
 
 void Canvas::draw_vertical_line(int32_t pixel_x, int32_t start_y, int32_t end_y) {
-	if (pixel_x < 0 || pixel_x > last_x() || end_y < start_y || end_y < 0 || start_y > last_y()) {
+	if (pixel_x < clip_box_.min_x || pixel_x > clip_box_.max_x || end_y < start_y) {
 		return;
 	}
 
-	start_y = std::clamp<int32_t>(start_y, 0, last_y());
-	end_y = std::clamp<int32_t>(end_y, 0, last_y());
+	start_y = std::max(start_y, clip_box_.min_y);
+	end_y = std::min(end_y, clip_box_.max_y);
 	if (end_y < start_y) {
 		return;
 	}
@@ -568,13 +597,34 @@ void Canvas::draw_graphic_multi_line(uint8_t const* graphic, int32_t start_x, in
 		width = geometry_.width - start_x;
 	}
 
+	// Horizontal clipping: drop whole columns off each end. Skipping columns on the left means
+	// starting further into the graphic -- one column is `num_bytes_tall` bytes -- which stays
+	// correct through the middle-row loop below, since that only ever advances the base pointer
+	// by whole rows.
+	const int32_t columns_before = clip_box_.min_x - start_x;
+	if (columns_before > 0) {
+		graphic += static_cast<ptrdiff_t>(columns_before) * num_bytes_tall;
+		start_x += columns_before;
+		width -= columns_before;
+	}
+	if (width > clip_box_.max_x - start_x + 1) {
+		width = clip_box_.max_x - start_x + 1;
+	}
+	if (width <= 0) {
+		return;
+	}
+
+	// Vertical clipping: the writes below are whole bytes, so the clip becomes a per-page bit
+	// mask. Computed once per page, never per pixel; 0xFF (a no-op) whenever no clip is set.
+	uint8_t page_mask = clip_page_mask(row_on_display);
+
 	// First row
 	uint8_t* __restrict__ current_pos = &bytes_[row_on_display * geometry_.width + start_x];
 	uint8_t const* end_pos = current_pos + width;
 	uint8_t const* __restrict__ graphic_pos = graphic;
 
 	while (current_pos < end_pos) {
-		*current_pos |= (*graphic_pos << y_offset);
+		*current_pos |= (*graphic_pos << y_offset) & page_mask;
 		current_pos++;
 		graphic_pos += num_bytes_tall;
 	}
@@ -587,6 +637,7 @@ void Canvas::draw_graphic_multi_line(uint8_t const* graphic, int32_t start_x, in
 		if (row_on_display >= static_cast<int32_t>(geometry_.pages())) {
 			return;
 		}
+		page_mask = clip_page_mask(row_on_display);
 
 		row_on_graphic++;
 		if (height <= ((row_on_graphic << 3) - y_offset)) {
@@ -610,7 +661,7 @@ void Canvas::draw_graphic_multi_line(uint8_t const* graphic, int32_t start_x, in
 			// data is byte-aligned). Both compilers lower this memcpy to the same single load.
 			uint16_t data = 0;
 			std::memcpy(&data, graphic_pos, sizeof data);
-			*current_pos |= static_cast<uint8_t>(data >> y_offset_negative);
+			*current_pos |= static_cast<uint8_t>(data >> y_offset_negative) & page_mask;
 
 			//*current_pos |= (*graphic_pos >> y_offset_negative) | (*(graphic_pos + 1) << y_offset);
 			current_pos++;
@@ -620,7 +671,7 @@ void Canvas::draw_graphic_multi_line(uint8_t const* graphic, int32_t start_x, in
 
 	// Final row
 	while (current_pos < end_pos) {
-		*current_pos |= (*graphic_pos >> y_offset_negative);
+		*current_pos |= (*graphic_pos >> y_offset_negative) & page_mask;
 		current_pos++;
 		graphic_pos += num_bytes_tall;
 	}

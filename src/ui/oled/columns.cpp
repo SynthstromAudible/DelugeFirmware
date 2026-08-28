@@ -145,10 +145,10 @@ void placeholders(OledFrame& f, Rect rect, int32_t current_x, int32_t base_y, in
 /// This is `OledFrame::region` (frame.h:56-63) with one difference, and it is built by hand for
 /// that difference alone: the clip is one row taller at the top. Two of the ported slot
 /// renderers draw a 16-row icon at `slot.start_y - 1` (`Number::drawKnob`, number.cpp:129, and
-/// `Toggle::renderInHorizontalMenu`, toggle.cpp:62), and `OledFrame`'s icon blit is
-/// all-or-nothing against the clip, so a region clipped tight to the value box would drop the
-/// knob arc and the toggle switch altogether. The origin is the value box's own corner either
-/// way, so nothing a renderer computes moves.
+/// `Toggle::renderInHorizontalMenu`, toggle.cpp:62), and `OledFrame` clips a blit exactly, so a
+/// region clipped tight to the value box would shave the top row off the knob arc and the toggle
+/// switch -- a row legacy draws. The origin is the value box's own corner either way, so nothing
+/// a renderer computes moves.
 void render_slot(OledFrame& f, Rect value_rect, const Column& col, bool focused) {
 	if (value_rect.w <= 0 || value_rect.h <= 0) {
 		return;
