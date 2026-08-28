@@ -40,7 +40,7 @@ The profile decides; the shell only composites. Two supported patterns, per boar
   `ParamOledView` render focused parameters one per panel — the horizontal menu's four
   columns become four panels; `ModKnobs` shows the gold-knob targets on the panels nearest
   those knobs. Scenes without a `ParamOledView` leave the panels to `ModKnobs`' default
-  (current param name, value, ring).
+  (current param name, value, indicator).
 - **Aux** (a second general panel): a scene may render a secondary view (arranger overview,
   clip list) or nothing; the shell shows console/notices there when the scene leaves it
   blank.
@@ -56,7 +56,7 @@ Panels with `SurfaceRole::None` are cleared once at boot and never drawn.
 - Extra encoders get new `EncoderRole`s. `InputSnapshot` grows a field only when a role is
   meant to reach widgets (e.g. a per-panel encoder driving that panel's `columns` focus);
   otherwise scenes read the role from `UiEvent`.
-- LEDs under new buttons are `led_by_button` rows; rings beyond two extend `RingId`.
+- LEDs under new buttons are `led_by_button` rows; indicators beyond two extend `IndicatorId`.
 
 ## 5. Bring-up before hardware exists
 

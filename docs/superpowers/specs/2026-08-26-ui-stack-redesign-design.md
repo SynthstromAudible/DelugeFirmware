@@ -276,7 +276,7 @@ shell may sleep until the earliest deadline.
 
 - N × `OledSurface{framebuffer, Canvas, RepaintGate, role}`.
 - One `GridSurface{PadGrid, RepaintGate, last_sent column pairs}`.
-- One `LedSurface{bitset, KnobRing rings[], last_sent}`.
+- One `LedSurface{bitset, KnobIndicator indicators[], last_sent}`.
 
 Popups, the console, the screensaver and the loading animation are **scenes
 on the stack** with transparency flags, not separate canvases.
@@ -339,7 +339,7 @@ SD-card reentrancy: the shell defers input while `deluge::sync::sd_busy()`;
   contributor: Play/Record/Save/Load/Learn/Tap/SyncScaling/Triplets,
   play-enable flashing, time-base LED.
 - **`ModKnobs`** — owns the active mod-controllable `ModelStack`, gold-knob
-  state, mod region, knob-indicator rings, MIDI-follow feedback; emits param
+  state, mod region, knob indicators, MIDI-follow feedback; emits param
   commands; pushes a transient `ParamPopupScene`.
 - **`MidiLearn`** — the learn mode and its state; scenes report "this pad is
   this learnable thing"; blink via `LedFrame`.
@@ -359,11 +359,11 @@ LED state is a value, declared per tick:
 
 ```cpp
 struct LedState { enum { Off, On, Blink } kind; uint16_t period_ms; uint32_t until_ms; };
-struct KnobRing { uint8_t levels[4]; };
+struct KnobIndicator { uint8_t levels[4]; };
 void SessionScene::leds(LedFrame& f) {
     f.set(Led::Song, On);
     if (state.section_pending) f.set(Led::Launch, Blink{200});
-    f.ring(Ring::Lower, knob_levels_for(param));
+    f.indicator(IndicatorId::Lower, knob_levels_for(param));
 }
 ```
 

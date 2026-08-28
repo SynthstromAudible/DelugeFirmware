@@ -14,7 +14,7 @@
 
 - Branch: `ui/harness` off `ui/shell`. "Builds" = `./dbt build Debug` compiles to the known ThinLTO link failure, `deluge_host` links (`cmake --build build-sim-gfx --target deluge_host`), host suite green (`cmake --build build/tests --config Debug && ctest --test-dir build/tests -C Debug --output-on-failure`). Level 3 additionally: `cmake -B build-sim -S sim -G Ninja -DDELUGE_SIM_X64=ON && cmake --build build-sim --target deluge_host && ctest --test-dir build-sim -R ui_app_scripts`.
 - Script format exactly spec G §2: `<at_ms> <command> <args…>`, `#` comments, commands `board`, `snapshot`, `button <Name> down|up`, `encoder <Role> <±n>`, `pad <x> <y> down [vel]|up`, `released`, `model <Dirty> [clip]`, `notice <Kind> <arg>`, `quit`. Unknown commands are errors.
-- Snapshot format exactly spec G §3: `<name>.oled<N>.pbm` (P1 via `page_major_to_pbm`) and `<name>.state` with sorted lines `scene …` (top→bottom, unsorted among themselves), `pad x y r g b` (non-black only), `led <Name> on|blink <period>`, `ring upper|lower a b c d`, `lock <reason>`, `notice <Kind> <arg>`. Identical consecutive snapshots are still written.
+- Snapshot format exactly spec G §3: `<name>.oled<N>.pbm` (P1 via `page_major_to_pbm`) and `<name>.state` with sorted lines `scene …` (top→bottom, unsorted among themselves), `pad x y r g b` (non-black only), `led <Name> on|blink <period>`, `indicator upper|lower a b c d`, `lock <reason>`, `notice <Kind> <arg>`. Identical consecutive snapshots are still written.
 - Determinism (spec G §5): no wall clock anywhere under test; level 2 clock = script `at_ms`; level 3 clock = `host_rendered_frames * 1000 / 44100`. Seeds are 0.
 - Naming: `snake_case`; `PascalCase` types; `k` constants. Python: ruff-clean (pre-commit runs it).
 - No new Python dependencies (`pbm2png.py` writes PNG with `zlib` + `struct`).
@@ -26,7 +26,7 @@
 
 ```
 tests/harness/ui_script.h / .cpp          parse_script() -> FixedVector<Step,256>; C façade ui_script_* for the host BSP
-tests/harness/snapshot.h / .cpp           write_oled_pbm(), write_state(), state line builders (pad/led/ring)
+tests/harness/snapshot.h / .cpp           write_oled_pbm(), write_state(), state line builders (pad/led/indicator)
 tests/harness/README.md
 tests/spec/harness/ui_script_spec.cpp     level-0 tests of the parser and the state formatter
 tests/spec/shell/support/script_runner.h  run_script(): drives a Shell on FakeSurfaceSet; expect_script_goldens()
@@ -65,7 +65,7 @@ Modified: `tests/spec/CMakeLists.txt` (add `tests/harness/*.cpp` to `deluge_spec
   struct StateLines { FixedVector<std::array<char, 48>, 256> lines; void add(std::string_view); std::string sorted_text() const; };  // "scene" lines keep insertion order and come first
   void add_pad_line(StateLines&, uint8_t x, uint8_t y, uint8_t r, uint8_t g, uint8_t b);   // skipped when black
   void add_led_line(StateLines&, std::string_view name, bool blink, uint16_t period_ms);
-  void add_ring_line(StateLines&, bool upper, const uint8_t levels[4]);
+  void add_indicator_line(StateLines&, bool upper, const uint8_t levels[4]);
   bool write_file(std::string_view dir, std::string_view file, std::string_view contents);  // mkdir -p dir
   ```
 - C façade (`extern "C"`, in `ui_script.h` under `#ifdef __cplusplus` guards):
@@ -104,8 +104,8 @@ describe ui_script("harness::ui_script", $ {
 	it("rejects non-monotonic times", _ { expect(parse_script("10 released\n5 released\n").error.has_value()).to_be_true(); });
 	it("formats state lines sorted with scenes first", _ {
 		StateLines s; add_pad_line(s, 4, 3, 10, 20, 30); add_pad_line(s, 0, 0, 0, 0, 0); s.add("scene Session"); s.add("scene Popup/General");
-		add_led_line(s, "Play", false, 0); add_led_line(s, "Record", true, 500); uint8_t lv[4] = {3, 3, 2, 0}; add_ring_line(s, true, lv);
-		expect(s.sorted_text()).to_equal("scene Session\nscene Popup/General\nled Play on\nled Record blink 500\npad 4 3 10 20 30\nring upper 3 3 2 0\n");
+		add_led_line(s, "Play", false, 0); add_led_line(s, "Record", true, 500); uint8_t lv[4] = {3, 3, 2, 0}; add_indicator_line(s, true, lv);
+		expect(s.sorted_text()).to_equal("scene Session\nscene Popup/General\nled Play on\nled Record blink 500\npad 4 3 10 20 30\nindicator upper 3 3 2 0\n");
 	});
 });
 // clang-format on

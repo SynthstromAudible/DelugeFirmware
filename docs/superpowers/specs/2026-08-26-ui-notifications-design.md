@@ -101,7 +101,7 @@ Bit → effect mapping (the shell's job, listed here so the vocabulary is comple
 | `PlaybackState` | transport LEDs re-derived; playhead views repaint; count-in overlay shown/hidden |
 | `SongSwapped` | stack reset to the root scene for the new song |
 | `OutputChanged` / `SelectedDrum` | sidebar + OLED name repaint |
-| `ParamAutomation` / `ModTarget` | `ModKnobs` rings re-derived; automation views repaint |
+| `ParamAutomation` / `ModTarget` | `ModKnobs` knob indicators re-derived; automation views repaint |
 | `MidiLearn` | `MidiLearn` service LED blink state re-derived |
 
 ## 3. `NoticeQueue` — presentation requests that remain requests

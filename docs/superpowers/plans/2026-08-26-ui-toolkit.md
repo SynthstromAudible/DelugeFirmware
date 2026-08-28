@@ -34,7 +34,7 @@ src/ui/core/response.h                    Response
 src/ui/core/repaint_gate.h / .cpp         RepaintGate
 src/ui/core/state.h                       ListState, ColumnsState, ScrollText, Blink, Hold, Timer, WaveformState
 src/ui/core/style.h                       Style, kDelugeStyle48, kDelugeStyle64
-src/ui/core/led_frame.h / .cpp            LedId, RingId, LedState, KnobRing, LedFrame
+src/ui/core/led_frame.h / .cpp            LedId, IndicatorId, LedState, KnobIndicator, LedFrame
 src/ui/core/text_wrap.h / .cpp            wrap_lines() (port of breakStringIntoLines)
 src/ui/oled/frame.h / .cpp                OledFrame, region(), bounds()
 src/ui/oled/text.h / .cpp                 TextStyle, Align, measure(), text(), title()
@@ -216,16 +216,16 @@ git commit -m "feat(ui): toolkit skeleton, legacy layout metrics, grid Rect"
 - Test: `tests/spec/ui/repaint_gate_spec.cpp`, `tests/spec/ui/led_frame_spec.cpp`
 
 **Interfaces:**
-- Produces: exactly the `deluge::ui` declarations of spec B §3 (`EncoderRole`, `PadEvent`, `InputSnapshot`, `Response`, `RepaintGate`, `ListState`, `ColumnsState`, `ScrollText`, `Blink`, `Hold`, `Timer`, `WaveformState`, `Style`, `LedId`, `RingId`, `LedState`, `KnobRing`, `LedFrame`), plus:
+- Produces: exactly the `deluge::ui` declarations of spec B §3 (`EncoderRole`, `PadEvent`, `InputSnapshot`, `Response`, `RepaintGate`, `ListState`, `ColumnsState`, `ScrollText`, `Blink`, `Hold`, `Timer`, `WaveformState`, `Style`, `LedId`, `IndicatorId`, `LedState`, `KnobIndicator`, `LedFrame`), plus:
   ```cpp
   constexpr Style kDelugeStyle48{ .title_height = 12, .row_height = 9, .inset_x = 6, .scrollbar_w = 4, .menu_rows = 3,
                                   .rounded = true, .invert_highlight = true,
                                   .title_font = FontId::MetricBold9, .row_font = FontId::Apple7, .value_font = FontId::MetricBold20, .big_font = FontId::MetricBold20 };
   constexpr Style kDelugeStyle64{ /* same, menu_rows = 5 */ };
   // LedFrame
-  class LedFrame { public: void set(LedId, LedState); void ring(RingId, KnobRing);
+  class LedFrame { public: void set(LedId, LedState); void indicator(IndicatorId, KnobIndicator);
                    std::span<const std::pair<LedId, LedState>> entries() const;   // in call order, later wins
-                   const KnobRing* ring_or_null(RingId) const; void clear(); };
+                   const KnobIndicator* indicator_or_null(IndicatorId) const; void clear(); };
   ```
   `LedFrame` stores up to 64 entries in a fixed array; a second `set` for the same id overwrites in place.
 
@@ -284,11 +284,11 @@ describe led_frame("ui::LedFrame", $ {
 		LedFrame f;
 		f.set(LedId{3}, LedState{LedState::Kind::On, 0, 0});
 		f.set(LedId{3}, LedState{LedState::Kind::Blink, 200, 0});
-		f.ring(RingId::Lower, KnobRing{{1, 2, 3, 0}});
+		f.indicator(IndicatorId::Lower, KnobIndicator{{1, 2, 3, 0}});
 		expect(f.entries().size()).to_equal(size_t(1));
 		expect(f.entries()[0].second.kind == LedState::Kind::Blink).to_be_true();
-		expect(f.ring_or_null(RingId::Lower)->levels[2]).to_equal(uint8_t(3));
-		expect(f.ring_or_null(RingId::Upper) == nullptr).to_be_true();
+		expect(f.indicator_or_null(IndicatorId::Lower)->levels[2]).to_equal(uint8_t(3));
+		expect(f.indicator_or_null(IndicatorId::Upper) == nullptr).to_be_true();
 	});
 });
 
@@ -362,23 +362,23 @@ bool RepaintGate::needs_frame(uint32_t now_ms, bool had_input, bool model_dirty)
 
 namespace deluge::ui {
 enum class LedId : uint8_t;          // values supplied by the board profile (shell)
-enum class RingId : uint8_t { Upper, Lower };
+enum class IndicatorId : uint8_t { Upper, Lower };
 struct LedState { enum class Kind : uint8_t { Off, On, Blink } kind; uint16_t period_ms; uint32_t until_ms; };
-struct KnobRing { uint8_t levels[4]; };
+struct KnobIndicator { uint8_t levels[4]; };
 
 class LedFrame {
 public:
 	static constexpr size_t kMaxEntries = 64;
 	void set(LedId id, LedState s);
-	void ring(RingId r, KnobRing k) { rings_[static_cast<int>(r)] = k; has_ring_[static_cast<int>(r)] = true; }
+	void indicator(IndicatorId r, KnobIndicator k) { indicators_[static_cast<int>(r)] = k; has_indicator_[static_cast<int>(r)] = true; }
 	std::span<const std::pair<LedId, LedState>> entries() const { return {entries_, count_}; }
-	const KnobRing* ring_or_null(RingId r) const { return has_ring_[static_cast<int>(r)] ? &rings_[static_cast<int>(r)] : nullptr; }
-	void clear() { count_ = 0; has_ring_[0] = has_ring_[1] = false; }
+	const KnobIndicator* indicator_or_null(IndicatorId r) const { return has_indicator_[static_cast<int>(r)] ? &indicators_[static_cast<int>(r)] : nullptr; }
+	void clear() { count_ = 0; has_indicator_[0] = has_indicator_[1] = false; }
 private:
 	std::pair<LedId, LedState> entries_[kMaxEntries];
 	size_t count_ = 0;
-	KnobRing rings_[2]{};
-	bool has_ring_[2]{};
+	KnobIndicator indicators_[2]{};
+	bool has_indicator_[2]{};
 };
 } // namespace deluge::ui
 ```

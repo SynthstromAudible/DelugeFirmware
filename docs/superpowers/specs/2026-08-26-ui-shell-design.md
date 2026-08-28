@@ -48,7 +48,7 @@ struct BoardProfile {                                   // one constexpr instanc
 
 struct OledSurface { gfx::oled::Canvas canvas; gfx::oled::Geometry geometry; RepaintGate gate; SurfaceRole role; uint8_t index; const Style* style; };
 struct GridSurface { gfx::grid::PadGrid grid; RepaintGate gate; ColumnPairCache last_sent; std::optional<ActiveTween> tween; };
-struct LedSurface  { LedBits bits; KnobRing rings[2]; LedBits last_bits; KnobRing last_rings[2]; };
+struct LedSurface  { LedBits bits; KnobIndicator indicators[2]; LedBits last_bits; KnobIndicator last_indicators[2]; };
 
 class SurfaceSet {                                      // built at init from deluge_board() + profile
 public:
@@ -224,7 +224,7 @@ never renders OLED/grid.
 | Service | Owns | Replaces |
 |---|---|---|
 | `GlobalControls` | transport buttons, record combos, tempo encoder/button, tap tempo, sync scaling, triplets, back long-press, affect-entire popup cancel, select combos; LEDs for `Play`/`Record`/`Tap`/`SyncScaling`/`Triplets`/time-base | `Buttons::buttonAction` tail, `View::buttonAction`, `View::setLedStates`, `flashPlay*`, `encoder_input.cpp` special cases |
-| `ModKnobs` | the `ModTarget` (model, spec C §5) + gold-knob acceleration state, mod-button mode, knob rings, transient value popup (`ParamPopupScene`), MIDI-follow feedback trigger | `View::modEncoderAction*`, `modButtonAction`, `modEncoderButtonAction*`, `setKnobIndicatorLevel(s)`, `setModLedStates`, `displayModEncoderValuePopup`, `flushPendingModEncoderValuePopup`, `getModKnobMode` |
+| `ModKnobs` | the `ModTarget` (model, spec C §5) + gold-knob acceleration state, mod-button mode, knob indicators, transient value popup (`ParamPopupScene`), MIDI-follow feedback trigger | `View::modEncoderAction*`, `modButtonAction`, `modEncoderButtonAction*`, `setKnobIndicatorLevel(s)`, `setModLedStates`, `displayModEncoderValuePopup`, `flushPendingModEncoderValuePopup`, `getModKnobMode` |
 | `MidiLearn` | learn mode, `thing_pressed`, flash phase; scenes report `learnable_at(pad) -> LearnTarget` | `View::*MidiLearn*`, `UI_MODE_MIDI_LEARN`, `MIDI_LEARN_FLASH` |
 | `Notices` | drains `NoticeQueue`; pushes/replaces `PopupScene`, appends to `ConsoleScene`, arms `WorkingScene`; popup timeouts by `popup_type` | `OLED::setupPopup/popupText/removePopup/displayWorkingAnimation/consoleText`, `Display::displayError/Popup` |
 | `Screensaver` | idle timer, `note_activity()`, pushes `ScreensaverScene` (`rainfall`/`starfield` move to `deluge-scenes`) | `hid/display/screensaver.*` |

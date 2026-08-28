@@ -111,13 +111,13 @@ struct Style {
 
 // LED declarations (surface-agnostic data; composed by the shell).
 enum class LedId : uint8_t;   // defined by the board profile (spec D)
-enum class RingId : uint8_t { Upper, Lower };
+enum class IndicatorId : uint8_t { Upper, Lower };
 struct LedState { enum class Kind : uint8_t { Off, On, Blink } kind; uint16_t period_ms; uint32_t until_ms; };
-struct KnobRing { uint8_t levels[4]; };
+struct KnobIndicator { uint8_t levels[4]; };
 class LedFrame {
 public:
 	void set(LedId, LedState);
-	void ring(RingId, KnobRing);
+	void indicator(IndicatorId, KnobIndicator);
 };
 
 } // namespace deluge::ui

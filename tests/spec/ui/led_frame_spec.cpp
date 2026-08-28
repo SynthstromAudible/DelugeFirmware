@@ -8,12 +8,12 @@ using namespace deluge::ui;
 describe led_frame("ui::LedFrame", $ {
 	it("records entries in call order and lets a later set win", _ {
 		LedFrame f;
-		// set()/ring() are [[nodiscard]] bool -- false means the declaration was dropped. All four
+		// set()/indicator() are [[nodiscard]] bool -- false means the declaration was dropped. All four
 		// of these fit, so all four report true; the full-frame case is covered below.
 		expect(f.set(LedId{3}, LedState{LedState::Kind::On, 0, 0})).to_be_true();
 		expect(f.set(LedId{5}, LedState{LedState::Kind::On, 0, 0})).to_be_true();      // second, distinct id
 		expect(f.set(LedId{3}, LedState{LedState::Kind::Blink, 200, 0})).to_be_true(); // overwrites id 3 in place
-		expect(f.ring(RingId::Lower, KnobRing{{1, 2, 3, 0}})).to_be_true();
+		expect(f.indicator(IndicatorId::Lower, KnobIndicator{{1, 2, 3, 0}})).to_be_true();
 
 		// Two entries, not three: the repeat set() overwrote rather than appended. Order is
 		// call order (3 then 5), not id order or insertion-reversed -- an implementation that
@@ -23,13 +23,13 @@ describe led_frame("ui::LedFrame", $ {
 		expect(f.entries()[0].second.kind == LedState::Kind::Blink).to_be_true();
 		expect(f.entries()[1].first == LedId{5}).to_be_true();
 		expect(f.entries()[1].second.kind == LedState::Kind::On).to_be_true();
-		expect(f.ring_or_null(RingId::Lower)->levels[2]).to_equal(uint8_t(3));
-		expect(f.ring_or_null(RingId::Upper) == nullptr).to_be_true();
+		expect(f.indicator_or_null(IndicatorId::Lower)->levels[2]).to_equal(uint8_t(3));
+		expect(f.indicator_or_null(IndicatorId::Upper) == nullptr).to_be_true();
 
 		f.clear();
 		expect(f.entries().empty()).to_be_true();
-		expect(f.ring_or_null(RingId::Lower) == nullptr).to_be_true(); // ring reset too, not just entries
-		expect(f.ring_or_null(RingId::Upper) == nullptr).to_be_true();
+		expect(f.indicator_or_null(IndicatorId::Lower) == nullptr).to_be_true(); // indicator reset too, not just entries
+		expect(f.indicator_or_null(IndicatorId::Upper) == nullptr).to_be_true();
 	});
 
 	it("reports the dropped declaration when the frame is full", _ {
@@ -43,8 +43,8 @@ describe led_frame("ui::LedFrame", $ {
 		expect(f.set(LedId(0), LedState{LedState::Kind::Blink, 100, 0})).to_be_true();
 		expect(f.entries().size()).to_equal(LedFrame::kMaxEntries);
 
-		// An out-of-range ring is refused, not stored.
-		expect(f.ring(RingId{2}, KnobRing{{9, 9, 9, 9}})).to_be_false();
+		// An out-of-range indicator is refused, not stored.
+		expect(f.indicator(IndicatorId{2}, KnobIndicator{{9, 9, 9, 9}})).to_be_false();
 	});
 });
 DELUGE_SPEC(ui_led_frame_spec, led_frame)

@@ -63,7 +63,7 @@ pad 0 0 255 0 0
 pad 4 3 10 20 30
 led Play on
 led Record blink 500
-ring upper 3 3 2 0
+indicator upper 3 3 2 0
 lock loading
 notice Error 248
 ```
@@ -99,7 +99,7 @@ snapshots *and* on the recorders (e.g. "a clean frame produced no blit").
   matrix table; `encoder` deltas go to `deluge_encoder_take_edges` as two edges per detent.
 - `snapshot`: written from the last blitted frame per display (`deluge_display_blit_oled_n`
   keeps a shadow copy), the pad shadow (`deluge_control_set_pad_columns` already maintains
-  one), and an LED/ring shadow added to `deluge_control_set_led`/`set_indicator`.
+  one), and an LED/indicator shadow added to `deluge_control_set_led`/`set_indicator`.
 - `board`: `DELUGE_HOST_DISPLAYS` from the gfx plan, settable from the script for
   convenience.
 - `quit`: `quick_exit(0)` after flushing snapshots (the app's main loop never returns).
