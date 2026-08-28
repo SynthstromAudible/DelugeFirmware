@@ -143,6 +143,10 @@ add_subdirectory(../src/gfx gfx)
 # from each of them).
 add_subdirectory(../src/ui ui)
 
+# deluge_ui_shell: surfaces, scene stack, input lowering, services, tick, flush, shared by
+# spec/ and unit/ on the same terms as gfx/ui above.
+add_subdirectory(../src/shell shell)
+
 # deluge_notify: the model->UI notification channel, shared by spec/ and unit/ on the
 # same terms as gfx above (added exactly once here rather than from each of them).
 add_subdirectory(../src/notify notify)

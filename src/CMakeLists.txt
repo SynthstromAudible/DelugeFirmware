@@ -4,6 +4,7 @@ add_subdirectory(foundation) # bottom of the stack; the layers below link it
 add_subdirectory(midi)       # deluge_midi: pure MIDI protocol library (app + tests)
 add_subdirectory(gfx)        # deluge_gfx_oled / deluge_gfx_grid: pure drawing primitives
 add_subdirectory(ui)         # deluge_ui_core / deluge_ui_oled / deluge_ui_grid: the immediate-mode toolkit
+add_subdirectory(shell)      # deluge_ui_shell: surfaces, scene stack, input lowering, services, tick, flush
 add_subdirectory(notify)     # deluge_notify: model->UI notification channel
 add_subdirectory(OSLikeStuff)
 add_subdirectory(deluge)     # deluge_app: the portable application (platform-agnostic)

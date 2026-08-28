@@ -315,6 +315,7 @@ add_subdirectory(${REPO_ROOT}/src/midi       ${CMAKE_BINARY_DIR}/midi)       # d
 add_subdirectory(${REPO_ROOT}/src/gfx        ${CMAKE_BINARY_DIR}/gfx)        # deluge_gfx_oled / deluge_gfx_grid
 add_subdirectory(${REPO_ROOT}/src/ui         ${CMAKE_BINARY_DIR}/ui)         # deluge_ui_core / deluge_ui_oled / deluge_ui_grid
 add_subdirectory(${REPO_ROOT}/src/notify     ${CMAKE_BINARY_DIR}/notify)     # deluge_notify
+add_subdirectory(${REPO_ROOT}/src/shell      ${CMAKE_BINARY_DIR}/shell)      # deluge_ui_shell
 add_subdirectory(${REPO_ROOT}/src/lib        ${CMAKE_BINARY_DIR}/printf)     # eyalroz_printf
 add_subdirectory(${REPO_ROOT}/src/OSLikeStuff ${CMAKE_BINARY_DIR}/scheduler) # deluge_scheduler
 add_subdirectory(${REPO_ROOT}/src/deluge     ${CMAKE_BINARY_DIR}/app)        # deluge_app + deluge_dsp + generators

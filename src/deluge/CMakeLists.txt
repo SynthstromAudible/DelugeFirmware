@@ -59,6 +59,7 @@ target_link_libraries(deluge_app PUBLIC
     deluge_ui_core
     deluge_ui_oled
     deluge_ui_grid
+    deluge_ui_shell
     deluge_notify
 )
 

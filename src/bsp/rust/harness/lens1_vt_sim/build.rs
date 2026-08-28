@@ -51,7 +51,7 @@ fn main() {
             "host C++ app objects not found at {}. Build them first:\n  \
              ninja -C {} deluge_app NE10 eyalroz_printf deluge_dsp \
              deluge_scheduler deluge_foundation deluge_midi deluge_gfx_oled deluge_gfx_grid \
-             deluge_ui_core deluge_ui_oled deluge_ui_grid deluge_notify",
+             deluge_ui_core deluge_ui_oled deluge_ui_grid deluge_ui_shell deluge_notify",
             app_objs_dir.display(),
             build_dir.display()
         );
@@ -151,7 +151,7 @@ fn main() {
     fs::write(&hash_stamp, &hash_str).expect("write host_app_objs_hash.txt");
     println!("cargo:rustc-env=DELUGE_APP_OBJS_HASH={hash_str}");
 
-    let deps: [(&str, &str); 12] = [
+    let deps: [(&str, &str); 13] = [
         (".", "libNE10.a"),
         ("printf", "libeyalroz_printf.a"),
         ("app/dsp", "libdeluge_dsp.a"),
@@ -163,6 +163,7 @@ fn main() {
         ("ui", "libdeluge_ui_core.a"),
         ("ui", "libdeluge_ui_oled.a"),
         ("ui", "libdeluge_ui_grid.a"),
+        ("shell", "libdeluge_ui_shell.a"),
         ("notify", "libdeluge_notify.a"),
     ];
 
