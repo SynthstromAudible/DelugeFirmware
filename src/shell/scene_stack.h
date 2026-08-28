@@ -29,9 +29,10 @@ public:
 /// |---|---|
 /// | `push(id)` | `on_enter(id)`; a refusal rolls back and resumes the previous top |
 /// | `pop(kind)` | `on_exit()` top-down through `kind`, then `on_resume()` on the new top |
-/// | `replace_root(id)` | per scene, top first: `save_state()` then `on_exit()`; `push(id)`; `restore_state()` |
-/// | `replace_top(id)` | `on_exit()` on the top, `on_enter(id)` on the replacement; no state save |
-/// | `reset()` | `on_exit()` on every scene, top first |
+/// | `remove(kind)` | `save_state()` then `on_exit()` on that scene alone, wherever it sits; `on_resume()` on the new
+/// top only if it was the top being removed | | `replace_root(id)` | per scene, top first: `save_state()` then
+/// `on_exit()`; `push(id)`; `restore_state()` | | `replace_top(id)` | `on_exit()` on the top, `on_enter(id)` on the
+/// replacement; no state save | | `reset()` | `on_exit()` on every scene, top first |
 ///
 /// @warning Not reentrant. A lifecycle hook must not call back into the stack; scenes ask for
 ///          navigation by returning `Action`s, which the shell applies between calls.
@@ -58,6 +59,28 @@ public:
 	///           `SceneKind::Null`, means "just the top". A kind that is not on the stack pops
 	///           nothing.
 	void pop(SceneKind to = SceneKind::Null);
+
+	/// @brief Excise the topmost scene of \p kind, wherever it sits, without touching anything
+	///        else on the stack.
+	///
+	/// `pop(kind)` and `remove(kind)` answer different questions. `pop(kind)` means "this kind, and
+	/// everything that was stacked above it, should go" -- the right call when what is above was
+	/// legitimately built on top of that kind and should leave with it (`Screensaver::note_activity`
+	/// waking the device takes down whatever the user pushed over the idle animation, on purpose).
+	/// `remove(kind)` means "just this one scene should go, whatever else is on the stack" -- the
+	/// right call for a passive, `input_transparent()` layer such as a popup: because it never took
+	/// input, an application `Push` can legitimately land *above* it, and that application scene must
+	/// not be collateral damage when the popup's own timeout, or an explicit cancel, decides the
+	/// popup itself is done.
+	///
+	/// Only the target scene's lifecycle runs: `save_state()` then `on_exit()`, in that order, on
+	/// that scene alone -- every scene above and below keeps its place, and none of them is exited,
+	/// entered or resumed by this call, except that the new top is resumed if \p kind's scene was
+	/// itself the top being removed (nothing above it to preserve, so this degenerates to exactly
+	/// what `pop(kind)` would have done for that one scene).
+	/// @param kind The kind to remove the topmost instance of.
+	/// @return False, touching nothing, if no scene of \p kind is on the stack.
+	bool remove(SceneKind kind);
 
 	/// @brief Save every scene's state, empty the stack, and make \p id the new root.
 	///

@@ -326,7 +326,9 @@ public:
 	/// @}
 
 	/// @name Saved state
-	/// Only `replace_root` saves and restores; `pop` and `replace_top` do not.
+	/// `replace_root` saves and restores; `SceneStack::remove` also saves (the excised scene, alone)
+	/// but never restores -- there is no argument-carrying re-entry to restore into, the way
+	/// `replace_root` has. `pop` and `replace_top` do neither.
 	/// @{
 	/// @brief Write whatever should survive being replaced as root into \p state.
 	/// @param state The scene's slot, to be filled in.

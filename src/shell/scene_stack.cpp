@@ -77,6 +77,43 @@ void SceneStack::pop(SceneKind to) {
 	}
 }
 
+bool SceneStack::remove(SceneKind kind) {
+	// Find the topmost scene of `kind`, searching downward from the top -- same search `pop(kind)`
+	// does, but here it names the one scene to excise rather than a floor to pop down to.
+	size_t i = n_;
+	while (i > 0 && stack_[i - 1]->kind() != kind) {
+		i--;
+	}
+	if (i == 0) {
+		return false; // no scene of that kind is on the stack; remove nothing, flag nothing
+	}
+	const size_t idx = i - 1;
+	const bool was_top = idx == n_ - 1;
+
+	changed_ = true;
+	Scene* scene = stack_[idx];
+	save_slot(*scene);
+	scene->on_exit();
+
+	// Close the gap: everything above `idx` shifts down one slot. Everything below `idx` is never
+	// touched -- no `on_exit`/`on_enter`/`on_resume` runs on it, exactly as the doc promises.
+	for (size_t j = idx; j + 1 < n_; j++) {
+		stack_[j] = stack_[j + 1];
+		ids_[j] = ids_[j + 1];
+	}
+	n_--;
+	stack_[n_] = nullptr;
+	ids_[n_] = SceneId{};
+
+	if (was_top && n_ > 0) {
+		// The removed scene was the top, so the scene now exposed needs the same "you're back on
+		// top" notice `pop()` gives it. A scene that was already below something else, above the
+		// removed one, never lost or regained the top and gets no lifecycle call at all.
+		stack_[n_ - 1]->on_resume();
+	}
+	return true;
+}
+
 bool SceneStack::replace_root(SceneId id) {
 	if (reg_.find(id.kind) == nullptr) {
 		// Nothing to replace the stack with, so leave it standing rather than emptying it into a

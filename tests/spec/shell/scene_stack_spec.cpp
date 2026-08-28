@@ -145,6 +145,45 @@ describe shell_scene_stack("shell::SceneStack", $ {
 		expect(r.a.resumes).to_equal(1);                             // the root resumed
 	});
 
+	it("remove(kind) excises the target wherever it sits, leaving the rest in order", _ {
+		Rig r;
+		expect(r.st.push({kA, 1})).to_be_true();
+		expect(r.st.push({kB})).to_be_true();
+		expect(r.st.push({kA, 2})).to_be_true();
+		expect(r.st.depth()).to_equal(size_t(3));
+		expect(r.st.changed_since_last_query()).to_be_true(); // drain the three pushes' flag
+
+		expect(r.st.remove(kB)).to_be_true();
+		expect(r.st.depth()).to_equal(size_t(2));
+		expect(r.b.exits).to_equal(1);
+		expect(r.b.saves).to_equal(1);
+		expect(r.a.exits).to_equal(0);                               // neither A was touched
+		expect(r.a.saves).to_equal(0);
+		expect(r.a.resumes).to_equal(0);                             // kB was not the top: no on_resume
+		expect(r.st.id_at(0) == SceneId{kA, 1}).to_be_true();        // the root, untouched
+		expect(r.st.id_at(1) == SceneId{kA, 2}).to_be_true();        // the former top, shifted down intact
+		expect(r.st.top().kind() == kA).to_be_true();
+		expect(r.st.changed_since_last_query()).to_be_true();
+
+		// Absent: no scene of that kind is stacked any more.
+		expect(r.st.remove(kB)).to_be_false();
+		expect(r.st.depth()).to_equal(size_t(2));
+		expect(r.st.id_at(0) == SceneId{kA, 1}).to_be_true();
+		expect(r.st.id_at(1) == SceneId{kA, 2}).to_be_true();
+		expect(r.st.changed_since_last_query()).to_be_false();
+	});
+
+	it("remove(kind) on the actual top resumes the scene now exposed", _ {
+		Rig r;
+		expect(r.st.push({kA})).to_be_true();
+		expect(r.st.push({kB})).to_be_true();
+		expect(r.st.remove(kB)).to_be_true();
+		expect(r.st.depth()).to_equal(size_t(1));
+		expect(r.b.exits).to_equal(1);
+		expect(r.a.resumes).to_equal(1);                             // the newly-exposed top is resumed
+		expect(r.st.top().kind() == kA).to_be_true();
+	});
+
 	it("replace_root saves and restores POD state by SceneId", _ {
 		Rig r;
 		expect(r.st.push({kA, 5})).to_be_true();

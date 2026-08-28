@@ -258,12 +258,13 @@ public:
 	/// `show_popup_with_timeout()` both this case and the public `show_popup()` below share.
 	/// `Kind::Console` appends to the console scene; `Kind::Working`/`Kind::ClearWorking` arm/clear
 	/// the working scene (and push it, on the way up, the first time it is armed);
-	/// `Kind::CancelPopup` pops the popup scene **by kind**, wherever it sits -- including a
+	/// `Kind::CancelPopup` excises the popup scene by kind, wherever it sits -- including a
 	/// still-persistent one, exactly as legacy's `cancelPopup()`/`removePopup()`
-	/// (`oled.cpp:253-260`) does not consult the timer state either, and including anything a
-	/// caller pushed above it, exactly as `Screensaver::note_activity`'s wake does. A popup only
-	/// closable while it is the top would be stranded -- invisible but stacked -- by any scene
-	/// pushed over it. A no-op when no popup is stacked at all.
+	/// (`oled.cpp:253-260`) does not consult the timer state either. This is `SceneStack::remove`,
+	/// not `pop`: a popup is `input_transparent()`, so an application `Push` can legitimately land
+	/// above a live one, and cancelling the popup must not take that scene down with it -- it excises
+	/// just the popup and closes the gap, leaving whatever else is on the stack exactly where it was.
+	/// A no-op when no popup is stacked at all.
 	///
 	/// Every string id and error code here is resolved through `BoardProfile::text_or_digits` /
 	/// `error_text_or_digits`, so a profile with no l10n bridge shows the id's digits rather than
@@ -283,20 +284,22 @@ public:
 	/// overload -- it calls `show_popup_with_timeout()` directly, so it can pass 0 for a `Warn`
 	/// notice instead of always computing `timeout_for(popup_type)` -- see `drain()`'s own doc.
 	///
-	/// If the popup scene is already the stack's top, this only replaces its text/type/timeout
-	/// (no second push); otherwise it pushes the popup scene first.
+	/// If the popup scene is already stacked anywhere -- top or not, a scene may legitimately sit
+	/// above a live popup -- this only replaces its text/type/timeout in place (no second push);
+	/// otherwise it pushes the popup scene.
 	/// @param text       The resolved text to show.
 	/// @param popup_type The legacy `PopupType` value, as a bare `uint8_t`; 0 is folded to
 	///                    `General`, exactly as `notify_drain.cpp`'s `popup_type_of` does.
 	/// @param now_ms     The tick's wall clock.
 	void show_popup(std::string_view text, uint8_t popup_type, uint32_t now_ms);
 
-	/// @brief Pop the popup once it has expired, and pop the working scene once it has been
+	/// @brief Remove the popup once it has expired, and remove the working scene once it has been
 	///        cleared.
 	///
-	/// Both pops are by kind, for the same reason `drain()`'s `CancelPopup` case is: a notice must
-	/// not be strandable on the stack by a scene pushed over it. Each takes whatever is above it
-	/// down with it.
+	/// Both are `SceneStack::remove`, for the same reason `drain()`'s `CancelPopup` case is: a
+	/// popup or working animation is `input_transparent()`, so a scene pushed over either of them is
+	/// there legitimately and must survive the notice's own expiry -- only the notice scene itself is
+	/// excised, wherever it sits.
 	/// @param now_ms The tick's wall clock.
 	/// @param dt_ms  Unused: both checks are level tests against the scenes' own state, not
 	///               accumulators -- there is nothing to integrate.

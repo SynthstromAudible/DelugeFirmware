@@ -196,13 +196,12 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 			working_.clear();
 			break;
 		case notify::Notice::Kind::CancelPopup:
-			// By kind, not "pop if the popup happens to be on top": a scene pushed above a live
-			// popup would otherwise strand it -- invisible (the `render_oled` walk stops at the
-			// first non-transparent scene above it) but still stacked, still reported by
-			// `state_lines()`, and back on screen the moment that scene pops. `pop(kind)` takes
-			// what is above it down too, exactly as `Screensaver::note_activity` does on wake; a
-			// no-op when no popup is stacked at all.
-			stack_.pop(SceneKind::Popup);
+			// `remove`, not `pop`: a popup is `input_transparent()`, so a scene pushed above a
+			// live popup is there legitimately (its own `Push` landed above a layer that never
+			// took input) and must not be taken down just because the popup itself is being
+			// cancelled. `remove(kind)` excises only the popup and closes the gap; a no-op when
+			// no popup is stacked at all.
+			stack_.remove(SceneKind::Popup);
 			break;
 		}
 	}
@@ -221,23 +220,36 @@ void Notices::show_popup_with_timeout(std::string_view text, uint8_t popup_type,
 	// persistence the same way legacy does: not by any special "cancel persistence" step, but
 	// because the replacement simply never re-arms it.
 	popup_.show(text, popup_type, now_ms, timeout_ms);
-	if (stack_.top().kind() != SceneKind::Popup) {
+	// Re-targets the existing popup entry wherever it sits, rather than testing only `top()`: a
+	// scene may have been legitimately `Push`ed above a live popup (it is `input_transparent()`, so
+	// that scene still has input), and testing `top()` alone would read that scene's kind, not the
+	// popup's, and push a second `SceneKind::Popup` entry pointing at this same instance.
+	bool popup_stacked = false;
+	for (Scene* scene : stack_.scenes()) {
+		if (scene->kind() == SceneKind::Popup) {
+			popup_stacked = true;
+			break;
+		}
+	}
+	if (!popup_stacked) {
 		stack_.push(SceneId{SceneKind::Popup});
 	}
 }
 
 void Notices::tick(uint32_t now_ms, uint32_t dt_ms) {
 	(void)dt_ms;
-	// Both pops are by kind rather than "only while it is the top", for the reason `CancelPopup`'s
-	// own case above spells out: a scene pushed over a live notice must not be able to strand it on
-	// the stack for ever. Neither is guarded on the scene being stacked at all -- `SceneStack::pop`
-	// for a kind that is not there touches nothing and (since the review's `changed_` fix) does not
-	// flag the stack as changed either, so calling it on every tick costs one downward scan.
+	// Both are `remove(kind)` rather than "pop while it is the top" or "pop by kind": a popup and the
+	// working animation are both `input_transparent()`, so a scene pushed over either of them got
+	// there legitimately and must not be taken down just because the notice beneath it expires or
+	// clears. `remove(kind)` excises only the notice scene and closes the gap. Neither is guarded on
+	// the scene being stacked at all -- `SceneStack::remove` for a kind that is not there touches
+	// nothing and does not flag the stack as changed either, so calling it on every tick costs one
+	// downward scan.
 	if (popup_.expired(now_ms)) {
-		stack_.pop(SceneKind::Popup);
+		stack_.remove(SceneKind::Popup);
 	}
 	if (!working_.armed()) {
-		stack_.pop(SceneKind::Working);
+		stack_.remove(SceneKind::Working);
 	}
 }
 

@@ -249,18 +249,52 @@ describe shell_notices("shell::Notices", $ {
 		expect(across_the_wrap.pbm() != deluge::ui::test::Rig48{}.pbm()).to_be_true();
 	});
 
-	it("an expired popup is popped even with a scene above it", _ {
-		// A popup only closable while it is the stack top is stranded by anything pushed over it:
-		// invisible (the `render_oled` walk stops at the first non-transparent scene above it) but
-		// still stacked, still in `state_lines()`, and back on screen when that scene pops.
+	it("an expired popup is removed in place, not everything above it", _ {
+		// A popup is `input_transparent()`, so an application `Push` legitimately lands above a live
+		// one -- that scene must survive the popup's own expiry, and whatever was below the popup
+		// (its own base) must survive untouched too.
 		Rig r;
+		(void)r.queue.push(make_notice(Notice::Kind::Working, "Loading"));
+		r.notices.drain(r.queue, 0);
+		expect(r.stack.depth()).to_equal(size_t(1));
+		expect(r.stack.top().kind() == SceneKind::Working).to_be_true();
+
 		(void)r.queue.push(make_notice(Notice::Kind::Text, "SAVED"));
 		r.notices.drain(r.queue, 0);
-		expect(r.stack.push(SceneId{SceneKind::Console})).to_be_true();
 		expect(r.stack.depth()).to_equal(size_t(2));
+		expect(r.stack.top().kind() == SceneKind::Popup).to_be_true();
+
+		// An application scene, pushed above the live popup -- legitimate, since the popup never took
+		// the input this Push responded to.
+		expect(r.stack.push(SceneId{SceneKind::Console})).to_be_true();
+		expect(r.stack.depth()).to_equal(size_t(3));
 
 		r.notices.tick(r.notices.timeout_for(1) + 1, 0);
-		expect(r.stack.depth()).to_equal(size_t(0)); // the popup, and what was pushed over it
+		expect(r.stack.depth()).to_equal(size_t(2));                          // only the popup is gone
+		expect(r.stack.top().kind() == SceneKind::Console).to_be_true();      // the app scene is still on top
+		expect(r.stack.id_at(0) == SceneId{SceneKind::Working}).to_be_true(); // and the base survived
+	});
+
+	it("a second Text notice while a scene sits above the live popup updates it in place", _ {
+		Rig r;
+		(void)r.queue.push(make_notice(Notice::Kind::Text, "FIRST"));
+		r.notices.drain(r.queue, 0);
+		expect(r.stack.depth()).to_equal(size_t(1));
+
+		// An application scene pushed above the live popup.
+		expect(r.stack.push(SceneId{SceneKind::Console})).to_be_true();
+		expect(r.stack.depth()).to_equal(size_t(2));
+		expect(r.stack.top().kind() == SceneKind::Console).to_be_true();
+
+		// `show_popup_with_timeout` must find the popup by scanning the whole stack, not just `top()`
+		// (which now reads the console scene) -- otherwise this pushes a second `SceneKind::Popup`
+		// entry pointing at the same `PopupScene` instance.
+		(void)r.queue.push(make_notice(Notice::Kind::Text, "SECOND"));
+		r.notices.drain(r.queue, 10);
+
+		expect(r.stack.depth()).to_equal(size_t(2));                     // unchanged: no duplicate push
+		expect(r.stack.top().kind() == SceneKind::Console).to_be_true(); // the scene above is undisturbed
+		expect(std::string(r.notices.last_popup_text())).to_equal(std::string("SECOND")); // updated in place
 	});
 
 	it("every notice scene is a passive grid overlay that never takes input", _ {
