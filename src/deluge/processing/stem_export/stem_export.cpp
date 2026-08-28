@@ -751,6 +751,10 @@ int32_t StemExport::exportChokeGroupStems(StemExportType stemExportType) {
 		InstrumentClip* clip = getCurrentInstrumentClip();
 		Output* output = clip->output;
 
+		// Counts the files actually written, so the trailing number in each name runs 000, 001, ...
+		// rather than jumping with the group number - most kits leave gaps in the 1-8 range.
+		int32_t fileIndex = 0;
+
 		for (uint8_t group = deluge::drum::kMinChokeGroup; group <= deluge::drum::kMaxChokeGroup; group++) {
 			bool groupHasEligibleRow = false;
 			int32_t groupLoopLength = 0;
@@ -782,8 +786,8 @@ int32_t StemExport::exportChokeGroupStems(StemExportType stemExportType) {
 			loopLengthToStopStemExport = groupLoopLength;
 			getLoopEndPointInSamplesForAudioFile(loopLengthToStopStemExport);
 
-			bool started =
-			    startCurrentStemExport(stemExportType, output, clip->activeIfNoSolo, group, /*exportStem=*/true);
+			bool started = startCurrentStemExport(stemExportType, output, clip->activeIfNoSolo, fileIndex,
+			                                      /*exportStem=*/true, /*drum=*/nullptr, group);
 
 			if (started) {
 				// wait until recording is done and playback is turned off
@@ -799,6 +803,7 @@ int32_t StemExport::exportChokeGroupStems(StemExportType stemExportType) {
 				});
 
 				finishCurrentStemExport(stemExportType, clip->activeIfNoSolo);
+				fileIndex++;
 			}
 
 			// mute this group's rows again before moving on to the next group
@@ -861,7 +866,7 @@ bool StemExport::currentKitSpansMultipleChokeGroups() {
 }
 
 bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* output, bool& muteState,
-                                        int32_t indexNumber, bool exportStem, SoundDrum* drum) {
+                                        int32_t indexNumber, bool exportStem, SoundDrum* drum, uint8_t chokeGroup) {
 	updateScrollPosition(stemExportType, indexNumber + 1);
 
 	// exclude empty clips / outputs, muted outputs (arranger), MIDI and CV outputs
@@ -883,7 +888,7 @@ bool StemExport::startCurrentStemExport(StemExportType stemExportType, Output* o
 	uiNeedsRendering(getCurrentUI());
 
 	// set wav file name for stem to be exported
-	if (!setWavFileNameForStemExport(stemExportType, output, indexNumber, drum)) {
+	if (!setWavFileNameForStemExport(stemExportType, output, indexNumber, drum, chokeGroup)) {
 		abortStemExportProcess(deluge::l10n::String::STRING_FOR_STEM_NAME_TOO_LONG);
 		return false;
 	}
@@ -962,10 +967,17 @@ void StemExport::updateScrollPosition(StemExportType stemExportType, int32_t ind
 		currentSong->arrangementYScroll = indexNumber - kDisplayHeight;
 		arrangerView.repopulateOutputsOnScreen(false);
 	}
-	else if (stemExportType == StemExportType::DRUM || stemExportType == StemExportType::CHOKE_GROUP) {
+	else if (stemExportType == StemExportType::DRUM) {
 		// reset clip view scrolling so we're back at the top left of the kit
 		currentSong->xScroll[NAVIGATION_CLIP] = 0;
 		getCurrentInstrumentClip()->yScroll = indexNumber - kDisplayHeight;
+	}
+	else if (stemExportType == StemExportType::CHOKE_GROUP) {
+		// A choke group spans however many rows share it, scattered anywhere in the kit, so no single
+		// row represents the stem being exported - scrolling to one would just make the display jump
+		// somewhere arbitrary. Reset the horizontal scroll like the other kit case and leave the
+		// vertical position where the user had it; the progress readout names the group.
+		currentSong->xScroll[NAVIGATION_CLIP] = 0;
 	}
 }
 
@@ -1266,7 +1278,7 @@ constexpr int32_t kMaxStemFileNameChars = FF_MAX_LFN;
 /// example: /KIT_CHOKE_GROUP_808 KIT_ChokeGroup3_ROOT NOTE-SCALE_003.WAV
 /// this wavFileName is then concatenate to the filePath name to export the WAV file
 bool StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Output* output, int32_t fileNumber,
-                                             SoundDrum* drum) {
+                                             SoundDrum* drum, uint8_t chokeGroup) {
 	// wavFileNameForStemExport = "/"
 	Error error = wavFileNameForStemExport.set("/");
 	if (error != Error::NONE) {
@@ -1342,11 +1354,11 @@ bool StemExport::setWavFileNameForStemExport(StemExportType stemExportType, Outp
 		                  outputName, drum->drumName.c_str(), tempo, noteName, scaleName, fileNumber);
 	}
 	// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_ChokeGroupN_tempo_noteName-scaleName_###.WAV
-	// fileNumber doubles as both the group number embedded in the name and the trailing index, since
-	// the group number already uniquely identifies the stem within this export (no separate index needed)
+	// The group names the stem; the trailing index counts exported files from 000, the same as every
+	// other export type. Groups a kit doesn't use are skipped, so the two are not interchangeable.
 	else if (stemExportType == StemExportType::CHOKE_GROUP) {
 		length = snprintf(fileName, sizeof(fileName), "%s_%s_%s_ChokeGroup%d_%dBPM_%s-%s_%03d.WAV", outputType,
-		                  exportType, outputName, fileNumber, tempo, noteName, scaleName, fileNumber);
+		                  exportType, outputName, chokeGroup, tempo, noteName, scaleName, fileNumber);
 	}
 	// wavFileNameForStemExport = /OutputType_StemExportType_OutputName_tempo_noteName-scaleName_###.WAV
 	else {

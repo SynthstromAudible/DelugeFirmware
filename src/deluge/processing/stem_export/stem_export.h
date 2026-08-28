@@ -86,8 +86,12 @@ public:
 	bool currentKitSpansMultipleChokeGroups();
 
 	// start exporting
+	/// chokeGroup is only meaningful for StemExportType::CHOKE_GROUP, where it names the group in the
+	/// file name. It is deliberately separate from fileNumber: a group export still counts its files
+	/// from 000 like every other export type, and the scroll position must not be driven by a group
+	/// number that has nothing to do with any row.
 	bool startCurrentStemExport(StemExportType stemExportType, Output* output, bool& muteState, int32_t fileNumber,
-	                            bool exportStem, SoundDrum* drum = nullptr);
+	                            bool exportStem, SoundDrum* drum = nullptr, uint8_t chokeGroup = 0);
 
 	// finish exporting
 	void finishCurrentStemExport(StemExportType stemExportType, bool& muteState);
@@ -109,7 +113,7 @@ public:
 	/// returns false if no valid file name could be built (e.g. the output / drum names are too long
 	/// for the file system), in which case the stem must not be exported
 	[[nodiscard]] bool setWavFileNameForStemExport(StemExportType type, Output* output, int32_t fileNumber,
-	                                               SoundDrum* drum = nullptr);
+	                                               SoundDrum* drum = nullptr, uint8_t chokeGroup = 0);
 	String wavFileNameForStemExport;
 	bool wavFileNameForStemExportSet;
 
