@@ -230,7 +230,7 @@ def main():
         print("Starting deluge-simulator (panel) — close the window to stop.")
         # The GUI's wgpu/winit chatter is noise; keep deluge_host's logs (audio/MIDI/link) on the
         # terminal but send the panel's stdout/stderr to a logfile.
-        sim_log = open(  # noqa: SIM115 -- must outlive the Popen; closed in the finally block
+        sim_log = open(  # noqa: SIM115 -- must outlive the Popen; closed in the finally block below
             os.path.join(util.get_git_root(), SIM_BUILD_DIR, "deluge-simulator.log"),
             "w",
         )
@@ -259,6 +259,9 @@ def main():
                     p.wait(timeout=3)
                 except subprocess.TimeoutExpired:
                     p.kill()
+        log = locals().get("sim_log")
+        if log:
+            log.close()
         if os.path.exists(args.socket):
             try:
                 os.unlink(args.socket)
