@@ -41,11 +41,13 @@ struct Tick {
 	std::vector<PadEvent> pads;
 };
 
-/// A *fresh* frame over the rig's grid, as the shell builds one per tick.
+/// A *fresh* frame over the rig's grid, as the shell builds one per tick (ui/grid/frame.h: a
+/// `GridFrame` is a per-tick object -- four references and a rectangle, free to build).
 ///
-/// `GridFrame::local_events()` fills its member cache on first call and reuses it for the rest of
-/// that frame's life (ui/grid/frame.h), so a spec that drives several ticks must not reuse
-/// `GridRig::frame` -- it would keep answering with the first tick's events.
+/// Reusing `GridRig::frame` across the ticks below would also work: `local_events()`' cache is
+/// keyed on the snapshot's `pads` span, so installing a new tick's events invalidates it (see
+/// grid_frame_spec's "re-filters when the snapshot's events are swapped"). This builds a fresh one
+/// anyway, because that is the shape the shell has and the one the gesture FSM is specified for.
 GestureEvent step(uitest::GridRig& r, Hold& hold, int32_t& second_x, int32_t& second_y) {
 	GridFrame f = root_grid_frame(r.grid, r.input, r.gate);
 	return gesture(f, hold, HoldPolicy{}, second_x, second_y);

@@ -6,6 +6,10 @@ namespace deluge::ui {
 // POD state the scene owns and passes by reference.
 struct ListState {
 	int16_t cursor = 0, scroll = 0, rows_last = 0;
+	/// Spec §3's explicit edit mode, for a widget (text entry) that needs one. **Read by no
+	/// widget on this branch** -- declared here so the scene state a menu owns does not change
+	/// shape when the first such widget lands (spec E). `list` itself has no edit mode: a turn
+	/// moves the cursor and a select press reports `entered`, with no third state between them.
 	bool editing = false;
 };
 struct ColumnsState {
@@ -55,10 +59,18 @@ struct Hold {
 	/// down, which is exactly what a one-shot timer does not do.
 	bool hold_reported = false;
 };
+/// Spec §3's generic deadline. **Used by no widget on this branch**: every widget with motion
+/// asks `RepaintGate::request_repaint_after` instead, which is the same deadline expressed to the
+/// one object that already collects them. Kept as a spec-declared placeholder for a scene that
+/// needs a deadline of its own (spec D/E); delete it if none appears.
 struct Timer {
 	uint32_t due_ms = 0;
 	bool armed = false;
 };
+/// State for the OLED `waveform` widget of spec §6, which is **not implemented on this branch** --
+/// its data shape depends on `WaveformRenderData`, which is model-side, so it is deferred to spec
+/// E's sample-view scene (see the spec's Amendments). Retained for it; the *grid* waveform
+/// components (`ui/grid/waveform.h`) are unrelated and keep no state.
 struct WaveformState {
 	int32_t scroll_cols = 0;
 	uint8_t zoom = 0;

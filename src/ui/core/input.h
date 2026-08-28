@@ -4,6 +4,10 @@
 
 namespace deluge::ui {
 
+/// Spec §3's encoder enumeration. **Named by nothing on this branch**: `InputSnapshot` below
+/// lowers each encoder into its own already-named field (`turn`, `edit[]`, `horizontal`,
+/// `vertical`), so no widget has to index by role. Kept as the spec-declared name the shell will
+/// use when it maps hardware encoders onto those fields (spec D); delete it if it stays unused.
 enum class EncoderRole : uint8_t { Select, Horizontal, Vertical, GoldUpper, GoldLower, Tempo, Count };
 
 struct PadEvent {
@@ -47,6 +51,21 @@ struct InputSnapshot {
 	int8_t turn;    // Select encoder detents: navigate / move focus
 	int8_t edit[2]; // GoldUpper, GoldLower detents: edit the focused value
 	int8_t horizontal, vertical;
+
+	/// **Edges.** `select_pressed` and `back_pressed` are true only on the tick in which the
+	/// button went down, exactly like the detents above and `pads` below -- never for as long as
+	/// the button is held. `shift` is the odd one out and *is* a level, like `held_pads`: it is a
+	/// modifier, read alongside another gesture rather than acted on itself.
+	///
+	/// The shell lowers the edges; the widgets deliberately do not latch. `list`, `columns` and
+	/// `toggle` set `Response::entered` straight from `select_pressed`, so a shell that lowered a
+	/// level here would enter a submenu once per frame for as long as the encoder was held -- a
+	/// repeat rate of one entry per tick. Widgets cannot defend against that: an immediate-mode
+	/// widget has no per-caller identity to hang "I already reported this press" on, and the POD
+	/// state a scene passes in belongs to the widget's own job, not to the button. Supplying edges
+	/// is therefore the caller's contract, and tests/spec/ui/list_spec.cpp pins it by asserting the
+	/// un-defended behaviour: two consecutive ticks with `select_pressed` set report `entered`
+	/// twice.
 	bool select_pressed, back_pressed, shift;
 	std::span<const PadEvent> pads; // this tick's pad events; grid frames filter by region
 	PadMask held_pads{};            // pads currently down, absolute coordinates; the level to `pads`' edges

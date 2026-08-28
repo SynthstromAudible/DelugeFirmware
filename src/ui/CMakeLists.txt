@@ -6,7 +6,10 @@ add_library(deluge_ui_core STATIC
   core/text_wrap.cpp
 )
 target_include_directories(deluge_ui_core PUBLIC ${SHARED_INCLUDE})
-target_link_libraries(deluge_ui_core PUBLIC deluge_gfx_oled deluge_gfx_grid)
+# gfx_oled only: nothing under core/** includes anything from gfx/grid (PadMask names
+# kMaxGridCols in a comment, not in code), and carrying the dep here dragged gfx-grid into every
+# ui-core consumer's link closure. deluge_ui_grid links it directly.
+target_link_libraries(deluge_ui_core PUBLIC deluge_gfx_oled)
 set_target_properties(deluge_ui_core PROPERTIES
   CXX_STANDARD 26
   CXX_STANDARD_REQUIRED YES

@@ -112,14 +112,16 @@ bool text_keyboard_is_shift_pad(int32_t x, int32_t y, int32_t home_row);
 /// (`clearMainPadsWithoutSending`, qwerty_ui.cpp:76) collapsed into one pass -- the immediate-mode
 /// equivalent, and the reason the sidebar is untouched.
 ///
-/// `Response::velocity` carries the typed character, 0 for none, per the brief. The shift pads
-/// are read from the same pass that paints them (`Response::held`, plus `pressed` so a shift pad
-/// pressed on this very tick already counts), written to `state.shift`, and applied to the
-/// lookup -- so a press on `1` while shift is down returns `'!'` on the tick it happens.
+/// `Response::index` carries the typed character code, -1 for none (ui/core/response.h); the
+/// brief's "in `velocity`" spelling is gone, because `Response::velocity` is the *pad* velocity
+/// everywhere in the toolkit and a character code is not one. The shift pads are read from the
+/// same pass that paints them (`Response::held`, plus `pressed` so a shift pad pressed on this
+/// very tick already counts), written to `state.shift`, and applied to the lookup -- so a press on
+/// `1` while shift is down returns `'!'` on the tick it happens.
 ///
 /// The flags describe the keyboard as a whole: `pressed`, `released` and `held` are true if *any*
-/// keyboard pad was pressed, released or is down this tick. `velocity` comes from the first press
-/// **that types a character** -- not merely the first press in scan order. Legacy runs `padAction`
+/// keyboard pad was pressed, released or is down this tick. `index` and `velocity` both come from
+/// the first press **that types a character** -- not merely the first press in scan order. Legacy runs `padAction`
 /// once per event (`qwerty_ui.cpp:205-330`), so a shift pad (which sits at `home_row - 1`, ahead of
 /// the digit row in a bottom-up sweep, and falls outside the key rectangle at `:255`) does nothing
 /// while the digit pressed in the same tick still types; taking the first press unconditionally

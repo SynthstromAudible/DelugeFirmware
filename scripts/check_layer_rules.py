@@ -60,10 +60,13 @@ RULES = [
         "2026-08-26-ui-notifications-design.md",
     ),
     (
+        # Slashed paths outside ui/ and gfx/ -- which is every project header except the handful
+        # the plan's Global Constraints name by name, and those are spelled out: a std header
+        # (<cstdint>, <span>) has no slash and no such name, so it still never matches.
         "ui-includes-outside",
         "src/ui/**",
         "include",
-        r"^(?!ui/|gfx/).*/",
+        r"^(?!ui/|gfx/)(?:.*/|definitions.*|board_config\.h|board_layout\.hpp)",
         "2026-08-26-ui-toolkit-design.md",
     ),
     (

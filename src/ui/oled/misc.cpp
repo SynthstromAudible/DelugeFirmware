@@ -48,8 +48,14 @@ void vu_channel(OledFrame& f, Rect band, uint8_t level) {
 } // namespace
 
 void output_name(OledFrame& f, Rect rect, const OutputNameData& data) {
-	// `#if OLED_MAIN_HEIGHT_PIXELS == 64` (view.cpp:2093-2097, :2115-2119), as a value.
-	const bool tall = f.canvas.geometry().height == 64;
+	// `#if OLED_MAIN_HEIGHT_PIXELS == 64` (view.cpp:2093-2097, :2115-2119), as a *profile* value
+	// rather than a read of the framebuffer's height: `Style::menu_base_y` is the one
+	// panel-height-dependent number the profile carries (15 on a 64-row panel, 14 on a 48-row
+	// one), so it is what this fork asks. Reading the canvas instead would let a mismatched
+	// `(Style, Geometry)` pair take the 64-row branch with the 48-row style; now the pair cannot
+	// disagree, because only the style is consulted. The four constants below stay literals --
+	// ui/core/metrics.h records why they are deliberately not derived from `title_height`.
+	const bool tall = f.style.menu_base_y == kMenuBaseY64;
 	const int32_t type_y = rect.y + (tall ? kOutputTypeY64 : kOutputTypeY48);
 	const int32_t name_y = rect.y + (tall ? kOutputNameY64 : kOutputNameY48);
 

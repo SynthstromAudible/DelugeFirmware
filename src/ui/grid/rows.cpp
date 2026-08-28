@@ -6,14 +6,16 @@ namespace deluge::ui::grid {
 
 namespace {
 
-/// Fold one pad's answer into a row's: the brief's encoding, where the pressed column travels in
-/// `velocity` as x + 1 (0 = no press) and the leftmost press wins when a tick brings more than one.
+/// Fold one pad's answer into a row's: the pressed column travels in `Response::index` (-1 = no
+/// press) and its velocity in `Response::velocity`, with the leftmost press winning when a tick
+/// brings more than one.
 void accumulate(Response& out, const Response& pad, int32_t x) {
 	out.released = out.released || pad.released;
 	out.held = out.held || pad.held;
 	if (pad.pressed && !out.pressed) {
 		out.pressed = true;
-		out.velocity = static_cast<uint8_t>(x + 1);
+		out.index = static_cast<int16_t>(x);
+		out.velocity = pad.velocity;
 	}
 }
 

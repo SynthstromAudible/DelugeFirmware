@@ -159,7 +159,10 @@ void title(OledFrame& f, std::string_view s, bool underline) {
 	const gfx::oled::FontId font = f.style.title_font;
 	f.glyphs(s, 0, kTitleY, spacing_x_for(font), text_height_for(font));
 	if (underline) {
-		f.hline(kTitleSeparatorY, 0, f.bounds().w - 1);
+		// The rule sits on the band's last row: `Style::title_height`, which is `kTitleSeparatorY`
+		// on both shipped profiles (pinned by the static_asserts in ui/core/style.h), so a profile
+		// with a taller title face moves its separator down with it.
+		f.hline(f.style.title_height, 0, f.bounds().w - 1);
 	}
 }
 

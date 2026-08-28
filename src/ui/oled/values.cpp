@@ -185,7 +185,17 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
 		editing_char--;
 	}
 
-	const int32_t digit_width = kTextHugeSpacingX;
+	// `Style::big_font` is the huge digit face this widget draws in -- the profile's answer to
+	// "which face are the big numbers", where `value_font` is `int_value`'s. Both are
+	// MetricBold20 on the shipped profiles, whose advance and height are exactly the
+	// kTextHugeSpacingX / kTextHugeSizeY that decimal.cpp:149-163 spells as literals, so the
+	// pixels are unchanged; the static_asserts below are what keeps that true.
+	const gfx::oled::FontId big = f.style.big_font;
+	static_assert(kDelugeStyle48.big_font == gfx::oled::FontId::MetricBold20
+	              && kDelugeStyle64.big_font == gfx::oled::FontId::MetricBold20);
+	static_assert(text_height_of(gfx::oled::FontId::MetricBold20) == kTextHugeSizeY);
+	const int32_t digit_height = text_height_for(big);
+	const int32_t digit_width = spacing_x_for(big);
 	const int32_t period_width = digit_width / 2;
 	const int32_t string_width = digit_width * length + (num_decimal_places != 0 ? period_width : 0);
 	int32_t string_start_x = rect.x + ((rect.w - string_width) >> 1); // decimal.cpp:142
@@ -194,7 +204,7 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
 	// The digits' own band and the cursor's, cleared before either is drawn: legacy got that
 	// from renderUIsForOled clearing the whole canvas first, and the cursor in particular is an
 	// inversion, which is only deterministic over a known background.
-	f.clear(Rect{rect.x, local_y, rect.w, kTextHugeSizeY});
+	f.clear(Rect{rect.x, local_y, rect.w, digit_height});
 	f.clear(Rect{rect.x, cursor_y, rect.w, 2});
 
 	std::string_view rest = text_all;
@@ -203,16 +213,16 @@ Response decimal_value(OledFrame& f, Rect rect, int32_t& value, Range range, uin
 		// Both halves are drawn with use_width set, so every digit advances exactly digit_width
 		// and the period exactly period_width (decimal.cpp:149-153).
 		f.glyphs(text_all.substr(0, static_cast<size_t>(before_point)), string_start_x, local_y, digit_width,
-		         kTextHugeSizeY, 0, local_end_x, true);
-		f.glyphs(".", string_start_x + before_point * digit_width, local_y, period_width, kTextHugeSizeY, 0,
-		         local_end_x, true);
+		         digit_height, 0, local_end_x, true);
+		f.glyphs(".", string_start_x + before_point * digit_width, local_y, period_width, digit_height, 0, local_end_x,
+		         true);
 		rest = text_all.substr(static_cast<size_t>(before_point));
 		string_start_x += before_point * digit_width + period_width;
 		if (editing_char > before_point) {
 			our_digit_start_x -= period_width;
 		}
 	}
-	f.glyphs(rest, string_start_x, local_y, digit_width, kTextHugeSizeY, 0, local_end_x, true);
+	f.glyphs(rest, string_start_x, local_y, digit_width, digit_height, 0, local_end_x, true);
 
 	// setupBlink(ourDigitStartX + 1, digitWidth - 2, 41, 42, movingCursor), decimal.cpp:163:
 	// canvas rows 41..42 inclusive, i.e. a 2-row band, inverted while the phase is lit.

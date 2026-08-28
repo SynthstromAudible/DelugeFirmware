@@ -197,6 +197,23 @@ describe list_w("ui::oled::list", $ {
 		}
 	});
 
+	it("does not latch select_pressed: the caller supplies edges (ui/core/input.h)", _ {
+		// `select_pressed` is an *edge* -- true only on the tick the button went down -- and the
+		// widget deliberately does no de-duplication of its own. Two consecutive ticks with the
+		// flag still set therefore report `entered` twice. That is the contract, not a bug: a
+		// shell that lowered a level here would enter a submenu once per frame, and this case is
+		// what makes the requirement visible to whoever writes that shell.
+		const ListRow rows[] = {{"ONE"}, {"TWO"}, {"THREE"}};
+		uitest::Rig48 r; ListState st; ScrollText sc;
+		r.input.select_pressed = true;
+		expect(list(r.frame, menu_rect(r.frame), st, rows, sc).entered).to_be_true();
+		expect(list(r.frame, menu_rect(r.frame), st, rows, sc).entered).to_be_true();  // still held
+		// The caller clearing the flag is the only thing that stops it -- as the shell does when
+		// the button has not just gone down.
+		r.input.select_pressed = false;
+		expect(list(r.frame, menu_rect(r.frame), st, rows, sc).entered).to_be_false();
+	});
+
 	it("reports entered on select press, and never on a non-selectable row", _ {
 		const ListRow rows[] = {{"ONE"}, {"TWO"}, {"THREE"}, {"FOUR"}, {"FIVE"}};
 		uitest::Rig48 r; ListState st; ScrollText sc;

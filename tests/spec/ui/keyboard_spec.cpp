@@ -214,13 +214,14 @@ describe keyboard_spec("ui/grid/keyboard", $ {
 		expect(r.grid.at(17, 7)).to_equal(RGB{4, 4, 4});
 	});
 
-	it("returns the typed character in the response velocity", _ {
+	it("returns the typed character in the response index, and the pad velocity in velocity", _ {
 		KeyRig k({{.x = 3, .y = kHomeRow + 1, .velocity = 64, .pressed = true}}, {});
 		TextKeyboardState state;
 		const Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
 
 		expect(resp.pressed).to_be_true();
-		expect((char)resp.velocity).to_equal('Q');
+		expect((char)resp.index).to_equal('Q');
+		expect((int32_t)resp.velocity).to_equal(64); // the key pad's own velocity, not the character
 		expect(state.shift).to_be_false();
 	});
 
@@ -229,7 +230,7 @@ describe keyboard_spec("ui/grid/keyboard", $ {
 		TextKeyboardState state;
 		const Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
 		expect(resp.pressed).to_be_true();
-		expect((int32_t)resp.velocity).to_equal(0);
+		expect((int32_t)resp.index).to_equal(-1);
 	});
 
 	it("shifts the digit row while a shift pad is held", _ {
@@ -238,7 +239,7 @@ describe keyboard_spec("ui/grid/keyboard", $ {
 		const Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
 
 		expect(state.shift).to_be_true();     // :284-287
-		expect((char)resp.velocity).to_equal('!'); // :293-294
+		expect((char)resp.index).to_equal('!'); // :293-294
 	});
 
 	it("types the digit when shift and the digit are pressed in the same tick", _ {
@@ -253,7 +254,7 @@ describe keyboard_spec("ui/grid/keyboard", $ {
 		const Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
 
 		expect(state.shift).to_be_true();
-		expect((char)resp.velocity).to_equal('!');
+		expect((char)resp.index).to_equal('!');
 	});
 
 	it("types the first character-producing key when two keys land in one tick", _ {
@@ -262,7 +263,7 @@ describe keyboard_spec("ui/grid/keyboard", $ {
 		         {});
 		TextKeyboardState state;
 		const Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
-		expect((char)resp.velocity).to_equal('W');
+		expect((char)resp.index).to_equal('W');
 	});
 
 	it("records the keyboard's colour map", _ {

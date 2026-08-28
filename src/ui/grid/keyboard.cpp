@@ -139,6 +139,7 @@ Response text_keyboard(GridFrame& f, TextKeyboardState& state, KeyboardLayoutKin
 	Response out;
 	int32_t pressed_x = -1;
 	int32_t pressed_y = -1;
+	uint8_t pressed_velocity = 0;
 	bool shift_held = false;
 
 	for (int32_t y = 0; y < h; y++) {
@@ -162,6 +163,7 @@ Response text_keyboard(GridFrame& f, TextKeyboardState& state, KeyboardLayoutKin
 				if (pressed_x < 0 && text_keyboard_char_at(layout, x, y, home_row, false) != 0) {
 					pressed_x = x;
 					pressed_y = y;
+					pressed_velocity = r.velocity;
 				}
 			}
 			out.released = out.released || r.released;
@@ -171,7 +173,10 @@ Response text_keyboard(GridFrame& f, TextKeyboardState& state, KeyboardLayoutKin
 
 	state.shift = shift_held;
 	if (pressed_x >= 0) {
-		out.velocity = static_cast<uint8_t>(text_keyboard_char_at(layout, pressed_x, pressed_y, home_row, state.shift));
+		// The typed character travels in `index` (ui/core/response.h); `velocity` stays the key
+		// pad's own press velocity, so a caller can have both without decoding one from the other.
+		out.index = static_cast<int16_t>(text_keyboard_char_at(layout, pressed_x, pressed_y, home_row, state.shift));
+		out.velocity = pressed_velocity;
 	}
 	return out;
 }

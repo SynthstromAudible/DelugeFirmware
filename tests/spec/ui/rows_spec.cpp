@@ -198,7 +198,8 @@ describe rows("ui::grid rows", $ {
 		whole.overwrite_existing = true;
 		const Response resp = clip_row(r.frame, 1, whole);
 		expect(resp.pressed).to_be_true();
-		expect(int(resp.velocity)).to_equal(8);
+		expect(int(resp.index)).to_equal(7);       // the pressed column, in `index`
+		expect(int(resp.velocity)).to_equal(100);  // the pad's own velocity, in `velocity`
 	});
 	it("recolours fill and non-default notes, and never a blur or tail column", _ {
 		uitest::GridRig r;
@@ -251,18 +252,20 @@ describe rows("ui::grid rows", $ {
 		expect(r.grid.at(16, 1)).to_equal(RGB{5, 5, 5});   // untouched by a 16-wide frame
 		expect(r.grid.at(17, 1)).to_equal(RGB{6, 6, 6});
 	});
-	it("reports the pressed column in the response, as x + 1", _ {
+	it("reports the pressed column in `index` and the pad's own velocity in `velocity`", _ {
 		uitest::GridRig r;
 		const std::array<RGB, 4> cells{RGB{1, 1, 1}, RGB{2, 2, 2}, RGB{3, 3, 3}, RGB{4, 4, 4}};
 		PadEvent ev[] = {{2, 3, 90, true}};
 		r.input.pads = ev;
 		const Response pressed = row(r.frame, 3, cells);
 		expect(pressed.pressed).to_be_true();
-		expect(int(pressed.velocity)).to_equal(3);          // column 2, encoded as x + 1
+		expect(int(pressed.index)).to_equal(2);             // the column itself, not x + 1
+		expect(int(pressed.velocity)).to_equal(90);         // a real velocity, not an encoding
 		expect(r.grid.at(2, 3)).to_equal(RGB{3, 3, 3});
-		// A row with no press reports 0, and a different row does not see this one's event.
+		// A row with no press reports index -1, and a different row does not see this one's event.
 		const Response quiet = row(r.frame, 4, cells);
 		expect(quiet.pressed).to_be_false();
+		expect(int(quiet.index)).to_equal(-1);
 		expect(int(quiet.velocity)).to_equal(0);
 	});
 	it("reports the leftmost press, and ORs release and held across the row", _ {
@@ -272,7 +275,8 @@ describe rows("ui::grid rows", $ {
 		r.input.pads = ev;
 		r.input.held_pads.set(3, 2, true);
 		const Response resp = row(r.frame, 2, cells);
-		expect(int(resp.velocity)).to_equal(2);   // column 1, not column 5
+		expect(int(resp.index)).to_equal(1);      // column 1, not column 5
+		expect(int(resp.velocity)).to_equal(90);  // and that pad's velocity, not column 5's 40
 		expect(resp.released).to_be_true();
 		expect(resp.held).to_be_true();
 	});

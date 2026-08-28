@@ -22,6 +22,15 @@ namespace deluge::ui::grid {
 /// `velocityEditPadAction` for the velocity bar, and nothing at all for the meter and the
 /// playhead). The pads are still painted through `GridFrame::pad`, so a scene that wants the
 /// presses reads `f.local_events()` for the same tick -- nothing is lost, it is just not returned.
+///
+/// **`void` is the settled answer, not a placeholder** (spec B §7's open question, closed by the
+/// final branch review). The interaction these components carry is *which row*, which a `Response`
+/// collapsed over a whole column cannot express without inventing another meaning for one of its
+/// fields; and two of them (`sidebar_columns`, `tick_squares`) have no interaction of their own to
+/// report at all -- a playhead overlay is drawn last, over pads whose meaning belongs to whatever
+/// painted them. The read-back a caller actually wants is one line: `f.first_press_in({x, 0, 1,
+/// rows})` (ui/grid/frame.h) gives the pressed pad in a column, with its velocity, without each
+/// scene hand-rolling the same scan over `local_events()`.
 
 // ---------------------------------------------------------------------------------------------
 // VU meter -- View::renderVUMeter / View::getMaxYDisplayForVUMeter (gui/views/view.cpp:1812-1865)

@@ -33,12 +33,14 @@ constexpr uint8_t kMaxRowCells = gfx::grid::kMaxGridCols;
 /// the frame leaves the remaining columns untouched (it does *not* black them out; legacy's
 /// clearing is the caller's `memset`, note_row.cpp:1879, and `clip_row` below does it itself).
 ///
-/// The `Response` is the row's, not one pad's, and encodes *which* column was pressed the way the
-/// task 11 brief specifies: `velocity` carries `x + 1`, so 0 means "no press". The real press
-/// velocity is therefore not reported by this call -- a component that needs it (velocity pads,
-/// the note editor) calls `f.pad()` per column, or reads `f.local_events()`. When more than one
+/// The `Response` is the row's, not one pad's, and encodes *which* column was pressed in
+/// `Response::index`: the pressed column's x, or -1 for no press. `Response::velocity` is that
+/// press's own pad velocity, as everywhere else in the toolkit (ui/core/response.h) -- the two are
+/// separate fields, so a row reports both the column and how hard it was hit. When more than one
 /// pad in the row is pressed in the same tick the *leftmost* is reported; `pressed`, `released`
-/// and `held` are the row's OR, so a caller can still tell "something in this row is down".
+/// and `held` are the row's OR, so a caller can still tell "something in this row is down". A
+/// component that needs every press of the tick reads `f.local_events()`, or `f.first_press_in()`
+/// for just the first inside a rectangle.
 Response row(GridFrame& f, int32_t y, std::span<const RGB> cells);
 
 /// `FillMode` (definitions_cxx.hpp:717-721) mirrored for this layer, which may include only
@@ -199,8 +201,8 @@ constexpr RGB kPlayheadColour = RGB{130, 120, 130};
 /// section 7 gives its own `greyout(f, GreyoutMask, amount)` component, applied after painting.
 /// Nothing here needs to remember which pads a note lit.
 ///
-/// The `Response` encodes the pressed column exactly as `row()` does, subject to
-/// `overwrite_existing` (see that field).
+/// The `Response` encodes the pressed column in `index` and its velocity in `velocity`, exactly as
+/// `row()` does, subject to `overwrite_existing` (see that field).
 Response clip_row(GridFrame& f, int32_t y, const ClipRowData& data);
 
 } // namespace deluge::ui::grid

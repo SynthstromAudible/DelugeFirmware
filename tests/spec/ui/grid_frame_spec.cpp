@@ -1,6 +1,8 @@
 #include "support/frames.h"
 #include "ui/grid/frame.h"
 
+#include <optional>
+
 #include "cppspec.hpp"
 
 using namespace deluge::ui;
@@ -133,6 +135,48 @@ describe grid_frame("ui::grid::GridFrame", $ {
 		// pad() does not go through the buffer, so a dropped event is still hit-tested.
 		expect(r.frame.pad(3, 2, RGB{1, 1, 1}).pressed).to_be_true();    // event 39
 		expect(int(r.frame.pad(3, 2, RGB{1, 1, 1}).velocity)).to_equal(40);
+	});
+	it("re-filters when the snapshot's events are swapped under a reused frame", _ {
+		// The frame is per-tick by contract (ui/grid/frame.h), but the cache must not *depend* on
+		// that: it is keyed on the snapshot's `pads` span, not on "have I run before", so the one
+		// long-lived frame a rig (or a shell that reuses frames) holds still sees each new tick.
+		uitest::GridRig r;
+		PadEvent tick1[] = {{4, 1, 64, true}};
+		r.input.pads = tick1;
+		expect(r.frame.local_events().size()).to_equal(size_t(1));
+		expect(int(r.frame.local_events()[0].x)).to_equal(4);
+
+		PadEvent tick2[] = {{9, 6, 100, true}, {2, 0, 0, false}};
+		r.input.pads = tick2;                                            // same frame, new events
+		expect(r.frame.local_events().size()).to_equal(size_t(2));
+		expect(int(r.frame.local_events()[0].x)).to_equal(9);
+		expect(int(r.frame.local_events()[1].x)).to_equal(2);
+
+		r.input.pads = {};                                               // and a tick with none
+		expect(r.frame.local_events().size()).to_equal(size_t(0));
+	});
+	it("finds the first press inside a rectangle, in frame coordinates", _ {
+		uitest::GridRig r;
+		PadEvent ev[] = {{2, 1, 30, false}, {5, 6, 77, true}, {5, 2, 90, true}, {12, 0, 40, true}};
+		r.input.pads = ev;
+		// Column 5, all eight rows: the release at (2,1) and the press at (12,0) are outside it,
+		// and of the two presses inside, the first *in event order* wins -- not the topmost.
+		const std::optional<PadEvent> hit = r.frame.first_press_in(Rect{5, 0, 1, 8});
+		expect(hit.has_value()).to_be_true();
+		expect(int(hit->x)).to_equal(5);
+		expect(int(hit->y)).to_equal(6);
+		expect(int(hit->velocity)).to_equal(77);
+		// Coordinates are this frame's, not the rectangle's: inside a region they are the
+		// region's, which is what a column component's caller wants.
+		r.frame.region(Rect{4, 0, 4, 8}, [&](GridFrame& f) {
+			const std::optional<PadEvent> inner = f.first_press_in(Rect{1, 0, 1, 8});
+			expect(inner.has_value()).to_be_true();
+			expect(int(inner->x)).to_equal(1);   // 5 absolute, 1 in the region
+			expect(int(inner->y)).to_equal(6);
+		});
+		// A rectangle with no press in it, and one entirely off the frame, both report nothing.
+		expect(r.frame.first_press_in(Rect{0, 0, 2, 8}).has_value()).to_be_false();
+		expect(r.frame.first_press_in(Rect{40, 0, 4, 8}).has_value()).to_be_false();
 	});
 });
 // clang-format on

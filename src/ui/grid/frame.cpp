@@ -68,8 +68,11 @@ RGB GridFrame::peek(int32_t x, int32_t y) const {
 }
 
 std::span<const PadEvent> GridFrame::local_events() const {
-	if (!cached_filled_) {
-		cached_filled_ = true;
+	// Keyed on the span itself, not on a "have I run" flag: the snapshot is held by reference, so a
+	// frame that outlives one tick would otherwise keep answering with the tick it first saw.
+	if (cached_pads_ != input.pads.data() || cached_pads_size_ != input.pads.size()) {
+		cached_pads_ = input.pads.data();
+		cached_pads_size_ = input.pads.size();
 		cached_count_ = 0;
 		for (const PadEvent& e : input.pads) {
 			if (!clip.contains(e.x, e.y)) {
@@ -87,6 +90,21 @@ std::span<const PadEvent> GridFrame::local_events() const {
 		}
 	}
 	return {cached_local_, cached_count_};
+}
+
+std::optional<PadEvent> GridFrame::first_press_in(gfx::grid::Rect local) const {
+	// Clip to the frame first, so a rectangle hanging off the edge reports only its real part --
+	// the same rule `pad()` and `region()` follow.
+	const Rect r = bounds().intersect(local);
+	if (r.w <= 0 || r.h <= 0) {
+		return std::nullopt;
+	}
+	for (const PadEvent& e : local_events()) {
+		if (e.pressed && r.contains(e.x, e.y)) {
+			return e;
+		}
+	}
+	return std::nullopt;
 }
 
 } // namespace deluge::ui::grid

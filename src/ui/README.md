@@ -17,7 +17,7 @@ Rules 1 and 2 are enforced mechanically, not just by convention (see "Layer rule
 
 ```
 deluge-ui-core   InputSnapshot, Response, RepaintGate, POD state structs, Style, LedFrame
-                 deps: gfx-oled (Rect, FontId), gfx-grid (RGB) — types only
+                 deps: gfx-oled (Rect, FontId) — types only; NOT gfx-grid (nothing under core/ includes it)
 deluge-ui-oled   OledFrame + widgets (namespace deluge::ui::oled)      deps: ui-core, gfx-oled
 deluge-ui-grid   GridFrame + components (namespace deluge::ui::grid)   deps: ui-core, gfx-grid
 ```
@@ -37,13 +37,15 @@ currently at count 0 — any occurrence is a regression):
 
 | rule | applies to | forbids |
 |---|---|---|
-| `ui-includes-outside` | `src/ui/**` | any quoted `#include` whose path is not prefixed `ui/` or `gfx/` (a std header has no slash, so it never matches) |
+| `ui-includes-outside` | `src/ui/**` | any `#include` outside `ui/`/`gfx/` whose path contains a slash, **plus** the root headers the plan's Global Constraints name (`definitions*`, `board_config.h`, `board_layout.hpp`), which are slash-free at their include sites (a std header is neither, so it still never matches) |
 | `ui-oled-no-grid` | `src/ui/oled/**` | `#include "ui/grid/..."` |
 | `ui-grid-no-oled` | `src/ui/grid/**` | `#include "ui/oled/..."` |
 
 Probe (also exercised by `ctest -R layer_rules` and the pre-commit hook, whose `files:`
 pattern covers `src/ui/`): add `#include "ui/grid/frame.h"` to `src/ui/oled/text.h` →
-`scripts/check_layer_rules.py` exits 1 naming `ui-oled-no-grid`; remove it → exits 0.
+`scripts/check_layer_rules.py` exits 1 naming `ui-oled-no-grid`; remove it → exits 0. The
+named-root-header arm has its own probe: add `#include "definitions_cxx.hpp"` to any header
+under `src/ui/` → exits 1 naming `ui-includes-outside`; remove it → exits 0.
 
 ## Core types (`src/ui/core`)
 
@@ -55,7 +57,7 @@ pattern covers `src/ui/`): add `#include "ui/grid/frame.h"` to `src/ui/oled/text
 | `RepaintGate` | `core/repaint_gate.h` |
 | `Response` | `core/response.h` |
 | `ListState`, `ColumnsState`, `ScrollText`, `Blink`, `Hold`, `Timer`, `WaveformState` | `core/state.h` |
-| `Style`, `kDelugeStyle48`, `kDelugeStyle64` | `core/style.h` |
+| `Style` (every field read by a widget; `menu_base_y` is the panel-height value), `kDelugeStyle48`, `kDelugeStyle64` | `core/style.h` |
 | `WrappedLines`, `wrap_lines` | `core/text_wrap.h` |
 
 ## OLED catalogue (`src/ui/oled`, spec B §6)
@@ -73,14 +75,15 @@ pattern covers `src/ui/`): add `#include "ui/grid/frame.h"` to `src/ui/oled/text
 | `OutputNameData`, `output_name`, `segment_digits`, `vu`, `envelope`, `graphic`, `icon` | `oled/misc.h` |
 | `detail::int_to_string` | `oled/detail/int_to_string.h` (internal helper, not a widget — used by `values.h`/`meters.h`/`misc.h`'s number rendering; not listed as a catalogue entry) |
 
-`waveform` on OLED is deferred to the sample-marker scene: its data shape depends on
+`waveform` on OLED is deferred to spec E's sample-view scene: its data shape depends on
 `WaveformRenderData`, which is model-side, so it is out of scope for this leaf toolkit.
+`WaveformState` (`core/state.h`) is retained for it. Recorded in the spec's Amendments.
 
 ## Grid catalogue (`src/ui/grid`, spec B §7)
 
 | component / helper | file |
 |---|---|
-| `GridFrame` (`pad`, `peek`, `local_events`, `region`, `bounds`), `root_grid_frame` | `grid/frame.h` |
+| `GridFrame` (`pad`, `peek`, `local_events`, `first_press_in`, `region`, `bounds`), `root_grid_frame` | `grid/frame.h` |
 | `pad` — see `GridFrame::pad` above (the primitive every component is built from) | `grid/frame.h` |
 | `NoteFill`, `NoteCell`, `ClipRowData`, `row`, `clip_row` | `grid/rows.h` |
 | `LaunchStyle`, `StatusColours`, `StatusPad`, `AuditionPad`, `status_colour`, `status_pad`, `audition_colour`, `audition_pad`, `sidebar_columns` | `grid/sidebar.h` |
@@ -125,17 +128,18 @@ worth freezing is the RGB it computes.
   clip rectangle threaded through `Canvas::draw_char` / `draw_graphic_multi_line` in gfx — out
   of scope for this leaf toolkit, and a prerequisite for widgets that draw text or blit inside
   sub-regions (`list`, `columns`, `popup_frame`). See `oled/frame.h`.
-- **`Response` for grid columns (open).** `row`/`clip_row`/`status_pad`/`audition_pad`/
-  `text_keyboard` return a `Response`; the per-column components (`macros`, `velocity_column`,
-  `automation_column`, `tick_squares`, `vu_meter`, `sidebar_columns`) do not — a caller that
-  needs per-pad interaction out of them reads `GridFrame::local_events()` itself. Whether they
-  should gain a `Response` (and what a "changed" would mean for e.g. a VU meter) is undecided.
-- **`menu_base_y` into `Style` (open).** `kMenuBaseY48`/`kMenuBaseY64` and
-  `kHorizontalMenuBaseY` are free constants in `core/metrics.h`, not fields of `Style`, even
-  though `Style` is already the per-board-profile home for `menu_rows`/`row_height`/etc.
-  Folding them in is deferred: the two constants follow different legacy rules (menu-item vs.
-  horizontal-menu base row, see `columns.h`'s `columns()` doc) and merging them into one style
-  field risks conflating two things that only coincide on the shipped 48-row panel.
+- **`Response` for grid columns (closed: `void`).** `row`/`clip_row`/`status_pad`/
+  `audition_pad`/`text_keyboard` return a `Response`; the per-column components (`macros`,
+  `velocity_column`, `automation_column`, `tick_squares`, `vu_meter`, `sidebar_columns`) return
+  `void` and stay that way. Their interaction is *which row*, which a response collapsed over a
+  whole column cannot carry, and two of them have no interaction of their own at all. The
+  read-back is `GridFrame::first_press_in({x, 0, 1, rows})` — see `grid/columns.h`.
+- **`menu_base_y` into `Style` (closed: folded in).** `Style::menu_base_y` is
+  `MenuItem::drawItemsForOled`'s `(OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14` as a profile value;
+  `list`/`menu_rect` and `output_name` read it instead of `Canvas::geometry().height`.
+  `kHorizontalMenuBaseY` stays a free constant in `core/metrics.h` and is *not* folded in: it is
+  14 on every panel and follows a different legacy rule (horizontal-menu box top, see
+  `columns.h`), so merging the two would conflate things that only coincide at 48 rows.
 
 ## Size
 
@@ -146,16 +150,10 @@ its place, `./dbt build Debug` was run to completion of all C++ compilation and 
 still ends with that known device-link error); the three device (ARM, `build/src/ui/Debug`)
 static archives it produced, plus the `gfx` device archives for comparison:
 
-```
-$ find build/src -name 'libdeluge_ui_*.a' -o -name 'libdeluge_gfx_*.a' | sort | xargs ls -l
--rw-r--r-- 1 kate kate  77298 Aug 27 18:59 build/src/gfx/Debug/libdeluge_gfx_grid.a
--rw-r--r-- 1 kate kate 186510 Aug 27 17:22 build/src/gfx/Debug/libdeluge_gfx_oled.a
--rw-r--r-- 1 kate kate  86718 Aug 27 18:07 build/src/ui/Debug/libdeluge_ui_core.a
--rw-r--r-- 1 kate kate 442230 Aug 27 20:43 build/src/ui/Debug/libdeluge_ui_grid.a
--rw-r--r-- 1 kate kate 867982 Aug 27 20:43 build/src/ui/Debug/libdeluge_ui_oled.a
-```
-
-Per-object `size` (text/data/bss, ARM Debug build), by source file within each archive:
+Per-object `size` (text, ARM Debug build) by source file within each archive, taken with
+`arm-none-eabi-size build/src/ui/Debug/*.o` after that run. The archive byte counts themselves are
+deliberately not recorded: a Debug `.a` size is dominated by debug info and rots on every
+toolchain bump, while the per-object text below is the number a budget question actually asks.
 
 ```
 libdeluge_ui_core.a:  repaint_gate 436, led_frame 172, text_wrap 1137        (total text 1745)

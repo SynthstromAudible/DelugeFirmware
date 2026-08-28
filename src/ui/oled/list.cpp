@@ -17,18 +17,15 @@ namespace {
 /// label still has room to scroll.
 constexpr int32_t kIconGapX = 4;
 
-/// menu_item.cpp:50 -- `(OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14`. Frame-local, because the
-/// `+= OLED_MAIN_TOPMOST_PIXEL` on the next legacy line is already in the frame's origin.
-int32_t base_y_for(const OledFrame& f) {
-	return f.canvas.geometry().height == 64 ? kMenuBaseY64 : kMenuBaseY48;
-}
-
 } // namespace
 
 int32_t list_visible_rows(const OledFrame& f, Rect rect) {
 	// style.menu_rows is legacy's OLED_HEIGHT_CHARS - 1; the rect.h term is this layer's own
 	// bound, so a rect too short for that many rows cannot draw past its own bottom edge.
-	return std::clamp<int32_t>(rect.h / kTextSpacingY, 1, std::max<int32_t>(1, f.style.menu_rows));
+	// style.row_height is the row pitch (kTextSpacingY on both shipped profiles, pinned by the
+	// static_asserts in ui/core/style.h), so a taller-rowed profile shows correspondingly fewer.
+	return std::clamp<int32_t>(rect.h / std::max<int32_t>(1, f.style.row_height), 1,
+	                           std::max<int32_t>(1, f.style.menu_rows));
 }
 
 /// `Selection::drawPixelsForOled`, selection.cpp:9-29: the index of the first visible row.
@@ -88,7 +85,10 @@ int32_t move_cursor(int32_t cursor, int32_t turn, std::span<const ListRow> rows,
 } // namespace
 
 Rect menu_rect(const OledFrame& f) {
-	const int32_t base = base_y_for(f);
+	// menu_item.cpp:50 -- `(OLED_MAIN_HEIGHT_PIXELS == 64) ? 15 : 14`, now a profile value
+	// (`Style::menu_base_y`) rather than a read of the framebuffer's height. Frame-local, because
+	// the `+= OLED_MAIN_TOPMOST_PIXEL` on the next legacy line is already in the frame's origin.
+	const int32_t base = f.style.menu_base_y;
 	const Rect b = f.bounds();
 	return Rect{b.x, base, b.w, b.h - base};
 }
@@ -123,13 +123,14 @@ Response list(OledFrame& f, Rect rect, ListState& state, std::span<const ListRow
 	resp.entered = f.input.select_pressed && rows[cursor].selectable;
 
 	const gfx::oled::FontId font = f.style.row_font;
-	const int32_t label_x = rect.x + kTextSpacingX;                 // menu_item.cpp:58
+	const int32_t row_h = f.style.row_height;                       // kTextSpacingY, per style.h
+	const int32_t label_x = rect.x + f.style.inset_x;               // menu_item.cpp:58's kTextSpacingX
 	const int32_t icon_x = rect.right() - kSubmenuIconSpacingX - 3; // menu_item.h:280
 
 	for (int32_t o = 0; o < visible && start + o < n; o++) {
 		const ListRow& row = rows[start + o];
-		const int32_t y = rect.y + o * kTextSpacingY; // menu_item.cpp:56
-		f.clear(Rect{rect.x, y, rect.w, kTextSpacingY});
+		const int32_t y = rect.y + o * row_h; // menu_item.cpp:56
+		f.clear(Rect{rect.x, y, rect.w, row_h});
 
 		// menu_item.h:278 -- an icon costs the label `4 + kSubmenuIconSpacingX + 3` px.
 		int32_t content_end =
@@ -148,7 +149,7 @@ Response list(OledFrame& f, Rect rect, ListState& state, std::span<const ListRow
 		}
 
 		const bool selected = start + o == cursor;
-		const Rect label_box{label_x, y, content_end - label_x, kTextSpacingY};
+		const Rect label_box{label_x, y, content_end - label_x, row_h};
 		if (selected) {
 			// setupSideScroller(0, name, kTextSpacingX, endX, yPixel, yPixel + 8, ..., true)
 			// -- menu_item.cpp:62 / submenu.cpp:124 -- collapsed into the draw, since this
@@ -193,11 +194,15 @@ void scrollbar(OledFrame& f, Rect rect, int32_t first, int32_t visible, int32_t 
 	}
 	f.vline(rect.right() - 1, rect.y, rect.bottom() - 1);
 
+	// The thumb is `style.scrollbar_w` wide, right-aligned in the rect and never wider than it --
+	// so the shipped profiles' 4 over the 4-wide rects every caller uses is the whole rect, and a
+	// profile with a narrower bar draws a narrower thumb against the same track.
+	const int32_t thumb_w = std::clamp<int32_t>(f.style.scrollbar_w, 1, rect.w);
 	const int32_t thumb_h = std::max<int32_t>(2, rect.h * std::clamp(visible, 0, total) / total);
 	const int32_t thumb_y = rect.y + rect.h * std::clamp(first, 0, total) / total;
 	const int32_t last = std::min<int32_t>(thumb_y + thumb_h - 1, rect.bottom() - 1);
 	for (int32_t y = thumb_y; y <= last; y++) {
-		f.hline(y, rect.x, rect.right() - 1);
+		f.hline(y, rect.right() - thumb_w, rect.right() - 1);
 	}
 }
 
