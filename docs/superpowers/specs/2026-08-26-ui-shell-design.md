@@ -42,11 +42,11 @@ struct BoardProfile {                                   // one constexpr instanc
 	std::span<const EncoderRole> encoder_by_index;      // libdeluge encoder index -> role
 	std::span<const EncoderKind> encoder_kind;          // per role
 	std::span<const SurfaceRole> oled_role_by_index;    // libdeluge display index -> role
-	const Style* style;                                 // toolkit Style for this panel set
+	std::span<const Style* const> style_by_index;       // libdeluge display index -> toolkit Style; one per OLED surface
 	ShortcutTable shortcuts;                            // pad (x,y) -> ParamMatcher, two layers
 };
 
-struct OledSurface { gfx::oled::Canvas canvas; gfx::oled::Geometry geometry; RepaintGate gate; SurfaceRole role; uint8_t index; };
+struct OledSurface { gfx::oled::Canvas canvas; gfx::oled::Geometry geometry; RepaintGate gate; SurfaceRole role; uint8_t index; const Style* style; };
 struct GridSurface { gfx::grid::PadGrid grid; RepaintGate gate; ColumnPairCache last_sent; std::optional<ActiveTween> tween; };
 struct LedSurface  { LedBits bits; KnobRing rings[2]; LedBits last_bits; KnobRing last_rings[2]; };
 
@@ -65,12 +65,29 @@ public:
 derivation. The Deluge profile reproduces `fromCartesian()`/`fromXY()` as a table; the new
 device adds ids and rows. Scenes that do not know an id ignore it.
 
+**Amendment (task-9 reconciliation, toolkit-fixes):** `BoardProfile::style` was a single
+`const Style*` for the whole board; it is now `style_by_index`, one entry per OLED surface,
+and `OledSurface` carries its own `style` (copied in from `style_by_index[index]` at build
+time, never re-indexed from the profile per frame). A board with more than one OLED — the
+`Param0..3` open question below, or a second-frontend panel at a different height — may need
+a different `Style` per panel (different `menu_rows`, different `rounded`); a single board-wide
+style could not express that.
+
 ## 3. Scenes, registry, stack
 
 ```cpp
 class Scene {
 public:
-	virtual void render(Frames&) = 0;
+	// task-9 reconciliation (toolkit-fixes): the draft's single `render(Frames&)` is gone — a
+	// sparse, partially-populated `Frames` invoked once per surface per tick (§2.6's audit
+	// finding) is worse than one call per surface a scene actually draws to. Both default to
+	// nothing, so a scene that only paints one surface kind does not stub out the other.
+	virtual void render_oled(SurfaceRole, ui::oled::OledFrame&) {}
+	virtual void render_grid(ui::grid::GridFrame&) {}
+	// Navigation derived from what render_oled/render_grid observed this tick (a widget's
+	// Response, stashed in the scene's own state) — see §7's post-render step. Runs once per
+	// scene per tick that scene was rendered, after every surface for that tick.
+	virtual Result after_render() { return {}; }
 	virtual void leds(LedFrame&) {}
 	virtual Result handle(const UiEvent&, const UiContext&) = 0;
 	virtual void tick(uint32_t dt_ms) {}
@@ -88,6 +105,32 @@ public:
 
 struct SceneId { SceneKind kind; union { uint16_t clip; uint16_t output; BrowserKind browser; /*...*/ } arg; };
 ```
+
+`render(Frames&)` — one call per tick handed every surface at once — and the `Frames` aggregate
+it took are gone (task-9 reconciliation). A scene now gets one call per surface it is not
+`oled_transparent` for: `render_oled(role, frame)` per OLED surface, `render_grid(frame)` for the
+pad grid. `Scene::handle()` no longer sees the six widget-owned inputs (§4) while a widget the
+scene renders could still claim them this tick — §7 explains the mechanism.
+
+`after_render()` is new: navigation that a scene used to derive inline in `handle()` from a raw
+`turn`/`select`/`back` event now happens here, once render has produced a widget `Response` and
+the scene has stashed it in its own state. `MenuScene` (spec E) is the motivating case: its
+`render_oled` calls `list`/`columns`, which claim the turn and the select and hand back a
+`Response`; `after_render()` reads that `Response` and returns the navigation `Result` — a
+`Push`/`Pop`, or nothing — instead of `handle()` re-deriving it from the event. The shell applies
+`after_render()`'s `Result` through the router exactly as it applies a `handle()` result (§7).
+
+Every frame built this tick — every OLED surface's root frame and the grid's — shares one
+`ui::FrameContext{lowering_.snapshot(), frame_gate_}` (spec B §4), built and owned by
+`InputLowering` (§4, exposed as `lowering_.ctx()`; `ctx_` below is shorthand for that call) and
+read by `Shell::tick` (§7). There is exactly **one** per tick, not one per surface: a claim is
+inherently shell-wide (one turn detent, one pair of gold knobs, one select encoder, one back
+button per tick, however many OLED surfaces exist), so a claim made deep in one surface's frame
+tree must be visible from every other surface's frame tree and from §7's post-render step, which
+is only possible if all of them share the one context. `frame_gate_` is a `RepaintGate` the shell
+owns in addition to each surface's own blit-scheduling gate (§2): a widget's `f.gate()` call arms
+it, and its firing is folded into every surface's own `needs_frame()` check (§7) rather than
+trying to attribute one widget's animation to the one surface it happened to be drawn on.
 
 - **Registry**: one static instance per `SceneKind`; `SceneId` is a POD tagged union carrying
   arguments — the navigation target and the `SceneState` cache key.
@@ -161,6 +204,18 @@ event was handled; unhandled events are dropped, never an error:
 
 Order 2→3→4 is today's order (mod buttons → current UI → global buttons).
 
+**Exception (task-9 reconciliation, toolkit-fixes):** `Encoder{Select, GoldUpper, GoldLower,
+Horizontal, Vertical}`, `EncoderButton{Select}` and `Button{Back}` edges — the six widget-owned
+inputs of spec B §4/§5 — do not take this synchronous path. `InputLowering` still updates its own
+bookkeeping for them (held state, detent accumulation) and they still reach the `InputSnapshot`
+every widget's frame reads (`f.turn()`, `f.select_pressed()`, …), but steps 2–4 do not see the raw
+event during `pump_input`. They are queued and delivered after render (§7), gated by
+`ctx_.claims` (spec B §4/§5's `InputClaims`): a widget the scene rendered this tick may have
+claimed the input, in which case it is not delivered at all — this is the only way to know
+whether a widget wanted it, since render has not happened yet at `pump_input` time. An unclaimed
+one is still routed through the same 2→3→4 chain, just after render instead of during
+`pump_input`; the shell plan's Task 5 amendment names this `route_post_render()`.
+
 ## 5. Services
 
 Members of the shell, not globals. Each has `handle()`, `leds()`, `tick()` like a scene but
@@ -193,14 +248,19 @@ void Shell::tick(uint32_t now_ms) {
 	const auto dirty = notify::dirty().drain();     // 1. facts → gates + on_model_changed
 	apply_dirty(dirty);
 	notices_.drain(now_ms);                          // 2. presentation requests → overlay scenes
-	pump_input(now_ms);                              // 3. lower + route + apply actions (deferred while sd_busy)
-	tick_stack(now_ms - last_ms_);                   // 4. top-down, stop below occludes_grid()
+	lowering_.ctx().begin_tick(now_ms);               // 3. one FrameContext for every frame this tick (§3, §4)
+	pump_input(now_ms);                               //    lower + route the ordinary events + apply actions; the six
+	                                                   //    widget-owned shapes (§4) are held back, not routed, here
+	tick_stack(now_ms - last_ms_);                    // 4. top-down, stop below occludes_grid()
 	services_.tick(now_ms - last_ms_);
-	for (auto& s : surfaces_.oled()) {               // 5. OLED surfaces whose gate fires
-		if (s.gate.needs_frame(now_ms, had_input_, dirty.any())) { render_oled(s); blit(s); }
+	rendered_this_tick_.clear();
+	for (auto& s : surfaces_.oled()) {                // 5. OLED surfaces whose gate (or the shared frame gate) fires
+		if (s.gate.needs_frame(now_ms, had_input_, dirty.any()) || lowering_.ctx().gate.needs_frame(...)) { render_oled(s); blit(s); }
 	}
-	if (surfaces_.grid().gate.needs_frame(...)) { render_grid(); flush_grid(); }   // 6. incl. tween
-	derive_leds(now_ms);                             // 7. every tick; cheap
+	if (surfaces_.grid().gate.needs_frame(...) || lowering_.ctx().gate.needs_frame(...)) { render_grid(); flush_grid(); }   // 6. incl. tween
+	for (auto* scene : rendered_this_tick_) router_.apply(scene->after_render());     // 7. navigation from this tick's Responses (§3)
+	deliver_post_render_input(now_ms);                // 8. held-back events, each gated by lowering_.ctx().claims
+	derive_leds(now_ms);                             // 9. every tick; cheap
 	flush_leds();
 	next_wake_ = earliest(gates' next_deadline(), scene timers);
 	last_ms_ = now_ms;
@@ -211,11 +271,24 @@ void Shell::tick(uint32_t now_ms) {
   the UI half of `readButtonsAndPadsOnce`, and `GRAPHICS_ROUTINE`; same cadence (10 ms),
   sleeping to `next_wake_` when nothing is pending.
 - `render_oled(s)`: clear; walk the stack bottom-up from the lowest scene that is not
-  `oled_transparent(s.role)`; root frame origin `(0, visible_top)`; services never draw.
-- `render_grid()`: base = topmost scene with `!is_grid_overlay()`; render base; dim by
-  right-shift if any overlay is above; render overlays; apply the stack's `greyout_mask()`;
-  if `tween` is set, evaluate it into the output grid. `PadLEDs::renderingLock` disappears
-  (single-entry tick).
+  `oled_transparent(s.role)`; for each, `scene->render_oled(s.role, root_frame(s.canvas, *s.style,
+  ctx_))` and append that scene to `rendered_this_tick_`; root frame origin `(0, visible_top)`;
+  services never draw. (Task-9 reconciliation: this replaces the draft's single `scene->render(f)`
+  over a per-surface `Frames`; §3.)
+- `render_grid()`: base = topmost scene with `!is_grid_overlay()`; `base->render_grid(frame)`;
+  dim by right-shift if any overlay is above; render overlays the same way
+  (`overlay->render_grid(frame)`, each appended to `rendered_this_tick_`); apply the stack's
+  `greyout_mask()`; if `tween` is set, evaluate it into the output grid. `PadLEDs::renderingLock`
+  disappears (single-entry tick).
+- **Step 7 — `after_render()`:** every scene appended to `rendered_this_tick_` this tick (there may
+  be more than one: a base scene plus a grid overlay, or a scene drawn on more than one OLED role)
+  gets exactly one `after_render()` call, in the order it was rendered, and its `Result` is applied
+  through `router_` immediately, same as a `handle()` result.
+- **Step 8 — post-render input delivery:** the six widget-owned `UiEvent`s held back from step 3
+  are each offered to the same routing chain as an ordinary event (§4's exception), but only if
+  `ctx_.claims` shows no widget claimed the corresponding input this tick. This is the only point
+  in the tick where that is knowable — render (steps 5–6) and the navigation it can trigger (step
+  7) have already happened, so a widget that wanted the input has already had its chance to say so.
 - **Timers → owners** (the 29-slot enum is deleted):
 
 | Timer | Owner |
@@ -284,3 +357,8 @@ void Shell::tick(uint32_t now_ms) {
    device (umbrella spec open question 1); the profile decides, the shell does not care.
 3. `Popup` as an `Action` versus scenes calling `notify::notice()` like the model does — the
    latter keeps one path; decide in spec E when the first scene is written.
+4. **(task-9)** Whether a post-render, unclaimed gold-knob turn should reach the real `ModKnobs`
+   differently than "run the same 2→3→4 chain, just later" (§4's exception) once spec E implements
+   `ModKnobs` — e.g. seeing the turn immediately, before any widget could have claimed it. Nothing
+   observes the difference today (`ModKnobs` is a `NullService` until spec E), so the shell plan
+   ships the simpler rule and spec E may revisit it.
