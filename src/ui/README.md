@@ -155,8 +155,17 @@ $ find build/src -name 'libdeluge_ui_*.a' -o -name 'libdeluge_gfx_*.a' | sort | 
 -rw-r--r-- 1 kate kate 867982 Aug 27 20:43 build/src/ui/Debug/libdeluge_ui_oled.a
 ```
 
-Per-object `size` (text/data/bss, ARM Debug build) is in the task-15 report, along with the
-matching host-test-build (`build/tests/ui/Debug`) archive sizes used by `ctest`. No firmware
-code calls into `ui-core`/`ui-oled`/`ui-grid` yet, so this is code-size-at-rest, not a size
-delta against a linked firmware image — that comparison is `sizediff`'s job, once a scene
+Per-object `size` (text/data/bss, ARM Debug build), by source file within each archive:
+
+```
+libdeluge_ui_core.a:  repaint_gate 436, led_frame 172, text_wrap 1137        (total text 1745)
+libdeluge_ui_oled.a:  frame 2374, text 1289, scroll_text 450, list 1578,
+                      values 5271, meters 5605, columns 3953, popup 1874,
+                      misc 3743                                              (total text 26137)
+libdeluge_ui_grid.a:  columns 2397, effects 862, frame 970, keyboard 1851,
+                      rows 1433, sidebar 2224, waveform 1431               (total text 11168)
+```
+
+No firmware code calls into `ui-core`/`ui-oled`/`ui-grid` yet, so this is code-size-at-rest, not
+a size delta against a linked firmware image — that comparison is `sizediff`'s job, once a scene
 calls into the toolkit and the device link works again.

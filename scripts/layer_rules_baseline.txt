@@ -87,7 +87,7 @@ src/deluge/playback/mode/session.cpp	model-calls-ui	19
 src/deluge/playback/mode/session.cpp	model-includes-ui	8
 src/deluge/playback/mode/session.h	model-includes-ui	1
 src/deluge/playback/playback_handler.cpp	model-calls-display	6
-src/deluge/playback/playback_handler.cpp	model-calls-ui	51
+src/deluge/playback/playback_handler.cpp	model-calls-ui	48
 src/deluge/playback/playback_handler.cpp	model-includes-ui	18
 src/deluge/processing/audio_output.cpp	model-includes-ui	1
 src/deluge/processing/engines/audio_engine.cpp	model-calls-display	1
