@@ -117,6 +117,12 @@ struct BoardProfile {
 	TextLookup text;
 	ErrorLookup error_text;
 	uint8_t button_cols, button_rows;
+	/// How many of the board's pad columns are sidebar rather than main grid.
+	///
+	/// `DelugeBoard::pad_grid_width` counts *main* columns only and the descriptor has no sidebar
+	/// field, so the sidebar width is a profile fact rather than a board-descriptor one. The
+	/// Deluge's two sidebar columns are the default; a board with no sidebar sets 0.
+	uint8_t sidebar_cols = 2;
 };
 
 /// @brief The button's name, for `.state` files and diagnostics.
