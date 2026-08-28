@@ -75,10 +75,9 @@ public:
 	/// without this a pushed notice would become the base, and (having no `render_grid` of its
 	/// own) would leave the pads black.
 	///
-	/// @note Spec D §7's dim rule is "dim by right-shift if any overlay is above", with no
-	///       exception for an overlay that paints nothing -- the shell cannot know what an overlay
-	///       painted without rendering it and diffing -- so a notice does dim the pads beneath it
-	///       while it is up. That dim is spec design (see `Shell::render_grid`); legacy has none.
+	/// @note Being an overlay is *only* the "I am not the base" half. Spec D §7 goes on to dim what
+	///       is beneath an overlay, which a notice must not do -- see `dims_grid()` immediately
+	///       below, which is the half this scene opts out of.
 	/// @return Always true.
 	bool is_grid_overlay() const override { return true; }
 	/// @brief Composites nothing, so dims nothing: legacy's popups, console lines and working
@@ -140,10 +139,9 @@ public:
 	/// without this a pushed notice would become the base, and (having no `render_grid` of its
 	/// own) would leave the pads black.
 	///
-	/// @note Spec D §7's dim rule is "dim by right-shift if any overlay is above", with no
-	///       exception for an overlay that paints nothing -- the shell cannot know what an overlay
-	///       painted without rendering it and diffing -- so a notice does dim the pads beneath it
-	///       while it is up. That dim is spec design (see `Shell::render_grid`); legacy has none.
+	/// @note Being an overlay is *only* the "I am not the base" half. Spec D §7 goes on to dim what
+	///       is beneath an overlay, which a notice must not do -- see `dims_grid()` immediately
+	///       below, which is the half this scene opts out of.
 	/// @return Always true.
 	bool is_grid_overlay() const override { return true; }
 	/// @brief Composites nothing, so dims nothing: legacy's popups, console lines and working
@@ -201,10 +199,9 @@ public:
 	/// without this a pushed notice would become the base, and (having no `render_grid` of its
 	/// own) would leave the pads black.
 	///
-	/// @note Spec D §7's dim rule is "dim by right-shift if any overlay is above", with no
-	///       exception for an overlay that paints nothing -- the shell cannot know what an overlay
-	///       painted without rendering it and diffing -- so a notice does dim the pads beneath it
-	///       while it is up. That dim is spec design (see `Shell::render_grid`); legacy has none.
+	/// @note Being an overlay is *only* the "I am not the base" half. Spec D §7 goes on to dim what
+	///       is beneath an overlay, which a notice must not do -- see `dims_grid()` immediately
+	///       below, which is the half this scene opts out of.
 	/// @return Always true.
 	bool is_grid_overlay() const override { return true; }
 	/// @brief Composites nothing, so dims nothing: legacy's popups, console lines and working

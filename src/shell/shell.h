@@ -127,6 +127,9 @@ public:
 	/// @}
 
 	/// @brief Take or release the SD-routine lock, deferring board input while it is held.
+	///
+	/// Releasing it replays the deferred queue, so this opens the lowering's tick window like any
+	/// other feed does -- see the tick-window note on this class.
 	/// @param busy True to take the lock.
 	void set_sd_busy(bool busy);
 

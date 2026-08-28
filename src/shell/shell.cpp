@@ -130,6 +130,17 @@ void Shell::on_encoder_edges(uint8_t index, int8_t edges, uint32_t now_ms) {
 }
 
 void Shell::set_sd_busy(bool busy) {
+	// Releasing the lock replays the whole deferred queue through the ordinary lowering path
+	// (`InputLowering::set_sd_busy`), which writes the tick-scoped state -- the detent sums, the pad
+	// events, the held-back queue and `had_input_this_tick`. Those are exactly what `begin_tick`
+	// clears, so a replay into a *closed* window would be thrown away by the next `pump_input`
+	// before anything could route it: every deferred edge lost, which is the one thing the deferral
+	// queue exists to prevent. Opening the window first makes the replay a feed like any other.
+	//
+	// `last_ms_` is the clock to open at: `begin_tick`'s stamp is provisional (`end_tick(now_ms)`
+	// overwrites it with the tick's own), and each replayed event carries the clock it originally
+	// arrived at, so nothing downstream reads this value.
+	ensure_tick_window(last_ms_);
 	lowering_.set_sd_busy(busy);
 }
 

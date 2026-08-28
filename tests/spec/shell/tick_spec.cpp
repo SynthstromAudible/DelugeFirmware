@@ -537,6 +537,34 @@ describe shell_tick("shell::Shell::tick", $ {
 		    .to_equal(std::string("scene Popup 0\nscene app16 0\nnotice SAVED\n"));
 	});
 
+	it("events deferred by the SD lock are routed once the lock is released", _ {
+		deluge::notify::dirty().drain();
+		Rig r;
+		r.shell.init({kBase, 0});
+		r.shell.tick(0);
+
+		r.shell.set_sd_busy(true);
+		// Back, at matrix (7, 1). Deliberately a *widget-owned* shape: an ordinary button survives
+		// a lost window anyway, because `push_out` puts it on the routed FIFO, which `begin_tick`
+		// does not clear. Back goes to `held_back_`, which it does -- along with `had_input_this_tick`
+		// and the tick's detent sums -- so this is the shape that shows whether the replay landed
+		// in an open window.
+		r.shell.on_board_event(button_ev(7, 1, true), 20);
+		r.shell.tick(30);
+		expect(r.base.events).to_equal(0); // the lock held it
+		r.consume_pending();
+
+		// Released between ticks, with the lowering's tick window closed by the tick above: the
+		// replay has to open one, or the next `begin_tick` clears every replayed edge before
+		// anything can route it.
+		r.shell.set_sd_busy(false);
+		r.shell.tick(40);
+		expect(r.base.events).to_equal(1);
+		expect(r.base.last_event_kind == UiEvent::Kind::Button).to_be_true();
+		// The replay also counts as input, so the tick that delivers it renders a frame.
+		expect(r.fake.oled()[0].blit_pending).to_be_true();
+	});
+
 	it("state_lines reports the stack top first, then the lock", _ {
 		deluge::notify::dirty().drain();
 		Rig r;

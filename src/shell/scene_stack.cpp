@@ -140,6 +140,11 @@ Scene& SceneStack::top() {
 }
 
 Scene& SceneStack::input_top() {
+	// The walk always terminates on a real scene in practice: the flag exists for a passive layer
+	// drawn *above* a base -- a popup, a console line, the working animation -- and a base scene is
+	// never input-transparent, so the `NullScene` below is reached only by an empty stack. A stack
+	// of nothing but transparent scenes would degrade safely rather than misroute: nothing holds
+	// `InputMask::all()`, so every widget-owned event stays unclaimed and reaches `handle()`.
 	for (size_t i = n_; i-- > 0;) {
 		if (!stack_[i]->input_transparent()) {
 			return *stack_[i];
