@@ -25,6 +25,16 @@ hold(SHIFT) + press(BACK)
 
 Note: If a preset is changed or you enter sound editor, then the redo history is cleared.
 
+# Toggle Sticky Shift
+
+#COMMUNITY
+
+```shortcut
+press(SHIFT)
+```
+
+With the Sticky Shift (STIC) Community Feature setting enabled, short press shift to toggle sticky shift. Long press shift for momentary shift.
+
 # Qwerty keyboard
 
 #OFFICIAL

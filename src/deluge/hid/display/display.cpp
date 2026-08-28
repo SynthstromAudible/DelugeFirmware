@@ -100,7 +100,18 @@ void swapDisplayType() {
 	UI* ui = getCurrentUI();
 	if (ui) {
 		ui->displayOrLanguageChanged();
+
+		// Most UIs implement their 7SEG redraw in focusRegained(), not
+		// displayOrLanguageChanged(). When swapping from OLED to 7SEG, invoke
+		// focusRegained() so the numeric display is populated immediately.
+		if (!display->haveOLED()) {
+			ui->focusRegained();
+		}
 	}
+
+	// Apply any redraw request from displayOrLanguageChanged() immediately, so
+	// emulated display toggles are visible consistently regardless of active UI.
+	doAnyPendingUIRendering();
 }
 
 } // namespace deluge::hid::display

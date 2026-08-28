@@ -727,12 +727,11 @@ justDontTimeStretch:
 
 		// We want to do a fast release *before* the end, to finish right as the end is reached. So that any waveform
 		// after the end isn't heard.
-		// TODO: in an ideal world, would we only do this if there actually is some waveform "margin" after the end that
-		// we want to avoid hearing, and otherwise just do the release right at the end (does that already happen, I
-		// forgot?) It's perhaps a little bit surprising, but this even works and sounds perfect (you never hear any of
-		// the margin) when time-stretching is happening! Down to about half speed. Below that, you hear some of the
-		// margin.
-		if (static_cast<AudioOutput*>(this->output)->envelope.state < EnvelopeStage::FAST_RELEASE) {
+		// NOTE: only do this if there actually is some waveform "margin" after the end or before the beginning (if
+		// reversed) that we want to avoid hearing. Otherwise just do the release right at the start/end
+		if (static_cast<AudioOutput*>(this->output)->envelope.state < EnvelopeStage::FAST_RELEASE
+		    && ((guide.playDirection == 1) ? (sampleHolder.endPos < sample->lengthInSamples)
+		                                   : (sampleHolder.startPos != 0))) {
 
 			ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(0, nullptr);
 
@@ -1054,6 +1053,7 @@ bool AudioClip::renderAsSingleRow(ModelStackWithTimelineCounter* modelStack, Tim
 
 void AudioClip::writeDataToFile(Serializer& writer, Song* song) {
 
+	writer.writeAttribute("clipName", name.get());
 	writer.writeAttribute("trackName", output->name.get());
 
 	writer.writeAttribute("filePath", sampleHolder.audioFile ? sampleHolder.audioFile->filePath.get()
@@ -1123,7 +1123,11 @@ someError:
 	while (*(tagName = reader.readNextTagOrAttributeName())) {
 		// D_PRINTLN(tagName); delayMS(30);
 
-		if (!strcmp(tagName, "trackName")) {
+		if (!strcmp(tagName, "clipName")) {
+			reader.readTagOrAttributeValueString(&name);
+		}
+
+		else if (!strcmp(tagName, "trackName")) {
 			reader.readTagOrAttributeValueString(&outputNameWhileLoading);
 		}
 

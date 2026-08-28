@@ -50,13 +50,17 @@ int8_t NoteSet::highestNotIn(NoteSet other) const {
 	return -1;
 }
 
+int8_t NoteSet::degreesBelow(uint8_t note) const {
+	// Mask everything before the note
+	uint16_t mask = ~(0xffff << note);
+	// How many notes under mask?
+	uint16_t under = bits & mask;
+	return std::popcount(under);
+}
+
 int8_t NoteSet::degreeOf(uint8_t note) const {
 	if (has(note)) {
-		// Mask everything before the note
-		uint16_t mask = ~(0xffff << note);
-		// How many notes under mask?
-		uint16_t under = bits & mask;
-		return std::popcount(under);
+		return degreesBelow(note);
 	}
 	else {
 		return -1;

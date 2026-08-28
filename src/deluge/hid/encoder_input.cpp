@@ -22,6 +22,7 @@
 #include "gui/views/automation_view.h"
 #include "gui/views/instrument_clip_view.h"
 #include "hid/buttons.h"
+#include "hid/display/screensaver.h"
 #include "hid/encoders.h"
 #include "hid/led/pad_leds.h"
 #include "hid/matrix/matrix_driver.h"
@@ -44,8 +45,10 @@ static int32_t nextSDTestDirection = 1;
 static uint32_t encodersWaitingForCardRoutineEnd;
 
 void interpretEncodersTask() {
-	interpretEncoders(false);
+	// Block before draining so an IRQ that arrives during interpretation can re-wake this task.
+	// Blocking after interpretEncoders() can strand a freshly queued tick until the next encoder IRQ.
 	blockTask(EncoderTaskID);
+	interpretEncoders(false);
 }
 
 bool interpretEncoders(bool skipActioning) {
@@ -189,6 +192,10 @@ checkResult:
 				}
 			}
 		}
+	}
+
+	if (anything) {
+		deluge::hid::display::Screensaver::noteActivity();
 	}
 
 	return anything;

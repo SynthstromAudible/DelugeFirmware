@@ -67,6 +67,7 @@ enum RuntimeFeatureSettingType : uint32_t {
 	TrimFromStartOfAudioClip,
 	ShowBatteryLevel,
 	RoundRobinSampleVariants,
+	RoundedCorners,
 	MaxElement // Keep as boundary
 };
 
@@ -106,6 +107,7 @@ public:
 
 	inline const char* getStartupSong() { return startupSong.get(); }
 	void init();
+	void factoryReset(bool showPopup = true);
 	void readSettingsFromFile();
 	void writeSettingsToFile();
 

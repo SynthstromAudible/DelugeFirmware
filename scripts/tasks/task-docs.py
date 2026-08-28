@@ -41,10 +41,19 @@ def main(argv: Sequence[str] = sys.argv) -> int:
     build_args = []
     build_args += ["--build", "build"]
     build_args += ["--target", "doxygen"]
+    # With Ninja Multi-Config, the plain `doxygen` target expands to multiple
+    # config-specific targets (e.g. Debug + Release) that race on the same
+    # output directories. Build a single config to avoid intermittent failures.
+    build_args += ["--config", "Debug"]
 
     result = subprocess.run(["cmake"] + build_args, env=os.environ, check=False)
     if result.returncode == 0:
-        if webbrowser.open(index_page.absolute()):
+        try:
+            if webbrowser.open(str(index_page.absolute())):
+                return 0
+        except (webbrowser.Error, OSError):
+            # In CI/headless environments there may be no browser available.
+            # Docs have already been generated successfully at this point.
             return 0
         return 0
     return 1

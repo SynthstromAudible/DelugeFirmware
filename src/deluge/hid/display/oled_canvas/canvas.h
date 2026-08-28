@@ -285,6 +285,11 @@ public:
 
 	/// @}
 
+	/// Whether the *Rounded primitives actually round their corners. Kept in sync with the
+	/// RoundedCorners community feature by the settings/menu layer; defaults to on so popups
+	/// drawn before settings are loaded at boot match the feature's default.
+	static inline bool roundedCornersEnabled = true;
+
 	/// Height of the image in bytes
 	static constexpr uint32_t kImageHeight = OLED_MAIN_HEIGHT_PIXELS >> 3;
 	/// Width of the image in pixels

@@ -51,11 +51,15 @@
 #include "processing/engines/cv_engine.h"
 #include "processing/sound/sound_instrument.h"
 #include "storage/storage_manager.h"
+#include "util/const_functions.h"
 #include "util/firmware_version.h"
 #include "util/try.h"
+#include <array>
 #include <cmath>
 #include <new>
 #include <ranges>
+
+#include "playback/mode/playback_mode.h"
 
 namespace params = deluge::modulation::params;
 
@@ -711,6 +715,8 @@ void InstrumentClip::processCurrentPos(ModelStackWithTimelineCounter* modelStack
 			ticksTilNextNoteRowEvent = loopLength - lastProcessedPos;
 		}
 
+		// see if it's starting or ending - might be needed for iterance
+		bool ending = not currentPlaybackMode->willClipContinuePlayingAtEnd(modelStack);
 		static PendingNoteOnList pendingNoteOnList; // Making this static, which it really should have always been,
 		                                            // actually didn't help max stack usage at all somehow...
 		pendingNoteOnList.count = 0;
@@ -869,7 +875,7 @@ doNewProbability:
 					ModelStackWithNoteRow* modelStackWithNoteRow = modelStack->addNoteRow(
 					    pendingNoteOnList.pendingNoteOns[i].noteRowId, pendingNoteOnList.pendingNoteOns[i].noteRow);
 
-					conditionPassed = iterance.passesCheck(modelStackWithNoteRow->getRepeatCount());
+					conditionPassed = iterance.passesCheck(modelStackWithNoteRow->getRepeatCount(), ending);
 				}
 
 				// lastly, if after checking iteration we still have a note on
@@ -1323,96 +1329,124 @@ void InstrumentClip::transpose(int32_t semitones, ModelStackWithTimelineCounter*
 	colourOffset -= semitones;
 }
 
-void InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType type,
+bool InstrumentClip::nudgeNotesVertically(int32_t direction, VerticalNudgeType type,
                                           ModelStackWithTimelineCounter* modelStack) {
-	// This method is limited to no more than an octave of "change", currently used
-	// by the "hold and turn vertical encoder" and "shift + hold and turn vertical
-	// encoder" shorcuts.
+	// This method transposes every note row by up to an octave per call, currently
+	// used by the "hold and turn vertical encoder" and "shift + hold and turn
+	// vertical encoder" shortcuts. Returns false, changing nothing, if the clip holds no
+	// notes, or if the transpose would push one out of the playable range.
 
 	if (!direction) {
 		// It's not clear if we ever get "zero" as direction of change, but let's
 		// make sure we behave sensibly in that case as well.
-		return;
+		return false;
 	}
+
+	// A Kit's rows are drums rather than pitches, and isScrollWithinRange() below must
+	// not be called for one.
+	if (output->type == OutputType::KIT) {
+		return false;
+	}
+
+	int32_t numRows = noteRows.getNumElements();
+	if (!numRows) {
+		return false;
+	}
+
+	const MusicalKey& key = modelStack->song->key;
+	int32_t numModeNotes = key.modeNotes.count();
 
 	int32_t change = direction > 0 ? 1 : -1;
 	if (type == VerticalNudgeType::OCTAVE) {
-		if (isScaleModeClip()) {
-			change *= modelStack->song->key.modeNotes.count();
+		change *= isScaleModeClip() ? numModeNotes : 12;
+	}
+
+	// The semitone shift each note row will receive, indexed by the row's interval above
+	// the key's root. Every entry moves in the same direction as `change`, but rows can
+	// move by differing amounts, since scale degrees are unevenly spaced.
+	std::array<int32_t, 12> shiftForInterval;
+
+	if (!isScaleModeClip() || std::abs(change) == numModeNotes) {
+		// Non scale clip (semitone or octave jumps), or a scale clip moving a whole
+		// octave: every row moves by the same fixed amount.
+		shiftForInterval.fill(isScaleModeClip() ? ((change > 0) ? 12 : -12) : change);
+	}
+	else {
+		// Scale clip changing less than an octave, transpose by scale note jumps
+		for (int32_t interval = 0; interval < 12; interval++) {
+			int32_t degree = key.modeNotes.degreeOf(interval);
+			int32_t newDegree;
+			if (degree >= 0) {
+				newDegree = degree + change;
+			}
+			else {
+				// Out of scale, so it sits between two degrees: land it on the
+				// neighbouring degree in the direction we're travelling.
+				int32_t degreesBelow = key.modeNotes.degreesBelow(interval);
+				newDegree = (change > 0) ? degreesBelow + change - 1 : degreesBelow + change;
+			}
+			// A degree outside the scale's bounds wraps into the octave above or below.
+			int32_t wrappedDegree = mod(newDegree, numModeNotes);
+			int32_t octaves = (newDegree - wrappedDegree) / numModeNotes;
+			shiftForInterval[interval] = key.modeNotes[wrappedDegree] + 12 * octaves - interval;
 		}
-		else {
-			change *= 12;
+	}
+
+	auto shiftFor = [&](NoteRow* noteRow) { return shiftForInterval[key.intervalOf(noteRow->getNoteCode())]; };
+
+	// Reject the whole transpose if it would push any note out of the playable range,
+	// matching the limit that vertical scrolling enforces. We scan every row for the
+	// resulting extreme note rather than assuming the top/bottom row stays the extreme,
+	// because rows can shift by differing amounts.
+	//
+	// Only rows that actually hold notes get a vote, the same way the screen transpose
+	// picks its rows. An empty row is just grid state with no note to push anywhere, and
+	// songs written before this range check existed can carry empty rows far outside
+	// 0-127 (transposing used to be unbounded), where they would otherwise veto every
+	// transpose of the clip forever.
+	bool anyNotesFound = false;
+	int32_t extremeNewYNote = 0;
+	for (int32_t i = 0; i < numRows; i++) {
+		NoteRow* thisNoteRow = noteRows.getElement(i);
+		if (thisNoteRow->hasNoNotes()) {
+			continue;
 		}
+		int32_t newYNote = thisNoteRow->y + shiftFor(thisNoteRow);
+		if (!anyNotesFound || (change > 0 ? newYNote > extremeNewYNote : newYNote < extremeNewYNote)) {
+			extremeNewYNote = newYNote;
+			anyNotesFound = true;
+		}
+	}
+	// Nothing to transpose, and moving the rows and the scroll in step would be invisible
+	// anyway. Bail out rather than advance yScroll unbounded, as the empty-clip case above.
+	if (!anyNotesFound) {
+		return false;
+	}
+	if (!isScrollWithinRange(change, extremeNewYNote)) {
+		return false;
 	}
 
 	// Make sure no notes sounding
 	stopAllNotesPlaying(modelStack);
 
-	if (!this->isScaleModeClip()) {
-		// Non scale clip, transpose directly by semitone jumps
-		for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
-			NoteRow* thisNoteRow = noteRows.getElement(i);
-			// transpose by semitones or by octave
-			thisNoteRow->y += change;
+	for (int32_t i = 0; i < noteRows.getNumElements();) {
+		NoteRow* thisNoteRow = noteRows.getElement(i);
+		int32_t newYNote = thisNoteRow->y + shiftFor(thisNoteRow);
+
+		// An empty row carried off the end of the note code range can never hold a note
+		// again, whatever the output type, so drop it rather than let it drift further
+		// out. That's what drains the stale rows described above.
+		if (thisNoteRow->hasNoNotes() && (newYNote < 0 || newYNote > kMaxMIDIValue)) {
+			noteRows.deleteNoteRowAtIndex(i);
+			continue;
 		}
+
+		thisNoteRow->y = newYNote;
+		i++;
 	}
-	else {
-		// Scale clip, transpose by scale note jumps
 
-		// wanting to change a full octave
-		if (std::abs(change) == modelStack->song->key.modeNotes.count()) {
-			int32_t changeInSemitones = (change > 0) ? 12 : -12;
-			for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
-				NoteRow* thisNoteRow = noteRows.getElement(i);
-				// transpose by semitones or by octave
-				thisNoteRow->y += changeInSemitones;
-			}
-		}
-
-		// wanting to change less than an octave
-		else {
-			for (int32_t i = 0; i < noteRows.getNumElements(); i++) {
-				MusicalKey key = modelStack->song->key;
-				NoteRow* thisNoteRow = noteRows.getElement(i);
-				int32_t changeInSemitones = 0;
-				int32_t yNoteWithinOctave = key.intervalOf(thisNoteRow->getNoteCode());
-				int32_t oldModeNoteIndex = 0;
-				for (; oldModeNoteIndex < key.modeNotes.count(); oldModeNoteIndex++) {
-					if (key.modeNotes[oldModeNoteIndex] == yNoteWithinOctave) {
-						break;
-					}
-				}
-				int32_t newModeNoteIndex = (oldModeNoteIndex + change + modelStack->song->key.modeNotes.count())
-				                           % modelStack->song->key.modeNotes.count();
-
-				int32_t s = 0;
-				if ((change > 0 && newModeNoteIndex > oldModeNoteIndex)
-				    || (change < 0 && newModeNoteIndex < oldModeNoteIndex)) {
-					// within the same octave
-					changeInSemitones = modelStack->song->key.modeNotes[newModeNoteIndex]
-					                    - modelStack->song->key.modeNotes[oldModeNoteIndex];
-					s = 1;
-				}
-				else {
-					if (change > 0) {
-						// go up an octave
-						changeInSemitones = modelStack->song->key.modeNotes[newModeNoteIndex]
-						                    - modelStack->song->key.modeNotes[oldModeNoteIndex] + 12;
-						s = 2;
-					}
-					else {
-						// go down an octave
-						changeInSemitones = modelStack->song->key.modeNotes[newModeNoteIndex]
-						                    - modelStack->song->key.modeNotes[oldModeNoteIndex] - 12;
-						s = 3;
-					}
-				}
-				// transpose by semitones
-				thisNoteRow->y += changeInSemitones;
-			}
-		}
-	}
 	yScroll += change;
+	return true;
 }
 
 // Lock rendering before calling this!

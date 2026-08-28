@@ -11,9 +11,9 @@ sub-capability-order: 3
 press(CLIP)
 ```
 
-Opens Automation View from Arranger View or any clip view.
+Opens Automation View from Arranger View or any Clip View.
 
-# Toggle Automation Editor from Sound Editor Menu
+# Toggle Automation View Editor from Sound Editor Menu
 
 #COMMUNITY #MENU #AUTOMATION_PARAMETER
 
@@ -21,7 +21,7 @@ Opens Automation View from Arranger View or any clip view.
 press(CLIP)
 ```
 
-Opens or closes the Automation Editor for the selected parameter while in a Sound Editor menu.
+Opens or closes the Automation View Editor for the selected parameter while in a Sound Editor menu.
 
 # Return to Automation Overview from Automation Editor or Note Velocity Editor
 
@@ -43,16 +43,6 @@ hold(X) + press(BACK)
 
 Clears all automations in the selected context
 
-# Automation Arranger Auto-Scroll
-
-#COMMUNITY #ARRANGER #AUTOMATION_PARAMETER
-
-```shortcut
-press(CROSS)
-```
-
-Toggles automatic scrolling during playback in Automation Arranger View.
-
 # Toggle Automation View Interpolation On or Off
 
 #COMMUNITY #AUTOMATION_PARAMETER
@@ -72,6 +62,16 @@ hold(SHIFT) + press(GRID_UNLIT)
 ```
 
 Toggles pad selection mode in Automation View.
+
+# Enter Step Automation
+
+#COMMUNITY #AUTOMATION #AUTOMATION_PARAMETER #AUTOMATION_VELOCITY
+
+```shortcut
+press(GRID)
+```
+
+In the automation view editor, press a single step or select a range of steps to set enter step automation.
 
 # Enter Step Automation (with gold knobs)
 
@@ -98,7 +98,7 @@ Hold note / step and send external midi cc to adjust automation at the selected 
 #COMMUNITY #AUTOMATION_PARAMETER
 
 ```shortcut
-press(GRID), turn(PARAMETER)
+hold(GRID), turn(PARAMETER)
 ```
 
 Press grid pad(s) to select step or range of steps and turn gold knobs to adjust step automation

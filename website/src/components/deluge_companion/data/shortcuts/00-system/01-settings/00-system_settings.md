@@ -3,6 +3,26 @@ capability-order: 1
 sub-capability: System (Settings)
 sub-capability-order: 1
 
+# Power on / off
+
+#OFFICIAL
+
+```shortcut
+press(POWER_SWITCH)
+```
+
+Use the power switch to turn the Deluge on / off.
+
+# Factory reset settings
+
+#OFFICIAL
+
+```shortcut
+hold(SELECT) + press(POWER_SWITCH)
+```
+
+Hold select encoder down while turning on the Deluge to reset the system settings to factory defaults.
+
 # Enter Settings menu
 
 #OFFICIAL #MENU #MENU_SETTINGS
@@ -11,7 +31,7 @@ sub-capability-order: 1
 hold(SHIFT) + press(SELECT)
 ```
 
-# Adjust brightness
+# Adjust pad brightness
 
 #OFFICIAL
 
@@ -19,7 +39,7 @@ hold(SHIFT) + press(SELECT)
 hold(SHIFT) + hold(LEARN) + turn(Y)
 ```
 
-# Pad refresh rate
+# Adjust pad refresh rate
 
 #OFFICIAL
 
@@ -38,3 +58,19 @@ hold(SHIFT) + press(TAP)
 ```
 
 Default metronome level is 50%.
+
+# Toggle 7SEG emulated display
+
+#COMMUNITY
+
+```shortcut
+press(SHIFT) + press(LEARN) + press(ENTIRE)
+```
+
+```community
+New community firmware feature which allows you to emulate another display type.
+- OLED users can use this to emulate the 7SEG hardware on their device.
+- 7SEG users can use this to emulate the OLED hardware on their device when using the remote Sysex Web Display.
+
+Requires Emulated Display (EMUL) community feature setting set to Toggle (TOGL)
+```

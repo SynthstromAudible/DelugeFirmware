@@ -6,16 +6,17 @@ Please see also, the [Code of Conduct](CODE_OF_CONDUCT.md) document.
 
 ## LLM usage
 
-This is ultimately a human project. Having an LLM code a fun feature for your own use is fun but does not mean we will include it in our supported firmware.
+This is ultimately a human project. Having an LLM code a fun feature for your own use is great but that 
+does not mean we will include it in our supported firmware. 
 While we welcome the use of LLM assistance (and we all use it) you must put in the effort to ensure your code is explainable and maintainable. 
-A good measure before submitting is ensuring you can read and understand your code clearly enough to hand write a PR description explaining what it does and why.
-If we feel like we are talking to an LLM we will just close PRs and issues.
+A good measure before submitting is ensuring you can read and understand your code clearly enough to hand write a PR description explaining what it does and why. 
+If we feel like we are talking to an LLM we will just close PRs.
 
 As a bare minimum:
-
-* do not use an LLM to open PRs or comment on them
-* do not open PRs with LLM descriptions 
+* do not use an agent to open PRs or comment on them
+* do not use an LLM to write PR descriptions 
 * do not open PRs with test plans you have not followed
+
 
 ## Bug reports
 

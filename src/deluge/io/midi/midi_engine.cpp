@@ -34,6 +34,7 @@
 #include "storage/smsysex.h"
 #include "timers_interrupts/timers_interrupts.h"
 #include "version.h"
+#include <algorithm>
 
 extern "C" {
 #include "RZA1/uart/sio_char.h"
@@ -225,7 +226,7 @@ MidiEngine::MidiEngine() {
 	}
 	midiFollowKitRootNote = 36;
 	midiFollowDisplayParam = false;
-	midiFollowFeedbackChannelType = MIDIFollowChannelType::NONE;
+	midiFollowFeedbackChannelType = MIDIFollowFeedbackChannelType::NONE;
 	midiFollowFeedbackAutomation = MIDIFollowFeedbackAutomationMode::DISABLED;
 	midiFollowFeedbackFilter = false;
 	midiTakeover = MIDITakeoverMode::JUMP;
@@ -439,11 +440,15 @@ void MidiEngine::sendAllNotesOff(MIDISource source, int32_t channel, int32_t fil
 	sendMidi(source, MIDIMessage::cc(channel, 123, 0), filter);
 }
 
+/// Saturate a value into the 7 bits a MIDI data byte gets. Callers derive these from internal 32-bit parameter values,
+/// which can land outside 0-127; letting one through sets bit 7 and the receiver reads it as a status byte instead - if
+/// it falls in 0xF8-0xFF that's a spurious System Real-Time message (see #4821).
+static uint8_t toDataByte(int32_t value) {
+	return static_cast<uint8_t>(std::clamp<int32_t>(value, 0, 127));
+}
+
 void MidiEngine::sendCC(MIDISource source, int32_t channel, int32_t cc, int32_t value, int32_t filter) {
-	if (value > 127) {
-		value = 127;
-	}
-	sendMidi(source, MIDIMessage::cc(channel, cc, value), filter);
+	sendMidi(source, MIDIMessage::cc(channel, cc, toDataByte(value)), filter);
 }
 
 void MidiEngine::sendClock(MIDISource source, bool sendUSB, int32_t howMany) {
@@ -486,13 +491,13 @@ void MidiEngine::sendPitchBend(MIDISource source, int32_t channel, uint16_t bend
 	sendMidi(source, MIDIMessage::pitchBend(channel, bend), filter);
 }
 
-void MidiEngine::sendChannelAftertouch(MIDISource source, int32_t channel, uint8_t value, int32_t filter) {
-	sendMidi(source, MIDIMessage::channelAftertouch(channel, value), filter);
+void MidiEngine::sendChannelAftertouch(MIDISource source, int32_t channel, int32_t value, int32_t filter) {
+	sendMidi(source, MIDIMessage::channelAftertouch(channel, toDataByte(value)), filter);
 }
 
-void MidiEngine::sendPolyphonicAftertouch(MIDISource source, int32_t channel, uint8_t value, uint8_t noteCode,
+void MidiEngine::sendPolyphonicAftertouch(MIDISource source, int32_t channel, int32_t value, uint8_t noteCode,
                                           int32_t filter) {
-	sendMidi(source, MIDIMessage::polyphonicAftertouch(channel, noteCode, value), filter);
+	sendMidi(source, MIDIMessage::polyphonicAftertouch(channel, noteCode, toDataByte(value)), filter);
 }
 
 void MidiEngine::sendMidi(MIDISource source, MIDIMessage message, int32_t filter, bool sendUSB) {
@@ -852,11 +857,7 @@ void MidiEngine::check_incoming_usb() {
 
 void MidiEngine::checkIncomingUsbMidi() {
 
-	if (!usbCurrentlyInitialized
-	    || currentlyAccessingCard != 0) { // hack to avoid SysEx handlers clashing with other sd-card activity.
-		if (currentlyAccessingCard != 0) {
-			// D_PRINTLN("checkIncomingUsbMidi seeing currentlyAccessingCard non-zero");
-		}
+	if (!usbCurrentlyInitialized) {
 		return;
 	}
 	bool usbLockNow = usbLock;

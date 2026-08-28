@@ -11,6 +11,8 @@ add_library(deluge_spec STATIC
 ../../src/deluge/util/string.cpp
 ../../src/deluge/util/cfunctions.c
 ../../src/deluge/util/lookuptables/lookuptables.cpp
+../../src/deluge/hid/display/starfield.cpp
+../../src/deluge/hid/display/rainfall.cpp
 ../32bit_unit_tests/mocks/mock_display.cpp
 ../32bit_unit_tests/mocks/mock_print.cpp
 )
@@ -46,3 +48,21 @@ endfunction()
 
 create_specs_driver(all_specs ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(all_specs PUBLIC deluge_spec)
+
+# Visual harness for the OLED starfield. Renders frames as ASCII so the ported
+# animation can be checked by eye without hardware. Deliberately has no add_test:
+# it asserts nothing, and its filename avoids the *_spec.cpp glob.
+add_executable(StarfieldPreview starfield_preview.cpp)
+target_link_libraries(StarfieldPreview PRIVATE deluge_spec)
+set_target_properties(StarfieldPreview PROPERTIES
+  CXX_STANDARD 23
+  CXX_STANDARD_REQUIRED YES
+)
+
+# Visual harness for the OLED rain screensaver, on the same terms as StarfieldPreview above.
+add_executable(RainfallPreview rainfall_preview.cpp)
+target_link_libraries(RainfallPreview PRIVATE deluge_spec)
+set_target_properties(RainfallPreview PROPERTIES
+  CXX_STANDARD 23
+  CXX_STANDARD_REQUIRED YES
+)

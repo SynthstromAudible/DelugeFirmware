@@ -49,6 +49,7 @@
 #include "gui/menu_item/defaults/pad_brightness.h"
 #include "gui/menu_item/defaults/patch_cable_polarity.h"
 #include "gui/menu_item/defaults/scale.h"
+#include "gui/menu_item/defaults/screensaver.h"
 #include "gui/menu_item/defaults/session_layout.h"
 #include "gui/menu_item/defaults/slice_mode.h"
 #include "gui/menu_item/defaults/startup_song_mode.h"
@@ -94,6 +95,7 @@
 #include "gui/menu_item/midi/command.h"
 #include "gui/menu_item/midi/default_velocity_to_level.h"
 #include "gui/menu_item/midi/device.h"
+#include "gui/menu_item/midi/device_definition/hide_unlabeled.h"
 #include "gui/menu_item/midi/device_definition/linked.h"
 #include "gui/menu_item/midi/device_definition/submenu.h"
 #include "gui/menu_item/midi/device_is_relative.h"
@@ -166,6 +168,7 @@
 #include "gui/menu_item/record/loop_command.h"
 #include "gui/menu_item/record/quantize.h"
 #include "gui/menu_item/record/threshold_mode.h"
+#include "gui/menu_item/reset_settings/reset.h"
 #include "gui/menu_item/reverb/amount.h"
 #include "gui/menu_item/reverb/amount_unpatched.h"
 #include "gui/menu_item/reverb/damping.h"
@@ -245,149 +248,160 @@ namespace params = deluge::modulation::params;
 // Arp --------------------------------------------------------------------------------------
 arpeggiator::PresetMode arpPresetModeMenu{STRING_FOR_PRESET, STRING_FOR_ARP_PRESET_MENU_TITLE};
 // Rate
-arpeggiator::Mode arpModeMenu{STRING_FOR_ENABLED, STRING_FOR_ARP_MODE_MENU_TITLE};
-arpeggiator::Sync arpSyncMenu{STRING_FOR_SYNC, STRING_FOR_ARP_SYNC_MENU_TITLE};
-arpeggiator::Rate arpRateMenu{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE, params::GLOBAL_ARP_RATE};
-arpeggiator::KitRate arpKitRateMenu{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE, params::UNPATCHED_ARP_RATE};
-arpeggiator::midi_cv::Rate arpRateMenuMIDIOrCV{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE};
+PLACE_SDRAM_BSS arpeggiator::Mode arpModeMenu{STRING_FOR_ENABLED, STRING_FOR_ARP_MODE_MENU_TITLE};
+PLACE_SDRAM_BSS arpeggiator::Sync arpSyncMenu{STRING_FOR_SYNC, STRING_FOR_ARP_SYNC_MENU_TITLE};
+PLACE_SDRAM_BSS arpeggiator::Rate arpRateMenu{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE, params::GLOBAL_ARP_RATE};
+PLACE_SDRAM_BSS arpeggiator::KitRate arpKitRateMenu{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE,
+                                                    params::UNPATCHED_ARP_RATE};
+PLACE_SDRAM_BSS arpeggiator::midi_cv::Rate arpRateMenuMIDIOrCV{STRING_FOR_RATE, STRING_FOR_ARP_RATE_MENU_TITLE};
 // Pattern
-arpeggiator::Octaves arpOctavesMenu{STRING_FOR_NUMBER_OF_OCTAVES, STRING_FOR_ARP_OCTAVES_MENU_TITLE};
-arpeggiator::OctaveMode arpOctaveModeMenu{STRING_FOR_OCTAVE_MODE, STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE};
-arpeggiator::OctaveModeToNoteMode arpeggiator::arpOctaveModeToNoteModeMenu{STRING_FOR_OCTAVE_MODE,
-                                                                           STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE};
-arpeggiator::OctaveModeToNoteModeForDrums arpeggiator::arpOctaveModeToNoteModeMenuForDrums{
+PLACE_SDRAM_BSS arpeggiator::Octaves arpOctavesMenu{STRING_FOR_NUMBER_OF_OCTAVES, STRING_FOR_ARP_OCTAVES_MENU_TITLE};
+PLACE_SDRAM_BSS arpeggiator::OctaveMode arpOctaveModeMenu{STRING_FOR_OCTAVE_MODE,
+                                                          STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE};
+PLACE_SDRAM_BSS arpeggiator::OctaveModeToNoteMode arpeggiator::arpOctaveModeToNoteModeMenu{
     STRING_FOR_OCTAVE_MODE, STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE};
-arpeggiator::NoteMode arpNoteModeMenu{STRING_FOR_NOTE_MODE, STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
-arpeggiator::NoteModeForDrums arpNoteModeMenuForDrums{STRING_FOR_NOTE_MODE, STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
-arpeggiator::NoteModeFromOctaveMode arpeggiator::arpNoteModeFromOctaveModeMenu{STRING_FOR_NOTE_MODE,
-                                                                               STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
-arpeggiator::NoteModeFromOctaveModeForDrums arpeggiator::arpNoteModeFromOctaveModeMenuForDrums{
+PLACE_SDRAM_BSS arpeggiator::OctaveModeToNoteModeForDrums arpeggiator::arpOctaveModeToNoteModeMenuForDrums{
+    STRING_FOR_OCTAVE_MODE, STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE};
+PLACE_SDRAM_BSS arpeggiator::NoteMode arpNoteModeMenu{STRING_FOR_NOTE_MODE, STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
+PLACE_SDRAM_BSS arpeggiator::NoteModeForDrums arpNoteModeMenuForDrums{STRING_FOR_NOTE_MODE,
+                                                                      STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
+PLACE_SDRAM_BSS arpeggiator::NoteModeFromOctaveMode arpeggiator::arpNoteModeFromOctaveModeMenu{
     STRING_FOR_NOTE_MODE, STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
-arpeggiator::ChordType arpChordSimulatorMenuKit{STRING_FOR_CHORD_SIMULATOR, STRING_FOR_ARP_CHORD_SIMULATOR_MENU_TITLE};
-arpeggiator::StepRepeat arpStepRepeatMenu{STRING_FOR_STEP_REPEAT, STRING_FOR_ARP_STEP_REPEAT_MENU_TITLE};
+PLACE_SDRAM_BSS arpeggiator::NoteModeFromOctaveModeForDrums arpeggiator::arpNoteModeFromOctaveModeMenuForDrums{
+    STRING_FOR_NOTE_MODE, STRING_FOR_ARP_NOTE_MODE_MENU_TITLE};
+PLACE_SDRAM_BSS arpeggiator::ChordType arpChordSimulatorMenuKit{STRING_FOR_CHORD_SIMULATOR,
+                                                                STRING_FOR_ARP_CHORD_SIMULATOR_MENU_TITLE};
+PLACE_SDRAM_BSS arpeggiator::StepRepeat arpStepRepeatMenu{STRING_FOR_STEP_REPEAT,
+                                                          STRING_FOR_ARP_STEP_REPEAT_MENU_TITLE};
 // Note and rhythm settings
-arpeggiator::ArpUnpatchedParam arpGateMenu{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE, params::UNPATCHED_ARP_GATE,
-                                           RenderingStyle::LENGTH_SLIDER};
-arpeggiator::midi_cv::Gate arpGateMenuMIDIOrCV{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE};
-arpeggiator::Rhythm arpRhythmMenu{STRING_FOR_RHYTHM, STRING_FOR_ARP_RHYTHM_MENU_TITLE, params::UNPATCHED_ARP_RHYTHM};
-arpeggiator::midi_cv::Rhythm arpRhythmMenuMIDIOrCV{STRING_FOR_RHYTHM, STRING_FOR_ARP_RHYTHM_MENU_TITLE};
+PLACE_SDRAM_BSS arpeggiator::ArpUnpatchedParam arpGateMenu{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE,
+                                                           params::UNPATCHED_ARP_GATE, RenderingStyle::LENGTH_SLIDER};
+PLACE_SDRAM_BSS arpeggiator::midi_cv::Gate arpGateMenuMIDIOrCV{STRING_FOR_GATE, STRING_FOR_ARP_GATE_MENU_TITLE};
+PLACE_SDRAM_BSS arpeggiator::Rhythm arpRhythmMenu{STRING_FOR_RHYTHM, STRING_FOR_ARP_RHYTHM_MENU_TITLE,
+                                                  params::UNPATCHED_ARP_RHYTHM};
+PLACE_SDRAM_BSS arpeggiator::midi_cv::Rhythm arpRhythmMenuMIDIOrCV{STRING_FOR_RHYTHM, STRING_FOR_ARP_RHYTHM_MENU_TITLE};
 
-arpeggiator::SequenceLength arpSequenceLengthMenu{STRING_FOR_SEQUENCE_LENGTH, STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE,
-                                                  params::UNPATCHED_ARP_SEQUENCE_LENGTH};
-arpeggiator::midi_cv::SequenceLength arpSequenceLengthMenuMIDIOrCV{STRING_FOR_SEQUENCE_LENGTH,
-                                                                   STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE};
+PLACE_SDRAM_BSS arpeggiator::SequenceLength arpSequenceLengthMenu{
+    STRING_FOR_SEQUENCE_LENGTH, STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE, params::UNPATCHED_ARP_SEQUENCE_LENGTH};
+PLACE_SDRAM_BSS arpeggiator::midi_cv::SequenceLength arpSequenceLengthMenuMIDIOrCV{
+    STRING_FOR_SEQUENCE_LENGTH, STRING_FOR_ARP_SEQUENCE_LENGTH_MENU_TITLE};
 
-arpeggiator::IncludeInKitArp arpIncludeInKitArpMenu{STRING_FOR_INCLUDE_IN_KIT_ARP, STRING_FOR_INCLUDE_IN_KIT_ARP};
+PLACE_SDRAM_BSS arpeggiator::IncludeInKitArp arpIncludeInKitArpMenu{STRING_FOR_INCLUDE_IN_KIT_ARP,
+                                                                    STRING_FOR_INCLUDE_IN_KIT_ARP};
 
 // Randomizer ---------------------------------
-randomizer::RandomizerLock randomizerLockMenu{STRING_FOR_RANDOMIZER_LOCK, STRING_FOR_ARP_RANDOMIZER_LOCK_TITLE};
-randomizer::RandomizerUnpatchedParam spreadGateMenu{STRING_FOR_SPREAD_GATE, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE,
-                                                    params::UNPATCHED_ARP_SPREAD_GATE, BAR};
-randomizer::midi_cv::SpreadGate spreadGateMenuMIDIOrCV{STRING_FOR_SPREAD_GATE, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE};
-randomizer::RandomizerSoundOnlyUnpatchedParam spreadOctaveMenu{
+PLACE_SDRAM_BSS randomizer::RandomizerLock randomizerLockMenu{STRING_FOR_RANDOMIZER_LOCK,
+                                                              STRING_FOR_ARP_RANDOMIZER_LOCK_TITLE};
+PLACE_SDRAM_BSS randomizer::RandomizerUnpatchedParam spreadGateMenu{
+    STRING_FOR_SPREAD_GATE, STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE, params::UNPATCHED_ARP_SPREAD_GATE, BAR};
+PLACE_SDRAM_BSS randomizer::midi_cv::SpreadGate spreadGateMenuMIDIOrCV{STRING_FOR_SPREAD_GATE,
+                                                                       STRING_FOR_ARP_SPREAD_GATE_MENU_TITLE};
+PLACE_SDRAM_BSS randomizer::RandomizerSoundOnlyUnpatchedParam spreadOctaveMenu{
     STRING_FOR_SPREAD_OCTAVE, STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE, params::UNPATCHED_ARP_SPREAD_OCTAVE, BAR};
-randomizer::midi_cv::SpreadOctave spreadOctaveMenuMIDIOrCV{STRING_FOR_SPREAD_OCTAVE,
-                                                           STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE};
-randomizer::RandomizerUnpatchedParam spreadVelocityMenu{
+PLACE_SDRAM_BSS randomizer::midi_cv::SpreadOctave spreadOctaveMenuMIDIOrCV{STRING_FOR_SPREAD_OCTAVE,
+                                                                           STRING_FOR_ARP_SPREAD_OCTAVE_MENU_TITLE};
+PLACE_SDRAM_BSS randomizer::RandomizerUnpatchedParam spreadVelocityMenu{
     STRING_FOR_SPREAD_VELOCITY, STRING_FOR_SPREAD_VELOCITY_MENU_TITLE, params::UNPATCHED_SPREAD_VELOCITY, BAR};
-randomizer::midi_cv::SpreadVelocity spreadVelocityMenuMIDIOrCV{STRING_FOR_SPREAD_VELOCITY,
-                                                               STRING_FOR_SPREAD_VELOCITY_MENU_TITLE};
-randomizer::RandomizerUnpatchedParam ratchetAmountMenu{
+PLACE_SDRAM_BSS randomizer::midi_cv::SpreadVelocity spreadVelocityMenuMIDIOrCV{STRING_FOR_SPREAD_VELOCITY,
+                                                                               STRING_FOR_SPREAD_VELOCITY_MENU_TITLE};
+PLACE_SDRAM_BSS randomizer::RandomizerUnpatchedParam ratchetAmountMenu{
     STRING_FOR_NUMBER_OF_RATCHETS, STRING_FOR_ARP_RATCHETS_MENU_TITLE, params::UNPATCHED_ARP_RATCHET_AMOUNT, BAR};
-randomizer::midi_cv::RatchetAmount ratchetAmountMenuMIDIOrCV{STRING_FOR_NUMBER_OF_RATCHETS,
-                                                             STRING_FOR_ARP_RATCHETS_MENU_TITLE};
-randomizer::RandomizerUnpatchedParam ratchetProbabilityMenu{STRING_FOR_RATCHET_PROBABILITY,
-                                                            STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE,
-                                                            params::UNPATCHED_ARP_RATCHET_PROBABILITY, PERCENT};
-randomizer::midi_cv::RatchetProbability ratchetProbabilityMenuMIDIOrCV{STRING_FOR_RATCHET_PROBABILITY,
-                                                                       STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE};
-randomizer::RandomizerNonKitSoundUnpatchedParam chordPolyphonyMenu{
+PLACE_SDRAM_BSS randomizer::midi_cv::RatchetAmount ratchetAmountMenuMIDIOrCV{STRING_FOR_NUMBER_OF_RATCHETS,
+                                                                             STRING_FOR_ARP_RATCHETS_MENU_TITLE};
+PLACE_SDRAM_BSS randomizer::RandomizerUnpatchedParam ratchetProbabilityMenu{
+    STRING_FOR_RATCHET_PROBABILITY, STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE,
+    params::UNPATCHED_ARP_RATCHET_PROBABILITY, PERCENT};
+PLACE_SDRAM_BSS randomizer::midi_cv::RatchetProbability ratchetProbabilityMenuMIDIOrCV{
+    STRING_FOR_RATCHET_PROBABILITY, STRING_FOR_ARP_RATCHET_PROBABILITY_MENU_TITLE};
+PLACE_SDRAM_BSS randomizer::RandomizerNonKitSoundUnpatchedParam chordPolyphonyMenu{
     STRING_FOR_CHORD_POLYPHONY, STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE, params::UNPATCHED_ARP_CHORD_POLYPHONY, BAR};
-randomizer::midi_cv::ChordPolyphony chordPolyphonyMenuMIDIOrCV{STRING_FOR_CHORD_POLYPHONY,
-                                                               STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE};
-randomizer::RandomizerNonKitSoundUnpatchedParam chordProbabilityMenu{STRING_FOR_CHORD_PROBABILITY,
-                                                                     STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE,
-                                                                     params::UNPATCHED_ARP_CHORD_PROBABILITY, PERCENT};
-randomizer::midi_cv::ChordProbability chordProbabilityMenuMIDIOrCV{STRING_FOR_CHORD_PROBABILITY,
-                                                                   STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE};
-randomizer::RandomizerUnpatchedParam randomizerNoteProbabilityMenu{
+PLACE_SDRAM_BSS randomizer::midi_cv::ChordPolyphony chordPolyphonyMenuMIDIOrCV{
+    STRING_FOR_CHORD_POLYPHONY, STRING_FOR_ARP_CHORD_POLYPHONY_MENU_TITLE};
+PLACE_SDRAM_BSS randomizer::RandomizerNonKitSoundUnpatchedParam chordProbabilityMenu{
+    STRING_FOR_CHORD_PROBABILITY, STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE, params::UNPATCHED_ARP_CHORD_PROBABILITY,
+    PERCENT};
+PLACE_SDRAM_BSS randomizer::midi_cv::ChordProbability chordProbabilityMenuMIDIOrCV{
+    STRING_FOR_CHORD_PROBABILITY, STRING_FOR_ARP_CHORD_PROBABILITY_MENU_TITLE};
+PLACE_SDRAM_BSS randomizer::RandomizerUnpatchedParam randomizerNoteProbabilityMenu{
     STRING_FOR_NOTE_PROBABILITY, STRING_FOR_NOTE_PROBABILITY_MENU_TITLE, params::UNPATCHED_NOTE_PROBABILITY, PERCENT};
-randomizer::midi_cv::NoteProbability randomizerNoteProbabilityMenuMIDIOrCV{STRING_FOR_NOTE_PROBABILITY,
-                                                                           STRING_FOR_NOTE_PROBABILITY_MENU_TITLE};
-randomizer::RandomizerUnpatchedParam swapProbabilityMenu{STRING_FOR_SWAP_PROBABILITY,
-                                                         STRING_FOR_ARP_SWAP_PROBABILITY_MENU_TITLE,
-                                                         params::UNPATCHED_ARP_SWAP_PROBABILITY, PERCENT};
-randomizer::midi_cv::SwapProbability swapProbabilityMenuMIDIOrCV{STRING_FOR_SWAP_PROBABILITY,
-                                                                 STRING_FOR_ARP_SWAP_PROBABILITY_MENU_TITLE};
-randomizer::RandomizerUnpatchedParam bassProbabilityMenu{STRING_FOR_BASS_PROBABILITY,
-                                                         STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE,
-                                                         params::UNPATCHED_ARP_BASS_PROBABILITY, PERCENT};
-randomizer::midi_cv::BassProbability bassProbabilityMenuMIDIOrCV{STRING_FOR_BASS_PROBABILITY,
-                                                                 STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE};
+PLACE_SDRAM_BSS randomizer::midi_cv::NoteProbability randomizerNoteProbabilityMenuMIDIOrCV{
+    STRING_FOR_NOTE_PROBABILITY, STRING_FOR_NOTE_PROBABILITY_MENU_TITLE};
+PLACE_SDRAM_BSS randomizer::RandomizerUnpatchedParam swapProbabilityMenu{
+    STRING_FOR_SWAP_PROBABILITY, STRING_FOR_ARP_SWAP_PROBABILITY_MENU_TITLE, params::UNPATCHED_ARP_SWAP_PROBABILITY,
+    PERCENT};
+PLACE_SDRAM_BSS randomizer::midi_cv::SwapProbability swapProbabilityMenuMIDIOrCV{
+    STRING_FOR_SWAP_PROBABILITY, STRING_FOR_ARP_SWAP_PROBABILITY_MENU_TITLE};
+PLACE_SDRAM_BSS randomizer::RandomizerUnpatchedParam bassProbabilityMenu{
+    STRING_FOR_BASS_PROBABILITY, STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE, params::UNPATCHED_ARP_BASS_PROBABILITY,
+    PERCENT};
+PLACE_SDRAM_BSS randomizer::midi_cv::BassProbability bassProbabilityMenuMIDIOrCV{
+    STRING_FOR_BASS_PROBABILITY, STRING_FOR_ARP_BASS_PROBABILITY_MENU_TITLE};
 
-randomizer::RandomizerUnpatchedParam glideProbabilityMenu{STRING_FOR_GLIDE_PROBABILITY,
-                                                          STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE,
-                                                          params::UNPATCHED_ARP_GLIDE_PROBABILITY, PERCENT};
-randomizer::midi_cv::GlideProbability glideProbabilityMenuMIDIOrCV{STRING_FOR_GLIDE_PROBABILITY,
-                                                                   STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE};
-randomizer::RandomizerUnpatchedParam reverseProbabilityMenu{STRING_FOR_REVERSE_PROBABILITY,
-                                                            STRING_FOR_REVERSE_PROBABILITY_MENU_TITLE,
-                                                            params::UNPATCHED_REVERSE_PROBABILITY, PERCENT};
+PLACE_SDRAM_BSS randomizer::RandomizerUnpatchedParam glideProbabilityMenu{
+    STRING_FOR_GLIDE_PROBABILITY, STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE, params::UNPATCHED_ARP_GLIDE_PROBABILITY,
+    PERCENT};
+PLACE_SDRAM_BSS randomizer::midi_cv::GlideProbability glideProbabilityMenuMIDIOrCV{
+    STRING_FOR_GLIDE_PROBABILITY, STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE};
+PLACE_SDRAM_BSS randomizer::RandomizerUnpatchedParam reverseProbabilityMenu{
+    STRING_FOR_REVERSE_PROBABILITY, STRING_FOR_REVERSE_PROBABILITY_MENU_TITLE, params::UNPATCHED_REVERSE_PROBABILITY,
+    PERCENT};
 
-HorizontalMenu randomizerMenu{STRING_FOR_RANDOMIZER,
-                              {// Lock
-                               &randomizerLockMenu,
-                               // Spreads
-                               &spreadGateMenu, &spreadGateMenuMIDIOrCV, &spreadOctaveMenu, &spreadOctaveMenuMIDIOrCV,
-                               &spreadVelocityMenu, &spreadVelocityMenuMIDIOrCV,
-                               // Ratchets: Amount
-                               &ratchetAmountMenu, &ratchetAmountMenuMIDIOrCV,
-                               // Ratchets: Probability
-                               &ratchetProbabilityMenu, &ratchetProbabilityMenuMIDIOrCV,
-                               // Chords: Polyphony
-                               &chordPolyphonyMenu, &chordPolyphonyMenuMIDIOrCV,
-                               // Chords: Probability
-                               &chordProbabilityMenu, &chordProbabilityMenuMIDIOrCV,
-                               // Note
-                               &randomizerNoteProbabilityMenu, &randomizerNoteProbabilityMenuMIDIOrCV,
-                               // Swap
-                               &swapProbabilityMenu, &swapProbabilityMenuMIDIOrCV,
-                               // Bass
-                               &bassProbabilityMenu, &bassProbabilityMenuMIDIOrCV,
-                               // Glide
-                               &glideProbabilityMenu, &glideProbabilityMenuMIDIOrCV,
-                               // Reverse
-                               &reverseProbabilityMenu}};
+PLACE_SDRAM_BSS HorizontalMenu randomizerMenu{STRING_FOR_RANDOMIZER,
+                                              {// Lock
+                                               &randomizerLockMenu,
+                                               // Spreads
+                                               &spreadGateMenu, &spreadGateMenuMIDIOrCV, &spreadOctaveMenu,
+                                               &spreadOctaveMenuMIDIOrCV, &spreadVelocityMenu,
+                                               &spreadVelocityMenuMIDIOrCV,
+                                               // Ratchets: Amount
+                                               &ratchetAmountMenu, &ratchetAmountMenuMIDIOrCV,
+                                               // Ratchets: Probability
+                                               &ratchetProbabilityMenu, &ratchetProbabilityMenuMIDIOrCV,
+                                               // Chords: Polyphony
+                                               &chordPolyphonyMenu, &chordPolyphonyMenuMIDIOrCV,
+                                               // Chords: Probability
+                                               &chordProbabilityMenu, &chordProbabilityMenuMIDIOrCV,
+                                               // Note
+                                               &randomizerNoteProbabilityMenu, &randomizerNoteProbabilityMenuMIDIOrCV,
+                                               // Swap
+                                               &swapProbabilityMenu, &swapProbabilityMenuMIDIOrCV,
+                                               // Bass
+                                               &bassProbabilityMenu, &bassProbabilityMenuMIDIOrCV,
+                                               // Glide
+                                               &glideProbabilityMenu, &glideProbabilityMenuMIDIOrCV,
+                                               // Reverse
+                                               &reverseProbabilityMenu}};
 
 // Arp: Basic
-HorizontalMenu arpBasicMenu{
+PLACE_SDRAM_BSS HorizontalMenu arpBasicMenu{
     STRING_FOR_BASIC, STRING_FOR_ARP_BASIC_MENU_TITLE, {&arpPresetModeMenu, &arpGateMenu, &arpSyncMenu, &arpRateMenu}};
-HorizontalMenu arpBasicMenuKit{STRING_FOR_BASIC,
-                               STRING_FOR_ARP_BASIC_MENU_TITLE,
-                               {&arpPresetModeMenu, &arpGateMenu, &arpSyncMenu, &arpKitRateMenu}};
-HorizontalMenu arpBasicMenuMIDIOrCV{STRING_FOR_BASIC,
-                                    STRING_FOR_ARP_BASIC_MENU_TITLE,
-                                    {&arpPresetModeMenu, &arpGateMenuMIDIOrCV, &arpSyncMenu, &arpRateMenuMIDIOrCV}};
+PLACE_SDRAM_BSS HorizontalMenu arpBasicMenuKit{STRING_FOR_BASIC,
+                                               STRING_FOR_ARP_BASIC_MENU_TITLE,
+                                               {&arpPresetModeMenu, &arpGateMenu, &arpSyncMenu, &arpKitRateMenu}};
+PLACE_SDRAM_BSS HorizontalMenu arpBasicMenuMIDIOrCV{
+    STRING_FOR_BASIC,
+    STRING_FOR_ARP_BASIC_MENU_TITLE,
+    {&arpPresetModeMenu, &arpGateMenuMIDIOrCV, &arpSyncMenu, &arpRateMenuMIDIOrCV}};
 
 // Arp: Pattern
-HorizontalMenu arpPatternMenu{STRING_FOR_PATTERN,
-                              STRING_FOR_ARP_PATTERN_MENU_TITLE,
-                              {// Pattern
-                               &arpOctavesMenu, &arpStepRepeatMenu, &arpOctaveModeMenu, &arpNoteModeMenu,
-                               &arpNoteModeMenuForDrums, &arpChordSimulatorMenuKit,
-                               // Note and rhythm settings
-                               &arpRhythmMenu, &arpRhythmMenuMIDIOrCV, &arpSequenceLengthMenu,
-                               &arpSequenceLengthMenuMIDIOrCV}};
+PLACE_SDRAM_BSS HorizontalMenu arpPatternMenu{STRING_FOR_PATTERN,
+                                              STRING_FOR_ARP_PATTERN_MENU_TITLE,
+                                              {// Pattern
+                                               &arpOctavesMenu, &arpStepRepeatMenu, &arpOctaveModeMenu,
+                                               &arpNoteModeMenu, &arpNoteModeMenuForDrums, &arpChordSimulatorMenuKit,
+                                               // Note and rhythm settings
+                                               &arpRhythmMenu, &arpRhythmMenuMIDIOrCV, &arpSequenceLengthMenu,
+                                               &arpSequenceLengthMenuMIDIOrCV}};
 
-HorizontalMenuGroup arpMenuGroup{{&arpBasicMenu, &arpPatternMenu}};
-HorizontalMenuGroup arpMenuGroupKit{{&arpBasicMenuKit, &arpPatternMenu}};
-HorizontalMenuGroup arpMenuGroupMIDIOrCV{{&arpBasicMenuMIDIOrCV, &arpPatternMenu}};
+PLACE_SDRAM_BSS HorizontalMenuGroup arpMenuGroup{{&arpBasicMenu, &arpPatternMenu}};
+PLACE_SDRAM_BSS HorizontalMenuGroup arpMenuGroupKit{{&arpBasicMenuKit, &arpPatternMenu}};
+PLACE_SDRAM_BSS HorizontalMenuGroup arpMenuGroupMIDIOrCV{{&arpBasicMenuMIDIOrCV, &arpPatternMenu}};
 
 // Arp: MPE
-arpeggiator::ArpMpeVelocity arpMpeVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_VELOCITY};
-submenu::ArpMpeSubmenu arpMpeMenu{STRING_FOR_MPE, {&arpMpeVelocityMenu}};
+PLACE_SDRAM_BSS arpeggiator::ArpMpeVelocity arpMpeVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_VELOCITY};
+PLACE_SDRAM_BSS submenu::ArpMpeSubmenu arpMpeMenu{STRING_FOR_MPE, {&arpMpeVelocityMenu}};
 
-Submenu arpMenu{
+PLACE_SDRAM_BSS Submenu arpMenu{
     STRING_FOR_ARPEGGIATOR,
     {
         // Mode
@@ -403,7 +417,7 @@ Submenu arpMenu{
     },
 };
 
-Submenu arpMenuMIDIOrCV{
+PLACE_SDRAM_BSS Submenu arpMenuMIDIOrCV{
     STRING_FOR_ARPEGGIATOR,
     {
         // Mode
@@ -419,7 +433,7 @@ Submenu arpMenuMIDIOrCV{
     },
 };
 
-Submenu kitArpMenu{
+PLACE_SDRAM_BSS Submenu kitArpMenu{
     STRING_FOR_KIT_ARPEGGIATOR,
     {
         // Mode
@@ -435,33 +449,38 @@ Submenu kitArpMenu{
 
 // Voice menu ----------------------------------------------------------------------------------------------------
 
-voice::PolyphonyType polyphonyMenu{STRING_FOR_POLYPHONY};
-voice::VoiceCount voice::polyphonicVoiceCountMenu{STRING_FOR_MAX_VOICES};
-voice::Portamento portaMenu{STRING_FOR_PORTAMENTO};
-voice::Priority priorityMenu{STRING_FOR_PRIORITY};
+PLACE_SDRAM_BSS voice::PolyphonyType polyphonyMenu{STRING_FOR_POLYPHONY};
+PLACE_SDRAM_BSS voice::VoiceCount voice::polyphonicVoiceCountMenu{STRING_FOR_MAX_VOICES};
+PLACE_SDRAM_BSS voice::Portamento portaMenu{STRING_FOR_PORTAMENTO};
+PLACE_SDRAM_BSS voice::Priority priorityMenu{STRING_FOR_PRIORITY};
 
-HorizontalMenu voiceMenu{STRING_FOR_VOICE,
-                         {&priorityMenu, &polyphonyMenu, &voice::polyphonicVoiceCountMenu, &portaMenu, &unisonMenu},
-                         HorizontalMenu::Layout::FIXED};
-HorizontalMenu voiceMenuWithoutUnison{STRING_FOR_VOICE,
-                                      {&priorityMenu, &polyphonyMenu, &voice::polyphonicVoiceCountMenu, &portaMenu},
-                                      HorizontalMenu::Layout::FIXED};
-HorizontalMenuGroup voiceMenuGroup{{&unisonMenu, &voiceMenuWithoutUnison}};
+PLACE_SDRAM_BSS HorizontalMenu voiceMenu{
+    STRING_FOR_VOICE,
+    {&priorityMenu, &polyphonyMenu, &voice::polyphonicVoiceCountMenu, &portaMenu, &unisonMenu},
+    HorizontalMenu::Layout::FIXED};
+PLACE_SDRAM_BSS HorizontalMenu voiceMenuWithoutUnison{
+    STRING_FOR_VOICE,
+    {&priorityMenu, &polyphonyMenu, &voice::polyphonicVoiceCountMenu, &portaMenu},
+    HorizontalMenu::Layout::FIXED};
+PLACE_SDRAM_BSS HorizontalMenuGroup voiceMenuGroup{{&unisonMenu, &voiceMenuWithoutUnison}};
 
 // Envelope 1-4 menu -----------------------------------------------------------------------------
-HorizontalMenuGroup envMenuGroup{{&env1Menu, &env2Menu, &env3Menu, &env4Menu}};
+PLACE_SDRAM_BSS HorizontalMenuGroup envMenuGroup{{&env1Menu, &env2Menu, &env3Menu, &env4Menu}};
 
 // LFO 1-4 menu -----------------------------------------------------------------------------
-HorizontalMenuGroup lfoMenuGroup{{&lfo1Menu, &lfo2Menu, &lfo3Menu, &lfo4Menu}};
+PLACE_SDRAM_BSS HorizontalMenuGroup lfoMenuGroup{{&lfo1Menu, &lfo2Menu, &lfo3Menu, &lfo4Menu}};
 
 // Mod FX ----------------------------------------------------------------------------------
-mod_fx::Type modFXTypeMenu{STRING_FOR_TYPE, STRING_FOR_MODFX_TYPE};
-mod_fx::Rate modFXRateMenu{STRING_FOR_RATE, STRING_FOR_MODFX_RATE, params::GLOBAL_MOD_FX_RATE};
-mod_fx::Feedback modFXFeedbackMenu{STRING_FOR_FEEDBACK, STRING_FOR_MODFX_FEEDBACK, params::UNPATCHED_MOD_FX_FEEDBACK};
-mod_fx::Depth_Patched modFXDepthMenu{STRING_FOR_DEPTH, STRING_FOR_MODFX_DEPTH, params::GLOBAL_MOD_FX_DEPTH};
-mod_fx::Offset modFXOffsetMenu{STRING_FOR_OFFSET, STRING_FOR_MODFX_OFFSET, params::UNPATCHED_MOD_FX_OFFSET};
+PLACE_SDRAM_BSS mod_fx::Type modFXTypeMenu{STRING_FOR_TYPE, STRING_FOR_MODFX_TYPE};
+PLACE_SDRAM_BSS mod_fx::Rate modFXRateMenu{STRING_FOR_RATE, STRING_FOR_MODFX_RATE, params::GLOBAL_MOD_FX_RATE};
+PLACE_SDRAM_BSS mod_fx::Feedback modFXFeedbackMenu{STRING_FOR_FEEDBACK, STRING_FOR_MODFX_FEEDBACK,
+                                                   params::UNPATCHED_MOD_FX_FEEDBACK};
+PLACE_SDRAM_BSS mod_fx::Depth_Patched modFXDepthMenu{STRING_FOR_DEPTH, STRING_FOR_MODFX_DEPTH,
+                                                     params::GLOBAL_MOD_FX_DEPTH};
+PLACE_SDRAM_BSS mod_fx::Offset modFXOffsetMenu{STRING_FOR_OFFSET, STRING_FOR_MODFX_OFFSET,
+                                               params::UNPATCHED_MOD_FX_OFFSET};
 
-submenu::ModFxHorizontalMenu modFXMenu{
+PLACE_SDRAM_BSS submenu::ModFxHorizontalMenu modFXMenu{
     STRING_FOR_MOD_FX,
     {
         &modFXTypeMenu,
@@ -473,14 +492,14 @@ submenu::ModFxHorizontalMenu modFXMenu{
 };
 
 // EQ -------------------------------------------------------------------------------------
-eq::EqUnpatchedParam bassMenu{STRING_FOR_BASS, params::UNPATCHED_BASS};
-eq::EqUnpatchedParam trebleMenu{STRING_FOR_TREBLE, params::UNPATCHED_TREBLE};
-eq::EqUnpatchedParam bassFreqMenu{STRING_FOR_BASS_FREQUENCY, STRING_FOR_BASS_FREQUENCY_SHORT,
-                                  params::UNPATCHED_BASS_FREQ};
-eq::EqUnpatchedParam trebleFreqMenu{STRING_FOR_TREBLE_FREQUENCY, STRING_FOR_TREBLE_FREQUENCY_SHORT,
-                                    params::UNPATCHED_TREBLE_FREQ};
+PLACE_SDRAM_BSS eq::EqUnpatchedParam bassMenu{STRING_FOR_BASS, params::UNPATCHED_BASS};
+PLACE_SDRAM_BSS eq::EqUnpatchedParam trebleMenu{STRING_FOR_TREBLE, params::UNPATCHED_TREBLE};
+PLACE_SDRAM_BSS eq::EqUnpatchedParam bassFreqMenu{STRING_FOR_BASS_FREQUENCY, STRING_FOR_BASS_FREQUENCY_SHORT,
+                                                  params::UNPATCHED_BASS_FREQ};
+PLACE_SDRAM_BSS eq::EqUnpatchedParam trebleFreqMenu{STRING_FOR_TREBLE_FREQUENCY, STRING_FOR_TREBLE_FREQUENCY_SHORT,
+                                                    params::UNPATCHED_TREBLE_FREQ};
 
-eq::EqMenu eqMenu{
+PLACE_SDRAM_BSS eq::EqMenu eqMenu{
     STRING_FOR_EQ,
     {
         &bassMenu,
@@ -491,13 +510,14 @@ eq::EqMenu eqMenu{
 };
 
 // Delay ---------------------------------------------------------------------------------
-delay::Amount delayFeedbackMenu{STRING_FOR_AMOUNT, STRING_FOR_DELAY_AMOUNT, params::GLOBAL_DELAY_FEEDBACK};
-patched_param::Integer delayRateMenu{STRING_FOR_RATE, STRING_FOR_DELAY_RATE, params::GLOBAL_DELAY_RATE};
-delay::PingPong delayPingPongMenu{STRING_FOR_PINGPONG, STRING_FOR_DELAY_PINGPONG};
-delay::Analog delayAnalogMenu{STRING_FOR_TYPE, STRING_FOR_DELAY_TYPE};
-delay::Sync delaySyncMenu{STRING_FOR_SYNC, STRING_FOR_DELAY_SYNC};
+PLACE_SDRAM_BSS delay::Amount delayFeedbackMenu{STRING_FOR_AMOUNT, STRING_FOR_DELAY_AMOUNT,
+                                                params::GLOBAL_DELAY_FEEDBACK};
+PLACE_SDRAM_BSS patched_param::Integer delayRateMenu{STRING_FOR_RATE, STRING_FOR_DELAY_RATE, params::GLOBAL_DELAY_RATE};
+PLACE_SDRAM_BSS delay::PingPong delayPingPongMenu{STRING_FOR_PINGPONG, STRING_FOR_DELAY_PINGPONG};
+PLACE_SDRAM_BSS delay::Analog delayAnalogMenu{STRING_FOR_TYPE, STRING_FOR_DELAY_TYPE};
+PLACE_SDRAM_BSS delay::Sync delaySyncMenu{STRING_FOR_SYNC, STRING_FOR_DELAY_SYNC};
 
-HorizontalMenu delayMenu{
+PLACE_SDRAM_BSS HorizontalMenu delayMenu{
     STRING_FOR_DELAY,
     {
         &delayFeedbackMenu,
@@ -509,20 +529,20 @@ HorizontalMenu delayMenu{
 };
 
 // Stutter ----------------------------------------------------------------------------------
-stutter::StutterDirection stutterDirectionMenu{STRING_FOR_DIRECTION, STRING_FOR_DIRECTION};
-stutter::QuantizedStutter stutterQuantizedMenu{STRING_FOR_QUANTIZE, STRING_FOR_QUANTIZE};
-stutter::Rate stutterRateMenu{STRING_FOR_RATE, STRING_FOR_STUTTER_RATE};
+PLACE_SDRAM_BSS stutter::StutterDirection stutterDirectionMenu{STRING_FOR_DIRECTION, STRING_FOR_DIRECTION};
+PLACE_SDRAM_BSS stutter::QuantizedStutter stutterQuantizedMenu{STRING_FOR_QUANTIZE, STRING_FOR_QUANTIZE};
+PLACE_SDRAM_BSS stutter::Rate stutterRateMenu{STRING_FOR_RATE, STRING_FOR_STUTTER_RATE};
 
-HorizontalMenu stutterMenu{STRING_FOR_STUTTER,
-                           {&stutterRateMenu, &stutterDirectionMenu, &stutterQuantizedMenu},
-                           HorizontalMenu::Layout::FIXED};
+PLACE_SDRAM_BSS HorizontalMenu stutterMenu{STRING_FOR_STUTTER,
+                                           {&stutterRateMenu, &stutterDirectionMenu, &stutterQuantizedMenu},
+                                           HorizontalMenu::Layout::FIXED};
 
 // Bend Ranges -------------------------------------------------------------------------------
 
-bend_range::Main mainBendRangeMenu{STRING_FOR_NORMAL};
-bend_range::PerFinger perFingerBendRangeMenu{STRING_FOR_POLY_FINGER_MPE};
+PLACE_SDRAM_BSS bend_range::Main mainBendRangeMenu{STRING_FOR_NORMAL};
+PLACE_SDRAM_BSS bend_range::PerFinger perFingerBendRangeMenu{STRING_FOR_POLY_FINGER_MPE};
 
-submenu::Bend bendMenu{
+PLACE_SDRAM_BSS submenu::Bend bendMenu{
     STRING_FOR_BEND_RANGE,
     {
         &mainBendRangeMenu,
@@ -532,56 +552,59 @@ submenu::Bend bendMenu{
 
 // Sidechain-----------------------------------------------------------------------
 
-sidechain::Send sidechainSendMenu{STRING_FOR_SEND_TO_SIDECHAIN, STRING_FOR_SEND_TO_SIDECH_MENU_TITLE};
-sidechain::VolumeShortcut sidechainVolumeShortcutMenu{STRING_FOR_VOLUME_DUCKING, params::GLOBAL_VOLUME_POST_REVERB_SEND,
-                                                      PatchSource::SIDECHAIN};
-sidechain::Sync sidechainSyncMenu{STRING_FOR_SYNC, STRING_FOR_SIDECHAIN_SYNC, false};
-sidechain::Attack sidechainAttackMenu{STRING_FOR_ATTACK, STRING_FOR_SIDECH_ATTACK_MENU_TITLE};
-sidechain::Release sidechainReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_SIDECH_RELEASE_MENU_TITLE};
-sidechain::Shape sidechainShapeMenu{STRING_FOR_SHAPE, STRING_FOR_SIDECH_SHAPE_MENU_TITLE,
-                                    params::UNPATCHED_SIDECHAIN_SHAPE};
+PLACE_SDRAM_BSS sidechain::Send sidechainSendMenu{STRING_FOR_SEND_TO_SIDECHAIN, STRING_FOR_SEND_TO_SIDECH_MENU_TITLE};
+PLACE_SDRAM_BSS sidechain::VolumeShortcut sidechainVolumeShortcutMenu{
+    STRING_FOR_VOLUME_DUCKING, params::GLOBAL_VOLUME_POST_REVERB_SEND, PatchSource::SIDECHAIN};
+PLACE_SDRAM_BSS sidechain::Sync sidechainSyncMenu{STRING_FOR_SYNC, STRING_FOR_SIDECHAIN_SYNC, false};
+PLACE_SDRAM_BSS sidechain::Attack sidechainAttackMenu{STRING_FOR_ATTACK, STRING_FOR_SIDECH_ATTACK_MENU_TITLE};
+PLACE_SDRAM_BSS sidechain::Release sidechainReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_SIDECH_RELEASE_MENU_TITLE};
+PLACE_SDRAM_BSS sidechain::Shape sidechainShapeMenu{STRING_FOR_SHAPE, STRING_FOR_SIDECH_SHAPE_MENU_TITLE,
+                                                    params::UNPATCHED_SIDECHAIN_SHAPE};
 
-HorizontalMenu sidechainMenu{STRING_FOR_SIDECHAIN,
-                             STRING_FOR_SIDECHAIN,
-                             {
-                                 &sidechainVolumeShortcutMenu,
-                                 &sidechainSyncMenu,
-                                 &sidechainShapeMenu,
-                                 &sidechainSendMenu,
-                                 &sidechainAttackMenu,
-                                 &sidechainReleaseMenu,
-                             }};
+PLACE_SDRAM_BSS HorizontalMenu sidechainMenu{STRING_FOR_SIDECHAIN,
+                                             STRING_FOR_SIDECHAIN,
+                                             {
+                                                 &sidechainVolumeShortcutMenu,
+                                                 &sidechainSyncMenu,
+                                                 &sidechainShapeMenu,
+                                                 &sidechainSendMenu,
+                                                 &sidechainAttackMenu,
+                                                 &sidechainReleaseMenu,
+                                             }};
 
 // Reverb sidechain -----------------------------------------------------------------------
 
-reverb::sidechain::Volume reverbSidechainVolumeMenu{STRING_FOR_VOLUME_DUCKING};
-sidechain::Sync reverbSidechainSyncMenu{STRING_FOR_SYNC, STRING_FOR_SIDECHAIN_SYNC, true};
-sidechain::Attack reverbSidechainAttackMenu{STRING_FOR_ATTACK, STRING_FOR_SIDECH_ATTACK_MENU_TITLE, true};
-sidechain::Release reverbSidechainReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_SIDECH_RELEASE_MENU_TITLE, true};
-reverb::sidechain::Shape reverbSidechainShapeMenu{STRING_FOR_SHAPE, STRING_FOR_SIDECH_SHAPE_MENU_TITLE};
+PLACE_SDRAM_BSS reverb::sidechain::Volume reverbSidechainVolumeMenu{STRING_FOR_VOLUME_DUCKING};
+PLACE_SDRAM_BSS sidechain::Sync reverbSidechainSyncMenu{STRING_FOR_SYNC, STRING_FOR_SIDECHAIN_SYNC, true};
+PLACE_SDRAM_BSS sidechain::Attack reverbSidechainAttackMenu{STRING_FOR_ATTACK, STRING_FOR_SIDECH_ATTACK_MENU_TITLE,
+                                                            true};
+PLACE_SDRAM_BSS sidechain::Release reverbSidechainReleaseMenu{STRING_FOR_RELEASE, STRING_FOR_SIDECH_RELEASE_MENU_TITLE,
+                                                              true};
+PLACE_SDRAM_BSS reverb::sidechain::Shape reverbSidechainShapeMenu{STRING_FOR_SHAPE, STRING_FOR_SIDECH_SHAPE_MENU_TITLE};
 
-HorizontalMenu reverbSidechainMenu{STRING_FOR_REVERB_SIDECHAIN,
-                                   STRING_FOR_REVERB_SIDECH_MENU_TITLE,
-                                   {
-                                       &reverbSidechainVolumeMenu,
-                                       &reverbSidechainShapeMenu,
-                                       &reverbSidechainAttackMenu,
-                                       &reverbSidechainReleaseMenu,
-                                       &reverbSidechainSyncMenu,
-                                   },
-                                   HorizontalMenu::FIXED};
+PLACE_SDRAM_BSS HorizontalMenu reverbSidechainMenu{STRING_FOR_REVERB_SIDECHAIN,
+                                                   STRING_FOR_REVERB_SIDECH_MENU_TITLE,
+                                                   {
+                                                       &reverbSidechainVolumeMenu,
+                                                       &reverbSidechainShapeMenu,
+                                                       &reverbSidechainAttackMenu,
+                                                       &reverbSidechainReleaseMenu,
+                                                       &reverbSidechainSyncMenu,
+                                                   },
+                                                   HorizontalMenu::FIXED};
 
 // Reverb ----------------------------------------------------------------------------------
-reverb::Amount reverbAmountMenu{STRING_FOR_AMOUNT, STRING_FOR_REVERB_AMOUNT, params::GLOBAL_REVERB_AMOUNT};
-reverb::RoomSize reverbRoomSizeMenu{STRING_FOR_ROOM_SIZE};
-reverb::Damping reverbDampingMenu{STRING_FOR_DAMPING};
-reverb::Width reverbWidthMenu{STRING_FOR_WIDTH, STRING_FOR_REVERB_WIDTH};
-reverb::Pan reverbPanMenu{STRING_FOR_PAN, STRING_FOR_REVERB_PAN};
-reverb::Model reverbModelMenu{STRING_FOR_MODEL};
-reverb::HPF reverbHPFMenu{STRING_FOR_HPF};
-reverb::LPF reverbLPFMenu{STRING_FOR_LPF};
+PLACE_SDRAM_BSS reverb::Amount reverbAmountMenu{STRING_FOR_AMOUNT, STRING_FOR_REVERB_AMOUNT,
+                                                params::GLOBAL_REVERB_AMOUNT};
+PLACE_SDRAM_BSS reverb::RoomSize reverbRoomSizeMenu{STRING_FOR_ROOM_SIZE};
+PLACE_SDRAM_BSS reverb::Damping reverbDampingMenu{STRING_FOR_DAMPING};
+PLACE_SDRAM_BSS reverb::Width reverbWidthMenu{STRING_FOR_WIDTH, STRING_FOR_REVERB_WIDTH};
+PLACE_SDRAM_BSS reverb::Pan reverbPanMenu{STRING_FOR_PAN, STRING_FOR_REVERB_PAN};
+PLACE_SDRAM_BSS reverb::Model reverbModelMenu{STRING_FOR_MODEL};
+PLACE_SDRAM_BSS reverb::HPF reverbHPFMenu{STRING_FOR_HPF};
+PLACE_SDRAM_BSS reverb::LPF reverbLPFMenu{STRING_FOR_LPF};
 
-HorizontalMenu reverbMenu{
+PLACE_SDRAM_BSS HorizontalMenu reverbMenu{
     STRING_FOR_REVERB,
     {
         &reverbAmountMenu,
@@ -595,24 +618,26 @@ HorizontalMenu reverbMenu{
         &reverbSidechainMenu,
     },
 };
-HorizontalMenu reverbMenuWithoutSidechain{
+PLACE_SDRAM_BSS HorizontalMenu reverbMenuWithoutSidechain{
     STRING_FOR_REVERB,
     {&reverbAmountMenu, &reverbRoomSizeMenu, &reverbDampingMenu, &reverbWidthMenu, &reverbModelMenu, &reverbPanMenu,
      &reverbHPFMenu, &reverbLPFMenu},
 };
-HorizontalMenuGroup reverbMenuGroup{{&reverbMenuWithoutSidechain, &reverbSidechainMenu}};
+PLACE_SDRAM_BSS HorizontalMenuGroup reverbMenuGroup{{&reverbMenuWithoutSidechain, &reverbSidechainMenu}};
 
 // Filters ------------------------------------------------------------------------------------
-HorizontalMenu routingHorizontal{STRING_FOR_FILTER_ROUTE, {&filterRoutingMenu}};
-HorizontalMenuGroup filtersMenuGroup{{&lpfMenu, &hpfMenu, &routingHorizontal}};
+PLACE_SDRAM_BSS HorizontalMenu routingHorizontal{STRING_FOR_FILTER_ROUTE, {&filterRoutingMenu}};
+PLACE_SDRAM_BSS HorizontalMenuGroup filtersMenuGroup{{&lpfMenu, &hpfMenu, &routingHorizontal}};
 
 // FX ----------------------------------------------------------------------------------------
-fx::Clipping clippingMenu{STRING_FOR_SATURATION};
-UnpatchedParam srrMenu{STRING_FOR_DECIMATION, params::UNPATCHED_SAMPLE_RATE_REDUCTION, RenderingStyle::BAR};
-UnpatchedParam bitcrushMenu{STRING_FOR_BITCRUSH, params::UNPATCHED_BITCRUSHING, RenderingStyle::BAR};
-patched_param::Integer foldMenu{STRING_FOR_WAVEFOLD, STRING_FOR_WAVEFOLD, params::LOCAL_FOLD, RenderingStyle::BAR};
+PLACE_SDRAM_BSS fx::Clipping clippingMenu{STRING_FOR_SATURATION};
+PLACE_SDRAM_BSS UnpatchedParam srrMenu{STRING_FOR_DECIMATION, params::UNPATCHED_SAMPLE_RATE_REDUCTION,
+                                       RenderingStyle::BAR};
+PLACE_SDRAM_BSS UnpatchedParam bitcrushMenu{STRING_FOR_BITCRUSH, params::UNPATCHED_BITCRUSHING, RenderingStyle::BAR};
+PLACE_SDRAM_BSS patched_param::Integer foldMenu{STRING_FOR_WAVEFOLD, STRING_FOR_WAVEFOLD, params::LOCAL_FOLD,
+                                                RenderingStyle::BAR};
 
-HorizontalMenu soundDistortionMenu{
+PLACE_SDRAM_BSS HorizontalMenu soundDistortionMenu{
     STRING_FOR_DISTORTION,
     {
         &clippingMenu,
@@ -623,46 +648,54 @@ HorizontalMenu soundDistortionMenu{
 };
 
 // Output MIDI for sound drums --------------------------------------------------------------
-midi::sound::OutputMidiChannel outputMidiChannelMenu{STRING_FOR_CHANNEL, STRING_FOR_CHANNEL};
-midi::sound::OutputMidiNoteForDrum outputMidiNoteForDrumMenu{STRING_FOR_NOTE, STRING_FOR_NOTE};
-Submenu outputMidiSubmenu{STRING_FOR_MIDI, {&outputMidiChannelMenu, &outputMidiNoteForDrumMenu}};
+PLACE_SDRAM_BSS midi::sound::OutputMidiChannel outputMidiChannelMenu{STRING_FOR_CHANNEL, STRING_FOR_CHANNEL};
+PLACE_SDRAM_BSS midi::sound::OutputMidiNoteForDrum outputMidiNoteForDrumMenu{STRING_FOR_NOTE, STRING_FOR_NOTE};
+PLACE_SDRAM_BSS Submenu outputMidiSubmenu{STRING_FOR_MIDI, {&outputMidiChannelMenu, &outputMidiNoteForDrumMenu}};
 
 // MIDIInstrument menu ----------------------------------------------------------------------
-midi::device_definition::Linked midiDeviceLinkedMenu{STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED,
-                                                     STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED};
+PLACE_SDRAM_BSS midi::device_definition::Linked midiDeviceLinkedMenu{
+    STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED,
+    STRING_FOR_MIDI_DEVICE_DEFINITION_LINKED,
+};
+PLACE_SDRAM_BSS midi::device_definition::HideUnlabeled hideUnlabeledCCMenu{
+    STRING_FOR_MIDI_DEVICE_DEFINITION_HIDE,
+    STRING_FOR_MIDI_DEVICE_DEFINITION_HIDE,
+};
 
-midi::device_definition::DeviceDefinitionSubmenu midiDeviceDefinitionMenu{
+PLACE_SDRAM_BSS midi::device_definition::DeviceDefinitionSubmenu midiDeviceDefinitionMenu{
     STRING_FOR_MIDI_DEVICE_DEFINITION,
     {
         &midiDeviceLinkedMenu,
+        &hideUnlabeledCCMenu,
     },
 };
 
-midi::Bank midiBankMenu{STRING_FOR_BANK, STRING_FOR_MIDI_BANK};
-midi::Sub midiSubMenu{STRING_FOR_SUB_BANK_SHORT, STRING_FOR_MIDI_SUB_BANK};
-midi::PGM midiPGMMenu{STRING_FOR_PGM, STRING_FOR_MIDI_PGM_NUMB_MENU_TITLE};
-midi::MPEYToModWheel mpeyToModWheelMenu{STRING_FOR_Y_AXIS_CONVERSION, STRING_FOR_Y_AXIS_CONVERSION};
-cv::DualCVSelection cv2SourceMenu{STRING_FOR_CV2_SOURCE};
-midi::AftertouchToMono midiAftertouchCollapseMenu{STRING_FOR_PATCH_SOURCE_AFTERTOUCH,
-                                                  STRING_FOR_PATCH_SOURCE_AFTERTOUCH};
-midi::MPEToMono midiMPECollapseMenu{STRING_FOR_MPE, STRING_FOR_MPE};
-submenu::PolyMonoConversion midiMPEMenu{STRING_FOR_MPE_MONO, {&midiAftertouchCollapseMenu, &midiMPECollapseMenu}};
+PLACE_SDRAM_BSS midi::Bank midiBankMenu{STRING_FOR_BANK, STRING_FOR_MIDI_BANK};
+PLACE_SDRAM_BSS midi::Sub midiSubMenu{STRING_FOR_SUB_BANK_SHORT, STRING_FOR_MIDI_SUB_BANK};
+PLACE_SDRAM_BSS midi::PGM midiPGMMenu{STRING_FOR_PGM, STRING_FOR_MIDI_PGM_NUMB_MENU_TITLE};
+PLACE_SDRAM_BSS midi::MPEYToModWheel mpeyToModWheelMenu{STRING_FOR_Y_AXIS_CONVERSION, STRING_FOR_Y_AXIS_CONVERSION};
+PLACE_SDRAM_BSS cv::DualCVSelection cv2SourceMenu{STRING_FOR_CV2_SOURCE};
+PLACE_SDRAM_BSS midi::AftertouchToMono midiAftertouchCollapseMenu{STRING_FOR_PATCH_SOURCE_AFTERTOUCH,
+                                                                  STRING_FOR_PATCH_SOURCE_AFTERTOUCH};
+PLACE_SDRAM_BSS midi::MPEToMono midiMPECollapseMenu{STRING_FOR_MPE, STRING_FOR_MPE};
+PLACE_SDRAM_BSS submenu::PolyMonoConversion midiMPEMenu{STRING_FOR_MPE_MONO,
+                                                        {&midiAftertouchCollapseMenu, &midiMPECollapseMenu}};
 // Clip-level stuff --------------------------------------------------------------------------
 
-sequence::Direction sequenceDirectionMenu{STRING_FOR_PLAY_DIRECTION};
+PLACE_SDRAM_BSS sequence::Direction sequenceDirectionMenu{STRING_FOR_PLAY_DIRECTION};
 
 // Global FX Menu
 
 // Volume
-UnpatchedParam globalLevelMenu{STRING_FOR_VOLUME_LEVEL, params::UNPATCHED_VOLUME, BAR};
+PLACE_SDRAM_BSS UnpatchedParam globalLevelMenu{STRING_FOR_VOLUME_LEVEL, params::UNPATCHED_VOLUME, BAR};
 
 // Pitch
-UnpatchedParam globalPitchMenu{STRING_FOR_PITCH, params::UNPATCHED_PITCH_ADJUST};
+PLACE_SDRAM_BSS UnpatchedParam globalPitchMenu{STRING_FOR_PITCH, params::UNPATCHED_PITCH_ADJUST};
 
 // Pan
-unpatched_param::Pan globalPanMenu{STRING_FOR_PAN, params::UNPATCHED_PAN};
+PLACE_SDRAM_BSS unpatched_param::Pan globalPanMenu{STRING_FOR_PAN, params::UNPATCHED_PAN};
 
-HorizontalMenu songMasterMenu{
+PLACE_SDRAM_BSS HorizontalMenu songMasterMenu{
     STRING_FOR_MASTER,
     {
         &globalLevelMenu,
@@ -670,7 +703,7 @@ HorizontalMenu songMasterMenu{
     },
 };
 
-HorizontalMenu kitClipMasterMenu{
+PLACE_SDRAM_BSS HorizontalMenu kitClipMasterMenu{
     STRING_FOR_MASTER,
     {
         &globalLevelMenu,
@@ -680,29 +713,33 @@ HorizontalMenu kitClipMasterMenu{
 };
 
 // LPF Menu
-filter::UnpatchedFilterParam globalLPFFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_LPF_FREQUENCY,
-                                               params::UNPATCHED_LPF_FREQ, filter::FilterSlot::LPF,
-                                               filter::FilterParamType::FREQUENCY};
-filter::UnpatchedFilterParam globalLPFResMenu{STRING_FOR_RESONANCE, STRING_FOR_LPF_RESONANCE, params::UNPATCHED_LPF_RES,
-                                              filter::FilterSlot::LPF, filter::FilterParamType::RESONANCE};
-filter::UnpatchedFilterParam globalLPFMorphMenu{STRING_FOR_MORPH, STRING_FOR_LPF_MORPH, params::UNPATCHED_LPF_MORPH,
-                                                filter::FilterSlot::LPF, filter::FilterParamType::MORPH};
-HorizontalMenu globalLPFMenu{STRING_FOR_LPF,
-                             {&lpfModeMenu, &globalLPFFreqMenu, &globalLPFResMenu, &globalLPFMorphMenu}};
+PLACE_SDRAM_BSS filter::UnpatchedFilterParam globalLPFFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_LPF_FREQUENCY,
+                                                               params::UNPATCHED_LPF_FREQ, filter::FilterSlot::LPF,
+                                                               filter::FilterParamType::FREQUENCY};
+PLACE_SDRAM_BSS filter::UnpatchedFilterParam globalLPFResMenu{STRING_FOR_RESONANCE, STRING_FOR_LPF_RESONANCE,
+                                                              params::UNPATCHED_LPF_RES, filter::FilterSlot::LPF,
+                                                              filter::FilterParamType::RESONANCE};
+PLACE_SDRAM_BSS filter::UnpatchedFilterParam globalLPFMorphMenu{STRING_FOR_MORPH, STRING_FOR_LPF_MORPH,
+                                                                params::UNPATCHED_LPF_MORPH, filter::FilterSlot::LPF,
+                                                                filter::FilterParamType::MORPH};
+PLACE_SDRAM_BSS HorizontalMenu globalLPFMenu{
+    STRING_FOR_LPF, {&lpfModeMenu, &globalLPFFreqMenu, &globalLPFResMenu, &globalLPFMorphMenu}};
 
 // HPF Menu
-filter::UnpatchedFilterParam globalHPFFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_HPF_FREQUENCY,
-                                               params::UNPATCHED_HPF_FREQ, filter::FilterSlot::HPF,
-                                               filter::FilterParamType::FREQUENCY};
-filter::UnpatchedFilterParam globalHPFResMenu{STRING_FOR_RESONANCE, STRING_FOR_HPF_RESONANCE, params::UNPATCHED_HPF_RES,
-                                              filter::FilterSlot::HPF, filter::FilterParamType::RESONANCE};
-filter::UnpatchedFilterParam globalHPFMorphMenu{STRING_FOR_MORPH, STRING_FOR_HPF_MORPH, params::UNPATCHED_HPF_MORPH,
-                                                filter::FilterSlot::HPF, filter::FilterParamType::MORPH};
+PLACE_SDRAM_BSS filter::UnpatchedFilterParam globalHPFFreqMenu{STRING_FOR_FREQUENCY, STRING_FOR_HPF_FREQUENCY,
+                                                               params::UNPATCHED_HPF_FREQ, filter::FilterSlot::HPF,
+                                                               filter::FilterParamType::FREQUENCY};
+PLACE_SDRAM_BSS filter::UnpatchedFilterParam globalHPFResMenu{STRING_FOR_RESONANCE, STRING_FOR_HPF_RESONANCE,
+                                                              params::UNPATCHED_HPF_RES, filter::FilterSlot::HPF,
+                                                              filter::FilterParamType::RESONANCE};
+PLACE_SDRAM_BSS filter::UnpatchedFilterParam globalHPFMorphMenu{STRING_FOR_MORPH, STRING_FOR_HPF_MORPH,
+                                                                params::UNPATCHED_HPF_MORPH, filter::FilterSlot::HPF,
+                                                                filter::FilterParamType::MORPH};
 
-HorizontalMenu globalHPFMenu{STRING_FOR_HPF,
-                             {&hpfModeMenu, &globalHPFFreqMenu, &globalHPFResMenu, &globalHPFMorphMenu}};
+PLACE_SDRAM_BSS HorizontalMenu globalHPFMenu{
+    STRING_FOR_HPF, {&hpfModeMenu, &globalHPFFreqMenu, &globalHPFResMenu, &globalHPFMorphMenu}};
 
-Submenu globalFiltersMenu{
+PLACE_SDRAM_BSS Submenu globalFiltersMenu{
     STRING_FOR_FILTERS,
     {
         &globalLPFMenu,
@@ -711,11 +748,11 @@ Submenu globalFiltersMenu{
     },
 };
 
-HorizontalMenuGroup globalFiltersMenuGroup{{&globalLPFMenu, &globalHPFMenu, &routingHorizontal}};
+PLACE_SDRAM_BSS HorizontalMenuGroup globalFiltersMenuGroup{{&globalLPFMenu, &globalHPFMenu, &routingHorizontal}};
 
 // EQ Menu
 
-eq::EqMenu globalEQMenu{
+PLACE_SDRAM_BSS eq::EqMenu globalEQMenu{
     STRING_FOR_EQ,
     {
         &bassMenu,
@@ -726,11 +763,12 @@ eq::EqMenu globalEQMenu{
 };
 
 // Delay Menu
-delay::Amount_Unpatched globalDelayFeedbackMenu{STRING_FOR_AMOUNT, STRING_FOR_DELAY_AMOUNT,
-                                                params::UNPATCHED_DELAY_AMOUNT};
-UnpatchedParam globalDelayRateMenu{STRING_FOR_RATE, STRING_FOR_DELAY_RATE, params::UNPATCHED_DELAY_RATE};
+PLACE_SDRAM_BSS delay::Amount_Unpatched globalDelayFeedbackMenu{STRING_FOR_AMOUNT, STRING_FOR_DELAY_AMOUNT,
+                                                                params::UNPATCHED_DELAY_AMOUNT};
+PLACE_SDRAM_BSS UnpatchedParam globalDelayRateMenu{STRING_FOR_RATE, STRING_FOR_DELAY_RATE,
+                                                   params::UNPATCHED_DELAY_RATE};
 
-HorizontalMenu globalDelayMenu{
+PLACE_SDRAM_BSS HorizontalMenu globalDelayMenu{
     STRING_FOR_DELAY,
     {
         &globalDelayFeedbackMenu,
@@ -743,13 +781,13 @@ HorizontalMenu globalDelayMenu{
 
 // Reverb Menu
 
-reverb::Amount_Unpatched globalReverbSendAmountMenu{
+PLACE_SDRAM_BSS reverb::Amount_Unpatched globalReverbSendAmountMenu{
     STRING_FOR_AMOUNT,
     STRING_FOR_REVERB_AMOUNT,
     params::UNPATCHED_REVERB_SEND_AMOUNT,
 };
 
-HorizontalMenu globalReverbMenu{
+PLACE_SDRAM_BSS HorizontalMenu globalReverbMenu{
     STRING_FOR_REVERB,
     {
         &globalReverbSendAmountMenu,
@@ -764,7 +802,7 @@ HorizontalMenu globalReverbMenu{
     },
 };
 
-HorizontalMenu globalReverbMenuWithoutSidechain{
+PLACE_SDRAM_BSS HorizontalMenu globalReverbMenuWithoutSidechain{
     STRING_FOR_REVERB,
     {
         &globalReverbSendAmountMenu,
@@ -777,14 +815,16 @@ HorizontalMenu globalReverbMenuWithoutSidechain{
         &reverbLPFMenu,
     },
 };
-HorizontalMenuGroup globalReverbMenuGroup{{&globalReverbMenuWithoutSidechain, &reverbSidechainMenu}};
+PLACE_SDRAM_BSS HorizontalMenuGroup globalReverbMenuGroup{{&globalReverbMenuWithoutSidechain, &reverbSidechainMenu}};
 
 // Mod FX Menu
 
-mod_fx::Depth_Unpatched globalModFXDepthMenu{STRING_FOR_DEPTH, STRING_FOR_MOD_FX_DEPTH, params::UNPATCHED_MOD_FX_DEPTH};
-mod_fx::Rate_Unpatched globalModFXRateMenu{STRING_FOR_RATE, STRING_FOR_MOD_FX_RATE, params::UNPATCHED_MOD_FX_RATE};
+PLACE_SDRAM_BSS mod_fx::Depth_Unpatched globalModFXDepthMenu{STRING_FOR_DEPTH, STRING_FOR_MOD_FX_DEPTH,
+                                                             params::UNPATCHED_MOD_FX_DEPTH};
+PLACE_SDRAM_BSS mod_fx::Rate_Unpatched globalModFXRateMenu{STRING_FOR_RATE, STRING_FOR_MOD_FX_RATE,
+                                                           params::UNPATCHED_MOD_FX_RATE};
 
-submenu::ModFxHorizontalMenu globalModFXMenu{
+PLACE_SDRAM_BSS submenu::ModFxHorizontalMenu globalModFXMenu{
     STRING_FOR_MOD_FX,
     {
         &modFXTypeMenu,
@@ -795,7 +835,7 @@ submenu::ModFxHorizontalMenu globalModFXMenu{
     },
 };
 
-HorizontalMenu globalDistortionMenu{
+PLACE_SDRAM_BSS HorizontalMenu globalDistortionMenu{
     STRING_FOR_DISTORTION,
     {
         &srrMenu,
@@ -803,7 +843,7 @@ HorizontalMenu globalDistortionMenu{
     },
 };
 
-Submenu globalFXMenu{
+PLACE_SDRAM_BSS Submenu globalFXMenu{
     STRING_FOR_FX,
     {
         &globalEQMenu,
@@ -816,9 +856,10 @@ Submenu globalFXMenu{
 };
 
 // Sidechain menu
-sidechain::GlobalVolume globalSidechainVolumeMenu{STRING_FOR_VOLUME_DUCKING, params::UNPATCHED_SIDECHAIN_VOLUME};
+PLACE_SDRAM_BSS sidechain::GlobalVolume globalSidechainVolumeMenu{STRING_FOR_VOLUME_DUCKING,
+                                                                  params::UNPATCHED_SIDECHAIN_VOLUME};
 
-HorizontalMenu globalSidechainMenu{
+PLACE_SDRAM_BSS HorizontalMenu globalSidechainMenu{
     STRING_FOR_SIDECHAIN,
     {
         &globalSidechainVolumeMenu,
@@ -831,25 +872,41 @@ HorizontalMenu globalSidechainMenu{
 
 // AudioClip stuff ---------------------------------------------------------------------------
 
-audio_clip::SetClipLengthEqualToSampleLength setClipLengthMenu{STRING_FOR_SET_CLIP_LENGTH_EQUAL_TO_SAMPLE_LENGTH};
+PLACE_SDRAM_BSS menu_item::EditName nameEditMenu{STRING_FOR_RENAME_CLIP, menu_item::EditName::Target::CLIP};
+PLACE_SDRAM_BSS menu_item::EditName drumNameEditMenu{STRING_FOR_RENAME_DRUM, menu_item::EditName::Target::DRUM};
+PLACE_SDRAM_BSS menu_item::EditName audioOutputNameEditMenu{STRING_FOR_EDIT_TRACK_NAME,
+                                                            menu_item::EditName::Target::AUDIO_OUTPUT};
+PLACE_SDRAM_BSS menu_item::EditName audioClipNameEditMenu{STRING_FOR_EDIT_CLIP_NAME, menu_item::EditName::Target::CLIP};
 
-Submenu audioClipActionsMenu{
+PLACE_SDRAM_BSS audio_clip::SetClipLengthEqualToSampleLength setClipLengthMenu{
+    STRING_FOR_SET_CLIP_LENGTH_EQUAL_TO_SAMPLE_LENGTH};
+
+PLACE_SDRAM_BSS Submenu editNameMenu{
+    STRING_FOR_EDIT_NAME,
+    {
+        &audioOutputNameEditMenu,
+        &audioClipNameEditMenu,
+    },
+};
+
+PLACE_SDRAM_BSS Submenu audioClipActionsMenu{
     STRING_FOR_ACTIONS,
     {
+        &editNameMenu,
         &setClipLengthMenu,
     },
 };
 
-audio_clip::AudioSourceSelector audioSourceSelectorMenu{STRING_FOR_AUDIO_SOURCE};
-audio_clip::SpecificSourceOutputSelector specificOutputSelectorMenu{STRING_FOR_TRACK};
-audio_clip::Transpose audioClipTransposeMenu{STRING_FOR_TRANSPOSE};
+PLACE_SDRAM_BSS audio_clip::AudioSourceSelector audioSourceSelectorMenu{STRING_FOR_AUDIO_SOURCE};
+PLACE_SDRAM_BSS audio_clip::SpecificSourceOutputSelector specificOutputSelectorMenu{STRING_FOR_TRACK};
+PLACE_SDRAM_BSS audio_clip::Transpose audioClipTransposeMenu{STRING_FOR_TRANSPOSE};
 
-HorizontalMenu audioClipMasterMenu{
+PLACE_SDRAM_BSS HorizontalMenu audioClipMasterMenu{
     STRING_FOR_MASTER,
     {&globalLevelMenu, &globalPanMenu},
 };
 
-HorizontalMenu audioClipDistortionMenu{
+PLACE_SDRAM_BSS HorizontalMenu audioClipDistortionMenu{
     STRING_FOR_DISTORTION,
     {
         &clippingMenu,
@@ -858,7 +915,7 @@ HorizontalMenu audioClipDistortionMenu{
     },
 };
 
-Submenu audioClipFXMenu{
+PLACE_SDRAM_BSS Submenu audioClipFXMenu{
     STRING_FOR_FX,
     {
         &eqMenu,
@@ -871,12 +928,12 @@ Submenu audioClipFXMenu{
 };
 
 // Sample Menu
-audio_clip::Reverse audioClipReverseMenu{STRING_FOR_REVERSE};
-audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuStart{EMPTY_STRING, MarkerType::START};
-audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuEnd{STRING_FOR_WAVEFORM, MarkerType::END};
-AudioInterpolation audioClipInterpolationMenu{STRING_FOR_INTERPOLATION, STRING_FOR_AUDIO_INTERPOLATION};
+PLACE_SDRAM_BSS audio_clip::Reverse audioClipReverseMenu{STRING_FOR_REVERSE};
+PLACE_SDRAM_BSS audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuStart{EMPTY_STRING, MarkerType::START};
+PLACE_SDRAM_BSS audio_clip::SampleMarkerEditor audioClipSampleMarkerEditorMenuEnd{STRING_FOR_WAVEFORM, MarkerType::END};
+PLACE_SDRAM_BSS AudioInterpolation audioClipInterpolationMenu{STRING_FOR_INTERPOLATION, STRING_FOR_AUDIO_INTERPOLATION};
 
-HorizontalMenu audioClipSampleMenu{
+PLACE_SDRAM_BSS HorizontalMenu audioClipSampleMenu{
     STRING_FOR_SAMPLE,
     {
         &file0SelectorMenu,
@@ -888,9 +945,7 @@ HorizontalMenu audioClipSampleMenu{
     },
 };
 
-audio_clip::Attack audioClipAttackMenu{STRING_FOR_ATTACK};
-
-menu_item::EditName nameEditMenu{STRING_FOR_RENAME_CLIP};
+PLACE_SDRAM_BSS audio_clip::Attack audioClipAttackMenu{STRING_FOR_ATTACK};
 
 PLACE_SDRAM_DATA const MenuItem* midiOrCVParamShortcuts[kDisplayHeight] = {
     &arpRateMenuMIDIOrCV,
@@ -898,7 +953,7 @@ PLACE_SDRAM_DATA const MenuItem* midiOrCVParamShortcuts[kDisplayHeight] = {
     &arpGateMenuMIDIOrCV,
     &arpOctavesMenu,
     &arpPresetModeMenu,
-    &nameEditMenu,
+    &editNameMenu,
     nullptr,
     nullptr,
 };
@@ -909,34 +964,35 @@ PLACE_SDRAM_DATA const MenuItem* gateDrumParamShortcuts[kDisplayHeight] = {
     &arpGateMenuMIDIOrCV,
     &arpRhythmMenuMIDIOrCV,
     &arpModeMenu,
-    &nameEditMenu,
+    &drumNameEditMenu,
     nullptr,
     nullptr,
 };
 
 // Gate stuff
-gate::Mode gateModeMenu;
-gate::OffTime gateOffTimeMenu{EMPTY_STRING, STRING_FOR_MINIMUM_OFF_TIME};
+PLACE_SDRAM_BSS gate::Mode gateModeMenu;
+PLACE_SDRAM_BSS gate::OffTime gateOffTimeMenu{EMPTY_STRING, STRING_FOR_MINIMUM_OFF_TIME};
 
 // Root menu
 
 // CV Menu
-cv::Volts cvVoltsMenu{STRING_FOR_VOLTS_PER_OCTAVE, STRING_FOR_CV_V_PER_OCTAVE_MENU_TITLE};
-cv::Transpose cvTransposeMenu{STRING_FOR_TRANSPOSE, STRING_FOR_CV_TRANSPOSE_MENU_TITLE};
+PLACE_SDRAM_BSS cv::Volts cvVoltsMenu{STRING_FOR_VOLTS_PER_OCTAVE, STRING_FOR_CV_V_PER_OCTAVE_MENU_TITLE};
+PLACE_SDRAM_BSS cv::Transpose cvTransposeMenu{STRING_FOR_TRANSPOSE, STRING_FOR_CV_TRANSPOSE_MENU_TITLE};
 
-cv::Submenu cvSubmenu{STRING_FOR_CV_OUTPUT_N, {&cvVoltsMenu, &cvTransposeMenu}};
+PLACE_SDRAM_BSS cv::Submenu cvSubmenu{STRING_FOR_CV_OUTPUT_N, {&cvVoltsMenu, &cvTransposeMenu}};
 
-cv::Selection cvSelectionMenu{STRING_FOR_CV, STRING_FOR_CV_OUTPUTS};
-gate::Selection gateSelectionMenu{STRING_FOR_GATE, STRING_FOR_GATE_OUTPUTS};
+PLACE_SDRAM_BSS cv::Selection cvSelectionMenu{STRING_FOR_CV, STRING_FOR_CV_OUTPUTS};
+PLACE_SDRAM_BSS gate::Selection gateSelectionMenu{STRING_FOR_GATE, STRING_FOR_GATE_OUTPUTS};
 
-swing::Interval swingIntervalMenu{STRING_FOR_SWING_INTERVAL};
+PLACE_SDRAM_BSS swing::Interval swingIntervalMenu{STRING_FOR_SWING_INTERVAL};
 
 // Pads menu
-shortcuts::Version shortcutsVersionMenu{STRING_FOR_SHORTCUTS_VERSION, STRING_FOR_SHORTCUTS_VER_MENU_TITLE};
-menu_item::keyboard::Layout keyboardLayoutMenu{STRING_FOR_KEYBOARD_FOR_TEXT, STRING_FOR_KEY_LAYOUT};
+PLACE_SDRAM_BSS shortcuts::Version shortcutsVersionMenu{STRING_FOR_SHORTCUTS_VERSION,
+                                                        STRING_FOR_SHORTCUTS_VER_MENU_TITLE};
+PLACE_SDRAM_BSS menu_item::keyboard::Layout keyboardLayoutMenu{STRING_FOR_KEYBOARD_FOR_TEXT, STRING_FOR_KEY_LAYOUT};
 
 // Colours submenu
-Submenu coloursSubmenu{
+PLACE_SDRAM_BSS Submenu coloursSubmenu{
     STRING_FOR_COLOURS,
     {
         &activeColourMenu,
@@ -948,7 +1004,7 @@ Submenu coloursSubmenu{
     },
 };
 
-Submenu padsSubmenu{
+PLACE_SDRAM_BSS Submenu padsSubmenu{
     STRING_FOR_PADS,
     {
         &shortcutsVersionMenu,
@@ -958,23 +1014,25 @@ Submenu padsSubmenu{
 };
 
 // Record submenu
-record::Quantize recordQuantizeMenu{STRING_FOR_QUANTIZATION};
-ToggleBool recordMarginsMenu{STRING_FOR_LOOP_MARGINS, STRING_FOR_LOOP_MARGINS, FlashStorage::audioClipRecordMargins};
-record::CountIn recordCountInMenu{STRING_FOR_COUNT_IN, STRING_FOR_REC_COUNT_IN};
-monitor::Mode monitorModeMenu{STRING_FOR_SAMPLING_MONITORING, STRING_FOR_MONITORING};
+PLACE_SDRAM_BSS record::Quantize recordQuantizeMenu{STRING_FOR_QUANTIZATION};
+PLACE_SDRAM_BSS ToggleBool recordMarginsMenu{STRING_FOR_LOOP_MARGINS, STRING_FOR_LOOP_MARGINS,
+                                             FlashStorage::audioClipRecordMargins};
+PLACE_SDRAM_BSS record::CountIn recordCountInMenu{STRING_FOR_COUNT_IN, STRING_FOR_REC_COUNT_IN};
+PLACE_SDRAM_BSS monitor::Mode monitorModeMenu{STRING_FOR_SAMPLING_MONITORING, STRING_FOR_MONITORING};
 
-record::ThresholdMode defaultThresholdRecordingModeMenu{STRING_FOR_MODE, record::ThresholdMode::DEFAULT};
+PLACE_SDRAM_BSS record::ThresholdMode defaultThresholdRecordingModeMenu{STRING_FOR_MODE,
+                                                                        record::ThresholdMode::DEFAULT};
 
-Submenu defaultThresholdRecordingSubmenu{
+PLACE_SDRAM_BSS Submenu defaultThresholdRecordingSubmenu{
     STRING_FOR_THRESHOLD_RECORDING,
     {
         &defaultThresholdRecordingModeMenu,
     },
 };
 
-record::LoopCommand defaultLoopCommandMenu{STRING_FOR_LOOP_COMMAND, STRING_FOR_LOOP_COMMAND};
+PLACE_SDRAM_BSS record::LoopCommand defaultLoopCommandMenu{STRING_FOR_LOOP_COMMAND, STRING_FOR_LOOP_COMMAND};
 
-Submenu recordSubmenu{
+PLACE_SDRAM_BSS Submenu recordSubmenu{
     STRING_FOR_RECORDING,
     {
         &recordCountInMenu,
@@ -986,73 +1044,74 @@ Submenu recordSubmenu{
     },
 };
 
-sample::browser_preview::Mode sampleBrowserPreviewModeMenu{STRING_FOR_SAMPLE_PREVIEW};
+PLACE_SDRAM_BSS sample::browser_preview::Mode sampleBrowserPreviewModeMenu{STRING_FOR_SAMPLE_PREVIEW};
 
-flash::Status flashStatusMenu{STRING_FOR_PLAY_CURSOR};
+PLACE_SDRAM_BSS flash::Status flashStatusMenu{STRING_FOR_PLAY_CURSOR};
 
-firmware::Version firmwareVersionMenu{STRING_FOR_FIRMWARE_VERSION, STRING_FOR_FIRMWARE_VER_MENU_TITLE};
+PLACE_SDRAM_BSS firmware::Version firmwareVersionMenu{STRING_FOR_FIRMWARE_VERSION, STRING_FOR_FIRMWARE_VER_MENU_TITLE};
 
-battery::Level batteryLevelMenu{STRING_FOR_BATTERY_LEVEL, STRING_FOR_BATTERY_LEVEL_MENU_TITLE};
+PLACE_SDRAM_BSS battery::Level batteryLevelMenu{STRING_FOR_BATTERY_LEVEL, STRING_FOR_BATTERY_LEVEL_MENU_TITLE};
 
-runtime_feature::Settings runtimeFeatureSettingsMenu{STRING_FOR_COMMUNITY_FTS, STRING_FOR_COMMUNITY_FTS_MENU_TITLE};
+PLACE_SDRAM_BSS runtime_feature::Settings runtimeFeatureSettingsMenu{STRING_FOR_COMMUNITY_FTS,
+                                                                     STRING_FOR_COMMUNITY_FTS_MENU_TITLE};
 
 // CV menu
 
 // MIDI
 // MIDI thru
-ToggleBool midiThruMenu{STRING_FOR_MIDI_THRU, STRING_FOR_MIDI_THRU, midiEngine.midiThru};
+PLACE_SDRAM_BSS ToggleBool midiThruMenu{STRING_FOR_MIDI_THRU, STRING_FOR_MIDI_THRU, midiEngine.midiThru};
 
 // MIDI Takeover
-midi::Takeover midiTakeoverMenu{STRING_FOR_TAKEOVER};
+PLACE_SDRAM_BSS midi::Takeover midiTakeoverMenu{STRING_FOR_TAKEOVER};
 
 // MIDI Follow
-midi::FollowChannel midiFollowChannelAMenu{STRING_FOR_FOLLOW_CHANNEL_A, STRING_FOR_FOLLOW_CHANNEL_A,
-                                           MIDIFollowChannelType::A};
-midi::FollowChannel midiFollowChannelBMenu{STRING_FOR_FOLLOW_CHANNEL_B, STRING_FOR_FOLLOW_CHANNEL_B,
-                                           MIDIFollowChannelType::B};
-midi::FollowChannel midiFollowChannelCMenu{STRING_FOR_FOLLOW_CHANNEL_C, STRING_FOR_FOLLOW_CHANNEL_C,
-                                           MIDIFollowChannelType::C};
-midi::FollowChannelTrack midiFollowChannelTrack1Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
-                                                     MIDIFollowChannelType::Track1, 1};
-midi::FollowChannelTrack midiFollowChannelTrack2Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
-                                                     MIDIFollowChannelType::Track2, 2};
-midi::FollowChannelTrack midiFollowChannelTrack3Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
-                                                     MIDIFollowChannelType::Track3, 3};
-midi::FollowChannelTrack midiFollowChannelTrack4Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
-                                                     MIDIFollowChannelType::Track4, 4};
-midi::FollowChannelTrack midiFollowChannelTrack5Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
-                                                     MIDIFollowChannelType::Track5, 5};
-midi::FollowChannelTrack midiFollowChannelTrack6Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
-                                                     MIDIFollowChannelType::Track6, 6};
-midi::FollowChannelTrack midiFollowChannelTrack7Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
-                                                     MIDIFollowChannelType::Track7, 7};
-midi::FollowChannelTrack midiFollowChannelTrack8Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
-                                                     MIDIFollowChannelType::Track8, 8};
-midi::FollowChannelTrack midiFollowChannelTrack9Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
-                                                     MIDIFollowChannelType::Track9, 9};
-midi::FollowChannelTrack midiFollowChannelTrack10Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
-                                                      MIDIFollowChannelType::Track10, 10};
-midi::FollowChannelTrack midiFollowChannelTrack11Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
-                                                      MIDIFollowChannelType::Track11, 11};
-midi::FollowChannelTrack midiFollowChannelTrack12Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
-                                                      MIDIFollowChannelType::Track12, 12};
-midi::FollowChannelTrack midiFollowChannelTrack13Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
-                                                      MIDIFollowChannelType::Track13, 13};
-midi::FollowChannelTrack midiFollowChannelTrack14Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
-                                                      MIDIFollowChannelType::Track14, 14};
-midi::FollowChannelTrack midiFollowChannelTrack15Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
-                                                      MIDIFollowChannelType::Track15, 15};
-midi::FollowChannelTrack midiFollowChannelTrack16Menu{STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK,
-                                                      MIDIFollowChannelType::Track16, 16};
-midi::FollowKitRootNote midiFollowKitRootNoteMenu{STRING_FOR_FOLLOW_KIT_ROOT_NOTE};
-ToggleBool midiFollowDisplayParamMenu{STRING_FOR_FOLLOW_DISPLAY_PARAM, STRING_FOR_FOLLOW_DISPLAY_PARAM,
-                                      midiEngine.midiFollowDisplayParam};
-midi::FollowFeedbackChannelType midiFollowFeedbackChannelMenu{STRING_FOR_CHANNEL};
-midi::FollowFeedbackAutomation midiFollowFeedbackAutomationMenu{STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION};
-ToggleBool midiFollowFeedbackFilterMenu{STRING_FOR_FOLLOW_FEEDBACK_FILTER, STRING_FOR_FOLLOW_FEEDBACK_FILTER,
-                                        midiEngine.midiFollowFeedbackFilter};
+PLACE_SDRAM_BSS midi::FollowChannel midiFollowChannelAMenu{STRING_FOR_FOLLOW_CHANNEL_A, STRING_FOR_FOLLOW_CHANNEL_A,
+                                                           MIDIFollowChannelType::A};
+PLACE_SDRAM_BSS midi::FollowChannel midiFollowChannelBMenu{STRING_FOR_FOLLOW_CHANNEL_B, STRING_FOR_FOLLOW_CHANNEL_B,
+                                                           MIDIFollowChannelType::B};
+PLACE_SDRAM_BSS midi::FollowChannel midiFollowChannelCMenu{STRING_FOR_FOLLOW_CHANNEL_C, STRING_FOR_FOLLOW_CHANNEL_C,
+                                                           MIDIFollowChannelType::C};
+PLACE_SDRAM_BSS midi::FollowChannelTrack midiFollowChannelTrack1Menu{
+    STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK, MIDIFollowChannelType::Track1, 1};
+PLACE_SDRAM_BSS midi::FollowChannelTrack midiFollowChannelTrack2Menu{
+    STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK, MIDIFollowChannelType::Track2, 2};
+PLACE_SDRAM_BSS midi::FollowChannelTrack midiFollowChannelTrack3Menu{
+    STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK, MIDIFollowChannelType::Track3, 3};
+PLACE_SDRAM_BSS midi::FollowChannelTrack midiFollowChannelTrack4Menu{
+    STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK, MIDIFollowChannelType::Track4, 4};
+PLACE_SDRAM_BSS midi::FollowChannelTrack midiFollowChannelTrack5Menu{
+    STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK, MIDIFollowChannelType::Track5, 5};
+PLACE_SDRAM_BSS midi::FollowChannelTrack midiFollowChannelTrack6Menu{
+    STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK, MIDIFollowChannelType::Track6, 6};
+PLACE_SDRAM_BSS midi::FollowChannelTrack midiFollowChannelTrack7Menu{
+    STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK, MIDIFollowChannelType::Track7, 7};
+PLACE_SDRAM_BSS midi::FollowChannelTrack midiFollowChannelTrack8Menu{
+    STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK, MIDIFollowChannelType::Track8, 8};
+PLACE_SDRAM_BSS midi::FollowChannelTrack midiFollowChannelTrack9Menu{
+    STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK, MIDIFollowChannelType::Track9, 9};
+PLACE_SDRAM_BSS midi::FollowChannelTrack midiFollowChannelTrack10Menu{
+    STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK, MIDIFollowChannelType::Track10, 10};
+PLACE_SDRAM_BSS midi::FollowChannelTrack midiFollowChannelTrack11Menu{
+    STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK, MIDIFollowChannelType::Track11, 11};
+PLACE_SDRAM_BSS midi::FollowChannelTrack midiFollowChannelTrack12Menu{
+    STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK, MIDIFollowChannelType::Track12, 12};
+PLACE_SDRAM_BSS midi::FollowChannelTrack midiFollowChannelTrack13Menu{
+    STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK, MIDIFollowChannelType::Track13, 13};
+PLACE_SDRAM_BSS midi::FollowChannelTrack midiFollowChannelTrack14Menu{
+    STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK, MIDIFollowChannelType::Track14, 14};
+PLACE_SDRAM_BSS midi::FollowChannelTrack midiFollowChannelTrack15Menu{
+    STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK, MIDIFollowChannelType::Track15, 15};
+PLACE_SDRAM_BSS midi::FollowChannelTrack midiFollowChannelTrack16Menu{
+    STRING_FOR_FOLLOW_CHANNEL_TRACK, STRING_FOR_FOLLOW_CHANNEL_TRACK, MIDIFollowChannelType::Track16, 16};
+PLACE_SDRAM_BSS midi::FollowKitRootNote midiFollowKitRootNoteMenu{STRING_FOR_FOLLOW_KIT_ROOT_NOTE};
+PLACE_SDRAM_BSS ToggleBool midiFollowDisplayParamMenu{STRING_FOR_FOLLOW_DISPLAY_PARAM, STRING_FOR_FOLLOW_DISPLAY_PARAM,
+                                                      midiEngine.midiFollowDisplayParam};
+PLACE_SDRAM_BSS midi::FollowFeedbackChannelType midiFollowFeedbackChannelMenu{STRING_FOR_CHANNEL};
+PLACE_SDRAM_BSS midi::FollowFeedbackAutomation midiFollowFeedbackAutomationMenu{STRING_FOR_FOLLOW_FEEDBACK_AUTOMATION};
+PLACE_SDRAM_BSS ToggleBool midiFollowFeedbackFilterMenu{
+    STRING_FOR_FOLLOW_FEEDBACK_FILTER, STRING_FOR_FOLLOW_FEEDBACK_FILTER, midiEngine.midiFollowFeedbackFilter};
 
-Submenu midiFollowChannelSubmenu{
+PLACE_SDRAM_BSS Submenu midiFollowChannelSubmenu{
     STRING_FOR_CHANNEL,
     STRING_FOR_CHANNEL,
     {
@@ -1066,7 +1125,7 @@ Submenu midiFollowChannelSubmenu{
     },
 };
 
-Submenu midiFollowFeedbackSubmenu{
+PLACE_SDRAM_BSS Submenu midiFollowFeedbackSubmenu{
     STRING_FOR_FOLLOW_FEEDBACK,
     STRING_FOR_FOLLOW_FEEDBACK,
     {
@@ -1076,7 +1135,7 @@ Submenu midiFollowFeedbackSubmenu{
     },
 };
 
-Submenu midiFollowSubmenu{
+PLACE_SDRAM_BSS Submenu midiFollowSubmenu{
     STRING_FOR_FOLLOW_TITLE,
     STRING_FOR_FOLLOW_TITLE,
     {
@@ -1088,13 +1147,14 @@ Submenu midiFollowSubmenu{
 };
 
 // MIDI select kit row
-ToggleBool midiSelectKitRowMenu{STRING_FOR_SELECT_KIT_ROW, STRING_FOR_SELECT_KIT_ROW, midiEngine.midiSelectKitRow};
+PLACE_SDRAM_BSS ToggleBool midiSelectKitRowMenu{STRING_FOR_SELECT_KIT_ROW, STRING_FOR_SELECT_KIT_ROW,
+                                                midiEngine.midiSelectKitRow};
 
 // MIDI transpose menu
 
-midi::Transpose midiTransposeMenu{STRING_FOR_TRANSPOSE};
+PLACE_SDRAM_BSS midi::Transpose midiTransposeMenu{STRING_FOR_TRANSPOSE};
 
-Submenu midiTransposeSubmenu{
+PLACE_SDRAM_BSS Submenu midiTransposeSubmenu{
     STRING_FOR_TRANSPOSE,
     STRING_FOR_TRANSPOSE,
     {
@@ -1103,20 +1163,21 @@ Submenu midiTransposeSubmenu{
 };
 
 // MIDI commands submenu
-midi::Command playbackRestartMidiCommand{STRING_FOR_RESTART, GlobalMIDICommand::PLAYBACK_RESTART};
-midi::Command playMidiCommand{STRING_FOR_PLAY, GlobalMIDICommand::PLAY};
-midi::Command recordMidiCommand{STRING_FOR_RECORD, GlobalMIDICommand::RECORD};
-midi::Command tapMidiCommand{STRING_FOR_TAP_TEMPO, GlobalMIDICommand::TAP};
-midi::Command undoMidiCommand{STRING_FOR_UNDO, GlobalMIDICommand::UNDO};
-midi::Command redoMidiCommand{STRING_FOR_REDO, GlobalMIDICommand::REDO};
-midi::Command loopMidiCommand{STRING_FOR_LOOP, GlobalMIDICommand::LOOP};
-midi::Command loopContinuousLayeringMidiCommand{STRING_FOR_LAYERING_LOOP, GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING};
-midi::Command fillMidiCommand{STRING_FOR_FILL, GlobalMIDICommand::FILL};
-midi::Command transposeMidiCommand{STRING_FOR_TRANSPOSE, GlobalMIDICommand::TRANSPOSE};
-midi::Command nextSongMidiCommand{STRING_FOR_SONG_LOAD_NEXT, GlobalMIDICommand::NEXT_SONG};
-midi::Command shiftMidiCommand{STRING_FOR_SHIFT, GlobalMIDICommand::SHIFT};
+PLACE_SDRAM_BSS midi::Command playbackRestartMidiCommand{STRING_FOR_RESTART, GlobalMIDICommand::PLAYBACK_RESTART};
+PLACE_SDRAM_BSS midi::Command playMidiCommand{STRING_FOR_PLAY, GlobalMIDICommand::PLAY};
+PLACE_SDRAM_BSS midi::Command recordMidiCommand{STRING_FOR_RECORD, GlobalMIDICommand::RECORD};
+PLACE_SDRAM_BSS midi::Command tapMidiCommand{STRING_FOR_TAP_TEMPO, GlobalMIDICommand::TAP};
+PLACE_SDRAM_BSS midi::Command undoMidiCommand{STRING_FOR_UNDO, GlobalMIDICommand::UNDO};
+PLACE_SDRAM_BSS midi::Command redoMidiCommand{STRING_FOR_REDO, GlobalMIDICommand::REDO};
+PLACE_SDRAM_BSS midi::Command loopMidiCommand{STRING_FOR_LOOP, GlobalMIDICommand::LOOP};
+PLACE_SDRAM_BSS midi::Command loopContinuousLayeringMidiCommand{STRING_FOR_LAYERING_LOOP,
+                                                                GlobalMIDICommand::LOOP_CONTINUOUS_LAYERING};
+PLACE_SDRAM_BSS midi::Command fillMidiCommand{STRING_FOR_FILL, GlobalMIDICommand::FILL};
+PLACE_SDRAM_BSS midi::Command transposeMidiCommand{STRING_FOR_TRANSPOSE, GlobalMIDICommand::TRANSPOSE};
+PLACE_SDRAM_BSS midi::Command nextSongMidiCommand{STRING_FOR_SONG_LOAD_NEXT, GlobalMIDICommand::NEXT_SONG};
+PLACE_SDRAM_BSS midi::Command shiftMidiCommand{STRING_FOR_SHIFT, GlobalMIDICommand::SHIFT};
 
-Submenu midiCommandsMenu{
+PLACE_SDRAM_BSS Submenu midiCommandsMenu{
     STRING_FOR_COMMANDS,
     STRING_FOR_MIDI_COMMANDS,
     {&playMidiCommand, &playbackRestartMidiCommand, &recordMidiCommand, &tapMidiCommand, &undoMidiCommand,
@@ -1126,11 +1187,11 @@ Submenu midiCommandsMenu{
 
 // MIDI device submenu - for after we've selected which device we want it for
 
-midi::DefaultVelocityToLevel defaultVelocityToLevelMenu{STRING_FOR_VELOCITY};
-midi::DeviceSendClock device_send_clock_menu{STRING_FOR_CLOCK_OUT};
-midi::DeviceReceiveClock device_receive_clock_menu{STRING_FOR_CLOCK_IN};
-midi::DeviceIsRelative device_is_relative_menu{STRING_FOR_IS_RELATIVE};
-midi::Device midiDeviceMenu{
+PLACE_SDRAM_BSS midi::DefaultVelocityToLevel defaultVelocityToLevelMenu{STRING_FOR_VELOCITY};
+PLACE_SDRAM_BSS midi::DeviceSendClock device_send_clock_menu{STRING_FOR_CLOCK_OUT};
+PLACE_SDRAM_BSS midi::DeviceReceiveClock device_receive_clock_menu{STRING_FOR_CLOCK_IN};
+PLACE_SDRAM_BSS midi::DeviceIsRelative device_is_relative_menu{STRING_FOR_IS_RELATIVE};
+PLACE_SDRAM_BSS midi::Device midiDeviceMenu{
     EMPTY_STRING,
     {
         &mpe::directionSelectorMenu,
@@ -1142,21 +1203,24 @@ midi::Device midiDeviceMenu{
 };
 
 // MIDI input differentiation menu
-ToggleBool midiInputDifferentiationMenu{STRING_FOR_DIFFERENTIATE_INPUTS, STRING_FOR_DIFFERENTIATE_INPUTS,
-                                        MIDIDeviceManager::differentiatingInputsByDevice};
+PLACE_SDRAM_BSS ToggleBool midiInputDifferentiationMenu{
+    STRING_FOR_DIFFERENTIATE_INPUTS, STRING_FOR_DIFFERENTIATE_INPUTS, MIDIDeviceManager::differentiatingInputsByDevice};
 
 // MIDI clock menu
-midi::SendClock send_clock_menu{STRING_FOR_OUTPUT, STRING_FOR_MIDI_CLOCK_OUT, playbackHandler.midiOutClockEnabled};
-midi::ReceiveClock receive_clock_menu{STRING_FOR_INPUT, STRING_FOR_MIDI_CLOCK_IN, playbackHandler.midiInClockEnabled};
-ToggleBool tempoMagnitudeMatchingMenu{STRING_FOR_TEMPO_MAGNITUDE_MATCHING, STRING_FOR_TEMPO_MAGNITUDE_MATCHING,
-                                      playbackHandler.tempoMagnitudeMatchingEnabled};
+PLACE_SDRAM_BSS midi::SendClock send_clock_menu{STRING_FOR_OUTPUT, STRING_FOR_MIDI_CLOCK_OUT,
+                                                playbackHandler.midiOutClockEnabled};
+PLACE_SDRAM_BSS midi::ReceiveClock receive_clock_menu{STRING_FOR_INPUT, STRING_FOR_MIDI_CLOCK_IN,
+                                                      playbackHandler.midiInClockEnabled};
+PLACE_SDRAM_BSS ToggleBool tempoMagnitudeMatchingMenu{STRING_FOR_TEMPO_MAGNITUDE_MATCHING,
+                                                      STRING_FOR_TEMPO_MAGNITUDE_MATCHING,
+                                                      playbackHandler.tempoMagnitudeMatchingEnabled};
 
 // Midi devices menu
-midi::Devices midi::devicesMenu{STRING_FOR_DEVICES, STRING_FOR_MIDI_DEVICES};
-mpe::DirectionSelector mpe::directionSelectorMenu{STRING_FOR_MPE};
+PLACE_SDRAM_BSS midi::Devices midi::devicesMenu{STRING_FOR_DEVICES, STRING_FOR_MIDI_DEVICES};
+PLACE_SDRAM_BSS mpe::DirectionSelector mpe::directionSelectorMenu{STRING_FOR_MPE};
 
 // MIDI menu
-Submenu midiClockMenu{
+PLACE_SDRAM_BSS Submenu midiClockMenu{
     STRING_FOR_CLOCK,
     STRING_FOR_MIDI_CLOCK,
     {
@@ -1165,7 +1229,7 @@ Submenu midiClockMenu{
         &tempoMagnitudeMatchingMenu,
     },
 };
-Submenu midiMenu{
+PLACE_SDRAM_BSS Submenu midiMenu{
     STRING_FOR_MIDI,
     {
         &midiClockMenu,
@@ -1182,10 +1246,10 @@ Submenu midiMenu{
 
 // Clock menu
 // Trigger clock in menu
-trigger::in::PPQN triggerInPPQNMenu{STRING_FOR_PPQN, STRING_FOR_INPUT_PPQN};
-ToggleBool triggerInAutoStartMenu{STRING_FOR_AUTO_START, STRING_FOR_AUTO_START,
-                                  playbackHandler.analogClockInputAutoStart};
-Submenu triggerClockInMenu{
+PLACE_SDRAM_BSS trigger::in::PPQN triggerInPPQNMenu{STRING_FOR_PPQN, STRING_FOR_INPUT_PPQN};
+PLACE_SDRAM_BSS ToggleBool triggerInAutoStartMenu{STRING_FOR_AUTO_START, STRING_FOR_AUTO_START,
+                                                  playbackHandler.analogClockInputAutoStart};
+PLACE_SDRAM_BSS Submenu triggerClockInMenu{
     STRING_FOR_INPUT,
     STRING_FOR_T_CLOCK_INPUT_MENU_TITLE,
     {
@@ -1195,8 +1259,8 @@ Submenu triggerClockInMenu{
 };
 
 // Trigger clock out menu
-trigger::out::PPQN triggerOutPPQNMenu{STRING_FOR_PPQN, STRING_FOR_OUTPUT_PPQN};
-Submenu triggerClockOutMenu{
+PLACE_SDRAM_BSS trigger::out::PPQN triggerOutPPQNMenu{STRING_FOR_PPQN, STRING_FOR_OUTPUT_PPQN};
+PLACE_SDRAM_BSS Submenu triggerClockOutMenu{
     STRING_FOR_OUTPUT,
     STRING_FOR_T_CLOCK_OUT_MENU_TITLE,
     {
@@ -1205,7 +1269,7 @@ Submenu triggerClockOutMenu{
 };
 
 // Trigger clock menu
-Submenu triggerClockMenu{
+PLACE_SDRAM_BSS Submenu triggerClockMenu{
     STRING_FOR_TRIGGER_CLOCK,
     {
         &triggerClockInMenu,
@@ -1214,106 +1278,110 @@ Submenu triggerClockMenu{
 };
 
 // Defaults menu
-defaults::KeyboardLayout defaultKeyboardLayoutMenu{STRING_FOR_DEFAULT_UI_LAYOUT, STRING_FOR_DEFAULT_UI_LAYOUT};
+PLACE_SDRAM_BSS defaults::KeyboardLayout defaultKeyboardLayoutMenu{STRING_FOR_DEFAULT_UI_LAYOUT,
+                                                                   STRING_FOR_DEFAULT_UI_LAYOUT};
 
-defaults::DefaultFavouritesLayout defaultFavouritesLayout{STRING_FOR_DEFAULT_UI_FAVOURITES,
-                                                          STRING_FOR_DEFAULT_UI_FAVOURITES};
+PLACE_SDRAM_BSS defaults::DefaultFavouritesLayout defaultFavouritesLayout{STRING_FOR_DEFAULT_UI_FAVOURITES,
+                                                                          STRING_FOR_DEFAULT_UI_FAVOURITES};
 
-InvertedToggleBool defaultUIKeyboardFunctionsVelocityGlide{STRING_FOR_DEFAULT_UI_KB_CONTROLS_VELOCITY_MOMENTARY,
-                                                           STRING_FOR_DEFAULT_UI_KB_CONTROLS_VELOCITY_MOMENTARY,
-                                                           // This control is inverted, as the default value is true
-                                                           // (Enabled) Glide mode is the opposite to Momentary mode
-                                                           FlashStorage::keyboardFunctionsVelocityGlide};
-InvertedToggleBool defaultUIKeyboardFunctionsModwheelGlide{STRING_FOR_DEFAULT_UI_KB_CONTROLS_MODWHEEL_MOMENTARY,
-                                                           STRING_FOR_DEFAULT_UI_KB_CONTROLS_MODWHEEL_MOMENTARY,
-                                                           // This control is inverted, as the default value is true
-                                                           // (Enabled) Glide mode is the opposite to Momentary mode
-                                                           FlashStorage::keyboardFunctionsModwheelGlide};
-Submenu defaultKeyboardFunctionsMenu{
+PLACE_SDRAM_BSS InvertedToggleBool defaultUIKeyboardFunctionsVelocityGlide{
+    STRING_FOR_DEFAULT_UI_KB_CONTROLS_VELOCITY_MOMENTARY, STRING_FOR_DEFAULT_UI_KB_CONTROLS_VELOCITY_MOMENTARY,
+    // This control is inverted, as the default value is true
+    // (Enabled) Glide mode is the opposite to Momentary mode
+    FlashStorage::keyboardFunctionsVelocityGlide};
+PLACE_SDRAM_BSS InvertedToggleBool defaultUIKeyboardFunctionsModwheelGlide{
+    STRING_FOR_DEFAULT_UI_KB_CONTROLS_MODWHEEL_MOMENTARY, STRING_FOR_DEFAULT_UI_KB_CONTROLS_MODWHEEL_MOMENTARY,
+    // This control is inverted, as the default value is true
+    // (Enabled) Glide mode is the opposite to Momentary mode
+    FlashStorage::keyboardFunctionsModwheelGlide};
+PLACE_SDRAM_BSS Submenu defaultKeyboardFunctionsMenu{
     STRING_FOR_DEFAULT_UI_KB_CONTROLS,
     {&defaultUIKeyboardFunctionsVelocityGlide, &defaultUIKeyboardFunctionsModwheelGlide},
 };
 
-Submenu defaultUIKeyboard{
+PLACE_SDRAM_BSS Submenu defaultUIKeyboard{
     STRING_FOR_DEFAULT_UI_KEYBOARD,
     {&defaultKeyboardLayoutMenu, &defaultKeyboardFunctionsMenu, &defaultFavouritesLayout},
 };
 
-ToggleBool defaultgridEmptyPadsUnarm{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_UNARM,
-                                     STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_UNARM,
-                                     FlashStorage::gridEmptyPadsUnarm};
-ToggleBool defaultGridEmptyPadsCreateRec{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_CREATE_REC,
-                                         STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_CREATE_REC,
-                                         FlashStorage::gridEmptyPadsCreateRec};
-Submenu defaultEmptyPadMenu{
+PLACE_SDRAM_BSS ToggleBool defaultgridEmptyPadsUnarm{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_UNARM,
+                                                     STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_UNARM,
+                                                     FlashStorage::gridEmptyPadsUnarm};
+PLACE_SDRAM_BSS ToggleBool defaultGridEmptyPadsCreateRec{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_CREATE_REC,
+                                                         STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS_CREATE_REC,
+                                                         FlashStorage::gridEmptyPadsCreateRec};
+PLACE_SDRAM_BSS Submenu defaultEmptyPadMenu{
     STRING_FOR_DEFAULT_UI_DEFAULT_GRID_EMPTY_PADS,
     {&defaultgridEmptyPadsUnarm, &defaultGridEmptyPadsCreateRec},
 };
 
-defaults::DefaultGridDefaultActiveMode defaultGridDefaultActiveMode{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE,
-                                                                    STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE};
-ToggleBool defaultGridAllowGreenSelection{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALLOW_GREEN_SELECTION,
-                                          STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALLOW_GREEN_SELECTION,
-                                          FlashStorage::gridAllowGreenSelection};
-Submenu defaultSessionGridMenu{
+PLACE_SDRAM_BSS defaults::DefaultGridDefaultActiveMode defaultGridDefaultActiveMode{
+    STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE, STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ACTIVE_MODE};
+PLACE_SDRAM_BSS ToggleBool defaultGridAllowGreenSelection{STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALLOW_GREEN_SELECTION,
+                                                          STRING_FOR_DEFAULT_UI_DEFAULT_GRID_ALLOW_GREEN_SELECTION,
+                                                          FlashStorage::gridAllowGreenSelection};
+PLACE_SDRAM_BSS Submenu defaultSessionGridMenu{
     STRING_FOR_DEFAULT_UI_GRID,
     {&defaultGridDefaultActiveMode, &defaultGridAllowGreenSelection, &defaultEmptyPadMenu},
 };
 
-defaults::SessionLayout defaultSessionLayoutMenu{STRING_FOR_DEFAULT_UI_LAYOUT, STRING_FOR_DEFAULT_UI_LAYOUT};
-Submenu defaultUISession{
+PLACE_SDRAM_BSS defaults::SessionLayout defaultSessionLayoutMenu{STRING_FOR_DEFAULT_UI_LAYOUT,
+                                                                 STRING_FOR_DEFAULT_UI_LAYOUT};
+PLACE_SDRAM_BSS Submenu defaultUISession{
     STRING_FOR_DEFAULT_UI_SONG,
     {&defaultSessionLayoutMenu, &defaultSessionGridMenu},
 };
 
-ToggleBool defaultAccessibilityShortcuts{STRING_FOR_DEFAULT_ACCESSIBILITY_SHORTCUTS,
-                                         STRING_FOR_DEFAULT_ACCESSIBILITY_SHORTCUTS,
-                                         FlashStorage::accessibilityShortcuts};
-defaults::AccessibilityMenuHighlighting defaultAccessibilityMenuHighlighting{
+PLACE_SDRAM_BSS ToggleBool defaultAccessibilityShortcuts{STRING_FOR_DEFAULT_ACCESSIBILITY_SHORTCUTS,
+                                                         STRING_FOR_DEFAULT_ACCESSIBILITY_SHORTCUTS,
+                                                         FlashStorage::accessibilityShortcuts};
+PLACE_SDRAM_BSS defaults::AccessibilityMenuHighlighting defaultAccessibilityMenuHighlighting{
     STRING_FOR_DEFAULT_ACCESSIBILITY_MENU_HIGHLIGHTING, STRING_FOR_DEFAULT_ACCESSIBILITY_MENU_HIGHLIGHTING};
 
-Submenu defaultAccessibilityMenu{STRING_FOR_DEFAULT_ACCESSIBILITY,
-                                 {
-                                     &defaultAccessibilityShortcuts,
-                                     &defaultAccessibilityMenuHighlighting,
-                                 }};
+PLACE_SDRAM_BSS Submenu defaultAccessibilityMenu{STRING_FOR_DEFAULT_ACCESSIBILITY,
+                                                 {
+                                                     &defaultAccessibilityShortcuts,
+                                                     &defaultAccessibilityMenuHighlighting,
+                                                 }};
 
-defaults::ui::clip_type::DefaultNewClipType defaultNewClipTypeMenu{STRING_FOR_DEFAULT_NEW_CLIP_TYPE,
-                                                                   STRING_FOR_DEFAULT_NEW_CLIP_TYPE};
-ToggleBool defaultUseLastClipTypeMenu{STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE, STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE,
-                                      FlashStorage::defaultUseLastClipType};
+PLACE_SDRAM_BSS defaults::ui::clip_type::DefaultNewClipType defaultNewClipTypeMenu{STRING_FOR_DEFAULT_NEW_CLIP_TYPE,
+                                                                                   STRING_FOR_DEFAULT_NEW_CLIP_TYPE};
+PLACE_SDRAM_BSS ToggleBool defaultUseLastClipTypeMenu{
+    STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE, STRING_FOR_DEFAULT_USE_LAST_CLIP_TYPE, FlashStorage::defaultUseLastClipType};
 
-Submenu defaultClipTypeMenu{STRING_FOR_DEFAULT_CLIP_TYPE,
-                            {
-                                &defaultNewClipTypeMenu,
-                                &defaultUseLastClipTypeMenu,
-                            }};
+PLACE_SDRAM_BSS Submenu defaultClipTypeMenu{STRING_FOR_DEFAULT_CLIP_TYPE,
+                                            {
+                                                &defaultNewClipTypeMenu,
+                                                &defaultUseLastClipTypeMenu,
+                                            }};
 
-ToggleBool defaultUseSharps{STRING_FOR_DEFAULT_UI_SHARPS, STRING_FOR_DEFAULT_UI_SHARPS, FlashStorage::defaultUseSharps};
+PLACE_SDRAM_BSS ToggleBool defaultUseSharps{STRING_FOR_DEFAULT_UI_SHARPS, STRING_FOR_DEFAULT_UI_SHARPS,
+                                            FlashStorage::defaultUseSharps};
 
-Submenu defaultUI{
+PLACE_SDRAM_BSS Submenu defaultUI{
     STRING_FOR_DEFAULT_UI,
     {&defaultAccessibilityMenu, &defaultUISession, &defaultUIKeyboard, &defaultClipTypeMenu, &defaultUseSharps},
 };
 
-ToggleBool defaultAutomationInterpolateMenu{STRING_FOR_DEFAULT_AUTOMATION_INTERPOLATION,
-                                            STRING_FOR_DEFAULT_AUTOMATION_INTERPOLATION,
-                                            FlashStorage::automationInterpolate};
+PLACE_SDRAM_BSS ToggleBool defaultAutomationInterpolateMenu{STRING_FOR_DEFAULT_AUTOMATION_INTERPOLATION,
+                                                            STRING_FOR_DEFAULT_AUTOMATION_INTERPOLATION,
+                                                            FlashStorage::automationInterpolate};
 
-ToggleBool defaultAutomationClearMenu{STRING_FOR_DEFAULT_AUTOMATION_CLEAR, STRING_FOR_DEFAULT_AUTOMATION_CLEAR,
-                                      FlashStorage::automationClear};
+PLACE_SDRAM_BSS ToggleBool defaultAutomationClearMenu{
+    STRING_FOR_DEFAULT_AUTOMATION_CLEAR, STRING_FOR_DEFAULT_AUTOMATION_CLEAR, FlashStorage::automationClear};
 
-ToggleBool defaultAutomationShiftMenu{STRING_FOR_DEFAULT_AUTOMATION_SHIFT, STRING_FOR_DEFAULT_AUTOMATION_SHIFT,
-                                      FlashStorage::automationShift};
+PLACE_SDRAM_BSS ToggleBool defaultAutomationShiftMenu{
+    STRING_FOR_DEFAULT_AUTOMATION_SHIFT, STRING_FOR_DEFAULT_AUTOMATION_SHIFT, FlashStorage::automationShift};
 
-ToggleBool defaultAutomationNudgeNoteMenu{STRING_FOR_DEFAULT_AUTOMATION_NUDGE_NOTE,
-                                          STRING_FOR_DEFAULT_AUTOMATION_NUDGE_NOTE, FlashStorage::automationNudgeNote};
+PLACE_SDRAM_BSS ToggleBool defaultAutomationNudgeNoteMenu{STRING_FOR_DEFAULT_AUTOMATION_NUDGE_NOTE,
+                                                          STRING_FOR_DEFAULT_AUTOMATION_NUDGE_NOTE,
+                                                          FlashStorage::automationNudgeNote};
 
-ToggleBool defaultAutomationDisableAuditionPadShortcutsMenu{
+PLACE_SDRAM_BSS ToggleBool defaultAutomationDisableAuditionPadShortcutsMenu{
     STRING_FOR_DEFAULT_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS,
     STRING_FOR_DEFAULT_AUTOMATION_DISABLE_AUDITION_PAD_SHORTCUTS, FlashStorage::automationDisableAuditionPadShortcuts};
 
-Submenu defaultAutomationMenu{
+PLACE_SDRAM_BSS Submenu defaultAutomationMenu{
     STRING_FOR_AUTOMATION,
     {
         &defaultAutomationInterpolateMenu,
@@ -1324,35 +1392,50 @@ Submenu defaultAutomationMenu{
     },
 };
 
-IntegerRange defaultTempoMenu{STRING_FOR_TEMPO, STRING_FOR_DEFAULT_TEMPO, 60, 240};
-IntegerRange defaultSwingAmountMenu{STRING_FOR_SWING_AMOUNT, STRING_FOR_DEFAULT_SWING, 1, 99};
-defaults::SwingInterval defaultSwingIntervalMenu{STRING_FOR_SWING_INTERVAL, STRING_FOR_DEFAULT_SWING};
-KeyRange defaultKeyMenu{STRING_FOR_KEY, STRING_FOR_DEFAULT_KEY};
-defaults::DefaultScale defaultScaleMenu{STRING_FOR_INIT_SCALE};
-defaults::Velocity defaultVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_DEFAULT_VELOC_MENU_TITLE};
-defaults::Magnitude defaultMagnitudeMenu{STRING_FOR_RESOLUTION, STRING_FOR_DEFAULT_RESOL_MENU_TITLE};
-defaults::BendRange defaultBendRangeMenu{STRING_FOR_BEND_RANGE, STRING_FOR_DEFAULT_BEND_R};
-defaults::MetronomeVolume defaultMetronomeVolumeMenu{STRING_FOR_METRONOME, STRING_FOR_DEFAULT_METRO_MENU_TITLE};
-defaults::PatchCablePolarity defaultPatchCablePolarityMenu{STRING_FOR_DEFAULT_POLARITY, STRING_FOR_DEFAULT_POLARITY};
-defaults::StartupSongModeMenu defaultStartupSongMenu{STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE,
-                                                     STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE};
-defaults::PadBrightness defaultPadBrightness{STRING_FOR_DEFAULT_PAD_BRIGHTNESS,
-                                             STRING_FOR_DEFAULT_PAD_BRIGHTNESS_MENU_TITLE};
-defaults::SliceMode defaultSliceMode{STRING_FOR_DEFAULT_SLICE_MODE, STRING_FOR_DEFAULT_SLICE_MODE_MENU_TITLE};
-ToggleBool defaultHighCPUUsageIndicatorMode{STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR,
-                                            STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR,
-                                            FlashStorage::highCPUUsageIndicator};
-defaults::HoldTime defaultHoldTimeMenu{STRING_FOR_HOLD_TIME, STRING_FOR_HOLD_TIME};
+PLACE_SDRAM_BSS IntegerRange defaultTempoMenu{STRING_FOR_TEMPO, STRING_FOR_DEFAULT_TEMPO, 60, 240};
+PLACE_SDRAM_BSS IntegerRange defaultSwingAmountMenu{STRING_FOR_SWING_AMOUNT, STRING_FOR_DEFAULT_SWING, 1, 99};
+PLACE_SDRAM_BSS defaults::SwingInterval defaultSwingIntervalMenu{STRING_FOR_SWING_INTERVAL, STRING_FOR_DEFAULT_SWING};
+PLACE_SDRAM_BSS KeyRange defaultKeyMenu{STRING_FOR_KEY, STRING_FOR_DEFAULT_KEY};
+PLACE_SDRAM_BSS defaults::DefaultScale defaultScaleMenu{STRING_FOR_INIT_SCALE};
+PLACE_SDRAM_BSS defaults::Velocity defaultVelocityMenu{STRING_FOR_VELOCITY, STRING_FOR_DEFAULT_VELOC_MENU_TITLE};
+PLACE_SDRAM_BSS defaults::Magnitude defaultMagnitudeMenu{STRING_FOR_RESOLUTION, STRING_FOR_DEFAULT_RESOL_MENU_TITLE};
+PLACE_SDRAM_BSS defaults::BendRange defaultBendRangeMenu{STRING_FOR_BEND_RANGE, STRING_FOR_DEFAULT_BEND_R};
+PLACE_SDRAM_BSS defaults::MetronomeVolume defaultMetronomeVolumeMenu{STRING_FOR_METRONOME,
+                                                                     STRING_FOR_DEFAULT_METRO_MENU_TITLE};
+PLACE_SDRAM_BSS defaults::PatchCablePolarity defaultPatchCablePolarityMenu{STRING_FOR_DEFAULT_POLARITY,
+                                                                           STRING_FOR_DEFAULT_POLARITY};
+PLACE_SDRAM_BSS defaults::StartupSongModeMenu defaultStartupSongMenu{STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE,
+                                                                     STRING_FOR_DEFAULT_UI_DEFAULT_STARTUP_SONG_MODE};
+PLACE_SDRAM_BSS defaults::PadBrightness defaultPadBrightness{STRING_FOR_DEFAULT_PAD_BRIGHTNESS,
+                                                             STRING_FOR_DEFAULT_PAD_BRIGHTNESS_MENU_TITLE};
+PLACE_SDRAM_BSS defaults::SliceMode defaultSliceMode{STRING_FOR_DEFAULT_SLICE_MODE,
+                                                     STRING_FOR_DEFAULT_SLICE_MODE_MENU_TITLE};
+PLACE_SDRAM_BSS ToggleBool defaultHighCPUUsageIndicatorMode{STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR,
+                                                            STRING_FOR_DEFAULT_HIGH_CPU_USAGE_INDICATOR,
+                                                            FlashStorage::highCPUUsageIndicator};
+PLACE_SDRAM_BSS defaults::HoldTime defaultHoldTimeMenu{STRING_FOR_HOLD_TIME, STRING_FOR_HOLD_TIME};
 
-ActiveScaleMenu defaultActiveScaleMenu{STRING_FOR_ACTIVE_SCALES, ActiveScaleMenu::DEFAULT};
+PLACE_SDRAM_BSS ActiveScaleMenu defaultActiveScaleMenu{STRING_FOR_ACTIVE_SCALES, ActiveScaleMenu::DEFAULT};
 
-Submenu defaultScalesSubmenu{STRING_FOR_SCALE,
-                             {
-                                 &defaultScaleMenu,
-                                 &defaultActiveScaleMenu,
-                             }};
+PLACE_SDRAM_BSS Submenu defaultScalesSubmenu{STRING_FOR_SCALE,
+                                             {
+                                                 &defaultScaleMenu,
+                                                 &defaultActiveScaleMenu,
+                                             }};
 
-Submenu defaultsSubmenu{
+PLACE_SDRAM_BSS defaults::ScreensaverModeMenu screensaverModeMenu{STRING_FOR_SCREENSAVER_MODE,
+                                                                  STRING_FOR_SCREENSAVER_MODE};
+PLACE_SDRAM_BSS defaults::ScreensaverTimeout screensaverTimeoutMenu{STRING_FOR_SCREENSAVER_TIMEOUT,
+                                                                    STRING_FOR_SCREENSAVER_TIMEOUT};
+PLACE_SDRAM_BSS defaults::ScreensaverSubmenu screensaverSubmenu{
+    STRING_FOR_SCREENSAVER,
+    {
+        &screensaverModeMenu,
+        &screensaverTimeoutMenu,
+    },
+};
+
+PLACE_SDRAM_BSS Submenu defaultsSubmenu{
     STRING_FOR_DEFAULTS,
     {
         &defaultUI,
@@ -1372,44 +1455,44 @@ Submenu defaultsSubmenu{
         &defaultSliceMode,
         &defaultHighCPUUsageIndicatorMode,
         &defaultHoldTimeMenu,
+        &screensaverSubmenu,
     },
 };
 
 // Sound editor menu -----------------------------------------------------------------------------
 
 // FM only
-std::array<MenuItem*, 3> dxMenuItems = {
+PLACE_SDRAM_DATA std::array<MenuItem*, 3> dxMenuItems = {
     &dxBrowseMenu,
     &dxGlobalParams,
     &dxEngineSelect,
 };
-menu_item::Submenu dxMenu{STRING_FOR_DX_1, dxMenuItems};
+PLACE_SDRAM_BSS menu_item::Submenu dxMenu{STRING_FOR_DX_1, dxMenuItems};
 
 // Not FM
-MasterTranspose masterTransposeMenu{STRING_FOR_MASTER_TRANSPOSE, STRING_FOR_MASTER_TRAN_MENU_TITLE};
+PLACE_SDRAM_BSS MasterTranspose masterTransposeMenu{STRING_FOR_MASTER_TRANSPOSE, STRING_FOR_MASTER_TRAN_MENU_TITLE};
 
-patch_cable_strength::Fixed vibratoMenu{STRING_FOR_VIBRATO, params::LOCAL_PITCH_ADJUST, PatchSource::LFO_GLOBAL_1};
+PLACE_SDRAM_BSS patch_cable_strength::Fixed vibratoMenu{STRING_FOR_VIBRATO, params::LOCAL_PITCH_ADJUST,
+                                                        PatchSource::LFO_GLOBAL_1};
 
 // Synth only
-SynthModeSelection synthModeMenu{STRING_FOR_SYNTH_MODE};
-bend_range::PerFinger drumBendRangeMenu{STRING_FOR_BEND_RANGE}; // The single option available for Drums
-patched_param::Integer volumeMenu{STRING_FOR_VOLUME_LEVEL, STRING_FOR_MASTER_LEVEL, params::GLOBAL_VOLUME_POST_FX, BAR};
-patched_param::Pan panMenu{STRING_FOR_PAN, params::LOCAL_PAN};
+PLACE_SDRAM_BSS SynthModeSelection synthModeMenu{STRING_FOR_SYNTH_MODE};
+PLACE_SDRAM_BSS bend_range::PerFinger drumBendRangeMenu{STRING_FOR_BEND_RANGE}; // The single option available for Drums
+PLACE_SDRAM_BSS patched_param::Integer volumeMenu{STRING_FOR_VOLUME_LEVEL, STRING_FOR_MASTER_LEVEL,
+                                                  params::GLOBAL_VOLUME_POST_FX, BAR};
+PLACE_SDRAM_BSS patched_param::Pan panMenu{STRING_FOR_PAN, params::LOCAL_PAN};
 
-PatchCables patchCablesMenu{STRING_FOR_MOD_MATRIX};
+PLACE_SDRAM_BSS PatchCables patchCablesMenu{STRING_FOR_MOD_MATRIX};
 
-HorizontalMenu soundMasterMenu{
+PLACE_SDRAM_BSS HorizontalMenu soundMasterMenu{
     STRING_FOR_MASTER,
     {&synthModeMenu, &volumeMenu, &panMenu, &masterTransposeMenu, &vibratoMenu},
 };
-HorizontalMenu soundMasterMenuWithoutVibrato{
-    STRING_FOR_MASTER,
-    {&synthModeMenu, &volumeMenu, &panMenu, &masterTransposeMenu},
-};
 
-HorizontalMenuGroup sourceMenuGroup{{&source0Menu, &source1Menu, &modulator0Menu, &modulator1Menu, &oscMixerMenu}};
+PLACE_SDRAM_BSS HorizontalMenuGroup sourceMenuGroup{
+    {&source0Menu, &source1Menu, &modulator0Menu, &modulator1Menu, &oscMixerMenu}};
 
-Submenu soundFXMenu{
+PLACE_SDRAM_BSS Submenu soundFXMenu{
     STRING_FOR_FX,
     {
         &eqMenu,
@@ -1422,12 +1505,17 @@ Submenu soundFXMenu{
     },
 };
 
-Submenu soundEditorRootActionsMenu{
+PLACE_SDRAM_BSS Submenu soundEditorRootActionsMenu{
     STRING_FOR_ACTIONS,
-    {&nameEditMenu, &sample0RecorderMenu, &sample1RecorderMenu},
+    {&editNameMenu, &sample0RecorderMenu, &sample1RecorderMenu},
 };
 
-Submenu soundEditorRootMenu{
+PLACE_SDRAM_BSS Submenu soundEditorRootDrumActionsMenu{
+    STRING_FOR_ACTIONS,
+    {&drumNameEditMenu, &sample0RecorderMenu, &sample1RecorderMenu},
+};
+
+PLACE_SDRAM_BSS Submenu soundEditorRootMenu{
     STRING_FOR_SOUND,
     {
         &soundEditorRootActionsMenu,
@@ -1460,26 +1548,59 @@ Submenu soundEditorRootMenu{
     },
 };
 
-menu_item::note::IteranceDivisor noteCustomIteranceDivisor{STRING_FOR_ITERANCE_DIVISOR};
-menu_item::note::IteranceStepToggle noteCustomIteranceStep1{STRING_FOR_ITERATION_STEP_1, STRING_FOR_ITERATION_STEP_1,
-                                                            0};
-menu_item::note::IteranceStepToggle noteCustomIteranceStep2{STRING_FOR_ITERATION_STEP_2, STRING_FOR_ITERATION_STEP_2,
-                                                            1};
-menu_item::note::IteranceStepToggle noteCustomIteranceStep3{STRING_FOR_ITERATION_STEP_3, STRING_FOR_ITERATION_STEP_3,
-                                                            2};
-menu_item::note::IteranceStepToggle noteCustomIteranceStep4{STRING_FOR_ITERATION_STEP_4, STRING_FOR_ITERATION_STEP_4,
-                                                            3};
-menu_item::note::IteranceStepToggle noteCustomIteranceStep5{STRING_FOR_ITERATION_STEP_5, STRING_FOR_ITERATION_STEP_5,
-                                                            4};
-menu_item::note::IteranceStepToggle noteCustomIteranceStep6{STRING_FOR_ITERATION_STEP_6, STRING_FOR_ITERATION_STEP_6,
-                                                            5};
-menu_item::note::IteranceStepToggle noteCustomIteranceStep7{STRING_FOR_ITERATION_STEP_7, STRING_FOR_ITERATION_STEP_7,
-                                                            6};
-menu_item::note::IteranceStepToggle noteCustomIteranceStep8{STRING_FOR_ITERATION_STEP_8, STRING_FOR_ITERATION_STEP_8,
-                                                            7};
+PLACE_SDRAM_BSS Submenu soundEditorRootMenuDrum{
+    STRING_FOR_SOUND,
+    {
+        &soundEditorRootDrumActionsMenu,
+        &soundMasterMenu,
+        &arpMenu,
+        &randomizerMenu,
+        &audioCompMenu,
+        &soundFiltersMenu,
+        &soundFXMenu,
+        &sidechainMenu,
+        &source0Menu,
+        &source1Menu,
+        &modulator0Menu,
+        &modulator1Menu,
+        &oscMixerMenu,
+        &env1Menu,
+        &env2Menu,
+        &env3Menu,
+        &env4Menu,
+        &lfo1Menu,
+        &lfo2Menu,
+        &lfo3Menu,
+        &lfo4Menu,
+        &voiceMenu,
+        &bendMenu,
+        &drumBendRangeMenu,
+        &patchCablesMenu,
+        &sequenceDirectionMenu,
+        &outputMidiSubmenu,
+    },
+};
+
+PLACE_SDRAM_BSS menu_item::note::IteranceDivisor noteCustomIteranceDivisor{STRING_FOR_ITERANCE_DIVISOR};
+PLACE_SDRAM_BSS menu_item::note::IteranceStepToggle noteCustomIteranceStep1{STRING_FOR_ITERATION_STEP_1,
+                                                                            STRING_FOR_ITERATION_STEP_1, 0};
+PLACE_SDRAM_BSS menu_item::note::IteranceStepToggle noteCustomIteranceStep2{STRING_FOR_ITERATION_STEP_2,
+                                                                            STRING_FOR_ITERATION_STEP_2, 1};
+PLACE_SDRAM_BSS menu_item::note::IteranceStepToggle noteCustomIteranceStep3{STRING_FOR_ITERATION_STEP_3,
+                                                                            STRING_FOR_ITERATION_STEP_3, 2};
+PLACE_SDRAM_BSS menu_item::note::IteranceStepToggle noteCustomIteranceStep4{STRING_FOR_ITERATION_STEP_4,
+                                                                            STRING_FOR_ITERATION_STEP_4, 3};
+PLACE_SDRAM_BSS menu_item::note::IteranceStepToggle noteCustomIteranceStep5{STRING_FOR_ITERATION_STEP_5,
+                                                                            STRING_FOR_ITERATION_STEP_5, 4};
+PLACE_SDRAM_BSS menu_item::note::IteranceStepToggle noteCustomIteranceStep6{STRING_FOR_ITERATION_STEP_6,
+                                                                            STRING_FOR_ITERATION_STEP_6, 5};
+PLACE_SDRAM_BSS menu_item::note::IteranceStepToggle noteCustomIteranceStep7{STRING_FOR_ITERATION_STEP_7,
+                                                                            STRING_FOR_ITERATION_STEP_7, 6};
+PLACE_SDRAM_BSS menu_item::note::IteranceStepToggle noteCustomIteranceStep8{STRING_FOR_ITERATION_STEP_8,
+                                                                            STRING_FOR_ITERATION_STEP_8, 7};
 
 // Root menu for note custom iterance
-menu_item::Submenu noteCustomIteranceRootMenu{
+PLACE_SDRAM_BSS menu_item::Submenu noteCustomIteranceRootMenu{
     STRING_FOR_CUSTOM,
     {
         &noteCustomIteranceDivisor,
@@ -1494,40 +1615,40 @@ menu_item::Submenu noteCustomIteranceRootMenu{
     },
 };
 
-menu_item::note::Velocity noteVelocityMenu{STRING_FOR_NOTE_EDITOR_VELOCITY};
-menu_item::note::Probability noteProbabilityMenu{STRING_FOR_NOTE_EDITOR_PROBABILITY};
-menu_item::note::IterancePreset noteIteranceMenu{STRING_FOR_NOTE_EDITOR_ITERANCE};
-menu_item::note::Fill noteFillMenu{STRING_FOR_NOTE_EDITOR_FILL};
+PLACE_SDRAM_BSS menu_item::note::Velocity noteVelocityMenu{STRING_FOR_NOTE_EDITOR_VELOCITY};
+PLACE_SDRAM_BSS menu_item::note::Probability noteProbabilityMenu{STRING_FOR_NOTE_EDITOR_PROBABILITY};
+PLACE_SDRAM_BSS menu_item::note::IterancePreset noteIteranceMenu{STRING_FOR_NOTE_EDITOR_ITERANCE};
+PLACE_SDRAM_BSS menu_item::note::Fill noteFillMenu{STRING_FOR_NOTE_EDITOR_FILL};
 
 // Root menu for Note Editor
-HorizontalMenu noteEditorRootMenu{STRING_FOR_NOTE_EDITOR,
-                                  {
-                                      &noteVelocityMenu,
-                                      &noteProbabilityMenu,
-                                      &noteIteranceMenu,
-                                      &noteFillMenu,
-                                  }};
+PLACE_SDRAM_BSS HorizontalMenu noteEditorRootMenu{STRING_FOR_NOTE_EDITOR,
+                                                  {
+                                                      &noteVelocityMenu,
+                                                      &noteProbabilityMenu,
+                                                      &noteIteranceMenu,
+                                                      &noteFillMenu,
+                                                  }};
 
-menu_item::note_row::IteranceDivisor noteRowCustomIteranceDivisor{STRING_FOR_ITERANCE_DIVISOR};
-menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep1{STRING_FOR_ITERATION_STEP_1,
-                                                                   STRING_FOR_ITERATION_STEP_1, 0};
-menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep2{STRING_FOR_ITERATION_STEP_2,
-                                                                   STRING_FOR_ITERATION_STEP_2, 1};
-menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep3{STRING_FOR_ITERATION_STEP_3,
-                                                                   STRING_FOR_ITERATION_STEP_3, 2};
-menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep4{STRING_FOR_ITERATION_STEP_4,
-                                                                   STRING_FOR_ITERATION_STEP_4, 3};
-menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep5{STRING_FOR_ITERATION_STEP_5,
-                                                                   STRING_FOR_ITERATION_STEP_5, 4};
-menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep6{STRING_FOR_ITERATION_STEP_6,
-                                                                   STRING_FOR_ITERATION_STEP_6, 5};
-menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep7{STRING_FOR_ITERATION_STEP_7,
-                                                                   STRING_FOR_ITERATION_STEP_7, 6};
-menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep8{STRING_FOR_ITERATION_STEP_8,
-                                                                   STRING_FOR_ITERATION_STEP_8, 7};
+PLACE_SDRAM_BSS menu_item::note_row::IteranceDivisor noteRowCustomIteranceDivisor{STRING_FOR_ITERANCE_DIVISOR};
+PLACE_SDRAM_BSS menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep1{STRING_FOR_ITERATION_STEP_1,
+                                                                                   STRING_FOR_ITERATION_STEP_1, 0};
+PLACE_SDRAM_BSS menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep2{STRING_FOR_ITERATION_STEP_2,
+                                                                                   STRING_FOR_ITERATION_STEP_2, 1};
+PLACE_SDRAM_BSS menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep3{STRING_FOR_ITERATION_STEP_3,
+                                                                                   STRING_FOR_ITERATION_STEP_3, 2};
+PLACE_SDRAM_BSS menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep4{STRING_FOR_ITERATION_STEP_4,
+                                                                                   STRING_FOR_ITERATION_STEP_4, 3};
+PLACE_SDRAM_BSS menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep5{STRING_FOR_ITERATION_STEP_5,
+                                                                                   STRING_FOR_ITERATION_STEP_5, 4};
+PLACE_SDRAM_BSS menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep6{STRING_FOR_ITERATION_STEP_6,
+                                                                                   STRING_FOR_ITERATION_STEP_6, 5};
+PLACE_SDRAM_BSS menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep7{STRING_FOR_ITERATION_STEP_7,
+                                                                                   STRING_FOR_ITERATION_STEP_7, 6};
+PLACE_SDRAM_BSS menu_item::note_row::IteranceStepToggle noteRowCustomIteranceStep8{STRING_FOR_ITERATION_STEP_8,
+                                                                                   STRING_FOR_ITERATION_STEP_8, 7};
 
 // Root menu for note row custom iterance
-menu_item::Submenu noteRowCustomIteranceRootMenu{
+PLACE_SDRAM_BSS menu_item::Submenu noteRowCustomIteranceRootMenu{
     STRING_FOR_CUSTOM,
     {
         &noteRowCustomIteranceDivisor,
@@ -1542,32 +1663,40 @@ menu_item::Submenu noteRowCustomIteranceRootMenu{
     },
 };
 
-note_row::Probability noteRowProbabilityMenu{STRING_FOR_NOTE_ROW_EDITOR_PROBABILITY};
-note_row::IterancePreset noteRowIteranceMenu{STRING_FOR_NOTE_ROW_EDITOR_ITERANCE};
-note_row::Fill noteRowFillMenu{STRING_FOR_NOTE_ROW_EDITOR_FILL};
+PLACE_SDRAM_BSS note_row::Probability noteRowProbabilityMenu{STRING_FOR_NOTE_ROW_EDITOR_PROBABILITY};
+PLACE_SDRAM_BSS note_row::IterancePreset noteRowIteranceMenu{STRING_FOR_NOTE_ROW_EDITOR_ITERANCE};
+PLACE_SDRAM_BSS note_row::Fill noteRowFillMenu{STRING_FOR_NOTE_ROW_EDITOR_FILL};
 
 // Root menu for Note Row Editor
-HorizontalMenu noteRowEditorRootMenu{STRING_FOR_NOTE_ROW_EDITOR,
-                                     {
-                                         &sequenceDirectionMenu,
-                                         &noteRowProbabilityMenu,
-                                         &noteRowIteranceMenu,
-                                         &noteRowFillMenu,
-                                     }};
+PLACE_SDRAM_BSS HorizontalMenu noteRowEditorRootMenu{STRING_FOR_NOTE_ROW_EDITOR,
+                                                     {
+                                                         &sequenceDirectionMenu,
+                                                         &noteRowProbabilityMenu,
+                                                         &noteRowIteranceMenu,
+                                                         &noteRowFillMenu,
+                                                     }};
 
-menu_item::midi::ProgramSubMenu midiProgramMenu{STRING_FOR_MIDI_PROGRAM_MENU_TITLE,
-                                                {
-                                                    &midiBankMenu,
-                                                    &midiSubMenu,
-                                                    &midiPGMMenu,
-                                                },
-                                                HorizontalMenu::Layout::FIXED,
-                                                2};
+PLACE_SDRAM_BSS menu_item::midi::ProgramSubMenu midiProgramMenu{STRING_FOR_MIDI_PROGRAM_MENU_TITLE,
+                                                                {
+                                                                    &midiBankMenu,
+                                                                    &midiSubMenu,
+                                                                    &midiPGMMenu,
+                                                                },
+                                                                HorizontalMenu::Layout::FIXED,
+                                                                2};
 
 // Root menu for MIDI / CV
-menu_item::Submenu soundEditorRootMenuMIDIOrCV{
+PLACE_SDRAM_BSS Submenu soundEditorRootActionsMenuMIDIOrCV{
+    STRING_FOR_ACTIONS,
+    {
+        &editNameMenu,
+    },
+};
+
+PLACE_SDRAM_BSS menu_item::Submenu soundEditorRootMenuMIDIOrCV{
     STRING_FOR_MIDI_INST_MENU_TITLE,
     {
+        &soundEditorRootActionsMenuMIDIOrCV,
         &midiDeviceDefinitionMenu,
         &midiProgramMenu,
         &arpMenuMIDIOrCV,
@@ -1581,23 +1710,25 @@ menu_item::Submenu soundEditorRootMenuMIDIOrCV{
 };
 
 // Root menu for NonAudioDrums (MIDI and Gate drums)
-menu_item::Submenu soundEditorRootMenuMidiDrum{
+PLACE_SDRAM_BSS menu_item::Submenu soundEditorRootMenuMidiDrum{
     STRING_FOR_MIDI,
     {
+        &soundEditorRootDrumActionsMenu,
         &arpMenuMIDIOrCV,
         &randomizerMenu,
     },
 };
-menu_item::Submenu soundEditorRootMenuGateDrum{
+PLACE_SDRAM_BSS menu_item::Submenu soundEditorRootMenuGateDrum{
     STRING_FOR_GATE,
     {
+        &soundEditorRootDrumActionsMenu,
         &arpMenuMIDIOrCV,
         &randomizerMenu,
     },
 };
 
 // Root menu for AudioClips
-menu_item::Submenu soundEditorRootMenuAudioClip{
+PLACE_SDRAM_BSS menu_item::Submenu soundEditorRootMenuAudioClip{
     STRING_FOR_AUDIO_CLIP,
     {
         &audioClipActionsMenu,
@@ -1615,10 +1746,10 @@ menu_item::Submenu soundEditorRootMenuAudioClip{
 };
 
 // Menu for Performance View Editing Mode
-menu_item::performance_session_view::EditingMode performEditorMenu{STRING_FOR_PERFORM_EDITOR};
+PLACE_SDRAM_BSS menu_item::performance_session_view::EditingMode performEditorMenu{STRING_FOR_PERFORM_EDITOR};
 
 // Root menu for Performance View
-menu_item::Submenu soundEditorRootMenuPerformanceView{
+PLACE_SDRAM_BSS menu_item::Submenu soundEditorRootMenuPerformanceView{
     STRING_FOR_PERFORM_FX,
     {
         &performEditorMenu,
@@ -1628,33 +1759,35 @@ menu_item::Submenu soundEditorRootMenuPerformanceView{
 };
 
 // Sub menu for Stem Export
-menu_item::stem_export::Start startStemExportMenu{STRING_FOR_START_EXPORT};
+PLACE_SDRAM_BSS menu_item::stem_export::Start startStemExportMenu{STRING_FOR_START_EXPORT};
 
-ToggleBool configureNormalizationMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION,
-                                      STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION, stemExport.allowNormalization};
-ToggleBool configureNormalizationForDrumsMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION,
-                                              STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION,
-                                              stemExport.allowNormalizationForDrums};
-ToggleBool configureSilenceMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_SILENCE, STRING_FOR_CONFIGURE_EXPORT_STEMS_SILENCE,
-                                stemExport.exportToSilence};
-ToggleBool configureSongFXMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_SONGFX, STRING_FOR_CONFIGURE_EXPORT_STEMS_SONGFX,
-                               stemExport.includeSongFX};
-ToggleBool configureKitFXMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_KITFX, STRING_FOR_CONFIGURE_EXPORT_STEMS_KITFX,
-                              stemExport.includeKitFX};
-ToggleBool configureOfflineRenderingMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_OFFLINE_RENDERING,
-                                         STRING_FOR_CONFIGURE_EXPORT_STEMS_OFFLINE_RENDERING, stemExport.renderOffline};
-ToggleBool configureMixdownMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_MIXDOWN, STRING_FOR_CONFIGURE_EXPORT_STEMS_MIXDOWN,
-                                stemExport.exportMixdown};
-menu_item::Submenu configureStemExportMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS,
-                                           {
-                                               &configureNormalizationMenu,
-                                               &configureSilenceMenu,
-                                               &configureSongFXMenu,
-                                               &configureOfflineRenderingMenu,
-                                               &configureMixdownMenu,
-                                           }};
+PLACE_SDRAM_BSS ToggleBool configureNormalizationMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION,
+                                                      STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION,
+                                                      stemExport.allowNormalization};
+PLACE_SDRAM_BSS ToggleBool configureNormalizationForDrumsMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION,
+                                                              STRING_FOR_CONFIGURE_EXPORT_STEMS_NORMALIZATION,
+                                                              stemExport.allowNormalizationForDrums};
+PLACE_SDRAM_BSS ToggleBool configureSilenceMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_SILENCE,
+                                                STRING_FOR_CONFIGURE_EXPORT_STEMS_SILENCE, stemExport.exportToSilence};
+PLACE_SDRAM_BSS ToggleBool configureSongFXMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_SONGFX,
+                                               STRING_FOR_CONFIGURE_EXPORT_STEMS_SONGFX, stemExport.includeSongFX};
+PLACE_SDRAM_BSS ToggleBool configureKitFXMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_KITFX,
+                                              STRING_FOR_CONFIGURE_EXPORT_STEMS_KITFX, stemExport.includeKitFX};
+PLACE_SDRAM_BSS ToggleBool configureOfflineRenderingMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_OFFLINE_RENDERING,
+                                                         STRING_FOR_CONFIGURE_EXPORT_STEMS_OFFLINE_RENDERING,
+                                                         stemExport.renderOffline};
+PLACE_SDRAM_BSS ToggleBool configureMixdownMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS_MIXDOWN,
+                                                STRING_FOR_CONFIGURE_EXPORT_STEMS_MIXDOWN, stemExport.exportMixdown};
+PLACE_SDRAM_BSS menu_item::Submenu configureStemExportMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS,
+                                                           {
+                                                               &configureNormalizationMenu,
+                                                               &configureSilenceMenu,
+                                                               &configureSongFXMenu,
+                                                               &configureOfflineRenderingMenu,
+                                                               &configureMixdownMenu,
+                                                           }};
 
-menu_item::Submenu stemExportMenu{
+PLACE_SDRAM_BSS menu_item::Submenu stemExportMenu{
     STRING_FOR_EXPORT_AUDIO,
     {
         &startStemExportMenu,
@@ -1662,16 +1795,16 @@ menu_item::Submenu stemExportMenu{
     },
 };
 
-menu_item::Submenu kitGlobalFXConfigureStemExportMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS,
-                                                      {
-                                                          &configureKitFXMenu,
-                                                          &configureNormalizationForDrumsMenu,
-                                                          &configureSilenceMenu,
-                                                          &configureSongFXMenu,
-                                                          &configureOfflineRenderingMenu,
-                                                      }};
+PLACE_SDRAM_BSS menu_item::Submenu kitGlobalFXConfigureStemExportMenu{STRING_FOR_CONFIGURE_EXPORT_STEMS,
+                                                                      {
+                                                                          &configureKitFXMenu,
+                                                                          &configureNormalizationForDrumsMenu,
+                                                                          &configureSilenceMenu,
+                                                                          &configureSongFXMenu,
+                                                                          &configureOfflineRenderingMenu,
+                                                                      }};
 
-menu_item::Submenu kitGlobalFXStemExportMenu{
+PLACE_SDRAM_BSS menu_item::Submenu kitGlobalFXStemExportMenu{
     STRING_FOR_EXPORT_AUDIO,
     {
         &startStemExportMenu,
@@ -1679,21 +1812,21 @@ menu_item::Submenu kitGlobalFXStemExportMenu{
     },
 };
 
-ActiveScaleMenu activeScaleMenu{STRING_FOR_ACTIVE_SCALES, ActiveScaleMenu::SONG};
-record::ThresholdMode songThresholdRecordingModeMenu{STRING_FOR_MODE, record::ThresholdMode::SONG};
+PLACE_SDRAM_BSS ActiveScaleMenu activeScaleMenu{STRING_FOR_ACTIVE_SCALES, ActiveScaleMenu::SONG};
+PLACE_SDRAM_BSS record::ThresholdMode songThresholdRecordingModeMenu{STRING_FOR_MODE, record::ThresholdMode::SONG};
 
-Submenu songThresholdRecordingSubmenu{
+PLACE_SDRAM_BSS Submenu songThresholdRecordingSubmenu{
     STRING_FOR_THRESHOLD_RECORDING,
     {
         &songThresholdRecordingModeMenu,
     },
 };
 
-song::ConfigureMacros configureSongMacrosMenu{STRING_FOR_CONFIGURE_SONG_MACROS};
-song::MidiLearn midiLearnMenu{STRING_FOR_MIDI_LEARN};
+PLACE_SDRAM_BSS song::ConfigureMacros configureSongMacrosMenu{STRING_FOR_CONFIGURE_SONG_MACROS};
+PLACE_SDRAM_BSS song::MidiLearn midiLearnMenu{STRING_FOR_MIDI_LEARN};
 
 // Root menu for Song View
-menu_item::Submenu soundEditorRootMenuSongView{
+PLACE_SDRAM_BSS menu_item::Submenu soundEditorRootMenuSongView{
     STRING_FOR_SONG,
     {
         &songMasterMenu,
@@ -1708,15 +1841,45 @@ menu_item::Submenu soundEditorRootMenuSongView{
     },
 };
 
-menu_item::Submenu kitGlobalFXActionsMenu{
+PLACE_SDRAM_BSS menu_item::Submenu kitGlobalFXActionsMenu{
     STRING_FOR_ACTIONS,
     {
+        &editNameMenu,
         &kitGlobalFXStemExportMenu,
     },
 };
 
+PLACE_SDRAM_BSS reset_settings::Reset resetFlashSettingsMenu{STRING_FOR_RESET_FLASH,
+                                                             context_menu::ResetSettingsAction::Flash};
+PLACE_SDRAM_BSS reset_settings::Reset resetCommunityFeaturesSettingsMenu{
+    STRING_FOR_RESET_COMMUNITY_FEATURES, context_menu::ResetSettingsAction::CommunityFeatures};
+PLACE_SDRAM_BSS reset_settings::Reset resetMidiFollowSettingsMenu{STRING_FOR_RESET_MIDI_FOLLOW,
+                                                                  context_menu::ResetSettingsAction::MidiFollow};
+PLACE_SDRAM_BSS reset_settings::Reset resetMidiDevicesSettingsMenu{STRING_FOR_RESET_MIDI_DEVICES,
+                                                                   context_menu::ResetSettingsAction::MidiDevices};
+PLACE_SDRAM_BSS reset_settings::Reset resetAllSettingsMenu{STRING_FOR_FACTORY_RESET,
+                                                           context_menu::ResetSettingsAction::All};
+
+PLACE_SDRAM_BSS Submenu resetSettingsSubmenu{
+    STRING_FOR_RESET_SETTINGS,
+    {
+        &resetFlashSettingsMenu,
+        &resetCommunityFeaturesSettingsMenu,
+        &resetMidiFollowSettingsMenu,
+        &resetMidiDevicesSettingsMenu,
+        &resetAllSettingsMenu,
+    },
+};
+
+PLACE_SDRAM_BSS Submenu settingsActionsSubmenu{
+    STRING_FOR_ACTIONS,
+    {
+        &resetSettingsSubmenu,
+    },
+};
+
 // Root menu for Kit Global FX
-menu_item::Submenu soundEditorRootMenuKitGlobalFX{
+PLACE_SDRAM_BSS menu_item::Submenu soundEditorRootMenuKitGlobalFX{
     STRING_FOR_KIT_GLOBAL_FX,
     {
         &kitGlobalFXActionsMenu,
@@ -1730,9 +1893,10 @@ menu_item::Submenu soundEditorRootMenuKitGlobalFX{
 };
 
 // Root Menu
-Submenu settingsRootMenu{
+PLACE_SDRAM_BSS Submenu settingsRootMenu{
     STRING_FOR_SETTINGS,
     {
+        &settingsActionsSubmenu,
         &cvSelectionMenu,
         &gateSelectionMenu,
         &triggerClockMenu,
@@ -1764,7 +1928,7 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForSounds[][kDisplayHeight] = {
     {&env1ReleaseMenu,		&env1SustainMenu,			&env1DecayMenu,                 &env1AttackMenu,                &lpfMorphMenu,			&lpfModeMenu,				&lpfResMenu,					&lpfFreqMenu                       },
     {&env2ReleaseMenu,		&env2SustainMenu,			&env2DecayMenu,                 &env2AttackMenu,                &hpfMorphMenu,			&hpfModeMenu,				&hpfResMenu,					&hpfFreqMenu                       },
     {&sidechainReleaseMenu,	&sidechainSyncMenu,			&sidechainVolumeShortcutMenu,   &sidechainAttackMenu,           &sidechainShapeMenu,	&sidechainSendMenu,			&bassMenu,						&bassFreqMenu                      },
-    {&arpRateMenu,			&arpSyncMenu,				&arpGateMenu,                   &arpOctavesMenu,                &arpPresetModeMenu,		&nameEditMenu,				&trebleMenu,					&trebleFreqMenu                    },
+    {&arpRateMenu,			&arpSyncMenu,				&arpGateMenu,                   &arpOctavesMenu,                &arpPresetModeMenu,		&editNameMenu,				&trebleMenu,					&trebleFreqMenu                    },
     {&lfo1RateMenu,			&lfo1SyncMenu,				&lfo1TypeMenu,                  &modFXTypeMenu,                 &modFXOffsetMenu,		&modFXFeedbackMenu,			&modFXDepthMenu,				&modFXRateMenu                     },
     {&lfo2RateMenu,			&lfo2SyncMenu,				&lfo2TypeMenu,                  &reverbAmountMenu,              &reverbPanMenu,			&reverbWidthMenu,			&reverbDampingMenu,				&reverbRoomSizeMenu                },
     {&delayRateMenu,			&delaySyncMenu,				&delayAnalogMenu,               &delayFeedbackMenu,             &delayPingPongMenu,		nullptr,					nullptr,						nullptr                            },
@@ -1802,7 +1966,7 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForAudioClips[kDisplayWidth][kDisplayHe
     {nullptr,                 nullptr,                 nullptr,                    &audioClipAttackMenu,        &globalLPFMorphMenu,  &lpfModeMenu,       &globalLPFResMenu,        &globalLPFFreqMenu                 },
     {nullptr,                 nullptr,                 nullptr,                    &audioClipAttackMenu,        &globalHPFMorphMenu,  &hpfModeMenu,       &globalHPFResMenu,        &globalHPFFreqMenu                 },
     {&sidechainReleaseMenu,   &sidechainSyncMenu,      &globalSidechainVolumeMenu, &sidechainAttackMenu,        &sidechainShapeMenu,  nullptr,            &bassMenu,                &bassFreqMenu                      },
-    {nullptr,                 nullptr,                 nullptr,                    nullptr,                     nullptr,              &nameEditMenu,      &trebleMenu,              &trebleFreqMenu                    },
+    {nullptr,                 nullptr,                 nullptr,                    nullptr,                     nullptr,              &editNameMenu,      &trebleMenu,              &trebleFreqMenu                    },
     {nullptr,                 nullptr,                 nullptr,                    &modFXTypeMenu,              &modFXOffsetMenu,     &modFXFeedbackMenu, &globalModFXDepthMenu,    &globalModFXRateMenu               },
     {nullptr,                 nullptr,                 nullptr,                    &globalReverbSendAmountMenu, &reverbPanMenu,       &reverbWidthMenu,   &reverbDampingMenu,       &reverbRoomSizeMenu                },
     {&globalDelayRateMenu,    &delaySyncMenu,          &delayAnalogMenu,           &globalDelayFeedbackMenu,    &delayPingPongMenu,   nullptr,            nullptr,                  nullptr                            },
@@ -1840,15 +2004,15 @@ PLACE_SDRAM_DATA MenuItem* paramShortcutsForKitGlobalFX[][kDisplayHeight] = {
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        &globalLPFMorphMenu,         &lpfModeMenu,           &globalLPFResMenu,        &globalLPFFreqMenu                 },
     {nullptr,                 nullptr,                 nullptr,                        nullptr,                        &globalHPFMorphMenu,         &hpfModeMenu,           &globalHPFResMenu,        &globalHPFFreqMenu                 },
     {&sidechainReleaseMenu,   &sidechainSyncMenu,      &globalSidechainVolumeMenu,     &sidechainAttackMenu,           &sidechainShapeMenu,         nullptr,                &bassMenu,                &bassFreqMenu                      },
-    {&arpRateMenu,            &arpSyncMenu,            &arpGateMenu,                   &arpOctavesMenu,                &arpPresetModeMenu,          &nameEditMenu,          &trebleMenu,              &trebleFreqMenu                    },
+    {&arpRateMenu,            &arpSyncMenu,            &arpGateMenu,                   &arpOctavesMenu,                &arpPresetModeMenu,          &editNameMenu,          &trebleMenu,              &trebleFreqMenu                    },
     {nullptr,                 nullptr,                 nullptr,                        &modFXTypeMenu,                 &modFXOffsetMenu,            &modFXFeedbackMenu,     &globalModFXDepthMenu,    &globalModFXRateMenu               },
     {nullptr,                 nullptr,                 nullptr,                        &globalReverbSendAmountMenu,    &reverbPanMenu,              &reverbWidthMenu,       &reverbDampingMenu,       &reverbRoomSizeMenu                },
     {&globalDelayRateMenu,    &delaySyncMenu,          &delayAnalogMenu,               &globalDelayFeedbackMenu,       &delayPingPongMenu,          nullptr,                nullptr,                  nullptr                            },
     {nullptr,          	     &spreadVelocityMenu,	  &randomizerLockMenu,            &randomizerNoteProbabilityMenu,        nullptr,                     nullptr,                nullptr,                  nullptr                            },
 };
 
-deluge::vector<HorizontalMenu*> horizontalMenusChainForSound = {
-	&recorderMenu, &soundMasterMenuWithoutVibrato,
+PLACE_SDRAM_BSS deluge::vector<HorizontalMenu*> horizontalMenusChainForSound = {
+    &recorderMenu, &soundMasterMenu,
 	&sourceMenuGroup, &voiceMenuGroup, &envMenuGroup, &lfoMenuGroup,
 	&filtersMenuGroup, &eqMenu, &modFXMenu,
 	&reverbMenuGroup, &delayMenu, &soundDistortionMenu,
@@ -1856,7 +2020,7 @@ deluge::vector<HorizontalMenu*> horizontalMenusChainForSound = {
 	&arpMenuGroup, &randomizerMenu
 };
 
-deluge::vector<HorizontalMenu*> horizontalMenusChainForKit = {
+PLACE_SDRAM_BSS deluge::vector<HorizontalMenu*> horizontalMenusChainForKit = {
 	&kitClipMasterMenu,
 	&globalFiltersMenuGroup, &globalEQMenu, &globalModFXMenu,
 	&globalReverbMenuGroup, &globalDelayMenu, &globalDistortionMenu,
@@ -1864,35 +2028,36 @@ deluge::vector<HorizontalMenu*> horizontalMenusChainForKit = {
 	&arpMenuGroupKit, &randomizerMenu
 };
 
-deluge::vector<HorizontalMenu*> horizontalMenusChainForSong = {
+PLACE_SDRAM_BSS deluge::vector<HorizontalMenu*> horizontalMenusChainForSong = {
 	&songMasterMenu,
 	&globalFiltersMenuGroup, &globalEQMenu, &globalModFXMenu,
 	&globalReverbMenuGroup, &globalDelayMenu, &globalDistortionMenu,
 	&audioCompMenu, &stutterMenu
 };
 
-deluge::vector<HorizontalMenu*> horizontalMenusChainForAudioClip = {
+PLACE_SDRAM_BSS deluge::vector<HorizontalMenu*> horizontalMenusChainForAudioClip = {
 	&audioClipMasterMenu, &audioClipSampleMenu,
 	&globalFiltersMenuGroup, &eqMenu, &globalModFXMenu,
 	&globalReverbMenuGroup, &globalDelayMenu, &audioClipDistortionMenu,
 	&globalSidechainMenu, &audioCompMenu, &stutterMenu
 };
 
-deluge::vector<HorizontalMenu*> horizontalMenusChainForMidiOrCv = {
+PLACE_SDRAM_BSS deluge::vector<HorizontalMenu*> horizontalMenusChainForMidiOrCv = {
 	&arpMenuGroupMIDIOrCV, &randomizerMenu
 };
 
-filter::FilterContainer lpfContainer{{&lpfFreqMenu, &lpfResMenu}, &lpfMorphMenu};
-filter::FilterContainer hpfContainer{{&hpfFreqMenu, &hpfResMenu}, &hpfMorphMenu};
-filter::FilterContainer globalLpfContainer{{&globalLPFFreqMenu, &globalLPFResMenu}, &globalLPFMorphMenu};
-filter::FilterContainer globalHpfContainer{{&globalHPFFreqMenu, &globalHPFResMenu}, &globalHPFMorphMenu};
-deluge::vector<HorizontalMenuContainer*> horizontalMenuContainers{&lpfContainer, &hpfContainer, &globalLpfContainer, &globalHpfContainer};
+PLACE_SDRAM_DATA filter::FilterContainer lpfContainer{{&lpfFreqMenu, &lpfResMenu}, &lpfMorphMenu};
+PLACE_SDRAM_DATA filter::FilterContainer hpfContainer{{&hpfFreqMenu, &hpfResMenu}, &hpfMorphMenu};
+PLACE_SDRAM_DATA filter::FilterContainer globalLpfContainer{{&globalLPFFreqMenu, &globalLPFResMenu}, &globalLPFMorphMenu};
+PLACE_SDRAM_DATA filter::FilterContainer globalHpfContainer{{&globalHPFFreqMenu, &globalHPFResMenu}, &globalHPFMorphMenu};
+PLACE_SDRAM_DATA deluge::vector<HorizontalMenuContainer*> horizontalMenuContainers{&lpfContainer, &hpfContainer, &globalLpfContainer, &globalHpfContainer};
 
 //clang-format on
 
-void setCvNumberForTitle(int32_t num) {
-	num += 1;
-	cvSubmenu.format(num);
-	cvVoltsMenu.format(num);
-	cvTransposeMenu.format(num);
+void setCvNumberForTitle(int32_t num)
+{
+    num += 1;
+    cvSubmenu.format(num);
+    cvVoltsMenu.format(num);
+    cvTransposeMenu.format(num);
 }

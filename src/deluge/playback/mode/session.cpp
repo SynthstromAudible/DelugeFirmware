@@ -84,6 +84,19 @@ const Colour defaultClipSectionColours[] = {RGB::fromHue(102), // bright light b
                                             green.forTail(),
                                             magenta.forTail()};
 
+// Manual clip launch doesn't pre-arm an outgoing active audio clip when another clip is launching on the same output;
+// doLaunch() stops it when the incoming clip takes that output. Section launch keeps the same pre-launch state for
+// active audio clips on outputs that the target section will take.
+static ArmState
+getSectionLaunchStopArmStateForActiveClip(Clip* clip,
+                                          OpenAddressingHashTableWith32bitKey& outputsTakenBySectionLaunch) {
+	if (clip->type == ClipType::AUDIO && outputsTakenBySectionLaunch.lookup((uint32_t)clip->output)) {
+		return ArmState::OFF;
+	}
+
+	return ArmState::ON_NORMAL;
+}
+
 Session::Session() {
 	cancelAllLaunchScheduling();
 	lastSectionArmed = REALLY_OUT_OF_RANGE;
@@ -1638,6 +1651,37 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 	// late-start
 	else {
 		OpenAddressingHashTableWith32bitKey outputsWeHavePickedAClipFor;
+		OpenAddressingHashTableWith32bitKey outputsTakenBySectionLaunch;
+
+		// Look ahead before the main arming pass so active audio clips can stay unarmed if this section launch will
+		// replace them on the same output. That matches manual clip launch, where doLaunch() stops the old clip when
+		// the incoming clip takes the output.
+		for (int32_t c = currentSong->sessionClips.getNumElements() - 1; c >= 0; c--) {
+			Clip* sectionClip = currentSong->sessionClips.getClipAtIndex(c);
+
+			// Clips outside the launched section are not incoming clips for this section launch.
+			if (sectionClip->section != section) {
+				continue;
+			}
+
+			// Fill clips are skipped by normal section launch, so they cannot take an output here.
+			if (sectionClip->launchStyle == LaunchStyle::FILL) {
+				continue;
+			}
+
+			// doLaunch() only records inactive armed clips as taking an output; already-active clips keep playing.
+			if (currentSong->isClipActive(sectionClip)) {
+				continue;
+			}
+
+			// doLaunch() also excludes pending overdubs that clone the output from its output-takeover list.
+			if (sectionClip->isPendingOverdub && sectionClip->willCloneOutputForOverdub()) {
+				continue;
+			}
+
+			bool alreadyPickedAClip = false;
+			outputsTakenBySectionLaunch.insert((uint32_t)sectionClip->output, &alreadyPickedAClip);
+		}
 
 		// Ok, we're going to do a big complex thing where we traverse just once (or occasionally twice) through all
 		// sessionClips. Reverse order so behaviour of this new code is the same as the old code
@@ -1672,7 +1716,10 @@ void Session::armClipsToStartOrSoloWithQuantization(uint32_t pos, uint32_t quant
 						for (int32_t d = currentSong->sessionClips.getNumElements() - 1; d > c; d--) {
 							Clip* thatClip = currentSong->sessionClips.getClipAtIndex(d);
 							if (thatClip->output == output) {
-								thatClip->armState = thatClip->activeIfNoSolo ? ArmState::ON_NORMAL : ArmState::OFF;
+								thatClip->armState = thatClip->activeIfNoSolo
+								                         ? getSectionLaunchStopArmStateForActiveClip(
+								                               thatClip, outputsTakenBySectionLaunch)
+								                         : ArmState::OFF;
 							}
 						}
 
@@ -1717,7 +1764,8 @@ weWantThisClipInactive:
 
 					// If it's active, arm it to stop
 					else if (thisClip->activeIfNoSolo) {
-						thisClip->armState = ArmState::ON_NORMAL;
+						thisClip->armState =
+						    getSectionLaunchStopArmStateForActiveClip(thisClip, outputsTakenBySectionLaunch);
 					}
 
 					// Or if it's already inactive...
@@ -1753,7 +1801,8 @@ weWantThisClipInactive:
 						// If we've already picked a Clip for this same Output, we definitely don't want this one
 						// remaining active, so arm it to stop
 						if (outputsWeHavePickedAClipFor.lookup((uint32_t)thisClip->output)) {
-							thisClip->armState = ArmState::ON_NORMAL;
+							thisClip->armState =
+							    getSectionLaunchStopArmStateForActiveClip(thisClip, outputsTakenBySectionLaunch);
 						}
 					}
 				}

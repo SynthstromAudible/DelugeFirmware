@@ -1,5 +1,65 @@
 [
   {
+    "name": "Power on / off",
+    "capability": "00-system_settings",
+    "capabilityParentId": "SYSTEM",
+    "capabilityOrder": 1,
+    "subCapabilityTitle": "System (Settings)",
+    "subCapabilityOrder": 1,
+    "steps": [
+      {
+        "action": 0,
+        "control": 29
+      }
+    ],
+    "views": [],
+    "firmware": [0],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Use the power switch to turn the Deluge on / off."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Power switch."
+  },
+  {
+    "name": "Factory reset settings",
+    "capability": "00-system_settings",
+    "capabilityParentId": "SYSTEM",
+    "capabilityOrder": 1,
+    "subCapabilityTitle": "System (Settings)",
+    "subCapabilityOrder": 1,
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 34
+          },
+          {
+            "action": 0,
+            "control": 29
+          }
+        ]
+      }
+    ],
+    "views": [],
+    "firmware": [0],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Hold select encoder down while turning on the Deluge to reset the system settings to factory defaults."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Select (Settings) encoder, press the Power switch."
+  },
+  {
     "name": "Enter Settings menu",
     "capability": "00-system_settings",
     "capabilityParentId": "SYSTEM",
@@ -15,7 +75,7 @@
           },
           {
             "action": 0,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -26,7 +86,7 @@
     "description": "Hold the Shift button, press the Select (Settings) encoder."
   },
   {
-    "name": "Adjust brightness",
+    "name": "Adjust pad brightness",
     "capability": "00-system_settings",
     "capabilityParentId": "SYSTEM",
     "capabilityOrder": 1,
@@ -45,7 +105,7 @@
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -56,7 +116,7 @@
     "description": "Hold the Shift button, hold the Learn / Input button, turn the Vertical (Up/Down) encoder."
   },
   {
-    "name": "Pad refresh rate",
+    "name": "Adjust pad refresh rate",
     "capability": "00-system_settings",
     "capabilityParentId": "SYSTEM",
     "capabilityOrder": 1,
@@ -71,7 +131,7 @@
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -122,6 +182,45 @@
       }
     ],
     "description": "Hold the Shift button, press the Tap Tempo (Metronome) button."
+  },
+  {
+    "name": "Toggle 7SEG emulated display",
+    "capability": "00-system_settings",
+    "capabilityParentId": "SYSTEM",
+    "capabilityOrder": 1,
+    "subCapabilityTitle": "System (Settings)",
+    "subCapabilityOrder": 1,
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 0,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 9
+          },
+          {
+            "action": 0,
+            "control": 16
+          }
+        ]
+      }
+    ],
+    "views": [],
+    "firmware": [1],
+    "paragraphs": [
+      {
+        "type": "community",
+        "spans": [
+          {
+            "text": "New community firmware feature which allows you to emulate another display type.\n- OLED users can use this to emulate the 7SEG hardware on their device.\n- 7SEG users can use this to emulate the OLED hardware on their device when using the remote Sysex Web Display.\n\nRequires Emulated Display (EMUL) community feature setting set to Toggle (TOGL)"
+          }
+        ]
+      }
+    ],
+    "description": "Press the Shift button, press the Learn / Input button, press the Affect Entire button."
   },
   {
     "name": "Undo",
@@ -190,6 +289,35 @@
     "description": "Hold the Shift button, press the Back / Undo (Redo) button."
   },
   {
+    "name": "Toggle Sticky Shift",
+    "capability": "01-system_controls_edit",
+    "capabilityParentId": "SYSTEM",
+    "capabilityOrder": 1,
+    "subCapabilityTitle": "System (Controls)",
+    "subCapabilityOrder": 2,
+    "subSubCapabilityId": "01-system_controls_edit::system-edit",
+    "subSubCapabilityTitle": "System (Edit)",
+    "subSubCapabilityOrder": 1,
+    "steps": [
+      {
+        "action": 0,
+        "control": 4
+      }
+    ],
+    "views": [],
+    "firmware": [1],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "With the Sticky Shift (STIC) Community Feature setting enabled, short press shift to toggle sticky shift. Long press shift for momentary shift."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Shift button."
+  },
+  {
     "name": "Qwerty keyboard",
     "capability": "01-system_controls_edit",
     "capabilityParentId": "SYSTEM",
@@ -202,7 +330,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 51
+        "control": 55
       }
     ],
     "views": [],
@@ -231,7 +359,7 @@
     "steps": [
       {
         "action": 2,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [19],
@@ -252,11 +380,11 @@
     "steps": [
       {
         "action": 2,
-        "control": 30
+        "control": 32
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [19],
@@ -287,11 +415,11 @@
         "substeps": [
           {
             "action": 0,
-            "control": 32
+            "control": 34
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       },
@@ -303,7 +431,7 @@
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -334,7 +462,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 30
+        "control": 32
       }
     ],
     "views": [1, 3, 5, 15],
@@ -357,11 +485,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -378,7 +506,7 @@
             "steps": [
               {
                 "action": 2,
-                "control": 30
+                "control": 32
               }
             ]
           },
@@ -396,7 +524,7 @@
             "steps": [
               {
                 "action": 2,
-                "control": 30
+                "control": 32
               }
             ]
           },
@@ -436,7 +564,7 @@
     "steps": [
       {
         "action": 2,
-        "control": 30
+        "control": 32
       }
     ],
     "views": [1, 3, 5, 13, 14, 15],
@@ -465,7 +593,7 @@
     "steps": [
       {
         "action": 2,
-        "control": 31
+        "control": 33
       }
     ],
     "views": [0, 1, 2, 6, 14, 15],
@@ -494,7 +622,7 @@
     "steps": [
       {
         "action": 2,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [19],
@@ -653,7 +781,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [19],
@@ -699,7 +827,7 @@
     "description": "Press the Back / Undo (Redo) button."
   },
   {
-    "name": "Return to Session or Arranger from Menu",
+    "name": "Exit Menu to Session View or Arranger View",
     "capability": "02-system_controls_navigation",
     "capabilityParentId": "SYSTEM",
     "capabilityOrder": 1,
@@ -711,7 +839,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 29
+        "control": 31
       }
     ],
     "views": [19],
@@ -746,7 +874,7 @@
           },
           {
             "action": 0,
-            "control": 34
+            "control": 36
           }
         ]
       }
@@ -763,6 +891,27 @@
       }
     ],
     "description": "Hold the Shift button, press the Grid pad (lit or unlit)."
+  },
+  {
+    "name": "Enter MIDI learn mode",
+    "capability": "03-system_controls_midi",
+    "capabilityParentId": "SYSTEM",
+    "capabilityOrder": 1,
+    "subCapabilityTitle": "System (Controls)",
+    "subCapabilityOrder": 2,
+    "subSubCapabilityId": "03-system_controls_midi::system-midi",
+    "subSubCapabilityTitle": "System (MIDI)",
+    "subSubCapabilityOrder": 3,
+    "steps": [
+      {
+        "action": 1,
+        "control": 9
+      }
+    ],
+    "views": [],
+    "firmware": [0],
+    "paragraphs": [],
+    "description": "Hold the Learn / Input button."
   },
   {
     "name": "External controller to play synth or kit",
@@ -783,11 +932,11 @@
           },
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
-            "control": 46
+            "control": 48
           }
         ]
       }
@@ -824,11 +973,11 @@
           },
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
-            "control": 46
+            "control": 48
           }
         ]
       }
@@ -869,7 +1018,7 @@
           },
           {
             "action": 0,
-            "control": 46
+            "control": 48
           }
         ]
       }
@@ -910,7 +1059,7 @@
           },
           {
             "action": 0,
-            "control": 46
+            "control": 48
           }
         ]
       }
@@ -951,7 +1100,7 @@
           },
           {
             "action": 0,
-            "control": 37
+            "control": 39
           }
         ]
       }
@@ -992,7 +1141,7 @@
           },
           {
             "action": 1,
-            "control": 37
+            "control": 39
           }
         ]
       }
@@ -1087,7 +1236,7 @@
           },
           {
             "action": 0,
-            "control": 46
+            "control": 48
           }
         ]
       }
@@ -1153,11 +1302,11 @@
           },
           {
             "action": 1,
-            "control": 38
+            "control": 40
           },
           {
             "action": 0,
-            "control": 46
+            "control": 48
           }
         ]
       }
@@ -1260,7 +1409,7 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "substeps": [
@@ -1306,7 +1455,7 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 0,
@@ -1340,11 +1489,11 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 1,
-        "control": 33
+        "control": 35
       },
       {
         "action": 0,
@@ -1385,7 +1534,7 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 1,
@@ -1425,7 +1574,7 @@
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -1449,11 +1598,11 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [],
@@ -1483,15 +1632,15 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 1,
-        "control": 32
+        "control": 34
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [],
@@ -1508,6 +1657,33 @@
     "description": "Press the Save (Delete) button. Turn the Select (Settings) encoder. Hold the Select (Settings) encoder. Press the Select (Settings) encoder."
   },
   {
+    "name": "Change tempo (tap tempo)",
+    "capability": "01-song_settings",
+    "capabilityParentId": "SONG",
+    "capabilityOrder": 2,
+    "subCapabilityTitle": "Song (Settings)",
+    "subCapabilityOrder": 2,
+    "steps": [
+      {
+        "action": 0,
+        "control": 7
+      }
+    ],
+    "views": [],
+    "firmware": [0, 1],
+    "paragraphs": [
+      {
+        "type": "community",
+        "spans": [
+          {
+            "text": "Official: Press tap tempo twice to start setting tempo using tap tempo button presses.\n\nCommunity (default): Added toggle (`Settings > Community Features > Alternative Tap Tempo Behaviour (TAPT)`) to adjust number of tap tempo button presses to engage `TAP TEMPO` to `FOUR (4)` to avoid mistakingly changing tempo.\n\nNote: You can change the default behaviour in the community firmware."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Tap Tempo (Metronome) button."
+  },
+  {
     "name": "Change tempo (coarse)",
     "capability": "01-song_settings",
     "capabilityParentId": "SONG",
@@ -1517,7 +1693,7 @@
     "steps": [
       {
         "action": 2,
-        "control": 33
+        "control": 35
       }
     ],
     "views": [],
@@ -1546,11 +1722,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 33
+            "control": 35
           },
           {
             "action": 2,
-            "control": 33
+            "control": 35
           }
         ]
       }
@@ -1585,7 +1761,7 @@
           },
           {
             "action": 2,
-            "control": 33
+            "control": 35
           }
         ]
       }
@@ -1615,11 +1791,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 33
+            "control": 35
           },
           {
             "action": 0,
-            "control": 36
+            "control": 38
           }
         ]
       }
@@ -1641,11 +1817,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 2,
-            "control": 33
+            "control": 35
           }
         ]
       }
@@ -1666,10 +1842,22 @@
       {
         "action": 0,
         "control": 8
+      },
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 8
+          }
+        ]
       }
     ],
     "views": [9, 10, 11, 12],
-    "firmware": [0],
+    "firmware": [0, 1],
     "paragraphs": [
       {
         "spans": [
@@ -1691,12 +1879,47 @@
             "text": "Even while the Deluge is playing synced as a slave, sync-scaling may be switched on or off, and the sync-scaling clip may have its length changed. Despite any such changes, the Deluge will keep the sync-scaling clip playing in time to the syncing master. It will also attempt to keep all other clips in time; this works best if the other clips are of the same time signature as the sync-scaling clip (that is, their lengths are the same, or half our double, or 4 times shorter or longer, etc.)"
           }
         ]
+      },
+      {
+        "type": "community",
+        "spans": [
+          {
+            "text": "Official: In the official firmware, the sync-scaling scaling shortcut just requires pressing the sync-scaling button.\n\nCommunity: In the community firmware, a community feature setting was added to move the sync-scaling toggle to SHIFT + SYNC-SCALING so that SYNC-SCALING can be used to trigger fill mode.\n\nNote: You can change the default behaviour in the community firmware."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Sync-Scaling button. Hold the Shift button, press the Sync-Scaling button."
+  },
+  {
+    "name": "Toggle fill mode",
+    "capability": "01-song_settings",
+    "capabilityParentId": "SONG",
+    "capabilityOrder": 2,
+    "subCapabilityTitle": "Song (Settings)",
+    "subCapabilityOrder": 2,
+    "steps": [
+      {
+        "action": 0,
+        "control": 8
+      }
+    ],
+    "views": [],
+    "firmware": [1],
+    "paragraphs": [
+      {
+        "type": "community",
+        "spans": [
+          {
+            "text": "In the community firmware, a community feature setting was added to move the sync-scaling toggle to SHIFT + SYNC-SCALING so that SYNC-SCALING can be used to trigger fill mode."
+          }
+        ]
       }
     ],
     "description": "Press the Sync-Scaling button."
   },
   {
-    "name": "Swing",
+    "name": "Edit Swing Amount",
     "capability": "01-song_settings",
     "capabilityParentId": "SONG",
     "capabilityOrder": 2,
@@ -1711,7 +1934,7 @@
           },
           {
             "action": 2,
-            "control": 33
+            "control": 35
           }
         ]
       }
@@ -1728,6 +1951,76 @@
       }
     ],
     "description": "Hold the Shift button, turn the Tempo (Swing) encoder."
+  },
+  {
+    "name": "Show Swing Interval",
+    "capability": "01-song_settings",
+    "capabilityParentId": "SONG",
+    "capabilityOrder": 2,
+    "subCapabilityTitle": "Song (Settings)",
+    "subCapabilityOrder": 2,
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 7
+          },
+          {
+            "action": 0,
+            "control": 35
+          }
+        ]
+      }
+    ],
+    "views": [],
+    "firmware": [0],
+    "paragraphs": [],
+    "description": "Hold the Tap Tempo (Metronome) button, press the Tempo (Swing) encoder."
+  },
+  {
+    "name": "Edit Swing Interval",
+    "capability": "01-song_settings",
+    "capabilityParentId": "SONG",
+    "capabilityOrder": 2,
+    "subCapabilityTitle": "Song (Settings)",
+    "subCapabilityOrder": 2,
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 7
+          },
+          {
+            "action": 2,
+            "control": 35
+          }
+        ]
+      }
+    ],
+    "views": [],
+    "firmware": [0],
+    "paragraphs": [],
+    "description": "Hold the Tap Tempo (Metronome) button, turn the Tempo (Swing) encoder."
+  },
+  {
+    "name": "Toggle triplets view",
+    "capability": "01-song_settings",
+    "capabilityParentId": "SONG",
+    "capabilityOrder": 2,
+    "subCapabilityTitle": "Song (Settings)",
+    "subCapabilityOrder": 2,
+    "steps": [
+      {
+        "action": 0,
+        "control": 30
+      }
+    ],
+    "views": [],
+    "firmware": [0],
+    "paragraphs": [],
+    "description": "Press the Triplets View button."
   },
   {
     "name": "Enter Performance View",
@@ -1895,7 +2188,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
@@ -1930,8 +2223,12 @@
         "control": 16
       },
       {
+        "action": 0,
+        "control": 22
+      },
+      {
         "action": 2,
-        "control": 45
+        "control": 47
       }
     ],
     "views": [0, 1, 2],
@@ -1945,10 +2242,44 @@
         ]
       }
     ],
-    "description": "Press the Affect Entire button. Turn the upper parameter encoder."
+    "description": "Press the Affect Entire button. Press the SIDECHAIN/REVERB BUTTON. Turn the upper parameter encoder."
   },
   {
-    "name": "VU Meter",
+    "name": "Toggle Master Compressor Editing Mode",
+    "capability": "00-fx",
+    "capabilityParentId": "SONG",
+    "capabilityOrder": 2,
+    "subCapabilityTitle": "Song (FX & Performance)",
+    "subCapabilityOrder": 3,
+    "steps": [
+      {
+        "action": 0,
+        "control": 16
+      },
+      {
+        "action": 0,
+        "control": 22
+      },
+      {
+        "action": 0,
+        "control": 47
+      }
+    ],
+    "views": [0, 1, 2],
+    "firmware": [1],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "When Affect Entire is on and Sidechain is enabled, this toggles the master compressor editing mode."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Affect Entire button. Press the SIDECHAIN/REVERB BUTTON. Press the upper parameter encoder."
+  },
+  {
+    "name": "Toggle VU meter in sidebar",
     "capability": "00-fx",
     "capabilityParentId": "SONG",
     "capabilityOrder": 2,
@@ -1987,7 +2318,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 35
+        "control": 37
       }
     ],
     "views": [1],
@@ -2007,11 +2338,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -2039,7 +2370,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 36
+        "control": 38
       }
     ],
     "views": [1],
@@ -2067,7 +2398,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
@@ -2077,8 +2408,17 @@
       }
     ],
     "views": [1],
-    "firmware": [0],
-    "paragraphs": [],
+    "firmware": [0, 1],
+    "paragraphs": [
+      {
+        "type": "community",
+        "spans": [
+          {
+            "text": "In the community firmware, you can decide whether automation should be cleared together with clips by toggling the automation default setting: Settings > Defaults > Automation > Clear."
+          }
+        ]
+      }
+    ],
     "description": "Hold the Horizontal (Left/Right) encoder, press the Back / Undo (Redo) button."
   },
   {
@@ -2093,11 +2433,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -2119,11 +2459,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -2145,11 +2485,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 0,
-            "control": 34
+            "control": 36
           }
         ]
       }
@@ -2168,7 +2508,7 @@
     "description": "Hold the Grid pad (lit or unlit), press the Grid pad (lit or unlit)."
   },
   {
-    "name": "Mute / unmute",
+    "name": "Mute / unmute track",
     "capability": "02-playback_arranger",
     "capabilityParentId": "PLAYBACK",
     "capabilityOrder": 3,
@@ -2177,7 +2517,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 38
+        "control": 40
       }
     ],
     "views": [1],
@@ -2186,7 +2526,7 @@
       {
         "spans": [
           {
-            "text": "Mute/unmute an instrument instance."
+            "text": "Mute/unmute a track."
           }
         ]
       }
@@ -2194,7 +2534,7 @@
     "description": "Press the Mute / Launch button for row."
   },
   {
-    "name": "Audition",
+    "name": "Audition track",
     "capability": "02-playback_arranger",
     "capabilityParentId": "PLAYBACK",
     "capabilityOrder": 3,
@@ -2203,7 +2543,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 37
+        "control": 39
       }
     ],
     "views": [1],
@@ -2212,7 +2552,7 @@
       {
         "spans": [
           {
-            "text": "Audition sounds a synth's root note or a kit row instance."
+            "text": "Audition a synth's root note or a kit row instance."
           }
         ]
       }
@@ -2220,7 +2560,7 @@
     "description": "Press the Audition / Section button for row."
   },
   {
-    "name": "Solo instrument",
+    "name": "Solo track",
     "capability": "02-playback_arranger",
     "capabilityParentId": "PLAYBACK",
     "capabilityOrder": 3,
@@ -2231,11 +2571,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
-            "control": 38
+            "control": 40
           }
         ]
       }
@@ -2246,7 +2586,7 @@
       {
         "spans": [
           {
-            "text": "Mute pads turn blue. You can solo more than one instrument at the same time. Press the blue mute pad to unsolo."
+            "text": "Mute pads turn blue. You can solo more than one track at the same time. Press the blue mute pad to unsolo."
           }
         ]
       }
@@ -2263,7 +2603,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 36
+        "control": 38
       }
     ],
     "views": [1],
@@ -2306,7 +2646,7 @@
     "description": "Press the Cross-screen button."
   },
   {
-    "name": "Start playback from current screen",
+    "name": "Start arranger playback from current screen",
     "capability": "02-playback_arranger",
     "capabilityParentId": "PLAYBACK",
     "capabilityOrder": 3,
@@ -2317,7 +2657,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
@@ -2340,6 +2680,41 @@
     "description": "Hold the Horizontal (Left/Right) encoder, press the Play button."
   },
   {
+    "name": "Start / Restart arranger playback from a held arranger clip pad",
+    "capability": "02-playback_arranger",
+    "capabilityParentId": "PLAYBACK",
+    "capabilityOrder": 3,
+    "subCapabilityTitle": "Playback Mode (Arranger)",
+    "subCapabilityOrder": 1,
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 38
+          },
+          {
+            "action": 0,
+            "control": 2
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "firmware": [1],
+    "paragraphs": [
+      {
+        "type": "community",
+        "spans": [
+          {
+            "text": "Hold a clip pad in arranger view and press play to start or restart playback from that clip."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Lit grid pad, press the Play button."
+  },
+  {
     "name": "Make clip instance unique (white; left-most clip grid button)",
     "capability": "02-playback_arranger",
     "capabilityParentId": "PLAYBACK",
@@ -2355,7 +2730,7 @@
           },
           {
             "action": 0,
-            "control": 36
+            "control": 38
           }
         ]
       }
@@ -2374,32 +2749,6 @@
     "description": "Hold the Shift button, press the Lit grid pad."
   },
   {
-    "name": "Adjust clip parameter of clip instance",
-    "capability": "02-playback_arranger",
-    "capabilityParentId": "PLAYBACK",
-    "capabilityOrder": 3,
-    "subCapabilityTitle": "Playback Mode (Arranger)",
-    "subCapabilityOrder": 1,
-    "steps": [
-      {
-        "substeps": [
-          {
-            "action": 1,
-            "control": 36
-          },
-          {
-            "action": 2,
-            "control": 43
-          }
-        ]
-      }
-    ],
-    "views": [1],
-    "firmware": [0],
-    "paragraphs": [],
-    "description": "Hold the Lit grid pad, turn the parameter encoders."
-  },
-  {
     "name": "Copy clip from arranger to song mode, eg to save white instance as its own clip",
     "capability": "02-playback_arranger",
     "capabilityParentId": "PLAYBACK",
@@ -2411,17 +2760,17 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 0,
-            "control": 29
+            "control": 31
           }
         ]
       },
       {
         "action": 2,
-        "control": 31
+        "control": 33
       }
     ],
     "views": [1],
@@ -2449,17 +2798,17 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 0,
-            "control": 29
+            "control": 31
           }
         ]
       },
       {
         "action": 2,
-        "control": 30
+        "control": 32
       }
     ],
     "views": [1],
@@ -2491,7 +2840,7 @@
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -2519,7 +2868,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 37
+        "control": 39
       }
     ],
     "views": [1],
@@ -2545,7 +2894,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 38
+        "control": 40
       }
     ],
     "views": [1],
@@ -2573,11 +2922,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -2607,7 +2956,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -2633,7 +2982,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -2659,7 +3008,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -2685,11 +3034,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -2719,7 +3068,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -2745,7 +3094,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -2771,7 +3120,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -2797,7 +3146,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -2831,11 +3180,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
-            "control": 50
+            "control": 52
           }
         ]
       }
@@ -2880,7 +3229,7 @@
     "description": "Press the Play button."
   },
   {
-    "name": "Start playback from start (Alternative Playback)",
+    "name": "Start Arranger playback from start (Alternative Playback)",
     "capability": "02-playback_arranger",
     "capabilityParentId": "PLAYBACK",
     "capabilityOrder": 3,
@@ -2891,7 +3240,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
@@ -2914,6 +3263,32 @@
     "description": "Hold the Horizontal (Left/Right) encoder, press the Play button."
   },
   {
+    "name": "Toggle Arranger Auto-Scroll",
+    "capability": "02-playback_arranger",
+    "capabilityParentId": "PLAYBACK",
+    "capabilityOrder": 3,
+    "subCapabilityTitle": "Playback Mode (Arranger)",
+    "subCapabilityOrder": 1,
+    "steps": [
+      {
+        "action": 0,
+        "control": 15
+      }
+    ],
+    "views": [1, 17],
+    "firmware": [1],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Toggles automatic scrolling during playback in Arranger View."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Cross-screen button."
+  },
+  {
     "name": "Create clip (empty row)",
     "capability": "02-playback_session",
     "capabilityParentId": "PLAYBACK",
@@ -2923,7 +3298,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 35
+        "control": 37
       }
     ],
     "views": [3],
@@ -2949,7 +3324,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 34
+        "control": 36
       }
     ],
     "views": [2],
@@ -2975,7 +3350,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 38
+        "control": 40
       }
     ],
     "views": [2],
@@ -3007,7 +3382,7 @@
           },
           {
             "action": 0,
-            "control": 38
+            "control": 40
           }
         ]
       }
@@ -3037,11 +3412,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -3067,7 +3442,7 @@
           },
           {
             "action": 0,
-            "control": 37
+            "control": 39
           }
         ]
       }
@@ -3095,7 +3470,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 37
+        "control": 39
       }
     ],
     "views": [2],
@@ -3121,11 +3496,11 @@
     "steps": [
       {
         "action": 1,
-        "control": 37
+        "control": 39
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [2],
@@ -3160,11 +3535,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 0,
-            "control": 34
+            "control": 36
           }
         ]
       }
@@ -3201,7 +3576,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 0,
@@ -3235,11 +3610,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
-            "control": 38
+            "control": 40
           }
         ]
       }
@@ -3273,11 +3648,11 @@
           },
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
-            "control": 38
+            "control": 40
           }
         ]
       }
@@ -3296,32 +3671,6 @@
     "description": "Hold the Shift button, hold the Horizontal (Left/Right) encoder, press the Mute / Launch button for row."
   },
   {
-    "name": "Clip parameter change (per clip)",
-    "capability": "02-playback_session",
-    "capabilityParentId": "PLAYBACK",
-    "capabilityOrder": 3,
-    "subCapabilityTitle": "Playback Mode (Session)",
-    "subCapabilityOrder": 2,
-    "steps": [
-      {
-        "substeps": [
-          {
-            "action": 1,
-            "control": 34
-          },
-          {
-            "action": 2,
-            "control": 43
-          }
-        ]
-      }
-    ],
-    "views": [2],
-    "firmware": [0],
-    "paragraphs": [],
-    "description": "Hold the Grid pad (lit or unlit), turn the parameter encoders."
-  },
-  {
     "name": "Clip parameter change (per song)",
     "capability": "02-playback_session",
     "capabilityParentId": "PLAYBACK",
@@ -3335,10 +3684,10 @@
       },
       {
         "action": 2,
-        "control": 43
+        "control": 45
       }
     ],
-    "views": [2],
+    "views": [1, 2],
     "firmware": [0],
     "paragraphs": [],
     "description": "Press the Affect Entire button. Turn the parameter encoders."
@@ -3355,11 +3704,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -3381,7 +3730,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 0,
@@ -3415,7 +3764,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 0,
@@ -3449,7 +3798,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 0,
@@ -3483,11 +3832,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 0,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -3507,7 +3856,7 @@
     "steps": [
       {
         "action": 1,
-        "control": 34
+        "control": 36
       }
     ],
     "views": [2],
@@ -3535,11 +3884,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 0,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -3561,11 +3910,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 38
+            "control": 40
           },
           {
             "action": 0,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -3595,7 +3944,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 1,
@@ -3603,7 +3952,7 @@
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -3633,11 +3982,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 29
+            "control": 31
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -3667,11 +4016,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 35
+            "control": 37
           },
           {
             "action": 0,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -3705,17 +4054,17 @@
           },
           {
             "action": 0,
-            "control": 34
+            "control": 36
           }
         ]
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [2],
@@ -3742,11 +4091,11 @@
     "steps": [
       {
         "action": 0,
-        "control": 34
+        "control": 36
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [2],
@@ -3775,11 +4124,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -3813,17 +4162,17 @@
           },
           {
             "action": 0,
-            "control": 37
+            "control": 39
           }
         ]
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [1],
@@ -3843,11 +4192,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -3882,7 +4231,7 @@
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -3910,11 +4259,11 @@
     "steps": [
       {
         "action": 0,
-        "control": 34
+        "control": 36
       },
       {
         "action": 0,
-        "control": 34
+        "control": 36
       }
     ],
     "views": [8],
@@ -3946,7 +4295,7 @@
           },
           {
             "action": 0,
-            "control": 34
+            "control": 36
           }
         ]
       }
@@ -3980,7 +4329,7 @@
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -4010,11 +4359,11 @@
         "substeps": [
           {
             "action": 0,
-            "control": 31
+            "control": 33
           },
           {
             "action": 0,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -4049,11 +4398,11 @@
           },
           {
             "action": 0,
-            "control": 31
+            "control": 33
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -4084,7 +4433,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
@@ -4177,7 +4526,7 @@
     "steps": [
       {
         "action": 2,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [9],
@@ -4218,23 +4567,21 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
-        "substeps": [
-          {
-            "action": 1,
-            "control": 3
-          },
-          {
-            "action": 3,
-            "control": 0
-          }
-        ]
+        "action": 1,
+        "control": 3
+      },
+      {
+        "action": 3,
+        "control": 0,
+        "label": "Load Preset > Clone",
+        "menuContext": "CLONE"
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [9],
@@ -4248,7 +4595,7 @@
         ]
       }
     ],
-    "description": "Hold the Load (New) button, press the Synth button. Turn the Select (Settings) encoder. Hold the Load (New) button, select an option from the on-screen menu. Press the Select (Settings) encoder."
+    "description": "Hold the Load (New) button, press the Synth button. Turn the Select (Settings) encoder. Hold the Load (New) button. Select an option from the on-screen menu. Press the Select (Settings) encoder."
   },
   {
     "name": "Save synth preset",
@@ -4275,11 +4622,11 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [9],
@@ -4339,7 +4686,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -4349,15 +4696,15 @@
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [9],
@@ -4395,7 +4742,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -4405,27 +4752,33 @@
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
+      },
+      {
+        "action": 1,
+        "control": 34
       },
       {
         "substeps": [
           {
-            "action": 1,
-            "control": 32
+            "action": 2,
+            "control": 34
           },
           {
             "action": 3,
-            "control": 0
+            "control": 0,
+            "label": "Load File(s) > Basic",
+            "menuContext": "BASIC"
           }
         ]
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [9],
@@ -4439,7 +4792,7 @@
         ]
       }
     ],
-    "description": "Hold the Audition / Section button for row, press the Load (New) button. Press the Select (Settings) encoder. Turn the Select (Settings) encoder. Hold the Select (Settings) encoder, select an option from the on-screen menu. Press the Select (Settings) encoder."
+    "description": "Hold the Audition / Section button for row, press the Load (New) button. Press the Select (Settings) encoder. Turn the Select (Settings) encoder. Hold the Select (Settings) encoder. Turn the Select (Settings) encoder, select an option from the on-screen menu. Press the Select (Settings) encoder."
   },
   {
     "name": "Multi-sampling",
@@ -4456,7 +4809,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -4466,27 +4819,25 @@
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
-        "substeps": [
-          {
-            "action": 1,
-            "control": 32
-          },
-          {
-            "action": 3,
-            "control": 0
-          }
-        ]
+        "action": 1,
+        "control": 34
+      },
+      {
+        "action": 3,
+        "control": 0,
+        "label": "Load File(s) > Multisamples",
+        "menuContext": "MULTISAMPLES"
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [9],
@@ -4500,7 +4851,7 @@
         ]
       }
     ],
-    "description": "Hold the Audition / Section button for row, press the Load (New) button. Press the Select (Settings) encoder. Turn the Select (Settings) encoder. Hold the Select (Settings) encoder, select an option from the on-screen menu. Press the Select (Settings) encoder."
+    "description": "Hold the Audition / Section button for row, press the Load (New) button. Press the Select (Settings) encoder. Turn the Select (Settings) encoder. Hold the Select (Settings) encoder. Select an option from the on-screen menu. Press the Select (Settings) encoder."
   },
   {
     "name": "Single cycle waveforms",
@@ -4517,7 +4868,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -4527,27 +4878,33 @@
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
+      },
+      {
+        "action": 1,
+        "control": 34
       },
       {
         "substeps": [
           {
-            "action": 1,
-            "control": 32
+            "action": 2,
+            "control": 34
           },
           {
             "action": 3,
-            "control": 0
+            "control": 0,
+            "label": "Load File(s) > Single-Cycle",
+            "menuContext": "SINGLE_CYCLE"
           }
         ]
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [9],
@@ -4561,10 +4918,10 @@
         ]
       }
     ],
-    "description": "Hold the Audition / Section button for row, press the Load (New) button. Press the Select (Settings) encoder. Turn the Select (Settings) encoder. Hold the Select (Settings) encoder, select an option from the on-screen menu. Press the Select (Settings) encoder."
+    "description": "Hold the Audition / Section button for row, press the Load (New) button. Press the Select (Settings) encoder. Turn the Select (Settings) encoder. Hold the Select (Settings) encoder. Turn the Select (Settings) encoder, select an option from the on-screen menu. Press the Select (Settings) encoder."
   },
   {
-    "name": "External sound source",
+    "name": "External oscillator sound source",
     "capability": "04_clip_synth",
     "capabilityParentId": "CLIP",
     "capabilityOrder": 5,
@@ -4582,21 +4939,27 @@
           },
           {
             "action": 0,
-            "control": 34
+            "control": 53
           }
         ]
       },
       {
-        "action": 2,
-        "control": 32
-      },
-      {
-        "action": 3,
-        "control": 0
+        "substeps": [
+          {
+            "action": 2,
+            "control": 34
+          },
+          {
+            "action": 3,
+            "control": 0,
+            "label": "Sound > Oscillator > Type > Input",
+            "menuContext": "OSCILLATOR_INPUT"
+          }
+        ]
       },
       {
         "action": 0,
-        "control": 2
+        "control": 34
       }
     ],
     "views": [9],
@@ -4610,7 +4973,7 @@
         ]
       }
     ],
-    "description": "Hold the Shift button, press the Grid pad (lit or unlit). Turn the Select (Settings) encoder. Select an option from the on-screen menu. Press the Play button."
+    "description": "Hold the Shift button, press the 'Oscillator Type' grid pads. Turn the Select (Settings) encoder, select an option from the on-screen menu. Press the Select (Settings) encoder."
   },
   {
     "name": "Setup MIDI sequencing of notes",
@@ -4629,7 +4992,7 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [11],
@@ -4660,17 +5023,17 @@
         "substeps": [
           {
             "action": 1,
-            "control": 43
+            "control": 45
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       },
       {
         "action": 2,
-        "control": 43
+        "control": 45
       }
     ],
     "views": [11],
@@ -4701,15 +5064,15 @@
         "substeps": [
           {
             "action": 1,
-            "control": 43
+            "control": 45
           },
           {
             "action": 1,
-            "control": 32
+            "control": 34
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -4884,7 +5247,7 @@
       },
       {
         "action": 2,
-        "control": 43
+        "control": 45
       }
     ],
     "views": [11],
@@ -4917,7 +5280,7 @@
       },
       {
         "action": 2,
-        "control": 43
+        "control": 45
       }
     ],
     "views": [11],
@@ -4946,7 +5309,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [11],
@@ -5004,7 +5367,7 @@
           },
           {
             "action": 0,
-            "control": 37
+            "control": 39
           }
         ]
       }
@@ -5034,11 +5397,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -5118,7 +5481,7 @@
     "steps": [
       {
         "action": 2,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [10],
@@ -5156,11 +5519,11 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [10],
@@ -5190,23 +5553,21 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
-        "substeps": [
-          {
-            "action": 1,
-            "control": 3
-          },
-          {
-            "action": 3,
-            "control": 0
-          }
-        ]
+        "action": 1,
+        "control": 3
+      },
+      {
+        "action": 3,
+        "control": 0,
+        "label": "Load Preset > Clone",
+        "menuContext": "CLONE"
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [10],
@@ -5220,7 +5581,7 @@
         ]
       }
     ],
-    "description": "Hold the Load (New) button, press the Kit button. Turn the Select (Settings) encoder. Hold the Load (New) button, select an option from the on-screen menu. Press the Select (Settings) encoder."
+    "description": "Hold the Load (New) button, press the Kit button. Turn the Select (Settings) encoder. Hold the Load (New) button. Select an option from the on-screen menu. Press the Select (Settings) encoder."
   },
   {
     "name": "Load sample into a kit row",
@@ -5234,7 +5595,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -5244,11 +5605,11 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [10],
@@ -5280,7 +5641,7 @@
           },
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -5290,11 +5651,11 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [10],
@@ -5324,19 +5685,21 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 1,
-        "control": 32
+        "control": 34
       },
       {
         "action": 3,
-        "control": 0
+        "control": 0,
+        "label": "Sample(s) > Load All",
+        "menuContext": "LOAD_ALL"
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [10],
@@ -5377,27 +5740,37 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 1,
-        "control": 32
+        "control": 34
       },
       {
-        "action": 3,
-        "control": 0
+        "substeps": [
+          {
+            "action": 2,
+            "control": 34
+          },
+          {
+            "action": 3,
+            "control": 0,
+            "label": "Sample(s) > Slice",
+            "menuContext": "SLICE"
+          }
+        ]
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       },
       {
-        "action": 3,
-        "control": 0
+        "action": 2,
+        "control": 34
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [10],
@@ -5418,7 +5791,7 @@
         ]
       }
     ],
-    "description": "Hold the Shift button. Press the Kit button. Turn the Select (Settings) encoder. Hold the Select (Settings) encoder. Select an option from the on-screen menu. Press the Select (Settings) encoder. Select an option from the on-screen menu. Press the Select (Settings) encoder."
+    "description": "Hold the Shift button. Press the Kit button. Turn the Select (Settings) encoder. Hold the Select (Settings) encoder. Turn the Select (Settings) encoder, select an option from the on-screen menu. Press the Select (Settings) encoder. Turn the Select (Settings) encoder. Press the Select (Settings) encoder."
   },
   {
     "name": "Setting up choke group",
@@ -5432,25 +5805,27 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
-            "control": 34
+            "control": 54
           }
         ]
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 3,
-        "control": 0
+        "control": 0,
+        "label": "Sound > Voice > Polyphony > Choke",
+        "menuContext": "CHOKE"
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [10],
@@ -5464,7 +5839,7 @@
         ]
       }
     ],
-    "description": "Hold the Audition / Section button for row, press the Grid pad (lit or unlit). Turn the Select (Settings) encoder. Select an option from the on-screen menu. Press the Select (Settings) encoder."
+    "description": "Hold the Audition / Section button for row, press the 'Voice Polyphony' grid pad. Turn the Select (Settings) encoder. Select an option from the on-screen menu. Press the Select (Settings) encoder."
   },
   {
     "name": "Rename kit row or instrument",
@@ -5478,11 +5853,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
-            "control": 50
+            "control": 52
           }
         ]
       }
@@ -5504,7 +5879,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -5538,7 +5913,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -5572,11 +5947,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 2,
-            "control": 44
+            "control": 46
           }
         ]
       }
@@ -5598,11 +5973,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 2,
-            "control": 45
+            "control": 47
           }
         ]
       }
@@ -5628,7 +6003,7 @@
           },
           {
             "action": 0,
-            "control": 48
+            "control": 50
           }
         ]
       }
@@ -5662,11 +6037,11 @@
           },
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
-            "control": 48
+            "control": 50
           }
         ]
       }
@@ -5696,7 +6071,7 @@
           },
           {
             "action": 0,
-            "control": 48
+            "control": 50
           }
         ]
       }
@@ -5746,7 +6121,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 30
+        "control": 32
       }
     ],
     "views": [10],
@@ -5785,7 +6160,7 @@
           },
           {
             "action": 1,
-            "control": 34
+            "control": 36
           }
         ]
       },
@@ -5797,7 +6172,7 @@
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -5831,7 +6206,7 @@
           },
           {
             "action": 0,
-            "control": 37
+            "control": 39
           }
         ]
       }
@@ -5861,7 +6236,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
@@ -5891,7 +6266,7 @@
           },
           {
             "action": 0,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -5925,7 +6300,7 @@
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -5947,11 +6322,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 0,
-            "control": 35
+            "control": 37
           }
         ]
       }
@@ -5979,21 +6354,21 @@
     "steps": [
       {
         "action": 0,
-        "control": 34
+        "control": 36
       },
       {
         "action": 2,
-        "control": 30
+        "control": 32
       },
       {
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
-            "control": 35
+            "control": 37
           }
         ]
       }
@@ -6012,7 +6387,7 @@
     "description": "Press the Grid pad (lit or unlit). Turn the Horizontal (Left/Right) encoder. Hold the Horizontal (Left/Right) encoder, press the Unlit grid pad."
   },
   {
-    "name": "Adjust note velocity",
+    "name": "Edit Note Repeat",
     "capability": "05-sequencing_note",
     "capabilityParentId": "SEQUENCING",
     "capabilityOrder": 6,
@@ -6023,11 +6398,49 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
+          },
+          {
+            "action": 0,
+            "control": 33
           },
           {
             "action": 2,
-            "control": 30
+            "control": 33
+          }
+        ]
+      }
+    ],
+    "views": [9, 10, 11, 12, 15, 18],
+    "firmware": [0],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Adjusts selected note's repeats."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Grid pad (lit or unlit), press the Vertical (Up/Down) encoder, turn the Vertical (Up/Down) encoder."
+  },
+  {
+    "name": "Edit note velocity",
+    "capability": "05-sequencing_note",
+    "capabilityParentId": "SEQUENCING",
+    "capabilityOrder": 6,
+    "subCapabilityTitle": "Sequencing (Note)",
+    "subCapabilityOrder": 2,
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 36
+          },
+          {
+            "action": 2,
+            "control": 32
           }
         ]
       }
@@ -6046,7 +6459,7 @@
     "description": "Hold the Grid pad (lit or unlit), turn the Horizontal (Left/Right) encoder."
   },
   {
-    "name": "Note probability; clockwise is iteration and counter is probability",
+    "name": "Edit Note Probability or Iterance",
     "capability": "05-sequencing_note",
     "capabilityParentId": "SEQUENCING",
     "capabilityOrder": 6,
@@ -6057,22 +6470,23 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
     ],
     "views": [9, 10, 11, 12],
-    "firmware": [0],
+    "firmware": [0, 1],
     "paragraphs": [
       {
+        "type": "community",
         "spans": [
           {
-            "text": "Turn counter-clockwise to adjust probability. Turn clockwise to adjust iteration."
+            "text": "Official: Turn counter-clockwise to adjust probability. Turn clockwise to adjust iterance. In Official you can set a note to have probabilty or iterance but not both.\n\nCommunity: A note can have both note probability and note iterance set.\n- Hold a note and turn the select encoder left to enter note probability editing mode.\n- Hold a note and turn the select encoder right to enter note iterance editing mode."
           }
         ]
       }
@@ -6080,7 +6494,7 @@
     "description": "Hold the Grid pad (lit or unlit), turn the Select (Settings) encoder."
   },
   {
-    "name": "Note probability group",
+    "name": "Edit Note Probability or Iterance for group of notes",
     "capability": "05-sequencing_note",
     "capabilityParentId": "SEQUENCING",
     "capabilityOrder": 6,
@@ -6091,22 +6505,45 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
     ],
     "views": [9, 10, 11, 12],
-    "firmware": [0],
+    "firmware": [0, 1],
     "paragraphs": [
       {
         "spans": [
           {
-            "text": "When probability is the same, all notes follow the action of the first note in the sequence. A '.' signifies that a probability group exists."
+            "text": "Multiple notes can be selected."
+          }
+        ]
+      },
+      {
+        "spans": [
+          {
+            "text": "When probability is the same, all notes follow the action of the first note in the sequence."
+          }
+        ]
+      },
+      {
+        "type": "list",
+        "spans": [
+          {
+            "text": "- On 7SEG: A '.' signifies that a probability group exists.\n- On OLED: The word \"latching\"signifies that a probability group exists."
+          }
+        ]
+      },
+      {
+        "type": "community",
+        "spans": [
+          {
+            "text": "Official: Turn counter-clockwise to adjust probability. Turn clockwise to adjust iterance. In Official you can set a note to have probabilty or iterance but not both.\n\nCommunity: A note can have both note probability and note iterance set.\n- Hold a note and turn the select encoder left to enter note probability editing mode.\n- Hold a note and turn the select encoder right to enter note iterance editing mode."
           }
         ]
       }
@@ -6129,7 +6566,7 @@
           },
           {
             "action": 0,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -6167,7 +6604,7 @@
           },
           {
             "action": 0,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -6223,7 +6660,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -6233,11 +6670,11 @@
       },
       {
         "action": 2,
-        "control": 32
+        "control": 34
       },
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [10],
@@ -6265,11 +6702,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 31
+            "control": 33
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -6299,7 +6736,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
@@ -6329,7 +6766,7 @@
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -6355,11 +6792,11 @@
           },
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -6381,15 +6818,15 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 1,
-            "control": 38
+            "control": 40
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -6400,7 +6837,7 @@
     "description": "Hold the Audition / Section button for row, hold the Mute / Launch button for row, turn the Vertical (Up/Down) encoder."
   },
   {
-    "name": "Note nudge individual note",
+    "name": "Nudge individual note horizontally",
     "capability": "05-sequencing_note",
     "capabilityParentId": "SEQUENCING",
     "capabilityOrder": 6,
@@ -6411,15 +6848,15 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -6445,7 +6882,7 @@
           },
           {
             "action": 0,
-            "control": 34
+            "control": 36
           }
         ]
       }
@@ -6475,15 +6912,15 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 1,
-            "control": 31
+            "control": 33
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -6513,11 +6950,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -6547,15 +6984,15 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
-            "control": 30
+            "control": 32
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -6585,11 +7022,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 2,
-            "control": 33
+            "control": 35
           }
         ]
       }
@@ -6608,7 +7045,7 @@
     "description": "Hold the Audition / Section button for row, turn the Tempo (Swing) encoder."
   },
   {
-    "name": "Enter Velocity View",
+    "name": "Enter Note Velocity Automation View",
     "capability": "05-sequencing_note",
     "capabilityParentId": "SEQUENCING",
     "capabilityOrder": 6,
@@ -6619,11 +7056,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
-            "control": 49
+            "control": 51
           }
         ]
       }
@@ -6634,7 +7071,7 @@
       {
         "spans": [
           {
-            "text": "Opens the note velocity editor from Instrument Clip View or Automation View."
+            "text": "Opens the note velocity automation view from Instrument Clip View or Automation View."
           }
         ]
       }
@@ -6642,7 +7079,7 @@
     "description": "Hold the Audition / Section button for row, press the 'Velocity' patch source pad."
   },
   {
-    "name": "Select Note Row in Velocity Editor",
+    "name": "Select Note Row in Note Velocity Automation View",
     "capability": "05-sequencing_note",
     "capabilityParentId": "SEQUENCING",
     "capabilityOrder": 6,
@@ -6651,7 +7088,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 37
+        "control": 39
       }
     ],
     "views": [9, 10, 11, 12, 15, 18],
@@ -6660,7 +7097,7 @@
       {
         "spans": [
           {
-            "text": "Selects the current note row in the velocity editor."
+            "text": "Selects the current note row in the note velocity automation view."
           }
         ]
       }
@@ -6668,7 +7105,7 @@
     "description": "Press the Audition / Section button for row."
   },
   {
-    "name": "Select Note Row in Velocity Editor with Vertical Encoder",
+    "name": "Select Note Row in Note Velocity Automation View with Vertical Encoder",
     "capability": "05-sequencing_note",
     "capabilityParentId": "SEQUENCING",
     "capabilityOrder": 6,
@@ -6677,7 +7114,7 @@
     "steps": [
       {
         "action": 2,
-        "control": 31
+        "control": 33
       }
     ],
     "views": [9, 10, 11, 12, 15, 18],
@@ -6686,7 +7123,7 @@
       {
         "spans": [
           {
-            "text": "Alternative way to select a different note row in the velocity editor."
+            "text": "Alternative way to select a different note row in the note velocity automation view."
           }
         ]
       }
@@ -6694,7 +7131,7 @@
     "description": "Turn the Vertical (Up/Down) encoder."
   },
   {
-    "name": "Note Row Probability",
+    "name": "Edit Note Row Probability or Iterance",
     "capability": "05-sequencing_note",
     "capabilityParentId": "SEQUENCING",
     "capabilityOrder": 6,
@@ -6705,11 +7142,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -6720,41 +7157,15 @@
       {
         "spans": [
           {
-            "text": "Adjusts the selected note row's probability in the velocity editor."
+            "text": "Adjusts the selected note row's probability and/or iterance. All note's in the note row will be set with the same value."
           }
         ]
-      }
-    ],
-    "description": "Hold the Audition / Section button for row, turn the Select (Settings) encoder."
-  },
-  {
-    "name": "Note Row Iterance",
-    "capability": "05-sequencing_note",
-    "capabilityParentId": "SEQUENCING",
-    "capabilityOrder": 6,
-    "subCapabilityTitle": "Sequencing (Note)",
-    "subCapabilityOrder": 2,
-    "steps": [
+      },
       {
-        "substeps": [
-          {
-            "action": 1,
-            "control": 37
-          },
-          {
-            "action": 2,
-            "control": 32
-          }
-        ]
-      }
-    ],
-    "views": [9, 10, 11, 12, 15, 18],
-    "firmware": [1],
-    "paragraphs": [
-      {
+        "type": "community",
         "spans": [
           {
-            "text": "Adjusts the selected note row's iterance in the velocity editor."
+            "text": "Official: Turn counter-clockwise to adjust probability. Turn clockwise to adjust iterance. In Official you can set a note row to have probabilty or iterance but not both.\n\nCommunity: A note row can have both note probability and note iterance set.\n- Hold audition pad and turn the select encoder left to enter note probability editing mode.\n- Hold audition pad and turn the select encoder right to enter note iterance editing mode."
           }
         ]
       }
@@ -6773,11 +7184,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -6788,7 +7199,7 @@
       {
         "spans": [
           {
-            "text": "Adjusts the selected note's velocity in the velocity editor."
+            "text": "Adjusts the selected note row's velocity. All note's in the note row will be set with the same value."
           }
         ]
       }
@@ -6796,7 +7207,7 @@
     "description": "Hold the Grid pad (lit or unlit), turn the Horizontal (Left/Right) encoder."
   },
   {
-    "name": "Note Row Fill",
+    "name": "Edit Note Row Fill",
     "capability": "05-sequencing_note",
     "capabilityParentId": "SEQUENCING",
     "capabilityOrder": 6,
@@ -6807,7 +7218,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -6822,46 +7233,12 @@
       {
         "spans": [
           {
-            "text": "Adjusts the selected note row's fill setting when the Community Feature is enabled."
+            "text": "Adjusts the selected note row's fill setting when the Community Feature is enabled. All note's in the note will row will be set with the same value."
           }
         ]
       }
     ],
     "description": "Hold the Audition / Section button for row, press the Sync-Scaling button."
-  },
-  {
-    "name": "Note Repeat",
-    "capability": "05-sequencing_note",
-    "capabilityParentId": "SEQUENCING",
-    "capabilityOrder": 6,
-    "subCapabilityTitle": "Sequencing (Note)",
-    "subCapabilityOrder": 2,
-    "steps": [
-      {
-        "substeps": [
-          {
-            "action": 1,
-            "control": 34
-          },
-          {
-            "action": 0,
-            "control": 31
-          }
-        ]
-      }
-    ],
-    "views": [9, 10, 11, 12, 15, 18],
-    "firmware": [1],
-    "paragraphs": [
-      {
-        "spans": [
-          {
-            "text": "Adjusts note repeat for the selected note in the velocity editor."
-          }
-        ]
-      }
-    ],
-    "description": "Hold the Grid pad (lit or unlit), press the Vertical (Up/Down) encoder."
   },
   {
     "name": "Enter Note Editor",
@@ -6875,11 +7252,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 0,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -6961,11 +7338,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -7021,11 +7398,11 @@
         "substeps": [
           {
             "action": 0,
-            "control": 31
+            "control": 33
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -7055,7 +7432,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
@@ -7089,11 +7466,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 31
+            "control": 33
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -7123,15 +7500,15 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
-            "control": 33
+            "control": 35
           },
           {
             "action": 2,
-            "control": 33
+            "control": 35
           }
         ]
       }
@@ -7161,11 +7538,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -7187,15 +7564,15 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
-            "control": 31
+            "control": 33
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -7221,7 +7598,7 @@
           },
           {
             "action": 0,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -7255,7 +7632,7 @@
           },
           {
             "action": 0,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -7293,7 +7670,7 @@
           },
           {
             "action": 0,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -7331,7 +7708,7 @@
           },
           {
             "action": 0,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -7369,7 +7746,7 @@
           },
           {
             "action": 0,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -7407,7 +7784,7 @@
           },
           {
             "action": 0,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -7426,7 +7803,7 @@
     "description": "Hold the Shift button, press the Cross-screen button, press the Horizontal (Left/Right) encoder."
   },
   {
-    "name": "Note Probability",
+    "name": "Toggle Randomizer Lock",
     "capability": "05-sequencing_note",
     "capabilityParentId": "SEQUENCING",
     "capabilityOrder": 6,
@@ -7441,33 +7818,7 @@
           },
           {
             "action": 0,
-            "control": 47
-          }
-        ]
-      }
-    ],
-    "views": [9, 10, 11, 12],
-    "firmware": [1],
-    "paragraphs": [],
-    "description": "Hold the Shift button, press the 'Note' patch source pad."
-  },
-  {
-    "name": "Randomizer Lock",
-    "capability": "05-sequencing_note",
-    "capabilityParentId": "SEQUENCING",
-    "capabilityOrder": 6,
-    "subCapabilityTitle": "Sequencing (Note)",
-    "subCapabilityOrder": 2,
-    "steps": [
-      {
-        "substeps": [
-          {
-            "action": 1,
-            "control": 4
-          },
-          {
-            "action": 0,
-            "control": 48
+            "control": 50
           }
         ]
       }
@@ -7478,7 +7829,7 @@
     "description": "Hold the Shift button, press the 'Random' patch source pad."
   },
   {
-    "name": "Velocity Probability",
+    "name": "Edit Randomizer Note Probability",
     "capability": "05-sequencing_note",
     "capabilityParentId": "SEQUENCING",
     "capabilityOrder": 6,
@@ -7501,6 +7852,32 @@
     "views": [9, 10, 11, 12],
     "firmware": [1],
     "paragraphs": [],
+    "description": "Hold the Shift button, press the 'Note' patch source pad."
+  },
+  {
+    "name": "Edit Randomizer Velocity Probability",
+    "capability": "05-sequencing_note",
+    "capabilityParentId": "SEQUENCING",
+    "capabilityOrder": 6,
+    "subCapabilityTitle": "Sequencing (Note)",
+    "subCapabilityOrder": 2,
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 51
+          }
+        ]
+      }
+    ],
+    "views": [9, 10, 11, 12],
+    "firmware": [1],
+    "paragraphs": [],
     "description": "Hold the Shift button, press the 'Velocity' patch source pad."
   },
   {
@@ -7515,11 +7892,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 31
+            "control": 33
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -7545,11 +7922,11 @@
           },
           {
             "action": 1,
-            "control": 31
+            "control": 33
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -7575,11 +7952,11 @@
           },
           {
             "action": 1,
-            "control": 31
+            "control": 33
           },
           {
             "action": 2,
-            "control": 31
+            "control": 33
           }
         ]
       }
@@ -7608,7 +7985,7 @@
       {
         "spans": [
           {
-            "text": "Opens Automation View from Arranger View or any clip view."
+            "text": "Opens Automation View from Arranger View or any Clip View."
           }
         ]
       }
@@ -7616,7 +7993,7 @@
     "description": "Press the Clip button."
   },
   {
-    "name": "Toggle Automation Editor from Sound Editor Menu",
+    "name": "Toggle Automation View Editor from Sound Editor Menu",
     "capability": "05-sequencing_automation",
     "capabilityParentId": "SEQUENCING",
     "capabilityOrder": 6,
@@ -7634,7 +8011,7 @@
       {
         "spans": [
           {
-            "text": "Opens or closes the Automation Editor for the selected parameter while in a Sound Editor menu."
+            "text": "Opens or closes the Automation View Editor for the selected parameter while in a Sound Editor menu."
           }
         ]
       }
@@ -7669,7 +8046,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -7703,7 +8080,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
@@ -7726,32 +8103,6 @@
     "description": "Hold the Horizontal (Left/Right) encoder, press the Back / Undo (Redo) button."
   },
   {
-    "name": "Automation Arranger Auto-Scroll",
-    "capability": "05-sequencing_automation",
-    "capabilityParentId": "SEQUENCING",
-    "capabilityOrder": 6,
-    "subCapabilityTitle": "Sequencing (Automation)",
-    "subCapabilityOrder": 3,
-    "steps": [
-      {
-        "action": 0,
-        "control": 15
-      }
-    ],
-    "views": [1, 17],
-    "firmware": [1],
-    "paragraphs": [
-      {
-        "spans": [
-          {
-            "text": "Toggles automatic scrolling during playback in Automation Arranger View."
-          }
-        ]
-      }
-    ],
-    "description": "Press the Cross-screen button."
-  },
-  {
     "name": "Toggle Automation View Interpolation On or Off",
     "capability": "05-sequencing_automation",
     "capabilityParentId": "SEQUENCING",
@@ -7767,7 +8118,7 @@
           },
           {
             "action": 0,
-            "control": 36
+            "control": 38
           }
         ]
       }
@@ -7801,7 +8152,7 @@
           },
           {
             "action": 0,
-            "control": 35
+            "control": 37
           }
         ]
       }
@@ -7820,6 +8171,32 @@
     "description": "Hold the Shift button, press the Unlit grid pad."
   },
   {
+    "name": "Enter Step Automation",
+    "capability": "05-sequencing_automation",
+    "capabilityParentId": "SEQUENCING",
+    "capabilityOrder": 6,
+    "subCapabilityTitle": "Sequencing (Automation)",
+    "subCapabilityOrder": 3,
+    "steps": [
+      {
+        "action": 0,
+        "control": 36
+      }
+    ],
+    "views": [15, 17, 18],
+    "firmware": [1],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "In the automation view editor, press a single step or select a range of steps to set enter step automation."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Grid pad (lit or unlit)."
+  },
+  {
     "name": "Enter Step Automation (with gold knobs)",
     "capability": "05-sequencing_automation",
     "capabilityParentId": "SEQUENCING",
@@ -7831,11 +8208,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 2,
-            "control": 43
+            "control": 45
           }
         ]
       }
@@ -7865,11 +8242,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 2,
-            "control": 46
+            "control": 48
           }
         ]
       }
@@ -7896,12 +8273,12 @@
     "subCapabilityOrder": 3,
     "steps": [
       {
-        "action": 0,
-        "control": 34
+        "action": 1,
+        "control": 36
       },
       {
         "action": 2,
-        "control": 43
+        "control": 45
       }
     ],
     "views": [17],
@@ -7915,7 +8292,7 @@
         ]
       }
     ],
-    "description": "Press the Grid pad (lit or unlit). Turn the parameter encoders."
+    "description": "Hold the Grid pad (lit or unlit). Turn the parameter encoders."
   },
   {
     "name": "Resample / record all audio output (begin instantly)",
@@ -8087,7 +8464,7 @@
           },
           {
             "action": 0,
-            "control": 37
+            "control": 39
           }
         ]
       }
@@ -8189,7 +8566,7 @@
         "substeps": [
           {
             "action": 1,
-            "control": 37
+            "control": 39
           },
           {
             "action": 0,
@@ -8219,7 +8596,7 @@
     "description": "Hold the Audition / Section button for row, press the Record button."
   },
   {
-    "name": "Audio Export",
+    "name": "Start Audio Export",
     "capability": "03-recording_audio_export",
     "capabilityParentId": "RECORDING",
     "capabilityOrder": 7,
@@ -8256,6 +8633,39 @@
     "description": "Press the Save (Delete) button, press the Record button."
   },
   {
+    "name": "Cancel Audio Export",
+    "capability": "03-recording_audio_export",
+    "capabilityParentId": "RECORDING",
+    "capabilityOrder": 7,
+    "subCapabilityTitle": "Recording (Audio)",
+    "subCapabilityOrder": 2,
+    "subSubCapabilityId": "03-recording_audio_export::recording-audio-export",
+    "subSubCapabilityTitle": "Recording (Audio Export)",
+    "subSubCapabilityOrder": 3,
+    "steps": [
+      {
+        "action": 0,
+        "control": 5
+      },
+      {
+        "action": 0,
+        "control": 34
+      }
+    ],
+    "views": [1, 2, 10],
+    "firmware": [1],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Press BACK while audio export process is running and then press SELECT to confirm."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Back / Undo (Redo) button. Press the Select (Settings) encoder."
+  },
+  {
     "name": "Record external notes",
     "capability": "01-recording_nonaudio_note",
     "capabilityParentId": "RECORDING",
@@ -8276,7 +8686,7 @@
       },
       {
         "action": 0,
-        "control": 46
+        "control": 48
       }
     ],
     "views": [9, 10, 11, 12],
@@ -8338,7 +8748,7 @@
       },
       {
         "action": 2,
-        "control": 43
+        "control": 45
       }
     ],
     "views": [9, 10],
@@ -8375,7 +8785,7 @@
       },
       {
         "action": 2,
-        "control": 43
+        "control": 45
       }
     ],
     "views": [11],
@@ -8406,11 +8816,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 2,
-            "control": 43
+            "control": 45
           }
         ]
       }
@@ -8444,7 +8854,7 @@
           },
           {
             "action": 0,
-            "control": 29
+            "control": 31
           }
         ]
       }
@@ -8479,11 +8889,11 @@
     "steps": [
       {
         "action": 2,
-        "control": 30
+        "control": 32
       },
       {
         "action": 0,
-        "control": 29
+        "control": 31
       },
       {
         "substeps": [
@@ -8493,7 +8903,7 @@
           },
           {
             "action": 0,
-            "control": 29
+            "control": 31
           }
         ]
       }
@@ -8527,7 +8937,7 @@
           },
           {
             "action": 0,
-            "control": 38
+            "control": 40
           }
         ]
       }
@@ -8569,7 +8979,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 38
+        "control": 40
       }
     ],
     "views": [2],
@@ -8589,11 +8999,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 30
+            "control": 32
           },
           {
             "action": 0,
-            "control": 38
+            "control": 40
           }
         ]
       }
@@ -8621,7 +9031,7 @@
       },
       {
         "action": 0,
-        "control": 38
+        "control": 40
       }
     ],
     "views": [2],
@@ -8653,7 +9063,7 @@
           },
           {
             "action": 0,
-            "control": 34
+            "control": 36
           }
         ]
       }
@@ -8687,7 +9097,7 @@
           },
           {
             "action": 0,
-            "control": 37
+            "control": 39
           }
         ]
       }
@@ -8733,7 +9143,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 35
+        "control": 37
       },
       {
         "action": 0,
@@ -8741,7 +9151,7 @@
       },
       {
         "action": 2,
-        "control": 33
+        "control": 35
       }
     ],
     "views": [2],
@@ -8765,23 +9175,33 @@
           },
           {
             "action": 0,
-            "control": 32
+            "control": 34
+          }
+        ]
+      },
+      {
+        "substeps": [
+          {
+            "action": 2,
+            "control": 34
+          },
+          {
+            "action": 0,
+            "control": 34
           }
         ]
       },
       {
         "action": 3,
-        "control": 0
-      },
-      {
-        "action": 3,
-        "control": 0
+        "control": 0,
+        "label": "Settings > Recording > Count-In Bars",
+        "menuContext": "COUNT_IN"
       }
     ],
     "views": [2],
     "firmware": [0],
     "paragraphs": [],
-    "description": "Hold the Shift button, press the Select (Settings) encoder. Select an option from the on-screen menu. Select an option from the on-screen menu."
+    "description": "Hold the Shift button, press the Select (Settings) encoder. Turn the Select (Settings) encoder, press the Select (Settings) encoder. Select an option from the on-screen menu."
   },
   {
     "name": "Grid View Loop Pads",
@@ -8793,7 +9213,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 37
+        "control": 39
       }
     ],
     "views": [1, 2],
@@ -8816,7 +9236,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 32
+        "control": 34
       }
     ],
     "views": [19, 21],
@@ -8866,7 +9286,7 @@
           },
           {
             "action": 2,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -8900,7 +9320,7 @@
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -8928,7 +9348,7 @@
     "steps": [
       {
         "action": 2,
-        "control": 30
+        "control": 32
       }
     ],
     "views": [14, 9, 11, 12],
@@ -8954,7 +9374,7 @@
     "steps": [
       {
         "action": 2,
-        "control": 31
+        "control": 33
       }
     ],
     "views": [14, 9, 11, 12],
@@ -8982,11 +9402,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 34
+            "control": 36
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -9020,7 +9440,7 @@
           },
           {
             "action": 0,
-            "control": 32
+            "control": 34
           }
         ]
       }
@@ -9054,7 +9474,7 @@
           },
           {
             "action": 2,
-            "control": 30
+            "control": 32
           }
         ]
       }
@@ -9088,7 +9508,7 @@
           },
           {
             "action": 2,
-            "control": 43
+            "control": 45
           }
         ]
       }
@@ -9116,7 +9536,7 @@
     "steps": [
       {
         "action": 2,
-        "control": 43
+        "control": 45
       }
     ],
     "views": [9, 10],
@@ -9139,6 +9559,32 @@
       }
     ],
     "description": "Turn the parameter encoders."
+  },
+  {
+    "name": "Select a parameter bank",
+    "capability": "08-controls_parameters",
+    "capabilityParentId": "CONTROLS",
+    "capabilityOrder": 9,
+    "subCapabilityTitle": "Controls (Parameters)",
+    "subCapabilityOrder": 3,
+    "steps": [
+      {
+        "action": 0,
+        "control": 17
+      }
+    ],
+    "views": [],
+    "firmware": [0],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Pressing the circular buttons between the gold dials will change the parameters that each gold dial controls."
+          }
+        ]
+      }
+    ],
+    "description": "Press the PARAM BUTTON."
   },
   {
     "name": "Check parameter assignment to gold dial",
@@ -9168,6 +9614,92 @@
     "description": "Hold the PARAM BUTTON."
   },
   {
+    "name": "Cycle parameter assignment to gold dial between LPF, HPF, and EQ",
+    "capability": "08-controls_parameters",
+    "capabilityParentId": "CONTROLS",
+    "capabilityOrder": 9,
+    "subCapabilityTitle": "Controls (Parameters)",
+    "subCapabilityOrder": 3,
+    "steps": [
+      {
+        "action": 0,
+        "control": 19
+      },
+      {
+        "action": 0,
+        "control": 47
+      }
+    ],
+    "views": [],
+    "firmware": [0],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Select Cutoff / Res parameter bank. Press upper gold dial to toggle between LPF, HPF and EQ."
+          }
+        ]
+      }
+    ],
+    "description": "Press the CUTOFF/RES BUTTON. Press the upper parameter encoder."
+  },
+  {
+    "name": "Change LPF or HPF mode depending on parameter assignment to gold dial",
+    "capability": "08-controls_parameters",
+    "capabilityParentId": "CONTROLS",
+    "capabilityOrder": 9,
+    "subCapabilityTitle": "Controls (Parameters)",
+    "subCapabilityOrder": 3,
+    "steps": [
+      {
+        "action": 0,
+        "control": 19
+      },
+      {
+        "action": 0,
+        "control": 46
+      }
+    ],
+    "views": [],
+    "firmware": [0],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Select Cutoff / Res parameter bank. Press lower gold dial when parameter bank is set to LPF or HPF to cycle between LPF or HPF modes."
+          }
+        ]
+      }
+    ],
+    "description": "Press the CUTOFF/RES BUTTON. Press the lower parameter encoder."
+  },
+  {
+    "name": "Edit the lower or upper parameter",
+    "capability": "08-controls_parameters",
+    "capabilityParentId": "CONTROLS",
+    "capabilityOrder": 9,
+    "subCapabilityTitle": "Controls (Parameters)",
+    "subCapabilityOrder": 3,
+    "steps": [
+      {
+        "action": 2,
+        "control": 45
+      }
+    ],
+    "views": [],
+    "firmware": [0],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Turn lower or upper gold dial to adjust the assigned parameter."
+          }
+        ]
+      }
+    ],
+    "description": "Turn the parameter encoders."
+  },
+  {
     "name": "Delete automation of recorded parameter",
     "capability": "08-controls_parameters",
     "capabilityParentId": "CONTROLS",
@@ -9183,7 +9715,7 @@
           },
           {
             "action": 0,
-            "control": 43
+            "control": 45
           }
         ]
       }
@@ -9202,6 +9734,40 @@
     "description": "Hold the Shift button, press the parameter encoders."
   },
   {
+    "name": "Delete automation of tempo",
+    "capability": "08-controls_parameters",
+    "capabilityParentId": "CONTROLS",
+    "capabilityOrder": 9,
+    "subCapabilityTitle": "Controls (Parameters)",
+    "subCapabilityOrder": 3,
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 0,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 35
+          }
+        ]
+      }
+    ],
+    "views": [1],
+    "firmware": [1],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Deletes recorded automation for tempo in arranger view."
+          }
+        ]
+      }
+    ],
+    "description": "Press the Shift button, press the Tempo (Swing) encoder."
+  },
+  {
     "name": "Copy automation of parameter",
     "capability": "08-controls_parameters",
     "capabilityParentId": "CONTROLS",
@@ -9217,7 +9783,7 @@
           },
           {
             "action": 0,
-            "control": 43
+            "control": 45
           }
         ]
       }
@@ -9255,7 +9821,7 @@
           },
           {
             "action": 0,
-            "control": 43
+            "control": 45
           }
         ]
       }
@@ -9285,11 +9851,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 2,
-            "control": 43
+            "control": 45
           }
         ]
       }
@@ -9308,7 +9874,7 @@
     "description": "Hold the Lit grid pad, turn the parameter encoders."
   },
   {
-    "name": "Parameter change / lock per clip in song view",
+    "name": "Parameter change / lock per clip in session view or arranger view",
     "capability": "08-controls_parameters",
     "capabilityParentId": "CONTROLS",
     "capabilityOrder": 9,
@@ -9319,22 +9885,22 @@
         "substeps": [
           {
             "action": 1,
-            "control": 36
+            "control": 38
           },
           {
             "action": 2,
-            "control": 43
+            "control": 45
           }
         ]
       }
     ],
-    "views": [2],
+    "views": [1, 2],
     "firmware": [0],
     "paragraphs": [
       {
         "spans": [
           {
-            "text": "Changes or locks the selected parameter per clip in Song view."
+            "text": "Changes or locks the selected parameter per clip in Session View."
           }
         ]
       }
@@ -9351,7 +9917,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 45
+        "control": 47
       }
     ],
     "views": [9, 10, 1, 2],
@@ -9377,7 +9943,7 @@
     "steps": [
       {
         "action": 0,
-        "control": 44
+        "control": 46
       }
     ],
     "views": [9, 10, 1, 2],
@@ -9392,6 +9958,108 @@
       }
     ],
     "description": "Press the lower parameter encoder."
+  },
+  {
+    "name": "Momentary stutter",
+    "capability": "08-controls_parameters",
+    "capabilityParentId": "CONTROLS",
+    "capabilityOrder": 9,
+    "subCapabilityTitle": "Controls (Parameters)",
+    "subCapabilityOrder": 3,
+    "steps": [
+      {
+        "action": 0,
+        "control": 24
+      },
+      {
+        "action": 1,
+        "control": 47
+      }
+    ],
+    "views": [],
+    "firmware": [0],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Select stutter parameter bank and hold down upper gold dial to engage stutter."
+          }
+        ]
+      }
+    ],
+    "description": "Press the STUTTER/CUSTOM 1 BUTTON. Hold the upper parameter encoder."
+  },
+  {
+    "name": "Momentary stutter and adjust stutter rate",
+    "capability": "08-controls_parameters",
+    "capabilityParentId": "CONTROLS",
+    "capabilityOrder": 9,
+    "subCapabilityTitle": "Controls (Parameters)",
+    "subCapabilityOrder": 3,
+    "steps": [
+      {
+        "action": 0,
+        "control": 24
+      },
+      {
+        "substeps": [
+          {
+            "action": 0,
+            "control": 47
+          },
+          {
+            "action": 2,
+            "control": 47
+          }
+        ]
+      }
+    ],
+    "views": [],
+    "firmware": [0],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "Select stutter parameter bank and hold down upper gold dial to engage stutter. Turn upper gold dial while stutter is engaged to change stutter rate at same time as stutter."
+          }
+        ]
+      }
+    ],
+    "description": "Press the STUTTER/CUSTOM 1 BUTTON. Press the upper parameter encoder, turn the upper parameter encoder."
+  },
+  {
+    "name": "Delete Parameter Automation from Sound Editor Menu",
+    "capability": "08-controls_parameters",
+    "capabilityParentId": "CONTROLS",
+    "capabilityOrder": 9,
+    "subCapabilityTitle": "Controls (Parameters)",
+    "subCapabilityOrder": 3,
+    "steps": [
+      {
+        "substeps": [
+          {
+            "action": 1,
+            "control": 4
+          },
+          {
+            "action": 0,
+            "control": 34
+          }
+        ]
+      }
+    ],
+    "views": [19, 21],
+    "firmware": [0],
+    "paragraphs": [
+      {
+        "spans": [
+          {
+            "text": "While in the sound editor menu for an automatable parameter, hold shift and press select to delete automation for the selected parameter."
+          }
+        ]
+      }
+    ],
+    "description": "Hold the Shift button, press the Select (Settings) encoder."
   },
   {
     "name": "Waveform edit view - change start / end / loop",
@@ -9409,7 +10077,7 @@
           },
           {
             "action": 0,
-            "control": 34
+            "control": 36
           }
         ]
       }
@@ -9429,11 +10097,11 @@
     "steps": [
       {
         "action": 0,
-        "control": 39
+        "control": 41
       },
       {
         "action": 0,
-        "control": 34
+        "control": 36
       }
     ],
     "views": [13],
@@ -9459,11 +10127,11 @@
     "steps": [
       {
         "action": 0,
-        "control": 40
+        "control": 42
       },
       {
         "action": 0,
-        "control": 34
+        "control": 36
       }
     ],
     "views": [13],
@@ -9491,11 +10159,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 39
+            "control": 41
           },
           {
             "action": 0,
-            "control": 34
+            "control": 36
           }
         ]
       }
@@ -9525,11 +10193,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 41
+            "control": 43
           },
           {
             "action": 0,
-            "control": 39
+            "control": 41
           }
         ]
       }
@@ -9559,11 +10227,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 40
+            "control": 42
           },
           {
             "action": 0,
-            "control": 34
+            "control": 36
           }
         ]
       }
@@ -9593,11 +10261,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 42
+            "control": 44
           },
           {
             "action": 0,
-            "control": 40
+            "control": 42
           }
         ]
       }
@@ -9627,11 +10295,11 @@
         "substeps": [
           {
             "action": 1,
-            "control": 41
+            "control": 43
           },
           {
             "action": 0,
-            "control": 42
+            "control": 44
           }
         ]
       }

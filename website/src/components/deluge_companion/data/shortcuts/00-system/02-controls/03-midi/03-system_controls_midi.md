@@ -5,6 +5,14 @@ sub-capability-order: 2
 sub-sub-capability: System (MIDI)
 sub-sub-capability-order: 3
 
+# Enter MIDI learn mode
+
+#OFFICIAL
+
+```shortcut
+hold(LEARN)
+```
+
 # External controller to play synth or kit
 
 #OFFICIAL #SYNTH #KIT #MIDI #CV

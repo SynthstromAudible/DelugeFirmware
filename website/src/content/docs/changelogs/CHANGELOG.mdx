@@ -34,6 +34,7 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
 - Added audio output modes, and changed audio clip monitoring to be seperate from source selection. Monitoring is now on
   when the output is a SAMPLER or a LOOPER, chosen by turning the select knob in an audio clip.
 - Added the ability to trim from the start of an audio clip without reversing it (enable in Community Features menu).
+- Added `Edit Name` menu to Actions > menu which allows you to rename the Audio Clips Track Name and Clip Name. :key[Shift] + `NAME` :key[pad] will now open the `Actions > Edit Name` menu.
 
 #### <ins>Session View</ins>
 
@@ -50,6 +51,11 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
 - If you are updating to <Badge text="c1.3" variant="tip" /> from an earlier firmware, please delete all existing MIDIFollow.XML files from your SD card so that the file can be re-generated with the new file format.
 
 #### <ins>Instrument Clips / Instrument Clip View</ins>
+
+##### General
+
+- Added `Edit Name` menu to Actions > menu which allows you to rename the Track Name and Clip Name. :key[Shift] + `NAME` :key[pad] will now open the `Actions > Edit Name` menu.
+  - Note for Kits, the `Edit Name` menu is in the `Kit FX > Actions` menu which you access by enabling :key[AffectEntire] and then pressing :key[select].
 
 ##### Notes
 
@@ -84,6 +90,7 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
 #### <ins>Reverb</ins>
 
 - Added LPF to Mutable Instruments Reverb
+- Added new Digital Reverb model
 
 #### <ins>LFO's</ins>
 
@@ -110,6 +117,15 @@ import { Aside, LinkButton, Badge } from "@astrojs/starlight/components"
 - Quantized stutter is enabled by default.
 
 ### User Interface
+
+#### <ins>General</ins>
+
+- Added a new settings reset workflow under `SETTINGS > ACTIONS > RESET SETTINGS`, with confirmation prompts for:
+  - `Reset Flash`
+  - `Reset Community Features`
+  - `Reset MIDI Follow`
+  - `Reset MIDI Devices`
+  - `Factory Reset`
 
 #### <ins>New Shortcuts</ins>
 
@@ -408,6 +424,9 @@ A `Favourites` feature has been added to the browser for most file types. The `F
   - Track 1 corresponds to bottom track in `ARRANGER VIEW` or left track in `GRID VIEW`.
   - You can also now configure the Channel `TRACK` for MIDI Follow Feedback. If a specific track is selected and has been configured
     for MIDI Follow control, the Deluge will send feedback of the CC values for that specific track.
+  - MIDI Follow Feedback can now be sent to both the selected track channel and a regular follow channel by selecting `TRACK + A`, `TRACK + B`, or `TRACK + C`.
+    - Combined feedback modes send to the configured track channel first, then to the configured regular channel.
+    - If both targets resolve to the same MIDI channel, feedback is sent only once.
 - Added new default CC 89 to toggle the mute of the active clip in a specific track.
   - Toggle mute: CC Value > 0 (Send a CC value greater than 0 to toggle mute for the active clip in a specific track)
     - If used together with `SHIFT`, it will trigger instant mute.

@@ -32,6 +32,7 @@ public:
 	bool setupAndCheckAvailability() override;
 	bool canSeeViewUnderneath() override { return true; }
 	ActionResult padAction(int32_t x, int32_t y, int32_t on) override;
+	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 	AudioOutput* audioOutput;
 
 	/// Title

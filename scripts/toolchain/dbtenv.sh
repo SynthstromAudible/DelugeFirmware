@@ -390,8 +390,29 @@ dbtenv_main()
         export TERMINFO_DIRS="$TOOLCHAIN_ARCH_DIR/ncurses/share/terminfo";
     fi
 
-    export SSL_CERT_FILE=$(python3 -c 'import site; print(site.getsitepackages()[-1])')/certifi/cacert.pem
-    export REQUESTS_CA_BUNDLE="$SSL_CERT_FILE";
+    export SSL_CERT_FILE=$(python3 - <<'PY'
+import os
+try:
+    import certifi
+    print(certifi.where())
+except Exception:
+    for p in (
+        '/etc/ssl/cert.pem',
+        '/etc/ssl/certs/ca-certificates.crt',
+        '/etc/pki/tls/certs/ca-bundle.crt',
+        '/private/etc/ssl/cert.pem',
+    ):
+        if os.path.exists(p):
+            print(p)
+            break
+    else:
+        print('')
+PY
+)
+    if [ -z "$SSL_CERT_FILE" ]; then
+        unset SSL_CERT_FILE;
+    fi
+    export REQUESTS_CA_BUNDLE="${SSL_CERT_FILE:-$REQUESTS_CA_BUNDLE}";
 
     if [ -n "${DBT_DID_UNPACKING}" ]; then
       dbtenv_setup_python

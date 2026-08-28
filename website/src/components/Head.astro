@@ -52,6 +52,13 @@ import Default from "@astrojs/starlight/components/Head.astro"
 </script>
 
 <script>
+  import { enhanceMenuHierarchyLabels } from "../logic/menuHierarchyDisplayLabels"
+
+  document.addEventListener("astro:page-load", () => {
+    enhanceMenuHierarchyLabels()
+  })
+  enhanceMenuHierarchyLabels()
+
   let mermaidInitialized = false
   let mermaidModulePromise:
     Promise<(typeof import("mermaid"))["default"]> | undefined
