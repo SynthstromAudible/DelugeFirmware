@@ -17,6 +17,7 @@ struct FakeHolder {
 	int32_t endPos = 0;
 	int32_t loopStartPos = 0;
 	int32_t loopEndPos = 0;
+	uint8_t volume = kVariantVolumeUnity;
 
 	void setCents(int32_t newCents) { cents = newCents; }
 };
