@@ -157,4 +157,5 @@ add_subdirectory(spec_audio_stream)
 add_subdirectory(spec_dsp)
 add_subdirectory(spec_sync)
 add_subdirectory(unit)
+add_subdirectory(specs)
 
