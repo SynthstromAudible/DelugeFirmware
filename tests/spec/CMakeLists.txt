@@ -33,11 +33,22 @@ add_library(deluge_spec STATIC
 # copy of the button matrix / encoder order cannot silently drift. See
 # src/bsp/host/host_script_tables.h for why this is its own translation unit.
 ../../src/bsp/host/host_script_tables.c
+# UI test harness level 3's .pbm/.state writers (dependency-free; also compiled into the host
+# BSP), split out the same way (final review I-3) so tests/spec/harness/identity_spec.cpp can
+# cross-check this C port against tests/harness/snapshot.cpp. See src/bsp/host/host_snapshot.h.
+../../src/bsp/host/host_snapshot.c
 )
 target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi deluge_gfx_oled deluge_gfx_grid deluge_ui_core deluge_ui_oled deluge_ui_grid deluge_ui_shell deluge_notify)
 
-# ".." (tests/) lets specs (e.g. harness/ui_script_spec.cpp) #include "harness/ui_script.h".
-target_include_directories(deluge_spec PUBLIC ../../src/deluge ../../src ../32bit_unit_test/mocks/ ../../include ..)
+target_include_directories(deluge_spec PUBLIC ../../src/deluge ../../src ../32bit_unit_test/mocks/ ../../include)
+# ".." (tests/, PRIVATE, not PUBLIC): needed only by this library's OWN
+# src/bsp/host/host_snapshot.c, whose `#include "harness/ui_script.h"` matches the host BSP's own
+# include convention (host_script.c uses the same spelling). Kept off deluge_spec's public
+# interface so the two preview executables that link it (StarfieldPreview, RainfallPreview) do
+# not also inherit golden/, fixtures/, ui-scripts/ and spec/ along with it (M-9) -- the one thing
+# actually needing this on its own include path is the *_spec.cpp files compiled into
+# create_specs_driver's ${driver_name}, which is granted it directly, below.
+target_include_directories(deluge_spec PRIVATE ..)
 
 # DELUGE_REPO_ROOT: the repo root, for specs that shell out to scripts/ (e.g.
 # harness/snapshot_tools_spec.cpp, which runs scripts/ui_snapshot_diff.py and
@@ -65,6 +76,13 @@ function(create_specs_driver driver_name spec_dir)
   create_test_sourcelist(specs ${driver_name}.cpp ${spec_sources})
   add_executable(${driver_name} ${specs})
   target_link_libraries(${driver_name} PRIVATE c++spec)
+  # tests/ root: support/script_runner.h and harness/{ui_script,identity}_spec.cpp
+  # #include "harness/ui_script.h" / "harness/snapshot.h" (tests/harness's dependency-free level-0
+  # parser and snapshot writer). Granted directly to the driver that compiles those files (M-9),
+  # rather than left on deluge_spec's PUBLIC include path, so StarfieldPreview/RainfallPreview --
+  # which also link deluge_spec, but need none of this -- do not inherit golden/, fixtures/,
+  # ui-scripts/ and spec/ along with it.
+  target_include_directories(${driver_name} PRIVATE ${spec_dir}/..)
   set_target_properties(${driver_name} PROPERTIES
     CXX_STANDARD 26
     CXX_STANDARD_REQUIRED YES

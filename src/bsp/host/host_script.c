@@ -26,10 +26,13 @@
 ///                             reproducible and there is no point recording it.
 ///   DELUGE_SD_ROOT            the card root, as today (host_efatfs_passthrough.cpp).
 ///
-/// SNAPSHOT FORMAT: `tests/harness/snapshot.{h,cpp}` is the source of truth. It is C++ and this
-/// file is C, so the P1 and `.state` writers below are a hand port of it and MUST stay
-/// byte-identical to it -- the level-2 and level-3 goldens are diffed against each other by spec
-/// F's migration acceptance. Read `snapshot.cpp` before touching `write_pbm` or `state_*` here.
+/// SNAPSHOT FORMAT: `tests/harness/snapshot.{h,cpp}` is the source of truth. It is C++, so the P1
+/// and `.state` writers are a hand port of it into C -- `host_snapshot.{h,c}`, split out (final
+/// review I-3) exactly as `host_script_tables.c` splits out the name tables, so BOTH this BSP and
+/// `deluge_spec` can compile them and `tests/spec/harness/identity_spec.cpp` can cross-check the
+/// two writers against one fact set instead of leaning on a comment. This file only ever calls
+/// into that API (`collect_state`, below) -- read `host_snapshot.h` before touching the format
+/// itself.
 ///
 /// LEVEL-3 DEVIATIONS from the level-2 `.state` (all forced by what the BSP can see, and all
 /// checked against the controller's rulings for this task):
@@ -48,9 +51,9 @@
 #include "host_script.h"
 
 #include "harness/ui_script.h" // the parser's extern "C" façade (Task 1)
+#include "host_snapshot.h"     // the .pbm/.state writers (final review I-3)
 
 #include <dirent.h>
-#include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -80,7 +83,7 @@ extern uint32_t host_rendered_frames; // host_audio.c — the offline audio cloc
 #define HOST_SCRIPT_EDGES_PER_DETENT 2
 
 // ===========================================================================
-// Snapshot writers — a C port of tests/harness/snapshot.cpp. Keep byte-identical.
+// Snapshot writers — host_snapshot.{h,c}. See that header and this file's own header comment.
 // ===========================================================================
 
 /// `mkdir -p`. POSIX-only; this file only ever runs on the host.
@@ -136,122 +139,6 @@ static FILE* open_snapshot_file(const char* name, const char* suffix) {
 	return f;
 }
 
-/// Write a page-major 1-bpp framebuffer as a P1 (plain-text) PBM.
-///
-/// Byte-for-byte `deluge::harness::oled_pbm` (`tests/harness/snapshot.cpp:14-28`): the header
-/// `P1\n<w> <h>\n`, then one line per pixel row of `'1'`/`'0'` SEPARATED BY SINGLE SPACES with no
-/// trailing space, each line newline-terminated. Bit `b` of `page_major[(y >> 3) * w + x]` is row
-/// `(y & 7)` of page `y >> 3`.
-static int write_pbm(FILE* f, const uint8_t* page_major, uint16_t w, uint16_t h) {
-	fprintf(f, "P1\n%u %u\n", (unsigned)w, (unsigned)h);
-	for (uint16_t y = 0; y < h; y++) {
-		for (uint16_t x = 0; x < w; x++) {
-			const int on = (page_major[(y >> 3) * w + x] & (1u << (y & 7))) != 0;
-			fputc(on ? '1' : '0', f);
-			if (x + 1 < w) {
-				fputc(' ', f);
-			}
-		}
-		fputc('\n', f);
-	}
-	return ferror(f) == 0;
-}
-
-/// Bytes per `.state` line, NUL included — `deluge::harness::kStateLineBytes`
-/// (`tests/harness/snapshot.h:36`).
-#define HOST_SCRIPT_STATE_LINE_BYTES 96
-/// How many `.state` lines one snapshot can hold. The level-2 `StateLines` caps at 256; level 3
-/// can legitimately produce more (up to 18 × 8 = 144 pads, 36 LEDs and 2 indicators is already
-/// 182, and the pad shadow is 32 columns wide), so this is deliberately roomier. A snapshot that
-/// overflowed it would silently lose facts, so `state_addf` records that and the run fails.
-#define HOST_SCRIPT_STATE_MAX_LINES 512
-
-typedef struct HostScriptState {
-	char lines[HOST_SCRIPT_STATE_MAX_LINES][HOST_SCRIPT_STATE_LINE_BYTES];
-	size_t count;
-	int overflowed;
-} HostScriptState;
-
-static void state_addf(HostScriptState* s, const char* fmt, ...) __attribute__((format(printf, 2, 3)));
-
-/// Format and append one line. Truncated (not rejected) at the line width, exactly as
-/// `StateLines::add` does -- see `kStateLineBytes`'s note on why.
-static void state_addf(HostScriptState* s, const char* fmt, ...) {
-	if (s->count >= HOST_SCRIPT_STATE_MAX_LINES) {
-		s->overflowed = 1;
-		return;
-	}
-	va_list args;
-	va_start(args, fmt);
-	vsnprintf(s->lines[s->count], HOST_SCRIPT_STATE_LINE_BYTES, fmt, args);
-	va_end(args);
-	s->count++;
-}
-
-/// True when \p word is \p s's first whitespace-delimited token
-/// (`snapshot.cpp`'s `starts_with_word`).
-static int starts_with_word(const char* s, const char* word) {
-	const size_t n = strlen(word);
-	return strncmp(s, word, n) == 0 && s[n] == ' ';
-}
-
-/// `.state` category order, per the controller's ruling on spec G §3 and `snapshot.cpp:47`:
-/// `scene` first, then `led`, `pad`, `indicator`, `lock`, `notice`, then anything unrecognised.
-/// Level 3 never emits `scene`, `lock` or `notice`, but the order is kept whole so the two
-/// levels' files sort identically.
-enum HostScriptCategory {
-	HOST_SCRIPT_CAT_SCENE = 0,
-	HOST_SCRIPT_CAT_LED,
-	HOST_SCRIPT_CAT_PAD,
-	HOST_SCRIPT_CAT_INDICATOR,
-	HOST_SCRIPT_CAT_LOCK,
-	HOST_SCRIPT_CAT_NOTICE,
-	HOST_SCRIPT_CAT_OTHER,
-};
-
-static int category_of(const char* s) {
-	if (starts_with_word(s, "scene")) {
-		return HOST_SCRIPT_CAT_SCENE;
-	}
-	if (starts_with_word(s, "led")) {
-		return HOST_SCRIPT_CAT_LED;
-	}
-	if (starts_with_word(s, "pad")) {
-		return HOST_SCRIPT_CAT_PAD;
-	}
-	if (starts_with_word(s, "indicator")) {
-		return HOST_SCRIPT_CAT_INDICATOR;
-	}
-	if (starts_with_word(s, "lock")) {
-		return HOST_SCRIPT_CAT_LOCK;
-	}
-	if (starts_with_word(s, "notice")) {
-		return HOST_SCRIPT_CAT_NOTICE;
-	}
-	return HOST_SCRIPT_CAT_OTHER;
-}
-
-/// Sort by category, then ASCII within it. `scene` keeps insertion order in `snapshot.cpp`; level
-/// 3 emits none, so a total order here is equivalent and needs no stable sort.
-static int state_line_cmp(const void* a, const void* b) {
-	const char* la = (const char*)a;
-	const char* lb = (const char*)b;
-	const int ca = category_of(la);
-	const int cb = category_of(lb);
-	if (ca != cb) {
-		return ca < cb ? -1 : 1;
-	}
-	return strcmp(la, lb);
-}
-
-static int write_state(FILE* f, HostScriptState* s) {
-	qsort(s->lines, s->count, HOST_SCRIPT_STATE_LINE_BYTES, state_line_cmp);
-	for (size_t i = 0; i < s->count; i++) {
-		fprintf(f, "%s\n", s->lines[i]);
-	}
-	return ferror(f) == 0;
-}
-
 /// The name of the indicator LED at legacy index \p led (`x + y*9`), or NULL when no button --
 /// and so no LED -- sits there. Derived from the button matrix rather than a second table:
 /// `indicator_leds.h:30-64` builds every `LED` value from its button's own coordinates, so the
@@ -264,32 +151,32 @@ static const char* led_name(uint8_t led) {
 }
 
 /// Build the `.state` text for the current moment from the BSP's shadows.
-static void collect_state(HostScriptState* s) {
+static void collect_state(HostSnapshotLines* s) {
 	const uint8_t* leds = host_script_led_shadow();
 	for (uint8_t i = 0; i < HOST_SCRIPT_LED_COUNT; i++) {
 		if (leds[i] == 0) {
 			continue; // an LED that is off is not shown at all -- only lit ones are
 		}
 		const char* name = led_name(i);
-		if (name != NULL) {
-			state_addf(s, "led %s on", name);
+		char id_buf[8];
+		if (name == NULL) {
+			// No button at that coordinate: show the raw legacy `x + y*9` id instead -- the same
+			// "nothing to name it by" fallback the level-2 runner's `led_name` uses for an `LedId`
+			// with no button, just in level 2's own number space (the `LedId`/`ButtonId` value)
+			// rather than this one (`x + y*9`). Unreachable on the Deluge board (every matrix
+			// position that carries an LED has a name), so the two number spaces never have to
+			// agree in practice.
+			snprintf(id_buf, sizeof(id_buf), "%u", (unsigned)i);
+			name = id_buf;
 		}
-		else {
-			// No button at that coordinate: show the raw id, as the level-2 runner's `led_name`
-			// does for an `LedId` with no button.
-			state_addf(s, "led %u on", (unsigned)i);
-		}
+		host_snapshot_add_led(s, name, 0, 0);
 	}
 
 	const uint8_t* pads = host_script_pad_shadow();
 	for (uint8_t col = 0; col < HOST_SCRIPT_PAD_COLS; col++) {
 		for (uint8_t row = 0; row < HOST_SCRIPT_PAD_ROWS; row++) {
 			const uint8_t* c = &pads[((size_t)col * HOST_SCRIPT_PAD_ROWS + row) * 3u];
-			if (c[0] == 0 && c[1] == 0 && c[2] == 0) {
-				continue; // black: skipped -- only non-black pads are ever shown
-			}
-			state_addf(s, "pad %u %u %u %u %u", (unsigned)col, (unsigned)row, (unsigned)c[0], (unsigned)c[1],
-			           (unsigned)c[2]);
+			host_snapshot_add_pad(s, col, row, c[0], c[1], c[2]);
 		}
 	}
 
@@ -300,8 +187,7 @@ static void collect_state(HostScriptState* s) {
 		}
 		// which == 0 is mod encoder 0, the LOWER gold knob -- see this file's header comment, and
 		// `IndicatorId` (`src/ui/core/led_frame.h`), which is numbered to agree.
-		state_addf(s, "indicator %s %u %u %u %u", which == 0 ? "lower" : "upper", (unsigned)levels[0],
-		           (unsigned)levels[1], (unsigned)levels[2], (unsigned)levels[3]);
+		host_snapshot_add_indicator(s, which != 0, levels);
 	}
 }
 
@@ -378,23 +264,23 @@ static void write_snapshot(const char* name) {
 		if (f == NULL) {
 			script_fail("could not open a snapshot .pbm for writing");
 		}
-		const int ok = write_pbm(f, frame, w, h);
+		const int ok = host_snapshot_write_pbm(f, frame, w, h);
 		if (fclose(f) != 0 || !ok) {
 			script_fail("could not write a snapshot .pbm");
 		}
 	}
 
-	static HostScriptState state; // ~48 KiB; static so a deep call stack does not carry it
-	memset(&state, 0, sizeof(state));
+	static HostSnapshotLines state; // ~48 KiB; static so a deep call stack does not carry it
+	host_snapshot_reset(&state);
 	collect_state(&state);
 	if (state.overflowed) {
-		script_fail("a .state snapshot needed more lines than HOST_SCRIPT_STATE_MAX_LINES");
+		script_fail("a .state snapshot needed more lines than HOST_SNAPSHOT_MAX_LINES");
 	}
 	FILE* f = open_snapshot_file(name, ".state");
 	if (f == NULL) {
 		script_fail("could not open a snapshot .state for writing");
 	}
-	const int ok = write_state(f, &state);
+	const int ok = host_snapshot_write_state(f, &state);
 	if (fclose(f) != 0 || !ok) {
 		script_fail("could not write a snapshot .state");
 	}

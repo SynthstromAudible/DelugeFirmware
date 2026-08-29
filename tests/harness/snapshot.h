@@ -1,5 +1,6 @@
 #pragma once
 #include "fixed_vector.h"
+#include "ui_script.h" // UI_SCRIPT_STATE_LINE_BYTES -- see kStateLineBytes's static_assert below
 
 #include <array>
 #include <cstddef>
@@ -30,18 +31,43 @@ std::string oled_pbm(std::span<const uint8_t> page_major, uint16_t w, uint16_t h
 /// The device produces popup text at that length for real (`midi_follow.cpp`'s
 /// "Can't control: \n<param name>"), and a truncated line is a golden that silently stops
 /// distinguishing two different screens -- the one thing this harness exists to prevent.
+///
+/// Shared with the C snapshot writer (`src/bsp/host/host_snapshot.h`) through
+/// `UI_SCRIPT_STATE_LINE_BYTES` (`ui_script.h`, C-compatible) rather than two separately-chosen
+/// numbers that could silently drift apart (I-3): both this constant and the C writer's line
+/// buffers are exactly that one macro's value, so widening one widens both, and this
+/// `static_assert` is only a belt-and-braces check that nothing redefines the macro underneath
+/// this file. `tests/spec/harness/identity_spec.cpp` is the automated check that the two writers
+/// still agree byte-for-byte, for a fact set that exercises this width.
 inline constexpr size_t kStateLineBytes = 96;
+static_assert(kStateLineBytes == UI_SCRIPT_STATE_LINE_BYTES);
 
 /// @brief The lines of a `.state` snapshot (spec G §3), formatted and sorted on demand.
 struct StateLines {
 	FixedVector<std::array<char, kStateLineBytes>, 256> lines;
 
+	/// @brief True once `add` has had to drop a line because `lines` was already full.
+	///
+	/// A line past the 256-line capacity is NOT the "safe to truncate" case `add`'s own note
+	/// describes -- that note is about one line's own *width*, where the harness controls the
+	/// content and a longer line is still readable in a diff. Losing a whole line is losing a
+	/// fact (an LED, a pad, a notice) with nothing left in the `.state` file to say so, which is
+	/// exactly what this harness exists to catch (see the file-level rationale on the `256`
+	/// capacity itself, `fixed_vector.h`). So `add` reports it via its return value, and a
+	/// snapshot that sets this flag must fail the run rather than record a truncated golden --
+	/// mirroring level 3's own hard failure on the same overflow (`host_script.c`'s
+	/// `HOST_SCRIPT_STATE_MAX_LINES`/`script_fail`).
+	bool overflowed = false;
+
 	/// @brief Append one already-formatted line (no trailing newline).
-	/// @note Silently truncated at `kStateLineBytes - 1` characters, not rejected -- a line
-	/// needing more than that to stay unique from another is a snapshot format bug worth catching
-	/// in a golden diff, not a value worth failing this call over. See `kStateLineBytes` for how
-	/// that bound was chosen.
-	void add(std::string_view line);
+	/// @note The line's own *text* is silently truncated at `kStateLineBytes - 1` characters, not
+	/// rejected -- a line needing more than that to stay unique from another is a snapshot format
+	/// bug worth catching in a golden diff, not a value worth failing this call over. See
+	/// `kStateLineBytes` for how that bound was chosen.
+	/// @return False when `lines` was already at capacity (256): the line was dropped entirely,
+	/// and `overflowed` is now set. True otherwise (including when the line's own text was
+	/// truncated to fit -- that is not an overflow).
+	bool add(std::string_view line);
 
 	/// @brief Render every line in a fixed category order -- `scene`, `led`, `pad`,
 	/// `indicator`, `lock`, `notice`, then anything else (by first word) -- each terminated

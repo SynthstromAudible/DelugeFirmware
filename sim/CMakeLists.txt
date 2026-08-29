@@ -420,6 +420,10 @@ add_executable(deluge_host
     # dependency-free into both this target and deluge_spec (tests/spec/harness/tables_spec.cpp's
     # cross-check against deluge_profile()) — see src/bsp/host/host_script_tables.h.
     ${REPO_ROOT}/src/bsp/host/host_script_tables.c
+    # The .pbm/.state writers, split out the same way (final review I-3) so
+    # tests/spec/harness/identity_spec.cpp can cross-check this C port against
+    # tests/harness/snapshot.cpp — see src/bsp/host/host_snapshot.h.
+    ${REPO_ROOT}/src/bsp/host/host_snapshot.c
     ${REPO_ROOT}/src/bsp/host/host_debug.cpp
     ${REPO_ROOT}/src/bsp/host/host_efatfs_passthrough.cpp
     # The UI script parser (spec G §2). C++ with an extern "C" façade, compiled straight into the
@@ -451,6 +455,7 @@ add_executable(deluge_loadcheck
     ${REPO_ROOT}/src/bsp/host/host_loadcheck_main.cpp
     ${REPO_ROOT}/src/bsp/host/host_script.c
     ${REPO_ROOT}/src/bsp/host/host_script_tables.c
+    ${REPO_ROOT}/src/bsp/host/host_snapshot.c
     ${REPO_ROOT}/src/bsp/host/host_debug.cpp
     ${REPO_ROOT}/src/bsp/host/host_efatfs_passthrough.cpp
     ${REPO_ROOT}/tests/harness/ui_script.cpp # host_script.c's parser (see deluge_host above)

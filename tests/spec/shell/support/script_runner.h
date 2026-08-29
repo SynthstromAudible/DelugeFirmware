@@ -280,8 +280,10 @@ inline std::string led_name(deluge::ui::LedId id) {
 ///        ordering applies to the whole file rather than to each half separately.
 /// @param shell The shell to ask for scene/lock/notice lines.
 /// @param fake  The surfaces to read pads, LEDs and indicators from.
+/// @param overflowed Set to true when more than 256 lines were produced (a line was dropped
+/// entirely, not merely truncated) -- see `StateLines::overflowed`. Left false otherwise.
 /// @return The sorted `.state` text.
-inline std::string state_text(const Shell& shell, FakeSurfaceSet& fake) {
+inline std::string state_text(const Shell& shell, FakeSurfaceSet& fake, bool& overflowed) {
 	StateLines lines;
 	const std::string shell_lines = shell.state_lines();
 	for (size_t pos = 0; pos < shell_lines.size();) {
@@ -333,6 +335,7 @@ inline std::string state_text(const Shell& shell, FakeSurfaceSet& fake) {
 			deluge::harness::add_indicator_line(lines, i == 1, k->levels);
 		}
 	}
+	overflowed = lines.overflowed;
 	return lines.sorted_text();
 }
 
@@ -552,7 +555,19 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 				shell.on_encoder_edges(*index, static_cast<int8_t>(edges), t);
 				break;
 			}
-			case StepKind::Pad:
+			case StepKind::Pad: {
+				// A typo'd coordinate should be an error naming the line here, exactly as
+				// host_script.c's validate_script rejects the same thing at load (M-2): without
+				// this, a negative `s.a`/`s.b` narrows to a large positive `uint8_t` and is handed
+				// to the shell's matrix handler to do something undefined with, rather than being
+				// caught the way `unknown button` etc. already are.
+				const bool has_grid = fake.grid().grid_storage.has_value();
+				const deluge::gfx::grid::GridDimensions dims =
+				    has_grid ? fake.grid().grid().dims() : deluge::gfx::grid::GridDimensions{};
+				if (!has_grid || s.a < 0 || s.a >= dims.cols() || s.b < 0 || s.b >= dims.rows) {
+					result.error = detail::make_error(line, "pad coordinate off the grid");
+					return result;
+				}
 				// `Step::down` is deliberately unread: the parser already folds `up` into velocity
 				// 0 (`ui_script.cpp:192-195`), which is exactly what `DELUGE_EVENT_PAD`'s `value`
 				// means ("0 = release", `control_surface.h:50`), so the two would say the same
@@ -561,6 +576,7 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 				                                      static_cast<uint8_t>(s.b), static_cast<int16_t>(s.c)},
 				                     t);
 				break;
+			}
 			case StepKind::Released:
 				shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_NO_PRESSES, 0, 0, 0}, t);
 				break;
@@ -594,7 +610,15 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 				else {
 					std::memcpy(n.text, s.text, std::min(sizeof(n.text) - 1, sizeof(s.text) - 1));
 				}
-				(void)deluge::notify::notices().push(n);
+				if (!deluge::notify::notices().push(n)) {
+					// Not reachable today (the queue is drained at the top of every run, and no
+					// committed script pushes enough notices in one run to fill it), but a full
+					// queue silently dropping a script's `notice` step is the same silent-loss
+					// class I-1 fixes for `.state` lines (M-7): the golden would record a screen
+					// with no popup and nothing would say why.
+					result.error = detail::make_error(line, "notice queue full");
+					return result;
+				}
 				break;
 			}
 			case StepKind::Quit:
@@ -622,7 +646,17 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 					return result;
 				}
 			}
-			if (!deluge::harness::write_file(out_dir, name + ".state", detail::state_text(shell, fake))) {
+			bool overflowed = false;
+			const std::string state = detail::state_text(shell, fake, overflowed);
+			if (overflowed) {
+				// Mirrors level 3's hard failure on the same overflow (host_script.c's
+				// HOST_SCRIPT_STATE_MAX_LINES / script_fail): a `.state` that lost a line rather
+				// than merely truncating one is a golden that has quietly stopped telling two
+				// screens apart, which is the one thing this harness exists to prevent (I-1).
+				result.error = detail::make_error(0, "snapshot \"" + name + "\": .state needed more than 256 lines");
+				return result;
+			}
+			if (!deluge::harness::write_file(out_dir, name + ".state", state)) {
 				result.error = detail::make_error(0, "could not write a snapshot state");
 				return result;
 			}

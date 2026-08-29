@@ -178,6 +178,52 @@ struct DemoRegistry {
 	DemoRegistry& operator=(const DemoRegistry&) = delete;
 };
 
+/// @brief A board with a pad grid big enough (30 main + `deluge_profile()`'s 2 sidebar columns =
+///        32, by 10 rows = 320 cells) to overflow `StateLines`'s 256-line capacity on pads alone,
+///        for `"errors ... when a .state would need more than 256 lines"` below (I-1). 32 columns
+///        is `gfx::grid::kMaxGridCols`'s own limit, so this is as wide as `FillScene` can paint;
+///        320 > 256 with headroom to spare.
+constexpr DelugeDisplayDesc kFillDisplays[] = {{128, 48, 5}};
+constexpr uint8_t kFillCols = 30;
+constexpr uint8_t kFillRows = 10;
+constexpr DelugeBoard kFillBoard{"fill-test", kFillCols, kFillRows,     4,     9, 6, 0, 0, DELUGE_DISPLAY_OLED, 128,
+                                 48,          1,         kFillDisplays, 44100, 2, 2};
+
+/// @brief The one application kind for `kFillBoard`'s registry: paints every pad a distinct
+///        non-black colour, so `state()`'s pad count is exactly the board's cell count.
+constexpr SceneKind kFill = SceneKind::FirstApp;
+
+/// @brief A scene whose only job is to light every single pad grid cell -- unlike `DemoScene`'s
+///        3-pixel diagonal, this is enough pads on its own to overflow `StateLines` (I-1's spec).
+class FillScene final : public Scene {
+public:
+	SceneKind kind() const override { return kFill; }
+
+	void render_grid(deluge::ui::grid::GridFrame& frame) override {
+		for (uint8_t y = 0; y < kFillRows; y++) {
+			for (uint8_t x = 0; x < kFillCols + 2; x++) { // + the profile's 2 sidebar columns
+				(void)frame.pad(x, y, RGB{1, 1, 1});
+			}
+		}
+	}
+
+	Result handle(const UiEvent&, const UiContext&) override { return Result::unhandled(); }
+};
+
+/// @copydoc DemoRegistry
+struct FillRegistry {
+	FillScene fill;
+	std::array<Scene*, 18> table{};
+	SceneRegistry reg{std::span<Scene* const>{table}};
+
+	FillRegistry() {
+		table[static_cast<size_t>(kFill)] = &fill;
+		reg = SceneRegistry{std::span<Scene* const>{table}};
+	}
+	FillRegistry(const FillRegistry&) = delete;
+	FillRegistry& operator=(const FillRegistry&) = delete;
+};
+
 /// @brief A `DemoScene` twin that draws one extra OLED pixel -- used only to prove the migration
 ///        double-run (`RunOptions::second_registry`, spec G §6) catches a real divergence between
 ///        two scene tables. Everything else is identical to `DemoScene`.
@@ -319,6 +365,27 @@ describe shell_scripts("shell script harness (level 2)", $ {
 		expect(std::string(result.error->message)).to_equal(std::string("unknown button"));
 	});
 
+	it("rejects a pad step whose coordinate is off the grid (M-2)", _ {
+		DemoRegistry r;
+		const std::string out = std::string(UI_GOT_DIR) + "/shell/pad-off-grid";
+		std::error_code ec;
+		std::filesystem::remove_all(out, ec);
+
+		// A negative x narrows to a large positive uint8_t if unchecked (`static_cast<uint8_t>(-1)
+		// == 255`) -- exactly the silent-garbage-coordinate failure mode host_script.c's
+		// validate_script already rejects at level 3.
+		const uitest::RunResult neg = uitest::run_script("0 pad -1 0 down\n", r.reg, Services{}, out);
+		expect(neg.error.has_value()).to_be_true();
+		expect(neg.error->line).to_equal(uint16_t(1));
+		expect(std::string(neg.error->message)).to_equal(std::string("pad coordinate off the grid"));
+
+		// The Deluge board's grid is 16 main + 2 sidebar columns by 8 rows (kDelugeBoard); row 8
+		// is one past the last valid row.
+		const uitest::RunResult over = uitest::run_script("0 pad 0 8 down\n", r.reg, Services{}, out);
+		expect(over.error.has_value()).to_be_true();
+		expect(std::string(over.error->message)).to_equal(std::string("pad coordinate off the grid"));
+	});
+
 	it("sizes the surfaces from a board step", _ {
 		DemoRegistry r;
 		const std::string out = std::string(UI_GOT_DIR) + "/shell/board-step";
@@ -381,6 +448,30 @@ describe shell_scripts("shell script harness (level 2)", $ {
 		// it is up, so DemoSceneExtraPixel::render_oled never runs for "popup" itself. Verified by
 		// running this exact case rather than assumed.
 		expect(uitest::detail::first_mismatch(out_good, out_bad)).to_equal(std::string("after-clip.oled0.pbm"));
+	});
+
+	it("errors, naming the snapshot, when a .state would need more than 256 lines (I-1)", _ {
+		// Reproduces the review's repro (300 lines added directly to a StateLines silently
+		// truncated to 256) through the real product code path: a board wide enough that
+		// FillScene's pad-only paint alone produces 320 `pad` lines, well past the 256-line
+		// capacity. Before I-1, this would have written a truncated golden with no diagnostic;
+		// now it must be a run error that names the snapshot.
+		FillRegistry r;
+		const std::string out = std::string(UI_GOT_DIR) + "/shell/state-overflow";
+		std::error_code ec;
+		std::filesystem::remove_all(out, ec);
+
+		uitest::RunOptions opts;
+		opts.initial_scene = SceneId{kFill, 0};
+		opts.board = &kFillBoard;
+		const uitest::RunResult result = uitest::run_script("0 snapshot big\n10 quit\n", r.reg, Services{}, out, opts);
+
+		expect(result.error.has_value()).to_be_true();
+		expect(result.error->line).to_equal(uint16_t(0)); // an I/O-class failure, not a script line
+		const std::string message(result.error->message);
+		expect(message.find("big") != std::string::npos).to_be_true();
+		expect(message.find(".state") != std::string::npos).to_be_true();
+		expect(message.find("256") != std::string::npos).to_be_true();
 	});
 });
 // clang-format on

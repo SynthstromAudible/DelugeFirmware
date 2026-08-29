@@ -25,12 +25,16 @@ std::string oled_pbm(std::span<const uint8_t> page_major, uint16_t w, uint16_t h
 	return out;
 }
 
-void StateLines::add(std::string_view line) {
+bool StateLines::add(std::string_view line) {
 	std::array<char, kStateLineBytes> buf{};
 	size_t len = line.size() < buf.size() - 1 ? line.size() : buf.size() - 1;
 	std::memcpy(buf.data(), line.data(), len);
 	buf[len] = '\0';
-	lines.push_back(buf);
+	if (!lines.push_back(buf)) {
+		overflowed = true;
+		return false;
+	}
+	return true;
 }
 
 namespace {
