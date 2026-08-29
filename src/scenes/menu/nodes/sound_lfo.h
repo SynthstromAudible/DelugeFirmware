@@ -22,15 +22,15 @@
 /// (`dmenus/lfo/lfo.py:29-33`: `isGlobal = i % 2 == 0`, `index = 1 if i < 2 else 2`), and it matches
 /// `definitions_cxx.hpp:390-393`'s "LFO 1 (global), LFO 2 (local), LFO 3 (global), LFO 4 (local)".
 ///
-/// @note **`Kind::SyncLevel` is built here by hand**, not through a `node.h` builder: there is no
-///       `sync_level_item()` (Task 2 declared the kind for exactly this family and left the builder
-///       to whichever task first needed one; whichever later task needs a second one should promote
-///       this). The value is legacy's own menu option index,
-///       `SyncLevel::syncTypeAndLevelToMenuOption` (`gui/menu_item/sync_level.cpp:79-81`), over
-///       `SyncLevel::size() == NUM_SYNC_VALUES` (`sync_level.h:31`, `model/sync.h:37`). The option
-///       *names* are `getNoteLengthName`, which formats from the song's
-///       `insideWorldTickMagnitude` at render time (`sync_level.cpp:83-91`) -- dynamic text this
-///       generation's interpreter does not draw yet, which is why the node carries no `names`.
+/// @note **`Kind::SyncLevel` comes from `node.h`'s `sync_level_item()`.** Task 6 built these two by
+///       hand and said the next task needing one should promote the builder; Task 7 needs four more
+///       (`arpSyncMenu`, `delaySyncMenu`, `sidechainSyncMenu`, `reverbSidechainSyncMenu`) and did.
+///       The value is legacy's own menu option index, `SyncLevel::syncTypeAndLevelToMenuOption`
+///       (`gui/menu_item/sync_level.cpp:79-81`), over `SyncLevel::size() == NUM_SYNC_VALUES`
+///       (`sync_level.h:31`, `model/sync.h:37`). The option *names* are `getNoteLengthName`, which
+///       formats from the song's `insideWorldTickMagnitude` at render time (`sync_level.cpp:83-91`)
+///       -- dynamic text this generation's interpreter does not draw yet, which is why the node
+///       carries no `names`.
 ///
 /// @note **`lfo::Type`'s title is a `FormattedTitle`** substituting the LFO number into
 ///       `STRING_FOR_LFO_TYPE` (`lfo/type.h:30,33`), as `lfo::Sync`'s is for `STRING_FOR_LFO_SYNC`
@@ -61,17 +61,9 @@ inline constexpr uint16_t kLfoShapeNames[] = {
     sid(deluge::l10n::String::STRING_FOR_WARBLE),
 };
 
-/// @brief A `Kind::SyncLevel` leaf. See the file note on why this is not a `node.h` builder.
-constexpr Node sync_level_item(uint16_t name, uint16_t title, GetFn get, SetFn set) {
-	Node n{};
-	n.name = name;
-	n.title = title;
-	n.kind = Kind::SyncLevel;
-	n.bind.get = get;
-	n.bind.set = set;
-	n.bind.fixed_range = IntRange{0, NUM_SYNC_VALUES - 1, 1}; // `sync_level.h:31`, `model/sync.h:37`
-	return n;
-}
+/// @brief The full sync-option range, `SyncLevel::size() == NUM_SYNC_VALUES` (`sync_level.h:31`,
+///        `model/sync.h:37`) -- what every `SyncLevel` item but `sidechain::Sync` uses.
+inline constexpr IntRange kSyncLevelRange{0, NUM_SYNC_VALUES - 1, 1};
 
 /// @brief One LFO page. A macro for the same reason `sound_env.h` uses one -- and because the
 ///        `get`/`set` hooks are plain function pointers, so each LFO needs its own pair. The bodies
@@ -87,7 +79,7 @@ constexpr Node sync_level_item(uint16_t name, uint16_t title, GetFn get, SetFn s
 	               sid(deluge::l10n::String::STRING_FOR_LFO_TYPE));                                                    \
 	inline constexpr Node lfo##n##_sync =                                                                              \
 	    sync_level_item(sid(deluge::l10n::String::STRING_FOR_SYNC), sid(deluge::l10n::String::STRING_FOR_LFO_SYNC),    \
-	                    get_lfo##n##_sync, set_lfo##n##_sync);                                                         \
+	                    get_lfo##n##_sync, set_lfo##n##_sync, kSyncLevelRange);                                        \
 	inline constexpr Node lfo##n##_rate =                                                                              \
 	    param(sid(deluge::l10n::String::STRING_FOR_RATE),                                                              \
 	          {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::rate_param}, Hint::Knob,         \

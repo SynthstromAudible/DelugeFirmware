@@ -52,6 +52,28 @@ constexpr Node with_slots(Node n, uint8_t slots) {
 	return n;
 }
 
+/// @brief @p n with literal bounds, for a `ParamRef` node whose legacy class overrode
+///        `getMinValue`/`getMaxValue` away from the param default.
+///
+/// `param()` takes no range: the overwhelming majority of param items keep `Param::getMaxValue`'s
+/// `kMinMenuValue`..`kMaxMenuValue` (`gui/menu_item/param.h:34-35`), which `bindings::range` already
+/// supplies. The handful that do not say so here. `bindings::range` prefers `fixed_range` over the
+/// param default (`node.h`'s `range` vs `fixed_range` note), so this is all such a node needs.
+constexpr Node with_range(Node n, IntRange r) {
+	n.bind.fixed_range = r;
+	return n;
+}
+
+/// @brief @p n with a relevance predicate, for a builder whose signature has no room for one.
+///
+/// `sync_level_item()` and the `with_*` chain cover most cases; this exists for the few nodes built
+/// by a helper that fixes the other arguments (e.g. the two bend-range leaves, which share a range
+/// and differ only in hook and relevance).
+constexpr Node with_relevant(Node n, RelevantFn rel) {
+	n.relevant = rel;
+	return n;
+}
+
 /// @brief @p n with a **learn-only** `ParamRef` beside its `get`/`set` hooks.
 ///
 /// For legacy's four `menu_item::Transpose` derivatives, which read and write outside the param set

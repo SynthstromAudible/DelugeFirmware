@@ -49,6 +49,11 @@ struct Issue {
 		MissingTitle,
 		/// @brief A `Kind::Custom` whose `custom` pointer is null: nothing would render.
 		NullCustom,
+		/// @brief A `Kind::Custom` pointing at a stand-in rather than the real item
+		///        (`CustomItem::is_placeholder()`). Suppressed by
+		///        `ValidateOptions::allow_placeholder_custom`, which is how an E1 spec says out loud
+		///        that E2 still owes those implementations.
+		PlaceholderCustom,
 		/// @brief The set of nodes carrying a flag does not equal the expected set this header
 		///        declares. `detail` is `static_cast<uint16_t>(Flag)`; `node` is the offending node
 		///        (unexpectedly set, or expected-but-missing -- the two are distinguished by
@@ -75,6 +80,22 @@ enum class Flag : uint16_t {
 /// hooks, patch-cable strength, active scales") counts them.
 inline constexpr size_t kMaxCustomItems = 10;
 
+/// @brief Which of the strict rules the caller is deliberately standing down.
+///
+/// Default-constructed is strict, so a caller that says nothing gets every rule. Only E1's own
+/// specs opt out, and only from the one rule that is *about* E1 being unfinished.
+struct ValidateOptions {
+	/// @brief Accept `Kind::Custom` nodes pointing at `CustomItem::is_placeholder()` stand-ins.
+	///
+	/// E1 declares the tree's shape, including the ten-odd bespoke items whose implementations
+	/// belong to E2 (the file selector, the audio recorder, the sample loop points, the name
+	/// editors, the patch-cable pages, the multi-range picker). Those nodes carry the shared
+	/// placeholder rather than a null pointer -- `NullCustom` stays a live rule, and a null
+	/// `custom` is still an outright bug -- but the tree is not finished, and by default
+	/// `validate_tree` says so. E2 deletes both this flag and the rule it suppresses.
+	bool allow_placeholder_custom = false;
+};
+
 /// @brief Check @p roots against every spec E §4.4 rule.
 ///
 /// Calls `assign_node_ids(roots)` first (ruling Q7), so ids exist before anything downstream needs
@@ -89,11 +110,13 @@ inline constexpr size_t kMaxCustomItems = 10;
 ///                  others.
 /// @param expected_half_precision  Every node whose binding must use `Scaling::HalfPrecision`, and
 ///                  no others.
+/// @param options   Which strict rules to stand down. Default-constructed is strict.
 /// @return The issues found, capped at 64 (a tree with more than 64 problems does not need an
 ///         exhaustive list to be rejected).
 deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* const> roots,
                                                         std::span<const MenuContext> contexts,
                                                         std::span<const Node* const> expected_range_dependent = {},
-                                                        std::span<const Node* const> expected_half_precision = {});
+                                                        std::span<const Node* const> expected_half_precision = {},
+                                                        ValidateOptions options = {});
 
 } // namespace deluge::scenes::menu

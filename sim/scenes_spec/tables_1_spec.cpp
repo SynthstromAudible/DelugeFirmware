@@ -474,8 +474,13 @@ describe tables_1_validation("scenes::menu batch-1 tables: validation", $ {
 		Fixture& f = fixture();
 		menu::set_shortcut_table_for_test({}, 0, 0);
 		const MenuContext contexts[] = {f.ctx};
-		const auto issues = menu::validate_tree(nodes::kBatch1Roots, contexts,
-		                                        nodes::kRangeDependentNodes, nodes::kHalfPrecisionNodes);
+		// `allow_placeholder_custom`: the four bespoke oscillator items point at `kPending` until E2
+		// lands the real implementations, and `validate_tree` is strict about that by default
+		// (task-7 ruling 3). Standing the rule down here rather than everywhere is the point --
+		// the next example asserts strict mode still reports exactly those four.
+		const auto issues =
+		    menu::validate_tree(nodes::kBatch1Roots, contexts, nodes::kRangeDependentNodes,
+		                        nodes::kHalfPrecisionNodes, menu::ValidateOptions{.allow_placeholder_custom = true});
 		size_t duplicates = 0;
 		size_t others = 0;
 		for (const menu::Issue& i : issues) {
@@ -504,6 +509,26 @@ describe tables_1_validation("scenes::menu batch-1 tables: validation", $ {
 		// amendment, and E2's formatted-name field on `Node` is what removes it.
 		expect(duplicates).to_equal(size_t(3));
 		expect(others).to_equal(size_t(0));
+	});
+
+	it("reports the four E2 placeholders when strict", _ {
+		Fixture& f = fixture();
+		menu::set_shortcut_table_for_test({}, 0, 0);
+		const MenuContext contexts[] = {f.ctx};
+		// Default `ValidateOptions` is strict, so the same tree now reports one
+		// `PlaceholderCustom` per node pointing at `kPending`: both audio recorders, both file
+		// selectors and the four sample loop points -- eight nodes over one shared instance
+		// (`sound_osc.h`'s note; the *item* budget still counts 1).
+		const auto issues = menu::validate_tree(nodes::kBatch1Roots, contexts, nodes::kRangeDependentNodes,
+		                                        nodes::kHalfPrecisionNodes);
+		size_t placeholders = 0;
+		for (const menu::Issue& i : issues) {
+			if (i.kind == menu::Issue::Kind::PlaceholderCustom) {
+				placeholders++;
+			}
+			expect(i.kind != menu::Issue::Kind::NullCustom).to_be_true();
+		}
+		expect(placeholders).to_equal(size_t(8));
 	});
 
 	it("assigns an id to every node in the batch-1 tree", _ {

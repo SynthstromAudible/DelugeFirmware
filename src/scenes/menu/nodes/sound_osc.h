@@ -112,6 +112,10 @@ public:
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
 	                                 MenuState& state) const override;
+
+	/// @brief Yes -- that is the whole point of this class (`node.h`'s `CustomItem::is_placeholder`).
+	///        `validate_tree` reports every node pointing here unless the caller opts in.
+	bool is_placeholder() const override { return true; }
 };
 
 /// @brief The single shared instance. Not `constexpr` (it has a vtable), but its *address* is a

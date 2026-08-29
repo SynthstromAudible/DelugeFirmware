@@ -173,6 +173,20 @@ struct CustomItem {
 	virtual void render(deluge::ui::oled::OledFrame&, const MenuContext&, MenuState&) const = 0;
 	virtual deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent&, const deluge::ui::shell::UiContext&,
 	                                         const MenuContext&, MenuState&) const = 0;
+
+	/// @brief Is this a stand-in for an item E2 still owes, rather than the real thing?
+	///
+	/// E1's tables have to name every legacy bespoke item so the tree's *shape* is complete, but the
+	/// implementations of the file selector, the audio recorder, the loop points, the name editors,
+	/// the patch-cable pages and the multi-range picker all belong to E2. Those nodes point at a
+	/// shared placeholder (`nodes::kPending`) that draws the item's title and consumes nothing.
+	///
+	/// A null `custom` would be worse -- nothing would render, and `validate.h`'s `NullCustom` rule
+	/// exists precisely to catch that -- but a placeholder is still not a finished item, so
+	/// `validate_tree` reports one (`Issue::Kind::PlaceholderCustom`) unless the caller opts in via
+	/// `ValidateOptions::allow_placeholder_custom`. That keeps "the tree is complete" checkable by
+	/// default and lets an E1 spec say, once and visibly, that it is not yet.
+	virtual bool is_placeholder() const { return false; }
 };
 
 /// @brief One menu item or submenu, as plain data.
@@ -327,6 +341,30 @@ constexpr Node dynamic_submenu(uint16_t name, DynamicChildrenFn children, Releva
 	n.title = name;
 	n.kind = Kind::Submenu;
 	n.dynamic_children = children;
+	n.relevant = rel;
+	return n;
+}
+
+/// @brief A `Kind::SyncLevel` leaf -- legacy's `menu_item::SyncLevel` (`gui/menu_item/sync_level.h:27`).
+///
+/// The value is legacy's own menu-option index, `SyncLevel::syncTypeAndLevelToMenuOption`
+/// (`gui/menu_item/sync_level.cpp:79-81`), so a hook pair is always what reads and writes it -- no
+/// `ParamRef` spelling exists for a `{syncType, syncLevel}` pair.
+///
+/// @param r The option range. Normally `{0, NUM_SYNC_VALUES - 1, 1}` (`sync_level.h:31` over
+///          `model/sync.h:37`), but `sidechain::Sync` overrides `size()` to 10
+///          (`gui/menu_item/sidechain/sync.h:24`), so the bounds are an argument rather than baked
+///          in -- and baking them in would drag `model/sync.h` into this deliberately model-light
+///          header.
+constexpr Node sync_level_item(uint16_t name, uint16_t title, GetFn get, SetFn set, IntRange r,
+                               RelevantFn rel = nullptr) {
+	Node n{};
+	n.name = name;
+	n.title = title != 0 ? title : name;
+	n.kind = Kind::SyncLevel;
+	n.bind.get = get;
+	n.bind.set = set;
+	n.bind.fixed_range = r;
 	n.relevant = rel;
 	return n;
 }

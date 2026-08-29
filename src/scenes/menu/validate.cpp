@@ -40,8 +40,10 @@
 ///   * *`Custom` <= 10* -> `TooManyCustom`, counting distinct `CustomItem` instances
 ///     (`validate.h`'s `kMaxCustomItems`).
 ///
-/// plus, beyond §4.4: `MissingTitle` and `NullCustom` (a node that would render nothing), and the
-/// two `FlagMismatch` audits (this task's ruling 4).
+/// plus, beyond §4.4: `MissingTitle` and `NullCustom` (a node that would render nothing),
+/// `PlaceholderCustom` (a node that renders a stand-in for an item E2 still owes -- suppressible,
+/// and only ever suppressed by an E1 spec, `ValidateOptions::allow_placeholder_custom`), and the
+/// two `FlagMismatch` audits (task 6's ruling 4).
 ///
 /// **No heap, no model.** The walk uses two fixed `kMaxNodes`-wide arrays of node pointers -- the
 /// reachable set and `collect`'s explicit work stack -- so the frame is `2 * kMaxNodes *
@@ -188,7 +190,8 @@ bool flag_half_precision(const Node& n) {
 deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* const> roots,
                                                         std::span<const MenuContext> contexts,
                                                         std::span<const Node* const> expected_range_dependent,
-                                                        std::span<const Node* const> expected_half_precision) {
+                                                        std::span<const Node* const> expected_half_precision,
+                                                        ValidateOptions options) {
 	Issues out;
 
 	// Ruling Q7: ids first, so everything downstream (and the `Unreachable` rule below) has them.
@@ -236,6 +239,9 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 				add(out, Issue::Kind::NullCustom, &n);
 			}
 			else {
+				if (n.custom->is_placeholder() && !options.allow_placeholder_custom) {
+					add(out, Issue::Kind::PlaceholderCustom, &n, n.name);
+				}
 				last_custom = &n;
 				if (std::find(customs, customs + custom_count, n.custom) == customs + custom_count
 				    && custom_count < kMaxCustomItems + 1) {
