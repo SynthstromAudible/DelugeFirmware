@@ -37,7 +37,7 @@ constexpr bool shouldChoke(PolyphonyMode targetPolyphonic, uint8_t targetChokeGr
 
 /// Writes the "chokeGroup" attribute. Templated on the serializer type (and readChokeGroupFromFile
 /// below on the deserializer type) purely so this shared read/write logic can be unit-tested on
-/// the host with a lightweight fake, the same way readRoundRobinAlternates() is - see
+/// the host with a lightweight fake, without pulling in Sound/Kit's full dependency graph - see
 /// tests/unit/choke_group_tests.cpp. Firmware code instantiates both with Serializer/Deserializer.
 template <typename SerializerT>
 void writeChokeGroupToFile(SerializerT& writer, uint8_t chokeGroup) {
