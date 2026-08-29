@@ -416,6 +416,10 @@ add_executable(deluge_host
     ${REPO_ROOT}/src/bsp/host/host_midi.c
     ${REPO_ROOT}/src/bsp/host/host_main.c
     ${REPO_ROOT}/src/bsp/host/host_script.c
+    # The button-matrix/encoder-order name tables, split out (task 5) so they compile
+    # dependency-free into both this target and deluge_spec (tests/spec/harness/tables_spec.cpp's
+    # cross-check against deluge_profile()) — see src/bsp/host/host_script_tables.h.
+    ${REPO_ROOT}/src/bsp/host/host_script_tables.c
     ${REPO_ROOT}/src/bsp/host/host_debug.cpp
     ${REPO_ROOT}/src/bsp/host/host_efatfs_passthrough.cpp
     # The UI script parser (spec G §2). C++ with an extern "C" façade, compiled straight into the
@@ -446,6 +450,7 @@ add_executable(deluge_loadcheck
     ${REPO_ROOT}/src/bsp/host/host_midi.c
     ${REPO_ROOT}/src/bsp/host/host_loadcheck_main.cpp
     ${REPO_ROOT}/src/bsp/host/host_script.c
+    ${REPO_ROOT}/src/bsp/host/host_script_tables.c
     ${REPO_ROOT}/src/bsp/host/host_debug.cpp
     ${REPO_ROOT}/src/bsp/host/host_efatfs_passthrough.cpp
     ${REPO_ROOT}/tests/harness/ui_script.cpp # host_script.c's parser (see deluge_host above)

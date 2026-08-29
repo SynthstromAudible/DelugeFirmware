@@ -28,6 +28,11 @@ add_library(deluge_spec STATIC
 # into the host BSP, so it may not include src/shell -- see tests/harness/README.md).
 ../harness/ui_script.cpp
 ../harness/snapshot.cpp
+# UI test harness level 3's name tables (dependency-free; also compiled into the host BSP) --
+# tests/spec/harness/tables_spec.cpp cross-checks these against deluge_profile() so the level-3
+# copy of the button matrix / encoder order cannot silently drift. See
+# src/bsp/host/host_script_tables.h for why this is its own translation unit.
+../../src/bsp/host/host_script_tables.c
 )
 target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi deluge_gfx_oled deluge_gfx_grid deluge_ui_core deluge_ui_oled deluge_ui_grid deluge_ui_shell deluge_notify)
 

@@ -19,14 +19,18 @@
 /// UI script and snapshot what it put on the panels, pads, LEDs and knob indicators.
 ///
 /// The BSP is C, so everything here is C17 and depends on nothing in `src/deluge` — only on
-/// `<libdeluge/...>` and on `tests/harness/ui_script.h`'s `extern "C"` façade. The two halves:
+/// `<libdeluge/...>` and on `tests/harness/ui_script.h`'s `extern "C"` façade. Three files:
 ///
-///   - host_script.c  the script clock, the injector, the `.pbm`/`.state` writers.
-///   - host_bsp.c     the shadows the writers read, and the two injection points
-///                    (`host_script_push_event`, `host_script_add_encoder_edges`).
+///   - host_script.c         the script clock, the injector, the `.pbm`/`.state` writers.
+///   - host_bsp.c            the shadows the writers read, and the two injection points
+///                           (`host_script_push_event`, `host_script_add_encoder_edges`).
+///   - host_script_tables.c  the button-matrix and encoder-order name tables, split out (with
+///                           `host_script_tables.h`) so they compile dependency-free into both the
+///                           host BSP and `deluge_spec` — see that header for why.
 #ifndef HOST_SCRIPT_H
 #define HOST_SCRIPT_H
 
+#include "host_script_tables.h" // ui_script_button_xy / ui_script_encoder_index -- see that header
 #include "libdeluge/control_surface.h"
 
 #include <stdbool.h>
@@ -90,25 +94,11 @@ void host_script_pump(void);
 /// stops between the pump's two halves.
 void host_script_write_pending(void);
 
-/// @brief Where a button name sits in the Deluge's button matrix.
-///
-/// The table is `src/shell/profiles/deluge.cpp`'s `kMatrix` (itself from
-/// `src/definitions_cxx.hpp:59-84`), copied into C because the BSP may not depend on the app.
-/// `tests/spec/harness/` cross-checks the copy against `deluge_profile()` so the two cannot drift.
-/// @param name Button name, spelled as `shell::button_name()` spells it.
-/// @param x    Set to the matrix column on success.
-/// @param y    Set to the matrix row on success.
-/// @return 1 when \p name is a known button, 0 otherwise.
-int ui_script_button_xy(const char* name, uint8_t* x, uint8_t* y);
-
-/// @brief Which firmware encoder index an `EncoderRole` name is wired to.
-///
-/// `0=scrollY(Vertical) 1=scrollX(Horizontal) 2=tempo 3=select 4=mod1(GoldUpper) 5=mod0(GoldLower)`
-/// — `hid/encoder_input.cpp:56-63` for the order, `hid/encoders.h:80-81` for which gold knob each
-/// `mod` is. This is the index `deluge_encoder_take_edges()` is called with.
-/// @param role Role name, spelled as the level-2 runner spells it.
-/// @return The index, or -1 when \p role names no encoder.
-int ui_script_encoder_index(const char* role);
+// `ui_script_button_xy` / `ui_script_encoder_index` are declared in `host_script_tables.h`
+// (included above) rather than here: that header/TU pair is dependency-free so it can compile
+// into `deluge_spec` for `tests/spec/harness/tables_spec.cpp`'s cross-check against
+// `deluge_profile()`, which this header cannot (it pulls in `<libdeluge/control_surface.h>` and
+// the BSP shadow accessors below).
 
 // ===========================================================================
 // host_bsp.c — the shadows and the injection points
