@@ -18,6 +18,8 @@
 #include "CppUTest/TestHarness.h"
 #include "storage/deferred_load.h"
 
+#include <cstdio>
+#include <cstring>
 #include <string>
 
 TEST_GROUP(SongPreviewDeferral){};
@@ -93,4 +95,86 @@ TEST(SongPreviewDeferral, aNewerTargetSupersedesADeferredOne) {
 	STRCMP_EQUAL("SONGS/B.XML", second.target.path.c_str());
 	CHECK_FALSE(load.complete(second, /*deferred=*/false).has_value());
 	CHECK_FALSE(load.pending());
+}
+
+// ── The parked scroll direction ─────────────────────────────────────────────
+
+namespace {
+
+/// Read a repository source file. ctest runs from the repo root (`song_preview_decode_tests.cpp`
+/// reads `tests/data/...` the same way), so relative paths resolve.
+std::string readSource(const char* path) {
+	std::FILE* f = std::fopen(path, "rb");
+	CHECK_TEXT(f != nullptr, path);
+	std::string text;
+	char chunk[4096];
+	while (const size_t got = std::fread(chunk, 1, sizeof(chunk), f)) {
+		text.append(chunk, got);
+	}
+	std::fclose(f);
+	return text;
+}
+
+int32_t countOf(const std::string& haystack, const char* needle) {
+	int32_t count = 0;
+	for (size_t at = haystack.find(needle); at != std::string::npos;
+	     at = haystack.find(needle, at + std::strlen(needle))) {
+		count++;
+	}
+	return count;
+}
+
+} // namespace
+
+/// Every abandonment of a song preview drops the parked scroll direction with it, because
+/// `cancelPreview()` is the only door and it does both.
+///
+/// The invariant, stated: `currentFileChanged()` parks a direction on EVERY cursor move onto a song,
+/// and `finishPreviewRender()` is the only thing that consumes one. A cancel is the one way a parked
+/// direction can outlive the render that was going to consume it -- so a cancel that forgot to drop
+/// it leaves a horizontal scroll owed to a preview that will never arrive, which then fires on top
+/// of the NEXT visit's scroll-in and abandons it half-drawn. There is one `LoadSongUI`, so "next
+/// visit" is a real thing.
+///
+/// **This is a source-text pin, and that is a deliberate trade rather than laziness.** The
+/// behavioural version needs the whole `LoadSongUI` translation unit compiled against a mocked
+/// browser, display, PadLEDs and storage owner -- an order of magnitude more mock surface than
+/// `slicer_env_mock.cpp`, for a property that is structural rather than dynamic. What is pinned is
+/// exactly the structure the invariant rests on:
+///
+///   1. `previewLoad_.cancel()` appears ONCE in the whole UI, inside `cancelPreview()`. A seventh
+///      cancel site that reached for the primitive directly, rather than for `cancelPreview()`,
+///      would leave the direction parked -- and that is the only shape the bug can take.
+///   2. `cancelPreview()`'s body drops the direction.
+///   3. Six call sites exist. A count, and therefore a tripwire: adding a seventh is fine (it goes
+///      through `cancelPreview()` like the rest), but it fails here first, which is what makes
+///      whoever adds it read this. Bump it deliberately; never lower it to make a run go green.
+///
+/// What it does NOT pin: an early return somewhere that skips `finishPreviewRender()` without
+/// cancelling. Nothing structural forbids that, and the real fix would be folding the direction into
+/// `previewLoad_`'s target -- per-attempt state living inside the attempt. Recorded, not done.
+TEST(SongPreviewDeferral, everyPreviewCancelDropsTheParkedScrollDirection) {
+	const std::string header = readSource("src/deluge/gui/ui/load/load_song_ui.h");
+	const std::string source = readSource("src/deluge/gui/ui/load/load_song_ui.cpp");
+
+	// 1. One `cancel()` on the primitive, in the header, and none anywhere else.
+	CHECK_EQUAL(1, countOf(header, "previewLoad_.cancel()"));
+	CHECK_EQUAL(0, countOf(source, "previewLoad_.cancel()"));
+
+	// 2. And it is inside cancelPreview(), whose body also drops the direction. Sliced from the
+	//    function's opening brace to the first closing brace at column 1 -- enough for a one-purpose
+	//    inline body, and it fails loudly rather than silently if the shape changes.
+	const size_t body = header.find("void cancelPreview() {");
+	CHECK(body != std::string::npos);
+	const size_t bodyEnd = header.find("\n\t}", body);
+	CHECK(bodyEnd != std::string::npos);
+	const std::string cancelBody = header.substr(body, bodyEnd - body);
+	CHECK_EQUAL(1, countOf(cancelBody, "previewLoad_.cancel()"));
+	CHECK_EQUAL(1, countOf(cancelBody, "pendingScrollDirection_ = 0"));
+
+	// 3. The six sites, as a tripwire. See this test's doc.
+	CHECK_EQUAL(6, countOf(source, "cancelPreview()"));
+
+	// And the only OTHER place the direction is written to zero is the render that consumes it.
+	CHECK_EQUAL(1, countOf(source, "pendingScrollDirection_ = 0"));
 }

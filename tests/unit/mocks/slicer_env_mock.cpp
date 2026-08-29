@@ -103,11 +103,13 @@ FakeParamCollection* g_paramCollection = nullptr;
 namespace deluge::test {
 
 bool forceLoadInProgress = false;
+void (*duringNextLoadFile)() = nullptr;
 int32_t auditionNoteCount = 0;
 int32_t lastAuditionOn = -1;
 
 void resetSlicerEnv() {
 	forceLoadInProgress = false;
+	duringNextLoadFile = nullptr;
 	auditionNoteCount = 0;
 	lastAuditionOn = -1;
 
@@ -168,6 +170,13 @@ MultiRange* Source::getOrCreateFirstRange() {
 /// hit assigns an audio file, exactly as the real holder does.
 Error AudioFileHolder::loadFile(bool reversed, bool manuallySelected, bool mayActuallyReadFile,
                                 int32_t clusterLoadInstruction, bool makeWaveTableWorkAtAllCosts, bool mayLoadAsync) {
+	if (deluge::test::duringNextLoadFile != nullptr) {
+		// Cleared BEFORE the call, not after: the hook re-enters the slicer, which reaches this
+		// function again, and a hook that re-armed itself would recurse without bound.
+		auto* hook = deluge::test::duringNextLoadFile;
+		deluge::test::duringNextLoadFile = nullptr;
+		hook();
+	}
 	if (deluge::test::forceLoadInProgress) {
 		return Error::LOAD_IN_PROGRESS;
 	}

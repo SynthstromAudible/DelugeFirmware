@@ -38,6 +38,16 @@ public:
 	/// the caller" shape this whole spec file exists to avoid.
 	void previewForTarget(const Slicer::PreviewTarget& target) { deferred_ = slicer_.drivePreview(target); }
 
+	/// The shipped user-driven entry -- what a pad tap calls. Used where the spec needs a SECOND
+	/// press to land while an attempt is already running, which is the one interleaving an inline
+	/// drive has (see `deluge::test::duringNextLoadFile`).
+	void press(const Slicer::PreviewTarget& target) {
+		slicer_.preview(target.startPoint, target.endPoint, target.transpose, target.on);
+	}
+
+	/// The shipped cancel -- what leaving the slicer, or switching slicing mode, calls.
+	void cancel() { slicer_.cancelPreview(); }
+
 	void graphicsRoutine() { slicer_.graphicsRoutine(); }
 
 	[[nodiscard]] bool deferred() const { return deferred_; }
@@ -86,6 +96,85 @@ TEST(SlicerPreview, aColdPressDefersThenSoundsOnTheNextTick) {
 
 	probe.forceLoadMiss(false);
 	probe.graphicsRoutine();
+	CHECK_EQUAL(1, probe.auditionNotesSent());
+	CHECK_EQUAL(1, probe.lastAuditionOn());
+}
+
+namespace {
+/// The probe the `duringNextLoadFile` hooks below re-enter. A file-scope pointer because the hook is
+/// a plain function pointer with no capture -- which is what the mock's seam is, deliberately: a
+/// capturing hook would need an allocation on a seam that models an interrupt-time arrival.
+SlicerPreviewProbe* g_probe = nullptr;
+} // namespace
+
+/// A pad tap that lands WHILE an attempt is running is handed off inside the same drive, and
+/// actually runs.
+///
+/// This is the loop in `drivePreview()`, and it is not decoration. `complete()` returning a target
+/// keeps the single-flight guard HELD -- the caller is expected to run that target itself. A drive
+/// that recursed into `drivePreview(*next)` instead of looping would call `request()` on a flight
+/// that is still open, get `false`, and silently drop the tap. (That was the first draft of this
+/// function, and nothing in the two specs above can tell the two shapes apart: neither ever has a
+/// second target arrive mid-attempt, so `complete()` never returns one and the loop never iterates.)
+///
+/// The interleaving is the real one: the second press arrives inside `loadFile()`, which on the
+/// shipping synchronous backing is where the drive blocks on the card and the fiber pump runs.
+TEST(SlicerPreview, aTapLandingDuringAnAttemptIsHandedOffInsideTheSameDrive) {
+	SlicerPreviewProbe probe;
+	g_probe = &probe;
+	// The finger lifts while the note-on's load is still running: a note-OFF supersedes the note-on.
+	deluge::test::duringNextLoadFile = [] {
+		g_probe->press({.startPoint = 0, .endPoint = -1, .transpose = 0, .on = 0});
+	};
+
+	probe.previewForTarget({.startPoint = 0, .endPoint = -1, .transpose = 0, .on = 1});
+
+	CHECK_FALSE(probe.deferred());
+	// BOTH sounded, in order: the note-on the drive was already committed to, then the note-off the
+	// hand-off picked up. One note here means the superseding target was dropped -- on a device, a
+	// note-on with no matching note-off, i.e. a stuck note.
+	CHECK_EQUAL(2, probe.auditionNotesSent());
+	CHECK_EQUAL(0, probe.lastAuditionOn());
+	// And nothing is left armed: the hand-off ran to completion rather than parking a re-ask.
+	CHECK_FALSE(probe.previewIsPending());
+}
+
+/// A cancel that lands while an attempt is running arms NO re-ask, and strands nothing.
+///
+/// `cancel()` deliberately leaves the single-flight guard held -- an op genuinely is still out there
+/// -- and it is the stale attempt reporting back that releases it. Both halves are asserted, because
+/// getting either wrong is silent: an armed re-ask sounds a slice into a slicer the user has left
+/// (`graphicsRoutine()` keeps running the moment it is current again, and `slicer` is a file-scope
+/// singleton), and a guard never released wedges every later audition with nothing on screen to say
+/// why.
+///
+/// The cancel arrives inside `loadFile()` for the same reason the tap above does: that is the only
+/// place an inline drive gives up control.
+///
+/// @note This does NOT reach `drivePreview()`'s own `is_current()` guard, and no spec can: that
+///       check sits between `attempt()` and the work, two adjacent statements in a drive that never
+///       yields between them, so nothing can bump the generation in that window. What refuses the
+///       cancelled attempt here is `complete()`'s `deferred && is_current(a)`, one line later.
+TEST(SlicerPreview, aCancelLandingDuringAnAttemptArmsNoReAskAndStrandsNothing) {
+	SlicerPreviewProbe probe;
+	g_probe = &probe;
+	probe.forceLoadMiss(true); // the press defers, so there IS something a re-ask could be armed for
+	deluge::test::duringNextLoadFile = [] { g_probe->cancel(); };
+
+	probe.previewForTarget({.startPoint = 0, .endPoint = -1, .transpose = 0, .on = 1});
+
+	CHECK(probe.deferred());
+	CHECK_EQUAL(0, probe.auditionNotesSent());
+	CHECK_FALSE(probe.previewIsPending());
+
+	// The tick surface has nothing to re-drive, and must not invent one.
+	probe.graphicsRoutine();
+	CHECK_EQUAL(0, probe.auditionNotesSent());
+
+	// And the next press works: the guard the cancel left held was released by the stale attempt
+	// reporting back, so this is not wedged.
+	probe.forceLoadMiss(false);
+	probe.press({.startPoint = 0, .endPoint = -1, .transpose = 0, .on = 1});
 	CHECK_EQUAL(1, probe.auditionNotesSent());
 	CHECK_EQUAL(1, probe.lastAuditionOn());
 }

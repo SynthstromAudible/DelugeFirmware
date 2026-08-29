@@ -44,6 +44,15 @@ namespace deluge::test {
 /// is not resident and the loader has not finished fetching it" case.
 extern bool forceLoadInProgress;
 
+/// Runs ONCE inside the next `AudioFileHolder::loadFile()`, before that call decides its answer,
+/// then clears itself.
+///
+/// The seam for the only interleaving a fully inline slicer drive can actually have. `loadFile()` is
+/// the one place `previewForTarget()` can yield -- on the shipping synchronous backing it blocks on
+/// the card, and the fiber pump runs -- so a second pad tap, or a BACK press, lands THERE or not at
+/// all. Nothing else in the drive gives control up.
+extern void (*duringNextLoadFile)();
+
 /// How many times `InstrumentClipView::sendAuditionNote()` has been called.
 extern int32_t auditionNoteCount;
 
