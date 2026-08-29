@@ -28,6 +28,9 @@ constexpr RGB kDemoColours[] = {RGB{200, 0, 0}, RGB{0, 180, 0}, RGB{0, 0, 160}};
 /// The colour a held pad is lit; white, so it cannot be mistaken for any of the three above.
 constexpr RGB kHeldColour{255, 255, 255};
 
+/// The period `DemoScene` declares its `Record` blink at.
+constexpr uint16_t kRecordBlinkMs = 500;
+
 /// @brief The stand-in application scene: a title, a three-pad diagonal, the `Play` LED, and one
 ///        navigation gesture (`Clip` pushes another copy of itself, one argument higher).
 ///
@@ -79,6 +82,11 @@ public:
 	void leds(deluge::ui::LedFrame& frame) override {
 		(void)frame.set(static_cast<deluge::ui::LedId>(ButtonId::Play),
 		                deluge::ui::LedState{deluge::ui::LedState::Kind::On, 0, 0});
+		// Blinking, not lit: the two are indistinguishable in the fake's `set_led` shadow (which
+		// only sees the level `flush` resolved for this tick), so this is what pins that `.state`
+		// reports the *declaration* -- spec G §3's `led <Name> blink <period>`.
+		(void)frame.set(static_cast<deluge::ui::LedId>(ButtonId::Record),
+		                deluge::ui::LedState{deluge::ui::LedState::Kind::Blink, kRecordBlinkMs, 0});
 	}
 
 	Result handle(const UiEvent& event, const UiContext&) override {
@@ -213,6 +221,10 @@ describe shell_scripts("shell script harness (level 2)", $ {
 		const std::string dir = std::string(UI_GOT_DIR) + "/shell/input/";
 		const std::string idle = read_text(dir + "idle.state");
 		expect(idle.find("pad 2 3") == std::string::npos).to_be_true();
+		// The declared LED states, not the levels `flush` resolved: `Play` is steady, `Record`
+		// blinks, and the fake's `set_led` shadow cannot tell those two apart.
+		expect(idle.find("led Play on\n") != std::string::npos).to_be_true();
+		expect(idle.find("led Record blink 500\n") != std::string::npos).to_be_true();
 		expect(read_text(dir + "pad-held.state").find("pad 2 3 255 255 255") != std::string::npos).to_be_true();
 		expect(read_text(dir + "pad-released.state")).to_equal(idle);
 

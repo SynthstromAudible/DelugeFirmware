@@ -145,18 +145,6 @@ public:
 		return out;
 	}
 
-	/// @brief How many board LED indices the shadow tracks; a `set_led` past this is recorded in
-	///        `led_writes` but not shadowed.
-	static constexpr size_t kMaxLeds = 64;
-
-	/// @brief Is board LED \p index lit, per the shadow `set_led` maintains?
-	///
-	/// The named-LED half of `state()`: the script runner reverses the board profile's
-	/// `led_by_button` table over this to print `led Play on` rather than `led 35 on`.
-	/// @param index Board LED index.
-	/// @return True when lit; false for an unlit or out-of-range index.
-	bool led_on(uint8_t index) const { return index < kMaxLeds && led_shadow_[index]; }
-
 	/// @brief Knob indicator \p which, if the shell has ever set it.
 	/// @param which 0 for the upper indicator, 1 for the lower.
 	/// @return A pointer to the shadow, or null when unset (or out of range).
@@ -165,6 +153,10 @@ public:
 	}
 
 private:
+	/// @brief How many board LED indices the shadow tracks; a `set_led` past this is recorded in
+	///        `led_writes` but not shadowed.
+	static constexpr size_t kMaxLeds = 64;
+
 	std::array<bool, kMaxLeds> led_shadow_{};
 	deluge::ui::KnobIndicator indicator_shadow_[2]{};
 	bool indicator_set_[2]{};

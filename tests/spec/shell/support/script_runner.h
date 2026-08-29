@@ -254,29 +254,27 @@ inline std::optional<deluge::notify::Notice::Kind> notice_kind_by_name(std::stri
 	return std::nullopt;
 }
 
-/// @brief The board profile's name for board LED \p index, by reversing `led_by_button`.
-/// @param profile The board profile.
-/// @param index   Board LED index.
-/// @return The button's name, or the index's digits when no button owns that LED.
-inline std::string led_name(const BoardProfile& profile, uint8_t index) {
-	for (size_t i = 0; i < profile.led_by_button.size(); i++) {
-		if (profile.led_by_button[i] == static_cast<int8_t>(index)) {
-			if (const char* n = deluge::ui::shell::button_name(static_cast<ButtonId>(i)); n != nullptr) {
-				return n;
-			}
-		}
+/// @brief The name of the LED a `LedFrame` entry declares.
+///
+/// `LedId` values equal `ButtonId` values for every LED under a button (`shell/leds.h`'s ruling,
+/// which `Shell::derive_leds` relies on to index the board's LED arrays by the id itself), so the
+/// declaration keys straight into `button_name()` -- no board-profile table to reverse.
+/// @param id The declared LED.
+/// @return The button's name, or the id's digits when it names no button.
+inline std::string led_name(deluge::ui::LedId id) {
+	if (const char* n = deluge::ui::shell::button_name(static_cast<ButtonId>(id)); n != nullptr) {
+		return n;
 	}
-	return std::to_string(static_cast<unsigned>(index));
+	return std::to_string(static_cast<unsigned>(static_cast<uint8_t>(id)));
 }
 
 /// @brief The `.state` text for the current moment: the shell's own lines plus the fake's pads,
 ///        LEDs and knob indicators, all through the harness's builders so spec G §3's category
 ///        ordering applies to the whole file rather than to each half separately.
-/// @param shell   The shell to ask for scene/lock/notice lines.
-/// @param fake    The surfaces to read pads, LEDs and indicators from.
-/// @param profile The profile board LED indices are named through.
+/// @param shell The shell to ask for scene/lock/notice lines.
+/// @param fake  The surfaces to read pads, LEDs and indicators from.
 /// @return The sorted `.state` text.
-inline std::string state_text(const Shell& shell, FakeSurfaceSet& fake, const BoardProfile& profile) {
+inline std::string state_text(const Shell& shell, FakeSurfaceSet& fake) {
 	StateLines lines;
 	const std::string shell_lines = shell.state_lines();
 	for (size_t pos = 0; pos < shell_lines.size();) {
@@ -301,11 +299,23 @@ inline std::string state_text(const Shell& shell, FakeSurfaceSet& fake, const Bo
 			}
 		}
 	}
-	for (uint8_t i = 0; i < FakeSurfaceSet::kMaxLeds; i++) {
-		if (fake.led_on(i)) {
-			// The fake's shadow is the *resolved* level `Shell::flush` wrote, so a blinking LED is
-			// on or off for this tick rather than "blinking": never the `blink` form.
-			deluge::harness::add_led_line(lines, led_name(profile, i), false, 0);
+	// Read from `LedSurface::frame` -- this tick's *declarations*, as `Shell::derive_leds` composed
+	// them -- rather than from the fake's `set_led` shadow. The shadow only ever holds the boolean
+	// `flush` resolved the declaration to against this tick's clock, which cannot tell a lit LED
+	// from a blinking one that happens to be in its on phase; spec G §3 asks for
+	// `led <Name> blink <period>`, and the period exists only here. Same `LedSurface` object the
+	// shell writes (`fake` *is* `shell.surfaces()`), reached through the fake because
+	// `SurfaceSet::leds()` is non-const.
+	for (const auto& [id, state] : fake.leds().frame.entries()) {
+		switch (state.kind) {
+		case deluge::ui::LedState::Kind::Off:
+			break; // An LED declared off is not shown at all -- only lit/blinking ones are.
+		case deluge::ui::LedState::Kind::On:
+			deluge::harness::add_led_line(lines, led_name(id), false, 0);
+			break;
+		case deluge::ui::LedState::Kind::Blink:
+			deluge::harness::add_led_line(lines, led_name(id), true, state.period_ms);
+			break;
 		}
 	}
 	for (uint8_t i = 0; i < 2; i++) {
@@ -562,8 +572,7 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 					return result;
 				}
 			}
-			if (!deluge::harness::write_file(out_dir, name + ".state",
-			                                 detail::state_text(shell, fake, *opts.profile))) {
+			if (!deluge::harness::write_file(out_dir, name + ".state", detail::state_text(shell, fake))) {
 				result.error = detail::make_error(0, "could not write a snapshot state");
 				return result;
 			}
