@@ -179,7 +179,11 @@ mod fiber;
 /// of the modules it flushes, so a build that compiles `card.rs` without this one does not compile.
 /// Its own two features stay off here, so all that lands in the golden binary is the slot logic and
 /// the C ABI over an empty channel.
-#[cfg(feature = "async_audio_load")]
+/// Also on `async_file_directory` and not just `async_audio_load`, or a leg that enables ONLY the
+/// directory channel would silently test nothing: the module would not be compiled, the C++ weak
+/// fallback would resolve `deluge_file_directory_async_active` to false, and every listing would
+/// quietly take the synchronous arm while the leg reported a green run.
+#[cfg(any(feature = "async_audio_load", feature = "async_file_directory"))]
 #[path = "../../../src/file_directory.rs"]
 mod file_directory;
 /// The single-slot file-prefix channel and its request/collect C ABI. Gated with `card` above
@@ -1212,6 +1216,12 @@ fn main() {
     // otherwise, since with the feature off the module has no statics for it to serve.
     #[cfg(feature = "async_file_prefix_active")]
     spawner.spawn(file_prefix::file_prefix_task().unwrap());
+    // The directory opener, likewise. Without this the channel's collect answers UNKNOWN forever and
+    // every listing that consults it defers on every tick and never completes — which is exactly the
+    // failure the `dir` leg of `scripts/song_preview_ab.sh` exists to catch, so it must be able to
+    // pass when the code is right.
+    #[cfg(feature = "async_file_directory_active")]
+    spawner.spawn(file_directory::file_directory_task().unwrap());
 
     static DONE: AtomicBool = AtomicBool::new(false);
     if audio_load_ab_mode {

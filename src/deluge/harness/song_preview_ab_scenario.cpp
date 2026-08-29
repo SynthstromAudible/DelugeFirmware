@@ -23,6 +23,7 @@
 #include "gui/ui/load/load_song_ui.h" // the converted caller, driven end to end below
 #include "hid/led/pad_leds.h"         // the image both backings render into
 #include "io/file.hpp"                // the card swap's unlink + rename
+#include "libdeluge/file_directory.h" // deluge_file_directory_async_active
 #include "libdeluge/file_prefix.h"    // deluge_file_prefix_async_active
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
@@ -132,6 +133,9 @@ public:
 	/// How many opens the listing that just finished performed. Read after a non-deferring run.
 	static int32_t opensPerformed() { return Browser::listing_.opensThisListing; }
 	static void deferAtOpen(int32_t n) { Browser::deferAtOpenNumber_ = n; }
+	/// How many times the listing that just finished suspended. Zero on the synchronous arm by
+	/// construction, so requiring it non-zero proves the channel was actually reached.
+	static int32_t deferrals() { return Browser::listing_.deferrals; }
 	/// `Browser::fileIndexSelected` is protected; the snapshot needs it, and it is half of what
 	/// "the listing finished the same way" means.
 	static int32_t selectedIndex() { return Browser::fileIndexSelected; }
@@ -1028,7 +1032,8 @@ void runListingTick() {
 			// Surviving the open at all is the property: >230 entries once panicked the snapshot arena
 			// on open and bricked the device. Reaching here means the open, the enumeration and the
 			// close all completed.
-			printf("SP-LISTING big entries=%d listed=%zu\n", kBigEntries, takeListingSnapshot().names.size());
+			printf("SP-LISTING big entries=%d listed=%zu deferrals=%d\n", kBigEntries,
+			       takeListingSnapshot().names.size(), BrowserListingAbProbe::deferrals());
 			printf("SP-LISTING-SUMMARY opens=%d sweeps=%d big=%d\n", g_listingOpens, g_listingCasesRun, kBigEntries);
 			g_listingStep = ListingStep::Finished;
 			return;
@@ -1037,7 +1042,11 @@ void runListingTick() {
 		if (g_listingStep == ListingStep::Reference) {
 			g_listingReference = takeListingSnapshot();
 			g_listingOpens = BrowserListingAbProbe::opensPerformed();
-			printf("SP-LISTING reference entries=%zu opens=%d\n", g_listingReference.names.size(), g_listingOpens);
+			// `deferrals` is what separates the two legs. On the synchronous arm it is 0 by
+			// construction; on the channel leg it must be non-zero, or the listing was quietly served
+			// by a direct open and the leg tested nothing.
+			printf("SP-LISTING reference entries=%zu opens=%d deferrals=%d\n", g_listingReference.names.size(),
+			       g_listingOpens, BrowserListingAbProbe::deferrals());
 			if (g_listingOpens < 2) {
 				printf("SP-LISTING FAIL only %d open(s) -- the sweep would cover no retry path\n", g_listingOpens);
 				g_failures++;
@@ -1055,10 +1064,9 @@ void runListingTick() {
 
 		// The state machine's central property, and the one an identical-result check alone cannot
 		// see: a listing that suspended RESUMED at the pending open rather than starting over, so no
-		// open was made twice. A deferred run makes exactly one extra open -- the one that deferred,
-		// which is counted before it defers and again when it is retried. A run that restarted from
-		// the top would redo every open before the deferral too, giving reference + N for a deferral
-		// at open N.
+		// open was made twice. A deferral opens nothing, so a suspended run makes exactly as many
+		// opens as the reference; a run that restarted from the top would redo every open before the
+		// deferral and make more.
 		//
 		// This is what the earlier restart-on-defer design failed on, invisibly: the seam disarms
 		// after firing, so a restart still converges here and an identical-result check passes. It is
@@ -1066,9 +1074,9 @@ void runListingTick() {
 		// re-asking for open #1 forever. Counting opens is what makes that visible without the
 		// channel.
 		const int32_t opens = BrowserListingAbProbe::opensPerformed();
-		if (opens != g_listingOpens + 1) {
-			printf("SP-LISTING FAIL deferAt=%d made %d opens, a resume makes %d -- an open was redone\n",
-			       g_listingDeferAt, opens, g_listingOpens + 1);
+		if (opens != g_listingOpens) {
+			printf("SP-LISTING FAIL deferAt=%d made %d opens, the reference made %d -- an open was redone\n",
+			       g_listingDeferAt, opens, g_listingOpens);
 			g_failures++;
 		}
 		if (!(got == g_listingReference)) {
@@ -1095,6 +1103,15 @@ void runListingTick() {
 		g_listingStep = ListingStep::Reference;
 		return;
 	case ListingStep::Sweep:
+		if (deluge_file_directory_async_active()) {
+			// The channel leg does not sweep. Its deferrals come from the real channel -- one slot,
+			// answer consumed at take -- which is the thing the seam only models, so arming the seam on
+			// top would defer twice at one open and prove nothing the reference run has not already
+			// proved. What this leg contributes is that the listing COMPLETES against that channel and
+			// lands on the same result as the synchronous leg, which is what the script diffs.
+			printf("SP-LISTING sweep skipped: the channel supplies the deferrals on this leg\n");
+			g_listingDeferAt = g_listingOpens;
+		}
 		if (g_listingDeferAt >= g_listingOpens) {
 			BrowserListingAbProbe::deferAtOpen(0);
 			// The big folder is listed LAST, so a panic in it cannot be mistaken for a sweep failure.

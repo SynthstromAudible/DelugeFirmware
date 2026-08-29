@@ -187,10 +187,12 @@ std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(cha
 		// where the FIRST request for a path is issued: the attempt names a directory the channel has
 		// not been told about, so its opening drive lands here.
 		deluge_file_directory_request(path);
+		listing_.deferrals++;
 		return std::unexpected(Error::LISTING_DEFERRED);
 	case DELUGE_FILE_DIRECTORY_PENDING:
 		// Requested or being opened. Ask again next tick and do NOT re-request, which would replace a
 		// request that is about to be served.
+		listing_.deferrals++;
 		return std::unexpected(Error::LISTING_DEFERRED);
 	case DELUGE_FILE_DIRECTORY_FAILED:
 		// Terminal: the channel will not retry and neither may we, or a folder that cannot be opened
@@ -480,14 +482,12 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 	// is perfectly readable. They keep the synchronous open until they are converted in turn; what
 	// this rung converts is exactly the listing actions, and the remaining blocking callers are
 	// enumerable rather than latent.
-	if (listing_.active) {
-		listing_.opensThisListing++;
-		if (deferAtOpenNumber_ != 0 && listing_.opensThisListing == deferAtOpenNumber_) {
-			// Disarmed as it fires: a real channel answers the next ask, so a seam that stayed armed
-			// would defer this same open on every pass and the attempt would never finish.
-			deferAtOpenNumber_ = 0;
-			return Error::LISTING_DEFERRED;
-		}
+	if (listing_.active && deferAtOpenNumber_ != 0 && listing_.opensThisListing + 1 == deferAtOpenNumber_) {
+		// Disarmed as it fires: a real channel answers the next ask, so a seam that stayed armed would
+		// defer this same open on every resumption and the listing would never finish.
+		deferAtOpenNumber_ = 0;
+		listing_.deferrals++;
+		return Error::LISTING_DEFERRED;
 	}
 
 	// Local RAII handle: the destructor closes it on every return path below, so there's no manual
@@ -499,8 +499,20 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 	// Directory::adopt exists: there are only eight directory handles, and one that arrived
 	// asynchronously is no less urgent to close than one this thread opened.
 	auto opened = openDirectoryForListing(currentDir.c_str());
+	if (!opened.has_value() && opened.error() == Error::LISTING_DEFERRED) {
+		return opened.error(); // nothing was opened; see Browser::ListingState
+	}
+	// Counted here, AFTER the deferral check, so it means "opens that actually reached the
+	// filesystem" rather than "times we asked". A deferral opens nothing, so a listing that suspends
+	// and resumes makes exactly as many opens as one that never suspended -- which is the whole
+	// property the machine exists for, and what lets the two harness legs be compared directly. The
+	// counter also spans resumptions, so a design that restarted from the top would show MORE opens
+	// than the reference and be caught by the gate rather than by reasoning.
+	if (listing_.active) {
+		listing_.opensThisListing++;
+	}
 	if (!opened.has_value()) {
-		return opened.error(); // may be Error::LISTING_DEFERRED — see Browser::ListingAttempt
+		return opened.error();
 	}
 	auto dir = std::move(*opened);
 

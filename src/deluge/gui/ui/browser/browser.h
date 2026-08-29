@@ -270,6 +270,10 @@ protected:
 		/// Which open this listing is on, across the WHOLE listing rather than per resumption. The
 		/// defer seam counts on it.
 		int32_t opensThisListing{};
+		/// How many times this listing suspended. Zero on the synchronous arm by construction, so a
+		/// gate can require it to be non-zero and know the async path was actually reached rather than
+		/// quietly answered by a direct open.
+		int32_t deferrals{};
 	};
 	static ListingState listing_;
 

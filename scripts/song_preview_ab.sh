@@ -59,6 +59,11 @@ CRATE_DIR="$REPO/src/bsp/rust/harness/golden_vt_render"
 TARGET_BASE="${CARGO_TARGET_DIR:-$CRATE_DIR/target}"
 SYNC_TARGET="$TARGET_BASE/song-preview-ab-file"
 ASYNC_TARGET="$TARGET_BASE/song-preview-ab-prefix"
+# A third leg, for the DIRECTORY channel. The listing stage is the only thing that differs on it, but
+# it is the only place anything runs that channel at all: without this leg the whole async listing arm
+# is reasoned about and never executed, which is how a design that livelocked on the real channel got
+# as far as it did.
+DIR_TARGET="$TARGET_BASE/song-preview-ab-dir"
 
 if [ "${NO_BUILD:-0}" != 1 ]; then
 	[ -d "$BUILD_DIR" ] || {
@@ -71,11 +76,16 @@ if [ "${NO_BUILD:-0}" != 1 ]; then
 		deluge_foundation deluge_midi
 	(cd "$CRATE_DIR" && cargo build --release --features async_file_prefix --target-dir "$SYNC_TARGET")
 	(cd "$CRATE_DIR" && cargo build --release --features async_file_prefix_active --target-dir "$ASYNC_TARGET")
+	# Prefix channel OFF here on purpose: this leg varies exactly one thing against the file leg, so a
+	# difference in its listing output can only come from the directory channel.
+	(cd "$CRATE_DIR" && cargo build --release --features async_file_prefix,async_file_directory_active \
+		--target-dir "$DIR_TARGET")
 fi
 
 SYNC_BIN="$SYNC_TARGET/release/golden_vt_render"
 ASYNC_BIN="$ASYNC_TARGET/release/golden_vt_render"
-for b in "$SYNC_BIN" "$ASYNC_BIN"; do
+DIR_BIN="$DIR_TARGET/release/golden_vt_render"
+for b in "$SYNC_BIN" "$ASYNC_BIN" "$DIR_BIN"; do
 	[ -x "$b" ] || {
 		echo "ERROR: '$b' not built (see NO_BUILD)"
 		exit 2
@@ -146,6 +156,46 @@ echo "song-preview A/B: running the file-backed leg (async_file_prefix, switch o
 run_leg "$SYNC_BIN" file
 echo "song-preview A/B: running the prefix-channel leg (async_file_prefix_active, reader task spawned)"
 run_leg "$ASYNC_BIN" prefix
+echo "song-preview A/B: running the directory-channel leg (async_file_directory_active, opener task spawned)"
+run_leg "$DIR_BIN" dir
+
+# --- the directory channel -------------------------------------------------------------------
+#
+# The listing must land on the SAME result whether each directory open was answered by a blocking
+# open on this thread or by the channel several ticks later, and it must actually have gone through
+# the channel to say so. Both halves are needed: a leg that never deferred would agree trivially
+# while testing nothing, which is exactly what happens if the opener task is not spawned or the
+# module is compiled out.
+DIR_LISTING="$(grep '^SP-LISTING reference \|^SP-LISTING big ' "$OUT_ROOT/dir.txt" || true)"
+FILE_LISTING="$(grep '^SP-LISTING reference \|^SP-LISTING big ' "$OUT_ROOT/file.txt" || true)"
+if [ -z "$DIR_LISTING" ]; then
+	echo "FAIL — the dir leg printed no SP-LISTING lines"
+	exit 1
+fi
+# Compare everything but the deferral counts, which are the one field that MUST differ.
+if ! diff -u <(echo "$FILE_LISTING" | sed 's/ deferrals=[0-9]*//') \
+	<(echo "$DIR_LISTING" | sed 's/ deferrals=[0-9]*//') >"$OUT_ROOT/listing.diff"; then
+	echo "FAIL — the directory channel listed differently from a direct open:"
+	cat "$OUT_ROOT/listing.diff"
+	exit 1
+fi
+# PER CASE, never summed: a run-wide total is satisfied by one deferral anywhere, which would leave
+# every other listing quietly answered by a direct open while the gate stayed green.
+while read -r line; do
+	case "$line" in
+	*deferrals=0*)
+		echo "FAIL — a dir-leg listing never deferred, so it did not go through the channel: $line"
+		exit 1
+		;;
+	esac
+done <<<"$DIR_LISTING"
+# And the file leg is the control: it must never defer, or the two legs are the same build.
+if echo "$FILE_LISTING" | grep -qv 'deferrals=0'; then
+	echo "FAIL — the file leg deferred; it is not a synchronous control:"
+	echo "$FILE_LISTING"
+	exit 1
+fi
+echo "directory channel: listings identical to a direct open, and every one of them deferred"
 
 # Each leg must be the leg it claims to be. The file leg with asyncActive=1 (or the reverse) means
 # the two binaries were built the same way and the comparison is a build against itself.
@@ -200,4 +250,8 @@ if diff -q <(grep '^SP-WINDOW ' "$OUT_ROOT/file.txt" | sed 's/asyncActive=[01] /
 fi
 
 echo "PASS — both backings drew all $CASES song(s) identically, agreed on every outcome, and agreed across a card swap"
-grep -h '^SP-SUMMARY \|^SP-DEFER \|^SP-WINDOW \|^SP-SWAP-SUMMARY \|^SP-LISTING' "$OUT_ROOT/file.txt" "$OUT_ROOT/prefix.txt"
+grep -h '^SP-SUMMARY \|^SP-DEFER \|^SP-WINDOW \|^SP-SWAP-SUMMARY ' "$OUT_ROOT/file.txt" "$OUT_ROOT/prefix.txt"
+# The listing lines from the file leg (the synchronous control) and the dir leg (the channel), so the
+# deferral counts that separate them are visible rather than merely asserted.
+grep -h '^SP-LISTING' "$OUT_ROOT/file.txt" | sed 's/^/ sync  /'
+grep -h '^SP-LISTING' "$OUT_ROOT/dir.txt" | sed 's/^/ chan  /'
