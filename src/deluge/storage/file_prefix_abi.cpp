@@ -38,13 +38,19 @@
 
 // The one constant the two sides of this boundary hand-duplicate. `deluge_file_prefix_request`
 // clamps to it and the Rust slot is sized by it, so a drift would not fail to link or to build --
-// it would silently hand the preview decoder fewer bytes than the window it was measured for, and a
-// song whose `preview` attribute sat past the shortened window would render BLANK, which is
-// indistinguishable from a song that has no preview at all. See song_preview.h for how that 4096 was
-// derived, and src/bsp/rust/src/file_prefix.rs's `PREFIX_CAPACITY` for the Rust half of this pin.
-static_assert(DELUGE_FILE_PREFIX_CAPACITY == deluge::storage::kSongPreviewWindow,
-              "the prefix channel's capacity is the preview window: a channel that reads fewer bytes "
-              "than the decoder was measured against loses artwork silently");
+// it would silently hand a decoder fewer bytes than the window it was measured for, and a song whose
+// `preview` attribute sat past the shortened window would render BLANK, which is indistinguishable
+// from a song that has no preview at all. src/bsp/rust/src/file_prefix.rs's `PREFIX_CAPACITY` is the
+// Rust half of this pin.
+//
+// This is a BOUND, not an equality. The two constants were equal while the song preview was the
+// channel's only consumer, and that coincidence read as a definition; the DX7 cartridge (a
+// `min(filesize, 8192)` read) ended it. They answer different questions -- kSongPreviewWindow is
+// "how much of a song holds the artwork", DELUGE_FILE_PREFIX_CAPACITY is "how big is the slot every
+// request's result lands in" -- and only one relation between them is load-bearing: a request larger
+// than the slot could never be served whole.
+static_assert(deluge::storage::kSongPreviewWindow <= DELUGE_FILE_PREFIX_CAPACITY,
+              "a request larger than the channel's slot can never be served whole");
 
 // The status bytes the Rust side hand-duplicates from this header (`const _` in file_prefix.rs).
 static_assert(DELUGE_FILE_PREFIX_PENDING == 0u);

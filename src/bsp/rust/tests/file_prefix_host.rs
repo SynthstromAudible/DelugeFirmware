@@ -188,6 +188,30 @@ fn a_failure_from_a_previous_card_is_dropped_not_returned() {
     );
 }
 
+/// The slot must hold the largest single-shot read any consumer makes, and that is no longer the
+/// song preview. The DX7 cartridge reads `min(filesize, 8192)` (`gui/menu_item/dx/cartridge.cpp`),
+/// and a 32-voice bank is 4104 bytes -- 8 past a 4096 slot, which is enough to fail its checksum.
+/// This is a bound a shipped consumer needs, not a defensive round number.
+#[test]
+fn the_slot_holds_a_dx7_bank() {
+    /// 6 header bytes + 32 voices x 128 bytes + checksum + EOX.
+    const DX7_32_VOICE_BANK: usize = 4104;
+    assert!(
+        PREFIX_CAPACITY >= DX7_32_VOICE_BANK,
+        "a DX7 32-voice bank is {DX7_32_VOICE_BANK} bytes and must survive the slot whole"
+    );
+    let mut slot = PrefixSlot::default();
+    let bank = vec![0xA5u8; DX7_32_VOICE_BANK];
+    publish_into(&mut slot, "DX7/BANK.SYX", &bank, CARD);
+    let mut out = [0u8; PREFIX_CAPACITY];
+    assert_eq!(
+        take_from(&mut slot, "DX7/BANK.SYX", CARD, &mut out),
+        Some(PrefixTake::Bytes(DX7_32_VOICE_BANK)),
+        "the whole bank, not a truncation"
+    );
+    assert_eq!(&out[..DX7_32_VOICE_BANK], &bank[..]);
+}
+
 // ── The driver ──────────────────────────────────────────────────────────────
 // `prefix_io_once` is the only code in this module that touches a file, and its whole contract is
 // three properties a review cannot check: the read is bounded by BOTH the file's size and the

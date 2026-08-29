@@ -55,6 +55,12 @@ namespace deluge::storage {
 /// has no preview at all. That is why `song_preview_window_tests.cpp` asserts the bound over the
 /// whole corpus rather than trusting this number: if a future writer moves the attribute later, CI
 /// says so instead of artwork silently disappearing.
+///
+/// This is a REQUEST size, not a buffer size and not the prefix channel's slot size. It is bounded
+/// by `DELUGE_FILE_PREFIX_CAPACITY` (`file_prefix_abi.cpp` asserts that) but no longer equal to it:
+/// the slot is sized for the channel's largest consumer, which is now the DX7 cartridge rather than
+/// this window. Growing this number is a claim about where songs put their `preview` attribute;
+/// growing the slot is a claim about how much any one consumer reads at once.
 constexpr uint32_t kSongPreviewWindow = 4096;
 
 /// @brief What a preview decode found.

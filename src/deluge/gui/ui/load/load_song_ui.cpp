@@ -86,14 +86,22 @@ namespace {
 /// / smBufferDeserializer, storage_manager.cpp) already lives there, so this merely stops the two
 /// halves of one decode straddling two memories. A plain byte array needs no zeroing, so unlike the
 /// std::optionals next to it this does not lean on resetprg.c's emptySection() boot memset.
-PLACE_SDRAM_BSS std::array<uint8_t, deluge::storage::kSongPreviewWindow> songPreviewPrefix;
+// Sized by the CHANNEL's capacity, not by kSongPreviewWindow, even though only kSongPreviewWindow
+// bytes of it are ever requested. deluge_file_prefix_collect() requires out_cap >=
+// DELUGE_FILE_PREFIX_CAPACITY whatever the caller asked for: a shorter buffer is a caller bug that
+// trips a debug_assert in a dev build and silently yields blank artwork in release, rather than
+// serving truncated bytes. The two constants were equal until the DX7 cartridge became a second
+// consumer and the slot grew to suit it, so spelling the buffer with the window would now under-size
+// it by half and lose every song's artwork on a release build.
+PLACE_SDRAM_BSS std::array<uint8_t, DELUGE_FILE_PREFIX_CAPACITY> songPreviewPrefix;
 
-// deluge_file_prefix_collect() requires out_cap >= DELUGE_FILE_PREFIX_CAPACITY: a shorter buffer is a
-// caller bug that trips a debug_assert in a dev build and silently yields blank artwork in release,
-// rather than serving truncated bytes. file_prefix_abi.cpp pins that capacity to kSongPreviewWindow
-// from the other side, so this holds unless one of the two moves.
-static_assert(deluge::storage::kSongPreviewWindow >= DELUGE_FILE_PREFIX_CAPACITY,
+// Spelled through the object rather than repeating the macro, so re-sizing the array above is what
+// these check -- not a second copy of the same literal agreeing with itself.
+using SongPreviewPrefixBuffer = decltype(songPreviewPrefix);
+static_assert(std::tuple_size_v<SongPreviewPrefixBuffer> >= DELUGE_FILE_PREFIX_CAPACITY,
               "the preview buffer must be able to take the largest prefix the channel can hold");
+static_assert(deluge::storage::kSongPreviewWindow <= std::tuple_size_v<SongPreviewPrefixBuffer>,
+              "the preview cannot request more than its own buffer holds");
 
 /// @brief Whether a song path names a JSON document, decided exactly as openDelugeFile() decides it.
 ///

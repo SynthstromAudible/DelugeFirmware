@@ -61,10 +61,18 @@ extern "C" {
 /// @brief The most bytes one prefix can be, and therefore the most a request can usefully ask for.
 ///
 /// The channel holds the finished prefix in a fixed slot of exactly this size, so
-/// @ref deluge_file_prefix_request clamps a larger `max_bytes` to it rather than failing. Sized from
-/// `deluge::storage::kSongPreviewWindow`, which `file_prefix_abi.cpp` `static_assert`s this against
-/// so the two cannot drift.
-#define DELUGE_FILE_PREFIX_CAPACITY 4096u
+/// @ref deluge_file_prefix_request clamps a larger `max_bytes` to it rather than failing.
+///
+/// Sized from the channel's LARGEST consumer -- the DX7 cartridge's `min(filesize, 8192)` read --
+/// not from any one caller's window. It is deliberately NOT equal to
+/// `deluge::storage::kSongPreviewWindow` (4096): that is a request size, this is the slot every
+/// request's result lands in. `file_prefix_abi.cpp` `static_assert`s the relation that survives
+/// them being different, namely that a request can never exceed the slot.
+///
+/// @note A collect's `out_cap` must be at least this, not merely as large as the caller's own
+///       `max_bytes` -- see @ref deluge_file_prefix_collect. Growing this therefore grows every
+///       caller's buffer.
+#define DELUGE_FILE_PREFIX_CAPACITY 8192u
 
 /* The first three status values below are NUMERICALLY IDENTICAL to audio_load.h's
  * DELUGE_AUDIO_LOAD_PENDING/_READY/_UNKNOWN, and must stay that way. Both headers will plausibly be

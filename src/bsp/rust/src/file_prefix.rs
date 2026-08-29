@@ -74,13 +74,20 @@ use embassy_sync::signal::Signal;
 #[cfg(feature = "async_file_prefix")]
 use super::audio_loader::{LoadOps, OpenVerdict};
 
-/// How many bytes one prefix request may ask for. Sized from the C++ side's `kSongPreviewWindow`;
-/// asserted equal at the ABI boundary (`file_prefix_abi.cpp`) rather than assumed.
+/// How many bytes one prefix request may ask for. Sized from the channel's LARGEST consumer, which
+/// is the DX7 cartridge read (`min(filesize, 8192)`, `gui/menu_item/dx/cartridge.cpp`), not from the
+/// song preview.
+///
+/// It was equal to `deluge::storage::kSongPreviewWindow` while the preview was the only consumer,
+/// and that coincidence was pinned by an equality `static_assert`. The cartridge broke it: the two
+/// numbers answer different questions -- "how much of a song holds the artwork" (4096) versus "how
+/// big is the slot every consumer's result has to land in" (8192). `file_prefix_abi.cpp` now
+/// asserts the surviving relation, that a request never exceeds the slot.
 ///
 /// It bounds the request as well as the slot: [`deluge_file_prefix_request`] clamps `max_bytes` to
 /// this, so the driver can never be asked for a read that would not fit in the slot the result has
 /// to land in.
-pub const PREFIX_CAPACITY: usize = 4096;
+pub const PREFIX_CAPACITY: usize = 8192;
 
 /// Longest path this channel keys on, in CHARACTERS — `DELUGE_MAX_PATH` minus its NUL, the same
 /// bound `audio_loader::LoadPath` carries and for the same reason (a C buffer size counts the
@@ -123,7 +130,7 @@ pub const DELUGE_FILE_PREFIX_FAILED: u8 = 3;
 /// Under a divergent numbering that expression would mean PENDING, and the caller would decode
 /// bytes the header promises are untouched. Keep them equal.
 const _: () = {
-    assert!(PREFIX_CAPACITY == 4096); // deluge::storage::kSongPreviewWindow
+    assert!(PREFIX_CAPACITY == 8192); // DELUGE_FILE_PREFIX_CAPACITY; sized for cartridge.cpp
     assert!(MAX_PATH_CHARS == 255); // DELUGE_MAX_PATH - 1, as audio_loader::LoadPath
     assert!(DELUGE_FILE_PREFIX_PENDING == 0);
     assert!(DELUGE_FILE_PREFIX_READY == 1);
