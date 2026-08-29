@@ -34,7 +34,13 @@ target_link_libraries(deluge_spec PUBLIC eyalroz_printf deluge_midi deluge_gfx_o
 # ".." (tests/) lets specs (e.g. harness/ui_script_spec.cpp) #include "harness/ui_script.h".
 target_include_directories(deluge_spec PUBLIC ../../src/deluge ../../src ../32bit_unit_test/mocks/ ../../include ..)
 
-target_compile_definitions(deluge_spec PUBLIC GFX_GOLDEN_DIR="${CMAKE_CURRENT_LIST_DIR}/../golden/gfx")
+# DELUGE_REPO_ROOT: the repo root, for specs that shell out to scripts/ (e.g.
+# harness/snapshot_tools_spec.cpp, which runs scripts/ui_snapshot_diff.py and
+# scripts/pbm2png.py via std::system). Derived the same way as GFX_GOLDEN_DIR above.
+target_compile_definitions(deluge_spec PUBLIC
+  GFX_GOLDEN_DIR="${CMAKE_CURRENT_LIST_DIR}/../golden/gfx"
+  DELUGE_REPO_ROOT="${CMAKE_CURRENT_LIST_DIR}/../.."
+)
 
 set_target_properties(deluge_spec PROPERTIES
   CXX_STANDARD 26
