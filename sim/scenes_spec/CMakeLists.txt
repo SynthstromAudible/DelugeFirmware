@@ -2,6 +2,11 @@
 # inside scenes_spec/ so create_specs_driver's generated sources (relative to spec_dir) resolve
 # against this file's own CMAKE_CURRENT_SOURCE_DIR -- see the comment at the add_subdirectory call
 # in ../CMakeLists.txt.
+#
+# The driver's generated main() is left exactly as create_specs_driver writes it: task 3's model
+# fixture (support/song_fixture.h) builds a real Song, clip and instrument by direct construction,
+# so nothing here has to boot the app through deluge_main()/startupConditionalTask the way
+# deluge_loadcheck does. support/ is not globbed as a spec -- only *_spec.cpp is.
 create_specs_driver(deluge_scenes_spec ${CMAKE_CURRENT_LIST_DIR})
 
 # The host BSP objects deluge_loadcheck uses (../CMakeLists.txt), minus host_main.c --

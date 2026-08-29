@@ -9,8 +9,11 @@ context resolution and `MenuScene` are later tasks in the same plan
 Rules:
 1. `src/scenes/**` may include `scenes/**`, `shell/**`, `ui/**`, `gfx/**`, `notify/**`,
    `libdeluge/**`, the standard library, and -- being the first model-aware layer --
-   `model/**`, `modulation/**`, `playback/**`, `storage/**`, `gui/l10n/**`, `definitions_cxx.hpp`.
-   Never `gui/` otherwise, never `hid/`.
+   `model/**`, `modulation/**`, `playback/**`, `processing/**`, `storage/**`, `gui/l10n/**`,
+   `definitions_cxx.hpp`.
+   Never `gui/` otherwise, never `hid/`. `model/model_stack.h` is narrower still: only
+   `menu/context.cpp` and `menu/bindings.cpp` may include it, and `menu::model_stack_for()` is
+   the single entry point everything else uses to reach a `ModelStack` (task-3 ruling 6).
 2. `snake_case` functions/variables, `PascalCase` types, `k` constants; namespace
    `deluge::scenes`.
 3. No heap in library code; no wall clock (later tasks: `Scene::next_timer()` and

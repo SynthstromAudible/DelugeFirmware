@@ -1,11 +1,13 @@
 # deluge_scenes -- the first UI layer allowed to include the model (spec E1, ruling Q4).
 # May include scenes/**, shell/**, ui/**, gfx/**, notify/**, libdeluge/**, the standard library,
-# and -- being the first model-aware layer -- model/**, modulation/**, playback/**, storage/**,
-# gui/l10n/**, definitions_cxx.hpp. Never gui/ otherwise, never hid/.
+# and -- being the first model-aware layer -- model/**, modulation/**, playback/**, processing/**,
+# storage/**, gui/l10n/**, definitions_cxx.hpp. Never gui/ otherwise, never hid/.
+# (processing/** is where `Sound` and `Source` live; menu/context.cpp needs their definitions --
+# see the note on the scenes-includes-outside rule in scripts/check_layer_rules.py.)
 #
 # Link direction (ruling Q4): deluge_scenes links deluge_app; nothing links deluge_scenes until
 # spec F needs an entry point -- this task only builds the skeleton and its spec executable.
-add_library(deluge_scenes STATIC l10n_bridge.cpp profile.cpp menu/node_id.cpp)
+add_library(deluge_scenes STATIC l10n_bridge.cpp profile.cpp menu/context.cpp menu/node_id.cpp)
 target_include_directories(deluge_scenes PUBLIC
     ${SHARED_INCLUDE}
     ${CMAKE_CURRENT_LIST_DIR}/../../include

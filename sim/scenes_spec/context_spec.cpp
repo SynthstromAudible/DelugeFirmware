@@ -1,0 +1,245 @@
+#include "scenes/menu/context.h"
+
+#include "model/clip/instrument_clip.h"
+#include "model/instrument/kit.h"
+#include "model/model_stack.h"
+#include "model/song/song.h"
+#include "processing/sound/sound.h"
+#include "processing/source.h"
+#include "scenes/menu/node.h"
+#include "support/song_fixture.h"
+
+#include "cppspec.hpp"
+
+#include "spec/support/spec_main.h"
+
+using namespace deluge::scenes;
+using deluge::scenes::menu::MenuContext;
+using deluge::scenes::menu::Permission;
+using Root = MenuContext::Root;
+
+namespace {
+
+/// @brief A node that edits a model parameter -- the shape `permission_for` applies the range rule
+///        to (spec E §4.1). Any patched param will do; the rule keys off `bind.param.valid()`.
+constexpr menu::Node param_node =
+    menu::param(1, {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_FREQ});
+
+/// @brief A node with no `bind.param`, to show the range rule does not fire for it.
+constexpr menu::Node submenu_node = menu::submenu(2, {});
+
+int root_of(const MenuContext& ctx) {
+	return static_cast<int>(ctx.root);
+}
+
+} // namespace
+
+// clang-format off
+describe menu_context("scenes::menu::context_for", $ {
+	it("resolves a synth clip to the sound root, with the sound and the clip's param manager", _ {
+		auto f = spec::make_synth_song();
+		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false);
+
+		expect(root_of(ctx)).to_equal(static_cast<int>(Root::Sound));
+		expect(ctx.resolved).to_be_true();
+		expect(ctx.sound != nullptr).to_be_true();
+		expect(ctx.params == &f.clip->paramManager).to_be_true();
+		expect(ctx.mod == static_cast<ModControllableAudio*>(ctx.sound)).to_be_true();
+		expect(ctx.affect_entire).to_be_false();
+		expect(ctx.is_kit).to_be_false();
+		expect(ctx.source == &ctx.sound->sources[0]).to_be_true();
+		expect(ctx.sidechain == &ctx.mod->sidechain).to_be_true();
+		expect(ctx.priority == &ctx.sound->voicePriority).to_be_true();
+		expect(ctx.arp == &f.clip->arpSettings).to_be_true();
+	});
+
+	it("resolves a kit clip with affect-entire to the kit-global-FX root", _ {
+		auto f = spec::make_kit_song();
+		f.clip->affectEntire = true;
+		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false);
+
+		// NOTE: the task-3 brief's step-1 list says `Root::Sound` for this case. That is a slip in
+		// the brief: `setup()` sends a kit with affectEntire to `soundEditorRootMenuKitGlobalFX`
+		// (`sound_editor.cpp:1735-1737`), which is what `Root::KitGlobalFx` -- an enumerator the
+		// brief's own struct declares, and which nothing else could ever produce -- exists for.
+		// The port follows the legacy source; see the task-3 report.
+		expect(root_of(ctx)).to_equal(static_cast<int>(Root::KitGlobalFx));
+		expect(ctx.is_kit).to_be_true();
+		expect(ctx.affect_entire).to_be_true();
+		expect(ctx.is_kit_global_fx).to_be_true();
+		expect(ctx.params == &f.clip->paramManager).to_be_true();
+		expect(ctx.mod != nullptr).to_be_true();
+		expect(ctx.sound == nullptr).to_be_true();
+	});
+
+	it("resolves a kit clip with a selected sound drum to the drum root", _ {
+		auto f = spec::make_kit_song();
+		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
+		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false);
+
+		expect(root_of(ctx)).to_equal(static_cast<int>(Root::Drum));
+		expect(ctx.is_kit).to_be_true();
+		expect(ctx.is_drum).to_be_true();
+		expect(ctx.sound == static_cast<Sound*>(drum)).to_be_true();
+		expect(ctx.params == &f.clip->getNoteRowForDrum(drum)->paramManager).to_be_true();
+		expect(ctx.arp == &drum->arpSettings).to_be_true();
+	});
+
+	it("resolves a kit clip with a selected MIDI drum to the MIDI-drum root, with only an arp", _ {
+		auto f = spec::make_kit_song();
+		MIDIDrum* drum = spec::add_drum<MIDIDrum>(f);
+		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false);
+
+		expect(root_of(ctx)).to_equal(static_cast<int>(Root::MidiDrum));
+		expect(ctx.sound == nullptr).to_be_true();
+		expect(ctx.arp == &drum->arpSettings).to_be_true();
+	});
+
+	it("refuses a kit clip with neither affect-entire nor a selected drum", _ {
+		auto f = spec::make_kit_song();
+		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false);
+
+		expect(ctx.resolved).to_be_false();
+		expect(ctx.params == nullptr).to_be_true();
+	});
+
+	it("resolves a MIDI instrument clip to the MIDI/CV root, with no sound", _ {
+		auto f = spec::make_midi_song();
+		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false);
+
+		expect(root_of(ctx)).to_equal(static_cast<int>(Root::MidiOrCv));
+		expect(ctx.sound == nullptr).to_be_true();
+		expect(ctx.mod == nullptr).to_be_true();
+		expect(ctx.params == &f.clip->paramManager).to_be_true();
+	});
+
+	it("resolves no clip and no session root to the settings root", _ {
+		auto f = spec::make_synth_song();
+		const MenuContext ctx = menu::context_for(*f.song, nullptr, 0, false, false);
+
+		expect(root_of(ctx)).to_equal(static_cast<int>(Root::Settings));
+		expect(ctx.clip == nullptr).to_be_true();
+		expect(ctx.params == nullptr).to_be_true();
+	});
+
+	it("resolves the performance view to the performance root, with the song's own params", _ {
+		auto f = spec::make_synth_song();
+		const MenuContext ctx = menu::context_for(*f.song, nullptr, 0, true, true);
+
+		expect(root_of(ctx)).to_equal(static_cast<int>(Root::Performance));
+		expect(ctx.is_performance).to_be_true();
+		expect(ctx.is_song_view).to_be_true();
+		expect(ctx.params == &f.song->paramManager).to_be_true();
+		expect(ctx.mod != nullptr).to_be_true();
+	});
+
+	it("resolves a session/arranger root with no clip to the song root", _ {
+		auto f = spec::make_synth_song();
+		const MenuContext ctx = menu::context_for(*f.song, nullptr, 0, false, true);
+
+		expect(root_of(ctx)).to_equal(static_cast<int>(Root::Song));
+		expect(ctx.params == &f.song->paramManager).to_be_true();
+	});
+});
+
+describe menu_model_stack("scenes::menu::model_stack_for", $ {
+	it("hands back a stack carrying the context's own mod controllable and param manager", _ {
+		auto f = spec::make_synth_song();
+		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false);
+
+		char memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* stack = menu::model_stack_for(ctx, memory);
+
+		expect(stack->modControllable == static_cast<ModControllable*>(ctx.mod)).to_be_true();
+		expect(stack->paramManager == static_cast<ParamManager*>(ctx.params)).to_be_true();
+		expect(stack->song == f.song).to_be_true();
+		expect(stack->getTimelineCounter() == static_cast<TimelineCounter*>(f.clip)).to_be_true();
+	});
+
+	it("uses the song as the timeline counter in a session/arranger root", _ {
+		auto f = spec::make_synth_song();
+		const MenuContext ctx = menu::context_for(*f.song, nullptr, 0, false, true);
+
+		char memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* stack = menu::model_stack_for(ctx, memory);
+
+		expect(stack->getTimelineCounter() == static_cast<TimelineCounter*>(f.song)).to_be_true();
+		expect(stack->paramManager == static_cast<ParamManager*>(ctx.params)).to_be_true();
+	});
+
+	it("attaches the selected drum's note row for a kit", _ {
+		auto f = spec::make_kit_song();
+		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
+		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false);
+
+		char memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* stack = menu::model_stack_for(ctx, memory);
+
+		expect(stack->modControllable == static_cast<ModControllable*>(ctx.mod)).to_be_true();
+		expect(stack->paramManager == static_cast<ParamManager*>(ctx.params)).to_be_true();
+		expect(stack->getNoteRowAllowNull() == f.clip->getNoteRowForDrum(drum)).to_be_true();
+	});
+});
+
+describe menu_permission("scenes::menu::permission_for", $ {
+	it("requires a range when a param node's source has more than one and none is selected", _ {
+		auto f = spec::make_synth_song();
+		auto* sound = static_cast<SoundInstrument*>(f.instrument);
+		sound->sources[0].ranges.insertMultiRange(0);
+		sound->sources[0].ranges.insertMultiRange(1);
+
+		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false);
+		expect(ctx.range == nullptr).to_be_true();
+		expect(static_cast<int>(menu::permission_for(param_node, ctx)))
+		    .to_equal(static_cast<int>(Permission::MustSelectRange));
+	});
+
+	it("allows a param node when the source has exactly one range, and selects it", _ {
+		auto f = spec::make_synth_song();
+		auto* sound = static_cast<SoundInstrument*>(f.instrument);
+		sound->sources[0].ranges.insertMultiRange(0);
+
+		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false);
+		expect(ctx.range == sound->sources[0].ranges.getElement(0)).to_be_true();
+		expect(ctx.range_index).to_equal(static_cast<int16_t>(0));
+		expect(static_cast<int>(menu::permission_for(param_node, ctx))).to_equal(static_cast<int>(Permission::Yes));
+	});
+
+	it("never applies the range rule to a node with no bound param", _ {
+		auto f = spec::make_synth_song();
+		auto* sound = static_cast<SoundInstrument*>(f.instrument);
+		sound->sources[0].ranges.insertMultiRange(0);
+		sound->sources[0].ranges.insertMultiRange(1);
+
+		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false);
+		expect(static_cast<int>(menu::permission_for(submenu_node, ctx))).to_equal(static_cast<int>(Permission::Yes));
+	});
+
+	it("allows a param node on a kit row however many ranges it has", _ {
+		auto f = spec::make_kit_song();
+		SoundDrum* drum = spec::add_drum<SoundDrum>(f);
+		drum->sources[0].ranges.insertMultiRange(0);
+		drum->sources[0].ranges.insertMultiRange(1);
+
+		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false);
+		expect(static_cast<int>(menu::permission_for(param_node, ctx))).to_equal(static_cast<int>(Permission::Yes));
+	});
+
+	it("refuses a node whose relevance predicate says no", _ {
+		auto f = spec::make_synth_song();
+		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false);
+
+		menu::Node irrelevant = param_node;
+		irrelevant.relevant = [](const MenuContext&) { return false; };
+		expect(static_cast<int>(menu::permission_for(irrelevant, ctx))).to_equal(static_cast<int>(Permission::No));
+	});
+});
+// clang-format on
+
+/// Three `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
+/// here with `add_specs` instead.
+int context_spec(int argc, char** const argv) {
+	return CppSpec::parse(argc, argv).add_specs(menu_context, menu_model_stack, menu_permission).exec().is_success()
+	           ? EXIT_SUCCESS
+	           : EXIT_FAILURE;
+}

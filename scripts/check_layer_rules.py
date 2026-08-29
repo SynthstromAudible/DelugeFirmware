@@ -135,16 +135,25 @@ RULES = [
         # Mirrors shell-includes-outside for src/scenes: the layer's own CMakeLists.txt
         # (src/scenes/CMakeLists.txt) is the authority -- deluge_scenes may include scenes/**,
         # shell/**, ui/**, gfx/**, notify/**, libdeluge/**, and -- being the first UI layer
-        # allowed to reach into the model -- model/**, modulation/**, playback/**, storage/**,
-        # gui/l10n/**, definitions_cxx.hpp. Never gui/ otherwise (gui/l10n/ is the sole
-        # exception), never hid/. `definitions_cxx.hpp` sits in the allow-list itself (not the
-        # trailing catch-all group, unlike shell-includes-outside's `definitions.*`, which shell
-        # must NOT reach): scenes is deliberately the first model-aware UI layer, so the header
-        # that pulls in `params::Kind` and friends is expected, not a back door.
+        # allowed to reach into the model -- model/**, modulation/**, playback/**, processing/**,
+        # storage/**, gui/l10n/**, definitions_cxx.hpp. Never gui/ otherwise (gui/l10n/ is the
+        # sole exception), never hid/. `definitions_cxx.hpp` sits in the allow-list itself (not
+        # the trailing catch-all group, unlike shell-includes-outside's `definitions.*`, which
+        # shell must NOT reach): scenes is deliberately the first model-aware UI layer, so the
+        # header that pulls in `params::Kind` and friends is expected, not a back door.
+        #
+        # `processing/**` joined the list in task 3 (spec E1). It is not a widening of what
+        # "model-aware" means -- `check_layer_rules`'s own NON_UI glob above already counts
+        # `src/deluge/processing/` as non-UI, held to the same no-`gui/`, no-`hid/` rules as
+        # `model/` -- it is where two of the types spec E §4's `MenuContext` is *defined* in terms
+        # of happen to live: `Sound` (`processing/sound/sound.h`) and `Source`
+        # (`processing/source.h`). `menu/context.cpp` cannot resolve `sound->sources[i]`,
+        # `source->ranges` or `sound->voicePriority` from a forward declaration, so without this
+        # the ported `SoundEditor::setup` could not be written at all.
         "scenes-includes-outside",
         "src/scenes/**",
         "include",
-        r"^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|model/|modulation/|playback/|storage/|gui/l10n/|definitions_cxx\.hpp)(?:.*/)",
+        r"^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|definitions_cxx\.hpp)(?:.*/)",
         "2026-08-26-ui-scenes-menus-design.md",
     ),
 ]
