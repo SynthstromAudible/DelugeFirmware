@@ -14,7 +14,7 @@ using deluge::drum::writeChokeGroupToFile;
 namespace {
 
 // Lightweight stand-ins exposing exactly the members writeChokeGroupToFile() / readChokeGroupFromFile()
-// touch, following the pattern established by round_robin_parser_tests.cpp's MockDeserializer.
+// touch - enough to exercise the real read/write logic on the host, with no Serializer/Deserializer.
 struct MockWriter {
 	std::vector<std::string> attributeNames;
 	std::vector<int32_t> attributeValues;
