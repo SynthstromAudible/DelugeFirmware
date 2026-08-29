@@ -40,6 +40,9 @@ MultiRange* MultiRangeArray::insertMultiRange(int32_t i) {
 	if (error != Error::NONE) {
 		return nullptr;
 	}
+	// insertAtIndex() may have moved every element, so any address-based reference to one of them is
+	// now suspect. See MultisampleRange::setAuditionSlot().
+	MultisampleRange::clearAuditionSlot();
 	void* memory = getElementAddress(i);
 	MultiRange* range;
 
@@ -58,6 +61,9 @@ Error MultiRangeArray::changeType(int32_t newSize) {
 		elementSize = newSize;
 		return Error::NONE;
 	}
+
+	// Every range is about to be rebuilt at a fresh address. See insertMultiRange() above.
+	MultisampleRange::clearAuditionSlot();
 
 	MultiRangeArray newArray;
 	newArray.elementSize = newSize;
