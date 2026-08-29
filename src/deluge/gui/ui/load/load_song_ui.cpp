@@ -1001,7 +1001,7 @@ bool LoadSongUI::collectPreview(const deluge::storage::DeferredLoad<PreviewTarge
 	if (imageStore != nullptr) {
 		Error error = Error::NONE;
 		const auto outcome =
-		    deluge::storage::decodeSongPreview(std::span<const uint8_t>{songPreviewPrefix.data(), length},
+		    deluge::storage::decodeSongPreview(std::span<uint8_t>{songPreviewPrefix.data(), length},
 		                                       isJsonSongPath(attempt.target.path), imageStore, &error);
 		reportPreviewOutcome(outcome, error);
 	}

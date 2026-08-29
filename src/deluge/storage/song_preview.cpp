@@ -96,7 +96,7 @@ stopLoadingPreview:
 /// @brief decodeSongPreview()'s body, with the global `activeDeserializer` left wherever it lands.
 ///
 /// Split out purely so decodeSongPreview() has ONE exit at which to put that global back -- see there.
-SongPreviewOutcome decodeSongPreviewInto(std::span<const uint8_t> buffer, bool isJson,
+SongPreviewOutcome decodeSongPreviewInto(std::span<uint8_t> buffer, bool isJson,
                                          RGB (*imageStore)[kDisplayWidth + kSideBarWidth], ::Error* openError) {
 	::Error error = StorageManager::openDelugeBuffer(buffer, isJson, "song");
 	if (error != ::Error::NONE) {
@@ -120,7 +120,7 @@ SongPreviewOutcome decodeSongPreviewInto(std::span<const uint8_t> buffer, bool i
 
 } // namespace
 
-SongPreviewOutcome decodeSongPreview(std::span<const uint8_t> buffer, bool isJson,
+SongPreviewOutcome decodeSongPreview(std::span<uint8_t> buffer, bool isJson,
                                      RGB (*imageStore)[kDisplayWidth + kSideBarWidth], ::Error* openError) {
 	// Put `activeDeserializer` back on EVERY path, the failed open included (openDelugeBuffer() points
 	// it at the memory reader before it knows whether the document opened). This is not tidiness: the

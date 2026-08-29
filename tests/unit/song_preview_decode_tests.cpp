@@ -83,7 +83,7 @@ TEST(SongPreviewDecode, theBufferWalkMatchesTheFileWalkAcrossTheCorpus) {
 		std::array<Row, kDisplayHeight> fromBuffer{};
 		std::array<Row, kDisplayHeight> fromFile{};
 
-		const auto buf = prefixOf(entry.path(), deluge::storage::kSongPreviewWindow);
+		auto buf = prefixOf(entry.path(), deluge::storage::kSongPreviewWindow);
 		const auto outcome = deluge::storage::decodeSongPreview(buf, isJson, fromBuffer.data());
 
 		// The reference: today's whole-file walk, reading through the ordinary file reader.
@@ -107,7 +107,7 @@ TEST(SongPreviewDecode, theBufferWalkMatchesTheFileWalkOnTheJsonFixture) {
 	std::array<Row, kDisplayHeight> fromBuffer{};
 	std::array<Row, kDisplayHeight> fromFile{};
 
-	const auto buf = prefixOf("tests/data/songs/JsonPreview.Json", deluge::storage::kSongPreviewWindow);
+	auto buf = prefixOf("tests/data/songs/JsonPreview.Json", deluge::storage::kSongPreviewWindow);
 	const auto outcome = deluge::storage::decodeSongPreview(buf, true, fromBuffer.data());
 
 	mock_file_io_reset();
@@ -124,7 +124,7 @@ TEST(SongPreviewDecode, theBufferWalkMatchesTheFileWalkOnTheJsonFixture) {
 /// artwork disappears silently.
 TEST(SongPreviewDecode, aShortPrefixReportsTruncatedRatherThanNoPreview) {
 	std::array<Row, kDisplayHeight> image{};
-	const auto buf = prefixOf("tests/data/songs/JsonPreview.Json", 64);
+	auto buf = prefixOf("tests/data/songs/JsonPreview.Json", 64);
 	CHECK_EQUAL(static_cast<int>(deluge::storage::SongPreviewOutcome::Truncated),
 	            static_cast<int>(deluge::storage::decodeSongPreview(buf, true, image.data())));
 }
@@ -138,20 +138,20 @@ TEST(SongPreviewDecode, decodeSongPreviewLeavesTheGlobalDeserializerWhereItFound
 	FileDeserializer* const before = activeDeserializer;
 
 	// Success path.
-	const auto whole = prefixOf("tests/data/songs/JsonPreview.Json", deluge::storage::kSongPreviewWindow);
+	auto whole = prefixOf("tests/data/songs/JsonPreview.Json", deluge::storage::kSongPreviewWindow);
 	CHECK_EQUAL(static_cast<int>(deluge::storage::SongPreviewOutcome::Rendered),
 	            static_cast<int>(deluge::storage::decodeSongPreview(whole, true, image.data())));
 	POINTERS_EQUAL(before, activeDeserializer);
 
 	// Truncated path.
-	const auto shortPrefix = prefixOf("tests/data/songs/JsonPreview.Json", 64);
+	auto shortPrefix = prefixOf("tests/data/songs/JsonPreview.Json", 64);
 	CHECK_EQUAL(static_cast<int>(deluge::storage::SongPreviewOutcome::Truncated),
 	            static_cast<int>(deluge::storage::decodeSongPreview(shortPrefix, true, image.data())));
 	POINTERS_EQUAL(before, activeDeserializer);
 
 	// Failed-open path: openDelugeBuffer points the global at the memory reader BEFORE it knows whether
 	// the document opened, so this is the path a restore is easiest to forget.
-	const std::vector<uint8_t> notASong{'n', 'o', 'p', 'e'};
+	std::vector<uint8_t> notASong{'n', 'o', 'p', 'e'};
 	CHECK_EQUAL(static_cast<int>(deluge::storage::SongPreviewOutcome::Error),
 	            static_cast<int>(deluge::storage::decodeSongPreview(notASong, false, image.data())));
 	POINTERS_EQUAL(before, activeDeserializer);
@@ -178,12 +178,12 @@ TEST(SongPreviewDecode, anEmptyBufferIsAnErrorWithAnErrorCode) {
 TEST(SongPreviewDecode, theOpenErrorOutParamIsWrittenOnlyOnError) {
 	std::array<Row, kDisplayHeight> image{};
 	Error error = Error::NO_FURTHER_FILES_THIS_DIRECTION; // a sentinel no open ever produces
-	const auto whole = prefixOf("tests/data/songs/JsonPreview.Json", deluge::storage::kSongPreviewWindow);
+	auto whole = prefixOf("tests/data/songs/JsonPreview.Json", deluge::storage::kSongPreviewWindow);
 	CHECK_EQUAL(static_cast<int>(deluge::storage::SongPreviewOutcome::Rendered),
 	            static_cast<int>(deluge::storage::decodeSongPreview(whole, true, image.data(), &error)));
 	CHECK_EQUAL(static_cast<int>(Error::NO_FURTHER_FILES_THIS_DIRECTION), static_cast<int>(error));
 
-	const auto shortPrefix = prefixOf("tests/data/songs/JsonPreview.Json", 64);
+	auto shortPrefix = prefixOf("tests/data/songs/JsonPreview.Json", 64);
 	CHECK_EQUAL(static_cast<int>(deluge::storage::SongPreviewOutcome::Truncated),
 	            static_cast<int>(deluge::storage::decodeSongPreview(shortPrefix, true, image.data(), &error)));
 	CHECK_EQUAL(static_cast<int>(Error::NO_FURTHER_FILES_THIS_DIRECTION), static_cast<int>(error));

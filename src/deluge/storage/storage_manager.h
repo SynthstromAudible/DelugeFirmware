@@ -384,6 +384,12 @@ Error openDelugeFile(char const* path, char const* firstTagName, char const* alt
 ///                               through `activeDeserializer` that follows. May be a PREFIX of a longer
 ///                               document — the reader simply runs out where the buffer does, which
 ///                               FileReader::reachedEnd() then reports.
+///                               MUTABLE, and written to: the walk NUL-terminates each name and value
+///                               it returns IN PLACE, overwriting the delimiter byte in these very
+///                               bytes (`XMLDeserializer::readNextAttributeName`, and both
+///                               deserializers' `readUntilChar`). The caller's buffer therefore comes
+///                               back perforated with NULs, and read-only storage — a `.rodata`
+///                               literal, a memory-mapped page — must never be passed here.
 /// @param isJson                 `true` to parse as JSON, `false` as XML. The caller decides, because
 ///                               a buffer has no filename to infer from.
 /// @param firstTagName           The root tag the document must open with.
@@ -396,8 +402,8 @@ Error openDelugeFile(char const* path, char const* firstTagName, char const* alt
 ///       downstream WRITES through the global without opening a document of its own (SaveSongUI's
 ///       sample collection reads `Cluster::size` — 32 KiB — into `activeDeserializer->fileClusterBuffer`,
 ///       which left pointing here IS @p buffer). Copy that function's save/restore, not just this call.
-Error openDelugeBuffer(std::span<const uint8_t> buffer, bool isJson, char const* firstTagName,
-                       char const* altTagName = "", bool ignoreIncorrectFirmware = false);
+Error openDelugeBuffer(std::span<uint8_t> buffer, bool isJson, char const* firstTagName, char const* altTagName = "",
+                       bool ignoreIncorrectFirmware = false);
 Error initSD();
 
 /// @brief Check whether a file exists at @p pathName.

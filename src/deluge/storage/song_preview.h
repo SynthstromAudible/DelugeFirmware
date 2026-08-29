@@ -73,7 +73,10 @@ enum class SongPreviewOutcome {
 /// Runs the SAME tag walk the file-backed decode runs, over a borrowed buffer rather than a live file,
 /// so it can be called where blocking on the storage tier is not allowed.
 ///
-/// @param buffer     Document bytes, which may be a PREFIX of the file. Borrowed for the call only.
+/// @param buffer     Document bytes, which may be a PREFIX of the file. Borrowed for the call only —
+///                   and WRITTEN THROUGH: the walk NUL-terminates each name and value it reads in
+///                   place, so the caller's bytes come back perforated and read-only storage must
+///                   never be passed. See StorageManager::openDelugeBuffer().
 /// @param isJson     `true` to parse the buffer as JSON, `false` as XML. A buffer has no filename to
 ///                   infer this from, so the caller must say.
 /// @param imageStore Destination pad rows, `kDisplayHeight` of them. Written ONLY where the preview
@@ -93,7 +96,7 @@ enum class SongPreviewOutcome {
 ///       `activeDeserializer->fileClusterBuffer`). Reached with the global left here, that is a 32 KiB
 ///       write into a buffer that may be 4 KiB and may already have been freed: heap corruption, not a
 ///       stale read.
-SongPreviewOutcome decodeSongPreview(std::span<const uint8_t> buffer, bool isJson,
+SongPreviewOutcome decodeSongPreview(std::span<uint8_t> buffer, bool isJson,
                                      RGB (*imageStore)[kDisplayWidth + kSideBarWidth], ::Error* openError = nullptr);
 
 /// @brief Decode a song's preview artwork by reading the song file, the synchronous way.

@@ -248,11 +248,13 @@ Error StorageManager::openDelugeFile(char const* path, char const* firstTagName,
 PLACE_SDRAM_BSS std::optional<XMLDeserializer> smXmlBufferDeserializer;
 PLACE_SDRAM_BSS std::optional<JsonDeserializer> smJsonBufferDeserializer;
 
-Error StorageManager::openDelugeBuffer(std::span<const uint8_t> buffer, bool isJson, char const* firstTagName,
+Error StorageManager::openDelugeBuffer(std::span<uint8_t> buffer, bool isJson, char const* firstTagName,
                                        char const* altTagName, bool ignoreIncorrectFirmware) {
-	// const_cast: FileReader's memory constructor takes a mutable buffer because it shares one pointer
-	// with the file path's writable cluster buffer, but a deserializer only ever reads through it.
-	auto* bytes = const_cast<uint8_t*>(buffer.data());
+	// Mutable, and genuinely so: the walk NUL-terminates names and values in place, in the caller's
+	// bytes (XMLDeserializer::readNextAttributeName, XMLDeserializer::readUntilChar,
+	// JsonDeserializer::readUntilChar), none of it conditional on the reader being memory-backed. A
+	// span of read-only storage handed here would fault at the first terminator.
+	uint8_t* bytes = buffer.data();
 
 	if (isJson) {
 		smJsonBufferDeserializer.emplace(bytes, buffer.size());
