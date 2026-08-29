@@ -19,7 +19,11 @@
 
 #include "gui/ui/load/load_ui.h"
 #include "hid/button.h"
+#include "storage/deferred_load.h"
 #include "storage/owner.h"
+
+#include <cstdint>
+#include <string>
 
 class LoadSongUI final : public LoadUI {
 public:
@@ -27,7 +31,14 @@ public:
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult timerCallback() override;
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
-	void graphicsRoutine() override {}
+
+	/// @brief Per-tick surface for the song preview: re-asks for one that has not landed yet.
+	///
+	/// This is the ONLY thing that finishes a deferred preview. @ref drawSongPreview is reached from
+	/// exactly two places -- arriving in a folder and moving the cursor -- so with no re-drive a prefix
+	/// that is still being read is never asked for again and the pads keep the previous song's artwork
+	/// until the user happens to scroll back onto that entry.
+	void graphicsRoutine() override;
 	void scrollFinished() override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	bool opened() override;
@@ -70,45 +81,96 @@ protected:
 	void folderContentsReady(int32_t entryDirection) override;
 	void currentFileChanged(int32_t movementDirection) override;
 	void exitAction() override;
+	ActionResult backButtonAction() override;
 	void onBrowserOpened() override;
 
 private:
-	/// @brief Render the highlighted song's saved pad layout onto the grid.
+	/// @brief Snapshot of the song to preview, captured at request time.
 	///
-	/// Reads the song file, so it must run on the storage owner. Called from the scroll path (the
-	/// interaction tier), where an off-owner read is refused outright, so this dispatches onto the owner
-	/// via @ref previewCoalescer_ and returns; the render happens in @ref drawSongPreviewImpl.
+	/// Both fields have to travel with the request. The path, because the selection can move on before
+	/// the bytes arrive; `toStore`, because the tick surface that re-asks knows nothing about the
+	/// scroll-in the cursor move set up, and painting the live image instead of the store would leave
+	/// that scroll reading an unfilled buffer.
+	struct PreviewTarget {
+		std::string path;
+		bool toStore;
+	};
+
+	/// @brief Ask for the highlighted song's saved pad layout, and draw it if it is already to hand.
+	///
+	/// Never blocks and never reads the card on the calling tier. The bytes are asked for through the
+	/// prefix channel and collected by @ref graphicsRoutine on a later tick; where that channel is not
+	/// backed (@ref deluge_file_prefix_async_active false) the read is dispatched onto the storage
+	/// owner instead. Either way the render lands later than this call.
+	///
 	/// @param toStore true to render into PadLEDs::imageStore (behind a scroll), false for the live image.
-	/// @return true if the render happened inline (we were already on the owner); false if it was
-	///         dispatched, in which case `imageStore` is NOT yet filled and a scroll that reads it must
-	///         wait for @ref previewTrampoline.
+	/// @return true if `imageStore` is filled and a scroll may start from it now. False means the fill
+	///         is still owed, and the caller must park its scroll direction in
+	///         @ref pendingScrollDirection_ rather than scrolling out of an unfilled store.
 	[[nodiscard]] bool drawSongPreview(bool toStore = true);
 
-	/// @brief The actual preview read + render. ONLY valid on the storage owner.
-	/// @param toStore As @ref drawSongPreview.
-	void drawSongPreviewImpl(bool toStore);
+	/// @brief Abandon any preview in progress: nothing that is being read is wanted any more.
+	///
+	/// For the moves that leave nothing to preview at all -- onto a folder or an empty selection, out
+	/// of the browser, or up a directory. None of them request a replacement, so ordinary latest-wins
+	/// supersession never fires; without this, the prefix already asked for arrives and paints the
+	/// song the cursor has LEFT over whatever replaced it, or after the browser is gone.
+	///
+	/// Cancelling strands nothing. It abandons the RESULT, never the read: the prefix channel is
+	/// single-flight and the next request supersedes whatever is outstanding.
+	void cancelPreview() { previewLoad_.cancel(); }
 
-	/// @brief `Owner::run` trampoline for @ref drawSongPreviewImpl, using @ref previewToStore_.
-	static void previewTrampoline(void* self);
+	/// @brief Start work on @p target, or queue it behind work already running (latest-wins).
+	void dispatchPreview(const PreviewTarget& target);
+
+	/// @brief Drive the current attempt one step, and hand off to a newer target if one queued.
+	///
+	/// Shared by the user-driven entry (@ref drawSongPreview) and the re-ask (@ref graphicsRoutine),
+	/// so both take the same single-flight path.
+	void drivePreview();
+
+	/// @brief Collect @p attempt's prefix and, if it has landed, decode and draw it.
+	/// @return true if the bytes are not here yet and the target must be asked for again.
+	[[nodiscard]] bool collectPreview(const deluge::storage::DeferredLoad<PreviewTarget>::Attempt& attempt);
+
+	/// @brief The storage-owner op behind the synchronous backing: read the file and render inline.
+	/// @param self The LoadSongUI instance.
+	static void runPreviewOp(void* self);
+
+	/// @brief The synchronous backing's render: read @p target's file and draw it. Owner-only.
+	void renderPreviewFromFile(const PreviewTarget& target);
+
+	/// A row-major pad image of the shape both preview decoders write into.
+	using PreviewImage = RGB (*)[kDisplayWidth + kSideBarWidth];
+
+	/// @brief Clear the destination image and hand it back, or null if the preview must not draw.
+	/// @param toStore As @ref drawSongPreview.
+	[[nodiscard]] PreviewImage beginPreviewRender(bool toStore);
+
+	/// @brief Everything that has to happen once a render has actually filled the destination image.
+	///
+	/// Starts the scroll-in owed to @ref pendingScrollDirection_ and asks for a repaint. Runs even
+	/// when nothing was drawn (a blank song, a folder, or the QWERTY overlay suppressing the render):
+	/// the scroll direction is owed by the cursor move, not by the artwork, and leaving it parked
+	/// wedges the browser mid-scroll.
+	void finishPreviewRender();
 
 	void displayArmedPopup();
 
-	/// Coalesces scroll-driven preview requests: fast scrolling would otherwise overrun the owner's
-	/// 4-deep queue, and only the newest preview is worth rendering anyway.
-	deluge::storage::Coalescer previewCoalescer_{};
+	/// @brief The one piece of preview state: which song is being read, whether work is out on it,
+	///        whether that work deferred, and whether it is still wanted.
+	///
+	/// Replaces a `Coalescer` plus a hand-rolled `previewPending_` catch-up flag. `Coalescer::request`
+	/// DROPS a request made while one is in flight, so scrolling faster than one preview round-trip
+	/// left the pads showing an older song; the flag existed to notice that and re-dispatch by hand.
+	/// `DeferredLoad` is latest-wins, so the drop cannot happen in the first place.
+	deluge::storage::DeferredLoad<PreviewTarget> previewLoad_{};
 
-	/// `toStore` argument for the dispatched @ref drawSongPreviewImpl (the trampoline takes no args).
-	bool previewToStore_{true};
-
-	/// Set on every request, cleared as the render begins. Still set when the render finishes means the
-	/// selection moved again mid-read and the coalescer dropped that request, so a catch-up is dispatched.
-	bool previewPending_{false};
-
-	/// @brief Scroll direction owed to a preview whose render was dispatched, or 0 for none.
+	/// @brief Scroll direction owed to a preview whose render has not happened yet, or 0 for none.
 	///
 	/// The scroll-in reads `PadLEDs::imageStore`, so it cannot start until the render has actually filled
-	/// it. When @ref drawSongPreview dispatches instead of rendering inline, the direction is parked here
-	/// and @ref previewTrampoline starts the scroll once the fill is done. Starting it eagerly is what
+	/// it. @ref drawSongPreview never renders inline, so the direction is parked here and
+	/// @ref finishPreviewRender starts the scroll once the fill is done. Starting it eagerly is what
 	/// left the first two columns showing the PREVIOUS entry: `setupScroll` ticks once itself and
 	/// `currentFileChanged` ticked again, so two columns were copied out of an unfilled store.
 	int32_t pendingScrollDirection_{0};

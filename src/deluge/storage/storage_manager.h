@@ -390,6 +390,12 @@ Error openDelugeFile(char const* path, char const* firstTagName, char const* alt
 /// @param altTagName             An accepted alternative root tag.
 /// @param ignoreIncorrectFirmware Pass the file's `earliestCompatibleFirmware` check.
 /// @return Error::NONE, or Error::FILE_CORRUPTED if the root tag was not found.
+/// @note This leaves `activeDeserializer` pointing at the memory reader on EVERY path, the failed
+///       open included — so a caller must save the previous value before calling and restore it at a
+///       single exit, as `deluge::storage::decodeSongPreview()` does. That is not hygiene: code
+///       downstream WRITES through the global without opening a document of its own (SaveSongUI's
+///       sample collection reads `Cluster::size` — 32 KiB — into `activeDeserializer->fileClusterBuffer`,
+///       which left pointing here IS @p buffer). Copy that function's save/restore, not just this call.
 Error openDelugeBuffer(std::span<const uint8_t> buffer, bool isJson, char const* firstTagName,
                        char const* altTagName = "", bool ignoreIncorrectFirmware = false);
 Error initSD();

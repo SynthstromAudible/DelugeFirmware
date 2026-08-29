@@ -27,7 +27,7 @@ namespace {
 
 /// @brief Walk an already-opened document to its `preview` attribute and paint it.
 ///
-/// Lifted unchanged out of LoadSongUI::drawSongPreviewImpl(), including the early exits: this is the
+/// Lifted unchanged out of the song browser's own preview render, including the early exits: this is the
 /// one walk, and both entry points below run it so the buffer decode cannot drift from the file decode.
 ///
 /// @param reader     A deserializer whose document is already open and positioned past the root tag.

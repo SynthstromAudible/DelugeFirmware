@@ -112,6 +112,7 @@ add_executable(UnitTests
         waveform_overview_cache_tests.cpp
         song_preview_window_tests.cpp
         song_preview_decode_tests.cpp
+        song_preview_deferral_tests.cpp
 )
 # WORKING_DIRECTORY: song_preview_window_tests.cpp reads a checked-in fixture by a path relative to
 # the repo root (tests/data/songs/...) and DELUGE_SONG_CORPUS points at a real directory on disk, so

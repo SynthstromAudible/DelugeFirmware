@@ -31,6 +31,7 @@
 #include "hid/encoders.h"
 #include "hid/led/indicator_leds.h"
 #include "hid/led/pad_leds.h"
+#include "libdeluge/file_prefix.h"
 #include "memory/general_memory_allocator.h"
 #include "model/action/action_logger.h"
 #include "model/instrument/midi_instrument.h"
@@ -49,6 +50,10 @@
 #include "storage/song_preview.h"
 #include "storage/storage_manager.h"
 #include "util/try.h"
+
+#include <array>
+#include <cstdint>
+#include <span>
 #include <string.h>
 
 LoadSongUI loadSongUI{};
@@ -64,6 +69,36 @@ namespace encoders = deluge::hid::encoders;
 /// bounded wait this replaced, so a card that never settles still lets the song through.
 constexpr double kLoadSettleTimeoutSeconds = 5.;
 
+namespace {
+
+/// @brief Where a collected song prefix lands on its way to the decoder.
+///
+/// File-scope rather than a local, and that is load-bearing rather than a size preference. While
+/// `decodeSongPreview()` runs, the global `activeDeserializer` points at a reader whose cluster buffer
+/// IS this array; the decode puts that global back before it returns, but the buffer must outlive
+/// every read through it, and nothing about a 4 KiB automatic in a UI callback would make that
+/// clearer. One is enough by construction: there is exactly one LoadSongUI and `previewLoad_` is
+/// single-flight, so a second collect can never be in progress alongside the first.
+std::array<uint8_t, deluge::storage::kSongPreviewWindow> songPreviewPrefix;
+
+// deluge_file_prefix_collect() requires out_cap >= DELUGE_FILE_PREFIX_CAPACITY: a shorter buffer is a
+// caller bug that trips a debug_assert in a dev build and silently yields blank artwork in release,
+// rather than serving truncated bytes. file_prefix_abi.cpp pins that capacity to kSongPreviewWindow
+// from the other side, so this holds unless one of the two moves.
+static_assert(deluge::storage::kSongPreviewWindow >= DELUGE_FILE_PREFIX_CAPACITY,
+              "the preview buffer must be able to take the largest prefix the channel can hold");
+
+/// @brief Whether a song path names a JSON document, decided exactly as openDelugeFile() decides it.
+///
+/// A buffer has no filename for the reader to infer the format from, so the caller has to say. The
+/// rule is `.Json` anywhere in the path -- see StorageManager::openDelugeFile() in file_reader.cpp,
+/// which is the behaviour the file-backed decode gets for free and this one has to reproduce.
+bool isJsonSongPath(const std::string& path) {
+	return path.find(".Json") != std::string::npos;
+}
+
+} // namespace
+
 LoadSongUI::LoadSongUI() {
 	qwertyAlwaysVisible = false;
 	filePrefix = "SONG";
@@ -73,6 +108,11 @@ LoadSongUI::LoadSongUI() {
 }
 
 bool LoadSongUI::opened() {
+
+	// Nothing carried over from a previous visit: a preview still being read when the browser closed
+	// names a song in whatever folder was open then, and graphicsRoutine() starts running again the
+	// moment this UI is current -- before folderContentsReady() has picked the entry for THIS visit.
+	cancelPreview();
 
 	qwertyAlwaysVisible = false;
 	qwertyCurrentlyDrawnOnscreen = false;
@@ -143,8 +183,9 @@ void LoadSongUI::onBrowserOpened() {
 
 void LoadSongUI::folderContentsReady(int32_t entryDirection) {
 
-	// Return deliberately ignored: nothing here scrolls out of imageStore, so a dispatched render is
-	// harmless -- previewTrampoline's renderingNeededRegardlessOfUI() repaints once it lands.
+	// Return deliberately ignored: nothing here scrolls out of imageStore, so a preview that has not
+	// landed yet is harmless -- finishPreviewRender()'s renderingNeededRegardlessOfUI() repaints once
+	// it does.
 	(void)drawSongPreview(currentUIMode == UI_MODE_VERTICAL_SCROLL);
 
 	PadLEDs::sendOutMainPadColours();
@@ -157,6 +198,10 @@ void LoadSongUI::enterKeyPress() {
 
 	// If it's a directory...
 	if (currentFileItem && currentFileItem->isFolder) {
+		// The song this was hovering is not in the folder we are entering, and nothing asks for a
+		// replacement until the listing completes -- so without this, a preview landing in between
+		// paints the departed folder's song over the new one's first entry. Same shape as Back.
+		cancelPreview();
 		// goIntoFolder() dispatches onto the storage owner; failure is handled by the base
 		// Browser::onListingFailed() (displayError + exitAction) once the listing completes.
 		goIntoFolder(currentFileItem->filename.c_str());
@@ -350,6 +395,12 @@ void LoadSongUI::endLoad() {
 
 // Before calling this, you must set loadButtonReleased.
 void LoadSongUI::beginLoad(void (*onComplete)()) {
+	// The browser is on its way out and the pads now belong to the load: the greyout, the loading
+	// animation, and finally the new song's view. Nothing here asks for a replacement preview, so an
+	// artwork read still outstanding would paint over all of that. It also frees the storage owner
+	// from a preview op the synchronous backing may still have queued ahead of the load.
+	cancelPreview();
+
 	loadOnComplete_ = onComplete;
 	performingLoad = true;
 
@@ -815,6 +866,12 @@ void LoadSongUI::exitAction() {
 		return;
 	}
 
+	// We are leaving. Cancelled only past the refusal above, since that path stays in the browser with
+	// the same entry selected and the preview it is waiting for is still the one it wants. From here
+	// the scroll-out overwrites imageStore immediately, and no replacement preview is asked for, so a
+	// result landing afterwards would paint the departing song over the view being scrolled back in.
+	cancelPreview();
+
 	currentUIMode = UI_MODE_VERTICAL_SCROLL;
 	PadLEDs::vertical::setupScroll(-1, false);
 	getRootUI()->renderMainPads(0xFFFFFFFF, PadLEDs::imageStore, PadLEDs::occupancyMaskStore);
@@ -823,78 +880,181 @@ void LoadSongUI::exitAction() {
 	timerCallback();
 }
 
-void LoadSongUI::previewTrampoline(void* self) {
-	auto* ui = static_cast<LoadSongUI*>(self);
-	ui->previewPending_ = false;
-	ui->drawSongPreviewImpl(ui->previewToStore_);
+ActionResult LoadSongUI::backButtonAction() {
+	// Back either leaves the browser or goes up a directory. Either way the song this was hovering is
+	// no longer the selection, and neither outcome asks for a replacement preview to supersede one
+	// already being read -- the same shape as the folder branch in drawSongPreview(). Going up
+	// re-selects through folderContentsReady(), which asks afresh.
+	cancelPreview();
 
-	// imageStore is filled now, so a scroll-in owed by currentFileChanged can finally start. Consume the
-	// direction before starting, so a scroll begun here cannot be started twice if the render re-runs.
-	if (ui->pendingScrollDirection_ != 0) {
-		int32_t direction = ui->pendingScrollDirection_;
-		ui->pendingScrollDirection_ = 0;
-		ui->beginPreviewScrollIn(direction);
-	}
-	// We rendered from the owner, outside the normal UI render pass, so ask for a repaint - otherwise
-	// the pads keep whatever was on them until something else happens to trigger one.
-	renderingNeededRegardlessOfUI();
-
-	if (ui->previewPending_) {
-		// The selection moved again while we were reading, and Coalescer::request() DROPS requests made
-		// while one is in flight ("a dispatch is already in flight - it covers this demand", which only
-		// holds if the in-flight fill has not yet read the state). Without this catch-up, scrolling faster
-		// than one preview round-trip leaves the pads showing an older song with nothing to correct it.
-		// Dispatched directly rather than through the coalescer, whose in-flight guard is still held here;
-		// a dropped enqueue is harmless because the next detent requests again.
-		deluge::storage::Owner::run(&LoadSongUI::previewTrampoline, ui);
-	}
+	return Browser::backButtonAction();
 }
 
 bool LoadSongUI::drawSongPreview(bool toStore) {
-	// The preview reads the song file, which only the storage owner may do: this is called from the
-	// scroll path on the interaction tier, where the Rust BSP refuses the open outright (and
-	// openXMLFile() reports that refusal as Error::FILE_NOT_FOUND -- which is how every scrolled entry
-	// came to claim "FILE NOT FOUND" for songs that load fine). Dispatch and let the owner render.
-	if (!deluge::storage::Owner::on_owner()) {
-		previewToStore_ = toStore;
-		previewPending_ = true;
-		previewCoalescer_.request(&LoadSongUI::previewTrampoline, this);
-		return false; // imageStore is NOT filled yet -- the caller must not scroll from it
-	}
-	drawSongPreviewImpl(toStore);
-	return true;
-}
-
-void LoadSongUI::drawSongPreviewImpl(bool toStore) {
-
-	if (qwertyAlwaysVisible) {
-		return;
-	}
-
-	RGB(*imageStore)[kDisplayWidth + kSideBarWidth];
-	if (toStore) {
-		imageStore = PadLEDs::imageStore;
-	}
-	else {
-		imageStore = PadLEDs::image;
-	}
-
-	memset(imageStore, 0, kDisplayHeight * (kDisplayWidth + kSideBarWidth) * sizeof(RGB));
-
 	FileItem* currentFileItem = getCurrentFileItem();
 
-	if (!currentFileItem || currentFileItem->isFolder) {
+	// Nothing to preview. Whatever is being read is no longer what the user is on, and this branch
+	// asks for no replacement to supersede it, so it has to be cancelled outright -- or it lands a
+	// song's artwork over a folder. There is also nothing to wait for, so the image is blanked and
+	// released to the caller's scroll right here.
+	if (currentFileItem == nullptr || currentFileItem->isFolder) {
+		cancelPreview();
+		(void)beginPreviewRender(toStore);
+		// A direction parked for the preview we just abandoned would otherwise fire later, on top of
+		// the scroll the caller is about to start. The old dispatch-always shape could not leave one
+		// behind, because the caller overwrote it before the render consumed it.
+		pendingScrollDirection_ = 0;
+		return true; // blank, but FILLED: a scroll may start from it now
+	}
+
+	dispatchPreview(PreviewTarget{currentDir + "/" + currentFileItem->getFilenameWithExtension(), toStore});
+	return false; // imageStore is NOT filled yet -- the caller must not scroll from it
+}
+
+void LoadSongUI::dispatchPreview(const PreviewTarget& target) {
+	if (!previewLoad_.request(target)) {
+		return; // work is already out on an older target; it picks this one up on completion
+	}
+	drivePreview();
+}
+
+void LoadSongUI::drivePreview() {
+	if (!deluge_file_prefix_async_active()) {
+		// No prefix channel on this BSP/config, so the bytes have to be read the blocking way -- which
+		// only the storage owner may do. drawSongPreview() is reached from the scroll path on the
+		// interaction tier, where the Rust BSP refuses the open outright (and openXMLFile() reports
+		// that refusal as Error::FILE_NOT_FOUND -- which is how every scrolled entry came to claim
+		// "FILE NOT FOUND" for songs that load fine). Dispatch and let the owner render.
+		if (!deluge::storage::Owner::run(&LoadSongUI::runPreviewOp, this)) {
+			// The owner queue was full, so the op will never run and would wedge single-flight forever.
+			// Release the guard and leave the target for graphicsRoutine() to ask for again.
+			previewLoad_.release_dispatch();
+		}
 		return;
 	}
 
-	std::string filePath = currentDir + "/" + currentFileItem->getFilenameWithExtension();
-	// We are on the owner (drawSongPreview() guarantees it), so a failure here is a real one about this
-	// file, not the storage tier declining to answer -- worth showing.
-	Error error = Error::NONE;
-	if (deluge::storage::decodeSongPreviewFromFile(filePath.c_str(), imageStore, &error)
-	    == deluge::storage::SongPreviewOutcome::Error) {
-		display->displayError(error);
+	// The prefix channel never touches the card on this side, so the collect runs inline on whatever
+	// tier called us -- no dispatch, no owner. The loop is for latest-wins hand-off: complete() returns
+	// a target only if a newer one queued while this one ran, and nothing reachable from a collect asks
+	// for a preview, so in practice it runs once.
+	for (;;) {
+		// No is_current() guard, unlike runPreviewOp(): there is no gap here for a cancellation to land
+		// in. request() (or the previous complete()) made this target current on the line above, and
+		// the collect runs to completion before anything else can execute.
+		const auto attempt = previewLoad_.attempt();
+		const bool deferred = collectPreview(attempt);
+		if (!previewLoad_.complete(attempt, deferred).has_value()) {
+			return;
+		}
 	}
+}
+
+bool LoadSongUI::collectPreview(const deluge::storage::DeferredLoad<PreviewTarget>::Attempt& attempt) {
+	uint32_t length = 0;
+	const uint8_t status = deluge_file_prefix_collect(attempt.target.path.c_str(), songPreviewPrefix.data(),
+	                                                  static_cast<uint32_t>(songPreviewPrefix.size()), &length);
+
+	if (status == DELUGE_FILE_PREFIX_PENDING) {
+		return true; // requested or being read: ask again next tick, and do NOT re-request
+	}
+	if (status == DELUGE_FILE_PREFIX_UNKNOWN) {
+		// "The caller should request it (again)" -- the documented meaning, and never a failure to
+		// report. This is also where the FIRST request for a target is issued: drawSongPreview() names
+		// a song the channel has not been told about, so its opening drive lands here.
+		deluge_file_prefix_request(attempt.target.path.c_str(), deluge::storage::kSongPreviewWindow);
+		return true;
+	}
+
+	// READY, the only status left, and the only one that writes the buffer.
+	//
+	// A length of 0 is NOT an error. A file that would not open, could not be sized, or failed its read
+	// is published as an EMPTY prefix on purpose, so an unreadable song is not re-read on every tick for
+	// as long as the cursor stays on it (see deluge_file_prefix_collect). Blank is the terminal answer,
+	// and the same one a song carrying no preview at all gets.
+	PreviewImage imageStore = beginPreviewRender(attempt.target.toStore);
+	if (imageStore != nullptr && length > 0) {
+		// The outcome is deliberately not reported. Unlike the file-backed decode there is no Error to
+		// show -- the channel has none, by design -- and every outcome that is not Rendered draws the
+		// blank the caller already has: a song with no preview, a preview past the window, or a document
+		// that would not open all look the same on the pads.
+		(void)deluge::storage::decodeSongPreview(std::span<const uint8_t>{songPreviewPrefix.data(), length},
+		                                         isJsonSongPath(attempt.target.path), imageStore);
+	}
+	finishPreviewRender();
+	return false;
+}
+
+void LoadSongUI::runPreviewOp(void* self) {
+	auto* ui = static_cast<LoadSongUI*>(self);
+	const auto attempt = ui->previewLoad_.attempt();
+
+	// Checked BEFORE the work, not merely before recording its result: between the dispatch and this
+	// running, the cursor can have moved somewhere with no preview at all (a folder, an empty list, or
+	// out of the browser), which asks for no replacement and so supersedes nothing. Painting the song
+	// the cursor has left is the damage.
+	if (ui->previewLoad_.is_current(attempt)) {
+		ui->renderPreviewFromFile(attempt.target);
+	}
+
+	// Never deferred: this backing blocks until it has the answer. If a newer target arrived while the
+	// read ran, it is dispatched instead (latest-wins) -- which is what the hand-rolled previewPending_
+	// catch-up used to do, badly, because Coalescer::request() had dropped that newer target outright.
+	if (ui->previewLoad_.complete(attempt, /*deferred=*/false).has_value()
+	    && !deluge::storage::Owner::run(&LoadSongUI::runPreviewOp, self)) {
+		ui->previewLoad_.release_dispatch(); // re-dispatch dropped (see drivePreview)
+	}
+}
+
+void LoadSongUI::renderPreviewFromFile(const PreviewTarget& target) {
+	PreviewImage imageStore = beginPreviewRender(target.toStore);
+	if (imageStore != nullptr) {
+		// We are on the owner, so a failure here is a real one about this file, not the storage tier
+		// declining to answer -- worth showing.
+		Error error = Error::NONE;
+		if (deluge::storage::decodeSongPreviewFromFile(target.path.c_str(), imageStore, &error)
+		    == deluge::storage::SongPreviewOutcome::Error) {
+			display->displayError(error);
+		}
+	}
+	finishPreviewRender();
+}
+
+LoadSongUI::PreviewImage LoadSongUI::beginPreviewRender(bool toStore) {
+	if (qwertyAlwaysVisible) {
+		return nullptr; // the keyboard owns the pads, so nothing may be drawn over it
+	}
+
+	PreviewImage imageStore = toStore ? PadLEDs::imageStore : PadLEDs::image;
+	memset(imageStore, 0, kDisplayHeight * (kDisplayWidth + kSideBarWidth) * sizeof(RGB));
+	return imageStore;
+}
+
+void LoadSongUI::finishPreviewRender() {
+	// imageStore is filled now, so a scroll-in owed by currentFileChanged can finally start. Consume the
+	// direction before starting, so a scroll begun here cannot be started twice if the render re-runs.
+	if (pendingScrollDirection_ != 0) {
+		const int32_t direction = pendingScrollDirection_;
+		pendingScrollDirection_ = 0;
+		beginPreviewScrollIn(direction);
+	}
+	// We rendered outside the normal UI render pass, so ask for a repaint - otherwise the pads keep
+	// whatever was on them until something else happens to trigger one.
+	renderingNeededRegardlessOfUI();
+}
+
+void LoadSongUI::graphicsRoutine() {
+	// Re-ask for a preview whose bytes have not arrived.
+	//
+	// take_pending() takes the target OUT before dispatching, not after: the drive runs INLINE from
+	// here (a collect touches no card), so it completes before dispatchPreview() returns and may arm a
+	// SECOND deferral -- which clearing afterwards would wipe, leaving the preview to never finish. A
+	// dispatch the storage owner could not take re-arms it itself (drivePreview -> release_dispatch),
+	// so it is asked for again next tick rather than dropped.
+	if (auto target = previewLoad_.take_pending(); target.has_value()) {
+		dispatchPreview(*target);
+	}
+
+	UI::graphicsRoutine();
 }
 
 void LoadSongUI::displayText(bool blinkImmediately) {
