@@ -940,7 +940,15 @@ constexpr const char* kListingStartAt = "SONG012Z.XML";
 static_assert(kListingEntries > FILE_ITEMS_MAX_NUM_ELEMENTS,
               "the fixture must overflow the file-item window, or no re-read is ever provoked");
 
-enum class ListingStep : uint8_t { Fixture, Reference, Sweep, Finished };
+/// A directory comfortably past the ~230 entries that once panicked the readdir snapshot arena and
+/// bricked the device on open. This rung holds that snapshot across a request/collect gap, which is
+/// exactly what makes the arena's window longer, so the case is the rung's own regression check
+/// rather than a rider on somebody else's corpus.
+constexpr const char* kBigDir = "BIGLIST";
+constexpr int32_t kBigEntries = 300;
+static_assert(kBigEntries > 230, "the case must exceed the arena threshold it exists to guard");
+
+enum class ListingStep : uint8_t { Fixture, Reference, Sweep, BigFolder, Finished };
 ListingStep g_listingStep = ListingStep::Fixture;
 int32_t g_listingDeferAt = 0;  ///< which N the sweep is on; 0 = the reference run
 int32_t g_listingOpens = 0;    ///< how many opens the reference run performed
@@ -960,13 +968,13 @@ ListingSnapshot takeListingSnapshot() {
 	return snap;
 }
 
-/// Create the fixture directory and its entries. Idempotent: a re-run of the harness against a
+/// Create a directory of `count` tiny song files. Idempotent: a re-run of the harness against a
 /// reused image finds them already there.
-bool buildListingFixture() {
-	(void)deluge::io::mkdir(kListingDir);
-	for (int32_t i = 0; i < kListingEntries; i++) {
+bool buildFixtureDir(const char* dir, int32_t count) {
+	(void)deluge::io::mkdir(dir);
+	for (int32_t i = 0; i < count; i++) {
 		char path[64];
-		snprintf(path, sizeof(path), "%s/SONG%03d.XML", kListingDir, static_cast<int>(i));
+		snprintf(path, sizeof(path), "%s/SONG%03d.XML", dir, static_cast<int>(i));
 		auto file = deluge::io::File::open(path, DELUGE_FILE_WRITE_CREATE_NEW);
 		if (!file.has_value()) {
 			continue; // already present from a previous run
@@ -975,16 +983,18 @@ bool buildListingFixture() {
 		(void)file->write(std::as_bytes(std::span{body, sizeof(body) - 1}));
 		(void)file->close();
 	}
-	// Prove the fixture is what the sweep needs rather than assuming it: a directory that came back
-	// short would make every comparison below trivially true.
-	auto dir = deluge::io::Directory::open(kListingDir);
-	if (!dir.has_value()) {
-		printf("SP-LISTING FAIL could not open the fixture directory\n");
+	// Prove the fixture is what the case needs rather than assuming it. A directory that came back
+	// short would make the sweep trivially true, and would make the big-folder case stop exercising
+	// the arena threshold entirely while still reporting a green run -- the "gate that covers
+	// nothing" shape this branch has hit twice.
+	auto opened = deluge::io::Directory::open(dir);
+	if (!opened.has_value()) {
+		printf("SP-LISTING FAIL could not open fixture %s\n", dir);
 		return false;
 	}
 	int32_t counted = 0;
 	while (true) {
-		auto entry = dir->read();
+		auto entry = opened->read();
 		if (!entry.has_value() || !entry->has_value()) {
 			break;
 		}
@@ -992,8 +1002,8 @@ bool buildListingFixture() {
 			counted++;
 		}
 	}
-	if (counted < kListingEntries) {
-		printf("SP-LISTING FAIL fixture has %d entries, needs %d\n", counted, kListingEntries);
+	if (counted < count) {
+		printf("SP-LISTING FAIL fixture %s has %d entries, needs %d\n", dir, counted, count);
 		return false;
 	}
 	return true;
@@ -1013,6 +1023,16 @@ void runListingTick() {
 			return; // still deferring; the tick surface will run it again
 		}
 		g_listingRunning = false;
+
+		if (g_listingStep == ListingStep::BigFolder) {
+			// Surviving the open at all is the property: >230 entries once panicked the snapshot arena
+			// on open and bricked the device. Reaching here means the open, the enumeration and the
+			// close all completed.
+			printf("SP-LISTING big entries=%d listed=%zu\n", kBigEntries, takeListingSnapshot().names.size());
+			printf("SP-LISTING-SUMMARY opens=%d sweeps=%d big=%d\n", g_listingOpens, g_listingCasesRun, kBigEntries);
+			g_listingStep = ListingStep::Finished;
+			return;
+		}
 
 		if (g_listingStep == ListingStep::Reference) {
 			g_listingReference = takeListingSnapshot();
@@ -1044,7 +1064,7 @@ void runListingTick() {
 
 	switch (g_listingStep) {
 	case ListingStep::Fixture:
-		if (!buildListingFixture()) {
+		if (!buildFixtureDir(kListingDir, kListingEntries)) {
 			g_failures++;
 			g_listingStep = ListingStep::Finished;
 			return;
@@ -1058,8 +1078,16 @@ void runListingTick() {
 	case ListingStep::Sweep:
 		if (g_listingDeferAt >= g_listingOpens) {
 			BrowserListingAbProbe::deferAtOpen(0);
-			printf("SP-LISTING-SUMMARY opens=%d sweeps=%d\n", g_listingOpens, g_listingCasesRun);
-			g_listingStep = ListingStep::Finished;
+			// The big folder is listed LAST, so a panic in it cannot be mistaken for a sweep failure.
+			if (!buildFixtureDir(kBigDir, kBigEntries)) {
+				g_failures++;
+				g_listingStep = ListingStep::Finished;
+				return;
+			}
+			BrowserListingAbProbe::beginOpenListing(kBigDir, kListingStartAt);
+			g_listingRunning = true;
+			g_listingTicks = 0;
+			g_listingStep = ListingStep::BigFolder;
 			return;
 		}
 		g_listingDeferAt++;
