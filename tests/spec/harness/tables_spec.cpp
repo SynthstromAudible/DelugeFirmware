@@ -108,6 +108,40 @@ describe tables("level-3 name tables cross-checked against deluge_profile()", $ 
 		}
 	});
 
+	it("agrees with the profile in the OTHER direction too, over every matrix coordinate (M-11)", _ {
+		// The spec above only reverses the profile's own `button_by_matrix` into the C table, so
+		// a `k_buttons` entry the profile does NOT have (a coordinate the profile calls `None`,
+		// or one past its matrix bounds) would go unnoticed, and `ui_script_button_name_at` --
+		// which names every level-3 `led <Name>` line -- was never called at all. Walking every
+		// coordinate the C table's own bounds (0..8, 0..3 -- host_script_tables.c's `kMatrix`) can
+		// name, and checking BOTH the "is there a button" question and the name when there is,
+		// closes both holes over the same table `ui_script_button_xy`'s check above already read.
+		const BoardProfile& profile = deluge_profile();
+		for (uint8_t y = 0; y < 4; y++) {
+			for (uint8_t x = 0; x < 9; x++) {
+				const char* got_name = ui_script_button_name_at(x, y);
+				const std::string coord = "(" + std::to_string(x) + "," + std::to_string(y) + ")";
+
+				bool profile_has = false;
+				ButtonId want_id = ButtonId::None;
+				if (y < profile.button_rows && x < profile.button_cols) {
+					const size_t pos = static_cast<size_t>(y) * profile.button_cols + x;
+					want_id = profile.button_by_matrix[pos];
+					profile_has = want_id != ButtonId::None;
+				}
+
+				if (!profile_has) {
+					expect(coord + ": " + (got_name == nullptr ? "no button" : std::string("button ") + got_name))
+					    .to_equal(coord + ": no button");
+					continue;
+				}
+				const std::string want_name = button_name(want_id);
+				expect(coord + ": " + (got_name == nullptr ? "no button" : std::string(got_name)))
+				    .to_equal(coord + ": " + want_name);
+			}
+		}
+	});
+
 	it("rejects a button name the profile does not have", _ {
 		uint8_t x = 0;
 		uint8_t y = 0;
