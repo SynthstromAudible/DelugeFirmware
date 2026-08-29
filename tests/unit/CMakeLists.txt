@@ -13,6 +13,36 @@ FetchContent_Declare(
 
 FetchContent_MakeAvailable(etl)
 
+# argon + SIMDe, for the one firmware UI translation unit this binary compiles.
+#
+# slicer_preview_tests.cpp drives the REAL gui/ui/slicer.cpp rather than a restatement of it, and
+# that file reaches <argon.hpp> transitively (model/song/song.h -> dsp/reverb). The block mirrors
+# tests/spec_dsp/CMakeLists.txt; keep the pins in sync with lib/CMakeLists.txt and that sibling.
+FetchContent_Declare(argon
+        GIT_REPOSITORY https://github.com/stellar-aria/argon
+        GIT_TAG 5897db725c1cdee452b5f288614796364468f2ea
+)
+FetchContent_MakeAvailable(argon)
+
+if (CMAKE_SYSTEM_PROCESSOR MATCHES "^(arm64|aarch64)$")
+    set(UNIT_TESTS_NEON_NATIVE ON)
+endif ()
+
+if (NOT UNIT_TESTS_NEON_NATIVE)
+    FetchContent_Declare(simde
+            GIT_REPOSITORY https://github.com/simd-everywhere/simde
+            GIT_TAG v0.8.2
+            GIT_SHALLOW TRUE
+    )
+    FetchContent_MakeAvailable(simde)
+    set(UNIT_TESTS_SIMDE_INCLUDE_DIR ${simde_SOURCE_DIR})
+    # Parent builds this tree at -m32 on plain Linux, where SIMDe's native path drags in AVX512/FMA
+    # headers that don't parse in 32-bit mode.
+    if (UNIX AND NOT APPLE)
+        add_compile_definitions(SIMDE_NO_NATIVE)
+    endif ()
+endif ()
+
 # Set this to ON if you want to have the CppUTest's internal tests in your
 # project as well.
 set(TESTS OFF CACHE BOOL "Switch off CppUTest Test build")
@@ -79,6 +109,10 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/util/firmware_version.cpp
         ../../src/deluge/util/semver.cpp
         ../spec_io/mock_file_io.cpp
+        # For the slicer audition specs: the REAL UI translation unit, so the specs drive the
+        # shipped previewForTarget()/graphicsRoutine() instead of a restatement of them. Its world is
+        # mocks/slicer_env_mock.cpp (globbed above).
+        ../../src/deluge/gui/ui/slicer.cpp
 )
 
 # util/firmware_version.h is generated from a template at firmware-build time, and the deserializers
@@ -113,6 +147,7 @@ add_executable(UnitTests
         song_preview_window_tests.cpp
         song_preview_decode_tests.cpp
         song_preview_deferral_tests.cpp
+        slicer_preview_tests.cpp
 )
 # WORKING_DIRECTORY: song_preview_window_tests.cpp reads a checked-in fixture by a path relative to
 # the repo root (tests/data/songs/...) and DELUGE_SONG_CORPUS points at a real directory on disk, so
@@ -132,6 +167,21 @@ target_include_directories(UnitTests PRIVATE
         ../spec_io                   # mock_file_io.h, the in-memory card behind deluge::io::File
         ${CMAKE_CURRENT_BINARY_DIR}/generated # util/firmware_version.h, configured just above
 )
+
+# The NEON backend gui/ui/slicer.cpp reaches through dsp/reverb.
+target_link_libraries(UnitTests argon)
+if (NOT UNIT_TESTS_NEON_NATIVE)
+    target_include_directories(UnitTests PRIVATE
+            ${CMAKE_CURRENT_LIST_DIR}/../../sim/compat # <arm_neon.h> shim
+            ${UNIT_TESTS_SIMDE_INCLUDE_DIR}            # <simde/arm/neon.h>
+            ${UNIT_TESTS_SIMDE_INCLUDE_DIR}/simde      # argon's bare <arm/neon.h>
+    )
+endif ()
+
+# libstdc++'s parallel STL backend is oneTBB, whose headers pull in the full <immintrin.h> and
+# collide with SIMDe's NEON alias macros. The firmware has no TBB; mirror the sim and take the
+# serial backend.
+target_compile_definitions(UnitTests PRIVATE _GLIBCXX_USE_TBB_PAR_BACKEND=0)
 
 set_target_properties(UnitTests
         PROPERTIES

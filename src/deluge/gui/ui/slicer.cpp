@@ -58,6 +58,12 @@ namespace params = deluge::modulation::params;
 
 void Slicer::focusRegained() {
 
+	// `slicer` is a singleton, so an audition deferred during the PREVIOUS visit is still armed
+	// here, naming a slice of whatever sample that visit was slicing. graphicsRoutine() starts
+	// running again the moment this UI is current, so without this it would land that stale
+	// audition into the new session.
+	cancelPreview();
+
 	actionLogger.deleteAllLogs();
 
 	numClips = 16;
@@ -154,6 +160,15 @@ bool Slicer::renderMainPads(uint32_t whichRows, RGB image[][kDisplayWidth + kSid
 const uint8_t zeroes[] = {0, 0, 0, 0, 0, 0, 0, 0};
 
 void Slicer::graphicsRoutine() {
+	// Re-ask for a deferred audition. This surface (every ~15 ms while the slicer is up) is the only
+	// thing that ever finishes one.
+	//
+	// take_pending() takes the target OUT before driving it, not after: drivePreview() runs the
+	// attempt inline and so completes — and can arm a SECOND deferral — before it returns, which
+	// clearing afterwards would wipe.
+	if (auto target = previewLoad_.take_pending(); target.has_value()) {
+		(void)drivePreview(*target);
+	}
 
 	int32_t newTickSquare = 255;
 	VoiceSample* voiceSample = nullptr;
@@ -282,6 +297,10 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 
 	// switch slicer mode
 	if (b == X_ENC && on) {
+		// Auditions only exist in MANUAL mode, and this leaves the mode the pending one was taken
+		// in — killing its voices on the way out. Nothing dispatches a replacement target, so
+		// without cancelling, a deferred audition would sound after the mode switch that stopped it.
+		cancelPreview();
 		slicerMode++;
 		slicerMode %= 2;
 		if (slicerMode == SLICER_MODE_MANUAL)
@@ -342,6 +361,12 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 		// (see SliceCommitTarget/runDoSliceOp); the op runs entirely off this snapshot, never
 		// re-reading these live members, so a concurrent encoder turn or pad press during the
 		// dispatched load can't desync what gets sliced from what gets painted.
+
+		// Committing ends in sampleBrowser.exitAndNeverDeleteDrum() → close(), i.e. the slicer is
+		// gone by the time any deferred audition could be re-driven, and the drums it would sound
+		// through have been rebuilt underneath it.
+		cancelPreview();
+
 		pendingSliceTarget_.isManual = (slicerMode == SLICER_MODE_MANUAL);
 		pendingSliceTarget_.sliceCount = pendingSliceTarget_.isManual ? numManualSlice : numClips;
 		if (pendingSliceTarget_.isManual) {
@@ -372,6 +397,9 @@ ActionResult Slicer::buttonAction(deluge::hid::Button b, bool on, bool inCardRou
 		if (inCardRoutine) {
 			return ActionResult::REMIND_ME_OUTSIDE_CARD_ROUTINE;
 		}
+		// Leaving the slicer: close() pops it off the UI stack, so graphicsRoutine() stops running
+		// and a deferred audition would otherwise sit armed until the next visit.
+		cancelPreview();
 		if (slicerMode == SLICER_MODE_MANUAL) {
 			RGB myImage[kDisplayHeight][kDisplayWidth + kSideBarWidth];
 			waveformRenderer.renderFullScreen(waveformBasicNavigator.sample, waveformBasicNavigator.xScroll,
@@ -407,14 +435,12 @@ void Slicer::stopAnyPreviewing() {
 	}
 }
 void Slicer::preview(int64_t startPoint, int64_t endPoint, int32_t transpose, int32_t on) {
-	// Snapshot the request (plain values — no pointers into manualSlicePoints[] or any
-	// other live UI state survive past this call) and coalesce latest-wins onto one
-	// owner op: while one preview (load + audition-note) is running, a newer request
-	// is queued and dispatched on completion, so a burst of pad taps converges on
-	// whichever slice/on-off state the user's finger is actually on, and the op's
-	// "is the sliced sample already resident?" check + the load it may trigger + the
-	// audition note it sends always run together, atomically, on the worker — never
-	// split across a yield the way a bare wrap of just loadFile() would be.
+	// Snapshot the request — plain values only, no pointers into manualSlicePoints[] or any other
+	// live UI state survive past this call — and drive it inline. There is no storage-worker
+	// dispatch any more: the only I/O an audition can do is previewForTarget()'s one loadFile(),
+	// which now answers "not yet" rather than being blocked on, so there is nothing left for a
+	// worker to absorb. A burst of pad taps still converges on whichever slice/on-off state the
+	// finger is actually on, because `previewLoad_` is latest-wins.
 	PreviewTarget target{
 	    .startPoint = startPoint,
 	    .endPoint = endPoint,
@@ -422,28 +448,41 @@ void Slicer::preview(int64_t startPoint, int64_t endPoint, int32_t transpose, in
 	    .on = on,
 	};
 
-	if (previewCoalescer_.request(target)) {
-		if (!deluge::storage::Owner::run(&Slicer::runPreviewOp, this)) {
-			// Owner queue full → the op won't run, so release the guard or the
-			// coalescer would wedge single-flight forever. The next preview() call
-			// re-requests.
-			previewCoalescer_.reset();
+	(void)drivePreview(target);
+}
+
+bool Slicer::drivePreview(const PreviewTarget& target) {
+	if (!previewLoad_.request(target)) {
+		// An attempt is already running and will pick this target up on completion (latest-wins).
+		return false;
+	}
+
+	bool deferred = false;
+	for (;;) {
+		const auto attempt = previewLoad_.attempt();
+
+		// is_current() gates the WORK, not merely the recording of a deferral: between arming a
+		// target and getting here the user can have left the slicer or switched slicing mode,
+		// neither of which dispatches a replacement, so supersession would never fire. Sounding a
+		// slice into a UI that has moved on is the damage.
+		deferred = previewLoad_.is_current(attempt) && previewForTarget(attempt);
+
+		// A deferral is armed for graphicsRoutine() to re-drive — that surface is the ONLY thing
+		// that finishes a deferred audition.
+		//
+		// A returned target is a NEWER one that arrived while the attempt above ran (a pad tap
+		// reaching preview() while a synchronous load holds this tier). It is already current and
+		// still single-flight, so it is run here rather than re-requested: request() would see the
+		// flight still open, return false, and drop it.
+		if (!previewLoad_.complete(attempt, deferred).has_value()) {
+			return deferred;
 		}
 	}
 }
 
-void Slicer::runPreviewOp(void* self) {
-	auto* s = static_cast<Slicer*>(self);
-	s->previewForTarget(s->previewCoalescer_.current());
-	// If a newer target arrived while this ran, dispatch it (latest-wins).
-	if (auto next = s->previewCoalescer_.complete(); next.has_value()) {
-		if (!deluge::storage::Owner::run(&Slicer::runPreviewOp, self)) {
-			s->previewCoalescer_.reset(); // re-dispatch dropped — release (see preview())
-		}
-	}
-}
+bool Slicer::previewForTarget(const deluge::storage::DeferredLoad<PreviewTarget>::Attempt& attempt) {
+	const PreviewTarget& target = attempt.target;
 
-void Slicer::previewForTarget(const PreviewTarget& target) {
 	if (target.on) {
 		Kit* kit = getCurrentKit();
 		SoundDrum* drum = (SoundDrum*)kit->firstDrum;
@@ -455,10 +494,24 @@ void Slicer::previewForTarget(const PreviewTarget& target) {
 		drum->drumName = "1";
 		drum->sources[0].repeatMode = SampleRepeatMode::ONCE;
 
-		if (!(waveformBasicNavigator.sample->filePath == range->sampleHolder.filePath)) {
+		// The path is what says "a different sample is being sliced now"; the null audioFile is what
+		// says "the load for this path hasn't landed yet". Both have to ask, because the path is
+		// assigned BEFORE the load: a load that answers LOAD_IN_PROGRESS leaves the holder naming a
+		// file it does not hold, and a path-only check would then skip straight to the audition note
+		// on the re-ask and sound a slice of nothing.
+		const bool differentSample = !(waveformBasicNavigator.sample->filePath == range->sampleHolder.filePath);
+		if (differentSample) {
 			stopAnyPreviewing();
 			range->sampleHolder.filePath = waveformBasicNavigator.sample->filePath.c_str();
-			range->sampleHolder.loadFile(false, true, true);
+		}
+		if (differentSample || range->sampleHolder.audioFile == nullptr) {
+			const Error error = range->sampleHolder.loadFile(false, true, true, CLUSTER_ENQUEUE, false,
+			                                                 /*mayLoadAsync=*/true);
+			if (error == Error::LOAD_IN_PROGRESS) {
+				// Deferred, not failed. Return BEFORE the params and the note: the load, the params
+				// and the audition note stay one group, and graphicsRoutine() re-drives it.
+				return true; // deferred
+			}
 		}
 		range->sampleHolder.startPos = target.startPoint;
 		if (target.endPoint != -1)
@@ -478,7 +531,12 @@ void Slicer::previewForTarget(const PreviewTarget& target) {
 		modelStackWithAutoParam->autoParam->setCurrentValueWithNoReversionOrRecording(
 		    modelStackWithAutoParam, getParamFromUserValue(params::LOCAL_ENV_0_ATTACK, 1));
 	}
+	// Deliberately OUTSIDE the `if (target.on)` above, and after the only `return` in it: a release
+	// does no I/O, so it can never defer, and its note-off always lands. Hoisting this into the
+	// branch would make a finger lifted before the load arrives swallow the note-off and leave the
+	// note sounding forever. `aReleaseNeverDefersAndAlwaysSoundsItsNoteOff` pins that.
 	instrumentClipView.sendAuditionNote(target.on, 0, 64, 0);
+	return false; // not deferred
 }
 
 ActionResult Slicer::padAction(int32_t x, int32_t y, int32_t on) {

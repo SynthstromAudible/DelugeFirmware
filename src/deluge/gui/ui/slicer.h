@@ -19,7 +19,7 @@
 
 #include "gui/ui/ui.h"
 #include "hid/button.h"
-#include "storage/latest_wins.h"
+#include "storage/deferred_load.h"
 
 #define SLICER_MODE_REGION 0
 #define SLICER_MODE_MANUAL 1
@@ -30,7 +30,13 @@ struct SliceItem {
 	int32_t transpose;
 };
 
+/// Spec-only driver for the audition path (tests/unit/slicer_preview_tests.cpp). Declared here so
+/// the specs can reach `previewLoad_`/`previewForTarget` without those becoming public API.
+class SlicerPreviewProbe;
+
 class Slicer final : public UI {
+	friend class SlicerPreviewProbe;
+
 public:
 	Slicer() { oledShowsUIUnderneath = true; }
 
@@ -47,11 +53,12 @@ public:
 	ActionResult verticalEncoderAction(int32_t offset, bool inCardRoutine) override;
 
 	void stopAnyPreviewing();
-	/// @brief Trigger a pad-hold/tap audition: snapshot the slice/on-off request and dispatch it
-	///        (coalesced latest-wins) onto the storage owner.
+	/// @brief Trigger a pad-hold/tap audition: snapshot the slice/on-off request and drive it.
 	///
-	/// The load (when the underlying sample isn't already resident) and the audition note both
-	/// happen inside the dispatched op, never here.
+	/// Runs inline. The only I/O an audition does is the `loadFile()` for a sample that isn't
+	/// already resident, and that load may answer "not yet" — so the whole group (load, slice
+	/// params, audition note) is driven through `previewLoad_` and re-driven by `graphicsRoutine()`
+	/// until it lands, instead of being handed to the storage worker to block on.
 	/// @param startPoint Sample-frame position where the audition slice starts.
 	/// @param endPoint   Sample-frame position where the audition slice ends; -1 leaves the
 	///                   current end position unchanged.
@@ -97,18 +104,35 @@ private:
 		int32_t on;
 	};
 
-	/// @brief The dispatched op: loads the sliced sample if it isn't already resident and
-	///        sounds/silences the audition note for the coalescer's current target.
+	/// @brief Drive one audition attempt: dispatch @p target, act on it, and arm a re-ask if its
+	///        load answered "not yet".
 	///
-	/// Re-dispatches itself if a newer target arrived while it ran. Runs on the storage owner
-	/// (inline on legacy/host).
-	/// @param self The `Slicer` this op is running for.
-	static void runPreviewOp(void* self);
-	/// @brief The load-then-audition body for a single preview target.
+	/// The single entry point for both the user-driven press/release (`preview()`) and the per-tick
+	/// re-ask (`graphicsRoutine()`), so the two cannot drift apart.
 	/// @param target The audition request to act on.
-	void previewForTarget(const PreviewTarget& target);
+	/// @return true if the attempt deferred and is armed for `graphicsRoutine()` to ask again.
+	bool drivePreview(const PreviewTarget& target);
 
-	deluge::storage::LatestWins<PreviewTarget> previewCoalescer_{};
+	/// @brief The load-then-audition body for a single preview target.
+	///
+	/// The load, the slice params and the audition note are one group: when the load defers, this
+	/// returns BEFORE the params and the note so the whole group lands together on a later tick,
+	/// rather than sounding a note against a sample that hasn't arrived.
+	///
+	/// @param attempt The audition request to act on. Callers gate the CALL on
+	///                `previewLoad_.is_current(attempt)`: sounding a slice of a sample the user has
+	///                navigated away from is the damage, not merely re-asking for it.
+	/// @return true if the load answered `Error::LOAD_IN_PROGRESS` — deferred, not failed.
+	bool previewForTarget(const deluge::storage::DeferredLoad<PreviewTarget>::Attempt& attempt);
+
+	/// @brief Abandon any in-flight/deferred audition, for the paths that leave the slicer or change
+	///        what it is slicing.
+	///
+	/// Not a supersession: those paths dispatch no replacement target, so nothing else would ever
+	/// mark the outstanding attempt unwanted.
+	void cancelPreview() { previewLoad_.cancel(); }
+
+	deluge::storage::DeferredLoad<PreviewTarget> previewLoad_{};
 
 	/// @brief Snapshot of the SELECT_ENC "commit slice" gesture, captured in `buttonAction()` at
 	///        dispatch time.
