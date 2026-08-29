@@ -29,12 +29,17 @@ namespace deluge::storage {
 /// @brief How many bytes of a song file the preview decoder is given.
 ///
 /// Chosen from measurement, not margin-guessing, on the XML arm at least. Across the whole song
-/// corpus (42 files) the `preview` attribute sits on the root `<song>` element, immediately after
-/// `previewNumPads` -- but NOT at one fixed offset: 30 files put it at byte 114, and 10 put it at
-/// byte 119, the difference tracking the length of the `firmwareVersion` string that precedes it
-/// (an 11-char version like "4.1.4-alpha" pushes it 5 bytes later than a 6-char one like "c1.3.0").
-/// Its payload is ~864 hex characters (144 pads x 3 colours x 2); the largest corpus payload measured
-/// ends at byte 1014, still well inside this window.
+/// corpus (42 files, 40 of which carry a preview) the `preview` attribute sits on the root `<song>`
+/// element, immediately after `previewNumPads` -- but NOT at one fixed offset: 30 files put its name
+/// at byte 136 and 10 put it at byte 141, the difference tracking the length of the `firmwareVersion`
+/// string that precedes it (an 11-char version like "4.1.4-alpha" pushes it 5 bytes later than a
+/// 6-char one like "c1.3.0"). `previewNumPads` sits 22 bytes earlier again, at 114 or 119; it is not
+/// what this window has to contain, and a gate keyed on it measures the wrong attribute.
+///
+/// What the window has to contain is the END of the payload, not its start: the payload is ~864 hex
+/// characters (144 pads x 3 colours x 2), and across the corpus it ends between bytes 1010 and 1015
+/// (exclusive), i.e. the last preview byte of the worst case sits at 1014. Comfortably inside this
+/// window, with room for a firmwareVersion string several times longer than any shipped.
 ///
 /// The JSON arm is NOT measured the same way -- the corpus contains zero real JSON songs, so there is
 /// nothing to measure. `tests/data/songs/JsonPreview.Json` is a hand-traced fixture, built by walking
