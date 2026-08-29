@@ -10,6 +10,7 @@
 add_library(deluge_scenes STATIC
     l10n_bridge.cpp
     profile.cpp
+    registry.cpp
     menu/bindings.cpp
     menu/context.cpp
     menu/menu_scene.cpp

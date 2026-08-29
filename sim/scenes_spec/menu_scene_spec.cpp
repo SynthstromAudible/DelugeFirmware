@@ -1,0 +1,692 @@
+/// @file
+/// @brief `MenuScene` -- the menu interpreter -- driven through a real `Shell` over
+///        `uitest::FakeSurfaceSet`, with the model-backed `MenuContext` the song fixture resolves.
+///
+/// The tree under test is declared here rather than taken from `src/scenes/menu/tables/`: Tasks
+/// 6-8 own the real tables, and this task's subject is the interpreter, not the data. It is
+/// deliberately shaped like the settings root -- a vertical submenu holding one horizontal
+/// submenu, an `Int`, a `Decimal`, an `Enum`, a `Toggle` and one `range_dependent` param -- so
+/// every per-kind leaf helper and both layouts are exercised by one root.
+///
+/// @note The spec may include `gui/` (for `l10n::String` ids); the library may not. Same rule
+///       `bindings_spec.cpp` runs under.
+
+#include "scenes/menu/bindings.h"
+#include "scenes/menu/context.h"
+#include "scenes/menu/menu_scene.h"
+#include "scenes/menu/node.h"
+#include "scenes/menu/node_id.h"
+#include "scenes/menu/shortcuts.h"
+#include "scenes/profile.h"
+#include "scenes/registry.h"
+
+#include "shell/profiles/deluge.h"
+#include "shell/shell.h"
+
+#include "gui/l10n/l10n.h"
+#include "gui/l10n/strings.h"
+#include "model/clip/instrument_clip.h"
+#include "model/song/song.h"
+#include "modulation/params/param.h"
+#include "processing/sound/sound_instrument.h"
+#include "processing/source.h"
+
+#include "support/song_fixture.h"
+
+#include "spec/gfx/support/golden.h"
+#include "spec/shell/support/fake_surfaces.h"
+#include "spec/ui/support/frames.h"
+
+#include "cppspec.hpp"
+
+#include <array>
+#include <cstdint>
+#include <span>
+#include <string>
+
+#include "spec/support/spec_main.h"
+
+using namespace deluge::scenes;
+using deluge::l10n::String;
+using deluge::scenes::menu::MenuContext;
+using deluge::scenes::menu::Node;
+using deluge::ui::shell::BoardProfile;
+using deluge::ui::shell::ButtonId;
+using deluge::ui::shell::ButtonSet;
+using deluge::ui::shell::Result;
+using deluge::ui::shell::SceneId;
+using deluge::ui::shell::SceneKind;
+using deluge::ui::shell::Shell;
+using deluge::ui::shell::ShellConfig;
+using deluge::ui::shell::SurfaceRole;
+using deluge::ui::shell::UiContext;
+using deluge::ui::shell::UiEvent;
+
+namespace {
+
+/// @brief The real app picks a language during boot (`OLED()`'s constructor,
+///        `hid/display/oled.h:39`); this spec renders text without booting, so
+///        `l10n::chosenLanguage` would otherwise be null and `getView` would dereference it.
+void select_language() {
+	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
+}
+
+/// @brief An `l10n::String` as the plain `uint16_t` a `Node` carries (`node.h`: no `gui/l10n` in
+///        the library, so a string id crosses as a number).
+constexpr uint16_t sid(String s) {
+	return static_cast<uint16_t>(s);
+}
+
+// ---------------------------------------------------------------------------------------------
+// The tree under test. `get`/`set` leaves rather than `ParamRef` ones wherever the spec wants to
+// read the committed value back without standing up a model stack; the two `param()` nodes are
+// there because the horizontal page and the permission rule both need a real bound param.
+
+int32_t g_int = 3;
+int32_t g_decimal = 1234;
+int32_t g_enum = 1;
+bool g_toggle = false;
+
+int32_t get_int(const MenuContext&) {
+	return g_int;
+}
+void set_int(const MenuContext&, int32_t v) {
+	g_int = v;
+}
+int32_t get_decimal(const MenuContext&) {
+	return g_decimal;
+}
+void set_decimal(const MenuContext&, int32_t v) {
+	g_decimal = v;
+}
+int32_t get_enum(const MenuContext&) {
+	return g_enum;
+}
+void set_enum(const MenuContext&, int32_t v) {
+	g_enum = v;
+}
+int32_t get_toggle(const MenuContext&) {
+	return g_toggle ? 1 : 0;
+}
+void set_toggle(const MenuContext&, int32_t v) {
+	g_toggle = v != 0;
+}
+
+constexpr uint16_t kEnumNames[] = {sid(String::STRING_FOR_DISABLED), sid(String::STRING_FOR_ENABLED),
+                                   sid(String::STRING_FOR_OFF)};
+
+constexpr Node lpf_freq =
+    menu::param(sid(String::STRING_FOR_LPF_FREQUENCY),
+                {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_FREQ},
+                deluge::ui::oled::Hint::Lpf);
+constexpr Node lpf_res =
+    menu::param(sid(String::STRING_FOR_RESONANCE),
+                {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_RESONANCE},
+                deluge::ui::oled::Hint::Bar);
+constexpr const Node* lpf_children[] = {&lpf_freq, &lpf_res};
+constexpr Node lpf_page = menu::submenu(sid(String::STRING_FOR_LPF), lpf_children, menu::Layout::Horizontal);
+
+constexpr Node int_leaf =
+    menu::int_item(sid(String::STRING_FOR_VOLUME_LEVEL), get_int, set_int, deluge::ui::oled::Range{0, 50, 1});
+constexpr Node decimal_leaf =
+    menu::decimal_item(sid(String::STRING_FOR_TEMPO), get_decimal, set_decimal, deluge::ui::oled::Range{0, 9999, 1}, 2);
+constexpr Node enum_leaf = menu::enumeration(sid(String::STRING_FOR_MODE), kEnumNames, get_enum, set_enum);
+constexpr Node toggle_leaf = menu::toggle_item(sid(String::STRING_FOR_MONOPHONIC), get_toggle, set_toggle);
+/// The range-dependent item spec E §4.1's `MustSelectRange` arm fires on.
+constexpr Node transpose_leaf = menu::with_range_dependent(
+    menu::param(sid(String::STRING_FOR_TRANSPOSE),
+                {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_FREQ}));
+
+constexpr const Node* settings_children[] = {&lpf_page,  &int_leaf,    &decimal_leaf,
+                                             &enum_leaf, &toggle_leaf, &transpose_leaf};
+constexpr Node settings_root = menu::submenu(sid(String::STRING_FOR_SETTINGS), settings_children);
+
+constexpr const Node* kRoots[] = {&settings_root};
+
+/// @brief The two-cell stub shortcut table (task-5 ruling 1): pad (0, 0) is the LPF page, pad
+///        (1, 0) the `Int` leaf. Task 9 replaces `shortcuts.cpp`'s body with the seven real
+///        tables and deletes the hook this uses.
+constexpr const Node* kShortcutCells[] = {&lpf_page, &int_leaf};
+
+// ---------------------------------------------------------------------------------------------
+
+/// @brief A 128x64 single-panel board, so the same scene can be recorded at the other shipped
+///        panel geometry. Ruling: the 48/64 split comes from `BoardProfile::style_by_index`, not
+///        from a switch inside the scene.
+constexpr DelugeDisplayDesc kDisplays64[] = {{128, 64, 0}};
+
+DelugeBoard board_64() {
+	DelugeBoard b = deluge::ui::shell::kDelugeBoard;
+	b.display_height = 64;
+	b.display_count = 1;
+	b.displays = kDisplays64;
+	return b;
+}
+
+const BoardProfile& profile_64() {
+	static const BoardProfile p = [] {
+		static constexpr const deluge::ui::Style* kStyles[] = {&deluge::ui::kDelugeStyle64};
+		BoardProfile q = deluge_profile();
+		q.style_by_index = kStyles;
+		return q;
+	}();
+	return p;
+}
+
+/// Board encoder indices (`kDelugeEncoders`, `shell/profiles/deluge.cpp`): 3 = Select,
+/// 4 = GoldUpper, 5 = GoldLower.
+constexpr uint8_t kSelectEncoder = 3;
+constexpr uint8_t kGoldUpper = 4;
+/// Matrix coordinates (`kMatrix`, `shell/profiles/deluge.cpp`).
+constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
+constexpr uint8_t kBackX = 7, kBackY = 1;
+
+/// @brief A `Shell` over `FakeSurfaceSet` with the application's own scene registry installed.
+struct Rig {
+	spec::SongFixture song = spec::make_synth_song();
+	const BoardProfile& profile;
+	deluge::ui::shell::SceneRegistry reg = scene_registry();
+	uitest::FakeSurfaceSet fake;
+	Shell shell{fake, profile, reg, deluge::ui::shell::Services{}, ShellConfig{}};
+
+	Rig(const Rig&) = delete;
+	Rig& operator=(const Rig&) = delete;
+
+	explicit Rig(const DelugeBoard& board = deluge::ui::shell::kDelugeBoard, const BoardProfile& p = deluge_profile())
+	    : profile(p), fake(board, p) {}
+
+	/// @brief Resolve a `MenuContext` from the fixture's synth clip and open @p root on it.
+	MenuContext open(const Node& root) {
+		const MenuContext ctx = menu::context_for(*song.song, song.clip, 0, false, false, /*kit_global_fx=*/false);
+		(void)menu::assign_node_ids(kRoots);
+		menu_scene().open(root, ctx);
+		shell.init(SceneId{SceneKind::FirstApp, menu::node_id(root)});
+		return ctx;
+	}
+
+	/// @brief One raw encoder-edge event on the board's encoder \p index.
+	void edges(uint8_t index, int16_t count, uint32_t at_ms) {
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_ENCODER, index, 0, count}, at_ms);
+	}
+	/// @brief \p detents clicks of the (detented) select encoder.
+	///
+	/// A `EncoderKind::Detented` encoder takes `LoweringConfig::edges_per_detent` (2) A-pin edges
+	/// per click (`shell/input_lowering.h:28`), so a spec that wants one detent sends two edges.
+	void turn(int32_t detents, uint32_t at_ms) { edges(kSelectEncoder, static_cast<int16_t>(detents * 2), at_ms); }
+	/// @brief \p delta detents of a gold knob.
+	///
+	/// The gold knobs are `EncoderKind::Accelerating`, so the raw edge count IS the magnitude and
+	/// no `edges_per_detent` division applies. `InputLowering::action_gold_turn`
+	/// (`shell/input_lowering.cpp:209-231`) additionally swallows the first turn after a *pause*
+	/// longer than `short_press_ms` (500 ms) as a possible accidental wiggle -- but
+	/// `last_turn_ms_` starts at 0, so every clock this spec uses (all under 500 ms) already
+	/// counts as "turned recently" and one event is one acted-on turn. Keep spec clocks under
+	/// 500 ms, or the first gold turn will be silently swallowed.
+	void gold(uint8_t index, int16_t delta, uint32_t at_ms) { edges(index, delta, at_ms); }
+	/// @brief One button press/release at matrix (\p x, \p y).
+	void button(uint8_t x, uint8_t y, bool on, uint32_t at_ms) {
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, x, y, static_cast<int16_t>(on ? 255 : 0)}, at_ms);
+	}
+};
+
+int depth_of() {
+	return menu_scene().state().depth;
+}
+int cursor_of(int level) {
+	return menu_scene().state().list[level].cursor;
+}
+
+/// @brief A `UiContext` for a directly-invoked `handle()` call: no lowering, no held buttons.
+struct DirectCtx {
+	ButtonSet held{};
+	deluge::ui::PadMask pads{};
+	UiContext ctx;
+	explicit DirectCtx(bool shift = false, uint32_t now_ms = 0)
+	    : ctx{held, pads, shift, false, now_ms, deluge_profile()} {}
+};
+
+} // namespace
+
+// clang-format off
+describe menu_scene_composition("scenes::menu::MenuScene composition", $ {
+	it("is a grid overlay that neither occludes, dims nor lets the OLED through", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+
+		const deluge::ui::shell::Scene& s = menu_scene();
+		expect(s.is_grid_overlay()).to_be_true();
+		expect(s.occludes_grid()).to_be_false();
+		expect(s.dims_grid()).to_be_false();
+		expect(s.oled_transparent(SurfaceRole::Main)).to_be_false();
+		expect(s.input_transparent()).to_be_false();
+		expect(static_cast<int>(s.kind())).to_equal(static_cast<int>(SceneKind::FirstApp));
+	});
+
+	it("registers itself as the one application scene, at SceneKind::FirstApp", _ {
+		const deluge::ui::shell::SceneRegistry reg = scene_registry();
+		expect(reg.find(SceneKind::FirstApp) == &menu_scene()).to_be_true();
+		expect(reg.find(SceneKind::Popup) == nullptr).to_be_true();
+		expect(reg.find(SceneKind::Boot) == nullptr).to_be_true();
+	});
+
+	it("greys the whole main grid for a clip-minder context, sparing the sidebar", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		// `SoundEditor::getGreyoutColsAndRows`'s INSTRUMENT_CLIP arm (`sound_editor.cpp:236`):
+		// cols = 0xFFFFFFFE, i.e. every column but the rightmost sidebar one.
+		expect(static_cast<uint64_t>(menu_scene().greyout_mask().cols)).to_equal(uint64_t{0xFFFFFFFEu});
+		expect(static_cast<uint64_t>(menu_scene().greyout_mask().rows)).to_equal(uint64_t{0});
+	});
+
+	it("resolves on_enter through the node-id registry and refuses an unknown id", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+
+		expect(menu_scene().on_enter(SceneId{SceneKind::FirstApp, menu::node_id(int_leaf)})).to_be_true();
+		expect(menu_scene().focused() == &int_leaf).to_be_true();
+		expect(menu_scene().on_enter(SceneId{SceneKind::FirstApp, 60000})).to_be_false();
+		expect(menu_scene().on_enter(SceneId{SceneKind::FirstApp, 0})).to_be_false();
+	});
+});
+
+describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
+	it("a select-encoder detent moves the cursor without touching the model", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		expect(cursor_of(0)).to_equal(0);
+
+		r.turn(1, 10);
+		r.shell.tick(20);
+		expect(cursor_of(0)).to_equal(1);
+		expect(depth_of()).to_equal(0);
+
+		r.turn(-1, 30);
+		r.shell.tick(40);
+		expect(cursor_of(0)).to_equal(0);
+	});
+
+	it("select on a submenu row descends, and back ascends", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+
+		// Cursor is on the LPF page (row 0); a select-encoder press enters it.
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 10);
+		r.shell.tick(20);
+		expect(depth_of()).to_equal(1);
+		expect(menu_scene().focused() == &lpf_page).to_be_true();
+
+		r.button(kBackX, kBackY, true, 30);
+		r.shell.tick(40);
+		expect(depth_of()).to_equal(0);
+		expect(menu_scene().focused() == &settings_root).to_be_true();
+	});
+
+	it("back at the root pops the scene off the stack", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		expect(r.shell.stack().depth()).to_equal(size_t(1));
+
+		// `handle()` directly, so the `Result` itself is the assertion (`sound_editor.cpp:418` ->
+		// `:433` `goUpOneLevel()` -> `:678` `exitCompletely()`).
+		DirectCtx d;
+		const Result res = menu_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Back}, d.ctx);
+		expect(res.handled).to_be_true();
+		expect(res.actions.size()).to_equal(size_t(1));
+		expect(static_cast<int>(res.actions[0].kind)).to_equal(static_cast<int>(deluge::ui::shell::Action::Kind::Pop));
+
+		// And through the shell: the root's back is never claimed, so it reaches `handle()`
+		// post-render and the stack empties.
+		r.button(kBackX, kBackY, true, 10);
+		r.shell.tick(20);
+		expect(r.shell.stack().depth()).to_equal(size_t(0));
+	});
+
+	it("a shift-held shortcut pad jumps straight to that node", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		menu::set_shortcut_table_for_test(kShortcutCells, /*cols=*/2, /*rows=*/1);
+		r.shell.tick(0);
+
+		DirectCtx shifted(/*shift=*/true);
+		const Result res = menu_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Pad, .x = 1, .y = 0, .velocity = 64, .on = true}, shifted.ctx);
+		expect(res.handled).to_be_true();
+		expect(menu_scene().focused() == &int_leaf).to_be_true();
+		expect(depth_of()).to_equal(0);
+
+		// Without shift the pad is not a shortcut (`sound_editor.cpp:1111`'s
+		// `Buttons::isShiftButtonPressed()` gate), and nothing moves.
+		DirectCtx plain;
+		const Result none = menu_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Pad, .x = 0, .y = 0, .velocity = 64, .on = true}, plain.ctx);
+		expect(none.handled).to_be_false();
+		expect(menu_scene().focused() == &int_leaf).to_be_true();
+
+		menu::set_shortcut_table_for_test({}, 0, 0);
+	});
+
+	it("a MustSelectRange node is recorded as pending and is not entered", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
+		sound->sources[0].ranges.insertMultiRange(0);
+		sound->sources[0].ranges.insertMultiRange(1);
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+
+		// Walk to the range-dependent row (index 5) and press select.
+		for (int i = 0; i < 5; i++) {
+			r.turn(1, static_cast<uint32_t>(10 + i * 10));
+			r.shell.tick(static_cast<uint32_t>(15 + i * 10));
+		}
+		expect(cursor_of(0)).to_equal(5);
+
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.shell.tick(110);
+		expect(depth_of()).to_equal(0); // E2 supplies the picker; E1 leaves the node unentered
+		expect(menu_scene().state().range_picker_pending).to_be_true();
+		expect(menu_scene().state().pending_after_range == &transpose_leaf).to_be_true();
+	});
+
+	it("save_state and restore_state round-trip a path", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 10);
+		r.shell.tick(20);
+		expect(depth_of()).to_equal(1);
+
+		deluge::ui::shell::SceneState saved{};
+		menu_scene().save_state(saved);
+
+		menu_scene().open(settings_root, menu::context_for(*r.song.song, r.song.clip, 0, false, false, false));
+		expect(depth_of()).to_equal(0);
+
+		menu_scene().restore_state(saved);
+		expect(depth_of()).to_equal(1);
+		expect(menu_scene().focused() == &lpf_page).to_be_true();
+	});
+});
+
+describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
+	it("a gold-knob detent on an Int leaf commits through bindings::write", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx = r.open(settings_root);
+		g_int = 3;
+		r.shell.tick(0);
+
+		// Row 1 is the Int leaf; step onto it and enter it.
+		r.turn(1, 10);
+		r.shell.tick(20);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 30);
+		r.shell.tick(40);
+		expect(menu_scene().focused() == &int_leaf).to_be_true();
+		expect(menu::bindings::read(int_leaf, ctx)).to_equal(3);
+
+		r.gold(kGoldUpper, 2, 50);
+		r.shell.tick(60);
+		expect(g_int).to_equal(5);
+		expect(menu::bindings::read(int_leaf, ctx)).to_equal(5);
+	});
+
+	it("a Toggle leaf's select press goes up without flipping the value", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx = r.open(settings_root);
+		g_toggle = false;
+		r.shell.tick(0);
+
+		for (int i = 0; i < 4; i++) {
+			r.turn(1, static_cast<uint32_t>(10 + i * 10));
+			r.shell.tick(static_cast<uint32_t>(15 + i * 10));
+		}
+		expect(cursor_of(0)).to_equal(4);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.shell.tick(110);
+		expect(menu_scene().focused() == &toggle_leaf).to_be_true();
+
+		// `values.h:169`: a select press reports `entered` and leaves `changed` false.
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 120);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 130);
+		r.shell.tick(140);
+		expect(depth_of()).to_equal(0);
+		expect(menu::bindings::read(toggle_leaf, ctx)).to_equal(0);
+	});
+
+	it("a turn on an Enum leaf moves the option and commits it", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx = r.open(settings_root);
+		g_enum = 1;
+		r.shell.tick(0);
+
+		for (int i = 0; i < 3; i++) {
+			r.turn(1, static_cast<uint32_t>(10 + i * 10));
+			r.shell.tick(static_cast<uint32_t>(15 + i * 10));
+		}
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.shell.tick(110);
+		expect(menu_scene().focused() == &enum_leaf).to_be_true();
+
+		r.turn(1, 120);
+		r.shell.tick(130);
+		expect(menu::bindings::read(enum_leaf, ctx)).to_equal(2);
+	});
+
+	it("a Decimal leaf edits at its own places and commits", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx = r.open(settings_root);
+		g_decimal = 1234;
+		r.shell.tick(0);
+
+		for (int i = 0; i < 2; i++) {
+			r.turn(1, static_cast<uint32_t>(10 + i * 10));
+			r.shell.tick(static_cast<uint32_t>(15 + i * 10));
+		}
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.shell.tick(110);
+		expect(menu_scene().focused() == &decimal_leaf).to_be_true();
+
+		// `decimal_value`'s coarse amount is 10^edit_pos, and `edit_pos` starts at 0.
+		r.gold(kGoldUpper, 1, 120);
+		r.shell.tick(130);
+		expect(menu::bindings::read(decimal_leaf, ctx)).to_equal(1235);
+	});
+
+	it("the horizontal page edits the focused column through the gold knobs", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx = r.open(settings_root);
+		r.shell.tick(0);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 10);
+		r.shell.tick(20);
+		expect(menu_scene().focused() == &lpf_page).to_be_true();
+
+		const int32_t before = menu::bindings::read(lpf_freq, ctx);
+		r.gold(kGoldUpper, -1, 30);
+		r.shell.tick(40);
+		expect(menu::bindings::read(lpf_freq, ctx)).to_equal(before - 1);
+		expect(deluge::notify::dirty().has(deluge::notify::Dirty::ParamAutomation)).to_be_true();
+	});
+});
+
+describe menu_scene_claims("scenes::menu::MenuScene input claims", $ {
+	it("claims the turn and the select but never the back at the root", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+
+		deluge::ui::test::Rig48 rig;
+		rig.begin_tick(0);
+		rig.input.back_pressed = true;
+		menu_scene().render_oled(SurfaceRole::Main, rig.frame);
+		expect(rig.ctx.claims.turn).to_be_true();
+		expect(rig.ctx.claims.select).to_be_true();
+		expect(rig.ctx.claims.back).to_be_false();
+		expect(rig.ctx.claims.double_claim).to_be_false();
+	});
+
+	it("claims the back once it has somewhere to go up to", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 10);
+		r.shell.tick(20);
+		expect(depth_of()).to_equal(1);
+
+		deluge::ui::test::Rig48 rig;
+		rig.begin_tick(0);
+		menu_scene().render_oled(SurfaceRole::Main, rig.frame);
+		expect(rig.ctx.claims.back).to_be_true();
+		expect(rig.ctx.claims.double_claim).to_be_false();
+	});
+
+	it("renders nothing for a role this board does not have", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+
+		deluge::ui::test::Rig48 rig;
+		rig.begin_tick(0);
+		menu_scene().render_oled(SurfaceRole::Aux, rig.frame);
+		expect(rig.pbm()).to_equal(deluge::ui::test::Rig48{}.pbm());
+		expect(rig.ctx.claims.any()).to_be_false();
+	});
+
+	it("a full shell tick never double-claims an input", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		r.turn(1, 10);
+		r.shell.tick(20);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 30);
+		r.shell.tick(40);
+		// `Shell::tick` asserts nothing itself; the observable is that the post-render router
+		// still delivered the events the widgets did not own -- the root back below -- while the
+		// claimed ones never reached `handle()` twice (the cursor moved exactly one row).
+		expect(cursor_of(0)).to_equal(1);
+	});
+});
+
+describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
+	it("paints the focused shortcut pad and nothing else", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		menu::set_shortcut_table_for_test(kShortcutCells, /*cols=*/2, /*rows=*/1);
+		// Jump to the Int leaf, whose shortcut cell is (1, 0).
+		DirectCtx shifted(/*shift=*/true);
+		(void)menu_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Pad, .x = 1, .y = 0, .velocity = 64, .on = true}, shifted.ctx);
+
+		deluge::ui::test::GridRig grid;
+		grid.begin_tick(0); // phase 0 of the 180 ms cadence: lit
+		menu_scene().render_grid(grid.frame);
+
+		int painted = 0;
+		for (int32_t y = 0; y < grid.grid.dims().rows; y++) {
+			for (int32_t x = 0; x < grid.grid.dims().cols(); x++) {
+				const RGB& c = grid.grid.at(static_cast<uint8_t>(x), static_cast<uint8_t>(y));
+				if (c.r != 0 || c.g != 0 || c.b != 0) {
+					painted++;
+					expect(x).to_equal(1);
+					expect(y).to_equal(0);
+				}
+			}
+		}
+		expect(painted).to_equal(1);
+		expect(grid.ctx.claims.any()).to_be_false();
+
+		menu::set_shortcut_table_for_test({}, 0, 0);
+	});
+
+	it("declares button LEDs only, with the back LED blinking", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+
+		deluge::ui::LedFrame frame;
+		menu_scene().leds(frame);
+		bool saw_back_blink = false;
+		for (const auto& [id, state] : frame.entries()) {
+			if (id == static_cast<deluge::ui::LedId>(ButtonId::Back)) {
+				saw_back_blink = state.kind == deluge::ui::LedState::Kind::Blink;
+			}
+		}
+		expect(saw_back_blink).to_be_true();
+		expect(frame.indicator_or_null(deluge::ui::IndicatorId::Lower) == nullptr).to_be_true();
+		expect(frame.indicator_or_null(deluge::ui::IndicatorId::Upper) == nullptr).to_be_true();
+	});
+});
+
+describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
+	it("draws the settings root the same on both shipped panel geometries", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		{
+			Rig r;
+			(void)r.open(settings_root);
+			r.shell.tick(0);
+			expect(depth_of()).to_equal(0);
+			expect(cursor_of(0)).to_equal(0);
+			expect_golden(self, "../ui/menu/menu_settings_root_48.pbm", r.fake.pbm(0));
+		}
+		{
+			Rig r64{board_64(), profile_64()};
+			(void)r64.open(settings_root);
+			r64.shell.tick(0);
+			expect(depth_of()).to_equal(0);
+			expect(cursor_of(0)).to_equal(0);
+			expect_golden(self, "../ui/menu/menu_settings_root_64.pbm", r64.fake.pbm(0));
+		}
+	});
+});
+// clang-format on
+
+/// Six `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
+/// here with `add_specs` instead -- as `context_spec.cpp` does.
+int menu_scene_spec(int argc, char** const argv) {
+	return CppSpec::parse(argc, argv)
+	               .add_specs(menu_scene_composition, menu_scene_navigation, menu_scene_editing, menu_scene_claims,
+	                          menu_scene_grid, menu_scene_goldens)
+	               .exec()
+	               .is_success()
+	           ? EXIT_SUCCESS
+	           : EXIT_FAILURE;
+}
