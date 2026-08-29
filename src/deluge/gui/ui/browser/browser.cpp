@@ -30,6 +30,7 @@
 #include "hid/matrix/matrix_driver.h"
 #include "io/debug/log.h"
 #include "io/file.hpp"
+#include "libdeluge/file_directory.h"
 #include "model/instrument/instrument.h"
 #include "model/song/song.h"
 #include "processing/engines/audio_engine.h"
@@ -64,6 +65,7 @@ bool Browser::allowFoldersSharingNameWithFile;
 char const* Browser::filenameToStartSearchAt;
 
 bool Browser::listingInProgress_;
+bool Browser::listingOnTickSurface_;
 Browser::ListingAttempt Browser::attempt_;
 int32_t Browser::deferAtOpenNumber_ = 0;
 
@@ -110,6 +112,29 @@ bool Browser::beginListing(ListingRequest req) {
 	pendingListing_ = std::move(req);
 	listingInProgress_ = true;
 	display->displayLoadingAnimationText("Working", /*delayed=*/true);
+
+	// `deferAtOpenNumber_` is the second disjunct so that the idempotence gate can exercise the
+	// re-entry path on a build where the directory channel is not compiled in at all. What that gate
+	// checks -- that a listing re-run from the top finishes identically to one that never deferred --
+	// is a property of the listing, not of the channel, and it is the riskiest half of this rung.
+	listingOnTickSurface_ = deluge_file_directory_async_active() || deferAtOpenNumber_ != 0;
+	if (listingOnTickSurface_) {
+		// The attempt runs on the INTERACTION tier, in graphicsRoutine(), start to finish, and it
+		// never blocks there: every directory open goes through the channel and every enumeration is
+		// FS-free (dir.read() walks the snapshot the open already took).
+		//
+		// Deliberately NOT dispatched to the owner first. An attempt that began on the owner and was
+		// re-entered from the tick surface would have two tiers touching one static ListingAttempt
+		// and one static fileItems -- a cross-tier race in exchange for nothing, since the owner is
+		// no longer where the waiting happens.
+		//
+		// One residual, recorded rather than hidden: readFileItemsForFolder still calls
+		// StorageManager::initSD(), which is a flag check on an already-mounted card but does real
+		// blocking work on a re-mount. That path is the ejection path, which already blocks; moving
+		// it is the next thing this ladder owes.
+		return true;
+	}
+
 	if (!deluge::storage::Owner::run(&Browser::runListingTrampoline, this)) {
 		// Owner queue full → op won't run; clear so the next HID event retries.
 		listingInProgress_ = false;
@@ -121,6 +146,39 @@ bool Browser::beginListing(ListingRequest req) {
 
 void Browser::runListingTrampoline(void* self) {
 	static_cast<Browser*>(self)->runPendingListing();
+}
+
+std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(char const* path) {
+	// Not `attempt_.active` alone: with the channel absent the weak collect answers UNKNOWN forever,
+	// so an attempt that consulted it would defer on every tick and never list anything.
+	if (!attempt_.active || !deluge_file_directory_async_active()) {
+		auto opened = deluge::io::Directory::open(path);
+		if (!opened.has_value()) {
+			return std::unexpected(delugeStatusToError(deluge::io::to_deluge_status(opened.error())));
+		}
+		return std::move(*opened);
+	}
+
+	uint32_t handle = 0;
+	DelugeStatus status = DELUGE_OK;
+	switch (deluge_file_directory_collect(path, &handle, &status)) {
+	case DELUGE_FILE_DIRECTORY_READY:
+		return deluge::io::Directory::adopt(handle);
+	case DELUGE_FILE_DIRECTORY_UNKNOWN:
+		// "Request it (again)" — the documented meaning, and never a failure to report. This is also
+		// where the FIRST request for a path is issued: the attempt names a directory the channel has
+		// not been told about, so its opening drive lands here.
+		deluge_file_directory_request(path);
+		return std::unexpected(Error::LISTING_DEFERRED);
+	case DELUGE_FILE_DIRECTORY_PENDING:
+		// Requested or being opened. Ask again next tick and do NOT re-request, which would replace a
+		// request that is about to be served.
+		return std::unexpected(Error::LISTING_DEFERRED);
+	default:
+		// FAILED, and terminal: the channel will not retry and neither may we, or a folder that
+		// cannot be opened would be re-requested on every tick for as long as the browser sits on it.
+		return std::unexpected(delugeStatusToError(status));
+	}
 }
 
 void Browser::runPendingListing() {
@@ -198,6 +256,19 @@ bool Browser::opened() {
 }
 
 void Browser::close() {
+	// Cancel any attempt still in flight. This rung's is_current: a listing can now span several
+	// ticks, so it can outlive the browser that asked for it, and committing into a closed browser
+	// would put one folder's contents behind another's name. Cancelling HERE rather than testing
+	// getCurrentUI() in the pump because this is the precise event -- the pump's view of the UI stack
+	// says nothing about whether this browser is still interested, and in a headless driver it is not
+	// meaningful at all.
+	//
+	// Nothing needs to chase the channel: an answer nobody collects is refused at its take on the
+	// next card generation, and the handle it holds is closed there or by the next flush.
+	listingInProgress_ = false;
+	listingOnTickSurface_ = false;
+	attempt_.active = false;
+
 	emptyFileItems();
 	favouritesManager.close();
 	QwertyUI::close();
@@ -351,6 +422,9 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 	if (attempt_.active) {
 		attempt_.opensThisAttempt++;
 		if (deferAtOpenNumber_ != 0 && attempt_.opensThisAttempt == deferAtOpenNumber_) {
+			// Disarmed as it fires: a real channel answers the next ask, so a seam that stayed armed
+			// would defer this same open on every pass and the attempt would never finish.
+			deferAtOpenNumber_ = 0;
 			return Error::LISTING_DEFERRED;
 		}
 	}
@@ -359,8 +433,15 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 	// close() to forget or double up on. (Historically this contrasted with a shared
 	// FatFS::Directory staticDIR global behind a port selector — both are gone: staticDIR was
 	// deleted with C-FatFS, and efatfs is the sole filesystem.)
-	auto dir = D_TRY_CATCH_MOVE(deluge::io::Directory::open(currentDir), error,
-	                            { return delugeStatusToError(deluge::io::to_deluge_status(error)); });
+	//
+	// A handle adopted from the directory channel lands in exactly the same RAII, which is why
+	// Directory::adopt exists: there are only eight directory handles, and one that arrived
+	// asynchronously is no less urgent to close than one this thread opened.
+	auto opened = openDirectoryForListing(currentDir.c_str());
+	if (!opened.has_value()) {
+		return opened.error(); // may be Error::LISTING_DEFERRED — see Browser::ListingAttempt
+	}
+	auto dir = std::move(*opened);
 
 	numFileItemsDeletedAtStart = 0;
 	numFileItemsDeletedAtEnd = 0;
@@ -647,9 +728,24 @@ public:
 // If OLED, then you should make sure renderUIsForOLED() gets called after this.
 // outputTypeToLoad must be set before calling this.
 void Browser::graphicsRoutine() {
-	// The base's per-tick work goes HERE, above the subclass hook, so that a browser cannot both
-	// have per-tick work of its own and skip the listing's. Empty until the listing is served by the
-	// directory channel; the shape lands first so that the two overrides below move once.
+	// The base's per-tick work goes HERE, above the subclass hook, so that a browser cannot both have
+	// per-tick work of its own and skip the listing's.
+	//
+	// This IS the listing, not a nudge to it: with the channel active beginListing() dispatches
+	// nothing and every pass of the attempt runs from here, including the first. A pass either
+	// finishes the listing or defers on an open that is not ready, and a deferred pass leaves
+	// listingInProgress_ set so the next tick runs the attempt again from the top.
+	// Gated on the SELECTOR, not on attempt_.active: the first pass has not begun an attempt yet, so
+	// that condition would never let one start. The selector is exact, because it is the same thing
+	// beginListing() consulted -- with the channel on it dispatched nothing and the listing is ours to
+	// run; with it off the owner has it, and running it here as well would run one listing twice, on
+	// two tiers, over one static fileItems.
+	if (listingInProgress_ && listingOnTickSurface_) {
+		// No is_current test here: close() cancels the attempt at the moment it becomes stale, which
+		// is the precise event. See Browser::close().
+		runPendingListing();
+	}
+
 	browserGraphicsRoutine();
 	// Made once, for everybody. The subclass hook must not repeat it.
 	UI::graphicsRoutine();

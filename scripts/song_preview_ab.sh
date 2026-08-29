@@ -128,13 +128,13 @@ run_leg() {
 	fi
 	if ! grep -q '^SP-RESULT failures=0$' "$OUT_ROOT/$tag.txt"; then
 		echo "FAIL — the $tag leg reported in-process failures:"
-		grep -E '^(FAIL|SP-WINDOW|SP-SWAP-SUMMARY|SP-SUMMARY|SP-RESULT) ' "$OUT_ROOT/$tag.txt"
+		grep -E '^(FAIL|SP-WINDOW|SP-SWAP-SUMMARY|SP-SUMMARY|SP-RESULT|SP-LISTING) ' "$OUT_ROOT/$tag.txt"
 		exit 1
 	fi
 	# Each stage prints exactly one of these. Its absence means the run reached SP-RESULT without
 	# ever running that stage — which the failure count cannot show, because a stage that never ran
 	# asserts nothing.
-	for marker in SP-WINDOW SP-SWAP-BEFORE SP-EJECT SP-SWAP-SUMMARY; do
+	for marker in SP-WINDOW SP-SWAP-BEFORE SP-EJECT SP-SWAP-SUMMARY SP-LISTING-SUMMARY; do
 		if ! grep -q "^$marker " "$OUT_ROOT/$tag.txt"; then
 			echo "FAIL — the $tag leg produced no $marker line; that stage did not run"
 			exit 1
@@ -200,4 +200,4 @@ if diff -q <(grep '^SP-WINDOW ' "$OUT_ROOT/file.txt" | sed 's/asyncActive=[01] /
 fi
 
 echo "PASS — both backings drew all $CASES song(s) identically, agreed on every outcome, and agreed across a card swap"
-grep -h '^SP-SUMMARY \|^SP-DEFER \|^SP-WINDOW \|^SP-SWAP-SUMMARY ' "$OUT_ROOT/file.txt" "$OUT_ROOT/prefix.txt"
+grep -h '^SP-SUMMARY \|^SP-DEFER \|^SP-WINDOW \|^SP-SWAP-SUMMARY \|^SP-LISTING' "$OUT_ROOT/file.txt" "$OUT_ROOT/prefix.txt"

@@ -33,6 +33,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <span>
 #include <string>
 
 // The GUI headers above reach `src/lib/printf.h`, which soft-aliases `printf` to the embedded
@@ -98,6 +99,42 @@ public:
 	static SongPreviewOutcome outcome() { return loadSongUI.lastPreviewOutcome_; }
 	static Error error() { return loadSongUI.lastPreviewError_; }
 	/// @}
+};
+
+/// Reaches Browser's listing internals. Declared a friend by `Browser`; defined here because this
+/// is the only gate that drives them.
+class BrowserListingAbProbe {
+public:
+	/// Start a listing of `dir`, exactly as opening a browser on it does.
+	///
+	/// `filenameToStartAt` must be mid-folder AND absent, and both halves were found by running it:
+	///
+	/// - With no search string at all, the cull deletes from the RIGHT of the window, so
+	///   numFileItemsDeletedAtStart stays 0 and arrivedInNewFolder's re-read never fires. opens=1.
+	/// - With a search string that matches EXACTLY, arrivedInNewFolder jumps straight to
+	///   setEnteredTextAndUseFoundFile and never reaches the re-read either. Also opens=1.
+	///
+	/// Only a name that sorts into the middle of the folder and is not there takes `noExactFileFound`
+	/// with entries culled from the start, which is the condition the second open exists for. The
+	/// stage refuses to run its sweep at opens < 2 rather than reporting a green run over one N that
+	/// covers no retry path.
+	static void beginOpenListing(const char* dir, const char* filenameToStartAt) {
+		Browser::currentDir = dir;
+		Browser::enteredText.clear();
+		(void)loadSongUI.beginListing({.action = Browser::ListingAction::Open,
+		                               .direction = 0,
+		                               .filenameToStartAt = filenameToStartAt,
+		                               .defaultDir = "",
+		                               .folderOrPath = ""});
+	}
+	static void tick() { loadSongUI.graphicsRoutine(); }
+	static bool inProgress() { return Browser::isListingInProgress(); }
+	/// How many opens the attempt that just finished performed. Read after a non-deferring run.
+	static int32_t opensPerformed() { return Browser::attempt_.opensThisAttempt; }
+	static void deferAtOpen(int32_t n) { Browser::deferAtOpenNumber_ = n; }
+	/// `Browser::fileIndexSelected` is protected; the snapshot needs it, and it is half of what
+	/// "the listing finished the same way" means.
+	static int32_t selectedIndex() { return Browser::fileIndexSelected; }
 };
 
 namespace {
@@ -278,7 +315,7 @@ constexpr int32_t kMaxCaseTicks = 2000;
 // ── State ───────────────────────────────────────────────────────────────────
 
 /// Which stage `dispatch_step` is in, in order.
-enum class Stage : uint8_t { Cases, Window, CorpusCount, Corpus, Swap, Done };
+enum class Stage : uint8_t { Cases, Window, CorpusCount, Corpus, Swap, Listing, Done };
 Stage g_stage = Stage::Cases;
 
 /// Where the swap stage is in the sequence above.
@@ -856,6 +893,187 @@ void runSwapTick() {
 /// Print the per-run facts that are EXPECTED to differ between the two builds, and assert the one
 /// thing each build must independently be able to say about itself: that the backing it was built
 /// with is the backing that actually ran.
+// ── Stage: listing idempotence ──────────────────────────────────────────────
+//
+// A folder listing performs up to four directory opens, and a listing whose Nth open is not ready
+// is RE-RUN FROM THE TOP on a later tick rather than resumed. That is only sound if the second pass
+// sees the first pass's inputs rather than its outputs, and three of the listing's own mutations
+// break it -- currentDir is overwritten on the fallback path, enteredText is advanced by
+// nextDefaultName, and triedCreatingFolder used to be a local that reset. Browser::ListingAttempt
+// restores them; this is what proves it, and each of the three breaks a different N.
+//
+// Driven WITHOUT the directory channel compiled in, on purpose. What is under test is a property of
+// the listing, not of the channel: `Browser::deferAtOpenNumber_` makes the Nth open defer and the
+// browser's own per-tick surface is what re-runs the attempt. Nothing here runs a retry loop of its
+// own, so a browser that stopped re-asking would hang this stage rather than be rescued by it.
+
+/// Everything a finished listing leaves behind that a caller can observe.
+struct ListingSnapshot {
+	std::string dir;
+	std::string entered;
+	int32_t selected = -1;
+	deluge::vector<std::string> names;
+
+	bool operator==(const ListingSnapshot& other) const {
+		if (dir != other.dir || entered != other.entered || selected != other.selected
+		    || names.size() != other.names.size()) {
+			return false;
+		}
+		for (size_t i = 0; i < names.size(); i++) {
+			if (names[i] != other.names[i]) {
+				return false;
+			}
+		}
+		return true;
+	}
+};
+
+/// The fixture directory. Deliberately more than FILE_ITEMS_MAX_NUM_ELEMENTS (20) entries, because
+/// that is what makes `cullSomeFileItems` fire and `arrivedInNewFolder`'s numFileItemsDeletedAtStart
+/// re-read happen -- the SECOND open, and the common case this stage exists to cover. A fixture of
+/// 20 or fewer would list in one open and the sweep would have exactly one N to check, silently
+/// covering none of the retry paths.
+constexpr const char* kListingDir = "LISTTEST";
+constexpr int32_t kListingEntries = 25;
+/// Mid-folder AND deliberately absent -- see beginOpenListing for why both halves matter.
+constexpr const char* kListingStartAt = "SONG012Z.XML";
+static_assert(kListingEntries > FILE_ITEMS_MAX_NUM_ELEMENTS,
+              "the fixture must overflow the file-item window, or no re-read is ever provoked");
+
+enum class ListingStep : uint8_t { Fixture, Reference, Sweep, Finished };
+ListingStep g_listingStep = ListingStep::Fixture;
+int32_t g_listingDeferAt = 0;  ///< which N the sweep is on; 0 = the reference run
+int32_t g_listingOpens = 0;    ///< how many opens the reference run performed
+bool g_listingRunning = false; ///< a listing is in flight and being ticked
+int32_t g_listingTicks = 0;    ///< tick budget guard for the run in flight
+ListingSnapshot g_listingReference;
+int32_t g_listingCasesRun = 0;
+
+ListingSnapshot takeListingSnapshot() {
+	ListingSnapshot snap;
+	snap.dir = Browser::currentDir;
+	snap.entered = Browser::enteredText;
+	snap.selected = BrowserListingAbProbe::selectedIndex();
+	for (const FileItem& item : Browser::fileItems) {
+		snap.names.push_back(item.filename);
+	}
+	return snap;
+}
+
+/// Create the fixture directory and its entries. Idempotent: a re-run of the harness against a
+/// reused image finds them already there.
+bool buildListingFixture() {
+	(void)deluge::io::mkdir(kListingDir);
+	for (int32_t i = 0; i < kListingEntries; i++) {
+		char path[64];
+		snprintf(path, sizeof(path), "%s/SONG%03d.XML", kListingDir, static_cast<int>(i));
+		auto file = deluge::io::File::open(path, DELUGE_FILE_WRITE_CREATE_NEW);
+		if (!file.has_value()) {
+			continue; // already present from a previous run
+		}
+		const char body[] = "<song firmwareVersion=\"c1.3.0\"></song>";
+		(void)file->write(std::as_bytes(std::span{body, sizeof(body) - 1}));
+		(void)file->close();
+	}
+	// Prove the fixture is what the sweep needs rather than assuming it: a directory that came back
+	// short would make every comparison below trivially true.
+	auto dir = deluge::io::Directory::open(kListingDir);
+	if (!dir.has_value()) {
+		printf("SP-LISTING FAIL could not open the fixture directory\n");
+		return false;
+	}
+	int32_t counted = 0;
+	while (true) {
+		auto entry = dir->read();
+		if (!entry.has_value() || !entry->has_value()) {
+			break;
+		}
+		if ((*entry)->name[0] != '.') {
+			counted++;
+		}
+	}
+	if (counted < kListingEntries) {
+		printf("SP-LISTING FAIL fixture has %d entries, needs %d\n", counted, kListingEntries);
+		return false;
+	}
+	return true;
+}
+
+void runListingTick() {
+	if (g_listingRunning) {
+		BrowserListingAbProbe::tick();
+		if (++g_listingTicks > 200) {
+			printf("SP-LISTING FAIL deferAt=%d never finished -- nothing re-asked\n", g_listingDeferAt);
+			g_failures++;
+			g_listingStep = ListingStep::Finished;
+			g_listingRunning = false;
+			return;
+		}
+		if (BrowserListingAbProbe::inProgress()) {
+			return; // still deferring; the tick surface will run it again
+		}
+		g_listingRunning = false;
+
+		if (g_listingStep == ListingStep::Reference) {
+			g_listingReference = takeListingSnapshot();
+			g_listingOpens = BrowserListingAbProbe::opensPerformed();
+			printf("SP-LISTING reference entries=%zu opens=%d\n", g_listingReference.names.size(), g_listingOpens);
+			if (g_listingOpens < 2) {
+				printf("SP-LISTING FAIL only %d open(s) -- the sweep would cover no retry path\n", g_listingOpens);
+				g_failures++;
+				g_listingStep = ListingStep::Finished;
+				return;
+			}
+			g_listingDeferAt = 0;
+			g_listingStep = ListingStep::Sweep;
+			return;
+		}
+
+		// A sweep run just finished.
+		const ListingSnapshot got = takeListingSnapshot();
+		g_listingCasesRun++;
+		if (!(got == g_listingReference)) {
+			printf("SP-LISTING FAIL deferAt=%d dir=%s/%s entered=%s/%s sel=%d/%d n=%zu/%zu\n", g_listingDeferAt,
+			       got.dir.c_str(), g_listingReference.dir.c_str(), got.entered.c_str(),
+			       g_listingReference.entered.c_str(), got.selected, g_listingReference.selected, got.names.size(),
+			       g_listingReference.names.size());
+			g_failures++;
+		}
+		return;
+	}
+
+	switch (g_listingStep) {
+	case ListingStep::Fixture:
+		if (!buildListingFixture()) {
+			g_failures++;
+			g_listingStep = ListingStep::Finished;
+			return;
+		}
+		BrowserListingAbProbe::deferAtOpen(0);
+		BrowserListingAbProbe::beginOpenListing(kListingDir, kListingStartAt);
+		g_listingRunning = true;
+		g_listingTicks = 0;
+		g_listingStep = ListingStep::Reference;
+		return;
+	case ListingStep::Sweep:
+		if (g_listingDeferAt >= g_listingOpens) {
+			BrowserListingAbProbe::deferAtOpen(0);
+			printf("SP-LISTING-SUMMARY opens=%d sweeps=%d\n", g_listingOpens, g_listingCasesRun);
+			g_listingStep = ListingStep::Finished;
+			return;
+		}
+		g_listingDeferAt++;
+		BrowserListingAbProbe::deferAtOpen(g_listingDeferAt);
+		BrowserListingAbProbe::beginOpenListing(kListingDir, kListingStartAt);
+		g_listingRunning = true;
+		g_listingTicks = 0;
+		return;
+	case ListingStep::Reference:
+	case ListingStep::Finished:
+		return;
+	}
+}
+
 void printSummary() {
 	const bool async = deluge_file_prefix_async_active();
 	printf("SP-SUMMARY asyncActive=%d cases=%zu corpus=%zu failures=%d\n", async ? 1 : 0, kCases.size(), g_corpusRan,
@@ -916,6 +1134,13 @@ void deluge_scenario_song_preview_ab_begin(void) {
 	g_summaryPrinted = false;
 	g_deferralsByCase.fill(0);
 	g_deferralsByCorpusCase.fill(0);
+	g_listingStep = ListingStep::Fixture;
+	g_listingDeferAt = 0;
+	g_listingOpens = 0;
+	g_listingRunning = false;
+	g_listingTicks = 0;
+	g_listingCasesRun = 0;
+	g_listingReference = ListingSnapshot{};
 
 	// Line-buffer stdout for the rest of the run. The platform driver ends the process with a raw
 	// `exit_group` syscall, which flushes NOTHING of C's stdio -- so a block-buffered stdout, which is
@@ -952,6 +1177,12 @@ void deluge_scenario_song_preview_ab_dispatch_step(void) {
 		runSwapTick();
 		if (g_swapStep == SwapStep::Finished) {
 			finishSwapStage();
+			g_stage = Stage::Listing;
+		}
+		break;
+	case Stage::Listing:
+		runListingTick();
+		if (g_listingStep == ListingStep::Finished) {
 			g_stage = Stage::Done;
 			printSummary();
 			g_summaryPrinted = true;

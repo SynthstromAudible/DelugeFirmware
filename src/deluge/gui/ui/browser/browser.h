@@ -164,6 +164,13 @@ protected:
 		std::string folderOrPath;      ///< IntoFolder (folder name) / ByPath (full path)
 	};
 	static bool listingInProgress_;
+	/// @brief Whether the listing in progress is this tier's to run, decided once when it began.
+	///
+	/// Set by @ref beginListing, read by @ref graphicsRoutine. A flag rather than re-asking the
+	/// selector each tick because the two must not be able to disagree part-way through an attempt:
+	/// an attempt that started on the storage owner and then found itself also being run from the
+	/// tick surface would run one listing twice, on two tiers, over one static fileItems.
+	static bool listingOnTickSurface_;
 	static ListingRequest pendingListing_;
 
 	/// @brief The inputs one listing attempt must see, so that re-running it takes the path the
@@ -197,6 +204,16 @@ protected:
 	///
 	/// Hence: capture the first two on the first attempt, put them back before every re-entry, and
 	/// keep the third here rather than on the stack.
+	///
+	/// @warning Two of those three are DEFENSIVE, not demonstrated. Neutering each against the
+	///          idempotence gate showed the retry loops are convergent — a re-run that skips the
+	///          fallback opens the fallback directory directly, and a re-run after a successful
+	///          `mkdir` finds the directory there and never re-enters that branch. The one path that
+	///          genuinely diverges is `getUnusedSlot`, whose re-read is skipped on a re-run when
+	///          `enteredText` is left non-empty; it needs `mayDefaultToBrandNewNameOnEntry`, which
+	///          only `SaveUI` sets, so no gate here covers it. They are kept because the convergence
+	///          argument is subtle and costs two string assignments to make unnecessary — but do not
+	///          read the green gate as proof of them.
 	struct ListingAttempt {
 		bool active = false;        ///< an attempt is under way, possibly across several ticks
 		std::string dirAtEntry;     ///< currentDir as it was when the attempt began
@@ -211,7 +228,12 @@ protected:
 	};
 	static ListingAttempt attempt_;
 
-	/// @brief Test seam: make the Nth open of an attempt defer instead of opening. 0 = never.
+	/// @brief Test seam: make the Nth open of an attempt defer ONCE, instead of opening. 0 = never.
+	///
+	/// Cleared as it fires, which is the whole of what makes it model a channel: an open that
+	/// deferred is answered on the NEXT ask. A seam that stayed armed would defer the same open on
+	/// every pass and the attempt would never finish -- which is exactly what the first version of it
+	/// did, and what the gate below caught.
 	///
 	/// Exists so the idempotence of a re-run can be gated directly — for each N, a listing that
 	/// deferred at its Nth open must finish identical to one that never deferred. Nothing in the
@@ -236,6 +258,16 @@ protected:
 	///         this that only a completed listing would reconcile must check the return and revert
 	///         on false.
 	bool beginListing(ListingRequest req);
+	/// @brief Obtain `path` as an open Directory: from the async directory channel where it backs
+	///        this build and an attempt is under way, and by a direct open otherwise.
+	///
+	/// The synchronous arm is what ships. With the channel inactive its weak fallback answers UNKNOWN
+	/// forever, so a caller that only polled would defer every tick and never list anything at all.
+	/// @param path NUL-terminated directory path.
+	/// @return The open Directory, or the Error that stopped it — which may be
+	///         @ref Error::LISTING_DEFERRED, meaning "not a failure; the attempt will be re-run".
+	[[nodiscard]] static std::expected<deluge::io::Directory, Error> openDirectoryForListing(char const* path);
+
 	/// @brief Owner-op entry point dispatched to run the pending listing.
 	/// @param self The active Browser* the listing was dispatched from.
 	static void runListingTrampoline(void* self);
