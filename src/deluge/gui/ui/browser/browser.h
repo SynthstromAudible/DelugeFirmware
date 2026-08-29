@@ -54,7 +54,14 @@ class Browser : public QwertyUI {
 public:
 	Browser();
 
-	void close();
+	/// @brief Tear the browser down, cancelling anything it has in flight.
+	///
+	/// `virtual` deliberately, unlike `UI::close()` which it hides. A subclass with its own in-flight
+	/// work — `DxSyxBrowser`'s cartridge read — has to be able to cancel it here, and the call that
+	/// matters comes through `exitAction()`, where the static type is `Browser`. A non-virtual
+	/// subclass `close()` would compile, look right, and never run on the path that actually closes
+	/// the browser.
+	virtual void close();
 	virtual std::string getCurrentFilePath() = 0;
 	ActionResult buttonAction(deluge::hid::Button b, bool on, bool inCardRoutine) override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;

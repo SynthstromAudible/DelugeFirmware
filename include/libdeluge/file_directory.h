@@ -62,6 +62,18 @@ extern "C" {
 #define DELUGE_NOEXCEPT
 #endif
 
+/// @brief The longest path this channel can key on, INCLUDING the NUL — so the text it holds is one
+///        byte shorter.
+///
+/// Spelled here rather than left to `audio_load.h`'s identically-valued `DELUGE_MAX_PATH`, because a
+/// caller needs it to decide whether a path is servable at all and should not have to include an
+/// unrelated header to find out. `file_directory_abi.cpp` `static_assert`s the two equal.
+///
+/// @note A longer path is REFUSED, never truncated — a truncated path names a *different* directory,
+///       which may well exist. @ref deluge_file_directory_request drops it silently, so a caller that
+///       does not check this itself gets UNKNOWN forever with no error to show.
+#define DELUGE_FILE_DIRECTORY_MAX_PATH 256u
+
 /// @brief @ref deluge_file_directory_collect: requested, or being opened right now.
 ///
 /// Ask again on a later tick. Do NOT re-request: the open is already under way, and re-requesting

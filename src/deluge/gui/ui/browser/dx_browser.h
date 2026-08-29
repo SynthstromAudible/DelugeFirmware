@@ -35,6 +35,12 @@ public:
 	/// storage-owner op and nothing is ever in flight across a tick.
 	void browserGraphicsRoutine() override;
 
+	/// @brief Cancel an in-flight cartridge read as the browser goes away.
+	///
+	/// The async arm leaves the browser up while the read runs, so the read can outlive it. See the
+	/// definition for what a stale in-flight flag does.
+	void close() override;
+
 	// ui
 	UIType getUIType() override { return UIType::DX_BROWSER; }
 };

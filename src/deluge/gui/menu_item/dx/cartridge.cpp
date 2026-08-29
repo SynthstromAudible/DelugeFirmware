@@ -148,16 +148,14 @@ bool DxCartridge::tryLoad(std::string_view path) {
 	return openFile(path, pd);
 }
 
-bool DxCartridge::tryLoadFromBuffer(std::span<const std::byte> bytes) {
+bool DxCartridge::tryLoadFromBuffer(std::span<std::byte> bytes) {
 	if (pd == nullptr) {
 		pd = new DX7Cartridge();
 	}
 	currentValue = 0;
 	scrollPos = 0;
 
-	// DX7Cartridge::load takes a mutable span (it unpacks in place), and the prefix channel's buffer
-	// is the caller's to hand over, so const is dropped here rather than by copying 8 KB.
-	return parseCartridge(std::span<std::byte>{const_cast<std::byte*>(bytes.data()), bytes.size()}, pd);
+	return parseCartridge(bytes, pd);
 }
 
 void DxCartridge::selectEncoderAction(int32_t offset) {

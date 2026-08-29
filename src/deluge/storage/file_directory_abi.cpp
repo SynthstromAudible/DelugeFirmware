@@ -37,6 +37,12 @@
 #include "libdeluge/audio_load.h"  // the status values this header's must equal
 #include "libdeluge/file_prefix.h" // ... and the sibling channel's, which share a caller
 
+// The path bound, which this header spells for its callers and the Rust side hand-duplicates as
+// `MAX_PATH_CHARS` (255 = this minus the NUL). Equal to the loader's by construction: they key the
+// same filesystem, and a path one channel can name but the other cannot would be a trap for the
+// browser tick that reaches both.
+static_assert(DELUGE_FILE_DIRECTORY_MAX_PATH == DELUGE_MAX_PATH);
+
 // The status bytes the Rust side hand-duplicates from this header (`const _` in file_directory.rs).
 static_assert(DELUGE_FILE_DIRECTORY_PENDING == 0u);
 static_assert(DELUGE_FILE_DIRECTORY_READY == 1u);

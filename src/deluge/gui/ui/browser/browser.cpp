@@ -128,10 +128,20 @@ bool Browser::beginListing(ListingRequest req) {
 		// and one static fileItems -- a cross-tier race in exchange for nothing, since the owner is
 		// no longer where the waiting happens.
 		//
-		// One residual, recorded rather than hidden: readFileItemsForFolder still calls
-		// StorageManager::initSD(), which is a flag check on an already-mounted card but does real
-		// blocking work on a re-mount. That path is the ejection path, which already blocks; moving
-		// it is the next thing this ladder owes.
+		// The residuals, recorded rather than hidden. The directory OPEN is what this rung moved off
+		// the interaction tier; these are the card calls on the same path that it did not:
+		//
+		//  - StorageManager::initSD(), a flag check on an already-mounted card but real blocking work
+		//    on a re-mount (the ejection path, which already blocks).
+		//  - deluge::io::mkdir(defaultDirToAlsoTry) on the FOLDER_DOESNT_EXIST fallback — a card
+		//    WRITE, through a blocking spin, routinely reached by the Save UIs when their default
+		//    folder is absent.
+		//  - StorageManager::fileExists() in setFileByFullPathImpl, so on every ByPath listing.
+		//
+		// And one that is not a call but a loss: the success tail (folderContentsReady /
+		// onBrowserOpened / currentFileChanged) used to be serialised on the owner alongside every
+		// other op that touches Browser::fileItems. It no longer is. All four are rung 4's, together
+		// with predictExtendedText and LoadInstrumentPresetUI.
 		return true;
 	}
 
@@ -149,9 +159,28 @@ void Browser::runListingTrampoline(void* self) {
 }
 
 std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(char const* path) {
-	// Not `attempt_.active` alone: with the channel absent the weak collect answers UNKNOWN forever,
-	// so an attempt that consulted it would defer on every tick and never list anything.
-	if (!attempt_.active || !deluge_file_directory_async_active()) {
+	// A path the channel cannot key is refused HERE, with a real error, rather than passed on.
+	// `deluge_file_directory_request` silently drops an over-long path and the collect then answers
+	// UNKNOWN forever — which for the audio loader is a benign "ask again" but here is the attempt's
+	// only forward path, so the browser would re-run the listing every tick with no error ever shown.
+	// Deeply nested user folders can exceed the bound.
+	if (strlen(path) >= DELUGE_FILE_DIRECTORY_MAX_PATH) {
+		return std::unexpected(Error::FILE_NOT_FOUND);
+	}
+
+	// Three conditions, and each excludes a caller that has nowhere to put a deferral:
+	//
+	//  - `attempt_.active`: readFileItemsForFolder is also reached by predictExtendedText (the typing
+	//    path) and by LoadInstrumentPresetUI, neither of which is a listing attempt.
+	//  - `!Owner::on_owner()`: and `attempt_.active` alone does NOT exclude them, because it is a
+	//    global meaning "SOME attempt is mid-defer", not "I am inside that attempt". An owner op
+	//    running while a browser attempt is deferred would otherwise take this branch, be handed a
+	//    LISTING_DEFERRED it treats as a load failure, AND replace the browser's outstanding request
+	//    with its own. The tick surface is the only thing that runs an attempt, and it is never the
+	//    owner.
+	//  - the selector: with the channel absent the weak collect answers UNKNOWN forever, so an
+	//    attempt that consulted it would defer on every tick and never list anything.
+	if (!attempt_.active || deluge::storage::Owner::on_owner() || !deluge_file_directory_async_active()) {
 		auto opened = deluge::io::Directory::open(path);
 		if (!opened.has_value()) {
 			return std::unexpected(delugeStatusToError(deluge::io::to_deluge_status(opened.error())));
@@ -174,10 +203,16 @@ std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(cha
 		// Requested or being opened. Ask again next tick and do NOT re-request, which would replace a
 		// request that is about to be served.
 		return std::unexpected(Error::LISTING_DEFERRED);
-	default:
-		// FAILED, and terminal: the channel will not retry and neither may we, or a folder that
-		// cannot be opened would be re-requested on every tick for as long as the browser sits on it.
+	case DELUGE_FILE_DIRECTORY_FAILED:
+		// Terminal: the channel will not retry and neither may we, or a folder that cannot be opened
+		// would be re-requested on every tick for as long as the browser sits on it.
 		return std::unexpected(delugeStatusToError(status));
+	default:
+		// Not reachable through this header, and NOT folded into the FAILED arm above. `out_status`
+		// is only written on FAILED, so an unrecognised status carries DELUGE_OK — and mapping that
+		// through delugeStatusToError yields Error::NONE, which a caller reads as "the listing
+		// succeeded and the folder is empty". A wrong status must not be able to become success.
+		return std::unexpected(Error::UNSPECIFIED);
 	}
 }
 
@@ -265,6 +300,13 @@ void Browser::close() {
 	//
 	// Nothing needs to chase the channel: an answer nobody collects is refused at its take on the
 	// next card generation, and the handle it holds is closed there or by the next flush.
+	if (listingInProgress_) {
+		// Only runPendingListing's own exit used to clear this, and under the owner arm that exit was
+		// always reached because the queued op always ran. A tick-surface attempt cancelled here has
+		// no such exit, so without this the browser closes with "Working" left on screen and nothing
+		// remaining to take it down.
+		display->removeLoadingAnimation();
+	}
 	listingInProgress_ = false;
 	listingOnTickSurface_ = false;
 	attempt_.active = false;

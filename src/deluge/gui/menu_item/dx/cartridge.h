@@ -44,9 +44,12 @@ public:
 	/// second copy of it. Shows the same popups on the same conditions, which is the point: the two
 	/// arms must be indistinguishable to the user.
 	/// @param bytes The cartridge's opening bytes, at most `DELUGE_FILE_PREFIX_CAPACITY` of them.
+	///        MUTABLE, and that is not an oversight: `DX7Cartridge::load` unpacks in place, so this
+	///        writes through the caller's buffer. Spelled in the signature rather than `const_cast`ed
+	///        inside, so the caller is the one that has to know its buffer is writable.
 	/// @return True if a cartridge was parsed. A checksum failure returns true and still loads, which
 	///         is deliberate and predates this split; any other parse error returns false.
-	bool tryLoadFromBuffer(std::span<const std::byte> bytes);
+	bool tryLoadFromBuffer(std::span<std::byte> bytes);
 	void drawPixelsForOled() override;
 	void readValueAgain() final;
 	void loadPatch();

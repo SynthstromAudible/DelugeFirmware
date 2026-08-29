@@ -49,7 +49,11 @@ std::string g_cartridgeLoadPath;
 /// read in a release build -- so this is sized by the capacity, not by the 8192 the request names.
 /// The slot was grown to 8192 for exactly this consumer: a DX7 32-voice bank is 4104 bytes and the
 /// old 4096 slot truncated it by 8, which is enough to fail its checksum.
-std::array<uint8_t, DELUGE_FILE_PREFIX_CAPACITY> g_cartridgeBuffer;
+/// PLACE_SDRAM_BSS, like its sibling songPreviewPrefix (load_song_ui.cpp) and for the same reason:
+/// 8 KiB is worth having out of internal RAM, this is touched only by the browser tier and never by
+/// the audio path, and on a build where the async arm never runs it would otherwise cost that RAM
+/// unconditionally for nothing.
+PLACE_SDRAM_BSS std::array<uint8_t, DELUGE_FILE_PREFIX_CAPACITY> g_cartridgeBuffer;
 /// True while a dispatched load is in flight. Guards against a second dispatch stomping
 /// g_cartridgeLoadPath before the first op reads it (defensive: enterKeyPress already close()s
 /// the browser before dispatching, so a second call can't normally land while one's in flight).
@@ -172,6 +176,23 @@ void DxSyxBrowser::enterKeyPress() {
 	}
 }
 
+void DxSyxBrowser::close() {
+	// Cancel an in-flight cartridge read, for the same reason Browser::close() cancels an in-flight
+	// listing: the async arm deliberately leaves the browser up while the read runs, so the read can
+	// outlive it.
+	//
+	// Without this the guard below stays armed forever. Every later enterKeyPress fails its
+	// !g_cartridgeLoadInFlight check and silently does nothing, and re-entering the browser collects
+	// the stale path's bytes and jumps into the cartridge submenu for a file the user never chose.
+	//
+	// The synchronous arm is unaffected: its op runs to completion on the owner and clears the flag
+	// itself, and the browser was already closed before it was dispatched.
+	if (deluge_file_prefix_async_active()) {
+		g_cartridgeLoadInFlight = false;
+	}
+	Browser::close();
+}
+
 void DxSyxBrowser::browserGraphicsRoutine() {
 	if (!g_cartridgeLoadInFlight || !deluge_file_prefix_async_active()) {
 		return;
@@ -196,7 +217,7 @@ void DxSyxBrowser::browserGraphicsRoutine() {
 		close();
 		return;
 	default: { // READY
-		const std::span bytes{reinterpret_cast<const std::byte*>(g_cartridgeBuffer.data()), length};
+		const std::span bytes{reinterpret_cast<std::byte*>(g_cartridgeBuffer.data()), length};
 		const bool loaded = menu_item::dxCartridge.tryLoadFromBuffer(bytes);
 		g_cartridgeLoadInFlight = false;
 		// close() on BOTH paths, and before the submenu: the synchronous arm's browser is already gone
