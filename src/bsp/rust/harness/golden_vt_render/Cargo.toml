@@ -198,10 +198,18 @@ async_audio_load = []
 async_audio_load_active = ["async_audio_load"]
 # Mirrors `../Cargo.toml`'s two file-prefix features exactly (same spellings, so
 # `file_prefix.rs`'s own `#[cfg(feature = ...)]` conditionals need zero edits when
-# `#[path]`-included here). Neither is enabled, and nothing in this package would enable them:
-# `file_prefix.rs` is compiled here only because `card.rs`'s flush names it, so what lands is the
-# slot logic and the C ABI over a channel with no statics and no task. Declaring them keeps
-# rustc's unknown-cfg lint quiet without pretending this package supports a channel it never uses.
+# `#[path]`-included here). Neither is in `default`, and that is deliberate in the same way the
+# audio-load pair above is: the golden stem-export/recorder builds are byte-for-byte what they were
+# before the prefix channel existed, and with both off `file_prefix.rs` is compiled only because
+# `card.rs`'s flush names it -- so what lands there is the slot logic and the C ABI over a channel
+# with no statics and no task.
+#
+# `scripts/song_preview_ab.sh` turns them on explicitly, one per leg, and `main.rs` spawns
+# `file_prefix_task` under `async_file_prefix_active`: `async_file_prefix` alone = the channel
+# compiled with the switch OFF, which is the SYNCHRONOUS leg of the song-preview A/B and the shape
+# the firmware actually ships; `async_file_prefix_active` = the switch on, the reader task spawned.
+# They cannot both be true in one process (`deluge_file_prefix_async_active()` is
+# `cfg!(feature = ...)`, a compile-time constant), which is why that A/B is a diff of two builds too.
 async_file_prefix = ["async_audio_load"]
 async_file_prefix_active = ["async_file_prefix"]
 

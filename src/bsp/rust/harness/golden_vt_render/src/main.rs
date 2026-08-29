@@ -870,6 +870,7 @@ fn pack_song_preview_ab_image(repo_root: &std::path::Path) -> std::path::PathBuf
         std::env::var_os("DELUGE_BACKUP").map(|b| std::path::Path::new(&b).join("SONGS").into())
     });
     let mut copied = 0usize;
+    let corpus_was_named = corpus.is_some();
     if let Some(corpus) = corpus {
         let mut entries: Vec<std::path::PathBuf> = std::fs::read_dir(&corpus)
             .map(|dir| {
@@ -893,8 +894,23 @@ fn pack_song_preview_ab_image(repo_root: &std::path::Path) -> std::path::PathBuf
                 copied += 1;
             }
         }
+        // Naming a corpus and getting none of it staged is a failure, not a quiet fallback to the
+        // six synthetic cases. It is the same species of hole as a coverage check that can cover
+        // nothing: the run would still print PASS, and the only trace that fourteen real songs had
+        // silently left the gate would be a count in a log line nobody reads.
+        assert!(
+            copied > 0,
+            "DELUGE_SONG_CORPUS names {} but no .XML song could be staged from it",
+            std::path::Path::new(&corpus).display()
+        );
     }
-    log::info!("golden_vt_render: song-preview fixture staged {copied} corpus song(s)");
+    // Written UNCONDITIONALLY, zero included: the C++ side reads this rather than probing for songs
+    // by index, so its absence has to be a failure over there rather than something that silently
+    // means "no corpus". See `song_preview_ab_scenario.cpp`'s `kCorpusCountPath`.
+    write(corpus_dir.join("COUNT.TXT"), format!("{copied}\n"));
+    log::info!(
+        "golden_vt_render: song-preview fixture staged {copied} corpus song(s) (corpus named: {corpus_was_named})"
+    );
 
     let img = sd_image::pack_image(&root);
     // The staging tree has served its purpose once the image exists; leaving it in the system temp
@@ -903,8 +919,15 @@ fn pack_song_preview_ab_image(repo_root: &std::path::Path) -> std::path::PathBuf
     img
 }
 
-/// How many corpus songs the fixture stages, matching `kMaxCorpusCases` on the C++ side.
+/// How many corpus songs the fixture stages, hand-duplicated with `kMaxCorpusCases` in
+/// `src/deluge/harness/song_preview_ab_scenario.cpp`.
+///
+/// Asserted against its own literal, which makes a change take two deliberate edits, one on each
+/// side -- the same pinning `DELUGE_FILE_PREFIX_CAPACITY` gets at both ends of that boundary. What
+/// actually catches drift is the C++ side's runtime check against `COUNT.TXT`: a fixture that staged
+/// more than the scenario can hold fails there by name.
 const MAX_CORPUS_CASES: usize = 16;
+const _: () = assert!(MAX_CORPUS_CASES == 16);
 
 /// The `GOLDEN_SCENARIO=song_preview_ab` scenario: draw every fixture song's artwork through the
 /// real `LoadSongUI`, printing each one's image fingerprint and decode outcome as a diffable

@@ -202,13 +202,39 @@ constexpr const char* kWindowLabel = "window";
 constexpr const char* kWindowFilename = "LATE.XML";
 
 /// Corpus songs, staged by the packer as `SONGS/CORPUS/C%02u.XML` when `DELUGE_SONG_CORPUS` names a
-/// directory, and probed for by index because this side has no directory listing to walk.
+/// directory.
 ///
 /// They carry no absolute expectation -- their artwork is whatever their author made -- so the
 /// cross-leg diff is the whole check. What they add is real documents: real attribute orders, real
 /// firmware versions, real preview offsets, which is the thing a synthetic fixture cannot be.
 constexpr const char* kCorpusDir = "SONGS/CORPUS";
+
+/// How many corpus songs the packer staged, written by it and read by this side.
+///
+/// The count is READ, not discovered, and that is the whole point of the file. The first version
+/// probed `File::open` per index and stopped at the first miss, which is a coverage check that can
+/// quietly cover nothing: one failed probe -- for any reason, on either leg -- silently drops every
+/// real song, `MIN_CASES` in the gate script counts only the six synthetic cases, and the
+/// "did anything render?" check below is itself gated on at least one corpus case having run. The
+/// gate stays green having tested 6 songs instead of 20 and says nothing.
+///
+/// With the count read, running fewer cases than the fixture staged is a failure with a number in
+/// it. Its absence is a failure too: this scenario and its packer are one fixture, and a card
+/// without the file is not that fixture.
+constexpr const char* kCorpusCountPath = "SONGS/CORPUS/COUNT.TXT";
+
+/// Upper bound on staged corpus songs, hand-duplicated with `MAX_CORPUS_CASES` in
+/// `golden_vt_render/src/main.rs` (the packer).
+///
+/// Asserted against its own literal below, which looks tautological and is the point: it makes a
+/// change take two deliberate edits, one on each side, the same way `DELUGE_FILE_PREFIX_CAPACITY` is
+/// pinned at both ends of that boundary. What actually CATCHES drift is the runtime check in
+/// `runCorpusCountTick()`: a packer that staged more than this side can hold fails by name rather
+/// than by silently running fewer cases.
 constexpr size_t kMaxCorpusCases = 16;
+static_assert(kMaxCorpusCases == 16,
+              "kMaxCorpusCases is hand-duplicated as MAX_CORPUS_CASES in golden_vt_render/src/main.rs; "
+              "change both");
 
 // ── The card swap ───────────────────────────────────────────────────────────
 //
@@ -252,7 +278,7 @@ constexpr int32_t kMaxCaseTicks = 2000;
 // ── State ───────────────────────────────────────────────────────────────────
 
 /// Which stage `dispatch_step` is in, in order.
-enum class Stage : uint8_t { Cases, Window, Corpus, Swap, Done };
+enum class Stage : uint8_t { Cases, Window, CorpusCount, Corpus, Swap, Done };
 Stage g_stage = Stage::Cases;
 
 /// Where the swap stage is in the sequence above.
@@ -268,6 +294,10 @@ size_t g_caseIndex = 0;
 size_t g_corpusIndex = 0;
 size_t g_corpusRan = 0;
 size_t g_corpusRendered = 0;
+/// How many corpus songs the packer says it staged. Read from the card, never discovered.
+size_t g_corpusExpected = 0;
+bool g_corpusCountDispatched = false;
+bool g_corpusCountFailed = false;
 bool g_caseStarted = false;
 int32_t g_caseTicks = 0;
 int32_t g_caseDeferrals = 0;
@@ -524,15 +554,7 @@ void runWindowTick() {
 	g_windowDeferrals = g_caseDeferrals;
 
 	g_caseStarted = false;
-	g_stage = Stage::Corpus;
-}
-
-/// Whether the packer staged a corpus song at this index. Probed rather than listed: this side has
-/// no directory walk, and an absent index simply ends the corpus run.
-bool corpusSongExists(const std::string& path) {
-	auto opened = deluge::io::File::open(path, DELUGE_FILE_READ);
-	const auto present = deluge::io::presence_from_open(opened);
-	return present.has_value() && *present;
+	g_stage = Stage::CorpusCount;
 }
 
 /// `C00.XML`, `C01.XML`, ... -- built by hand rather than with snprintf, which `src/lib/printf.h`
@@ -545,8 +567,79 @@ std::string corpusFilename(size_t index) {
 	return name;
 }
 
+/// Read `kCorpusCountPath` into @ref g_corpusExpected. Runs on the STORAGE OWNER.
+///
+/// On the owner rather than inline, and that is not ceremony here of all places: a blocking card
+/// read on the interaction tier is the exact thing the channel under test exists to remove, and a
+/// gate that did it in its own setup would be asserting a discipline it breaks. It is also the only
+/// card read this scenario performs of its own accord -- everything else goes through the browser.
+void readCorpusCount(void*) {
+	auto opened = deluge::io::File::open(kCorpusCountPath, DELUGE_FILE_READ);
+	if (!opened.has_value()) {
+		printf("FAIL [songPreviewAB/corpus]: '%s' is missing, so this side cannot know how many real songs the "
+		       "packer staged -- the scenario and its packer are one fixture, and a card without this file is "
+		       "not that fixture\n",
+		       kCorpusCountPath);
+		g_failures++;
+		g_corpusCountFailed = true;
+		return;
+	}
+	std::array<std::byte, 16> buffer{};
+	const auto read = opened->read(buffer);
+	if (!read.has_value()) {
+		printf("FAIL [songPreviewAB/corpus]: '%s' could not be read\n", kCorpusCountPath);
+		g_failures++;
+		g_corpusCountFailed = true;
+		return;
+	}
+	size_t count = 0;
+	bool anyDigit = false;
+	for (std::byte b : read.value()) {
+		const auto c = static_cast<char>(b);
+		if (c < '0' || c > '9') {
+			break;
+		}
+		count = count * 10 + static_cast<size_t>(c - '0');
+		anyDigit = true;
+	}
+	if (!anyDigit) {
+		printf("FAIL [songPreviewAB/corpus]: '%s' holds no decimal count\n", kCorpusCountPath);
+		g_failures++;
+		g_corpusCountFailed = true;
+		return;
+	}
+	if (count > kMaxCorpusCases) {
+		// The one thing that actually catches the two hand-duplicated bounds drifting apart. Without
+		// it, a packer that staged more than this side can hold would simply run fewer cases and say
+		// nothing.
+		printf("FAIL [songPreviewAB/corpus]: the packer staged %zu song(s), more than the %zu this side can "
+		       "hold -- kMaxCorpusCases and MAX_CORPUS_CASES have drifted apart\n",
+		       count, kMaxCorpusCases);
+		g_failures++;
+		g_corpusCountFailed = true;
+		return;
+	}
+	g_corpusExpected = count;
+}
+
+/// Dispatch the count read and move on once it has landed.
+void runCorpusCountTick() {
+	if (!g_corpusCountDispatched) {
+		g_corpusCountDispatched = true;
+		if (!deluge::storage::Owner::run(&readCorpusCount, nullptr)) {
+			printf("FAIL [songPreviewAB/corpus]: the storage owner would not take the count read\n");
+			g_failures++;
+			g_corpusCountFailed = true;
+		}
+		return;
+	}
+	// The marker op behind the dispatch has run by now (the owner queue is FIFO), so the count is in.
+	printf("SP-CORPUS expected=%zu\n", g_corpusExpected);
+	g_stage = g_corpusCountFailed ? Stage::Swap : Stage::Corpus;
+}
+
 void runCorpusTick() {
-	if (g_corpusIndex >= kMaxCorpusCases) {
+	if (g_corpusIndex >= g_corpusExpected) {
 		g_stage = Stage::Swap;
 		return;
 	}
@@ -554,12 +647,6 @@ void runCorpusTick() {
 	const std::string path = songPath(kCorpusDir, filename.c_str());
 
 	if (!g_caseStarted) {
-		if (!corpusSongExists(path)) {
-			// The first gap ends the corpus: the packer writes them contiguously from 0.
-			g_corpusIndex = kMaxCorpusCases;
-			g_stage = Stage::Swap;
-			return;
-		}
 		startCase(kCorpusDir, filename.c_str());
 		return;
 	}
@@ -650,9 +737,11 @@ void finishSwapStage() {
 	//     one deferral whatever happens next. A `> 0` test here is satisfied by that alone, and a run
 	//     with the whole card belt removed -- which served the PREVIOUS card's artwork -- still
 	//     reported exactly one. (Measured, not reasoned: it read `collectDeferrals=1`.)
-	//   - A SECOND deferral can only come from the collect answering UNKNOWN and re-requesting, which
-	//     is what refusing a prefix stamped with the previous card's generation forces. A stale
-	//     prefix that is still servable is READY on that ask and there is no second deferral.
+	//   - A SECOND deferral means the collect did NOT answer READY on the first ask -- either UNKNOWN
+	//     (the stale prefix was refused, so the collector re-requested) or PENDING (that re-read is
+	//     still running). Both are the refusal; only the first ask distinguishes them, and neither is
+	//     reachable while a prefix from the previous card is still servable, because that answers
+	//     READY on tick 1 and the case settles there.
 	if (!g_swapFailed && g_swapCollectDeferrals < 2) {
 		printf("FAIL [songPreviewAB/swap]: the post-swap collect deferred %d time(s), fewer than the 2 a refused "
 		       "prefix forces -- so it was answered from a prefix read BEFORE the ejection rather than from the "
@@ -779,6 +868,14 @@ void printSummary() {
 	}
 	printf("\n");
 
+	// The floor the corpus stage did not have. Every song the packer staged has to have RUN -- not
+	// "as many as a per-index existence probe happened to find", which is a count that can quietly
+	// go to zero and take fourteen real songs with it while the run stays green.
+	if (g_corpusRan != g_corpusExpected) {
+		printf("FAIL [songPreviewAB]: the packer staged %zu corpus song(s) and only %zu ran\n", g_corpusExpected,
+		       g_corpusRan);
+		g_failures++;
+	}
 	if (g_corpusRan > 0 && g_corpusRendered == 0) {
 		printf("FAIL [songPreviewAB]: %zu corpus song(s) ran and not one of them rendered artwork -- the corpus "
 		       "leg proved nothing\n",
@@ -804,6 +901,9 @@ void deluge_scenario_song_preview_ab_begin(void) {
 	g_corpusIndex = 0;
 	g_corpusRan = 0;
 	g_corpusRendered = 0;
+	g_corpusExpected = 0;
+	g_corpusCountDispatched = false;
+	g_corpusCountFailed = false;
 	g_caseStarted = false;
 	g_caseTicks = 0;
 	g_caseDeferrals = 0;
@@ -838,6 +938,9 @@ void deluge_scenario_song_preview_ab_dispatch_step(void) {
 		break;
 	case Stage::Window:
 		runWindowTick();
+		break;
+	case Stage::CorpusCount:
+		runCorpusCountTick();
 		break;
 	case Stage::Corpus:
 		runCorpusTick();

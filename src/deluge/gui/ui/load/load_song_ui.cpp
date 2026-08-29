@@ -945,7 +945,11 @@ void LoadSongUI::drivePreview() {
 	for (;;) {
 		// No is_current() guard, unlike runPreviewOp(): there is no gap here for a cancellation to land
 		// in. request() (or the previous complete()) made this target current on the line above, and
-		// the collect runs to completion before anything else can execute.
+		// the collect runs to completion before anything else can execute. (Slicer::drivePreview()
+		// keeps the guard in the identical inline shape, as an invariant restatement with the same
+		// unreachable false branch -- the two are the same judgement written from opposite ends, not
+		// a disagreement.) What refuses a cancelled attempt on both is complete()'s
+		// `deferred && is_current(a)`, below.
 		const auto attempt = previewLoad_.attempt();
 		const bool deferred = collectPreview(attempt);
 		if (!previewLoad_.complete(attempt, deferred).has_value()) {

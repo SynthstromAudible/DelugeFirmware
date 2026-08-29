@@ -594,10 +594,14 @@ unsafe fn cstr_to_path(ptr: *const c_char) -> Option<PrefixPath> {
 /// # `None` is not the same as `Some(0)`
 ///
 /// `None` means the read did not happen: the file would not open, could not be sized, or the read
-/// itself failed. `Some(0)` means the file is genuinely empty. The distinction is kept here even
-/// though [`file_prefix_task`] publishes an empty prefix either way, because it is the driver's
-/// only honest report and collapsing the two would make an unreadable card indistinguishable from
-/// an empty file to anything that ever wants to tell them apart.
+/// itself failed. `Some(0)` means the file is genuinely empty. [`file_prefix_task`] carries the
+/// distinction all the way out — `None` publishes a FAILURE and `Some(0)` an empty prefix, and
+/// `deluge_file_prefix_collect` reports them as `DELUGE_FILE_PREFIX_FAILED` and READY-with-zero.
+///
+/// It was not always so: both used to publish an empty prefix, and the caller then had no way to
+/// tell an unreadable song from one with no artwork. It drew blank for both while the synchronous
+/// backing it stands in for put an error on screen for the first. Collapsing them again undoes
+/// that, and does it silently — the two answers are the same length and draw the same pads.
 #[cfg(feature = "async_file_prefix")]
 pub async fn prefix_io_once<O: LoadOps>(
     ops: &O,
@@ -608,16 +612,34 @@ pub async fn prefix_io_once<O: LoadOps>(
     let handle = match ops.open(path).await {
         OpenVerdict::Opened(handle) => handle,
         // Neither verdict leaves anything for this channel to do, and neither is retried: the
-        // caller publishes an empty prefix for both, which `file_prefix.h` makes TERMINAL, so
-        // there is no next request unless the caller asks for this path again of its own accord.
+        // caller publishes a FAILURE for both, which `file_prefix.h` makes TERMINAL, so there is no
+        // next request unless the caller asks for this path again of its own accord.
         //
         // That is deliberate for `TableFull` too, even though a full efatfs handle table says
-        // nothing about this file. The audio loader keeps it distinct because it has a reclaim to
-        // route it to and an alternate-directory probe it must not be mistaken for; this channel
-        // has neither. Making this one failure transient would give one function two conventions
-        // and reintroduce a retry that can livelock if handles never free. The cost of terminal is
-        // bounded and self-healing: a transient exhaustion blanks ONE song's artwork until the
-        // cursor next visits it.
+        // nothing about this file. Making this one failure transient would give one function two
+        // conventions and reintroduce a retry that can livelock if handles never free.
+        //
+        // ## What terminal COSTS here, restated for what a failure now does
+        //
+        // It used to blank one song's artwork until the cursor next visited it. It no longer does:
+        // a published failure reaches the browser as `SongPreviewOutcome::Error` and it shows the
+        // user an error popup — for a song that is perfectly readable and that the synchronous
+        // backing, on the owner where the file read is serialised, would very likely have opened.
+        // Still bounded and still self-healing (the next visit re-asks and the table has drained),
+        // but the symptom is now visible rather than silent, and the trade has to be taken on that
+        // rather than on the old one.
+        //
+        // ## The bounded mitigation, recorded and NOT taken
+        //
+        // The sibling loader shows the shape: `audio_loader.rs`'s `load_io_once` returns
+        // `DELUGE_ERROR_TOO_MANY_OPEN_STREAMS` under its own identity, so the C++ collector reclaims
+        // unleased handles and asks again rather than reading a full table as "nothing is here".
+        // This channel could do the same with ONE more bit on the boundary — a terminal-vs-transient
+        // failure, where transient means "reclaim and re-request once". The cost is exactly what
+        // this module's doc argues against: a second convention on a boundary whose whole safety
+        // property is that every answer is terminal, and a retry that has to be bounded by something
+        // if handles never free. Not built. If it is ever wanted, it belongs on `file_prefix.h`
+        // beside `DELUGE_FILE_PREFIX_FAILED`, not as a special case here.
         OpenVerdict::Missing | OpenVerdict::TableFull => return None,
     };
     let read = read_prefix(ops, handle, max_bytes, out).await;

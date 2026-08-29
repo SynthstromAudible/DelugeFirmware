@@ -461,10 +461,24 @@ bool Slicer::drivePreview(const PreviewTarget& target) {
 	for (;;) {
 		const auto attempt = previewLoad_.attempt();
 
-		// is_current() gates the WORK, not merely the recording of a deferral: between arming a
-		// target and getting here the user can have left the slicer or switched slicing mode,
-		// neither of which dispatches a replacement, so supersession would never fire. Sounding a
-		// slice into a UI that has moved on is the damage.
+		// is_current() gates the WORK, not merely the recording of a deferral: sounding a slice into a
+		// slicer the user has left is the damage, and a stale re-ask is only the mechanism.
+		//
+		// It has NO reachable false branch today, and this states the invariant rather than closing a
+		// window. attempt() is the line above, and every path that stamps a target current
+		// (request()'s dispatch arm, complete()'s hand-off arm) does so immediately before it, in a
+		// drive that never yields between the two -- so nothing can bump the generation in that gap.
+		// A cancel arriving from anywhere, including from inside previewForTarget()'s loadFile (the
+		// one place this drive gives control up), lands either before request() or after this check
+		// has already passed. What refuses a cancelled attempt is complete()'s
+		// `deferred && is_current(a)` five lines down, and that is what
+		// tests/unit/slicer_preview_tests.cpp pins.
+		//
+		// Kept because it is free and because it becomes load-bearing the moment any part of this
+		// drive is DISPATCHED rather than run inline -- which is the shape this function had one
+		// commit ago. LoadSongUI::drivePreview()'s async arm omits the same guard and says so at the
+		// line; the difference is only that this one is written as the invariant and that one as its
+		// absence.
 		deferred = previewLoad_.is_current(attempt) && previewForTarget(attempt);
 
 		// A deferral is armed for graphicsRoutine() to re-drive — that surface is the ONLY thing
