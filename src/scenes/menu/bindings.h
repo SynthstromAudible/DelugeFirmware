@@ -46,6 +46,7 @@
 #include <span>
 #include <string_view>
 
+class Drum;
 class ModControllableAudio;
 class ModelStackWithSoundFlags;
 class Sound;
@@ -217,6 +218,21 @@ uint32_t menu_to_unsigned(int32_t menu_value);
 /// lives here rather than on `MenuContext` because computing it needs a `ModelStackWithSoundFlags`,
 /// and `model/model_stack.h` may be included by `context.cpp` and this file only.
 bool allows_note_tails(const MenuContext& ctx);
+
+/// @brief `Sound::allowNoteTails` for one `Drum` of @p ctx's kit, on that drum's own model stack.
+///
+/// The per-target half of the test above, and the one legacy's affect-entire sweep in
+/// `arpeggiator::IncludeInKitArp::writeCurrentValue` (`include_in_kit_arp.h:33-45`) actually
+/// applies: it builds a `ModelStackWithSoundFlags` from each `SoundDrum` and asks that drum, rather
+/// than reusing the context's answer. A non-sound drum (MIDI, gate) has no `Sound` to ask and is
+/// always allowed, exactly as legacy's `bool allowsNoteTails = true;` initialiser says (`:33`).
+///
+/// Lives here for the same reason `allows_note_tails` does: `getModelStackFromSoundDrum`
+/// (`model/model_stack.h:297`) needs `model/model_stack.h`.
+///
+/// @param ctx  What is being edited -- only its kit membership matters.
+/// @param drum The drum to ask. Null answers true (nothing to refuse).
+bool drum_allows_note_tails(const MenuContext& ctx, Drum* drum);
 
 /// @brief Read the play direction `sequence::Direction` would show (`sequence/direction.h:54-64`).
 ///

@@ -12,7 +12,7 @@
 /// | node | legacy global (`g_menus.inc`) | legacy class |
 /// |---|---|---|
 /// | `sample<i>_recorder` | `sample<i>RecorderMenu` (`:55-56`) | `osc::AudioRecorder` (`osc/audio_recorder.h:28`) |
-/// | `recorder` | `recorderMenu` (`:61`) | `HorizontalMenu` |
+/// | `recorder` | `recorderMenu` (`:318`) | `HorizontalMenu` |
 /// | `osc<i>_type` | `osc<i>TypeMenu` (`:62`, `:93`) | `osc::Type` (`osc/type.h:34`) |
 /// | `file<i>_selector` | `file<i>SelectorMenu` (`:63`, `:94`) | `FileSelector` (`file_selector.h:25`) |
 /// | `source<i>_transpose` | `source<i>TransposeMenu` (`:64`, `:95`) | `sample::Transpose` (`sample/transpose.h:31`) |
@@ -30,13 +30,13 @@
 /// | `modulator<i>_transpose` | `modulator<i>TransposeMenu` (`:124`, `:133`) | `modulator::Transpose` (`modulator/transpose.h:27`) |
 /// | `modulator<i>_feedback` | `modulator<i>FeedbackMenu` (`:125`, `:134`) | `source::patched_param::ModulatorFeedback` (`modulator_feedback.h:22`) |
 /// | `modulator<i>_phase_node` | `modulator<i>PhaseMenu` (`:126`, `:135`) | `osc::RetriggerPhase`, `for_modulator` |
-/// | `modulator_dest` | `modulatorDestMenu` (`:136`) | `modulator::Destination` (`modulator/destination.h:28`) |
+/// | `modulator_dest` | `modulatorDestMenu` (`:393`) | `modulator::Destination` (`modulator/destination.h:28`) |
 /// | `modulator<i>` | `modulator<i>Menu` (`:132`, `:143`) | `submenu::Modulator` (`submenu/modulator.h:21`) |
 /// | `source<i>_volume` | `source<i>VolumeMenu` (`:144-145`) | `osc::source::Volume` (`osc/source/volume.h:24`) |
 /// | `modulator<i>_volume` | `modulator<i>Volume` (`:146-147`) | `source::patched_param::ModulatorLevel` (`modulator_level.h:22`) |
-/// | `noise` | `noiseMenu` (`:148`) | `patched_param::IntegerNonFM` (`patched_param/integer_non_fm.h:22`) |
-/// | `osc_sync` | `oscSyncMenu` (`:149`) | `osc::Sync` (`osc/sync.h:26`) |
-/// | `osc_mixer` | `oscMixerMenu` (`:158`) | `HorizontalMenu` |
+/// | `noise` | `noiseMenu` (`:405`) | `patched_param::IntegerNonFM` (`patched_param/integer_non_fm.h:22`) |
+/// | `osc_sync` | `oscSyncMenu` (`:406`) | `osc::Sync` (`osc/sync.h:26`) |
+/// | `osc_mixer` | `oscMixerMenu` (`:415`) | `HorizontalMenu` |
 // clang-format on
 ///
 /// @note **The four bespoke items.** `FileSelector`, `osc::AudioRecorder` and the two `LoopPoint`s

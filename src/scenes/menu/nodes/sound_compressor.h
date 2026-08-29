@@ -8,13 +8,13 @@
 // clang-format off
 /// | node | legacy global | legacy class |
 /// |---|---|---|
-/// | `comp_threshold` | `threshold` (`:31`) | `audio_compressor::CompParam` (`audio_compressor/compressor_params.h:26`) |
-/// | `comp_ratio` | `compRatio` (`:32`) | `audio_compressor::Ratio` (`compressor_values.h:85`) |
-/// | `comp_blend` | `compBlend` (`:33`) | `audio_compressor::Blend` (`compressor_values.h:108`) |
-/// | `comp_attack` | `compAttack` (`:34`) | `audio_compressor::Attack` (`compressor_values.h:57`) |
-/// | `comp_release` | `compRelease` (`:35`) | `audio_compressor::Release` (`compressor_values.h:70`) |
-/// | `comp_hpf` | `compHPF` (`:36`) | `audio_compressor::SideHPF` (`compressor_values.h:95`) |
-/// | `audio_comp` | `audioCompMenu` (`:45`) | `HorizontalMenu` |
+/// | `comp_threshold` | `threshold` (`:288`) | `audio_compressor::CompParam` (`audio_compressor/compressor_params.h:26`) |
+/// | `comp_ratio` | `compRatio` (`:289`) | `audio_compressor::Ratio` (`compressor_values.h:85`) |
+/// | `comp_blend` | `compBlend` (`:290`) | `audio_compressor::Blend` (`compressor_values.h:108`) |
+/// | `comp_attack` | `compAttack` (`:291`) | `audio_compressor::Attack` (`compressor_values.h:57`) |
+/// | `comp_release` | `compRelease` (`:292`) | `audio_compressor::Release` (`compressor_values.h:70`) |
+/// | `comp_hpf` | `compHPF` (`:293`) | `audio_compressor::SideHPF` (`compressor_values.h:95`) |
+/// | `audio_comp` | `audioCompMenu` (`:302`) | `HorizontalMenu` |
 // clang-format on
 ///
 /// @note **`Scaling::HalfPrecision` on the threshold** -- `CompParam::readCurrentValue` /

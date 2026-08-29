@@ -39,7 +39,17 @@ struct Issue {
 		/// @brief A shortcut cell that points at a node no root reaches. `detail` packs the pad as
 		///        `y * 256 + x`.
 		ShortcutToNothing,
-		/// @brief Two children of one parent share a `name` string id. `detail` is that id.
+		/// @brief Two children of one parent share a `name` string id **and can be on screen
+		///        together**. `detail` is that id.
+		///
+		/// Quantified rather than absolute, the same way `EmptySubmenu` is: legacy deliberately
+		/// puts variant pairs side by side under one parent -- one item for a sound, one for a
+		/// MIDI/CV clip, named identically because only one is ever visible. Two siblings collide
+		/// when they share a `relevant` hook (including both having none) or when some supplied
+		/// context admits both; see `validate.cpp`'s `co_visible` for the full reasoning. **With
+		/// no contexts supplied only the static half applies**, which is the right answer for a
+		/// structural-only check but means a caller passing `{}` will not catch a pair whose two
+		/// different predicates happen always to agree.
 		DuplicateName,
 		/// @brief More than `kMaxCustomItems` distinct `CustomItem` instances in the whole tree.
 		///        `detail` is the count found. Reported once, against the last custom node seen.

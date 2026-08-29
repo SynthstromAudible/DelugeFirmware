@@ -50,7 +50,12 @@
 
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
+#include "model/note/note_row.h"
 #include "model/song/song.h"
+#include "modulation/arpeggiator.h"
+#include "modulation/params/param_set.h"
+#include "processing/engines/audio_engine.h"
+#include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
 
@@ -63,6 +68,7 @@
 
 #include <array>
 #include <cstdint>
+#include <set>
 #include <span>
 #include <string>
 #include <vector>
@@ -104,48 +110,110 @@ void select_language() {
 	deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
 }
 
-/// @brief The fixture, plus the `soundEditor` globals the legacy items read instead of a context.
+/// @brief Point the `soundEditor` globals at whatever @p ctx is editing.
 ///
-/// Identical in intent to `tables_1_spec.cpp`'s: a legacy `readCurrentValue()` reaches
-/// `soundEditor.current*` (`gui/ui/sound_editor.h:62-73`) while `bindings::read` reaches the same
-/// objects through the `MenuContext` `context_for` resolved, so both must point at one fixture.
-/// Batch 2 adds two more of those globals -- `currentArpSettings` (`:69`), which the whole
-/// arpeggiator and randomizer surface reads, and `currentPriority` (`:71`).
-struct Fixture {
-	spec::SongFixture song = spec::make_synth_song();
-	MenuContext ctx{};
-
-	Fixture() {
-		select_language();
-		ctx = menu::context_for(*song.song, song.clip, 0, false, false, /*kit_global_fx=*/false);
-		soundEditor.currentSound = ctx.sound;
-		soundEditor.currentModControllable = ctx.mod;
-		soundEditor.currentParamManager = ctx.params;
-		soundEditor.currentSourceIndex = ctx.source_index;
-		soundEditor.currentSource = ctx.source;
-		soundEditor.currentMultiRange = ctx.range;
-		soundEditor.currentMultiRangeIndex = ctx.range_index;
-		soundEditor.currentArpSettings = ctx.arp;
-		soundEditor.currentPriority = ctx.priority;
-		soundEditor.currentSidechain = ctx.sidechain;
-		soundEditor.currentSampleControls = ctx.sample_controls;
-		// `SoundEditor::setup` caches this once per entry (`sound_editor.cpp:1811-1816`), and
-		// `arpeggiator::IncludeInKitArp` reads the cached copy. Computed here the way legacy
-		// computes it -- straight from `Sound::allowNoteTails` over the fixture's own model stack --
-		// so the comparison against `bindings::allows_note_tails` stays a real one.
-		soundEditor.allowsNoteTails = true;
-		if (ctx.sound != nullptr) {
-			char memory[MODEL_STACK_MAX_SIZE];
-			ModelStackWithThreeMainThings* stack = menu::model_stack_for(ctx, memory);
-			soundEditor.allowsNoteTails = ctx.sound->allowNoteTails(stack->addSoundFlags(), true);
-		}
+/// A legacy `readCurrentValue()` / `writeCurrentValue()` reaches `soundEditor.current*`
+/// (`gui/ui/sound_editor.h:62-73`) while `bindings::read`/`write` reach the same objects through
+/// the `MenuContext` `context_for` resolved, so both must point at one fixture. Batch 2 adds two
+/// more of those globals -- `currentArpSettings` (`:69`), which the whole arpeggiator and
+/// randomizer surface reads, and `currentPriority` (`:71`).
+///
+/// `currentSong` is re-pointed too: each `make_*_song()` sets it, so a spec juggling three
+/// fixtures has to say which one is live before calling into the model's `getCurrent*()` helpers.
+void install(const MenuContext& ctx, Song* song) {
+	currentSong = song;
+	song->setCurrentClip(ctx.clip);
+	soundEditor.currentSound = ctx.sound;
+	soundEditor.currentModControllable = ctx.mod;
+	soundEditor.currentParamManager = ctx.params;
+	soundEditor.currentSourceIndex = ctx.source_index;
+	soundEditor.currentSource = ctx.source;
+	soundEditor.currentMultiRange = ctx.range;
+	soundEditor.currentMultiRangeIndex = ctx.range_index;
+	soundEditor.currentArpSettings = ctx.arp;
+	soundEditor.currentPriority = ctx.priority;
+	soundEditor.currentSidechain = ctx.sidechain;
+	soundEditor.currentSampleControls = ctx.sample_controls;
+	// `SoundEditor::setup` caches this once per entry (`sound_editor.cpp:1811-1816`), and
+	// `arpeggiator::IncludeInKitArp` reads the cached copy. Computed here the way legacy computes
+	// it -- straight from `Sound::allowNoteTails` over the fixture's own model stack -- so the
+	// comparison against `bindings::allows_note_tails` stays a real one.
+	soundEditor.allowsNoteTails = true;
+	if (ctx.sound != nullptr) {
+		char memory[MODEL_STACK_MAX_SIZE];
+		ModelStackWithThreeMainThings* stack = menu::model_stack_for(ctx, memory);
+		soundEditor.allowsNoteTails = ctx.sound->allowNoteTails(stack->addSoundFlags(), true);
 	}
+	// Legacy's affect-entire branches all test this (`unpatched_param.cpp:52` and the twenty-odd
+	// items that spell the same condition); the port's half is `MenuContext::affect_entire_held`.
+	// Kept in step so a spec that sets one sets the other.
+	currentUIMode = ctx.affect_entire_held ? UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR : 0;
+}
+
+/// @brief One fixture and the `MenuContext` resolved from it.
+struct Rigged {
+	spec::SongFixture song;
+	MenuContext ctx{};
 };
 
-Fixture& fixture() {
-	static Fixture f;
+/// @brief The synth clip every shape/value example runs against.
+Rigged& fixture() {
+	static Rigged f = [] {
+		deluge::l10n::chosenLanguage = &deluge::l10n::built_in::english;
+		Rigged r;
+		r.song = spec::make_synth_song();
+		r.ctx = menu::context_for(*r.song.song, r.song.clip, 0, false, false, /*kit_global_fx=*/false);
+		return r;
+	}();
+	install(f.ctx, f.song.song);
 	return f;
 }
+
+/// @brief A kit with **two** `SoundDrum`s, the first selected.
+///
+/// Needed for two things the synth clip cannot show: the kit-only relevance predicates (review
+/// round 1, M6 -- against one synth context ~25 of the 30 new predicates agreed vacuously), and
+/// every affect-entire sweep, which by definition needs more than one drum to be observable
+/// (review round 1, I5).
+struct KitRig {
+	spec::SongFixture song;
+	SoundDrum* drum_a = nullptr;
+	SoundDrum* drum_b = nullptr;
+	MenuContext ctx{};
+};
+
+KitRig& kit_fixture() {
+	static KitRig k = [] {
+		KitRig r;
+		r.song = spec::make_kit_song();
+		r.drum_a = spec::add_drum<SoundDrum>(r.song);
+		r.drum_b = spec::add_drum<SoundDrum>(r.song);
+		static_cast<Kit*>(r.song.instrument)->selectedDrum = r.drum_a;
+		r.ctx = menu::context_for(*r.song.song, r.song.clip, 0, false, false, /*kit_global_fx=*/false);
+		return r;
+	}();
+	return k;
+}
+
+/// @brief Re-resolve the kit context with @p drum selected, and install it.
+MenuContext select_drum(KitRig& k, Drum* drum, bool affect_entire_held = false) {
+	static_cast<Kit*>(k.song.instrument)->selectedDrum = drum;
+	MenuContext ctx = menu::context_for(*k.song.song, k.song.clip, 0, false, false, /*kit_global_fx=*/false);
+	ctx.affect_entire_held = affect_entire_held;
+	install(ctx, k.song.song);
+	return ctx;
+}
+
+/// @brief Why there is no MIDI-clip context here.
+///
+/// Every `isRelevant` override in this tree begins `static_cast<Sound*>(modControllable)` and
+/// dereferences it (`osc/audio_recorder.h:62`, `synth_mode.h:70-72`, ...): the sound-editor root is
+/// only ever opened over a `Sound`, and legacy segfaults if asked otherwise -- which it never is,
+/// because a MIDI clip opens `soundEditorRootMenuMIDIOrCV` instead (task 8's tree). So the two
+/// contexts a *faithful* comparison can use are a synth clip and a kit row with a `SoundDrum`
+/// selected, and the `midi_cv` variants stay structurally unreachable from this root. That is not a
+/// gap in the check: it is the very property that lets legacy give a variant pair one name, and the
+/// "one of each pair" example below asserts it directly.
 
 std::string text_of(uint16_t id) {
 	deluge::ui::shell::TextScratch scratch;
@@ -154,51 +222,69 @@ std::string text_of(uint16_t id) {
 
 /// @brief Legacy items whose `getName()` is not the l10n string the constructor was given.
 ///
-/// Same exemption `tables_1_spec` documents, extended with batch 2's own dynamic names. A
-/// `Node::name` is one static string id and cannot express any of them:
+/// Keyed on the **node**, not on its name id (review round 1, M7): `STRING_FOR_FEEDBACK` also names
+/// batch 1's two FM-modulator feedback params, whose legacy items have perfectly static names, and
+/// exempting by id would have skipped those two silently. A `Node` is a distinct object per menu
+/// item, so this set says exactly which items build a name at render time -- something a
+/// `Node::name` (one static string id) cannot express:
 ///
 ///   * batch 1's, reachable again from the root: `filter::FilterParam`'s morph name
 ///     (`filter/param.h:38`), `submenu::ActualSource` (`submenu/actual_source.h:26-38`),
 ///     `envelope::EnvelopeMenu`, `osc::source::Volume`, `ModulatorLevel`, `osc::AudioRecorder`
-///     (`FormattedTitle`);
+///     (all `FormattedTitle`);
 ///   * `mod_fx::Depth_Patched` / `Feedback` / `Offset`, whose names come from
 ///     `modfx::getParamName(type, ...)` and so change with the selected mod-FX type
 ///     (`mod_fx/depth_patched.h:29-31`, `feedback.h:26-28`, `offset.h:27-29`);
 ///   * `reverb::RoomSize` and `reverb::Width`, which read "TIME" / "DIFFUSION" on the two newer
 ///     reverb models (`reverb/room_size.h:29-38`, `width.h:28-37`).
 bool has_dynamic_name(const Node& node) {
-	switch (node.name) {
-	case static_cast<uint16_t>(String::STRING_FOR_LPF_MORPH):
-	case static_cast<uint16_t>(String::STRING_FOR_HPF_MORPH):
-	case static_cast<uint16_t>(String::STRING_FOR_OSCILLATOR_1):
-	case static_cast<uint16_t>(String::STRING_FOR_OSCILLATOR_2):
-	case static_cast<uint16_t>(String::STRING_FOR_ENVELOPE_MENU_TITLE):
-	case static_cast<uint16_t>(String::STRING_FOR_OSC_LEVEL_MENU_TITLE):
-	case static_cast<uint16_t>(String::STRING_FOR_FM_MOD_LEVEL_MENU_TITLE):
-	case static_cast<uint16_t>(String::STRING_FOR_RECORD_TO_SAMPLE):
-	case static_cast<uint16_t>(String::STRING_FOR_DEPTH):
-	case static_cast<uint16_t>(String::STRING_FOR_FEEDBACK):
-	case static_cast<uint16_t>(String::STRING_FOR_OFFSET):
-	case static_cast<uint16_t>(String::STRING_FOR_ROOM_SIZE):
-	case static_cast<uint16_t>(String::STRING_FOR_WIDTH):
-		return true;
-	default:
-		return false;
-	}
+	static const std::set<const Node*> kDynamic = {
+	    &nodes::lpf_morph,
+	    &nodes::hpf_morph,
+	    &nodes::source0,
+	    &nodes::source1,
+	    &nodes::env1,
+	    &nodes::env2,
+	    &nodes::env3,
+	    &nodes::env4,
+	    &nodes::source0_volume,
+	    &nodes::source1_volume,
+	    &nodes::modulator0_volume,
+	    &nodes::modulator1_volume,
+	    &nodes::sample0_recorder,
+	    &nodes::sample1_recorder,
+	    &nodes::mod_fx_depth,
+	    &nodes::mod_fx_feedback,
+	    &nodes::mod_fx_offset,
+	    &nodes::reverb_room_size,
+	    &nodes::reverb_width,
+	};
+	return kDynamic.contains(&node);
 }
 
-/// @brief One `(node, legacy item)` pair to compare.
+/// @brief One `(node, legacy item)` pair to compare, and how deep in the tree it sits.
 struct Pair {
 	const Node* node;
 	::MenuItem* item;
+	/// @brief Edges from the root: the root itself is 0, its children 1, their children 2.
+	int32_t depth;
+
+	/// @brief The `soundEditor.navigationDepth` this item is *displayed* at.
+	///
+	/// Legacy sets it to 0 while the root list is on screen (`sound_editor.cpp:1847`) and
+	/// increments on the way into a submenu (`:328`), so the items **inside** a first-level
+	/// submenu are drawn at depth 1 -- i.e. one less than their own distance from the root. Two
+	/// legacy `isRelevant` overrides read it (`bend_range/per_finger.h:41` is the one this tree
+	/// reaches), so a faithful comparison has to supply it (review round 1, I1).
+	int32_t navigation_depth() const { return depth > 0 ? depth - 1 : 0; }
 };
 
 /// @brief Walk the node tree and the legacy tree together, pairing them level by level.
 ///
 /// @return False as soon as the two disagree on a child count -- the caller asserts that first, so
 ///         a shape mismatch is one failure rather than N confusing per-item ones.
-bool walk(const Node& node, ::MenuItem& item, std::vector<Pair>& out, std::string& where) {
-	out.push_back(Pair{&node, &item});
+bool walk(const Node& node, ::MenuItem& item, std::vector<Pair>& out, std::string& where, int32_t depth = 0) {
+	out.push_back(Pair{&node, &item, depth});
 	if (node.kind != menu::Kind::Submenu) {
 		return true;
 	}
@@ -217,7 +303,7 @@ bool walk(const Node& node, ::MenuItem& item, std::vector<Pair>& out, std::strin
 			where = "null child under " + std::string{item.getName()};
 			return false;
 		}
-		if (!walk(*node.children[i], *kids[i], out, where)) {
+		if (!walk(*node.children[i], *kids[i], out, where, depth + 1)) {
 			return false;
 		}
 	}
@@ -255,6 +341,51 @@ std::optional<int32_t> legacy_value(::MenuItem* item) {
 		return v->getValue() ? 1 : 0;
 	}
 	return std::nullopt;
+}
+
+/// @brief Call a legacy item's own `writeCurrentValue()`.
+///
+/// `Value<T>::writeCurrentValue` is `protected` (`gui/menu_item/value.h:52`) and the only public
+/// route to it is `selectEncoderAction`, which also calls `renderUIsForOled()` -- a UI path this
+/// spec has no business entering. Naming the member through a derived class is the same
+/// [class.protected]-blessed route `SubmenuPeek` uses above: the pointer-to-member is formed inside
+/// a class derived from `Value<T>`, and its type is still `void (Value<T>::*)()`.
+template <typename T>
+struct ValuePeek : legacy::Value<T> {
+	static void write(legacy::Value<T>& value) { (value.*(&ValuePeek::writeCurrentValue))(); }
+};
+
+/// @brief Drive @p item's legacy write path with @p v.
+/// @return False for an item that holds no value (a submenu, or a bespoke `Kind::Custom` one).
+bool legacy_write(::MenuItem* item, int32_t v) {
+	if (auto* n = dynamic_cast<legacy::Value<int32_t>*>(item); n != nullptr) {
+		n->setValue(v);
+		ValuePeek<int32_t>::write(*n);
+		return true;
+	}
+	if (auto* b = dynamic_cast<legacy::Value<bool>*>(item); b != nullptr) {
+		b->setValue(v != 0);
+		ValuePeek<bool>::write(*b);
+		return true;
+	}
+	return false;
+}
+
+/// @brief Legacy writes this spec cannot drive, and why.
+///
+/// Every one reaches a UI global that only a booted app has. The point of listing them here rather
+/// than quietly narrowing the loop is that the list is short, named and citable -- and that the
+/// count of what *was* exercised is asserted, so it cannot grow silently.
+bool legacy_write_needs_ui(const Node& node) {
+	return &node == &nodes::synth_mode      // `view.setKnobIndicatorLevels()` (`synth_mode.h:57`)
+	       || &node == &nodes::arp_mode     // `allNotesOff` over `soundEditor.getCurrentModelStack` (`mode.h:45-65`)
+	       || &node == &nodes::arp_preset   // the same block (`preset_mode.h:50-70`)
+	       || &node == &nodes::mod_fx_type; // `display->displayError` on failure (`mod_fx/type.h:42,52`)
+}
+
+/// @brief Three values spanning @p r: the two endpoints and the middle.
+std::array<int32_t, 3> probe_values(const menu::IntRange& r) {
+	return {r.min, static_cast<int32_t>((static_cast<int64_t>(r.min) + r.max) / 2), r.max};
 }
 
 /// @brief A `Shell` over `FakeSurfaceSet` with the application's scene registry, for the goldens.
@@ -362,7 +493,7 @@ describe tables_2_shape("scenes::menu batch-2 tables: shape", $ {
 	});
 
 	it("binds MIDI/CC learn to exactly the param legacy would have learned", _ {
-		Fixture& f = fixture();
+		Rigged& f = fixture();
 		size_t learnable = 0;
 		for (const Pair& p : tree().pairs) {
 			auto* learner = dynamic_cast<::MenuItemWithCCLearning*>(p.item);
@@ -399,7 +530,7 @@ describe tables_2_shape("scenes::menu batch-2 tables: shape", $ {
 
 describe tables_2_values("scenes::menu batch-2 tables: values", $ {
 	it("reads what the legacy item reads, for every node that holds a value", _ {
-		Fixture& f = fixture();
+		Rigged& f = fixture();
 		for (const Pair& p : tree().pairs) {
 			const std::optional<int32_t> want = legacy_value(p.item);
 			if (!want.has_value()) {
@@ -413,7 +544,7 @@ describe tables_2_values("scenes::menu batch-2 tables: values", $ {
 	});
 
 	it("names every enum option exactly as the legacy Selection does", _ {
-		Fixture& f = fixture();
+		Rigged& f = fixture();
 		for (const Pair& p : tree().pairs) {
 			if (p.node->kind != menu::Kind::Enum) {
 				continue;
@@ -435,13 +566,85 @@ describe tables_2_values("scenes::menu batch-2 tables: values", $ {
 		}
 	});
 
-	it("agrees with the legacy isRelevant on the fixture sound", _ {
-		Fixture& f = fixture();
-		for (const Pair& p : tree().pairs) {
-			const bool want = p.item->isRelevant(f.ctx.mod, f.ctx.source_index);
-			const bool got = p.node->relevant == nullptr || p.node->relevant(f.ctx);
-			expect(got == want).to_be_true();
+	it("agrees with the legacy isRelevant under a synth clip and a kit row", _ {
+		// Three contexts, not one (review round 1, M6): against a synth clip alone every
+		// kit/MIDI/gate-drum predicate is false on both sides, so ~25 of the 30 new predicates
+		// agreed vacuously -- which is exactly how I1 got through. A kit row turns on
+		// `is_kit`/`is_kit_row`/`kit_row_not_gate`/`per_finger_bend`/`randomizer_non_kit`, and a
+		// (A MIDI clip cannot be one of them -- see the note on `midi_fixture`'s absence above.)
+		struct Case {
+			const char* name;
+			MenuContext ctx;
+			Song* song;
+		};
+		Rigged& synth = fixture();
+		KitRig& kit = kit_fixture();
+		const MenuContext kit_ctx = select_drum(kit, kit.drum_a);
+		const Case cases[] = {
+		    {"synth", synth.ctx, synth.song.song},
+		    {"kit row", kit_ctx, kit.song.song},
+		};
+
+		size_t disagreements_true = 0; // how many predicates were ever true, so this cannot go vacuous
+		for (const Case& c : cases) {
+			install(c.ctx, c.song);
+			for (const Pair& p : tree().pairs) {
+				// `bend_range::PerFinger::isRelevant` reads `soundEditor.navigationDepth`; supply
+				// the depth this item is actually displayed at (see `Pair::navigation_depth`).
+				soundEditor.navigationDepth = p.navigation_depth();
+				const bool want = p.item->isRelevant(c.ctx.mod, c.ctx.source_index);
+				const bool got = p.node->relevant == nullptr || p.node->relevant(c.ctx);
+				expect(got == want).to_be_true();
+				if (got) {
+					disagreements_true++;
+				}
+			}
 		}
+		soundEditor.navigationDepth = 0;
+		expect(disagreements_true > size_t(150)).to_be_true();
+		install(synth.ctx, synth.song.song);
+	});
+
+	it("shows the per-finger bend range wherever legacy shows it", _ {
+		// Review round 1, I1. `perFingerBendRangeMenu` lives only inside `bendMenu`, i.e. at
+		// `navigationDepth == 1`, where `per_finger.h:41`'s first arm short-circuits to true --
+		// so legacy always draws it on the Bend Range page, including on a synth where
+		// `editingKit()` is false. The node must agree, or the page loses one of its two items.
+		Rigged& synth = fixture();
+		expect(nodes::bend_range_per_finger.relevant == nullptr).to_be_true();
+		expect(nodes::bend.relevant != nullptr && nodes::bend.relevant(synth.ctx)).to_be_true();
+		// ... while `drumBendRangeMenu`, the same class as a *root child* at depth 0, is kit-only.
+		expect(nodes::drum_bend_range.relevant != nullptr).to_be_true();
+		expect(nodes::drum_bend_range.relevant(synth.ctx)).to_be_false();
+		KitRig& kit = kit_fixture();
+		const MenuContext kit_ctx = select_drum(kit, kit.drum_a);
+		expect(nodes::drum_bend_range.relevant(kit_ctx)).to_be_true();
+		install(synth.ctx, synth.song.song);
+	});
+
+	it("gives every node the legacy item's own title", _ {
+		// Review round 1, M8: ~40 `with_title(...)` transcriptions and every "title == name"
+		// decision rested on reading alone.
+		Rigged& f = fixture();
+		install(f.ctx, f.song.song);
+		size_t compared = 0;
+		for (const Pair& p : tree().pairs) {
+			if (has_dynamic_name(*p.node)) {
+				continue; // the same five classes build their *title* from the name, at render time
+			}
+			const std::string title = text_of(p.node->title);
+			// A title carrying the `*` placeholder is a `FormattedTitle`: legacy substitutes the
+			// oscillator / envelope / LFO index into it at render time (`formatted_title.h`, via
+			// `asterixToInt`), which one static `Node::title` cannot do. All 49 such items are
+			// batch 1's -- the gap task 6 recorded -- and the marker is in the l10n string itself,
+			// so this exemption names the mechanism rather than a list.
+			if (title.find('*') != std::string::npos) {
+				continue;
+			}
+			expect(title == std::string{p.item->getTitle()}).to_be_true();
+			compared++;
+		}
+		expect(compared > size_t(120)).to_be_true();
 	});
 
 	it("has a registered name for every predicate the tables use", _ {
@@ -465,7 +668,7 @@ describe tables_2_values("scenes::menu batch-2 tables: values", $ {
 
 describe tables_2_validation("scenes::menu batch-2 tables: validation", $ {
 	it("validates the sound root clean apart from the nine legacy name collisions", _ {
-		Fixture& f = fixture();
+		Rigged& f = fixture();
 		menu::set_shortcut_table_for_test({}, 0, 0);
 		const MenuContext contexts[] = {f.ctx};
 		const auto issues = menu::validate_tree(nodes::kSoundRootRoots, contexts, nodes::kRangeDependentNodes,
@@ -505,7 +708,7 @@ describe tables_2_validation("scenes::menu batch-2 tables: validation", $ {
 	});
 
 	it("assigns an id to every node in the sound root tree", _ {
-		Fixture& f = fixture();
+		Rigged& f = fixture();
 		const MenuContext contexts[] = {f.ctx};
 		(void)menu::validate_tree(nodes::kSoundRootRoots, contexts, {}, {},
 		                          menu::ValidateOptions{.allow_placeholder_custom = true});
@@ -517,7 +720,7 @@ describe tables_2_validation("scenes::menu batch-2 tables: validation", $ {
 
 describe tables_2_pixels("scenes::menu batch-2 tables: pixels", $ {
 	it("renders the sound-editor root list", _ {
-		Fixture& f = fixture();
+		Rigged& f = fixture();
 		deluge::notify::dirty().drain();
 		Rig r;
 		r.open(nodes::sound_root, f.ctx);
@@ -526,7 +729,7 @@ describe tables_2_pixels("scenes::menu batch-2 tables: pixels", $ {
 	});
 
 	it("renders the sound-editor root list on a 64-row panel", _ {
-		Fixture& f = fixture();
+		Rigged& f = fixture();
 		deluge::notify::dirty().drain();
 		Rig r{board_64(), profile_64()};
 		r.open(nodes::sound_root, f.ctx);
@@ -534,13 +737,206 @@ describe tables_2_pixels("scenes::menu batch-2 tables: pixels", $ {
 		expect_golden(self, "../ui/menu/menu_sound_root_64.pbm", r.fake.pbm(0));
 	});
 });
+describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
+	it("leaves the model where the legacy item leaves it, for every set hook", _ {
+		// Review round 1, I5. Every batch-2 `set` hook is driven here: for three values spanning the
+		// node's range, legacy's own `writeCurrentValue()` runs first and the resulting state is
+		// observed through *both* readers (the port's `bindings::read` and the legacy
+		// `readCurrentValue()`), then the port's `bindings::write` runs and the same two
+		// observations are taken. The writes are all idempotent -- each is "store f(v)" -- so
+		// running them back to back from the same value is a fair comparison, and disagreement on
+		// either observation means the two paths put different state in the model.
+		//
+		// `ParamRef` nodes are deliberately not here: legacy's `UnpatchedParam::writeCurrentValue`
+		// resolves its model stack through `SoundEditor::getCurrentModelStack`, which with no root
+		// UI open takes its `!rootUIIsClipMinderScreen()` arm (`sound_editor.cpp:1986`) and writes
+		// the *song's* param collection where the port writes the clip's. That is the divergence
+		// task 6 recorded as its concern 8; it is a property of the harness, not of the tables, and
+		// `bindings_spec` already covers the param write path end to end. The next example covers
+		// what is specific to this batch's param nodes instead.
+		Rigged& f = fixture();
+		install(f.ctx, f.song.song);
+		size_t exercised = 0;
+		for (const Pair& p : tree().pairs) {
+			if (p.node->bind.set == nullptr || legacy_write_needs_ui(*p.node)) {
+				continue;
+			}
+			for (int32_t v : probe_values(menu::bindings::range(*p.node, f.ctx))) {
+				if (!legacy_write(p.item, v)) {
+					break; // holds no value at all
+				}
+				const int32_t want_port_view = menu::bindings::read(*p.node, f.ctx);
+				const std::optional<int32_t> want_legacy_view = legacy_value(p.item);
+
+				menu::bindings::write(*p.node, f.ctx, v);
+				const int32_t got_port_view = menu::bindings::read(*p.node, f.ctx);
+				const std::optional<int32_t> got_legacy_view = legacy_value(p.item);
+
+				expect(got_port_view == want_port_view).to_be_true();
+				expect(got_legacy_view == want_legacy_view).to_be_true();
+				exercised++;
+			}
+		}
+		// ~40 hooks x 3 values. A drop would mean the loop stopped reaching them.
+		expect(exercised > size_t(100)).to_be_true();
+	});
+
+	it("round-trips every param node, and raises the reverb flag on exactly the one that should", _ {
+		// The param half of the coverage above, port-only for the reason that example explains,
+		// plus review round 1's I2: `sidechain::Shape` is an `unpatched_param::UpdatingReverbParams`
+		// (`sidechain/shape.h:6`), so its write must also set
+		// `AudioEngine::mustUpdateReverbParamsBeforeNextRender` (`updating_reverb_params.h:26-29`).
+		Rigged& f = fixture();
+		install(f.ctx, f.song.song);
+		size_t exercised = 0;
+		for (const Pair& p : tree().pairs) {
+			if (!p.node->bind.param.valid() || p.node->bind.set != nullptr || p.node->kind == menu::Kind::Custom) {
+				continue;
+			}
+			const menu::IntRange r = menu::bindings::range(*p.node, f.ctx);
+			for (int32_t v : probe_values(r)) {
+				AudioEngine::mustUpdateReverbParamsBeforeNextRender = false;
+				menu::bindings::write(*p.node, f.ctx, v);
+				expect(menu::bindings::read(*p.node, f.ctx)).to_equal(v);
+				expect(AudioEngine::mustUpdateReverbParamsBeforeNextRender)
+				    .to_equal(p.node->bind.updates_reverb_params);
+				exercised++;
+			}
+		}
+		expect(exercised > size_t(90)).to_be_true();
+		// Exactly one node in this tree carries the flag; the other `UpdatingReverbParams` item,
+		// `sidechain::GlobalVolume` (`sidechain/volume_global.h:6`), belongs to task 8's roots.
+		size_t flagged = 0;
+		for (const Pair& p : tree().pairs) {
+			if (p.node->bind.updates_reverb_params) {
+				flagged++;
+				expect(p.node == &nodes::sidechain_shape).to_be_true();
+			}
+		}
+		expect(flagged).to_equal(size_t(1));
+	});
+
+	it("sweeps both drums of a kit exactly as legacy's affect-entire loop does", _ {
+		// Review round 1, I5's second half. With AFFECT-ENTIRE held on a kit row, legacy's ~20
+		// hand-written sweeps write every drum in the kit; the port's `apply_to_targets` /
+		// `apply_to_arp_settings` must write the same set. Observing "the same set" generically is
+		// what the two-drum fixture buys: select each drum in turn and read the node back.
+		KitRig& k = kit_fixture();
+		const auto observe = [&](const Node& node) {
+			std::array<int32_t, 2> out{};
+			out[0] = menu::bindings::read(node, select_drum(k, k.drum_a));
+			out[1] = menu::bindings::read(node, select_drum(k, k.drum_b));
+			return out;
+		};
+		size_t swept = 0;
+		for (const Pair& p : tree().pairs) {
+			if (p.node->bind.set == nullptr || legacy_write_needs_ui(*p.node)) {
+				continue;
+			}
+			const MenuContext probe = select_drum(k, k.drum_a);
+			const menu::IntRange r = menu::bindings::range(*p.node, probe);
+			const int32_t v = r.max;
+			const std::array<int32_t, 2> base = observe(*p.node);
+
+			// Legacy's sweep.
+			const MenuContext held = select_drum(k, k.drum_a, /*affect_entire_held=*/true);
+			if (!legacy_write(p.item, v)) {
+				continue;
+			}
+			const std::array<int32_t, 2> after_legacy = observe(*p.node);
+
+			// Put both drums back, one at a time, through the single-target path the previous
+			// example already checked against legacy.
+			menu::bindings::write(*p.node, select_drum(k, k.drum_a), base[0]);
+			menu::bindings::write(*p.node, select_drum(k, k.drum_b), base[1]);
+
+			// The port's sweep, from the same starting state.
+			const MenuContext held2 = select_drum(k, k.drum_a, /*affect_entire_held=*/true);
+			menu::bindings::write(*p.node, held2, v);
+			const std::array<int32_t, 2> after_port = observe(*p.node);
+
+			expect(after_port[0] == after_legacy[0]).to_be_true();
+			expect(after_port[1] == after_legacy[1]).to_be_true();
+			swept++;
+		}
+		expect(swept > size_t(25)).to_be_true();
+		install(fixture().ctx, fixture().song.song);
+	});
+
+	it("asks each drum its own allowNoteTails when sweeping the kit-arp toggle", _ {
+		// Review round 1, I3. Legacy's sweep (`include_in_kit_arp.h:33-45`) builds a model stack per
+		// `SoundDrum` and skips the ones that cannot hold a note tail; the port must too, or the two
+		// end up with different `includeInKitArp` across the kit. Made observable by giving drum A
+		// an arpeggiator -- `Sound::allowNoteTails` returns true outright when the arp is on
+		// (`sound.cpp:1922-1925`) -- while drum B keeps its sample setup's answer.
+		KitRig& k = kit_fixture();
+		k.drum_a->arpSettings.mode = ArpMode::ARP; // `sound.cpp:1922-1925` -- arp on, tails allowed
+		k.drum_b->arpSettings.mode = ArpMode::OFF;
+		k.drum_a->arpSettings.includeInKitArp = false;
+		k.drum_b->arpSettings.includeInKitArp = false;
+
+		// ... and make drum B refuse: `Sound::envelopeHasSustainEver` (`sound.cpp:4313-4321`) is
+		// false when envelope 0's sustain is at the bottom of its range and its decay does not
+		// exceed its release, and `allowNoteTails` returns false outright when it is (`:1928-1930`).
+		NoteRow* row_b = k.song.clip->getNoteRowForDrum(k.drum_b);
+		expect(row_b != nullptr).to_be_true();
+		if (row_b != nullptr) {
+			PatchedParamSet* params_b = row_b->paramManager.getPatchedParamSet();
+			namespace mp = deluge::modulation::params;
+			params_b->params[mp::LOCAL_ENV_0_SUSTAIN].setCurrentValueBasicForSetup(-2147483648);
+			params_b->params[mp::LOCAL_ENV_0_DECAY].setCurrentValueBasicForSetup(-2147483648);
+			params_b->params[mp::LOCAL_ENV_0_RELEASE].setCurrentValueBasicForSetup(2147483647);
+		}
+
+		const MenuContext ctx_a = select_drum(k, k.drum_a);
+		expect(menu::bindings::drum_allows_note_tails(ctx_a, k.drum_a)).to_be_true();
+		// The whole point: the two drums must disagree, or the sweep test proves nothing.
+		expect(menu::bindings::drum_allows_note_tails(ctx_a, k.drum_b)).to_be_false();
+
+		const MenuContext held = select_drum(k, k.drum_a, /*affect_entire_held=*/true);
+		menu::bindings::write(nodes::arp_include_in_kit_arp, held, 1);
+
+		// Drum A takes the write; drum B, which cannot hold a tail, is left alone -- exactly what
+		// `include_in_kit_arp.h:43-45` does, and what the context-wide test this replaces did not.
+		expect(k.drum_a->arpSettings.includeInKitArp).to_be_true();
+		expect(k.drum_b->arpSettings.includeInKitArp).to_be_false();
+
+		k.drum_a->arpSettings.mode = ArpMode::OFF;
+		install(fixture().ctx, fixture().song.song);
+	});
+
+	it("writes the play direction to the note row on a kit row and to the clip otherwise", _ {
+		// Review round 1, I4 / ruling 4. `sequence::Direction::writeCurrentValue`
+		// (`sequence/direction.h:71-76`) writes the *resolved* note row when there is one and the
+		// clip when there is not; `bindings::individual_note_row` resolves the kit row's.
+		Rigged& f = fixture();
+		install(f.ctx, f.song.song);
+		const auto want_clip = static_cast<int32_t>(SequenceDirection::REVERSE);
+		menu::bindings::write(nodes::sequence_direction, f.ctx, want_clip);
+		expect(static_cast<int32_t>(f.song.clip->sequenceDirectionMode)).to_equal(want_clip);
+
+		KitRig& k = kit_fixture();
+		const MenuContext kit_ctx = select_drum(k, k.drum_a);
+		expect(k.song.clip->affectEntire).to_be_false(); // the precondition of the kit-row arm
+		NoteRow* row = k.song.clip->getNoteRowForDrum(k.drum_a);
+		expect(row != nullptr).to_be_true();
+		const auto want_row = static_cast<int32_t>(SequenceDirection::PINGPONG);
+		const auto clip_before = static_cast<int32_t>(k.song.clip->sequenceDirectionMode);
+		menu::bindings::write(nodes::sequence_direction, kit_ctx, want_row);
+		if (row != nullptr) {
+			expect(static_cast<int32_t>(row->sequenceDirectionMode)).to_equal(want_row);
+		}
+		expect(static_cast<int32_t>(k.song.clip->sequenceDirectionMode)).to_equal(clip_before);
+		install(f.ctx, f.song.song);
+	});
+});
 // clang-format on
 
-/// Four `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
+/// Five `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
 /// here with `add_specs` instead.
 int tables_2_spec(int argc, char** const argv) {
 	return CppSpec::parse(argc, argv)
-	               .add_specs(tables_2_shape, tables_2_values, tables_2_validation, tables_2_pixels)
+	               .add_specs(tables_2_shape, tables_2_values, tables_2_validation, tables_2_pixels, tables_2_writes)
 	               .exec()
 	               .is_success()
 	           ? EXIT_SUCCESS

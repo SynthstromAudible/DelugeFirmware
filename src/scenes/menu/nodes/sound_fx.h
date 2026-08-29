@@ -14,42 +14,42 @@
 /// | `eq_bass_freq` | `bassFreqMenu` (`:747`) | same, `UNPATCHED_BASS_FREQ` | Int (param) |
 /// | `eq_treble_freq` | `trebleFreqMenu` (`:749`) | same, `UNPATCHED_TREBLE_FREQ` | Int (param) |
 /// | `eq` | `eqMenu` (`:752`) | `eq::EqMenu` (`eq/eq_menu.h:12`), a `HorizontalMenu` | Submenu (Horizontal) |
-/// | `delay_amount` | `delayFeedbackMenu` (`:762`) | `delay::Amount` (`delay/amount.h:9`), `GLOBAL_DELAY_FEEDBACK` | Int (param) |
-/// | `delay_ping_pong` | `delayPingPongMenu` (`:765`) | `delay::PingPong` (`delay/ping_pong.h:5`) | Enum (toggle) |
-/// | `delay_sync` | `delaySyncMenu` (`:767`) | `delay::Sync` (`delay/sync.h:4`) | SyncLevel |
-/// | `delay_rate` | `delayRateMenu` (`:764`) | `patched_param::Integer`, `GLOBAL_DELAY_RATE` | Int (param) |
-/// | `delay_type` | `delayAnalogMenu` (`:766`) | `delay::Analog` (`delay/analog.h:5`) | Enum |
-/// | `delay` | `delayMenu` (`:769`) | `HorizontalMenu` | Submenu (Horizontal) |
-/// | `reverb_amount` | `reverbAmountMenu` (`:849`) | `reverb::Amount` (`reverb/amount.h:5`), `GLOBAL_REVERB_AMOUNT` | Int (param) |
-/// | `reverb_room_size` | `reverbRoomSizeMenu` (`:851`) | `reverb::RoomSize` (`reverb/room_size.h:5`) | Int |
-/// | `reverb_damping` | `reverbDampingMenu` (`:852`) | `reverb::Damping` (`reverb/damping.h:4`) | Int |
-/// | `reverb_width` | `reverbWidthMenu` (`:853`) | `reverb::Width` (`reverb/width.h:4`) | Int |
-/// | `reverb_model` | `reverbModelMenu` (`:855`) | `reverb::Model` (`reverb/model.h:10`) | Enum |
-/// | `reverb_pan` | `reverbPanMenu` (`:854`) | `reverb::Pan` (`reverb/pan.h:5`) | Int (pan scaling) |
-/// | `reverb_hpf` | `reverbHPFMenu` (`:856`) | `reverb::HPF` (`reverb/hpf.h:4`) | Int |
-/// | `reverb_lpf` | `reverbLPFMenu` (`:857`) | `reverb::LPF` (`reverb/lpf.h:4`) | Int |
-/// | `reverb_sidechain_volume` | `reverbSidechainVolumeMenu` (`:829`) | `reverb::sidechain::Volume` (`reverb/sidechain/volume.h:5`) | Int |
-/// | `reverb_sidechain_shape` | `reverbSidechainShapeMenu` (`:834`) | `reverb::sidechain::Shape` (`reverb/sidechain/shape.h:5`) | Int |
-/// | `reverb_sidechain_attack` | `reverbSidechainAttackMenu` (`:831`) | `sidechain::Attack`, reverb spelling | Int |
-/// | `reverb_sidechain_release` | `reverbSidechainReleaseMenu` (`:832`) | `sidechain::Release`, reverb spelling | Int |
-/// | `reverb_sidechain_sync` | `reverbSidechainSyncMenu` (`:830`) | `sidechain::Sync`, reverb spelling | SyncLevel, 10 options |
+/// | `delay_amount` | `delayFeedbackMenu` (`:763`) | `delay::Amount` (`delay/amount.h:9`), `GLOBAL_DELAY_FEEDBACK` | Int (param) |
+/// | `delay_ping_pong` | `delayPingPongMenu` (`:766`) | `delay::PingPong` (`delay/ping_pong.h:5`) | Enum (toggle) |
+/// | `delay_sync` | `delaySyncMenu` (`:768`) | `delay::Sync` (`delay/sync.h:4`) | SyncLevel |
+/// | `delay_rate` | `delayRateMenu` (`:765`) | `patched_param::Integer`, `GLOBAL_DELAY_RATE` | Int (param) |
+/// | `delay_type` | `delayAnalogMenu` (`:767`) | `delay::Analog` (`delay/analog.h:5`) | Enum |
+/// | `delay` | `delayMenu` (`:770`) | `HorizontalMenu` | Submenu (Horizontal) |
+/// | `reverb_amount` | `reverbAmountMenu` (`:847`) | `reverb::Amount` (`reverb/amount.h:5`), `GLOBAL_REVERB_AMOUNT` | Int (param) |
+/// | `reverb_room_size` | `reverbRoomSizeMenu` (`:849`) | `reverb::RoomSize` (`reverb/room_size.h:5`) | Int |
+/// | `reverb_damping` | `reverbDampingMenu` (`:850`) | `reverb::Damping` (`reverb/damping.h:4`) | Int |
+/// | `reverb_width` | `reverbWidthMenu` (`:851`) | `reverb::Width` (`reverb/width.h:4`) | Int |
+/// | `reverb_model` | `reverbModelMenu` (`:853`) | `reverb::Model` (`reverb/model.h:10`) | Enum |
+/// | `reverb_pan` | `reverbPanMenu` (`:852`) | `reverb::Pan` (`reverb/pan.h:5`) | Int (pan scaling) |
+/// | `reverb_hpf` | `reverbHPFMenu` (`:854`) | `reverb::HPF` (`reverb/hpf.h:4`) | Int |
+/// | `reverb_lpf` | `reverbLPFMenu` (`:855`) | `reverb::LPF` (`reverb/lpf.h:4`) | Int |
+/// | `reverb_sidechain_volume` | `reverbSidechainVolumeMenu` (`:827`) | `reverb::sidechain::Volume` (`reverb/sidechain/volume.h:5`) | Int |
+/// | `reverb_sidechain_shape` | `reverbSidechainShapeMenu` (`:833`) | `reverb::sidechain::Shape` (`reverb/sidechain/shape.h:5`) | Int |
+/// | `reverb_sidechain_attack` | `reverbSidechainAttackMenu` (`:829`) | `sidechain::Attack`, reverb spelling | Int |
+/// | `reverb_sidechain_release` | `reverbSidechainReleaseMenu` (`:831`) | `sidechain::Release`, reverb spelling | Int |
+/// | `reverb_sidechain_sync` | `reverbSidechainSyncMenu` (`:828`) | `sidechain::Sync`, reverb spelling | SyncLevel, 10 options |
 /// | `reverb_sidechain` | `reverbSidechainMenu` (`:835`) | `HorizontalMenu`, `FIXED` | Submenu (Horizontal) |
-/// | `reverb` | `reverbMenu` (`:859`) | `HorizontalMenu` | Submenu (Horizontal) |
-/// | `stutter_rate` | `stutterRateMenu` (`:783`) | `stutter::Rate` (`stutter/rate.h:5`), `UNPATCHED_STUTTER_RATE` | Int (param) |
-/// | `stutter_direction` | `stutterDirectionMenu` (`:781`) | `stutter::StutterDirection` (`stutter/direction.h:5`) | Enum (dynamic) |
-/// | `stutter_quantize` | `stutterQuantizedMenu` (`:782`) | `stutter::QuantizedStutter` (`stutter/quantized.h:5`) | Toggle |
-/// | `stutter` | `stutterMenu` (`:785`) | `HorizontalMenu`, `FIXED` | Submenu (Horizontal) |
-/// | `mod_fx_type` | `modFXTypeMenu` (`:723`) | `mod_fx::Type` (`mod_fx/type.h:5`) | Enum (dynamic), 4 slots |
-/// | `mod_fx_depth` | `modFXDepthMenu` (`:727`) | `mod_fx::Depth_Patched` (`depth_patched.h:4`), `GLOBAL_MOD_FX_DEPTH` | Int (param) |
-/// | `mod_fx_rate` | `modFXRateMenu` (`:724`) | `mod_fx::Rate` (`mod_fx/rate.h:4`), `GLOBAL_MOD_FX_RATE` | Int (param) |
-/// | `mod_fx_feedback` | `modFXFeedbackMenu` (`:725`) | `mod_fx::Feedback` (`mod_fx/feedback.h:4`), `UNPATCHED_MOD_FX_FEEDBACK` | Int (param) |
-/// | `mod_fx_offset` | `modFXOffsetMenu` (`:729`) | `mod_fx::Offset` (`mod_fx/offset.h:5`), `UNPATCHED_MOD_FX_OFFSET` | Int (param) |
-/// | `mod_fx` | `modFXMenu` (`:732`) | `submenu::ModFxHorizontalMenu` (`submenu/mod_fx.h:8`) | Submenu (Horizontal) |
-/// | `saturation` | `clippingMenu` (`:876`) | `fx::Clipping` (`fx/clipping.h:5`) | Int |
-/// | `bitcrush` | `bitcrushMenu` (`:880`) | `UnpatchedParam`, `UNPATCHED_BITCRUSHING`, BAR | Int (param) |
-/// | `decimation` | `srrMenu` (`:877`) | `UnpatchedParam`, `UNPATCHED_SAMPLE_RATE_REDUCTION`, BAR | Int (param) |
-/// | `wavefold` | `foldMenu` (`:881`) | `patched_param::Integer`, `LOCAL_FOLD`, BAR | Int (param) |
-/// | `distortion` | `soundDistortionMenu` (`:884`) | `HorizontalMenu` | Submenu (Horizontal) |
+/// | `reverb` | `reverbMenu` (`:857`) | `HorizontalMenu` | Submenu (Horizontal) |
+/// | `stutter_rate` | `stutterRateMenu` (`:784`) | `stutter::Rate` (`stutter/rate.h:5`), `UNPATCHED_STUTTER_RATE` | Int (param) |
+/// | `stutter_direction` | `stutterDirectionMenu` (`:782`) | `stutter::StutterDirection` (`stutter/direction.h:5`) | Enum (dynamic) |
+/// | `stutter_quantize` | `stutterQuantizedMenu` (`:783`) | `stutter::QuantizedStutter` (`stutter/quantized.h:5`) | Toggle |
+/// | `stutter` | `stutterMenu` (`:786`) | `HorizontalMenu`, `FIXED` | Submenu (Horizontal) |
+/// | `mod_fx_type` | `modFXTypeMenu` (`:724`) | `mod_fx::Type` (`mod_fx/type.h:5`) | Enum (dynamic), 4 slots |
+/// | `mod_fx_depth` | `modFXDepthMenu` (`:728`) | `mod_fx::Depth_Patched` (`depth_patched.h:4`), `GLOBAL_MOD_FX_DEPTH` | Int (param) |
+/// | `mod_fx_rate` | `modFXRateMenu` (`:725`) | `mod_fx::Rate` (`mod_fx/rate.h:4`), `GLOBAL_MOD_FX_RATE` | Int (param) |
+/// | `mod_fx_feedback` | `modFXFeedbackMenu` (`:726`) | `mod_fx::Feedback` (`mod_fx/feedback.h:4`), `UNPATCHED_MOD_FX_FEEDBACK` | Int (param) |
+/// | `mod_fx_offset` | `modFXOffsetMenu` (`:730`) | `mod_fx::Offset` (`mod_fx/offset.h:5`), `UNPATCHED_MOD_FX_OFFSET` | Int (param) |
+/// | `mod_fx` | `modFXMenu` (`:733`) | `submenu::ModFxHorizontalMenu` (`submenu/mod_fx.h:8`) | Submenu (Horizontal) |
+/// | `saturation` | `clippingMenu` (`:883`) | `fx::Clipping` (`fx/clipping.h:5`) | Int |
+/// | `bitcrush` | `bitcrushMenu` (`:886`) | `UnpatchedParam`, `UNPATCHED_BITCRUSHING`, BAR | Int (param) |
+/// | `decimation` | `srrMenu` (`:884`) | `UnpatchedParam`, `UNPATCHED_SAMPLE_RATE_REDUCTION`, BAR | Int (param) |
+/// | `wavefold` | `foldMenu` (`:887`) | `patched_param::Integer`, `LOCAL_FOLD`, BAR | Int (param) |
+/// | `distortion` | `soundDistortionMenu` (`:890`) | `HorizontalMenu` | Submenu (Horizontal) |
 /// | `noise` | `noiseMenu` | `patched_param::IntegerNonFM` -- **task 6's**, `sound_osc.h` | Int (param) |
 /// | `sound_fx` | `soundFXMenu` (`:1749`) | `Submenu` | Submenu (Vertical) |
 // clang-format on
@@ -67,6 +67,12 @@
 ///       so all five carry the base string and `tables_2_spec` exempts them by name, exactly as it
 ///       does batch 1's `FormattedTitle` items. `mod_fx::Type`'s and `StutterDirection`'s option
 ///       *lists* are genuinely dynamic and use `dynamic_enumeration`.
+///
+/// @note **`HorizontalMenu::Layout::FIXED` has no `Node::Layout` spelling**, so `stutterMenu`
+///       (`menus.cpp:788`) and `reverbSidechainMenu` (`:841`) lose their fixed paging here, exactly
+///       as `unisonMenu` and `voiceMenu` do (`sound_unison.h`, `sound_voice.h` -- the same note,
+///       now in all three files rather than two; review round 1, M11). `Node::Layout` carries
+///       Vertical / Horizontal only, and the paging mode belongs to E2's interpreter work.
 ///
 /// @note **Column labels have no `Node` spelling.** Eleven items here override `getColumnLabel()`
 ///       to abbreviate ("AMOUNT" -> "AMT", "WIDTH" -> "DIFFUSION", ...). That is the general gap
@@ -327,8 +333,8 @@ inline constexpr Node distortion =
 
 // --- The page itself ---------------------------------------------------------------------------
 
-inline constexpr const Node* kSoundFxChildren2[] = {&eq, &delay, &reverb, &stutter, &mod_fx, &distortion, &noise};
-inline constexpr Node sound_fx = submenu(sid(deluge::l10n::String::STRING_FOR_FX), kSoundFxChildren2);
+inline constexpr const Node* kFxPageChildren[] = {&eq, &delay, &reverb, &stutter, &mod_fx, &distortion, &noise};
+inline constexpr Node sound_fx = submenu(sid(deluge::l10n::String::STRING_FOR_FX), kFxPageChildren);
 
 /// @brief This file's contribution to the sound-editor root: `soundFXMenu`.
 ///

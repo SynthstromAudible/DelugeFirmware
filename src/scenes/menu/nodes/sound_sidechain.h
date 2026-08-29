@@ -9,12 +9,12 @@
 // clang-format off
 /// | node | legacy global | legacy class | kind |
 /// |---|---|---|---|
-/// | `sidechain_volume` | `sidechainVolumeShortcutMenu` (`:807`) | `sidechain::VolumeShortcut` (`sidechain/volume.h:21`) | **Custom, E2** |
-/// | `sidechain_sync` | `sidechainSyncMenu` (`:809`) | `sidechain::Sync` (`sidechain/sync.h:20`) | SyncLevel, 10 options |
-/// | `sidechain_shape` | `sidechainShapeMenu` (`:812`) | `sidechain::Shape` (`sidechain/shape.h:22`) | Int (param) |
-/// | `sidechain_send` | `sidechainSendMenu` (`:806`) | `sidechain::Send` (`sidechain/send.h:20`) | Int |
-/// | `sidechain_attack` | `sidechainAttackMenu` (`:810`) | `sidechain::Attack` (`sidechain/attack.h:20`) | Int |
-/// | `sidechain_release` | `sidechainReleaseMenu` (`:811`) | `sidechain::Release` (`sidechain/release.h:20`) | Int |
+/// | `sidechain_volume` | `sidechainVolumeShortcutMenu` (`:806`) | `sidechain::VolumeShortcut` (`sidechain/volume.h:21`) | **Custom, E2** |
+/// | `sidechain_sync` | `sidechainSyncMenu` (`:808`) | `sidechain::Sync` (`sidechain/sync.h:20`) | SyncLevel, 10 options |
+/// | `sidechain_shape` | `sidechainShapeMenu` (`:811`) | `sidechain::Shape` (`sidechain/shape.h:6`) | Int (param, `updates_reverb_params`) |
+/// | `sidechain_send` | `sidechainSendMenu` (`:805`) | `sidechain::Send` (`sidechain/send.h:20`) | Int |
+/// | `sidechain_attack` | `sidechainAttackMenu` (`:809`) | `sidechain::Attack` (`sidechain/attack.h:20`) | Int |
+/// | `sidechain_release` | `sidechainReleaseMenu` (`:810`) | `sidechain::Release` (`sidechain/release.h:20`) | Int |
 /// | `sidechain` | `sidechainMenu` (`:814`) | `HorizontalMenu` | Submenu (Horizontal) |
 // clang-format on
 ///
@@ -87,10 +87,15 @@ inline constexpr Node sidechain_volume =
 inline constexpr Node sidechain_sync =
     sync_level_item(sid(deluge::l10n::String::STRING_FOR_SYNC), sid(deluge::l10n::String::STRING_FOR_SIDECHAIN_SYNC),
                     get_sidechain_sync, set_sidechain_sync, kSidechainSyncRange);
-inline constexpr Node sidechain_shape =
+// `sidechain::Shape` is an `unpatched_param::UpdatingReverbParams`, not a plain `UnpatchedParam`
+// (`sidechain/shape.h:6`): the param write is followed by
+// `AudioEngine::mustUpdateReverbParamsBeforeNextRender = true` (`updating_reverb_params.h:26-29`).
+// `with_reverb_update` is what carries that; see `Binding::updates_reverb_params` for why it is a
+// flag rather than a `set` hook (review round 1, I2).
+inline constexpr Node sidechain_shape = with_reverb_update(
     param(sid(deluge::l10n::String::STRING_FOR_SHAPE),
           {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_SIDECHAIN_SHAPE},
-          Hint::Knob, nullptr, sid(deluge::l10n::String::STRING_FOR_SIDECH_SHAPE_MENU_TITLE));
+          Hint::Knob, nullptr, sid(deluge::l10n::String::STRING_FOR_SIDECH_SHAPE_MENU_TITLE)));
 inline constexpr Node sidechain_send =
     with_title(int_item(sid(deluge::l10n::String::STRING_FOR_SEND_TO_SIDECHAIN), get_sidechain_send, set_sidechain_send,
                         IntRange{0, kMaxMenuValue, 1}, Hint::Bar, relevance::is_kit),

@@ -159,6 +159,21 @@ struct Binding {
 	/// @brief Which value scaling `param` is read and written through (`Scaling` above). Meaningful
 	///        only when `param.valid()`; ignored for a `get`/`set` binding.
 	Scaling scaling = Scaling::Standard;
+
+	/// @brief Does committing this value oblige the audio engine to recompute its reverb
+	///        parameters before the next render?
+	///
+	/// The port of `unpatched_param::UpdatingReverbParams::writeCurrentValue`
+	/// (`gui/menu_item/unpatched_param/updating_reverb_params.h:26-29`): an ordinary
+	/// `UnpatchedParam` write, then `AudioEngine::mustUpdateReverbParamsBeforeNextRender = true`.
+	/// It is a flag on the `Binding` rather than a `set` hook because a `set` hook would *replace*
+	/// the param write (`bindings::write` prefers hooks), and because two legacy items share the
+	/// behaviour and neither can express it any other way: `sidechain::Shape`
+	/// (`gui/menu_item/sidechain/shape.h:6`, this batch's `sidechain_shape`) and
+	/// `sidechain::GlobalVolume` (`sidechain/volume_global.h:6`, the song and global-FX roots task
+	/// 8 declares). Meaningful only for a `ParamRef` binding -- a `get`/`set` item that needs the
+	/// flag sets it in its own hook, as the sidechain attack/release/sync ones do.
+	bool updates_reverb_params = false;
 };
 
 /// @brief Forward declared only -- see the file-level note. Defined alongside the interpreter's own

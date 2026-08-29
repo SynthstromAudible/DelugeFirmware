@@ -110,7 +110,8 @@
 #include "modulation/params/param_manager.h"
 #include "modulation/params/param_set.h"
 #include "notify/dirty_set.h"
-#include "notify/notice_queue.h" // the ALPHA_OR_BETA_VERSION diagnostic only
+#include "notify/notice_queue.h"             // the ALPHA_OR_BETA_VERSION diagnostic only
+#include "processing/engines/audio_engine.h" // Binding::updates_reverb_params
 #include "processing/sound/sound_drum.h"
 
 #include <algorithm>
@@ -513,6 +514,16 @@ void write(const Node& node, const MenuContext& ctx, int32_t value) {
 		stack->autoParam->setCurrentValueInResponseToUserInput(final_value, stack);
 	}
 
+	// `unpatched_param::UpdatingReverbParams::writeCurrentValue`
+	// (`gui/menu_item/unpatched_param/updating_reverb_params.h:26-29`): the ordinary param write
+	// above, then the engine flag. Two legacy items subclass it -- `sidechain::Shape`
+	// (`sidechain/shape.h:6`) and `sidechain::GlobalVolume` (`sidechain/volume_global.h:6`) -- and
+	// neither can express it as a `set` hook, because a hook would replace the param write rather
+	// than follow it (review round 1, I2).
+	if (bind.updates_reverb_params) {
+		AudioEngine::mustUpdateReverbParamsBeforeNextRender = true;
+	}
+
 	// `integer.cpp:70-71` / `unpatched_param.cpp:74-75`. `view.sendMidiFollowFeedback` itself is
 	// behind the `gui/` wall, so the knob position is computed here and handed to the hook.
 	const int32_t knob_pos = stack->paramCollection->paramValueToKnobPos(final_value, stack);
@@ -688,6 +699,17 @@ bool allows_note_tails(const MenuContext& ctx) {
 		return true;
 	}
 	return ctx.sound->allowNoteTails(stack->addSoundFlags(), /*disregardSampleLoop=*/true); // `:1815`
+}
+
+bool drum_allows_note_tails(const MenuContext& /*ctx*/, Drum* drum) {
+	if (drum == nullptr || drum->type != DrumType::SOUND) {
+		return true; // `include_in_kit_arp.h:33` -- the initialiser, left alone for a non-sound drum
+	}
+	auto* sound_drum = static_cast<SoundDrum*>(drum);
+	char memory[MODEL_STACK_MAX_SIZE];
+	// `include_in_kit_arp.h:37-40`, verbatim.
+	ModelStackWithSoundFlags* stack = getModelStackFromSoundDrum(memory, sound_drum)->addSoundFlags();
+	return sound_drum->allowNoteTails(stack, /*disregardSampleLoop=*/true);
 }
 
 // ---------------------------------------------------------------------------------------------

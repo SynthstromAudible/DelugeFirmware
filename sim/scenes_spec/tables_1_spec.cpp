@@ -264,6 +264,39 @@ std::optional<int32_t> legacy_value(::MenuItem* item) {
 	return std::nullopt;
 }
 
+/// @brief Call a legacy item's own `writeCurrentValue()`.
+///
+/// `Value<T>::writeCurrentValue` is `protected` (`gui/menu_item/value.h:52`) and the only public
+/// route to it is `selectEncoderAction`, which also calls `renderUIsForOled()` -- a UI path this
+/// spec has no business entering. Naming the member through a derived class is the
+/// [class.protected]-blessed route: the pointer-to-member is formed inside a class derived from
+/// `Value<T>`, and its type is still `void (Value<T>::*)()`.
+template <typename T>
+struct ValuePeek : legacy::Value<T> {
+	static void write(legacy::Value<T>& value) { (value.*(&ValuePeek::writeCurrentValue))(); }
+};
+
+/// @brief Drive @p item's legacy write path with @p v.
+/// @return False for an item that holds no value (a submenu, or a bespoke `Kind::Custom` one).
+bool legacy_write(::MenuItem* item, int32_t v) {
+	if (auto* n = dynamic_cast<legacy::Value<int32_t>*>(item); n != nullptr) {
+		n->setValue(v);
+		ValuePeek<int32_t>::write(*n);
+		return true;
+	}
+	if (auto* b = dynamic_cast<legacy::Value<bool>*>(item); b != nullptr) {
+		b->setValue(v != 0);
+		ValuePeek<bool>::write(*b);
+		return true;
+	}
+	return false;
+}
+
+/// @brief Three values spanning @p r: the two endpoints and the middle.
+std::array<int32_t, 3> probe_values(const menu::IntRange& r) {
+	return {r.min, static_cast<int32_t>((static_cast<int64_t>(r.min) + r.max) / 2), r.max};
+}
+
 /// @brief A `Shell` over `FakeSurfaceSet` with the application's scene registry, for the golden.
 struct Rig {
 	const deluge::ui::shell::BoardProfile& profile = deluge_profile();
@@ -557,13 +590,50 @@ describe tables_1_pixels("scenes::menu batch-1 tables: pixels", $ {
 		expect_golden(self, "../ui/menu/tables1_lpf_48.pbm", r.fake.pbm(0));
 	});
 });
+describe tables_1_writes("scenes::menu batch-1 tables: writes", $ {
+	it("leaves the model where the legacy item leaves it, for every set hook", _ {
+		// Task 6 had the same gap task 7's review found in batch 2 (review round 1, I5): the spec
+		// compared reads, names, params, enums, learn targets and relevance, but never drove a
+		// single `set` hook. Every batch-1 hook is driven here, the same way `tables_2_spec` drives
+		// batch 2's: for three values spanning the node's range, legacy's own `writeCurrentValue()`
+		// runs first and the resulting state is observed through both readers, then the port's
+		// `bindings::write` runs and the same two observations are taken. Each write is "store
+		// f(v)", so running them back to back from the same value is a fair comparison.
+		//
+		// `ParamRef` nodes are not here, for the reason `tables_2_spec` spells out: with no root UI
+		// open, legacy's `UnpatchedParam::writeCurrentValue` resolves the *song's* param collection
+		// (`sound_editor.cpp:1986`) where the port resolves the clip's. `bindings_spec` covers that
+		// path directly.
+		Fixture& f = fixture();
+		size_t exercised = 0;
+		for (const Pair& p : all_pairs()) {
+			if (p.node->bind.set == nullptr) {
+				continue;
+			}
+			for (int32_t v : probe_values(menu::bindings::range(*p.node, f.ctx))) {
+				if (!legacy_write(p.item, v)) {
+					break;
+				}
+				const int32_t want_port_view = menu::bindings::read(*p.node, f.ctx);
+				const std::optional<int32_t> want_legacy_view = legacy_value(p.item);
+
+				menu::bindings::write(*p.node, f.ctx, v);
+				expect(menu::bindings::read(*p.node, f.ctx) == want_port_view).to_be_true();
+				expect(legacy_value(p.item) == want_legacy_view).to_be_true();
+				exercised++;
+			}
+		}
+		// ~20 hooks x 3 values.
+		expect(exercised > size_t(45)).to_be_true();
+	});
+});
 // clang-format on
 
-/// Four `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
+/// Five `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
 /// here with `add_specs` instead.
 int tables_1_spec(int argc, char** const argv) {
 	return CppSpec::parse(argc, argv)
-	               .add_specs(tables_1_shape, tables_1_values, tables_1_validation, tables_1_pixels)
+	               .add_specs(tables_1_shape, tables_1_values, tables_1_validation, tables_1_pixels, tables_1_writes)
 	               .exec()
 	               .is_success()
 	           ? EXIT_SUCCESS

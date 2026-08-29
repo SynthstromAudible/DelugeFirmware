@@ -16,18 +16,18 @@
 // clang-format off
 /// | node | legacy global (`g_menus.inc`) | legacy class |
 /// |---|---|---|
-/// | `lpf_mode` | `lpfModeMenu` (`:2`) | `filter::FilterModeSelection` (`filter/mode.h:34`) |
-/// | `lpf_freq` | `lpfFreqMenu` (`:3`) | `filter::FilterParam` (`filter/param.h:33`) |
-/// | `lpf_res` | `lpfResMenu` (`:4`) | `filter::FilterParam` |
-/// | `lpf_morph` | `lpfMorphMenu` (`:5`) | `filter::FilterParam` |
-/// | `lpf` | `lpfMenu` (`:12`) | `HorizontalMenu` |
-/// | `hpf_mode` | `hpfModeMenu` (`:13`) | `filter::FilterModeSelection` |
-/// | `hpf_freq` | `hpfFreqMenu` (`:14`) | `filter::FilterParam` |
-/// | `hpf_res` | `hpfResMenu` (`:15`) | `filter::FilterParam` |
-/// | `hpf_morph` | `hpfMorphMenu` (`:16`) | `filter::FilterParam` |
-/// | `hpf` | `hpfMenu` (`:23`) | `HorizontalMenu` |
-/// | `filter_routing` | `filterRoutingMenu` (`:24`) | `FilterRouting` (`filter_route.h:27`) |
-/// | `sound_filters` | `soundFiltersMenu` (`:30`) | `Submenu` |
+/// | `lpf_mode` | `lpfModeMenu` (`:259`) | `filter::FilterModeSelection` (`filter/mode.h:34`) |
+/// | `lpf_freq` | `lpfFreqMenu` (`:260`) | `filter::FilterParam` (`filter/param.h:33`) |
+/// | `lpf_res` | `lpfResMenu` (`:261`) | `filter::FilterParam` |
+/// | `lpf_morph` | `lpfMorphMenu` (`:262`) | `filter::FilterParam` |
+/// | `lpf` | `lpfMenu` (`:269`) | `HorizontalMenu` |
+/// | `hpf_mode` | `hpfModeMenu` (`:270`) | `filter::FilterModeSelection` |
+/// | `hpf_freq` | `hpfFreqMenu` (`:271`) | `filter::FilterParam` |
+/// | `hpf_res` | `hpfResMenu` (`:272`) | `filter::FilterParam` |
+/// | `hpf_morph` | `hpfMorphMenu` (`:273`) | `filter::FilterParam` |
+/// | `hpf` | `hpfMenu` (`:280`) | `HorizontalMenu` |
+/// | `filter_routing` | `filterRoutingMenu` (`:281`) | `FilterRouting` (`filter_route.h:27`) |
+/// | `sound_filters` | `soundFiltersMenu` (`:287`) | `Submenu` |
 // clang-format on
 ///
 /// @note **The morph items' name.** The Python spec gives `lpfMorphMenu` `name=STRING_FOR_MORPH,

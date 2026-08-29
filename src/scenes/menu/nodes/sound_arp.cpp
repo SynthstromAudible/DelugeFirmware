@@ -284,21 +284,27 @@ int32_t get_arp_include_in_kit(const MenuContext& ctx) {
 	return ctx.arp->includeInKitArp ? 1 : 0;
 }
 void set_arp_include_in_kit(const MenuContext& ctx, int32_t value) {
-	// `IncludeInKitArp::writeCurrentValue` (`include_in_kit_arp.h:24-54`). The affect-entire sweep
-	// asks each `SoundDrum` its own `allowNoteTails` and leaves the others alone; a MIDI or gate
-	// drum has no sound and so is always allowed (`:33-41`).
-	//
-	// **Partial in the affect-entire sweep only.** Per-drum `allowNoteTails` needs each drum's own
-	// `ModelStackWithSoundFlags` (`:37-40`), which this file cannot build; the sweep below uses the
-	// *context's* answer for every drum instead. The single-target case -- the one the sound editor
-	// actually reaches without the AFFECT-ENTIRE button held -- is exact.
-	const bool allowed = bindings::allows_note_tails(ctx);
-	if (!allowed) {
-		return; // `:50-52`
-	}
+	// `IncludeInKitArp::writeCurrentValue` (`include_in_kit_arp.h:24-54`), both arms exactly.
 	const bool on = value != 0;
-	apply_to_arp_settings(ctx, /*filter_gate_drums=*/false,
-	                      [on](ArpeggiatorSettings& arp) { arp.includeInKitArp = on; });
+
+	// `:28-47` -- the affect-entire sweep asks **each** drum its own `allowNoteTails` and skips the
+	// ones that refuse (a MIDI or gate drum has no `Sound` and is always allowed, `:33`). It does
+	// *not* consult the context's answer (review round 1, I3); `bindings::drum_allows_note_tails`
+	// is the per-drum test, on that drum's own model stack.
+	if (bindings::writes_whole_kit(ctx) && ctx.output != nullptr) {
+		for (Drum* drum = static_cast<Kit*>(ctx.output)->firstDrum; drum != nullptr; drum = drum->next) {
+			if (bindings::drum_allows_note_tails(ctx, drum)) {
+				drum->arpSettings.includeInKitArp = on; // `:43-45`
+			}
+		}
+		return;
+	}
+
+	// `:48-53` -- one sound, gated on the context's own cached answer, which is what
+	// `soundEditor.allowsNoteTails` is (`sound_editor.cpp:1811-1816`).
+	if (ctx.arp != nullptr && bindings::allows_note_tails(ctx)) {
+		ctx.arp->includeInKitArp = on;
+	}
 }
 
 namespace {

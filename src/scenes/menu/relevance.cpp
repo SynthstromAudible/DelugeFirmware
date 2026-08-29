@@ -455,7 +455,8 @@ bool bend_submenu(const MenuContext& ctx) {
 	return type == OutputType::SYNTH || type == OutputType::CV || type == OutputType::MIDI_OUT;
 }
 bool per_finger_bend(const MenuContext& ctx) {
-	// See the header note: legacy's `navigationDepth == 1` half has no `MenuContext` spelling.
+	// The depth-0 reading of `per_finger.h:41` -- see the header. At depth 0 the `navigationDepth
+	// == 1` arm is false by construction, so only `editingKit()` is left.
 	return ctx.is_kit;
 }
 

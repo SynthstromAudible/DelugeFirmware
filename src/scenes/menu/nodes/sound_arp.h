@@ -4,30 +4,30 @@
 ///
 /// `inline constexpr` for the reason `sound_filters.h` explains (task-6 fix round 1, I3). From
 /// `gui/ui/menus.cpp`'s `arpMenu` (`:654-668`), `arpBasicMenu` (`:626-627`), `arpPatternMenu`
-/// (`:637-644`) and `arpMpeMenu` (`:651`):
+/// (`:637-644`) and `arpMpeMenu` (`:652`):
 ///
 // clang-format off
 /// | node | legacy global | legacy class | kind |
 /// |---|---|---|---|
-/// | `arp_mode` | `arpModeMenu` (`:512`) | `arpeggiator::Mode` (`arpeggiator/mode.h:14`) | Enum (toggle) |
-/// | `arp_preset` | `arpPresetModeMenu` (`:510`) | `arpeggiator::PresetMode` (`preset_mode.h:18`) | Enum |
-/// | `arp_gate` | `arpGateMenu` (`:531`) | `arpeggiator::ArpUnpatchedParam`, `UNPATCHED_ARP_GATE` | Int (param) |
-/// | `arp_sync` | `arpSyncMenu` (`:513`) | `arpeggiator::Sync` (`arpeggiator/sync.h:10`) | SyncLevel |
-/// | `arp_rate` | `arpRateMenu` (`:514`) | `arpeggiator::Rate` (`arpeggiator/rate.h:7`), `GLOBAL_ARP_RATE` | Int (param) |
+/// | `arp_mode` | `arpModeMenu` (`:501`) | `arpeggiator::Mode` (`arpeggiator/mode.h:14`) | Enum (toggle) |
+/// | `arp_preset` | `arpPresetModeMenu` (`:499`) | `arpeggiator::PresetMode` (`preset_mode.h:18`) | Enum |
+/// | `arp_gate` | `arpGateMenu` (`:527`) | `arpeggiator::ArpUnpatchedParam`, `UNPATCHED_ARP_GATE` | Int (param) |
+/// | `arp_sync` | `arpSyncMenu` (`:502`) | `arpeggiator::Sync` (`arpeggiator/sync.h:10`) | SyncLevel |
+/// | `arp_rate` | `arpRateMenu` (`:503`) | `arpeggiator::Rate` (`arpeggiator/rate.h:7`), `GLOBAL_ARP_RATE` | Int (param) |
 /// | `arp_basic` | `arpBasicMenu` (`:626`) | `HorizontalMenu` | Submenu (Horizontal) |
-/// | `arp_octaves` | `arpOctavesMenu` (`:519`) | `arpeggiator::Octaves` (`octaves.h:10`) | Int |
-/// | `arp_step_repeat` | `arpStepRepeatMenu` (`:528`) | `arpeggiator::StepRepeat` (`step_repeat.h:10`) | Int |
-/// | `arp_octave_mode` | `arpOctaveModeMenu` (`:520`) | `arpeggiator::OctaveMode` (`octave_mode.h:13`) | Enum |
-/// | `arp_note_mode` | `arpNoteModeMenu` (`:526`) | `arpeggiator::NoteMode` (`note_mode.h:9`) | Enum |
-/// | `arp_note_mode_drums` | `arpNoteModeMenuForDrums` (`:527`) | `arpeggiator::NoteModeForDrums` (`note_mode_for_drums.h:12`) | Enum |
-/// | `arp_chord_simulator` | `arpChordSimulatorMenuKit` (`:526`) | `arpeggiator::ChordType` (`chord_type.h:14`) | Enum |
-/// | `arp_rhythm` | `arpRhythmMenu` (`:535`) | `arpeggiator::Rhythm` (`rhythm.h:12`), `UNPATCHED_ARP_RHYTHM` | Int (param), 2 slots |
-/// | `arp_rhythm_midi` | `arpRhythmMenuMIDIOrCV` (`:537`) | `arpeggiator::midi_cv::Rhythm` (`midi_cv/rhythm.h:14`) | Int, 2 slots |
-/// | `arp_sequence_length` | `arpSequenceLengthMenu` (`:539`) | `arpeggiator::SequenceLength` (`sequence_length.h:5`) | Int (param) |
-/// | `arp_sequence_length_midi` | `arpSequenceLengthMenuMIDIOrCV` (`:541`) | `midi_cv::SequenceLength` (`midi_cv/sequence_length.h:9`) | Int |
+/// | `arp_octaves` | `arpOctavesMenu` (`:508`) | `arpeggiator::Octaves` (`octaves.h:10`) | Int |
+/// | `arp_step_repeat` | `arpStepRepeatMenu` (`:524`) | `arpeggiator::StepRepeat` (`step_repeat.h:10`) | Int |
+/// | `arp_octave_mode` | `arpOctaveModeMenu` (`:509`) | `arpeggiator::OctaveMode` (`octave_mode.h:13`) | Enum |
+/// | `arp_note_mode` | `arpNoteModeMenu` (`:515`) | `arpeggiator::NoteMode` (`note_mode.h:9`) | Enum |
+/// | `arp_note_mode_drums` | `arpNoteModeMenuForDrums` (`:516`) | `arpeggiator::NoteModeForDrums` (`note_mode_for_drums.h:12`) | Enum |
+/// | `arp_chord_simulator` | `arpChordSimulatorMenuKit` (`:522`) | `arpeggiator::ChordType` (`chord_type.h:14`) | Enum |
+/// | `arp_rhythm` | `arpRhythmMenu` (`:530`) | `arpeggiator::Rhythm` (`rhythm.h:12`), `UNPATCHED_ARP_RHYTHM` | Int (param), 2 slots |
+/// | `arp_rhythm_midi` | `arpRhythmMenuMIDIOrCV` (`:532`) | `arpeggiator::midi_cv::Rhythm` (`midi_cv/rhythm.h:14`) | Int, 2 slots |
+/// | `arp_sequence_length` | `arpSequenceLengthMenu` (`:534`) | `arpeggiator::SequenceLength` (`sequence_length.h:5`) | Int (param) |
+/// | `arp_sequence_length_midi` | `arpSequenceLengthMenuMIDIOrCV` (`:536`) | `midi_cv::SequenceLength` (`midi_cv/sequence_length.h:9`) | Int |
 /// | `arp_pattern` | `arpPatternMenu` (`:637`) | `HorizontalMenu` | Submenu (Horizontal) |
-/// | `arp_mpe_velocity` | `arpMpeVelocityMenu` (`:650`) | `arpeggiator::ArpMpeVelocity` (`mpe_velocity.h:10`) | Enum |
-/// | `arp_mpe` | `arpMpeMenu` (`:651`) | `submenu::ArpMpeSubmenu` (`submenu/arp_mpe_submenu.h:5`) | Submenu (Vertical) |
+/// | `arp_mpe_velocity` | `arpMpeVelocityMenu` (`:651`) | `arpeggiator::ArpMpeVelocity` (`mpe_velocity.h:10`) | Enum |
+/// | `arp_mpe` | `arpMpeMenu` (`:652`) | `submenu::ArpMpeSubmenu` (`submenu/arp_mpe_submenu.h:5`) | Submenu (Vertical) |
 /// | `arp_include_in_kit_arp` | `arpIncludeInKitArpMenu` (`:539`) | `arpeggiator::IncludeInKitArp` (`include_in_kit_arp.h:12`) | Enum (toggle) |
 /// | `arp` | `arpMenu` (`:654`) | `Submenu` | Submenu (Vertical) |
 // clang-format on

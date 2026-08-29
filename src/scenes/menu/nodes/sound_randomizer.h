@@ -16,30 +16,30 @@
 // clang-format off
 /// | node | legacy global | legacy class | param / field |
 /// |---|---|---|---|
-/// | `randomizer_lock` | `randomizerLockMenu` (`:559`) | `randomizer::RandomizerLock` (`randomizer_lock.h:10`) | `randomizerLock` |
-/// | `spread_gate` | `spreadGateMenu` (`:561`) | `RandomizerUnpatchedParam`, BAR | `UNPATCHED_ARP_SPREAD_GATE` |
-/// | `spread_gate_midi` | `spreadGateMenuMIDIOrCV` (`:563`) | `midi_cv::SpreadGate` (`midi_cv/spread_gate.h:9`) | `spreadGate` |
-/// | `spread_octave` | `spreadOctaveMenu` (`:565`) | `RandomizerSoundOnlyUnpatchedParam`, BAR | `UNPATCHED_ARP_SPREAD_OCTAVE` |
-/// | `spread_octave_midi` | `spreadOctaveMenuMIDIOrCV` (`:567`) | `midi_cv::SpreadOctave` (`spread_octave.h:9`) | `spreadOctave` |
-/// | `spread_velocity` | `spreadVelocityMenu` (`:569`) | `RandomizerUnpatchedParam`, BAR | `UNPATCHED_SPREAD_VELOCITY` |
-/// | `spread_velocity_midi` | `spreadVelocityMenuMIDIOrCV` (`:571`) | `midi_cv::SpreadVelocity` (`spread_velocity.h:9`) | `spreadVelocity` |
-/// | `ratchet_amount` | `ratchetAmountMenu` (`:573`) | `RandomizerUnpatchedParam`, BAR | `UNPATCHED_ARP_RATCHET_AMOUNT` |
-/// | `ratchet_amount_midi` | `ratchetAmountMenuMIDIOrCV` (`:575`) | `midi_cv::RatchetAmount` (`ratchet_amount.h:9`) | `ratchetAmount` |
-/// | `ratchet_probability` | `ratchetProbabilityMenu` (`:577`) | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_ARP_RATCHET_PROBABILITY` |
-/// | `ratchet_probability_midi` | `ratchetProbabilityMenuMIDIOrCV` (`:580`) | `midi_cv::RatchetProbability` (`ratchet_probability.h:9`) | `ratchetProbability` |
-/// | `chord_polyphony` | `chordPolyphonyMenu` (`:582`) | `RandomizerNonKitSoundUnpatchedParam`, BAR | `UNPATCHED_ARP_CHORD_POLYPHONY` |
-/// | `chord_polyphony_midi` | `chordPolyphonyMenuMIDIOrCV` (`:584`) | `midi_cv::ChordPolyphony` (`chord_polyphony.h:8`) | `chordPolyphony` |
-/// | `chord_probability` | `chordProbabilityMenu` (`:586`) | `RandomizerNonKitSoundUnpatchedParam`, PERCENT | `UNPATCHED_ARP_CHORD_PROBABILITY` |
-/// | `chord_probability_midi` | `chordProbabilityMenuMIDIOrCV` (`:589`) | `midi_cv::ChordProbability` (`chord_probability.h:9`) | `chordProbability` |
-/// | `note_probability` | `randomizerNoteProbabilityMenu` (`:591`) | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_NOTE_PROBABILITY` |
-/// | `note_probability_midi` | `randomizerNoteProbabilityMenuMIDIOrCV` (`:593`) | `midi_cv::NoteProbability` (`note_probability.h:8`) | `noteProbability` |
-/// | `swap_probability` | `swapProbabilityMenu` (`:595`) | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_ARP_SWAP_PROBABILITY` |
-/// | `swap_probability_midi` | `swapProbabilityMenuMIDIOrCV` (`:598`) | `midi_cv::SwapProbability` (`swap_probability.h:9`) | `swapProbability` |
-/// | `bass_probability` | `bassProbabilityMenu` (`:600`) | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_ARP_BASS_PROBABILITY` |
-/// | `bass_probability_midi` | `bassProbabilityMenuMIDIOrCV` (`:603`) | `midi_cv::BassProbability` (`bass_probability.h:9`) | `bassProbability` |
-/// | `glide_probability` | `glideProbabilityMenu` (`:606`) | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_ARP_GLIDE_PROBABILITY` |
-/// | `glide_probability_midi` | `glideProbabilityMenuMIDIOrCV` (`:609`) | `midi_cv::GlideProbability` (`glide_probability.h:9`) | `glideProbability` |
-/// | `reverse_probability` | `reverseProbabilityMenu` (`:611`) | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_REVERSE_PROBABILITY` |
+/// | `randomizer_lock` | `randomizerLockMenu` (`:543`) | `randomizer::RandomizerLock` (`randomizer_lock.h:10`) | `randomizerLock` |
+/// | `spread_gate` | `spreadGateMenu` (`:545`) | `RandomizerUnpatchedParam`, BAR | `UNPATCHED_ARP_SPREAD_GATE` |
+/// | `spread_gate_midi` | `spreadGateMenuMIDIOrCV` (`:547`) | `midi_cv::SpreadGate` (`midi_cv/spread_gate.h:9`) | `spreadGate` |
+/// | `spread_octave` | `spreadOctaveMenu` (`:549`) | `RandomizerSoundOnlyUnpatchedParam`, BAR | `UNPATCHED_ARP_SPREAD_OCTAVE` |
+/// | `spread_octave_midi` | `spreadOctaveMenuMIDIOrCV` (`:551`) | `midi_cv::SpreadOctave` (`spread_octave.h:9`) | `spreadOctave` |
+/// | `spread_velocity` | `spreadVelocityMenu` (`:553`) | `RandomizerUnpatchedParam`, BAR | `UNPATCHED_SPREAD_VELOCITY` |
+/// | `spread_velocity_midi` | `spreadVelocityMenuMIDIOrCV` (`:555`) | `midi_cv::SpreadVelocity` (`spread_velocity.h:9`) | `spreadVelocity` |
+/// | `ratchet_amount` | `ratchetAmountMenu` (`:557`) | `RandomizerUnpatchedParam`, BAR | `UNPATCHED_ARP_RATCHET_AMOUNT` |
+/// | `ratchet_amount_midi` | `ratchetAmountMenuMIDIOrCV` (`:559`) | `midi_cv::RatchetAmount` (`ratchet_amount.h:9`) | `ratchetAmount` |
+/// | `ratchet_probability` | `ratchetProbabilityMenu` (`:561`) | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_ARP_RATCHET_PROBABILITY` |
+/// | `ratchet_probability_midi` | `ratchetProbabilityMenuMIDIOrCV` (`:564`) | `midi_cv::RatchetProbability` (`ratchet_probability.h:9`) | `ratchetProbability` |
+/// | `chord_polyphony` | `chordPolyphonyMenu` (`:566`) | `RandomizerNonKitSoundUnpatchedParam`, BAR | `UNPATCHED_ARP_CHORD_POLYPHONY` |
+/// | `chord_polyphony_midi` | `chordPolyphonyMenuMIDIOrCV` (`:568`) | `midi_cv::ChordPolyphony` (`chord_polyphony.h:8`) | `chordPolyphony` |
+/// | `chord_probability` | `chordProbabilityMenu` (`:570`) | `RandomizerNonKitSoundUnpatchedParam`, PERCENT | `UNPATCHED_ARP_CHORD_PROBABILITY` |
+/// | `chord_probability_midi` | `chordProbabilityMenuMIDIOrCV` (`:573`) | `midi_cv::ChordProbability` (`chord_probability.h:9`) | `chordProbability` |
+/// | `note_probability` | `randomizerNoteProbabilityMenu` (`:575`) | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_NOTE_PROBABILITY` |
+/// | `note_probability_midi` | `randomizerNoteProbabilityMenuMIDIOrCV` (`:577`) | `midi_cv::NoteProbability` (`note_probability.h:8`) | `noteProbability` |
+/// | `swap_probability` | `swapProbabilityMenu` (`:579`) | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_ARP_SWAP_PROBABILITY` |
+/// | `swap_probability_midi` | `swapProbabilityMenuMIDIOrCV` (`:582`) | `midi_cv::SwapProbability` (`swap_probability.h:9`) | `swapProbability` |
+/// | `bass_probability` | `bassProbabilityMenu` (`:584`) | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_ARP_BASS_PROBABILITY` |
+/// | `bass_probability_midi` | `bassProbabilityMenuMIDIOrCV` (`:587`) | `midi_cv::BassProbability` (`bass_probability.h:9`) | `bassProbability` |
+/// | `glide_probability` | `glideProbabilityMenu` (`:590`) | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_ARP_GLIDE_PROBABILITY` |
+/// | `glide_probability_midi` | `glideProbabilityMenuMIDIOrCV` (`:593`) | `midi_cv::GlideProbability` (`glide_probability.h:9`) | `glideProbability` |
+/// | `reverse_probability` | `reverseProbabilityMenu` (`:595`) | `RandomizerUnpatchedParam`, PERCENT | `UNPATCHED_REVERSE_PROBABILITY` |
 /// | `randomizer` | `randomizerMenu` (`:599`) | `HorizontalMenu` | Submenu (Horizontal) |
 // clang-format on
 ///
@@ -159,7 +159,7 @@ DELUGE_RANDOMIZER_PARAM(glide_probability, STRING_FOR_GLIDE_PROBABILITY, STRING_
 DELUGE_RANDOMIZER_MIDI(glide_probability_midi, STRING_FOR_GLIDE_PROBABILITY,
                        STRING_FOR_ARP_GLIDE_PROBABILITY_MENU_TITLE, relevance::randomizer_midi_target, Hint::Percent);
 
-// The one setting with no MIDI/CV twin (`menus.cpp:611-613`).
+// The one setting with no MIDI/CV twin (`menus.cpp:595-597`).
 DELUGE_RANDOMIZER_PARAM(reverse_probability, STRING_FOR_REVERSE_PROBABILITY, STRING_FOR_REVERSE_PROBABILITY_MENU_TITLE,
                         UNPATCHED_REVERSE_PROBABILITY, relevance::randomizer_global_param, Hint::Percent);
 

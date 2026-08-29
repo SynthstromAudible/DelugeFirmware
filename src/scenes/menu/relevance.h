@@ -245,13 +245,14 @@ bool is_polyphonic(const MenuContext& ctx);
 /// @brief Does this output get the two-item bend-range submenu? `submenu::Bend::isRelevant`
 ///        (`submenu/bend.h:26-31`): SYNTH, CV or MIDI_OUT.
 bool bend_submenu(const MenuContext& ctx);
-/// @brief `bend_range::PerFinger::isRelevant` (`bend_range/per_finger.h:40-42`).
+/// @brief `bend_range::PerFinger::isRelevant` (`bend_range/per_finger.h:41`) **at menu depth 0**.
 ///
-/// @note **Partial.** Legacy is `soundEditor.navigationDepth == 1 || soundEditor.editingKit()`; the
-///       navigation depth is the menu UI's own cursor state, which `src/scenes` may not read and
-///       which `MenuContext` deliberately does not carry (it describes what is edited, not where
-///       the user is). Only the kit half survives here. It agrees with legacy everywhere the depth
-///       is not 1 -- including the root list, where legacy's own depth is 0.
+/// Legacy is `soundEditor.navigationDepth == 1 || soundEditor.editingKit()`. The depth is a fact
+/// about *where the item sits in the tree*, not about what is being edited, so it is resolved
+/// statically rather than carried on `MenuContext`: this predicate is the depth-0 reading, used by
+/// `drum_bend_range` (a root child), and the depth-1 reading -- unconditionally true -- is a null
+/// `relevant` on `bend_range_per_finger`, which is only reachable inside `bendMenu`. See
+/// `sound_bend.h`'s two notes (review round 1, I1).
 bool per_finger_bend(const MenuContext& ctx);
 
 /// @brief `midi::sound::OutputMidiNoteForDrum::isRelevant` (`midi/sound/note_for_drum.h:23-25`):

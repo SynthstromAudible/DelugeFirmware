@@ -8,10 +8,10 @@
 // clang-format off
 /// | node | legacy global | legacy class |
 /// |---|---|---|
-/// | `unison_count` | `numUnisonMenu` (`:46`) | `unison::CountToStereoSpread` (`unison/count.h:69`) |
-/// | `unison_detune` | `unisonDetuneMenu` (`:47`) | `unison::Detune` (`unison/detune.h:26`) |
+/// | `unison_count` | `numUnisonMenu` (`:303`) | `unison::CountToStereoSpread` (`unison/count.h:69`) |
+/// | `unison_detune` | `unisonDetuneMenu` (`:304`) | `unison::Detune` (`unison/detune.h:26`) |
 /// | `unison_spread` | `unison::stereoSpreadMenu` (`:48`) | `unison::StereoSpread` (`unison/stereoSpread.h:26`) |
-/// | `unison` | `unisonMenu` (`:54`) | `HorizontalMenu`, `Layout::FIXED` |
+/// | `unison` | `unisonMenu` (`:311`) | `HorizontalMenu`, `Layout::FIXED` |
 // clang-format on
 ///
 /// @note **Two legacy behaviours have no `Node` spelling and are recorded, not silently dropped.**

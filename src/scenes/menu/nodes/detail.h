@@ -74,6 +74,16 @@ constexpr Node with_relevant(Node n, RelevantFn rel) {
 	return n;
 }
 
+/// @brief @p n with `Binding::updates_reverb_params` set -- the port of
+///        `unpatched_param::UpdatingReverbParams` (`gui/menu_item/unpatched_param/updating_reverb_params.h:26-29`).
+///
+/// A post-hoc modifier rather than an argument on `param()` for the same reason
+/// `with_range_dependent` is one: two nodes in the whole tree need it.
+constexpr Node with_reverb_update(Node n) {
+	n.bind.updates_reverb_params = true;
+	return n;
+}
+
 /// @brief @p n with a **learn-only** `ParamRef` beside its `get`/`set` hooks.
 ///
 /// For legacy's four `menu_item::Transpose` derivatives, which read and write outside the param set
