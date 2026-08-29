@@ -134,6 +134,24 @@ public:
 	/// How many opens the listing that just finished performed. Read after a non-deferring run.
 	static int32_t opensPerformed() { return Browser::listing_.opensThisListing; }
 	static void deferAtOpen(int32_t n) { Browser::deferAtOpenNumber_ = n; }
+	/// Run a ByPath listing's MACHINE to completion and report whether it matched exactly.
+	///
+	/// Drives `startPendingListing` rather than `beginListing`, so `runPendingListing`'s completion
+	/// tail never runs: that tail's failure path calls `onListingFailed` -> `close()`, and this
+	/// headless driver never pushed a browser onto the UI stack, so a deliberate miss would abort the
+	/// process instead of reporting. What is under test is the existence ANSWER, which is the flag.
+	static bool byPathMatchesExactly(const char* fullPath) {
+		Browser::pendingListing_ = Browser::ListingRequest{.action = Browser::ListingAction::ByPath,
+		                                                   .direction = 0,
+		                                                   .filenameToStartAt = "",
+		                                                   .defaultDir = "",
+		                                                   .folderOrPath = fullPath};
+		(void)loadSongUI.startPendingListing();
+		return Browser::listing_.foundExactMatch;
+	}
+	/// Whether the finished listing matched its search string EXACTLY. For a ByPath listing this IS
+	/// the existence answer the retired fileExists() used to give.
+	static bool foundExactMatch() { return Browser::listing_.foundExactMatch; }
 	/// How many times the listing that just finished suspended. Zero on the synchronous arm by
 	/// construction, so requiring it non-zero proves the channel was actually reached.
 	static int32_t deferrals() { return Browser::listing_.deferrals; }
@@ -1014,6 +1032,38 @@ bool buildFixtureDir(const char* dir, int32_t count) {
 	return true;
 }
 
+/// A ByPath listing must answer "is this file still there?" -- the question the blocking
+/// `StorageManager::fileExists` pre-flight used to answer before every favourite open.
+///
+/// The absent case is the regression the pre-flight was hiding: the old completion tail tested
+/// `fileIndexSelected > fileItems.size()`, but `searchFileItems` returns an INSERTION POINT, which is
+/// always <= size -- so a file that had been deleted fell straight through and the browser opened
+/// whatever sorted into its place.
+///
+/// Synchronous leg only. Which comparison answers the existence question is not an async property,
+/// and running it on the channel leg would need the tick loop for no added coverage.
+void runByPathCases() {
+	if (deluge_file_directory_async_active()) {
+		printf("SP-LISTING bypath skipped on the channel leg (not an async property)\n");
+		return;
+	}
+	char path[64];
+	snprintf(path, sizeof(path), "%s/SONG005.XML", kListingDir); // the fixture created this one
+	const bool hit = BrowserListingAbProbe::byPathMatchesExactly(path);
+	snprintf(path, sizeof(path), "%s/SONG999.XML", kListingDir); // and deliberately not this one
+	const bool miss = BrowserListingAbProbe::byPathMatchesExactly(path);
+	printf("SP-LISTING bypath present=%d absent=%d\n", hit ? 1 : 0, miss ? 1 : 0);
+	if (!hit) {
+		printf("SP-LISTING FAIL bypath: a file that exists did not match exactly\n");
+		g_failures++;
+	}
+	if (miss) {
+		printf("SP-LISTING FAIL bypath: a file that does not exist matched -- the browser would open "
+		       "whatever sorted into its place\n");
+		g_failures++;
+	}
+}
+
 void runListingTick() {
 	if (g_listingRunning) {
 		BrowserListingAbProbe::tick();
@@ -1044,6 +1094,7 @@ void runListingTick() {
 				printf("SP-LISTING fallback dir=%s listed=%zu deferrals=%d\n", got.dir.c_str(), got.names.size(),
 				       BrowserListingAbProbe::deferrals());
 			}
+			runByPathCases();
 			printf("SP-LISTING-SUMMARY opens=%d sweeps=%d big=%d\n", g_listingOpens, g_listingCasesRun, kBigEntries);
 			g_listingStep = ListingStep::Finished;
 			return;

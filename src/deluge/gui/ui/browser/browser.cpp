@@ -283,12 +283,14 @@ Error Browser::finishPendingListing() {
 		return Error::NONE;
 
 	case ListingAction::ByPath: {
-		//  Get the File Index
-		char const* fileName = pendingListing_.byPathFileName.c_str();
-		fileIndexSelected = searchFileItems(fileName);
-		if (fileIndexSelected > static_cast<int32_t>(fileItems.size())) {
+		// The file has to be THERE. The listing searched for exactly this name; if it did not match,
+		// the path names a file that no longer exists -- a favourite pointing at something deleted --
+		// and selecting whatever sorted into its place would open the wrong file silently.
+		if (!listing_.foundExactMatch) {
 			return Error::FILE_NOT_FOUND;
 		}
+		// fileIndexSelected is already the match, set by that same search: no second lookup, so the
+		// two cannot disagree.
 		// Update the Display
 		scrollPosVertical = fileIndexSelected;
 		setEnteredTextFromCurrentFilename();
@@ -685,13 +687,17 @@ Error Browser::setFileByFullPath(OutputType outputType, char const* fullPath) {
 
 Error Browser::setFileByFullPathImpl(char const* fullPath) {
 	arrivedAtFileByTyping = true;
-	// TODO(conflation-batch-4): unknown is being treated as absent here; the load/browse/favourites
-	// batch gives this site its real ruling.
-	bool fileExists = StorageManager::fileExists(fullPath).value_or(false);
-	if (!fileExists) {
-		return Error::FILE_NOT_FOUND;
-	}
-
+	// No StorageManager::fileExists() pre-flight any more. It was a blocking card open on a path the
+	// listing below is about to read anyway, and with the channel active this function runs on the
+	// interaction tier, where blocking on the card is exactly what this ladder exists to stop.
+	//
+	// The listing answers the same question better: it searches for this very name and records
+	// whether it matched EXACTLY, which finishPendingListing() then reads. That also retires a check
+	// that could barely fire -- the old tail tested `fileIndexSelected > fileItems.size()`, but
+	// searchFileItems returns an INSERTION POINT, which is always <= size, so a missing file fell
+	// through it and selected whatever sorted into its place.
+	//
+	// (TODO(conflation-batch-4) went with it: the removed call treated "could not tell" as "absent".)
 	const char* fileName = getFileNameFromEndOfPath(fullPath);
 	// Copy the directory portion (everything before the final '/') straight into currentDir. Don't go via
 	// getPathFromFullPath() here: it returns .c_str() of a std::string temporary that's already destroyed by the
@@ -705,9 +711,7 @@ Error Browser::setFileByFullPathImpl(char const* fullPath) {
 	}
 
 	// Everything after the listing moved to finishPendingListing(): this listing can suspend, and a
-	// resumption does not return through here. The filename it needs is carried on the request rather
-	// than recomputed, because `fileName` points into a local that is long gone by then.
-	pendingListing_.byPathFileName = fileName;
+	// resumption does not return through here.
 	return arrivedInNewFolder(0, fileName);
 }
 
@@ -978,6 +982,7 @@ std::expected<Browser::SelectionOutcome, Error> Browser::applyListingSelection()
 		const int32_t i = searchFileItems(listing_.read.filenameToStartAt.c_str(), &foundExact);
 		if (foundExact) {
 			fileIndexSelected = i;
+			listing_.foundExactMatch = true;
 
 			// Usually we'll just use that file.
 			if (!mayDefaultToBrandNewNameOnEntry || listing_.direction) {

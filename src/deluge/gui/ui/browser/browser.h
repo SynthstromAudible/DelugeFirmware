@@ -172,10 +172,6 @@ protected:
 		std::string filenameToStartAt; ///< Open
 		std::string defaultDir;        ///< Open
 		std::string folderOrPath;      ///< IntoFolder (folder name) / ByPath (full path)
-		/// ByPath only: the leaf filename its completion tail selects. Carried rather than recomputed
-		/// because the tail runs after the listing finishes, by which time setFileByFullPathImpl's
-		/// local buffer is long gone.
-		std::string byPathFileName;
 	};
 	static bool listingInProgress_;
 	/// @brief Whether the listing in progress is this tier's to run, decided once when it began.
@@ -270,6 +266,12 @@ protected:
 		/// Which open this listing is on, across the WHOLE listing rather than per resumption. The
 		/// defer seam counts on it.
 		int32_t opensThisListing{};
+		/// Whether the selection found the search string EXACTLY. `ListingAction::ByPath` is the one
+		/// caller that needs to know, and it needs it as an existence answer: a favourite naming a file
+		/// that has been deleted must report FILE_NOT_FOUND rather than silently selecting whatever
+		/// sorted into its place. Recorded by the search the selection already performs, rather than
+		/// searched for a second time, so the two cannot disagree about what "the same name" means.
+		bool foundExactMatch{};
 		/// How many times this listing suspended. Zero on the synchronous arm by construction, so a
 		/// gate can require it to be non-zero and know the async path was actually reached rather than
 		/// quietly answered by a direct open.
