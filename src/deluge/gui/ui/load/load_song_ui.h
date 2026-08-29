@@ -38,7 +38,7 @@ public:
 	/// exactly two places -- arriving in a folder and moving the cursor -- so with no re-drive a prefix
 	/// that is still being read is never asked for again and the pads keep the previous song's artwork
 	/// until the user happens to scroll back onto that entry.
-	void graphicsRoutine() override;
+	void browserGraphicsRoutine() override;
 	void scrollFinished() override;
 	ActionResult padAction(int32_t x, int32_t y, int32_t velocity) override;
 	bool opened() override;

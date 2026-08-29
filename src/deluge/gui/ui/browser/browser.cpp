@@ -588,6 +588,15 @@ public:
 
 // If OLED, then you should make sure renderUIsForOLED() gets called after this.
 // outputTypeToLoad must be set before calling this.
+void Browser::graphicsRoutine() {
+	// The base's per-tick work goes HERE, above the subclass hook, so that a browser cannot both
+	// have per-tick work of its own and skip the listing's. Empty until the listing is served by the
+	// directory channel; the shape lands first so that the two overrides below move once.
+	browserGraphicsRoutine();
+	// Made once, for everybody. The subclass hook must not repeat it.
+	UI::graphicsRoutine();
+}
+
 Error Browser::arrivedInNewFolder(int32_t direction, char const* filenameToStartAt, char const* defaultDirToAlsoTry) {
 	arrivedAtFileByTyping = false;
 

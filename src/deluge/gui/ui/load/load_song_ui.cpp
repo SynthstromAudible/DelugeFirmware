@@ -1092,7 +1092,7 @@ void LoadSongUI::finishPreviewRender() {
 	renderingNeededRegardlessOfUI();
 }
 
-void LoadSongUI::graphicsRoutine() {
+void LoadSongUI::browserGraphicsRoutine() {
 	// Re-ask for a preview whose bytes have not arrived.
 	//
 	// take_pending() takes the target OUT before dispatching, not after: the drive runs INLINE from
@@ -1103,8 +1103,8 @@ void LoadSongUI::graphicsRoutine() {
 	if (auto target = previewLoad_.take_pending(); target.has_value()) {
 		dispatchPreview(*target);
 	}
-
-	UI::graphicsRoutine();
+	// No UI::graphicsRoutine() tail: Browser::graphicsRoutine() makes that call, once, after this
+	// returns. Repeating it here would run the base tick twice per frame.
 }
 
 void LoadSongUI::displayText(bool blinkImmediately) {

@@ -616,7 +616,7 @@ void SampleBrowser::runPreviewOp(void* self) {
 	}
 }
 
-void SampleBrowser::graphicsRoutine() {
+void SampleBrowser::browserGraphicsRoutine() {
 	// Re-ask for a deferred preview.
 	//
 	// Deliberately re-entering through the coalescer rather than calling renderPreviewForTarget
@@ -633,8 +633,8 @@ void SampleBrowser::graphicsRoutine() {
 	if (auto target = previewLoad_.take_pending(); target.has_value()) {
 		(void)dispatchPreview(*target);
 	}
-
-	UI::graphicsRoutine();
+	// No UI::graphicsRoutine() tail: Browser::graphicsRoutine() makes that call, once, after this
+	// returns. Repeating it here would run the base tick twice per frame.
 }
 
 bool SampleBrowser::renderPreviewForTarget(const PreviewTarget& target) {

@@ -61,7 +61,7 @@ public:
 	/// exactly two places -- entering the browser and moving the cursor -- so with no re-drive an
 	/// async load that answers Error::LOAD_IN_PROGRESS is never asked again, and the user gets no
 	/// sound, no waveform and no error until they happen to scroll back onto that file.
-	void graphicsRoutine() override;
+	void browserGraphicsRoutine() override;
 
 	/// @brief Preview the file at @p path: snapshot it and dispatch the load+render onto the storage
 	///        owner, coalesced latest-wins.

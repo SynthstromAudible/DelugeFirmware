@@ -80,6 +80,20 @@ public:
 
 	void renderOLED(deluge::hid::display::oled_canvas::Canvas& canvas) override;
 
+	/// @brief The per-tick surface, and FINAL on purpose.
+	///
+	/// The listing pump lives here, and a subclass must not be able to skip it. Subclasses put their
+	/// own per-tick work in browserGraphicsRoutine() instead, which this calls.
+	///
+	/// `final` because the alternative failed silently. SampleBrowser and LoadSongUI both overrode
+	/// graphicsRoutine() and tail-called UI::graphicsRoutine() — a shape that, once the base acquired
+	/// per-tick work of its own, would have skipped it entirely on the two most-used browsers, with
+	/// nothing to say so. The guarantee wanted here is structural, not a runtime assertion: writing
+	/// the override on the wrong function must not compile.
+	void graphicsRoutine() final;
+
+	// ui
+
 	static std::string currentDir;
 	static deluge::vector<FileItem> fileItems; // Sorted by displayName per strcmpspecial (see sortFileItems())
 	/// Mirrors CStringArray::search(): binary search by displayName using strcmpspecial; returns the matching
@@ -105,7 +119,6 @@ public:
 	/// @return True while a listing is in flight; false once it has completed (or none was started).
 	static bool isListingInProgress() { return listingInProgress_; }
 
-	// ui
 	ActionResult exitUI() override {
 		exitAction();
 		return ActionResult::ACTIONED_AND_CAUSED_CHANGE;
@@ -123,6 +136,13 @@ protected:
 	ActionResult mainButtonAction(bool on);
 	virtual void exitAction();
 	virtual ActionResult backButtonAction();
+	/// @brief A subclass's own per-tick work. Called by graphicsRoutine() after the base's.
+	///
+	/// Override this, never graphicsRoutine() — which is `final` precisely so that the mistake is a
+	/// compile error rather than a browser whose listing silently stops being pumped. There is no
+	/// need to chain to UI::graphicsRoutine(): the base makes that call once, for everybody.
+	virtual void browserGraphicsRoutine() {}
+
 	virtual void folderContentsReady(int32_t entryDirection) {}
 	virtual void currentFileChanged(int32_t movementDirection) {}
 	void displayText(bool blinkImmediately = false) override;
