@@ -46,6 +46,7 @@
 #include "storage/file_item.h"
 #include "storage/flash_storage.h"
 #include "storage/owner.h" // deluge::storage::Owner::run — run the load on the worker fiber
+#include "storage/song_preview.h"
 #include "storage/storage_manager.h"
 #include "util/try.h"
 #include <string.h>
@@ -886,66 +887,14 @@ void LoadSongUI::drawSongPreviewImpl(bool toStore) {
 		return;
 	}
 
-	Error error;
-	Deserializer* reader;
-	char const* tagName;
 	std::string filePath = currentDir + "/" + currentFileItem->getFilenameWithExtension();
 	// We are on the owner (drawSongPreview() guarantees it), so a failure here is a real one about this
 	// file, not the storage tier declining to answer -- worth showing.
-	error = StorageManager::openDelugeFile(filePath.c_str(), "song");
-	if (error != Error::NONE) {
+	Error error = Error::NONE;
+	if (deluge::storage::decodeSongPreviewFromFile(filePath.c_str(), imageStore, &error)
+	    == deluge::storage::SongPreviewOutcome::Error) {
 		display->displayError(error);
-		return;
 	}
-	reader = activeDeserializer;
-	if (activeDeserializer == &smJsonDeserializer) {
-		activeDeserializer->match('{');
-	}
-
-	int32_t previewNumPads = 40;
-	while (*(tagName = reader->readNextTagOrAttributeName())) {
-
-		if (!strcmp(tagName, "previewNumPads")) {
-			previewNumPads = reader->readTagOrAttributeValueInt();
-			reader->exitTag("previewNumPads");
-		}
-		else if (!strcmp(tagName, "preview")) {
-			int32_t skipNumCharsAfterRow = 0;
-
-			int32_t startX = 0;
-			int32_t startY = 0;
-			int32_t endX = kDisplayWidth + kSideBarWidth;
-			int32_t endY = kDisplayHeight;
-
-			int32_t width = endX - startX;
-			int32_t numCharsToRead = width * 3 * 2;
-
-			if (!reader->prepareToReadTagOrAttributeValueOneCharAtATime()) {
-				goto stopLoadingPreview;
-			}
-
-			for (int32_t y = startY; y < endY; y++) {
-				char const* hexChars = reader->readNextCharsOfTagOrAttributeValue(numCharsToRead);
-				if (!hexChars) {
-					goto stopLoadingPreview;
-				}
-
-				for (int32_t x = startX; x < endX; x++) {
-					for (int32_t colour = 0; colour < 3; colour++) {
-						imageStore[y][x][colour] = hexToByte(hexChars);
-						hexChars += 2;
-					}
-					imageStore[y][x] = imageStore[y][x].greyOut(6500000);
-				}
-			}
-			goto stopLoadingPreview;
-		}
-		else {
-			reader->exitTag(tagName);
-		}
-	}
-stopLoadingPreview:
-	activeDeserializer->closeWriter();
 }
 
 void LoadSongUI::displayText(bool blinkImmediately) {

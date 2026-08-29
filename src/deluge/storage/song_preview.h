@@ -17,7 +17,12 @@
 
 #pragma once
 
+#include "board_layout.hpp"
+#include "definitions_cxx.hpp"
+#include "gui/colour/rgb.h"
+
 #include <cstdint>
+#include <span>
 
 namespace deluge::storage {
 
@@ -46,5 +51,54 @@ namespace deluge::storage {
 /// whole corpus rather than trusting this number: if a future writer moves the attribute later, CI
 /// says so instead of artwork silently disappearing.
 constexpr uint32_t kSongPreviewWindow = 4096;
+
+/// @brief What a preview decode found.
+enum class SongPreviewOutcome {
+	/// A `preview` attribute was found and its pads were written to the caller's image.
+	Rendered,
+	/// The document was walked to its end and simply has no `preview` attribute. The image is
+	/// untouched, and blank artwork is the CORRECT answer for this song.
+	NoPreview,
+	/// The walk ran out of BYTES before it reached a `preview` attribute. Distinct from NoPreview on
+	/// purpose: the document may well carry a preview further in, and rendering blank here would make
+	/// artwork disappear with nothing to say why. Only a buffer decode can report this — a whole-file
+	/// walk that ends without a preview has genuinely seen everything.
+	Truncated,
+	/// The document would not open: not found, not a song, or a firmware version this build refuses.
+	Error,
+};
+
+/// @brief Decode a song's preview artwork out of an in-memory document, doing no I/O whatsoever.
+///
+/// Runs the SAME tag walk the file-backed decode runs, over a borrowed buffer rather than a live file,
+/// so it can be called where blocking on the storage tier is not allowed.
+///
+/// @param buffer     Document bytes, which may be a PREFIX of the file. Borrowed for the call only.
+/// @param isJson     `true` to parse the buffer as JSON, `false` as XML. A buffer has no filename to
+///                   infer this from, so the caller must say.
+/// @param imageStore Destination pad rows, `kDisplayHeight` of them. Written ONLY where the preview
+///                   supplies pads: rows the walk never reaches keep whatever the caller left there,
+///                   which is why callers clear it first.
+/// @return What the walk found; see SongPreviewOutcome.
+/// @warning Leaves the global `activeDeserializer` pointing at the memory-backed reader, which still
+///          holds @p buffer. Once the caller's buffer is gone, anything that reads through
+///          `activeDeserializer` without opening a document of its own is reading freed memory.
+SongPreviewOutcome decodeSongPreview(std::span<const uint8_t> buffer, bool isJson,
+                                     RGB (*imageStore)[kDisplayWidth + kSideBarWidth]);
+
+/// @brief Decode a song's preview artwork by reading the song file, the synchronous way.
+///
+/// The storage-tier backing for the browser's preview, and the reference the buffer decode above is
+/// held to. Opens @p path through the ordinary deserializer and runs the identical walk, so it blocks
+/// on I/O and may only be called where that is allowed (the storage owner).
+///
+/// @param path       Absolute path of the song file on the card.
+/// @param imageStore Destination pad rows, as for decodeSongPreview().
+/// @param openError  Optionally receives the open failure behind a SongPreviewOutcome::Error return, so
+///                   a UI caller can report which one it was. Untouched on any other outcome.
+/// @return What the walk found; never SongPreviewOutcome::Truncated, since a file walk that ends
+///         without a preview has read the whole document.
+SongPreviewOutcome decodeSongPreviewFromFile(char const* path, RGB (*imageStore)[kDisplayWidth + kSideBarWidth],
+                                             ::Error* openError = nullptr);
 
 } // namespace deluge::storage

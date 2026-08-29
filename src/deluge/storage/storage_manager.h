@@ -27,6 +27,7 @@
 #include <cstdint>
 #include <expected>
 #include <optional>
+#include <span>
 
 extern void deleteOldSongBeforeLoadingNew();
 
@@ -62,6 +63,14 @@ public:
 
 	bool peekChar(char* thisChar);
 	bool readChar(char* thisChar);
+
+	/// @brief Whether the reader has run out of bytes to hand out.
+	///
+	/// For a file-backed reader that means end of file. For a memory-backed one it means the end of
+	/// the supplied buffer, which is NOT the same claim: the buffer may be a prefix of a longer file,
+	/// so a walk that stops here has been cut short rather than having seen everything there is.
+	[[nodiscard]] bool reachedEnd() const { return reachedBufferEnd; }
+
 	uint32_t bytesRemainingInBuffer() { return currentReadBufferEndPos - fileReadBufferCurrentPos; }
 	char* GetCurrentAddressInBuffer() { return fileClusterBuffer + fileReadBufferCurrentPos; }
 
@@ -206,6 +215,10 @@ public:
 class XMLDeserializer : public FileDeserializer {
 public:
 	XMLDeserializer();
+	/// @brief Read XML out of a caller-owned buffer instead of a file.
+	/// @param inbuf  First byte of the buffer; the caller owns it and must outlive this reader.
+	/// @param buflen Bytes readable at @p inbuf.
+	XMLDeserializer(uint8_t* inbuf, size_t buflen);
 	~XMLDeserializer() override = default;
 
 	bool prepareToReadTagOrAttributeValueOneCharAtATime() override;
@@ -360,6 +373,25 @@ Error openJsonFile(char const* path, JsonDeserializer& reader, char const* first
                    bool ignoreIncorrectFirmware = false);
 Error openDelugeFile(char const* path, char const* firstTagName, char const* altTagName = "",
                      bool ignoreIncorrectFirmware = false);
+
+/// @brief Open a Deluge document that is already in memory, with no I/O of any kind.
+///
+/// The in-memory twin of openDelugeFile(): it picks the deserializer the caller names rather than
+/// inferring it from a filename extension, points that deserializer at @p buffer, and runs the SAME
+/// openXMLFile()/openJsonFile() validation the file path runs.
+///
+/// @param buffer                 The document bytes. Borrowed, NOT copied: it must outlive every read
+///                               through `activeDeserializer` that follows. May be a PREFIX of a longer
+///                               document — the reader simply runs out where the buffer does, which
+///                               FileReader::reachedEnd() then reports.
+/// @param isJson                 `true` to parse as JSON, `false` as XML. The caller decides, because
+///                               a buffer has no filename to infer from.
+/// @param firstTagName           The root tag the document must open with.
+/// @param altTagName             An accepted alternative root tag.
+/// @param ignoreIncorrectFirmware Pass the file's `earliestCompatibleFirmware` check.
+/// @return Error::NONE, or Error::FILE_CORRUPTED if the root tag was not found.
+Error openDelugeBuffer(std::span<const uint8_t> buffer, bool isJson, char const* firstTagName,
+                       char const* altTagName = "", bool ignoreIncorrectFirmware = false);
 Error initSD();
 
 /// @brief Check whether a file exists at @p pathName.

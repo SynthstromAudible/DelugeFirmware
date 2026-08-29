@@ -15,30 +15,17 @@
  * If not, see <https://www.gnu.org/licenses/>.
  */
 
+// A tokenizer, and nothing more: it knows tags, attributes and bytes. The object model it used to
+// include wholesale (Song, Kit, Sound, the drums, the clips) is the business of whoever reads THROUGH
+// this, never of the reader itself -- and dropping it is what lets a host test link the parser.
 #include "definitions_cxx.hpp"
-#include "gui/ui/sound_editor.h"
-#include "gui/ui_timer_manager.h"
 #include "hid/display/display.h"
 #include "io/debug/log.h"
-#include "memory/general_memory_allocator.h"
-#include "model/clip/instrument_clip.h"
-#include "model/drum/gate_drum.h"
-#include "model/drum/midi_drum.h"
-#include "model/instrument/cv_instrument.h"
-#include "model/instrument/kit.h"
-#include "model/instrument/midi_instrument.h"
-#include "model/song/song.h"
-#include "modulation/midi/midi_param.h"
-#include "modulation/midi/midi_param_collection.h"
 #include "processing/engines/audio_engine.h"
-#include "processing/sound/sound_drum.h"
-#include "processing/sound/sound_instrument.h"
-#include "storage/audio/audio_file_manager.h"
+#include "storage/cluster/cluster.h"
 #include "storage/storage_manager.h"
+#include "util/c_string.h"
 #include "util/firmware_version.h"
-#include "util/functions.h"
-#include "util/try.h"
-#include "version.h"
 #include <string.h>
 
 /*******************************************************************************

@@ -66,7 +66,30 @@ file(GLOB_RECURSE deluge_SOURCES
         ../../src/deluge/gui/ui/browser/default_name.cpp
         # For waveform peak math tests
         ../../src/deluge/gui/waveform/waveform_peak_math.cpp
+        # For the song-preview decode differential: the REAL deserializer stack, not a stand-in.
+        # storage/file_reader.cpp exists so this is possible at all -- storage_manager.cpp, where the
+        # reader used to live, reaches the whole instrument model to build what it loads.
+        # mock_file_io.cpp (borrowed from tests/spec_io) backs deluge::io::File with an in-memory card.
+        ../../src/deluge/storage/song_preview.cpp
+        ../../src/deluge/storage/file_reader.cpp
+        ../../src/deluge/storage/Deserializer.cpp
+        ../../src/deluge/storage/JsonDeserializer.cpp
+        ../../src/deluge/io/file.cpp
+        ../../src/deluge/util/c_string.cpp
+        ../../src/deluge/util/firmware_version.cpp
+        ../../src/deluge/util/semver.cpp
+        ../spec_io/mock_file_io.cpp
 )
+
+# util/firmware_version.h is generated from a template at firmware-build time, and the deserializers
+# the song-preview tests link include it. Configure the REAL template here rather than adding another
+# hand-written stub: a stub would drift, and the firmware version this reports is what the parser
+# compares a song's earliestCompatibleFirmware against.
+set(PROJECT_VERSION_MAJOR 0)
+set(PROJECT_VERSION_MINOR 0)
+set(PROJECT_VERSION_PATCH 0)
+configure_file(../../src/deluge/util/firmware_version.h.in
+        ${CMAKE_CURRENT_BINARY_DIR}/generated/util/firmware_version.h @ONLY)
 
 add_executable(UnitTests
         RunAllTests.cpp
@@ -88,6 +111,7 @@ add_executable(UnitTests
         waveform_peak_math_tests.cpp
         waveform_overview_cache_tests.cpp
         song_preview_window_tests.cpp
+        song_preview_decode_tests.cpp
 )
 # WORKING_DIRECTORY: song_preview_window_tests.cpp reads a checked-in fixture by a path relative to
 # the repo root (tests/data/songs/...) and DELUGE_SONG_CORPUS points at a real directory on disk, so
@@ -103,6 +127,9 @@ target_include_directories(UnitTests PRIVATE
         ../../include
         ../../src
         ../../src/deluge
+        ../../src/OSLikeStuff        # scheduler_api.h, reached via libdeluge/scheduler.h
+        ../spec_io                   # mock_file_io.h, the in-memory card behind deluge::io::File
+        ${CMAKE_CURRENT_BINARY_DIR}/generated # util/firmware_version.h, configured just above
 )
 
 set_target_properties(UnitTests
