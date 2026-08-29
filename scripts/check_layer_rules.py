@@ -114,11 +114,21 @@ RULES = [
     (
         # Spec G §5: the shell reads no wall clock of its own -- every tick and gate deadline is
         # driven by the `now_ms` the caller passes in, so the shell can be driven by a fake clock
-        # in a spec exactly as it is driven by the real one on device.
+        # in a spec exactly as it is driven by the real one on device. Two rows, one glob each
+        # (this checker matches one glob per rule row): src/shell/** and src/ui/** both apply.
         "shell-no-clock",
         "src/shell/**",
         "symbol",
-        r"\bdeluge_clock_|\bstd::chrono\b",
+        r"\bdeluge_clock_|\bstd::chrono\b|\bclock\(\)|\btime\(",
+        "2026-08-26-ui-test-harness-design.md",
+    ),
+    (
+        # Same rule, src/ui/** side -- the scenes and widgets that draw on the shell's ticks must
+        # be exactly as clock-free as the shell that drives them (task-5 ratchet extension).
+        "shell-no-clock",
+        "src/ui/**",
+        "symbol",
+        r"\bdeluge_clock_|\bstd::chrono\b|\bclock\(\)|\btime\(",
         "2026-08-26-ui-test-harness-design.md",
     ),
 ]

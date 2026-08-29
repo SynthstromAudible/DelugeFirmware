@@ -64,6 +64,13 @@ struct RunOptions {
 	/// What to put on the stack before the first tick: `Shell::init(*initial_scene)` when set,
 	/// otherwise `Shell::boot("test")` -- the default boot path, ending on the `Boot` splash.
 	std::optional<SceneId> initial_scene;
+	/// Spec G §6's migration acceptance hook. When set, `expect_script_goldens` runs the script
+	/// TWICE -- once against `registry` (its own parameter), once against `*second_registry` --
+	/// into sibling `got/` trees, and diffs those two trees against EACH OTHER (byte-for-byte,
+	/// with an extra/missing-file check) instead of against the recorded goldens. This is how
+	/// spec F asserts "the same script produces the same snapshots against the legacy UI and the
+	/// new scene": two scene tables, one script, nothing to record ahead of time.
+	const SceneRegistry* second_registry = nullptr;
 };
 
 /// @brief What one `run_script` call produced.
@@ -376,6 +383,46 @@ inline bool board_from_spec(const DelugeBoard& base, std::string_view spec, Boar
 	return true;
 }
 
+/// @brief The first file that differs (or is missing on one side) between two snapshot trees, in
+///        sorted order over the union of both directories' names.
+///
+/// Spec G §6's migration acceptance: "the same script produces the same snapshots" is checked by
+/// running it twice and diffing the two `got/` trees against each other, not against a golden --
+/// there is nothing to record ahead of time when the whole point is that two *sources* must agree
+/// with each other. Sorted union, not a plain zip, so a file present on only one side is caught
+/// the same way a byte-different one is, and the name reported is always the alphabetically first
+/// disagreement rather than whichever `directory_iterator` happens to visit first.
+/// @param a First snapshot directory.
+/// @param b Second snapshot directory.
+/// @return The first differing filename, or an empty string when the trees are identical (same
+///         file set, byte-identical contents).
+inline std::string first_mismatch(const std::filesystem::path& a, const std::filesystem::path& b) {
+	namespace fs = std::filesystem;
+	std::vector<std::string> names;
+	for (const fs::path& dir : {a, b}) {
+		if (!fs::is_directory(dir)) {
+			continue;
+		}
+		for (const fs::directory_entry& e : fs::directory_iterator(dir)) {
+			names.push_back(e.path().filename().string());
+		}
+	}
+	std::sort(names.begin(), names.end());
+	names.erase(std::unique(names.begin(), names.end()), names.end());
+	for (const std::string& file : names) {
+		std::ifstream ai(a / file);
+		std::stringstream at;
+		at << ai.rdbuf();
+		std::ifstream bi(b / file);
+		std::stringstream bt;
+		bt << bi.rdbuf();
+		if (!ai.good() || !bi.good() || at.str() != bt.str()) {
+			return file;
+		}
+	}
+	return {};
+}
+
 } // namespace detail
 
 /// @brief Run \p script_text against a fresh `Shell` over a fresh `FakeSurfaceSet`, writing every
@@ -634,6 +681,25 @@ inline RunResult expect_script_goldens(Self& self, std::string_view script_name,
 	                       : std::string("ran to completion")))
 	    .to_equal(name + ": ran to completion");
 	if (result.error) {
+		return result;
+	}
+
+	if (opts.second_registry != nullptr) {
+		// Migration hook (spec G §6, RunOptions::second_registry): the second run's directory is
+		// a sibling of the first, never the golden tree -- this mode never touches goldens at all.
+		const fs::path got_second = fs::path(UI_GOT_DIR) / "shell" / (name + "-second");
+		fs::remove_all(got_second, ec);
+		const RunResult second = run_script(text.str(), *opts.second_registry, services, got_second.string(), opts);
+		expect(name + " (second run): "
+		       + (second.error ? "line " + std::to_string(second.error->line) + ": " + second.error->message
+		                       : std::string("ran to completion")))
+		    .to_equal(name + " (second run): ran to completion");
+		if (second.error) {
+			return result;
+		}
+		const std::string mismatch = detail::first_mismatch(got, got_second);
+		expect(name + ": " + (mismatch.empty() ? "identical" : "first differing file: " + mismatch))
+		    .to_equal(name + ": identical");
 		return result;
 	}
 

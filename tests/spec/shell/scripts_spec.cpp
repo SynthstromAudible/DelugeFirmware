@@ -37,7 +37,7 @@ constexpr uint16_t kRecordBlinkMs = 500;
 /// One instance covers every stack entry -- the registry holds scene *singletons*, so a second
 /// push re-enters this same object with a new `SceneId` -- which is exactly why `arg_` is set in
 /// `on_enter` rather than assumed.
-class DemoScene final : public Scene {
+class DemoScene : public Scene {
 public:
 	SceneKind kind() const override { return kDemo; }
 
@@ -178,6 +178,33 @@ struct DemoRegistry {
 	DemoRegistry& operator=(const DemoRegistry&) = delete;
 };
 
+/// @brief A `DemoScene` twin that draws one extra OLED pixel -- used only to prove the migration
+///        double-run (`RunOptions::second_registry`, spec G §6) catches a real divergence between
+///        two scene tables. Everything else is identical to `DemoScene`.
+class DemoSceneExtraPixel final : public DemoScene {
+public:
+	void render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& frame) override {
+		DemoScene::render_oled(role, frame);
+		if (role == SurfaceRole::Main) {
+			frame.canvas.draw_pixel(0, 0);
+		}
+	}
+};
+
+/// @brief As `DemoRegistry`, but with `DemoSceneExtraPixel` in the one application slot.
+struct DemoRegistryExtraPixel {
+	DemoSceneExtraPixel demo;
+	std::array<Scene*, 18> table{};
+	SceneRegistry reg{std::span<Scene* const>{table}};
+
+	DemoRegistryExtraPixel() {
+		table[static_cast<size_t>(kDemo)] = &demo;
+		reg = SceneRegistry{std::span<Scene* const>{table}};
+	}
+	DemoRegistryExtraPixel(const DemoRegistryExtraPixel&) = delete;
+	DemoRegistryExtraPixel& operator=(const DemoRegistryExtraPixel&) = delete;
+};
+
 /// @brief The whole contents of \p path.
 /// @param path File to read.
 /// @return Its bytes, or an empty string if it could not be opened.
@@ -312,6 +339,48 @@ describe shell_scripts("shell script harness (level 2)", $ {
 		std::getline(in, dims);
 		expect(header).to_equal(std::string("P1"));
 		expect(dims).to_equal(std::string("128 32"));
+	});
+
+	it("migration hook: the same registry run twice produces identical trees", _ {
+		// Spec G §6's migration acceptance, the "nothing changed" side: two independent
+		// DemoRegistry instances (so the second run is not literally the same objects), same
+		// script, same scene table shape -- the double-run diff must find no disagreement.
+		DemoRegistry r1;
+		DemoRegistry r2;
+		uitest::RunOptions opts;
+		opts.initial_scene = SceneId{kDemo, 0};
+		opts.second_registry = &r2.reg;
+		const uitest::RunResult result = uitest::expect_script_goldens(self, "popup", r1.reg, Services{}, opts);
+		expect(result.snapshots).to_equal(uint32_t(4));
+	});
+
+	it("migration hook: a registry that draws one extra pixel is caught, naming the .pbm", _ {
+		// The other side: two registries that visibly disagree. Run both by hand (bypassing
+		// expect_script_goldens, which would fail this very `it` block on the mismatch it exists
+		// to detect) and assert on the diff helper directly.
+		DemoRegistry good;
+		DemoRegistryExtraPixel bad;
+		const std::string out_good = std::string(UI_GOT_DIR) + "/shell/migration-mismatch-good";
+		const std::string out_bad = std::string(UI_GOT_DIR) + "/shell/migration-mismatch-bad";
+		std::error_code ec;
+		std::filesystem::remove_all(out_good, ec);
+		std::filesystem::remove_all(out_bad, ec);
+
+		uitest::RunOptions opts;
+		opts.initial_scene = SceneId{kDemo, 0};
+		const std::string script = read_text(std::string(UI_SCRIPTS_DIR) + "/popup.txt");
+
+		const uitest::RunResult a = uitest::run_script(script, good.reg, Services{}, out_good, opts);
+		const uitest::RunResult b = uitest::run_script(script, bad.reg, Services{}, out_bad, opts);
+		expect(a.error.has_value()).to_be_false();
+		expect(b.error.has_value()).to_be_false();
+
+		const std::string mismatch = uitest::detail::first_mismatch(out_good, out_bad);
+		expect(mismatch.empty()).to_be_false();
+		const std::string suffix = ".oled0.pbm";
+		const bool names_a_pbm =
+		    mismatch.size() >= suffix.size() && mismatch.compare(mismatch.size() - suffix.size(), suffix.size(), suffix) == 0;
+		expect(names_a_pbm).to_be_true();
 	});
 });
 // clang-format on
