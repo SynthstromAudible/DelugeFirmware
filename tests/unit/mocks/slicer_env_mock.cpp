@@ -30,8 +30,10 @@
 #include "processing/sound/sound_drum.h"
 #include "storage/multi_range/multisample_range.h"
 
+#include <cstddef>
 #include <cstring>
 #include <new>
+#include <string>
 
 namespace {
 
@@ -192,20 +194,40 @@ void setTickSquares(const uint8_t* squares, const uint8_t* colours) {
 
 // ---------------------------------------------------------------------------------------------
 // Everything else `slicer.cpp` references. None of it runs in the audition specs -- these exist so
-// the real translation unit links.
+// the real translation unit links. Value-returning symbols use DELUGE_STUB_RET, so a future spec
+// that drives one gets a defined (if inert) answer rather than an undefined return; see that
+// macro's comment for the failure mode this avoids.
 // ---------------------------------------------------------------------------------------------
 
-/// Define an empty function under an explicit mangled name. Used where writing the real signature
-/// would mean pulling another header's worth of model layer into this file for a body that is never
-/// entered.
+/// Define a do-nothing function under an explicit mangled name.
+///
+/// The asm label means the definition need not restate the real declaration, which for a member
+/// would drag another header's worth of model layer in here. A member's `this` is just a leading
+/// stack argument the stub ignores, and the i386 SysV ABI is caller-cleanup, so a nullary stub is
+/// call-compatible with any non-variadic signature.
+///
+/// USE ONLY FOR A FUNCTION RETURNING void. A `void` stub standing in for a value-returning function
+/// leaves its caller reading an undefined return -- garbage at runtime, NOT a link error, i.e. the
+/// one failure mode of this file that is silent. Value-returning symbols go through
+/// DELUGE_STUB_RET below, so the return is defined even for a spec that has not been written yet.
 #define DELUGE_STUB_FN(id, mangled)                                                                                    \
 	void id() asm(mangled);                                                                                            \
 	void id() {                                                                                                        \
 	}
 
+/// As DELUGE_STUB_FN, but for a function that returns a value: @p type is its real return type and
+/// @p value the answer every call gets.
+#define DELUGE_STUB_RET(id, mangled, type, value)                                                                      \
+	type id() asm(mangled);                                                                                            \
+	type id() {                                                                                                        \
+		return value;                                                                                                  \
+	}
+
 /// Zeroed storage under an explicit mangled name, for a vtable or a global whose type is never
-/// touched here.
-#define DELUGE_STUB_DATA(id, mangled, bytes) unsigned char id[bytes] asm(mangled) = {};
+/// touched here. Over-aligned rather than left at `unsigned char[]`'s natural alignment of 1: some
+/// of these ARE accessed through their real type (`waveformBasicNavigator`), which UBSan reports as
+/// a misaligned access at alignment 1 even where x86 tolerates it.
+#define DELUGE_STUB_DATA(id, mangled, bytes) alignas(std::max_align_t) unsigned char id[bytes] asm(mangled) = {};
 
 // `SoundDrum::killAllVoices()` IS entered (Slicer::stopAnyPreviewing calls it) but is stubbed under
 // its mangled name rather than written out as a member definition: defining a member of `SoundDrum`
@@ -214,27 +236,31 @@ void setTickSquares(const uint8_t* squares, const uint8_t* colours) {
 // as data below instead; nothing in these specs ever dispatches through it.
 DELUGE_STUB_FN(stub_soundDrumKillAllVoices, "_ZN9SoundDrum13killAllVoicesEv")
 
-DELUGE_STUB_FN(stub_multisampleRangeGetAudioFileHolder, "_ZN16MultisampleRange18getAudioFileHolderEv")
-DELUGE_STUB_FN(stub_getUIUpOneLevel, "_Z15getUIUpOneLeveli")
+DELUGE_STUB_RET(stub_multisampleRangeGetAudioFileHolder, "_ZN16MultisampleRange18getAudioFileHolderEv",
+                AudioFileHolder*, &g_range.get()->sampleHolder)
+DELUGE_STUB_RET(stub_getUIUpOneLevel, "_Z15getUIUpOneLeveli", UI*, nullptr)
 DELUGE_STUB_FN(stub_renderUIsForOled, "_Z16renderUIsForOledv")
 DELUGE_STUB_FN(stub_uiNeedsRendering, "_Z16uiNeedsRenderingP2UIjj")
-DELUGE_STUB_FN(stub_getCurrentInstrument, "_Z20getCurrentInstrumentv")
-DELUGE_STUB_FN(stub_getCurrentInstrumentClip, "_Z24getCurrentInstrumentClipv")
+DELUGE_STUB_RET(stub_getCurrentInstrument, "_Z20getCurrentInstrumentv", Instrument*, nullptr)
+DELUGE_STUB_RET(stub_getCurrentInstrumentClip, "_Z24getCurrentInstrumentClipv", InstrumentClip*, nullptr)
 DELUGE_STUB_FN(stub_audioEngineStopAnyPreviewing, "_ZN11AudioEngine17stopAnyPreviewingEv")
-DELUGE_STUB_FN(stub_voiceSampleGetPlaySample, "_ZN11VoiceSample13getPlaySampleEP6SampleP19SamplePlaybackGuide")
+DELUGE_STUB_RET(stub_voiceSampleGetPlaySample, "_ZN11VoiceSample13getPlaySampleEP6SampleP19SamplePlaybackGuide",
+                int32_t, 0)
 DELUGE_STUB_FN(stub_actionLoggerDeleteAllLogs, "_ZN12ActionLogger13deleteAllLogsEv")
-DELUGE_STUB_FN(stub_matrixDriverIsPadPressed, "_ZN12MatrixDriver12isPadPressedEii")
-DELUGE_STUB_FN(stub_paramManagerSetupWithPatching, "_ZN12ParamManager17setupWithPatchingEv")
+DELUGE_STUB_RET(stub_matrixDriverIsPadPressed, "_ZN12MatrixDriver12isPadPressedEii", bool, false)
+DELUGE_STUB_RET(stub_paramManagerSetupWithPatching, "_ZN12ParamManager17setupWithPatchingEv", Error, Error::NONE)
 DELUGE_STUB_FN(stub_paramManagerDtor, "_ZN12ParamManagerD2Ev")
 DELUGE_STUB_FN(stub_sampleHolderSetAudioFile, "_ZN12SampleHolder12setAudioFileEP9AudioFilebbi")
 DELUGE_STUB_FN(stub_sampleBrowserExitAndNeverDeleteDrum, "_ZN13SampleBrowser22exitAndNeverDeleteDrumEv")
-DELUGE_STUB_FN(stub_sampleBrowserClaimAudioFile, "_ZN13SampleBrowser27claimAudioFileForInstrumentEb")
-DELUGE_STUB_FN(stub_sampleBrowserPadAction, "_ZN13SampleBrowser9padActionEiii")
+DELUGE_STUB_RET(stub_sampleBrowserClaimAudioFile, "_ZN13SampleBrowser27claimAudioFileForInstrumentEb", Error,
+                Error::NONE)
+DELUGE_STUB_RET(stub_sampleBrowserPadAction, "_ZN13SampleBrowser9padActionEiii", ActionResult, ActionResult::DEALT_WITH)
 DELUGE_STUB_FN(stub_instrumentClipAssignDrums,
                "_ZN14InstrumentClip21assignDrumsToNoteRowsEP29ModelStackWithTimelineCounterbi")
-DELUGE_STUB_FN(stub_waveformRendererRenderFullScreen,
-               "_ZN16WaveformRenderer16renderFullScreenEP6SampleyyPA18_3RGBP18WaveformRenderDataP14SampleRecorderSt8"
-               "optionalIS2_Ebi")
+DELUGE_STUB_RET(stub_waveformRendererRenderFullScreen,
+                "_ZN16WaveformRenderer16renderFullScreenEP6SampleyyPA18_3RGBP18WaveformRenderDataP14SampleRecorderSt8"
+                "optionalIS2_Ebi",
+                bool, false)
 DELUGE_STUB_FN(stub_instrumentClipViewRecalculateColours, "_ZN18InstrumentClipView18recalculateColoursEv")
 DELUGE_STUB_FN(stub_modControllableAudioDtor, "_ZN20ModControllableAudioD2Ev")
 DELUGE_STUB_FN(stub_sampleHolderForVoiceClaimClusterReasons, "_ZN20SampleHolderForVoice19claimClusterReasonsEbi")
@@ -245,7 +271,7 @@ DELUGE_STUB_FN(stub_uiModEncoderButtonAction, "_ZN2UI22modEncoderButtonActionEhb
 DELUGE_STUB_FN(stub_uiDisplayOrLanguageChanged, "_ZN2UI24displayOrLanguageChangedEv")
 DELUGE_STUB_FN(stub_uiClose, "_ZN2UI5closeEv")
 DELUGE_STUB_FN(stub_uiCtor, "_ZN2UIC2Ev")
-DELUGE_STUB_FN(stub_kitGetDrumFromIndex, "_ZN3Kit16getDrumFromIndexEi")
+DELUGE_STUB_RET(stub_kitGetDrumFromIndex, "_ZN3Kit16getDrumFromIndexEi", Drum*, reinterpret_cast<Drum*>(g_drum.get()))
 DELUGE_STUB_FN(stub_kitResetDrumTempValues, "_ZN3Kit19resetDrumTempValuesEv")
 DELUGE_STUB_FN(stub_kitAddDrum, "_ZN3Kit7addDrumEP4Drum")
 DELUGE_STUB_FN(stub_drumCtor, "_ZN4DrumC2E8DrumType")
@@ -261,16 +287,16 @@ DELUGE_STUB_FN(stub_canvasDrawRectangle, "_ZN6deluge3hid7display11oled_canvas6Ca
 DELUGE_STUB_FN(stub_canvasClearAreaExact, "_ZN6deluge3hid7display11oled_canvas6Canvas14clearAreaExactEiiii")
 DELUGE_STUB_FN(stub_canvasDrawStringCentred, "_ZN6deluge3hid7display11oled_canvas6Canvas17drawStringCentredEPKciiii")
 DELUGE_STUB_FN(stub_canvasDrawHorizontalLine, "_ZN6deluge3hid7display11oled_canvas6Canvas18drawHorizontalLineEiii")
-DELUGE_STUB_FN(stub_memoryAllocFast, "_ZN6deluge6memory10alloc_fastEjj")
-DELUGE_STUB_FN(stub_stringFromInt, "_ZN6deluge6string7fromIntB5cxx11Eij")
-DELUGE_STUB_FN(stub_ownerRunOrInline, "_ZN6deluge7storage5Owner13run_or_inlineEPFvPvES2_")
+DELUGE_STUB_RET(stub_memoryAllocFast, "_ZN6deluge6memory10alloc_fastEjj", void*, nullptr)
+DELUGE_STUB_RET(stub_stringFromInt, "_ZN6deluge6string7fromIntB5cxx11Eij", std::string, std::string{})
+DELUGE_STUB_RET(stub_ownerRunOrInline, "_ZN6deluge7storage5Owner13run_or_inlineEPFvPvES2_", bool, true)
 DELUGE_STUB_FN(stub_sourceSetOscType, "_ZN6Source10setOscTypeE7OscType")
 DELUGE_STUB_FN(stub_sourceDtor, "_ZN6SourceD1Ev")
-DELUGE_STUB_FN(stub_buttonsIsShiftButtonPressed, "_ZN7Buttons20isShiftButtonPressedEv")
-DELUGE_STUB_FN(stub_sampleControlsIsCurrentlyReversed, "_ZNK14SampleControls19isCurrentlyReversedEv")
+DELUGE_STUB_RET(stub_buttonsIsShiftButtonPressed, "_ZN7Buttons20isShiftButtonPressedEv", bool, false)
+DELUGE_STUB_RET(stub_sampleControlsIsCurrentlyReversed, "_ZNK14SampleControls19isCurrentlyReversedEv", bool, false)
 DELUGE_STUB_FN(stub_delugeDealloc, "delugeDealloc")
 DELUGE_STUB_FN(stub_intToString, "intToString")
-DELUGE_STUB_FN(stub_snprintf, "snprintf_")
+DELUGE_STUB_RET(stub_snprintf, "snprintf_", int, 0)
 
 // Globals. Only `waveformBasicNavigator` is read for its contents (its `sample`); the rest are
 // merely addressed.

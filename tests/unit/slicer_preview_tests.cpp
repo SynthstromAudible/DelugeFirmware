@@ -31,18 +31,18 @@ public:
 
 	void forceLoadMiss(bool on) { deluge::test::forceLoadInProgress = on; }
 
-	/// Stands in for `Slicer::preview()`'s dispatch: the same request → attempt → is_current → drive
-	/// → complete sequence, so the spec can see whether the attempt deferred.
-	void previewForTarget(const Slicer::PreviewTarget& target) {
-		CHECK(slicer_.previewLoad_.request(target));
-		const auto attempt = slicer_.previewLoad_.attempt();
-		deferred_ = slicer_.previewLoad_.is_current(attempt) && slicer_.previewForTarget(attempt);
-		(void)slicer_.previewLoad_.complete(attempt, deferred_);
-	}
+	/// Calls the shipped drive rather than restating it: `drivePreview()` is exactly what
+	/// `Slicer::preview()` runs, and it already returns the "deferred" answer the specs assert on.
+	/// Restating the request → attempt → is_current → work → complete sequence here would leave the
+	/// latest-wins hand-off loop and the is_current gate inside it unexercised -- the "spec restates
+	/// the caller" shape this whole spec file exists to avoid.
+	void previewForTarget(const Slicer::PreviewTarget& target) { deferred_ = slicer_.drivePreview(target); }
 
 	void graphicsRoutine() { slicer_.graphicsRoutine(); }
 
 	[[nodiscard]] bool deferred() const { return deferred_; }
+	/// Whether a deferral is armed for the next `graphicsRoutine()` -- i.e. the re-ask loop is alive.
+	[[nodiscard]] bool previewIsPending() const { return slicer_.previewLoad_.pending(); }
 	[[nodiscard]] int32_t auditionNotesSent() const { return deluge::test::auditionNoteCount; }
 	[[nodiscard]] int32_t lastAuditionOn() const { return deluge::test::lastAuditionOn; }
 
@@ -74,6 +74,15 @@ TEST(SlicerPreview, aColdPressDefersThenSoundsOnTheNextTick) {
 	probe.previewForTarget({.startPoint = 0, .endPoint = -1, .transpose = 0, .on = 1});
 	CHECK(probe.deferred());
 	CHECK_EQUAL(0, probe.auditionNotesSent());
+
+	// Re-driven while the load STILL misses: the re-ask must ask the loader again, not walk past it.
+	// The holder's filePath was assigned before the deferred load, so a guard that asks only "is this
+	// a different sample?" answers no here and falls straight through to the audition note -- sounding
+	// a slice of a sample that never arrived. previewForTarget() also asks whether the file actually
+	// landed (`audioFile == nullptr`), which is what this pins.
+	probe.graphicsRoutine();
+	CHECK_EQUAL(0, probe.auditionNotesSent());
+	CHECK(probe.previewIsPending());
 
 	probe.forceLoadMiss(false);
 	probe.graphicsRoutine();

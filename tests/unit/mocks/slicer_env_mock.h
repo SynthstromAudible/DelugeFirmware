@@ -29,6 +29,15 @@
 ///
 /// Only the collaborators the audition path actually touches behave; everything else `slicer.cpp`
 /// references is defined just far enough to satisfy the linker.
+///
+/// FAILURE MODES, for whoever extends this. A collaborator `slicer.cpp` gains that is not stubbed
+/// is an undefined-symbol LINK error -- loud, and the reason compiling a firmware UI translation
+/// unit into the test binary is affordable. The failure that is NOT loud is a value-returning
+/// function stubbed as if it returned void, whose caller then reads garbage; `DELUGE_STUB_RET` in
+/// the .cpp exists to prevent that, and every value-returning symbol goes through it. A stub that
+/// returns a plausible-but-inert value (`nullptr`, `Error::NONE`) is still only inert: a spec that
+/// drives a path THROUGH one has to give it real behaviour, exactly as the collaborators above
+/// were given theirs.
 namespace deluge::test {
 
 /// When true, every `AudioFileHolder::loadFile()` answers `Error::LOAD_IN_PROGRESS` -- the "sample
