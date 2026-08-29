@@ -864,24 +864,48 @@ std::string Shell::state_lines() const {
 	bool popup_shown = false;
 	for (size_t k = scenes.size(); k-- > 0;) {
 		const SceneKind kind = scenes[k]->kind();
-		popup_shown = popup_shown || kind == SceneKind::Popup;
+		const uint16_t arg = stack_.id_at(k).arg;
 		out += "scene ";
 		if (const char* name = scene_kind_name(kind); name != nullptr) {
 			out += name;
+			// The one shell kind whose *flavour* is visible on screen, and therefore the one worth
+			// qualifying: two popups with the same text but different `PopupType`s draw different
+			// boxes. Every other shell scene is spelled bare -- their `arg`s (the screensaver's
+			// seed, say) are inputs to an animation, not something a snapshot can be read against.
+			if (kind == SceneKind::Popup) {
+				popup_shown = true;
+				out += '/';
+				if (const char* type = popup_type_name(popup_.popup_type()); type != nullptr) {
+					out += type;
+				}
+				else {
+					out += std::to_string(static_cast<unsigned>(popup_.popup_type()));
+				}
+			}
 		}
 		else {
+			// An application kind, which the shell has no vocabulary for: spelled numerically,
+			// qualified by the `arg` that selects *which* clip/section/track the scene is showing.
+			// Omitted when zero, so the common "the scene, no argument" case stays `app16`.
 			out += "app";
 			out += std::to_string(static_cast<unsigned>(kind));
+			if (arg != 0) {
+				out += '/';
+				out += std::to_string(static_cast<unsigned>(arg));
+			}
 		}
-		out += ' ';
-		out += std::to_string(static_cast<unsigned>(stack_.id_at(k).arg));
 		out += '\n';
 	}
 	if (lowering_.input_locked()) {
-		out += "lock 1\n";
+		// One lock, one reason: `InputLowering` models the stem-export/song-load gate as a bare
+		// bool (`set_input_lock`), so there is no reason to spell. If it ever grows one, this is
+		// where the reason's name goes -- the line's shape already has room for it.
+		out += "lock input\n";
 	}
 	if (popup_shown) {
 		out += "notice ";
+		out += notice_kind_name(notices_.last_notice_kind());
+		out += ' ';
 		out += notices_.last_popup_text();
 		out += '\n';
 	}

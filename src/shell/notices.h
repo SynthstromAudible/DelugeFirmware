@@ -31,6 +31,19 @@ inline constexpr uint8_t kPopupTypeGeneral = 1;
 inline constexpr uint8_t kPopupTypeNotification = 10;
 /// @}
 
+/// @brief The name of legacy popup type \p popup_type, for `.state` "scene Popup/<type>" lines.
+///
+/// The eleven values the mirror above enumerates, spelled in this layer's `PascalCase` rather than
+/// legacy's `SCREAMING_CASE`; a value outside that range has no name and is spelled by the caller.
+/// @param popup_type The legacy `PopupType` value, as a bare `uint8_t`.
+/// @return A static, NUL-terminated name, or nullptr for a value the mirror does not cover.
+const char* popup_type_name(uint8_t popup_type);
+
+/// @brief The name of notice kind \p k, for `.state` "notice <Kind> <arg>" lines.
+/// @param k The kind to name.
+/// @return A static, NUL-terminated name; never null (`Notice::Kind` has no unnamed values).
+const char* notice_kind_name(notify::Notice::Kind k);
+
 /// @brief A transient message drawn over whatever is beneath it: legacy's `OLED::popupText`/
 ///        `displayPopup`, ported to the shell's `Scene` vocabulary.
 ///
@@ -59,6 +72,11 @@ public:
 	/// @brief The text last shown, for `.state` "notice" lines and specs.
 	/// @return A NUL-terminated pointer into this scene's own 48-byte buffer.
 	const char* text() const { return text_; }
+
+	/// @brief The legacy `PopupType` the last `show()` selected, for `.state` "scene Popup/<type>"
+	///        lines and specs.
+	/// @return The type value, already folded (0 -> `General`) by whoever called `show()`.
+	uint8_t popup_type() const { return popup_type_; }
 
 	void render_oled(SurfaceRole role, ui::oled::OledFrame& frame) override;
 	/// @brief Never transparent on `Main`: a shown popup draws its whole box (border or cleared
@@ -327,6 +345,16 @@ public:
 	///         has been shown yet.
 	const char* last_popup_text() const { return popup_.text(); }
 
+	/// @brief The `Notice::Kind` that produced the popup `last_popup_text()` reports, for `.state`
+	///        "notice <Kind> <arg>" lines.
+	///
+	/// Only the two kinds that can raise a popup are ever recorded here -- `Kind::Error` from
+	/// `drain()`'s error case, `Kind::Text` from its text case and from the public `show_popup()`
+	/// an `Action::Kind::Popup` reaches. A console line, a working animation or a cancel never
+	/// touches it, since none of them is what a shown popup came from.
+	/// @return The kind of the most recent popup; `Kind::Text` if no popup has been shown yet.
+	notify::Notice::Kind last_notice_kind() const { return last_notice_kind_; }
+
 private:
 	/// @brief The body both `show_popup()` and `drain()`'s `Kind::Text` case share: show \p text
 	///        at \p popup_type with an explicit \p timeout_ms (0 = persistent, per
@@ -337,13 +365,17 @@ private:
 	///                    caller.
 	/// @param now_ms     The tick's wall clock.
 	/// @param timeout_ms How long the popup should stay up; 0 for a persistent (`Warn`) notice.
-	void show_popup_with_timeout(std::string_view text, uint8_t popup_type, uint32_t now_ms, uint32_t timeout_ms);
+	/// @param kind       What raised it, recorded for `last_notice_kind()`.
+	void show_popup_with_timeout(std::string_view text, uint8_t popup_type, uint32_t now_ms, uint32_t timeout_ms,
+	                             notify::Notice::Kind kind);
 
 	SceneStack& stack_;
 	const BoardProfile& profile_;
 	PopupScene& popup_;
 	ConsoleScene& console_;
 	WorkingScene& working_;
+	/// What raised the popup `popup_` currently holds; see `last_notice_kind()`.
+	notify::Notice::Kind last_notice_kind_ = notify::Notice::Kind::Text;
 };
 
 } // namespace deluge::ui::shell

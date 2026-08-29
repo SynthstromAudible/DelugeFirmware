@@ -60,6 +60,35 @@ inline constexpr int16_t kErrorAbortedByUser = 19;
 
 } // namespace
 
+const char* popup_type_name(uint8_t popup_type) {
+	// The eleven values `notices.h`'s "Legacy PopupType, mirrored numerically" block enumerates,
+	// in their declaration order, so the index *is* the legacy value.
+	static constexpr const char* kNames[] = {
+	    "None",        "General", "Loading", "Probability", "Iterance",
+	    "Fill",        "Swing",   "Tempo",   "Quantize",    "ThresholdRecordingMode",
+	    "Notification"};
+	static_assert(sizeof(kNames) / sizeof(kNames[0]) == kPopupTypeNotification + 1);
+	return popup_type < sizeof(kNames) / sizeof(kNames[0]) ? kNames[popup_type] : nullptr;
+}
+
+const char* notice_kind_name(notify::Notice::Kind k) {
+	switch (k) {
+	case notify::Notice::Kind::Error:
+		return "Error";
+	case notify::Notice::Kind::Text:
+		return "Text";
+	case notify::Notice::Kind::Console:
+		return "Console";
+	case notify::Notice::Kind::Working:
+		return "Working";
+	case notify::Notice::Kind::ClearWorking:
+		return "ClearWorking";
+	case notify::Notice::Kind::CancelPopup:
+		return "CancelPopup";
+	}
+	return "Text";
+}
+
 ui::oled::PopupStyle PopupScene::style_for(uint8_t popup_type) {
 	return popup_type == kPopupTypeNotification ? ui::oled::PopupStyle::Notification : ui::oled::PopupStyle::Framed;
 }
@@ -164,7 +193,8 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 			// Otherwise `displayPopup` runs with its default `type = PopupType::GENERAL`
 			// (display.h:48-49) -- always General, never `n.popup_type` -- and the ordinary
 			// (non-persistent) timeout: `Display::displayError` never reads severity.
-			show_popup(profile_.error_text_or_digits(n.error_code, scratch), kPopupTypeGeneral, now_ms);
+			show_popup_with_timeout(profile_.error_text_or_digits(n.error_code, scratch), kPopupTypeGeneral, now_ms,
+			                        timeout_for(kPopupTypeGeneral), notify::Notice::Kind::Error);
 			break;
 		case notify::Notice::Kind::Text: {
 			const std::string_view text =
@@ -175,7 +205,7 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 			// `persistent = !numFlashes` (oled.h:156), which oled.cpp:642 turns into "never set
 			// the DISPLAY timer" -- everything else keeps the ordinary timeout_for() duration.
 			const uint32_t timeout_ms = n.severity == notify::Notice::Severity::Warn ? 0 : timeout_for(type);
-			show_popup_with_timeout(text, type, now_ms, timeout_ms);
+			show_popup_with_timeout(text, type, now_ms, timeout_ms, notify::Notice::Kind::Text);
 			break;
 		}
 		case notify::Notice::Kind::Console: {
@@ -209,10 +239,14 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 
 void Notices::show_popup(std::string_view text, uint8_t popup_type, uint32_t now_ms) {
 	const uint8_t type = popup_type_of(popup_type);
-	show_popup_with_timeout(text, type, now_ms, timeout_for(type));
+	// `Kind::Text`: an `Action::Kind::Popup` draws the same popup a text notice does, through this
+	// same funnel -- see this method's own doc -- so that is the kind `.state` reports for it.
+	show_popup_with_timeout(text, type, now_ms, timeout_for(type), notify::Notice::Kind::Text);
 }
 
-void Notices::show_popup_with_timeout(std::string_view text, uint8_t popup_type, uint32_t now_ms, uint32_t timeout_ms) {
+void Notices::show_popup_with_timeout(std::string_view text, uint8_t popup_type, uint32_t now_ms, uint32_t timeout_ms,
+                                      notify::Notice::Kind kind) {
+	last_notice_kind_ = kind;
 	// `PopupScene::show` fully overwrites text/type/timeout on every call, whatever the previous
 	// call's persistence was -- exactly as legacy's OLED::popupText unconditionally sets or unsets
 	// TimerName::DISPLAY for *this* call (oled.cpp:636-643), never consulting the popup's prior

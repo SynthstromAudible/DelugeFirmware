@@ -253,10 +253,17 @@ public:
 
 	/// @brief The shell's half of the UI test harness's `.state` snapshot (spec G §3).
 	///
-	/// `"scene <name> <arg>"` per stacked scene, **top first**, then `"lock 1"` while the input
-	/// lock is held, then `"notice <text>"` while the popup scene is on the stack. The surfaces'
-	/// half (pads, LEDs, indicators) comes from the `SurfaceSet` side of the harness. A scene of
-	/// an application kind, which the shell has no name for, is spelled `app<n>`.
+	/// `"scene <KindName>[/<qualifier>]"` per stacked scene, **top first**, then `"lock input"`
+	/// while the input lock is held, then `"notice <Kind> <arg>"` while the popup scene is on the
+	/// stack. The surfaces' half (pads, LEDs, indicators) comes from the `SurfaceSet` side of the
+	/// harness.
+	///
+	/// A scene of an application kind, which the shell has no name for, is spelled `app<n>`,
+	/// qualified by its `SceneId::arg` when that is non-zero (`app16/3`). `Popup` is qualified by
+	/// its popup type's name (`Popup/General`); every other shell kind is spelled bare. The
+	/// `notice` line names the `Notice::Kind` that raised the popup and the text it resolved to
+	/// (`notice Text SAVED`; an error with no l10n bridge resolves to its digits, `notice Error
+	/// 248`).
 	/// @return The lines, each newline-terminated; empty when nothing is stacked or locked.
 	std::string state_lines() const;
 

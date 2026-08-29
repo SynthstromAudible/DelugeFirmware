@@ -564,7 +564,7 @@ describe shell_tick("shell::Shell::tick", $ {
 		expect(r.shell.stack().top().kind() == SceneKind::Popup).to_be_true();
 		expect(std::string(r.shell.notices().last_popup_text())).to_equal(std::string(kPopupText));
 		expect(r.shell.state_lines())
-		    .to_equal(std::string("scene Popup 0\nscene app16 0\nnotice SAVED\n"));
+		    .to_equal(std::string("scene Popup/General\nscene app16\nnotice Text SAVED\n"));
 	});
 
 	it("a Repaint from after_render is honoured on the next tick", _ {
@@ -662,10 +662,10 @@ describe shell_tick("shell::Shell::tick", $ {
 		Rig r;
 		r.shell.init({kBase, 7});
 		expect(r.shell.stack().push({kOverlay, 3})).to_be_true();
-		expect(r.shell.state_lines()).to_equal(std::string("scene app17 3\nscene app16 7\n"));
+		expect(r.shell.state_lines()).to_equal(std::string("scene app17/3\nscene app16/7\n"));
 
 		r.shell.lowering().set_input_lock(true);
-		expect(r.shell.state_lines()).to_equal(std::string("scene app17 3\nscene app16 7\nlock 1\n"));
+		expect(r.shell.state_lines()).to_equal(std::string("scene app17/3\nscene app16/7\nlock input\n"));
 	});
 });
 // clang-format on
