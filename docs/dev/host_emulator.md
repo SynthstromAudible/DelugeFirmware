@@ -125,8 +125,30 @@ ctest --test-dir build-sim -R ui_app_scripts --output-on-failure
 
 A script also retimes the offline WAV capture (`DELUGE_HOST_CAPTURE_SECONDS`) and sends it to
 `/dev/null` unless you set either explicitly, so it is the script's `quit` that ends the run rather
-than the capture's default 2 s. The new capture deadline is the script's last step **+ 5 seconds of
-rendered audio**, and it doubles as the in-process backstop: reaching it means the app stopped
-reaching the `quit`, and the run exits 2 saying so. The `ui_app_scripts_<name>` ctest sets a
-`TIMEOUT` of the last step **+ 30 wall seconds** as the outer backstop, for a process that stops
-rendering entirely and so freezes the audio clock as well.
+than the capture's default 2 s.
+
+### The two deadlines, and why they are in different units
+
+A run only ends when the script's `quit` fires, so a run that never reaches one needs a backstop.
+There are two, and they measure different clocks:
+
+| Backstop | Unit | Value | What it says |
+|---|---|---|---|
+| `host_script.c`'s capture deadline | **rendered-audio** seconds | last step **+ 5 s** | `exit 2`, "the capture deadline expired … the app stopped reaching its `quit`" |
+| `ui_app_scripts_<name>` ctest `TIMEOUT` | **wall** seconds | `8 × (last_s + 5) + 30` | ctest's bare "Timeout" |
+
+The in-process one carries the diagnosis, so it must always fire first. That ordering is not
+automatic, because the sim renders **slower than real time** — measured at roughly **0.26×** on a
+`-DDELUGE_SIM_X64=ON` build, i.e. 5 s of rendered audio takes about 19 s of wall clock. The ctest
+timeout is therefore the audio deadline *converted*: the `× 8` is that conversion at a render rate
+as slow as **0.125×** (more than 2× of headroom over the measured rate), and the `+ 30` covers
+process start-up, boot, and a cold CI runner.
+
+The conversion has to **scale** rather than add. A flat wall margin works only while it dominates
+the script's own timeline; past about 4–5 s of script time the audio deadline overtakes it and
+ctest starts winning the race. `boot.txt` (last step 2100 ms) gets a 86 s timeout against an
+in-process deadline of 7 audio-seconds ≈ 27 s wall.
+
+Only a run that stops rendering *altogether* — freezing the audio clock, so the in-process deadline
+can never arrive — reaches the ctest timeout. If you change `HOST_SCRIPT_DEADLINE_MARGIN_S`
+(`src/bsp/host/host_script.c`), move `sim/CMakeLists.txt`'s expression with it.

@@ -547,10 +547,20 @@ foreach(script IN LISTS UI_APP_SCRIPTS)
 
     # TIMEOUT, derived from the script itself. A run only ends when the script's `quit` fires, and
     # anything that stops the app polling deluge_control_poll_event() also stops the pump — so
-    # without this a stuck run would burn ctest's 1500 s default instead of failing fast. The
-    # script's last `at_ms` is its whole timeline; +30 s covers boot, the app's own slack, and a
-    # slow CI runner. host_script.c sets its own capture deadline 15 s past the last step, so in
-    # the common case the process reports *why* it stopped before ctest's timeout fires.
+    # without this a stuck run would burn ctest's 1500 s default instead of failing fast.
+    #
+    # This is the OUTER backstop, and it is deliberately loose. host_script.c has its own deadline
+    # at the script's last step + HOST_SCRIPT_DEADLINE_MARGIN_S (5), and that one carries the
+    # useful message ("the app stopped reaching its `quit`"), so it must always fire first —
+    # ctest killing the process first would replace a diagnosis with a bare "Timeout".
+    #
+    # The catch is that the two deadlines are in DIFFERENT UNITS: host_script.c counts rendered
+    # AUDIO seconds, ctest counts WALL seconds, and the sim renders slower than real time. So this
+    # value converts: `8 * (last_s + 5)` is the in-process deadline expressed as wall time at a
+    # render rate as slow as 0.125x — measured on a -DDELUGE_SIM_X64=ON build at ~0.26x, i.e. more
+    # than 2x of headroom — plus 30 s for process start-up, boot, and a cold CI runner. Scaling
+    # rather than adding is what keeps the ordering correct for LONG scripts: a flat margin
+    # crosses over once the script's own timeline dominates (at ~4-5 s of timeline, measured).
     file(STRINGS ${script} _ui_script_lines)
     set(_ui_last_ms 0)
     foreach(_ui_line IN LISTS _ui_script_lines)
@@ -559,7 +569,9 @@ foreach(script IN LISTS UI_APP_SCRIPTS)
             set(_ui_last_ms ${CMAKE_MATCH_1})
         endif()
     endforeach()
-    math(EXPR _ui_timeout "${_ui_last_ms} / 1000 + 30")
+    # Keep the 5 in step with HOST_SCRIPT_DEADLINE_MARGIN_S (src/bsp/host/host_script.h's siblings
+    # in host_script.c); this expression is that constant seen from the other side of the units.
+    math(EXPR _ui_timeout "8 * (${_ui_last_ms} / 1000 + 5) + 30")
 
     add_test(NAME ui_app_scripts_${name}
              COMMAND ${CMAKE_COMMAND} -E env DELUGE_HOST_DETERMINISTIC=1 DELUGE_HOST_SCRIPT=${script}

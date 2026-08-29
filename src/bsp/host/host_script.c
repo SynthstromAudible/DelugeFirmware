@@ -426,11 +426,17 @@ static int script_finished;
 /// How much RENDERED AUDIO time past the script's last step the capture is allowed to run before
 /// the process is declared stuck.
 ///
-/// Small on purpose. The two backstops are in different units: this one counts audio seconds
-/// (`DELUGE_HOST_CAPTURE_SECONDS`), while the ctest `TIMEOUT` counts wall seconds, and the sim
-/// renders at well under real time -- so an audio-second margin as large as the ctest one would
-/// let ctest's timer win the race and report "timed out" instead of the reason. A script's `quit`
-/// fires within a render block of its own last step, so five audio seconds is slack, not budget.
+/// Small on purpose: a script's `quit` fires within a render block of its own last step, so five
+/// audio seconds is slack, not budget.
+///
+/// This deadline must always beat the `ui_app_scripts_<name>` ctest `TIMEOUT`, because this one
+/// carries the diagnosis ("the app stopped reaching its `quit`") and ctest's would replace it with
+/// a bare "Timeout". The two are in DIFFERENT UNITS -- this counts audio seconds
+/// (`DELUGE_HOST_CAPTURE_SECONDS`), ctest counts wall seconds -- and the sim renders slower than
+/// real time (~0.26x on a `-DDELUGE_SIM_X64=ON` build), so the ordering is not automatic. It is
+/// `sim/CMakeLists.txt` that guarantees it, by sizing its timeout as `8 * (last_s + 5) + 30` wall
+/// seconds: this deadline converted at a render rate as slow as 0.125x. Change the 5 here and that
+/// expression has to move with it.
 #define HOST_SCRIPT_DEADLINE_MARGIN_S 5u
 
 /// A step popped during `host_script_init`'s `board` scan that turned out not to be a `board`.
@@ -763,7 +769,8 @@ static void deadline_hook(void) {
 /// and huge: it is the only in-process backstop on a run whose `quit` is never reached (any change
 /// that stops the app polling `deluge_control_poll_event` also stops the pump), and a backstop an
 /// hour away is no backstop at all. `deadline_hook` turns hitting it into an exit 2 with a reason.
-/// A run that stops rendering altogether freezes this clock too; the ctest `TIMEOUT` covers that.
+/// A run that stops rendering altogether freezes this clock too; the ctest `TIMEOUT` covers that,
+/// and is sized so that it never fires first while rendering is still making progress.
 static void defer_capture_exit(void) {
 	if (getenv("DELUGE_HOST_CAPTURE_SECONDS") == NULL) {
 		char seconds[16];
