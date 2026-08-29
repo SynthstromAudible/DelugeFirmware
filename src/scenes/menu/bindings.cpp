@@ -325,16 +325,6 @@ bool has_model_stack(const MenuContext& ctx) {
 	return ctx.resolved && (ctx.is_song_view || ctx.clip != nullptr);
 }
 
-/// @brief Legacy `unpatched_param.cpp:52` / `integer.cpp:45` -- write the whole kit rather than the
-///        selected row?
-///
-/// `editingKitRow()` (`sound_editor.cpp:169-171`) is `is_kit && !is_kit_global_fx`; the held-button
-/// half arrives as `affect_entire_held` (see the file header).
-bool writes_whole_kit(const MenuContext& ctx) {
-	return ctx.affect_entire_held && ctx.is_kit && !ctx.is_kit_global_fx && ctx.output != nullptr
-	       && ctx.clip != nullptr;
-}
-
 /// @brief Set @p node's param to @p final_value on every `SoundDrum` in the kit --
 ///        `unpatched_param.cpp:54-66` / `integer.cpp:47-59`.
 ///
@@ -390,6 +380,60 @@ size_t name_count(const Node& node, const MenuContext& ctx) {
 }
 
 } // namespace
+
+/// Legacy `unpatched_param.cpp:52` / `integer.cpp:45` -- write the whole kit rather than the
+/// selected row? `editingKitRow()` (`sound_editor.cpp:169-171`) is `is_kit && !is_kit_global_fx`;
+/// the held-button half arrives as `affect_entire_held` (see the file header). Declared in
+/// `bindings.h` since Task 6 -- a couple of the tables' own `set` hooks branch on it.
+bool writes_whole_kit(const MenuContext& ctx) {
+	return ctx.affect_entire_held && ctx.is_kit && !ctx.is_kit_global_fx && ctx.output != nullptr
+	       && ctx.clip != nullptr;
+}
+
+void apply_to_targets(const MenuContext& ctx, int32_t value, int32_t arg, ApplyFn fn) {
+	if (fn == nullptr) {
+		return;
+	}
+
+	if (writes_whole_kit(ctx)) {
+		auto* kit = static_cast<Kit*>(ctx.output);
+		auto* instrument_clip = static_cast<InstrumentClip*>(ctx.clip);
+		for (Drum* drum = kit->firstDrum; drum != nullptr; drum = drum->next) { // `filter/mode.h:49`
+			if (drum->type != DrumType::SOUND) {                                // `:50`
+				continue;
+			}
+			auto* sound_drum = static_cast<SoundDrum*>(drum);
+
+			// `getModelStackFromSoundDrum` (`model/model_stack.cpp:111-117`) with `ctx`'s own song
+			// and clip in place of the globals, and with legacy's unconditional note-row
+			// dereference (`:116`) turned into a skip. A drum with no row in this clip still gets
+			// `fn`, just without a stack -- the setters that need one all tolerate null, and the
+			// ones that do not are exactly the ones legacy would have crashed on.
+			alignas(ModelStackWithAutoParam) char drum_memory[MODEL_STACK_MAX_SIZE];
+			int32_t note_row_index = 0;
+			NoteRow* note_row = instrument_clip->getNoteRowForDrum(sound_drum, &note_row_index);
+			ModelStackWithSoundFlags* drum_stack = nullptr;
+			if (note_row != nullptr) {
+				drum_stack =
+				    setupModelStackWithThreeMainThingsIncludingNoteRow(drum_memory, ctx.song, ctx.clip, note_row_index,
+				                                                       note_row, sound_drum, &note_row->paramManager)
+				        ->addSoundFlags();
+			}
+			fn(SoundTarget{sound_drum, sound_drum, drum_stack, /*whole_kit=*/true}, value, arg, ctx);
+		}
+		return;
+	}
+
+	if (ctx.mod == nullptr) {
+		return;
+	}
+	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithSoundFlags* stack = nullptr;
+	if (ctx.sound != nullptr && has_model_stack(ctx)) {
+		stack = model_stack_for(ctx, memory)->addSoundFlags();
+	}
+	fn(SoundTarget{ctx.mod, ctx.sound, stack, /*whole_kit=*/false}, value, arg, ctx);
+}
 
 int32_t read(const Node& node, const MenuContext& ctx) {
 	const Binding& bind = node.bind;

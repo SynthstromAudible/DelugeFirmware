@@ -15,7 +15,18 @@ add_library(deluge_scenes STATIC
     menu/context.cpp
     menu/menu_scene.cpp
     menu/node_id.cpp
-    menu/shortcuts.cpp)
+    menu/relevance.cpp
+    menu/shortcuts.cpp
+    menu/validate.cpp
+    # The batch-1 menu tables (task 6): the six subtrees the retired Python generator produced,
+    # plus the one translation unit that joins them (menu/nodes/nodes.h).
+    menu/nodes/batch1.cpp
+    menu/nodes/sound_compressor.cpp
+    menu/nodes/sound_env.cpp
+    menu/nodes/sound_filters.cpp
+    menu/nodes/sound_lfo.cpp
+    menu/nodes/sound_osc.cpp
+    menu/nodes/sound_unison.cpp)
 target_include_directories(deluge_scenes PUBLIC
     ${SHARED_INCLUDE}
     ${CMAKE_CURRENT_LIST_DIR}/../../include

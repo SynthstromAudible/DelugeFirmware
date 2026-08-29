@@ -1,0 +1,99 @@
+#pragma once
+
+/// @brief The menu-tree validator (spec E §4.4: "host test, every build").
+///
+/// Every rule spec E §4.4 lists is one `Issue::Kind` below, plus the two flag audits ruling 4 of
+/// this task's brief adds -- a `Node` flag that a table forgot to set is invisible at runtime
+/// (the item just quietly behaves like an ordinary one), so the expected sets are written down
+/// here and a mismatch is an `Issue`, not a silent pass.
+///
+/// The validator is deliberately **model-free**: it walks `Node` data, calls `RelevantFn`s with
+/// whatever `MenuContext`s the caller supplies, and consults `shortcuts.h`. That is what lets it
+/// run in the host suite (`tests/spec/scenes/validate_spec.cpp`, over fake trees and fake
+/// contexts) as well as against the real tables in the sim spec.
+
+#include "scenes/menu/context.h"
+#include "scenes/menu/node.h"
+#include "shell/fixed_vector.h"
+
+#include <cstdint>
+#include <span>
+
+namespace deluge::scenes::menu {
+
+/// @brief One rule violation.
+struct Issue {
+	enum class Kind : uint8_t {
+		/// @brief A node reachable from `roots` that `assign_node_ids` could not give an id --
+		///        i.e. the tree overflowed `kMaxNodes` (`node_id.h`'s documented failure mode).
+		///        `detail` is the true reachable count as far as this walk got.
+		Unreachable,
+		/// @brief A `Kind::Submenu` that has no visible child under **any** supplied context, and
+		///        no `dynamic_children` hook that might produce one at render time.
+		EmptySubmenu,
+		/// @brief A `Binding::param` whose `kind`/`index` pair does not name a real parameter, or a
+		///        value node with neither a param nor a `get` hook to read. `detail` is the index.
+		BadParamRef,
+		/// @brief A `Kind::Enum` with neither `names` nor `dynamic_names`.
+		EnumWithoutNames,
+		/// @brief A shortcut cell that points at a node no root reaches. `detail` packs the pad as
+		///        `y * 256 + x`.
+		ShortcutToNothing,
+		/// @brief Two children of one parent share a `name` string id. `detail` is that id.
+		DuplicateName,
+		/// @brief More than `kMaxCustomItems` distinct `CustomItem` instances in the whole tree.
+		///        `detail` is the count found. Reported once, against the last custom node seen.
+		TooManyCustom,
+		/// @brief A node whose `title` is 0 (no string id at all -- the builders default `title` to
+		///        `name`, so this means neither was given one).
+		MissingTitle,
+		/// @brief A `Kind::Custom` whose `custom` pointer is null: nothing would render.
+		NullCustom,
+		/// @brief The set of nodes carrying a flag does not equal the expected set this header
+		///        declares. `detail` is `static_cast<uint16_t>(Flag)`; `node` is the offending node
+		///        (unexpectedly set, or expected-but-missing -- the two are distinguished by
+		///        whether `node` appears in the expected list).
+		FlagMismatch,
+	} kind{};
+	const Node* node = nullptr;
+	uint16_t detail = 0;
+};
+
+/// @brief Which flag a `FlagMismatch` is about (`Issue::detail`).
+enum class Flag : uint16_t {
+	/// @brief `Node::range_dependent` (`node.h`, legacy `MenuItem::isRangeDependent()`).
+	RangeDependent,
+	/// @brief `Binding::scaling == Scaling::HalfPrecision` (`bindings.h`'s two named exceptions).
+	HalfPrecision,
+};
+
+/// @brief Spec E §4's cap on the `Kind::Custom` escape hatch: "at most 10 across the whole tree".
+///
+/// Counted in **distinct `CustomItem` instances**, not in nodes: two oscillator file-selector
+/// nodes that share one `FileSelector` implementation are one bespoke item, which is how spec E
+/// §4's own list of seven ("multi-range editor, patch cables, file selector, edit-name, DX browser
+/// hooks, patch-cable strength, active scales") counts them.
+inline constexpr size_t kMaxCustomItems = 10;
+
+/// @brief Check @p roots against every spec E §4.4 rule.
+///
+/// Calls `assign_node_ids(roots)` first (ruling Q7), so ids exist before anything downstream needs
+/// them and so the `Unreachable` rule has something to test.
+///
+/// @param roots     The tree's root nodes, in declaration order.
+/// @param contexts  One `MenuContext` per root the caller cares about -- the "under at least one
+///                  context" quantifier of the `EmptySubmenu` rule. An empty span skips relevance
+///                  filtering entirely (every declared child counts as visible), which is what a
+///                  structural-only check wants.
+/// @param expected_range_dependent Every node that must carry `Node::range_dependent`, and no
+///                  others.
+/// @param expected_half_precision  Every node whose binding must use `Scaling::HalfPrecision`, and
+///                  no others.
+/// @return The issues found, capped at 64 (a tree with more than 64 problems does not need an
+///         exhaustive list to be rejected).
+deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* const> roots,
+                                                        std::span<const MenuContext> contexts,
+                                                        std::span<const Node* const> expected_range_dependent = {},
+                                                        std::span<const Node* const> expected_half_precision = {});
+
+} // namespace deluge::scenes::menu
