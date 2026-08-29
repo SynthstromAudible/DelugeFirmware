@@ -33,6 +33,8 @@
 #include <etl/vector.h>
 #include <memory>
 
+static bool parseCartridge(std::span<std::byte> readbuffer, DX7Cartridge* data);
+
 static bool openFile(std::string_view path, DX7Cartridge* data) {
 	using namespace deluge;
 	using enum deluge::l10n::String;
@@ -60,11 +62,21 @@ static bool openFile(std::string_view path, DX7Cartridge* data) {
 		    return false; //
 	    });
 
+	return parseCartridge(readbuffer, data);
+}
+
+/// Everything from the size check onward: no file, no card, just bytes. Both arms end here, so the
+/// popups and the checksum-tolerance rule have exactly one home.
+static bool parseCartridge(std::span<std::byte> readbuffer, DX7Cartridge* data) {
+	using namespace deluge;
+	using enum deluge::l10n::String;
+	constexpr size_t minSize = kSmallSysexSize;
+
 	if (readbuffer.size() < minSize) {
 		display->displayPopup(l10n::get(STRING_FOR_DX_ERROR_FILE_TOO_SMALL));
 	}
 
-	error = data->load(readbuffer);
+	l10n::String error = data->load(readbuffer);
 	if (error != EMPTY_STRING) {
 		// Allow loading to continue for checksum errors, but fail for other errors
 		if (error != deluge::l10n::String::STRING_FOR_DX_ERROR_CHECKSUM_FAIL) {
@@ -134,6 +146,18 @@ bool DxCartridge::tryLoad(std::string_view path) {
 	scrollPos = 0;
 
 	return openFile(path, pd);
+}
+
+bool DxCartridge::tryLoadFromBuffer(std::span<const std::byte> bytes) {
+	if (pd == nullptr) {
+		pd = new DX7Cartridge();
+	}
+	currentValue = 0;
+	scrollPos = 0;
+
+	// DX7Cartridge::load takes a mutable span (it unpacks in place), and the prefix channel's buffer
+	// is the caller's to hand over, so const is dropped here rather than by copying 8 KB.
+	return parseCartridge(std::span<std::byte>{const_cast<std::byte*>(bytes.data()), bytes.size()}, pd);
 }
 
 void DxCartridge::selectEncoderAction(int32_t offset) {

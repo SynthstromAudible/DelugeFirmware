@@ -27,6 +27,14 @@ public:
 	bool opened() override;
 	void enterKeyPress() override;
 	std::string getCurrentFilePath() override;
+
+	/// @brief Collect a cartridge read that is in flight on the file prefix channel.
+	///
+	/// Overrides the subclass hook, never `graphicsRoutine()` — which is `final` on `Browser` so that
+	/// the listing pump cannot be skipped. Inert on the synchronous arm, where the load runs as one
+	/// storage-owner op and nothing is ever in flight across a tick.
+	void browserGraphicsRoutine() override;
+
 	// ui
 	UIType getUIType() override { return UIType::DX_BROWSER; }
 };

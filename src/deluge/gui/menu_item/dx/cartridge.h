@@ -19,6 +19,7 @@
 #pragma once
 
 #include "gui/menu_item/menu_item.h"
+#include <span>
 #include <string_view>
 
 class DX7Cartridge;
@@ -30,7 +31,22 @@ public:
 	using MenuItem::MenuItem;
 	DxCartridge(l10n::String newName) : MenuItem(newName), pd(nullptr) {}
 	void beginSession(MenuItem* navigatedBackwardFrom) override;
+	/// @brief Read `path` and parse it as a cartridge. The synchronous arm.
+	/// @param path Full path of the `.SYX` file.
+	/// @return True if a cartridge was parsed (a checksum failure still counts — see
+	///         @ref tryLoadFromBuffer).
 	bool tryLoad(std::string_view path);
+
+	/// @brief Parse an already-read cartridge. The half that touches no card.
+	///
+	/// Split out of @ref tryLoad so the asynchronous arm — where the bytes arrive through the file
+	/// prefix channel rather than a read this thread performed — runs the SAME parse rather than a
+	/// second copy of it. Shows the same popups on the same conditions, which is the point: the two
+	/// arms must be indistinguishable to the user.
+	/// @param bytes The cartridge's opening bytes, at most `DELUGE_FILE_PREFIX_CAPACITY` of them.
+	/// @return True if a cartridge was parsed. A checksum failure returns true and still loads, which
+	///         is deliberate and predates this split; any other parse error returns false.
+	bool tryLoadFromBuffer(std::span<const std::byte> bytes);
 	void drawPixelsForOled() override;
 	void readValueAgain() final;
 	void loadPatch();
