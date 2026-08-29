@@ -51,13 +51,22 @@ static_assert(DELUGE_FILE_PREFIX_PENDING == 0u);
 static_assert(DELUGE_FILE_PREFIX_READY == 1u);
 static_assert(DELUGE_FILE_PREFIX_UNKNOWN == 2u);
 
-// And the same three values against the audio loader's, which a caller may well have in scope at the
-// same time: `deluge_file_prefix_collect(..) == DELUGE_AUDIO_LOAD_READY` compiles clean either way,
-// so equality is what keeps it from silently meaning PENDING -- see file_prefix.h's note above the
-// macros. This is the ONLY thing that cross-checks the two sets; bindgen's allowlist does not.
+static_assert(DELUGE_FILE_PREFIX_FAILED == 3u);
+
+// And the same three shared values against the audio loader's, which a caller may well have in scope
+// at the same time: `deluge_file_prefix_collect(..) == DELUGE_AUDIO_LOAD_READY` compiles clean either
+// way, so equality is what keeps it from silently meaning PENDING -- see file_prefix.h's note above
+// the macros. This is the ONLY thing that cross-checks the two sets; bindgen's allowlist does not.
 static_assert(DELUGE_FILE_PREFIX_PENDING == DELUGE_AUDIO_LOAD_PENDING);
 static_assert(DELUGE_FILE_PREFIX_READY == DELUGE_AUDIO_LOAD_READY);
 static_assert(DELUGE_FILE_PREFIX_UNKNOWN == DELUGE_AUDIO_LOAD_UNKNOWN);
+
+// FAILED has NO counterpart in audio_load.h, and must not collide with one. The loader has three
+// statuses; a fourth value that happened to equal one of them would make the cross-header confusion
+// above worse rather than better, because it would read as a MEANINGFUL loader status.
+static_assert(DELUGE_FILE_PREFIX_FAILED != DELUGE_AUDIO_LOAD_PENDING);
+static_assert(DELUGE_FILE_PREFIX_FAILED != DELUGE_AUDIO_LOAD_READY);
+static_assert(DELUGE_FILE_PREFIX_FAILED != DELUGE_AUDIO_LOAD_UNKNOWN);
 
 // Weak fallbacks: BSPs without the Rust prefix channel resolve these and always take the
 // synchronous path. The Rust Embassy BSP overrides them in file_prefix.rs.

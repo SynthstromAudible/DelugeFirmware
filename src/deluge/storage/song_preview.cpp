@@ -97,9 +97,12 @@ stopLoadingPreview:
 ///
 /// Split out purely so decodeSongPreview() has ONE exit at which to put that global back -- see there.
 SongPreviewOutcome decodeSongPreviewInto(std::span<const uint8_t> buffer, bool isJson,
-                                         RGB (*imageStore)[kDisplayWidth + kSideBarWidth]) {
+                                         RGB (*imageStore)[kDisplayWidth + kSideBarWidth], ::Error* openError) {
 	::Error error = StorageManager::openDelugeBuffer(buffer, isJson, "song");
 	if (error != ::Error::NONE) {
+		if (openError != nullptr) {
+			*openError = error;
+		}
 		return SongPreviewOutcome::Error;
 	}
 	FileDeserializer* reader = activeDeserializer;
@@ -118,7 +121,7 @@ SongPreviewOutcome decodeSongPreviewInto(std::span<const uint8_t> buffer, bool i
 } // namespace
 
 SongPreviewOutcome decodeSongPreview(std::span<const uint8_t> buffer, bool isJson,
-                                     RGB (*imageStore)[kDisplayWidth + kSideBarWidth]) {
+                                     RGB (*imageStore)[kDisplayWidth + kSideBarWidth], ::Error* openError) {
 	// Put `activeDeserializer` back on EVERY path, the failed open included (openDelugeBuffer() points
 	// it at the memory reader before it knows whether the document opened). This is not tidiness: the
 	// memory reader's `fileClusterBuffer` IS the caller's borrowed span, and code downstream writes
@@ -127,7 +130,7 @@ SongPreviewOutcome decodeSongPreview(std::span<const uint8_t> buffer, bool isJso
 	// `activeDeserializer->fileClusterBuffer`. Left pointing here, that is a 32 KiB write into a buffer
 	// that may be 4 KiB and may already be gone: heap corruption, not a stale read.
 	FileDeserializer* const previous = activeDeserializer;
-	const SongPreviewOutcome outcome = decodeSongPreviewInto(buffer, isJson, imageStore);
+	const SongPreviewOutcome outcome = decodeSongPreviewInto(buffer, isJson, imageStore, openError);
 	activeDeserializer = previous;
 	return outcome;
 }

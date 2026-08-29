@@ -116,6 +116,30 @@ requires = ["cargo", "build-embassy-hostapp", "deluge-sdk-sibling", "mtools"]
 ci = "nightly"
 runtime = "~5m"
 
+# The rig that runs the real Rust prefix channel against the real C++ song browser over real files,
+# and the ONLY thing that has ever executed the async preview path at all.
+#
+# `run` is a script rather than a cargo invocation because the comparison is across two BUILDS, not
+# two passes: `deluge_file_prefix_async_active()` is `cfg!(feature = "async_file_prefix_active")`, a
+# compile-time constant, so there is no runtime switch to flip mid-run. The script builds the harness
+# with the switch off and with it on, draws the same fixture card's artwork through both, and diffs
+# their per-song output.
+#
+# Runs without a song corpus (the fixture writes its own songs). With DELUGE_SONG_CORPUS set it also
+# stages up to 16 real songs as extra cases, which is the only part of it that sees documents nobody
+# here wrote -- worth passing locally, not required.
+[[harness]]
+name = "song-preview-ab"
+path = "."
+kind = "differential"
+status = "gate"
+gates = "the Rust prefix channel and the synchronous card read must draw the SAME song artwork AND report the SAME decode outcome and error for every song -- which is not the same requirement, because an unreadable song, a song with no artwork and a preview past the read window all draw an identical blank screen, and the two backings once disagreed about exactly that in silence (the file path called displayError, the prefix path published a failed read as an empty prefix it could not tell from an empty file). Also pins, per leg and PER CASE, that the prefix leg genuinely went through the channel -- every song deferred at least once, so no song was quietly answered without the async path being reached; that the browser's own per-tick surface is what finishes a deferred preview, since the scenario calls drawSongPreview() once per song and then drives only graphicsRoutine(); that a preview read from one card is refused after an ejection, with the post-swap artwork asserted absolutely against the known second image rather than merely against 'not the first'; and that a song whose preview falls past kSongPreviewWindow reports Truncated on the buffer backing rather than claiming the song has no artwork."
+build = []
+run = ["scripts/song_preview_ab.sh"]
+requires = ["cargo", "build-embassy-hostapp", "deluge-sdk-sibling", "mtools"]
+ci = "nightly"
+runtime = "~5m"
+
 # ci = "never": needs song-corpus, a directory of real songs on the maintainer's
 # machine that cannot be committed or fixtured. Runs locally via
 # `dbt harness run`; revisit if a synthetic corpus fixture is ever built.

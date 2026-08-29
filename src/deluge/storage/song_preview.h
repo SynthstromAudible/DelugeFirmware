@@ -79,6 +79,11 @@ enum class SongPreviewOutcome {
 /// @param imageStore Destination pad rows, `kDisplayHeight` of them. Written ONLY where the preview
 ///                   supplies pads: rows the walk never reaches keep whatever the caller left there,
 ///                   which is why callers clear it first.
+/// @param openError  Optionally receives the open failure behind a SongPreviewOutcome::Error return,
+///                   exactly as decodeSongPreviewFromFile()'s does. Untouched on any other outcome.
+///                   It exists so a UI caller can report the SAME thing on both backings: without
+///                   it, a caller of this decode has to restate openDelugeBuffer()'s error contract
+///                   at its own call site to show an error at all.
 /// @return What the walk found; see SongPreviewOutcome.
 /// @note Restores the global `activeDeserializer` to whatever it pointed at on entry, on every path
 ///       including a failed open. That restore is load-bearing, not hygiene: while the walk runs, that
@@ -89,7 +94,7 @@ enum class SongPreviewOutcome {
 ///       write into a buffer that may be 4 KiB and may already have been freed: heap corruption, not a
 ///       stale read.
 SongPreviewOutcome decodeSongPreview(std::span<const uint8_t> buffer, bool isJson,
-                                     RGB (*imageStore)[kDisplayWidth + kSideBarWidth]);
+                                     RGB (*imageStore)[kDisplayWidth + kSideBarWidth], ::Error* openError = nullptr);
 
 /// @brief Decode a song's preview artwork by reading the song file, the synchronous way.
 ///

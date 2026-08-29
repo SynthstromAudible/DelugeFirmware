@@ -31,11 +31,12 @@
 /// see one of them answered and the other report @ref DELUGE_FILE_PREFIX_UNKNOWN. Callers that need
 /// both must ask for them one at a time.
 ///
-/// **What this boundary does NOT do.** It has no opinion about the bytes. It does not parse, does
-/// not know a song from a sample, and reports no error code: a file that will not open, cannot be
-/// sized, or fails its read comes back as an EMPTY prefix rather than as a failure. That is
-/// deliberate -- see @ref deluge_file_prefix_collect -- and it is why there is no `Error` on this
-/// boundary at all.
+/// **What this boundary does NOT do.** It has no opinion about the bytes. It does not parse and does
+/// not know a song from a sample. It reports no error CODE either -- there is no `Error` on this
+/// boundary -- but it does report the one bit a caller cannot reconstruct: whether the read happened
+/// at all. A file that would not open, could not be sized, or failed its read comes back as
+/// @ref DELUGE_FILE_PREFIX_FAILED, which is terminal exactly as READY is; see
+/// @ref deluge_file_prefix_collect.
 ///
 /// **Fixed-width, never a native enum.** Every value crossing this boundary is a fixed-width
 /// integer, for the reason @ref audio_load.h gives: `arm-none-eabi` defaults to short enums, so a
@@ -65,7 +66,7 @@ extern "C" {
 /// so the two cannot drift.
 #define DELUGE_FILE_PREFIX_CAPACITY 4096u
 
-/* The three status values below are NUMERICALLY IDENTICAL to audio_load.h's
+/* The first three status values below are NUMERICALLY IDENTICAL to audio_load.h's
  * DELUGE_AUDIO_LOAD_PENDING/_READY/_UNKNOWN, and must stay that way. Both headers will plausibly be
  * included in one translation unit -- browsing a song wants its samples AND its artwork -- where
  * `deluge_file_prefix_collect(..) == DELUGE_AUDIO_LOAD_READY` compiles clean and nothing
@@ -84,6 +85,24 @@ extern "C" {
 /// requested, its prefix was already collected, its request was superseded by another path's, or the
 /// card it was read from has since been ejected. The caller should request it (again).
 #define DELUGE_FILE_PREFIX_UNKNOWN 2u
+/// @ref deluge_file_prefix_collect: the read did NOT happen -- the file would not open, could not be
+/// sized, or the read itself failed -- and the failure is REMOVED from the channel, exactly as a
+/// prefix is. Terminal, like @ref DELUGE_FILE_PREFIX_READY: do NOT re-request, or an unreadable file
+/// is re-opened on every tick for as long as the caller stays interested. Neither `out_buf` nor
+/// `out_len` is written.
+///
+/// The channel does not say WHICH failure it was, and deliberately so: it has no error vocabulary,
+/// and the synchronous file path it stands in for does not distinguish them either
+/// (`StorageManager::openXMLFile` reports `Error::FILE_NOT_FOUND` for every failed open, busy and
+/// unreadable included). What this value carries is the one distinction a caller cannot make for
+/// itself -- "no bytes because the read failed" versus "no bytes because the file is empty" -- and
+/// without it the two are the same READY-with-zero-length answer, so a caller that shows an error
+/// for one and blank artwork for the other cannot tell them apart.
+///
+/// Numerically outside audio_load.h's set on purpose: that header has three values and this one now
+/// has four, so a caller that cross-compares (see the note above) reads an unrecognised status
+/// rather than a wrong one.
+#define DELUGE_FILE_PREFIX_FAILED 3u
 
 /// @brief Ask for the first @p max_bytes of @p file_path. Returns immediately; never waits.
 ///
@@ -108,11 +127,16 @@ void deluge_file_prefix_request(const char* file_path, uint32_t max_bytes) DELUG
 /// back only on READY.
 ///
 /// A read that failed -- the file would not open, could not be sized, or the read itself failed --
-/// comes back as READY with an `out_len` of 0, indistinguishable from a genuinely empty file. That
-/// is the deliberate choice, not an oversight: reporting UNKNOWN instead would mean "request it
-/// (again)", and a caller polling a file it cannot read would re-request and re-read it on every
-/// tick for as long as it stayed interested. An empty prefix is a terminal answer, and for the
-/// artwork case it decodes to the correct picture -- blank.
+/// comes back as @ref DELUGE_FILE_PREFIX_FAILED, which is terminal in exactly the way READY is: the
+/// entry is removed and the caller must not re-request. Reporting UNKNOWN instead would mean
+/// "request it (again)", and a caller polling a file it cannot read would re-request and re-read it
+/// on every tick for as long as it stayed interested.
+///
+/// It was previously reported as READY with an `out_len` of 0, which is terminal too but which a
+/// caller cannot tell from a genuinely EMPTY file. That mattered: the synchronous backing this
+/// channel stands in for shows the user an error for a song it cannot open, and a caller served
+/// identical bytes for "unreadable" and "no artwork" has no way to keep doing so. A zero-length
+/// READY now means one thing only -- the file is empty.
 ///
 /// @param file_path The path passed to @ref deluge_file_prefix_request. Must not be NULL.
 /// @param out_buf   Where the bytes go. Must not be NULL. Written only on READY.
@@ -129,7 +153,7 @@ void deluge_file_prefix_request(const char* file_path, uint32_t max_bytes) DELUG
 ///                  real SD I/O each time, for as long as the caller stays interested.
 /// @param out_len   Receives how many bytes were written to @p out_buf. Must not be NULL. Written
 ///                  only on READY, where it may legitimately be 0.
-/// @return One of `DELUGE_FILE_PREFIX_READY` / `_PENDING` / `_UNKNOWN`.
+/// @return One of `DELUGE_FILE_PREFIX_READY` / `_PENDING` / `_UNKNOWN` / `_FAILED`.
 uint8_t deluge_file_prefix_collect(const char* file_path, uint8_t* out_buf, uint32_t out_cap,
                                    uint32_t* out_len) DELUGE_NOEXCEPT;
 

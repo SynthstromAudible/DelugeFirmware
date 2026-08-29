@@ -260,6 +260,12 @@ unsafe extern "C" {
     fn deluge_scenario_audio_load_ab_dispatch_step();
     fn deluge_scenario_audio_load_ab_step_done() -> bool;
     fn deluge_scenario_audio_load_ab_failures() -> i32;
+
+    fn deluge_scenario_song_preview_ab_begin();
+    fn deluge_scenario_song_preview_ab_complete() -> bool;
+    fn deluge_scenario_song_preview_ab_dispatch_step();
+    fn deluge_scenario_song_preview_ab_step_done() -> bool;
+    fn deluge_scenario_song_preview_ab_failures() -> i32;
 }
 
 /// Set once [`boot_task`] has run the efatfs mount, `deluge_app_init` (which
@@ -709,6 +715,265 @@ fn pack_audio_load_ab_image() -> std::path::PathBuf {
     img
 }
 
+// ── The song-preview A/B fixture ────────────────────────────────────────────
+//
+// `src/deluge/harness/song_preview_ab_scenario.cpp` names every file written below, and asserts the
+// artwork each one must produce against these very constants. The two must be read together.
+
+/// Uniform preview channel value per synthetic song, mirroring the C++ scenario's constants of the
+/// same names. All different, so no two songs' artwork can be mistaken for each other -- which is
+/// the entire content of the card-swap assertion.
+const PREVIEW_PAD_RENDER: u8 = 0x30;
+const PREVIEW_PAD_JSON: u8 = 0x48;
+const PREVIEW_PAD_LATE: u8 = 0x50;
+const PREVIEW_PAD_SWAP_A: u8 = 0x20;
+const PREVIEW_PAD_SWAP_B: u8 = 0x60;
+
+/// Hex characters one full preview payload needs: (16 + 2 sidebar) columns x 8 rows x 3 colours x 2
+/// characters. `runPreviewWalk` reads exactly this and stops; a shorter payload renders a partial
+/// image, which is a different fixture from the one the C++ side asserts against.
+const PREVIEW_HEX_CHARS: usize = (16 + 2) * 8 * 3 * 2;
+
+/// A preview payload whose every pad is `value` on every channel.
+fn uniform_preview(value: u8) -> String {
+    let pair = format!("{value:02X}");
+    pair.repeat(PREVIEW_HEX_CHARS / 2)
+}
+
+/// A minimal song document the real deserializer accepts: the root `song` tag with the firmware
+/// attributes `openXMLFile` looks for, then whatever `body` adds, then the closing tag.
+///
+/// Modelled attribute-for-attribute on the corpus (`firmwareVersion` then
+/// `earliestCompatibleFirmware` then `previewNumPads` then `preview`), because the preview walk
+/// steps over the first two and READS the third, so their presence and order are part of what the
+/// decode is being asked to handle.
+fn song_xml(body: &str) -> String {
+    format!(
+        "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<song\n\tfirmwareVersion=\"c1.3.0\"\n\t\
+         earliestCompatibleFirmware=\"4.1.0-alpha\"\n{body}>\n</song>\n"
+    )
+}
+
+/// A song whose artwork is a single uniform colour.
+fn uniform_preview_song(value: u8) -> String {
+    song_xml(&format!(
+        "\tpreviewNumPads=\"144\"\n\tpreview=\"{}\"\n",
+        uniform_preview(value)
+    ))
+}
+
+/// Stage the song-preview A/B scenario's card and pack it into a FAT image.
+///
+/// Every file is one SHAPE of answer the two backings must agree about, and the mix is the whole
+/// fixture:
+///
+/// - `SONGS/RENDER.XML` and `SONGS/JSONP.Json` are ordinary songs with artwork inside the read
+///   window, one through each deserializer. The JSON one is the checked-in
+///   `tests/data/songs/JsonPreview.Json` with its payload rewritten to a uniform colour, rather than
+///   hand-written here: that file is the only JSON song this project has, and reproducing its exact
+///   structure by hand is how a fixture ends up testing the fixture.
+/// - `SONGS/NOPREV.XML` has no `preview` attribute and is SHORTER than the read window. The
+///   shortness is load-bearing: a longer one would legitimately report Truncated on the buffer
+///   backing and NoPreview on the file backing, which is `LATE.XML`'s job rather than a bug.
+/// - `SONGS/CORRUPT.XML` opens and is not a song; `SONGS/EMPTY.XML` opens and has nothing in it;
+///   and `SONGS/MISSING.XML` is deliberately NOT written. Three different ways to fail, kept apart
+///   because what has to match is the reported `Error` IDENTITY, not the mere fact of failure.
+///   `MISSING.XML` is the one the two backings used to disagree about in silence.
+/// - `SONGS/LATE.XML` carries a filler attribute long enough to push `preview` past the read
+///   window, which is the one case whose two backings must legitimately differ (Rendered against
+///   Truncated).
+/// - `SONGS/SWAP.XML` and `SONGS/SWAPB.XML` are the card-swap pair: the second is moved onto the
+///   first's path once the card has been marked ejected, and their artwork differs.
+/// - `SONGS/CORPUS/C%02u.XML` are real songs copied from `DELUGE_SONG_CORPUS` when it is set. They
+///   carry no absolute expectation -- their artwork is whatever their author made -- and what they
+///   add is real documents: real attribute orders, real firmware versions, real preview offsets.
+///   Contiguous from zero, because the C++ side probes for them by index and stops at the first gap.
+fn pack_song_preview_ab_image(repo_root: &std::path::Path) -> std::path::PathBuf {
+    let root = std::env::temp_dir().join("deluge-song-preview-ab-card");
+    let _ = std::fs::remove_dir_all(&root);
+    let songs = root.join("SONGS");
+    let corpus_dir = songs.join("CORPUS");
+    std::fs::create_dir_all(&corpus_dir)
+        .expect("creating the song-preview fixture card directories");
+
+    let write = |path: std::path::PathBuf, text: String| {
+        std::fs::write(&path, text)
+            .unwrap_or_else(|e| panic!("writing the song-preview fixture {}: {e}", path.display()));
+    };
+
+    write(
+        songs.join("RENDER.XML"),
+        uniform_preview_song(PREVIEW_PAD_RENDER),
+    );
+    write(
+        songs.join("SWAP.XML"),
+        uniform_preview_song(PREVIEW_PAD_SWAP_A),
+    );
+    write(
+        songs.join("SWAPB.XML"),
+        uniform_preview_song(PREVIEW_PAD_SWAP_B),
+    );
+    // No `preview` attribute at all, and short: both backings must call this NoPreview.
+    write(
+        songs.join("NOPREV.XML"),
+        song_xml("\tpreviewNumPads=\"144\"\n"),
+    );
+    // Opens, is not a song. `openXMLFile` walks to the end without finding its root tag.
+    write(
+        songs.join("CORRUPT.XML"),
+        String::from(
+            "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n<notasong version=\"1\">\n</notasong>\n",
+        ),
+    );
+    // Opens and has nothing in it -- a DIFFERENT failure from a file that is not there, and the one
+    // that makes "READY with zero bytes" mean exactly one thing on the prefix channel.
+    write(songs.join("EMPTY.XML"), String::new());
+    // The read-window case: filler long enough that `preview` starts well past 4096 bytes, so the
+    // buffer backing runs out of bytes (Truncated) where the file backing renders.
+    write(
+        songs.join("LATE.XML"),
+        song_xml(&format!(
+            "\tfiller=\"{}\"\n\tpreviewNumPads=\"144\"\n\tpreview=\"{}\"\n",
+            "F".repeat(6000),
+            uniform_preview(PREVIEW_PAD_LATE)
+        )),
+    );
+
+    // The JSON song, taken from the checked-in fixture with its payload rewritten. Its 864-character
+    // preview is a run of hex, so the substitution is a straight slice replacement.
+    let json_source = repo_root.join("tests/data/songs/JsonPreview.Json");
+    let json = std::fs::read_to_string(&json_source).unwrap_or_else(|e| {
+        panic!(
+            "reading the checked-in JSON song fixture {}: {e}",
+            json_source.display()
+        )
+    });
+    let marker = "\"preview\":\"";
+    let start = json
+        .find(marker)
+        .expect("the JSON song fixture has a preview attribute")
+        + marker.len();
+    let end = start + PREVIEW_HEX_CHARS;
+    assert!(
+        json[start..end].chars().all(|c| c.is_ascii_hexdigit()),
+        "the JSON song fixture's preview payload is not {PREVIEW_HEX_CHARS} hex characters"
+    );
+    let mut json_song = String::with_capacity(json.len());
+    json_song.push_str(&json[..start]);
+    json_song.push_str(&uniform_preview(PREVIEW_PAD_JSON));
+    json_song.push_str(&json[end..]);
+    write(songs.join("JSONP.Json"), json_song);
+
+    // Real songs, when the maintainer's corpus is mounted. Absent, the synthetic cases above still
+    // run and the gate still gates -- what is lost is coverage of documents nobody here wrote.
+    let corpus = std::env::var_os("DELUGE_SONG_CORPUS").or_else(|| {
+        std::env::var_os("DELUGE_BACKUP").map(|b| std::path::Path::new(&b).join("SONGS").into())
+    });
+    let mut copied = 0usize;
+    if let Some(corpus) = corpus {
+        let mut entries: Vec<std::path::PathBuf> = std::fs::read_dir(&corpus)
+            .map(|dir| {
+                dir.filter_map(Result::ok)
+                    .map(|e| e.path())
+                    .filter(|p| {
+                        p.is_file()
+                            && p.extension()
+                                .and_then(|e| e.to_str())
+                                .is_some_and(|e| e.eq_ignore_ascii_case("xml"))
+                    })
+                    .collect()
+            })
+            .unwrap_or_default();
+        // Sorted, so the same corpus directory produces the same case order on both legs and across
+        // runs. `read_dir` order is the filesystem's and is not stable.
+        entries.sort();
+        for path in entries.iter().take(MAX_CORPUS_CASES) {
+            let target = corpus_dir.join(format!("C{copied:02}.XML"));
+            if std::fs::copy(path, &target).is_ok() {
+                copied += 1;
+            }
+        }
+    }
+    log::info!("golden_vt_render: song-preview fixture staged {copied} corpus song(s)");
+
+    let img = sd_image::pack_image(&root);
+    // The staging tree has served its purpose once the image exists; leaving it in the system temp
+    // dir is the same litter as leaving the images themselves.
+    let _ = std::fs::remove_dir_all(&root);
+    img
+}
+
+/// How many corpus songs the fixture stages, matching `kMaxCorpusCases` on the C++ side.
+const MAX_CORPUS_CASES: usize = 16;
+
+/// The `GOLDEN_SCENARIO=song_preview_ab` scenario: draw every fixture song's artwork through the
+/// real `LoadSongUI`, printing each one's image fingerprint and decode outcome as a diffable
+/// `SP-CASE` line.
+///
+/// This binary is ONE leg. Which leg it is depends on how it was built -- `async_file_prefix` alone
+/// (the file backing, which is what ships) or `async_file_prefix_active` (the Rust prefix channel,
+/// with `file_prefix_task` spawned in `main` below). `scripts/song_preview_ab.sh` builds both and
+/// diffs their `SP-CASE` lines.
+///
+/// The step machine is not ceremony: a preview whose prefix has not arrived is answered on a later
+/// tick, and on this single-executor substrate the C++ worker fiber is what runs while the executor
+/// is not polling, so a C++-side retry spin would starve the reader task it is waiting for.
+#[embassy_executor::task]
+async fn run_song_preview_ab_scenario(done: &'static AtomicBool) {
+    log::info!("golden_vt_render: run_song_preview_ab_scenario: awaiting boot+mount");
+    let deadline = Instant::now() + Duration::from_secs(30);
+    loop {
+        if BOOT_MOUNTED.load(Ordering::Acquire) {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!(
+                "golden_vt_render: boot+mount did not complete within the 30s wait budget — wedged"
+            );
+            hard_exit(2);
+        }
+        Timer::after_millis(5).await;
+    }
+
+    // SAFETY: DELUGE_HOST harness C-ABI; boot (confirmed above) has run `deluge_app_init`.
+    unsafe { deluge_scenario_song_preview_ab_begin() };
+
+    let deadline = Instant::now() + Duration::from_secs(600);
+    loop {
+        // SAFETY: as above.
+        if unsafe { deluge_scenario_song_preview_ab_complete() } {
+            break;
+        }
+        if Instant::now() >= deadline {
+            log::error!(
+                "golden_vt_render: the song-preview A/B did not complete within the 600s wait budget — wedged"
+            );
+            hard_exit(2);
+        }
+        // One tick on the UI tier (with a marker op behind it on the storage owner)...
+        // SAFETY: as above.
+        unsafe { deluge_scenario_song_preview_ab_dispatch_step() };
+        // ...then wait for it to come back, letting the executor poll `file_prefix_task` (and the
+        // fiber pump that runs the owner ops) in between.
+        // SAFETY: as above.
+        while !unsafe { deluge_scenario_song_preview_ab_step_done() } {
+            Timer::after_millis(1).await;
+        }
+        Timer::after_millis(1).await;
+    }
+
+    // SAFETY: as above.
+    let failures = unsafe { deluge_scenario_song_preview_ab_failures() };
+    if failures != 0 {
+        log::error!(
+            "golden_vt_render: the song-preview A/B leg FAILED ({failures} in-process failure(s) — see the log above)"
+        );
+        hard_exit(1);
+    }
+    log::info!("golden_vt_render: song-preview A/B leg completed (0 in-process failures)");
+    done.store(true, Ordering::Release);
+}
+
 /// The `GOLDEN_SCENARIO=audio_load_ab` scenario: run one whole song-shaped load of the fixture's
 /// sample list through `AudioFileManager::getAudioFileFromFilename`, printing each file's resolved
 /// identity and geometry as a diffable `AB-CASE` line.
@@ -816,6 +1081,18 @@ fn main() {
     let scenario = std::env::var("GOLDEN_SCENARIO").unwrap_or_default();
     let recorder_mode = scenario == "recorder_roundtrip";
     let audio_load_ab_mode = scenario == "audio_load_ab";
+    let song_preview_ab_mode = scenario == "song_preview_ab";
+    if song_preview_ab_mode && !cfg!(feature = "async_file_prefix") {
+        // Refusing beats running, for the reason the audio-load check below gives: without
+        // `async_file_prefix` this binary has no prefix channel compiled at all, so the "file
+        // backing leg" it would produce is built from a DIFFERENT configuration than the leg it gets
+        // diffed against.
+        eprintln!(
+            "golden_vt_render: GOLDEN_SCENARIO=song_preview_ab needs --features async_file_prefix \
+             (file-backed leg) or --features async_file_prefix_active (prefix-channel leg)"
+        );
+        std::process::exit(2);
+    }
     if audio_load_ab_mode && !cfg!(feature = "async_audio_load") {
         // Refusing beats running: without `async_audio_load` this binary has no `audio_loader`
         // module at all, so the "synchronous leg" it would produce is one built from a DIFFERENT
@@ -831,7 +1108,7 @@ fn main() {
 
     log::info!(
         "golden_vt_render: fixture={fixture} budget_ms={budget_ms} recorder_mode={recorder_mode} \
-         audio_load_ab_mode={audio_load_ab_mode}"
+         audio_load_ab_mode={audio_load_ab_mode} song_preview_ab_mode={song_preview_ab_mode}"
     );
 
     // Pack (or reuse) a real FAT SD image from the golden corpus — same
@@ -851,6 +1128,8 @@ fn main() {
             sd_image::format_empty_image()
         } else if audio_load_ab_mode {
             pack_audio_load_ab_image()
+        } else if song_preview_ab_mode {
+            pack_song_preview_ab_image(&repo_root)
         } else {
             sd_image::pack_golden_fixture(&repo_root, &fixture)
         };
@@ -897,10 +1176,17 @@ fn main() {
     spawner.spawn(streaming_loader::streaming_fill_task().unwrap());
     #[cfg(feature = "async_audio_load_active")]
     spawner.spawn(audio_loader::audio_load_task().unwrap());
+    // The prefix reader, on the same executor. Owns the channel only once
+    // `deluge_file_prefix_async_active()` reports true (i.e. only under this feature); inert
+    // otherwise, since with the feature off the module has no statics for it to serve.
+    #[cfg(feature = "async_file_prefix_active")]
+    spawner.spawn(file_prefix::file_prefix_task().unwrap());
 
     static DONE: AtomicBool = AtomicBool::new(false);
     if audio_load_ab_mode {
         spawner.spawn(run_audio_load_ab_scenario(&DONE).unwrap());
+    } else if song_preview_ab_mode {
+        spawner.spawn(run_song_preview_ab_scenario(&DONE).unwrap());
     } else if recorder_mode {
         spawner.spawn(run_recorder_roundtrip_scenario(&DONE).unwrap());
     } else {

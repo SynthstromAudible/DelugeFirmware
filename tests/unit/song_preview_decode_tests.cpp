@@ -156,3 +156,35 @@ TEST(SongPreviewDecode, decodeSongPreviewLeavesTheGlobalDeserializerWhereItFound
 	            static_cast<int>(deluge::storage::decodeSongPreview(notASong, false, image.data())));
 	POINTERS_EQUAL(before, activeDeserializer);
 }
+
+/// An EMPTY buffer is an Error, and reports the same `Error` a failed open does.
+///
+/// This is what the prefix channel now hands the decoder for a genuinely empty FILE, and the caller
+/// leans on it: since a failed READ is reported separately (DELUGE_FILE_PREFIX_FAILED), zero bytes
+/// reaching this function means an empty file, and an empty file is not a song. A decode that
+/// answered NoPreview here would draw blank artwork for it while the file backing put an error on
+/// screen for the same file -- the exact divergence the two backings were carrying.
+TEST(SongPreviewDecode, anEmptyBufferIsAnErrorWithAnErrorCode) {
+	std::array<Row, kDisplayHeight> image{};
+	Error error = Error::NONE;
+	CHECK_EQUAL(static_cast<int>(deluge::storage::SongPreviewOutcome::Error),
+	            static_cast<int>(deluge::storage::decodeSongPreview({}, false, image.data(), &error)));
+	CHECK_EQUAL(static_cast<int>(Error::FILE_CORRUPTED), static_cast<int>(error));
+}
+
+/// The `openError` out-param is written on the Error path and left ALONE on every other, exactly as
+/// the file decode's is. A caller that reported it unconditionally would show a stale error over a
+/// song that decoded fine.
+TEST(SongPreviewDecode, theOpenErrorOutParamIsWrittenOnlyOnError) {
+	std::array<Row, kDisplayHeight> image{};
+	Error error = Error::NO_FURTHER_FILES_THIS_DIRECTION; // a sentinel no open ever produces
+	const auto whole = prefixOf("tests/data/songs/JsonPreview.Json", deluge::storage::kSongPreviewWindow);
+	CHECK_EQUAL(static_cast<int>(deluge::storage::SongPreviewOutcome::Rendered),
+	            static_cast<int>(deluge::storage::decodeSongPreview(whole, true, image.data(), &error)));
+	CHECK_EQUAL(static_cast<int>(Error::NO_FURTHER_FILES_THIS_DIRECTION), static_cast<int>(error));
+
+	const auto shortPrefix = prefixOf("tests/data/songs/JsonPreview.Json", 64);
+	CHECK_EQUAL(static_cast<int>(deluge::storage::SongPreviewOutcome::Truncated),
+	            static_cast<int>(deluge::storage::decodeSongPreview(shortPrefix, true, image.data(), &error)));
+	CHECK_EQUAL(static_cast<int>(Error::NO_FURTHER_FILES_THIS_DIRECTION), static_cast<int>(error));
+}

@@ -20,6 +20,7 @@
 #include "gui/ui/load/load_ui.h"
 #include "hid/button.h"
 #include "storage/deferred_load.h"
+#include "storage/song_preview.h" // SongPreviewOutcome, held as the last render's result
 
 #include <cstdint>
 #include <string>
@@ -149,6 +150,38 @@ private:
 
 	/// @brief The synchronous backing's render: read @p target's file and draw it. Owner-only.
 	void renderPreviewFromFile(const PreviewTarget& target);
+
+	/// @brief Turn a finished decode into what the user sees, and record it. Both backings end here.
+	///
+	/// One function rather than a branch in each arm, because the two arms disagreeing about this is
+	/// exactly the defect that shipped: the file path called `displayError()` for a song it could not
+	/// open, and the prefix path could not, because a failed read reached it as an empty prefix
+	/// indistinguishable from a song with no artwork. Flipping the selector would have dropped those
+	/// popups with nothing to say so -- and no comparison of rendered PIXELS can see it, since both
+	/// arms draw the same blank pads either way.
+	///
+	/// Only ::deluge::storage::SongPreviewOutcome::Error shows anything. NoPreview and Truncated both
+	/// draw blank and say nothing: blank is the right picture for a song with no artwork, and a
+	/// preview past the read window is a limit of this build rather than something the user did.
+	///
+	/// @param outcome What the decode found.
+	/// @param error   The open failure behind an Error outcome; ignored otherwise.
+	void reportPreviewOutcome(deluge::storage::SongPreviewOutcome outcome, Error error);
+
+	/// @brief What the last finished preview render produced, and the error it reported.
+	///
+	/// Kept deliberately, and not only as diagnostics: it is the A/B gate's comparison point. The two
+	/// backings must agree on the OUTCOME as well as on the pads, and an out-of-process gate has no
+	/// other way to see that -- "unreadable song", "song with no artwork" and "preview past the read
+	/// window" all draw an identical blank screen.
+	/// @{
+	deluge::storage::SongPreviewOutcome lastPreviewOutcome_{deluge::storage::SongPreviewOutcome::NoPreview};
+	Error lastPreviewError_{Error::NONE};
+	/// @}
+
+	/// The host A/B gate, which drives the real drawSongPreview()/graphicsRoutine() pair against both
+	/// backings and compares the two members above. See src/deluge/harness/song_preview_ab_scenario.cpp.
+	friend class SongPreviewAbProbe;
 
 	/// A row-major pad image of the shape both preview decoders write into.
 	using PreviewImage = RGB (*)[kDisplayWidth + kSideBarWidth];

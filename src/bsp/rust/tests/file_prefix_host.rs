@@ -24,7 +24,10 @@ mod audio_loader;
 mod file_prefix;
 
 use audio_loader::{LoadOps, OpenVerdict};
-use file_prefix::{PREFIX_CAPACITY, PrefixSlot, prefix_io_once, publish_into, take_from};
+use file_prefix::{
+    PREFIX_CAPACITY, PrefixSlot, PrefixTake, prefix_io_once, publish_failure_into, publish_into,
+    take_from,
+};
 
 /// Nonzero on purpose: 0 is what a dropped stamp would leave behind, so a slot built at 0 would let a
 /// publish that ignored its generation still satisfy every take.
@@ -35,7 +38,11 @@ fn a_published_prefix_is_taken_exactly_once() {
     let mut slot = PrefixSlot::default();
     publish_into(&mut slot, "SONGS/A.XML", b"<song preview=\"00\"", CARD);
     let mut out = [0u8; 64];
-    let n = take_from(&mut slot, "SONGS/A.XML", CARD, &mut out).expect("published");
+    let PrefixTake::Bytes(n) =
+        take_from(&mut slot, "SONGS/A.XML", CARD, &mut out).expect("published")
+    else {
+        panic!("a published prefix must take as bytes, never as a failure");
+    };
     assert_eq!(&out[..n], b"<song preview=\"00\"");
     assert!(take_from(&mut slot, "SONGS/A.XML", CARD, &mut out).is_none());
 }
@@ -89,7 +96,10 @@ fn a_too_small_out_buffer_consumes_the_prefix_and_takes_nothing() {
     let mut slot = PrefixSlot::default();
     publish_into(&mut slot, "SONGS/A.XML", b"0123456789", CARD);
     let mut out = [0u8; 4];
-    assert_eq!(take_from(&mut slot, "SONGS/A.XML", CARD, &mut out), Some(0));
+    assert_eq!(
+        take_from(&mut slot, "SONGS/A.XML", CARD, &mut out),
+        Some(PrefixTake::Bytes(0))
+    );
     assert!(
         slot.is_empty(),
         "a short buffer must not leave a prefix the caller would re-request forever"
@@ -115,6 +125,67 @@ fn a_stale_prefix_meeting_a_short_buffer_is_refused_not_blanked() {
     let mut out = [0u8; 4];
     assert!(take_from(&mut slot, "SONGS/A.XML", CARD + 1, &mut out).is_none());
     assert!(slot.is_empty());
+}
+
+/// A failed read is an ANSWER the slot holds, not an absence — and it takes as a failure, once.
+///
+/// Absence would reach the collector as `UNKNOWN`, whose documented meaning is "request it (again)",
+/// so a file that cannot be read would be re-opened on every tick for as long as the cursor sat on
+/// it. That is the livelock the whole terminal convention exists to prevent.
+#[test]
+fn a_published_failure_is_taken_as_a_failure_exactly_once() {
+    let mut slot = PrefixSlot::default();
+    publish_failure_into(&mut slot, "SONGS/A.XML", CARD);
+    let mut out = [0xEEu8; 64];
+    assert_eq!(
+        take_from(&mut slot, "SONGS/A.XML", CARD, &mut out),
+        Some(PrefixTake::Failed)
+    );
+    assert_eq!(
+        out, [0xEEu8; 64],
+        "a failure writes nothing into the taker's buffer"
+    );
+    assert!(slot.is_empty());
+    assert!(take_from(&mut slot, "SONGS/A.XML", CARD, &mut out).is_none());
+}
+
+/// The distinction the whole `PrefixTake` split exists for: an EMPTY FILE and a FAILED READ are
+/// different answers, not one answer with the same length.
+///
+/// They were the same answer once — both published as an empty prefix — and the caller shows the
+/// user an error for one and blank artwork for the other. A collapse here is invisible to any test
+/// that only looks at how many bytes came back, because both are zero.
+#[test]
+fn an_empty_file_and_a_failed_read_are_different_answers() {
+    let mut empty = PrefixSlot::default();
+    publish_into(&mut empty, "SONGS/A.XML", b"", CARD);
+    let mut failed = PrefixSlot::default();
+    publish_failure_into(&mut failed, "SONGS/A.XML", CARD);
+
+    let mut out = [0u8; 64];
+    assert_eq!(
+        take_from(&mut empty, "SONGS/A.XML", CARD, &mut out),
+        Some(PrefixTake::Bytes(0))
+    );
+    assert_eq!(
+        take_from(&mut failed, "SONGS/A.XML", CARD, &mut out),
+        Some(PrefixTake::Failed)
+    );
+}
+
+/// The card belt covers a failure exactly as it covers a prefix. A failure belongs to the card it
+/// was read from: served after a swap it would put an error on screen for a file on the NEW card
+/// that nothing has tried to read.
+#[test]
+fn a_failure_from_a_previous_card_is_dropped_not_returned() {
+    let mut slot = PrefixSlot::default();
+    publish_failure_into(&mut slot, "SONGS/A.XML", CARD);
+    let mut out = [0u8; 64];
+    assert!(take_from(&mut slot, "SONGS/A.XML", CARD + 1, &mut out).is_none());
+    assert!(
+        slot.is_empty(),
+        "a stale failure must be removed, not merely withheld"
+    );
 }
 
 // ── The driver ──────────────────────────────────────────────────────────────
@@ -416,9 +487,9 @@ mod card;
 #[cfg(feature = "async_file_prefix_active")]
 mod live_pipeline {
     use super::file_prefix::{
-        DELUGE_FILE_PREFIX_PENDING, DELUGE_FILE_PREFIX_READY, DELUGE_FILE_PREFIX_UNKNOWN,
-        PREFIX_CAPACITY, PrefixPath, deluge_file_prefix_async_active, deluge_file_prefix_collect,
-        deluge_file_prefix_request, mark_in_flight, publish_result,
+        DELUGE_FILE_PREFIX_FAILED, DELUGE_FILE_PREFIX_PENDING, DELUGE_FILE_PREFIX_READY,
+        DELUGE_FILE_PREFIX_UNKNOWN, PREFIX_CAPACITY, PrefixPath, deluge_file_prefix_async_active,
+        deluge_file_prefix_collect, deluge_file_prefix_request, mark_in_flight, publish_result,
     };
     use super::{block_on, card};
     use std::ffi::CString;
@@ -480,7 +551,16 @@ mod live_pipeline {
     fn publish(path: &str, bytes: &[u8]) {
         block_on(publish_result(
             path,
-            bytes,
+            Some(bytes),
+            deluge_card_generation::current(),
+        ));
+    }
+
+    /// Publish as the task would for a read that FAILED — the `None` arm of the same call.
+    fn publish_failure(path: &str) {
+        block_on(publish_result(
+            path,
+            None,
             deluge_card_generation::current(),
         ));
     }
@@ -547,9 +627,9 @@ mod live_pipeline {
         assert_untouched(&buffer, len);
     }
 
-    /// An empty prefix is a real answer, not an absence: it is what a failed read publishes, and it
+    /// An empty prefix is a real answer, not an absence: it is what an EMPTY FILE publishes, and it
     /// must reach the caller as READY with a zero length rather than as UNKNOWN, which would have
-    /// it re-request the unreadable file on every tick forever.
+    /// it re-request the file on every tick forever.
     #[test]
     fn an_empty_prefix_collects_ready_with_zero_length() {
         let _guard = reset();
@@ -557,6 +637,55 @@ mod live_pipeline {
         let (status, _, len) = collect("SONGS/EMPTY.XML");
         assert_eq!(status, DELUGE_FILE_PREFIX_READY);
         assert_eq!(len, 0);
+    }
+
+    /// A failed read collects FAILED, once, writing neither output — and is UNKNOWN afterwards.
+    ///
+    /// The status is the whole point: it used to be READY-with-zero-length, which is what an empty
+    /// FILE gets, so the caller could not tell an unreadable song from one with no artwork and had
+    /// to draw blank for both. The synchronous backing it stands in for shows an error for the
+    /// first, and this is what lets the async one keep doing that.
+    #[test]
+    fn a_failed_read_collects_failed_exactly_once() {
+        let _guard = reset();
+        publish_failure("SONGS/BROKEN.XML");
+        let (status, buffer, len) = collect("SONGS/BROKEN.XML");
+        assert_eq!(status, DELUGE_FILE_PREFIX_FAILED);
+        assert_untouched(&buffer, len);
+        // Terminal, exactly as READY is: the answer is consumed, and the caller must not re-request.
+        let (status, buffer, len) = collect("SONGS/BROKEN.XML");
+        assert_eq!(status, DELUGE_FILE_PREFIX_UNKNOWN);
+        assert_untouched(&buffer, len);
+    }
+
+    /// FAILED and an empty READY are DIFFERENT statuses over the same wire, which is the one
+    /// property the two tests above cannot state between them: each passes if both answers collapse
+    /// onto the other's status, as long as they collapse consistently.
+    #[test]
+    fn an_empty_file_and_a_failed_read_collect_differently() {
+        let _guard = reset();
+        publish("SONGS/A.XML", b"");
+        let empty = collect("SONGS/A.XML").0;
+        publish_failure("SONGS/A.XML");
+        let failed = collect("SONGS/A.XML").0;
+        assert_ne!(
+            empty, failed,
+            "an empty file and a failed read must not report the same status"
+        );
+        assert_eq!(empty, DELUGE_FILE_PREFIX_READY);
+        assert_eq!(failed, DELUGE_FILE_PREFIX_FAILED);
+    }
+
+    /// The card belt covers a failure too: one published before the card went is not served after
+    /// it, or an error pops for a file on the NEW card that nothing has tried to read.
+    #[test]
+    fn a_failure_published_before_an_ejection_is_not_collectable_after_it() {
+        let _guard = reset();
+        publish_failure("SONGS/EJECTED.XML");
+        card::deluge_card_flush();
+        let (status, buffer, len) = collect("SONGS/EJECTED.XML");
+        assert_eq!(status, DELUGE_FILE_PREFIX_UNKNOWN);
+        assert_untouched(&buffer, len);
     }
 
     /// Single flight, end to end: a second request replaces the first, so the abandoned path is
@@ -601,7 +730,11 @@ mod live_pipeline {
         let _guard = reset();
         let began_under = deluge_card_generation::current();
         card::deluge_card_flush(); // the card goes while the read is running
-        block_on(publish_result("SONGS/INFLIGHT.XML", b"card A", began_under));
+        block_on(publish_result(
+            "SONGS/INFLIGHT.XML",
+            Some(b"card A"),
+            began_under,
+        ));
         assert_eq!(collect("SONGS/INFLIGHT.XML").0, DELUGE_FILE_PREFIX_UNKNOWN);
     }
 }

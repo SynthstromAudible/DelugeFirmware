@@ -970,20 +970,36 @@ bool LoadSongUI::collectPreview(const deluge::storage::DeferredLoad<PreviewTarge
 		return true;
 	}
 
+	PreviewImage imageStore = beginPreviewRender(attempt.target.toStore);
+
+	if (status == DELUGE_FILE_PREFIX_FAILED) {
+		// The read did not happen: the file would not open, could not be sized, or the read failed.
+		// Terminal, so this is NOT re-requested -- and reported, because the file backing reports the
+		// same thing for the same song and the two must not disagree about whether the user hears
+		// about it.
+		//
+		// Error::FILE_NOT_FOUND specifically, which is what the file backing's own open reports for
+		// EVERY failed open (StorageManager::openXMLFile maps busy and unreadable onto it too). The
+		// channel does not say which failure it was; neither does the path this stands in for, so the
+		// two arms conflate identically rather than differently.
+		if (imageStore != nullptr) {
+			reportPreviewOutcome(deluge::storage::SongPreviewOutcome::Error, Error::FILE_NOT_FOUND);
+		}
+		finishPreviewRender();
+		return false;
+	}
+
 	// READY, the only status left, and the only one that writes the buffer.
 	//
-	// A length of 0 is NOT an error. A file that would not open, could not be sized, or failed its read
-	// is published as an EMPTY prefix on purpose, so an unreadable song is not re-read on every tick for
-	// as long as the cursor stays on it (see deluge_file_prefix_collect). Blank is the terminal answer,
-	// and the same one a song carrying no preview at all gets.
-	PreviewImage imageStore = beginPreviewRender(attempt.target.toStore);
-	if (imageStore != nullptr && length > 0) {
-		// The outcome is deliberately not reported. Unlike the file-backed decode there is no Error to
-		// show -- the channel has none, by design -- and every outcome that is not Rendered draws the
-		// blank the caller already has: a song with no preview, a preview past the window, or a document
-		// that would not open all look the same on the pads.
-		(void)deluge::storage::decodeSongPreview(std::span<const uint8_t>{songPreviewPrefix.data(), length},
-		                                         isJsonSongPath(attempt.target.path), imageStore);
+	// A length of 0 is NOT a failure any more: a failed read comes back as FAILED above, so zero bytes
+	// now means an EMPTY FILE, which is not a song and which the decode below reports as Error --
+	// exactly what the file backing makes of the same file.
+	if (imageStore != nullptr) {
+		Error error = Error::NONE;
+		const auto outcome =
+		    deluge::storage::decodeSongPreview(std::span<const uint8_t>{songPreviewPrefix.data(), length},
+		                                       isJsonSongPath(attempt.target.path), imageStore, &error);
+		reportPreviewOutcome(outcome, error);
 	}
 	finishPreviewRender();
 	return false;
@@ -1016,12 +1032,18 @@ void LoadSongUI::renderPreviewFromFile(const PreviewTarget& target) {
 		// We are on the owner, so a failure here is a real one about this file, not the storage tier
 		// declining to answer -- worth showing.
 		Error error = Error::NONE;
-		if (deluge::storage::decodeSongPreviewFromFile(target.path.c_str(), imageStore, &error)
-		    == deluge::storage::SongPreviewOutcome::Error) {
-			display->displayError(error);
-		}
+		const auto outcome = deluge::storage::decodeSongPreviewFromFile(target.path.c_str(), imageStore, &error);
+		reportPreviewOutcome(outcome, error);
 	}
 	finishPreviewRender();
+}
+
+void LoadSongUI::reportPreviewOutcome(deluge::storage::SongPreviewOutcome outcome, Error error) {
+	lastPreviewOutcome_ = outcome;
+	lastPreviewError_ = (outcome == deluge::storage::SongPreviewOutcome::Error) ? error : Error::NONE;
+	if (outcome == deluge::storage::SongPreviewOutcome::Error) {
+		display->displayError(error);
+	}
 }
 
 LoadSongUI::PreviewImage LoadSongUI::beginPreviewRender(bool toStore) {

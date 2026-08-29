@@ -103,6 +103,11 @@ pub const DELUGE_FILE_PREFIX_PENDING: u8 = 0;
 pub const DELUGE_FILE_PREFIX_READY: u8 = 1;
 /// `deluge_file_prefix_collect`: nothing known about this path. Request it (again).
 pub const DELUGE_FILE_PREFIX_UNKNOWN: u8 = 2;
+/// `deluge_file_prefix_collect`: the read did not happen. Terminal — do NOT re-request.
+///
+/// The one bit this channel carries that a caller cannot reconstruct. Everything else about a
+/// failure (which failure, on which layer) stays outside the boundary; see `file_prefix.h`.
+pub const DELUGE_FILE_PREFIX_FAILED: u8 = 3;
 
 /// The values this module hand-duplicates from `file_prefix.h`, pinned.
 ///
@@ -123,14 +128,34 @@ const _: () = {
     assert!(DELUGE_FILE_PREFIX_PENDING == 0);
     assert!(DELUGE_FILE_PREFIX_READY == 1);
     assert!(DELUGE_FILE_PREFIX_UNKNOWN == 2);
+    // Outside the loader's set of three, on purpose -- see `file_prefix.h`'s macro doc.
+    assert!(DELUGE_FILE_PREFIX_FAILED == 3);
 };
 
 /// One finished prefix read, stamped with the card generation the read BEGAN under.
 struct PrefixEntry {
     key: PrefixPath,
     generation: u32,
-    len: usize,
+    /// How many of `bytes` are the prefix, or `None` when the READ FAILED.
+    ///
+    /// A failure is an entry rather than an absence for the same reason a successful read is: the
+    /// slot's only two answers to a taker are "here it is" and "never heard of it", and the second
+    /// means "request it (again)". A failed read that published nothing would be re-requested and
+    /// re-read on every tick. It is terminal, and it is DISTINCT from `Some(0)` — an empty file —
+    /// because the caller shows the user an error for one and blank artwork for the other.
+    len: Option<usize>,
     bytes: [u8; PREFIX_CAPACITY],
+}
+
+/// What [`take_from`] found in the slot for the path it was asked about.
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
+pub enum PrefixTake {
+    /// A prefix, this many bytes of it, copied into the taker's buffer. May legitimately be 0 — an
+    /// empty FILE.
+    Bytes(usize),
+    /// The read did not happen: the file would not open, could not be sized, or the read failed.
+    /// Nothing was written to the taker's buffer.
+    Failed,
 }
 
 /// The one prefix this channel holds, if it holds one.
@@ -166,31 +191,60 @@ impl PrefixSlot {
 /// decoded prefix reports blank artwork, so the truncation would present as a song losing its
 /// artwork with nothing to say why.
 ///
-/// A key too long to store is refused the same way, and the slot is CLEARED rather than left
-/// holding its previous entry: unreachable through the FFI (which refuses an over-long path before
-/// it ever reaches the driver), but a prefix nobody can key is a prefix nobody can ever take, and
-/// leaving a stale neighbour resident in its place is strictly worse than an empty slot.
+/// A key too long to store is refused the same way — see [`new_entry`].
 pub fn publish_into(slot: &mut PrefixSlot, key: &str, bytes: &[u8], generation: u32) {
     debug_assert!(bytes.len() <= PREFIX_CAPACITY);
+    let len = bytes.len().min(PREFIX_CAPACITY);
+    if let Some(entry) = new_entry(slot, key, generation, Some(len)) {
+        entry.bytes[..len].copy_from_slice(&bytes[..len]);
+    }
+}
+
+/// Publish "the read for `key` did not happen", stamped with `generation`, replacing whatever the
+/// slot held.
+///
+/// A separate entry point rather than a `bytes: Option<&[u8]>` parameter on [`publish_into`],
+/// because the two are not variants of one operation at the call site: the driver either has bytes
+/// or it has a failure, and a `None` threaded through the successful path is how "publish nothing"
+/// and "publish a failure" get confused.
+///
+/// Refuses an over-long key and clears the slot, exactly as [`publish_into`] does and for the same
+/// reason.
+pub fn publish_failure_into(slot: &mut PrefixSlot, key: &str, generation: u32) {
+    let _ = new_entry(slot, key, generation, None);
+}
+
+/// Install a fresh entry under `key` and hand it back for its bytes to be filled in, or clear the
+/// slot and return `None` when the key does not fit.
+///
+/// A key too long to store is refused, and the slot is CLEARED rather than left holding its previous
+/// entry: unreachable through the FFI (which refuses an over-long path before it ever reaches the
+/// driver), but a prefix nobody can key is a prefix nobody can ever take, and leaving a stale
+/// neighbour resident in its place is strictly worse than an empty slot.
+fn new_entry<'s>(
+    slot: &'s mut PrefixSlot,
+    key: &str,
+    generation: u32,
+    len: Option<usize>,
+) -> Option<&'s mut PrefixEntry> {
     let Ok(key) = PrefixPath::try_from(key) else {
         slot.entry = None;
-        return;
+        return None;
     };
-    let len = bytes.len().min(PREFIX_CAPACITY);
-    let mut entry = PrefixEntry {
+    slot.entry = Some(PrefixEntry {
         key,
         generation,
         len,
         bytes: [0u8; PREFIX_CAPACITY],
-    };
-    entry.bytes[..len].copy_from_slice(&bytes[..len]);
-    slot.entry = Some(entry);
+    });
+    slot.entry.as_mut()
 }
 
-/// Take `path`'s prefix if the slot holds one stamped `generation` AND `out` is big enough.
+/// Take `path`'s entry if the slot holds one stamped `generation` AND `out` is big enough.
 ///
 /// Removing on success is the point: a second collect must report `UNKNOWN`, or a caller could act
-/// on the same bytes twice.
+/// on the same bytes twice. A published FAILURE ([`PrefixTake::Failed`]) is removed on exactly the
+/// same terms — it is an answer, not a state, and a caller that read it once has been told.
 ///
 /// # The generation check, and why it lives HERE
 ///
@@ -210,7 +264,10 @@ pub fn publish_into(slot: &mut PrefixSlot, key: &str, bytes: &[u8], generation: 
 /// A key match with a good stamp but an `out` shorter than the prefix is a caller bug — the header
 /// requires `out_cap` to be at least [`PREFIX_CAPACITY`], and
 /// [`deluge_file_prefix_collect`] `debug_assert!`s it so a dev build fails at the real cause. The
-/// entry is CONSUMED anyway and `Some(0)` returned, which the caller reads as READY with no bytes.
+/// entry is CONSUMED anyway and `Some(PrefixTake::Bytes(0))` returned, which the caller reads as
+/// READY with no bytes. Deliberately NOT [`PrefixTake::Failed`]: the read succeeded, and reporting a
+/// caller's own buffer bug as an I/O failure would put an SD-card error on screen for a file that
+/// is perfectly readable.
 ///
 /// Leaving the prefix resident for "a correctly-sized retry" was the first shape and it was worse
 /// than doing nothing: the caller that has just been told UNKNOWN follows the header and
@@ -227,7 +284,7 @@ pub fn take_from(
     path: &str,
     generation: u32,
     out: &mut [u8],
-) -> Option<usize> {
+) -> Option<PrefixTake> {
     let entry = slot.entry.as_ref()?;
     if entry.key != path {
         return None;
@@ -236,17 +293,21 @@ pub fn take_from(
         slot.entry = None; // removed, not merely withheld
         return None;
     }
-    if out.len() < entry.len {
+    let Some(len) = entry.len else {
+        // A published failure. Removed like any other answer; `out` is untouched.
+        slot.entry = None;
+        return Some(PrefixTake::Failed);
+    };
+    if out.len() < len {
         // Caller bug, and terminal: consume the entry and report an empty prefix rather than
         // leaving one the caller would re-request, and re-read from the card, every tick. See this
         // function's doc.
         slot.entry = None;
-        return Some(0);
+        return Some(PrefixTake::Bytes(0));
     }
-    let len = entry.len;
     out[..len].copy_from_slice(&entry.bytes[..len]);
     slot.entry = None;
-    Some(len)
+    Some(PrefixTake::Bytes(len))
 }
 
 /// One request waiting to be read.
@@ -426,6 +487,7 @@ pub unsafe extern "C" fn deluge_file_prefix_collect(
         }
         Probe::Pending => DELUGE_FILE_PREFIX_PENDING,
         Probe::Unknown => DELUGE_FILE_PREFIX_UNKNOWN,
+        Probe::Failed => DELUGE_FILE_PREFIX_FAILED,
     }
 }
 
@@ -445,6 +507,10 @@ enum Probe {
     Ready(usize),
     Pending,
     Unknown,
+    /// The read did not happen, and the caller is told so rather than being handed an empty prefix
+    /// it could not tell from an empty file. Terminal — see `file_prefix.h`'s
+    /// `DELUGE_FILE_PREFIX_FAILED`.
+    Failed,
 }
 
 /// One forward pass: REQUEST, then IN_FLIGHT, then RESULT. See [`deluge_file_prefix_collect`]'s doc
@@ -464,7 +530,8 @@ fn probe(path: &str, out: &mut [u8]) -> Probe {
     // fate independent of whether the flush that invalidated it managed to take this lock. See
     // [`take_from`].
     match take_from(&mut result, path, deluge_card_generation::current(), out) {
-        Some(len) => Probe::Ready(len),
+        Some(PrefixTake::Bytes(len)) => Probe::Ready(len),
+        Some(PrefixTake::Failed) => Probe::Failed,
         None => Probe::Unknown,
     }
 }
@@ -593,13 +660,18 @@ async fn read_prefix<O: LoadOps>(
 /// [`IN_FLIGHT`] is set before the I/O and cleared only after the prefix is published, so
 /// [`deluge_file_prefix_collect`] never sees a gap in which a running read looks unknown.
 ///
-/// # A failed read publishes an EMPTY prefix
+/// # A failed read publishes a FAILURE, and publishing it is not optional
 ///
 /// Publishing nothing would report `UNKNOWN`, whose documented meaning is "request it (again)" —
 /// so a file that cannot be read would be re-requested and re-read on every single tick, forever,
-/// for as long as the cursor sits on it. An empty prefix ends that: it decodes to blank artwork,
-/// which is the correct picture for a song whose preview cannot be read, and it is a terminal
-/// answer the caller can act on once.
+/// for as long as the cursor sits on it. A published failure ends that: it is terminal, exactly as
+/// a published prefix is.
+///
+/// It publishes a FAILURE rather than an empty prefix, which is what this did first. An empty
+/// prefix is terminal too, but it is the same answer a genuinely empty FILE gets, and the caller
+/// this channel was built for shows the user an error for one and blank artwork for the other. It
+/// could not, and the popups the synchronous backing shows would have gone missing the moment the
+/// channel was switched on.
 #[cfg(all(
     feature = "async_file_prefix_active",
     any(
@@ -616,16 +688,15 @@ pub async fn file_prefix_task() {
     let mut buffer = [0u8; PREFIX_CAPACITY];
     loop {
         while let Some((request, generation)) = take_next_request().await {
-            let len = prefix_io_once(&ops, &request.path, request.max_bytes, &mut buffer)
-                .await
-                .unwrap_or(0); // A failed read publishes an empty prefix -- see this task's doc.
+            // `None` is a failed read, and it is published AS a failure -- see this task's doc.
+            let read = prefix_io_once(&ops, &request.path, request.max_bytes, &mut buffer).await;
             // Publish BEFORE clearing IN_FLIGHT, never after: the entry is briefly in both tables,
             // which is harmless, whereas the reverse leaves a window in which it is in neither and
             // `collect` would report `UNKNOWN` for a read that just succeeded.
             //
             // `generation` was sampled before the I/O above, so a card pulled during it is what
             // makes this publish a no-op.
-            publish_result(&request.path, &buffer[..len], generation).await;
+            publish_result(&request.path, read.map(|len| &buffer[..len]), generation).await;
             mark_in_flight(None).await;
         }
         PREFIX_WAKE.wait().await;
@@ -668,8 +739,9 @@ pub async fn mark_in_flight(path: Option<PrefixPath>) {
     *IN_FLIGHT.lock().await = path;
 }
 
-/// Publish into the live [`RESULT`] slot, stamped with the card generation the read began under,
-/// and skip the publish entirely if that card is already gone.
+/// Publish one finished read into the live [`RESULT`] slot — `Some(bytes)` for a prefix, `None` for
+/// a read that did not happen — stamped with the card generation the read began under, and skip the
+/// publish entirely if that card is already gone.
 ///
 /// # The early-drop check is an optimisation, not the guarantee
 ///
@@ -682,13 +754,20 @@ pub async fn mark_in_flight(path: Option<PrefixPath>) {
 /// The check happens with the lock already held, not before acquiring it, so that it is at least
 /// ordered against a flush that DID take the lock.
 #[cfg(feature = "async_file_prefix_active")]
-pub async fn publish_result(key: &str, bytes: &[u8], generation: u32) {
+pub async fn publish_result(key: &str, bytes: Option<&[u8]>, generation: u32) {
     let mut result = RESULT.lock().await;
     if generation != deluge_card_generation::current() {
         // The card this was read from is gone. Dropping costs the I/O that produced it and nothing
         // else, and the collector reads the resulting `UNKNOWN` as "request it again" -- which it
         // then does, against the card that is actually in the slot.
+        //
+        // A FAILED read is dropped here too, and must be: the failure belongs to the card that has
+        // gone, and reporting it as terminal against the card now in the slot would put an error on
+        // screen for a file nobody has tried to read yet.
         return;
     }
-    publish_into(&mut result, key, bytes, generation);
+    match bytes {
+        Some(bytes) => publish_into(&mut result, key, bytes, generation),
+        None => publish_failure_into(&mut result, key, generation),
+    }
 }
