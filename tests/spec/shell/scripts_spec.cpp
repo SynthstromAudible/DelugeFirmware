@@ -375,12 +375,12 @@ describe shell_scripts("shell script harness (level 2)", $ {
 		expect(a.error.has_value()).to_be_false();
 		expect(b.error.has_value()).to_be_false();
 
-		const std::string mismatch = uitest::detail::first_mismatch(out_good, out_bad);
-		expect(mismatch.empty()).to_be_false();
-		const std::string suffix = ".oled0.pbm";
-		const bool names_a_pbm =
-		    mismatch.size() >= suffix.size() && mismatch.compare(mismatch.size() - suffix.size(), suffix.size(), suffix) == 0;
-		expect(names_a_pbm).to_be_true();
+		// "after-clip.oled0.pbm", not "popup.oled0.pbm" or "start.oled0.pbm": it is the
+		// alphabetically-first name in the union of both trees (first_mismatch's own ordering),
+		// and the extra pixel is only visible here because PopupScene owns the whole panel while
+		// it is up, so DemoSceneExtraPixel::render_oled never runs for "popup" itself. Verified by
+		// running this exact case rather than assumed.
+		expect(uitest::detail::first_mismatch(out_good, out_bad)).to_equal(std::string("after-clip.oled0.pbm"));
 	});
 });
 // clang-format on

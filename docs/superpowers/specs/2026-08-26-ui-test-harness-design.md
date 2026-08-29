@@ -255,6 +255,21 @@ names the change and why it deviates from the draft above.
   with no manual `cmake` re-run), rather than one test hand-listing every script — the runner writes
   `got/app/<name>/`, the `_diff` test (`DEPENDS` on its runner) byte-compares that tree against
   `tests/golden/ui/app/<name>/` via `scripts/ui_snapshot_diff.py`.
+- **Level 3's `.state` is a strict subset of level 2's**, forced by what the BSP can physically
+  observe (`tests/harness/README.md`'s "Level 3 limitations" section is the canonical write-up;
+  this bullet mirrors it): `model`/`notice` are shell-only channels (`notify::Dirty`,
+  `notify::Notice`) the legacy app has none of, so a level-3 script that uses either is rejected at
+  load with "shell-level command in an app script", **exit 2** — not silently ignored or dropped.
+  There are **no `scene` lines** (the legacy UI has no scene names) and **no `lock`/`notice`
+  lines** (neither the input lock nor the notice queue reaches the BSP). **LEDs are `on`-only,
+  never `blink`**: legacy blinking is the *app* toggling `deluge_control_set_led` on a timer, so
+  the BSP only ever sees the resolved boolean for the instant sampled and cannot tell a steady LED
+  from a blinking one caught in its on phase — level 2, by contrast, reads the shell's own
+  *declared* `LedFrame` (before it is flattened to that boolean), so only level 2 can report
+  `led Record blink 500`. **`board` is accepted only at 0 ms and only before anything has read
+  `deluge_board()`**: the descriptor is latched by its first reader, so a `board` step arriving any
+  later — even at 0 ms, if a non-`board` step preceded it — is rejected at load rather than applied
+  too late to matter.
 
 **§5 Determinism — the `shell-no-clock` ratchet, and the level-3 table split**
 - The `shell-no-clock` layer rule (`scripts/check_layer_rules.py`) is extended from
