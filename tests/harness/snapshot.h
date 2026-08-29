@@ -2,6 +2,7 @@
 #include "fixed_vector.h"
 
 #include <array>
+#include <cstddef>
 #include <cstdint>
 #include <span>
 #include <string>
@@ -20,14 +21,26 @@ namespace deluge::harness {
 /// @return A P1 PBM: `"P1\n<w> <h>\n"` then one line per pixel row of '1'/'0' separated by spaces.
 std::string oled_pbm(std::span<const uint8_t> page_major, uint16_t w, uint16_t h);
 
+/// @brief How many bytes one `.state` line occupies, NUL included.
+///
+/// Sized by the longest line the format can produce: a `notice` line is `"notice "` (7) plus the
+/// longest `Notice::Kind` name (`ClearWorking`, 12) plus a space plus the popup text, and both
+/// `Notice::text` and `PopupScene::text_` are 48-byte buffers -- 47 characters of text. That is 67
+/// characters; 96 leaves room for a longer kind name or a wider surface without another audit.
+/// The device produces popup text at that length for real (`midi_follow.cpp`'s
+/// "Can't control: \n<param name>"), and a truncated line is a golden that silently stops
+/// distinguishing two different screens -- the one thing this harness exists to prevent.
+inline constexpr size_t kStateLineBytes = 96;
+
 /// @brief The lines of a `.state` snapshot (spec G §3), formatted and sorted on demand.
 struct StateLines {
-	FixedVector<std::array<char, 48>, 256> lines;
+	FixedVector<std::array<char, kStateLineBytes>, 256> lines;
 
 	/// @brief Append one already-formatted line (no trailing newline).
-	/// @note Silently truncated at 47 characters, not rejected -- a line needing more than that
-	/// to stay unique from another is a snapshot format bug worth catching in a golden diff, not
-	/// a value worth failing this call over.
+	/// @note Silently truncated at `kStateLineBytes - 1` characters, not rejected -- a line
+	/// needing more than that to stay unique from another is a snapshot format bug worth catching
+	/// in a golden diff, not a value worth failing this call over. See `kStateLineBytes` for how
+	/// that bound was chosen.
 	void add(std::string_view line);
 
 	/// @brief Render every line in a fixed category order -- `scene`, `led`, `pad`,

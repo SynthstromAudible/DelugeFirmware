@@ -26,7 +26,7 @@ std::string oled_pbm(std::span<const uint8_t> page_major, uint16_t w, uint16_t h
 }
 
 void StateLines::add(std::string_view line) {
-	std::array<char, 48> buf{};
+	std::array<char, kStateLineBytes> buf{};
 	size_t len = line.size() < buf.size() - 1 ? line.size() : buf.size() - 1;
 	std::memcpy(buf.data(), line.data(), len);
 	buf[len] = '\0';
@@ -99,14 +99,14 @@ void add_pad_line(StateLines& lines, uint8_t x, uint8_t y, uint8_t r, uint8_t g,
 	if (r == 0 && g == 0 && b == 0) {
 		return; // black: skipped -- only non-black pads are ever shown
 	}
-	char buf[48];
+	char buf[kStateLineBytes];
 	std::snprintf(buf, sizeof buf, "pad %u %u %u %u %u", static_cast<unsigned>(x), static_cast<unsigned>(y),
 	              static_cast<unsigned>(r), static_cast<unsigned>(g), static_cast<unsigned>(b));
 	lines.add(buf);
 }
 
 void add_led_line(StateLines& lines, std::string_view name, bool blink, uint16_t period_ms) {
-	char buf[48];
+	char buf[kStateLineBytes];
 	if (blink) {
 		std::snprintf(buf, sizeof buf, "led %.*s blink %u", static_cast<int>(name.size()), name.data(),
 		              static_cast<unsigned>(period_ms));
@@ -118,7 +118,7 @@ void add_led_line(StateLines& lines, std::string_view name, bool blink, uint16_t
 }
 
 void add_indicator_line(StateLines& lines, bool upper, const uint8_t levels[4]) {
-	char buf[48];
+	char buf[kStateLineBytes];
 	std::snprintf(buf, sizeof buf, "indicator %s %u %u %u %u", upper ? "upper" : "lower",
 	              static_cast<unsigned>(levels[0]), static_cast<unsigned>(levels[1]), static_cast<unsigned>(levels[2]),
 	              static_cast<unsigned>(levels[3]));

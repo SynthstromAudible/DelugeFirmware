@@ -73,7 +73,8 @@ struct RunOptions {
 /// board profile). Both are `ParseError`s, deliberately: the two are indistinguishable to the
 /// person reading the failure -- a script line naming something that does not exist -- and a
 /// second error type would only make every caller test two fields to ask one question. The `line`
-/// is the script's own 1-based source line in both cases.
+/// is the script's own 1-based source line in both cases; line 0 means the failure belongs to no
+/// script line at all (a bad `tick_ms`, or a snapshot that could not be written).
 struct RunResult {
 	/// How many `snapshot` steps were written.
 	uint32_t snapshots = 0;
@@ -91,6 +92,8 @@ namespace detail {
 /// the *first* failure and stops. A run failure happens later, so the line is recovered the way
 /// the parser assigned it: one step per significant line, a line being significant when anything
 /// survives stripping its `#` comment and surrounding whitespace.
+/// @note O(script length) per call, so reporting a failure is O(n^2) overall. Deliberate, and not
+/// worth "optimising": the parser caps a script at 256 steps, and this runs at most once per step.
 /// @param text  The script text the steps were parsed from.
 /// @param index The step's index in the parsed vector.
 /// @return The 1-based line number, or 0 if the script has fewer significant lines than that.
@@ -127,6 +130,33 @@ inline ParseError make_error(uint16_t line, std::string_view message) {
 	std::memcpy(e.message, message.data(), n);
 	e.message[n] = '\0';
 	return e;
+}
+
+/// @brief The name of \p kind, for `RunResult::log`.
+/// @param kind The step kind.
+/// @return A static, NUL-terminated name; the script command that produces the step.
+inline const char* step_kind_name(StepKind kind) {
+	switch (kind) {
+	case StepKind::Board:
+		return "board";
+	case StepKind::Snapshot:
+		return "snapshot";
+	case StepKind::Button:
+		return "button";
+	case StepKind::Encoder:
+		return "encoder";
+	case StepKind::Pad:
+		return "pad";
+	case StepKind::Released:
+		return "released";
+	case StepKind::Model:
+		return "model";
+	case StepKind::Notice:
+		return "notice";
+	case StepKind::Quit:
+		return "quit";
+	}
+	return "?";
 }
 
 /// @brief The `ButtonId` whose `button_name()` is \p name.
@@ -251,6 +281,14 @@ inline std::string state_text(const Shell& shell, FakeSurfaceSet& fake, const Bo
 	const std::string shell_lines = shell.state_lines();
 	for (size_t pos = 0; pos < shell_lines.size();) {
 		const size_t nl = shell_lines.find('\n', pos);
+		// The `npos` branch is not dead code guarding an impossible input: `state_lines()`
+		// newline-terminates every line today, but nothing asserts that, and without this the
+		// `pos = nl + 1` below would wrap to 0 and re-add the whole string until `StateLines`
+		// filled -- a future edit to `state_lines()` would surface as a hanging test.
+		if (nl == std::string::npos) {
+			lines.add(std::string_view{shell_lines}.substr(pos));
+			break;
+		}
 		lines.add(std::string_view{shell_lines}.substr(pos, nl - pos));
 		pos = nl + 1;
 	}
@@ -278,18 +316,28 @@ inline std::string state_text(const Shell& shell, FakeSurfaceSet& fake, const Bo
 	return lines.sorted_text();
 }
 
-/// @brief Parse a `board` step's spec (`128x48+5,128x64+0`) into a `DelugeBoard` over static
+/// @brief Somewhere for a `board` step's parsed panel list to live.
+///
+/// Caller-owned rather than a function-local `static`: two runs in one process would otherwise
+/// share one descriptor array, which is exactly the kind of process-global mutable state
+/// `run_script` goes out of its way to drain at the top of every run.
+struct BoardStorage {
+	DelugeDisplayDesc descs[deluge::ui::shell::kMaxOled]{};
+	DelugeBoard board{};
+};
+
+/// @brief Parse a `board` step's spec (`128x48+5,128x64+0`) into a `DelugeBoard` over caller-owned
 ///        storage, so a script can size the surfaces for a board whose BSP does not exist.
 ///
 /// Every field but the display list is inherited from \p base: the spec's own words are only ever
 /// "which panels", exactly as `DELUGE_HOST_DISPLAYS` is at level 3 (spec G §4.2).
 /// @param base The board to start from.
 /// @param spec The comma-separated `WxH+top` list.
-/// @param out  Set to the built board on success; untouched otherwise.
+/// @param out  Filled in on success; untouched otherwise. Caller-owned, and it must outlive the
+///             `SurfaceSet::build()` call that reads it (nothing keeps the pointer past that).
 /// @return False when the spec is malformed or names no panels.
-inline bool board_from_spec(const DelugeBoard& base, std::string_view spec, const DelugeBoard*& out) {
-	static DelugeDisplayDesc descs[deluge::ui::shell::kMaxOled];
-	static DelugeBoard board;
+inline bool board_from_spec(const DelugeBoard& base, std::string_view spec, BoardStorage& out) {
+	DelugeDisplayDesc* const descs = out.descs;
 	size_t n = 0;
 	for (size_t pos = 0; pos <= spec.size() && n < deluge::ui::shell::kMaxOled;) {
 		const size_t comma = spec.find(',', pos);
@@ -307,12 +355,11 @@ inline bool board_from_spec(const DelugeBoard& base, std::string_view spec, cons
 	if (n == 0) {
 		return false;
 	}
-	board = base;
-	board.displays = descs;
-	board.display_count = static_cast<uint8_t>(n);
-	board.display_width = descs[0].width;
-	board.display_height = descs[0].height;
-	out = &board;
+	out.board = base;
+	out.board.displays = descs;
+	out.board.display_count = static_cast<uint8_t>(n);
+	out.board.display_width = descs[0].width;
+	out.board.display_height = descs[0].height;
 	return true;
 }
 
@@ -338,6 +385,12 @@ inline bool board_from_spec(const DelugeBoard& base, std::string_view spec, cons
 inline RunResult run_script(std::string_view script_text, const SceneRegistry& registry, Services services,
                             std::string_view out_dir, RunOptions opts = {}) {
 	RunResult result;
+	if (opts.tick_ms == 0) {
+		// `t += 0` never advances and the `t >= last_ms` break only fires for an empty script, so
+		// without this the run hangs rather than saying what is wrong. Line 0: not a script fault.
+		result.error = detail::make_error(0, "tick_ms must be greater than zero");
+		return result;
+	}
 	deluge::harness::ScriptResult parsed = deluge::harness::parse_script(script_text);
 	if (parsed.error) {
 		result.error = *parsed.error;
@@ -347,6 +400,9 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 	// A `board` step names the panel set the surfaces are *built* from, so it is read before the
 	// `FakeSurfaceSet` exists rather than applied inside the loop -- there is no way to re-size a
 	// live surface pool, and spec G §2 marks the step "at 0 ms" for exactly that reason.
+	// Declared here, not inside the scan: `FakeSurfaceSet`'s constructor reads through it, so it
+	// must outlive that call.
+	detail::BoardStorage board_storage;
 	const DelugeBoard* board = opts.board;
 	for (size_t i = 0; i < parsed.steps.size(); i++) {
 		const Step& s = parsed.steps[i];
@@ -357,10 +413,11 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 			result.error = detail::make_error(detail::line_of_step(script_text, i), "board is only allowed at 0 ms");
 			return result;
 		}
-		if (!detail::board_from_spec(*opts.board, s.text, board)) {
+		if (!detail::board_from_spec(*opts.board, s.text, board_storage)) {
 			result.error = detail::make_error(detail::line_of_step(script_text, i), "unparseable board spec");
 			return result;
 		}
+		board = &board_storage.board;
 	}
 
 	deluge::notify::dirty().drain();
@@ -384,13 +441,12 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 
 	size_t next = 0;
 	bool quit = false;
-	for (uint32_t t = 0; !quit; t += opts.tick_ms) {
+	for (uint32_t t = 0;; t += opts.tick_ms) {
 		std::vector<std::string> due_snapshots;
 		for (; next < parsed.steps.size() && parsed.steps[next].at_ms <= t; next++) {
 			const Step& s = parsed.steps[next];
 			const uint16_t line = detail::line_of_step(script_text, next);
-			result.log +=
-			    std::to_string(t) + " step " + std::to_string(static_cast<unsigned>(s.kind)) + " " + s.name + "\n";
+			result.log += std::to_string(t) + " " + detail::step_kind_name(s.kind) + " " + s.name + "\n";
 			switch (s.kind) {
 			case StepKind::Board:
 				break; // already applied, above
@@ -423,11 +479,24 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 					result.error = detail::make_error(line, "encoder not on this board");
 					return result;
 				}
+				// Computed wide and range-checked, never narrowed on faith: `on_encoder_edges`
+				// takes an `int8_t`, so at the default 2 edges/detent a `+64` would wrap to -128
+				// and turn a script asking for 64 detents clockwise into 64 anticlockwise. A
+				// script that asks for more than the API can carry is a script to fix, not a
+				// direction to silently reverse.
 				const int32_t edges = s.a * static_cast<int32_t>(config.lowering.edges_per_detent);
+				if (edges < -128 || edges > 127) {
+					result.error = detail::make_error(line, "too many detents for one on_encoder_edges call");
+					return result;
+				}
 				shell.on_encoder_edges(*index, static_cast<int8_t>(edges), t);
 				break;
 			}
 			case StepKind::Pad:
+				// `Step::down` is deliberately unread: the parser already folds `up` into velocity
+				// 0 (`ui_script.cpp:192-195`), which is exactly what `DELUGE_EVENT_PAD`'s `value`
+				// means ("0 = release", `control_surface.h:50`), so the two would say the same
+				// thing twice.
 				shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_PAD, static_cast<uint8_t>(s.a),
 				                                      static_cast<uint8_t>(s.b), static_cast<int16_t>(s.c)},
 				                     t);
@@ -477,15 +546,18 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 				break;
 			}
 		}
-		if (quit) {
-			break;
-		}
+		// `quit` stops the run, but not before the tick it landed in: steps are applied in file
+		// order, so a `snapshot` written at the same `at_ms` as a later `quit` was asked for first
+		// and must still be produced. Breaking out here instead would give its author no file and
+		// no error. When nothing is due (`popup.txt`'s lone `3200 quit`) this is one extra tick
+		// that writes nothing.
 
 		shell.tick(t);
 
 		for (const std::string& name : due_snapshots) {
 			for (uint8_t i = 0; i < fake.oled().size(); i++) {
 				if (!deluge::harness::write_file(out_dir, name + ".oled" + std::to_string(i) + ".pbm", fake.pbm(i))) {
+					// Line 0: an I/O failure belongs to no script line -- see `RunResult::error`.
 					result.error = detail::make_error(0, "could not write a snapshot pbm");
 					return result;
 				}
@@ -498,7 +570,7 @@ inline RunResult run_script(std::string_view script_text, const SceneRegistry& r
 			result.snapshots++;
 		}
 
-		if (t >= last_ms) {
+		if (quit || t >= last_ms) {
 			break;
 		}
 	}
@@ -563,6 +635,14 @@ inline RunResult expect_script_goldens(Self& self, std::string_view script_name,
 
 	const char* update = std::getenv("GFX_GOLDEN_UPDATE");
 	if (update != nullptr && std::string(update) == "1") {
+		// A script that produced nothing would otherwise record an empty directory and then pass
+		// forever -- both file lists empty, nothing to compare. Recording is the one moment that
+		// mistake is still visible.
+		expect(name + ": " + (got_names.empty() ? "produced nothing to record" : "produced files to record"))
+		    .to_equal(name + ": produced files to record");
+		if (got_names.empty()) {
+			return result;
+		}
 		fs::remove_all(golden, ec);
 		fs::create_directories(golden, ec);
 		for (const std::string& file : got_names) {

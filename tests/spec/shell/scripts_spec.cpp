@@ -7,7 +7,11 @@
 #include <array>
 #include <cstdint>
 #include <filesystem>
+#include <fstream>
+#include <optional>
+#include <sstream>
 #include <string>
+#include <utility>
 
 #include "../support/spec_main.h"
 using namespace deluge::ui::shell;
@@ -20,6 +24,9 @@ constexpr SceneKind kDemo = SceneKind::FirstApp;
 /// The three colours `DemoScene` paints its diagonal with, one per pad; picked distinct in every
 /// channel so a `.state` line cannot be confused with its neighbour.
 constexpr RGB kDemoColours[] = {RGB{200, 0, 0}, RGB{0, 180, 0}, RGB{0, 0, 160}};
+
+/// The colour a held pad is lit; white, so it cannot be mistaken for any of the three above.
+constexpr RGB kHeldColour{255, 255, 255};
 
 /// @brief The stand-in application scene: a title, a three-pad diagonal, the `Play` LED, and one
 ///        navigation gesture (`Clip` pushes another copy of itself, one argument higher).
@@ -40,10 +47,18 @@ public:
 		if (role != SurfaceRole::Main) {
 			return;
 		}
+		const deluge::gfx::oled::Rect b = frame.bounds();
 		deluge::ui::oled::title(frame, "DEMO");
+		// The two counters, on one line: `T` is the net `Select` detents `handle()` has seen, `M`
+		// how many `Dirty::ClipContent` facts `on_model_changed` has. Drawn unconditionally, so an
+		// unturned, unchanged scene still says `T0 M0` -- a counter that appeared only once it was
+		// non-zero could not tell "nothing happened" from "the scene stopped drawing it".
+		const std::string counters = "T" + std::to_string(turns_) + " M" + std::to_string(model_changes_);
+		deluge::ui::oled::text(
+		    frame, {0, b.h / 2, b.w, 10}, counters,
+		    deluge::ui::oled::TextStyle{deluge::gfx::oled::FontId::Apple7, deluge::ui::oled::Align::Centre});
 		if (arg_ != 0) {
 			const std::string n = std::to_string(static_cast<unsigned>(arg_));
-			const deluge::gfx::oled::Rect b = frame.bounds();
 			deluge::ui::oled::text(
 			    frame, {0, b.h - 10, b.w, 10}, n,
 			    deluge::ui::oled::TextStyle{deluge::gfx::oled::FontId::Apple7, deluge::ui::oled::Align::Centre});
@@ -54,6 +69,11 @@ public:
 		for (int32_t i = 0; i < 3; i++) {
 			(void)frame.pad(i, i, kDemoColours[i]);
 		}
+		// The base scene's frame starts at the grid's origin, so its local coordinates are the
+		// absolute ones a `UiEvent::Pad` carries -- nothing to translate here.
+		if (held_pad_) {
+			(void)frame.pad(held_pad_->first, held_pad_->second, kHeldColour);
+		}
 	}
 
 	void leds(deluge::ui::LedFrame& frame) override {
@@ -62,18 +82,75 @@ public:
 	}
 
 	Result handle(const UiEvent& event, const UiContext&) override {
-		if (event.kind != UiEvent::Kind::Button || event.button != ButtonId::Clip || !event.on) {
+		Result r;
+		switch (event.kind) {
+		case UiEvent::Kind::Button:
+			if (event.button != ButtonId::Clip || !event.on) {
+				return Result::unhandled();
+			}
+			r.handled = true;
+			(void)r.actions.push_back(
+			    Action{.kind = Action::Kind::Push, .id = SceneId{kDemo, static_cast<uint16_t>(arg_ + 1)}});
+			return r;
+		case UiEvent::Kind::Pad:
+			// Read in `handle()`, never through a frame: reading an input while rendering claims it
+			// (`ui/core/frame_context.h` rule 2), and this scene draws on both surfaces in a tick,
+			// so a frame read would claim the same press twice. No `Repaint` needed -- an ordinary
+			// pad event is routed by `pump_input` *before* the frame is built, so this tick's grid
+			// already shows the change.
+			if (event.on) {
+				held_pad_ = std::pair<uint8_t, uint8_t>{event.x, event.y};
+			}
+			else {
+				held_pad_.reset();
+			}
+			r.handled = true;
+			return r;
+		case UiEvent::Kind::Encoder:
+			if (event.encoder != deluge::ui::EncoderRole::Select) {
+				return Result::unhandled();
+			}
+			turns_ += event.delta;
+			r.handled = true;
+			// A turn is widget-owned, so the shell holds it back and delivers it *after* render
+			// (`Shell::deliver_post_render_input`) -- this tick's frame was built before `turns_`
+			// moved. Asking for the surface is how a scene reacts to a held-back event; the shell
+			// honours it on the next tick.
+			(void)r.actions.push_back(Action{.kind = Action::Kind::Repaint, .surface = SurfaceRole::Main});
+			return r;
+		default:
 			return Result::unhandled();
 		}
+	}
+
+	void on_model_changed(const deluge::notify::DirtySet& dirty) override {
+		if (!dirty.has(deluge::notify::Dirty::ClipContent)) {
+			return;
+		}
+		model_changes_++;
+		// `Dirty::ClipContent` invalidates the *grid* only (`Shell::apply_dirty`), so a counter
+		// drawn on the OLED would go stale. `on_model_changed` cannot return an action, but the
+		// grid does repaint this tick, which earns this scene an `after_render()` -- the shell's
+		// own "ask for a surface on the next tick" path.
+		oled_stale_ = true;
+	}
+
+	Result after_render() override {
+		if (!oled_stale_) {
+			return {};
+		}
+		oled_stale_ = false;
 		Result r;
-		r.handled = true;
-		(void)r.actions.push_back(
-		    Action{.kind = Action::Kind::Push, .id = SceneId{kDemo, static_cast<uint16_t>(arg_ + 1)}});
+		(void)r.actions.push_back(Action{.kind = Action::Kind::Repaint, .surface = SurfaceRole::Main});
 		return r;
 	}
 
 private:
 	uint16_t arg_ = 0;
+	int32_t turns_ = 0;
+	uint32_t model_changes_ = 0;
+	bool oled_stale_ = false;
+	std::optional<std::pair<uint8_t, uint8_t>> held_pad_;
 };
 
 /// @brief The scene table both scripts run against: `DemoScene` in the one application slot.
@@ -93,6 +170,16 @@ struct DemoRegistry {
 	DemoRegistry& operator=(const DemoRegistry&) = delete;
 };
 
+/// @brief The whole contents of \p path.
+/// @param path File to read.
+/// @return Its bytes, or an empty string if it could not be opened.
+std::string read_text(const std::string& path) {
+	std::ifstream in(path);
+	std::stringstream ss;
+	ss << in.rdbuf();
+	return ss.str();
+}
+
 } // namespace
 
 // clang-format off
@@ -111,6 +198,52 @@ describe shell_scripts("shell script harness (level 2)", $ {
 		opts.initial_scene = SceneId{kDemo, 0};
 		const uitest::RunResult result = uitest::expect_script_goldens(self, "popup", r.reg, Services{}, opts);
 		expect(result.snapshots).to_equal(uint32_t(4));
+	});
+
+	it("lowers pad, encoder and model steps", _ {
+		DemoRegistry r;
+		uitest::RunOptions opts;
+		opts.initial_scene = SceneId{kDemo, 0};
+		const uitest::RunResult result = uitest::expect_script_goldens(self, "input", r.reg, Services{}, opts);
+		expect(result.snapshots).to_equal(uint32_t(6));
+
+		// Explicit facts, read out of the run's own output rather than trusting the goldens: the
+		// pad the script pressed is lit white while held and gone once released, and each counter
+		// step redraws the OLED (so no two of the three counter frames are the same image).
+		const std::string dir = std::string(UI_GOT_DIR) + "/shell/input/";
+		const std::string idle = read_text(dir + "idle.state");
+		expect(idle.find("pad 2 3") == std::string::npos).to_be_true();
+		expect(read_text(dir + "pad-held.state").find("pad 2 3 255 255 255") != std::string::npos).to_be_true();
+		expect(read_text(dir + "pad-released.state")).to_equal(idle);
+
+		const std::string before = read_text(dir + "idle.oled0.pbm");
+		const std::string up = read_text(dir + "turn-up.oled0.pbm");
+		const std::string down = read_text(dir + "turn-down.oled0.pbm");
+		const std::string model = read_text(dir + "model-changed.oled0.pbm");
+		expect(before.empty()).to_be_false();
+		expect(up == before).to_be_false();   // T0 -> T1
+		expect(down == up).to_be_false();     // T1 -> T-1
+		expect(model == down).to_be_false();  // M0 -> M1
+	});
+
+	it("refuses an encoder step it would have to narrow", _ {
+		DemoRegistry r;
+		const std::string out = std::string(UI_GOT_DIR) + "/shell/encoder-overflow";
+		std::error_code ec;
+		std::filesystem::remove_all(out, ec);
+
+		// 63 detents x 2 edges = 126, which fits an int8_t; 64 x 2 = 128, which does not -- and
+		// would wrap to -128, silently reversing the turn.
+		uitest::RunOptions opts;
+		opts.initial_scene = SceneId{kDemo, 0};
+		expect(uitest::run_script("0 encoder Select +63\n", r.reg, Services{}, out, opts).error.has_value())
+		    .to_be_false();
+
+		const uitest::RunResult result = uitest::run_script("0 encoder Select +64\n", r.reg, Services{}, out, opts);
+		expect(result.error.has_value()).to_be_true();
+		expect(result.error->line).to_equal(uint16_t(1));
+		expect(std::string(result.error->message))
+		    .to_equal(std::string("too many detents for one on_encoder_edges call"));
 	});
 
 	it("reports an unknown command's line and writes nothing", _ {

@@ -1,6 +1,8 @@
 #include "cppspec.hpp"
 #include "harness/snapshot.h"
 #include "harness/ui_script.h"
+
+#include <string>
 using namespace deluge::harness;
 // clang-format off
 describe ui_script("harness::ui_script", $ {
@@ -26,6 +28,16 @@ describe ui_script("harness::ui_script", $ {
 		StateLines s; add_pad_line(s, 4, 3, 10, 20, 30); add_pad_line(s, 0, 0, 0, 0, 0); s.add("scene Session"); s.add("scene Popup/General");
 		add_led_line(s, "Play", false, 0); add_led_line(s, "Record", true, 500); uint8_t lv[4] = {3, 3, 2, 0}; add_indicator_line(s, true, lv);
 		expect(s.sorted_text()).to_equal("scene Session\nscene Popup/General\nled Play on\nled Record blink 500\npad 4 3 10 20 30\nindicator upper 3 3 2 0\n");
+	});
+	it("keeps a full-length notice line intact", _ {
+		// The device really does produce popup text this long -- `midi_follow.cpp:648-657` builds
+		// "Can't control: \n<param name>" -- and a truncated `.state` line is a golden that has
+		// silently stopped telling two screens apart. 60 characters of text plus the widest
+		// realistic prefix must survive `add` untouched.
+		const std::string text(60, 'x');
+		StateLines s; s.add("notice Text " + text);
+		expect(s.sorted_text()).to_equal("notice Text " + text + "\n");
+		expect(std::string("notice Text " + text).size()).to_be_less_than(kStateLineBytes);
 	});
 	it("orders indicator/lock/notice by fixed category, ASCII-sorted within category", _ {
 		StateLines s; uint8_t lv[4] = {1, 1, 1, 1};
