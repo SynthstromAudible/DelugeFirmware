@@ -43,6 +43,11 @@
 // browser tick that reaches both.
 static_assert(DELUGE_FILE_DIRECTORY_MAX_PATH == DELUGE_MAX_PATH);
 
+// The one STATUS the Rust module hand-duplicates (as `NO_FILESYSTEM`), because its driver branches on
+// it: an open that reports "no filesystem" is what tells the driver to mount. Everything else it
+// simply carries through, so this is the only value that has to agree.
+static_assert(DELUGE_ERR_NO_FILESYSTEM == -11);
+
 // The status bytes the Rust side hand-duplicates from this header (`const _` in file_directory.rs).
 static_assert(DELUGE_FILE_DIRECTORY_PENDING == 0u);
 static_assert(DELUGE_FILE_DIRECTORY_READY == 1u);

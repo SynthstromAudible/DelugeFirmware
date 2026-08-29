@@ -75,6 +75,26 @@ async fn partition_window() -> (u64, u64) {
 /// Mount the FS, storing it in [`FS`]. Idempotent: returns `Ok(())`
 /// immediately if a FS is already mounted, so both the eager boot mount and a
 /// later C-ABI [`deluge_efatfs_mount`] call can invoke this safely.
+/// How many times the filesystem has become mounted, as a monotonic counter.
+///
+/// The C++ side reads this to notice an unmounted->mounted EDGE, which is what drives
+/// `AudioFileManager::firstCardRead()` (and through it `cardReinserted()`, which re-checks every
+/// resident sample against the new card). It used to detect that edge itself, by sampling
+/// `deluge_efatfs_is_mounted()` either side of its own `deluge_efatfs_mount()` call -- which only
+/// works while C++ is the only thing that ever mounts. The directory channel's driver now mounts
+/// too, on the storage tier, because mounting is real card I/O and its caller is on the interaction
+/// tier; a driver that mounted silently would leave `is_mounted()` reading true with the
+/// notification never fired, and every later check would see "already mounted" and skip it forever.
+///
+/// A counter rather than a flag so no reader can consume the edge out from under another.
+static MOUNT_GENERATION: core::sync::atomic::AtomicU32 = core::sync::atomic::AtomicU32::new(0);
+
+/// C-ABI: the mount counter. See [`MOUNT_GENERATION`].
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_efatfs_mount_generation() -> u32 {
+    MOUNT_GENERATION.load(core::sync::atomic::Ordering::Acquire)
+}
+
 pub async fn mount() -> Result<(), ()> {
     if FS.lock().await.is_some() {
         return Ok(()); // already mounted -- idempotent
@@ -91,6 +111,9 @@ pub async fn mount() -> Result<(), ()> {
         .await
         .map_err(|_| ())?;
     *FS.lock().await = Some(fs);
+    // Bumped only on the transition, with the FS installed: a reader that sees the new value can
+    // rely on the filesystem being usable.
+    MOUNT_GENERATION.fetch_add(1, core::sync::atomic::Ordering::Release);
     Ok(())
 }
 
@@ -113,6 +136,17 @@ async fn reset_all_handle_tables() {
 /// every stale Rust-side handle from the old one (open streaming reads, task
 /// files, directory browses, and in-progress stream-writes all become
 /// invalid — callers must reopen).
+/// Drop the filesystem, leaving it unmounted.
+///
+/// The symmetric counterpart of [`mount`], which until now had none: [`remount`] drops and re-mounts
+/// in one step, so nothing could put the filesystem into the unmounted state and leave it there.
+/// That is the state the directory channel's driver mounts OUT of, so without this it could not be
+/// exercised at all.
+pub async fn unmount() {
+    *FS.lock().await = None;
+    reset_all_handle_tables().await;
+}
+
 pub async fn remount() -> Result<(), ()> {
     *FS.lock().await = None; // drop the old Fs (BufStream/StreamSlice discarded with it)
     reset_all_handle_tables().await;
@@ -894,6 +928,11 @@ pub extern "C" fn deluge_storage_fs_busy() -> bool {
 /// C-ABI: drop the mounted FS + reset the four handle tables + re-mount fresh
 /// (see [`remount`]). For a card SWAP: gives a clean FS against the new card
 /// and invalidates stale Rust-side handle state from the old one.
+/// C-ABI: drop the filesystem, leaving it unmounted. See [`unmount`].
+#[unsafe(no_mangle)]
+pub extern "C" fn deluge_efatfs_unmount() {
+    crate::sim_block::block_on(unmount());
+}
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_remount() -> bool {
     crate::sim_block::block_on(remount()).is_ok()

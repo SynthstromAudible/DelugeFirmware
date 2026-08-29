@@ -61,6 +61,17 @@ const MAX_PATH_CHARS: usize = 255;
 /// `audio_loader::LoadPath`, which says it at length.
 pub type DirPath = heapless::String<MAX_PATH_CHARS>;
 
+/// `DELUGE_ERR_NO_FILESYSTEM`, as a bare `i8`.
+///
+/// Spelled here for the reason this whole module carries statuses bare: it compiles in carriers with
+/// no bindgen bindings at all. Pinned from the other side by `file_directory_abi.cpp`.
+///
+/// It is a NAMED constant and not written inline in the match below, and that is not style. An
+/// unknown identifier in pattern position is a fresh BINDING, not a comparison -- so
+/// `Err(DELUGE_ERR_NO_FILESYSTEM) =>` compiled, matched EVERY error, and sent every failed open down
+/// the mount path. The only complaint was a non-snake-case warning among thirty-odd others.
+const NO_FILESYSTEM: i8 = -11;
+
 /// `deluge_file_directory_collect`: requested or in flight; ask again, do not re-request.
 pub const DELUGE_FILE_DIRECTORY_PENDING: u8 = 0;
 /// `deluge_file_directory_collect`: a handle was written out and removed. It is now the caller's.
@@ -84,6 +95,7 @@ pub const DELUGE_FILE_DIRECTORY_FAILED: u8 = 3;
 /// Keep them equal.
 const _: () = {
     assert!(MAX_PATH_CHARS == 255); // DELUGE_MAX_PATH - 1, as audio_loader::LoadPath
+    assert!(NO_FILESYSTEM == -11); // DELUGE_ERR_NO_FILESYSTEM
     assert!(DELUGE_FILE_DIRECTORY_PENDING == 0);
     assert!(DELUGE_FILE_DIRECTORY_READY == 1);
     assert!(DELUGE_FILE_DIRECTORY_UNKNOWN == 2);
@@ -584,10 +596,12 @@ unsafe fn cstr_to_path(ptr: *const c_char) -> Option<DirPath> {
 ))]
 mod backing {
     #[cfg(target_os = "none")]
-    pub(super) use crate::efatfs_fs::{task_dir_close, task_dir_open, task_mkdir, try_close_dir};
+    pub(super) use crate::efatfs_fs::{
+        mount, task_dir_close, task_dir_open, task_mkdir, try_close_dir,
+    };
     #[cfg(not(target_os = "none"))]
     pub(super) use crate::efatfs_host_shim::{
-        task_dir_close, task_dir_open, task_mkdir, try_close_dir,
+        mount, task_dir_close, task_dir_open, task_mkdir, try_close_dir,
     };
 }
 
@@ -627,9 +641,22 @@ impl DirOps for ProdDirOps {
         // The same `task_dir_open` `deluge_efatfs_dir_open` calls -- the difference is entirely
         // that this awaits it and that one spins on it. `DelugeStatus` is `int8_t`, so the cast is
         // the identity on the wire.
-        backing::task_dir_open(path)
-            .await
-            .map_err(|status| status as i8)
+        match backing::task_dir_open(path).await {
+            Err(NO_FILESYSTEM) => {
+                // Not mounted. MOUNTING IS REAL CARD I/O, which is exactly why it happens here:
+                // `StorageManager::initSD()` used to do it before every listing, and with this
+                // channel active that caller runs on the interaction tier. Mounted lazily rather
+                // than before every open, so the steady state costs nothing.
+                //
+                // `mount()` bumps `deluge_efatfs_mount_generation`, which is how the C++ side still
+                // learns to run `firstCardRead()`.
+                backing::mount().await.map_err(|()| NO_FILESYSTEM)?;
+                backing::task_dir_open(path)
+                    .await
+                    .map_err(|status| status as i8)
+            }
+            other => other.map_err(|status| status as i8),
+        }
     }
 
     async fn close_dir(&self, handle: u32) {

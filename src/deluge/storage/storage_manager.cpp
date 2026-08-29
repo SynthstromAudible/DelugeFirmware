@@ -41,6 +41,7 @@
 #include "processing/sound/sound_instrument.h"
 #include "storage/audio/audio_file_manager.h"
 #include "storage/file_item.h"
+#include "storage/owner.h"
 
 #include "etl/string.h"
 #include "util/firmware_version.h"
@@ -223,19 +224,61 @@ Error StorageManager::initSD() {
 		return Error::SD_CARD_NOT_PRESENT;
 	}
 
-	// Query mounted state BEFORE mounting so we can tell a fresh mount transition apart from the
-	// already-mounted fast path (deluge_efatfs_mount is idempotent, so its return alone can't
-	// distinguish them). firstCardRead()->cardReinserted() walks every audioFile in memory, which
-	// is too heavy to re-run on every initSD call (this runs before every FS access) - it must only
-	// fire once per actual (re)mount.
-	bool wasMounted = deluge_efatfs_is_mounted();
 	if (!deluge_efatfs_mount()) {
 		return Error::SD_CARD;
 	}
-	if (!wasMounted) {
-		audioFileManager.firstCardRead(); // tell the audio file manager that we have a new card
-	}
+	// The transition is decided by the shared counter, not by watching our own call. It used to be
+	// `wasMounted` sampled either side of the mount above, which finds the edge only while this is
+	// the ONLY thing that mounts -- and the directory channel's driver now mounts too, on the storage
+	// tier, because mounting is card I/O and its caller is on the interaction tier. Every caller of
+	// initSD() is somewhere the work can run, hence true.
+	noticeCardMount(/*mayRunHere=*/true);
 	return Error::NONE;
+}
+
+namespace {
+/// Owner-op trampoline: the heavy half of a mount notification, on the storage tier.
+void runFirstCardReadOp(void*) {
+	audioFileManager.firstCardRead();
+}
+/// How many mount edges have been acted on. See StorageManager::cardMountNotices().
+uint32_t g_cardMountNotices = 0;
+} // namespace
+
+uint32_t StorageManager::cardMountNotices() {
+	return g_cardMountNotices;
+}
+
+void StorageManager::noticeCardMount(bool mayRunHere) {
+	// Static rather than a member: the counter is a property of the one filesystem, and every caller
+	// is asking the same question about it.
+	static uint32_t lastSeenMountGeneration = 0;
+	// Seeded from the current value the first time, so a device that boots with the card already
+	// mounted does not fire a spurious "the card changed" on its first listing.
+	static bool seeded = false;
+	const uint32_t generation = deluge_efatfs_mount_generation();
+	if (!seeded) {
+		seeded = true;
+		lastSeenMountGeneration = generation;
+		return;
+	}
+	if (generation == lastSeenMountGeneration) {
+		return;
+	}
+	// Taken BEFORE the work, so a second caller arriving while it is queued does not queue it twice.
+	lastSeenMountGeneration = generation;
+	g_cardMountNotices++;
+	if (mayRunHere) {
+		audioFileManager.firstCardRead(); // tell the audio file manager that we have a new card
+		return;
+	}
+	// firstCardRead() -> cardReinserted() opens every resident sample to check it survived the swap,
+	// which is card I/O and may not happen on the interaction tier. Handing it to the storage owner
+	// is a dispatch, not a wait. If the queue is full the edge is genuinely lost, so put the counter
+	// back and let the next tick try again rather than dropping the notification.
+	if (!deluge::storage::Owner::run(&runFirstCardReadOp, nullptr)) {
+		lastSeenMountGeneration = generation - 1;
+	}
 }
 
 bool StorageManager::checkSDPresent() {

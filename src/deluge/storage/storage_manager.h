@@ -406,6 +406,26 @@ Error openDelugeBuffer(std::span<uint8_t> buffer, bool isJson, char const* first
                        bool ignoreIncorrectFirmware = false);
 Error initSD();
 
+/// @brief Run AudioFileManager::firstCardRead() if the filesystem has been mounted since we last
+///        looked, and nothing otherwise.
+///
+/// The card can now be mounted by something other than @ref initSD — the directory channel's driver
+/// mounts on the storage tier, because mounting is card I/O and its caller is on the interaction
+/// tier. So the unmounted→mounted edge is tracked by a counter both paths share rather than by
+/// `initSD` watching its own call.
+///
+/// @param mayRunHere Whether the caller is somewhere `firstCardRead()` can run. It reaches
+///        `cardReinserted()`, which OPENS every resident sample to check it survived the swap — real
+///        card I/O, so on the interaction tier this must be false and the work is handed to the
+///        storage owner instead. Handing it over does not block.
+void noticeCardMount(bool mayRunHere);
+
+/// @brief How many mount edges @ref noticeCardMount has acted on. For gates only.
+///
+/// Exists because the two hazards here are both invisible from the outside: firing the notification
+/// twice for one mount, and never firing it at all. Neither shows up in a listing's result.
+[[nodiscard]] uint32_t cardMountNotices();
+
 /// @brief Check whether a file exists at @p pathName.
 ///
 /// @param pathName Absolute path on the SD volume.

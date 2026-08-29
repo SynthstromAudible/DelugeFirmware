@@ -171,11 +171,33 @@ bool deluge_efatfs_mount(void);
 /// @return true if mounted; false if unmounted, or if the call is off-fiber.
 bool deluge_efatfs_is_mounted(void);
 
+/// @brief How many times the filesystem has become mounted, as a monotonic counter.
+///
+/// Read this to notice an unmounted→mounted EDGE. Sampling @ref deluge_efatfs_is_mounted either side
+/// of your own @ref deluge_efatfs_mount only finds the edge while you are the ONLY thing that ever
+/// mounts, and that stopped being true when the directory channel's driver began mounting on the
+/// storage tier — mounting is card I/O and its caller is on the interaction tier. A driver that
+/// mounts silently leaves `is_mounted()` reading true, and an edge detector built on it then sees
+/// "already mounted" and skips forever.
+///
+/// A counter rather than a flag, so no reader consumes the edge out from under another.
+/// @return A value that changes on every mount. Only changes are meaningful; the absolute value is
+///         not, and it may be 0 on a BSP with no filesystem at all.
+uint32_t deluge_efatfs_mount_generation(void);
+
 /// @brief Drop the mounted volume and re-mount fresh, invalidating every outstanding handle
 ///        (streaming reads, task-context files/dirs, and in-progress stream-writes all become
 ///        invalid — callers must reopen). Used to pick up a card SWAP.
 /// @return true on success; false on mount failure or if the call is off-fiber.
 bool deluge_efatfs_remount(void);
+
+/// @brief Drop the filesystem, leaving it UNMOUNTED.
+///
+/// The symmetric counterpart of @ref deluge_efatfs_mount, which until now had none —
+/// @ref deluge_efatfs_remount drops and re-mounts in one step, so nothing could leave the filesystem
+/// unmounted. That is the state a lazily-mounting caller has to be able to start from, so without
+/// this it could not be exercised.
+void deluge_efatfs_unmount(void);
 
 /// @brief The mounted volume's cluster (allocation-unit) size, in bytes.
 /// @param out_bytes Set to the cluster size on success.

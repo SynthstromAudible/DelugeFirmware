@@ -163,6 +163,20 @@ static Error directoryOpenError(DelugeStatus status) {
 	return status == DELUGE_ERR_NOT_FOUND ? Error::FOLDER_DOESNT_EXIST : delugeStatusToError(status);
 }
 
+bool Browser::usingDirectoryChannel() {
+	// Three conditions, and each excludes a caller that has nowhere to put a deferral:
+	//
+	//  - `listing_.active`: readFileItemsForFolder is also reached by predictExtendedText (the typing
+	//    path) and by LoadInstrumentPresetUI, neither of which is a listing.
+	//  - `!Owner::on_owner()`: and `listing_.active` alone does NOT exclude them, because it is a
+	//    global meaning "SOME listing is in flight", not "I am inside it". An owner op running while
+	//    a listing is deferred would otherwise take the async arm, be handed a LISTING_DEFERRED it
+	//    treats as a load failure, AND replace the listing's outstanding request with its own.
+	//  - the selector: with the channel absent the weak collect answers UNKNOWN forever, so a caller
+	//    that consulted it would defer every tick and never list anything.
+	return listing_.active && !deluge::storage::Owner::on_owner() && deluge_file_directory_async_active();
+}
+
 std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(char const* path, bool createIfMissing) {
 	// A path the channel cannot key is refused HERE, with a real error, rather than passed on.
 	// `deluge_file_directory_request` silently drops an over-long path and the collect then answers
@@ -173,19 +187,7 @@ std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(cha
 		return std::unexpected(Error::FILE_NOT_FOUND);
 	}
 
-	// Three conditions, and each excludes a caller that has nowhere to put a deferral:
-	//
-	//  - `listing_.active`: readFileItemsForFolder is also reached by predictExtendedText (the typing
-	//    path) and by LoadInstrumentPresetUI, neither of which is a listing.
-	//  - `!Owner::on_owner()`: and `listing_.active` alone does NOT exclude them, because it is a
-	//    global meaning "SOME listing is in flight", not "I am inside it". An owner op
-	//    running while a browser attempt is deferred would otherwise take this branch, be handed a
-	//    LISTING_DEFERRED it treats as a load failure, AND replace the browser's outstanding request
-	//    with its own. The tick surface is the only thing that runs an attempt, and it is never the
-	//    owner.
-	//  - the selector: with the channel absent the weak collect answers UNKNOWN forever, so an
-	//    attempt that consulted it would defer on every tick and never list anything.
-	if (!listing_.active || deluge::storage::Owner::on_owner() || !deluge_file_directory_async_active()) {
+	if (!usingDirectoryChannel()) {
 		auto opened = deluge::io::Directory::open(path);
 		if (!opened.has_value()) {
 			return std::unexpected(directoryOpenError(deluge::io::to_deluge_status(opened.error())));
@@ -483,9 +485,19 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 
 	emptyFileItems();
 
-	Error error = StorageManager::initSD();
-	if (error != Error::NONE) {
-		return error;
+	// initSD() MOUNTS, and mounting is real card I/O. On the synchronous arm this runs on the storage
+	// owner and that is where it belongs; with the channel active this runs on the interaction tier,
+	// so the mount moves to the channel's driver instead -- it mounts lazily when an open reports no
+	// filesystem, on the storage tier, and bumps the generation the C++ side watches.
+	//
+	// Card PRESENCE is still reported, by the open failing, so nothing is lost by skipping the
+	// pre-flight; what would be lost is the firstCardRead() edge, which graphicsRoutine() collects.
+	Error error = Error::NONE;
+	if (!usingDirectoryChannel()) {
+		error = StorageManager::initSD();
+		if (error != Error::NONE) {
+			return error;
+		}
 	}
 
 	// Every open a LISTING makes is counted, so a gate can force the Nth one to defer and check that
@@ -839,6 +851,13 @@ void Browser::graphicsRoutine() {
 	// beginListing() consulted -- with the channel on it dispatched nothing and the listing is ours to
 	// run; with it off the owner has it, and running it here as well would run one listing twice, on
 	// two tiers, over one static fileItems.
+	// The mount edge, collected wherever the browser ticks. The channel's driver mounts on the storage
+	// tier without telling anyone, so this is what still runs firstCardRead() -- handed to the storage
+	// owner, because it opens every resident sample and may not run here.
+	if (deluge_file_directory_async_active()) {
+		StorageManager::noticeCardMount(/*mayRunHere=*/false);
+	}
+
 	if (listingInProgress_ && listingOnTickSurface_) {
 		// No is_current test here: close() cancels the attempt at the moment it becomes stale, which
 		// is the precise event. See Browser::close().

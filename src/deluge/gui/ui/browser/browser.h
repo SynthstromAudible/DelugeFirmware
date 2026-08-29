@@ -344,6 +344,9 @@ protected:
 	/// @param path NUL-terminated directory path.
 	/// @return The open Directory, or the Error that stopped it — which may be
 	///         @ref Error::LISTING_DEFERRED, meaning "not a failure; the attempt will be re-run".
+	/// @brief Whether THIS call should reach the async directory channel rather than open directly.
+	/// @return True only inside a listing, off the storage owner, with the channel compiled in.
+	[[nodiscard]] static bool usingDirectoryChannel();
 	[[nodiscard]] static std::expected<deluge::io::Directory, Error> openDirectoryForListing(char const* path,
 	                                                                                         bool createIfMissing);
 

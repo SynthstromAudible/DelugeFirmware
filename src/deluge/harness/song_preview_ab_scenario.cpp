@@ -29,6 +29,7 @@
 #include "storage/file_item.h"
 #include "storage/owner.h"
 #include "storage/song_preview.h"
+#include "storage/storage_manager.h"
 #include "util/string.h"
 
 #include <array>
@@ -976,7 +977,7 @@ constexpr const char* kBigDir = "BIGLIST";
 constexpr int32_t kBigEntries = 300;
 static_assert(kBigEntries > 230, "the case must exceed the arena threshold it exists to guard");
 
-enum class ListingStep : uint8_t { Fixture, Reference, Sweep, BigFolder, Fallback, Create, Finished };
+enum class ListingStep : uint8_t { Fixture, Reference, Sweep, BigFolder, Fallback, Create, Mount, Finished };
 ListingStep g_listingStep = ListingStep::Fixture;
 int32_t g_listingDeferAt = 0;  ///< which N the sweep is on; 0 = the reference run
 int32_t g_listingOpens = 0;    ///< how many opens the reference run performed
@@ -984,6 +985,7 @@ bool g_listingRunning = false; ///< a listing is in flight and being ticked
 int32_t g_listingTicks = 0;    ///< tick budget guard for the run in flight
 ListingSnapshot g_listingReference;
 int32_t g_listingCasesRun = 0;
+uint32_t g_mountNoticesBefore = 0;
 
 ListingSnapshot takeListingSnapshot() {
 	ListingSnapshot snap;
@@ -1084,6 +1086,29 @@ void runListingTick() {
 		}
 		g_listingRunning = false;
 
+		if (g_listingStep == ListingStep::Mount) {
+			const ListingSnapshot got = takeListingSnapshot();
+			// One notice, not zero and not two. Zero is the hazard the mount generation exists for: a
+			// driver that mounts silently leaves is_mounted() true, and an edge detector that sampled
+			// that would skip the notification forever. Two is the other side of it -- both initSD()
+			// and the tick surface noticing the same mount.
+			const uint32_t notices = StorageManager::cardMountNotices() - g_mountNoticesBefore;
+			printf("SP-LISTING mount listed=%zu notices=%u deferrals=%d\n", got.names.size(), notices,
+			       BrowserListingAbProbe::deferrals());
+			if (got.names.size() != g_listingReference.names.size()) {
+				printf("SP-LISTING FAIL mount: listed %zu entries from an unmounted card, wanted %zu\n",
+				       got.names.size(), g_listingReference.names.size());
+				g_failures++;
+			}
+			if (notices != 1) {
+				printf("SP-LISTING FAIL mount: the mount edge fired %u times, wanted exactly 1\n", notices);
+				g_failures++;
+			}
+			printf("SP-LISTING-SUMMARY opens=%d sweeps=%d big=%d\n", g_listingOpens, g_listingCasesRun, kBigEntries);
+			g_listingStep = ListingStep::Finished;
+			return;
+		}
+
 		if (g_listingStep == ListingStep::Create) {
 			// The fallback had to CREATE its default directory. On the synchronous arm that mkdir runs
 			// inline on the storage owner; on the channel arm it rides the request and runs on the
@@ -1100,8 +1125,18 @@ void runListingTick() {
 				g_failures++;
 			}
 			runByPathCases();
-			printf("SP-LISTING-SUMMARY opens=%d sweeps=%d big=%d\n", g_listingOpens, g_listingCasesRun, kBigEntries);
-			g_listingStep = ListingStep::Finished;
+
+			// Now with the filesystem UNMOUNTED. Mounting is real card I/O, so on the channel arm it
+			// belongs to the driver, not to StorageManager::initSD() running on the interaction tier.
+			// The listing has to succeed anyway, and -- the half that is invisible in its result -- the
+			// unmounted->mounted edge has to reach firstCardRead() exactly once, even though nothing
+			// in C++ did the mounting.
+			g_mountNoticesBefore = StorageManager::cardMountNotices();
+			deluge_efatfs_unmount();
+			BrowserListingAbProbe::beginOpenListing(kListingDir, kListingStartAt);
+			g_listingRunning = true;
+			g_listingTicks = 0;
+			g_listingStep = ListingStep::Mount;
 			return;
 		}
 
