@@ -245,6 +245,10 @@ pub trait DirOps {
     /// Open `path` for iteration, resolving to an efatfs directory handle or the status that
     /// stopped it.
     async fn open_dir(&self, path: &str) -> Result<u32, i8>;
+    /// Create `path`. Its failure is deliberately not reported: the OPEN that follows is the verdict,
+    /// and the commonest failure here is EXISTS, which is not a failure at all for the caller's
+    /// purpose ("make sure this directory is there").
+    async fn create_dir(&self, path: &str);
     /// Release a directory handle. The table holds only `MAX_DIR_HANDLES` (8) slots, so a leak here
     /// is not a slow drift -- eight of them stop directory browsing altogether.
     async fn close_dir(&self, handle: u32);
@@ -256,7 +260,13 @@ pub trait DirOps {
 /// `audio_loader::load_io_once` -- one named function that is the whole of this channel's card
 /// contact -- rather than because the mapping is subtle.
 #[cfg(feature = "async_file_directory")]
-pub async fn dir_io_once<O: DirOps>(ops: &O, path: &str) -> DirOutcome {
+pub async fn dir_io_once<O: DirOps>(ops: &O, path: &str, create: bool) -> DirOutcome {
+    if create {
+        // On the storage tier, where a card WRITE belongs. This is the browser's missing-folder
+        // fallback: the C++ side used to `mkdir` inline, which is fine on the storage owner but not
+        // on the interaction tier the listing runs on once this channel backs it.
+        ops.create_dir(path).await;
+    }
     match ops.open_dir(path).await {
         Ok(handle) => DirOutcome::Opened(handle),
         Err(status) => DirOutcome::Failed(status),
@@ -276,7 +286,15 @@ pub static DIRECTORY_WAKE: Signal<CriticalSectionRawMutex, ()> = Signal::new();
 /// behind, and the caller of a dropped request reads `UNKNOWN` on its next tick, which it will only
 /// do if it still wants it.
 #[cfg(feature = "async_file_directory_active")]
-static REQUEST: Mutex<CriticalSectionRawMutex, Option<DirPath>> = Mutex::new(None);
+static REQUEST: Mutex<CriticalSectionRawMutex, Option<DirRequest>> = Mutex::new(None);
+
+/// One outstanding request: which directory, and whether to create it first.
+#[cfg(feature = "async_file_directory_active")]
+#[derive(Clone)]
+struct DirRequest {
+    path: DirPath,
+    create: bool,
+}
 
 /// The path being opened right now, if any. Exists so [`deluge_file_directory_collect`] can answer
 /// `PENDING` rather than `UNKNOWN` in the window between a request leaving [`REQUEST`] and its
@@ -370,12 +388,15 @@ pub extern "C" fn deluge_file_directory_async_active() -> bool {
 ///
 /// `dir_path` must be a valid NUL-terminated C string. It is copied out before this returns.
 #[unsafe(no_mangle)]
-pub unsafe extern "C" fn deluge_file_directory_request(dir_path: *const c_char) {
+pub unsafe extern "C" fn deluge_file_directory_request(
+    dir_path: *const c_char,
+    create_if_missing: bool,
+) {
     // SAFETY: the caller's contract, above.
     let Some(path) = (unsafe { cstr_to_path(dir_path) }) else {
         return;
     };
-    enqueue_request(path);
+    enqueue_request(path, create_if_missing);
 }
 
 /// Install the request and wake the driver, replacing any request not yet picked up.
@@ -383,11 +404,11 @@ pub unsafe extern "C" fn deluge_file_directory_request(dir_path: *const c_char) 
 /// `try_lock` rather than a block: this is called synchronously from C++ in whatever context the
 /// app happens to be in, and must never wait.
 #[cfg(feature = "async_file_directory_active")]
-fn enqueue_request(path: DirPath) {
+fn enqueue_request(path: DirPath, create: bool) {
     let Ok(mut request) = REQUEST.try_lock() else {
         return; // Contended; the caller re-requests on its next tick.
     };
-    *request = Some(path);
+    *request = Some(DirRequest { path, create });
     drop(request);
     DIRECTORY_WAKE.signal(());
 }
@@ -396,7 +417,7 @@ fn enqueue_request(path: DirPath) {
 /// Nothing reaches here in practice -- the C++ side gates on
 /// [`deluge_file_directory_async_active`], which is false in this configuration.
 #[cfg(not(feature = "async_file_directory_active"))]
-fn enqueue_request(_path: DirPath) {}
+fn enqueue_request(_path: DirPath, _create: bool) {}
 
 /// Collect the directory opened for `dir_path`, if one is ready. See `file_directory.h`.
 ///
@@ -514,7 +535,7 @@ fn probe(_path: &str) -> Probe {
 #[cfg(feature = "async_file_directory_active")]
 fn is_requested(path: &str) -> bool {
     match REQUEST.try_lock() {
-        Ok(request) => request.as_deref() == Some(path),
+        Ok(request) => request.as_ref().is_some_and(|r| r.path == path),
         Err(_) => true,
     }
 }
@@ -563,9 +584,11 @@ unsafe fn cstr_to_path(ptr: *const c_char) -> Option<DirPath> {
 ))]
 mod backing {
     #[cfg(target_os = "none")]
-    pub(super) use crate::efatfs_fs::{task_dir_close, task_dir_open, try_close_dir};
+    pub(super) use crate::efatfs_fs::{task_dir_close, task_dir_open, task_mkdir, try_close_dir};
     #[cfg(not(target_os = "none"))]
-    pub(super) use crate::efatfs_host_shim::{task_dir_close, task_dir_open, try_close_dir};
+    pub(super) use crate::efatfs_host_shim::{
+        task_dir_close, task_dir_open, task_mkdir, try_close_dir,
+    };
 }
 
 /// The real [`DirOps`], wired to the efatfs directory-handle table. Holds no state: both operations
@@ -612,6 +635,13 @@ impl DirOps for ProdDirOps {
     async fn close_dir(&self, handle: u32) {
         backing::task_dir_close(handle).await;
     }
+
+    async fn create_dir(&self, path: &str) {
+        // Result deliberately discarded -- see the trait. EXISTS is the commonest outcome and is not
+        // a failure for "make sure this directory is there"; anything else surfaces as the open
+        // failing, which is the answer the caller acts on.
+        let _ = backing::task_mkdir(path).await;
+    }
 }
 
 // ── The task ────────────────────────────────────────────────────────────────
@@ -641,8 +671,8 @@ pub async fn file_directory_task() {
     DIRECTORY_WAKE.wait().await;
     let ops = ProdDirOps::new();
     loop {
-        while let Some((path, generation)) = take_next_request().await {
-            let outcome = dir_io_once(&ops, &path).await;
+        while let Some((request, generation)) = take_next_request().await {
+            let outcome = dir_io_once(&ops, &request.path, request.create).await;
             // Publish BEFORE clearing IN_FLIGHT, never after: the entry is briefly in both tables,
             // which is harmless, whereas the reverse leaves a window in which it is in neither and
             // `collect` would report `UNKNOWN` for an open that just succeeded -- stranding the
@@ -650,7 +680,7 @@ pub async fn file_directory_task() {
             //
             // `generation` was sampled before the open above, so a card pulled during it is what
             // makes this publish a no-op.
-            publish_result(&ops, &path, outcome, generation).await;
+            publish_result(&ops, &request.path, outcome, generation).await;
             mark_in_flight(None).await;
         }
         DIRECTORY_WAKE.wait().await;
@@ -675,12 +705,12 @@ pub async fn file_directory_task() {
         feature = "host_app"
     )
 ))]
-async fn take_next_request() -> Option<(DirPath, u32)> {
+async fn take_next_request() -> Option<(DirRequest, u32)> {
     let mut request = REQUEST.lock().await;
-    let path = request.take()?;
+    let request = request.take()?;
     let generation = deluge_card_generation::current();
-    mark_in_flight(Some(path.clone())).await;
-    Some((path, generation))
+    mark_in_flight(Some(request.path.clone())).await;
+    Some((request, generation))
 }
 
 /// Record (or clear) the path being opened right now. Called by [`file_directory_task`] while it

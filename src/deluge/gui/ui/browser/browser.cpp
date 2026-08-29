@@ -163,7 +163,7 @@ static Error directoryOpenError(DelugeStatus status) {
 	return status == DELUGE_ERR_NOT_FOUND ? Error::FOLDER_DOESNT_EXIST : delugeStatusToError(status);
 }
 
-std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(char const* path) {
+std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(char const* path, bool createIfMissing) {
 	// A path the channel cannot key is refused HERE, with a real error, rather than passed on.
 	// `deluge_file_directory_request` silently drops an over-long path and the collect then answers
 	// UNKNOWN forever — which for the audio loader is a benign "ask again" but here is the attempt's
@@ -202,7 +202,7 @@ std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(cha
 		// "Request it (again)" — the documented meaning, and never a failure to report. This is also
 		// where the FIRST request for a path is issued: the attempt names a directory the channel has
 		// not been told about, so its opening drive lands here.
-		deluge_file_directory_request(path);
+		deluge_file_directory_request(path, createIfMissing);
 		listing_.deferrals++;
 		return std::unexpected(Error::LISTING_DEFERRED);
 	case DELUGE_FILE_DIRECTORY_PENDING:
@@ -517,7 +517,7 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 	// A handle adopted from the directory channel lands in exactly the same RAII, which is why
 	// Directory::adopt exists: there are only eight directory handles, and one that arrived
 	// asynchronously is no less urgent to close than one this thread opened.
-	auto opened = openDirectoryForListing(currentDir.c_str());
+	auto opened = openDirectoryForListing(currentDir.c_str(), listing_.active && listing_.read.createIfMissing);
 	if (!opened.has_value() && opened.error() == Error::LISTING_DEFERRED) {
 		return opened.error(); // nothing was opened; see Browser::ListingState
 	}
@@ -768,11 +768,18 @@ Error Browser::readFolderAndMemory(ListingRead& read, bool& triedCreatingFolder)
 		if (triedCreatingFolder) {
 			return error;
 		}
+		triedCreatingFolder = true;
+		if (deluge_file_directory_async_active()) {
+			// Ask the CHANNEL to create it, on the storage tier, as part of the next open. Doing it
+			// here would be a card WRITE on the interaction tier, which the listing now runs on — no
+			// more allowed than a read. Same number of opens either way; only the tier moves.
+			read.createIfMissing = true;
+			continue;
+		}
 		auto result = deluge::io::mkdir(read.defaultDirToAlsoTry);
 		if (!result.has_value()) {
 			return delugeStatusToError(deluge::io::to_deluge_status(result.error()));
 		}
-		triedCreatingFolder = true;
 	}
 
 	if (currentSong && read.outputType != OutputType::NONE) {

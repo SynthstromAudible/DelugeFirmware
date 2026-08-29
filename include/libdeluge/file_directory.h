@@ -107,7 +107,13 @@ extern "C" {
 /// already cover, and the collect it runs next tick reports @ref DELUGE_FILE_DIRECTORY_UNKNOWN,
 /// whose documented meaning is exactly that.
 /// @param dir_path NUL-terminated path of the directory to open. Copied out before this returns.
-void deluge_file_directory_request(const char* dir_path) DELUGE_NOEXCEPT;
+/// @param create_if_missing Create `dir_path` before opening it. For the browser's missing-folder
+///        fallback, which creates its default directory and lists that. The creation happens on the
+///        storage tier with the open, because a card WRITE is no more allowed on the interaction
+///        tier than a read is — and doing it here rather than in the caller is what keeps it there.
+///        Its own failure is not reported: the OPEN is the verdict, and the commonest outcome is
+///        "already exists", which is not a failure for the caller's purpose.
+void deluge_file_directory_request(const char* dir_path, bool create_if_missing) DELUGE_NOEXCEPT;
 
 /// @brief Collect the directory opened for `dir_path`, if one is ready.
 ///

@@ -195,6 +195,11 @@ protected:
 		char const* defaultDirToAlsoTry{}; ///< null on both re-reads: a fallback happens once
 		bool allowFolders{true};
 		int32_t catalogSearchDirection{CATALOG_SEARCH_RIGHT};
+		/// Create the directory before opening it — the missing-folder fallback's `mkdir`, moved onto
+		/// the storage tier by riding the channel's request instead of running inline. Set only on the
+		/// async arm; the synchronous arm runs on the storage owner already, where an inline mkdir is
+		/// where it belongs.
+		bool createIfMissing{};
 
 		/// @brief Drop the search string, and the search DIRECTION that depends on it.
 		///
@@ -339,7 +344,8 @@ protected:
 	/// @param path NUL-terminated directory path.
 	/// @return The open Directory, or the Error that stopped it — which may be
 	///         @ref Error::LISTING_DEFERRED, meaning "not a failure; the attempt will be re-run".
-	[[nodiscard]] static std::expected<deluge::io::Directory, Error> openDirectoryForListing(char const* path);
+	[[nodiscard]] static std::expected<deluge::io::Directory, Error> openDirectoryForListing(char const* path,
+	                                                                                         bool createIfMissing);
 
 	/// @brief Owner-op entry point dispatched to run the pending listing.
 	/// @param self The active Browser* the listing was dispatched from.

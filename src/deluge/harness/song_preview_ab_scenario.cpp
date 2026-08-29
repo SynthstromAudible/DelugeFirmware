@@ -967,11 +967,16 @@ static_assert(kListingEntries > FILE_ITEMS_MAX_NUM_ELEMENTS,
 /// bricked the device on open. This rung holds that snapshot across a request/collect gap, which is
 /// exactly what makes the arena's window longer, so the case is the rung's own regression check
 /// rather than a rider on somebody else's corpus.
+/// The fallback's CREATE case: a default directory deliberately not present, so the fallback has to
+/// make it. Removed before the case runs -- a leftover from a previous run would let the fallback's
+/// first attempt succeed and the case would test nothing.
+constexpr const char* kMakeDir = "MADEDIR";
+
 constexpr const char* kBigDir = "BIGLIST";
 constexpr int32_t kBigEntries = 300;
 static_assert(kBigEntries > 230, "the case must exceed the arena threshold it exists to guard");
 
-enum class ListingStep : uint8_t { Fixture, Reference, Sweep, BigFolder, Fallback, Finished };
+enum class ListingStep : uint8_t { Fixture, Reference, Sweep, BigFolder, Fallback, Create, Finished };
 ListingStep g_listingStep = ListingStep::Fixture;
 int32_t g_listingDeferAt = 0;  ///< which N the sweep is on; 0 = the reference run
 int32_t g_listingOpens = 0;    ///< how many opens the reference run performed
@@ -1079,6 +1084,27 @@ void runListingTick() {
 		}
 		g_listingRunning = false;
 
+		if (g_listingStep == ListingStep::Create) {
+			// The fallback had to CREATE its default directory. On the synchronous arm that mkdir runs
+			// inline on the storage owner; on the channel arm it rides the request and runs on the
+			// storage tier with the open, because a card WRITE is no more allowed on the interaction
+			// tier than a read is. Either way the directory must exist afterwards and the listing must
+			// have landed on it.
+			const ListingSnapshot got = takeListingSnapshot();
+			const bool exists = deluge::io::Directory::open(kMakeDir).has_value();
+			printf("SP-LISTING create dir=%s exists=%d deferrals=%d\n", got.dir.c_str(), exists ? 1 : 0,
+			       BrowserListingAbProbe::deferrals());
+			if (!exists || !deluge::string::caselessEquals(got.dir, kMakeDir)) {
+				printf("SP-LISTING FAIL create: landed on %s, %s exists=%d\n", got.dir.c_str(), kMakeDir,
+				       exists ? 1 : 0);
+				g_failures++;
+			}
+			runByPathCases();
+			printf("SP-LISTING-SUMMARY opens=%d sweeps=%d big=%d\n", g_listingOpens, g_listingCasesRun, kBigEntries);
+			g_listingStep = ListingStep::Finished;
+			return;
+		}
+
 		if (g_listingStep == ListingStep::Fallback) {
 			// The listing must have SUCCEEDED, against the default directory rather than the one that
 			// does not exist. Before the directory open got its own error mapping this could not
@@ -1094,9 +1120,19 @@ void runListingTick() {
 				printf("SP-LISTING fallback dir=%s listed=%zu deferrals=%d\n", got.dir.c_str(), got.names.size(),
 				       BrowserListingAbProbe::deferrals());
 			}
-			runByPathCases();
-			printf("SP-LISTING-SUMMARY opens=%d sweeps=%d big=%d\n", g_listingOpens, g_listingCasesRun, kBigEntries);
-			g_listingStep = ListingStep::Finished;
+			// Now the same fallback against a default directory that does NOT exist, so it has to be
+			// created.
+			(void)deluge::io::unlink(kMakeDir);
+			if (deluge::io::Directory::open(kMakeDir).has_value()) {
+				printf("SP-LISTING FAIL fixture: %s still exists, the create case would test nothing\n", kMakeDir);
+				g_failures++;
+				g_listingStep = ListingStep::Finished;
+				return;
+			}
+			BrowserListingAbProbe::beginOpenListing("NOSUCHDIR2", kListingStartAt, kMakeDir);
+			g_listingRunning = true;
+			g_listingTicks = 0;
+			g_listingStep = ListingStep::Create;
 			return;
 		}
 

@@ -919,6 +919,17 @@ pub extern "C" fn deluge_efatfs_cluster_size(out_bytes: *mut u32) -> bool {
     }
 }
 
+/// Create a directory.
+///
+/// `pub(crate)` so the directory channel's driver can AWAIT it: the C ABI below reaches the same
+/// future through `sim_block::block_on`, which spins its caller, and the browser's fallback reaches
+/// that from the interaction tier where waiting on the card is not allowed.
+pub(crate) async fn task_mkdir(path: &str) -> Result<(), DelugeStatus> {
+    with_fs(async |fs| efatfs_core::mkdir(fs, path).await)
+        .await
+        .ok_or(DELUGE_ERR_NO_FILESYSTEM)?
+}
+
 /// C-ABI: create a directory.
 #[unsafe(no_mangle)]
 pub extern "C" fn deluge_efatfs_mkdir(path: *const c_char) -> DelugeStatus {
@@ -929,10 +940,9 @@ pub extern "C" fn deluge_efatfs_mkdir(path: *const c_char) -> DelugeStatus {
         Ok(p) => p,
         Err(_) => return DELUGE_ERR_PARAM,
     };
-    match crate::sim_block::block_on(with_fs(async |fs| efatfs_core::mkdir(fs, path).await)) {
-        Some(Ok(())) => DELUGE_OK,
-        Some(Err(st)) => st,
-        None => DELUGE_ERR_NO_FILESYSTEM,
+    match crate::sim_block::block_on(task_mkdir(path)) {
+        Ok(()) => DELUGE_OK,
+        Err(st) => st,
     }
 }
 

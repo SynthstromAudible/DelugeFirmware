@@ -78,7 +78,8 @@ extern "C" __attribute__((weak)) bool deluge_file_directory_async_active() noexc
 	return false;
 }
 
-extern "C" __attribute__((weak)) void deluge_file_directory_request(const char* /*dir_path*/) noexcept {
+extern "C" __attribute__((weak)) void deluge_file_directory_request(const char* /*dir_path*/,
+                                                                    bool /*create_if_missing*/) noexcept {
 	// No directory channel on this BSP/config; the caller never reaches here because
 	// deluge_file_directory_async_active() is false. Dropping the request (rather than pretending to
 	// have accepted it) is what the collect below already reports.
