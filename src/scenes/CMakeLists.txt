@@ -7,7 +7,7 @@
 #
 # Link direction (ruling Q4): deluge_scenes links deluge_app; nothing links deluge_scenes until
 # spec F needs an entry point -- this task only builds the skeleton and its spec executable.
-add_library(deluge_scenes STATIC l10n_bridge.cpp profile.cpp menu/context.cpp menu/node_id.cpp)
+add_library(deluge_scenes STATIC l10n_bridge.cpp profile.cpp menu/bindings.cpp menu/context.cpp menu/node_id.cpp)
 target_include_directories(deluge_scenes PUBLIC
     ${SHARED_INCLUDE}
     ${CMAKE_CURRENT_LIST_DIR}/../../include

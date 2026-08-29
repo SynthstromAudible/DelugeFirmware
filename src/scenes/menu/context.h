@@ -95,6 +95,22 @@ struct MenuContext {
 	///        from their own selection), so `context_for()` always leaves it null.
 	MIDICable* midi_cable = nullptr;
 
+	/// @brief Is the AFFECT-ENTIRE button held right now? Legacy's
+	///        `currentUIMode == UI_MODE_HOLDING_AFFECT_ENTIRE_IN_SOUND_EDITOR`
+	///        (`gui/menu_item/unpatched_param.cpp:52` and the 20-odd items that spell the same test).
+	///
+	/// A UI fact, so -- like `midi_cable` -- `context_for()` never assigns it: the caller sets it,
+	/// exactly as it reduces the other UI reads to `context_for`'s `bool` arguments (task-3 ruling 2).
+	/// `bindings::write()` is its only reader; with it set on a kit row, a param write goes to every
+	/// `SoundDrum` in the kit instead of just the selected one.
+	///
+	/// @note NOT the same fact as `affect_entire` below. That one is the clip's own
+	///       `InstrumentClip::affectEntire` setting, which is true on the kit-row grid-shortcut path
+	///       (`sound_editor.cpp:1150-1158`) where legacy still edits one row only; the button being
+	///       held is independent of it (`sound_editor.cpp:502-509` sets the UI mode whenever
+	///       `editingKitRow()`, whatever `affectEntire` says).
+	bool affect_entire_held = false;
+
 	/// @brief The kit clip's own `InstrumentClip::affectEntire`, a *resolved output* -- it says what
 	///        the clip is set to, not which branch `context_for` took. `kit_global_fx` (the argument)
 	///        is what decides that; the two differ exactly on the kit-row shortcut path, where the
