@@ -20,7 +20,12 @@
 /// exists only so BSPs without those loaders (legacy/host-cooperative sim, rza1) still resolve the
 /// symbol and can call it unconditionally.
 ///
-/// `noexcept`, like every function in audio_load_abi.cpp beside it: the repo's allocators throw
+/// Filed in storage/ rather than storage/audio/ beside audio_load_abi.cpp, because card.h is
+/// card-scoped, not audio-scoped: a card swap invalidates every loader at once, which is the whole
+/// reason the generation is shared. file_prefix_abi.cpp, the other non-audio channel, is its
+/// neighbour here.
+///
+/// `noexcept`, like every function in audio_load_abi.cpp: the repo's allocators throw
 /// `deluge::exception::BAD_ALLOC` (operators.cpp), and letting anything unwind out of an
 /// `extern "C"` frame into a Rust caller is undefined behaviour -- on this target it presents as
 /// `std::terminate()` aborting silently. There is no body here to throw, and the marker keeps that

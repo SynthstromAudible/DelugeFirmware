@@ -219,8 +219,9 @@ mod fiber;
 /// file_prefix.h — the single-slot prefix channel: read the first N bytes of a file on the
 /// storage tier and hand them to a caller that must not wait on the card. Gated identically to
 /// `audio_loader` above, whose `LoadOps`/`ProdOps` its driver reuses, and to `card` — which
-/// reaches this module's `flush_tables` and so must never be compiled without it. Nothing calls
-/// the channel yet; both of its features are off by default.
+/// reaches this module's `flush_tables` and so must never be compiled without it. `LoadSongUI`'s
+/// song-artwork preview is the one caller, and it only enters this channel when
+/// `async_file_prefix_active` is on; both of the features are off by default.
 #[cfg(any(target_os = "none", feature = "host_app"))]
 mod file_prefix;
 /// flash.h — persistent settings flash over deluge_bsp::flash / spibsc.

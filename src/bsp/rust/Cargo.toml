@@ -305,8 +305,10 @@ async_audio_load_active = ["async_audio_load"]
 ## BUILD the Rust file-prefix driver (`file_prefix.rs`) -- the read behind
 ## `include/libdeluge/file_prefix.h`, which hands the first N bytes of a file
 ## back to a caller that must not block on the card. Off by default, unlike
-## `async_audio_load` above: nothing calls this channel yet, so compiling it
-## everywhere would only widen the default build for a path no caller can enter.
+## `async_audio_load` above: `LoadSongUI` is the one caller, and it only enters
+## this channel when `async_file_prefix_active` below is on -- with the feature
+## off it takes its synchronous owner arm instead -- so compiling the driver
+## everywhere would only widen the default build for a path nothing reaches.
 ##
 ## Implies `async_audio_load` because the driver REUSES that module's `LoadOps`
 ## trait and `ProdOps` wiring rather than declaring a second four-operation

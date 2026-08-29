@@ -441,17 +441,20 @@ void checkRendered(const char* label, uint32_t crc) {
 }
 
 /// Per-case deferral discipline, asserted for each case in turn.
+///
+/// Only the FILE leg is checked, and deliberately. On the prefix leg a nonzero count is guaranteed by
+/// construction rather than by anything under test: `startCase()`'s drive is the first this channel
+/// has ever heard of the path, so its collect answers UNKNOWN, which arms a deferral before
+/// `driveCase()` has ticked once -- so tick 1 always counts one and `deferrals == 0` is unreachable.
+/// A check that cannot fail is assurance this file does not actually provide, so it is not written.
+/// The property it looked like it covered is covered for real elsewhere: a channel that never answers
+/// wedges the case at `kMaxCaseTicks`, and a leg that drew nothing is caught by the poison witness
+/// (`checkRendered()`) and by the absolute image CRC.
 void checkDeferrals(const char* label, int32_t deferrals) {
 	if (deluge_file_prefix_async_active()) {
-		if (deferrals == 0) {
-			printf("FAIL [songPreviewAB/%s]: the prefix channel is active but this case never deferred -- its "
-			       "preview was answered without the async path being reached, so it is not under test in "
-			       "this leg at all\n",
-			       label);
-			g_failures++;
-		}
+		return;
 	}
-	else if (deferrals != 0) {
+	if (deferrals != 0) {
 		printf("FAIL [songPreviewAB/%s]: the file backing deferred %d time(s), which it has no way to do\n", label,
 		       deferrals);
 		g_failures++;

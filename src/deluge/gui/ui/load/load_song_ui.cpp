@@ -926,10 +926,20 @@ void LoadSongUI::dispatchPreview(const PreviewTarget& target) {
 void LoadSongUI::drivePreview() {
 	if (!deluge_file_prefix_async_active()) {
 		// No prefix channel on this BSP/config, so the bytes have to be read the blocking way -- which
-		// only the storage owner may do. drawSongPreview() is reached from the scroll path on the
-		// interaction tier, where the Rust BSP refuses the open outright (and openXMLFile() reports
-		// that refusal as Error::FILE_NOT_FOUND -- which is how every scrolled entry came to claim
-		// "FILE NOT FOUND" for songs that load fine). Dispatch and let the owner render.
+		// belongs on the storage owner. drawSongPreview() is reached from the scroll path on the
+		// interaction tier, and reading there is wrong for two reasons that both still hold. Single
+		// ownership: FatFS is not reentrant and the owner is the one serialised context for it.
+		// Responsiveness: on the Rust BSP the efatfs entry points HOLD the calling context for the
+		// whole transfer rather than yielding it (src/bsp/rust/src/efatfs_fs.rs), so a read run here
+		// stalls the UI for as long as the card takes.
+		//
+		// NOT because the BSP refuses an off-owner open -- it used to, and that refusal (surfaced by
+		// openXMLFile() as Error::FILE_NOT_FOUND) is how every scrolled entry once claimed "FILE NOT
+		// FOUND" for songs that load fine, but those on_fiber() guards were deliberately removed
+		// precisely because they made off-owner work fail. Off-owner reads now SUCCEED, slowly and
+		// unserialised, which is why this dispatch has to be a discipline rather than a thing the
+		// platform enforces -- and why Slicer::drivePreview() needs the same arm for the same reason.
+		// Dispatch and let the owner render.
 		if (!deluge::storage::Owner::run(&LoadSongUI::runPreviewOp, this)) {
 			// The owner queue was full, so the op will never run and would wedge single-flight forever.
 			// Release the guard and leave the target for graphicsRoutine() to ask for again.
@@ -945,10 +955,11 @@ void LoadSongUI::drivePreview() {
 	for (;;) {
 		// No is_current() guard, unlike runPreviewOp(): there is no gap here for a cancellation to land
 		// in. request() (or the previous complete()) made this target current on the line above, and
-		// the collect runs to completion before anything else can execute. (Slicer::drivePreview()
-		// keeps the guard in the identical inline shape, as an invariant restatement with the same
-		// unreachable false branch -- the two are the same judgement written from opposite ends, not
-		// a disagreement.) What refuses a cancelled attempt on both is complete()'s
+		// the collect runs to completion before anything else can execute. (Slicer::drivePreview()'s
+		// matching inline arm keeps the guard as an invariant restatement with the same unreachable
+		// false branch -- the two are the same judgement written from opposite ends, not a
+		// disagreement. Both keep it for real on their owner arm, where a queued dispatch genuinely
+		// can run after a cancellation.) What refuses a cancelled attempt on both is complete()'s
 		// `deferred && is_current(a)`, below.
 		const auto attempt = previewLoad_.attempt();
 		const bool deferred = collectPreview(attempt);
