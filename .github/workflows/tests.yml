@@ -51,6 +51,15 @@ jobs:
       # §7): run the whole headless app from tests/ui-scripts/app/*.txt on the deterministic frame
       # clock and diff its snapshots against tests/golden/ui/app/. -DDELUGE_SIM_X64=ON because the
       # sim's default here is the -m32 build, whose Rust archive is i686.
+      #
+      # `deluge_host` links crates/deluge_rust (sim/CMakeLists.txt's `cargo build`), which this job
+      # never installs a toolchain for (M-12): it works only because ubuntu-latest ships a rustup
+      # with the host triple preinstalled, and `crates/rust-toolchain.toml` pins the rest (channel
+      # + components) for rustup to auto-install on first invocation -- the same implicit-image
+      # dependency rust.yml's own jobs have, though those add `rustup component add` explicitly for
+      # the pieces the pinned toolchain doesn't cover (rustfmt, clippy). If a future runner image
+      # ships without rustup, this step fails with a `cargo: not found` that reads like a CMake
+      # problem rather than a missing toolchain.
       - name: UI app scripts (level 3)
         id: ui-app-scripts
         run: |

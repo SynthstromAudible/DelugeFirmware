@@ -57,8 +57,8 @@ Per `snapshot <name>`, written into the output directory:
 - `<name>.state` — text, one item per line, sorted so diffs are stable:
 
 ```
-scene Session
 scene Popup/General
+scene Session
 pad 0 0 255 0 0
 pad 4 3 10 20 30
 led Play on

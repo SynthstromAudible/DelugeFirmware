@@ -46,14 +46,16 @@ deluge-sdk's headless format, one step per line: `<at_ms> <command> <args…>`; 
 
 Per `snapshot <name>`, written into the output directory:
 
-- `<name>.oled<N>.pbm` -- one **P1 PBM** per OLED surface, via `page_major_to_pbm`. A
-  deliberate deviation from the SDK's PNG: no image codec in C, text diffs read in PRs.
+- `<name>.oled<N>.pbm` -- one **P1 PBM** per OLED surface, via `oled_pbm` (`snapshot.h:20-22`'s
+  dependency-free re-implementation of `tests/spec/gfx/support/pbm.h`'s `page_major_to_pbm` --
+  `tests/harness` may not include `tests/spec/` headers, since it is also compiled into the host
+  BSP). A deliberate deviation from the SDK's PNG: no image codec in C, text diffs read in PRs.
   `scripts/pbm2png.py` converts for viewing.
 - `<name>.state` -- text, one item per line, sorted so diffs are stable:
 
 ```
-scene Session
 scene Popup/General
+scene Session
 pad 0 0 255 0 0
 pad 4 3 10 20 30
 led Play on
@@ -113,6 +115,23 @@ against both the legacy adapter and the new scene -- see "Migration hook" below.
 3. Run once with no golden recorded -- it fails, naming the missing golden directory. That
    failure is the point: it proves the run itself succeeds (no parse/run error, the right
    number of snapshots) *before* any golden exists to hide behind.
+4. Asserting `snapshots == N` and diffing against the golden pins the *count*, but not what the
+   golden actually says (M-10): a golden that was recorded wrong the first time then passes
+   forever against itself. Where practical, also read a fact back out of the run's own `.state`/
+   `.pbm` output (`tests/spec/shell/scripts_spec.cpp`'s `"lowers pad, encoder and model steps"`
+   case is the pattern to follow -- it checks the pressed pad's colour, the two LEDs' declared
+   states, and that each counter step actually redrew the OLED) rather than trusting the golden
+   diff alone the way `"boots to the splash..."`/`"navigates, shows a popup..."` do.
+
+**A `snapshot` step at the same `at_ms` as an input step orders differently at the two levels**
+(M-4): level 3 applies every due step and then writes pending snapshots in the same pump call
+(`host_script.c`'s `host_script_pump`), so a `snapshot` that shares the input's own `at_ms` sees
+the *pre*-input screen -- the app has not yet consumed the event it just queued. Level 2 ticks the
+shell (which consumes the input) before writing the snapshot, so the same script sees the
+*post*-input screen at level 2. Neither is wrong -- it is what each level can observe in one pump
+-- but a script whose first `snapshot` shares an `at_ms` with a button/pad/encoder/released step
+will golden the wrong frame at whichever level and look correct doing it. Give an input step a
+`snapshot` a tick or more later if you want to see its effect at level 3.
 
 ## Re-recording goldens
 
