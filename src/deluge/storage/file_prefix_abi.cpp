@@ -1,0 +1,75 @@
+/*
+ * Copyright © 2026 Synthstrom Audible Limited
+ *
+ * This file is part of The Synthstrom Audible Deluge Firmware.
+ *
+ * The Synthstrom Audible Deluge Firmware is free software: you can redistribute it and/or modify it under the
+ * terms of the GNU General Public License as published by the Free Software Foundation,
+ * either version 3 of the License, or (at your option) any later version.
+ *
+ * This program is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY;
+ * without even the implied warranty of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+ * See the GNU General Public License for more details.
+ *
+ * You should have received a copy of the GNU General Public License along with this program.
+ * If not, see <https://www.gnu.org/licenses/>.
+ */
+
+/// libdeluge/file_prefix.h's C++-side fallback, plus the two constants that pin the boundary.
+///
+/// The real implementation is the Rust Embassy BSP's `file_prefix.rs`, which reads the file on the
+/// storage tier and publishes the bytes into a single card-generation-stamped slot. This file exists
+/// so BSPs without that channel (legacy/host-cooperative sim, rza1) still resolve the symbols and
+/// can call them unconditionally -- and so every caller can be written against one header rather
+/// than against a `#if`.
+///
+/// Every function here is `noexcept`, like every function in audio_load_abi.cpp and card_abi.cpp:
+/// the repo's allocators throw `deluge::exception::BAD_ALLOC` (operators.cpp), and letting anything
+/// unwind out of an `extern "C"` frame into a Rust caller is undefined behaviour -- on this target
+/// it presents as `std::terminate()` aborting silently, i.e. an unexplained device death with no
+/// error message. None of these bodies can throw (they neither allocate nor call anything that
+/// does), so none carries a `catch (...)`; the marker is what keeps that true if a body is ever
+/// added, exactly as card_abi.cpp's weak fallback does it.
+
+#include "libdeluge/file_prefix.h"
+
+#include "storage/song_preview.h" // kSongPreviewWindow
+
+// The one constant the two sides of this boundary hand-duplicate. `deluge_file_prefix_request`
+// clamps to it and the Rust slot is sized by it, so a drift would not fail to link or to build --
+// it would silently hand the preview decoder fewer bytes than the window it was measured for, and a
+// song whose `preview` attribute sat past the shortened window would render BLANK, which is
+// indistinguishable from a song that has no preview at all. See song_preview.h for how that 4096 was
+// derived, and src/bsp/rust/src/file_prefix.rs's `PREFIX_CAPACITY` for the Rust half of this pin.
+static_assert(DELUGE_FILE_PREFIX_CAPACITY == deluge::storage::kSongPreviewWindow,
+              "the prefix channel's capacity is the preview window: a channel that reads fewer bytes "
+              "than the decoder was measured against loses artwork silently");
+
+// The status bytes the Rust side hand-duplicates from this header (`const _` in file_prefix.rs).
+// NOT the same numbering as audio_load.h's READY/PENDING/UNKNOWN -- READY is 0 here and 1 there --
+// so a value copied across from that boundary would compile clean and mean the opposite thing.
+static_assert(DELUGE_FILE_PREFIX_READY == 0u);
+static_assert(DELUGE_FILE_PREFIX_PENDING == 1u);
+static_assert(DELUGE_FILE_PREFIX_UNKNOWN == 2u);
+
+// Weak fallbacks: BSPs without the Rust prefix channel resolve these and always take the
+// synchronous path. The Rust Embassy BSP overrides them in file_prefix.rs.
+
+extern "C" __attribute__((weak)) bool deluge_file_prefix_async_active() noexcept {
+	return false;
+}
+
+extern "C" __attribute__((weak)) void deluge_file_prefix_request(const char* /*file_path*/,
+                                                                 uint32_t /*max_bytes*/) noexcept {
+	// No prefix channel on this BSP/config; the caller never reaches here because
+	// deluge_file_prefix_async_active() is false. Dropping the request (rather than pretending to
+	// have accepted it) is what the collect below already reports.
+}
+
+extern "C" __attribute__((weak)) uint8_t deluge_file_prefix_collect(const char* /*file_path*/, uint8_t* /*out_buf*/,
+                                                                    uint32_t /*out_cap*/,
+                                                                    uint32_t* /*out_len*/) noexcept {
+	// UNKNOWN, not PENDING: PENDING would tell a caller to keep asking forever. Neither output is
+	// touched, which is exactly what the header promises for any status but READY.
+	return DELUGE_FILE_PREFIX_UNKNOWN;
+}

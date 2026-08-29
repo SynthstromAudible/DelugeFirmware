@@ -196,6 +196,14 @@ async_streaming_loader = []
 # which is exactly why the A/B is a diff of two builds.
 async_audio_load = []
 async_audio_load_active = ["async_audio_load"]
+# Mirrors `../Cargo.toml`'s two file-prefix features exactly (same spellings, so
+# `file_prefix.rs`'s own `#[cfg(feature = ...)]` conditionals need zero edits when
+# `#[path]`-included here). Neither is enabled, and nothing in this package would enable them:
+# `file_prefix.rs` is compiled here only because `card.rs`'s flush names it, so what lands is the
+# slot logic and the C ABI over a channel with no statics and no task. Declaring them keeps
+# rustc's unknown-cfg lint quiet without pretending this package supports a channel it never uses.
+async_file_prefix = ["async_audio_load"]
+async_file_prefix_active = ["async_file_prefix"]
 
 [build-dependencies]
 bindgen = "0.70"

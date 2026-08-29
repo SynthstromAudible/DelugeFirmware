@@ -174,6 +174,14 @@ mod ffi;
 mod ffi_extra;
 #[path = "../../../src/fiber.rs"]
 mod fiber;
+/// The single-slot file-prefix channel and its request/collect C ABI. Gated with `card` above
+/// rather than on a feature of its own, and that is structural, not a preference:
+/// `deluge_card_flush` names BOTH loaders it flushes, so a build that compiles `card.rs` without
+/// this module does not compile at all. Its own two features stay off here, so all that lands in
+/// the golden binary is the slot logic and the C ABI over an empty channel.
+#[cfg(feature = "async_audio_load")]
+#[path = "../../../src/file_prefix.rs"]
+mod file_prefix;
 #[path = "../../../src/flash.rs"]
 mod flash;
 #[path = "../../../src/host_link_stubs.rs"]

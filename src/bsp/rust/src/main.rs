@@ -216,6 +216,13 @@ mod ffi_extra;
 /// The worker fiber: a stackful coroutine for the long synchronous C++ operations
 /// that pause via `yield()`. This module is the context-switch primitive.
 mod fiber;
+/// file_prefix.h — the single-slot prefix channel: read the first N bytes of a file on the
+/// storage tier and hand them to a caller that must not wait on the card. Gated identically to
+/// `audio_loader` above, whose `LoadOps`/`ProdOps` its driver reuses, and to `card` — which
+/// reaches this module's `flush_tables` and so must never be compiled without it. Nothing calls
+/// the channel yet; both of its features are off by default.
+#[cfg(any(target_os = "none", feature = "host_app"))]
+mod file_prefix;
 /// flash.h — persistent settings flash over deluge_bsp::flash / spibsc.
 mod flash;
 /// Host-only no-op stubs for the peripheral (MIDI/audio/CV-gate/signals) C ABI
@@ -426,12 +433,14 @@ fn stream_sgi_handler() {
 /// The audio-file load task lands here rather than on the thread-mode executor for the reason
 /// its own module doc gives: like the fill task, it holds the single `efatfs` FS mutex across
 /// an SD await, and the storage fiber's non-yielding `sim_block::block_on` spin would deadlock
-/// against that if both shared an executor.
+/// against that if both shared an executor. The file-prefix task is here for the same reason
+/// and on the same terms.
 #[cfg(all(
     target_os = "none",
     any(
         feature = "async_streaming_loader",
-        feature = "async_audio_load_active"
+        feature = "async_audio_load_active",
+        feature = "async_file_prefix_active"
     )
 ))]
 #[embassy_executor::task]
@@ -444,6 +453,11 @@ async fn stream_bootstrap() {
     spawner.spawn(streaming_loader::streaming_fill_task().unwrap());
     #[cfg(all(feature = "async_audio_load_active", feature = "efatfs_streaming"))]
     spawner.spawn(audio_loader::audio_load_task().unwrap());
+    // Here rather than on the thread-mode executor for the same reason as the load task above: it
+    // holds the FS mutex across an SD await, and the storage fiber's non-yielding
+    // `sim_block::block_on` spin would deadlock against that if the two shared an executor.
+    #[cfg(all(feature = "async_file_prefix_active", feature = "efatfs_streaming"))]
+    spawner.spawn(file_prefix::file_prefix_task().unwrap());
 }
 
 /// Firmware entry. The HAL reset handler (`_reset_handler` in rza1l-hal) ends in
@@ -558,14 +572,16 @@ pub extern "C" fn main() -> ! {
     // directly.
     #[cfg(any(
         feature = "async_streaming_loader",
-        feature = "async_audio_load_active"
+        feature = "async_audio_load_active",
+        feature = "async_file_prefix_active"
     ))]
     STREAM_EXEC
         .start(STREAM_SGI)
         .spawn(stream_bootstrap().unwrap());
     #[cfg(not(any(
         feature = "async_streaming_loader",
-        feature = "async_audio_load_active"
+        feature = "async_audio_load_active",
+        feature = "async_file_prefix_active"
     )))]
     let _ = STREAM_EXEC.start(STREAM_SGI);
     unsafe { rza1l_hal::gic::enable(STREAM_SGI as u16) };
@@ -1181,7 +1197,8 @@ fn main() {
         // doc.
         #[cfg(any(
             feature = "async_streaming_loader",
-            feature = "async_audio_load_active"
+            feature = "async_audio_load_active",
+            feature = "async_file_prefix_active"
         ))]
         {
             let stream_ready = Arc::new(Barrier::new(2));
@@ -1195,6 +1212,8 @@ fn main() {
                         spawner.spawn(streaming_loader::streaming_fill_task().unwrap());
                         #[cfg(feature = "async_audio_load_active")]
                         spawner.spawn(audio_loader::audio_load_task().unwrap());
+                        #[cfg(feature = "async_file_prefix_active")]
+                        spawner.spawn(file_prefix::file_prefix_task().unwrap());
                         log::info!(
                             "deluge-bsp-rust: host streaming executor up on thread {:?}",
                             std::thread::current().name()

@@ -43,13 +43,25 @@ doctest = false
 # `live_pipeline` module (the request/collect FFI tier) is gated on
 # `async_audio_load_active`, so with defaults off this package would build clean
 # and run zero tests -- the exact silent-no-coverage failure it exists to end.
-default = ["async_audio_load", "async_audio_load_active"]
+default = [
+    "async_audio_load",
+    "async_audio_load_active",
+    "async_file_prefix",
+    "async_file_prefix_active",
+]
 
 ## Compile the parse driver. Mirrors the BSP feature of the same name.
 async_audio_load = []
 ## Compile the live request/collect tier as well. Mirrors the BSP feature of the
 ## same name; here it is a compilation switch only, never a shipping one.
 async_audio_load_active = ["async_audio_load"]
+## Compile the file-prefix channel's read driver. Mirrors the BSP feature of the
+## same name, including its dependency on `async_audio_load`: the driver reuses
+## `audio_loader`'s `LoadOps` rather than declaring a second filesystem trait.
+async_file_prefix = ["async_audio_load"]
+## Compile the prefix channel's slot/request statics too. Mirrors the BSP
+## feature; here, again, a compilation switch only.
+async_file_prefix_active = ["async_file_prefix"]
 
 [dependencies]
 # The loader's queue/result statics: `Mutex<CriticalSectionRawMutex, _>` and
