@@ -80,6 +80,10 @@ public:
 	// export choke groups
 	int32_t disarmAllChokeGroupsForStemExport();
 	int32_t exportChokeGroupStems(StemExportType stemExportType);
+	bool armChokeGroupRows(InstrumentClip* clip, int32_t totalNumNoteRows, uint8_t group, int32_t* groupLoopLength);
+	void muteChokeGroupRows(InstrumentClip* clip, int32_t totalNumNoteRows, uint8_t group);
+	bool recordOneChokeGroupStem(StemExportType stemExportType, InstrumentClip* clip, Output* output, uint8_t group,
+	                             int32_t fileIndex, int32_t groupLoopLength);
 	/// read-only check for whether choke-group export would actually produce more than one file for
 	/// the kit clip currently open - used to decide whether to surface the option in the UI at all.
 	/// Unlike disarmAllChokeGroupsForStemExport(), this does not touch NoteRow mute state.
