@@ -366,6 +366,18 @@ uint8_t host_script_display_count(void) {
 	return host_board.display_count;
 }
 
+void host_script_pad_bounds(uint8_t* cols, uint8_t* rows) {
+	// No host_board_apply_env() and no host_board_read: the pad grid is not something either the
+	// environment override or a `board` step can change, so reading it early cannot latch a
+	// descriptor the script is about to rewrite. See the declaration for why that matters.
+	if (cols) {
+		*cols = (uint8_t)(host_board.pad_grid_width + HOST_SCRIPT_SIDEBAR_COLS);
+	}
+	if (rows) {
+		*rows = host_board.pad_grid_height;
+	}
+}
+
 const DelugeBoard* deluge_board(void) {
 	host_board_apply_env();
 	host_board_read = true;

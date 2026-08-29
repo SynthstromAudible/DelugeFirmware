@@ -129,7 +129,9 @@ public:
 		}
 		for (size_t i = 0; i < 2; i++) {
 			if (indicator_set_[i]) {
-				std::string line = i == 0 ? "indicator upper" : "indicator lower";
+				// `IndicatorId` is `{Lower = 0, Upper = 1}` (see the ordering note on that enum);
+				// the names here are the physical knobs, so they follow that numbering.
+				std::string line = i == 0 ? "indicator lower" : "indicator upper";
 				for (uint8_t level : indicator_shadow_[i].levels) {
 					line += " " + std::to_string(level);
 				}
@@ -146,7 +148,7 @@ public:
 	}
 
 	/// @brief Knob indicator \p which, if the shell has ever set it.
-	/// @param which 0 for the upper indicator, 1 for the lower.
+	/// @param which 0 for the lower indicator, 1 for the upper (an `IndicatorId` value).
 	/// @return A pointer to the shadow, or null when unset (or out of range).
 	const deluge::ui::KnobIndicator* indicator(uint8_t which) const {
 		return which < 2 && indicator_set_[which] ? &indicator_shadow_[which] : nullptr;

@@ -108,6 +108,14 @@ int ui_script_load(const char* path);
 /// exhausted, or the next step's time has not yet arrived).
 int ui_script_next_due(uint32_t now_ms, UiScriptStep* out);
 
+/// @brief Put the cursor back at the first step of the currently loaded script.
+///
+/// `ui_script_next_due` consumes what it hands back, so a caller that wants to *inspect* the whole
+/// script before running it -- the host BSP validates every step at load, and needs the last
+/// `at_ms` to set its own deadline -- would otherwise have to re-read the file from disk just to
+/// rewind. Does not re-parse: the steps already in memory are kept exactly as they are.
+void ui_script_rewind(void);
+
 #ifdef __cplusplus
 }
 #endif

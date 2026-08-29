@@ -193,7 +193,8 @@ public:
 	/// @param on Whether it should be lit.
 	virtual void set_led(uint8_t board_led, bool on) = 0;
 	/// @brief Set one knob indicator's per-segment levels.
-	/// @param which 0 for the upper knob, 1 for the lower (matching `IndicatorId`).
+	/// @param which 0 for the lower knob, 1 for the upper (matching `IndicatorId`, whose values are
+	///        this index -- see the ordering note on that enum).
 	/// @param indicator The levels to send.
 	virtual void set_indicator(uint8_t which, const KnobIndicator& indicator) = 0;
 	/// @brief Push everything queued by the calls above to the hardware.

@@ -37,10 +37,10 @@
 ///   - LEDs are only ever `led <Name> on`, never `blink`: legacy blinking is the *app* toggling
 ///     `deluge_control_set_led` on a timer, so the BSP sees a resolved boolean and cannot tell a
 ///     lit LED from a blinking one caught in its on phase.
-///   - `indicator lower|upper …` uses the LEGACY meaning of `which` (0 = mod encoder 0 = the
-///     lower gold knob; `gui/views/view.cpp:1403-1468` -> `indicator_leds.cpp:241`, and
-///     `hid/encoders.h:80-81` for which knob `mod0` is). The new shell's `IndicatorId` numbers
-///     these the other way round; reconciling the two is spec F's job, not this file's.
+///   - `indicator lower|upper …` uses the meaning of `which` at the boundary: 0 = mod encoder 0 =
+///     the lower gold knob (`gui/views/view.cpp:1403-1468` -> `indicator_leds.cpp:241`, with
+///     `hid/encoders.h:80-81` for which knob `mod0` is). The new shell's `IndicatorId` is numbered
+///     `{Lower = 0, Upper = 1}` to match, so both levels name the same physical knob the same way.
 ///   - no `lock` / `notice` lines: neither fact reaches the BSP.
 
 #define _POSIX_C_SOURCE 200809L // mkdir, strdup-free POSIX subset
@@ -56,6 +56,7 @@
 #include <string.h>
 #include <sys/stat.h>
 #include <sys/types.h>
+#include <unistd.h> // _exit, from inside the at_quick_exit deadline hook
 
 extern uint32_t host_rendered_frames; // host_audio.c — the offline audio clock
 
@@ -395,7 +396,8 @@ static void collect_state(HostScriptState* s) {
 		if (levels == NULL) {
 			continue; // never written: reporting 0 0 0 0 would invent a fact the app never stated
 		}
-		// which == 0 is mod encoder 0, the LOWER gold knob -- see this file's header comment.
+		// which == 0 is mod encoder 0, the LOWER gold knob -- see this file's header comment, and
+		// `IndicatorId` (`src/ui/core/led_frame.h`), which is numbered to agree.
 		state_addf(s, "indicator %s %u %u %u %u", which == 0 ? "lower" : "upper", (unsigned)levels[0],
 		           (unsigned)levels[1], (unsigned)levels[2], (unsigned)levels[3]);
 	}
@@ -412,6 +414,24 @@ static void collect_state(HostScriptState* s) {
 static int script_loaded;
 static char pending_snapshots[HOST_SCRIPT_MAX_PENDING][32];
 static size_t pending_count;
+
+/// The largest `at_ms` in the loaded script, filled in by `validate_script`. Both deadlines below
+/// are derived from it: a script cannot legitimately need time past its own last step.
+static uint32_t script_last_at_ms;
+
+/// Set just before the run's own `quick_exit(0)`, so the deadline hook can tell an orderly `quit`
+/// from the capture running out underneath a script that never reached one.
+static int script_finished;
+
+/// How much RENDERED AUDIO time past the script's last step the capture is allowed to run before
+/// the process is declared stuck.
+///
+/// Small on purpose. The two backstops are in different units: this one counts audio seconds
+/// (`DELUGE_HOST_CAPTURE_SECONDS`), while the ctest `TIMEOUT` counts wall seconds, and the sim
+/// renders at well under real time -- so an audio-second margin as large as the ctest one would
+/// let ctest's timer win the race and report "timed out" instead of the reason. A script's `quit`
+/// fires within a render block of its own last step, so five audio seconds is slack, not budget.
+#define HOST_SCRIPT_DEADLINE_MARGIN_S 5u
 
 /// A step popped during `host_script_init`'s `board` scan that turned out not to be a `board`.
 /// The façade consumes what it hands back, so the first non-`board` step is held here and
@@ -575,6 +595,7 @@ void host_script_pump(void) {
 
 	if (quit) {
 		fprintf(stderr, "[host-script] quit at %u ms (%u frames)\n", now_ms, host_rendered_frames);
+		script_finished = 1;
 		fflush(NULL);
 		quick_exit(0);
 	}
@@ -584,14 +605,22 @@ bool host_script_active(void) {
 	return script_loaded != 0;
 }
 
-/// Walk the whole script once, rejecting anything level 3 cannot honour, then reload it to put
-/// the façade's cursor back at the start. Cheaper than teaching the façade to rewind, and it
-/// keeps every "your script is wrong" message at load time rather than mid-run.
-static void validate_script(const char* path) {
+/// Walk the whole script once -- rejecting anything level 3 cannot honour and recording the last
+/// `at_ms` for the deadline -- then rewind the façade's cursor. Every "your script is wrong"
+/// message belongs here, at load, rather than mid-run with the app already booted.
+static void validate_script(void) {
+	uint8_t pad_cols = 0;
+	uint8_t pad_rows = 0;
+	host_script_pad_bounds(&pad_cols, &pad_rows);
+
+	int seen_non_board = 0;
 	for (;;) {
 		UiScriptStep step;
 		if (!ui_script_next_due(UINT32_MAX, &step)) {
 			break;
+		}
+		if (step.at_ms > script_last_at_ms) {
+			script_last_at_ms = step.at_ms;
 		}
 		switch ((UiScriptStepKind)step.kind) {
 		case UI_SCRIPT_MODEL:
@@ -602,6 +631,14 @@ static void validate_script(const char* path) {
 		case UI_SCRIPT_BOARD:
 			if (step.at_ms != 0) {
 				script_fail("board is only allowed at 0 ms");
+			}
+			// Position, not just time: `board` is applied at init, before `deluge_board()` latches
+			// the descriptor, so only a `board` at the very head of the script can be honoured.
+			// Rejecting it here -- rather than letting the pump reach it -- is also the difference
+			// between an accurate message and "board is only allowed at 0 ms" for a step that
+			// plainly is at 0 ms.
+			if (seen_non_board) {
+				script_fail("board must come before every other step");
 			}
 			break;
 		case UI_SCRIPT_BUTTON:
@@ -616,16 +653,27 @@ static void validate_script(const char* path) {
 				script_fail("unknown encoder role");
 			}
 			break;
-		case UI_SCRIPT_SNAPSHOT:
 		case UI_SCRIPT_PAD:
+			// A typo'd coordinate should be a load-time error here, exactly as a typo'd button
+			// name is -- not an out-of-range press handed to the app's matrix handler to do
+			// something undefined with. (The live GUI path forwards wire coordinates unchecked,
+			// but a script is authored, not received.)
+			if (step.a < 0 || step.a >= pad_cols || step.b < 0 || step.b >= pad_rows) {
+				fprintf(stderr, "[host-script] pad %d %d is off the %ux%u grid\n", step.a, step.b, (unsigned)pad_cols,
+				        (unsigned)pad_rows);
+				script_fail("pad coordinate off the grid");
+			}
+			break;
+		case UI_SCRIPT_SNAPSHOT:
 		case UI_SCRIPT_RELEASED:
 		case UI_SCRIPT_QUIT:
 			break;
 		}
+		if ((UiScriptStepKind)step.kind != UI_SCRIPT_BOARD) {
+			seen_non_board = 1;
+		}
 	}
-	if (ui_script_load(path) != 0) {
-		script_fail("script became unreadable between passes");
-	}
+	ui_script_rewind();
 }
 
 /// Apply the `board` steps at the head of the script, and stash the first step that is not one.
@@ -687,20 +735,45 @@ static void clear_stale_snapshots(void) {
 	closedir(d);
 }
 
+/// The capture deadline expired with the script still running: say so and fail, rather than let
+/// host_audio.c's `quick_exit(0)` report success for a run that produced no `quit`.
+///
+/// Registered with `at_quick_exit`, so it sees every `quick_exit` the process makes -- the
+/// capture's, and the script's own. `script_finished` distinguishes them.
+static void deadline_hook(void) {
+	if (!script_loaded || script_finished) {
+		return;
+	}
+	fprintf(stderr,
+	        "[host-script] the capture deadline expired at %u ms with the script still running "
+	        "(last step is at %u ms). The app stopped reaching its `quit` -- see the snapshots "
+	        "written so far.\n",
+	        (unsigned)((uint64_t)host_rendered_frames * 1000u / 44100u), script_last_at_ms);
+	fflush(NULL);
+	_exit(2); // not exit(): we are already inside quick_exit, which must not re-enter
+}
+
 /// The audio capture owns the process's lifetime (host_audio.c finalises the WAV and
 /// `quick_exit`s after `DELUGE_HOST_CAPTURE_SECONDS`, default 2.0 s). A script's `quit` must be
-/// what ends the run instead, so stretch the capture past the script's last step and send its
-/// WAV to /dev/null -- unless the caller asked for either explicitly, in which case they meant it.
+/// what ends the run instead, so move the capture's deadline to just past the script's last step
+/// and send its WAV to /dev/null -- unless the caller asked for either explicitly, in which case
+/// they meant it.
 ///
-/// Guessing the script's end from the file is not possible through the façade (it consumes what
-/// it reads), so this is simply generous: an hour of capture, which no UI script approaches.
+/// The deadline is the script's own end plus `HOST_SCRIPT_DEADLINE_MARGIN_S`, not something flat
+/// and huge: it is the only in-process backstop on a run whose `quit` is never reached (any change
+/// that stops the app polling `deluge_control_poll_event` also stops the pump), and a backstop an
+/// hour away is no backstop at all. `deadline_hook` turns hitting it into an exit 2 with a reason.
+/// A run that stops rendering altogether freezes this clock too; the ctest `TIMEOUT` covers that.
 static void defer_capture_exit(void) {
 	if (getenv("DELUGE_HOST_CAPTURE_SECONDS") == NULL) {
-		setenv("DELUGE_HOST_CAPTURE_SECONDS", "3600", 0);
+		char seconds[16];
+		snprintf(seconds, sizeof(seconds), "%u", script_last_at_ms / 1000u + HOST_SCRIPT_DEADLINE_MARGIN_S);
+		setenv("DELUGE_HOST_CAPTURE_SECONDS", seconds, 0);
 	}
 	if (getenv("DELUGE_HOST_WAV") == NULL) {
 		setenv("DELUGE_HOST_WAV", "/dev/null", 0);
 	}
+	at_quick_exit(deadline_hook);
 }
 
 void host_script_init(void) {
@@ -725,7 +798,7 @@ void host_script_init(void) {
 		script_fail("unparseable script");
 	}
 
-	validate_script(path);
+	validate_script();
 	apply_leading_board_steps();
 	clear_stale_snapshots();
 	defer_capture_exit();

@@ -286,3 +286,7 @@ extern "C" int ui_script_next_due(uint32_t now_ms, UiScriptStep* out) {
 	g_cursor++;
 	return 1;
 }
+
+extern "C" void ui_script_rewind() {
+	g_cursor = 0;
+}

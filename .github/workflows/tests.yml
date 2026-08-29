@@ -52,13 +52,17 @@ jobs:
       # clock and diff its snapshots against tests/golden/ui/app/. -DDELUGE_SIM_X64=ON because the
       # sim's default here is the -m32 build, whose Rust archive is i686.
       - name: UI app scripts (level 3)
+        id: ui-app-scripts
         run: |
           cmake -B build-sim -S sim -G Ninja -DDELUGE_SIM_X64=ON
           cmake --build build-sim --target deluge_host
           ctest --test-dir build-sim -R ui_app_scripts --output-on-failure
 
+      # Scoped to this step's own outcome: a bare `if: failure()` also fires when an earlier step
+      # in the job failed, at which point build-sim/got does not exist and the upload logs a
+      # spurious "no files found".
       - name: Upload UI snapshots on failure
-        if: failure()
+        if: failure() && steps.ui-app-scripts.outcome == 'failure'
         uses: actions/upload-artifact@v7
         with:
           name: ui-app-snapshots

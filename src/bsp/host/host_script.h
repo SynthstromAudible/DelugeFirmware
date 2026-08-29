@@ -130,6 +130,22 @@ int host_script_set_displays(const char* spec);
 /// @brief How many panels the board reports.
 uint8_t host_script_display_count(void);
 
+/// Sidebar columns to the right of the main pad grid.
+///
+/// `DelugeBoard` carries `pad_grid_width`/`pad_grid_height` but no sidebar width, and the app's
+/// `kSideBarWidth` (`src/board_layout.hpp`) is a C++ header the BSP cannot include. So it is spelt
+/// here, matching what the app actually sends: `pad_leds.cpp:260-274` drives columns `0..17` on a
+/// 16-wide grid.
+#define HOST_SCRIPT_SIDEBAR_COLS 2
+
+/// @brief The pad grid a scripted `pad` step may address: `pad_grid_width + HOST_SCRIPT_SIDEBAR_COLS`
+///        columns by `pad_grid_height` rows.
+///
+/// Deliberately does NOT latch the board descriptor the way `deluge_board()` does -- it is called
+/// while validating the script, before a `board` step has been applied. Safe, because a `board`
+/// step only ever rewrites the panel set; the pad grid is fixed by the board itself.
+void host_script_pad_bounds(uint8_t* cols, uint8_t* rows);
+
 /// @brief The last frame blitted to panel \p index, page-major, or NULL if it has never blitted.
 /// @param index  Panel index.
 /// @param width  Set to the frame's pixel width.

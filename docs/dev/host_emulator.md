@@ -123,6 +123,10 @@ cmake --build build-sim --target deluge_host
 ctest --test-dir build-sim -R ui_app_scripts --output-on-failure
 ```
 
-A script also stretches the offline WAV capture (`DELUGE_HOST_CAPTURE_SECONDS`) and sends it to
+A script also retimes the offline WAV capture (`DELUGE_HOST_CAPTURE_SECONDS`) and sends it to
 `/dev/null` unless you set either explicitly, so it is the script's `quit` that ends the run rather
-than the capture's default 2 s.
+than the capture's default 2 s. The new capture deadline is the script's last step **+ 5 seconds of
+rendered audio**, and it doubles as the in-process backstop: reaching it means the app stopped
+reaching the `quit`, and the run exits 2 saying so. The `ui_app_scripts_<name>` ctest sets a
+`TIMEOUT` of the last step **+ 30 wall seconds** as the outer backstop, for a process that stops
+rendering entirely and so freezes the audio clock as well.

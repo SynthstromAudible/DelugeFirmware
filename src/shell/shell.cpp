@@ -85,7 +85,7 @@ bool same_indicator(const KnobIndicator& a, const KnobIndicator& b) {
 	return true;
 }
 
-/// @brief How many knob indicators the board has: `IndicatorId::Upper` and `::Lower`.
+/// @brief How many knob indicators the board has: `IndicatorId::Lower` and `::Upper`.
 ///
 /// `IndicatorId` (`ui/core/led_frame.h`) declares no `Count`, and `LedFrame::indicator_in_range`
 /// hardcodes this same "2" privately -- this is the shell's own name for that same fact, not a

@@ -85,6 +85,19 @@ describe shell_surfaces("shell::SurfaceSet", $ {
 		expect(s.blits[0].byte_count).to_equal(size_t(128 * 48 / 8));
 		expect(s.pbm(0).starts_with("P1\n128 48\n1 0")).to_be_true();
 	});
+	// `IndicatorId`'s *values* are the `which` index `SurfaceSet::set_indicator` takes, and
+	// `BoardSurfaceSet` passes that index straight to `deluge_control_set_indicator`, where it is
+	// legacy's `whichKnob` -- the mod encoder number. Mod encoder 0 is `mod0`, the LOWER gold
+	// encoder (src/deluge/hid/encoders.h:80-81, via gui/views/view.cpp:1403-1468 ->
+	// hid/led/indicator_leds.cpp:241). So `Lower` must be 0. Numbered the other way, every knob
+	// indicator the shell drives would land on the wrong knob on real hardware -- a swap no other
+	// spec here would notice, because both indices are in range and both accept the same data.
+	it("numbers IndicatorId to match the boundary's whichKnob: Lower is 0", _ {
+		static_assert(static_cast<uint8_t>(deluge::ui::IndicatorId::Lower) == 0);
+		static_assert(static_cast<uint8_t>(deluge::ui::IndicatorId::Upper) == 1);
+		expect(static_cast<uint8_t>(deluge::ui::IndicatorId::Lower)).to_equal(uint8_t(0));
+		expect(static_cast<uint8_t>(deluge::ui::IndicatorId::Upper)).to_equal(uint8_t(1));
+	});
 	it("reports pads, LEDs and indicators in the snapshot format", _ {
 		uitest::FakeSurfaceSet s(uitest::kBoard2, uitest::test_profile_two_oleds());
 		s.grid().grid().set(4, 3, RGB{10, 20, 30});
@@ -92,8 +105,9 @@ describe shell_surfaces("shell::SurfaceSet", $ {
 		s.set_led(7, true);
 		s.set_led(9, true);
 		s.set_led(9, false);
+		// Index 1 is `IndicatorId::Upper`, so the line names the upper knob.
 		s.set_indicator(1, deluge::ui::KnobIndicator{{3, 3, 2, 0}});
-		expect(s.state()).to_equal(std::string("indicator lower 3 3 2 0\n"
+		expect(s.state()).to_equal(std::string("indicator upper 3 3 2 0\n"
 		                                       "led 7 on\n"
 		                                       "pad 0 0 255 0 0\n"
 		                                       "pad 4 3 10 20 30\n"));

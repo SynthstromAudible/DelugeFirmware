@@ -45,6 +45,9 @@ void BoardSurfaceSet::set_led(uint8_t board_led, bool on) {
 }
 
 void BoardSurfaceSet::set_indicator(uint8_t which, const KnobIndicator& indicator) {
+	// `which` passes straight through: it is an `IndicatorId` value, and that enum is numbered
+	// `{Lower = 0, Upper = 1}` precisely so it matches the `whichKnob` (= mod encoder number) the
+	// boundary expects. See the ordering note on `IndicatorId` (`ui/core/led_frame.h`).
 	deluge_control_set_indicator(which, indicator.levels, 4);
 }
 

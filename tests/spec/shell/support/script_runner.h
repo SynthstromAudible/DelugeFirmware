@@ -318,9 +318,12 @@ inline std::string state_text(const Shell& shell, FakeSurfaceSet& fake) {
 			break;
 		}
 	}
+	// `i` is an `IndicatorId` value, and that enum is `{Lower = 0, Upper = 1}` (see the ordering
+	// note on it) -- so index 1, not 0, is the upper knob. The `.state` name has to be the physical
+	// knob, or a level-2 snapshot would disagree with the level-3 one for the same screen.
 	for (uint8_t i = 0; i < 2; i++) {
 		if (const deluge::ui::KnobIndicator* k = fake.indicator(i); k != nullptr) {
-			deluge::harness::add_indicator_line(lines, i == 0, k->levels);
+			deluge::harness::add_indicator_line(lines, i == 1, k->levels);
 		}
 	}
 	return lines.sorted_text();

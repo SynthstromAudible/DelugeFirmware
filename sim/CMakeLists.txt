@@ -544,11 +544,29 @@ add_host_displays_test(host_displays_overflow "128x64,128x64+1,128x64+2,128x64+3
 file(GLOB UI_APP_SCRIPTS CONFIGURE_DEPENDS ${REPO_ROOT}/tests/ui-scripts/app/*.txt)
 foreach(script IN LISTS UI_APP_SCRIPTS)
     get_filename_component(name ${script} NAME_WE)
+
+    # TIMEOUT, derived from the script itself. A run only ends when the script's `quit` fires, and
+    # anything that stops the app polling deluge_control_poll_event() also stops the pump — so
+    # without this a stuck run would burn ctest's 1500 s default instead of failing fast. The
+    # script's last `at_ms` is its whole timeline; +30 s covers boot, the app's own slack, and a
+    # slow CI runner. host_script.c sets its own capture deadline 15 s past the last step, so in
+    # the common case the process reports *why* it stopped before ctest's timeout fires.
+    file(STRINGS ${script} _ui_script_lines)
+    set(_ui_last_ms 0)
+    foreach(_ui_line IN LISTS _ui_script_lines)
+        string(REGEX REPLACE "#.*$" "" _ui_line "${_ui_line}")
+        if(_ui_line MATCHES "^[ \t]*([0-9]+)[ \t]" AND CMAKE_MATCH_1 GREATER _ui_last_ms)
+            set(_ui_last_ms ${CMAKE_MATCH_1})
+        endif()
+    endforeach()
+    math(EXPR _ui_timeout "${_ui_last_ms} / 1000 + 30")
+
     add_test(NAME ui_app_scripts_${name}
              COMMAND ${CMAKE_COMMAND} -E env DELUGE_HOST_DETERMINISTIC=1 DELUGE_HOST_SCRIPT=${script}
                      DELUGE_HOST_SNAPSHOT_DIR=${CMAKE_BINARY_DIR}/got/app/${name}
                      DELUGE_SD_ROOT=${REPO_ROOT}/tests/fixtures/card
                      $<TARGET_FILE:deluge_host>)
+    set_tests_properties(ui_app_scripts_${name} PROPERTIES TIMEOUT ${_ui_timeout})
     add_test(NAME ui_app_scripts_${name}_diff
              COMMAND python3 ${REPO_ROOT}/scripts/ui_snapshot_diff.py
                      ${CMAKE_BINARY_DIR}/got/app/${name} ${REPO_ROOT}/tests/golden/ui/app/${name})
