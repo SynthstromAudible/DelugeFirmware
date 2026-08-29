@@ -96,6 +96,14 @@ public:
 	// slot's menu always plays the slot being edited. The stored pointer is only ever compared,
 	// never dereferenced, so a stale value cannot crash - but callers should still clear it when
 	// their menu session ends.
+	//
+	// The pointer identifies its range by address, and ranges live in a MultiRangeArray that moves
+	// its elements on insert/delete and rebuilds them entirely on changeType(). A pointer left over
+	// across one of those can therefore compare equal to a *different* range, which would then be
+	// pinned to one slot and stop cycling - so those three call sites clear it too, not just the
+	// menu ones. Reaching one of them from a live slot menu is not hypothetical: the slot's FILE
+	// item opens the sample browser over the top of the menu without ending the session, and a
+	// whole-folder import from there deletes and re-inserts every range.
 	static void setAuditionSlot(MultisampleRange* range, uint8_t slotIndex) {
 		auditionSlotIndex_ = slotIndex;
 		auditionRange_ = range;
