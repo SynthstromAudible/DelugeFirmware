@@ -51,6 +51,13 @@ mod card;
 #[path = "../src/file_prefix.rs"]
 mod file_prefix;
 
+/// The third loader `card.rs` flushes, here for exactly the same reason as `file_prefix` above:
+/// `deluge_card_flush` names all three of its siblings, so a carrier that provides only two does
+/// not compile. Its own slot logic is tested in `tests/file_directory_host.rs`.
+#[allow(dead_code)]
+#[path = "../src/file_directory.rs"]
+mod file_directory;
+
 use audio_loader::{
     CandidateList, DELUGE_ERROR_FILE_CORRUPTED, DELUGE_ERROR_FILE_UNREADABLE,
     DELUGE_ERROR_FILE_UNSUPPORTED, DELUGE_ERROR_NONE, DELUGE_ERROR_TOO_MANY_OPEN_STREAMS,

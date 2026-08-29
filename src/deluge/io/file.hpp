@@ -99,6 +99,17 @@ public:
 	}
 
 	[[nodiscard]] static std::expected<Directory, Status> open(std::string_view path);
+
+	/// @brief Adopt a directory handle opened elsewhere — the async directory channel's collect path.
+	///
+	/// `deluge_file_directory_collect` hands back a raw handle on READY, and there are only eight of
+	/// them; this is what puts one straight back under RAII so the ordinary destructor closes it.
+	/// The returned Directory owns the handle exactly as one from open() does.
+	/// @param handle An open efatfs directory handle, as written to `deluge_file_directory_collect`'s
+	///        `out_handle`. Must not be closed by the caller as well.
+	/// @return A Directory owning `handle`.
+	[[nodiscard]] static Directory adopt(uint32_t handle);
+
 	std::expected<std::optional<DelugeDirEntry>, Status> read();
 	std::expected<void, Status> close();
 

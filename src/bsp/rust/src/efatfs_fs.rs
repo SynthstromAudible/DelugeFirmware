@@ -495,7 +495,12 @@ async fn task_file_close(handle: u32) {
     TASK_FILES.lock().await.remove(handle);
 }
 
-async fn task_dir_open(path: &str) -> Result<u32, DelugeStatus> {
+/// Open `path` as a directory, resolving to a handle into [`DIR_HANDLES`].
+///
+/// `pub(crate)` so `file_directory.rs`'s driver can AWAIT this, which is the whole of that channel:
+/// `deluge_efatfs_dir_open` reaches the same future through `sim_block::block_on` and spins its
+/// caller until it completes.
+pub(crate) async fn task_dir_open(path: &str) -> Result<u32, DelugeStatus> {
     let cursor = with_fs(async |fs| efatfs_core::readdir_open(fs, path).await)
         .await
         .ok_or(DELUGE_ERR_NO_FILESYSTEM)??;
@@ -552,8 +557,29 @@ async fn task_dir_read(
     })
 }
 
-async fn task_dir_close(handle: u32) {
+/// Release `handle`'s row in [`DIR_HANDLES`]. FS-free -- it touches no card.
+pub(crate) async fn task_dir_close(handle: u32) {
     DIR_HANDLES.lock().await.remove(handle);
+}
+
+/// Release `handle`'s row without awaiting, for a caller that may not block.
+///
+/// `deluge_card_flush` runs synchronously on the interaction tier and must close whatever handle the
+/// directory channel was holding, so it needs a close that cannot wait. This is FS-free like
+/// [`task_dir_close`] -- the only thing it can lose is the table lock, and a contended table leaks
+/// one of `MAX_DIR_HANDLES` slots until the next mount. That is bounded and rare, and strictly
+/// better than blocking the interaction tier inside an eject.
+///
+/// Returns whether the slot was actually released.
+#[allow(dead_code)] // only the directory channel calls this, and it is feature-gated
+pub(crate) fn try_close_dir(handle: u32) -> bool {
+    match DIR_HANDLES.try_lock() {
+        Ok(mut table) => {
+            table.remove(handle);
+            true
+        }
+        Err(_) => false,
+    }
 }
 
 // --- Task-context FFI bridge --------------------------------------------------

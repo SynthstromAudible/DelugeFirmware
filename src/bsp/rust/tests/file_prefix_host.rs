@@ -508,6 +508,13 @@ fn a_failure_after_the_open_still_closes_the_handle() {
 #[path = "../src/card.rs"]
 mod card;
 
+/// The third sibling `card.rs` names. Gated with `card` above, not on a feature of its own: a
+/// carrier that compiles the flush without every module it flushes does not compile at all.
+#[allow(dead_code)]
+#[cfg(feature = "async_file_prefix_active")]
+#[path = "../src/file_directory.rs"]
+mod file_directory;
+
 #[cfg(feature = "async_file_prefix_active")]
 mod live_pipeline {
     use super::file_prefix::{

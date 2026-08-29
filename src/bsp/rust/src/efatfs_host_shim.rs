@@ -548,7 +548,9 @@ async fn task_file_close(handle: u32) {
     TASK_FILES.lock().await.remove(handle);
 }
 
-async fn task_dir_open(path: &str) -> Result<u32, DelugeStatus> {
+/// Open `path` as a directory. `pub(crate)` for the same reason as `efatfs_fs.rs`'s: the directory
+/// channel AWAITS this, where the blocking C ABI below spins on it.
+pub(crate) async fn task_dir_open(path: &str) -> Result<u32, DelugeStatus> {
     let cursor = with_fs(async |fs| efatfs_core::readdir_open(fs, path).await)
         .await
         .ok_or(DELUGE_ERR_NO_FILESYSTEM)??;
@@ -593,8 +595,24 @@ async fn task_dir_read(
     })
 }
 
-async fn task_dir_close(handle: u32) {
+/// Release `handle`'s row in [`DIR_HANDLES`]. FS-free -- it touches no image.
+pub(crate) async fn task_dir_close(handle: u32) {
     DIR_HANDLES.lock().await.remove(handle);
+}
+
+/// Release `handle`'s row without awaiting, for a caller that may not block. Host counterpart of
+/// `efatfs_fs.rs`'s `try_close_dir` -- see that one for why an eject needs a non-waiting close.
+///
+/// Returns whether the slot was actually released.
+#[allow(dead_code)] // only the directory channel calls this, and it is feature-gated
+pub(crate) fn try_close_dir(handle: u32) -> bool {
+    match DIR_HANDLES.try_lock() {
+        Ok(mut table) => {
+            table.remove(handle);
+            true
+        }
+        Err(_) => false,
+    }
 }
 
 // --- Task-context FFI bridge --------------------------------------------------

@@ -8,7 +8,8 @@
 //!
 //! # Reach the loaders through `super::`, never `crate::`
 //!
-//! Like `audio_loader.rs` and `file_prefix.rs` beside it, this file is `#[path]`-recompiled into
+//! Like `audio_loader.rs`, `file_prefix.rs` and `file_directory.rs` beside it, this file is
+//! `#[path]`-recompiled into
 //! other packages (the BSP's own `tests/audio_loader_host.rs`, `crates/deluge_audio_loader_host`
 //! under that, and the `golden_vt_render` harness), and in one of them it is nested a module deep
 //! rather than sitting at the crate root. `super::audio_loader` names the sibling module in every
@@ -25,7 +26,12 @@
 ///
 /// No correctness rests on a clear landing — the stamp, compared at take, is the safety property,
 /// and it holds no matter which locks were taken or which contexts the two sides ran in (see
-/// [`super::audio_loader::take_from`] and [`super::file_prefix::take_from`]).
+/// [`super::audio_loader::take_from`], [`super::file_prefix::take_from`] and
+/// [`super::file_directory::take_from`]).
+///
+/// The directory channel's clear is the one that costs a RESOURCE when it is skipped rather than
+/// merely leaving a dead entry: it holds one of eight efatfs directory handles. See that module's
+/// `flush_tables`.
 ///
 /// Nothing here may be re-argued from where a loader is scheduled: a loader owns its own executor
 /// on device but a plain `std::thread` under `host_app`, so any claim of the form "these two cannot
@@ -40,4 +46,5 @@ pub extern "C" fn deluge_card_flush() {
     deluge_card_generation::bump();
     super::audio_loader::flush_tables();
     super::file_prefix::flush_tables();
+    super::file_directory::flush_tables();
 }

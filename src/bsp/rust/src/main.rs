@@ -216,6 +216,16 @@ mod ffi_extra;
 /// The worker fiber: a stackful coroutine for the long synchronous C++ operations
 /// that pause via `yield()`. This module is the context-switch primitive.
 mod fiber;
+/// file_directory.h — the single-slot directory channel: open a directory on the storage tier and
+/// hand the ready handle to a caller that must not wait on the card. Gated identically to
+/// `file_prefix` below, and to `card` — which reaches this module's `flush_tables` and so must
+/// never be compiled without it. `Browser` is the one caller, and it only enters this channel when
+/// `async_file_directory_active` is on; both of the features are off by default.
+///
+/// Unlike `file_prefix` it borrows nothing from `audio_loader`: a directory open is not one of
+/// `LoadOps`'s four file operations, so it declares its own two-operation trait.
+#[cfg(any(target_os = "none", feature = "host_app"))]
+mod file_directory;
 /// file_prefix.h — the single-slot prefix channel: read the first N bytes of a file on the
 /// storage tier and hand them to a caller that must not wait on the card. Gated identically to
 /// `audio_loader` above, whose `LoadOps`/`ProdOps` its driver reuses, and to `card` — which
@@ -441,7 +451,8 @@ fn stream_sgi_handler() {
     any(
         feature = "async_streaming_loader",
         feature = "async_audio_load_active",
-        feature = "async_file_prefix_active"
+        feature = "async_file_prefix_active",
+        feature = "async_file_directory_active"
     )
 ))]
 #[embassy_executor::task]
@@ -459,6 +470,10 @@ async fn stream_bootstrap() {
     // `sim_block::block_on` spin would deadlock against that if the two shared an executor.
     #[cfg(all(feature = "async_file_prefix_active", feature = "efatfs_streaming"))]
     spawner.spawn(file_prefix::file_prefix_task().unwrap());
+    // Here for the same reason again: `task_dir_open` goes through `with_fs`, so it holds the FS
+    // mutex across an SD await.
+    #[cfg(all(feature = "async_file_directory_active", feature = "efatfs_streaming"))]
+    spawner.spawn(file_directory::file_directory_task().unwrap());
 }
 
 /// Firmware entry. The HAL reset handler (`_reset_handler` in rza1l-hal) ends in
@@ -1199,7 +1214,8 @@ fn main() {
         #[cfg(any(
             feature = "async_streaming_loader",
             feature = "async_audio_load_active",
-            feature = "async_file_prefix_active"
+            feature = "async_file_prefix_active",
+            feature = "async_file_directory_active"
         ))]
         {
             let stream_ready = Arc::new(Barrier::new(2));
@@ -1215,6 +1231,8 @@ fn main() {
                         spawner.spawn(audio_loader::audio_load_task().unwrap());
                         #[cfg(feature = "async_file_prefix_active")]
                         spawner.spawn(file_prefix::file_prefix_task().unwrap());
+                        #[cfg(feature = "async_file_directory_active")]
+                        spawner.spawn(file_directory::file_directory_task().unwrap());
                         log::info!(
                             "deluge-bsp-rust: host streaming executor up on thread {:?}",
                             std::thread::current().name()

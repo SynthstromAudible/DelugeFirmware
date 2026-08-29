@@ -200,6 +200,14 @@ std::expected<Directory, Status> Directory::open(std::string_view path) {
 	return Directory(box_dir_handle(handle));
 }
 
+Directory Directory::adopt(uint32_t handle) {
+	// Deliberately the same boxing open() applies to the handle it just received, rather than a
+	// second path into the private constructor: a handle from the async channel and a handle from a
+	// synchronous open are the same efatfs slot index, and boxing them differently would make one of
+	// the two unclose-able.
+	return Directory(box_dir_handle(handle));
+}
+
 std::expected<std::optional<DelugeDirEntry>, Status> Directory::read() {
 	DelugeDirEntry entry{};
 	bool has_entry = false;
