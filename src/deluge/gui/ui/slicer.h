@@ -55,10 +55,16 @@ public:
 	void stopAnyPreviewing();
 	/// @brief Trigger a pad-hold/tap audition: snapshot the slice/on-off request and drive it.
 	///
-	/// Runs inline. The only I/O an audition does is the `loadFile()` for a sample that isn't
-	/// already resident, and that load may answer "not yet" — so the whole group (load, slice
-	/// params, audition note) is driven through `previewLoad_` and re-driven by `graphicsRoutine()`
-	/// until it lands, instead of being handed to the storage worker to block on.
+	/// The only I/O an audition does is the `loadFile()` for a sample that isn't already resident,
+	/// and WHERE that runs depends on which loader backs it. With the async loader active the load
+	/// answers "not yet" without touching the card, so the whole group (load, slice params,
+	/// audition note) is driven inline through `previewLoad_` and re-driven by `graphicsRoutine()`
+	/// until it lands. With the loader off — the shipping default — the same `loadFile()` reads the
+	/// card and blocks, so the group is dispatched to the storage owner instead; see
+	/// `drivePreview()`.
+	///
+	/// Either way the request is snapshotted here and the audition is latest-wins, so a burst of pad
+	/// taps converges on whichever slice/on-off state the finger is actually on.
 	/// @param startPoint Sample-frame position where the audition slice starts.
 	/// @param endPoint   Sample-frame position where the audition slice ends; -1 leaves the
 	///                   current end position unchanged.
@@ -110,8 +116,19 @@ private:
 	/// The single entry point for both the user-driven press/release (`preview()`) and the per-tick
 	/// re-ask (`graphicsRoutine()`), so the two cannot drift apart.
 	/// @param target The audition request to act on.
-	/// @return true if the attempt deferred and is armed for `graphicsRoutine()` to ask again.
+	/// @return true if the attempt deferred (or its dispatch was dropped) and is armed for
+	///         `graphicsRoutine()` to ask again.
 	bool drivePreview(const PreviewTarget& target);
+
+	/// @brief `previewForTarget()` wrapped for the storage owner: the whole audition, run once on
+	///        the worker, with the latest-wins hand-off it needs there.
+	///
+	/// The synchronous-loader arm of `drivePreview()`. Mirrors `LoadSongUI::runPreviewOp()`,
+	/// including the `is_current()` check BEFORE the work: unlike the inline arm, there is a real
+	/// gap here — between the dispatch and this running, the user can have left the slicer, and
+	/// sounding a slice into a closed UI is the damage.
+	/// @param self The `Slicer` that dispatched this op.
+	static void runPreviewOp(void* self);
 
 	/// @brief The load-then-audition body for a single preview target.
 	///
@@ -133,6 +150,18 @@ private:
 	void cancelPreview() { previewLoad_.cancel(); }
 
 	deluge::storage::DeferredLoad<PreviewTarget> previewLoad_{};
+
+	/// @brief What the most recent `runPreviewOp()` answered: did its load defer?
+	///
+	/// Only the owner arm needs this. `Owner::run()` is fire-and-forget, so the op cannot return its
+	/// answer to `drivePreview()` directly; the flag is cleared before the dispatch and written by
+	/// the op, so a queued dispatch (Embassy) reads back false — nothing has deferred yet, which is
+	/// true — while an inline one (legacy/host) reads back what actually happened.
+	///
+	/// NOT the same thing as `previewLoad_.pending()`: a load can answer "not yet" and still arm no
+	/// re-ask, when a cancel landed inside it. Production discards this value at every call site; it
+	/// is the audition's own answer, and `previewLoad_` is where the state lives.
+	bool previewOpDeferred_{false};
 
 	/// @brief Snapshot of the SELECT_ENC "commit slice" gesture, captured in `buttonAction()` at
 	///        dispatch time.
