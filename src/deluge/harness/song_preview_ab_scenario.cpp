@@ -118,19 +118,19 @@ public:
 	/// with entries culled from the start, which is the condition the second open exists for. The
 	/// stage refuses to run its sweep at opens < 2 rather than reporting a green run over one N that
 	/// covers no retry path.
-	static void beginOpenListing(const char* dir, const char* filenameToStartAt) {
+	static void beginOpenListing(const char* dir, const char* filenameToStartAt, const char* defaultDir = "") {
 		Browser::currentDir = dir;
 		Browser::enteredText.clear();
 		(void)loadSongUI.beginListing({.action = Browser::ListingAction::Open,
 		                               .direction = 0,
 		                               .filenameToStartAt = filenameToStartAt,
-		                               .defaultDir = "",
+		                               .defaultDir = defaultDir,
 		                               .folderOrPath = ""});
 	}
 	static void tick() { loadSongUI.graphicsRoutine(); }
 	static bool inProgress() { return Browser::isListingInProgress(); }
-	/// How many opens the attempt that just finished performed. Read after a non-deferring run.
-	static int32_t opensPerformed() { return Browser::attempt_.opensThisAttempt; }
+	/// How many opens the listing that just finished performed. Read after a non-deferring run.
+	static int32_t opensPerformed() { return Browser::listing_.opensThisListing; }
 	static void deferAtOpen(int32_t n) { Browser::deferAtOpenNumber_ = n; }
 	/// `Browser::fileIndexSelected` is protected; the snapshot needs it, and it is half of what
 	/// "the listing finished the same way" means.
@@ -1052,6 +1052,25 @@ void runListingTick() {
 		// A sweep run just finished.
 		const ListingSnapshot got = takeListingSnapshot();
 		g_listingCasesRun++;
+
+		// The state machine's central property, and the one an identical-result check alone cannot
+		// see: a listing that suspended RESUMED at the pending open rather than starting over, so no
+		// open was made twice. A deferred run makes exactly one extra open -- the one that deferred,
+		// which is counted before it defers and again when it is retried. A run that restarted from
+		// the top would redo every open before the deferral too, giving reference + N for a deferral
+		// at open N.
+		//
+		// This is what the earlier restart-on-defer design failed on, invisibly: the seam disarms
+		// after firing, so a restart still converges here and an identical-result check passes. It is
+		// against the REAL channel -- one slot, answer consumed at take -- that a restart livelocks,
+		// re-asking for open #1 forever. Counting opens is what makes that visible without the
+		// channel.
+		const int32_t opens = BrowserListingAbProbe::opensPerformed();
+		if (opens != g_listingOpens + 1) {
+			printf("SP-LISTING FAIL deferAt=%d made %d opens, a resume makes %d -- an open was redone\n",
+			       g_listingDeferAt, opens, g_listingOpens + 1);
+			g_failures++;
+		}
 		if (!(got == g_listingReference)) {
 			printf("SP-LISTING FAIL deferAt=%d dir=%s/%s entered=%s/%s sel=%d/%d n=%zu/%zu\n", g_listingDeferAt,
 			       got.dir.c_str(), g_listingReference.dir.c_str(), got.entered.c_str(),

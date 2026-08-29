@@ -66,24 +66,8 @@ char const* Browser::filenameToStartSearchAt;
 
 bool Browser::listingInProgress_;
 bool Browser::listingOnTickSurface_;
-Browser::ListingAttempt Browser::attempt_;
+Browser::ListingState Browser::listing_;
 int32_t Browser::deferAtOpenNumber_ = 0;
-
-void Browser::ListingAttempt::begin() {
-	active = true;
-	dirAtEntry = currentDir;
-	enteredAtEntry = enteredText;
-	triedCreatingFolder = false;
-	opensThisAttempt = 0;
-}
-
-void Browser::ListingAttempt::restore() {
-	// currentDir and enteredText only -- NOT triedCreatingFolder, which is precisely the flag that
-	// has to survive a re-entry. See ListingAttempt's doc.
-	currentDir = dirAtEntry;
-	enteredText = enteredAtEntry;
-	opensThisAttempt = 0;
-}
 Browser::ListingRequest Browser::pendingListing_;
 int32_t Browser::pendingReloadCatalogSearchDirection_;
 bool Browser::pendingReloadSearchFromEnd_;
@@ -117,7 +101,12 @@ bool Browser::beginListing(ListingRequest req) {
 	// re-entry path on a build where the directory channel is not compiled in at all. What that gate
 	// checks -- that a listing re-run from the top finishes identically to one that never deferred --
 	// is a property of the listing, not of the channel, and it is the riskiest half of this rung.
-	listingOnTickSurface_ = deluge_file_directory_async_active() || deferAtOpenNumber_ != 0;
+	// Only the actions that run through the listing machine may take the tick surface. Reload does
+	// its own read (readFileItemsFromFolderAndMemory, not arrivedInNewFolder), so it has no machine to
+	// suspend into — running it here would block the interaction tier on the card, which is the exact
+	// thing this rung exists to stop. It keeps the storage owner until it is converted in turn.
+	const bool machineBacked = pendingListing_.action != ListingAction::Reload;
+	listingOnTickSurface_ = machineBacked && (deluge_file_directory_async_active() || deferAtOpenNumber_ != 0);
 	if (listingOnTickSurface_) {
 		// The attempt runs on the INTERACTION tier, in graphicsRoutine(), start to finish, and it
 		// never blocks there: every directory open goes through the channel and every enumeration is
@@ -170,17 +159,17 @@ std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(cha
 
 	// Three conditions, and each excludes a caller that has nowhere to put a deferral:
 	//
-	//  - `attempt_.active`: readFileItemsForFolder is also reached by predictExtendedText (the typing
-	//    path) and by LoadInstrumentPresetUI, neither of which is a listing attempt.
-	//  - `!Owner::on_owner()`: and `attempt_.active` alone does NOT exclude them, because it is a
-	//    global meaning "SOME attempt is mid-defer", not "I am inside that attempt". An owner op
+	//  - `listing_.active`: readFileItemsForFolder is also reached by predictExtendedText (the typing
+	//    path) and by LoadInstrumentPresetUI, neither of which is a listing.
+	//  - `!Owner::on_owner()`: and `listing_.active` alone does NOT exclude them, because it is a
+	//    global meaning "SOME listing is in flight", not "I am inside it". An owner op
 	//    running while a browser attempt is deferred would otherwise take this branch, be handed a
 	//    LISTING_DEFERRED it treats as a load failure, AND replace the browser's outstanding request
 	//    with its own. The tick surface is the only thing that runs an attempt, and it is never the
 	//    owner.
 	//  - the selector: with the channel absent the weak collect answers UNKNOWN forever, so an
 	//    attempt that consulted it would defer on every tick and never list anything.
-	if (!attempt_.active || deluge::storage::Owner::on_owner() || !deluge_file_directory_async_active()) {
+	if (!listing_.active || deluge::storage::Owner::on_owner() || !deluge_file_directory_async_active()) {
 		auto opened = deluge::io::Directory::open(path);
 		if (!opened.has_value()) {
 			return std::unexpected(delugeStatusToError(deluge::io::to_deluge_status(opened.error())));
@@ -217,54 +206,84 @@ std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(cha
 }
 
 void Browser::runPendingListing() {
-	// One attempt spans however many ticks its opens need. The first pass captures the inputs; every
-	// re-entry puts them back, so the re-run decides from what the caller asked for rather than from
-	// what the previous pass left behind. See ListingAttempt.
-	if (attempt_.active) {
-		attempt_.restore();
-	}
-	else {
-		attempt_.begin();
-	}
+	// A listing spans however many ticks its opens need, and `listing_` carries where it is up to. A
+	// re-entry while one is active RESUMES the machine — it must NOT re-run the action's *Impl, which
+	// would re-arm the machine from the top and redo every open it has already made, and whose
+	// pre-work is not idempotent anyway (goIntoFolderImpl APPENDS to currentDir).
+	Error error = listing_.active ? stepListing() : startPendingListing();
 
-	Error error = Error::NONE;
-	switch (pendingListing_.action) {
-	case ListingAction::Open:
-		error = openListingImpl(pendingListing_.direction, pendingListing_.filenameToStartAt.c_str(),
-		                        pendingListing_.defaultDir.c_str());
-		break;
-	case ListingAction::IntoFolder:
-		error = goIntoFolderImpl(pendingListing_.folderOrPath.c_str());
-		break;
-	case ListingAction::UpLevel:
-		error = goUpOneDirectoryLevelImpl();
-		break;
-	case ListingAction::ByPath:
-		error = setFileByFullPathImpl(pendingListing_.folderOrPath.c_str());
-		break;
-	case ListingAction::Reload:
-		error = reloadImpl(pendingListing_.direction);
-		break;
-	}
 	if (error == Error::LISTING_DEFERRED) {
-		// Not a failure and not a completion: an open this attempt needs is not ready. Leave
-		// listingInProgress_ set and the loading animation up, and let the per-tick surface re-enter.
-		// Nothing was committed -- a deferred pass returns before arrivedInNewFolder finalises -- so
-		// the browser still shows the previous listing, which is what makes the wait unobservable.
+		// Not a failure and not a completion: an open this listing needs is not ready. Leave
+		// listingInProgress_ set and the loading animation up, and let the per-tick surface resume.
+		// Nothing was committed — a suspended listing stops before its Finalize phase — so the browser
+		// still shows the previous listing, which is what makes the wait unobservable.
 		return;
 	}
-	attempt_.active = false;
+	if (error == Error::NONE) {
+		// The action's own tail. It lives here rather than in the *Impl because a resumed listing
+		// never returns through the *Impl that started it, so a tail left there would simply not run
+		// — the browser would list the new folder and then never repaint for it.
+		error = finishPendingListing();
+	}
+
 	display->removeLoadingAnimation();
 	if (error == Error::NONE) {
 		if (pendingListing_.action == ListingAction::Open) {
 			onBrowserOpened();
 		}
-		// folderContentsReady already ran inside arrivedInNewFolder for success.
+		// folderContentsReady already ran inside the listing machine for success.
 	}
 	else {
 		onListingFailed(error);
 	}
 	listingInProgress_ = false;
+}
+
+Error Browser::startPendingListing() {
+	switch (pendingListing_.action) {
+	case ListingAction::Open:
+		return openListingImpl(pendingListing_.direction, pendingListing_.filenameToStartAt.c_str(),
+		                       pendingListing_.defaultDir.c_str());
+	case ListingAction::IntoFolder:
+		return goIntoFolderImpl(pendingListing_.folderOrPath.c_str());
+	case ListingAction::UpLevel:
+		return goUpOneDirectoryLevelImpl();
+	case ListingAction::ByPath:
+		return setFileByFullPathImpl(pendingListing_.folderOrPath.c_str());
+	case ListingAction::Reload:
+		return reloadImpl(pendingListing_.direction);
+	}
+	return Error::NONE;
+}
+
+Error Browser::finishPendingListing() {
+	switch (pendingListing_.action) {
+	case ListingAction::IntoFolder:
+	case ListingAction::UpLevel:
+		renderUIsForOled();
+		return Error::NONE;
+
+	case ListingAction::ByPath: {
+		//  Get the File Index
+		char const* fileName = pendingListing_.byPathFileName.c_str();
+		fileIndexSelected = searchFileItems(fileName);
+		if (fileIndexSelected > static_cast<int32_t>(fileItems.size())) {
+			return Error::FILE_NOT_FOUND;
+		}
+		// Update the Display
+		scrollPosVertical = fileIndexSelected;
+		setEnteredTextFromCurrentFilename();
+		renderUIsForOled();
+		// Inform the Load UI that the File has changed
+		currentFileChanged(1);
+		return Error::NONE;
+	}
+
+	case ListingAction::Open:
+	case ListingAction::Reload:
+		return Error::NONE;
+	}
+	return Error::NONE;
 }
 
 void Browser::onListingFailed(Error error) {
@@ -309,7 +328,7 @@ void Browser::close() {
 	}
 	listingInProgress_ = false;
 	listingOnTickSurface_ = false;
-	attempt_.active = false;
+	listing_.active = false;
 
 	emptyFileItems();
 	favouritesManager.close();
@@ -448,22 +467,22 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 		return error;
 	}
 
-	// Every open an ATTEMPT makes is counted, so a gate can force the Nth one to defer and check that
+	// Every open a LISTING makes is counted, so a gate can force the Nth one to defer and check that
 	// the finished listing is identical either way. Counted here rather than at the call sites
 	// because this is the ONLY place the browser opens a directory.
 	//
-	// Gated on `attempt_.active`, and that is the rung's central rule rather than a detail. This
+	// Gated on `listing_.active`, and that is the rung's central rule rather than a detail. This
 	// function has callers that are NOT listing attempts and have nowhere to put a deferral:
 	// `predictExtendedText` re-reads the folder straight from the typing path, and
 	// `LoadInstrumentPresetUI` calls in from outside Browser entirely. Neither runs under
-	// `runPendingListing`, so neither would ever be re-entered, and handing either of them
+	// `runPendingListing`, so neither would ever be resumed, and handing either of them
 	// LISTING_DEFERRED would empty the file list and put an error popup on screen for a folder that
 	// is perfectly readable. They keep the synchronous open until they are converted in turn; what
 	// this rung converts is exactly the listing actions, and the remaining blocking callers are
 	// enumerable rather than latent.
-	if (attempt_.active) {
-		attempt_.opensThisAttempt++;
-		if (deferAtOpenNumber_ != 0 && attempt_.opensThisAttempt == deferAtOpenNumber_) {
+	if (listing_.active) {
+		listing_.opensThisListing++;
+		if (deferAtOpenNumber_ != 0 && listing_.opensThisListing == deferAtOpenNumber_) {
 			// Disarmed as it fires: a real channel answers the next ask, so a seam that stayed armed
 			// would defer this same open on every pass and the attempt would never finish.
 			deferAtOpenNumber_ = 0;
@@ -656,26 +675,11 @@ Error Browser::setFileByFullPathImpl(char const* fullPath) {
 		currentDir.clear();
 	}
 
-	// Change to the File Folder
-	Error error = arrivedInNewFolder(0, fileName);
-	if (error != Error::NONE) {
-		return error;
-	}
-
-	//  Get the File Index
-	fileIndexSelected = searchFileItems(fileName);
-	if (fileIndexSelected > static_cast<int32_t>(fileItems.size())) {
-		return Error::FILE_NOT_FOUND;
-	}
-
-	// Update the Display
-	scrollPosVertical = fileIndexSelected;
-	setEnteredTextFromCurrentFilename();
-	renderUIsForOled();
-
-	// Inform the Load UI that the File has changed
-	currentFileChanged(1);
-	return Error::NONE;
+	// Everything after the listing moved to finishPendingListing(): this listing can suspend, and a
+	// resumption does not return through here. The filename it needs is carried on the request rather
+	// than recomputed, because `fileName` points into a local that is long gone by then.
+	pendingListing_.byPathFileName = fileName;
+	return arrivedInNewFolder(0, fileName);
 }
 
 // song may be supplied as NULL, in which case it won't be searched for Instruments; sometimes this will get called when
@@ -684,58 +688,71 @@ Error Browser::readFileItemsFromFolderAndMemory(Song* song, OutputType outputTyp
                                                 char const* filenameToStartAt, char const* defaultDirToAlsoTry,
                                                 bool allowFolders, Availability availabilityRequirement,
                                                 int32_t newCatalogSearchDirection) {
+	// The legacy entry point: build the carried state, run the read, discard the fallback's rewrites.
+	// Every caller here is synchronous and cannot suspend, so there is nothing for the rewrites to be
+	// resumed with. `song` is ignored in favour of `currentSong` for the same reason it always was --
+	// every call site passes exactly that.
+	ListingRead read{
+	    .outputType = outputType,
+	    .filePrefix = filePrefixHere,
+	    .filenameToStartAt = filenameToStartAt ? filenameToStartAt : "",
+	    .defaultDirToAlsoTry = defaultDirToAlsoTry,
+	    .allowFolders = allowFolders,
+	    .catalogSearchDirection = newCatalogSearchDirection,
+	};
+	bool triedCreatingFolder = false;
+	return readFolderAndMemory(read, triedCreatingFolder);
+}
+
+Error Browser::readFolderAndMemory(ListingRead& read, bool& triedCreatingFolder) {
 	// filenameToStartAt should have .XML at the end of it.
-	//
-	// `triedCreatingFolder` lives on the attempt, not here: a listing that deferred after creating
-	// the folder is re-run from the top, and a local would reset -- so the re-run would mkdir the
-	// folder it just made and take the EXISTS failure as terminal. See Browser::ListingAttempt.
-tryReadingItems:
-	Error error = readFileItemsForFolder(filePrefixHere, allowFolders, allowedFileExtensions, filenameToStartAt,
-	                                     FILE_ITEMS_MAX_NUM_ELEMENTS, newCatalogSearchDirection);
-	if (error != Error::NONE) {
-
-		// If folder didn't exist, try our alternative one if there is one.
-		if (error == Error::FOLDER_DOESNT_EXIST) {
-			if (defaultDirToAlsoTry) {
-				// ... only if we haven't already tried the alternative folder.
-				if (!deluge::string::caselessEquals(currentDir, defaultDirToAlsoTry)) {
-					filenameToStartAt = NULL;
-					currentDir = defaultDirToAlsoTry;
-					goto tryReadingItems;
-				}
-
-				// Or if we have already tried it and it didn't exist, try creating it...
-				else {
-					// But not if we already tried.
-					if (attempt_.triedCreatingFolder) {
-						return error;
-					}
-					auto result = deluge::io::mkdir(defaultDirToAlsoTry);
-					if (result.has_value()) {
-						attempt_.triedCreatingFolder = true;
-						goto tryReadingItems;
-					}
-					else {
-						return delugeStatusToError(deluge::io::to_deluge_status(result.error()));
-					}
-				}
-			}
+	while (true) {
+		// ONE open per iteration. A deferral returns immediately with `read` and `currentDir` already
+		// carrying whatever fallback this loop had taken, so resuming continues from that open rather
+		// than re-running the ones before it.
+		Error error = readFileItemsForFolder(read.filePrefix, read.allowFolders, allowedFileExtensions,
+		                                     read.filenameToStartAt.empty() ? nullptr : read.filenameToStartAt.c_str(),
+		                                     FILE_ITEMS_MAX_NUM_ELEMENTS, read.catalogSearchDirection);
+		if (error == Error::LISTING_DEFERRED) {
+			return error;
+		}
+		if (error == Error::NONE) {
+			break;
 		}
 
-		return error;
+		// If folder didn't exist, try our alternative one if there is one.
+		if (error != Error::FOLDER_DOESNT_EXIST || read.defaultDirToAlsoTry == nullptr) {
+			return error;
+		}
+		// ... only if we haven't already tried the alternative folder.
+		if (!deluge::string::caselessEquals(currentDir, read.defaultDirToAlsoTry)) {
+			read.dropSearchString();
+			currentDir = read.defaultDirToAlsoTry;
+			continue;
+		}
+		// Or if we have already tried it and it didn't exist, try creating it... but not if we
+		// already tried.
+		if (triedCreatingFolder) {
+			return error;
+		}
+		auto result = deluge::io::mkdir(read.defaultDirToAlsoTry);
+		if (!result.has_value()) {
+			return delugeStatusToError(deluge::io::to_deluge_status(result.error()));
+		}
+		triedCreatingFolder = true;
 	}
 
-	if (song && outputType != OutputType::NONE) {
-		error = song->addInstrumentsToFileItems(outputType);
+	if (currentSong && read.outputType != OutputType::NONE) {
+		Error error = currentSong->addInstrumentsToFileItems(read.outputType);
 		if (error != Error::NONE) {
 			return error;
 		}
 	}
 
-	if (static_cast<int32_t>(fileItems.size())) {
+	if (!fileItems.empty()) {
 		sortFileItems();
 
-		if (static_cast<int32_t>(fileItems.size())) {
+		if (!fileItems.empty()) {
 			// Delete folders sharing name of file.
 			// And, files sharing name of in-memory Instrument.
 			if (!allowFoldersSharingNameWithFile) {
@@ -803,125 +820,201 @@ Error Browser::arrivedInNewFolder(int32_t direction, char const* filenameToStart
 	shouldInterpretNoteNames = shouldInterpretNoteNamesForThisBrowser;
 	octaveStartsFromA = false;
 
-tryReadingItems:
-	bool doWeHaveASearchString = (filenameToStartAt && *filenameToStartAt);
-	int32_t newCatalogSearchDirection = doWeHaveASearchString ? CATALOG_SEARCH_BOTH : CATALOG_SEARCH_RIGHT;
-	Error error =
-	    readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, filenameToStartAt,
-	                                     defaultDirToAlsoTry, true, Availability::ANY, newCatalogSearchDirection);
-	if (error != Error::NONE) {
-gotErrorAfterAllocating:
-		emptyFileItems();
-		return error;
-	}
+	// Arm the machine and run it. On the synchronous arm nothing ever defers, so this returns with the
+	// listing complete and behaves exactly as the one straight-line function it replaced.
+	const bool haveSearchString = (filenameToStartAt != nullptr && *filenameToStartAt != 0);
+	listing_ = ListingState{
+	    .active = true,
+	    .phase = ListingPhase::Read,
+	    .read =
+	        {
+	            .outputType = outputTypeToLoad,
+	            .filePrefix = filePrefix,
+	            .filenameToStartAt = haveSearchString ? filenameToStartAt : "",
+	            .defaultDirToAlsoTry = defaultDirToAlsoTry,
+	            .allowFolders = true,
+	            .catalogSearchDirection = haveSearchString ? CATALOG_SEARCH_BOTH : CATALOG_SEARCH_RIGHT,
+	        },
+	    .direction = direction,
+	    // Spelled out rather than left to the default: the first read's selection is what chooses the
+	    // file, and a listing that skipped it would complete with nothing selected.
+	    .rerunSelectionAfterRead = true,
+	};
+	return stepListing();
+}
 
+Error Browser::stepListing() {
+	while (true) {
+		switch (listing_.phase) {
+		case ListingPhase::Read: {
+			listing_.readHadSearchString = !listing_.read.filenameToStartAt.empty();
+			const Error error = performListingRead();
+			if (error == Error::LISTING_DEFERRED) {
+				// Suspended ON the pending open. Nothing has advanced past it, so resuming re-asks for
+				// that same directory and no open is ever made twice.
+				return error;
+			}
+			if (error != Error::NONE) {
+				emptyFileItems();
+				listing_.active = false;
+				return error;
+			}
+			listing_.phase = listing_.rerunSelectionAfterRead ? ListingPhase::Select : ListingPhase::Finalize;
+			if (listing_.phase == ListingPhase::Finalize) {
+				// The brand-new-name re-read falls straight through to "no file selected", exactly as
+				// the original `goto useNonExistentFileName` did.
+				fileIndexSelected = -1;
+				scrollPosVertical = 0;
+			}
+			listing_.rerunSelectionAfterRead = true;
+			break;
+		}
+
+		case ListingPhase::Select: {
+			const auto outcome = applyListingSelection();
+			if (!outcome.has_value()) {
+				emptyFileItems();
+				listing_.active = false;
+				return outcome.error();
+			}
+			switch (*outcome) {
+			case SelectionOutcome::Finalize:
+				listing_.phase = ListingPhase::Finalize;
+				break;
+			case SelectionOutcome::UseNonExistent:
+				fileIndexSelected = -1; // No files.
+				scrollPosVertical = 0;
+				listing_.phase = ListingPhase::Finalize;
+				break;
+			case SelectionOutcome::RereadFromStart:
+				// Since we're going to just use the first file, if we've deleted items at the start
+				// (meaning we had a search string), we need to go back and get them.
+				listing_.read.dropSearchString();
+				listing_.read.defaultDirToAlsoTry = nullptr; // the fallback already happened, if at all
+				listing_.rerunSelectionAfterRead = true;
+				listing_.phase = ListingPhase::Read;
+				break;
+			case SelectionOutcome::RereadForNewName:
+				// Only hit when saving the first song created on boot: getUnusedSlot cleared out all
+				// the FileItems, so they have to be fetched again. The original's parameters, which
+				// differ from the main read's in every field that matters.
+				listing_.read = ListingRead{
+				    .outputType = OutputType::NONE,
+				    .filePrefix = "SONG",
+				    .filenameToStartAt = enteredText,
+				    .defaultDirToAlsoTry = nullptr,
+				    .allowFolders = true,
+				    .catalogSearchDirection = CATALOG_SEARCH_BOTH,
+				};
+				listing_.rerunSelectionAfterRead = false;
+				listing_.phase = ListingPhase::Read;
+				break;
+			}
+			break;
+		}
+
+		case ListingPhase::Finalize:
+			folderContentsReady(listing_.direction);
+			listing_.phase = ListingPhase::Done;
+			listing_.active = false;
+			return Error::NONE;
+
+		case ListingPhase::Done:
+			return Error::NONE;
+		}
+	}
+}
+
+Error Browser::performListingRead() {
+	return readFolderAndMemory(listing_.read, listing_.triedCreatingFolder);
+}
+
+std::expected<Browser::SelectionOutcome, Error> Browser::applyListingSelection() {
 	enteredTextEditPos = 0;
 	scrollPosHorizontal = 0;
 
 	bool foundExact = false;
-	if (static_cast<int32_t>(fileItems.size())) {
-		fileIndexSelected = 0;
+	if (fileItems.empty()) {
+		// No files found at all. Can we just pick a brand new name?
+		if (!mayDefaultToBrandNewNameOnEntry || listing_.direction) {
+			enteredText.clear();
+			return SelectionOutcome::UseNonExistent;
+		}
+		return pickBrandNewName();
+	}
 
-		if (!doWeHaveASearchString) {
-noExactFileFound:
-			// We did not find exact file.
-			// Normally, we'll need to just use one of the ones we found. (That's just always the first one, I think...)
-			if (!mayDefaultToBrandNewNameOnEntry || direction) {
+	fileIndexSelected = 0;
 
-				// But since we're going to just use the first file, if we've deleted items at the start (meaning we had
-				// a search string), we need to go back and get them.
-				if (numFileItemsDeletedAtStart) {
-					filenameToStartAt = NULL;
-					goto tryReadingItems;
-				}
-setEnteredTextAndUseFoundFile:
-				error = setEnteredTextFromCurrentFilename();
-				if (error != Error::NONE) {
-					goto gotErrorAfterAllocating;
-				}
-useFoundFile:
-				scrollPosVertical = fileIndexSelected;
-				// Starting in the middle or end of a short folder should still fill as many display rows as possible.
-				clampFileSelectionAndScroll();
+	if (listing_.readHadSearchString) {
+		const int32_t i = searchFileItems(listing_.read.filenameToStartAt.c_str(), &foundExact);
+		if (foundExact) {
+			fileIndexSelected = i;
 
-				goto everythingFinalized;
+			// Usually we'll just use that file.
+			if (!mayDefaultToBrandNewNameOnEntry || listing_.direction) {
+				return useFoundFile();
 			}
 
-			// But sometimes...
-			else {
-				// Ok so we didn't find an exact file, we've just entered the browser, and we're allowed new names.
-				// So, choose a brand new name (if there wasn't already a new one nominated).
-				goto pickBrandNewNameIfNoneNominated;
+			// We found an exact file. But if we've just entered the Browser and are allowed, then we
+			// need to find a new subslot variation. Come up with a new name variation.
+			const Error error = setEnteredTextFromCurrentFilename();
+			if (error != Error::NONE) {
+				return std::unexpected(error);
 			}
-		}
-
-		int32_t i = searchFileItems(filenameToStartAt, &foundExact);
-		if (!foundExact) {
-			goto noExactFileFound;
-		}
-
-		fileIndexSelected = i;
-
-		// Usually we'll just use that file.
-		if (!mayDefaultToBrandNewNameOnEntry || direction) {
-			goto setEnteredTextAndUseFoundFile;
-		}
-
-		// We found an exact file. But if we've just entered the Browser and are allowed, then we need to find a new
-		// subslot variation. Come up with a new name variation.
-		error = setEnteredTextFromCurrentFilename();
-		if (error != Error::NONE) {
-			goto gotErrorAfterAllocating;
-		}
-		// Come up with a new name variation. Names are display-agnostic ("SONG185", never "185"), so this is one
-		// code path for both displays - see default_name.h.
-		{
+			// Names are display-agnostic ("SONG185", never "185"), so this is one code path for both
+			// displays - see default_name.h.
 			BrowserFileListView view;
-			// Only songs earn letter suffixes; presets pass an empty slotPrefix and take the numeric suffix path,
-			// preserving existing preset behaviour.
+			// Only songs earn letter suffixes; presets pass an empty slotPrefix and take the numeric
+			// suffix path, preserving existing preset behaviour.
 			char const* slotPrefix = (filePrefix && !memcasecmp(filePrefix, "SONG", 4)) ? filePrefix : "";
-			std::string newName = deluge::gui::browser::nextDefaultName(enteredText.c_str(), slotPrefix, view);
+			const std::string newName = deluge::gui::browser::nextDefaultName(enteredText.c_str(), slotPrefix, view);
 			if (newName == enteredText) {
-				goto useFoundFile; // No free variation available - stay on the file we found.
+				// No free variation available - stay on the file we found.
+				scrollPosVertical = fileIndexSelected;
+				clampFileSelectionAndScroll();
+				return SelectionOutcome::Finalize;
 			}
 			enteredText = newName;
 			enteredTextEditPos = enteredText.size();
+			return SelectionOutcome::UseNonExistent;
 		}
 	}
 
-	// Or if no files found at all...
-	else {
-		// Can we just pick a brand new name?
-		if (mayDefaultToBrandNewNameOnEntry && !direction) {
-pickBrandNewNameIfNoneNominated:
-			if (enteredText.empty()) {
-				error = getUnusedSlot(OutputType::NONE, &enteredText, filePrefix);
-				if (error != Error::NONE) {
-					goto gotErrorAfterAllocating;
-				}
-				// Note - this is only hit if we're saving the first song created on boot (because the default name
-				// won't match anything) Because that will have cleared out all the FileItems, we need to get them
-				// again. Actually there would kinda be a way around doing this...
-				error = readFileItemsFromFolderAndMemory(currentSong, OutputType::NONE, "SONG", enteredText.c_str(),
-				                                         NULL, true, Availability::ANY, CATALOG_SEARCH_BOTH);
-				if (error != Error::NONE) {
-					goto gotErrorAfterAllocating;
-				}
-			}
+	// We did not find an exact file. Normally, we'll need to just use one of the ones we found.
+	// (That's just always the first one, I think...)
+	if (!mayDefaultToBrandNewNameOnEntry || listing_.direction) {
+		if (numFileItemsDeletedAtStart) {
+			return SelectionOutcome::RereadFromStart;
 		}
-		else {
-			enteredText.clear();
-		}
+		return useFoundFile();
 	}
 
-useNonExistentFileName:     // Normally this will get skipped over - if we found a file.
-	fileIndexSelected = -1; // No files.
-	scrollPosVertical = 0;
+	// Ok so we didn't find an exact file, we've just entered the browser, and we're allowed new
+	// names. So, choose a brand new name (if there wasn't already a new one nominated).
+	return pickBrandNewName();
+}
 
-everythingFinalized:
-	folderContentsReady(direction);
+std::expected<Browser::SelectionOutcome, Error> Browser::useFoundFile() {
+	const Error error = setEnteredTextFromCurrentFilename();
+	if (error != Error::NONE) {
+		return std::unexpected(error);
+	}
+	scrollPosVertical = fileIndexSelected;
+	// Starting in the middle or end of a short folder should still fill as many display rows as
+	// possible.
+	clampFileSelectionAndScroll();
+	return SelectionOutcome::Finalize;
+}
 
-	return Error::NONE;
+std::expected<Browser::SelectionOutcome, Error> Browser::pickBrandNewName() {
+	if (enteredText.empty()) {
+		const Error error = getUnusedSlot(OutputType::NONE, &enteredText, filePrefix);
+		if (error != Error::NONE) {
+			return std::unexpected(error);
+		}
+		return SelectionOutcome::RereadForNewName;
+	}
+	return SelectionOutcome::UseNonExistent;
 }
 
 // You must set currentDir before calling this.
@@ -1793,12 +1886,9 @@ Error Browser::goIntoFolderImpl(char const* folderName) {
 	enteredText.clear();
 	enteredTextEditPos = 0;
 
-	error = arrivedInNewFolder(1);
-	if (error == Error::NONE) {
-		renderUIsForOled();
-	}
-
-	return error;
+	// The renderUIsForOled() tail moved to finishPendingListing(): this listing can suspend, and a
+	// resumption does not return through here.
+	return arrivedInNewFolder(1);
 }
 
 Error Browser::goUpOneDirectoryLevel() {
@@ -1834,11 +1924,8 @@ Error Browser::goUpOneDirectoryLevelImpl() {
 	currentDir.resize(slashPos);
 	enteredTextEditPos = 0;
 
-	Error error = arrivedInNewFolder(-1, enteredText.c_str());
-	if (error == Error::NONE) {
-		renderUIsForOled();
-	}
-	return error;
+	// The renderUIsForOled() tail moved to finishPendingListing() — see goIntoFolderImpl.
+	return arrivedInNewFolder(-1, enteredText.c_str());
 }
 
 // Returns the SYNCHRONOUS mkdir outcome, not the async listing that follows it on success.

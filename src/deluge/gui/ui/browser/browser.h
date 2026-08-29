@@ -25,6 +25,9 @@
 #include "storage/file_item.h"
 #include "util/containers.h"
 
+#include <expected>
+#include <string>
+
 class Instrument;
 class FileItem;
 class Song;
@@ -169,6 +172,10 @@ protected:
 		std::string filenameToStartAt; ///< Open
 		std::string defaultDir;        ///< Open
 		std::string folderOrPath;      ///< IntoFolder (folder name) / ByPath (full path)
+		/// ByPath only: the leaf filename its completion tail selects. Carried rather than recomputed
+		/// because the tail runs after the listing finishes, by which time setFileByFullPathImpl's
+		/// local buffer is long gone.
+		std::string byPathFileName;
 	};
 	static bool listingInProgress_;
 	/// @brief Whether the listing in progress is this tier's to run, decided once when it began.
@@ -180,71 +187,124 @@ protected:
 	static bool listingOnTickSurface_;
 	static ListingRequest pendingListing_;
 
-	/// @brief The inputs one listing attempt must see, so that re-running it takes the path the
-	///        first pass took rather than the path the first pass's own side effects created.
+	/// @brief The parameters of ONE directory read.
 	///
-	/// A listing is not one directory open. `arrivedInNewFolder` opens nothing itself; it calls
-	/// `readFileItemsFromFolderAndMemory`, which calls `readFileItemsForFolder`, and between them
-	/// sit three retry loops — a missing folder falls back to `defaultDirToAlsoTry` and then to
-	/// `mkdir`, a culled listing is re-read from the start, and a brand-new name forces a third
-	/// read. One listing therefore performs up to FOUR opens, and which of them happen depends on
-	/// what the earlier ones returned.
-	///
-	/// So the listing cannot be cut into "open, then enumerate, then commit". Instead any open that
-	/// is not ready returns @ref Error::LISTING_DEFERRED, every caller propagates it as it already
-	/// propagates every other error, and the per-tick surface re-runs the whole attempt from the
-	/// top. Nothing is resumed mid-function, which is what leaves the three `goto` control flows
-	/// untouched.
-	///
-	/// Re-running is only sound if the second pass sees the first pass's INPUTS. Three of the
-	/// listing's own mutations break that, and every one of them is load-bearing:
-	///
-	/// - `currentDir` is overwritten with `defaultDirToAlsoTry` on the fallback path, so a re-run
-	///   would find the `caselessEquals` guard already true and skip the fallback entirely, going
-	///   straight to `mkdir`.
-	/// - `enteredText` is rewritten by `setEnteredTextFromCurrentFilename`, `getUnusedSlot` and
-	///   `nextDefaultName`. The last is the sharp one: it advances SONG185 to SONG186, so each
-	///   re-run would advance again. And the `enteredText.empty()` guard flips to false once
-	///   `getUnusedSlot` has run, skipping the re-read that follows it.
-	/// - `triedCreatingFolder` was a local, so it reset on every re-run — and a pass that had
-	///   already created the folder would try again and read the resulting EXISTS as terminal.
-	///
-	/// Hence: capture the first two on the first attempt, put them back before every re-entry, and
-	/// keep the third here rather than on the stack.
-	///
-	/// @warning Two of those three are DEFENSIVE, not demonstrated. Neutering each against the
-	///          idempotence gate showed the retry loops are convergent — a re-run that skips the
-	///          fallback opens the fallback directory directly, and a re-run after a successful
-	///          `mkdir` finds the directory there and never re-enters that branch. The one path that
-	///          genuinely diverges is `getUnusedSlot`, whose re-read is skipped on a re-run when
-	///          `enteredText` is left non-empty; it needs `mayDefaultToBrandNewNameOnEntry`, which
-	///          only `SaveUI` sets, so no gate here covers it. They are kept because the convergence
-	///          argument is subtle and costs two string assignments to make unnecessary — but do not
-	///          read the green gate as proof of them.
-	struct ListingAttempt {
-		bool active = false;        ///< an attempt is under way, possibly across several ticks
-		std::string dirAtEntry;     ///< currentDir as it was when the attempt began
-		std::string enteredAtEntry; ///< enteredText as it was when the attempt began
-		bool triedCreatingFolder{}; ///< attempt-scoped, NOT call-scoped: survives a re-entry
-		int32_t opensThisAttempt{}; ///< which open this pass is on; the defer seam counts on it
+	/// A listing makes up to three reads and they genuinely differ — the post-cull re-read drops the
+	/// search string, and the brand-new-name re-read changes the output type, the prefix AND the
+	/// search direction — so they are carried rather than recomputed from the caller's arguments.
+	struct ListingRead {
+		OutputType outputType{};
+		char const* filePrefix{};
+		std::string filenameToStartAt;
+		char const* defaultDirToAlsoTry{}; ///< null on both re-reads: a fallback happens once
+		bool allowFolders{true};
+		int32_t catalogSearchDirection{CATALOG_SEARCH_RIGHT};
 
-		/// @brief Start a fresh attempt, capturing the inputs a re-entry must restore.
-		void begin();
-		/// @brief Put the captured inputs back, ready to re-run the attempt from the top.
-		void restore();
+		/// @brief Drop the search string, and the search DIRECTION that depends on it.
+		///
+		/// The two must move together or the cull dereferences a null pointer. `cullSomeFileItems`
+		/// only consults `filenameToStartSearchAt` under CATALOG_SEARCH_BOTH — the "tend towards equal
+		/// amounts either side" branch — and it consults it by calling `searchFileItems`, which hands
+		/// it straight to `strcmpspecial`. So a read with no search string but a BOTH direction
+		/// null-derefs the moment the folder holds enough entries to cull.
+		///
+		/// The pairing was implicit and the missing-folder fallback got it wrong — it cleared the
+		/// search string and left the direction alone. That is NOT currently reachable, and the reason
+		/// is worth writing down: `readFileItemsForFolder` maps its directory-open failure through
+		/// `delugeStatusToError`, which collapses NOT_FOUND onto `Error::FILE_NOT_FOUND`, so the
+		/// fallback's `Error::FOLDER_DOESNT_EXIST` test can never be true and the whole fallback is
+		/// dead code. Whoever revives it — a browser entered on a missing folder is *supposed* to fall
+		/// back to its default directory and create it — would otherwise revive the crash with it. It
+		/// is one function now so the two cannot be separated again.
+		void dropSearchString() {
+			filenameToStartAt.clear();
+			catalogSearchDirection = CATALOG_SEARCH_RIGHT;
+		}
 	};
-	static ListingAttempt attempt_;
 
-	/// @brief Test seam: make the Nth open of an attempt defer ONCE, instead of opening. 0 = never.
+	/// @brief Which part of a listing runs next.
 	///
-	/// Cleared as it fires, which is the whole of what makes it model a channel: an open that
-	/// deferred is answered on the NEXT ask. A seam that stayed armed would defer the same open on
-	/// every pass and the attempt would never finish -- which is exactly what the first version of it
-	/// did, and what the gate below caught.
+	/// A listing is not one directory open. `arrivedInNewFolder` opens nothing itself; between it and
+	/// `readFileItemsForFolder` sit three retry loops — a missing folder falls back to
+	/// `defaultDirToAlsoTry` and then to `mkdir`, a culled listing is re-read from the start, and a
+	/// brand-new name forces a third read. One listing performs up to FOUR opens, on two paths, with
+	/// a filesystem mutation between, and which of them happen depends on what the earlier ones
+	/// returned.
 	///
-	/// Exists so the idempotence of a re-run can be gated directly — for each N, a listing that
-	/// deferred at its Nth open must finish identical to one that never deferred. Nothing in the
-	/// firmware sets it; only @ref BrowserListingAbProbe does.
+	/// Each of those opens can defer, so the listing has to suspend and resume BETWEEN them — and,
+	/// critically, must never redo an open it has already made. Re-running the whole listing from the
+	/// top was tried and cannot work: `readdir_next` MOVES each name out of the directory snapshot as
+	/// it walks (`efatfs_core.rs`, "a given entry can only be read once", deliberately, because a
+	/// large snapshot is what leaves the arena short), so a directory cannot be enumerated twice from
+	/// one handle. A re-run therefore needs a fresh open for every open it already made, which a
+	/// single-slot channel cannot serve, and the listing livelocks.
+	///
+	/// Hence an explicit machine: `Read` performs the pending read, `Select` is the pure tail that
+	/// decides what to make current, and either may hand back to `Read` with new parameters.
+	enum class ListingPhase : uint8_t {
+		Read,     ///< perform ListingState::read — at most one open per entry, then advance
+		Select,   ///< the pure selection tail over whatever the read produced
+		Finalize, ///< folderContentsReady()
+		Done,
+	};
+
+	/// @brief Everything a suspended listing needs in order to resume where it left off.
+	///
+	/// Static for the same reason `pendingListing_` is: one listing at a time. Nothing here is
+	/// captured-and-restored — the machine never re-runs a step, so there is nothing to undo.
+	struct ListingState {
+		bool active{};
+		ListingPhase phase{ListingPhase::Read};
+		ListingRead read;
+		int32_t direction{};
+		/// Survives a suspension, and must: a listing that deferred after creating the folder would
+		/// otherwise `mkdir` it again on resume and read the resulting EXISTS as terminal.
+		bool triedCreatingFolder{};
+		/// Whether the selection tail runs after the read that is pending. TRUE by default and for the
+		/// post-cull re-read; FALSE only for the brand-new-name re-read, which falls straight through
+		/// to "no file selected" exactly as the original `goto useNonExistentFileName` did.
+		bool rerunSelectionAfterRead{true};
+		/// Whether the read that just completed had a search string — the selection tail branches on
+		/// it, and by then `read.filenameToStartAt` may already have been rewritten.
+		bool readHadSearchString{};
+		/// Which open this listing is on, across the WHOLE listing rather than per resumption. The
+		/// defer seam counts on it.
+		int32_t opensThisListing{};
+	};
+	static ListingState listing_;
+
+	/// @brief What the selection tail decided to do next.
+	enum class SelectionOutcome : uint8_t {
+		Finalize,         ///< a file is selected; run the completion hook
+		UseNonExistent,   ///< no file selected; clear the selection, then finalize
+		RereadFromStart,  ///< re-read this folder with no search string, then run selection AGAIN
+		RereadForNewName, ///< re-read for the brand-new name, then UseNonExistent
+	};
+
+	/// @brief Run the listing until it completes, fails, or needs an open that is not ready.
+	/// @return Error::NONE when the listing is complete, Error::LISTING_DEFERRED when it suspended
+	///         (call again; nothing has advanced past the pending open), or the failure.
+	Error stepListing();
+	/// @brief Dispatch the pending action's own start — its pre-work plus the listing it asks for.
+	Error startPendingListing();
+	/// @brief Run the pending action's completion tail, once the listing has finished.
+	Error finishPendingListing();
+	/// @brief Perform ListingState::read, including its missing-folder fallback and mkdir retry.
+	/// @return As @ref stepListing. Each iteration of the fallback is one open; a deferral leaves the
+	///         state already advanced past any fallback it took, so resuming does not redo it.
+	Error performListingRead();
+	/// @brief The selection tail: pure, no I/O, decides what a completed read makes current.
+	[[nodiscard]] std::expected<SelectionOutcome, Error> applyListingSelection();
+	/// @brief Settle on the file at fileIndexSelected: name it and bring it into view.
+	[[nodiscard]] std::expected<SelectionOutcome, Error> useFoundFile();
+	/// @brief Nominate a brand-new name if one was not already, asking for the re-read it forces.
+	[[nodiscard]] std::expected<SelectionOutcome, Error> pickBrandNewName();
+
+	/// @brief Test seam: make the Nth open of a listing defer ONCE, instead of opening. 0 = never.
+	///
+	/// Cleared as it fires, which is what makes it model the channel: an open that deferred is
+	/// answered on the next ask. With the machine above, a deferred open is retried as the SAME step
+	/// against the same slot — which is exactly what the real channel serves.
 	static int32_t deferAtOpenNumber_;
 	friend class BrowserListingAbProbe;
 
@@ -311,6 +371,17 @@ protected:
 	                                       bool allowFoldersint,
 	                                       Availability availabilityRequirement = Availability::ANY,
 	                                       int32_t newCatalogSearchDirection = CATALOG_SEARCH_RIGHT);
+
+	/// @brief The one implementation behind @ref readFileItemsFromFolderAndMemory, over carried state.
+	///
+	/// Takes `read` by reference because the missing-folder fallback REWRITES it — it moves
+	/// `currentDir` to the default directory and drops the search string — and a listing that
+	/// suspends mid-fallback has to resume with those rewrites already applied, or it will re-run the
+	/// fallback against the wrong directory with the wrong search string. The legacy entry point
+	/// above passes a temporary and throws the rewrites away, which is what its callers want.
+	/// @param read The read to perform; mutated by the fallback.
+	/// @param triedCreatingFolder Whether this listing has already created the default folder.
+	Error readFolderAndMemory(ListingRead& read, bool& triedCreatingFolder);
 	void favouritesChanged();
 
 	static int32_t fileIndexSelected; // If -1, we have not selected any real file/folder. Maybe there are no files, or
