@@ -58,7 +58,7 @@ bool loaded(const Source* source) {
 	return source != nullptr && const_cast<Source*>(source)->hasAtLeastOneAudioFileLoaded();
 }
 
-/// @brief `FilterInfo::isOn()` (`gui/menu_item/filter/info.h:75`) for whichever slot.
+/// @brief `FilterInfo::isOn()` (`gui/menu_item/filter/info.h:91`) for whichever slot.
 bool filter_on(const MenuContext& ctx, bool high_pass) {
 	if (ctx.mod == nullptr) {
 		return false;
@@ -259,6 +259,12 @@ bool osc1_interpolation(const MenuContext& ctx) {
 
 // ---------------------------------------------------------------------------------------------
 // The registry (Task 10's dump)
+//
+// **Adding a predicate to `relevance.h` means adding a row here.** Nothing can check that
+// mechanically -- C++ has no way to enumerate a header's declarations -- so the guards are: the
+// `static_assert` on the row count below, which forces a deliberate edit; `name_of` answering "?"
+// for an unregistered predicate; and `tables_1_spec`, which asserts every predicate the tables
+// actually use resolves to a real name and that the count is what this file says.
 
 namespace {
 
@@ -298,6 +304,9 @@ constexpr std::array<NamedPredicate, 27> kRegistry{
 };
 
 #undef DELUGE_RELEVANCE_ROW
+
+// One row per predicate declared in `relevance.h`: seven sound-wide and ten per-source pairs.
+static_assert(kRegistry.size() == 27);
 
 } // namespace
 

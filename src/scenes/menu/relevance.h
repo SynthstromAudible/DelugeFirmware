@@ -38,10 +38,10 @@ namespace deluge::scenes::menu::relevance {
 /// @{
 
 /// @brief Is the low-pass filter on? `filter::FilterParam::isRelevant` (`filter/param.h:42-44`),
-///        i.e. `FilterInfo::isOn()` (`filter/info.h:75`) for the LPF slot.
+///        i.e. `FilterInfo::isOn()` (`filter/info.h:91`) for the LPF slot.
 bool has_lpf(const MenuContext& ctx);
 /// @brief Is the high-pass filter on? The same override for the HPF slot (`filter/param.h:42-44`,
-///        `filter/info.h:75`).
+///        `filter/info.h:91`).
 bool has_hpf(const MenuContext& ctx);
 /// @brief Is the sound in FM mode? `modulator::Transpose::isRelevant` (`modulator/transpose.h:76-79`),
 ///        `source::patched_param::ModulatorFeedback` (`modulator_feedback.h:31-34`),

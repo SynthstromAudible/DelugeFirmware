@@ -52,4 +52,16 @@ constexpr Node with_slots(Node n, uint8_t slots) {
 	return n;
 }
 
+/// @brief @p n with a **learn-only** `ParamRef` beside its `get`/`set` hooks.
+///
+/// For legacy's four `menu_item::Transpose` derivatives, which read and write outside the param set
+/// but still expose `getParamIndex()` / `getLearningThing()` (`gui/menu_item/transpose.h:37`,
+/// `source/transpose.h:28-32`). `node.h`'s `Binding` precedence note is what makes this safe:
+/// `bindings::read`/`write` prefer `get`/`set`, so the reference is only ever read by
+/// `bindings::learn_target`.
+constexpr Node with_learn_param(Node n, ParamRef p) {
+	n.bind.param = p;
+	return n;
+}
+
 } // namespace deluge::scenes::menu::nodes

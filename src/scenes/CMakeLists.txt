@@ -18,9 +18,10 @@ add_library(deluge_scenes STATIC
     menu/relevance.cpp
     menu/shortcuts.cpp
     menu/validate.cpp
-    # The batch-1 menu tables (task 6): the six subtrees the retired Python generator produced,
-    # plus the one translation unit that joins them (menu/nodes/nodes.h).
-    menu/nodes/batch1.cpp
+    # The batch-1 menu tables (task 6): the six subtrees the retired Python generator produced.
+    # The `Node` literals themselves live in the matching menu/nodes/sound_*.h headers as
+    # `inline constexpr` (fix round 1, I3, so Task 9's constexpr shortcut tables can take their
+    # addresses); these translation units hold the get/set hook bodies and the exported root spans.
     menu/nodes/sound_compressor.cpp
     menu/nodes/sound_env.cpp
     menu/nodes/sound_filters.cpp

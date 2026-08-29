@@ -407,8 +407,12 @@ void apply_to_targets(const MenuContext& ctx, int32_t value, int32_t arg, ApplyF
 			// `getModelStackFromSoundDrum` (`model/model_stack.cpp:111-117`) with `ctx`'s own song
 			// and clip in place of the globals, and with legacy's unconditional note-row
 			// dereference (`:116`) turned into a skip. A drum with no row in this clip still gets
-			// `fn`, just without a stack -- the setters that need one all tolerate null, and the
-			// ones that do not are exactly the ones legacy would have crashed on.
+			// `fn`, just with a null stack. Some setters tolerate that and some do not --
+			// `Sound::setNumUnison` dereferences it whenever the sound has active voices
+			// (`processing/sound/sound.cpp:3102-3105`) -- but the ones that do not are exactly the
+			// ones legacy never reached at all: it built the same stack one line earlier and
+			// dereferenced the null note row itself (`model_stack.cpp:116`). Skipping the drum is
+			// strictly safer than legacy's crash, never a behaviour change on a well-formed clip.
 			alignas(ModelStackWithAutoParam) char drum_memory[MODEL_STACK_MAX_SIZE];
 			int32_t note_row_index = 0;
 			NoteRow* note_row = instrument_clip->getNoteRowForDrum(sound_drum, &note_row_index);
@@ -438,6 +442,13 @@ void apply_to_targets(const MenuContext& ctx, int32_t value, int32_t arg, ApplyF
 int32_t read(const Node& node, const MenuContext& ctx) {
 	const Binding& bind = node.bind;
 
+	// `get` first, then `param` -- `node.h`'s documented precedence. A node with both is one of
+	// legacy's `menu_item::Transpose` derivatives, whose value lives outside the param set and
+	// whose `ParamRef` exists only so `learn_target` below has something to bind.
+	if (bind.get != nullptr) {
+		return bind.get(ctx);
+	}
+
 	if (bind.param.valid()) {
 		ParamSet* set = param_set_for(node, ctx);
 		if (set == nullptr) {
@@ -446,10 +457,6 @@ int32_t read(const Node& node, const MenuContext& ctx) {
 		// `integer.cpp:34` / `unpatched_param.cpp:38`: the *stored* value, then the menu scaling.
 		return to_menu_units(scaling_for(node), set->getValue(bind.param.index));
 	}
-
-	if (bind.get != nullptr) {
-		return bind.get(ctx);
-	}
 	return 0;
 }
 
@@ -457,14 +464,16 @@ void write(const Node& node, const MenuContext& ctx, int32_t value) {
 	const Binding& bind = node.bind;
 
 	// A `get`/`set` (or `action`) node: the hook owns the model write, so all this layer knows is
-	// that something the OLED shows has changed.
-	if (!bind.param.valid()) {
-		if (bind.set == nullptr) {
-			return; // nothing to write, so nothing to repaint (fix round 1, Minor 7)
-		}
+	// that something the OLED shows has changed. Tested before `param` -- `node.h`'s documented
+	// precedence, and the reason a `menu_item::Transpose` node can carry a learn-only `ParamRef`
+	// without this function writing to it.
+	if (bind.set != nullptr) {
 		bind.set(ctx, value);
 		notify::raise(notify::Dirty::Oled);
 		return;
+	}
+	if (!bind.param.valid()) {
+		return; // nothing to write, so nothing to repaint (fix round 1, Minor 7)
 	}
 
 	if (!has_model_stack(ctx)) {

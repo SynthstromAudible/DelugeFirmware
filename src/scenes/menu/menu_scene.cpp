@@ -977,10 +977,15 @@ deluge::ui::grid::GreyoutMask MenuScene::greyout_mask() const {
 	if (ctx_.is_performance) {
 		return {}; // `:248` PERFORMANCE
 	}
-	if (ctx_.clip != nullptr && !ctx_.is_song_view) {
+	if (ctx_.clip != nullptr && !ctx_.is_song_view && !ctx_.is_audio_clip) {
 		return {0xFFFFFFFEu, 0}; // `:236` INSTRUMENT_CLIP, the plain sound-editor arm
 	}
-	return {0xFFFFFFFFu, 0}; // `:252` default
+	// `:252` default -- which is where an AUDIO_CLIP root UI lands too: legacy's switch has no
+	// `UIType::AUDIO_CLIP` case, so an audio clip greys everything including the sidebar. Testing
+	// `!is_audio_clip` above is what keeps it out of the INSTRUMENT_CLIP arm (task-6 fix round 1,
+	// Minor 4); inert for batch 1, whose roots are all `Root::Sound`, but load-bearing once Tasks
+	// 7-8 hang `audioCompMenu` off the audio-clip root.
+	return {0xFFFFFFFFu, 0};
 }
 
 void MenuScene::save_state(SceneState& state) const {

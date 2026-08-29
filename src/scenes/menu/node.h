@@ -117,9 +117,22 @@ inline constexpr size_t kMaxNodes = 1024;
 
 /// @brief How a node reads, writes, and (for `Enum`) names its value.
 ///
-/// Exactly one of `param` or `get`+`set` is meaningful for a bound item; `names`/`dynamic_names`
-/// only matter for `Kind::Enum`. `names` holds l10n string ids (`uint16_t`), not `l10n::String`,
-/// so this header stays free of `gui/l10n`.
+/// Normally exactly one of `param` or `get`+`set` is set; `names`/`dynamic_names` only matter for
+/// `Kind::Enum`. `names` holds l10n string ids (`uint16_t`), not `l10n::String`, so this header
+/// stays free of `gui/l10n`.
+///
+/// @note **Precedence when both are set: `get`/`set` wins, and `param` is then a *learn* target
+///       only.** Legacy has four items that are simultaneously a `Decimal` with their own
+///       read/write and a `PatchedParam` with a real parameter id -- `menu_item::Transpose`
+///       (`gui/menu_item/transpose.h:26`), which the two oscillator and two FM-modulator transpose
+///       menus derive from. Their value does not live in the param (it is
+///       `sampleHolder.transpose`/`cents`, or `Sound::modulatorTranspose`/`Cents`), so
+///       `bindings::read`/`write` must take the hooks; but `getParamIndex()` (`transpose.h:37`) and
+///       `getLearningThing()` -> `setToHaveParamOnly(getP())` (`source/transpose.h:28-32`) are real,
+///       so MIDI/CC learn must still bind to `LOCAL_OSC_A/B_PITCH_ADJUST` and
+///       `LOCAL_MODULATOR_0/1_PITCH_ADJUST`. Declaring both on the `Binding` is how that survives:
+///       `bindings::read`/`write` test `get`/`set` first, `bindings::learn_target` reads `param`,
+///       and `bindings::range` already prefers `fixed_range` over the param's default.
 ///
 /// @note **`range` vs `fixed_range`.** Spec E §4 gives `range` as a function of `MenuContext` --
 ///       genuinely dynamic bounds (e.g. a rate whose ceiling depends on sync mode) -- documented

@@ -39,12 +39,22 @@
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/envelope/envelope_menu.h"
 #include "gui/menu_item/horizontal_menu.h"
+#include "gui/menu_item/menu_item_with_cc_learning.h"
 #include "gui/menu_item/selection.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/menu_item/submenu/actual_source.h"
 #include "gui/menu_item/submenu/modulator.h"
 #include "gui/menu_item/toggle.h"
 #include "gui/ui/sound_editor.h"
+#include "hid/display/oled.h"
+
+// `gui/menu_item/filter_route.h` renders through an unqualified `OLED::main`, which resolves inside
+// `gui/ui/menus.cpp` only because that file has a file-scope `using namespace deluge::hid::display`.
+// This spec has no such directive, so name the type in the namespace the header is compiled in.
+namespace deluge::gui::menu_item {
+using deluge::hid::display::OLED;
+} // namespace deluge::gui::menu_item
+#include "gui/menu_item/filter_route.h"
 
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
@@ -76,11 +86,13 @@ namespace legacy = deluge::gui::menu_item;
 // The legacy globals `g_menus.inc` declares (now pasted into `gui/ui/menus.cpp` verbatim). Only
 // the horizontal submenus are named here: every leaf is reached through
 // `HorizontalMenu::getItems()`. `soundFiltersMenu` itself is a plain vertical `Submenu` whose
-// `items` are protected with no public accessor, so its three children are named through the two
-// pages below instead.
+// `items` are protected with no public accessor, so its three children are named directly: the two
+// horizontal pages below, plus `filterRoutingMenu` (fix round 1, I4 -- it is a whole node with a
+// bespoke enum, `get`/`set` and `slots = 4`, and was previously the one leaf outside the net).
 
 extern legacy::HorizontalMenu lpfMenu;
 extern legacy::HorizontalMenu hpfMenu;
+extern legacy::FilterRouting filterRoutingMenu;
 extern legacy::HorizontalMenu audioCompMenu;
 extern legacy::HorizontalMenu unisonMenu;
 extern legacy::HorizontalMenu recorderMenu;
@@ -233,6 +245,8 @@ std::vector<Pair> all_pairs() {
 			out.push_back(p);
 		}
 	}
+	// `soundFiltersMenu`'s third child, which no horizontal page contains (fix round 1, I4).
+	out.push_back(Pair{nodes::kSoundFiltersChildren[0]->children[2], &filterRoutingMenu});
 	return out;
 }
 
@@ -262,7 +276,7 @@ struct Rig {
 	Rig() = default;
 
 	void open(const Node& root, const MenuContext& ctx) {
-		(void)menu::assign_node_ids(nodes::batch1_roots());
+		(void)menu::assign_node_ids(nodes::kBatch1Roots);
 		menu_scene().open(root, ctx);
 		shell.init(deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp, menu::node_id(root)});
 	}
@@ -273,7 +287,7 @@ struct Rig {
 // clang-format off
 describe tables_1_shape("scenes::menu batch-1 tables: shape", $ {
 	it("declares seventeen roots, one per legacy top-level menu", _ {
-		expect(nodes::batch1_roots().size()).to_equal(size_t(17));
+		expect(nodes::kBatch1Roots.size()).to_equal(size_t(17));
 	});
 
 	it("gives every subtree the same children, in the same order, as its legacy menu", _ {
@@ -291,6 +305,28 @@ describe tables_1_shape("scenes::menu batch-1 tables: shape", $ {
 			}
 			expect(text_of(p.node->name) == std::string{p.item->getName()}).to_be_true();
 		}
+	});
+
+	it("binds MIDI/CC learn to exactly the param legacy would have learned", _ {
+		Fixture& f = fixture();
+		size_t learnable = 0;
+		for (const Pair& p : all_pairs()) {
+			// `MenuItemWithCCLearning::getLearningThing()` (`menu_item_with_cc_learning.h:27`) is
+			// the authority, and it is what catches the four `menu_item::Transpose` derivatives
+			// (fix round 1, I1): they are a `Decimal` with their own read/write AND a
+			// `PatchedParam` with a real id, so `getParamKind()` reports NONE for them
+			// (`transpose.h:26-51` bridges only `getParamIndex`) while their learn target is real.
+			// The nodes carry that id as a learn-only `ParamRef` beside their `get`/`set`
+			// (`detail.h`'s `with_learn_param`, `node.h`'s precedence note).
+			auto* learner = dynamic_cast<::MenuItemWithCCLearning*>(p.item);
+			if (learner == nullptr) {
+				continue;
+			}
+			learnable++;
+			expect(menu::bindings::learn_target(*p.node, f.ctx) == learner->getLearningThing()).to_be_true();
+		}
+		// The four transposes plus every `ParamRef` leaf; a drop to 0 would make the loop vacuous.
+		expect(learnable > size_t(40)).to_be_true();
 	});
 
 	it("gives every node the legacy item's own ParamRef, or none where legacy has none", _ {
@@ -330,13 +366,20 @@ describe tables_1_shape("scenes::menu batch-1 tables: shape", $ {
 	it("marks exactly the legacy range-dependent items as range_dependent", _ {
 		(void)fixture();
 		for (const Pair& p : all_pairs()) {
-			expect(p.node->range_dependent == p.item->isRangeDependent()
-			       || p.node->range_dependent).to_be_true();
+			// One direction only, deliberately: a node that is NOT flagged must not correspond to a
+			// legacy item that overrides `isRangeDependent()`. The converse does not hold, because
+			// two of the four legacy classes reach the same rule *without* the override -- through
+			// `checkPermissionToBeginSessionForRangeSpecificParam` in their own
+			// `checkPermissionToBeginSession` (`file_selector.cpp:68-86`,
+			// `osc/audio_recorder.h:65-74`) -- which is exactly what `node.h`'s own list says.
+			if (!p.node->range_dependent) {
+				expect(p.item->isRangeDependent()).to_be_false();
+			}
 		}
 		// The four legacy classes that route through
 		// `checkPermissionToBeginSessionForRangeSpecificParam` are ten nodes here.
-		expect(nodes::kRangeDependentNodes().size()).to_equal(size_t(10));
-		expect(nodes::kHalfPrecisionNodes().size()).to_equal(size_t(3));
+		expect(nodes::kRangeDependentNodes.size()).to_equal(size_t(10));
+		expect(nodes::kHalfPrecisionNodes.size()).to_equal(size_t(3));
 	});
 });
 
@@ -384,6 +427,25 @@ describe tables_1_values("scenes::menu batch-1 tables: values", $ {
 		}
 	});
 
+	it("carries the legacy occupied-slot counts", _ {
+		(void)fixture();
+		// `MenuItem::getOccupiedSlots()` is protected, so the two overridden counts are asserted
+		// against the values their sources state: `FilterRouting` draws the whole four-slot page
+		// (`filter_route.h:62`) and `osc::AudioRecorder` takes two (`osc/audio_recorder.h:77`).
+		// Everything else keeps `menu_item.h:304`'s default of one.
+		expect(int(nodes::kSoundFiltersChildren[0]->children[2]->slots)).to_equal(4);
+		expect(int(nodes::kSoundOscChildren[0]->children[0]->slots)).to_equal(2);
+		expect(int(nodes::kSoundOscChildren[0]->children[1]->slots)).to_equal(2);
+		for (const Pair& p : all_pairs()) {
+			const bool wide = p.node == nodes::kSoundFiltersChildren[0]->children[2]
+			                  || p.node == nodes::kSoundOscChildren[0]->children[0]
+			                  || p.node == nodes::kSoundOscChildren[0]->children[1];
+			if (!wide) {
+				expect(int(p.node->slots)).to_equal(1);
+			}
+		}
+	});
+
 	it("has a registered name for every predicate the tables use", _ {
 		for (const Pair& p : all_pairs()) {
 			if (p.node->relevant == nullptr) {
@@ -391,7 +453,19 @@ describe tables_1_values("scenes::menu batch-1 tables: values", $ {
 			}
 			expect(menu::relevance::name_of(p.node->relevant) != std::string_view{"?"}).to_be_true();
 		}
-		expect(menu::relevance::registry().size()).to_equal(size_t(27));
+		// The registry is hand-maintained (see `relevance.cpp`'s note): C++ cannot enumerate a
+		// header's declarations, so what is checkable is that it has the documented number of rows,
+		// that no row is null, and that no two rows share a name or a function.
+		const auto registry = menu::relevance::registry();
+		expect(registry.size()).to_equal(size_t(27));
+		for (size_t i = 0; i < registry.size(); i++) {
+			expect(registry[i].fn != nullptr).to_be_true();
+			expect(registry[i].name.empty()).to_be_false();
+			for (size_t j = i + 1; j < registry.size(); j++) {
+				expect(registry[i].fn == registry[j].fn).to_be_false();
+				expect(registry[i].name == registry[j].name).to_be_false();
+			}
+		}
 	});
 });
 
@@ -400,8 +474,8 @@ describe tables_1_validation("scenes::menu batch-1 tables: validation", $ {
 		Fixture& f = fixture();
 		menu::set_shortcut_table_for_test({}, 0, 0);
 		const MenuContext contexts[] = {f.ctx};
-		const auto issues = menu::validate_tree(nodes::batch1_roots(), contexts,
-		                                        nodes::kRangeDependentNodes(), nodes::kHalfPrecisionNodes());
+		const auto issues = menu::validate_tree(nodes::kBatch1Roots, contexts,
+		                                        nodes::kRangeDependentNodes, nodes::kHalfPrecisionNodes);
 		size_t duplicates = 0;
 		size_t others = 0;
 		for (const menu::Issue& i : issues) {
@@ -412,9 +486,22 @@ describe tables_1_validation("scenes::menu batch-1 tables: validation", $ {
 				others++;
 			}
 		}
-		// `recorderMenu`'s two RECORD TO SAMPLE items, and the mixer's two OSC LEVEL and two FM MOD
-		// LEVEL items: three sibling pairs whose l10n id is shared because legacy substitutes the
-		// index at render time (`FormattedTitle`). See `has_dynamic_name` above.
+		// Three sibling pairs share an l10n id because legacy disambiguates them only at render
+		// time, through `FormattedTitle`, which one `uint16_t Node::name` cannot express:
+		//
+		//   * `sample0RecorderMenu` / `sample1RecorderMenu`, both `STRING_FOR_RECORD_TO_SAMPLE`
+		//     (`g_menus.inc:55-56` at `ce4a79de0`; `osc/audio_recorder.h:34`);
+		//   * `source0VolumeMenu` / `source1VolumeMenu`, both `STRING_FOR_OSC_LEVEL_MENU_TITLE`
+		//     (`:144-145`; `osc/source/volume.h:29`);
+		//   * `modulator0Volume` / `modulator1Volume`, both `STRING_FOR_FM_MOD_LEVEL_MENU_TITLE`
+		//     (`:146-147`; `source/patched_param/modulator_level.h:29`).
+		//
+		// Spec E §4.4's rule ("no duplicate `(name, parent)`") is sibling-scoped and name-only, and
+		// `validate.cpp` implements it exactly; the tables are a faithful transcription. So the
+		// three reports are correct on both sides, and the controller blessed asserting the exact
+		// count rather than weakening the rule (fix round 1, I2) -- a fourth collision still fails
+		// loudly, which is what the rule is for. Task 12 records the tolerance as a spec E §4.4
+		// amendment, and E2's formatted-name field on `Node` is what removes it.
 		expect(duplicates).to_equal(size_t(3));
 		expect(others).to_equal(size_t(0));
 	});
@@ -422,8 +509,8 @@ describe tables_1_validation("scenes::menu batch-1 tables: validation", $ {
 	it("assigns an id to every node in the batch-1 tree", _ {
 		Fixture& f = fixture();
 		const MenuContext contexts[] = {f.ctx};
-		(void)menu::validate_tree(nodes::batch1_roots(), contexts);
-		for (const Node* root : nodes::batch1_roots()) {
+		(void)menu::validate_tree(nodes::kBatch1Roots, contexts);
+		for (const Node* root : nodes::kBatch1Roots) {
 			expect(menu::node_id(*root) != uint16_t(0)).to_be_true();
 			for (const Node* kid : root->children) {
 				expect(menu::node_id(*kid) != uint16_t(0)).to_be_true();

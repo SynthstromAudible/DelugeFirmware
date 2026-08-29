@@ -16,76 +16,15 @@
  */
 
 /// @file
-/// @brief The oscillator subtree: the sample recorder, both sources, both FM modulators, the mixer.
-///
-/// Six of the seventeen batch-1 roots, from
-/// `gui/menu_item/generate/dmenus/oscillator/{__init__,source,modulator,recorder}.py` and
-/// `generate/g_menus.inc:55-158`. The largest of the six files, and the only one with bespoke
-/// (`Kind::Custom`) items.
-///
-/// | node | legacy global (`g_menus.inc`) | legacy class |
-/// |---|---|---|
-/// | `sample<i>_recorder` | `sample<i>RecorderMenu` (`:55-56`) | `osc::AudioRecorder` (`osc/audio_recorder.h:28`) |
-/// | `recorder` | `recorderMenu` (`:61`) | `HorizontalMenu` |
-/// | `osc<i>_type` | `osc<i>TypeMenu` (`:62`, `:93`) | `osc::Type` (`osc/type.h:34`) |
-/// | `file<i>_selector` | `file<i>SelectorMenu` (`:63`, `:94`) | `FileSelector` (`file_selector.h:25`) |
-/// | `source<i>_transpose` | `source<i>TransposeMenu` (`:64`, `:95`) | `sample::Transpose` (`sample/transpose.h:31`) |
-/// | `source<i>_wave_index` | `source<i>WaveIndexMenu` (`:65`, `:96`) | `osc::source::WaveIndex`
-/// (`osc/source/wave_index.h:23`) | | `osc<i>_pulse_width` | `osc<i>PulseWidthMenu` (`:66`, `:97`) | `osc::PulseWidth`
-/// (`osc/pulse_width.h:25`) | | `source<i>_feedback` | `source<i>FeedbackMenu` (`:67`, `:98`) | `osc::source::Feedback`
-/// (`osc/source/feedback.h:23`) | | `osc<i>_phase` | `osc<i>PhaseMenu` (`:68`, `:99`) | `osc::RetriggerPhase`
-/// (`osc/retrigger_phase.h:25`) | | `sample<i>_reverse` | `sample<i>ReverseMenu` (`:69`, `:100`) | `sample::Reverse`
-/// (`sample/reverse.h:27`) | | `sample<i>_repeat` | `sample<i>RepeatMenu` (`:70`, `:101`) | `sample::Repeat`
-/// (`sample/repeat.h:33`) | | `sample<i>_time_stretch` | `sample<i>TimeStretchMenu` (`:71`, `:102`) |
-/// `sample::TimeStretch` (`sample/time_stretch.h:27`) | | `sample<i>_pitch_speed` | `sample<i>PitchSpeedMenu` (`:72`,
-/// `:103`) | `sample::PitchSpeed` (`sample/pitch_speed.h:29`) | | `sample<i>_interpolation` |
-/// `sample<i>InterpolationMenu` (`:73`, `:104`) | `sample::Interpolation` (`sample/interpolation.h:26`) | |
-/// `sample<i>_start` / `_end` | `sample<i>StartMenu` / `EndMenu` (`:74-75`, `:105-106`) | `sample::Start` / `End` over
-/// `LoopPoint` (`sample/loop_point.h:24`) | | `source<i>` | `source<i>Menu` (`:92`, `:123`) | `submenu::ActualSource`
-/// (`submenu/actual_source.h:22`) | | `modulator<i>_transpose` | `modulator<i>TransposeMenu` (`:124`, `:133`) |
-/// `modulator::Transpose` (`modulator/transpose.h:27`) | | `modulator<i>_feedback` | `modulator<i>FeedbackMenu`
-/// (`:125`, `:134`) | `source::patched_param::ModulatorFeedback` (`modulator_feedback.h:22`) | | `modulator<i>_phase` |
-/// `modulator<i>PhaseMenu` (`:126`, `:135`) | `osc::RetriggerPhase`, `for_modulator` | | `modulator_dest` |
-/// `modulatorDestMenu` (`:136`) | `modulator::Destination` (`modulator/destination.h:28`) | | `modulator<i>` |
-/// `modulator<i>Menu` (`:132`, `:143`) | `submenu::Modulator` (`submenu/modulator.h:21`) | | `source<i>_volume` |
-/// `source<i>VolumeMenu` (`:144-145`) | `osc::source::Volume` (`osc/source/volume.h:24`) | | `modulator<i>_volume` |
-/// `modulator<i>Volume` (`:146-147`) | `source::patched_param::ModulatorLevel` (`modulator_level.h:22`) | | `noise` |
-/// `noiseMenu` (`:148`) | `patched_param::IntegerNonFM` (`patched_param/integer_non_fm.h:22`) | | `osc_sync` |
-/// `oscSyncMenu` (`:149`) | `osc::Sync` (`osc/sync.h:26`) | | `osc_mixer` | `oscMixerMenu` (`:158`) | `HorizontalMenu`
-/// |
-///
-/// @note **The four bespoke items.** `FileSelector`, `osc::AudioRecorder` and the two `LoopPoint`s
-///       do not edit a value at all -- each `beginSession`s straight into another whole UI (the
-///       sample browser, the audio recorder, the sample marker editor). Spec E §4 calls those
-///       `Kind::Custom` and names "file selector" among the seven it expects. The real
-///       implementations are E2's `BrowserScene` / `AudioRecorderScene` / `SampleMarkerScene`; until
-///       then each points at `kPending`, a placeholder that draws the item's title and consumes
-///       nothing, so the node is honest data (the validator's `NullCustom` rule refuses a
-///       `Kind::Custom` with no implementation) and the page renders the item rather than stale
-///       pixels. Two instances of `LoopPoint` -- start and end -- so the count of distinct
-///       `CustomItem`s here is 1, well inside spec E §4's ten.
-///
-/// @note **`range_dependent`.** Four legacy classes in this subtree override
-///       `checkPermissionToBeginSession` to route through
-///       `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`: `sample::Transpose`
-///       (`sample/transpose.h:120-135`, which also overrides `isRangeDependent()` at `:137`),
-///       `LoopPoint` (`sample/loop_point.cpp:38-58`, `loop_point.h:31`), `FileSelector`
-///       (`file_selector.cpp:68-86`) and `osc::AudioRecorder` (`osc/audio_recorder.h:65-74`). That is
-///       exactly `node.h`'s own list minus `multi_range.h`, so eight nodes here carry the flag
-///       (`kOscRangeDependentNodes`); the validator's `Flag::RangeDependent` audit re-checks it.
-///
-/// @note **Per-source relevance.** Legacy bakes `source_id_` into each item; `RelevantFn` has no
-///       room for one, so `relevance.h` declares `osc0_*` / `osc1_*` pairs. See its own note.
+/// @brief The oscillator subtree's `get`/`set` hooks, the `kPending` placeholder's two members, and
+///        the exported root span. The `Node` literals are in `sound_osc.h`.
 
-#include "scenes/menu/nodes/nodes.h"
+#include "scenes/menu/nodes/sound_osc.h"
 
 #include "scenes/l10n_bridge.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h" // MenuState, for the placeholder `CustomItem`
-#include "scenes/menu/node.h"
-#include "scenes/menu/nodes/detail.h"
-#include "scenes/menu/relevance.h"
 #include "scenes/profile.h"
 
 #include "shell/scene.h"
@@ -99,40 +38,30 @@
 #include "processing/source.h"
 #include "storage/multi_range/multisample_range.h"
 
-#include <array>
-
 namespace deluge::scenes::menu::nodes {
 
-namespace {
-
 using deluge::l10n::String;
-namespace params = deluge::modulation::params;
 
 // ---------------------------------------------------------------------------------------------
-// The placeholder for the four bespoke items. See the file note.
+// The placeholder for the four bespoke items. See `sound_osc.h`'s note.
 
-/// @brief Draws the item's own title and does nothing else.
-///
-/// Deliberately the same "honest placeholder" `MenuScene`'s own unimplemented-kind arm draws
-/// (`menu_scene.cpp:425-432`): the user sees which item they are on rather than the previous
-/// screen. Replaced, per item, when E2 lands the browser, the recorder and the marker editor.
-class PendingCustom final : public CustomItem {
-public:
-	void render(deluge::ui::oled::OledFrame& f, const MenuContext&, MenuState& state) const override {
-		const Node* node = state.depth < kMenuDepth ? state.path[state.depth] : nullptr;
-		deluge::ui::shell::TextScratch scratch;
-		deluge::ui::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
-		                                           : std::string_view{});
-	}
-	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent&, const deluge::ui::shell::UiContext&,
-	                                 const MenuContext&, MenuState&) const override {
-		return {};
-	}
-};
+void PendingCustom::render(deluge::ui::oled::OledFrame& f, const MenuContext& /*ctx*/, MenuState& state) const {
+	// Deliberately the same "honest placeholder" `MenuScene`'s own unimplemented-kind arm draws
+	// (`menu_scene.cpp:425-432`): the user sees which item they are on rather than the previous
+	// screen. Replaced, per item, when E2 lands the browser, the recorder and the marker editor.
+	const Node* node = state.depth < kMenuDepth ? state.path[state.depth] : nullptr;
+	deluge::ui::shell::TextScratch scratch;
+	deluge::ui::oled::title(f, node != nullptr ? deluge_profile().text_or_digits(node->title, scratch)
+	                                           : std::string_view{});
+}
 
-// Not `constexpr`: a polymorphic object's address is still a core constant expression, which is
-// all the `custom()` builder needs, and this way the class needs no `constexpr` virtual support.
-const PendingCustom kPending{};
+deluge::ui::shell::Result PendingCustom::handle(const deluge::ui::shell::UiEvent& /*event*/,
+                                                const deluge::ui::shell::UiContext& /*ui_ctx*/,
+                                                const MenuContext& /*ctx*/, MenuState& /*state*/) const {
+	return {};
+}
+
+namespace {
 
 // ---------------------------------------------------------------------------------------------
 // Shared accessors.
@@ -285,6 +214,11 @@ int32_t get_osc_transpose(const MenuContext& ctx, uint8_t index) {
 }
 
 void set_osc_transpose(const MenuContext& ctx, int32_t value, uint8_t index) {
+	// Legacy's affect-entire test here is `soundEditor.editingKit()` (`sample/transpose.h:67`), not
+	// the `editingKitRow()` every other item uses; `bindings::writes_whole_kit` is the latter, so
+	// on a kit-global-FX context this writes one target where legacy swept the kit. Unreachable in
+	// practice (the oscillator menus are not reachable from the kit-global-FX root) and recorded
+	// rather than reproduced, because reproducing it would mean a second affect-entire predicate.
 	bindings::apply_to_targets(ctx, value, index,
 	                           [](const bindings::SoundTarget& t, int32_t v, int32_t index, const MenuContext& ctx) {
 		                           if (t.sound == nullptr) {
@@ -367,10 +301,13 @@ int32_t get_sample_repeat(const MenuContext& ctx, uint8_t index) {
 }
 void set_sample_repeat(const MenuContext& ctx, int32_t value, uint8_t index) {
 	// `sample/repeat.h:48-108`, minus two calls this layer cannot make: the kit arpeggiator note-off
-	// (`:70-73`, which reaches `instrumentClipView` through `getCurrentInstrumentClip`) and the
-	// `uiNeedsRendering(&instrumentClipView, ...)` at `:106` -- the notify design replaces the second
-	// with the `Dirty::Oled` `bindings::write` already raises for a `get`/`set` node, and the first
-	// belongs to E2's `NoteClipScene`. Recorded, not silently dropped.
+	// -- which legacy fires from BOTH arms, the kit sweep (`:70-73`) and the single-target one
+	// (`:94-97`), and which reaches `instrumentClipView` through `getCurrentInstrumentClip` -- and
+	// the `uiNeedsRendering(&instrumentClipView, ...)` at `:106`. The notify design replaces the
+	// second with the `Dirty::Oled` `bindings::write` already raises for a `get`/`set` node; the
+	// first belongs to E2's `NoteClipScene`. Legacy's affect-entire test here is also looser than
+	// `bindings::writes_whole_kit`: `kit != nullptr && currentUIMode == …` with no row test at all
+	// (`:54`). Recorded, not silently dropped.
 	bindings::apply_to_targets(ctx, value, index,
 	                           [](const bindings::SoundTarget& t, int32_t v, int32_t index, const MenuContext&) {
 		                           if (t.sound == nullptr) {
@@ -428,8 +365,8 @@ void set_pitch_speed(const MenuContext& ctx, int32_t value, uint8_t index) {
 
 int32_t get_interpolation(const MenuContext& ctx, uint8_t index) {
 	const SampleControls* controls = sample_controls_of(ctx, index);
-	return controls != nullptr ? static_cast<int32_t>(controls->interpolationMode)
-	                           : 0; // `sample/interpolation.h:32-35`
+	// `sample/interpolation.h:32-35`
+	return controls != nullptr ? static_cast<int32_t>(controls->interpolationMode) : 0;
 }
 void set_interpolation(const MenuContext& ctx, int32_t value, uint8_t index) {
 	// `sample/interpolation.h:37-59`, same shape as pitch/speed above.
@@ -473,75 +410,14 @@ void set_modulator_transpose(const MenuContext& ctx, int32_t value, uint8_t inde
 	    });
 }
 
-int32_t get_modulator_dest(const MenuContext& ctx) {
-	return ctx.sound != nullptr && ctx.sound->modulator1ToModulator0 ? 1 : 0; // `modulator/destination.h:31`
-}
-void set_modulator_dest(const MenuContext& ctx, int32_t value) {
-	bindings::apply_to_targets(
-	    ctx, value, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
-		    // `modulator/destination.h:33-62`, kit arm filtered on FM (`:47`).
-		    if (t.sound == nullptr || (t.whole_kit && t.sound->getSynthMode() != ::SynthMode::FM)) {
-			    return;
-		    }
-		    t.sound->modulator1ToModulator0 = v != 0;
-	    });
-}
+constexpr const Node* kRoots[] = {&recorder, &source0, &source1, &modulator0, &modulator1, &osc_mixer};
 
-int32_t get_osc_sync(const MenuContext& ctx) {
-	return ctx.sound != nullptr && ctx.sound->oscillatorSync ? 1 : 0; // `osc/sync.h:29`
-}
-void set_osc_sync(const MenuContext& ctx, int32_t value) {
-	bindings::apply_to_targets(
-	    ctx, value, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
-		    // `osc/sync.h:31-53`: the kit arm re-applies `isRelevant`'s own
-		    // test per drum (`:42-44`), the single arm assigns unconditionally.
-		    if (t.sound == nullptr) {
-			    return;
-		    }
-		    if (t.whole_kit
-		        && (t.sound->getSynthMode() == ::SynthMode::FM || t.sound->sources[0].oscType == OscType::SAMPLE
-		            || t.sound->sources[1].oscType == OscType::SAMPLE)) {
-			    return;
-		    }
-		    t.sound->oscillatorSync = v != 0;
-	    });
-}
+} // namespace
 
 // ---------------------------------------------------------------------------------------------
-// Option name lists.
+// The hooks `sound_osc.h`'s macros declared, each forwarding its baked-in source index.
 
-/// `sample::Repeat::getOptions` (`sample/repeat.h:99-107`).
-constexpr uint16_t kRepeatNames[] = {
-    sid(String::STRING_FOR_CUT),
-    sid(String::STRING_FOR_ONCE),
-    sid(String::STRING_FOR_LOOP),
-    sid(String::STRING_FOR_STRETCH),
-};
-/// `sample::PitchSpeed::getOptions` (`sample/pitch_speed.h:65-68`).
-constexpr uint16_t kPitchSpeedNames[] = {
-    sid(String::STRING_FOR_LINKED),
-    sid(String::STRING_FOR_INDEPENDENT),
-};
-/// `AudioInterpolation::getOptions` (`gui/menu_item/audio_interpolation.h:41-44`).
-constexpr uint16_t kInterpolationNames[] = {
-    sid(String::STRING_FOR_LINEAR),
-    sid(String::STRING_FOR_SINC),
-};
-/// `modulator::Destination::getOptions` (`modulator/destination.h:57-63`).
-constexpr uint16_t kModulatorDestNames[] = {
-    sid(String::STRING_FOR_CARRIERS),
-    sid(String::STRING_FOR_MODULATOR_1),
-};
-
-// ---------------------------------------------------------------------------------------------
-// The tree.
-//
-// Two macros, one per repeated shape: the per-source `get`/`set` hooks have to be distinct
-// functions (a `Binding` holds a plain function pointer, with no room for legacy's `source_id_`
-// member), and the `Node`s themselves have to be distinct objects for their addresses to go in a
-// `children` array.
-
-#define DELUGE_OSC_SOURCE(i, name_id)                                                                                  \
+#define DELUGE_OSC_SOURCE_HOOKS(i)                                                                                     \
 	int32_t get_osc##i##_type(const MenuContext& ctx) {                                                                \
 		return osc_type_value(ctx, (i));                                                                               \
 	}                                                                                                                  \
@@ -592,65 +468,9 @@ constexpr uint16_t kModulatorDestNames[] = {
 	}                                                                                                                  \
 	void set_sample##i##_interp(const MenuContext& ctx, int32_t v) {                                                   \
 		set_interpolation(ctx, v, (i));                                                                                \
-	}                                                                                                                  \
-	constexpr Node osc##i##_type =                                                                                     \
-	    with_title(dynamic_enumeration(sid(String::STRING_FOR_TYPE), osc##i##_type_names, get_osc##i##_type,           \
-	                                   set_osc##i##_type, relevance::not_fm),                                          \
-	               sid(String::STRING_FOR_OSC_TYPE_MENU_TITLE));                                                       \
-	constexpr Node file##i##_selector = with_range_dependent(                                                          \
-	    custom(sid(String::STRING_FOR_FILE_BROWSER), &kPending, relevance::osc##i##_file_selector));                   \
-	constexpr Node source##i##_transpose = with_range_dependent(                                                       \
-	    with_title(decimal_item(sid(String::STRING_FOR_TRANSPOSE), get_source##i##_transpose,                          \
-	                            set_source##i##_transpose, kTransposeRange, 2, relevance::osc##i##_transpose),         \
-	               sid(String::STRING_FOR_OSC_TRANSPOSE_MENU_TITLE)));                                                 \
-	constexpr Node source##i##_wave_index =                                                                            \
-	    param(sid(String::STRING_FOR_WAVE_INDEX),                                                                      \
-	          {params::Kind::PATCHED, static_cast<uint8_t>(params::LOCAL_OSC_A_WAVE_INDEX + (i))}, Hint::Slider,       \
-	          relevance::osc##i##_wave_index, sid(String::STRING_FOR_OSC_WAVE_IND_MENU_TITLE));                        \
-	constexpr Node osc##i##_pulse_width = param(                                                                       \
-	    sid(String::STRING_FOR_PULSE_WIDTH),                                                                           \
-	    {params::Kind::PATCHED, static_cast<uint8_t>(params::LOCAL_OSC_A_PHASE_WIDTH + (i))}, Hint::None,              \
-	    relevance::osc##i##_pulse_width, sid(String::STRING_FOR_OSC_P_WIDTH_MENU_TITLE), Scaling::HalfPrecision);      \
-	constexpr Node source##i##_feedback =                                                                              \
-	    param(sid(String::STRING_FOR_FEEDBACK),                                                                        \
-	          {params::Kind::PATCHED, static_cast<uint8_t>(params::LOCAL_CARRIER_0_FEEDBACK + (i))}, Hint::Bar,        \
-	          relevance::osc##i##_carrier_feedback, sid(String::STRING_FOR_CARRIER_FEED_MENU_TITLE));                  \
-	constexpr Node osc##i##_phase =                                                                                    \
-	    with_hint(with_title(decimal_item(sid(String::STRING_FOR_RETRIGGER_PHASE), get_osc##i##_phase,                 \
-	                                      set_osc##i##_phase, kPhaseRange, 0, relevance::osc##i##_retrigger_phase),    \
-	                         sid(String::STRING_FOR_OSC_R_PHASE_MENU_TITLE)),                                          \
-	              Hint::Slider);                                                                                       \
-	constexpr Node sample##i##_reverse =                                                                               \
-	    with_title(toggle_item(sid(String::STRING_FOR_REVERSE), get_sample##i##_reverse, set_sample##i##_reverse,      \
-	                           relevance::osc##i##_is_sample),                                                         \
-	               sid(String::STRING_FOR_SAMP_REVERSE_MENU_TITLE));                                                   \
-	constexpr Node sample##i##_repeat =                                                                                \
-	    with_title(enumeration(sid(String::STRING_FOR_REPEAT_MODE), kRepeatNames, get_sample##i##_repeat,              \
-	                           set_sample##i##_repeat, relevance::osc##i##_is_sample),                                 \
-	               sid(String::STRING_FOR_SAMP_REPEAT_MENU_TITLE));                                                    \
-	constexpr Node sample##i##_time_stretch =                                                                          \
-	    with_title(int_item(sid(String::STRING_FOR_SPEED), get_sample##i##_speed, set_sample##i##_speed,               \
-	                        kTimeStretchRange, Hint::None, relevance::osc##i##_is_sample),                             \
-	               sid(String::STRING_FOR_SAMP_SPEED_MENU_TITLE));                                                     \
-	constexpr Node sample##i##_pitch_speed =                                                                           \
-	    enumeration(sid(String::STRING_FOR_PITCH_SPEED), kPitchSpeedNames, get_sample##i##_pitch_speed,                \
-	                set_sample##i##_pitch_speed, relevance::osc##i##_pitch_speed);                                     \
-	constexpr Node sample##i##_interpolation =                                                                         \
-	    with_title(enumeration(sid(String::STRING_FOR_INTERPOLATION), kInterpolationNames, get_sample##i##_interp,     \
-	                           set_sample##i##_interp, relevance::osc##i##_interpolation),                             \
-	               sid(String::STRING_FOR_SAMP_INTERP_MENU_TITLE));                                                    \
-	constexpr Node sample##i##_start =                                                                                 \
-	    with_range_dependent(custom(sid(String::STRING_FOR_START_POINT), &kPending, relevance::osc##i##_is_sample));   \
-	constexpr Node sample##i##_end =                                                                                   \
-	    with_range_dependent(custom(sid(String::STRING_FOR_END_POINT), &kPending, relevance::osc##i##_is_sample));     \
-	constexpr const Node* kSource##i##Children[] = {                                                                   \
-	    &osc##i##_type,        &file##i##_selector,       &source##i##_transpose,   &source##i##_wave_index,           \
-	    &osc##i##_pulse_width, &source##i##_feedback,     &osc##i##_phase,          &sample##i##_reverse,              \
-	    &sample##i##_repeat,   &sample##i##_time_stretch, &sample##i##_pitch_speed, &sample##i##_interpolation,        \
-	    &sample##i##_start,    &sample##i##_end};                                                                      \
-	constexpr Node source##i = submenu(sid(String::name_id), kSource##i##Children, Layout::Horizontal)
+	}
 
-#define DELUGE_OSC_MODULATOR(i)                                                                                        \
+#define DELUGE_OSC_MODULATOR_HOOKS(i)                                                                                  \
 	int32_t get_modulator##i##_transpose_v(const MenuContext& ctx) {                                                   \
 		return get_modulator_transpose(ctx, (i));                                                                      \
 	}                                                                                                                  \
@@ -662,93 +482,50 @@ constexpr uint16_t kModulatorDestNames[] = {
 	}                                                                                                                  \
 	void set_modulator##i##_phase(const MenuContext& ctx, int32_t v) {                                                 \
 		set_retrigger_phase(ctx, v, (i), true);                                                                        \
-	}                                                                                                                  \
-	constexpr Node modulator##i##_transpose =                                                                          \
-	    with_title(decimal_item(sid(String::STRING_FOR_TRANSPOSE), get_modulator##i##_transpose_v,                     \
-	                            set_modulator##i##_transpose_v, kTransposeRange, 2, relevance::is_fm),                 \
-	               sid(String::STRING_FOR_FM_MOD_TRAN_MENU_TITLE));                                                    \
-	constexpr Node modulator##i##_feedback =                                                                           \
-	    param(sid(String::STRING_FOR_FEEDBACK),                                                                        \
-	          {params::Kind::PATCHED, static_cast<uint8_t>(params::LOCAL_MODULATOR_0_FEEDBACK + (i))}, Hint::Bar,      \
-	          relevance::is_fm, sid(String::STRING_FOR_FM_MOD_FBACK_MENU_TITLE));                                      \
-	constexpr Node modulator##i##_phase_node = with_hint(                                                              \
-	    with_title(decimal_item(sid(String::STRING_FOR_RETRIGGER_PHASE), get_modulator##i##_phase,                     \
-	                            set_modulator##i##_phase, kPhaseRange, 0, relevance::modulator##i##_retrigger_phase),  \
-	               sid(String::STRING_FOR_FM_MOD_RETRIG_MENU_TITLE)),                                                  \
-	    Hint::Slider)
+	}
 
-/// `menu_item::Transpose::getMinValue`/`getMaxValue`/`getNumDecimalPlaces`
-/// (`gui/menu_item/transpose.h:34-36`).
-constexpr IntRange kTransposeRange{-9600, 9600, 1};
-/// `osc::RetriggerPhase::getMinValue`/`getMaxValue` (`osc/retrigger_phase.h:34-35`); -1 is the "OFF"
-/// sentinel legacy prints in place of a number (`:60-67`).
-constexpr IntRange kPhaseRange{-1, 360, 1};
-/// `sample::TimeStretch::getMinValue`/`getMaxValue` (`sample/time_stretch.h:65-66`).
-constexpr IntRange kTimeStretchRange{-48, 48, 1};
+DELUGE_OSC_SOURCE_HOOKS(0)
+DELUGE_OSC_SOURCE_HOOKS(1)
+DELUGE_OSC_MODULATOR_HOOKS(0)
+DELUGE_OSC_MODULATOR_HOOKS(1)
 
-DELUGE_OSC_SOURCE(0, STRING_FOR_OSCILLATOR_1);
-DELUGE_OSC_SOURCE(1, STRING_FOR_OSCILLATOR_2);
-DELUGE_OSC_MODULATOR(0);
-DELUGE_OSC_MODULATOR(1);
+#undef DELUGE_OSC_SOURCE_HOOKS
+#undef DELUGE_OSC_MODULATOR_HOOKS
 
-#undef DELUGE_OSC_SOURCE
-#undef DELUGE_OSC_MODULATOR
+int32_t get_modulator_dest(const MenuContext& ctx) {
+	return ctx.sound != nullptr && ctx.sound->modulator1ToModulator0 ? 1 : 0; // `modulator/destination.h:31`
+}
+void set_modulator_dest(const MenuContext& ctx, int32_t value) {
+	bindings::apply_to_targets(
+	    ctx, value, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
+		    // `modulator/destination.h:33-62`, kit arm filtered on FM (`:47`).
+		    if (t.sound == nullptr || (t.whole_kit && t.sound->getSynthMode() != ::SynthMode::FM)) {
+			    return;
+		    }
+		    t.sound->modulator1ToModulator0 = v != 0;
+	    });
+}
 
-constexpr Node modulator_dest = with_title(enumeration(sid(String::STRING_FOR_DESTINATION), kModulatorDestNames,
-                                                       get_modulator_dest, set_modulator_dest, relevance::is_fm),
-                                           sid(String::STRING_FOR_FM_MOD2_DEST_MENU_TITLE));
-
-constexpr const Node* kModulator0Children[] = {&modulator0_transpose, &modulator0_feedback, &modulator0_phase_node};
-constexpr Node modulator0 =
-    submenu(sid(String::STRING_FOR_FM_MODULATOR_1), kModulator0Children, Layout::Horizontal, relevance::is_fm);
-constexpr const Node* kModulator1Children[] = {&modulator1_transpose, &modulator1_feedback, &modulator1_phase_node,
-                                               &modulator_dest};
-constexpr Node modulator1 =
-    submenu(sid(String::STRING_FOR_FM_MODULATOR_2), kModulator1Children, Layout::Horizontal, relevance::is_fm);
-
-// The recorder page (`g_menus.inc:55-61`). Two slots wide each --
-// `AudioRecorder::getOccupiedSlots()` (`osc/audio_recorder.h:77`).
-constexpr Node sample0_recorder = with_slots(
-    with_range_dependent(custom(sid(String::STRING_FOR_RECORD_TO_SAMPLE), &kPending, relevance::is_subtractive)), 2);
-constexpr Node sample1_recorder = with_slots(
-    with_range_dependent(custom(sid(String::STRING_FOR_RECORD_TO_SAMPLE), &kPending, relevance::is_subtractive)), 2);
-constexpr const Node* kRecorderChildren[] = {&sample0_recorder, &sample1_recorder};
-constexpr Node recorder = submenu(sid(String::STRING_FOR_SAMPLE_RECORDER), kRecorderChildren, Layout::Horizontal);
-
-// The mixer page (`g_menus.inc:144-158`).
-constexpr Node source0_volume =
-    param(sid(String::STRING_FOR_OSC_LEVEL_MENU_TITLE), {params::Kind::PATCHED, params::LOCAL_OSC_A_VOLUME}, Hint::Bar,
-          relevance::not_ringmod);
-constexpr Node source1_volume =
-    param(sid(String::STRING_FOR_OSC_LEVEL_MENU_TITLE), {params::Kind::PATCHED, params::LOCAL_OSC_B_VOLUME}, Hint::Bar,
-          relevance::not_ringmod);
-constexpr Node modulator0_volume =
-    param(sid(String::STRING_FOR_FM_MOD_LEVEL_MENU_TITLE), {params::Kind::PATCHED, params::LOCAL_MODULATOR_0_VOLUME},
-          Hint::Bar, relevance::is_fm);
-constexpr Node modulator1_volume =
-    param(sid(String::STRING_FOR_FM_MOD_LEVEL_MENU_TITLE), {params::Kind::PATCHED, params::LOCAL_MODULATOR_1_VOLUME},
-          Hint::Bar, relevance::is_fm);
-constexpr Node noise = param(sid(String::STRING_FOR_NOISE_LEVEL), {params::Kind::PATCHED, params::LOCAL_NOISE_VOLUME},
-                             Hint::Bar, relevance::not_fm);
-constexpr Node osc_sync =
-    toggle_item(sid(String::STRING_FOR_OSCILLATOR_SYNC), get_osc_sync, set_osc_sync, relevance::osc_sync_allowed);
-constexpr const Node* kMixerChildren[] = {&source0_volume,    &source1_volume, &modulator0_volume,
-                                          &modulator1_volume, &noise,          &osc_sync};
-constexpr Node osc_mixer = submenu(sid(String::STRING_FOR_OSCILLATOR_MIXER), kMixerChildren, Layout::Horizontal);
-
-/// `main.py`'s own order for this subtree: recorder, both sources, both modulators, the mixer.
-constexpr const Node* kRoots[] = {&recorder, &source0, &source1, &modulator0, &modulator1, &osc_mixer};
-
-constexpr const Node* kRangeDependent[] = {
-    &sample0_recorder,  &sample1_recorder, &file0_selector, &file1_selector, &source0_transpose,
-    &source1_transpose, &sample0_start,    &sample0_end,    &sample1_start,  &sample1_end,
-};
-constexpr const Node* kHalfPrecision[] = {&osc0_pulse_width, &osc1_pulse_width};
-
-} // namespace
+int32_t get_osc_sync(const MenuContext& ctx) {
+	return ctx.sound != nullptr && ctx.sound->oscillatorSync ? 1 : 0; // `osc/sync.h:29`
+}
+void set_osc_sync(const MenuContext& ctx, int32_t value) {
+	bindings::apply_to_targets(
+	    ctx, value, 0, [](const bindings::SoundTarget& t, int32_t v, int32_t, const MenuContext&) {
+		    // `osc/sync.h:31-53`: the kit arm re-applies `isRelevant`'s own
+		    // test per drum (`:42-44`), the single arm assigns unconditionally.
+		    if (t.sound == nullptr) {
+			    return;
+		    }
+		    if (t.whole_kit
+		        && (t.sound->getSynthMode() == ::SynthMode::FM || t.sound->sources[0].oscType == OscType::SAMPLE
+		            || t.sound->sources[1].oscType == OscType::SAMPLE)) {
+			    return;
+		    }
+		    t.sound->oscillatorSync = v != 0;
+	    });
+}
 
 const std::span<const Node* const> kSoundOscChildren{kRoots};
-const std::span<const Node* const> kOscRangeDependentNodes{kRangeDependent};
-const std::span<const Node* const> kOscHalfPrecisionNodes{kHalfPrecision};
 
 } // namespace deluge::scenes::menu::nodes

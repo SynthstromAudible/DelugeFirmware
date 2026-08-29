@@ -43,9 +43,11 @@
 /// plus, beyond §4.4: `MissingTitle` and `NullCustom` (a node that would render nothing), and the
 /// two `FlagMismatch` audits (this task's ruling 4).
 ///
-/// **No heap, no model.** The walk uses one fixed `kMaxNodes`-wide array of node pointers, which is
-/// a ~8 KB stack frame -- fine for a host/spec-time check and for the one call the application makes
-/// at start-up, and the reason nothing here is recursive.
+/// **No heap, no model.** The walk uses two fixed `kMaxNodes`-wide arrays of node pointers -- the
+/// reachable set and `collect`'s explicit work stack -- so the frame is `2 * kMaxNodes *
+/// sizeof(const Node*)`: 8 KB on the 32-bit target, 16 KB on a 64-bit host. Fine for a spec, and
+/// the reason nothing here is recursive; check it against the device stack before Task 12 wires
+/// this into boot.
 
 #include "scenes/menu/validate.h"
 
