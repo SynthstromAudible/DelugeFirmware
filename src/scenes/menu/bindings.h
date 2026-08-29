@@ -6,8 +6,23 @@
 /// A `Node`'s `Binding` is plain data: either a `ParamRef` (which param on the model) or a
 /// `get`/`set` pair. These five functions are what turns that data into an actual read, an actual
 /// write, a range, a name list and a MIDI-learn descriptor. Every legacy `readCurrentValue` /
-/// `writeCurrentValue` / `getFinalValue` / `getMaxValue` / `getLearningThing` override the menus
-/// carry today collapses into them; see `bindings.cpp` for the line-by-line port table.
+/// `writeCurrentValue` / `getFinalValue` / `getMaxValue` / `getLearningThing` override on a
+/// **`ParamRef`-backed** item collapses into them; see `bindings.cpp` for the line-by-line port
+/// table. (Items whose value does not live in a param set keep their own logic, as a `get`/`set`
+/// pair the tree supplies -- that is what `Binding::get`/`set` are for, and nothing here scales or
+/// interprets what those hooks return.)
+///
+/// @note **Which scaling a param uses is declared, not inferred** (`node.h`'s `Scaling`). The
+///       default, `Scaling::Standard`, is legacy's `patched_param::Integer` /
+///       `menu_item::UnpatchedParam` arithmetic. Two exceptions exist and Tasks 6-8 must name them
+///       at the call site, via `param()`'s trailing `scaling` argument:
+///       `Scaling::HalfPrecision` for **osc pulse width** (`gui/menu_item/osc/pulse_width.h:32,34-37`
+///       -- `LOCAL_OSC_A_PHASE_WIDTH` / `LOCAL_OSC_B_PHASE_WIDTH`) and for the **compressor params**
+///       (`gui/menu_item/audio_compressor/compressor_params.h:29-33`), which cannot take the
+///       negative stored values `Scaling::Standard` produces (`value_scaling.cpp:36`); and
+///       `Scaling::Pan` for the two pan params, which `bindings.cpp` additionally infers as a
+///       backstop (`scaling_for`) since `params::isParamPan` can recognise them and no equivalent
+///       predicate exists for the half-precision pair.
 ///
 /// @note **`model/model_stack.h` and `modulation/automation/auto_param.h` are reached by
 ///       `bindings.cpp` only** -- it and `context.cpp` are the two files the

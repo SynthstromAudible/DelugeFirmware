@@ -71,6 +71,24 @@ using Hint = deluge::ui::oled::Hint;
 ///        (`ui/oled/values.h:18`).
 using IntRange = deluge::ui::oled::Range;
 
+/// @brief Which arithmetic converts a `ParamRef`'s stored `int32_t` to and from the menu units the
+///        user sees, i.e. which of legacy's `readCurrentValue`/`getFinalValue` pairs a param item
+///        used (`gui/menu_item/value_scaling.cpp`).
+///
+/// Legacy encoded this in the *class* of the menu item; as plain data it is one enumerator on the
+/// `Binding`. Only a `ParamRef` binding is scaled at all -- a `get`/`set` hook owns its own units --
+/// so only `param()` takes one.
+///
+///   * `Standard` -- INT32 range <-> 0..50. `patched_param::Integer` (`patched_param/integer.cpp:33,79`),
+///     `menu_item::UnpatchedParam` (`unpatched_param.cpp:36,84`); the overwhelming majority.
+///   * `HalfPrecision` -- 0..INT32_MAX <-> 0..50, for params that "aren't set up for negative
+///     inputs" (`value_scaling.cpp:35-36`): `osc::PulseWidth` (`osc/pulse_width.h:32,34-37`) and
+///     `audio_compressor::CompParam` (`audio_compressor/compressor_params.h:29-33`).
+///   * `Pan` -- INT32 range <-> -25..25, and a -25..25 range rather than 0..50:
+///     `patched_param::Pan` (`patched_param/pan.cpp:28-34`, `pan.h:26-27`) and
+///     `unpatched_param::Pan` (`unpatched_param/pan.cpp:63-70`, `pan.h:28-29`).
+enum class Scaling : uint8_t { Standard, HalfPrecision, Pan };
+
 /// @brief Which model parameter a `Binding` reads and writes through `ModelStack`, or an invalid
 ///        (unset) reference for a `Binding` driven entirely by `get`/`set` instead.
 struct ParamRef {
@@ -124,6 +142,10 @@ struct Binding {
 	DynamicNamesFn dynamic_names = nullptr;
 	deluge::ui::oled::ValueStyle style{};
 	uint8_t decimal_places = 0;
+
+	/// @brief Which value scaling `param` is read and written through (`Scaling` above). Meaningful
+	///        only when `param.valid()`; ignored for a `get`/`set` binding.
+	Scaling scaling = Scaling::Standard;
 };
 
 /// @brief Forward declared only -- see the file-level note. Defined alongside the interpreter's own
@@ -193,13 +215,19 @@ constexpr Node with_range_dependent(Node n) {
 // ---------------------------------------------------------------------------------------------
 // Builders. All `constexpr`; `title` defaults to `name` (0 means "use name").
 
-constexpr Node param(uint16_t name, ParamRef p, Hint h = Hint::Knob, RelevantFn rel = nullptr, uint16_t title = 0) {
+/// @param scaling Which value scaling this param uses (`Scaling`). The default matches legacy's
+///                `patched_param::Integer` / `menu_item::UnpatchedParam`; the two exceptions
+///                (`Scaling::HalfPrecision` for pulse width and the compressor params,
+///                `Scaling::Pan` for the two pan params) name themselves at the call site.
+constexpr Node param(uint16_t name, ParamRef p, Hint h = Hint::Knob, RelevantFn rel = nullptr, uint16_t title = 0,
+                     Scaling scaling = Scaling::Standard) {
 	Node n{};
 	n.name = name;
 	n.title = title != 0 ? title : name;
 	n.kind = Kind::Int;
 	n.hint = h;
 	n.bind.param = p;
+	n.bind.scaling = scaling;
 	n.relevant = rel;
 	return n;
 }

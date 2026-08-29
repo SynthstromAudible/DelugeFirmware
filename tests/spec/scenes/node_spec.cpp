@@ -36,6 +36,15 @@ static_assert(node_spec_s.children[0] == &node_spec_a);
 // `IntRange` is an alias of `ui::oled::Range`, not a new type.
 static_assert(std::is_same_v<IntRange, deluge::ui::oled::Range>);
 
+// `Binding::scaling` (task-4 fix round 1, Important 2): `Scaling::Standard` unless the call site
+// names one of the two legacy exceptions. Only `param()` takes it -- a `get`/`set` binding owns its
+// own units, so nothing scales it.
+static_assert(node_spec_a.bind.scaling == Scaling::Standard);
+constexpr Node node_spec_half = param(27, ParamRef{params::Kind::PATCHED, 20}, Hint::Knob, nullptr, /*title=*/0,
+                                      Scaling::HalfPrecision);
+static_assert(node_spec_half.bind.scaling == Scaling::HalfPrecision);
+static_assert(node_spec_half.name == 27 && node_spec_half.title == 27 && node_spec_half.kind == Kind::Int);
+
 // A relevance predicate and a title override both flow through unchanged.
 constexpr bool node_spec_always(const MenuContext&) { return true; }
 constexpr Node node_spec_titled = param(3, ParamRef{params::Kind::UNPATCHED_SOUND, 7}, Hint::Knob, node_spec_always, /*title=*/9);
@@ -51,6 +60,7 @@ static_assert(node_spec_int.kind == Kind::Int);
 static_assert(node_spec_int.hint == deluge::ui::oled::Hint::Slider);
 static_assert(node_spec_int.bind.fixed_range.has_value());
 static_assert(node_spec_int.bind.fixed_range->min == 0 && node_spec_int.bind.fixed_range->max == 100);
+static_assert(node_spec_int.bind.scaling == Scaling::Standard); // a get/set binding is never scaled
 
 constexpr Node node_spec_decimal = decimal_item(5, node_spec_get, node_spec_set, IntRange{-10, 10}, 2);
 static_assert(node_spec_decimal.kind == Kind::Decimal);

@@ -53,9 +53,29 @@ constexpr Node global_volume_node = menu::param(static_cast<uint16_t>(deluge::l1
                                                 {params::Kind::UNPATCHED_GLOBAL, params::UNPATCHED_VOLUME});
 
 /// @brief Legacy `patched_param::Pan` (`patched_param/pan.h:26-28`): the relative range and the pan
-///        scaling, keyed off `Hint::Pan`.
+///        scaling, here left at `Scaling::Standard` so `scaling_for`'s `Hint::Pan` /
+///        `params::isParamPan` backstop is the thing under test.
 constexpr Node pan_node = menu::param(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_PAN),
                                       {params::Kind::PATCHED, params::LOCAL_PAN}, menu::Hint::Pan);
+
+/// @brief The same param with `Scaling::Pan` named explicitly and no `Hint::Pan` -- the declared
+///        route, which must reach the same arithmetic as the inferred one above.
+constexpr Node pan_declared_node =
+    menu::param(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_PAN), {params::Kind::PATCHED, params::LOCAL_PAN},
+                menu::Hint::Knob, nullptr, /*title=*/0, menu::Scaling::Pan);
+
+/// @brief Legacy `osc::PulseWidth` (`osc/pulse_width.h:32,34-37`) -- a patched param on
+///        `Scaling::HalfPrecision`, which has no inferable spelling and must be declared.
+constexpr Node pulse_width_node = menu::param(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_PULSE_WIDTH),
+                                              {params::Kind::PATCHED, params::LOCAL_OSC_A_PHASE_WIDTH},
+                                              menu::Hint::Knob, nullptr, /*title=*/0, menu::Scaling::HalfPrecision);
+
+/// @brief Legacy `audio_compressor::CompParam` (`audio_compressor/compressor_params.h:29-33`) -- the
+///        unpatched half of the same scaling.
+constexpr Node comp_threshold_node =
+    menu::param(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_THRESHOLD),
+                {params::Kind::UNPATCHED_SOUND, params::UNPATCHED_COMPRESSOR_THRESHOLD}, menu::Hint::Knob, nullptr,
+                /*title=*/0, menu::Scaling::HalfPrecision);
 
 /// @brief The `Kind::Enum` names table -- two real l10n ids.
 constexpr uint16_t kEnumNames[] = {
@@ -88,6 +108,20 @@ void record_feedback(const MenuContext&, const Node& node, int32_t knob_pos) {
 	++g_feedback_calls;
 }
 
+/// @brief Install `record_feedback` for one example and take it back down however the example ends.
+///
+/// A bare `set_feedback_hook(nullptr)` at the end of the body leaks the hook into every later
+/// example if an assertion above it fails (review round 1, test-quality nit).
+struct FeedbackHookGuard {
+	FeedbackHookGuard() {
+		g_feedback_node = nullptr;
+		g_feedback_knob_pos = -1;
+		g_feedback_calls = 0;
+		bindings::set_feedback_hook(&record_feedback);
+	}
+	~FeedbackHookGuard() { bindings::set_feedback_hook(nullptr); }
+};
+
 /// @brief Drop whatever earlier specs raised, so a `has()` below is about this write only.
 void clear_dirty() {
 	(void)deluge::notify::dirty().drain();
@@ -103,6 +137,24 @@ int32_t patched_raw(const MenuContext& ctx, params::ParamType p) {
 
 int32_t unpatched_raw(const MenuContext& ctx, params::ParamType p) {
 	return ctx.params->getUnpatchedParamSet()->getValue(p);
+}
+
+/// @brief A `SoundDrum` added to the kit with **no note row** -- `spec::add_drum` minus its
+///        `createNewNoteRowForKit` half. The affect-entire loop must step over it
+///        (`bindings.cpp`'s `note_row == nullptr` skip) rather than dereference the null row legacy
+///        would have (`model_stack.cpp:116`).
+SoundDrum* add_drum_without_note_row(spec::SongFixture& f) {
+	auto* kit = static_cast<Kit*>(f.instrument);
+	auto* drum = spec::detail::place<SoundDrum>();
+
+	ParamManagerForTimeline params;
+	params.setupWithPatching();
+	Sound::initParams(&params);
+	drum->setupAsSample(&params);
+	f.song->backUpParamManager(drum, f.clip, &params, true);
+
+	kit->addDrum(drum); // appends -- `model/instrument/kit.cpp:422-430`
+	return drum;
 }
 
 } // namespace
@@ -161,6 +213,16 @@ describe menu_bindings_value("scenes::menu::bindings read/write", $ {
 		expect(bindings::read(pan_node, ctx)).to_equal(-10);
 	});
 
+	it("reaches the same pan arithmetic whether Scaling::Pan is declared or inferred", _ {
+		auto f = spec::make_synth_song();
+		const MenuContext ctx = synth_context(f);
+
+		bindings::write(pan_declared_node, ctx, -10);
+		expect(patched_raw(ctx, params::LOCAL_PAN)).to_equal(computeFinalValueForPan(-10));
+		expect(bindings::read(pan_declared_node, ctx)).to_equal(-10);
+		expect(bindings::read(pan_node, ctx)).to_equal(-10);
+	});
+
 	it("round-trips a toggle_item through its own get/set", _ {
 		auto f = spec::make_synth_song();
 		const MenuContext ctx = synth_context(f);
@@ -173,8 +235,140 @@ describe menu_bindings_value("scenes::menu::bindings read/write", $ {
 	});
 });
 
+describe menu_bindings_scaling("scenes::menu::bindings value scaling", $ {
+	// Fix round 1, Important 2 + Important 3(b): all three `Scaling` enumerators, at BOTH range ends
+	// and a mid value, each against the legacy function. The ends are the only place the arithmetic
+	// is not a formula (`value_scaling.cpp:22-33`, `:35-46`, `:48-58` each special-case min and max),
+	// so they are the only place a transcription slip could hide.
+
+	it("Scaling::Standard matches the legacy standard pair at 0, 25 and 50", _ {
+		auto f = spec::make_synth_song();
+		const MenuContext ctx = synth_context(f);
+
+		for (int32_t v : {0, 25, 50}) {
+			bindings::write(lpf_freq_node, ctx, v);
+			expect(patched_raw(ctx, params::LOCAL_LPF_FREQ)).to_equal(computeFinalValueForStandardMenuItem(v));
+			expect(bindings::read(lpf_freq_node, ctx))
+			    .to_equal(computeCurrentValueForStandardMenuItem(computeFinalValueForStandardMenuItem(v)));
+		}
+	});
+
+	it("Scaling::Pan matches the legacy pan pair at -25, 0 and 25", _ {
+		auto f = spec::make_synth_song();
+		const MenuContext ctx = synth_context(f);
+
+		for (int32_t v : {-25, 0, 25}) {
+			bindings::write(pan_declared_node, ctx, v);
+			expect(patched_raw(ctx, params::LOCAL_PAN)).to_equal(computeFinalValueForPan(v));
+			expect(bindings::read(pan_declared_node, ctx))
+			    .to_equal(computeCurrentValueForPan(computeFinalValueForPan(v)));
+		}
+	});
+
+	it("Scaling::HalfPrecision matches the legacy half-precision pair at 0, 25 and 50, patched", _ {
+		auto f = spec::make_synth_song();
+		const MenuContext ctx = synth_context(f);
+
+		for (int32_t v : {0, 25, 50}) {
+			bindings::write(pulse_width_node, ctx, v);
+			expect(patched_raw(ctx, params::LOCAL_OSC_A_PHASE_WIDTH))
+			    .to_equal(computeFinalValueForHalfPrecisionMenuItem(v));
+			expect(bindings::read(pulse_width_node, ctx))
+			    .to_equal(computeCurrentValueForHalfPrecisionMenuItem(computeFinalValueForHalfPrecisionMenuItem(v)));
+		}
+	});
+
+	it("Scaling::HalfPrecision works on an unpatched param too", _ {
+		auto f = spec::make_synth_song();
+		const MenuContext ctx = synth_context(f);
+
+		bindings::write(comp_threshold_node, ctx, 40);
+		expect(unpatched_raw(ctx, params::UNPATCHED_COMPRESSOR_THRESHOLD))
+		    .to_equal(computeFinalValueForHalfPrecisionMenuItem(40));
+	});
+
+	it("never stores a negative value for a half-precision param, where Standard would", _ {
+		auto f = spec::make_synth_song();
+		const MenuContext ctx = synth_context(f);
+
+		// The whole point of `computeFinalValueForHalfPrecisionMenuItem` -- "comp params and osc
+		// pulse width aren't set up for negative inputs" (`value_scaling.cpp:36`). Menu 0 stores
+		// INT32_MIN under Standard and 0 under HalfPrecision.
+		bindings::write(pulse_width_node, ctx, 0);
+		expect(patched_raw(ctx, params::LOCAL_OSC_A_PHASE_WIDTH)).to_equal(0);
+		expect(computeFinalValueForStandardMenuItem(0) < 0).to_be_true();
+	});
+
+	it("gives a half-precision param the ordinary 0..50 range", _ {
+		auto f = spec::make_synth_song();
+		const MenuContext ctx = synth_context(f);
+		// Neither `osc::PulseWidth` nor `CompParam` overrides getMaxValue/getMinValue.
+		const menu::IntRange r = bindings::range(pulse_width_node, ctx);
+		expect(r.min).to_equal(0);
+		expect(r.max).to_equal(50);
+	});
+});
+
+describe menu_bindings_guards("scenes::menu::bindings guards", $ {
+	// Fix round 1, Important 3(a): the three refusals this port added beyond legacy.
+
+	it("reads 0 and writes nothing when the param manager cannot serve the param", _ {
+		// A MIDI clip's param manager is `setupMIDI()` -- a MIDIParamCollection in summaries[0] and
+		// nothing in summaries[1]. Legacy's `getPatchedParamSet()` freezes (E411) in alpha/beta and
+		// casts null otherwise (`param_manager.h:128-135`); `getPatchedAutoParamFromId` dereferences
+		// the same null summary (`model_stack.cpp:245-256`).
+		auto f = spec::make_midi_song();
+		const MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, /*kit_global_fx=*/false);
+		expect(ctx.params == &f.clip->paramManager).to_be_true();
+		clear_dirty();
+
+		expect(bindings::read(lpf_freq_node, ctx)).to_equal(0);
+		bindings::write(lpf_freq_node, ctx, 30); // must not crash
+		expect(bindings::read(lpf_freq_node, ctx)).to_equal(0);
+		// Refused, so nothing is owed a repaint either.
+		expect(deluge::notify::dirty().drain().has(deluge::notify::Dirty::ParamAutomation)).to_be_false();
+	});
+
+	it("writes nothing when the context has no model stack", _ {
+		// `model_stack_for`'s precondition (`context.h`): resolved, and either the song view or a
+		// clip. A context with neither would build a stack over a null timeline counter.
+		auto f = spec::make_synth_song();
+		MenuContext ctx = synth_context(f);
+		ParamManagerForTimeline* params = ctx.params;
+		const int32_t before = params->getPatchedParamSet()->getValue(params::LOCAL_LPF_FREQ);
+
+		ctx.clip = nullptr;
+		ctx.is_song_view = false;
+		clear_dirty();
+
+		bindings::write(lpf_freq_node, ctx, 30); // must not crash
+
+		expect(params->getPatchedParamSet()->getValue(params::LOCAL_LPF_FREQ)).to_equal(before);
+		expect(deluge::notify::dirty().drain().has(deluge::notify::Dirty::ParamAutomation)).to_be_false();
+	});
+
+	it("skips a kit drum with no note row and still writes the ones that have rows", _ {
+		auto f = spec::make_kit_song();
+		SoundDrum* with_row = spec::add_drum<SoundDrum>(f);
+		SoundDrum* orphan = add_drum_without_note_row(f);
+
+		int32_t row_index = 0;
+		expect(f.clip->getNoteRowForDrum(orphan, &row_index) == nullptr).to_be_true();
+
+		MenuContext ctx = menu::context_for(*f.song, f.clip, 0, false, false, /*kit_global_fx=*/false);
+		ctx.affect_entire_held = true;
+
+		bindings::write(lpf_freq_node, ctx, 33); // must not crash on the row-less drum
+
+		NoteRow* row = f.clip->getNoteRowForDrum(with_row, &row_index);
+		expect(row != nullptr).to_be_true();
+		expect(row->paramManager.getPatchedParamSet()->getValue(params::LOCAL_LPF_FREQ))
+		    .to_equal(computeFinalValueForStandardMenuItem(33));
+	});
+});
+
 describe menu_bindings_notify("scenes::menu::bindings notify + feedback", $ {
-	it("raises ParamAutomation and ModTarget for a param write", _ {
+	it("raises ParamAutomation, ModTarget and GridMain for a param write", _ {
 		auto f = spec::make_synth_song();
 		const MenuContext ctx = synth_context(f);
 		clear_dirty();
@@ -184,6 +378,11 @@ describe menu_bindings_notify("scenes::menu::bindings notify + feedback", $ {
 		const deluge::notify::DirtySet d = deluge::notify::dirty().drain();
 		expect(d.has(deluge::notify::Dirty::ParamAutomation)).to_be_true();
 		expect(d.has(deluge::notify::Dirty::ModTarget)).to_be_true();
+		// The pad half of `possiblyRefreshAutomationEditorGrid` (`automation_view.cpp:624`'s
+		// `uiNeedsRendering(&automationView)`): `ParamAutomation`/`ModTarget` reach only `r.oled`
+		// (`notify_drain_mapping.cpp:20`), so without GridMain the automation grid would stop
+		// repainting (fix round 1, Important 1).
+		expect(d.has(deluge::notify::Dirty::GridMain)).to_be_true();
 	});
 
 	it("raises Oled for a get/set write", _ {
@@ -195,16 +394,26 @@ describe menu_bindings_notify("scenes::menu::bindings notify + feedback", $ {
 
 		const deluge::notify::DirtySet d = deluge::notify::dirty().drain();
 		expect(d.has(deluge::notify::Dirty::Oled)).to_be_true();
+		// The get/set path is not a param write: no grid, no automation.
+		expect(d.has(deluge::notify::Dirty::GridMain)).to_be_false();
+		expect(d.has(deluge::notify::Dirty::ParamAutomation)).to_be_false();
+	});
+
+	it("raises nothing for a node with neither a param nor a set hook", _ {
+		auto f = spec::make_synth_song();
+		const MenuContext ctx = synth_context(f);
+		const Node unwritable = menu::submenu(1, {}); // no bind.param, no bind.set
+		clear_dirty();
+
+		bindings::write(unwritable, ctx, 1);
+
+		expect(deluge::notify::dirty().drain().any()).to_be_false();
 	});
 
 	it("calls the feedback hook after a param write, with the knob position", _ {
 		auto f = spec::make_synth_song();
 		const MenuContext ctx = synth_context(f);
-
-		g_feedback_node = nullptr;
-		g_feedback_knob_pos = -1;
-		g_feedback_calls = 0;
-		bindings::set_feedback_hook(&record_feedback);
+		const FeedbackHookGuard hook;
 
 		bindings::write(lpf_freq_node, ctx, 25);
 
@@ -212,8 +421,6 @@ describe menu_bindings_notify("scenes::menu::bindings notify + feedback", $ {
 		expect(g_feedback_node == &lpf_freq_node).to_be_true();
 		// `paramValueToKnobPos` reports -64..64 for a 0..50 menu value; 25 is the midpoint.
 		expect(g_feedback_knob_pos).to_equal(0);
-
-		bindings::set_feedback_hook(nullptr);
 	});
 
 	it("does not call a cleared feedback hook", _ {
@@ -390,12 +597,12 @@ describe menu_bindings_range_names("scenes::menu::bindings range/names/learn", $
 });
 // clang-format on
 
-/// Four `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
+/// Six `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
 /// here with `add_specs` instead.
 int bindings_spec(int argc, char** const argv) {
 	return CppSpec::parse(argc, argv)
-	               .add_specs(menu_bindings_value, menu_bindings_notify, menu_bindings_affect_entire,
-	                          menu_bindings_range_names)
+	               .add_specs(menu_bindings_value, menu_bindings_scaling, menu_bindings_guards, menu_bindings_notify,
+	                          menu_bindings_affect_entire, menu_bindings_range_names)
 	               .exec()
 	               .is_success()
 	           ? EXIT_SUCCESS
