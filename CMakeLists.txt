@@ -1,4 +1,7 @@
-cmake_minimum_required(VERSION 3.23)
+# 3.27: src/scenes/CMakeLists.txt links deluge_app via $<COMPILE_ONLY:...> (fix round 1,
+# spec E1 task 1) to take its usage requirements without archiving its objects into
+# libdeluge_scenes.a -- that generator expression needs CMake >= 3.27.
+cmake_minimum_required(VERSION 3.27)
 cmake_policy(SET CMP0135 NEW)
 
 # Default to the GCC toolchain, but let -DCMAKE_TOOLCHAIN_FILE=... win. An

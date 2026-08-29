@@ -10,7 +10,10 @@
 #   ./build-sim/deluge_host_boundary    # BSP-boundary smoke target
 #   ./build-sim/deluge_host             # the full application (in progress)
 
-cmake_minimum_required(VERSION 3.24)
+# 3.27: src/scenes/CMakeLists.txt (add_subdirectory'd below) links deluge_app via
+# $<COMPILE_ONLY:...> (fix round 1, spec E1 task 1) to take its usage requirements without
+# archiving its objects into libdeluge_scenes.a -- that generator expression needs CMake >= 3.27.
+cmake_minimum_required(VERSION 3.27)
 
 # ---------------------------------------------------------------------------
 # Compiler selection — MUST precede project(), which is where CMake probes and

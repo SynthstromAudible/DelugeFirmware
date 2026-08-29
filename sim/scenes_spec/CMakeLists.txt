@@ -32,7 +32,11 @@ endif()
 
 # ctest rows: create_specs_driver already registered one row per *_spec.cpp here (named by its bare
 # stem, e.g. "l10n_bridge_spec", "profile_spec"), run without the env below -- these task-1 specs
-# touch no SD card. `scenes_spec` additionally runs every linked spec in one row, under the same env
+# touch no SD card.
+#
+# `scenes_spec` is an ADDITIONAL row, not redundant with those: neither auto-registered name
+# contains "scenes" (fix round 1 review), so `ctest -R scenes` -- the plan's own acceptance filter
+# -- would match nothing without it. It also runs every linked spec in one row, under the same env
 # the level-3 app scripts use (../CMakeLists.txt), for parity with a future scenes spec that needs
 # it (script_runner.h's expect_script_goldens). Sim rows carry an explicit TIMEOUT (harness T4 fix
 # round 2, see the ui_app_scripts_* rows in ../CMakeLists.txt); give the whole set the same one.
@@ -42,7 +46,9 @@ endif()
 # (DELUGE_SPEC, tests/spec/support/spec_main.h) rejects "-A" as an unrecognised flag. So this chains
 # one exact-name invocation per spec instead (`<spec_id> --verbose`, exactly how create_specs_driver
 # invokes each spec's own row above), built from the same glob so a spec added later needs no CMake
-# change here either.
+# change here either. Needs `sh` on the COMMAND line (unlike the rest of this file, which calls
+# `${CMAKE_COMMAND} -E env` directly) -- fine on this project's Linux/macOS-only host-sim today;
+# revisit if a Windows host-sim configuration is ever added.
 file(GLOB_RECURSE _scenes_spec_sources RELATIVE ${CMAKE_CURRENT_LIST_DIR} ${CMAKE_CURRENT_LIST_DIR}/*_spec.cpp)
 set(_scenes_spec_chain "")
 foreach(_scenes_spec IN LISTS _scenes_spec_sources)
