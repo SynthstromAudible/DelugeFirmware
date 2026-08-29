@@ -52,6 +52,25 @@ describe scenes_node_id("scenes::menu node-id registry", $ {
 		expect(node_id(node_id_spec_child_a) == a_id_1).to_be_true();
 		expect(node_id(node_id_spec_child_b) == b_id_1).to_be_true();
 	});
+	it("stops at kMaxNodes on an oversize tree and reports the count assigned, not the true reachable count", _ {
+		// A flat chain of kMaxNodes + 2 nodes (chain[i]'s only child is chain[i + 1]) -- no real
+		// menu structure needed, just enough nodes that the reachable count exceeds the registry.
+		static Node chain[kMaxNodes + 2]{};
+		static const Node* kid[kMaxNodes + 2][1]{};
+		for (size_t i = 0; i < kMaxNodes + 2; i++) {
+			chain[i] = param(uint16_t(3000 + i), ParamRef{params::Kind::PATCHED, 0}, Hint::Knob);
+		}
+		for (size_t i = 0; i + 1 < kMaxNodes + 2; i++) {
+			kid[i][0] = &chain[i + 1];
+			chain[i].children = kid[i];
+		}
+		const Node* roots[] = {&chain[0]};
+
+		uint16_t assigned = assign_node_ids(roots);
+		expect(assigned == uint16_t(kMaxNodes)).to_be_true();
+		expect(node_id(chain[kMaxNodes + 1]) == uint16_t(0)).to_be_true();
+		expect(node_by_id(uint16_t(kMaxNodes + 1)) == nullptr).to_be_true();
+	});
 });
 // clang-format on
 

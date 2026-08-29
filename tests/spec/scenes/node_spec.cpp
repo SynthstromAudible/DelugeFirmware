@@ -56,6 +56,43 @@ constexpr Node node_spec_decimal = decimal_item(5, node_spec_get, node_spec_set,
 static_assert(node_spec_decimal.kind == Kind::Decimal);
 static_assert(node_spec_decimal.bind.decimal_places == 2);
 
+// A no-op CustomItem, at namespace scope so `&node_spec_null_item`'s address is usable in a
+// constexpr initializer below (address-of a static-storage-duration object is a constant
+// expression regardless of the object's own type or how it was constructed -- this does not
+// require CustomItem itself to be a literal type).
+struct NodeSpecNullItem : CustomItem {
+	void render(deluge::ui::oled::OledFrame&, const MenuContext&, MenuState&) const override {}
+	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent&, const deluge::ui::shell::UiContext&,
+	                                  const MenuContext&, MenuState&) const override {
+		return {};
+	}
+};
+const NodeSpecNullItem node_spec_null_item;
+
+// Review round 1: every builder proven `constexpr`-usable, not just labelled so -- one field
+// check each, closing the gap against the runtime-only `it`s below (which still exercise the
+// full field set at runtime; these additionally prove compile-time usability).
+constexpr Node node_spec_toggle = toggle_item(20, node_spec_get, node_spec_set);
+static_assert(node_spec_toggle.kind == Kind::Toggle);
+
+constexpr uint16_t node_spec_enum_names[] = {30, 31, 32};
+constexpr Node node_spec_enum = enumeration(21, node_spec_enum_names, node_spec_get, node_spec_set);
+static_assert(node_spec_enum.bind.names.size() == 3);
+
+constexpr DynamicNamesFn node_spec_dyn_names_fn = +[](const MenuContext&, std::span<std::string_view>) -> size_t { return 0; };
+constexpr Node node_spec_dyn_enum = dynamic_enumeration(22, node_spec_dyn_names_fn, node_spec_get, node_spec_set);
+static_assert(node_spec_dyn_enum.bind.dynamic_names == node_spec_dyn_names_fn);
+
+constexpr Node node_spec_action = action(23, node_spec_set);
+static_assert(node_spec_action.bind.set == node_spec_set);
+
+constexpr Node node_spec_custom = custom(24, &node_spec_null_item);
+static_assert(node_spec_custom.custom == &node_spec_null_item);
+
+constexpr DynamicChildrenFn node_spec_children_fn = +[](const MenuContext&, std::span<const Node*>) -> size_t { return 0; };
+constexpr Node node_spec_dyn_submenu = dynamic_submenu(25, node_spec_children_fn);
+static_assert(node_spec_dyn_submenu.dynamic_children == node_spec_children_fn);
+
 describe scenes_node("scenes::menu::Node builders", $ {
 	it("toggle_item fills bind.get/set and nothing else", _ {
 		Node t = toggle_item(6, node_spec_get, node_spec_set);
@@ -86,17 +123,9 @@ describe scenes_node("scenes::menu::Node builders", $ {
 		expect(a.bind.set == node_spec_set).to_be_true();
 		expect(a.bind.get == nullptr).to_be_true();
 
-		struct NullItem : CustomItem {
-			void render(deluge::ui::oled::OledFrame&, const MenuContext&, MenuState&) const override {}
-			deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent&, const deluge::ui::shell::UiContext&,
-			                                  const MenuContext&, MenuState&) const override {
-				return {};
-			}
-		};
-		static const NullItem item;
-		Node c = custom(10, &item);
+		Node c = custom(10, &node_spec_null_item);
 		expect(c.kind == Kind::Custom).to_be_true();
-		expect(c.custom == &item).to_be_true();
+		expect(c.custom == &node_spec_null_item).to_be_true();
 	});
 	it("dynamic_submenu has no static children", _ {
 		auto children_fn = +[](const MenuContext&, std::span<const Node*>) -> size_t { return 0; };

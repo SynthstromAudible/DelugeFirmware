@@ -131,6 +131,22 @@ RULES = [
         r"\bdeluge_clock_|\bstd::chrono\b|\bclock\(\)|\btime\(",
         "2026-08-26-ui-test-harness-design.md",
     ),
+    (
+        # Mirrors shell-includes-outside for src/scenes: the layer's own CMakeLists.txt
+        # (src/scenes/CMakeLists.txt) is the authority -- deluge_scenes may include scenes/**,
+        # shell/**, ui/**, gfx/**, notify/**, libdeluge/**, and -- being the first UI layer
+        # allowed to reach into the model -- model/**, modulation/**, playback/**, storage/**,
+        # gui/l10n/**, definitions_cxx.hpp. Never gui/ otherwise (gui/l10n/ is the sole
+        # exception), never hid/. `definitions_cxx.hpp` sits in the allow-list itself (not the
+        # trailing catch-all group, unlike shell-includes-outside's `definitions.*`, which shell
+        # must NOT reach): scenes is deliberately the first model-aware UI layer, so the header
+        # that pulls in `params::Kind` and friends is expected, not a back door.
+        "scenes-includes-outside",
+        "src/scenes/**",
+        "include",
+        r"^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|model/|modulation/|playback/|storage/|gui/l10n/|definitions_cxx\.hpp)(?:.*/)",
+        "2026-08-26-ui-scenes-menus-design.md",
+    ),
 ]
 # Matches both #include "path" and #include <path>, capturing only the path (the delimiter
 # itself is stripped either way). Angle-bracket project includes (e.g. #include <hid/buttons.h>)
