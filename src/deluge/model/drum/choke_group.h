@@ -41,6 +41,14 @@ constexpr bool shouldChoke(PolyphonyMode targetPolyphonic, uint8_t targetChokeGr
 /// tests/unit/choke_group_tests.cpp. Firmware code instantiates both with Serializer/Deserializer.
 template <typename SerializerT>
 void writeChokeGroupToFile(SerializerT& writer, uint8_t chokeGroup) {
+	// A missing attribute already reads back as group 1 - that's both SoundDrum's initialiser and
+	// readChokeGroupFromFile()'s fallback - so writing the default would only add noise to every
+	// drum of every kit, and make re-saving an untouched song look like it changed everywhere.
+	// Key on the value rather than on PolyphonyMode::CHOKE: a drum put in group 3 and then switched
+	// to POLY should still remember the 3 for when it goes back to CHOKE.
+	if (chokeGroup == kMinChokeGroup) {
+		return;
+	}
 	writer.writeAttribute("chokeGroup", chokeGroup);
 }
 
