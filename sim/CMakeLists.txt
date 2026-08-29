@@ -415,12 +415,17 @@ add_executable(deluge_host
     ${REPO_ROOT}/src/bsp/host/host_pcm.c
     ${REPO_ROOT}/src/bsp/host/host_midi.c
     ${REPO_ROOT}/src/bsp/host/host_main.c
+    ${REPO_ROOT}/src/bsp/host/host_script.c
     ${REPO_ROOT}/src/bsp/host/host_debug.cpp
     ${REPO_ROOT}/src/bsp/host/host_efatfs_passthrough.cpp
+    # The UI script parser (spec G §2). C++ with an extern "C" façade, compiled straight into the
+    # host BSP so level 3 parses exactly the same scripts levels 1-2 do.
+    ${REPO_ROOT}/tests/harness/ui_script.cpp
 )
 # host_debug.cpp reaches into the app's reason_check (memory/reason_check.h) for the host-sim leak triggers - allowed
 # (the boundary check only forbids the app depending on the BSP, not the reverse), so put src/deluge on the path.
-target_include_directories(deluge_host PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
+# ${REPO_ROOT}/tests is for host_script.c's <harness/ui_script.h>.
+target_include_directories(deluge_host PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge ${REPO_ROOT}/tests)
 target_link_libraries(deluge_host PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
 if(RT_LIB)
     target_link_libraries(deluge_host PRIVATE ${RT_LIB})
@@ -440,12 +445,15 @@ add_executable(deluge_loadcheck
     ${REPO_ROOT}/src/bsp/host/host_pcm.c
     ${REPO_ROOT}/src/bsp/host/host_midi.c
     ${REPO_ROOT}/src/bsp/host/host_loadcheck_main.cpp
+    ${REPO_ROOT}/src/bsp/host/host_script.c
     ${REPO_ROOT}/src/bsp/host/host_debug.cpp
     ${REPO_ROOT}/src/bsp/host/host_efatfs_passthrough.cpp
+    ${REPO_ROOT}/tests/harness/ui_script.cpp # host_script.c's parser (see deluge_host above)
 )
 # host_debug.cpp provides deluge_host_debug_poll() (called from host_audio.c) + reaches the app's reason_check;
 # src/deluge on the path for memory/reason_check.h (the boundary check only forbids app→BSP, not BSP→app).
-target_include_directories(deluge_loadcheck PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge)
+# ${REPO_ROOT}/tests is for host_script.c's <harness/ui_script.h>.
+target_include_directories(deluge_loadcheck PRIVATE ${HOST_INCLUDE_DIRS} ${REPO_ROOT}/src/deluge ${REPO_ROOT}/tests)
 target_link_libraries(deluge_loadcheck PRIVATE deluge_app deluge_scheduler ${SIM_ALLOC_LINK})
 if(RT_LIB)
     target_link_libraries(deluge_loadcheck PRIVATE ${RT_LIB})
@@ -518,3 +526,31 @@ add_host_displays_test(host_displays_overflow "128x64,128x64+1,128x64+2,128x64+3
 # recorder round-trip oracle now runs there too (`GOLDEN_SCENARIO=recorder_roundtrip`). The
 # padsweep layout-invariance guard has no Embassy replacement yet — a tracked follow-up.
 # `deluge_loadcheck` (parse-only, no sample streaming) stays.
+
+# ===========================================================================
+# CTests: level 3 of the UI test harness (spec G §4.2).
+# ===========================================================================
+#
+# One pair per tests/ui-scripts/app/*.txt: `ui_app_scripts_<name>` runs the whole headless app on
+# the deterministic frame clock with the script injected (src/bsp/host/host_script.c), writing
+# `<name>.oled<N>.pbm` / `<name>.state` into ${CMAKE_BINARY_DIR}/got/app/<name>;
+# `ui_app_scripts_<name>_diff` byte-compares that tree against tests/golden/ui/app/<name>.
+#
+# Re-record with GFX_GOLDEN_UPDATE=1 (scripts/ui_snapshot_diff.py's convention) after running the
+# pair once, then run it again without the flag to confirm it passes.
+#
+# CONFIGURE_DEPENDS so adding a script re-globs on the next build rather than needing a manual
+# cmake re-run — a new script that silently never ran would be the worst failure mode here.
+file(GLOB UI_APP_SCRIPTS CONFIGURE_DEPENDS ${REPO_ROOT}/tests/ui-scripts/app/*.txt)
+foreach(script IN LISTS UI_APP_SCRIPTS)
+    get_filename_component(name ${script} NAME_WE)
+    add_test(NAME ui_app_scripts_${name}
+             COMMAND ${CMAKE_COMMAND} -E env DELUGE_HOST_DETERMINISTIC=1 DELUGE_HOST_SCRIPT=${script}
+                     DELUGE_HOST_SNAPSHOT_DIR=${CMAKE_BINARY_DIR}/got/app/${name}
+                     DELUGE_SD_ROOT=${REPO_ROOT}/tests/fixtures/card
+                     $<TARGET_FILE:deluge_host>)
+    add_test(NAME ui_app_scripts_${name}_diff
+             COMMAND python3 ${REPO_ROOT}/scripts/ui_snapshot_diff.py
+                     ${CMAKE_BINARY_DIR}/got/app/${name} ${REPO_ROOT}/tests/golden/ui/app/${name})
+    set_tests_properties(ui_app_scripts_${name}_diff PROPERTIES DEPENDS ui_app_scripts_${name})
+endforeach()

@@ -23,6 +23,7 @@
 /// runtime loop: `deluge_app_init(deluge_board())` then drive `deluge_app_render`
 /// / `deluge_app_tick` against a host audio sink (the WAV-diff harness).
 
+#include "host_script.h" // UI test harness level 3 (DELUGE_HOST_SCRIPT)
 #include "libdeluge/board.h"
 #include "libdeluge/clock.h"
 #include "libdeluge/display.h"
@@ -64,6 +65,12 @@ static void print_board_info(const DelugeBoard* board) {
 }
 
 int main(int argc, char** argv) {
+	// FIRST, before anything reads deluge_board(): a UI script's `board` step rewrites the board
+	// descriptor, and the descriptor is latched by its first reader. host_script_init() is a
+	// no-op unless DELUGE_HOST_SCRIPT is set, and exits 2 with a message if the script cannot be
+	// honoured (no DELUGE_HOST_DETERMINISTIC, a parse error, a shell-level command).
+	host_script_init();
+
 	// `--board-info` (equivalently DELUGE_HOST_PRINT_BOARD=1): print the board descriptor and
 	// exit 0 without booting the app, so the display-set parsing above can be driven from CTest.
 	// deluge_host_boundary would be the natural home for that, but it has not linked since the
@@ -96,7 +103,10 @@ int main(int argc, char** argv) {
 	// WAV-diff harness will drive a fixed number of render blocks instead later).
 	deluge_main();
 
-	// Unreachable today. Mirror the firmware's no-teardown exit if it ever returns.
+	// Unreachable today (deluge_main() ends in mainLoop()'s while(1); a UI script's `quit` exits
+	// from inside the pump). Mirror the firmware's no-teardown exit if it ever returns, and flush
+	// any snapshot the pump queued but had not yet written.
+	host_script_write_pending();
 	fflush(NULL);
 	quick_exit(0);
 }

@@ -52,6 +52,34 @@ ScriptResult parse_script(std::string_view text);
 } // namespace deluge::harness
 #endif // __cplusplus
 
+/// @brief C mirror of `deluge::harness::StepKind`, for the host BSP (spec G §4.2), which is C.
+///
+/// The `static_assert`s below pin it to the C++ enum, so the two cannot drift apart silently --
+/// a drift would otherwise misroute every step in the BSP's dispatch switch with no diagnostic.
+typedef enum UiScriptStepKind {
+	UI_SCRIPT_BOARD = 0,
+	UI_SCRIPT_SNAPSHOT = 1,
+	UI_SCRIPT_BUTTON = 2,
+	UI_SCRIPT_ENCODER = 3,
+	UI_SCRIPT_PAD = 4,
+	UI_SCRIPT_RELEASED = 5,
+	UI_SCRIPT_MODEL = 6,
+	UI_SCRIPT_NOTICE = 7,
+	UI_SCRIPT_QUIT = 8,
+} UiScriptStepKind;
+
+#ifdef __cplusplus
+static_assert(static_cast<uint8_t>(deluge::harness::StepKind::Board) == UI_SCRIPT_BOARD);
+static_assert(static_cast<uint8_t>(deluge::harness::StepKind::Snapshot) == UI_SCRIPT_SNAPSHOT);
+static_assert(static_cast<uint8_t>(deluge::harness::StepKind::Button) == UI_SCRIPT_BUTTON);
+static_assert(static_cast<uint8_t>(deluge::harness::StepKind::Encoder) == UI_SCRIPT_ENCODER);
+static_assert(static_cast<uint8_t>(deluge::harness::StepKind::Pad) == UI_SCRIPT_PAD);
+static_assert(static_cast<uint8_t>(deluge::harness::StepKind::Released) == UI_SCRIPT_RELEASED);
+static_assert(static_cast<uint8_t>(deluge::harness::StepKind::Model) == UI_SCRIPT_MODEL);
+static_assert(static_cast<uint8_t>(deluge::harness::StepKind::Notice) == UI_SCRIPT_NOTICE);
+static_assert(static_cast<uint8_t>(deluge::harness::StepKind::Quit) == UI_SCRIPT_QUIT);
+#endif
+
 /// @brief C mirror of `deluge::harness::Step`, for the host BSP (spec G §4.2), which is C.
 typedef struct UiScriptStep {
 	uint32_t at_ms;

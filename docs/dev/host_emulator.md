@@ -93,3 +93,36 @@ cargo run -p spark-deluge-native --bin spark-deluge-simulator -- --emulate /tmp/
 ```
 
 `DELUGE_HOST_DISPLAYS="128x48+5,128x64+0"` selects the panel set the host board reports.
+
+## Scripted runs and UI snapshots (test harness level 3)
+
+The same binary runs headless from a UI test script and writes snapshots of what it put on the
+panels, pads and LEDs — level 3 of the UI test harness
+(`docs/superpowers/specs/2026-08-26-ui-test-harness-design.md` §4.2). No GUI, no socket.
+
+| Env | Meaning |
+|---|---|
+| `DELUGE_HOST_SCRIPT=<file>` | The UI script to run. Setting it enables everything below. |
+| `DELUGE_HOST_SNAPSHOT_DIR=<dir>` | Where snapshots go (default `./snapshots`); created if missing. Existing `.pbm`/`.state` files in it are cleared at start. |
+| `DELUGE_HOST_DETERMINISTIC=1` | **Required** alongside a script: the script's clock *is* the rendered-frame clock (`ms = host_rendered_frames * 1000 / 44100`). Without it the run exits 2 before the app starts. |
+
+`DELUGE_SD_ROOT` supplies the card root as always; `tests/fixtures/card/` is the committed minimal
+one the ctests use.
+
+The script format is spec G §2 — `<at_ms> <command> <args…>`, `#` comments, one step per line —
+parsed by `tests/harness/ui_script.{h,cpp}` and injected by `src/bsp/host/host_script.c`.
+`tests/ui-scripts/app/boot.txt` is the worked example. At this level `board`, `snapshot`, `button`,
+`encoder`, `pad`, `released` and `quit` are supported; `model` and `notice` are shell-level and are
+rejected at load. Snapshots are `<name>.oled<N>.pbm` (P1 PBM, viewable via `scripts/pbm2png.py`)
+plus `<name>.state`; `scripts/ui_snapshot_diff.py` diffs or (with `GFX_GOLDEN_UPDATE=1`) re-records
+a tree.
+
+```bash
+cmake -B build-sim -S sim -G Ninja -DDELUGE_SIM_X64=ON
+cmake --build build-sim --target deluge_host
+ctest --test-dir build-sim -R ui_app_scripts --output-on-failure
+```
+
+A script also stretches the offline WAV capture (`DELUGE_HOST_CAPTURE_SECONDS`) and sends it to
+`/dev/null` unless you set either explicitly, so it is the script's `quit` that ends the run rather
+than the capture's default 2 s.

@@ -45,8 +45,9 @@
 
 #include "OSLikeStuff/scheduler_api.h" // unblockTask — wake the encoder task on inbound rotation
 
-#include "host_link.h" // emulator transport (display/LED out, input in)
-#include "host_midi.h" // serial (DIN) MIDI bridge
+#include "host_link.h"   // emulator transport (display/LED out, input in)
+#include "host_midi.h"   // serial (DIN) MIDI bridge
+#include "host_script.h" // UI test harness level 3: scripted input + snapshot shadows
 
 #include <stdint.h>
 #include <stdio.h>
@@ -280,16 +281,14 @@ static DelugeBoard host_board = {
     .audio_sample_rate_hz = 44100,
 };
 
-// DELUGE_HOST_DISPLAYS="128x48+5,128x64+0" overrides the panel set so the shell can be
-// exercised against a future board's descriptor before that board's BSP exists.
-static void host_board_apply_env(void) {
-	static bool applied = false;
-	if (applied)
-		return;
-	applied = true;
-	const char* spec = getenv("DELUGE_HOST_DISPLAYS");
+// Parse a "WxH+top[,WxH+top…]" panel spec into host_displays / host_board. Shared by
+// DELUGE_HOST_DISPLAYS and by the UI harness's `board` script step, so the two accept exactly the
+// same syntax and stop on a malformed entry in exactly the same place.
+// `whose` names the source in the diagnostics, which the host_displays_* CTests read.
+// Returns the number of panels accepted (0 = nothing applied; the board keeps its default).
+static uint8_t host_board_parse_displays(const char* spec, const char* whose) {
 	if (!spec || !*spec)
-		return;
+		return 0;
 	uint8_t n = 0;
 	const char* p = spec;
 	while (*p && n < HOST_MAX_DISPLAYS) {
@@ -299,7 +298,7 @@ static void host_board_apply_env(void) {
 		// missing "+" doesn't abort the whole %n match and leave `used` at 0
 		// (which would re-parse the same substring forever).
 		if (sscanf(p, "%ux%u%n", &w, &h, &used) != 2 || used <= 0) {
-			fprintf(stderr, "DELUGE_HOST_DISPLAYS: ignoring malformed entry at \"%s\"\n", p);
+			fprintf(stderr, "%s: ignoring malformed entry at \"%s\"\n", whose, p);
 			break;
 		}
 		const char* q = p + used;
@@ -310,7 +309,7 @@ static void host_board_apply_env(void) {
 			}
 		}
 		if (w == 0 || h == 0 || (h % 8) != 0) {
-			fprintf(stderr, "DELUGE_HOST_DISPLAYS: ignoring malformed entry at \"%s\"\n", p);
+			fprintf(stderr, "%s: ignoring malformed entry at \"%s\"\n", whose, p);
 			break;
 		}
 		host_displays[n++] = (DelugeDisplayDesc){(uint16_t)w, (uint16_t)h, (uint8_t)top};
@@ -321,18 +320,55 @@ static void host_board_apply_env(void) {
 		if (*q == '\0') {
 			break;
 		}
-		fprintf(stderr, "DELUGE_HOST_DISPLAYS: ignoring malformed entry at \"%s\"\n", q);
+		fprintf(stderr, "%s: ignoring malformed entry at \"%s\"\n", whose, q);
 		break;
 	}
 	if (n == 0)
-		return;
+		return 0;
 	host_board.display_count = n;
 	host_board.display_width = host_displays[0].width;
 	host_board.display_height = host_displays[0].height;
+	return n;
+}
+
+// True once host_board_apply_env() has had its one chance — set either by that call or by a
+// `board` script step, which is deliberately the stronger of the two: a script that names its
+// panel set says so on purpose, and must not then be overridden by the ambient environment.
+static bool host_board_applied = false;
+
+// True once deluge_board() has handed the descriptor out. From then on the descriptor is latched:
+// everything built around it (surface pool sizes, the OLED geometry) already exists, so a later
+// rewrite would describe a board the app is not running on. host_script_set_displays() refuses.
+static bool host_board_read = false;
+
+// DELUGE_HOST_DISPLAYS="128x48+5,128x64+0" overrides the panel set so the shell can be
+// exercised against a future board's descriptor before that board's BSP exists.
+static void host_board_apply_env(void) {
+	if (host_board_applied)
+		return;
+	host_board_applied = true;
+	(void)host_board_parse_displays(getenv("DELUGE_HOST_DISPLAYS"), "DELUGE_HOST_DISPLAYS");
+}
+
+int host_script_set_displays(const char* spec) {
+	if (host_board_read) {
+		return -2;
+	}
+	if (host_board_parse_displays(spec, "board") == 0) {
+		return -1;
+	}
+	host_board_applied = true; // the script's panel set wins over DELUGE_HOST_DISPLAYS
+	return 0;
+}
+
+uint8_t host_script_display_count(void) {
+	host_board_apply_env();
+	return host_board.display_count;
 }
 
 const DelugeBoard* deluge_board(void) {
 	host_board_apply_env();
+	host_board_read = true;
 	return &host_board;
 }
 
@@ -384,10 +420,45 @@ DelugeCardEvent deluge_block_poll_card_event(uint8_t unit) {
 // display.h  [stub — headless / framebuffer dump goes here]
 // ===========================================================================
 
+// --- Panel shadows (UI test harness level 3) ---------------------------------------
+//
+// The last frame blitted to each panel, kept whether or not a GUI link is attached: headless is
+// exactly the case the snapshot harness runs in. Page-major, as the firmware hands it over.
+static uint8_t oled_shadow[HOST_SCRIPT_MAX_DISPLAYS][HOST_SCRIPT_OLED_BYTES];
+static uint16_t oled_shadow_w[HOST_SCRIPT_MAX_DISPLAYS];
+static uint16_t oled_shadow_h[HOST_SCRIPT_MAX_DISPLAYS];
+
+static void host_oled_shadow_store(uint8_t index, const uint8_t* pixels, uint16_t width, uint16_t height) {
+	if (index >= HOST_SCRIPT_MAX_DISPLAYS || pixels == NULL) {
+		return;
+	}
+	const uint32_t bytes = (uint32_t)(height >> 3) * width;
+	if (bytes == 0 || bytes > HOST_SCRIPT_OLED_BYTES) {
+		return; // a panel wider/taller than the shadow: refuse rather than write past it
+	}
+	memcpy(oled_shadow[index], pixels, bytes);
+	oled_shadow_w[index] = width;
+	oled_shadow_h[index] = height;
+}
+
+const uint8_t* host_script_oled_shadow(uint8_t index, uint16_t* width, uint16_t* height) {
+	if (index >= HOST_SCRIPT_MAX_DISPLAYS || oled_shadow_w[index] == 0) {
+		return NULL; // never blitted
+	}
+	if (width != NULL) {
+		*width = oled_shadow_w[index];
+	}
+	if (height != NULL) {
+		*height = oled_shadow_h[index];
+	}
+	return oled_shadow[index];
+}
+
 DelugeStatus deluge_display_blit_oled(const uint8_t* pixels, uint16_t width, uint16_t height) {
 	// The firmware hands us oledCurrentImage: already the SSD1309 page-major hardware
 	// buffer ((height/8) pages × width bytes, bit b of byte[page*width+col] = panel row
 	// page*8+b) — exactly what spark's update_display_from_buffer expects. Emit it verbatim.
+	host_oled_shadow_store(0, pixels, width, height);
 	if (host_link_active()) {
 		uint16_t bytes = (uint16_t)((height >> 3) * width); // 48/8 × 128 = 768
 		host_link_send(HOST_LINK_MSG_UPDATE_DISPLAY, pixels, bytes);
@@ -402,7 +473,8 @@ DelugeStatus deluge_display_blit_oled_n(uint8_t index, const uint8_t* pixels, ui
 	if (index >= host_board.display_count)
 		return DELUGE_ERR_PARAM;
 	if (index == 0)
-		return deluge_display_blit_oled(pixels, width, height);
+		return deluge_display_blit_oled(pixels, width, height); // shadows panel 0 on the way past
+	host_oled_shadow_store(index, pixels, width, height);
 	if (host_link_active()) {
 		uint16_t bytes = (uint16_t)((height >> 3) * width);
 		uint8_t buf[1 + 128 * 8]; // index + up to 128x64
@@ -484,8 +556,38 @@ static const uint8_t kSparkEncoderToFwIndex[6] = {1, 2, 5, 4, 0, 3};
 // in deluge_encoder_io_init() and unblock it whenever an inbound rotation arrives.
 static TaskID encoder_wake_task = -1;
 
+// --- Scripted injection (UI test harness level 3) ----------------------------------
+//
+// The two doors host_script.c pushes input through. They are the same two the live GUI bridge
+// below uses, deliberately: a scripted run and a driven-by-hand run must reach the firmware by
+// the same path, or the harness would be testing a path nothing else uses.
+void host_script_push_event(DelugeInputEventKind kind, uint8_t x, uint8_t y, int16_t value) {
+	ev_push(kind, x, y, value);
+}
+
+void host_script_add_encoder_edges(uint8_t index, int32_t edges) {
+	if (index >= 6) {
+		return;
+	}
+	int32_t acc = (int32_t)encoder_edges[index] + edges;
+	if (acc > 127) {
+		acc = 127;
+	}
+	else if (acc < -128) {
+		acc = -128;
+	}
+	encoder_edges[index] = (int8_t)acc;
+	// Wake the (self-blocked) encoder task, exactly as an inbound rotation does — without it the
+	// edges sit in the accumulator and the script's turn is silently dropped.
+	unblockTask(encoder_wake_task);
+}
+
 // Drain all currently-available inbound frames. Cheap to call every poll.
 static void host_input_pump(void) {
+	// Scripted input first: it is on the deterministic frame clock and must be applied before any
+	// live traffic, so a run with both attached is still reproducible. A no-op without a script.
+	host_script_pump();
+
 	if (!host_link_active()) {
 		return;
 	}
@@ -584,14 +686,17 @@ static void host_pad_init(void) {
 }
 
 bool deluge_control_poll_event(DelugeInputEvent* out) {
-	// Live GUI link: drain decoded events from the wire.
-	if (host_link_active()) {
-		host_input_pump();
-		if (ev_tail != ev_head) {
-			*out = ev_queue[ev_tail];
-			ev_tail = (ev_tail + 1u) & (HOST_EVENT_QUEUE_CAP - 1u);
-			return true;
-		}
+	// Feed the queue from whatever sources are attached — the UI script (headless) and/or the
+	// live GUI link — then hand back one event.
+	host_input_pump();
+	if (ev_tail != ev_head) {
+		*out = ev_queue[ev_tail];
+		ev_tail = (ev_tail + 1u) & (HOST_EVENT_QUEUE_CAP - 1u);
+		return true;
+	}
+	// A GUI link or a UI script owns the input entirely; the DELUGE_HOST_PAD fallback below is
+	// only for a headless run with neither.
+	if (host_link_active() || host_script_active()) {
 		return false;
 	}
 
@@ -622,13 +727,50 @@ bool deluge_control_poll_event(DelugeInputEvent* out) {
 	}
 	return false;
 }
+// --- Surface shadows (UI test harness level 3) -------------------------------------
+//
+// What the app last put on the pads, the indicator LEDs and the two knob indicators — kept
+// unconditionally, so a headless run can be snapshotted. All statically zero-initialised: a
+// snapshot must never depend on what happened to be in memory.
+static uint8_t pad_shadow[HOST_SCRIPT_PAD_COLS * HOST_SCRIPT_PAD_ROWS * 3];
+static uint8_t led_shadow[HOST_SCRIPT_LED_COUNT];
+static uint8_t ring_shadow[HOST_SCRIPT_RINGS][HOST_SCRIPT_RING_LEVELS];
+static bool ring_shadow_written[HOST_SCRIPT_RINGS];
+
+static void host_pad_shadow_store(uint8_t col, uint8_t row, DelugeColour colour) {
+	if (col >= HOST_SCRIPT_PAD_COLS || row >= HOST_SCRIPT_PAD_ROWS) {
+		return;
+	}
+	uint8_t* p = &pad_shadow[((size_t)col * HOST_SCRIPT_PAD_ROWS + row) * 3u];
+	p[0] = colour.r;
+	p[1] = colour.g;
+	p[2] = colour.b;
+}
+
+const uint8_t* host_script_pad_shadow(void) {
+	return pad_shadow;
+}
+const uint8_t* host_script_led_shadow(void) {
+	return led_shadow;
+}
+const uint8_t* host_script_ring_shadow(uint8_t which) {
+	if (which >= HOST_SCRIPT_RINGS || !ring_shadow_written[which]) {
+		return NULL;
+	}
+	return ring_shadow[which];
+}
+
 void deluge_control_set_pad(uint8_t x, uint8_t y, DelugeColour colour) {
+	host_pad_shadow_store(x, y, colour);
 	if (host_link_active()) {
 		uint8_t d[5] = {x, y, colour.r, colour.g, colour.b};
 		host_link_send(HOST_LINK_MSG_SET_PAD_RGB, d, sizeof(d));
 	}
 }
 void deluge_control_set_led(uint8_t led, bool on) {
+	if (led < HOST_SCRIPT_LED_COUNT) {
+		led_shadow[led] = (uint8_t)(on ? 1 : 0);
+	}
 	if (host_link_active()) {
 		uint8_t d[2] = {led, (uint8_t)(on ? 1 : 0)};
 		host_link_send(HOST_LINK_MSG_SET_LED, d, sizeof(d));
@@ -636,6 +778,12 @@ void deluge_control_set_led(uint8_t led, bool on) {
 }
 void deluge_control_set_indicator(uint8_t which, const uint8_t* levels, uint8_t count) {
 	// spark's SetKnobIndicator carries exactly 4 segment levels; pad/truncate to match.
+	if (which < HOST_SCRIPT_RINGS) {
+		for (uint8_t i = 0; i < HOST_SCRIPT_RING_LEVELS; i++) {
+			ring_shadow[which][i] = i < count ? levels[i] : 0;
+		}
+		ring_shadow_written[which] = true;
+	}
 	if (host_link_active()) {
 		uint8_t d[5] = {which, 0, 0, 0, 0};
 		for (uint8_t i = 0; i < count && i < 4; i++) {
@@ -668,14 +816,14 @@ void deluge_control_set_pad_columns(uint8_t idx, const DelugeColour* colours, ui
 	// The surface drives main pads as 16-LED column pairs: colours[0..7] = column idx*2
 	// rows 0..7, colours[8..15] = column idx*2+1 rows 0..7 (see pad_leds.cpp sortLedsForCol).
 	// Fan out to per-pad SetPadRGB frames the GUI renders directly.
-	if (!host_link_active()) {
-		return;
-	}
 	for (uint8_t i = 0; i < count; i++) {
 		uint8_t col = (uint8_t)(idx * 2u + (i >> 3)); // first 8 → idx*2, next 8 → idx*2+1
 		uint8_t row = (uint8_t)(i & 7u);
-		uint8_t d[5] = {col, row, colours[i].r, colours[i].g, colours[i].b};
-		host_link_send(HOST_LINK_MSG_SET_PAD_RGB, d, sizeof(d));
+		host_pad_shadow_store(col, row, colours[i]);
+		if (host_link_active()) {
+			uint8_t d[5] = {col, row, colours[i].r, colours[i].g, colours[i].b};
+			host_link_send(HOST_LINK_MSG_SET_PAD_RGB, d, sizeof(d));
+		}
 	}
 }
 void deluge_control_flash_pad(uint8_t idx) {
