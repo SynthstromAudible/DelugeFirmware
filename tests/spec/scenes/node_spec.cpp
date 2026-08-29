@@ -93,6 +93,15 @@ constexpr DynamicChildrenFn node_spec_children_fn = +[](const MenuContext&, std:
 constexpr Node node_spec_dyn_submenu = dynamic_submenu(25, node_spec_children_fn);
 static_assert(node_spec_dyn_submenu.dynamic_children == node_spec_children_fn);
 
+// `with_range_dependent()` -- the post-hoc modifier that marks the handful of items whose value
+// lives in a MultiRange rather than on the Sound (fix round 1, Important 1). It changes exactly one
+// field and leaves the builder's own output otherwise untouched.
+constexpr Node node_spec_range_dep = with_range_dependent(param(26, ParamRef{params::Kind::PATCHED, 4}, Hint::Knob));
+static_assert(node_spec_range_dep.range_dependent);
+static_assert(node_spec_range_dep.name == 26 && node_spec_range_dep.kind == Kind::Int);
+static_assert(node_spec_range_dep.bind.param.index == 4);
+static_assert(!node_spec_a.range_dependent); // every builder leaves it false by default
+
 describe scenes_node("scenes::menu::Node builders", $ {
 	it("toggle_item fills bind.get/set and nothing else", _ {
 		Node t = toggle_item(6, node_spec_get, node_spec_set);

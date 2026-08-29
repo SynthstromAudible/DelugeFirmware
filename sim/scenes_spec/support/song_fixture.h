@@ -70,6 +70,14 @@ inline Song* make_bare_song() {
 	song->paramManager.setupUnpatched();
 	GlobalEffectable::initParams(&song->paramManager);
 	song->setupDefault();
+
+	// `deluge.cpp:388`. The scenes layer itself never reads this global (`context.cpp` takes a
+	// `Song&`), but the model does, unguarded, in places a spec's writes can reach --
+	// `modulation/params/param.cpp:71`, `modulation/params/param_set.cpp:414`, the `getCurrent*()`
+	// helpers at `model/song/song.cpp:90-136`. Leaving it null would make those a latent crash for
+	// the first spec that touches one. The most recently built fixture wins, which is what a spec
+	// working with one song at a time wants.
+	currentSong = song;
 	return song;
 }
 

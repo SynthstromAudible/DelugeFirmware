@@ -22,13 +22,12 @@
 /// **What did NOT come across** (task-3 ruling 2 -- `setup()` is half context resolution, half UI
 /// choreography, and only the first half belongs in `src/scenes`). UI side, not ported:
 ///
-///   * `:1629` `getCurrentUI()`, `:1632` `rootUIIsClipMinderScreen()`, `:1719`/`:1722`
-///     `currentUIMode`, `:1761`/`:1764` the `currentUI ==` comparisons and
-///     `Buttons::isShiftButtonPressed()` -- reduced to `context_for`'s two `bool` arguments.
-///   * `:1654` the `setupKitGlobalFXMenu` member -- see the branch comment below.
+///   * `:1629` `getCurrentUI()`, `:1632` `rootUIIsClipMinderScreen()`, `:1654`
+///     `setupKitGlobalFXMenu`, `:1719`/`:1722` `currentUIMode`, `:1761`/`:1764` the
+///     `currentUI ==` comparisons and `Buttons::isShiftButtonPressed()` -- reduced to
+///     `context_for`'s three `bool` arguments.
 ///   * `:1679-1682` the "select a row or affect entire" popup, `:1794` the "parameter not
 ///     applicable" popup, `:1809` `display->cancelPopup()` -- every `display->` call.
-///   * `:1716` `actionLogger.deleteAllLogs()` -- an undo-history side effect of *opening* a menu.
 ///   * `:1726`/`:1731` retitling the shared `soundEditorRootMenuMIDIOrCV` singleton -- an artefact
 ///     of one menu object serving MIDI and CV; `Root::MidiOrCv` plus `MenuContext::output` carries
 ///     the same information as data.
@@ -38,6 +37,17 @@
 ///   * `:1811-1816` `allowsNoteTails` -- a `SoundEditor` render flag, not part of what is edited.
 ///   * `:1844-1849` `endScreen()`, `navigationDepth`, `shouldGoUpOneLevelOnBegin`,
 ///     `menuItemNavigationRecord` -- `MenuState`, which belongs to the interpreter.
+///
+/// **Owed to E2** -- behaviour of `setup()` that is neither UI nor context, has no owner yet, and
+/// will silently change if nothing picks it up when `MenuScene` lands (fix round 1, Minor 5):
+///
+///   * `:1716` `actionLogger.deleteAllLogs()` -- a mutation of undo history on every menu open.
+///   * `:1784-1788` remembering the previously selected `MultiRange` across sessions, and dropping
+///     it when the UI or the source index changed. `MenuContext::range` is the field it feeds; see
+///     `permission_for`'s already-selected arm.
+///   * `:1938` `Source::getOrCreateFirstRange()` -- the legacy permission check *creates* a first
+///     range (and can fail with `INSUFFICIENT_RAM`). `permission_for` is a pure predicate and does
+///     not; whoever opens a range-dependent item must do the allocation.
 ///
 /// **`currentSong` references in this file: 0.** Ruling 3 confines the global to this translation
 /// unit and Task 12 ratchets the count; every place `setup()` and `getCurrentModelStack()` reached
@@ -75,12 +85,12 @@ namespace {
 
 /// @brief `Source::ranges` holds `MultiRange*` by base pointer; element 0 is what `setup()`'s
 ///        auto-selection (`:1834`) and `checkPermissionToBeginSessionForRangeSpecificParam`'s
-///        single-range shortcut (`:2049`) both reach for.
+///        single-range shortcut (`:1950`) both reach for.
 MultiRange* first_range(Source& source) {
 	return source.ranges.empty() ? nullptr : static_cast<MultiRange*>(source.ranges.getElement(0));
 }
 
-/// @brief How many ranges the addressed source has -- `std::ssize(source->ranges)` at `:2049`.
+/// @brief How many ranges the addressed source has -- `std::ssize(source->ranges)` at `:1950`.
 std::ptrdiff_t range_count(const MenuContext& ctx) {
 	return ctx.source != nullptr ? std::ssize(ctx.source->ranges) : 0;
 }
@@ -88,7 +98,7 @@ std::ptrdiff_t range_count(const MenuContext& ctx) {
 } // namespace
 
 MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool performance_view,
-                        bool session_or_arranger_root) {
+                        bool session_or_arranger_root, bool kit_global_fx) {
 	MenuContext ctx{};
 	ctx.song = &song;
 	ctx.clip = clip;
@@ -107,6 +117,14 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 	// `!rootUIIsClipMinderScreen()` FIRST and only then looks at `clip`, while part 2 keys off
 	// `clip` first. A caller in a session view that also passes a clip therefore gets the song's
 	// param manager with a clip root -- exactly what `setup()` does today.
+	//
+	// Part 3 inherits the same asymmetry in one more place: its audio-clip arm is guarded by
+	// `ctx.is_audio_clip`, which only part 1's `else if (clip != nullptr)` arm ever sets, whereas
+	// legacy `:1838` tests `clip->type` unguarded. So in the session-root-with-an-audio-clip case
+	// legacy still fills `currentSampleControls`/`currentPriority` and this port leaves them null.
+	// Deliberate, and the trade runs the other way too: legacy `:1838` dereferences `clip` when
+	// `clip == nullptr` (the settings root with no sound), a latent null-deref this port does not
+	// inherit -- so do NOT "restore fidelity" by dropping the guard.
 	// ---------------------------------------------------------------------------------------
 
 	// `:1631-1640` -- performance / session / arranger: the song's own param manager and global
@@ -138,16 +156,21 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 				// `:1653-1658` -- affect-entire ("kit global FX"): the kit itself is the mod
 				// controllable and the clip's own param manager is what is edited.
 				//
-				// `setup()` gates this on its `setupKitGlobalFXMenu` member rather than on
-				// `affectEntire` directly. Both of that member's writers set it to exactly
-				// `outputType == KIT && instrumentClip->affectEntire`
-				// (`model/clip/instrument_clip_minder.cpp:388-390`,
-				// `gui/views/automation_view.cpp:1601-1603`), so the flag is ported as that
-				// condition. The one case the member also encodes -- entering via a kit-row grid
-				// shortcut, where it is left false so the row's own params are edited -- is a
-				// shortcut-table concern (spec E §4.2) and is not resolvable from these arguments;
-				// `affect_entire` below carries what such a caller needs to override it.
-				if (instrument_clip->affectEntire) {
+				// `setup()` gates this on its `setupKitGlobalFXMenu` member, which is the fourth
+				// UI fact `context_for` takes as an argument. It is NOT the same as the clip's
+				// `affectEntire`: the member is only ever set true (from
+				// `outputType == KIT && instrumentClip->affectEntire` --
+				// `model/clip/instrument_clip_minder.cpp:388-390`,
+				// `gui/views/automation_view.cpp:1601-1603`) and is cleared on menu exit
+				// (`sound_editor.cpp:151`, `:730`), so the kit-row grid-shortcut path
+				// (`sound_editor.cpp:1150-1158`) enters with it false while `affectEntire` is true,
+				// and legacy edits the row's params rather than the kit's. Deriving the branch from
+				// `affectEntire` would silently take the kit path there -- and with it a different
+				// root (`KitGlobalFx` vs `Drum`) and a different `model_stack_for` arm.
+				//
+				// `ctx.affect_entire` below still reports the clip's own setting, so a caller can
+				// see both facts.
+				if (kit_global_fx) {
 					ctx.mod = static_cast<ModControllableAudio*>(ctx.output->toModControllable());
 					ctx.params = &instrument_clip->paramManager;
 					ctx.arp = &instrument_clip->arpSettings;
@@ -210,6 +233,7 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 		}
 	}
 
+	// A resolved output, reported whichever branch part 1 took: the kit clip's own `affectEntire`.
 	// Kit-only, so that a synth clip (whose `affectEntire` member exists but means nothing) reports
 	// false, as the task-3 brief's first case requires.
 	ctx.affect_entire = ctx.is_kit && instrument_clip != nullptr && instrument_clip->affectEntire;
@@ -217,6 +241,15 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 	// ---------------------------------------------------------------------------------------
 	// Part 2: which root menu (`:1711-1772`, the `item == nullptr` arm -- an explicitly requested
 	// `item` is the caller's own choice and has no analogue here).
+	//
+	// The three kit arms below are spelled with `is_kit_global_fx` where legacy `:1735`/`:1739`/
+	// `:1745` spell `instrumentClip->affectEntire`. Inside this arm's own domain the two are the
+	// same fact: `:1735` is only ever evaluated when `item == nullptr`, and every caller that
+	// passes no item sets `setupKitGlobalFXMenu` from `affectEntire`, while the one caller where
+	// they differ -- the kit-row grid shortcut (`:1150-1158`) -- always passes an item and so never
+	// reaches here. Outside it, this spelling is what keeps the root consistent with the
+	// `params`/`mod`/`arp` part 1 just resolved: a shortcut caller editing one row gets `Drum`
+	// (or `MidiDrum`/`GateDrum`), not `KitGlobalFx` over row params.
 	// ---------------------------------------------------------------------------------------
 
 	if (clip != nullptr) { // `:1715`
@@ -230,14 +263,14 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 			else if (output_type == OutputType::CV) { // `:1730-1733`, the `goto doMIDIOrCV` arm
 				ctx.root = MenuContext::Root::MidiOrCv;
 			}
-			else if (ctx.is_kit && ctx.affect_entire) { // `:1735-1737`
+			else if (ctx.is_kit && ctx.is_kit_global_fx) { // `:1735-1737`
 				ctx.root = MenuContext::Root::KitGlobalFx;
 			}
-			else if (ctx.is_kit && !ctx.affect_entire && ctx.is_drum
+			else if (ctx.is_kit && !ctx.is_kit_global_fx && ctx.is_drum
 			         && static_cast<Kit*>(ctx.output)->selectedDrum->type == DrumType::MIDI) { // `:1739-1743`
 				ctx.root = MenuContext::Root::MidiDrum;
 			}
-			else if (ctx.is_kit && !ctx.affect_entire && ctx.is_drum
+			else if (ctx.is_kit && !ctx.is_kit_global_fx && ctx.is_drum
 			         && static_cast<Kit*>(ctx.output)->selectedDrum->type == DrumType::GATE) { // `:1745-1749`
 				ctx.root = MenuContext::Root::GateDrum;
 			}
@@ -278,9 +311,21 @@ MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool perfor
 		// `checkPermissionToBeginSession` has returned YES for the *specific item* being opened,
 		// which `context_for` has no item to ask. So the selection is made exactly where the
 		// permission rule itself would be unambiguous
-		// (`checkPermissionToBeginSessionForRangeSpecificParam:2049` -- a kit, or a single range),
+		// (`checkPermissionToBeginSessionForRangeSpecificParam:1950` -- a kit, or a single range),
 		// and left null when a choice is genuinely pending; `permission_for()` below then reports
 		// `MustSelectRange` for that case, as it must.
+		//
+		// That this is narrower than `:1832` costs nothing observable (fix round 1, Minor 3): the
+		// only consumers of `currentMultiRange` in legacy are the range-dependent items
+		// (`Node::range_dependent` -- sample transpose, loop point, the file selector, the audio
+		// recorder, the picker) plus `getCurrentAudioFileHolder`/`isUntransposedNoteWithinRange`,
+		// which serve them. An ordinary patched param never reads it -- its value comes from
+		// `bind.param` through the `ModelStack` -- so leaving `ctx.range` null for a multi-range
+		// source is invisible to every node that is not asking for a range in the first place.
+		//
+		// `ctx.range` is therefore the *selected/remembered* range, i.e. the input `permission_for`
+		// reads, matching legacy's `newRange` at `:1784-1788` rather than its post-permission
+		// assignment at `:1834`.
 		const std::ptrdiff_t ranges = std::ssize(ctx.source->ranges);
 		if (ranges == 1 || (ctx.is_kit && ranges > 0)) {
 			ctx.range = first_range(*ctx.source);
@@ -305,7 +350,11 @@ ModelStackWithThreeMainThings* model_stack_for(const MenuContext& ctx, void* mem
 
 	// `:1989-1993` -- kit with affect-entire: the clip is the timeline counter, and the context's
 	// own mod controllable + param manager are attached with no note row.
-	if (ctx.is_kit && ctx.affect_entire) {
+	//
+	// Keyed on `is_kit_global_fx` rather than `affect_entire` for the same reason part 2's root arms
+	// are: it must agree with which branch part 1 actually took, or a kit-row shortcut context
+	// (affect-entire on, editing one row) would get a no-note-row stack over row params.
+	if (ctx.is_kit && ctx.is_kit_global_fx) {
 		ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, ctx.song, ctx.clip);
 		return stack->addOtherTwoThingsButNoNoteRow(ctx.mod, ctx.params);
 	}
@@ -336,30 +385,43 @@ Permission permission_for(const Node& node, const MenuContext& ctx) {
 		return Permission::No;
 	}
 
-	// The rule the 18 overrides share, via
-	// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam` (`sound_editor.cpp:2035`) --
+	// The rule the range-specific overrides share, via
+	// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam` (`sound_editor.cpp:1933`) --
 	// e.g. `menu_item::sample::Transpose::checkPermissionToBeginSession`
 	// (`gui/menu_item/sample/transpose.h:120-135`), which after its own relevance and osc-type test
-	// defers to it verbatim. A node that edits a model parameter on a sound whose addressed source
-	// has more than one `MultiRange`, with none selected, needs the range picked first.
-	if (!node.bind.param.valid() || ctx.sound == nullptr) {
+	// defers to it verbatim.
+	//
+	// The discriminator is `Node::range_dependent`, the port of `MenuItem::isRangeDependent()`
+	// (`gui/menu_item/menu_item.h:202`; true at `sample/transpose.h:137`, `sample/loop_point.h:31`,
+	// `multi_range.h:32`) -- NOT "the node has a `bind.param`". Everything else, an ordinary
+	// patched param on a multisampled sound included, takes the base rule above and opens: legacy
+	// routes it through `MenuItem::checkPermissionToBeginSession` (`menu_item.cpp:27-31`), which
+	// returns YES without ever looking at a range.
+	if (!node.range_dependent || ctx.sound == nullptr) {
 		return Permission::Yes;
 	}
 
-	// `:2049` -- a kit row is always range-unambiguous (one range per drum), and so is a source
+	// `:1950` -- a kit row is always range-unambiguous (one range per drum), and so is a source
 	// with exactly one range. `context_for` has already pointed `ctx.range` at that range.
 	if (ctx.is_kit || range_count(ctx) <= 1) {
 		return Permission::Yes;
 	}
 
-	// `:2054-2056` -- a range is already selected for this source index (`ctx.source_index` is what
+	// `:1955-1957` -- a range is already selected for this source index (`ctx.source_index` is what
 	// `context_for` resolved `ctx.source`/`ctx.range` against, so the legacy
-	// `currentSourceIndex == whichThing` test holds by construction).
+	// `currentSourceIndex == whichThing` test holds by construction). Legacy's
+	// `getCurrentUI() == &soundEditor` guard is dropped as a UI read; it is redundant here because
+	// legacy already nulls the remembered range at `:1784-1788` whenever the UI or source index
+	// changed, which is the same condition.
+	//
+	// Unreachable for a context straight out of `context_for`: the only cases that set `ctx.range`
+	// (kit row, single range) already returned `Yes` above. This is E2's entry point -- once the
+	// picker writes a chosen range back into the context, this is the arm that lets the item open.
 	if (ctx.range != nullptr) {
 		return Permission::Yes;
 	}
 
-	return Permission::MustSelectRange; // `:2058`
+	return Permission::MustSelectRange; // `:1959`
 }
 
 } // namespace deluge::scenes::menu

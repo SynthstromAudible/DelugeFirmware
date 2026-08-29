@@ -5,15 +5,18 @@
 ///
 /// This is the context-resolution half of `SoundEditor::setup`
 /// (`src/deluge/gui/ui/sound_editor.cpp:1618-1851`), `SoundEditor::getCurrentModelStack` (`:1982`)
-/// and the common rule behind the 18 `checkPermissionToBeginSession` overrides
-/// (`SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`, `:2035`), ported as free
-/// functions over plain arguments.
+/// and the common rule behind the `checkPermissionToBeginSession` overrides
+/// (`SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam`, `:1933`), ported as free
+/// functions over plain arguments. (`gui/menu_item/` has 18 *files* naming
+/// `checkPermissionToBeginSession`; two of them, `menu_item.cpp`/`.h`, are the base rather than
+/// overrides.)
 ///
 /// @note **No UI reads** (task-3 ruling 2). `setup()` consults `getCurrentUI()`, `currentUIMode`,
 ///       `rootUIIsClipMinderScreen()`, `Buttons::isShiftButtonPressed()` and its own
 ///       `setupKitGlobalFXMenu` member. None of that is reachable from `src/scenes` -- the caller
-///       reduces it to `context_for`'s `performance_view` / `session_or_arranger_root` arguments.
-///       See `context.cpp` for the branch-by-branch mapping and for what stayed behind.
+///       reduces it to `context_for`'s `performance_view` / `session_or_arranger_root` /
+///       `kit_global_fx` arguments. See `context.cpp` for the branch-by-branch mapping and for
+///       what stayed behind.
 ///
 /// @note **`model/model_stack.h` is included by `context.cpp` only** (task-3 ruling 6) -- and, from
 ///       Task 4, by `bindings.cpp`. `model_stack_for()` below is the single entry point the rest of
@@ -92,6 +95,10 @@ struct MenuContext {
 	///        from their own selection), so `context_for()` always leaves it null.
 	MIDICable* midi_cable = nullptr;
 
+	/// @brief The kit clip's own `InstrumentClip::affectEntire`, a *resolved output* -- it says what
+	///        the clip is set to, not which branch `context_for` took. `kit_global_fx` (the argument)
+	///        is what decides that; the two differ exactly on the kit-row shortcut path, where the
+	///        clip has affect-entire on but the menu is about to edit one row's params.
 	bool affect_entire = false;
 	bool is_kit = false;
 	bool is_drum = false;
@@ -127,19 +134,32 @@ struct MenuContext {
 ///                                performance view. Also stands in for `:1764`'s
 ///                                `currentUI == &sessionView || &arrangerView || &automationView`
 ///                                with shift not held.
+/// @param kit_global_fx           `setup()`'s `setupKitGlobalFXMenu` member (`:1654`). True to edit
+///                                the kit's own global FX, false to edit the selected row. Callers
+///                                normally pass the clip's `affectEntire`, which is exactly what
+///                                both writers of that member set it from
+///                                (`model/clip/instrument_clip_minder.cpp:388-390`,
+///                                `gui/views/automation_view.cpp:1601-1603`); the kit-row grid
+///                                shortcut (`sound_editor.cpp:1150-1158`) is the caller that passes
+///                                false with affect-entire on, and it is why this is an argument
+///                                rather than a re-read of the clip.
 MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool performance_view,
-                        bool session_or_arranger_root);
+                        bool session_or_arranger_root, bool kit_global_fx);
 
 /// @brief Build the model stack a binding reads and writes through -- the port of
 ///        `SoundEditor::getCurrentModelStack` (`sound_editor.cpp:1982-2005`).
 ///
+/// @pre @p ctx came from `context_for` with `ctx.resolved == true`, and either `ctx.is_song_view` or
+///      `ctx.clip != nullptr`. A settings-root context (no clip, no song view) has no timeline
+///      counter and would yield a stack over a null one; legacy failed the same case louder, by
+///      dereferencing a null `instrument` at `:1989`.
 /// @param memory `MODEL_STACK_MAX_SIZE` bytes supplied by the caller (a `ModelStack` is built in
 ///               place, never allocated -- this library takes no heap).
 /// @return a stack whose `modControllable` is `ctx.mod` and whose `paramManager` is `ctx.params`.
 ModelStackWithThreeMainThings* model_stack_for(const MenuContext& ctx, void* memory);
 
-/// @brief May a session begin on @p node in @p ctx? Spec E §4.1's one rule in place of the 18
-///        `checkPermissionToBeginSession` overrides.
+/// @brief May a session begin on @p node in @p ctx? Spec E §4.1's one rule in place of the
+///        per-item `checkPermissionToBeginSession` overrides.
 enum class Permission : uint8_t {
 	/// @brief The node does not apply here -- `MenuPermission::NO`.
 	No,
@@ -152,8 +172,13 @@ enum class Permission : uint8_t {
 /// @brief Apply spec E §4.1's permission rule to @p node in @p ctx.
 ///
 /// Ports the base `MenuItem::checkPermissionToBeginSession` (`gui/menu_item/menu_item.cpp:27-31`,
-/// relevance only) plus the range rule the 18 overrides share via
-/// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam` (`sound_editor.cpp:2035-2060`).
+/// relevance only) plus the range rule the range-specific overrides share via
+/// `SoundEditor::checkPermissionToBeginSessionForRangeSpecificParam` (`sound_editor.cpp:1933-1960`).
+///
+/// The range rule fires on `Node::range_dependent` -- legacy's `MenuItem::isRangeDependent()`
+/// (`gui/menu_item/menu_item.h:202`) -- **not** on "has a `bind.param`". An ordinary patched param
+/// on a multisampled sound takes the base rule and opens (`Yes`); only a range-dependent item on a
+/// source with more than one `MultiRange` and none selected gets `MustSelectRange`.
 Permission permission_for(const Node& node, const MenuContext& ctx);
 
 } // namespace deluge::scenes::menu

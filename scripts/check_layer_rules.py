@@ -156,6 +156,25 @@ RULES = [
         r"^(?!scenes/|shell/|ui/|gfx/|notify/|libdeluge/|model/|modulation/|playback/|processing/|storage/|gui/l10n/|definitions_cxx\.hpp)(?:.*/)",
         "2026-08-26-ui-scenes-menus-design.md",
     ),
+    (
+        # Narrower than the rule above, and the reason `menu::model_stack_for()` exists (spec E1
+        # task-3 ruling 6): `model/model_stack.h` may be reached only by the two files that own the
+        # model-stack boundary. Everything else in src/scenes goes through `model_stack_for`, so
+        # there is exactly one place that knows how a menu's stack is assembled.
+        #
+        # `menu/bindings.cpp` does not exist yet -- Task 4 adds it; excluding it now means that task
+        # needs no edit here. Added in fix round 1 (Minor 8): the restriction was prose in
+        # src/scenes/README.md while every other rule in this stack is machine-checked.
+        "scenes-model-stack-outside-context",
+        (
+            "src/scenes/**",
+            "src/scenes/menu/context.cpp",
+            "src/scenes/menu/bindings.cpp",
+        ),
+        "include",
+        r"^model/model_stack\.h$",
+        "2026-08-26-ui-scenes-menus-design.md",
+    ),
 ]
 # Matches both #include "path" and #include <path>, capturing only the path (the delimiter
 # itself is stripped either way). Angle-bracket project includes (e.g. #include <hid/buttons.h>)

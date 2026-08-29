@@ -158,7 +158,37 @@ struct Node {
 	DynamicChildrenFn dynamic_children = nullptr;
 	const CustomItem* custom = nullptr;
 	uint8_t slots = 1;
+
+	/// @brief Does this item edit something that belongs to one `MultiRange` rather than to the
+	///        `Sound` as a whole? The port of `MenuItem::isRangeDependent()`
+	///        (`gui/menu_item/menu_item.h:202`, "only relevant to some note ranges").
+	///
+	/// This, not "has a `bind.param`", is what makes spec E §4.1's permission rule fire
+	/// (`menu::permission_for`). The distinction matters: an ordinary patched param such as LPF
+	/// frequency lives on the `Sound` and is editable on a multisampled synth without picking a
+	/// range first, while a range-dependent item's value lives in the range itself
+	/// (`sample/transpose.h:139-165` writes `sampleHolder.transpose` / `source.transpose`) and has
+	/// nowhere to go until one is chosen.
+	///
+	/// The legacy items that override `isRangeDependent()` to true, and so are the ones that set
+	/// this when Tasks 6-8 declare them: `sample/transpose.h:137`, `sample/loop_point.h:31`, and
+	/// `multi_range.h:32` (the picker itself). `file_selector` and `osc/audio_recorder` reach the
+	/// same rule through `checkPermissionToBeginSessionForRangeSpecificParam` without the override,
+	/// and set this too.
+	bool range_dependent = false;
 };
+
+/// @brief `n` with `range_dependent` set -- a `constexpr` post-hoc modifier rather than a trailing
+///        argument on all nine builders.
+///
+/// Only a handful of nodes in the whole tree are range-dependent (the five named on
+/// `Node::range_dependent`), so paying for the flag in every builder signature would be the wrong
+/// trade: `with_range_dependent(param(...))` reads as the exception it is, and no existing call site or
+/// `static_assert` changes.
+constexpr Node with_range_dependent(Node n) {
+	n.range_dependent = true;
+	return n;
+}
 
 // ---------------------------------------------------------------------------------------------
 // Builders. All `constexpr`; `title` defaults to `name` (0 means "use name").
