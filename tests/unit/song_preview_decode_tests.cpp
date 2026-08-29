@@ -1,6 +1,7 @@
 #include "CppUTest/TestHarness.h"
 #include "mock_file_io.h"
 #include "storage/song_preview.h"
+#include "storage/storage_manager.h"
 
 #include <array>
 #include <cstdio>
@@ -126,4 +127,32 @@ TEST(SongPreviewDecode, aShortPrefixReportsTruncatedRatherThanNoPreview) {
 	const auto buf = prefixOf("tests/data/songs/JsonPreview.Json", 64);
 	CHECK_EQUAL(static_cast<int>(deluge::storage::SongPreviewOutcome::Truncated),
 	            static_cast<int>(deluge::storage::decodeSongPreview(buf, true, image.data())));
+}
+
+/// A borrowed buffer must not stay reachable through `activeDeserializer` after the call -- on ANY
+/// path, the failed open included. Left there, the next thing to write through that global writes
+/// Cluster::size bytes into a buffer that is smaller than that and by then usually gone. This asserts
+/// the restore rather than trusting a comment, because the caller that arms it is a task away.
+TEST(SongPreviewDecode, decodeSongPreviewLeavesTheGlobalDeserializerWhereItFoundIt) {
+	std::array<Row, kDisplayHeight> image{};
+	FileDeserializer* const before = activeDeserializer;
+
+	// Success path.
+	const auto whole = prefixOf("tests/data/songs/JsonPreview.Json", deluge::storage::kSongPreviewWindow);
+	CHECK_EQUAL(static_cast<int>(deluge::storage::SongPreviewOutcome::Rendered),
+	            static_cast<int>(deluge::storage::decodeSongPreview(whole, true, image.data())));
+	POINTERS_EQUAL(before, activeDeserializer);
+
+	// Truncated path.
+	const auto shortPrefix = prefixOf("tests/data/songs/JsonPreview.Json", 64);
+	CHECK_EQUAL(static_cast<int>(deluge::storage::SongPreviewOutcome::Truncated),
+	            static_cast<int>(deluge::storage::decodeSongPreview(shortPrefix, true, image.data())));
+	POINTERS_EQUAL(before, activeDeserializer);
+
+	// Failed-open path: openDelugeBuffer points the global at the memory reader BEFORE it knows whether
+	// the document opened, so this is the path a restore is easiest to forget.
+	const std::vector<uint8_t> notASong{'n', 'o', 'p', 'e'};
+	CHECK_EQUAL(static_cast<int>(deluge::storage::SongPreviewOutcome::Error),
+	            static_cast<int>(deluge::storage::decodeSongPreview(notASong, false, image.data())));
+	POINTERS_EQUAL(before, activeDeserializer);
 }

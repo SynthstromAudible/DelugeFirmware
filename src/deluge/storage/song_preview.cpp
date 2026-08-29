@@ -37,6 +37,9 @@ bool runPreviewWalk(FileDeserializer* reader, RGB (*imageStore)[kDisplayWidth + 
 	char const* tagName;
 	bool rendered = false;
 
+	// Set and never read, and kept anyway: readTagOrAttributeValueInt() ADVANCES the reader, so this arm
+	// is what carries the walk past the previewNumPads attribute. Delete the variable and you delete the
+	// read; the walk would then meet that attribute's value where it expects a tag name.
 	int32_t previewNumPads = 40;
 	while (*(tagName = reader->readNextTagOrAttributeName())) {
 
@@ -45,6 +48,8 @@ bool runPreviewWalk(FileDeserializer* reader, RGB (*imageStore)[kDisplayWidth + 
 			reader->exitTag("previewNumPads");
 		}
 		else if (!strcmp(tagName, "preview")) {
+			// Dead in the original too -- the row loop never skips. Preserved verbatim rather than
+			// dropped, so this walk stays a pure relocation of the browser's.
 			int32_t skipNumCharsAfterRow = 0;
 
 			int32_t startX = 0;
@@ -88,10 +93,11 @@ stopLoadingPreview:
 	return rendered;
 }
 
-} // namespace
-
-SongPreviewOutcome decodeSongPreview(std::span<const uint8_t> buffer, bool isJson,
-                                     RGB (*imageStore)[kDisplayWidth + kSideBarWidth]) {
+/// @brief decodeSongPreview()'s body, with the global `activeDeserializer` left wherever it lands.
+///
+/// Split out purely so decodeSongPreview() has ONE exit at which to put that global back -- see there.
+SongPreviewOutcome decodeSongPreviewInto(std::span<const uint8_t> buffer, bool isJson,
+                                         RGB (*imageStore)[kDisplayWidth + kSideBarWidth]) {
 	::Error error = StorageManager::openDelugeBuffer(buffer, isJson, "song");
 	if (error != ::Error::NONE) {
 		return SongPreviewOutcome::Error;
@@ -107,6 +113,23 @@ SongPreviewOutcome decodeSongPreview(std::span<const uint8_t> buffer, bool isJso
 	// The buffer may be a prefix, so running out of bytes is NOT proof the song has no preview -- say
 	// which of the two it was and let the caller decide whether blank artwork is the honest answer.
 	return reader->reachedEnd() ? SongPreviewOutcome::Truncated : SongPreviewOutcome::NoPreview;
+}
+
+} // namespace
+
+SongPreviewOutcome decodeSongPreview(std::span<const uint8_t> buffer, bool isJson,
+                                     RGB (*imageStore)[kDisplayWidth + kSideBarWidth]) {
+	// Put `activeDeserializer` back on EVERY path, the failed open included (openDelugeBuffer() points
+	// it at the memory reader before it knows whether the document opened). This is not tidiness: the
+	// memory reader's `fileClusterBuffer` IS the caller's borrowed span, and code downstream writes
+	// THROUGH that global without opening anything of its own -- SaveSongUI's sample collection moves a
+	// file straight into `activeDeserializer->file` and then reads Cluster::size (32 KiB) at a time into
+	// `activeDeserializer->fileClusterBuffer`. Left pointing here, that is a 32 KiB write into a buffer
+	// that may be 4 KiB and may already be gone: heap corruption, not a stale read.
+	FileDeserializer* const previous = activeDeserializer;
+	const SongPreviewOutcome outcome = decodeSongPreviewInto(buffer, isJson, imageStore);
+	activeDeserializer = previous;
+	return outcome;
 }
 
 SongPreviewOutcome decodeSongPreviewFromFile(char const* path, RGB (*imageStore)[kDisplayWidth + kSideBarWidth],

@@ -166,6 +166,12 @@ bool FileReader::closeWriter() {
 	if (memoryBased) {
 		return true;
 	}
+	// Already closed. A corrupt document reaches this twice -- XMLDeserializer::openXMLFile() closes on
+	// its FILE_CORRUPTED exit and StorageManager::openXMLFile() closes again on the error it returns --
+	// and without this the second call dereferences a disengaged optional.
+	if (!file) {
+		return true;
+	}
 	auto result = file->close();
 	file.reset();
 	return result.has_value();
@@ -228,7 +234,17 @@ Error StorageManager::openDelugeFile(char const* path, char const* firstTagName,
 // only the objects. std::optional, because a deserializer holds an open-file handle and so is neither
 // copyable nor movable -- emplace() runs the memory constructor in place, which is the only way to
 // re-point one of these at a new buffer without duplicating that constructor's initialisation here.
-// Both start disengaged, so they are constant-initialised: no static constructor, no allocation.
+// Both start disengaged, so they are constant-initialised: no static constructor, no allocation. They
+// do still GROW .sdram_bss by their own size, and src/bsp/rza1/memory.c derives the device's external
+// heap base from &__sdram_bss_end -- so the device heap base shifts down and the heap shrinks by that
+// much. Harmless at this size, and invisible to the goldens, which run on the host BSP, where
+// src/bsp/host/host_bsp.c `.set`s __sdram_bss_end to a fixed host_sdram array the linker never moves.
+//
+// These are the first std::optionals in .sdram_bss, and being disengaged at boot is a fact they INHERIT
+// from resetprg.c's emptySection(&__sdram_bss_start, &__sdram_bss_end) -- nothing else zeroes them. If
+// that memset is ever dropped again (it has been deleted once before), the first emplace() here would
+// see a garbage-engaged optional, destroy a garbage XMLDeserializer, and hand its garbage
+// fileClusterBuffer to dealloc(). Do not move these out from under that memset.
 PLACE_SDRAM_BSS std::optional<XMLDeserializer> smXmlBufferDeserializer;
 PLACE_SDRAM_BSS std::optional<JsonDeserializer> smJsonBufferDeserializer;
 

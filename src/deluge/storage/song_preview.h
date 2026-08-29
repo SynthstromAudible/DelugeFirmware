@@ -80,9 +80,14 @@ enum class SongPreviewOutcome {
 ///                   supplies pads: rows the walk never reaches keep whatever the caller left there,
 ///                   which is why callers clear it first.
 /// @return What the walk found; see SongPreviewOutcome.
-/// @warning Leaves the global `activeDeserializer` pointing at the memory-backed reader, which still
-///          holds @p buffer. Once the caller's buffer is gone, anything that reads through
-///          `activeDeserializer` without opening a document of its own is reading freed memory.
+/// @note Restores the global `activeDeserializer` to whatever it pointed at on entry, on every path
+///       including a failed open. That restore is load-bearing, not hygiene: while the walk runs, that
+///       global points at a reader whose `fileClusterBuffer` IS @p buffer, and code downstream WRITES
+///       through the global without opening a document of its own (SaveSongUI's sample collection moves
+///       a file into `activeDeserializer->file`, then reads `Cluster::size` -- 32 KiB -- at a time into
+///       `activeDeserializer->fileClusterBuffer`). Reached with the global left here, that is a 32 KiB
+///       write into a buffer that may be 4 KiB and may already have been freed: heap corruption, not a
+///       stale read.
 SongPreviewOutcome decodeSongPreview(std::span<const uint8_t> buffer, bool isJson,
                                      RGB (*imageStore)[kDisplayWidth + kSideBarWidth]);
 
