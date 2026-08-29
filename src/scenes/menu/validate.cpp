@@ -36,7 +36,8 @@
 ///   * *`Enum` names* -> `EnumWithoutNames`.
 ///   * *shortcut cells* -> `ShortcutToNothing`, over every `MenuContext::Root` and both shift
 ///     layers.
-///   * *no duplicate `(name, parent)`* -> `DuplicateName`.
+///   * *no duplicate `(name, parent)`* -> `DuplicateName`, among siblings that can be on screen
+///     together (see `co_visible` for why that qualifier is there).
 ///   * *`Custom` <= 10* -> `TooManyCustom`, counting distinct `CustomItem` instances
 ///     (`validate.h`'s `kMaxCustomItems`).
 ///
@@ -160,6 +161,44 @@ size_t visible_count(const Node& node, const MenuContext& ctx) {
 	return n;
 }
 
+/// @brief Can @p a and @p b be shown at the same time?
+///
+/// The qualifier on the `DuplicateName` rule, and the same kind of refinement `EmptySubmenu`
+/// already carries: spec E §4.4's sentence is "no duplicate `(name, parent)`", but legacy's tree
+/// deliberately puts **variant pairs** side by side under one parent -- one item for a sound, one
+/// for a MIDI/CV clip, named identically because the user only ever sees one of them. There are
+/// eighteen such pairs in the sound-editor root alone (every randomizer parameter and its
+/// `midi_cv` twin, both arpeggiator rhythm and sequence-length twins, the two note modes, and the
+/// bend-range submenu beside a kit's single bend-range item). Reporting all of those would make
+/// the rule noise rather than a check.
+///
+/// Two tests, either of which means "these really do collide":
+///
+///   * **Identical visibility.** The two carry the same `relevant` hook -- including both carrying
+///     none -- so nothing can ever separate them. This is the static half, and it is what still
+///     catches legacy's three genuine `FormattedTitle` collisions (both sample recorders under
+///     `is_subtractive`, both oscillator volumes under `not_ringmod`, both FM modulator levels
+///     under `is_fm`), which are ambiguous in the data because a `Node::name` is one static id.
+///   * **Actually both on screen.** Some supplied context admits both. This is the dynamic half,
+///     and it is what stops a pair with two *different* predicates that happen to agree from
+///     slipping through unnoticed in the contexts the caller cares about.
+///
+/// With no contexts supplied only the static half applies, which is the right answer for a
+/// structural-only check.
+bool co_visible(const Node& a, const Node& b, std::span<const MenuContext> contexts) {
+	if (a.relevant == b.relevant) {
+		return true;
+	}
+	for (const MenuContext& ctx : contexts) {
+		const bool a_on = a.relevant == nullptr || a.relevant(ctx);
+		const bool b_on = b.relevant == nullptr || b.relevant(ctx);
+		if (a_on && b_on) {
+			return true;
+		}
+	}
+	return false;
+}
+
 void check_flag_set(Issues& out, const Reachable& seen, std::span<const Node* const> expected, Flag flag,
                     bool (*has_flag)(const Node&)) {
 	const auto detail = static_cast<uint16_t>(flag);
@@ -280,13 +319,14 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 				}
 			}
 
-			// No duplicate `(name, parent)`.
+			// No duplicate `(name, parent)` -- among siblings that can be on screen together.
 			for (size_t a = 0; a < n.children.size(); a++) {
 				if (n.children[a] == nullptr) {
 					continue;
 				}
 				for (size_t b = a + 1; b < n.children.size(); b++) {
-					if (n.children[b] != nullptr && n.children[b]->name == n.children[a]->name) {
+					if (n.children[b] != nullptr && n.children[b]->name == n.children[a]->name
+					    && co_visible(*n.children[a], *n.children[b], contexts)) {
 						add(out, Issue::Kind::DuplicateName, n.children[b], n.children[b]->name);
 					}
 				}

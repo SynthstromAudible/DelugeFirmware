@@ -651,4 +651,107 @@ void set_feedback_hook(FeedbackHook hook) {
 	g_feedback_hook = hook;
 }
 
+// ---------------------------------------------------------------------------------------------
+// The value scaling `get`/`set` items reuse (`bindings.h`'s note)
+
+int32_t standard_to_menu(int32_t stored) {
+	return current_value_standard(stored);
+}
+int32_t menu_to_standard(int32_t menu_value) {
+	return final_value_standard(menu_value);
+}
+int32_t pan_to_menu(int32_t stored) {
+	return current_value_pan(stored);
+}
+int32_t menu_to_pan(int32_t menu_value) {
+	return final_value_pan(menu_value);
+}
+int32_t unsigned_to_menu(uint32_t stored) {
+	// `computeCurrentValueForUnsignedMenuItem` (`value_scaling.cpp:18-20`).
+	return ((int64_t)stored * kMaxMenuValue + 2147483648) >> 32;
+}
+uint32_t menu_to_unsigned(int32_t menu_value) {
+	// `computeFinalValueForUnsignedMenuItem` (`value_scaling.cpp:60-62`).
+	return (uint32_t)menu_value * 85899345;
+}
+
+// ---------------------------------------------------------------------------------------------
+// `SoundEditor::allowsNoteTails` (`gui/ui/sound_editor.cpp:1811-1816`)
+
+bool allows_note_tails(const MenuContext& ctx) {
+	if (ctx.sound == nullptr) {
+		return true; // `:1811` -- the default, kept when there is no sound to ask
+	}
+	char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithThreeMainThings* stack = model_stack_for(ctx, memory);
+	if (stack == nullptr) {
+		return true;
+	}
+	return ctx.sound->allowNoteTails(stack->addSoundFlags(), /*disregardSampleLoop=*/true); // `:1815`
+}
+
+// ---------------------------------------------------------------------------------------------
+// The play direction (`gui/menu_item/sequence/direction.h`)
+
+namespace {
+
+/// @brief `sequence::Direction::getIndividualNoteRow` (`sequence/direction.h:29-52`), minus the
+///        audition arm `bindings.h` documents as belonging to `NoteClipScene`.
+///
+/// @return A stack whose note row may be null -- legacy's own "no individual row" answer, which it
+///         produces the same way (`:51`, `modelStack->addNoteRow(0, nullptr)`).
+ModelStackWithNoteRow* individual_note_row(const MenuContext& ctx, void* memory) {
+	ModelStackWithTimelineCounter* stack = setupModelStackWithTimelineCounter(memory, ctx.song, ctx.clip);
+	auto* clip = static_cast<InstrumentClip*>(ctx.clip);
+	// `:31-37` -- a kit row (the clip is not on affect-entire) with a selected drum.
+	if (!ctx.affect_entire && ctx.is_kit && ctx.output != nullptr) {
+		Drum* drum = static_cast<Kit*>(ctx.output)->selectedDrum;
+		if (drum != nullptr) {
+			return clip->getNoteRowForDrum(stack, drum); // still might be null, exactly as legacy says
+		}
+	}
+	return stack->addNoteRow(0, nullptr); // `:51`
+}
+
+/// @brief Is @p ctx one this pair of functions can work on at all?
+bool has_instrument_clip(const MenuContext& ctx) {
+	return ctx.song != nullptr && ctx.clip != nullptr && !ctx.is_audio_clip;
+}
+
+} // namespace
+
+int32_t read_sequence_direction(const MenuContext& ctx, bool* from_note_row) {
+	if (from_note_row != nullptr) {
+		*from_note_row = false;
+	}
+	if (!has_instrument_clip(ctx)) {
+		return 0;
+	}
+	char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithNoteRow* stack = individual_note_row(ctx, memory);
+	if (stack->getNoteRowAllowNull() != nullptr) { // `:57-59`
+		if (from_note_row != nullptr) {
+			*from_note_row = true;
+		}
+		return static_cast<int32_t>(stack->getNoteRow()->sequenceDirectionMode);
+	}
+	return static_cast<int32_t>(static_cast<InstrumentClip*>(ctx.clip)->sequenceDirectionMode); // `:60-62`
+}
+
+void write_sequence_direction(const MenuContext& ctx, int32_t value) {
+	if (!has_instrument_clip(ctx)) {
+		return;
+	}
+	const auto mode = static_cast<SequenceDirection>(value);
+	char memory[MODEL_STACK_MAX_SIZE];
+	ModelStackWithNoteRow* stack = individual_note_row(ctx, memory);
+	if (stack->getNoteRowAllowNull() != nullptr) { // `:71-73`
+		stack->getNoteRow()->setSequenceDirectionMode(stack, mode);
+	}
+	else { // `:74-76`
+		static_cast<InstrumentClip*>(ctx.clip)->setSequenceDirectionMode(stack->toWithTimelineCounter(), mode);
+	}
+	deluge::notify::raise(deluge::notify::Dirty::Oled);
+}
+
 } // namespace deluge::scenes::menu::bindings

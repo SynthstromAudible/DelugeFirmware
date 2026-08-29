@@ -141,6 +141,124 @@ bool osc1_interpolation(const MenuContext& ctx);
 
 /// @}
 
+/// @name Batch-2 predicates -- the rest of the sound-editor root (Task 7)
+///
+/// Where batch 1's predicates all ask about the *sound* (its synth mode, its sources), most of
+/// these ask about the *clip*: is this a kit row, a kit's global FX page, a MIDI or CV clip, a
+/// gate drum. `MenuContext` carries every one of those facts (`is_kit`, `is_kit_global_fx`,
+/// `output`, `arp`), so the `SoundEditor::editingKit()` / `editingKitRow()` /
+/// `editingCVOrMIDIClip()` / `editingNonAudioDrumRow()` / `editingGateDrumRow()` family
+/// (`gui/ui/sound_editor.cpp:161-202`) is transcribed against it rather than against globals.
+/// @{
+
+/// @brief May the sound be switched between synth modes? `SynthModeSelection::isRelevant`
+///        (`gui/menu_item/synth_mode.h:69-73`): both sources' `oscType` are ring-moddable.
+bool ringmod_allowed(const MenuContext& ctx);
+
+/// @brief Is a kit being edited? `sidechain::Send::isRelevant` (`sidechain/send.h:56`), i.e.
+///        `SoundEditor::editingKit()` (`sound_editor.cpp:161-163`).
+bool is_kit(const MenuContext& ctx);
+/// @brief Is a kit *row* being edited? `IncludeInKitArp::isRelevant` (`include_in_kit_arp.h:65-67`),
+///        i.e. `editingKitRow()` (`sound_editor.cpp:169-171`).
+bool is_kit_row(const MenuContext& ctx);
+/// @brief The negation, `arpeggiator::NoteMode::isRelevant` (`arpeggiator/note_mode.h:21-23`).
+bool not_kit_row(const MenuContext& ctx);
+/// @brief A kit row that is not a gate drum. `arpeggiator::ChordType::isRelevant`
+///        (`arpeggiator/chord_type.h:46-48`) and `NoteModeForDrums` (`note_mode_for_drums.h:43-45`).
+bool kit_row_not_gate(const MenuContext& ctx);
+/// @brief Not a gate drum row. `arpeggiator::StepRepeat::isRelevant` (`step_repeat.h:39-41`) and
+///        `ArpMpeVelocity` (`mpe_velocity.h:37-39`).
+bool not_gate_drum_row(const MenuContext& ctx);
+/// @brief Neither a gate drum row nor a kit's global-FX page. `arpeggiator::Octaves::isRelevant`
+///        (`octaves.h:39-41`), `OctaveMode` (`octave_mode.h:44-46`) and `submenu::ArpMpeSubmenu`
+///        (`submenu/arp_mpe_submenu.h:22-24`) -- one predicate, three items.
+bool not_gate_drum_or_kit_fx(const MenuContext& ctx);
+
+/// @brief A sound (not MIDI/CV, not a non-audio drum row). `ArpUnpatchedParam::isRelevant`
+///        (`arpeggiator/arp_unpatched_param.h:13-15`).
+bool arp_sound_only(const MenuContext& ctx);
+/// @brief The same, and not the kit's global-FX page. `arpeggiator::Rate::isRelevant`
+///        (`arpeggiator/rate.h:10-13`).
+bool arp_rate_sound(const MenuContext& ctx);
+/// @brief The complement: a MIDI/CV clip or a non-audio drum row.
+///        `arpeggiator::midi_cv::ArpNonSoundInteger::isRelevant` (`midi_cv/arp_integer.h:11-13`),
+///        and `randomizer::midi_cv::NoteProbability` (`midi_cv/note_probability.h:32-34`), which
+///        spells the same test.
+bool arp_non_sound(const MenuContext& ctx);
+/// @brief A kit's global-FX page. `arpeggiator::KitRate::isRelevant` (`arpeggiator/rate.h:19-21`),
+///        i.e. `editingKitAffectEntire()` (`sound_editor.cpp:165-167`). Declared for Task 8's kit
+///        root; batch 2 reaches it through no node.
+bool is_kit_global_fx(const MenuContext& ctx);
+
+/// @brief A sound randomizer parameter that is off when the arpeggiator is.
+///        `RandomizerUnpatchedParam::isRelevant` (`randomizer/randomizer_unpatched_param.h:14-25`)
+///        on a *non*-global parameter id.
+bool randomizer_param(const MenuContext& ctx);
+/// @brief The same override on one of its three global ids (`UNPATCHED_SPREAD_VELOCITY`,
+///        `UNPATCHED_NOTE_PROBABILITY`, `UNPATCHED_REVERSE_PROBABILITY`), which stay on with the
+///        arpeggiator off (`randomizer_unpatched_param.h:20-24`).
+bool randomizer_global_param(const MenuContext& ctx);
+/// @brief `RandomizerSoundOnlyUnpatchedParam::isRelevant` (`randomizer_unpatched_param.h:37-40`).
+bool randomizer_sound_only(const MenuContext& ctx);
+/// @brief `RandomizerNonKitSoundUnpatchedParam::isRelevant` (`randomizer_unpatched_param.h:52-55`).
+bool randomizer_non_kit(const MenuContext& ctx);
+/// @brief `randomizer::midi_cv::RandomizerNonSoundInteger::isRelevant`
+///        (`randomizer/midi_cv/randomizer_integer.h:11-14`).
+bool randomizer_non_sound(const MenuContext& ctx);
+/// @brief A MIDI/CV clip or a MIDI drum row, with the arpeggiator on -- the override shared by
+///        `midi_cv::SpreadOctave` (`spread_octave.h:32-35`), `SwapProbability`
+///        (`swap_probability.h:32-35`), `BassProbability` (`bass_probability.h:33-36`) and
+///        `GlideProbability` (`glide_probability.h:33-36`).
+bool randomizer_midi_target(const MenuContext& ctx);
+/// @brief The same without the arpeggiator test. `midi_cv::SpreadVelocity::isRelevant`
+///        (`spread_velocity.h:32-34`).
+bool is_cv_midi_or_midi_drum(const MenuContext& ctx);
+/// @brief A MIDI/CV *clip* with the arpeggiator on. `midi_cv::ChordPolyphony::isRelevant`
+///        (`chord_polyphony.h:31-33`) and `ChordProbability` (`chord_probability.h:32-34`).
+bool cv_midi_clip_arp_on(const MenuContext& ctx);
+
+/// @brief Is a mod-FX type selected at all? `mod_fx::Rate::isRelevant` (`mod_fx/rate.h:11-13`).
+bool mod_fx_on(const MenuContext& ctx);
+/// @brief Does the selected mod-FX type have a depth? `mod_fx::Depth_Patched::isRelevant`
+///        (`mod_fx/depth_patched.h:24-28`).
+bool mod_fx_has_depth(const MenuContext& ctx);
+/// @brief ... a feedback? `mod_fx::Feedback::isRelevant` (`mod_fx/feedback.h:22-25`).
+bool mod_fx_has_feedback(const MenuContext& ctx);
+/// @brief ... an offset? `mod_fx::Offset::isRelevant` (`mod_fx/offset.h:23-27`).
+bool mod_fx_has_offset(const MenuContext& ctx);
+
+/// @brief Does the selected reverb model have filters? `reverb::HPF::isRelevant`
+///        (`reverb/hpf.h:26-29`) and `LPF` (`reverb/lpf.h:26-29`): MUTABLE or DIGITAL.
+bool reverb_filters(const MenuContext& ctx);
+/// @brief Is reverb ducking set to something other than AUTO? `reverb::sidechain::Shape::isRelevant`
+///        (`reverb/sidechain/shape.h:31-33`), `sidechain::Attack` / `Release` / `Sync` in their
+///        reverb spelling (`sidechain/attack.h:57-59`, `release.h:57-59`, `sync.h:56-58`).
+bool reverb_sidechain_on(const MenuContext& ctx);
+
+/// @brief May stutter quantization be edited? `stutter::QuantizedStutter::isRelevant`
+///        (`stutter/quantized.h:44-47`).
+bool stutter_quantize_allowed(const MenuContext& ctx);
+
+/// @brief Is the sound polyphonic? `voice::VoiceCount::isRelevant` (`voice/polyphony.h:62-65`).
+bool is_polyphonic(const MenuContext& ctx);
+
+/// @brief Does this output get the two-item bend-range submenu? `submenu::Bend::isRelevant`
+///        (`submenu/bend.h:26-31`): SYNTH, CV or MIDI_OUT.
+bool bend_submenu(const MenuContext& ctx);
+/// @brief `bend_range::PerFinger::isRelevant` (`bend_range/per_finger.h:40-42`).
+///
+/// @note **Partial.** Legacy is `soundEditor.navigationDepth == 1 || soundEditor.editingKit()`; the
+///       navigation depth is the menu UI's own cursor state, which `src/scenes` may not read and
+///       which `MenuContext` deliberately does not carry (it describes what is edited, not where
+///       the user is). Only the kit half survives here. It agrees with legacy everywhere the depth
+///       is not 1 -- including the root list, where legacy's own depth is 0.
+bool per_finger_bend(const MenuContext& ctx);
+
+/// @brief `midi::sound::OutputMidiNoteForDrum::isRelevant` (`midi/sound/note_for_drum.h:23-25`):
+///        a kit row that is not a non-audio drum.
+bool output_midi_note(const MenuContext& ctx);
+/// @}
+
 /// @brief One `{predicate, name}` row of the registry `name_of` searches.
 struct NamedPredicate {
 	RelevantFn fn;

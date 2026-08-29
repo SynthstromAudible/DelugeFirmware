@@ -1,9 +1,11 @@
 # deluge_scenes -- the first UI layer allowed to include the model (spec E1, ruling Q4).
 # May include scenes/**, shell/**, ui/**, gfx/**, notify/**, libdeluge/**, the standard library,
-# and -- being the first model-aware layer -- model/**, modulation/**, playback/**, processing/**,
-# storage/**, gui/l10n/**, definitions_cxx.hpp. Never gui/ otherwise, never hid/.
-# (processing/** is where `Sound` and `Source` live; menu/context.cpp needs their definitions --
-# see the note on the scenes-includes-outside rule in scripts/check_layer_rules.py.)
+# and -- being the first model-aware layer -- dsp/**, model/**, modulation/**, playback/**,
+# processing/**, storage/**, gui/l10n/**, definitions_cxx.hpp. Never gui/ otherwise, never hid/.
+# (processing/** is where `Sound` and `Source` live; menu/context.cpp needs their definitions.
+# dsp/** joined in task 7, for the one type audio_engine.h only forward declares,
+# `deluge::dsp::Reverb`, which menu/relevance.cpp asks `getModel()` of -- see the note on the
+# scenes-includes-outside rule in scripts/check_layer_rules.py.)
 #
 # Link direction (ruling Q4): deluge_scenes links deluge_app; nothing links deluge_scenes until
 # spec F needs an entry point -- this task only builds the skeleton and its spec executable.
@@ -18,16 +20,26 @@ add_library(deluge_scenes STATIC
     menu/relevance.cpp
     menu/shortcuts.cpp
     menu/validate.cpp
-    # The batch-1 menu tables (task 6): the six subtrees the retired Python generator produced.
+    # The menu tables: batch 1 (task 6) is the six subtrees the retired Python generator produced;
+    # batch 2 (task 7) is the sound-editor root itself and everything else hanging off it.
     # The `Node` literals themselves live in the matching menu/nodes/sound_*.h headers as
     # `inline constexpr` (fix round 1, I3, so Task 9's constexpr shortcut tables can take their
     # addresses); these translation units hold the get/set hook bodies and the exported root spans.
+    menu/nodes/sound_actions.cpp
+    menu/nodes/sound_arp.cpp
+    menu/nodes/sound_bend.cpp
     menu/nodes/sound_compressor.cpp
     menu/nodes/sound_env.cpp
     menu/nodes/sound_filters.cpp
+    menu/nodes/sound_fx.cpp
     menu/nodes/sound_lfo.cpp
+    menu/nodes/sound_master.cpp
     menu/nodes/sound_osc.cpp
-    menu/nodes/sound_unison.cpp)
+    menu/nodes/sound_randomizer.cpp
+    menu/nodes/sound_root.cpp
+    menu/nodes/sound_sidechain.cpp
+    menu/nodes/sound_unison.cpp
+    menu/nodes/sound_voice.cpp)
 target_include_directories(deluge_scenes PUBLIC
     ${SHARED_INCLUDE}
     ${CMAKE_CURRENT_LIST_DIR}/../../include

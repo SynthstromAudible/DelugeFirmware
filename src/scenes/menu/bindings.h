@@ -180,6 +180,73 @@ void apply_to_targets(const MenuContext& ctx, int32_t value, int32_t arg, ApplyF
 /// audio clip) instead of a source's (`sample/pitch_speed.h:44-63`, `sample/interpolation.h:37-59`).
 bool writes_whole_kit(const MenuContext& ctx);
 
+/// @name Value scaling for `get`/`set` items that hold a full-range integer of their own
+///
+/// A `ParamRef` node's scaling is declared on its `Binding` and applied by `read`/`write`. But a
+/// dozen batch-2 items are `get`/`set` items that nonetheless store the same INT32-range value a
+/// param would (the MIDI/CV arpeggiator and randomizer settings live on `ArpeggiatorSettings`, not
+/// in a param set) and call the same `value_scaling.cpp` helpers themselves
+/// (`arpeggiator/midi_cv/rate.h:28-33`, `randomizer/midi_cv/spread_gate.h:27-32`, ...). Rather than
+/// re-transcribing the arithmetic in each table file, the transcription this file already owns is
+/// exposed. The `unsigned` pair is new -- batch 1 needed only the standard, half-precision and pan
+/// ones.
+/// @{
+
+/// @brief `computeCurrentValueForStandardMenuItem` (`gui/menu_item/value_scaling.cpp:6-8`):
+///        INT32 range -> 0..50.
+int32_t standard_to_menu(int32_t stored);
+/// @brief `computeFinalValueForStandardMenuItem` (`value_scaling.cpp:22-33`): 0..50 -> INT32 range.
+int32_t menu_to_standard(int32_t menu_value);
+/// @brief `computeCurrentValueForPan` (`value_scaling.cpp:14-16`): INT32 range -> -25..25.
+int32_t pan_to_menu(int32_t stored);
+/// @brief `computeFinalValueForPan` (`value_scaling.cpp:48-58`): -25..25 -> INT32 range.
+int32_t menu_to_pan(int32_t menu_value);
+/// @brief `computeCurrentValueForUnsignedMenuItem` (`value_scaling.cpp:18-20`): 0..UINT32_MAX ->
+///        0..50.
+int32_t unsigned_to_menu(uint32_t stored);
+/// @brief `computeFinalValueForUnsignedMenuItem` (`value_scaling.cpp:60-62`): 0..50 ->
+///        0..UINT32_MAX. Note it has no `kMaxMenuValue` special case, unlike its signed sibling.
+uint32_t menu_to_unsigned(int32_t menu_value);
+/// @}
+
+/// @brief `SoundEditor::allowsNoteTails` (`gui/ui/sound_editor.h:63`), recomputed from @p ctx.
+///
+/// Legacy caches it once per menu entry (`sound_editor.cpp:1811-1816`: true when there is no sound,
+/// else `Sound::allowNoteTails(stack, /*disregardSampleLoop=*/true)`), and
+/// `arpeggiator::IncludeInKitArp` reads the cached copy (`include_in_kit_arp.h:16-21,50-52`). It
+/// lives here rather than on `MenuContext` because computing it needs a `ModelStackWithSoundFlags`,
+/// and `model/model_stack.h` may be included by `context.cpp` and this file only.
+bool allows_note_tails(const MenuContext& ctx);
+
+/// @brief Read the play direction `sequence::Direction` would show (`sequence/direction.h:54-64`).
+///
+/// Lives here, not in the node table, for the reason `SoundTarget::stack` does: resolving the
+/// individual note row a clip's play direction may live on needs a `ModelStackWithNoteRow`, and
+/// `model/model_stack.h` may be included by `context.cpp` and this file only (the
+/// `scenes-model-stack-outside-context` ratchet).
+///
+/// @param ctx           What is being edited.
+/// @param from_note_row Optional out-parameter: true when an individual note row supplied the
+///                      value, which is also the condition under which legacy offers the fourth
+///                      option, NONE (`direction.h:83-86`).
+/// @return The `SequenceDirection` as an `int32_t`.
+///
+/// @note **Partial, deliberately.** Legacy's `getIndividualNoteRow` (`direction.h:29-52`) has a
+///       third arm for a non-kit clip, reached only when `soundEditor.selectedNoteRow` is set, that
+///       reads `instrumentClipView.lastAuditionedYDisplay` and creates a note row if none exists.
+///       Both are UI state `src/scenes` may not read; that arm belongs to spec E's `NoteClipScene`.
+///       Everything else -- the kit-row arm and the "no note row, use the clip's own mode"
+///       fallback -- is transcribed exactly.
+int32_t read_sequence_direction(const MenuContext& ctx, bool* from_note_row = nullptr);
+
+/// @brief Commit a play-direction change (`sequence::Direction::writeCurrentValue`,
+///        `sequence/direction.h:66-77`), through `NoteRow::setSequenceDirectionMode` or
+///        `InstrumentClip::setSequenceDirectionMode` as legacy chooses between them.
+///
+/// @param ctx   What is being edited.
+/// @param value The new `SequenceDirection`.
+void write_sequence_direction(const MenuContext& ctx, int32_t value);
+
 /// @brief What `write()` calls after a `ParamRef` write, in place of legacy's
 ///        `view.sendMidiFollowFeedback(modelStack, knobPos)` (`gui/views/view.cpp:1713`).
 ///

@@ -35,8 +35,14 @@
 #include "scenes/menu/context.h"
 
 #include "definitions_cxx.hpp"
+#include "dsp/reverb/reverb.hpp" // dsp::Reverb::Model -- audio_engine.h only forward declares it
+#include "model/drum/drum.h"
+#include "model/instrument/kit.h"
 #include "model/mod_controllable/filters/filter_config.h"
 #include "model/mod_controllable/mod_controllable_audio.h"
+#include "model/output.h"
+#include "modulation/arpeggiator.h"
+#include "processing/engines/audio_engine.h"
 #include "processing/sound/sound.h"
 #include "processing/source.h"
 
@@ -165,6 +171,65 @@ bool interpolation(const MenuContext& ctx, uint8_t index) {
 	           || source->oscType == OscType::INPUT_R || source->oscType == OscType::INPUT_STEREO);
 }
 
+// ---------------------------------------------------------------------------------------------
+// Batch 2's shared clip-shape tests -- the `SoundEditor::editing*` family
+// (`gui/ui/sound_editor.cpp:161-202`) against `MenuContext` instead of globals.
+
+/// @brief `SoundEditor::editingCVOrMIDIClip()` (`sound_editor.cpp:173-175`).
+bool cv_or_midi_clip(const MenuContext& ctx) {
+	return ctx.output != nullptr && (ctx.output->type == OutputType::MIDI_OUT || ctx.output->type == OutputType::CV);
+}
+
+/// @brief `getCurrentKit()->selectedDrum`, or null when a kit is not what is being edited.
+///
+/// Read from `ctx.output` rather than from `MenuContext::root`: `context_for` only reaches
+/// `Root::MidiDrum` / `Root::GateDrum` when the kit's global-FX page is *not* open
+/// (`context.cpp:269-275`), whereas legacy's `editingNonAudioDrumRow()` asks about the selected
+/// drum whatever page is open. Going to the kit keeps the transcription exact.
+const Drum* selected_drum(const MenuContext& ctx) {
+	if (!ctx.is_kit || ctx.output == nullptr) {
+		return nullptr;
+	}
+	return static_cast<const Kit*>(ctx.output)->selectedDrum;
+}
+
+/// @brief `SoundEditor::editingNonAudioDrumRow()` (`sound_editor.cpp:177-184`).
+bool non_audio_drum_row(const MenuContext& ctx) {
+	const Drum* drum = selected_drum(ctx);
+	return drum != nullptr && (drum->type == DrumType::MIDI || drum->type == DrumType::GATE);
+}
+
+/// @brief `SoundEditor::editingMidiDrumRow()` (`sound_editor.cpp:186-193`).
+bool midi_drum_row(const MenuContext& ctx) {
+	const Drum* drum = selected_drum(ctx);
+	return drum != nullptr && drum->type == DrumType::MIDI;
+}
+
+/// @brief `SoundEditor::editingGateDrumRow()` (`sound_editor.cpp:195-202`).
+bool gate_drum_row(const MenuContext& ctx) {
+	const Drum* drum = selected_drum(ctx);
+	return drum != nullptr && drum->type == DrumType::GATE;
+}
+
+/// @brief `SoundEditor::editingKitAffectEntire()` (`sound_editor.cpp:165-167`) -- the kit's own
+///        global-FX page, which is what `setupKitGlobalFXMenu` selects (`context.h`'s
+///        `kit_global_fx`).
+bool kit_affect_entire(const MenuContext& ctx) {
+	return ctx.is_kit && ctx.is_kit_global_fx;
+}
+
+/// @brief Is the arpeggiator on? The `soundEditor.currentArpSettings->mode != ArpMode::OFF` test
+///        the randomizer items share. A context with no arp settings answers false rather than
+///        dereferencing null (`relevance.cpp`'s file note).
+bool arp_on(const MenuContext& ctx) {
+	return ctx.arp != nullptr && ctx.arp->mode != ArpMode::OFF;
+}
+
+/// @brief `ModControllableAudio::getModFXType()` on a context that may have no mod controllable.
+ModFXType mod_fx_type(const MenuContext& ctx) {
+	return ctx.mod != nullptr ? ctx.mod->getModFXType() : ModFXType::NONE;
+}
+
 } // namespace
 
 // ---------------------------------------------------------------------------------------------
@@ -258,6 +323,147 @@ bool osc1_interpolation(const MenuContext& ctx) {
 }
 
 // ---------------------------------------------------------------------------------------------
+// Batch 2 -- the rest of the sound-editor root
+
+bool ringmod_allowed(const MenuContext& ctx) {
+	return ctx.sound != nullptr && ctx.sound->sources[0].oscType <= kLastRingmoddableOscType
+	       && ctx.sound->sources[1].oscType <= kLastRingmoddableOscType;
+}
+
+bool is_kit(const MenuContext& ctx) {
+	return ctx.is_kit;
+}
+bool is_kit_row(const MenuContext& ctx) {
+	return ctx.is_kit && !ctx.is_kit_global_fx;
+}
+bool not_kit_row(const MenuContext& ctx) {
+	return !is_kit_row(ctx);
+}
+bool kit_row_not_gate(const MenuContext& ctx) {
+	return is_kit_row(ctx) && !gate_drum_row(ctx);
+}
+bool not_gate_drum_row(const MenuContext& ctx) {
+	return !gate_drum_row(ctx);
+}
+bool not_gate_drum_or_kit_fx(const MenuContext& ctx) {
+	return !gate_drum_row(ctx) && !kit_affect_entire(ctx);
+}
+
+bool arp_sound_only(const MenuContext& ctx) {
+	return !cv_or_midi_clip(ctx) && !non_audio_drum_row(ctx);
+}
+bool arp_rate_sound(const MenuContext& ctx) {
+	return arp_sound_only(ctx) && !kit_affect_entire(ctx);
+}
+bool arp_non_sound(const MenuContext& ctx) {
+	return cv_or_midi_clip(ctx) || non_audio_drum_row(ctx);
+}
+bool is_kit_global_fx(const MenuContext& ctx) {
+	return kit_affect_entire(ctx);
+}
+
+bool randomizer_param(const MenuContext& ctx) {
+	return arp_sound_only(ctx) && arp_on(ctx);
+}
+bool randomizer_global_param(const MenuContext& ctx) {
+	// The `isGlobal` short-circuit of `randomizer_unpatched_param.h:20-24`: the three global ids
+	// stay relevant with the arpeggiator off.
+	return arp_sound_only(ctx);
+}
+bool randomizer_sound_only(const MenuContext& ctx) {
+	return !cv_or_midi_clip(ctx) && !kit_affect_entire(ctx) && !non_audio_drum_row(ctx) && arp_on(ctx);
+}
+bool randomizer_non_kit(const MenuContext& ctx) {
+	return !cv_or_midi_clip(ctx) && !ctx.is_kit && arp_on(ctx);
+}
+bool randomizer_non_sound(const MenuContext& ctx) {
+	return arp_non_sound(ctx) && arp_on(ctx);
+}
+bool randomizer_midi_target(const MenuContext& ctx) {
+	return (cv_or_midi_clip(ctx) || midi_drum_row(ctx)) && arp_on(ctx);
+}
+bool is_cv_midi_or_midi_drum(const MenuContext& ctx) {
+	return cv_or_midi_clip(ctx) || midi_drum_row(ctx);
+}
+bool cv_midi_clip_arp_on(const MenuContext& ctx) {
+	return cv_or_midi_clip(ctx) && arp_on(ctx);
+}
+
+bool mod_fx_on(const MenuContext& ctx) {
+	return mod_fx_type(ctx) != ModFXType::NONE;
+}
+bool mod_fx_has_depth(const MenuContext& ctx) {
+	switch (mod_fx_type(ctx)) {
+	case ModFXType::CHORUS:
+	case ModFXType::CHORUS_STEREO:
+	case ModFXType::GRAIN:
+	case ModFXType::PHASER:
+	case ModFXType::WARBLE:
+	case ModFXType::DIMENSION:
+		return true;
+	default:
+		return false;
+	}
+}
+bool mod_fx_has_feedback(const MenuContext& ctx) {
+	switch (mod_fx_type(ctx)) {
+	case ModFXType::FLANGER:
+	case ModFXType::PHASER:
+	case ModFXType::GRAIN:
+	case ModFXType::WARBLE:
+		return true;
+	default:
+		return false;
+	}
+}
+bool mod_fx_has_offset(const MenuContext& ctx) {
+	switch (mod_fx_type(ctx)) {
+	case ModFXType::CHORUS:
+	case ModFXType::CHORUS_STEREO:
+	case ModFXType::GRAIN:
+	case ModFXType::WARBLE:
+	case ModFXType::DIMENSION:
+		return true;
+	default:
+		return false;
+	}
+}
+
+bool reverb_filters(const MenuContext& /*ctx*/) {
+	// The reverb is one engine-wide object, not a per-clip one: legacy reads `AudioEngine::reverb`
+	// directly and so does this (`reverb/hpf.h:27`).
+	const auto model = AudioEngine::reverb.getModel();
+	return model == dsp::Reverb::Model::MUTABLE || model == dsp::Reverb::Model::DIGITAL;
+}
+bool reverb_sidechain_on(const MenuContext& /*ctx*/) {
+	return AudioEngine::reverbSidechainVolume >= 0; // `reverb/sidechain/shape.h:32`
+}
+
+bool stutter_quantize_allowed(const MenuContext& ctx) {
+	return ctx.mod != nullptr && (ctx.mod->isSong() || !ctx.mod->stutterConfig.useSongStutter);
+}
+
+bool is_polyphonic(const MenuContext& ctx) {
+	return ctx.sound != nullptr && ctx.sound->polyphonic == PolyphonyMode::POLY;
+}
+
+bool bend_submenu(const MenuContext& ctx) {
+	if (ctx.output == nullptr) {
+		return false;
+	}
+	const OutputType type = ctx.output->type;
+	return type == OutputType::SYNTH || type == OutputType::CV || type == OutputType::MIDI_OUT;
+}
+bool per_finger_bend(const MenuContext& ctx) {
+	// See the header note: legacy's `navigationDepth == 1` half has no `MenuContext` spelling.
+	return ctx.is_kit;
+}
+
+bool output_midi_note(const MenuContext& ctx) {
+	return is_kit_row(ctx) && !non_audio_drum_row(ctx);
+}
+
+// ---------------------------------------------------------------------------------------------
 // The registry (Task 10's dump)
 //
 // **Adding a predicate to `relevance.h` means adding a row here.** Nothing can check that
@@ -273,7 +479,7 @@ namespace {
 		&fn, #fn                                                                                                       \
 	}
 
-constexpr std::array<NamedPredicate, 27> kRegistry{
+constexpr std::array<NamedPredicate, 57> kRegistry{
     DELUGE_RELEVANCE_ROW(has_lpf),
     DELUGE_RELEVANCE_ROW(has_hpf),
     DELUGE_RELEVANCE_ROW(is_fm),
@@ -301,12 +507,43 @@ constexpr std::array<NamedPredicate, 27> kRegistry{
     DELUGE_RELEVANCE_ROW(osc1_pitch_speed),
     DELUGE_RELEVANCE_ROW(osc0_interpolation),
     DELUGE_RELEVANCE_ROW(osc1_interpolation),
+    DELUGE_RELEVANCE_ROW(ringmod_allowed),
+    DELUGE_RELEVANCE_ROW(is_kit),
+    DELUGE_RELEVANCE_ROW(is_kit_row),
+    DELUGE_RELEVANCE_ROW(not_kit_row),
+    DELUGE_RELEVANCE_ROW(kit_row_not_gate),
+    DELUGE_RELEVANCE_ROW(not_gate_drum_row),
+    DELUGE_RELEVANCE_ROW(not_gate_drum_or_kit_fx),
+    DELUGE_RELEVANCE_ROW(arp_sound_only),
+    DELUGE_RELEVANCE_ROW(arp_rate_sound),
+    DELUGE_RELEVANCE_ROW(arp_non_sound),
+    DELUGE_RELEVANCE_ROW(is_kit_global_fx),
+    DELUGE_RELEVANCE_ROW(randomizer_param),
+    DELUGE_RELEVANCE_ROW(randomizer_global_param),
+    DELUGE_RELEVANCE_ROW(randomizer_sound_only),
+    DELUGE_RELEVANCE_ROW(randomizer_non_kit),
+    DELUGE_RELEVANCE_ROW(randomizer_non_sound),
+    DELUGE_RELEVANCE_ROW(randomizer_midi_target),
+    DELUGE_RELEVANCE_ROW(is_cv_midi_or_midi_drum),
+    DELUGE_RELEVANCE_ROW(cv_midi_clip_arp_on),
+    DELUGE_RELEVANCE_ROW(mod_fx_on),
+    DELUGE_RELEVANCE_ROW(mod_fx_has_depth),
+    DELUGE_RELEVANCE_ROW(mod_fx_has_feedback),
+    DELUGE_RELEVANCE_ROW(mod_fx_has_offset),
+    DELUGE_RELEVANCE_ROW(reverb_filters),
+    DELUGE_RELEVANCE_ROW(reverb_sidechain_on),
+    DELUGE_RELEVANCE_ROW(stutter_quantize_allowed),
+    DELUGE_RELEVANCE_ROW(is_polyphonic),
+    DELUGE_RELEVANCE_ROW(bend_submenu),
+    DELUGE_RELEVANCE_ROW(per_finger_bend),
+    DELUGE_RELEVANCE_ROW(output_midi_note),
 };
 
 #undef DELUGE_RELEVANCE_ROW
 
-// One row per predicate declared in `relevance.h`: seven sound-wide and ten per-source pairs.
-static_assert(kRegistry.size() == 27);
+// One row per predicate declared in `relevance.h`: batch 1's seven sound-wide and ten per-source
+// pairs (27), plus batch 2's thirty.
+static_assert(kRegistry.size() == 57);
 
 } // namespace
 

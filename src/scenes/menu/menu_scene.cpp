@@ -985,6 +985,14 @@ deluge::ui::grid::GreyoutMask MenuScene::greyout_mask() const {
 	// `!is_audio_clip` above is what keeps it out of the INSTRUMENT_CLIP arm (task-6 fix round 1,
 	// Minor 4); inert for batch 1, whose roots are all `Root::Sound`, but load-bearing once Tasks
 	// 7-8 hang `audioCompMenu` off the audio-clip root.
+	//
+	// **Task 7 (batch 2) audit: no new arm.** Everything batch 2 declares hangs off
+	// `soundEditorRootMenu`, opened from `Root::Sound` or `Root::Drum` -- both the INSTRUMENT_CLIP
+	// arm above. The three arms still missing are the ones this layer cannot decide, unchanged:
+	// KEYBOARD_SCREEN (`:224`) and AUTOMATION (`:229`) branch on the root UI's type, and
+	// INSTRUMENT_CLIP's two note-editor sub-arms (`:237-244`) on `currentUIMode`. Task 8's roots
+	// (song, performance, audio clip, kit global FX) are the next candidates, and they land on the
+	// PERFORMANCE and default arms already written.
 	return {0xFFFFFFFFu, 0};
 }
 

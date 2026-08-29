@@ -1,6 +1,6 @@
 #pragma once
 
-/// @brief The batch-1 menu tables: the six per-subtree headers, and everything joined across them.
+/// @brief The menu tables: the per-subtree headers, and everything joined across them.
 ///
 /// The six subtrees are exactly the ones the retired Python generator produced
 /// (`src/deluge/gui/menu_item/generate/main.py`'s `top_level_menus` at `ce4a79de0`, whose output was
@@ -18,18 +18,41 @@
 ///   * `kSoundEnvChildren` -- `env1Menu` .. `env4Menu`
 ///   * `kSoundLfoChildren` -- `lfo1Menu` .. `lfo4Menu`
 ///
-/// Seventeen roots in all. Where they hang off the sound-editor root menu is Task 7's business
-/// (`soundEditorRootMenu`), and which pads reach them is Task 9's (`shortcuts.cpp`); this task
-/// declares the subtrees and nothing above them, which is why `kBatch1Roots` is a list of roots
-/// rather than one tree.
+/// Seventeen roots in all. **Task 7 (batch 2) adds the root they hang off** -- `sound_root`
+/// (`sound_root.h`) -- plus the eight subtrees the rest of that root needs:
+///
+///   * `kSoundActionsChildren` -- `soundEditorRootActionsMenu`, `sequenceDirectionMenu`,
+///     `outputMidiSubmenu`
+///   * `kSoundMasterChildren` -- `soundMasterMenu`
+///   * `kSoundArpChildren` -- `arpMenu`
+///   * `kSoundRandomizerChildren` -- `randomizerMenu`
+///   * `kSoundFxChildren` -- `soundFXMenu`
+///   * `kSoundSidechainChildren` -- `sidechainMenu`
+///   * `kSoundVoiceChildren` -- `voiceMenu`
+///   * `kSoundBendChildren` -- `bendMenu`, `drumBendRangeMenu`
+///
+/// `kBatch1Roots` stays a list of roots rather than one tree because that is what task 6 declared
+/// and what task 9's shortcut sweep still wants; `kSoundRootRoots` (`sound_root.h`) is the batch-2
+/// spelling, one root with everything under it. Every batch-1 subtree is reachable from
+/// `sound_root` too -- they are the same node objects, not copies -- which is why the two flag
+/// lists below serve both.
 
 #include "scenes/menu/node.h"
+#include "scenes/menu/nodes/sound_actions.h"
+#include "scenes/menu/nodes/sound_arp.h"
+#include "scenes/menu/nodes/sound_bend.h"
 #include "scenes/menu/nodes/sound_compressor.h"
 #include "scenes/menu/nodes/sound_env.h"
 #include "scenes/menu/nodes/sound_filters.h"
+#include "scenes/menu/nodes/sound_fx.h"
 #include "scenes/menu/nodes/sound_lfo.h"
+#include "scenes/menu/nodes/sound_master.h"
 #include "scenes/menu/nodes/sound_osc.h"
+#include "scenes/menu/nodes/sound_randomizer.h"
+#include "scenes/menu/nodes/sound_root.h"
+#include "scenes/menu/nodes/sound_sidechain.h"
 #include "scenes/menu/nodes/sound_unison.h"
+#include "scenes/menu/nodes/sound_voice.h"
 
 #include <span>
 
@@ -68,25 +91,35 @@ inline constexpr const Node* kBatch1RootArray[] = {
 };
 inline constexpr std::span<const Node* const> kBatch1Roots{kBatch1RootArray};
 
-/// @brief Every node in these six subtrees that must carry `Node::range_dependent`.
+/// @brief Every node in the whole sound tree that must carry `Node::range_dependent`.
 ///
 /// The validator's `Flag::RangeDependent` audit compares this against what the tree actually sets,
 /// so a table that forgets the flag fails loudly rather than quietly editing whichever `MultiRange`
 /// happened to be first. Batch 1 contains four of the five legacy classes `node.h` names -- both
 /// oscillators' file selector, sample-transpose, audio recorder and start/end loop points -- which
-/// is **ten** nodes; only `multi_range.h` itself is not here.
+/// is **ten** nodes.
+///
+/// **Batch 2 adds none.** The fifth legacy class, `multi_range.h:32`, is the range picker itself,
+/// which is an E2 custom; nothing else in the sound-editor root overrides `isRangeDependent()`.
 inline constexpr const Node* kRangeDependentArray[] = {
     &sample0_recorder,  &sample1_recorder, &file0_selector, &file1_selector, &source0_transpose,
     &source1_transpose, &sample0_start,    &sample0_end,    &sample1_start,  &sample1_end,
 };
 inline constexpr std::span<const Node* const> kRangeDependentNodes{kRangeDependentArray};
 
-/// @brief Every node in these six subtrees whose binding must use `Scaling::HalfPrecision`.
+/// @brief Every node in the whole sound tree whose binding must use `Scaling::HalfPrecision`.
 ///
 /// `osc::PulseWidth` for both sources (`gui/menu_item/osc/pulse_width.h:32,34-37`) and
 /// `audio_compressor::CompParam` (`audio_compressor/compressor_params.h:29-33`) -- the only two
 /// legacy classes that use the half-precision value scaling, and the ones `bindings.h` says Tasks
 /// 6-8 must name at the call site because nothing can infer them.
+///
+/// **Batch 2 adds none.** A tree-wide grep for `computeCurrentValueForHalfPrecisionMenuItem` /
+/// `computeFinalValueForHalfPrecisionMenuItem` over `gui/menu_item/` finds exactly those two
+/// classes; every other batch-2 param class keeps `patched_param::Integer`'s or
+/// `UnpatchedParam`'s standard scaling, and the two pan items (`panMenu`, `reverbPanMenu`) use
+/// `Scaling::Pan`, which is a different flag with its own inference backstop (`bindings.cpp`'s
+/// `scaling_for`).
 inline constexpr const Node* kHalfPrecisionArray[] = {&osc0_pulse_width, &osc1_pulse_width, &comp_threshold};
 inline constexpr std::span<const Node* const> kHalfPrecisionNodes{kHalfPrecisionArray};
 
