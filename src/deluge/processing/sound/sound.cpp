@@ -3593,8 +3593,8 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 				if (!range) {
 					return Error::INSUFFICIENT_RAM;
 				}
-				range->setVelocityRange(0, (uint8_t)reader.readTagOrAttributeValueInt(), range->getVelocityRangeMax(0));
-				reader.exitTag("velocityRangeMin");
+				uint8_t min = readVelocityRangeFromFile(reader, tagName, MultisampleRange::kDefaultVelocityMin);
+				range->setVelocityRange(0, min, range->getVelocityRangeMax(0));
 			}
 		}
 		else if (!strcmp(tagName, "velocityRangeMax")) {
@@ -3606,8 +3606,8 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 				if (!range) {
 					return Error::INSUFFICIENT_RAM;
 				}
-				range->setVelocityRange(0, range->getVelocityRangeMin(0), (uint8_t)reader.readTagOrAttributeValueInt());
-				reader.exitTag("velocityRangeMax");
+				uint8_t max = readVelocityRangeFromFile(reader, tagName, MultisampleRange::kDefaultVelocityMax);
+				range->setVelocityRange(0, range->getVelocityRangeMin(0), max);
 			}
 		}
 		else if (!strcmp(tagName, "sampleRanges") || !strcmp(tagName, "wavetableRanges")) {
@@ -3678,15 +3678,15 @@ Error Sound::readSourceFromFile(Deserializer& reader, int32_t s, ParamManagerFor
 							}
 							else if (!strcmp(tagName, "velocityRangeMin")) {
 								auto* msRange = (MultisampleRange*)tempRange;
-								msRange->setVelocityRange(0, (uint8_t)reader.readTagOrAttributeValueInt(),
-								                          msRange->getVelocityRangeMax(0));
-								reader.exitTag("velocityRangeMin");
+								uint8_t min =
+								    readVelocityRangeFromFile(reader, tagName, MultisampleRange::kDefaultVelocityMin);
+								msRange->setVelocityRange(0, min, msRange->getVelocityRangeMax(0));
 							}
 							else if (!strcmp(tagName, "velocityRangeMax")) {
 								auto* msRange = (MultisampleRange*)tempRange;
-								msRange->setVelocityRange(0, msRange->getVelocityRangeMin(0),
-								                          (uint8_t)reader.readTagOrAttributeValueInt());
-								reader.exitTag("velocityRangeMax");
+								uint8_t max =
+								    readVelocityRangeFromFile(reader, tagName, MultisampleRange::kDefaultVelocityMax);
+								msRange->setVelocityRange(0, msRange->getVelocityRangeMin(0), max);
 							}
 							else if (!strcmp(tagName, "variantVolume")) {
 								((SampleHolderForVoice*)holder)->volume = readVariantVolumeFromFile(reader, tagName);
