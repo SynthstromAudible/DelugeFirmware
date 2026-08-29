@@ -178,6 +178,17 @@ def main() -> int:
         return 0
 
     if update:
+        if not got_files:
+            # A script that produced nothing (a run with no `snapshot` steps, or a mistyped one)
+            # would otherwise wipe every stale file out of the golden dir and copy in an empty
+            # set, leaving an empty golden tree that then "passes" forever -- both sides have
+            # nothing to compare (I-2). Recording is the one moment that mistake is still
+            # visible, so refuse it here rather than silently emptying the golden.
+            print(
+                f"error: got directory has no .pbm/.state files to record: {args.got_dir}",
+                file=sys.stderr,
+            )
+            return 2
         do_update(args.got_dir, args.golden_dir, got_files)
         return 0
 
