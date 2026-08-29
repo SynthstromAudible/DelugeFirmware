@@ -64,6 +64,24 @@ bool Browser::allowFoldersSharingNameWithFile;
 char const* Browser::filenameToStartSearchAt;
 
 bool Browser::listingInProgress_;
+Browser::ListingAttempt Browser::attempt_;
+int32_t Browser::deferAtOpenNumber_ = 0;
+
+void Browser::ListingAttempt::begin() {
+	active = true;
+	dirAtEntry = currentDir;
+	enteredAtEntry = enteredText;
+	triedCreatingFolder = false;
+	opensThisAttempt = 0;
+}
+
+void Browser::ListingAttempt::restore() {
+	// currentDir and enteredText only -- NOT triedCreatingFolder, which is precisely the flag that
+	// has to survive a re-entry. See ListingAttempt's doc.
+	currentDir = dirAtEntry;
+	enteredText = enteredAtEntry;
+	opensThisAttempt = 0;
+}
 Browser::ListingRequest Browser::pendingListing_;
 int32_t Browser::pendingReloadCatalogSearchDirection_;
 bool Browser::pendingReloadSearchFromEnd_;
@@ -106,6 +124,16 @@ void Browser::runListingTrampoline(void* self) {
 }
 
 void Browser::runPendingListing() {
+	// One attempt spans however many ticks its opens need. The first pass captures the inputs; every
+	// re-entry puts them back, so the re-run decides from what the caller asked for rather than from
+	// what the previous pass left behind. See ListingAttempt.
+	if (attempt_.active) {
+		attempt_.restore();
+	}
+	else {
+		attempt_.begin();
+	}
+
 	Error error = Error::NONE;
 	switch (pendingListing_.action) {
 	case ListingAction::Open:
@@ -125,6 +153,14 @@ void Browser::runPendingListing() {
 		error = reloadImpl(pendingListing_.direction);
 		break;
 	}
+	if (error == Error::LISTING_DEFERRED) {
+		// Not a failure and not a completion: an open this attempt needs is not ready. Leave
+		// listingInProgress_ set and the loading animation up, and let the per-tick surface re-enter.
+		// Nothing was committed -- a deferred pass returns before arrivedInNewFolder finalises -- so
+		// the browser still shows the previous listing, which is what makes the wait unobservable.
+		return;
+	}
+	attempt_.active = false;
 	display->removeLoadingAnimation();
 	if (error == Error::NONE) {
 		if (pendingListing_.action == ListingAction::Open) {
@@ -297,6 +333,26 @@ Error Browser::readFileItemsForFolder(char const* filePrefixHere, bool allowFold
 	Error error = StorageManager::initSD();
 	if (error != Error::NONE) {
 		return error;
+	}
+
+	// Every open an ATTEMPT makes is counted, so a gate can force the Nth one to defer and check that
+	// the finished listing is identical either way. Counted here rather than at the call sites
+	// because this is the ONLY place the browser opens a directory.
+	//
+	// Gated on `attempt_.active`, and that is the rung's central rule rather than a detail. This
+	// function has callers that are NOT listing attempts and have nowhere to put a deferral:
+	// `predictExtendedText` re-reads the folder straight from the typing path, and
+	// `LoadInstrumentPresetUI` calls in from outside Browser entirely. Neither runs under
+	// `runPendingListing`, so neither would ever be re-entered, and handing either of them
+	// LISTING_DEFERRED would empty the file list and put an error popup on screen for a folder that
+	// is perfectly readable. They keep the synchronous open until they are converted in turn; what
+	// this rung converts is exactly the listing actions, and the remaining blocking callers are
+	// enumerable rather than latent.
+	if (attempt_.active) {
+		attempt_.opensThisAttempt++;
+		if (deferAtOpenNumber_ != 0 && attempt_.opensThisAttempt == deferAtOpenNumber_) {
+			return Error::LISTING_DEFERRED;
+		}
 	}
 
 	// Local RAII handle: the destructor closes it on every return path below, so there's no manual
@@ -506,8 +562,10 @@ Error Browser::readFileItemsFromFolderAndMemory(Song* song, OutputType outputTyp
                                                 bool allowFolders, Availability availabilityRequirement,
                                                 int32_t newCatalogSearchDirection) {
 	// filenameToStartAt should have .XML at the end of it.
-	bool triedCreatingFolder = false;
-
+	//
+	// `triedCreatingFolder` lives on the attempt, not here: a listing that deferred after creating
+	// the folder is re-run from the top, and a local would reset -- so the re-run would mkdir the
+	// folder it just made and take the EXISTS failure as terminal. See Browser::ListingAttempt.
 tryReadingItems:
 	Error error = readFileItemsForFolder(filePrefixHere, allowFolders, allowedFileExtensions, filenameToStartAt,
 	                                     FILE_ITEMS_MAX_NUM_ELEMENTS, newCatalogSearchDirection);
@@ -526,12 +584,12 @@ tryReadingItems:
 				// Or if we have already tried it and it didn't exist, try creating it...
 				else {
 					// But not if we already tried.
-					if (triedCreatingFolder) {
+					if (attempt_.triedCreatingFolder) {
 						return error;
 					}
 					auto result = deluge::io::mkdir(defaultDirToAlsoTry);
 					if (result.has_value()) {
-						triedCreatingFolder = true;
+						attempt_.triedCreatingFolder = true;
 						goto tryReadingItems;
 					}
 					else {
@@ -973,6 +1031,13 @@ Error Browser::reloadImpl(int32_t direction) {
 	if (pendingReloadSearchFromEnd_) {
 		error = readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, NULL, NULL, true,
 		                                         Availability::ANY, pendingReloadCatalogSearchDirection_);
+		if (error == Error::LISTING_DEFERRED) {
+			// NOT a failure, so it must not reach the swallow below. Swallowing it would report
+			// success for a listing that never happened: runPendingListing() would clear
+			// listingInProgress_, nothing would re-ask, and the browser would sit on the empty
+			// fileItems this pass left behind.
+			return error;
+		}
 		if (error != Error::NONE) {
 			D_PRINTLN("error while reloading, emptying file items");
 			emptyFileItems();
@@ -989,6 +1054,13 @@ Error Browser::reloadImpl(int32_t direction) {
 	else {
 		error = readFileItemsFromFolderAndMemory(currentSong, outputTypeToLoad, filePrefix, enteredText.c_str(), NULL,
 		                                         true, Availability::ANY, CATALOG_SEARCH_BOTH);
+		if (error == Error::LISTING_DEFERRED) {
+			// NOT a failure, so it must not reach the swallow below. Swallowing it would report
+			// success for a listing that never happened: runPendingListing() would clear
+			// listingInProgress_, nothing would re-ask, and the browser would sit on the empty
+			// fileItems this pass left behind.
+			return error;
+		}
 		if (error != Error::NONE) {
 			D_PRINTLN("error while reloading, emptying file items");
 			emptyFileItems();
@@ -1003,6 +1075,8 @@ Error Browser::reloadImpl(int32_t direction) {
 	}
 
 	error = finishSelectEncoderAction(newFileIndex, offset);
+	// No LISTING_DEFERRED arm here, deliberately: finishSelectEncoderAction re-reads nothing (its only
+	// fallible call is setEnteredTextFromCurrentFilename), so a guard for it could never fire.
 	if (error != Error::NONE) {
 		// Matches the synchronous no-reload path (selectEncoderAction()): displayError only, browser stays
 		// open. Swallow here rather than propagating to runPendingListing()/onListingFailed(), which would

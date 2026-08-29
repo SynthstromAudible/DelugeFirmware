@@ -310,6 +310,11 @@ namespace {
 	case Error::FILE_NOT_SAVED:
 	case Error::TOO_MANY_OPEN_STREAMS:
 	case Error::LOAD_IN_PROGRESS:
+	// Listed for completeness only. This one never crosses the audio-load ABI: it is the BROWSER's
+	// deferral (a folder listing waiting on the directory channel), and `errorToAbiByte` has no
+	// number for it. If one is ever needed, give it its own byte -- do not reuse 35, which is
+	// LOAD_IN_PROGRESS and means something a caller acts on differently.
+	case Error::LISTING_DEFERRED:
 		break;
 	}
 }

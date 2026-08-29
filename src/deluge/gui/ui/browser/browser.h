@@ -166,6 +166,59 @@ protected:
 	static bool listingInProgress_;
 	static ListingRequest pendingListing_;
 
+	/// @brief The inputs one listing attempt must see, so that re-running it takes the path the
+	///        first pass took rather than the path the first pass's own side effects created.
+	///
+	/// A listing is not one directory open. `arrivedInNewFolder` opens nothing itself; it calls
+	/// `readFileItemsFromFolderAndMemory`, which calls `readFileItemsForFolder`, and between them
+	/// sit three retry loops — a missing folder falls back to `defaultDirToAlsoTry` and then to
+	/// `mkdir`, a culled listing is re-read from the start, and a brand-new name forces a third
+	/// read. One listing therefore performs up to FOUR opens, and which of them happen depends on
+	/// what the earlier ones returned.
+	///
+	/// So the listing cannot be cut into "open, then enumerate, then commit". Instead any open that
+	/// is not ready returns @ref Error::LISTING_DEFERRED, every caller propagates it as it already
+	/// propagates every other error, and the per-tick surface re-runs the whole attempt from the
+	/// top. Nothing is resumed mid-function, which is what leaves the three `goto` control flows
+	/// untouched.
+	///
+	/// Re-running is only sound if the second pass sees the first pass's INPUTS. Three of the
+	/// listing's own mutations break that, and every one of them is load-bearing:
+	///
+	/// - `currentDir` is overwritten with `defaultDirToAlsoTry` on the fallback path, so a re-run
+	///   would find the `caselessEquals` guard already true and skip the fallback entirely, going
+	///   straight to `mkdir`.
+	/// - `enteredText` is rewritten by `setEnteredTextFromCurrentFilename`, `getUnusedSlot` and
+	///   `nextDefaultName`. The last is the sharp one: it advances SONG185 to SONG186, so each
+	///   re-run would advance again. And the `enteredText.empty()` guard flips to false once
+	///   `getUnusedSlot` has run, skipping the re-read that follows it.
+	/// - `triedCreatingFolder` was a local, so it reset on every re-run — and a pass that had
+	///   already created the folder would try again and read the resulting EXISTS as terminal.
+	///
+	/// Hence: capture the first two on the first attempt, put them back before every re-entry, and
+	/// keep the third here rather than on the stack.
+	struct ListingAttempt {
+		bool active = false;        ///< an attempt is under way, possibly across several ticks
+		std::string dirAtEntry;     ///< currentDir as it was when the attempt began
+		std::string enteredAtEntry; ///< enteredText as it was when the attempt began
+		bool triedCreatingFolder{}; ///< attempt-scoped, NOT call-scoped: survives a re-entry
+		int32_t opensThisAttempt{}; ///< which open this pass is on; the defer seam counts on it
+
+		/// @brief Start a fresh attempt, capturing the inputs a re-entry must restore.
+		void begin();
+		/// @brief Put the captured inputs back, ready to re-run the attempt from the top.
+		void restore();
+	};
+	static ListingAttempt attempt_;
+
+	/// @brief Test seam: make the Nth open of an attempt defer instead of opening. 0 = never.
+	///
+	/// Exists so the idempotence of a re-run can be gated directly — for each N, a listing that
+	/// deferred at its Nth open must finish identical to one that never deferred. Nothing in the
+	/// firmware sets it; only @ref BrowserListingAbProbe does.
+	static int32_t deferAtOpenNumber_;
+	friend class BrowserListingAbProbe;
+
 	/// @brief Extra context for ListingAction::Reload's two selectEncoderAction call sites.
 	///
 	/// The encoder offset and catalog-search-direction don't fit ListingRequest's generic fields
