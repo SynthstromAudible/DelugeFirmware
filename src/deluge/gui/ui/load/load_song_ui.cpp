@@ -16,6 +16,7 @@
  */
 
 #include "gui/ui/load/load_song_ui.h"
+#include "board_config.h" // PLACE_SDRAM_BSS
 #include "definitions_cxx.hpp"
 #include "deluge_resource.h" // deluge_resource_loader_has_lowest
 #include "extern.h"
@@ -79,7 +80,13 @@ namespace {
 /// every read through it, and nothing about a 4 KiB automatic in a UI callback would make that
 /// clearer. One is enough by construction: there is exactly one LoadSongUI and `previewLoad_` is
 /// single-flight, so a second collect can never be in progress alongside the first.
-std::array<uint8_t, deluge::storage::kSongPreviewWindow> songPreviewPrefix;
+///
+/// PLACE_SDRAM_BSS because 4 KiB of on-chip RAM is far too dear for a buffer touched once per preview
+/// and never by the audio path -- and because the reader that reads THROUGH it (smJsonBufferDeserializer
+/// / smBufferDeserializer, storage_manager.cpp) already lives there, so this merely stops the two
+/// halves of one decode straddling two memories. A plain byte array needs no zeroing, so unlike the
+/// std::optionals next to it this does not lean on resetprg.c's emptySection() boot memset.
+PLACE_SDRAM_BSS std::array<uint8_t, deluge::storage::kSongPreviewWindow> songPreviewPrefix;
 
 // deluge_file_prefix_collect() requires out_cap >= DELUGE_FILE_PREFIX_CAPACITY: a shorter buffer is a
 // caller bug that trips a debug_assert in a dev build and silently yields blank artwork in release,
@@ -898,12 +905,10 @@ bool LoadSongUI::drawSongPreview(bool toStore) {
 	// song's artwork over a folder. There is also nothing to wait for, so the image is blanked and
 	// released to the caller's scroll right here.
 	if (currentFileItem == nullptr || currentFileItem->isFolder) {
+		// The direction parked for the preview being abandoned goes with it (cancelPreview clears it),
+		// so it cannot fire later on top of the scroll the caller is about to start.
 		cancelPreview();
 		(void)beginPreviewRender(toStore);
-		// A direction parked for the preview we just abandoned would otherwise fire later, on top of
-		// the scroll the caller is about to start. The old dispatch-always shape could not leave one
-		// behind, because the caller overwrote it before the render consumed it.
-		pendingScrollDirection_ = 0;
 		return true; // blank, but FILLED: a scroll may start from it now
 	}
 

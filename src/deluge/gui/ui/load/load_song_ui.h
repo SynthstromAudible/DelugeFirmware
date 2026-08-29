@@ -20,7 +20,6 @@
 #include "gui/ui/load/load_ui.h"
 #include "hid/button.h"
 #include "storage/deferred_load.h"
-#include "storage/owner.h"
 
 #include <cstdint>
 #include <string>
@@ -118,7 +117,18 @@ private:
 	///
 	/// Cancelling strands nothing. It abandons the RESULT, never the read: the prefix channel is
 	/// single-flight and the next request supersedes whatever is outstanding.
-	void cancelPreview() { previewLoad_.cancel(); }
+	///
+	/// It also drops @ref pendingScrollDirection_, and that half is not tidiness. A cancel is the one
+	/// way a parked direction can outlive the render that was going to consume it: the owner op skips
+	/// @ref finishPreviewRender for a stale attempt, and a dropped deferral means the collect never
+	/// runs -- while @ref currentFileChanged parks a direction on EVERY move onto a song, so one is
+	/// parked for the whole preview window. Left behind it survives into the next visit (there is one
+	/// LoadSongUI, and @ref opened cancels), where the first render's @ref finishPreviewRender would
+	/// start a horizontal scroll on top of the vertical scroll-in and abandon it half-drawn.
+	void cancelPreview() {
+		previewLoad_.cancel();
+		pendingScrollDirection_ = 0;
+	}
 
 	/// @brief Start work on @p target, or queue it behind work already running (latest-wins).
 	void dispatchPreview(const PreviewTarget& target);
