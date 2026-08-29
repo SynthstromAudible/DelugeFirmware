@@ -87,7 +87,8 @@ TEST(ChokeGroup, xmlRoundTrip) {
 }
 
 TEST(ChokeGroup, xmlRoundTripAcrossAllValidGroups) {
-	for (uint8_t group = 1; group <= 8; group++) {
+	// Group 1 is the omitted-attribute case, covered separately below.
+	for (uint8_t group = 2; group <= 8; group++) {
 		MockWriter writer;
 		writeChokeGroupToFile(writer, group);
 
@@ -95,6 +96,21 @@ TEST(ChokeGroup, xmlRoundTripAcrossAllValidGroups) {
 		reader.valueToReturn = writer.attributeValues[0];
 		CHECK_EQUAL(group, readChokeGroupFromFile(reader));
 	}
+}
+
+TEST(ChokeGroup, xmlDefaultGroupIsOmittedButStillRoundTrips) {
+	// Group 1 writes nothing at all, so a kit nobody has assigned groups in saves exactly as it did
+	// before the feature existed - no attribute appears on any drum, and re-saving an untouched song
+	// doesn't show a change on every drum in it.
+	MockWriter writer;
+	writeChokeGroupToFile(writer, 1);
+	CHECK_EQUAL(0u, writer.attributeNames.size());
+
+	// The omission is lossless: SoundDrum's field initialiser gives an absent attribute group 1
+	// anyway, and a file that does carry an explicit 1 still reads back as 1.
+	MockReader reader;
+	reader.valueToReturn = 1;
+	CHECK_EQUAL(1, readChokeGroupFromFile(reader));
 }
 
 TEST(ChokeGroup, xmlOutOfRangeValuesFallBackToDefaultGroup) {
