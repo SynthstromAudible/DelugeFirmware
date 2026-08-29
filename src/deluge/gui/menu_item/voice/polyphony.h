@@ -96,8 +96,9 @@ public:
 		IntegerWithOff::renderInHorizontalMenu(slot);
 	}
 
-	// VCNT and ChokeGroup's CGRP are mutually exclusive (POLY vs CHOKE); once ChokeGroup is defined below,
-	// don't show a redundant "-" here while CGRP is the one actually in use.
+	// VCNT and ChokeGroup's CGRP are mutually exclusive (POLY vs CHOKE); once ChokeGroup is defined
+	// below, give up this column while CGRP is the one actually in use, so it takes VCNT's place
+	// rather than adding a column. Any other time VCNT keeps its "-" exactly as it always has.
 	[[nodiscard]] bool hideWhenIrrelevant() const override;
 };
 
@@ -145,8 +146,10 @@ public:
 		label.append(deluge::l10n::get(l10n::String::STRING_FOR_CHOKE_GROUP_SHORT));
 	}
 
-	// See VoiceCount::hideWhenIrrelevant() above for why.
-	[[nodiscard]] bool hideWhenIrrelevant() const override { return isItemRelevant(&polyphonicVoiceCountMenu); }
+	// CGRP is a new column, so it should cost nothing whenever it isn't in use: leaving a "-" behind
+	// would shove PORTA (and, in the menu without unison, a whole extra page) onto everyone's screen
+	// for a control that can't be reached - permanently so on synths, where choke is kit-only.
+	[[nodiscard]] bool hideWhenIrrelevant() const override { return true; }
 };
 
 extern ChokeGroup chokeGroupMenu;
