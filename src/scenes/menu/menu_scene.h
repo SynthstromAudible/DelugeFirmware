@@ -91,8 +91,12 @@ struct MenuState {
 	///       widget reads, which is exactly what a scene-owned "the leaf is being edited" bit
 	///       wants to be.
 	deluge::ui::ListState list[kMenuDepth]{};
-	deluge::ui::ColumnsState columns{};
-	deluge::ui::ScrollText scroll{};
+	/// One per menu depth, like `list`: a horizontal page nested under another must not lose the
+	/// parent's column focus when the child is entered and left again.
+	deluge::ui::ColumnsState columns[kMenuDepth]{};
+	/// One per menu depth, for the same reason -- and because `render_leaf_toggle` borrows this
+	/// for its own two-row list, which would otherwise fight the parent menu's label scroller.
+	deluge::ui::ScrollText scroll[kMenuDepth]{};
 
 	// --- typed per-kind edit storage: the widgets do not share one int32 ---
 	/// `Kind::Int` and `Kind::Decimal`: `int_value` / `decimal_value` take an `int32_t&`.
@@ -129,6 +133,11 @@ struct MenuState {
 	/// Whether `render_oled` read (and therefore claimed) the back button this tick. Only ever
 	/// set at `depth > 0` -- see `MenuScene::render_oled`.
 	bool back_claimed = false;
+	/// A select press on a *value* column of a horizontal page, which `columns` does not own (it
+	/// claims the press only for a submenu column, `ui/oled/columns.cpp:419-423`). Legacy's
+	/// `HorizontalMenu::handleItemAction` answers it with the notification popup rather than any
+	/// navigation (`gui/menu_item/horizontal_menu.cpp:657-661`).
+	bool column_press = false;
 	/// Spec E §4.1's `MustSelectRange` outcome, recorded rather than acted on: E2 owns the range
 	/// picker, and E1 leaves the node unentered.
 	bool range_picker_pending = false;

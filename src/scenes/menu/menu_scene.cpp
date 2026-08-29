@@ -92,6 +92,25 @@ bool blink_on(const deluge::ui::Blink& b, uint32_t now_ms) {
 	return (((now_ms - b.until_ms) / b.period_ms) & 1u) == 0;
 }
 
+/// @brief Milliseconds until @p b's next phase flip.
+///
+/// The scene's copy of `values.cpp`'s `blink_next_flip_in` (a static there, not exported). What it
+/// is *for* is the important part: a free-running blink has to arm the surface's `RepaintGate`, or
+/// the shell's `needs_frame` never fires between unrelated repaints and the blink is a still
+/// picture. `next_timer()` alone is not enough -- it only feeds `Shell::compute_next_wake`, and on
+/// that wake `had_input_` is false and the gate still says "no frame needed".
+///
+/// @param b      The blink state.
+/// @param now_ms The tick's clock.
+/// @return Milliseconds to the flip; a whole period for an unarmed (zero-period) blink.
+uint32_t ms_to_next_flip(const deluge::ui::Blink& b, uint32_t now_ms) {
+	if (b.period_ms == 0) {
+		return 1;
+	}
+	const uint32_t into_phase = (now_ms - b.until_ms) % b.period_ms;
+	return b.period_ms - into_phase;
+}
+
 /// @brief Resolve a `Node`'s l10n id to text through the one sanctioned path
 ///        (`shell/profile.h:156`, which already implements the digits fallback).
 std::string_view text_of(uint16_t string_id, TextScratch& scratch) {
@@ -115,53 +134,79 @@ const deluge::gfx::oled::Icon* row_icon(const Node& node, const MenuContext& ctx
 
 /// @brief Render @p value into @p buf as decimal digits.
 /// @return A view over @p buf; never longer than @p n.
-std::string_view format_int(int32_t value, char* buf, size_t n) {
-	if (n == 0) {
-		return {};
-	}
+std::string_view format_uint(uint32_t value, char* buf, size_t n) {
 	char digits[12];
 	size_t d = 0;
-	const bool negative = value < 0;
-	uint32_t magnitude = negative ? static_cast<uint32_t>(-static_cast<int64_t>(value)) : static_cast<uint32_t>(value);
 	do {
-		digits[d++] = static_cast<char>('0' + magnitude % 10);
-		magnitude /= 10;
-	} while (magnitude != 0 && d < sizeof(digits));
+		digits[d++] = static_cast<char>('0' + value % 10);
+		value /= 10;
+	} while (value != 0 && d < sizeof(digits));
 	size_t out = 0;
-	if (negative && out < n) {
-		buf[out++] = '-';
-	}
 	while (d > 0 && out < n) {
 		buf[out++] = digits[--d];
 	}
 	return {buf, out};
 }
 
-/// @brief Render @p value into @p buf with a period @p places from the right -- the horizontal
-///        menu's short form of `Decimal::getNotificationValue`.
-std::string_view format_decimal(int32_t value, uint8_t places, char* buf, size_t n) {
-	if (places == 0) {
-		return format_int(value, buf, n);
-	}
-	char whole[16];
-	const std::string_view digits = format_int(value < 0 ? -value : value, whole, sizeof(whole));
+/// @brief `-value` as a magnitude, through `int64_t` so `INT32_MIN` does not overflow.
+uint32_t magnitude_of(int32_t value) {
+	return value < 0 ? static_cast<uint32_t>(-static_cast<int64_t>(value)) : static_cast<uint32_t>(value);
+}
+
+/// @brief Render @p value into @p buf as signed decimal digits.
+/// @return A view over @p buf; never longer than @p n.
+std::string_view format_int(int32_t value, char* buf, size_t n) {
 	size_t out = 0;
 	if (value < 0 && out < n) {
 		buf[out++] = '-';
 	}
-	// Zero-pad to at least `places + 1` digits so the period always has a whole part before it.
-	const size_t pad = digits.size() > places ? 0 : places + 1 - digits.size();
-	for (size_t i = 0; i < pad && out < n; i++) {
-		buf[out++] = '0';
+	char digits[12];
+	const std::string_view d = format_uint(magnitude_of(value), digits, sizeof(digits));
+	for (const char c : d) {
+		if (out >= n) {
+			break;
+		}
+		buf[out++] = c;
 	}
-	const size_t total = pad + digits.size();
-	for (size_t i = 0; i < digits.size() && out < n; i++) {
-		if (pad + i == total - places && out < n) {
+	return {buf, out};
+}
+
+/// @brief Render @p value into @p buf with a period @p places from the right.
+///
+/// Legacy's rule, from `Decimal::drawPixelsForOled` (`gui/menu_item/decimal.cpp:129-153`):
+/// `intToString(value, buffer, numDecimalPlaces + 1)` zero-pads the digits to **at least
+/// `places + 1`**, and the period is then drawn at `length - numDecimalPlaces`. So there is always
+/// a whole part before the point, however small the value: 5 at 2 places is `0.05`, 0 is `0.00`,
+/// 50 at 3 places is `0.050`, and a negative keeps its sign outside the padding (`-0.05`).
+///
+/// @param value  The value in the item's smallest unit.
+/// @param places How many of its digits are after the point.
+/// @param buf    Destination.
+/// @param n      Size of @p buf.
+/// @return A view over @p buf; never longer than @p n.
+std::string_view format_decimal(int32_t value, uint8_t places, char* buf, size_t n) {
+	if (places == 0) {
+		return format_int(value, buf, n);
+	}
+	char digits[12];
+	const std::string_view d = format_uint(magnitude_of(value), digits, sizeof(digits));
+	// `intToString`'s minimum-width padding: at least `places + 1` digits, so the point always has
+	// something to its left.
+	const size_t total = std::max(d.size(), static_cast<size_t>(places) + 1);
+	const size_t pad = total - d.size();
+
+	size_t out = 0;
+	if (value < 0 && out < n) {
+		buf[out++] = '-';
+	}
+	for (size_t i = 0; i < total && out < n; i++) {
+		if (i == total - places) {
 			buf[out++] = '.';
+			if (out >= n) {
+				break;
+			}
 		}
-		if (out < n) {
-			buf[out++] = digits[i];
-		}
+		buf[out++] = i < pad ? '0' : d[i - pad];
 	}
 	return {buf, out};
 }
@@ -214,12 +259,17 @@ void MenuScene::retarget(const Node& node) {
 	}
 	st_.depth = 0;
 	st_.list[0] = deluge::ui::ListState{};
-	st_.columns = deluge::ui::ColumnsState{};
-	st_.scroll = deluge::ui::ScrollText{};
+	st_.columns[0] = deluge::ui::ColumnsState{};
+	st_.scroll[0] = deluge::ui::ScrollText{};
 	st_.render_resp = {};
 	st_.value_changed = false;
 	st_.value_node = nullptr;
 	st_.back_claimed = false;
+	st_.column_press = false;
+	// A pending range belongs to the item that asked for one; re-rooting the path abandons that
+	// item, so the request goes with it rather than surviving to mislead E2's picker.
+	st_.range_picker_pending = false;
+	st_.pending_after_range = nullptr;
 	if (is_leaf(node.kind)) {
 		enter_leaf(node);
 	}
@@ -253,7 +303,9 @@ void MenuScene::on_resume() {
 	// belong to a render pass that never happened.
 	st_.render_resp = {};
 	st_.value_changed = false;
+	st_.value_node = nullptr;
 	st_.back_claimed = false;
+	st_.column_press = false;
 }
 
 void MenuScene::on_model_changed(const deluge::notify::DirtySet& dirty) {
@@ -314,7 +366,7 @@ const Node* MenuScene::selected_child(const Node& node) const {
 	if (node.kind != Kind::Submenu) {
 		return nullptr;
 	}
-	return node.layout == Layout::Horizontal ? child_at(node, st_.columns.focused)
+	return node.layout == Layout::Horizontal ? child_at(node, st_.columns[st_.depth].focused)
 	                                         : child_at(node, st_.list[st_.depth].cursor);
 }
 
@@ -333,6 +385,7 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 	}
 
 	st_.render_resp = {};
+	st_.column_press = false;
 
 	// **The depth test precedes the read** (task-5 ruling 3). At depth 0 `back_pressed()` is never
 	// called at all, so the input stays unclaimed and `Router::route_post_render` delivers
@@ -399,8 +452,9 @@ void MenuScene::render_vertical(deluge::ui::oled::OledFrame& f, const Node& node
 	// `menu_rect(f)` is the legacy-reproducing rect (`ui/oled/list.h:33`) -- never a hand-computed
 	// one. `list` clamps the cursor, walks it with `f.turn()`, and reports `entered` on a select
 	// press, claiming both for the tick.
-	st_.render_resp = deluge::ui::oled::list(f, deluge::ui::oled::menu_rect(f), st_.list[st_.depth],
-	                                         std::span<const deluge::ui::oled::ListRow>{rows, n}, st_.scroll);
+	st_.render_resp =
+	    deluge::ui::oled::list(f, deluge::ui::oled::menu_rect(f), st_.list[st_.depth],
+	                           std::span<const deluge::ui::oled::ListRow>{rows, n}, st_.scroll[st_.depth]);
 }
 
 void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& node) {
@@ -411,13 +465,16 @@ void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& no
 	// user was looking at rather than the one the same tick's turn moved onto. `columns` owns the
 	// turn and hands its focused slot `InputMask{.turn = false}` (`ui/oled/columns.h:139`); the
 	// ready-made slot renderers draw only, so the edit encoders are this scene's to read.
-	const int32_t focus = n == 0 ? 0 : clamp_to(st_.columns.focused, 0, static_cast<int32_t>(n) - 1);
+	const int32_t focus = n == 0 ? 0 : clamp_to(st_.columns[st_.depth].focused, 0, static_cast<int32_t>(n) - 1);
 	const int8_t coarse = f.edit(0);
 	const int8_t fine = f.edit(1);
 	if (n != 0 && (coarse != 0 || fine != 0)) {
 		const Node& target = *kids[focus];
 		const IntRange range = bindings::range(target, ctx_);
-		const int32_t moved = clamp_to(bindings::read(target, ctx_) + coarse * range.step + fine, range.min, range.max);
+		// The toolkit's own guard: a zero `step` would give a dead coarse knob
+		// (`ui/oled/values.cpp:37-39`'s `coarse_step`).
+		const int32_t step = range.step != 0 ? range.step : 1;
+		const int32_t moved = clamp_to(bindings::read(target, ctx_) + coarse * step + fine, range.min, range.max);
 		if (moved != bindings::read(target, ctx_)) {
 			switch (target.kind) {
 			case Kind::Enum:
@@ -500,9 +557,19 @@ void MenuScene::render_horizontal(deluge::ui::oled::OledFrame& f, const Node& no
 	TextScratch title_scratch;
 	// `f.bounds()`, not `menu_rect(f)`: this widget owns the whole panel including its own title
 	// band (`ui/oled/columns.h:139`).
-	st_.render_resp =
-	    deluge::ui::oled::columns(f, f.bounds(), st_.columns, std::span<const deluge::ui::oled::Column>{cols, n},
-	                              text_of(node.title, title_scratch));
+	st_.render_resp = deluge::ui::oled::columns(f, f.bounds(), st_.columns[st_.depth],
+	                                            std::span<const deluge::ui::oled::Column>{cols, n},
+	                                            text_of(node.title, title_scratch));
+
+	// `columns` claims the press only for a submenu column (`ui/oled/columns.cpp:419-423`), so a
+	// press on a *value* column reaches nobody. Legacy answers it with the notification popup and
+	// no navigation (`HorizontalMenu::handleItemAction`, `gui/menu_item/horizontal_menu.cpp:657-661`).
+	// The read is on the same frame instance `columns` was handed, so the claim is idempotent
+	// (`ui/core/frame_context.h`, rule 2) and never trips `double_claim`.
+	const int32_t settled = n == 0 ? -1 : clamp_to(st_.columns[st_.depth].focused, 0, static_cast<int32_t>(n) - 1);
+	if (settled >= 0 && kids[settled]->kind != Kind::Submenu) {
+		st_.column_press = f.select_pressed();
+	}
 }
 
 void MenuScene::render_leaf_int(deluge::ui::oled::OledFrame& f, const Node& node) {
@@ -522,6 +589,11 @@ void MenuScene::render_leaf_int(deluge::ui::oled::OledFrame& f, const Node& node
 	if (f.select_pressed()) {
 		st_.render_resp.entered = true;
 	}
+	// And the select *encoder*: legacy edits the value with it on a number screen
+	// (`SoundEditor::selectEncoderAction`, `sound_editor.cpp:1067`). This port leaves the editing to
+	// the gold knobs, but the input still belongs to this screen -- left unclaimed it would fall out
+	// of `route_post_render` into whatever service is registered.
+	f.claim_turn();
 }
 
 void MenuScene::render_leaf_decimal(deluge::ui::oled::OledFrame& f, const Node& node) {
@@ -542,6 +614,7 @@ void MenuScene::render_leaf_decimal(deluge::ui::oled::OledFrame& f, const Node& 
 	if (f.select_pressed()) {
 		st_.render_resp.entered = true;
 	}
+	f.claim_turn(); // as `render_leaf_int`: the number screen owns the select encoder
 }
 
 void MenuScene::render_leaf_enum(deluge::ui::oled::OledFrame& f, const Node& node) {
@@ -577,7 +650,7 @@ void MenuScene::render_leaf_toggle(deluge::ui::oled::OledFrame& f, const Node& n
 	// A `bool&`, no `focused`; a select press reports `entered` and leaves `changed` false
 	// (`ui/oled/values.h:169`).
 	const deluge::ui::Response r =
-	    deluge::ui::oled::toggle(f, deluge::ui::oled::menu_rect(f), st_.edit_bool, off, on, st_.scroll);
+	    deluge::ui::oled::toggle(f, deluge::ui::oled::menu_rect(f), st_.edit_bool, off, on, st_.scroll[st_.depth]);
 	st_.render_resp = r;
 	if (r.changed) {
 		st_.value_changed = true;
@@ -599,13 +672,25 @@ void MenuScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	// period: the focused param's pad at a 180 ms re-arm (`sound_editor.cpp:985`), the patching
 	// sources at 20 ms (`:996`).
 	const ShortcutPos pos = shortcut_pos(ctx_.root, *node);
-	if (pos.valid && blink_on(st_.shortcut_blink, now)) {
-		(void)f.pad(pos.x, pos.y, kFlashColour);
-	}
-	if (blink_on(st_.source_blink, now)) {
-		for (const ShortcutPos& source : source_shortcut_pads(ctx_.root, *node)) {
-			(void)f.pad(source.x, source.y, kFlashColour);
+	if (pos.valid) {
+		if (blink_on(st_.shortcut_blink, now)) {
+			(void)f.pad(pos.x, pos.y, kFlashColour);
 		}
+		// **Arming the gate is what makes the blink move.** `next_timer()` only feeds
+		// `Shell::compute_next_wake`; on that wake `had_input_` is false and
+		// `RepaintGate::needs_frame` still says no, so without this the pad would only ever change
+		// on somebody else's repaint. Same shape every animated widget uses -- `decimal_value`
+		// (`ui/oled/values.cpp:179`), `popup`, `scroll_text`, `grid::gesture`.
+		f.gate().request_repaint_after(ms_to_next_flip(st_.shortcut_blink, now), now);
+	}
+	const std::span<const ShortcutPos> sources = source_shortcut_pads(ctx_.root, *node);
+	if (!sources.empty()) {
+		if (blink_on(st_.source_blink, now)) {
+			for (const ShortcutPos& source : sources) {
+				(void)f.pad(source.x, source.y, kFlashColour);
+			}
+		}
+		f.gate().request_repaint_after(ms_to_next_flip(st_.source_blink, now), now);
 	}
 }
 
@@ -614,6 +699,12 @@ void MenuScene::leds(deluge::ui::LedFrame& f) {
 	// pixels rather than an LED declaration. The set is `SoundEditor::setLedStates`
 	// (`sound_editor.cpp:301-314`), minus the parts that belong to services (`playbackHandler`,
 	// `view.setKnobIndicatorLevels`).
+	// Nothing to declare while the path is empty: `on_model_changed(SongSwapped)` drops it and the
+	// scene draws nothing until the application re-`open()`s, so announcing the menu's LED set
+	// would light a menu that is not on screen.
+	if (focused() == nullptr) {
+		return;
+	}
 	constexpr deluge::ui::LedState kOff{deluge::ui::LedState::Kind::Off, 0, 0};
 	constexpr ButtonId kOffButtons[] = {ButtonId::Save, ButtonId::Synth,       ButtonId::Kit,  ButtonId::Midi,
 	                                    ButtonId::Cv,   ButtonId::CrossScreen, ButtonId::Scale};
@@ -636,7 +727,7 @@ void MenuScene::enter_leaf(const Node& node) {
 		break;
 	case Kind::Toggle:
 		st_.edit_bool = bindings::read(node, ctx_) != 0;
-		st_.scroll = deluge::ui::ScrollText{};
+		st_.scroll[st_.depth] = deluge::ui::ScrollText{};
 		break;
 	case Kind::Decimal:
 		st_.edit_int = bindings::read(node, ctx_);
@@ -691,8 +782,8 @@ void MenuScene::enter_child(const Node& child) {
 	st_.depth++;
 	st_.path[st_.depth] = &child;
 	st_.list[st_.depth] = deluge::ui::ListState{};
-	st_.columns = deluge::ui::ColumnsState{};
-	st_.scroll = deluge::ui::ScrollText{};
+	st_.columns[st_.depth] = deluge::ui::ColumnsState{};
+	st_.scroll[st_.depth] = deluge::ui::ScrollText{};
 	if (is_leaf(child.kind)) {
 		enter_leaf(child);
 	}
@@ -719,37 +810,70 @@ Result MenuScene::after_render() {
 		return r;
 	}
 
+	// What was on screen when this tick's render ran. Navigation below moves the path *after* the
+	// render, so the panel is still showing the old screen and the next tick has to be asked for.
+	const Node* const drawn = node;
+	bool repaint = false;
+
 	if (st_.value_changed && st_.value_node != nullptr) {
 		commit_value(*st_.value_node);
 		// The write raises its own `notify::Dirty` facts (`bindings.cpp`), which repaint the
 		// surfaces those name; `RepaintAll` covers what a commit changed *off* this surface (a
 		// mod-knob indicator, the automation grid). Never `Action{Repaint, SurfaceRole::None}`,
 		// which is a documented no-op (`shell/scene.h:165`).
-		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+		repaint = true;
 	}
 
-	// The horizontal menu's "notification value" popup on a column change
-	// (`horizontal_menu.cpp:345`'s `switchVisiblePage` / `selectMenuItem` path). `notice_text`
-	// copies the string into the queue's own 48-byte slot, so the stack buffer below is enough;
-	// `notices().push` is the wrong call here -- it is `[[nodiscard]]` and drops silently
-	// (`notify/notice_queue.h:46`).
-	if (st_.render_resp.changed && node->kind == Kind::Submenu && node->layout == Layout::Horizontal) {
-		if (const Node* column = selected_child(*node); column != nullptr) {
-			char buf[16];
-			std::string_view text;
-			switch (column->kind) {
-			case Kind::Decimal:
-				text = format_decimal(bindings::read(*column, ctx_), column->bind.decimal_places, buf, sizeof(buf));
-				break;
-			case Kind::Submenu:
-				break;
-			default:
-				text = format_int(bindings::read(*column, ctx_), buf, sizeof(buf));
-				break;
+	// The horizontal menu's notification popup, `HorizontalMenu::displayNotification`
+	// (`gui/menu_item/horizontal_menu.cpp:335-343`): it shows the item's *name* alongside its value,
+	// and legacy raises it on a focus move (`:327-328`, `selectMenuItem`), on a value change
+	// (`:326-328`, `selectEncoderAction`) and on a press that does not open anything
+	// (`:657-661`, `handleItemAction`) -- all three, not just the focus move.
+	//
+	// `notify::Notice` carries one text field, so the pair is joined here. `notice_text` copies into
+	// the queue's own 48-byte slot, so the stack buffer below is enough; `notices().push` is the
+	// wrong call -- it is `[[nodiscard]]` and drops silently (`notify/notice_queue.h:46`).
+	//
+	// **`Notice::Kind::Console`, not the default `Text`.** Legacy's `OLED::displayNotification`
+	// (`hid/display/oled.cpp:744-756`) draws a single-row banner across the top of the panel *over*
+	// the running UI -- the menu underneath keeps rendering and keeps its input. The shell's
+	// `Text` notice becomes the full `PopupScene`, which is **not** `oled_transparent` for `Main`
+	// (`shell/notices.cpp:118-120`); the shell then renders from the popup upwards, `MenuScene`
+	// does not render at all, and with no render there is no `after_render` and no claims -- so the
+	// menu would freeze for the popup's whole lifetime every time a knob moved. `ConsoleScene` is
+	// the shipped overlay with legacy's composition: drawn over, transparent to both the surface
+	// beneath and to input (`notices.h:150,175`).
+	const bool horizontal = node->kind == Kind::Submenu && node->layout == Layout::Horizontal;
+	if (horizontal && (st_.render_resp.changed || st_.value_changed || st_.column_press)) {
+		if (const Node* column = selected_child(*node); column != nullptr && column->kind != Kind::Submenu) {
+			char value_buf[16];
+			std::string_view value;
+			if (column->kind == Kind::Decimal) {
+				value = format_decimal(bindings::read(*column, ctx_), column->bind.decimal_places, value_buf,
+				                       sizeof(value_buf));
 			}
-			if (!text.empty()) {
-				deluge::notify::notice_text(text);
+			else {
+				value = format_int(bindings::read(*column, ctx_), value_buf, sizeof(value_buf));
 			}
+			TextScratch name_scratch;
+			const std::string_view name = text_of(column->name, name_scratch);
+			char line[48];
+			size_t out = 0;
+			for (const char c : name) {
+				if (out < sizeof(line)) {
+					line[out++] = c;
+				}
+			}
+			if (out + 1 < sizeof(line)) {
+				line[out++] = ':';
+				line[out++] = ' ';
+			}
+			for (const char c : value) {
+				if (out < sizeof(line)) {
+					line[out++] = c;
+				}
+			}
+			deluge::notify::notice_text(std::string_view{line, out}, deluge::notify::Notice::Kind::Console);
 		}
 	}
 
@@ -773,10 +897,22 @@ Result MenuScene::after_render() {
 		ascend();
 	}
 
+	// A descend or an ascend replaces the whole screen, but it happened *after* this tick's render
+	// drew the old one -- and nothing else arms a gate for it, because no widget was involved. Ask
+	// for the next frame explicitly, or the panel keeps showing the menu the user just left until
+	// some unrelated input happens to repaint it.
+	if (focused() != drawn) {
+		repaint = true;
+	}
+	if (repaint) {
+		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+	}
+
 	st_.render_resp = {};
 	st_.value_changed = false;
 	st_.value_node = nullptr;
 	st_.back_claimed = false;
+	st_.column_press = false;
 	return r;
 }
 
@@ -792,11 +928,18 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 	// `Buttons::isShiftButtonPressed()` (`sound_editor.cpp:1114`); the auditioning half is a UI
 	// mode this layer may not read, so shift is the whole gate.
 	if (event.kind == UiEvent::Kind::Pad && event.on && ctx.shift) {
-		if (const Node* target = shortcut_node(ctx_.root, ctx.shift, event.x, event.y); target != nullptr) {
-			retarget(*target);
+		const Node* target = shortcut_node(ctx_.root, ctx.shift, event.x, event.y);
+		// A node the registry never numbered cannot be named in a `SceneId`, and `on_enter` would
+		// refuse the id and roll the move back -- so the jump is simply not offered.
+		const uint16_t id = target != nullptr ? node_id(*target) : 0;
+		if (id != 0) {
+			// `Replace`, not an in-place re-target: `SceneId::arg` is how the shell spells which
+			// node is open (`Shell::state_lines()` -> `app16/<id>`), and a path the scene moved
+			// behind the stack's back would make that line lie. `on_enter` does the re-target on
+			// the way back in, and `save_state`/`restore_state` carry what should survive.
 			Result r;
 			r.handled = true;
-			(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+			(void)r.actions.push_back(Action{.kind = Action::Kind::Replace, .id = SceneId{SceneKind::FirstApp, id}});
 			return r;
 		}
 		return Result::unhandled();
@@ -826,6 +969,11 @@ deluge::ui::grid::GreyoutMask MenuScene::greyout_mask() const {
 	// kept `setup()`'s two `currentUIMode` roots out of `MenuContext::Root`); they stay with the
 	// scene that owns those views. `doGreyout == false` is spelled as an all-zero mask, which
 	// `greyout()` already reads as "grey nothing".
+	// Same reason as `leds()`: with no path there is no menu on screen, so greying the grid under
+	// it would leave the base view dimmed with nothing over it.
+	if (focused() == nullptr) {
+		return {};
+	}
 	if (ctx_.is_performance) {
 		return {}; // `:248` PERFORMANCE
 	}
@@ -858,7 +1006,7 @@ void MenuScene::save_state(SceneState& state) const {
 	}
 	const Node* node = focused();
 	saved.focus = (node != nullptr && node->kind == Kind::Submenu && node->layout == Layout::Horizontal)
-	                  ? st_.columns.focused
+	                  ? st_.columns[st_.depth].focused
 	                  : st_.list[st_.depth].cursor;
 	std::memcpy(state.bytes, &saved, sizeof(saved));
 }
@@ -878,6 +1026,15 @@ void MenuScene::restore_state(const SceneState& state) {
 		if (child == nullptr) {
 			break; // the table changed under the save; stop at the deepest level that still exists
 		}
+		// Seed the level we are leaving with the row we took out of it, so a `Back` straight after
+		// a restore lands where the user was -- legacy rebuilds exactly this through
+		// `Submenu::focusChild(navigatedBackwardFrom)` (`gui/menu_item/submenu.cpp:21-37`).
+		if (st_.path[level]->layout == Layout::Horizontal) {
+			st_.columns[level].focused = static_cast<int8_t>(saved.path_child[level]);
+		}
+		else {
+			st_.list[level].cursor = saved.path_child[level];
+		}
 		st_.depth = static_cast<uint8_t>(level + 1);
 		st_.path[st_.depth] = child;
 		if (is_leaf(child->kind)) {
@@ -887,7 +1044,7 @@ void MenuScene::restore_state(const SceneState& state) {
 
 	const Node* node = focused();
 	if (node != nullptr && node->kind == Kind::Submenu && node->layout == Layout::Horizontal) {
-		st_.columns.focused = static_cast<int8_t>(saved.focus);
+		st_.columns[st_.depth].focused = static_cast<int8_t>(saved.focus);
 	}
 	else {
 		st_.list[st_.depth].cursor = saved.focus;
