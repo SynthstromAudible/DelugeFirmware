@@ -21,6 +21,16 @@ add_library(deluge_spec STATIC
 ../../src/deluge/gui/ui/notify_drain_mapping.cpp
 ../32bit_unit_tests/mocks/mock_display.cpp
 ../32bit_unit_tests/mocks/mock_print.cpp
+# The menu node-id registry (task 2, spec E1): dependency-free (its only model include is
+# modulation/params/param.h, for params::Kind), also compiled into deluge_scenes
+# (src/scenes/CMakeLists.txt). Listed directly here rather than linking deluge_scenes itself --
+# this tree (tests/CMakeLists.txt) never add_subdirectory's src/scenes at all, so that target
+# doesn't exist to link against, and linking it in would be the wrong move regardless: deluge_scenes
+# is model-aware (it's the first UI layer allowed to include model/**, per its own CMakeLists.txt),
+# and this host suite intentionally never builds that closure. tests/spec/scenes/node_id_spec.cpp
+# exercises the same object code the device/sim builds ship, just compiled a second time here, the
+# same way host_script_tables.c/host_snapshot.c above are.
+../../src/scenes/menu/node_id.cpp
 # UI test harness level 0: script parser + .state formatter (dependency-free; also compiled
 # into the host BSP, so it may not include src/shell -- see tests/harness/README.md).
 ../harness/ui_script.cpp
