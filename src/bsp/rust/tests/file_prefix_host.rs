@@ -76,18 +76,45 @@ fn a_prefix_stamped_before_a_flush_cannot_be_taken_after_it() {
     assert!(slot.is_empty());
 }
 
-/// A buffer smaller than the prefix is a caller bug, not a truncation to paper over: report None and
-/// leave the slot alone so the caller can come back with a big enough one.
+/// A buffer smaller than the prefix is a caller bug, not a truncation to paper over — and the answer
+/// is TERMINAL: consume the entry and report an empty prefix (which reaches the caller as READY with
+/// no bytes, i.e. blank artwork).
+///
+/// Leaving it resident for "a correctly-sized retry" is what this replaced, and it was a livelock:
+/// the caller is told UNKNOWN, the header tells it to request again, the task re-reads the file from
+/// the CARD, and the next collect with the same buffer says UNKNOWN again — once per tick, with real
+/// SD I/O each time.
 #[test]
-fn a_too_small_out_buffer_takes_nothing_and_keeps_the_prefix() {
+fn a_too_small_out_buffer_consumes_the_prefix_and_takes_nothing() {
     let mut slot = PrefixSlot::default();
     publish_into(&mut slot, "SONGS/A.XML", b"0123456789", CARD);
     let mut out = [0u8; 4];
-    assert!(take_from(&mut slot, "SONGS/A.XML", CARD, &mut out).is_none());
+    assert_eq!(take_from(&mut slot, "SONGS/A.XML", CARD, &mut out), Some(0));
     assert!(
-        !slot.is_empty(),
-        "a short buffer must not consume the prefix"
+        slot.is_empty(),
+        "a short buffer must not leave a prefix the caller would re-request forever"
     );
+    assert_eq!(
+        out, [0u8; 4],
+        "nothing may be written into a buffer that could not hold the prefix"
+    );
+}
+
+/// The branch ORDER inside `take_from` is load-bearing: the generation is checked BEFORE the buffer
+/// size. Hoisting the size check above it — a plausible "simplify", since both end the take — would
+/// make a stale entry meeting a short buffer report `Some(0)`, which the collector turns into READY
+/// with blank artwork for a song on the card that is in the slot NOW. The caller would take that as
+/// a real answer and never re-request, so a card swap would silently blank artwork.
+///
+/// Stale wins: `None`, so the collector says UNKNOWN and asks again against the current card. The
+/// entry is still removed either way.
+#[test]
+fn a_stale_prefix_meeting_a_short_buffer_is_refused_not_blanked() {
+    let mut slot = PrefixSlot::default();
+    publish_into(&mut slot, "SONGS/A.XML", b"0123456789", CARD);
+    let mut out = [0u8; 4];
+    assert!(take_from(&mut slot, "SONGS/A.XML", CARD + 1, &mut out).is_none());
+    assert!(slot.is_empty());
 }
 
 // ── The driver ──────────────────────────────────────────────────────────────
@@ -543,9 +570,15 @@ mod live_pipeline {
         assert_eq!(collect("SONGS/FIRST.XML").0, DELUGE_FILE_PREFIX_UNKNOWN);
     }
 
-    /// The belt, driven through the real ejection hook rather than through `take_from`: a prefix
-    /// published before the card went is uncollectable after it, and `deluge_card_flush` is a
-    /// single call that covers this channel along with every other loader.
+    /// `deluge_card_flush` covers this channel along with every other loader, in one call: a prefix
+    /// published before the card went is uncollectable after it.
+    ///
+    /// **This does not pin the take-time belt, and must not be read as if it did.** With nothing
+    /// contending the slot the flush's own `try_lock` clear succeeds, so this passes even against a
+    /// `take_from` that ignores the stamp entirely (verified by re-running it under exactly that
+    /// neutering). What it pins is the wiring — that `card.rs` reaches THIS channel at all. The
+    /// take-time property is pinned by the two unit tests above, which are the ones that fail when
+    /// the stamp comparison is removed.
     #[test]
     fn a_prefix_published_before_an_ejection_is_not_collectable_after_it() {
         let _guard = reset();
@@ -557,7 +590,12 @@ mod live_pipeline {
     }
 
     /// The half a cleared table cannot cover: a read already in flight when the card went publishes
-    /// AFTERWARDS, stamped with the generation it began under. The take is what refuses it.
+    /// AFTERWARDS, stamped with the generation it began under, and is uncollectable.
+    ///
+    /// **What refuses it here is `publish_result`'s early-drop check, not the take** — that check
+    /// calls itself "an optimisation, not the guarantee", and this test passes against a
+    /// stamp-ignoring `take_from` (verified). It is worth keeping for the drop it does pin, but the
+    /// guarantee is the take, and only the unit tests above hold that.
     #[test]
     fn a_read_in_flight_across_an_ejection_publishes_uncollectably() {
         let _guard = reset();

@@ -97,10 +97,10 @@ const MAX_PATH_CHARS: usize = 255;
 /// `audio_loader::LoadPath`, which says it at length.
 pub type PrefixPath = heapless::String<MAX_PATH_CHARS>;
 
-/// `deluge_file_prefix_collect`: a prefix was written out and removed.
-pub const DELUGE_FILE_PREFIX_READY: u8 = 0;
 /// `deluge_file_prefix_collect`: requested or in flight; ask again, do not re-request.
-pub const DELUGE_FILE_PREFIX_PENDING: u8 = 1;
+pub const DELUGE_FILE_PREFIX_PENDING: u8 = 0;
+/// `deluge_file_prefix_collect`: a prefix was written out and removed.
+pub const DELUGE_FILE_PREFIX_READY: u8 = 1;
 /// `deluge_file_prefix_collect`: nothing known about this path. Request it (again).
 pub const DELUGE_FILE_PREFIX_UNKNOWN: u8 = 2;
 
@@ -108,13 +108,20 @@ pub const DELUGE_FILE_PREFIX_UNKNOWN: u8 = 2;
 ///
 /// Asserting a constant against its own literal looks tautological, and that is the point: it makes
 /// a change take two deliberate edits instead of one, and the mirror of these numbers lives in
-/// `file_prefix_abi.cpp`'s `static_assert`s. Note that the status numbering is NOT the audio
-/// loader's — `READY` is 0 here and 1 there — so the two must never be cross-copied.
+/// `file_prefix_abi.cpp`'s `static_assert`s.
+///
+/// **The status numbering is the audio loader's, value for value** (`DELUGE_AUDIO_LOAD_PENDING`
+/// = 0, `_READY` = 1, `_UNKNOWN` = 2), and that is a safety property rather than tidiness. Both
+/// headers will plausibly be included in one translation unit — browsing a song wants samples AND
+/// artwork — where `deluge_file_prefix_collect(..) == DELUGE_AUDIO_LOAD_READY` compiles clean and
+/// nothing cross-checks it (`build.rs`'s bindgen allowlist covers `Deluge.*` TYPES, not macros).
+/// Under a divergent numbering that expression would mean PENDING, and the caller would decode
+/// bytes the header promises are untouched. Keep them equal.
 const _: () = {
     assert!(PREFIX_CAPACITY == 4096); // deluge::storage::kSongPreviewWindow
     assert!(MAX_PATH_CHARS == 255); // DELUGE_MAX_PATH - 1, as audio_loader::LoadPath
-    assert!(DELUGE_FILE_PREFIX_READY == 0);
-    assert!(DELUGE_FILE_PREFIX_PENDING == 1);
+    assert!(DELUGE_FILE_PREFIX_PENDING == 0);
+    assert!(DELUGE_FILE_PREFIX_READY == 1);
     assert!(DELUGE_FILE_PREFIX_UNKNOWN == 2);
 };
 
@@ -198,10 +205,23 @@ pub fn publish_into(slot: &mut PrefixSlot, key: &str, bytes: &[u8], generation: 
 /// current generation, is what makes the outcome independent of which locks the flush managed to
 /// take and of which context either side runs in.
 ///
-/// A key match with a good stamp but an undersized `out` is left ALONE: that is a caller bug (the
-/// header requires `out_cap` to be at least the `max_bytes` that was asked for), and consuming the
-/// prefix would punish the caller for asking wrongly — it could never come back with a bigger
-/// buffer and find the bytes still there.
+/// # An undersized `out` is TERMINAL, not a retry
+///
+/// A key match with a good stamp but an `out` shorter than the prefix is a caller bug — the header
+/// requires `out_cap` to be at least [`PREFIX_CAPACITY`], and
+/// [`deluge_file_prefix_collect`] `debug_assert!`s it so a dev build fails at the real cause. The
+/// entry is CONSUMED anyway and `Some(0)` returned, which the caller reads as READY with no bytes.
+///
+/// Leaving the prefix resident for "a correctly-sized retry" was the first shape and it was worse
+/// than doing nothing: the caller that has just been told UNKNOWN follows the header and
+/// re-requests, the task re-opens and re-reads the file from the CARD, [`publish_into`] replaces
+/// the entry, and the next collect — with the same small buffer — says UNKNOWN again. That is a
+/// once-per-tick re-read of real SD I/O for as long as the caller stays interested: the exact
+/// livelock the empty-prefix convention exists to prevent, arriving through a different door. The
+/// affordance only ever helped a caller that changed its buffer, and nothing tells it to.
+///
+/// Terminal-and-blank is the same failure convention the rest of this channel already uses, so a
+/// release build degrades to one song's artwork missing rather than to hammering the card.
 pub fn take_from(
     slot: &mut PrefixSlot,
     path: &str,
@@ -217,7 +237,11 @@ pub fn take_from(
         return None;
     }
     if out.len() < entry.len {
-        return None; // caller bug: leave the prefix for a correctly-sized retry
+        // Caller bug, and terminal: consume the entry and report an empty prefix rather than
+        // leaving one the caller would re-request, and re-read from the card, every tick. See this
+        // function's doc.
+        slot.entry = None;
+        return Some(0);
     }
     let len = entry.len;
     out[..len].copy_from_slice(&entry.bytes[..len]);
@@ -380,6 +404,14 @@ pub unsafe extern "C" fn deluge_file_prefix_collect(
     let Some(path) = (unsafe { cstr_to_path(file_path) }) else {
         return DELUGE_FILE_PREFIX_UNKNOWN;
     };
+    // The header's requirement, checked where the caller can still be identified. A buffer shorter
+    // than the slot cannot hold every prefix this channel can publish, and the degradation
+    // (`take_from` consumes the entry and reports an empty prefix) is silent by design — so a dev
+    // build fails HERE, at the cause, rather than presenting as artwork that will not draw.
+    debug_assert!(
+        out_cap as usize >= PREFIX_CAPACITY,
+        "`out_cap` must be at least DELUGE_FILE_PREFIX_CAPACITY"
+    );
     // SAFETY: `out_buf` is non-null (checked above) and the caller promises `out_cap` writable
     // bytes there. Nothing here reads the buffer, so its prior contents need not be initialised
     // beyond what `&mut [u8]` already requires of the caller's own allocation.
@@ -508,10 +540,17 @@ pub async fn prefix_io_once<O: LoadOps>(
 ) -> Option<usize> {
     let handle = match ops.open(path).await {
         OpenVerdict::Opened(handle) => handle,
-        // Neither verdict leaves anything for this channel to do. A full handle table is not a
-        // statement about this file, but unlike the audio loader there is no alternate-location
-        // policy for it to mislead and no reclaim for the caller to run: the artwork is simply not
-        // available this tick, and the next request reads it.
+        // Neither verdict leaves anything for this channel to do, and neither is retried: the
+        // caller publishes an empty prefix for both, which `file_prefix.h` makes TERMINAL, so
+        // there is no next request unless the caller asks for this path again of its own accord.
+        //
+        // That is deliberate for `TableFull` too, even though a full efatfs handle table says
+        // nothing about this file. The audio loader keeps it distinct because it has a reclaim to
+        // route it to and an alternate-directory probe it must not be mistaken for; this channel
+        // has neither. Making this one failure transient would give one function two conventions
+        // and reintroduce a retry that can livelock if handles never free. The cost of terminal is
+        // bounded and self-healing: a transient exhaustion blanks ONE song's artwork until the
+        // cursor next visits it.
         OpenVerdict::Missing | OpenVerdict::TableFull => return None,
     };
     let read = read_prefix(ops, handle, max_bytes, out).await;

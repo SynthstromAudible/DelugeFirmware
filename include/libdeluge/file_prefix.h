@@ -65,12 +65,21 @@ extern "C" {
 /// so the two cannot drift.
 #define DELUGE_FILE_PREFIX_CAPACITY 4096u
 
-/// @ref deluge_file_prefix_collect: a prefix was written to `out_buf`/`out_len` and REMOVED from the
-/// channel. A second collect for the same path reports @ref DELUGE_FILE_PREFIX_UNKNOWN.
-#define DELUGE_FILE_PREFIX_READY 0u
+/* The three status values below are NUMERICALLY IDENTICAL to audio_load.h's
+ * DELUGE_AUDIO_LOAD_PENDING/_READY/_UNKNOWN, and must stay that way. Both headers will plausibly be
+ * included in one translation unit -- browsing a song wants its samples AND its artwork -- where
+ * `deluge_file_prefix_collect(..) == DELUGE_AUDIO_LOAD_READY` compiles clean and nothing
+ * cross-checks the two sets (the Rust BSP's bindgen allowlist covers `Deluge.*` types, not macros).
+ * If the numbering diverged, that expression would silently mean PENDING: the caller would read an
+ * `out_buf` this header promises is untouched -- uninitialised bytes decoded as artwork -- while a
+ * real READY read as PENDING and polled forever. */
+
 /// @ref deluge_file_prefix_collect: the read is requested or running. Ask again next tick; do NOT
 /// re-request.
-#define DELUGE_FILE_PREFIX_PENDING 1u
+#define DELUGE_FILE_PREFIX_PENDING 0u
+/// @ref deluge_file_prefix_collect: a prefix was written to `out_buf`/`out_len` and REMOVED from the
+/// channel. A second collect for the same path reports @ref DELUGE_FILE_PREFIX_UNKNOWN.
+#define DELUGE_FILE_PREFIX_READY 1u
 /// @ref deluge_file_prefix_collect: the channel knows nothing about this path. Either it was never
 /// requested, its prefix was already collected, its request was superseded by another path's, or the
 /// card it was read from has since been ejected. The caller should request it (again).
@@ -107,11 +116,17 @@ void deluge_file_prefix_request(const char* file_path, uint32_t max_bytes) DELUG
 ///
 /// @param file_path The path passed to @ref deluge_file_prefix_request. Must not be NULL.
 /// @param out_buf   Where the bytes go. Must not be NULL. Written only on READY.
-/// @param out_cap   How many bytes @p out_buf can hold. **Must be at least the `max_bytes` that was
-///                  requested** (or @ref DELUGE_FILE_PREFIX_CAPACITY, which always suffices): a
-///                  buffer too small for the prefix that is waiting is a caller bug, and it is
-///                  reported as UNKNOWN with the prefix left where it is rather than served
-///                  truncated. Re-collecting with a big enough buffer still yields it.
+/// @param out_cap   How many bytes @p out_buf can hold. **Must be at least
+///                  @ref DELUGE_FILE_PREFIX_CAPACITY**, which is the largest prefix this channel
+///                  can be holding. A debug build asserts this, so the caller bug is reported at
+///                  its cause; a release build degrades TERMINALLY -- the prefix is consumed and
+///                  reported as READY with an @p out_len of 0, i.e. blank artwork -- rather than
+///                  serving truncated bytes.
+///
+///                  Deliberately NOT "left for a correctly-sized retry": that reported UNKNOWN,
+///                  which tells the caller to request again, which re-reads the file FROM THE CARD
+///                  and republishes a prefix the same small buffer cannot take. Once per tick, with
+///                  real SD I/O each time, for as long as the caller stays interested.
 /// @param out_len   Receives how many bytes were written to @p out_buf. Must not be NULL. Written
 ///                  only on READY, where it may legitimately be 0.
 /// @return One of `DELUGE_FILE_PREFIX_READY` / `_PENDING` / `_UNKNOWN`.

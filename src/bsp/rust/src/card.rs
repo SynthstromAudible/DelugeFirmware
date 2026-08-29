@@ -21,12 +21,15 @@
 /// The bump comes FIRST and cannot fail; each module's clear is best-effort housekeeping behind a
 /// `try_lock`. Every loader that caches card-derived state is cleared here, in one call — that is
 /// the shape the header promises ("a second loader gets covered by calling this, not by growing a
-/// second flush"), so a new loader adds a line here rather than an entry point of its own. No correctness rests on a clear landing — the stamp, compared at take, is the safety
-/// property, and it holds no matter which locks were taken or which contexts the two sides ran in
-/// (see [`super::audio_loader::take_from`]). Nothing here may be re-argued from where a loader is
-/// scheduled: a loader owns its own executor on device but a plain `std::thread` under `host_app`,
-/// so any claim of the form "these two cannot run at once" is false on some configuration that
-/// builds this file.
+/// second flush"), so a new loader adds a line here rather than an entry point of its own.
+///
+/// No correctness rests on a clear landing — the stamp, compared at take, is the safety property,
+/// and it holds no matter which locks were taken or which contexts the two sides ran in (see
+/// [`super::audio_loader::take_from`] and [`super::file_prefix::take_from`]).
+///
+/// Nothing here may be re-argued from where a loader is scheduled: a loader owns its own executor
+/// on device but a plain `std::thread` under `host_app`, so any claim of the form "these two cannot
+/// run at once" is false on some configuration that builds this file.
 ///
 /// Always exported, on every configuration this module compiles in, so the C++ call site links
 /// regardless of which build produced this BSP image — the same rule

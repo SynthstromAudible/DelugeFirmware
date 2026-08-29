@@ -33,6 +33,7 @@
 
 #include "libdeluge/file_prefix.h"
 
+#include "libdeluge/audio_load.h" // the status values this header's must equal
 #include "storage/song_preview.h" // kSongPreviewWindow
 
 // The one constant the two sides of this boundary hand-duplicate. `deluge_file_prefix_request`
@@ -46,11 +47,17 @@ static_assert(DELUGE_FILE_PREFIX_CAPACITY == deluge::storage::kSongPreviewWindow
               "than the decoder was measured against loses artwork silently");
 
 // The status bytes the Rust side hand-duplicates from this header (`const _` in file_prefix.rs).
-// NOT the same numbering as audio_load.h's READY/PENDING/UNKNOWN -- READY is 0 here and 1 there --
-// so a value copied across from that boundary would compile clean and mean the opposite thing.
-static_assert(DELUGE_FILE_PREFIX_READY == 0u);
-static_assert(DELUGE_FILE_PREFIX_PENDING == 1u);
+static_assert(DELUGE_FILE_PREFIX_PENDING == 0u);
+static_assert(DELUGE_FILE_PREFIX_READY == 1u);
 static_assert(DELUGE_FILE_PREFIX_UNKNOWN == 2u);
+
+// And the same three values against the audio loader's, which a caller may well have in scope at the
+// same time: `deluge_file_prefix_collect(..) == DELUGE_AUDIO_LOAD_READY` compiles clean either way,
+// so equality is what keeps it from silently meaning PENDING -- see file_prefix.h's note above the
+// macros. This is the ONLY thing that cross-checks the two sets; bindgen's allowlist does not.
+static_assert(DELUGE_FILE_PREFIX_PENDING == DELUGE_AUDIO_LOAD_PENDING);
+static_assert(DELUGE_FILE_PREFIX_READY == DELUGE_AUDIO_LOAD_READY);
+static_assert(DELUGE_FILE_PREFIX_UNKNOWN == DELUGE_AUDIO_LOAD_UNKNOWN);
 
 // Weak fallbacks: BSPs without the Rust prefix channel resolve these and always take the
 // synchronous path. The Rust Embassy BSP overrides them in file_prefix.rs.
