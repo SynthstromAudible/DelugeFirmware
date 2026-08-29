@@ -1,0 +1,250 @@
+#pragma once
+
+/// @brief `MenuScene` -- one shell `Scene` that interprets any `Node` tree (spec E §4, amended by
+///        `.superpowers/sdd/2026-08-27-ui-scenes-menus-1/task-5-brief.md`).
+///
+/// There is exactly one of these for the whole menu system. It renders whatever `Node` is at the
+/// top of its own path through the toolkit widgets, consumes input the toolkit way (a widget
+/// claims what it owns while it is being drawn), and commits every edit through
+/// `menu::bindings`. What legacy spread across `SoundEditor` plus ~200 `MenuItem` subclasses is
+/// here: the data is `node.h`'s, the model access is `bindings.h`'s, and this file is the
+/// interpreter between them.
+///
+/// **Ports.** `MenuItem::drawItemsForOled` (`gui/menu_item/menu_item.cpp:47`),
+/// `Submenu::drawSubmenuItemsForOled` / `focusChild` (`gui/menu_item/submenu.cpp:99`, `:21`),
+/// `HorizontalMenu::renderOLED` / `renderMenuItems` / `switchVisiblePage` / `selectMenuItem` /
+/// `preparePaging` (`gui/menu_item/horizontal_menu.cpp:109,203,345,444,477`) -- all four already
+/// pinned by the `list` / `columns` widgets, which this scene composes rather than re-implements;
+/// `SoundEditor::selectEncoderAction` (`gui/ui/sound_editor.cpp:1034`), `buttonAction` (`:333`,
+/// back -> `goUpOneLevel` `:672`, which exits at depth 0 via `exitCompletely` `:678`),
+/// `horizontalEncoderAction` (`:1008`), `padAction` (`:1405`) with `potentialShortcutPadAction`
+/// (`:1111`), `enterSubmenu` (`:324`), `setupShortcutBlink` (`:959`) / `blinkShortcut`
+/// (`:974-1000`), `getGreyoutColsAndRows` (`:214`), and the `MultiRange` redirect -> spec E
+/// §4.1's `Permission::MustSelectRange`.
+///
+/// **What this scene may not do.** It never calls an `OledFrame` drawing primitive
+/// (`pixel`/`hline`/`rect`/`glyphs`/...): everything on screen comes from a `ui::oled` widget, so
+/// the layout rules live in one place and Task 12's ratchet can count primitive calls at zero.
+/// It never allocates, never reads a wall clock (the frame's `now_ms()` is the only time it
+/// knows), and never mutates the model from `render_oled`/`render_grid` -- `after_render()` and
+/// `handle()` are the two places a write may happen.
+
+#include "notify/dirty_set.h"
+#include "scenes/menu/context.h"
+#include "scenes/menu/node.h"
+#include "shell/scene.h"
+#include "ui/core/response.h"
+#include "ui/core/state.h"
+#include "ui/grid/effects.h"
+
+#include <cstdint>
+#include <optional>
+#include <span>
+
+namespace deluge::scenes::menu {
+
+/// @brief How deep a menu path may go, and how many `ListState`s the scene therefore keeps.
+///
+/// Unrelated to `ui::shell::kStackDepth` (`shell/scene.h:48`), which counts *scenes*: the whole
+/// menu is one scene however deep the user walks into it. Eight is legacy's own
+/// `menuItemNavigationRecord` depth (`gui/ui/sound_editor.h`).
+inline constexpr uint8_t kMenuDepth = 8;
+
+/// @brief The most children one menu level materialises in a frame.
+///
+/// Matches `kMaxDynamicChildren` (`node.h`), so a `dynamic_children` hook that fills its whole
+/// window is never truncated by the renderer. The row array this sizes is the scene's one large
+/// stack allocation (~4 KB in `render_vertical`); it is a frame local rather than a member so it
+/// costs nothing between ticks.
+inline constexpr size_t kMaxMenuChildren = kMaxDynamicChildren;
+
+/// @brief The most columns one horizontal page materialises. Legacy pages four slots at a time
+///        and a `Column` may claim several, so sixteen is well past any real page
+///        (`horizontal_menu.cpp:477`'s `preparePaging`).
+inline constexpr size_t kMaxMenuColumns = 16;
+
+/// @brief The blink cadences `render_grid` runs, in milliseconds.
+///
+/// Legacy alternates them on one counter (`sound_editor.cpp:974-1000`): the odd counter re-arms
+/// `TimerName::SHORTCUT_BLINK` at 180 ms and flashes the focused param's pad (`:985`), the even
+/// one re-arms at 20 ms and flashes the patching-source pads (`:996`). One `Blink` carries one
+/// period, so the scene keeps two.
+/// @{
+inline constexpr uint16_t kShortcutBlinkMs = 180;
+inline constexpr uint16_t kSourceBlinkMs = 20;
+/// @}
+
+/// @brief Live interpreter state: the path, the widgets' own POD state, and what this tick's
+///        render observed for `after_render()` to act on.
+///
+/// **Not** what `save_state` writes -- see `MenuSavedState`. This is a member of `MenuScene` and
+/// is handed to a `CustomItem` by reference, which is why `node.h` forward declares it.
+struct MenuState {
+	/// The menu path, root first. `path[depth]` is what is on screen.
+	const Node* path[kMenuDepth] = {};
+	uint8_t depth = 0;
+
+	/// One per menu depth, so walking back up restores the level's own cursor -- legacy's
+	/// `Submenu::current_item_` being a member of each submenu (`submenu.cpp:21`).
+	///
+	/// @note `list[depth].editing` IS the editing flag (`ui/core/state.h:15`): a reserved bool no
+	///       widget reads, which is exactly what a scene-owned "the leaf is being edited" bit
+	///       wants to be.
+	deluge::ui::ListState list[kMenuDepth]{};
+	deluge::ui::ColumnsState columns{};
+	deluge::ui::ScrollText scroll{};
+
+	// --- typed per-kind edit storage: the widgets do not share one int32 ---
+	/// `Kind::Int` and `Kind::Decimal`: `int_value` / `decimal_value` take an `int32_t&`.
+	int32_t edit_int = 0;
+	/// `Kind::Toggle`: `toggle()` takes a `bool&` (`ui/oled/values.h:169`).
+	bool edit_bool = false;
+	/// `Kind::Enum`: `enum_value()` takes an `int32_t& index` ...
+	int32_t enum_index = 0;
+	/// ... plus its own `ListState` ...
+	deluge::ui::ListState enum_list{};
+	/// ... plus its own `ScrollText` (`ui/oled/values.h:143`).
+	deluge::ui::ScrollText enum_scroll{};
+	/// `decimal_value`'s in/out cursor position.
+	int8_t decimal_pos = 0;
+	/// `decimal_value`'s OLED cursor blink ONLY (`ui/core/state.h:38`; `until_ms` is a phase
+	/// anchor, not a deadline).
+	deluge::ui::Blink cursor_blink{};
+	/// `render_grid`: the focused param's pad, at legacy's 180 ms arm (`sound_editor.cpp:985`).
+	deluge::ui::Blink shortcut_blink{kShortcutBlinkMs, 0};
+	/// `render_grid`: the patching-source pads, at legacy's 20 ms arm (`sound_editor.cpp:996`).
+	deluge::ui::Blink source_blink{kSourceBlinkMs, 0};
+
+	// --- what this tick's render observed, for after_render to act on ---
+	/// The widget `Response` the render pass produced (`changed` / `entered`).
+	deluge::ui::Response render_resp{};
+	/// Whether the render pass moved the value in the edit storage above.
+	bool value_changed = false;
+	/// Which node `value_changed` belongs to.
+	///
+	/// An addition to the brief's field list, forced by the horizontal layout: there the node on
+	/// screen is the *submenu* and the edited value belongs to the focused column's child, so
+	/// "the current node" is not enough to commit through.
+	const Node* value_node = nullptr;
+	/// Whether `render_oled` read (and therefore claimed) the back button this tick. Only ever
+	/// set at `depth > 0` -- see `MenuScene::render_oled`.
+	bool back_claimed = false;
+	/// Spec E §4.1's `MustSelectRange` outcome, recorded rather than acted on: E2 owns the range
+	/// picker, and E1 leaves the node unentered.
+	bool range_picker_pending = false;
+	/// The node that would have been entered once a range is chosen.
+	const Node* pending_after_range = nullptr;
+};
+
+/// @brief What survives a `replace_root`.
+///
+/// Child *indices*, not pointers, so the block stays small and a table edit between the save and
+/// the restore cannot resurrect a stale pointer -- it can only land on a different child, which
+/// the restore clamps.
+struct MenuSavedState {
+	/// `node_id()` of `path[0]` (`node_id.h`).
+	uint16_t root_node_id = 0;
+	/// The child index taken at each level: `path_child[i]` indexes `path[i]`'s visible children
+	/// to give `path[i + 1]`.
+	uint8_t path_child[kMenuDepth] = {};
+	uint8_t depth = 0;
+	/// `list[depth].cursor` (vertical) or `columns.focused` (horizontal) at save time.
+	int16_t focus = 0;
+};
+static_assert(sizeof(MenuSavedState) <= 32);
+static_assert(sizeof(MenuSavedState) <= deluge::ui::shell::kSceneStateBytes); // shell/scene.h:50 -- 256
+
+/// @brief The menu interpreter. One instance for the whole application (`registry.h`'s
+///        `menu_scene()`).
+class MenuScene final : public deluge::ui::shell::Scene {
+public:
+	/// @brief Point the scene at @p root, editing what @p ctx resolved, and reset the path.
+	///
+	/// The entry point for a scene that opens a menu: the caller resolves a `MenuContext`
+	/// (`context_for`) and names the root. `on_enter` re-targets afterwards from `SceneId::arg`,
+	/// so a push whose argument names a deeper node lands there instead.
+	/// @param root The node to show.
+	/// @param ctx  What the menu edits.
+	void open(const Node& root, const MenuContext& ctx);
+
+	deluge::ui::shell::SceneKind kind() const override;
+	void render_oled(deluge::ui::shell::SurfaceRole role, deluge::ui::oled::OledFrame& frame) override;
+	void render_grid(deluge::ui::grid::GridFrame& frame) override;
+	void leds(deluge::ui::LedFrame& frame) override;
+	deluge::ui::shell::Result after_render() override;
+	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
+	                                 const deluge::ui::shell::UiContext& ctx) override;
+	bool on_enter(const deluge::ui::shell::SceneId& id) override;
+	void on_resume() override;
+	void on_model_changed(const deluge::notify::DirtySet& dirty) override;
+
+	/// @brief True: the menu draws over the base view's pads rather than replacing them.
+	bool is_grid_overlay() const override { return true; }
+	/// @brief False: the base view keeps painting under the menu.
+	bool occludes_grid() const override { return false; }
+	/// @brief False: legacy greys through `getGreyoutColsAndRows` (`greyout_mask()`), it does not
+	///        halve every pad.
+	bool dims_grid() const override { return false; }
+	/// @brief False for every role: a menu covers the Main panel.
+	bool oled_transparent(deluge::ui::shell::SurfaceRole) const override { return false; }
+	// `input_transparent()` stays at its default false: `MenuScene` IS the `input_top()`
+	// (`shell/scene.h:322`), which is what makes its frames the focused ones.
+
+	deluge::ui::grid::GreyoutMask greyout_mask() const override;
+	void save_state(deluge::ui::shell::SceneState& state) const override;
+	void restore_state(const deluge::ui::shell::SceneState& state) override;
+	std::optional<uint32_t> next_timer() const override;
+
+	/// @brief The node currently on screen (`path[depth]`), or `nullptr` before `open()`.
+	const Node* focused() const;
+	/// @brief The `ParamDescriptor` MIDI/CC learn (E3) binds to the focused node.
+	ParamDescriptor learn_target() const;
+	/// @brief The application's root menus, indexed by `MenuContext::Root`.
+	///
+	/// @note Every entry is `nullptr` in E1: the tables that fill them are Tasks 6-8's. A caller
+	///       therefore names its root through `open()` until then, and `on_enter(arg == 0)`
+	///       refuses because there is nothing to fall back to.
+	static std::span<const Node* const> roots();
+
+	/// @brief The live interpreter state.
+	///
+	/// Exposed for specs and for E2's range picker (which has to see `range_picker_pending`);
+	/// nothing outside may write it.
+	const MenuState& state() const { return st_; }
+
+private:
+	/// @brief Fill @p out with @p node's children that `relevant` admits, resolving
+	///        `dynamic_children` first.
+	/// @return How many were written.
+	size_t visible_children(const Node& node, std::span<const Node*> out) const;
+	/// @brief @p node's @p index'th visible child, or `nullptr`.
+	const Node* child_at(const Node& node, int32_t index) const;
+	/// @brief The child the current layout has focus on, or `nullptr`.
+	const Node* selected_child(const Node& node) const;
+
+	void render_vertical(deluge::ui::oled::OledFrame& f, const Node& node);
+	void render_horizontal(deluge::ui::oled::OledFrame& f, const Node& node);
+	// One helper per kind: each owns the widget's own argument shapes rather than sharing an
+	// `edit_value` the widgets do not agree on.
+	void render_leaf_int(deluge::ui::oled::OledFrame& f, const Node& node);
+	void render_leaf_decimal(deluge::ui::oled::OledFrame& f, const Node& node);
+	void render_leaf_enum(deluge::ui::oled::OledFrame& f, const Node& node);
+	void render_leaf_toggle(deluge::ui::oled::OledFrame& f, const Node& node);
+
+	/// @brief Load @p node's value into the edit storage its kind uses.
+	void enter_leaf(const Node& node);
+	/// @brief Commit the edit storage for @p node through `bindings::write`.
+	void commit_value(const Node& node);
+	/// @brief Descend into @p child if its permission allows, recording `MustSelectRange`.
+	void enter_child(const Node& child);
+	/// @brief Go up one level, skipping levels whose permission is now `No`
+	///        (`sound_editor.cpp:672-683`).
+	void ascend();
+	/// @brief Re-root the path at @p node (the shortcut jump and `on_enter`'s re-target).
+	void retarget(const Node& node);
+
+	MenuState st_{};
+	MenuContext ctx_{};
+};
+
+} // namespace deluge::scenes::menu

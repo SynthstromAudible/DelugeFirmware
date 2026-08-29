@@ -12,6 +12,7 @@ add_library(deluge_scenes STATIC
     profile.cpp
     menu/bindings.cpp
     menu/context.cpp
+    menu/menu_scene.cpp
     menu/node_id.cpp
     menu/shortcuts.cpp)
 target_include_directories(deluge_scenes PUBLIC
