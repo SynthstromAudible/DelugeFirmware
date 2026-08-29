@@ -319,6 +319,9 @@ add_subdirectory(${REPO_ROOT}/src/shell      ${CMAKE_BINARY_DIR}/shell)      # d
 add_subdirectory(${REPO_ROOT}/src/lib        ${CMAKE_BINARY_DIR}/printf)     # eyalroz_printf
 add_subdirectory(${REPO_ROOT}/src/OSLikeStuff ${CMAKE_BINARY_DIR}/scheduler) # deluge_scheduler
 add_subdirectory(${REPO_ROOT}/src/deluge     ${CMAKE_BINARY_DIR}/app)        # deluge_app + deluge_dsp + generators
+# deluge_scenes: the first UI layer allowed to include the model (ruling Q4). Links deluge_app, so
+# must come after it; nothing links deluge_scenes yet except its own spec executable, below.
+add_subdirectory(${REPO_ROOT}/src/scenes     ${CMAKE_BINARY_DIR}/scenes)     # deluge_scenes
 
 # --- Rust core (crates/ workspace: deluge_rust umbrella = alloc + slab + resource,
 # + the region cursor (deluge_sample_source) under its `sim` feature) -
@@ -468,6 +471,60 @@ target_link_libraries(deluge_loadcheck PRIVATE deluge_app deluge_scheduler ${SIM
 if(RT_LIB)
     target_link_libraries(deluge_loadcheck PRIVATE ${RT_LIB})
 endif()
+
+# ===========================================================================
+# deluge_scenes_spec: a CppSpec executable, in this project (not tests/), so it links the REAL
+# deluge_app / host BSP rather than tests/'s mocks (ruling Q5) -- the model-backed spec executable
+# spec E1 needs, now that src/scenes/ is allowed to include the model.
+# ===========================================================================
+# enable_testing() proper is called again below (CTests: DELUGE_HOST_DISPLAYS); harmless to call
+# twice, and the add_test()s in this section need it already active in this directory scope.
+enable_testing()
+
+# CppSpec fetch + create_specs_driver(): shared with tests/spec/CMakeLists.txt (task 1, spec E1).
+include(${REPO_ROOT}/cmake/deluge_specs.cmake)
+
+# A mock-free support library for sim/scenes_spec/*_spec.cpp: the UI test harness's level-0/level-3
+# parser and snapshot writer (dependency-free; see tests/harness/README.md), plus the header-only
+# rig under tests/spec/shell/support/ (script_runner.h, fake_surfaces.h), reached through the
+# ${REPO_ROOT}/tests include dir below. Deliberately NOT deluge_spec (tests/spec/CMakeLists.txt):
+# that library's tests/32bit_unit_tests/mocks/mock_display.cpp / mock_print.cpp define symbols the
+# real deluge_app also defines, and this executable links deluge_app.
+add_library(deluge_scenes_spec_support STATIC
+    ${REPO_ROOT}/tests/harness/ui_script.cpp
+    ${REPO_ROOT}/tests/harness/snapshot.cpp
+)
+target_include_directories(deluge_scenes_spec_support PUBLIC
+    ${REPO_ROOT}/tests
+    ${REPO_ROOT}/src
+    ${REPO_ROOT}/src/deluge
+    ${REPO_ROOT}/include
+)
+# UI_SCRIPTS_DIR / UI_GOLDEN_DIR / UI_GOT_DIR / GFX_GOLDEN_DIR: the same four trees
+# tests/spec/CMakeLists.txt's deluge_spec defines (see that file, and script_runner.h), so a spec
+# built here that uses the header-only support/ rig resolves the same paths a tests/ spec would.
+# UI_GOLDEN_DIR is tests/golden/ui/shell, not .../scenes -- script goldens for the scenes layer's
+# menu scripts land there too (spec E's plan, task 11), matching expect_script_goldens's hardcoded
+# fs::path(UI_GOLDEN_DIR) / name (script_runner.h).
+target_compile_definitions(deluge_scenes_spec_support PUBLIC
+    GFX_GOLDEN_DIR="${REPO_ROOT}/tests/golden/gfx"
+    DELUGE_REPO_ROOT="${REPO_ROOT}"
+    UI_SCRIPTS_DIR="${REPO_ROOT}/tests/ui-scripts/shell"
+    UI_GOLDEN_DIR="${REPO_ROOT}/tests/golden/ui/shell"
+    UI_GOT_DIR="${CMAKE_BINARY_DIR}/got"
+)
+set_target_properties(deluge_scenes_spec_support PROPERTIES
+    CXX_STANDARD 26
+    CXX_STANDARD_REQUIRED YES
+)
+
+# create_specs_driver()'s add_executable() resolves its generated sources' relative paths against
+# CMAKE_CURRENT_SOURCE_DIR of wherever it is CALLED from (a function call is not a new directory
+# scope) -- tests/spec/CMakeLists.txt only gets away with spec_dir != its own directory implicitly
+# because it passes ${CMAKE_CURRENT_LIST_DIR}, i.e. spec_dir IS that file's own directory. To keep
+# create_specs_driver itself untouched or unspecialised, deluge_scenes_spec's own definition lives
+# in a CMakeLists.txt physically inside scenes_spec/, on the same terms.
+add_subdirectory(scenes_spec)
 
 # ===========================================================================
 # CTests: the DELUGE_HOST_DISPLAYS parser + the blit_oled_n range check.

@@ -8,6 +8,9 @@ add_subdirectory(shell)      # deluge_ui_shell: surfaces, scene stack, input low
 add_subdirectory(notify)     # deluge_notify: model->UI notification channel
 add_subdirectory(OSLikeStuff)
 add_subdirectory(deluge)     # deluge_app: the portable application (platform-agnostic)
+# deluge_scenes: the first UI layer allowed to include the model (ruling Q4). Links deluge_app;
+# nothing links deluge_scenes yet -- must come after deluge_app exists to link against it.
+add_subdirectory(scenes)
 add_subdirectory(NE10)
 add_subdirectory(lib)
 
