@@ -331,6 +331,101 @@ TEST(RoundRobinParser, emptyArrayYieldsNoAlternates) {
 	CHECK_EQUAL(0, range.rrCount);
 }
 
+TEST(RoundRobinParser, alternateWithOutOfRangeVelocityFallsBackToDefaults) {
+	// End to end through the alternates parser: a hand-edited 300/-1 pair leaves the slot on the
+	// full 1-127 band rather than on the 44/255 the raw cast would have produced.
+	MockDeserializer reader;
+	reader.names = {"alternate", "fileName", "velocityRangeMin", "velocityRangeMax", "", ""};
+	reader.strings = {"loud.wav"};
+	reader.ints = {300, -1};
+
+	FakeRange range;
+	CHECK_TRUE(readRoundRobinAlternates(reader, &range) == Error::NONE);
+
+	CHECK_EQUAL(1, range.rrCount);
+	CHECK_EQUAL(1, range.getVelocityRangeMin(1));
+	CHECK_EQUAL(127, range.getVelocityRangeMax(1));
+}
+
+TEST(RoundRobinParser, backwardsVelocityPairIsLeftAlone) {
+	// min > max is not reconciled at read time: the two attributes arrive independently, and any
+	// "keep them ordered" rule would corrupt a correctly-written file purely because of attribute
+	// order. Both values are in range, so both are stored exactly as written.
+	MockDeserializer reader;
+	reader.names = {"alternate", "fileName", "velocityRangeMin", "velocityRangeMax", "", ""};
+	reader.strings = {"a.wav"};
+	reader.ints = {100, 60};
+
+	FakeRange range;
+	CHECK_TRUE(readRoundRobinAlternates(reader, &range) == Error::NONE);
+
+	CHECK_EQUAL(100, range.getVelocityRangeMin(1));
+	CHECK_EQUAL(60, range.getVelocityRangeMax(1));
+}
+
+// --- readVelocityRangeFromFile() -------------------------------------------------------------
+//
+// Velocity bands are the only round-robin numbers a song file can carry that the menu itself can't
+// produce out of range, so they're the ones worth guarding. Tested directly rather than only
+// through readRoundRobinAlternates() because the same helper backs four more read sites in
+// sound.cpp (the primary sample's band, at source level and per zone).
+
+TEST_GROUP(VelocityRangeParser){};
+
+TEST(VelocityRangeParser, validValuesPassThroughUnchanged) {
+	for (int32_t value : {1, 2, 64, 126, 127}) {
+		MockDeserializer reader;
+		reader.ints = {value};
+		CHECK_EQUAL(value, readVelocityRangeFromFile(reader, "velocityRangeMin", 1));
+	}
+}
+
+TEST(VelocityRangeParser, outOfRangeFallsBackToTheEndsOwnDefault) {
+	// A min falls back to 1 and a max to 127 - between them the full default band, which is exactly
+	// what a slot carrying no velocity attributes at all already gets. Failing open like this keeps
+	// the slot reachable; clamping would not (a mangled max of -1 would clamp to 1, leaving a band
+	// of 1-1 that no realistic velocity plays).
+	for (int32_t invalid : {0, -1, 128, 200, 300, 100000}) {
+		MockDeserializer readerMin;
+		readerMin.ints = {invalid};
+		CHECK_EQUAL(1, readVelocityRangeFromFile(readerMin, "velocityRangeMin", 1));
+
+		MockDeserializer readerMax;
+		readerMax.ints = {invalid};
+		CHECK_EQUAL(127, readVelocityRangeFromFile(readerMax, "velocityRangeMax", 127));
+	}
+}
+
+TEST(VelocityRangeParser, guardsTheTruncationTrap) {
+	// The whole reason the helper exists. Assigning the raw int straight into a uint8_t truncates
+	// first, so these three would have arrived as 44, 0 and 255 - and 44 in particular is a
+	// perfectly legal velocity, so no check after the cast could ever have caught it.
+	MockDeserializer r300;
+	r300.ints = {300}; // (uint8_t)300 == 44
+	CHECK_EQUAL(1, readVelocityRangeFromFile(r300, "velocityRangeMin", 1));
+
+	MockDeserializer r256;
+	r256.ints = {256}; // (uint8_t)256 == 0
+	CHECK_EQUAL(1, readVelocityRangeFromFile(r256, "velocityRangeMin", 1));
+
+	MockDeserializer rNeg;
+	rNeg.ints = {-1}; // (uint8_t)-1 == 255
+	CHECK_EQUAL(127, readVelocityRangeFromFile(rNeg, "velocityRangeMax", 127));
+}
+
+TEST(VelocityRangeParser, consumesTheTagExactlyOnce) {
+	MockDeserializer reader;
+	reader.ints = {64};
+	readVelocityRangeFromFile(reader, "velocityRangeMin", 1);
+	CHECK_EQUAL(1, reader.exitTagCalls);
+
+	// Rejecting a value must still consume its tag, or the rest of the file parses off by one.
+	MockDeserializer bad;
+	bad.ints = {300};
+	readVelocityRangeFromFile(bad, "velocityRangeMin", 1);
+	CHECK_EQUAL(1, bad.exitTagCalls);
+}
+
 TEST(RoundRobinParser, jsonLeavesReaderAfterTheArray) {
 	// Regression: each JSON alternate is an array item wrapping an "alternate" object, so it ends with
 	// two closing braces. Closing only one left the reader a brace and a bracket behind: the second

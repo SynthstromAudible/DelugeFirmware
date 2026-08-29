@@ -19,6 +19,36 @@
 #include "storage/multi_range/multisample_range.h"
 #include <cstring>
 
+/// Reads one end of a slot's velocity band, returning `defaultValue` for anything outside 1-127.
+///
+/// Read into a full int before validating: assigning straight to uint8_t truncates first, so a
+/// hand-edited 300 would wrap to a perfectly legal-looking 44 and no later check could tell. Same
+/// trap readChokeGroupFromFile() guards against, same shape of guard.
+///
+/// Out of range can only come from a hand-edited or corrupted file, so fall back to that end's own
+/// default - 1 for min, 127 for max, which is exactly what a slot carrying no velocity attributes
+/// at all already gets. Untrusted data then behaves like legacy data, and the slot stays reachable.
+/// Clamping instead would fail closed: a mangled max of -1 would clamp to 1, leaving a band of 1-1
+/// that nothing can play.
+///
+/// Deliberately does NOT reconcile min against max. The two attributes arrive separately, in
+/// whatever order the file lists them - read min=100 while max still holds its 127 default, then
+/// read max=60, and any "keep them ordered" rule would drag one to meet the other and corrupt a
+/// file that was written perfectly correctly. A backwards pair already fails safe: it matches no
+/// velocity, and resolveVelocitySlotIndex() falls back to slot 1.
+///
+/// Templated on the deserializer for the same host-testability reason as readRoundRobinAlternates()
+/// below - see tests/unit/round_robin_parser_tests.cpp.
+template <typename DeserializerT>
+uint8_t readVelocityRangeFromFile(DeserializerT& reader, char const* tagName, uint8_t defaultValue) {
+	int32_t value = reader.readTagOrAttributeValueInt();
+	reader.exitTag(tagName);
+	if (value < MultisampleRange::kDefaultVelocityMin || value > MultisampleRange::kDefaultVelocityMax) {
+		return defaultValue;
+	}
+	return (uint8_t)value;
+}
+
 /// Reads a zone's "rrMode", returning Cycle (0) for a value this firmware has no mode for.
 ///
 /// Read into a full int before validating, so a hand-edited 256 can't wrap to a legal-looking 0. An unknown
@@ -102,18 +132,18 @@ Error readRoundRobinAlternates(DeserializerT& reader, RangeT* range) {
 					alternateHolder->setCents(reader.readTagOrAttributeValueInt());
 					reader.exitTag("cents");
 				}
-				else if (!strcmp(tagName, "variantVolume")) {
-					alternateHolder->volume = readVariantVolumeFromFile(reader, tagName);
-				}
 				else if (!strcmp(tagName, "velocityRangeMin")) {
-					range->setVelocityRange(range->rrCount + 1, (uint8_t)reader.readTagOrAttributeValueInt(),
-					                        range->getVelocityRangeMax(range->rrCount + 1));
-					reader.exitTag("velocityRangeMin");
+					uint8_t slotIndex = range->rrCount + 1;
+					uint8_t min = readVelocityRangeFromFile(reader, tagName, MultisampleRange::kDefaultVelocityMin);
+					range->setVelocityRange(slotIndex, min, range->getVelocityRangeMax(slotIndex));
 				}
 				else if (!strcmp(tagName, "velocityRangeMax")) {
-					range->setVelocityRange(range->rrCount + 1, range->getVelocityRangeMin(range->rrCount + 1),
-					                        (uint8_t)reader.readTagOrAttributeValueInt());
-					reader.exitTag("velocityRangeMax");
+					uint8_t slotIndex = range->rrCount + 1;
+					uint8_t max = readVelocityRangeFromFile(reader, tagName, MultisampleRange::kDefaultVelocityMax);
+					range->setVelocityRange(slotIndex, range->getVelocityRangeMin(slotIndex), max);
+				}
+				else if (!strcmp(tagName, "variantVolume")) {
+					alternateHolder->volume = readVariantVolumeFromFile(reader, tagName);
 				}
 				else if (!strcmp(tagName, "zone")) {
 					reader.match('{');
