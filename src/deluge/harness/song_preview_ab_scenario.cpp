@@ -29,6 +29,7 @@
 #include "storage/file_item.h"
 #include "storage/owner.h"
 #include "storage/song_preview.h"
+#include "util/string.h"
 
 #include <array>
 #include <cstddef>
@@ -952,7 +953,7 @@ constexpr const char* kBigDir = "BIGLIST";
 constexpr int32_t kBigEntries = 300;
 static_assert(kBigEntries > 230, "the case must exceed the arena threshold it exists to guard");
 
-enum class ListingStep : uint8_t { Fixture, Reference, Sweep, BigFolder, Finished };
+enum class ListingStep : uint8_t { Fixture, Reference, Sweep, BigFolder, Fallback, Finished };
 ListingStep g_listingStep = ListingStep::Fixture;
 int32_t g_listingDeferAt = 0;  ///< which N the sweep is on; 0 = the reference run
 int32_t g_listingOpens = 0;    ///< how many opens the reference run performed
@@ -1028,14 +1029,42 @@ void runListingTick() {
 		}
 		g_listingRunning = false;
 
+		if (g_listingStep == ListingStep::Fallback) {
+			// The listing must have SUCCEEDED, against the default directory rather than the one that
+			// does not exist. Before the directory open got its own error mapping this could not
+			// happen: the open reported FILE_NOT_FOUND, the fallback tests FOLDER_DOESNT_EXIST, and
+			// the listing simply failed.
+			const ListingSnapshot got = takeListingSnapshot();
+			if (got.names.empty() || !deluge::string::caselessEquals(got.dir, kBigDir)) {
+				printf("SP-LISTING FAIL fallback landed on dir=%s with %zu entries, wanted %s\n", got.dir.c_str(),
+				       got.names.size(), kBigDir);
+				g_failures++;
+			}
+			else {
+				printf("SP-LISTING fallback dir=%s listed=%zu deferrals=%d\n", got.dir.c_str(), got.names.size(),
+				       BrowserListingAbProbe::deferrals());
+			}
+			printf("SP-LISTING-SUMMARY opens=%d sweeps=%d big=%d\n", g_listingOpens, g_listingCasesRun, kBigEntries);
+			g_listingStep = ListingStep::Finished;
+			return;
+		}
+
 		if (g_listingStep == ListingStep::BigFolder) {
 			// Surviving the open at all is the property: >230 entries once panicked the snapshot arena
 			// on open and bricked the device. Reaching here means the open, the enumeration and the
 			// close all completed.
 			printf("SP-LISTING big entries=%d listed=%zu deferrals=%d\n", kBigEntries,
 			       takeListingSnapshot().names.size(), BrowserListingAbProbe::deferrals());
-			printf("SP-LISTING-SUMMARY opens=%d sweeps=%d big=%d\n", g_listingOpens, g_listingCasesRun, kBigEntries);
-			g_listingStep = ListingStep::Finished;
+			// The missing-folder fallback, landing on a directory big enough to CULL, entered WITH a
+			// search string. All three matter. The fallback drops the search string, and dropping it
+			// without also resetting catalogSearchDirection sends the cull into
+			// searchFileItems(filenameToStartSearchAt) -- now null -- and straight to strcmpspecial.
+			// So this case covers both halves of the revival: that the fallback happens at all, and
+			// that it does not take the crash with it.
+			BrowserListingAbProbe::beginOpenListing("NOSUCHDIR", kListingStartAt, kBigDir);
+			g_listingRunning = true;
+			g_listingTicks = 0;
+			g_listingStep = ListingStep::Fallback;
 			return;
 		}
 

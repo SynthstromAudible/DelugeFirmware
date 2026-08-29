@@ -147,6 +147,22 @@ void Browser::runListingTrampoline(void* self) {
 	static_cast<Browser*>(self)->runPendingListing();
 }
 
+/// @brief Map a DIRECTORY open's status onto an Error.
+///
+/// Exists because `delugeStatusToError` is shared with the file paths and collapses
+/// `DELUGE_ERR_NOT_FOUND` onto `Error::FILE_NOT_FOUND`. For a directory open that is the wrong
+/// answer, and not merely imprecise: `Error::FOLDER_DOESNT_EXIST` is what the missing-folder fallback
+/// tests for, and what `LoadInstrumentPresetUI::confirmPresetOrNextUnlaunchedOne` tests for before
+/// degrading to `justGetAnyPreset()`. Both went dead when the filesystem moved to efatfs and the
+/// directory open started routing through the shared mapping -- silently, because "folder missing"
+/// and "file missing" both stop a listing, just with the wrong recovery and the wrong message.
+///
+/// Deliberately NOT a change to `delugeStatusToError` itself: a FILE that is not there really is
+/// `FILE_NOT_FOUND`, and this is the one place that knows it opened a directory.
+static Error directoryOpenError(DelugeStatus status) {
+	return status == DELUGE_ERR_NOT_FOUND ? Error::FOLDER_DOESNT_EXIST : delugeStatusToError(status);
+}
+
 std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(char const* path) {
 	// A path the channel cannot key is refused HERE, with a real error, rather than passed on.
 	// `deluge_file_directory_request` silently drops an over-long path and the collect then answers
@@ -172,7 +188,7 @@ std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(cha
 	if (!listing_.active || deluge::storage::Owner::on_owner() || !deluge_file_directory_async_active()) {
 		auto opened = deluge::io::Directory::open(path);
 		if (!opened.has_value()) {
-			return std::unexpected(delugeStatusToError(deluge::io::to_deluge_status(opened.error())));
+			return std::unexpected(directoryOpenError(deluge::io::to_deluge_status(opened.error())));
 		}
 		return std::move(*opened);
 	}
@@ -196,8 +212,9 @@ std::expected<deluge::io::Directory, Error> Browser::openDirectoryForListing(cha
 		return std::unexpected(Error::LISTING_DEFERRED);
 	case DELUGE_FILE_DIRECTORY_FAILED:
 		// Terminal: the channel will not retry and neither may we, or a folder that cannot be opened
-		// would be re-requested on every tick for as long as the browser sits on it.
-		return std::unexpected(delugeStatusToError(status));
+		// would be re-requested on every tick for as long as the browser sits on it. Mapped exactly as
+		// the synchronous arm maps it, so the fallback fires on both.
+		return std::unexpected(directoryOpenError(status));
 	default:
 		// Not reachable through this header, and NOT folded into the FAILED arm above. `out_status`
 		// is only written on FAILED, so an unrecognised status carries DELUGE_OK — and mapping that
