@@ -1,0 +1,3 @@
+# Level 2: the shell's own boot splash, with nothing registered on top of it.
+0     snapshot boot
+100   snapshot boot-again          # identical, still written

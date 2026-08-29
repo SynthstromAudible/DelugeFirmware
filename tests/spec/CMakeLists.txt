@@ -37,9 +37,15 @@ target_include_directories(deluge_spec PUBLIC ../../src/deluge ../../src ../32bi
 # DELUGE_REPO_ROOT: the repo root, for specs that shell out to scripts/ (e.g.
 # harness/snapshot_tools_spec.cpp, which runs scripts/ui_snapshot_diff.py and
 # scripts/pbm2png.py via std::system). Derived the same way as GFX_GOLDEN_DIR above.
+# UI_SCRIPTS_DIR / UI_GOLDEN_DIR / UI_GOT_DIR: the level-2 script harness's three trees -- the
+# committed scripts, the committed goldens, and the build-tree scratch the runner writes its
+# snapshots into before diffing them (see tests/spec/shell/support/script_runner.h).
 target_compile_definitions(deluge_spec PUBLIC
   GFX_GOLDEN_DIR="${CMAKE_CURRENT_LIST_DIR}/../golden/gfx"
   DELUGE_REPO_ROOT="${CMAKE_CURRENT_LIST_DIR}/../.."
+  UI_SCRIPTS_DIR="${CMAKE_CURRENT_LIST_DIR}/../ui-scripts/shell"
+  UI_GOLDEN_DIR="${CMAKE_CURRENT_LIST_DIR}/../golden/ui/shell"
+  UI_GOT_DIR="${CMAKE_CURRENT_BINARY_DIR}/got"
 )
 
 set_target_properties(deluge_spec PROPERTIES

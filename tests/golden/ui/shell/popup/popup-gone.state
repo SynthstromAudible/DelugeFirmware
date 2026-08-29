@@ -1,0 +1,6 @@
+scene app16/1
+scene app16
+led Play on
+pad 0 0 200 0 0
+pad 1 1 0 180 0
+pad 2 2 0 0 160
