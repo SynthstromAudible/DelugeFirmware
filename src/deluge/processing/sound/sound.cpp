@@ -4862,6 +4862,9 @@ void Sound::deleteMultiRange(int32_t s, int32_t r) {
 	// Because range storage is about to change, must unassign all voices, and make sure no more can be assigned
 	// during memory allocation
 	killAllVoices();
+	// Deleting compacts the array, so the ranges after this one all move down. See
+	// MultisampleRange::setAuditionSlot().
+	MultisampleRange::clearAuditionSlot();
 	AudioEngine::audioRoutineLocked = true;
 	sources[s].ranges.getElement(r)->~MultiRange();
 	sources[s].ranges.deleteAtIndex(r);
