@@ -1,7 +1,6 @@
 configure_file(util/firmware_version.h.in util/firmware_version.h @ONLY)
 add_subdirectory(dsp)
 add_subdirectory(gui/l10n)
-add_subdirectory(gui/menu_item/generate)
 add_subdirectory(version)
 
 # Add the sources to the target
@@ -34,7 +33,7 @@ add_library(deluge_app OBJECT
   # clean nukes them and the source glob would not find them.
   ${deluge_strings_SOURCES}
 )
-add_dependencies(deluge_app deluge_strings deluge_version deluge_menus)
+add_dependencies(deluge_app deluge_strings deluge_version)
 
 target_include_directories(deluge_app PUBLIC
     ${deluge_version_INCLUDES}
