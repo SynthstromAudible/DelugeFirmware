@@ -306,3 +306,20 @@ names the change and why it deviates from the draft above.
   differing (or missing-on-one-side) file in sorted order. This is the mechanism spec F's migration
   acceptance needs ("the same script produces the same snapshots against the legacy UI and the new
   scene") without inventing a second golden format for it.
+
+**§0/§1 CMake plumbing and spec E1's model-backed spec tree (2026-08-30, spec E1 Task 1/12)**
+- CppSpec's `FetchContent_Declare`/`FetchContent_MakeAvailable` and the `create_specs_driver()`
+  function **moved out of `tests/spec/CMakeLists.txt` into `cmake/deluge_specs.cmake`**, included by
+  both `tests/spec/CMakeLists.txt` (`all_specs`) and `sim/CMakeLists.txt` (`deluge_scenes_spec`) —
+  spec E1's `src/scenes` is model-aware and needs a spec executable that links the real
+  `deluge_app`, which only the `sim/` project can build; factoring the CppSpec fetch out let that
+  second driver reuse it verbatim instead of duplicating the fetch and the discovery/registration
+  function.
+- That `sim/`-side driver, `deluge_scenes_spec`, links a **mock-free** support library
+  (`deluge_scenes_spec_support`, `sim/CMakeLists.txt:496`) rather than `tests/`'s `deluge_spec` —
+  `deluge_spec` carries `tests/32bit_unit_tests/mocks/mock_display.cpp`/`mock_print.cpp`
+  (`tests/spec/CMakeLists.txt:22-23`), which define symbols the real `deluge_app` the sim links also
+  defines; the two would collide at link time. `deluge_scenes_spec_support` instead builds only the
+  dependency-free level-0 pieces a model-backed spec needs (`tests/harness/ui_script.cpp`,
+  `snapshot.cpp`), the same split `src/scenes/README.md`'s "Testing: two spec trees" section
+  describes.

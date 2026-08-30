@@ -191,6 +191,65 @@ RULES = [
         r"^model/model_stack\.h$",
         "2026-08-26-ui-scenes-menus-design.md",
     ),
+    (
+        # Mirrors ui-includes-outside/shell-includes-outside for the gui/hid split specifically:
+        # scenes-includes-outside above already forbids gui/ (except gui/l10n/) and hid/ wholesale,
+        # but names every other allowed directory explicitly rather than the two forbidden ones --
+        # this row restates the gui/hid half on its own so a reviewer scanning by rule name finds
+        # it without re-deriving the negation. The (include, *excludes) glob tuple already exists
+        # (`rule_covers`, check_layer_rules.py:214-226, as ui-widgets-read-input-directly uses at
+        # :98) -- no checker change needed; this row needs no `except` field of its own.
+        "scenes-includes-gui",
+        "src/scenes/**",
+        "include",
+        r"^(gui/(?!l10n/)|hid/)",
+        "2026-08-26-ui-scenes-menus-design.md",
+    ),
+    (
+        # Narrower still than scenes-model-stack-outside-context: `modulation/automation/auto_param.h`
+        # carries the same "reach into the model stack machinery directly" risk as `model_stack.h`
+        # itself, so it is confined to the same two files.
+        "scenes-model-stack",
+        (
+            "src/scenes/**",
+            "src/scenes/menu/bindings.cpp",
+            "src/scenes/menu/context.cpp",
+        ),
+        "include",
+        r"^(model/model_stack\.h|modulation/automation/auto_param\.h)",
+        "2026-08-26-ui-scenes-menus-design.md",
+    ),
+    (
+        # Spec E §3 rule 4: `currentSong` is confined to the two files that resolve a MenuContext
+        # (context.cpp, bindings.cpp) and even there only inside doc comments describing what was
+        # *not* ported -- the live code takes the Song& from MenuContext. Baseline is the counted
+        # number of currentSong uses in context.cpp after Task 3: 0 (shrink-only).
+        "scenes-currentSong",
+        "src/scenes/**",
+        "symbol",
+        r"\bcurrentSong\b",
+        "2026-08-26-ui-scenes-menus-design.md",
+    ),
+    (
+        # Menus draw only through widgets: no direct OledFrame primitive calls from the scene
+        # layer. The real risk is `f.<primitive>`, not `canvas.` -- OledFrame exposes
+        # pixel/hline/rect/glyphs directly (ui/oled/frame.h:165-269).
+        "scenes-no-frame-primitives",
+        "src/scenes/menu/**",
+        "symbol",
+        r"\b(canvas|f)\.(pixel|hline|vline|line|rect|invert|clear|glyph)",
+        "2026-08-26-ui-scenes-menus-design.md",
+    ),
+    (
+        # A THIRD shell-no-clock row: the checker matches one glob per row, which is why this rule
+        # is already two rows (src/shell/** above, src/ui/** above). The scenes layer must be
+        # exactly as clock-free as the shell and toolkit layers it sits on top of.
+        "shell-no-clock",
+        "src/scenes/**",
+        "symbol",
+        r"\bdeluge_clock_|\bstd::chrono\b|\bclock\(\)|\btime\(",
+        "2026-08-26-ui-test-harness-design.md",
+    ),
 ]
 # Matches both #include "path" and #include <path>, capturing only the path (the delimiter
 # itself is stripped either way). Angle-bracket project includes (e.g. #include <hid/buttons.h>)

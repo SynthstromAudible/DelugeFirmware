@@ -76,3 +76,142 @@ different reasons:
 
 Nothing under `src/scenes` depends on either spec tree existing; both are testing infrastructure
 looking in, the same relationship `tests/spec/shell/` has to `src/shell`.
+
+## The menu tree (`menu/`, spec E §4, Tasks 2–11)
+
+`menu/node.h` defines the declarative data model: `Node`, `Binding`, `ParamRef`, `Kind`, `Hint` (an
+alias of `ui::oled::Hint`), `IntRange` (an alias of `ui::oled::Range`), and the `constexpr` builders
+(`param`, `toggle`, `enumeration`, `submenu`, `custom`, …) that assemble a tree as plain data with no
+code generation. Ten root tables live in `menu/nodes/*.cpp` (one file per legacy subtree — sound,
+kit, MIDI/CV, song, settings, …), gathered by `MenuScene::roots()`
+(`menu/menu_scene.h`/`nodes/nodes.h`) and indexed by `MenuContext::Root`.
+
+### Adding a node
+
+1. Find the legacy `MenuItem` subclass the node replaces (`gui/menu_item/**`, `gui/ui/menus.cpp`)
+   and read its `getName`/`isRelevant`/`getValue`/`setValue`/`checkPermissionToBeginSession`.
+2. Pick a builder from `node.h` matching its `Kind` (`param` for a `ParamRef`-backed item, `toggle`,
+   `enumeration`, `submenu`, or `custom` for the escape hatch — see below). Add the node to the
+   relevant `menu/nodes/<subtree>.{h,cpp}` file, following that file's existing table-comment style
+   (a `| node | legacy global | legacy class | kind |` markdown table naming exactly where each node
+   came from — every table in the tree does this, and a new one should too).
+3. If the item's relevance depends on model state, write or reuse a predicate in `menu/relevance.cpp`
+   and add its `{predicate, name}` row to the registry `relevance::name_of` searches
+   (`relevance.cpp`'s row table, guarded by a `static_assert` on the row count so a missing entry is
+   a build failure, not a silent "?" from the dump).
+4. If the item reads or writes a `ParamRef` or a `get`/`set` hook pair, wire it through
+   `menu/bindings.cpp` (`bindings::read`/`write`) — see "Adding a `Kind`" below if no existing
+   binding shape fits.
+5. Run `python3 scripts/check_layer_rules.py` and the relevant `sim/scenes_spec/tables_*_spec.cpp`
+   spec; a new node usually needs a row added to whichever table-cross-check spec covers its root.
+
+### Adding a `Kind`
+
+The shipped `Kind` enum is `{Submenu, Toggle, Enum, Int, Decimal, SyncLevel, Custom}` — narrower
+than spec E's original draft, which also listed `Bipolar`, `Range`, `MultiRange`, `Colour` and
+`Action`. Those five were dropped: zero nodes across all ten roots needed them, failing spec E §4's
+own "a kind exists only if ≥3 items use it" rule at zero (see the design spec's amendments section
+for the full account; `Action` returns in E2 with its first real consumer). Before adding a new
+`Kind`, count actual users the same way — a kind that will not clear three real nodes belongs as a
+`Custom` item instead.
+
+### Adding a `Custom`
+
+`Kind::Custom` is the escape hatch for a bespoke item that fits no `Kind` (spec E §4: at most 10
+across the whole tree, enforced by `validate_tree`'s `TooManyCustom` rule). To add one:
+
+1. Implement `CustomItem` (`node.h`): `render(OledFrame&, const MenuContext&, MenuState&)` and
+   `handle(UiEvent, UiContext, const MenuContext&, MenuState&)`.
+2. Point the node at a `static`/`inline const` instance via the `custom(name, &item, relevant)`
+   builder. A null `custom` pointer is itself a validator error (`Issue::Kind::NullCustom`) — there
+   is no "no-op custom" shorthand.
+3. **If the real implementation is a later task's job** (E1 shipped the *shape* of several bespoke
+   items — the file selector, the audio recorder, loop points, name editors, patch-cable pages, the
+   multi-range picker — without their real behaviour), point the node at the shared
+   `nodes::kPending` placeholder (`menu/nodes/sound_osc.{h,cpp}`) instead of a real implementation.
+   `kPending` draws the item's title and consumes no input; `CustomItem::is_placeholder()` reports
+   `true` for it, so `validate_tree` flags every node pointing there as
+   `Issue::Kind::PlaceholderCustom` **unless** the caller opts in via
+   `ValidateOptions::allow_placeholder_custom` — which is how a spec says out loud, in one place,
+   that the tree is not yet complete rather than have that fact go unchecked.
+
+### The relevance registry (`menu/relevance.h`, `relevance.cpp`)
+
+Every `Node::relevant` predicate is a plain `bool(const MenuContext&)` function pointer — no
+virtual dispatch, no per-node closure. `relevance::name_of(RelevantFn)` is the reverse lookup Task
+10's `deluge_menu_dump` needs to print *which* predicate a node uses (not just that it has one): a
+table of `{predicate, name}` rows, guarded by a `static_assert` on the row count so adding a
+predicate without adding its row is a build failure rather than a dump that silently prints `"?"`.
+`name_of(nullptr)` answers `"always"` — a node with no `relevant` hook is unconditionally relevant.
+
+### The validator (`menu/validate.h`, `validate.cpp`)
+
+`validate_tree` walks every node reachable from a set of roots and checks: every `Submenu` is
+non-empty under at least one context; every `ParamRef` resolves for its context; every `Enum` has
+`names` or `dynamic_names`; every shortcut cell points at a node; `Custom` count ≤ 10; no
+`NullCustom`; no `DuplicateName` among siblings that could actually both be on screen at once (a
+co-visibility qualifier — see the design spec's amendment for the nine blessed `FormattedTitle`
+collisions this exists to allow); `Node::range_dependent` and `Binding::scaling ==
+Scaling::HalfPrecision` are each set on exactly the caller-supplied expected set, no more and no
+less (`ValidateOptions::expected_range_dependent`, `expected_half_precision`); and
+`Binding::updates_reverb_params` never coexists with a `set` hook on the same node
+(`Issue::Kind::FlagMismatch`, detail `Flag::ReverbUpdateWithHook` — a `set` hook runs and returns
+before the reverb-update branch is ever reached, so the flag would silently never fire). Every
+`Issue` names its node and a `Kind`; `ValidateOptions::allow_placeholder_custom` is the one opt-out,
+for the `kPending` placeholders above.
+
+### The node-id registry (`menu/node_id.h`, `node_id.cpp`)
+
+`assign_node_ids(roots)` walks the tree depth-first (pre-order) and gives every *statically*
+reachable node an id, 1..n (0 means "no node"); `node_id(n)` and `node_by_id(id)` are the two
+directions of the lookup. This is what lets a menu position cross a scene boundary as a `SceneId`,
+which is only 16 bits (spec D §3) and cannot hold a pointer: a shortcut-pad jump
+(`MenuScene::handle`) pushes `Action::Kind::Replace` with `SceneId{SceneKind::FirstApp, node_id}`,
+and `Shell::state_lines()` spells the currently-open node as `app16/<id>` in a `.state` golden line
+— so a level-2 script's snapshot names *which* node is open by its stable id, not by a path a table
+edit could silently repoint. Only statically-declared children (`Node::children`) are walked; a
+`dynamic_children` node's children are never reachable here and are never addressable by id (see
+the dump's own fail-closed behaviour below for the same limitation from another angle).
+
+### The dump and its CI diff (`menu/menu_dump_main.cpp`, `deluge_menu_dump`)
+
+`deluge_menu_dump` is a headless host tool (`sim/CMakeLists.txt`, no hardware) that walks the tree
+under every `MenuContext::Root` and prints it as JSON, close to but not identical to the retired
+Python DSL's (`gui/menu_item/generate`, `dmui/visitor/doc_emitter.py`) schema: every entry's
+`"description"` key is **structurally absent**, not present-but-empty (`Node` carries no such
+data), and a node with `Node::dynamic_children` set makes the dump **fail closed** — it prints the
+offending node to stderr and exits non-zero rather than invent a `"multicontext"` shape, because the
+recovered `doc_emitter.py`'s own `"multicontext"` entry has no `"children"` key at all, so any
+invented shape would not even match the schema it claims to preserve. `scripts/menu_dump_check.sh`
+is the CI regression net: it rebuilds `deluge_menu_dump`, regenerates
+`website/src/data/generated/menu-hierarchies.json` from its output, and fails loudly if that changes
+anything already committed — i.e. the declarative tree drifted from the JSON a `.state` golden's
+`app16/<id>` entries are meant to resolve against. Run it locally after configuring `build-sim`
+with `-DDELUGE_SIM_X64=ON`.
+
+### The two-profile arrangement, restated
+
+As above (`profile.h`): `scenes::deluge_profile()` is `ui::shell::deluge_profile()` copied
+field-for-field with `.text`/`.error_text` filled in from the l10n bridge, because `src/shell` may
+not include `gui/l10n/` and `src/scenes` may. `profile_spec.cpp` (`sim/scenes_spec/`) is the drift
+guard: it asserts every field *other* than the two l10n hooks stays byte-identical to the shell's
+own profile (spans compared by `.data()`/`.size()`), so the two copies cannot silently diverge on
+anything but the one thing they are meant to differ on. `deluge_scenes` and every scenes spec pass
+`scenes::deluge_profile()`, never `ui::shell::deluge_profile()` directly.
+
+## E2+ roadmap
+
+E1 ships the menu tree, its interpreter (`MenuScene`), and the ten root tables — the rest of spec E
+(§2's scene inventory: `SessionScene`, `NoteClipScene`, `BrowserScene`, the overlays, …) is later
+work. Within the menu tree itself, carried to E2: `source_shortcut_pads` (needs patch cables); a
+`Kind::Action` re-introduction with its first real consumer; per-pad blink frequency masks; the
+`SHORTCUTS_VERSION_1` pre-3.0 shortcut layer; two context-dependent blink suppressions;
+settings-root shortcut jumps (blocked on `MenuContext` gaining an additive `background_root` field
+so it stops conflating "which root menu is open" with "what view is behind it"); the four
+`hid/`-side write side effects a menu write can trigger that `src/scenes` cannot reach directly (pad
+brightness, screensaver suppression, canvas flags, sticky shift); `Source::getOrCreateFirstRange()`
+on a zero-range sample item; per-node cursor memory across sessions; `Kind::Custom` receiving raw
+input (today's placeholder renders but never routes input); gold-knob acceleration
+(`calcNextKnobSpeed`); and real implementations behind every `nodes::kPending` placeholder this task
+left in the tree. See the design spec's "Amendments during implementation" section for the full,
+cited account of each.

@@ -635,3 +635,50 @@ term for exactly this reason) and left unresolved: nothing on this branch needs 
 model-side grid invalidation reaches the grid gate through `notify::Dirty` instead of through a
 scene's own `Action`. Left for spec E to pick up if a scene ever needs to request a grid repaint
 from `handle()`/`after_render()` the way it can an OLED one today.
+
+**Spec E1 amendments (2026-08-30)**
+
+Recorded here because the change landed against `src/shell/**` even though the plan doing the
+landing is spec E1's (`2026-08-27-ui-scenes-menus-1.md`). Note on sequencing: the brief for this
+plan asked that the `BoardProfile::shortcuts` removal below land in the same commit as this
+amendment; that commit (`15b3e09bb`, Task 9) already shipped before this amendment was written, so
+it is recorded here as planned rather than folded into that commit after the fact.
+
+- **§2 Board profile and surfaces** — `ShortcutTable` and `BoardProfile::shortcuts` (the field this
+  section's draft pseudocode still shows at line 46) were **removed** in spec E1 Task 9
+  (`0a1e1cab4`). The shipped shape — two `std::span<const uint16_t>` layers, one table — could not
+  express what legacy actually has: seven tables (five 16×8 grids plus two 1-D strips) selected by
+  menu context (sound vs. kit vs. song vs. MIDI/CV, etc.), not one table with a second layer. Beyond
+  the shape mismatch, `src/shell` never dereferenced the field at all — nothing in the shell reads a
+  shortcut table, only `MenuScene` does — so the table is application data, not board description,
+  and putting it in `scenes::menu::shortcuts` (`src/scenes/menu/shortcuts.{h,cpp}`) instead keeps
+  `BoardProfile` to what a board actually is.
+- **§5 Services, `Notices`** — `Notices::drain()`'s `Kind::Console` case never pushed
+  `SceneKind::Console` onto the `SceneStack`, unlike its `Working`/`Text`/`Error` cases, which all
+  push their scene as part of handling the notice. A console notice was queued into `ConsoleScene`'s
+  line buffer but the scene itself was never brought on stack, so nothing ever composited a console
+  line — no golden could show one, and the gap was silent because `append()` still ran without
+  error. Fixed at `65d6860b3`/`76a4611a6`: `Kind::Console` now pushes `SceneId{SceneKind::Console}`
+  itself (guarding against pushing twice if it is already the stack's current top), self-managing its
+  own presence the way `Working`'s case already did, with the matching removal
+  (`stack_.remove(SceneKind::Console)`) added to `tick()` once every line has expired
+  (`ConsoleScene::any_active`).
+- **§5 Services, `ConsoleScene::render_oled`** — `kLineHeight` in `notices.cpp` was a hand-picked
+  `7`, but `FontId::Apple7` reports `text_height_of == 9` and draws its glyphs one row lower than a
+  height-7 assumption expects, so every console line's bottom pixel row was clipped — invisibly,
+  because the character shapes still resolved to *something*, just the wrong something: `E` and `F`
+  became pixel-identical once the row that distinguishes them was cut off. `kLineHeight` is now
+  `ui::oled::text_height_for(gfx::oled::FontId::Apple7)` rather than a literal, so a font swap cannot
+  silently reopen the same clip.
+- **§3 Scenes, registry, stack** — a scene removing only itself from the stack must call
+  `Action::Kind::Remove` (`SceneStack::remove(pop_to)`, excising the one named kind wherever it
+  sits), never `Action::Kind::Pop` with `pop_to` naming itself: `Pop` walks down from the stack top
+  and takes every scene above the named one down with it, which is correct for "close everything
+  down to and including X" but wrong for "close just me." `MenuScene`'s root-level `Back` (closing
+  the menu at depth 0) used `Pop{.pop_to = SceneKind::FirstApp}` in a first pass, which also tore
+  down a live `Working` animation or `Popup` sitting above the menu. Fixed to
+  `Remove{.pop_to = SceneKind::FirstApp}` — see `menu_scene.cpp`'s own note at the fix site for why
+  the target must still be named explicitly rather than defaulting to "just the top": a
+  `Notices`-driven overlay (`Console` in particular, once the previous bullet's fix let it be pushed
+  and left up across other scenes) can legitimately sit above `MenuScene` when Back is pressed, and
+  removing "the top" would remove the notice instead of the menu.

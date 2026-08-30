@@ -283,3 +283,220 @@ one edit gesture, one popup — produce identical snapshots for the legacy UI th
 3. `MenuState::path` as node pointers (fast, `constexpr`-friendly) versus stable node ids
    (survives table edits across firmware versions for "reopen where I was") — pointers
    now; ids only if per-song menu position persistence is wanted.
+
+## 11. Amendments during implementation (2026-08-30)
+
+Recorded against `src/scenes/**` as it was built (Tasks 1–11) and its review rounds. Each line
+names the change and why it deviates from the draft above; where a draft section number is not
+named the amendment stands on its own.
+
+**§4.3 correction** — no website generator for the menu JSON ever existed on this branch to
+replace: `website/scripts/generate-menu-hierarchies.mjs` and `menu-hierarchies.json` are the target
+architecture's aspiration, not code found on `next`. `deluge_menu_dump` (Task 10,
+`src/scenes/menu/menu_dump_main.cpp`) *creates* the JSON from scratch, walking the tree under every
+`MenuContext::Root`; the `.mdx` documentation pages that would read it stay hand-written until a
+later doc task.
+
+**§4 amendments**
+- Node names are `uint16_t` string ids resolved through the l10n bridge
+  (`scenes::text_lookup`/`error_lookup`, Task 1), not `l10n::String` directly — `src/scenes` may
+  include `gui/l10n/` (ruling Q3), but every `Node`/`Binding` literal in `menu/nodes/*.cpp` spells
+  its name as the numeric id so a table file needs no `gui/l10n/` include of its own.
+- `Hint` and `IntRange` are **aliases** of `ui::oled::Hint` and `ui::oled::Range` (the toolkit's
+  own types, spec B), not new types the menus layer declares — the widgets that render a `Hint` or
+  a `Range` already have their own names for these shapes, and a second, menus-only enum would be a
+  translation step with nothing on either side to translate.
+- `Binding` gained **`ValueStyle style`** (`deluge::ui::oled::ValueStyle`, `node.h:168`) — the
+  per-widget rendering style (units, precision) the draft's `Binding` sketch has no field for.
+- `MenuContext` gained an explicit **`Permission`** enum (`context.h:179`, `permission_for()`'s
+  return type) rather than the draft's bare description of "18 `checkPermissionToBeginSession`
+  overrides collapse to one rule" — `Permission::{Yes, No, MustSelectRange}` is the actual shape,
+  named so `MenuScene::descend_if_allowed` (`menu_scene.h:269`) can switch on it.
+- `MenuState` (§4.1) carries **typed per-kind edit storage** (`edit_int`, `edit_bool`,
+  `enum_index` + its own `ListState`/`ScrollText`, `decimal_pos`, `cursor_blink`) rather than one
+  shared `int32_t` the draft's sketch implies — the widgets take different reference types
+  (`int32_t&`, `bool&`, an index plus its own list-cursor state), so a single shared slot would
+  need an unsafe reinterpretation at every call site instead of one field per kind.
+- **`MenuSavedState`** (`menu_scene.h:175`, `static_assert(sizeof(MenuSavedState) <=
+  deluge::ui::shell::kSceneStateBytes)`) is a new type the draft does not name: what a
+  `replace_root` must preserve is a small subset of `MenuState` (child *indices*, not pointers, so
+  a table edit between save and restore cannot resurrect a stale pointer), not the whole
+  `MenuState` the shell's per-scene state budget could not hold.
+- The **node-id registry** (`assign_node_ids`/`node_id`/`node_by_id`, `node_id.h`, ruling Q7) is
+  new: `SceneId::arg` is 16 bits (spec D §3), so a menu position that must survive a `Push`/`Pop`
+  round trip (a shortcut-pad jump, `app16/<id>` in a `.state` line) needs a stable id, not the
+  pointer `MenuState::path` uses internally for speed. Both halves of open question 3 above are
+  therefore true at once: pointers for the live path, ids for anything that crosses a scene
+  boundary or a save file.
+- **`roots()`** (`MenuScene::roots()`, indexed by `MenuContext::Root`) is the one place all ten
+  root tables are gathered for `on_enter`, `validate_tree`, and `deluge_menu_dump` to walk — not
+  named in the draft's §4, which shows individual root literals (`lpf`, etc.) with no table
+  gathering them.
+
+**§4.1 amendment** — `MenuScene::render` in the draft's pseudocode is now the
+**`render_oled`/`render_grid`/`after_render`/`handle` split** spec D's Task 9 reconciliation
+introduced shell-wide (spec D §13's "task-9 reconciliation" note): `render_oled` and `render_grid`
+read and render only, `after_render` commits what a render pass observed (`MenuState::value_changed`
+etc.) into a `Binding` write and raises `notify::`, and `handle` answers discrete events (back,
+shortcut-pad jump). The grid overlay (shortcut-pad blink, patching-source blink) is driven by two
+flags on `MenuState` (`blink_anchor_ms`, `blink_node`) rather than the draft's implicit "leds + grid
+overlay" bullet, because the blink is a two-phase cycle with its own anchor, not a per-tick
+computation from the focused node alone (see the blink-cadence bullet below).
+
+**§4.2 amendment** — the shortcut tables live in **`scenes::menu::shortcuts`**
+(`src/scenes/menu/shortcuts.{h,cpp}`), not referenced from the board profile's `ShortcutTable` as
+the draft's §4.2 states: `BoardProfile::shortcuts` was removed in Task 9 (see spec D §13's Task 12
+addition) because its two-`std::span<const uint16_t>`-layer shape could not hold five 16×8 tables
+of *node pointers* plus two one-dimensional ones selected by `MenuContext::Root`, and the shell
+never dereferenced the field regardless — the tables are application data belonging to the layer
+that owns the `Node`s they point at.
+
+**§7 amendment** — "the legacy-vs-new *script* acceptance" named in §7 step 1 is spec F's, not
+E1's: `RunOptions::second_registry` (spec G §10's Task-6-acceptance amendment) is the mechanism a
+later plan uses to run one script against both the legacy `SceneRegistry` and the new one and diff
+the two `got/` trees against each other. E1 itself pins the new renderer against the legacy
+renderer **in-process** instead (Tasks 6–8's per-kind goldens, `sim/scenes_spec/tables_*_spec.cpp`)
+— a byte-for-byte comparison of the two renderers' output for the same fixture, not a script replay
+through two registries.
+
+**§2 correction** — `soundEditorRootMenu` has **27 children**, not the plan's 28
+(`sound_root.h:6-37`; `tables_2_spec` asserts 27 against the live legacy object rather than trust a
+hand count).
+
+**Range-dependent items** — `MustSelectRange` (§4.1) is driven by an explicit `Node::range_dependent`
+flag (`node.h:254`, set via `with_range_dependent(...)`, ported from legacy's
+`MenuItem::isRangeDependent()`), not by "any node whose `Binding` carries a param" as an earlier
+pass assumed — only the ten osc-subtree nodes legacy actually marks (sample transpose, loop point,
+the file selector, the audio recorder, …) carry the flag; `validate_tree`'s
+`expected_range_dependent` parameter (`validate.h:141`) audits the flag is set on exactly that set
+and no others.
+
+**`Binding::Scaling`** — `Binding` gained an explicit `Scaling{Standard, HalfPrecision, Pan}`
+(`node.h:102`, `bindings.h:16-23`): legacy's default integer scaling (`Scaling::Standard`) is not
+universal. Missed in an earlier pass and caught reviewing the port against
+`value_scaling.cpp:36` — **`Scaling::HalfPrecision`** covers osc pulse width and the compressor
+params, whose legacy scaling halves precision to make room for negative stored values
+`Scaling::Standard` cannot represent; **`Scaling::Pan`** covers the two pan params, which
+`bindings.cpp:207-214` additionally infers as a backstop when a node's `ParamRef` names one of them
+and no scaling was set explicitly.
+
+**`Binding::updates_reverb_params` and the `ReverbUpdateWithHook` validator rule** — a node whose
+write must additionally poke `AudioEngine::reverb`'s live parameters (the sidechain/reverb params,
+`sound_sidechain.h:14`, `roots.h:44`) sets `Binding::updates_reverb_params` (`node.h:188`);
+`validate_tree` now rejects (`Issue::Kind::FlagMismatch`, detail `Flag::ReverbUpdateWithHook`,
+`validate.cpp:277-279`) a node that sets both `updates_reverb_params` **and** a `set` hook, because
+`bindings::write` runs the `set` hook and returns without ever reaching the
+`updates_reverb_params` branch (`bindings.cpp:611` sits after the `set`-hook dispatch) — the flag
+would silently never fire on such a node, and the two mechanisms were never meant to combine on the
+same item.
+
+**`bindings::serves_param` and `Serves{unpatched, patched}`** — Task 6's ruling: `serves_param`
+(`bindings.cpp:329`) takes an explicit `Serves` struct (`{bool unpatched; bool patched;}`,
+`bindings.cpp:247`) derived from the *resolved* `MenuContext` (`serves_for(ctx)`,
+`bindings.cpp:304`: `.unpatched = holds_unpatched_params(ctx)`, `.patched = ctx.sound != nullptr`)
+rather than asked of the `ParamManager` directly, because **`ParamManager` has no structural
+discriminator of its own** between an `UnpatchedParamSet` and a `MIDIParamCollection` in
+`summaries[0]`, nor between a `PatchedParamSet` and an `ExpressionParamSet` in `summaries[1]`
+(`param_manager.cpp:60-82`: `setupMIDI`/`setupUnpatched`/`setupWithPatching` all write a bare
+`paramCollection` pointer into the same `summaries[]` slot with nothing recording which concrete
+type is there). The caller's own context — what kind of output/clip is open — is the only thing
+that currently answers "which concrete collection is this", which is why `serves_param` takes it as
+a parameter instead of asking the manager. **Recorded here as owed, out of scope for E1**: the
+durable fix is a model-side tag on `ParamManager` itself (e.g. a `ParamCollectionKind` per summary
+slot), so a caller — this layer or any other — can ask the manager directly instead of
+re-deriving the answer from context every time a menu binding reads or writes.
+
+**Dropped and surviving `Kind`s** — spec E §4's `Kind::{Bipolar, Range, MultiRange, Colour, Action}`
+were **dropped**: zero nodes across all ten roots need them, which fails spec E §4's own "a kind
+exists only if ≥3 items use it" rule at zero, let alone three. `SyncLevel` survived (it has real
+users). The shipped `Kind` enum is `{Submenu, Toggle, Enum, Int, Decimal, SyncLevel, Custom}`
+(`node.h:64-72`) — seven, not the draft's twelve. `Action` is re-added in E2 with its first real
+consumer (a bespoke action item E1's ten roots have no need for).
+
+**`DuplicateName`'s co-visibility qualifier** — `validate_tree`'s `DuplicateName` rule
+(`validate.cpp:167-180, :336`) is qualified: two siblings sharing a `(name, parent)` are flagged
+only when both could actually be on screen at once (their `relevant` predicates are not mutually
+exclusive) — a flat "no two children share a name" rule would reject legacy's own **nine blessed
+`FormattedTitle` collisions** (e.g. both sample recorders under different contexts), which are
+genuinely the same displayed name on two nodes that are never both relevant simultaneously.
+
+**`scenes-includes-outside` allows `io/**`** — the layer-rule ratchet's `scenes-includes-outside`
+row (`scripts/check_layer_rules.py`) permits `src/scenes/**` to include `io/**`, joined in Task 8:
+the MIDI/CV settings root needs `midiEngine` (`io/midi/midi_engine.h`), `MIDIDeviceManager`
+(`io/midi/midi_device_manager.h`) and `MIDITranspose` (`io/midi/midi_transpose.h`), which hold the
+state seven of the MIDI settings page's items edit and have no `model/` spelling. `hid/` stays out
+— nothing in `src/scenes` needed it, and the rule's whole point is that menus never reach for
+display/LED primitives directly.
+
+**Shortcut-pad mechanics** — three corrections to how legacy's shortcut pads actually work, found
+porting Task 9:
+- Legacy's **second shortcut layer is a second press of the focused item's own pad**
+  (`secondLayerShortcutsToggled`, `sound_editor.cpp:1309-1324`), **not** "shift held" — shift is
+  only the gate that lets a pad be treated as a shortcut at all (`sound_editor.cpp:1114`); which
+  layer's cell to use is the caller's business (`shortcuts.h:73-78`).
+- Two deliberate press/blink asymmetries, both legacy's own and preserved rather than "fixed":
+  **`kMidiExtraCells`** (`shortcuts.cpp:244`) resolves four pads on the MIDI/CV and drum roots that
+  are in no legacy table at all (`sequenceDirectionMenu` and the MIDI/CV randomizer trio,
+  `sound_editor.cpp:1282-1302`) — they navigate on press but never blink, because the blink side
+  (`updatePadLightsFor`) only ever scans the shortcut tables' own column 11. The **`KitGlobalFx`
+  press gate** (`kit_global_fx_press_gate`, `shortcuts.cpp:255-263`) is the mirror: legacy's press
+  arm is gated `(x <= kDisplayWidth - 2) || (x == 15 && y == 1)` (`sound_editor.cpp:1153-1157`), so
+  column 15 is admitted only at `y == 1` — the table's own `(15, 2)`/`(15, 3)` cells are unreachable
+  by press yet still blink, since the blink scan has no such guard.
+
+**Blink cadence** — the shortcut-pad blink is legacy's **200 ms two-phase cycle**
+(`menu_scene.h:70-72`, `menu_scene.cpp:672-674`): a 20 ms re-arm on the source-pad phase and a
+180 ms re-arm on the focused-param phase, not a symmetric period — a `Blink`'s single symmetric
+period cannot represent this, which is why `MenuState` carries `blink_anchor_ms`/`blink_node`
+instead of a `Blink` for this one purpose. The **visible DUTY cycle within each phase is not
+derivable from this repo**: legacy's two re-arm intervals are timer re-arm periods driving a
+PIC-side `SET_PAD_FLASHING` state machine, not on/off durations this codebase can read — the port
+reproduces the two re-arm intervals faithfully and leaves the PIC-side duty cycle as a hardware
+fact outside this layer's reach.
+
+**The dump's `description` omission and fail-closed `dynamic_children`** — `deluge_menu_dump`
+(`menu_dump_main.cpp`) omits `"description"` **structurally**, not as an empty string: `Node` has no
+such field, and the retired Python DSL's `description` came from a whole separate `docs/menus/*.md`
+file per node that has no analogue here. Separately, a node with `Node::dynamic_children` set
+**fails the dump closed** (`fail_on_dynamic_children`, `menu_dump_main.cpp:230-246`, exits
+non-zero) rather than emit an invented `"multicontext"` shape — an earlier pass had synthesized one
+to keep the dump running, but the recovered `doc_emitter.py`'s own `visit_multicontext_instance`
+entry (`"multicontext"`, `{"type", "title", "name", "description"}`) has **no `"children"` key at
+all**, so inventing one would not even match the schema it was trying to preserve. The first real
+`dynamic_children` node (E2's job) is what has to design this dump's multicontext handling for
+real, against the tree it is then dumping under, rather than have this task guess at a shape ahead
+of any real user.
+
+**Table specs drive both `write()` paths independently** — every `sim/scenes_spec/tables_*_spec.cpp`
+exercises `bindings::write()` for every node with a `set` hook against legacy's own
+`writeCurrentValue()` on the **same fixture**, driving each path from an **independent sentinel**
+value rather than comparing one against the other's output (`tables_1_spec.cpp:316-330`, fix round
+1 issue I2): the original shape ran the legacy write first and the new write second and compared
+results, which cannot tell a real `set` hook from a silent no-op port hook — both leave the fixture
+at the legacy write's value, which would read as agreement. Seeding each side with its own sentinel
+before driving it means a no-op port hook is caught immediately (the fixture stays at the sentinel
+instead of moving to the expected value).
+
+**An upstream legacy bug found, not fixed** — `osc::AudioRecorder::isRelevant`
+(`gui/menu_item/osc/audio_recorder.h:59-62`) does `static_cast<Sound*>(modControllable)
+->getSynthMode()` with no null check. Opening the ACTIONS submenu (`soundEditorRootActionsMenu`,
+whose children include the two sample-recorder items, `sound_actions.h:23`) on a MIDI or gate drum
+row — whose `ModControllableAudio*` is null — dereferences a null `Sound` in legacy. The ported
+predicate, `relevance::is_subtractive` (`relevance.cpp:256-257`), guards `ctx.sound != nullptr`
+before touching `getSynthMode()`, so the port does not reproduce the crash — this is a legacy bug
+the port fixes as a side effect of porting the predicate correctly, not one this task went back and
+patched in `gui/menu_item/`. Recorded here rather than filed, since spec E1's scope is the port, not
+legacy bug triage.
+
+**E2's carried work** — behaviour spec E named as belonging to a later phase, still owed once E1's
+ten roots and `MenuScene` ship: `source_shortcut_pads` (needs patch cables); per-pad blink
+frequency masks; the `SHORTCUTS_VERSION_1` pre-3.0 shortcut layer; two context-dependent blink
+suppressions; settings-root shortcut jumps (blocked on `MenuContext` no longer conflating "which
+root menu is open" with "what view is behind it" — needs an additive `background_root` field, a
+`context_for` argument to supply it, and an application-side caller holding the live clip);
+the four `hid/`-side write side effects a menu write can trigger (pad brightness, screensaver
+suppression, canvas flags, sticky shift) that `src/scenes` cannot reach directly;
+`Source::getOrCreateFirstRange()` on a zero-range sample item; per-node cursor memory across
+sessions; `Kind::Custom` receiving raw input (today's `CustomItem` interface renders but the E1
+placeholder behind `DELUGE_SCENES_E1_PARTIAL` never routes input to it); and gold-knob acceleration
+(`calcNextKnobSpeed`).
