@@ -85,8 +85,10 @@
 ///           three-option list and files `MenuAction::OpenPerformanceView`; the mode it shows is
 ///           mirrored on this side of the wall by `menu::performance_editing_mode()`, which the
 ///           wiring plan owes a sync call, exactly as `menu::shortcuts_version()` does.)
-///         * `active_scales` -- `ActiveScaleMenu` (`gui/menu_item/active_scales.h`), a whole
-///           editor of its own.
+///         * (`active_scales` is no longer one -- task 11b. `nodes::ActiveScalesItem`
+///           (`nodes/scales.h`) is the real item: one row per preset scale with a checkbox, over
+///           `ui::oled::list`, which already ports the renderer legacy's own
+///           `drawSubmenuItemsForOled` was adapted from.)
 ///
 ///       The ones still listed point at `nodes::kPending`, so `validate_tree` reports them (one
 ///       `PlaceholderCustom` each) unless the caller opts in. Every `Kind::Custom` node -- finished
@@ -98,6 +100,7 @@
 #include "scenes/menu/nodes/actions.h" // the five action items (task 11b)
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/edit_name.h" // kEditDrumName
+#include "scenes/menu/nodes/scales.h"    // kSongActiveScalesItem (task 11b)
 #include "scenes/menu/nodes/sound_arp.h"
 #include "scenes/menu/nodes/sound_bend.h"
 #include "scenes/menu/nodes/sound_compressor.h"
@@ -512,7 +515,7 @@ inline constexpr IntRange kSwingIntervalRange{0, NUM_SWING_INTERVALS - 1, 1};
 inline constexpr Node swing_interval = sync_level_item(sid(String::STRING_FOR_SWING_INTERVAL), 0, get_swing_interval,
                                                        set_swing_interval, kSwingIntervalRange);
 
-inline constexpr Node active_scales = custom(sid(String::STRING_FOR_ACTIVE_SCALES), &kPending); // E2
+inline constexpr Node active_scales = custom(sid(String::STRING_FOR_ACTIVE_SCALES), &kSongActiveScalesItem);
 inline constexpr Node configure_song_macros =
     custom(sid(String::STRING_FOR_CONFIGURE_SONG_MACROS), &kConfigureSongMacrosItem);
 inline constexpr Node song_midi_learn = custom(sid(String::STRING_FOR_MIDI_LEARN), &kSongMidiLearnItem);

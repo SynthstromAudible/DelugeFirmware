@@ -63,8 +63,10 @@
 ///           `lower`/`upper` off the legacy menu items into `FlashStorage::defaultRanges`, the same
 ///           move `padColours` made, because a member of a `gui/` class has no bare-`extern`
 ///           escape. See `kDefaultTempoRange` below and `ui/oled/values.h`'s `range_value`.)
-///           `default_active_scale` is `ActiveScaleMenu` (`gui/menu_item/active_scales.h:13-31`),
-///           an editor of its own -- also still owed.
+///           (`default_active_scale` was `ActiveScaleMenu` (`gui/menu_item/active_scales.h:13-31`)
+///           and still is -- but task 11b ported it: `nodes::ActiveScalesItem` (`nodes/scales.h`)
+///           needed no new machinery either, because legacy's own renderer is
+///           `Submenu::drawSubmenuItemsForOled` with a checkbox, which `ui::oled::list` already is.)
 ///           (`dev_sysex_allowed` was on this list: its ON option is a **randomly generated** hex
 ///           key built at read time, `runtime_feature/devSysexSetting.cpp:30-59`. That needed no
 ///           new machinery either -- a `dynamic_enumeration` names its options at render time, and
@@ -112,6 +114,7 @@
 #include "scenes/menu/nodes/dynamic.h"      // the CV/gate selectors and the MIDI device list
 #include "scenes/menu/nodes/midi_command.h" // the twelve `MidiCommandItem`s
 #include "scenes/menu/nodes/roots.h"        // kThresholdModeNames, and `kPending` through it
+#include "scenes/menu/nodes/scales.h"       // kDefaultActiveScalesItem (task 11b)
 #include "scenes/menu/relevance.h"
 
 #include <span>
@@ -871,7 +874,7 @@ inline constexpr Node default_swing_interval =
 
 inline constexpr Node default_scale =
     dynamic_enumeration(sid(String::STRING_FOR_INIT_SCALE), default_scale_names, get_default_scale, set_default_scale);
-inline constexpr Node default_active_scale = custom(sid(String::STRING_FOR_ACTIVE_SCALES), &kPending); // E2
+inline constexpr Node default_active_scale = custom(sid(String::STRING_FOR_ACTIVE_SCALES), &kDefaultActiveScalesItem);
 inline constexpr const Node* kDefaultScalesChildren[] = {&default_scale, &default_active_scale};
 inline constexpr Node default_scales = submenu(sid(String::STRING_FOR_SCALE), kDefaultScalesChildren);
 
