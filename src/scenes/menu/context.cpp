@@ -128,7 +128,7 @@ void select_range(MenuContext& ctx, int32_t index) {
 	// `SoundEditor::setCurrentMultiRange` (`:1928-1931`).
 	ctx.range = static_cast<MultiRange*>(ctx.source->ranges.getElement(index));
 	ctx.range_index = static_cast<int16_t>(index);
-	// `MultiRange::selectEncoderAction`'s own `defaultRangeI` write (`multi_range.cpp:225`), which
+	// `MultiRange::selectEncoderAction`'s own `defaultRangeI` write (`multi_range.cpp:239`), which
 	// is what makes the choice stick across a later visit to the same source.
 	ctx.source->defaultRangeI = index;
 }

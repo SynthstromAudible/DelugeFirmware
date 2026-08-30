@@ -1925,8 +1925,8 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 
 		// **Both directions of one two-node loop**, and nothing else.
 		// `patch_cable_strength::rangeMenu`'s select press opens `source_selection::rangeMenu`
-		// (`patch_cable_strength.cpp:302-306`) and that page's opens the strength page straight back
-		// (`source_selection/range.cpp:30-32`) -- legacy's own loop, and how a user toggles between
+		// (`patch_cable_strength.cpp:302-309`) and that page's opens the strength page straight back
+		// (`source_selection/range.cpp:32-34`) -- legacy's own loop, and how a user toggles between
 		// "which source modulates this cable's depth" and "by how much". Which of the two shows up
 		// as the back edge depends on which the walk enters first, and the tree reaches each of them
 		// first from somewhere (`patch_cables` chains straight to the strength page, every

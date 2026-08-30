@@ -1017,7 +1017,7 @@ Result MenuScene::after_render() {
 	// The range picker's own commit -- `soundEditor.setCurrentMultiRange(...)`
 	// (`sound_editor.cpp:1928-1931`), which `MultiRangeItem` cannot do itself: it is handed a
 	// `const MenuContext&` and this is the scene's own mutable one. Applied on every tick the picker
-	// republishes its cursor, which is exactly when legacy calls it (`multi_range.cpp:53`, `:233`).
+	// republishes its cursor, which is exactly when legacy calls it (`multi_range.cpp:54`, `:249`).
 	if (st_.range_choice >= 0) {
 		select_range(ctx_, st_.range_choice);
 		st_.range_choice = -1;

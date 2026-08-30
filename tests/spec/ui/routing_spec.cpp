@@ -22,7 +22,7 @@ using deluge::gfx::oled::Rect;
 namespace uitest = deluge::ui::test;
 
 // `routing_chain` / `segmented_switch` -- the two halves of legacy
-// `PatchCableStrength::renderOLED` (`gui/menu_item/patch_cable_strength.cpp:74-167`) that draw a
+// `PatchCableStrength::renderOLED` (`gui/menu_item/patch_cable_strength.cpp:79-157`) that draw a
 // *routing* rather than a value. Pinned the three ways this directory pins a widget:
 //
 // First, byte for byte against the legacy routine: `legacy_diagram` / `legacy_switch` below are
@@ -44,10 +44,10 @@ namespace uitest = deluge::ui::test;
 //    (`:86-88`). They are not the same diagram with a row added.
 //  - **In the three-stage form the elbow lands *below* the middle stage's label** -- the drop from
 //    stage 0 runs to `y + (ySpacing << 1)` while the label is drawn at `y - 3` after a
-//    `+= ySpacing - 1` (`:99`, `:105-109`). It looks like a bug and it is legacy's; transcribing it
+//    `+= ySpacing - 1` (`:96-97`, `:100-104`). It looks like a bug and it is legacy's; transcribing it
 //    is the point of having an oracle rather than a hand-written expectation.
 //  - **A slot's label box and its inversion box differ by one column** for every slot but the
-//    first (`:155` vs `:157-159`) -- the same class of legacy asymmetry `option_window` reproduces
+//    first (`:144` vs `:147-149`) -- the same class of legacy asymmetry `option_window` reproduces
 //    between its label and its highlight.
 //  - **Neither widget uses a 48/64 constant pair**, unlike `midi_command`'s row: every legacy
 //    coordinate in these two blocks is either an offset from the left edge or
@@ -58,7 +58,7 @@ namespace uitest = deluge::ui::test;
 
 namespace {
 
-/// @brief `PatchCableStrength::renderOLED`'s first block (`patch_cable_strength.cpp:80-133`),
+/// @brief `PatchCableStrength::renderOLED`'s first block (`patch_cable_strength.cpp:79-123`),
 ///        transcribed.
 ///
 /// @param c        Canvas to draw into, in canvas-absolute coordinates.
@@ -99,7 +99,7 @@ void legacy_diagram(Canvas& c, int32_t topmost, std::span<const std::string_view
 	c.draw_string(stages.back(), leftPadding, y, 6, 7);
 }
 
-/// @brief `PatchCableStrength::renderOLED`'s polarity switcher (`patch_cable_strength.cpp:135-167`),
+/// @brief `PatchCableStrength::renderOLED`'s polarity switcher (`patch_cable_strength.cpp:125-157`),
 ///        transcribed.
 ///
 /// @param c        Canvas to draw into, in canvas-absolute coordinates.
@@ -183,10 +183,22 @@ describe routing_chain_w("ui::oled::routing_chain", $ {
 		// The claim the header makes, tested rather than asserted: no 48/64 constant pair. The
 		// oracle is run at the *other* panel's `OLED_MAIN_TOPMOST_PIXEL` (0), and the port is given
 		// the same frame-local rect, so agreement means the widget followed the frame's origin.
-		uitest::Rig64 r;
-		routing_chain(r.frame, diagram_rect(), three_stage());
-		legacy_diagram(r.reference, 0, three_stage());
-		expect(r.pbm()).to_equal(r.reference_pbm());
+		//
+		// **Both shapes**, not just the three-stage one: they use different pitches and different
+		// starting offsets (`:86-88`), so one of them agreeing at 64 rows says nothing about the
+		// other. Fix round 2 -- the two-stage case had been pinned at 64 rows only by a golden.
+		{
+			uitest::Rig64 r;
+			routing_chain(r.frame, diagram_rect(), three_stage());
+			legacy_diagram(r.reference, 0, three_stage());
+			expect(r.pbm()).to_equal(r.reference_pbm());
+		}
+		{
+			uitest::Rig64 r;
+			routing_chain(r.frame, diagram_rect(), two_stage());
+			legacy_diagram(r.reference, 0, two_stage());
+			expect(r.pbm()).to_equal(r.reference_pbm());
+		}
 	});
 
 	it("lands each elbow segment on the legacy coordinate", _ {
@@ -286,7 +298,7 @@ describe segmented_switch_w("ui::oled::segmented_switch", $ {
 	});
 
 	it("offsets a non-first slot's label one column right of its own inversion, as legacy does", _ {
-		// `:155` draws UNI at `startX + biSlotWidth + 1` (98 + 1) while `:157-159` inverts from
+		// `:144` draws UNI at `startX + biSlotWidth + 1` (98 + 1) while `:147-149` inverts from
 		// `startX + biSlotWidth` (98). Shown by rendering the same box twice with only the
 		// selection changed and reading the column that the inversion covers but the label does not.
 		uitest::Rig48 r0;

@@ -378,7 +378,7 @@ struct RangePeek : legacy::Range {
 	static std::string text_of_range(legacy::Range& r, int32_t value) {
 		static_cast<legacy::MultiRange&>(r).setValue(value);
 		char buf[32] = {};
-		(r.*(&RangePeek::getText))(buf, nullptr, nullptr, /*mayShowJustOne=*/false); // `multi_range.cpp:389`
+		(r.*(&RangePeek::getText))(buf, nullptr, nullptr, /*mayShowJustOne=*/false); // `multi_range.cpp:401`
 		return std::string{buf};
 	}
 };
@@ -457,7 +457,7 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 	});
 
 	it("chains to the node it stood in for, and its chain_targets are the range-dependent set", _ {
-		// `MultiRange::selectButtonPress` is `return menuItemHeadingTo` (`multi_range.cpp:343-345`),
+		// `MultiRange::selectButtonPress` is `return menuItemHeadingTo` (`multi_range.cpp:360-362`),
 		// and `menuItemHeadingTo` is what `SoundEditor::setup` wrote there (`:1802`). The port's
 		// equivalent pair is `MenuState::pending_after_range` and this hook.
 		RangeFixture f{2};
@@ -509,7 +509,7 @@ describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range pic
 		menu::select_range(f.ctx, 2);
 		expect(static_cast<int>(f.ctx.range_index)).to_equal(2);
 		expect(f.ctx.range == f.ctx.source->ranges.getElement(2)).to_be_true();
-		// `multi_range.cpp:225` -- the choice sticks on the source, which is what `on_focus` reads
+		// `multi_range.cpp:239` -- the choice sticks on the source, which is what `on_focus` reads
 		// back on the next visit.
 		expect(static_cast<int>(f.ctx.source->defaultRangeI)).to_equal(2);
 		// Out of range is ignored rather than clamped -- every caller has clamped already.

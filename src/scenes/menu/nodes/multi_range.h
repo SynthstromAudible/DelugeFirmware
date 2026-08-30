@@ -14,7 +14,7 @@
 /// `Permission::MustSelectRange`, having first recorded the item it was heading to in
 /// `MenuState::pending_after_range`. `multi_range_chain` -- this page's `Node::select_chain` -- then
 /// returns that item, which is precisely `MultiRange::selectButtonPress`'s `return menuItemHeadingTo`
-/// (`multi_range.cpp:343-345`).
+/// (`multi_range.cpp:360-362`).
 ///
 /// `Node::chain_targets` is therefore `nodes::kRangeDependentNodes`: the only nodes that can ever
 /// set `pending_after_range` are the ones `permission_for`'s range rule fires on, i.e. exactly the
@@ -34,17 +34,17 @@
 ///
 /// ## What did NOT come across
 ///
-///   * **Inserting a range** (shift + select encoder, `multi_range.cpp:145-232`) and **deleting one**
-///     (`deletePress`, `:236-292`). Both are range *editing* rather than range *selection*, both
+///   * **Inserting a range** (shift + select encoder, `multi_range.cpp:158-228`) and **deleting one**
+///     (`deletePress`, `:261-311`). Both are range *editing* rather than range *selection*, both
 ///     mutate `Source::ranges` under a `killAllVoices` + `AudioEngine::audioRoutineLocked` window,
 ///     and neither has an input route here: legacy reaches `deletePress` from `SoundEditor`'s own
 ///     BACK handling, which in this port is `MenuState::back_claimed` -> `MenuScene::ascend`.
-///   * **Editing a range edge** (`soundEditor.editingRangeEdge`, `:65-142`, and the `invertArea`
-///     highlight at `:404-420`): a `SoundEditor` mode this layer has no equivalent of, and the
+///   * **Editing a range edge** (`soundEditor.editingRangeEdge`, `:74-154`, and the `invertArea`
+///     highlight at `:415-433`): a `SoundEditor` mode this layer has no equivalent of, and the
 ///     highlight is a frame primitive.
-///   * `noteOnToChangeRange` (`:347-365`): live MIDI note-in re-selecting the range. Nothing routes
+///   * `noteOnToChangeRange` (`:364-381`): live MIDI note-in re-selecting the range. Nothing routes
 ///     MIDI into the scene stack yet (`MenuScene`'s learn entry points carry the same warning).
-///   * `possibleChangeToCurrentRangeDisplay` / `uiNeedsRendering(keyboardScreen)` (`:255-262`):
+///   * `possibleChangeToCurrentRangeDisplay` / `uiNeedsRendering(keyboardScreen)` (`:250-258`):
 ///     `gui/ui/`.
 
 #include "scenes/menu/node.h"
@@ -60,7 +60,7 @@
 namespace deluge::scenes::menu::nodes {
 
 /// @brief The note-range picker. One row per `MultiRange` on the addressed `Source`, labelled with
-///        the note span it covers (`MultiRange::getText`, `multi_range.cpp:296-341`).
+///        the note span it covers (`MultiRange::getText`, `multi_range.cpp:313-358`).
 class MultiRangeItem final : public CustomItem {
 public:
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
@@ -70,11 +70,11 @@ public:
 	void on_focus(const MenuContext& ctx, MenuState& state) const override;
 };
 
-/// @brief The single instance -- `multiRangeMenu` (`gui/menu_item/multi_range.cpp:35`).
+/// @brief The single instance -- `multiRangeMenu` (`gui/menu_item/multi_range.cpp:37`).
 inline const MultiRangeItem kMultiRangeItem{};
 
-/// @brief One picker row's label -- `MultiRange::getText` (`multi_range.cpp:296-341`) with
-///        `mayShowJustOne = false`, which is what `drawPixelsForOled` passes (`:389`).
+/// @brief One picker row's label -- `MultiRange::getText` (`multi_range.cpp:313-358`) with
+///        `mayShowJustOne = false`, which is what `drawPixelsForOled` passes (`:401`).
 ///
 /// The lower end is "BOTTOM" for range 0 and the previous range's `topNote + 1` otherwise, padded
 /// out to column 7; the upper end is "- top" for the last range and "- " plus this range's
@@ -94,7 +94,7 @@ inline const MultiRangeItem kMultiRangeItem{};
 std::string_view range_row_label(const MenuContext& ctx, int32_t index, char* buf, size_t cap,
                                  deluge::ui::shell::TextScratch& scratch);
 
-/// @brief `MultiRange::selectButtonPress` (`multi_range.cpp:343-345`): whatever the picker was
+/// @brief `MultiRange::selectButtonPress` (`multi_range.cpp:360-362`): whatever the picker was
 ///        substituted for.
 ///
 /// Null when nothing is pending, which `MenuScene` reads as "ascend" -- the same answer a leaf with
@@ -112,7 +112,7 @@ inline constexpr const Node* kMultiRangeChainArray[] = {
 };
 inline constexpr std::span<const Node* const> kMultiRangeChain{kMultiRangeChainArray};
 
-/// @brief The picker's node -- title `STRING_FOR_NOTE_RANGE` (`multi_range.h:44`).
+/// @brief The picker's node -- title `STRING_FOR_NOTE_RANGE` (`multi_range.h:42`).
 inline constexpr Node multi_range = with_select_chain(
     custom(sid(deluge::l10n::String::STRING_FOR_NOTE_RANGE), &kMultiRangeItem), &multi_range_chain, kMultiRangeChain);
 

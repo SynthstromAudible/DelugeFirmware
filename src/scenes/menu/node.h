@@ -317,7 +317,7 @@ struct CustomItem {
 	/// `Node::bind.param`, which is enough for every `PatchedParam`/`UnpatchedParam` node, but the
 	/// three patch-cable-strength pages have no `ParamRef` at all -- their descriptor is assembled
 	/// at read time from `MenuState`'s `patching_param` / `patch_source` / `patch_range_source`
-	/// (`patch_cable_strength/regular.cpp:26-30`, `range.cpp:25-30`). Hence the two arguments:
+	/// (`patch_cable_strength/regular.cpp:30-34`, `range.cpp:25-30`). Hence the two arguments:
 	/// unlike every other hook here, the answer is a function of where the user navigated, not of
 	/// the item alone.
 	///

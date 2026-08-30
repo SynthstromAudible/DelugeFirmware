@@ -174,8 +174,8 @@ struct MenuState {
 	/// picker's `select_chain` reads `pending_after_range` to know where to head.
 	bool range_picker_pending = false;
 	/// The node that will be entered once a range is chosen -- legacy's
-	/// `MultiRange::menuItemHeadingTo` (`gui/menu_item/multi_range.h:36`), which is exactly what its
-	/// `selectButtonPress` returns (`multi_range.cpp:343-345`).
+	/// `MultiRange::menuItemHeadingTo` (`gui/menu_item/multi_range.h:34`), which is exactly what its
+	/// `selectButtonPress` returns (`multi_range.cpp:360-362`).
 	const Node* pending_after_range = nullptr;
 
 	/// @brief A range index the focused picker chose this tick, or -1 for none.
@@ -195,7 +195,7 @@ struct MenuState {
 	/// comes from, and which source modulates that source's depth -- read by four different pages,
 	/// so they live on `MenuState` beside the path rather than on any one item.
 	///
-	/// @note `PatchedParam::selectButtonPress` (`gui/menu_item/patched_param.cpp:32-38`) writes
+	/// @note `PatchedParam::selectButtonPress` (`gui/menu_item/patched_param.cpp:32-40`) writes
 	///       `patching_param` in legacy, on the way out of the param item. `SelectChainFn` takes a
 	///       **`const MenuState&`**, so the port cannot write it there; `SourceSelectionItem::on_focus`
 	///       does it instead, reading the param out of `path[depth - 1]` -- the node the chain came
@@ -208,7 +208,7 @@ struct MenuState {
 	/// `source_selection::rangeMenu.s` -- the source modulating *that* cable's depth.
 	PatchSource patch_range_source = PatchSource::NOT_AVAILABLE;
 
-	/// @brief `PatchCableStrength::polarity_in_the_ui_` (`gui/menu_item/patch_cable_strength.h:83`):
+	/// @brief `PatchCableStrength::polarity_in_the_ui_` (`gui/menu_item/patch_cable_strength.h:78`):
 	///        the polarity the page is *showing*, which a cable that does not exist yet has no home
 	///        for.
 	///
@@ -217,7 +217,7 @@ struct MenuState {
 	/// navigation state. `on_focus` seeds it (from the cable, or `PatchCable::getDefaultPolarity`),
 	/// the render writes it, and `commit` applies it to a cable it has just created -- which is
 	/// legacy's `getModelStack(..., allowCreation = true)` doing `setPatchCablePolarity` on the
-	/// `!patch_cable_exists_` path (`patch_cable_strength.cpp:213-219`).
+	/// `!patch_cable_exists_` path (`patch_cable_strength.cpp:223-227`).
 	///
 	/// @note `Polarity` is **forward declared** at the top of this file rather than included:
 	///       `modulation/patch/patch_cable.h` drags in `modulation/automation/auto_param.h`, which

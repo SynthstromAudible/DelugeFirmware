@@ -825,14 +825,14 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 		// Both ranges are on screen, and the picker has selected one -- `setCurrentMultiRange`
 		// (`sound_editor.cpp:1928-1931`), applied by `after_render` from `MenuState::range_choice`.
-		// `MultiRange::beginSession` (`multi_range.cpp:45-49`): a `defaultRangeI` of -1 is invalid, so
+		// `MultiRange::beginSession` (`multi_range.cpp:46-50`): a `defaultRangeI` of -1 is invalid, so
 		// the picker opens on `numRanges >> 1` -- range 1 of the two -- and `select_range` writes that
 		// back, which is legacy's `soundEditor.currentSource->defaultRangeI = ...` (`:225`).
 		expect(cursor_of(1)).to_equal(1);
 		expect(static_cast<int>(sound->sources[0].defaultRangeI)).to_equal(1);
 
 		// A select press on the picker chains to the node it stood in for -- `MultiRange::selectButtonPress`
-		// returning `menuItemHeadingTo` (`multi_range.cpp:343-345`) -- and this time the permission
+		// returning `menuItemHeadingTo` (`multi_range.cpp:360-362`) -- and this time the permission
 		// rule answers YES, because a range is now selected (`context.cpp`'s already-selected arm).
 		//
 		// Landing on the leaf is itself the proof that `select_range` reached the scene's own

@@ -871,7 +871,7 @@ bool patch_cable_write(const MenuContext& ctx, ParamDescriptor learning_thing, i
 		return false;
 	}
 
-	// `PatchCableStrength::getModelStack` (`patch_cable_strength.cpp:203-220`), with
+	// `PatchCableStrength::getModelStack` (`patch_cable_strength.cpp:213-229`), with
 	// `soundEditor.getCurrentModelStack` replaced by `model_stack_for` -- the one sanctioned route.
 	alignas(ModelStackWithAutoParam) char memory[MODEL_STACK_MAX_SIZE];
 	ModelStackWithThreeMainThings* stack = model_stack_for(ctx, memory);
@@ -879,9 +879,9 @@ bool patch_cable_write(const MenuContext& ctx, ParamDescriptor learning_thing, i
 		return false;
 	}
 	// The null test comes FIRST: `getPatchCableSetSummary()` itself `FREEZE_WITH_ERROR("E412")`s on
-	// a manager with no patch-cable collection (`modulation/params/param_manager.h:146-152`), and
+	// a manager with no patch-cable collection (`modulation/params/param_manager.h:146-153`), and
 	// `freezeWithError` dereferences the null `display` global in the host build. `AllowJibberish` is
-	// the same read with no assertion (`:167-169`).
+	// the same read with no assertion (`:166-168`).
 	if (stack->paramManager->getPatchCableSetAllowJibberish() == nullptr) {
 		return false;
 	}
@@ -891,19 +891,19 @@ bool patch_cable_write(const MenuContext& ctx, ParamDescriptor learning_thing, i
 	}
 	ModelStackWithParamId* with_id = stack->addParamCollectionSummary(summary)->addParamId(learning_thing.data);
 	// `allowCreation = true`: legacy's write path is the only caller that passes it, and it is what
-	// makes editing a not-yet-existing cable create it (`:224`).
+	// makes editing a not-yet-existing cable create it (`:233`).
 	ModelStackWithAutoParam* with_param = summary->paramCollection->getAutoParamFromId(with_id, /*allowCreation=*/true);
 	if (with_param == nullptr || with_param->autoParam == nullptr) {
-		return false; // `:225-227`
+		return false; // `:234-236`
 	}
 
-	// `:229-232`, verbatim: "rescale from 5000 to 2^30. The magic constant is ((2^30)/5000), shifted
+	// `:238-241`, verbatim: "rescale from 5000 to 2^30. The magic constant is ((2^30)/5000), shifted
 	// 32 bits for precision ((1<<(30+32))/5000)".
 	const int64_t magic_constant = (INT64_C(922337203685477) * 5000) / kMaxMenuPatchCableValue;
 	const auto final_value = static_cast<int32_t>((magic_constant * value) >> 32);
 	with_param->autoParam->setCurrentValueInResponseToUserInput(final_value, with_param);
 
-	// `:236-238`'s `automationView.possiblyRefreshAutomationEditorGrid` is a `gui/views/` call this
+	// `:243-247`'s `automationView.possiblyRefreshAutomationEditorGrid` is a `gui/views/` call this
 	// layer may not make; the same two facts every other param write raises stand in for it, and the
 	// application's own listeners repaint what they own.
 	deluge::notify::raise(deluge::notify::Dirty::ParamAutomation);

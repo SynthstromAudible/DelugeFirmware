@@ -159,7 +159,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(result.snapshots).to_equal(uint32_t{5});
 
 		// E2 task 9: `source0_transpose` is one of the 53 `PatchedParam` nodes, so its select press
-		// opens the source picker rather than ascending (`patched_param.cpp:32-38`). The script's
+		// opens the source picker rather than ascending (`patched_param.cpp:32-40`). The script's
 		// first GoldUpper turn therefore lands on that picker and edits nothing; the Back brings the
 		// leaf back and the script's second GoldUpper turn is the one that moves the value.
 		expect(menu_scene().focused() == &nodes::source0_transpose).to_be_true();
@@ -331,7 +331,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(menu_scene().state().range_picker_pending).to_be_true();
 		expect(menu_scene().state().pending_after_range == &nodes::source0_transpose).to_be_true();
 		// And the picker really ran `MultiRange::beginSession` on this source: `defaultRangeI` was -1
-		// and is now `numRanges >> 1` (`multi_range.cpp:45-49`), written back by `menu::select_range`.
+		// and is now `numRanges >> 1` (`multi_range.cpp:46-50`), written back by `menu::select_range`.
 		expect(static_cast<int>(sound->sources[0].defaultRangeI)).to_equal(1);
 		// The leaf itself was never opened, so its model value is untouched.
 		expect(bindings::read(nodes::source0_transpose, ctx)).to_equal(before);

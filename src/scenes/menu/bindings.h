@@ -276,7 +276,7 @@ void set_feedback_hook(FeedbackHook hook);
 
 /// @brief Write a **patch cable's** strength, creating the cable if it does not exist yet.
 ///
-/// The port of `PatchCableStrength::writeCurrentValue` (`gui/menu_item/patch_cable_strength.cpp:222-238`)
+/// The port of `PatchCableStrength::writeCurrentValue` (`gui/menu_item/patch_cable_strength.cpp:231-248`)
 /// and the `getModelStack(memory, /*allowCreation=*/true)` it runs on (`:203-220`). It lives here,
 /// not in `nodes/patch_cables.cpp`, for exactly the reason `SoundTarget::stack` does: reaching a
 /// patch cable's `AutoParam` means `paramManager->getPatchCableSetSummary()` ->
@@ -290,7 +290,7 @@ void set_feedback_hook(FeedbackHook hook);
 /// @param ctx           What is being edited.
 /// @param learning_thing The cable's own id -- `getLearningThing()`: the destination param plus the
 ///                      cable's source, plus the range source for a range cable
-///                      (`patch_cable_strength/regular.cpp:26-30`, `range.cpp:25-30`).
+///                      (`patch_cable_strength/regular.cpp:30-34`, `range.cpp:25-30`).
 /// @param value         The new strength, in menu units
 ///                      (`kMinMenuPatchCableValue`..`kMaxMenuPatchCableValue`).
 /// @return Whether a cable was reached (false when the param manager holds no patch-cable set, or

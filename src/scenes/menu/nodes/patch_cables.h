@@ -10,10 +10,10 @@
 /// | legacy global (`gui/ui/menus.cpp`) | port |
 /// |---|---|
 /// | `patchCablesMenu` (`:1735`) | `nodes::patch_cables` -> `kPatchCablesItem` |
-/// | `source_selection::regularMenu` (`source_selection/regular.cpp:23`) | `nodes::source_selection_regular` |
-/// | `patch_cable_strength::regularMenu` (`patch_cable_strength/regular.cpp:24`) |
-/// `nodes::patch_cable_strength_regular` | | `source_selection::rangeMenu` (`source_selection/range.cpp:21`) |
-/// `nodes::source_selection_range` | | `patch_cable_strength::rangeMenu` (`patch_cable_strength/range.cpp:21`) |
+/// | `source_selection::regularMenu` (`source_selection/regular.cpp:24`) | `nodes::source_selection_regular` |
+/// | `patch_cable_strength::regularMenu` (`patch_cable_strength/regular.cpp:28`) |
+/// `nodes::patch_cable_strength_regular` | | `source_selection::rangeMenu` (`source_selection/range.cpp:24`) |
+/// `nodes::source_selection_range` | | `patch_cable_strength::rangeMenu` (`patch_cable_strength/range.cpp:23`) |
 /// `nodes::patch_cable_strength_range` | | `vibratoMenu` (`:1725`), `sidechainVolumeShortcutMenu` (`:806`) |
 /// `nodes::vibrato`, `nodes::sidechain_volume` |
 ///
@@ -23,13 +23,13 @@
 /// `Node::select_chain` + `Node::chain_targets` (E2 task 3). The whole graph:
 ///
 /// ```
-///   53 PatchedParam nodes --(patched_param.cpp:32-38)--> source_selection_regular
-///   source_selection_regular --(source_selection/regular.cpp:34)--> patch_cable_strength_regular
-///   patch_cable_strength_regular --(patch_cable_strength.cpp:302-306)--> source_selection_range
-///   source_selection_range --(source_selection/range.cpp:31)--> patch_cable_strength_range
-///   patch_cable_strength_range --(patch_cable_strength.cpp:302-306)--> source_selection_range   <-- a 2-cycle
-///   patch_cables --(patch_cables.cpp:168-190)--> patch_cable_strength_{regular,range}
-///   vibrato, sidechain_volume --(patch_cable_strength.cpp:302-306)--> source_selection_range
+///   53 PatchedParam nodes --(patched_param.cpp:32-40)--> source_selection_regular
+///   source_selection_regular --(source_selection/regular.cpp:33)--> patch_cable_strength_regular
+///   patch_cable_strength_regular --(patch_cable_strength.cpp:302-309)--> source_selection_range
+///   source_selection_range --(source_selection/range.cpp:33)--> patch_cable_strength_range
+///   patch_cable_strength_range --(patch_cable_strength.cpp:302-309)--> source_selection_range   <-- a 2-cycle
+///   patch_cables --(patch_cables.cpp:164-190)--> patch_cable_strength_{regular,range}
+///   vibrato, sidechain_volume --(patch_cable_strength.cpp:302-309)--> source_selection_range
 /// ```
 ///
 /// @note **The last-but-two edge closes a genuine cycle**, and it is legacy's, not an artefact of
@@ -50,17 +50,35 @@
 /// ## What did NOT come across
 ///
 ///   * **The polarity gesture is SHIFT + turn, where legacy uses the select encoder *held* + turn**
-///     (`PatchCableStrength::selectEncoderAction`, `patch_cable_strength.cpp:322-332`, gated on
+///     (`PatchCableStrength::selectEncoderAction`, `patch_cable_strength.cpp:325-336`, gated on
 ///     `Buttons::isButtonPressed(hid::button::SELECT_ENC)`). A `FrameContext` carries no held-button
 ///     *level* for an encoder -- only the press edge -- and `f.shift()` is the one modifier it does
 ///     expose (`ui/core/frame_context.h`), so the gesture changed. Legacy's MIDI/CV *button*
-///     shortcut for the same thing (`buttonAction`, `:308-320`) has no port either: `IndicatorLED`
+///     shortcut for the same thing (`buttonAction`, `:311-323`) has no port either: `IndicatorLED`
 ///     and `hid::Button` are both `hid/`.
 ///   * **The value's face and position.** Legacy draws it right-aligned at the top in
-///     `kTextBigSizeY` (13) with its own decimal-separator lines (`:169-176`); this port uses
+///     `kTextBigSizeY` (13) with its own decimal-separator lines (`:172-188`); this port uses
 ///     `decimal_value`, whose face is the 20px one and whose digits are centred across the rect it
 ///     is given. That is the one reason the polarity switch does not sit on legacy's own canvas row
-///     34 -- see `kRoutingDiagramWidth` in the `.cpp`.
+///     34 -- see `kRoutingDiagramWidth` in the `.cpp`, which also explains why the switch's *row*
+///     is frame-local where `decimal_value`'s is canvas-absolute.
+///   * `PatchCables::blinkShortcuts` / `blinkShortcutsSoon` / `timerCallback`
+///     (`patch_cables.cpp:113-151`) and the three `shouldBlinkPatchingSourceShortcut` overrides:
+///     grid-pad blinking driven by `uiTimerManager` and `soundEditor.setupShortcutBlink`.
+///     `MenuScene::render_grid` owns the port's one blink cycle and keys it off the focused *node*
+///     (`menu_scene.h`'s `kShortcutBlinkMs`); making it key off a focused item's own answer is the
+///     wiring plan's, not this task's.
+///   * `PatchCableStrength::horizontalEncoderAction`'s `delayHorizontalScrollUntil` escape into
+///     `automationView` / `keyboardScreen` (`:338-365`) -- both are `gui/views/`.
+///   * `PatchCableStrength::buttonAction`'s MIDI/CV button polarity shortcut (`:311-323`) and
+///     `endSession`'s `setLedState` pair (`:69-72`): `IndicatorLED` is `hid/`.
+///   * `Regular::checkPermissionToBeginSession`'s POST_FX -> POST_REVERB_SEND -> LOCAL_VOLUME
+///     fallback walk (`patch_cable_strength/regular.cpp:51-62`) IS ported, in
+///     `PatchCableStrengthItem::on_focus`.
+///   * `Fixed::patchingSourceShortcutPress` and friends -- patching-source *pad* presses, which
+///     arrive as grid input this task does not wire.
+///
+/// ## What DID come across that once did not
 ///
 /// The routing diagram and the BI/UNI box **are** ported, as of fix round 1: they are
 /// `ui::oled::routing_chain` and `ui::oled::segmented_switch` (`ui/oled/routing.h`), transcribed
@@ -69,21 +87,6 @@
 /// (`scripts/check_layer_rules.py`'s `scenes-no-frame-primitives`), so the drawing lives in the
 /// toolkit and this page composes it -- which is also what makes it reusable by the next screen
 /// that has to show a signal path.
-///   * `PatchCables::blinkShortcuts` / `blinkShortcutsSoon` / `timerCallback`
-///     (`patch_cables.cpp:118-152`) and the three `shouldBlinkPatchingSourceShortcut` overrides:
-///     grid-pad blinking driven by `uiTimerManager` and `soundEditor.setupShortcutBlink`.
-///     `MenuScene::render_grid` owns the port's one blink cycle and keys it off the focused *node*
-///     (`menu_scene.h`'s `kShortcutBlinkMs`); making it key off a focused item's own answer is the
-///     wiring plan's, not this task's.
-///   * `PatchCableStrength::horizontalEncoderAction`'s `delayHorizontalScrollUntil` escape into
-///     `automationView` / `keyboardScreen` (`:322-347`) -- both are `gui/views/`.
-///   * `PatchCableStrength::buttonAction`'s MIDI/CV button polarity shortcut (`:308-320`) and
-///     `endSession`'s `setLedState` pair (`:70-73`): `IndicatorLED` is `hid/`.
-///   * `Regular::checkPermissionToBeginSession`'s POST_FX -> POST_REVERB_SEND -> LOCAL_VOLUME
-///     fallback walk (`patch_cable_strength/regular.cpp:45-62`) IS ported, in
-///     `PatchCableStrengthItem::on_focus`.
-///   * `Fixed::patchingSourceShortcutPress` and friends -- patching-source *pad* presses, which
-///     arrive as grid input this task does not wire.
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
@@ -102,7 +105,7 @@ namespace deluge::scenes::menu::nodes {
 ///
 /// One row per existing patch cable, "src [src2] value dest", and a select press that opens that
 /// cable's strength page. With no cables at all a select press goes up a level, exactly as
-/// `selectButtonPress`'s own "there were no items" arm does (`patch_cables.cpp:171-175`).
+/// `selectButtonPress`'s own "there were no items" arm does (`patch_cables.cpp:168-172`).
 class PatchCablesItem final : public CustomItem {
 public:
 	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
@@ -124,7 +127,7 @@ public:
 		/// param (`source_selection/regular.cpp:26-30`).
 		Regular,
 		/// `source_selection::rangeMenu`: picks the source modulating that cable's depth. Destination
-		/// is param + the regular source (`source_selection/range.cpp:23-27`).
+		/// is param + the regular source (`source_selection/range.cpp:26-30`).
 		Range,
 	};
 	explicit constexpr SourceSelectionItem(Which which) : which_{which} {}
@@ -145,7 +148,7 @@ private:
 ///        `::Fixed`.
 ///
 /// `Fixed` is a `Regular` whose destination param and source are baked in rather than navigated to
-/// (`patch_cable_strength/fixed.h:24-27`): its `checkPermissionToBeginSession` writes both into the
+/// (`patch_cable_strength/fixed.h:25-26`): its `checkPermissionToBeginSession` writes both into the
 /// shared state and then defers to `Regular` (`fixed.cpp:28-33`), which is exactly what
 /// `on_focus` does here.
 class PatchCableStrengthItem final : public CustomItem {
@@ -215,7 +218,7 @@ extern const Node source_selection_regular;
 /// `patch_cable_strength::regularMenu`. Legacy draws no title on this page (`renderOLED` replaces
 /// `drawPixelsForOled` wholesale); the port gives it the title of the picker that leads into it.
 extern const Node patch_cable_strength_regular;
-/// `source_selection::rangeMenu`, title `STRING_FOR_MODULATE_DEPTH` (`source_selection/range.h:26`).
+/// `source_selection::rangeMenu`, title `STRING_FOR_MODULATE_DEPTH` (`source_selection/range.h:27`).
 extern const Node source_selection_range;
 /// `patch_cable_strength::rangeMenu`. Same titling note as its regular twin.
 extern const Node patch_cable_strength_range;
@@ -223,7 +226,7 @@ extern const Node patch_cable_strength_range;
 // ---------------------------------------------------------------------------------------------
 // The chain hooks and their target spans.
 
-/// @brief `PatchedParam::selectButtonPress`'s non-shift arm (`gui/menu_item/patched_param.cpp:32-38`).
+/// @brief `PatchedParam::selectButtonPress`'s non-shift arm (`gui/menu_item/patched_param.cpp:32-40`).
 ///
 /// Always the source picker. The `soundEditor.patchingParamSelected = this->getP()` half of that
 /// function happens in `SourceSelectionItem::on_focus` instead -- a `SelectChainFn` is handed a
@@ -234,15 +237,15 @@ extern const Node patch_cable_strength_range;
 /// same gap for every other chaining node.
 const Node* patched_param_chain(const MenuContext& ctx, const MenuState& state);
 
-/// @brief `source_selection::Regular::selectButtonPress` (`source_selection/regular.cpp:33-35`).
+/// @brief `source_selection::Regular::selectButtonPress` (`source_selection/regular.cpp:32-34`).
 const Node* source_selection_regular_chain(const MenuContext& ctx, const MenuState& state);
-/// @brief `source_selection::Range::selectButtonPress` (`source_selection/range.cpp:30-32`).
+/// @brief `source_selection::Range::selectButtonPress` (`source_selection/range.cpp:32-34`).
 const Node* source_selection_range_chain(const MenuContext& ctx, const MenuState& state);
 /// @brief `PatchCableStrength::selectButtonPress`'s non-shift arm
-///        (`patch_cable_strength.cpp:302-306`) -- always the range source picker. Shared by all
+///        (`patch_cable_strength.cpp:302-309`) -- always the range source picker. Shared by all
 ///        three strength pages, `Fixed` included.
 const Node* patch_cable_strength_chain(const MenuContext& ctx, const MenuState& state);
-/// @brief `PatchCables::selectButtonPress` (`patch_cables.cpp:168-190`): the selected cable's own
+/// @brief `PatchCables::selectButtonPress` (`patch_cables.cpp:164-190`): the selected cable's own
 ///        strength page -- the range one when the cable's destination is itself a cable.
 const Node* patch_cables_chain(const MenuContext& ctx, const MenuState& state);
 

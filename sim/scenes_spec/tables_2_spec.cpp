@@ -1213,7 +1213,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		}
 		expect(compared).to_equal(std::size(cases));
 		// The 53 `PatchedParam` nodes all take `PatchedParam::selectButtonPress`'s non-shift arm
-		// (`gui/menu_item/patched_param.cpp:32-38`), which is unconditional: always the regular
+		// (`gui/menu_item/patched_param.cpp:32-40`), which is unconditional: always the regular
 		// source picker. Checked against the legacy answer too, through one representative item --
 		// `lpfFreqMenu`, a `patched_param::Integer`.
 		::MenuItem* lpf_item = nullptr;
@@ -1271,7 +1271,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		install(f.ctx, f.song.song);
 
 		// A cable from ENVELOPE_1 to LPF frequency, created by the port's own write path (which is
-		// `getAutoParamFromId(..., allowCreation=true)` -- `patch_cable_strength.cpp:203-220`).
+		// `getAutoParamFromId(..., allowCreation=true)` -- `patch_cable_strength.cpp:213-229`).
 		ParamDescriptor learn;
 		learn.setToHaveParamAndSource(deluge::modulation::params::LOCAL_LPF_FREQ, PatchSource::ENVELOPE_1);
 		expect(menu::bindings::patch_cable_write(f.ctx, learn, 1234)).to_be_true();
@@ -1318,7 +1318,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 	it("gives a cable it creates the polarity the page was showing, not the source's default", _ {
 		// The half of legacy's write path that is not the value:
 		// `getModelStack(..., allowCreation = true)` calls `setPatchCablePolarity(polarity_in_the_ui_)`
-		// on the `!patch_cable_exists_` arm (`patch_cable_strength.cpp:213-219`), so a polarity the
+		// on the `!patch_cable_exists_` arm (`patch_cable_strength.cpp:223-227`), so a polarity the
 		// user chose *before* the cable existed survives its creation.
 		//
 		// `PatchCableSet` already gives a new cable `setDefaultPolarity()` (`patch_cable_set.cpp:438`),
@@ -1360,7 +1360,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		// ... and that really is a different answer from the one creation alone would have given.
 		expect(static_cast<int>(chosen) != static_cast<int>(fresh)).to_be_true();
 
-		// `on_focus` reads it back off the cable, which is `beginSession`'s own arm (`:56-62`).
+		// `on_focus` reads it back off the cable, which is `beginSession`'s own arm (`:61-63`).
 		menu::MenuState reopened{};
 		reopened.patching_param = deluge::modulation::params::LOCAL_HPF_RESONANCE;
 		reopened.patch_source = kSource;
@@ -1375,7 +1375,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		expect(set != nullptr).to_be_true();
 
 		// Two cables: one to a bare param, one to another cable's depth. `PatchCables::selectButtonPress`
-		// picks a different strength page for each (`patch_cables.cpp:181-190`).
+		// picks a different strength page for each (`patch_cables.cpp:180-189`).
 		ParamDescriptor plain;
 		plain.setToHaveParamAndSource(deluge::modulation::params::LOCAL_LPF_FREQ, PatchSource::ENVELOPE_1);
 		expect(menu::bindings::patch_cable_write(f.ctx, plain, 1000)).to_be_true();
@@ -1417,7 +1417,7 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		expect(compared >= size_t(2)).to_be_true();
 
 		// With no cable under the cursor at all, legacy falls through to `MenuItem::selectButtonPress`
-		// -- "there were no items ... take them back there" (`patch_cables.cpp:171-175`) -- which is
+		// -- "there were no items ... take them back there" (`patch_cables.cpp:168-172`) -- which is
 		// `nullptr`, i.e. ascend.
 		patchCablesMenu.currentValue = set->numPatchCables;
 		expect(patchCablesMenu.selectButtonPress() == nullptr).to_be_true();
