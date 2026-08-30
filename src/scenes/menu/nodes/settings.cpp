@@ -929,6 +929,20 @@ void BatteryLevelItem::on_focus(const MenuContext&, MenuState&) const {
 // ---------------------------------------------------------------------------------------------
 // 1. Actions (`ResetItem`, see `settings.h`)
 
+// `settings.h` constructs the five `ResetItem`s from raw `uint16_t` literals because including
+// `context_menu_scene.h` there would pull the scene into every consumer of this header. Those
+// literals are only correct while `DescriptorId` keeps its current numbering, so the numbering is
+// pinned here, in the one translation unit that already sees both. Reorder the enum and this
+// fires, instead of five menu items silently resetting the wrong subsystem.
+namespace {
+namespace cm = deluge::scenes::context_menu;
+static_assert(static_cast<uint16_t>(cm::DescriptorId::ResetFlash) == 0);
+static_assert(static_cast<uint16_t>(cm::DescriptorId::ResetCommunityFeatures) == 1);
+static_assert(static_cast<uint16_t>(cm::DescriptorId::ResetMidiFollow) == 2);
+static_assert(static_cast<uint16_t>(cm::DescriptorId::ResetMidiDevices) == 3);
+static_assert(static_cast<uint16_t>(cm::DescriptorId::ResetAll) == 4);
+} // namespace
+
 void ResetItem::render(deluge::ui::oled::OledFrame& f, const MenuContext&, MenuState& state) const {
 	// Drawn for at most the one tick between `on_focus` asking for the push and the router
 	// applying it -- `EditNameItem::render`'s own reasoning (`nodes/edit_name.cpp`). Legacy never
