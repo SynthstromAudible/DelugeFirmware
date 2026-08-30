@@ -186,6 +186,27 @@ struct MenuState {
 	/// `menu::select_range`. Same shape as `pending_scene`: the item asks, `after_render` does.
 	int16_t range_choice = -1;
 
+	/// @brief An output index a focused selector chose this tick, or -1 for none.
+	///
+	/// The same shape as `range_choice`, for the same reason and for the two items `settings.h`'s
+	/// own note said were owed one: `cv::Selection` and `gate::Selection` assign
+	/// `soundEditor.currentSourceIndex` from their own `selectButtonPress` (`cv/selection.h:42`,
+	/// `gate/selection.h:47`), and a `CustomItem` is handed a **`const MenuContext&`**. So
+	/// `CvSelectionItem`/`GateSelectionItem` (`nodes/dynamic.h`) record the cursor here and
+	/// `after_render` -- which owns the scene's own mutable `ctx_` -- writes
+	/// `MenuContext::source_index`, *before* the same tick's select press consults `select_chain`.
+	int8_t source_choice = -1;
+
+	/// @brief A MIDI cable the focused device list chose this tick, or null for none.
+	///
+	/// `midi::Devices` assigns `soundEditor.currentMIDICable` from both `beginSession` and
+	/// `selectEncoderAction` (`devices.cpp:55`, `:102`); the port's counterpart is
+	/// `MenuContext::midi_cable`, written by `after_render` from what `MidiDevicesItem` records
+	/// here. A pointer rather than an index because that is what the context field is, and because
+	/// legacy's own index space (`lowestDeviceNum`.. , `devices.cpp:36`) is not the row order the
+	/// list renders.
+	::MIDICable* midi_cable_choice = nullptr;
+
 	/// @name The patch-cable pages' shared selection -- legacy's three globals, as scene state.
 	///
 	/// Legacy spreads these across `SoundEditor::patchingParamSelected` (`gui/ui/sound_editor.h`),

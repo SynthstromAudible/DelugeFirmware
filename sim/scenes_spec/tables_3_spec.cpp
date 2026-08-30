@@ -34,6 +34,7 @@
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node.h"
 #include "scenes/menu/node_id.h"
+#include "scenes/menu/nodes/dynamic.h"
 #include "scenes/menu/nodes/nodes.h"
 #include "scenes/menu/relevance.h"
 #include "scenes/menu/shortcuts.h"
@@ -71,7 +72,13 @@ using deluge::hid::display::OLED;
 #include "gui/menu_item/gate/off_time.h"
 #include "gui/menu_item/gate/selection.h"
 
+#include "gui/menu_item/midi/devices.h"
+
+#include "io/midi/cable_types/din.h"
+#include "io/midi/cable_types/usb_device_cable.h"
+#include "io/midi/cable_types/usb_hosted.h"
 #include "io/midi/midi_device.h"
+#include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_engine.h"
 
 #include "processing/engines/cv_engine.h"
@@ -100,6 +107,8 @@ using deluge::hid::display::OLED;
 #include <array>
 #include <cstdint>
 #include <cstdlib>
+#include <initializer_list>
+#include <memory>
 #include <optional>
 #include <set>
 #include <span>
@@ -2353,6 +2362,413 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 	});
 });
 
+describe tables_3_dynamic("scenes::menu batch-3 tables: the CV/gate selectors and the MIDI device list", $ {
+	// The last three settings items legacy implements as bespoke `MenuItem` subclasses rather than
+	// as data: `cv::Selection` (`gui/menu_item/cv/selection.h:27-55`), `gate::Selection`
+	// (`gui/menu_item/gate/selection.h:29-72`) and `midi::Devices`
+	// (`gui/menu_item/midi/devices.h:24-39`, `devices.cpp`). The port is three `CustomItem`s
+	// (`menu/nodes/dynamic.h`) plus the `MenuState::source_choice` / `midi_cable_choice`
+	// write-back `settings.h` recorded as owed.
+	//
+	// **These are NOT `Node::dynamic_children` nodes**, which is what the plan expected them to be.
+	// A submenu row is labelled from `Node::name`, one static `uint16_t` l10n id
+	// (`MenuScene::render_vertical`), and `Devices` labels its rows with
+	// `MIDICable::getDisplayName()` (`devices.cpp:169`) -- a runtime string with no id at all --
+	// while the two selectors' option lists are static in legacy
+	// (`cv/selection.h:47-54`, `gate/selection.h:56-71`) over the compile-time
+	// `NUM_PHYSICAL_CV_CHANNELS` / `NUM_GATE_CHANNELS`. See `nodes/dynamic.h`'s own note.
+
+	/// @brief Connect a chosen set of cables for the scope, and put the manager back afterwards.
+	///
+	/// Every `MIDIDeviceManager` global here is process-wide and shared with every other example in
+	/// this binary, so the whole of what this touches -- three `connectionFlags` and the hosted
+	/// vector -- is saved and restored.
+	struct CableFixture {
+		std::vector<MIDICableUSBHosted*> saved_hosted;
+		uint8_t saved_din, saved_up1, saved_up2;
+		std::vector<std::unique_ptr<MIDICableUSBHosted>> owned;
+
+		CableFixture() {
+			saved_hosted.assign(MIDIDeviceManager::hostedMIDIDevices.begin(),
+			                    MIDIDeviceManager::hostedMIDIDevices.end());
+			saved_din = MIDIDeviceManager::dinMIDIPorts.connectionFlags;
+			saved_up1 = MIDIDeviceManager::upstreamUSBMIDICable1.connectionFlags;
+			saved_up2 = MIDIDeviceManager::upstreamUSBMIDICable2.connectionFlags;
+		}
+		~CableFixture() {
+			MIDIDeviceManager::hostedMIDIDevices.clear();
+			for (MIDICableUSBHosted* c : saved_hosted) {
+				MIDIDeviceManager::hostedMIDIDevices.push_back(c);
+			}
+			MIDIDeviceManager::dinMIDIPorts.connectionFlags = saved_din;
+			MIDIDeviceManager::upstreamUSBMIDICable1.connectionFlags = saved_up1;
+			MIDIDeviceManager::upstreamUSBMIDICable2.connectionFlags = saved_up2;
+		}
+		CableFixture(const CableFixture&) = delete;
+		CableFixture& operator=(const CableFixture&) = delete;
+
+		/// @brief `flags` on the three fixed cables, and one hosted cable per name in @p hosted.
+		void set(uint8_t din, uint8_t up1, uint8_t up2, std::initializer_list<const char*> hosted) {
+			MIDIDeviceManager::dinMIDIPorts.connectionFlags = din;
+			MIDIDeviceManager::upstreamUSBMIDICable1.connectionFlags = up1;
+			MIDIDeviceManager::upstreamUSBMIDICable2.connectionFlags = up2;
+			MIDIDeviceManager::hostedMIDIDevices.clear();
+			for (const char* n : hosted) {
+				auto cable = std::make_unique<MIDICableUSBHosted>();
+				cable->name = n;
+				cable->connectionFlags = 1;
+				MIDIDeviceManager::hostedMIDIDevices.push_back(cable.get());
+				owned.push_back(std::move(cable));
+			}
+		}
+	};
+
+	/// @brief What `Devices::drawPixelsForOled` would draw, built from the legacy item itself.
+	///
+	/// The independent sentinel this spec compares against: it walks `lowestDeviceNum` upward
+	/// through the *legacy* `getCable` (`devices.cpp:132-152`) and keeps what legacy's own draw loop
+	/// keeps (`:163-176`), rather than restating the port's rule.
+	auto legacy_visible = [] {
+		std::vector<MIDICable*> out;
+		for (int32_t idx = -3; idx < static_cast<int32_t>(MIDIDeviceManager::hostedMIDIDevices.size()); idx++) {
+			MIDICable* cable = deluge::gui::menu_item::midi::devicesMenu.getCable(idx);
+			if (cable != nullptr && cable->connectionFlags != 0u) {
+				out.push_back(cable);
+			}
+		}
+		return out;
+	};
+
+	it("lists exactly the cables legacy lists, in legacy's order, with DIN first", _ {
+		CableFixture cables;
+		cables.set(/*din=*/1, /*up1=*/1, /*up2=*/1, {"ALPHA", "BETA"});
+
+		MIDICable* got[deluge::scenes::menu::nodes::kMaxDeviceRows];
+		const size_t n = nodes::connected_cables(got);
+		const std::vector<MIDICable*> want = legacy_visible();
+
+		expect(n).to_equal(want.size());
+		expect(n).to_equal(size_t(5)); // DIN, upstream 1, upstream 2, ALPHA, BETA
+		for (size_t i = 0; i < n && i < want.size(); i++) {
+			expect(got[i] == want[i]).to_be_true();
+		}
+		// DIN really is first, and it is first because `lowestDeviceNum` is -3 (`devices.cpp:36`).
+		expect(n > 0 && got[0] == &MIDIDeviceManager::dinMIDIPorts).to_be_true();
+		expect(std::string{got[0]->getDisplayName()})
+		    .to_equal(std::string{MIDIDeviceManager::dinMIDIPorts.getDisplayName()});
+	});
+
+	it("drops the disconnected ones, and yields DIN alone when nothing else is connected", _ {
+		CableFixture cables;
+		cables.set(/*din=*/1, /*up1=*/0, /*up2=*/0, {});
+
+		MIDICable* got[deluge::scenes::menu::nodes::kMaxDeviceRows];
+		size_t n = nodes::connected_cables(got);
+		expect(n).to_equal(legacy_visible().size());
+		expect(n).to_equal(size_t(1));
+		expect(got[0] == &MIDIDeviceManager::dinMIDIPorts).to_be_true();
+
+		// A disconnected *hosted* device is dropped too -- legacy's own "Disconnected devices aren't
+		// drawn, so they don't take up a row" (`devices.cpp:70`). Mutation-proved rather than
+		// reasoned: adding one must not move the count.
+		cables.set(/*din=*/1, /*up1=*/0, /*up2=*/0, {});
+		auto ghost = std::make_unique<MIDICableUSBHosted>();
+		ghost->name = "GHOST";
+		ghost->connectionFlags = 0;
+		MIDIDeviceManager::hostedMIDIDevices.push_back(ghost.get());
+		n = nodes::connected_cables(got);
+		expect(n).to_equal(legacy_visible().size());
+		expect(n).to_equal(size_t(1));
+		MIDIDeviceManager::hostedMIDIDevices.clear();
+	});
+
+	it("seeds the cursor on the cable the context already holds -- and on DIN when it holds none", _ {
+		// `Devices::beginSession` (`devices.cpp:38-57`): the previously-current cable if it is still
+		// listed, otherwise `lowestDeviceNum` -- "Start on DIN. That's the only one that'll always
+		// be there." (`:52`).
+		CableFixture cables;
+		cables.set(1, 1, 1, {"ALPHA", "BETA"});
+		const Root& settings = roots().back();
+		install(settings.ctx, settings.song);
+
+		MIDICable* listed[deluge::scenes::menu::nodes::kMaxDeviceRows];
+		const size_t n = nodes::connected_cables(listed);
+		expect(n).to_equal(size_t(5));
+
+		for (size_t seed = 0; seed < n; seed++) {
+			MenuContext ctx = settings.ctx;
+			ctx.midi_cable = listed[seed];
+			Rig r;
+			r.open(nodes::midi_devices, ctx);
+			r.shell.tick(0);
+			expect(size_t(menu_scene().state().list[0].cursor)).to_equal(seed);
+		}
+
+		MenuContext none = settings.ctx;
+		none.midi_cable = nullptr;
+		Rig r;
+		r.open(nodes::midi_devices, none);
+		r.shell.tick(0);
+		expect(int(menu_scene().state().list[0].cursor)).to_equal(0);
+	});
+
+	it("remembers the cable the user moved onto, through the context, on the next visit", _ {
+		// The write-back half: `Devices::selectEncoderAction` assigns
+		// `soundEditor.currentMIDICable` on every move (`devices.cpp:102`), and the next
+		// `beginSession` reads it back to reselect that device (`:41-49`). The port routes the same
+		// fact through `MenuState::midi_cable_choice` -> `MenuScene::after_render` ->
+		// `MenuContext::midi_cable` -> `MidiDevicesItem::on_focus`, so the round trip is what proves
+		// it: descend, move, leave, come back, and the cursor is where it was left.
+		CableFixture cables;
+		cables.set(1, 1, 1, {"ALPHA", "BETA"});
+		const Root& settings = roots().back();
+		MenuContext ctx = settings.ctx;
+		ctx.midi_cable = nullptr;
+		install(ctx, settings.song);
+
+		// Which row `midi_devices` is on: its position among the children `relevant` admits here,
+		// rather than a hard-coded number that a hidden sibling would silently shift.
+		int32_t row = 0;
+		for (const Node* kid : nodes::midi_settings.children) {
+			if (kid == &nodes::midi_devices) {
+				break;
+			}
+			if (kid != nullptr && (kid->relevant == nullptr || kid->relevant(ctx))) {
+				row++;
+			}
+		}
+
+		Rig r;
+		r.open(nodes::midi_settings, ctx);
+		r.shell.tick(0);
+		uint32_t at = 10;
+		for (int32_t t = 0; t < row; t++) {
+			r.turn(1, at);
+			r.shell.tick(at + 5);
+			at += 10;
+		}
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, at);
+		r.shell.tick(at + 5);
+		at += 10;
+		expect(menu_scene().focused() == &nodes::midi_devices).to_be_true();
+		expect(int(menu_scene().state().list[1].cursor)).to_equal(0);
+
+		// Two detents down the device list, then out and back in.
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, at);
+		at += 10;
+		r.turn(2, at);
+		r.shell.tick(at + 5);
+		at += 10;
+		expect(int(menu_scene().state().list[1].cursor)).to_equal(2);
+
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, at);
+		r.shell.tick(at + 5); // a leaf's select press with no chain goes up
+		at += 10;
+		expect(menu_scene().focused() == &nodes::midi_settings).to_be_true();
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, at);
+		at += 10;
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, at);
+		r.shell.tick(at + 5);
+		expect(menu_scene().focused() == &nodes::midi_devices).to_be_true();
+		// `on_focus` found the cable the move published, not DIN.
+		expect(int(menu_scene().state().list[1].cursor)).to_equal(2);
+	});
+
+	it("offers cv::Selection's own two options and chains onto the output the cursor names", _ {
+		// The option text is legacy's `getOptions()` (`cv/selection.h:47-54`), read off the live
+		// item; the *mapping* is proved by a sentinel per output, because "CV OUTPUT 1" and
+		// "CV OUTPUT 2" are otherwise indistinguishable in a golden.
+		const Root& settings = roots().back();
+		install(settings.ctx, settings.song);
+		const auto options = cvSelectionMenu.getOptions(legacy::Selection::OptType::FULL);
+		expect(options.size()).to_equal(size_t(NUM_PHYSICAL_CV_CHANNELS));
+
+		const uint8_t saved0 = cvEngine.cvChannels[0].voltsPerOctave;
+		const uint8_t saved1 = cvEngine.cvChannels[1].voltsPerOctave;
+		cvEngine.cvChannels[0].voltsPerOctave = 11;
+		cvEngine.cvChannels[1].voltsPerOctave = 77;
+
+		for (int32_t which = 0; which < NUM_PHYSICAL_CV_CHANNELS; which++) {
+			Rig r;
+			r.open(nodes::cv_selection, settings.ctx);
+			r.shell.tick(0);
+			for (int32_t t = 0; t < which; t++) {
+				r.turn(1, static_cast<uint32_t>(10 + t * 10));
+				r.shell.tick(static_cast<uint32_t>(15 + t * 10));
+			}
+			r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+			r.shell.tick(110);
+			// `cv::Selection::selectButtonPress` returns `&cvSubmenu` unconditionally (`:41-45`).
+			expect(menu_scene().focused() == &nodes::cv_submenu).to_be_true();
+
+			// ... and it wrote `currentSourceIndex` on the way (`:42`). The proof is which output
+			// `cv_volts` now reads: `enter_leaf` loads `bindings::read` into `MenuState::edit_int`.
+			r.button(kSelectEncButtonX, kSelectEncButtonY, false, 120);
+			r.button(kSelectEncButtonX, kSelectEncButtonY, true, 130);
+			r.shell.tick(140);
+			expect(menu_scene().focused() == &nodes::cv_volts).to_be_true();
+			expect(menu_scene().state().edit_int).to_equal(which == 0 ? 11 : 77);
+		}
+
+		cvEngine.cvChannels[0].voltsPerOctave = saved0;
+		cvEngine.cvChannels[1].voltsPerOctave = saved1;
+	});
+
+	it("offers gate::Selection's five options and chains where legacy chains, output by output", _ {
+		// `gate::Selection::selectButtonPress` (`:43-54`): the one-past-the-last option is the
+		// minimum-off-time page, every other is that output's mode page. Driven through the real
+		// scene, and cross-checked against the live legacy item on every value.
+		const Root& settings = roots().back();
+		install(settings.ctx, settings.song);
+		expect(gateSelectionMenu.getOptions(legacy::Selection::OptType::FULL).size()).to_equal(size_t(NUM_GATE_CHANNELS + 1));
+
+		GateType saved[NUM_GATE_CHANNELS];
+		for (int32_t g = 0; g < NUM_GATE_CHANNELS; g++) {
+			saved[g] = cvEngine.gateChannels[g].mode;
+			// One distinguishable value per output: V_TRIG on the even ones, S_TRIG on the odd, so
+			// "the mode page opened on output N" is checkable rather than merely plausible.
+			cvEngine.gateChannels[g].mode = (g % 2 == 0) ? GateType::V_TRIG : GateType::S_TRIG;
+		}
+
+		for (int32_t which = 0; which <= NUM_GATE_CHANNELS; which++) {
+			gateSelectionMenu.setValue(which);
+			::MenuItem* legacy = gateSelectionMenu.selectButtonPress();
+
+			Rig r;
+			r.open(nodes::gate_selection, settings.ctx);
+			r.shell.tick(0);
+			for (int32_t t = 0; t < which; t++) {
+				r.turn(1, static_cast<uint32_t>(10 + t * 10));
+				r.shell.tick(static_cast<uint32_t>(15 + t * 10));
+			}
+			r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+			r.shell.tick(110);
+
+			const Node* want = legacy == &gateOffTimeMenu ? &nodes::gate_off_time : &nodes::gate_mode;
+			expect(legacy == &gateOffTimeMenu || legacy == &gateModeMenu).to_be_true();
+			expect(menu_scene().focused() == want).to_be_true();
+
+			if (which < NUM_GATE_CHANNELS) {
+				// `enter_leaf` loaded `gate::Mode::readCurrentValue` for the output the selector
+				// picked (`gate/mode.h:37` over `cvEngine.gateChannels[currentSourceIndex]`).
+				expect(menu_scene().state().enum_index)
+				    .to_equal(static_cast<int32_t>((which % 2 == 0) ? GateType::V_TRIG : GateType::S_TRIG));
+			}
+		}
+
+		for (int32_t g = 0; g < NUM_GATE_CHANNELS; g++) {
+			cvEngine.gateChannels[g].mode = saved[g];
+		}
+	});
+
+	it("offers CLOCK or RUN SIGNAL only on the outputs that carry them, once a selection has been "
+	   "made through the scene",
+	   _ {
+		   // `gateModeMenu.updateOptions(value)` on the way through `selectButtonPress`
+		   // (`gate/selection.h:52`, `gate/mode.h:53-72`). The port's counterpart is
+		   // `gate_mode_names` reading `MenuContext::source_index`, so this is the second, independent
+		   // proof that the selector's cursor really reached the context -- a different mechanism from
+		   // the `enum_index` check above, on the same write.
+		   const Root& settings = roots().back();
+		   install(settings.ctx, settings.song);
+
+		   for (int32_t which = 0; which < NUM_GATE_CHANNELS; which++) {
+			   Rig r;
+			   r.open(nodes::gate_selection, settings.ctx);
+			   r.shell.tick(0);
+			   for (int32_t t = 0; t < which; t++) {
+				   r.turn(1, static_cast<uint32_t>(10 + t * 10));
+				   r.shell.tick(static_cast<uint32_t>(15 + t * 10));
+			   }
+			   r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+			   r.shell.tick(110);
+			   expect(menu_scene().focused() == &nodes::gate_mode).to_be_true();
+
+			   gateModeMenu.updateOptions(which);
+			   const size_t legacy_n = gateModeMenu.getOptions(legacy::Selection::OptType::FULL).size();
+
+			   MenuContext ctx = settings.ctx;
+			   ctx.source_index = static_cast<int8_t>(which);
+			   std::string_view names[menu::kMaxDynamicNames];
+			   deluge::ui::shell::TextScratch scratch[menu::kMaxDynamicNames];
+			   const size_t n = menu::bindings::names(nodes::gate_mode, ctx, names, scratch);
+			   expect(n).to_equal(legacy_n);
+			   expect(n).to_equal(size_t(which == WHICH_GATE_OUTPUT_IS_CLOCK || which == WHICH_GATE_OUTPUT_IS_RUN ? 3
+			                                                                                                     : 2));
+		   }
+	   });
+
+	it("renders the device list and the gate selector, on both panel geometries", _ {
+		// Both geometries, because a row constant that is right on one panel and wrong on the other
+		// is exactly the class of mistake a single golden cannot see. Nothing here hand-computes a
+		// rect: both pages lay out through `ui::oled::menu_rect(f)`, like every other menu screen.
+		deluge::notify::dirty().drain();
+		{
+			deluge::notify::Notice stray;
+			while (deluge::notify::notices().pop(stray)) {}
+		}
+		CableFixture cables;
+		cables.set(1, 1, 1, {"ALPHA", "BETA"});
+		const Root& settings = roots().back();
+		MenuContext ctx = settings.ctx;
+		ctx.midi_cable = nullptr;
+		install(ctx, settings.song);
+
+		{
+			Rig r;
+			r.open(nodes::midi_devices, ctx);
+			r.shell.tick(0);
+			expect_golden(self, "../ui/menu/menu_midi_devices_48.pbm", r.fake.pbm(0));
+		}
+		{
+			Rig r{board_64(), profile_64()};
+			r.open(nodes::midi_devices, ctx);
+			r.shell.tick(0);
+			expect_golden(self, "../ui/menu/menu_midi_devices_64.pbm", r.fake.pbm(0));
+		}
+		{
+			Rig r;
+			r.open(nodes::gate_selection, ctx);
+			r.shell.tick(0);
+			expect_golden(self, "../ui/menu/menu_gate_selection_48.pbm", r.fake.pbm(0));
+		}
+		{
+			Rig r{board_64(), profile_64()};
+			r.open(nodes::gate_selection, ctx);
+			r.shell.tick(0);
+			expect_golden(self, "../ui/menu/menu_gate_selection_64.pbm", r.fake.pbm(0));
+		}
+	});
+
+	it("is not a placeholder any more, and reports nothing under a strict validation", _ {
+		const Root& settings = roots().back();
+		install(settings.ctx, settings.song);
+		expect(nodes::cv_selection.custom == &nodes::kCvSelectionItem).to_be_true();
+		expect(nodes::gate_selection.custom == &nodes::kGateSelectionItem).to_be_true();
+		expect(nodes::midi_devices.custom == &nodes::kMidiDevicesItem).to_be_true();
+		expect(nodes::kCvSelectionItem.is_placeholder()).to_be_false();
+		expect(nodes::kGateSelectionItem.is_placeholder()).to_be_false();
+		expect(nodes::kMidiDevicesItem.is_placeholder()).to_be_false();
+		// No `dynamic_children` anywhere in the tree -- the finding this task recorded, and the
+		// reason `deluge_menu_dump`'s fail-closed arm still has no case to be designed against.
+		const uint16_t assigned = menu::assign_node_ids(nodes::kAllRoots);
+		size_t dynamic = 0;
+		for (uint16_t id = 1; id <= assigned; id++) {
+			const Node* n = menu::node_by_id(id);
+			if (n != nullptr && n->dynamic_children != nullptr) {
+				dynamic++;
+			}
+		}
+		expect(dynamic).to_equal(size_t(0));
+
+		const Node* subtree[] = {&nodes::cv_selection, &nodes::gate_selection, &nodes::midi_devices};
+		const MenuContext contexts[] = {settings.ctx};
+		const auto issues = menu::validate_tree(subtree, contexts, {}, {},
+		                                        menu::ValidateOptions{.skip_shortcut_sweep = true});
+		expect(issues.size()).to_equal(size_t(0));
+	});
+});
+
 describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 	// Shared setup, so a pixel test added here later gets it for free rather than needing to
 	// remember to copy it in (review round 1, I4 -- the two tests below used to each inline this).
@@ -2465,7 +2881,7 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 int tables_3_spec(int argc, char** const argv) {
 	return CppSpec::parse(argc, argv)
 	               .add_specs(tables_3_shape, tables_3_values, tables_3_validation, tables_3_writes, tables_3_chaining,
-	                          tables_3_reset_items, tables_3_midi_commands, tables_3_pixels)
+	                          tables_3_reset_items, tables_3_midi_commands, tables_3_dynamic, tables_3_pixels)
 	               .exec()
 	               .is_success()
 	           ? EXIT_SUCCESS

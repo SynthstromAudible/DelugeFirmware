@@ -20,7 +20,12 @@ than just diffing it:
   uses `dynamic_children`, so this is a design gap flagged in code rather than something this file
   has ever actually contained. Do not assume a `"multicontext"` entry here means what the retired
   `doc_emitter.py`'s `"multicontext"` type meant -- that Python type had no `"children"` key at
-  all; this dump has no verified equivalent yet.
+  all; this dump has no verified equivalent yet. (E2 task 10 went looking for the first real
+  `dynamic_children` node -- the MIDI device list and the CV/gate output selectors were the
+  candidates -- and found that none of the three can be one: a submenu row is labelled from a
+  static l10n string id, and a MIDI device's row label is a runtime string. All three ship as
+  self-drawing custom items instead, so the count of `dynamic_children` nodes in the tree is still
+  zero and is pinned by a spec.)
 - **`"select_chain"` is a second nesting key, beside `"children"`.** It appears on every node whose
   select press opens another menu instead of going up a level (legacy's
   `MenuItem::selectButtonPress`), and holds full nested entries in the same shape `"children"`

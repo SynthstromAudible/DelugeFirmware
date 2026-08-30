@@ -29,10 +29,14 @@
 ///           set from `deluge.cpp`'s main loop, the same one `sound_editor.cpp:1403` reads with its
 ///           own bare `extern` -- so E2 task 2 gave them real, finished `CustomItem`s instead of
 ///           leaving them as placeholders; see "12-13. Battery and firmware" below.)
-///         * **UI navigation.** `cv_selection` / `gate_selection`
-///           (`cv/selection.h:31-36`, `gate/selection.h:26-38`: `Selection`s whose select press
+///         * **UI navigation.** (This group is empty now. `cv_selection` / `gate_selection`
+///           (`cv/selection.h:27-55`, `gate/selection.h:29-72`: `Selection`s whose select press
 ///           *navigates* to a page rather than committing a value) and `midi_devices`
-///           (`midi/devices.h`, a scrolling device list). (Two groups used to be here too, at
+///           (`midi/devices.h:24-39`, a scrolling device list) were its last three members until
+///           E2 task 10 gave all three real items -- `CvSelectionItem`, `GateSelectionItem` and
+///           `MidiDevicesItem`, `nodes/dynamic.h` -- along with the `MenuState::source_choice` /
+///           `midi_cable_choice` write-back the note below used to say they were missing.) (Two
+///           groups used to be here too, at
 ///           `kPending`: the five `reset_*` items, which E2 task 7 gave a real `ResetItem` opening
 ///           `context_menu::ContextMenuScene` through `MenuState::pending_scene` (see "1. Actions"
 ///           below); and the twelve `midi_command_*` (`midi/command.h`, MIDI-learn items), which E2
@@ -56,15 +60,16 @@
 ///       legacy tree does not have. The complete sweep of every chaining override in
 ///       `gui/menu_item/` is the design spec's `selectButtonPress()` amendment.
 ///
-/// @note **Two halves of those two chains are still owed.** (1) Legacy's selectors *write*
-///       `soundEditor.currentSourceIndex` before navigating, and the port's counterpart --
-///       `MenuContext::source_index` -- is not writable from a `SelectChainFn`, which is handed a
-///       `const MenuContext&`; so the three pages below always address output `source_index`
-///       already holds. (2) `cv_selection` and `gate_selection` are still `Kind::Custom` stand-ins
-///       (`kPending`), and a placeholder's renderer never reports a select press
-///       (`menu_scene.cpp`'s `Kind::Custom` arm calls only `CustomItem::render`), so nothing fires
-///       the hooks through the interpreter yet. The chain *data* is real and specced directly; the
-///       task that gives these two selectors real behaviour is the one that closes both halves.
+/// @note **Both halves of those two chains are closed (E2 task 10).** (1) Legacy's selectors
+///       *write* `soundEditor.currentSourceIndex` before navigating, and `MenuContext::source_index`
+///       is still not writable from a `SelectChainFn` (handed a `const MenuContext&`) -- so the
+///       selector records its cursor in `MenuState::source_choice` and `MenuScene::after_render`
+///       applies it to the scene's own mutable context ahead of the same tick's `select_chain`
+///       call, the shape `MultiRangeItem`/`range_choice` established. (2) `cv_selection` and
+///       `gate_selection` are real `CustomItem`s now (`nodes/dynamic.h`), so their renderers do
+///       report a select press and the interpreter does fire the hooks. What is still owed is
+///       narrower and is listed in `nodes/dynamic.h`: the formatted "CV OUTPUT 3" titles, and the
+///       per-device page `midi_devices` would chain to.
 ///
 /// @note **Three write side effects stay behind, and are gaps, not omissions.**
 ///       `defaults::PadBrightness::writeCurrentValue` also calls `PadLEDs::setBrightnessLevel`
@@ -79,6 +84,7 @@
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
+#include "scenes/menu/nodes/dynamic.h"      // the CV/gate selectors and the MIDI device list
 #include "scenes/menu/nodes/midi_command.h" // the twelve `MidiCommandItem`s
 #include "scenes/menu/nodes/roots.h"        // kThresholdModeNames, and `kPending` through it
 #include "scenes/menu/relevance.h"
@@ -397,12 +403,12 @@ inline const Node* cv_selection_chain(const MenuContext&, const MenuState&) {
 const Node* gate_selection_chain(const MenuContext& ctx, const MenuState& state);
 /// @}
 
-inline constexpr Node cv_selection =
-    with_select_chain(with_title(custom(sid(String::STRING_FOR_CV), &kPending), sid(String::STRING_FOR_CV_OUTPUTS)),
-                      cv_selection_chain, kCvSelectionChain);
-inline constexpr Node gate_selection =
-    with_select_chain(with_title(custom(sid(String::STRING_FOR_GATE), &kPending), sid(String::STRING_FOR_GATE_OUTPUTS)),
-                      gate_selection_chain, kGateSelectionChain);
+inline constexpr Node cv_selection = with_select_chain(
+    with_title(custom(sid(String::STRING_FOR_CV), &kCvSelectionItem), sid(String::STRING_FOR_CV_OUTPUTS)),
+    cv_selection_chain, kCvSelectionChain);
+inline constexpr Node gate_selection = with_select_chain(
+    with_title(custom(sid(String::STRING_FOR_GATE), &kGateSelectionItem), sid(String::STRING_FOR_GATE_OUTPUTS)),
+    gate_selection_chain, kGateSelectionChain);
 
 // ---------------------------------------------------------------------------------------------
 // 4. Trigger clock
@@ -562,7 +568,7 @@ inline constexpr Node midi_commands = submenu(sid(String::STRING_FOR_COMMANDS), 
 inline constexpr Node midi_input_differentiation = toggle_item(
     sid(String::STRING_FOR_DIFFERENTIATE_INPUTS), get_midi_input_differentiation, set_midi_input_differentiation);
 inline constexpr Node midi_devices =
-    with_title(custom(sid(String::STRING_FOR_DEVICES), &kPending), sid(String::STRING_FOR_MIDI_DEVICES)); // E2
+    with_title(custom(sid(String::STRING_FOR_DEVICES), &kMidiDevicesItem), sid(String::STRING_FOR_MIDI_DEVICES));
 
 inline constexpr const Node* kMidiChildren[] = {
     &midi_clock,    &midi_follow,   &midi_select_kit_row,        &midi_thru,   &midi_transpose_method,

@@ -148,7 +148,7 @@ counts nodes, not implementations** (fix round 2, I4; recorded as an amendment i
 * It now counts **nodes that point at a custom item**. The shipped tree has **64** of them
   (`validate.h`'s `kShippedCustomNodes`, asserted against the live tree by
   `sim/scenes_spec/shortcuts_spec.cpp`), behind roughly twenty distinct legacy bespoke classes --
-  thirty-nine of them still share the single `kPending` placeholder. The real, distinct exceptions
+  thirty-six of them still share the single `kPending` placeholder. The real, distinct exceptions
   are `battery_level` and `firmware_version` (E2 task 2 — `BatteryLevelItem`, `FirmwareVersionItem`),
   the three name editors (E2 task 5 — one `EditNameItem` per `rename::TargetId`), the five reset
   items (E2 task 7 — one `ResetItem` per `context_menu::DescriptorId`), the twelve MIDI commands
@@ -242,7 +242,12 @@ Python DSL's (`gui/menu_item/generate`, `dmui/visitor/doc_emitter.py`) schema: e
 data), and a node with `Node::dynamic_children` set makes the dump **fail closed** — it prints the
 offending node to stderr and exits non-zero rather than invent a `"multicontext"` shape, because the
 recovered `doc_emitter.py`'s own `"multicontext"` entry has no `"children"` key at all, so any
-invented shape would not even match the schema it claims to preserve. `scripts/menu_dump_check.sh`
+invented shape would not even match the schema it claims to preserve. E2 task 10 went looking for
+the first real `dynamic_children` node and found none — the MIDI device list and the CV/gate output
+selectors, the three the plan expected, are all self-drawing `CustomItem`s
+(`menu/nodes/dynamic.h`), because a submenu row is labelled from one static l10n string id and a
+device row's label is a runtime string. The count is pinned at zero by a spec, so the arm still
+guards a case nothing produces. `scripts/menu_dump_check.sh`
 is the CI regression net: it rebuilds `deluge_menu_dump`, regenerates
 `website/src/data/generated/menu-hierarchies.json` from its output, and fails loudly if that changes
 anything already committed — i.e. the declarative tree drifted from the JSON a `.state` golden's
@@ -349,10 +354,7 @@ which is legacy's `multiRangeMenu.menuItemHeadingTo` substitution (`sound_editor
 
 Still carried from the sweep: `osc0_type` / `osc1_type` → `dxMenu` on a DX7 osc (`osc/type.h:120-125`), which waits on
 `dxMenu` itself — three bespoke DX items (`menus.cpp:1715`) that are E2's browser work, not a page
-this task could declare honestly; the two write halves of the CV/gate chains
-(`MenuContext::source_index` is not writable from a `SelectChainFn`, and both selectors are still
-`kPending` placeholders whose renderer never reports a select press — see `nodes/settings.h`'s
-note); and the two other dropped arms the sweep turned up, `Submenu`'s `shouldForwardButtons()`
+this task could declare honestly; and the two other dropped arms the sweep turned up, `Submenu`'s `shouldForwardButtons()`
 forwarding (`submenu.cpp:187-194`) and `Automation::selectButtonPress`'s shift-held automation
 delete (`automation/automation.cpp:37`), which a `Param`/`UnpatchedParam` item inherits directly and
 a `PatchedParam` one reaches only through the shift branch above.
@@ -383,5 +385,6 @@ the menu item instance); E2 task 5 gave the three name editors theirs, `nodes::E
 opens `rename::RenameScene` — the port of legacy's five-class `gui/ui/rename/` directory — through
 `MenuState::pending_scene`; E2 task 7 the five reset items and task 8 the twelve MIDI commands; E2
 task 9 the two patch-cable pages, the two source pickers, the mod matrix, the two fixed cables and
-the range picker; the other 39 still point at `nodes::kPending`). See the design spec's
+the range picker; E2 task 10 the CV and gate output selectors and the MIDI device list
+(`menu/nodes/dynamic.h`); the other 36 still point at `nodes::kPending`). See the design spec's
 "Amendments during implementation" section for the full, cited account of each.

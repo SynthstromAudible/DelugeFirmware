@@ -23,6 +23,9 @@
 #     no node uses it, and if one ever does, deluge_menu_dump refuses to guess a JSON shape for it
 #     -- it prints the offending node to stderr and exits non-zero instead. Redesign the dump
 #     against that node's real case rather than assume any particular shape survives from before.
+#     (E2 task 10 looked for that case and found none: see menu_dump_main.cpp's
+#     fail_on_dynamic_children note for why the three candidates cannot be dynamic submenus, and
+#     for the shape that would survive if one ever is.)
 # See also website/src/data/generated/README.md, next to the generated JSON itself.
 #
 # Assumes build-sim already exists and is configured for X64:

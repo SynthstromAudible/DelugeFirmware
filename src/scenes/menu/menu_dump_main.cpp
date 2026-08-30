@@ -311,6 +311,34 @@ void emit_chain_targets(std::string& out, const menu::Node& node, int elem_level
 ///        Python DSL pre-resolved the context upstream, which this dump cannot do), so rather
 ///        than guess one, this prints the offending node and stops the whole dump.
 ///
+/// @note **E2 task 10 went looking for the real case this arm was waiting for and did not find
+///       one.** The plan expected three: the MIDI device list and the CV and gate output selectors
+///       (`gui/menu_item/midi/devices.cpp`, `cv/selection.h`, `gate/selection.h`). None of the
+///       three can be a `dynamic_children` node, for a reason that has nothing to do with this
+///       tool: a submenu's rows are labelled from `Node::name`, a single static `uint16_t` l10n id
+///       (`MenuScene::render_vertical`), and `Devices` labels every row with
+///       `MIDICable::getDisplayName()` (`devices.cpp:169`), a runtime string with no id at all --
+///       while the two selectors' option lists are *static* in legacy
+///       (`cv/selection.h:47-54 getOptions`, `gate/selection.h:56-71 getOptions`) over the
+///       compile-time `NUM_PHYSICAL_CV_CHANNELS` / `NUM_GATE_CHANNELS`. All three shipped as
+///       `CustomItem`s that draw their own list (`scenes/menu/nodes/dynamic.h`), which is what
+///       legacy does too, so the tree still sets `dynamic_children` nowhere and this arm still has
+///       nothing to be designed against. `sim/scenes_spec/tables_3_spec.cpp`'s "is not a
+///       placeholder any more" example pins that zero, so the day a node does set the hook, that
+///       example fails and points here.
+///
+///       The shape the brief proposed for that day -- `"type": "submenu"` plus `"dynamic": true`
+///       and the children the hook yields *under the dump's own fixture* -- is not viable as
+///       written, and the reason is recorded here so it is not re-proposed: fix round 2 removed
+///       this tool's `MenuContext` fixtures entirely (see the file header), so there is no context
+///       to expand against, and building one back would make the committed JSON a function of
+///       whatever `MIDIDeviceManager`'s globals happen to hold in the dump process -- exactly the
+///       determinism `scripts/menu_dump_check.sh` diffs for. A static "every node this hook may
+///       yield" span on `Node`, in the shape `chain_targets` already has for `select_chain` and
+///       for the same three reasons (`assign_node_ids` numbers it, `validate_tree` checks it, this
+///       dump prints it), is the design that would survive -- but it is a `node.h` change with no
+///       user, so it stays a note rather than dormant code.
+///
 /// Never returns. Nothing has been written to stdout yet regardless of how much of `out` was
 /// built so far (`main` only writes it out once, at the very end), so this cannot leave a
 /// truncated or malformed JSON document on stdout -- it leaves nothing at all.

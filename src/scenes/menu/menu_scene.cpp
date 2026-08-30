@@ -268,6 +268,11 @@ void MenuScene::retarget(const Node& node) {
 	st_.range_picker_pending = false;
 	st_.pending_after_range = nullptr;
 	st_.range_choice = -1;
+	// Same reasoning for the CV/gate/device selectors' pending choices: they belong to the item
+	// this re-rooting abandons, and applying one afterwards would point a freshly opened page at
+	// the previous walk's output.
+	st_.source_choice = -1;
+	st_.midi_cable_choice = nullptr;
 	// The patch-cable pages' shared selection belongs to a walk through the tree, not to the tree:
 	// re-rooting abandons that walk, so `patching_param` and the two sources go back to "nothing
 	// chosen" rather than pointing a freshly opened page at the last visit's cable.
@@ -1021,6 +1026,21 @@ Result MenuScene::after_render() {
 	if (st_.range_choice >= 0) {
 		select_range(ctx_, st_.range_choice);
 		st_.range_choice = -1;
+	}
+
+	// The CV/gate selectors' own commit -- `soundEditor.currentSourceIndex = this->getValue()`
+	// (`cv/selection.h:42`, `gate/selection.h:47`) -- and the device list's
+	// `soundEditor.currentMIDICable = getCable(...)` (`midi/devices.cpp:55`, `:102`). Same shape as
+	// `range_choice`, and deliberately **above** the `entered` arm below: legacy assigns
+	// `currentSourceIndex` on the way through `selectButtonPress`, so `gate_selection_chain` and
+	// `gate_mode_names` must both see the output the user just picked, not the previous one.
+	if (st_.source_choice >= 0) {
+		ctx_.source_index = st_.source_choice;
+		st_.source_choice = -1;
+	}
+	if (st_.midi_cable_choice != nullptr) {
+		ctx_.midi_cable = st_.midi_cable_choice;
+		st_.midi_cable_choice = nullptr;
 	}
 
 	if (st_.value_changed && st_.value_node != nullptr) {
