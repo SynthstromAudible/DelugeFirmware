@@ -786,8 +786,11 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		r.shell.tick(2);
 		expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
 
+		// The cycle is anchored at the first render of the newly focused node (legacy's
+		// `shortcutBlinkCounter = 0`), so phases are measured from there, not from t = 0.
+		const uint32_t anchor = menu_scene().state().blink_anchor_ms;
 		deluge::ui::test::GridRig grid;
-		grid.begin_tick(menu::kSourceBlinkMs); // the param phase of the cycle: lit
+		grid.begin_tick(anchor + menu::kSourceBlinkMs); // the param phase of the cycle: lit
 		menu_scene().render_grid(grid.frame);
 
 		int painted = 0;
@@ -819,9 +822,13 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		// source phase re-arms at 20 ms and the param phase at 180 ms, so the cycle is 200 ms and
 		// the source slice is the short leading one. Rendered directly, at the phase boundaries, so
 		// this asserts the *timings* rather than "it blinks".
-		const auto lit_at = [&](uint32_t at_ms) {
+		//
+		// Measured from the cycle's anchor, which `setupShortcutBlink` zeroes on every focus change
+		// (`sound_editor.cpp:964`) and `render_grid` re-sets whenever the focused node changes.
+		const uint32_t anchor = menu_scene().state().blink_anchor_ms;
+		const auto lit_at = [&](uint32_t offset_ms) {
 			deluge::ui::test::GridRig grid;
-			grid.begin_tick(at_ms);
+			grid.begin_tick(anchor + offset_ms);
 			menu_scene().render_grid(grid.frame);
 			const RGB& c = grid.grid.at(kLpfFreqX, kLpfFreqY);
 			return c.r != 0 || c.g != 0 || c.b != 0;
@@ -839,6 +846,39 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		expect(lit_at(180)).to_be_true();
 	});
 
+	it("restarts the blink cycle when the focused node changes", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		r.button(kShiftX, kShiftY, true, 0);
+		r.pad(kLpfFreqX, kLpfFreqY, 64, 1);
+		r.shell.tick(2);
+		const uint32_t first = menu_scene().state().blink_anchor_ms;
+
+		// Rendering the same node again leaves the cycle where it was ...
+		deluge::ui::test::GridRig same;
+		same.begin_tick(first + 500);
+		menu_scene().render_grid(same.frame);
+		expect(menu_scene().state().blink_anchor_ms).to_equal(first);
+
+		// ... but jumping to another pad re-anchors, exactly as `setupShortcutBlink`'s
+		// `shortcutBlinkCounter = 0` does (`sound_editor.cpp:964`). Without that the port would
+		// free-run and a freshly focused pad could light mid-cycle.
+		r.pad(kHpfFreqX, kHpfFreqY, 64, 600);
+		r.shell.tick(601);
+		expect(menu_scene().focused() == &nodes::hpf_freq).to_be_true();
+		const uint32_t second = menu_scene().state().blink_anchor_ms;
+		expect(second != first).to_be_true();
+
+		// And the new cycle starts in the source phase, i.e. dark, at its own anchor.
+		deluge::ui::test::GridRig fresh;
+		fresh.begin_tick(second);
+		menu_scene().render_grid(fresh.frame);
+		const RGB& dark = fresh.grid.at(kHpfFreqX, kHpfFreqY);
+		expect(dark.r == 0 && dark.g == 0 && dark.b == 0).to_be_true();
+	});
+
 	it("arms the grid gate so the blink flips at the next phase boundary", _ {
 		select_language();
 		deluge::notify::dirty().drain();
@@ -851,20 +891,23 @@ describe menu_scene_grid("scenes::menu::MenuScene grid overlay", $ {
 		r.button(kShiftX, kShiftY, false, 3);
 		expect(menu_scene().focused() == &nodes::lpf_freq).to_be_true();
 
+		// Phases run from the cycle's anchor (the first render of the newly focused node).
+		const uint32_t anchor = menu_scene().state().blink_anchor_ms;
+
 		// Inside the param phase: lit.
-		r.shell.tick(30);
+		r.shell.tick(anchor + 30);
 		const RGB lit = r.pad_colour(kLpfFreqX, kLpfFreqY);
 		expect(lit.r != 0 || lit.g != 0 || lit.b != 0).to_be_true();
 
 		// The scene armed the grid gate for the boundary, so this tick renders with no input at all
 		// -- which is the whole point: `next_timer()` alone would wake the shell without making
-		// `RepaintGate::needs_frame` say yes. 200 ms is the start of the next source phase.
-		r.shell.tick(menu::kBlinkCycleMs);
+		// `RepaintGate::needs_frame` say yes. One whole cycle on is the next source phase.
+		r.shell.tick(anchor + menu::kBlinkCycleMs);
 		const RGB dark = r.pad_colour(kLpfFreqX, kLpfFreqY);
 		expect(dark.r == 0 && dark.g == 0 && dark.b == 0).to_be_true();
 
 		// And back again 20 ms later, when the param phase resumes -- not 180.
-		r.shell.tick(menu::kBlinkCycleMs + menu::kSourceBlinkMs);
+		r.shell.tick(anchor + menu::kBlinkCycleMs + menu::kSourceBlinkMs);
 		const RGB relit = r.pad_colour(kLpfFreqX, kLpfFreqY);
 		expect(relit.r == lit.r && relit.g == lit.g && relit.b == lit.b).to_be_true();
 	});

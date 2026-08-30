@@ -52,10 +52,10 @@ struct ShortcutPos {
 ///
 /// @param root         Which menu root is open.
 /// @param second_layer Legacy's second shortcut layer -- see `shortcut_node`.
-/// @note This is the **transcription only**. Three roots resolve four further pads that legacy
-///       spells inline rather than in a table (see `shortcut_node`'s resolve-only note); those are
-///       deliberately not in any layer, because `shortcut_pos` is built out of the layers and
-///       legacy never blinks them.
+/// @note This is the **transcription only**, and it is what `shortcut_pos` searches -- so it is the
+///       blink's view, not the press's. Three roots resolve four further pads that are in no layer,
+///       and `Root::KitGlobalFx` cannot press two cells that are; both asymmetries are legacy's and
+///       are documented on `shortcut_node`.
 ///
 /// @return The cells. Every root resolves to a layer of exactly `kShortcutCols * kShortcutRows`
 ///         cells; `Root::Settings` resolves to an all-null one, because legacy never blinks a
@@ -91,6 +91,13 @@ std::span<const Node* const> shortcut_layer(MenuContext::Root root, bool second_
 ///       because they are separate mechanisms rather than cells -- the DX7 pad grid (`:1170-1177`)
 ///       and the patching-source column, `x` in {14, 15} (`:1180-1268`).
 ///
+/// @note **Press-only gate, the mirror of the above.** `Root::KitGlobalFx` resolves *fewer* pads
+///       than its table holds: legacy's arm is gated `(x <= kDisplayWidth - 2) || (x == 15 && y == 1)`
+///       (`sound_editor.cpp:1153-1157`), so `paramShortcutsForKitGlobalFX`'s own `(15, 2)` and
+///       `(15, 3)` cells were never pressable. They are still in the layer, and still blink, because
+///       `setupShortcutsBlinkFromTable` (`:825`) scans the whole table with no such guard. The other
+///       four roots' guards match their tables exactly and add nothing here.
+///
 /// @param x            Absolute pad column.
 /// @param y            Absolute pad row.
 /// @return The node, or `nullptr`.
@@ -105,8 +112,10 @@ const Node* shortcut_node(MenuContext::Root root, bool second_layer, uint8_t x, 
 /// `updatePadLightsFor` scans in (`:867` before `:872`).
 ///
 /// @note This searches the **transcribed layers only**, so it is deliberately *not* a total inverse
-///       of `shortcut_node`: the four resolve-only cells above are reachable by a press and report
-///       no pad here, because legacy's blink side never scans them either.
+///       of `shortcut_node`, in both directions: the four resolve-only cells are reachable by a
+///       press and report no pad here (legacy's blink side never scans them), while the kit
+///       global-FX cells its press gate excludes report a pad here and cannot be pressed (legacy's
+///       blink side scans the whole table). Both asymmetries are legacy's; see `shortcut_node`.
 ///
 /// @note Legacy's two context-dependent suppressions are **not** ported: the reverb-sidechain one
 ///       (`:873`, "x == 10 && y < 6 && editingReverbSidechain()") and the odd-column/source-0 one

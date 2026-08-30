@@ -250,14 +250,41 @@ constexpr Cells kMidiExtraCells = [] {
 	return out;
 }();
 
-/// @brief A root's two layers, plus any resolve-only overlay.
+/// @brief Does a press at (@p x, @p y) reach `paramShortcutsForKitGlobalFX` at all?
+///
+/// The mirror of `kMidiExtraCells`, and the other half of the same guard asymmetry. The kit
+/// global-FX arm is gated `if ((x <= (kDisplayWidth - 2)) || (x == 15 && y == 1))`
+/// (`sound_editor.cpp:1153-1157`), so **column 15 is admitted only at y == 1** -- legacy can never
+/// press the table's own `(15, 2)` and `(15, 3)` cells (`randomizerLockMenu`,
+/// `randomizerNoteProbabilityMenu`), even though it transcribes them. The blink side does not share
+/// the guard: `setupShortcutsBlinkFromTable` (`sound_editor.cpp:825`, `:786-795`) scans the whole
+/// 16x8 table, so those two cells *do* blink when their item is open.
+///
+/// So this is press-only, exactly as `kMidiExtraCells` is: there the press side sees pads the blink
+/// side does not, here the blink side sees cells the press side does not. Both are read by
+/// `shortcut_node` and by nothing else, which is what keeps `shortcut_pos` a faithful port of
+/// `updatePadLightsFor`.
+///
+/// The other four roots' guards were checked against their tables and need none: the song arm
+/// (`:1142-1147`) and the audio-clip arm (`:1160-1165`) admit `x <= 14` / `x <= 14` and neither
+/// table has a column-15 cell, and the sound arm's guard (`:1271-1273`) admits exactly the cells
+/// `paramShortcutsForSounds` fills there.
+using PressGateFn = bool (*)(uint8_t x, uint8_t y);
+
+constexpr bool kit_global_fx_press_gate(uint8_t x, uint8_t y) {
+	return x <= kShortcutCols - 2 || (x == 15 && y == 1);
+}
+
+/// @brief A root's two layers, plus any resolve-only overlay and any press-only gate.
 ///
 /// `second` is `first` for every root without a second legacy table. `resolve_only` is null except
-/// on the three roots that carry `kMidiExtraCells`, and is read by `shortcut_node` alone.
+/// on the three roots that carry `kMidiExtraCells`; `press_gate` is null except on
+/// `Root::KitGlobalFx`. Both are read by `shortcut_node` alone.
 struct Layers {
 	const Cells* first;
 	const Cells* second;
 	const Cells* resolve_only = nullptr;
+	PressGateFn press_gate = nullptr;
 };
 
 /// @brief Which table each root reads, i.e. legacy's chain of context tests
@@ -274,16 +301,16 @@ struct Layers {
 ///
 /// The three MIDI/CV-and-drum roots additionally carry `kMidiExtraCells` as a resolve-only overlay.
 constexpr Layers kByRoot[static_cast<size_t>(MenuContext::Root::Count)] = {
-    {&kSoundCells, &kSoundSecondCells},                   // Sound
-    {&kDrumCells, &kSoundSecondCells},                    // Drum
-    {&kMidiOrCvCells, &kMidiOrCvCells, &kMidiExtraCells}, // MidiOrCv
-    {&kMidiDrumCells, &kMidiDrumCells, &kMidiExtraCells}, // MidiDrum
-    {&kGateDrumCells, &kGateDrumCells, &kMidiExtraCells}, // GateDrum
-    {&kAudioClipCells, &kAudioClipCells},                 // AudioClip
-    {&kSongCells, &kSongCells},                           // Performance
-    {&kSongCells, &kSongCells},                           // Song
-    {&kKitGlobalFxCells, &kKitGlobalFxCells},             // KitGlobalFx
-    {&kNoCells, &kNoCells},                               // Settings
+    {&kSoundCells, &kSoundSecondCells},                                          // Sound
+    {&kDrumCells, &kSoundSecondCells},                                           // Drum
+    {&kMidiOrCvCells, &kMidiOrCvCells, &kMidiExtraCells},                        // MidiOrCv
+    {&kMidiDrumCells, &kMidiDrumCells, &kMidiExtraCells},                        // MidiDrum
+    {&kGateDrumCells, &kGateDrumCells, &kMidiExtraCells},                        // GateDrum
+    {&kAudioClipCells, &kAudioClipCells},                                        // AudioClip
+    {&kSongCells, &kSongCells},                                                  // Performance
+    {&kSongCells, &kSongCells},                                                  // Song
+    {&kKitGlobalFxCells, &kKitGlobalFxCells, nullptr, kit_global_fx_press_gate}, // KitGlobalFx
+    {&kNoCells, &kNoCells},                                                      // Settings
 };
 
 const Layers& layers_for(MenuContext::Root root) {
@@ -298,9 +325,16 @@ const Node* cell_of(const Cells& cells, uint8_t x, uint8_t y) {
 	return cells[cell_index(x, y)];
 }
 
+/// @brief The first pad holding @p node, scanned **column-major** -- `x` outer, `y` inner.
+///
+/// The order is `updatePadLightsFor`'s own (`sound_editor.cpp:865-872`), not an implementation
+/// detail: it decides which pad blinks for a node that occupies more than one cell, and the
+/// audio-clip table has five such nodes (the two sample columns, `x = 0` and `x = 1`, are
+/// duplicates). Today every one of them differs only in `x`, so both scan orders would agree --
+/// matching legacy's order means they still agree if a future table breaks that.
 ShortcutPos find_in(const Cells& cells, const Node& node) {
-	for (uint8_t y = 0; y < kShortcutRows; y++) {
-		for (uint8_t x = 0; x < kShortcutCols; x++) {
+	for (uint8_t x = 0; x < kShortcutCols; x++) {
+		for (uint8_t y = 0; y < kShortcutRows; y++) {
 			if (cells[cell_index(x, y)] == &node) {
 				return ShortcutPos{x, y, true};
 			}
@@ -318,6 +352,11 @@ std::span<const Node* const> shortcut_layer(MenuContext::Root root, bool second_
 
 const Node* shortcut_node(MenuContext::Root root, bool second_layer, uint8_t x, uint8_t y) {
 	const Layers& l = layers_for(root);
+	// First: the arm's own guard on which pads reach the table at all -- a cell the guard excludes
+	// is transcribed (and so still blinks) but was never pressable (`kit_global_fx_press_gate`).
+	if (l.press_gate != nullptr && !l.press_gate(x, y)) {
+		return nullptr;
+	}
 	if (second_layer) {
 		// Legacy's own fallback: the second layer *replaces* the cell only where it has one
 		// (`sound_editor.cpp:1320-1323`), so a second press of a pad with no second-layer item

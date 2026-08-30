@@ -74,9 +74,8 @@ inline constexpr size_t kMaxMenuColumns = 16;
 /// deliberately never lit at the same instant -- legacy's own comment at `:971` says why ("blinking
 /// two pads on the same row at same time doesn't work").
 ///
-/// `MenuState::shortcut_blink` / `source_blink` carry the phase *anchor* (`Blink::until_ms`) for
-/// this cycle rather than two independent square waves; `blink_cycle_ms` and `in_source_phase`
-/// (`menu_scene.cpp`) are what read them.
+/// One cycle needs one anchor, not two `Blink`s: `MenuState::blink_anchor_ms` is it, and
+/// `blink_phase` / `ms_to_phase_change` (`menu_scene.cpp`) are what read it.
 /// @{
 inline constexpr uint16_t kShortcutBlinkMs = 180;
 inline constexpr uint16_t kSourceBlinkMs = 20;
@@ -123,12 +122,19 @@ struct MenuState {
 	/// `decimal_value`'s OLED cursor blink ONLY (`ui/core/state.h:38`; `until_ms` is a phase
 	/// anchor, not a deadline).
 	deluge::ui::Blink cursor_blink{};
-	/// `render_grid`: the focused param's pad -- the long phase of the 200 ms cycle
-	/// (`sound_editor.cpp:985`'s 180 ms arm). `until_ms` is the cycle's phase anchor.
-	deluge::ui::Blink shortcut_blink{kShortcutBlinkMs, 0};
-	/// `render_grid`: the patching-source pads -- the short leading phase of the same cycle
-	/// (`sound_editor.cpp:996`'s 20 ms arm), sharing `shortcut_blink`'s anchor.
-	deluge::ui::Blink source_blink{kSourceBlinkMs, 0};
+	/// `render_grid`: when the current shortcut-blink cycle started.
+	///
+	/// One anchor for both phases, because legacy has one counter for both
+	/// (`sound_editor.cpp:974-1000`). Not a `Blink`: a `Blink` carries a single symmetric period,
+	/// which is precisely the shape this cycle is not.
+	///
+	/// Re-anchored whenever `blink_node` changes, which is legacy's `shortcutBlinkCounter = 0` in
+	/// `setupShortcutBlink` (`sound_editor.cpp:964`) -- reached from `updatePadLightsFor` on every
+	/// screen change (`:806`, via `beginScreen` `:1015`). Without it the port would free-run from
+	/// t = 0 and a newly focused pad could light mid-cycle.
+	uint32_t blink_anchor_ms = 0;
+	/// Which node `blink_anchor_ms` was set for; `render_grid` is the only writer of both.
+	const Node* blink_node = nullptr;
 
 	/// Legacy's `secondLayerShortcutsToggled` (`sound_editor.cpp:1309-1316`): pressing the focused
 	/// item's own shortcut pad a second time takes the second shortcut layer, and pressing any

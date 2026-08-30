@@ -52,6 +52,7 @@
 #include "cppspec.hpp"
 
 #include <cstdint>
+#include <map>
 #include <set>
 #include <span>
 #include <string>
@@ -119,6 +120,58 @@ void install_sound_context() {
 std::string text_of(uint16_t id) {
 	deluge::ui::shell::TextScratch scratch;
 	return std::string{deluge_profile().text_or_digits(id, scratch)};
+}
+
+/// @brief Read a `Submenu`'s protected child list -- `tables_2_spec`'s `SubmenuPeek`, verbatim and
+///        for the same [class.protected] reason.
+struct SubmenuPeek : deluge::gui::menu_item::Submenu {
+	static const deluge::vector<::MenuItem*>& items_of(deluge::gui::menu_item::Submenu& menu) {
+		return menu.*(&SubmenuPeek::items);
+	}
+};
+
+/// @brief Walk the legacy sound root and the port's in lockstep by child index, recording which
+///        `Node` each legacy `MenuItem*` is.
+///
+/// The anchor the name comparison cannot provide (fix round 1, I2). Legacy gives numbered siblings
+/// *identical* names, identical titles and, for several of them, the same constructor `params::`
+/// id with only an index argument to tell them apart -- `env1AttackMenu` and `env2AttackMenu` are
+/// both `{STRING_FOR_ATTACK, STRING_FOR_ENV_ATTACK_MENU_TITLE, LOCAL_ENV_0_ATTACK, <i>}`
+/// (`menus.cpp:415,424`), and `source0VolumeMenu` / `source1VolumeMenu` are both
+/// `{STRING_FOR_OSC_LEVEL_MENU_TITLE, LOCAL_OSC_A_VOLUME, <i>}` (`:401,402`). Nothing about the
+/// items themselves distinguishes them; only their **position in the tree** does. So this walks
+/// both trees together and keys on the legacy pointer.
+///
+/// Deliberately conservative: it descends only where both sides are submenus with the same static
+/// child count, and stops (rather than failing) anywhere they diverge. The lockstep property itself
+/// is `tables_2_spec`'s subject, not this file's -- here the map only has to be *right* about what
+/// it does contain, and the example asserts it covered enough cells to be meaningful.
+void map_tree(::MenuItem& item, const Node& node, std::map<const ::MenuItem*, const Node*>& out, int depth = 0) {
+	if (depth > 16 || !out.emplace(&item, &node).second) {
+		return;
+	}
+	auto* sub = dynamic_cast<deluge::gui::menu_item::Submenu*>(&item);
+	if (sub == nullptr) {
+		return;
+	}
+	const deluge::vector<::MenuItem*>& kids = SubmenuPeek::items_of(*sub);
+	if (node.children.size() != kids.size()) {
+		return;
+	}
+	for (size_t i = 0; i < kids.size(); i++) {
+		if (kids[i] != nullptr && node.children[i] != nullptr) {
+			map_tree(*kids[i], *node.children[i], out, depth + 1);
+		}
+	}
+}
+
+const std::map<const ::MenuItem*, const Node*>& sound_tree_identity() {
+	static const std::map<const ::MenuItem*, const Node*> map = [] {
+		std::map<const ::MenuItem*, const Node*> m;
+		map_tree(soundEditorRootMenu, nodes::sound_root, m);
+		return m;
+	}();
+	return map;
 }
 
 /// @brief Nodes whose legacy item builds `getName()` out of live state rather than returning the
@@ -318,6 +371,88 @@ describe shortcuts_transcription("scenes::menu shortcut tables: transcription", 
 		}
 	});
 
+	it("pins every sound cell by legacy MenuItem identity, not by name", _ {
+		install_sound_context();
+		// The name comparison above is blind to a swap of two numbered sibling columns: legacy gives
+		// `env1ReleaseMenu`/`env2ReleaseMenu` (x = 8 / 9), `lfo1RateMenu`/`lfo2RateMenu` (12 / 13),
+		// `osc0TypeMenu`/`osc1TypeMenu` (2 / 3) and `sample0RepeatMenu`/`sample1RepeatMenu` (0 / 1)
+		// the same name, and `source0VolumeMenu`/`source1VolumeMenu` the same *formatted* name, which
+		// the `*` tolerance downgrades to a presence check. This keys on the legacy pointer instead,
+		// through the position each item holds in the legacy tree -- so swapping any two columns
+		// fails here even though every name still matches.
+		const auto& identity = sound_tree_identity();
+		const auto layer = menu::shortcut_layer(Root::Sound, false);
+		const auto second = menu::shortcut_layer(Root::Sound, true);
+		std::string bad;
+		size_t pinned = 0;
+		size_t unreachable = 0;
+		for (uint8_t x = 0; x < menu::kShortcutCols; x++) {
+			for (uint8_t y = 0; y < menu::kShortcutRows; y++) {
+				const size_t i = size_t(y) * menu::kShortcutCols + x;
+				for (const auto& [legacy_cell, port_cell] :
+				     {std::pair{paramShortcutsForSounds[x][y], layer[i]},
+				      std::pair{paramShortcutsForSoundsSecondLayer[x][y], second[i]}}) {
+					if (is_empty_cell(legacy_cell)) {
+						continue;
+					}
+					const auto found = identity.find(legacy_cell);
+					if (found == identity.end()) {
+						// Not reachable from `soundEditorRootMenu` by static children alone (a
+						// dynamic submenu's child, say). Counted, not asserted -- the name
+						// comparison already covers it.
+						unreachable++;
+						continue;
+					}
+					pinned++;
+					if (found->second != port_cell) {
+						bad += "(" + std::to_string(x) + ", " + std::to_string(y) + "): "
+						       + std::string{legacy_cell->getName()} + " is a different node in the tree\n";
+					}
+				}
+			}
+		}
+		expect(bad).to_equal(std::string{});
+		// Not vacuous, and it reaches the columns that matter.
+		expect(pinned > size_t(80)).to_be_true();
+		for (uint8_t x : {uint8_t{0}, uint8_t{1}, uint8_t{2}, uint8_t{3}, uint8_t{8}, uint8_t{9}, uint8_t{12},
+		                  uint8_t{13}}) {
+			size_t in_column = 0;
+			for (uint8_t y = 0; y < menu::kShortcutRows; y++) {
+				::MenuItem* legacy_cell = paramShortcutsForSounds[x][y];
+				in_column += size_t(!is_empty_cell(legacy_cell) && identity.count(legacy_cell) != 0);
+			}
+			expect(in_column >= size_t(4)).to_be_true();
+		}
+		(void)unreachable;
+	});
+
+	it("refuses the two kit global-FX cells legacy's own guard never let it press", _ {
+		// The mirror of the four inline cells above. `paramShortcutsForKitGlobalFX` holds
+		// `randomizerLockMenu` at (15, 2) and `randomizerNoteProbabilityMenu` at (15, 3), but the arm
+		// is gated `(x <= kDisplayWidth - 2) || (x == 15 && y == 1)` (`sound_editor.cpp:1153-1157`),
+		// so legacy can only ever press column 15 at y == 1.
+		expect(menu::shortcut_node(Root::KitGlobalFx, false, 15, 1) == &nodes::spread_velocity).to_be_true();
+		expect(menu::shortcut_node(Root::KitGlobalFx, false, 15, 2) == nullptr).to_be_true();
+		expect(menu::shortcut_node(Root::KitGlobalFx, false, 15, 3) == nullptr).to_be_true();
+		expect(menu::shortcut_node(Root::KitGlobalFx, true, 15, 2) == nullptr).to_be_true();
+		// The guard admits everything up to column 14, so nothing else is lost.
+		expect(menu::shortcut_node(Root::KitGlobalFx, false, 14, 0) == &nodes::global_delay_rate).to_be_true();
+
+		// But the blink side has no such guard (`setupShortcutsBlinkFromTable`, `:825`), so the two
+		// cells are still in the layer and still report a pad. Removing the press gate, or applying
+		// it to the layer as well, fails one half of this.
+		const auto layer = menu::shortcut_layer(Root::KitGlobalFx, false);
+		expect(layer[size_t(2) * menu::kShortcutCols + 15] == &nodes::randomizer_lock).to_be_true();
+		expect(layer[size_t(3) * menu::kShortcutCols + 15] == &nodes::note_probability).to_be_true();
+		const ShortcutPos lock = menu::shortcut_pos(Root::KitGlobalFx, nodes::randomizer_lock);
+		expect(lock.valid).to_be_true();
+		expect(int32_t{lock.x}).to_equal(int32_t{15});
+		expect(int32_t{lock.y}).to_equal(int32_t{2});
+
+		// And no other root grows a gate: the sound table's own column 15 stays pressable.
+		expect(menu::shortcut_node(Root::Sound, false, 15, 2) == &nodes::randomizer_lock).to_be_true();
+	});
+
 	it("swaps the name editor for the drum one on the two drum roots", _ {
 		install_sound_context();
 		// `potentialShortcutPadAction` (`sound_editor.cpp:1279-1281`, `:1306-1308`) rewrites
@@ -401,7 +536,14 @@ describe shortcuts_shape("scenes::menu shortcut tables: shape", $ {
 						}
 						const ShortcutPos pos = menu::shortcut_pos(root, *cell);
 						expect(pos.valid).to_be_true();
-						expect(menu::shortcut_node(root, second, pos.x, pos.y) == cell).to_be_true();
+						// ... and a press finds it again, EXCEPT where the arm's own guard excluded
+						// the pad from the press path in the first place: legacy's kit global-FX arm
+						// admits column 15 only at y == 1 (`sound_editor.cpp:1153-1157`), while the
+						// blink side scans the whole table. Spelled out here rather than skipped, so
+						// this fails if the gate's shape changes.
+						const bool pressable = root != Root::KitGlobalFx || pos.x <= 14 || pos.y == 1;
+						expect(menu::shortcut_node(root, second, pos.x, pos.y) == (pressable ? cell : nullptr))
+						    .to_be_true();
 					}
 				}
 			}

@@ -80,15 +80,14 @@ constexpr uint16_t kBackBlinkMs = 110;
 ///
 /// The cycle is legacy's `shortcutBlinkCounter` pair, not a square wave: `[0, kSourceBlinkMs)` is
 /// the source-pad phase (legacy's even counter, 20 ms arm) and `[kSourceBlinkMs, kBlinkCycleMs)` is
-/// the focused-param phase (the odd counter, 180 ms arm). Written as a difference against
-/// `Blink::until_ms` -- the phase *anchor* (`ui/core/state.h:38`) rather than a deadline -- so it
-/// survives the ~49.7-day `uint32_t` wrap, exactly as `RepaintGate::needs_frame` does.
+/// the focused-param phase (the odd counter, 180 ms arm). Written as a difference against the
+/// anchor so it survives the ~49.7-day `uint32_t` wrap, exactly as `RepaintGate::needs_frame` does.
 ///
-/// @param b      The blink carrying the cycle's phase anchor (`st_.shortcut_blink`).
-/// @param now_ms The tick's clock.
+/// @param anchor_ms When the current cycle started (`st_.blink_anchor_ms`).
+/// @param now_ms    The tick's clock.
 /// @return Milliseconds into the cycle, in `[0, kBlinkCycleMs)`.
-uint32_t blink_phase(const deluge::ui::Blink& b, uint32_t now_ms) {
-	return (now_ms - b.until_ms) % kBlinkCycleMs;
+uint32_t blink_phase(uint32_t anchor_ms, uint32_t now_ms) {
+	return (now_ms - anchor_ms) % kBlinkCycleMs;
 }
 
 /// @brief Milliseconds from @p phase to the cycle's next phase boundary.
@@ -668,7 +667,14 @@ void MenuScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	// with a 20 ms arm on the source phase and a 180 ms arm on the param phase, precisely so the
 	// two are never lit at the same instant (`:970-971`). `phase` is where in that cycle this tick
 	// falls; the source pads own `[0, kSourceBlinkMs)` and the focused param's pad owns the rest.
-	const uint32_t phase = blink_phase(st_.shortcut_blink, now);
+	// Legacy zeroes `shortcutBlinkCounter` every time the focused item changes
+	// (`setupShortcutBlink`, `sound_editor.cpp:964`), so a pad that has just been jumped to starts
+	// its cycle now rather than wherever a free-running clock happens to be.
+	if (st_.blink_node != node) {
+		st_.blink_node = node;
+		st_.blink_anchor_ms = now;
+	}
+	const uint32_t phase = blink_phase(st_.blink_anchor_ms, now);
 	const bool source_phase = phase < kSourceBlinkMs;
 
 	const ShortcutPos pos = shortcut_pos(ctx_.root, *node);
@@ -926,14 +932,22 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 		// Legacy's second-layer toggle (`sound_editor.cpp:1309-1324`), which is a *double press of
 		// the focused item's own shortcut pad* -- not shift, which is only the gate above. Pressing
 		// any other pad clears it, and a patch-cable item never arms it.
-		const Node* current = focused();
-		const ShortcutPos here = current != nullptr ? shortcut_pos(ctx_.root, *current) : ShortcutPos{};
-		const bool same_pad = here.valid && here.x == event.x && here.y == event.y;
-		const bool is_patch_cable =
-		    current != nullptr && current->bind.param.kind == deluge::modulation::params::Kind::PATCH_CABLE;
-		st_.second_layer = (same_pad && !is_patch_cable) ? !st_.second_layer : false;
+		//
+		// Scoped to the sound arm, because that is the only branch legacy touches
+		// `secondLayerShortcutsToggled` in (the `else` at `:1303`) and the only pair of roots with a
+		// second layer at all. On any other root the flag is left exactly as it was, rather than
+		// being cleared by a press legacy never looked at.
+		const bool sound_arm = ctx_.root == MenuContext::Root::Sound || ctx_.root == MenuContext::Root::Drum;
+		if (sound_arm) {
+			const Node* current = focused();
+			const ShortcutPos here = current != nullptr ? shortcut_pos(ctx_.root, *current) : ShortcutPos{};
+			const bool same_pad = here.valid && here.x == event.x && here.y == event.y;
+			const bool is_patch_cable =
+			    current != nullptr && current->bind.param.kind == deluge::modulation::params::Kind::PATCH_CABLE;
+			st_.second_layer = (same_pad && !is_patch_cable) ? !st_.second_layer : false;
+		}
 
-		const Node* target = shortcut_node(ctx_.root, st_.second_layer, event.x, event.y);
+		const Node* target = shortcut_node(ctx_.root, sound_arm && st_.second_layer, event.x, event.y);
 		// A node the registry never numbered cannot be named in a `SceneId`, and `on_enter` would
 		// refuse the id and roll the move back -- so the jump is simply not offered.
 		const uint16_t id = target != nullptr ? node_id(*target) : 0;
