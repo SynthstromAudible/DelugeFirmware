@@ -37,8 +37,11 @@
 
 #include "gfx/oled/icons.h"
 #include "gui/l10n/strings.h"
+#include "model/song/song.h" // Song::getInputTickMagnitude() -- Kind::SyncLevel's value text
+#include "model/sync.h"      // syncValueToString -- Kind::SyncLevel's value text
 #include "notify/notice_queue.h"
 #include "shell/leds.h"
+#include "ui/core/metrics.h" // kSyncValueY -- Kind::SyncLevel's value band baseline
 #include "ui/oled/columns.h"
 #include "ui/oled/list.h"
 #include "ui/oled/meters.h"
@@ -411,16 +414,20 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 	case Kind::Toggle:
 		render_leaf_toggle(f, *node);
 		break;
+	case Kind::SyncLevel:
+		render_leaf_sync_level(f, *node);
+		break;
 	case Kind::Custom:
 		if (node->custom != nullptr) {
 			node->custom->render(f, ctx_, st_);
 		}
 		break;
 	default: {
-		// `Bipolar`, `Range`, `MultiRange`, `Colour`, `SyncLevel` and `Action` have no interpreter
-		// yet -- they are E2's, and `node.h` declares them now only so the tree shape is complete.
-		// Drawing the title alone is the honest placeholder: the user sees which item they are on
-		// rather than the previous screen's pixels.
+		// Every `Kind` `node.h` declares now has an arm above: `Bipolar`, `Range`, `MultiRange`,
+		// `Colour` and `Action` were dropped in Task 8 (zero nodes, no interpreter written for
+		// them), and `SyncLevel` gained one just above. Nothing in the current tree reaches this
+		// arm; it stays only so a `Kind` a later plan adds still draws its title rather than
+		// nothing at all until that plan writes its own interpreter.
 		TextScratch scratch;
 		deluge::ui::oled::title(f, text_of(node->title, scratch));
 		break;
@@ -656,6 +663,68 @@ void MenuScene::render_leaf_toggle(deluge::ui::oled::OledFrame& f, const Node& n
 	if (r.changed) {
 		st_.value_changed = true;
 		st_.value_node = &node;
+	}
+}
+
+void MenuScene::render_leaf_sync_level(deluge::ui::oled::OledFrame& f, const Node& node) {
+	TextScratch scratch;
+	deluge::ui::oled::title(f, text_of(node.title, scratch));
+
+	// Legacy is `SyncLevel::drawPixelsForOled` (`gui/menu_item/sync_level.cpp:30-38`). `SyncLevel`
+	// derives from `Enumeration`, not `Integer` (`sync_level.h:27`), so -- unlike `render_leaf_int`
+	// just above -- the SELECT ENCODER moves the value here, clamped rather than wrapped
+	// (`Enumeration::selectEncoderAction`, `enumeration.cpp:19-31`, `wrapAround()` unoverridden by
+	// `SyncLevel`). The gold knobs are left unclaimed, same as legacy leaves them alone for any
+	// `Enumeration`.
+	const IntRange r = bindings::range(node, ctx_);
+	if (const int8_t d = f.turn(); d != 0) {
+		const int32_t next = std::clamp<int32_t>(st_.edit_int + d, r.min, r.max);
+		if (next != st_.edit_int) {
+			st_.edit_int = next;
+			st_.render_resp.changed = true;
+			st_.value_changed = true;
+			st_.value_node = &node;
+		}
+	}
+
+	// `f.bounds()`, NOT `menu_rect(f)` -- same reasoning as `render_leaf_int` above (`menu_rect(f)`
+	// would add `Style::menu_base_y` on top of the baseline's own offset and clip the string off
+	// the panel's bottom edge). But the font is `MetricBold13`, NOT `f.style.value_font`/`big_font`
+	// (both `MetricBold20`): legacy draws this one in the smaller "Big" face at its own baseline
+	// (`sync_level.cpp:37`, `kSyncValueY`'s doc comment in `ui/core/metrics.h`), and `Style` carries
+	// no field for it -- `MetricBold9` is hard-coded the same way at `ui/oled/columns.cpp:303` for
+	// the same reason, a legacy font choice with no `Style` counterpart. Getting this wrong doesn't
+	// just mismatch the pixels: a note-length string in the huge font (`kTextHugeSpacingX` = 18px
+	// per character) runs off both edges of a 128px panel, which is exactly the clipping bug this
+	// task exists to not repeat.
+	//
+	// No `f.clear(band)` here, unlike `int_value`/`decimal_value`: this scene may not call an
+	// `OledFrame` drawing primitive directly (this file's own top-of-file note), and legacy's
+	// `SyncLevel::drawPixelsForOled` does not clear its band either -- `Shell::render_oled` already
+	// clears the whole canvas before any scene draws (`shell/shell.cpp:475`), which is what makes
+	// that safe for a full-panel screen like this one.
+	constexpr deluge::gfx::oled::FontId kFont = deluge::gfx::oled::FontId::MetricBold13;
+	const deluge::gfx::oled::Rect band{f.bounds().x, f.bounds().y + deluge::ui::kSyncValueY, f.bounds().w,
+	                                   deluge::ui::oled::text_height_for(kFont)};
+
+	// Centred text, not digits: legacy draws the literal "OFF" at zero, else `syncValueToString`
+	// against the song's *input* tick magnitude (`sync_level.cpp:26-28`), never the raw menu-option
+	// integer this node's binding actually stores.
+	etl::string<30> buffer;
+	std::string_view text_val;
+	if (st_.edit_int != 0) {
+		syncValueToString(static_cast<uint32_t>(st_.edit_int), buffer, ctx_.song->getInputTickMagnitude());
+		text_val = std::string_view{buffer.data(), buffer.size()};
+	}
+	else {
+		TextScratch off_scratch;
+		text_val = text_of(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_OFF), off_scratch);
+	}
+	deluge::ui::oled::text(f, band, text_val, {.font = kFont, .align = deluge::ui::oled::Align::Centre});
+
+	// The select press leaves the item, same as every other leaf's arm.
+	if (f.select_pressed()) {
+		st_.render_resp.entered = true;
 	}
 }
 

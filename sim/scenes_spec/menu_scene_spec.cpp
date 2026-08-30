@@ -29,6 +29,7 @@
 #include "gui/l10n/strings.h"
 #include "model/clip/instrument_clip.h"
 #include "model/song/song.h"
+#include "model/sync.h" // NUM_SYNC_VALUES
 #include "modulation/params/param.h"
 #include "processing/sound/sound_instrument.h"
 #include "processing/source.h"
@@ -121,6 +122,13 @@ int32_t get_toggle(const MenuContext&) {
 void set_toggle(const MenuContext&, int32_t v) {
 	g_toggle = v != 0;
 }
+int32_t g_sync = 0;
+int32_t get_sync(const MenuContext&) {
+	return g_sync;
+}
+void set_sync(const MenuContext&, int32_t v) {
+	g_sync = v;
+}
 
 /// The two `get`/`set`-backed columns of the horizontal page, so the spec can force exact values
 /// into the `Enum` and `Decimal` slot renderers (and, through the latter, into `format_decimal`).
@@ -166,6 +174,11 @@ constexpr Node decimal_leaf =
     menu::decimal_item(sid(String::STRING_FOR_TEMPO), get_decimal, set_decimal, deluge::ui::oled::Range{0, 9999, 1}, 2);
 constexpr Node enum_leaf = menu::enumeration(sid(String::STRING_FOR_MODE), kEnumNames, get_enum, set_enum);
 constexpr Node toggle_leaf = menu::toggle_item(sid(String::STRING_FOR_MONOPHONIC), get_toggle, set_toggle);
+/// A `Kind::SyncLevel` leaf, so the interpreter's one arm for it (task 1 of E2) is exercised
+/// through a real tree rather than only through `validate.cpp`'s tables. Reuses
+/// `nodes::kSyncLevelRange` (`sound_lfo.h:66`) rather than spelling `NUM_SYNC_VALUES` again.
+constexpr Node sync_leaf = menu::sync_level_item(sid(String::STRING_FOR_SYNC), sid(String::STRING_FOR_DELAY_SYNC),
+                                                 get_sync, set_sync, nodes::kSyncLevelRange);
 /// The range-dependent item spec E §4.1's `MustSelectRange` arm fires on.
 constexpr Node transpose_leaf = menu::with_range_dependent(
     menu::param(sid(String::STRING_FOR_TRANSPOSE),
@@ -181,8 +194,11 @@ constexpr Node deep_inner = menu::submenu(sid(String::STRING_FOR_LPF), deep_inne
 constexpr const Node* deep_outer_children[] = {&deep_inner};
 constexpr Node deep_outer = menu::submenu(sid(String::STRING_FOR_FILTERS), deep_outer_children);
 
+// `sync_leaf` is appended last, like `deep_outer` before it, so the visible window at cursor 0 --
+// and therefore the recorded root goldens -- is unchanged (`render_vertical` draws no scrollbar,
+// so even the total count moving from 7 to 8 does not move a pixel there).
 constexpr const Node* settings_children[] = {&lpf_page,    &int_leaf,       &decimal_leaf, &enum_leaf,
-                                             &toggle_leaf, &transpose_leaf, &deep_outer};
+                                             &toggle_leaf, &transpose_leaf, &deep_outer,   &sync_leaf};
 constexpr Node settings_root = menu::submenu(sid(String::STRING_FOR_SETTINGS), settings_children);
 
 /// The synthetic tree above **and** the real sound root: the shortcut examples below press real
@@ -689,6 +705,43 @@ describe menu_scene_editing("scenes::menu::MenuScene leaf editing", $ {
 		expect(menu::bindings::read(decimal_leaf, ctx)).to_equal(1235);
 	});
 
+	it("a SyncLevel leaf reads OFF at zero and edits through the select encoder, not the gold knobs", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx = r.open(settings_root);
+		g_sync = 0;
+		r.shell.tick(0);
+
+		// Row 7 (last) is the SyncLevel leaf; step onto it and enter it.
+		for (int i = 0; i < 7; i++) {
+			r.turn(1, static_cast<uint32_t>(10 + i * 10));
+			r.shell.tick(static_cast<uint32_t>(15 + i * 10));
+		}
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.shell.tick(110);
+		expect(menu_scene().focused() == &sync_leaf).to_be_true();
+		expect(menu::bindings::read(sync_leaf, ctx)).to_equal(0);
+
+		// `SyncLevel` derives from `Enumeration` (`sync_level.h:27`), not `Integer`, so the SELECT
+		// ENCODER moves the value -- unlike `int_leaf`/`decimal_leaf` above, which read the gold
+		// knobs. A gold-knob turn here must do nothing.
+		r.gold(kGoldUpper, 2, 120);
+		r.shell.tick(130);
+		expect(menu::bindings::read(sync_leaf, ctx)).to_equal(0);
+
+		r.turn(1, 140);
+		r.shell.tick(150);
+		expect(menu::bindings::read(sync_leaf, ctx)).to_equal(1);
+
+		// Clamped at the top of `kSyncLevelRange`, like `Enumeration::selectEncoderAction`'s
+		// non-wrapping clamp (`enumeration.cpp:19-31`) -- a turn well past the top lands on the
+		// last option, not wrapped back to 0.
+		r.turn(static_cast<int32_t>(NUM_SYNC_VALUES) + 5, 160);
+		r.shell.tick(170);
+		expect(menu::bindings::read(sync_leaf, ctx)).to_equal(NUM_SYNC_VALUES - 1);
+	});
+
 	it("the horizontal page edits the focused column through the gold knobs", _ {
 		select_language();
 		deluge::notify::dirty().drain();
@@ -1092,6 +1145,44 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 			expect(depth_of()).to_equal(0);
 			expect(cursor_of(0)).to_equal(0);
 			expect_golden(self, "../ui/menu/menu_settings_root_64.pbm", r64.fake.pbm(0));
+		}
+	});
+
+	it("draws a SyncLevel leaf's note-length string centred, on both shipped panel geometries", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		g_sync = 7; // a real note length, not the zero/OFF arm -- the text this task exists to draw
+		{
+			Rig r;
+			(void)r.open(settings_root);
+			r.shell.tick(0);
+			for (int i = 0; i < 7; i++) {
+				r.turn(1, static_cast<uint32_t>(10 + i * 10));
+				r.shell.tick(static_cast<uint32_t>(15 + i * 10));
+			}
+			r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+			r.shell.tick(110);
+			expect(menu_scene().focused() == &sync_leaf).to_be_true();
+			// `after_render` moves the path only *after* the render that entered it, so the panel
+			// still shows the old (list) screen this same tick -- the entered leaf is only drawn on
+			// the next one (`menu_scene.cpp:880-882`; `open_lpf` above needs the identical extra
+			// tick for the same reason).
+			r.shell.tick(120);
+			expect_golden(self, "../ui/menu/menu_sync_level_48.pbm", r.fake.pbm(0));
+		}
+		{
+			Rig r64{board_64(), profile_64()};
+			(void)r64.open(settings_root);
+			r64.shell.tick(0);
+			for (int i = 0; i < 7; i++) {
+				r64.turn(1, static_cast<uint32_t>(10 + i * 10));
+				r64.shell.tick(static_cast<uint32_t>(15 + i * 10));
+			}
+			r64.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+			r64.shell.tick(110);
+			expect(menu_scene().focused() == &sync_leaf).to_be_true();
+			r64.shell.tick(120);
+			expect_golden(self, "../ui/menu/menu_sync_level_64.pbm", r64.fake.pbm(0));
 		}
 	});
 });

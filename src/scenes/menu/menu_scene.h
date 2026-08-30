@@ -263,6 +263,7 @@ private:
 	void render_leaf_decimal(deluge::ui::oled::OledFrame& f, const Node& node);
 	void render_leaf_enum(deluge::ui::oled::OledFrame& f, const Node& node);
 	void render_leaf_toggle(deluge::ui::oled::OledFrame& f, const Node& node);
+	void render_leaf_sync_level(deluge::ui::oled::OledFrame& f, const Node& node);
 
 	/// @brief Load @p node's value into the edit storage its kind uses.
 	void enter_leaf(const Node& node);

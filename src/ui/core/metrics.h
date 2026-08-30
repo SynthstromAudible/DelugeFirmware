@@ -40,6 +40,12 @@ constexpr int32_t kTitleSeparatorY = 12; // (+ visible_top)
 constexpr int32_t kPopupMargin = 12;     // legacy doubleMargin
 constexpr int32_t kPopupMaxCharsPerLine = 19;
 constexpr int32_t kValueY = 18; // huge-font value baseline (+ visible_top)
+/// `SyncLevel::drawPixelsForOled`'s baseline (`gui/menu_item/sync_level.cpp:37`): 2px below
+/// `kValueY`, and in the smaller "Big" font (`MetricBold13`, `kTextBigSpacingX`/`kTextBigSizeY`),
+/// not the huge one `int_value`/`decimal_value` draw with -- legacy's own choice, presumably
+/// because a note-length string ("128TH-NOTES-TPLTS") is far wider than a handful of digits ever
+/// gets, and the huge font would run it off a 128px panel.
+constexpr int32_t kSyncValueY = 20; // big-font value baseline (+ visible_top)
 constexpr int32_t kHorizontalBoxHeight = 25;
 
 /// @brief Output type/name label baselines (+ visible_top).
