@@ -240,6 +240,49 @@ int32_t to_stored_value(Scaling scaling, int32_t menu_value) {
 	return final_value_standard(menu_value);
 }
 
+/// @brief Is the param manager @p ctx addresses one whose `summaries[0]` is an `UnpatchedParamSet`,
+///        rather than a MIDI clip's `MIDIParamCollection`?
+///
+/// **There is no structural discriminator, so this is a fact about the model, threaded in.**
+/// `ParamManager::setupMIDI` and `setupUnpatched` (`modulation/params/param_manager.cpp:60-82`)
+/// both leave `expressionParamSetOffset == 1` and `summaries[0].paramCollection` non-null; the two
+/// differ only in the *type* of the object placement-new'd into that slot, and `ParamManager`
+/// exposes nothing that tells them apart. `getUnpatchedParamSet()` (`param_manager.h:110-117`) is a
+/// bare `(UnpatchedParamSet*)` cast of that pointer, so asking a MIDI manager for it reinterprets a
+/// `MIDIParamCollection` and reads whatever lands at the `params[]` offset.
+///
+/// So the answer comes from what the menu is *editing*, which `context_for` already resolved:
+///
+///   * no output at all -- the session / arranger arm (`context.cpp`'s `session_or_arranger_root`)
+///     took the song's own param manager, which is `setupUnpatched`'d
+///     (`deluge.cpp`'s `setupBlankSong`); the settings root has no param manager at all and is
+///     caught by the null test in `serves_param` instead;
+///   * `SYNTH` -- `SoundInstrument`, `setupWithPatching`'d (unpatched **and** patched);
+///   * `AUDIO` -- `AudioClip`, `GlobalEffectableForClip::initParams` over `setupUnpatched`;
+///   * `KIT` -- the kit's own clip param manager on the global-FX page, else the **selected drum's
+///     note row**, which is unpatched only when that drum is a `SoundDrum`. `context_for` resolves
+///     `ctx.sound` for exactly that case (`context.cpp`'s `DrumType::SOUND` arm) and leaves both
+///     `sound` and `params` null for a MIDI or gate drum, so `ctx.sound != nullptr` is the signal;
+///   * `MIDI_OUT` / `CV` -- `setupMIDI`'d. **No.**
+///
+/// Note the asymmetry: this returns false unless something positively says otherwise. A context
+/// this function does not recognise reads as "not unpatched", which costs a menu item its value and
+/// never costs the instrument its memory.
+bool holds_unpatched_params(const MenuContext& ctx) {
+	if (ctx.output == nullptr) {
+		return true;
+	}
+	switch (ctx.output->type) {
+	case OutputType::SYNTH:
+	case OutputType::AUDIO:
+		return true;
+	case OutputType::KIT:
+		return ctx.is_kit_global_fx || ctx.sound != nullptr;
+	default:
+		return false;
+	}
+}
+
 /// @brief Does @p params hold the collection a `ParamRef` of @p kind lives in?
 ///
 /// Legacy reaches straight for `soundEditor.currentParamManager->getPatchedParamSet()`
@@ -256,22 +299,33 @@ int32_t to_stored_value(Scaling scaling, int32_t menu_value) {
 /// is a `Sound`), but "supposed to" is not a guarantee a library-level read or write should rest on.
 /// This is the predicate those accessors assert about, tested up front by both `read()` and
 /// `write()`.
-bool serves_param(ParamManager* param_manager, deluge::modulation::params::Kind kind) {
+///
+/// @param unpatched_ok Does this param manager's `summaries[0]` hold an `UnpatchedParamSet`?
+///                     `holds_unpatched_params(ctx)` above for a context's own manager, or `true`
+///                     for a `SoundDrum`'s note row (which the caller has already filtered to
+///                     `DrumType::SOUND`). **There is no way to derive it here** -- see that
+///                     function -- so it is an argument rather than another `param_manager` test,
+///                     and a caller that cannot answer must pass `false`.
+bool serves_param(ParamManager* param_manager, deluge::modulation::params::Kind kind, bool unpatched_ok) {
 	if (param_manager == nullptr || !param_manager->containsAnyParamCollectionsIncludingExpression()) {
 		return false;
 	}
 	switch (kind) {
 	case params::Kind::PATCHED:
 		// `param_manager.h:128-135`: the patched set is summaries[1], present only after
-		// `setupWithPatching()` (`param_manager.cpp:104-108`).
+		// `setupWithPatching()` (`param_manager.cpp:104-108`). This one IS structural: `setupMIDI`
+		// moves the expression params into summaries[1] but a MIDI manager is never
+		// `setupWithPatching`'d, and `setupUnpatched` zeroes the slot (`param_manager.cpp:79`).
 		return param_manager->summaries[1].paramCollection != nullptr;
 	case params::Kind::UNPATCHED_SOUND:
 	case params::Kind::UNPATCHED_GLOBAL:
-		// `param_manager.h:110-117`: summaries[0], which the guard above already tested. (A MIDI
-		// param manager also has a summaries[0], holding a `MIDIParamCollection`
-		// (`param_manager.cpp:66-69`) -- but an unpatched `ParamRef` cannot reach a MIDI clip in the
-		// first place: `setup()`'s MIDI arm gives `Root::MidiOrCv`, whose items are all `get`/`set`.)
-		return true;
+		// `param_manager.h:110-117`: summaries[0], which the guard above already tested -- but that
+		// slot holds a `MIDIParamCollection` on a MIDI or CV clip (`param_manager.cpp:60-71`) and
+		// nothing about the manager says which. Batch 3's tables made that reachable: the MIDI/CV
+		// root carries the randomizer's and the arpeggiator's unpatched params so their `midi_cv`
+		// twins can be siblings (`nodes/roots.h`'s `arp_midi`, `nodes::randomizer`). Relevance keeps
+		// the interpreter off them, but `read()`/`write()` are public and must not rest on that.
+		return unpatched_ok;
 	default:
 		return false;
 	}
@@ -293,7 +347,7 @@ void notice_unservable_param() {
 /// @brief Which stored param set @p node's `ParamRef` lives in, or null when this context cannot
 ///        serve it (`serves_param` above).
 ParamSet* param_set_for(const Node& node, const MenuContext& ctx) {
-	if (!serves_param(ctx.params, node.bind.param.kind)) {
+	if (!serves_param(ctx.params, node.bind.param.kind, holds_unpatched_params(ctx))) {
 		return nullptr;
 	}
 	return node.bind.param.kind == params::Kind::PATCHED ? static_cast<ParamSet*>(ctx.params->getPatchedParamSet())
@@ -348,7 +402,12 @@ void write_whole_kit(const Node& node, const MenuContext& ctx, int32_t final_val
 		alignas(ModelStackWithAutoParam) char drum_memory[MODEL_STACK_MAX_SIZE]; // `:60`
 		int32_t note_row_index = 0;
 		NoteRow* note_row = instrument_clip->getNoteRowForDrum(sound_drum, &note_row_index);
-		if (note_row == nullptr || !serves_param(&note_row->paramManager, node.bind.param.kind)) {
+		// `unpatched_ok` is unconditionally true here: the loop above has already skipped every
+		// `drum->type != DrumType::SOUND`, and a `SoundDrum`'s note row is `setupWithPatching`'d
+		// (`song.cpp`'s `backUpParamManager` / `NoteRow::setDrum`), so its summaries[0] is an
+		// `UnpatchedParamSet`. MIDI and gate drums in the same kit never reach this line.
+		if (note_row == nullptr
+		    || !serves_param(&note_row->paramManager, node.bind.param.kind, /*unpatched_ok=*/true)) {
 			continue;
 		}
 		ModelStackWithThreeMainThings* drum_stack = setupModelStackWithThreeMainThingsIncludingNoteRow(
@@ -484,7 +543,7 @@ void write(const Node& node, const MenuContext& ctx, int32_t value) {
 	// Before `model_stack_for`: `getPatchedAutoParamFromId` dereferences a summary this param
 	// manager may not have (`model_stack.cpp:245-256`; see `serves_param`), so the same predicate
 	// `read()` uses guards the write path too.
-	if (!serves_param(ctx.params, bind.param.kind)) {
+	if (!serves_param(ctx.params, bind.param.kind, holds_unpatched_params(ctx))) {
 #if ALPHA_OR_BETA_VERSION
 		notice_unservable_param();
 #endif

@@ -60,6 +60,7 @@
 #include "model/settings/runtime_feature_settings.h"
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
+#include "modulation/params/param_manager.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 
@@ -709,6 +710,73 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 		}
 		soundEditor.navigationDepth = 0;
 		expect(ever_true > size_t(700)).to_be_true(); // 843 today -- the loop cannot go vacuous
+	});
+
+	it("refuses an unpatched param on a MIDI clip rather than reinterpreting its collection", _ {
+		// Pre-review fix round. `ParamManager::setupMIDI` and `setupUnpatched`
+		// (`modulation/params/param_manager.cpp:60-82`) both leave `expressionParamSetOffset == 1`
+		// and `summaries[0].paramCollection` non-null, and `getUnpatchedParamSet()` is a bare cast of
+		// that pointer -- so on a MIDI or CV clip an unpatched `ParamRef` read would reinterpret a
+		// `MIDIParamCollection`. Batch 3 made that reachable: the MIDI/CV root carries the
+		// randomizer's and the arpeggiator's unpatched params so their `midi_cv` twins can be
+		// siblings. `bindings::holds_unpatched_params` is what refuses it.
+		//
+		// `read()`'s "cannot serve" answer is a literal 0, which no *served* param can produce: a
+		// stored 0 scales to `kMidMenuValue` (25) through `computeCurrentValueForStandardMenuItem`,
+		// and the pan scaling's own zero point is 0 stored -> 0 shown but those params are patched or
+		// global, neither of which is reachable here. So 0 is the signature of the refusal, and
+		// reverting the hardening turns these reads into whatever lands at the reinterpreted
+		// `params[]` offset.
+		const Root* midi = nullptr;
+		const Root* sound = nullptr;
+		for (const Root& root : roots()) {
+			if (root.ctx.root == menu::MenuContext::Root::MidiOrCv) {
+				midi = &root;
+			}
+			if (root.ctx.root == menu::MenuContext::Root::Sound) {
+				sound = &root;
+			}
+		}
+		expect(midi != nullptr && sound != nullptr).to_be_true();
+		if (midi == nullptr || sound == nullptr) {
+			return;
+		}
+		// The fixture really is a MIDI param manager, and it really does look servable structurally.
+		expect(midi->ctx.params != nullptr).to_be_true();
+		expect(midi->ctx.params->containsAnyParamCollectionsIncludingExpression()).to_be_true();
+
+		std::set<const Node*> refused;
+		for (const Pair& p : tree().pairs) {
+			if (p.root != midi || !p.node->bind.param.valid() || p.node->bind.set != nullptr) {
+				continue;
+			}
+			if (p.node->bind.param.kind == deluge::modulation::params::Kind::PATCHED) {
+				continue; // structurally refused already -- summaries[1] is genuinely absent
+			}
+			install(midi->ctx, midi->song);
+			expect(menu::bindings::read(*p.node, midi->ctx)).to_equal(0);
+			menu::bindings::write(*p.node, midi->ctx, 42);
+			expect(menu::bindings::read(*p.node, midi->ctx)).to_equal(0);
+			refused.insert(p.node);
+		}
+		// Every unpatched param node the MIDI/CV root reaches -- fourteen randomizer and arpeggiator
+		// leaves. A drop to zero would make the example vacuous.
+		expect(refused.size() > size_t(10)).to_be_true(); // 14 today
+
+		// The positive control: the very same nodes DO read and write on a context whose
+		// `summaries[0]` really is an `UnpatchedParamSet`, so the refusal above is about the MIDI
+		// manager and not about the nodes.
+		size_t served = 0;
+		install(sound->ctx, sound->song);
+		for (const Pair& p : tree().pairs) {
+			if (p.root != sound || !refused.contains(p.node)) {
+				continue;
+			}
+			menu::bindings::write(*p.node, sound->ctx, 42);
+			expect(menu::bindings::read(*p.node, sound->ctx)).to_equal(42);
+			served++;
+		}
+		expect(served > size_t(10)).to_be_true(); // the same 14
 	});
 
 	it("has a registered name for every predicate the tables use", _ {
