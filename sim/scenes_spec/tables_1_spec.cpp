@@ -293,6 +293,53 @@ bool legacy_write(::MenuItem* item, int32_t v) {
 }
 
 /// @brief Three values spanning @p r: the two endpoints and the middle.
+/// @brief A sentinel value inside @p r that is not @p v, or nothing when the range is a point.
+///
+/// Fix round 1, I2: the write comparison needs a starting state the value under test is *not*
+/// already at, or a port hook that stores nothing looks identical to one that stores correctly.
+std::optional<int32_t> sentinel_for(const menu::IntRange& r, int32_t v) {
+	if (r.min == r.max) {
+		return std::nullopt;
+	}
+	return v == r.min ? r.max : r.min;
+}
+
+/// @brief What the two write paths leave behind, each driven from the same starting state.
+struct WriteProbe {
+	bool ran = false;
+	int32_t got_port = 0;
+	int32_t want_port = 0;
+	std::optional<int32_t> got_legacy{};
+	std::optional<int32_t> want_legacy{};
+};
+
+/// @brief Drive @p node's `set` hook and @p item's `writeCurrentValue()` **independently**, each
+///        from @p sentinel, and report what each left behind.
+///
+/// Fix round 1, I2. The original shape ran `legacy_write(v)` first and `bindings::write(v)` second,
+/// then asserted the second changed nothing -- which a port hook that stores *nothing at all* also
+/// satisfies, because legacy had already moved the model to `v`. Here each path starts from a state
+/// that is not `v`, so a no-op port hook leaves `got_*` at the sentinel while `want_*` is at `v`.
+///
+/// @return `ran == false` for an item that holds no value at all (a submenu, or a bespoke one).
+WriteProbe probe_write(const Node& node, ::MenuItem* item, const MenuContext& ctx, int32_t v, int32_t sentinel) {
+	WriteProbe out;
+	if (!legacy_write(item, sentinel)) {
+		return out;
+	}
+	menu::bindings::write(node, ctx, v);
+	out.got_port = menu::bindings::read(node, ctx);
+	out.got_legacy = legacy_value(item);
+
+	if (!legacy_write(item, sentinel) || !legacy_write(item, v)) {
+		return out;
+	}
+	out.want_port = menu::bindings::read(node, ctx);
+	out.want_legacy = legacy_value(item);
+	out.ran = true;
+	return out;
+}
+
 std::array<int32_t, 3> probe_values(const menu::IntRange& r) {
 	return {r.min, static_cast<int32_t>((static_cast<int64_t>(r.min) + r.max) / 2), r.max};
 }
@@ -595,11 +642,12 @@ describe tables_1_writes("scenes::menu batch-1 tables: writes", $ {
 	it("leaves the model where the legacy item leaves it, for every set hook", _ {
 		// Task 6 had the same gap task 7's review found in batch 2 (review round 1, I5): the spec
 		// compared reads, names, params, enums, learn targets and relevance, but never drove a
-		// single `set` hook. Every batch-1 hook is driven here, the same way `tables_2_spec` drives
-		// batch 2's: for three values spanning the node's range, legacy's own `writeCurrentValue()`
-		// runs first and the resulting state is observed through both readers, then the port's
-		// `bindings::write` runs and the same two observations are taken. Each write is "store
-		// f(v)", so running them back to back from the same value is a fair comparison.
+		// single `set` hook. Every batch-1 hook is driven here, the same way `tables_2_spec` and
+		// `tables_3_spec` drive batches 2 and 3: for three values spanning the node's range, each
+		// write path is run **from its own copy of a common starting state** (`probe_write`) and the
+		// two results are compared through both readers. Fix round 1, I2: the original shape ran
+		// legacy first and the port second and asserted the port changed nothing, which a port hook
+		// that stores nothing also satisfies.
 		//
 		// `ParamRef` nodes are not here, for the reason `tables_2_spec` spells out: with no root UI
 		// open, legacy's `UnpatchedParam::writeCurrentValue` resolves the *song's* param collection
@@ -611,16 +659,18 @@ describe tables_1_writes("scenes::menu batch-1 tables: writes", $ {
 			if (p.node->bind.set == nullptr) {
 				continue;
 			}
-			for (int32_t v : probe_values(menu::bindings::range(*p.node, f.ctx))) {
-				if (!legacy_write(p.item, v)) {
-					break;
+			const menu::IntRange r = menu::bindings::range(*p.node, f.ctx);
+			for (int32_t v : probe_values(r)) {
+				const std::optional<int32_t> sentinel = sentinel_for(r, v);
+				if (!sentinel.has_value()) {
+					continue; // a one-value range has no state to start from that is not `v`
 				}
-				const int32_t want_port_view = menu::bindings::read(*p.node, f.ctx);
-				const std::optional<int32_t> want_legacy_view = legacy_value(p.item);
-
-				menu::bindings::write(*p.node, f.ctx, v);
-				expect(menu::bindings::read(*p.node, f.ctx) == want_port_view).to_be_true();
-				expect(legacy_value(p.item) == want_legacy_view).to_be_true();
+				const WriteProbe probe = probe_write(*p.node, p.item, f.ctx, v, *sentinel);
+				if (!probe.ran) {
+					break; // holds no value at all
+				}
+				expect(probe.got_port == probe.want_port).to_be_true();
+				expect(probe.got_legacy == probe.want_legacy).to_be_true();
 				exercised++;
 			}
 		}

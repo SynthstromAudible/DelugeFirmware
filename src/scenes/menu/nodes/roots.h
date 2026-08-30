@@ -549,10 +549,4 @@ inline constexpr Node root_kit_global_fx = submenu(sid(String::STRING_FOR_KIT_GL
 
 // ---------------------------------------------------------------------------------------------
 
-/// @brief Every root this file declares, in `MenuContext::Root` order (`root_cv` last -- it is the
-///        second spelling of `MidiOrCv`, not a root of its own).
-///
-/// Defined in `roots.cpp`, like every other subtree's exported span.
-extern const std::span<const Node* const> kBatch3OtherRoots;
-
 } // namespace deluge::scenes::menu::nodes

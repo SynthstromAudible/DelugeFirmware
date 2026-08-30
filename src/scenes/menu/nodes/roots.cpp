@@ -363,15 +363,8 @@ DELUGE_STEM_TOGGLE(mixdown, exportMixdown)
 
 // ---------------------------------------------------------------------------------------------
 
-namespace {
-/// The eight roots this file owns, plus `root_cv` -- the MIDI/CV root's second title spelling,
-/// which no `MenuContext::Root` enumerator names but which still needs a node id and validation.
-constexpr const Node* kRoots[] = {
-    &root_drum, &root_midi_or_cv,  &root_midi_drum,     &root_gate_drum, &root_audio_clip,
-    &root_song, &root_performance, &root_kit_global_fx, &root_cv,
-};
-} // namespace
-
-const std::span<const Node* const> kBatch3OtherRoots{kRoots};
+// (Fix round 1, minor 7: `kBatch3OtherRoots` was exported here and referenced by nothing -- a second
+// hand-maintained root list that could drift from `nodes.h`'s `kAllRoots`, which is the one list
+// `MenuScene::roots()`, `validate_tree` and Task 10's dump all take. Deleted.)
 
 } // namespace deluge::scenes::menu::nodes

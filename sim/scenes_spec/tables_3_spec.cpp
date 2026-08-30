@@ -73,6 +73,7 @@
 
 #include <array>
 #include <cstdint>
+#include <optional>
 #include <set>
 #include <span>
 #include <string>
@@ -258,6 +259,15 @@ bool walk(const Node& node, ::MenuItem& item, const Root& root, std::vector<Pair
           int32_t depth = 0) {
 	out.push_back(Pair{&node, &item, &root, depth});
 	if (node.kind != menu::Kind::Submenu) {
+		// Fix round 1, minor 4: returning here without looking at the legacy side would let a
+		// `Kind::Custom` placeholder stand in for a legacy `Submenu` and silently drop that whole
+		// legacy subtree from every comparison below. No node in these tables does that, and this is
+		// what keeps it that way.
+		if (dynamic_cast<legacy::Submenu*>(&item) != nullptr) {
+			where = std::string{root.name} + ": non-submenu node stands in for legacy submenu "
+			        + std::string{item.getName()};
+			return false;
+		}
 		return true;
 	}
 	auto* submenu = dynamic_cast<legacy::Submenu*>(&item);
@@ -411,8 +421,16 @@ bool legacy_relevance_needs_sound(const Pair& p) {
 	return p.root->ctx.sound == nullptr && (p.node == &nodes::sample0_recorder || p.node == &nodes::sample1_recorder);
 }
 
-/// @brief Legacy writes this spec cannot drive, and why. Every one reaches a UI global that only a
-///        booted app has; the port side is still covered by the read comparison.
+/// @brief Legacy writes this spec cannot drive, and why. Every one reaches a `gui/` or `hid/` global
+///        that only a booted app has; the port side is still covered by the read comparison.
+///
+/// Fix round 1, I3: `default_velocity` and `trigger_in_ppqn` were on this list and should not have
+/// been. `defaults::Velocity::writeCurrentValue` (`defaults/velocity.h:13-16`) is `FlashStorage`
+/// plus `currentSong->setDefaultVelocityForAllInstruments` -- pure model, over the very song
+/// `install()` points `currentSong` at, and the one place the port's `ctx.song` and legacy's
+/// `currentSong` can be *seen* to agree. `trigger::in::PPQN`'s resync is guarded by
+/// `isExternalClockActive() && usingAnalogClockInput` (`trigger/in/ppqn.h:24-26`), both false in
+/// this fixture. Both are driven now.
 bool legacy_write_needs_ui(const Node& node) {
 	return &node == &nodes::synth_mode                   // `view.setKnobIndicatorLevels()` (`synth_mode.h:57`)
 	       || &node == &nodes::arp_mode                  // `allNotesOff` over `soundEditor.getCurrentModelStack`
@@ -421,15 +439,13 @@ bool legacy_write_needs_ui(const Node& node) {
 	       || &node == &nodes::audio_clip_reverse        // `uiNeedsRendering(&audioClipView)` (`reverse.h:52`)
 	       || &node == &nodes::midi_clock_out            // `playbackHandler.setMidiOutClockMode` sends real MIDI
 	       || &node == &nodes::midi_clock_in             // ... and `setMidiInClockEnabled` re-syncs playback
-	       || &node == &nodes::trigger_in_ppqn           // `resyncInternalTicksToInputTicks` (`trigger/in/ppqn.h:25`)
 	       || &node == &nodes::trigger_out_ppqn          // `resyncAnalogOutTicksToInternalTicks` (`out/ppqn.h:24`)
 	       || &node == &nodes::default_pad_brightness    // `PadLEDs::setBrightnessLevel` (`pad_brightness.h:26`)
 	       || &node == &nodes::default_menu_highlighting // `Canvas::menuHighlightingInverts`
 	       || &node == &nodes::screensaver_mode          // `Screensaver::settingsChanged()`
 	       || &node == &nodes::screensaver_timeout       // ... and again
 	       || &node == &nodes::feature_sticky_shift      // `Buttons::clearShiftSticky()`
-	       || &node == &nodes::feature_rounded_corners   // `Canvas::roundedCornersEnabled`
-	       || &node == &nodes::default_velocity;         // `Song::setDefaultVelocityForAllInstruments`
+	       || &node == &nodes::feature_rounded_corners;  // `Canvas::roundedCornersEnabled`
 }
 
 /// @brief Is @p p's node on screen in its root's own context?
@@ -444,6 +460,53 @@ bool legacy_write_needs_ui(const Node& node) {
 /// them is `isRelevant() == false` there.
 bool relevant_here(const Pair& p) {
 	return p.node->relevant == nullptr || p.node->relevant(p.root->ctx);
+}
+
+/// @brief A sentinel value inside @p r that is not @p v, or nothing when the range is a point.
+///
+/// Fix round 1, I2: the write comparison needs a starting state the value under test is *not*
+/// already at, or a port hook that stores nothing looks identical to one that stores correctly.
+std::optional<int32_t> sentinel_for(const menu::IntRange& r, int32_t v) {
+	if (r.min == r.max) {
+		return std::nullopt;
+	}
+	return v == r.min ? r.max : r.min;
+}
+
+/// @brief What the two write paths leave behind, each driven from the same starting state.
+struct WriteProbe {
+	bool ran = false;
+	int32_t got_port = 0;
+	int32_t want_port = 0;
+	std::optional<int32_t> got_legacy{};
+	std::optional<int32_t> want_legacy{};
+};
+
+/// @brief Drive @p node's `set` hook and @p item's `writeCurrentValue()` **independently**, each
+///        from @p sentinel, and report what each left behind.
+///
+/// Fix round 1, I2. The original shape ran `legacy_write(v)` first and `bindings::write(v)` second,
+/// then asserted the second changed nothing -- which a port hook that stores *nothing at all* also
+/// satisfies, because legacy had already moved the model to `v`. Here each path starts from a state
+/// that is not `v`, so a no-op port hook leaves `got_*` at the sentinel while `want_*` is at `v`.
+///
+/// @return `ran == false` for an item that holds no value at all (a submenu, or a bespoke one).
+WriteProbe probe_write(const Node& node, ::MenuItem* item, const MenuContext& ctx, int32_t v, int32_t sentinel) {
+	WriteProbe out;
+	if (!legacy_write(item, sentinel)) {
+		return out;
+	}
+	menu::bindings::write(node, ctx, v);
+	out.got_port = menu::bindings::read(node, ctx);
+	out.got_legacy = legacy_value(item);
+
+	if (!legacy_write(item, sentinel) || !legacy_write(item, v)) {
+		return out;
+	}
+	out.want_port = menu::bindings::read(node, ctx);
+	out.want_legacy = legacy_value(item);
+	out.ran = true;
+	return out;
 }
 
 std::array<int32_t, 3> probe_values(const menu::IntRange& r) {
@@ -745,13 +808,27 @@ describe tables_3_values("scenes::menu batch-3 tables: values", $ {
 		expect(midi->ctx.params != nullptr).to_be_true();
 		expect(midi->ctx.params->containsAnyParamCollectionsIncludingExpression()).to_be_true();
 
+		// Fix round 1, I1. `summaries[1]` being non-null is NOT proof of a `PatchedParamSet`:
+		// `setupMIDI` leaves `expressionParamSetOffset == 1` (`param_manager.cpp:66-69`), so
+		// `ensureExpressionParamSetExists` puts an `ExpressionParamSet` there (`:289-298`) -- and
+		// `bend_range::Main::writeCurrentValue` calls `getOrCreateExpressionParamSet()`
+		// (`gui/menu_item/bend_range/main.h:30`) from `bendMenu`, which is a child of this very root.
+		// So the scenario is reproduced here rather than assumed away: create the expression set the
+		// way a user editing bend range would, then assert a PATCHED `ParamRef` is *still* refused.
+		expect(midi->ctx.params->getOrCreateExpressionParamSet() != nullptr).to_be_true();
+		expect(midi->ctx.params->summaries[1].paramCollection != nullptr).to_be_true();
+
+		install(midi->ctx, midi->song);
+		static constexpr Node kPatchedProbe =
+		    menu::param(1, {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_FREQ});
+		expect(menu::bindings::read(kPatchedProbe, midi->ctx)).to_equal(0);
+		menu::bindings::write(kPatchedProbe, midi->ctx, 42);
+		expect(menu::bindings::read(kPatchedProbe, midi->ctx)).to_equal(0);
+
 		std::set<const Node*> refused;
 		for (const Pair& p : tree().pairs) {
 			if (p.root != midi || !p.node->bind.param.valid() || p.node->bind.set != nullptr) {
 				continue;
-			}
-			if (p.node->bind.param.kind == deluge::modulation::params::Kind::PATCHED) {
-				continue; // structurally refused already -- summaries[1] is genuinely absent
 			}
 			install(midi->ctx, midi->song);
 			expect(menu::bindings::read(*p.node, midi->ctx)).to_equal(0);
@@ -801,6 +878,11 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 			}
 		}
 		without_settings.push_back(&nodes::root_cv);
+		// Fix round 1, minor 5: `roots()` has no CV entry (`Root::MidiOrCv` covers both spellings),
+		// so without this the CV context never reached the `EmptySubmenu` and `DuplicateName`
+		// quantifiers -- and `root_cv`'s children are exactly the ones whose relevance differs
+		// between a MIDI and a CV output (`cv2_source`, `is_midi_out`).
+		contexts.push_back(cv_fixture().ctx);
 		install(roots().front().ctx, roots().front().song);
 		const auto issues = menu::validate_tree(without_settings, contexts, nodes::kRangeDependentNodes,
 		                                        nodes::kHalfPrecisionNodes,
@@ -851,6 +933,21 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 		const auto issues = menu::validate_tree(without_follow_channel, contexts, {}, {},
 		                                        menu::ValidateOptions{.allow_placeholder_custom = true});
 		expect(issues.size()).to_equal(size_t(0));
+
+		// Fix round 1, minor 6: passing those three nodes' *children* as roots leaves the three
+		// parents themselves unvalidated -- their own titles, their own emptiness, and sibling-level
+		// `DuplicateName` at their level. `validate_tree` cannot be pointed at them without dragging
+		// the follow-channel page back in, so the same three rules are asserted directly here.
+		for (const Node* parent : {&nodes::root_settings, &nodes::midi_settings, &nodes::midi_follow}) {
+			expect(parent->title != uint16_t(0)).to_be_true();     // MissingTitle
+			expect(parent->children.empty()).to_be_false();        // EmptySubmenu
+			expect(parent->kind == menu::Kind::Submenu).to_be_true();
+			for (size_t a = 0; a < parent->children.size(); a++) { // DuplicateName
+				for (size_t b = a + 1; b < parent->children.size(); b++) {
+					expect(parent->children[a]->name == parent->children[b]->name).to_be_false();
+				}
+			}
+		}
 	});
 
 	it("reports the follow-channel page's sixteen identically named siblings", _ {
@@ -888,7 +985,11 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 		// `Kind` comment records the outcome of). A kind below three nodes is speculation, and the
 		// four that were -- `Bipolar`, `Range`, `MultiRange`, `Colour` -- plus `Action`, which no
 		// table declares either, were removed from the enum rather than left in.
-		std::array<size_t, 8> counts{};
+		// Sized from the enum's own last enumerator and swept in full (fix round 1, minor 8): a
+		// hand-written list of kinds would let a future enumerator escape the rule silently, and an
+		// oversized array would report a phantom zero-count kind.
+		constexpr size_t kNumKinds = static_cast<size_t>(menu::Kind::Custom) + 1;
+		std::array<size_t, kNumKinds> counts{};
 		std::set<const Node*> seen;
 		for (const Pair& p : tree().pairs) {
 			if (!seen.insert(p.node).second) {
@@ -896,11 +997,8 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 			}
 			counts[static_cast<size_t>(p.node->kind)]++;
 		}
-		const menu::Kind kinds[] = {menu::Kind::Submenu, menu::Kind::Toggle,    menu::Kind::Enum,
-		                            menu::Kind::Int,     menu::Kind::Decimal,   menu::Kind::SyncLevel,
-		                            menu::Kind::Custom};
-		for (menu::Kind k : kinds) {
-			expect(counts[static_cast<size_t>(k)] >= size_t(3)).to_be_true();
+		for (size_t i = 0; i < counts.size(); i++) {
+			expect(counts[i] >= size_t(3)).to_be_true();
 		}
 	});
 
@@ -940,8 +1038,13 @@ describe tables_3_validation("scenes::menu batch-3 tables: validation", $ {
 describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 	it("leaves the model where the legacy item leaves it, for every set hook", _ {
 		// The task-7 ruling, applied to batch 3: every `set` hook is driven for three values
-		// spanning its range, legacy's own `writeCurrentValue()` first and the port's
-		// `bindings::write` second, with both readers observed after each.
+		// spanning its range, each write path run **from its own copy of a common starting state**
+		// (`probe_write`), with both readers observed after each.
+		//
+		// Fix round 1, I2: this used to run legacy first and the port second and assert the port
+		// changed nothing -- which a port hook that stores nothing also satisfies, because legacy had
+		// already moved the model to `v`. Starting each path from a sentinel that is not `v` is what
+		// makes a no-op hook visible.
 		size_t exercised = 0;
 		std::set<const Node*> covered;
 		for (const Pair& p : tree().pairs) {
@@ -949,24 +1052,23 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 				continue;
 			}
 			install(p.root->ctx, p.root->song);
-			for (int32_t v : probe_values(menu::bindings::range(*p.node, p.root->ctx))) {
-				if (!legacy_write(p.item, v)) {
-					break;
+			const menu::IntRange r = menu::bindings::range(*p.node, p.root->ctx);
+			for (int32_t v : probe_values(r)) {
+				const std::optional<int32_t> sentinel = sentinel_for(r, v);
+				if (!sentinel.has_value()) {
+					continue; // a one-value range has no state to start from that is not `v`
 				}
-				const int32_t want_port_view = menu::bindings::read(*p.node, p.root->ctx);
-				const std::optional<int32_t> want_legacy_view = legacy_value(p.item);
-
-				menu::bindings::write(*p.node, p.root->ctx, v);
-				const int32_t got_port_view = menu::bindings::read(*p.node, p.root->ctx);
-				const std::optional<int32_t> got_legacy_view = legacy_value(p.item);
-
-				expect(got_port_view == want_port_view).to_be_true();
-				expect(got_legacy_view == want_legacy_view).to_be_true();
+				const WriteProbe probe = probe_write(*p.node, p.item, p.root->ctx, v, *sentinel);
+				if (!probe.ran) {
+					break; // holds no value at all
+				}
+				expect(probe.got_port == probe.want_port).to_be_true();
+				expect(probe.got_legacy == probe.want_legacy).to_be_true();
 				exercised++;
 				covered.insert(p.node);
 			}
 		}
-		// 182 distinct `set`-hook nodes, 1146 (node, root, value) probes across the ten roots -- a
+		// 184 distinct `set`-hook nodes, 1152 (node, root, value) probes across the ten roots -- a
 		// node reachable from three roots is driven three times, on three different fixtures. A drop
 		// in either number means the loop stopped reaching hooks it used to.
 		expect(exercised > size_t(1000)).to_be_true();
