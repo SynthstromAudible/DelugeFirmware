@@ -43,15 +43,17 @@ void text_edit(OledFrame& f, Rect rect, std::string_view s, TextEditState& state
 	f.glyphs(s.substr(static_cast<size_t>(scroll)), rect.x, rect.y, kTextSpacingX, kTextSpacingY, 0,
 	         rect.x + max_num_chars * kTextSpacingX);
 
-	if (!state.cursor_lit) {
-		return;
-	}
-
 	if (at_very_end) {
 		// qwerty_ui.cpp:149-154: the blinking-underline case (there gated on `atVeryEnd` and
 		// `getCurrentUI() == this`; here the caller's `state.cursor_lit` stands in for both).
 		// `textBottomY - 4 .. textBottomY - 2` is a 3-row band near the bottom of the 9-row text
-		// cell, one kTextSpacingX-wide column at the cursor's screen position.
+		// cell, one kTextSpacingX-wide column at the cursor's screen position. `cursor_lit` gates
+		// only this bar -- legacy's own `setupBlink` call is likewise reached only from this arm,
+		// never from the mid-string one below, which is unconditional in qwerty_ui.cpp and never
+		// flashes off.
+		if (!state.cursor_lit) {
+			return;
+		}
 		const int32_t cursor_x = rect.x + (cursor - scroll) * kTextSpacingX;
 		const int32_t text_bottom_y = rect.y + kTextSpacingY;
 		f.invert(Rect{cursor_x, text_bottom_y - 4, kTextSpacingX, 3});

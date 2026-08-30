@@ -180,6 +180,26 @@ describe text_edit_w("ui::oled::text_edit", $ {
 		expect(r.pbm()).to_equal(r.reference_pbm());
 	});
 
+	it("keeps drawing the mid-string highlight when cursor_lit is false -- it is not the "
+	   "blinking presentation", _ {
+		// cursor_lit gates only the at-the-end bar (qwerty_ui.cpp's setupBlink is reached only
+		// from that arm). The mid-string invertLeftEdgeForMenuHighlighting call is unconditional
+		// in legacy and must still appear here even while cursor_lit is false -- exactly the case
+		// a caller blinking the end-of-string bar elsewhere in the same scene will produce the
+		// moment its cursor is mid-string instead. Same rect/string/cursor as the invert_highlight
+		// == true case above (rect = {20,10,60,20}, "ABC", cursor == 2), but with the default
+		// (invert_highlight == true) style, so this exercises invert_rounded, not the rule.
+		uitest::Rig48 r;
+		TextEditState st{.cursor = 2, .scroll = 0, .cursor_lit = false};
+		text_edit(r.frame, Rect{20, 10, 60, 20}, "ABC", st);
+		expect(st.scroll).to_equal(int16_t(0));
+
+		r.reference.draw_string("ABC", 20, r.frame.origin.y + 10, 6, 9, 0, 20 + 10 * 6);
+		r.reference.invert_area_rounded(31, 49, r.frame.origin.y + 10, r.frame.origin.y + 18, BorderRadius::Small,
+		                                 true);
+		expect(r.pbm()).to_equal(r.reference_pbm());
+	});
+
 	it("keeps state.scroll sticky across frames instead of recentring it every call", _ {
 		// legacy's scrollPosHorizontal is a static the routine only ever nudges, never resets --
 		// so a scroll further right than strictly required survives an unrelated frame that does

@@ -9,9 +9,14 @@ namespace deluge::ui::oled {
 /// @brief Cursor and scroll position for an edited string; the string itself belongs to the
 ///        caller (a `std::string` a scene owns, not this widget).
 struct TextEditState {
-	int16_t cursor = 0;     ///< Insertion point, 0..s.size().
-	int16_t scroll = 0;     ///< Index of the first character `text_edit` draws.
-	bool cursor_lit = true; ///< Blink phase; the caller's clock decides when this flips.
+	int16_t cursor = 0; ///< Insertion point, 0..s.size().
+	int16_t scroll = 0; ///< Index of the first character `text_edit` draws.
+	/// Blink phase for the end-of-string bar only; the caller's clock decides when this flips.
+	/// Governs *only* the at-the-end presentation below -- the mid-string highlight is legacy's
+	/// own unconditional `invertLeftEdgeForMenuHighlighting` call and never flashes off, so this
+	/// field does nothing while the cursor sits mid-string, despite its name suggesting it gates
+	/// the cursor generally.
+	bool cursor_lit = true;
 };
 
 /// @brief Draw @p s in @p rect with a cursor at `state.cursor`, scrolling horizontally so the
@@ -32,12 +37,15 @@ struct TextEditState {
 ///     (`cursor == s.size()`):
 ///     - **at the end**: the blinking-underline case (`qwerty_ui.cpp:149-154`) -- a 3-row band,
 ///       `kTextSpacingY - 4 .. kTextSpacingY - 2` from the text's top, one `kTextSpacingX`-wide
-///       column at the cursor;
+///       column at the cursor. `state.cursor_lit` gates only this bar, exactly as legacy's
+///       `setupBlink` is only ever reached from this arm;
 ///     - **mid-string**: `invertLeftEdgeForMenuHighlighting` from the cursor to the rect's right
 ///       edge (`qwerty_ui.cpp:156-170`) -- legacy's *only* mid-string cursor presentation, not a
 ///       predictive-text overlay (`enteredTextEditPos` is plainly the cursor throughout this
-///       routine). Ported following `f.style.invert_highlight`, exactly the way `list` and
-///       `columns` already port the same legacy primitive (`invertLeftEdgeForMenuHighlighting`,
+///       routine). Unconditional, like its legacy call -- `state.cursor_lit` is not consulted
+///       here, so this presentation never flashes off. Ported following `f.style.invert_highlight`,
+///       exactly the way `list` and `columns` already port the same legacy primitive
+///       (`invertLeftEdgeForMenuHighlighting`,
 ///       named in `list.cpp`'s D1 comment): `true` inverts the rounded box
 ///       (`invertAreaRounded`, legacy's `FULL_INVERSION`/`PARTIAL_INVERSION`), `false` draws a
 ///       single-column rule (`draw_vertical_line`, legacy's `NO_INVERSION`). The highlight's left
