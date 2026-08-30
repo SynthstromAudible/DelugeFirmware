@@ -520,6 +520,34 @@ row:*
 | `osc::Type` (`osc/type.h:120-125`) | `dxMenu` | osc type is `OscType::DX7` | `nodes::osc0_type`, `nodes::osc1_type` | **carried**: `dxMenu` (`menus.cpp:1715-1720`) is itself chain-only, and its three children are E2's DX browser items — declaring it would mean three more `kPending` placeholders with no implementation behind them |
 | `cv::Selection` (`cv/selection.h:41-46`) | `cvSubmenu` (also sets `currentSourceIndex` and the page title) | always | `nodes::cv_selection` | chain data ported; see below |
 | `gate::Selection` (`gate/selection.h:43-54`) | `gateOffTimeMenu` at `NUM_GATE_CHANNELS`, else `gateModeMenu` (after `format()` + `updateOptions()`) | always | `nodes::gate_selection` | chain data ported; see below |
+| `PatchedParam` (`patched_param.cpp:32-38`) | `source_selection::regularMenu` (also sets `soundEditor.patchingParamSelected` to the param) | shift **not** held; the shift arm delegates to `Param::selectButtonPress` (= `Automation`'s automation delete) | **53 nodes** — see below | **carried** |
+
+**The largest chaining override in the tree is `PatchedParam`'s, and E2 task 3's review is where the
+sweep first got it right.** The row above was missing from the original sweep, and the group-(c)
+entry below described `PatchedParam` as merely *inheriting* `Automation::selectButtonPress` — which
+is half the function. `PatchedParam::selectButtonPress` (`gui/menu_item/patched_param.cpp:32-38`)
+delegates to the automation-delete arm **only when shift is held**; otherwise it records the param
+in `soundEditor.patchingParamSelected` and returns `&source_selection::regularMenu`, i.e. a select
+press on VOLUME opens the mod-source picker. Three `final`/`override` delegators funnel into it:
+`MasterTranspose` (`master_transpose.h:67`), `menu_item::Transpose` (`transpose.h:33`) and
+`patched_param::Integer` (`patched_param/integer.h:42`).
+
+By node count it dwarfs every other row. Measured against the live legacy objects over all ten
+roots (`dynamic_cast<PatchedParam*>` on each `(node, item)` pair of `tables_3_spec`'s lockstep walk,
+deduplicated by node): **53** distinct port nodes, of which 4 are the `menu_item::Transpose`
+derivatives that carry a learn-only `ParamRef`. That set is exactly the set of nodes with
+`bind.param.kind == params::Kind::PATCHED` — the two counts agreed with zero mismatches, so the
+port-side test for "does this node chain to the mod-source picker" is a one-line predicate rather
+than a list.
+
+**Deliberately not implemented by E2 task 3** (ruling): its target, `source_selection::regularMenu`,
+is a patch-cable page — a `kPending` `Kind::Custom` node today (`nodes/sound_master.h:16-22` holds
+its sibling), owned by the patch-cable task. Implementing the chain now would mean inventing a page
+whose owner arrives later, which is the one thing the "declare every chain-target page you need"
+ruling exists to avoid doing badly. The chain arrives with that page: one
+`with_select_chain(..., patched_param_chain, kPatchCablePickerChain)` applied to the 53, whose hook
+also needs somewhere to put `patchingParamSelected` (no `MenuContext` field for it today) and a
+`UiContext::shift` read the `SelectChainFn` signature does not currently pass.
 
 `cvSubmenu`, `gateModeMenu` and `gateOffTimeMenu` were the three menus reachable **only** through
 this mechanism and so absent from `settings.h` — E2 task 3 declares all three (with `cvSubmenu`'s
@@ -571,9 +599,26 @@ forwards the press to the focused child instead, and which is not ported;
 `Toggle`/`Selection::selectButtonPress` (`toggle.h:33-45`, `selection.h:54-64`) toggle in place when
 the item is not itself the open menu, which this generation's widgets own rather than the
 interpreter (`ui/oled/values.h:169`); and `Automation::selectButtonPress`
-(`automation/automation.cpp:37`), inherited by every `Param`/`PatchedParam`/`UnpatchedParam` item,
+(`automation/automation.cpp:37`), inherited by every `Param`/`UnpatchedParam` item,
 **deletes the parameter's automation when shift is held** — a second dropped behaviour, listed here
-because the sweep found it, owed to E2 alongside the chaining.
+because the sweep found it, owed to E2 alongside the chaining. (A `PatchedParam` item reaches that
+arm too, but *only* through `PatchedParam::selectButtonPress`'s shift branch — its non-shift branch
+is the group-(a) row above, which this entry originally hid. E2 task 3's review, corrected.)
+
+Not an override, but the sweep's `grep` finds it and it is the one place a `selectButtonPress()`
+result is **discarded**: `HorizontalMenu::handleItemAction`
+(`gui/menu_item/horizontal_menu.cpp:663-666`) calls `menuItem->selectButtonPress()` on a non-submenu
+column that returns false from `allowToBeginSessionFromHorizontalMenu()` — the default
+(`menu_item.h:314`), so nearly every value column — throws the returned `MenuItem*` away, and shows
+a notification instead. **So in legacy a chaining column edits in place on a horizontal page and
+never navigates.** The port matches without needing a rule for it: on a horizontal page the
+*submenu* is the focused node, so `after_render` takes its `Kind::Submenu` arm and never reaches the
+`select_chain` consult, and `MenuScene::render_columns` already answers a value-column press with
+the same notification and no navigation (E1's own transcription of `:657-661`). Two ported chains do
+have a column source (`arp_preset` on `arpBasicMenu`, `unison_count` on `unisonMenu`), so this is
+what makes "select on the UNISON page's NUM column does not open the spread page" correct rather
+than a gap — the chain fires once that column has been entered as a leaf, which is when legacy's
+`SoundEditor` consults `selectButtonPress` for navigation too.
 
 **The `Custom` cap counts nodes, and is not 10** (fix round 2, I4) — spec E §4 says "at most 10
 `Kind::Custom` items across the whole tree", and `validate_tree`'s `TooManyCustom` rule implemented
@@ -602,7 +647,9 @@ root menu is open" with "what view is behind it" — needs an additive `backgrou
 the four `hid/`-side write side effects a menu write can trigger (pad brightness, screensaver
 suppression, canvas flags, sticky shift) that `src/scenes` cannot reach directly;
 **`selectButtonPress()` chaining** — DONE in E2 task 3 (`Node::select_chain` /
-`Node::chain_targets`, and the seven chain-only pages declared with it). What is left of that row:
+`Node::chain_targets`, and the seven chain-only pages declared with it). What is left of that row,
+largest first: **`PatchedParam` → `source_selection::regularMenu` on 53 nodes**
+(`patched_param.cpp:32-38`), which waits on the patch-cable page that is its target;
 `osc0_type`/`osc1_type` → `dxMenu` (`osc/type.h:120-125`), which waits on the DX browser; the two
 write halves of the CV/gate chains; and the two other arms the sweep turned up, `Submenu`'s
 `shouldForwardButtons()` forwarding and `Automation::selectButtonPress`'s shift-held automation

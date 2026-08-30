@@ -592,6 +592,17 @@ std::string chain_name(const Node* n) {
 	return "UNMAPPED:" + text_of(n->name);
 }
 
+/// @brief Does @p node's `chain_targets` span name @p target?
+///
+/// The half of the chain contract `validate_tree` cannot check: `Flag::ChainTargetsMismatch` tests
+/// only that `select_chain` and `chain_targets` are both set or neither is, because the hook is
+/// opaque to a static walk. A hook returning a node absent from its own span produces a page with
+/// no id -- unaddressable by `SceneId::arg`, unvalidated, and missing from the dump -- with nothing
+/// to notice. Every answer a spec actually exercises is checked against the span here.
+bool chain_targets_contain(const Node& node, const Node* target) {
+	return std::find(node.chain_targets.begin(), node.chain_targets.end(), target) != node.chain_targets.end();
+}
+
 /// @brief Is @p target named by some node's static `children` span, anywhere in the whole tree?
 ///
 /// The point of the chain-only pages is that the answer is *no* for four of them: nothing but a
@@ -958,6 +969,11 @@ describe tables_2_chaining("scenes::menu batch-2 tables: selectButtonPress chain
 			const Node* got = c.node->select_chain != nullptr ? c.node->select_chain(f.ctx, menu_scene().state())
 			                                                  : nullptr;
 			expect(chain_name(got)).to_equal(chain_name(want));
+			// Every answer the hook actually gives must be in its own `chain_targets` span --
+			// otherwise the page it names is unnumbered, unaddressable by `SceneId::arg` and absent
+			// from the dump, silently. `validate_tree` can only check both-set-or-neither (the hook
+			// is opaque to a static walk), so the containment half is checked on exercised answers.
+			expect(got == nullptr || chain_targets_contain(*c.node, got)).to_be_true();
 			compared++;
 		}
 		soundEditor.menuItemNavigationRecord[0] = nullptr;

@@ -70,7 +70,12 @@ inline constexpr Node voice_priority = enumeration(sid(deluge::l10n::String::STR
                                                    get_voice_priority, set_voice_priority);
 // `VoiceCount::getMinValue`/`getMaxValue` (`voice/polyphony.h:56-57`), rendered as a plain NUMBER
 // (`:58`). Declared before `polyphony`, which chains to it; `kVoiceChildren` below still fixes the
-// on-screen (and node-id) order.
+// on-screen order.
+//
+// The node-id order happens to be unchanged here too -- but by luck, not by the children span:
+// `assign_node_ids` numbers a chain target while visiting the node that chains to it, so
+// `voice_count` is numbered right after `polyphony` either way, because it is already `polyphony`'s
+// next sibling. `sound_unison.h`'s equivalent pair is not so lucky and says so.
 inline constexpr Node voice_count = int_item(sid(deluge::l10n::String::STRING_FOR_MAX_VOICES), get_voice_count,
                                              set_voice_count, IntRange{0, 16, 1}, Hint::None, relevance::is_polyphonic);
 

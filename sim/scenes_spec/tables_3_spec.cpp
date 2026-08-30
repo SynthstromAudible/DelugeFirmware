@@ -1564,6 +1564,73 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 		expect(reachable_by_children(&nodes::cv_volts)).to_be_true();
 	});
 
+	it("never lets a select_chain hook name a node outside its own chain_targets, anywhere in the tree", _ {
+		// The containment half of the chain contract, whole-tree. `validate_tree`'s
+		// `Flag::ChainTargetsMismatch` can only test both-set-or-neither: a `SelectChainFn` is
+		// opaque to a static walk, so nothing structural can prove `range(select_chain)` is a subset
+		// of `chain_targets`. A hook that escaped its span would name a page with no node id --
+		// unaddressable by `SceneId::arg`, so `on_enter` could never restore it, absent from
+		// `validate_tree`'s walk and from the dump -- and every one of those failures is silent.
+		//
+		// Not provable, but exhaustively *exercised*: every chaining node in `kAllRoots` is asked
+		// under every one of the ten root fixtures' contexts (plus the CV one), which between them
+		// vary kit-row-ness, output type and `source_index` -- the three facts the shipped hooks
+		// actually branch on. Cheap enough to be whole-tree rather than per-example.
+		std::vector<const Node*> stack(nodes::kAllRoots.begin(), nodes::kAllRoots.end());
+		std::set<const Node*> seen;
+		std::vector<MenuContext> contexts;
+		for (const Root& root : roots()) {
+			contexts.push_back(root.ctx);
+		}
+		contexts.push_back(cv_fixture().ctx);
+		// `gate_selection_chain` is the one hook that branches on `source_index`, and no fixture
+		// carries the `NUM_GATE_CHANNELS` sentinel; add both sides of that branch explicitly rather
+		// than leave the interesting value unswept.
+		for (int32_t which = 0; which <= NUM_GATE_CHANNELS; which++) {
+			MenuContext ctx = roots().back().ctx;
+			ctx.source_index = static_cast<int8_t>(which);
+			contexts.push_back(ctx);
+		}
+
+		size_t chaining_nodes = 0;
+		size_t answers = 0;
+		while (!stack.empty()) {
+			const Node* n = stack.back();
+			stack.pop_back();
+			if (n == nullptr || !seen.insert(n).second) {
+				continue;
+			}
+			for (const Node* c : n->children) {
+				stack.push_back(c);
+			}
+			for (const Node* t : n->chain_targets) {
+				stack.push_back(t);
+			}
+			if (n->select_chain == nullptr) {
+				continue;
+			}
+			chaining_nodes++;
+			for (const MenuContext& ctx : contexts) {
+				const Node* got = n->select_chain(ctx, menu_scene().state());
+				if (got == nullptr) {
+					continue; // "ascend" -- always legal, and names no page
+				}
+				answers++;
+				const bool contained =
+				    std::find(n->chain_targets.begin(), n->chain_targets.end(), got) != n->chain_targets.end();
+				// Verdict on the left so a failure reads "expected in / got ESCAPED", and names the
+				// page that escaped rather than just reporting a false boolean.
+				expect(std::string{contained ? "in chain_targets: " : "ESCAPED chain_targets: "} + text_of(got->name))
+				    .to_equal(std::string{"in chain_targets: "} + text_of(got->name));
+				// And the consequence the containment exists to guarantee.
+				expect(menu::node_id(*got) != uint16_t(0)).to_be_true();
+			}
+		}
+		// The seven chaining nodes of the shipped tree; a chain added without a spec fails here.
+		expect(chaining_nodes).to_equal(size_t(7));
+		expect(answers > size_t(0)).to_be_true();
+	});
+
 	it("validates the three chain-only pages along with the settings root", _ {
 		// They are only in the walk because `collect` follows `chain_targets` too; without that the
 		// `Unreachable` rule would fire on every one of them (`assign_node_ids` would have numbered

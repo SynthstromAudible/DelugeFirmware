@@ -54,8 +54,14 @@ inline constexpr Node unison_detune =
     with_title(int_item(sid(deluge::l10n::String::STRING_FOR_UNISON_DETUNE), get_unison_detune, set_unison_detune,
                         IntRange{0, kMaxUnisonDetune, 1}, Hint::None),
                sid(deluge::l10n::String::STRING_FOR_UNISON_DETUNE_MENU_TITLE));
-// Declared before `unison_count`, which chains to it: `with_select_chain` needs its address, and
-// `kUnisonChildren` below is what fixes the on-screen (and node-id) order regardless.
+// Declared before `unison_count`, which chains to it: `with_select_chain` needs its address.
+//
+// `kUnisonChildren` below still fixes the **on-screen** order (count, detune, spread) -- declaration
+// order in this file never mattered for that. It no longer fixes the **node-id** order, though:
+// `assign_node_ids` visits a node's `chain_targets` while visiting the node itself, before the
+// parent moves on to its next child, so `unison_spread` is numbered as `unison_count`'s chain target
+// and lands *ahead* of `unison_detune` (221 vs 222 in the shipped dump). That is a consequence of
+// the walk, not of this reordering, and it is why E2 task 3's id shift is not uniform.
 inline constexpr Node unison_spread =
     with_title(int_item(sid(deluge::l10n::String::STRING_FOR_UNISON_STEREO_SPREAD), get_unison_spread,
                         set_unison_spread, IntRange{0, kMaxUnisonStereoSpread, 1}, Hint::Knob),

@@ -283,14 +283,23 @@ chain-only pages that made "declaring them and implementing chaining are one job
 with it: the four arp ones (`menus.cpp:511-521`) and `cvSubmenu` / `gateModeMenu` /
 `gateOffTimeMenu` (`:1223-1232`).
 
-Still carried from that sweep: `osc0_type` / `osc1_type` → `dxMenu` on a DX7 osc
-(`osc/type.h:120-125`), which waits on `dxMenu` itself — three bespoke DX items (`menus.cpp:1715`)
-that are E2's browser work, not a page this task could declare honestly; the two write halves of the
-CV/gate chains (`MenuContext::source_index` is not writable from a `SelectChainFn`, and both
-selectors are still `kPending` placeholders whose renderer never reports a select press — see
-`nodes/settings.h`'s note); and the two other dropped arms the sweep turned up, `Submenu`'s
-`shouldForwardButtons()` forwarding (`submenu.cpp:187-194`) and `Automation::selectButtonPress`'s
-shift-held automation delete (`automation/automation.cpp:37`), which every param item inherits.
+Still carried from that sweep, largest first: **`PatchedParam::selectButtonPress`
+(`patched_param.cpp:32-38`) → `source_selection::regularMenu` when shift is not held**, which is
+**53** nodes — every node with `bind.param.kind == PATCHED`, reached through three delegators
+(`master_transpose.h:67`, `transpose.h:33`, `patched_param/integer.h:42`). By node count it is the
+biggest chaining override in the codebase and the one a user notices (select on VOLUME opens the
+mod-source picker); it is carried because its target is a patch-cable page whose owner arrives with
+the patch-cable task, and the hook additionally needs somewhere to put
+`soundEditor.patchingParamSelected` and a shift read the `SelectChainFn` signature does not pass.
+Then: `osc0_type` / `osc1_type` → `dxMenu` on a DX7 osc (`osc/type.h:120-125`), which waits on
+`dxMenu` itself — three bespoke DX items (`menus.cpp:1715`) that are E2's browser work, not a page
+this task could declare honestly; the two write halves of the CV/gate chains
+(`MenuContext::source_index` is not writable from a `SelectChainFn`, and both selectors are still
+`kPending` placeholders whose renderer never reports a select press — see `nodes/settings.h`'s
+note); and the two other dropped arms the sweep turned up, `Submenu`'s `shouldForwardButtons()`
+forwarding (`submenu.cpp:187-194`) and `Automation::selectButtonPress`'s shift-held automation
+delete (`automation/automation.cpp:37`), which a `Param`/`UnpatchedParam` item inherits directly and
+a `PatchedParam` one reaches only through the shift branch above.
 Also carried: `Source::getOrCreateFirstRange()`
 on a zero-range sample item; per-node cursor memory across sessions; gold-knob acceleration
 (`calcNextKnobSpeed`); and real implementations behind every `nodes::kPending` placeholder this task
