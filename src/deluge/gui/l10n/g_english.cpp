@@ -426,6 +426,7 @@ PLACE_SDRAM_DATA Language english{
         {STRING_FOR_DIRECTION, "Direction"},
         {STRING_FOR_SHORTCUTS_VERSION, "Shortcut Version"},
         {STRING_FOR_KEYBOARD_FOR_TEXT, "Keyboard for Text"},
+        {STRING_FOR_SHORTCUT_BLINK_INTERVAL, "Shortcut Blink Interval"},
         {STRING_FOR_LOOP_MARGINS, "Loop margins"},
         {STRING_FOR_SAMPLING_MONITORING, "Sampling monitoring"},
         {STRING_FOR_THRESHOLD_RECORDING, "Threshold Recording"},

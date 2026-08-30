@@ -92,6 +92,14 @@ extern GlobalMIDICommand defaultLoopRecordingCommand;
 
 extern bool defaultUseSharps;
 
+/// Interval between pad shortcut blinks in ms. The pad blink used by the sound editor (e.g. when selecting a
+/// filter type) re-flashes the shortcut pad every this many ms. Default is 25% slower than the original 180ms.
+/// Stored in flash bytes 198-199 as a little-endian 16-bit value.
+extern int32_t shortcutBlinkInterval;
+constexpr int32_t kMinShortcutBlinkInterval = 100;
+constexpr int32_t kMaxShortcutBlinkInterval = 1000;
+constexpr int32_t kDefaultShortcutBlinkInterval = 225;
+
 void readSettings();
 void writeSettings();
 void resetSettings();

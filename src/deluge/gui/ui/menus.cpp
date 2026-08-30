@@ -51,6 +51,7 @@
 #include "gui/menu_item/defaults/scale.h"
 #include "gui/menu_item/defaults/screensaver.h"
 #include "gui/menu_item/defaults/session_layout.h"
+#include "gui/menu_item/defaults/shortcut_blink_interval.h"
 #include "gui/menu_item/defaults/slice_mode.h"
 #include "gui/menu_item/defaults/startup_song_mode.h"
 #include "gui/menu_item/defaults/swing_interval.h"
@@ -989,6 +990,8 @@ PLACE_SDRAM_BSS swing::Interval swingIntervalMenu{STRING_FOR_SWING_INTERVAL};
 PLACE_SDRAM_BSS shortcuts::Version shortcutsVersionMenu{STRING_FOR_SHORTCUTS_VERSION,
                                                         STRING_FOR_SHORTCUTS_VER_MENU_TITLE};
 PLACE_SDRAM_BSS menu_item::keyboard::Layout keyboardLayoutMenu{STRING_FOR_KEYBOARD_FOR_TEXT, STRING_FOR_KEY_LAYOUT};
+PLACE_SDRAM_BSS defaults::ShortcutBlinkInterval shortcutBlinkIntervalMenu{STRING_FOR_SHORTCUT_BLINK_INTERVAL,
+                                                                          STRING_FOR_SHORTCUT_BLINK_INTERVAL};
 
 // Colours submenu
 PLACE_SDRAM_BSS Submenu coloursSubmenu{
@@ -1008,6 +1011,7 @@ PLACE_SDRAM_BSS Submenu padsSubmenu{
     {
         &shortcutsVersionMenu,
         &keyboardLayoutMenu,
+        &shortcutBlinkIntervalMenu,
         &coloursSubmenu,
     },
 };

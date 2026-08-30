@@ -2326,6 +2326,13 @@
               ]
             },
             {
+              "varName": "shortcutBlinkIntervalMenu",
+              "token": "STRING_FOR_SHORTCUT_BLINK_INTERVAL",
+              "oled": "Shortcut Blink Interval",
+              "code": "BLNK",
+              "children": []
+            },
+            {
               "varName": "coloursSubmenu",
               "token": "STRING_FOR_COLOURS",
               "oled": "Colours",
@@ -30300,5 +30307,5 @@
     "noteRowEditorMenu": "noteRowEditorRootMenu",
     "songClipSettingsMenu": "songClipSettingsMenu"
   },
-  "generatedAt": "2026-08-23T20:32:27.975Z"
+  "generatedAt": "2026-08-27T05:16:44.422Z"
 }
