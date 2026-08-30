@@ -22,6 +22,7 @@
 #include "notify/notice_queue.h"
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
+#include "ui/core/metrics.h"
 #include "ui/grid/keyboard.h"
 
 #include "gui/l10n/l10n.h"
@@ -524,6 +525,38 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		r.release('A', 2300);
 		r.tick(2300);
 		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"A"});
+	});
+
+	it("repaints the panel on a tick with no input at all, so the cursor actually blinks", _ {
+		// Fix round 2. The regression test for the gate-arm in `render_oled`, and it has to drive
+		// *quiet* ticks to be one. `Shell::tick` renders an OLED surface only when
+		// `s.gate.needs_frame(now, had_input_, false)`, the shell-wide widgets gate, or
+		// `router_.repaint_requested(role)` says so (`shell/shell.cpp:334-343`). On a tick with no
+		// input none of those fire on their own here: nothing in this scene arms the widgets gate
+		// (`text_edit` is render-only and owns no clock, `ui/oled/text_edit.h`), and no `Repaint`
+		// action is in flight. So the scene's own `request_repaint_after` is the *only* thing that
+		// brings the panel back -- and a spec that supplies input on every tick would pass with it
+		// deleted, which is exactly the shape of the bug it fixes.
+		select_language();
+		spec::SongFixture f = kit_fixture();
+		Rig r;
+		r.open_rename(context_of(f), TargetId::Drum);
+
+		// The cursor is at the end of an empty name, so the blinking bar is what is on screen --
+		// `text_edit`'s `cursor_lit` gates that arm and nothing else.
+		r.tick(0);
+		const std::string lit = r.fake.pbm(0);
+		expect(rename_scene().cursor()).to_equal(0);
+		expect(static_cast<int>(rename_scene().entered_text().size())).to_equal(0);
+
+		// One half-period later, with NOTHING queued: the panel must have been redrawn, dark.
+		r.tick(deluge::ui::kFlashTime);
+		const std::string dark = r.fake.pbm(0);
+		expect(dark != lit).to_be_true();
+
+		// And back again on the next one -- a square wave, not a one-shot.
+		r.tick(2 * deluge::ui::kFlashTime);
+		expect(r.fake.pbm(0)).to_equal(lit);
 	});
 
 	it("blinks the end-of-string cursor and asks to be woken for it", _ {
