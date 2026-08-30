@@ -172,6 +172,7 @@ describe scenes_validate("scenes::menu::validate_tree", $ {
 		expect(count_of(issues, Issue::Kind::DuplicateName)).to_equal(size_t(0));
 		expect(count_of(issues, Issue::Kind::MissingTitle)).to_equal(size_t(0));
 		expect(count_of(issues, Issue::Kind::NullCustom)).to_equal(size_t(0));
+		expect(count_of(issues, Issue::Kind::NullInfo)).to_equal(size_t(0));
 		expect(count_of(issues, Issue::Kind::FlagMismatch)).to_equal(size_t(0));
 	});
 
@@ -198,6 +199,20 @@ describe scenes_validate_rules("scenes::menu::validate_tree individual rules", $
 		static constexpr const Node* roots[] = {&root};
 		const auto issues = validate_tree(roots, {});
 		expect(count_of(issues, Issue::Kind::NullCustom)).to_equal(size_t(1));
+	});
+
+	it("flags a Kind::Info with no implementation, as NullInfo rather than NullCustom", _ {
+		// The pre-flight ruling: a null `info` hook must not reuse `NullCustom` -- the two kinds'
+		// null checks are about different fields, and conflating them would read as a copy-paste bug
+		// at this exact call site.
+		set_shortcut_table_for_test({}, 0, 0);
+		static constexpr Node null_info = info_item(404, nullptr);
+		static constexpr const Node* kids[] = {&null_info};
+		static constexpr Node root = submenu(405, kids);
+		static constexpr const Node* roots[] = {&root};
+		const auto issues = validate_tree(roots, {});
+		expect(count_of(issues, Issue::Kind::NullInfo)).to_equal(size_t(1));
+		expect(count_of(issues, Issue::Kind::NullCustom)).to_equal(size_t(0));
 	});
 
 	it("flags a ParamRef whose index is outside its kind's parameter space", _ {

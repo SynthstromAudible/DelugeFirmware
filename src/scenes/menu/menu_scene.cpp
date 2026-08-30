@@ -422,6 +422,39 @@ void MenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
 			node->custom->render(f, ctx_, st_);
 		}
 		break;
+	case Kind::Info: {
+		TextScratch title_scratch;
+		deluge::ui::oled::title(f, text_of(node->title, title_scratch));
+
+		// Legacy is `MenuItem::renderOLED()` (title, then `drawPixelsForOled()`) ->
+		// `firmware::Version` / `battery::Level::drawPixelsForOled`
+		// (`gui/menu_item/firmware/version.h:29-32`, `battery/level.h:36-41`): both are exactly
+		// `drawStringCentredShrinkIfNecessary(str, 22, 18, 20)`, ported as `kInfoValueY` (NOT
+		// `kValueY` -- see that constant's doc comment) in the huge font (`MetricBold20`,
+		// `f.style.big_font`, matching `textWidth`/`textHeight` 18/20).
+		if (node->info != nullptr) {
+			InfoScratch scratch{};
+			const deluge::gfx::oled::Rect band{f.bounds().x, f.bounds().y + deluge::ui::kInfoValueY, f.bounds().w,
+			                                   deluge::ui::oled::text_height_for(f.style.big_font)};
+			deluge::ui::oled::text(
+			    f, band, node->info(ctx_, scratch),
+			    {.font = f.style.big_font, .align = deluge::ui::oled::Align::Centre, .shrink = true});
+		}
+
+		// A self-updating item (legacy's `battery::Level`, on its own 500 ms UI timer) has to ask
+		// for its own repaint: `InfoFn` is a stateless function of `MenuContext`, so nothing else
+		// re-invokes it once the panel stops moving. Zero (the default, and `firmware::Version`'s
+		// value) arms nothing -- same shape every other animated widget here uses
+		// (`render_grid`'s shortcut blink, just above `next_timer()`).
+		if (const uint16_t repaint_ms = info_repaint_ms(); repaint_ms != 0) {
+			f.gate().request_repaint_after(repaint_ms, f.now_ms());
+		}
+
+		if (f.select_pressed()) {
+			st_.render_resp.entered = true;
+		}
+		break;
+	}
 	default: {
 		// Every `Kind` `node.h` declares now has an arm above: `Bipolar`, `Range`, `MultiRange`,
 		// `Colour` and `Action` were dropped in Task 8 (zero nodes, no interpreter written for
@@ -816,6 +849,10 @@ void MenuScene::enter_leaf(const Node& node) {
 		st_.decimal_pos = 0;
 		st_.cursor_blink = deluge::ui::Blink{};
 		break;
+	case Kind::Info:
+		// No `bind` at all -- `Kind::Info`'s value comes from `Node::info`, read fresh by the
+		// render arm every frame, not from the edit storage the other kinds share.
+		break;
 	default:
 		st_.edit_int = bindings::read(node, ctx_);
 		break;
@@ -829,6 +866,10 @@ void MenuScene::commit_value(const Node& node) {
 		break;
 	case Kind::Toggle:
 		bindings::write(node, ctx_, st_.edit_bool ? 1 : 0);
+		break;
+	case Kind::Info:
+		// Read-only: never reached in practice (the render arm never sets `st_.value_changed`
+		// for an `Info` node), but explicit rather than falling into `default`'s `bindings::write`.
 		break;
 	default:
 		bindings::write(node, ctx_, st_.edit_int);
@@ -999,6 +1040,21 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 	// its own press and release both reach here and keep this in step before any write path runs;
 	// `bindings::write` is the only reader.
 	ctx_.affect_entire_held = ctx.held.has(ButtonId::AffectEntire);
+
+	// A custom item owns its input while it is focused: it sees every event first and, if it
+	// consumes it, the scene does nothing else this call -- the same precedence legacy gives a
+	// `MenuItem`'s own `buttonAction` override over the rest of `SoundEditor::buttonAction`
+	// (`gui/ui/sound_editor.cpp:606`: `currentMenuItem->buttonAction(...)` runs before anything else
+	// in that branch looks at the result). Checked before the shortcut-pad jump and the root `Back`
+	// below, not after: a bespoke item's own input (the patch-cable pages' pad presses, a file browser's
+	// scroll) is exactly the kind of thing this layer cannot interpret generically, so it must not
+	// be shadowed by a case that happens to match the same event shape.
+	if (const Node* focused_node = focused();
+	    focused_node != nullptr && focused_node->kind == Kind::Custom && focused_node->custom != nullptr) {
+		if (Result r = focused_node->custom->handle(event, ctx, ctx_, st_); r.handled) {
+			return r;
+		}
+	}
 
 	// (a) The shortcut-pad jump. A `Pad` event is never masked (`ui/core/frame_context.h`, rule
 	// 4), so it always arrives here. Legacy gates the non-auditioning case on
@@ -1172,10 +1228,19 @@ void MenuScene::restore_state(const SceneState& state) {
 	}
 }
 
+uint16_t MenuScene::info_repaint_ms() const {
+	const Node* node = focused();
+	if (node == nullptr || node->kind != Kind::Info) {
+		return 0;
+	}
+	return node->info_repaint_ms;
+}
+
 std::optional<uint32_t> MenuScene::next_timer() const {
-	// The blinks are the only thing here that moves without input, so the timer is the nearer of
-	// the two *armed* cadences. A `Blink` with nothing to paint is not armed: waking the shell
-	// every 20 ms to draw no source pads would be a battery cost with no pixels behind it.
+	// The blinks and a self-updating `Kind::Info` leaf are the only things here that move without
+	// input, so the timer is the nearest of the *armed* cadences. A `Blink` with nothing to paint is
+	// not armed: waking the shell every 20 ms to draw no source pads would be a battery cost with no
+	// pixels behind it -- same reasoning for a `Kind::Info` node whose `info_repaint_ms` is 0.
 	const Node* node = focused();
 	if (node == nullptr) {
 		return std::nullopt;
@@ -1185,6 +1250,9 @@ std::optional<uint32_t> MenuScene::next_timer() const {
 	}
 	if (shortcut_pos(ctx_.root, *node).valid) {
 		return kShortcutBlinkMs;
+	}
+	if (const uint16_t repaint_ms = info_repaint_ms(); repaint_ms != 0) {
+		return repaint_ms;
 	}
 	return std::nullopt;
 }

@@ -184,6 +184,49 @@ constexpr Node transpose_leaf = menu::with_range_dependent(
     menu::param(sid(String::STRING_FOR_TRANSPOSE),
                 {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_FREQ}));
 
+/// @brief A `CustomItem` that reports whether/how many times it saw `Back`, and either consumes it
+///        (returning `Pop`) or lets it fall through -- the two halves of task 2's precedence claim.
+///
+/// Not added to `settings_children`: these are opened directly via `menu_scene().open(...)`
+/// (`Rig::open` already gave the tree a real `MenuContext` to reuse), so nothing here can move an
+/// existing recorded golden.
+struct CountingCustom final : menu::CustomItem {
+	mutable int handled = 0;
+	bool consumes;
+	explicit CountingCustom(bool consumes_back) : consumes(consumes_back) {}
+	void render(deluge::ui::oled::OledFrame&, const MenuContext&, menu::MenuState&) const override {}
+	Result handle(const UiEvent& e, const UiContext&, const MenuContext&, menu::MenuState&) const override {
+		if (e.kind == UiEvent::Kind::Button && e.button == ButtonId::Back && e.on) {
+			handled++;
+			if (!consumes) {
+				return Result::unhandled();
+			}
+			Result r{.handled = true};
+			(void)r.actions.push_back({.kind = deluge::ui::shell::Action::Kind::Pop});
+			return r;
+		}
+		return Result::unhandled();
+	}
+};
+CountingCustom g_custom_consumes{true};
+CountingCustom g_custom_passes_through{false};
+constexpr Node custom_consumes_leaf = menu::custom(sid(String::STRING_FOR_OK), &g_custom_consumes);
+constexpr Node custom_passes_through_leaf = menu::custom(sid(String::STRING_FOR_OK), &g_custom_passes_through);
+
+/// @brief Two `Kind::Info` leaves for the render/repaint contract, likewise never added to
+///        `settings_children`. `info_static_leaf` never arms a repaint (the `firmware_version`
+///        shape); `info_repaint_leaf` names one (the `battery_level` shape).
+std::string_view info_static_text(const MenuContext&, menu::InfoScratch&) {
+	return "V0.0.0-TEST";
+}
+constexpr Node info_static_leaf = menu::info_item(sid(String::STRING_FOR_FIRMWARE_VERSION), info_static_text);
+
+std::string_view info_repaint_text(const MenuContext&, menu::InfoScratch&) {
+	return "42% (3200mV)";
+}
+constexpr Node info_repaint_leaf =
+    menu::with_info_repaint(menu::info_item(sid(String::STRING_FOR_BATTERY_LEVEL), info_repaint_text), 500);
+
 /// A three-deep chain, so `save_state`/`restore_state` can be round-tripped at the depth the brief
 /// asks for. Appended *last* so the visible window at cursor 0 -- and therefore the recorded root
 /// goldens -- is unchanged.
@@ -382,6 +425,99 @@ describe menu_scene_composition("scenes::menu::MenuScene composition", $ {
 		expect(menu_scene().focused() == menu::MenuScene::roots()[size_t(menu::MenuContext::Root::Sound)])
 		    .to_be_true();
 		expect(menu_scene().focused() != &settings_root).to_be_true();
+	});
+});
+
+describe menu_scene_info_and_custom("scenes::menu::MenuScene Kind::Info and Kind::Custom input (task 2)", $ {
+	it("delivers input to a focused custom item, ahead of the scene's own handling", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx = r.open(settings_root);
+		g_custom_consumes.handled = 0;
+		menu_scene().open(custom_consumes_leaf, ctx);
+		expect(menu_scene().focused() == &custom_consumes_leaf).to_be_true();
+
+		// `Back` at depth 0 would otherwise be the scene's own root-close case (`Remove`,
+		// `handle()`'s case (b)) -- the custom item sees it first, and its own `Pop` wins.
+		DirectCtx d;
+		const Result res = menu_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Back}, d.ctx);
+		expect(g_custom_consumes.handled).to_equal(1);
+		expect(res.handled).to_be_true();
+		expect(res.actions.size()).to_equal(size_t(1));
+		expect(static_cast<int>(res.actions[0].kind)).to_equal(static_cast<int>(deluge::ui::shell::Action::Kind::Pop));
+	});
+
+	it("falls through to the scene's own handling when the custom item does not consume the event", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx = r.open(settings_root);
+		g_custom_passes_through.handled = 0;
+		menu_scene().open(custom_passes_through_leaf, ctx);
+
+		DirectCtx d;
+		const Result res = menu_scene().handle(
+		    UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::Back}, d.ctx);
+		expect(g_custom_passes_through.handled).to_equal(1); // saw the event ...
+		expect(res.handled).to_be_true();                    // ... but the scene's own root Back ran
+		expect(static_cast<int>(res.actions[0].kind))
+		    .to_equal(static_cast<int>(deluge::ui::shell::Action::Kind::Remove));
+	});
+
+	it("renders a Kind::Info leaf as centred text under its title, and asks for no repaint by default", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx = r.open(settings_root);
+		menu_scene().open(info_static_leaf, ctx);
+
+		deluge::ui::test::Rig48 rig;
+		rig.begin_tick(0);
+		menu_scene().render_oled(SurfaceRole::Main, rig.frame);
+
+		// Legacy: `MenuItem::renderOLED()` (title, then `drawPixelsForOled()`) ->
+		// `firmware::Version::drawPixelsForOled`'s `drawStringCentredShrinkIfNecessary(str, 22, 18, 20)`.
+		rig.reference.draw_screen_title(deluge::l10n::getView(String::STRING_FOR_FIRMWARE_VERSION));
+		rig.reference.draw_string_centred_shrink_if_necessary("V0.0.0-TEST", 22, 18, 20);
+		expect(rig.pbm()).to_equal(rig.reference_pbm());
+
+		expect(rig.ctx.gate.next_deadline().has_value()).to_be_false();
+		expect(menu_scene().info_repaint_ms()).to_equal(uint16_t(0));
+	});
+
+	it("arms a repaint deadline for a Kind::Info leaf that names one", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		const MenuContext ctx = r.open(settings_root);
+		menu_scene().open(info_repaint_leaf, ctx);
+		expect(menu_scene().info_repaint_ms()).to_equal(uint16_t(500));
+		expect(menu_scene().next_timer().has_value()).to_be_true();
+		expect(*menu_scene().next_timer()).to_equal(uint32_t(500));
+
+		deluge::ui::test::Rig48 rig;
+		rig.begin_tick(1000);
+		menu_scene().render_oled(SurfaceRole::Main, rig.frame);
+		const std::optional<uint32_t> deadline = rig.ctx.gate.next_deadline();
+		expect(deadline.has_value()).to_be_true();
+		expect(*deadline).to_equal(uint32_t(1500));
+	});
+
+	it("gives the shipped firmware_version/battery_level nodes a working Kind::Info hook", _ {
+		// The real tables (`nodes/settings.h`), not this file's own fake tree: task 2's two
+		// conversions away from `Kind::Custom`/`nodes::kPending`.
+		expect(nodes::firmware_version.kind == menu::Kind::Info).to_be_true();
+		expect(nodes::battery_level.kind == menu::Kind::Info).to_be_true();
+		expect(nodes::firmware_version.info != nullptr).to_be_true();
+		expect(nodes::battery_level.info != nullptr).to_be_true();
+
+		const MenuContext ctx{}; // neither hook reads it -- a build string and a global voltage read
+		menu::InfoScratch fw_scratch{};
+		expect(nodes::firmware_version.info(ctx, fw_scratch).empty()).to_be_false();
+		menu::InfoScratch bat_scratch{};
+		expect(nodes::battery_level.info(ctx, bat_scratch).empty()).to_be_false();
 	});
 });
 
@@ -1223,12 +1359,12 @@ describe menu_scene_goldens("scenes::menu::MenuScene pixels", $ {
 });
 // clang-format on
 
-/// Seven `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
+/// Eight `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
 /// here with `add_specs` instead -- as `context_spec.cpp` does.
 int menu_scene_spec(int argc, char** const argv) {
 	return CppSpec::parse(argc, argv)
 	               .add_specs(menu_scene_composition, menu_scene_navigation, menu_scene_editing, menu_scene_claims,
-	                          menu_scene_grid, menu_scene_columns, menu_scene_goldens)
+	                          menu_scene_grid, menu_scene_columns, menu_scene_goldens, menu_scene_info_and_custom)
 	               .exec()
 	               .is_success()
 	           ? EXIT_SUCCESS

@@ -21,11 +21,14 @@
 ///       whose state or whose action is behind the wall this layer may not cross:
 ///
 ///         * **`hid/` state.** `flash_status` (`PadLEDs::flashCursor`, `flash/status.h:21-28`),
-///           `shortcuts_version` (`soundEditor.shortcutsVersion`, `shortcuts/version.h:21-24`),
+///           `shortcuts_version` (`soundEditor.shortcutsVersion`, `shortcuts/version.h:21-24`), and
 ///           the six `pad_colour_*` (`menu_item::Colour::value`, a member of the legacy menu item
 ///           itself -- `colour.h:38`, which `storage/flash_storage.cpp:576-579` reads and writes
-///           by name), `battery_level` (`battery/level.h`, a live voltage readout with its own
-///           timer) and `firmware_version` (`firmware/version.h`, a `drawPixelsForOled`).
+///           by name). (`battery_level`/`firmware_version` used to be listed here too, but neither
+///           actually reaches behind the `hid/` wall -- `batteryMV` is a plain global set from
+///           `deluge.cpp`'s main loop, the same one `sound_editor.cpp:1403` reads with its own bare
+///           `extern` -- so E2 task 2 gave them real `Kind::Info` implementations instead of
+///           leaving them as placeholders; see that kind's own section below.)
 ///         * **UI navigation.** The five `reset_*` items (`reset_settings/reset.h:23-27`, each
 ///           opening a context menu), `cv_selection` / `gate_selection`
 ///           (`cv/selection.h:31-36`, `gate/selection.h:26-38`: `Selection`s whose select press
@@ -68,6 +71,7 @@
 #include "scenes/menu/relevance.h"
 
 #include <span>
+#include <string_view>
 
 namespace deluge::scenes::menu {
 struct MenuContext;
@@ -840,12 +844,29 @@ inline constexpr Node runtime_features =
 
 // ---------------------------------------------------------------------------------------------
 // 12-13. Battery and firmware
+//
+// `Kind::Info` (E2 task 2): both are pure read-only centred text -- legacy's `battery::Level` /
+// `firmware::Version` (`gui/menu_item/battery/level.h`, `firmware/version.h`) have no
+// `writeCurrentValue` and no `buttonAction` override, only a `drawPixelsForOled` that formats a
+// string and draws it -- so neither earns a bespoke `CustomItem`.
+//
+// `get_battery_info` omits legacy's charging indicator (`battery::Level::getBatteryString`'s
+// " CHG", `battery/level.h:101-102`): that reads a two-tick voltage history the menu item instance
+// keeps on itself (`lastBatteryMV`/`voltageCheckCounter`), and `InfoFn` is deliberately a stateless
+// function of `MenuContext` (`node.h`'s doc comment on `InfoFn`) with nowhere to keep it. The
+// stateless half of legacy's status suffix -- "FULL" at 99%+ -- needs no history and is kept.
 
-inline constexpr Node battery_level = with_relevant(with_title(custom(sid(String::STRING_FOR_BATTERY_LEVEL), &kPending),
-                                                               sid(String::STRING_FOR_BATTERY_LEVEL_MENU_TITLE)),
-                                                    relevance::battery_shown); // E2
-inline constexpr Node firmware_version = with_title(custom(sid(String::STRING_FOR_FIRMWARE_VERSION), &kPending),
-                                                    sid(String::STRING_FOR_FIRMWARE_VER_MENU_TITLE)); // E2
+std::string_view get_battery_info(const MenuContext&, InfoScratch&);
+std::string_view get_firmware_version_info(const MenuContext&, InfoScratch&);
+
+inline constexpr Node battery_level =
+    with_relevant(with_info_repaint(with_title(info_item(sid(String::STRING_FOR_BATTERY_LEVEL), get_battery_info),
+                                               sid(String::STRING_FOR_BATTERY_LEVEL_MENU_TITLE)),
+                                    500), // `battery::Level::beginSession`'s UI timer, `level.h:50`
+                  relevance::battery_shown);
+inline constexpr Node firmware_version =
+    with_title(info_item(sid(String::STRING_FOR_FIRMWARE_VERSION), get_firmware_version_info),
+               sid(String::STRING_FOR_FIRMWARE_VER_MENU_TITLE));
 
 // ---------------------------------------------------------------------------------------------
 

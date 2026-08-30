@@ -43,7 +43,19 @@
 #include "processing/metronome/metronome.h" // AudioEngine::metronome's definition
 #include "storage/flash_storage.h"
 
+#include <version.h> // kFirmwareVersionString
+
+#include <algorithm>
 #include <array>
+#include <charconv>
+#include <cstdint>
+
+// `battery::Level::isRelevant` reads `runtimeFeatureSettings` (`relevance::battery_shown`, this
+// file's own relevance.cpp); the value itself is `batteryMV`, a plain global the main loop sets
+// (`deluge.cpp:89,146`) -- declared bare and at global scope, exactly as `sound_editor.cpp:1403`
+// and `battery/level.h:26` both do (a namespaced `extern` here would name a *different*,
+// unlinked variable rather than referring to the one `deluge.cpp` defines).
+extern uint16_t batteryMV;
 
 namespace deluge::scenes::menu::nodes {
 
@@ -665,6 +677,49 @@ size_t sync_scaling_action_names(const MenuContext&, std::span<std::string_view>
 		}
 	}
 	return n;
+}
+
+// ---------------------------------------------------------------------------------------------
+// 12-13. Battery and firmware (`Kind::Info`, E2 task 2)
+
+std::string_view get_battery_info(const MenuContext&, InfoScratch& scratch) {
+	// `battery::Level::getBatteryString` (`gui/menu_item/battery/level.h:81-107`), minus the
+	// charging suffix -- see this node's own declaration comment in `settings.h` for why. 2600 mV /
+	// 4200 mV are legacy's own empty/full endpoints (`level.h:84-85`).
+	constexpr int32_t kMinMv = 2600;
+	constexpr int32_t kMaxMv = 4200;
+	int32_t percentage = 0;
+	if (::batteryMV > kMinMv) {
+		percentage = (static_cast<int32_t>(::batteryMV) - kMinMv) * 100 / (kMaxMv - kMinMv);
+		percentage = std::clamp(percentage, 0, 100);
+	}
+
+	char* out = scratch.chars;
+	char* const end = scratch.chars + sizeof(scratch.chars);
+	const auto append = [&](std::string_view s) {
+		const size_t n = std::min(s.size(), static_cast<size_t>(end - out));
+		std::copy_n(s.data(), n, out);
+		out += n;
+	};
+	const auto append_int = [&](int32_t v) {
+		const std::to_chars_result r = std::to_chars(out, end, v);
+		out = r.ptr;
+	};
+
+	append_int(percentage);
+	append("% (");
+	append_int(static_cast<int32_t>(::batteryMV));
+	append("mV)");
+	if (percentage >= 99) {
+		append(" FULL"); // the one stateless half of legacy's status suffix -- see the doc comment
+	}
+	return std::string_view{scratch.chars, static_cast<size_t>(out - scratch.chars)};
+}
+
+std::string_view get_firmware_version_info(const MenuContext&, InfoScratch&) {
+	// `firmware::Version::drawPixelsForOled` (`gui/menu_item/firmware/version.h:29-32`): the build's
+	// own version string, no formatting and no scratch buffer needed.
+	return kFirmwareVersionString;
 }
 
 // ---------------------------------------------------------------------------------------------

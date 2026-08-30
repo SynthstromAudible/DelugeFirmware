@@ -59,6 +59,13 @@ struct Issue {
 		MissingTitle,
 		/// @brief A `Kind::Custom` whose `custom` pointer is null: nothing would render.
 		NullCustom,
+		/// @brief A `Kind::Info` whose `info` hook is null: nothing would render. Its own enumerator
+		///        rather than reusing `NullCustom` (E2 task 2's pre-flight ruling): the two null
+		///        checks are about different fields on different kinds, and a caller that counts or
+		///        reports issues by kind (as `TooManyCustom` already does for `Kind::Custom` alone)
+		///        needs to tell "a `Custom` node forgot its item" apart from "an `Info` node forgot
+		///        its hook" rather than have them read as one bug.
+		NullInfo,
 		/// @brief A `Kind::Custom` pointing at a stand-in rather than the real item
 		///        (`CustomItem::is_placeholder()`). Suppressed by
 		///        `ValidateOptions::allow_placeholder_custom`, which is how an E1 spec says out loud
@@ -101,20 +108,21 @@ enum class Flag : uint16_t {
 /// used to count *distinct `CustomItem` instances*, on the reasoning that two oscillator
 /// file-selector nodes sharing one `FileSelector` implementation are one bespoke item -- which is
 /// how spec E §4's own list of seven counts them. That spelling was inert: E1 ships the *shape* of
-/// its bespoke items and points all 59 of them at the one shared `nodes::kPending` placeholder
+/// its bespoke items and points all of them at the one shared `nodes::kPending` placeholder
 /// (`nodes/sound_osc.h`), so the distinct-instance count of the whole shipped tree is **1** and
 /// `TooManyCustom` could not fire however many custom nodes a table added. It would have started
 /// counting for real only once E2 replaced the placeholders one by one -- i.e. the rule was
 /// switched off for exactly the phase it was meant to police.
 ///
 /// Counting nodes makes it live today, at the cost of no longer being spec E's number: the shipped
-/// tree has **59** `Kind::Custom` nodes reachable from `nodes::kAllRoots`, behind roughly twenty
-/// distinct legacy bespoke classes (the file selector, the audio recorder, the sample loop points,
-/// the name editors, the patch-cable pages, the multi-range picker, the DX browser, active scales,
-/// MIDI devices, the MPE selectors, ...). So the cap is pinned just above that count rather than at
-/// 10: it is a ratchet against the escape hatch growing unnoticed, not a claim that ten was ever
-/// achievable. `sim/scenes_spec/shortcuts_spec.cpp` asserts the exact 59 separately, so a table
-/// that adds a custom node has to say so in two places. Recorded in
+/// tree has **57** `Kind::Custom` nodes reachable from `nodes::kAllRoots` (59 until E2 task 2 moved
+/// `firmware_version`/`battery_level` to `Kind::Info`), behind roughly twenty distinct legacy
+/// bespoke classes (the file selector, the audio recorder, the sample loop points, the name
+/// editors, the patch-cable pages, the multi-range picker, the DX browser, active scales, MIDI
+/// devices, the MPE selectors, ...). So the cap is pinned above that count rather than at 10: it is
+/// a ratchet against the escape hatch growing unnoticed, not a claim that ten was ever achievable.
+/// `sim/scenes_spec/shortcuts_spec.cpp` asserts the exact count separately, so a table that adds a
+/// custom node (or moves one out, as task 2 did) has to say so in two places. Recorded in
 /// `docs/superpowers/specs/2026-08-26-ui-scenes-menus-design.md`'s amendments and in
 /// `src/scenes/README.md`.
 inline constexpr size_t kMaxCustomNodes = 60;
@@ -123,7 +131,7 @@ inline constexpr size_t kMaxCustomNodes = 60;
 ///
 /// Named here so `kMaxCustomNodes`'s headroom is visible rather than a magic gap, and asserted
 /// against the live tree by `sim/scenes_spec/shortcuts_spec.cpp`.
-inline constexpr size_t kShippedCustomNodes = 59;
+inline constexpr size_t kShippedCustomNodes = 57;
 
 /// @brief Which of the strict rules the caller is deliberately standing down.
 ///

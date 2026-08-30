@@ -100,6 +100,23 @@ constexpr DynamicChildrenFn node_spec_children_fn = +[](const MenuContext&, std:
 constexpr Node node_spec_dyn_submenu = dynamic_submenu(25, node_spec_children_fn);
 static_assert(node_spec_dyn_submenu.dynamic_children == node_spec_children_fn);
 
+// `info_item()` (task 2) -- the read-only-text leaf `firmware_version`/`battery_level` use.
+// `title` defaults to `name`, like every other builder; `kind` is always `Kind::Info`; no `bind`
+// at all (it has no value to read or write, only `info` to format one).
+constexpr InfoFn node_spec_info_fn = +[](const MenuContext&, InfoScratch&) -> std::string_view { return "x"; };
+constexpr Node node_spec_info = info_item(28, node_spec_info_fn);
+static_assert(node_spec_info.kind == Kind::Info);
+static_assert(node_spec_info.info == node_spec_info_fn);
+static_assert(node_spec_info.title == 28);
+static_assert(node_spec_info.info_repaint_ms == 0); // the default: "never" (`firmware_version`'s shape)
+
+// `with_info_repaint()` -- the post-hoc modifier `battery_level` uses for its 500 ms redraw cadence.
+// Changes exactly one field, like `with_range_dependent()` above.
+constexpr Node node_spec_info_repaint = with_info_repaint(info_item(29, node_spec_info_fn), 500);
+static_assert(node_spec_info_repaint.info_repaint_ms == 500);
+static_assert(node_spec_info_repaint.name == 29 && node_spec_info_repaint.kind == Kind::Info);
+static_assert(node_spec_info_repaint.info == node_spec_info_fn);
+
 // `with_range_dependent()` -- the post-hoc modifier that marks the handful of items whose value
 // lives in a MultiRange rather than on the Sound (fix round 1, Important 1). It changes exactly one
 // field and leaves the builder's own output otherwise untouched.
@@ -139,6 +156,26 @@ describe scenes_node("scenes::menu::Node builders", $ {
 		Node c = custom(10, &node_spec_null_item);
 		expect(c.kind == Kind::Custom).to_be_true();
 		expect(c.custom == &node_spec_null_item).to_be_true();
+	});
+	it("info_item fills info and defaults info_repaint_ms to 0 (never)", _ {
+		// `MenuContext` is forward-declared only here (this file's own model-free design, see
+		// `node.h`'s file note) -- `info`'s actual formatting behaviour, with a real `MenuContext`
+		// in hand, is `sim/scenes_spec/menu_scene_spec.cpp`'s job; this checks the builder wires the
+		// field through, the same way every other builder's `it` above compares a hook by pointer
+		// rather than calling it.
+		auto info_fn = +[](const MenuContext&, InfoScratch&) -> std::string_view { return {}; };
+		Node i = info_item(12, info_fn);
+		expect(i.kind == Kind::Info).to_be_true();
+		expect(i.info == info_fn).to_be_true();
+		expect(i.info_repaint_ms == uint16_t(0)).to_be_true();
+		expect(i.title == uint16_t(12)).to_be_true();
+	});
+	it("with_info_repaint sets info_repaint_ms and nothing else", _ {
+		auto info_fn = +[](const MenuContext&, InfoScratch&) -> std::string_view { return {}; };
+		Node i = with_info_repaint(info_item(13, info_fn), 500);
+		expect(i.info_repaint_ms == uint16_t(500)).to_be_true();
+		expect(i.kind == Kind::Info).to_be_true();
+		expect(i.info == info_fn).to_be_true();
 	});
 	it("dynamic_submenu has no static children", _ {
 		auto children_fn = +[](const MenuContext&, std::span<const Node*>) -> size_t { return 0; };
