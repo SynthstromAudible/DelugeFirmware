@@ -267,6 +267,55 @@ describe keyboard_spec("ui/grid/keyboard", $ {
 		expect((char)resp.index).to_equal('W');
 	});
 
+	it("reports the held character in held_index, on the press tick and after it", _ {
+		// `held_index` is the level under `index`'s edge -- what a press-and-hold repeat re-reads
+		// every tick (legacy's `UI_MODE_HOLDING_BACKSPACE`, `qwerty_ui.cpp:218-227,449-453`).
+		{
+			// The tick of the press: `GridFrame::pad` answers `held` from a mask that already
+			// includes the event being delivered, so both are set.
+			KeyRig k({{.x = 14, .y = kHomeRow + 2, .velocity = 64, .pressed = true}},
+			         {{14, kHomeRow + 2}});
+			TextKeyboardState state;
+			const Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
+			expect((char)resp.index).to_equal(kTextKeyboardBackspace);
+			expect((char)resp.held_index).to_equal(kTextKeyboardBackspace);
+		}
+		{
+			// A later tick of the same hold: no event, still held.
+			KeyRig k({}, {{14, kHomeRow + 2}});
+			TextKeyboardState state;
+			const Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
+			expect((int32_t)resp.index).to_equal(-1);
+			expect((char)resp.held_index).to_equal(kTextKeyboardBackspace);
+		}
+		{
+			// Released: nothing held, so nothing to repeat.
+			KeyRig k({{.x = 14, .y = kHomeRow + 2, .velocity = 0, .pressed = false}}, {});
+			TextKeyboardState state;
+			const Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
+			expect(resp.released).to_be_true();
+			expect((int32_t)resp.held_index).to_equal(-1);
+		}
+	});
+
+	it("skips a held pad that types nothing when reporting held_index", _ {
+		// Same rule `index` uses: a held shift pad sits ahead of the digit row in the bottom-up
+		// sweep and types nothing, so it must not shadow the digit held with it.
+		KeyRig k({}, {{1, kHomeRow - 1}, {3, kHomeRow + 2}});
+		TextKeyboardState state;
+		const Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
+		expect(state.shift).to_be_true();
+		expect((char)resp.held_index).to_equal('!'); // the digit, shifted -- not the shift pad
+	});
+
+	it("leaves held_index at -1 when a held pad is outside the key rectangle", _ {
+		KeyRig k({}, {{0, 0}});
+		TextKeyboardState state;
+		const Response resp = text_keyboard(k.rig.frame, state, KeyboardLayoutKind::Qwerty);
+		expect(resp.held).to_be_true();
+		expect((int32_t)resp.held_index).to_equal(-1);
+	});
+
 	it("records the keyboard's colour map", _ {
 		uitest::GridRig r;
 		TextKeyboardState state;

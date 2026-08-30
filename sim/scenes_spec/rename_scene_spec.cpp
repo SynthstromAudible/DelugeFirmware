@@ -186,6 +186,16 @@ struct Rig {
 	}
 	/// @brief Press the backspace pad (row `home_row + 2`, x 14).
 	void backspace() { type(deluge::ui::grid::kTextKeyboardBackspace); }
+	/// @brief Press the pad that types @p c and leave it down. The shell's held-pad mask keeps it
+	///        held until `release`, which is what `Response::held_index` reads.
+	void press(char c, uint32_t at) {
+		const Pad p = pad_for(c);
+		pad(static_cast<uint8_t>(p.x), static_cast<uint8_t>(p.y), 64, at);
+	}
+	void release(char c, uint32_t at) {
+		const Pad p = pad_for(c);
+		pad(static_cast<uint8_t>(p.x), static_cast<uint8_t>(p.y), 0, at);
+	}
 	/// @brief Press the enter pad (row `home_row`, x 14) -- the commit, through the real input path.
 	void enter() { type(deluge::ui::grid::kTextKeyboardEnter); }
 };
@@ -205,13 +215,21 @@ Result commit(RenameScene& scene) {
 	return scene.handle(UiEvent{.kind = UiEvent::Kind::Button, .on = true, .button = ButtonId::SelectEnc}, d.ctx);
 }
 
-bool has_action(const Result& r, ShellAction::Kind k) {
+/// @brief The first action of kind @p k, or null.
+///
+/// Fix round 1, Minor 4: found rather than assumed to be `actions[0]`, so prepending an unrelated
+/// action (a `Repaint`, say) does not silently retarget every assertion below onto the wrong one.
+const ShellAction* find_action(const Result& r, ShellAction::Kind k) {
 	for (const ShellAction& a : r.actions) {
 		if (a.kind == k) {
-			return true;
+			return &a;
 		}
 	}
-	return false;
+	return nullptr;
+}
+
+bool has_action(const Result& r, ShellAction::Kind k) {
+	return find_action(r, k) != nullptr;
 }
 
 /// @brief A kit song with one drum, already `kit->selectedDrum`.
@@ -301,6 +319,28 @@ describe rename_open("scenes::rename::RenameScene opening", $ {
 		expect(rename_scene().cursor()).to_equal(0);
 	});
 
+	it("forgets its context on exit, so a re-entry without open() refuses", _ {
+		select_language();
+		spec::SongFixture f = kit_fixture();
+		kit_of(f)->selectedDrum->drumName = "Snare";
+		Rig r;
+		r.open_rename(context_of(f), TargetId::Drum);
+		r.tick(0);
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Snare"});
+
+		r.button(kBackX, kBackY, true, 100);
+		r.tick(100);
+		expect(r.shell.stack().depth()).to_equal(size_t(0));
+
+		// Fix round 1, Minor 1. `open()` is the only writer of `ctx_` and this scene is a singleton
+		// that outlives every visit, so `on_exit` zeroes it: an entry that forgot its `open()` --
+		// a `SceneId` restored from somewhere, a caller that only pushed -- must not validate
+		// against the previous song's pointers. A zeroed context has a null clip/kit/output, every
+		// target's `can` rejects that, and `on_enter` refuses. Fails closed.
+		expect(rename_scene().on_enter(SceneId{rename::kRenameSceneKind,
+		                                       static_cast<uint16_t>(TargetId::Drum)})).to_be_false();
+	});
+
 	it("refuses to open when the target cannot resolve its model", _ {
 		select_language();
 		// A kit with no drums at all: legacy's `RenameDrumUI::getCurrentName` would
@@ -334,9 +374,9 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		expect(std::string{kit_of(f)->selectedDrum->drumName}).to_equal(std::string{"Kick"});
 		// `RenameUI::exitUI` -> `close()`: the editor leaves, and it names itself rather than
 		// blindly popping whatever is on top.
-		expect(has_action(done, ShellAction::Kind::Remove)).to_be_true();
-		expect(static_cast<int>(done.actions[0].pop_to))
-		    .to_equal(static_cast<int>(rename::kRenameSceneKind));
+		const ShellAction* removal = find_action(done, ShellAction::Kind::Remove);
+		expect(removal != nullptr).to_be_true();
+		expect(static_cast<int>(removal->pop_to)).to_equal(static_cast<int>(rename::kRenameSceneKind));
 	});
 
 	it("steps over a character that already matches the one under the cursor", _ {
@@ -397,6 +437,93 @@ describe rename_typing("scenes::rename::RenameScene typing", $ {
 		// `processBackspace` on an empty string still steps the position, which is already 0.
 		r.backspace();
 		expect(rename_scene().cursor()).to_equal(0);
+	});
+
+	it("repeats a held backspace at legacy's 500 ms delay and 80 ms cadence", _ {
+		select_language();
+		spec::SongFixture f = kit_fixture();
+		Rig r;
+		r.open_rename(context_of(f), TargetId::Drum);
+		r.tick(0);
+		r.clock = 10;
+		r.type(std::string_view{"ABCDE"});
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abcde"});
+
+		// The press itself deletes one character and arms the hold
+		// (`QwertyUI::padAction`, `qwerty_ui.cpp:219-220`: `processBackspace()` then
+		// `setTimer(UI_SPECIFIC, 500)`).
+		r.press(deluge::ui::grid::kTextKeyboardBackspace, 1000);
+		r.tick(1000);
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abcd"});
+		// The scene must ask to be woken with no input pending, or nothing would run `render_grid`
+		// and the hold would never be seen again. (The value is the nearer of the repeat deadline
+		// and the cursor blink, so only the bound is asserted here; the cadence itself is pinned by
+		// the ticks below, which is the assertion a wrong constant fails.)
+		const std::optional<uint32_t> armed = rename_scene().next_timer();
+		expect(armed.has_value()).to_be_true();
+		expect(armed.value() <= rename::kBackspaceRepeatDelayMs).to_be_true();
+
+		// One millisecond short of the delay: still four characters.
+		r.tick(1000 + rename::kBackspaceRepeatDelayMs - 1);
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abcd"});
+		// On the delay: the first repeat.
+		r.tick(1000 + rename::kBackspaceRepeatDelayMs);
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abc"});
+
+		// Then every 80 ms, not every 500.
+		const uint32_t first = 1000 + rename::kBackspaceRepeatDelayMs;
+		r.tick(first + rename::kBackspaceRepeatMs - 1);
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abc"});
+		r.tick(first + rename::kBackspaceRepeatMs);
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Ab"});
+		r.tick(first + 2 * rename::kBackspaceRepeatMs);
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"A"});
+	});
+
+	it("stops repeating the moment the backspace pad goes up", _ {
+		select_language();
+		spec::SongFixture f = kit_fixture();
+		Rig r;
+		r.open_rename(context_of(f), TargetId::Drum);
+		r.tick(0);
+		r.clock = 10;
+		r.type(std::string_view{"ABCDE"});
+
+		r.press(deluge::ui::grid::kTextKeyboardBackspace, 1000);
+		r.tick(1000);
+		r.tick(1000 + rename::kBackspaceRepeatDelayMs); // one repeat
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abc"});
+
+		// `padAction`'s release arm unsets the timer (`qwerty_ui.cpp:223-228`); here the hold is a
+		// level, so letting go simply stops `held_index` naming the key.
+		r.release(deluge::ui::grid::kTextKeyboardBackspace, 1600);
+		r.tick(1600);
+		r.tick(2000);
+		r.tick(3000);
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Abc"});
+		// ...and the scene stops asking to be woken for a repeat that will never come. (The cursor
+		// blink is still armed, so `next_timer` is engaged; what matters is that no further
+		// deletion happened above.)
+	});
+
+	it("does not repeat a held character key -- only backspace repeats in legacy", _ {
+		select_language();
+		spec::SongFixture f = kit_fixture();
+		Rig r;
+		r.open_rename(context_of(f), TargetId::Drum);
+		r.tick(0);
+
+		// Legacy arms `UI_MODE_HOLDING_BACKSPACE` from the backspace arm only
+		// (`qwerty_ui.cpp:218`); the "normal keys" arm at `:254` arms no timer at all.
+		r.press('A', 1000);
+		r.tick(1000);
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"A"});
+		r.tick(1600);
+		r.tick(2200);
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"A"});
+		r.release('A', 2300);
+		r.tick(2300);
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"A"});
 	});
 
 	it("blinks the end-of-string cursor and asks to be woken for it", _ {
@@ -480,8 +607,9 @@ describe rename_rejection("scenes::rename::RenameScene rejection", $ {
 
 		// And the popup legacy raises from inside `trySetName`
 		// (`display->displayPopup(STRING_FOR_DUPLICATE_NAMES)`).
-		expect(has_action(rejected, ShellAction::Kind::Popup)).to_be_true();
-		expect(static_cast<int>(rejected.actions[0].popup_string))
+		const ShellAction* popup = find_action(rejected, ShellAction::Kind::Popup);
+		expect(popup != nullptr).to_be_true();
+		expect(static_cast<int>(popup->popup_string))
 		    .to_equal(static_cast<int>(String::STRING_FOR_DUPLICATE_NAMES));
 	});
 
@@ -646,6 +774,41 @@ describe rename_from_menu("scenes::rename::RenameScene from the menu", $ {
 		// ...and it stays closed.
 		r.tick(110);
 		expect(r.shell.stack().depth()).to_equal(size_t(1));
+	});
+
+	it("reopens the editor when a menu parked on the item is restored", _ {
+		select_language();
+		deluge::notify::dirty().drain();
+		spec::SongFixture f = kit_fixture();
+		kit_of(f)->selectedDrum->drumName = "Snare";
+
+		Rig r;
+		r.open_menu(nodes::drum_actions, nodes::drum_actions, context_of(f));
+		r.tick(0);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 10);
+		r.tick(10);
+		expect(&r.shell.stack().input_top() == &rename_scene()).to_be_true();
+
+		// The state `replace_root` would carry across, taken while the menu is parked on the item.
+		deluge::ui::shell::SceneState saved{};
+		menu_scene().save_state(saved);
+
+		// Get back out, so the restore is the only thing that could reopen anything.
+		r.button(kBackX, kBackY, true, 100);
+		r.tick(100);
+		expect(r.shell.stack().depth()).to_equal(size_t(1));
+		expect(menu_scene().focused() == &nodes::drum_actions).to_be_true();
+
+		// Fix round 1, Minor 2. `restore_state` -> `enter_leaf` -> `CustomItem::on_focus` fires,
+		// and the editor comes back -- legacy's `focusRegained` -> `beginScreen` -> `beginSession`
+		// (`sound_editor.cpp:292,1015`), which `EditName` answers by opening `RenameUI`
+		// unconditionally. Restoring the user's place means restoring the editor they were in.
+		menu_scene().restore_state(saved);
+		expect(menu_scene().focused() == &nodes::drum_name_edit).to_be_true();
+		r.tick(200);
+		expect(r.shell.stack().depth()).to_equal(size_t(2));
+		expect(&r.shell.stack().input_top() == &rename_scene()).to_be_true();
+		expect(std::string{rename_scene().entered_text()}).to_equal(std::string{"Snare"});
 	});
 
 	it("opens the clip and track targets from the sound root's edit-name page", _ {

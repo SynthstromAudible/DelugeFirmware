@@ -274,10 +274,12 @@ The pixels are the toolkit's: `ui::grid::text_keyboard` is `QwertyUI::drawKeys` 
 `ui::oled::text_edit` is `QwertyUI::drawTextForOLEDEditing`, both already ported; the box is
 `ui::oled::popup_frame` in its square-cornered `Permanent` style. The scene owns only the *input*
 half of `QwertyUI` (the typing rules, `processBackspace`, `horizontalEncoderAction`) and
-`RenameUI`'s buttons. **Not ported:** legacy's backspace auto-repeat
-(`UI_MODE_HOLDING_BACKSPACE` + a 500 ms/80 ms timer, `qwerty_ui.cpp:218-227,449-453`) —
-`text_keyboard`'s aggregate `Response` reports "some keyboard pad is held", not which one, so
-there is nothing to hang a per-pad repeat on until the keyboard grows a `Hold`.
+`RenameUI`'s buttons, including legacy's backspace auto-repeat: a press deletes one character and
+arms `kBackspaceRepeatDelayMs` (500), then `kBackspaceRepeatMs` (80) per repeat, which are legacy's
+own two `TimerName::UI_SPECIFIC` values (`qwerty_ui.cpp:220,452`). The hold is read from
+`Response::held_index` — the *level* under `index`'s edge, added to the shared `Response` and filled
+by `text_keyboard` under the same "first pad that types a character" rule, so E3's browser gets the
+same hold without a second scene-local mechanism.
 
 ### How a menu item opens a scene
 

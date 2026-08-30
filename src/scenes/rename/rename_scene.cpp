@@ -247,7 +247,26 @@ bool RenameScene::on_enter(const SceneId& id) {
 	// the frame the editor opens -- `setupBlink(..., shouldBlinkImmediately = true)`
 	// (`qwerty_ui.cpp:151`, `hid/display/oled.cpp:844-846`).
 	cursor_blink_ = deluge::ui::Blink{.period_ms = 0, .until_ms = 0};
+	repeat_armed_ = false;
+	repeat_at_ms_ = 0;
 	return true;
+}
+
+void RenameScene::on_exit() {
+	// Fix round 1, Minor 1. `open()` is the only writer of `ctx_`, and this scene is a singleton
+	// that outlives every visit -- so without this a re-entry that forgot its `open()` would
+	// validate `can()` against the *previous* song's `Clip`/`Kit`/`Output` pointers and quite
+	// possibly open on freed memory. Legacy had the same shape but a much shorter fuse
+	// (`renameClipUI.clip` was reassigned by `EditName::beginSession` immediately before every
+	// `openUI`), so it never had to answer the question.
+	//
+	// Cleared rather than "make `on_enter` demand a fresh `open()`" via a separate flag, because
+	// the two are the same test done twice: a zeroed `MenuContext` has null `clip`/`output`/`song`,
+	// every target's `can` already rejects that, and `on_enter` already refuses when `can` says no.
+	// One mechanism, and it fails closed -- an entry with no `open()` rolls the push back instead
+	// of drawing an editor over a stale model.
+	ctx_ = menu::MenuContext{};
+	repeat_armed_ = false;
 }
 
 void RenameScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) {
@@ -263,6 +282,15 @@ void RenameScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame& f) 
 		cursor_blink_.until_ms = now - static_cast<uint32_t>(kFlashTime);
 	}
 	edit_.cursor_lit = blink_lit(cursor_blink_, now);
+	// Arm the panel's own gate, not just `next_timer()`. `next_timer()` decides when the *host* is
+	// woken; `RepaintGate` decides whether a woken tick actually redraws this surface -- and
+	// `text_edit` cannot arm it itself, because it takes no clock and owns no state
+	// (`ui/oled/text_edit.h`: "Render-only"). Without this the bar would be computed correctly and
+	// never repainted. Only while the bar exists at all: mid-string `cursor_lit` gates nothing, so
+	// waking the panel every 110 ms would be a battery cost with no pixels behind it.
+	if (edit_.cursor == static_cast<int16_t>(len_)) {
+		f.gate().request_repaint_after(blink_next_flip_in(cursor_blink_, now), now);
+	}
 
 	// The window: 120x40, centred on the panel. `popup_frame` is `clearAreaExact` + `drawRectangle`
 	// in one call, and `PopupStyle::Permanent` is its square-cornered arm -- legacy draws a square
@@ -298,34 +326,54 @@ void RenameScene::render_grid(deluge::ui::grid::GridFrame& f) {
 	// `QwertyUI::drawKeys` (`qwerty_ui.cpp:75-125`), already ported. The sidebar is deliberately
 	// untouched -- legacy clears the *main* pads only.
 	resp_ = deluge::ui::grid::text_keyboard(f, kb_, layout_, deluge::ui::grid::kTextKeyboardHomeRow);
+	// Stamped here as well as in `render_oled`, and for a different reason: the backspace repeat
+	// runs off the grid pass, which is the pass that reports the hold. A tick that repainted only
+	// the pads would otherwise advance the repeat against `render_oled`'s stale clock.
+	const uint32_t now = f.now_ms();
+	last_render_ms_ = now;
+	// And the grid's gate is what brings this pass back around while the pad is simply held down
+	// with no input arriving -- the port of legacy re-arming `TimerName::UI_SPECIFIC` after every
+	// repeat. `after_render` reads `resp_`, so the repeat can only advance on a tick this pass ran.
+	if (repeat_armed_) {
+		const int32_t due = static_cast<int32_t>(repeat_at_ms_ - now);
+		f.gate().request_repaint_after(static_cast<uint32_t>(due > 0 ? due : 0), now);
+	}
 }
 
 Result RenameScene::after_render() {
 	const deluge::ui::Response resp = resp_;
 	resp_ = {};
 
-	if (resp.index < 0) {
+	// `QwertyUI::timerCallback`'s `UI_MODE_HOLDING_BACKSPACE` arm, ahead of this tick's own key:
+	// legacy's timer and its pad handler are separate entry points and the timer fires on ticks
+	// with no pad event at all, which is exactly the tick this arm exists for.
+	bool changed = advance_repeat(resp.held_index, last_render_ms_);
+
+	if (resp.index >= 0) {
+		const char c = static_cast<char>(resp.index);
+
+		if (c == deluge::ui::grid::kTextKeyboardEnter) {
+			// `QwertyUI::padAction`'s enter arm (`qwerty_ui.cpp:231-252`) -> `enterKeyPress()`.
+			return enter_key_press();
+		}
+
+		if (c == deluge::ui::grid::kTextKeyboardBackspace) {
+			// `qwerty_ui.cpp:204-229`: delete one character now, then arm the hold at
+			// `kBackspaceRepeatDelayMs` -- legacy's `processBackspace()` followed by
+			// `setTimer(UI_SPECIFIC, 500)`, with `repeat_armed_` standing in for
+			// `currentUIMode = UI_MODE_HOLDING_BACKSPACE`.
+			backspace();
+			repeat_armed_ = true;
+			repeat_at_ms_ = last_render_ms_ + kBackspaceRepeatDelayMs;
+		}
+		else {
+			type_char(c);
+		}
+		changed = true;
+	}
+
+	if (!changed) {
 		return {};
-	}
-	const char c = static_cast<char>(resp.index);
-
-	if (c == deluge::ui::grid::kTextKeyboardEnter) {
-		// `QwertyUI::padAction`'s enter arm (`qwerty_ui.cpp:231-252`) -> `enterKeyPress()`.
-		return enter_key_press();
-	}
-
-	if (c == deluge::ui::grid::kTextKeyboardBackspace) {
-		// `qwerty_ui.cpp:204-229` -> `processBackspace()`. The 500 ms/80 ms auto-repeat legacy arms
-		// alongside it (`UI_MODE_HOLDING_BACKSPACE` plus `TimerName::UI_SPECIFIC`,
-		// `qwerty_ui.cpp:218-227,449-453`) is deliberately NOT ported: `text_keyboard`'s aggregate
-		// `Response` reports "some keyboard pad is held", not *which*, so there is nothing here to
-		// hang a per-pad repeat on. A widget-level hold (the `Hold`/`gesture` pair in
-		// `ui/grid/effects.h`) is where it belongs, and it is the one legacy behaviour this scene
-		// leaves on the table.
-		backspace();
-	}
-	else {
-		type_char(c);
 	}
 
 	// Nothing a widget drew is stale-proof: the edited string changed under it, so ask for the
@@ -334,6 +382,41 @@ Result RenameScene::after_render() {
 	r.handled = true;
 	(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
 	return r;
+}
+
+bool RenameScene::advance_repeat(int16_t held_char, uint32_t now) {
+	if (!repeat_armed_) {
+		return false;
+	}
+	// `padAction`'s release arm (`qwerty_ui.cpp:223-228`): leaving `UI_MODE_HOLDING_BACKSPACE`
+	// unsets the timer. Here the hold is a *level* rather than a mode -- `held_index` is what the
+	// keyboard reports is still down (`ui/core/response.h`) -- so letting go, or sliding onto any
+	// other key, ends the repeat with no release event to catch.
+	//
+	// One named difference from legacy, in the two-handed case. `held_index` is the first *held*
+	// pad that types a character in the keyboard's bottom-up sweep, and every letter row sits below
+	// the backspace row -- so pressing a letter while backspace is still down reports the letter
+	// here and ends the repeat, and the letter is typed. Legacy instead swallows that press
+	// outright: its "normal keys" arm is gated on `!currentUIMode` (`qwerty_ui.cpp:265`) and
+	// `currentUIMode` is `UI_MODE_HOLDING_BACKSPACE`, so the keystroke is simply lost while the
+	// repeat carries on. Keeping the keystroke and stopping the repeat is the friendlier of the two
+	// and needs no per-pad hold reporting; reproducing the swallow would mean `text_keyboard`
+	// answering "is *this* pad held", which no other caller wants.
+	if (held_char != deluge::ui::grid::kTextKeyboardBackspace) {
+		repeat_armed_ = false;
+		return false;
+	}
+	// Wrap-safe: the difference is taken as signed, so a clock that has wrapped past `repeat_at_ms_`
+	// still reads as "due" rather than as "due in 49 days".
+	if (static_cast<int32_t>(now - repeat_at_ms_) < 0) {
+		return false;
+	}
+	// `timerCallback` (`qwerty_ui.cpp:449-453`): one more deletion, then re-arm at the faster
+	// cadence. Re-armed from `now` rather than from `repeat_at_ms_`, so a tick that arrived late
+	// (a long render, a card access) deletes one character and not a burst catching up.
+	backspace();
+	repeat_at_ms_ = now + kBackspaceRepeatMs;
+	return true;
 }
 
 Result RenameScene::handle(const UiEvent& event, const UiContext& ctx) {
@@ -354,6 +437,10 @@ Result RenameScene::handle(const UiEvent& event, const UiContext& ctx) {
 		if (event.button == ButtonId::SelectEnc) {
 			return enter_key_press();
 		}
+		// Fix round 1, Minor 3. The release edges of BACK and SELECT_ENC fall through to
+		// `Result::unhandled()` where legacy answered `DEALT_WITH` for the whole button. Bounded, and
+		// deliberately left: `Router::run_chain` delivers only to `SceneStack::input_top()`, and this
+		// scene is it (`input_transparent()` is false), so an unhandled release reaches nothing else.
 		break;
 
 	case UiEvent::Kind::Pad:
@@ -493,13 +580,24 @@ Result RenameScene::close() {
 }
 
 std::optional<uint32_t> RenameScene::next_timer() const {
-	// The cursor bar is the only thing here that moves without input, and it is only drawn when the
-	// cursor sits at the end of the string (`text_edit`: `cursor_lit` gates that arm and nothing
-	// else). Mid-string there is nothing to flash, so nothing to wake for.
-	if (cursor_blink_.period_ms == 0 || edit_.cursor != static_cast<int16_t>(len_)) {
-		return std::nullopt;
+	std::optional<uint32_t> next;
+
+	// The cursor bar moves without input, but only while the cursor sits at the end of the string
+	// (`text_edit`: `cursor_lit` gates that arm and nothing else). Mid-string there is nothing to
+	// flash, so nothing to wake for.
+	if (cursor_blink_.period_ms != 0 && edit_.cursor == static_cast<int16_t>(len_)) {
+		next = blink_next_flip_in(cursor_blink_, last_render_ms_);
 	}
-	return blink_next_flip_in(cursor_blink_, last_render_ms_);
+
+	// The held-backspace repeat is legacy's `TimerName::UI_SPECIFIC`, and it is the reason this
+	// scene must be woken on a tick with no input at all: nothing else would run `render_grid`, and
+	// `render_grid` is what reports the pad is still down.
+	if (repeat_armed_) {
+		const int32_t due = static_cast<int32_t>(repeat_at_ms_ - last_render_ms_);
+		const auto in_ms = static_cast<uint32_t>(due > 0 ? due : 0);
+		next = next.has_value() ? std::min(*next, in_ms) : in_ms;
+	}
+	return next;
 }
 
 RenameScene& rename_scene() {

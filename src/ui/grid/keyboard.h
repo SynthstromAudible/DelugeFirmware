@@ -115,7 +115,14 @@ bool text_keyboard_is_shift_pad(int32_t x, int32_t y, int32_t home_row);
 /// `text_keyboard_key_colour` has nothing -- a clear-then-draw collapsed into one pass, which is
 /// also why the sidebar is left untouched.
 ///
-/// @note `Response::index` carries the typed character code, or -1 for none. `Response::velocity`
+/// @note `Response::index` carries the typed character code, or -1 for none, and
+///       `Response::held_index` the same for the character *held* this tick -- the level under
+///       `index`'s edge, which is what a press-and-hold repeat re-reads (legacy's
+///       `UI_MODE_HOLDING_BACKSPACE`, `gui/ui/qwerty_ui.cpp:218-227,449-453`). Both are filled by
+///       the same "first pad that types a character" rule, one over `pressed` and one over `held`,
+///       and both are resolved with this tick's shift state. `held_index` is set on the tick of the
+///       press too, since `GridFrame::pad` answers `held` from a mask that already includes the
+///       event being delivered. `Response::velocity`
 ///       stays the *pad's* press velocity everywhere in the toolkit, so it is never repurposed to
 ///       carry a character code. Shift pads are read from the same pass that paints them
 ///       (`Response::held`, plus `pressed` so a shift pad pressed this very tick already counts),
@@ -136,7 +143,7 @@ bool text_keyboard_is_shift_pad(int32_t x, int32_t y, int32_t home_row);
 /// @param home_row Row the keyboard is centred on.
 /// @return This tick's aggregate response: `pressed`/`released`/`held` are true if any keyboard pad
 ///         was pressed/released/held; `index` is the typed character (or -1) and `velocity` its
-///         press velocity.
+///         press velocity; `held_index` is the held character (or -1).
 Response text_keyboard(GridFrame& f, TextKeyboardState& state, KeyboardLayoutKind layout,
                        int32_t home_row = kTextKeyboardHomeRow);
 

@@ -31,6 +31,21 @@ struct Response {
 	/// @note Signed so "nothing" is -1 rather than a magic 0 that collides with column 0 or with a
 	///       NUL character, and so it can coexist with a real velocity in the same call.
 	int16_t index = -1;
+
+	/// @brief The same selection, but for what is *held* this tick rather than what was pressed;
+	///        -1 = nothing held.
+	///
+	/// `index` is an edge and `held_index` is the level under it, which is the pair a
+	/// press-and-hold repeat needs: `index` says "act now", `held_index` says "still down, keep
+	/// acting". A widget that fills `index` fills this by the same rule over `Response::held`
+	/// instead of `Response::pressed`, and says so in its own header; a widget that fills neither
+	/// leaves both at -1.
+	///
+	/// On the tick of a press this is *also* set, because `GridFrame::pad` answers `held` from the
+	/// held-pad mask, which already includes the event being delivered
+	/// (`ui/core/input.h`'s `PadMask`: "down right now, this event included"). So a caller never
+	/// has to special-case the first tick of a hold.
+	int16_t held_index = -1;
 };
 
 } // namespace deluge::ui

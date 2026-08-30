@@ -139,6 +139,8 @@ Response text_keyboard(GridFrame& f, TextKeyboardState& state, KeyboardLayoutKin
 	int32_t pressed_x = -1;
 	int32_t pressed_y = -1;
 	uint8_t pressed_velocity = 0;
+	int32_t held_x = -1;
+	int32_t held_y = -1;
 	bool shift_held = false;
 
 	for (int32_t y = 0; y < h; y++) {
@@ -164,6 +166,14 @@ Response text_keyboard(GridFrame& f, TextKeyboardState& state, KeyboardLayoutKin
 					pressed_velocity = r.velocity;
 				}
 			}
+			if (r.held && held_x < 0 && text_keyboard_char_at(layout, x, y, home_row, false) != 0) {
+				// The same "first pad that *types* a character" rule the press sweep above uses, and
+				// for the same reason: a held shift pad sits ahead of the digit row in this bottom-up
+				// sweep and types nothing, so taking the first held pad unconditionally would report
+				// a hold on a key that cannot repeat.
+				held_x = x;
+				held_y = y;
+			}
 			out.released = out.released || r.released;
 			out.held = out.held || r.held;
 		}
@@ -175,6 +185,13 @@ Response text_keyboard(GridFrame& f, TextKeyboardState& state, KeyboardLayoutKin
 		// pad's own press velocity, so a caller can have both without decoding one from the other.
 		out.index = static_cast<int16_t>(text_keyboard_char_at(layout, pressed_x, pressed_y, home_row, state.shift));
 		out.velocity = pressed_velocity;
+	}
+	if (held_x >= 0) {
+		// `held_index` is the level under `index` -- what a press-and-hold repeat re-reads every
+		// tick (`ui/core/response.h`). Resolved with the same `state.shift` the press is, so a key
+		// held down while shift is pressed and released reports the shifted and unshifted character
+		// on the ticks the player would expect.
+		out.held_index = static_cast<int16_t>(text_keyboard_char_at(layout, held_x, held_y, home_row, state.shift));
 	}
 	return out;
 }

@@ -87,6 +87,18 @@ const Target& target(TargetId id);
 /// nothing, which is the same outcome legacy's own `resize`+`append` would reach on a full heap.
 inline constexpr size_t kMaxNameChars = 64;
 
+/// @brief How long a held backspace pad waits before it starts repeating, and how fast it repeats
+///        after that.
+///
+/// Legacy's own two numbers: `QwertyUI::padAction` arms `TimerName::UI_SPECIFIC` at **500 ms** on
+/// the press (`gui/ui/qwerty_ui.cpp:220`) and `QwertyUI::timerCallback` re-arms it at **80 ms**
+/// after each repeat (`:452`). The press itself deletes one character immediately (`:219`), so a
+/// tap is one deletion and a hold is one, a half-second pause, then twelve and a half a second.
+/// @{
+inline constexpr uint32_t kBackspaceRepeatDelayMs = 500;
+inline constexpr uint32_t kBackspaceRepeatMs = 80;
+/// @}
+
 /// @brief The `SceneKind` this scene is registered under: `FirstApp + 1` (`registry.h`).
 inline constexpr deluge::ui::shell::SceneKind kRenameSceneKind =
     static_cast<deluge::ui::shell::SceneKind>(static_cast<uint8_t>(deluge::ui::shell::SceneKind::FirstApp) + 1);
@@ -111,6 +123,7 @@ public:
 	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
 	                                 const deluge::ui::shell::UiContext& ctx) override;
 	bool on_enter(const deluge::ui::shell::SceneId& id) override;
+	void on_exit() override;
 	std::optional<uint32_t> next_timer() const override;
 
 	/// @brief True: the keyboard is painted over whatever grid is beneath, and the sidebar
@@ -142,6 +155,12 @@ private:
 	void type_char(char c);
 	/// @brief `QwertyUI::processBackspace` (`qwerty_ui.cpp:408-418`).
 	void backspace();
+	/// @brief `QwertyUI::timerCallback`'s `UI_MODE_HOLDING_BACKSPACE` arm (`qwerty_ui.cpp:449-453`):
+	///        delete another character if the pad is still down and the cadence says it is due.
+	/// @param held_char This tick's `Response::held_index`.
+	/// @param now       This tick's clock.
+	/// @return True if a character was deleted, so the caller can ask for a repaint.
+	bool advance_repeat(int16_t held_char, uint32_t now);
 	/// @brief `RenameUI::enterKeyPress` (`rename_ui.cpp:55-62`).
 	deluge::ui::shell::Result enter_key_press();
 	/// @brief `RenameUI::exitUI` -> `close()` (`rename_ui.cpp:99-102`), as an `Action`.
@@ -163,6 +182,14 @@ private:
 	/// `cursor_blink_.period_ms` doubles as "armed", exactly as `decimal_value`'s does; this is the
 	/// clock the render pass last saw, so `next_timer()` can answer without one of its own.
 	uint32_t last_render_ms_ = 0;
+
+	/// Legacy's `UI_MODE_HOLDING_BACKSPACE` (`qwerty_ui.cpp:218`), as a deadline rather than a mode:
+	/// the tick the next repeat is due. `repeat_armed_` is the mode bit itself -- set by the press,
+	/// cleared the moment `Response::held_index` stops naming the backspace key.
+	/// @{
+	bool repeat_armed_ = false;
+	uint32_t repeat_at_ms_ = 0;
+	/// @}
 
 	/// What this tick's `render_grid` observed, for `after_render` to act on -- the same
 	/// render-observes / after_render-acts split `MenuScene` uses.

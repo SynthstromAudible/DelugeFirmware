@@ -1220,6 +1220,21 @@ void MenuScene::restore_state(const SceneState& state) {
 		st_.depth = static_cast<uint8_t>(level + 1);
 		st_.path[st_.depth] = child;
 		if (is_leaf(child->kind)) {
+			// Fix round 1, Minor 2. This reaches `CustomItem::on_focus`, so restoring a menu that
+			// was parked on an item which opens a scene (`nodes::EditNameItem`) re-opens that
+			// scene on the next `after_render`. **That is deliberate, and it is what legacy does.**
+			// `SoundEditor::focusRegained` ends in `beginScreen()` (`sound_editor.cpp:292`), which
+			// calls `beginSession` on whatever the current item is (`:1015`), and
+			// `EditName::beginSession` opens `RenameUI` unconditionally
+			// (`gui/menu_item/edit_name.cpp:29-54`) -- there is no "only the first time" arm
+			// anywhere in that path.
+			//
+			// It is also the only coherent answer: `restore_state` is `replace_root`'s way of
+			// putting the user back where they were, and where they were *is* the editor. Skipping
+			// the hook would restore a menu sitting on a name-editor item that draws only its own
+			// title and does nothing until the user backs out and re-enters it. Specced by
+			// `rename_scene_spec.cpp`'s "reopens the editor when a menu parked on the item is
+			// restored".
 			enter_leaf(*child);
 		}
 	}
