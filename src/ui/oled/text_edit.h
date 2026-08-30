@@ -14,8 +14,8 @@ struct TextEditState {
 	bool cursor_lit = true; ///< Blink phase; the caller's clock decides when this flips.
 };
 
-/// @brief Draw @p s in @p rect with a blinking underline cursor at `state.cursor`, scrolling
-/// horizontally so the cursor stays inside the window.
+/// @brief Draw @p s in @p rect with a cursor at `state.cursor`, scrolling horizontally so the
+/// cursor stays inside the window.
 ///
 /// Ports `QwertyUI::drawTextForOLEDEditing` (`gui/ui/qwerty_ui.cpp:127-171`), generalised from
 /// "the whole panel" (its `xPixel`/`xPixelMax`/`maxNumChars` triple) to `rect`, the way every
@@ -28,20 +28,33 @@ struct TextEditState {
 ///     window by one column so the cursor can sit just past the last character;
 ///   - `state.scroll` is legacy's `scrollPosHorizontal`: a value the caller keeps across frames,
 ///     nudged in only as far as needed to keep the cursor visible, never recentred;
-///   - the cursor's row is legacy's blinking-underline case (`atVeryEnd` true, current UI):
-///     a 3-row band, `kTextSpacingY - 4 .. kTextSpacingY - 2` from the text's top, one
-///     `kTextSpacingX`-wide column at the cursor.
+///   - the cursor has legacy's own two presentations, both ported, selected by `atVeryEnd`
+///     (`cursor == s.size()`):
+///     - **at the end**: the blinking-underline case (`qwerty_ui.cpp:149-154`) -- a 3-row band,
+///       `kTextSpacingY - 4 .. kTextSpacingY - 2` from the text's top, one `kTextSpacingX`-wide
+///       column at the cursor;
+///     - **mid-string**: `invertLeftEdgeForMenuHighlighting` from the cursor to the rect's right
+///       edge (`qwerty_ui.cpp:156-170`) -- legacy's *only* mid-string cursor presentation, not a
+///       predictive-text overlay (`enteredTextEditPos` is plainly the cursor throughout this
+///       routine). Ported following `f.style.invert_highlight`, exactly the way `list` and
+///       `columns` already port the same legacy primitive (`invertLeftEdgeForMenuHighlighting`,
+///       named in `list.cpp`'s D1 comment): `true` inverts the rounded box
+///       (`invertAreaRounded`, legacy's `FULL_INVERSION`/`PARTIAL_INVERSION`), `false` draws a
+///       single-column rule (`draw_vertical_line`, legacy's `NO_INVERSION`). The highlight's left
+///       edge starts in the 1px gap *after* the previous character
+///       (`rect.x + kTextSpacingX * scroll_amount - 1`), not on top of its last column --
+///       otherwise the inversion eats a pixel column out of the letter before the cursor -- except
+///       legacy's own special case, `!invert_highlight && scroll_amount == 0`, which starts the
+///       rule at the panel's own left edge rather than one pixel short of the box; generalised
+///       here to the rect's own left edge (`rect.x`), the same "whole panel" -> "this rect"
+///       substitution every other edge in this widget (and `gfx::oled::kEdge`/`kCentre`) makes.
 ///
-/// @note **Render-only; owns no input.** Legacy's other case -- `atVeryEnd` false -- inverts the
-///       box from the cursor to the end of the string, which is how `QwertyUI` marks predicted
-///       text as unconfirmed (`predictExtendedText`, driven by `FlashStorage`). That is model
-///       behaviour a toolkit widget cannot have an opinion on, so it is not ported: whatever
-///       `state.cursor` is, this widget always draws the same blinking underline there, lit or
-///       dark per `state.cursor_lit`. Cursor motion is the caller's, too -- `horizontalEncoderAction`
-///       (`qwerty_ui.cpp:420-447`) becomes the scene's own `f.horizontal()` handling (see
-///       `RenameScene::handle`), exactly as the grid half's `text_keyboard` leaves typing and
-///       backspace to its caller. `text_edit` never reads a frame's input at all, so it is safe to
-///       call from an unfocused region purely for its looks.
+/// @note **Render-only; owns no input.** Cursor motion is the caller's --
+///       `horizontalEncoderAction` (`qwerty_ui.cpp:420-447`) becomes the scene's own
+///       `f.horizontal()` handling (see `RenameScene::handle`), exactly as the grid half's
+///       `text_keyboard` leaves typing and backspace to its caller. `text_edit` never reads a
+///       frame's input at all, so it is safe to call from an unfocused region purely for its
+///       looks.
 ///
 /// `state.cursor` is clamped into `[0, s.size()]` for *this* frame's string before anything else,
 /// the same two-pass discipline `list` uses for its row count: a string that shrank out from

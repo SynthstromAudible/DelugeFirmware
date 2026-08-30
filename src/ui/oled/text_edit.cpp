@@ -46,14 +46,45 @@ void text_edit(OledFrame& f, Rect rect, std::string_view s, TextEditState& state
 	if (!state.cursor_lit) {
 		return;
 	}
-	// qwerty_ui.cpp:149-154: the blinking-underline case (there gated on `atVeryEnd` and
-	// `getCurrentUI() == this`; here the caller's `state.cursor_lit` stands in for both -- see
-	// text_edit.h's render-only note for why the other, prediction-highlight branch is not
-	// ported). `textBottomY - 4 .. textBottomY - 2` is a 3-row band near the bottom of the 9-row
-	// text cell, one kTextSpacingX-wide column at the cursor's screen position.
-	const int32_t cursor_x = rect.x + (cursor - scroll) * kTextSpacingX;
-	const int32_t text_bottom_y = rect.y + kTextSpacingY;
-	f.invert(Rect{cursor_x, text_bottom_y - 4, kTextSpacingX, 3});
+
+	if (at_very_end) {
+		// qwerty_ui.cpp:149-154: the blinking-underline case (there gated on `atVeryEnd` and
+		// `getCurrentUI() == this`; here the caller's `state.cursor_lit` stands in for both).
+		// `textBottomY - 4 .. textBottomY - 2` is a 3-row band near the bottom of the 9-row text
+		// cell, one kTextSpacingX-wide column at the cursor's screen position.
+		const int32_t cursor_x = rect.x + (cursor - scroll) * kTextSpacingX;
+		const int32_t text_bottom_y = rect.y + kTextSpacingY;
+		f.invert(Rect{cursor_x, text_bottom_y - 4, kTextSpacingX, 3});
+		return;
+	}
+
+	// qwerty_ui.cpp:156-170: legacy's *only* mid-string cursor presentation -- not a
+	// predictive-text overlay, `enteredTextEditPos` is plainly the cursor throughout this
+	// routine -- so it is ported, not skipped: invert from the cursor to the rect's right edge,
+	// following `f.style.invert_highlight` exactly the way `list`/`columns` already port the same
+	// legacy primitive (`invertLeftEdgeForMenuHighlighting`).
+	const int32_t scroll_amount = cursor - scroll; // == enteredTextEditPos - scrollPosHorizontal
+	int32_t highlight_start_x;
+	if (!f.style.invert_highlight && scroll_amount == 0) {
+		// Legacy's NO_INVERSION special case starts the rule at the panel's own left edge (x =
+		// 0) rather than one pixel short of the box -- generalised here to the rect's own left
+		// edge, the same "whole panel" -> "this rect" substitution every other edge in this
+		// widget makes.
+		highlight_start_x = rect.x;
+	}
+	else {
+		// Start in the 1px gap that follows the previous character, rather than on top of that
+		// character's last column -- otherwise the inversion eats a pixel column out of the
+		// letter before the cursor.
+		highlight_start_x = rect.x + kTextSpacingX * scroll_amount - 1;
+	}
+
+	if (f.style.invert_highlight) {
+		f.invert_rounded(Rect{highlight_start_x, rect.y, rect.right() - highlight_start_x, kTextSpacingY});
+	}
+	else {
+		f.vline(highlight_start_x, rect.y, rect.y + kTextSpacingY - 1);
+	}
 }
 
 } // namespace deluge::ui::oled
