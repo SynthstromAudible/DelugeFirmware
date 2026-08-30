@@ -49,14 +49,26 @@
 ///
 /// ## What did NOT come across
 ///
-///   * **Every `OledFrame` drawing primitive.** `PatchCableStrength::renderOLED`
-///     (`patch_cable_strength.cpp:74-176`) is 100 lines of `drawVerticalLine` /
-///     `drawGraphicMultiLine` / `invertAreaRounded` on the raw canvas; the scenes layer draws only
-///     through `ui::oled` widgets (`scripts/check_layer_rules.py`'s `scenes-no-frame-primitives`).
-///     The port draws the same *information* -- source, second source, destination, value -- as
-///     title plus text rows plus `decimal_value`, and the arrow glyphs and the BI/UNI switch box
-///     are not reproduced. The polarity itself is not lost: it is shown as a word and edited the
-///     same way legacy's `selectEncoderAction` does (select held + turn).
+///   * **The polarity gesture is SHIFT + turn, where legacy uses the select encoder *held* + turn**
+///     (`PatchCableStrength::selectEncoderAction`, `patch_cable_strength.cpp:322-332`, gated on
+///     `Buttons::isButtonPressed(hid::button::SELECT_ENC)`). A `FrameContext` carries no held-button
+///     *level* for an encoder -- only the press edge -- and `f.shift()` is the one modifier it does
+///     expose (`ui/core/frame_context.h`), so the gesture changed. Legacy's MIDI/CV *button*
+///     shortcut for the same thing (`buttonAction`, `:308-320`) has no port either: `IndicatorLED`
+///     and `hid::Button` are both `hid/`.
+///   * **The value's face and position.** Legacy draws it right-aligned at the top in
+///     `kTextBigSizeY` (13) with its own decimal-separator lines (`:169-176`); this port uses
+///     `decimal_value`, whose face is the 20px one and whose digits are centred across the rect it
+///     is given. That is the one reason the polarity switch does not sit on legacy's own canvas row
+///     34 -- see `kRoutingDiagramWidth` in the `.cpp`.
+///
+/// The routing diagram and the BI/UNI box **are** ported, as of fix round 1: they are
+/// `ui::oled::routing_chain` and `ui::oled::segmented_switch` (`ui/oled/routing.h`), transcribed
+/// coordinate for coordinate from `renderOLED`'s two blocks and pinned byte-for-byte against them
+/// in `tests/spec/ui/routing_spec.cpp`. The scenes layer may not call an `OledFrame` primitive
+/// (`scripts/check_layer_rules.py`'s `scenes-no-frame-primitives`), so the drawing lives in the
+/// toolkit and this page composes it -- which is also what makes it reusable by the next screen
+/// that has to show a signal path.
 ///   * `PatchCables::blinkShortcuts` / `blinkShortcutsSoon` / `timerCallback`
 ///     (`patch_cables.cpp:118-152`) and the three `shouldBlinkPatchingSourceShortcut` overrides:
 ///     grid-pad blinking driven by `uiTimerManager` and `soundEditor.setupShortcutBlink`.

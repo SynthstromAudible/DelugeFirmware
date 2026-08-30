@@ -51,4 +51,11 @@ extern const Icon submenuArrow;
 /// @note Legacy icon `submenuArrowIconBold`.
 extern const Icon submenuArrowBold;
 /// @}
+
+/// @{
+/// @name Routing-diagram arrowheads (`ui/oled/routing.h`)
+/// @note Legacy icons `OLED::downArrowIcon` (5 wide) and `OLED::rightArrowIcon` (3 wide).
+extern const Icon arrowDown;
+extern const Icon arrowRight;
+/// @}
 } // namespace deluge::gfx::oled::icons

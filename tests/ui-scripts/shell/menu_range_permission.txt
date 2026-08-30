@@ -1,6 +1,12 @@
 # Level-2 acceptance (task-11 brief): a range-dependent leaf (nodes::source0_transpose) reached as
-# row 1 of a small vertical wrapper, with two MultiRanges on the source so entry is refused
-# (Permission::MustSelectRange) rather than descended into.
+# row 1 of a small vertical wrapper, with two MultiRanges on the source.
+#
+# E2 task 9 changed this script's subject. Entry is no longer *refused*: `Permission::MustSelectRange`
+# now makes `MenuScene::enter_child` open `nodes::multi_range` in the leaf's place -- legacy's own
+# `multiRangeMenu.menuItemHeadingTo = newItem; newItem = &multiRangeMenu;` (`sound_editor.cpp:1802-1803`).
+# So `after_select_press` is the real range picker, listing both ranges by name, and `after_back`
+# is the wrapper again. What the script still pins is that the *leaf* was never opened and its
+# value never moved.
 0     snapshot idle
 100   encoder Select +1
 120   snapshot after_select_turn
@@ -8,7 +14,10 @@
 220   button SelectEnc up
 240   snapshot after_select_press
 300   encoder GoldUpper +2
-320   snapshot after_gold_turn
+# E2 task 9: the GoldUpper turn above lands on the page the select press opened, which reads no
+# edit encoder -- so it inks nothing new and its snapshot was byte-identical to `after_select_press`.
+# The step stays (the spec asserts the value did NOT move here) and the snapshot does not: a golden
+# that records nothing is a golden that can never fail for the right reason.
 400   button Back down
 420   button Back up
 440   snapshot after_back

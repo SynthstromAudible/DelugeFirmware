@@ -858,4 +858,27 @@ DEFINE_ICON(submenuArrowBold, 1, //<
             0b00000000,          //<
 );
 
+/// @{
+/// @name Routing-diagram arrowheads
+///
+/// The two arrowheads `PatchCableStrength::renderOLED` draws between the stages of its
+/// source -> destination diagram (`gui/menu_item/patch_cable_strength.cpp:99,107,116`), where they
+/// are `OLED::downArrowIcon` / `OLED::rightArrowIcon` (`hid/display/oled_icons.cpp:104-116`) blitted
+/// with `drawGraphicMultiLine(icon, x, y, width)` at width 5 and 3 -- which is exactly their own
+/// column count, so an `Icon` of this shape draws the same pixels.
+DEFINE_ICON(arrowDown, 1, //<
+            0b00010000,   //<
+            0b00100000,   //<
+            0b01111111,   //<
+            0b00100000,   //<
+            0b00010000,   //<
+);
+
+DEFINE_ICON(arrowRight, 1, //<
+            0b00010101,    //<
+            0b00001110,    //<
+            0b00000100,    //<
+);
+/// @}
+
 } // namespace deluge::gfx::oled::icons

@@ -41,6 +41,11 @@
 #include <optional>
 #include <span>
 
+/// @brief Forward declared for `MenuState::patch_polarity` -- see the note there. Defined in
+///        `modulation/patch/patch_cable.h`; a scoped enum with an explicit underlying type is
+///        complete enough to store by value from its declaration alone.
+enum class Polarity : uint8_t;
+
 namespace deluge::scenes::menu {
 
 /// @brief How deep a menu path may go, and how many `ListState`s the scene therefore keeps.
@@ -202,6 +207,25 @@ struct MenuState {
 	PatchSource patch_source = PatchSource::NOT_AVAILABLE;
 	/// `source_selection::rangeMenu.s` -- the source modulating *that* cable's depth.
 	PatchSource patch_range_source = PatchSource::NOT_AVAILABLE;
+
+	/// @brief `PatchCableStrength::polarity_in_the_ui_` (`gui/menu_item/patch_cable_strength.h:83`):
+	///        the polarity the page is *showing*, which a cable that does not exist yet has no home
+	///        for.
+	///
+	/// Legacy keeps it on the item because a `PatchCableStrength` is a singleton with one visit's
+	/// worth of state; here the item is `const`, so it lives beside the rest of the page's
+	/// navigation state. `on_focus` seeds it (from the cable, or `PatchCable::getDefaultPolarity`),
+	/// the render writes it, and `commit` applies it to a cable it has just created -- which is
+	/// legacy's `getModelStack(..., allowCreation = true)` doing `setPatchCablePolarity` on the
+	/// `!patch_cable_exists_` path (`patch_cable_strength.cpp:213-219`).
+	///
+	/// @note `Polarity` is **forward declared** at the top of this file rather than included:
+	///       `modulation/patch/patch_cable.h` drags in `modulation/automation/auto_param.h`, which
+	///       the `scenes-model-stack` ratchet confines to `bindings.cpp` and `context.cpp`, and
+	///       which every translation unit that includes this header would otherwise inherit. A
+	///       scoped enum with an explicit underlying type is completely specified by its
+	///       declaration, so storing one by value needs nothing more.
+	Polarity patch_polarity = Polarity{1}; // Polarity::BIPOLAR
 	/// @}
 
 	/// @brief A scene a focused `CustomItem` asked the shell to push, or `SceneKind::Null` for

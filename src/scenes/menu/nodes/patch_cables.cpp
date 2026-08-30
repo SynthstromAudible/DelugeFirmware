@@ -28,6 +28,7 @@
 
 #include "gfx/oled/icons.h"
 #include "ui/oled/list.h"
+#include "ui/oled/routing.h"
 #include "ui/oled/text.h"
 #include "ui/oled/values.h"
 
@@ -570,6 +571,18 @@ void PatchCableStrengthItem::on_focus(const MenuContext& ctx, MenuState& state) 
 		}
 	}
 
+	// `PatchCableStrength::beginSession` (`patch_cable_strength.cpp:47-68`): the polarity the page
+	// shows is the cable's own, or -- when there is no cable yet -- the source's default. Legacy
+	// also calls `setPatchCablePolarity(polarity_in_the_ui_)` here, which is a no-op in the
+	// no-cable case and a write-back of what it just read in the other; the port skips the
+	// round trip and keeps the read.
+	const PatchSource source = strength_source(state, which_);
+	PatchCableSet* set = cable_set(ctx);
+	const uint8_t existing =
+	    set != nullptr ? set->getPatchCableIndex(source, strength_destination(state, which_)) : uint8_t{kNoSelection};
+	state.patch_polarity =
+	    existing != kNoSelection ? set->patchCables[existing].polarity : PatchCable::getDefaultPolarity(source);
+
 	// `Decimal::beginSession` plus `getDefaultEditPos()` (`patch_cable_strength.h:39`): the cursor
 	// starts on the hundredths' place.
 	state.edit_int = strength_read(ctx, state, which_);
@@ -577,40 +590,71 @@ void PatchCableStrengthItem::on_focus(const MenuContext& ctx, MenuState& state) 
 	state.cursor_blink = deluge::ui::Blink{};
 }
 
+/// @brief How many columns of the page the routing diagram owns.
+///
+/// Everything left of this is the diagram's; everything right of it is the value's. Legacy needs no
+/// such split because its own number is `kTextBigSizeY` (13) tall and right-aligned at the very top
+/// (`patch_cable_strength.cpp:169-176`), well clear of a diagram that runs down the left; this port
+/// draws the value with `decimal_value`, whose face is the 20px one and whose digits are centred
+/// across the rect they are given. Handing it the right-hand rect is how the two stay apart -- and
+/// `decimal_value` honours a rect horizontally only (`ui/oled/values.h:115`), which is exactly the
+/// knob this needs.
+constexpr int32_t kRoutingDiagramWidth = 58;
+
+/// @brief The polarity switch's two slot widths -- `biSlotWidth` / `uniSlotWidth`
+///        (`patch_cable_strength.cpp:137-138`).
+/// @{
+constexpr std::array<int32_t, 2> kPolarityWidths{{25, 28}};
+constexpr std::array<int32_t, 1> kNoPolarityWidth{{53}};
+/// @}
+
 void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const {
 	const PatchSource source = strength_source(state, which_);
 	const ParamDescriptor destination = strength_destination(state, which_);
+	const deluge::gfx::oled::Rect bounds = f.bounds();
 
-	// The information `PatchCableStrength::renderOLED`'s 100 lines of canvas primitives draw
-	// (`patch_cable_strength.cpp:74-176`): the source, the second source for a range cable, the
-	// destination, and the polarity. Drawn as one title line, because the scenes layer may not call
-	// a frame primitive and the toolkit has no arrow-diagram widget -- see `patch_cables.h`.
-	constexpr size_t kTitleChars = 40;
-	char title_buf[kTitleChars];
-	size_t len = 0;
-	if (!destination.isJustAParam()) {
-		append(title_buf, len, kTitleChars, source_short_name(destination.getTopLevelSource()));
-		append(title_buf, len, kTitleChars, ">");
-	}
-	append(title_buf, len, kTitleChars, source_short_name(source));
-	append(title_buf, len, kTitleChars, ">");
+	// `PatchCableStrength::renderOLED`'s first block (`patch_cable_strength.cpp:80-133`), through
+	// the toolkit widget that ports it (`ui/oled/routing.h`). The stage order is legacy's: the
+	// cable's own source first, then -- for a cable modulating another cable's depth -- that outer
+	// cable's source, then the destination param.
+	//
+	// **No title.** Legacy draws none on this page: `renderOLED` replaces `drawPixelsForOled`
+	// wholesale, and the diagram is the page's identity.
 	const char* dest_name = params::getPatchedParamShortName(destination.getJustTheParam(), ctx.mod);
-	append(title_buf, len, kTitleChars, dest_name != nullptr ? std::string_view{dest_name} : std::string_view{});
+	std::array<std::string_view, deluge::ui::oled::kMaxRoutingStages> stages{};
+	size_t n = 0;
+	stages[n++] = source_short_name(source);
+	if (!destination.isJustAParam()) {
+		stages[n++] = source_short_name(destination.getTopLevelSource());
+	}
+	stages[n++] = dest_name != nullptr ? std::string_view{dest_name} : std::string_view{};
+	deluge::ui::oled::routing_chain(f, deluge::gfx::oled::Rect{0, 0, kRoutingDiagramWidth, bounds.h},
+	                                std::span<const std::string_view>{stages.data(), n});
 
 	PatchCableSet* set = cable_set(ctx);
 	const uint8_t index = set != nullptr ? set->getPatchCableIndex(source, destination) : uint8_t{kNoSelection};
+
+	// `renderOLED`'s polarity switcher (`:135-167`), through `segmented_switch`. The band's left
+	// edge is `bounds.w - 55`, which is legacy's own `startX` of 73 on a 128-column panel, and its
+	// row is the top of the frame rather than legacy's absolute canvas 34 -- the one deliberate
+	// placement change, forced by this port's taller value face (see `kRoutingDiagramWidth`).
+	const deluge::gfx::oled::Rect switch_area{bounds.w - 55, 2, 53, deluge::gfx::oled::kTextSpacingY};
 	if (PatchCable::hasPolarity(source)) {
-		// `renderOLED`'s BI/UNI switcher (`:141-164`), as a word rather than a box.
-		const Polarity polarity =
-		    index != kNoSelection ? set->patchCables[index].polarity : PatchCable::getDefaultPolarity(source);
-		append(title_buf, len, kTitleChars, " ");
-		append(title_buf, len, kTitleChars, polarityToStringShort(polarity));
+		static constexpr std::array<std::string_view, 2> kPolarityLabels{{"BI", "UNI"}}; // `:154-156`
+		deluge::ui::oled::segmented_switch(f, switch_area, kPolarityLabels, kPolarityWidths,
+		                                   state.patch_polarity == Polarity::UNIPOLAR ? 1 : 0);
 	}
-	deluge::ui::oled::title(f, std::string_view{title_buf, len});
+	else {
+		// `:161-166` -- a param with no polarity shows only the default one, full width, uninverted.
+		const std::string_view only = polarityToString(PatchCable::getDefaultPolarity(source));
+		deluge::ui::oled::segmented_switch(f, switch_area, std::span<const std::string_view>{&only, 1},
+		                                   kNoPolarityWidth, -1);
+	}
 
 	// `getMinValue`/`getMaxValue`/`getNumDecimalPlaces` (`patch_cable_strength.h:36-38`).
 	constexpr IntRange kRange{kMinMenuPatchCableValue, kMaxMenuPatchCableValue, 1};
-	const deluge::ui::Response r = deluge::ui::oled::decimal_value(f, f.bounds(), state.edit_int, kRange, /*places=*/2,
+	const deluge::gfx::oled::Rect value_rect{kRoutingDiagramWidth, 0, bounds.w - kRoutingDiagramWidth, bounds.h};
+	const deluge::ui::Response r = deluge::ui::oled::decimal_value(f, value_rect, state.edit_int, kRange, /*places=*/2,
 	                                                               state.decimal_pos, state.cursor_blink,
 	                                                               /*focused=*/true);
 	state.render_resp = r;
@@ -624,8 +668,13 @@ void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuCo
 	// port uses SHIFT + turn -- the one modifier `FrameContext` does expose (`f.shift()`), and the
 	// same modifier legacy's own `MultiRange` uses for its second gesture.
 	const int8_t turn = f.turn();
-	if (turn != 0 && f.shift() && PatchCable::hasPolarity(source) && index != kNoSelection) {
-		set->patchCables[index].polarity = turn > 0 ? Polarity::UNIPOLAR : Polarity::BIPOLAR;
+	if (turn != 0 && PatchCable::hasPolarity(source) && f.shift()) {
+		// `polarity_in_the_ui_` first, then `setPatchCablePolarity` (`:325-327`), which is a no-op
+		// while no cable exists -- and `commit` is what applies it to one it creates.
+		state.patch_polarity = turn > 0 ? Polarity::UNIPOLAR : Polarity::BIPOLAR;
+		if (index != kNoSelection) {
+			set->patchCables[index].polarity = state.patch_polarity;
+		}
 		deluge::notify::dirty().raise(deluge::notify::Dirty::Oled);
 	}
 
@@ -637,8 +686,28 @@ void PatchCableStrengthItem::render(deluge::ui::oled::OledFrame& f, const MenuCo
 void PatchCableStrengthItem::commit(const MenuContext& ctx, MenuState& state) const {
 	// `PatchCableStrength::writeCurrentValue` (`patch_cable_strength.cpp:222-238`), through the one
 	// place in this layer that may assemble a model stack.
+	//
+	// Whether the cable existed is read *before* the write, because the write is what may create
+	// one: legacy asks the same question with its own `patch_cable_exists_` flag, seeded in
+	// `beginSession` (`:53-63`) and cleared by `readCurrentValue` when the cable is gone (`:184`).
+	const PatchSource source = strength_source(state, which_);
+	PatchCableSet* set = cable_set(ctx);
+	const bool existed =
+	    set != nullptr && set->getPatchCableIndex(source, strength_destination(state, which_)) != kNoSelection;
+
 	if (!bindings::patch_cable_write(ctx, learn_descriptor(ctx, state), state.edit_int)) {
 		return;
+	}
+
+	// `getModelStack(..., allowCreation = true)`'s tail (`:213-219`): a cable this write has just
+	// *created* takes the polarity the page was showing, which is otherwise lost -- a new cable is
+	// constructed `BIPOLAR` whatever `PatchCable::getDefaultPolarity(source)` says.
+	if (!existed && PatchCable::hasPolarity(source)) {
+		const uint8_t created = set != nullptr ? set->getPatchCableIndex(source, strength_destination(state, which_))
+		                                       : uint8_t{kNoSelection};
+		if (created != kNoSelection) {
+			set->patchCables[created].polarity = state.patch_polarity; // `setPatchCablePolarity` (`:322-330`)
+		}
 	}
 	if (updates_reverb_) {
 		// `sidechain::VolumeShortcut::writeCurrentValue` (`sidechain/volume.h:26-29`).

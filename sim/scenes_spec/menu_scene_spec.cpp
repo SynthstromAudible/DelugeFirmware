@@ -846,6 +846,38 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(menu_scene().state().range_picker_pending).to_be_false();
 	});
 
+	it("a range-dependent node on a ZERO-range source opens, because enter_child creates the range", _ {
+		// E1's carried debt, end to end: `checkPermissionToBeginSessionForRangeSpecificParam`'s very
+		// first statement is `source->getOrCreateFirstRange()` (`sound_editor.cpp:1938`), so a
+		// sample item on a source with no ranges at all opens -- it does not bounce to a picker with
+		// nothing in it. `tables_1_spec` drives `menu::ensure_first_range` directly; this drives the
+		// caller, `MenuScene::enter_child`, which is where the ordering (create, *then* ask) lives.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		auto* sound = static_cast<SoundInstrument*>(r.song.instrument);
+		expect(sound->sources[0].ranges.empty()).to_be_true(); // the fixture starts with none
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+
+		for (int i = 0; i < 5; i++) {
+			r.turn(1, static_cast<uint32_t>(10 + i * 10));
+			r.shell.tick(static_cast<uint32_t>(15 + i * 10));
+		}
+		expect(cursor_of(0)).to_equal(5);
+
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.shell.tick(110);
+
+		// The leaf itself is on screen -- no picker in between -- and the range it needs now exists.
+		expect(depth_of()).to_equal(1);
+		expect(menu_scene().focused() == &transpose_leaf).to_be_true();
+		expect(menu_scene().state().range_picker_pending).to_be_false();
+		expect(static_cast<int>(std::ssize(sound->sources[0].ranges))).to_equal(1);
+		// `Source::getOrCreateFirstRange` gives it the top of the keyboard (`source.cpp:165`).
+		expect(static_cast<int>(sound->sources[0].ranges.getElement(0)->topNote)).to_equal(32767);
+	});
+
 	it("save_state and restore_state round-trip a depth-3 path", _ {
 		select_language();
 		deluge::notify::dirty().drain();

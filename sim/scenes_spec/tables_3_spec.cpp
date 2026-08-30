@@ -104,6 +104,7 @@ using deluge::hid::display::OLED;
 #include <set>
 #include <span>
 #include <string>
+#include <utility>
 #include <vector>
 
 #include "spec/support/spec_main.h"
@@ -1877,6 +1878,84 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 		// picker. 7 + 53 + 4 + 3 + 1 = 68.
 		expect(chaining_nodes).to_equal(size_t(68));
 		expect(answers > size_t(0)).to_be_true();
+	});
+
+	it("has exactly one chain edge that closes a cycle, and it is the legacy one", _ {
+		// The guard the `"ref"` stub cost us. Before E2 task 9 the dump's `fail_on_chain_cycle`
+		// *stopped* on a cycle, so an unintended one could not be committed; now it is emitted as a
+		// `{"ref": true}` stub and the only remaining net is "the JSON changed", which says nothing
+		// about why. This names the edge instead.
+		//
+		// A **path-aware** walk, not the seen-set one above: a cycle is a target that is already
+		// open on the current path, which is exactly `menu_dump_main.cpp`'s `g_path` test and
+		// therefore exactly what makes the dump emit a stub.
+		// A *set* of edges: the same edge closes a cycle on every path that reaches it (the dump
+		// emits a stub at each such occurrence -- 118 of them), and what is being pinned here is
+		// which edges can do it at all, not how many times the walk meets one.
+		std::set<std::pair<const Node*, const Node*>> back_edges;
+		std::vector<const Node*> path;
+		std::set<std::pair<const Node*, const Node*>> visited_edges;
+		const auto walk = [&](auto&& self, const Node* n) -> void {
+			if (n == nullptr) {
+				return;
+			}
+			path.push_back(n);
+			for (const Node* c : n->children) {
+				if (c != nullptr && visited_edges.insert({n, c}).second) {
+					self(self, c);
+				}
+			}
+			for (const Node* t : n->chain_targets) {
+				if (t == nullptr) {
+					continue;
+				}
+				if (std::find(path.begin(), path.end(), t) != path.end()) {
+					back_edges.insert({n, t});
+					continue; // the dump stops here too -- it emits the stub and does not recurse
+				}
+				if (visited_edges.insert({n, t}).second) {
+					self(self, t);
+				}
+			}
+			path.pop_back();
+		};
+		for (const Node* root : nodes::kAllRoots) {
+			walk(walk, root);
+		}
+
+		// **Both directions of one two-node loop**, and nothing else.
+		// `patch_cable_strength::rangeMenu`'s select press opens `source_selection::rangeMenu`
+		// (`patch_cable_strength.cpp:302-306`) and that page's opens the strength page straight back
+		// (`source_selection/range.cpp:30-32`) -- legacy's own loop, and how a user toggles between
+		// "which source modulates this cable's depth" and "by how much". Which of the two shows up
+		// as the back edge depends on which the walk enters first, and the tree reaches each of them
+		// first from somewhere (`patch_cables` chains straight to the strength page, every
+		// `PatchedParam` reaches the picker first), so both do.
+		//
+		// Named by identity, not by `name`: the two share the string "Modulate depth".
+		const auto name_of = [](const Node* n) -> std::string {
+			if (n == &nodes::source_selection_range) {
+				return "source_selection_range";
+			}
+			if (n == &nodes::patch_cable_strength_range) {
+				return "patch_cable_strength_range";
+			}
+			return "UNEXPECTED:" + text_of(n->name);
+		};
+		// The set orders by pointer, which is link-order-dependent, so the names are sorted before
+		// they are joined -- and compared as one string, so an unintended cycle prints the edge that
+		// caused it rather than a bare `false`.
+		std::vector<std::string> names;
+		for (const auto& [from, to] : back_edges) {
+			names.push_back(name_of(from) + " -> " + name_of(to));
+		}
+		std::sort(names.begin(), names.end());
+		std::string named;
+		for (const std::string& one : names) {
+			named += one + "; ";
+		}
+		expect(named).to_equal(std::string{"patch_cable_strength_range -> source_selection_range; "
+		                                   "source_selection_range -> patch_cable_strength_range; "});
 	});
 
 	it("validates the three chain-only pages along with the settings root", _ {

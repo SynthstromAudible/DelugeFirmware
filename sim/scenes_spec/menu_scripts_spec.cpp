@@ -153,7 +153,10 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		};
 		const uitest::RunResult result = uitest::expect_script_goldens(
 		    self, "menu_decimal", scenes::scene_registry(), deluge::ui::shell::Services{}, opts);
-		expect(result.snapshots).to_equal(uint32_t{6});
+		// Five, not six: the script's first GoldUpper turn lands on a page that reads no edit
+		// encoder, so its snapshot was byte-identical to `after_select_press` and was dropped (fix
+		// round 1) -- the *step* stays, because the "unchanged" assertion below is about it.
+		expect(result.snapshots).to_equal(uint32_t{5});
 
 		// E2 task 9: `source0_transpose` is one of the 53 `PatchedParam` nodes, so its select press
 		// opens the source picker rather than ascending (`patched_param.cpp:32-38`). The script's
@@ -278,9 +281,10 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		};
 		const uitest::RunResult result = uitest::expect_script_goldens(
 		    self, "menu_shortcut", scenes::scene_registry(), deluge::ui::shell::Services{}, opts);
-		// Seven, not six: `lpf_freq` is a `PatchedParam` node too, so the script gained a second
-		// GoldUpper turn after the Back -- see `menu_decimal` above and the script file's own note.
-		expect(result.snapshots).to_equal(uint32_t{7});
+		// Six: `lpf_freq` is a `PatchedParam` node too, so the script gained a second GoldUpper turn
+		// after the Back -- and lost the first one's empty snapshot. See `menu_decimal` above and the
+		// script file's own note.
+		expect(result.snapshots).to_equal(uint32_t{6});
 
 		// The real pad (8, 7) of `paramShortcutsForSounds` -- `&lpfFreqMenu` -- proven in
 		// `menu_scene_spec.cpp`'s own shortcut tests.
@@ -313,11 +317,12 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		};
 		const uitest::RunResult result = uitest::expect_script_goldens(
 		    self, "menu_range_permission", scenes::scene_registry(), deluge::ui::shell::Services{}, opts);
-		expect(result.snapshots).to_equal(uint32_t{5});
+		expect(result.snapshots).to_equal(uint32_t{4});
 
-		// The script ends with a Back, so the wrapper is on screen again -- but the two snapshots
-		// between the select press and that Back are the REAL range picker (its two rows, named by
-		// `MultiRange::getText`), not the refused-entry no-op E1 recorded here.
+		// The script ends with a Back, so the wrapper is on screen again -- but `after_select_press`
+		// is the REAL range picker (its two rows, named by `MultiRange::getText`), not the
+		// refused-entry no-op E1 recorded here. (The GoldUpper snapshot that used to follow it was
+		// dropped in fix round 1: the picker reads no edit encoder, so it was byte-identical.)
 		expect(menu_scene().focused() == &range_perm_root).to_be_true();
 		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_TRANSPOSE)));
 		expect(cursor0()).to_equal(1); // the Select detent landed the cursor on row 1

@@ -356,6 +356,19 @@ note); and the two other dropped arms the sweep turned up, `Submenu`'s `shouldFo
 forwarding (`submenu.cpp:187-194`) and `Automation::selectButtonPress`'s shift-held automation
 delete (`automation/automation.cpp:37`), which a `Param`/`UnpatchedParam` item inherits directly and
 a `PatchedParam` one reaches only through the shift branch above.
+**Carried by E2 task 9, and owed to the eventual MIDI/grid wiring plan** (which does not exist as a
+named task yet, so it is listed here rather than deferred to one): the mod-matrix list's **patching
+pad blinking**. `PatchCables::blinkShortcuts` / `blinkShortcutsSoon` / `timerCallback`
+(`gui/menu_item/patch_cables.cpp:118-152`) light the selected cable's destination pad through
+`soundEditor.setupShortcutBlink` and its one or two source pads through
+`updateSourceBlinks` + `shouldBlinkPatchingSourceShortcut`, throttled by a 500 ms
+`TimerName::UI_SPECIFIC`. `MenuScene::render_grid` owns this port's single blink cycle and keys it
+off the focused *node* (`menu_scene.h`'s `kShortcutBlinkMs`); making it consult the focused
+`CustomItem` instead needs a hook on `CustomItem` and a second blink source, which is the same shape
+of change as routing MIDI to `MenuScene::learn_*`. The three
+`shouldBlinkPatchingSourceShortcut` overrides (`patch_cables.cpp:154-164`,
+`patch_cable_strength/{regular,range,fixed}.cpp`) and `patchingSourceShortcutPress` go with it.
+
 `Source::getOrCreateFirstRange()` on a zero-range sample item is **no longer carried**: E2 task 9
 put it in `menu::ensure_first_range` (`menu/context.h`), which `MenuScene::enter_child` runs ahead of
 the permission question for every `range_dependent` descent — exactly where

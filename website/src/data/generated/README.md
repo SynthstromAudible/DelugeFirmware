@@ -21,13 +21,23 @@ than just diffing it:
   has ever actually contained. Do not assume a `"multicontext"` entry here means what the retired
   `doc_emitter.py`'s `"multicontext"` type meant -- that Python type had no `"children"` key at
   all; this dump has no verified equivalent yet.
-- **`"select_chain"` is a second nesting key, beside `"children"`.** It appears on the seven nodes
-  whose select press opens another menu instead of going up a level (legacy's
+- **`"select_chain"` is a second nesting key, beside `"children"`.** It appears on every node whose
+  select press opens another menu instead of going up a level (legacy's
   `MenuItem::selectButtonPress`), and holds full nested entries in the same shape `"children"`
-  does. A walker that recurses on `"children"` alone will miss seven pages entirely: the four
-  arpeggiator octave/note-mode variants and `cvSubmenu` / `gateModeMenu` / `gateOffTimeMenu` are
-  named by no submenu literal anywhere, in the firmware or in this dump, and a `"select_chain"`
-  entry is their only appearance. Nodes with no chain carry no key at all, as with
+  does. A walker that recurses on `"children"` alone will miss **eleven** pages entirely: the four
+  arpeggiator octave/note-mode variants, `cvSubmenu` / `gateModeMenu` / `gateOffTimeMenu`, and the
+  four patch-cable pages (`source_selection` regular/range and `patch_cable_strength`
+  regular/range) are named by no submenu literal anywhere, in the firmware or in this dump, and a
+  `"select_chain"` entry is their only appearance. Nodes with no chain carry no key at all, as with
   `"available_when"`. The same node can appear under both keys (`unison_spread` and `voice_count`
   are ordinary children *and* chain targets), carrying the same `"id"` in each -- deduplicate on
   `"id"` if you need a node set rather than a tree.
+- **`"ref": true` marks a chain target that is already on the current path -- a cycle stub.** The
+  patch-cable pages form a genuine two-hop loop (the cable-strength page's select press opens the
+  range source picker, whose select press opens the strength page straight back), so nesting them
+  in full has no finite spelling. A target that would repeat an entry already open above it on this
+  path is emitted as a stub instead: `{"id", "name", "ref": true, "title", "type"}` -- the same
+  `"id"` the full entry carries, no `"children"`, no `"select_chain"`. **A recursive walker must
+  stop at `"ref"`**, or it will loop only if it also follows the id back; resolve the id against
+  the full entry it has already seen on this path. `"ref"` appears on no other entry, so a consumer
+  that ignores the key sees a normal childless node rather than a shape it cannot parse.

@@ -1315,6 +1315,59 @@ describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable ite
 		expect(legacy::patch_cable_strength::regularMenu.getValue()).to_equal(int32_t(4321));
 	});
 
+	it("gives a cable it creates the polarity the page was showing, not the source's default", _ {
+		// The half of legacy's write path that is not the value:
+		// `getModelStack(..., allowCreation = true)` calls `setPatchCablePolarity(polarity_in_the_ui_)`
+		// on the `!patch_cable_exists_` arm (`patch_cable_strength.cpp:213-219`), so a polarity the
+		// user chose *before* the cable existed survives its creation.
+		//
+		// `PatchCableSet` already gives a new cable `setDefaultPolarity()` (`patch_cable_set.cpp:438`),
+		// so the *default* needs no help -- what would be lost is a chosen one. Hence the sentinel
+		// below: the page is put in the polarity that is NOT the source's default, and the created
+		// cable must come out in it.
+		Rigged& f = fixture();
+		install(f.ctx, f.song.song);
+
+		constexpr PatchSource kSource = PatchSource::ENVELOPE_3;
+		ParamDescriptor learn;
+		learn.setToHaveParamAndSource(deluge::modulation::params::LOCAL_HPF_RESONANCE, kSource);
+		PatchCableSet* set = f.ctx.params->getPatchCableSetAllowJibberish();
+		expect(set != nullptr).to_be_true();
+		expect(set->getPatchCableIndex(kSource, [] {
+			ParamDescriptor d;
+			d.setToHaveParamOnly(deluge::modulation::params::LOCAL_HPF_RESONANCE);
+			return d;
+		}()) == kNoSelection)
+		    .to_be_true(); // no such cable yet
+
+		// The page, in the polarity opposite to what a fresh cable would be given.
+		const Polarity fresh = PatchCable::getDefaultPolarity(kSource);
+		const Polarity chosen = fresh == Polarity::BIPOLAR ? Polarity::UNIPOLAR : Polarity::BIPOLAR;
+		expect(PatchCable::hasPolarity(kSource)).to_be_true();
+
+		menu::MenuState st{};
+		st.patching_param = deluge::modulation::params::LOCAL_HPF_RESONANCE;
+		st.patch_source = kSource;
+		st.patch_polarity = chosen;
+		st.edit_int = 2000;
+		nodes::kPatchCableStrengthRegularItem.commit(f.ctx, st);
+
+		ParamDescriptor destination;
+		destination.setToHaveParamOnly(deluge::modulation::params::LOCAL_HPF_RESONANCE);
+		const uint8_t created = set->getPatchCableIndex(kSource, destination);
+		expect(created != kNoSelection).to_be_true(); // the write created it
+		expect(static_cast<int>(set->patchCables[created].polarity)).to_equal(static_cast<int>(chosen));
+		// ... and that really is a different answer from the one creation alone would have given.
+		expect(static_cast<int>(chosen) != static_cast<int>(fresh)).to_be_true();
+
+		// `on_focus` reads it back off the cable, which is `beginSession`'s own arm (`:56-62`).
+		menu::MenuState reopened{};
+		reopened.patching_param = deluge::modulation::params::LOCAL_HPF_RESONANCE;
+		reopened.patch_source = kSource;
+		nodes::kPatchCableStrengthRegularItem.on_focus(f.ctx, reopened);
+		expect(static_cast<int>(reopened.patch_polarity)).to_equal(static_cast<int>(chosen));
+	});
+
 	it("opens the strength page the selected cable needs, and installs that cable's own sources", _ {
 		Rigged& f = fixture();
 		install(f.ctx, f.song.song);
@@ -1435,6 +1488,31 @@ describe tables_2_pixels("scenes::menu batch-2 tables: pixels", $ {
 			r.shell.tick(30);
 			r.shell.tick(40);
 			expect_golden(self, "../ui/menu/menu_cable_strength_64.pbm", r.fake.pbm(0));
+		}
+	});
+
+	it("renders the three-stage routing diagram, reached the way a user reaches it, on both panels", _ {
+		// `vibrato` -> `source_selection_range` -> `patch_cable_strength_range`: the page whose
+		// diagram has three stages, because the cable it edits modulates another cable's depth.
+		// Its own widget is pinned byte-for-byte against legacy in `tests/spec/ui/routing_spec.cpp`;
+		// this records what the whole page composes to.
+		Rigged& f = fixture();
+		install(f.ctx, f.song.song);
+		deluge::notify::dirty().drain();
+		for (bool tall : {false, true}) {
+			Rig r = tall ? Rig{board_64(), profile_64()} : Rig{};
+			r.open(nodes::vibrato, f.ctx);
+			r.shell.tick(0);
+			r.enter(20);
+			r.shell.tick(30);
+			r.shell.tick(40);
+			r.enter(50);
+			r.shell.tick(60);
+			r.shell.tick(70);
+			expect(menu_scene().focused() == &nodes::patch_cable_strength_range).to_be_true();
+			expect_golden(self, tall ? "../ui/menu/menu_cable_strength_range_64.pbm"
+			                         : "../ui/menu/menu_cable_strength_range_48.pbm",
+			              r.fake.pbm(0));
 		}
 	});
 

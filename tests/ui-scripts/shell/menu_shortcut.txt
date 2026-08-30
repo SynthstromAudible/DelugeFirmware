@@ -13,7 +13,10 @@
 320   button SelectEnc up
 340   snapshot after_select_press
 400   encoder GoldUpper +2
-420   snapshot after_gold_turn
+# E2 task 9: the GoldUpper turn above lands on the page the select press opened, which reads no
+# edit encoder -- so it inks nothing new and its snapshot was byte-identical to `after_select_press`.
+# The step stays (the spec asserts the value did NOT move here) and the snapshot does not: a golden
+# that records nothing is a golden that can never fail for the right reason.
 500   button Back down
 520   button Back up
 540   snapshot after_back
