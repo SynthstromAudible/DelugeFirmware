@@ -43,15 +43,23 @@
 ///     node with no `relevant` gets no `"available_when"` key at all (`relevance::name_of(nullptr)`
 ///     would answer `"always"`, but the brief's mapping is keyed on "a node with `relevant`", so a
 ///     null one is left out rather than spelled out).
-///   * a node with `Node::dynamic_children` set -> `"multicontext"`, expanded under each of the ten
-///     `MenuContext`s `build_contexts()` builds (Task 8's fixtures). The brief does not specify the
-///     wire shape for this expansion and no node in the tree sets `dynamic_children` today (a
-///     tree-wide grep confirms it), so this is this file's own extension, exercised by nothing:
-///     `"children"` becomes an array of `{"context": <Root enumerator name>, "nodes": [...]}`, one
-///     entry per context, each `"nodes"` the (possibly ctx-dependent) result of calling
-///     `dynamic_children(ctx, out)` for that context. If a future table ever sets this hook, this
-///     is the shape its dump entries will take; revisit this note and the CI-committed JSON
-///     together when that happens.
+///   * a node with `Node::dynamic_children` set -> `"multicontext"` -- but this dump does not
+///     attempt to expand it. **Fix round 1** caught the first cut of this file inventing a
+///     `"children"` shape (an array of `{"context", "nodes"}` objects) for that case, and that
+///     invention was wrong on its own terms: the recovered `doc_emitter.py`'s `"multicontext"`
+///     entry (`visit_multicontext_instance`, above) has **no `"children"` key at all** -- the
+///     Python DSL pre-resolved every `.with_context()` instance to one context *before* the
+///     visitor ever ran, so the visitor itself never had more than one context's worth of data to
+///     print. This dump has no equivalent pre-resolution step (there is no single "the" context a
+///     `Node` tree is dumped under -- that is the whole reason `dynamic_children` takes a
+///     `MenuContext` argument), so there is no verified shape to fall back to either. No node in
+///     the tree sets `dynamic_children` today (a tree-wide grep for `dynamic_submenu(` confirms
+///     it), so rather than keep a dormant, never-exercised guess at a JSON shape, `emit_node`
+///     fails loudly instead: it prints the offending node's resolved name and `node_id` to stderr
+///     and exits non-zero. That failure is the deliberate design point where E2 -- whoever adds
+///     the first real `dynamic_children` node -- has to stop and design this dump's shape against
+///     an actual case, rather than silently inheriting whatever this file guessed in the
+///     abstract.
 ///   * `"id"` = `node_id(n)` on every entry (ruling Q7) -- the lookup key a future `.state` golden
 ///     (`app16/<id>`) resolves against. A node reached only through `dynamic_children` never gets
 ///     an id (`node_id.h`'s own contract: only *static* children are walked), so such an entry
@@ -61,10 +69,16 @@
 ///     `uint16_t` ids with no reverse mapping back to a `STRING_FOR_...` spelling, and resolved
 ///     text is what a JSON consumer -- or a human spot-checking this dump against
 ///     `website/src/content/docs/reference/menu_hierarchies.mdx` -- actually wants.
-///   * `"description"` is dropped entirely. The retired schema's `description` was a whole
-///     markdown file's contents, read from `docs/menus/`; `Node` (`node.h`) carries nothing like
-///     it, so there is nothing to put there. (E2's own per-item docs, if they ever exist, would be
-///     the thing to wire up here.)
+///   * `"description"` is dropped entirely -- structurally absent from every emitted entry, not
+///     present-but-empty. The retired schema's `description` was a whole markdown file's
+///     contents, read from `docs/menus/`; `Node` (`node.h`) carries nothing like it, so there is
+///     nothing to put there. (E2's own per-item docs, if they ever exist, would be the thing to
+///     wire up here.) **Fix round 1:** this matters to more than this comment -- anything written
+///     against `doc_emitter.py`'s shape (expecting `entry["description"]` to exist, even as `""`)
+///     will `KeyError`/throw on this dump's output instead. That warning is repeated where a
+///     consumer is more likely to actually read it:
+///     `website/src/data/generated/README.md` (next to the JSON itself) and
+///     `scripts/menu_dump_check.sh`'s own header comment.
 ///
 /// ## The walk
 ///
@@ -95,9 +109,9 @@
 #include "scenes/menu/relevance.h"
 #include "scenes/profile.h"
 
-#include <array>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <string>
 #include <string_view>
 #include <vector>
@@ -197,65 +211,37 @@ void emit_static_children(std::string& out, const menu::Node& node, int elem_lev
 	out += "\n" + spaces(elem_level - 1) + "]";
 }
 
-/// @brief `node.dynamic_children`, expanded under every entry of `contexts` -- this file's own
-///        extension for the `"multicontext"` case (see the file header's note; nothing in the
-///        tree exercises this today). One `{"context", "nodes"}` object per context, at
-///        `elem_level`; each context's `"nodes"` is that context's own
-///        `dynamic_children(ctx, out)` result, in the order the hook itself returned it.
-void emit_multicontext_children(std::string& out, const menu::Node& node, int elem_level,
-                                const std::vector<NamedContext>& contexts) {
-	if (contexts.empty()) {
-		out += "[]";
-		return;
-	}
-	out += "[\n";
-	bool first = true;
-	for (const NamedContext& nc : contexts) {
-		if (!first) {
-			out += ",\n";
-		}
-		first = false;
-		out += spaces(elem_level) + "{\n";
-		int inner = elem_level + 1;
-		out += spaces(inner) + "\"context\": ";
-		write_json_string(out, nc.name);
-		out += ",\n";
-		out += spaces(inner) + "\"nodes\": ";
-
-		std::array<const menu::Node*, menu::kMaxDynamicChildren> buf{};
-		size_t n = node.dynamic_children(nc.ctx, buf);
-		if (n == 0) {
-			out += "[]";
-		}
-		else {
-			out += "[\n";
-			for (size_t i = 0; i < n; i++) {
-				if (i > 0) {
-					out += ",\n";
-				}
-				out += spaces(inner + 1);
-				if (buf[i] != nullptr) {
-					emit_node(out, *buf[i], inner + 1, contexts);
-				}
-				else {
-					out += "null";
-				}
-			}
-			out += "\n" + spaces(inner) + "]";
-		}
-		out += "\n" + spaces(elem_level) + "}";
-	}
-	out += "\n" + spaces(elem_level - 1) + "]";
+/// @brief Fail closed on a `Node::dynamic_children` node -- see the file header's "Fix round 1"
+///        note. There is no verified JSON shape for this dump to fall back to (the recovered
+///        `doc_emitter.py`'s own `"multicontext"` entry has no `"children"` key at all -- its
+///        Python DSL pre-resolved the context upstream, which this dump cannot do), so rather
+///        than guess one, this prints the offending node and stops the whole dump.
+///
+/// Never returns. Nothing has been written to stdout yet regardless of how much of `out` was
+/// built so far (`main` only writes it out once, at the very end), so this cannot leave a
+/// truncated or malformed JSON document on stdout -- it leaves nothing at all.
+[[noreturn]] void fail_on_dynamic_children(const menu::Node& node) {
+	std::fprintf(stderr,
+	             "deluge_menu_dump: node \"%s\" (id %u) sets dynamic_children -- this dump has no\n"
+	             "deluge_menu_dump: verified JSON shape for it (see menu_dump_main.cpp's file header,\n"
+	             "deluge_menu_dump: \"Fix round 1\"). Design this dump's multicontext handling against\n"
+	             "deluge_menu_dump: this node's real use case before re-adding it; do not resurrect the\n"
+	             "deluge_menu_dump: removed guess.\n",
+	             text_of(node.name).c_str(), menu::node_id(node));
+	std::exit(1);
 }
 
 /// @brief One node, as the schema the file header documents -- object keys in fixed alphabetical
 ///        order (`available_when`, `children`, `id`, `name`, `title`, `type`), regardless of which
 ///        optional fields this particular node has.
 void emit_node(std::string& out, const menu::Node& node, int brace_level, const std::vector<NamedContext>& contexts) {
+	if (node.dynamic_children != nullptr) {
+		fail_on_dynamic_children(node); // noreturn -- see the file header's "Fix round 1" note
+	}
+
 	const int field_level = brace_level + 1;
 	const bool is_submenu_type = node.kind == menu::Kind::Submenu;
-	const bool is_multicontext = node.dynamic_children != nullptr;
-	const char* type_str = is_multicontext ? "multicontext" : (is_submenu_type ? "submenu" : "basic");
+	const char* type_str = is_submenu_type ? "submenu" : "basic";
 
 	out += "{\n";
 
@@ -266,12 +252,7 @@ void emit_node(std::string& out, const menu::Node& node, int brace_level, const 
 	}
 	if (is_submenu_type) {
 		out += spaces(field_level) + "\"children\": ";
-		if (is_multicontext) {
-			emit_multicontext_children(out, node, field_level + 1, contexts);
-		}
-		else {
-			emit_static_children(out, node, field_level + 1, contexts);
-		}
+		emit_static_children(out, node, field_level + 1, contexts);
 		out += ",\n";
 	}
 	out += spaces(field_level) + "\"id\": " + std::to_string(menu::node_id(node)) + ",\n";

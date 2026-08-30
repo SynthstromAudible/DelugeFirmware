@@ -7,6 +7,17 @@
 #
 # Usage: scripts/menu_dump_check.sh
 #
+# If you are writing something that CONSUMES the generated JSON (not just diffing it, as this
+# script does): it is close to, but not the same shape as, the retired Python DocEmitter's schema
+# (see menu_dump_main.cpp's file header for the full mapping) --
+#   - every entry's "description" key is entirely absent, not present-but-empty; code written
+#     against the old schema that does entry["description"] will fail on this dump's output.
+#   - a node with dynamic_children set (type "multicontext") is UNIMPLEMENTED: as of this writing
+#     no node uses it, and if one ever does, deluge_menu_dump refuses to guess a JSON shape for it
+#     -- it prints the offending node to stderr and exits non-zero instead. Redesign the dump
+#     against that node's real case rather than assume any particular shape survives from before.
+# See also website/src/data/generated/README.md, next to the generated JSON itself.
+#
 # Assumes build-sim already exists and is configured for X64:
 #   cmake -B build-sim -S sim -G Ninja -DDELUGE_SIM_X64=ON
 # The CI job's own earlier "UI app scripts (level 3)" step does this; run it first if working
