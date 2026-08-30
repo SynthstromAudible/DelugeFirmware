@@ -2112,6 +2112,43 @@ describe tables_3_midi_commands("scenes::menu batch-3 tables: the twelve midi_co
 		   saved.restore();
 	   });
 
+	it("stores an MPE zone the way legacy does, and renders it as a zone rather than a channel", _ {
+		// Fix round 1, I3. This arm is live, not defensive: `PlaybackHandler::noteMessageReceived`
+		// (`playback/playback_handler.cpp:2966-2968`) resolves the incoming channel through
+		// `MIDIPort::channelToZone` (`io/midi/midi_device.cpp:236-238`) *before* dispatching to
+		// `SoundEditor::noteOnReceivedForMidiLearn`, so a note-on learn from an MPE-configured input
+		// port really does arrive as `MIDI_CHANNEL_MPE_LOWER_ZONE`/`UPPER_ZONE` and really does take
+		// `MidiCommandItem::render`'s zone branch. (The CC path is unaffected -- `midiCCReceived`
+		// is handed the raw channel.)
+		const Root& settings = roots().back();
+		install(settings.ctx, settings.song);
+		const CommandSlots saved = CommandSlots::capture();
+
+		const int32_t kZones[] = {MIDI_CHANNEL_MPE_LOWER_ZONE, MIDI_CHANNEL_MPE_UPPER_ZONE};
+		for (const int32_t zone : kZones) {
+			CommandSlots::clear_all();
+			Rig r;
+			focus_command_row(r, settings.ctx, 0);
+			expect(menu_scene().learn_note_on(fake_cable(), zone, 64)).to_be_true();
+			const std::string got = CommandSlots::capture().describe();
+
+			CommandSlots::clear_all();
+			{
+				LegacyLearnScope legacy_scope{command_pairs()[0].legacy};
+				expect(command_pairs()[0].legacy->learnNoteOn(fake_cable(), zone, 64)).to_be_true();
+			}
+			expect(got).to_equal(CommandSlots::capture().describe());
+			// A zone, not a channel: `channelOrZone >= 16` is `LearnedMIDI::isForMPEZone()`, and it
+			// is below `IS_A_CC` (18), so the third row still reads "Note".
+			expect(midiEngine.globalMIDICommands[1].channelOrZone).to_equal(uint8_t(zone));
+		}
+
+		// The zone *readout* is pinned by a golden in `tables_3_pixels` below -- an inequality
+		// against the plain-channel frame would not have caught a deleted zone arm, since the
+		// fallback prints "CHANNEL 17" and that differs from "CHANNEL 4" too. Confirmed by mutation.
+		saved.restore();
+	});
+
 	it("ignores a zero-valued CC, still reporting the message as used", _ {
 		// `Command::learnCC` (`command.cpp:126-130`): the release half of a momentary controller
 		// binds nothing. Legacy's `SoundEditor::midiCCReceived` returns true for it regardless
@@ -2263,9 +2300,18 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 
 	// `midi::Command::drawPixelsForOled` (`gui/menu_item/midi/command.cpp:33-87`) has exactly two
 	// shapes, and both are recorded here: the one-line "COMMAND UNASSIGNED", and the three-line
-	// device / channel / message-kind readout. The rows start at legacy's literal canvas y = 20 --
-	// 15 here, since the frame's origin already carries `OLED_MAIN_TOPMOST_PIXEL` = 5 -- and step by
-	// the row pitch; the number columns are legacy's `kTextSpacingX * 8` (channel) and `* 5` (note).
+	// device / channel / message-kind readout, stepping by the row pitch. The number columns are
+	// legacy's `kTextSpacingX * 8` (channel) and `* 5` (note).
+	//
+	// The rows land on legacy's literal *canvas* rows 20 / 29 / 38 on both panels, which the port
+	// reaches through two corrections rather than one literal (`nodes/midi_command.cpp`'s
+	// `command_row0_y`, and `ui/core/metrics.h`): the frame origin already carries the panel's own
+	// `visible_top`, which is 5 on the 48-row board and **0** on the 64-row one -- hence
+	// `kMidiCommandRowY48` = 15 and `kMidiCommandRowY64` = 20, a pair, not a constant -- and
+	// `kApple7Height7YAdjust` = -1 cancels the one-row drop `FontId::Apple7` (the height-9 Apple
+	// face) has against legacy's own height-7 call. Fix round 1, I1: a single 48-row-derived
+	// constant put the 64-row panel five rows high, and only a 64-row golden could see it, so the
+	// learned readout is recorded on both.
 	it("renders an unassigned MIDI command item", _ {
 		const Root& settings = roots().back();
 		const CommandSlots saved = CommandSlots::capture();
@@ -2289,6 +2335,34 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 		expect(menu_scene().learn_cc(fake_cable(), 3, 42, 127)).to_be_true();
 		r.shell.tick(300);
 		expect_golden(self, "../ui/menu/menu_midi_command_learned_48.pbm", r.fake.pbm(0));
+		saved.restore();
+	});
+
+	it("renders a MIDI command item learned to an MPE zone", _ {
+		// `command.cpp:54-58`: an MPE zone prints "MPE LOWER ZONE" on the channel row instead of
+		// "CHANNEL n", and -- being below `IS_A_CC` -- still prints "Note" on the third. A golden,
+		// not an inequality: deleting the zone arm falls through to "CHANNEL 17", which is different
+		// from every other frame in this file and so passes any inequality check (fix round 1, I3).
+		const Root& settings = roots().back();
+		const CommandSlots saved = CommandSlots::capture();
+		CommandSlots::clear_all();
+		Rig r;
+		focus_command_row(r, settings.ctx, 0);
+		expect(menu_scene().learn_note_on(fake_cable(), MIDI_CHANNEL_MPE_LOWER_ZONE, 64)).to_be_true();
+		r.shell.tick(300);
+		expect_golden(self, "../ui/menu/menu_midi_command_mpe_zone_48.pbm", r.fake.pbm(0));
+		saved.restore();
+	});
+
+	it("renders a MIDI command item with a learned CC on a 64-row panel", _ {
+		const Root& settings = roots().back();
+		const CommandSlots saved = CommandSlots::capture();
+		CommandSlots::clear_all();
+		Rig r{board_64(), profile_64()};
+		focus_command_row(r, settings.ctx, 0);
+		expect(menu_scene().learn_cc(fake_cable(), 3, 42, 127)).to_be_true();
+		r.shell.tick(300);
+		expect_golden(self, "../ui/menu/menu_midi_command_learned_64.pbm", r.fake.pbm(0));
 		saved.restore();
 	});
 

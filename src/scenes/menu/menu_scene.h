@@ -277,6 +277,17 @@ public:
 	///          exclusion (`:1550`, `:1562`) are that plan's, not this layer's -- a scene may not
 	///          read a legacy UI mode. What is here is the half a menu owns: which item the message
 	///          reaches, and what that item does with it.
+	///
+	/// @warning **`wants_learn_blink()` is NOT the learn gate.** Legacy enters learn mode on
+	///          `getCurrentMenuItem()->allowsLearnMode()` (`sound_editor.cpp:473`) and only then
+	///          asks `shouldBlinkLearnLed()` for the LED (`:488`, `:911-916`). They are different
+	///          predicates over different sets: `allowsLearnMode` is true on every
+	///          `MenuItemWithCCLearning` -- all the patched/unpatched params, the transpose items,
+	///          the MIDI-follow items -- every one of which blinks *false*. A wiring author who
+	///          gates delivery on `wants_learn_blink()` would silently drop param CC learn and its
+	///          `CANT_LEARN` popup along with it. The port has no `allows_learn_mode()` hook yet
+	///          because nothing needs one until that plan exists; adding it is that plan's first
+	///          job, not a synonym for this.
 	/// @{
 	/// @brief Offer a note-on to the focused item. @return Whether it was used.
 	bool learn_note_on(::MIDICable& cable, int32_t channel, int32_t note);
@@ -289,8 +300,9 @@ public:
 	/// @brief Does the focused item want the LEARN LED blinking? `MenuItem::shouldBlinkLearnLed`.
 	///
 	/// Read by `leds()`, which is the port of `SoundEditor::beginScreen`'s own tail
-	/// (`sound_editor.cpp:911-916`); public because the wiring plan's learn gate asks the same
-	/// question legacy asks at `:488`.
+	/// (`sound_editor.cpp:911-916`). Public because the LED is also legacy's own answer at `:488`,
+	/// on the way *out* of learn mode -- **not** because it is the gate into it. See the second
+	/// `@warning` above: that gate is `allowsLearnMode()`, which this is not a synonym for.
 	bool wants_learn_blink() const;
 	/// @}
 	/// @brief The application's root menus, indexed by `MenuContext::Root`.

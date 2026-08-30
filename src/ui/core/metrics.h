@@ -54,6 +54,40 @@ constexpr int32_t kSyncValueY = 20; // big-font value baseline (+ visible_top)
 /// (`integer.cpp:60`). `OLED_MAIN_TOPMOST_PIXEL` is 5 (`board_config.h`), so the "+ visible_top"
 /// value that reproduces canvas y = 22 on the shipped panel is 22 - 5 = 17, not `kValueY`'s 18.
 constexpr int32_t kReadoutValueY = 17; // huge-font value baseline (+ visible_top)
+
+/// @brief The `midi::Command` learn readout's first text row (+ visible_top), per panel height.
+///
+/// `midi::Command::drawPixelsForOled` (`gui/menu_item/midi/command.cpp:37`) starts at a literal
+/// canvas `yPixel = 20` and steps by `kTextSpacingY`. Note the literal: unlike
+/// `MenuItem::drawItemsForOled` (`gui/menu_item/menu_item.cpp:51-52`), it does **not** add
+/// `OLED_MAIN_TOPMOST_PIXEL`, so 20 is an absolute canvas row on every panel.
+///
+/// A frame's origin already carries `visible_top`, so the local row is `20 - visible_top` -- and
+/// `visible_top` is a per-*board* number, not a constant: 5 on the shipped 48-row panel
+/// (`shell/profiles/deluge.cpp:109`) and 0 on a 64-row one. One value cannot serve both, which is
+/// exactly why `kMenuBaseY48/64` and `kOutputTypeY48/64` above are pairs; this is the third.
+/// @{
+constexpr int32_t kMidiCommandRowY48 = 15; // 20 - 5
+constexpr int32_t kMidiCommandRowY64 = 20; // 20 - 0
+/// @}
+
+/// @brief Lay a row out one pixel higher when drawing `FontId::Apple7` where legacy drew the
+///        Apple face at `kTextSizeYUpdated` (7).
+///
+/// The Apple ][ face has two legacy heights that are *not* interchangeable (`text_height_of`
+/// above): `font_for_text_height` returns `kApple7` for heights 7-8 and `kApple7Up` for 9, and
+/// `kApple7Up` draws the same glyphs one row lower (`gfx/oled/font.h`'s `y_adjust`).
+/// `FontId::Apple7` -- the only Apple enumerator this toolkit has, and what every `Style::row_font`
+/// is set to -- means the height-9 one. So a port of a legacy call site that passed
+/// `kTextSizeYUpdated` lands one row low unless its rect is laid one row high; this is that row.
+///
+/// **Caller-side on purpose.** It must not move into `text()`/`scroll_text()`: those draw what the
+/// `FontId` says and cannot know which of the two legacy heights the caller is reproducing. Named
+/// here rather than left as a `-1` at one call site because `kTextSizeYUpdated` appears at 29
+/// legacy call sites across five files, and two of those (`gui/menu_item/midi/follow/follow_channel.h`,
+/// `gui/menu_item/patch_cable_strength.cpp`) are still unported -- each would otherwise rediscover
+/// this through a one-row-wrong golden.
+constexpr int32_t kApple7Height7YAdjust = -1;
 constexpr int32_t kHorizontalBoxHeight = 25;
 
 /// @brief Output type/name label baselines (+ visible_top).

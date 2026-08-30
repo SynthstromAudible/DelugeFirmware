@@ -75,20 +75,25 @@ std::string_view format_int(int32_t v, char (&buf)[12]) {
 	return std::string_view{buf, static_cast<size_t>(r.ptr - buf)};
 }
 
-/// @brief The first of `drawPixelsForOled`'s three text rows, in frame-local coordinates.
+/// @brief The first of `drawPixelsForOled`'s three text rows, in @p f's frame-local coordinates.
 ///
-/// Legacy starts at a literal canvas `yPixel = 20` (`command.cpp:37`) and steps by `kTextSpacingY`.
-/// The frame's origin already carries `OLED_MAIN_TOPMOST_PIXEL` (5, `board_config.h`) -- the same
-/// "+ visible_top" subtraction `kReadoutValueY` documents in `ui/core/metrics.h` -- which would put
-/// the rect at 20 - 5 = 15.
+/// Two corrections stacked, both recorded in `ui/core/metrics.h` rather than as literals here:
 ///
-/// **Fourteen, not fifteen**, because of the Apple face's two legacy heights. Legacy draws these
-/// rows with `kTextSizeYUpdated` = 7 (`command.cpp:38-87`), which `font_for_text_height` resolves to
-/// `kApple7`; this toolkit's `FontId::Apple7` is the *height-9* variant, `kApple7Up`, which draws
-/// the identical glyphs exactly one row lower (`gfx/oled/font.h`'s `y_adjust`, and the note on
-/// `text_height_of` in `ui/core/metrics.h`). Laying the rect one row higher cancels that, so the ink
-/// lands on legacy's own canvas rows 20 / 29 / 38 rather than one below them.
-constexpr int32_t kCommandRow0Y = 14;
+///   * `kMidiCommandRowY48` / `kMidiCommandRowY64` -- legacy's literal canvas row 20 minus the
+///     panel's own `visible_top`, which the frame's origin already carries. It is a *pair* because
+///     `visible_top` is 5 on the 48-row panel and 0 on a 64-row one, so a single constant is wrong
+///     on one of them by five rows. Selected from `Style::menu_base_y`, the profile value
+///     `ui::oled::output_name` already picks its own 48/64 pair with (`ui/oled/misc.cpp:57`) --
+///     never from the framebuffer's height, so a mismatched (Style, Geometry) pair cannot disagree.
+///   * `kApple7Height7YAdjust` -- legacy draws these rows at `kTextSizeYUpdated` (7), which selects
+///     the Apple face's height-7 variant; `FontId::Apple7` is the height-9 one, which draws the
+///     same glyphs one row lower. Laying the rect one row high cancels that.
+///
+/// Together the ink lands on legacy's own canvas rows 20 / 29 / 38, on both panels.
+int32_t command_row0_y(const deluge::ui::oled::OledFrame& f) {
+	const bool tall = f.style.menu_base_y == deluge::ui::kMenuBaseY64;
+	return (tall ? deluge::ui::kMidiCommandRowY64 : deluge::ui::kMidiCommandRowY48) + deluge::ui::kApple7Height7YAdjust;
+}
 
 } // namespace
 
@@ -104,10 +109,11 @@ void MidiCommandItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 	}
 
 	LearnedMIDI& command = slot_for(command_);
+	const int32_t row0_y = command_row0_y(f);
 	const int32_t row_h = f.style.row_height;
 	const int32_t spacing = deluge::ui::oled::spacing_x_for(f.style.row_font);
 	const auto row = [&](int32_t i, int32_t x) {
-		return deluge::gfx::oled::Rect{x, kCommandRow0Y + i * row_h, f.bounds().w - x, row_h};
+		return deluge::gfx::oled::Rect{x, row0_y + i * row_h, f.bounds().w - x, row_h};
 	};
 	const deluge::ui::oled::TextStyle ts{.font = f.style.row_font};
 	deluge::ui::shell::TextScratch scratch;
@@ -133,6 +139,13 @@ void MidiCommandItem::render(deluge::ui::oled::OledFrame& f, const MenuContext& 
 		// `channelOrZone` carries the message type in its high range (`IS_A_CC`, `IS_A_PC` --
 		// `definitions_cxx.hpp:946-947`), so the printed channel is the stored value minus whichever
 		// band it falls in, plus one for 1-based display.
+		//
+		// The two MPE-zone arms are live, not defensive: `PlaybackHandler::noteMessageReceived`
+		// (`playback/playback_handler.cpp:2966-2968`) resolves the channel through
+		// `MIDIPort::channelToZone` (`io/midi/midi_device.cpp:236-238`) *before* dispatching to
+		// `noteOnReceivedForMidiLearn`, so a note-on learn from an MPE-configured input port really
+		// does store `MIDI_CHANNEL_MPE_LOWER_ZONE`/`UPPER_ZONE` here. (The CC path is unaffected --
+		// `midiCCReceived` is handed the raw channel.)
 		deluge::ui::shell::TextScratch channel_scratch;
 		std::string_view channel_text;
 		if (command.channelOrZone == MIDI_CHANNEL_MPE_LOWER_ZONE) {
