@@ -1084,7 +1084,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 				continue;
 			}
 			// A param node is only round-trippable where the context can actually serve it; the
-			// settings root has no param manager at all, and a MIDI clip's holds no unpatched set.
+			// settings root has no param manager at all.
 			if (p.root->ctx.params == nullptr) {
 				continue;
 			}
@@ -1093,10 +1093,12 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			for (int32_t v : probe_values(r)) {
 				AudioEngine::mustUpdateReverbParamsBeforeNextRender = false;
 				menu::bindings::write(*p.node, p.root->ctx, v);
-				const int32_t got = menu::bindings::read(*p.node, p.root->ctx);
-				if (got != v) {
-					continue; // this context does not serve the param -- `serves_param`'s no-op
-				}
+				// Fix round 2: this used to be `if (read != v) continue;` -- an escape hatch that
+				// excused any param write that did nothing, silently, including a real regression.
+				// It is unnecessary: `relevant_here` above already restricts the loop to nodes their
+				// own root's context shows, and a relevant param node is servable by construction
+				// (that is what `serves_for` decides). So the round trip is asserted outright.
+				expect(menu::bindings::read(*p.node, p.root->ctx)).to_equal(v);
 				expect(AudioEngine::mustUpdateReverbParamsBeforeNextRender)
 				    .to_equal(p.node->bind.updates_reverb_params);
 				exercised++;

@@ -871,6 +871,13 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 		// hand-written sweeps write every drum in the kit; the port's `apply_to_targets` /
 		// `apply_to_arp_settings` must write the same set. Observing "the same set" generically is
 		// what the two-drum fixture buys: select each drum in turn and read the node back.
+		//
+		// Fix round 2: this example kept the pre-I2 shape after fix round 1 touched the three
+		// `*_writes` loops. It ran legacy's sweep first, restored both drums *through the port*, then
+		// ran the port's sweep and compared -- so a port write hook that stored nothing left the kit
+		// at legacy's result throughout and every assertion held. Now each sweep starts from a
+		// **sentinel seeded on both drums through legacy's own single-target write**, so a no-op port
+		// sweep leaves `after_port` at the sentinel while `after_legacy` is at `v`.
 		KitRig& k = kit_fixture();
 		const auto observe = [&](const Node& node) {
 			std::array<int32_t, 2> out{};
@@ -883,27 +890,41 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 			if (p.node->bind.set == nullptr || legacy_write_needs_ui(*p.node)) {
 				continue;
 			}
-			const MenuContext probe = select_drum(k, k.drum_a);
-			const menu::IntRange r = menu::bindings::range(*p.node, probe);
+			const menu::IntRange r = menu::bindings::range(*p.node, select_drum(k, k.drum_a));
 			const int32_t v = r.max;
-			const std::array<int32_t, 2> base = observe(*p.node);
+			const std::optional<int32_t> sentinel = sentinel_for(r, v);
+			if (!sentinel.has_value()) {
+				continue; // a one-value range has no state to start from that is not `v`
+			}
 
-			// Legacy's sweep.
-			const MenuContext held = select_drum(k, k.drum_a, /*affect_entire_held=*/true);
+			// Put BOTH drums at the sentinel, one at a time, through **legacy's** single-target
+			// write -- deliberately not the port's, so nothing about this starting state depends on
+			// the code under test.
+			const auto seed_both = [&] {
+				(void)select_drum(k, k.drum_a);
+				if (!legacy_write(p.item, *sentinel)) {
+					return false; // holds no value at all
+				}
+				(void)select_drum(k, k.drum_b);
+				return legacy_write(p.item, *sentinel);
+			};
+
+			if (!seed_both()) {
+				continue;
+			}
+			const MenuContext held_port = select_drum(k, k.drum_a, /*affect_entire_held=*/true);
+			menu::bindings::write(*p.node, held_port, v);
+			const std::array<int32_t, 2> after_port = observe(*p.node);
+
+			if (!seed_both()) {
+				continue;
+			}
+			const MenuContext held_legacy = select_drum(k, k.drum_a, /*affect_entire_held=*/true);
+			(void)held_legacy; // legacy reads the sweep condition off `currentUIMode`, which `install` set
 			if (!legacy_write(p.item, v)) {
 				continue;
 			}
 			const std::array<int32_t, 2> after_legacy = observe(*p.node);
-
-			// Put both drums back, one at a time, through the single-target path the previous
-			// example already checked against legacy.
-			menu::bindings::write(*p.node, select_drum(k, k.drum_a), base[0]);
-			menu::bindings::write(*p.node, select_drum(k, k.drum_b), base[1]);
-
-			// The port's sweep, from the same starting state.
-			const MenuContext held2 = select_drum(k, k.drum_a, /*affect_entire_held=*/true);
-			menu::bindings::write(*p.node, held2, v);
-			const std::array<int32_t, 2> after_port = observe(*p.node);
 
 			expect(after_port[0] == after_legacy[0]).to_be_true();
 			expect(after_port[1] == after_legacy[1]).to_be_true();
