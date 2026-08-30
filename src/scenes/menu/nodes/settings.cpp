@@ -26,9 +26,10 @@
 
 #include "scenes/menu/nodes/settings.h"
 
+#include "scenes/context_menu/context_menu_scene.h" // ResetItem::on_focus opens this
 #include "scenes/l10n_bridge.h"
 #include "scenes/menu/context.h"
-#include "scenes/menu/menu_scene.h" // MenuState, kMenuDepth -- for the two CustomItems below
+#include "scenes/menu/menu_scene.h" // MenuState, kMenuDepth -- for the CustomItems below
 #include "scenes/profile.h"         // deluge_profile() -- ditto
 
 #include "definitions_cxx.hpp"
@@ -923,6 +924,35 @@ void BatteryLevelItem::on_focus(const MenuContext&, MenuState&) const {
 	// the reset baseline says so.
 	checked_once_ = false;
 	charging_ = false;
+}
+
+// ---------------------------------------------------------------------------------------------
+// 1. Actions (`ResetItem`, see `settings.h`)
+
+void ResetItem::render(deluge::ui::oled::OledFrame& f, const MenuContext&, MenuState& state) const {
+	// Drawn for at most the one tick between `on_focus` asking for the push and the router
+	// applying it -- `EditNameItem::render`'s own reasoning (`nodes/edit_name.cpp`). Legacy never
+	// draws this item at all: `Reset::selectButtonPress` opens the context menu directly and
+	// returns `NO_NAVIGATION` before `SoundEditor` gets to render anything.
+	draw_title_for(f, state);
+}
+
+deluge::ui::shell::Result ResetItem::handle(const deluge::ui::shell::UiEvent&, const deluge::ui::shell::UiContext&,
+                                            const MenuContext&, MenuState&) const {
+	// The context menu owns every input while it is up, and this item is only ever focused for the
+	// tick before it appears. Nothing to consume.
+	return {};
+}
+
+void ResetItem::on_focus(const MenuContext& ctx, MenuState& state) const {
+	// `Reset::selectButtonPress` (`gui/menu_item/reset_settings/reset.h:29-33`):
+	// `context_menu::resetSettings.setAction(action_)` then `openUI(&context_menu::resetSettings)`.
+	// `open()` points the ported context menu at this visit's `MenuContext` (unused by any of the
+	// five accept hooks, but required by `on_exit`'s fail-closed contract -- `context_menu_scene.h`);
+	// `descriptor_id_` is what used to be the `ResetSettingsAction` argument to `setAction`.
+	deluge::scenes::context_menu::context_menu_scene().open(ctx);
+	state.pending_scene =
+	    deluge::ui::shell::SceneId{deluge::scenes::context_menu::kContextMenuSceneKind, descriptor_id_};
 }
 
 // ---------------------------------------------------------------------------------------------

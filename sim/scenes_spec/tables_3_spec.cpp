@@ -28,6 +28,7 @@
 ///       (`scripts/check_layer_rules.py`'s `scenes-includes-outside`). Same rule
 ///       `tables_1_spec.cpp` and `tables_2_spec.cpp` run under.
 
+#include "scenes/context_menu/context_menu_scene.h"
 #include "scenes/menu/bindings.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h"
@@ -43,6 +44,7 @@
 #include "shell/profiles/deluge.h"
 #include "shell/shell.h"
 
+#include "gui/context_menu/reset_settings.h"
 #include "gui/l10n/l10n.h"
 #include "gui/l10n/strings.h"
 #include "gui/menu_item/menu_item_with_cc_learning.h"
@@ -93,6 +95,7 @@ using deluge::hid::display::OLED;
 
 #include <array>
 #include <cstdint>
+#include <cstdlib>
 #include <optional>
 #include <set>
 #include <span>
@@ -591,6 +594,42 @@ std::array<int32_t, 3> probe_values(const menu::IntRange& r) {
 	return {r.min, static_cast<int32_t>((static_cast<int64_t>(r.min) + r.max) / 2), r.max};
 }
 
+/// Board encoder index (`kDelugeEncoders`, `shell/profiles/deluge.cpp`): 3 = Select. Matrix
+/// coordinates (`kMatrix`, same file) for the select-encoder button. Same spelling every other
+/// spec in this suite uses.
+constexpr uint8_t kSelectEncoderIndex = 3;
+constexpr uint8_t kSelectEncButtonX = 4, kSelectEncButtonY = 3;
+
+/// @brief Detaches `$DELUGE_SD_ROOT` for the scope, and restores it after.
+///
+/// `RuntimeFeatureSettings::factoryReset` (`model/settings/runtime_feature_settings.cpp:176-187`,
+/// the port's `accept_reset_community_features`'s own call) `unlink`s `CommunityFeatures.XML` --
+/// and on the host that is a real `::unlink` under `$DELUGE_SD_ROOT`
+/// (`src/bsp/host/host_efatfs_passthrough.cpp`). The aggregate `scenes_spec` ctest row points that
+/// at `tests/fixtures/card`; unset, every filesystem call returns "no such file", the path both
+/// `factoryReset` and this same guard in `context_menu_scene_spec.cpp`'s `NoSdRoot` already treat
+/// as harmless. Duplicated here (file-local, like that one) rather than shared, for the same
+/// reason every other helper in this file is.
+struct NoSdRoot {
+	std::string saved;
+	bool had;
+	NoSdRoot() {
+		const char* root = std::getenv("DELUGE_SD_ROOT");
+		had = root != nullptr;
+		if (had) {
+			saved = root;
+		}
+		(void)::unsetenv("DELUGE_SD_ROOT");
+	}
+	~NoSdRoot() {
+		if (had) {
+			(void)::setenv("DELUGE_SD_ROOT", saved.c_str(), 1);
+		}
+	}
+	NoSdRoot(const NoSdRoot&) = delete;
+	NoSdRoot& operator=(const NoSdRoot&) = delete;
+};
+
 /// @brief A `Shell` over `FakeSurfaceSet` with the application's scene registry, for the goldens.
 struct Rig {
 	const deluge::ui::shell::BoardProfile& profile;
@@ -608,6 +647,17 @@ struct Rig {
 		(void)menu::assign_node_ids(nodes::kAllRoots);
 		menu_scene().open(root, ctx);
 		shell.init(deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp, menu::node_id(root)});
+	}
+
+	/// @brief One button press/release at matrix (\p x, \p y) -- the select-encoder press an accept
+	///        or a descent rides on, the same coordinates every other spec in this suite uses.
+	void button(uint8_t x, uint8_t y, bool on, uint32_t at_ms) {
+		shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, x, y, static_cast<int16_t>(on ? 255 : 0)}, at_ms);
+	}
+	/// @brief One detent of the select encoder (2 edges/detent, `LoweringConfig::edges_per_detent`).
+	void turn(int32_t detents, uint32_t at_ms) {
+		shell.on_board_event(
+		    DelugeInputEvent{DELUGE_EVENT_ENCODER, kSelectEncoderIndex, 0, static_cast<int16_t>(detents * 2)}, at_ms);
 	}
 };
 
@@ -1646,6 +1696,112 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 	});
 });
 
+describe tables_3_reset_items("scenes::menu batch-3 tables: the five reset_* items", $ {
+	// Task 6 shipped `ContextMenuScene`, its `Descriptor` table and all five accept hooks, driven
+	// and cross-checked against legacy directly by `DescriptorId`
+	// (`context_menu_scene_spec.cpp`'s `cm_actions`). What that spec does NOT drive is the settings
+	// tree itself: it opens `ContextMenuScene` straight off a `DescriptorId`, never through
+	// `nodes::reset_flash` .. `nodes::reset_all`. This is the missing half -- the mapping from menu
+	// node to descriptor -- and it is the one thing a swapped pair of `ResetItem` ids would break
+	// silently if it were untested.
+	namespace context_menu = deluge::scenes::context_menu;
+
+	it("opens the reset context menu on the matching descriptor, rather than resetting on the spot", _ {
+		// Real descent from `reset_settings` (the "Reset Settings" submenu, `settings.h`'s
+		// `kResetSettingsChildren`) -- cursor down to row `i`, then the select-encoder press that
+		// `enter_child` -> `enter_leaf` -> `CustomItem::on_focus` runs on, the same path
+		// `rename_scene_spec.cpp`'s "opens on the drum target" test drives `EditNameItem` through.
+		deluge::notify::dirty().drain();
+		// A stray notice left in the global queue by an earlier describe block in this same process
+		// would otherwise push a `ConsoleScene` overlay on this test's very first tick, one deeper
+		// than the plain menu-then-context-menu stack this counts -- `tables_3_pixels`' own
+		// `before_each` drains both queues for exactly this reason.
+		{
+			deluge::notify::Notice stray;
+			while (deluge::notify::notices().pop(stray)) {}
+		}
+		const Root& settings = roots().back();
+		install(settings.ctx, settings.song);
+
+		const context_menu::DescriptorId kOrder[] = {
+		    context_menu::DescriptorId::ResetFlash,
+		    context_menu::DescriptorId::ResetCommunityFeatures,
+		    context_menu::DescriptorId::ResetMidiFollow,
+		    context_menu::DescriptorId::ResetMidiDevices,
+		    context_menu::DescriptorId::ResetAll,
+		};
+		for (size_t i = 0; i < std::size(kOrder); i++) {
+			Rig r;
+			r.open(nodes::reset_settings, settings.ctx);
+			r.shell.tick(0);
+			for (size_t t = 0; t < i; t++) {
+				r.turn(1, static_cast<uint32_t>(10 + t * 10));
+				r.shell.tick(static_cast<uint32_t>(15 + t * 10));
+			}
+			r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+			r.shell.tick(110);
+
+			// `CustomItem::on_focus` fired from `enter_leaf`, and this tick's `after_render` turned
+			// the resulting `MenuState::pending_scene` into a `Push` -- the context menu is on top.
+			expect(&r.shell.stack().input_top() == &context_menu::context_menu_scene()).to_be_true();
+			expect(r.shell.stack().depth()).to_equal(size_t(2));
+			expect(static_cast<int>(context_menu::context_menu_scene().descriptor_id()))
+			    .to_equal(static_cast<int>(kOrder[i]));
+		}
+	});
+
+	it("resets exactly what legacy resets, driven through the real node, the real push and the real "
+	   "accept button -- not just through a DescriptorId",
+	   _ {
+		   NoSdRoot no_card;
+		   deluge::notify::dirty().drain();
+		   {
+			   deluge::notify::Notice stray;
+			   while (deluge::notify::notices().pop(stray)) {}
+		   }
+		   const Root& settings = roots().back();
+		   install(settings.ctx, settings.song);
+
+		   // A sentinel moved off `runtimeFeatureSettings`'s own reset value, so "the reset ran" and
+		   // "the reset did not run" are always distinguishable -- `context_menu_scene_spec.cpp`'s
+		   // own idiom, driven here through the menu node instead of a bare `DescriptorId`.
+		   runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, 1);
+
+		   Rig r;
+		   r.open(nodes::reset_settings, settings.ctx);
+		   r.shell.tick(0);
+		   // Row 1 is `reset_community_features` (`kResetSettingsChildren`'s own order).
+		   r.turn(1, 10);
+		   r.shell.tick(15);
+		   r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		   r.shell.tick(110);
+		   expect(&r.shell.stack().input_top() == &context_menu::context_menu_scene()).to_be_true();
+		   expect(static_cast<int>(context_menu::context_menu_scene().descriptor_id()))
+		       .to_equal(static_cast<int>(context_menu::DescriptorId::ResetCommunityFeatures));
+
+		   // The one option ("OK") is already the cursor's position; the select-encoder press is
+		   // `ContextMenu::buttonAction`'s `probablyAcceptCurrentOption` arm.
+		   r.button(kSelectEncButtonX, kSelectEncButtonY, false, 120);
+		   r.button(kSelectEncButtonX, kSelectEncButtonY, true, 130);
+		   r.shell.tick(140);
+		   const uint32_t ported = runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky);
+
+		   // `acceptCurrentOption` returns false for every shipped reset -> the menu removes itself,
+		   // and `go_up_on_resume` (set alongside the push, `EditNameItem`'s own mechanism) steps the
+		   // menu back out of the item it does not linger on -- back to the row it was entered from.
+		   expect(r.shell.stack().depth()).to_equal(size_t(1));
+		   expect(menu_scene().focused() == &nodes::reset_settings).to_be_true();
+
+		   runtimeFeatureSettings.set(RuntimeFeatureSettingType::ShiftIsSticky, 1);
+		   gui::context_menu::resetSettings.setAction(gui::context_menu::ResetSettingsAction::CommunityFeatures);
+		   gui::context_menu::resetSettings.currentOption = 0;
+		   (void)gui::context_menu::resetSettings.acceptCurrentOption();
+		   const uint32_t legacy = runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky);
+
+		   expect(ported).to_equal(legacy);
+	   });
+});
+
 describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 	// Shared setup, so a pixel test added here later gets it for free rather than needing to
 	// remember to copy it in (review round 1, I4 -- the two tests below used to each inline this).
@@ -1690,7 +1846,7 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 int tables_3_spec(int argc, char** const argv) {
 	return CppSpec::parse(argc, argv)
 	               .add_specs(tables_3_shape, tables_3_values, tables_3_validation, tables_3_writes, tables_3_chaining,
-	                          tables_3_pixels)
+	                          tables_3_reset_items, tables_3_pixels)
 	               .exec()
 	               .is_success()
 	           ? EXIT_SUCCESS

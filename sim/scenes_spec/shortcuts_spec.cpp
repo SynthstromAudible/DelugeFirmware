@@ -606,12 +606,15 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 		distinct_items = items.size();
 		expect(custom_nodes).to_equal(menu::kShippedCustomNodes);
 		expect(custom_nodes <= menu::kMaxCustomNodes).to_be_true();
-		// Fifty-six of the fifty-nine still share the one placeholder. The real, distinct items are
-		// `battery_level` and `firmware_version` (E2 task 2 fix round 1) plus E2 task 5's three
+		// Fifty-one of the fifty-nine still share the one placeholder. The real, distinct items are
+		// `battery_level` and `firmware_version` (E2 task 2 fix round 1), E2 task 5's three
 		// `EditNameItem`s -- one per `rename::TargetId`, since the target is the item's only state
-		// (`edit_name.h`). So six instances: `nodes::kPending`, `BatteryLevelItem`,
-		// `FirmwareVersionItem`, `kEditClipName`, `kEditOutputName`, `kEditDrumName`.
-		expect(distinct_items).to_equal(size_t(6));
+		// (`edit_name.h`) -- and E2 task 7's five `ResetItem`s, one per `context_menu::DescriptorId`
+		// (`settings.h`). So eleven instances: `nodes::kPending`, `BatteryLevelItem`,
+		// `FirmwareVersionItem`, `kEditClipName`, `kEditOutputName`, `kEditDrumName`,
+		// `kResetFlashItem`, `kResetCommunityFeaturesItem`, `kResetMidiFollowItem`,
+		// `kResetMidiDevicesItem`, `kResetAllItem`.
+		expect(distinct_items).to_equal(size_t(11));
 
 		const auto issues = menu::validate_tree(nodes::kAllRoots, {}, {}, {},
 		                                        menu::ValidateOptions{.allow_placeholder_custom = true});

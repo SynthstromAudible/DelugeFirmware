@@ -29,12 +29,14 @@
 ///           set from `deluge.cpp`'s main loop, the same one `sound_editor.cpp:1403` reads with its
 ///           own bare `extern` -- so E2 task 2 gave them real, finished `CustomItem`s instead of
 ///           leaving them as placeholders; see "12-13. Battery and firmware" below.)
-///         * **UI navigation.** The five `reset_*` items (`reset_settings/reset.h:23-27`, each
-///           opening a context menu), `cv_selection` / `gate_selection`
+///         * **UI navigation.** `cv_selection` / `gate_selection`
 ///           (`cv/selection.h:31-36`, `gate/selection.h:26-38`: `Selection`s whose select press
 ///           *navigates* to a page rather than committing a value), the twelve `midi_command_*`
 ///           (`midi/command.h`, MIDI-learn items), and `midi_devices`
-///           (`midi/devices.h`, a scrolling device list).
+///           (`midi/devices.h`, a scrolling device list). (The five `reset_*` items used to be here
+///           too, at `kPending` -- E2 task 7 gave them a real `ResetItem` instead, opening
+///           `context_menu::ContextMenuScene` through `MenuState::pending_scene`; see "1. Actions"
+///           below.)
 ///         * **Two items with genuinely dynamic state.** `default_tempo`, `default_swing_amount`
 ///           and `default_key` are `IntegerRange` / `KeyRange`, whose `lower`/`upper` live on the
 ///           legacy menu item (`integer_range.h:29`, `key_range.h:26`) and whose editor is spec E
@@ -282,11 +284,46 @@ void set_gate_off_time(const MenuContext& ctx, int32_t value);
 // ---------------------------------------------------------------------------------------------
 // 1. Actions
 
-inline constexpr Node reset_flash = custom(sid(String::STRING_FOR_RESET_FLASH), &kPending); // E2
-inline constexpr Node reset_community_features = custom(sid(String::STRING_FOR_RESET_COMMUNITY_FEATURES), &kPending);
-inline constexpr Node reset_midi_follow = custom(sid(String::STRING_FOR_RESET_MIDI_FOLLOW), &kPending);   // E2
-inline constexpr Node reset_midi_devices = custom(sid(String::STRING_FOR_RESET_MIDI_DEVICES), &kPending); // E2
-inline constexpr Node reset_all = custom(sid(String::STRING_FOR_FACTORY_RESET), &kPending);               // E2
+/// @brief `reset_settings::Reset::selectButtonPress` (`gui/menu_item/reset_settings/reset.h:29-33`):
+///        opens `context_menu::resetSettings` with the item's own `ResetSettingsAction` and returns
+///        `NO_NAVIGATION` (legacy's own screen is the context menu, not a page of this item's own).
+///        The port of that is `CustomItem::on_focus` -- exactly `EditNameItem`'s shape
+///        (`nodes/edit_name.h`), a `MenuState::pending_scene` push rather than a direct scene call,
+///        because a `scenes/menu/` node may not touch `scenes/context_menu/`'s `Shell` stack itself.
+///
+/// @note Spelled with a plain `uint16_t` rather than `context_menu::DescriptorId`, for the same
+///       reason `EditNameItem::target_` is a `uint16_t` rather than a `rename::TargetId`: a
+///       `SceneId::arg` carries a `uint16_t`, and this header should not have to pull
+///       `scenes/context_menu/` in just to name five items.
+class ResetItem final : public CustomItem {
+public:
+	explicit ResetItem(uint16_t descriptor_id) : descriptor_id_{descriptor_id} {}
+
+	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
+	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
+	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
+	                                 MenuState& state) const override;
+	void on_focus(const MenuContext& ctx, MenuState& state) const override;
+
+private:
+	uint16_t descriptor_id_;
+};
+
+/// @name The five instances, one per `context_menu::DescriptorId` (`context_menu_scene.h`).
+/// @{
+inline const ResetItem kResetFlashItem{0};             ///< `DescriptorId::ResetFlash`
+inline const ResetItem kResetCommunityFeaturesItem{1}; ///< `DescriptorId::ResetCommunityFeatures`
+inline const ResetItem kResetMidiFollowItem{2};        ///< `DescriptorId::ResetMidiFollow`
+inline const ResetItem kResetMidiDevicesItem{3};       ///< `DescriptorId::ResetMidiDevices`
+inline const ResetItem kResetAllItem{4};               ///< `DescriptorId::ResetAll`
+/// @}
+
+inline constexpr Node reset_flash = custom(sid(String::STRING_FOR_RESET_FLASH), &kResetFlashItem);
+inline constexpr Node reset_community_features =
+    custom(sid(String::STRING_FOR_RESET_COMMUNITY_FEATURES), &kResetCommunityFeaturesItem);
+inline constexpr Node reset_midi_follow = custom(sid(String::STRING_FOR_RESET_MIDI_FOLLOW), &kResetMidiFollowItem);
+inline constexpr Node reset_midi_devices = custom(sid(String::STRING_FOR_RESET_MIDI_DEVICES), &kResetMidiDevicesItem);
+inline constexpr Node reset_all = custom(sid(String::STRING_FOR_FACTORY_RESET), &kResetAllItem);
 
 inline constexpr const Node* kResetSettingsChildren[] = {&reset_flash, &reset_community_features, &reset_midi_follow,
                                                          &reset_midi_devices, &reset_all};
