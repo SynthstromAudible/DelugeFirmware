@@ -519,6 +519,9 @@ declare them and why E2's chaining work and E2's declaration of those pages are 
 with that item's real implementation rather than needing chaining as such:*
 `source_selection::Regular` → `patch_cable_strength::regularMenu` (`source_selection/regular.cpp:32`);
 `source_selection::Range` → `patch_cable_strength::rangeMenu` (`source_selection/range.cpp:32`);
+`patch_cable_strength::PatchCableStrength` → `source_selection::rangeMenu`, plus a shift-held
+automation-delete arm (`patch_cable_strength.cpp:302-306`) — reached from the shipped `kPending`
+node `patch_cable_strength::Fixed` (`nodes/sound_master.h:16-22`);
 `MultiRange` → its stored `menuItemHeadingTo` (`multi_range.cpp:360`);
 `PatchCables` → the cable's own strength page (`patch_cables.cpp:164-171`);
 `midi::Devices` → `midiDeviceMenu` (`midi/devices.cpp:154`);

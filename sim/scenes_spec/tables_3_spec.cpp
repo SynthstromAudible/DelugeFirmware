@@ -1126,16 +1126,17 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 		// of those fourteen port hooks is driven here on its own and its persisted effect asserted
 		// directly -- model state, `playbackHandler`, `FlashStorage`, `runtimeFeatureSettings` --
 		// because the read comparison does not reach any of it. The `covered` tally at the end is
-		// the ratchet: a fifteenth exclusion with no arm here fails this example.
+		// the ratchet, and it holds node identities rather than a count: a fifteenth exclusion with
+		// no arm here fails this example, and so does a second `insert` of a node already driven.
 		//
-		// The four `hid/`-side settings nodes are the ones review round 1's I3 wrongly claimed were
+		// The six `hid/`-side settings nodes are the ones review round 1's I3 wrongly claimed were
 		// already covered ("the spec asserts the persisted half"); they were on no list but this
 		// one. They are covered now, in the only half `src/scenes` owns: the `FlashStorage` /
 		// `runtimeFeatureSettings` write. Their `hid/` halves stay E2's, as `settings.h` records.
-		size_t covered = 0;
+		std::set<const Node*> covered;
 
 		// --- What this example perturbs, and puts back ------------------------------------------
-		// These four globals are process-wide, and the read comparisons in this file's other groups
+		// These ten globals are process-wide, and the read comparisons in this file's other groups
 		// observe some of them. Saved and restored so the example is order-independent.
 		const bool saved_midi_out = playbackHandler.midiOutClockEnabled;
 		const bool saved_midi_in = playbackHandler.midiInClockEnabled;
@@ -1156,7 +1157,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			menu::bindings::write(nodes::synth_mode, sound.ctx, static_cast<int32_t>(SynthMode::SUBTRACTIVE));
 			expect(sound.ctx.sound->synthMode == SynthMode::SUBTRACTIVE).to_be_true();
 			sound.ctx.sound->setSynthMode(before, sound.ctx.song);
-			covered++;
+			covered.insert(&nodes::synth_mode);
 		}
 
 		{ // --- arp_mode: the preset re-derivation AND the silence block --------------------------
@@ -1193,7 +1194,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			// ... and this is true only if `silence_for_arp_toggle` reached the synth arm.
 			expect(sound.ctx.sound->invertReversed).to_be_false();
 			OutputPeek::active_clip_of(*sound.ctx.output) = saved_active;
-			covered++;
+			covered.insert(&nodes::arp_mode);
 		}
 
 		{ // --- arp_preset: the settings re-derivation, the restart flag, the silence block -------
@@ -1224,7 +1225,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			arp->preset = ArpPreset::OFF;
 			arp->flagForceArpRestart = false;
 			OutputPeek::active_clip_of(*sound.ctx.output) = saved_active;
-			covered++;
+			covered.insert(&nodes::arp_preset);
 		}
 
 		{ // --- mod_fx_type: `ModControllableAudio::setModFXType` on the target -------------------
@@ -1235,7 +1236,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			menu::bindings::write(nodes::mod_fx_type, sound.ctx, static_cast<int32_t>(ModFXType::FLANGER));
 			expect(sound.ctx.mod->modFXType_ == ModFXType::FLANGER).to_be_true();
 			(void)sound.ctx.mod->setModFXType(before);
-			covered++;
+			covered.insert(&nodes::mod_fx_type);
 		}
 
 		{ // --- audio_clip_reverse: the clip's own sample controls --------------------------------
@@ -1248,7 +1249,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			menu::bindings::write(nodes::audio_clip_reverse, audio.ctx, 0);
 			expect(clip->sampleControls.reversed).to_be_false();
 			clip->sampleControls.reversed = before;
-			covered++;
+			covered.insert(&nodes::audio_clip_reverse);
 		}
 
 		// --- The four `playbackHandler` / settings-root nodes ------------------------------------
@@ -1261,21 +1262,21 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			expect(playbackHandler.midiOutClockEnabled).to_be_true();
 			menu::bindings::write(nodes::midi_clock_out, settings.ctx, 0);
 			expect(playbackHandler.midiOutClockEnabled).to_be_false();
-			covered++;
+			covered.insert(&nodes::midi_clock_out);
 		}
 		{ // midi_clock_in
 			menu::bindings::write(nodes::midi_clock_in, settings.ctx, 1);
 			expect(playbackHandler.midiInClockEnabled).to_be_true();
 			menu::bindings::write(nodes::midi_clock_in, settings.ctx, 0);
 			expect(playbackHandler.midiInClockEnabled).to_be_false();
-			covered++;
+			covered.insert(&nodes::midi_clock_in);
 		}
 		{ // trigger_out_ppqn
 			menu::bindings::write(nodes::trigger_out_ppqn, settings.ctx, 24);
 			expect(playbackHandler.analogOutTicksPPQN).to_equal(uint32_t(24));
 			menu::bindings::write(nodes::trigger_out_ppqn, settings.ctx, 48);
 			expect(playbackHandler.analogOutTicksPPQN).to_equal(uint32_t(48));
-			covered++;
+			covered.insert(&nodes::trigger_out_ppqn);
 		}
 		{ // default_pad_brightness -- the `>> 2` the node's step-of-4 range implies
 			menu::bindings::write(nodes::default_pad_brightness, settings.ctx, 32);
@@ -1283,7 +1284,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			menu::bindings::write(nodes::default_pad_brightness, settings.ctx, 64);
 			expect(FlashStorage::defaultPadBrightness).to_equal(uint8_t(16));
 			expect(menu::bindings::read(nodes::default_pad_brightness, settings.ctx)).to_equal(int32_t(64));
-			covered++;
+			covered.insert(&nodes::default_pad_brightness);
 		}
 		{ // default_menu_highlighting
 			menu::bindings::write(nodes::default_menu_highlighting, settings.ctx,
@@ -1292,21 +1293,21 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			menu::bindings::write(nodes::default_menu_highlighting, settings.ctx,
 			                      static_cast<int32_t>(MenuHighlighting::NO_INVERSION));
 			expect(FlashStorage::accessibilityMenuHighlighting == MenuHighlighting::NO_INVERSION).to_be_true();
-			covered++;
+			covered.insert(&nodes::default_menu_highlighting);
 		}
 		{ // screensaver_mode
 			menu::bindings::write(nodes::screensaver_mode, settings.ctx, static_cast<int32_t>(ScreensaverMode::OFF));
 			expect(FlashStorage::screensaverMode == ScreensaverMode::OFF).to_be_true();
 			menu::bindings::write(nodes::screensaver_mode, settings.ctx, static_cast<int32_t>(ScreensaverMode::STARSCAPE));
 			expect(FlashStorage::screensaverMode == ScreensaverMode::STARSCAPE).to_be_true();
-			covered++;
+			covered.insert(&nodes::screensaver_mode);
 		}
 		{ // screensaver_timeout
 			menu::bindings::write(nodes::screensaver_timeout, settings.ctx, 7);
 			expect(FlashStorage::screensaverTimeoutMinutes).to_equal(uint8_t(7));
 			menu::bindings::write(nodes::screensaver_timeout, settings.ctx, 21);
 			expect(FlashStorage::screensaverTimeoutMinutes).to_equal(uint8_t(21));
-			covered++;
+			covered.insert(&nodes::screensaver_timeout);
 		}
 		{ // feature_sticky_shift -- plus the LightShiftLed poke `ShiftIsSticky` carries with it
 			runtimeFeatureSettings.set(RuntimeFeatureSettingType::LightShiftLed,
@@ -1321,7 +1322,7 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			                      util::to_underlying(RuntimeFeatureStateToggle::Off));
 			expect(runtimeFeatureSettings.get(RuntimeFeatureSettingType::ShiftIsSticky))
 			    .to_equal(util::to_underlying(RuntimeFeatureStateToggle::Off));
-			covered++;
+			covered.insert(&nodes::feature_sticky_shift);
 		}
 		{ // feature_rounded_corners
 			menu::bindings::write(nodes::feature_rounded_corners, settings.ctx,
@@ -1332,11 +1333,11 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 			                      util::to_underlying(RuntimeFeatureStateToggle::Off));
 			expect(runtimeFeatureSettings.get(RuntimeFeatureSettingType::RoundedCorners))
 			    .to_equal(util::to_underlying(RuntimeFeatureStateToggle::Off));
-			covered++;
+			covered.insert(&nodes::feature_rounded_corners);
 		}
 
 		// The ratchet.
-		expect(covered).to_equal(std::size(kLegacyWriteNeedsUi));
+		expect(covered).to_equal(std::set<const Node*>(std::begin(kLegacyWriteNeedsUi), std::end(kLegacyWriteNeedsUi)));
 
 		playbackHandler.midiOutClockEnabled = saved_midi_out;
 		playbackHandler.midiInClockEnabled = saved_midi_in;

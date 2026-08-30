@@ -183,7 +183,10 @@ predicate without adding its row is a build failure rather than a dump that sile
 
 `validate_tree` walks every node reachable from a set of roots and checks: every `Submenu` is
 non-empty under at least one context; every `ParamRef` resolves for its context; every `Enum` has
-`names` or `dynamic_names`; every shortcut cell points at a node; `Custom` count ≤ 10; no
+`names` or `dynamic_names`; every shortcut cell points at a node; `Custom` count ≤ 60 — counting the *nodes* that point at a
+custom item, not the distinct `CustomItem` instances, since 59 of them share the single
+`nodes::kPending` placeholder today (see "Adding a `Custom`" above and the design spec's
+amendment); no
 `NullCustom`; no `DuplicateName` among siblings that could actually both be on screen at once (a
 co-visibility qualifier — see the design spec's amendment for the nine blessed `FormattedTitle`
 collisions this exists to allow); `Node::range_dependent` and `Binding::scaling ==
