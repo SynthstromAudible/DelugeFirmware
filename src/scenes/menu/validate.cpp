@@ -25,7 +25,10 @@
 ///
 ///   * *reachable* -> `Issue::Kind::Unreachable`. `assign_node_ids` reports how many nodes it could
 ///     number and stops at `kMaxNodes` (`node_id.h`); this walk counts the reachable nodes itself
-///     and flags the first one left without an id.
+///     and flags the first one left without an id. "Reachable" means over both static edge kinds --
+///     `Node::children` and `Node::chain_targets` -- exactly as `assign_node_ids` walks them, or
+///     the two counts would not be comparable and the seven chain-only pages would each be
+///     reported as unreachable.
 ///   * *non-empty submenu* -> `EmptySubmenu`, quantified over the supplied contexts in which the
 ///     submenu is itself relevant (see the rule's own comment for why that qualifier is there).
 ///   * *`ParamRef` resolves* -> `BadParamRef`. Structural, not model-backed: the kind must be one
@@ -44,7 +47,8 @@
 ///
 /// plus, beyond §4.4: `MissingTitle` and `NullCustom` (a node that would render nothing),
 /// `FlagMismatch` with `Flag::ReverbUpdateWithHook` (task-8 ruling: a `set` hook silently swallows
-/// `Binding::updates_reverb_params`),
+/// `Binding::updates_reverb_params`) and with `Flag::ChainTargetsMismatch` (a `select_chain` hook
+/// without its static target list, or the reverse),
 /// `PlaceholderCustom` (a node that renders a stand-in for an item E2 still owes -- suppressible,
 /// and only ever suppressed by an E1 spec, `ValidateOptions::allow_placeholder_custom`), and the
 /// two `FlagMismatch` audits (task 6's ruling 4).
@@ -114,6 +118,17 @@ bool collect(std::span<const Node* const> roots, Reachable& seen) {
 		}
 		if (!seen.push(n)) {
 			return false;
+		}
+		// Chain targets pushed first so they pop *after* the children -- `assign_node_ids` visits
+		// children then `chain_targets`, and the two walks have to reach the same set for the
+		// `Unreachable` rule's count comparison to mean anything. A cycle through `chain_targets`
+		// terminates on the `seen.contains` test at the top of the loop, the same way a shared node
+		// does.
+		for (size_t i = n->chain_targets.size(); i > 0; i--) {
+			if (top == kMaxNodes) {
+				return false;
+			}
+			stack[top++] = n->chain_targets[i - 1];
 		}
 		for (size_t i = n->children.size(); i > 0; i--) {
 			if (top == kMaxNodes) {
@@ -279,6 +294,12 @@ deluge::ui::shell::FixedVector<Issue, 64> validate_tree(std::span<const Node* co
 		// A `set` hook plus `updates_reverb_params` is a silent no-op -- see `Flag::ReverbUpdateWithHook`.
 		if (n.bind.updates_reverb_params && n.bind.set != nullptr) {
 			add(out, Issue::Kind::FlagMismatch, &n, static_cast<uint16_t>(Flag::ReverbUpdateWithHook));
+		}
+
+		// A chain hook and its static target list are set together or not at all -- see
+		// `Flag::ChainTargetsMismatch`.
+		if ((n.select_chain != nullptr) != !n.chain_targets.empty()) {
+			add(out, Issue::Kind::FlagMismatch, &n, static_cast<uint16_t>(Flag::ChainTargetsMismatch));
 		}
 
 		if (n.kind == Kind::Custom) {

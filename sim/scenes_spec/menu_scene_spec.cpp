@@ -224,6 +224,38 @@ CountingCustom g_custom_passes_through{false};
 constexpr Node custom_consumes_leaf = menu::custom(sid(String::STRING_FOR_OK), &g_custom_consumes);
 constexpr Node custom_passes_through_leaf = menu::custom(sid(String::STRING_FOR_OK), &g_custom_passes_through);
 
+// ---------------------------------------------------------------------------------------------
+// The `select_chain` leaves. Both are appended to `settings_children` *last* (see the note there),
+// so no recorded golden moves.
+
+/// The second hop of the chain: the page `chain_target_leaf` itself opens, so a spec can prove the
+/// interpreter follows a chain *from* a page it arrived at by chaining (legacy's
+/// `OctaveModeToNoteMode` -> `arpNoteModeFromOctaveModeMenu`, `octave_mode.h:90`).
+constexpr Node chain_target_hop2 =
+    menu::int_item(sid(String::STRING_FOR_MORPH), get_int, set_int, deluge::ui::oled::Range{0, 50, 1});
+constexpr const Node* chain_target_leaf_targets[] = {&chain_target_hop2};
+const Node* chain_target_leaf_chain(const MenuContext&, const menu::MenuState&) {
+	return &chain_target_hop2;
+}
+
+/// The page a select press on `chain_source_leaf` opens -- deliberately NOT a child of anything,
+/// the shape legacy's `arpOctaveModeToNoteModeMenu` and `cvSubmenu` have
+/// (`gui/ui/menus.cpp:511-521`, `:1232`): reachable through `Node::chain_targets` and nothing else.
+constexpr Node chain_target_leaf = menu::with_select_chain(
+    menu::int_item(sid(String::STRING_FOR_RESONANCE), get_int, set_int, deluge::ui::oled::Range{0, 50, 1}),
+    chain_target_leaf_chain, chain_target_leaf_targets);
+
+/// Value-dependent, like `arp_preset`: only an odd value chains, everything else ascends. The two
+/// branches are what make the interpreter's `select_chain != nullptr ? ... : nullptr` arm testable
+/// in both directions rather than only the interesting one.
+constexpr const Node* chain_source_targets[] = {&chain_target_leaf};
+const Node* chain_source_chain(const MenuContext&, const menu::MenuState&) {
+	return (g_int % 2) != 0 ? &chain_target_leaf : nullptr;
+}
+constexpr Node chain_source_leaf = menu::with_select_chain(
+    menu::int_item(sid(String::STRING_FOR_PAN), get_int, set_int, deluge::ui::oled::Range{0, 50, 1}),
+    chain_source_chain, chain_source_targets);
+
 /// A three-deep chain, so `save_state`/`restore_state` can be round-tripped at the depth the brief
 /// asks for. Appended *last* so the visible window at cursor 0 -- and therefore the recorded root
 /// goldens -- is unchanged.
@@ -236,9 +268,11 @@ constexpr Node deep_outer = menu::submenu(sid(String::STRING_FOR_FILTERS), deep_
 
 // `sync_leaf` is appended last, like `deep_outer` before it, so the visible window at cursor 0 --
 // and therefore the recorded root goldens -- is unchanged (`render_vertical` draws no scrollbar,
-// so even the total count moving from 7 to 8 does not move a pixel there).
-constexpr const Node* settings_children[] = {&lpf_page,    &int_leaf,       &decimal_leaf, &enum_leaf,
-                                             &toggle_leaf, &transpose_leaf, &deep_outer,   &sync_leaf};
+// so even the total count moving from 7 to 8 does not move a pixel there). `chain_source_leaf`
+// follows it, for the same reason and with the same effect.
+constexpr const Node* settings_children[] = {&lpf_page,   &int_leaf,    &decimal_leaf,
+                                             &enum_leaf,  &toggle_leaf, &transpose_leaf,
+                                             &deep_outer, &sync_leaf,   &chain_source_leaf};
 constexpr Node settings_root = menu::submenu(sid(String::STRING_FOR_SETTINGS), settings_children);
 
 /// The synthetic tree above **and** the real sound root: the shortcut examples below press real
@@ -823,6 +857,96 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(cursor_of(0)).to_equal(6);
 		expect(cursor_of(1)).to_equal(0);
 		expect(cursor_of(2)).to_equal(0);
+	});
+
+	it("a leaf's select press opens the menu its select_chain names, instead of ascending", _ {
+		// The port of `MenuItem::selectButtonPress` returning a menu (`gui/ui/sound_editor.cpp:357`
+		// -> `enterSubmenu`). `chain_source_leaf`'s hook chains only on an odd value, so this drives
+		// both answers through the real shell and asserts each.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+
+		// Descend to the chaining leaf (row 8, the last child).
+		for (int i = 0; i < 8; i++) {
+			r.turn(1, static_cast<uint32_t>(10 + i * 10));
+			r.shell.tick(static_cast<uint32_t>(15 + i * 10));
+		}
+		expect(cursor_of(0)).to_equal(8);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.shell.tick(110);
+		expect(menu_scene().focused() == &chain_source_leaf).to_be_true();
+		expect(depth_of()).to_equal(1);
+
+		// Odd value -> the hook names `chain_target_leaf`, so the press descends rather than
+		// ascending.
+		g_int = 3;
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 240);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 250);
+		r.shell.tick(260);
+		expect(menu_scene().focused() == &chain_target_leaf).to_be_true();
+		expect(depth_of()).to_equal(2);
+
+		// And the chained page chains on again -- two hops, the shape `arp_preset` ->
+		// `arp_octave_mode_to_note_mode` -> `arp_note_mode_from_octave_mode` has.
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 270);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 280);
+		r.shell.tick(290);
+		expect(menu_scene().focused() == &chain_target_hop2).to_be_true();
+		expect(depth_of()).to_equal(3);
+
+		// `chain_target_hop2` has no chain, so its press ascends -- back to the page that chained
+		// to it, not to the root.
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 300);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 310);
+		r.shell.tick(320);
+		expect(menu_scene().focused() == &chain_target_leaf).to_be_true();
+		expect(depth_of()).to_equal(2);
+	});
+
+	it("a leaf whose select_chain answers null still ascends", _ {
+		// The other branch of the same arm, and the one that regresses silently if the chain consult
+		// is written as an unconditional descend: an even value means "no menu", i.e. legacy's
+		// `return nullptr` = `goUpOneLevel()`.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+		for (int i = 0; i < 8; i++) {
+			r.turn(1, static_cast<uint32_t>(10 + i * 10));
+			r.shell.tick(static_cast<uint32_t>(15 + i * 10));
+		}
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
+		r.shell.tick(110);
+		expect(menu_scene().focused() == &chain_source_leaf).to_be_true();
+
+		g_int = 4; // even
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 120);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 130);
+		r.shell.tick(140);
+		expect(depth_of()).to_equal(0);
+		expect(menu_scene().focused() == &settings_root).to_be_true();
+	});
+
+	it("gives a chain-only page an id, so on_enter can restore one", _ {
+		// `assign_node_ids` follows `chain_targets`: without that, `chain_target_leaf` -- which no
+		// `children` span names -- would have id 0 and `SceneId::arg` could never address it.
+		select_language();
+		deluge::notify::dirty().drain();
+		Rig r;
+		(void)r.open(settings_root);
+		r.shell.tick(0);
+
+		const uint16_t id = menu::node_id(chain_target_leaf);
+		expect(id != uint16_t(0)).to_be_true();
+		expect(menu::node_by_id(id) == &chain_target_leaf).to_be_true();
+		expect(menu::node_id(chain_target_hop2) != uint16_t(0)).to_be_true();
+
+		expect(menu_scene().on_enter(SceneId{SceneKind::FirstApp, id})).to_be_true();
+		expect(menu_scene().focused() == &chain_target_leaf).to_be_true();
 	});
 });
 

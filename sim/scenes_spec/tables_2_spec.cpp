@@ -48,6 +48,22 @@
 #include "gui/ui/sound_editor.h"
 #include "hid/display/oled.h"
 
+// The chaining group's legacy headers render through an unqualified `OLED::main`, which resolves
+// inside `gui/ui/menus.cpp` only because that file has a file-scope
+// `using namespace deluge::hid::display`. This spec has no such directive, so name the type in the
+// namespace those headers are compiled in -- exactly the workaround `tables_1_spec.cpp` uses for
+// `gui/menu_item/filter_route.h`.
+namespace deluge::gui::menu_item {
+using deluge::hid::display::OLED;
+} // namespace deluge::gui::menu_item
+#include "gui/menu_item/arpeggiator/note_mode.h"
+#include "gui/menu_item/arpeggiator/note_mode_for_drums.h"
+#include "gui/menu_item/arpeggiator/octave_mode.h"
+#include "gui/menu_item/arpeggiator/preset_mode.h"
+#include "gui/menu_item/unison/count.h"
+#include "gui/menu_item/unison/stereoSpread.h"
+#include "gui/menu_item/voice/polyphony.h"
+
 #include "model/clip/instrument_clip.h"
 #include "model/model_stack.h"
 #include "model/note/note_row.h"
@@ -82,9 +98,21 @@ using deluge::scenes::menu::MenuContext;
 using deluge::scenes::menu::Node;
 namespace legacy = deluge::gui::menu_item;
 
-/// The one legacy global this spec needs by name: everything else is reached by walking its
-/// children. `Submenu` rather than `HorizontalMenu` -- `soundEditorRootMenu` is a vertical list.
+/// The one legacy global this spec needs by name to walk the tree: everything else in the *shape*
+/// comparison is reached by walking its children. `Submenu` rather than `HorizontalMenu` --
+/// `soundEditorRootMenu` is a vertical list.
 extern legacy::Submenu soundEditorRootMenu;
+
+/// @name The chaining group's legacy globals.
+///
+/// `selectButtonPress()` is a per-item override, so unlike everything else here these cannot be
+/// reached by walking -- four of the six targets are named by no submenu literal at all
+/// (`gui/ui/menus.cpp:511-521`), which is the whole reason `Node::chain_targets` exists.
+/// @{
+extern legacy::arpeggiator::PresetMode arpPresetModeMenu;
+extern legacy::voice::PolyphonyType polyphonyMenu;
+extern legacy::unison::CountToStereoSpread numUnisonMenu;
+/// @}
 
 namespace {
 
@@ -502,6 +530,96 @@ const deluge::ui::shell::BoardProfile& profile_64() {
 	return p;
 }
 
+// ---------------------------------------------------------------------------------------------
+// The `selectButtonPress()` chaining group's helpers.
+
+/// @brief The node `item` was ported to, for the six menus a chain in this tree can name.
+///
+/// Null in, null out -- legacy's `return nullptr` is "go up", which the port spells the same way.
+/// Anything else unmapped returns a distinct sentinel through `chain_name` so an unexpected legacy
+/// answer fails loudly instead of silently comparing equal to "ascend".
+const Node* chained_node_for(::MenuItem* item) {
+	if (item == nullptr) {
+		return nullptr;
+	}
+	if (item == &legacy::arpeggiator::arpOctaveModeToNoteModeMenu) {
+		return &nodes::arp_octave_mode_to_note_mode;
+	}
+	if (item == &legacy::arpeggiator::arpOctaveModeToNoteModeMenuForDrums) {
+		return &nodes::arp_octave_mode_to_note_mode_drums;
+	}
+	if (item == &legacy::arpeggiator::arpNoteModeFromOctaveModeMenu) {
+		return &nodes::arp_note_mode_from_octave_mode;
+	}
+	if (item == &legacy::arpeggiator::arpNoteModeFromOctaveModeMenuForDrums) {
+		return &nodes::arp_note_mode_from_octave_mode_drums;
+	}
+	if (item == &legacy::unison::stereoSpreadMenu) {
+		return &nodes::unison_spread;
+	}
+	if (item == &legacy::voice::polyphonicVoiceCountMenu) {
+		return &nodes::voice_count;
+	}
+	return nullptr; // caught by `chain_name`'s "UNMAPPED" arm below, never mistaken for "ascend"
+}
+
+/// @brief A node pointer as a name the failure message can print. Compared instead of the raw
+///        pointers so a mismatch says *which* page each side chose.
+std::string chain_name(const Node* n) {
+	if (n == nullptr) {
+		return "<ascend>";
+	}
+	// The four arp pages share their base's `name`/`title`, so the identity has to come from the
+	// pointer, not from the text.
+	if (n == &nodes::arp_octave_mode_to_note_mode) {
+		return "arp_octave_mode_to_note_mode";
+	}
+	if (n == &nodes::arp_octave_mode_to_note_mode_drums) {
+		return "arp_octave_mode_to_note_mode_drums";
+	}
+	if (n == &nodes::arp_note_mode_from_octave_mode) {
+		return "arp_note_mode_from_octave_mode";
+	}
+	if (n == &nodes::arp_note_mode_from_octave_mode_drums) {
+		return "arp_note_mode_from_octave_mode_drums";
+	}
+	if (n == &nodes::unison_spread) {
+		return "unison_spread";
+	}
+	if (n == &nodes::voice_count) {
+		return "voice_count";
+	}
+	return "UNMAPPED:" + text_of(n->name);
+}
+
+/// @brief Is @p target named by some node's static `children` span, anywhere in the whole tree?
+///
+/// The point of the chain-only pages is that the answer is *no* for four of them: nothing but a
+/// `chain_targets` span reaches them, in the port or in legacy.
+bool reachable_by_children(const Node* target) {
+	std::vector<const Node*> stack(nodes::kAllRoots.begin(), nodes::kAllRoots.end());
+	std::set<const Node*> seen;
+	while (!stack.empty()) {
+		const Node* n = stack.back();
+		stack.pop_back();
+		if (n == nullptr || !seen.insert(n).second) {
+			continue;
+		}
+		for (const Node* c : n->children) {
+			if (c == target) {
+				return true;
+			}
+			stack.push_back(c);
+		}
+		// Chain targets are traversed (so a page reached only *below* a chained page is still
+		// searched) but never counted as a `children` hit themselves.
+		for (const Node* t : n->chain_targets) {
+			stack.push_back(t);
+		}
+	}
+	return false;
+}
+
 } // namespace
 
 // clang-format off
@@ -787,6 +905,168 @@ describe tables_2_validation("scenes::menu batch-2 tables: validation", $ {
 		for (const Pair& p : tree().pairs) {
 			expect(menu::node_id(*p.node) != uint16_t(0)).to_be_true();
 		}
+	});
+});
+
+describe tables_2_chaining("scenes::menu batch-2 tables: selectButtonPress chaining", $ {
+	it("answers what the legacy item's own selectButtonPress answers, value by value", _ {
+		// The comparison is against `MenuItem::selectButtonPress()` on the live legacy globals, not
+		// against a hand-written expectation: `chained_node_for` maps the `MenuItem*` legacy returns
+		// back to the node it was ported to, so a wrong condition, a wrong target, or a missing
+		// `select_chain` all show up as a mismatch here rather than as a passing tautology.
+		Rigged& f = fixture();
+
+		struct Case {
+			const Node* node;
+			::MenuItem* item;
+			int32_t value; ///< written to both sides before the press
+		};
+		const Case cases[] = {
+		    // `PresetMode::selectButtonPress` (`preset_mode.h:109-118`): CUSTOM opens a page, every
+		    // other preset ascends. Both ends of that are probed, not just the interesting one.
+		    {&nodes::arp_preset, &arpPresetModeMenu, int32_t(ArpPreset::CUSTOM)},
+		    {&nodes::arp_preset, &arpPresetModeMenu, int32_t(ArpPreset::UP)},
+		    {&nodes::arp_preset, &arpPresetModeMenu, int32_t(ArpPreset::OFF)},
+		    // `PolyphonyType::selectButtonPress` (`voice/polyphony.h:139-143`): POLY opens the voice
+		    // count, everything else falls through to `Selection::selectButtonPress`, which for the
+		    // open menu is "go up" (`selection.h:54-64`).
+		    {&nodes::polyphony, &polyphonyMenu, int32_t(PolyphonyMode::POLY)},
+		    {&nodes::polyphony, &polyphonyMenu, int32_t(PolyphonyMode::MONO)},
+		    {&nodes::polyphony, &polyphonyMenu, int32_t(PolyphonyMode::AUTO)},
+		    // `CountToStereoSpread::selectButtonPress` (`unison/count.h:76-79`): unconditional, so
+		    // two different counts must give the same answer.
+		    {&nodes::unison_count, &numUnisonMenu, 1},
+		    {&nodes::unison_count, &numUnisonMenu, 4},
+		    // `OctaveModeToNoteMode` / its drum twin (`octave_mode.h:85-100`): also unconditional.
+		    {&nodes::arp_octave_mode_to_note_mode, &legacy::arpeggiator::arpOctaveModeToNoteModeMenu, 0},
+		    {&nodes::arp_octave_mode_to_note_mode_drums, &legacy::arpeggiator::arpOctaveModeToNoteModeMenuForDrums, 0},
+		};
+
+		size_t compared = 0;
+		for (const Case& c : cases) {
+			install(f.ctx, f.song.song);
+			menu::bindings::write(*c.node, f.ctx, c.value);
+			// `Selection::selectButtonPress`'s fall-through arm asks whether the item IS the open
+			// menu (`selection.h:57`). In the port the chain hook only ever runs on the focused
+			// leaf, so that is the state to put legacy in.
+			soundEditor.navigationDepth = 0;
+			soundEditor.menuItemNavigationRecord[0] = c.item;
+			c.item->readCurrentValue();
+
+			::MenuItem* legacy_answer = c.item->selectButtonPress();
+			const Node* want = chained_node_for(legacy_answer);
+			const Node* got = c.node->select_chain != nullptr ? c.node->select_chain(f.ctx, menu_scene().state())
+			                                                  : nullptr;
+			expect(chain_name(got)).to_equal(chain_name(want));
+			compared++;
+		}
+		soundEditor.menuItemNavigationRecord[0] = nullptr;
+		expect(compared).to_equal(std::size(cases));
+	});
+
+	it("opens the drum twin of the octave-mode page when a kit row is being edited", _ {
+		// The other half of `PresetMode::selectButtonPress` (`preset_mode.h:112-115`):
+		// `soundEditor.editingKitRow()` picks `arpOctaveModeToNoteModeMenuForDrums`. The synth
+		// fixture above can never show it, so it needs the kit fixture.
+		KitRig& k = kit_fixture();
+		const MenuContext ctx = select_drum(k, k.drum_a);
+		menu::bindings::write(nodes::arp_preset, ctx, int32_t(ArpPreset::CUSTOM));
+
+		soundEditor.navigationDepth = 0;
+		soundEditor.menuItemNavigationRecord[0] = &arpPresetModeMenu;
+		arpPresetModeMenu.readCurrentValue();
+		const Node* want = chained_node_for(arpPresetModeMenu.selectButtonPress());
+		soundEditor.menuItemNavigationRecord[0] = nullptr;
+
+		expect(want == &nodes::arp_octave_mode_to_note_mode_drums).to_be_true();
+		expect(nodes::arp_preset.select_chain(ctx, menu_scene().state())
+		       == &nodes::arp_octave_mode_to_note_mode_drums)
+		    .to_be_true();
+
+		// And the drum twin chains on to the drum note mode, not the plain one.
+		expect(nodes::arp_octave_mode_to_note_mode_drums.select_chain(ctx, menu_scene().state())
+		       == &nodes::arp_note_mode_from_octave_mode_drums)
+		    .to_be_true();
+		expect(nodes::arp_octave_mode_to_note_mode.select_chain(ctx, menu_scene().state())
+		       == &nodes::arp_note_mode_from_octave_mode)
+		    .to_be_true();
+		install(fixture().ctx, fixture().song.song);
+	});
+
+	it("declares the four chain-only arp pages exactly as their legacy base class reads and writes", _ {
+		// `arpOctaveModeToNoteModeMenu` and its three relatives override nothing but
+		// `selectButtonPress` (`octave_mode.h:85-100`, `note_mode.h:70-76`,
+		// `note_mode_for_drums.h:78-84`), so each must be indistinguishable from the page already in
+		// `arpPatternMenu` apart from the chain itself. Comparing against the sibling node -- not
+		// against a copy of the field values -- is what makes this fail if one drifts.
+		struct Twin {
+			const Node* chained;
+			const Node* plain;
+		};
+		const Twin twins[] = {
+		    {&nodes::arp_octave_mode_to_note_mode, &nodes::arp_octave_mode},
+		    {&nodes::arp_octave_mode_to_note_mode_drums, &nodes::arp_octave_mode},
+		    {&nodes::arp_note_mode_from_octave_mode, &nodes::arp_note_mode},
+		    {&nodes::arp_note_mode_from_octave_mode_drums, &nodes::arp_note_mode_drums},
+		};
+		for (const Twin& t : twins) {
+			expect(t.chained->name).to_equal(t.plain->name);
+			expect(t.chained->title).to_equal(t.plain->title);
+			expect(static_cast<int>(t.chained->kind)).to_equal(static_cast<int>(t.plain->kind));
+			expect(t.chained->relevant == t.plain->relevant).to_be_true();
+			expect(t.chained->bind.get == t.plain->bind.get).to_be_true();
+			expect(t.chained->bind.set == t.plain->bind.set).to_be_true();
+			expect(t.chained->bind.names.data() == t.plain->bind.names.data()).to_be_true();
+			// ... and is a page in its own right, not one of the plain ones under another name.
+			expect(t.chained != t.plain).to_be_true();
+		}
+	});
+
+	it("numbers every chain target, including the four pages no children span reaches", _ {
+		// The reachability ruling: `assign_node_ids` follows `chain_targets` as well as `children`,
+		// or `SceneId::arg` could not name a chained page and `MenuScene::on_enter` could not
+		// restore one. Asserted over the WHOLE tree, since that is the walk the app performs.
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		const Node* chained[] = {
+		    &nodes::arp_octave_mode_to_note_mode,       &nodes::arp_octave_mode_to_note_mode_drums,
+		    &nodes::arp_note_mode_from_octave_mode,     &nodes::arp_note_mode_from_octave_mode_drums,
+		    &nodes::unison_spread,                      &nodes::voice_count,
+		};
+		for (const Node* n : chained) {
+			const uint16_t id = menu::node_id(*n);
+			expect(id != uint16_t(0)).to_be_true();
+			expect(menu::node_by_id(id) == n).to_be_true();
+		}
+		// The four arp pages are reachable ONLY through a chain -- no span in the tree names them.
+		const Node* chain_only[] = {&nodes::arp_octave_mode_to_note_mode,
+		                            &nodes::arp_octave_mode_to_note_mode_drums,
+		                            &nodes::arp_note_mode_from_octave_mode,
+		                            &nodes::arp_note_mode_from_octave_mode_drums};
+		for (const Node* n : chain_only) {
+			expect(reachable_by_children(n)).to_be_false();
+		}
+		// ... while `unison_spread` and `voice_count` are ordinary columns as well as chain targets.
+		expect(reachable_by_children(&nodes::unison_spread)).to_be_true();
+		expect(reachable_by_children(&nodes::voice_count)).to_be_true();
+	});
+
+	it("sets select_chain and chain_targets together, everywhere in the tree", _ {
+		// `Flag::ChainTargetsMismatch`: a hook with no targets is a page nothing can number; targets
+		// with no hook is a page nothing can open. Checked over `kAllRoots` through the validator
+		// itself, so the rule is exercised and not merely present.
+		Rigged& f = fixture();
+		const MenuContext contexts[] = {f.ctx};
+		const auto issues =
+		    menu::validate_tree(nodes::kAllRoots, contexts, {}, {},
+		                        menu::ValidateOptions{.allow_placeholder_custom = true, .skip_shortcut_sweep = true});
+		size_t mismatches = 0;
+		for (const menu::Issue& i : issues) {
+			if (i.kind == menu::Issue::Kind::FlagMismatch
+			    && i.detail == static_cast<uint16_t>(menu::Flag::ChainTargetsMismatch)) {
+				mismatches++;
+			}
+		}
+		expect(mismatches).to_equal(size_t(0));
 	});
 });
 
@@ -1182,11 +1462,12 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 });
 // clang-format on
 
-/// Five `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
+/// Six `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
 /// here with `add_specs` instead.
 int tables_2_spec(int argc, char** const argv) {
 	return CppSpec::parse(argc, argv)
-	               .add_specs(tables_2_shape, tables_2_values, tables_2_validation, tables_2_pixels, tables_2_writes)
+	               .add_specs(tables_2_shape, tables_2_values, tables_2_validation, tables_2_chaining, tables_2_pixels,
+	                          tables_2_writes)
 	               .exec()
 	               .is_success()
 	           ? EXIT_SUCCESS

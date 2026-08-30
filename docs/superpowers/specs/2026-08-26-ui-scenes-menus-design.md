@@ -488,32 +488,54 @@ the port fixes as a side effect of porting the predicate correctly, not one this
 patched in `gui/menu_item/`. Recorded here rather than filed, since spec E1's scope is the port, not
 legacy bug triage.
 
-**`selectButtonPress()` chaining is not ported, and this is the whole list** — legacy's "select on
+**`selectButtonPress()` chaining, and this is the whole list** — legacy's "select on
 this leaf opens *that* menu" is a per-item `MenuItem* selectButtonPress()` override returning
 another `MenuItem*`; `SoundEditor` navigates to whatever comes back
-(`gui/ui/sound_editor.cpp`'s select handling). The port has no `Node` spelling for it at all:
-`MenuScene::after_render` ascends on **any** leaf select press (`menu_scene.cpp:893-897`, which
-transcribes only the `return nullptr` = "go up" arm of the base class). Implementing it needs a new
-`Node` field *and* `MenuScene` support, so it is E2's, not a fix — but it is a real behaviour
-difference and, until fix round 2's I5, it lived only in four scattered header comments. The
-complete sweep of `grep -rn selectButtonPress src/deluge/gui/menu_item/`, in three groups:
+(`gui/ui/sound_editor.cpp`'s select handling). E1 had no `Node` spelling for it at all:
+`MenuScene::after_render` ascended on **any** leaf select press (`menu_scene.cpp:893-897`, which
+transcribed only the `return nullptr` = "go up" arm of the base class), and until fix round 2's I5
+the difference lived only in four scattered header comments. The complete sweep of
+`grep -rn selectButtonPress src/deluge/gui/menu_item/`, in three groups:
 
-*(a) Leaf-to-menu chaining whose source node E1 declares — the behaviour genuinely lost today:*
+**E2 task 3 ported group (a)** as `Node::select_chain` (a `const Node* (*)(const MenuContext&,
+const MenuState&)` hook — null means "ascend", legacy's own spelling) beside `Node::chain_targets`
+(a static span of every node the hook may return). The span is what a *walker* uses: a hook cannot
+be called ahead of time, and without a static list the seven pages no submenu literal names would
+be unnumbered by `assign_node_ids`, unvalidated by `validate_tree` and absent from
+`deluge_menu_dump` — so `SceneId::arg` could not address a chained page and `MenuScene::on_enter`
+could not restore one. `assign_node_ids`, `validate.cpp`'s `collect` and the dump all follow
+`chain_targets` as a second edge kind; the first two terminate on a cycle by the "already seen"
+test they already had, and the dump fails loudly on one rather than invent a `$ref` shape.
 
-| legacy item | jumps to | condition | port node |
-|---|---|---|---|
-| `arpeggiator::PresetMode` (`arpeggiator/preset_mode.h:110-118`) | `arpOctaveModeToNoteModeMenu` | value is `ArpPreset::CUSTOM` | `nodes::arp_preset` |
-| `arpeggiator::OctaveModeToNoteMode` (`arpeggiator/octave_mode.h:90`) | `arpNoteModeFromOctaveModeMenu` | always | reachable only via the row above (`arpPatternMenu` names the *plain* `arpOctaveModeMenu`) |
-| `arpeggiator::OctaveModeToNoteModeForDrums` (`arpeggiator/octave_mode.h:99`) | `arpNoteModeFromOctaveModeMenuForDrums` | always | as above |
-| `unison::CountToStereoSpread` (`unison/count.h:79`) | `unison::stereoSpreadMenu` | always | `nodes::unison_count` |
-| `voice::PolyphonyType` (`voice/polyphony.h:139-143`) | `polyphonicVoiceCountMenu` | mode is `PolyphonyMode::POLY` | `nodes::polyphony` |
-| `osc::Type` (`osc/type.h:120-125`) | `dxMenu` | osc type is `OscType::DX7` | `nodes::osc0_type`, `nodes::osc1_type` |
-| `cv::Selection` (`cv/selection.h:41-46`) | `cvSubmenu` (also sets `currentSourceIndex` and the page title) | always | `nodes::cv_selection` |
-| `gate::Selection` (`gate/selection.h:43-54`) | `gateOffTimeMenu` at `NUM_GATE_CHANNELS`, else `gateModeMenu` (after `format()` + `updateOptions()`) | always | `nodes::gate_selection` |
+*(a) Leaf-to-menu chaining whose source node E1 declares — ported by E2 task 3 except the `dxMenu`
+row:*
 
-`cvSubmenu`, `gateModeMenu` and `gateOffTimeMenu` are the three menus reachable **only** through
-this mechanism — they are not children of `settingsRootMenu`, which is why `settings.h` does not
-declare them and why E2's chaining work and E2's declaration of those pages are one job.
+| legacy item | jumps to | condition | port node | status |
+|---|---|---|---|---|
+| `arpeggiator::PresetMode` (`arpeggiator/preset_mode.h:109-118`) | `arpOctaveModeToNoteModeMenu`, or `…ForDrums` when `editingKitRow()` | value is `ArpPreset::CUSTOM` | `nodes::arp_preset` | ported |
+| `arpeggiator::OctaveModeToNoteMode` (`arpeggiator/octave_mode.h:90`) | `arpNoteModeFromOctaveModeMenu` | always | `nodes::arp_octave_mode_to_note_mode`, reachable only via the row above (`arpPatternMenu` names the *plain* `arpOctaveModeMenu`) | ported |
+| `arpeggiator::OctaveModeToNoteModeForDrums` (`arpeggiator/octave_mode.h:99`) | `arpNoteModeFromOctaveModeMenuForDrums` | always | `nodes::arp_octave_mode_to_note_mode_drums`, as above | ported |
+| `unison::CountToStereoSpread` (`unison/count.h:76-79`) | `unison::stereoSpreadMenu` | always | `nodes::unison_count` | ported |
+| `voice::PolyphonyType` (`voice/polyphony.h:139-143`) | `polyphonicVoiceCountMenu` | mode is `PolyphonyMode::POLY` | `nodes::polyphony` | ported |
+| `osc::Type` (`osc/type.h:120-125`) | `dxMenu` | osc type is `OscType::DX7` | `nodes::osc0_type`, `nodes::osc1_type` | **carried**: `dxMenu` (`menus.cpp:1715-1720`) is itself chain-only, and its three children are E2's DX browser items — declaring it would mean three more `kPending` placeholders with no implementation behind them |
+| `cv::Selection` (`cv/selection.h:41-46`) | `cvSubmenu` (also sets `currentSourceIndex` and the page title) | always | `nodes::cv_selection` | chain data ported; see below |
+| `gate::Selection` (`gate/selection.h:43-54`) | `gateOffTimeMenu` at `NUM_GATE_CHANNELS`, else `gateModeMenu` (after `format()` + `updateOptions()`) | always | `nodes::gate_selection` | chain data ported; see below |
+
+`cvSubmenu`, `gateModeMenu` and `gateOffTimeMenu` were the three menus reachable **only** through
+this mechanism and so absent from `settings.h` — E2 task 3 declares all three (with `cvSubmenu`'s
+two children, `cv::Volts` and `cv::Transpose`, over `MenuContext::source_index`), hung off the two
+selectors' `chain_targets`, which is how they get node ids without inventing a parent legacy does
+not have. Two halves of those two chains are still owed: legacy's selectors *write*
+`soundEditor.currentSourceIndex` before navigating and a `SelectChainFn` is handed a `const
+MenuContext&`, so the pages address whatever output `source_index` already holds; and both selectors
+are still `kPending` `Kind::Custom` stand-ins, whose renderer never reports a select press, so
+nothing fires the hooks through the interpreter yet. The chain data is real and specced directly
+(`sim/scenes_spec/tables_3_spec.cpp`'s chaining group, against the live legacy globals).
+
+One arm of legacy's own navigation is deliberately not ported with it: `SoundEditor`'s
+`maybeGetParentMenu`/`focusChild` reparenting (`sound_editor.cpp:369-375`), which enters a
+horizontal *parent* with the named child focused rather than the child itself. `MenuScene::enter_child`
+has never done that for any descent, so it is a pre-existing difference the chaining work inherits.
 
 *(b) Chaining whose source node is already a `kPending` `Kind::Custom` placeholder, so it arrives
 with that item's real implementation rather than needing chaining as such:*
@@ -542,7 +564,8 @@ node `patch_cable_strength::Fixed` (`nodes/sound_master.h:16-22`);
 note editor's menus, which none of E1's ten roots reach) — every one of these is either a `kPending`
 `Kind::Custom` node already or outside E1's tree. And the base classes:
 `MenuItem::selectButtonPress` returns `nullptr` = "go up", which is exactly what
-`menu_scene.cpp:893-897` does; `Submenu::selectButtonPress` (`submenu.cpp:187-194`) enters the
+`MenuScene::after_render`'s `else` arm does (and what a null `select_chain` answer means);
+`Submenu::selectButtonPress` (`submenu.cpp:187-194`) enters the
 focused child, which `enter_child` does — **except** its `shouldForwardButtons()` arm, which
 forwards the press to the focused child instead, and which is not ported;
 `Toggle`/`Selection::selectButtonPress` (`toggle.h:33-45`, `selection.h:54-64`) toggle in place when
@@ -578,15 +601,12 @@ root menu is open" with "what view is behind it" — needs an additive `backgrou
 `context_for` argument to supply it, and an application-side caller holding the live clip);
 the four `hid/`-side write side effects a menu write can trigger (pad brightness, screensaver
 suppression, canvas flags, sticky shift) that `src/scenes` cannot reach directly;
-**`selectButtonPress()` chaining** — a `Node` spelling for "select on this leaf opens that menu"
-plus the `MenuScene` support to follow it, together with the three menus reachable only that way
-(`cvSubmenu`, `gateModeMenu`, `gateOffTimeMenu`); the affected leaves are `arp_preset`
-(`preset_mode.h:110-118`), `unison_count` (`unison/count.h:79`), `polyphony`
-(`voice/polyphony.h:139-143`), `osc0_type`/`osc1_type` (`osc/type.h:120-125`), `cv_selection`
-(`cv/selection.h:41-46`) and `gate_selection` (`gate/selection.h:43-54`), plus
-`arp_octave_mode`'s two chaining subclasses (`octave_mode.h:90`, `:99`) — see the
-`selectButtonPress()` amendment above for the complete sweep, including `Submenu`'s
-`shouldForwardButtons()` arm and `Automation::selectButtonPress`'s shift-held automation delete;
+**`selectButtonPress()` chaining** — DONE in E2 task 3 (`Node::select_chain` /
+`Node::chain_targets`, and the seven chain-only pages declared with it). What is left of that row:
+`osc0_type`/`osc1_type` → `dxMenu` (`osc/type.h:120-125`), which waits on the DX browser; the two
+write halves of the CV/gate chains; and the two other arms the sweep turned up, `Submenu`'s
+`shouldForwardButtons()` forwarding and `Automation::selectButtonPress`'s shift-held automation
+delete — see the `selectButtonPress()` amendment above;
 `Source::getOrCreateFirstRange()` on a zero-range sample item; per-node cursor memory across
 sessions; `Kind::Custom` receiving raw input (today's `CustomItem` interface renders but the E1
 placeholder never routes input to it — the shipped mechanism is `nodes::kPending` /

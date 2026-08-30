@@ -92,6 +92,14 @@ enum class Flag : uint16_t {
 	/// flag inside the hook, as the sidechain attack/release/sync hooks do. Unlike the two audits
 	/// above this rule needs no expected set: it is a property of one node.
 	ReverbUpdateWithHook,
+	/// @brief Exactly one of `Node::select_chain` and `Node::chain_targets` is set.
+	///
+	/// A hook with no targets is a page the tree cannot number, validate or dump -- the chain would
+	/// navigate to a node with id 0, which `MenuScene::on_enter` can never resolve again. Targets
+	/// with no hook is the mirror: the pages are numbered and dumped but nothing can ever open them,
+	/// so they read as reachable when they are not. Like `ReverbUpdateWithHook` this needs no
+	/// expected set -- it is a property of one node.
+	ChainTargetsMismatch,
 };
 
 /// @brief The cap on the `Kind::Custom` escape hatch, counted in **nodes that point at a custom

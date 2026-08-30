@@ -14,13 +14,10 @@
 /// | `unison` | `unisonMenu` (`:311`) | `HorizontalMenu`, `Layout::FIXED` |
 // clang-format on
 ///
-/// @note **Two legacy behaviours have no `Node` spelling and are recorded, not silently dropped.**
-///       `CountToStereoSpread::selectButtonPress()` returns `&stereoSpreadMenu` (`unison/count.h:79`)
-///       -- pressing select on the count jumps to the spread rather than editing in place (E2; the
-///       complete chaining sweep is the design spec's `selectButtonPress()` amendment, and
-///       `README.md`'s E2 roadmap names every affected leaf); and
-///       `unisonMenu` is built with `HorizontalMenu::Layout::FIXED` (`g_menus.inc:54`), a paging mode
-///       `Node::Layout` (Vertical / Horizontal) does not carry. Both belong to E2's interpreter work.
+/// @note **`unisonMenu` is built with `HorizontalMenu::Layout::FIXED`** (`g_menus.inc:54`), a paging
+///       mode `Node::Layout` (Vertical / Horizontal) does not carry. That one still belongs to a
+///       later interpreter task. (`CountToStereoSpread::selectButtonPress()` used to be recorded
+///       here too; it is now ported -- see `unison_count`'s `select_chain` below.)
 ///
 /// @note **Hints.** `Count` and `Detune` both override `renderInHorizontalMenu` with bespoke art -- a
 ///       big centred integer (`unison/count.h:57-62`) and three splayed lines (`unison/detune.h:64-108`)
@@ -53,18 +50,32 @@ void set_unison_spread(const MenuContext& ctx, int32_t value);
 // Ranges: `Count::getMinValue`/`getMaxValue` (`unison/count.h:64-65`), `Detune::getMaxValue`
 // (`unison/detune.h:61`), `StereoSpread::getMaxValue` (`stereoSpread.h:53`), each over `Number`'s
 // default minimum of 0 where no minimum is overridden.
-inline constexpr Node unison_count =
-    with_title(int_item(sid(deluge::l10n::String::STRING_FOR_UNISON_NUMBER), get_unison_count, set_unison_count,
-                        IntRange{1, kMaxNumVoicesUnison, 1}, Hint::None),
-               sid(deluge::l10n::String::STRING_FOR_UNISON_NUMBER_MENU_TITLE));
 inline constexpr Node unison_detune =
     with_title(int_item(sid(deluge::l10n::String::STRING_FOR_UNISON_DETUNE), get_unison_detune, set_unison_detune,
                         IntRange{0, kMaxUnisonDetune, 1}, Hint::None),
                sid(deluge::l10n::String::STRING_FOR_UNISON_DETUNE_MENU_TITLE));
+// Declared before `unison_count`, which chains to it: `with_select_chain` needs its address, and
+// `kUnisonChildren` below is what fixes the on-screen (and node-id) order regardless.
 inline constexpr Node unison_spread =
     with_title(int_item(sid(deluge::l10n::String::STRING_FOR_UNISON_STEREO_SPREAD), get_unison_spread,
                         set_unison_spread, IntRange{0, kMaxUnisonStereoSpread, 1}, Hint::Knob),
                sid(deluge::l10n::String::STRING_FOR_UNISON_STEREO_SPREAD_MENU_TITLE));
+
+/// @brief `CountToStereoSpread::selectButtonPress()` (`unison/count.h:76-79`): a select press on the
+///        count opens the stereo spread, unconditionally.
+///
+/// The one ported chain whose target is already a static child of the same page, so nothing new is
+/// declared for it -- `unison_spread` is `unisonMenu`'s third column either way (`menus.cpp:305-311`).
+inline constexpr const Node* kUnisonCountChain[] = {&unison_spread};
+inline const Node* unison_count_chain(const MenuContext&, const MenuState&) {
+	return &unison_spread;
+}
+
+inline constexpr Node unison_count =
+    with_select_chain(with_title(int_item(sid(deluge::l10n::String::STRING_FOR_UNISON_NUMBER), get_unison_count,
+                                          set_unison_count, IntRange{1, kMaxNumVoicesUnison, 1}, Hint::None),
+                                 sid(deluge::l10n::String::STRING_FOR_UNISON_NUMBER_MENU_TITLE)),
+                      unison_count_chain, kUnisonCountChain);
 
 inline constexpr const Node* kUnisonChildren[] = {&unison_count, &unison_detune, &unison_spread};
 inline constexpr Node unison =

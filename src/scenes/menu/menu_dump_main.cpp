@@ -70,10 +70,20 @@
 ///     the `scenes-includes-outside` layer-rule workaround that existed only to let it reach
 ///     `sim/scenes_spec/support/song_fixture.h` from outside `src/scenes/`) is gone; this dump
 ///     never touches a `MenuContext` at all now, only `Node`'s own static fields.
+///   * a node with `Node::chain_targets` set -> a `"select_chain"` array of nested entries, in the
+///     same shape as `"children"`: the pages a select press on that node opens instead of going up
+///     a level (legacy's `MenuItem::selectButtonPress`). Seven nodes have one, and seven pages
+///     appear in this dump **only** under a `"select_chain"` -- `arpOctaveModeToNoteModeMenu` and
+///     its three relatives (`menus.cpp:511-521`) and `cvSubmenu` / `gateModeMenu` /
+///     `gateOffTimeMenu` (`:1223-1232`) are named by no submenu literal in legacy or in the port.
+///     A node with no chain gets no key at all, as with `available_when`. A chain that looped
+///     would have no finite nested spelling, so `emit_chain_targets` fails loudly on one rather
+///     than guessing a shape (`fail_on_chain_cycle`; nothing in the tree loops today).
 ///   * `"id"` = `node_id(n)` on every entry (ruling Q7) -- the lookup key a future `.state` golden
 ///     (`app16/<id>`) resolves against. A node reached only through `dynamic_children` never gets
-///     an id (`node_id.h`'s own contract: only *static* children are walked), so such an entry
-///     prints `"id": 0` -- 0 is reserved for "no node" everywhere else in this registry too.
+///     an id (`node_id.h`'s own contract: `children` and `chain_targets` are walked, a dynamic
+///     hook's produce is not), so such an entry prints `"id": 0` -- 0 is reserved for "no node"
+///     everywhere else in this registry too.
 ///   * `"name"`/`"title"` are resolved display text (`deluge_profile().text_or_digits`), not the
 ///     l10n symbolic key the retired schema carried: `Node::name`/`Node::title` are plain
 ///     `uint16_t` ids with no reverse mapping back to a `STRING_FOR_...` spelling, and resolved
@@ -94,18 +104,20 @@
 ///
 /// One JSON array, one entry per `nodes::kAllRoots` root (11: the ten `MenuContext::Root`
 /// enumerators' own roots, in enumerator order, plus `root_cv` -- the MIDI/CV root's CV-titled
-/// twin, `nodes/roots.h`'s note), each walked over its own *static* `Node::children` -- the same
-/// walk `node_id.h`'s `assign_node_ids` does over the same root list, so every `"id"` printed here
-/// is one that call actually assigned. Sharing is preserved, not deduplicated: a node reachable
-/// from more than one parent (e.g. `song_master` under both the song and audio-clip roots, or
-/// `randomizer` under several) appears once per parent, each occurrence carrying the same `"id"`.
+/// twin, `nodes/roots.h`'s note), each walked over its own static `Node::children` **and**
+/// `Node::chain_targets` -- the same two edge kinds `node_id.h`'s `assign_node_ids` walks over the
+/// same root list, so every `"id"` printed here is one that call actually assigned. Sharing is
+/// preserved, not deduplicated: a node reachable from more than one parent (e.g. `song_master`
+/// under both the song and audio-clip roots, or `randomizer` under several) appears once per
+/// parent, each occurrence carrying the same `"id"`.
 ///
 /// ## Determinism
 ///
 /// Root order is `kAllRoots`'s own compile-time order; child order is `Node::children`'s own
 /// declaration order (a `std::span` over a `constexpr` array, never reordered). JSON object keys
-/// are written in a fixed alphabetical order (`available_when`, `children`, `id`, `name`, `title`,
-/// `type`) baked into `emit_node`'s own field-by-field writes rather than sorted at runtime --
+/// are written in a fixed alphabetical order (`available_when`, `children`, `id`, `name`,
+/// `select_chain`, `title`, `type`) baked into `emit_node`'s own field-by-field writes rather than
+/// sorted at runtime --
 /// there is no hash-map/set iteration anywhere on the emission path. `text_of` resolves through
 /// `l10n::chosenLanguage`, pinned once in `main` to the built-in English table before the walk
 /// starts, so every run resolves the same language regardless of process environment. Two-space
@@ -119,11 +131,13 @@
 #include "scenes/menu/relevance.h"
 #include "scenes/profile.h"
 
+#include <algorithm>
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
 #include <string>
 #include <string_view>
+#include <vector>
 
 namespace menu = deluge::scenes::menu;
 namespace nodes = deluge::scenes::menu::nodes;
@@ -185,6 +199,13 @@ std::string text_of(uint16_t id) {
 	return std::string{deluge::scenes::deluge_profile().text_or_digits(id, scratch)};
 }
 
+/// @brief The nodes whose `emit_node` call is still open, innermost last.
+///
+/// Only `emit_chain_targets` consults it -- a `children` span cannot loop (a `Node`'s children are
+/// fixed at its own definition, so a cycle would need a node to contain its own address) but a
+/// `chain_targets` span can, since two leaves may name each other. See `fail_on_chain_cycle`.
+std::vector<const menu::Node*> g_path;
+
 void emit_node(std::string& out, const menu::Node& node, int brace_level);
 
 /// @brief `node`'s static `children` span, as a JSON array at `elem_level` (each element's own
@@ -218,6 +239,54 @@ void emit_static_children(std::string& out, const menu::Node& node, int elem_lev
 	out += "\n" + spaces(elem_level - 1) + "]";
 }
 
+/// @brief Fail closed on a `chain_targets` cycle, in the spirit of `fail_on_dynamic_children`
+///        below: print the node and stop, rather than recurse until the stack goes.
+///
+/// No chain in the shipped tree loops -- the longest is three hops
+/// (`arp_preset -> arp_octave_mode_to_note_mode -> arp_note_mode_from_octave_mode`) and it
+/// terminates. `assign_node_ids` and `validate.cpp`'s `collect` both survive a cycle silently
+/// (each stops at a node it has already seen), so this dump is the one walker that has to say
+/// something: a cycle is fine as *data* but has no finite nested-JSON spelling, and inventing one
+/// (a "$ref"-style stub, say) without a real case to design against is the mistake fix round 1
+/// caught for `dynamic_children`.
+[[noreturn]] void fail_on_chain_cycle(const menu::Node& node) {
+	std::fprintf(stderr,
+	             "deluge_menu_dump: node \"%s\" (id %u) is reached again through its own\n"
+	             "deluge_menu_dump: select_chain -- a chain cycle has no finite nested-JSON shape and\n"
+	             "deluge_menu_dump: this dump will not guess one. Design the shape against the real\n"
+	             "deluge_menu_dump: case (a \"$ref\"-style stub is the obvious candidate) before\n"
+	             "deluge_menu_dump: shipping a cyclic chain.\n",
+	             text_of(node.name).c_str(), menu::node_id(node));
+	std::exit(1);
+}
+
+/// @brief `node`'s `chain_targets` span, in the same array shape `emit_static_children` writes.
+///
+/// These are the pages a select press on `node` opens -- legacy's `selectButtonPress()` chaining.
+/// Seven nodes in the tree have them, and for four of those (`arpOctaveModeToNoteModeMenu` and
+/// relatives) plus three under settings (`cvSubmenu`, `gateModeMenu`, `gateOffTimeMenu`) this is
+/// the *only* place they appear in the dump: no submenu literal names them, in legacy or in the
+/// port (`node.h`'s `chain_targets` note).
+void emit_chain_targets(std::string& out, const menu::Node& node, int elem_level) {
+	out += "[\n";
+	bool first = true;
+	for (const menu::Node* t : node.chain_targets) {
+		if (t == nullptr) {
+			continue;
+		}
+		if (std::find(g_path.begin(), g_path.end(), t) != g_path.end()) {
+			fail_on_chain_cycle(*t); // noreturn
+		}
+		if (!first) {
+			out += ",\n";
+		}
+		first = false;
+		out += spaces(elem_level);
+		emit_node(out, *t, elem_level);
+	}
+	out += "\n" + spaces(elem_level - 1) + "]";
+}
+
 /// @brief Fail closed on a `Node::dynamic_children` node -- see the file header's "Fix round 1"
 ///        note. There is no verified JSON shape for this dump to fall back to (the recovered
 ///        `doc_emitter.py`'s own `"multicontext"` entry has no `"children"` key at all -- its
@@ -239,8 +308,8 @@ void emit_static_children(std::string& out, const menu::Node& node, int elem_lev
 }
 
 /// @brief One node, as the schema the file header documents -- object keys in fixed alphabetical
-///        order (`available_when`, `children`, `id`, `name`, `title`, `type`), regardless of which
-///        optional fields this particular node has.
+///        order (`available_when`, `children`, `id`, `name`, `select_chain`, `title`, `type`),
+///        regardless of which optional fields this particular node has.
 void emit_node(std::string& out, const menu::Node& node, int brace_level) {
 	if (node.dynamic_children != nullptr) {
 		fail_on_dynamic_children(node); // noreturn -- see the file header's "Fix round 1" note
@@ -249,6 +318,16 @@ void emit_node(std::string& out, const menu::Node& node, int brace_level) {
 	const int field_level = brace_level + 1;
 	const bool is_submenu_type = node.kind == menu::Kind::Submenu;
 	const char* type_str = is_submenu_type ? "submenu" : "basic";
+
+	bool any_chain = false;
+	for (const menu::Node* t : node.chain_targets) {
+		if (t != nullptr) {
+			any_chain = true;
+			break;
+		}
+	}
+
+	g_path.push_back(&node);
 
 	out += "{\n";
 
@@ -266,6 +345,14 @@ void emit_node(std::string& out, const menu::Node& node, int brace_level) {
 	out += spaces(field_level) + "\"name\": ";
 	write_json_string(out, text_of(node.name));
 	out += ",\n";
+	// A node with no chain gets no `"select_chain"` key at all, the same way a node with no
+	// `relevant` gets no `"available_when"`: absent means "a select press here goes up a level",
+	// which is every node but seven.
+	if (any_chain) {
+		out += spaces(field_level) + "\"select_chain\": ";
+		emit_chain_targets(out, node, field_level + 1);
+		out += ",\n";
+	}
 	out += spaces(field_level) + "\"title\": ";
 	write_json_string(out, text_of(node.title));
 	out += ",\n";
@@ -274,6 +361,8 @@ void emit_node(std::string& out, const menu::Node& node, int brace_level) {
 	out += "\n";
 
 	out += spaces(brace_level) + "}";
+
+	g_path.pop_back();
 }
 
 } // namespace

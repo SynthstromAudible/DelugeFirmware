@@ -12,6 +12,9 @@
 # (see menu_dump_main.cpp's file header for the full mapping) --
 #   - every entry's "description" key is entirely absent, not present-but-empty; code written
 #     against the old schema that does entry["description"] will fail on this dump's output.
+#   - "select_chain" is a SECOND nesting key beside "children": the pages a select press on that
+#     node opens (legacy's MenuItem::selectButtonPress). Seven pages appear in the dump ONLY there,
+#     so a walker that recurses on "children" alone silently misses them.
 #   - a node with dynamic_children set (type "multicontext") is UNIMPLEMENTED: as of this writing
 #     no node uses it, and if one ever does, deluge_menu_dump refuses to guess a JSON shape for it
 #     -- it prints the offending node to stderr and exits non-zero instead. Redesign the dump

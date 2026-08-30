@@ -23,13 +23,10 @@
 ///       (`polyphony.h:59-61`, `:73-79`) -- neither is a `Node` field, and both are recorded rather
 ///       than dropped.
 ///
-/// @note **Two legacy behaviours have no `Node` spelling.** `PolyphonyType::selectButtonPress`
-///       jumps to the voice count when the mode is POLY (`polyphony.h:139-143` -- E2; the complete
-///       chaining sweep is the design spec's `selectButtonPress()` amendment, and `README.md`'s E2
-///       roadmap names every affected leaf), and `voiceMenu` is
-///       built `HorizontalMenu::Layout::FIXED` (`menus.cpp:710`), a paging mode `Node::Layout`
-///       (Vertical / Horizontal) does not carry -- the same gap `sound_unison.h` records for
-///       `unisonMenu`.
+/// @note **`voiceMenu` is built `HorizontalMenu::Layout::FIXED`** (`menus.cpp:710`), a paging mode
+///       `Node::Layout` (Vertical / Horizontal) does not carry -- the same gap `sound_unison.h`
+///       records for `unisonMenu`. (`PolyphonyType::selectButtonPress` was recorded here too; it is
+///       now ported -- see `polyphony`'s `select_chain` below.)
 ///
 /// @note **`Portamento` draws bespoke art** (a glide line between two notes,
 ///       `voice/portamento.h:29-66`) with no `getRenderingStyle()` override, so legacy's declared
@@ -40,6 +37,8 @@
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/sound_unison.h" // the fifth column
 #include "scenes/menu/relevance.h"
+
+#include "definitions_cxx.hpp" // PolyphonyMode -- `polyphony_chain`'s POLY test
 
 #include <span>
 
@@ -69,12 +68,24 @@ inline constexpr uint16_t kVoicePriorityNames[] = {
 
 inline constexpr Node voice_priority = enumeration(sid(deluge::l10n::String::STRING_FOR_PRIORITY), kVoicePriorityNames,
                                                    get_voice_priority, set_voice_priority);
-inline constexpr Node polyphony =
-    dynamic_enumeration(sid(deluge::l10n::String::STRING_FOR_POLYPHONY), polyphony_names, get_polyphony, set_polyphony);
 // `VoiceCount::getMinValue`/`getMaxValue` (`voice/polyphony.h:56-57`), rendered as a plain NUMBER
-// (`:58`).
+// (`:58`). Declared before `polyphony`, which chains to it; `kVoiceChildren` below still fixes the
+// on-screen (and node-id) order.
 inline constexpr Node voice_count = int_item(sid(deluge::l10n::String::STRING_FOR_MAX_VOICES), get_voice_count,
                                              set_voice_count, IntRange{0, 16, 1}, Hint::None, relevance::is_polyphonic);
+
+/// @brief `PolyphonyType::selectButtonPress()` (`voice/polyphony.h:139-143`): a select press opens
+///        the voice count when the mode is POLY, and otherwise falls through to
+///        `Selection::selectButtonPress()`, which for an already-open menu is the base class's
+///        "ascend" (`selection.h:54-64`).
+inline constexpr const Node* kPolyphonyChain[] = {&voice_count};
+inline const Node* polyphony_chain(const MenuContext& ctx, const MenuState&) {
+	return get_polyphony(ctx) == static_cast<int32_t>(PolyphonyMode::POLY) ? &voice_count : nullptr;
+}
+
+inline constexpr Node polyphony = with_select_chain(
+    dynamic_enumeration(sid(deluge::l10n::String::STRING_FOR_POLYPHONY), polyphony_names, get_polyphony, set_polyphony),
+    polyphony_chain, kPolyphonyChain);
 inline constexpr Node portamento = param(
     sid(deluge::l10n::String::STRING_FOR_PORTAMENTO),
     {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_PORTAMENTO}, Hint::None);

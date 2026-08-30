@@ -192,6 +192,21 @@ struct Binding {
 ///        per-instance state (a later task).
 struct MenuState;
 
+/// @brief Which menu a select press on this node opens *instead of* going up a level -- the port of
+///        legacy's `MenuItem* MenuItem::selectButtonPress()` (`gui/menu_item/menu_item.h`).
+///
+/// Returning `nullptr` means "ascend", which is exactly the base class's `return nullptr` arm and
+/// exactly what `SoundEditor` reads as `goUpOneLevel()` (`gui/ui/sound_editor.cpp:357-390`).
+///
+/// It takes the context and the interpreter's state because the answer is value-dependent for two
+/// of the ported overrides: `arpeggiator::PresetMode` opens the custom octave-mode page only on
+/// `ArpPreset::CUSTOM`, and on the drum twin of it when a kit row is being edited
+/// (`arpeggiator/preset_mode.h:109-118`); `voice::PolyphonyType` opens the voice count only in
+/// `PolyphonyMode::POLY` (`voice/polyphony.h:139-143`). The hook reads the *committed* value
+/// through `bindings::read`, not `MenuState`'s in-flight edit copy, because legacy's own overrides
+/// call `getValue()` after `writeCurrentValue()` has already run.
+using SelectChainFn = const Node* (*)(const MenuContext&, const MenuState&);
+
 /// @brief The escape hatch (spec E §4: at most 10 across the whole tree) for a bespoke item that
 ///        doesn't fit any `Kind`: the multi-range editor, patch cables, the file selector, and the
 ///        handful of others spec E §4 names.
@@ -235,9 +250,9 @@ struct CustomItem {
 /// @brief One menu item or submenu, as plain data.
 ///
 /// `children` is only ever populated by `submenu()` -- a `dynamic_children`/`dynamic_names` node
-/// has no *static* children, so `assign_node_ids` (which walks `children` only) never reaches, and
-/// can never address by id, whatever those hooks produce at render time (spec E §4's dynamic
-/// submenus are resolved then, not ahead of time).
+/// has no *static* children, so `assign_node_ids` (which walks `children` and `chain_targets`)
+/// never reaches, and can never address by id, whatever those hooks produce at render time (spec
+/// E §4's dynamic submenus are resolved then, not ahead of time).
 struct Node {
 	uint16_t name = 0;
 	uint16_t title = 0;
@@ -249,6 +264,28 @@ struct Node {
 	RelevantFn relevant = nullptr;
 	DynamicChildrenFn dynamic_children = nullptr;
 	const CustomItem* custom = nullptr;
+
+	/// @brief The select-press chain hook (`SelectChainFn`), or null for "a select press ascends".
+	SelectChainFn select_chain = nullptr;
+
+	/// @brief Every node `select_chain` is allowed to return, as static data.
+	///
+	/// **Why a span beside the hook, rather than the hook alone.** `select_chain` is a function of a
+	/// live `MenuContext`, so nothing that walks the tree ahead of time can call it -- and the tree
+	/// *is* walked ahead of time, three times: `assign_node_ids` numbers it, `validate_tree` checks
+	/// it, and `deluge_menu_dump` prints it. Legacy has four pages that no submenu literal names at
+	/// all and that a chain is the *only* way to reach (`arpOctaveModeToNoteModeMenu` and its three
+	/// relatives, `menus.cpp:511-521`), plus three more under the settings root (`cvSubmenu`,
+	/// `gateModeMenu`, `gateOffTimeMenu`). Without a static spelling of "these are the possible
+	/// answers" every one of those would be an unnumbered, unvalidated, undumped node -- so
+	/// `SceneId::arg` could not name a chained page and `MenuScene::on_enter` could not restore one.
+	///
+	/// Set it and `select_chain` together (`with_select_chain`); `validate_tree` reports
+	/// `Flag::ChainTargetsMismatch` if only one of the two is present. Listing a node here that the
+	/// hook never returns is harmless but pointless -- it makes the page reachable and numbered
+	/// while nothing can navigate to it.
+	std::span<const Node* const> chain_targets{};
+
 	uint8_t slots = 1;
 
 	/// @brief Does this item edit something that belongs to one `MultiRange` rather than to the
@@ -279,6 +316,17 @@ struct Node {
 /// `static_assert` changes.
 constexpr Node with_range_dependent(Node n) {
 	n.range_dependent = true;
+	return n;
+}
+
+/// @brief `n` with a select-press chain: @p fn decides, @p targets is every node @p fn may name.
+///
+/// A post-hoc modifier for the same reason `with_range_dependent` is one -- seven nodes in the
+/// whole tree chain, so the other nine builders keep their signatures. Both arguments are required
+/// because the walkers need @p targets and the interpreter needs @p fn; see `Node::chain_targets`.
+constexpr Node with_select_chain(Node n, SelectChainFn fn, std::span<const Node* const> targets) {
+	n.select_chain = fn;
+	n.chain_targets = targets;
 	return n;
 }
 

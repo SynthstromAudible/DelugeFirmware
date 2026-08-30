@@ -52,6 +52,24 @@
 #include "gui/ui/sound_editor.h"
 #include "hid/display/oled.h"
 
+// The chaining group's legacy headers render through an unqualified `OLED::main`, which resolves
+// inside `gui/ui/menus.cpp` only because that file has a file-scope
+// `using namespace deluge::hid::display`. This spec has no such directive, so name the type in the
+// namespace those headers are compiled in -- the workaround `tables_1_spec.cpp` established for
+// `gui/menu_item/filter_route.h`.
+namespace deluge::gui::menu_item {
+using deluge::hid::display::OLED;
+} // namespace deluge::gui::menu_item
+#include "gui/menu_item/cv/selection.h"
+#include "gui/menu_item/cv/submenu.h"
+#include "gui/menu_item/cv/transpose.h"
+#include "gui/menu_item/cv/volts.h"
+#include "gui/menu_item/gate/mode.h"
+#include "gui/menu_item/gate/off_time.h"
+#include "gui/menu_item/gate/selection.h"
+
+#include "processing/engines/cv_engine.h"
+
 #include "model/clip/audio_clip.h"
 #include "model/clip/instrument_clip.h"
 #include "model/instrument/kit.h"
@@ -88,6 +106,19 @@ using deluge::l10n::String;
 using deluge::scenes::menu::MenuContext;
 using deluge::scenes::menu::Node;
 namespace legacy = deluge::gui::menu_item;
+
+/// @name The chaining group's legacy globals.
+///
+/// `cvSubmenu`, `gateModeMenu` and `gateOffTimeMenu` are children of nothing (`menus.cpp:1223`,
+/// `:1224`, `:1232`) -- legacy reaches all three only through a `selectButtonPress()` override, so
+/// unlike everything else in this spec they cannot be found by walking `settingsRootMenu`.
+/// `cvSubmenu` is `extern` in `cv/selection.h` already; the rest are named here.
+/// @{
+extern legacy::cv::Selection cvSelectionMenu;
+extern legacy::gate::Selection gateSelectionMenu;
+extern legacy::cv::Volts cvVoltsMenu;
+extern legacy::cv::Transpose cvTransposeMenu;
+/// @}
 
 namespace {
 
@@ -598,6 +629,32 @@ const deluge::ui::shell::BoardProfile& profile_64() {
 		return q;
 	}();
 	return p;
+}
+
+/// @brief Is @p target named by some node's static `children` span, anywhere in `kAllRoots`?
+///
+/// `tables_2_spec.cpp` has the same helper for the arp half; the point of a chain-only page is that
+/// the answer here is *no*, so both halves need to be able to ask.
+bool reachable_by_children(const Node* target) {
+	std::vector<const Node*> stack(nodes::kAllRoots.begin(), nodes::kAllRoots.end());
+	std::set<const Node*> seen;
+	while (!stack.empty()) {
+		const Node* n = stack.back();
+		stack.pop_back();
+		if (n == nullptr || !seen.insert(n).second) {
+			continue;
+		}
+		for (const Node* c : n->children) {
+			if (c == target) {
+				return true;
+			}
+			stack.push_back(c);
+		}
+		for (const Node* t : n->chain_targets) {
+			stack.push_back(t); // traversed, but never counted as a `children` hit
+		}
+	}
+	return false;
 }
 
 } // namespace
@@ -1397,6 +1454,131 @@ describe tables_3_writes("scenes::menu batch-3 tables: writes", $ {
 	});
 });
 
+describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chaining", $ {
+	it("answers what cv::Selection and gate::Selection answer, output by output", _ {
+		// `cv/selection.h:41-46` and `gate/selection.h:43-54`, compared against the live legacy
+		// globals rather than a hand-written expectation. Both selectors read
+		// `soundEditor.currentSourceIndex` -- the port's `MenuContext::source_index` -- so the
+		// sweep is over every value legacy distinguishes, the `NUM_GATE_CHANNELS` sentinel included.
+		const Root& settings = roots().back();
+		install(settings.ctx, settings.song);
+
+		for (int32_t which = 0; which <= NUM_GATE_CHANNELS; which++) {
+			MenuContext ctx = settings.ctx;
+			ctx.source_index = static_cast<int8_t>(which);
+			soundEditor.currentSourceIndex = which;
+
+			cvSelectionMenu.setValue(which);
+			gateSelectionMenu.setValue(which);
+			expect(cvSelectionMenu.selectButtonPress() == &cvSubmenu).to_be_true();
+			expect(nodes::cv_selection.select_chain(ctx, menu_scene().state()) == &nodes::cv_submenu).to_be_true();
+
+			::MenuItem* legacy_gate = gateSelectionMenu.selectButtonPress();
+			const Node* want_gate = legacy_gate == &gateOffTimeMenu    ? &nodes::gate_off_time
+			                        : legacy_gate == &gateModeMenu     ? &nodes::gate_mode
+			                                                           : nullptr;
+			expect(want_gate != nullptr).to_be_true(); // legacy always names one of the two
+			expect(nodes::gate_selection.select_chain(ctx, menu_scene().state()) == want_gate).to_be_true();
+		}
+		soundEditor.currentSourceIndex = settings.ctx.source_index;
+	});
+
+	it("declares the three chain-only pages with the legacy items' own shape and values", _ {
+		// `cvSubmenu` (`menus.cpp:1232`), `gateModeMenu` (`:1223`) and `gateOffTimeMenu` (`:1224`)
+		// are children of nothing, so the lockstep walk above can never see them. Their shape and
+		// their reads are compared here instead, against the same live objects.
+		const Root& settings = roots().back();
+		install(settings.ctx, settings.song);
+
+		const auto& cv_kids = SubmenuPeek::items_of(cvSubmenu);
+		expect(nodes::cv_submenu.children.size()).to_equal(cv_kids.size());
+		expect(nodes::cv_submenu.children.size()).to_equal(size_t(2));
+		expect(nodes::cv_submenu.kind == menu::Kind::Submenu).to_be_true();
+		for (size_t i = 0; i < cv_kids.size(); i++) {
+			expect(text_of(nodes::cv_submenu.children[i]->name)).to_equal(std::string{cv_kids[i]->getName()});
+		}
+
+		// Values, on each CV output in turn -- `cv::Volts` and `cv::Transpose` both index
+		// `cvEngine.cvChannels[currentSourceIndex]`, so a port that ignored `source_index` would
+		// pass on output 0 alone.
+		for (int32_t which = 0; which < NUM_PHYSICAL_CV_CHANNELS; which++) {
+			MenuContext ctx = settings.ctx;
+			ctx.source_index = static_cast<int8_t>(which);
+			soundEditor.currentSourceIndex = which;
+
+			cvVoltsMenu.readCurrentValue();
+			expect(bindings::read(nodes::cv_volts, ctx)).to_equal(cvVoltsMenu.getValue());
+			cvTransposeMenu.readCurrentValue();
+			expect(bindings::read(nodes::cv_transpose, ctx)).to_equal(cvTransposeMenu.getValue());
+
+			// A write goes to that output and no other.
+			bindings::write(nodes::cv_volts, ctx, 100 + which);
+			expect(int32_t(cvEngine.cvChannels[which].voltsPerOctave)).to_equal(100 + which);
+		}
+
+		for (int32_t which = 0; which < NUM_GATE_CHANNELS; which++) {
+			MenuContext ctx = settings.ctx;
+			ctx.source_index = static_cast<int8_t>(which);
+			soundEditor.currentSourceIndex = which;
+
+			gateModeMenu.readCurrentValue();
+			expect(bindings::read(nodes::gate_mode, ctx)).to_equal(gateModeMenu.getValue());
+
+			// `gate::Mode::updateOptions` (`gate/mode.h:53-72`): the two trigger polarities always,
+			// plus CLOCK or RUN SIGNAL on the two outputs that carry them.
+			gateModeMenu.updateOptions(which);
+			const auto legacy_options = gateModeMenu.getOptions(legacy::Selection::OptType::FULL);
+			std::array<std::string_view, menu::kMaxDynamicNames> names{};
+			const size_t n = nodes::gate_mode.bind.dynamic_names(ctx, std::span<std::string_view>{names});
+			expect(n).to_equal(legacy_options.size());
+			for (size_t i = 0; i < n && i < legacy_options.size(); i++) {
+				expect(std::string{names[i]}).to_equal(std::string{legacy_options[i]});
+			}
+		}
+		soundEditor.currentSourceIndex = settings.ctx.source_index;
+
+		gateOffTimeMenu.readCurrentValue();
+		expect(bindings::read(nodes::gate_off_time, settings.ctx)).to_equal(gateOffTimeMenu.getValue());
+		expect(nodes::gate_off_time.bind.decimal_places).to_equal(uint8_t(1)); // `off_time.h:25`
+		expect(nodes::gate_off_time.bind.fixed_range.has_value()).to_be_true();
+		expect(nodes::gate_off_time.bind.fixed_range->min).to_equal(int32_t(1));  // `:23`
+		expect(nodes::gate_off_time.bind.fixed_range->max).to_equal(int32_t(100)); // `:24`
+	});
+
+	it("numbers the three chain-only settings pages, which no children span reaches", _ {
+		// The reachability ruling, on the settings half: `assign_node_ids` follows `chain_targets`,
+		// so `SceneId::arg` can name one of these pages and `MenuScene::on_enter` can restore it.
+		(void)menu::assign_node_ids(nodes::kAllRoots);
+		for (const Node* n : {&nodes::cv_submenu, &nodes::cv_volts, &nodes::cv_transpose, &nodes::gate_mode,
+		                      &nodes::gate_off_time}) {
+			const uint16_t id = menu::node_id(*n);
+			expect(id != uint16_t(0)).to_be_true();
+			expect(menu::node_by_id(id) == n).to_be_true();
+		}
+		// And they really are chain-only: the settings root's thirteen children do not name them,
+		// and neither does anything else's `children`.
+		for (const Node* n : {&nodes::cv_submenu, &nodes::gate_mode, &nodes::gate_off_time}) {
+			expect(reachable_by_children(n)).to_be_false();
+		}
+		// `cv_volts` / `cv_transpose` are ordinary children -- of a page that is itself chain-only.
+		expect(reachable_by_children(&nodes::cv_volts)).to_be_true();
+	});
+
+	it("validates the three chain-only pages along with the settings root", _ {
+		// They are only in the walk because `collect` follows `chain_targets` too; without that the
+		// `Unreachable` rule would fire on every one of them (`assign_node_ids` would have numbered
+		// them while this walk did not, or the reverse).
+		const Root& settings = roots().back();
+		install(settings.ctx, settings.song);
+		const Node* subtree[] = {&nodes::cv_selection, &nodes::gate_selection};
+		const MenuContext contexts[] = {settings.ctx};
+		const auto issues =
+		    menu::validate_tree(subtree, contexts, {}, {},
+		                        menu::ValidateOptions{.allow_placeholder_custom = true, .skip_shortcut_sweep = true});
+		expect(issues.size()).to_equal(size_t(0));
+	});
+});
+
 describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 	// Shared setup, so a pixel test added here later gets it for free rather than needing to
 	// remember to copy it in (review round 1, I4 -- the two tests below used to each inline this).
@@ -1437,10 +1619,11 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 });
 // clang-format on
 
-/// Five `describe` groups in one TU, so `DELUGE_SPEC` is spelled out here with `add_specs`.
+/// Six `describe` groups in one TU, so `DELUGE_SPEC` is spelled out here with `add_specs`.
 int tables_3_spec(int argc, char** const argv) {
 	return CppSpec::parse(argc, argv)
-	               .add_specs(tables_3_shape, tables_3_values, tables_3_validation, tables_3_writes, tables_3_pixels)
+	               .add_specs(tables_3_shape, tables_3_values, tables_3_validation, tables_3_writes, tables_3_chaining,
+	                          tables_3_pixels)
 	               .exec()
 	               .is_success()
 	           ? EXIT_SUCCESS

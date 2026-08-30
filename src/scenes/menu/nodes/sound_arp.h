@@ -44,16 +44,15 @@
 ///       `Hint`-level fact this generation's interpreter does not draw. Same call task 6 made for
 ///       `sample::PitchSpeed` (its S6).
 ///
-/// @note **Three legacy `selectButtonPress()` jumps have no `Node` spelling** and are recorded
-///       here rather than dropped silently: `PresetMode` opens the custom octave-mode page when the
-///       preset is CUSTOM (`preset_mode.h:110-118`), and `OctaveModeToNoteMode` /
-///       `OctaveModeToNoteModeForDrums` chain on to the note mode (`octave_mode.h:90`, `:99`).
-///       Note that `arpPatternMenu` names the *plain* `arpOctaveModeMenu` and `arpNoteModeMenu`,
-///       not those two chaining subclasses, so only the `PresetMode` jump is reachable from this
-///       tree at all. Chaining is E2's; the **complete** sweep of every `selectButtonPress`
-///       override in `gui/menu_item/` -- this file's three included -- is the design spec's
-///       `selectButtonPress()` amendment, and the leaves are named again in `README.md`'s E2
-///       roadmap and E2 carry list (fix round 2, I5).
+/// @note **Three legacy `selectButtonPress()` jumps live here, and four pages exist only because of
+///       them.** `PresetMode` opens the custom octave-mode page when the preset is CUSTOM
+///       (`preset_mode.h:109-118`), and `OctaveModeToNoteMode` / `OctaveModeToNoteModeForDrums`
+///       chain on to the note mode (`octave_mode.h:90`, `:99`). `arpPatternMenu` names the *plain*
+///       `arpOctaveModeMenu` and `arpNoteModeMenu`, not those chaining subclasses, so all four of
+///       the subclasses' globals (`menus.cpp:511-521`) are unreachable from any submenu literal --
+///       which is why the port declares them below, next to the hooks that name them, rather than
+///       in a children span. The complete sweep of every `selectButtonPress` override in
+///       `gui/menu_item/` is the design spec's `selectButtonPress()` amendment.
 ///
 /// @note **Bespoke renderers with no `Hint`.** `PresetMode` draws an icon per preset
 ///       (`preset_mode.h:109-140`) and both rhythm items draw the pattern as characters
@@ -65,6 +64,8 @@
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/sound_lfo.h" // kSyncLevelRange
 #include "scenes/menu/relevance.h"
+
+#include "definitions_cxx.hpp" // ArpPreset -- `arp_preset_chain`'s CUSTOM test
 
 #include <span>
 
@@ -166,11 +167,74 @@ inline constexpr Node arp_mode =
     with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_ENABLED), kOffOnNames, get_arp_mode, set_arp_mode),
                sid(deluge::l10n::String::STRING_FOR_ARP_MODE_MENU_TITLE));
 
+// --- the four chain-only pages ---------------------------------------------------------------
+//
+// `arpOctaveModeToNoteModeMenu`, `arpOctaveModeToNoteModeMenuForDrums`,
+// `arpNoteModeFromOctaveModeMenu` and `arpNoteModeFromOctaveModeMenuForDrums`
+// (`gui/ui/menus.cpp:511-521`) appear in **no** submenu literal: `arpPatternMenu` names the plain
+// `arpOctaveModeMenu` / `arpNoteModeMenu` instead, and legacy reaches these four only through
+// `selectButtonPress()`. They are declared here, ahead of `arp_preset`, because that is what a
+// chain hook needs an address of; `Node::chain_targets` is what puts them in the reachability walk
+// so they get node ids like any other page.
+//
+// Each is behaviourally its base class -- `OctaveModeToNoteMode` and its drum twin derive from
+// `OctaveMode` and override nothing but `selectButtonPress` (`arpeggiator/octave_mode.h:85-100`),
+// `NoteModeFromOctaveMode` derives from `NoteMode` (`note_mode.h:70-76`) and
+// `NoteModeFromOctaveModeForDrums` from `NoteModeForDrums` (`note_mode_for_drums.h:78-84`) -- so
+// each shares its base's name, title, options, hooks and relevance exactly.
+
+inline constexpr Node arp_note_mode_from_octave_mode =
+    with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_NOTE_MODE), kArpNoteModeNames, get_arp_note_mode,
+                           set_arp_note_mode, relevance::not_kit_row),
+               sid(deluge::l10n::String::STRING_FOR_ARP_NOTE_MODE_MENU_TITLE));
+inline constexpr Node arp_note_mode_from_octave_mode_drums =
+    with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_NOTE_MODE), kArpNoteModeDrumNames,
+                           get_arp_note_mode_drums, set_arp_note_mode_drums, relevance::kit_row_not_gate),
+               sid(deluge::l10n::String::STRING_FOR_ARP_NOTE_MODE_MENU_TITLE));
+
+/// @brief `OctaveModeToNoteMode::selectButtonPress()` (`octave_mode.h:90`) and its drum twin's
+///        (`:99`): both chain on unconditionally, differing only in which note-mode page they name.
+/// @{
+inline constexpr const Node* kArpOctaveModeToNoteModeChain[] = {&arp_note_mode_from_octave_mode};
+inline constexpr const Node* kArpOctaveModeToNoteModeDrumsChain[] = {&arp_note_mode_from_octave_mode_drums};
+inline const Node* arp_octave_mode_to_note_mode_chain(const MenuContext&, const MenuState&) {
+	return &arp_note_mode_from_octave_mode;
+}
+inline const Node* arp_octave_mode_to_note_mode_drums_chain(const MenuContext&, const MenuState&) {
+	return &arp_note_mode_from_octave_mode_drums;
+}
+/// @}
+
+inline constexpr Node arp_octave_mode_to_note_mode = with_select_chain(
+    with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_OCTAVE_MODE), kArpOctaveModeNames, get_arp_octave_mode,
+                           set_arp_octave_mode, relevance::not_gate_drum_or_kit_fx),
+               sid(deluge::l10n::String::STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE)),
+    arp_octave_mode_to_note_mode_chain, kArpOctaveModeToNoteModeChain);
+inline constexpr Node arp_octave_mode_to_note_mode_drums = with_select_chain(
+    with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_OCTAVE_MODE), kArpOctaveModeNames, get_arp_octave_mode,
+                           set_arp_octave_mode, relevance::not_gate_drum_or_kit_fx),
+               sid(deluge::l10n::String::STRING_FOR_ARP_OCTAVE_MODE_MENU_TITLE)),
+    arp_octave_mode_to_note_mode_drums_chain, kArpOctaveModeToNoteModeDrumsChain);
+
 // --- the basic page --------------------------------------------------------------------------
 
-inline constexpr Node arp_preset = with_title(
-    enumeration(sid(deluge::l10n::String::STRING_FOR_PRESET), kArpPresetNames, get_arp_preset, set_arp_preset),
-    sid(deluge::l10n::String::STRING_FOR_ARP_PRESET_MENU_TITLE));
+/// @brief `PresetMode::selectButtonPress()` (`preset_mode.h:109-118`): only the CUSTOM preset opens
+///        anything, and which page it opens depends on whether a kit row is being edited
+///        (`soundEditor.editingKitRow()`, which `relevance::is_kit_row` ports). Every other preset
+///        returns null, i.e. ascends.
+inline constexpr const Node* kArpPresetChain[] = {&arp_octave_mode_to_note_mode, &arp_octave_mode_to_note_mode_drums};
+inline const Node* arp_preset_chain(const MenuContext& ctx, const MenuState&) {
+	if (get_arp_preset(ctx) != static_cast<int32_t>(ArpPreset::CUSTOM)) {
+		return nullptr;
+	}
+	return relevance::is_kit_row(ctx) ? &arp_octave_mode_to_note_mode_drums : &arp_octave_mode_to_note_mode;
+}
+
+inline constexpr Node arp_preset =
+    with_select_chain(with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_PRESET), kArpPresetNames,
+                                             get_arp_preset, set_arp_preset),
+                                 sid(deluge::l10n::String::STRING_FOR_ARP_PRESET_MENU_TITLE)),
+                      arp_preset_chain, kArpPresetChain);
 inline constexpr Node arp_gate =
     param(sid(deluge::l10n::String::STRING_FOR_GATE),
           {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_ARP_GATE},

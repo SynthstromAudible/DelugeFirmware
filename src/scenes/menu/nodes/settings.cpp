@@ -42,6 +42,7 @@
 #include "modulation/patch/patch_cable.h" // polarityToString
 #include "playback/playback_handler.h"
 #include "processing/engines/audio_engine.h"
+#include "processing/engines/cv_engine.h"   // cvEngine -- the CV/gate output pages
 #include "processing/metronome/metronome.h" // AudioEngine::metronome's definition
 #include "storage/flash_storage.h"
 
@@ -684,6 +685,95 @@ size_t sync_scaling_action_names(const MenuContext&, std::span<std::string_view>
 		}
 	}
 	return n;
+}
+
+// ---------------------------------------------------------------------------------------------
+// 2-3b. The CV and gate output pages (`cvSubmenu`, `gateModeMenu`, `gateOffTimeMenu`) -- the three
+// pages legacy reaches only through a chain, see `settings.h`'s note.
+//
+// `MenuContext::source_index` stands in for `soundEditor.currentSourceIndex` throughout, and is
+// clamped at every use: legacy indexes the two `cvEngine` arrays with it unchecked because its own
+// selectors are the only writers, whereas here it arrives on a context resolved elsewhere.
+
+namespace {
+/// @brief @p ctx's output index, clamped into `[0, count)`.
+size_t output_index(const MenuContext& ctx, size_t count) {
+	const auto raw = static_cast<int32_t>(ctx.source_index);
+	return raw < 0 ? 0 : static_cast<size_t>(std::min<int32_t>(raw, static_cast<int32_t>(count) - 1));
+}
+} // namespace
+
+int32_t get_cv_volts(const MenuContext& ctx) {
+	// `cv::Volts::readCurrentValue` (`cv/volts.h:36-38`).
+	return cvEngine.cvChannels[output_index(ctx, NUM_PHYSICAL_CV_CHANNELS)].voltsPerOctave;
+}
+void set_cv_volts(const MenuContext& ctx, int32_t value) {
+	// `cv::Volts::writeCurrentValue` (`:39-41`).
+	cvEngine.setCVVoltsPerOctave(static_cast<uint8_t>(output_index(ctx, NUM_PHYSICAL_CV_CHANNELS)),
+	                             static_cast<uint8_t>(value));
+}
+
+int32_t get_cv_transpose(const MenuContext& ctx) {
+	// `cv::Transpose::readCurrentValue` (`cv/transpose.h:34-37`), over
+	// `computeCurrentValueForTranspose` (`gui/menu_item/value_scaling.cpp:64-66`) -- the same
+	// packing `sound_osc.cpp` and `roots.cpp` transcribe for the other transposes.
+	const CVChannel& channel = cvEngine.cvChannels[output_index(ctx, NUM_PHYSICAL_CV_CHANNELS)];
+	return channel.transpose * 100 + channel.cents;
+}
+void set_cv_transpose(const MenuContext& ctx, int32_t value) {
+	// `computeFinalValuesForTranspose` (`value_scaling.cpp:68-73`) then `transpose.h:39-43`.
+	const int32_t current = value + 25600;
+	const int32_t semitones = (current + 50) / 100;
+	cvEngine.setCVTranspose(static_cast<uint8_t>(output_index(ctx, NUM_PHYSICAL_CV_CHANNELS)), semitones - 256,
+	                        current - semitones * 100);
+}
+
+size_t gate_mode_names(const MenuContext& ctx, std::span<std::string_view> out) {
+	// `gate::Mode`'s `options_` (`gate/mode.h:30-33`) as `updateOptions(whichOutput)` leaves it
+	// (`:53-72`): the two trigger polarities always, plus one extra on the outputs that carry the
+	// clock or the run signal.
+	size_t n = 0;
+	for (const String s : {String::STRING_FOR_V_TRIGGER, String::STRING_FOR_S_TRIGGER}) {
+		if (n < out.size()) {
+			out[n++] = deluge::scenes::text_lookup(sid(s));
+		}
+	}
+	if (n < out.size()) {
+		switch (static_cast<int32_t>(output_index(ctx, NUM_GATE_CHANNELS))) {
+		case WHICH_GATE_OUTPUT_IS_CLOCK:
+			out[n++] = deluge::scenes::text_lookup(sid(String::STRING_FOR_CLOCK));
+			break;
+		case WHICH_GATE_OUTPUT_IS_RUN:
+			out[n++] = deluge::scenes::text_lookup(sid(String::STRING_FOR_RUN_SIGNAL));
+			break;
+		default:
+			break;
+		}
+	}
+	return n;
+}
+int32_t get_gate_mode(const MenuContext& ctx) {
+	// `gate::Mode::readCurrentValue` (`gate/mode.h:37`).
+	return static_cast<int32_t>(cvEngine.gateChannels[output_index(ctx, NUM_GATE_CHANNELS)].mode);
+}
+void set_gate_mode(const MenuContext& ctx, int32_t value) {
+	// `gate::Mode::writeCurrentValue` (`:38-40`).
+	cvEngine.setGateType(static_cast<uint8_t>(output_index(ctx, NUM_GATE_CHANNELS)), static_cast<GateType>(value));
+}
+
+int32_t get_gate_off_time(const MenuContext&) {
+	return cvEngine.minGateOffTime; // `gate::OffTime::readCurrentValue` (`gate/off_time.h:28`)
+}
+void set_gate_off_time(const MenuContext&, int32_t value) {
+	cvEngine.minGateOffTime = static_cast<uint8_t>(value); // `:29`
+}
+
+const Node* gate_selection_chain(const MenuContext& ctx, const MenuState&) {
+	// `gate::Selection::selectButtonPress` (`gate/selection.h:43-54`): the option one past the last
+	// physical output is the minimum-off-time page; every other option is that output's mode page.
+	// Unclamped on purpose -- the equality is against the exact sentinel legacy tests, and
+	// `output_index` clamps at the point of use inside the mode hooks.
+	return ctx.source_index == NUM_GATE_CHANNELS ? &gate_off_time : &gate_mode;
 }
 
 // ---------------------------------------------------------------------------------------------

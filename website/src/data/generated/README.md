@@ -6,8 +6,8 @@ regenerates it and fails CI if the regenerated content differs from what is comm
 
 Read `menu_dump_main.cpp`'s own file header for the full schema (it recovers and documents the
 retired Python `DocEmitter`'s shape, then explains exactly how and why this dump's shape differs
-from it). Two differences matter enough to repeat here, for anyone consuming this JSON rather than
-just diffing it:
+from it). Three differences matter enough to repeat here, for anyone consuming this JSON rather
+than just diffing it:
 
 - **`"description"` is never present**, on any entry -- not even as `""`. `Node` (the type this
   tree is built from) carries no such data, so there was nothing to put there. Code written
@@ -21,3 +21,13 @@ just diffing it:
   has ever actually contained. Do not assume a `"multicontext"` entry here means what the retired
   `doc_emitter.py`'s `"multicontext"` type meant -- that Python type had no `"children"` key at
   all; this dump has no verified equivalent yet.
+- **`"select_chain"` is a second nesting key, beside `"children"`.** It appears on the seven nodes
+  whose select press opens another menu instead of going up a level (legacy's
+  `MenuItem::selectButtonPress`), and holds full nested entries in the same shape `"children"`
+  does. A walker that recurses on `"children"` alone will miss seven pages entirely: the four
+  arpeggiator octave/note-mode variants and `cvSubmenu` / `gateModeMenu` / `gateOffTimeMenu` are
+  named by no submenu literal anywhere, in the firmware or in this dump, and a `"select_chain"`
+  entry is their only appearance. Nodes with no chain carry no key at all, as with
+  `"available_when"`. The same node can appear under both keys (`unison_spread` and `voice_count`
+  are ordinary children *and* chain targets), carrying the same `"id"` in each -- deduplicate on
+  `"id"` if you need a node set rather than a tree.

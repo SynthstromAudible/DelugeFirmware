@@ -22,6 +22,21 @@ constexpr const Node* node_id_spec_roots[] = {&node_id_spec_root};
 // A node that is never passed to assign_node_ids -- stays unassigned throughout.
 constexpr Node node_id_spec_stray = param(999, ParamRef{params::Kind::PATCHED, 9}, Hint::Knob);
 
+// The chain-target walk. `chain_only` is named by NO children span -- the shape legacy's
+// `arpOctaveModeToNoteModeMenu` and `cvSubmenu` have -- so the only edge that reaches it is
+// `chain_root`'s `chain_targets`. The hook is never called by this walk (a walk cannot supply a
+// live MenuContext), which is exactly why the static span has to exist beside it.
+constexpr Node node_id_spec_chain_only = param(201, ParamRef{params::Kind::PATCHED, 3}, Hint::Knob);
+constexpr const Node* node_id_spec_chain_targets[] = {&node_id_spec_chain_only};
+const Node* node_id_spec_chain_fn(const MenuContext&, const MenuState&) {
+	return &node_id_spec_chain_only;
+}
+constexpr Node node_id_spec_chain_leaf = with_select_chain(param(200, ParamRef{params::Kind::PATCHED, 4}, Hint::Knob),
+                                                           node_id_spec_chain_fn, node_id_spec_chain_targets);
+constexpr const Node* node_id_spec_chain_kids[] = {&node_id_spec_chain_leaf};
+constexpr Node node_id_spec_chain_root = submenu(202, node_id_spec_chain_kids);
+constexpr const Node* node_id_spec_chain_roots[] = {&node_id_spec_chain_root};
+
 describe scenes_node_id("scenes::menu node-id registry", $ {
 	it("assigns every reachable node an id, depth-first in declaration order", _ {
 		uint16_t assigned = assign_node_ids(node_id_spec_roots);
@@ -70,6 +85,36 @@ describe scenes_node_id("scenes::menu node-id registry", $ {
 		expect(assigned == uint16_t(kMaxNodes)).to_be_true();
 		expect(node_id(chain[kMaxNodes + 1]) == uint16_t(0)).to_be_true();
 		expect(node_by_id(uint16_t(kMaxNodes + 1)) == nullptr).to_be_true();
+	});
+	it("numbers a chain target no children span names, after the static subtree", _ {
+		uint16_t assigned = assign_node_ids(node_id_spec_chain_roots);
+		expect(assigned == uint16_t(3)).to_be_true();
+		expect(node_id(node_id_spec_chain_root) == uint16_t(1)).to_be_true();
+		expect(node_id(node_id_spec_chain_leaf) == uint16_t(2)).to_be_true();
+		// The point of the whole mechanism: without the `chain_targets` walk this is 0, and
+		// `SceneId::arg` could never address the page.
+		expect(node_id(node_id_spec_chain_only) == uint16_t(3)).to_be_true();
+		expect(node_by_id(3) == &node_id_spec_chain_only).to_be_true();
+	});
+	it("terminates on a chain cycle instead of recursing forever", _ {
+		// `chain_targets` can loop where `children` cannot: two leaves may name each other. Nothing
+		// in the shipped tree does, so this is the only place the walk's cycle handling is
+		// exercised at all. Built at runtime -- a `constexpr` pair cannot refer to each other.
+		static Node a = param(300, ParamRef{params::Kind::PATCHED, 5}, Hint::Knob);
+		static Node b = param(301, ParamRef{params::Kind::PATCHED, 6}, Hint::Knob);
+		static const Node* a_targets[] = {&b};
+		static const Node* b_targets[] = {&a};
+		a.select_chain = node_id_spec_chain_fn;
+		a.chain_targets = a_targets;
+		b.select_chain = node_id_spec_chain_fn;
+		b.chain_targets = b_targets;
+		const Node* roots[] = {&a};
+
+		// Returns at all -- the assertion the count carries is secondary to not hanging.
+		uint16_t assigned = assign_node_ids(roots);
+		expect(assigned == uint16_t(2)).to_be_true();
+		expect(node_id(a) == uint16_t(1)).to_be_true();
+		expect(node_id(b) == uint16_t(2)).to_be_true();
 	});
 });
 // clang-format on

@@ -63,7 +63,18 @@ size_t probe_slot(const Node* n) {
 }
 
 /// @brief Depth-first pre-order walk: `n` gets the next id before any of its children do, and
-///        children are visited in `Node::children`'s own declaration order.
+///        children are visited in `Node::children`'s own declaration order, followed by
+///        `Node::chain_targets`' own order.
+///
+/// **Cycles are already handled**, and by the mechanism that was always here: a node whose slot is
+/// occupied returns immediately (the "already assigned this call" arm below), so a chain that
+/// leads back to a node this walk has passed through terminates there. That arm predates chaining
+/// -- it existed for a node shared by more than one parent -- but with `chain_targets` in the walk
+/// it is load-bearing rather than merely tidy, because a chain *can* form a cycle where a static
+/// child list cannot: `a.chain_targets = {&b}` and `b.chain_targets = {&a}` is legal data. Nothing
+/// in the shipped tree does that (the two chains that are more than one hop long,
+/// `arp_preset -> arp_octave_mode_to_note_mode -> arp_note_mode_from_octave_mode` and its drum
+/// twin, both terminate), but the walk must not blow the stack if one ever does.
 void visit(const Node& n, uint16_t& next_id) {
 	if (next_id > kMaxNodes) {
 		return;
@@ -84,6 +95,17 @@ void visit(const Node& n, uint16_t& next_id) {
 			continue;
 		}
 		visit(*child, next_id);
+		if (next_id > kMaxNodes) {
+			return;
+		}
+	}
+	// Then the pages only a select press reaches (`Node::chain_targets`). After the static subtree,
+	// not interleaved with it, so a node's id still comes immediately before its own children's.
+	for (const Node* target : n.chain_targets) {
+		if (target == nullptr) {
+			continue;
+		}
+		visit(*target, next_id);
 		if (next_id > kMaxNodes) {
 			return;
 		}

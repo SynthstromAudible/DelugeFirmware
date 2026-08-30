@@ -968,6 +968,20 @@ Result MenuScene::after_render() {
 				enter_child(*child);
 			}
 		}
+		else if (const Node* chained = node->select_chain != nullptr ? node->select_chain(ctx_, st_) : nullptr) {
+			// `MenuItem::selectButtonPress` returning a menu: `SoundEditor` navigates *into* it
+			// rather than going up (`gui/ui/sound_editor.cpp:356-386` -> `enterSubmenu`, which is
+			// `navigationDepth++` and a record write, exactly what `enter_child` does). The node's
+			// own hook answers, because the answer is value-dependent for two of the seven ported
+			// overrides -- see `node.h`'s `SelectChainFn`.
+			//
+			// Not ported from that arm: legacy's `maybeGetParentMenu`/`focusChild` reparenting,
+			// which enters a horizontal *parent* with the named child focused rather than the child
+			// itself. `enter_child` has never done that for any descent (a submenu row press does
+			// not either), so this is a pre-existing difference the chaining work inherits rather
+			// than one it introduces.
+			enter_child(*chained);
+		}
 		else {
 			// A leaf's select press goes up, it does not re-enter: `MenuItem::selectButtonPress`
 			// returns nullptr and `SoundEditor` reads that as "up". `toggle`'s own doc says the

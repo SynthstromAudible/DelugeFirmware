@@ -12,13 +12,20 @@
 namespace deluge::scenes::menu {
 
 /// @brief Walk `roots` depth-first (pre-order: a node before its children, children in
-///        declaration order) and give every reachable node an id, 1..n (0 is reserved for "no
-///        node"). Idempotent: a second call over the same roots re-derives the same ids, since the
-///        walk order is fully determined by the tree's own shape.
+///        declaration order, then its `chain_targets` in theirs) and give every reachable node an
+///        id, 1..n (0 is reserved for "no node"). Idempotent: a second call over the same roots
+///        re-derives the same ids, since the walk order is fully determined by the tree's own
+///        shape.
 ///
-/// Only *static* children (`Node::children`) are walked -- a `dynamic_children`/`dynamic_names`
-/// node has none, so whatever it produces at render time is never reachable here and is never
-/// addressable by id (see `node.h`'s note on `Node::children`).
+/// Two edge kinds are walked, both static data: `Node::children` and `Node::chain_targets`. The
+/// second is what numbers the seven pages legacy reaches only through `selectButtonPress()` and
+/// that no submenu literal names (`node.h`'s `chain_targets` note) -- without it `SceneId::arg`
+/// could not name a chained page at all. `chain_targets` may in principle form a cycle where
+/// `children` cannot; the walk's own "already assigned" test terminates one (`node_id.cpp`).
+///
+/// What is **not** walked is a `dynamic_children`/`dynamic_names` node's produce: it exists only at
+/// render time, so it is never reachable here and never addressable by id (see `node.h`'s note on
+/// `Node::children`).
 ///
 /// @param roots The tree's root nodes, in declaration order.
 /// @return The number of nodes actually assigned an id. Normally this is every node reachable from

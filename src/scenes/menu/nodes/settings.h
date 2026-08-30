@@ -43,16 +43,24 @@
 ///           static option list can express. `default_active_scale` is `ActiveScaleMenu`, an editor
 ///           of its own.
 ///
-/// @note **`cvSubmenu`, `gateModeMenu` and `gateOffTimeMenu` are not declared.** They are not
-///       children of `settingsRootMenu` -- legacy reaches them only from
+/// @note **`cvSubmenu`, `gateModeMenu` and `gateOffTimeMenu` are declared, but not as children of
+///       anything.** They are not children of `settingsRootMenu` -- legacy reaches them only from
 ///       `cv::Selection::selectButtonPress` / `gate::Selection::selectButtonPress`
-///       (`cv/selection.h:41-46`, `gate/selection.h:43-54`), i.e. through navigation, so a table
-///       that declared them would not match the legacy tree the spec walks. They arrive with E2's
-///       `selectButtonPress()`-chaining work, alongside the two selectors above -- declaring these
-///       three pages and implementing chaining are one job. The complete sweep of every chaining
-///       override in `gui/menu_item/` is the design spec's `selectButtonPress()` amendment;
-///       `README.md`'s E2 roadmap and the E2 carry list name every affected leaf (fix round 2,
-///       I5).
+///       (`cv/selection.h:41-46`, `gate/selection.h:43-54`) -- so the port hangs them off
+///       `cv_selection` / `gate_selection`'s `Node::chain_targets` instead, which is what the
+///       reachability walk follows to number and validate them without inventing a parent the
+///       legacy tree does not have. The complete sweep of every chaining override in
+///       `gui/menu_item/` is the design spec's `selectButtonPress()` amendment.
+///
+/// @note **Two halves of those two chains are still owed.** (1) Legacy's selectors *write*
+///       `soundEditor.currentSourceIndex` before navigating, and the port's counterpart --
+///       `MenuContext::source_index` -- is not writable from a `SelectChainFn`, which is handed a
+///       `const MenuContext&`; so the three pages below always address output `source_index`
+///       already holds. (2) `cv_selection` and `gate_selection` are still `Kind::Custom` stand-ins
+///       (`kPending`), and a placeholder's renderer never reports a select press
+///       (`menu_scene.cpp`'s `Kind::Custom` arm calls only `CustomItem::render`), so nothing fires
+///       the hooks through the interpreter yet. The chain *data* is real and specced directly; the
+///       task that gives these two selectors real behaviour is the one that closes both halves.
 ///
 /// @note **Three write side effects stay behind, and are gaps, not omissions.**
 ///       `defaults::PadBrightness::writeCurrentValue` also calls `PadLEDs::setBrightnessLevel`
@@ -251,6 +259,24 @@ void set_runtime_feature(const MenuContext&, int32_t value) {
 ///        its `Buttons::clearShiftSticky()` arm (`hid/`, see the file note).
 void set_shift_is_sticky(const MenuContext& ctx, int32_t value);
 size_t sync_scaling_action_names(const MenuContext& ctx, std::span<std::string_view> out);
+
+/// @name The CV and gate output pages -- the three legacy reaches only through a chain.
+///
+/// All four hook pairs address `cvEngine`'s per-output arrays through `MenuContext::source_index`,
+/// which is `soundEditor.currentSourceIndex` (`context.h`), the very global legacy's
+/// `cv::Selection::selectButtonPress` / `gate::Selection::selectButtonPress` assign before
+/// navigating (`cv/selection.h:41-46`, `gate/selection.h:43-54`).
+/// @{
+int32_t get_cv_volts(const MenuContext& ctx);
+void set_cv_volts(const MenuContext& ctx, int32_t value);
+int32_t get_cv_transpose(const MenuContext& ctx);
+void set_cv_transpose(const MenuContext& ctx, int32_t value);
+size_t gate_mode_names(const MenuContext& ctx, std::span<std::string_view> out);
+int32_t get_gate_mode(const MenuContext& ctx);
+void set_gate_mode(const MenuContext& ctx, int32_t value);
+int32_t get_gate_off_time(const MenuContext& ctx);
+void set_gate_off_time(const MenuContext& ctx, int32_t value);
+/// @}
 /// @}
 
 // ---------------------------------------------------------------------------------------------
@@ -269,12 +295,74 @@ inline constexpr const Node* kSettingsActionsChildren[] = {&reset_settings};
 inline constexpr Node settings_actions = submenu(sid(String::STRING_FOR_ACTIONS), kSettingsActionsChildren);
 
 // ---------------------------------------------------------------------------------------------
-// 2-3. The CV and gate output selectors (navigation items -- see the file note)
+// 2-3. The CV and gate output selectors, and the three pages only their select press reaches
+//
+// `cvSubmenu` (`menus.cpp:1232`), `gateModeMenu` (`:1223`) and `gateOffTimeMenu` (`:1224`) are not
+// children of `settingsRootMenu` or of anything else: legacy reaches all three only through
+// `cv::Selection::selectButtonPress` / `gate::Selection::selectButtonPress`. They are declared
+// here, ahead of the two selectors, because a chain hook needs their addresses;
+// `Node::chain_targets` is what puts them in the reachability walk so they get node ids.
+
+/// `cv::Volts::getMinValue`/`getMaxValue`/`getNumDecimalPlaces` (`cv/volts.h:31-33`). Legacy draws
+/// "Hz/V" instead of a number at zero and refuses the horizontal encoder there (`:42-56`) -- a
+/// bespoke render this generation's `Decimal` interpreter has no field for, recorded not dropped.
+inline constexpr Node cv_volts = with_title(
+    decimal_item(sid(String::STRING_FOR_VOLTS_PER_OCTAVE), get_cv_volts, set_cv_volts, IntRange{0, 200, 1}, 2),
+    sid(String::STRING_FOR_CV_V_PER_OCTAVE_MENU_TITLE));
+/// `cv::Transpose` (`cv/transpose.h:31-33`) -- the same `{-9600, 9600}` two-place packing the
+/// oscillator transposes use (`sound_osc.h`'s `kTransposeRange`).
+inline constexpr Node cv_transpose = with_title(
+    decimal_item(sid(String::STRING_FOR_TRANSPOSE), get_cv_transpose, set_cv_transpose, IntRange{-9600, 9600, 1}, 2),
+    sid(String::STRING_FOR_CV_TRANSPOSE_MENU_TITLE));
+inline constexpr const Node* kCvSubmenuChildren[] = {&cv_volts, &cv_transpose};
+/// `cvSubmenu{STRING_FOR_CV_OUTPUT_N, {&cvVoltsMenu, &cvTransposeMenu}}` (`menus.cpp:1232`). Its
+/// title is a `FormattedTitle` legacy re-formats per output (`setCvNumberForTitle`, `:2314-2316`);
+/// a `Node::title` is one static string id, so the port carries the unformatted "CV OUTPUT N".
+inline constexpr Node cv_submenu = submenu(sid(String::STRING_FOR_CV_OUTPUT_N), kCvSubmenuChildren);
+
+/// `gate::Mode` (`gate/mode.h:29-73`): V-TRIG and S-TRIG always, plus CLOCK or RUN SIGNAL on the
+/// two outputs that carry them -- legacy's `updateOptions(value)`, which `gate::Selection` calls
+/// on its way in (`gate/selection.h:52`). The port makes that a `dynamic_names` hook over
+/// `MenuContext::source_index` rather than mutable state on the item.
+///
+/// Legacy's `gateModeMenu` is default-constructed (`menus.cpp:1223`), so it has **no name at all**
+/// -- only a `FormattedTitle` (`gate/mode.h:26-27`). A `Node::name` of 0 would trip
+/// `validate_tree`'s `MissingTitle` (the builders default `title` to `name`), so the port uses the
+/// title for both, as it does for `gate_off_time` just below.
+inline constexpr Node gate_mode = with_title(
+    dynamic_enumeration(sid(String::STRING_FOR_GATE_MODE_TITLE), gate_mode_names, get_gate_mode, set_gate_mode),
+    sid(String::STRING_FOR_GATE_MODE_TITLE));
+/// `gate::OffTime` (`gate/off_time.h:22-30`), over `cvEngine.minGateOffTime` -- the one page here
+/// with no per-output state at all. Legacy names it `EMPTY_STRING` with the title
+/// `STRING_FOR_MINIMUM_OFF_TIME` (`menus.cpp:1224`); a `Node` with `name == 0` would trip
+/// `validate_tree`'s `MissingTitle`, so the port uses the title for both.
+inline constexpr Node gate_off_time = decimal_item(sid(String::STRING_FOR_MINIMUM_OFF_TIME), get_gate_off_time,
+                                                   set_gate_off_time, IntRange{1, 100, 1}, 1);
+
+/// @brief `cv::Selection::selectButtonPress` (`cv/selection.h:41-46`) and
+///        `gate::Selection::selectButtonPress` (`gate/selection.h:43-54`).
+///
+/// Both chain unconditionally; the gate one picks the off-time page on the one-past-the-last option
+/// and the mode page otherwise. Legacy also assigns `soundEditor.currentSourceIndex` on the way
+/// through -- the port's equivalent is `MenuContext::source_index`, which a `SelectChainFn` (handed
+/// a `const MenuContext&`) cannot write. See the file note below on what that costs today.
+/// @{
+inline constexpr const Node* kCvSelectionChain[] = {&cv_submenu};
+inline constexpr const Node* kGateSelectionChain[] = {&gate_mode, &gate_off_time};
+inline const Node* cv_selection_chain(const MenuContext&, const MenuState&) {
+	return &cv_submenu;
+}
+/// Body in the `.cpp`: it reads `MenuContext::source_index`, and this header only sees the forward
+/// declaration `node.h` makes (the whole reason every other hook here is declared, not defined).
+const Node* gate_selection_chain(const MenuContext& ctx, const MenuState& state);
+/// @}
 
 inline constexpr Node cv_selection =
-    with_title(custom(sid(String::STRING_FOR_CV), &kPending), sid(String::STRING_FOR_CV_OUTPUTS)); // E2
+    with_select_chain(with_title(custom(sid(String::STRING_FOR_CV), &kPending), sid(String::STRING_FOR_CV_OUTPUTS)),
+                      cv_selection_chain, kCvSelectionChain);
 inline constexpr Node gate_selection =
-    with_title(custom(sid(String::STRING_FOR_GATE), &kPending), sid(String::STRING_FOR_GATE_OUTPUTS)); // E2
+    with_select_chain(with_title(custom(sid(String::STRING_FOR_GATE), &kPending), sid(String::STRING_FOR_GATE_OUTPUTS)),
+                      gate_selection_chain, kGateSelectionChain);
 
 // ---------------------------------------------------------------------------------------------
 // 4. Trigger clock

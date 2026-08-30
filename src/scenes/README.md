@@ -268,20 +268,27 @@ so it stops conflating "which root menu is open" with "what view is behind it");
 `hid/`-side write side effects a menu write can trigger that `src/scenes` cannot reach directly (pad
 brightness, screensaver suppression, canvas flags, sticky shift);
 
-**`selectButtonPress()` chaining** — legacy's "select on *this* leaf opens *that* menu", which needs
-a `Node` field and `MenuScene` support (today `after_render` ascends on any leaf press,
-`menu_scene.cpp:893-897`). The leaves that lose behaviour, each with its legacy citation:
-`arp_preset` → `arpOctaveModeToNoteModeMenu` when the preset is CUSTOM (`arpeggiator/preset_mode.h:110-118`);
-`arp_octave_mode`'s two chaining subclasses → the note mode (`arpeggiator/octave_mode.h:90`, `:99`);
-`unison_count` → `unison::stereoSpreadMenu` (`unison/count.h:79`);
-`polyphony` → `polyphonicVoiceCountMenu` when POLY (`voice/polyphony.h:139-143`);
-`osc0_type` / `osc1_type` → `dxMenu` on a DX7 osc (`osc/type.h:120-125`);
-`cv_selection` → `cvSubmenu` (`cv/selection.h:41-46`);
-`gate_selection` → `gateOffTimeMenu` / `gateModeMenu` (`gate/selection.h:43-54`).
-`cvSubmenu`, `gateModeMenu` and `gateOffTimeMenu` are reachable *only* this way and so are not
-declared in `settings.h` at all — declaring them and implementing chaining are one job. The design
-spec's `selectButtonPress()` amendment carries the complete sweep of every override in
-`gui/menu_item/`, including the two other dropped arms it turned up: `Submenu`'s
+**`selectButtonPress()` chaining is now ported** (E2 task 3) as `Node::select_chain` plus
+`Node::chain_targets` — a hook that names the menu a select press opens (null = "ascend", legacy's
+own spelling) and a static span of every node that hook may return, which is what lets
+`assign_node_ids`, `validate_tree` and `deluge_menu_dump` reach the seven pages no children span
+names. Six of the eight rows in the design spec's sweep are implemented: `arp_preset` →
+`arpOctaveModeToNoteModeMenu`, or its drum twin on a kit row, when the preset is CUSTOM
+(`arpeggiator/preset_mode.h:109-118`); `arpOctaveModeToNoteMode` / its drum twin → the note mode
+(`arpeggiator/octave_mode.h:90`, `:99`); `unison_count` → `unison::stereoSpreadMenu`
+(`unison/count.h:76-79`); `polyphony` → `polyphonicVoiceCountMenu` when POLY
+(`voice/polyphony.h:139-143`); `cv_selection` → `cvSubmenu` (`cv/selection.h:41-46`);
+`gate_selection` → `gateOffTimeMenu` / `gateModeMenu` (`gate/selection.h:43-54`). The seven
+chain-only pages that made "declaring them and implementing chaining are one job" true are declared
+with it: the four arp ones (`menus.cpp:511-521`) and `cvSubmenu` / `gateModeMenu` /
+`gateOffTimeMenu` (`:1223-1232`).
+
+Still carried from that sweep: `osc0_type` / `osc1_type` → `dxMenu` on a DX7 osc
+(`osc/type.h:120-125`), which waits on `dxMenu` itself — three bespoke DX items (`menus.cpp:1715`)
+that are E2's browser work, not a page this task could declare honestly; the two write halves of the
+CV/gate chains (`MenuContext::source_index` is not writable from a `SelectChainFn`, and both
+selectors are still `kPending` placeholders whose renderer never reports a select press — see
+`nodes/settings.h`'s note); and the two other dropped arms the sweep turned up, `Submenu`'s
 `shouldForwardButtons()` forwarding (`submenu.cpp:187-194`) and `Automation::selectButtonPress`'s
 shift-held automation delete (`automation/automation.cpp:37`), which every param item inherits.
 Also carried: `Source::getOrCreateFirstRange()`

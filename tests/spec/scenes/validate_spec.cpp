@@ -61,6 +61,13 @@ int32_t zero(const MenuContext&) {
 void discard(const MenuContext&, int32_t) {
 }
 
+/// @brief A `SelectChainFn` the validator never calls -- the rules are about the *data*
+///        (`Node::select_chain` beside `Node::chain_targets`), which is the whole reason the static
+///        span exists: no walker can supply a live `MenuContext`.
+const Node* chain_hook(const MenuContext&, const MenuState&) {
+	return nullptr;
+}
+
 size_t count_of(const deluge::ui::shell::FixedVector<Issue, 64>& issues, Issue::Kind kind) {
 	size_t n = 0;
 	for (const Issue& i : issues) {
@@ -249,6 +256,52 @@ describe scenes_validate_rules("scenes::menu::validate_tree individual rules", $
 		// The wrong node expected -> two issues: one set-but-unexpected, one expected-but-unset.
 		static constexpr const Node* expected_wrong[] = {&plain};
 		expect(count_of(validate_tree(roots, {}, expected_wrong), Issue::Kind::FlagMismatch)).to_equal(size_t(2));
+	});
+
+	it("walks chain targets, so a chain-only page is validated rather than reported unreachable", _ {
+		// `collect` follows `chain_targets` as well as `children`, matching `assign_node_ids`. If it
+		// did not, the two counts would disagree and every clean tree with a chain would report
+		// `Unreachable`; and the chain-only page's own rules (here, a missing `names` on an enum)
+		// would never be checked at all.
+		set_shortcut_table_for_test({}, 0, 0);
+		static constexpr Node chain_target = enumeration(420, {}, zero, discard); // no names -> one issue
+		static constexpr const Node* targets[] = {&chain_target};
+		static constexpr Node source =
+		    with_select_chain(param(421, ParamRef{params::Kind::PATCHED, 1}, Hint::Bar), chain_hook, targets);
+		static constexpr const Node* kids[] = {&source};
+		static constexpr Node root = submenu(422, kids);
+		static constexpr const Node* roots[] = {&root};
+
+		const auto issues = validate_tree(roots, {});
+		expect(count_of(issues, Issue::Kind::Unreachable)).to_equal(size_t(0));
+		expect(count_of(issues, Issue::Kind::EnumWithoutNames)).to_equal(size_t(1));
+		expect(node_id(chain_target) != uint16_t(0)).to_be_true();
+	});
+
+	it("flags a select_chain hook without targets, and targets without a hook", _ {
+		// `Flag::ChainTargetsMismatch`. A hook with no targets is a page nothing can number; targets
+		// with no hook is a page nothing can open.
+		set_shortcut_table_for_test({}, 0, 0);
+		static constexpr Node target = param(430, ParamRef{params::Kind::PATCHED, 1}, Hint::Bar);
+		static constexpr const Node* targets[] = {&target};
+
+		static Node hook_only = param(431, ParamRef{params::Kind::PATCHED, 1}, Hint::Bar);
+		hook_only.select_chain = chain_hook; // no `chain_targets`
+		static Node targets_only = param(432, ParamRef{params::Kind::PATCHED, 1}, Hint::Bar);
+		targets_only.chain_targets = targets; // no `select_chain`
+
+		static const Node* kids[] = {&hook_only, &targets_only};
+		static Node root = submenu(433, kids);
+		static const Node* roots[] = {&root};
+
+		const auto issues = validate_tree(roots, {});
+		size_t mismatches = 0;
+		for (const Issue& i : issues) {
+			if (i.kind == Issue::Kind::FlagMismatch && i.detail == static_cast<uint16_t>(Flag::ChainTargetsMismatch)) {
+				mismatches++;
+			}
+		}
+		expect(mismatches).to_equal(size_t(2));
 	});
 
 	it("flags a half-precision binding the expected list does not name", _ {
