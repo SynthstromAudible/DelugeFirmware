@@ -48,7 +48,9 @@ add_library(deluge_scenes STATIC
     menu/nodes/sound_unison.cpp
     menu/nodes/sound_voice.cpp
     # E2 task 5: the one scene that replaces legacy's five-class `gui/ui/rename/` directory.
-    rename/rename_scene.cpp)
+    rename/rename_scene.cpp
+    # E2 task 6: the one scene that replaces legacy's `gui::ContextMenu` hierarchy.
+    context_menu/context_menu_scene.cpp)
 target_include_directories(deluge_scenes PUBLIC
     ${SHARED_INCLUDE}
     ${CMAKE_CURRENT_LIST_DIR}/../../include

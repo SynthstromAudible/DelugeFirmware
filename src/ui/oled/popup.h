@@ -3,6 +3,7 @@
 #include "ui/core/state.h"
 #include "ui/oled/frame.h"
 #include <cstdint>
+#include <span>
 #include <string_view>
 
 namespace deluge::ui::oled {
@@ -123,6 +124,69 @@ void popup_text(OledFrame& f, std::string_view text, PopupStyle style = PopupSty
 ///              left-to-right. Nothing is printed.
 /// @param blink Animation clock, persisted by the caller across frames.
 void working(OledFrame& f, gfx::oled::Rect rect, std::string_view word, Blink& blink);
+
+/// @brief How many option rows `option_window` shows at once.
+///
+/// Legacy's own `if (i >= 2) break;` (`gui/context_menu/context_menu.cpp`'s `renderOLED`), not a
+/// number derived from the window height: the 40px window has room for two 9px rows below its
+/// title rule and legacy hard-codes exactly that.
+inline constexpr int32_t kOptionWindowRows = 2;
+
+/// @brief Ports legacy `ContextMenu::renderOLED` (`gui/context_menu/context_menu.cpp`): the
+///        centred 100x40 window with a heading, a rule under it, and a two-row scrolling option
+///        list with the focused row inverted.
+///
+/// A member of the popup family rather than a `list` composition, because none of `list`'s three
+/// layout rules are the ones this window uses:
+///
+///  - **Label origin.** Legacy puts the label one pixel inside the highlight's left edge
+///    (`textPixelX = invertStartX + 1`, i.e. canvas x 23), where `list` insets by
+///    `style.inset_x` (`kTextSpacingX`, 6) as `MenuItem::drawItemsForOled` does.
+///  - **Right clip.** Legacy clips the label at `panel width - 27` (101) while the highlight runs
+///    to `panel width - 44 + 22` (106), so the drawn box and the inverted box are *different
+///    rectangles*; `list` derives both from the one `rect` it is given.
+///  - **Windowing.** `ContextMenu::selectEncoderAction` keeps the cursor on the *bottom* row while
+///    scrolling down (it only moves `scrollPos` once the cursor has already left it), where
+///    `list_window_start` keeps the cursor near the middle -- on a two-row window, the top row.
+///    That rule is input, not pixels, so it stays with the caller (`@p first` below); this widget
+///    just draws the window the caller chose.
+///
+/// Everything is laid out against the **panel**, not against a rect, exactly as `popup_rect_for`
+/// and `popup_text` are and for the same reason: every coordinate legacy computes here is against
+/// `OLED_MAIN_WIDTH_PIXELS` / `OLED_MAIN_HEIGHT_PIXELS`, hidden bezel rows included. The window is
+/// `PopupStyle::Permanent` -- legacy's `drawRectangle` is the *square* primitive, not the rounded
+/// one -- with the same clear-then-outline result its `clearAreaExact` + `drawRectangle` pair
+/// produces.
+///
+/// @note **The focus highlight follows `style.invert_highlight`**, exactly as `list` and
+///       `text_edit` port the same legacy primitive (`invertLeftEdgeForMenuHighlighting`): true
+///       inverts the rounded 84px band from x 22, false draws a single-column rule there instead
+///       and shifts every label right by one `kTextSpacingX` -- legacy's own
+///       `MenuHighlighting::NO_INVERSION` arm.
+///
+/// @note **Nothing here is claimed.** Render-only, as `text_edit` is: the select encoder's turn
+///       and the accept button are the scene's (`ContextMenu::selectEncoderAction` /
+///       `buttonAction`), so this widget reads no input and is safe to draw on an unfocused frame.
+///
+/// @note Legacy's `isCurrentOptionAvailable()` filter is **not** here. Its render loop skips
+///       unavailable options and its encoder loop turns past them, which is the same thing as
+///       operating on the list with those entries removed -- so a caller with dynamic
+///       availability compacts @p options before calling, and @p selected / @p first index the
+///       compacted list. No shipped caller has one.
+///
+/// @param f            Frame to draw into; input is never read.
+/// @param heading      The window's title (`ContextMenu::getTitle`), drawn left-aligned at x 22 in
+///                     `style.row_font` -- legacy's plain `drawString`, **not** `drawScreenTitle`,
+///                     so `title()` is the wrong widget here.
+/// @param options      Every option, in legacy's order (`ContextMenu::getOptions`).
+/// @param selected     The focused option (`currentOption`); clamped into @p options.
+/// @param first        The first option shown (`scrollPos`); clamped so the focused row is one of
+///                     the `kOptionWindowRows` drawn.
+/// @param label        Side-scroller state for the focused row (`OLED::setupSideScroller`), owned
+///                     by the caller across frames.
+/// @param allow_motion Whether that scroller may advance this frame.
+void option_window(OledFrame& f, std::string_view heading, std::span<const std::string_view> options, int32_t selected,
+                   int32_t first, ScrollText& label, bool allow_motion = true);
 
 /// @brief A progress bar filling \p rect left to right at \p num / \p den.
 ///

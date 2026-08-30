@@ -7,7 +7,8 @@
 /// registry reported (`shell/shell.h:120-126,330-342`), and `SceneKind::Screensaver` names no
 /// shell-owned scene at all, so an entry in any of those slots would simply be ignored. Kinds run
 /// from `SceneKind::FirstApp` (== 16) upwards: `FirstApp` is the menu interpreter, `FirstApp + 1`
-/// the rename editor (`rename::kRenameSceneKind`).
+/// the rename editor (`rename::kRenameSceneKind`), `FirstApp + 2` the context menu
+/// (`context_menu::kContextMenuSceneKind`).
 
 #include "shell/scene.h"
 
@@ -49,8 +50,9 @@ menu::MenuScene& menu_scene();
 /// @brief The application's scene table, viewing storage this library owns.
 ///
 /// @return A registry whose `by_kind[SceneKind::FirstApp]` is `&menu_scene()`, whose
-///         `by_kind[SceneKind::FirstApp + 1]` is `&rename_scene()`, and whose every other slot is
-///         null.
+///         `by_kind[SceneKind::FirstApp + 1]` is `&rename_scene()`, whose
+///         `by_kind[SceneKind::FirstApp + 2]` is `&context_menu_scene()`, and whose every other
+///         slot is null.
 deluge::ui::shell::SceneRegistry scene_registry();
 
 } // namespace deluge::scenes

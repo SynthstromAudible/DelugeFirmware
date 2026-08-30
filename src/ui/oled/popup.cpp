@@ -2,6 +2,7 @@
 
 #include "ui/core/metrics.h"
 #include "ui/core/text_wrap.h"
+#include "ui/oled/scroll_text.h"
 #include "ui/oled/text.h"
 
 #include <algorithm>
@@ -172,6 +173,87 @@ void popup_text(OledFrame& f, std::string_view text_view, PopupStyle style) {
 		const int32_t x = (p.w - lines.widths[l]) >> 1;
 		f.glyphs(lines.lines[l], p.x + x, p.y + y, spacing_x, line_h);
 		y += line_h;
+	}
+}
+
+namespace {
+
+// `ContextMenu::renderOLED`'s literals (`gui/context_menu/context_menu.cpp`). The four "inset"
+// numbers are all `OLED_MAIN_WIDTH_PIXELS - n` in legacy and are applied to the *panel* width
+// here, so a wider panel widens the window's furniture with it rather than leaving it hanging.
+constexpr int32_t kOptionWindowW = 100;
+constexpr int32_t kOptionWindowH = 40;
+constexpr int32_t kOptionHeadingX = 22;         // `drawString(getTitle(), 22, ...)`
+constexpr int32_t kOptionHeadingDy = 6;         // `windowMinY + 6`
+constexpr int32_t kOptionRuleDy = 15;           // `drawHorizontalLine(windowMinY + 15, ...)`
+constexpr int32_t kOptionRuleRightInset = 30;   // `OLED_MAIN_WIDTH_PIXELS - 30`, inclusive end
+constexpr int32_t kOptionFirstRowDy = 18;       // `textPixelY = windowMinY + 18`
+constexpr int32_t kOptionInvertX = 22;          // `invertStartX`
+constexpr int32_t kOptionInvertRightInset = 44; // highlight WIDTH is `OLED_MAIN_WIDTH_PIXELS - 44`
+constexpr int32_t kOptionTextRightInset = 27;   // `drawString(..., OLED_MAIN_WIDTH_PIXELS - 27)`
+
+} // namespace
+
+void option_window(OledFrame& f, std::string_view heading, std::span<const std::string_view> options, int32_t selected,
+                   int32_t first, ScrollText& label, bool allow_motion) {
+	const Rect p = panel_of(f);
+	const gfx::oled::FontId font = f.style.row_font;
+	const int32_t line_h = text_height_for(font);  // kTextSpacingY
+	const int32_t spacing_x = spacing_x_for(font); // kTextSpacingX
+
+	// `windowMinX/Y` and the mirrored maxima, verbatim. The rect carries legacy's width/height,
+	// which `popup_frame` treats as inclusive maxima -- so the outline it draws is
+	// `drawRectangle(windowMinX, windowMinY, windowMaxX, windowMaxY)` exactly (see popup_rect_for).
+	// `Permanent` because legacy's `drawRectangle` is the square primitive; its clear covers the
+	// border ring as well as the interior legacy's `clearAreaExact` clears, which is the same
+	// result once the ring is inked back in on the next line.
+	const int32_t min_x = (p.w - kOptionWindowW) >> 1;
+	const int32_t min_y = (p.h - kOptionWindowH) >> 1;
+	popup_frame(f, Rect{p.x + min_x, p.y + min_y, kOptionWindowW, kOptionWindowH}, PopupStyle::Permanent);
+
+	f.hline(p.y + min_y + kOptionRuleDy, p.x + kOptionHeadingX, p.x + p.w - kOptionRuleRightInset);
+
+	// `drawString(getTitle(), 22, windowMinY + 6, kTextSpacingX, kTextSpacingY)` -- left-aligned,
+	// in the row font, with legacy's default (panel-edge) right clip. Not `title()`: there is no
+	// screen title band here and no `drawScreenTitle` call.
+	text(f, Rect{p.x + kOptionHeadingX, p.y + min_y + kOptionHeadingDy, p.w - kOptionHeadingX, line_h}, heading,
+	     TextStyle{.font = font});
+
+	const int32_t n = static_cast<int32_t>(options.size());
+	if (n <= 0) {
+		return;
+	}
+	const int32_t cursor = std::clamp<int32_t>(selected, 0, n - 1);
+	// Keep the focused row inside the window, and never start past the end of the list. Legacy's
+	// own `scrollPos` invariant, restated defensively rather than trusted: `selectEncoderAction`
+	// maintains it, but `setupAndCheckAvailability` and a caller restoring saved state both write
+	// the pair directly.
+	const int32_t start = std::clamp<int32_t>(first, std::max<int32_t>(0, cursor - (kOptionWindowRows - 1)), cursor);
+
+	const int32_t invert_x = p.x + kOptionInvertX;
+	const int32_t invert_w = p.w - kOptionInvertRightInset;
+	// `textPixelX = invertStartX + 1`, plus one character cell in legacy's NO_INVERSION mode.
+	const int32_t text_x = invert_x + 1 + (f.style.invert_highlight ? 0 : spacing_x);
+	const int32_t text_end = p.x + p.w - kOptionTextRightInset;
+
+	for (int32_t o = 0; o < kOptionWindowRows && start + o < n; o++) {
+		const int32_t y = p.y + min_y + kOptionFirstRowDy + o * line_h;
+		const Rect box{text_x, y, text_end - text_x, line_h};
+		if (start + o != cursor) {
+			text(f, box, options[static_cast<size_t>(start + o)], TextStyle{.font = font});
+			continue;
+		}
+		// The focused row: legacy draws the string, then inverts, then arms the side scroller over
+		// the same box. `scroll_text` is the draw and the arming in one call; the inversion is
+		// separate because legacy's is a *different, wider* rectangle than the text box, which
+		// `scroll_text`'s own `highlight` flag cannot express.
+		scroll_text(f, box, options[static_cast<size_t>(cursor)], font, label, allow_motion, /*highlight=*/false);
+		if (f.style.invert_highlight) {
+			f.invert_rounded(Rect{invert_x, y, invert_w, 9});
+		}
+		else {
+			f.vline(invert_x, y, y + 8);
+		}
 	}
 }
 
