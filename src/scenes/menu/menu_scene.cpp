@@ -973,12 +973,20 @@ Result MenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 
 	// (b) Back at the root. `render_oled` deliberately never claimed it at depth 0, so the shell
 	// delivers it post-render and this closes the editor -- `sound_editor.cpp:418`'s BACK case ->
-	// `:433` `goUpOneLevel()` -> `:678` `exitCompletely()`. `pop_to` stays `SceneKind::Null`,
-	// i.e. "just the top".
+	// `:433` `goUpOneLevel()` -> `:678` `exitCompletely()`. `pop_to = SceneKind::FirstApp`, NOT the
+	// default `SceneKind::Null` ("just the top"): `SceneStack::pop` with `Null` blindly removes
+	// whatever is CURRENTLY topmost, and a `Notices`-driven overlay (`Console` in particular, which
+	// -- unlike `Popup`/`Working` -- is never removed again once shown) can legitimately be pushed
+	// above this scene between the render that produced this `Result` and the router applying it.
+	// `pop_to = SceneKind::FirstApp` makes `SceneStack::pop` find THIS scene's own kind wherever it
+	// sits and pop it (and anything transient above it) instead -- found by task 11's
+	// `menu_submenu_horizontal` acceptance script once its `Console` notice was made visible
+	// (`shell/notices.cpp`'s `Kind::Console` fix): with the old `Null`, pressing Back while that
+	// notice was still showing closed the console strip and left the menu itself on the stack.
 	if (event.kind == UiEvent::Kind::Button && event.button == ButtonId::Back && event.on && st_.depth == 0) {
 		Result r;
 		r.handled = true;
-		(void)r.actions.push_back(Action{.kind = Action::Kind::Pop});
+		(void)r.actions.push_back(Action{.kind = Action::Kind::Pop, .pop_to = SceneKind::FirstApp});
 		return r;
 	}
 

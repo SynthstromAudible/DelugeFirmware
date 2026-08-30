@@ -1128,6 +1128,15 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 		const Root& settings = roots().back();
 		install(settings.ctx, settings.song);
 		deluge::notify::dirty().drain();
+		// `tables_3_writes` above drives every set hook across the whole tree, including params an
+		// alpha/beta build's `bindings::write` cannot serve in the probe context it uses -- which
+		// raises a real `Kind::Console` "MENU PARAM UNBOUND" notice (`bindings.cpp`'s
+		// `notice_unservable_param`). That notice sat harmlessly undrained in the global queue until
+		// `shell/notices.cpp`'s `Kind::Console` fix (task 11) made a drained Console notice actually
+		// composite into whatever next calls `shell.tick()` -- this test, in the same process. Drain
+		// it here so a stray notice from an earlier describe block never bleeds into this golden.
+		deluge::notify::Notice stray;
+		while (deluge::notify::notices().pop(stray)) {}
 		Rig r;
 		r.open(nodes::root_settings, settings.ctx);
 		r.shell.tick(0);
@@ -1138,6 +1147,9 @@ describe tables_3_pixels("scenes::menu batch-3 tables: pixels", $ {
 		const Root& settings = roots().back();
 		install(settings.ctx, settings.song);
 		deluge::notify::dirty().drain();
+		// Same reason as the 48-row case just above.
+		deluge::notify::Notice stray;
+		while (deluge::notify::notices().pop(stray)) {}
 		Rig r{board_64(), profile_64()};
 		r.open(nodes::root_settings, settings.ctx);
 		r.shell.tick(0);

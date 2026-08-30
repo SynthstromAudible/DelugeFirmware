@@ -212,6 +212,31 @@ void Notices::drain(notify::NoticeQueue& queue, uint32_t now_ms) {
 			const std::string_view text =
 			    n.string_id ? profile_.text_or_digits(n.string_id, scratch) : std::string_view{n.text};
 			console_.append(text, now_ms);
+			// Legacy has no scene stack at all: `OLED::sendMainImage` (`oled.cpp:364-376`)
+			// unconditionally composites the console strip into every frame, so a console line is
+			// always potentially visible the instant it is appended. The port's equivalent is
+			// making this scene's OWN presence self-managing, exactly as the `Popup`/`Working`
+			// cases already do -- found missing by task 11's `menu_submenu_horizontal` acceptance
+			// script: a value-column select press raised a real `Kind::Console` notice
+			// (`MenuScene::after_render`), `console_.append` ran, and the appended text never
+			// appeared in ANY snapshot because nothing, anywhere (`Shell::boot`/`init` included),
+			// ever pushed `SceneKind::Console` onto the stack -- unlike `Working`, whose case
+			// below has always self-managed its own push. Scanned like `show_popup_with_timeout`'s
+			// own check (the whole stack, not just `top()`): a scene may legitimately sit above an
+			// already-live console strip, and re-pushing would plant a second entry pointing at
+			// this same instance. Never removed again -- `tick()` below only polls popup expiry
+			// and working's armed flag; the console's *content* expires per line
+			// (`ConsoleScene::append`'s `kConsoleLineMs`), not the scene's presence on the stack.
+			bool console_stacked = false;
+			for (Scene* scene : stack_.scenes()) {
+				if (scene->kind() == SceneKind::Console) {
+					console_stacked = true;
+					break;
+				}
+			}
+			if (!console_stacked) {
+				stack_.push(SceneId{SceneKind::Console});
+			}
 			break;
 		}
 		case notify::Notice::Kind::Working:
