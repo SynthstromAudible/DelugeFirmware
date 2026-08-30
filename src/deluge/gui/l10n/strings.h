@@ -1137,6 +1137,15 @@ enum class String : size_t {
 	STRING_FOR_CHORD_KEYBOARD_MODE_ROW,
 	STRING_FOR_CHORD_KEYBOARD_MODE_COLUMN,
 
+	// The rename scene's box titles. Legacy hard-coded these two as English literals at the
+	// RenameUI subclass's construction (`RenameDrumUI renameDrumUI{"Drum Name"}`,
+	// gui/ui/rename/rename_drum_ui.cpp:32; `RenameOutputUI renameOutputUI{"Track name"}`,
+	// rename_output_ui.cpp:29) and so they were never localisable; `RenameClipUI`'s "Clip Name"
+	// already had an id (STRING_FOR_CLIP_NAME). Appended at the end so no existing enumerator's
+	// value moves.
+	STRING_FOR_DRUM_NAME,
+	STRING_FOR_TRACK_NAME,
+
 	STRING_LAST
 };
 

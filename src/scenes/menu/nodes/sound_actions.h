@@ -9,8 +9,8 @@
 // clang-format off
 /// | node | legacy global | legacy class | kind |
 /// |---|---|---|---|
-/// | `edit_track_name` | `audioOutputNameEditMenu` (`:1127`) | `EditName` (`gui/menu_item/edit_name.h:25`) | **Custom, E2** |
-/// | `edit_clip_name` | `audioClipNameEditMenu` (`:1129`) | `EditName` | **Custom, E2** |
+/// | `edit_track_name` | `audioOutputNameEditMenu` (`:1127`) | `EditName` (`gui/menu_item/edit_name.h:25`) | Custom (`EditNameItem`) |
+/// | `edit_clip_name` | `audioClipNameEditMenu` (`:1129`) | `EditName` | Custom (`EditNameItem`) |
 /// | `edit_name` | `editNameMenu` (`:1134`) | `Submenu` | Submenu (Vertical) |
 /// | `sound_actions` | `soundEditorRootActionsMenu` (`:1762`) | `Submenu` | Submenu (Vertical) |
 /// | `sequence_direction` | `sequenceDirectionMenu` (`:935`) | `sequence::Direction` (`sequence/direction.h:22`) | Enum (dynamic) |
@@ -26,10 +26,12 @@
 /// `validate_tree`'s `TooManyCustom` count honest (it counts custom *nodes*, so a second copy of a
 /// node would be a second count).
 ///
-/// @note **Both `EditName` items are E2 placeholders.** `EditName::beginSession` opens `RenameUI`
+/// @note **Both `EditName` items are real.** `EditName::beginSession` opens `RenameUI`
 ///       (`gui/menu_item/edit_name.cpp`); spec E §4 lists "edit-name" among the bespoke items, and
-///       nothing about pushing another UI fits any `Kind`. They point at `kPending` so the shape is
-///       right and `validate_tree` reports them until E2 lands.
+///       nothing about pushing another UI fits any `Kind`. They are `nodes::EditNameItem`s
+///       (`edit_name.h`), which open `rename::RenameScene` on the matching `rename::TargetId` --
+///       `edit_track_name` on `Output` (legacy's `Target::AUDIO_OUTPUT` -> `renameOutputUI`) and
+///       `edit_clip_name` on `Clip` (`Target::CLIP` -> `renameClipUI`).
 ///
 /// @note **`sequence::Direction` is transcribed as far as this layer reaches.** Legacy resolves an
 ///       *individual note row* first (`sequence/direction.h:29-52`): on a kit row it asks the clip
@@ -48,7 +50,8 @@
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
-#include "scenes/menu/nodes/sound_osc.h" // kPending, sample0_recorder, sample1_recorder
+#include "scenes/menu/nodes/edit_name.h" // kEditOutputName, kEditClipName
+#include "scenes/menu/nodes/sound_osc.h" // sample0_recorder, sample1_recorder
 #include "scenes/menu/relevance.h"
 
 #include <span>
@@ -70,8 +73,8 @@ int32_t get_output_midi_note(const MenuContext& ctx);
 void set_output_midi_note(const MenuContext& ctx, int32_t value);
 /// @}
 
-inline constexpr Node edit_track_name = custom(sid(deluge::l10n::String::STRING_FOR_EDIT_TRACK_NAME), &kPending); // E2
-inline constexpr Node edit_clip_name = custom(sid(deluge::l10n::String::STRING_FOR_EDIT_CLIP_NAME), &kPending);   // E2
+inline constexpr Node edit_track_name = custom(sid(deluge::l10n::String::STRING_FOR_EDIT_TRACK_NAME), &kEditOutputName);
+inline constexpr Node edit_clip_name = custom(sid(deluge::l10n::String::STRING_FOR_EDIT_CLIP_NAME), &kEditClipName);
 
 inline constexpr const Node* kEditNameChildren[] = {&edit_track_name, &edit_clip_name};
 inline constexpr Node edit_name = submenu(sid(deluge::l10n::String::STRING_FOR_EDIT_NAME), kEditNameChildren);

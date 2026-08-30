@@ -22,6 +22,7 @@
 
 #include "scenes/menu/menu_scene.h"
 #include "scenes/menu/node_id.h"
+#include "scenes/rename/rename_scene.h"
 
 #include <array>
 
@@ -55,6 +56,9 @@ deluge::ui::shell::SceneRegistry scene_registry() {
 	static const std::array<deluge::ui::shell::Scene*, deluge::ui::shell::kMaxSceneKinds> kByKind = [] {
 		std::array<deluge::ui::shell::Scene*, deluge::ui::shell::kMaxSceneKinds> table{};
 		table[static_cast<size_t>(deluge::ui::shell::SceneKind::FirstApp)] = &menu_scene();
+		// `FirstApp + 1`, spelled by the scene itself (`rename::kRenameSceneKind`) rather than
+		// recomputed here, so the slot and `RenameScene::kind()` cannot drift apart.
+		table[static_cast<size_t>(rename::kRenameSceneKind)] = &rename::rename_scene();
 		// M1: numbered here as well as in `menu_scene()`, so building the table is enough on its
 		// own -- `menu_scene()` already ran above, this is the belt to that braces and costs one
 		// load of an initialised static.

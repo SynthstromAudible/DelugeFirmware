@@ -239,7 +239,10 @@ RULES = [
         # primitive reached through some other local (`region.pixel(...)`, say) slips past. Same
         # caveat as ui-widgets-read-input-directly -- the row catches the habit, not every spelling.
         "scenes-no-frame-primitives",
-        "src/scenes/menu/**",
+        # `src/scenes/**`, not just `menu/**`: the rule is about the scenes layer, and E2 task 5
+        # added a second scene directory (`src/scenes/rename/`) that draws its box through
+        # `ui::oled::popup_frame` rather than `f.rect`, exactly as this row asks.
+        "src/scenes/**",
         "symbol",
         r"\b(canvas|f)\.(pixel|hline|vline|line|rect|invert|clear|glyph)",
         "2026-08-26-ui-scenes-menus-design.md",

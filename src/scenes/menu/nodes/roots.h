@@ -65,8 +65,11 @@
 ///       or whose action lives behind the `scenes-includes-outside` wall -- `gui/` or `hid/` --
 ///       which no `get`/`set` hook in this layer may reach:
 ///
-///         * `drum_name_edit` -- `EditName` opens `RenameUI` (`gui/menu_item/edit_name.cpp`),
-///           like `sound_actions.h`'s two.
+///         * (`drum_name_edit` is no longer one. `EditName::beginSession` opens `RenameUI`
+///           (`gui/menu_item/edit_name.cpp`), and the node now points at a real
+///           `nodes::EditNameItem` (`edit_name.h`) that opens `rename::RenameScene` on
+///           `rename::TargetId::Drum` -- legacy's `EditName::Target::DRUM` -> `renameDrumUI` --
+///           exactly as `sound_actions.h`'s two do for the clip and the track.)
 ///         * `midi_device_linked` -- `Linked::writeCurrentValue` opens
 ///           `loadMidiDeviceDefinitionUI` (`midi/device_definition/linked.h:26-28`).
 ///         * `set_clip_length` -- `audioClipView.setClipLengthEqualToSampleLength()`
@@ -90,6 +93,7 @@
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
+#include "scenes/menu/nodes/edit_name.h" // kEditDrumName
 #include "scenes/menu/nodes/sound_arp.h"
 #include "scenes/menu/nodes/sound_bend.h"
 #include "scenes/menu/nodes/sound_compressor.h"
@@ -287,7 +291,7 @@ inline constexpr Node global_sidechain =
 // Identical to `sound_root` but for its first child: a kit row's actions page renames the *drum*
 // (`drumNameEditMenu`, `:1126`) where a synth's renames the track and the clip.
 
-inline constexpr Node drum_name_edit = custom(sid(String::STRING_FOR_RENAME_DRUM), &kPending); // E2
+inline constexpr Node drum_name_edit = custom(sid(String::STRING_FOR_RENAME_DRUM), &kEditDrumName);
 
 inline constexpr const Node* kDrumActionsChildren[] = {&drum_name_edit, &sample0_recorder, &sample1_recorder};
 inline constexpr Node drum_actions = submenu(sid(String::STRING_FOR_ACTIONS), kDrumActionsChildren);

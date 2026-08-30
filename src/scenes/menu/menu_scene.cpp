@@ -267,6 +267,11 @@ void MenuScene::retarget(const Node& node) {
 	// item, so the request goes with it rather than surviving to mislead E2's picker.
 	st_.range_picker_pending = false;
 	st_.pending_after_range = nullptr;
+	// Same reasoning for the scene a custom item asked to open: it belongs to the item this
+	// re-rooting abandons. Cleared *before* `enter_leaf` below, which is the one call that can
+	// legitimately set it again (landing straight on an `EditNameItem` through `SceneId::arg`).
+	st_.pending_scene = SceneId{};
+	st_.go_up_on_resume = false;
 	if (is_leaf(node.kind)) {
 		enter_leaf(node);
 	}
@@ -295,8 +300,15 @@ bool MenuScene::on_enter(const SceneId& id) {
 }
 
 void MenuScene::on_resume() {
-	// Nothing above the menu can have changed what it edits (E1 pushes nothing over it), so
-	// resuming keeps the path exactly as it was. Reset only the per-tick observations, which
+	// `SoundEditor::focusRegained` (`gui/ui/sound_editor.cpp:279-289`): "If just came back from a
+	// deeper nested UI", step up one level. The flag is set where the push was requested (see
+	// `after_render`), and it is what stops the item that opened the pushed scene from opening it
+	// again the instant the user gets back.
+	if (st_.go_up_on_resume) {
+		st_.go_up_on_resume = false;
+		ascend();
+	}
+	// Otherwise the path is kept exactly as it was. Reset only the per-tick observations, which
 	// belong to a render pass that never happened.
 	st_.render_resp = {};
 	st_.value_changed = false;
@@ -1005,6 +1017,18 @@ Result MenuScene::after_render() {
 	}
 	if (repaint) {
 		(void)r.actions.push_back(Action{.kind = Action::Kind::RepaintAll});
+	}
+
+	// A `CustomItem` that asked, from `on_focus`, for another scene to be opened over the menu --
+	// the port of `openUI(...)` from a legacy bespoke item's `beginSession` (`MenuState::pending_scene`).
+	// Drained here because this is the first hook after `enter_leaf` that has a `Result` to put the
+	// `Push` in, and `go_up_on_resume` is set alongside it exactly where legacy sets
+	// `shouldGoUpOneLevelOnBegin` -- beside its own `openUI` call.
+	if (st_.pending_scene.kind != SceneKind::Null) {
+		(void)r.actions.push_back(Action{.kind = Action::Kind::Push, .id = st_.pending_scene});
+		st_.pending_scene = SceneId{};
+		st_.go_up_on_resume = true;
+		r.handled = true;
 	}
 
 	st_.render_resp = {};

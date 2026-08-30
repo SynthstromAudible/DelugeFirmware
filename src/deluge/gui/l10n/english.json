@@ -967,6 +967,8 @@
     "STRING_FOR_CONVERT_TO_AUDIO": "Convert to Audio",
     "STRING_FOR_CLIP_MODE": "Clip Mode",
     "STRING_FOR_CLIP_NAME": "Clip Name",
+    "STRING_FOR_DRUM_NAME": "Drum Name",
+    "STRING_FOR_TRACK_NAME": "Track name",
     "STRING_FOR_NOTE_EDITOR": "Note Editor",
     "STRING_FOR_NOTE_EDITOR_VELOCITY": "Velocity",
     "STRING_FOR_NOTE_EDITOR_PROBABILITY": "Probability",

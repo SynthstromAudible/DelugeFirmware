@@ -6,7 +6,8 @@
 /// installs its own `Popup`/`Console`/`Working`/`Boot`/`Loading` instances over whatever the
 /// registry reported (`shell/shell.h:120-126,330-342`), and `SceneKind::Screensaver` names no
 /// shell-owned scene at all, so an entry in any of those slots would simply be ignored. Kinds run
-/// from `SceneKind::FirstApp` (== 16) upwards; E1 registers exactly one.
+/// from `SceneKind::FirstApp` (== 16) upwards: `FirstApp` is the menu interpreter, `FirstApp + 1`
+/// the rename editor (`rename::kRenameSceneKind`).
 
 #include "shell/scene.h"
 
@@ -40,10 +41,16 @@ uint16_t assigned_node_ids();
 /// @return The singleton.
 menu::MenuScene& menu_scene();
 
+// (No `rename_scene()` forwarder here, deliberately. `rename::rename_scene()` already is the
+// singleton accessor, and a same-named function in this namespace would be ambiguous with it for
+// every consumer that writes `using namespace deluge::scenes;` -- which every spec in this tree
+// does. `scene_registry()` below calls the real one.)
+
 /// @brief The application's scene table, viewing storage this library owns.
 ///
-/// @return A registry whose `by_kind[SceneKind::FirstApp]` is `&menu_scene()` and whose every
-///         other slot is null.
+/// @return A registry whose `by_kind[SceneKind::FirstApp]` is `&menu_scene()`, whose
+///         `by_kind[SceneKind::FirstApp + 1]` is `&rename_scene()`, and whose every other slot is
+///         null.
 deluge::ui::shell::SceneRegistry scene_registry();
 
 } // namespace deluge::scenes

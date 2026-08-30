@@ -29,6 +29,7 @@ add_library(deluge_scenes STATIC
     # `inline constexpr` (fix round 1, I3, so Task 9's constexpr shortcut tables can take their
     # addresses); these translation units hold the get/set hook bodies and the exported root spans.
     # batch 3 (task 8) is the settings root and the nine other roots `SoundEditor::setup` can open.
+    menu/nodes/edit_name.cpp
     menu/nodes/roots.cpp
     menu/nodes/settings.cpp
     menu/nodes/sound_actions.cpp
@@ -45,7 +46,9 @@ add_library(deluge_scenes STATIC
     menu/nodes/sound_root.cpp
     menu/nodes/sound_sidechain.cpp
     menu/nodes/sound_unison.cpp
-    menu/nodes/sound_voice.cpp)
+    menu/nodes/sound_voice.cpp
+    # E2 task 5: the one scene that replaces legacy's five-class `gui/ui/rename/` directory.
+    rename/rename_scene.cpp)
 target_include_directories(deluge_scenes PUBLIC
     ${SHARED_INCLUDE}
     ${CMAKE_CURRENT_LIST_DIR}/../../include

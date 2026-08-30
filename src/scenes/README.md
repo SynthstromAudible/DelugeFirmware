@@ -148,10 +148,10 @@ counts nodes, not implementations** (fix round 2, I4; recorded as an amendment i
 * It now counts **nodes that point at a custom item**. The shipped tree has **59** of them
   (`validate.h`'s `kShippedCustomNodes`, asserted against the live tree by
   `sim/scenes_spec/shortcuts_spec.cpp`), behind roughly twenty distinct legacy bespoke classes --
-  fifty-seven of them still share the single `kPending` placeholder; `battery_level` and
-  `firmware_version` (E2 task 2) are the two real, distinct exceptions (`BatteryLevelItem`,
-  `FirmwareVersionItem`), so the distinct-instance count that spelling used to be inert on is now
-  3, not 1.
+  fifty-six of them still share the single `kPending` placeholder. The real, distinct exceptions are
+  `battery_level` and `firmware_version` (E2 task 2 — `BatteryLevelItem`, `FirmwareVersionItem`) plus
+  the three name editors (E2 task 5 — one `EditNameItem` per `rename::TargetId`), so the
+  distinct-instance count that spelling used to be inert on is now 6, not 1.
 * So the cap is `kMaxCustomNodes == 60`, one above reality — a ratchet against the escape hatch
   growing unnoticed, not a claim that ten was ever achievable. Adding a custom node means bumping
   both `kShippedCustomNodes` and, if you have run out of room, `kMaxCustomNodes` — deliberately two
@@ -165,7 +165,7 @@ To add one:
    builder. A null `custom` pointer is itself a validator error (`Issue::Kind::NullCustom`) — there
    is no "no-op custom" shorthand.
 3. **If the real implementation is a later task's job** (E1 shipped the *shape* of several bespoke
-   items — the file selector, the audio recorder, loop points, name editors, patch-cable pages, the
+   items — the file selector, the audio recorder, loop points, patch-cable pages, the
    multi-range picker — without their real behaviour), point the node at the shared
    `nodes::kPending` placeholder (`menu/nodes/sound_osc.{h,cpp}`) instead of a real implementation.
    `kPending` draws the item's title and consumes no input; `CustomItem::is_placeholder()` reports
@@ -188,7 +188,7 @@ predicate without adding its row is a build failure rather than a dump that sile
 `validate_tree` walks every node reachable from a set of roots and checks: every `Submenu` is
 non-empty under at least one context; every `ParamRef` resolves for its context; every `Enum` has
 `names` or `dynamic_names`; every shortcut cell points at a node; `Custom` count ≤ 60 — counting the *nodes* that point at a
-custom item, not the distinct `CustomItem` instances, since 57 of them share the single
+custom item, not the distinct `CustomItem` instances, since 56 of them share the single
 `nodes::kPending` placeholder today (see "Adding a `Custom`" above and the design spec's
 amendment); no
 `NullCustom`; no `DuplicateName` among siblings that could actually both be on screen at once (a
@@ -256,6 +256,45 @@ own profile (spans compared by `.data()`/`.size()`), so the two copies cannot si
 anything but the one thing they are meant to differ on. `deluge_scenes` and every scenes spec pass
 `scenes::deluge_profile()`, never `ui::shell::deluge_profile()` directly.
 
+## The rename editor (`rename/`, E2 task 5)
+
+`rename::RenameScene` is one scene in place of legacy's five-class `gui/ui/rename/` directory
+(`RenameUI` plus `RenameClipUI`/`RenameOutputUI`/`RenameDrumUI`/`RenameMidiCCUI` over `QwertyUI`).
+The four subclasses differed only in three virtuals — `getCurrentName()`, `trySetName()` and
+`allowEmpty()`/`canRename()` — so those become `rename::Target`, a plain struct in a table indexed
+by `SceneId::arg`. It is registered at `SceneKind::FirstApp + 1` (`rename::kRenameSceneKind`,
+`registry.cpp`).
+
+Three targets, not four: `Clip`, `Output` and `Drum` are what the ported tree reaches
+(`nodes::edit_clip_name`, `edit_track_name`, `drum_name_edit`). `renameMidiCCUI` is opened only by
+`gui/views/automation_view.cpp:1641` and no `Node` reaches it, so it is deliberately absent rather
+than shipped untested.
+
+The pixels are the toolkit's: `ui::grid::text_keyboard` is `QwertyUI::drawKeys` and
+`ui::oled::text_edit` is `QwertyUI::drawTextForOLEDEditing`, both already ported; the box is
+`ui::oled::popup_frame` in its square-cornered `Permanent` style. The scene owns only the *input*
+half of `QwertyUI` (the typing rules, `processBackspace`, `horizontalEncoderAction`) and
+`RenameUI`'s buttons. **Not ported:** legacy's backspace auto-repeat
+(`UI_MODE_HOLDING_BACKSPACE` + a 500 ms/80 ms timer, `qwerty_ui.cpp:218-227,449-453`) —
+`text_keyboard`'s aggregate `Response` reports "some keyboard pad is held", not which one, so
+there is nothing to hang a per-pad repeat on until the keyboard grows a `Hold`.
+
+### How a menu item opens a scene
+
+`nodes::EditNameItem` is the port of `menu_item::EditName`, whose whole body is a `beginSession`
+override that calls `openUI(renameUI)`. `CustomItem::on_focus` *is* `beginSession`, but it returns
+`void` — and must, because it is also reached from `retarget()` and `restore_state()`, neither of
+which has a `Result` to put an `Action` in. So the item writes the request into
+`MenuState::pending_scene` and `MenuScene::after_render` — the first hook after `enter_leaf` that
+does have a `Result` — drains it into an `Action::Kind::Push`. It sets `MenuState::go_up_on_resume`
+at the same moment, which is legacy's `soundEditor.shouldGoUpOneLevelOnBegin`
+(`edit_name.cpp:50`, read by `SoundEditor::focusRegained`, `sound_editor.cpp:280-283`): without it,
+closing the pushed scene would land back on the item and `on_focus` would open it again.
+
+This is the pattern for every other bespoke item that opens a UI (the file selector, the sample
+marker editor, the loop points, the DX browser, the audio recorder) — all five set the same legacy
+flag beside the same `openUI` call.
+
 ## E2+ roadmap
 
 E1 ships the menu tree, its interpreter (`MenuScene`), and the ten root tables — the rest of spec E
@@ -307,5 +346,7 @@ left in the tree (E2 task 2 closed one general prerequisite for those -- `Kind::
 input to `CustomItem::handle`, ahead of the scene's own button handling -- and gave two of the
 placeholders, `firmware_version`/`battery_level`, their own finished `CustomItem`s (reproducing
 `battery::Level`'s charging heuristic with `mutable` state on the item, the way legacy keeps it on
-the menu item instance); the other ~55 still point at `nodes::kPending`). See the design spec's
+the menu item instance); E2 task 5 gave the three name editors theirs, `nodes::EditNameItem`, which
+opens `rename::RenameScene` — the port of legacy's five-class `gui/ui/rename/` directory — through
+`MenuState::pending_scene`; the other 56 still point at `nodes::kPending`). See the design spec's
 "Amendments during implementation" section for the full, cited account of each.

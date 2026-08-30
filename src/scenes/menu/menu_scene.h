@@ -165,6 +165,31 @@ struct MenuState {
 	bool range_picker_pending = false;
 	/// The node that would have been entered once a range is chosen.
 	const Node* pending_after_range = nullptr;
+
+	/// @brief A scene a focused `CustomItem` asked the shell to push, or `SceneKind::Null` for
+	///        none.
+	///
+	/// The port of the `openUI(...)` call every legacy bespoke item makes from its own
+	/// `beginSession` (`gui/menu_item/edit_name.cpp:54`, `file_selector.cpp`, `loop_point.cpp`,
+	/// `sample_marker_editor.cpp`, `dx/browse.cpp`, `osc/audio_recorder.h`). `CustomItem::on_focus`
+	/// IS `beginSession` (`node.h`) but returns `void` -- and it has to, because it is reached from
+	/// `retarget()` and `restore_state()` as well as from `after_render`, neither of which has a
+	/// `Result` to put an `Action` in. So the item writes its request here and `after_render`, which
+	/// does have one, drains it into a `Push`.
+	///
+	/// @note Written by a `CustomItem`, read and cleared by `MenuScene::after_render`, and dropped
+	///       by `retarget` along with the rest of the per-visit state.
+	deluge::ui::shell::SceneId pending_scene{};
+
+	/// @brief Step up one level the next time this scene resumes -- legacy's
+	///        `SoundEditor::shouldGoUpOneLevelOnBegin` (`gui/ui/sound_editor.h:113`).
+	///
+	/// Set when `pending_scene` is pushed, exactly where legacy sets the flag (beside its own
+	/// `openUI`), and read in `on_resume`, exactly where legacy reads it
+	/// (`SoundEditor::focusRegained`, `sound_editor.cpp:280-283`). Without it, closing the pushed
+	/// scene would land back on the item that opened it and `on_focus` would open it again on the
+	/// next descent -- which is precisely why legacy has the flag.
+	bool go_up_on_resume = false;
 };
 
 /// @brief What survives a `replace_root`.
