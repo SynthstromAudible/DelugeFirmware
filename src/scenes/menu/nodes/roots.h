@@ -77,9 +77,11 @@
 ///           `MenuAction` through `MenuState::pending_action`, the verb counterpart of
 ///           `pending_scene` -- see `scenes/menu/action.h`. The action is *filed*, not performed:
 ///           performing it is the wiring plan's.)
-///         * `audio_source_selector` / `specific_output_selector` -- a context menu and a
-///           `drawPixelsForOled`-driven output picker (`audio_clip/audio_source_selector.h:22-27`,
-///           `specific_output_source_selector.h:21-45`).
+///         * (`audio_source_selector` is no longer one -- task 11b. It is a
+///           `nodes::ContextMenuItem` on `context_menu::DescriptorId::AudioSource`, the sixth
+///           descriptor, which is what the three `Descriptor` hooks task 6 anticipated were for.)
+///         * `specific_output_selector` -- a `drawPixelsForOled`-driven output picker
+///           (`audio_clip/specific_output_source_selector.h:21-45`).
 ///         * `audio_clip_waveform` -- the marker editor (`audio_clip/sample_marker_editor.h:22`).
 ///         * (`perform_editor` is no longer one -- task 11b. `nodes::PerformEditorItem` renders the
 ///           three-option list and files `MenuAction::OpenPerformanceView`; the mode it shows is
@@ -97,7 +99,8 @@
 ///       whole tree and inert), so retiring a placeholder moves no ratchet.
 
 #include "scenes/menu/node.h"
-#include "scenes/menu/nodes/actions.h" // the five action items (task 11b)
+#include "scenes/menu/nodes/actions.h"            // the five action items (task 11b)
+#include "scenes/menu/nodes/context_menu_items.h" // kAudioSourceItem (task 11b)
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/edit_name.h" // kEditDrumName
 #include "scenes/menu/nodes/scales.h"    // kSongActiveScalesItem (task 11b)
@@ -418,7 +421,7 @@ inline constexpr Node set_clip_length =
 inline constexpr const Node* kAudioClipActionsChildren[] = {&edit_name, &set_clip_length};
 inline constexpr Node audio_clip_actions = submenu(sid(String::STRING_FOR_ACTIONS), kAudioClipActionsChildren);
 
-inline constexpr Node audio_source_selector = custom(sid(String::STRING_FOR_AUDIO_SOURCE), &kPending); // E2
+inline constexpr Node audio_source_selector = custom(sid(String::STRING_FOR_AUDIO_SOURCE), &kAudioSourceItem);
 inline constexpr Node specific_output_selector =
     custom(sid(String::STRING_FOR_TRACK), &kPending, relevance::audio_source_is_specific);       // E2
 inline constexpr Node audio_clip_waveform = custom(sid(String::STRING_FOR_WAVEFORM), &kPending); // E2

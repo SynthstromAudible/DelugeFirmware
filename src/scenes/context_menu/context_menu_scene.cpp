@@ -35,12 +35,21 @@
 #include "gui/l10n/strings.h"
 #include "io/midi/midi_device_manager.h"
 #include "io/midi/midi_follow.h"
+#include "model/output.h"
 #include "model/settings/runtime_feature_settings.h"
+#include "model/song/song.h"
+#include "processing/audio_output.h"
 #include "storage/flash_storage.h"
 
 #include <algorithm>
 #include <array>
 #include <string_view>
+
+// `Song::setupDefault`-adjacent song-wide default the audio-source picker writes on every turn
+// (`gui/context_menu/audio_input_selector.cpp:72`, `:239`; defined at `model/song/song.cpp:4896`).
+// Declared bare at the global scope where it is defined -- legacy's own spelling, and the precedent
+// `menu/nodes/settings.cpp` sets for `PadLEDs::flashCursor` and `jcong`.
+extern AudioInputChannel defaultAudioOutputInputChannel;
 
 namespace deluge::scenes::context_menu {
 
@@ -95,14 +104,208 @@ bool accept_reset_all(const menu::MenuContext&, uint8_t) {
 	return false;
 }
 
+// ---------------------------------------------------------------------------------------------
+// The sixth descriptor: `AudioInputSelector` (`gui/context_menu/audio_input_selector.{h,cpp}`).
+//
+// This is the one that made `Descriptor` grow. Legacy's class is not a confirmation dialog: it is a
+// *live* picker whose every turn writes the model, whose cursor opens on the current setting, and
+// which draws a line of its own under the options. All three of those are hooks below.
+
+/// `AudioInputSelector::Value` (`audio_input_selector.cpp:76-86`) -- the option *order*, which is
+/// what makes the cursor a value. Declared here rather than reusing `AudioInputChannel`, because
+/// the two are deliberately different orderings and legacy keeps its own enum for exactly that.
+enum class AudioSourceOption : uint8_t {
+	Off = 0,
+	Left,
+	Right,
+	Stereo,
+	Balanced,
+	Master,
+	Output,
+	Track,
+	Count,
+};
+
+/// `AudioInputSelector::getOptions()` (`:123-131`), in its own order. Eight fixed strings: there is
+/// no `isCurrentOptionAvailable()` override on this class, so nothing here is dynamic.
+constexpr uint16_t kAudioSourceOptions[] = {
+    sid(String::STRING_FOR_DISABLED),     sid(String::STRING_FOR_LEFT_INPUT),     sid(String::STRING_FOR_RIGHT_INPUT),
+    sid(String::STRING_FOR_STEREO_INPUT), sid(String::STRING_FOR_BALANCED_INPUT), sid(String::STRING_FOR_MIX_PRE_FX),
+    sid(String::STRING_FOR_MIX_POST_FX),  sid(String::STRING_FOR_TRACK),
+};
+static_assert(std::size(kAudioSourceOptions) == static_cast<size_t>(AudioSourceOption::Count),
+              "the option list and the Value enum are the same list twice; a row added to one "
+              "without the other silently shifts every channel mapping below");
+
+/// @brief The `AudioOutput` this menu edits -- legacy's `audioInputSelector.audioOutput`, which
+///        `AudioSourceSelector::selectButtonPress` sets from `getCurrentOutput()`
+///        (`gui/menu_item/audio_clip/audio_source_selector.h:28`).
+///
+/// `MenuContext::output` is that same output; the cast is guarded by `is_audio_clip`, which is what
+/// `context_for` resolved from the clip's type -- legacy's own cast is unguarded.
+AudioOutput* audio_output_of(const menu::MenuContext& ctx) {
+	if (!ctx.is_audio_clip || ctx.output == nullptr) {
+		return nullptr;
+	}
+	return static_cast<AudioOutput*>(ctx.output);
+}
+
+/// `getRecordableOutputInSong` (`audio_input_selector.cpp:92-104`): the saved source, but only if it
+/// is still both recordable and in the song. Transcribed -- it is a file-local static there.
+Output* recordable_output_in_song(const menu::MenuContext& ctx, AudioOutput* audio_output, Output* selected) {
+	if (audio_output == nullptr || selected == nullptr || !audio_output->canRecordFrom(selected)
+	    || ctx.song == nullptr) {
+		return nullptr;
+	}
+	for (Output* output = ctx.song->firstOutput; output != nullptr; output = output->next) {
+		if (output == selected) {
+			return selected;
+		}
+	}
+	return nullptr;
+}
+
+/// `getFirstRecordableOutput` (`:107-115`).
+Output* first_recordable_output(const menu::MenuContext& ctx, AudioOutput* audio_output) {
+	if (audio_output == nullptr || ctx.song == nullptr) {
+		return nullptr;
+	}
+	for (Output* output = ctx.song->firstOutput; output != nullptr; output = output->next) {
+		if (audio_output->canRecordFrom(output)) {
+			return output;
+		}
+	}
+	return nullptr;
+}
+
+uint8_t initial_audio_source(const menu::MenuContext& ctx) {
+	// `AudioInputSelector::setupAndCheckAvailability` (`:133-173`), switch arm for switch arm. Its
+	// `default:` is `Value::OFF`, which also covers a null output here.
+	const AudioOutput* audio_output = audio_output_of(ctx);
+	if (audio_output == nullptr) {
+		return static_cast<uint8_t>(AudioSourceOption::Off);
+	}
+	switch (audio_output->inputChannel) {
+	case AudioInputChannel::LEFT:
+		return static_cast<uint8_t>(AudioSourceOption::Left);
+	case AudioInputChannel::RIGHT:
+		return static_cast<uint8_t>(AudioSourceOption::Right);
+	case AudioInputChannel::STEREO:
+		return static_cast<uint8_t>(AudioSourceOption::Stereo);
+	case AudioInputChannel::BALANCED:
+		return static_cast<uint8_t>(AudioSourceOption::Balanced);
+	case AudioInputChannel::MIX:
+		return static_cast<uint8_t>(AudioSourceOption::Master);
+	case AudioInputChannel::OUTPUT:
+		return static_cast<uint8_t>(AudioSourceOption::Output);
+	case AudioInputChannel::SPECIFIC_OUTPUT:
+		return static_cast<uint8_t>(AudioSourceOption::Track);
+	default:
+		return static_cast<uint8_t>(AudioSourceOption::Off);
+	}
+}
+
+void on_move_audio_source(const menu::MenuContext& ctx, Selection& selection) {
+	// `AudioInputSelector::selectEncoderAction`'s tail (`:186-241`), after the base class has already
+	// moved the cursor (the scene does that before calling this, exactly as legacy calls
+	// `ContextMenu::selectEncoderAction` first).
+	//
+	// Not ported: the `if (currentUIMode != 0u) return;` guard at `:181-183`. `currentUIMode` is a
+	// legacy UI global this layer may not read, and the shell's own input routing is what stands in
+	// for it -- a scene below a modal overlay is not handed the turn at all.
+	AudioOutput* audio_output = audio_output_of(ctx);
+	if (audio_output == nullptr) {
+		return;
+	}
+	const auto option = static_cast<AudioSourceOption>(selection.option);
+
+	if (option == AudioSourceOption::Track) {
+		// `:188-191` -- "Keep Track on the first visible row so the selected track name has room
+		// below it", which is what stops the footer from landing on a drawn option row.
+		selection.scroll = selection.option;
+	}
+
+	// `:195-197` -- leaving SPECIFIC_OUTPUT clears the recording-from state, so the track that was
+	// being recorded is not left silently muted.
+	if (audio_output->inputChannel == AudioInputChannel::SPECIFIC_OUTPUT && option != AudioSourceOption::Track) {
+		audio_output->clearRecordingFrom();
+	}
+
+	switch (option) {
+	case AudioSourceOption::Left:
+		audio_output->inputChannel = AudioInputChannel::LEFT;
+		break;
+	case AudioSourceOption::Right:
+		audio_output->inputChannel = AudioInputChannel::RIGHT;
+		break;
+	case AudioSourceOption::Stereo:
+		audio_output->inputChannel = AudioInputChannel::STEREO;
+		break;
+	case AudioSourceOption::Balanced:
+		audio_output->inputChannel = AudioInputChannel::BALANCED;
+		break;
+	case AudioSourceOption::Master:
+		audio_output->inputChannel = AudioInputChannel::MIX;
+		break;
+	case AudioSourceOption::Output:
+		audio_output->inputChannel = AudioInputChannel::OUTPUT;
+		break;
+	case AudioSourceOption::Track: {
+		// `:224-233` -- keep the chosen source if it is still usable, otherwise take the first one
+		// that is; `setOutputRecordingFrom(nullptr)` is the "none available" answer.
+		audio_output->inputChannel = AudioInputChannel::SPECIFIC_OUTPUT;
+		Output* record_from = recordable_output_in_song(ctx, audio_output, audio_output->getOutputRecordingFrom());
+		if (record_from == nullptr) {
+			record_from = first_recordable_output(ctx, audio_output);
+		}
+		audio_output->setOutputRecordingFrom(record_from);
+		break;
+	}
+	case AudioSourceOption::Off:
+	case AudioSourceOption::Count:
+	default:
+		audio_output->inputChannel = AudioInputChannel::NONE;
+		break;
+	}
+
+	// `:239` -- the song-wide default follows whatever was last picked here.
+	defaultAudioOutputInputChannel = audio_output->inputChannel;
+}
+
+std::string_view footer_audio_source(const menu::MenuContext& ctx, std::span<char> /*scratch*/) {
+	// `AudioInputSelector::renderOLED`'s tail (`:271-282`): nothing at all unless the channel is
+	// SPECIFIC_OUTPUT, then the source's name, or the literal "No track" when there is none. Both
+	// strings outlive the render -- `Output::name` is a model member and the literal is static -- so
+	// the scratch is unused, which is why the parameter is unnamed.
+	const AudioOutput* audio_output = audio_output_of(ctx);
+	if (audio_output == nullptr || audio_output->inputChannel != AudioInputChannel::SPECIFIC_OUTPUT) {
+		return {};
+	}
+	Output* record_from = recordable_output_in_song(ctx, const_cast<AudioOutput*>(audio_output),
+	                                                const_cast<AudioOutput*>(audio_output)->getOutputRecordingFrom());
+	// Legacy's own literal, not an l10n id: `audio_input_selector.cpp:277` hard-codes "No track", as
+	// it does the two `popupTextTemporary` strings in `padAction`.
+	return record_from != nullptr ? std::string_view{record_from->name.c_str()} : std::string_view{"No track"};
+}
+
+/// `AudioInputSelector` has no `acceptCurrentOption()` override, so it takes the base's
+/// `return false` (`gui/context_menu/context_menu.h:38`) -- a select press closes the menu, and the
+/// value has already been committed by `on_move`.
+bool accept_audio_source(const menu::MenuContext&, uint8_t) {
+	return false;
+}
+
 constexpr std::array<Descriptor, static_cast<size_t>(DescriptorId::Count)> kDescriptors{{
-    // All five share `ResetSettings`'s own heading and option list; only the action differs, which
-    // is exactly what `ResetSettingsAction` selects in legacy.
+    // All five resets share `ResetSettings`'s own heading and option list; only the action differs,
+    // which is exactly what `ResetSettingsAction` selects in legacy. None of them uses the three
+    // hooks the sixth needed, so all five still carry three fields.
     {sid(String::STRING_FOR_ARE_YOU_SURE_QMARK), kConfirmOptions, accept_reset_flash},
     {sid(String::STRING_FOR_ARE_YOU_SURE_QMARK), kConfirmOptions, accept_reset_community_features},
     {sid(String::STRING_FOR_ARE_YOU_SURE_QMARK), kConfirmOptions, accept_reset_midi_follow},
     {sid(String::STRING_FOR_ARE_YOU_SURE_QMARK), kConfirmOptions, accept_reset_midi_devices},
     {sid(String::STRING_FOR_ARE_YOU_SURE_QMARK), kConfirmOptions, accept_reset_all},
+    {sid(String::STRING_FOR_AUDIO_SOURCE), kAudioSourceOptions, accept_audio_source, initial_audio_source,
+     on_move_audio_source, footer_audio_source},
 }};
 
 // Fix round 1, Minor 1. `render_oled` materialises `min(options.size(), kMaxOptions)` views while
@@ -172,11 +375,23 @@ bool ContextMenuScene::on_enter(const SceneId& id) {
 
 	// `ContextMenu::setupAndCheckAvailability`: walk to the first available option, seed
 	// `scrollPos` from it, and refuse to open when there is none. With availability expressed by
-	// compaction (see `Descriptor::options`) the walk is "option 0, if there is one".
-	if (descriptor(id_).options.empty()) {
+	// compaction (see `Descriptor::options`) the walk is "option 0, if there is one" -- unless the
+	// descriptor replaces it outright, which is what `initial_option` is
+	// (`AudioInputSelector::setupAndCheckAvailability`, `audio_input_selector.cpp:169-171`, sets
+	// `currentOption` *and* `scrollPos` from the current channel).
+	const Descriptor& d = descriptor(id_);
+	if (d.options.empty()) {
 		return false;
 	}
 	sel_ = Selection{};
+	if (d.initial_option != nullptr) {
+		const auto count = static_cast<uint8_t>(d.options.size());
+		const uint8_t wanted = d.initial_option(ctx_);
+		// Clamped, not trusted: a hook that answers past the end would put the cursor on a row
+		// `option_window` never draws and `accept` would then act on it.
+		sel_.option = wanted < count ? wanted : static_cast<uint8_t>(count - 1);
+		sel_.scroll = sel_.option;
+	}
 	scroll_ = deluge::ui::ScrollText{};
 	last_render_ms_ = 0;
 	return true;
@@ -207,9 +422,16 @@ void ContextMenuScene::render_oled(SurfaceRole role, deluge::ui::oled::OledFrame
 		options[i] = deluge_profile().text_or_digits(d.options[i], option_scratch[i]);
 	}
 
+	// `AudioInputSelector::renderOLED` calls the base and then draws one more line
+	// (`audio_input_selector.cpp:268-283`); `option_window` takes it as a parameter so the drawing
+	// stays in the toolkit and this scene keeps its no-frame-primitives rule.
+	std::array<char, kFooterScratch> footer_scratch{};
+	const std::string_view footer =
+	    d.footer != nullptr ? d.footer(ctx_, std::span{footer_scratch}) : std::string_view{};
+
 	deluge::ui::oled::option_window(f, deluge_profile().text_or_digits(d.title, heading_scratch),
 	                                std::span<const std::string_view>{options.data(), n}, sel_.option, sel_.scroll,
-	                                scroll_);
+	                                scroll_, /*allow_motion=*/true, footer);
 }
 
 void ContextMenuScene::leds(deluge::ui::LedFrame& f) {
@@ -256,7 +478,17 @@ Result ContextMenuScene::handle(const UiEvent& event, const UiContext& ctx) {
 			// render-only (it claims nothing), so the turn arrives here rather than being consumed
 			// during the render pass the way `list` consumes it for `MenuScene`.
 			const Selection before = sel_;
-			sel_ = step(sel_, event.delta, static_cast<uint8_t>(descriptor(id_).options.size()));
+			const Descriptor& d = descriptor(id_);
+			sel_ = step(sel_, event.delta, static_cast<uint8_t>(d.options.size()));
+			if (d.on_move != nullptr) {
+				// **Unconditionally, even when `step` refused to move.**
+				// `AudioInputSelector::selectEncoderAction` (`audio_input_selector.cpp:180-242`) calls
+				// the base and then runs its whole commit block whatever the base did, so a turn off
+				// the end of the list re-commits the option already selected. Harmless (it writes the
+				// same channel back) but it is legacy's shape, and guarding it here would be a
+				// behaviour change dressed up as an optimisation.
+				d.on_move(ctx_, sel_);
+			}
 			Result r;
 			r.handled = true;
 			if (sel_ != before) {

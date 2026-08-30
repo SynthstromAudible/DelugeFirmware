@@ -185,8 +185,20 @@ inline constexpr int32_t kOptionWindowRows = 2;
 /// @param label        Side-scroller state for the focused row (`OLED::setupSideScroller`), owned
 ///                     by the caller across frames.
 /// @param allow_motion Whether that scroller may advance this frame.
+/// @param footer       An extra line under the option rows, or empty for none.
+///                     `AudioInputSelector::renderOLED` (`gui/context_menu/audio_input_selector.cpp:268-283`)
+///                     is the one legacy subclass that draws past the base renderer, and this is
+///                     that call: `drawString(trackName, 22, windowMinY + 20 + kTextSpacingY,
+///                     kTextSpacingX, kTextSpacingY, 0, OLED_MAIN_WIDTH_PIXELS - 26)`. Its row is
+///                     two pixels below the second option row's, and it is *not* cleared first --
+///                     legacy inks it straight over whatever the base drew there. That only looks
+///                     safe because the one descriptor that uses it forces its own option onto the
+///                     first row whenever the footer is showing (`selectEncoderAction`'s
+///                     "Keep Track on the first visible row so the selected track name has room
+///                     below it", `:188-191`), so the second row is empty. Reproduced rather than
+///                     tidied: a clear here would erase a row legacy leaves alone.
 void option_window(OledFrame& f, std::string_view heading, std::span<const std::string_view> options, int32_t selected,
-                   int32_t first, ScrollText& label, bool allow_motion = true);
+                   int32_t first, ScrollText& label, bool allow_motion = true, std::string_view footer = {});
 
 /// @brief A progress bar filling \p rect left to right at \p num / \p den.
 ///

@@ -659,7 +659,7 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 		distinct_items = items.size();
 		expect(custom_nodes).to_equal(menu::kShippedCustomNodes);
 		expect(custom_nodes <= menu::kMaxCustomNodes).to_be_true();
-		// Seventeen of the fifty-two still share the one placeholder. The real, distinct items are
+		// Sixteen of the fifty-two still share the one placeholder. The real, distinct items are
 		// `battery_level` and `firmware_version` (E2 task 2 fix round 1), E2 task 5's three
 		// `EditNameItem`s -- one per `rename::TargetId`, since the target is the item's only state
 		// (`edit_name.h`) -- E2 task 7's five `ResetItem`s, one per `context_menu::DescriptorId`
@@ -686,13 +686,16 @@ describe shortcuts_validation("scenes::menu shortcut tables: validation", $ {
 		// `ActiveScalesItem`s -- one per `ScaleSet`, because the bitset an item edits is its only
 		// state (`nodes/scales.h`) -- so **forty-one**. And it takes three nodes *out* of the escape
 		// hatch: `default_tempo`, `default_swing_amount` and `default_key` become `Kind::Range`
-		// (`node.h`), so the node count falls 55 -> **52** while the instance count rises.
+		// (`node.h`), so the node count falls 55 -> **52** while the instance count rises. Finally it
+		// retires `audio_source_selector` into a sixth `ContextMenuItem` -- the class the five
+		// `ResetItem`s became when a second kind of context-menu opener appeared
+		// (`nodes/context_menu_items.h`) -- so **forty-two**.
 		//
 		// Twelve instances rather than one parameterised by the node, because the command a node
 		// binds has to be a property of the item: `CustomItem::learn_*` is handed `MenuState`, not
 		// its own `Node`, so an item that shared one instance across the twelve could not tell which
 		// of the twelve slots it was being asked to learn onto.
-		expect(distinct_items).to_equal(size_t(41));
+		expect(distinct_items).to_equal(size_t(42));
 
 		const auto issues = menu::validate_tree(nodes::kAllRoots, {}, {}, {},
 		                                        menu::ValidateOptions{.allow_placeholder_custom = true});

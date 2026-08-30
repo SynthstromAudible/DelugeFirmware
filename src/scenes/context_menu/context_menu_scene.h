@@ -23,42 +23,70 @@
 #include "ui/core/state.h"
 #include "ui/grid/effects.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <optional>
 #include <span>
+#include <string_view>
 
 namespace deluge::scenes::context_menu {
 
 /// @brief Which context menu `SceneId::arg` names.
 ///
-/// **Five, not legacy's dozen.** These are the five `reset_settings::Reset` items
-/// (`gui/menu_item/reset_settings/reset.h:29-33`), the only openers of a legacy context menu that
-/// any node in the ported menu tree reaches (`nodes::reset_flash` .. `nodes::reset_all`,
-/// `scenes/menu/nodes/settings.h`). Every other legacy subclass is opened from a view or a browser
-/// this plan does not port -- `clearSong` from `view.cpp:290`, `clipSettings` / `newClipType` /
-/// `audioInputSelector` from `session_view.cpp`, `overwriteFile` / `saveSongOrInstrument` /
-/// `deleteFile` / `loadInstrumentPreset` from `gui/ui/save/` and `gui/ui/browser/`,
-/// `cancelStemExport` from the three view files, `midiLearnMode` and `configureSongMacros` from
-/// menu items that are still `Kind::Custom` placeholders -- so adding an entry for one now would
-/// be an untested, unreachable code path.
+/// **Six, not legacy's dozen.** These are every legacy context menu a node in the ported menu tree
+/// opens: the five `reset_settings::Reset` items (`gui/menu_item/reset_settings/reset.h:29-33`,
+/// `nodes::reset_flash` .. `nodes::reset_all`) and `audio_clip::AudioSourceSelector`
+/// (`nodes::audio_source_selector`). Every other legacy subclass is opened from a view or a browser
+/// this plan does not port -- `clearSong` from `view.cpp:290`, `clipSettings` / `newClipType` from
+/// `session_view.cpp`, `overwriteFile` / `saveSongOrInstrument` / `deleteFile` /
+/// `loadInstrumentPreset` from `gui/ui/save/` and `gui/ui/browser/`, `cancelStemExport` from the
+/// three view files -- so adding an entry for one now would be an untested, unreachable code path.
+/// `midiLearnMode` and `configureSongMacros` *are* opened from ported menu items, but through the
+/// action seam (`scenes/menu/action.h`) rather than from here: they are legacy `ContextMenu`
+/// subclasses this plan has not ported, and the wiring plan's dispatcher opens the legacy objects.
 ///
-/// @note **`audioInputSelector` is deliberately absent, and it does not fit `Descriptor` as it
-///       stands.** `AudioInputSelector` (`gui/context_menu/audio_input_selector.cpp`) overrides
-///       four more virtuals than the shape below has fields for: `selectEncoderAction` *commits on
-///       every turn* (it writes `audioOutput->inputChannel` and the recording source as the cursor
-///       moves, rather than on the accept button), `setupAndCheckAvailability` seeds the cursor
-///       from the current channel instead of from zero, `renderOLED` appends a footer line naming
-///       the selected track, and `padAction`/`getGreyoutColsAndRows` are both about the session
-///       grid underneath. Whoever ports it adds a `bool (*on_move)(...)`, a
-///       `uint8_t (*initial_option)(...)` and a footer hook here, rather than discovering
-///       mid-port that the descriptor cannot say any of it.
+/// @note **`audioInputSelector` was deliberately absent and is now the sixth entry (E2 task 11b).**
+///       Task 6 recorded the three hooks it would need before it could fit -- an `on_move`, an
+///       `initial_option` and a footer -- and those are exactly the three `Descriptor` grew; all
+///       three default to null, so the five reset descriptors are unchanged, literally as well as
+///       behaviourally (their aggregate initialisers still carry three fields).
+///
+///       Two corrections to that note, found by porting it:
+///
+///         * It also predicted a dynamic `options_now` hook, "since which inputs are available is a
+///           runtime question". **It is not.** `AudioInputSelector::getOptions()`
+///           (`audio_input_selector.cpp:123-131`) returns the same eight strings every time and the
+///           class has no `isCurrentOptionAvailable()` override at all. No hook was added, and
+///           `Descriptor::options`' note on how a dynamic list *would* be spelled still stands
+///           unused.
+///         * `padAction` and `getGreyoutColsAndRows` are not descriptor business and no hook is
+///           offered for them. `getGreyoutColsAndRows` calls
+///           `getRootUI()->getGreyedOutRowsNotRepresentingOutput(audioOutput)` (`:175-178`) and
+///           `padAction` reads `sessionView.getOutputFromPad` (`:245-266`); both are the session
+///           view's, which this plan does not port. The port greys as the base class does and a pad
+///           press closes the menu, which is `ContextMenu`'s own behaviour -- the *record-from-this-
+///           clip's-pad* gesture is the piece that is missing, and it is named here rather than
+///           half-built.
 enum class DescriptorId : uint16_t {
 	ResetFlash = 0,
 	ResetCommunityFeatures,
 	ResetMidiFollow,
 	ResetMidiDevices,
 	ResetAll,
+	/// `context_menu::audioInputSelector` (`gui/context_menu/audio_input_selector.{h,cpp}`), opened
+	/// by `audio_clip::AudioSourceSelector::selectButtonPress`
+	/// (`gui/menu_item/audio_clip/audio_source_selector.h:27-32`) -- the sixth, added by E2 task 11b
+	/// together with the three `Descriptor` hooks the note below said it would need.
+	AudioSource,
 	Count,
+};
+
+/// @brief The cursor and the scroll window, as one value: legacy's `currentOption` / `scrollPos`
+///        pair (`context_menu.h:47,51`).
+struct Selection {
+	uint8_t option = 0;
+	uint8_t scroll = 0;
+	bool operator==(const Selection&) const = default;
 };
 
 /// @brief What one context menu shows and does -- one legacy `ContextMenu` subclass, as data.
@@ -92,7 +120,54 @@ struct Descriptor {
 	///       and `NewClipType` switch on the option, and all of them address a model object the
 	///       `MenuContext` carries.
 	bool (*accept)(const menu::MenuContext&, uint8_t option);
+
+	/// @brief Which option the menu opens on, or null for legacy's own "the first available one".
+	///
+	/// `ContextMenu::setupAndCheckAvailability` walks to the first available option and seeds
+	/// `scrollPos` from it; with availability expressed by compaction that is option 0, which is what
+	/// a null hook means. `AudioInputSelector::setupAndCheckAvailability`
+	/// (`gui/context_menu/audio_input_selector.cpp:133-173`) replaces the walk outright: it maps
+	/// `audioOutput->inputChannel` onto its own `Value` enum and puts both `currentOption` and
+	/// `scrollPos` there.
+	///
+	/// @return The option to open on. Clamped into the list by the scene, so a hook cannot open the
+	///         menu on a row that is not there.
+	uint8_t (*initial_option)(const menu::MenuContext&) = nullptr;
+
+	/// @brief Commit-on-turn, or null for a menu that commits only when the accept button is pressed.
+	///
+	/// `AudioInputSelector::selectEncoderAction` (`:180-242`) calls the base and then *writes the
+	/// model* -- `audioOutput->inputChannel`, the recording source, and the
+	/// `defaultAudioOutputInputChannel` global -- so the audio input follows the cursor and backing
+	/// out with BACK leaves the last row you passed through selected. That is legacy's behaviour, not
+	/// an accident, and it is the reason this is a hook rather than something the accept path could
+	/// cover.
+	///
+	/// Takes the `Selection` by reference because legacy's override writes `scrollPos` as well
+	/// (`:188-191`: "Keep Track on the first visible row so the selected track name has room below
+	/// it").
+	void (*on_move)(const menu::MenuContext&, Selection& selection) = nullptr;
+
+	/// @brief An extra line under the option rows, or null for none.
+	///
+	/// `AudioInputSelector::renderOLED` (`:268-283`) draws the base window and then a line naming the
+	/// track it is recording from -- only while the channel is `SPECIFIC_OUTPUT`, which is why this
+	/// returns a view rather than being a plain string id: the text is a model object's name, and
+	/// whether there is any at all is a runtime question.
+	///
+	/// @param scratch Storage the returned view may point into; it outlives the render call. May be
+	///                ignored by a hook returning a static or model-owned string.
+	/// @return The footer text, or an empty view for none.
+	std::string_view (*footer)(const menu::MenuContext&, std::span<char> scratch) = nullptr;
 };
+
+/// @brief The scratch a `Descriptor::footer` hook is handed.
+///
+/// Legacy's own footer is `Output::name.c_str()` or the literal "No track"
+/// (`audio_input_selector.cpp:276-277`), neither of which needs scratch at all; the buffer is here
+/// so a later descriptor can format one without this layer allocating. 48 is `notify::Notice`'s own
+/// text slot, the widest single line anything in this stack carries.
+inline constexpr size_t kFooterScratch = 48;
 
 /// @brief The table. Indexed by `DescriptorId`; `DescriptorId::Count` or past it returns entry 0.
 /// @param id Which context menu.
@@ -105,14 +180,6 @@ const Descriptor& descriptor(DescriptorId id);
 /// -- so the fixed arrays `render_oled` resolves the l10n ids into never truncate a descriptor a
 /// later task adds. Nothing here allocates, so the ceiling has to be a number.
 inline constexpr size_t kMaxOptions = 8;
-
-/// @brief The cursor and the scroll window, as one value: legacy's `currentOption` / `scrollPos`
-///        pair (`context_menu.h:47,51`).
-struct Selection {
-	uint8_t option = 0;
-	uint8_t scroll = 0;
-	bool operator==(const Selection&) const = default;
-};
 
 /// @brief `ContextMenu::selectEncoderAction` (`context_menu.cpp`), as a pure function.
 ///

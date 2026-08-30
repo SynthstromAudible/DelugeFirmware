@@ -26,7 +26,6 @@
 
 #include "scenes/menu/nodes/settings.h"
 
-#include "scenes/context_menu/context_menu_scene.h" // ResetItem::on_focus opens this
 #include "scenes/l10n_bridge.h"
 #include "scenes/menu/context.h"
 #include "scenes/menu/menu_scene.h" // MenuState, kMenuDepth -- for the CustomItems below
@@ -1161,49 +1160,6 @@ int32_t get_default_key_upper(const MenuContext&) {
 }
 void set_default_key_upper(const MenuContext&, int32_t value) {
 	FlashStorage::defaultRanges[FlashStorage::DEFAULT_RANGE_KEY].upper = value;
-}
-
-// ---------------------------------------------------------------------------------------------
-// 1. Actions (`ResetItem`, see `settings.h`)
-
-// `settings.h` constructs the five `ResetItem`s from raw `uint16_t` literals because including
-// `context_menu_scene.h` there would pull the scene into every consumer of this header. Those
-// literals are only correct while `DescriptorId` keeps its current numbering, so the numbering is
-// pinned here, in the one translation unit that already sees both. Reorder the enum and this
-// fires, instead of five menu items silently resetting the wrong subsystem.
-namespace {
-namespace cm = deluge::scenes::context_menu;
-static_assert(static_cast<uint16_t>(cm::DescriptorId::ResetFlash) == 0);
-static_assert(static_cast<uint16_t>(cm::DescriptorId::ResetCommunityFeatures) == 1);
-static_assert(static_cast<uint16_t>(cm::DescriptorId::ResetMidiFollow) == 2);
-static_assert(static_cast<uint16_t>(cm::DescriptorId::ResetMidiDevices) == 3);
-static_assert(static_cast<uint16_t>(cm::DescriptorId::ResetAll) == 4);
-} // namespace
-
-void ResetItem::render(deluge::ui::oled::OledFrame& f, const MenuContext&, MenuState& state) const {
-	// Drawn for at most the one tick between `on_focus` asking for the push and the router
-	// applying it -- `EditNameItem::render`'s own reasoning (`nodes/edit_name.cpp`). Legacy never
-	// draws this item at all: `Reset::selectButtonPress` opens the context menu directly and
-	// returns `NO_NAVIGATION` before `SoundEditor` gets to render anything.
-	draw_title_for(f, state);
-}
-
-deluge::ui::shell::Result ResetItem::handle(const deluge::ui::shell::UiEvent&, const deluge::ui::shell::UiContext&,
-                                            const MenuContext&, MenuState&) const {
-	// The context menu owns every input while it is up, and this item is only ever focused for the
-	// tick before it appears. Nothing to consume.
-	return {};
-}
-
-void ResetItem::on_focus(const MenuContext& ctx, MenuState& state) const {
-	// `Reset::selectButtonPress` (`gui/menu_item/reset_settings/reset.h:29-33`):
-	// `context_menu::resetSettings.setAction(action_)` then `openUI(&context_menu::resetSettings)`.
-	// `open()` points the ported context menu at this visit's `MenuContext` (unused by any of the
-	// five accept hooks, but required by `on_exit`'s fail-closed contract -- `context_menu_scene.h`);
-	// `descriptor_id_` is what used to be the `ResetSettingsAction` argument to `setAction`.
-	deluge::scenes::context_menu::context_menu_scene().open(ctx);
-	state.pending_scene =
-	    deluge::ui::shell::SceneId{deluge::scenes::context_menu::kContextMenuSceneKind, descriptor_id_};
 }
 
 // ---------------------------------------------------------------------------------------------

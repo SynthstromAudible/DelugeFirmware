@@ -72,7 +72,8 @@ namespace {
 /// @param invert  `FlashStorage::accessibilityMenuHighlighting != MenuHighlighting::NO_INVERSION`,
 ///                which is what `Canvas::menuHighlightingInverts` mirrors.
 void legacy_render_oled(Canvas& c, int32_t panel_w, int32_t panel_h, std::string_view title,
-                        std::span<const std::string_view> options, int32_t current, int32_t scroll, bool invert) {
+                        std::span<const std::string_view> options, int32_t current, int32_t scroll, bool invert,
+                        std::string_view footer = {}) {
 	const int32_t windowWidth = 100;
 	const int32_t windowHeight = 40;
 
@@ -109,6 +110,14 @@ void legacy_render_oled(Canvas& c, int32_t panel_w, int32_t panel_h, std::string
 		textPixelY += 9;
 		i++;
 		option++;
+	}
+
+	// `AudioInputSelector::renderOLED`'s tail (`gui/context_menu/audio_input_selector.cpp:279-282`),
+	// which runs *after* the base renderer and is the only legacy subclass that draws past it. Note
+	// the different right clip (`- 26`, not the rows' `- 27`) and the different left origin (22, the
+	// heading's, not the rows' `invertStartX + 1`).
+	if (!footer.empty()) {
+		c.draw_string(footer, 22, windowMinY + 20 + 9, 6, 9, 0, panel_w - 26);
 	}
 }
 
@@ -363,6 +372,49 @@ describe option_window_w("ui::oled::option_window", $ {
 			option_window(r.frame, kAreYouSure, three(), 2, 1, label);
 			expect_golden(self, "../ui/widgets/option_window_scrolled_64.pbm", r.pbm());
 		}
+	});
+
+	it("draws the footer where AudioInputSelector draws it, at both geometries", _ {
+		// The one legacy subclass that draws past the base renderer. Its row is
+		// `windowMinY + 20 + kTextSpacingY` -- **two pixels below** the second option row's
+		// `windowMinY + 18 + 9`, and drawn without clearing first, so the two would collide if a
+		// descriptor ever showed both. `AudioInputSelector` never does: it forces its own option onto
+		// the first row whenever the footer is up. Asserted at both geometries because it is a row
+		// constant.
+		const std::string_view footer = "TRACK 1";
+		{
+			uitest::Rig48 r;
+			ScrollText sc;
+			option_window(r.frame, kAreYouSure, one(), 0, 0, sc, /*allow_motion=*/true, footer);
+			legacy_render_oled(r.reference, 128, 48, kAreYouSure, one(), 0, 0, /*invert=*/true, footer);
+			expect(below_bezel(r.pbm(), 5)).to_equal(below_bezel(r.reference_pbm(), 5));
+			// windowMinY = (48 - 40) >> 1 = 4, so the footer's own row is 4 + 20 + 9 = 33 and it inks
+			// from the heading's x (22) rather than the rows' 23.
+			bool any = false;
+			for (int x = 0; x < 128; x++) {
+				any = any || r.lit(x, 33 + 2);
+			}
+			expect(any).to_be_true();
+		}
+		{
+			uitest::Rig64 r;
+			ScrollText sc;
+			option_window(r.frame, kAreYouSure, one(), 0, 0, sc, /*allow_motion=*/true, footer);
+			legacy_render_oled(r.reference, 128, 64, kAreYouSure, one(), 0, 0, /*invert=*/true, footer);
+			expect(r.pbm()).to_equal(r.reference_pbm()); // no bezel on the 64-row panel
+		}
+	});
+
+	it("draws nothing extra when the footer is empty, which is every other descriptor", _ {
+		uitest::Rig48 plain;
+		ScrollText sc1;
+		option_window(plain.frame, kAreYouSure, one(), 0, 0, sc1);
+
+		uitest::Rig48 explicit_empty;
+		ScrollText sc2;
+		option_window(explicit_empty.frame, kAreYouSure, one(), 0, 0, sc2, /*allow_motion=*/true, {});
+
+		expect(explicit_empty.pbm()).to_equal(plain.pbm());
 	});
 });
 // clang-format on

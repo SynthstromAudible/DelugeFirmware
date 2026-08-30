@@ -110,6 +110,7 @@
 ///       repaint, not the setting; the byte each one stores is written identically.
 
 #include "scenes/menu/node.h"
+#include "scenes/menu/nodes/context_menu_items.h" // the five kReset*Item instances
 #include "scenes/menu/nodes/detail.h"
 #include "scenes/menu/nodes/dynamic.h"      // the CV/gate selectors and the MIDI device list
 #include "scenes/menu/nodes/midi_command.h" // the twelve `MidiCommandItem`s
@@ -385,39 +386,9 @@ void set_gate_off_time(const MenuContext& ctx, int32_t value);
 // ---------------------------------------------------------------------------------------------
 // 1. Actions
 
-/// @brief `reset_settings::Reset::selectButtonPress` (`gui/menu_item/reset_settings/reset.h:29-33`):
-///        opens `context_menu::resetSettings` with the item's own `ResetSettingsAction` and returns
-///        `NO_NAVIGATION` (legacy's own screen is the context menu, not a page of this item's own).
-///        The port of that is `CustomItem::on_focus` -- exactly `EditNameItem`'s shape
-///        (`nodes/edit_name.h`), a `MenuState::pending_scene` push rather than a direct scene call,
-///        because a `scenes/menu/` node may not touch `scenes/context_menu/`'s `Shell` stack itself.
-///
-/// @note Spelled with a plain `uint16_t` rather than `context_menu::DescriptorId`, for the same
-///       reason `EditNameItem::target_` is a `uint16_t` rather than a `rename::TargetId`: a
-///       `SceneId::arg` carries a `uint16_t`, and this header should not have to pull
-///       `scenes/context_menu/` in just to name five items.
-class ResetItem final : public CustomItem {
-public:
-	explicit ResetItem(uint16_t descriptor_id) : descriptor_id_{descriptor_id} {}
-
-	void render(deluge::ui::oled::OledFrame& f, const MenuContext& ctx, MenuState& state) const override;
-	deluge::ui::shell::Result handle(const deluge::ui::shell::UiEvent& event,
-	                                 const deluge::ui::shell::UiContext& ui_ctx, const MenuContext& ctx,
-	                                 MenuState& state) const override;
-	void on_focus(const MenuContext& ctx, MenuState& state) const override;
-
-private:
-	uint16_t descriptor_id_;
-};
-
-/// @name The five instances, one per `context_menu::DescriptorId` (`context_menu_scene.h`).
-/// @{
-inline const ResetItem kResetFlashItem{0};             ///< `DescriptorId::ResetFlash`
-inline const ResetItem kResetCommunityFeaturesItem{1}; ///< `DescriptorId::ResetCommunityFeatures`
-inline const ResetItem kResetMidiFollowItem{2};        ///< `DescriptorId::ResetMidiFollow`
-inline const ResetItem kResetMidiDevicesItem{3};       ///< `DescriptorId::ResetMidiDevices`
-inline const ResetItem kResetAllItem{4};               ///< `DescriptorId::ResetAll`
-/// @}
+/// The five reset items are `nodes::ContextMenuItem`s (`nodes/context_menu_items.h`) -- one class
+/// for every menu item that opens `context_menu::ContextMenuScene`, which E2 task 11b widened from
+/// `ResetItem` when `audio_source_selector` became the sixth such item. See that header.
 
 inline constexpr Node reset_flash = custom(sid(String::STRING_FOR_RESET_FLASH), &kResetFlashItem);
 inline constexpr Node reset_community_features =

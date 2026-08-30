@@ -319,23 +319,31 @@ std::string legacy_pbm(deluge::gui::context_menu::ResetSettingsAction action) {
 
 // clang-format off
 describe cm_descriptors("scenes::context_menu descriptor table", $ {
-	it("covers exactly the five reset items the ported menu tree reaches", _ {
-		// The five `reset_settings::Reset` menu items (`gui/ui/menus.cpp:2106-2115`), and nothing
-		// else: every other legacy `ContextMenu` subclass is opened from a view or a browser this
-		// plan does not port. See the note on `DescriptorId`.
-		expect(static_cast<int>(DescriptorId::Count)).to_equal(5);
+	it("covers exactly the context menus the ported menu tree opens, and no others", _ {
+		// The five `reset_settings::Reset` menu items (`gui/ui/menus.cpp:2106-2115`) and, since E2
+		// task 11b, `audio_clip::AudioSourceSelector` -- and nothing else: every other legacy
+		// `ContextMenu` subclass is opened from a view or a browser this plan does not port. See the
+		// note on `DescriptorId`.
+		expect(static_cast<int>(DescriptorId::Count)).to_equal(6);
 	});
 
 	it("gives every one of them ResetSettings' own heading and single OK option", _ {
 		// `ResetSettings::getTitle()` is `STRING_FOR_ARE_YOU_SURE_QMARK` and `getOptions()` is a
 		// one-element `{STRING_FOR_OK}` -- NOT a NO/YES pair. All five share both; only the action
 		// differs, which is exactly what `ResetSettingsAction` selects.
-		for (int i = 0; i < static_cast<int>(DescriptorId::Count); i++) {
+		for (int i = 0; i <= static_cast<int>(DescriptorId::ResetAll); i++) {
 			const Descriptor& d = context_menu::descriptor(static_cast<DescriptorId>(i));
 			expect(static_cast<int>(d.title)).to_equal(static_cast<int>(String::STRING_FOR_ARE_YOU_SURE_QMARK));
 			expect(d.options.size()).to_equal(size_t(1));
 			expect(static_cast<int>(d.options[0])).to_equal(static_cast<int>(String::STRING_FOR_OK));
 			expect(d.accept != nullptr).to_be_true();
+			// E2 task 11b: the three hooks the sixth descriptor needed are null on all five of these,
+			// which is what "the five reset descriptors are unchanged" means concretely. Asserted, so
+			// a table edit that gave one of them a hook by accident is caught here rather than by a
+			// surprising screen.
+			expect(d.initial_option == nullptr).to_be_true();
+			expect(d.on_move == nullptr).to_be_true();
+			expect(d.footer == nullptr).to_be_true();
 		}
 	});
 

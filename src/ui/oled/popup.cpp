@@ -191,11 +191,13 @@ constexpr int32_t kOptionFirstRowDy = 18;       // `textPixelY = windowMinY + 18
 constexpr int32_t kOptionInvertX = 22;          // `invertStartX`
 constexpr int32_t kOptionInvertRightInset = 44; // highlight WIDTH is `OLED_MAIN_WIDTH_PIXELS - 44`
 constexpr int32_t kOptionTextRightInset = 27;   // `drawString(..., OLED_MAIN_WIDTH_PIXELS - 27)`
+constexpr int32_t kOptionFooterDy = 20;         // `textPixelY = windowMinY + 20 + kTextSpacingY`
+constexpr int32_t kOptionFooterRightInset = 26; // `drawString(..., OLED_MAIN_WIDTH_PIXELS - 26)`
 
 } // namespace
 
 void option_window(OledFrame& f, std::string_view heading, std::span<const std::string_view> options, int32_t selected,
-                   int32_t first, ScrollText& label, bool allow_motion) {
+                   int32_t first, ScrollText& label, bool allow_motion, std::string_view footer) {
 	const Rect p = panel_of(f);
 	const gfx::oled::FontId font = f.style.row_font;
 	const int32_t line_h = text_height_for(font);  // kTextSpacingY
@@ -218,6 +220,16 @@ void option_window(OledFrame& f, std::string_view heading, std::span<const std::
 	// screen title band here and no `drawScreenTitle` call.
 	text(f, Rect{p.x + kOptionHeadingX, p.y + min_y + kOptionHeadingDy, p.w - kOptionHeadingX, line_h}, heading,
 	     TextStyle{.font = font});
+
+	// `AudioInputSelector::renderOLED`'s tail (`audio_input_selector.cpp:279-282`), drawn before the
+	// rows only so the early return below cannot skip it -- legacy calls the base first and then this,
+	// and the two touch different rows (see the `footer` parameter's note in popup.h). Its own left
+	// origin is `kOptionHeadingX`, not the option rows' `invertStartX + 1`.
+	if (!footer.empty()) {
+		const int32_t footer_y = p.y + min_y + kOptionFooterDy + line_h;
+		text(f, Rect{p.x + kOptionHeadingX, footer_y, p.w - kOptionFooterRightInset - kOptionHeadingX, line_h}, footer,
+		     TextStyle{.font = font});
+	}
 
 	const int32_t n = static_cast<int32_t>(options.size());
 	if (n <= 0) {

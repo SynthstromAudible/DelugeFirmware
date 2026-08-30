@@ -153,13 +153,15 @@ counts nodes, not implementations** (fix round 2, I4; recorded as an amendment i
   the shortcuts version -- into ordinary `Kind::Enum` items with get/set hooks; none of the nine
   needed a bespoke item at all once its state was reachable.) The real, distinct exceptions
   are `battery_level` and `firmware_version` (E2 task 2 — `BatteryLevelItem`, `FirmwareVersionItem`),
-  the three name editors (E2 task 5 — one `EditNameItem` per `rename::TargetId`), the five reset
-  items (E2 task 7 — one `ResetItem` per `context_menu::DescriptorId`), the twelve MIDI commands
+  the three name editors (E2 task 5 — one `EditNameItem` per `rename::TargetId`), the context-menu
+  openers (E2 task 7 and 11b — one `ContextMenuItem` per `context_menu::DescriptorId`), the twelve MIDI commands
   (E2 task 8 — one `MidiCommandItem` per `GlobalMIDICommand`) and E2 task 9's eight patch-cable /
   range-picker items, E2 task 10's three dynamic settings items, and E2 task 11b's five action
   items (four `ActionItem`s plus `PerformEditorItem`, `menu/nodes/actions.h`) and its two
-  `ActiveScalesItem`s (`menu/nodes/scales.h`), so the distinct-instance count that spelling used to
-  be inert on is now 41, not 1.
+  `ActiveScalesItem`s (`menu/nodes/scales.h`) and the sixth `ContextMenuItem`
+  (`menu/nodes/context_menu_items.h` — the class the five reset items became once
+  `audio_source_selector` needed the same one), so the distinct-instance count that spelling used to
+  be inert on is now 42, not 1.
 * So the cap is `kMaxCustomNodes == 56`, one above reality — a ratchet against the escape hatch
   growing unnoticed, not a claim that ten was ever achievable. Adding a custom node means bumping
   both `kShippedCustomNodes` and, if you have run out of room, `kMaxCustomNodes` — deliberately two
