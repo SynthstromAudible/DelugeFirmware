@@ -40,6 +40,8 @@
 #include "gui/menu_item/envelope/envelope_menu.h"
 #include "gui/menu_item/horizontal_menu.h"
 #include "gui/menu_item/menu_item_with_cc_learning.h"
+#include "gui/menu_item/multi_range.h" // E2 task 9: the range picker's legacy counterpart
+#include "gui/menu_item/range.h"
 #include "gui/menu_item/selection.h"
 #include "gui/menu_item/submenu.h"
 #include "gui/menu_item/submenu/actual_source.h"
@@ -362,9 +364,160 @@ struct Rig {
 	}
 };
 
+/// @brief Reach `Range::getText`, which is `protected`.
+///
+/// The same `[class.protected]` move `tables_2_spec`'s `SubmenuPeek` makes, one class further up:
+/// `MultiRange` is `final` so nothing can derive from it, but `getText` is declared on `Range`
+/// (`gui/menu_item/range.h:38-39`) and `MultiRange` merely overrides it. A pointer-to-member formed
+/// inside a class derived from `Range` therefore has type `void (Range::*)(...)`, applies to the
+/// `multiRangeMenu` global, and dispatches virtually to `MultiRange::getText`.
+///
+/// The alternative -- writing the expected note-range strings out in this file -- would make the
+/// spec a second copy of the thing under test rather than a check of it.
+struct RangePeek : legacy::Range {
+	static std::string text_of_range(legacy::Range& r, int32_t value) {
+		static_cast<legacy::MultiRange&>(r).setValue(value);
+		char buf[32] = {};
+		(r.*(&RangePeek::getText))(buf, nullptr, nullptr, /*mayShowJustOne=*/false); // `multi_range.cpp:389`
+		return std::string{buf};
+	}
+};
+
+/// @brief A synth fixture whose source 0 carries @p n `MultiRange`s, with the `soundEditor` globals
+///        pointed at it.
+///
+/// Its own fixture rather than the shared one: inserting ranges changes what every other example
+/// reads off source 0 (`transpose_range`, `sample_start`, ...), and the shared `Fixture` is a
+/// function-local static every group in this file uses.
+struct RangeFixture {
+	spec::SongFixture song = spec::make_synth_song();
+	MenuContext ctx{};
+
+	explicit RangeFixture(int32_t n) {
+		select_language();
+		auto* sound = static_cast<SoundInstrument*>(song.instrument);
+		for (int32_t i = 0; i < n; i++) {
+			(void)sound->sources[0].ranges.insertMultiRange(i);
+		}
+		ctx = menu::context_for(*song.song, song.clip, 0, false, false, /*kit_global_fx=*/false);
+		currentSong = song.song;
+		song.song->setCurrentClip(song.clip);
+		soundEditor.currentSound = ctx.sound;
+		soundEditor.currentModControllable = ctx.mod;
+		soundEditor.currentParamManager = ctx.params;
+		soundEditor.currentSourceIndex = ctx.source_index;
+		soundEditor.currentSource = ctx.source;
+		soundEditor.currentMultiRange = ctx.range;
+		soundEditor.currentMultiRangeIndex = ctx.range_index;
+	}
+	~RangeFixture() {
+		// Put the shared fixture's pointers back: `fixture()` is a static and every other group in
+		// this file reads through the same `soundEditor` globals.
+		(void)fixture();
+	}
+	RangeFixture(const RangeFixture&) = delete;
+	RangeFixture& operator=(const RangeFixture&) = delete;
+};
+
 } // namespace
 
 // clang-format off
+describe tables_1_range_picker("scenes::menu batch-1 tables: the multi-range picker", $ {
+	it("labels every row exactly as MultiRange::getText labels it, on the same fixture", _ {
+		// Driven from an independent sentinel on each side: the port reads the ranges out of its own
+		// `MenuContext` while legacy reads them out of `soundEditor.currentSource` and its own
+		// `Value<int32_t>` cursor, which this sets explicitly per row. A port label built from
+		// nothing (an empty string, say) fails against a legacy label that is not empty.
+		RangeFixture f{3};
+		// Give the three ranges distinct, realistic top notes so the labels are not all the same
+		// string -- an all-"top" list would pass a comparison that only ever looked at one arm.
+		f.ctx.source->ranges.getElement(0)->topNote = 47;  // B2
+		f.ctx.source->ranges.getElement(1)->topNote = 71;  // B4
+		f.ctx.source->ranges.getElement(2)->topNote = 32767;
+
+		expect(menu::range_count(f.ctx)).to_equal(int32_t(3));
+		size_t compared = 0;
+		for (int32_t i = 0; i < 3; i++) {
+			char buf[32];
+			deluge::ui::shell::TextScratch scratch;
+			const std::string got{nodes::range_row_label(f.ctx, i, buf, sizeof(buf), scratch)};
+			const std::string want = RangePeek::text_of_range(legacy::multiRangeMenu, i);
+			expect(got).to_equal(want);
+			compared++;
+		}
+		expect(compared).to_equal(size_t(3));
+		// And they really are three different strings -- so the comparison above is about the labels
+		// rather than about one string repeated.
+		char b0[32], b1[32], b2[32];
+		deluge::ui::shell::TextScratch s0, s1, s2;
+		const std::string l0{nodes::range_row_label(f.ctx, 0, b0, sizeof(b0), s0)};
+		const std::string l1{nodes::range_row_label(f.ctx, 1, b1, sizeof(b1), s1)};
+		const std::string l2{nodes::range_row_label(f.ctx, 2, b2, sizeof(b2), s2)};
+		expect(l0 != l1 && l1 != l2 && l0 != l2).to_be_true();
+	});
+
+	it("chains to the node it stood in for, and its chain_targets are the range-dependent set", _ {
+		// `MultiRange::selectButtonPress` is `return menuItemHeadingTo` (`multi_range.cpp:343-345`),
+		// and `menuItemHeadingTo` is what `SoundEditor::setup` wrote there (`:1802`). The port's
+		// equivalent pair is `MenuState::pending_after_range` and this hook.
+		RangeFixture f{2};
+		menu::MenuState st{};
+		expect(nodes::multi_range_chain(f.ctx, st) == nullptr).to_be_true(); // nothing pending -> ascend
+		st.pending_after_range = &nodes::source0_transpose;
+		expect(nodes::multi_range_chain(f.ctx, st) == &nodes::source0_transpose).to_be_true();
+
+		// The span has to be the whole `range_dependent` set, because any one of them can be what
+		// `permission_for` refused. Asserted against `nodes::kRangeDependentNodes` itself so the two
+		// lists cannot drift (`multi_range.h` says why it is spelled twice).
+		expect(nodes::kMultiRangeChain.size()).to_equal(nodes::kRangeDependentNodes.size());
+		for (const Node* n : nodes::kRangeDependentNodes) {
+			expect(std::find(nodes::kMultiRangeChain.begin(), nodes::kMultiRangeChain.end(), n)
+			       != nodes::kMultiRangeChain.end())
+			    .to_be_true();
+		}
+		// And the picker itself is NOT range-dependent -- see `multi_range.h`: it would recurse.
+		expect(nodes::multi_range.range_dependent).to_be_false();
+	});
+
+	it("getOrCreateFirstRange is run for a zero-range source, which is E1's carried debt", _ {
+		// `checkPermissionToBeginSessionForRangeSpecificParam:1938` creates the source's first range
+		// before answering anything; `permission_for` is a pure predicate and does not
+		// (`context.cpp`'s "Owed to E2"). `menu::ensure_first_range` is where that landed, and
+		// `MenuScene::enter_child` is what calls it.
+		RangeFixture f{0};
+		expect(menu::range_count(f.ctx)).to_equal(int32_t(0));
+		expect(f.ctx.range == nullptr).to_be_true();
+
+		expect(menu::ensure_first_range(f.ctx)).to_be_true();
+		// One range now exists, and -- the second half of `:1950-1952`'s `*previouslySelectedRange =
+		// firstRange` -- the context points at it, so a range-dependent item opens rather than
+		// bouncing to a one-row picker.
+		expect(menu::range_count(f.ctx)).to_equal(int32_t(1));
+		expect(f.ctx.range != nullptr).to_be_true();
+		expect(static_cast<int>(f.ctx.range_index)).to_equal(0);
+		expect(menu::permission_for(nodes::source0_transpose, f.ctx) == menu::Permission::Yes).to_be_true();
+		// `Source::getOrCreateFirstRange` gives the new range the top of the keyboard (`source.cpp:165`).
+		expect(menu::range_top_note(f.ctx, 0)).to_equal(int32_t(32767));
+
+		// Idempotent: a second call must not add a second range.
+		expect(menu::ensure_first_range(f.ctx)).to_be_true();
+		expect(menu::range_count(f.ctx)).to_equal(int32_t(1));
+	});
+
+	it("selects a range the way setCurrentMultiRange does, and remembers it on the Source", _ {
+		RangeFixture f{3};
+		menu::select_range(f.ctx, 2);
+		expect(static_cast<int>(f.ctx.range_index)).to_equal(2);
+		expect(f.ctx.range == f.ctx.source->ranges.getElement(2)).to_be_true();
+		// `multi_range.cpp:225` -- the choice sticks on the source, which is what `on_focus` reads
+		// back on the next visit.
+		expect(static_cast<int>(f.ctx.source->defaultRangeI)).to_equal(2);
+		// Out of range is ignored rather than clamped -- every caller has clamped already.
+		menu::select_range(f.ctx, 7);
+		expect(static_cast<int>(f.ctx.range_index)).to_equal(2);
+	});
+});
+
 describe tables_1_shape("scenes::menu batch-1 tables: shape", $ {
 	it("declares seventeen roots, one per legacy top-level menu", _ {
 		expect(nodes::kBatch1Roots.size()).to_equal(size_t(17));
@@ -697,11 +850,12 @@ describe tables_1_writes("scenes::menu batch-1 tables: writes", $ {
 });
 // clang-format on
 
-/// Five `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
+/// Six `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
 /// here with `add_specs` instead.
 int tables_1_spec(int argc, char** const argv) {
 	return CppSpec::parse(argc, argv)
-	               .add_specs(tables_1_shape, tables_1_values, tables_1_validation, tables_1_pixels, tables_1_writes)
+	               .add_specs(tables_1_shape, tables_1_values, tables_1_validation, tables_1_pixels, tables_1_writes,
+	                          tables_1_range_picker)
 	               .exec()
 	               .is_success()
 	           ? EXIT_SUCCESS

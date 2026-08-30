@@ -36,7 +36,8 @@
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
-#include "scenes/menu/nodes/sound_osc.h" // kPending
+#include "scenes/menu/nodes/patch_cables.h" // the volume-ducking item is a fixed patch cable
+#include "scenes/menu/nodes/sound_osc.h"    // kPending
 #include "scenes/menu/relevance.h"
 
 #include <span>
@@ -81,9 +82,14 @@ inline constexpr IntRange kSidechainSyncRange{0, 9, 1};
 ///        an index into a 51-entry rate table.
 inline constexpr IntRange kSidechainRateRange{0, 50, 1};
 
+// `sidechainVolumeShortcutMenu` (`gui/ui/menus.cpp:806-807`): a `sidechain::VolumeShortcut`, which
+// is a `patch_cable_strength::Fixed` on GLOBAL_VOLUME_POST_REVERB_SEND from the SIDECHAIN source,
+// plus the reverb-recompute flag its `writeCurrentValue` raises (`sidechain/volume.h:26-29`). That
+// flag rides on the item rather than on `Binding::updates_reverb_params` because the node has no
+// `Binding` at all -- see `PatchCableStrengthItem`'s constructor.
 inline constexpr Node sidechain_volume =
-    with_title(custom(sid(deluge::l10n::String::STRING_FOR_VOLUME_DUCKING), &kPending), // E2
-               sid(deluge::l10n::String::STRING_FOR_VOLUME_DUCKING));
+    with_select_chain(custom(sid(deluge::l10n::String::STRING_FOR_VOLUME_DUCKING), &kSidechainVolumeItem),
+                      &patch_cable_strength_chain, kPatchCableStrengthChain);
 inline constexpr Node sidechain_sync =
     sync_level_item(sid(deluge::l10n::String::STRING_FOR_SYNC), sid(deluge::l10n::String::STRING_FOR_SIDECHAIN_SYNC),
                     get_sidechain_sync, set_sidechain_sync, kSidechainSyncRange);

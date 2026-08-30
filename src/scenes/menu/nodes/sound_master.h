@@ -40,7 +40,8 @@
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
-#include "scenes/menu/nodes/sound_osc.h" // kPending
+#include "scenes/menu/nodes/patch_cables.h" // `vibrato` is a fixed patch cable
+#include "scenes/menu/nodes/sound_osc.h"    // kPending
 #include "scenes/menu/relevance.h"
 
 #include <span>
@@ -69,24 +70,29 @@ inline constexpr uint16_t kSynthModeNames[] = {
 inline constexpr Node synth_mode = enumeration(sid(deluge::l10n::String::STRING_FOR_SYNTH_MODE), kSynthModeNames,
                                                get_synth_mode, set_synth_mode, relevance::ringmod_allowed);
 
-inline constexpr Node master_volume =
+inline constexpr Node master_volume = with_patch_chain(
     param(sid(deluge::l10n::String::STRING_FOR_VOLUME_LEVEL),
           {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::GLOBAL_VOLUME_POST_FX}, Hint::Bar,
-          nullptr, sid(deluge::l10n::String::STRING_FOR_MASTER_LEVEL));
+          nullptr, sid(deluge::l10n::String::STRING_FOR_MASTER_LEVEL)));
 
 inline constexpr Node master_pan =
-    param(sid(deluge::l10n::String::STRING_FOR_PAN),
-          {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_PAN}, Hint::Pan, nullptr, 0,
-          Scaling::Pan);
+    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_PAN),
+                           {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_PAN},
+                           Hint::Pan, nullptr, 0, Scaling::Pan));
 
 // `MasterTranspose::getMinValue`/`getMaxValue` (`master_transpose.h:84-85`).
-inline constexpr Node master_transpose =
+inline constexpr Node master_transpose = with_patch_chain(
     with_learn_param(with_title(int_item(sid(deluge::l10n::String::STRING_FOR_MASTER_TRANSPOSE), get_master_transpose,
                                          set_master_transpose, IntRange{-96, 96, 1}, Hint::None),
                                 sid(deluge::l10n::String::STRING_FOR_MASTER_TRAN_MENU_TITLE)),
-                     {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_PITCH_ADJUST});
+                     {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_PITCH_ADJUST}));
 
-inline constexpr Node vibrato = custom(sid(deluge::l10n::String::STRING_FOR_VIBRATO), &kPending); // E2
+// `vibratoMenu` (`gui/ui/menus.cpp:1725-1726`): a `patch_cable_strength::Fixed` on
+// LOCAL_PITCH_ADJUST from LFO_GLOBAL_1, i.e. the depth of the one cable that makes an LFO wobble the
+// pitch. Its select press chains to the range source picker like every other cable-strength page
+// (`patch_cable_strength.cpp:302-306`).
+inline constexpr Node vibrato = with_select_chain(custom(sid(deluge::l10n::String::STRING_FOR_VIBRATO), &kVibratoItem),
+                                                  &patch_cable_strength_chain, kPatchCableStrengthChain);
 
 inline constexpr const Node* kMasterChildren[] = {&synth_mode, &master_volume, &master_pan, &master_transpose,
                                                   &vibrato};

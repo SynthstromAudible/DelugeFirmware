@@ -33,6 +33,7 @@
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
+#include "scenes/menu/nodes/patch_cables.h" // with_patch_chain -- every PATCHED param chains
 
 #include <span>
 
@@ -44,8 +45,9 @@ namespace deluge::scenes::menu::nodes {
 /// (`gui/menu_item/source/patched_param.h:29`) written out: the four envelopes' copies of each
 /// parameter are consecutive enumerators (`modulation/params/param.h:86-89,112-123`).
 constexpr Node envelope_segment(uint16_t name, uint16_t title, int32_t first_param, uint8_t index) {
-	return param(name, {deluge::modulation::params::Kind::PATCHED, static_cast<uint8_t>(first_param + index)},
-	             Hint::Knob, nullptr, title);
+	return with_patch_chain(
+	    param(name, {deluge::modulation::params::Kind::PATCHED, static_cast<uint8_t>(first_param + index)}, Hint::Knob,
+	          nullptr, title));
 }
 
 /// @brief One envelope page. A macro rather than a function because the four `Node`s have to be

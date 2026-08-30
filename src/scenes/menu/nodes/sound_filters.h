@@ -54,6 +54,7 @@
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
+#include "scenes/menu/nodes/patch_cables.h" // with_patch_chain -- every PATCHED param chains
 #include "scenes/menu/relevance.h"
 
 #include <span>
@@ -100,17 +101,17 @@ inline constexpr Node lpf_mode =
     with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_MODE), kLpfModeNames, get_lpf_mode, set_lpf_mode),
                sid(deluge::l10n::String::STRING_FOR_LPF_MODE));
 inline constexpr Node lpf_freq =
-    param(sid(deluge::l10n::String::STRING_FOR_FREQUENCY),
-          {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_FREQ}, Hint::Bar,
-          relevance::has_lpf, sid(deluge::l10n::String::STRING_FOR_LPF_FREQUENCY));
+    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_FREQUENCY),
+                           {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_FREQ},
+                           Hint::Bar, relevance::has_lpf, sid(deluge::l10n::String::STRING_FOR_LPF_FREQUENCY)));
 inline constexpr Node lpf_res =
-    param(sid(deluge::l10n::String::STRING_FOR_RESONANCE),
-          {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_RESONANCE}, Hint::Bar,
-          relevance::has_lpf, sid(deluge::l10n::String::STRING_FOR_LPF_RESONANCE));
+    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_RESONANCE),
+                           {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_RESONANCE},
+                           Hint::Bar, relevance::has_lpf, sid(deluge::l10n::String::STRING_FOR_LPF_RESONANCE)));
 inline constexpr Node lpf_morph =
-    param(sid(deluge::l10n::String::STRING_FOR_LPF_MORPH),
-          {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_MORPH}, Hint::Bar,
-          relevance::has_lpf);
+    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_LPF_MORPH),
+                           {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_LPF_MORPH},
+                           Hint::Bar, relevance::has_lpf));
 inline constexpr const Node* kLpfChildren[] = {&lpf_mode, &lpf_freq, &lpf_res, &lpf_morph};
 inline constexpr Node lpf = submenu(sid(deluge::l10n::String::STRING_FOR_LPF), kLpfChildren, Layout::Horizontal);
 
@@ -118,17 +119,17 @@ inline constexpr Node hpf_mode =
     with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_MODE), kHpfModeNames, get_hpf_mode, set_hpf_mode),
                sid(deluge::l10n::String::STRING_FOR_HPF_MODE));
 inline constexpr Node hpf_freq =
-    param(sid(deluge::l10n::String::STRING_FOR_FREQUENCY),
-          {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_HPF_FREQ}, Hint::Bar,
-          relevance::has_hpf, sid(deluge::l10n::String::STRING_FOR_HPF_FREQUENCY));
+    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_FREQUENCY),
+                           {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_HPF_FREQ},
+                           Hint::Bar, relevance::has_hpf, sid(deluge::l10n::String::STRING_FOR_HPF_FREQUENCY)));
 inline constexpr Node hpf_res =
-    param(sid(deluge::l10n::String::STRING_FOR_RESONANCE),
-          {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_HPF_RESONANCE}, Hint::Bar,
-          relevance::has_hpf, sid(deluge::l10n::String::STRING_FOR_HPF_RESONANCE));
+    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_RESONANCE),
+                           {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_HPF_RESONANCE},
+                           Hint::Bar, relevance::has_hpf, sid(deluge::l10n::String::STRING_FOR_HPF_RESONANCE)));
 inline constexpr Node hpf_morph =
-    param(sid(deluge::l10n::String::STRING_FOR_HPF_MORPH),
-          {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_HPF_MORPH}, Hint::Bar,
-          relevance::has_hpf);
+    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_HPF_MORPH),
+                           {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_HPF_MORPH},
+                           Hint::Bar, relevance::has_hpf));
 inline constexpr const Node* kHpfChildren[] = {&hpf_mode, &hpf_freq, &hpf_res, &hpf_morph};
 inline constexpr Node hpf = submenu(sid(deluge::l10n::String::STRING_FOR_HPF), kHpfChildren, Layout::Horizontal);
 

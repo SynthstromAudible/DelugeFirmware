@@ -46,6 +46,8 @@ add_library(deluge_scenes STATIC
     # batch 3 (task 8) is the settings root and the nine other roots `SoundEditor::setup` can open.
     menu/nodes/edit_name.cpp
     menu/nodes/midi_command.cpp
+    menu/nodes/multi_range.cpp
+    menu/nodes/patch_cables.cpp
     menu/nodes/roots.cpp
     menu/nodes/settings.cpp
     menu/nodes/sound_actions.cpp

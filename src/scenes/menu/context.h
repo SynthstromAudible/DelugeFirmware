@@ -208,4 +208,46 @@ enum class Permission : uint8_t {
 /// source with more than one `MultiRange` and none selected gets `MustSelectRange`.
 Permission permission_for(const Node& node, const MenuContext& ctx);
 
+/// @brief How many `MultiRange`s the addressed source has -- `std::ssize(source->ranges)`.
+///
+/// Exposed (E2 task 9) because the range picker draws one row per range and has to know how many
+/// there are; a null `ctx.source` has none.
+int32_t range_count(const MenuContext& ctx);
+
+/// @brief The `topNote` of @p index's range, or `INT16_MAX` (legacy's own 32767 sentinel for "the
+///        top one") when @p index is out of range.
+///
+/// The picker's row labels are built from the *previous* range's `topNote + 1` and this range's
+/// `topNote` (`MultiRange::getText`, `gui/menu_item/multi_range.cpp:296-341`). `MultiRange` is a
+/// `storage/` type, so the read lives here beside the other model reads rather than in the node
+/// table.
+int32_t range_top_note(const MenuContext& ctx, int32_t index);
+
+/// @brief Make sure @p ctx's source has at least one `MultiRange`, and point @p ctx at it when the
+///        choice is unambiguous -- `Source::getOrCreateFirstRange()` at `sound_editor.cpp:1938`.
+///
+/// **This is the allocation `permission_for` deliberately does not do** (see this file's `.cpp`,
+/// "Owed to E2"): legacy's `checkPermissionToBeginSessionForRangeSpecificParam` *creates* the first
+/// range before it answers anything, and can fail with `INSUFFICIENT_RAM`. `permission_for` stayed a
+/// pure predicate, so the caller that actually opens a range-dependent item does this first --
+/// `MenuScene::enter_child`, which is the port of the call site.
+///
+/// On success it also mirrors legacy's `*previouslySelectedRange = firstRange` (`:1951`): when the
+/// choice cannot be ambiguous (a kit row, or exactly one range) `ctx.range`/`ctx.range_index` are
+/// pointed at range 0, exactly as `context_for` does for a context resolved with ranges already
+/// present.
+///
+/// @param ctx The context to top up; only `ctx.source` matters. A null source is a no-op success --
+///            nothing is being edited that could want a range.
+/// @return False only on `INSUFFICIENT_RAM`, i.e. legacy's `MenuPermission::NO` arm at `:1939-1942`.
+bool ensure_first_range(MenuContext& ctx);
+
+/// @brief Point @p ctx at range @p index -- `SoundEditor::setCurrentMultiRange`
+///        (`sound_editor.cpp:1928-1931`), plus `Source::defaultRangeI`, which the picker keeps in
+///        step with its own cursor (`multi_range.cpp:225`).
+///
+/// Out-of-range indices are ignored rather than clamped: legacy indexes `ranges.getElement(i)`
+/// unchecked, and every caller here has already clamped against `range_count`.
+void select_range(MenuContext& ctx, int32_t index);
+
 } // namespace deluge::scenes::menu

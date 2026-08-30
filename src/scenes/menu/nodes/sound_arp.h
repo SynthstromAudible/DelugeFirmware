@@ -62,7 +62,8 @@
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
-#include "scenes/menu/nodes/sound_lfo.h" // kSyncLevelRange
+#include "scenes/menu/nodes/patch_cables.h" // with_patch_chain -- every PATCHED param chains
+#include "scenes/menu/nodes/sound_lfo.h"    // kSyncLevelRange
 #include "scenes/menu/relevance.h"
 
 #include "definitions_cxx.hpp" // ArpPreset -- `arp_preset_chain`'s CUSTOM test
@@ -242,10 +243,10 @@ inline constexpr Node arp_gate =
 inline constexpr Node arp_sync = sync_level_item(sid(deluge::l10n::String::STRING_FOR_SYNC),
                                                  sid(deluge::l10n::String::STRING_FOR_ARP_SYNC_MENU_TITLE),
                                                  get_arp_sync, set_arp_sync, kSyncLevelRange);
-inline constexpr Node arp_rate =
+inline constexpr Node arp_rate = with_patch_chain(
     param(sid(deluge::l10n::String::STRING_FOR_RATE),
           {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::GLOBAL_ARP_RATE}, Hint::Knob,
-          relevance::arp_rate_sound, sid(deluge::l10n::String::STRING_FOR_ARP_RATE_MENU_TITLE));
+          relevance::arp_rate_sound, sid(deluge::l10n::String::STRING_FOR_ARP_RATE_MENU_TITLE)));
 
 inline constexpr const Node* kArpBasicChildren[] = {&arp_preset, &arp_gate, &arp_sync, &arp_rate};
 inline constexpr Node arp_basic =

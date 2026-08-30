@@ -1868,8 +1868,14 @@ describe tables_3_chaining("scenes::menu batch-3 tables: selectButtonPress chain
 				expect(menu::node_id(*got) != uint16_t(0)).to_be_true();
 			}
 		}
-		// The seven chaining nodes of the shipped tree; a chain added without a spec fails here.
-		expect(chaining_nodes).to_equal(size_t(7));
+		// The chaining nodes of the shipped tree; a chain added without a spec fails here.
+		//
+		// **68 after E2 task 9**, up from task 3's seven: 53 `PatchedParam` nodes
+		// (`with_patch_chain`, every node with `bind.param.kind == PATCHED`), the four patch-cable
+		// pages (`source_selection_{regular,range}`, `patch_cable_strength_{regular,range}`), the
+		// three items that open one (`patch_cables`, `vibrato`, `sidechain_volume`), and the range
+		// picker. 7 + 53 + 4 + 3 + 1 = 68.
+		expect(chaining_nodes).to_equal(size_t(68));
 		expect(answers > size_t(0)).to_be_true();
 	});
 

@@ -145,14 +145,17 @@ counts nodes, not implementations** (fix round 2, I4; recorded as an amendment i
   and points every one of them at the single shared `nodes::kPending` placeholder, so that count was
   **1** for the whole tree and `TooManyCustom` could never fire — the rule was switched off for
   exactly the phase it was meant to police.
-* It now counts **nodes that point at a custom item**. The shipped tree has **59** of them
+* It now counts **nodes that point at a custom item**. The shipped tree has **64** of them
   (`validate.h`'s `kShippedCustomNodes`, asserted against the live tree by
   `sim/scenes_spec/shortcuts_spec.cpp`), behind roughly twenty distinct legacy bespoke classes --
-  fifty-six of them still share the single `kPending` placeholder. The real, distinct exceptions are
-  `battery_level` and `firmware_version` (E2 task 2 — `BatteryLevelItem`, `FirmwareVersionItem`) plus
-  the three name editors (E2 task 5 — one `EditNameItem` per `rename::TargetId`), so the
-  distinct-instance count that spelling used to be inert on is now 6, not 1.
-* So the cap is `kMaxCustomNodes == 60`, one above reality — a ratchet against the escape hatch
+  thirty-nine of them still share the single `kPending` placeholder. The real, distinct exceptions
+  are `battery_level` and `firmware_version` (E2 task 2 — `BatteryLevelItem`, `FirmwareVersionItem`),
+  the three name editors (E2 task 5 — one `EditNameItem` per `rename::TargetId`), the five reset
+  items (E2 task 7 — one `ResetItem` per `context_menu::DescriptorId`), the twelve MIDI commands
+  (E2 task 8 — one `MidiCommandItem` per `GlobalMIDICommand`) and E2 task 9's eight patch-cable /
+  range-picker items, so the distinct-instance count that spelling used to be inert on is now 31,
+  not 1.
+* So the cap is `kMaxCustomNodes == 65`, one above reality — a ratchet against the escape hatch
   growing unnoticed, not a claim that ten was ever achievable. Adding a custom node means bumping
   both `kShippedCustomNodes` and, if you have run out of room, `kMaxCustomNodes` — deliberately two
   places.
@@ -324,15 +327,27 @@ chain-only pages that made "declaring them and implementing chaining are one job
 with it: the four arp ones (`menus.cpp:511-521`) and `cvSubmenu` / `gateModeMenu` /
 `gateOffTimeMenu` (`:1223-1232`).
 
-Still carried from that sweep, largest first: **`PatchedParam::selectButtonPress`
-(`patched_param.cpp:32-38`) → `source_selection::regularMenu` when shift is not held**, which is
-**53** nodes — every node with `bind.param.kind == PATCHED`, reached through three delegators
-(`master_transpose.h:67`, `transpose.h:33`, `patched_param/integer.h:42`). By node count it is the
-biggest chaining override in the codebase and the one a user notices (select on VOLUME opens the
-mod-source picker); it is carried because its target is a patch-cable page whose owner arrives with
-the patch-cable task, and the hook additionally needs somewhere to put
-`soundEditor.patchingParamSelected` and a shift read the `SelectChainFn` signature does not pass.
-Then: `osc0_type` / `osc1_type` → `dxMenu` on a DX7 osc (`osc/type.h:120-125`), which waits on
+**`PatchedParam::selectButtonPress` is now ported too** (E2 task 9): every node with
+`bind.param.kind == PATCHED` — **53** of them, reached through three delegators
+(`master_transpose.h:67`, `transpose.h:33`, `patched_param/integer.h:42`) — carries
+`with_patch_chain` (`nodes/patch_cables.h`) and opens `nodes::source_selection_regular`, the port of
+`source_selection::regularMenu`. Task 3 had to carry it because its target was a patch-cable page
+nobody owned and because `SelectChainFn` takes a `const MenuState&` and so cannot write
+`soundEditor.patchingParamSelected`; the resolution is that the *target* writes it, from
+`SourceSelectionItem::on_focus`, reading the param out of the node the chain came from
+(`path[depth - 1]`). The shift-held automation-delete arm is still not ported — `SelectChainFn` is
+not passed the button state.
+
+That task also declared the rest of the patch-cable graph — `patch_cable_strength_regular`,
+`source_selection_range`, `patch_cable_strength_range` — plus the range picker `multi_range`, and
+gave `patch_cables` (MOD MATRIX), `vibrato` and `sidechain_volume` their real items. Two consequences
+worth knowing: the strength/range pair is the tree's **first cyclic chain** (legacy's own — from the
+range-strength page a select press goes back to the range source picker and straight back again), so
+`deluge_menu_dump` grew the `"ref"` stub its `fail_on_chain_cycle` comment had been asking for; and
+`MenuScene::enter_child` now *acts* on `Permission::MustSelectRange` by descending into the picker,
+which is legacy's `multiRangeMenu.menuItemHeadingTo` substitution (`sound_editor.cpp:1802-1803`).
+
+Still carried from the sweep: `osc0_type` / `osc1_type` → `dxMenu` on a DX7 osc (`osc/type.h:120-125`), which waits on
 `dxMenu` itself — three bespoke DX items (`menus.cpp:1715`) that are E2's browser work, not a page
 this task could declare honestly; the two write halves of the CV/gate chains
 (`MenuContext::source_index` is not writable from a `SelectChainFn`, and both selectors are still
@@ -341,8 +356,11 @@ note); and the two other dropped arms the sweep turned up, `Submenu`'s `shouldFo
 forwarding (`submenu.cpp:187-194`) and `Automation::selectButtonPress`'s shift-held automation
 delete (`automation/automation.cpp:37`), which a `Param`/`UnpatchedParam` item inherits directly and
 a `PatchedParam` one reaches only through the shift branch above.
-Also carried: `Source::getOrCreateFirstRange()`
-on a zero-range sample item; per-node cursor memory across sessions; gold-knob acceleration
+`Source::getOrCreateFirstRange()` on a zero-range sample item is **no longer carried**: E2 task 9
+put it in `menu::ensure_first_range` (`menu/context.h`), which `MenuScene::enter_child` runs ahead of
+the permission question for every `range_dependent` descent — exactly where
+`checkPermissionToBeginSessionForRangeSpecificParam:1938` runs it. Also carried: per-node cursor
+memory across sessions; gold-knob acceleration
 (`calcNextKnobSpeed`); and real implementations behind every `nodes::kPending` placeholder this task
 left in the tree (E2 task 2 closed one general prerequisite for those -- `Kind::Custom` now routes
 input to `CustomItem::handle`, ahead of the scene's own button handling -- and gave two of the
@@ -350,5 +368,7 @@ placeholders, `firmware_version`/`battery_level`, their own finished `CustomItem
 `battery::Level`'s charging heuristic with `mutable` state on the item, the way legacy keeps it on
 the menu item instance); E2 task 5 gave the three name editors theirs, `nodes::EditNameItem`, which
 opens `rename::RenameScene` — the port of legacy's five-class `gui/ui/rename/` directory — through
-`MenuState::pending_scene`; the other 56 still point at `nodes::kPending`). See the design spec's
+`MenuState::pending_scene`; E2 task 7 the five reset items and task 8 the twelve MIDI commands; E2
+task 9 the two patch-cable pages, the two source pickers, the mod matrix, the two fixed cables and
+the range picker; the other 39 still point at `nodes::kPending`). See the design spec's
 "Amendments during implementation" section for the full, cited account of each.

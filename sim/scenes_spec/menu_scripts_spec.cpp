@@ -153,8 +153,12 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		};
 		const uitest::RunResult result = uitest::expect_script_goldens(
 		    self, "menu_decimal", scenes::scene_registry(), deluge::ui::shell::Services{}, opts);
-		expect(result.snapshots).to_equal(uint32_t{5});
+		expect(result.snapshots).to_equal(uint32_t{6});
 
+		// E2 task 9: `source0_transpose` is one of the 53 `PatchedParam` nodes, so its select press
+		// opens the source picker rather than ascending (`patched_param.cpp:32-38`). The script's
+		// first GoldUpper turn therefore lands on that picker and edits nothing; the Back brings the
+		// leaf back and the script's second GoldUpper turn is the one that moves the value.
 		expect(menu_scene().focused() == &nodes::source0_transpose).to_be_true();
 		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_TRANSPOSE)));
 		// `decimal_value`'s coarse amount is `10^edit_pos`, and `edit_pos` starts at 0, so the same
@@ -274,7 +278,9 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		};
 		const uitest::RunResult result = uitest::expect_script_goldens(
 		    self, "menu_shortcut", scenes::scene_registry(), deluge::ui::shell::Services{}, opts);
-		expect(result.snapshots).to_equal(uint32_t{6});
+		// Seven, not six: `lpf_freq` is a `PatchedParam` node too, so the script gained a second
+		// GoldUpper turn after the Back -- see `menu_decimal` above and the script file's own note.
+		expect(result.snapshots).to_equal(uint32_t{7});
 
 		// The real pad (8, 7) of `paramShortcutsForSounds` -- `&lpfFreqMenu` -- proven in
 		// `menu_scene_spec.cpp`'s own shortcut tests.
@@ -283,7 +289,7 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		expect(bindings::read(nodes::lpf_freq, ctx)).to_equal(std::min(before + 4, 50));
 	});
 
-	it("Range permission: entering the real source0_transpose is refused until a range is chosen", _ {
+	it("Range permission: entering the real source0_transpose opens the real range picker first", _ {
 		reset_globals();
 		spec::SongFixture song = spec::make_synth_song();
 		auto* sound = static_cast<SoundInstrument*>(song.instrument);
@@ -309,13 +315,20 @@ describe menu_scripts("scenes::menu per-kind level-2 acceptance scripts", $ {
 		    self, "menu_range_permission", scenes::scene_registry(), deluge::ui::shell::Services{}, opts);
 		expect(result.snapshots).to_equal(uint32_t{5});
 
-		// The wrapper itself is still on screen -- `source0_transpose` was never entered.
+		// The script ends with a Back, so the wrapper is on screen again -- but the two snapshots
+		// between the select press and that Back are the REAL range picker (its two rows, named by
+		// `MultiRange::getText`), not the refused-entry no-op E1 recorded here.
 		expect(menu_scene().focused() == &range_perm_root).to_be_true();
 		expect(static_cast<uint32_t>(menu_scene().focused()->name)).to_equal(static_cast<uint32_t>(sid(String::STRING_FOR_TRANSPOSE)));
 		expect(cursor0()).to_equal(1); // the Select detent landed the cursor on row 1
+		// The substitution happened and is still recorded: `enter_child` set both, and `ascend` has no
+		// business dropping them -- the item is still the one the picker was standing in for.
 		expect(menu_scene().state().range_picker_pending).to_be_true();
 		expect(menu_scene().state().pending_after_range == &nodes::source0_transpose).to_be_true();
-		// And the model value: refused entry means no edit ever reached it.
+		// And the picker really ran `MultiRange::beginSession` on this source: `defaultRangeI` was -1
+		// and is now `numRanges >> 1` (`multi_range.cpp:45-49`), written back by `menu::select_range`.
+		expect(static_cast<int>(sound->sources[0].defaultRangeI)).to_equal(1);
+		// The leaf itself was never opened, so its model value is untouched.
 		expect(bindings::read(nodes::source0_transpose, ctx)).to_equal(before);
 	});
 });

@@ -90,12 +90,48 @@ MultiRange* first_range(Source& source) {
 	return source.ranges.empty() ? nullptr : static_cast<MultiRange*>(source.ranges.getElement(0));
 }
 
-/// @brief How many ranges the addressed source has -- `std::ssize(source->ranges)` at `:1950`.
-std::ptrdiff_t range_count(const MenuContext& ctx) {
-	return ctx.source != nullptr ? std::ssize(ctx.source->ranges) : 0;
+} // namespace
+
+int32_t range_count(const MenuContext& ctx) {
+	// `std::ssize(source->ranges)` at `:1950`.
+	return ctx.source != nullptr ? static_cast<int32_t>(std::ssize(ctx.source->ranges)) : 0;
 }
 
-} // namespace
+int32_t range_top_note(const MenuContext& ctx, int32_t index) {
+	if (index < 0 || index >= range_count(ctx)) {
+		return 32767; // `Source::getOrCreateFirstRange`'s own "top of the keyboard" value (`source.cpp:165`)
+	}
+	return static_cast<MultiRange*>(ctx.source->ranges.getElement(index))->topNote;
+}
+
+bool ensure_first_range(MenuContext& ctx) {
+	if (ctx.source == nullptr) {
+		return true;
+	}
+	MultiRange* first = ctx.source->getOrCreateFirstRange(); // `:1938`
+	if (first == nullptr) {
+		return false; // `:1939-1942` -- INSUFFICIENT_RAM, which legacy answers with `MenuPermission::NO`
+	}
+	// `:1950-1952` -- the same unambiguous cases `context_for` resolves, re-applied now that a range
+	// is guaranteed to exist. A source that had none until a moment ago now has exactly one.
+	if (ctx.is_kit || range_count(ctx) == 1) {
+		ctx.range = first;
+		ctx.range_index = 0;
+	}
+	return true;
+}
+
+void select_range(MenuContext& ctx, int32_t index) {
+	if (ctx.source == nullptr || index < 0 || index >= range_count(ctx)) {
+		return;
+	}
+	// `SoundEditor::setCurrentMultiRange` (`:1928-1931`).
+	ctx.range = static_cast<MultiRange*>(ctx.source->ranges.getElement(index));
+	ctx.range_index = static_cast<int16_t>(index);
+	// `MultiRange::selectEncoderAction`'s own `defaultRangeI` write (`multi_range.cpp:225`), which
+	// is what makes the choice stick across a later visit to the same source.
+	ctx.source->defaultRangeI = index;
+}
 
 MenuContext context_for(Song& song, Clip* clip, int8_t source_index, bool performance_view,
                         bool session_or_arranger_root, bool kit_global_fx) {

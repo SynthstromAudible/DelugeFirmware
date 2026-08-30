@@ -796,7 +796,7 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 		expect(menu_scene().focused() == &settings_root).to_be_true();
 	});
 
-	it("a MustSelectRange node is recorded as pending and is not entered", _ {
+	it("a MustSelectRange node opens the range picker, which then heads to the node it stood in for", _ {
 		select_language();
 		deluge::notify::dirty().drain();
 		Rig r;
@@ -815,9 +815,35 @@ describe menu_scene_navigation("scenes::menu::MenuScene navigation", $ {
 
 		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 100);
 		r.shell.tick(110);
-		expect(depth_of()).to_equal(0); // E2 supplies the picker; E1 leaves the node unentered
+		// E2 task 9: `enter_child` substitutes the picker for the item, which is legacy's own
+		// `multiRangeMenu.menuItemHeadingTo = newItem; newItem = &multiRangeMenu;`
+		// (`sound_editor.cpp:1802-1803`). So the *picker* is entered, not the leaf.
+		expect(depth_of()).to_equal(1);
+		expect(menu_scene().focused() == &nodes::multi_range).to_be_true();
 		expect(menu_scene().state().range_picker_pending).to_be_true();
 		expect(menu_scene().state().pending_after_range == &transpose_leaf).to_be_true();
+
+		// Both ranges are on screen, and the picker has selected one -- `setCurrentMultiRange`
+		// (`sound_editor.cpp:1928-1931`), applied by `after_render` from `MenuState::range_choice`.
+		// `MultiRange::beginSession` (`multi_range.cpp:45-49`): a `defaultRangeI` of -1 is invalid, so
+		// the picker opens on `numRanges >> 1` -- range 1 of the two -- and `select_range` writes that
+		// back, which is legacy's `soundEditor.currentSource->defaultRangeI = ...` (`:225`).
+		expect(cursor_of(1)).to_equal(1);
+		expect(static_cast<int>(sound->sources[0].defaultRangeI)).to_equal(1);
+
+		// A select press on the picker chains to the node it stood in for -- `MultiRange::selectButtonPress`
+		// returning `menuItemHeadingTo` (`multi_range.cpp:343-345`) -- and this time the permission
+		// rule answers YES, because a range is now selected (`context.cpp`'s already-selected arm).
+		//
+		// Landing on the leaf is itself the proof that `select_range` reached the scene's own
+		// `MenuContext`: with `ctx.range` still null the permission rule would answer `MustSelectRange`
+		// a second time and the picker would be on screen again instead.
+		r.button(kSelectEncButtonX, kSelectEncButtonY, false, 120);
+		r.button(kSelectEncButtonX, kSelectEncButtonY, true, 130);
+		r.shell.tick(140);
+		expect(depth_of()).to_equal(2);
+		expect(menu_scene().focused() == &transpose_leaf).to_be_true();
+		expect(menu_scene().state().range_picker_pending).to_be_false();
 	});
 
 	it("save_state and restore_state round-trip a depth-3 path", _ {

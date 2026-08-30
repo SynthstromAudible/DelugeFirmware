@@ -60,6 +60,13 @@ using deluge::hid::display::OLED;
 #include "gui/menu_item/arpeggiator/note_mode_for_drums.h"
 #include "gui/menu_item/arpeggiator/octave_mode.h"
 #include "gui/menu_item/arpeggiator/preset_mode.h"
+#include "gui/menu_item/patch_cable_strength/fixed.h"
+#include "gui/menu_item/patch_cable_strength/range.h"
+#include "gui/menu_item/patch_cable_strength/regular.h"
+#include "gui/menu_item/patch_cables.h"
+#include "gui/menu_item/sidechain/volume.h"
+#include "gui/menu_item/source_selection/range.h"
+#include "gui/menu_item/source_selection/regular.h"
 #include "gui/menu_item/unison/count.h"
 #include "gui/menu_item/unison/stereoSpread.h"
 #include "gui/menu_item/voice/polyphony.h"
@@ -70,6 +77,7 @@ using deluge::hid::display::OLED;
 #include "model/song/song.h"
 #include "modulation/arpeggiator.h"
 #include "modulation/params/param_set.h"
+#include "modulation/patch/patch_cable_set.h"
 #include "processing/engines/audio_engine.h"
 #include "processing/sound/sound_drum.h"
 #include "processing/sound/sound_instrument.h"
@@ -112,6 +120,17 @@ extern legacy::Submenu soundEditorRootMenu;
 extern legacy::arpeggiator::PresetMode arpPresetModeMenu;
 extern legacy::voice::PolyphonyType polyphonyMenu;
 extern legacy::unison::CountToStereoSpread numUnisonMenu;
+/// @}
+
+/// @name E2 task 9's own legacy globals: the three items and the four pages they chain through.
+///
+/// `patchCablesMenu` (`gui/ui/menus.cpp:1735`), `vibratoMenu` (`:1725`) and
+/// `sidechainVolumeShortcutMenu` (`:806`) are the three the port replaces outright; the four page
+/// singletons live beside their own classes and are already `extern`-declared by the headers above.
+/// @{
+extern legacy::PatchCables patchCablesMenu;
+extern legacy::patch_cable_strength::Fixed vibratoMenu;
+extern legacy::sidechain::VolumeShortcut sidechainVolumeShortcutMenu;
 /// @}
 
 namespace {
@@ -506,6 +525,13 @@ struct Rig {
 		menu_scene().open(root, ctx);
 		shell.init(deluge::ui::shell::SceneId{deluge::ui::shell::SceneKind::FirstApp, menu::node_id(root)});
 	}
+
+	/// @brief One select-encoder press edge, at its own matrix position (`kMatrix`,
+	///        `shell/profiles/deluge.cpp` -- the same (4, 3) `menu_scene_spec.cpp` names).
+	///
+	/// Added for E2 task 9's goldens: the patch-cable strength and source-selection pages are
+	/// reached only through a select press, so a golden of either has to press one.
+	void enter(uint32_t at_ms) { shell.on_board_event(DelugeInputEvent{DELUGE_EVENT_BUTTON, 4, 3, 255}, at_ms); }
 };
 
 /// @brief A 128x64 single-panel board, so the same scene can be recorded at the other shipped
@@ -560,6 +586,19 @@ const Node* chained_node_for(::MenuItem* item) {
 	if (item == &legacy::voice::polyphonicVoiceCountMenu) {
 		return &nodes::voice_count;
 	}
+	// E2 task 9's four patch-cable pages.
+	if (item == &legacy::source_selection::regularMenu) {
+		return &nodes::source_selection_regular;
+	}
+	if (item == &legacy::source_selection::rangeMenu) {
+		return &nodes::source_selection_range;
+	}
+	if (item == &legacy::patch_cable_strength::regularMenu) {
+		return &nodes::patch_cable_strength_regular;
+	}
+	if (item == &legacy::patch_cable_strength::rangeMenu) {
+		return &nodes::patch_cable_strength_range;
+	}
 	return nullptr; // caught by `chain_name`'s "UNMAPPED" arm below, never mistaken for "ascend"
 }
 
@@ -588,6 +627,21 @@ std::string chain_name(const Node* n) {
 	}
 	if (n == &nodes::voice_count) {
 		return "voice_count";
+	}
+	// The four patch-cable pages come in same-named pairs (`source_selection_regular` and
+	// `patch_cable_strength_regular` both say "Modulate with"), so these too must come from the
+	// pointer rather than from the text.
+	if (n == &nodes::source_selection_regular) {
+		return "source_selection_regular";
+	}
+	if (n == &nodes::source_selection_range) {
+		return "source_selection_range";
+	}
+	if (n == &nodes::patch_cable_strength_regular) {
+		return "patch_cable_strength_regular";
+	}
+	if (n == &nodes::patch_cable_strength_range) {
+		return "patch_cable_strength_range";
 	}
 	return "UNMAPPED:" + text_of(n->name);
 }
@@ -1086,6 +1140,240 @@ describe tables_2_chaining("scenes::menu batch-2 tables: selectButtonPress chain
 	});
 });
 
+describe tables_2_patch_cables("scenes::menu batch-2 tables: the patch-cable items", $ {
+	it("declares the three items with the legacy globals' own names, and none of them a placeholder", _ {
+		Rigged& f = fixture();
+		(void)f;
+		struct Case {
+			const Node* node;
+			::MenuItem* item;
+			const menu::CustomItem* expected;
+		};
+		const Case cases[] = {
+		    {&nodes::patch_cables, &patchCablesMenu, &nodes::kPatchCablesItem},
+		    {&nodes::vibrato, &vibratoMenu, &nodes::kVibratoItem},
+		    {&nodes::sidechain_volume, &sidechainVolumeShortcutMenu, &nodes::kSidechainVolumeItem},
+		};
+		for (const Case& c : cases) {
+			expect(text_of(c.node->name)).to_equal(std::string{c.item->getName()});
+			expect(c.node->kind == menu::Kind::Custom).to_be_true();
+			expect(c.node->custom == c.expected).to_be_true();
+			expect(c.node->custom->is_placeholder()).to_be_false();
+		}
+		// The two `Fixed` items differ ONLY in their baked-in param and source, so a swapped pair
+		// would be invisible to every check above. This is what makes them distinguishable: each
+		// item's own `on_focus` installs its pair, and the two pairs are the ones `menus.cpp`
+		// constructs the legacy globals with (`:806-807`, `:1725-1726`).
+		menu::MenuState vib{};
+		nodes::kVibratoItem.on_focus(fixture().ctx, vib);
+		expect(int(vib.patching_param)).to_equal(int(deluge::modulation::params::LOCAL_PITCH_ADJUST));
+		expect(int(vib.patch_source)).to_equal(int(PatchSource::LFO_GLOBAL_1));
+		menu::MenuState duck{};
+		nodes::kSidechainVolumeItem.on_focus(fixture().ctx, duck);
+		expect(int(duck.patching_param)).to_equal(int(deluge::modulation::params::GLOBAL_VOLUME_POST_REVERB_SEND));
+		expect(int(duck.patch_source)).to_equal(int(PatchSource::SIDECHAIN));
+	});
+
+	it("chains exactly where the legacy items' own selectButtonPress chains", _ {
+		// Each side driven from its OWN state: legacy from `soundEditor.patchingParamSelected` plus
+		// the two `source_selection` singletons' `s` members, the port from a `MenuState` this
+		// example fills in itself. A port hook that answered from legacy's globals -- or one that
+		// answered nothing -- would not survive the comparison.
+		Rigged& f = fixture();
+		install(f.ctx, f.song.song);
+		soundEditor.patchingParamSelected = deluge::modulation::params::LOCAL_LPF_FREQ;
+		legacy::source_selection::regularMenu.s = PatchSource::ENVELOPE_1;
+		legacy::source_selection::rangeMenu.s = PatchSource::LFO_GLOBAL_1;
+
+		menu::MenuState st{};
+		st.patching_param = deluge::modulation::params::LOCAL_LPF_FREQ;
+		st.patch_source = PatchSource::ENVELOPE_1;
+		st.patch_range_source = PatchSource::LFO_GLOBAL_1;
+
+		struct Case {
+			const Node* node;
+			::MenuItem* item;
+		};
+		const Case cases[] = {
+		    {&nodes::source_selection_regular, &legacy::source_selection::regularMenu},
+		    {&nodes::patch_cable_strength_regular, &legacy::patch_cable_strength::regularMenu},
+		    {&nodes::source_selection_range, &legacy::source_selection::rangeMenu},
+		    {&nodes::patch_cable_strength_range, &legacy::patch_cable_strength::rangeMenu},
+		    // The two `Fixed` items are `PatchCableStrength`s, so they chain the same way.
+		    {&nodes::vibrato, &vibratoMenu},
+		    {&nodes::sidechain_volume, &sidechainVolumeShortcutMenu},
+		};
+		size_t compared = 0;
+		for (const Case& c : cases) {
+			const Node* want = chained_node_for(c.item->selectButtonPress());
+			const Node* got = c.node->select_chain != nullptr ? c.node->select_chain(f.ctx, st) : nullptr;
+			expect(chain_name(got)).to_equal(chain_name(want));
+			expect(got != nullptr && chain_targets_contain(*c.node, got)).to_be_true();
+			compared++;
+		}
+		expect(compared).to_equal(std::size(cases));
+		// The 53 `PatchedParam` nodes all take `PatchedParam::selectButtonPress`'s non-shift arm
+		// (`gui/menu_item/patched_param.cpp:32-38`), which is unconditional: always the regular
+		// source picker. Checked against the legacy answer too, through one representative item --
+		// `lpfFreqMenu`, a `patched_param::Integer`.
+		::MenuItem* lpf_item = nullptr;
+		for (const Pair& pr : tree().pairs) {
+			if (pr.node == &nodes::lpf_freq) {
+				lpf_item = pr.item;
+			}
+		}
+		expect(lpf_item != nullptr).to_be_true();
+		const Node* lpf_want = chained_node_for(lpf_item->selectButtonPress());
+		expect(chain_name(nodes::lpf_freq.select_chain(f.ctx, st))).to_equal(chain_name(lpf_want));
+		expect(chain_name(lpf_want)).to_equal(std::string{"source_selection_regular"});
+	});
+
+	it("chains every PATCHED node, and only those", _ {
+		// E2 task 3 measured the affected set by `dynamic_cast<PatchedParam*>` over a lockstep walk
+		// and found it to be **exactly** the nodes with `bind.param.kind == PATCHED`, 53 of them.
+		// That equality is what `with_patch_chain` is applied on, so it is what is pinned here:
+		// every PATCHED node chains to `source_selection_regular`, and no node that chains there is
+		// anything else.
+		size_t patched = 0;
+		size_t chained_to_picker = 0;
+		std::vector<const Node*> stack(nodes::kAllRoots.begin(), nodes::kAllRoots.end());
+		std::set<const Node*> seen;
+		while (!stack.empty()) {
+			const Node* n = stack.back();
+			stack.pop_back();
+			if (n == nullptr || !seen.insert(n).second) {
+				continue;
+			}
+			for (const Node* c : n->children) {
+				stack.push_back(c);
+			}
+			for (const Node* t : n->chain_targets) {
+				stack.push_back(t);
+			}
+			const bool is_patched = n->bind.param.kind == deluge::modulation::params::Kind::PATCHED;
+			const bool to_picker = chain_targets_contain(*n, &nodes::source_selection_regular);
+			if (is_patched) {
+				patched++;
+			}
+			if (to_picker) {
+				chained_to_picker++;
+			}
+			// Named rather than counted, so a failure says which node lost (or gained) its chain.
+			expect(text_of(n->name) + (is_patched ? " PATCHED" : " -")).to_equal(text_of(n->name)
+			                                                                    + (to_picker ? " PATCHED" : " -"));
+		}
+		expect(patched).to_equal(size_t(53));
+		expect(chained_to_picker).to_equal(size_t(53));
+	});
+
+	it("reads and writes a patch cable's strength where the legacy page reads and writes it", _ {
+		Rigged& f = fixture();
+		install(f.ctx, f.song.song);
+
+		// A cable from ENVELOPE_1 to LPF frequency, created by the port's own write path (which is
+		// `getAutoParamFromId(..., allowCreation=true)` -- `patch_cable_strength.cpp:203-220`).
+		ParamDescriptor learn;
+		learn.setToHaveParamAndSource(deluge::modulation::params::LOCAL_LPF_FREQ, PatchSource::ENVELOPE_1);
+		expect(menu::bindings::patch_cable_write(f.ctx, learn, 1234)).to_be_true();
+
+		// Legacy reads it through its own globals ...
+		soundEditor.patchingParamSelected = deluge::modulation::params::LOCAL_LPF_FREQ;
+		legacy::source_selection::regularMenu.s = PatchSource::ENVELOPE_1;
+		legacy::patch_cable_strength::regularMenu.readCurrentValue();
+		const int32_t legacy_value = legacy::patch_cable_strength::regularMenu.getValue();
+
+		// ... and the port through a `MenuState` filled in independently of them.
+		menu::MenuState st{};
+		st.patching_param = deluge::modulation::params::LOCAL_LPF_FREQ;
+		st.patch_source = PatchSource::ENVELOPE_1;
+		nodes::kPatchCableStrengthRegularItem.on_focus(f.ctx, st);
+		expect(st.edit_int).to_equal(legacy_value);
+		expect(st.edit_int).to_equal(int32_t(1234));
+		expect(int(st.decimal_pos)).to_equal(2); // `getDefaultEditPos()` (`patch_cable_strength.h:39`)
+
+		// The learn descriptor is the legacy page's own `getLearningThing()`.
+		expect(nodes::kPatchCableStrengthRegularItem.learn_descriptor(f.ctx, st).data)
+		    .to_equal(legacy::patch_cable_strength::regularMenu.getLearningThing().data);
+
+		// And the write, from an independent sentinel: the cable is moved somewhere that is NOT the
+		// value about to be written, the port's `commit` writes, and the result is read back through
+		// **legacy's** reader. A `commit` that did nothing would leave the sentinel behind.
+		//
+		// The legacy *write* path is not driven, for the reason this file already records for
+		// `ParamRef` nodes: with no root UI open, `PatchCableStrength::writeCurrentValue` resolves
+		// `soundEditor.getCurrentModelStack` down the `!rootUIIsClipMinderScreen()` arm
+		// (`sound_editor.cpp:1986`) and asks the *song's* param manager for a patch-cable collection
+		// it does not have -- which is `FREEZE_WITH_ERROR("E412")`, i.e. a null-`display` segfault in
+		// the host build. `bindings_spec` covers the model-stack half directly.
+		expect(menu::bindings::patch_cable_write(f.ctx, learn, -2500)).to_be_true(); // sentinel
+		legacy::patch_cable_strength::regularMenu.readCurrentValue();
+		expect(legacy::patch_cable_strength::regularMenu.getValue()).to_equal(int32_t(-2500));
+
+		st.edit_int = 4321;
+		nodes::kPatchCableStrengthRegularItem.commit(f.ctx, st);
+		legacy::patch_cable_strength::regularMenu.readCurrentValue();
+		expect(legacy::patch_cable_strength::regularMenu.getValue()).to_equal(int32_t(4321));
+	});
+
+	it("opens the strength page the selected cable needs, and installs that cable's own sources", _ {
+		Rigged& f = fixture();
+		install(f.ctx, f.song.song);
+		PatchCableSet* set = f.ctx.params->getPatchCableSetAllowJibberish();
+		expect(set != nullptr).to_be_true();
+
+		// Two cables: one to a bare param, one to another cable's depth. `PatchCables::selectButtonPress`
+		// picks a different strength page for each (`patch_cables.cpp:181-190`).
+		ParamDescriptor plain;
+		plain.setToHaveParamAndSource(deluge::modulation::params::LOCAL_LPF_FREQ, PatchSource::ENVELOPE_1);
+		expect(menu::bindings::patch_cable_write(f.ctx, plain, 1000)).to_be_true();
+		ParamDescriptor ranged;
+		ranged.setToHaveParamAndTwoSources(deluge::modulation::params::LOCAL_LPF_FREQ, PatchSource::ENVELOPE_1,
+		                                   PatchSource::LFO_GLOBAL_1);
+		expect(menu::bindings::patch_cable_write(f.ctx, ranged, 900)).to_be_true();
+		expect(set->numPatchCables >= 2).to_be_true();
+
+		size_t compared = 0;
+		for (int32_t i = 0; i < set->numPatchCables; i++) {
+			// Legacy is driven from its own cursor member, the port from its own `ListState` -- two
+			// independent sentinels for the same choice.
+			patchCablesMenu.currentValue = i;
+			const Node* want = chained_node_for(patchCablesMenu.selectButtonPress());
+
+			menu::MenuState st{};
+			st.depth = 0;
+			st.path[0] = &nodes::patch_cables;
+			st.list[0].cursor = static_cast<int16_t>(i);
+			const Node* got = nodes::patch_cables.select_chain(f.ctx, st);
+			expect(chain_name(got)).to_equal(chain_name(want));
+			expect(got != nullptr && chain_targets_contain(nodes::patch_cables, got)).to_be_true();
+
+			// And the state legacy's own `selectButtonPress` installed on the way out -- which the
+			// port installs on the way *in*, from the strength page's `on_focus`.
+			menu::MenuState arrived = st;
+			arrived.depth = 1;
+			arrived.path[1] = got;
+			const auto* item = static_cast<const nodes::PatchCableStrengthItem*>(got->custom);
+			item->on_focus(f.ctx, arrived);
+			expect(int(arrived.patching_param)).to_equal(int(soundEditor.patchingParamSelected));
+			expect(int(arrived.patch_source)).to_equal(int(legacy::source_selection::regularMenu.s));
+			if (!set->patchCables[i].destinationParamDescriptor.isJustAParam()) {
+				expect(int(arrived.patch_range_source)).to_equal(int(legacy::source_selection::rangeMenu.s));
+			}
+			compared++;
+		}
+		expect(compared >= size_t(2)).to_be_true();
+
+		// With no cable under the cursor at all, legacy falls through to `MenuItem::selectButtonPress`
+		// -- "there were no items ... take them back there" (`patch_cables.cpp:171-175`) -- which is
+		// `nullptr`, i.e. ascend.
+		patchCablesMenu.currentValue = set->numPatchCables;
+		expect(patchCablesMenu.selectButtonPress() == nullptr).to_be_true();
+		menu::MenuState empty{};
+		empty.list[0].cursor = static_cast<int16_t>(set->numPatchCables);
+		expect(nodes::patch_cables.select_chain(f.ctx, empty) == nullptr).to_be_true();
+	});
+});
+
 describe tables_2_pixels("scenes::menu batch-2 tables: pixels", $ {
 	it("renders the sound-editor root list", _ {
 		Rigged& f = fixture();
@@ -1103,6 +1391,76 @@ describe tables_2_pixels("scenes::menu batch-2 tables: pixels", $ {
 		r.open(nodes::sound_root, f.ctx);
 		r.shell.tick(0);
 		expect_golden(self, "../ui/menu/menu_sound_root_64.pbm", r.fake.pbm(0));
+	});
+
+	it("renders the mod-matrix list and the cable-strength page, on both shipped panel geometries", _ {
+		// Both geometries for both pages, because neither screen has a golden anywhere else and the
+		// row arithmetic behind them (`menu_rect`, `title`, `decimal_value`) is panel-dependent --
+		// task 8 shipped a 64-row bug for exactly this reason.
+		Rigged& f = fixture();
+		install(f.ctx, f.song.song);
+		ParamDescriptor plain;
+		plain.setToHaveParamAndSource(deluge::modulation::params::LOCAL_LPF_FREQ, PatchSource::ENVELOPE_1);
+		expect(menu::bindings::patch_cable_write(f.ctx, plain, 1234)).to_be_true();
+
+		deluge::notify::dirty().drain();
+		{
+			Rig r;
+			r.open(nodes::patch_cables, f.ctx);
+			r.shell.tick(0);
+			expect_golden(self, "../ui/menu/menu_patch_cables_48.pbm", r.fake.pbm(0));
+		}
+		{
+			Rig r{board_64(), profile_64()};
+			r.open(nodes::patch_cables, f.ctx);
+			r.shell.tick(0);
+			expect_golden(self, "../ui/menu/menu_patch_cables_64.pbm", r.fake.pbm(0));
+		}
+		// The strength page, reached the way a user reaches it: a select press on the cable list.
+		{
+			Rig r;
+			r.open(nodes::patch_cables, f.ctx);
+			r.shell.tick(0);
+			r.enter(20);
+			r.shell.tick(30);
+			r.shell.tick(40);
+			expect(menu_scene().focused() == &nodes::patch_cable_strength_regular).to_be_true();
+			expect_golden(self, "../ui/menu/menu_cable_strength_48.pbm", r.fake.pbm(0));
+		}
+		{
+			Rig r{board_64(), profile_64()};
+			r.open(nodes::patch_cables, f.ctx);
+			r.shell.tick(0);
+			r.enter(20);
+			r.shell.tick(30);
+			r.shell.tick(40);
+			expect_golden(self, "../ui/menu/menu_cable_strength_64.pbm", r.fake.pbm(0));
+		}
+	});
+
+	it("renders the source picker the 53 PatchedParam nodes chain to, on both panels", _ {
+		Rigged& f = fixture();
+		install(f.ctx, f.song.song);
+		deluge::notify::dirty().drain();
+		{
+			Rig r;
+			r.open(nodes::lpf_freq, f.ctx);
+			r.shell.tick(0);
+			r.enter(20);
+			r.shell.tick(30);
+			r.shell.tick(40);
+			expect(menu_scene().focused() == &nodes::source_selection_regular).to_be_true();
+			expect_golden(self, "../ui/menu/menu_source_selection_48.pbm", r.fake.pbm(0));
+		}
+		{
+			Rig r{board_64(), profile_64()};
+			r.open(nodes::lpf_freq, f.ctx);
+			r.shell.tick(0);
+			r.enter(20);
+			r.shell.tick(30);
+			r.shell.tick(40);
+			expect_golden(self, "../ui/menu/menu_source_selection_64.pbm", r.fake.pbm(0));
+		}
 	});
 });
 describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
@@ -1478,12 +1836,12 @@ describe tables_2_writes("scenes::menu batch-2 tables: writes", $ {
 });
 // clang-format on
 
-/// Six `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
+/// Seven `describe` groups in one TU, so `DELUGE_SPEC` (one spec per entry point) is spelled out
 /// here with `add_specs` instead.
 int tables_2_spec(int argc, char** const argv) {
 	return CppSpec::parse(argc, argv)
-	               .add_specs(tables_2_shape, tables_2_values, tables_2_validation, tables_2_chaining, tables_2_pixels,
-	                          tables_2_writes)
+	               .add_specs(tables_2_shape, tables_2_values, tables_2_validation, tables_2_chaining,
+	                          tables_2_patch_cables, tables_2_pixels, tables_2_writes)
 	               .exec()
 	               .is_success()
 	           ? EXIT_SUCCESS

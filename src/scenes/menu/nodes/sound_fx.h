@@ -80,6 +80,7 @@
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
+#include "scenes/menu/nodes/patch_cables.h"    // with_patch_chain -- every PATCHED param chains
 #include "scenes/menu/nodes/sound_lfo.h"       // kSyncLevelRange
 #include "scenes/menu/nodes/sound_osc.h"       // the noise level
 #include "scenes/menu/nodes/sound_sidechain.h" // kSidechainSyncRange, kSidechainRateRange
@@ -183,10 +184,10 @@ inline constexpr Node eq = submenu(sid(deluge::l10n::String::STRING_FOR_EQ), kEq
 
 // --- Delay -------------------------------------------------------------------------------------
 
-inline constexpr Node delay_amount =
+inline constexpr Node delay_amount = with_patch_chain(
     param(sid(deluge::l10n::String::STRING_FOR_AMOUNT),
           {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::GLOBAL_DELAY_FEEDBACK}, Hint::Bar,
-          nullptr, sid(deluge::l10n::String::STRING_FOR_DELAY_AMOUNT));
+          nullptr, sid(deluge::l10n::String::STRING_FOR_DELAY_AMOUNT)));
 inline constexpr Node delay_ping_pong =
     with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_PINGPONG), kDelayPingPongNames, get_delay_ping_pong,
                            set_delay_ping_pong),
@@ -195,9 +196,9 @@ inline constexpr Node delay_sync =
     sync_level_item(sid(deluge::l10n::String::STRING_FOR_SYNC), sid(deluge::l10n::String::STRING_FOR_DELAY_SYNC),
                     get_delay_sync, set_delay_sync, kSyncLevelRange);
 inline constexpr Node delay_rate =
-    param(sid(deluge::l10n::String::STRING_FOR_RATE),
-          {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::GLOBAL_DELAY_RATE}, Hint::Knob,
-          nullptr, sid(deluge::l10n::String::STRING_FOR_DELAY_RATE));
+    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_RATE),
+                           {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::GLOBAL_DELAY_RATE},
+                           Hint::Knob, nullptr, sid(deluge::l10n::String::STRING_FOR_DELAY_RATE)));
 inline constexpr Node delay_type =
     with_title(enumeration(sid(deluge::l10n::String::STRING_FOR_TYPE), kDelayTypeNames, get_delay_type, set_delay_type),
                sid(deluge::l10n::String::STRING_FOR_DELAY_TYPE));
@@ -212,10 +213,10 @@ inline constexpr Node delay = submenu(sid(deluge::l10n::String::STRING_FOR_DELAY
 // the pan is -25..25 (`reverb/pan.h:26-27`); the sidechain volume starts at -1, which the item
 // draws as AUTO (`reverb/sidechain/volume.h:26-27,30-39`).
 
-inline constexpr Node reverb_amount =
+inline constexpr Node reverb_amount = with_patch_chain(
     param(sid(deluge::l10n::String::STRING_FOR_AMOUNT),
           {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::GLOBAL_REVERB_AMOUNT}, Hint::Bar,
-          nullptr, sid(deluge::l10n::String::STRING_FOR_REVERB_AMOUNT));
+          nullptr, sid(deluge::l10n::String::STRING_FOR_REVERB_AMOUNT)));
 inline constexpr Node reverb_room_size = int_item(sid(deluge::l10n::String::STRING_FOR_ROOM_SIZE), get_reverb_room_size,
                                                   set_reverb_room_size, IntRange{0, kMaxMenuValue, 1}, Hint::Knob);
 inline constexpr Node reverb_damping = int_item(sid(deluge::l10n::String::STRING_FOR_DAMPING), get_reverb_damping,
@@ -291,13 +292,13 @@ inline constexpr Node mod_fx_type =
                           sid(deluge::l10n::String::STRING_FOR_MODFX_TYPE)),
                4); // `mod_fx/type.h:60-63`
 inline constexpr Node mod_fx_depth =
-    param(sid(deluge::l10n::String::STRING_FOR_DEPTH),
-          {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::GLOBAL_MOD_FX_DEPTH}, Hint::Bar,
-          relevance::mod_fx_has_depth, sid(deluge::l10n::String::STRING_FOR_MODFX_DEPTH));
+    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_DEPTH),
+                           {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::GLOBAL_MOD_FX_DEPTH},
+                           Hint::Bar, relevance::mod_fx_has_depth, sid(deluge::l10n::String::STRING_FOR_MODFX_DEPTH)));
 inline constexpr Node mod_fx_rate =
-    param(sid(deluge::l10n::String::STRING_FOR_RATE),
-          {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::GLOBAL_MOD_FX_RATE}, Hint::Knob,
-          relevance::mod_fx_on, sid(deluge::l10n::String::STRING_FOR_MODFX_RATE));
+    with_patch_chain(param(sid(deluge::l10n::String::STRING_FOR_RATE),
+                           {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::GLOBAL_MOD_FX_RATE},
+                           Hint::Knob, relevance::mod_fx_on, sid(deluge::l10n::String::STRING_FOR_MODFX_RATE)));
 inline constexpr Node mod_fx_feedback =
     param(sid(deluge::l10n::String::STRING_FOR_FEEDBACK),
           {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_MOD_FX_FEEDBACK},
@@ -323,9 +324,9 @@ inline constexpr Node decimation = param(
     sid(deluge::l10n::String::STRING_FOR_DECIMATION),
     {deluge::modulation::params::Kind::UNPATCHED_SOUND, deluge::modulation::params::UNPATCHED_SAMPLE_RATE_REDUCTION},
     Hint::Bar);
-inline constexpr Node wavefold =
+inline constexpr Node wavefold = with_patch_chain(
     param(sid(deluge::l10n::String::STRING_FOR_WAVEFOLD),
-          {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_FOLD}, Hint::Bar);
+          {deluge::modulation::params::Kind::PATCHED, deluge::modulation::params::LOCAL_FOLD}, Hint::Bar));
 
 inline constexpr const Node* kDistortionChildren[] = {&saturation, &bitcrush, &decimation, &wavefold};
 inline constexpr Node distortion =

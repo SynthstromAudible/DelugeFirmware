@@ -48,6 +48,7 @@
 
 #include "scenes/menu/node.h"
 #include "scenes/menu/nodes/detail.h"
+#include "scenes/menu/nodes/patch_cables.h"
 #include "scenes/menu/nodes/sound_actions.h"
 #include "scenes/menu/nodes/sound_arp.h"
 #include "scenes/menu/nodes/sound_bend.h"
@@ -66,7 +67,12 @@
 
 namespace deluge::scenes::menu::nodes {
 
-inline constexpr Node patch_cables = custom(sid(deluge::l10n::String::STRING_FOR_MOD_MATRIX), &kPending); // E2
+// `patchCablesMenu` (`gui/ui/menus.cpp:1735`): the MOD MATRIX list of every existing cable on this
+// sound. A select press opens the selected cable's own strength page -- the range one when that
+// cable's destination is itself a cable (`patch_cables.cpp:168-190`).
+inline constexpr Node patch_cables =
+    with_select_chain(custom(sid(deluge::l10n::String::STRING_FOR_MOD_MATRIX), &kPatchCablesItem), &patch_cables_chain,
+                      kPatchCablesChain);
 
 inline constexpr const Node* kSoundRootChildren[] = {
     &sound_actions, &sound_master,

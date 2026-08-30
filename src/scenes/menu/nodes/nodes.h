@@ -38,6 +38,8 @@
 /// lists below serve both.
 
 #include "scenes/menu/node.h"
+#include "scenes/menu/nodes/multi_range.h"
+#include "scenes/menu/nodes/patch_cables.h"
 #include "scenes/menu/nodes/roots.h"
 #include "scenes/menu/nodes/settings.h"
 #include "scenes/menu/nodes/sound_actions.h"
@@ -132,9 +134,16 @@ inline constexpr std::span<const Node* const> kHalfPrecisionNodes{kHalfPrecision
 /// then `root_cv` -- the MIDI/CV root's CV-titled twin (`roots.h`'s note) -- so that it too gets a
 /// node id and is validated. This is the span `tables_3_spec` hands `validate_tree`, and what Task
 /// 10's dump walks.
+///
+/// **E2 task 9 adds a twelfth**, `multi_range`, for exactly the reason `root_cv` is here: the range
+/// picker is reached only by substitution (`MenuScene::enter_child`'s `MustSelectRange` arm), no
+/// submenu names it, and nothing else in the tree chains *to* it -- so without a place in this list
+/// it would be an unnumbered, unvalidated, undumped page that `SceneId::arg` could never name.
+/// `MenuScene::roots()` is unaffected: it is indexed by `MenuContext::Root` and still has ten
+/// entries.
 inline constexpr const Node* kAllRootArray[] = {
     &sound_root,       &root_drum, &root_midi_or_cv,    &root_midi_drum, &root_gate_drum, &root_audio_clip,
-    &root_performance, &root_song, &root_kit_global_fx, &root_settings,  &root_cv,
+    &root_performance, &root_song, &root_kit_global_fx, &root_settings,  &root_cv,        &multi_range,
 };
 inline constexpr std::span<const Node* const> kAllRoots{kAllRootArray};
 

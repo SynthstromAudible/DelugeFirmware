@@ -160,11 +160,49 @@ struct MenuState {
 	/// `HorizontalMenu::handleItemAction` answers it with the notification popup rather than any
 	/// navigation (`gui/menu_item/horizontal_menu.cpp:657-661`).
 	bool column_press = false;
-	/// Spec E §4.1's `MustSelectRange` outcome, recorded rather than acted on: E2 owns the range
-	/// picker, and E1 leaves the node unentered.
+	/// Spec E §4.1's `MustSelectRange` outcome. E1 recorded it and left the node unentered; E2 task
+	/// 9 acts on it -- `enter_child` descends into `nodes::multi_range` instead, which is legacy's
+	/// own substitution at `sound_editor.cpp:1802-1803` (`multiRangeMenu.menuItemHeadingTo = newItem`
+	/// followed by `newItem = &multiRangeMenu`).
+	///
+	/// Stays true for as long as the picker is the reason the deeper item has not been opened; the
+	/// picker's `select_chain` reads `pending_after_range` to know where to head.
 	bool range_picker_pending = false;
-	/// The node that would have been entered once a range is chosen.
+	/// The node that will be entered once a range is chosen -- legacy's
+	/// `MultiRange::menuItemHeadingTo` (`gui/menu_item/multi_range.h:36`), which is exactly what its
+	/// `selectButtonPress` returns (`multi_range.cpp:343-345`).
 	const Node* pending_after_range = nullptr;
+
+	/// @brief A range index the focused picker chose this tick, or -1 for none.
+	///
+	/// The picker is a `CustomItem` and is handed a **`const MenuContext&`**, so it cannot do
+	/// legacy's `soundEditor.setCurrentMultiRange(...)` itself; it records the index here and
+	/// `after_render` -- which owns the scene's own mutable `ctx_` -- applies it through
+	/// `menu::select_range`. Same shape as `pending_scene`: the item asks, `after_render` does.
+	int16_t range_choice = -1;
+
+	/// @name The patch-cable pages' shared selection -- legacy's three globals, as scene state.
+	///
+	/// Legacy spreads these across `SoundEditor::patchingParamSelected` (`gui/ui/sound_editor.h`),
+	/// `source_selection::regularMenu.s` and `source_selection::rangeMenu.s`
+	/// (`gui/menu_item/source_selection.h:36`, one `PatchSource` member per singleton page). They are
+	/// genuinely shared *navigation* state -- which param a cable is being made to, which source it
+	/// comes from, and which source modulates that source's depth -- read by four different pages,
+	/// so they live on `MenuState` beside the path rather than on any one item.
+	///
+	/// @note `PatchedParam::selectButtonPress` (`gui/menu_item/patched_param.cpp:32-38`) writes
+	///       `patching_param` in legacy, on the way out of the param item. `SelectChainFn` takes a
+	///       **`const MenuState&`**, so the port cannot write it there; `SourceSelectionItem::on_focus`
+	///       does it instead, reading the param out of `path[depth - 1]` -- the node the chain came
+	///       from, which `enter_child` has just pushed this page under. Same fact, one hop later.
+	/// @{
+	/// `soundEditor.patchingParamSelected`; `deluge::modulation::params::kNoParamID` for none.
+	uint8_t patching_param = 255;
+	/// `source_selection::regularMenu.s` -- the cable's own source.
+	PatchSource patch_source = PatchSource::NOT_AVAILABLE;
+	/// `source_selection::rangeMenu.s` -- the source modulating *that* cable's depth.
+	PatchSource patch_range_source = PatchSource::NOT_AVAILABLE;
+	/// @}
 
 	/// @brief A scene a focused `CustomItem` asked the shell to push, or `SceneKind::Null` for
 	///        none.
@@ -346,8 +384,12 @@ private:
 	void enter_leaf(const Node& node);
 	/// @brief Commit the edit storage for @p node through `bindings::write`.
 	void commit_value(const Node& node);
-	/// @brief Descend into @p child if its permission allows, recording `MustSelectRange`.
+	/// @brief Descend into @p child if its permission allows, opening the range picker for
+	///        `MustSelectRange`.
 	void enter_child(const Node& child);
+	/// @brief Push @p child onto the path with no permission question asked -- the half of
+	///        `enter_child` the range-picker substitution reuses.
+	void descend_to(const Node& child);
 	/// @brief Go up one level, skipping levels whose permission is now `No`
 	///        (`sound_editor.cpp:672-683`).
 	void ascend();

@@ -18,6 +18,7 @@
 ///       header), which never requires a complete type, so this header stays free of the shell's
 ///       and the oled toolkit's own dependency closures.
 #include "modulation/params/param.h"
+#include "modulation/params/param_descriptor.h" // CustomItem::learn_descriptor -- returned by value
 #include "ui/oled/meters.h"
 #include "ui/oled/values.h"
 
@@ -238,6 +239,19 @@ struct CustomItem {
 	/// callers.
 	virtual void on_focus(const MenuContext&, MenuState&) const {}
 
+	/// @brief Commit whatever this item has been editing -- `MenuItem::writeCurrentValue`, for a
+	///        bespoke item whose value does not live in a `Binding`.
+	///
+	/// The mirror of `on_focus`: `MenuScene::commit_value`'s `Kind::Custom` arm calls it, which is
+	/// reached from `after_render` when the item set `MenuState::value_changed` during its render.
+	/// That indirection is the point -- a `CustomItem::render` may not write the model
+	/// (`menu_scene.h`: "never mutates the model from `render_oled`"), so an item that edits a value
+	/// records the change and this hook performs it, exactly where every other kind's write happens.
+	///
+	/// Do-nothing default: only the three patch-cable-strength pages have a value with no `Binding`
+	/// behind it (`nodes/patch_cables.h`).
+	virtual void commit(const MenuContext&, MenuState&) const {}
+
 	/// @brief Is this a stand-in for an item E2 still owes, rather than the real thing?
 	///
 	/// E1's tables have to name every legacy bespoke item so the tree's *shape* is complete, but the
@@ -295,6 +309,29 @@ struct CustomItem {
 	/// @brief Does this item want the LEARN LED blinking while it is focused?
 	///        `MenuItem::shouldBlinkLearnLed` (`sound_editor.cpp:911-916`, `:488-492`).
 	virtual bool wants_learn_blink() const { return false; }
+
+	/// @brief Which automatable parameter a CC would bind to on this item -- `getLearningThing()`
+	///        for a bespoke item whose answer is not a `Binding::param`.
+	///
+	/// The *other* learn path (see `MenuScene::learn_target`'s note): `bindings::learn_target` reads
+	/// `Node::bind.param`, which is enough for every `PatchedParam`/`UnpatchedParam` node, but the
+	/// three patch-cable-strength pages have no `ParamRef` at all -- their descriptor is assembled
+	/// at read time from `MenuState`'s `patching_param` / `patch_source` / `patch_range_source`
+	/// (`patch_cable_strength/regular.cpp:26-30`, `range.cpp:25-30`). Hence the two arguments:
+	/// unlike every other hook here, the answer is a function of where the user navigated, not of
+	/// the item alone.
+	///
+	/// A null descriptor (the default) means "this item has nothing to learn", which is what
+	/// `MenuScene::learn_target` falls back from to `bindings::learn_target`. Spelled with
+	/// `setToNull()` rather than `{}` on purpose: a default-constructed `ParamDescriptor` has
+	/// `data == 0` and `isNull()` is false for it (`modulation/params/param_descriptor.h:106-110`),
+	/// so `{}` would read as "param 0 from source 0" -- the same spelling `bindings::learn_target`
+	/// uses for the same reason.
+	virtual ParamDescriptor learn_descriptor(const MenuContext&, const MenuState&) const {
+		ParamDescriptor descriptor;
+		descriptor.setToNull();
+		return descriptor;
+	}
 	/// @}
 };
 

@@ -267,6 +267,13 @@ void MenuScene::retarget(const Node& node) {
 	// item, so the request goes with it rather than surviving to mislead E2's picker.
 	st_.range_picker_pending = false;
 	st_.pending_after_range = nullptr;
+	st_.range_choice = -1;
+	// The patch-cable pages' shared selection belongs to a walk through the tree, not to the tree:
+	// re-rooting abandons that walk, so `patching_param` and the two sources go back to "nothing
+	// chosen" rather than pointing a freshly opened page at the last visit's cable.
+	st_.patching_param = 255;
+	st_.patch_source = PatchSource::NOT_AVAILABLE;
+	st_.patch_range_source = PatchSource::NOT_AVAILABLE;
 	// Same reasoning for the scene a custom item asked to open: it belongs to the item this
 	// re-rooting abandons. Cleared *before* `enter_leaf` below, which is the one call that can
 	// legitimately set it again (landing straight on an `EditNameItem` through `SceneId::arg`).
@@ -333,7 +340,21 @@ const Node* MenuScene::focused() const {
 
 ParamDescriptor MenuScene::learn_target() const {
 	const Node* node = focused();
-	return node != nullptr ? bindings::learn_target(*node, ctx_) : ParamDescriptor{};
+	if (node == nullptr) {
+		return {};
+	}
+	// A bespoke item whose descriptor is not a `Binding::param` answers first -- the three
+	// patch-cable-strength pages, whose `getLearningThing()` is assembled from the navigation state
+	// (`node.h`'s `CustomItem::learn_descriptor`). Every other item leaves it null and falls through
+	// to the `ParamRef` answer, which is what all 53 `PatchedParam` nodes and every `UnpatchedParam`
+	// node use.
+	if (node->kind == Kind::Custom && node->custom != nullptr) {
+		const ParamDescriptor from_item = node->custom->learn_descriptor(ctx_, st_);
+		if (!from_item.isNull()) {
+			return from_item;
+		}
+	}
+	return bindings::learn_target(*node, ctx_);
 }
 
 // ---------------------------------------------------------------------------------------------
@@ -891,6 +912,14 @@ void MenuScene::enter_leaf(const Node& node) {
 
 void MenuScene::commit_value(const Node& node) {
 	switch (node.kind) {
+	case Kind::Custom:
+		// `CustomItem::commit` -- `writeCurrentValue` for an item whose value has no `Binding`
+		// behind it (the three patch-cable-strength pages). `bindings::write` would be a no-op for
+		// such a node, so the item performs its own write here, in the one place a write may happen.
+		if (node.custom != nullptr) {
+			node.custom->commit(ctx_, st_);
+		}
+		break;
 	case Kind::Enum:
 		bindings::write(node, ctx_, st_.enum_index);
 		break;
@@ -903,21 +932,7 @@ void MenuScene::commit_value(const Node& node) {
 	}
 }
 
-void MenuScene::enter_child(const Node& child) {
-	switch (permission_for(child, ctx_)) {
-	case Permission::No:
-		return;
-	case Permission::MustSelectRange:
-		// Recorded, not acted on: E2 owns the range picker (legacy's `multiRangeMenu` redirect via
-		// `menuItemHeadingTo`). Leaving the node unentered is the documented E1 behaviour -- the
-		// alternative, entering it anyway, would edit whichever range happened to be first.
-		st_.range_picker_pending = true;
-		st_.pending_after_range = &child;
-		return;
-	case Permission::Yes:
-		break;
-	}
-
+void MenuScene::descend_to(const Node& child) {
 	// (Task 8 removed `Kind::Action` -- no table declares one, see `node.h`'s `Kind`. The arm that
 	// ran an action in place rather than descending went with it.)
 	if (st_.depth + 1 >= kMenuDepth) {
@@ -931,6 +946,46 @@ void MenuScene::enter_child(const Node& child) {
 	if (is_leaf(child.kind)) {
 		enter_leaf(child);
 	}
+}
+
+void MenuScene::enter_child(const Node& child) {
+	// `checkPermissionToBeginSessionForRangeSpecificParam`'s **first statement**
+	// (`sound_editor.cpp:1938-1942`), ahead of every one of its arms: the check creates the source's
+	// first `MultiRange` if it has none, and refuses outright if that allocation fails.
+	// `permission_for` is a pure predicate and deliberately does not (`context.cpp`'s "Owed to E2"),
+	// so the allocation happens here -- the port of the call site -- for exactly the nodes legacy
+	// ran it for, the `range_dependent` ones. E1's carry list records this as owed to task 9.
+	if (child.range_dependent && !ensure_first_range(ctx_)) {
+		deluge::notify::notice_string(static_cast<uint16_t>(deluge::l10n::String::STRING_FOR_ERROR_INSUFFICIENT_RAM));
+		return;
+	}
+
+	switch (permission_for(child, ctx_)) {
+	case Permission::No:
+		return;
+	case Permission::MustSelectRange:
+		// `sound_editor.cpp:1802-1803`: `multiRangeMenu.menuItemHeadingTo = newItem;` and then the
+		// picker is opened *instead of* the item. `pending_after_range` is `menuItemHeadingTo`, and
+		// `nodes::multi_range_chain` is what reads it back on the picker's own select press.
+		//
+		// `descend_to`, not `enter_child`: the picker is not itself `range_dependent` (see
+		// `nodes/multi_range.h` for why that matters -- it would recurse), but going back through the
+		// permission gate for a node that no submenu names would be asking a question with no caller.
+		st_.range_picker_pending = true;
+		st_.pending_after_range = &child;
+		descend_to(nodes::multi_range);
+		return;
+	case Permission::Yes:
+		break;
+	}
+
+	// The picker's job is done the moment the item it was heading to opens -- legacy drops
+	// `menuItemHeadingTo` on the floor the same way, by simply navigating past it.
+	if (&child == st_.pending_after_range) {
+		st_.range_picker_pending = false;
+		st_.pending_after_range = nullptr;
+	}
+	descend_to(child);
 }
 
 void MenuScene::ascend() {
@@ -958,6 +1013,15 @@ Result MenuScene::after_render() {
 	// render, so the panel is still showing the old screen and the next tick has to be asked for.
 	const Node* const drawn = node;
 	bool repaint = false;
+
+	// The range picker's own commit -- `soundEditor.setCurrentMultiRange(...)`
+	// (`sound_editor.cpp:1928-1931`), which `MultiRangeItem` cannot do itself: it is handed a
+	// `const MenuContext&` and this is the scene's own mutable one. Applied on every tick the picker
+	// republishes its cursor, which is exactly when legacy calls it (`multi_range.cpp:53`, `:233`).
+	if (st_.range_choice >= 0) {
+		select_range(ctx_, st_.range_choice);
+		st_.range_choice = -1;
+	}
 
 	if (st_.value_changed && st_.value_node != nullptr) {
 		commit_value(*st_.value_node);

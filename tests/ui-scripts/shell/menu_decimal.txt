@@ -10,4 +10,11 @@
 400   button Back down
 420   button Back up
 440   snapshot after_back
-500   quit
+# E2 task 9: the select press above no longer ascends -- `source0_transpose` / `lpf_freq` are
+# `PatchedParam` nodes, whose `selectButtonPress` opens the source picker
+# (`gui/menu_item/patched_param.cpp:32-38`), so the GoldUpper turn at that point lands on the
+# picker and edits nothing. The Back above comes back to the leaf; this second GoldUpper turn is
+# what edits it, and keeps this script's "the value moved" assertion about the leaf's own kind.
+500   encoder GoldUpper +2
+520   snapshot after_back_gold
+600   quit

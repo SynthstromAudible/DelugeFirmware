@@ -239,25 +239,41 @@ void emit_static_children(std::string& out, const menu::Node& node, int elem_lev
 	out += "\n" + spaces(elem_level - 1) + "]";
 }
 
-/// @brief Fail closed on a `chain_targets` cycle, in the spirit of `fail_on_dynamic_children`
-///        below: print the node and stop, rather than recurse until the stack goes.
+/// @brief A chain target that is already on the walk's own path, as a `"ref"` stub.
 ///
-/// No chain in the shipped tree loops -- the longest is three hops
-/// (`arp_preset -> arp_octave_mode_to_note_mode -> arp_note_mode_from_octave_mode`) and it
-/// terminates. `assign_node_ids` and `validate.cpp`'s `collect` both survive a cycle silently
-/// (each stops at a node it has already seen), so this dump is the one walker that has to say
-/// something: a cycle is fine as *data* but has no finite nested-JSON spelling, and inventing one
-/// (a "$ref"-style stub, say) without a real case to design against is the mistake fix round 1
-/// caught for `dynamic_children`.
-[[noreturn]] void fail_on_chain_cycle(const menu::Node& node) {
-	std::fprintf(stderr,
-	             "deluge_menu_dump: node \"%s\" (id %u) is reached again through its own\n"
-	             "deluge_menu_dump: select_chain -- a chain cycle has no finite nested-JSON shape and\n"
-	             "deluge_menu_dump: this dump will not guess one. Design the shape against the real\n"
-	             "deluge_menu_dump: case (a \"$ref\"-style stub is the obvious candidate) before\n"
-	             "deluge_menu_dump: shipping a cyclic chain.\n",
-	             text_of(node.name).c_str(), menu::node_id(node));
-	std::exit(1);
+/// **The real case this dump was told to wait for.** Its predecessor here was `fail_on_chain_cycle`,
+/// which printed the node and exited: "a cycle is fine as *data* but has no finite nested-JSON
+/// spelling, and inventing one (a `$ref`-style stub, say) without a real case to design against is
+/// the mistake fix round 1 caught for `dynamic_children`". E2 task 9 supplies the case, and it is
+/// legacy's, not the port's: `patch_cable_strength::rangeMenu`'s select press opens
+/// `source_selection::rangeMenu` (`patch_cable_strength.cpp:302-306`) and that page's select press
+/// opens the strength page straight back (`source_selection/range.cpp:30-32`). A two-hop loop, on
+/// purpose -- it is how the user toggles between "which source modulates this cable's depth" and
+/// "by how much".
+///
+/// The stub carries the same `"id"` the full entry does, so a consumer resolves the loop by looking
+/// that id up in an entry it has already seen on this path; `"ref": true` is the only key that
+/// distinguishes it, and its absence everywhere else means an existing consumer sees a normal (if
+/// childless) entry rather than a schema it cannot parse. Keys stay in the file's fixed
+/// alphabetical order: `id`, `name`, `ref`, `title`, `type`.
+///
+/// `assign_node_ids` and `validate.cpp`'s `collect` need no equivalent -- each already stops at a
+/// node it has seen.
+void emit_chain_ref(std::string& out, const menu::Node& node, int brace_level) {
+	const int field_level = brace_level + 1;
+	out += "{\n";
+	out += spaces(field_level) + "\"id\": " + std::to_string(menu::node_id(node)) + ",\n";
+	out += spaces(field_level) + "\"name\": ";
+	write_json_string(out, text_of(node.name));
+	out += ",\n";
+	out += spaces(field_level) + "\"ref\": true,\n";
+	out += spaces(field_level) + "\"title\": ";
+	write_json_string(out, text_of(node.title));
+	out += ",\n";
+	out += spaces(field_level) + "\"type\": ";
+	write_json_string(out, node.kind == menu::Kind::Submenu ? "submenu" : "basic");
+	out += "\n";
+	out += spaces(brace_level) + "}";
 }
 
 /// @brief `node`'s `chain_targets` span, in the same array shape `emit_static_children` writes.
@@ -274,15 +290,17 @@ void emit_chain_targets(std::string& out, const menu::Node& node, int elem_level
 		if (t == nullptr) {
 			continue;
 		}
-		if (std::find(g_path.begin(), g_path.end(), t) != g_path.end()) {
-			fail_on_chain_cycle(*t); // noreturn
-		}
 		if (!first) {
 			out += ",\n";
 		}
 		first = false;
 		out += spaces(elem_level);
-		emit_node(out, *t, elem_level);
+		if (std::find(g_path.begin(), g_path.end(), t) != g_path.end()) {
+			emit_chain_ref(out, *t, elem_level); // a cycle -- see `emit_chain_ref`
+		}
+		else {
+			emit_node(out, *t, elem_level);
+		}
 	}
 	out += "\n" + spaces(elem_level - 1) + "]";
 }
